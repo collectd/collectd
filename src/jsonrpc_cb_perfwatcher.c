@@ -140,9 +140,9 @@ int jsonrpc_cb_pw_get_status (struct json_object *params, struct json_object *re
 				names[i][j] = '\0';
 
 				if(0 == c_avl_get(servers, names[i], &idx)) {
-						assert((long)idx > 0);
-						assert((long)idx < array_len);
-						if(times[i] > servers_status[(long)idx]) servers_status[(long)idx] = times[i];
+						assert((unsigned long)idx >= 0);
+						assert((unsigned long)idx < array_len);
+						if(times[i] > servers_status[(unsigned long)idx]) servers_status[(unsigned long)idx] = times[i];
 				}
 				sfree(names[i]);
 				names[i] = NULL;
@@ -167,9 +167,9 @@ int jsonrpc_cb_pw_get_status (struct json_object *params, struct json_object *re
 		/* Append the values to the array */
 		avl_iter = c_avl_get_iterator(servers);
 		while (c_avl_iterator_next (avl_iter, (void *) &key, (void *) &idx) == 0) {
-				if(servers_status[(long)idx] == 0) {
+				if(servers_status[(unsigned long)idx] == 0) {
 						obj =  json_object_new_string("unknown");
-				} else if(servers_status[(long)idx] > now_before_timeout) {
+				} else if(servers_status[(unsigned long)idx] > now_before_timeout) {
 						obj =  json_object_new_string("up");
 				} else {
 						obj =  json_object_new_string("down");
