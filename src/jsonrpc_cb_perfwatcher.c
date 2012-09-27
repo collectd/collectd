@@ -187,11 +187,151 @@ int jsonrpc_cb_pw_get_status (struct json_object *params, struct json_object *re
 				}
 				json_object_object_add(result_servers_object, key, obj);
 		}
+		c_avl_iterator_destroy(avl_iter);
 
 		/* Last : add the "result" to the result object */
 		json_object_object_add(result, "result", result_servers_object);
 		c_avl_destroy(servers);
 		free(servers_status);
+
+		return(0);
+}
+
+
+#define free_avl_tree_keys(tree) do {                                             \
+			c_avl_iterator_t *it;                                                 \
+			it = c_avl_get_iterator(tree);                                        \
+			while (c_avl_iterator_next (it, (void *) &key, (void *) &useless_var) == 0) { \
+					free(key);                                                    \
+			}                                                                     \
+			c_avl_iterator_destroy(it);                                           \
+	} while(0)
+
+int jsonrpc_cb_pw_get_metric (struct json_object *params, struct json_object *result, const char **errorstring) {
+		struct json_object *result_metrics_array;
+		c_avl_tree_t *servers;
+		c_avl_tree_t *metrics;
+
+		struct array_list *al;
+		int array_len;
+		int i;
+		char **names = NULL;
+		cdtime_t *times = NULL;
+		size_t number = 0;
+		int status;
+		c_avl_iterator_t *avl_iter;
+		char *key;
+		void *useless_var;
+
+		/* Parse the params */
+		if(!json_object_is_type (params, json_type_array)) {
+				return (-32602);
+		}
+
+		if(NULL == (servers = c_avl_create((int (*) (const void *, const void *)) strcmp))) {
+				return (-32603);
+		}
+		if(NULL == (metrics = c_avl_create((int (*) (const void *, const void *)) strcmp))) {
+				c_avl_destroy(servers);
+				return (-32603);
+		}
+		al = json_object_get_array(params);
+		assert(NULL != al);
+		array_len = json_object_array_length (params);
+		for(i=0; i<array_len; i++) {
+				struct json_object *element;
+				const char *str;
+				element = json_object_array_get_idx(params, i);
+				assert(NULL != element);
+				if(!json_object_is_type (element, json_type_string)) {
+						c_avl_destroy(servers);
+						c_avl_destroy(metrics);
+						return (-32602);
+				}
+				if(NULL == (str = json_object_get_string(element))) {
+						c_avl_destroy(servers);
+						c_avl_destroy(metrics);
+						return (-32603);
+
+				}
+				c_avl_insert(servers, (void*)str, (void*)NULL);
+		}
+		/* Get the names */
+		status = uc_get_names (&names, &times, &number);
+		if (status != 0)
+		{
+				DEBUG (OUTPUT_PREFIX_JSONRPC_CB_PERFWATCHER "uc_get_names failed with status %i", status);
+				c_avl_destroy(servers);
+				c_avl_destroy(metrics);
+				return (-32603);
+		}
+
+		/* Parse the cache and update the metrics list */
+		for (i = 0; i < number; i++) {
+				int j;
+
+				for(j=0; names[i][j] && names[i][j] != '/'; j++);
+				assert(names[i][j] != '\0');
+				names[i][j] = '\0';
+
+				if(
+								(0 == c_avl_get(servers, names[i], NULL)) /* if the name is in the list */
+								&& (0 != c_avl_get(metrics, names[i]+j+1, NULL)) /* and if the metric is NOT already known */
+				  ) {
+						char *m;
+						if(NULL == (m = strdup(names[i]+j+1))) {
+								c_avl_destroy(servers);
+								free_avl_tree_keys(metrics);
+								c_avl_destroy(metrics);
+								for(j=i; i<number; j++) {
+										sfree(names[j]);
+										names[j] = NULL;
+								}
+								sfree(names);
+								sfree(times);
+								return (-32603);
+
+						}
+						c_avl_insert(metrics, (void*)m, (void*)NULL);
+				}
+				sfree(names[i]);
+				names[i] = NULL;
+		}
+		sfree(names);
+		sfree(times);
+
+		/* Check the servers and build the result array */
+		if(NULL == (result_metrics_array = json_object_new_array())) {
+				DEBUG (OUTPUT_PREFIX_JSONRPC_CB_BASE "Could not create a json array");
+				c_avl_destroy(servers);
+				free_avl_tree_keys(metrics);
+				c_avl_destroy(metrics);
+				return (-32603);
+		}
+
+		/* Append the values to the array */
+		avl_iter = c_avl_get_iterator(metrics);
+		while (c_avl_iterator_next (avl_iter, (void *) &key, (void *) &useless_var) == 0) {
+				struct json_object *obj;
+
+				if(NULL == (obj =  json_object_new_string(key))) {
+						DEBUG (OUTPUT_PREFIX_JSONRPC_CB_BASE "Could not create a json string");
+						c_avl_iterator_destroy(avl_iter);
+						json_object_put(result_metrics_array);
+						c_avl_destroy(servers);
+						free_avl_tree_keys(metrics);
+						c_avl_destroy(metrics);
+						return (-32603);
+				}
+			json_object_array_add(result_metrics_array,obj);
+		}
+		c_avl_iterator_destroy(avl_iter);
+
+		/* Last : add the "result" to the result object */
+		json_object_object_add(result, "result", result_metrics_array);
+		c_avl_destroy(servers);
+		free_avl_tree_keys(metrics);
+		c_avl_destroy(metrics);
 
 		return(0);
 }
