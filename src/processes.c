@@ -1230,9 +1230,7 @@ static int ps_read_process(int pid, procstat_t *ps, char *state)
 {
 	char filename[64];
 	char f_psinfo[64], f_usage[64];
-	int i;
 	char *buffer;
-
 
 	pstatus_t *myStatus;
 	psinfo_t *myInfo;
@@ -2080,7 +2078,7 @@ static int ps_read (void)
 	procstat_t *ps_ptr;
 	char state;
 
-	char cmdline[ARG_MAX];
+	char cmdline[PRARGSZ];
 
 	ps_list_reset ();
 
