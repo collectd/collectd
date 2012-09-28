@@ -38,7 +38,6 @@
 
 #define OUTPUT_PREFIX_JSONRPC "JSONRPC plugin : "
 
-#define MAXCLIENTS      3
 #define POSTBUFFERSIZE  512
 
 #define GET             0
@@ -85,7 +84,7 @@ static struct MHD_Daemon * jsonrpc_daemon = NULL;
 static unsigned int nb_clients = 0;
 
 const char *busypage =
-  "<html><body><h1>Too many connections</h1></body></html>";
+  "{ \"jsonrpc\": \"2.0\", \"error\": {\"code\": -32400, \"message\": \"Too many connections\"}, \"id\": null}";
 
 /*
 const char *completepage =
@@ -129,11 +128,13 @@ typedef struct connection_info_struct_s
 /* valid configuration file keys */
 static const char *config_keys[] =
 {
-	"Port"
+	"Port",
+	"MaxClients"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static int httpd_server_port=-1;
+static int max_clients = 16;
 
 /*
  * Functions
@@ -385,6 +386,7 @@ static int jsonrpc_parse_data(connection_info_struct_t *con_info) {
 					l1+=2;
 				}
 				memcpy(con_info->answerstring+l1, jstr, l2+1);
+				free(jstr);
 
 			} else {
 				if(con_info->answerstring) free(con_info->answerstring);
@@ -459,8 +461,8 @@ static int jsonrpc_proceed_request_cb(void * cls,
 	if (NULL == *con_cls) {
 		connection_info_struct_t *con_info;
 
-		if (nb_clients >= MAXCLIENTS)
-			return send_page (connection, busypage, MHD_HTTP_SERVICE_UNAVAILABLE, MHD_RESPMEM_PERSISTENT, MIMETYPE_TEXTHTML);
+		if (nb_clients >= max_clients)
+			return send_page (connection, busypage, MHD_HTTP_SERVICE_UNAVAILABLE, MHD_RESPMEM_PERSISTENT, MIMETYPE_JSONRPC);
 
 
 		if(NULL == (con_info = malloc (sizeof (connection_info_struct_t)))) 
@@ -533,6 +535,17 @@ static int jsonrpc_config (const char *key, const char *val)
 		}
 		if((httpd_server_port < 1) || (httpd_server_port > 65535)) {
 			ERROR(OUTPUT_PREFIX_JSONRPC "Port '%d' should be between 1 and 65535", httpd_server_port);
+			return(-1);
+		}
+	} else if (strcasecmp (key, "max_clients") == 0) {
+		errno=0;
+		max_clients = strtol(val,NULL,10);
+		if(errno) {
+			ERROR(OUTPUT_PREFIX_JSONRPC "MaxClients '%s' is not a number or could not be parsed", val);
+			return(-1);
+		}
+		if((max_clients < 1) || (max_clients > 65535)) {
+			ERROR(OUTPUT_PREFIX_JSONRPC "MaxClients '%d' should be between 1 and 65535", max_clients);
 			return(-1);
 		}
 	} else {

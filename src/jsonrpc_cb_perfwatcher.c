@@ -29,7 +29,6 @@
 
 int jsonrpc_cb_pw_get_status (struct json_object *params, struct json_object *result, const char **errorstring) {
 		struct json_object *obj;
-		struct json_object *resultobject;
 		struct json_object *result_servers_object;
 		c_avl_tree_t *servers;
 		cdtime_t *servers_status;
@@ -49,52 +48,39 @@ int jsonrpc_cb_pw_get_status (struct json_object *params, struct json_object *re
 
 
 
-		/* Create the result object */
-		if(NULL == (resultobject = json_object_new_object())) {
-				DEBUG (OUTPUT_PREFIX_JSONRPC_CB_BASE "Could not create a json object");
-				return (-32603);
-		}
 		/* Parse the params */
 		if(!json_object_is_type (params, json_type_object)) {
-				json_object_put(resultobject);
 				return (-32602);
 		}
 		/* Params : get the "timeout" */
 		if(NULL == (obj = json_object_object_get(params, "timeout"))) {
-				json_object_put(resultobject);
 				return (-32602);
 		}
 		if(!json_object_is_type (obj, json_type_int)) {
-				json_object_put(resultobject);
 				return (-32602);
 		}
 		errno = 0;
 		timeout = json_object_get_int(obj);
 		if(errno != 0) {
-				json_object_put(resultobject);
 				return (-32602);
 		}
 		/* Params : get the "server" array
 		 * and fill the server tree and the servers_status array
 		 */
 		if(NULL == (server_array = json_object_object_get(params, "server"))) {
-				json_object_put(resultobject);
 				return (-32602);
 		}
 		if(!json_object_is_type (server_array, json_type_array)) {
-				json_object_put(resultobject);
 				return (-32602);
 		}
 
 		if(NULL == (servers = c_avl_create((int (*) (const void *, const void *)) strcmp))) {
-				json_object_put(resultobject);
 				return (-32603);
 		}
 		al = json_object_get_array(server_array);
 		assert(NULL != al);
 		array_len = json_object_array_length (server_array);
 		if(NULL == (servers_status = malloc(array_len * sizeof(*servers_status)))) {
-				json_object_put(resultobject);
 				c_avl_destroy(servers);
 				return (-32603);
 		}
@@ -105,13 +91,11 @@ int jsonrpc_cb_pw_get_status (struct json_object *params, struct json_object *re
 				element = json_object_array_get_idx(server_array, i);
 				assert(NULL != element);
 				if(!json_object_is_type (element, json_type_string)) {
-						json_object_put(resultobject);
 						c_avl_destroy(servers);
 						free(servers_status);
 						return (-32602);
 				}
 				if(NULL == (str = json_object_get_string(element))) {
-						json_object_put(resultobject);
 						c_avl_destroy(servers);
 						free(servers_status);
 						return (-32603);
@@ -124,7 +108,6 @@ int jsonrpc_cb_pw_get_status (struct json_object *params, struct json_object *re
 		if (status != 0)
 		{
 				DEBUG (OUTPUT_PREFIX_JSONRPC_CB_PERFWATCHER "uc_get_names failed with status %i", status);
-				json_object_put(resultobject);
 				c_avl_destroy(servers);
 				free(servers_status);
 				return (-32603);
@@ -158,7 +141,6 @@ int jsonrpc_cb_pw_get_status (struct json_object *params, struct json_object *re
 		/* Check the servers and build the result array */
 		if(NULL == (result_servers_object = json_object_new_object())) {
 				DEBUG (OUTPUT_PREFIX_JSONRPC_CB_BASE "Could not create a json array");
-				json_object_put(resultobject);
 				c_avl_destroy(servers);
 				free(servers_status);
 				return (-32603);
@@ -180,7 +162,6 @@ int jsonrpc_cb_pw_get_status (struct json_object *params, struct json_object *re
 						DEBUG (OUTPUT_PREFIX_JSONRPC_CB_BASE "Could not create a json string");
 						c_avl_iterator_destroy(avl_iter);
 						json_object_put(result_servers_object);
-						json_object_put(resultobject);
 						c_avl_destroy(servers);
 						free(servers_status);
 						return (-32603);
