@@ -572,6 +572,14 @@ int uc_get_names (char ***ret_names, cdtime_t **ret_times, size_t *ret_number)
   char **names = NULL;
   cdtime_t *times = NULL;
   size_t number = 0;
+  size_t size_arrays = 0;
+
+  /* Increment size for the 2 arrays of values 
+   * Because realloc is time consuming, it's better to
+   * realloc by blocks and not by units.
+   * To see the difference, set this value to 1.
+   */ 
+  #define size_increment 102400
 
   int status = 0;
 
@@ -593,23 +601,28 @@ int uc_get_names (char ***ret_names, cdtime_t **ret_times, size_t *ret_number)
     {
       cdtime_t *tmp_times;
 
-      tmp_times = (cdtime_t *) realloc (times, sizeof (cdtime_t) * (number + 1));
-      if (tmp_times == NULL)
-      {
-	status = -1;
-	break;
+      if(number <= size_arrays)  {
+        tmp_times = (cdtime_t *) realloc (times, sizeof (cdtime_t) * (size_arrays + size_increment));
+        if (tmp_times == NULL)
+        {
+          status = -1;
+          break;
+        }
+        times = tmp_times;
       }
-      times = tmp_times;
       times[number] = value->last_time;
     }
 
-    temp = (char **) realloc (names, sizeof (char *) * (number + 1));
-    if (temp == NULL)
-    {
-      status = -1;
-      break;
+    if(number <= size_arrays)  {
+      temp = (char **) realloc (names, sizeof (char *) * (size_arrays + size_increment));
+      if (temp == NULL)
+      {
+        status = -1;
+        break;
+      }
+      names = temp;
+      size_arrays += size_increment;
     }
-    names = temp;
     names[number] = strdup (key);
     if (names[number] == NULL)
     {
