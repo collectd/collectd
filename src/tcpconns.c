@@ -275,9 +275,9 @@ static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 static int port_collect_listening = 0;
 static port_entry_t *port_list_head = NULL;
 
+#if KERNEL_LINUX
 static uint32_t sequence_number = 0;
 
-#if KERNEL_LINUX
 enum
 {
   SRC_DUNNO,
