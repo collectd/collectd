@@ -1192,6 +1192,9 @@ uptime_la_LIBADD =
 if BUILD_WITH_LIBKSTAT
 uptime_la_LIBADD += -lkstat
 endif
+if BUILD_WITH_PERFSTAT
+uptime_la_LIBADD += -lperfstat
+endif
 collectd_LDADD += "-dlopen" uptime.la
 collectd_DEPENDENCIES += uptime.la
 endif
