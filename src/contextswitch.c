@@ -133,7 +133,7 @@ static int cs_read (void)
 	perfstat_cpu_total_t perfcputotal;
 
 	status = perfstat_cpu_total(NULL, &perfcputotal, sizeof(perfstat_cpu_total_t), 1);
-	if (status < 0);
+	if (status < 0)
 	{
 		char errbuf[1024];
 		ERROR ("contextswitch plugin: perfstat_cpu_total: %s",
@@ -142,7 +142,7 @@ static int cs_read (void)
 	}
 
 	cs_submit(perfcputotal.pswitch);
-	return (0);
+	status = 0;
 #endif /* defined(HAVE_PERFSTAT) */
 
 	return status;
