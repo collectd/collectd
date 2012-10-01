@@ -45,6 +45,9 @@ static rrdcreate_config_t rrdcreate_config =
 	/* timespans = */ NULL,
 	/* timespans_num = */ 0,
 
+	/* rra_types = */ NULL,
+	/* rra_types_num = */ 0,
+
 	/* consolidation_functions = */ NULL,
 	/* consolidation_functions_num = */ 0
 };
