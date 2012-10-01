@@ -366,10 +366,12 @@ static int srrd_create (const char *filename, /* {{{ */
 int cu_rrd_rra_types_set(rrdcreate_config_t *cfg, const char *value) {
   int i;
 
-  /* Alloc as much space as possible (should be not so many...) */
-  if(NULL == (cfg->rra_types = malloc(sizeof(*cfg->rra_types)*rra_types_num))) {
-    ERROR ("rrdtool plugin: malloc failed.");
-    return (-1);
+  /* Alloc as much space as possible if not done yet (should be not so many...) */
+  if(NULL == cfg->rra_types) {
+    if(NULL == (cfg->rra_types = malloc(sizeof(*cfg->rra_types)*rra_types_num))) {
+      ERROR ("rrdtool plugin: malloc failed.");
+      return (-1);
+    }
   }
 
   /* For each value in the rra_types[] array, find out if the value was defined

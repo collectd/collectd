@@ -83,7 +83,8 @@ static const char *config_keys[] =
 	"XFF",
 	"WritesPerSecond",
 	"RandomTimeout",
-	"CreateRRDOnly"
+	"CreateRRDOnly",
+	"RRA"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
