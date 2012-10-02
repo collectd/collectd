@@ -1128,15 +1128,14 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
 
   instance_list_ptr = instance_list;
 
-  value_table_ptr = (csnmp_table_values_t **) malloc (sizeof (csnmp_table_values_t *)
-      * data->values_len);
+  value_table_ptr = malloc (sizeof (*value_table_ptr) * data->values_len);
   if (value_table_ptr == NULL)
     return (-1);
   for (i = 0; i < data->values_len; i++)
     value_table_ptr[i] = value_table[i];
 
   vl.values_len = ds->ds_num;
-  vl.values = (value_t *) malloc (sizeof (value_t) * vl.values_len);
+  vl.values = malloc (sizeof (*vl.values) * vl.values_len);
   if (vl.values == NULL)
   {
     ERROR ("snmp plugin: malloc failed.");
@@ -1158,7 +1157,6 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
     /* Determine next suffix to handle. */
     if (instance_list != NULL)
     {
-      instance_list_ptr = instance_list_ptr->next;
       if (instance_list_ptr == NULL)
       {
         have_more = 0;
@@ -1170,7 +1168,6 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
     else /* no instance configured */
     {
       csnmp_table_values_t *ptr = value_table_ptr[0];
-      ptr = ptr->next;
       if (ptr == NULL)
       {
         have_more = 0;
@@ -1202,9 +1199,19 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
       }
     } /* for (i = 0; i < columns; i++) */
 
+    if (!have_more)
+      break;
+
     /* Matching the values failed. Start from the beginning again. */
-    if (!have_more || suffix_skipped)
+    if (suffix_skipped)
+    {
+      if (instance_list != NULL)
+        instance_list_ptr = instance_list_ptr->next;
+      else
+        value_table_ptr[0] = value_table_ptr[0]->next;
+
       continue;
+    }
 
     /* if we reach this line, all value_table_ptr[i] are non-NULL and are set
      * to the same subid. instance_list_ptr is either NULL or points to the
@@ -1243,6 +1250,11 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
 
     /* If we get here `vl.type_instance' and all `vl.values' have been set */
     plugin_dispatch_values (&vl);
+
+    if (instance_list != NULL)
+      instance_list_ptr = instance_list_ptr->next;
+    else
+      value_table_ptr[0] = value_table_ptr[0]->next;
   } /* while (have_more) */
 
   sfree (vl.values);
