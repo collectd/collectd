@@ -1050,6 +1050,7 @@ static int csnmp_instance_list_add (csnmp_list_instances_t **head,
   csnmp_list_instances_t *il;
   struct variable_list *vb;
   oid_t vb_name;
+  int status;
 
   /* Set vb on the last variable */
   for (vb = res->variables;
@@ -1067,8 +1068,15 @@ static int csnmp_instance_list_add (csnmp_list_instances_t **head,
     ERROR ("snmp plugin: malloc failed.");
     return (-1);
   }
-  csnmp_oid_suffix (&il->suffix, &vb_name, root);
+  memset (il, 0, sizeof (*il));
   il->next = NULL;
+
+  status = csnmp_oid_suffix (&il->suffix, &vb_name, root);
+  if (status != 0)
+  {
+    sfree (il);
+    return (status);
+  }
 
   /* Get instance name */
   if ((vb->type == ASN_OCTET_STR) || (vb->type == ASN_BIT_STR))
@@ -1435,16 +1443,17 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
     {
       csnmp_table_values_t *vt;
       oid_t vb_name;
+      oid_t suffix;
 
       csnmp_oid_init (&vb_name, vb->name, vb->name_length);
 
-      /* Check if we left the subtree */
-      if (snmp_oid_ncompare (data->values[i].oid,
-            data->values[i].oid_len,
-            vb->name, vb->name_length,
-            data->values[i].oid_len) != 0)
+      /* Calculate the current suffix. This is later used to check that the
+       * suffix is increasing. This also checks if we left the subtree */
+      status = csnmp_oid_suffix (&suffix, &vb_name, data->values + i);
+      if (status != 0)
       {
-        DEBUG ("snmp plugin: host = %s; data = %s; Value %i left its subtree.",
+        DEBUG ("snmp plugin: host = %s; data = %s; Value %i failed. "
+            "It probably left its subtree.",
             host->name, data->name, i);
         continue;
       }
@@ -1452,10 +1461,10 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
       /* Make sure the OIDs returned by the agent are increasing. Otherwise our
        * table matching algorithm will get confused. */
       if ((value_list_tail[i] != NULL)
-          && (csnmp_oid_compare (&vb_name, &value_list_tail[i]->suffix) <= 0))
+          && (csnmp_oid_compare (&suffix, &value_list_tail[i]->suffix) <= 0))
       {
         DEBUG ("snmp plugin: host = %s; data = %s; i = %i; "
-            "SUBID is not increasing.",
+            "Suffix is not increasing.",
             host->name, data->name, i);
         continue;
       }
@@ -1469,9 +1478,9 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
       }
       memset (vt, 0, sizeof (*vt));
 
-      csnmp_oid_suffix (&vt->suffix, &vb_name, data->values + i);
       vt->value = csnmp_value_list_to_value (vb, ds->ds[i].type,
           data->scale, data->shift);
+      memcpy (&vt->suffix, &suffix, sizeof (vt->suffix));
       vt->next = NULL;
 
       if (value_list_tail[i] == NULL)
