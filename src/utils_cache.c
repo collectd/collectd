@@ -578,8 +578,13 @@ int uc_get_names (char ***ret_names, cdtime_t **ret_times, size_t *ret_number)
    * Because realloc is time consuming, it's better to
    * realloc by blocks and not by units.
    * To see the difference, set this value to 1.
+   *
+   * To change this value at compile time:
+   * ./configure CFLAGS="-DLISTVAL_INCREASE=102400"
    */ 
-  #define size_increment 102400
+#ifndef LISTVAL_INCREASE
+# define LISTVAL_INCREASE 1024
+#endif
 
   int status = 0;
 
@@ -602,7 +607,7 @@ int uc_get_names (char ***ret_names, cdtime_t **ret_times, size_t *ret_number)
       cdtime_t *tmp_times;
 
       if(number <= size_arrays)  {
-        tmp_times = (cdtime_t *) realloc (times, sizeof (cdtime_t) * (size_arrays + size_increment));
+        tmp_times = (cdtime_t *) realloc (times, sizeof (cdtime_t) * (size_arrays + LISTVAL_INCREASE));
         if (tmp_times == NULL)
         {
           status = -1;
@@ -614,14 +619,14 @@ int uc_get_names (char ***ret_names, cdtime_t **ret_times, size_t *ret_number)
     }
 
     if(number <= size_arrays)  {
-      temp = (char **) realloc (names, sizeof (char *) * (size_arrays + size_increment));
+      temp = (char **) realloc (names, sizeof (char *) * (size_arrays + LISTVAL_INCREASE));
       if (temp == NULL)
       {
         status = -1;
         break;
       }
       names = temp;
-      size_arrays += size_increment;
+      size_arrays += LISTVAL_INCREASE;
     }
     names[number] = strdup (key);
     if (names[number] == NULL)
