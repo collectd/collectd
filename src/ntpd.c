@@ -52,11 +52,17 @@ static const char *config_keys[] =
 {
 	"Host",
 	"Port",
-	"ReverseLookups"
+	"ReverseLookups",
+	"IncludeUnitID"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static int do_reverse_lookups = 1;
+
+/* This option only exists for backward compatibility. If it is false and two
+ * ntpd peers use the same refclock driver, the plugin will try to write
+ * simultaneous measurements from both to the same type instance. */
+static int include_unit_id = 0;
 
 # define NTPD_DEFAULT_HOST "localhost"
 # define NTPD_DEFAULT_PORT "123"
@@ -282,6 +288,13 @@ static int ntpd_config (const char *key, const char *value)
 			do_reverse_lookups = 1;
 		else
 			do_reverse_lookups = 0;
+	}
+	else if (strcasecmp (key, "IncludeUnitID") == 0)
+	{
+		if (IS_TRUE (value))
+			include_unit_id = 1;
+		else
+			include_unit_id = 0;
 	}
 	else
 	{
@@ -852,10 +865,13 @@ static int ntpd_read (void)
 		{
 			struct in_addr  addr_obj;
 			char *addr_str;
+			int name_refclock;
 
 			refclock_id = (ntohl (ptr->srcadr) >> 8) & 0x000000FF;
 
-			if (refclock_id < refclock_names_num)
+			name_refclock = refclock_id < refclock_names_num;
+
+			if (name_refclock && include_unit_id)
 			{
 				/* The unit number is in the lowest byte. */
 				ssnprintf (peername, sizeof (peername),
@@ -863,7 +879,12 @@ static int ntpd_read (void)
 						refclock_names[refclock_id],
 						ntohl (ptr->srcadr) & 0xFF);
 			}
-			else
+			else if (name_refclock && !include_unit_id)
+			{
+				sstrncpy (peername, refclock_names[refclock_id],
+						sizeof (peername));
+			}
+			else /* !name_refclock */
 			{
 				memset ((void *) &addr_obj, '\0', sizeof (addr_obj));
 				addr_obj.s_addr = ptr->srcadr;
