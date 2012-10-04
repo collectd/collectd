@@ -580,7 +580,7 @@ int uc_get_names (char ***ret_names, cdtime_t **ret_times, size_t *ret_number)
    * To see the difference, set this value to 1.
    *
    * To change this value at compile time:
-   * ./configure CFLAGS="-DLISTVAL_INCREASE=102400"
+   * ./configure CPPFLAGS="-DLISTVAL_INCREASE=102400"
    */ 
 #ifndef LISTVAL_INCREASE
 # define LISTVAL_INCREASE 1024
