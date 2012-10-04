@@ -859,7 +859,7 @@ static int ntpd_read (void)
 			{
 				/* The unit number is in the lowest byte. */
 				ssnprintf (peername, sizeof (peername),
-						"%s%i",
+						"%s-%u",
 						refclock_names[refclock_id],
 						ntohl (ptr->srcadr) & 0xFF);
 			}
