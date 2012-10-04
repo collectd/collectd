@@ -857,8 +857,11 @@ static int ntpd_read (void)
 
 			if (refclock_id < refclock_names_num)
 			{
-				sstrncpy (peername, refclock_names[refclock_id],
-						sizeof (peername));
+				/* The unit number is in the lowest byte. */
+				ssnprintf (peername, sizeof (peername),
+						"%s%i",
+						refclock_names[refclock_id],
+						ntohl (ptr->srcadr) & 0xFF);
 			}
 			else
 			{
