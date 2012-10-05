@@ -785,7 +785,7 @@ static uint32_t ntpd_get_refclock_id (struct info_peer_summary const *peer_info)
 }
 
 static int ntpd_get_name_from_address (char *buffer, size_t buffer_size,
-		struct info_peer_summary *peer_info, _Bool do_reverse_lookup)
+		struct info_peer_summary const *peer_info, _Bool do_reverse_lookup)
 {
 	struct sockaddr_storage sa;
 	socklen_t sa_len;
@@ -846,7 +846,7 @@ static int ntpd_get_name_from_address (char *buffer, size_t buffer_size,
 } /* ntpd_get_name_from_address */
 
 static int ntpd_get_name_refclock (char *buffer, size_t buffer_size,
-		struct info_peer_summary *peer_info)
+		struct info_peer_summary const *peer_info)
 {
 	uint32_t refclock_id = ntpd_get_refclock_id (peer_info);
 	uint32_t unit_id = ntohl (peer_info->srcadr) & 0x00FF;
@@ -866,7 +866,7 @@ static int ntpd_get_name_refclock (char *buffer, size_t buffer_size,
 } /* int ntpd_get_name_refclock */
 
 static int ntpd_get_name (char *buffer, size_t buffer_size,
-		struct info_peer_summary *peer_info)
+		struct info_peer_summary const *peer_info)
 {
 	uint32_t addr = ntohl (peer_info->srcadr);
 
