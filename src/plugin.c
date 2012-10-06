@@ -96,6 +96,7 @@ static pthread_t      *read_threads = NULL;
 static int             read_threads_num = 0;
 
 static pthread_key_t   plugin_ctx_key;
+static _Bool           plugin_ctx_key_initialized = 0;
 
 /*
  * Static functions
@@ -297,7 +298,7 @@ static int plugin_load_file (char *file, uint32_t flags)
 		dlh = lt_dlopenadvise(file, advise);
 		lt_dladvise_destroy(&advise);
 	} else {
-        	dlh = lt_dlopen (file);
+		dlh = lt_dlopen (file);
 	}
 #else /* if LIBTOOL_VERSION == 1 */
 	if (flags & PLUGIN_FLAGS_GLOBAL)
@@ -803,6 +804,10 @@ int plugin_register_read (const char *name,
 	int status;
 
 	if (ctx.interval != 0) {
+		/* If ctx.interval is not zero (== use interval_g), we need to
+		 * use the "complex" read callback, because only that allows to
+		 * specify a different interval. Wrap the callback using
+		 * read_cb_wrapper(). */
 		struct timespec interval;
 		user_data_t user_data;
 
@@ -1999,6 +2004,7 @@ static plugin_ctx_t *plugin_ctx_create (void)
 	}
 
 	*ctx = ctx_init;
+	assert (plugin_ctx_key_initialized);
 	pthread_setspecific (plugin_ctx_key, ctx);
 	DEBUG("Created new plugin context.");
 	return (ctx);
@@ -2007,12 +2013,14 @@ static plugin_ctx_t *plugin_ctx_create (void)
 void plugin_init_ctx (void)
 {
 	pthread_key_create (&plugin_ctx_key, plugin_ctx_destructor);
+	plugin_ctx_key_initialized = 1;
 } /* void plugin_init_ctx */
 
 plugin_ctx_t plugin_get_ctx (void)
 {
 	plugin_ctx_t *ctx;
 
+	assert (plugin_ctx_key_initialized);
 	ctx = pthread_getspecific (plugin_ctx_key);
 
 	if (ctx == NULL) {
@@ -2030,6 +2038,7 @@ plugin_ctx_t plugin_set_ctx (plugin_ctx_t ctx)
 	plugin_ctx_t *c;
 	plugin_ctx_t old;
 
+	assert (plugin_ctx_key_initialized);
 	c = pthread_getspecific (plugin_ctx_key);
 
 	if (c == NULL) {
