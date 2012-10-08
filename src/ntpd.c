@@ -322,6 +322,18 @@ static void ntpd_submit (char *type, char *type_inst, double value)
 	plugin_dispatch_values (&vl);
 }
 
+/* Each time a peer is polled, ntpd shifts the reach register to the left and
+ * sets the LSB based on whether the peer was reachable. If the LSB is zero,
+ * the values are out of date. */
+static void ntpd_submit_reach (char *type, char *type_inst, uint8_t reach,
+		double value)
+{
+	if (!(reach & 1))
+		value = NAN;
+
+	ntpd_submit (type, type_inst, value);
+}
+
 static int ntpd_connect (void)
 {
 	char *host;
@@ -971,6 +983,7 @@ static int ntpd_read (void)
 		DEBUG ("peer %i:\n"
 				"  peername   = %s\n"
 				"  srcadr     = 0x%08x\n"
+				"  reach      = 0%03o\n"
 				"  delay      = %f\n"
 				"  offset_int = %i\n"
 				"  offset_frc = %i\n"
@@ -979,6 +992,7 @@ static int ntpd_read (void)
 				i,
 				peername,
 				ntohl (ptr->srcadr),
+				ptr->reach,
 				ntpd_read_fp (ptr->delay),
 				ntohl (ptr->offset_int),
 				ntohl (ptr->offset_frc),
@@ -986,10 +1000,13 @@ static int ntpd_read (void)
 				ntpd_read_fp (ptr->dispersion));
 
 		if (refclock_id != 1) /* not the system clock (offset will always be zero.. */
-			ntpd_submit ("time_offset", peername, offset);
-		ntpd_submit ("time_dispersion", peername, ntpd_read_fp (ptr->dispersion));
+			ntpd_submit_reach ("time_offset", peername, ptr->reach,
+					offset);
+		ntpd_submit_reach ("time_dispersion", peername, ptr->reach,
+				ntpd_read_fp (ptr->dispersion));
 		if (refclock_id == 0) /* not a reference clock */
-			ntpd_submit ("delay", peername, ntpd_read_fp (ptr->delay));
+			ntpd_submit_reach ("delay", peername, ptr->reach,
+					ntpd_read_fp (ptr->delay));
 	}
 
 	free (ps);
