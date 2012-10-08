@@ -512,6 +512,7 @@ int c_avl_insert (c_avl_tree_t *t, void *key, void *value)
 	{
 		new->parent = NULL;
 		t->root = new;
+		t->size = 1;
 		return (0);
 	}
 
