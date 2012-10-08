@@ -574,18 +574,6 @@ int uc_get_names (char ***ret_names, cdtime_t **ret_times, size_t *ret_number)
   size_t number = 0;
   size_t size_arrays = 0;
 
-  /* Increment size for the 2 arrays of values 
-   * Because realloc is time consuming, it's better to
-   * realloc by blocks and not by units.
-   * To see the difference, set this value to 1.
-   *
-   * To change this value at compile time:
-   * ./configure CPPFLAGS="-DLISTVAL_INCREASE=102400"
-   */ 
-#ifndef LISTVAL_INCREASE
-# define LISTVAL_INCREASE 1024
-#endif
-
   int status = 0;
 
   if ((ret_names == NULL) || (ret_number == NULL))
@@ -598,7 +586,7 @@ int uc_get_names (char ***ret_names, cdtime_t **ret_times, size_t *ret_number)
   {
     /* Handle the "no values" case here, to avoid the error message when
      * calloc() returns NULL. */
-    pthread_mutex_lock (&cache_lock);
+    pthread_mutex_unlock (&cache_lock);
     return (0);
   }
 
@@ -609,7 +597,7 @@ int uc_get_names (char ***ret_names, cdtime_t **ret_times, size_t *ret_number)
     ERROR ("uc_get_names: calloc failed.");
     sfree (names);
     sfree (times);
-    pthread_mutex_lock (&cache_lock);
+    pthread_mutex_unlock (&cache_lock);
     return (ENOMEM);
   }
 
