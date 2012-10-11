@@ -1392,3 +1392,8 @@ install-exec-hook:
 	$(INSTALL) -m 0644 $(srcdir)/types.db $(DESTDIR)$(pkgdatadir)/types.db;
 	$(INSTALL) -m 0644 $(srcdir)/postgresql_default.conf \
 		$(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
+
+uninstall-hook:
+	rm -f $(DESTDIR)$(pkgdatadir)/types.db;
+	rm -f $(DESTDIR)$(sysconfdir)/collectd.conf
+	rm -f $(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
