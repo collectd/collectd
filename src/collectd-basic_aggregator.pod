@@ -6,35 +6,44 @@ collectd-basic_aggregator - Documentation of collectd's C<basic_aggregator plugi
 
   LoadPlugin basic_aggregator
   <Plugin basic_aggregator>
-	<aggregator>
-		resultvalue "aggregator_0/load/load"
-		operation "AVG"
-		operation "SUM"
-		<valuelist manual>
-			type	"host1/load/load"
-			type	"host2/load/load"
-		</valuelist>
-	</aggregator>
-	<aggregator>
-		resultvalue "aggregator_1/cpu-total/cpug"
-		operation "AVG"
-		operation "SUM"
-		<valuelist manual>
-			alltypesof	"host10/cpu-total/cpu"
-			alltypesof	"host20/cpu-total/cpu"
-		</valuelist>
-	</aggregator>
-    ...
+      Aggregators_config_file "/etc/collectd/aggregator.conf"
   </Plugin>
 
 =head1 DESCRIPTION
 
 The C<basic_aggregator plugin> aggregates DS of types or types instances and
 reinject the result as a new value.
+It has a separate configuration file to allow you to change aggregators definitions at runtime.
+If the date of the configuration file changes, it will be read again. So you may not write directly into it, but write
+into another file and then move (overwrite) the original file.
+
+=head1 AGGREGATOR CONFIGURATION FILE EXAMPLE
+
+  <aggregator>
+  	resultvalue "aggregator_0/load/load"
+  	operation "AVG"
+  	operation "SUM"
+  	<valuelist manual>
+  		type	"host1/load/load"
+  		type	"host2/load/load"
+  	</valuelist>
+  </aggregator>
+  <aggregator>
+  	resultvalue "aggregator_1/cpu-total/cpug"
+  	operation "AVG"
+  	operation "SUM"
+  	<valuelist manual>
+  		alltypesof	"host10/cpu-total/cpu"
+  		alltypesof	"host20/cpu-total/cpu"
+  	</valuelist>
+  </aggregator>
+  ...
 
 =head1 CONFIGURATION
 
-The configuration file contains B<aggregator> blocks to define each aggregator.
+With B<Aggregators_config_file>, the configuration block defines where the aggregators configuration file is.
+
+The configuration file specified in the B<Aggregators_config_file> value contains B<aggregator> blocks to define each aggregator.
 
 =head2 The B<aggregator> block
 
