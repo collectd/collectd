@@ -147,8 +147,8 @@ static int PluginData_init(PyObject *s, PyObject *args, PyObject *kwds) {
 	static char *kwlist[] = {"type", "plugin_instance", "type_instance",
 			"plugin", "host", "time", NULL};
 	
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|etetetetetd", kwlist, NULL, &type,
-			NULL, &plugin_instance, NULL, &type_instance, NULL, &plugin, NULL, &host, &time))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|sssssd", kwlist, &type,
+			&plugin_instance, &type_instance, &plugin, &host, &time))
 		return -1;
 	
 	if (type[0] != 0 && plugin_get_ds(type) == NULL) {
@@ -357,9 +357,9 @@ static int Values_init(PyObject *s, PyObject *args, PyObject *kwds) {
 	static char *kwlist[] = {"type", "values", "plugin_instance", "type_instance",
 			"plugin", "host", "time", "interval", "meta", NULL};
 	
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|etOetetetetddO", kwlist,
-			NULL, &type, &values, NULL, &plugin_instance, NULL, &type_instance,
-			NULL, &plugin, NULL, &host, &time, &interval, &meta))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|sOssssddO", kwlist,
+			&type, &values, &plugin_instance, &type_instance,
+			&plugin, &host, &time, &interval, &meta))
 		return -1;
 	
 	if (type[0] != 0 && plugin_get_ds(type) == NULL) {
@@ -498,9 +498,9 @@ static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 	
 	static char *kwlist[] = {"type", "values", "plugin_instance", "type_instance",
 			"plugin", "host", "time", "interval", "meta", NULL};
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|etOetetetetddO", kwlist,
-			NULL, &type, &values, NULL, &plugin_instance, NULL, &type_instance,
-			NULL, &plugin, NULL, &host, &time, &interval, &meta))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|sOssssddO", kwlist,
+			&type, &values, &plugin_instance, &type_instance,
+			&plugin, &host, &time, &interval, &meta))
 		return NULL;
 
 	if (type[0] == 0) {
@@ -610,9 +610,9 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
 	
 	static char *kwlist[] = {"destination", "type", "values", "plugin_instance", "type_instance",
 			"plugin", "host", "time", "interval", "meta", NULL};
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|etOetetetetddO", kwlist,
-			NULL, &type, &values, NULL, &plugin_instance, NULL, &type_instance,
-			NULL, &plugin, NULL, &host, &time, &interval, &meta))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|sOssssddO", kwlist,
+			&type, &values, &plugin_instance, &type_instance,
+			&plugin, &host, &time, &interval, &meta))
 		return NULL;
 
 	if (type[0] == 0) {
@@ -832,9 +832,9 @@ static int Notification_init(PyObject *s, PyObject *args, PyObject *kwds) {
 	static char *kwlist[] = {"type", "message", "plugin_instance", "type_instance",
 			"plugin", "host", "time", "severity", NULL};
 	
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|etetetetetetdi", kwlist,
-			NULL, &type, NULL, &message, NULL, &plugin_instance, NULL, &type_instance,
-			NULL, &plugin, NULL, &host, &time, &severity))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|ssssssdi", kwlist,
+			&type, &message, &plugin_instance, &type_instance,
+			&plugin, &host, &time, &severity))
 		return -1;
 	
 	if (type[0] != 0 && plugin_get_ds(type) == NULL) {
@@ -869,9 +869,9 @@ static PyObject *Notification_dispatch(Notification *self, PyObject *args, PyObj
 	
 	static char *kwlist[] = {"type", "message", "plugin_instance", "type_instance",
 			"plugin", "host", "time", "severity", NULL};
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|etetetetetetdi", kwlist,
-			NULL, &type, NULL, &message, NULL, &plugin_instance, NULL, &type_instance,
-			NULL, &plugin, NULL, &host, &t, &severity))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|ssssssdi", kwlist,
+			&type, &message, &plugin_instance, &type_instance,
+			&plugin, &host, &t, &severity))
 		return NULL;
 
 	if (type[0] == 0) {
