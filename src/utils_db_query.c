@@ -193,7 +193,7 @@ static int udb_config_set_uint (unsigned int *ret_value, /* {{{ */
 /*
  * Legacy result private functions
  */
-static void udb_legacy_result_finish_result (const udb_result_t const *r, /* {{{ */
+static void udb_legacy_result_finish_result (udb_result_t const *r, /* {{{ */
     udb_result_preparation_area_t *prep_area)
 {
   if ((r == NULL) || (prep_area))
@@ -207,7 +207,7 @@ static void udb_legacy_result_finish_result (const udb_result_t const *r, /* {{{
 static int udb_legacy_result_handle_result (udb_result_t *r, /* {{{ */
     udb_query_preparation_area_t *q_area,
     udb_result_preparation_area_t *r_area,
-    const udb_query_t const *q, char **column_values)
+    udb_query_t const *q, char **column_values)
 {
   value_list_t vl = VALUE_LIST_INIT;
   value_t value;
@@ -247,7 +247,7 @@ static int udb_legacy_result_handle_result (udb_result_t *r, /* {{{ */
   return (0);
 } /* }}} int udb_legacy_result_handle_result */
 
-static int udb_legacy_result_prepare_result (const udb_result_t const *r, /* {{{ */
+static int udb_legacy_result_prepare_result (udb_result_t const *r, /* {{{ */
     udb_result_preparation_area_t *prep_area,
     char **column_names, size_t column_num)
 {
@@ -362,7 +362,7 @@ static int udb_legacy_result_create (const char *query_name, /* {{{ */
  */
 static int udb_result_submit (udb_result_t *r, /* {{{ */
     udb_result_preparation_area_t *r_area,
-    const udb_query_t const *q, udb_query_preparation_area_t *q_area)
+    udb_query_t const *q, udb_query_preparation_area_t *q_area)
 {
   value_list_t vl = VALUE_LIST_INIT;
   size_t i;
@@ -438,7 +438,7 @@ static int udb_result_submit (udb_result_t *r, /* {{{ */
   return (0);
 } /* }}} void udb_result_submit */
 
-static void udb_result_finish_result (const udb_result_t const *r, /* {{{ */
+static void udb_result_finish_result (udb_result_t const *r, /* {{{ */
     udb_result_preparation_area_t *prep_area)
 {
   if ((r == NULL) || (prep_area == NULL))
@@ -462,7 +462,7 @@ static void udb_result_finish_result (const udb_result_t const *r, /* {{{ */
 static int udb_result_handle_result (udb_result_t *r, /* {{{ */
     udb_query_preparation_area_t *q_area,
     udb_result_preparation_area_t *r_area,
-    const udb_query_t const *q, char **column_values)
+    udb_query_t const *q, char **column_values)
 {
   size_t i;
 
@@ -483,7 +483,7 @@ static int udb_result_handle_result (udb_result_t *r, /* {{{ */
   return udb_result_submit (r, r_area, q, q_area);
 } /* }}} int udb_result_handle_result */
 
-static int udb_result_prepare_result (const udb_result_t const *r, /* {{{ */
+static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
     udb_result_preparation_area_t *prep_area,
     char **column_names, size_t column_num)
 {
@@ -1065,7 +1065,7 @@ int udb_query_check_version (udb_query_t *q, unsigned int version) /* {{{ */
   return (1);
 } /* }}} int udb_query_check_version */
 
-void udb_query_finish_result (const udb_query_t const *q, /* {{{ */
+void udb_query_finish_result (udb_query_t const *q, /* {{{ */
     udb_query_preparation_area_t *prep_area)
 {
   udb_result_preparation_area_t *r_area;
@@ -1091,7 +1091,7 @@ void udb_query_finish_result (const udb_query_t const *q, /* {{{ */
   }
 } /* }}} void udb_query_finish_result */
 
-int udb_query_handle_result (const udb_query_t const *q, /* {{{ */
+int udb_query_handle_result (udb_query_t const *q, /* {{{ */
     udb_query_preparation_area_t *prep_area, char **column_values)
 {
   udb_result_preparation_area_t *r_area;
@@ -1144,7 +1144,7 @@ int udb_query_handle_result (const udb_query_t const *q, /* {{{ */
   return (0);
 } /* }}} int udb_query_handle_result */
 
-int udb_query_prepare_result (const udb_query_t const *q, /* {{{ */
+int udb_query_prepare_result (udb_query_t const *q, /* {{{ */
     udb_query_preparation_area_t *prep_area,
     const char *host, const char *plugin, const char *db_name,
     char **column_names, size_t column_num, int interval)
