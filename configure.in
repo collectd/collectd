@@ -2986,7 +2986,7 @@ AM_CONDITIONAL(BUILD_WITH_LIBPCAP, test "x$with_libpcap" = "xyes")
 perl_interpreter="perl"
 AC_ARG_WITH(libperl, [AS_HELP_STRING([--with-libperl@<:@=PREFIX@:>@], [Path to libperl.])],
 [
- 	if test -x "$withval"
+	if test -f "$withval" && test -x "$withval"
 	then
 		perl_interpreter="$withval"
 		with_libperl="yes"
