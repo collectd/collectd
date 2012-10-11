@@ -24,6 +24,7 @@
 #include "common.h"
 #include "plugin.h"
 #include "utils_cache.h"
+#include "jsonrpc.h"
 
 #include <json/json.h>
 
@@ -56,7 +57,7 @@ int jsonrpc_cb_listval (struct json_object *params, struct json_object *result, 
 		*errorstring = NULL;
 
 /* Get the names */
-		status = uc_get_names (&names, &times, &number);
+		status = jsonrpc_local_uc_get_names (&names, &times, &number);
 		if (status != 0)
 		{
 				DEBUG (OUTPUT_PREFIX_JSONRPC_CB_BASE "uc_get_names failed with status %i", status);
@@ -67,14 +68,14 @@ int jsonrpc_cb_listval (struct json_object *params, struct json_object *result, 
 /* Create the result object */
 		if(NULL == (resultobject = json_object_new_object())) {
 				DEBUG (OUTPUT_PREFIX_JSONRPC_CB_BASE "Could not create a json object");
-				jsonrpc_free_everything_and_return (-32603);
+				jsonrpc_free_everything_and_return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
 		}
 
 /* Insert the nb of values in the result object */
 		if(NULL == (obj = json_object_new_int((int)number))) {
 				DEBUG (OUTPUT_PREFIX_JSONRPC_CB_BASE "Could not create a json object");
 				json_object_put(resultobject);
-				jsonrpc_free_everything_and_return (-32603);
+				jsonrpc_free_everything_and_return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
 		}
 		json_object_object_add(resultobject, "nb", obj);
 
@@ -82,7 +83,7 @@ int jsonrpc_cb_listval (struct json_object *params, struct json_object *result, 
 		if(NULL == (array = json_object_new_array())) {
 				DEBUG (OUTPUT_PREFIX_JSONRPC_CB_BASE "Could not create a json array");
 				json_object_put(resultobject);
-				jsonrpc_free_everything_and_return (-32603);
+				jsonrpc_free_everything_and_return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
 		}
 
 /* Append the values to the array */
@@ -93,14 +94,14 @@ int jsonrpc_cb_listval (struct json_object *params, struct json_object *result, 
 				DEBUG (OUTPUT_PREFIX_JSONRPC_CB_BASE "Could not create a json array");
 						json_object_put(array);
 				json_object_put(resultobject);
-				jsonrpc_free_everything_and_return (-32603);
+				jsonrpc_free_everything_and_return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
 		}
 				if(NULL == (obj = json_object_new_double(CDTIME_T_TO_DOUBLE (times[i])))) {
 						DEBUG (OUTPUT_PREFIX_JSONRPC_CB_BASE "Could not create a json object");
 						json_object_put(array);
 						json_object_put(obj_array);
 						json_object_put(resultobject);
-						jsonrpc_free_everything_and_return (-32603);
+						jsonrpc_free_everything_and_return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
 				}
 			json_object_array_add(obj_array,obj);
 				if(NULL == (obj = json_object_new_string(names[i]))) {
@@ -108,7 +109,7 @@ int jsonrpc_cb_listval (struct json_object *params, struct json_object *result, 
 						json_object_put(array);
 						json_object_put(obj_array);
 						json_object_put(resultobject);
-						jsonrpc_free_everything_and_return (-32603);
+						jsonrpc_free_everything_and_return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
 				}
 			json_object_array_add(obj_array,obj);
 			json_object_array_add(array,obj_array);
@@ -228,7 +229,7 @@ int jsonrpc_cb_getval (struct json_object *params, struct json_object *result, c
 		/* Create the result object */
 		if(NULL == (resultobject = json_object_new_object())) {
 				DEBUG (OUTPUT_PREFIX_JSONRPC_CB_BASE "Could not create a json object");
-				return (-32603);
+				return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
 		}
 		/* Parse the params */
 		if(json_object_is_type (params, json_type_array)) {
@@ -251,7 +252,7 @@ int jsonrpc_cb_getval (struct json_object *params, struct json_object *result, c
 								json_object_object_add(resultobject, str, obj);
 						} else {
 								json_object_put(resultobject);
-								return (-32602);
+								return (JSONRPC_ERROR_CODE_32602_INVALID_PARAMS);
 						}
 				}
 		} else if(json_object_is_type (params, json_type_object)) {
@@ -266,7 +267,7 @@ int jsonrpc_cb_getval (struct json_object *params, struct json_object *result, c
 								json_object_object_add(resultobject, str, obj);
 						} else {
 								json_object_put(resultobject);
-								return (-32602);
+								return (JSONRPC_ERROR_CODE_32602_INVALID_PARAMS);
 						}
 				}
 		} else if(json_object_is_type (params, json_type_string)) {
@@ -277,7 +278,7 @@ int jsonrpc_cb_getval (struct json_object *params, struct json_object *result, c
 			json_object_object_add(resultobject, str, obj);
 		} else {
 				json_object_put(resultobject);
-				return (-32602);
+				return (JSONRPC_ERROR_CODE_32602_INVALID_PARAMS);
 		}
 
 		/* Last : add the "result" to the result object */

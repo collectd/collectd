@@ -24,6 +24,7 @@
 #include "utils_cache.h"
 #include "common.h"
 #include "plugin.h"
+#include "jsonrpc.h"
 #include <json/json.h>
 #define OUTPUT_PREFIX_JSONRPC_CB_PERFWATCHER "JSONRPC plugin (perfwatcher) : "
 
@@ -50,39 +51,39 @@ int jsonrpc_cb_pw_get_status (struct json_object *params, struct json_object *re
 
 		/* Parse the params */
 		if(!json_object_is_type (params, json_type_object)) {
-				return (-32602);
+				return (JSONRPC_ERROR_CODE_32602_INVALID_PARAMS);
 		}
 		/* Params : get the "timeout" */
 		if(NULL == (obj = json_object_object_get(params, "timeout"))) {
-				return (-32602);
+				return (JSONRPC_ERROR_CODE_32602_INVALID_PARAMS);
 		}
 		if(!json_object_is_type (obj, json_type_int)) {
-				return (-32602);
+				return (JSONRPC_ERROR_CODE_32602_INVALID_PARAMS);
 		}
 		errno = 0;
 		timeout = json_object_get_int(obj);
 		if(errno != 0) {
-				return (-32602);
+				return (JSONRPC_ERROR_CODE_32602_INVALID_PARAMS);
 		}
 		/* Params : get the "server" array
 		 * and fill the server tree and the servers_status array
 		 */
 		if(NULL == (server_array = json_object_object_get(params, "server"))) {
-				return (-32602);
+				return (JSONRPC_ERROR_CODE_32602_INVALID_PARAMS);
 		}
 		if(!json_object_is_type (server_array, json_type_array)) {
-				return (-32602);
+				return (JSONRPC_ERROR_CODE_32602_INVALID_PARAMS);
 		}
 
 		if(NULL == (servers = c_avl_create((int (*) (const void *, const void *)) strcmp))) {
-				return (-32603);
+				return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
 		}
 		al = json_object_get_array(server_array);
 		assert(NULL != al);
 		array_len = json_object_array_length (server_array);
 		if(NULL == (servers_status = malloc(array_len * sizeof(*servers_status)))) {
 				c_avl_destroy(servers);
-				return (-32603);
+				return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
 		}
 		for(i=0; i<array_len; i++) {
 				struct json_object *element;
@@ -93,24 +94,24 @@ int jsonrpc_cb_pw_get_status (struct json_object *params, struct json_object *re
 				if(!json_object_is_type (element, json_type_string)) {
 						c_avl_destroy(servers);
 						free(servers_status);
-						return (-32602);
+						return (JSONRPC_ERROR_CODE_32602_INVALID_PARAMS);
 				}
 				if(NULL == (str = json_object_get_string(element))) {
 						c_avl_destroy(servers);
 						free(servers_status);
-						return (-32603);
+						return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
 
 				}
 				c_avl_insert(servers, (void*)str, (void*)NULL+i);
 		}
 		/* Get the names */
-		status = uc_get_names (&names, &times, &number);
+		status = jsonrpc_local_uc_get_names (&names, &times, &number);
 		if (status != 0)
 		{
 				DEBUG (OUTPUT_PREFIX_JSONRPC_CB_PERFWATCHER "uc_get_names failed with status %i", status);
 				c_avl_destroy(servers);
 				free(servers_status);
-				return (-32603);
+				return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
 		}
 
 		/* Parse the cache and update the servers_status array*/
@@ -143,7 +144,7 @@ int jsonrpc_cb_pw_get_status (struct json_object *params, struct json_object *re
 				DEBUG (OUTPUT_PREFIX_JSONRPC_CB_BASE "Could not create a json array");
 				c_avl_destroy(servers);
 				free(servers_status);
-				return (-32603);
+				return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
 		}
 
 		/* Append the values to the array */
@@ -164,7 +165,7 @@ int jsonrpc_cb_pw_get_status (struct json_object *params, struct json_object *re
 						json_object_put(result_servers_object);
 						c_avl_destroy(servers);
 						free(servers_status);
-						return (-32603);
+						return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
 				}
 				json_object_object_add(result_servers_object, key, obj);
 		}
@@ -206,15 +207,15 @@ int jsonrpc_cb_pw_get_metric (struct json_object *params, struct json_object *re
 
 		/* Parse the params */
 		if(!json_object_is_type (params, json_type_array)) {
-				return (-32602);
+				return (JSONRPC_ERROR_CODE_32602_INVALID_PARAMS);
 		}
 
 		if(NULL == (servers = c_avl_create((int (*) (const void *, const void *)) strcmp))) {
-				return (-32603);
+				return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
 		}
 		if(NULL == (metrics = c_avl_create((int (*) (const void *, const void *)) strcmp))) {
 				c_avl_destroy(servers);
-				return (-32603);
+				return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
 		}
 		al = json_object_get_array(params);
 		assert(NULL != al);
@@ -227,24 +228,24 @@ int jsonrpc_cb_pw_get_metric (struct json_object *params, struct json_object *re
 				if(!json_object_is_type (element, json_type_string)) {
 						c_avl_destroy(servers);
 						c_avl_destroy(metrics);
-						return (-32602);
+						return (JSONRPC_ERROR_CODE_32602_INVALID_PARAMS);
 				}
 				if(NULL == (str = json_object_get_string(element))) {
 						c_avl_destroy(servers);
 						c_avl_destroy(metrics);
-						return (-32603);
+						return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
 
 				}
 				c_avl_insert(servers, (void*)str, (void*)NULL);
 		}
 		/* Get the names */
-		status = uc_get_names (&names, &times, &number);
+		status = jsonrpc_local_uc_get_names (&names, &times, &number);
 		if (status != 0)
 		{
 				DEBUG (OUTPUT_PREFIX_JSONRPC_CB_PERFWATCHER "uc_get_names failed with status %i", status);
 				c_avl_destroy(servers);
 				c_avl_destroy(metrics);
-				return (-32603);
+				return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
 		}
 
 		/* Parse the cache and update the metrics list */
@@ -270,7 +271,7 @@ int jsonrpc_cb_pw_get_metric (struct json_object *params, struct json_object *re
 								}
 								sfree(names);
 								sfree(times);
-								return (-32603);
+								return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
 
 						}
 						c_avl_insert(metrics, (void*)m, (void*)NULL);
@@ -287,7 +288,7 @@ int jsonrpc_cb_pw_get_metric (struct json_object *params, struct json_object *re
 				c_avl_destroy(servers);
 				free_avl_tree_keys(metrics);
 				c_avl_destroy(metrics);
-				return (-32603);
+				return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
 		}
 
 		/* Append the values to the array */
@@ -302,7 +303,7 @@ int jsonrpc_cb_pw_get_metric (struct json_object *params, struct json_object *re
 						c_avl_destroy(servers);
 						free_avl_tree_keys(metrics);
 						c_avl_destroy(metrics);
-						return (-32603);
+						return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
 				}
 			json_object_array_add(result_metrics_array,obj);
 		}

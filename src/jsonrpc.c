@@ -24,10 +24,13 @@
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
+#include "utils_cache.h"
+#include "jsonrpc.h"
 
 #include <microhttpd.h>
 
 #include <json/json.h>
+#include <pthread.h>
 
 #ifdef JSONRPC_USE_BASE
 #include "jsonrpc_cb_base.h"
@@ -58,7 +61,21 @@ typedef enum {
 	JRE_WWW_FORM_URLENCODED
 } jsonrequest_encoding_e;
 
+typedef enum {
+	CLOSE_CONNECTION_NO,
+	CLOSE_CONNECTION_YES
+} close_connection_e;
+
+typedef enum {
+	JSONRPC_REQUEST_SUCCEEDED,
+	JSONRPC_REQUEST_FAILED
+} jsonrpc_request_result_e;
+
 /* Folks without pthread will need to disable this plugin. */
+
+static pthread_mutex_t local_cache_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t update_counters = PTHREAD_MUTEX_INITIALIZER;
+
 
 /*
  * Private variables
@@ -82,6 +99,9 @@ static jsonrpc_method_cb_definition_t jsonrpc_methods_table [] =
 
 static struct MHD_Daemon * jsonrpc_daemon = NULL;
 static unsigned int nb_clients = 0;
+static unsigned int nb_new_connections = 0;
+static unsigned int nb_jsonrpc_request_failed = 0;
+static unsigned int nb_jsonrpc_request_success = 0;
 
 const char *busypage =
   "{ \"jsonrpc\": \"2.0\", \"error\": {\"code\": -32400, \"message\": \"Too many connections\"}, \"id\": null}";
@@ -129,23 +149,144 @@ typedef struct connection_info_struct_s
 static const char *config_keys[] =
 {
 	"Port",
-	"MaxClients"
+	"MaxClients",
+	"JsonrpcCacheExpirationTime"
+
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static int httpd_server_port=-1;
 static int max_clients = 16;
 
+static char **local_cache_names = NULL;
+static cdtime_t *local_cache_times = NULL;
+static size_t local_cache_number = 0;
+static time_t local_cache_update_time = 0;
+#define jsonrpc_cache_expiration_time_default 60
+static time_t jsonrpc_cache_expiration_time = jsonrpc_cache_expiration_time_default;
+
 /*
  * Functions
  */
 
+int jsonrpc_local_uc_get_names(char ***ret_names, cdtime_t **ret_times, size_t *ret_number) {
+	static int local_cache_reader = 0;
+	static short local_cache_writer = 0;
+	short update_needed = 0;
+	short read_is_possible = 0;
+	char **local_names;
+	cdtime_t *local_times;
+	time_t now;
+	int i;
+
+	/* Check if update is needed.
+	 * If yes, and if nobody updated the local_cache_writer lock,
+	 * prepare to update.
+	 */
+	pthread_mutex_lock (&local_cache_lock);
+	update_needed = 0;
+	if(local_cache_writer <= 0) {
+		now = time(NULL);
+		if(local_cache_update_time + jsonrpc_cache_expiration_time < now) {
+			update_needed = 1;      /* local variable : we got the lock */
+			local_cache_writer = 1; /* shared variable : someone got the lock */
+		}
+	}
+	pthread_mutex_unlock (&local_cache_lock);
+
+/* Check if update is needed. If we have the lock, no need to do it with the
+ * mutex locked.
+ */
+	if(update_needed) {
+		while(local_cache_reader > 0) sleep(1); /* First : wait until there is no reader */
+
+		for(i=0; i<local_cache_number; i++) free(local_cache_names[i]);
+		free(local_cache_names);
+		free(local_cache_times);
+		local_cache_number=0;
+		if(0 != uc_get_names(&local_cache_names,&local_cache_times,&local_cache_number)) {
+			local_cache_names=NULL;
+			local_cache_times=NULL;
+			local_cache_number = 0;
+			local_cache_update_time = 0;
+			local_cache_writer = 0;
+			return(-1);
+		}
+		local_cache_update_time = time(NULL);
+		local_cache_writer = 0;
+	}
+
+/* Check if we can read duplicate the date.
+ * Wait until local_cache_writer is nul (not being updated)
+ * and then, increment the number of readers.
+ */
+	read_is_possible = 0;
+	while(0 == read_is_possible) {
+		pthread_mutex_lock (&local_cache_lock);
+		if(0 == local_cache_writer) {
+			read_is_possible = 1; /* local variable */
+			local_cache_reader++; /* shared variable */
+		}
+		pthread_mutex_unlock (&local_cache_lock);
+	}
+
+	/* Duplicate the tree */
+	if(NULL == (local_names = calloc(local_cache_number,sizeof(local_names)))) {
+		*ret_names=NULL;
+		*ret_times=NULL;
+		*ret_number=0;
+		pthread_mutex_lock (&local_cache_lock);
+		local_cache_reader--; /* shared variable */
+		pthread_mutex_unlock (&local_cache_lock);
+		return(-1);
+	}
+	if(NULL == (local_times = calloc(local_cache_number,sizeof(local_times)))) {
+		free(local_names);
+		*ret_names=NULL;
+		*ret_times=NULL;
+		*ret_number=0;
+		pthread_mutex_lock (&local_cache_lock);
+		local_cache_reader--; /* shared variable */
+		pthread_mutex_unlock (&local_cache_lock);
+		return(-1);
+	}
+	for(i=0; i<local_cache_number; i++) {
+		if(NULL == (local_names[i] = strdup(local_cache_names[i]))) {
+			int j;
+			for(j=0; j<i; j++) free(local_names[j]);
+			free(local_names);
+			free(local_times);
+			*ret_names=NULL;
+			*ret_times=NULL;
+			*ret_number=0;
+		}
+		local_times[i] = local_cache_times[i];
+	}
+	pthread_mutex_lock (&local_cache_lock);
+	local_cache_reader--;
+	pthread_mutex_unlock (&local_cache_lock);
+	*ret_names=local_names;
+	*ret_times=local_times;
+	*ret_number=local_cache_number;
+
+	return(0);
+}
+
 static int
 send_page (struct MHD_Connection *connection, const char *page,
-		int status_code, enum MHD_ResponseMemoryMode mode, const char *mimetype)
+		int status_code, enum MHD_ResponseMemoryMode mode, const char *mimetype,
+		close_connection_e close_connection,jsonrpc_request_result_e result)
 {
 	int ret;
 	struct MHD_Response *response;
+
+	pthread_mutex_lock (&update_counters);
+	switch(result) {
+		case JSONRPC_REQUEST_FAILED : nb_jsonrpc_request_failed++; break;
+		case JSONRPC_REQUEST_SUCCEEDED : nb_jsonrpc_request_success++; break;
+		default : assert (1 == 42);
+	}
+	pthread_mutex_unlock (&update_counters);
 
 	response =
 		MHD_create_response_from_buffer (strlen (page), (void *) page,
@@ -154,6 +295,9 @@ send_page (struct MHD_Connection *connection, const char *page,
 		return MHD_NO;
 
 	MHD_add_response_header(response, "Content-Type", mimetype);
+	if(CLOSE_CONNECTION_YES == close_connection) {
+		MHD_add_response_header (response, MHD_HTTP_HEADER_CONNECTION, "close");
+	}
 	ret = MHD_queue_response (connection, status_code, response);
 	MHD_destroy_response (response);
 
@@ -212,10 +356,10 @@ jsonrpc_build_error_object_string(int id, int code, const char *message) {
 	const char *defined_message = NULL;
 	
 	switch(code) {
-		case -32600 : defined_message = JSONRPC_ERROR_32600; break;
-		case -32601 : defined_message = JSONRPC_ERROR_32601; break;
-		case -32602 : defined_message = JSONRPC_ERROR_32602; break;
-		case -32603 : defined_message = JSONRPC_ERROR_32603; break;
+		case JSONRPC_ERROR_CODE_32600_INVALID_REQUEST  : defined_message = JSONRPC_ERROR_32600; break;
+		case JSONRPC_ERROR_CODE_32601_METHOD_NOT_FOUND : defined_message = JSONRPC_ERROR_32601; break;
+		case JSONRPC_ERROR_CODE_32602_INVALID_PARAMS   : defined_message = JSONRPC_ERROR_32602; break;
+		case JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR   : defined_message = JSONRPC_ERROR_32603; break;
 		default: defined_message = message;
 	}
 	assert(defined_message != NULL);
@@ -256,7 +400,7 @@ jsonrpc_parse_node(struct json_object *node, char**jsonanswer) {
 			(NULL == (v = json_object_object_get(node, "method"))) ||
 			(NULL == (method = json_object_get_string(v)))
 	  ) {
-		*jsonanswer = jsonrpc_build_error_object_string(id, -32600, NULL);
+		*jsonanswer = jsonrpc_build_error_object_string(id, JSONRPC_ERROR_CODE_32600_INVALID_REQUEST, NULL);
 		return(*jsonanswer?0:-1);
 	}
 
@@ -267,17 +411,17 @@ jsonrpc_parse_node(struct json_object *node, char**jsonanswer) {
 		if(!strcmp(jsonrpc_methods_table[i].method, method)) break;
 	}
 	if(! jsonrpc_methods_table[i].cb) {
-		*jsonanswer = jsonrpc_build_error_object_string(id, -32601, NULL);
+		*jsonanswer = jsonrpc_build_error_object_string(id, JSONRPC_ERROR_CODE_32601_METHOD_NOT_FOUND, NULL);
 		return(*jsonanswer?0:-1);
 	}
 /* Create the result object */
 	if(NULL == (result = json_object_new_object())) {
-		*jsonanswer = jsonrpc_build_error_object_string(id, -32603, NULL);
+		*jsonanswer = jsonrpc_build_error_object_string(id, JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR, NULL);
 		return(*jsonanswer?0:-1);
 	}
 	if(NULL == (obj = json_object_new_string("2.0"))) {
 		json_object_put(result);
-		*jsonanswer = jsonrpc_build_error_object_string(id, -32603, NULL);
+		*jsonanswer = jsonrpc_build_error_object_string(id, JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR, NULL);
 		return(*jsonanswer?0:-1);
 	}
 	json_object_object_add(result, "jsonrpc", obj);
@@ -285,7 +429,7 @@ jsonrpc_parse_node(struct json_object *node, char**jsonanswer) {
 	if(0 != (errorcode = jsonrpc_methods_table[i].cb(params, result, &errorstring)))  {
 		json_object_put(result);
 		if(errorcode > 0) {
-			*jsonanswer = jsonrpc_build_error_object_string(id, -32603, NULL);
+			*jsonanswer = jsonrpc_build_error_object_string(id, JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR, NULL);
 		} else {
 			*jsonanswer = jsonrpc_build_error_object_string(id, errorcode, errorstring);
 		}
@@ -295,20 +439,20 @@ jsonrpc_parse_node(struct json_object *node, char**jsonanswer) {
 /* Finish the result object and convert to string */
 	if(NULL == (obj = json_object_new_int(id))) {
 		json_object_put(result);
-		*jsonanswer = jsonrpc_build_error_object_string(id, -32603, NULL);
+		*jsonanswer = jsonrpc_build_error_object_string(id, JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR, NULL);
 		return(*jsonanswer?0:-1);
 	}
 	json_object_object_add(result, "id", obj);
 
 	if(NULL == (str = json_object_to_json_string(result))) {
 		json_object_put(result);
-		*jsonanswer = jsonrpc_build_error_object_string(id, -32603, NULL);
+		*jsonanswer = jsonrpc_build_error_object_string(id, JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR, NULL);
 		return(*jsonanswer?0:-1);
 	}
 
 	if(NULL == (*jsonanswer = strdup(str))) {
 		json_object_put(result);
-		*jsonanswer = jsonrpc_build_error_object_string(id, -32603, NULL);
+		*jsonanswer = jsonrpc_build_error_object_string(id, JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR, NULL);
 		return(*jsonanswer?0:-1);
 	}
 
@@ -340,6 +484,10 @@ static int jsonrpc_parse_data(connection_info_struct_t *con_info) {
 		PREPARE_ERROR_PAGE(MHD_HTTP_BAD_REQUEST,parseerrorpage,MIMETYPE_TEXTHTML);
 		return(1);
 	}
+	/* Note : I have some segfault here, in json_object_is_type(), with
+	 * json-c-0.9. No more crash with json-c-0.10. So if you experiment
+	 * crashes here, check your json-c version.
+	 */
 	if(json_object_is_type (node, json_type_array)) {
 		int i;
 		int l;
@@ -462,11 +610,14 @@ static int jsonrpc_proceed_request_cb(void * cls,
 		connection_info_struct_t *con_info;
 
 		if (nb_clients >= max_clients)
-			return send_page (connection, busypage, MHD_HTTP_SERVICE_UNAVAILABLE, MHD_RESPMEM_PERSISTENT, MIMETYPE_JSONRPC);
+			return send_page (connection, busypage, MHD_HTTP_SERVICE_UNAVAILABLE, MHD_RESPMEM_PERSISTENT, MIMETYPE_JSONRPC,
+					CLOSE_CONNECTION_YES,JSONRPC_REQUEST_FAILED);
 
 
 		if(NULL == (con_info = malloc (sizeof (connection_info_struct_t)))) 
 			return MHD_NO;
+
+		nb_new_connections+=1;
 
 		if (0 == strcmp (method, "POST"))
 		{
@@ -494,7 +645,8 @@ static int jsonrpc_proceed_request_cb(void * cls,
 
 	if (0 == strcmp (method, "GET"))
 	{
-		return send_page (connection, errorpage, MHD_HTTP_BAD_REQUEST, MHD_RESPMEM_PERSISTENT, MIMETYPE_TEXTHTML);
+		return send_page (connection, errorpage, MHD_HTTP_BAD_REQUEST, MHD_RESPMEM_PERSISTENT, MIMETYPE_TEXTHTML,
+			CLOSE_CONNECTION_YES, JSONRPC_REQUEST_FAILED);
 	}
 
 	if (0 == strcmp (method, "POST"))
@@ -516,12 +668,18 @@ static int jsonrpc_proceed_request_cb(void * cls,
 		else {
 			jsonrpc_parse_data(con_info);
 			
-			return send_page (connection, con_info->answerstring?con_info->answerstring:con_info->errorpage,
-					con_info->answercode, con_info->answerstring?MHD_RESPMEM_MUST_FREE:MHD_RESPMEM_PERSISTENT, con_info->answer_mimetype);
+			if(con_info->answerstring) {
+				return send_page (connection, con_info->answerstring, con_info->answercode, MHD_RESPMEM_MUST_FREE, con_info->answer_mimetype,
+				CLOSE_CONNECTION_NO,JSONRPC_REQUEST_SUCCEEDED);
+			} else {
+				return send_page (connection, con_info->errorpage, con_info->answercode, MHD_RESPMEM_PERSISTENT, con_info->answer_mimetype,
+				CLOSE_CONNECTION_YES, JSONRPC_REQUEST_FAILED);
+			}
 		}
 	}
 
-	return send_page (connection, errorpage, MHD_HTTP_BAD_REQUEST, MHD_RESPMEM_PERSISTENT, MIMETYPE_TEXTHTML);
+	return send_page (connection, errorpage, MHD_HTTP_BAD_REQUEST, MHD_RESPMEM_PERSISTENT, MIMETYPE_TEXTHTML,
+	CLOSE_CONNECTION_YES, JSONRPC_REQUEST_FAILED);
 }
 
 static int jsonrpc_config (const char *key, const char *val)
@@ -537,7 +695,7 @@ static int jsonrpc_config (const char *key, const char *val)
 			ERROR(OUTPUT_PREFIX_JSONRPC "Port '%d' should be between 1 and 65535", httpd_server_port);
 			return(-1);
 		}
-	} else if (strcasecmp (key, "max_clients") == 0) {
+	} else if (strcasecmp (key, "MaxClients") == 0) {
 		errno=0;
 		max_clients = strtol(val,NULL,10);
 		if(errno) {
@@ -546,6 +704,17 @@ static int jsonrpc_config (const char *key, const char *val)
 		}
 		if((max_clients < 1) || (max_clients > 65535)) {
 			ERROR(OUTPUT_PREFIX_JSONRPC "MaxClients '%d' should be between 1 and 65535", max_clients);
+			return(-1);
+		}
+	} else if (strcasecmp (key, "JsonrpcCacheExpirationTime") == 0) {
+		errno=0;
+		jsonrpc_cache_expiration_time = strtol(val,NULL,10);
+		if(errno) {
+			ERROR(OUTPUT_PREFIX_JSONRPC "JsonrpcCacheExpirationTime '%s' is not a number or could not be parsed", val);
+			return(-1);
+		}
+		if((jsonrpc_cache_expiration_time < 1) || (jsonrpc_cache_expiration_time > 3600)) {
+			ERROR(OUTPUT_PREFIX_JSONRPC "JsonrpcCacheExpirationTime '%ld' should be between 1 and 3600 seconds", jsonrpc_cache_expiration_time);
 			return(-1);
 		}
 	} else {
@@ -580,19 +749,65 @@ static int jsonrpc_init (void)
 		return 1;
 
 	return (0);
-} /* int us_init */
+} /* int jsonrpc_init */
+
+static int submit_data (value_t v, const char *type, const  char *type_instance)
+{
+	value_list_t vl = VALUE_LIST_INIT;
+
+	vl.values = &v;
+	vl.values_len = 1;
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "jsonrpc", sizeof (vl.plugin));
+	sstrncpy (vl.type, type, sizeof (vl.type));
+	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
+
+	plugin_dispatch_values (&vl);
+	
+	return (0);
+} /* int submit_data */
+
+static int submit_gauge (unsigned int n, const char *type, const  char *type_instance)
+{
+	value_t value;
+	value.gauge = n;
+
+	submit_data(value, type, type_instance);
+	
+	return (0);
+} /* int submit_derive */
+
+static int submit_derive (unsigned int n, const char *type, const  char *type_instance)
+{
+	value_t value;
+	value.derive = n;
+
+	submit_data(value, type, type_instance);
+	
+	return (0);
+} /* int submit_derive */
+
+static int jsonrpc_read (void)
+{
+	submit_gauge(nb_clients, "current_connections", "nb_clients");
+	submit_derive(nb_jsonrpc_request_failed, "total_requests", "nb_request_failed");
+	submit_derive(nb_jsonrpc_request_success, "total_requests", "nb_request_succeeded");
+	submit_derive(nb_new_connections, "http_requests", "nb_connections");
+	return (0);
+} /* int jsonrpc_read */
 
 static int jsonrpc_shutdown (void)
 {
 	MHD_stop_daemon(jsonrpc_daemon);
 	return (0);
-} /* int us_shutdown */
+} /* int jsonrpc_shutdown */
 
 void module_register (void)
 {
 	plugin_register_config ("jsonrpc", jsonrpc_config,
 			config_keys, config_keys_num);
 	plugin_register_init ("jsonrpc", jsonrpc_init);
+	plugin_register_read ("jsonrpc", jsonrpc_read);
 	plugin_register_shutdown ("jsonrpc", jsonrpc_shutdown);
 } /* void module_register (void) */
 
