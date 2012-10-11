@@ -59,7 +59,18 @@
 
 #if HAVE_LIBGCRYPT
 # include <pthread.h>
+# if defined __APPLE__
+/* default xcode compiler throws warnings even when deprecated functionality
+ * is not used. -Werror breaks the build because of erroneous warnings.
+ * http://stackoverflow.com/questions/10556299/compiler-warnings-with-libgcrypt-v1-5-0/12830209#12830209
+ */
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+# endif
 # include <gcrypt.h>
+# if defined __APPLE__
+/* Re enable deprecation warnings */
+#  pragma GCC diagnostic warning "-Wdeprecated-declarations"
+# endif
 GCRY_THREAD_OPTION_PTHREAD_IMPL;
 #endif
 
@@ -661,7 +672,7 @@ static int write_part_number (char **ret_buffer, int *ret_buffer_len,
 
 	part_header_t pkg_head;
 	uint64_t pkg_value;
-	
+
 	int offset;
 
 	packet_len = sizeof (pkg_head) + sizeof (pkg_value);
@@ -2698,7 +2709,7 @@ static int add_to_buffer (char *buffer, int buffer_size, /* {{{ */
 			return (-1);
 		sstrncpy (vl_def->type_instance, vl->type_instance, sizeof (vl_def->type_instance));
 	}
-	
+
 	if (write_part_values (&buffer, &buffer_size, ds, vl) != 0)
 		return (-1);
 
@@ -3413,7 +3424,7 @@ static int network_init (void)
 	return (0);
 } /* int network_init */
 
-/* 
+/*
  * The flush option of the network plugin cannot flush individual identifiers.
  * All the values are added to a buffer and sent when the buffer is full, the
  * requested value may or may not be in there, it's not worth finding out. We
