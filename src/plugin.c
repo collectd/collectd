@@ -1308,7 +1308,9 @@ int plugin_write (const char *plugin, /* {{{ */
     {
       callback_func_t *cf = le->value;
       plugin_write_cb callback;
-      plugin_ctx_t old_ctx = plugin_set_ctx (cf->cf_ctx);
+
+      /* do not switch plugin context; rather keep the context (interval)
+       * information of the calling read plugin */
 
       DEBUG ("plugin: plugin_write: Writing values via %s.", le->key);
       callback = cf->cf_callback;
@@ -1317,8 +1319,6 @@ int plugin_write (const char *plugin, /* {{{ */
         failure++;
       else
         success++;
-
-      plugin_set_ctx (old_ctx);
 
       le = le->next;
     }
@@ -1332,7 +1332,6 @@ int plugin_write (const char *plugin, /* {{{ */
   {
     callback_func_t *cf;
     plugin_write_cb callback;
-    plugin_ctx_t old_ctx;
 
     le = llist_head (list_write);
     while (le != NULL)
@@ -1348,13 +1347,12 @@ int plugin_write (const char *plugin, /* {{{ */
 
     cf = le->value;
 
-    old_ctx = plugin_set_ctx (cf->cf_ctx);
+    /* do not switch plugin context; rather keep the context (interval)
+     * information of the calling read plugin */
 
     DEBUG ("plugin: plugin_write: Writing values via %s.", le->key);
     callback = cf->cf_callback;
     status = (*callback) (ds, vl, &cf->cf_udata);
-
-    plugin_set_ctx (old_ctx);
   }
 
   return (status);
@@ -1742,14 +1740,14 @@ int plugin_dispatch_notification (const notification_t *notif)
 	{
 		callback_func_t *cf;
 		plugin_notification_cb callback;
-		plugin_ctx_t old_ctx;
 		int status;
 
+		/* do not switch plugin context; rather keep the context
+		 * (interval) information of the calling plugin */
+
 		cf = le->value;
-		old_ctx = plugin_set_ctx (cf->cf_ctx);
 		callback = cf->cf_callback;
 		status = (*callback) (notif, &cf->cf_udata);
-		plugin_set_ctx (old_ctx);
 		if (status != 0)
 		{
 			WARNING ("plugin_dispatch_notification: Notification "
@@ -1790,15 +1788,15 @@ void plugin_log (int level, const char *format, ...)
 	{
 		callback_func_t *cf;
 		plugin_log_cb callback;
-		plugin_ctx_t old_ctx;
 
 		cf = le->value;
-		old_ctx = plugin_set_ctx (cf->cf_ctx);
 		callback = cf->cf_callback;
+
+		/* do not switch plugin context; rather keep the context
+		 * (interval) information of the calling plugin */
 
 		(*callback) (level, msg, &cf->cf_udata);
 
-		plugin_set_ctx (old_ctx);
 		le = le->next;
 	}
 } /* void plugin_log */
