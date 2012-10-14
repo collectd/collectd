@@ -337,7 +337,8 @@ static PGresult *c_psql_exec_query_params (c_psql_database_t *db,
 			case C_PSQL_PARAM_INTERVAL:
 				ssnprintf (interval, sizeof (interval), "%.3f",
 						(db->interval > 0)
-						? CDTIME_T_TO_DOUBLE (db->interval) : interval_g);
+						? CDTIME_T_TO_DOUBLE (db->interval)
+						: plugin_get_interval ());
 				params[i] = interval;
 				break;
 			default:

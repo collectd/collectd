@@ -177,13 +177,13 @@ static int memcached_query_daemon (char *buffer, int buffer_size) /* {{{ */
 		p.revents = 0;
 
 		status = poll (&p, /* nfds = */ 1,
-				/* timeout = */ CDTIME_T_TO_MS (interval_g));
+				/* timeout = */ CDTIME_T_TO_MS (plugin_get_interval ()));
 		if (status <= 0)
 		{
 			if (status == 0)
 			{
 				ERROR ("memcached: poll(2) timed out after %.3f seconds.",
-						CDTIME_T_TO_DOUBLE (interval_g));
+						CDTIME_T_TO_DOUBLE (plugin_get_interval ()));
 			}
 			else
 			{

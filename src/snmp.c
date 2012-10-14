@@ -1525,7 +1525,7 @@ static int csnmp_read_host (user_data_t *ud)
   host = ud->data;
 
   if (host->interval == 0)
-    host->interval = interval_g;
+    host->interval = plugin_get_interval ();
 
   time_start = cdtime ();
 

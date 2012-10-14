@@ -3225,7 +3225,6 @@ static int network_stats_read (void) /* {{{ */
 	vl.values = values;
 	vl.values_len = 2;
 	vl.time = 0;
-	vl.interval = interval_g;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "network", sizeof (vl.plugin));
 

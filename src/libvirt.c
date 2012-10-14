@@ -139,8 +139,6 @@ init_value_list (value_list_t *vl, virDomainPtr dom)
     const char *name;
     char uuid[VIR_UUID_STRING_BUFLEN];
 
-    vl->interval = interval_g;
-
     sstrncpy (vl->plugin, "libvirt", sizeof (vl->plugin));
 
     vl->host[0] = '\0';

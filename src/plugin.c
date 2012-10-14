@@ -380,7 +380,7 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 		{
 			now = cdtime ();
 
-			CDTIME_T_TO_TIMESPEC (interval_g, &rf->rf_interval);
+			CDTIME_T_TO_TIMESPEC (plugin_get_interval (), &rf->rf_interval);
 
 			rf->rf_effective_interval = rf->rf_interval;
 
@@ -804,10 +804,10 @@ int plugin_register_read (const char *name,
 	int status;
 
 	if (ctx.interval != 0) {
-		/* If ctx.interval is not zero (== use interval_g), we need to
-		 * use the "complex" read callback, because only that allows to
-		 * specify a different interval. Wrap the callback using
-		 * read_cb_wrapper(). */
+		/* If ctx.interval is not zero (== use the plugin or global
+		 * interval), we need to use the "complex" read callback,
+		 * because only that allows to specify a different interval.
+		 * Wrap the callback using read_cb_wrapper(). */
 		struct timespec interval;
 		user_data_t user_data;
 

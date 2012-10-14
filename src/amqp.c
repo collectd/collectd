@@ -543,6 +543,8 @@ static void *camqp_subscribe_thread (void *user_data) /* {{{ */
     camqp_config_t *conf = user_data;
     int status;
 
+    cdtime_t interval = plugin_get_interval ();
+
     while (subscriber_threads_running)
     {
         amqp_frame_t frame;
@@ -552,8 +554,8 @@ static void *camqp_subscribe_thread (void *user_data) /* {{{ */
         {
             ERROR ("amqp plugin: camqp_connect failed. "
                     "Will sleep for %.3f seconds.",
-                    CDTIME_T_TO_DOUBLE (interval_g));
-            sleep (interval_g);
+                    CDTIME_T_TO_DOUBLE (interval));
+            sleep (interval);
             continue;
         }
 
@@ -562,9 +564,9 @@ static void *camqp_subscribe_thread (void *user_data) /* {{{ */
         {
             ERROR ("amqp plugin: amqp_simple_wait_frame failed. "
                     "Will sleep for %.3f seconds.",
-                    CDTIME_T_TO_DOUBLE (interval_g));
+                    CDTIME_T_TO_DOUBLE (interval));
             camqp_close_connection (conf);
-            sleep (interval_g);
+            sleep (interval);
             continue;
         }
 
