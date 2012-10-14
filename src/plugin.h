@@ -379,6 +379,17 @@ plugin_ctx_t plugin_get_ctx (void);
 plugin_ctx_t plugin_set_ctx (plugin_ctx_t ctx);
 
 /*
+ * NAME
+ *  plugin_get_interval
+ *
+ * DESCRIPTION
+ *  This function returns the current value of the plugin's interval. The
+ *  return value will be strictly greater than zero in all cases. If
+ *  everything else fails, it will fall back to 10 seconds.
+ */
+cdtime_t plugin_get_interval (void);
+
+/*
  * Context-aware thread management.
  */
 
