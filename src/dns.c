@@ -286,7 +286,7 @@ static int dns_init (void)
 	if (listen_thread_init != 0)
 		return (-1);
 
-	status = pthread_create (&listen_thread, NULL, dns_child_loop,
+	status = plugin_thread_create (&listen_thread, NULL, dns_child_loop,
 			(void *) 0);
 	if (status != 0)
 	{

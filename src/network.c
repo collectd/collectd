@@ -3320,7 +3320,7 @@ static int network_init (void)
 	if (dispatch_thread_running == 0)
 	{
 		int status;
-		status = pthread_create (&dispatch_thread_id,
+		status = plugin_thread_create (&dispatch_thread_id,
 				NULL /* no attributes */,
 				dispatch_thread,
 				NULL /* no argument */);
@@ -3340,7 +3340,7 @@ static int network_init (void)
 	if (receive_thread_running == 0)
 	{
 		int status;
-		status = pthread_create (&receive_thread_id,
+		status = plugin_thread_create (&receive_thread_id,
 				NULL /* no attributes */,
 				receive_thread,
 				NULL /* no argument */);

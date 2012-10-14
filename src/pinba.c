@@ -645,7 +645,7 @@ static int plugin_init (void) /* {{{ */
   if (collector_thread_running)
     return (0);
 
-  status = pthread_create (&collector_thread_id,
+  status = plugin_thread_create (&collector_thread_id,
       /* attrs = */ NULL,
       collector_thread,
       /* args = */ NULL);

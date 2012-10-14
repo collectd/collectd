@@ -610,7 +610,7 @@ static int camqp_subscribe_init (camqp_config_t *conf) /* {{{ */
     tmp = subscriber_threads + subscriber_threads_num;
     memset (tmp, 0, sizeof (*tmp));
 
-    status = pthread_create (tmp, /* attr = */ NULL,
+    status = plugin_thread_create (tmp, /* attr = */ NULL,
             camqp_subscribe_thread, conf);
     if (status != 0)
     {

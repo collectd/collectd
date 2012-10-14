@@ -1195,7 +1195,7 @@ static int rrd_init (void)
 
 	pthread_mutex_unlock (&cache_lock);
 
-	status = pthread_create (&queue_thread, /* attr = */ NULL,
+	status = plugin_thread_create (&queue_thread, /* attr = */ NULL,
 			rrd_queue_thread, /* args = */ NULL);
 	if (status != 0)
 	{

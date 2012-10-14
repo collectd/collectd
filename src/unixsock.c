@@ -355,7 +355,8 @@ static void *us_server_thread (void __attribute__((unused)) *arg)
 		pthread_attr_init (&th_attr);
 		pthread_attr_setdetachstate (&th_attr, PTHREAD_CREATE_DETACHED);
 
-		status = pthread_create (&th, &th_attr, us_handle_client, (void *) remote_fd);
+		status = plugin_thread_create (&th, &th_attr,
+				us_handle_client, (void *) remote_fd);
 		if (status != 0)
 		{
 			char errbuf[1024];
@@ -434,7 +435,8 @@ static int us_init (void)
 
 	loop = 1;
 
-	status = pthread_create (&listen_thread, NULL, us_server_thread, NULL);
+	status = plugin_thread_create (&listen_thread, NULL,
+			us_server_thread, NULL);
 	if (status != 0)
 	{
 		char errbuf[1024];
