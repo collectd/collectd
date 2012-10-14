@@ -32,6 +32,14 @@
 
 #include "cpython.h"
 
+#define FreeAll() do {\
+	PyMem_Free(type);\
+	PyMem_Free(plugin_instance);\
+	PyMem_Free(type_instance);\
+	PyMem_Free(plugin);\
+	PyMem_Free(host);\
+} while(0)
+
 static PyObject *cpy_common_repr(PyObject *s) {
 	PyObject *ret, *tmp;
 	static PyObject *l_type = NULL, *l_type_instance = NULL, *l_plugin = NULL, *l_plugin_instance = NULL;
@@ -143,7 +151,7 @@ static PyObject *PluginData_new(PyTypeObject *type, PyObject *args, PyObject *kw
 static int PluginData_init(PyObject *s, PyObject *args, PyObject *kwds) {
 	PluginData *self = (PluginData *) s;
 	double time = 0;
-	const char *type = "", *plugin_instance = "", *type_instance = "", *plugin = "", *host = "";
+	char *type = NULL, *plugin_instance = NULL, *type_instance = NULL, *plugin = NULL, *host = NULL;
 	static char *kwlist[] = {"type", "plugin_instance", "type_instance",
 			"plugin", "host", "time", NULL};
 	
@@ -151,18 +159,21 @@ static int PluginData_init(PyObject *s, PyObject *args, PyObject *kwds) {
 			NULL, &plugin_instance, NULL, &type_instance, NULL, &plugin, NULL, &host, &time))
 		return -1;
 	
-	if (type[0] != 0 && plugin_get_ds(type) == NULL) {
+	if (type && plugin_get_ds(type) == NULL) {
 		PyErr_Format(PyExc_TypeError, "Dataset %s not found", type);
+		FreeAll();
 		return -1;
 	}
 
-	sstrncpy(self->host, host, sizeof(self->host));
-	sstrncpy(self->plugin, plugin, sizeof(self->plugin));
-	sstrncpy(self->plugin_instance, plugin_instance, sizeof(self->plugin_instance));
-	sstrncpy(self->type, type, sizeof(self->type));
-	sstrncpy(self->type_instance, type_instance, sizeof(self->type_instance));
-	
+	sstrncpy(self->host, host ? host : "", sizeof(self->host));
+	sstrncpy(self->plugin, plugin ? plugin : "", sizeof(self->plugin));
+	sstrncpy(self->plugin_instance, plugin_instance ? plugin_instance : "", sizeof(self->plugin_instance));
+	sstrncpy(self->type, type ? type : "", sizeof(self->type));
+	sstrncpy(self->type_instance, type_instance ? type_instance : "", sizeof(self->type_instance));
 	self->time = time;
+
+	FreeAll();
+
 	return 0;
 }
 
@@ -354,7 +365,7 @@ static int Values_init(PyObject *s, PyObject *args, PyObject *kwds) {
 	int interval = 0;
 	double time = 0;
 	PyObject *values = NULL, *meta = NULL, *tmp;
-	const char *type = "", *plugin_instance = "", *type_instance = "", *plugin = "", *host = "";
+	char *type = NULL, *plugin_instance = NULL, *type_instance = NULL, *plugin = NULL, *host = NULL;
 	static char *kwlist[] = {"type", "values", "plugin_instance", "type_instance",
 			"plugin", "host", "time", "interval", "meta", NULL};
 	
@@ -363,17 +374,20 @@ static int Values_init(PyObject *s, PyObject *args, PyObject *kwds) {
 			NULL, &plugin, NULL, &host, &time, &interval, &meta))
 		return -1;
 	
-	if (type[0] != 0 && plugin_get_ds(type) == NULL) {
+	if (type && plugin_get_ds(type) == NULL) {
 		PyErr_Format(PyExc_TypeError, "Dataset %s not found", type);
+		FreeAll();
 		return -1;
 	}
 
-	sstrncpy(self->data.host, host, sizeof(self->data.host));
-	sstrncpy(self->data.plugin, plugin, sizeof(self->data.plugin));
-	sstrncpy(self->data.plugin_instance, plugin_instance, sizeof(self->data.plugin_instance));
-	sstrncpy(self->data.type, type, sizeof(self->data.type));
-	sstrncpy(self->data.type_instance, type_instance, sizeof(self->data.type_instance));
+	sstrncpy(self->data.host, host ? host : "", sizeof(self->data.host));
+	sstrncpy(self->data.plugin, plugin ? plugin : "", sizeof(self->data.plugin));
+	sstrncpy(self->data.plugin_instance, plugin_instance ? plugin_instance : "", sizeof(self->data.plugin_instance));
+	sstrncpy(self->data.type, type ? type : "", sizeof(self->data.type));
+	sstrncpy(self->data.type_instance, type_instance ? type_instance : "", sizeof(self->data.type_instance));
 	self->data.time = time;
+
+	FreeAll();
 
 	if (values == NULL) {
 		values = PyList_New(0);
@@ -492,11 +506,7 @@ static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 	PyObject *values = self->values, *meta = self->meta;
 	double time = self->data.time;
 	int interval = self->interval;
-	const char *host = self->data.host;
-	const char *plugin = self->data.plugin;
-	const char *plugin_instance = self->data.plugin_instance;
-	const char *type = self->data.type;
-	const char *type_instance = self->data.type_instance;
+	char *host = NULL, *plugin = NULL, *plugin_instance = NULL, *type = NULL, *type_instance = NULL;
 	
 	static char *kwlist[] = {"type", "values", "plugin_instance", "type_instance",
 			"plugin", "host", "time", "interval", "meta", NULL};
@@ -505,13 +515,20 @@ static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 			NULL, &plugin, NULL, &host, &time, &interval, &meta))
 		return NULL;
 
-	if (type[0] == 0) {
+	sstrncpy(value_list.host, host ? host : self->data.host, sizeof(value_list.host));
+	sstrncpy(value_list.plugin, plugin ? plugin : self->data.plugin, sizeof(value_list.plugin));
+	sstrncpy(value_list.plugin_instance, plugin_instance ? plugin_instance : self->data.plugin_instance, sizeof(value_list.plugin_instance));
+	sstrncpy(value_list.type, type ? type : self->data.type, sizeof(value_list.type));
+	sstrncpy(value_list.type_instance, type_instance ? type_instance : self->data.type_instance, sizeof(value_list.type_instance));
+	FreeAll();
+	if (value_list.type[0] == 0) {
 		PyErr_SetString(PyExc_RuntimeError, "type not set");
+		FreeAll();
 		return NULL;
 	}
-	ds = plugin_get_ds(type);
+	ds = plugin_get_ds(value_list.type);
 	if (ds == NULL) {
-		PyErr_Format(PyExc_TypeError, "Dataset %s not found", type);
+		PyErr_Format(PyExc_TypeError, "Dataset %s not found", value_list.type);
 		return NULL;
 	}
 	if (values == NULL || (PyTuple_Check(values) == 0 && PyList_Check(values) == 0)) {
@@ -524,7 +541,7 @@ static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 	}
 	size = (int) PySequence_Length(values);
 	if (size != ds->ds_num) {
-		PyErr_Format(PyExc_RuntimeError, "type %s needs %d values, got %i", type, ds->ds_num, size);
+		PyErr_Format(PyExc_RuntimeError, "type %s needs %d values, got %i", value_list.type, ds->ds_num, size);
 		return NULL;
 	}
 	value = malloc(size * sizeof(*value));
@@ -561,7 +578,7 @@ static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 			}
 		} else {
 			free(value);
-			PyErr_Format(PyExc_RuntimeError, "unknown data type %d for %s", ds->ds->type, type);
+			PyErr_Format(PyExc_RuntimeError, "unknown data type %d for %s", ds->ds->type, value_list.type);
 			return NULL;
 		}
 		if (PyErr_Occurred() != NULL) {
@@ -574,11 +591,6 @@ static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 	value_list.values_len = size;
 	value_list.time = time;
 	value_list.interval = interval;
-	sstrncpy(value_list.host, host, sizeof(value_list.host));
-	sstrncpy(value_list.plugin, plugin, sizeof(value_list.plugin));
-	sstrncpy(value_list.plugin_instance, plugin_instance, sizeof(value_list.plugin_instance));
-	sstrncpy(value_list.type, type, sizeof(value_list.type));
-	sstrncpy(value_list.type_instance, type_instance, sizeof(value_list.type_instance));
 	if (value_list.host[0] == 0)
 		sstrncpy(value_list.host, hostname_g, sizeof(value_list.host));
 	if (value_list.plugin[0] == 0)
@@ -604,27 +616,28 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
 	PyObject *values = self->values, *meta = self->meta;
 	double time = self->data.time;
 	int interval = self->interval;
-	const char *host = self->data.host;
-	const char *plugin = self->data.plugin;
-	const char *plugin_instance = self->data.plugin_instance;
-	const char *type = self->data.type;
-	const char *type_instance = self->data.type_instance;
-	const char *dest = NULL;
+	char *host = NULL, *plugin = NULL, *plugin_instance = NULL, *type = NULL, *type_instance = NULL, *dest = NULL;
 	
 	static char *kwlist[] = {"destination", "type", "values", "plugin_instance", "type_instance",
 			"plugin", "host", "time", "interval", "meta", NULL};
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|etOetetetetdiO", kwlist,
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "et|etOetetetetdiO", kwlist, NULL, &dest,
 			NULL, &type, &values, NULL, &plugin_instance, NULL, &type_instance,
 			NULL, &plugin, NULL, &host, &time, &interval, &meta))
 		return NULL;
 
-	if (type[0] == 0) {
+	sstrncpy(value_list.host, host ? host : self->data.host, sizeof(value_list.host));
+	sstrncpy(value_list.plugin, plugin ? plugin : self->data.plugin, sizeof(value_list.plugin));
+	sstrncpy(value_list.plugin_instance, plugin_instance ? plugin_instance : self->data.plugin_instance, sizeof(value_list.plugin_instance));
+	sstrncpy(value_list.type, type ? type : self->data.type, sizeof(value_list.type));
+	sstrncpy(value_list.type_instance, type_instance ? type_instance : self->data.type_instance, sizeof(value_list.type_instance));
+	FreeAll();
+	if (value_list.type[0] == 0) {
 		PyErr_SetString(PyExc_RuntimeError, "type not set");
 		return NULL;
 	}
-	ds = plugin_get_ds(type);
+	ds = plugin_get_ds(value_list.type);
 	if (ds == NULL) {
-		PyErr_Format(PyExc_TypeError, "Dataset %s not found", type);
+		PyErr_Format(PyExc_TypeError, "Dataset %s not found", value_list.type);
 		return NULL;
 	}
 	if (values == NULL || (PyTuple_Check(values) == 0 && PyList_Check(values) == 0)) {
@@ -633,7 +646,7 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
 	}
 	size = (int) PySequence_Length(values);
 	if (size != ds->ds_num) {
-		PyErr_Format(PyExc_RuntimeError, "type %s needs %d values, got %i", type, ds->ds_num, size);
+		PyErr_Format(PyExc_RuntimeError, "type %s needs %d values, got %i", value_list.type, ds->ds_num, size);
 		return NULL;
 	}
 	value = malloc(size * sizeof(*value));
@@ -670,7 +683,7 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
 			}
 		} else {
 			free(value);
-			PyErr_Format(PyExc_RuntimeError, "unknown data type %d for %s", ds->ds->type, type);
+			PyErr_Format(PyExc_RuntimeError, "unknown data type %d for %s", ds->ds->type, value_list.type);
 			return NULL;
 		}
 		if (PyErr_Occurred() != NULL) {
@@ -682,11 +695,6 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
 	value_list.values_len = size;
 	value_list.time = time;
 	value_list.interval = interval;
-	sstrncpy(value_list.host, host, sizeof(value_list.host));
-	sstrncpy(value_list.plugin, plugin, sizeof(value_list.plugin));
-	sstrncpy(value_list.plugin_instance, plugin_instance, sizeof(value_list.plugin_instance));
-	sstrncpy(value_list.type, type, sizeof(value_list.type));
-	sstrncpy(value_list.type_instance, type_instance, sizeof(value_list.type_instance));
 	value_list.meta = cpy_build_meta(meta);;
 	if (value_list.host[0] == 0)
 		sstrncpy(value_list.host, hostname_g, sizeof(value_list.host));
@@ -830,8 +838,8 @@ static int Notification_init(PyObject *s, PyObject *args, PyObject *kwds) {
 	Notification *self = (Notification *) s;
 	int severity = 0;
 	double time = 0;
-	const char *message = "";
-	const char *type = "", *plugin_instance = "", *type_instance = "", *plugin = "", *host = "";
+	char *message = NULL;
+	char *type = NULL, *plugin_instance = NULL, *type_instance = NULL, *plugin = NULL, *host = NULL;
 	static char *kwlist[] = {"type", "message", "plugin_instance", "type_instance",
 			"plugin", "host", "time", "severity", NULL};
 	
@@ -840,20 +848,24 @@ static int Notification_init(PyObject *s, PyObject *args, PyObject *kwds) {
 			NULL, &plugin, NULL, &host, &time, &severity))
 		return -1;
 	
-	if (type[0] != 0 && plugin_get_ds(type) == NULL) {
+	if (type && plugin_get_ds(type) == NULL) {
 		PyErr_Format(PyExc_TypeError, "Dataset %s not found", type);
+		FreeAll();
+		PyMem_Free(message);
 		return -1;
 	}
 
-	sstrncpy(self->data.host, host, sizeof(self->data.host));
-	sstrncpy(self->data.plugin, plugin, sizeof(self->data.plugin));
-	sstrncpy(self->data.plugin_instance, plugin_instance, sizeof(self->data.plugin_instance));
-	sstrncpy(self->data.type, type, sizeof(self->data.type));
-	sstrncpy(self->data.type_instance, type_instance, sizeof(self->data.type_instance));
+	sstrncpy(self->data.host, host ? host : "", sizeof(self->data.host));
+	sstrncpy(self->data.plugin, plugin ? plugin : "", sizeof(self->data.plugin));
+	sstrncpy(self->data.plugin_instance, plugin_instance ? plugin_instance : "", sizeof(self->data.plugin_instance));
+	sstrncpy(self->data.type, type ? type : "", sizeof(self->data.type));
+	sstrncpy(self->data.type_instance, type_instance ? type_instance : "", sizeof(self->data.type_instance));
+	sstrncpy(self->message, message ? message : "", sizeof(self->message));
 	self->data.time = time;
-
-	sstrncpy(self->message, message, sizeof(self->message));
 	self->severity = severity;
+
+	FreeAll();
+	PyMem_Free(message);
 	return 0;
 }
 
@@ -863,12 +875,8 @@ static PyObject *Notification_dispatch(Notification *self, PyObject *args, PyObj
 	notification_t notification;
 	double t = self->data.time;
 	int severity = self->severity;
-	const char *host = self->data.host;
-	const char *plugin = self->data.plugin;
-	const char *plugin_instance = self->data.plugin_instance;
-	const char *type = self->data.type;
-	const char *type_instance = self->data.type_instance;
-	const char *message = self->message;
+	char *host = NULL, *plugin = NULL, *plugin_instance = NULL, *type = NULL, *type_instance = NULL;
+	char *message = NULL;
 	
 	static char *kwlist[] = {"type", "message", "plugin_instance", "type_instance",
 			"plugin", "host", "time", "severity", NULL};
@@ -877,25 +885,28 @@ static PyObject *Notification_dispatch(Notification *self, PyObject *args, PyObj
 			NULL, &plugin, NULL, &host, &t, &severity))
 		return NULL;
 
-	if (type[0] == 0) {
+	notification.time = t;
+	notification.severity = severity;
+	sstrncpy(notification.message, message ? message : self->message, sizeof(notification.message));
+	sstrncpy(notification.host, host ? host : self->data.host, sizeof(notification.host));
+	sstrncpy(notification.plugin, plugin ? plugin : self->data.plugin, sizeof(notification.plugin));
+	sstrncpy(notification.plugin_instance, plugin_instance ? plugin_instance : self->data.plugin_instance, sizeof(notification.plugin_instance));
+	sstrncpy(notification.type, type ? type : self->data.type, sizeof(notification.type));
+	sstrncpy(notification.type_instance, type_instance ? type_instance : self->data.type_instance, sizeof(notification.type_instance));
+	notification.meta = NULL;
+	FreeAll();
+	PyMem_Free(message);
+
+	if (notification.type[0] == 0) {
 		PyErr_SetString(PyExc_RuntimeError, "type not set");
 		return NULL;
 	}
-	ds = plugin_get_ds(type);
+	ds = plugin_get_ds(notification.type);
 	if (ds == NULL) {
-		PyErr_Format(PyExc_TypeError, "Dataset %s not found", type);
+		PyErr_Format(PyExc_TypeError, "Dataset %s not found", notification.type);
 		return NULL;
 	}
 
-	notification.time = t;
-	notification.severity = severity;
-	sstrncpy(notification.message, message, sizeof(notification.message));
-	sstrncpy(notification.host, host, sizeof(notification.host));
-	sstrncpy(notification.plugin, plugin, sizeof(notification.plugin));
-	sstrncpy(notification.plugin_instance, plugin_instance, sizeof(notification.plugin_instance));
-	sstrncpy(notification.type, type, sizeof(notification.type));
-	sstrncpy(notification.type_instance, type_instance, sizeof(notification.type_instance));
-	notification.meta = NULL;
 	if (notification.time < 1)
 		notification.time = time(0);
 	if (notification.host[0] == 0)
