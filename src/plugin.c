@@ -378,6 +378,9 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 
 		if ((rf->rf_interval.tv_sec == 0) && (rf->rf_interval.tv_nsec == 0))
 		{
+			/* this should not happen, because the interval is set
+			 * for each plugin when loading it
+			 * XXX: issue a warning? */
 			now = cdtime ();
 
 			CDTIME_T_TO_TIMESPEC (plugin_get_interval (), &rf->rf_interval);
@@ -811,9 +814,6 @@ int plugin_register_read (const char *name,
 		struct timespec interval;
 		user_data_t user_data;
 
-		DEBUG ("plugin_register_read: plugin_interval = %.3f",
-				CDTIME_T_TO_DOUBLE(plugin_interval));
-
 		user_data.data = callback;
 		user_data.free_func = NULL;
 
@@ -821,6 +821,9 @@ int plugin_register_read (const char *name,
 		return plugin_register_complex_read (/* group = */ NULL,
 				name, read_cb_wrapper, &interval, &user_data);
 	}
+
+	DEBUG ("plugin_register_read: default_interval = %.3f",
+			CDTIME_T_TO_DOUBLE(plugin_get_interval ()));
 
 	rf = malloc (sizeof (*rf));
 	if (rf == NULL)
@@ -881,6 +884,10 @@ int plugin_register_complex_read (const char *group, const char *name,
 		CDTIME_T_TO_TIMESPEC (ctx.interval, &rf->rf_interval);
 	}
 	rf->rf_effective_interval = rf->rf_interval;
+
+	DEBUG ("plugin_register_read: interval = %i.%09i",
+			(int) rf->rf_interval.tv_sec,
+			(int) rf->rf_interval.tv_nsec);
 
 	/* Set user data */
 	if (user_data == NULL)

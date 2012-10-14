@@ -252,6 +252,9 @@ static int dispatch_loadplugin (const oconfig_item_t *ci)
 	const char *name;
 	unsigned int flags = 0;
 	plugin_ctx_t ctx;
+	plugin_ctx_t old_ctx;
+	int ret_val;
+
 	assert (strcasecmp (ci->key, "LoadPlugin") == 0);
 
 	if (ci->values_num != 1)
@@ -260,7 +263,9 @@ static int dispatch_loadplugin (const oconfig_item_t *ci)
 		return (-1);
 
 	name = ci->values[0].value.string;
-	ctx.interval = 0;
+
+	/* default to the global interval set before loading this plugin */
+	ctx.interval = plugin_get_interval ();
 
 	/*
 	 * XXX: Magic at work:
@@ -297,8 +302,12 @@ static int dispatch_loadplugin (const oconfig_item_t *ci)
 		}
 	}
 
-	plugin_set_ctx (ctx);
-	return (plugin_load (name, (uint32_t) flags));
+	old_ctx = plugin_set_ctx (ctx);
+	ret_val = plugin_load (name, (uint32_t) flags);
+	/* reset to the "global" context */
+	plugin_set_ctx (old_ctx);
+
+	return (ret_val);
 } /* int dispatch_value_loadplugin */
 
 static int dispatch_value_plugin (const char *plugin, oconfig_item_t *ci)
