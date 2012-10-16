@@ -474,10 +474,13 @@ jsonrpc_parse_node(struct json_object *node, char**jsonanswer) {
 static int jsonrpc_parse_data(connection_info_struct_t *con_info) {
 	json_object *node;
 	int l;
+	enum json_tokener_error jerr;
+
 	if(NULL == con_info) return(-1);
 
 	if(NULL == con_info->jsonrequest) {
 		PREPARE_ERROR_PAGE(MHD_HTTP_BAD_REQUEST,errorpage,MIMETYPE_TEXTHTML);
+		DEBUG(OUTPUT_PREFIX_JSONRPC "Request failed (%s:%d)", __FILE__, __LINE__);
 		return(1);
 	}
 
@@ -485,13 +488,20 @@ static int jsonrpc_parse_data(connection_info_struct_t *con_info) {
 		l = decode_from_www_urlencoded(con_info->jsonrequest, con_info->jsonrequest_size);
 		if(l<0) {
 			PREPARE_ERROR_PAGE(MHD_HTTP_BAD_REQUEST,parseerrorpage,MIMETYPE_TEXTHTML);
+			DEBUG(OUTPUT_PREFIX_JSONRPC "Request failed : could not decode from wwwurlencoded");
+			con_info->jsonrequest[con_info->jsonrequest_size] = '\0';
+			DEBUG(OUTPUT_PREFIX_JSONRPC "Request was (maybe truncated to 1024 chars) :  %s", con_info->jsonrequest);
 			return(1);
 		}
 	}
 
-	node = json_tokener_parse( con_info->jsonrequest);
+	jerr = 0;
+	node = json_tokener_parse_verbose( con_info->jsonrequest, &jerr);
 	if(NULL == node) {
 		PREPARE_ERROR_PAGE(MHD_HTTP_BAD_REQUEST,parseerrorpage,MIMETYPE_TEXTHTML);
+		DEBUG(OUTPUT_PREFIX_JSONRPC "Request failed : Parse error (%s)", json_tokener_error_desc(jerr));
+		con_info->jsonrequest[con_info->jsonrequest_size] = '\0';
+		DEBUG(OUTPUT_PREFIX_JSONRPC "Request was (maybe truncated to 1024 chars) :  %s", con_info->jsonrequest);
 		return(1);
 	}
 	/* Note : I have some segfault here, in json_object_is_type(), with
@@ -507,6 +517,9 @@ static int jsonrpc_parse_data(connection_info_struct_t *con_info) {
 		if(NULL == ( con_info->answerstring = strdup("["))) {
 			PREPARE_ERROR_PAGE(MHD_HTTP_INTERNAL_SERVER_ERROR,servererrorpage,MIMETYPE_TEXTHTML);
 			json_object_put(node);
+			DEBUG(OUTPUT_PREFIX_JSONRPC "Request failed : not enough memory (%s:%d)", __FILE__,__LINE__);
+			con_info->jsonrequest[con_info->jsonrequest_size] = '\0';
+			DEBUG(OUTPUT_PREFIX_JSONRPC "Request was (maybe truncated to 1024 chars) :  %s", con_info->jsonrequest);
 			return(1);
 		}
 
@@ -525,6 +538,9 @@ static int jsonrpc_parse_data(connection_info_struct_t *con_info) {
 					if(con_info->answerstring) free(con_info->answerstring);
 					PREPARE_ERROR_PAGE(MHD_HTTP_BAD_REQUEST,parseerrorpage,MIMETYPE_TEXTHTML);
 					json_object_put(node);
+					DEBUG(OUTPUT_PREFIX_JSONRPC "Request failed : could not parse a node (%s:%d)", __FILE__,__LINE__);
+					con_info->jsonrequest[con_info->jsonrequest_size] = '\0';
+					DEBUG(OUTPUT_PREFIX_JSONRPC "Request was (maybe truncated to 1024 chars) :  %s", con_info->jsonrequest);
 					return(1);
 				}
 				l1 = strlen(con_info->answerstring);
@@ -537,6 +553,9 @@ static int jsonrpc_parse_data(connection_info_struct_t *con_info) {
 					if(jstr) free(jstr);
 					PREPARE_ERROR_PAGE(MHD_HTTP_INTERNAL_SERVER_ERROR,servererrorpage,MIMETYPE_TEXTHTML);
 					json_object_put(node);
+					DEBUG(OUTPUT_PREFIX_JSONRPC "Request failed : not enough memory (%s:%d)", __FILE__,__LINE__);
+					con_info->jsonrequest[con_info->jsonrequest_size] = '\0';
+					DEBUG(OUTPUT_PREFIX_JSONRPC "Request was (maybe truncated to 1024 chars) :  %s", con_info->jsonrequest);
 					return(1);
 				}
 				if(i!=0) {
@@ -550,6 +569,9 @@ static int jsonrpc_parse_data(connection_info_struct_t *con_info) {
 				if(con_info->answerstring) free(con_info->answerstring);
 				PREPARE_ERROR_PAGE(MHD_HTTP_BAD_REQUEST,parseerrorpage,MIMETYPE_TEXTHTML);
 				json_object_put(node);
+				DEBUG(OUTPUT_PREFIX_JSONRPC "Request failed : wrong type, expected object (%s:%d)", __FILE__,__LINE__);
+				con_info->jsonrequest[con_info->jsonrequest_size] = '\0';
+				DEBUG(OUTPUT_PREFIX_JSONRPC "Request was (maybe truncated to 1024 chars) :  %s", con_info->jsonrequest);
 				return(1);
 			}
 
@@ -575,12 +597,18 @@ static int jsonrpc_parse_data(connection_info_struct_t *con_info) {
 			} else {
 				PREPARE_ERROR_PAGE(MHD_HTTP_BAD_REQUEST,parseerrorpage,MIMETYPE_TEXTHTML);
 				json_object_put(node);
+				DEBUG(OUTPUT_PREFIX_JSONRPC "Request failed : could not parse a node (%s:%d)", __FILE__,__LINE__);
+				con_info->jsonrequest[con_info->jsonrequest_size] = '\0';
+				DEBUG(OUTPUT_PREFIX_JSONRPC "Request was (maybe truncated to 1024 chars) :  %s", con_info->jsonrequest);
 				return(1);
 			}
 		}
 	} else {
 		PREPARE_ERROR_PAGE(MHD_HTTP_BAD_REQUEST,parseerrorpage,MIMETYPE_TEXTHTML);
 		json_object_put(node);
+		DEBUG(OUTPUT_PREFIX_JSONRPC "Request failed : wrong type, expected array or object (%s:%d)", __FILE__,__LINE__);
+		con_info->jsonrequest[con_info->jsonrequest_size] = '\0';
+		DEBUG(OUTPUT_PREFIX_JSONRPC "Request was (maybe truncated to 1024 chars) :  %s", con_info->jsonrequest);
 		return(1);
 	}
 	PREPARE_ERROR_PAGE(MHD_HTTP_INTERNAL_SERVER_ERROR,parseerrorpage,MIMETYPE_TEXTHTML);
@@ -619,9 +647,11 @@ static int jsonrpc_proceed_request_cb(void * cls,
 	if (NULL == *con_cls) {
 		connection_info_struct_t *con_info;
 
-		if (nb_clients >= max_clients)
+		if (nb_clients >= max_clients) {
+			DEBUG(OUTPUT_PREFIX_JSONRPC "Request failed : nb clients (%d) > %d", nb_clients,max_clients);
 			return send_page (connection, busypage, MHD_HTTP_SERVICE_UNAVAILABLE, MHD_RESPMEM_PERSISTENT, MIMETYPE_JSONRPC,
 					CLOSE_CONNECTION_YES,JSONRPC_REQUEST_FAILED);
+		}
 
 
 		if(NULL == (con_info = malloc (sizeof (connection_info_struct_t)))) 
@@ -655,6 +685,7 @@ static int jsonrpc_proceed_request_cb(void * cls,
 
 	if (0 == strcmp (method, "GET"))
 	{
+		DEBUG(OUTPUT_PREFIX_JSONRPC "Request failed : got GET request");
 		return send_page (connection, errorpage, MHD_HTTP_BAD_REQUEST, MHD_RESPMEM_PERSISTENT, MIMETYPE_TEXTHTML,
 			CLOSE_CONNECTION_YES, JSONRPC_REQUEST_FAILED);
 	}
@@ -695,6 +726,7 @@ static int jsonrpc_proceed_request_cb(void * cls,
 		}
 	}
 
+	DEBUG(OUTPUT_PREFIX_JSONRPC "Request failed : unknown method (%s)", method);
 	return send_page (connection, errorpage, MHD_HTTP_BAD_REQUEST, MHD_RESPMEM_PERSISTENT, MIMETYPE_TEXTHTML,
 	CLOSE_CONNECTION_YES, JSONRPC_REQUEST_FAILED);
 }
@@ -806,6 +838,11 @@ static int submit_derive (unsigned int n, const char *type, const  char *type_in
 
 static int jsonrpc_read (void)
 {
+	static int first_time = 1;
+	if(first_time) {
+		INFO(OUTPUT_PREFIX_JSONRPC "Compilation time : %s %s", __DATE__, __TIME__);
+		first_time = 0;
+	}
 	submit_gauge(nb_clients, "current_connections", "nb_clients");
 	submit_derive(nb_jsonrpc_request_failed, "total_requests", "nb_request_failed");
 	submit_derive(nb_jsonrpc_request_success, "total_requests", "nb_request_succeeded");
