@@ -235,6 +235,16 @@ static void disk_submit (const char *plugin_instance,
 	plugin_dispatch_values (&vl);
 } /* void disk_submit */
 
+#if KERNEL_LINUX
+static counter_t disk_calc_time_incr (counter_t delta_time, counter_t delta_ops)
+{
+	double avg_time = ((double) delta_time) / ((double) delta_ops);
+	double avg_time_incr = CDTIME_T_TO_DOUBLE (interval_g) * avg_time;
+
+	return ((counter_t) (avg_time_incr + .5));
+}
+#endif
+
 #if HAVE_IOKIT_IOKITLIB_H
 static signed long long dict_get_value (CFDictionaryRef dict, const char *key)
 {
@@ -579,13 +589,11 @@ static int disk_read (void)
 				diff_write_time = write_time - ds->write_time;
 
 			if (diff_read_ops != 0)
-				ds->avg_read_time += (diff_read_time
-						+ (diff_read_ops / 2))
-					/ diff_read_ops;
+				ds->avg_read_time += disk_calc_time_incr (
+						diff_read_time, diff_read_ops);
 			if (diff_write_ops != 0)
-				ds->avg_write_time += (diff_write_time
-						+ (diff_write_ops / 2))
-					/ diff_write_ops;
+				ds->avg_write_time += disk_calc_time_incr (
+						diff_write_time, diff_write_ops);
 
 			ds->read_ops = read_ops;
 			ds->read_time = read_time;
