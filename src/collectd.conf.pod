@@ -3762,6 +3762,13 @@ Specify the password to be used when connecting to the server.
 Specify whether to use an SSL connection when contacting the server. The
 following modes are supported:
 
+=item B<Instance> I<name>
+
+Specify the plugin instance name that should be used instead of the database
+name (which is the default, if this option has not been specified). This
+allows to query multiple databases of the same name on the same host (e.g.
+when running multiple database server versions in parallel).
+
 =over 4
 
 =item I<disable>
