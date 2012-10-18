@@ -95,6 +95,7 @@ typedef enum {
 	C_PSQL_PARAM_DB,
 	C_PSQL_PARAM_USER,
 	C_PSQL_PARAM_INTERVAL,
+	C_PSQL_PARAM_INSTANCE,
 } c_psql_param_t;
 
 /* Parameter configuration. Stored as `user data' in the query objects. */
@@ -347,6 +348,9 @@ static PGresult *c_psql_exec_query_params (c_psql_database_t *db,
 						? CDTIME_T_TO_DOUBLE (db->interval) : interval_g);
 				params[i] = interval;
 				break;
+			case C_PSQL_PARAM_INSTANCE:
+				params[i] = db->instance;
+				break;
 			default:
 				assert (0);
 		}
@@ -567,6 +571,8 @@ static int config_query_param_add (udb_query_t *q, oconfig_item_t *ci)
 		data->params[data->params_num] = C_PSQL_PARAM_USER;
 	else if (0 == strcasecmp (param_str, "interval"))
 		data->params[data->params_num] = C_PSQL_PARAM_INTERVAL;
+	else if (0 == strcasecmp (param_str, "instance"))
+		data->params[data->params_num] = C_PSQL_PARAM_INSTANCE;
 	else {
 		log_err ("Invalid parameter \"%s\".", param_str);
 		return 1;

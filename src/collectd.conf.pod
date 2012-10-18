@@ -3604,6 +3604,11 @@ used, the parameter expands to "localhost".
 
 The name of the database of the current connection.
 
+=item I<instance>
+
+The name of the database plugin instance. See the B<Instance> option of the
+database specification below for details.
+
 =item I<username>
 
 The username used to connect to the database.
