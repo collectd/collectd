@@ -79,7 +79,7 @@ is very useful for development and debugging of new modules.
 This option will cause the module to launch an interactive Python interpreter
 that reads from and writes to the terminal. Note that collectd will terminate
 right after starting up if you try to run it as a daemon while this option is
-enabled to make sure to start collectd with the B<-f> option.
+enabled so make sure to start collectd with the B<-f> option.
 
 The B<collectd> module is I<not> imported into the interpreter's globals. You
 have to do it manually. Be sure to read the help text of the module, it can be
@@ -139,8 +139,8 @@ The I<name> identifies the callback.
 
 =head1 STRINGS
 
-There are a lot of places where strings are send from collectd to Python and
-from Python to collectd. How exactly this works depends on wheather byte or
+There are a lot of places where strings are sent from collectd to Python and
+from Python to collectd. How exactly this works depends on whether byte or
 unicode strings or Python2 or Python3 are used.
 
 Python2 has I<str>, which is just bytes, and I<unicode>. Python3 has I<str>,
@@ -153,7 +153,7 @@ If a byte string was used it will be used as is by collectd. If a unicode
 object was used it will be encoded using the default encoding (see above). If
 this is not possible Python will raise a I<UnicodeEncodeError> exception.
 
-Wenn passing strings from collectd to Python the behavior depends on the
+When passing strings from collectd to Python the behavior depends on the
 Python version used. Python2 will always receive a I<str> object. Python3 will
 usually receive a I<str> object as well, however the original string will be
 decoded to unicode using the default encoding. If this fails because the
@@ -225,12 +225,12 @@ notifications as well.
 
 =item shutdown functions
 
-This type of function is called once before the daemon shuts down. It should
+These are called once before the daemon shuts down. It should
 be used to clean up the plugin (e.g. close sockets, ...).
 
 =back
 
-Any function (except log functions) may set throw an exception in case of any
+Any function (except log functions) may throw an exception in case of
 errors. The exception will be passed on to the user using collectd's logging
 mechanism. If a log callback throws an exception it will be printed to standard
 error instead.
@@ -306,7 +306,7 @@ config file. It will always be a string.
 This is a tuple (which might be empty) of all value, i.e. words following the
 keyword in any given line in the config file.
 
-Every item in this tuple will be either a string or a float or a boolean,
+Every item in this tuple will be either a string, a float or a boolean,
 depending on the contents of the configuration file.
 
 =item children
@@ -367,7 +367,7 @@ Type instance string. May be empty.
 
 =head2 Values
 
-A Value is an object which features a sequence of values. It is based on then
+A Value is an object which features a sequence of values. It is based on the
 I<PluginData> type and uses its members to identify the values.
 
  class Values(PluginData)
@@ -495,7 +495,7 @@ Data descriptors defined here:
 
 =item message
 
-Some kind of description what's going on and why this Notification was
+Some kind of description of what's going on and why this Notification was
 generated.
 
 =item severity
@@ -549,7 +549,7 @@ L<"WRITING YOUR OWN PLUGINS"> above) and are passed the following arguments:
 
 The only argument passed is a I<Config> object. See above for the layout of this
 data type.
-Note that you can not receive the whole config files this way, only B<Module>
+Note that you cannot receive the whole config files this way, only B<Module>
 blocks inside the Python configuration block. Additionally you will only
 receive blocks where your callback identifier matches B<python.>I<blockname>.
 
@@ -570,7 +570,7 @@ The callback will be called without arguments.
 
 =item register_write
 
-The callback function will be called with one arguments passed, which will be a
+The callback function will be called with one argument passed, which will be a
 I<Values> object. For the layout of I<Values> see above.
 If this callback function throws an exception the next call will be delayed by
 an increasing interval.
@@ -657,7 +657,7 @@ types used by the read, write and match functions.
 
 =item
 
-Please feel free to send in new plugins to collectd's mailinglist at
+Please feel free to send in new plugins to collectd's mailing list at
 E<lt>collectdE<nbsp>atE<nbsp>verplant.orgE<gt> for review and, possibly,
 inclusion in the main distribution. In the latter case, we will take care of
 keeping the plugin up to date and adapting it to new versions of collectd.
