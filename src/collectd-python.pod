@@ -534,9 +534,12 @@ your callback, not even None.
 I<name> is an optional identifier for this callback. The default name is
 B<python>.I<module>. I<module> is taken from the B<__module__> attribute of
 your callback function. Every callback needs a unique identifier, so if you
-want to register the same callback multiple time in the same module you need to
-specify a name here. Otherwise it's save to ignore this parameter I<identifier>
-is the full identifier assigned to this callback.
+want to register the same callback multiple times in the same module you need to
+specify a name here. Otherwise it's safe to ignore this parameter.
+
+=item
+
+I<identifier> is the full identifier assigned to this callback.
 
 =back
 
