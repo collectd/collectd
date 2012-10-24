@@ -37,7 +37,7 @@ for collectd in Python. This is a lot more efficient than executing a
 Python-script every time you want to read a value with the C<exec plugin> (see
 L<collectd-exec(5)>) and provides a lot more functionality, too.
 
-At least python I<version 2.3> is required.
+At least Python I<version 2.3> is required.
 
 =head1 CONFIGURATION
 
@@ -47,9 +47,9 @@ At least python I<version 2.3> is required.
 
 Loads the Python plugin I<Plugin>. Unlike most other LoadPlugin lines, this one
 should be a block containing the line "Globals true". This will cause collectd
-to export the name of all objects in the python interpreter for all plugins to
+to export the name of all objects in the Python interpreter for all plugins to
 see. If you don't do this or your platform does not support it, the embedded
-interpreter will start anyway but you won't be able to load certain python
+interpreter will start anyway but you won't be able to load certain Python
 modules, e.g. "time".
 
 =item B<Encoding> I<Name>
@@ -68,15 +68,15 @@ use multiple B<ModulePath> lines to add more than one directory.
 
 =item B<LogTraces> I<bool>
 
-If a python script throws an exception it will be logged by collectd with the
+If a Python script throws an exception it will be logged by collectd with the
 name of the exception and the message. If you set this option to true it will
 also log the full stacktrace just like the default output of an interactive
-python interpreter. This should probably be set to false most of the time but
+Python interpreter. This should probably be set to false most of the time but
 is very useful for development and debugging of new modules.
 
 =item B<Interactive> I<bool>
 
-This option will cause the module to launch an interactive python interpreter
+This option will cause the module to launch an interactive Python interpreter
 that reads from and writes to the terminal. Note that collectd will terminate
 right after starting up if you try to run it as a daemon while this option is
 enabled to make sure to start collectd with the B<-f> option.
@@ -86,7 +86,7 @@ have to do it manually. Be sure to read the help text of the module, it can be
 used as a reference guide during coding.
 
 This interactive session will behave slightly differently from a daemonized
-collectd script as well as from a normal python interpreter:
+collectd script as well as from a normal Python interpreter:
 
 =over 4
 
@@ -107,22 +107,22 @@ To quit collectd send I<EOF> (press I<Ctrl+D> at the beginning of a new line).
 
 =item
 
-B<3.> collectd handles I<SIGCHLD>. This means that python won't be able to
+B<3.> collectd handles I<SIGCHLD>. This means that Python won't be able to
 determine the return code of spawned processes with system(), popen() and
-subprocess. This will result in python not using external programs like less
+subprocess. This will result in Python not using external programs like less
 to display help texts. You can override this behavior with the B<PAGER>
 environment variable, e.g. I<export PAGER=less> before starting collectd.
-Depending on your version of python this might or might not result in an
+Depending on your version of Python this might or might not result in an
 B<OSError> exception which can be ignored.
 
-If you really need to spawn new processes from python you can register an init
+If you really need to spawn new processes from Python you can register an init
 callback and reset the action for SIGCHLD to the default behavior. Please note
 that this I<will> break the exec plugin. Do not even load the exec plugin if
 you intend to do this!
 
 There is an example script located in B<contrib/python/getsigchld.py>  to do
 this. If you import this from I<collectd.conf> SIGCHLD will be handled
-normally and spawning processes from python will work as intended.
+normally and spawning processes from Python will work as intended.
 
 =back
 
@@ -139,22 +139,22 @@ The I<name> identifies the callback.
 
 =head1 STRINGS
 
-There are a lot of places where strings are send from collectd to python and
-from python to collectd. How exactly this works depends on wheather byte or
-unicode strings or python2 or python3 are used.
+There are a lot of places where strings are send from collectd to Python and
+from Python to collectd. How exactly this works depends on wheather byte or
+unicode strings or Python2 or Python3 are used.
 
 Python2 has I<str>, which is just bytes, and I<unicode>. Python3 has I<str>,
 which is a unicode object, and I<bytes>.
 
-When passing strings from python to collectd all of these object are supported
+When passing strings from Python to collectd all of these object are supported
 in all places, however I<str> should be used if possible. These strings must
 not contain a NUL byte. Ignoring this will result in a I<TypeError> exception.
 If a byte string was used it will be used as is by collectd. If a unicode
 object was used it will be encoded using the default encoding (see above). If
-this is not possible python will raise a I<UnicodeEncodeError> exception.
+this is not possible Python will raise a I<UnicodeEncodeError> exception.
 
-Wenn passing strings from collectd to python the behavior depends on the
-python version used. Python2 will always receive a I<str> object. Python3 will
+Wenn passing strings from collectd to Python the behavior depends on the
+Python version used. Python2 will always receive a I<str> object. Python3 will
 usually receive a I<str> object as well, however the original string will be
 decoded to unicode using the default encoding. If this fails because the
 string is not a valid sequence for this encoding a I<bytes> object will be
@@ -673,7 +673,7 @@ L<http://collectd.org/dev-info.shtml>.
 
 =item
 
-collectd is heavily multi-threaded. Each collectd thread accessing the python
+collectd is heavily multi-threaded. Each collectd thread accessing the Python
 plugin will be mapped to a Python interpreter thread. Any such thread will be
 created and destroyed transparently and on-the-fly.
 
@@ -703,7 +703,7 @@ dispatched by the python plugin after upgrades.
 
 =item
 
-Not all aspects of the collectd API are accessible from python. This includes
+Not all aspects of the collectd API are accessible from Python. This includes
 but is not limited to filters and data sets.
 
 =back
