@@ -37,7 +37,7 @@ for collectd in Python. This is a lot more efficient than executing a
 Python-script every time you want to read a value with the C<exec plugin> (see
 L<collectd-exec(5)>) and provides a lot more functionality, too.
 
-At least Python I<version 2.3> is required.
+The minimum required Python version is I<2.3>.
 
 =head1 CONFIGURATION
 
