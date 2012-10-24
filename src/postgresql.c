@@ -992,7 +992,7 @@ static int c_psql_config_writer (oconfig_item_t *ci)
 
 		if (strcasecmp ("Statement", c->key) == 0)
 			status = cf_util_get_string (c, &writer->statement);
-		if (strcasecmp ("StoreRates", c->key) == 0)
+		else if (strcasecmp ("StoreRates", c->key) == 0)
 			status = cf_util_get_boolean (c, &writer->store_rates);
 		else
 			log_warn ("Ignoring unknown config key \"%s\".", c->key);
