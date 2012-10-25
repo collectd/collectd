@@ -90,6 +90,26 @@ CREATE TABLE "values" (
     value double precision NOT NULL
 );
 
+CREATE OR REPLACE VIEW collectd
+    AS SELECT host, plugin, plugin_inst, type, type_inst,
+            host
+                || '/' || plugin
+                || CASE
+                    WHEN plugin_inst IS NOT NULL THEN '-'
+                    ELSE ''
+                END
+                || coalesce(plugin_inst, '')
+                || '/' || type
+                || CASE
+                    WHEN type_inst IS NOT NULL THEN '-'
+                    ELSE ''
+                END
+                || coalesce(plugin_inst, '') AS identifier,
+            tstamp, name, value
+        FROM identifiers
+            JOIN values
+            ON values.id = identifiers.id;
+
 -- partition "values" by day (or week, month, ...)
 
 -- create the child tables for today and the next 'days' days:
