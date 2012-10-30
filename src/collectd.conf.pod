@@ -1719,6 +1719,42 @@ independent from the I<JavaClass> argument passed to B<LoadPlugin>.
 
 =back
 
+=head2 Plugin C<jsonrpc>
+
+The I<Jsonrpc> plugin makes it possible to communicate through a HTTP connection
+with JSON-RPC protocol.
+
+Synopsis:
+
+ <Plugin "jsonrpc">
+   Port 8080
+   MaxClients 16
+   JsonrpcCacheExpirationTime 60
+ </Plugin>
+
+Available configuration options:
+
+=over 4
+
+=item B<Port> I<Argument>
+
+Argument is the port number the JSON-RPC HTTP server listens on.
+
+=item B<MaxClients> I<Argument>
+
+Argument is the maximum number of simultaneous connexions.
+
+=item B<JsonrpcCacheExpirationTime> I<time>
+
+The jsonrpc plugin has a local cache of the types. It is a copy of the collectd cache.
+Because using the collectd cache would cost a lot of time to collectd, jsonrpc has its
+own cache.
+
+Time (in seconds) specifies how long to keep the cache and when to refresh it from the
+collectd cache.
+
+=back
+
 =head2 Plugin C<libvirt>
 
 This plugin allows CPU, disk and network load to be collected for virtualized

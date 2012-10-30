@@ -167,119 +167,196 @@ static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 static int httpd_server_port=-1;
 static int max_clients = 16;
 
-static char **local_cache_names = NULL;
-static cdtime_t *local_cache_times = NULL;
-static size_t local_cache_number = 0;
-static time_t local_cache_update_time = 0;
-#define jsonrpc_cache_expiration_time_default 60
-static time_t jsonrpc_cache_expiration_time = jsonrpc_cache_expiration_time_default;
+
+/* Cache of the tree
+ * =================
+ *
+ * This cache is updated with the jsonrpc_read callback.
+ * It updates the cache when it is older than
+ * JSONRPC_CACHE_EXPIRATION_TIME_DEFAULT seconds.
+ *
+ * How does it work ?
+ * - uc_cache_copy is an array of caches (there a 4 or 5 slots and only 2
+ *   should be used, but we never know if we need more).
+ * 
+ * - jsonrpc_update_cache() updates the caches and free unused older caches.
+ *
+ * - each time a function needs to use a copy of the cache, it will find and
+ *   reference the latest cache (jsonrpc_cache_last_entry_find_and_ref()).
+ * - when the cache is no more needed, it dereferences the copy
+ *   (jsonrpc_cache_entry_unref()).
+ * Example:
+ *   int cache_id = jsonrpc_cache_last_entry_find_and_ref(&names,&times,&number);
+ *   play with names,times and number
+ *   jsonrpc_cache_entry_unref(cache_id);
+ *
+ */
+#define JSONRPC_CACHE_EXPIRATION_TIME_DEFAULT 60
+static time_t jsonrpc_cache_expiration_time = JSONRPC_CACHE_EXPIRATION_TIME_DEFAULT;
+
+typedef struct {
+	char **names;
+	cdtime_t *times;
+	size_t number;
+	time_t update_time;
+	int ref; /* nb of json methods or whatever that are using this copy */
+	short ready; /* 1 if this is a valid cache, otherwise 0 */
+} uc_cache_copy_t;
+
+/* NB_CACHE_ENTRY_MAX should be < 10.
+ * If you want more than 10, check the cache_plugin_instance array.
+ */
+#define NB_CACHE_ENTRY_MAX 6
+static uc_cache_copy_t uc_cache_copy[NB_CACHE_ENTRY_MAX];
+
+static char *cache_plugin_instance[] = {
+	"0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+	"10", "11", "12", "13", "14", "15", "16", "17", "18", "19",
+	"20", "21", "22", "23", "24", "25", "26", "27", "28", "29",
+	"30", "31", "32", "33", "34", "35", "36", "37", "38", "39",
+	"40", "41", "42", "43", "44", "45", "46", "47", "48", "49",
+	"50", "51", "52", "53", "54", "55", "56", "57", "58", "59",
+	"60", "61", "62", "63", "64", "65", "66", "67", "68", "69",
+	"70", "71", "72", "73", "74", "75", "76", "77", "78", "79",
+	"80", "81", "82", "83", "84", "85", "86", "87", "88", "89",
+	"90", "91", "92", "93", "94", "95", "96", "97", "98", "99",
+};
 
 /*
  * Functions
  */
 
-int jsonrpc_local_uc_get_names(char ***ret_names, cdtime_t **ret_times, size_t *ret_number) {
-	static int local_cache_reader = 0;
-	static short local_cache_writer = 0;
-	short update_needed = 0;
-	short read_is_possible = 0;
-	char **local_names;
-	cdtime_t *local_times;
-	time_t now;
+int jsonrpc_cache_last_entry_find(void) {
+	time_t update_time = 0;
+	int last_cache_entry = -1;
+	int i;
+	for(i=0; i<NB_CACHE_ENTRY_MAX; i++) {
+		if(uc_cache_copy[i].ready && (uc_cache_copy[i].update_time  > update_time)) {
+			update_time = uc_cache_copy[i].update_time;
+			last_cache_entry = i;
+		}
+	}
+	return(last_cache_entry);
+}
+
+int jsonrpc_cache_nb_entries(void) {
+	int i;
+	int n=0;
+	for(i=0; i<NB_CACHE_ENTRY_MAX; i++) {
+		if(uc_cache_copy[i].ready) {
+			n++;
+		}
+	}
+	return(n);
+}
+
+int jsonrpc_cache_last_entry_find_and_ref(char ***ret_names, cdtime_t **ret_times, size_t *ret_number) {
+	time_t update_time = 0;
+	int last_cache_entry = -1;
 	int i;
 
-	/* Check if update is needed.
-	 * If yes, and if nobody updated the local_cache_writer lock,
-	 * prepare to update.
+		pthread_mutex_lock (&local_cache_lock);
+	for(i=0; i<NB_CACHE_ENTRY_MAX; i++) {
+		if(uc_cache_copy[i].ready && (uc_cache_copy[i].update_time  > update_time)) {
+			update_time = uc_cache_copy[i].update_time;
+			last_cache_entry = i;
+		}
+	}
+	if(-1 != last_cache_entry) {
+		uc_cache_copy[last_cache_entry].ref++;
+		*ret_names = uc_cache_copy[last_cache_entry].names;
+		*ret_times = uc_cache_copy[last_cache_entry].times;
+		*ret_number = uc_cache_copy[last_cache_entry].number;
+	}
+	pthread_mutex_unlock (&local_cache_lock);
+	return(last_cache_entry);
+}
+
+void jsonrpc_cache_entry_unref(int cache_id) {
+		pthread_mutex_lock (&local_cache_lock);
+	uc_cache_copy[cache_id].ref--;
+	assert(uc_cache_copy[cache_id].ref >= 0);
+		pthread_mutex_unlock (&local_cache_lock);
+	return;
+}
+
+int jsonrpc_update_cache() {
+	time_t now;
+	int i;
+	int last_cache_entry = -1;
+	int free_cache_entry = -1;
+	short update_needed = 0;
+
+	last_cache_entry = jsonrpc_cache_last_entry_find();
+	/*
+	 * Free old cache memory
 	 */
-	pthread_mutex_lock (&local_cache_lock);
-	update_needed = 0;
-	if(local_cache_writer <= 0) {
-		now = time(NULL);
-		if(local_cache_update_time + jsonrpc_cache_expiration_time < now) {
-			update_needed = 1;      /* local variable : we got the lock */
-			local_cache_writer = 1; /* shared variable : someone got the lock */
-		}
-	}
-	pthread_mutex_unlock (&local_cache_lock);
-
-/* Check if update is needed. If we have the lock, no need to do it with the
- * mutex locked.
- */
-	if(update_needed) {
-		while(local_cache_reader > 0) sleep(1); /* First : wait until there is no reader */
-
-		for(i=0; i<local_cache_number; i++) free(local_cache_names[i]);
-		free(local_cache_names);
-		free(local_cache_times);
-		local_cache_number=0;
-		if(0 != uc_get_names(&local_cache_names,&local_cache_times,&local_cache_number)) {
-			local_cache_names=NULL;
-			local_cache_times=NULL;
-			local_cache_number = 0;
-			local_cache_update_time = 0;
-			local_cache_writer = 0;
-			return(-1);
-		}
-		local_cache_update_time = time(NULL);
-		local_cache_writer = 0;
-	}
-
-/* Check if we can read duplicate the date.
- * Wait until local_cache_writer is nul (not being updated)
- * and then, increment the number of readers.
- */
-	read_is_possible = 0;
-	while(0 == read_is_possible) {
-		pthread_mutex_lock (&local_cache_lock);
-		if(0 == local_cache_writer) {
-			read_is_possible = 1; /* local variable */
-			local_cache_reader++; /* shared variable */
-		}
-		pthread_mutex_unlock (&local_cache_lock);
-	}
-
-	/* Duplicate the tree */
-	if(NULL == (local_names = calloc(local_cache_number,sizeof(local_names)))) {
-		*ret_names=NULL;
-		*ret_times=NULL;
-		*ret_number=0;
-		pthread_mutex_lock (&local_cache_lock);
-		local_cache_reader--; /* shared variable */
-		pthread_mutex_unlock (&local_cache_lock);
-		return(-1);
-	}
-	if(NULL == (local_times = calloc(local_cache_number,sizeof(local_times)))) {
-		free(local_names);
-		*ret_names=NULL;
-		*ret_times=NULL;
-		*ret_number=0;
-		pthread_mutex_lock (&local_cache_lock);
-		local_cache_reader--; /* shared variable */
-		pthread_mutex_unlock (&local_cache_lock);
-		return(-1);
-	}
-	for(i=0; i<local_cache_number; i++) {
-		if(NULL == (local_names[i] = strdup(local_cache_names[i]))) {
+	for(i=0; i<NB_CACHE_ENTRY_MAX; i++) {
+		if(uc_cache_copy[i].ready && (uc_cache_copy[i].ref == 0) && (i != last_cache_entry)) {
 			int j;
-			for(j=0; j<i; j++) free(local_names[j]);
-			free(local_names);
-			free(local_times);
-			*ret_names=NULL;
-			*ret_times=NULL;
-			*ret_number=0;
-		}
-		local_times[i] = local_cache_times[i];
+			uc_cache_copy[i].ready=0;
+			for(j=0; j<uc_cache_copy[i].number; j++) free(uc_cache_copy[i].names[j]);
+			free(uc_cache_copy[i].names);
+			free(uc_cache_copy[i].times);
+			uc_cache_copy[i].names=NULL;
+			uc_cache_copy[i].times=NULL;
+			uc_cache_copy[i].number=0;
+			uc_cache_copy[i].update_time=0;
 	}
-	pthread_mutex_lock (&local_cache_lock);
-	local_cache_reader--;
-	pthread_mutex_unlock (&local_cache_lock);
-	*ret_names=local_names;
-	*ret_times=local_times;
-	*ret_number=local_cache_number;
+	}
+
+	/* 
+	 * Check if update is needed.
+	 */
+	now = time(NULL);
+	if(-1 == last_cache_entry) { 
+		update_needed = 1;
+		}
+	else if((uc_cache_copy[last_cache_entry].update_time + jsonrpc_cache_expiration_time) < now) {
+		update_needed = 1;
+	}
+	if(0 == update_needed) {
+		return(0);
+	}
+
+	/*
+	 * Find free entry
+	 */
+	free_cache_entry = -1;
+	for(i=0; i<NB_CACHE_ENTRY_MAX; i++) {
+		if(0 == uc_cache_copy[i].ready) {
+			free_cache_entry = i;
+			break;
+		}
+	}
+	if(-1 == free_cache_entry) {
+		ERROR(OUTPUT_PREFIX_JSONRPC "Not enough cache entry. This is probably a problem"
+				" where restarting is the best solution.");
+		assert(free_cache_entry != -1);
+	}
+
+	if(0 != uc_get_names(
+				&(uc_cache_copy[free_cache_entry].names),
+				&(uc_cache_copy[free_cache_entry].times),
+				&(uc_cache_copy[free_cache_entry].number)
+				)) {
+		uc_cache_copy[free_cache_entry].names=NULL;
+		uc_cache_copy[free_cache_entry].times=NULL;
+		uc_cache_copy[free_cache_entry].number = 0;
+
+		uc_cache_copy[free_cache_entry].update_time=0;
+		uc_cache_copy[free_cache_entry].ref=0;
+		uc_cache_copy[free_cache_entry].ready=0;
+		return(-1);
+	}
+	uc_cache_copy[free_cache_entry].update_time = time(NULL);
+	uc_cache_copy[free_cache_entry].ref = 0;
+	uc_cache_copy[free_cache_entry].ready = 1;
 
 	return(0);
 }
+
+/* HTTP stuff */
 
 static int
 send_page (struct MHD_Connection *connection, const char *page,
@@ -299,7 +376,7 @@ send_page (struct MHD_Connection *connection, const char *page,
 
 	response =
 		MHD_create_response_from_buffer (strlen (page), (void *) page,
-				MHD_RESPMEM_PERSISTENT);
+				mode);
 	if (!response)
 		return MHD_NO;
 
@@ -363,6 +440,7 @@ char *
 jsonrpc_build_error_object_string(int id, int code, const char *message) {
 	char *result;
 	int lmessage;
+	int len;
 	const char *defined_message = NULL;
 	
 	switch(code) {
@@ -375,9 +453,10 @@ jsonrpc_build_error_object_string(int id, int code, const char *message) {
 	assert(defined_message != NULL);
 
 	lmessage = strlen(defined_message);
-	if(NULL == (result = malloc(strlen(jsonerrorstringformat)+lmessage+30))) 
+	len = strlen(jsonerrorstringformat)+lmessage+30;
+	if(NULL == (result = malloc(len))) 
 		return(NULL);
-	sprintf(result, jsonerrorstringformat, code, defined_message, id);
+	snprintf(result, len, jsonerrorstringformat, code, defined_message, id);
 	return(result);
 }
 
@@ -426,11 +505,13 @@ jsonrpc_parse_node(struct json_object *node, char**jsonanswer) {
 	}
 /* Create the result object */
 	if(NULL == (result = json_object_new_object())) {
+		DEBUG(OUTPUT_PREFIX_JSONRPC "Internal error %s:%d", __FILE__, __LINE__);
 		*jsonanswer = jsonrpc_build_error_object_string(id, JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR, NULL);
 		return(*jsonanswer?0:-1);
 	}
 	if(NULL == (obj = json_object_new_string("2.0"))) {
 		json_object_put(result);
+		DEBUG(OUTPUT_PREFIX_JSONRPC "Internal error %s:%d", __FILE__, __LINE__);
 		*jsonanswer = jsonrpc_build_error_object_string(id, JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR, NULL);
 		return(*jsonanswer?0:-1);
 	}
@@ -439,6 +520,7 @@ jsonrpc_parse_node(struct json_object *node, char**jsonanswer) {
 	if(0 != (errorcode = jsonrpc_methods_table[i].cb(params, result, &errorstring)))  {
 		json_object_put(result);
 		if(errorcode > 0) {
+			DEBUG(OUTPUT_PREFIX_JSONRPC "Internal error %s:%d", __FILE__, __LINE__);
 			*jsonanswer = jsonrpc_build_error_object_string(id, JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR, NULL);
 		} else {
 			*jsonanswer = jsonrpc_build_error_object_string(id, errorcode, errorstring);
@@ -449,6 +531,7 @@ jsonrpc_parse_node(struct json_object *node, char**jsonanswer) {
 /* Finish the result object and convert to string */
 	if(NULL == (obj = json_object_new_int(id))) {
 		json_object_put(result);
+		DEBUG(OUTPUT_PREFIX_JSONRPC "Internal error %s:%d", __FILE__, __LINE__);
 		*jsonanswer = jsonrpc_build_error_object_string(id, JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR, NULL);
 		return(*jsonanswer?0:-1);
 	}
@@ -456,12 +539,14 @@ jsonrpc_parse_node(struct json_object *node, char**jsonanswer) {
 
 	if(NULL == (str = json_object_to_json_string(result))) {
 		json_object_put(result);
+		DEBUG(OUTPUT_PREFIX_JSONRPC "Internal error %s:%d", __FILE__, __LINE__);
 		*jsonanswer = jsonrpc_build_error_object_string(id, JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR, NULL);
 		return(*jsonanswer?0:-1);
 	}
 
 	if(NULL == (*jsonanswer = strdup(str))) {
 		json_object_put(result);
+		DEBUG(OUTPUT_PREFIX_JSONRPC "Internal error %s:%d", __FILE__, __LINE__);
 		*jsonanswer = jsonrpc_build_error_object_string(id, JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR, NULL);
 		return(*jsonanswer?0:-1);
 	}
@@ -782,6 +867,15 @@ static int jsonrpc_init (void)
 		return (0);
 	have_init = 1;
 
+	/* Initialize the local caches */
+	memset(uc_cache_copy, '\0', sizeof(uc_cache_copy));
+
+	/* Verification for developers who would set a too big value here */
+	if(NB_CACHE_ENTRY_MAX > (sizeof(cache_plugin_instance)/sizeof(*cache_plugin_instance))) {
+		ERROR(OUTPUT_PREFIX_JSONRPC "NB_CACHE_ENTRY_MAX should not be so big (you specified %d at compilation time)", NB_CACHE_ENTRY_MAX);
+		assert(NB_CACHE_ENTRY_MAX <= (sizeof(cache_plugin_instance)/sizeof(*cache_plugin_instance)));
+	}
+
 	/* Start the web server */
 	jsonrpc_daemon = MHD_start_daemon(
 			MHD_USE_THREAD_PER_CONNECTION,
@@ -839,6 +933,7 @@ static int submit_derive (unsigned int n, const char *type, const  char *type_in
 static int jsonrpc_read (void)
 {
 	static int first_time = 1;
+	int i;
 	if(first_time) {
 		INFO(OUTPUT_PREFIX_JSONRPC "Compilation time : %s %s", __DATE__, __TIME__);
 		first_time = 0;
@@ -847,6 +942,17 @@ static int jsonrpc_read (void)
 	submit_derive(nb_jsonrpc_request_failed, "total_requests", "nb_request_failed");
 	submit_derive(nb_jsonrpc_request_success, "total_requests", "nb_request_succeeded");
 	submit_derive(nb_new_connections, "http_requests", "nb_connections");
+
+	jsonrpc_update_cache();
+	submit_gauge(jsonrpc_cache_nb_entries(), "cache_size", "nb_used_cached");
+	for(i=0; i<NB_CACHE_ENTRY_MAX; i++) {
+		int n;
+		pthread_mutex_lock (&local_cache_lock);
+		n = uc_cache_copy[i].ready?uc_cache_copy[i].ref:0;
+		pthread_mutex_unlock (&local_cache_lock);
+		submit_gauge(n, "cache_entries", cache_plugin_instance[i]);
+	}
+
 	return (0);
 } /* int jsonrpc_read */
 

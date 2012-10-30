@@ -29,7 +29,8 @@
 #define JSONRPC_ERROR_CODE_32602_INVALID_PARAMS     (-32602)
 #define JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR     (-32603)
 
-int jsonrpc_local_uc_get_names(char ***ret_names, cdtime_t **ret_times, size_t *ret_number);
+int jsonrpc_cache_last_entry_find_and_ref(char ***ret_names, cdtime_t **ret_times, size_t *ret_number);
+void jsonrpc_cache_entry_unref(int cache_id);
 
 
 #endif /* JSONRPC_H */

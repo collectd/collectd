@@ -32,18 +32,6 @@
 
 static const char *jsonrpc_error_32001_listval_failed = "-1 uc_get_names failed.";
 
-#define jsonrpc_free_everything_and_return(status) do { \
-    size_t j; \
-    for (j = 0; j < number; j++) { \
-      sfree(names[j]); \
-      names[j] = NULL; \
-    } \
-    sfree(names); \
-    sfree(times); \
-    return (status); \
-  } while (0)
-
-
 int jsonrpc_cb_listval (struct json_object *params, struct json_object *result, const char **errorstring) {
 		struct json_object *obj;
 		struct json_object *array;
@@ -51,75 +39,87 @@ int jsonrpc_cb_listval (struct json_object *params, struct json_object *result, 
 		char **names = NULL;
 		cdtime_t *times = NULL;
 		size_t number = 0;
-		int status;
-		int i;
+		int cache_id;
+		size_t i;
 
 		*errorstring = NULL;
 
-/* Get the names */
-		status = jsonrpc_local_uc_get_names (&names, &times, &number);
-		if (status != 0)
+		/* Get the names */
+		cache_id = jsonrpc_cache_last_entry_find_and_ref (&names, &times, &number);
+		if (cache_id == -1)
 		{
-				DEBUG (OUTPUT_PREFIX_JSONRPC_CB_BASE "uc_get_names failed with status %i", status);
+				DEBUG (OUTPUT_PREFIX_JSONRPC_CB_BASE "uc_get_names failed with status %i", cache_id);
 				*errorstring = jsonrpc_error_32001_listval_failed;
-				jsonrpc_free_everything_and_return (-32001);
+				return (-32001);
 		}
 
-/* Create the result object */
+		/* Create the result object */
 		if(NULL == (resultobject = json_object_new_object())) {
 				DEBUG (OUTPUT_PREFIX_JSONRPC_CB_BASE "Could not create a json object");
-				jsonrpc_free_everything_and_return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
+				jsonrpc_cache_entry_unref(cache_id);
+				DEBUG(OUTPUT_PREFIX_JSONRPC_CB_BASE "Internal error %s:%d", __FILE__, __LINE__);
+				return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
 		}
 
-/* Insert the nb of values in the result object */
+		/* Insert the nb of values in the result object */
 		if(NULL == (obj = json_object_new_int((int)number))) {
+				DEBUG(OUTPUT_PREFIX_JSONRPC_CB_BASE "Internal error %s:%d", __FILE__, __LINE__);
 				DEBUG (OUTPUT_PREFIX_JSONRPC_CB_BASE "Could not create a json object");
 				json_object_put(resultobject);
-				jsonrpc_free_everything_and_return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
+				jsonrpc_cache_entry_unref(cache_id);
+				return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
 		}
 		json_object_object_add(resultobject, "nb", obj);
 
-/* Create the array of values */
+		/* Create the array of values */
 		if(NULL == (array = json_object_new_array())) {
+				DEBUG(OUTPUT_PREFIX_JSONRPC_CB_BASE "Internal error %s:%d", __FILE__, __LINE__);
 				DEBUG (OUTPUT_PREFIX_JSONRPC_CB_BASE "Could not create a json array");
 				json_object_put(resultobject);
-				jsonrpc_free_everything_and_return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
+				jsonrpc_cache_entry_unref(cache_id);
+				return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
 		}
 
-/* Append the values to the array */
+		/* Append the values to the array */
 		for (i = 0; i < number; i++) {
 				struct json_object * obj_array;
 
 		if(NULL == (obj_array = json_object_new_array())) {
+						DEBUG(OUTPUT_PREFIX_JSONRPC_CB_BASE "Internal error %s:%d", __FILE__, __LINE__);
 				DEBUG (OUTPUT_PREFIX_JSONRPC_CB_BASE "Could not create a json array");
 						json_object_put(array);
 				json_object_put(resultobject);
-				jsonrpc_free_everything_and_return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
+						jsonrpc_cache_entry_unref(cache_id);
+						return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
 		}
 				if(NULL == (obj = json_object_new_double(CDTIME_T_TO_DOUBLE (times[i])))) {
+						DEBUG(OUTPUT_PREFIX_JSONRPC_CB_BASE "Internal error %s:%d", __FILE__, __LINE__);
 						DEBUG (OUTPUT_PREFIX_JSONRPC_CB_BASE "Could not create a json object");
 						json_object_put(array);
 						json_object_put(obj_array);
 						json_object_put(resultobject);
-						jsonrpc_free_everything_and_return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
+						jsonrpc_cache_entry_unref(cache_id);
+						return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
 				}
 			json_object_array_add(obj_array,obj);
 				if(NULL == (obj = json_object_new_string(names[i]))) {
+						DEBUG(OUTPUT_PREFIX_JSONRPC_CB_BASE "Internal error %s:%d", __FILE__, __LINE__);
 						DEBUG (OUTPUT_PREFIX_JSONRPC_CB_BASE "Could not create a json object");
 						json_object_put(array);
 						json_object_put(obj_array);
 						json_object_put(resultobject);
-						jsonrpc_free_everything_and_return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
+						jsonrpc_cache_entry_unref(cache_id);
+						return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
 				}
 			json_object_array_add(obj_array,obj);
 			json_object_array_add(array,obj_array);
 		}
 		json_object_object_add(resultobject, "values", array);
 
-/* Last : add the "result" to the result object */
+		/* Last : add the "result" to the result object */
 		json_object_object_add(result, "result", resultobject);
 
-		jsonrpc_free_everything_and_return (0);
+		jsonrpc_cache_entry_unref (cache_id);
 
 		return(0);
 }
@@ -228,6 +228,7 @@ int jsonrpc_cb_getval (struct json_object *params, struct json_object *result, c
 
 		/* Create the result object */
 		if(NULL == (resultobject = json_object_new_object())) {
+				DEBUG(OUTPUT_PREFIX_JSONRPC_CB_BASE "Internal error %s:%d", __FILE__, __LINE__);
 				DEBUG (OUTPUT_PREFIX_JSONRPC_CB_BASE "Could not create a json object");
 				return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
 		}
@@ -235,7 +236,7 @@ int jsonrpc_cb_getval (struct json_object *params, struct json_object *result, c
 		if(json_object_is_type (params, json_type_array)) {
 				struct array_list *al;
 				int array_len;
-				int i;
+				size_t i;
 
 				al = json_object_get_array(params);
 				assert(NULL != al);

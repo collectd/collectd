@@ -8,6 +8,7 @@ ath_nodes		value:GAUGE:0:65535
 ath_stat		value:DERIVE:0:U
 bitrate			value:GAUGE:0:4294967295
 bytes			value:GAUGE:0:U
+cache_entries		value:GAUGE:0:U
 cache_eviction		value:DERIVE:0:U
 cache_operation		value:DERIVE:0:U
 cache_ratio		value:GAUGE:0:100
