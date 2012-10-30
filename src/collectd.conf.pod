@@ -3094,6 +3094,16 @@ IP-address may be used in a filename it is recommended to disable reverse
 lookups. The default is to do reverse lookups to preserve backwards
 compatibility, though.
 
+=item B<IncludeUnitID> B<true>|B<false>
+
+When a peer is a refclock, include the unit ID in the I<type instance>.
+Defaults to B<false> for backward compatibility.
+
+If two refclock peers use the same driver and this is B<false>, the plugin will
+try to write simultaneous measurements from both to the same type instance.
+This will result in error messages in the log and only one set of measurements
+making it through.
+
 =back
 
 =head2 Plugin C<nut>
@@ -3594,6 +3604,11 @@ used, the parameter expands to "localhost".
 
 The name of the database of the current connection.
 
+=item I<instance>
+
+The name of the database plugin instance. See the B<Instance> option of the
+database specification below for details.
+
 =item I<username>
 
 The username used to connect to the database.
@@ -3751,6 +3766,13 @@ Specify the password to be used when connecting to the server.
 
 Specify whether to use an SSL connection when contacting the server. The
 following modes are supported:
+
+=item B<Instance> I<name>
+
+Specify the plugin instance name that should be used instead of the database
+name (which is the default, if this option has not been specified). This
+allows to query multiple databases of the same name on the same host (e.g.
+when running multiple database server versions in parallel).
 
 =over 4
 

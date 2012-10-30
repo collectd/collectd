@@ -791,7 +791,8 @@ static int camqp_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
     else if (conf->format == CAMQP_FORMAT_GRAPHITE)
     {
         status = format_graphite (buffer, sizeof (buffer), ds, vl,
-                    conf->prefix, conf->postfix, conf->escape_char);
+                    conf->prefix, conf->postfix, conf->escape_char,
+                    conf->store_rates);
         if (status != 0)
         {
             ERROR ("amqp plugin: format_graphite failed with status %i.",

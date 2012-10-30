@@ -28,6 +28,7 @@
 int format_graphite (char *buffer,
     size_t buffer_size, const data_set_t *ds,
     const value_list_t *vl, const char *prefix,
-    const char *postfix, const char escape_char);
+    const char *postfix, const char escape_char,
+    _Bool store_rates);
 
 #endif /* UTILS_FORMAT_GRAPHITE_H */

@@ -213,6 +213,10 @@ if BUILD_PLUGIN_CONTEXTSWITCH
 pkglib_LTLIBRARIES += contextswitch.la
 contextswitch_la_SOURCES = contextswitch.c
 contextswitch_la_LDFLAGS = -module -avoid-version
+contextswitch_la_LIBADD =
+if BUILD_WITH_PERFSTAT
+contextswitch_la_LIBADD += -lperfstat
+endif
 collectd_LDADD += "-dlopen" contextswitch.la
 collectd_DEPENDENCIES += contextswitch.la
 endif
@@ -1208,6 +1212,9 @@ uptime_la_LIBADD =
 if BUILD_WITH_LIBKSTAT
 uptime_la_LIBADD += -lkstat
 endif
+if BUILD_WITH_PERFSTAT
+uptime_la_LIBADD += -lperfstat
+endif
 collectd_LDADD += "-dlopen" uptime.la
 collectd_DEPENDENCIES += uptime.la
 endif
@@ -1401,3 +1408,8 @@ install-exec-hook:
 	$(INSTALL) -m 0644 $(srcdir)/types.db $(DESTDIR)$(pkgdatadir)/types.db;
 	$(INSTALL) -m 0644 $(srcdir)/postgresql_default.conf \
 		$(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
+
+uninstall-hook:
+	rm -f $(DESTDIR)$(pkgdatadir)/types.db;
+	rm -f $(DESTDIR)$(sysconfdir)/collectd.conf
+	rm -f $(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
