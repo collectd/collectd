@@ -258,7 +258,7 @@ int jsonrpc_cb_pw_get_metric (struct json_object *params, struct json_object *re
 		}
 		/* Get the names */
 		cache_id = jsonrpc_cache_last_entry_find_and_ref (&names, &times, &number);
-		if (cache_id != 0)
+		if (cache_id == -1)
 		{
 				DEBUG (OUTPUT_PREFIX_JSONRPC_CB_PERFWATCHER "uc_get_names failed with status %i", cache_id);
 				c_avl_destroy(servers);
