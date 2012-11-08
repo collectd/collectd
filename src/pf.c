@@ -17,6 +17,7 @@
 
 #include "collectd.h"
 #include "plugin.h"
+#include "common.h"
 
 #include <sys/ioctl.h>
 #include <sys/socket.h>
