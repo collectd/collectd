@@ -241,6 +241,12 @@ static int agg_instance_read_func (agg_instance_t *inst, /* {{{ */
   status = rate_to_value (&v, rate, state, inst->ds_type, t);
   if (status != 0)
   {
+    /* If this is the first iteration and rate_to_value() was asked to return a
+     * COUNTER or a DERIVE, it will return EAGAIN. Catch this and handle
+     * gracefully. */
+    if (status == EAGAIN)
+      return (0);
+
     WARNING ("aggregation plugin: rate_to_value failed with status %i.",
         status);
     return (-1);
