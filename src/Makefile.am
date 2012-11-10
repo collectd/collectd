@@ -1326,6 +1326,8 @@ collectd_LDADD += "-dlopen" zfs_arc.la
 collectd_DEPENDENCIES += zfs_arc.la
 endif
 
+BUILT_SOURCES += $(dist_man_MANS)
+
 dist_man_MANS = collectd.1 \
 		collectd.conf.5 \
 		collectd-email.5 \
