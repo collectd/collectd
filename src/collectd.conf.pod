@@ -4233,6 +4233,12 @@ more then one RRA. If this option is never used, the built-in default of (3600,
 
 For more information on how RRA-sizes are calculated see B<RRARows> above.
 
+=item B<XFF> I<Factor>
+
+Set the "XFiles Factor". The default is 0.1. If unsure, don't set this option.
+I<Factor> must be in the range C<[0.0-1.0)>, i.e. between zero (inclusive) and
+one (exclusive).
+
 =back
 
 =head2 Plugin C<rrdtool>
@@ -4290,6 +4296,8 @@ For more information on how RRA-sizes are calculated see B<RRARows> above.
 =item B<XFF> I<Factor>
 
 Set the "XFiles Factor". The default is 0.1. If unsure, don't set this option.
+I<Factor> must be in the range C<[0.0-1.0)>, i.e. between zero (inclusive) and
+one (exclusive).
 
 =item B<CacheFlush> I<Seconds>
 

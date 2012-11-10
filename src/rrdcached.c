@@ -176,6 +176,29 @@ static int rc_config_get_int_positive (oconfig_item_t const *ci, int *ret)
   return (0);
 } /* int rc_config_get_int_positive */
 
+static int rc_config_get_xff (oconfig_item_t const *ci, double *ret)
+{
+  double value;
+
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
+  {
+    ERROR ("rrdcached plugin: The \"%s\" needs exactly one numeric argument "
+        "in the range [0.0, 1.0)", ci->key);
+    return (EINVAL);
+  }
+
+  value = ci->values[0].value.number;
+  if ((value => 0.0) && (value < 1.0))
+  {
+    *ret = value;
+    return (0);
+  }
+
+  ERROR ("rrdcached plugin: The \"%s\" needs exactly one numeric argument "
+      "in the range [0.0, 1.0)", ci->key);
+  return (EINVAL);
+} /* int rc_config_get_xff */
+
 static int rc_config_add_timespan (int timespan)
 {
   int *tmp;
@@ -242,6 +265,8 @@ static int rc_config (oconfig_item_t *ci)
       if (status == 0)
         status = rc_config_add_timespan (tmp);
     }
+    else if (strcasecmp ("XFF", key) == 0)
+      status = rc_config_get_xff (child, &rrdcreate_config.xff);
     else
     {
       WARNING ("rrdcached plugin: Ignoring invalid option %s.", key);
