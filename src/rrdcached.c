@@ -161,6 +161,21 @@ static int value_list_to_filename (char *buffer, int buffer_len,
   return (0);
 } /* int value_list_to_filename */
 
+static int rc_config_get_int_positive (oconfig_item_t const *ci, int *ret)
+{
+  int status;
+  int tmp = 0;
+
+  status = cf_util_get_int (ci, &tmp);
+  if (status != 0)
+    return (status);
+  if (tmp < 0)
+    return (EINVAL);
+
+  *ret = tmp;
+  return (0);
+} /* int rc_config_get_int_positive */
+
 static int rc_config (oconfig_item_t *ci)
 {
   int i;
@@ -194,6 +209,12 @@ static int rc_config (oconfig_item_t *ci)
       status = cf_util_get_boolean (child, &config_create_files);
     else if (strcasecmp ("CollectStatistics", key) == 0)
       status = cf_util_get_boolean (child, &config_collect_stats);
+    else if (strcasecmp ("StepSize", key) == 0)
+      status = rc_config_get_int_positive (child, &rrdcreate_config.stepsize);
+    else if (strcasecmp ("HeartBeat", key) == 0)
+      status = rc_config_get_int_positive (child, &rrdcreate_config.heartbeat);
+    else if (strcasecmp ("RRARows", key) == 0)
+      status = rc_config_get_int_positive (child, &rrdcreate_config.rrarows);
     else
     {
       WARNING ("rrdcached plugin: Ignoring invalid option %s.", key);
