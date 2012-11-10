@@ -164,11 +164,14 @@
 
 #<Plugin "aggregation">
 #  <Aggregation>
-#    Host "/any/"
-#    Plugin "example"
-#    PluginInstance "/all/"
-#    Type "gauge"
-#    TypeInstance "/any/"
+#    #Host "unspecified"
+#    Plugin "cpu"
+#    #PluginInstance "unspecified"
+#    Type "cpu"
+#    #TypeInstance "unspecified"
+#
+#    GroupBy "Host"
+#    GroupBy "TypeInstance"
 #
 #    CalculateNum false
 #    CalculateSum false

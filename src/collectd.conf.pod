@@ -199,25 +199,41 @@ statistics for your entire fleet.
 The grouping is powerful but, as with many powerful tools, may be a bit
 difficult to wrap your head around. The grouping will therefore be
 demonstrated using an example: The average and sum of the CPU usage across
-CPUs of each client is to be calculated.
+all CPUs of each host is to be calculated.
 
-To select all the affected values for our example, set C<plugin=cpu> and
-C<type=cpu>. The other values, we set to a wildcard. There are two different
-wildcard tokens: C</all/> and C</any/>. C</any/> works like a
-C<GROUPE<nbsp>BY> clause in SQL, i.e. if host is set to C</any/>, a separate
-aggregation will be calculated for each host. In the example, we need to group
-by I<Host> and I<Type Instance> (user, system, idle, ...) but we don't group
-by I<Plugin Instance> (CPU number).
+To select all the affected values for our example, set C<Plugin cpu> and
+C<Type cpu>. The other values are left unspecified, meaning "all values". The
+I<Host>, I<Plugin>, I<PluginInstance>, I<Type> and I<TypeInstance> options
+work as if they were specified in the C<WHERE> clause of an C<SELECT> SQL
+statement.
+
+  Plugin "cpu"
+  Type "cpu"
+
+Although the I<Host>, I<PluginInstance> (CPU number, i.e. 0, 1, 2, ...)  and
+I<TypeInstance> (idle, user, system, ...) fields are left unspecified in the
+example, the intention is to have a new value for each host / type instance
+pair. This is achieved by "grouping" the values using the C<GroupBy> option.
+It can be specified multiple times to group by more than one field.
+
+  GroupBy "Host"
+  GroupBy "TypeInstance"
+
+We do neither specify nor group by I<plugin instance> (the CPU number), so all
+metrics that differ in the CPU number only will be aggregated. Each
+aggregation needs I<at least one> such field, otherwise no aggregation would
+take place.
 
 The full example configuration looks like this:
 
  <Plugin "aggregation">
    <Aggregation>
-     Host "/any/"
      Plugin "cpu"
-     PluginInstance "/all/"
      Type "cpu"
-     TypeInstance "/any/"
+     
+     GroupBy "Host"
+     GroupBy "TypeInstance"
+     
      CalculateSum true
      CalculateAverage true
    </Aggregation>
@@ -229,14 +245,14 @@ There are a couple of limitations you should be aware of:
 
 =item
 
-The I<Type> cannot be a wildcard, because it is not reasonable to add apples
-to oranges. Also, the internal lookup structure won't work if you set it to
-C</any/> or C</all/>.
+The I<Type> cannot be left unspecified, because it is not reasonable to add
+apples to oranges. Also, the internal lookup structure won't work if you try
+to group by type.
 
 =item
 
-There must be at least one C</all/> wildcard, otherwise nothing will be
-aggregated.
+There must be at least one unspecified, ungrouped field. Otherwise nothing
+will be aggregated.
 
 =back
 
@@ -257,10 +273,13 @@ aggregations. The following options are valid inside B<Aggregation> blocks:
 
 =item B<TypeInstance> I<TypeInstance>
 
-Selects the value lists to be added to this aggregation. Each field, with the
-exception of B<Type>, can hold either a fixed string, or one of the wildcard
-tokens C</all/> and C</any/>. B<Type> must be a valid data set name, see
-L<types.db(5)> for details.
+Selects the value lists to be added to this aggregation. B<Type> must be a
+valid data set name, see L<types.db(5)> for details.
+
+=item B<GroupBy> B<Host>|B<Plugin>|B<PluginInstance>|B<TypeInstance>
+
+Group valued by the specified field. The B<GroupBy> option may be repeated to
+group by multiple fields.
 
 =item B<CalculateNum> B<true>|B<false>
 

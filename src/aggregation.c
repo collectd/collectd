@@ -376,11 +376,11 @@ static void agg_lookup_free_obj_callback (void *user_obj) /* {{{ */
 /*
  * <Plugin "aggregation">
  *   <Aggregation>
- *     Host "/any/"
  *     Plugin "cpu"
- *     PluginInstance "/all/"
  *     Type "cpu"
- *     TypeInstance "/any/"
+ *
+ *     GroupBy Host
+ *     GroupBy TypeInstance
  *
  *     CalculateNum true
  *     CalculateSum true
@@ -391,6 +391,43 @@ static void agg_lookup_free_obj_callback (void *user_obj) /* {{{ */
  *   </Aggregation>
  * </Plugin>
  */
+static int agg_config_handle_group_by (oconfig_item_t const *ci, /* {{{ */
+    aggregation_t *agg)
+{
+  int i;
+
+  for (i = 0; i < ci->values_num; i++)
+  {
+    char const *value;
+
+    if (ci->values[i].type != OCONFIG_TYPE_STRING)
+    {
+      ERROR ("aggregation plugin: Argument %i of the \"GroupBy\" option "
+          "is not a string.", i + 1);
+      continue;
+    }
+
+    value = ci->values[i].value.string;
+
+    if (strcasecmp ("Host", value) == 0)
+      sstrncpy (agg->ident.host, LU_ANY, sizeof (agg->ident.host));
+    else if (strcasecmp ("Plugin", value) == 0)
+      sstrncpy (agg->ident.plugin, LU_ANY, sizeof (agg->ident.plugin));
+    else if (strcasecmp ("PluginInstance", value) == 0)
+      sstrncpy (agg->ident.plugin_instance, LU_ANY,
+          sizeof (agg->ident.plugin_instance));
+    else if (strcasecmp ("TypeInstance", value) == 0)
+      sstrncpy (agg->ident.type_instance, LU_ANY, sizeof (agg->ident.type_instance));
+    else if (strcasecmp ("Type", value) == 0)
+      ERROR ("aggregation plugin: Grouping by type is not supported.");
+    else
+      WARNING ("aggregation plugin: The \"%s\" argument to the \"GroupBy\" "
+          "option is invalid and will be ignored.", value);
+  } /* for (ci->values) */
+
+  return (0);
+} /* }}} int agg_config_handle_group_by */
+
 static int agg_config_aggregation (oconfig_item_t *ci) /* {{{ */
 {
   aggregation_t *agg;
@@ -405,6 +442,14 @@ static int agg_config_aggregation (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
   memset (agg, 0, sizeof (*agg));
+
+  sstrncpy (agg->ident.host, LU_ALL, sizeof (agg->ident.host));
+  sstrncpy (agg->ident.plugin, LU_ALL, sizeof (agg->ident.plugin));
+  sstrncpy (agg->ident.plugin_instance, LU_ALL,
+      sizeof (agg->ident.plugin_instance));
+  sstrncpy (agg->ident.type, LU_ALL, sizeof (agg->ident.type));
+  sstrncpy (agg->ident.type_instance, LU_ALL,
+      sizeof (agg->ident.type_instance));
 
   for (i = 0; i < ci->children_num; i++)
   {
@@ -425,6 +470,8 @@ static int agg_config_aggregation (oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp ("TypeInstance", child->key) == 0)
       cf_util_get_string_buffer (child, agg->ident.type_instance,
           sizeof (agg->ident.type_instance));
+    else if (strcasecmp ("GroupBy", child->key) == 0)
+      agg_config_handle_group_by (child, agg);
     else if (strcasecmp ("CalculateNum", child->key) == 0)
       cf_util_get_boolean (child, &agg->calc_num);
     else if (strcasecmp ("CalculateSum", child->key) == 0)
@@ -444,7 +491,17 @@ static int agg_config_aggregation (oconfig_item_t *ci) /* {{{ */
 
   /* Sanity checking */
   is_valid = 1;
-  if (strchr (agg->ident.type, '/') != NULL) /* {{{ */
+  if (LU_IS_ALL (agg->ident.type)) /* {{{ */
+  {
+    ERROR ("aggregation plugin: It appears you did not specify the required "
+        "\"Type\" option in this aggregation. "
+        "(Host \"%s\", Plugin \"%s\", PluginInstance \"%s\", "
+        "Type \"%s\", TypeInstance \"%s\")",
+        agg->ident.host, agg->ident.plugin, agg->ident.plugin_instance,
+        agg->ident.type, agg->ident.type_instance);
+    is_valid = 0;
+  }
+  else if (strchr (agg->ident.type, '/') != NULL)
   {
     ERROR ("aggregation plugin: The \"Type\" may not contain the '/' "
         "character. Especially, it may not be a wildcard. The current "
@@ -458,7 +515,9 @@ static int agg_config_aggregation (oconfig_item_t *ci) /* {{{ */
       && !LU_IS_ALL (agg->ident.type_instance))
   {
     ERROR ("aggregation plugin: An aggregation must contain at least one "
-        "\"/all/\" wildcard. Otherwise, nothing will be aggregated. "
+        "wildcard. This is achieved by leaving at least one of the \"Host\", "
+        "\"Plugin\", \"PluginInstance\" and \"TypeInstance\" options blank "
+        "and not grouping by that field. "
         "(Host \"%s\", Plugin \"%s\", PluginInstance \"%s\", "
         "Type \"%s\", TypeInstance \"%s\")",
         agg->ident.host, agg->ident.plugin, agg->ident.plugin_instance,
@@ -492,12 +551,19 @@ static int agg_config_aggregation (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
+  DEBUG ("aggregation plugin: Successfully added aggregation: "
+      "(Host \"%s\", Plugin \"%s\", PluginInstance \"%s\", "
+      "Type \"%s\", TypeInstance \"%s\")",
+      agg->ident.host, agg->ident.plugin, agg->ident.plugin_instance,
+      agg->ident.type, agg->ident.type_instance);
   return (0);
 } /* }}} int agg_config_aggregation */
 
 static int agg_config (oconfig_item_t *ci) /* {{{ */
 {
   int i;
+
+  pthread_mutex_lock (&agg_instance_list_lock);
 
   if (lookup == NULL)
   {
@@ -507,6 +573,7 @@ static int agg_config (oconfig_item_t *ci) /* {{{ */
         agg_lookup_free_obj_callback);
     if (lookup == NULL)
     {
+      pthread_mutex_unlock (&agg_instance_list_lock);
       ERROR ("aggregation plugin: lookup_create failed.");
       return (-1);
     }
@@ -522,6 +589,8 @@ static int agg_config (oconfig_item_t *ci) /* {{{ */
       WARNING ("aggregation plugin: The \"%s\" key is not allowed inside "
           "<Plugin aggregation /> blocks and will be ignored.", child->key);
   }
+
+  pthread_mutex_unlock (&agg_instance_list_lock);
 
   return (0);
 } /* }}} int agg_config */
@@ -548,6 +617,7 @@ static int agg_read (void) /* {{{ */
     else
       success++;
   }
+
   pthread_mutex_unlock (&agg_instance_list_lock);
 
   return ((success > 0) ? 0 : -1);
