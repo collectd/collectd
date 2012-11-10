@@ -176,6 +176,26 @@ static int rc_config_get_int_positive (oconfig_item_t const *ci, int *ret)
   return (0);
 } /* int rc_config_get_int_positive */
 
+static int rc_config_add_timespan (int timespan)
+{
+  int *tmp;
+
+  if (timespan <= 0)
+    return (EINVAL);
+
+  tmp = realloc (rrdcreate_config.timespans,
+      sizeof (*rrdcreate_config.timespans)
+      * (rrdcreate_config.timespans_num + 1));
+  if (tmp == NULL)
+    return (ENOMEM);
+  rrdcreate_config.timespans = tmp;
+
+  rrdcreate_config.timespans[rrdcreate_config.timespans_num] = timespan;
+  rrdcreate_config.timespans_num++;
+
+  return (0);
+} /* int rc_config_add_timespan */
+
 static int rc_config (oconfig_item_t *ci)
 {
   int i;
@@ -215,6 +235,13 @@ static int rc_config (oconfig_item_t *ci)
       status = rc_config_get_int_positive (child, &rrdcreate_config.heartbeat);
     else if (strcasecmp ("RRARows", key) == 0)
       status = rc_config_get_int_positive (child, &rrdcreate_config.rrarows);
+    else if (strcasecmp ("RRATimespan", key) == 0)
+    {
+      int tmp = -1;
+      status = rc_config_get_int_positive (child, &tmp);
+      if (status == 0)
+        status = rc_config_add_timespan (tmp);
+    }
     else
     {
       WARNING ("rrdcached plugin: Ignoring invalid option %s.", key);
