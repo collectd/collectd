@@ -188,7 +188,7 @@ static int rc_config_get_xff (oconfig_item_t const *ci, double *ret)
   }
 
   value = ci->values[0].value.number;
-  if ((value => 0.0) && (value < 1.0))
+  if ((value >= 0.0) && (value < 1.0))
   {
     *ret = value;
     return (0);
@@ -253,7 +253,13 @@ static int rc_config (oconfig_item_t *ci)
     else if (strcasecmp ("CollectStatistics", key) == 0)
       status = cf_util_get_boolean (child, &config_collect_stats);
     else if (strcasecmp ("StepSize", key) == 0)
-      status = rc_config_get_int_positive (child, &rrdcreate_config.stepsize);
+    {
+      int tmp = -1;
+
+      status = rc_config_get_int_positive (child, &tmp);
+      if (status == 0)
+        rrdcreate_config.stepsize = (unsigned long) tmp;
+    }
     else if (strcasecmp ("HeartBeat", key) == 0)
       status = rc_config_get_int_positive (child, &rrdcreate_config.heartbeat);
     else if (strcasecmp ("RRARows", key) == 0)
