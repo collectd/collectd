@@ -1,3 +1,45 @@
+2012-11-11, Version 4.10.8
+	* collectd: Create new directories with mode 0777 and let umask remove
+	  unwanted permission bits.
+	* collectd: Build issues have been fixed.
+	* collectd: An incorrect assertion has been fixed in some common code
+	  for Solaris. This should resolve pseudo-random assertion failures
+	  under Solaris. Thanks to Jeff Blane for his help debugging this.
+	* collectd: A couple of memory leaks through PThread thread attributes
+	  have been fixed. Thanks to Gerrie Roos for fixing these.
+	* apcups plugin: Improve the reconnect behavior.
+	* df plugin: Ignore "rootfs" devices under Linux to avoid having them
+	  reported twice. Thanks to Brune Prémont for fixing this.
+	* disk plugin: Fix incorrect computation of read and write latency (the
+	  "disk_time" type). Previously, the numbers reported where too small
+	  by a factor of "interval", e.g. when the interval is set to 10
+	  seconds, the values were too low by a factor of 10. Thanks to Manuel
+	  Sanmartin for reporting this problem.
+	* dns plugin: A build issue under Solaris has been fixed. A erroneous
+	  define that could lead to the reporting of bad data has been fixed by
+	  Daniel Sutto.
+	* memcachec plugin: A bug in the configuration handling has been fixed.
+	  Thanks to Pascal Hofmann for fixing this issue.
+	* netapp plugin: Correctly close the connection on communication
+	  errors.
+	* netlink plugin: The function used to query statistics has been
+	  changed to be more in line with iproute2's behavior. Thanks to
+	  "KIvosak" for the patch.
+	* network plugin: Initialization of libgcrypt has been fixed. Thanks to
+	  Chris Lundquist for his patch.
+	* oracle plugin: Error messages have been improved.
+	* ping plugin: Don't enter the exponential back-off mode when
+	  ping_send() fails. This should make recovery after a network failure
+	  much faster.
+	* python plugin: Memory leaks have been fixed. Thanks to Tommie Gannert
+	  and Sven Trenkel for fixing this.
+	* rrdtool plugin: Fix an out-of-bounds array access when printing a
+	  warning message. Thanks to Will Hawkins for fixing this bug.
+	* snmp plugin: Support for the SNMP_ENDOFMIBVIEW return value has been
+	  added. Support for more complex / unusual MIBs / subtrees has been
+	  added. Thanks to Mark Juric to test the changes and point out these
+	  problems.
+
 2012-04-01, Version 4.10.7
 	* Build system: Fix the use of a libltdl macro. Thanks to Clemens Lang
 	  for fixing this. Adresses some issues with building the iptables
