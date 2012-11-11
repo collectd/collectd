@@ -23,6 +23,7 @@
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
+#include "utils_complain.h"
 
 #include <pthread.h>
 #include <netinet/in.h>
@@ -245,6 +246,8 @@ static void *ping_thread (void *arg) /* {{{ */
   hostlist_t *hl;
   int count;
 
+  c_complain_t complaint = C_COMPLAIN_INIT_STATIC;
+
   pthread_mutex_lock (&ping_lock);
 
   pingobj = ping_construct ();
@@ -305,6 +308,7 @@ static void *ping_thread (void *arg) /* {{{ */
   while (ping_thread_loop > 0)
   {
     int status;
+    _Bool send_successful = 0;
 
     if (gettimeofday (&tv_begin, NULL) < 0)
     {
@@ -320,10 +324,13 @@ static void *ping_thread (void *arg) /* {{{ */
     status = ping_send (pingobj);
     if (status < 0)
     {
-      ERROR ("ping plugin: ping_send failed: %s", ping_get_error (pingobj));
-      pthread_mutex_lock (&ping_lock);
-      ping_thread_error = 1;
-      break;
+      c_complain (LOG_ERR, &complaint, "ping plugin: ping_send failed: %s",
+          ping_get_error (pingobj));
+    }
+    else
+    {
+      c_release (LOG_NOTICE, &complaint, "ping plugin: ping_send succeeded.");
+      send_successful = 1;
     }
 
     pthread_mutex_lock (&ping_lock);
@@ -331,7 +338,8 @@ static void *ping_thread (void *arg) /* {{{ */
     if (ping_thread_loop <= 0)
       break;
 
-    (void) ping_dispatch_all (pingobj);
+    if (send_successful)
+      (void) ping_dispatch_all (pingobj);
 
     if (gettimeofday (&tv_end, NULL) < 0)
     {
