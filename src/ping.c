@@ -1,6 +1,6 @@
 /**
  * collectd - src/ping.c
- * Copyright (C) 2005-2009  Florian octo Forster
+ * Copyright (C) 2005-2012  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,13 +16,14 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
+#include "utils_complain.h"
 
 #include <pthread.h>
 #include <netinet/in.h>
@@ -142,6 +143,97 @@ static void time_calc (struct timespec *ts_dest, /* {{{ */
   time_normalize (ts_dest);
 } /* }}} void time_calc */
 
+static int ping_dispatch_all (pingobj_t *pingobj) /* {{{ */
+{
+  pingobj_iter_t *iter;
+  hostlist_t *hl;
+  int status;
+
+  for (iter = ping_iterator_get (pingobj);
+      iter != NULL;
+      iter = ping_iterator_next (iter))
+  { /* {{{ */
+    char userhost[NI_MAXHOST];
+    double latency;
+    size_t param_size;
+
+    param_size = sizeof (userhost);
+    status = ping_iterator_get_info (iter,
+#ifdef PING_INFO_USERNAME
+        PING_INFO_USERNAME,
+#else
+        PING_INFO_HOSTNAME,
+#endif
+        userhost, &param_size);
+    if (status != 0)
+    {
+      WARNING ("ping plugin: ping_iterator_get_info failed: %s",
+          ping_get_error (pingobj));
+      continue;
+    }
+
+    for (hl = hostlist_head; hl != NULL; hl = hl->next)
+      if (strcmp (userhost, hl->host) == 0)
+        break;
+
+    if (hl == NULL)
+    {
+      WARNING ("ping plugin: Cannot find host %s.", userhost);
+      continue;
+    }
+
+    param_size = sizeof (latency);
+    status = ping_iterator_get_info (iter, PING_INFO_LATENCY,
+        (void *) &latency, &param_size);
+    if (status != 0)
+    {
+      WARNING ("ping plugin: ping_iterator_get_info failed: %s",
+          ping_get_error (pingobj));
+      continue;
+    }
+
+    hl->pkg_sent++;
+    if (latency >= 0.0)
+    {
+      hl->pkg_recv++;
+      hl->latency_total += latency;
+      hl->latency_squared += (latency * latency);
+
+      /* reset missed packages counter */
+      hl->pkg_missed = 0;
+    } else
+      hl->pkg_missed++;
+
+    /* if the host did not answer our last N packages, trigger a resolv. */
+    if (ping_max_missed >= 0 && hl->pkg_missed >= ping_max_missed)
+    { /* {{{ */
+      /* we reset the missed package counter here, since we only want to
+       * trigger a resolv every N packages and not every package _AFTER_ N
+       * missed packages */
+      hl->pkg_missed = 0;
+
+      WARNING ("ping plugin: host %s has not answered %d PING requests,"
+          " triggering resolve", hl->host, ping_max_missed);
+
+      /* we trigger the resolv simply be removeing and adding the host to our
+       * ping object */
+      status = ping_host_remove (pingobj, hl->host);
+      if (status != 0)
+      {
+        WARNING ("ping plugin: ping_host_remove (%s) failed.", hl->host);
+      }
+      else
+      {
+        status = ping_host_add (pingobj, hl->host);
+        if (status != 0)
+          ERROR ("ping plugin: ping_host_add (%s) failed.", hl->host);
+      }
+    } /* }}} ping_max_missed */
+  } /* }}} for (iter) */
+
+  return (0);
+} /* }}} int ping_dispatch_all */
+
 static void *ping_thread (void *arg) /* {{{ */
 {
   static pingobj_t *pingobj = NULL;
@@ -153,6 +245,8 @@ static void *ping_thread (void *arg) /* {{{ */
 
   hostlist_t *hl;
   int count;
+
+  c_complain_t complaint = C_COMPLAIN_INIT_STATIC;
 
   pthread_mutex_lock (&ping_lock);
 
@@ -213,8 +307,8 @@ static void *ping_thread (void *arg) /* {{{ */
 
   while (ping_thread_loop > 0)
   {
-    pingobj_iter_t *iter;
     int status;
+    _Bool send_successful = 0;
 
     if (gettimeofday (&tv_begin, NULL) < 0)
     {
@@ -230,10 +324,13 @@ static void *ping_thread (void *arg) /* {{{ */
     status = ping_send (pingobj);
     if (status < 0)
     {
-      ERROR ("ping plugin: ping_send failed: %s", ping_get_error (pingobj));
-      pthread_mutex_lock (&ping_lock);
-      ping_thread_error = 1;
-      break;
+      c_complain (LOG_ERR, &complaint, "ping plugin: ping_send failed: %s",
+          ping_get_error (pingobj));
+    }
+    else
+    {
+      c_release (LOG_NOTICE, &complaint, "ping plugin: ping_send succeeded.");
+      send_successful = 1;
     }
 
     pthread_mutex_lock (&ping_lock);
@@ -241,87 +338,8 @@ static void *ping_thread (void *arg) /* {{{ */
     if (ping_thread_loop <= 0)
       break;
 
-    for (iter = ping_iterator_get (pingobj);
-        iter != NULL;
-        iter = ping_iterator_next (iter))
-    { /* {{{ */
-      char userhost[NI_MAXHOST];
-      double latency;
-      size_t param_size;
-
-      param_size = sizeof (userhost);
-      status = ping_iterator_get_info (iter,
-#ifdef PING_INFO_USERNAME
-          PING_INFO_USERNAME,
-#else
-          PING_INFO_HOSTNAME,
-#endif
-          userhost, &param_size);
-      if (status != 0)
-      {
-        WARNING ("ping plugin: ping_iterator_get_info failed: %s",
-            ping_get_error (pingobj));
-        continue;
-      }
-
-      for (hl = hostlist_head; hl != NULL; hl = hl->next)
-        if (strcmp (userhost, hl->host) == 0)
-          break;
-
-      if (hl == NULL)
-      {
-        WARNING ("ping plugin: Cannot find host %s.", userhost);
-        continue;
-      }
-
-      param_size = sizeof (latency);
-      status = ping_iterator_get_info (iter, PING_INFO_LATENCY,
-          (void *) &latency, &param_size);
-      if (status != 0)
-      {
-        WARNING ("ping plugin: ping_iterator_get_info failed: %s",
-            ping_get_error (pingobj));
-        continue;
-      }
-
-      hl->pkg_sent++;
-      if (latency >= 0.0)
-      {
-        hl->pkg_recv++;
-        hl->latency_total += latency;
-        hl->latency_squared += (latency * latency);
-
-        /* reset missed packages counter */
-        hl->pkg_missed = 0;
-      } else
-        hl->pkg_missed++;
-
-      /* if the host did not answer our last N packages, trigger a resolv. */
-      if (ping_max_missed >= 0 && hl->pkg_missed >= ping_max_missed)
-      { /* {{{ */
-        /* we reset the missed package counter here, since we only want to
-         * trigger a resolv every N packages and not every package _AFTER_ N
-         * missed packages */
-        hl->pkg_missed = 0;
-
-        WARNING ("ping plugin: host %s has not answered %d PING requests,"
-          " triggering resolve", hl->host, ping_max_missed);
-
-        /* we trigger the resolv simply be removeing and adding the host to our
-         * ping object */
-        status = ping_host_remove (pingobj, hl->host);
-        if (status != 0)
-        {
-          WARNING ("ping plugin: ping_host_remove (%s) failed.", hl->host);
-        }
-        else
-        {
-          status = ping_host_add (pingobj, hl->host);
-          if (status != 0)
-            WARNING ("ping plugin: ping_host_add (%s) failed.", hl->host);
-        }
-      } /* }}} ping_max_missed */
-    } /* }}} for (iter) */
+    if (send_successful)
+      (void) ping_dispatch_all (pingobj);
 
     if (gettimeofday (&tv_end, NULL) < 0)
     {

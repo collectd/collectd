@@ -282,15 +282,11 @@ void cpy_log_exception(const char *context) {
 	Py_END_ALLOW_THREADS
 	Py_XDECREF(tn);
 	Py_XDECREF(m);
-	if (!cpy_format_exception) {
+	if (!cpy_format_exception || !traceback) {
 		PyErr_Clear();
-		Py_XDECREF(type);
+		Py_DECREF(type);
 		Py_XDECREF(value);
 		Py_XDECREF(traceback);
-		return;
-	}
-	if (!traceback) {
-		PyErr_Clear();
 		return;
 	}
 	list = PyObject_CallFunction(cpy_format_exception, "NNN", type, value, traceback); /* New reference. */
@@ -313,6 +309,9 @@ void cpy_log_exception(const char *context) {
 	}
 	Py_XDECREF(list);
 	PyErr_Clear();
+	Py_DECREF(type);
+	Py_XDECREF(value);
+	Py_XDECREF(traceback);
 }
 
 static int cpy_read_callback(user_data_t *data) {
@@ -335,7 +334,7 @@ static int cpy_read_callback(user_data_t *data) {
 static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_list, user_data_t *data) {
 	int i;
 	cpy_callback_t *c = data->data;
-	PyObject *ret, *list, *temp, *dict = NULL, *val;
+	PyObject *ret, *list, *temp, *dict = NULL;
 	Values *v;
 
 	CPY_LOCK_THREADS
@@ -375,7 +374,7 @@ static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_li
 				CPY_RETURN_FROM_THREADS 0;
 			}
 		}
-		dict = PyDict_New();
+		dict = PyDict_New();  /* New reference. */
 		if (value_list->meta) {
 			int i, num;
 			char **table;
@@ -394,26 +393,26 @@ static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_li
 				if (type == MD_TYPE_STRING) {
 					if (meta_data_get_string(meta, table[i], &string))
 						continue;
-					temp = cpy_string_to_unicode_or_bytes(string);
+					temp = cpy_string_to_unicode_or_bytes(string);  /* New reference. */
 					free(string);
 					PyDict_SetItemString(dict, table[i], temp);
 					Py_XDECREF(temp);
 				} else if (type == MD_TYPE_SIGNED_INT) {
 					if (meta_data_get_signed_int(meta, table[i], &si))
 						continue;
-					temp = PyObject_CallFunctionObjArgs((void *) &SignedType, PyLong_FromLongLong(si), (void *) 0);
+					temp = PyObject_CallFunctionObjArgs((void *) &SignedType, PyLong_FromLongLong(si), (void *) 0);  /* New reference. */
 					PyDict_SetItemString(dict, table[i], temp);
 					Py_XDECREF(temp);
 				} else if (type == MD_TYPE_UNSIGNED_INT) {
 					if (meta_data_get_unsigned_int(meta, table[i], &ui))
 						continue;
-					temp = PyObject_CallFunctionObjArgs((void *) &UnsignedType, PyLong_FromUnsignedLongLong(ui), (void *) 0);
+					temp = PyObject_CallFunctionObjArgs((void *) &UnsignedType, PyLong_FromUnsignedLongLong(ui), (void *) 0);  /* New reference. */
 					PyDict_SetItemString(dict, table[i], temp);
 					Py_XDECREF(temp);
 				} else if (type == MD_TYPE_DOUBLE) {
 					if (meta_data_get_double(meta, table[i], &d))
 						continue;
-					temp = PyFloat_FromDouble(d);
+					temp = PyFloat_FromDouble(d);  /* New reference. */
 					PyDict_SetItemString(dict, table[i], temp);
 					Py_XDECREF(temp);
 				} else if (type == MD_TYPE_BOOLEAN) {
@@ -428,8 +427,7 @@ static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_li
 			}
 			free(table);
 		}
-		val = Values_New(); /* New reference. */
-		v = (Values *) val; 
+		v = (Values *) Values_New(); /* New reference. */
 		sstrncpy(v->data.host, value_list->host, sizeof(v->data.host));
 		sstrncpy(v->data.type, value_list->type, sizeof(v->data.type));
 		sstrncpy(v->data.type_instance, value_list->type_instance, sizeof(v->data.type_instance));
@@ -440,9 +438,9 @@ static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_li
 		Py_CLEAR(v->values);
 		v->values = list;
 		Py_CLEAR(v->meta);
-		v->meta = dict;
+		v->meta = dict;  /* Steals a reference. */
 		ret = PyObject_CallFunctionObjArgs(c->callback, v, c->data, (void *) 0); /* New reference. */
-		Py_XDECREF(val);
+		Py_XDECREF(v);
 		if (ret == NULL) {
 			cpy_log_exception("write callback");
 		} else {
@@ -484,11 +482,11 @@ static void cpy_log_callback(int severity, const char *message, user_data_t *dat
 	PyObject *ret, *text;
 
 	CPY_LOCK_THREADS
-	text = cpy_string_to_unicode_or_bytes(message);
+	text = cpy_string_to_unicode_or_bytes(message);  /* New reference. */
 	if (c->data == NULL)
-		ret = PyObject_CallFunction(c->callback, "iN", severity, text); /* New reference. */
+		ret = PyObject_CallFunction(c->callback, "iN", severity, text); /* New reference. Steals a reference from "text". */
 	else
-		ret = PyObject_CallFunction(c->callback, "iNO", severity, text, c->data); /* New reference. */
+		ret = PyObject_CallFunction(c->callback, "iNO", severity, text, c->data); /* New reference. Steals a reference from "text". */
 
 	if (ret == NULL) {
 		/* FIXME */
@@ -525,12 +523,13 @@ static void cpy_flush_callback(int timeout, const char *id, user_data_t *data) {
 static PyObject *cpy_register_generic(cpy_callback_t **list_head, PyObject *args, PyObject *kwds) {
 	char buf[512];
 	cpy_callback_t *c;
-	const char *name = NULL;
+	char *name = NULL;
 	PyObject *callback = NULL, *data = NULL, *mod = NULL;
 	static char *kwlist[] = {"callback", "data", "name", NULL};
 	
 	if (PyArg_ParseTupleAndKeywords(args, kwds, "O|Oet", kwlist, &callback, &data, NULL, &name) == 0) return NULL;
 	if (PyCallable_Check(callback) == 0) {
+		PyMem_Free(name);
 		PyErr_SetString(PyExc_TypeError, "callback needs a be a callable object.");
 		return NULL;
 	}
@@ -545,18 +544,21 @@ static PyObject *cpy_register_generic(cpy_callback_t **list_head, PyObject *args
 	c->next = *list_head;
 	*list_head = c;
 	Py_XDECREF(mod);
+	PyMem_Free(name);
 	return cpy_string_to_unicode_or_bytes(buf);
 }
 
 static PyObject *cpy_flush(cpy_callback_t **list_head, PyObject *args, PyObject *kwds) {
 	int timeout = -1;
-	const char *plugin = NULL, *identifier = NULL;
+	char *plugin = NULL, *identifier = NULL;
 	static char *kwlist[] = {"plugin", "timeout", "identifier", NULL};
 	
 	if (PyArg_ParseTupleAndKeywords(args, kwds, "|etiet", kwlist, NULL, &plugin, &timeout, NULL, &identifier) == 0) return NULL;
 	Py_BEGIN_ALLOW_THREADS
 	plugin_flush(plugin, timeout, identifier);
 	Py_END_ALLOW_THREADS
+	PyMem_Free(plugin);
+	PyMem_Free(identifier);
 	Py_RETURN_NONE;
 }
 
@@ -575,16 +577,18 @@ static PyObject *cpy_register_generic_userdata(void *reg, void *handler, PyObjec
 	reg_function_t *register_function = (reg_function_t *) reg;
 	cpy_callback_t *c = NULL;
 	user_data_t *user_data = NULL;
-	const char *name = NULL;
+	char *name = NULL;
 	PyObject *callback = NULL, *data = NULL;
 	static char *kwlist[] = {"callback", "data", "name", NULL};
 	
 	if (PyArg_ParseTupleAndKeywords(args, kwds, "O|Oet", kwlist, &callback, &data, NULL, &name) == 0) return NULL;
 	if (PyCallable_Check(callback) == 0) {
+		PyMem_Free(name);
 		PyErr_SetString(PyExc_TypeError, "callback needs a be a callable object.");
 		return NULL;
 	}
 	cpy_build_name(buf, sizeof(buf), callback, name);
+	PyMem_Free(name);
 	
 	Py_INCREF(callback);
 	Py_XINCREF(data);
@@ -605,17 +609,19 @@ static PyObject *cpy_register_read(PyObject *self, PyObject *args, PyObject *kwd
 	cpy_callback_t *c = NULL;
 	user_data_t *user_data = NULL;
 	double interval = 0;
-	const char *name = NULL;
+	char *name = NULL;
 	PyObject *callback = NULL, *data = NULL;
 	struct timespec ts;
 	static char *kwlist[] = {"callback", "interval", "data", "name", NULL};
 	
 	if (PyArg_ParseTupleAndKeywords(args, kwds, "O|dOet", kwlist, &callback, &interval, &data, NULL, &name) == 0) return NULL;
 	if (PyCallable_Check(callback) == 0) {
+		PyMem_Free(name);
 		PyErr_SetString(PyExc_TypeError, "callback needs a be a callable object.");
 		return NULL;
 	}
 	cpy_build_name(buf, sizeof(buf), callback, name);
+	PyMem_Free(name);
 	
 	Py_INCREF(callback);
 	Py_XINCREF(data);
@@ -659,48 +665,53 @@ static PyObject *cpy_register_shutdown(PyObject *self, PyObject *args, PyObject 
 }
 
 static PyObject *cpy_error(PyObject *self, PyObject *args) {
-	const char *text;
+	char *text;
 	if (PyArg_ParseTuple(args, "et", NULL, &text) == 0) return NULL;
 	Py_BEGIN_ALLOW_THREADS
 	plugin_log(LOG_ERR, "%s", text);
 	Py_END_ALLOW_THREADS
+	PyMem_Free(text);
 	Py_RETURN_NONE;
 }
 
 static PyObject *cpy_warning(PyObject *self, PyObject *args) {
-	const char *text;
+	char *text;
 	if (PyArg_ParseTuple(args, "et", NULL, &text) == 0) return NULL;
 	Py_BEGIN_ALLOW_THREADS
 	plugin_log(LOG_WARNING, "%s", text);
 	Py_END_ALLOW_THREADS
+	PyMem_Free(text);
 	Py_RETURN_NONE;
 }
 
 static PyObject *cpy_notice(PyObject *self, PyObject *args) {
-	const char *text;
+	char *text;
 	if (PyArg_ParseTuple(args, "et", NULL, &text) == 0) return NULL;
 	Py_BEGIN_ALLOW_THREADS
 	plugin_log(LOG_NOTICE, "%s", text);
 	Py_END_ALLOW_THREADS
+	PyMem_Free(text);
 	Py_RETURN_NONE;
 }
 
 static PyObject *cpy_info(PyObject *self, PyObject *args) {
-	const char *text;
+	char *text;
 	if (PyArg_ParseTuple(args, "et", NULL, &text) == 0) return NULL;
 	Py_BEGIN_ALLOW_THREADS
 	plugin_log(LOG_INFO, "%s", text);
 	Py_END_ALLOW_THREADS
+	PyMem_Free(text);
 	Py_RETURN_NONE;
 }
 
 static PyObject *cpy_debug(PyObject *self, PyObject *args) {
 #ifdef COLLECT_DEBUG
-	const char *text;
+	char *text;
 	if (PyArg_ParseTuple(args, "et", NULL, &text) == 0) return NULL;
 	Py_BEGIN_ALLOW_THREADS
 	plugin_log(LOG_DEBUG, "%s", text);
 	Py_END_ALLOW_THREADS
+	PyMem_Free(text);
 #endif
 	Py_RETURN_NONE;
 }
