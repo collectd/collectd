@@ -1,3 +1,62 @@
+2012-11-11, Version 5.1.1
+	* collectd: Create new directories with mode 0777 and let umask remove
+	  unwanted permission bits.
+	* collectd: Build issues have been fixed.
+	* collectd: An incorrect assertion has been fixed in some common code
+	  for Solaris. This should resolve pseudo-random assertion failures
+	  under Solaris. Thanks to Jeff Blane for his help debugging this.
+	* collectd: A couple of memory leaks through PThread thread attributes
+	  have been fixed. Thanks to Gerrie Roos for fixing these.
+	* collectdctl: Fix PUTVAL for data sets with multiple data sources.
+	  Thanks to Cyril Feraudet for reporting this problem.
+	* contrib/migrate-4-5.px: Handle to "df" to "df_complex" conversion
+	  correctly.
+	* apcups plugin: Improve the reconnect behavior.
+	* curl_xml plugin: The "Host" setting was silently ignored. Thanks to
+	  Fabien Wernli for fixing this.
+	* df plugin: Ignore "rootfs" devices under Linux to avoid having them
+	  reported twice. Thanks to Brune Prémont for fixing this.
+	* disk plugin: Fix incorrect computation of read and write latency (the
+	  "disk_time" type). Previously, the numbers reported where too small
+	  by a factor of "interval", e.g. when the interval is set to 10
+	  seconds, the values were too low by a factor of 10. Thanks to Manuel
+	  Sanmartin for reporting this problem.
+	* dns plugin: A build issue under Solaris has been fixed. A erroneous
+	  define that could lead to the reporting of bad data has been fixed by
+	  Daniel Sutto.
+	* ethstat plugin: An off-by-one error and potential use of
+	  uninitialized memory has been fixed. Thanks to Mark Voelker for
+	  reporting these problems.
+	* memcachec plugin: A bug in the configuration handling has been fixed.
+	  Thanks to Pascal Hofmann for fixing this issue.
+	* mysql plugin: Fix a bug when registering multiple databases. Thanks
+	  to Sebastian Harl for fixing this.
+	* netapp plugin: Correctly close the connection on communication
+	  errors.
+	* netlink plugin: The function used to query statistics has been
+	  changed to be more in line with iproute2's behavior. Thanks to
+	  "KIvosak" for the patch.
+	* network plugin: Initialization of libgcrypt has been fixed. Thanks to
+	  Chris Lundquist for his patch.
+	* oracle plugin: Error messages have been improved.
+	* ping plugin: Don't enter the exponential back-off mode when
+	  ping_send() fails. This should make recovery after a network failure
+	  much faster.
+	* python plugin: Memory leaks have been fixed. Thanks to Tommie Gannert
+	  and Sven Trenkel for fixing this.
+	* redis plugin: Fix a compilation problem on FreeBSD. Thanks to
+	  "biancalana" for the fix.
+	* rrdtool plugin: Fix an out-of-bounds array access when printing a
+	  warning message. Thanks to Will Hawkins for fixing this bug.
+	* snmp plugin: Support for the SNMP_ENDOFMIBVIEW return value has been
+	  added. Support for more complex / unusual MIBs / subtrees has been
+	  added. Thanks to Mark Juric to test the changes and point out these
+	  problems.
+	* varnish plugin: Support for multiple instances of Varnish 3 has been
+	  fixed. Thanks to Jonathan Huot for the patch.
+	* write_mongodb plugin: Add compatibility with libmongo 0.6.0 and
+	  later. Thanks to Chris Lundquist for this patch.
+
 2012-04-01, Version 5.1.0
 	* Build system, iptables plugin: The shipped version of libiptc has
 	  been removed.
@@ -51,6 +110,57 @@
 	* scale target: Support for scaling specific data sources only has been
 	  added. Thanks to Gerrie Roos for his patch.
 
+2012-11-11, Version 5.0.5
+	* collectd: Create new directories with mode 0777 and let umask remove
+	  unwanted permission bits.
+	* collectd: Build issues have been fixed.
+	* collectd: An incorrect assertion has been fixed in some common code
+	  for Solaris. This should resolve pseudo-random assertion failures
+	  under Solaris. Thanks to Jeff Blane for his help debugging this.
+	* collectd: A couple of memory leaks through PThread thread attributes
+	  have been fixed. Thanks to Gerrie Roos for fixing these.
+	* collectdctl: Fix PUTVAL for data sets with multiple data sources.
+	  Thanks to Cyril Feraudet for reporting this problem.
+	* contrib/migrate-4-5.px: Handle to "df" to "df_complex" conversion
+	  correctly.
+	* apcups plugin: Improve the reconnect behavior.
+	* curl_xml plugin: The "Host" setting was silently ignored. Thanks to
+	  Fabien Wernli for fixing this.
+	* df plugin: Ignore "rootfs" devices under Linux to avoid having them
+	  reported twice. Thanks to Brune Prémont for fixing this.
+	* disk plugin: Fix incorrect computation of read and write latency (the
+	  "disk_time" type). Previously, the numbers reported where too small
+	  by a factor of "interval", e.g. when the interval is set to 10
+	  seconds, the values were too low by a factor of 10. Thanks to Manuel
+	  Sanmartin for reporting this problem.
+	* dns plugin: A build issue under Solaris has been fixed. A erroneous
+	  define that could lead to the reporting of bad data has been fixed by
+	  Daniel Sutto.
+	* memcachec plugin: A bug in the configuration handling has been fixed.
+	  Thanks to Pascal Hofmann for fixing this issue.
+	* mysql plugin: Fix a bug when registering multiple databases. Thanks
+	  to Sebastian Harl for fixing this.
+	* netapp plugin: Correctly close the connection on communication
+	  errors.
+	* netlink plugin: The function used to query statistics has been
+	  changed to be more in line with iproute2's behavior. Thanks to
+	  "KIvosak" for the patch.
+	* network plugin: Initialization of libgcrypt has been fixed. Thanks to
+	  Chris Lundquist for his patch.
+	* oracle plugin: Error messages have been improved.
+	* ping plugin: Don't enter the exponential back-off mode when
+	  ping_send() fails. This should make recovery after a network failure
+	  much faster.
+	* python plugin: Memory leaks have been fixed. Thanks to Tommie Gannert
+	  and Sven Trenkel for fixing this.
+	* redis plugin: Fix a compilation problem on FreeBSD. Thanks to
+	  "biancalana" for the fix.
+	* rrdtool plugin: Fix an out-of-bounds array access when printing a
+	  warning message. Thanks to Will Hawkins for fixing this bug.
+	* snmp plugin: Support for the SNMP_ENDOFMIBVIEW return value has been
+	  added. Support for more complex / unusual MIBs / subtrees has been
+	  added. Thanks to Mark Juric to test the changes and point out these
+	  problems.
 
 2012-04-01, Version 5.0.4
 	* Build system: Fix the use of a libltdl macro. Thanks to Clemens Lang
@@ -222,6 +332,48 @@
 	  alternatives.
 	* v5upgrade target: Target for converting v4 data sets to the v5
 	  schema.
+
+2012-11-11, Version 4.10.8
+	* collectd: Create new directories with mode 0777 and let umask remove
+	  unwanted permission bits.
+	* collectd: Build issues have been fixed.
+	* collectd: An incorrect assertion has been fixed in some common code
+	  for Solaris. This should resolve pseudo-random assertion failures
+	  under Solaris. Thanks to Jeff Blane for his help debugging this.
+	* collectd: A couple of memory leaks through PThread thread attributes
+	  have been fixed. Thanks to Gerrie Roos for fixing these.
+	* apcups plugin: Improve the reconnect behavior.
+	* df plugin: Ignore "rootfs" devices under Linux to avoid having them
+	  reported twice. Thanks to Brune Prémont for fixing this.
+	* disk plugin: Fix incorrect computation of read and write latency (the
+	  "disk_time" type). Previously, the numbers reported where too small
+	  by a factor of "interval", e.g. when the interval is set to 10
+	  seconds, the values were too low by a factor of 10. Thanks to Manuel
+	  Sanmartin for reporting this problem.
+	* dns plugin: A build issue under Solaris has been fixed. A erroneous
+	  define that could lead to the reporting of bad data has been fixed by
+	  Daniel Sutto.
+	* memcachec plugin: A bug in the configuration handling has been fixed.
+	  Thanks to Pascal Hofmann for fixing this issue.
+	* netapp plugin: Correctly close the connection on communication
+	  errors.
+	* netlink plugin: The function used to query statistics has been
+	  changed to be more in line with iproute2's behavior. Thanks to
+	  "KIvosak" for the patch.
+	* network plugin: Initialization of libgcrypt has been fixed. Thanks to
+	  Chris Lundquist for his patch.
+	* oracle plugin: Error messages have been improved.
+	* ping plugin: Don't enter the exponential back-off mode when
+	  ping_send() fails. This should make recovery after a network failure
+	  much faster.
+	* python plugin: Memory leaks have been fixed. Thanks to Tommie Gannert
+	  and Sven Trenkel for fixing this.
+	* rrdtool plugin: Fix an out-of-bounds array access when printing a
+	  warning message. Thanks to Will Hawkins for fixing this bug.
+	* snmp plugin: Support for the SNMP_ENDOFMIBVIEW return value has been
+	  added. Support for more complex / unusual MIBs / subtrees has been
+	  added. Thanks to Mark Juric to test the changes and point out these
+	  problems.
 
 2012-04-01, Version 4.10.7
 	* Build system: Fix the use of a libltdl macro. Thanks to Clemens Lang
