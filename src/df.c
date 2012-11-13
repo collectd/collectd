@@ -54,7 +54,8 @@ static const char *config_keys[] =
 	"IgnoreSelected",
 	"ReportByDevice",
 	"ReportReserved",
-	"ReportInodes"
+	"ReportInodes",
+	"ReportSimple"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -64,6 +65,7 @@ static ignorelist_t *il_fstype = NULL;
 
 static _Bool by_device = 0;
 static _Bool report_inodes = 0;
+static _Bool report_simple = 0;
 
 static int df_init (void)
 {
@@ -122,6 +124,15 @@ static int df_config (const char *key, const char *value)
 
 		return (0);
 	}
+	else if (strcasecmp (key, "ReportSimple") == 0)
+	{
+		if (IS_TRUE (value))
+			report_simple = 1;
+		else
+			report_simple = 0;
+
+		return (0);
+	}
 	else if (strcasecmp (key, "ReportInodes") == 0)
 	{
 		if (IS_TRUE (value))
@@ -135,6 +146,28 @@ static int df_config (const char *key, const char *value)
 
 	return (-1);
 }
+
+static void df_submit_two (char *df_name,
+		const char *type,
+		gauge_t df_used,
+		gauge_t df_free)
+{
+	value_t values[2];
+	value_list_t vl = VALUE_LIST_INIT;
+
+	values[0].gauge = df_used;
+	values[1].gauge = df_free;
+
+	vl.values = values;
+	vl.values_len = 2;
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "df", sizeof (vl.plugin));
+	sstrncpy (vl.plugin_instance, "", sizeof (vl.plugin_instance));
+	sstrncpy (vl.type, type, sizeof (vl.type));
+	sstrncpy (vl.type_instance, df_name, sizeof (vl.type_instance));
+
+   plugin_dispatch_values (&vl);
+} /* void df_submit_two */
 
 __attribute__ ((nonnull(2)))
 static void df_submit_one (char *plugin_instance,
@@ -183,9 +216,9 @@ static int df_read (void)
 	{
 		unsigned long long blocksize;
 		char disk_name[256];
-		uint64_t blk_free;
-		uint64_t blk_reserved;
-		uint64_t blk_used;
+		gauge_t df_free;
+		gauge_t df_reserved;
+		gauge_t df_used;
 
 		if (ignorelist_match (il_device,
 					(mnt_ptr->spec_device != NULL)
@@ -270,16 +303,20 @@ static int df_read (void)
 		if (statbuf.f_blocks < statbuf.f_bfree)
 			statbuf.f_blocks = statbuf.f_bfree;
 
-		blk_free     = (uint64_t) statbuf.f_bavail;
-		blk_reserved = (uint64_t) (statbuf.f_bfree - statbuf.f_bavail);
-		blk_used     = (uint64_t) (statbuf.f_blocks - statbuf.f_bfree);
+		df_free     = statbuf.f_bavail * blocksize;
+		df_reserved = (statbuf.f_bfree - statbuf.f_bavail) * blocksize;
+		df_used     = (statbuf.f_blocks - statbuf.f_bfree) * blocksize;
 
-		df_submit_one (disk_name, "df_complex", "free",
-				(gauge_t) (blk_free * blocksize));
-		df_submit_one (disk_name, "df_complex", "reserved",
-				(gauge_t) (blk_reserved * blocksize));
-		df_submit_one (disk_name, "df_complex", "used",
-				(gauge_t) (blk_used * blocksize));
+		if (report_simple)
+		{
+			df_submit_two (disk_name, "df_simple", df_used, df_free);
+		}
+		else /* report complex (default) */
+		{
+			df_submit_one (disk_name, "df_complex", "free", df_free);
+			df_submit_one (disk_name, "df_complex", "reserved", df_reserved);
+			df_submit_one (disk_name, "df_complex", "used", df_used);
+		}
 
 		/* inode handling */
 		if (report_inodes)
