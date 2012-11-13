@@ -359,22 +359,19 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 		int rf_type;
 		int rc;
 
-		/* Get the read function that needs to be read next. */
+		/* Get the read function that needs to be read next.
+		 * We don't need to hold "read_lock" for the heap, but we need
+		 * to call c_heap_get_root() and pthread_cond_wait() in the
+		 * same protected block. */
+		pthread_mutex_lock (&read_lock);
 		rf = c_heap_get_root (read_heap);
 		if (rf == NULL)
 		{
-			struct timespec abstime;
-
-			now = cdtime ();
-
-			CDTIME_T_TO_TIMESPEC (now + interval_g, &abstime);
-
-			pthread_mutex_lock (&read_lock);
-			pthread_cond_timedwait (&read_cond, &read_lock,
-					&abstime);
-			pthread_mutex_unlock (&read_lock);
+			pthread_cond_wait (&read_cond, &read_lock);
+                        pthread_mutex_unlock (&read_lock);
 			continue;
 		}
+		pthread_mutex_unlock (&read_lock);
 
 		if ((rf->rf_interval.tv_sec == 0) && (rf->rf_interval.tv_nsec == 0))
 		{
@@ -784,6 +781,8 @@ static int plugin_insert_read (read_func_t *rf)
 	/* This does not fail. */
 	llist_append (read_list, le);
 
+	/* Wake up all the read threads. */
+	pthread_cond_broadcast (&read_cond);
 	pthread_mutex_unlock (&read_lock);
 	return (0);
 } /* int plugin_insert_read */
