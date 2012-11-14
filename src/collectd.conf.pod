@@ -3843,11 +3843,18 @@ B<PostgreSQL Documentation> for details.
 
 =item B<Query> I<query>
 
-Specify a I<query> which should be executed for the database connection. This
-may be any of the predefined or user-defined queries. If no such option is
-given, it defaults to "backends", "transactions", "queries", "query_plans",
-"table_states", "disk_io" and "disk_usage". Else, the specified queries are
-used only.
+Specifies a I<query> which should be executed in the context of the database
+connection. This may be any of the predefined or user-defined queries. If no
+such option is given, it defaults to "backends", "transactions", "queries",
+"query_plans", "table_states", "disk_io" and "disk_usage" (unless a B<Writer>
+has been specified). Else, the specified queries are used only.
+
+=item B<Writer> I<writer>
+
+Assigns the specified I<writer> backend to the database connection. This
+causes all collected data to be send to the database using the settings
+defined in the writer configuration (see the section "FILTER CONFIGURATION"
+below for details on how to selectively send data to certain plugins).
 
 =back
 
