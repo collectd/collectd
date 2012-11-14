@@ -3511,6 +3511,7 @@ L<http://www.postgresql.org/docs/manuals/>.
     <Database qux>
       # ...
       Writer sqlstore
+      CommitInterval 10
     </Database>
   </Plugin>
 
@@ -3765,6 +3766,17 @@ for details.
 
 Specify the interval with which the database should be queried. The default is
 to use the global B<Interval> setting.
+
+=item B<CommitInterval> I<seconds>
+
+This option may be used for database connections which have "writers" assigned
+(see above). If specified, it causes a writer to put several updates into a
+single transaction. This transaction will last for the specified amount of
+time. By default, each update will be executed in a separate transaction. Each
+transaction generates a fair amount of overhead which can, thus, be reduced by
+activating this option. The draw-back is, that data covering the specified
+amount of time will be lost, for example, if a single statement within the
+transaction fails or if the database server crashes.
 
 =item B<Host> I<hostname>
 
