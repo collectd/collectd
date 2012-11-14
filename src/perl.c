@@ -2120,6 +2120,9 @@ static int g_pv_set (pTHX_ SV *var, MAGIC *mg)
 
 static int g_interval_get (pTHX_ SV *var, MAGIC *mg)
 {
+	log_warn ("Accessing $interval_g is deprecated (and might not "
+			"give the desired results) - plugin_get_interval() should "
+			"be used instead.");
 	sv_setnv (var, CDTIME_T_TO_DOUBLE (interval_g));
 	return 0;
 } /* static int g_interval_get (pTHX_ SV *, MAGIC *) */
@@ -2127,6 +2130,9 @@ static int g_interval_get (pTHX_ SV *var, MAGIC *mg)
 static int g_interval_set (pTHX_ SV *var, MAGIC *mg)
 {
 	double nv = (double)SvNV (var);
+	log_warn ("Accessing $interval_g is deprecated (and might not "
+			"give the desired results) - plugin_get_interval() should "
+			"be used instead.");
 	interval_g = DOUBLE_TO_CDTIME_T (nv);
 	return 0;
 } /* static int g_interval_set (pTHX_ SV *, MAGIC *) */
