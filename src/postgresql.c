@@ -888,7 +888,7 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 					params[4], params[5], params[6], params[7]);
 
 			/* this will abort any current transaction -> restart */
-			if (db->commit_interval > 0)
+			if (db->next_commit > 0)
 				if (c_psql_commit (db) == 0)
 					c_psql_begin (db);
 
