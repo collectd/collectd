@@ -1164,17 +1164,6 @@ static int rrd_init (void)
 	if (rrdcreate_config.heartbeat <= 0)
 		rrdcreate_config.heartbeat = 2 * rrdcreate_config.stepsize;
 
-	if ((rrdcreate_config.heartbeat > 0)
-			&& (rrdcreate_config.heartbeat < CDTIME_T_TO_TIME_T (interval_g)))
-		WARNING ("rrdtool plugin: Your `heartbeat' is "
-				"smaller than your `interval'. This will "
-				"likely cause problems.");
-	else if ((rrdcreate_config.stepsize > 0)
-			&& (rrdcreate_config.stepsize < CDTIME_T_TO_TIME_T (interval_g)))
-		WARNING ("rrdtool plugin: Your `stepsize' is "
-				"smaller than your `interval'. This will "
-				"create needlessly big RRD-files.");
-
 	/* Set the cache up */
 	pthread_mutex_lock (&cache_lock);
 
