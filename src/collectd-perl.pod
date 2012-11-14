@@ -501,6 +501,11 @@ B<FQDNLookup> configuration options (see L<collectd.conf(5)> for details).
 This variable keeps the interval in seconds in which the read functions are
 queried (see the B<Interval> configuration option).
 
+B<Note:> This variable should no longer be used in favor of
+C<plugin_get_interval()> (see above). This function takes any plugin-specific
+interval settings into account (see the C<Interval> option of C<LoadPlugin> in
+L<collectd.conf(5)> for details).
+
 =back
 
 Any changes to these variables will be globally visible in collectd.
