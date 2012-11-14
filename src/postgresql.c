@@ -886,6 +886,12 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 					writer->statement,
 					params[0], params[1], params[2], params[3],
 					params[4], params[5], params[6], params[7]);
+
+			/* this will abort any current transaction -> restart */
+			if (db->commit_interval > 0)
+				if (c_psql_commit (db) == 0)
+					c_psql_begin (db);
+
 			pthread_mutex_unlock (&db->db_lock);
 			return -1;
 		}
