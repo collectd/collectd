@@ -35,6 +35,7 @@ install-exec-local:
 # So we do the work here.
 uninstall-local:
 	@PERL@ -I$(DESTDIR)$(prefix) $(srcdir)/perl/uninstall_mod.pl Collectd
+	find $(DESTDIR)$(prefix) -name "perllocal.pod" -exec rm {} \;
 
 clean-local:
 	rm -rf buildperl
