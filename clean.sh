@@ -47,4 +47,6 @@ true \
 && rm -f -r src/libcollectdclient/.libs \
 && rm -f src/libcollectdclient/*.o \
 && rm -f src/libcollectdclient/*.la \
-&& rm -f src/libcollectdclient/*.lo
+&& rm -f src/libcollectdclient/*.lo \
+&& rm -f bindings/.perl-directory-stamp \
+&& rm -f -r bindings/buildperl
