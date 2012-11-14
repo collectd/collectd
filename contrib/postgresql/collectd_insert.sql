@@ -117,7 +117,7 @@ CREATE OR REPLACE VIEW collectd
 -- the tables for the next couple of days
 CREATE OR REPLACE FUNCTION values_update_childs(
         integer
-    ) RETURNS integer
+    ) RETURNS SETOF text
     LANGUAGE plpgsql
     AS $_$
 DECLARE
@@ -125,14 +125,12 @@ DECLARE
     cur_day date;
     next_day date;
     i integer;
-    n integer;
 BEGIN
     IF days < 1 THEN
         RAISE EXCEPTION 'Cannot have negative number of days';
     END IF;
 
     i := 0;
-    n := 0;
     LOOP
         EXIT WHEN i > days;
 
@@ -150,8 +148,7 @@ BEGIN
             CONTINUE;
         END;
 
-        RAISE INFO 'Created table "values$%"', cur_day;
-        n := n + 1;
+        RETURN NEXT 'values$' || cur_day::text;
 
         EXECUTE 'ALTER TABLE ONLY "values$' || cur_day || '"
             ADD CONSTRAINT "values_' || cur_day || '_pkey"
@@ -160,7 +157,7 @@ BEGIN
             ADD CONSTRAINT "values_' || cur_day || '_id_fkey"
                 FOREIGN KEY (id) REFERENCES identifiers(id)';
     END LOOP;
-    RETURN n;
+    RETURN;
 END;
 $_$;
 
