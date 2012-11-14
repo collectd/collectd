@@ -171,6 +171,45 @@ static size_t             queries_num   = 0;
 static c_psql_writer_t   *writers       = NULL;
 static size_t             writers_num   = 0;
 
+static int c_psql_begin (c_psql_database_t *db)
+{
+	PGresult *r = PQexec (db->conn, "BEGIN");
+
+	int status = 1;
+
+	if (r != NULL) {
+		if (PGRES_COMMAND_OK == PQresultStatus (r)) {
+			db->next_commit = cdtime() + db->commit_interval;
+			status = 0;
+		}
+		else
+			log_warn ("Failed to initiate ('BEGIN') transaction: %s",
+					PQerrorMessage (db->conn));
+		PQclear (r);
+	}
+	return status;
+} /* c_psql_begin */
+
+static int c_psql_commit (c_psql_database_t *db)
+{
+	PGresult *r = PQexec (db->conn, "COMMIT");
+
+	int status = 1;
+
+	if (r != NULL) {
+		if (PGRES_COMMAND_OK == PQresultStatus (r)) {
+			db->next_commit = cdtime () + db->commit_interval;
+			log_debug ("Successfully committed transaction.");
+			status = 0;
+		}
+		else
+			log_warn ("Failed to commit transaction: %s",
+					PQerrorMessage (db->conn));
+		PQclear (r);
+	}
+	return status;
+} /* c_psql_commit */
+
 static c_psql_database_t *c_psql_database_new (const char *name)
 {
 	c_psql_database_t *db;
@@ -224,6 +263,12 @@ static void c_psql_database_delete (void *data)
 
 	c_psql_database_t *db = data;
 
+	/* wait for the lock to be released by the last writer */
+	pthread_mutex_lock (&db->db_lock);
+
+	if (db->next_commit > 0)
+		c_psql_commit (db);
+
 	PQfinish (db->conn);
 	db->conn = NULL;
 
@@ -238,8 +283,6 @@ static void c_psql_database_delete (void *data)
 	sfree (db->writers);
 	db->writers_num = 0;
 
-	/* wait for the lock to be released by the last writer */
-	pthread_mutex_lock (&db->db_lock);
 	pthread_mutex_unlock (&db->db_lock);
 
 	pthread_mutex_destroy (&db->db_lock);
@@ -736,45 +779,6 @@ static char *values_to_sqlarray (const data_set_t *ds, const value_list_t *vl,
 
 	return string;
 } /* values_to_sqlarray */
-
-static int c_psql_begin (c_psql_database_t *db)
-{
-	PGresult *r = PQexec (db->conn, "BEGIN");
-
-	int status = 1;
-
-	if (r != NULL) {
-		if (PGRES_COMMAND_OK == PQresultStatus (r)) {
-			db->next_commit = cdtime() + db->commit_interval;
-			status = 0;
-		}
-		else
-			log_warn ("Failed to initiate ('BEGIN') transaction: %s",
-					PQerrorMessage (db->conn));
-		PQclear (r);
-	}
-	return status;
-} /* c_psql_begin */
-
-static int c_psql_commit (c_psql_database_t *db)
-{
-	PGresult *r = PQexec (db->conn, "COMMIT");
-
-	int status = 1;
-
-	if (r != NULL) {
-		if (PGRES_COMMAND_OK == PQresultStatus (r)) {
-			db->next_commit = cdtime () + db->commit_interval;
-			log_debug ("Successfully committed transaction.");
-			status = 0;
-		}
-		else
-			log_warn ("Failed to commit transaction: %s",
-					PQerrorMessage (db->conn));
-		PQclear (r);
-	}
-	return status;
-} /* c_psql_commit */
 
 static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 		user_data_t *ud)
