@@ -2120,23 +2120,14 @@ static int g_pv_set (pTHX_ SV *var, MAGIC *mg)
 
 static int g_interval_get (pTHX_ SV *var, MAGIC *mg)
 {
-	cdtime_t *interval = (cdtime_t *)mg->mg_ptr;
-	double nv;
-
-	nv = CDTIME_T_TO_DOUBLE (*interval);
-
-	sv_setnv (var, nv);
+	sv_setnv (var, CDTIME_T_TO_DOUBLE (interval_g));
 	return 0;
 } /* static int g_interval_get (pTHX_ SV *, MAGIC *) */
 
 static int g_interval_set (pTHX_ SV *var, MAGIC *mg)
 {
-	cdtime_t *interval = (cdtime_t *)mg->mg_ptr;
-	double nv;
-
-	nv = (double)SvNV (var);
-
-	*interval = DOUBLE_TO_CDTIME_T (nv);
+	double nv = (double)SvNV (var);
+	interval_g = DOUBLE_TO_CDTIME_T (nv);
 	return 0;
 } /* static int g_interval_set (pTHX_ SV *, MAGIC *) */
 
@@ -2192,7 +2183,7 @@ static void xs_init (pTHX)
 	tmp = get_sv ("Collectd::interval_g", /* create = */ 1);
 	sv_magicext (tmp, NULL, /* how = */ PERL_MAGIC_ext,
 			/* vtbl = */ &g_interval_vtbl,
-			/* name = */ (char *) &interval_g, /* namelen = */ 0);
+			/* name = */ NULL, /* namelen = */ 0);
 
 	return;
 } /* static void xs_init (pTHX) */
