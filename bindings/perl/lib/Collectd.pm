@@ -42,6 +42,7 @@ our %EXPORT_TAGS = (
 			plugin_register
 			plugin_unregister
 			plugin_dispatch_values
+			plugin_get_interval
 			plugin_write
 			plugin_flush
 			plugin_flush_one

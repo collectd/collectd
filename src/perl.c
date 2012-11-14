@@ -102,6 +102,7 @@ void boot_DynaLoader (PerlInterpreter *, CV *);
 static XS (Collectd_plugin_register_ds);
 static XS (Collectd_plugin_unregister_ds);
 static XS (Collectd_plugin_dispatch_values);
+static XS (Collectd_plugin_get_interval);
 static XS (Collectd__plugin_write);
 static XS (Collectd__plugin_flush);
 static XS (Collectd_plugin_dispatch_notification);
@@ -177,6 +178,7 @@ static struct {
 	{ "Collectd::plugin_register_data_set",   Collectd_plugin_register_ds },
 	{ "Collectd::plugin_unregister_data_set", Collectd_plugin_unregister_ds },
 	{ "Collectd::plugin_dispatch_values",     Collectd_plugin_dispatch_values },
+	{ "Collectd::plugin_get_interval",        Collectd_plugin_get_interval },
 	{ "Collectd::_plugin_write",              Collectd__plugin_write },
 	{ "Collectd::_plugin_flush",              Collectd__plugin_flush },
 	{ "Collectd::plugin_dispatch_notification",
@@ -1658,6 +1660,21 @@ static XS (Collectd_plugin_dispatch_values)
 	else
 		XSRETURN_EMPTY;
 } /* static XS (Collectd_plugin_dispatch_values) */
+
+/*
+ * Collectd::plugin_get_interval ().
+ */
+static XS (Collectd_plugin_get_interval)
+{
+	dXSARGS;
+
+	/* make sure we don't get any unused variable warnings for 'items';
+	 * don't abort, though */
+	if (items)
+		log_err ("Usage: Collectd::plugin_get_interval()");
+
+	XSRETURN_NV ((NV) CDTIME_T_TO_DOUBLE (plugin_get_interval ()));
+} /* static XS (Collectd_plugin_get_interval) */
 
 /* Collectd::plugin_write (plugin, ds, vl).
  *
