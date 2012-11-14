@@ -1544,13 +1544,25 @@ int plugin_dispatch_values (value_list_t *vl)
 	if (vl->time == 0)
 		vl->time = cdtime ();
 
-	if (vl->interval <= 0) {
+	if (vl->interval <= 0)
+	{
 		plugin_ctx_t ctx = plugin_get_ctx ();
 
 		if (ctx.interval != 0)
 			vl->interval = ctx.interval;
 		else
+		{
+			char name[6 * DATA_MAX_NAME_LEN];
+			FORMAT_VL (name, sizeof (name), vl);
+			ERROR ("plugin_dispatch_values: Unable to determine "
+					"interval from context for "
+					"value list \"%s\". "
+					"This indicates a broken plugin. "
+					"Please report this problem to the "
+					"collectd mailing list or at "
+					"<http://collectd.org/bugs/>.", name);
 			vl->interval = interval_g;
+		}
 	}
 
 	DEBUG ("plugin_dispatch_values: time = %.3f; interval = %.3f; "
