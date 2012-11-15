@@ -85,7 +85,7 @@ CREATE INDEX identifiers_type_inst ON identifiers USING btree (type_inst);
 
 CREATE TABLE "values" (
     id integer NOT NULL,
-    tstamp timestamp without time zone NOT NULL,
+    tstamp timestamp with time zone NOT NULL,
     name character varying(64) NOT NULL,
     value double precision NOT NULL
 );
@@ -188,7 +188,7 @@ CREATE TRIGGER insert_values_trigger
 -- SET constraint_exclusion = on;
 
 CREATE OR REPLACE FUNCTION collectd_insert(
-        timestamp, character varying,
+        timestamp with time zone, character varying,
         character varying, character varying,
         character varying, character varying,
         character varying[], character varying[], double precision[]
