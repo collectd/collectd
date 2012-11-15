@@ -942,11 +942,9 @@ static int c_psql_shutdown (void)
 
 	for (i = 0; i < databases_num; ++i) {
 		c_psql_database_t *db = databases + i;
-		size_t j = 0;
 
-		for (j = 0; j < db->writers_num; ++j) {
+		if (db->writers_num > 0) {
 			char cb_name[DATA_MAX_NAME_LEN];
-
 			ssnprintf (cb_name, sizeof (cb_name), "postgresql-%s",
 					db->database);
 			plugin_unregister_write (cb_name);
