@@ -87,6 +87,11 @@ size_t cdtime_to_iso8601 (char *s, size_t max, cdtime_t t) /* {{{ */
     len += (n < max - len) ? n : max - len;
   }
 
+  if (max - len > 3) {
+    int n = strftime (s + len, max - len, "%z", &t_tm);
+    len += (n < max - len) ? n : max - len;
+  }
+
   s[max - 1] = '\0';
   return len;
 } /* }}} size_t cdtime_to_iso8601 */
