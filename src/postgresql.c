@@ -152,6 +152,8 @@ typedef struct {
 	char *krbsrvname;
 
 	char *service;
+
+	int ref_cnt;
 } c_psql_database_t;
 
 static char *def_queries[] = {
@@ -164,6 +166,9 @@ static char *def_queries[] = {
 	"disk_usage"
 };
 static int def_queries_num = STATIC_ARRAY_SIZE (def_queries);
+
+static c_psql_database_t *databases     = NULL;
+static size_t             databases_num = 0;
 
 static udb_query_t      **queries       = NULL;
 static size_t             queries_num   = 0;
@@ -214,11 +219,16 @@ static c_psql_database_t *c_psql_database_new (const char *name)
 {
 	c_psql_database_t *db;
 
-	db = (c_psql_database_t *)malloc (sizeof (*db));
+	db = (c_psql_database_t *)realloc (databases,
+			(databases_num + 1) * sizeof (*db));
 	if (NULL == db) {
 		log_err ("Out of memory.");
 		return NULL;
 	}
+
+	databases = db;
+	db = databases + databases_num;
+	++databases_num;
 
 	db->conn = NULL;
 
@@ -254,6 +264,8 @@ static c_psql_database_t *c_psql_database_new (const char *name)
 	db->krbsrvname = NULL;
 
 	db->service    = NULL;
+
+	db->ref_cnt    = 0;
 	return db;
 } /* c_psql_database_new */
 
@@ -262,6 +274,11 @@ static void c_psql_database_delete (void *data)
 	size_t i;
 
 	c_psql_database_t *db = data;
+
+	--db->ref_cnt;
+	/* readers and writers may access this database */
+	if (db->ref_cnt > 0)
+		return;
 
 	/* wait for the lock to be released by the last writer */
 	pthread_mutex_lock (&db->db_lock);
@@ -298,6 +315,9 @@ static void c_psql_database_delete (void *data)
 	sfree (db->krbsrvname);
 
 	sfree (db->service);
+
+	/* don't care about freeing or reordering the 'databases' array
+	 * this is done in 'shutdown' */
 	return;
 } /* c_psql_database_delete */
 
@@ -308,7 +328,7 @@ static int c_psql_connect (c_psql_database_t *db)
 	int   buf_len = sizeof (conninfo);
 	int   status;
 
-	if (! db)
+	if ((! db) || (! db->database))
 		return -1;
 
 	status = ssnprintf (buf, buf_len, "dbname = '%s'", db->database);
@@ -916,7 +936,22 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 
 static int c_psql_shutdown (void)
 {
+	size_t i = 0;
+
 	plugin_unregister_read_group ("postgresql");
+
+	for (i = 0; i < databases_num; ++i) {
+		c_psql_database_t *db = databases + i;
+		size_t j = 0;
+
+		for (j = 0; j < db->writers_num; ++j) {
+			char cb_name[DATA_MAX_NAME_LEN];
+
+			ssnprintf (cb_name, sizeof (cb_name), "postgresql-%s",
+					db->database);
+			plugin_unregister_write (cb_name);
+		}
+	}
 
 	udb_query_free (queries, queries_num);
 	queries = NULL;
@@ -925,6 +960,10 @@ static int c_psql_shutdown (void)
 	sfree (writers);
 	writers = NULL;
 	writers_num = 0;
+
+	sfree (databases);
+	databases = NULL;
+	databases_num = 0;
 
 	return 0;
 } /* c_psql_shutdown */
@@ -1178,11 +1217,13 @@ static int c_psql_config_database (oconfig_item_t *ci)
 	if (db->queries_num > 0) {
 		CDTIME_T_TO_TIMESPEC (db->interval, &cb_interval);
 
+		++db->ref_cnt;
 		plugin_register_complex_read ("postgresql", cb_name, c_psql_read,
 				/* interval = */ (db->interval > 0) ? &cb_interval : NULL,
 				&ud);
 	}
 	if (db->writers_num > 0) {
+		++db->ref_cnt;
 		plugin_register_write (cb_name, c_psql_write, &ud);
 	}
 	else if (db->commit_interval > 0) {
