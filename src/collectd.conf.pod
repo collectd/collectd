@@ -3856,6 +3856,24 @@ causes all collected data to be send to the database using the settings
 defined in the writer configuration (see the section "FILTER CONFIGURATION"
 below for details on how to selectively send data to certain plugins).
 
+Each writer will register a flush callback which may be used when having long
+transactions enabled (see the B<CommitInterval> option above). When issuing
+the B<FLUSH> command (see L<collectd-unixsock(5)> for details) the current
+transaction will be committed right away. Two different kinds of flush
+callbacks are available with the C<postgresql> plugin:
+
+=over 4
+
+=item B<postgresql>
+
+Flush all writer backends.
+
+=item B<postgresql->I<database>
+
+Flush all writers of the specified I<database> only.
+
+=back
+
 =back
 
 =head2 Plugin C<powerdns>
