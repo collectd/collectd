@@ -98,7 +98,7 @@ static cf_global_option_t cf_global_options[] =
 	{"PIDFile",     NULL, PIDFILE},
 	{"Hostname",    NULL, NULL},
 	{"FQDNLookup",  NULL, "true"},
-	{"Interval",    NULL, "10"},
+	{"Interval",    NULL, NULL},
 	{"ReadThreads", NULL, "5"},
 	{"Timeout",     NULL, "2"},
 	{"PreCacheChain",  NULL, "PreCache"},
@@ -265,7 +265,8 @@ static int dispatch_loadplugin (const oconfig_item_t *ci)
 	name = ci->values[0].value.string;
 
 	/* default to the global interval set before loading this plugin */
-	ctx.interval = plugin_get_interval ();
+	memset (&ctx, 0, sizeof (ctx));
+	ctx.interval = cf_get_default_interval ();
 
 	/*
 	 * XXX: Magic at work:
@@ -866,6 +867,29 @@ const char *global_option_get (const char *option)
 			? cf_global_options[i].value
 			: cf_global_options[i].def);
 } /* char *global_option_get */
+
+cdtime_t cf_get_default_interval (void)
+{
+  char const *str = global_option_get ("Interval");
+  double interval_double = COLLECTD_DEFAULT_INTERVAL;
+
+  if (str != NULL)
+  {
+    char *endptr = NULL;
+    double tmp = strtod (str, &endptr);
+
+    if ((endptr == NULL) || (endptr == str) || (*endptr != 0))
+      ERROR ("cf_get_default_interval: Unable to parse string \"%s\" "
+          "as number.", str);
+    else if (tmp <= 0.0)
+      ERROR ("cf_get_default_interval: Interval must be a positive number. "
+          "The current number is %g.", tmp);
+    else
+      interval_double = tmp;
+  }
+
+  return (DOUBLE_TO_CDTIME_T (interval_double));
+} /* }}} cdtime_t cf_get_default_interval */
 
 void cf_unregister (const char *type)
 {

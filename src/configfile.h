@@ -87,6 +87,8 @@ int cf_read (char *filename);
 int global_option_set (const char *option, const char *value);
 const char *global_option_get (const char *option);
 
+cdtime_t cf_get_default_interval (void);
+
 /* Assures the config option is a string, duplicates it and returns the copy in
  * "ret_string". If necessary "*ret_string" is freed first. Returns zero upon
  * success. */

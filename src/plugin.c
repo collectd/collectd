@@ -2074,25 +2074,11 @@ cdtime_t plugin_get_interval (void)
 {
 	cdtime_t interval;
 
-	const char *interval_str;
-	double interval_dbl;
-
 	interval = plugin_get_ctx().interval;
 	if (interval > 0)
 		return interval;
 
-	/* this should happen during initialization only */
-	interval_str = global_option_get ("Interval");
-	if (interval_str != NULL)
-	{
-		interval_dbl = atof (interval_str);
-		if (interval_dbl > 0.0)
-			interval = DOUBLE_TO_CDTIME_T (interval_dbl);
-	}
-
-	if (interval > 0)
-		return interval;
-	return TIME_T_TO_CDTIME_T (10);
+	return cf_get_default_interval ();
 } /* cdtime_t plugin_get_interval */
 
 typedef struct {
