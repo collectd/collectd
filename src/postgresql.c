@@ -203,7 +203,7 @@ static int c_psql_commit (c_psql_database_t *db)
 
 	if (r != NULL) {
 		if (PGRES_COMMAND_OK == PQresultStatus (r)) {
-			db->next_commit = cdtime () + db->commit_interval;
+			db->next_commit = 0;
 			log_debug ("Successfully committed transaction.");
 			status = 0;
 		}
@@ -913,8 +913,7 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 
 			/* this will abort any current transaction -> restart */
 			if (db->next_commit > 0)
-				if (c_psql_commit (db) == 0)
-					c_psql_begin (db);
+				c_psql_commit (db);
 
 			pthread_mutex_unlock (&db->db_lock);
 			return -1;
@@ -924,8 +923,7 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 
 	if ((db->next_commit > 0)
 			&& (cdtime () > db->next_commit))
-		if (c_psql_commit (db) == 0)
-			c_psql_begin (db);
+		c_psql_commit (db);
 
 	pthread_mutex_unlock (&db->db_lock);
 
@@ -957,8 +955,7 @@ static int c_psql_flush (cdtime_t timeout,
 		 * interval as in that case all requested data has already been
 		 * committed */
 		if ((db->next_commit > 0) && (db->commit_interval > timeout))
-			if (c_psql_commit (db) == 0)
-				c_psql_begin (db);
+			c_psql_commit (db);
 	}
 	return 0;
 } /* c_psql_flush */
