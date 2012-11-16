@@ -66,6 +66,11 @@
  */
 #  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 # endif
+/* FreeBSD's copy of libgcrypt extends the existing GCRYPT_NO_DEPRECATED
+ * to properly hide all deprecated functionality.
+ * http://svnweb.freebsd.org/ports/head/security/libgcrypt/files/patch-src__gcrypt.h.in
+ */
+# define GCRYPT_NO_DEPRECATED
 # include <gcrypt.h>
 # if defined __APPLE__
 /* Re enable deprecation warnings */
