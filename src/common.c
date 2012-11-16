@@ -548,7 +548,7 @@ int check_create_dir (const char *file_orig)
 			{
 				if (errno == ENOENT)
 				{
-					if (mkdir (dir, 0755) == 0)
+					if (mkdir (dir, S_IRWXU | S_IRWXG | S_IRWXO) == 0)
 						break;
 
 					/* this might happen, if a different thread created
@@ -636,24 +636,23 @@ long long get_kstat_value (kstat_t *ksp, char *name)
 	kstat_named_t *kn;
 	long long retval = -1LL;
 
-#ifdef assert
-	assert (ksp != NULL);
-	assert (ksp->ks_type == KSTAT_TYPE_NAMED);
-#else
 	if (ksp == NULL)
 	{
-		ERROR ("ERROR: %s:%i: ksp == NULL\n", __FILE__, __LINE__);
+		ERROR ("get_kstat_value (\"%s\"): ksp is NULL.", name);
 		return (-1LL);
 	}
 	else if (ksp->ks_type != KSTAT_TYPE_NAMED)
 	{
-		ERROR ("ERROR: %s:%i: ksp->ks_type != KSTAT_TYPE_NAMED\n", __FILE__, __LINE__);
+		ERROR ("get_kstat_value (\"%s\"): ksp->ks_type (%#x) "
+				"is not KSTAT_TYPE_NAMED (%#x).",
+				name,
+				(unsigned int) ksp->ks_type,
+				(unsigned int) KSTAT_TYPE_NAMED);
 		return (-1LL);
 	}
-#endif
 
 	if ((kn = (kstat_named_t *) kstat_data_lookup (ksp, name)) == NULL)
-		return (retval);
+		return (-1LL);
 
 	if (kn->data_type == KSTAT_DATA_INT32)
 		retval = (long long) kn->value.i32;

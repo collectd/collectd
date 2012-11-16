@@ -465,8 +465,10 @@
 #</Plugin>
 
 #<Plugin memcached>
-#	Host "127.0.0.1"
-#	Port "11211"
+#	<Instance "local">
+#		Host "127.0.0.1"
+#		Port "11211"
+#	</Instance>
 #</Plugin>
 
 #<Plugin modbus>
@@ -626,6 +628,7 @@
 #	Host "localhost"
 #	Port 123
 #	ReverseLookups false
+#	IncludeUnitID true
 #</Plugin>
 
 #<Plugin nut>
@@ -867,6 +870,7 @@
 
 #<Plugin "swap">
 #	ReportByDevice false
+#	ReportBytes true
 #</Plugin>
 
 #<Plugin "table">

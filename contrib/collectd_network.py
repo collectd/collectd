@@ -4,19 +4,23 @@
 #
 # Copyright © 2009 Adrian Perez <aperez@igalia.com>
 #
-# Distributed under terms of the GPLv2 license.
+# Distributed under terms of the GPLv2 license or newer.
+# 
+# Frank Marien (frank@apsu.be) 6 Sep 2012
+# - quick fixes for 5.1 binary protocol
+# - updated to python 3
+# - fixed for larger packet sizes (possible on lo interface)
+# - fixed comment typo (decode_network_string decodes a string)
 
 """
 Collectd network protocol implementation.
 """
 
-import socket
-import struct
-
+import socket,struct,sys
 try:
-    from cStringIO import StringIO
+  from io import StringIO
 except ImportError:
-    from StringIO import StringIO
+  from cStringIO import StringIO
 
 from datetime import datetime
 from copy import deepcopy
@@ -31,17 +35,19 @@ DEFAULT_IPv4_GROUP = "239.192.74.66"
 DEFAULT_IPv6_GROUP = "ff18::efc0:4a42"
 """Default IPv6 multicast group"""
 
-
+HR_TIME_DIV = (2.0**30)
 
 # Message kinds
 TYPE_HOST            = 0x0000
 TYPE_TIME            = 0x0001
+TYPE_TIME_HR         = 0x0008
 TYPE_PLUGIN          = 0x0002
 TYPE_PLUGIN_INSTANCE = 0x0003
 TYPE_TYPE            = 0x0004
 TYPE_TYPE_INSTANCE   = 0x0005
 TYPE_VALUES          = 0x0006
 TYPE_INTERVAL        = 0x0007
+TYPE_INTERVAL_HR     = 0x0009
 
 # For notifications
 TYPE_MESSAGE         = 0x0100
@@ -50,13 +56,13 @@ TYPE_SEVERITY        = 0x0101
 # DS kinds
 DS_TYPE_COUNTER      = 0
 DS_TYPE_GAUGE        = 1
-
+DS_TYPE_DERIVE       = 2
+DS_TYPE_ABSOLUTE     = 3
 
 header = struct.Struct("!2H")
 number = struct.Struct("!Q")
 short  = struct.Struct("!H")
 double = struct.Struct("<d")
-
 
 def decode_network_values(ptype, plen, buf):
     """Decodes a list of DS values in collectd network format
@@ -70,12 +76,18 @@ def decode_network_values(ptype, plen, buf):
     assert double.size == number.size
 
     result = []
-    for dstype in map(ord, buf[header.size+short.size:off]):
+    for dstype in buf[header.size+short.size:off]:
         if dstype == DS_TYPE_COUNTER:
             result.append((dstype, number.unpack_from(buf, off)[0]))
             off += valskip
         elif dstype == DS_TYPE_GAUGE:
             result.append((dstype, double.unpack_from(buf, off)[0]))
+            off += valskip
+        elif dstype == DS_TYPE_DERIVE:
+            result.append((dstype, number.unpack_from(buf, off)[0]))
+            off += valskip
+        elif dstype == DS_TYPE_ABSOLUTE:
+            result.append((dstype, number.unpack_from(buf, off)[0]))
             off += valskip
         else:
             raise ValueError("DS type %i unsupported" % dstype)
@@ -84,13 +96,13 @@ def decode_network_values(ptype, plen, buf):
 
 
 def decode_network_number(ptype, plen, buf):
-    """Decodes a number (64-bit unsigned) in collectd network format.
+    """Decodes a number (64-bit unsigned) from collectd network format.
     """
     return number.unpack_from(buf, header.size)[0]
 
 
 def decode_network_string(msgtype, plen, buf):
-    """Decodes a floating point number (64-bit) in collectd network format.
+    """Decodes a string from collectd network format.
     """
     return buf[header.size:plen-1]
 
@@ -99,7 +111,9 @@ def decode_network_string(msgtype, plen, buf):
 _decoders = {
     TYPE_VALUES         : decode_network_values,
     TYPE_TIME           : decode_network_number,
+    TYPE_TIME_HR        : decode_network_number,
     TYPE_INTERVAL       : decode_network_number,
+    TYPE_INTERVAL_HR    : decode_network_number,
     TYPE_HOST           : decode_network_string,
     TYPE_PLUGIN         : decode_network_string,
     TYPE_PLUGIN_INSTANCE: decode_network_string,
@@ -115,6 +129,7 @@ def decode_network_packet(buf):
     """
     off = 0
     blen = len(buf)
+
     while off < blen:
         ptype, plen = header.unpack_from(buf, off)
 
@@ -128,9 +143,6 @@ def decode_network_packet(buf):
         off += plen
 
 
-
-
-
 class Data(object):
     time = 0
     host = None
@@ -140,7 +152,7 @@ class Data(object):
     typeinstance = None
 
     def __init__(self, **kw):
-        [setattr(self, k, v) for k, v in kw.iteritems()]
+        [setattr(self, k, v) for k, v in kw.items()]
 
     @property
     def datetime(self):
@@ -150,19 +162,19 @@ class Data(object):
     def source(self):
         buf = StringIO()
         if self.host:
-            buf.write(self.host)
+            buf.write(str(self.host))
         if self.plugin:
             buf.write("/")
-            buf.write(self.plugin)
+            buf.write(str(self.plugin))
         if self.plugininstance:
             buf.write("/")
-            buf.write(self.plugininstance)
+            buf.write(str(self.plugininstance))
         if self.type:
             buf.write("/")
-            buf.write(self.type)
+            buf.write(str(self.type))
         if self.typeinstance:
             buf.write("/")
-            buf.write(self.typeinstance)
+            buf.write(str(self.typeinstance))
         return buf.getvalue()
 
     def __str__(self):
@@ -215,8 +227,12 @@ def interpret_opcodes(iterable):
     for kind, data in iterable:
         if kind == TYPE_TIME:
             vl.time = nt.time = data
+        elif kind == TYPE_TIME_HR:
+            vl.time = nt.time = data / HR_TIME_DIV
         elif kind == TYPE_INTERVAL:
             vl.interval = data
+        elif kind == TYPE_INTERVAL_HR:
+            vl.interval = data / HR_TIME_DIV
         elif kind == TYPE_HOST:
             vl.host = nt.host = data
         elif kind == TYPE_PLUGIN:
@@ -248,7 +264,7 @@ class Reader(object):
     host = None
     port = DEFAULT_PORT
 
-    BUFFER_SIZE = 1024
+    BUFFER_SIZE = 16384
 
 
     def __init__(self, host=None, port=DEFAULT_PORT, multicast=False):
@@ -311,8 +327,6 @@ class Reader(object):
         """
         if iterable is None:
             iterable = self.decode()
-        if isinstance(iterable, basestring):
+        if isinstance(iterable, str):
             iterable = self.decode(iterable)
         return interpret_opcodes(iterable)
-
-

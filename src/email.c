@@ -376,6 +376,7 @@ static void *collect (void *arg)
 	} /* while (1) */
 
 	pthread_exit ((void *)0);
+	return ((void *) 0);
 } /* static void *collect (void *) */
 
 static void *open_connection (void __attribute__((unused)) *arg)
@@ -548,7 +549,9 @@ static void *open_connection (void __attribute__((unused)) *arg)
 
 		pthread_cond_signal (&conn_available);
 	}
-	pthread_exit ((void *)0);
+
+	pthread_exit ((void *) 0);
+	return ((void *) 0);
 } /* static void *open_connection (void *) */
 
 static int email_init (void)

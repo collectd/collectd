@@ -101,6 +101,7 @@ typedef enum {
 	C_PSQL_PARAM_DB,
 	C_PSQL_PARAM_USER,
 	C_PSQL_PARAM_INTERVAL,
+	C_PSQL_PARAM_INSTANCE,
 } c_psql_param_t;
 
 /* Parameter configuration. Stored as `user data' in the query objects. */
@@ -146,6 +147,8 @@ typedef struct {
 	char *database;
 	char *user;
 	char *password;
+
+	char *instance;
 
 	char *sslmode;
 
@@ -259,6 +262,8 @@ static c_psql_database_t *c_psql_database_new (const char *name)
 	db->user       = NULL;
 	db->password   = NULL;
 
+	db->instance   = sstrdup (name);
+
 	db->sslmode    = NULL;
 
 	db->krbsrvname = NULL;
@@ -309,6 +314,8 @@ static void c_psql_database_delete (void *data)
 	sfree (db->port);
 	sfree (db->user);
 	sfree (db->password);
+
+	sfree (db->instance);
 
 	sfree (db->sslmode);
 
@@ -376,8 +383,9 @@ static int c_psql_check_connection (c_psql_database_t *db)
 
 		if (CONNECTION_OK != PQstatus (db->conn)) {
 			c_complain (LOG_ERR, &db->conn_complaint,
-					"Failed to connect to database %s: %s",
-					db->database, PQerrorMessage (db->conn));
+					"Failed to connect to database %s (%s): %s",
+					db->database, db->instance,
+					PQerrorMessage (db->conn));
 			return -1;
 		}
 
@@ -445,6 +453,9 @@ static PGresult *c_psql_exec_query_params (c_psql_database_t *db,
 						? CDTIME_T_TO_DOUBLE (db->interval) : interval_g);
 				params[i] = interval;
 				break;
+			case C_PSQL_PARAM_INSTANCE:
+				params[i] = db->instance;
+				break;
 			default:
 				assert (0);
 		}
@@ -483,9 +494,10 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q,
 	else if ((NULL == data) || (0 == data->params_num))
 		res = c_psql_exec_query_noparams (db, q);
 	else {
-		log_err ("Connection to database \"%s\" does not support parameters "
-				"(protocol version %d) - cannot execute query \"%s\".",
-				db->database, db->proto_version,
+		log_err ("Connection to database \"%s\" (%s) does not support "
+				"parameters (protocol version %d) - "
+				"cannot execute query \"%s\".",
+				db->database, db->instance, db->proto_version,
 				udb_query_get_name (q));
 		return -1;
 	}
@@ -551,7 +563,7 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q,
 		host = db->host;
 
 	status = udb_query_prepare_result (q, prep_area, host, "postgresql",
-			db->database, column_names, (size_t) column_num, db->interval);
+			db->instance, column_names, (size_t) column_num, db->interval);
 	if (0 != status) {
 		log_err ("udb_query_prepare_result failed with status %i.",
 				status);
@@ -602,6 +614,7 @@ static int c_psql_read (user_data_t *ud)
 	db = ud->data;
 
 	assert (NULL != db->database);
+	assert (NULL != db->instance);
 	assert (NULL != db->queries);
 
 	pthread_mutex_lock (&db->db_lock);
@@ -1036,6 +1049,8 @@ static int config_query_param_add (udb_query_t *q, oconfig_item_t *ci)
 		data->params[data->params_num] = C_PSQL_PARAM_USER;
 	else if (0 == strcasecmp (param_str, "interval"))
 		data->params[data->params_num] = C_PSQL_PARAM_INTERVAL;
+	else if (0 == strcasecmp (param_str, "instance"))
+		data->params[data->params_num] = C_PSQL_PARAM_INSTANCE;
 	else {
 		log_err ("Invalid parameter \"%s\".", param_str);
 		return 1;
@@ -1189,6 +1204,8 @@ static int c_psql_config_database (oconfig_item_t *ci)
 			cf_util_get_string (c, &db->user);
 		else if (0 == strcasecmp (c->key, "Password"))
 			cf_util_get_string (c, &db->password);
+		else if (0 == strcasecmp (c->key, "Instance"))
+			cf_util_get_string (c, &db->instance);
 		else if (0 == strcasecmp (c->key, "SSLMode"))
 			cf_util_get_string (c, &db->sslmode);
 		else if (0 == strcasecmp (c->key, "KRBSrvName"))
@@ -1247,7 +1264,7 @@ static int c_psql_config_database (oconfig_item_t *ci)
 	ud.data = db;
 	ud.free_func = c_psql_database_delete;
 
-	ssnprintf (cb_name, sizeof (cb_name), "postgresql-%s", db->database);
+	ssnprintf (cb_name, sizeof (cb_name), "postgresql-%s", db->instance);
 
 	if (db->queries_num > 0) {
 		CDTIME_T_TO_TIMESPEC (db->interval, &cb_interval);

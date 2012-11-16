@@ -412,6 +412,11 @@ static int varnish_read (user_data_t *ud) /* {{{ */
 
 	vd = VSM_New();
 	VSC_Setup(vd);
+	if (VSM_n_Arg(vd, conf->instance) == -1)
+	{
+		ERROR ("Varnish plugin : unable to load statistics from instance");
+		return (-1);
+	}
 	if (VSC_Open (vd, /* diag = */ 1))
 	{
 		ERROR ("varnish plugin: Unable to load statistics.");

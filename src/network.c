@@ -58,7 +58,19 @@
 #endif
 
 #if HAVE_LIBGCRYPT
+# include <pthread.h>
+# if defined __APPLE__
+/* default xcode compiler throws warnings even when deprecated functionality
+ * is not used. -Werror breaks the build because of erroneous warnings.
+ * http://stackoverflow.com/questions/10556299/compiler-warnings-with-libgcrypt-v1-5-0/12830209#12830209
+ */
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+# endif
 # include <gcrypt.h>
+# if defined __APPLE__
+/* Re enable deprecation warnings */
+#  pragma GCC diagnostic warning "-Wdeprecated-declarations"
+# endif
 GCRY_THREAD_OPTION_PTHREAD_IMPL;
 #endif
 
@@ -661,7 +673,7 @@ static int write_part_number (char **ret_buffer, int *ret_buffer_len,
 
 	part_header_t pkg_head;
 	uint64_t pkg_value;
-	
+
 	int offset;
 
 	packet_len = sizeof (pkg_head) + sizeof (pkg_value);
@@ -1665,7 +1677,7 @@ static int network_set_ttl (const sockent_t *se, const struct addrinfo *ai)
 					sizeof (network_config_ttl)) != 0)
 		{
 			char errbuf[1024];
-			ERROR ("setsockopt: %s",
+			ERROR ("network plugin: setsockopt (ipv4-ttl): %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			return (-1);
 		}
@@ -1686,7 +1698,7 @@ static int network_set_ttl (const sockent_t *se, const struct addrinfo *ai)
 					sizeof (network_config_ttl)) != 0)
 		{
 			char errbuf[1024];
-			ERROR ("setsockopt: %s",
+			ERROR ("network plugin: setsockopt(ipv6-ttl): %s",
 					sstrerror (errno, errbuf,
 						sizeof (errbuf)));
 			return (-1);
@@ -1733,7 +1745,7 @@ static int network_set_interface (const sockent_t *se, const struct addrinfo *ai
 						&mreq, sizeof (mreq)) != 0)
 			{
 				char errbuf[1024];
-				ERROR ("setsockopt: %s",
+				ERROR ("network plugin: setsockopt (ipv4-multicast-if): %s",
 						sstrerror (errno, errbuf, sizeof (errbuf)));
 				return (-1);
 			}
@@ -1752,7 +1764,7 @@ static int network_set_interface (const sockent_t *se, const struct addrinfo *ai
 						sizeof (se->interface)) != 0)
 			{
 				char errbuf[1024];
-				ERROR ("setsockopt: %s",
+				ERROR ("network plugin: setsockopt (ipv6-multicast-if): %s",
 						sstrerror (errno, errbuf,
 							sizeof (errbuf)));
 				return (-1);
@@ -1778,7 +1790,7 @@ static int network_set_interface (const sockent_t *se, const struct addrinfo *ai
 					sizeof(interface_name)) == -1 )
 		{
 			char errbuf[1024];
-			ERROR ("setsockopt: %s",
+			ERROR ("network plugin: setsockopt (bind-if): %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			return (-1);
 		}
@@ -1802,14 +1814,18 @@ static int network_set_interface (const sockent_t *se, const struct addrinfo *ai
 
 static int network_bind_socket (int fd, const struct addrinfo *ai, const int interface_idx)
 {
+#if KERNEL_SOLARIS
+	char loop   = 0;
+#else
 	int loop = 0;
+#endif
 	int yes  = 1;
 
 	/* allow multiple sockets to use the same PORT number */
 	if (setsockopt (fd, SOL_SOCKET, SO_REUSEADDR,
 				&yes, sizeof(yes)) == -1) {
                 char errbuf[1024];
-                ERROR ("setsockopt: %s", 
+                ERROR ("network plugin: setsockopt (reuseaddr): %s",
                                 sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -1852,7 +1868,7 @@ static int network_bind_socket (int fd, const struct addrinfo *ai, const int int
 						&loop, sizeof (loop)) == -1)
 			{
 				char errbuf[1024];
-				ERROR ("setsockopt: %s",
+				ERROR ("network plugin: setsockopt (multicast-loop): %s",
 						sstrerror (errno, errbuf,
 							sizeof (errbuf)));
 				return (-1);
@@ -1862,7 +1878,7 @@ static int network_bind_socket (int fd, const struct addrinfo *ai, const int int
 						&mreq, sizeof (mreq)) == -1)
 			{
 				char errbuf[1024];
-				ERROR ("setsockopt: %s",
+				ERROR ("network plugin: setsockopt (add-membership): %s",
 						sstrerror (errno, errbuf,
 							sizeof (errbuf)));
 				return (-1);
@@ -1900,7 +1916,7 @@ static int network_bind_socket (int fd, const struct addrinfo *ai, const int int
 						&loop, sizeof (loop)) == -1)
 			{
 				char errbuf[1024];
-				ERROR ("setsockopt: %s",
+				ERROR ("network plugin: setsockopt (ipv6-multicast-loop): %s",
 						sstrerror (errno, errbuf,
 							sizeof (errbuf)));
 				return (-1);
@@ -1910,7 +1926,7 @@ static int network_bind_socket (int fd, const struct addrinfo *ai, const int int
 						&mreq, sizeof (mreq)) == -1)
 			{
 				char errbuf[1024];
-				ERROR ("setsockopt: %s",
+				ERROR ("network plugin: setsockopt (ipv6-add-membership): %s",
 						sstrerror (errno, errbuf,
 							sizeof (errbuf)));
 				return (-1);
@@ -1938,7 +1954,7 @@ static int network_bind_socket (int fd, const struct addrinfo *ai, const int int
 					sizeof(interface_name)) == -1 )
 		{
 			char errbuf[1024];
-			ERROR ("setsockopt: %s",
+			ERROR ("network plugin: setsockopt (bind-if): %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			return (-1);
 		}
@@ -2713,7 +2729,7 @@ static int add_to_buffer (char *buffer, int buffer_size, /* {{{ */
 			return (-1);
 		sstrncpy (vl_def->type_instance, vl->type_instance, sizeof (vl_def->type_instance));
 	}
-	
+
 	if (write_part_values (&buffer, &buffer_size, ds, vl) != 0)
 		return (-1);
 
@@ -3426,7 +3442,7 @@ static int network_init (void)
 	return (0);
 } /* int network_init */
 
-/* 
+/*
  * The flush option of the network plugin cannot flush individual identifiers.
  * All the values are added to a buffer and sent when the buffer is full, the
  * requested value may or may not be in there, it's not worth finding out. We

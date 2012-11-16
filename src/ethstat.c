@@ -66,6 +66,7 @@ static int ethstat_add_interface (const oconfig_item_t *ci) /* {{{ */
   if (tmp == NULL)
     return (-1);
   interfaces = tmp;
+  interfaces[interfaces_num] = NULL;
 
   status = cf_util_get_string (ci, interfaces + interfaces_num);
   if (status != 0)
@@ -104,7 +105,7 @@ static int ethstat_add_map (const oconfig_item_t *ci) /* {{{ */
   memset (map, 0, sizeof (*map));
 
   sstrncpy (map->type, ci->values[1].value.string, sizeof (map->type));
-  if (ci->values_num == 2)
+  if (ci->values_num == 3)
     sstrncpy (map->type_instance, ci->values[2].value.string,
         sizeof (map->type_instance));
 

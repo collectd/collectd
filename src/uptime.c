@@ -37,6 +37,12 @@
 /* Using sysctl interface to retrieve the boot time on *BSD / Darwin / OS X systems */
 /* #endif HAVE_SYS_SYSCTL_H */
 
+#elif HAVE_PERFSTAT
+# include <sys/protosw.h>
+# include <libperfstat.h>
+/* Using perfstat_cpu_total to retrive the boot time in AIX */
+/* #endif HAVE_PERFSTAT */
+
 #else
 # error "No applicable input method."
 #endif
@@ -203,7 +209,29 @@ static int uptime_init (void) /* {{{ */
 				"but `boottime' is zero!");
 		return (-1);
 	}
-#endif /* HAVE_SYS_SYSCTL_H */
+/* #endif HAVE_SYS_SYSCTL_H */
+
+#elif HAVE_PERFSTAT
+	int status;
+	perfstat_cpu_total_t cputotal;
+	int hertz;
+
+	status = perfstat_cpu_total(NULL, &cputotal,
+		sizeof(perfstat_cpu_total_t), 1);
+	if (status < 0)
+	{
+		char errbuf[1024];
+		ERROR ("uptime plugin: perfstat_cpu_total: %s",
+			sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (-1);
+	}
+
+	hertz = sysconf(_SC_CLK_TCK);
+	if (hertz <= 0)
+		hertz = HZ;
+
+	boottime = time(NULL) - cputotal.lbolt / hertz;
+#endif /* HAVE_PERFSTAT */
 
 	return (0);
 } /* }}} int uptime_init */

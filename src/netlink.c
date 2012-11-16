@@ -570,8 +570,14 @@ static int ir_read (void)
     return (-1);
   }
 
+#ifdef RTNL_DUMP_FILTER_FIVE_ARGS
   if (rtnl_dump_filter (&rth, link_filter, /* arg1 = */ NULL,
 	NULL, NULL) != 0)
+#elif defined(RTNL_DUMP_FILTER_THREE_ARGS)
+  if (rtnl_dump_filter (&rth, link_filter, /* arg = */ NULL) != 0)
+#else
+#error "Failed to determine the number of arguments to 'rtnl_dump_filter'!"
+#endif
   {
     ERROR ("netlink plugin: ir_read: rtnl_dump_filter failed.");
     return (-1);
@@ -608,8 +614,14 @@ static int ir_read (void)
 	continue;
       }
 
+#ifdef RTNL_DUMP_FILTER_FIVE_ARGS
       if (rtnl_dump_filter (&rth, qos_filter, (void *) &ifindex,
 	    NULL, NULL) != 0)
+#elif defined(RTNL_DUMP_FILTER_THREE_ARGS)
+      if (rtnl_dump_filter (&rth, qos_filter, /* arg = */ &ifindex) != 0)
+#else
+#error "Failed to determine the number of arguments to 'rtnl_dump_filter'!"
+#endif
       {
 	ERROR ("netlink plugin: ir_read: rtnl_dump_filter failed.");
 	continue;

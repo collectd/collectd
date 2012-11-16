@@ -25,22 +25,32 @@ controls which plugins to load. These plugins ultimately define collectd's
 behavior.
 
 The syntax of this config file is similar to the config file of the famous
-B<Apache Webserver>. Each line contains either a key-value-pair or a
-section-start or -end. Empty lines and everything after the hash-symbol `#' is
-ignored. Values are either string, enclosed in double-quotes,
-(floating-point-)numbers or a boolean expression, i.E<nbsp>e. either B<true> or
-B<false>. String containing of only alphanumeric characters and underscores do
-not need to be quoted. Lines may be wrapped by using `\' as the last character
-before the newline. This allows long lines to be split into multiple lines.
-Quoted strings may be wrapped as well. However, those are treated special in
-that whitespace at the beginning of the following lines will be ignored, which
-allows for nicely indenting the wrapped lines.
+I<Apache> webserver. Each line contains either an option (a key and a list of
+one or more values) or a section-start or -end. Empty lines and everything
+after a non-quoted hash-symbol (C<#>) is ignored. I<Keys> are unquoted
+strings, consisting only of alphanumeric characters and the underscore (C<_>)
+character. Keys are handled case insensitive by I<collectd> itself and all
+plugins included with it. I<Values> can either be an I<unquoted string>, a
+I<quoted string> (enclosed in double-quotes) a I<number> or a I<boolean>
+expression. I<Unquoted strings> consist of only alphanumeric characters and
+underscores (C<_>) and do not need to be quoted. I<Quoted strings> are
+enclosed in double quotes (C<">). You can use the backslash character (C<\>)
+to include double quotes as part of the string. I<Numbers> can be specified in
+decimal and floating point format (using a dot C<.> as decimal separator),
+hexadecimal when using the C<0x> prefix and octal with a leading zero (C<0>).
+I<Boolean> values are either B<true> or B<false>.
 
-The configuration is read and processed in order, i.E<nbsp>e. from top to
-bottom. So the plugins are loaded in the order listed in this config file. It
-is a good idea to load any logging plugins first in order to catch messages
-from plugins during configuration. Also, the C<LoadPlugin> option B<must> occur
-B<before> the C<E<lt>Plugin ...E<gt>> block.
+Lines may be wrapped by using C<\> as the last character before the newline.
+This allows long lines to be split into multiple lines. Quoted strings may be
+wrapped as well. However, those are treated special in that whitespace at the
+beginning of the following lines will be ignored, which allows for nicely
+indenting the wrapped lines.
+
+The configuration is read and processed in order, i.e. from top to bottom. So
+the plugins are loaded in the order listed in this config file. It is a good
+idea to load any logging plugins first in order to catch messages from plugins
+during configuration. Also, the C<LoadPlugin> option B<must> occur B<before>
+the appropriate C<E<lt>Plugin ...E<gt>> block.
 
 =head1 GLOBAL OPTIONS
 
@@ -210,6 +220,8 @@ possibly filtering or messages.
  #   Persistent false
  #   Format "command"
  #   StoreRates false
+ #   GraphitePrefix "collectd."
+ #   GraphiteEscapeChar "_"
    </Publish>
    
    # Receive values from an AMQP broker
@@ -310,6 +322,10 @@ If set to B<JSON>, the values are encoded in the I<JavaScript Object Notation>,
 an easy and straight forward exchange format. The C<Content-Type> header field
 will be set to C<application/json>.
 
+If set to B<Graphite>, values are encoded in the I<Graphite> format, which is
+"<metric> <value> <timestamp>\n". The C<Content-Type> header field will be set to
+C<text/graphite>.
+
 A subscribing client I<should> use the C<Content-Type> header field to
 determine how to decode the values. Currently, the I<AMQP plugin> itself can
 only decode the B<Command> format.
@@ -323,6 +339,25 @@ using the internal value cache.
 
 Please note that currently this option is only used if the B<Format> option has
 been set to B<JSON>.
+
+=item B<GraphitePrefix> (Publish and B<Format>=I<Graphite> only)
+
+A prefix can be added in the metric name when outputting in the I<Graphite> format.
+It's added before the I<Host> name.
+Metric name will be "<prefix><host><postfix><plugin><type><name>"
+
+=item B<GraphitePostfix> (Publish and B<Format>=I<Graphite> only)
+
+A postfix can be added in the metric name when outputting in the I<Graphite> format.
+It's added after the I<Host> name.
+Metric name will be "<prefix><host><postfix><plugin><type><name>"
+
+=item B<GraphiteEscapeChar> (Publish and B<Format>=I<Graphite> only)
+
+Specify a character to replace dots (.) in the host part of the metric name.
+In I<Graphite> metric name, dots are used as separators between different
+metric parts (host, plugin, type).
+Default is "_" (I<Underscore>).
 
 =back
 
@@ -1939,6 +1974,17 @@ The C<memcached plugin> connects to a memcached server and queries statistics
 about cache utilization, memory and bandwidth used.
 L<http://www.danga.com/memcached/>
 
+ <Plugin "memcached">
+   <Instance "name">
+     Host "memcache.example.com"
+     Port 11211
+   </Instance>
+ </Plugin>
+
+The plugin configuration consists of one or more B<Instance> blocks which
+specify one I<memcached> connection each. Within the B<Instance> blocks, the
+following options are allowed:
+
 =over 4
 
 =item B<Host> I<Hostname>
@@ -1948,6 +1994,11 @@ Hostname to connect to. Defaults to B<127.0.0.1>.
 =item B<Port> I<Port>
 
 TCP-Port to connect to. Defaults to B<11211>.
+
+=item B<Socket> I<Path>
+
+Connect to I<memcached> using the UNIX domain socket at I<Path>. If this
+setting is given, the B<Host> and B<Port> settings are ignored.
 
 =back
 
@@ -3043,6 +3094,16 @@ IP-address may be used in a filename it is recommended to disable reverse
 lookups. The default is to do reverse lookups to preserve backwards
 compatibility, though.
 
+=item B<IncludeUnitID> B<true>|B<false>
+
+When a peer is a refclock, include the unit ID in the I<type instance>.
+Defaults to B<false> for backward compatibility.
+
+If two refclock peers use the same driver and this is B<false>, the plugin will
+try to write simultaneous measurements from both to the same type instance.
+This will result in error messages in the log and only one set of measurements
+making it through.
+
 =back
 
 =head2 Plugin C<nut>
@@ -3561,6 +3622,11 @@ used, the parameter expands to "localhost".
 
 The name of the database of the current connection.
 
+=item I<instance>
+
+The name of the database plugin instance. See the B<Instance> option of the
+database specification below for details.
+
 =item I<username>
 
 The username used to connect to the database.
@@ -3807,6 +3873,13 @@ Specify the password to be used when connecting to the server.
 
 Specify whether to use an SSL connection when contacting the server. The
 following modes are supported:
+
+=item B<Instance> I<name>
+
+Specify the plugin instance name that should be used instead of the database
+name (which is the default, if this option has not been specified). This
+allows to query multiple databases of the same name on the same host (e.g.
+when running multiple database server versions in parallel).
 
 =over 4
 
@@ -4193,6 +4266,10 @@ The B<Port> option is the TCP port on which the Redis instance accepts
 connections. Either a service name of a port number may be given. Please note
 that numerical port numbers must be given as a string, too.
 
+=item B<Password> I<Password>
+
+Use I<Password> to authenticate when connecting to I<Redis>.
+
 =item B<Timeout> I<Timeout in miliseconds>
 
 The B<Timeout> option set the socket timeout for node response. Since the Redis
@@ -4421,6 +4498,11 @@ and available space of each device will be reported separately.
 
 This option is only available if the I<Swap plugin> can read C</proc/swaps>
 (under Linux) or use the L<swapctl(2)> mechanism (under I<Solaris>).
+
+=item B<ReportBytes> B<false>|B<true>
+
+When enabled, the I<swap I/O> is reported in bytes. When disabled, the default,
+I<swap I/O> is reported in pages. This option is available under Linux only.
 
 =back
 
@@ -5052,7 +5134,7 @@ number.
 If set to B<true>, the plugin instance and type instance will be in their own
 path component, for example C<host.cpu.0.cpu.idle>. If set to B<false> (the
 default), the plugin and plugin instance (and likewise the type and type
-instance) are put into once component, for example C<host.cpu-0.cpu-idle>.
+instance) are put into one component, for example C<host.cpu-0.cpu-idle>.
 
 =item B<AlwaysAppendDS> B<false>|B<true>
 

@@ -33,6 +33,7 @@ use File::Basename ('dirname');
 
 our $InDir = '/var/lib/collectd';
 our $RRDtool = 'rrdtool';
+our $RRDFilter = 'rrd_filter.px';
 
 our %TypesCounterToDerive = # {{{
 (
@@ -184,7 +185,15 @@ sub handle_file # {{{
   {
     my $dir = join ('/', @path);
     print "mkdir -p \"$dir/$plugin-$type_inst\"\n";
-    print "mv \"$path\" \"$dir/$plugin-$type_inst/$type.rrd\"\n";
+    if (($plugin eq 'df') and ($type eq 'df'))
+    {
+      print "$RRDFilter --infile=\"$path\" --outfile=\"$dir/$plugin-$type_inst/df_complex-free.rrd\" --map free:value\n";
+      print "$RRDFilter --infile=\"$path\" --outfile=\"$dir/$plugin-$type_inst/df_complex-used.rrd\" --map used:value\n";
+    }
+    else
+    {
+      print "mv \"$path\" \"$dir/$plugin-$type_inst/$type.rrd\"\n";
+    }
   }
 } # }}} sub handle_file
 
@@ -223,10 +232,12 @@ migrate-4-5.px [OPTIONS]
 
 Valid options are:
 
-  --indir <dir>      Source directory
-                     Default: $InDir
-  --rrdtool <path>   Path to the RRDtool binary
-                     Default: $RRDtool
+  --indir <dir>         Source directory
+                        Default: $InDir
+  --rrdtool <path>      Path to the RRDtool binary
+                        Default: $RRDtool
+  --rrdfilter <path>    Path to the rrd_filter.px script
+                        Default: $RRDFilter
 
 EOF
   exit (1);
@@ -234,7 +245,10 @@ EOF
 
 GetOptions ("indir|i=s" => \$InDir,
         "rrdtool=s" => \$RRDtool,
+        "rrdfilter=s" => \$RRDFilter,
         "help|h" => \&exit_usage) or exit_usage ();
+
+print "#!/bin/bash\n\n";
 
 scan_dir ($InDir);
 

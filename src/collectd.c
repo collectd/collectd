@@ -79,6 +79,7 @@ static void sig_usr1_handler (int __attribute__((unused)) signal)
 	pthread_attr_init (&attr);
 	pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
 	pthread_create (&thread, &attr, do_flush, NULL);
+	pthread_attr_destroy (&attr);
 }
 
 static int init_hostname (void)
@@ -182,10 +183,11 @@ static int init_global_variables (void)
 
 static int change_basedir (const char *orig_dir)
 {
-	char *dir = strdup (orig_dir);
-	int dirlen;
+	char *dir;
+	size_t dirlen;
 	int status;
 
+	dir = strdup (orig_dir);
 	if (dir == NULL)
 	{
 		char errbuf[1024];
@@ -202,39 +204,41 @@ static int change_basedir (const char *orig_dir)
 		return (-1);
 
 	status = chdir (dir);
-	free (dir);
-
-	if (status != 0)
+	if (status == 0)
 	{
-		if (errno == ENOENT)
-		{
-			if (mkdir (orig_dir, 0755) == -1)
-			{
-				char errbuf[1024];
-				ERROR ("change_basedir: mkdir (%s): %s", orig_dir,
-						sstrerror (errno, errbuf,
-							sizeof (errbuf)));
-				return (-1);
-			}
-			else if (chdir (orig_dir) == -1)
-			{
-				char errbuf[1024];
-				ERROR ("chdir (%s): %s", orig_dir,
-						sstrerror (errno, errbuf,
-							sizeof (errbuf)));
-				return (-1);
-			}
-		}
-		else
-		{
-			char errbuf[1024];
-			ERROR ("chdir (%s): %s", orig_dir,
-					sstrerror (errno, errbuf,
-						sizeof (errbuf)));
-			return (-1);
-		}
+		free (dir);
+		return (0);
+	}
+	else if (errno != ENOENT)
+	{
+		char errbuf[1024];
+		ERROR ("change_basedir: chdir (%s): %s", dir,
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		free (dir);
+		return (-1);
 	}
 
+	status = mkdir (dir, S_IRWXU | S_IRWXG | S_IRWXO);
+	if (status != 0)
+	{
+		char errbuf[1024];
+		ERROR ("change_basedir: mkdir (%s): %s", dir,
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		free (dir);
+		return (-1);
+	}
+
+	status = chdir (dir);
+	if (status != 0)
+	{
+		char errbuf[1024];
+		ERROR ("change_basedir: chdir (%s): %s", dir,
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		free (dir);
+		return (-1);
+	}
+
+	free (dir);
 	return (0);
 } /* static int change_basedir (char *dir) */
 
