@@ -12,9 +12,9 @@
 
 #Hostname    "localhost"
 #FQDNLookup   true
-#BaseDir     "@prefix@/var/lib/@PACKAGE_NAME@"
-#PIDFile     "@prefix@/var/run/@PACKAGE_NAME@.pid"
-#PluginDir   "@prefix@/lib/@PACKAGE_NAME@"
+#BaseDir     "@localstatedir@/lib/@PACKAGE_NAME@"
+#PIDFile     "@localstatedir@/run/@PACKAGE_NAME@.pid"
+#PluginDir   "@libdir@/@PACKAGE_NAME@"
 #TypesDB     "@prefix@/share/@PACKAGE_NAME@/types.db"
 #Interval     10
 #Timeout      2
@@ -238,7 +238,7 @@
 #</Plugin>
 
 #<Plugin csv>
-#	DataDir "@prefix@/var/lib/@PACKAGE_NAME@/csv"
+#	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/csv"
 #	StoreRates false
 #</Plugin>
 
@@ -351,7 +351,7 @@
 #</Plugin>
 
 #<Plugin email>
-#	SocketFile "@prefix@/var/run/@PACKAGE_NAME@-email"
+#	SocketFile "@localstatedir@/run/@PACKAGE_NAME@-email"
 #	SocketGroup "collectd"
 #	SocketPerms "0770"
 #	MaxConns 5
@@ -828,13 +828,13 @@
 
 #<Plugin rrdcached>
 #	DaemonAddress "unix:/tmp/rrdcached.sock"
-#	DataDir "@prefix@/var/lib/@PACKAGE_NAME@/rrd"
+#	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/rrd"
 #	CreateFiles true
 #	CollectStatistics true
 #</Plugin>
 
 #<Plugin rrdtool>
-#	DataDir "@prefix@/var/lib/@PACKAGE_NAME@/rrd"
+#	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/rrd"
 #	CacheTimeout 120
 #	CacheFlush   900
 #</Plugin>
