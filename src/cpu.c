@@ -442,10 +442,11 @@ static int cpu_read (void)
 
 #elif defined(HAVE_LIBKSTAT)
 	int cpu;
-	derive_t user, syst, idle, wait;
+	derive_t user, syst, idle, wait, total;
 	derive_t tuser = 0, tsyst = 0, tidle = 0, twait = 0;
 	static cpu_stat_t cs;
 
+	int hz = sysconf(_SC_CLK_TCK);
 	if (kc == NULL)
 		return (-1);
 
@@ -458,6 +459,11 @@ static int cpu_read (void)
 		user = (derive_t) cs.cpu_sysinfo.cpu[CPU_USER];
 		syst = (derive_t) cs.cpu_sysinfo.cpu[CPU_KERNEL];
 		wait = (derive_t) cs.cpu_sysinfo.cpu[CPU_WAIT];
+		user = (derive_t)(user * (100.0 / hz));
+		syst = (derive_t)(syst * (100.0 / hz));
+		idle = (derive_t)(idle * (100.0 / hz));
+		wait = (derive_t)(wait * (100.0 / hz));                                     
+
 		tidle += idle;
 		tuser += user;
 		tsyst += syst;
