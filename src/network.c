@@ -3306,7 +3306,6 @@ static int network_stats_read (void) /* {{{ */
 	vl.values = values;
 	vl.values_len = 2;
 	vl.time = 0;
-	vl.interval = interval_g;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "network", sizeof (vl.plugin));
 
@@ -3410,7 +3409,7 @@ static int network_init (void)
 	if (dispatch_thread_running == 0)
 	{
 		int status;
-		status = pthread_create (&dispatch_thread_id,
+		status = plugin_thread_create (&dispatch_thread_id,
 				NULL /* no attributes */,
 				dispatch_thread,
 				NULL /* no argument */);
@@ -3430,7 +3429,7 @@ static int network_init (void)
 	if (receive_thread_running == 0)
 	{
 		int status;
-		status = pthread_create (&receive_thread_id,
+		status = plugin_thread_create (&receive_thread_id,
 				NULL /* no attributes */,
 				receive_thread,
 				NULL /* no argument */);

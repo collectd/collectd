@@ -96,6 +96,12 @@ By default, this is disabled. As a special exception, if the plugin name is
 either C<perl> or C<python>, the default is changed to enabled in order to keep
 the average user from ever having to deal with this low level linking stuff.
 
+=item B<Interval> I<Seconds>
+
+Sets a plugin-specific interval for collecting metrics. This overrides the
+global B<Interval> setting. If a plugin provides own support for specifying an
+interval, that setting will take precedence.
+
 =back
 
 =item B<Include> I<Path>

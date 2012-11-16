@@ -879,7 +879,7 @@ static int mc_receive_thread_start (void) /* {{{ */
 
   mc_receive_thread_loop = 1;
 
-  status = pthread_create (&mc_receive_thread_id, /* attr = */ NULL,
+  status = plugin_thread_create (&mc_receive_thread_id, /* attr = */ NULL,
       mc_receive_thread, /* args = */ NULL);
   if (status != 0)
   {

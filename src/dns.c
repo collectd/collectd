@@ -228,7 +228,7 @@ static void *dns_child_loop (__attribute__((unused)) void *dummy)
 	pcap_obj = pcap_open_live ((pcap_device != NULL) ? pcap_device : "any",
 			PCAP_SNAPLEN,
 			0 /* Not promiscuous */,
-			(int) CDTIME_T_TO_MS (interval_g / 2),
+			(int) CDTIME_T_TO_MS (plugin_get_interval () / 2),
 			pcap_error);
 	if (pcap_obj == NULL)
 	{
@@ -286,7 +286,7 @@ static int dns_init (void)
 	if (listen_thread_init != 0)
 		return (-1);
 
-	status = pthread_create (&listen_thread, NULL, dns_child_loop,
+	status = plugin_thread_create (&listen_thread, NULL, dns_child_loop,
 			(void *) 0);
 	if (status != 0)
 	{
