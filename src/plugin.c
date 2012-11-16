@@ -1561,7 +1561,7 @@ int plugin_dispatch_values (value_list_t *vl)
 					"Please report this problem to the "
 					"collectd mailing list or at "
 					"<http://collectd.org/bugs/>.", name);
-			vl->interval = interval_g;
+			vl->interval = cf_get_default_interval ();
 		}
 	}
 
