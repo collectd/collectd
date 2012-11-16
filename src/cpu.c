@@ -113,7 +113,6 @@ static int cpu_temp_retry_max     = 1;
 /* #endif PROCESSOR_CPU_LOAD_INFO */
 
 #elif defined(KERNEL_LINUX)
-/* no variables needed */
 /* #endif KERNEL_LINUX */
 
 #elif defined(HAVE_LIBKSTAT)
@@ -121,15 +120,14 @@ static int cpu_temp_retry_max     = 1;
 # define MAX_NUMCPU 256
 extern kstat_ctl_t *kc;
 static kstat_t *ksp[MAX_NUMCPU];
-static int numcpu;
+//static int numcpu;
 /* #endif HAVE_LIBKSTAT */
 
 #elif CAN_USE_SYSCTL
-static int numcpu;
 /* #endif CAN_USE_SYSCTL */
 
 #elif defined(HAVE_SYSCTLBYNAME)
-static int numcpu;
+//static int numcpu;
 #  ifdef HAVE_SYSCTL_KERN_CP_TIMES
 static int maxcpu;
 #  endif /* HAVE_SYSCTL_KERN_CP_TIMES */
@@ -141,9 +139,45 @@ static int maxcpu;
 
 #elif defined(HAVE_PERFSTAT)
 static perfstat_cpu_t *perfcpu;
-static int numcpu;
+//static int numcpu;
 static int pnumcpu;
 #endif /* HAVE_PERFSTAT */
+
+static const char *config_keys[] =
+{
+	"PerCpuStatistic",
+	"ScaleTo100"
+};
+static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
+
+static int numcpu = 1;
+static int per_cpu_statistic_boolean = 1;
+static int scale_boolean = 0;
+static int hz=100;
+
+static int cpu_config (const char *key, const char *value)
+{
+	if (strcasecmp (key, "PerCpuStatistic") == 0)
+	{
+		if (IS_FALSE(value)) 
+			per_cpu_statistic_boolean = 0;
+		else
+			per_cpu_statistic_boolean = 1;
+	}
+	else if (strcasecmp (key, "ScaleTo100") == 0)
+	{
+		if (IS_FALSE(value))
+			scale_boolean = 0;
+		else
+			scale_boolean = 1;
+	}
+	else
+	{
+		return (-1);
+	}
+
+	return (0);
+}
 
 static int init (void)
 {
@@ -199,6 +233,21 @@ static int init (void)
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
+
+        struct clockinfo ci;
+	size_t ci_size = sizeof (ci);
+	int mib[2] = {CTL_KERN, KERN_CLOCKRATE};
+
+	status = sysctl (mib, STATIC_ARRAY_SIZE (mib),
+			&ci, &ci_size, NULL, 0);
+	if (status == -1)
+	{
+		char errbuf[1024];
+		WARNING ("cpu plugin: sysctl: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (-1);
+	}
+        hz = ci.stathz;
 /* #endif CAN_USE_SYSCTL */
 
 #elif defined (HAVE_SYSCTLBYNAME)
@@ -213,6 +262,17 @@ static int init (void)
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
+
+        struct clockinfo ci;
+	size_t ci_size = sizeof (ci);
+	if (sysctlbyname ("kern.clockrate", &ci, &ci_size, NULL, 0) < 0)
+	{
+		char errbuf[1024];
+		WARNING ("cpu plugin: sysctlbyname(kern.clockrate): %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (-1);
+	}
+        hz = ci.stathz;
 
 #ifdef HAVE_SYSCTL_KERN_CP_TIMES
 	numcpu_size = sizeof (maxcpu);
@@ -238,6 +298,11 @@ static int init (void)
 	/* nothing to initialize */
 #endif /* HAVE_PERFSTAT */
 
+#if defined(KERNEL_LINUX)
+        numcpu = sysconf( _SC_NPROCESSORS_ONLN );
+        hz = sysconf(_SC_CLK_TCK);
+#endif /* KERNEL_LINUX */
+
 	return (0);
 } /* int init */
 
@@ -246,13 +311,20 @@ static void submit (int cpu_num, const char *type_instance, derive_t value)
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].derive = value;
+        if (hz != 100)
+	    values[0].derive = (derive_t) (value * (100.0 / hz));
+        else
+	    values[0].derive = value;
+
+        if (scale_boolean == 1 && cpu_num < 0)
+            values[0].derive = values[0].derive / numcpu;
 
 	vl.values = values;
 	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "cpu", sizeof (vl.plugin));
-	ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
+        if (cpu_num >= 0)
+	    ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
 			"%i", cpu_num);
 	sstrncpy (vl.type, "cpu", sizeof (vl.type));
 	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
@@ -359,6 +431,7 @@ static int cpu_read (void)
 
 	char *fields[9];
 	int numfields;
+     int allcpu_boolean;
 
 	if ((fh = fopen ("/proc/stat", "r")) == NULL)
 	{
@@ -372,14 +445,20 @@ static int cpu_read (void)
 	{
 		if (strncmp (buf, "cpu", 3))
 			continue;
-		if ((buf[3] < '0') || (buf[3] > '9'))
+    
+		allcpu_boolean = (buf[3] == ' ' ? 1 : 0);
+		if ( ((per_cpu_statistic_boolean == 0) || (buf[3] < '0') || (buf[3] > '9')) && (allcpu_boolean == 0) )
 			continue;
 
 		numfields = strsplit (buf, fields, 9);
 		if (numfields < 5)
 			continue;
 
-		cpu = atoi (fields[0] + 3);
+                if (allcpu_boolean == 1) 
+                    cpu = -1;
+                else
+                    cpu = atoi (fields[0] + 3);
+
 		user = atoll (fields[1]);
 		nice = atoll (fields[2]);
 		syst = atoll (fields[3]);
@@ -449,7 +528,7 @@ static int cpu_read (void)
 	memset (cpuinfo, 0, sizeof (cpuinfo));
 
 #if defined(KERN_CPTIME2)
-	if (numcpu > 1) {
+	if (per_cpu_statistic_boolean == 1 && numcpu > 1) {
 		for (i = 0; i < numcpu; i++) {
 			int mib[] = {CTL_KERN, KERN_CPTIME2, i};
 
@@ -464,61 +543,79 @@ static int cpu_read (void)
 				return (-1);
 			}
 		}
+	        for (i = 0; i < numcpu; i++) {
+		        submit (i, "user",      cpuinfo[i][CP_USER]);
+		        submit (i, "nice",      cpuinfo[i][CP_NICE]);
+		        submit (i, "system",    cpuinfo[i][CP_SYS]);
+		        submit (i, "idle",      cpuinfo[i][CP_IDLE]);
+		        submit (i, "interrupt", cpuinfo[i][CP_INTR]);
+	        }
 	}
-	else
 #endif /* defined(KERN_CPTIME2) */
-	{
-		int mib[] = {CTL_KERN, KERN_CPTIME};
-		long cpuinfo_tmp[CPUSTATES];
+	int mib[] = {CTL_KERN, KERN_CPTIME};
+	long cpuinfo_tmp[CPUSTATES];
 
-		cpuinfo_size = sizeof(cpuinfo_tmp);
+	cpuinfo_size = sizeof(cpuinfo_tmp);
 
-		status = sysctl (mib, STATIC_ARRAY_SIZE (mib),
+	status = sysctl (mib, STATIC_ARRAY_SIZE (mib),
 					&cpuinfo_tmp, &cpuinfo_size, NULL, 0);
-		if (status == -1)
-		{
-			char errbuf[1024];
-			ERROR ("cpu plugin: sysctl failed: %s.",
-					sstrerror (errno, errbuf, sizeof (errbuf)));
-			return (-1);
-		}
-
-		for(i = 0; i < CPUSTATES; i++) {
-			cpuinfo[0][i] = cpuinfo_tmp[i];
-		}
+	if (status == -1)
+	{
+		char errbuf[1024];
+		ERROR ("cpu plugin: sysctl failed: %s.",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (-1);
 	}
 
-	for (i = 0; i < numcpu; i++) {
-		submit (i, "user",      cpuinfo[i][CP_USER]);
-		submit (i, "nice",      cpuinfo[i][CP_NICE]);
-		submit (i, "system",    cpuinfo[i][CP_SYS]);
-		submit (i, "idle",      cpuinfo[i][CP_IDLE]);
-		submit (i, "interrupt", cpuinfo[i][CP_INTR]);
-	}
+	submit (-1, "user",      cpuinfo_tmp[CP_USER]);
+	submit (-1, "nice",      cpuinfo_tmp[CP_NICE]);
+	submit (-1, "system",    cpuinfo_tmp[CP_SYS]);
+	submit (-1, "idle",      cpuinfo_tmp[CP_IDLE]);
+	submit (-1, "interrupt", cpuinfo_tmp[CP_INTR]);
 /* #endif CAN_USE_SYSCTL */
 #elif defined(HAVE_SYSCTLBYNAME) && defined(HAVE_SYSCTL_KERN_CP_TIMES)
-	long cpuinfo[maxcpu][CPUSTATES];
-	size_t cpuinfo_size;
-	int i;
+    	size_t cpuinfo_size;
+        if (per_cpu_statistic_boolean == 1) {
+        	long cpuinfo[maxcpu][CPUSTATES];
+        	int i;
+        
+        	memset (cpuinfo, 0, sizeof (cpuinfo));
+        
+        	cpuinfo_size = sizeof (cpuinfo);
+        	if (sysctlbyname("kern.cp_times", &cpuinfo, &cpuinfo_size, NULL, 0) < 0)
+        	{
+        		char errbuf[1024];
+        		ERROR ("cpu plugin: sysctlbyname failed: %s.",
+        				sstrerror (errno, errbuf, sizeof (errbuf)));
+        		return (-1);
+        	}
 
-	memset (cpuinfo, 0, sizeof (cpuinfo));
+        	for (i = 0; i < numcpu; i++) {
+        		submit (i, "user", cpuinfo[i][CP_USER]);
+        		submit (i, "nice", cpuinfo[i][CP_NICE]);
+        		submit (i, "system", cpuinfo[i][CP_SYS]);
+        		submit (i, "idle", cpuinfo[i][CP_IDLE]);
+        		submit (i, "interrupt", cpuinfo[i][CP_INTR]);
+        	}
+        }
 
-	cpuinfo_size = sizeof (cpuinfo);
-	if (sysctlbyname("kern.cp_times", &cpuinfo, &cpuinfo_size, NULL, 0) < 0)
+	long cpuinfo2[CPUSTATES];
+
+	cpuinfo_size = sizeof (cpuinfo2);
+
+	if (sysctlbyname("kern.cp_time", &cpuinfo2, &cpuinfo_size, NULL, 0) < 0)
 	{
 		char errbuf[1024];
 		ERROR ("cpu plugin: sysctlbyname failed: %s.",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
+	submit (-1, "user", cpuinfo2[CP_USER]);
+	submit (-1, "nice", cpuinfo2[CP_NICE]);
+	submit (-1, "system", cpuinfo2[CP_SYS]);
+	submit (-1, "idle", cpuinfo2[CP_IDLE]);
+	submit (-1, "interrupt", cpuinfo2[CP_INTR]);
 
-	for (i = 0; i < numcpu; i++) {
-		submit (i, "user", cpuinfo[i][CP_USER]);
-		submit (i, "nice", cpuinfo[i][CP_NICE]);
-		submit (i, "system", cpuinfo[i][CP_SYS]);
-		submit (i, "idle", cpuinfo[i][CP_IDLE]);
-		submit (i, "interrupt", cpuinfo[i][CP_INTR]);
-	}
 /* #endif HAVE_SYSCTL_KERN_CP_TIMES */
 #elif defined(HAVE_SYSCTLBYNAME)
 	long cpuinfo[CPUSTATES];
@@ -534,11 +631,11 @@ static int cpu_read (void)
 		return (-1);
 	}
 
-	submit (0, "user", cpuinfo[CP_USER]);
-	submit (0, "nice", cpuinfo[CP_NICE]);
-	submit (0, "system", cpuinfo[CP_SYS]);
-	submit (0, "idle", cpuinfo[CP_IDLE]);
-	submit (0, "interrupt", cpuinfo[CP_INTR]);
+	submit (-1, "user", cpuinfo[CP_USER]);
+	submit (-1, "nice", cpuinfo[CP_NICE]);
+	submit (-1, "system", cpuinfo[CP_SYS]);
+	submit (-1, "idle", cpuinfo[CP_IDLE]);
+	submit (-1, "interrupt", cpuinfo[CP_INTR]);
 /* #endif HAVE_SYSCTLBYNAME */
 
 #elif defined(HAVE_LIBSTATGRAB)
@@ -603,6 +700,8 @@ static int cpu_read (void)
 
 void module_register (void)
 {
+	plugin_register_config ("cpu", cpu_config,
+			config_keys, config_keys_num);
 	plugin_register_init ("cpu", init);
 	plugin_register_read ("cpu", cpu_read);
 } /* void module_register */
