@@ -3063,6 +3063,62 @@ statistics available. Defaults to B<false>.
 
 =back
 
+=head2 Plugin C<nfs>
+
+This plugin collects statistics about NFS (client and server).
+
+The configuration options can be used to have a specific configuration
+of what to collect from /proc/self/mountstat.
+
+Example :
+
+ <Plugin "nfs">
+   enable_client_stats_per_mountpoint <true|false>
+   <mountpoint "all">
+     min_age 3600
+     enable true
+   </mountpoint>
+   <mountpoint "/mnt">
+     enable false
+   </mountpoint>
+   <mountpoint "/mynfsmountpoints/data1">
+     min_age 0
+     enable true
+   </mountpoint>
+   <mountpoint "/mynfsmountpoints/data2">
+     min_age 0
+     enable true
+   </mountpoint>
+ </Plugin>
+
+The following options are accepted by the C<nfs plugin>:
+
+=over 4
+
+=item B<enable_client_stats_per_mountpoint> I<boolean>
+
+Enable collecting statistics from /proc/self/mountstats (if available).
+
+=item B<mountpoint> I<mountpoint>
+
+This starts a block with options for I<mountpoint>. If I<mountpoint> is "all",
+the options are defined for all mountpoints unless redefined with other B<mountpoint>
+blocks.
+
+=over 4
+
+=item B<enable> B<true|false>
+
+Enable or not this mountpoint.
+
+=item B<min_age> I<seconds>
+
+Ignore mountpoint unless its age is more than I<seconds>. Do not ignore if set to 0.
+
+=back
+
+=back
+
 =head2 Plugin C<nginx>
 
 This plugin collects the number of connections and requests handled by the

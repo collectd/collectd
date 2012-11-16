@@ -100,6 +100,15 @@ mysql_handler		value:DERIVE:0:U
 mysql_locks		value:DERIVE:0:U
 mysql_log_position	value:DERIVE:0:U
 mysql_octets		rx:DERIVE:0:U, tx:DERIVE:0:U
+nfsclient_sends		value:DERIVE:0:U
+nfsclient_backlog	value:DERIVE:0:U
+nfsclient_ops		read:DERIVE:0:U, write:DERIVE:0:U
+nfsclient_kilobytes	read:DERIVE:0:U, write:DERIVE:0:U
+nfsclient_kbperop	read:GAUGE:0:U, write:GAUGE:0:U
+nfsclient_retrans	read:GAUGE:0:U, write:GAUGE:0:U
+nfsclient_retrans_percent	read:GAUGE:0:U, write:GAUGE:0:U
+nfsclient_rtt	read:GAUGE:0:U, write:GAUGE:0:U
+nfsclient_exe	read:GAUGE:0:U, write:GAUGE:0:U
 nfs_procedure		value:DERIVE:0:U
 nginx_connections	value:GAUGE:0:U
 nginx_requests		value:DERIVE:0:U
