@@ -7,11 +7,15 @@ collectd.conf - Configuration for the system statistics collection daemon B<coll
   BaseDir "/path/to/data/"
   PIDFile "/path/to/pidfile/collectd.pid"
   Server  "123.123.123.123" 12345
-
+  
   LoadPlugin cpu
   LoadPlugin load
+  
+  <LoadPlugin df>
+    Interval 3600
+  </LoadPlugin>
+  
   LoadPlugin ping
-
   <Plugin ping>
     Host "example.org"
     Host "provider.net"
@@ -73,6 +77,7 @@ options are allowed inside a B<LoadPlugin> block:
 
   <LoadPlugin perl>
     Globals true
+    Interval 10
   </LoadPlugin>
 
 =over 4
