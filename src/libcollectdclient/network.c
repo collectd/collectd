@@ -24,6 +24,8 @@
  *   Florian octo Forster <octo at collectd.org>
  **/
 
+#include "collectd.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -34,6 +36,10 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
+
+#if HAVE_NETINET_IN_H
+# include <netinet/in.h>
+#endif
 
 #include "collectd/network.h"
 #include "collectd/network_buffer.h"
