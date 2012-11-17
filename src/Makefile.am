@@ -888,6 +888,14 @@ collectd_LDADD += "-dlopen" perl.la
 collectd_DEPENDENCIES += perl.la
 endif
 
+if BUILD_PLUGIN_PF
+pkglib_LTLIBRARIES += pf.la
+pf_la_SOURCES = pf.c
+pf_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" pf.la
+collectd_DEPENDENCIES += pf.la
+endif
+
 if BUILD_PLUGIN_PINBA
 BUILT_SOURCES += pinba.pb-c.c pinba.pb-c.h
 CLEANFILES += pinba.pb-c.c pinba.pb-c.h

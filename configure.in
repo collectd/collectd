@@ -535,6 +535,9 @@ AC_CHECK_HEADERS(netinet/if_ether.h, [], [],
 
 AC_CHECK_HEADERS(netinet/ip_compat.h)
 
+have_net_pfvar_h="no"
+AC_CHECK_HEADERS(net/pfvar.h, [have_net_pfvar_h="yes"])
+
 # For the multimeter plugin
 have_termios_h="no"
 AC_CHECK_HEADERS(termios.h, [have_termios_h="yes"])
@@ -4919,6 +4922,7 @@ AC_PLUGIN([onewire],     [$with_libowcapi],    [OneWire sensor statistics])
 AC_PLUGIN([openvpn],     [yes],                [OpenVPN client statistics])
 AC_PLUGIN([oracle],      [$with_oracle],       [Oracle plugin])
 AC_PLUGIN([perl],        [$plugin_perl],       [Embed a Perl interpreter])
+AC_PLUGIN([pf],          [$have_net_pfvar_h],  [BSD packet filter (PF) statistics])
 # FIXME: Check for libevent, too.
 AC_PLUGIN([pinba],       [$have_protoc_c],     [Pinba statistics])
 AC_PLUGIN([ping],        [$with_liboping],     [Network latency statistics])
@@ -5252,6 +5256,7 @@ Configuration:
     openvpn . . . . . . . $enable_openvpn
     oracle  . . . . . . . $enable_oracle
     perl  . . . . . . . . $enable_perl
+    pf  . . . . . . . . . $enable_pf
     pinba . . . . . . . . $enable_pinba
     ping  . . . . . . . . $enable_ping
     postgresql  . . . . . $enable_postgresql
