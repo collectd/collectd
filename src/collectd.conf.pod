@@ -3838,6 +3838,23 @@ This query collects the on-disk size of the database in bytes.
 
 =back
 
+In addition, the following detailed queries are available by default. Please
+note that each of those queries collects information B<by table>, thus,
+potentially producing B<a lot> of data. For details see the description of the
+non-by_table queries above.
+
+=over 4
+
+=item B<queries_by_table>
+
+=item B<query_plans_by_table>
+
+=item B<table_states_by_table>
+
+=item B<disk_io_by_table>
+
+=back
+
 The B<Database> block defines one PostgreSQL database for which to collect
 statistics. It accepts a single mandatory argument which specifies the
 database name. None of the other options are required. PostgreSQL will use
