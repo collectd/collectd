@@ -4,14 +4,14 @@ if COMPILER_IS_GCC
 AM_CFLAGS = -Wall -Werror
 endif
 
-pkginclude_HEADERS = collectd/client.h collectd/network_buffer.h collectd/lcc_features.h
+pkginclude_HEADERS = collectd/client.h collectd/network.h collectd/network_buffer.h collectd/lcc_features.h
 lib_LTLIBRARIES = libcollectdclient.la
 nodist_pkgconfig_DATA = libcollectdclient.pc
 
 BUILT_SOURCES = collectd/lcc_features.h
 
 libcollectdclient_la_SOURCES = client.c network.c network_buffer.c
-libcollectdclient_la_CPPFLAGS = $(AM_CPPFLAGS)
+libcollectdclient_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(top
 libcollectdclient_la_LDFLAGS = -version-info 1:0:0
 libcollectdclient_la_LIBADD = 
 if BUILD_WITH_LIBGCRYPT
