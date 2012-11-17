@@ -36,7 +36,19 @@
 #include <pthread.h>
 
 #if HAVE_LIBGCRYPT
-#include <gcrypt.h>
+# include <pthread.h>
+# if defined __APPLE__
+/* default xcode compiler throws warnings even when deprecated functionality
+ * is not used. -Werror breaks the build because of erroneous warnings.
+ * http://stackoverflow.com/questions/10556299/compiler-warnings-with-libgcrypt-v1-5-0/12830209#12830209
+ */
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+# endif
+# include <gcrypt.h>
+# if defined __APPLE__
+/* Re enable deprecation warnings */
+#  pragma GCC diagnostic warning "-Wdeprecated-declarations"
+# endif
 GCRY_THREAD_OPTION_PTHREAD_IMPL;
 #endif
 
