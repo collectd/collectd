@@ -27,6 +27,7 @@ import java.util.Iterator;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 
 import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
