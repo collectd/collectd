@@ -44,12 +44,14 @@ GCRY_THREAD_OPTION_PTHREAD_IMPL;
 
 #define TYPE_HOST            0x0000
 #define TYPE_TIME            0x0001
+#define TYPE_TIME_HR         0x0008
 #define TYPE_PLUGIN          0x0002
 #define TYPE_PLUGIN_INSTANCE 0x0003
 #define TYPE_TYPE            0x0004
 #define TYPE_TYPE_INSTANCE   0x0005
 #define TYPE_VALUES          0x0006
 #define TYPE_INTERVAL        0x0007
+#define TYPE_INTERVAL_HR     0x0009
 
 /* Types to transmit notifications */
 #define TYPE_MESSAGE         0x0100
@@ -346,6 +348,15 @@ static int nb_add_number (char **ret_buffer, /* {{{ */
   return (0);
 } /* }}} int nb_add_number */
 
+static int nb_add_time (char **ret_buffer, /* {{{ */
+    size_t *ret_buffer_len,
+    uint16_t type, double value)
+{
+  /* Convert to collectd's "cdtime" representation. */
+  uint64_t cdtime_value = (uint64_t) (value * 1073741824.0);
+  return (nb_add_number (ret_buffer, ret_buffer_len, type, cdtime_value));
+} /* }}} int nb_add_time */
+
 static int nb_add_string (char **ret_buffer, /* {{{ */
     size_t *ret_buffer_len,
     uint16_t type, const char *str, size_t str_len)
@@ -446,16 +457,14 @@ static int nb_add_value_list (lcc_network_buffer_t *nb, /* {{{ */
 
   if (nb->state.time != vl->time)
   {
-    if (nb_add_number (&buffer, &buffer_size, TYPE_TIME,
-          (uint64_t) vl->time))
+    if (nb_add_time (&buffer, &buffer_size, TYPE_TIME_HR, vl->time))
       return (-1);
     nb->state.time = vl->time;
   }
 
   if (nb->state.interval != vl->interval)
   {
-    if (nb_add_number (&buffer, &buffer_size, TYPE_INTERVAL,
-          (uint64_t) vl->interval))
+    if (nb_add_time (&buffer, &buffer_size, TYPE_INTERVAL_HR, vl->interval))
       return (-1);
     nb->state.interval = vl->interval;
   }

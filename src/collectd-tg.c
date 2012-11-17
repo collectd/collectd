@@ -1,6 +1,6 @@
 /**
  * collectd-td - collectd traffic generator
- * Copyright (C) 2010  Florian octo Forster
+ * Copyright (C) 2010-2012  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,7 +16,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian Forster <ff at octo.it>
+ *   Florian Forster <octo at collectd.org>
  **/
 
 #if HAVE_CONFIG_H
@@ -56,12 +56,12 @@
 #define DEF_NUM_HOSTS    1000
 #define DEF_NUM_PLUGINS    20
 #define DEF_NUM_VALUES 100000
-#define DEF_INTERVAL       10
+#define DEF_INTERVAL       10.0
 
 static int conf_num_hosts = DEF_NUM_HOSTS;
 static int conf_num_plugins = DEF_NUM_PLUGINS;
 static int conf_num_values = DEF_NUM_VALUES;
-static int conf_interval = DEF_INTERVAL;
+static double conf_interval = DEF_INTERVAL;
 static const char *conf_destination = NET_DEFAULT_V6_ADDR;
 static const char *conf_service = NET_DEFAULT_PORT;
 
@@ -86,14 +86,14 @@ static void exit_usage (int exit_status) /* {{{ */
       "    -n <number>    Number of value lists. (Default: %i)\n"
       "    -H <number>    Number of hosts to emulate. (Default: %i)\n"
       "    -p <number>    Number of plugins to emulate. (Default: %i)\n"
-      "    -i <seconds>   Interval of each value in seconds. (Default: %i)\n"
+      "    -i <seconds>   Interval of each value in seconds. (Default: %.3f)\n"
       "    -d <dest>      Destination address of the network packets.\n"
       "                   (Default: %s)\n"
       "    -D <port>      Destination port of the network packets.\n"
       "                   (Default: %s)\n"
       "    -h             Print usage information (this output).\n"
       "\n"
-      "Copyright (C) 2010  Florian Forster\n"
+      "Copyright (C) 2010-2012  Florian Forster\n"
       "Licensed under the GNU General Public License, version 2 (GPLv2)\n",
       DEF_NUM_VALUES, DEF_NUM_HOSTS, DEF_NUM_PLUGINS,
       DEF_INTERVAL,
@@ -168,7 +168,8 @@ static lcc_value_list_t *create_value_list (void) /* {{{ */
   host_num = get_boundet_random (0, conf_num_hosts);
 
   vl->interval = conf_interval;
-  vl->time = time (NULL) + (host_num % vl->interval) + 1;
+  vl->time = 1.0 + time (NULL)
+    + (host_num % (1 + (int) vl->interval));
 
   if (get_boundet_random (0, 2) == 0)
     vl->values_types[0] = LCC_TYPE_GAUGE;
@@ -245,6 +246,35 @@ static int get_integer_opt (const char *str, int *ret_value) /* {{{ */
   return (0);
 } /* }}} int get_integer_opt */
 
+static int get_double_opt (const char *str, double *ret_value) /* {{{ */
+{
+  char *endptr;
+  double tmp;
+
+  errno = 0;
+  endptr = NULL;
+  tmp = strtod (str, &endptr);
+  if (errno != 0)
+  {
+    fprintf (stderr, "Unable to parse option as a number: \"%s\": %s\n",
+        str, strerror (errno));
+    exit (EXIT_FAILURE);
+  }
+  else if (endptr == str)
+  {
+    fprintf (stderr, "Unable to parse option as a number: \"%s\"\n", str);
+    exit (EXIT_FAILURE);
+  }
+  else if (*endptr != 0)
+  {
+    fprintf (stderr, "Garbage after end of value: \"%s\"\n", str);
+    exit (EXIT_FAILURE);
+  }
+
+  *ret_value = tmp;
+  return (0);
+} /* }}} int get_double_opt */
+
 static int read_options (int argc, char **argv) /* {{{ */
 {
   int opt;
@@ -266,7 +296,7 @@ static int read_options (int argc, char **argv) /* {{{ */
         break;
 
       case 'i':
-        get_integer_opt (optarg, &conf_interval);
+        get_double_opt (optarg, &conf_interval);
         break;
 
       case 'd':

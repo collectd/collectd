@@ -767,11 +767,11 @@ int lcc_putval (lcc_connection_t *c, const lcc_value_list_t *vl) /* {{{ */
   SSTRCATF (command, "PUTVAL %s",
       lcc_strescape (ident_esc, ident_str, sizeof (ident_esc)));
 
-  if (vl->interval > 0)
-    SSTRCATF (command, " interval=%i", vl->interval);
+  if (vl->interval > 0.0)
+    SSTRCATF (command, " interval=%.3f", vl->interval);
 
-  if (vl->time > 0)
-    SSTRCATF (command, " %u", (unsigned int) vl->time);
+  if (vl->time > 0.0)
+    SSTRCATF (command, " %.3f", vl->time);
   else
     SSTRCAT (command, " N");
 

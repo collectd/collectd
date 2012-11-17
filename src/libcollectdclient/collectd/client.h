@@ -84,8 +84,8 @@ struct lcc_value_list_s
   value_t *values;
   int     *values_types;
   size_t   values_len;
-  time_t   time;
-  int      interval;
+  double   time;
+  double   interval;
   lcc_identifier_t identifier;
 };
 typedef struct lcc_value_list_s lcc_value_list_t;
