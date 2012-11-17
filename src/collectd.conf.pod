@@ -3627,6 +3627,13 @@ which are available in a PostgreSQL database or use future or special
 statistics provided by PostgreSQL without the need to upgrade your collectd
 installation.
 
+Starting with version 5.2, the C<postgresql> plugin supports writing data to
+PostgreSQL databases as well. This has been implemented in a generic way. You
+need to specify an SQL statement which will then be executed by collectd in
+order to write the data (see below for details). The benefit of that approach
+is that there is no fixed database layout. Rather, the layout may be optimized
+for the current setup.
+
 The B<PostgreSQL Documentation> manual can be found at
 L<http://www.postgresql.org/docs/manuals/>.
 
@@ -3656,6 +3663,11 @@ L<http://www.postgresql.org/docs/manuals/>.
       </Result>
     </Query>
 
+    <Writer sqlstore>
+      Statement "SELECT collectd_insert($1, $2, $3, $4, $5, $6, $7, $8, $9);"
+      StoreRates true
+    </Writer>
+
     <Database foo>
       Host "hostname"
       Port "5432"
@@ -3671,6 +3683,12 @@ L<http://www.postgresql.org/docs/manuals/>.
       Service "service_name"
       Query backend # predefined
       Query rt36_tickets
+    </Database>
+
+    <Database qux>
+      # ...
+      Writer sqlstore
+      CommitInterval 10
     </Database>
   </Plugin>
 
@@ -3838,6 +3856,84 @@ This query collects the on-disk size of the database in bytes.
 
 =back
 
+The B<Writer> block defines a PostgreSQL writer backend. It accepts a single
+mandatory argument specifying the name of the writer. This will then be used
+in the B<Database> specification in order to activate the writer instance. The
+names of all writers have to be unique. The following options may be
+specified:
+
+=over 4
+
+=item B<Statement> I<sql statement>
+
+This mandatory option specifies the SQL statement that will be executed for
+each submitted value. A single SQL statement is allowed only. Anything after
+the first semicolon will be ignored.
+
+Nine parameters will be passed to the statement and should be specified as
+tokens B<$1>, B<$2>, through B<$9> in the statement string. The following
+values are made available through those parameters:
+
+=over 4
+
+=item B<$1>
+
+The timestamp of the queried value as a floating point number.
+
+=item B<$2>
+
+The hostname of the queried value.
+
+=item B<$3>
+
+The plugin name of the queried value.
+
+=item B<$4>
+
+The plugin instance of the queried value. This value may be B<NULL> if there
+is no plugin instance.
+
+=item B<$5>
+
+The type of the queried value (cf. L<types.db(5)>).
+
+=item B<$6>
+
+The type instance of the queried value. This value may be B<NULL> if there is
+no type instance.
+
+=item B<$7>
+
+An array of names for the submitted values (i.E<nbsp>e., the name of the data
+sources of the submitted value-list).
+
+=item B<$8>
+
+An array of types for the submitted values (i.E<nbsp>e., the type of the data
+sources of the submitted value-list; C<counter>, C<gauge>, ...). Note, that if
+B<StoreRates> is enabled (which is the default, see below), all types will be
+C<gauge>.
+
+=item B<$9>
+
+An array of the submitted values. The dimensions of the value name and value
+arrays match.
+
+=back
+
+In general, it is advisable to create and call a custom function in the
+PostgreSQL database for this purpose. Any procedural language supported by
+PostgreSQL will do (see chapter "Server Programming" in the PostgreSQL manual
+for details).
+
+=item B<StoreRates> B<false>|B<true>
+
+If set to B<true> (the default), convert counter values to rates. If set to
+B<false> counter values are stored as is, i.E<nbsp>e. as an increasing integer
+number.
+
+=back
+
 The B<Database> block defines one PostgreSQL database for which to collect
 statistics. It accepts a single mandatory argument which specifies the
 database name. None of the other options are required. PostgreSQL will use
@@ -3852,6 +3948,17 @@ for details.
 
 Specify the interval with which the database should be queried. The default is
 to use the global B<Interval> setting.
+
+=item B<CommitInterval> I<seconds>
+
+This option may be used for database connections which have "writers" assigned
+(see above). If specified, it causes a writer to put several updates into a
+single transaction. This transaction will last for the specified amount of
+time. By default, each update will be executed in a separate transaction. Each
+transaction generates a fair amount of overhead which can, thus, be reduced by
+activating this option. The draw-back is, that data covering the specified
+amount of time will be lost, for example, if a single statement within the
+transaction fails or if the database server crashes.
 
 =item B<Host> I<hostname>
 
@@ -3925,11 +4032,36 @@ B<PostgreSQL Documentation> for details.
 
 =item B<Query> I<query>
 
-Specify a I<query> which should be executed for the database connection. This
-may be any of the predefined or user-defined queries. If no such option is
-given, it defaults to "backends", "transactions", "queries", "query_plans",
-"table_states", "disk_io" and "disk_usage". Else, the specified queries are
-used only.
+Specifies a I<query> which should be executed in the context of the database
+connection. This may be any of the predefined or user-defined queries. If no
+such option is given, it defaults to "backends", "transactions", "queries",
+"query_plans", "table_states", "disk_io" and "disk_usage" (unless a B<Writer>
+has been specified). Else, the specified queries are used only.
+
+=item B<Writer> I<writer>
+
+Assigns the specified I<writer> backend to the database connection. This
+causes all collected data to be send to the database using the settings
+defined in the writer configuration (see the section "FILTER CONFIGURATION"
+below for details on how to selectively send data to certain plugins).
+
+Each writer will register a flush callback which may be used when having long
+transactions enabled (see the B<CommitInterval> option above). When issuing
+the B<FLUSH> command (see L<collectd-unixsock(5)> for details) the current
+transaction will be committed right away. Two different kinds of flush
+callbacks are available with the C<postgresql> plugin:
+
+=over 4
+
+=item B<postgresql>
+
+Flush all writer backends.
+
+=item B<postgresql->I<database>
+
+Flush all writers of the specified I<database> only.
+
+=back
 
 =back
 
