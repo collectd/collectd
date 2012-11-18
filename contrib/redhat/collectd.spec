@@ -351,11 +351,6 @@ rm -f %{buildroot}/%{_libdir}/{collectd/,}*.la
 mkdir perl-examples
 find contrib -name '*.p[lm]' -exec mv {} perl-examples/ \;
 
-# Modify config for Red Hat based Distros
-sed -i 's:#BaseDir *"/usr/var/lib/collectd":BaseDir "%{_sharedstatedir}/collectd":' %{buildroot}%{_sysconfdir}/collectd.conf
-sed -i 's:#PIDFile *"/usr/var/run/collectd.pid":PIDFile "%{_localstatedir}/run/collectd.pid":' %{buildroot}%{_sysconfdir}/collectd.conf
-sed -i 's:#PluginDir *"/usr/lib/collectd":PluginDir "%{_libdir}/collectd":' %{buildroot}%{_sysconfdir}/collectd.conf
-
 # Remove Perl hidden .packlist files.
 find %{buildroot} -type f -name .packlist -delete
 # Remove Perl temporary file perllocal.pod
