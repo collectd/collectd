@@ -329,7 +329,7 @@ Development files for libcollectdclient
 %configure CFLAGS="%{optflags} -DLT_LAZY_OR_NOW='RTLD_LAZY|RTLD_GLOBAL'" \
 	--disable-static \
 	--with-java=%{java_home}/ \
-	--with-perl-bindings=INSTALLDIRS=vendor
+	--with-perl-bindings="INSTALLDIRS=vendor"
 
 %{__make} %{?_smp_mflags}
 
