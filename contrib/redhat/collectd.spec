@@ -3,7 +3,7 @@
 Summary:	Statistics collection daemon for filling RRD files
 Name:		collectd
 Version:	5.1.0
-Release:	2%{?dist}
+Release:	3%{?dist}
 URL:		http://collectd.org
 Source:		http://collectd.org/files/%{name}-%{version}.tar.gz
 License:	GPLv2
@@ -148,7 +148,8 @@ the byte- and packet-counters of selected rules and submit them to collectd.
 Summary:	Java plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-BuildRequires:	java-1.7.0-openjdk-devel
+BuildRequires:	java-devel, jpackage-utils
+Requires:	java, jpackage-utils
 %description java
 This plugin for collectd allows plugins to be written in Java and executed
 in an embedded JVM.
@@ -325,10 +326,9 @@ Development files for libcollectdclient
 
 
 %build
-export JAVA_HOME="/usr"
 %configure CFLAGS="%{optflags} -DLT_LAZY_OR_NOW='RTLD_LAZY|RTLD_GLOBAL'" \
 	--disable-static \
-	--disable-rrdcached \
+	--with-java=%{java_home}/ \
 	--with-perl-bindings=INSTALLDIRS=vendor
 
 %{__make} %{?_smp_mflags}
@@ -607,6 +607,9 @@ fi
 %doc contrib/
 
 %changelog
+* Sun Nov 18 2012 Ruben Kerkhof <ruben@tilaa.nl> 5.1.0-3
+- Follow Fedora Packaging Guidelines in java subpackage
+
 * Sat Nov 17 2012 Ruben Kerkhof <ruben@tilaa.nl> 5.1.0-2
 - Move perl stuff to perl_vendorlib
 - Replace hardcoded paths with macros
