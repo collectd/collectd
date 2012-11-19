@@ -33,6 +33,7 @@
 #endif
 
 #define REDIS_DEF_HOST   "localhost"
+#define REDIS_DEF_PASSWD ""
 #define REDIS_DEF_PORT    6379
 #define REDIS_DEF_TIMEOUT 2000
 #define MAX_REDIS_NODE_NAME 64
@@ -229,8 +230,8 @@ static void redis_submit_d (char *plugin_instance,
 
 static int redis_init (void) /* {{{ */
 {
-  redis_node_t rn = { "default", REDIS_DEF_HOST, REDIS_DEF_PORT,
-    REDIS_DEF_TIMEOUT, /* next = */ NULL };
+  redis_node_t rn = { "default", REDIS_DEF_HOST, REDIS_DEF_PASSWD,
+    REDIS_DEF_PORT, REDIS_DEF_TIMEOUT, /* next = */ NULL };
 
   if (nodes_head == NULL)
     redis_node_add (&rn);
