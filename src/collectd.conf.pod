@@ -297,6 +297,12 @@ aggregations. The following options are valid inside B<Aggregation> blocks:
 Selects the value lists to be added to this aggregation. B<Type> must be a
 valid data set name, see L<types.db(5)> for details.
 
+If the string starts with and ends with a slash (C</>), the string is
+interpreted as a I<regular expression>. The regex flavor used are POSIX
+extended regular expressions as described in L<regex(7)>. Example usage:
+
+ Host "/^db[0-9]\\.example\\.com$/"
+
 =item B<GroupBy> B<Host>|B<Plugin>|B<PluginInstance>|B<TypeInstance>
 
 Group valued by the specified field. The B<GroupBy> option may be repeated to

@@ -63,12 +63,11 @@ struct identifier_s
 };
 typedef struct identifier_s identifier_t;
 
-#define LU_ANY "/any/"
-#define LU_ALL "/all/"
-
-#define LU_IS_ANY(str) (strcmp (str, LU_ANY) == 0)
-#define LU_IS_ALL(str) (strcmp (str, LU_ALL) == 0)
-#define LU_IS_WILDCARD(str) (LU_IS_ANY(str) || LU_IS_ALL(str))
+#define LU_GROUP_BY_HOST            0x01
+#define LU_GROUP_BY_PLUGIN          0x02
+#define LU_GROUP_BY_PLUGIN_INSTANCE 0x04
+/* #define LU_GROUP_BY_TYPE            0x00 */
+#define LU_GROUP_BY_TYPE_INSTANCE   0x10
 
 /*
  * Functions
@@ -81,7 +80,7 @@ lookup_t *lookup_create (lookup_class_callback_t,
 void lookup_destroy (lookup_t *obj);
 
 int lookup_add (lookup_t *obj,
-    identifier_t const *ident, void *user_class);
+    identifier_t const *ident, unsigned int group_by, void *user_class);
 
 /* TODO(octo): Pass lookup_obj_callback_t to lookup_search()? */
 int lookup_search (lookup_t *obj,

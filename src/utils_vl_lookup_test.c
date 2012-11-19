@@ -82,7 +82,8 @@ static void *lookup_class_callback (data_set_t const *ds,
 static void checked_lookup_add (lookup_t *obj, /* {{{ */
     char const *host,
     char const *plugin, char const *plugin_instance,
-    char const *type, char const *type_instance)
+    char const *type, char const *type_instance,
+    unsigned int group_by)
 {
   identifier_t ident;
   void *user_class;
@@ -98,7 +99,7 @@ static void checked_lookup_add (lookup_t *obj, /* {{{ */
   user_class = malloc (sizeof (ident));
   memmove (user_class, &ident, sizeof (ident));
 
-  status = lookup_add (obj, &ident, user_class);
+  status = lookup_add (obj, &ident, group_by, user_class);
   assert (status == 0);
 } /* }}} void test_add */
 
@@ -143,7 +144,7 @@ static void testcase0 (void)
 {
   lookup_t *obj = checked_lookup_create ();
 
-  checked_lookup_add (obj, "/any/", "test", "", "test", "/all/");
+  checked_lookup_add (obj, "/.*/", "test", "", "test", "/.*/", LU_GROUP_BY_HOST);
   checked_lookup_search (obj, "host0", "test", "", "test", "0",
       /* expect new = */ 1);
   checked_lookup_search (obj, "host0", "test", "", "test", "1",
@@ -160,7 +161,7 @@ static void testcase1 (void)
 {
   lookup_t *obj = checked_lookup_create ();
 
-  checked_lookup_add (obj, "/any/", "/all/", "/all/", "test", "/all/");
+  checked_lookup_add (obj, "/.*/", "/.*/", "/.*/", "test", "/.*/", LU_GROUP_BY_HOST);
   checked_lookup_search (obj, "host0", "plugin0", "", "test", "0",
       /* expect new = */ 1);
   checked_lookup_search (obj, "host0", "plugin0", "", "test", "1",
@@ -186,8 +187,8 @@ static void testcase2 (void)
   lookup_t *obj = checked_lookup_create ();
   int status;
 
-  checked_lookup_add (obj, "/any/", "plugin0", "", "test", "/all/");
-  checked_lookup_add (obj, "/any/", "/all/", "", "test", "ti0");
+  checked_lookup_add (obj, "/.*/", "plugin0", "", "test", "/.*/", LU_GROUP_BY_HOST);
+  checked_lookup_add (obj, "/.*/", "/.*/", "", "test", "ti0", LU_GROUP_BY_HOST);
 
   status = checked_lookup_search (obj, "host0", "plugin1", "", "test", "",
       /* expect new = */ 0);
@@ -205,10 +206,39 @@ static void testcase2 (void)
   lookup_destroy (obj);
 }
 
+static void testcase3 (void)
+{
+  lookup_t *obj = checked_lookup_create ();
+
+  checked_lookup_add (obj, "/^db[0-9]\\./", "cpu", "/.*/", "cpu", "/.*/",
+      LU_GROUP_BY_TYPE_INSTANCE);
+  checked_lookup_search (obj, "db0.example.com", "cpu", "0", "cpu", "user",
+      /* expect new = */ 1);
+  checked_lookup_search (obj, "db0.example.com", "cpu", "0", "cpu", "idle",
+      /* expect new = */ 1);
+  checked_lookup_search (obj, "db0.example.com", "cpu", "1", "cpu", "user",
+      /* expect new = */ 0);
+  checked_lookup_search (obj, "db0.example.com", "cpu", "1", "cpu", "idle",
+      /* expect new = */ 0);
+  checked_lookup_search (obj, "app0.example.com", "cpu", "0", "cpu", "user",
+      /* expect new = */ 0);
+  checked_lookup_search (obj, "app0.example.com", "cpu", "0", "cpu", "idle",
+      /* expect new = */ 0);
+  checked_lookup_search (obj, "db1.example.com", "cpu", "0", "cpu", "user",
+      /* expect new = */ 0);
+  checked_lookup_search (obj, "db1.example.com", "cpu", "0", "cpu", "idle",
+      /* expect new = */ 0);
+  checked_lookup_search (obj, "db1.example.com", "cpu", "0", "cpu", "system",
+      /* expect new = */ 1);
+
+  lookup_destroy (obj);
+}
+
 int main (int argc, char **argv) /* {{{ */
 {
   testcase0 ();
   testcase1 ();
   testcase2 ();
+  testcase3 ();
   return (EXIT_SUCCESS);
 } /* }}} int main */
