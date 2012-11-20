@@ -270,14 +270,15 @@ static void set_environment (void) /* {{{ */
   char buffer[1024];
 
 #ifdef HAVE_SETENV
-  ssnprintf (buffer, sizeof (buffer), "%.3f", CDTIME_T_TO_DOUBLE (interval_g));
+  ssnprintf (buffer, sizeof (buffer), "%.3f",
+      CDTIME_T_TO_DOUBLE (plugin_get_interval ()));
   setenv ("COLLECTD_INTERVAL", buffer, /* overwrite = */ 1);
 
   ssnprintf (buffer, sizeof (buffer), "%s", hostname_g);
   setenv ("COLLECTD_HOSTNAME", buffer, /* overwrite = */ 1);
 #else
   ssnprintf (buffer, sizeof (buffer), "COLLECTD_INTERVAL=%.3f",
-      CDTIME_T_TO_DOUBLE (interval_g));
+      CDTIME_T_TO_DOUBLE (plugin_get_interval ()));
   putenv (buffer);
 
   ssnprintf (buffer, sizeof (buffer), "COLLECTD_HOSTNAME=%s", hostname_g);
@@ -826,7 +827,7 @@ static int exec_read (void) /* {{{ */
 
     pthread_attr_init (&attr);
     pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
-    pthread_create (&t, &attr, exec_read_one, (void *) pl);
+    plugin_thread_create (&t, &attr, exec_read_one, (void *) pl);
     pthread_attr_destroy (&attr);
   } /* for (pl) */
 
@@ -870,7 +871,7 @@ static int exec_notification (const notification_t *n, /* {{{ */
 
     pthread_attr_init (&attr);
     pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
-    pthread_create (&t, &attr, exec_notification_one, (void *) pln);
+    plugin_thread_create (&t, &attr, exec_notification_one, (void *) pln);
     pthread_attr_destroy (&attr);
   } /* for (pl) */
 

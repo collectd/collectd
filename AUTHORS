@@ -200,6 +200,9 @@ Sven Trenkel <collectd at semidefinite.de>
  - netapp plugin.
  - python plugin.
 
+Thomas Meson <zllak at hycik.org>
+ - Graphite support for the AMQP plugin.
+
 Tomasz Pala <gotar at pld-linux.org>
  - conntrack plugin.
 

@@ -101,3 +101,8 @@ solaris-smf
 -----------
   Manifest file for the Solaris SMF system and detailed information on how to
 register collectd as a service with this system.
+
+collectd.service
+----------------
+  Service file for systemd. Please ship this file as
+  /lib/systemd/system/collectd.service in any linux package of collectd.

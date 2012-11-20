@@ -66,6 +66,11 @@
  */
 #  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 # endif
+/* FreeBSD's copy of libgcrypt extends the existing GCRYPT_NO_DEPRECATED
+ * to properly hide all deprecated functionality.
+ * http://svnweb.freebsd.org/ports/head/security/libgcrypt/files/patch-src__gcrypt.h.in
+ */
+# define GCRYPT_NO_DEPRECATED
 # include <gcrypt.h>
 # if defined __APPLE__
 /* Re enable deprecation warnings */
@@ -3306,7 +3311,6 @@ static int network_stats_read (void) /* {{{ */
 	vl.values = values;
 	vl.values_len = 2;
 	vl.time = 0;
-	vl.interval = interval_g;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "network", sizeof (vl.plugin));
 
@@ -3410,7 +3414,7 @@ static int network_init (void)
 	if (dispatch_thread_running == 0)
 	{
 		int status;
-		status = pthread_create (&dispatch_thread_id,
+		status = plugin_thread_create (&dispatch_thread_id,
 				NULL /* no attributes */,
 				dispatch_thread,
 				NULL /* no argument */);
@@ -3430,7 +3434,7 @@ static int network_init (void)
 	if (receive_thread_running == 0)
 	{
 		int status;
-		status = pthread_create (&receive_thread_id,
+		status = plugin_thread_create (&receive_thread_id,
 				NULL /* no attributes */,
 				receive_thread,
 				NULL /* no argument */);

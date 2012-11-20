@@ -87,6 +87,8 @@ int cf_read (char *filename);
 int global_option_set (const char *option, const char *value);
 const char *global_option_get (const char *option);
 
+cdtime_t cf_get_default_interval (void);
+
 /* Assures the config option is a string, duplicates it and returns the copy in
  * "ret_string". If necessary "*ret_string" is freed first. Returns zero upon
  * success. */
@@ -99,6 +101,9 @@ int cf_util_get_string_buffer (const oconfig_item_t *ci, char *buffer,
 
 /* Assures the config option is a number and returns it as an int. */
 int cf_util_get_int (const oconfig_item_t *ci, int *ret_value);
+
+/* Assures the config option is a number and returns it as a double. */
+int cf_util_get_double (const oconfig_item_t *ci, double *ret_value);
 
 /* Assures the config option is a boolean and assignes it to `ret_bool'.
  * Otherwise, `ret_bool' is not changed and non-zero is returned. */

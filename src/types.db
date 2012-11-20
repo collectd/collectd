@@ -60,8 +60,8 @@ fanspeed		value:GAUGE:0:U
 file_size		value:GAUGE:0:U
 files			value:GAUGE:0:U
 fork_rate		value:DERIVE:0:U
-frequency		value:GAUGE:0:U
 frequency_offset	value:GAUGE:-1000000:1000000
+frequency		value:GAUGE:0:U
 fscache_stat		value:DERIVE:0:U
 gauge			value:GAUGE:U:U
 hash_collisions		value:DERIVE:0:U
@@ -109,6 +109,11 @@ node_stat		value:DERIVE:0:U
 node_tx_rate		value:GAUGE:0:127
 operations		value:DERIVE:0:U
 percent			value:GAUGE:0:100.1
+pf_counters		value:DERIVE:0:U
+pf_limits		value:DERIVE:0:U
+pf_source		value:DERIVE:0:U
+pf_states		value:GAUGE:0:U
+pf_state		value:DERIVE:0:U
 pg_blks			value:DERIVE:0:U
 pg_db_size		value:GAUGE:0:U
 pg_n_tup_c		value:DERIVE:0:U
@@ -117,8 +122,8 @@ pg_numbackends		value:GAUGE:0:U
 pg_scan			value:DERIVE:0:U
 pg_xact			value:DERIVE:0:U
 ping_droprate		value:GAUGE:0:100
-ping			value:GAUGE:0:65535
 ping_stddev		value:GAUGE:0:65535
+ping			value:GAUGE:0:65535
 players			value:GAUGE:0:1000000
 power			value:GAUGE:0:U
 protocol_counter	value:DERIVE:0:U
