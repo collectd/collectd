@@ -223,7 +223,7 @@ static int link_filter (const struct sockaddr_nl __attribute__((unused)) *sa,
 
   msg = NLMSG_DATA (nmh);
 
-  msg_len = nmh->nlmsg_len - sizeof (struct ifinfomsg);
+  msg_len = nmh->nlmsg_len - NLMSG_LENGTH(sizeof (struct ifinfomsg));
   if (msg_len < 0)
   {
     ERROR ("netlink plugin: link_filter: msg_len = %i < 0;", msg_len);
@@ -554,24 +554,26 @@ static int ir_init (void)
 
 static int ir_read (void)
 {
-  struct ifinfomsg im;
   struct tcmsg tm;
   int ifindex;
 
   static const int type_id[] = { RTM_GETQDISC, RTM_GETTCLASS, RTM_GETTFILTER };
   static const char *type_name[] = { "qdisc", "class", "filter" };
 
-  memset (&im, '\0', sizeof (im));
-  im.ifi_type = AF_UNSPEC;
-
-  if (rtnl_dump_request (&rth, RTM_GETLINK, &im, sizeof (im)) < 0)
+  if (rtnl_wilddump_request (&rth, AF_UNSPEC, RTM_GETLINK) < 0)
   {
-    ERROR ("netlink plugin: ir_read: rtnl_dump_request failed.");
+    ERROR ("netlink plugin: ir_read: rtnl_wilddump_request failed.");
     return (-1);
   }
 
+#ifdef RTNL_DUMP_FILTER_FIVE_ARGS
   if (rtnl_dump_filter (&rth, link_filter, /* arg1 = */ NULL,
 	NULL, NULL) != 0)
+#elif defined(RTNL_DUMP_FILTER_THREE_ARGS)
+  if (rtnl_dump_filter (&rth, link_filter, /* arg = */ NULL) != 0)
+#else
+#error "Failed to determine the number of arguments to 'rtnl_dump_filter'!"
+#endif
   {
     ERROR ("netlink plugin: ir_read: rtnl_dump_filter failed.");
     return (-1);
@@ -608,8 +610,14 @@ static int ir_read (void)
 	continue;
       }
 
+#ifdef RTNL_DUMP_FILTER_FIVE_ARGS
       if (rtnl_dump_filter (&rth, qos_filter, (void *) &ifindex,
 	    NULL, NULL) != 0)
+#elif defined(RTNL_DUMP_FILTER_THREE_ARGS)
+      if (rtnl_dump_filter (&rth, qos_filter, /* arg = */ &ifindex) != 0)
+#else
+#error "Failed to determine the number of arguments to 'rtnl_dump_filter'!"
+#endif
       {
 	ERROR ("netlink plugin: ir_read: rtnl_dump_filter failed.");
 	continue;

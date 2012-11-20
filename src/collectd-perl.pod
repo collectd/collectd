@@ -208,7 +208,7 @@ layout looks like this:
   {
     values => [123, 0.5],
     time   => time (),
-    interval => $interval_g,
+    interval => plugin_get_interval (),
     host   => $hostname_g,
     plugin => 'myplugin',
     type   => 'myplugin',
@@ -415,6 +415,13 @@ The message is passed to all log-callbacks that are registered with collectd.
 Wrappers around B<plugin_log>, using B<LOG_ERR>, B<LOG_WARNING>,
 B<LOG_NOTICE>, B<LOG_INFO> and B<LOG_DEBUG> respectively as I<log-level>.
 
+=item B<plugin_get_interval> ()
+
+Returns the interval of the current plugin as a floating point number in
+seconds. This value depends on the interval configured within the
+C<LoadPlugin perl> block or the global interval (see L<collectd.conf(5)> for
+details).
+
 =back
 
 The following function provides the filter chain C-interface to Perl-modules.
@@ -493,6 +500,11 @@ B<FQDNLookup> configuration options (see L<collectd.conf(5)> for details).
 
 This variable keeps the interval in seconds in which the read functions are
 queried (see the B<Interval> configuration option).
+
+B<Note:> This variable should no longer be used in favor of
+C<plugin_get_interval()> (see above). This function takes any plugin-specific
+interval settings into account (see the C<Interval> option of C<LoadPlugin> in
+L<collectd.conf(5)> for details).
 
 =back
 

@@ -1,6 +1,6 @@
 /*
  * collectd/java - org/collectd/java/GenericJMXConfConnection.java
- * Copyright (C) 2009,2010  Florian octo Forster
+ * Copyright (C) 2009-2012  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,7 +16,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  */
 
 package org.collectd.java;
@@ -26,6 +26,8 @@ import java.util.Map;
 import java.util.Iterator;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 
 import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
@@ -76,6 +78,24 @@ class GenericJMXConfConnection
 
     return (v.getString ());
   } /* }}} String getConfigString */
+
+  private String getHost () /* {{{ */
+  {
+    if (this._host != null)
+    {
+      return (this._host);
+    }
+
+    try
+    {
+      InetAddress localHost = InetAddress.getLocalHost();
+      return (localHost.getHostName ());
+    }
+    catch (UnknownHostException e)
+    {
+      return ("localhost");
+    }
+  } /* }}} String getHost */
 
 private void connect () /* {{{ */
 {
@@ -211,7 +231,7 @@ private void connect () /* {{{ */
         + ((this._host != null) ? this._host : "(null)"));
 
     pd = new PluginData ();
-    pd.setHost ((this._host != null) ? this._host : "localhost");
+    pd.setHost (this.getHost ());
     pd.setPlugin ("GenericJMX");
 
     for (int i = 0; i < this._mbeans.size (); i++)

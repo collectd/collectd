@@ -262,28 +262,6 @@ sub contains_invalid_chars
   return;
 }
 
-sub contains_invalid_chars
-{
-  my $str = shift;
-
-  for (split (m//, $str))
-  {
-    my $n = ord ($_);
-
-    # Whitespace is allowed.
-    if (($n >= 9) && ($n <= 13))
-    {
-      next;
-    }
-    elsif ($n < 32)
-    {
-      return (1);
-    }
-  }
-
-  return;
-}
-
 sub show_selector
 {
   my $timespan_selection = get_timespan_selection ();

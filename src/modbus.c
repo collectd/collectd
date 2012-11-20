@@ -237,7 +237,7 @@ static int mb_submit (mb_host_t *host, mb_slave_t *slave, /* {{{ */
     return (EINVAL);
 
   if (host->interval <= 0)
-    host->interval = interval_g;
+    host->interval = plugin_get_interval ();
 
   if (slave->instance[0] == 0)
     ssnprintf (slave->instance, sizeof (slave->instance), "slave_%i",

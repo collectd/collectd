@@ -79,6 +79,7 @@ static void sig_usr1_handler (int __attribute__((unused)) signal)
 	pthread_attr_init (&attr);
 	pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
 	pthread_create (&thread, &attr, do_flush, NULL);
+	pthread_attr_destroy (&attr);
 }
 
 static int init_hostname (void)
@@ -137,28 +138,10 @@ static int init_hostname (void)
 
 static int init_global_variables (void)
 {
-	const char *str;
+	char const *str;
 
-	str = global_option_get ("Interval");
-	if (str == NULL)
-	{
-		interval_g = TIME_T_TO_CDTIME_T (10);
-	}
-	else
-	{
-		double tmp;
-
-		tmp = atof (str);
-		if (tmp <= 0.0)
-		{
-			fprintf (stderr, "Cannot set the interval to a "
-					"correct value.\n"
-					"Please check your settings.\n");
-			return (-1);
-		}
-
-		interval_g = DOUBLE_TO_CDTIME_T (tmp);
-	}
+	interval_g = cf_get_default_interval ();
+	assert (interval_g > 0);
 	DEBUG ("interval_g = %.3f;", CDTIME_T_TO_DOUBLE (interval_g));
 
 	str = global_option_get ("Timeout");
@@ -326,9 +309,10 @@ static int do_init (void)
 
 static int do_loop (void)
 {
+	cdtime_t interval = cf_get_default_interval ();
 	cdtime_t wait_until;
 
-	wait_until = cdtime () + interval_g;
+	wait_until = cdtime () + interval;
 
 	while (loop == 0)
 	{
@@ -348,12 +332,12 @@ static int do_loop (void)
 			WARNING ("Not sleeping because the next interval is "
 					"%.3f seconds in the past!",
 					CDTIME_T_TO_DOUBLE (now - wait_until));
-			wait_until = now + interval_g;
+			wait_until = now + interval;
 			continue;
 		}
 
 		CDTIME_T_TO_TIMESPEC (wait_until - now, &ts_wait);
-		wait_until = wait_until + interval_g;
+		wait_until = wait_until + interval;
 
 		while ((loop == 0) && (nanosleep (&ts_wait, &ts_wait) != 0))
 		{
@@ -470,6 +454,8 @@ int main (int argc, char **argv)
 
 	if (optind < argc)
 		exit_usage (1);
+
+	plugin_init_ctx ();
 
 	/*
 	 * Read options from the config file, the environment and the command

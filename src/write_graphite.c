@@ -352,7 +352,7 @@ static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
 
     memset (buffer, 0, sizeof (buffer));
     status = format_graphite (buffer, sizeof (buffer), ds, vl,
-            cb->prefix, cb->postfix, cb->escape_char);
+            cb->prefix, cb->postfix, cb->escape_char, cb->store_rates);
     if (status != 0) /* error message has been printed already. */
         return (status);
 

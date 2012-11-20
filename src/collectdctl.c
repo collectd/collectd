@@ -65,7 +65,7 @@
 # endif
 #endif /* NAN_ZERO_ZERO */
 
-#include "libcollectdclient/client.h"
+#include "libcollectdclient/collectd/client.h"
 
 #define DEFAULT_SOCK LOCALSTATEDIR"/run/"PACKAGE_NAME"-unixsock"
 

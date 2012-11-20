@@ -1,6 +1,6 @@
 /**
  * collectd - src/disk.c
- * Copyright (C) 2005-2010  Florian octo Forster
+ * Copyright (C) 2005-2012  Florian octo Forster
  * Copyright (C) 2009       Manuel Sanmartin
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -17,7 +17,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  *   Manuel Sanmartin
  **/
 
@@ -75,6 +75,9 @@
 
 #if HAVE_IOKIT_IOKITLIB_H
 static mach_port_t io_master_port = MACH_PORT_NULL;
+/* This defaults to false for backwards compatibility. Please fix in the next
+ * major version. */
+static _Bool use_bsd_name = 0;
 /* #endif HAVE_IOKIT_IOKITLIB_H */
 
 #elif KERNEL_LINUX
@@ -128,6 +131,7 @@ static int pnumdisk;
 static const char *config_keys[] =
 {
 	"Disk",
+	"UseBSDName",
 	"IgnoreSelected"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
@@ -151,6 +155,15 @@ static int disk_config (const char *key, const char *value)
     if (IS_TRUE (value))
       invert = 0;
     ignorelist_set_invert (ignorelist, invert);
+  }
+  else if (strcasecmp ("UseBSDName", key) == 0)
+  {
+#if HAVE_IOKIT_IOKITLIB_H
+    use_bsd_name = IS_TRUE (value) ? 1 : 0;
+#else
+    WARNING ("disk plugin: The \"UseBSDName\" option is only supported "
+        "on Mach / Mac OS X and will be ignored.");
+#endif
   }
   else
   {
@@ -235,6 +248,17 @@ static void disk_submit (const char *plugin_instance,
 	plugin_dispatch_values (&vl);
 } /* void disk_submit */
 
+#if KERNEL_LINUX
+static counter_t disk_calc_time_incr (counter_t delta_time, counter_t delta_ops)
+{
+	double interval = CDTIME_T_TO_DOUBLE (plugin_get_interval ());
+	double avg_time = ((double) delta_time) / ((double) delta_ops);
+	double avg_time_incr = interval * avg_time;
+
+	return ((counter_t) (avg_time_incr + .5));
+}
+#endif
+
 #if HAVE_IOKIT_IOKITLIB_H
 static signed long long dict_get_value (CFDictionaryRef dict, const char *key)
 {
@@ -281,7 +305,8 @@ static int disk_read (void)
 	CFDictionaryRef		props_dict;
 	CFDictionaryRef		stats_dict;
 	CFDictionaryRef		child_dict;
-	kern_return_t           status;
+	CFStringRef		tmp_cf_string_ref;
+	kern_return_t		status;
 
 	signed long long read_ops;
 	signed long long read_byt;
@@ -292,7 +317,8 @@ static int disk_read (void)
 
 	int  disk_major;
 	int  disk_minor;
-	char disk_name[64];
+	char disk_name[DATA_MAX_NAME_LEN];
+	char disk_name_bsd[DATA_MAX_NAME_LEN];
 
 	/* Get the list of all disk objects. */
 	if (IOServiceGetMatchingServices (io_master_port,
@@ -340,12 +366,41 @@ static int disk_read (void)
 			continue;
 		}
 
+		/* tmp_cf_string_ref doesn't need to be released. */
+		tmp_cf_string_ref = (CFStringRef) CFDictionaryGetValue (props_dict,
+				CFSTR(kIOBSDNameKey));
+		if (!tmp_cf_string_ref)
+		{
+			DEBUG ("disk plugin: CFDictionaryGetValue("
+					"kIOBSDNameKey) failed.");
+			CFRelease (props_dict);
+			IOObjectRelease (disk_child);
+			IOObjectRelease (disk);
+			continue;
+		}
+		assert (CFGetTypeID (tmp_cf_string_ref) == CFStringGetTypeID ());
+
+		memset (disk_name_bsd, 0, sizeof (disk_name_bsd));
+		CFStringGetCString (tmp_cf_string_ref,
+				disk_name_bsd, sizeof (disk_name_bsd),
+				kCFStringEncodingUTF8);
+		if (disk_name_bsd[0] == 0)
+		{
+			ERROR ("disk plugin: CFStringGetCString() failed.");
+			CFRelease (props_dict);
+			IOObjectRelease (disk_child);
+			IOObjectRelease (disk);
+			continue;
+		}
+		DEBUG ("disk plugin: disk_name_bsd = \"%s\"", disk_name_bsd);
+
 		stats_dict = (CFDictionaryRef) CFDictionaryGetValue (props_dict,
 				CFSTR (kIOBlockStorageDriverStatisticsKey));
 
 		if (stats_dict == NULL)
 		{
-			DEBUG ("CFDictionaryGetValue (%s) failed.",
+			DEBUG ("disk plugin: CFDictionaryGetValue ("
+					"%s) failed.",
 				       	kIOBlockStorageDriverStatisticsKey);
 			CFRelease (props_dict);
 			IOObjectRelease (disk_child);
@@ -359,7 +414,8 @@ static int disk_read (void)
 					kNilOptions)
 				!= kIOReturnSuccess)
 		{
-			DEBUG ("IORegistryEntryCreateCFProperties (disk_child) failed.");
+			DEBUG ("disk plugin: IORegistryEntryCreateCFProperties ("
+					"disk_child) failed.");
 			IOObjectRelease (disk_child);
 			CFRelease (props_dict);
 			IOObjectRelease (disk);
@@ -389,17 +445,12 @@ static int disk_read (void)
 		write_tme = dict_get_value (stats_dict,
 				kIOBlockStorageDriverStatisticsTotalWriteTimeKey);
 
-		if (ssnprintf (disk_name, sizeof (disk_name),
-				"%i-%i", disk_major, disk_minor) >= sizeof (disk_name))
-		{
-			DEBUG ("snprintf (major, minor) failed.");
-			CFRelease (child_dict);
-			IOObjectRelease (disk_child);
-			CFRelease (props_dict);
-			IOObjectRelease (disk);
-			continue;
-		}
-		DEBUG ("disk_name = %s", disk_name);
+		if (use_bsd_name)
+			sstrncpy (disk_name, disk_name_bsd, sizeof (disk_name));
+		else
+			ssnprintf (disk_name, sizeof (disk_name), "%i-%i",
+					disk_major, disk_minor);
+		DEBUG ("disk plugin: disk_name = \"%s\"", disk_name);
 
 		if ((read_byt != -1LL) || (write_byt != -1LL))
 			disk_submit (disk_name, "disk_octets", read_byt, write_byt);
@@ -579,13 +630,11 @@ static int disk_read (void)
 				diff_write_time = write_time - ds->write_time;
 
 			if (diff_read_ops != 0)
-				ds->avg_read_time += (diff_read_time
-						+ (diff_read_ops / 2))
-					/ diff_read_ops;
+				ds->avg_read_time += disk_calc_time_incr (
+						diff_read_time, diff_read_ops);
 			if (diff_write_ops != 0)
-				ds->avg_write_time += (diff_write_time
-						+ (diff_write_ops / 2))
-					/ diff_write_ops;
+				ds->avg_write_time += disk_calc_time_incr (
+						diff_write_time, diff_write_ops);
 
 			ds->read_ops = read_ops;
 			ds->read_time = read_time;

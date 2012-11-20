@@ -18,7 +18,7 @@ AM_CPPFLAGS += -DPLUGINDIR='"${pkglibdir}"'
 AM_CPPFLAGS += -DPKGDATADIR='"${pkgdatadir}"'
 
 sbin_PROGRAMS = collectd collectdmon
-bin_PROGRAMS = collectd-nagios collectdctl
+bin_PROGRAMS = collectd-nagios collectdctl collectd-tg
 
 collectd_SOURCES = collectd.c collectd.h \
 		   common.c common.h \
@@ -113,11 +113,33 @@ endif
 collectdctl_LDADD += libcollectdclient/libcollectdclient.la
 collectdctl_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 
+collectd_tg_SOURCES = collectd-tg.c \
+		      utils_heap.c utils_heap.h
+collectd_tg_LDADD =
+if BUILD_WITH_LIBSOCKET
+collectd_tg_LDADD += -lsocket
+endif
+if BUILD_AIX
+collectd_tg_LDADD += -lm
+endif
+collectd_tg_LDADD += libcollectdclient/libcollectdclient.la
+collectd_tg_DEPENDENCIES = libcollectdclient/libcollectdclient.la
+
 
 pkglib_LTLIBRARIES = 
 
 BUILT_SOURCES = 
 CLEANFILES = 
+
+if BUILD_PLUGIN_AGGREGATION
+pkglib_LTLIBRARIES += aggregation.la
+aggregation_la_SOURCES = aggregation.c \
+                         utils_vl_lookup.c utils_vl_lookup.h
+aggregation_la_LDFLAGS = -module -avoid-version
+aggregation_la_LIBADD =
+collectd_LDADD += "-dlopen" aggregation.la
+collectd_DEPENDENCIES += aggregation.la
+endif
 
 if BUILD_PLUGIN_AMQP
 pkglib_LTLIBRARIES += amqp.la
@@ -221,6 +243,10 @@ if BUILD_PLUGIN_CONTEXTSWITCH
 pkglib_LTLIBRARIES += contextswitch.la
 contextswitch_la_SOURCES = contextswitch.c
 contextswitch_la_LDFLAGS = -module -avoid-version
+contextswitch_la_LIBADD =
+if BUILD_WITH_PERFSTAT
+contextswitch_la_LIBADD += -lperfstat
+endif
 collectd_LDADD += "-dlopen" contextswitch.la
 collectd_DEPENDENCIES += contextswitch.la
 endif
@@ -870,6 +896,14 @@ collectd_LDADD += "-dlopen" perl.la
 collectd_DEPENDENCIES += perl.la
 endif
 
+if BUILD_PLUGIN_PF
+pkglib_LTLIBRARIES += pf.la
+pf_la_SOURCES = pf.c
+pf_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" pf.la
+collectd_DEPENDENCIES += pf.la
+endif
+
 if BUILD_PLUGIN_PINBA
 BUILT_SOURCES += pinba.pb-c.c pinba.pb-c.h
 CLEANFILES += pinba.pb-c.c pinba.pb-c.h
@@ -1200,6 +1234,9 @@ uptime_la_LIBADD =
 if BUILD_WITH_LIBKSTAT
 uptime_la_LIBADD += -lkstat
 endif
+if BUILD_WITH_PERFSTAT
+uptime_la_LIBADD += -lperfstat
+endif
 collectd_LDADD += "-dlopen" uptime.la
 collectd_DEPENDENCIES += uptime.la
 endif
@@ -1327,6 +1364,8 @@ collectd_LDADD += "-dlopen" zfs_arc.la
 collectd_DEPENDENCIES += zfs_arc.la
 endif
 
+BUILT_SOURCES += $(dist_man_MANS)
+
 dist_man_MANS = collectd.1 \
 		collectd-basic_aggregator.5 \
 		collectd.conf.5 \
@@ -1395,3 +1434,21 @@ install-exec-hook:
 	$(INSTALL) -m 0644 $(srcdir)/types.db $(DESTDIR)$(pkgdatadir)/types.db;
 	$(INSTALL) -m 0644 $(srcdir)/postgresql_default.conf \
 		$(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
+
+uninstall-hook:
+	rm -f $(DESTDIR)$(pkgdatadir)/types.db;
+	rm -f $(DESTDIR)$(sysconfdir)/collectd.conf
+	rm -f $(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
+
+if BUILD_FEATURE_DEBUG
+bin_PROGRAMS += utils_vl_lookup_test
+utils_vl_lookup_test_SOURCES = utils_vl_lookup_test.c \
+                               utils_vl_lookup.h utils_vl_lookup.c \
+                               utils_avltree.c utils_avltree.h \
+                               common.h
+
+utils_vl_lookup_test_CPPFLAGS =  $(AM_CPPFLAGS) $(LTDLINCL) -DBUILD_TEST=1
+utils_vl_lookup_test_CFLAGS = $(AM_CFLAGS)
+utils_vl_lookup_test_LDFLAGS = -export-dynamic
+utils_vl_lookup_test_LDADD =
+endif

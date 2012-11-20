@@ -600,6 +600,8 @@ static void *camqp_subscribe_thread (void *user_data) /* {{{ */
     camqp_config_t *conf = user_data;
     int status;
 
+    cdtime_t interval = plugin_get_interval ();
+
     while (subscriber_threads_running)
     {
         amqp_frame_t frame;
@@ -610,8 +612,8 @@ static void *camqp_subscribe_thread (void *user_data) /* {{{ */
             struct timespec ts_interval;
             ERROR ("amqp plugin: camqp_connect failed. "
                     "Will sleep for %.3f seconds.",
-                    CDTIME_T_TO_DOUBLE (interval_g));
-            CDTIME_T_TO_TIMESPEC (interval_g, &ts_interval);
+                    CDTIME_T_TO_DOUBLE (interval));
+            CDTIME_T_TO_TIMESPEC (interval, &ts_interval);
             nanosleep (&ts_interval, /* remaining = */ NULL);
             continue;
         }
@@ -622,9 +624,9 @@ static void *camqp_subscribe_thread (void *user_data) /* {{{ */
             struct timespec ts_interval;
             ERROR ("amqp plugin: amqp_simple_wait_frame failed. "
                     "Will sleep for %.3f seconds.",
-                    CDTIME_T_TO_DOUBLE (interval_g));
+                    CDTIME_T_TO_DOUBLE (interval));
             camqp_close_connection (conf);
-            CDTIME_T_TO_TIMESPEC (interval_g, &ts_interval);
+            CDTIME_T_TO_TIMESPEC (interval, &ts_interval);
             nanosleep (&ts_interval, /* remaining = */ NULL);
             continue;
         }
@@ -670,7 +672,7 @@ static int camqp_subscribe_init (camqp_config_t *conf) /* {{{ */
     tmp = subscriber_threads + subscriber_threads_num;
     memset (tmp, 0, sizeof (*tmp));
 
-    status = pthread_create (tmp, /* attr = */ NULL,
+    status = plugin_thread_create (tmp, /* attr = */ NULL,
             camqp_subscribe_thread, conf);
     if (status != 0)
     {
@@ -791,7 +793,8 @@ static int camqp_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
     else if (conf->format == CAMQP_FORMAT_GRAPHITE)
     {
         status = format_graphite (buffer, sizeof (buffer), ds, vl,
-                    conf->prefix, conf->postfix, conf->escape_char);
+                    conf->prefix, conf->postfix, conf->escape_char,
+                    conf->store_rates);
         if (status != 0)
         {
             ERROR ("amqp plugin: format_graphite failed with status %i.",

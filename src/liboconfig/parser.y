@@ -148,6 +148,19 @@ block:
 	 $$.children = $2.statement;
 	 $$.children_num = $2.statement_num;
 	}
+	| block_begin block_end
+	{
+	 if (strcmp ($1.key, $2) != 0)
+	 {
+		printf ("block_begin = %s; block_end = %s;\n", $1.key, $2);
+		yyerror ("Block not closed..\n");
+		exit (1);
+	 }
+	 free ($2); $2 = NULL;
+	 $$ = $1;
+	 $$.children = NULL;
+	 $$.children_num = 0;
+	}
 	;
 
 statement:
@@ -190,6 +203,13 @@ entire_file:
 	 memset (ci_root, '\0', sizeof (oconfig_item_t));
 	 ci_root->children = $1.statement;
 	 ci_root->children_num = $1.statement_num;
+	}
+	| /* epsilon */
+	{
+	 ci_root = malloc (sizeof (oconfig_item_t));
+	 memset (ci_root, '\0', sizeof (oconfig_item_t));
+	 ci_root->children = NULL;
+	 ci_root->children_num = 0;
 	}
 	;
 

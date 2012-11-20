@@ -1,6 +1,6 @@
 /*
  * collectd - src/apcups.c
- * Copyright (C) 2006-2007  Florian octo Forster
+ * Copyright (C) 2006-2012  Florian octo Forster
  * Copyright (C) 2006       Anthony Gialluca <tonyabg at charter.net>
  * Copyright (C) 2000-2004  Kern Sibbald
  * Copyright (C) 1996-1999  Andre M. Hedrick <andre at suse.com>
@@ -73,6 +73,10 @@ static int   conf_port = NISPORT;
 
 static int global_sockfd = -1;
 
+static int count_retries = 0;
+static int count_iterations = 0;
+static _Bool close_socket = 0;
+
 static const char *config_keys[] =
 {
 	"Host",
@@ -81,26 +85,31 @@ static const char *config_keys[] =
 };
 static int config_keys_num = 2;
 
-/* Close the network connection */
-static int apcups_shutdown (void)
+static int net_shutdown (int *fd)
 {
 	uint16_t packet_size = 0;
 
+	if ((fd == NULL) || (*fd < 0))
+		return (EINVAL);
+
+	swrite (*fd, (void *) &packet_size, sizeof (packet_size));
+	close (*fd);
+	*fd = -1;
+
+	return (0);
+} /* int net_shutdown */
+
+/* Close the network connection */
+static int apcups_shutdown (void)
+{
 	if (global_sockfd < 0)
 		return (0);
 
-	DEBUG ("Gracefully shutting down socket %i.", global_sockfd);
-
-	/* send EOF sentinel */
-	swrite (global_sockfd, (void *) &packet_size, sizeof (packet_size));
-
-	close (global_sockfd);
-	global_sockfd = -1;
-
+	net_shutdown (&global_sockfd);
 	return (0);
 } /* int apcups_shutdown */
 
-/*     
+/*
  * Open a TCP connection to the UPS network server
  * Returns -1 on error
  * Returns socket file descriptor otherwise
@@ -170,7 +179,7 @@ static int net_open (char *host, int port)
 	return (sd);
 } /* int net_open (char *host, char *service, int port) */
 
-/* 
+/*
  * Receive a message from the other end. Each message consists of
  * two packets. The first is a header that contains the size
  * of the data that follows in the second packet.
@@ -186,6 +195,7 @@ static int net_recv (int *sockfd, char *buf, int buflen)
 	/* get data size -- in short */
 	if (sread (*sockfd, (void *) &packet_size, sizeof (packet_size)) != 0)
 	{
+		close (*sockfd);
 		*sockfd = -1;
 		return (-1);
 	}
@@ -193,7 +203,11 @@ static int net_recv (int *sockfd, char *buf, int buflen)
 	packet_size = ntohs (packet_size);
 	if (packet_size > buflen)
 	{
-		DEBUG ("record length too large");
+		ERROR ("apcups plugin: Received %"PRIu16" bytes of payload "
+				"but have only %i bytes of buffer available.",
+				packet_size, buflen);
+		close (*sockfd);
+		*sockfd = -1;
 		return (-2);
 	}
 
@@ -203,6 +217,7 @@ static int net_recv (int *sockfd, char *buf, int buflen)
 	/* now read the actual data */
 	if (sread (*sockfd, (void *) buf, packet_size) != 0)
 	{
+		close (*sockfd);
 		*sockfd = -1;
 		return (-1);
 	}
@@ -229,6 +244,7 @@ static int net_send (int *sockfd, char *buff, int len)
 
 	if (swrite (*sockfd, (void *) &packet_size, sizeof (packet_size)) != 0)
 	{
+		close (*sockfd);
 		*sockfd = -1;
 		return (-1);
 	}
@@ -236,6 +252,7 @@ static int net_send (int *sockfd, char *buff, int len)
 	/* send data packet */
 	if (swrite (*sockfd, (void *) buff, len) != 0)
 	{
+		close (*sockfd);
 		*sockfd = -1;
 		return (-2);
 	}
@@ -253,6 +270,8 @@ static int apc_query_server (char *host, int port,
 	char   *toksaveptr;
 	char   *key;
 	double  value;
+	_Bool retry = 1;
+	int status;
 
 #if APCMAIN
 # define PRINT_VALUE(name, val) printf("  Found property: name = %s; value = %f;\n", name, val)
@@ -260,21 +279,51 @@ static int apc_query_server (char *host, int port,
 # define PRINT_VALUE(name, val) /**/
 #endif
 
-	if (global_sockfd < 0)
+	while (retry)
 	{
-		global_sockfd = net_open (host, port);
 		if (global_sockfd < 0)
 		{
-			ERROR ("apcups plugin: Connecting to the "
-					"apcupsd failed.");
+			global_sockfd = net_open (host, port);
+			if (global_sockfd < 0)
+			{
+				ERROR ("apcups plugin: Connecting to the "
+						"apcupsd failed.");
+				return (-1);
+			}
+		}
+
+
+		status = net_send (&global_sockfd, "status", strlen ("status"));
+		if (status != 0)
+		{
+			/* net_send is closing the socket on error. */
+			assert (global_sockfd < 0);
+			if (retry)
+			{
+				retry = 0;
+				count_retries++;
+				continue;
+			}
+
+			ERROR ("apcups plugin: Writing to the socket failed.");
 			return (-1);
 		}
-	}
 
-	if (net_send (&global_sockfd, "status", 6) < 0)
+		break;
+	} /* while (retry) */
+
+        /* When collectd's collection interval is larger than apcupsd's
+         * timeout, we would have to retry / re-connect each iteration. Try to
+         * detect this situation and shut down the socket gracefully in that
+         * case. Otherwise, keep the socket open to avoid overhead. */
+	count_iterations++;
+	if ((count_iterations == 10) && (count_retries > 2))
 	{
-		ERROR ("apcups plugin: Writing to the socket failed.");
-		return (-1);
+		NOTICE ("apcups plugin: There have been %i retries in the "
+				"first %i iterations. Will close the socket "
+				"in future iterations.",
+				count_retries, count_iterations);
+		close_socket = 1;
 	}
 
 	while ((n = net_recv (&global_sockfd, recvline, sizeof (recvline) - 1)) > 0)
@@ -298,7 +347,7 @@ static int apc_query_server (char *host, int port,
 
 			if (strcmp ("LINEV", key) == 0)
 				apcups_detail->linev = value;
-			else if (strcmp ("BATTV", key) == 0) 
+			else if (strcmp ("BATTV", key) == 0)
 				apcups_detail->battv = value;
 			else if (strcmp ("ITEMP", key) == 0)
 				apcups_detail->itemp = value;
@@ -316,10 +365,16 @@ static int apc_query_server (char *host, int port,
 			tokptr = strtok_r (NULL, ":", &toksaveptr);
 		} /* while (tokptr != NULL) */
 	}
-	
+	status = errno; /* save errno, net_shutdown() may re-set it. */
+
+	if (close_socket)
+		net_shutdown (&global_sockfd);
+
 	if (n < 0)
 	{
-		WARNING ("apcups plugin: Error reading from socket");
+		char errbuf[1024];
+		ERROR ("apcups plugin: Reading from socket failed: %s",
+				sstrerror (status, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 
@@ -398,12 +453,12 @@ static int apcups_read (void)
 	apcups_detail.timeleft =   -1.0;
 	apcups_detail.itemp    = -300.0;
 	apcups_detail.linefreq =   -1.0;
-  
+
 	status = apc_query_server (conf_host == NULL
 			? APCUPS_DEFAULT_HOST
 			: conf_host,
 			conf_port, &apcups_detail);
- 
+
 	/*
 	 * if we did not connect then do not bother submitting
 	 * zeros. We want rrd files to have NAN.

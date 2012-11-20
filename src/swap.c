@@ -221,7 +221,7 @@ static void swap_submit_gauge (const char *plugin_instance, /* {{{ */
 	swap_submit (plugin_instance, "swap", type_instance, v);
 } /* }}} void swap_submit_gauge */
 
-#if KERNEL_LINUX
+#if KERNEL_LINUX || HAVE_PERFSTAT
 static void swap_submit_derive (const char *plugin_instance, /* {{{ */
 		const char *type_instance, derive_t value)
 {
@@ -230,7 +230,9 @@ static void swap_submit_derive (const char *plugin_instance, /* {{{ */
 	v.derive = value;
 	swap_submit (plugin_instance, "swap_io", type_instance, v);
 } /* }}} void swap_submit_derive */
+#endif
 
+#if KERNEL_LINUX
 static int swap_read_separate (void) /* {{{ */
 {
 	FILE *fh;
@@ -786,8 +788,12 @@ static int swap_read (void) /* {{{ */
                         sstrerror (errno, errbuf, sizeof (errbuf)));
                 return (-1);
         }
+
 	swap_submit_gauge (NULL, "used", (gauge_t) (pmemory.pgsp_total - pmemory.pgsp_free) * pagesize);
 	swap_submit_gauge (NULL, "free", (gauge_t) pmemory.pgsp_free * pagesize );
+	swap_submit_gauge (NULL, "reserved", (gauge_t) pmemory.pgsp_rsvd * pagesize);
+	swap_submit_derive (NULL, "in",  (derive_t) pmemory.pgspins * pagesize);
+	swap_submit_derive (NULL, "out", (derive_t) pmemory.pgspouts * pagesize);
 
 	return (0);
 } /* }}} int swap_read */
