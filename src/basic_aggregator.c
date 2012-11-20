@@ -628,6 +628,9 @@ basic_aggregator_read (aggregator_definition_t *agg) {
 	c_avl_tree_t *ds_data;
 	int   status = 0;
 
+	/* Check if we already have data in the cache */
+	if(NULL == instances_of_types_tree) return(0);
+
 	ds_data = c_avl_create ((void *) strcmp);
 
 	for(aggid=0; aggid < agg->type_list_size; aggid++) {
@@ -655,10 +658,14 @@ basic_aggregator_read (aggregator_definition_t *agg) {
 			agg->type_list[aggid]=NULL;
 		}
 		if(status > 0) continue;
-		if(status < 0) return(status);
+		if(status < 0) {
+			free_data_tree(ds_data);
+			return(status);
+		}
 	}
 
 	if(0 != basic_aggregator_submit_resultvalue(agg, ds_data)) {
+		free_data_tree(ds_data);
 		return(-1);
 
 	}
