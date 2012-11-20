@@ -5084,6 +5084,7 @@ then
 fi
 
 dnl Perl bindings
+PERL_BINDINGS_OPTIONS="PREFIX=${prefix}"
 AC_ARG_WITH(perl-bindings, [AS_HELP_STRING([--with-perl-bindings@<:@=OPTIONS@:>@], [Options passed to "perl Makefile.PL".])],
 [
 	if test "x$withval" != "xno" && test "x$withval" != "xyes"
@@ -5091,12 +5092,10 @@ AC_ARG_WITH(perl-bindings, [AS_HELP_STRING([--with-perl-bindings@<:@=OPTIONS@:>@
 		PERL_BINDINGS_OPTIONS="$withval"
 		with_perl_bindings="yes"
 	else
-		PERL_BINDINGS_OPTIONS=""
 		with_perl_bindings="$withval"
 	fi
 ],
 [
-	PERL_BINDINGS_OPTIONS=""
 	if test -n "$perl_interpreter"
 	then
 		with_perl_bindings="yes"
