@@ -25,6 +25,9 @@
  **/
 
 #include "collectd.h"
+
+#include <regex.h>
+
 #include "common.h"
 #include "utils_vl_lookup.h"
 #include "utils_avltree.h"
@@ -41,6 +44,26 @@
 /*
  * Types
  */
+struct part_match_s
+{
+  char str[DATA_MAX_NAME_LEN];
+  regex_t regex;
+  _Bool is_regex;
+};
+typedef struct part_match_s part_match_t;
+
+struct identifier_match_s
+{
+  part_match_t host;
+  part_match_t plugin;
+  part_match_t plugin_instance;
+  part_match_t type;
+  part_match_t type_instance;
+
+  unsigned int group_by;
+};
+typedef struct identifier_match_s identifier_match_t;
+
 struct lookup_s
 {
   c_avl_tree_t *by_type_tree;
@@ -64,7 +87,7 @@ struct user_obj_s
 struct user_class_s
 {
   void *user_class;
-  identifier_t ident;
+  identifier_match_t match;
   user_obj_t *user_obj_list; /* list of user_obj */
 };
 typedef struct user_class_s user_class_t;
@@ -87,6 +110,87 @@ typedef struct by_type_entry_s by_type_entry_t;
 /*
  * Private functions
  */
+static _Bool lu_part_matches (part_match_t const *match, /* {{{ */
+    char const *str)
+{
+  if (match->is_regex)
+  {
+    /* Short cut popular catch-all regex. */
+    if (strcmp (".*", match->str) == 0)
+      return (1);
+
+    int status = regexec (&match->regex, str,
+        /* nmatch = */ 0, /* pmatch = */ NULL,
+        /* flags = */ 0);
+    if (status == 0)
+      return (1);
+    else
+      return (0);
+  }
+  else if (strcmp (match->str, str) == 0)
+    return (1);
+  else
+    return (0);
+} /* }}} _Bool lu_part_matches */
+
+static int lu_copy_ident_to_match_part (part_match_t *match_part, /* {{{ */
+    char const *ident_part)
+{
+  size_t len = strlen (ident_part);
+  int status;
+
+  if ((len < 3) || (ident_part[0] != '/') || (ident_part[len - 1] != '/'))
+  {
+    sstrncpy (match_part->str, ident_part, sizeof (match_part->str));
+    match_part->is_regex = 0;
+    return (0);
+  }
+
+  /* Copy string without the leading slash. */
+  sstrncpy (match_part->str, ident_part + 1, sizeof (match_part->str));
+  assert (sizeof (match_part->str) > len);
+  /* strip trailing slash */
+  match_part->str[len - 2] = 0;
+  
+  status = regcomp (&match_part->regex, match_part->str,
+      /* flags = */ REG_EXTENDED);
+  if (status != 0)
+  {
+    char errbuf[1024];
+    regerror (status, &match_part->regex, errbuf, sizeof (errbuf));
+    ERROR ("utils_vl_lookup: Compiling regular expression \"%s\" failed: %s",
+        match_part->str, errbuf);
+    return (EINVAL);
+  }
+  match_part->is_regex = 1;
+  
+  return (0);
+} /* }}} int lu_copy_ident_to_match_part */
+
+static int lu_copy_ident_to_match (identifier_match_t *match, /* {{{ */
+    identifier_t const *ident, unsigned int group_by)
+{
+  memset (match, 0, sizeof (*match));
+
+  match->group_by = group_by;
+
+#define COPY_FIELD(field) do { \
+  int status = lu_copy_ident_to_match_part (&match->field, ident->field); \
+  if (status != 0) \
+    return (status); \
+} while (0)
+
+  COPY_FIELD (host);
+  COPY_FIELD (plugin);
+  COPY_FIELD (plugin_instance);
+  COPY_FIELD (type);
+  COPY_FIELD (type_instance);
+
+#undef COPY_FIELD
+
+  return (0);
+} /* }}} int lu_copy_ident_to_match */
+
 static void *lu_create_user_obj (lookup_t *obj, /* {{{ */
     data_set_t const *ds, value_list_t const *vl,
     user_class_t *user_class)
@@ -110,21 +214,21 @@ static void *lu_create_user_obj (lookup_t *obj, /* {{{ */
     return (NULL);
   }
 
-  sstrncpy (user_obj->ident.host,
-    LU_IS_ALL (user_class->ident.host) ?  "/all/" : vl->host,
-    sizeof (user_obj->ident.host));
-  sstrncpy (user_obj->ident.plugin,
-    LU_IS_ALL (user_class->ident.plugin) ?  "/all/" : vl->plugin,
-    sizeof (user_obj->ident.plugin));
-  sstrncpy (user_obj->ident.plugin_instance,
-    LU_IS_ALL (user_class->ident.plugin_instance) ?  "/all/" : vl->plugin_instance,
-    sizeof (user_obj->ident.plugin_instance));
-  sstrncpy (user_obj->ident.type,
-    LU_IS_ALL (user_class->ident.type) ?  "/all/" : vl->type,
-    sizeof (user_obj->ident.type));
-  sstrncpy (user_obj->ident.type_instance,
-    LU_IS_ALL (user_class->ident.type_instance) ?  "/all/" : vl->type_instance,
-    sizeof (user_obj->ident.type_instance));
+#define COPY_FIELD(field, group_mask) do { \
+  if (user_class->match.field.is_regex \
+      && ((user_class->match.group_by & group_mask) == 0)) \
+    sstrncpy (user_obj->ident.field, "/.*/", sizeof (user_obj->ident.field)); \
+  else \
+    sstrncpy (user_obj->ident.field, vl->field, sizeof (user_obj->ident.field)); \
+} while (0)
+
+  COPY_FIELD (host, LU_GROUP_BY_HOST);
+  COPY_FIELD (plugin, LU_GROUP_BY_PLUGIN);
+  COPY_FIELD (plugin_instance, LU_GROUP_BY_PLUGIN_INSTANCE);
+  COPY_FIELD (type, 0);
+  COPY_FIELD (type_instance, LU_GROUP_BY_TYPE_INSTANCE);
+
+#undef COPY_FIELD
 
   if (user_class->user_obj_list == NULL)
   {
@@ -150,14 +254,21 @@ static user_obj_t *lu_find_user_obj (user_class_t *user_class, /* {{{ */
       ptr != NULL;
       ptr = ptr->next)
   {
-    if (!LU_IS_ALL (ptr->ident.host)
-        && (strcmp (ptr->ident.host, vl->host) != 0))
+    if (user_class->match.host.is_regex
+        && (user_class->match.group_by & LU_GROUP_BY_HOST)
+        && (strcmp (vl->host, ptr->ident.host) != 0))
       continue;
-    if (!LU_IS_ALL (ptr->ident.plugin_instance)
-        && (strcmp (ptr->ident.plugin_instance, vl->plugin_instance) != 0))
+    if (user_class->match.plugin.is_regex
+        && (user_class->match.group_by & LU_GROUP_BY_PLUGIN)
+        && (strcmp (vl->plugin, ptr->ident.plugin) != 0))
       continue;
-    if (!LU_IS_ALL (ptr->ident.type_instance)
-        && (strcmp (ptr->ident.type_instance, vl->type_instance) != 0))
+    if (user_class->match.plugin_instance.is_regex
+        && (user_class->match.group_by & LU_GROUP_BY_PLUGIN_INSTANCE)
+        && (strcmp (vl->plugin_instance, ptr->ident.plugin_instance) != 0))
+      continue;
+    if (user_class->match.type_instance.is_regex
+        && (user_class->match.group_by & LU_GROUP_BY_TYPE_INSTANCE)
+        && (strcmp (vl->type_instance, ptr->ident.type_instance) != 0))
       continue;
 
     return (ptr);
@@ -173,21 +284,14 @@ static int lu_handle_user_class (lookup_t *obj, /* {{{ */
   user_obj_t *user_obj;
   int status;
 
-  assert (strcmp (vl->type, user_class->ident.type) == 0);
-  assert (LU_IS_WILDCARD (user_class->ident.plugin)
-      || (strcmp (vl->plugin, user_class->ident.plugin) == 0));
+  assert (strcmp (vl->type, user_class->match.type.str) == 0);
+  assert (user_class->match.plugin.is_regex
+      || (strcmp (vl->plugin, user_class->match.plugin.str)) == 0);
 
-  /* When we get here, type and plugin already match the user class. Now check
-   * the rest of the fields. */
-  if (!LU_IS_WILDCARD (user_class->ident.type_instance)
-      && (strcmp (vl->type_instance, user_class->ident.type_instance) != 0))
-    return (1);
-  if (!LU_IS_WILDCARD (user_class->ident.plugin_instance)
-      && (strcmp (vl->plugin_instance,
-          user_class->ident.plugin_instance) != 0))
-    return (1);
-  if (!LU_IS_WILDCARD (user_class->ident.host)
-      && (strcmp (vl->host, user_class->ident.host) != 0))
+  if (!lu_part_matches (&user_class->match.type_instance, vl->type_instance)
+      || !lu_part_matches (&user_class->match.plugin_instance, vl->plugin_instance)
+      || !lu_part_matches (&user_class->match.plugin, vl->plugin)
+      || !lu_part_matches (&user_class->match.host, vl->host))
     return (1);
 
   user_obj = lu_find_user_obj (user_class, vl);
@@ -292,14 +396,15 @@ static by_type_entry_t *lu_search_by_type (lookup_t *obj, /* {{{ */
 } /* }}} by_type_entry_t *lu_search_by_type */
 
 static int lu_add_by_plugin (by_type_entry_t *by_type, /* {{{ */
-    identifier_t const *ident, user_class_list_t *user_class_list)
+    user_class_list_t *user_class_list)
 {
   user_class_list_t *ptr = NULL;
+  identifier_match_t const *match = &user_class_list->entry.match;
 
   /* Lookup user_class_list from the per-plugin structure. If this is the first
    * user_class to be added, the blocks return immediately. Otherwise they will
    * set "ptr" to non-NULL. */
-  if (LU_IS_WILDCARD (ident->plugin))
+  if (match->plugin.is_regex)
   {
     if (by_type->wildcard_plugin_list == NULL)
     {
@@ -314,11 +419,11 @@ static int lu_add_by_plugin (by_type_entry_t *by_type, /* {{{ */
     int status;
 
     status = c_avl_get (by_type->by_plugin_tree,
-        ident->plugin, (void *) &ptr);
+        match->plugin.str, (void *) &ptr);
 
     if (status != 0) /* plugin not yet in tree */
     {
-      char *plugin_copy = strdup (ident->plugin);
+      char *plugin_copy = strdup (match->plugin.str);
 
       if (plugin_copy == NULL)
       {
@@ -478,7 +583,7 @@ void lookup_destroy (lookup_t *obj) /* {{{ */
 } /* }}} void lookup_destroy */
 
 int lookup_add (lookup_t *obj, /* {{{ */
-    identifier_t const *ident, void *user_class)
+    identifier_t const *ident, unsigned int group_by, void *user_class)
 {
   by_type_entry_t *by_type = NULL;
   user_class_list_t *user_class_obj;
@@ -495,11 +600,11 @@ int lookup_add (lookup_t *obj, /* {{{ */
   }
   memset (user_class_obj, 0, sizeof (*user_class_obj));
   user_class_obj->entry.user_class = user_class;
-  memmove (&user_class_obj->entry.ident, ident, sizeof (*ident));
+  lu_copy_ident_to_match (&user_class_obj->entry.match, ident, group_by);
   user_class_obj->entry.user_obj_list = NULL;
   user_class_obj->next = NULL;
 
-  return (lu_add_by_plugin (by_type, ident, user_class_obj));
+  return (lu_add_by_plugin (by_type, user_class_obj));
 } /* }}} int lookup_add */
 
 /* returns the number of successful calls to the callback function */

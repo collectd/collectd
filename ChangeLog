@@ -1,3 +1,52 @@
+2012-11-17, Version 5.2.0
+	* collectd: The performance of the LISTVAL command has been improved.
+	  Thanks to Yves Mettier for the patch.
+	* collectd: The possibility to configure the collection interval on a
+	  per-plugin basis has been added. Huge thanks to Sebastian Harl for
+	  his work.
+	* collectd-tg: This new binary allows to generate random but real
+	  looking collectd network traffic. This can be used to load-test new
+	  plugin, for example.
+	* libcollectdclient: Code for constructing and sending network packets
+	  in the binary format has been added.
+	* aggregation plugin: This new plugin allows to aggregate multiple
+	  value lists into one.
+	* amqp and write_http plugins: Meta data is now included in the JSON
+	  output format. Thanks to Mark Wong for the patch.
+	* amqp plugin: Support for "Graphite" output has been added. Thanks to
+	  Thomas Meson for the patch.
+	* contextswitch plugin: Support for AIX has been added. Thanks to
+	  Manuel Rozada for his patch.
+	* disk plugin: The "UseBSDName" config option has been added to the
+	  Mac OS X version.
+	* GenericJMX plugin: Automatically determine the host name if it isn't
+	  configured.
+	* libvirt plugin: The "number" interface format has been added. Thanks
+	  to "Davide Guerri" for the patch.
+	* memcached plugin: Support for multiple connections has been added.
+	  Thanks to Nicolas Szalay for the patch.
+	* ntpd plugin: The "IncludeUnitID" config option has been added. The
+	  behavior when a peer is unreachable has been improved. Thanks to
+	  Johan Kiviniemi for the patches.
+	* oracle plugin: The "Host" config option has been added.
+	* pf plugin: This new plugin allows to collect statistics from BSD's
+	  packet filter "pf". Thanks to Pierre-Yves Ritschard and Stefan Rinkes
+	  for their work.
+	* postgresql plugin: The "Instance" config option has been added.
+	  Support for writing values to a PostgreSQL database has been added.
+	  Thanks to Sebastian Harl for the patches.
+	* processes plugin: Support for Solaris has been added. Thanks to
+	  Cosmin Ioiart for the patch.
+	* redis plugin: Support for authenticating via password has been added.
+	  Thanks to biancalana for the patch.
+	* rrdcached plugin: The "HeartBeat", "RRARows", "RRATimespan",
+	  "StepSize" and "XFF" config options have been added.
+	* swap plugin: The "ReportBytes" config option has been added. The AIX
+	  version now also exports "reserved" pages and swap-in / swap-out
+	  "traffic". Thanks to Manuel Rozada for the patch.
+	* tcpconns plugin: Use a netlink socket rather than reading from /proc
+	  for improved performance. Thanks to Michael Stapelberg for the patch.
+
 2012-11-11, Version 5.1.1
 	* collectd: Create new directories with mode 0777 and let umask remove
 	  unwanted permission bits.
