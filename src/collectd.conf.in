@@ -16,7 +16,16 @@
 #PIDFile     "@localstatedir@/run/@PACKAGE_NAME@.pid"
 #PluginDir   "@libdir@/@PACKAGE_NAME@"
 #TypesDB     "@prefix@/share/@PACKAGE_NAME@/types.db"
+
+#----------------------------------------------------------------------------#
+# Interval at which to query values. This may be overwritten on a per-plugin #
+# base by using the 'Interval' option of the LoadPlugin block:               #
+#   <LoadPlugin foo>                                                         #
+#       Interval 60                                                          #
+#   </LoadPlugin>                                                            #
+#----------------------------------------------------------------------------#
 #Interval     10
+
 #Timeout      2
 #ReadThreads  5
 
