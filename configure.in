@@ -4659,6 +4659,7 @@ then
 	plugin_nfs="yes"
 	plugin_uptime="yes"
 	plugin_zfs_arc="yes"
+	plugin_processes="yes"
 fi
 
 if test "x$with_devinfo$with_kstat" = "xyesyes"
