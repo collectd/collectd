@@ -832,7 +832,7 @@ static procstat_t *ps_read_vmem (int pid, procstat_t *ps)
 			continue;
 
 		numfields = strsplit (buffer, fields,
-						STATIC_ARRAY_SIZE (fields));
+				STATIC_ARRAY_SIZE (fields));
 
 		if (numfields < 2)
 			continue;
@@ -1169,49 +1169,49 @@ static char *ps_get_cmdline (pid_t pid, char *name, char *buf, size_t buf_len)
 	return buf;
 } /* char *ps_get_cmdline (...) */
 
-static unsigned long read_fork_rate ()
+static int read_fork_rate ()
 {
 	FILE *proc_stat;
-	char buf[1024];
-	unsigned long result = 0;
-	int numfields;
-	char *fields[3];
+	char buffer[1024];
+	value_t value;
+	_Bool value_valid = 0;
 
-	proc_stat = fopen("/proc/stat", "r");
-	if (proc_stat == NULL) {
+	proc_stat = fopen ("/proc/stat", "r");
+	if (proc_stat == NULL)
+	{
 		char errbuf[1024];
 		ERROR ("processes plugin: fopen (/proc/stat) failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
-		return ULONG_MAX;
+		return (-1);
 	}
 
-	while (fgets (buf, sizeof(buf), proc_stat) != NULL)
+	while (fgets (buffer, sizeof (buffer), proc_stat) != NULL)
 	{
-		char *endptr;
+		int status;
+		char *fields[3];
+		int fields_num;
 
-		numfields = strsplit(buf, fields, STATIC_ARRAY_SIZE (fields));
-		if (numfields != 2)
+		fields_num = strsplit (buffer, fields,
+				STATIC_ARRAY_SIZE (fields));
+		if (fields_num != 2)
 			continue;
 
 		if (strcmp ("processes", fields[0]) != 0)
 			continue;
 
-		errno = 0;
-		endptr = NULL;
-		result = strtoul(fields[1], &endptr, /* base = */ 10);
-		if ((endptr == fields[1]) || (errno != 0)) {
-			ERROR ("processes plugin: Cannot parse fork rate: %s",
-					fields[1]);
-			result = ULONG_MAX;
-			break;
-		}
+		status = parse_value (fields[1], &value, DS_TYPE_DERIVE);
+		if (status == 0)
+			value_valid = 1;
 
 		break;
 	}
-
 	fclose(proc_stat);
 
-	return result;
+	if (!value_valid)
+		return (-1);
+
+	ps_submit_fork_rate (value.derive);
+	return (0);
 }
 
 static int read_ctxsw_rate ()
@@ -1255,7 +1255,6 @@ static int read_ctxsw_rate ()
 	if (!value_valid)
 		return (-1);
 
-	ps_submit_fork_rate (value.derive);
 	ps_submit_ctxsw_rate (value.derive);
 	return (0);
 }
@@ -1276,7 +1275,7 @@ static char *ps_get_cmdline (pid_t pid, char *name, char *buf, size_t buf_len) /
          * files will be the same size. The actual process name and its arguments 
          * is stored in pr_psargs, which has a maximum size of 80.
          */
-	status = read_file_contents (path, (void *) &info, sizeof (info));         
+	status = read_file_contents (path, (void *) &info, sizeof (info));
 	if (status != sizeof(info))
 	{
 		ERROR ("processes plugin: Unexpected return value "
@@ -1285,10 +1284,10 @@ static char *ps_get_cmdline (pid_t pid, char *name, char *buf, size_t buf_len) /
 				path, status, sizeof(info));
 		return (NULL);
 	}
-        
+
 	info.pr_psargs[sizeof (info.pr_psargs) - 1] = 0;
 	sstrncpy (buf, info.pr_psargs, buf_len);
-        
+
 	return (strtok(buf, " "));
 } /* }}} int ps_get_cmdline */
 
@@ -1437,7 +1436,7 @@ static int read_fork_rate()
 			if (tmp != -1LL)
 				result += tmp;
 		}
-	}        
+	}
 
 	ps_submit_fork_rate (result);
 	return (0);
@@ -1895,9 +1894,9 @@ static int ps_read (void)
 
 	kvm_t *kd;
 	char errbuf[1024];
-  	struct kinfo_proc *procs;          /* array of processes */
+	struct kinfo_proc *procs;          /* array of processes */
 	struct kinfo_proc *proc_ptr = NULL;
-  	int count;                         /* returns number of processes */
+	int count;                         /* returns number of processes */
 	int i;
 
 	procstat_t *ps_ptr;
