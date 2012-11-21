@@ -66,5 +66,11 @@
 
 cdtime_t cdtime (void);
 
+/* format a cdtime_t value in ISO 8601 format:
+ * returns the number of characters written to the string (not including the
+ * terminating null byte or 0 on error; the function ensures that the string
+ * is null terminated */
+size_t cdtime_to_iso8601 (char *s, size_t max, cdtime_t t);
+
 #endif /* UTILS_TIME_H */
 /* vim: set sw=2 sts=2 et : */

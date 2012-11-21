@@ -1,6 +1,6 @@
 /**
  * collectd - src/ntpd.c
- * Copyright (C) 2006-2007  Florian octo Forster
+ * Copyright (C) 2006-2012  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,7 +16,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #define _BSD_SOURCE /* For NI_MAXHOST */
@@ -52,11 +52,17 @@ static const char *config_keys[] =
 {
 	"Host",
 	"Port",
-	"ReverseLookups"
+	"ReverseLookups",
+	"IncludeUnitID"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
-static int do_reverse_lookups = 1;
+static _Bool do_reverse_lookups = 1;
+
+/* This option only exists for backward compatibility. If it is false and two
+ * ntpd peers use the same refclock driver, the plugin will try to write
+ * simultaneous measurements from both to the same type instance. */
+static _Bool include_unit_id = 0;
 
 # define NTPD_DEFAULT_HOST "localhost"
 # define NTPD_DEFAULT_PORT "123"
@@ -283,6 +289,13 @@ static int ntpd_config (const char *key, const char *value)
 		else
 			do_reverse_lookups = 0;
 	}
+	else if (strcasecmp (key, "IncludeUnitID") == 0)
+	{
+		if (IS_TRUE (value))
+			include_unit_id = 1;
+		else
+			include_unit_id = 0;
+	}
 	else
 	{
 		return (-1);
@@ -307,6 +320,18 @@ static void ntpd_submit (char *type, char *type_inst, double value)
 	sstrncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
+}
+
+/* Each time a peer is polled, ntpd shifts the reach register to the left and
+ * sets the LSB based on whether the peer was reachable. If the LSB is zero,
+ * the values are out of date. */
+static void ntpd_submit_reach (char *type, char *type_inst, uint8_t reach,
+		double value)
+{
+	if (!(reach & 1))
+		value = NAN;
+
+	ntpd_submit (type, type_inst, value);
 }
 
 static int ntpd_connect (void)
@@ -763,6 +788,108 @@ static double ntpd_read_fp (int32_t val_int)
 	return (val_double);
 }
 
+static uint32_t ntpd_get_refclock_id (struct info_peer_summary const *peer_info)
+{
+	uint32_t addr = ntohl (peer_info->srcadr);
+	uint32_t refclock_id = (addr >> 8) & 0x00FF;
+
+	return (refclock_id);
+}
+
+static int ntpd_get_name_from_address (char *buffer, size_t buffer_size,
+		struct info_peer_summary const *peer_info, _Bool do_reverse_lookup)
+{
+	struct sockaddr_storage sa;
+	socklen_t sa_len;
+	int flags = 0;
+	int status;
+
+	memset (&sa, 0, sizeof (sa));
+
+	if (peer_info->v6_flag)
+	{
+		struct sockaddr_in6 sa6;
+
+		assert (sizeof (sa) >= sizeof (sa6));
+
+		memset (&sa6, 0, sizeof (sa6));
+		sa6.sin6_family = AF_INET6;
+		sa6.sin6_port = htons (123);
+		memcpy (&sa6.sin6_addr, &peer_info->srcadr6,
+				sizeof (struct in6_addr));
+		sa_len = sizeof (sa6);
+
+		memcpy (&sa, &sa6, sizeof (sa6));
+	}
+	else
+	{
+		struct sockaddr_in sa4;
+
+		assert (sizeof (sa) >= sizeof (sa4));
+
+		memset (&sa4, 0, sizeof (sa4));
+		sa4.sin_family = AF_INET;
+		sa4.sin_port = htons (123);
+		memcpy (&sa4.sin_addr, &peer_info->srcadr,
+				sizeof (struct in_addr));
+		sa_len = sizeof (sa4);
+
+		memcpy (&sa, &sa4, sizeof (sa4));
+	}
+
+	if (!do_reverse_lookup)
+		flags |= NI_NUMERICHOST;
+
+	status = getnameinfo ((struct sockaddr const *) &sa, sa_len,
+			buffer, buffer_size,
+			NULL, 0, /* No port name */
+			flags);
+	if (status != 0)
+	{
+		char errbuf[1024];
+		ERROR ("ntpd plugin: getnameinfo failed: %s",
+				(status == EAI_SYSTEM)
+				? sstrerror (errno, errbuf, sizeof (errbuf))
+				: gai_strerror (status));
+		return (-1);
+	}
+
+	return (0);
+} /* ntpd_get_name_from_address */
+
+static int ntpd_get_name_refclock (char *buffer, size_t buffer_size,
+		struct info_peer_summary const *peer_info)
+{
+	uint32_t refclock_id = ntpd_get_refclock_id (peer_info);
+	uint32_t unit_id = ntohl (peer_info->srcadr) & 0x00FF;
+
+	if (refclock_id >= refclock_names_num)
+		return (ntpd_get_name_from_address (buffer, buffer_size,
+					peer_info,
+					/* do_reverse_lookup = */ 0));
+
+	if (include_unit_id)
+		ssnprintf (buffer, buffer_size, "%s-%"PRIu32,
+				refclock_names[refclock_id], unit_id);
+	else
+		sstrncpy (buffer, refclock_names[refclock_id], buffer_size);
+
+	return (0);
+} /* int ntpd_get_name_refclock */
+
+static int ntpd_get_name (char *buffer, size_t buffer_size,
+		struct info_peer_summary const *peer_info)
+{
+	uint32_t addr = ntohl (peer_info->srcadr);
+
+	if (!peer_info->v6_flag && ((addr & REFCLOCK_MASK) == REFCLOCK_ADDR))
+		return (ntpd_get_name_refclock (buffer, buffer_size,
+					peer_info));
+	else
+		return (ntpd_get_name_from_address (buffer, buffer_size,
+					peer_info, do_reverse_lookups));
+} /* int ntpd_addr_to_name */
+
 static int ntpd_read (void)
 {
 	struct info_kernel *ik;
@@ -837,99 +964,26 @@ static int ntpd_read (void)
 		double offset;
 
 		char peername[NI_MAXHOST];
-		int refclock_id;
-		
+		uint32_t refclock_id;
+
 		ptr = ps + i;
-		refclock_id = 0;
+
+		status = ntpd_get_name (peername, sizeof (peername), ptr);
+		if (status != 0)
+		{
+			ERROR ("ntpd plugin: Determining name of peer failed.");
+			continue;
+		}
+
+		refclock_id = ntpd_get_refclock_id (ptr);
 
 		/* Convert the `long floating point' offset value to double */
 		M_LFPTOD (ntohl (ptr->offset_int), ntohl (ptr->offset_frc), offset);
 
-		/* Special IP addresses for hardware clocks and stuff.. */
-		if (!ptr->v6_flag
-				&& ((ntohl (ptr->srcadr) & REFCLOCK_MASK)
-					== REFCLOCK_ADDR))
-		{
-			struct in_addr  addr_obj;
-			char *addr_str;
-
-			refclock_id = (ntohl (ptr->srcadr) >> 8) & 0x000000FF;
-
-			if (refclock_id < refclock_names_num)
-			{
-				sstrncpy (peername, refclock_names[refclock_id],
-						sizeof (peername));
-			}
-			else
-			{
-				memset ((void *) &addr_obj, '\0', sizeof (addr_obj));
-				addr_obj.s_addr = ptr->srcadr;
-				addr_str = inet_ntoa (addr_obj);
-
-				sstrncpy (peername, addr_str, sizeof (peername));
-			}
-		}
-		else /* Normal network host. */
-		{
-			struct sockaddr_storage sa;
-			socklen_t sa_len;
-			int flags = 0;
-
-			memset (&sa, '\0', sizeof (sa));
-
-			if (ptr->v6_flag)
-			{
-				struct sockaddr_in6 sa6;
-
-				assert (sizeof (sa) >= sizeof (sa6));
-
-				memset (&sa6, 0, sizeof (sa6));
-				sa6.sin6_family = AF_INET6;
-				sa6.sin6_port = htons (123);
-				memcpy (&sa6.sin6_addr, &ptr->srcadr6,
-						sizeof (struct in6_addr));
-				sa_len = sizeof (sa6);
-
-				memcpy (&sa, &sa6, sizeof (sa6));
-			}
-			else
-			{
-				struct sockaddr_in sa4;
-
-				assert (sizeof (sa) >= sizeof (sa4));
-
-				memset (&sa4, 0, sizeof (sa4));
-				sa4.sin_family = AF_INET;
-				sa4.sin_port = htons (123);
-				memcpy (&sa4.sin_addr, &ptr->srcadr,
-						sizeof (struct in_addr));
-				sa_len = sizeof (sa4);
-
-				memcpy (&sa, &sa4, sizeof (sa4));
-			}
-
-			if (do_reverse_lookups == 0)
-				flags |= NI_NUMERICHOST;
-
-			status = getnameinfo ((const struct sockaddr *) &sa,
-					sa_len,
-					peername, sizeof (peername),
-					NULL, 0, /* No port name */
-					flags);
-			if (status != 0)
-			{
-				char errbuf[1024];
-				ERROR ("ntpd plugin: getnameinfo failed: %s",
-						(status == EAI_SYSTEM)
-						? sstrerror (errno, errbuf, sizeof (errbuf))
-						: gai_strerror (status));
-				continue;
-			}
-		}
-
 		DEBUG ("peer %i:\n"
 				"  peername   = %s\n"
 				"  srcadr     = 0x%08x\n"
+				"  reach      = 0%03o\n"
 				"  delay      = %f\n"
 				"  offset_int = %i\n"
 				"  offset_frc = %i\n"
@@ -938,6 +992,7 @@ static int ntpd_read (void)
 				i,
 				peername,
 				ntohl (ptr->srcadr),
+				ptr->reach,
 				ntpd_read_fp (ptr->delay),
 				ntohl (ptr->offset_int),
 				ntohl (ptr->offset_frc),
@@ -945,10 +1000,13 @@ static int ntpd_read (void)
 				ntpd_read_fp (ptr->dispersion));
 
 		if (refclock_id != 1) /* not the system clock (offset will always be zero.. */
-			ntpd_submit ("time_offset", peername, offset);
-		ntpd_submit ("time_dispersion", peername, ntpd_read_fp (ptr->dispersion));
+			ntpd_submit_reach ("time_offset", peername, ptr->reach,
+					offset);
+		ntpd_submit_reach ("time_dispersion", peername, ptr->reach,
+				ntpd_read_fp (ptr->dispersion));
 		if (refclock_id == 0) /* not a reference clock */
-			ntpd_submit ("delay", peername, ntpd_read_fp (ptr->delay));
+			ntpd_submit_reach ("delay", peername, ptr->reach,
+					ntpd_read_fp (ptr->delay));
 	}
 
 	free (ps);

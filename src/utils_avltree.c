@@ -487,6 +487,8 @@ c_avl_tree_t *c_avl_create (int (*compare) (const void *, const void *))
 
 void c_avl_destroy (c_avl_tree_t *t)
 {
+	if (t == NULL)
+		return;
 	free_node (t->root);
 	free (t);
 }
@@ -510,6 +512,7 @@ int c_avl_insert (c_avl_tree_t *t, void *key, void *value)
 	{
 		new->parent = NULL;
 		t->root = new;
+		t->size = 1;
 		return (0);
 	}
 

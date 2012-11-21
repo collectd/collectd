@@ -187,7 +187,7 @@ static int srrd_update (char *filename, char *template,
 	if (status != 0)
 	{
 		WARNING ("rrdtool plugin: rrd_update_r failed: %s: %s",
-				argv[1], rrd_get_error ());
+				filename, rrd_get_error ());
 	}
 
 	sfree (new_argv);
@@ -1173,17 +1173,6 @@ static int rrd_init (void)
 	if (rrdcreate_config.heartbeat <= 0)
 		rrdcreate_config.heartbeat = 2 * rrdcreate_config.stepsize;
 
-	if ((rrdcreate_config.heartbeat > 0)
-			&& (rrdcreate_config.heartbeat < CDTIME_T_TO_TIME_T (interval_g)))
-		WARNING ("rrdtool plugin: Your `heartbeat' is "
-				"smaller than your `interval'. This will "
-				"likely cause problems.");
-	else if ((rrdcreate_config.stepsize > 0)
-			&& (rrdcreate_config.stepsize < CDTIME_T_TO_TIME_T (interval_g)))
-		WARNING ("rrdtool plugin: Your `stepsize' is "
-				"smaller than your `interval'. This will "
-				"create needlessly big RRD-files.");
-
 	/* Set the cache up */
 	pthread_mutex_lock (&cache_lock);
 
@@ -1204,7 +1193,7 @@ static int rrd_init (void)
 
 	pthread_mutex_unlock (&cache_lock);
 
-	status = pthread_create (&queue_thread, /* attr = */ NULL,
+	status = plugin_thread_create (&queue_thread, /* attr = */ NULL,
 			rrd_queue_thread, /* args = */ NULL);
 	if (status != 0)
 	{

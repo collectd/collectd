@@ -36,7 +36,7 @@ my $last_stat = {};
 
 sub openvz_read
 {
-    my %v = (time => time(), interval => $interval_g);
+    my %v = (time => time(), interval => plugin_get_interval());
     my (@veids, $veid, $name, $key, $val, $i, @lines, @parts, @counters);
 
     @veids = map { s/ //g; $_; } split(/\n/, `$vzlist -Ho veid`);

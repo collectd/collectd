@@ -28,7 +28,7 @@
 /*
  * Global variables
  */
-static kstat_t *ksp;
+
 extern kstat_ctl_t *kc;
 
 static void za_submit (const char* type, const char* type_instance, value_t* values, int values_len)
@@ -60,7 +60,7 @@ static int za_read_derive (kstat_t *ksp, const char *kstat_value,
   long long tmp;
   value_t v;
 
-  tmp = get_kstat_value (ksp, kstat_value);
+  tmp = get_kstat_value (ksp, (char *)kstat_value);
   if (tmp == -1LL)
   {
     ERROR ("zfs_arc plugin: Reading kstat value \"%s\" failed.", kstat_value);
@@ -69,6 +69,7 @@ static int za_read_derive (kstat_t *ksp, const char *kstat_value,
 
   v.derive = (derive_t) tmp;
   za_submit (type, type_instance, /* values = */ &v, /* values_num = */ 1);
+  return (0);
 }
 
 static int za_read_gauge (kstat_t *ksp, const char *kstat_value,
@@ -77,7 +78,7 @@ static int za_read_gauge (kstat_t *ksp, const char *kstat_value,
   long long tmp;
   value_t v;
 
-  tmp = get_kstat_value (ksp, kstat_value);
+  tmp = get_kstat_value (ksp, (char *)kstat_value);
   if (tmp == -1LL)
   {
     ERROR ("zfs_arc plugin: Reading kstat value \"%s\" failed.", kstat_value);
@@ -86,6 +87,7 @@ static int za_read_gauge (kstat_t *ksp, const char *kstat_value,
 
   v.gauge = (gauge_t) tmp;
   za_submit (type, type_instance, /* values = */ &v, /* values_num = */ 1);
+  return (0);
 }
 
 static void za_submit_ratio (const char* type_instance, gauge_t hits, gauge_t misses)
@@ -107,6 +109,7 @@ static int za_read (void)
 {
 	gauge_t  arc_hits, arc_misses, l2_hits, l2_misses;
 	value_t  l2_io[2];
+	kstat_t	 *ksp	= NULL;
 
 	get_kstat (&ksp, "zfs", 0, "arcstats");
 	if (ksp == NULL)
@@ -163,8 +166,6 @@ static int za_read (void)
 
 static int za_init (void) /* {{{ */
 {
-	ksp = NULL;
-
 	/* kstats chain already opened by update_kstat (using *kc), verify everything went fine. */
 	if (kc == NULL)
 	{

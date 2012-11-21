@@ -47,6 +47,7 @@
 
 #include "utils_cache.h"
 #include "utils_parse_option.h"
+#include "utils_format_graphite.h"
 
 /* Folks without pthread will need to disable this plugin. */
 #include <pthread.h>
@@ -284,175 +285,12 @@ static int wg_flush (cdtime_t timeout,
     return (status);
 }
 
-static int wg_format_values (char *ret, size_t ret_len,
-        int ds_num, const data_set_t *ds, const value_list_t *vl,
-        _Bool store_rates)
-{
-    size_t offset = 0;
-    int status;
-    gauge_t *rates = NULL;
-
-    assert (0 == strcmp (ds->type, vl->type));
-
-    memset (ret, 0, ret_len);
-
-#define BUFFER_ADD(...) do { \
-    status = ssnprintf (ret + offset, ret_len - offset, \
-            __VA_ARGS__); \
-    if (status < 1) \
-    { \
-        sfree (rates); \
-        return (-1); \
-    } \
-    else if (((size_t) status) >= (ret_len - offset)) \
-    { \
-        sfree (rates); \
-        return (-1); \
-    } \
-    else \
-    offset += ((size_t) status); \
-} while (0)
-
-    if (ds->ds[ds_num].type == DS_TYPE_GAUGE)
-        BUFFER_ADD ("%f", vl->values[ds_num].gauge);
-    else if (store_rates)
-    {
-        if (rates == NULL)
-            rates = uc_get_rate (ds, vl);
-        if (rates == NULL)
-        {
-            WARNING ("format_values: "
-                    "uc_get_rate failed.");
-            return (-1);
-        }
-        BUFFER_ADD ("%g", rates[ds_num]);
-    }
-    else if (ds->ds[ds_num].type == DS_TYPE_COUNTER)
-        BUFFER_ADD ("%llu", vl->values[ds_num].counter);
-    else if (ds->ds[ds_num].type == DS_TYPE_DERIVE)
-        BUFFER_ADD ("%"PRIi64, vl->values[ds_num].derive);
-    else if (ds->ds[ds_num].type == DS_TYPE_ABSOLUTE)
-        BUFFER_ADD ("%"PRIu64, vl->values[ds_num].absolute);
-    else
-    {
-        ERROR ("format_values plugin: Unknown data source type: %i",
-                ds->ds[ds_num].type);
-        sfree (rates);
-        return (-1);
-    }
-
-#undef BUFFER_ADD
-
-    sfree (rates);
-    return (0);
-}
-
-static void wg_copy_escape_part (char *dst, const char *src, size_t dst_len,
-    char escape_char)
-{
-    size_t i;
-
-    memset (dst, 0, dst_len);
-
-    if (src == NULL)
-        return;
-
-    for (i = 0; i < dst_len; i++)
-    {
-        if (src[i] == 0)
-        {
-            dst[i] = 0;
-            break;
-        }
-
-        if ((src[i] == '.')
-                || isspace ((int) src[i])
-                || iscntrl ((int) src[i]))
-            dst[i] = escape_char;
-        else
-            dst[i] = src[i];
-    }
-}
-
-static int wg_format_name (char *ret, int ret_len,
-        const value_list_t *vl,
-        const struct wg_callback *cb,
-        const char *ds_name)
-{
-    char n_host[DATA_MAX_NAME_LEN];
-    char n_plugin[DATA_MAX_NAME_LEN];
-    char n_plugin_instance[DATA_MAX_NAME_LEN];
-    char n_type[DATA_MAX_NAME_LEN];
-    char n_type_instance[DATA_MAX_NAME_LEN];
-
-    char *prefix;
-    char *postfix;
-
-    char tmp_plugin[2 * DATA_MAX_NAME_LEN + 1];
-    char tmp_type[2 * DATA_MAX_NAME_LEN + 1];
-
-    prefix = cb->prefix;
-    if (prefix == NULL)
-        prefix = "";
-
-    postfix = cb->postfix;
-    if (postfix == NULL)
-        postfix = "";
-
-    wg_copy_escape_part (n_host, vl->host,
-            sizeof (n_host), cb->escape_char);
-    wg_copy_escape_part (n_plugin, vl->plugin,
-            sizeof (n_plugin), cb->escape_char);
-    wg_copy_escape_part (n_plugin_instance, vl->plugin_instance,
-            sizeof (n_plugin_instance), cb->escape_char);
-    wg_copy_escape_part (n_type, vl->type,
-            sizeof (n_type), cb->escape_char);
-    wg_copy_escape_part (n_type_instance, vl->type_instance,
-            sizeof (n_type_instance), cb->escape_char);
-
-    if (n_plugin_instance[0] != '\0')
-        ssnprintf (tmp_plugin, sizeof (tmp_plugin), "%s%c%s",
-            n_plugin,
-            cb->separate_instances ? '.' : '-',
-            n_plugin_instance);
-    else
-        sstrncpy (tmp_plugin, n_plugin, sizeof (tmp_plugin));
-
-    if (n_type_instance[0] != '\0')
-        ssnprintf (tmp_type, sizeof (tmp_type), "%s%c%s",
-            n_type,
-            cb->separate_instances ? '.' : '-',
-            n_type_instance);
-    else
-        sstrncpy (tmp_type, n_type, sizeof (tmp_type));
-
-    if (ds_name != NULL)
-        ssnprintf (ret, ret_len, "%s%s%s.%s.%s.%s",
-            prefix, n_host, postfix, tmp_plugin, tmp_type, ds_name);
-    else
-        ssnprintf (ret, ret_len, "%s%s%s.%s.%s",
-            prefix, n_host, postfix, tmp_plugin, tmp_type);
-
-    return (0);
-}
-
-static int wg_send_message (const char* key, const char* value,
-        cdtime_t time, struct wg_callback *cb)
+static int wg_send_message (char const *message, struct wg_callback *cb)
 {
     int status;
     size_t message_len;
-    char message[1024];
 
-    message_len = (size_t) ssnprintf (message, sizeof (message),
-            "%s %s %u\r\n",
-            key,
-            value,
-            (unsigned int) CDTIME_T_TO_TIME_T (time));
-    if (message_len >= sizeof (message)) {
-        ERROR ("write_graphite plugin: message buffer too small: "
-                "Need %zu bytes.", message_len + 1);
-        return (-1);
-    }
+    message_len = strlen (message);
 
     pthread_mutex_lock (&cb->send_lock);
 
@@ -502,10 +340,8 @@ static int wg_send_message (const char* key, const char* value,
 static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
         struct wg_callback *cb)
 {
-    char key[10*DATA_MAX_NAME_LEN];
-    char values[512];
-
-    int status, i;
+    char buffer[4096];
+    int status;
 
     if (0 != strcmp (ds->type, vl->type))
     {
@@ -514,45 +350,22 @@ static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
         return -1;
     }
 
-    for (i = 0; i < ds->ds_num; i++)
+    memset (buffer, 0, sizeof (buffer));
+    status = format_graphite (buffer, sizeof (buffer), ds, vl,
+            cb->prefix, cb->postfix, cb->escape_char, cb->store_rates);
+    if (status != 0) /* error message has been printed already. */
+        return (status);
+
+    wg_send_message (buffer, cb);
+    if (status != 0)
     {
-        const char *ds_name = NULL;
-
-        if (cb->always_append_ds || (ds->ds_num > 1))
-            ds_name = ds->ds[i].name;
-
-        /* Copy the identifier to `key' and escape it. */
-        status = wg_format_name (key, sizeof (key), vl, cb, ds_name);
-        if (status != 0)
-        {
-            ERROR ("write_graphite plugin: error with format_name");
-            return (status);
-        }
-
-        escape_string (key, sizeof (key));
-        /* Convert the values to an ASCII representation and put that into
-         * `values'. */
-        status = wg_format_values (values, sizeof (values), i, ds, vl,
-                    cb->store_rates);
-        if (status != 0)
-        {
-            ERROR ("write_graphite plugin: error with "
-                    "wg_format_values");
-            return (status);
-        }
-
-        /* Send the message to graphite */
-        status = wg_send_message (key, values, vl->time, cb);
-        if (status != 0)
-        {
-            ERROR ("write_graphite plugin: error with "
-                    "wg_send_message");
-            return (status);
-        }
+        ERROR ("write_graphite plugin: wg_send_message failed "
+                "with status %i.", status);
+        return (status);
     }
 
     return (0);
-}
+} /* int wg_write_messages */
 
 static int wg_write (const data_set_t *ds, const value_list_t *vl,
         user_data_t *user_data)

@@ -12,9 +12,9 @@
 
 #Hostname    "localhost"
 #FQDNLookup   true
-#BaseDir     "@prefix@/var/lib/@PACKAGE_NAME@"
-#PIDFile     "@prefix@/var/run/@PACKAGE_NAME@.pid"
-#PluginDir   "@prefix@/lib/@PACKAGE_NAME@"
+#BaseDir     "@localstatedir@/lib/@PACKAGE_NAME@"
+#PIDFile     "@localstatedir@/run/@PACKAGE_NAME@.pid"
+#PluginDir   "@libdir@/@PACKAGE_NAME@"
 #TypesDB     "@prefix@/share/@PACKAGE_NAME@/types.db"
 #Interval     10
 #Timeout      2
@@ -52,6 +52,7 @@
 # to missing dependencies or because they have been deactivated explicitly.  #
 ##############################################################################
 
+#@BUILD_PLUGIN_AGGREGATION_TRUE@LoadPlugin aggregation
 #@BUILD_PLUGIN_AMQP_TRUE@LoadPlugin amqp
 #@BUILD_PLUGIN_APACHE_TRUE@LoadPlugin apache
 #@BUILD_PLUGIN_APCUPS_TRUE@LoadPlugin apcups
@@ -161,6 +162,26 @@
 # ription of those options is available in the collectd.conf(5) manual page. #
 ##############################################################################
 
+#<Plugin "aggregation">
+#  <Aggregation>
+#    #Host "unspecified"
+#    Plugin "cpu"
+#    #PluginInstance "unspecified"
+#    Type "cpu"
+#    #TypeInstance "unspecified"
+#
+#    GroupBy "Host"
+#    GroupBy "TypeInstance"
+#
+#    CalculateNum false
+#    CalculateSum false
+#    CalculateAverage true
+#    CalculateMinimum false
+#    CalculateMaximum false
+#    CalculateStddev false
+#  </Aggregation>
+#</Plugin>
+
 #<Plugin "amqp">
 #  <Publish "name">
 #    Host "localhost"
@@ -217,7 +238,7 @@
 #</Plugin>
 
 #<Plugin csv>
-#	DataDir "@prefix@/var/lib/@PACKAGE_NAME@/csv"
+#	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/csv"
 #	StoreRates false
 #</Plugin>
 
@@ -330,7 +351,7 @@
 #</Plugin>
 
 #<Plugin email>
-#	SocketFile "@prefix@/var/run/@PACKAGE_NAME@-email"
+#	SocketFile "@localstatedir@/run/@PACKAGE_NAME@-email"
 #	SocketGroup "collectd"
 #	SocketPerms "0770"
 #	MaxConns 5
@@ -465,8 +486,10 @@
 #</Plugin>
 
 #<Plugin memcached>
-#	Host "127.0.0.1"
-#	Port "11211"
+#	<Instance "local">
+#		Host "127.0.0.1"
+#		Port "11211"
+#	</Instance>
 #</Plugin>
 
 #<Plugin modbus>
@@ -626,6 +649,7 @@
 #	Host "localhost"
 #	Port 123
 #	ReverseLookups false
+#	IncludeUnitID true
 #</Plugin>
 
 #<Plugin nut>
@@ -804,13 +828,13 @@
 
 #<Plugin rrdcached>
 #	DaemonAddress "unix:/tmp/rrdcached.sock"
-#	DataDir "@prefix@/var/lib/@PACKAGE_NAME@/rrd"
+#	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/rrd"
 #	CreateFiles true
 #	CollectStatistics true
 #</Plugin>
 
 #<Plugin rrdtool>
-#	DataDir "@prefix@/var/lib/@PACKAGE_NAME@/rrd"
+#	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/rrd"
 #	CacheTimeout 120
 #	CacheFlush   900
 #</Plugin>
@@ -867,6 +891,7 @@
 
 #<Plugin "swap">
 #	ReportByDevice false
+#	ReportBytes true
 #</Plugin>
 
 #<Plugin "table">

@@ -37,6 +37,11 @@
 /* no global variables */
 /* #endif KERNEL_LINUX */
 
+#elif HAVE_PERFSTAT
+# include <sys/protosw.h>
+# include <libperfstat.h>
+/* #endif HAVE_PERFSTAT */
+
 #else
 # error "No applicable input method."
 #endif
@@ -121,7 +126,24 @@ static int cs_read (void)
 
 	if (status == -2)
 		ERROR ("contextswitch plugin: Unable to find context switch value.");
-#endif /* KERNEL_LINUX */
+/* #endif  KERNEL_LINUX */
+
+#elif HAVE_PERFSTAT
+	int status = 0;
+	perfstat_cpu_total_t perfcputotal;
+
+	status = perfstat_cpu_total(NULL, &perfcputotal, sizeof(perfstat_cpu_total_t), 1);
+	if (status < 0)
+	{
+		char errbuf[1024];
+		ERROR ("contextswitch plugin: perfstat_cpu_total: %s",
+			sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (-1);
+	}
+
+	cs_submit(perfcputotal.pswitch);
+	status = 0;
+#endif /* defined(HAVE_PERFSTAT) */
 
 	return status;
 }

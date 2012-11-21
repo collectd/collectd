@@ -70,6 +70,13 @@
 #endif
 
 #if KERNEL_LINUX
+# include <asm/types.h>
+/* sys/socket.h is necessary to compile when using netlink on older systems. */
+# include <sys/socket.h>
+# include <linux/netlink.h>
+# include <linux/inet_diag.h>
+# include <sys/socket.h>
+# include <arpa/inet.h>
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_SYSCTLBYNAME
@@ -130,6 +137,11 @@
 #endif /* KERNEL_AIX */
 
 #if KERNEL_LINUX
+struct nlreq {
+  struct nlmsghdr nlh;
+  struct inet_diag_req r;
+};
+
 static const char *tcp_state[] =
 {
   "", /* 0 */
@@ -262,6 +274,17 @@ static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static int port_collect_listening = 0;
 static port_entry_t *port_list_head = NULL;
+
+#if KERNEL_LINUX
+static uint32_t sequence_number = 0;
+
+enum
+{
+  SRC_DUNNO,
+  SRC_NETLINK,
+  SRC_PROC
+} linux_source = SRC_DUNNO;
+#endif
 
 static void conn_submit_port_entry (port_entry_t *pe)
 {
@@ -419,6 +442,140 @@ static int conn_handle_ports (uint16_t port_local, uint16_t port_remote, uint8_t
 } /* int conn_handle_ports */
 
 #if KERNEL_LINUX
+/* Returns zero on success, less than zero on socket error and greater than
+ * zero on other errors. */
+static int conn_read_netlink (void)
+{
+  int fd;
+  struct sockaddr_nl nladdr;
+  struct nlreq req;
+  struct msghdr msg;
+  struct iovec iov;
+  struct inet_diag_msg *r;
+  char buf[8192];
+
+  /* If this fails, it's likely a permission problem. We'll fall back to
+   * reading this information from files below. */
+  fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_INET_DIAG);
+  if (fd < 0)
+  {
+    ERROR ("tcpconns plugin: conn_read_netlink: socket(AF_NETLINK, SOCK_RAW, "
+	"NETLINK_INET_DIAG) failed: %s",
+	sstrerror (errno, buf, sizeof (buf)));
+    return (-1);
+  }
+
+  memset(&nladdr, 0, sizeof(nladdr));
+  nladdr.nl_family = AF_NETLINK;
+
+  memset(&req, 0, sizeof(req));
+  req.nlh.nlmsg_len = sizeof(req);
+  req.nlh.nlmsg_type = TCPDIAG_GETSOCK;
+  /* NLM_F_ROOT: return the complete table instead of a single entry.
+   * NLM_F_MATCH: return all entries matching criteria (not implemented)
+   * NLM_F_REQUEST: must be set on all request messages */
+  req.nlh.nlmsg_flags = NLM_F_ROOT | NLM_F_MATCH | NLM_F_REQUEST;
+  req.nlh.nlmsg_pid = 0;
+  /* The sequence_number is used to track our messages. Since netlink is not
+   * reliable, we don't want to end up with a corrupt or incomplete old
+   * message in case the system is/was out of memory. */
+  req.nlh.nlmsg_seq = ++sequence_number;
+  req.r.idiag_family = AF_INET;
+  req.r.idiag_states = 0xfff;
+  req.r.idiag_ext = 0;
+
+  memset(&iov, 0, sizeof(iov));
+  iov.iov_base = &req;
+  iov.iov_len = sizeof(req);
+
+  memset(&msg, 0, sizeof(msg));
+  msg.msg_name = (void*)&nladdr;
+  msg.msg_namelen = sizeof(nladdr);
+  msg.msg_iov = &iov;
+  msg.msg_iovlen = 1;
+
+  if (sendmsg (fd, &msg, 0) < 0)
+  {
+    ERROR ("tcpconns plugin: conn_read_netlink: sendmsg(2) failed: %s",
+	sstrerror (errno, buf, sizeof (buf)));
+    close (fd);
+    return (-1);
+  }
+
+  iov.iov_base = buf;
+  iov.iov_len = sizeof(buf);
+
+  while (1)
+  {
+    int status;
+    struct nlmsghdr *h;
+
+    memset(&msg, 0, sizeof(msg));
+    msg.msg_name = (void*)&nladdr;
+    msg.msg_namelen = sizeof(nladdr);
+    msg.msg_iov = &iov;
+    msg.msg_iovlen = 1;
+
+    status = recvmsg(fd, (void *) &msg, /* flags = */ 0);
+    if (status < 0)
+    {
+      if ((errno == EINTR) || (errno == EAGAIN))
+        continue;
+
+      ERROR ("tcpconns plugin: conn_read_netlink: recvmsg(2) failed: %s",
+	  sstrerror (errno, buf, sizeof (buf)));
+      close (fd);
+      return (-1);
+    }
+    else if (status == 0)
+    {
+      close (fd);
+      DEBUG ("tcpconns plugin: conn_read_netlink: Unexpected zero-sized "
+	  "reply from netlink socket.");
+      return (0);
+    }
+
+    h = (struct nlmsghdr*)buf;
+    while (NLMSG_OK(h, status))
+    {
+      if (h->nlmsg_seq != sequence_number)
+      {
+	h = NLMSG_NEXT(h, status);
+	continue;
+      }
+
+      if (h->nlmsg_type == NLMSG_DONE)
+      {
+	close (fd);
+	return (0);
+      }
+      else if (h->nlmsg_type == NLMSG_ERROR)
+      {
+	struct nlmsgerr *msg_error;
+
+	msg_error = NLMSG_DATA(h);
+	WARNING ("tcpconns plugin: conn_read_netlink: Received error %i.",
+	    msg_error->error);
+
+	close (fd);
+	return (1);
+      }
+
+      r = NLMSG_DATA(h);
+
+      /* This code does not (need to) distinguish between IPv4 and IPv6. */
+      conn_handle_ports (ntohs(r->id.idiag_sport),
+	  ntohs(r->id.idiag_dport),
+	  r->idiag_state);
+
+      h = NLMSG_NEXT(h, status);
+    } /* while (NLMSG_OK) */
+  } /* while (1) */
+
+  /* Not reached because the while() loop above handles the exit condition. */
+  return (0);
+} /* int conn_read_netlink */
+
 static int conn_handle_line (char *buffer)
 {
   char *fields[32];
@@ -553,25 +710,54 @@ static int conn_init (void)
 
 static int conn_read (void)
 {
-  int errors_num = 0;
+  int status;
 
   conn_reset_port_entry ();
 
-  if (conn_read_file ("/proc/net/tcp") != 0)
-    errors_num++;
-  if (conn_read_file ("/proc/net/tcp6") != 0)
-    errors_num++;
+  if (linux_source == SRC_NETLINK)
+  {
+    status = conn_read_netlink ();
+  }
+  else if (linux_source == SRC_PROC)
+  {
+    int errors_num = 0;
 
-  if (errors_num < 2)
+    if (conn_read_file ("/proc/net/tcp") != 0)
+      errors_num++;
+    if (conn_read_file ("/proc/net/tcp6") != 0)
+      errors_num++;
+
+    if (errors_num < 2)
+      status = 0;
+    else
+      status = ENOENT;
+  }
+  else /* if (linux_source == SRC_DUNNO) */
   {
+    /* Try to use netlink for getting this data, it is _much_ faster on systems
+     * with a large amount of connections. */
+    status = conn_read_netlink ();
+    if (status == 0)
+    {
+      INFO ("tcpconns plugin: Reading from netlink succeeded. "
+	  "Will use the netlink method from now on.");
+      linux_source = SRC_NETLINK;
+    }
+    else
+    {
+      INFO ("tcpconns plugin: Reading from netlink failed. "
+	  "Will read from /proc from now on.");
+      linux_source = SRC_PROC;
+
+      /* return success here to avoid the "plugin failed" message. */
+      return (0);
+    }
+  }
+
+  if (status == 0)
     conn_submit_all ();
-  }
   else
-  {
-    ERROR ("tcpconns plugin: Neither /proc/net/tcp nor /proc/net/tcp6 "
-	"coult be read.");
-    return (-1);
-  }
+    return (status);
 
   return (0);
 } /* int conn_read */

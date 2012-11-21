@@ -419,7 +419,8 @@ static int cx_handle_instance_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */
   return (0);
 } /* }}} int cx_handle_instance_xpath */
 
-static int  cx_handle_base_xpath (char *plugin_instance, /* {{{ */
+static int  cx_handle_base_xpath (char const *plugin_instance, /* {{{ */
+    char const *host,
     xmlXPathContextPtr xpath_ctx, const data_set_t *ds, 
     char *base_xpath, cx_xpath_t *xpath)
 {
@@ -461,7 +462,7 @@ static int  cx_handle_base_xpath (char *plugin_instance, /* {{{ */
   vl.values_len = ds->ds_num;
   sstrncpy (vl.type, xpath->type, sizeof (vl.type));
   sstrncpy (vl.plugin, "curl_xml", sizeof (vl.plugin));
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+  sstrncpy (vl.host, (host != NULL) ? host : hostname_g, sizeof (vl.host));
   if (plugin_instance != NULL)
     sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance)); 
 
@@ -504,7 +505,8 @@ static int cx_handle_parsed_xml(xmlDocPtr doc, /* {{{ */
     ds = plugin_get_ds (xpath->type);
 
     if ( (cx_check_type(ds, xpath) == 0) &&
-         (cx_handle_base_xpath(db->instance, xpath_ctx, ds, le->key, xpath) == 0) )
+         (cx_handle_base_xpath(db->instance, db->host,
+                               xpath_ctx, ds, le->key, xpath) == 0) )
       status = 0; /* we got atleast one success */
 
     le = le->next;

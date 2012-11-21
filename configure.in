@@ -91,6 +91,7 @@ fi
 if test "x$ac_system" = "xSolaris"
 then
 	AC_DEFINE(_POSIX_PTHREAD_SEMANTICS, 1, [Define to enforce POSIX thread semantics under Solaris.])
+	AC_DEFINE(_REENTRANT,               1, [Define to enable reentrancy interfaces.])
 fi
 if test "x$ac_system" = "xAIX"
 then
@@ -531,6 +532,11 @@ AC_CHECK_HEADERS(netinet/if_ether.h, [], [],
 # include <netinet/in.h>
 #endif
 ])
+
+AC_CHECK_HEADERS(netinet/ip_compat.h)
+
+have_net_pfvar_h="no"
+AC_CHECK_HEADERS(net/pfvar.h, [have_net_pfvar_h="yes"])
 
 # For the multimeter plugin
 have_termios_h="no"
@@ -1225,6 +1231,7 @@ AC_CHECK_MEMBERS([struct kinfo_proc.ki_pid, struct kinfo_proc.ki_rssize, struct 
 		have_struct_kinfo_proc_freebsd="no"
 	],
 	[
+AC_INCLUDES_DEFAULT
 #include <kvm.h>
 #include <sys/param.h>
 #include <sys/sysctl.h>
@@ -1241,6 +1248,7 @@ AC_CHECK_MEMBERS([struct kinfo_proc.kp_proc, struct kinfo_proc.kp_eproc],
 		have_struct_kinfo_proc_openbsd="no"
 	],
 	[
+AC_INCLUDES_DEFAULT
 #include <sys/param.h>
 #include <sys/sysctl.h>
 #include <kvm.h>
@@ -1900,10 +1908,12 @@ fi
 # This could be in iptc or ip4tc
 if test "x$with_libiptc" = "xpkgconfig"
 then
+	SAVE_LIBS="$LIBS"
 	AC_SEARCH_LIBS(iptc_init, [iptc ip4tc],
 			[with_libiptc="pkgconfig"],
 			[with_libiptc="no"],
 			[$with_libiptc_libs])
+	LIBS="$SAVE_LIBS"
 fi
 if test "x$with_libiptc" = "xpkgconfig"
 then
@@ -1970,7 +1980,7 @@ then
 	if test -d "$with_java_home"
 	then
 		AC_MSG_CHECKING([for jni.h])
-		TMPDIR=`find "$with_java_home" -name jni.h -type f -exec 'dirname' '{}' ';' | head -n 1`
+		TMPDIR=`find "$with_java_home" -name jni.h -type f -exec 'dirname' '{}' ';' 2>/dev/null | head -n 1`
 		if test "x$TMPDIR" != "x"
 		then
 			AC_MSG_RESULT([found in $TMPDIR])
@@ -1980,7 +1990,7 @@ then
 		fi
 
 		AC_MSG_CHECKING([for jni_md.h])
-		TMPDIR=`find "$with_java_home" -name jni_md.h -type f -exec 'dirname' '{}' ';' | head -n 1`
+		TMPDIR=`find "$with_java_home" -name jni_md.h -type f -exec 'dirname' '{}' ';' 2>/dev/null | head -n 1`
 		if test "x$TMPDIR" != "x"
 		then
 			AC_MSG_RESULT([found in $TMPDIR])
@@ -1990,7 +2000,7 @@ then
 		fi
 
 		AC_MSG_CHECKING([for libjvm.so])
-		TMPDIR=`find "$with_java_home" -name libjvm.so -type f -exec 'dirname' '{}' ';' | head -n 1`
+		TMPDIR=`find "$with_java_home" -name libjvm.so -type f -exec 'dirname' '{}' ';' 2>/dev/null | head -n 1`
 		if test "x$TMPDIR" != "x"
 		then
 			AC_MSG_RESULT([found in $TMPDIR])
@@ -2002,7 +2012,7 @@ then
 		if test "x$JAVAC" = "x"
 		then
 			AC_MSG_CHECKING([for javac])
-			TMPDIR=`find "$with_java_home" -name javac -type f | head -n 1`
+			TMPDIR=`find "$with_java_home" -name javac -type f 2>/dev/null | head -n 1`
 			if test "x$TMPDIR" != "x"
 			then
 				JAVAC="$TMPDIR"
@@ -2014,7 +2024,7 @@ then
 		if test "x$JAR" = "x"
 		then
 			AC_MSG_CHECKING([for jar])
-			TMPDIR=`find "$with_java_home" -name jar -type f | head -n 1`
+			TMPDIR=`find "$with_java_home" -name jar -type f 2>/dev/null | head -n 1`
 			if test "x$TMPDIR" != "x"
 			then
 				JAR="$TMPDIR"
@@ -2459,21 +2469,20 @@ then
 #include <asm/types.h>
 #include <sys/socket.h>])
 
-	AC_COMPILE_IFELSE(
-[#include <stdio.h>
-#include <sys/types.h>
-#include <asm/types.h>
-#include <sys/socket.h>
-#include <linux/netlink.h>
-#include <linux/rtnetlink.h>
-
-int main (void)
-{
-	int retval = TCA_STATS2;
-	return (retval);
-}],
-	[AC_DEFINE([HAVE_TCA_STATS2], 1, [True if the enum-member TCA_STATS2 exists])]
-	[]);
+        AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+                           [
+                            #include <stdio.h>
+                            #include <sys/types.h>
+                            #include <asm/types.h>
+                            #include <sys/socket.h>
+                            #include <linux/netlink.h>
+                            #include <linux/rtnetlink.h>
+                            ], [
+                                int retval = TCA_STATS2;
+                                return (retval);
+                                ]
+                            )],
+                            [AC_DEFINE([HAVE_TCA_STATS2], [1], [True if the enum-member TCA_STATS2 exists])])
 
 	AC_COMPILE_IFELSE(
 [#include <stdio.h>
@@ -2502,6 +2511,76 @@ then
 fi
 if test "x$with_libnetlink" = "xyes"
 then
+	SAVE_CFLAGS="$CFLAGS"
+	CFLAGS="$CFLAGS $with_libnetlink_cflags"
+
+	AC_CACHE_CHECK(
+		[if function 'rtnl_dump_filter' expects five arguments],
+		[c_cv_rtnl_dump_filter_five_args],
+		AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+				[
+AC_INCLUDES_DEFAULT
+#include <asm/types.h>
+#include <sys/socket.h>
+#if HAVE_LIBNETLINK_H
+# include <libnetlink.h>
+#elif HAVE_IPROUTE_LIBNETLINK_H
+# include <iproute/libnetlink.h>
+#elif HAVE_LINUX_LIBNETLINK_H
+# include <linux/libnetlink.h>
+#endif
+				],
+				[
+if (rtnl_dump_filter(NULL, NULL, NULL, NULL, NULL))
+	return 1;
+return 0;
+				]
+			)],
+			[c_cv_rtnl_dump_filter_five_args="yes"],
+			[c_cv_rtnl_dump_filter_five_args="no"]
+		)
+	)
+
+	AC_CACHE_CHECK(
+		[if function 'rtnl_dump_filter' expects three arguments],
+		[c_cv_rtnl_dump_filter_three_args],
+		AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+				[
+AC_INCLUDES_DEFAULT
+#include <asm/types.h>
+#include <sys/socket.h>
+#if HAVE_LIBNETLINK_H
+# include <libnetlink.h>
+#elif HAVE_IPROUTE_LIBNETLINK_H
+# include <iproute/libnetlink.h>
+#elif HAVE_LINUX_LIBNETLINK_H
+# include <linux/libnetlink.h>
+#endif
+				],
+				[
+if (rtnl_dump_filter(NULL, NULL, NULL))
+	return 1;
+return 0;
+				]
+			)],
+			[c_cv_rtnl_dump_filter_three_args="yes"],
+			[c_cv_rtnl_dump_filter_three_args="no"]
+		)
+	)
+
+	CFLAGS="$SAVE_CFLAGS"
+
+	if test "x$c_cv_rtnl_dump_filter_five_args" = "xyes"
+	then
+		AC_DEFINE(RTNL_DUMP_FILTER_FIVE_ARGS, 1,
+				[Define to 1 if function 'rtnl_dump_filter' expects five arguments.])
+	fi
+	if test "x$c_cv_rtnl_dump_filter_three_args" = "xyes"
+	then
+		AC_DEFINE(RTNL_DUMP_FILTER_THREE_ARGS, 1,
+				[Define to 1 if function 'rtnl_dump_filter' expects three arguments.])
+	fi
+
 	BUILD_WITH_LIBNETLINK_CFLAGS="$with_libnetlink_cflags"
 	BUILD_WITH_LIBNETLINK_LIBS="$with_libnetlink_libs"
 	AC_SUBST(BUILD_WITH_LIBNETLINK_CFLAGS)
@@ -2909,7 +2988,7 @@ AM_CONDITIONAL(BUILD_WITH_LIBPCAP, test "x$with_libpcap" = "xyes")
 perl_interpreter="perl"
 AC_ARG_WITH(libperl, [AS_HELP_STRING([--with-libperl@<:@=PREFIX@:>@], [Path to libperl.])],
 [
- 	if test -x "$withval"
+	if test -f "$withval" && test -x "$withval"
 	then
 		perl_interpreter="$withval"
 		with_libperl="yes"
@@ -4057,7 +4136,7 @@ AC_ARG_WITH(libvarnish, [AS_HELP_STRING([--with-libvarnish@<:@=PREFIX@:>@], [Pat
 	then
 		AC_MSG_NOTICE([Not checking for libvarnish: Manually configured])
 		with_libvarnish_cflags="-I$withval/include"
-		with_libvarnish_libs="-L$withval/lib -lvarnish -lvarnishcompat -lvarnishapi"
+		with_libvarnish_libs="-L$withval/lib -lvarnishapi"
 		with_libvarnish="yes"
 	fi; fi; fi
 ],
@@ -4560,11 +4639,13 @@ fi
 if test "x$with_perfstat" = "xyes"
 then
 	plugin_cpu="yes"
+	plugin_contextswitch="yes"
 	plugin_disk="yes"
 	plugin_memory="yes"
 	plugin_swap="yes"
 	plugin_interface="yes"
 	plugin_load="yes"
+	plugin_uptime="yes"
 fi
 
 if test "x$with_procinfo" = "xyes"
@@ -4774,6 +4855,7 @@ AC_ARG_ENABLE([all-plugins],
 
 m4_divert_once([HELP_ENABLE], [])
 
+AC_PLUGIN([aggregation], [yes],                [Aggregation plugin])
 AC_PLUGIN([amqp],        [$with_librabbitmq],  [AMQP output plugin])
 AC_PLUGIN([apache],      [$with_libcurl],      [Apache httpd statistics])
 AC_PLUGIN([apcups],      [yes],                [Statistics of UPSes by APC])
@@ -4840,6 +4922,7 @@ AC_PLUGIN([onewire],     [$with_libowcapi],    [OneWire sensor statistics])
 AC_PLUGIN([openvpn],     [yes],                [OpenVPN client statistics])
 AC_PLUGIN([oracle],      [$with_oracle],       [Oracle plugin])
 AC_PLUGIN([perl],        [$plugin_perl],       [Embed a Perl interpreter])
+AC_PLUGIN([pf],          [$have_net_pfvar_h],  [BSD packet filter (PF) statistics])
 # FIXME: Check for libevent, too.
 AC_PLUGIN([pinba],       [$have_protoc_c],     [Pinba statistics])
 AC_PLUGIN([ping],        [$with_liboping],     [Network latency statistics])
@@ -5023,7 +5106,7 @@ AC_SUBST(LCC_VERSION_PATCH)
 AC_SUBST(LCC_VERSION_EXTRA)
 AC_SUBST(LCC_VERSION_STRING)
 
-AC_CONFIG_FILES(src/libcollectdclient/lcc_features.h)
+AC_CONFIG_FILES(src/libcollectdclient/collectd/lcc_features.h)
 
 AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/libcollectdclient/Makefile src/libcollectdclient/libcollectdclient.pc src/liboconfig/Makefile bindings/Makefile bindings/java/Makefile)
 
@@ -5106,6 +5189,7 @@ Configuration:
     perl  . . . . . . . . $with_perl_bindings
 
   Modules:
+    aggregation . . . . . $enable_aggregation
     amqp    . . . . . . . $enable_amqp
     apache  . . . . . . . $enable_apache
     apcups  . . . . . . . $enable_apcups
@@ -5172,6 +5256,7 @@ Configuration:
     openvpn . . . . . . . $enable_openvpn
     oracle  . . . . . . . $enable_oracle
     perl  . . . . . . . . $enable_perl
+    pf  . . . . . . . . . $enable_pf
     pinba . . . . . . . . $enable_pinba
     ping  . . . . . . . . $enable_ping
     postgresql  . . . . . $enable_postgresql

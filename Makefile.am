@@ -1,6 +1,6 @@
 ACLOCAL_AMFLAGS = -I libltdl/m4
 
-SUBDIRS = libltdl src bindings
+SUBDIRS = libltdl src bindings .
 
 INCLUDES = $(LTDLINCL)
 
@@ -10,3 +10,8 @@ install-exec-hook:
 	$(mkinstalldirs) $(DESTDIR)$(localstatedir)/run
 	$(mkinstalldirs) $(DESTDIR)$(localstatedir)/lib/$(PACKAGE_NAME)
 	$(mkinstalldirs) $(DESTDIR)$(localstatedir)/log
+
+maintainer-clean-local:
+	-rm -f -r libltdl
+	-rm -f INSTALL
+	-rm -f aclocal.m4
