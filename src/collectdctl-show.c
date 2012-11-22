@@ -63,7 +63,7 @@
 # endif
 #endif /* NAN_ZERO_ZERO */
 
-#include "libcollectdclient/client.h"
+#include "libcollectdclient/collectd/client.h"
 
 #define AGGR_TYPE_COUNT 0
 #define AGGR_TYPE_MIN   1
