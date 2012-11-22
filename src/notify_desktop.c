@@ -31,6 +31,10 @@
 #include <glib.h>
 #include <libnotify/notify.h>
 
+#ifndef NOTIFY_CHECK_VERSION
+# define NOTIFY_CHECK_VERSION(x,y,z) 0
+#endif
+
 #define log_info(...) INFO ("notify_desktop: " __VA_ARGS__)
 #define log_warn(...) WARNING ("notify_desktop: " __VA_ARGS__)
 #define log_err(...) ERROR ("notify_desktop: " __VA_ARGS__)
@@ -95,7 +99,12 @@ static int c_notify (const notification_t *n,
 				: (NOTIF_WARNING == n->severity) ? "WARNING"
 				: (NOTIF_OKAY == n->severity) ? "OKAY" : "UNKNOWN");
 
-	notification = notify_notification_new (summary, n->message, NULL, NULL);
+	notification = notify_notification_new (summary, n->message, NULL
+#if NOTIFY_CHECK_VERSION (0, 7, 0)
+	);
+#else
+	, NULL);
+#endif
 	if (NULL == notification) {
 		log_err ("Failed to create a new notification.");
 		return -1;

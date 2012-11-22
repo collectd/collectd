@@ -39,8 +39,8 @@ static int vcomplain (int level, c_complain_t *c,
 
 	c->last = now;
 
-	if (c->interval < interval_g)
-		c->interval = interval_g;
+	if (c->interval < plugin_get_interval ())
+		c->interval = plugin_get_interval ();
 	else
 		c->interval *= 2;
 

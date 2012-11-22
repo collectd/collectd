@@ -1,7 +1,7 @@
 /**
  * collectd - src/amqp.c
- * Copyright (C) 2009  Sebastien Pahl
- * Copyright (C) 2010  Florian Forster
+ * Copyright (C) 2009       Sebastien Pahl
+ * Copyright (C) 2010-2012  Florian Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -31,6 +31,7 @@
 #include "plugin.h"
 #include "utils_cmd_putval.h"
 #include "utils_format_json.h"
+#include "utils_format_graphite.h"
 
 #include <pthread.h>
 
@@ -42,8 +43,9 @@
 #define CAMQP_DM_VOLATILE   1
 #define CAMQP_DM_PERSISTENT 2
 
-#define CAMQP_FORMAT_COMMAND 1
-#define CAMQP_FORMAT_JSON    2
+#define CAMQP_FORMAT_COMMAND    1
+#define CAMQP_FORMAT_JSON       2
+#define CAMQP_FORMAT_GRAPHITE   3
 
 #define CAMQP_CHANNEL 1
 
@@ -68,6 +70,10 @@ struct camqp_config_s
     uint8_t delivery_mode;
     _Bool   store_rates;
     int     format;
+    /* publish & graphite format only */
+    char    *prefix;
+    char    *postfix;
+    char    escape_char;
 
     /* subscribe only */
     char   *exchange_type;
@@ -129,6 +135,9 @@ static void camqp_config_free (void *ptr) /* {{{ */
     sfree (conf->exchange_type);
     sfree (conf->queue);
     sfree (conf->routing_key);
+    sfree (conf->prefix);
+    sfree (conf->postfix);
+
 
     sfree (conf);
 } /* }}} void camqp_config_free */
@@ -178,8 +187,13 @@ static char *camqp_strerror (camqp_config_t *conf, /* {{{ */
             break;
 
         case AMQP_RESPONSE_LIBRARY_EXCEPTION:
+#if HAVE_AMQP_RPC_REPLY_T_LIBRARY_ERRNO
             if (r.library_errno)
                 return (sstrerror (r.library_errno, buffer, buffer_size));
+#else
+            if (r.library_error)
+                return (sstrerror (r.library_error, buffer, buffer_size));
+#endif
             else
                 sstrncpy (buffer, "End of stream", sizeof (buffer));
             break;
@@ -216,6 +230,7 @@ static char *camqp_strerror (camqp_config_t *conf, /* {{{ */
     return (buffer);
 } /* }}} char *camqp_strerror */
 
+#if HAVE_AMQP_RPC_REPLY_T_LIBRARY_ERRNO
 static int camqp_create_exchange (camqp_config_t *conf) /* {{{ */
 {
     amqp_exchange_declare_ok_t *ed_ret;
@@ -246,6 +261,46 @@ static int camqp_create_exchange (camqp_config_t *conf) /* {{{ */
 
     return (0);
 } /* }}} int camqp_create_exchange */
+#else
+static int camqp_create_exchange (camqp_config_t *conf) /* {{{ */
+{
+    amqp_exchange_declare_ok_t *ed_ret;
+    amqp_table_t argument_table;
+    struct amqp_table_entry_t_ argument_table_entries[1];
+
+    if (conf->exchange_type == NULL)
+        return (0);
+
+    /* Valid arguments: "auto_delete", "internal" */
+    argument_table.num_entries = STATIC_ARRAY_SIZE (argument_table_entries);
+    argument_table.entries = argument_table_entries;
+    argument_table_entries[0].key = amqp_cstring_bytes ("auto_delete");
+    argument_table_entries[0].value.kind = AMQP_FIELD_KIND_BOOLEAN;
+    argument_table_entries[0].value.value.boolean = 1;
+
+    ed_ret = amqp_exchange_declare (conf->connection,
+            /* channel     = */ CAMQP_CHANNEL,
+            /* exchange    = */ amqp_cstring_bytes (conf->exchange),
+            /* type        = */ amqp_cstring_bytes (conf->exchange_type),
+            /* passive     = */ 0,
+            /* durable     = */ 0,
+            /* arguments   = */ argument_table);
+    if ((ed_ret == NULL) && camqp_is_error (conf))
+    {
+        char errbuf[1024];
+        ERROR ("amqp plugin: amqp_exchange_declare failed: %s",
+                camqp_strerror (conf, errbuf, sizeof (errbuf)));
+        camqp_close_connection (conf);
+        return (-1);
+    }
+
+    INFO ("amqp plugin: Successfully created exchange \"%s\" "
+            "with type \"%s\".",
+            conf->exchange, conf->exchange_type);
+
+    return (0);
+} /* }}} int camqp_create_exchange */
+#endif
 
 static int camqp_setup_queue (camqp_config_t *conf) /* {{{ */
 {
@@ -316,7 +371,9 @@ static int camqp_setup_queue (camqp_config_t *conf) /* {{{ */
             /* consumer_tag = */ AMQP_EMPTY_BYTES,
             /* no_local     = */ 0,
             /* no_ack       = */ 1,
-            /* exclusive    = */ 0);
+            /* exclusive    = */ 0,
+            /* arguments    = */ AMQP_EMPTY_TABLE
+        );
     if ((cm_ret == NULL) && camqp_is_error (conf))
     {
         char errbuf[1024];
@@ -543,6 +600,8 @@ static void *camqp_subscribe_thread (void *user_data) /* {{{ */
     camqp_config_t *conf = user_data;
     int status;
 
+    cdtime_t interval = plugin_get_interval ();
+
     while (subscriber_threads_running)
     {
         amqp_frame_t frame;
@@ -550,19 +609,25 @@ static void *camqp_subscribe_thread (void *user_data) /* {{{ */
         status = camqp_connect (conf);
         if (status != 0)
         {
+            struct timespec ts_interval;
             ERROR ("amqp plugin: camqp_connect failed. "
-                    "Will sleep for %i seconds.", interval_g);
-            sleep (interval_g);
+                    "Will sleep for %.3f seconds.",
+                    CDTIME_T_TO_DOUBLE (interval));
+            CDTIME_T_TO_TIMESPEC (interval, &ts_interval);
+            nanosleep (&ts_interval, /* remaining = */ NULL);
             continue;
         }
 
         status = amqp_simple_wait_frame (conf->connection, &frame);
         if (status < 0)
         {
+            struct timespec ts_interval;
             ERROR ("amqp plugin: amqp_simple_wait_frame failed. "
-                    "Will sleep for %i seconds.", interval_g);
+                    "Will sleep for %.3f seconds.",
+                    CDTIME_T_TO_DOUBLE (interval));
             camqp_close_connection (conf);
-            sleep (interval_g);
+            CDTIME_T_TO_TIMESPEC (interval, &ts_interval);
+            nanosleep (&ts_interval, /* remaining = */ NULL);
             continue;
         }
 
@@ -587,6 +652,7 @@ static void *camqp_subscribe_thread (void *user_data) /* {{{ */
 
     camqp_config_free (conf);
     pthread_exit (NULL);
+    return (NULL);
 } /* }}} void *camqp_subscribe_thread */
 
 static int camqp_subscribe_init (camqp_config_t *conf) /* {{{ */
@@ -606,7 +672,7 @@ static int camqp_subscribe_init (camqp_config_t *conf) /* {{{ */
     tmp = subscriber_threads + subscriber_threads_num;
     memset (tmp, 0, sizeof (*tmp));
 
-    status = pthread_create (tmp, /* attr = */ NULL,
+    status = plugin_thread_create (tmp, /* attr = */ NULL,
             camqp_subscribe_thread, conf);
     if (status != 0)
     {
@@ -644,6 +710,8 @@ static int camqp_write_locked (camqp_config_t *conf, /* {{{ */
         props.content_type = amqp_cstring_bytes("text/collectd");
     else if (conf->format == CAMQP_FORMAT_JSON)
         props.content_type = amqp_cstring_bytes("application/json");
+    else if (conf->format == CAMQP_FORMAT_GRAPHITE)
+        props.content_type = amqp_cstring_bytes("text/graphite");
     else
         assert (23 == 42);
     props.delivery_mode = conf->delivery_mode;
@@ -722,6 +790,18 @@ static int camqp_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
         format_json_value_list (buffer, &bfill, &bfree, ds, vl, conf->store_rates);
         format_json_finalize (buffer, &bfill, &bfree);
     }
+    else if (conf->format == CAMQP_FORMAT_GRAPHITE)
+    {
+        status = format_graphite (buffer, sizeof (buffer), ds, vl,
+                    conf->prefix, conf->postfix, conf->escape_char,
+                    conf->store_rates);
+        if (status != 0)
+        {
+            ERROR ("amqp plugin: format_graphite failed with status %i.",
+                    status);
+            return (status);
+        }
+    }
     else
     {
         ERROR ("amqp plugin: Invalid format (%i).", conf->format);
@@ -754,6 +834,8 @@ static int camqp_config_set_format (oconfig_item_t *ci, /* {{{ */
         conf->format = CAMQP_FORMAT_COMMAND;
     else if (strcasecmp ("JSON", string) == 0)
         conf->format = CAMQP_FORMAT_JSON;
+    else if (strcasecmp ("Graphite", string) == 0)
+        conf->format = CAMQP_FORMAT_GRAPHITE;
     else
     {
         WARNING ("amqp plugin: Invalid format string: %s",
@@ -794,6 +876,10 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
     /* publish only */
     conf->delivery_mode = CAMQP_DM_VOLATILE;
     conf->store_rates = 0;
+    /* publish & graphite only */
+    conf->prefix = NULL;
+    conf->postfix = NULL;
+    conf->escape_char = '_';
     /* subscribe only */
     conf->exchange_type = NULL;
     conf->queue = NULL;
@@ -851,6 +937,20 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
             status = cf_util_get_boolean (child, &conf->store_rates);
         else if ((strcasecmp ("Format", child->key) == 0) && publish)
             status = camqp_config_set_format (child, conf);
+        else if ((strcasecmp ("GraphitePrefix", child->key) == 0) && publish)
+            status = cf_util_get_string (child, &conf->prefix);
+        else if ((strcasecmp ("GraphitePostfix", child->key) == 0) && publish)
+            status = cf_util_get_string (child, &conf->postfix);
+        else if ((strcasecmp ("GraphiteEscapeChar", child->key) == 0) && publish)
+        {
+            char *tmp_buff = NULL;
+            status = cf_util_get_string (child, &tmp_buff);
+            if (strlen (tmp_buff) > 1)
+                WARNING ("amqp plugin: The option \"GraphiteEscapeChar\" handles "
+                        "only one character. Others will be ignored.");
+            conf->escape_char = tmp_buff[0];
+            sfree (tmp_buff);
+        }
         else
             WARNING ("amqp plugin: Ignoring unknown "
                     "configuration option \"%s\".", child->key);

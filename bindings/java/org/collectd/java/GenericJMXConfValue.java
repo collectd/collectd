@@ -312,7 +312,14 @@ class GenericJMXConfValue
 
     try
     {
-      value = conn.getAttribute (objName, key);
+      try
+      {
+        value = conn.getAttribute (objName, key);
+      }
+      catch (javax.management.AttributeNotFoundException e)
+      {
+        value = conn.invoke (objName, key, /* args = */ null, /* types = */ null);
+      }
     }
     catch (Exception e)
     {

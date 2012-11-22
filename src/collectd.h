@@ -97,6 +97,12 @@
 # define assert(...) /* nop */
 #endif
 
+#if !defined(HAVE__BOOL) || !HAVE__BOOL
+typedef int _Bool;
+# undef HAVE__BOOL
+# define HAVE__BOOL 1
+#endif
+
 #if NAN_STATIC_DEFAULT
 # include <math.h>
 /* #endif NAN_STATIC_DEFAULT*/
@@ -250,6 +256,10 @@
 
 #ifndef COLLECTD_GRP_NAME
 # define COLLECTD_GRP_NAME "collectd"
+#endif
+
+#ifndef COLLECTD_DEFAULT_INTERVAL
+# define COLLECTD_DEFAULT_INTERVAL 10.0
 #endif
 
 #define STATIC_ARRAY_LEN(array) (sizeof (array) / sizeof ((array)[0]))

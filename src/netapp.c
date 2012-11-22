@@ -1,6 +1,6 @@
 /**
  * collectd - src/netapp.c
- * Copyright (C) 2009  Sven Trenkel
+ * Copyright (C) 2009,2010  Sven Trenkel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -2497,7 +2497,7 @@ static int cna_init_host (host_config_t *host) /* {{{ */
 	na_server_adminuser(host->srv, host->username, host->password);
 	na_server_set_timeout(host->srv, 5 /* seconds */);
 
-	return 0;
+	return (0);
 } /* }}} int cna_init_host */
 
 static int cna_init (void) /* {{{ */
@@ -2514,6 +2514,32 @@ static int cna_init (void) /* {{{ */
 	return (0);
 } /* }}} cna_init */
 
+static int cna_read_internal (host_config_t *host) { /* {{{ */
+	int status;
+
+	status = cna_query_wafl (host);
+	if (status != 0)
+		return (status);
+
+	status = cna_query_disk (host);
+	if (status != 0)
+		return (status);
+
+	status = cna_query_volume_perf (host);
+	if (status != 0)
+		return (status);
+
+	status = cna_query_volume_usage (host);
+	if (status != 0)
+		return (status);
+
+	status = cna_query_system (host);
+	if (status != 0)
+		return (status);
+
+	return 0;
+} /* }}} int cna_read_internal */
+
 static int cna_read (user_data_t *ud) { /* {{{ */
 	host_config_t *host;
 	int status;
@@ -2526,12 +2552,14 @@ static int cna_read (user_data_t *ud) { /* {{{ */
 	status = cna_init_host (host);
 	if (status != 0)
 		return (status);
-	
-	cna_query_wafl (host);
-	cna_query_disk (host);
-	cna_query_volume_perf (host);
-	cna_query_volume_usage (host);
-	cna_query_system (host);
+
+	status = cna_read_internal (host);
+	if (status != 0)
+	{
+		if (host->srv != NULL)
+			na_server_close (host->srv);
+		host->srv = NULL;
+	}
 
 	return 0;
 } /* }}} int cna_read */

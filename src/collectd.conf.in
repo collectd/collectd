@@ -12,9 +12,9 @@
 
 #Hostname    "localhost"
 #FQDNLookup   true
-#BaseDir     "@prefix@/var/lib/@PACKAGE_NAME@"
-#PIDFile     "@prefix@/var/run/@PACKAGE_NAME@.pid"
-#PluginDir   "@prefix@/lib/@PACKAGE_NAME@"
+#BaseDir     "@localstatedir@/lib/@PACKAGE_NAME@"
+#PIDFile     "@localstatedir@/run/@PACKAGE_NAME@.pid"
+#PluginDir   "@libdir@/@PACKAGE_NAME@"
 #TypesDB     "@prefix@/share/@PACKAGE_NAME@/types.db"
 #Interval     10
 #Timeout      2
@@ -52,6 +52,7 @@
 # to missing dependencies or because they have been deactivated explicitly.  #
 ##############################################################################
 
+#@BUILD_PLUGIN_AGGREGATION_TRUE@LoadPlugin aggregation
 #@BUILD_PLUGIN_AMQP_TRUE@LoadPlugin amqp
 #@BUILD_PLUGIN_APACHE_TRUE@LoadPlugin apache
 #@BUILD_PLUGIN_APCUPS_TRUE@LoadPlugin apcups
@@ -73,6 +74,7 @@
 #@BUILD_PLUGIN_DNS_TRUE@LoadPlugin dns
 #@BUILD_PLUGIN_EMAIL_TRUE@LoadPlugin email
 #@BUILD_PLUGIN_ENTROPY_TRUE@LoadPlugin entropy
+#@BUILD_PLUGIN_ETHSTAT_TRUE@LoadPlugin ethstat
 #@BUILD_PLUGIN_EXEC_TRUE@LoadPlugin exec
 #@BUILD_PLUGIN_FILECOUNT_TRUE@LoadPlugin filecount
 #@BUILD_PLUGIN_FSCACHE_TRUE@LoadPlugin fscache
@@ -89,6 +91,7 @@
 #@BUILD_PLUGIN_LPAR_TRUE@LoadPlugin lpar
 #@BUILD_PLUGIN_MADWIFI_TRUE@LoadPlugin madwifi
 #@BUILD_PLUGIN_MBMON_TRUE@LoadPlugin mbmon
+#@BUILD_PLUGIN_MD_TRUE@LoadPlugin md
 #@BUILD_PLUGIN_MEMCACHEC_TRUE@LoadPlugin memcachec
 #@BUILD_PLUGIN_MEMCACHED_TRUE@LoadPlugin memcached
 @BUILD_PLUGIN_MEMORY_TRUE@@BUILD_PLUGIN_MEMORY_TRUE@LoadPlugin memory
@@ -103,19 +106,24 @@
 #@BUILD_PLUGIN_NOTIFY_DESKTOP_TRUE@LoadPlugin notify_desktop
 #@BUILD_PLUGIN_NOTIFY_EMAIL_TRUE@LoadPlugin notify_email
 #@BUILD_PLUGIN_NTPD_TRUE@LoadPlugin ntpd
+#@BUILD_PLUGIN_NUMA_TRUE@LoadPlugin numa
 #@BUILD_PLUGIN_NUT_TRUE@LoadPlugin nut
 #@BUILD_PLUGIN_OLSRD_TRUE@LoadPlugin olsrd
 #@BUILD_PLUGIN_ONEWIRE_TRUE@LoadPlugin onewire
 #@BUILD_PLUGIN_OPENVPN_TRUE@LoadPlugin openvpn
 #@BUILD_PLUGIN_ORACLE_TRUE@LoadPlugin oracle
-#@BUILD_PLUGIN_PERL_TRUE@LoadPlugin perl
+#@BUILD_PLUGIN_PERL_TRUE@<LoadPlugin perl>
+#@BUILD_PLUGIN_PERL_TRUE@  Globals true
+#@BUILD_PLUGIN_PERL_TRUE@</LoadPlugin>
 #@BUILD_PLUGIN_PINBA_TRUE@LoadPlugin pinba
 #@BUILD_PLUGIN_PING_TRUE@LoadPlugin ping
 #@BUILD_PLUGIN_POSTGRESQL_TRUE@LoadPlugin postgresql
 #@BUILD_PLUGIN_POWERDNS_TRUE@LoadPlugin powerdns
 #@BUILD_PLUGIN_PROCESSES_TRUE@LoadPlugin processes
 #@BUILD_PLUGIN_PROTOCOLS_TRUE@LoadPlugin protocols
-#@BUILD_PLUGIN_PYTHON_TRUE@LoadPlugin python
+#@BUILD_PLUGIN_PYTHON_TRUE@<LoadPlugin python>
+#@BUILD_PLUGIN_PYTHON_TRUE@  Globals true
+#@BUILD_PLUGIN_PYTHON_TRUE@</LoadPlugin>
 #@BUILD_PLUGIN_REDIS_TRUE@LoadPlugin redis
 #@BUILD_PLUGIN_ROUTEROS_TRUE@LoadPlugin routeros
 #@BUILD_PLUGIN_RRDCACHED_TRUE@LoadPlugin rrdcached
@@ -140,8 +148,10 @@
 #@BUILD_PLUGIN_VMEM_TRUE@LoadPlugin vmem
 #@BUILD_PLUGIN_VSERVER_TRUE@LoadPlugin vserver
 #@BUILD_PLUGIN_WIRELESS_TRUE@LoadPlugin wireless
+#@BUILD_PLUGIN_WRITE_GRAPHITE_TRUE@LoadPlugin write_graphite
 #@BUILD_PLUGIN_WRITE_HTTP_TRUE@LoadPlugin write_http
 #@BUILD_PLUGIN_WRITE_REDIS_TRUE@LoadPlugin write_redis
+#@BUILD_PLUGIN_WRITE_MONGODB_TRUE@LoadPlugin write_mongodb
 #@BUILD_PLUGIN_XMMS_TRUE@LoadPlugin xmms
 #@BUILD_PLUGIN_ZFS_ARC_TRUE@LoadPlugin zfs_arc
 
@@ -151,6 +161,26 @@
 # In this section configuration stubs for each plugin are provided. A desc-  #
 # ription of those options is available in the collectd.conf(5) manual page. #
 ##############################################################################
+
+#<Plugin "aggregation">
+#  <Aggregation>
+#    #Host "unspecified"
+#    Plugin "cpu"
+#    #PluginInstance "unspecified"
+#    Type "cpu"
+#    #TypeInstance "unspecified"
+#
+#    GroupBy "Host"
+#    GroupBy "TypeInstance"
+#
+#    CalculateNum false
+#    CalculateSum false
+#    CalculateAverage true
+#    CalculateMinimum false
+#    CalculateMaximum false
+#    CalculateStddev false
+#  </Aggregation>
+#</Plugin>
 
 #<Plugin "amqp">
 #  <Publish "name">
@@ -189,6 +219,7 @@
 
 #<Plugin "bind">
 #  URL "http://localhost:8053/"
+#  ParseTime       false
 #  OpCodes         true
 #  QTypes          true
 #
@@ -207,7 +238,7 @@
 #</Plugin>
 
 #<Plugin csv>
-#	DataDir "@prefix@/var/lib/@PACKAGE_NAME@/csv"
+#	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/csv"
 #	StoreRates false
 #</Plugin>
 
@@ -320,10 +351,17 @@
 #</Plugin>
 
 #<Plugin email>
-#	SocketFile "@prefix@/var/run/@PACKAGE_NAME@-email"
+#	SocketFile "@localstatedir@/run/@PACKAGE_NAME@-email"
 #	SocketGroup "collectd"
 #	SocketPerms "0770"
 #	MaxConns 5
+#</Plugin>
+
+#<Plugin ethstat>
+#	Interface "eth0"
+#	Map "rx_csum_offload_errors" "if_rx_errors" "checksum_offload"
+#	Map "multicast" "if_multicast"
+#	MappedOnly false
 #</Plugin>
 
 #<Plugin exec>
@@ -428,6 +466,11 @@
 #	Port "411"
 #</Plugin>
 
+#<Plugin md>
+#	Device "/dev/md0"
+#	IgnoreSelected false
+#</Plugin>
+
 #<Plugin memcachec>
 #	<Page "plugin_instance">
 #		Server "localhost"
@@ -443,8 +486,10 @@
 #</Plugin>
 
 #<Plugin memcached>
-#	Host "127.0.0.1"
-#	Port "11211"
+#	<Instance "local">
+#		Host "127.0.0.1"
+#		Port "11211"
+#	</Instance>
 #</Plugin>
 
 #<Plugin modbus>
@@ -604,6 +649,7 @@
 #	Host "localhost"
 #	Port 123
 #	ReverseLookups false
+#	IncludeUnitID true
 #</Plugin>
 
 #<Plugin nut>
@@ -782,18 +828,19 @@
 
 #<Plugin rrdcached>
 #	DaemonAddress "unix:/tmp/rrdcached.sock"
-#	DataDir "@prefix@/var/lib/@PACKAGE_NAME@/rrd"
+#	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/rrd"
 #	CreateFiles true
 #	CollectStatistics true
 #</Plugin>
 
 #<Plugin rrdtool>
-#	DataDir "@prefix@/var/lib/@PACKAGE_NAME@/rrd"
+#	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/rrd"
 #	CacheTimeout 120
 #	CacheFlush   900
 #</Plugin>
 
 #<Plugin sensors>
+#	SensorConfigFile "/etc/sensors.conf"
 #	Sensor "it8712-isa-0290/temperature-temp1"
 #	Sensor "it8712-isa-0290/fanspeed-fan3"
 #	Sensor "it8712-isa-0290/voltage-in8"
@@ -844,6 +891,7 @@
 
 #<Plugin "swap">
 #	ReportByDevice false
+#	ReportBytes true
 #</Plugin>
 
 #<Plugin "table">
@@ -948,6 +996,18 @@
 #	Verbose false
 #</Plugin>
 
+#<Plugin write_graphite>
+#  <Carbon>
+#    Host "localhost"
+#    Port "2003"
+#    Prefix "collectd"
+#    Postfix "collectd"
+#    StoreRates false
+#    AlwaysAppendDS false
+#    EscapeCharacter "_"
+#  </Carbon>
+#</Plugin>
+
 #<Plugin write_http>
 #	<URL "http://example.com/collectd-post">
 #		User "collectd"
@@ -965,6 +1025,15 @@
 #		Host "localhost"
 #		Port "6379"
 #		Timeout 1000
+#	</Node>
+#</Plugin>
+
+#<Plugin write_mongodb>
+#	<Node "example">
+#		Host "localhost"
+#		Port "27017"
+#		Timeout 1000
+#		StoreRates false
 #	</Node>
 #</Plugin>
 
@@ -988,6 +1057,7 @@
 #@BUILD_PLUGIN_TARGET_REPLACE_TRUE@LoadPlugin target_replace
 #@BUILD_PLUGIN_TARGET_SCALE_TRUE@LoadPlugin target_scale
 #@BUILD_PLUGIN_TARGET_SET_TRUE@LoadPlugin target_set
+#@BUILD_PLUGIN_TARGET_V5UPGRADE_TRUE@LoadPlugin target_v5upgrade
 
 #----------------------------------------------------------------------------#
 # The following block demonstrates the default behavior if no filtering is   #

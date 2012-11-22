@@ -154,6 +154,13 @@ This applies to missing values, too: If set to B<true> a notification about a
 missing value is generated once every B<Interval> seconds. If set to B<false>
 only one such notification is generated until the value appears again.
 
+=item B<PersistOK> B<true>|B<false>
+
+Sets how OKAY notifications act. If set to B<true> one notification will be
+generated for each value that is in the acceptable range. If set to B<false>
+(the default) then a notification is only generated if a value is in range but
+the previous value was not.
+
 =item B<Percentage> B<true>|B<false>
 
 If set to B<true>, the minimum and maximum values given are interpreted as

@@ -1,7 +1,4 @@
 SUBDIRS = libcollectdclient
-if BUILD_WITH_OWN_LIBIPTC
-SUBDIRS += owniptc
-endif
 if BUILD_WITH_OWN_LIBOCONFIG
 SUBDIRS += liboconfig
 endif
@@ -21,7 +18,7 @@ AM_CPPFLAGS += -DPLUGINDIR='"${pkglibdir}"'
 AM_CPPFLAGS += -DPKGDATADIR='"${pkgdatadir}"'
 
 sbin_PROGRAMS = collectd collectdmon
-bin_PROGRAMS = collectd-nagios collectdctl
+bin_PROGRAMS = collectd-nagios collectdctl collectd-tg
 
 collectd_SOURCES = collectd.c collectd.h \
 		   common.c common.h \
@@ -46,7 +43,7 @@ collectd_SOURCES = collectd.c collectd.h \
 collectd_CPPFLAGS =  $(AM_CPPFLAGS) $(LTDLINCL)
 collectd_CFLAGS = $(AM_CFLAGS)
 collectd_LDFLAGS = -export-dynamic
-collectd_LDADD =
+collectd_LDADD = -lm
 collectd_DEPENDENCIES =
 
 # Link to these libraries..
@@ -73,7 +70,6 @@ collectd_LDADD += -ldevinfo
 endif
 if BUILD_AIX
 collectd_LDFLAGS += -Wl,-bexpall,-brtllib
-collectd_LDADD += -lm
 endif
 
 # The daemon needs to call sg_init, so we need to link it against libstatgrab,
@@ -85,7 +81,7 @@ endif
 
 if BUILD_WITH_OWN_LIBOCONFIG
 collectd_LDADD += $(LIBLTDL) liboconfig/liboconfig.la
-collectd_DEPENDENCIES += $(LIBLTDL) liboconfig/liboconfig.la
+collectd_DEPENDENCIES += liboconfig/liboconfig.la
 else
 collectd_LDADD += -loconfig
 endif
@@ -114,16 +110,39 @@ endif
 collectdctl_LDADD += libcollectdclient/libcollectdclient.la
 collectdctl_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 
+collectd_tg_SOURCES = collectd-tg.c \
+		      utils_heap.c utils_heap.h
+collectd_tg_LDADD =
+if BUILD_WITH_LIBSOCKET
+collectd_tg_LDADD += -lsocket
+endif
+if BUILD_AIX
+collectd_tg_LDADD += -lm
+endif
+collectd_tg_LDADD += libcollectdclient/libcollectdclient.la
+collectd_tg_DEPENDENCIES = libcollectdclient/libcollectdclient.la
+
 
 pkglib_LTLIBRARIES = 
 
 BUILT_SOURCES = 
 CLEANFILES = 
 
+if BUILD_PLUGIN_AGGREGATION
+pkglib_LTLIBRARIES += aggregation.la
+aggregation_la_SOURCES = aggregation.c \
+                         utils_vl_lookup.c utils_vl_lookup.h
+aggregation_la_LDFLAGS = -module -avoid-version
+aggregation_la_LIBADD =
+collectd_LDADD += "-dlopen" aggregation.la
+collectd_DEPENDENCIES += aggregation.la
+endif
+
 if BUILD_PLUGIN_AMQP
 pkglib_LTLIBRARIES += amqp.la
 amqp_la_SOURCES = amqp.c \
 		  utils_cmd_putval.c utils_cmd_putval.h \
+		  utils_format_graphite.c utils_format_graphite.h \
 		  utils_format_json.c utils_format_json.h
 amqp_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBRABBITMQ_LDFLAGS)
 amqp_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBRABBITMQ_CPPFLAGS)
@@ -213,6 +232,10 @@ if BUILD_PLUGIN_CONTEXTSWITCH
 pkglib_LTLIBRARIES += contextswitch.la
 contextswitch_la_SOURCES = contextswitch.c
 contextswitch_la_LDFLAGS = -module -avoid-version
+contextswitch_la_LIBADD =
+if BUILD_WITH_PERFSTAT
+contextswitch_la_LIBADD += -lperfstat
+endif
 collectd_LDADD += "-dlopen" contextswitch.la
 collectd_DEPENDENCIES += contextswitch.la
 endif
@@ -378,6 +401,14 @@ collectd_LDADD += "-dlopen" exec.la
 collectd_DEPENDENCIES += exec.la
 endif
 
+if BUILD_PLUGIN_ETHSTAT
+pkglib_LTLIBRARIES += ethstat.la
+ethstat_la_SOURCES = ethstat.c
+ethstat_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" ethstat.la
+collectd_DEPENDENCIES += ethstat.la
+endif
+
 if BUILD_PLUGIN_FILECOUNT
 pkglib_LTLIBRARIES += filecount.la
 filecount_la_SOURCES = filecount.c
@@ -437,12 +468,7 @@ pkglib_LTLIBRARIES += iptables.la
 iptables_la_SOURCES = iptables.c
 iptables_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBIPTC_CPPFLAGS)
 iptables_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBIPTC_LDFLAGS)
-if BUILD_WITH_OWN_LIBIPTC
-iptables_la_LIBADD  = owniptc/libiptc.la
-iptables_la_DEPENDENCIES = owniptc/libiptc.la
-else
 iptables_la_LIBADD = -liptc
-endif
 collectd_LDADD += "-dlopen" iptables.la
 collectd_DEPENDENCIES += iptables.la
 endif
@@ -460,7 +486,9 @@ endif
 if BUILD_PLUGIN_IPVS
 pkglib_LTLIBRARIES += ipvs.la
 ipvs_la_SOURCES = ipvs.c
+if IP_VS_H_NEEDS_KERNEL_CFLAGS
 ipvs_la_CFLAGS = $(AM_CFLAGS) $(KERNEL_CFLAGS)
+endif
 ipvs_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" ipvs.la
 collectd_DEPENDENCIES += ipvs.la
@@ -588,6 +616,14 @@ mbmon_la_LIBADD += -lsocket
 endif
 collectd_LDADD += "-dlopen" mbmon.la
 collectd_DEPENDENCIES += mbmon.la
+endif
+
+if BUILD_PLUGIN_MD
+pkglib_LTLIBRARIES += md.la
+md_la_SOURCES = md.c
+md_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" md.la
+collectd_DEPENDENCIES += md.la
 endif
 
 if BUILD_PLUGIN_MEMCACHEC
@@ -767,6 +803,14 @@ collectd_LDADD += "-dlopen" ntpd.la
 collectd_DEPENDENCIES += ntpd.la
 endif
 
+if BUILD_PLUGIN_NUMA
+pkglib_LTLIBRARIES += numa.la
+numa_la_SOURCES = numa.c
+numa_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" numa.la
+collectd_DEPENDENCIES += numa.la
+endif
+
 if BUILD_PLUGIN_NUT
 pkglib_LTLIBRARIES += nut.la
 nut_la_SOURCES = nut.c
@@ -839,6 +883,14 @@ perl_la_LDFLAGS = -module -avoid-version \
 		$(PERL_LDFLAGS)
 collectd_LDADD += "-dlopen" perl.la
 collectd_DEPENDENCIES += perl.la
+endif
+
+if BUILD_PLUGIN_PF
+pkglib_LTLIBRARIES += pf.la
+pf_la_SOURCES = pf.c
+pf_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" pf.la
+collectd_DEPENDENCIES += pf.la
 endif
 
 if BUILD_PLUGIN_PINBA
@@ -1171,6 +1223,9 @@ uptime_la_LIBADD =
 if BUILD_WITH_LIBKSTAT
 uptime_la_LIBADD += -lkstat
 endif
+if BUILD_WITH_PERFSTAT
+uptime_la_LIBADD += -lperfstat
+endif
 collectd_LDADD += "-dlopen" uptime.la
 collectd_DEPENDENCIES += uptime.la
 endif
@@ -1233,6 +1288,16 @@ collectd_LDADD += "-dlopen" wireless.la
 collectd_DEPENDENCIES += wireless.la
 endif
 
+if BUILD_PLUGIN_WRITE_GRAPHITE
+pkglib_LTLIBRARIES += write_graphite.la
+write_graphite_la_SOURCES = write_graphite.c \
+                        utils_format_graphite.c utils_format_graphite.h \
+                        utils_format_json.c utils_format_json.h
+write_graphite_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" write_graphite.la
+collectd_DEPENDENCIES += write_graphite.la
+endif
+
 if BUILD_PLUGIN_WRITE_HTTP
 pkglib_LTLIBRARIES += write_http.la
 write_http_la_SOURCES = write_http.c \
@@ -1246,6 +1311,16 @@ write_http_la_CFLAGS += $(BUILD_WITH_LIBCURL_CFLAGS)
 write_http_la_LIBADD += $(BUILD_WITH_LIBCURL_LIBS)
 endif
 collectd_DEPENDENCIES += write_http.la
+endif
+
+if BUILD_PLUGIN_WRITE_MONGODB
+pkglib_LTLIBRARIES += write_mongodb.la
+write_mongodb_la_SOURCES = write_mongodb.c
+write_mongodb_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBMONGOC_CPPFLAGS)
+write_mongodb_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBMONGOC_LDFLAGS)
+write_mongodb_la_LIBADD = -lmongoc
+collectd_LDADD += "-dlopen" write_mongodb.la
+collectd_DEPENDENCIES += write_mongodb.la
 endif
 
 if BUILD_PLUGIN_WRITE_REDIS
@@ -1277,6 +1352,8 @@ zfs_arc_la_LIBADD = -lkstat
 collectd_LDADD += "-dlopen" zfs_arc.la
 collectd_DEPENDENCIES += zfs_arc.la
 endif
+
+BUILT_SOURCES += $(dist_man_MANS)
 
 dist_man_MANS = collectd.1 \
 		collectd.conf.5 \
@@ -1330,7 +1407,7 @@ EXTRA_DIST +=   collectd.conf.pod \
 	fi
 
 pinba.pb-c.c pinba.pb-c.h: pinba.proto
-	protoc-c --c_out $(builddir) pinba.proto
+	protoc-c --c_out . pinba.proto
 
 install-exec-hook:
 	$(mkinstalldirs) $(DESTDIR)$(sysconfdir)
@@ -1344,3 +1421,21 @@ install-exec-hook:
 	$(INSTALL) -m 0644 $(srcdir)/types.db $(DESTDIR)$(pkgdatadir)/types.db;
 	$(INSTALL) -m 0644 $(srcdir)/postgresql_default.conf \
 		$(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
+
+uninstall-hook:
+	rm -f $(DESTDIR)$(pkgdatadir)/types.db;
+	rm -f $(DESTDIR)$(sysconfdir)/collectd.conf
+	rm -f $(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
+
+if BUILD_FEATURE_DEBUG
+bin_PROGRAMS += utils_vl_lookup_test
+utils_vl_lookup_test_SOURCES = utils_vl_lookup_test.c \
+                               utils_vl_lookup.h utils_vl_lookup.c \
+                               utils_avltree.c utils_avltree.h \
+                               common.h
+
+utils_vl_lookup_test_CPPFLAGS =  $(AM_CPPFLAGS) $(LTDLINCL) -DBUILD_TEST=1
+utils_vl_lookup_test_CFLAGS = $(AM_CFLAGS)
+utils_vl_lookup_test_LDFLAGS = -export-dynamic
+utils_vl_lookup_test_LDADD =
+endif

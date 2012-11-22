@@ -1,7 +1,7 @@
 /**
  * collectd - src/curl_json.c
  * Copyright (C) 2009       Doug MacEachern
- * Copyright (C) 2006-2010  Florian octo Forster
+ * Copyright (C) 2006-2011  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -18,7 +18,7 @@
  *
  * Authors:
  *   Doug MacEachern <dougm at hyperic.com>
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
@@ -26,9 +26,17 @@
 #include "plugin.h"
 #include "configfile.h"
 #include "utils_avltree.h"
+#include "utils_complain.h"
 
 #include <curl/curl.h>
 #include <yajl/yajl_parse.h>
+#if HAVE_YAJL_YAJL_VERSION_H
+# include <yajl/yajl_version.h>
+#endif
+
+#if defined(YAJL_MAJOR) && (YAJL_MAJOR > 1)
+# define HAVE_YAJL_V2 1
+#endif
 
 #define CJ_DEFAULT_HOST "localhost"
 #define CJ_KEY_MAGIC 0x43484b59UL /* CHKY */
@@ -77,6 +85,12 @@ struct cj_s /* {{{ */
 };
 typedef struct cj_s cj_t; /* }}} */
 
+#if HAVE_YAJL_V2
+typedef size_t yajl_len_t;
+#else
+typedef unsigned int yajl_len_t;
+#endif
+
 static int cj_read (user_data_t *ud);
 static int cj_curl_perform (cj_t *db, CURL *curl);
 static void cj_submit (cj_t *db, cj_key_t *key, value_t *value);
@@ -97,9 +111,22 @@ static size_t cj_curl_callback (void *buf, /* {{{ */
   if (db == NULL)
     return (0);
 
-  status = yajl_parse(db->yajl, (unsigned char *)buf, len);
-  if ((status != yajl_status_ok)
-      && (status != yajl_status_insufficient_data))
+  status = yajl_parse(db->yajl, (unsigned char *) buf, len);
+  if (status == yajl_status_ok)
+  {
+#if HAVE_YAJL_V2
+    status = yajl_complete_parse(db->yajl);
+#else
+    status = yajl_parse_complete(db->yajl);
+#endif
+    return (len);
+  }
+#if !HAVE_YAJL_V2
+  else if (status == yajl_status_insufficient_data)
+    return (len);
+#endif
+
+  if (status != yajl_status_ok)
   {
     unsigned char *msg =
       yajl_get_error(db->yajl, /* verbose = */ 1,
@@ -118,9 +145,31 @@ static int cj_get_type (cj_key_t *key)
 
   ds = plugin_get_ds (key->type);
   if (ds == NULL)
-    return -1; /* let plugin_write do the complaining */
-  else
-    return ds->ds[0].type; /* XXX support ds->ds_len > 1 */
+  {
+    static char type[DATA_MAX_NAME_LEN] = "!!!invalid!!!";
+
+    assert (key->type != NULL);
+    if (strcmp (type, key->type) != 0)
+    {
+      ERROR ("curl_json plugin: Unable to look up DS type \"%s\".",
+          key->type);
+      sstrncpy (type, key->type, sizeof (type));
+    }
+
+    return -1;
+  }
+  else if (ds->ds_num > 1)
+  {
+    static c_complain_t complaint = C_COMPLAIN_INIT_STATIC;
+
+    c_complain_once (LOG_WARNING, &complaint,
+        "curl_json plugin: The type \"%s\" has more than one data source. "
+        "This is currently not supported. I will return the type of the "
+        "first data source, but this will likely lead to problems later on.",
+        key->type);
+  }
+
+  return ds->ds[0].type;
 }
 
 /* yajl callbacks */
@@ -130,7 +179,7 @@ static int cj_get_type (cj_key_t *key)
 /* "number" may not be null terminated, so copy it into a buffer before
  * parsing. */
 static int cj_cb_number (void *ctx,
-    const char *number, unsigned int number_len)
+    const char *number, yajl_len_t number_len)
 {
   char buffer[number_len + 1];
 
@@ -159,7 +208,7 @@ static int cj_cb_number (void *ctx,
 } /* int cj_cb_number */
 
 static int cj_cb_map_key (void *ctx, const unsigned char *val,
-                            unsigned int len)
+    yajl_len_t len)
 {
   cj_t *db = (cj_t *)ctx;
   c_avl_tree_t *tree;
@@ -187,7 +236,7 @@ static int cj_cb_map_key (void *ctx, const unsigned char *val,
 }
 
 static int cj_cb_string (void *ctx, const unsigned char *val,
-                           unsigned int len)
+    yajl_len_t len)
 {
   cj_t *db = (cj_t *)ctx;
   char str[len + 1];
@@ -472,6 +521,7 @@ static int cj_init_curl (cj_t *db) /* {{{ */
     return (-1);
   }
 
+  curl_easy_setopt (db->curl, CURLOPT_NOSIGNAL, 1);
   curl_easy_setopt (db->curl, CURLOPT_WRITEFUNCTION, cj_curl_callback);
   curl_easy_setopt (db->curl, CURLOPT_WRITEDATA, db);
   curl_easy_setopt (db->curl, CURLOPT_USERAGENT,
@@ -677,8 +727,13 @@ static void cj_submit (cj_t *db, cj_key_t *key, value_t *value) /* {{{ */
     host = db->host;
 
   if (key->instance == NULL)
-    ssnprintf (vl.type_instance, sizeof (vl.type_instance), "%s-%s",
-               db->state[db->depth-1].name, db->state[db->depth].name);
+  {
+    if ((db->depth == 0) || (strcmp ("", db->state[db->depth-1].name) == 0))
+      sstrncpy (vl.type_instance, db->state[db->depth].name, sizeof (vl.type_instance));
+    else
+      ssnprintf (vl.type_instance, sizeof (vl.type_instance), "%s-%s",
+          db->state[db->depth-1].name, db->state[db->depth].name);
+  }
   else
     sstrncpy (vl.type_instance, key->instance, sizeof (vl.type_instance));
 
@@ -697,7 +752,13 @@ static int cj_curl_perform (cj_t *db, CURL *curl) /* {{{ */
   char *url;
   yajl_handle yprev = db->yajl;
 
-  db->yajl = yajl_alloc (&ycallbacks, NULL, NULL, (void *)db);
+  db->yajl = yajl_alloc (&ycallbacks,
+#if HAVE_YAJL_V2
+      /* alloc funcs = */ NULL,
+#else
+      /* alloc funcs = */ NULL, NULL,
+#endif
+      /* context = */ (void *)db);
   if (db->yajl == NULL)
   {
     ERROR ("curl_json plugin: yajl_alloc failed.");
@@ -730,7 +791,11 @@ static int cj_curl_perform (cj_t *db, CURL *curl) /* {{{ */
     return (-1);
   }
 
-  status = yajl_parse_complete (db->yajl);
+#if HAVE_YAJL_V2
+    status = yajl_complete_parse(db->yajl);
+#else
+    status = yajl_parse_complete(db->yajl);
+#endif
   if (status != yajl_status_ok)
   {
     unsigned char *errmsg;

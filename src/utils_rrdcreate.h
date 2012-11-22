@@ -28,7 +28,7 @@
 
 struct rrdcreate_config_s
 {
-  int    stepsize;
+  unsigned long stepsize;
   int    heartbeat;
   int    rrarows;
   double xff;

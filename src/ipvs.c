@@ -45,7 +45,9 @@
 #endif /* HAVE_NETINET_IN_H */
 
 /* this can probably only be found in the kernel sources */
-#if HAVE_NET_IP_VS_H
+#if HAVE_LINUX_IP_VS_H
+# include <linux/ip_vs.h>
+#elif HAVE_NET_IP_VS_H
 # include <net/ip_vs.h>
 #elif HAVE_IP_VS_H
 # include <ip_vs.h>

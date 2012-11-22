@@ -102,6 +102,7 @@ void boot_DynaLoader (PerlInterpreter *, CV *);
 static XS (Collectd_plugin_register_ds);
 static XS (Collectd_plugin_unregister_ds);
 static XS (Collectd_plugin_dispatch_values);
+static XS (Collectd_plugin_get_interval);
 static XS (Collectd__plugin_write);
 static XS (Collectd__plugin_flush);
 static XS (Collectd_plugin_dispatch_notification);
@@ -177,6 +178,7 @@ static struct {
 	{ "Collectd::plugin_register_data_set",   Collectd_plugin_register_ds },
 	{ "Collectd::plugin_unregister_data_set", Collectd_plugin_unregister_ds },
 	{ "Collectd::plugin_dispatch_values",     Collectd_plugin_dispatch_values },
+	{ "Collectd::plugin_get_interval",        Collectd_plugin_get_interval },
 	{ "Collectd::_plugin_write",              Collectd__plugin_write },
 	{ "Collectd::_plugin_flush",              Collectd__plugin_flush },
 	{ "Collectd::plugin_dispatch_notification",
@@ -1659,6 +1661,21 @@ static XS (Collectd_plugin_dispatch_values)
 		XSRETURN_EMPTY;
 } /* static XS (Collectd_plugin_dispatch_values) */
 
+/*
+ * Collectd::plugin_get_interval ().
+ */
+static XS (Collectd_plugin_get_interval)
+{
+	dXSARGS;
+
+	/* make sure we don't get any unused variable warnings for 'items';
+	 * don't abort, though */
+	if (items)
+		log_err ("Usage: Collectd::plugin_get_interval()");
+
+	XSRETURN_NV ((NV) CDTIME_T_TO_DOUBLE (plugin_get_interval ()));
+} /* static XS (Collectd_plugin_get_interval) */
+
 /* Collectd::plugin_write (plugin, ds, vl).
  *
  * plugin:
@@ -1929,6 +1946,11 @@ static int perl_read (void)
 		aTHX = t->interp;
 	}
 
+	/* Assert that we're not running as the base thread. Otherwise, we might
+	 * run into concurrency issues with c_ithread_create(). See
+	 * https://github.com/collectd/collectd/issues/9 for details. */
+	assert (aTHX != perl_threads->head->interp);
+
 	log_debug ("perl_read: c_ithread: interp = %p (active threads: %i)",
 			aTHX, perl_threads->number_of_threads);
 	return pplugin_call_all (aTHX_ PLUGIN_READ);
@@ -1937,6 +1959,7 @@ static int perl_read (void)
 static int perl_write (const data_set_t *ds, const value_list_t *vl,
 		user_data_t __attribute__((unused)) *user_data)
 {
+	int status;
 	dTHX;
 
 	if (NULL == perl_threads)
@@ -1952,9 +1975,20 @@ static int perl_write (const data_set_t *ds, const value_list_t *vl,
 		aTHX = t->interp;
 	}
 
+	/* Lock the base thread if this is not called from one of the read threads
+	 * to avoid race conditions with c_ithread_create(). See
+	 * https://github.com/collectd/collectd/issues/9 for details. */
+	if (aTHX == perl_threads->head->interp)
+		pthread_mutex_lock (&perl_threads->mutex);
+
 	log_debug ("perl_write: c_ithread: interp = %p (active threads: %i)",
 			aTHX, perl_threads->number_of_threads);
-	return pplugin_call_all (aTHX_ PLUGIN_WRITE, ds, vl);
+	status = pplugin_call_all (aTHX_ PLUGIN_WRITE, ds, vl);
+
+	if (aTHX == perl_threads->head->interp)
+		pthread_mutex_unlock (&perl_threads->mutex);
+
+	return status;
 } /* static int perl_write (const data_set_t *, const value_list_t *) */
 
 static void perl_log (int level, const char *msg,
@@ -1975,7 +2009,17 @@ static void perl_log (int level, const char *msg,
 		aTHX = t->interp;
 	}
 
+	/* Lock the base thread if this is not called from one of the read threads
+	 * to avoid race conditions with c_ithread_create(). See
+	 * https://github.com/collectd/collectd/issues/9 for details. */
+	if (aTHX == perl_threads->head->interp)
+		pthread_mutex_lock (&perl_threads->mutex);
+
 	pplugin_call_all (aTHX_ PLUGIN_LOG, level, msg);
+
+	if (aTHX == perl_threads->head->interp)
+		pthread_mutex_unlock (&perl_threads->mutex);
+
 	return;
 } /* static void perl_log (int, const char *) */
 
@@ -2103,23 +2147,20 @@ static int g_pv_set (pTHX_ SV *var, MAGIC *mg)
 
 static int g_interval_get (pTHX_ SV *var, MAGIC *mg)
 {
-	cdtime_t *interval = (cdtime_t *)mg->mg_ptr;
-	double nv;
-
-	nv = CDTIME_T_TO_DOUBLE (*interval);
-
-	sv_setnv (var, nv);
+	log_warn ("Accessing $interval_g is deprecated (and might not "
+			"give the desired results) - plugin_get_interval() should "
+			"be used instead.");
+	sv_setnv (var, CDTIME_T_TO_DOUBLE (interval_g));
 	return 0;
 } /* static int g_interval_get (pTHX_ SV *, MAGIC *) */
 
 static int g_interval_set (pTHX_ SV *var, MAGIC *mg)
 {
-	cdtime_t *interval = (cdtime_t *)mg->mg_ptr;
-	double nv;
-
-	nv = (double)SvNV (var);
-
-	*interval = DOUBLE_TO_CDTIME_T (nv);
+	double nv = (double)SvNV (var);
+	log_warn ("Accessing $interval_g is deprecated (and might not "
+			"give the desired results) - plugin_get_interval() should "
+			"be used instead.");
+	interval_g = DOUBLE_TO_CDTIME_T (nv);
 	return 0;
 } /* static int g_interval_set (pTHX_ SV *, MAGIC *) */
 
@@ -2175,7 +2216,7 @@ static void xs_init (pTHX)
 	tmp = get_sv ("Collectd::interval_g", /* create = */ 1);
 	sv_magicext (tmp, NULL, /* how = */ PERL_MAGIC_ext,
 			/* vtbl = */ &g_interval_vtbl,
-			/* name = */ (char *) &interval_g, /* namelen = */ 0);
+			/* name = */ NULL, /* namelen = */ 0);
 
 	return;
 } /* static void xs_init (pTHX) */

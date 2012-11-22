@@ -33,12 +33,14 @@
 #  include <sys/statvfs.h>
 # endif
 # define STATANYFS statvfs
+# define STATANYFS_STR "statvfs"
 # define BLOCKSIZE(s) ((s).f_frsize ? (s).f_frsize : (s).f_bsize)
 #elif HAVE_STATFS
 # if HAVE_SYS_STATFS_H
 #  include <sys/statfs.h>
 # endif
 # define STATANYFS statfs
+# define STATANYFS_STR "statfs"
 # define BLOCKSIZE(s) (s).f_bsize
 #else
 # error "No applicable input method."
@@ -198,7 +200,8 @@ static int df_read (void)
 		if (STATANYFS (mnt_ptr->dir, &statbuf) < 0)
 		{
 			char errbuf[1024];
-			ERROR ("statv?fs failed: %s",
+			ERROR (STATANYFS_STR"(%s) failed: %s",
+					mnt_ptr->dir,
 					sstrerror (errno, errbuf,
 						sizeof (errbuf)));
 			continue;
@@ -225,6 +228,8 @@ static int df_read (void)
 		{
 			if (strcmp (mnt_ptr->dir, "/") == 0)
 			{
+				if (strcmp (mnt_ptr->type, "rootfs") == 0)
+					continue;
 				sstrncpy (disk_name, "root", sizeof (disk_name));
 			}
 			else
@@ -242,7 +247,24 @@ static int df_read (void)
 
 		blocksize = BLOCKSIZE(statbuf);
 
-		/* Sanity-check for the values in the struct */
+		/*
+		 * Sanity-check for the values in the struct
+		 */
+		/* Check for negative "available" byes. For example UFS can
+		 * report negative free space for user. Notice. blk_reserved
+		 * will start to diminish after this. */
+#if HAVE_STATVFS
+		/* Cast and temporary variable are needed to avoid
+		 * compiler warnings.
+		 * ((struct statvfs).f_bavail is unsigned (POSIX)) */
+		int64_t signed_bavail = (int64_t) statbuf.f_bavail;
+		if (signed_bavail < 0)
+			statbuf.f_bavail = 0;
+#elif HAVE_STATFS
+		if (statbuf.f_bavail < 0)
+			statbuf.f_bavail = 0;
+#endif
+		/* Make sure that f_blocks >= f_bfree >= f_bavail */
 		if (statbuf.f_bfree < statbuf.f_bavail)
 			statbuf.f_bfree = statbuf.f_bavail;
 		if (statbuf.f_blocks < statbuf.f_bfree)

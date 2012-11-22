@@ -1,22 +1,27 @@
 /**
  * libcollectdclient - src/libcollectdclient/client.c
- * Copyright (C) 2008  Florian octo Forster
+ * Copyright (C) 2008-2012  Florian octo Forster
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; only version 2 of the License is applicable.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #if HAVE_CONFIG_H
@@ -27,7 +32,7 @@
 # define __attribute__(x) /**/
 #endif
 
-#include "lcc_features.h"
+#include "collectd/lcc_features.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -41,7 +46,7 @@
 #include <math.h>
 #include <netdb.h>
 
-#include "client.h"
+#include "collectd/client.h"
 
 /* NI_MAXHOST has been obsoleted by RFC 3493 which is a reason for SunOS 5.11
  * to no longer define it. We'll use the old, RFC 2553 value here. */
@@ -733,6 +738,8 @@ int lcc_getval (lcc_connection_t *c, lcc_identifier_t *ident, /* {{{ */
   if (ret_values_names != NULL)
     *ret_values_names = values_names;
 
+  lcc_response_free (&res);
+
   return (0);
 } /* }}} int lcc_getval */
 
@@ -760,11 +767,11 @@ int lcc_putval (lcc_connection_t *c, const lcc_value_list_t *vl) /* {{{ */
   SSTRCATF (command, "PUTVAL %s",
       lcc_strescape (ident_esc, ident_str, sizeof (ident_esc)));
 
-  if (vl->interval > 0)
-    SSTRCATF (command, " interval=%i", vl->interval);
+  if (vl->interval > 0.0)
+    SSTRCATF (command, " interval=%.3f", vl->interval);
 
-  if (vl->time > 0)
-    SSTRCATF (command, " %u", (unsigned int) vl->time);
+  if (vl->time > 0.0)
+    SSTRCATF (command, " %.3f", vl->time);
   else
     SSTRCAT (command, " N");
 
@@ -1094,5 +1101,48 @@ int lcc_string_to_identifier (lcc_connection_t *c, /* {{{ */
   free (string_copy);
   return (0);
 } /* }}} int lcc_string_to_identifier */
+
+int lcc_identifier_compare (const lcc_identifier_t *i0, /* {{{ */
+    const lcc_identifier_t *i1)
+{
+  int status;
+
+  if ((i0 == NULL) && (i1 == NULL))
+    return (0);
+  else if (i0 == NULL)
+    return (-1);
+  else if (i1 == NULL)
+    return (1);
+
+#define CMP_FIELD(f) do {         \
+  status = strcmp (i0->f, i1->f); \
+  if (status != 0)                \
+    return (status);              \
+} while (0);
+
+    CMP_FIELD (host);
+    CMP_FIELD (plugin);
+    CMP_FIELD (plugin_instance);
+    CMP_FIELD (type);
+    CMP_FIELD (type_instance);
+
+#undef CMP_FIELD
+
+    return (0);
+} /* }}} int lcc_identifier_compare */
+
+int lcc_sort_identifiers (lcc_connection_t *c, /* {{{ */
+    lcc_identifier_t *idents, size_t idents_num)
+{
+  if (idents == NULL)
+  {
+    lcc_set_errno (c, EINVAL);
+    return (-1);
+  }
+
+  qsort (idents, idents_num, sizeof (*idents),
+      (void *) lcc_identifier_compare);
+  return (0);
+} /* }}} int lcc_sort_identifiers */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */

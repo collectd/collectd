@@ -543,11 +543,12 @@ int check_create_dir (const char *file_orig)
 		}
 
 		while (42) {
-			if (stat (dir, &statbuf) == -1)
+			if ((stat (dir, &statbuf) == -1)
+					&& (lstat (dir, &statbuf) == -1))
 			{
 				if (errno == ENOENT)
 				{
-					if (mkdir (dir, 0755) == 0)
+					if (mkdir (dir, S_IRWXU | S_IRWXG | S_IRWXO) == 0)
 						break;
 
 					/* this might happen, if a different thread created
@@ -635,24 +636,23 @@ long long get_kstat_value (kstat_t *ksp, char *name)
 	kstat_named_t *kn;
 	long long retval = -1LL;
 
-#ifdef assert
-	assert (ksp != NULL);
-	assert (ksp->ks_type == KSTAT_TYPE_NAMED);
-#else
 	if (ksp == NULL)
 	{
-		ERROR ("ERROR: %s:%i: ksp == NULL\n", __FILE__, __LINE__);
+		ERROR ("get_kstat_value (\"%s\"): ksp is NULL.", name);
 		return (-1LL);
 	}
 	else if (ksp->ks_type != KSTAT_TYPE_NAMED)
 	{
-		ERROR ("ERROR: %s:%i: ksp->ks_type != KSTAT_TYPE_NAMED\n", __FILE__, __LINE__);
+		ERROR ("get_kstat_value (\"%s\"): ksp->ks_type (%#x) "
+				"is not KSTAT_TYPE_NAMED (%#x).",
+				name,
+				(unsigned int) ksp->ks_type,
+				(unsigned int) KSTAT_TYPE_NAMED);
 		return (-1LL);
 	}
-#endif
 
 	if ((kn = (kstat_named_t *) kstat_data_lookup (ksp, name)) == NULL)
-		return (retval);
+		return (-1LL);
 
 	if (kn->data_type == KSTAT_DATA_INT32)
 		retval = (long long) kn->value.i32;
@@ -952,9 +952,25 @@ int parse_identifier_vl (const char *str, value_list_t *vl) /* {{{ */
 	return (0);
 } /* }}} int parse_identifier_vl */
 
-int parse_value (const char *value, value_t *ret_value, int ds_type)
+int parse_value (const char *value_orig, value_t *ret_value, int ds_type)
 {
+  char *value;
   char *endptr = NULL;
+  size_t value_len;
+
+  if (value_orig == NULL)
+    return (EINVAL);
+
+  value = strdup (value_orig);
+  if (value == NULL)
+    return (ENOMEM);
+  value_len = strlen (value);
+
+  while ((value_len > 0) && isspace ((int) value[value_len - 1]))
+  {
+    value[value_len - 1] = 0;
+    value_len--;
+  }
 
   switch (ds_type)
   {
@@ -975,17 +991,23 @@ int parse_value (const char *value, value_t *ret_value, int ds_type)
       break;
 
     default:
+      sfree (value);
       ERROR ("parse_value: Invalid data source type: %i.", ds_type);
       return -1;
   }
 
   if (value == endptr) {
-    ERROR ("parse_value: Failed to parse string as number: %s.", value);
+    sfree (value);
+    ERROR ("parse_value: Failed to parse string as %s: %s.",
+        DS_TYPE_TO_STRING (ds_type), value);
     return -1;
   }
   else if ((NULL != endptr) && ('\0' != *endptr))
-    WARNING ("parse_value: Ignoring trailing garbage after number: %s.",
-        endptr);
+    INFO ("parse_value: Ignoring trailing garbage \"%s\" after %s value. "
+        "Input string was \"%s\".",
+        endptr, DS_TYPE_TO_STRING (ds_type), value_orig);
+
+  sfree (value);
   return 0;
 } /* int parse_value */
 
@@ -1207,7 +1229,102 @@ counter_t counter_diff (counter_t old_value, counter_t new_value)
 	}
 
 	return (diff);
-} /* counter_t counter_to_gauge */
+} /* counter_t counter_diff */
+
+int rate_to_value (value_t *ret_value, gauge_t rate, /* {{{ */
+		rate_to_value_state_t *state,
+		int ds_type, cdtime_t t)
+{
+	gauge_t delta_gauge;
+	cdtime_t delta_t;
+
+	if (ds_type == DS_TYPE_GAUGE)
+	{
+		state->last_value.gauge = rate;
+		state->last_time = t;
+
+		*ret_value = state->last_value;
+		return (0);
+	}
+
+	/* Counter and absolute can't handle negative rates. Reset "last time"
+	 * to zero, so that the next valid rate will re-initialize the
+	 * structure. */
+	if ((rate < 0.0)
+			&& ((ds_type == DS_TYPE_COUNTER)
+				|| (ds_type == DS_TYPE_ABSOLUTE)))
+	{
+		memset (state, 0, sizeof (*state));
+		return (EINVAL);
+	}
+
+	/* Another invalid state: The time is not increasing. */
+	if (t <= state->last_time)
+	{
+		memset (state, 0, sizeof (*state));
+		return (EINVAL);
+	}
+
+	delta_t = t - state->last_time;
+	delta_gauge = (rate * CDTIME_T_TO_DOUBLE (delta_t)) + state->residual;
+
+	/* Previous value is invalid. */
+	if (state->last_time == 0) /* {{{ */
+	{
+		if (ds_type == DS_TYPE_DERIVE)
+		{
+			state->last_value.derive = (derive_t) rate;
+			state->residual = rate - ((gauge_t) state->last_value.derive);
+		}
+		else if (ds_type == DS_TYPE_COUNTER)
+		{
+			state->last_value.counter = (counter_t) rate;
+			state->residual = rate - ((gauge_t) state->last_value.counter);
+		}
+		else if (ds_type == DS_TYPE_ABSOLUTE)
+		{
+			state->last_value.absolute = (absolute_t) rate;
+			state->residual = rate - ((gauge_t) state->last_value.absolute);
+		}
+		else
+		{
+			assert (23 == 42);
+		}
+
+		state->last_time = t;
+		return (EAGAIN);
+	} /* }}} */
+
+	if (ds_type == DS_TYPE_DERIVE)
+	{
+		derive_t delta_derive = (derive_t) delta_gauge;
+
+		state->last_value.derive += delta_derive;
+		state->residual = delta_gauge - ((gauge_t) delta_derive);
+	}
+	else if (ds_type == DS_TYPE_COUNTER)
+	{
+		counter_t delta_counter = (counter_t) delta_gauge;
+
+		state->last_value.counter += delta_counter;
+		state->residual = delta_gauge - ((gauge_t) delta_counter);
+	}
+	else if (ds_type == DS_TYPE_ABSOLUTE)
+	{
+		absolute_t delta_absolute = (absolute_t) delta_gauge;
+
+		state->last_value.absolute = delta_absolute;
+		state->residual = delta_gauge - ((gauge_t) delta_absolute);
+	}
+	else
+	{
+		assert (23 == 42);
+	}
+
+        state->last_time = t;
+	*ret_value = state->last_value;
+	return (0);
+} /* }}} value_t rate_to_value */
 
 int service_name_to_port_number (const char *service_name)
 {

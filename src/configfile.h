@@ -87,6 +87,8 @@ int cf_read (char *filename);
 int global_option_set (const char *option, const char *value);
 const char *global_option_get (const char *option);
 
+cdtime_t cf_get_default_interval (void);
+
 /* Assures the config option is a string, duplicates it and returns the copy in
  * "ret_string". If necessary "*ret_string" is freed first. Returns zero upon
  * success. */
@@ -99,6 +101,9 @@ int cf_util_get_string_buffer (const oconfig_item_t *ci, char *buffer,
 
 /* Assures the config option is a number and returns it as an int. */
 int cf_util_get_int (const oconfig_item_t *ci, int *ret_value);
+
+/* Assures the config option is a number and returns it as a double. */
+int cf_util_get_double (const oconfig_item_t *ci, double *ret_value);
 
 /* Assures the config option is a boolean and assignes it to `ret_bool'.
  * Otherwise, `ret_bool' is not changed and non-zero is returned. */
@@ -115,6 +120,12 @@ int cf_util_get_flag (const oconfig_item_t *ci,
  * Returns the port number in the range [1-65535] or less than zero upon
  * failure. */
 int cf_util_get_port_number (const oconfig_item_t *ci);
+
+/* Assures that the config option is either a service name (a string) or a port
+ * number (an integer in the appropriate range) and returns a newly allocated
+ * string. If ret_string points to a non-NULL pointer, it is freed before
+ * assigning a new value. */
+int cf_util_get_service (const oconfig_item_t *ci, char **ret_string);
 
 int cf_util_get_cdtime (const oconfig_item_t *ci, cdtime_t *ret_value);
 

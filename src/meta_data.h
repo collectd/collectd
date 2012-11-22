@@ -1,6 +1,6 @@
 /**
  * collectd - src/meta_data.h
- * Copyright (C) 2008,2009  Florian octo Forster
+ * Copyright (C) 2008-2011  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -37,6 +37,7 @@ struct meta_data_s;
 typedef struct meta_data_s meta_data_t;
 
 meta_data_t *meta_data_create (void);
+meta_data_t *meta_data_clone (meta_data_t *orig);
 void meta_data_destroy (meta_data_t *md);
 
 int meta_data_exists (meta_data_t *md, const char *key);

@@ -192,9 +192,9 @@ static int mysql_config_database (oconfig_item_t *ci) /* {{{ */
 		ud.data = (void *) db;
 		ud.free_func = mysql_database_free;
 
-		if (db->database != NULL)
+		if (db->instance != NULL)
 			ssnprintf (cb_name, sizeof (cb_name), "mysql-%s",
-					db->database);
+					db->instance);
 		else
 			sstrncpy (cb_name, "mysql", sizeof (cb_name));
 
@@ -555,7 +555,6 @@ static int mysql_read (user_data_t *ud)
 	MYSQL_RES *res;
 	MYSQL_ROW  row;
 	char      *query;
-	int        field_num;
 
 	derive_t qcache_hits          = 0;
 	derive_t qcache_inserts       = 0;
@@ -591,7 +590,6 @@ static int mysql_read (user_data_t *ud)
 	if (res == NULL)
 		return (-1);
 
-	field_num = mysql_num_fields (res);
 	while ((row = mysql_fetch_row (res)))
 	{
 		char *key;

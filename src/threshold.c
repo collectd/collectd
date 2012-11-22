@@ -39,6 +39,7 @@
 #define UT_FLAG_PERSIST 0x02
 #define UT_FLAG_PERCENTAGE 0x04
 #define UT_FLAG_INTERESTING 0x08
+#define UT_FLAG_PERSIST_OK 0x10
 typedef struct threshold_s
 {
   char host[DATA_MAX_NAME_LEN];
@@ -378,6 +379,8 @@ static int ut_config_type (const threshold_t *th_orig, oconfig_item_t *ci)
       status = cf_util_get_flag (option, &th.flags, UT_FLAG_INVERT);
     else if (strcasecmp ("Persist", option->key) == 0)
       status = cf_util_get_flag (option, &th.flags, UT_FLAG_PERSIST);
+    else if (strcasecmp ("PersistOK", option->key) == 0)
+      status = cf_util_get_flag (option, &th.flags, UT_FLAG_PERSIST_OK);
     else if (strcasecmp ("Percentage", option->key) == 0)
       status = cf_util_get_flag (option, &th.flags, UT_FLAG_PERCENTAGE);
     else if (strcasecmp ("Hits", option->key) == 0)
@@ -512,57 +515,6 @@ static int ut_config_host (const threshold_t *th_orig, oconfig_item_t *ci)
 
   return (status);
 } /* int ut_config_host */
-
-int ut_config (oconfig_item_t *ci)
-{
-  int i;
-  int status = 0;
-
-  threshold_t th;
-
-  if (threshold_tree == NULL)
-  {
-    threshold_tree = c_avl_create ((void *) strcmp);
-    if (threshold_tree == NULL)
-    {
-      ERROR ("ut_config: c_avl_create failed.");
-      return (-1);
-    }
-  }
-
-  memset (&th, '\0', sizeof (th));
-  th.warning_min = NAN;
-  th.warning_max = NAN;
-  th.failure_min = NAN;
-  th.failure_max = NAN;
-
-  th.hits = 0;
-  th.hysteresis = 0;
-  th.flags = UT_FLAG_INTERESTING; /* interesting by default */
-    
-  for (i = 0; i < ci->children_num; i++)
-  {
-    oconfig_item_t *option = ci->children + i;
-    status = 0;
-
-    if (strcasecmp ("Type", option->key) == 0)
-      status = ut_config_type (&th, option);
-    else if (strcasecmp ("Plugin", option->key) == 0)
-      status = ut_config_plugin (&th, option);
-    else if (strcasecmp ("Host", option->key) == 0)
-      status = ut_config_host (&th, option);
-    else
-    {
-      WARNING ("threshold values: Option `%s' not allowed here.", option->key);
-      status = -1;
-    }
-
-    if (status != 0)
-      break;
-  }
-
-  return (status);
-} /* int um_config */
 /*
  * End of the functions used to configure threshold values.
  */
@@ -594,8 +546,9 @@ static int ut_report_state (const data_set_t *ds,
   if ( (th->hits != 0) )
   {
     int hits = uc_get_hits(ds,vl);
-    /* The STATE_OKAY always reset hits, or if hits reaise the limit */
-    if ( (state == STATE_OKAY) || (hits > th->hits) )
+    /* STATE_OKAY resets hits unless PERSIST_OK flag is set. Hits resets if
+     * threshold is hit. */
+    if ( ( (state == STATE_OKAY) && ((th->flags & UT_FLAG_PERSIST_OK) == 0) ) || (hits > th->hits) )
     {
         DEBUG("ut_report_state: reset uc_get_hits = 0");
         uc_set_hits(ds,vl,0); /* reset hit counter and notify */
@@ -608,13 +561,13 @@ static int ut_report_state (const data_set_t *ds,
 
   state_old = uc_get_state (ds, vl);
 
-  /* If the state didn't change, only report if `persistent' is specified and
-   * the state is not `okay'. */
+  /* If the state didn't change, report if `persistent' is specified. If the
+   * state is `okay', then only report if `persist_ok` flag is set. */
   if (state == state_old)
   {
     if ((th->flags & UT_FLAG_PERSIST) == 0)
       return (0);
-    else if (state == STATE_OKAY)
+    else if ( (state == STATE_OKAY) && ((th->flags & UT_FLAG_PERSIST_OK) == 0) )
       return (0);
   }
 
@@ -990,6 +943,10 @@ static int ut_missing (const value_list_t *vl,
   char identifier[6 * DATA_MAX_NAME_LEN];
   notification_t n;
 
+  /* dispatch notifications for "interesting" values only */
+  if (threshold_tree == NULL)
+    return (0);
+
   th = threshold_search (vl);
   if (th == NULL)
     return (0);
@@ -1007,13 +964,67 @@ static int ut_missing (const value_list_t *vl,
   return (0);
 } /* }}} int ut_missing */
 
+int ut_config (oconfig_item_t *ci)
+{ /* {{{ */
+  int i;
+  int status = 0;
+
+  threshold_t th;
+
+  if (threshold_tree == NULL)
+  {
+    threshold_tree = c_avl_create ((void *) strcmp);
+    if (threshold_tree == NULL)
+    {
+      ERROR ("ut_config: c_avl_create failed.");
+      return (-1);
+    }
+  }
+
+  memset (&th, '\0', sizeof (th));
+  th.warning_min = NAN;
+  th.warning_max = NAN;
+  th.failure_min = NAN;
+  th.failure_max = NAN;
+
+  th.hits = 0;
+  th.hysteresis = 0;
+  th.flags = UT_FLAG_INTERESTING; /* interesting by default */
+    
+  for (i = 0; i < ci->children_num; i++)
+  {
+    oconfig_item_t *option = ci->children + i;
+    status = 0;
+
+    if (strcasecmp ("Type", option->key) == 0)
+      status = ut_config_type (&th, option);
+    else if (strcasecmp ("Plugin", option->key) == 0)
+      status = ut_config_plugin (&th, option);
+    else if (strcasecmp ("Host", option->key) == 0)
+      status = ut_config_host (&th, option);
+    else
+    {
+      WARNING ("threshold values: Option `%s' not allowed here.", option->key);
+      status = -1;
+    }
+
+    if (status != 0)
+      break;
+  }
+
+  if (c_avl_size (threshold_tree) > 0) {
+    plugin_register_missing ("threshold", ut_missing,
+        /* user data = */ NULL);
+    plugin_register_write ("threshold", ut_check_threshold,
+        /* user data = */ NULL);
+  }
+
+  return (status);
+} /* }}} int um_config */
+
 void module_register (void)
 {
   plugin_register_complex_config ("threshold", ut_config);
-  plugin_register_missing ("threshold", ut_missing,
-      /* user data = */ NULL);
-  plugin_register_write ("threshold", ut_check_threshold,
-      /* user data = */ NULL);
 }
 
 /* vim: set sw=2 ts=8 sts=2 tw=78 et fdm=marker : */

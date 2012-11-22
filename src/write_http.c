@@ -111,6 +111,7 @@ static int wh_callback_init (wh_callback_t *cb) /* {{{ */
                 return (-1);
         }
 
+        curl_easy_setopt (cb->curl, CURLOPT_NOSIGNAL, 1);
         curl_easy_setopt (cb->curl, CURLOPT_USERAGENT, PACKAGE_NAME"/"PACKAGE_VERSION);
 
         headers = NULL;

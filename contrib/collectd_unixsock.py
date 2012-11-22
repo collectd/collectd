@@ -68,8 +68,9 @@ class Collectd():
         """
         numvalues = self._cmd('GETTHRESHOLD "%s"' % identifier)
         lines = []
-        if numvalues:
-            lines = self._readlines(numvalues)
+        if not numvalues or numvalues < 0:
+            raise KeyError("Identifier '%s' not found" % identifier)
+        lines = self._readlines(numvalues)
         return lines
 
     def getval(self, identifier, flush_after=True):
@@ -83,8 +84,9 @@ class Collectd():
         """
         numvalues = self._cmd('GETVAL "%s"' % identifier)
         lines = []
-        if numvalues:
-            lines = self._readlines(numvalues)
+        if not numvalues or numvalues < 0:
+            raise KeyError("Identifier '%s' not found" % identifier)
+        lines = self._readlines(numvalues)
         if flush_after:
             self.flush(identifiers=[identifier])
         return lines

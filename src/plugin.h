@@ -2,7 +2,7 @@
 #define PLUGIN_H
 /**
  * collectd - src/plugin.h
- * Copyright (C) 2005-2010  Florian octo Forster
+ * Copyright (C) 2005-2011  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -65,6 +65,8 @@
 #define NOTIF_WARNING 2
 #define NOTIF_OKAY    4
 
+#define plugin_interval (plugin_get_ctx().interval)
+
 /*
  * Public data types
  */
@@ -97,7 +99,8 @@ struct value_list_s
 };
 typedef struct value_list_s value_list_t;
 
-#define VALUE_LIST_INIT { NULL, 0, 0, interval_g, "localhost", "", "", "", "", NULL }
+#define VALUE_LIST_INIT { NULL, 0, 0, plugin_get_interval (), \
+	"localhost", "", "", "", "", NULL }
 #define VALUE_LIST_STATIC { NULL, 0, 0, 0, "localhost", "", "", "", "", NULL }
 
 struct data_source_s
@@ -160,6 +163,12 @@ struct user_data_s
 	void (*free_func) (void *);
 };
 typedef struct user_data_s user_data_t;
+
+struct plugin_ctx_s
+{
+	cdtime_t interval;
+};
+typedef struct plugin_ctx_s plugin_ctx_t;
 
 /*
  * Callback types
@@ -281,7 +290,7 @@ int plugin_register_flush (const char *name,
 		plugin_flush_cb callback, user_data_t *user_data);
 int plugin_register_missing (const char *name,
 		plugin_missing_cb callback, user_data_t *user_data);
-int plugin_register_shutdown (char *name,
+int plugin_register_shutdown (const char *name,
 		plugin_shutdown_cb callback);
 int plugin_register_data_set (const data_set_t *ds);
 int plugin_register_log (const char *name,
@@ -318,12 +327,17 @@ int plugin_unregister_notification (const char *name);
  *              function.
  */
 int plugin_dispatch_values (value_list_t *vl);
+int plugin_dispatch_values_secure (const value_list_t *vl);
 int plugin_dispatch_missing (const value_list_t *vl);
 
 int plugin_dispatch_notification (const notification_t *notif);
 
 void plugin_log (int level, const char *format, ...)
 	__attribute__ ((format(printf,2,3)));
+
+/* These functions return the parsed severity or less than zero on failure. */
+int parse_log_severity (const char *severity);
+int parse_notif_severity (const char *severity);
 
 #define ERROR(...)   plugin_log (LOG_ERR,     __VA_ARGS__)
 #define WARNING(...) plugin_log (LOG_WARNING, __VA_ARGS__)
@@ -357,5 +371,32 @@ int plugin_notification_meta_copy (notification_t *dst,
     const notification_t *src);
 
 int plugin_notification_meta_free (notification_meta_t *n);
+
+/*
+ * Plugin context management.
+ */
+
+void plugin_init_ctx (void);
+
+plugin_ctx_t plugin_get_ctx (void);
+plugin_ctx_t plugin_set_ctx (plugin_ctx_t ctx);
+
+/*
+ * NAME
+ *  plugin_get_interval
+ *
+ * DESCRIPTION
+ *  This function returns the current value of the plugin's interval. The
+ *  return value will be strictly greater than zero in all cases. If
+ *  everything else fails, it will fall back to 10 seconds.
+ */
+cdtime_t plugin_get_interval (void);
+
+/*
+ * Context-aware thread management.
+ */
+
+int plugin_thread_create (pthread_t *thread, const pthread_attr_t *attr,
+		void *(*start_routine) (void *), void *arg);
 
 #endif /* PLUGIN_H */

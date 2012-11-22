@@ -32,8 +32,8 @@ use Data::Dumper ();
 use File::Basename ('dirname');
 
 our $InDir = '/var/lib/collectd';
-our $OutDir = '/tmp/collectd-5';
 our $RRDtool = 'rrdtool';
+our $RRDFilter = 'rrd_filter.px';
 
 our %TypesCounterToDerive = # {{{
 (
@@ -46,7 +46,6 @@ our %TypesCounterToDerive = # {{{
   connections => ["value"],
   cpu => ["value"],
   current => ["value"],
-  df => ["used", "free"],
   disk_merged => ["read", "write"],
   disk_octets => ["read", "write"],
   disk_ops => ["read", "write"],
@@ -185,7 +184,16 @@ sub handle_file # {{{
     && (!$plugin_inst) && ($type_inst))
   {
     my $dir = join ('/', @path);
-    print "mv \"$path\" \"$dir/$plugin-$type_inst/$type.rrd\"\n";
+    print "mkdir -p \"$dir/$plugin-$type_inst\"\n";
+    if (($plugin eq 'df') and ($type eq 'df'))
+    {
+      print "$RRDFilter --infile=\"$path\" --outfile=\"$dir/$plugin-$type_inst/df_complex-free.rrd\" --map free:value\n";
+      print "$RRDFilter --infile=\"$path\" --outfile=\"$dir/$plugin-$type_inst/df_complex-used.rrd\" --map used:value\n";
+    }
+    else
+    {
+      print "mv \"$path\" \"$dir/$plugin-$type_inst/$type.rrd\"\n";
+    }
   }
 } # }}} sub handle_file
 
@@ -224,21 +232,23 @@ migrate-4-5.px [OPTIONS]
 
 Valid options are:
 
-  --indir <dir>      Source directory
-                     Default: $InDir
-  --outdir <dir>     Destination directory
-                     Default: $OutDir
-  --rrdtool <path>   Path to the RRDtool binary
-                     Default: $RRDtool
+  --indir <dir>         Source directory
+                        Default: $InDir
+  --rrdtool <path>      Path to the RRDtool binary
+                        Default: $RRDtool
+  --rrdfilter <path>    Path to the rrd_filter.px script
+                        Default: $RRDFilter
 
 EOF
   exit (1);
 } # }}} sub exit_usage
 
 GetOptions ("indir|i=s" => \$InDir,
-	"outdir|o=s" => \$OutDir,
         "rrdtool=s" => \$RRDtool,
+        "rrdfilter=s" => \$RRDFilter,
         "help|h" => \&exit_usage) or exit_usage ();
+
+print "#!/bin/bash\n\n";
 
 scan_dir ($InDir);
 

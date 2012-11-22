@@ -42,6 +42,7 @@ our %EXPORT_TAGS = (
 			plugin_register
 			plugin_unregister
 			plugin_dispatch_values
+			plugin_get_interval
 			plugin_write
 			plugin_flush
 			plugin_flush_one
@@ -171,6 +172,7 @@ sub plugin_call_all {
 	my $type = shift;
 
 	my %plugins;
+	my $interval;
 
 	our $cb_name = undef;
 
@@ -194,13 +196,15 @@ sub plugin_call_all {
 		%plugins = %{$plugins[$type]};
 	}
 
+	$interval = plugin_get_interval ();
+
 	foreach my $plugin (keys %plugins) {
 		my $p = $plugins{$plugin};
 
 		my $status = 0;
 
 		if ($p->{'wait_left'} > 0) {
-			$p->{'wait_left'} -= $interval_g;
+			$p->{'wait_left'} -= $interval;
 		}
 
 		next if ($p->{'wait_left'} > 0);
@@ -227,11 +231,11 @@ sub plugin_call_all {
 
 		if ($status) {
 			$p->{'wait_left'} = 0;
-			$p->{'wait_time'} = $interval_g;
+			$p->{'wait_time'} = $interval;
 		}
 		elsif (TYPE_READ == $type) {
-			if ($p->{'wait_time'} < $interval_g) {
-				$p->{'wait_time'} = $interval_g;
+			if ($p->{'wait_time'} < $interval) {
+				$p->{'wait_time'} = $interval;
 			}
 
 			$p->{'wait_left'} = $p->{'wait_time'};
@@ -313,7 +317,7 @@ sub plugin_register {
 		}
 
 		%p = (
-			wait_time => $interval_g,
+			wait_time => plugin_get_interval (),
 			wait_left => 0,
 			cb_name   => $data,
 		);

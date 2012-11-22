@@ -23,6 +23,7 @@ use Regexp::Common ('number');
 
 our $ConfigFile = '/etc/exec-nagios.conf';
 our $TypeMap = {};
+our $NRPEMap = {};
 our $Scripts = [];
 our $Interval = defined ($ENV{'COLLECTD_INTERVAL'}) ? (0 + $ENV{'COLLECTD_INTERVAL'}) : 300;
 our $Hostname = defined ($ENV{'COLLECTD_HOSTNAME'}) ? $ENV{'COLLECTD_HOSTNAME'} : '';
@@ -41,6 +42,7 @@ config syntax, so it's very similar to the F<collectd.conf> syntax, too.
 
 Here's a short sample config:
 
+  NRPEConfig "/etc/nrpe.cfg"
   Interval 300
   <Script /usr/lib/nagios/check_tcp>
     Arguments -H alice -p 22
@@ -55,6 +57,18 @@ The options have the following semantic (i.E<nbsp>e. meaning):
 
 =over 4
 
+=item B<NRPEConfig> I<File>
+
+Read the NRPE config and add the command definitions to an alias table. After
+reading the file you can use the NRPE command name rather than the script's
+filename within B<Script> blocks (see below). If both, the NRPE config and the
+B<Script> block, define arguments they will be merged by concatenating the
+arguments together in the order "NRPE-args Script-args".
+
+Please note that this option is rather dumb. It does not support "command
+argument processing" (i.e. replacing C<$ARG1$> and friends), inclusion of other
+NRPE config files, include directories etc.
+
 =item B<Interval> I<Seconds>
 
 Sets the interval in which the plugins are executed. This doesn't need to match
@@ -65,8 +79,9 @@ seconds.
 =item E<lt>B<Script> I<File>E<gt>
 
 Adds a script to the list of scripts to be executed once per I<Interval>
-seconds. You can use the following optional arguments to specify the operation
-further:
+seconds. If the B<NRPEConfig> is given above the B<Script> block, you may use
+the NRPE command name rather than the script's filename. You can use the
+following optional arguments to specify the operation further:
 
 =over 4
 
@@ -93,6 +108,48 @@ with the C<exec-plugin>).
 
 =cut
 
+sub parse_nrpe_conf
+{
+  my $file = shift;
+  my $fh;
+  my $status;
+
+  $status = open ($fh, '<', $file);
+  if (!$status)
+  {
+    print STDERR "Reading NRPE config from \"$file\" failed: $!\n";
+    return;
+  }
+
+  while (<$fh>)
+  {
+    my $line = $_;
+    chomp ($line);
+
+    if ($line =~ m/^\s*command\[([^\]]+)\]\s*=\s*(.+)$/)
+    {
+      my $alias = $1;
+      my $script;
+      my $arguments;
+
+      ($script, $arguments) = split (' ', $2, 2);
+
+      if ($NRPEMap->{$alias})
+      {
+        print STDERR "Warning: NRPE command \"$alias\" redefined.\n";
+      }
+
+      $NRPEMap->{$alias} = { script => $script };
+      if ($arguments)
+      {
+        $NRPEMap->{$alias}{'arguments'} = $arguments;
+      }
+    }
+  } # while (<$fh>)
+
+  close ($fh);
+} # parse_nrpe_conf
+
 sub handle_config_addtype
 {
   my $list = shift;
@@ -107,6 +164,30 @@ sub handle_config_addtype
   }
 } # handle_config_addtype
 
+# Update the script record. This function adds the name of the script /
+# executable to the hash and merges the configured and NRPE arguments if
+# required.
+sub update_script_opts
+{
+  my $opts = shift;
+  my $script = shift;
+  my $nrpe_args = shift;
+
+  $opts->{'script'} = $script;
+
+  if ($nrpe_args)
+  {
+    if ($opts->{'arguments'})
+    {
+      $opts->{'arguments'} = $nrpe_args . ' ' . $opts->{'arguments'};
+    }
+    else
+    {
+      $opts->{'arguments'} = $nrpe_args;
+    }
+  }
+} # update_script_opts
+
 sub handle_config_script
 {
   my $scripts = shift;
@@ -116,6 +197,20 @@ sub handle_config_script
     my $script = $_;
     my $opts = $scripts->{$script};
 
+    my $nrpe_args = '';
+
+    # Check if the script exists in the NRPE map. If so, replace the alias name
+    # with the actual script name.
+    if ($NRPEMap->{$script})
+    {
+      if ($NRPEMap->{$script}{'arguments'})
+      {
+        $nrpe_args = $NRPEMap->{$script}{'arguments'};
+      }
+      $script = $NRPEMap->{$script}{'script'};
+    }
+
+    # Check if the script exists and is executable.
     if (!-e $script)
     {
       print STDERR "Script `$script' doesn't exist.\n";
@@ -126,20 +221,21 @@ sub handle_config_script
     }
     else
     {
+      # Add the script to the global @$Script array.
       if (ref ($opts) eq 'ARRAY')
+      {
+        for (@$opts)
         {
-          for (@$opts)
-            {
-              my $opt = $_;
-              $opt->{'script'} = $script;
-              push (@$Scripts, $opt);
-            }
+          my $opt = $_;
+          update_script_opts ($opt, $script, $nrpe_args);
+          push (@$Scripts, $opt);
         }
-          else
-        {
-          $opts->{'script'} = $script;
-          push (@$Scripts, $opts);
-        }
+      }
+      else
+      {
+        update_script_opts ($opts, $script, $nrpe_args);
+        push (@$Scripts, $opts);
+      }
     }
   } # for (keys %$scripts)
 } # handle_config_script
@@ -147,6 +243,26 @@ sub handle_config_script
 sub handle_config
 {
   my $config = shift;
+
+  if (defined ($config->{'nrpeconfig'}))
+  {
+    if (ref ($config->{'nrpeconfig'}) eq 'ARRAY')
+    {
+      for (@{$config->{'nrpeconfig'}})
+      {
+        parse_nrpe_conf ($_);
+      }
+    }
+    elsif (ref ($config->{'nrpeconfig'}) eq '')
+    {
+      parse_nrpe_conf ($config->{'nrpeconfig'});
+    }
+    else
+    {
+      print STDERR "Cannot handle ref type '"
+      . ref ($config->{'nrpeconfig'}) . "' for option 'NRPEConfig'.\n";
+    }
+  }
 
   if (defined ($config->{'addtype'}))
   {
