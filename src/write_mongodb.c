@@ -68,6 +68,7 @@ static bson *wm_create_bson (const data_set_t *ds, /* {{{ */
   bson *ret;
   gauge_t *rates;
   int i;
+  int mongo_format_alternate = 1;
 
   ret = bson_create ();
   if (ret == NULL)
@@ -91,58 +92,88 @@ static bson *wm_create_bson (const data_set_t *ds, /* {{{ */
   }
 
   bson_init (ret);
-  bson_append_date (ret, "time", (bson_date_t) CDTIME_T_TO_MS (vl->time));
+  bson_append_time_t (ret, "time",  CDTIME_T_TO_TIME_T (vl->time));
   bson_append_string (ret, "host", vl->host);
   bson_append_string (ret, "plugin", vl->plugin);
   bson_append_string (ret, "plugin_instance", vl->plugin_instance);
   bson_append_string (ret, "type", vl->type);
   bson_append_string (ret, "type_instance", vl->type_instance);
 
-  bson_append_start_array (ret, "values"); /* {{{ */
-  for (i = 0; i < ds->ds_num; i++)
+  if (mongo_format_alternate == 1)
   {
-    char key[16];
-
-    ssnprintf (key, sizeof (key), "%i", i);
-
-    if (ds->ds[i].type == DS_TYPE_GAUGE)
-      bson_append_double(ret, key, vl->values[i].gauge);
-    else if (store_rates)
-      bson_append_double(ret, key, (double) rates[i]);
-    else if (ds->ds[i].type == DS_TYPE_COUNTER)
-      bson_append_long(ret, key, vl->values[i].counter);
-    else if (ds->ds[i].type == DS_TYPE_DERIVE)
-      bson_append_long(ret, key, vl->values[i].derive);
-    else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
-      bson_append_long(ret, key, vl->values[i].absolute);
-    else
-      assert (23 == 42);
+    bson_append_start_object(ret, "data");
+    for (i = 0; i < ds->ds_num; i++)
+    {
+      bson_append_start_object(ret, ds->ds[i].name);
+      if (store_rates)
+        bson_append_string (ret, "type", "gauge");
+      else
+        bson_append_string (ret, "type", DS_TYPE_TO_STRING (ds->ds[i].type));
+      
+      if (ds->ds[i].type == DS_TYPE_GAUGE)
+        bson_append_double(ret, "value", vl->values[i].gauge);
+      else if (store_rates)
+        bson_append_double(ret, "value", (double) rates[i]);
+      else if (ds->ds[i].type == DS_TYPE_COUNTER)
+        bson_append_long(ret, "value", vl->values[i].counter);
+      else if (ds->ds[i].type == DS_TYPE_DERIVE)
+        bson_append_long(ret, "value", vl->values[i].derive);
+      else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
+        bson_append_long(ret, "key", vl->values[i].absolute);
+      else
+        assert (23 == 42);
+      bson_append_finish_object(ret);
+    }
+    bson_append_finish_object(ret);
   }
-  bson_append_finish_array (ret); /* }}} values */
-
-  bson_append_start_array (ret, "dstypes"); /* {{{ */
-  for (i = 0; i < ds->ds_num; i++)
+  else
   {
-    char key[16];
+    bson_append_start_array (ret, "values"); /* {{{ */
+    for (i = 0; i < ds->ds_num; i++)
+    {
+      char key[16];
 
-    ssnprintf (key, sizeof (key), "%i", i);
+      ssnprintf (key, sizeof (key), "%i", i);
 
-    if (store_rates)
-      bson_append_string (ret, key, "gauge");
-    else
-      bson_append_string (ret, key, DS_TYPE_TO_STRING (ds->ds[i].type));
+      if (ds->ds[i].type == DS_TYPE_GAUGE)
+        bson_append_double(ret, key, vl->values[i].gauge);
+      else if (store_rates)
+        bson_append_double(ret, key, (double) rates[i]);
+      else if (ds->ds[i].type == DS_TYPE_COUNTER)
+        bson_append_long(ret, key, vl->values[i].counter);
+      else if (ds->ds[i].type == DS_TYPE_DERIVE)
+        bson_append_long(ret, key, vl->values[i].derive);
+      else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
+        bson_append_long(ret, key, vl->values[i].absolute);
+      else
+        assert (23 == 42);
+    }
+    bson_append_finish_array (ret); /* }}} values */
+
+    bson_append_start_array (ret, "dstypes"); /* {{{ */
+    for (i = 0; i < ds->ds_num; i++)
+    {
+      char key[16];
+
+      ssnprintf (key, sizeof (key), "%i", i);
+
+      if (store_rates)
+        bson_append_string (ret, key, "gauge");
+      else
+        bson_append_string (ret, key, DS_TYPE_TO_STRING (ds->ds[i].type));
+    }
+    bson_append_finish_array (ret); /* }}} dstypes */
+
+    bson_append_start_array (ret, "dsnames"); /* {{{ */
+    for (i = 0; i < ds->ds_num; i++)
+    {
+      char key[16];
+
+      ssnprintf (key, sizeof (key), "%i", i);
+      bson_append_string (ret, key, ds->ds[i].name);
+    }
+    bson_append_finish_array (ret); /* }}} dsnames */
   }
-  bson_append_finish_array (ret); /* }}} dstypes */
-
-  bson_append_start_array (ret, "dsnames"); /* {{{ */
-  for (i = 0; i < ds->ds_num; i++)
-  {
-    char key[16];
-
-    ssnprintf (key, sizeof (key), "%i", i);
-    bson_append_string (ret, key, ds->ds[i].name);
-  }
-  bson_append_finish_array (ret); /* }}} dsnames */
 
   bson_finish (ret);
 
