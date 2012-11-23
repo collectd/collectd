@@ -153,6 +153,10 @@ static int rra_get (char ***ret, const value_list_t *vl, /* {{{ */
     {
       int status;
 
+      /* don't create min rra, if option is set */
+      if (cfg->disable_min == 1 && strcmp(rra_types[j], "MIN") == 0)
+        continue;
+
       if (rra_num >= rra_max)
         break;
 

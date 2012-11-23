@@ -97,7 +97,9 @@ typedef struct csnmp_table_values_s csnmp_table_values_t;
  * Private variables
  */
 static data_definition_t *data_head = NULL;
-
+static int close_host_sessions = 0;
+static long snmp_session_timeout = -1;
+static int snmp_session_retries = -1;
 /*
  * Prototypes
  */
@@ -701,6 +703,10 @@ static int csnmp_config (oconfig_item_t *ci)
 {
   int i;
 
+  /* maxhostbcs - close host sessions if hostcount exceeds it */
+  int hostcount = 0;
+  int maxhostbcs = -1;
+
   call_snmp_init_once ();
 
   for (i = 0; i < ci->children_num; i++)
@@ -709,12 +715,63 @@ static int csnmp_config (oconfig_item_t *ci)
     if (strcasecmp ("Data", child->key) == 0)
       csnmp_config_add_data (child);
     else if (strcasecmp ("Host", child->key) == 0)
+    {
       csnmp_config_add_host (child);
+      hostcount++;
+    }
+    else if (strcasecmp ("MaxHostsBCS", child->key) == 0)
+    {
+      if ((child->values_num != 1) || (child->values[0].type != OCONFIG_TYPE_NUMBER))
+      {
+        WARNING ("snmp plugin: The `MaxHostsBCS' option needs "
+                 "exactly one integer argument.");
+        return (-1);
+      }
+      if (child->values[0].type == OCONFIG_TYPE_NUMBER)
+      {
+	maxhostbcs = (int) child->values[0].value.number;
+      }
+    }
+    else if (strcasecmp ("SessionTimeout", child->key) == 0)
+    {
+      if ((child->values_num != 1) || (child->values[0].type != OCONFIG_TYPE_NUMBER))
+      {
+        WARNING ("snmp plugin: The `SessionTimeout' option needs "
+                 "exactly one integer(microseconds) argument.");
+        return (-1);
+      }
+      if (child->values[0].type == OCONFIG_TYPE_NUMBER)
+      {
+	snmp_session_timeout = (long) child->values[0].value.number;
+      }
+    }
+    else if (strcasecmp ("SessionRetries", child->key) == 0)
+    {
+      if ((child->values_num != 1) || (child->values[0].type != OCONFIG_TYPE_NUMBER))
+      {
+        WARNING ("snmp plugin: The `SessionRetries' option needs "
+                 "exactly one integer argument.");
+        return (-1);
+      }
+      if (child->values[0].type == OCONFIG_TYPE_NUMBER)
+      {
+	snmp_session_retries = (int) child->values[0].value.number;
+      }
+    }
     else
     {
       WARNING ("snmp plugin: Ignoring unknown config option `%s'.", child->key);
     }
   } /* for (ci->children) */
+
+  /* set close_host_sessions to 1, this is looked at in csnmp_read_host
+   * and if true, csnmp_host_close_session is called after the read
+   */
+  if (maxhostbcs >= 0 && hostcount > maxhostbcs)
+  {
+    WARNING ("snmp plugin: Enabling maxhostbcs.");
+    close_host_sessions = 1;
+  }
 
   return (0);
 } /* int csnmp_config */
@@ -733,6 +790,13 @@ static void csnmp_host_open_session (host_definition_t *host)
   sess.community = (u_char *) host->community;
   sess.community_len = strlen (host->community);
   sess.version = (host->version == 1) ? SNMP_VERSION_1 : SNMP_VERSION_2c;
+
+  if (snmp_session_timeout > 0)
+    sess.timeout = snmp_session_timeout;
+  
+  if (snmp_session_retries > 0)
+    sess.retries = snmp_session_retries;
+  
 
   /* snmp_sess_open will copy the `struct snmp_session *'. */
   host->sess_handle = snmp_sess_open (&sess);
@@ -834,6 +898,17 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
       string[string_length] = 0;
 
       status = parse_value (string, &ret, type);
+
+      /* modify and retry if string length is 8 and we failed the first parse
+       * this is needed for alcatel ISAM series, where some counters are 
+       * Hex-Strings. -frogmaster */
+      if (status != 0 && string_length == 8)
+      {
+        char buf[64];
+        snprintf (buf, 64, "0x%02X%02X%02X%02X%02X%02X%02X%02X", vl->val.string[0], vl->val.string[1], vl->val.string[2], vl->val.string[3], vl->val.string[4], vl->val.string[5], vl->val.string[6], vl->val.string[7]);
+        status = parse_value (buf, &ret, type);
+      }
+
       if (status != 0)
       {
         ERROR ("snmp plugin: csnmp_value_list_to_value: Parsing string as %s failed: %s",
@@ -1333,6 +1408,9 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
   instance_list_tail = NULL;
 
   status = 0;
+  
+  int successful = 0;
+
   while (status == 0)
   {
     req = snmp_pdu_create (SNMP_MSG_GETNEXT);
@@ -1364,12 +1442,15 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
       res = NULL;
 
       sfree (errstr);
-      csnmp_host_close_session (host);
+
+      if (!successful)
+        csnmp_host_close_session (host);
 
       status = -1;
       break;
     }
     status = 0;
+
     assert (res != NULL);
     c_release (LOG_INFO, &host->complaint,
         "snmp plugin: host %s: snmp_sess_synch_response successful.",
@@ -1479,6 +1560,9 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
       memcpy (oid_list[i].oid, vb->name, sizeof (oid) * vb->name_length);
       oid_list[i].oid_len = vb->name_length;
     } /* for (i = data->values_len) */
+
+    if (!successful)
+      successful = 1;
 
     if (res != NULL)
       snmp_free_pdu (res);
@@ -1598,7 +1682,7 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
     res = NULL;
 
     sfree (errstr);
-    csnmp_host_close_session (host);
+    //csnmp_host_close_session (host);
 
     return (-1);
   }
@@ -1638,6 +1722,7 @@ static int csnmp_read_host (user_data_t *ud)
   cdtime_t time_end;
   int status;
   int success;
+  int failure_th = 20;
   int i;
 
   host = ud->data;
@@ -1665,6 +1750,14 @@ static int csnmp_read_host (user_data_t *ud)
 
     if (status == 0)
       success++;
+    else
+      failure_th--;
+
+    if (failure_th <= 0 || (!success && i < 2))
+    {
+      WARNING ("snmp plugin: Host '%s' has failed in too many snmp queries, giving up", host->name);
+      break;
+    }
   }
 
   time_end = cdtime ();
@@ -1676,6 +1769,9 @@ static int csnmp_read_host (user_data_t *ud)
 	CDTIME_T_TO_DOUBLE (host->interval),
 	CDTIME_T_TO_DOUBLE (time_end - time_start));
   }
+
+  if (close_host_sessions)
+    csnmp_host_close_session (host);
 
   if (success == 0)
     return (-1);

@@ -37,16 +37,17 @@ static _Bool config_create_files = 1;
 static _Bool config_collect_stats = 1;
 static rrdcreate_config_t rrdcreate_config =
 {
-	/* stepsize = */ 0,
-	/* heartbeat = */ 0,
-	/* rrarows = */ 1200,
-	/* xff = */ 0.1,
+  /* stepsize = */ 0,
+  /* heartbeat = */ 0,
+  /* rrarows = */ 1200,
+  /* xff = */ 0.1,
+  /* disable_min = */ 0, 
 
-	/* timespans = */ NULL,
-	/* timespans_num = */ 0,
+  /* timespans = */ NULL,
+  /* timespans_num = */ 0,
 
-	/* consolidation_functions = */ NULL,
-	/* consolidation_functions_num = */ 0
+  /* consolidation_functions = */ NULL,
+  /* consolidation_functions_num = */ 0
 };
 
 /*
@@ -79,8 +80,8 @@ static int value_list_to_string (char *buffer, int buffer_len,
   {
     if ((ds->ds[i].type != DS_TYPE_COUNTER)
         && (ds->ds[i].type != DS_TYPE_GAUGE)
-	&& (ds->ds[i].type != DS_TYPE_DERIVE)
-	&& (ds->ds[i].type != DS_TYPE_ABSOLUTE))
+        && (ds->ds[i].type != DS_TYPE_DERIVE)
+        && (ds->ds[i].type != DS_TYPE_ABSOLUTE))
       return (-1);
 
     if (ds->ds[i].type == DS_TYPE_COUNTER)
@@ -95,12 +96,12 @@ static int value_list_to_string (char *buffer, int buffer_len,
     }
     else if (ds->ds[i].type == DS_TYPE_DERIVE) {
       status = ssnprintf (buffer + offset, buffer_len - offset,
-	  ":%"PRIi64, vl->values[i].derive);
+          ":%"PRIi64, vl->values[i].derive);
     }
     else /* if (ds->ds[i].type == DS_TYPE_ABSOLUTE) */ {
       status = ssnprintf (buffer + offset, buffer_len - offset,
-	  ":%"PRIu64, vl->values[i].absolute);
- 
+          ":%"PRIu64, vl->values[i].absolute);
+
     }
 
     if ((status < 1) || (status >= (buffer_len - offset)))
@@ -273,9 +274,21 @@ static int rc_config (oconfig_item_t *ci)
     }
     else if (strcasecmp ("XFF", key) == 0)
       status = rc_config_get_xff (child, &rrdcreate_config.xff);
+    else if (strcasecmp ("DisableMINRRA", key) == 0)
+    {
+      if ((child->values_num != 1) || (child->values[0].type != OCONFIG_TYPE_BOOLEAN))
+      {
+        WARNING ("rrdcached plugin: `CreateFiles' needs exactly one boolean argument.");
+        return (-1);
+      }
+      if (IS_FALSE (child->values[0].value.string))
+        rrdcreate_config.disable_min = 0;
+      else
+        rrdcreate_config.disable_min = 1;
+    }
     else
     {
-      WARNING ("rrdcached plugin: Ignoring invalid option %s.", key);
+      WARNING ("rrdcached plugin: Ignoring invalid option %s.", child->key);
       continue;
     }
 

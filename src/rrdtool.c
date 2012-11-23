@@ -80,6 +80,7 @@ static const char *config_keys[] =
 	"HeartBeat",
 	"RRARows",
 	"RRATimespan",
+    "DisableMINRRA",
 	"XFF",
 	"WritesPerSecond",
 	"RandomTimeout"
@@ -97,6 +98,7 @@ static rrdcreate_config_t rrdcreate_config =
 	/* heartbeat = */ 0,
 	/* rrarows = */ 1200,
 	/* xff = */ 0.1,
+    /* disable_min = */ 0,
 
 	/* timespans = */ NULL,
 	/* timespans_num = */ 0,
@@ -1073,7 +1075,14 @@ static int rrd_config (const char *key, const char *value)
 		}
 		rrdcreate_config.xff = tmp;
 	}
-	else if (strcasecmp ("WritesPerSecond", key) == 0)
+	else if (strcasecmp ("DisableMINRRA", key) == 0)
+    {
+      if (IS_FALSE (value))
+        rrdcreate_config.disable_min = 0;
+      else
+        rrdcreate_config.disable_min = 1;
+    }
+    else if (strcasecmp ("WritesPerSecond", key) == 0)
 	{
 		double wps = atof (value);
 
