@@ -52,6 +52,7 @@ use strict;
 use warnings;
 
 #use constant { NOTIF_FAILURE => 1, NOTIF_WARNING => 2, NOTIF_OKAY => 4 };
+use constant IDENTIFIER => qr/^(host|plugin(_instance)?|type(_instance)?)$/;
 
 use Carp (qw(cluck confess));
 use IO::Socket::UNIX;
@@ -380,24 +381,49 @@ sub putval
 	return;
 } # putval
 
-=item I<$res> = I<$obj>-E<gt>B<listval> ()
+=item I<$res> = I<$obj>-E<gt>B<listval> (%selection)
 
 Queries a list of values from the daemon. The list is returned as an array of
 hash references, where each hash reference is a valid identifier. The C<time>
 member of each hash holds the epoch value of the last update of that value.
 
+If the hash %selection is specified, only a selection matching the given
+C<< key => value >> pairs is returned. The following keys are supported:
+C<host>, C<plugin>, C<plugin_instance>, C<type> and C<type_instance>. The
+values of these keys are POSIX regular expressions, and passed to the
+unixsock plugin as C<LISTVAL "key=value">. (see L<collectd-unixsock>)
+
 =cut
+
+sub _flatten_selection {
+	my %selection = @_;
+	my $str = join " ", map { "$_=\"".$selection{$_}.'"' } keys %selection;
+	$str = " $str" if $str;
+}
+
+sub _validate_selection {
+	my $selection = shift;
+	for (keys %$selection) {
+		unless ($_ =~ IDENTIFIER) {
+			cluck ("listval: Ignoring invalid selection key: `$_'");
+			delete $selection -> {$_};
+		}
+	}
+}
 
 sub listval
 {
 	my $obj = shift;
+	my %selection = @_;
+	_validate_selection(\%selection);
+	my $flattened_selection = _flatten_selection(%selection);
 	my $msg;
 	my @ret = ();
 	my $status;
 	my $fh = $obj->{'sock'} or confess;
 
-	_debug "LISTVAL\n";
-	print $fh "LISTVAL\n";
+	_debug "LISTVAL$flattened_selection\n";
+	print $fh "LISTVAL$flattened_selection\n";
 
 	$msg = <$fh>;
 	chomp ($msg);
