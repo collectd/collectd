@@ -308,6 +308,61 @@ extended regular expressions as described in L<regex(7)>. Example usage:
 Group valued by the specified field. The B<GroupBy> option may be repeated to
 group by multiple fields.
 
+=item B<SetHost> I<Host>
+
+=item B<SetPlugin> I<Plugin>
+
+=item B<SetPluginInstance> I<PluginInstance>
+
+=item B<SetTypeInstance> I<TypeInstance>
+
+Sets the appropriate part of the identifier to the provided string.
+
+The I<PluginInstance> should include the placeholder C<%{aggregation}> which
+will be replaced with the aggregation function, e.g. "average". Not including
+the placeholder will result in duplication warnings and/or messed up values if
+more than one aggregation function are enabled.
+
+The following example calculates the average usage of all "even" CPUs:
+
+ <Plugin "aggregation">
+   <Aggregation>
+     Plugin "cpu"
+     PluginInstance "/[0,2,4,6,8]$/"
+     Type "cpu"
+     
+     SetPlugin "cpu"
+     SetPluginInstance "even-%{aggregation}"
+     
+     GroupBy "Host"
+     GroupBy "TypeInstance"
+     
+     CalculateAverage true
+   </Aggregation>
+ </Plugin>
+
+This will create the files:
+
+=over 4
+
+=item
+
+foo.example.com/cpu-even-average/cpu-idle
+
+=item
+
+foo.example.com/cpu-even-average/cpu-system
+
+=item
+
+foo.example.com/cpu-even-average/cpu-user
+
+=item
+
+...
+
+=back
+
 =item B<CalculateNum> B<true>|B<false>
 
 =item B<CalculateSum> B<true>|B<false>
