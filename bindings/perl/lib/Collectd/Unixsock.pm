@@ -407,6 +407,17 @@ sub _validate_selection {
 		unless ($_ =~ IDENTIFIER) {
 			cluck ("listval: Ignoring invalid selection key: `$_'");
 			delete $selection -> {$_};
+			next
+		}
+		unless (defined $selection->{$_}) {
+			cluck ("listval: Ignoring empty selection key: `$_'");
+			delete $selection -> {$_};
+			next
+		}
+		if (ref $selection->{$_}) {
+			cluck ("listval: Ignoring REF selection key: `$_'");
+			delete $selection -> {$_};
+			next
 		}
 	}
 }
@@ -420,18 +431,26 @@ sub listval
 	my $msg;
 	my @ret = ();
 	my $status;
+	my $err;
 	my $fh = $obj->{'sock'} or confess;
 
 	_debug "LISTVAL$flattened_selection\n";
 	print $fh "LISTVAL$flattened_selection\n";
 
 	$msg = <$fh>;
+	unless (defined $msg) {
+		confess "listval: filehandle returned empty message"
+	}
 	chomp ($msg);
 	_debug "<- $msg\n";
-	($status, $msg) = split (' ', $msg, 2);
+	($status, $err) = split (' ', $msg, 2);
+	unless ($status =~ /^\d+$/) {
+		$obj->{'error'} = "$msg";
+		return;
+	}
 	if ($status < 0)
 	{
-		$obj->{'error'} = $msg;
+		$obj->{'error'} = $err;
 		return;
 	}
 
