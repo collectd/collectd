@@ -16,7 +16,16 @@
 #PIDFile     "@localstatedir@/run/@PACKAGE_NAME@.pid"
 #PluginDir   "@libdir@/@PACKAGE_NAME@"
 #TypesDB     "@prefix@/share/@PACKAGE_NAME@/types.db"
+
+#----------------------------------------------------------------------------#
+# Interval at which to query values. This may be overwritten on a per-plugin #
+# base by using the 'Interval' option of the LoadPlugin block:               #
+#   <LoadPlugin foo>                                                         #
+#       Interval 60                                                          #
+#   </LoadPlugin>                                                            #
+#----------------------------------------------------------------------------#
 #Interval     10
+
 #Timeout      2
 #ReadThreads  5
 
@@ -752,6 +761,11 @@
 #			ValuesFrom "count"
 #		</Result>
 #	</Query>
+#	<Writer sqlstore>
+#		# See contrib/postgresql/collectd_insert.sql for details
+#		Statement "SELECT collectd_insert($1, $2, $3, $4, $5, $6, $7, $8, $9);"
+#		StoreRates true
+#	</Writer>
 #	<Database foo>
 #		Host "hostname"
 #		Port "5432"
@@ -766,6 +780,12 @@
 #		Service "service_name"
 #		Query backend # predefined
 #		Query rt36_tickets
+#	</Database>
+#	<Database qux>
+#		Service "collectd_store"
+#		Writer sqlstore
+#		# see collectd.conf(5) for details
+#		CommitInterval 30
 #	</Database>
 #</Plugin>
 
