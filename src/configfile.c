@@ -583,6 +583,8 @@ static int cf_include_all (oconfig_item_t *root, int depth)
 		}
 
 		new = cf_read_generic (old->values[0].value.string, pattern, depth + 1);
+		sfree (pattern);
+
 		if (new == NULL)
 			continue;
 
