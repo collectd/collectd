@@ -555,27 +555,34 @@ static int cf_include_all (oconfig_item_t *root, int depth)
 		oconfig_item_t *new;
 		oconfig_item_t *old;
 
-		/* Ignore all blocks, including `Include' blocks. */
-		if (root->children[i].children_num != 0)
-			continue;
+		char *pattern = NULL;
+
+		int j;
 
 		if (strcasecmp (root->children[i].key, "Include") != 0)
 			continue;
 
 		old = root->children + i;
 
-		if ((old->values_num < 1) || (old->values_num > 2)
-				|| (old->values[0].type != OCONFIG_TYPE_STRING)
-				|| ((old->values_num == 2)
-					&& (old->values[1].type != OCONFIG_TYPE_STRING)))
+		if ((old->values_num != 1)
+				|| (old->values[0].type != OCONFIG_TYPE_STRING))
 		{
-			ERROR ("configfile: `Include' needs exactly one or two string argument.");
+			ERROR ("configfile: `Include' needs exactly one string argument.");
 			continue;
 		}
 
-		new = cf_read_generic (old->values[0].value.string,
-				(old->values_num == 2) ? old->values[1].value.string : NULL,
-				depth + 1);
+		for (j = 0; j < old->children_num; ++j)
+		{
+			oconfig_item_t *child = old->children + j;
+
+			if (strcasecmp (child->key, "Filter") == 0)
+				cf_util_get_string (child, &pattern);
+			else
+				ERROR ("configfile: Option `%s' not allowed in <Include> block.",
+						child->key);
+		}
+
+		new = cf_read_generic (old->values[0].value.string, pattern, depth + 1);
 		if (new == NULL)
 			continue;
 
@@ -605,6 +612,9 @@ static oconfig_item_t *cf_read_file (const char *file,
 		char *filename = basename (tmp);
 
 		if ((filename != NULL) && (fnmatch (pattern, filename, 0) != 0)) {
+			DEBUG ("configfile: Not including `%s' because it "
+					"does not match pattern `%s'.",
+					filename, pattern);
 			free (tmp);
 			return (NULL);
 		}
