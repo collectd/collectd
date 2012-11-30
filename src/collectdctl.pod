@@ -95,6 +95,93 @@ Each of them will be submitted to the daemon. The values have to match the
 data-set definition specified by the type as given in the identifier (see
 L<types.db(5)> for details).
 
+=item B<show> [I<E<lt>SelectionE<gt>>] [I<E<lt>AggregationE<gt>> I<E<lt>GroupingE<gt>>]
+[I<E<lt>FormatE<gt>>]
+
+Show values or an aggregation of values. The I<Selection> selects which values
+to show. The selection consists of the five options B<host>, B<plugin>,
+B<plugin_instance>, B<type> and B<type_instance> which take a regular
+expression each. The regular expressions are passed on to the C<LISTVAL>
+command so they will behave exactly as documented in L<collectd-unixsock(5)>.
+
+Example: Show CPU statistics only.
+
+    collectdctl show plugin="^cpu$" type="^cpu$"
+
+If you're not interested in single values, but aggregations of values, you can
+use the I<Aggregation> and I<Grouping> options to get an overview over your
+system(s) and such. The two options to this effect are:
+
+=over 4
+
+=item B<aggregate=>I<aggr>[B<,>I<aggr>[...]]
+
+List all the aggregation functions that shall be used to combine multiple
+values. Available aggregation functions are:
+
+=over 4
+
+=item B<count>
+
+Number of non-NAN values. This value may be zero if all individual values are
+NAN.
+
+=item B<min>
+
+Minimum value.
+
+=item B<max>
+
+Maximum value.
+
+=item B<avg>
+
+Average of all values.
+
+=item B<sum>
+
+Sum of all values.
+
+=item B<sdev>
+
+Standard deviation of all non-NAN values. The standard deviation is NAN if
+there were no non-NAN values (B<count> reportsE<nbsp>0) and zero if there was
+exactly one non-NAN value.
+
+=back
+
+=item B<group=>I<field>[B<,>I<field>[...]]
+
+Chose the fields of the I<identifier> you want to group values by. Valid
+I<fields> are B<host>, B<plugin>, B<plugin_instance>, B<type> and
+B<type_instance>. In 99E<nbsp>% of all cases, you want to make sure all values
+have the same I<type> -- either by using a construct like C<type='^foo$'>
+or by adding B<type> to the B<group> option (e.g. C<group=type>).
+
+=back
+
+The output formatting may be specified using the B<format=>I<format> option.
+The following formats are available:
+
+=over 4
+
+=item B<table> (default)
+
+Output an aligned table formatted using ASCII characters.
+
+=item B<latex>
+
+Output a table intended to be included in a LaTeX document. This is not a
+complete document. In order to compile the document, you have to have a
+complete document wrapper.
+
+=back
+
+Example: Print the minimum, average and maximum time spent in each CPU state
+for all your web servers:
+
+    collectdctl show host="^www[0-9]\\." plugin="^cpu$" type="^cpu$" aggregate=min,avg,max group=type_instance
+
 =back
 
 =head1 IDENTIFIERS
@@ -150,11 +237,12 @@ L<types.db(5)>
 
 =head1 AUTHOR
 
-collectd has been written by Florian Forster E<lt>octo at verplant.orgE<gt>
+collectd has been written by Florian Forster E<lt>octo at collectd.orgE<gt>
 and many contributors (see `AUTHORS').
 
 collectdctl has been written by
-Håkon J Dugstad Johnsen E<lt>hakon-dugstad.johnsenE<nbsp>atE<nbsp>telenor.comE<gt>
-and Sebastian Harl E<lt>sh at tokkee.orgE<gt>.
+Håkon J Dugstad Johnsen E<lt>hakon-dugstad.johnsenE<nbsp>atE<nbsp>telenor.comE<gt>,
+Sebastian Harl E<lt>sh at tokkee.orgE<gt> and
+Florian Forster E<lt>octo at collectd.orgE<gt>.
 
 =cut
