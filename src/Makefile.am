@@ -119,6 +119,9 @@ collectd_tg_LDADD =
 if BUILD_WITH_LIBSOCKET
 collectd_tg_LDADD += -lsocket
 endif
+if BUILD_WITH_LIBRT
+collectd_tg_LDADD += -lrt
+endif
 if BUILD_AIX
 collectd_tg_LDADD += -lm
 endif
