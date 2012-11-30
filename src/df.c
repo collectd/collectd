@@ -280,6 +280,11 @@ static int df_read (void)
 				(gauge_t) (blk_reserved * blocksize));
 		df_submit_one (disk_name, "df_complex", "used",
 				(gauge_t) (blk_used * blocksize));
+                df_submit_one (disk_name, "df_complex", "free_avail_percent",
+                               (gauge_t) ((statbuf.f_bavail / (double) statbuf.f_blocks) * 100));
+                df_submit_one (disk_name, "df_complex", "free_percent",
+                               (gauge_t) ((statbuf.f_bfree / (double) statbuf.f_blocks) * 100));
+
 
 		/* inode handling */
 		if (report_inodes)
