@@ -27,6 +27,7 @@
 # define __attribute__(x) /**/
 #endif
 
+#include <ctype.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -86,6 +87,31 @@ struct range_s
 };
 typedef struct range_s range_t;
 
+struct rate_v {
+	char *name;
+	double value;
+};
+
+static struct rate_v rates[] = {
+	{ "", 1 },
+	{ " KB", 0x400 },
+	{ " MB", 0x100000 },
+	{ " GB", 0x40000000 },
+	{ NULL, 0 },
+};
+
+enum { 
+	BT_INDX,
+	KB_INDX,
+	MB_INDX,
+	GB_INDX,
+};
+
+static struct rate_v *rate_ptr = &rates[BT_INDX];
+#define AUTO_RATE 1
+#define STATIC_RATE 2
+static int rate_option = 0;
+
 extern char *optarg;
 extern int optind, opterr, optopt;
 
@@ -116,6 +142,16 @@ static char *cn_strdup (const char *str) /* {{{ */
     memcpy (ret, str, strsize);
   return (ret);
 } /* }}} char *cn_strdup */
+
+struct rate_v *convert_rate(double n)
+{
+	struct rate_v *ptr;
+	
+	for (ptr = rates; n > 1024 && ptr->name; ptr++, n /= 1024)
+		; /* empty */
+
+	return ptr;
+}
 
 static int filter_ds (size_t *values_num,
 		double **values, char ***values_names)
@@ -191,6 +227,10 @@ static void parse_range (char *string, range_t *range)
 {
 	char *min_ptr;
 	char *max_ptr;
+	int min_ptr_len;
+	int max_ptr_len;
+	long min_rate = 1;
+	long max_rate = 1;
 
 	if (*string == '@')
 	{
@@ -210,8 +250,44 @@ static void parse_range (char *string, range_t *range)
 		*max_ptr = '\0';
 		max_ptr++;
 	}
-
+	
 	assert (max_ptr != NULL);
+
+	min_ptr_len = min_ptr ? strlen(min_ptr) - 1 : 0;
+	max_ptr_len = strlen(max_ptr) - 1;
+
+	if (min_ptr && isalpha(min_ptr[min_ptr_len])) {
+		switch (tolower(min_ptr[min_ptr_len])) {
+		case 'g':
+			min_rate = rates[GB_INDX].value;
+			break;
+		case 'm':
+			min_rate = rates[MB_INDX].value;
+			break;
+		case 'k':
+			min_rate = rates[KB_INDX].value;
+			break;
+		}
+
+		min_ptr[min_ptr_len] = '\0';
+	}
+
+	if (isalpha(max_ptr[max_ptr_len])) {
+		switch (tolower(max_ptr[max_ptr_len])) {
+		case 'g':
+			max_rate = rates[GB_INDX].value;
+			break;
+		case 'm':
+			max_rate = rates[MB_INDX].value;
+			break;
+		case 'k':
+			max_rate = rates[KB_INDX].value;
+			break;
+		}
+
+		max_ptr[max_ptr_len] = '\0';
+	}
+
 
 	/* `10' == `0:10' */
 	if (min_ptr == NULL)
@@ -220,12 +296,12 @@ static void parse_range (char *string, range_t *range)
 	else if ((*min_ptr == '\0') || (*min_ptr == '~'))
 		range->min = NAN;
 	else
-		range->min = atof (min_ptr);
+		range->min = atof (min_ptr) * min_rate;
 
 	if ((*max_ptr == '\0') || (*max_ptr == '~'))
 		range->max = NAN;
 	else
-		range->max = atof (max_ptr);
+		range->max = atof (max_ptr) * max_rate;
 } /* void parse_range */
 
 static int match_range (range_t *range, double value)
@@ -253,9 +329,11 @@ static void usage (const char *name)
 			"  -g <consol>    Method to use to consolidate several DSes.\n"
 			"                 See below for a list of valid arguments.\n"
 			"  -H <host>      Hostname to query the values for.\n"
-			"  -c <range>     Critical range\n"
-			"  -w <range>     Warning range\n"
+			"  -c <range>     Critical range. Accept k/m/g suffixes\n"
+			"  -w <range>     Warning range. Accept k/m/g suffixes\n"
 			"  -m             Treat \"Not a Number\" (NaN) as critical (default: warning)\n"
+		        "  -r <rate>      Print output in rate, m for megabytes, g for gigabytes, k for kilobytes\n"
+		        "  -R             Print output in human readable format (k/m/g)\n"
 			"\n"
 			"Consolidation functions:\n"
 			"  none:          Apply the warning- and critical-ranges to each data-source\n"
@@ -383,8 +461,24 @@ static int do_check_con_none (size_t values_num,
 	if (values_num > 0)
 	{
 		printf (" |");
-		for (i = 0; i < values_num; i++)
-			printf (" %s=%f;;;;", values_names[i], values[i]);
+                if (rate_option == AUTO_RATE) 
+                {
+                        for (i = 0; i < values_num; i++) {
+                                struct rate_v *ptr = convert_rate(values[i]);
+                                printf (" %s=%.2f%s;;;;", values_names[i], 
+                                        values[i] / ptr->value, ptr->name);
+                        }
+                }
+                else if (rate_option == STATIC_RATE) 
+                {
+                        for (i = 0; i < values_num; i++)
+                                printf (" %s=%.2f%s;;;;", values_names[i], 
+                                        values[i] / rate_ptr->value, rate_ptr->name);
+                } 
+                else {
+                        for (i = 0; i < values_num; i++)
+                                printf (" %s=%f;;;;", values_names[i], values[i]);
+                }
 	}
 	printf ("\n");
 
@@ -443,9 +537,30 @@ static int do_check_con_average (size_t values_num,
 		status_code = RET_OKAY;
 	}
 
-	printf ("%s: %g average |", status_str, average);
-	for (i = 0; i < values_num; i++)
-		printf (" %s=%f;;;;", values_names[i], values[i]);
+        
+        if (rate_option == AUTO_RATE) 
+        {
+                struct rate_v *ptr = convert_rate(average);
+                printf("%s: %g%s average |", status_str, average / ptr->value, ptr->name);
+                for (i = 0; i < values_num; i++) 
+                {
+                        ptr = convert_rate(values[i]);
+                        printf (" %s=%.2f%s;;;;", values_names[i], values[i] / ptr->value, ptr->name);
+                }
+        } 
+        else if (rate_option == STATIC_RATE) 
+        {
+                printf("%s: %g%s average |", status_str, average / rate_ptr->value, rate_ptr->name);
+                for (i = 0; i < values_num; i++) 
+                        printf (" %s=%.2f%s;;;;", values_names[i], values[i] / rate_ptr->value, rate_ptr->name);
+
+        } 
+        else 
+        {
+                printf ("%s: %g average |", status_str, average);
+                for (i = 0; i < values_num; i++)
+                        printf (" %s=%f;;;;", values_names[i], values[i]);
+        }
 	printf ("\n");
 
 	return (status_code);
@@ -500,9 +615,29 @@ static int do_check_con_sum (size_t values_num,
 		status_code = RET_OKAY;
 	}
 
-	printf ("%s: %g sum |", status_str, total);
-	for (i = 0; i < values_num; i++)
-		printf (" %s=%f;;;;", values_names[i], values[i]);
+        if (rate_option == AUTO_RATE) 
+        {
+                struct rate_v *ptr = convert_rate(total);
+                printf ("%s: %g%s sum |", status_str, total / ptr->value, ptr->name);
+                for (i = 0; i < values_num; i++) 
+                {
+                        ptr = convert_rate(values[i]);
+                        printf (" %s=%.2f%s;;;;", values_names[i], values[i] / ptr->value, ptr->name);
+                }
+        } 
+        else if (rate_option == STATIC_RATE) 
+        {
+                printf ("%s: %g%s sum |", status_str, total / rate_ptr->value, rate_ptr->name);
+                for (i = 0; i < values_num; i++) 
+                        printf (" %s=%.2f%s;;;;", values_names[i], values[i] / rate_ptr->value, rate_ptr->name);
+
+        } 
+        else 
+        {
+                printf ("%s: %g sum |", status_str, total);
+                for (i = 0; i < values_num; i++)
+                        printf (" %s=%f;;;;", values_names[i], values[i]);
+        }
 	printf ("\n");
 
 	return (status_code);
@@ -563,9 +698,21 @@ static int do_check_con_percentage (size_t values_num,
 		status_code = RET_OKAY;
 	}
 
+
 	printf ("%s: %lf percent |", status_str, percentage);
 	for (i = 0; i < values_num; i++)
-		printf (" %s=%lf;;;;", values_names[i], values[i]);
+        {
+                if (rate_option == AUTO_RATE)
+                {
+                        struct rate_v *ptr = convert_rate(values[i]);
+                        printf (" %s=%lf%s;;;;", values_names[i], values[i] / ptr->value, ptr->name);
+                }
+                else if (rate_option == STATIC_RATE)
+                        printf (" %s=%.2f%s;;;;", values_names[i], values[i] / rate_ptr->value, rate_ptr->name);
+                else
+                        printf (" %s=%.2f;;;;", values_names[i], values[i]);
+        }
+        printf("\n");
 	return (status_code);
 } /* int do_check_con_percentage */
 
@@ -647,7 +794,7 @@ int main (int argc, char **argv)
 	{
 		int c;
 
-		c = getopt (argc, argv, "w:c:s:n:H:g:d:hm");
+		c = getopt (argc, argv, "w:c:s:n:H:g:d:hmr:R");
 		if (c < 0)
 			break;
 
@@ -710,7 +857,25 @@ int main (int argc, char **argv)
 			case 'm':
 				nan_is_error_g = 1;
 				break;
-			default:
+                        case 'r':
+                                rate_option = STATIC_RATE;
+                                switch (tolower(*optarg)) {
+                                case 'g':
+					rate_ptr = &rates[GB_INDX];
+                                        break;
+                                case 'm':
+					rate_ptr = &rates[MB_INDX];
+                                        break;
+                                case 'k':
+					rate_ptr = &rates[KB_INDX];
+                                        break;
+                                }
+                                break;
+		        case 'R':
+                                rate_option = AUTO_RATE;
+				rate_ptr = NULL;
+				break;
+		        default:
 				usage (argv[0]);
 		} /* switch (c) */
 	}
