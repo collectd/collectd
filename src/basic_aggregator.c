@@ -354,10 +354,16 @@ static int basic_aggregator_submit_resultvalue (
 		return (-1);
 	}
 
+	if((NULL == type) || (type[0] == '\0')) {
+		ERROR (OUTPUT_PREFIX_STRING "parse_identifier() : type == NULL or is empty (identifier='%s')", identifier);
+		sfree (identifier);
+		return (-1);
+	}
+
 	ds = plugin_get_ds (type);
 	if (ds == NULL)
 	{
-		ERROR (OUTPUT_PREFIX_STRING "plugin_get_ds (%s) == NULL;", type);
+		ERROR (OUTPUT_PREFIX_STRING "plugin_get_ds (%s) == NULL", type);
 		sfree (identifier);
 		return (-1);
 	}
