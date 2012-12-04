@@ -255,7 +255,7 @@ int jsonrpc_cache_last_entry_find_and_ref(char ***ret_names, cdtime_t **ret_time
 	int last_cache_entry = -1;
 	int i;
 
-		pthread_mutex_lock (&local_cache_lock);
+	pthread_mutex_lock (&local_cache_lock);
 	for(i=0; i<NB_CACHE_ENTRY_MAX; i++) {
 		if(uc_cache_copy[i].ready && (uc_cache_copy[i].update_time  > update_time)) {
 			update_time = uc_cache_copy[i].update_time;
@@ -273,10 +273,10 @@ int jsonrpc_cache_last_entry_find_and_ref(char ***ret_names, cdtime_t **ret_time
 }
 
 void jsonrpc_cache_entry_unref(int cache_id) {
-		pthread_mutex_lock (&local_cache_lock);
+	pthread_mutex_lock (&local_cache_lock);
 	uc_cache_copy[cache_id].ref--;
 	assert(uc_cache_copy[cache_id].ref >= 0);
-		pthread_mutex_unlock (&local_cache_lock);
+	pthread_mutex_unlock (&local_cache_lock);
 	return;
 }
 
@@ -302,7 +302,7 @@ int jsonrpc_update_cache() {
 			uc_cache_copy[i].times=NULL;
 			uc_cache_copy[i].number=0;
 			uc_cache_copy[i].update_time=0;
-	}
+		}
 	}
 
 	/* 
@@ -311,8 +311,7 @@ int jsonrpc_update_cache() {
 	now = time(NULL);
 	if(-1 == last_cache_entry) { 
 		update_needed = 1;
-		}
-	else if((uc_cache_copy[last_cache_entry].update_time + jsonrpc_cache_expiration_time) < now) {
+	} else if((uc_cache_copy[last_cache_entry].update_time + jsonrpc_cache_expiration_time) < now) {
 		update_needed = 1;
 	}
 	if(0 == update_needed) {
@@ -933,6 +932,8 @@ static int submit_derive (unsigned int n, const char *type, const  char *type_in
 static int jsonrpc_read (void)
 {
 	static int first_time = 1;
+	unsigned int nb_entries_in_last_cache = 0;
+	time_t update_time = 0;
 	int i;
 	if(first_time) {
 		INFO(OUTPUT_PREFIX_JSONRPC "Compilation time : %s %s", __DATE__, __TIME__);
@@ -949,9 +950,14 @@ static int jsonrpc_read (void)
 		int n;
 		pthread_mutex_lock (&local_cache_lock);
 		n = uc_cache_copy[i].ready?uc_cache_copy[i].ref:0;
+		if(uc_cache_copy[i].ready && (uc_cache_copy[i].update_time  > update_time)) {
+			update_time = uc_cache_copy[i].update_time;
+			nb_entries_in_last_cache = uc_cache_copy[i].number;
+		}
 		pthread_mutex_unlock (&local_cache_lock);
 		submit_gauge(n, "cache_entries", cache_plugin_instance[i]);
 	}
+	submit_gauge(nb_entries_in_last_cache, "nb_values", "");
 
 	return (0);
 } /* int jsonrpc_read */
