@@ -64,6 +64,9 @@ case $host_os in
 	*darwin*)
 	ac_system="Darwin"
 	;;
+	*freebsd*)
+	ac_system="FreeBSD"
+	;;
 	*openbsd*)
 	ac_system="OpenBSD"
 	;;
@@ -4416,6 +4419,9 @@ PKG_CHECK_MODULES([LIBNOTIFY], [libnotify],
 		 else
 			 with_libnotify="no ($LIBNOTIFY_PKG_ERRORS)"
 		 fi])
+
+# Check if FreeBSD to enable -lgeom LDFLAGS in src/Makefile
+AM_CONDITIONAL([BUILD_FREEBSD],[test "x$x$ac_system" = "xFreeBSD"]) 
 
 # Check for enabled/disabled features
 #
