@@ -450,7 +450,7 @@ static int apcups_read (void)
 	apcups_detail.battv    =   -1.0;
 	apcups_detail.loadpct  =   -1.0;
 	apcups_detail.bcharge  =   -1.0;
-	apcups_detail.timeleft =   -1.0;
+	apcups_detail.timeleft =    NAN;
 	apcups_detail.itemp    = -300.0;
 	apcups_detail.linefreq =   -1.0;
 
