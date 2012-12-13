@@ -85,9 +85,7 @@ struct wg_callback
     char    *postfix;
     char     escape_char;
 
-    _Bool    store_rates;
-    _Bool    separate_instances;
-    _Bool    always_append_ds;
+    unsigned int format_flags;
 
     char     send_buf[WG_SEND_BUF_SIZE];
     size_t   send_buf_free;
@@ -352,7 +350,7 @@ static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
 
     memset (buffer, 0, sizeof (buffer));
     status = format_graphite (buffer, sizeof (buffer), ds, vl,
-            cb->prefix, cb->postfix, cb->escape_char, cb->store_rates);
+            cb->prefix, cb->postfix, cb->escape_char, cb->format_flags);
     if (status != 0) /* error message has been printed already. */
         return (status);
 
@@ -434,7 +432,7 @@ static int wg_config_carbon (oconfig_item_t *ci)
     cb->prefix = NULL;
     cb->postfix = NULL;
     cb->escape_char = WG_DEFAULT_ESCAPE;
-    cb->store_rates = 1;
+    cb->format_flags = GRAPHITE_STORE_RATES;
 
     pthread_mutex_init (&cb->send_lock, /* attr = */ NULL);
 
@@ -451,11 +449,14 @@ static int wg_config_carbon (oconfig_item_t *ci)
         else if (strcasecmp ("Postfix", child->key) == 0)
             cf_util_get_string (child, &cb->postfix);
         else if (strcasecmp ("StoreRates", child->key) == 0)
-            cf_util_get_boolean (child, &cb->store_rates);
+            cf_util_get_flag (child, &cb->format_flags,
+                    GRAPHITE_STORE_RATES);
         else if (strcasecmp ("SeparateInstances", child->key) == 0)
-            cf_util_get_boolean (child, &cb->separate_instances);
+            cf_util_get_flag (child, &cb->format_flags,
+                    GRAPHITE_SEPARATE_INSTANCES);
         else if (strcasecmp ("AlwaysAppendDS", child->key) == 0)
-            cf_util_get_boolean (child, &cb->always_append_ds);
+            cf_util_get_flag (child, &cb->format_flags,
+                    GRAPHITE_ALWAYS_APPEND_DS);
         else if (strcasecmp ("EscapeCharacter", child->key) == 0)
             config_set_char (&cb->escape_char, child);
         else
