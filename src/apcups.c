@@ -70,6 +70,8 @@ struct apc_detail_s
 /* Default values for contacting daemon */
 static char *conf_host = NULL;
 static int   conf_port = NISPORT;
+/* Defaults to false for backwards compatibility. */
+static _Bool conf_report_seconds = 0;
 
 static int global_sockfd = -1;
 
@@ -81,9 +83,9 @@ static const char *config_keys[] =
 {
 	"Host",
 	"Port",
-	NULL
+	"ReportSeconds"
 };
-static int config_keys_num = 2;
+static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static int net_shutdown (int *fd)
 {
@@ -360,7 +362,13 @@ static int apc_query_server (char *host, int port,
 			else if (strcmp ("LINEFREQ", key) == 0)
 				apcups_detail->linefreq = value;
 			else if (strcmp ("TIMELEFT", key) == 0)
+			{
+				/* Convert minutes to seconds if requested by
+				 * the user. */
+				if (conf_report_seconds)
+					value *= 60.0;
 				apcups_detail->timeleft = value;
+			}
 
 			tokptr = strtok_r (NULL, ":", &toksaveptr);
 		} /* while (tokptr != NULL) */
@@ -402,6 +410,13 @@ static int apcups_config (const char *key, const char *value)
 			return (1);
 		}
 		conf_port = port_tmp;
+	}
+	else if (strcasecmp (key, "ReportSeconds") == 0)
+	{
+		if (IS_TRUE (value))
+			conf_report_seconds = 1;
+		else
+			conf_report_seconds = 0;
 	}
 	else
 	{

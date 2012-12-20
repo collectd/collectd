@@ -109,7 +109,7 @@ interval, that setting will take precedence.
 
 =back
 
-=item B<Include> I<Path>
+=item B<Include> I<Path> [I<pattern>]
 
 If I<Path> points to a file, includes that file. If I<Path> points to a
 directory, recursively includes all files within that directory and its
@@ -118,6 +118,15 @@ shell-like wildcards are expanded before files are included. This means you can
 use statements like the following:
 
   Include "/etc/collectd.d/*.conf"
+
+If the C<fnmatch> function is available on your system, a shell-like wildcard
+I<pattern> may be specified to filter which files to include. This may be used
+in combination with recursively including a directory to easily be able to
+arbitrarily mix configuration files and other documents (e.g. README files).
+The following statement is similar to the example above but includes all files
+matching C<*.conf> in any subdirectory of C</etc/collectd.d>:
+
+  Include "/etc/collectd.d" "*.conf"
 
 If more than one files are included by a single B<Include> option, the files
 will be included in lexicographical order (as defined by the C<strcmp>
@@ -297,10 +306,71 @@ aggregations. The following options are valid inside B<Aggregation> blocks:
 Selects the value lists to be added to this aggregation. B<Type> must be a
 valid data set name, see L<types.db(5)> for details.
 
+If the string starts with and ends with a slash (C</>), the string is
+interpreted as a I<regular expression>. The regex flavor used are POSIX
+extended regular expressions as described in L<regex(7)>. Example usage:
+
+ Host "/^db[0-9]\\.example\\.com$/"
+
 =item B<GroupBy> B<Host>|B<Plugin>|B<PluginInstance>|B<TypeInstance>
 
 Group valued by the specified field. The B<GroupBy> option may be repeated to
 group by multiple fields.
+
+=item B<SetHost> I<Host>
+
+=item B<SetPlugin> I<Plugin>
+
+=item B<SetPluginInstance> I<PluginInstance>
+
+=item B<SetTypeInstance> I<TypeInstance>
+
+Sets the appropriate part of the identifier to the provided string.
+
+The I<PluginInstance> should include the placeholder C<%{aggregation}> which
+will be replaced with the aggregation function, e.g. "average". Not including
+the placeholder will result in duplication warnings and/or messed up values if
+more than one aggregation function are enabled.
+
+The following example calculates the average usage of all "even" CPUs:
+
+ <Plugin "aggregation">
+   <Aggregation>
+     Plugin "cpu"
+     PluginInstance "/[0,2,4,6,8]$/"
+     Type "cpu"
+     
+     SetPlugin "cpu"
+     SetPluginInstance "even-%{aggregation}"
+     
+     GroupBy "Host"
+     GroupBy "TypeInstance"
+     
+     CalculateAverage true
+   </Aggregation>
+ </Plugin>
+
+This will create the files:
+
+=over 4
+
+=item
+
+foo.example.com/cpu-even-average/cpu-idle
+
+=item
+
+foo.example.com/cpu-even-average/cpu-system
+
+=item
+
+foo.example.com/cpu-even-average/cpu-user
+
+=item
+
+...
+
+=back
 
 =item B<CalculateNum> B<true>|B<false>
 
@@ -570,6 +640,12 @@ B<apcupsd> can handle it.
 =item B<Port> I<Port>
 
 TCP-Port to connect to. Defaults to B<3551>.
+
+=item B<ReportSeconds> B<true|false>
+
+If set to B<true>, the time reported in the C<timeleft> metric will be
+converted to seconds. This is the recommended setting. If set to B<false>, the
+default for backwards compatibility, the time will be reported in minutes.
 
 =back
 

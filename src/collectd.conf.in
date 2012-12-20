@@ -208,6 +208,7 @@
 #<Plugin apcups>
 #	Host "localhost"
 #	Port "3551"
+#	ReportSeconds true
 #</Plugin>
 
 #<Plugin ascent>
