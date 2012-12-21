@@ -4921,6 +4921,7 @@ AC_PLUGIN([olsrd],       [yes],                [olsrd statistics])
 AC_PLUGIN([onewire],     [$with_libowcapi],    [OneWire sensor statistics])
 AC_PLUGIN([openvpn],     [yes],                [OpenVPN client statistics])
 AC_PLUGIN([oracle],      [$with_oracle],       [Oracle plugin])
+AC_PLUGIN([oregon],      [yes],                [Oregon weather station plugin])
 AC_PLUGIN([perl],        [$plugin_perl],       [Embed a Perl interpreter])
 AC_PLUGIN([pf],          [$have_net_pfvar_h],  [BSD packet filter (PF) statistics])
 # FIXME: Check for libevent, too.
@@ -5255,6 +5256,7 @@ Configuration:
     onewire . . . . . . . $enable_onewire
     openvpn . . . . . . . $enable_openvpn
     oracle  . . . . . . . $enable_oracle
+    oregon  . . . . . . . $enable_oregon
     perl  . . . . . . . . $enable_perl
     pf  . . . . . . . . . $enable_pf
     pinba . . . . . . . . $enable_pinba

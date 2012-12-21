@@ -322,32 +322,16 @@ int uc_check_timeout (void)
     vl.time = keys_time[i];
     vl.interval = keys_interval[i];
 
-    plugin_dispatch_missing (&vl);
+    /* Don't dispatch missing values more than one time */
+    if(uc_get_state(NULL, &vl) != STATE_MISSING)
+      plugin_dispatch_missing (&vl);
   } /* for (i = 0; i < keys_len; i++) */
 
-  /* Now actually remove all the values from the cache. We don't re-evaluate
-   * the timestamp again, so in theory it is possible we remove a value after
-   * it is updated here. */
-  pthread_mutex_lock (&cache_lock);
+  /* Leave values in the cache to track missing values when they come back again */
   for (i = 0; i < keys_len; i++)
   {
-    key = NULL;
-    ce = NULL;
-
-    status = c_avl_remove (cache_tree, keys[i],
-	(void *) &key, (void *) &ce);
-    if (status != 0)
-    {
-      ERROR ("uc_check_timeout: c_avl_remove (\"%s\") failed.", keys[i]);
-      sfree (keys[i]);
-      continue;
-    }
-
     sfree (keys[i]);
-    sfree (key);
-    cache_free (ce);
   } /* for (i = 0; i < keys_len; i++) */
-  pthread_mutex_unlock (&cache_lock);
 
   sfree (keys);
   sfree (keys_time);
@@ -495,24 +479,18 @@ int uc_get_rate_by_name (const char *name, gauge_t **ret_values, size_t *ret_val
   {
     assert (ce != NULL);
 
-    /* remove missing values from getval */
-    if (ce->state == STATE_MISSING)
+    /* Removing values with missing state would cause threshold plugin
+       to not send OKAY-notifications. Does it causes any bad side effect elsewhere ? */
+    ret_num = ce->values_num;
+    ret = (gauge_t *) malloc (ret_num * sizeof (gauge_t));
+    if (ret == NULL)
     {
+      ERROR ("utils_cache: uc_get_rate_by_name: malloc failed.");
       status = -1;
     }
     else
     {
-      ret_num = ce->values_num;
-      ret = (gauge_t *) malloc (ret_num * sizeof (gauge_t));
-      if (ret == NULL)
-      {
-        ERROR ("utils_cache: uc_get_rate_by_name: malloc failed.");
-        status = -1;
-      }
-      else
-      {
-        memcpy (ret, ce->values_gauge, ret_num * sizeof (gauge_t));
-      }
+      memcpy (ret, ce->values_gauge, ret_num * sizeof (gauge_t));
     }
   }
   else
