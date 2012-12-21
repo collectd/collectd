@@ -1,6 +1,7 @@
 %global _hardened_build 1
 
 # enabled plugins
+%define with_aggregation 0%{!?_without_aggregation:1}
 %define with_amqp 0%{!?_without_amqp:1}
 %define with_apache 0%{!?_without_apache:1}
 %define with_apcups 0%{!?_without_apcups:1}
@@ -94,6 +95,7 @@
 %define with_netlink 0%{!?_without_netlink:0}
 %define with_onewire 0%{!?_without_onewire:0}
 %define with_oracle 0%{!?_without_oracle:0}
+%define with_pf 0%{!?_without_pf:0}
 %define with_redis 0%{!?_without_redis:0}
 %define with_routeros 0%{!?_without_routeros:0}
 %define with_rrdcached 0%{!?_without_rrdcached:0}
@@ -106,14 +108,14 @@
 
 Summary:	Statistics collection daemon for filling RRD files
 Name:		collectd
-Version:	5.1.0
-Release:	3%{?dist}
+Version:	5.2.0
+Release:	1%{?dist}
 URL:		http://collectd.org
 Source:		http://collectd.org/files/%{name}-%{version}.tar.gz
 License:	GPLv2
 Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
-BuildRequires:	curl-devel, libgcrypt-devel, libxml2-devel, libstatgrab-devel
+BuildRequires:	libgcrypt-devel, libstatgrab-devel
 Vendor:		collectd development team <collectd@verplant.org>
 
 Requires(post):		chkconfig
@@ -126,7 +128,7 @@ provides mechanisms to monitor and store the values in a variety of ways. It
 is written in C for performance. Since the daemon doesn't need to start up
 every time it wants to update the values it's very fast and easy on the
 system. Also, the statistics are very fine grained since the files are updated
-every 10 seconds.
+every 10 seconds by default.
 
 %if %{with_amqp}
 %package amqp
@@ -144,6 +146,7 @@ Advanced Message Queuing Protocol (AMQP).
 Summary:	Apache plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	curl-devel
 %description apache
 This plugin collects data provided by Apache's `mod_status'.
 %endif
@@ -153,6 +156,7 @@ This plugin collects data provided by Apache's `mod_status'.
 Summary:	Ascent plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	libxml2-devel, curl-devel
 %description ascent
 The Ascent plugin reads and parses the statistics page of Ascent, a free and
 open-source server software for the game World of Warcraft by Blizzard
@@ -164,6 +168,7 @@ Entertainment.
 Summary:	Bind plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	libxml2-devel, curl-devel
 %description bind
 The BIND plugin retrieves this information that's encoded in XML and provided
 via HTTP and submits the values to collectd.
@@ -174,6 +179,7 @@ via HTTP and submits the values to collectd.
 Summary:	Curl plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	curl-devel
 %description curl
 The cURL plugin uses libcurl to read files and then parses them according to
 the configuration.
@@ -183,8 +189,8 @@ the configuration.
 %package curl_json
 Summary:	Curl_json plugin for collectd
 Group:		System Environment/Daemons
-Requires:	%{name}%{?_isa} = %{version}-%{release}, curl, yajl
-Buildrequires:	yajl-devel
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+Buildrequires:	curl-devel, yajl-devel
 %description curl_json
 The cURL-JSON plugin queries JavaScript Object Notation (JSON) data using the
 cURL library and parses it according to the user's configuration.
@@ -195,6 +201,7 @@ cURL library and parses it according to the user's configuration.
 Summary:	Curl_xml plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	curl-devel, libxml2-devel
 %description curl_xml
 The cURL-XML plugin reads files using libcurl and parses it as Extensible
 Markup Language (XML).
@@ -326,6 +333,7 @@ handlers and database traffic.
 Summary:	Nginx plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	curl-devel
 %description nginx
 This plugin gets data provided by nginx.
 %endif
@@ -418,6 +426,28 @@ The Python plugin embeds a Python interpreter into collectd and exposes the
 application programming interface (API) to Python-scripts.
 %endif
 
+%if %{with_redis}
+%package redis
+Summary:	Redis plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	credis-devel
+%description redis
+The Redis plugin connects to one or more instances of Redis, a key-value store,
+and collects usage information using the credis library.
+%endif
+
+%if %{with_rrdcached}
+%package rrdcached
+Summary:        RRDCached plugin for collectd
+Group:          System Environment/Daemons
+Requires:       %{name}%{?_isa} = %{version}-%{release}, rrdtool >= 1.4
+BuildRequires:  rrdtool-devel
+%description rrdcached
+The RRDCacheD plugin connects to the “RRD caching daemon”, rrdcached and
+submits updates for RRD files to that daemon.
+%endif
+
 %if %{with_rrdtool}
 %package rrdtool
 Summary:	RRDtool plugin for collectd
@@ -463,9 +493,20 @@ The Varnish plugin collects information about Varnish, an HTTP accelerator.
 Summary:	Write-HTTP plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	curl-devel
 %description write_http
 The Write-HTTP plugin sends the values collected by collectd to a web-server
 using HTTP POST requests.
+%endif
+
+%if %{with_write_redis}
+%package write_redis
+Summary:	Write-Redis plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	credis-devel
+%description write_redis
+The Write Redis plugin stores values in Redis, a “data structures server”.
 %endif
 
 %package contrib
@@ -494,6 +535,12 @@ Development files for libcollectdclient
 
 
 %build
+%if %{with_aggregation}
+%define _with_aggregation --enable-aggregation
+%else
+%define _with_aggregation --disable-aggregation
+%endif
+
 %if %{with_amqp}
 %define _with_amqp --enable-amqp
 %else
@@ -860,6 +907,12 @@ Development files for libcollectdclient
 %define _with_perl --disable-perl --without-libperl
 %endif
 
+%if %{with_pf}
+%define _with_pf --enable-pf
+%else
+%define _with_pf --disable-pf
+%endif
+
 %if %{with_pinba}
 %define _with_pinba --enable-pinba
 %else
@@ -1098,6 +1151,7 @@ Development files for libcollectdclient
 	--disable-static \
 	--without-included-ltdl \
 	--enable-all-plugins=yes \
+	--enable-aggregation \
 	--enable-match_empty_counter \
 	--enable-match_hashed \
 	--enable-match_regex \
@@ -1108,6 +1162,7 @@ Development files for libcollectdclient
 	--enable-target_scale \
 	--enable-target_set \
 	--enable-target_v5upgrade \
+	%{?_with_aggregation} \
 	%{?_with_amqp} \
 	%{?_with_apache} \
 	%{?_with_apcups} \
@@ -1155,6 +1210,7 @@ Development files for libcollectdclient
 	%{?_with_onewire} \
 	%{?_with_oracle} \
 	%{?_with_perl} \
+	%{?_with_pf} \
 	%{?_with_pinba} \
 	%{?_with_ping} \
 	%{?_with_postgresql} \
@@ -1281,6 +1337,7 @@ fi
 %{_initrddir}/collectd
 %{_sbindir}/collectd
 %{_bindir}/collectd-nagios
+%{_bindir}/collectd-tg
 %{_bindir}/collectdctl
 %{_sbindir}/collectdmon
 %{_datadir}/collectd/
@@ -1308,6 +1365,9 @@ fi
 %{_libdir}/%{name}/target_set.so
 %{_libdir}/%{name}/target_v5upgrade.so
 
+%if %{with_aggregation}
+%{_libdir}/%{name}/aggregation.so
+%endif
 %if %{with_apcups}
 %{_libdir}/%{name}/apcups.so
 %endif
@@ -1465,8 +1525,8 @@ fi
 %{_libdir}/%{name}/write_graphite.so
 %endif
 
-# All plugins not built because of dependencies on libraries not available in
-# RHEL or EPEL:
+# All plugins not built by default because of dependencies on libraries not
+# available in RHEL or EPEL:
 # plugin modbus disabled, requires libmodbus
 # plugin netlink disabled, requires libnetlink.h
 # plugin numa disabled, requires libnetapp
@@ -1483,11 +1543,13 @@ fi
 
 %files -n libcollectdclient-devel
 %{_includedir}/collectd/client.h
+%{_includedir}/collectd/network.h
+%{_includedir}/collectd/network_buffer.h
 %{_includedir}/collectd/lcc_features.h
-%{_libdir}/libcollectdclient.so
 %{_libdir}/pkgconfig/libcollectdclient.pc
 
 %files -n libcollectdclient
+%{_libdir}/libcollectdclient.so
 %{_libdir}/libcollectdclient.so.*
 
 %if %{with_amqp}
@@ -1635,6 +1697,16 @@ fi
 %{_libdir}/%{name}/python.so
 %endif
 
+%if %{with_redis}
+%files redis
+%{_libdir}/%{name}/redis.so
+%endif
+
+%if %{with_rrdcached}
+%files rrdcached
+%{_libdir}/%{name}/rrdcached.so
+%endif
+
 %if %{with_rrdtool}
 %files rrdtool
 %{_libdir}/%{name}/rrdtool.so
@@ -1661,10 +1733,25 @@ fi
 %{_libdir}/%{name}/write_http.so
 %endif
 
+%if %{with_write_redis}
+%files write_redis
+%{_libdir}/%{name}/write_redis.so
+%endif
+
 %files contrib
 %doc contrib/
 
 %changelog
+* Fri Dec 21 2012 Marc Fournier <marc.fournier@camptocamp.com> 5.2.0-1
+- New upstream version
+- Enabled aggregation plugin
+- Installed collectd-tc
+- Added network.h and network_buffer.h to libcollectdclient-devel
+- Moved libxml2-devel and libcurl-devel BRs to relevant plugins sections
+- Moved libcollectdclient.so from libcollectdclient-devel to libcollectdclient
+- Added rrdcached and redis plugin descriptions
+- Mentioned new pf plugin in disabled plugins list
+
 * Sun Nov 18 2012 Ruben Kerkhof <ruben@tilaa.nl> 5.1.0-3
 - Follow Fedora Packaging Guidelines in java subpackage
 
