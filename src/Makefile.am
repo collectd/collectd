@@ -868,6 +868,16 @@ collectd_LDADD += "-dlopen" oracle.la
 collectd_DEPENDENCIES += oracle.la
 endif
 
+if BUILD_PLUGIN_OREGON
+pkglib_LTLIBRARIES += oregon.la
+oregon_la_SOURCES = oregon.c
+oregon_la_CPPFLAGS = $(AM_CPPFLAGS)
+oregon_la_LDFLAGS = -module -avoid-version
+oregon_la_LIBADD = -lm
+collectd_LDADD += "-dlopen" oregon.la
+collectd_DEPENDENCIES += oregon.la
+endif
+
 if BUILD_PLUGIN_PERL
 pkglib_LTLIBRARIES += perl.la
 perl_la_SOURCES = perl.c
