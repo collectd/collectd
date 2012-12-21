@@ -262,8 +262,6 @@ typedef int _Bool;
 # define COLLECTD_DEFAULT_INTERVAL 10.0
 #endif
 
-#define STATIC_ARRAY_LEN(array) (sizeof (array) / sizeof ((array)[0]))
-
 /* Remove GNU specific __attribute__ settings when using another compiler */
 #if !__GNUC__
 # define __attribute__(x) /**/

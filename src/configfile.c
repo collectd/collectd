@@ -98,7 +98,7 @@ static cf_value_map_t cf_value_map[] =
 	{"PluginDir",  dispatch_value_plugindir},
 	{"LoadPlugin", dispatch_loadplugin}
 };
-static int cf_value_map_num = STATIC_ARRAY_LEN (cf_value_map);
+static int cf_value_map_num = STATIC_ARRAY_SIZE (cf_value_map);
 
 static cf_global_option_t cf_global_options[] =
 {
@@ -112,7 +112,7 @@ static cf_global_option_t cf_global_options[] =
 	{"PreCacheChain",  NULL, "PreCache"},
 	{"PostCacheChain", NULL, "PostCache"}
 };
-static int cf_global_options_num = STATIC_ARRAY_LEN (cf_global_options);
+static int cf_global_options_num = STATIC_ARRAY_SIZE (cf_global_options);
 
 static int cf_default_typesdb = 1;
 

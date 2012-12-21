@@ -641,6 +641,12 @@ B<apcupsd> can handle it.
 
 TCP-Port to connect to. Defaults to B<3551>.
 
+=item B<ReportSeconds> B<true|false>
+
+If set to B<true>, the time reported in the C<timeleft> metric will be
+converted to seconds. This is the recommended setting. If set to B<false>, the
+default for backwards compatibility, the time will be reported in minutes.
+
 =back
 
 =head2 Plugin C<ascent>
