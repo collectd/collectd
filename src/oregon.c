@@ -65,6 +65,7 @@ static const uint16_t oregon_device_id[][2] = {
 typedef struct OregonData {
   double          temperature[16];
   double          humidity[16];
+  uint8_t         battery[16];
   time_t          last_update[16];
   char            hidraw_dev[32];
   uint16_t        vendor_id;
@@ -187,7 +188,7 @@ static void oregon_process_measurement(OregonData *data,
 	  if(data->last_update[channel] == 0)
 	    INFO("oregon plugin: now monitoring channel %i", channel);
 	  data->last_update[channel] = time(NULL);
-	  /* TODO: battery state */
+	  data->battery[channel] = (msg[0] >> 6) & 0x01;
 	}
       else
 	WARNING("oregon plugin: invalid checksum!");
@@ -487,6 +488,7 @@ static int oregon_read(void)
 	{
 	  submit(i, "temperature", data->temperature[i]);
 	  submit(i, "humidity", data->humidity[i]);
+	  submit(i, "gauge", data->battery[i]);
 	}
       else
 	{
