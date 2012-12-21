@@ -981,6 +981,17 @@ collectd_LDADD += "-dlopen" redis.la
 collectd_DEPENDENCIES += redis.la
 endif
 
+if BUILD_PLUGIN_RIEMANN
+BUILT_SOURCES += riemann.pb-c.c riemann.pb-c.h
+CLEANFILES += riemann.pb-c.c riemann.pb-c.h
+pkglib_LTLIBRARIES += riemann.la
+riemann_la_SOURCES = riemann.c riemann.pb-c.c
+riemann_la_LDFLAGS = -module -avoid-version
+riemann_la_LIBADD = -lprotobuf-c
+collectd_LDADD += "-dlopen" riemann.la
+collectd_DEPENDENCIES += riemann.la
+endif
+
 if BUILD_PLUGIN_ROUTEROS
 pkglib_LTLIBRARIES += routeros.la
 routeros_la_SOURCES = routeros.c
@@ -1375,7 +1386,7 @@ dist_man_MANS = collectd.1 \
 
 #collectd_1_SOURCES = collectd.pod
 
-EXTRA_DIST = types.db pinba.proto
+EXTRA_DIST = types.db pinba.proto riemann.proto
 
 EXTRA_DIST +=   collectd.conf.pod \
 		collectd-email.pod \
@@ -1411,6 +1422,9 @@ EXTRA_DIST +=   collectd.conf.pod \
 
 pinba.pb-c.c pinba.pb-c.h: pinba.proto
 	protoc-c --c_out . pinba.proto
+
+riemann.pb-c.c riemann.pb-c.h: riemann.proto
+	protoc-c --c_out . riemann.proto
 
 install-exec-hook:
 	$(mkinstalldirs) $(DESTDIR)$(sysconfdir)
