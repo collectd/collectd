@@ -4932,6 +4932,7 @@ AC_PLUGIN([processes],   [$plugin_processes],  [Process statistics])
 AC_PLUGIN([protocols],   [$plugin_protocols],  [Protocol (IP, TCP, ...) statistics])
 AC_PLUGIN([python],      [$with_python],       [Embed a Python interpreter])
 AC_PLUGIN([redis],       [$with_libcredis],    [Redis plugin])
+AC_PLUGIN([riemann],     [$have_protoc_c],     [Riemann plugin])
 AC_PLUGIN([routeros],    [$with_librouteros],  [RouterOS plugin])
 AC_PLUGIN([rrdcached],   [$librrd_rrdc_update], [RRDTool output plugin])
 AC_PLUGIN([rrdtool],     [$with_librrd],       [RRDTool output plugin])
@@ -5265,6 +5266,7 @@ Configuration:
     protocols . . . . . . $enable_protocols
     python  . . . . . . . $enable_python
     redis . . . . . . . . $enable_redis
+    riemann . . . . . . . $enable_riemann
     routeros  . . . . . . $enable_routeros
     rrdcached . . . . . . $enable_rrdcached
     rrdtool . . . . . . . $enable_rrdtool
