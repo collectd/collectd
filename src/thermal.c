@@ -53,6 +53,7 @@ static void thermal_submit (const char *plugin_instance, enum dev_type dt,
 	vl.values = &vt;
 	vl.values_len = 1;
 
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "thermal", sizeof(vl.plugin));
 	sstrncpy (vl.plugin_instance, plugin_instance,
 			sizeof(vl.plugin_instance));
