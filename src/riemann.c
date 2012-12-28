@@ -55,6 +55,8 @@ struct riemann_event {
 char	*riemann_tags[RIEMANN_EXTRA_TAGS];
 int	 riemann_tagcount;
 
+int	riemann_send(struct riemann_host *, Msg *);
+int	riemann_notification(const notification_t *, user_data_t *);
 int	riemann_write(const data_set_t *, const value_list_t *, user_data_t *);
 int	riemann_connect(struct riemann_host *);
 void	riemann_free(void *);
@@ -62,9 +64,95 @@ int	riemann_config_host(oconfig_item_t *);
 int	riemann_config(oconfig_item_t *);
 void	module_register(void);
 
-/*
- * Functions
- */
+int
+riemann_send(struct riemann_host *host, Msg *msg)
+{
+	u_char			*buf;
+	size_t			 len;
+
+	len = msg__get_packed_size(msg);
+	DEBUG("riemann_write: packed size computed: %ld", len);
+	if ((buf = calloc(1, len)) == NULL) {
+		WARNING("riemann_write: failing to alloc buf!");
+		return ENOMEM;
+	}
+
+	msg__pack(msg, buf);
+
+	if (write(host->s, buf, len) != len) {
+		WARNING("riemann_write: could not send out full packet");
+		free(buf);
+		return -1;
+	}
+	free(buf);
+	return 0;
+}
+
+int
+riemann_notification(const notification_t *n, user_data_t *ud)
+{
+	int			 i;
+	struct riemann_host	*host = ud->data;
+	Msg			 msg = MSG__INIT;
+	Event			 ev = EVENT__INIT;
+	Event			*evtab[1];
+	const char		*tags[RIEMANN_MAX_TAGS];
+	char			 service[DATA_MAX_NAME_LEN];
+	notification_meta_t	*meta;
+	struct { 
+		int		 code;
+		char		*name;
+	}			 severities[] = {
+		{ NOTIF_OKAY,		"ok" },
+		{ NOTIF_WARNING,	"warning" },
+		{ NOTIF_FAILURE,	"critical" },
+		{ -1,			"unknown" }
+	};
+
+	evtab[0] = &ev;
+	msg.n_events = 1;
+	msg.events = evtab;
+	
+	ev.host = host->name;
+	ev.time = CDTIME_T_TO_TIME_T(n->time);
+	ev.has_time = 1;
+
+	for (i = 0;
+	     severities[i].code > 0 && severities[i].code != n->severity;
+	     i++)
+		;
+	ev.state = severities[i].name;
+
+	ev.n_tags = 2;
+	ev.tags = (char **)tags;
+	tags[0] = n->plugin;
+	tags[1] = "notification";
+	
+	for (i = 0; i < riemann_tagcount; i++)
+		tags[ev.n_tags++] = riemann_tags[i];
+
+	ssnprintf(service, sizeof(service),
+		  "%s-%s-%s-%s", n->plugin, n->plugin_instance,
+		  n->type, n->type_instance);
+	ev.service = service;
+	ev.description = (char *)n->message;
+	
+	/*
+	 * Pull in values from threshold
+	 */
+	for (meta = n->meta; 
+	     meta != NULL && strcasecmp(meta->name, "CurrentValue") != 0;
+	     meta = meta->next)
+		;
+
+	if (meta != NULL) {
+		ev.has_metric_d = 1;
+		ev.metric_d = meta->nm_value.nm_double;
+	}
+	
+	return riemann_send(host, &msg);
+}
+
 int
 riemann_write(const data_set_t *ds,
 	      const value_list_t *vl,
@@ -76,8 +164,6 @@ riemann_write(const data_set_t *ds,
 	Msg			 msg = MSG__INIT;
 	Event			*ev;
 	struct riemann_event	*event_tab, *event;
-	u_char			*buf;
-	size_t			 len;
 
 	if ((status = riemann_connect(host)) != 0)
 		return status;
@@ -157,32 +243,9 @@ riemann_write(const data_set_t *ds,
 		msg.events[i] = ev;
 	}
 	
-	/*
-	 * we have now packed a bunch of events, let's pack them
-	 */
-	len = msg__get_packed_size(&msg);
-	DEBUG("riemann_write: packed size computed: %ld", len);
-	if ((buf = calloc(1, len)) == NULL) {
-		WARNING("riemann_write: failing to alloc buf!");
-		sfree(msg.events);
-		return ENOMEM;
-	}
-
-	/*
-	 * prepend full size to beginning of buffer
-	 */
-	msg__pack(&msg, buf);
+	status = riemann_send(host, &msg);
 	sfree(msg.events);
-
-	/*
-	 * we're now ready to send
-	 */
-	if (write(host->s, buf, len) != len) {
-		WARNING("riemann_write: could not send out full packet");
-		return -1;
-	}
-	free(buf);
-	return 0;
+	return status;
 }
 
 int
@@ -279,7 +342,8 @@ riemann_config_host(oconfig_item_t *ci)
 	int			 status = 0;
 	int			 i;
 	oconfig_item_t		*child;
-	char			 cb_name[DATA_MAX_NAME_LEN];
+	char			 w_cb_name[DATA_MAX_NAME_LEN];
+	char			 n_cb_name[DATA_MAX_NAME_LEN];
 	user_data_t		 ud;
 
 	if (ci->values_num != 1 ||
@@ -331,14 +395,24 @@ riemann_config_host(oconfig_item_t *ci)
 	}
 
 	pthread_mutex_init(&host->lock, NULL);
-	ssnprintf(cb_name, sizeof(cb_name), "riemann/%s:%d", host->name, host->port);
-	DEBUG("riemann cb_name: %s", cb_name);
+	ssnprintf(w_cb_name, sizeof(w_cb_name), "write-riemann/%s:%d",
+		  host->name, host->port);
+	ssnprintf(n_cb_name, sizeof(n_cb_name), "notification-riemann/%s:%d",
+		  host->name, host->port);
+	DEBUG("riemann w_cb_name: %s", w_cb_name);
+	DEBUG("riemann n_cb_name: %s", n_cb_name);
 	ud.data = host;
 	ud.free_func = riemann_free;
 	
-	if ((status = plugin_register_write(cb_name, riemann_write, &ud)) != 0)
+	if ((status = plugin_register_write(w_cb_name, riemann_write, &ud)) != 0)
 		riemann_free(host);
-	
+
+	if ((status = plugin_register_notification(n_cb_name,
+						   riemann_notification,
+						   &ud)) != 0) {
+		plugin_unregister_write(w_cb_name);
+		riemann_free(host);
+	}
 	return status;
 }
 
