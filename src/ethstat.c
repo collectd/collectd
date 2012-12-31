@@ -73,7 +73,7 @@ static int ethstat_add_interface (const oconfig_item_t *ci) /* {{{ */
     return (status);
 
   interfaces_num++;
-  INFO("ethstat plugin: Registred interface %s",
+  INFO("ethstat plugin: Registered interface %s",
       interfaces[interfaces_num - 1]);
 
   return (0);
