@@ -509,6 +509,26 @@ BuildRequires:	credis-devel
 The Write Redis plugin stores values in Redis, a “data structures server”.
 %endif
 
+%package collection3
+Summary:	Web-based viewer for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+Requires: httpd
+%description collection3
+collection3 is a graphing front-end for the RRD files created by and filled
+with collectd. It is written in Perl and should be run as an CGI-script.
+Graphs are generated on-the-fly, so no cron job or similar is necessary.
+
+%package php-collection
+Summary:	collect php webfrontent
+Group:		System Environment/Daemons
+Requires:	collectd = %{version}-%{release}
+Requires:	httpd
+Requires:	php
+Requires:	php-rrdtool
+%description php-collection
+PHP graphing frontend for RRD files created by and filled with collectd.
+
 %package contrib
 Summary:	Contrib files for collectd
 Group:		System Environment/Daemons
@@ -1278,6 +1298,15 @@ rm -rf %{buildroot}
 %{__install} -d %{buildroot}%{_sharedstatedir}/collectd/
 %{__install} -d %{buildroot}%{_sysconfdir}/collectd.d/
 
+%{__mkdir} -p %{buildroot}%{_localstatedir}/www
+%{__mkdir} -p %{buildroot}/%{_sysconfdir}/httpd/conf.d
+
+%{__cp} -a contrib/collection3 %{buildroot}%{_localstatedir}/www
+%{__cp} -a contrib/redhat/collection3.conf %{buildroot}/%{_sysconfdir}/httpd/conf.d/
+
+%{__cp} -a contrib/php-collection %{buildroot}%{_localstatedir}/www
+%{__cp} -a contrib/redhat/php-collection.conf %{buildroot}/%{_sysconfdir}/httpd/conf.d/
+
 ### Clean up docs
 find contrib/ -type f -exec %{__chmod} a-x {} \;
 # *.la files shouldn't be distributed.
@@ -1738,10 +1767,21 @@ fi
 %{_libdir}/%{name}/write_redis.so
 %endif
 
+%files collection3
+%{_localstatedir}/www/collection3
+%{_sysconfdir}/httpd/conf.d/collection3.conf
+
+%files php-collection
+%{_localstatedir}/www/php-collection
+%{_sysconfdir}/httpd/conf.d/php-collection.conf
+
 %files contrib
 %doc contrib/
 
 %changelog
+* Thu Jan 03 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.2.0-2
+- collection3 and php-collection viewers are now in separate packages
+
 * Fri Dec 21 2012 Marc Fournier <marc.fournier@camptocamp.com> 5.2.0-1
 - New upstream version
 - Enabled aggregation plugin
