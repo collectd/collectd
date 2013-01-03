@@ -43,6 +43,7 @@ struct cdbi_database_s /* {{{ */
   char *select_db;
 
   char *driver;
+  char *hostname;          
   cdbi_driver_option_t *driver_options;
   size_t driver_options_num;
 
@@ -307,6 +308,9 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp ("Query", child->key) == 0)
       status = udb_query_pick_from_list (child, queries, queries_num,
           &db->queries, &db->queries_num);
+    else if (strcasecmp ("Hostname", child->key) == 0)
+         db->hostname = strdup(child->key);
+              
     else
     {
       WARNING ("dbi plugin: Option `%s' not allowed here.", child->key);
