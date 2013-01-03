@@ -103,6 +103,8 @@ mysql_octets		rx:DERIVE:0:U, tx:DERIVE:0:U
 nfs_procedure		value:DERIVE:0:U
 nginx_connections	value:GAUGE:0:U
 nginx_requests		value:DERIVE:0:U
+nginx_accepts		value:DERIVE:0:U
+nginx_handled		value:DERIVE:0:U
 node_octets		rx:DERIVE:0:U, tx:DERIVE:0:U
 node_rssi		value:GAUGE:0:255
 node_stat		value:DERIVE:0:U
