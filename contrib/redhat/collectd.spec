@@ -1275,7 +1275,7 @@ rm -rf %{buildroot}
 %{__make} install DESTDIR=%{buildroot}
 %{__install} -Dp -m 0755 contrib/redhat/init.d-collectd %{buildroot}%{_initrddir}/collectd
 %{__install} -Dp -m0644 src/collectd.conf %{buildroot}%{_sysconfdir}/collectd.conf
-%{__install} -d %{buildroot}%{sharedstatedir}/collectd/
+%{__install} -d %{buildroot}%{_sharedstatedir}/collectd/
 %{__install} -d %{buildroot}%{_sysconfdir}/collectd.d/
 
 ### Clean up docs
