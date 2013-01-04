@@ -54,7 +54,8 @@ static const char *config_keys[] =
 	"IgnoreSelected",
 	"ReportByDevice",
 	"ReportReserved",
-	"ReportInodes"
+	"ReportInodes",
+        "ReportFreePercent",
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -64,6 +65,7 @@ static ignorelist_t *il_fstype = NULL;
 
 static _Bool by_device = 0;
 static _Bool report_inodes = 0;
+static _Bool report_free_percent = 0;
 
 static int df_init (void)
 {
@@ -119,6 +121,13 @@ static int df_config (const char *key, const char *value)
 	{
 		if (IS_TRUE (value))
 			by_device = 1;
+
+		return (0);
+	}
+	else if (strcasecmp (key, "ReportFreePercent") == 0)
+	{
+		if (IS_TRUE (value))
+			report_free_percent = 1;
 
 		return (0);
 	}
@@ -280,6 +289,14 @@ static int df_read (void)
 				(gauge_t) (blk_reserved * blocksize));
 		df_submit_one (disk_name, "df_complex", "used",
 				(gauge_t) (blk_used * blocksize));
+
+                if (report_free_percent) {
+                        df_submit_one (disk_name, "percent", "free_avail",
+                                       (gauge_t) ((statbuf.f_bavail / (double) statbuf.f_blocks) * 100));
+                        df_submit_one (disk_name, "percent", "free",
+                               (gauge_t) ((statbuf.f_bfree / (double) statbuf.f_blocks) * 100));
+                }
+
 
 		/* inode handling */
 		if (report_inodes)
