@@ -109,7 +109,7 @@
 Summary:	Statistics collection daemon for filling RRD files
 Name:		collectd
 Version:	5.2.0
-Release:	1%{?dist}
+Release:	2%{?dist}
 URL:		http://collectd.org
 Source:		http://collectd.org/files/%{name}-%{version}.tar.gz
 License:	GPLv2
