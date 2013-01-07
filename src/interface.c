@@ -35,6 +35,10 @@
 #  include <sys/socket.h>
 #endif
 
+#if KERNEL_SOLARIS
+#include <sys/utsname.h>
+#endif
+
 /* One cannot include both. This sucks. */
 #if HAVE_LINUX_IF_H
 #  include <linux/if.h>
@@ -78,6 +82,10 @@ static int pnif;
 
 #if !HAVE_GETIFADDRS && !KERNEL_LINUX && !HAVE_LIBKSTAT && !HAVE_LIBSTATGRAB && !HAVE_PERFSTAT
 # error "No applicable input method."
+#endif
+
+#if KERNEL_SOLARIS
+static int solaris_version_10_and_upper = 0;
 #endif
 
 /*
@@ -129,6 +137,16 @@ static int interface_init (void)
 {
 	kstat_t *ksp_chain;
 	derive_t val;
+#if KERNEL_SOLARIS
+	struct utsname solaris_version;
+#endif
+
+#if KERNEL_SOLARIS
+	if(-1 != uname(&solaris_version)) {
+		if(!strcmp(solaris_version.release, "5.10")) solaris_version_10_and_upper = 1;
+		else if(!strcmp(solaris_version.release, "5.11")) solaris_version_10_and_upper = 1;
+	}
+#endif
 
 	numif = 0;
 
@@ -145,8 +163,19 @@ static int interface_init (void)
 			continue;
 		if (kstat_read (kc, ksp_chain, NULL) == -1)
 			continue;
-		if ((val = get_kstat_value (ksp_chain, "obytes")) == -1LL)
+		if (
+			((val = get_kstat_value (ksp_chain, "obytes")) == -1LL)
+			&& ((val = get_kstat_value (ksp_chain, "obytes64")) == -1LL)
+		   )
 			continue;
+		if(solaris_version_10_and_upper) {
+				/* TODO : check if this can also be applied to Solaris < 10 */
+				int link_up;
+
+				/* Do not collect it link is not up */
+				link_up = get_kstat_value (ksp_chain, "link_up");
+				if(1 != link_up) continue;
+		}
 		ksp[numif++] = ksp_chain;
 	}
 
@@ -293,8 +322,21 @@ static int interface_read (void)
 
 	for (i = 0; i < numif; i++)
 	{
+		char device_name[11+KSTAT_STRLEN];
+
 		if (kstat_read (kc, ksp[i], NULL) == -1)
 			continue;
+
+		/* Compute the name as "moduleinstance" if name is "mac" or "phys"
+		 * else as "name_instance"
+		 */
+		if(solaris_version_10_and_upper && 
+						( !strcmp("mac", ksp[i]->ks_name) || !strcmp("phys", ksp[i]->ks_name) )
+		  ) {
+				snprintf(device_name, sizeof(device_name), "%s%ld", ksp[i]->ks_module, ksp[i]->ks_instance);
+		} else {
+				snprintf(device_name, sizeof(device_name), "%s_%ld", ksp[i]->ks_name, ksp[i]->ks_instance);
+		}
 
 		/* try to get 64bit counters */
 		rx = get_kstat_value (ksp[i], "rbytes64");
@@ -305,7 +347,7 @@ static int interface_read (void)
 		if (tx == -1LL)
 			tx = get_kstat_value (ksp[i], "obytes");
 		if ((rx != -1LL) || (tx != -1LL))
-			if_submit (ksp[i]->ks_name, "if_octets", rx, tx);
+			if_submit (device_name, "if_octets", rx, tx);
 
 		/* try to get 64bit counters */
 		rx = get_kstat_value (ksp[i], "ipackets64");
@@ -316,13 +358,13 @@ static int interface_read (void)
 		if (tx == -1LL)
 			tx = get_kstat_value (ksp[i], "opackets");
 		if ((rx != -1LL) || (tx != -1LL))
-			if_submit (ksp[i]->ks_name, "if_packets", rx, tx);
+			if_submit (device_name, "if_packets", rx, tx);
 
 		/* no 64bit error counters yet */
 		rx = get_kstat_value (ksp[i], "ierrors");
 		tx = get_kstat_value (ksp[i], "oerrors");
 		if ((rx != -1LL) || (tx != -1LL))
-			if_submit (ksp[i]->ks_name, "if_errors", rx, tx);
+			if_submit (device_name, "if_errors", rx, tx);
 	}
 /* #endif HAVE_LIBKSTAT */
 
