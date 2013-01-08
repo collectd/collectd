@@ -4834,6 +4834,12 @@ then
 	plugin_users="yes"
 fi
 
+# FreeBSD
+if test "x$have_struct_kinfo_proc_freebsd" = "xyes"
+then
+	plugin_zfs_arc="yes"
+fi
+
 m4_divert_once([HELP_ENABLE], [
 collectd plugins:])
 
