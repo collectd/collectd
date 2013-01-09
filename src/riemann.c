@@ -36,7 +36,6 @@
 #define RIEMANN_EXTRA_TAGS	32
 
 struct riemann_host {
-	struct riemann_host	*next;
 #define F_CONNECT		 0x01
 	u_int8_t		 flags;
 	pthread_mutex_t		 lock;
@@ -80,6 +79,7 @@ riemann_send(struct riemann_host *host, Msg *msg)
 	msg__pack(msg, buf);
 
 	if (write(host->s, buf, len) != len) {
+		host->flags &= ~F_CONNECT;
 		WARNING("riemann_write: could not send out full packet");
 		free(buf);
 		return -1;
@@ -253,17 +253,19 @@ riemann_connect(struct riemann_host *host)
 {
 	int			 e;
 	struct addrinfo		*ai, *res, hints;
-	struct sockaddr_in	*sin4;
-	struct sockaddr_in6	*sin6;
+	char			 service[32];
 
 	if (host->flags & F_CONNECT)
 		return 0;
 		
 	memset(&hints, 0, sizeof(hints));
+	memset(&service, 0, sizeof(service));
 	hints.ai_family = PF_UNSPEC;
 	hints.ai_socktype = SOCK_DGRAM;
+
+	ssnprintf(service, sizeof(service), "%d", host->port);
 	
-	if ((e = getaddrinfo(host->name, NULL, &hints, &res)) != 0) {
+	if ((e = getaddrinfo(host->name, service, &hints, &res)) != 0) {
 		WARNING("could not resolve host \"%s\": %s",
 			host->name, gai_strerror(e));
 		return -1;
@@ -279,26 +281,11 @@ riemann_connect(struct riemann_host *host)
 			return 0;
 		}
 		
-		if ((host->s = socket(ai->ai_family, SOCK_DGRAM, 0)) == -1) {
+		if ((host->s = socket(ai->ai_family,
+				      ai->ai_socktype,
+				      ai->ai_protocol)) == -1) {
 			pthread_mutex_unlock(&host->lock);
 			WARNING("riemann_connect: could not open socket");
-			freeaddrinfo(res);
-			return -1;
-		}
-
-		switch (ai->ai_family) {
-		case AF_INET:
-			sin4 = (struct sockaddr_in *)ai->ai_addr;
-			sin4->sin_port = ntohs(host->port);
-			break;
-		case AF_INET6:
-			sin6 = (struct sockaddr_in6 *)ai->ai_addr;
-			sin6->sin6_port = ntohs(host->port);
-			break;
-		default:
-			WARNING("riemann_connect: unsupported address family");
-			close(host->s);
-			pthread_mutex_unlock(&host->lock);
 			freeaddrinfo(res);
 			return -1;
 		}
