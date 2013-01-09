@@ -54,37 +54,46 @@ struct riemann_event {
 char	*riemann_tags[RIEMANN_EXTRA_TAGS];
 int	 riemann_tagcount;
 
-int	riemann_send(struct riemann_host *, Msg *);
+int	riemann_send(struct riemann_host *, Msg const *);
 int	riemann_notification(const notification_t *, user_data_t *);
 int	riemann_write(const data_set_t *, const value_list_t *, user_data_t *);
 int	riemann_connect(struct riemann_host *);
+int	riemann_disconnect (struct riemann_host *host);
 void	riemann_free(void *);
 int	riemann_config_host(oconfig_item_t *);
 int	riemann_config(oconfig_item_t *);
 void	module_register(void);
 
 int
-riemann_send(struct riemann_host *host, Msg *msg)
+riemann_send(struct riemann_host *host, Msg const *msg)
 {
-	u_char			*buf;
-	size_t			 len;
+	u_char *buffer;
+	size_t  buffer_len;
+	ssize_t status;
 
-	len = msg__get_packed_size(msg);
-	DEBUG("riemann_write: packed size computed: %ld", len);
-	if ((buf = calloc(1, len)) == NULL) {
-		WARNING("riemann_write: failing to alloc buf!");
+	buffer_len = msg__get_packed_size(msg);
+	buffer = malloc (buffer_len);
+	if (buffer == NULL) {
+		ERROR ("riemann plugin: malloc failed.");
 		return ENOMEM;
 	}
+	memset (buffer, 0, buffer_len);
 
-	msg__pack(msg, buf);
+	msg__pack(msg, buffer);
 
-	if (write(host->s, buf, len) != len) {
-		host->flags &= ~F_CONNECT;
-		WARNING("riemann_write: could not send out full packet");
-		free(buf);
+	status = swrite (host->s, buffer, buffer_len);
+	if (status != 0)
+	{
+		char errbuf[1024];
+		ERROR ("riemann plugin: Sending to Riemann at %s:%d failed: %s",
+				host->name, host->port,
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		riemann_disconnect (host);
+		sfree (buffer);
 		return -1;
 	}
-	free(buf);
+
+	sfree (buffer);
 	return 0;
 }
 
@@ -312,13 +321,28 @@ riemann_connect(struct riemann_host *host)
 	return 0;
 }
 
+int
+riemann_disconnect (struct riemann_host *host)
+{
+	if (host == NULL)
+		return (EINVAL);
+
+	if ((host->flags & F_CONNECT) == 0)
+		return (0);
+
+	close (host->s);
+	host->s = -1;
+	host->flags &= ~F_CONNECT;
+
+	return (0);
+}
+
 void
 riemann_free(void *p)
 {
 	struct riemann_host	*host = p;
 
-	if (host->flags & F_CONNECT)
-		close(host->s);
+	riemann_disconnect (host);
 	sfree(host);
 }
 
