@@ -108,7 +108,7 @@ riemann_notification(const notification_t *n, user_data_t *ud)
 	const char		*tags[RIEMANN_MAX_TAGS];
 	char			 service[DATA_MAX_NAME_LEN];
 	notification_meta_t	*meta;
-	struct { 
+	struct {
 		int		 code;
 		char		*name;
 	}			 severities[] = {
@@ -121,7 +121,7 @@ riemann_notification(const notification_t *n, user_data_t *ud)
 	evtab[0] = &ev;
 	msg.n_events = 1;
 	msg.events = evtab;
-	
+
 	ev.host = host->name;
 	ev.time = CDTIME_T_TO_TIME_T(n->time);
 	ev.has_time = 1;
@@ -136,7 +136,7 @@ riemann_notification(const notification_t *n, user_data_t *ud)
 	ev.tags = (char **)tags;
 	tags[0] = n->plugin;
 	tags[1] = "notification";
-	
+
 	for (i = 0; i < riemann_tagcount; i++)
 		tags[ev.n_tags++] = riemann_tags[i];
 
@@ -145,11 +145,11 @@ riemann_notification(const notification_t *n, user_data_t *ud)
 		  n->type, n->type_instance);
 	ev.service = service;
 	ev.description = (char *)n->message;
-	
+
 	/*
 	 * Pull in values from threshold
 	 */
-	for (meta = n->meta; 
+	for (meta = n->meta;
 	     meta != NULL && strcasecmp(meta->name, "CurrentValue") != 0;
 	     meta = meta->next)
 		;
@@ -158,7 +158,7 @@ riemann_notification(const notification_t *n, user_data_t *ud)
 		ev.has_metric_d = 1;
 		ev.metric_d = meta->nm_value.nm_double;
 	}
-	
+
 	return riemann_send(host, &msg);
 }
 
@@ -251,7 +251,7 @@ riemann_write(const data_set_t *ds,
 		DEBUG("riemann_write: %s ready to send", ev->service);
 		msg.events[i] = ev;
 	}
-	
+
 	status = riemann_send(host, &msg);
 	sfree(msg.events);
 	return status;
@@ -266,14 +266,14 @@ riemann_connect(struct riemann_host *host)
 
 	if (host->flags & F_CONNECT)
 		return 0;
-		
+
 	memset(&hints, 0, sizeof(hints));
 	memset(&service, 0, sizeof(service));
 	hints.ai_family = PF_UNSPEC;
 	hints.ai_socktype = SOCK_DGRAM;
 
 	ssnprintf(service, sizeof(service), "%d", host->port);
-	
+
 	if ((e = getaddrinfo(host->name, service, &hints, &res)) != 0) {
 		WARNING("could not resolve host \"%s\": %s",
 			host->name, gai_strerror(e));
@@ -289,7 +289,7 @@ riemann_connect(struct riemann_host *host)
 			freeaddrinfo(res);
 			return 0;
 		}
-		
+
 		if ((host->s = socket(ai->ai_family,
 				      ai->ai_socktype,
 				      ai->ai_protocol)) == -1) {
@@ -311,7 +311,7 @@ riemann_connect(struct riemann_host *host)
 		pthread_mutex_unlock(&host->lock);
 		break;
 	}
-	
+
 	freeaddrinfo(res);
 	if (ai == NULL) {
 		WARNING("riemann_connect: no suitable hosts found");
@@ -414,7 +414,7 @@ riemann_config_host(oconfig_item_t *ci)
 	DEBUG("riemann n_cb_name: %s", n_cb_name);
 	ud.data = host;
 	ud.free_func = riemann_free;
-	
+
 	if ((status = plugin_register_write(w_cb_name, riemann_write, &ud)) != 0)
 		riemann_free(host);
 
@@ -450,7 +450,7 @@ riemann_config(oconfig_item_t *ci)
 				return -1;
 			riemann_tags[riemann_tagcount++] = newtag;
 			DEBUG("riemann_config: got tag: %s", newtag);
- 
+
 		} else {
 			WARNING ("riemann plugin: Ignoring unknown "
 				 "configuration option \"%s\" at top level.",
@@ -464,6 +464,6 @@ void
 module_register(void)
 {
 	DEBUG("riemann: module_register");
-	
+
 	plugin_register_complex_config ("riemann", riemann_config);
 }
