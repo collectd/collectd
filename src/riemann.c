@@ -51,20 +51,20 @@ struct riemann_event {
 	const char	*tags[RIEMANN_MAX_TAGS];
 };
 
-char	*riemann_tags[RIEMANN_EXTRA_TAGS];
-int	 riemann_tagcount;
+static char	*riemann_tags[RIEMANN_EXTRA_TAGS];
+static int	 riemann_tagcount;
 
-int	riemann_send(struct riemann_host *, Msg const *);
-int	riemann_notification(const notification_t *, user_data_t *);
-int	riemann_write(const data_set_t *, const value_list_t *, user_data_t *);
-int	riemann_connect(struct riemann_host *);
-int	riemann_disconnect (struct riemann_host *host);
-void	riemann_free(void *);
-int	riemann_config_host(oconfig_item_t *);
-int	riemann_config(oconfig_item_t *);
+static int	riemann_send(struct riemann_host *, Msg const *);
+static int	riemann_notification(const notification_t *, user_data_t *);
+static int	riemann_write(const data_set_t *, const value_list_t *, user_data_t *);
+static int	riemann_connect(struct riemann_host *);
+static int	riemann_disconnect (struct riemann_host *host);
+static void	riemann_free(void *);
+static int	riemann_config_host(oconfig_item_t *);
+static int	riemann_config(oconfig_item_t *);
 void	module_register(void);
 
-int
+static int
 riemann_send(struct riemann_host *host, Msg const *msg)
 {
 	u_char *buffer;
@@ -97,7 +97,7 @@ riemann_send(struct riemann_host *host, Msg const *msg)
 	return 0;
 }
 
-int
+static int
 riemann_notification(const notification_t *n, user_data_t *ud)
 {
 	int			 i;
@@ -162,7 +162,7 @@ riemann_notification(const notification_t *n, user_data_t *ud)
 	return riemann_send(host, &msg);
 }
 
-int
+static int
 riemann_write(const data_set_t *ds,
 	      const value_list_t *vl,
 	      user_data_t *ud)
@@ -257,7 +257,7 @@ riemann_write(const data_set_t *ds,
 	return status;
 }
 
-int
+static int
 riemann_connect(struct riemann_host *host)
 {
 	int			 e;
@@ -321,7 +321,7 @@ riemann_connect(struct riemann_host *host)
 	return 0;
 }
 
-int
+static int
 riemann_disconnect (struct riemann_host *host)
 {
 	if (host == NULL)
@@ -337,7 +337,7 @@ riemann_disconnect (struct riemann_host *host)
 	return (0);
 }
 
-void
+static void
 riemann_free(void *p)
 {
 	struct riemann_host	*host = p;
@@ -346,7 +346,7 @@ riemann_free(void *p)
 	sfree(host);
 }
 
-int
+static int
 riemann_config_host(oconfig_item_t *ci)
 {
 	struct riemann_host	*host = NULL;
@@ -427,7 +427,7 @@ riemann_config_host(oconfig_item_t *ci)
 	return status;
 }
 
-int
+static int
 riemann_config(oconfig_item_t *ci)
 {
 	int		 i;
