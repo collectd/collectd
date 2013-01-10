@@ -1,3 +1,7 @@
+/*
+ * Copied from Riemann's Java client at:
+ * https://github.com/aphyr/riemann-java-client/blob/master/src/main/proto/riemann/proto.proto
+ */
 option java_package = "com.aphyr.riemann";
 option java_outer_classname = "Proto";
 

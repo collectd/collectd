@@ -292,7 +292,7 @@ riemann_connect(struct riemann_host *host)
 
 		if (connect(host->s, ai->ai_addr, ai->ai_addrlen) != 0) {
 			close(host->s);
-			host->flags |= ~F_CONNECT;
+			host->flags &= ~F_CONNECT;
 			pthread_mutex_unlock(&host->lock);
 			freeaddrinfo(res);
 			return -1;
