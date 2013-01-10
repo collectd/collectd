@@ -45,12 +45,6 @@ struct riemann_host {
 	int			 s;
 };
 
-struct riemann_event {
-	Event		 ev;
-	char		 service[DATA_MAX_NAME_LEN];
-	const char	*tags[RIEMANN_MAX_TAGS];
-};
-
 static char	*riemann_tags[RIEMANN_EXTRA_TAGS];
 static int	 riemann_tagcount;
 
@@ -63,6 +57,44 @@ static void	riemann_free(void *);
 static int	riemann_config_host(oconfig_item_t *);
 static int	riemann_config(oconfig_item_t *);
 void	module_register(void);
+
+static void riemann_event_protobuf_free (Event *event) /* {{{ */
+{
+	size_t i;
+
+	if (event == NULL)
+		return;
+
+	sfree (event->state);
+	sfree (event->service);
+	sfree (event->host);
+	sfree (event->description);
+
+	for (i = 0; i < event->n_tags; i++)
+		sfree (event->tags[i]);
+	sfree (event->tags);
+
+	sfree (event);
+} /* }}} void riemann_event_protobuf_free */
+
+static void riemann_msg_protobuf_free (Msg *msg) /* {{{ */
+{
+	size_t i;
+
+	if (msg == NULL)
+		return;
+
+	for (i = 0; i < msg->n_events; i++)
+	{
+		riemann_event_protobuf_free (msg->events[i]);
+		msg->events[i] = NULL;
+	}
+
+	sfree (msg->events);
+	msg->n_events = 0;
+
+	sfree (msg);
+} /* }}} void riemann_msg_protobuf_free */
 
 static int
 riemann_send(struct riemann_host *host, Msg const *msg)
@@ -97,163 +129,285 @@ riemann_send(struct riemann_host *host, Msg const *msg)
 	return 0;
 }
 
+static int riemann_event_add_tag (Event *event, /* {{{ */
+		char const *format, ...)
+{
+	va_list ap;
+	char buffer[1024];
+	size_t ret;
+
+	char **tmp;
+
+	tmp = realloc (event->tags, (event->n_tags + 1) * sizeof (*event->tags));
+	if (tmp == NULL)
+		return (ENOMEM);
+	event->tags = tmp;
+
+	va_start (ap, format);
+	ret = vsnprintf (buffer, sizeof (buffer), format, ap);
+	if (ret >= sizeof (buffer))
+		ret = sizeof (buffer) - 1;
+	buffer[ret] = 0;
+	va_end (ap);
+
+	event->tags[event->n_tags] = strdup (buffer);
+	if (event->tags[event->n_tags] == NULL)
+		return (ENOMEM);
+	event->n_tags++;
+	return (0);
+} /* }}} int riemann_event_add_tag */
+
+static Msg *riemann_notification_to_protobuf (struct riemann_host *host, /* {{{ */
+		notification_t const *n)
+{
+	Msg *msg;
+	Event *event;
+	char service_buffer[6 * DATA_MAX_NAME_LEN];
+	char const *severity;
+	notification_meta_t *meta;
+	int i;
+
+	msg = malloc (sizeof (*msg));
+	if (msg == NULL)
+	{
+		ERROR ("riemann plugin: malloc failed.");
+		return (NULL);
+	}
+	memset (msg, 0, sizeof (*msg));
+	msg__init (msg);
+
+	msg->events = malloc (sizeof (*msg->events));
+	if (msg->events == NULL)
+	{
+		ERROR ("riemann plugin: malloc failed.");
+		sfree (msg);
+		return (NULL);
+	}
+
+	event = malloc (sizeof (*event));
+	if (event == NULL)
+	{
+		ERROR ("riemann plugin: malloc failed.");
+		sfree (msg->events);
+		sfree (msg);
+		return (NULL);
+	}
+	memset (event, 0, sizeof (*event));
+	event__init (event);
+
+	msg->events[0] = event;
+	msg->n_events = 1;
+
+	event->host = strdup (n->host);
+	event->time = CDTIME_T_TO_TIME_T (n->time);
+	event->has_time = 1;
+
+	switch (n->severity)
+	{
+		case NOTIF_OKAY:	severity = "okay"; break;
+		case NOTIF_WARNING:	severity = "warning"; break;
+		case NOTIF_FAILURE:	severity = "failure"; break;
+		default:		severity = "unknown";
+	}
+	event->state = strdup (severity);
+
+	riemann_event_add_tag (event, "notification");
+	if (n->plugin[0] != 0)
+		riemann_event_add_tag (event, "plugin:%s", n->plugin);
+	if (n->plugin_instance[0] != 0)
+		riemann_event_add_tag (event, "plugin_instance:%s",
+				n->plugin_instance);
+
+	if (n->type[0] != 0)
+		riemann_event_add_tag (event, "type:%s", n->type);
+	if (n->type_instance[0] != 0)
+		riemann_event_add_tag (event, "type_instance:%s",
+				n->type_instance);
+
+	for (i = 0; i < riemann_tagcount; i++)
+		riemann_event_add_tag (event, "%s", riemann_tags[i]);
+
+	/* TODO: Use FORMAT_VL() here. */
+	ssnprintf (service_buffer, sizeof(service_buffer),
+			"%s-%s-%s-%s", n->plugin, n->plugin_instance,
+			n->type, n->type_instance);
+	event->service = strdup (service_buffer);
+
+	/* Pull in values from threshold */
+	for (meta = n->meta; meta != NULL; meta = meta->next)
+	{
+		if (strcasecmp ("CurrentValue", meta->name) != 0)
+			continue;
+
+		event->metric_d = meta->nm_value.nm_double;
+		event->has_metric_d = 1;
+		break;
+	}
+
+	DEBUG ("riemann plugin: Successfully created protobuf for notification: "
+			"host = \"%s\", service = \"%s\", state = \"%s\"",
+			event->host, event->service, event->state);
+	return (msg);
+} /* }}} Msg *riemann_notification_to_protobuf */
+
+static Event *riemann_value_to_protobuf (struct riemann_host *host, /* {{{ */
+		data_set_t const *ds,
+		value_list_t const *vl, size_t index,
+		gauge_t const *rates)
+{
+	Event *event;
+	char service_buffer[6 * DATA_MAX_NAME_LEN];
+	int i;
+
+	event = malloc (sizeof (*event));
+	if (event == NULL)
+	{
+		ERROR ("riemann plugin: malloc failed.");
+		return (NULL);
+	}
+	memset (event, 0, sizeof (*event));
+	event__init (event);
+
+	event->host = strdup (vl->host);
+	event->time = CDTIME_T_TO_TIME_T (vl->time);
+	event->has_time = 1;
+	event->ttl = CDTIME_T_TO_TIME_T (vl->interval) + host->delay;
+	event->has_ttl = 1;
+
+	riemann_event_add_tag (event, "plugin:%s", vl->plugin);
+	if (vl->plugin_instance[0] != 0)
+		riemann_event_add_tag (event, "plugin_instance:%s",
+				vl->plugin_instance);
+
+	riemann_event_add_tag (event, "type:%s", vl->type);
+	if (vl->type_instance[0] != 0)
+		riemann_event_add_tag (event, "type_instance:%s",
+				vl->type_instance);
+
+	riemann_event_add_tag (event, "ds_type:%s",
+			DS_TYPE_TO_STRING(ds->ds[index].type));
+	riemann_event_add_tag (event, "ds_name:%s", ds->ds[index].name);
+	riemann_event_add_tag (event, "ds_index:%zu", index);
+
+	for (i = 0; i < riemann_tagcount; i++)
+		riemann_event_add_tag (event, "%s", riemann_tags[i]);
+
+	if (rates != NULL)
+	{
+		event->has_metric_d = 1;
+		event->metric_d = (double) rates[index];
+	}
+	else if (ds->ds[index].type == DS_TYPE_GAUGE)
+	{
+		event->has_metric_d = 1;
+		event->metric_d = (double) vl->values[index].gauge;
+	}
+	else
+	{
+		event->has_metric_sint64 = 1;
+		if (ds->ds[index].type == DS_TYPE_DERIVE)
+			event->metric_sint64 = (int64_t) vl->values[index].derive;
+		else if (ds->ds[index].type == DS_TYPE_ABSOLUTE)
+			event->metric_sint64 = (int64_t) vl->values[index].absolute;
+		else
+			event->metric_sint64 = (int64_t) vl->values[index].counter;
+	}
+
+	/* TODO: Use FORMAT_VL() here. */
+	ssnprintf (service_buffer, sizeof(service_buffer),
+			"%s-%s-%s-%s-%s", vl->plugin, vl->plugin_instance,
+			vl->type, vl->type_instance, ds->ds[i].name);
+	event->service = strdup (service_buffer);
+
+	DEBUG ("riemann plugin: Successfully created protobuf for metric: "
+			"host = \"%s\", service = \"%s\"",
+			event->host, event->service);
+	return (event);
+} /* }}} Event *riemann_value_to_protobuf */
+
+static Msg *riemann_value_list_to_protobuf (struct riemann_host *host, /* {{{ */
+		data_set_t const *ds,
+		value_list_t const *vl)
+{
+	Msg *msg;
+	size_t i;
+
+	/* Initialize the Msg structure. */
+	msg = malloc (sizeof (*msg));
+	if (msg == NULL)
+	{
+		ERROR ("riemann plugin: malloc failed.");
+		return (NULL);
+	}
+	memset (msg, 0, sizeof (*msg));
+	msg__init (msg);
+
+	/* Set up events. First, the list of pointers. */
+	msg->n_events = (size_t) vl->values_len;
+	msg->events = calloc (msg->n_events, sizeof (*msg->events));
+	if (msg->events == NULL)
+	{
+		ERROR ("riemann plugin: calloc failed.");
+		riemann_msg_protobuf_free (msg);
+		return (NULL);
+	}
+
+	for (i = 0; i < msg->n_events; i++)
+	{
+		msg->events[i] = riemann_value_to_protobuf (host, ds, vl,
+				(int) i, /* rates = */ NULL);
+		if (msg->events[i])
+		{
+			riemann_msg_protobuf_free (msg);
+			return (NULL);
+		}
+	}
+
+	return (msg);
+} /* }}} Msg *riemann_value_list_to_protobuf */
+
 static int
 riemann_notification(const notification_t *n, user_data_t *ud)
 {
-	int			 i;
+	int			 status;
 	struct riemann_host	*host = ud->data;
-	Msg			 msg = MSG__INIT;
-	Event			 ev = EVENT__INIT;
-	Event			*evtab[1];
-	const char		*tags[RIEMANN_MAX_TAGS];
-	char			 service[DATA_MAX_NAME_LEN];
-	notification_meta_t	*meta;
-	struct {
-		int		 code;
-		char		*name;
-	}			 severities[] = {
-		{ NOTIF_OKAY,		"ok" },
-		{ NOTIF_WARNING,	"warning" },
-		{ NOTIF_FAILURE,	"critical" },
-		{ -1,			"unknown" }
-	};
+	Msg			*msg;
 
-	evtab[0] = &ev;
-	msg.n_events = 1;
-	msg.events = evtab;
+	msg = riemann_notification_to_protobuf (host, n);
+	if (msg == NULL)
+		return (-1);
 
-	ev.host = host->name;
-	ev.time = CDTIME_T_TO_TIME_T(n->time);
-	ev.has_time = 1;
+	status = riemann_send (host, msg);
+	if (status != 0)
+		ERROR ("riemann plugin: riemann_send failed with status %i",
+				status);
 
-	for (i = 0;
-	     severities[i].code > 0 && severities[i].code != n->severity;
-	     i++)
-		;
-	ev.state = severities[i].name;
-
-	ev.n_tags = 2;
-	ev.tags = (char **)tags;
-	tags[0] = n->plugin;
-	tags[1] = "notification";
-
-	for (i = 0; i < riemann_tagcount; i++)
-		tags[ev.n_tags++] = riemann_tags[i];
-
-	ssnprintf(service, sizeof(service),
-		  "%s-%s-%s-%s", n->plugin, n->plugin_instance,
-		  n->type, n->type_instance);
-	ev.service = service;
-	ev.description = (char *)n->message;
-
-	/*
-	 * Pull in values from threshold
-	 */
-	for (meta = n->meta;
-	     meta != NULL && strcasecmp(meta->name, "CurrentValue") != 0;
-	     meta = meta->next)
-		;
-
-	if (meta != NULL) {
-		ev.has_metric_d = 1;
-		ev.metric_d = meta->nm_value.nm_double;
-	}
-
-	return riemann_send(host, &msg);
-}
+	riemann_msg_protobuf_free (msg);
+	return (status);
+} /* }}} int riemann_notification */
 
 static int
 riemann_write(const data_set_t *ds,
 	      const value_list_t *vl,
 	      user_data_t *ud)
 {
-	int			 i, j;
 	int			 status;
 	struct riemann_host	*host = ud->data;
-	Msg			 msg = MSG__INIT;
-	Event			*ev;
-	struct riemann_event	*event_tab, *event;
+	Msg			*msg;
 
 	if ((status = riemann_connect(host)) != 0)
 		return status;
 
-	msg.n_events = vl->values_len;
+	msg = riemann_value_list_to_protobuf (host, ds, vl);
+	if (msg == NULL)
+		return (-1);
 
-	/*
-	 * Get rid of allocations up front
-	 */
-	if ((msg.events = calloc(msg.n_events, sizeof(*msg.events))) == NULL ||
-	    (event_tab = calloc(msg.n_events, sizeof(*event_tab))) == NULL) {
-		free(msg.events);
-		free(event_tab);
-		return ENOMEM;
-	}
+	status = riemann_send (host, msg);
+	if (status != 0)
+		ERROR ("riemann plugin: riemann_send failed with status %i",
+				status);
 
-	/*
-	 * Now produce valid protobuf structures
-	 */
-	for (i = 0; i < vl->values_len; i++) {
-		event = &event_tab[i];
-		event__init(&event->ev);
-
-		ev = &event->ev;
-		event__init(ev);
-		ev->host = host->name;
-		ev->has_time = 1;
-		ev->time = CDTIME_T_TO_TIME_T(vl->time);
-		ev->has_ttl = 1;
-		ev->ttl = CDTIME_T_TO_TIME_T(vl->interval) + host->delay;
-		ev->n_tags = 3;
-		ev->tags = (char **)event->tags;
-		event->tags[0] = DS_TYPE_TO_STRING(ds->ds[i].type);
-		event->tags[1] = vl->plugin;
-		event->tags[2] = ds->ds[i].name;
-		if (vl->plugin_instance && strlen(vl->plugin_instance)) {
-			event->tags[ev->n_tags++] = vl->plugin_instance;
-		}
-		if (vl->type && strlen(vl->type)) {
-			event->tags[ev->n_tags++] = vl->type;
-		}
-		if (vl->type_instance && strlen(vl->type_instance)) {
-			event->tags[ev->n_tags++] = vl->type_instance;
-		}
-
-		/* add user defined extra tags */
-		for (j = 0; j < riemann_tagcount; j++)
-			event->tags[ev->n_tags++] = riemann_tags[j];
-
-		switch (ds->ds[i].type) {
-		case DS_TYPE_COUNTER:
-			ev->has_metric_sint64 = 1;
-			ev->metric_sint64 = vl->values[i].counter;
-			break;
-		case DS_TYPE_GAUGE:
-			ev->has_metric_d = 1;
-			ev->metric_d = vl->values[i].gauge;
-			break;
-		case DS_TYPE_DERIVE:
-			ev->has_metric_sint64 = 1;
-			ev->metric_sint64 = vl->values[i].derive;
-			break;
-		case DS_TYPE_ABSOLUTE:
-			ev->has_metric_sint64 = 1;
-			ev->metric_sint64 = vl->values[i].absolute;
-			break;
-		default:
-			WARNING("riemann_write: unknown metric type: %d",
-				ds->ds[i].type);
-			break;
-		}
-		ssnprintf(event->service, sizeof(event->service),
-			  "%s-%s-%s-%s-%s", vl->plugin, vl->plugin_instance,
-			  vl->type, vl->type_instance, ds->ds[i].name);
-		ev->service = event->service;
-		DEBUG("riemann_write: %s ready to send", ev->service);
-		msg.events[i] = ev;
-	}
-
-	status = riemann_send(host, &msg);
-	sfree(msg.events);
+	riemann_msg_protobuf_free (msg);
 	return status;
 }
 
