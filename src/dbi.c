@@ -694,8 +694,14 @@ static int cdbi_connect_database (cdbi_database_t *db) /* {{{ */
         db->driver_options[i].key,
         db->driver_options[i].value);
 
-    status = dbi_conn_set_option (connection,
-        db->driver_options[i].key, db->driver_options[i].value);
+    if (strcmp(db->driver_options[i].key,"port") == 0 && strcmp(db->driver,"mysql") == 0) {
+      status = dbi_conn_set_option_numeric (connection,
+          db->driver_options[i].key, strtol(db->driver_options[i].value,NULL,10));
+      INFO ("dbi plugin: dbi_conn_set_option_numeric (%s)", db->driver_options[i].key);
+    } else {
+      status = dbi_conn_set_option (connection,
+          db->driver_options[i].key, db->driver_options[i].value);
+    }
     if (status != 0)
     {
       char errbuf[1024];
