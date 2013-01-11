@@ -109,13 +109,13 @@
 Summary:	Statistics collection daemon for filling RRD files
 Name:		collectd
 Version:	5.2.0
-Release:	2%{?dist}
+Release:	3%{?dist}
 URL:		http://collectd.org
 Source:		http://collectd.org/files/%{name}-%{version}.tar.gz
 License:	GPLv2
 Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
-BuildRequires:	libgcrypt-devel, libstatgrab-devel
+BuildRequires:	libgcrypt-devel
 Vendor:		collectd development team <collectd@verplant.org>
 
 Requires(post):		chkconfig
@@ -1779,6 +1779,9 @@ fi
 %doc contrib/
 
 %changelog
+* Thu Jan 11 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.2.0-3
+- remove dependency on libstatgrab, which isn't required on linux
+
 * Thu Jan 03 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.2.0-2
 - collection3 and php-collection viewers are now in separate packages
 
