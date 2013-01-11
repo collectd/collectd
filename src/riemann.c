@@ -31,7 +31,7 @@
 #include <pthread.h>
 
 #define RIEMANN_DELAY		1
-#define RIEMANN_PORT		5555
+#define RIEMANN_PORT		"5555"
 #define RIEMANN_MAX_TAGS	37
 #define RIEMANN_EXTRA_TAGS	32
 
@@ -40,8 +40,8 @@ struct riemann_host {
 	u_int8_t		 flags;
 	pthread_mutex_t		 lock;
 	int			 delay;
-	char			 name[DATA_MAX_NAME_LEN];
-	int			 port;
+	char			*node;
+	char			*service;
 	int			 s;
 };
 
@@ -117,8 +117,9 @@ riemann_send(struct riemann_host *host, Msg const *msg)
 	if (status != 0)
 	{
 		char errbuf[1024];
-		ERROR ("riemann plugin: Sending to Riemann at %s:%d failed: %s",
-				host->name, host->port,
+		ERROR ("riemann plugin: Sending to Riemann at %s:%s failed: %s",
+				host->node,
+				(host->service != NULL) ? host->service : RIEMANN_PORT,
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		riemann_disconnect (host);
 		sfree (buffer);
@@ -416,7 +417,7 @@ riemann_connect(struct riemann_host *host)
 {
 	int			 e;
 	struct addrinfo		*ai, *res, hints;
-	char			 service[32];
+	char const		*service;
 
 	if (host->flags & F_CONNECT)
 		return 0;
@@ -426,11 +427,12 @@ riemann_connect(struct riemann_host *host)
 	hints.ai_family = PF_UNSPEC;
 	hints.ai_socktype = SOCK_DGRAM;
 
-	ssnprintf(service, sizeof(service), "%d", host->port);
+	assert (host->node != NULL);
+	service = (host->service != NULL) ? host->service : RIEMANN_PORT;
 
-	if ((e = getaddrinfo(host->name, service, &hints, &res)) != 0) {
-		WARNING("could not resolve host \"%s\": %s",
-			host->name, gai_strerror(e));
+	if ((e = getaddrinfo(host->node, service, &hints, &res)) != 0) {
+		ERROR ("riemann plugin: Unable to resolve host \"%s\": %s",
+			host->node, gai_strerror(e));
 		return -1;
 	}
 
@@ -461,7 +463,8 @@ riemann_connect(struct riemann_host *host)
 			return -1;
 		}
 		host->flags |= F_CONNECT;
-		DEBUG("got a succesful connection for: %s", host->name);
+		DEBUG("riemann plugin: got a succesful connection for: %s",
+				host->node);
 		pthread_mutex_unlock(&host->lock);
 		break;
 	}
@@ -496,7 +499,12 @@ riemann_free(void *p)
 {
 	struct riemann_host	*host = p;
 
+	if (host == NULL)
+		return;
+
 	riemann_disconnect (host);
+
+	sfree(host->service);
 	sfree(host);
 }
 
@@ -521,16 +529,18 @@ riemann_config_host(oconfig_item_t *ci)
 		WARNING("riemann host allocation failed");
 		return ENOMEM;
 	}
+	pthread_mutex_init(&host->lock, NULL);
+	host->node = NULL;
+	host->service = NULL;
+	host->delay = RIEMANN_DELAY;
 
-	if (cf_util_get_string_buffer(ci, host->name,
-				      sizeof(host->name)) != 0) {
-		WARNING("riemann host name too long");
-		sfree(host);
+	status = cf_util_get_string (ci, &host->node);
+	if (status != 0) {
+		WARNING("riemann plugin: Required host name is missing.");
+		riemann_free (host);
 		return -1;
 	}
 
-	host->port = RIEMANN_PORT;
-	host->delay = RIEMANN_DELAY;
 	for (i = 0; i < ci->children_num; i++) {
 		/*
 		 * The code here could be simplified but makes room
@@ -540,12 +550,13 @@ riemann_config_host(oconfig_item_t *ci)
 		status = 0;
 
 		if (strcasecmp(child->key, "port") == 0) {
-			if ((status = cf_util_get_port_number(child)) < 0) {
-				WARNING("invalid port number");
+			status = cf_util_get_service (child, &host->service);
+			if (status != 0) {
+				ERROR ("riemann plugin: Invalid argument "
+						"configured for the \"Port\" "
+						"option.");
 				break;
 			}
-			host->port = status;
-			status = 0;
 		} else if (strcasecmp(child->key, "delay") == 0) {
 			if ((status = cf_util_get_int(ci, &host->delay)) != 0)
 				break;
@@ -559,11 +570,12 @@ riemann_config_host(oconfig_item_t *ci)
 		return status;
 	}
 
-	pthread_mutex_init(&host->lock, NULL);
-	ssnprintf(w_cb_name, sizeof(w_cb_name), "write-riemann/%s:%d",
-		  host->name, host->port);
-	ssnprintf(n_cb_name, sizeof(n_cb_name), "notification-riemann/%s:%d",
-		  host->name, host->port);
+	ssnprintf(w_cb_name, sizeof(w_cb_name), "write-riemann/%s:%s",
+		  host->node,
+		  (host->service != NULL) ? host->service : RIEMANN_PORT);
+	ssnprintf(n_cb_name, sizeof(n_cb_name), "notification-riemann/%s:%s",
+		  host->node,
+		  (host->service != NULL) ? host->service : RIEMANN_PORT);
 	DEBUG("riemann w_cb_name: %s", w_cb_name);
 	DEBUG("riemann n_cb_name: %s", n_cb_name);
 	ud.data = host;
@@ -621,3 +633,5 @@ module_register(void)
 
 	plugin_register_complex_config ("riemann", riemann_config);
 }
+
+/* vim: set sw=8 sts=8 ts=8 noet : */
