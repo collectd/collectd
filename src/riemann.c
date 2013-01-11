@@ -333,7 +333,7 @@ static Event *riemann_value_to_protobuf (struct riemann_host const *host, /* {{{
 	/* TODO: Use FORMAT_VL() here. */
 	ssnprintf (service_buffer, sizeof(service_buffer),
 			"%s-%s-%s-%s-%s", vl->plugin, vl->plugin_instance,
-			vl->type, vl->type_instance, ds->ds[i].name);
+			vl->type, vl->type_instance, ds->ds[index].name);
 	event->service = strdup (service_buffer);
 
 	DEBUG ("riemann plugin: Successfully created protobuf for metric: "
@@ -373,7 +373,7 @@ static Msg *riemann_value_list_to_protobuf (struct riemann_host const *host, /* 
 	{
 		msg->events[i] = riemann_value_to_protobuf (host, ds, vl,
 				(int) i, /* rates = */ NULL);
-		if (msg->events[i])
+		if (msg->events[i] == NULL)
 		{
 			riemann_msg_protobuf_free (msg);
 			return (NULL);
