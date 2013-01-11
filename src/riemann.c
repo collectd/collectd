@@ -47,8 +47,8 @@ struct riemann_host {
 	int			 reference_count;
 };
 
-static char	*riemann_tags[RIEMANN_EXTRA_TAGS];
-static int	 riemann_tagcount;
+static char	**riemann_tags;
+static size_t	  riemann_tags_num;
 
 static int	riemann_send(struct riemann_host *, Msg const *);
 static int	riemann_notification(const notification_t *, user_data_t *);
@@ -62,8 +62,6 @@ void	module_register(void);
 
 static void riemann_event_protobuf_free (Event *event) /* {{{ */
 {
-	size_t i;
-
 	if (event == NULL)
 		return;
 
@@ -72,9 +70,9 @@ static void riemann_event_protobuf_free (Event *event) /* {{{ */
 	sfree (event->host);
 	sfree (event->description);
 
-	for (i = 0; i < event->n_tags; i++)
-		sfree (event->tags[i]);
-	sfree (event->tags);
+	strarray_free (event->tags, event->n_tags);
+	event->tags = NULL;
+	event->n_tags = 0;
 
 	sfree (event);
 } /* }}} void riemann_event_protobuf_free */
@@ -153,13 +151,6 @@ static int riemann_event_add_tag (Event *event, /* {{{ */
 	char buffer[1024];
 	size_t ret;
 
-	char **tmp;
-
-	tmp = realloc (event->tags, (event->n_tags + 1) * sizeof (*event->tags));
-	if (tmp == NULL)
-		return (ENOMEM);
-	event->tags = tmp;
-
 	va_start (ap, format);
 	ret = vsnprintf (buffer, sizeof (buffer), format, ap);
 	if (ret >= sizeof (buffer))
@@ -167,11 +158,7 @@ static int riemann_event_add_tag (Event *event, /* {{{ */
 	buffer[ret] = 0;
 	va_end (ap);
 
-	event->tags[event->n_tags] = strdup (buffer);
-	if (event->tags[event->n_tags] == NULL)
-		return (ENOMEM);
-	event->n_tags++;
-	return (0);
+	return (strarray_add (&event->tags, &event->n_tags, buffer));
 } /* }}} int riemann_event_add_tag */
 
 static Msg *riemann_notification_to_protobuf (struct riemann_host *host, /* {{{ */
@@ -241,7 +228,7 @@ static Msg *riemann_notification_to_protobuf (struct riemann_host *host, /* {{{ 
 		riemann_event_add_tag (event, "type_instance:%s",
 				n->type_instance);
 
-	for (i = 0; i < riemann_tagcount; i++)
+	for (i = 0; i < riemann_tags_num; i++)
 		riemann_event_add_tag (event, "%s", riemann_tags[i]);
 
 	/* TODO: Use FORMAT_VL() here. */
@@ -306,7 +293,7 @@ static Event *riemann_value_to_protobuf (struct riemann_host const *host, /* {{{
 	riemann_event_add_tag (event, "ds_name:%s", ds->ds[index].name);
 	riemann_event_add_tag (event, "ds_index:%zu", index);
 
-	for (i = 0; i < riemann_tagcount; i++)
+	for (i = 0; i < riemann_tags_num; i++)
 		riemann_event_add_tag (event, "%s", riemann_tags[i]);
 
 	if (rates != NULL)
@@ -640,8 +627,8 @@ static int
 riemann_config(oconfig_item_t *ci)
 {
 	int		 i;
-	char		*newtag;
 	oconfig_item_t	*child;
+	int		 status;
 
 	for (i = 0; i < ci->children_num; i++)  {
 		child = &ci->children[i];
@@ -649,17 +636,14 @@ riemann_config(oconfig_item_t *ci)
 		if (strcasecmp(child->key, "host") == 0) {
 			riemann_config_host(child);
 		} else if (strcasecmp(child->key, "tag") == 0) {
-			if (riemann_tagcount >= RIEMANN_EXTRA_TAGS) {
-				WARNING("riemann plugin: too many tags");
-				return -1;
-			}
-			newtag = NULL;
-			cf_util_get_string(child, &newtag);
-			if (newtag == NULL)
-				return -1;
-			riemann_tags[riemann_tagcount++] = newtag;
-			DEBUG("riemann_config: got tag: %s", newtag);
+			char *tmp = NULL;
+			status = cf_util_get_string(child, &tmp);
+			if (status != 0)
+				continue;
 
+			strarray_add (&riemann_tags, &riemann_tags_num, tmp);
+			DEBUG("riemann plugin: Got tag: %s", tmp);
+			sfree (tmp);
 		} else {
 			WARNING ("riemann plugin: Ignoring unknown "
 				 "configuration option \"%s\" at top level.",
