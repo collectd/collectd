@@ -21,6 +21,7 @@
 #include "plugin.h"
 #include "common.h"
 #include "configfile.h"
+#include "utils_cache.h"
 #include "riemann.pb-c.h"
 
 #include <sys/socket.h>
@@ -40,6 +41,7 @@ struct riemann_host {
 	uint8_t			 flags;
 	pthread_mutex_t		 lock;
 	int			 delay;
+	_Bool			 store_rates;
 	char			*node;
 	char			*service;
 	int			 s;
@@ -288,23 +290,31 @@ static Event *riemann_value_to_protobuf (struct riemann_host const *host, /* {{{
 		riemann_event_add_tag (event, "type_instance:%s",
 				vl->type_instance);
 
-	riemann_event_add_tag (event, "ds_type:%s",
-			DS_TYPE_TO_STRING(ds->ds[index].type));
+	if ((ds->ds[index].type != DS_TYPE_GAUGE) && (rates != NULL))
+	{
+		riemann_event_add_tag (event, "ds_type:%s:rate",
+				DS_TYPE_TO_STRING(ds->ds[index].type));
+	}
+	else
+	{
+		riemann_event_add_tag (event, "ds_type:%s",
+				DS_TYPE_TO_STRING(ds->ds[index].type));
+	}
 	riemann_event_add_tag (event, "ds_name:%s", ds->ds[index].name);
 	riemann_event_add_tag (event, "ds_index:%zu", index);
 
 	for (i = 0; i < riemann_tags_num; i++)
 		riemann_event_add_tag (event, "%s", riemann_tags[i]);
 
-	if (rates != NULL)
-	{
-		event->has_metric_d = 1;
-		event->metric_d = (double) rates[index];
-	}
-	else if (ds->ds[index].type == DS_TYPE_GAUGE)
+	if (ds->ds[index].type == DS_TYPE_GAUGE)
 	{
 		event->has_metric_d = 1;
 		event->metric_d = (double) vl->values[index].gauge;
+	}
+	else if (rates != NULL)
+	{
+		event->has_metric_d = 1;
+		event->metric_d = (double) rates[index];
 	}
 	else
 	{
@@ -335,6 +345,7 @@ static Msg *riemann_value_list_to_protobuf (struct riemann_host const *host, /* 
 {
 	Msg *msg;
 	size_t i;
+	gauge_t *rates = NULL;
 
 	/* Initialize the Msg structure. */
 	msg = malloc (sizeof (*msg));
@@ -356,17 +367,30 @@ static Msg *riemann_value_list_to_protobuf (struct riemann_host const *host, /* 
 		return (NULL);
 	}
 
-	for (i = 0; i < msg->n_events; i++)
+	if (host->store_rates)
 	{
-		msg->events[i] = riemann_value_to_protobuf (host, ds, vl,
-				(int) i, /* rates = */ NULL);
-		if (msg->events[i] == NULL)
+		rates = uc_get_rate (ds, vl);
+		if (rates == NULL)
 		{
+			ERROR ("riemann plugin: uc_get_rate failed.");
 			riemann_msg_protobuf_free (msg);
 			return (NULL);
 		}
 	}
 
+	for (i = 0; i < msg->n_events; i++)
+	{
+		msg->events[i] = riemann_value_to_protobuf (host, ds, vl,
+				(int) i, rates);
+		if (msg->events[i] == NULL)
+		{
+			riemann_msg_protobuf_free (msg);
+			sfree (rates);
+			return (NULL);
+		}
+	}
+
+	sfree (rates);
 	return (msg);
 } /* }}} Msg *riemann_value_list_to_protobuf */
 
@@ -565,6 +589,10 @@ riemann_config_host(oconfig_item_t *ci)
 			}
 		} else if (strcasecmp(child->key, "delay") == 0) {
 			if ((status = cf_util_get_int(ci, &host->delay)) != 0)
+				break;
+		} else if (strcasecmp ("StoreRates", child->key) == 0) {
+			status = cf_util_get_boolean (ci, &host->store_rates);
+			if (status != 0)
 				break;
 		} else {
 			WARNING("riemann plugin: ignoring unknown config "
