@@ -193,33 +193,6 @@ static void cdbi_database_free (cdbi_database_t *db) /* {{{ */
  * </Plugin>
  */
 
-static int cdbi_config_set_string (char **ret_string, /* {{{ */
-    oconfig_item_t *ci)
-{
-  char *string;
-
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("dbi plugin: The `%s' config option "
-        "needs exactly one string argument.", ci->key);
-    return (-1);
-  }
-
-  string = strdup (ci->values[0].value.string);
-  if (string == NULL)
-  {
-    ERROR ("dbi plugin: strdup failed.");
-    return (-1);
-  }
-
-  if (*ret_string != NULL)
-    free (*ret_string);
-  *ret_string = string;
-
-  return (0);
-} /* }}} int cdbi_config_set_string */
-
 static int cdbi_config_add_database_driver_option (cdbi_database_t *db, /* {{{ */
     oconfig_item_t *ci)
 {
@@ -286,7 +259,7 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
   }
   memset (db, 0, sizeof (*db));
 
-  status = cdbi_config_set_string (&db->name, ci);
+  status = cf_util_get_string (ci, &db->name);
   if (status != 0)
   {
     sfree (db);
@@ -299,11 +272,11 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp ("Driver", child->key) == 0)
-      status = cdbi_config_set_string (&db->driver, child);
+      status = cf_util_get_string (child, &db->driver);
     else if (strcasecmp ("DriverOption", child->key) == 0)
       status = cdbi_config_add_database_driver_option (db, child);
     else if (strcasecmp ("SelectDB", child->key) == 0)
-      status = cdbi_config_set_string (&db->select_db, child);
+      status = cf_util_get_string (child, &db->select_db);
     else if (strcasecmp ("Query", child->key) == 0)
       status = udb_query_pick_from_list (child, queries, queries_num,
           &db->queries, &db->queries_num);
