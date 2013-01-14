@@ -1,8 +1,8 @@
 /**
  * collectd - src/varnish.c
- * Copyright (C) 2010 Jérôme Renard
- * Copyright (C) 2010 Marc Fournier
- * Copyright (C) 2010 Florian Forster
+ * Copyright (C) 2010      Jérôme Renard
+ * Copyright (C) 2010      Marc Fournier
+ * Copyright (C) 2010-2012 Florian Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -20,7 +20,7 @@
  * Authors:
  *   Jérôme Renard <jerome.renard at gmail.com>
  *   Marc Fournier <marc.fournier at camptocamp.com>
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 /**
@@ -412,11 +412,21 @@ static int varnish_read (user_data_t *ud) /* {{{ */
 
 	vd = VSM_New();
 	VSC_Setup(vd);
-	if (VSM_n_Arg(vd, conf->instance) == -1)
+
+	if (conf->instance != NULL)
 	{
-		ERROR ("Varnish plugin : unable to load statistics from instance");
-		return (-1);
+		int status;
+
+		status = VSM_n_Arg (vd, conf->instance);
+		if (status < 0)
+		{
+			ERROR ("varnish plugin: VSM_n_Arg (\"%s\") failed "
+					"with status %i.",
+					conf->instance, status);
+			return (-1);
+		}
 	}
+
 	if (VSC_Open (vd, /* diag = */ 1))
 	{
 		ERROR ("varnish plugin: Unable to load statistics.");

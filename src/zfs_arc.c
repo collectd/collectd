@@ -128,7 +128,7 @@ static int za_read (void)
 	za_read_derive (ksp, "stolen",   "cache_operation", "stolen");
 
         /* Issue indicators */
-        za_read_derive (ksp, "mutex_miss", "mutex_operation", "miss");
+        za_read_derive (ksp, "mutex_miss", "mutex_operations", "miss");
 	za_read_derive (ksp, "hash_collisions", "hash_collisions", "");
 	
         /* Evictions */
