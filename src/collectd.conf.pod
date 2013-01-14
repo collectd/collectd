@@ -502,7 +502,7 @@ mode will be used, i.e. delivery is guaranteed. If set to B<false> (the
 default), the I<transient> delivery mode will be used, i.e. messages may be
 lost due to high load, overflowing queues or similar issues.
 
-=item B<Format> B<Command>|B<JSON> (Publish only)
+=item B<Format> B<Command>|B<JSON>|B<Graphite> (Publish only)
 
 Selects the format in which messages are sent to the broker. If set to
 B<Command> (the default), values are sent as C<PUTVAL> commands which are

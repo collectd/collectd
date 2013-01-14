@@ -222,6 +222,9 @@ Features
       write your own plugins in Perl and return arbitrary values using this
       API. See collectd-perl(5).
 
+    - pf
+      Query statistics from BSD's packet filter "pf".
+
     - pinba
       Receive and dispatch timing values from Pinba, a profiling extension for
       PHP.
@@ -457,6 +460,10 @@ Features
       Set (overwrite) entire parts of an identifier.
 
   * Miscellaneous plugins:
+
+    - aggregation
+      Selects multiple value lists based on patterns or regular expressions
+      and creates new aggregated values lists from those.
 
     - threshold
       Checks values against configured thresholds and creates notifications if

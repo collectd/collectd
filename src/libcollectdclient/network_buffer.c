@@ -106,9 +106,11 @@ struct lcc_network_buffer_s
   char *username;
   char *password;
 
+#if HAVE_LIBGCRYPT
   gcry_cipher_hd_t encr_cypher;
   size_t encr_header_len;
   char encr_iv[16];
+#endif
 };
 
 #define SSTRNCPY(dst,src,sz) do { \
@@ -128,6 +130,7 @@ static _Bool have_gcrypt (void) /* {{{ */
     return (result);
   need_init = 0;
 
+#if HAVE_LIBGCRYPT
   gcry_control (GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
 
   if (!gcry_check_version (GCRYPT_VERSION))
@@ -138,6 +141,9 @@ static _Bool have_gcrypt (void) /* {{{ */
 
   result = 1;
   return (1);
+#else
+  return(0);
+#endif
 } /* }}} _Bool have_gcrypt */
 
 static uint64_t htonll (uint64_t val) /* {{{ */
@@ -494,6 +500,7 @@ static int nb_add_value_list (lcc_network_buffer_t *nb, /* {{{ */
   return (0);
 } /* }}} int nb_add_value_list */
 
+#if HAVE_LIBGCRYPT
 static int nb_add_signature (lcc_network_buffer_t *nb) /* {{{ */
 {
   char *buffer;
@@ -620,6 +627,7 @@ static int nb_add_encryption (lcc_network_buffer_t *nb) /* {{{ */
 
   return (0);
 } /* }}} int nb_add_encryption */
+#endif
 
 /*
  * Public functions
@@ -720,6 +728,7 @@ int lcc_network_buffer_initialize (lcc_network_buffer_t *nb) /* {{{ */
   nb->ptr = nb->buffer;
   nb->free = nb->size;
 
+#if HAVE_LIBGCRYPT
   if (nb->seclevel == SIGN)
   {
     size_t username_len;
@@ -765,6 +774,7 @@ int lcc_network_buffer_initialize (lcc_network_buffer_t *nb) /* {{{ */
     ADD_GENERIC (nb, hash, sizeof (hash));
     assert ((nb->encr_header_len + nb->free) == nb->size);
   }
+#endif
 
   return (0);
 } /* }}} int lcc_network_buffer_initialize */
@@ -774,10 +784,12 @@ int lcc_network_buffer_finalize (lcc_network_buffer_t *nb) /* {{{ */
   if (nb == NULL)
     return (EINVAL);
 
+#if HAVE_LIBGCRYPT
   if (nb->seclevel == SIGN)
     nb_add_signature (nb);
   else if (nb->seclevel == ENCRYPT)
     nb_add_encryption (nb);
+#endif
 
   return (0);
 } /* }}} int lcc_network_buffer_finalize */

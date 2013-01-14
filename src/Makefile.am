@@ -119,6 +119,9 @@ collectd_tg_LDADD =
 if BUILD_WITH_LIBSOCKET
 collectd_tg_LDADD += -lsocket
 endif
+if BUILD_WITH_LIBRT
+collectd_tg_LDADD += -lrt
+endif
 if BUILD_AIX
 collectd_tg_LDADD += -lm
 endif
@@ -1369,6 +1372,7 @@ dist_man_MANS = collectd.1 \
 		collectd-perl.5 \
 		collectd-python.5 \
 		collectd-snmp.5 \
+		collectd-tg.1 \
 		collectd-threshold.5 \
 		collectd-unixsock.5 \
 		types.db.5
@@ -1388,6 +1392,7 @@ EXTRA_DIST +=   collectd.conf.pod \
 		collectd-python.pod \
 		collectd.pod \
 		collectd-snmp.pod \
+		collectd-tg.pod \
 		collectd-threshold.pod \
 		collectd-unixsock.pod \
 		postgresql_default.conf \

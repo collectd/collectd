@@ -900,10 +900,10 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 
 		if ((PGRES_COMMAND_OK != PQresultStatus (res))
 				&& (PGRES_TUPLES_OK != PQresultStatus (res))) {
+			PQclear (res);
+
 			if ((CONNECTION_OK != PQstatus (db->conn))
 					&& (0 == c_psql_check_connection (db))) {
-				PQclear (res);
-
 				/* try again */
 				res = PQexecParams (db->conn, writer->statement,
 						STATIC_ARRAY_SIZE (params), NULL,
@@ -912,6 +912,7 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 
 				if ((PGRES_COMMAND_OK == PQresultStatus (res))
 						|| (PGRES_TUPLES_OK == PQresultStatus (res))) {
+					PQclear (res);
 					success = 1;
 					continue;
 				}
@@ -932,6 +933,8 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 			pthread_mutex_unlock (&db->db_lock);
 			return -1;
 		}
+
+		PQclear (res);
 		success = 1;
 	}
 
