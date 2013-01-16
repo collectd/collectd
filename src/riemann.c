@@ -451,6 +451,9 @@ riemann_connect(struct riemann_host *host)
 	memset(&service, 0, sizeof(service));
 	hints.ai_family = PF_UNSPEC;
 	hints.ai_socktype = SOCK_DGRAM;
+#ifdef AI_ADDRCONFIG
+	hints.ai_flags |= AI_ADDRCONFIG;
+#endif
 
 	assert (host->node != NULL);
 	service = (host->service != NULL) ? host->service : RIEMANN_PORT;
@@ -461,41 +464,33 @@ riemann_connect(struct riemann_host *host)
 		return -1;
 	}
 
+	host->s = -1;
 	for (ai = res; ai != NULL; ai = ai->ai_next) {
-		/*
-		 * check if another thread did not already succesfully connect
-		 */
-		if (host->flags & F_CONNECT) {
-			freeaddrinfo(res);
-			return 0;
-		}
-
 		if ((host->s = socket(ai->ai_family,
 				      ai->ai_socktype,
 				      ai->ai_protocol)) == -1) {
-			WARNING("riemann_connect: could not open socket");
-			freeaddrinfo(res);
-			return -1;
+			continue;
 		}
 
 		if (connect(host->s, ai->ai_addr, ai->ai_addrlen) != 0) {
 			close(host->s);
-			host->flags |= ~F_CONNECT;
-			freeaddrinfo(res);
-			return -1;
+			host->s = -1;
+			continue;
 		}
+
 		host->flags |= F_CONNECT;
-		DEBUG("riemann plugin: got a succesful connection for: %s",
-				host->node);
+		DEBUG("riemann plugin: got a succesful connection for: %s:%s",
+				host->node, service);
 		break;
 	}
 
 	freeaddrinfo(res);
-	if (ai == NULL) {
-		WARNING("riemann_connect: no suitable hosts found");
+
+	if (host->s < 0) {
+		WARNING("riemann plugin: Unable to connect to Riemann at %s:%s",
+				host->node, service);
 		return -1;
 	}
-
 	return 0;
 }
 
