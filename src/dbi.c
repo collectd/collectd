@@ -1,6 +1,6 @@
 /**
  * collectd - src/dbi.c
- * Copyright (C) 2008,2009  Florian octo Forster
+ * Copyright (C) 2008-2013  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,7 +16,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
@@ -33,7 +33,12 @@
 struct cdbi_driver_option_s /* {{{ */
 {
   char *key;
-  char *value;
+  union
+  {
+    char *string;
+    int numeric;
+  } value;
+  _Bool is_numeric;
 };
 typedef struct cdbi_driver_option_s cdbi_driver_option_t; /* }}} */
 
@@ -159,7 +164,8 @@ static void cdbi_database_free (cdbi_database_t *db) /* {{{ */
   for (i = 0; i < db->driver_options_num; i++)
   {
     sfree (db->driver_options[i].key);
-    sfree (db->driver_options[i].value);
+    if (!db->driver_options[i].is_numeric)
+      sfree (db->driver_options[i].value.string);
   }
   sfree (db->driver_options);
 
@@ -200,10 +206,11 @@ static int cdbi_config_add_database_driver_option (cdbi_database_t *db, /* {{{ *
 
   if ((ci->values_num != 2)
       || (ci->values[0].type != OCONFIG_TYPE_STRING)
-      || (ci->values[1].type != OCONFIG_TYPE_STRING))
+      || ((ci->values[1].type != OCONFIG_TYPE_STRING)
+        && (ci->values[1].type != OCONFIG_TYPE_NUMBER)))
   {
     WARNING ("dbi plugin: The `DriverOption' config option "
-        "needs exactly two string arguments.");
+        "needs exactly two arguments.");
     return (-1);
   }
 
@@ -217,6 +224,7 @@ static int cdbi_config_add_database_driver_option (cdbi_database_t *db, /* {{{ *
 
   db->driver_options = option;
   option = db->driver_options + db->driver_options_num;
+  memset (option, 0, sizeof (*option));
 
   option->key = strdup (ci->values[0].value.string);
   if (option->key == NULL)
@@ -225,12 +233,21 @@ static int cdbi_config_add_database_driver_option (cdbi_database_t *db, /* {{{ *
     return (-1);
   }
 
-  option->value = strdup (ci->values[1].value.string);
-  if (option->value == NULL)
+  if (ci->values[1].type == OCONFIG_TYPE_STRING)
   {
-    ERROR ("dbi plugin: strdup failed.");
-    sfree (option->key);
-    return (-1);
+    option->value.string = strdup (ci->values[1].value.string);
+    if (option->value.string == NULL)
+    {
+      ERROR ("dbi plugin: strdup failed.");
+      sfree (option->key);
+      return (-1);
+    }
+  }
+  else
+  {
+    assert (ci->values[1].type == OCONFIG_TYPE_NUMBER);
+    option->value.numeric = (int) (ci->values[1].value.number + .5);
+    option->is_numeric = 1;
   }
 
   db->driver_options_num++;
@@ -661,24 +678,38 @@ static int cdbi_connect_database (cdbi_database_t *db) /* {{{ */
    * trouble finding out how to configure the plugin correctly.. */
   for (i = 0; i < db->driver_options_num; i++)
   {
-    DEBUG ("dbi plugin: cdbi_connect_database (%s): "
-        "key = %s; value = %s;",
-        db->name,
-        db->driver_options[i].key,
-        db->driver_options[i].value);
+    if (db->driver_options[i].is_numeric)
+    {
+      status = dbi_conn_set_option_numeric (connection,
+          db->driver_options[i].key, db->driver_options[i].value.numeric);
+      if (status != 0)
+      {
+        char errbuf[1024];
+        ERROR ("dbi plugin: cdbi_connect_database (%s): "
+            "dbi_conn_set_option_numeric (\"%s\", %i) failed: %s.",
+            db->name,
+            db->driver_options[i].key, db->driver_options[i].value.numeric,
+            cdbi_strerror (connection, errbuf, sizeof (errbuf)));
+      }
+    }
+    else
+    {
+      status = dbi_conn_set_option (connection,
+          db->driver_options[i].key, db->driver_options[i].value.string);
+      if (status != 0)
+      {
+        char errbuf[1024];
+        ERROR ("dbi plugin: cdbi_connect_database (%s): "
+            "dbi_conn_set_option (\"%s\", \"%s\") failed: %s.",
+            db->name,
+            db->driver_options[i].key, db->driver_options[i].value.string,
+            cdbi_strerror (connection, errbuf, sizeof (errbuf)));
+      }
+    }
 
-    status = dbi_conn_set_option (connection,
-        db->driver_options[i].key, db->driver_options[i].value);
     if (status != 0)
     {
-      char errbuf[1024];
-      const char *opt;
-
-      ERROR ("dbi plugin: cdbi_connect_database (%s): "
-          "dbi_conn_set_option (%s, %s) failed: %s.",
-          db->name,
-          db->driver_options[i].key, db->driver_options[i].value,
-          cdbi_strerror (connection, errbuf, sizeof (errbuf)));
+      char const *opt;
 
       INFO ("dbi plugin: This is a list of all options understood "
           "by the `%s' driver:", db->driver);

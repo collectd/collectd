@@ -1360,11 +1360,23 @@ documentation for each driver, somewhere at
 L<http://libdbi-drivers.sourceforge.net/>. However, the options "host",
 "username", "password", and "dbname" seem to be deE<nbsp>facto standards.
 
+DBDs can register two types of options: String options and numeric options. The
+plugin will use the C<dbi_conn_set_option> function when the configuration
+provides a string and the C<dbi_conn_require_option_numeric> function when the
+configuration provides a number. So these two lines will actually result in
+different calls being used:
+
+  DriverOption "Port" 1234      # numeric
+  DriverOption "Port" "1234"    # string
+
 Unfortunately, drivers are not too keen to report errors when an unknown option
 is passed to them, so invalid settings here may go unnoticed. This is not the
 plugin's fault, it will report errors if it gets them from the libraryE<nbsp>/
 the driver. If a driver complains about an option, the plugin will dump a
-complete list of all options understood by that driver to the log.
+complete list of all options understood by that driver to the log. There is no
+way to programatically find out if an option expects a string or a numeric
+argument, so you will have to refer to the appropriate DBD's documentation to
+find this out. Sorry.
 
 =item B<SelectDB> I<Database>
 
