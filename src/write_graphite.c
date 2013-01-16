@@ -340,7 +340,7 @@ static int wg_send_message (char const *message, struct wg_callback *cb)
 static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
         struct wg_callback *cb)
 {
-    char buffer[4096];
+    char buffer[WG_SEND_BUF_SIZE];
     int status;
 
     if (0 != strcmp (ds->type, vl->type))
