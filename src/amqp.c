@@ -74,6 +74,7 @@ struct camqp_config_s
     char    *prefix;
     char    *postfix;
     char    escape_char;
+    unsigned int graphite_flags;
 
     /* subscribe only */
     char   *exchange_type;
@@ -794,7 +795,7 @@ static int camqp_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
     {
         status = format_graphite (buffer, sizeof (buffer), ds, vl,
                     conf->prefix, conf->postfix, conf->escape_char,
-                    conf->store_rates);
+                    conf->graphite_flags);
         if (status != 0)
         {
             ERROR ("amqp plugin: format_graphite failed with status %i.",
@@ -934,7 +935,11 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
                 conf->delivery_mode = CAMQP_DM_VOLATILE;
         }
         else if ((strcasecmp ("StoreRates", child->key) == 0) && publish)
+        {
             status = cf_util_get_boolean (child, &conf->store_rates);
+            (void) cf_util_get_flag (child, &conf->graphite_flags,
+                    GRAPHITE_STORE_RATES);
+        }
         else if ((strcasecmp ("Format", child->key) == 0) && publish)
             status = camqp_config_set_format (child, conf);
         else if ((strcasecmp ("GraphitePrefix", child->key) == 0) && publish)

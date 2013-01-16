@@ -25,10 +25,14 @@
 #include "collectd.h"
 #include "plugin.h"
 
+#define GRAPHITE_STORE_RATES        0x01
+#define GRAPHITE_SEPARATE_INSTANCES 0x02
+#define GRAPHITE_ALWAYS_APPEND_DS   0x04
+
 int format_graphite (char *buffer,
     size_t buffer_size, const data_set_t *ds,
     const value_list_t *vl, const char *prefix,
     const char *postfix, const char escape_char,
-    _Bool store_rates);
+    unsigned int flags);
 
 #endif /* UTILS_FORMAT_GRAPHITE_H */
