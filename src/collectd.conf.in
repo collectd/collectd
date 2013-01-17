@@ -1043,8 +1043,8 @@
 #	<Node "example">
 #		Host "localhost">
 #		Port 5555
-#		StoreRates false
-#		Delay 2
+#		StoreRates true
+#		Delay 1
 #	</Node>
 #	Tag "foobar"
 #</Plugin>

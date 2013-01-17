@@ -554,6 +554,7 @@ riemann_config_node(oconfig_item_t *ci)
 	host->node = NULL;
 	host->service = NULL;
 	host->delay = RIEMANN_DELAY;
+	host->store_rates = 1;
 
 	status = cf_util_get_string (ci, &host->name);
 	if (status != 0) {

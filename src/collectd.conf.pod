@@ -5511,6 +5511,69 @@ number.
 
 =back
 
+=head2 Plugin C<write_riemann>
+
+The I<write_riemann plugin> will send values to I<Riemann>, a powerfull stream
+aggregation and monitoring system. The plugin sends I<Protobuf> encoded data to
+I<Riemann> using UDP packets.
+
+Synopsis:
+
+ <Plugin "write_riemann">
+   <Node "example">
+     Host "localhost"
+     Port "5555"
+     StoreRates false
+     Delay 10
+   </Node>
+   Tag "foobar"
+ </Plugin>
+
+The following options are understood by the I<write_riemann plugin>:
+
+=over 4
+
+=item E<lt>B<Node> I<Name>E<gt>
+
+The plugin's configuration consists of one or more B<Node> blocks. Each block
+is given a unique I<Name> and specifies one connection to an instance of
+I<Riemann>. Indise the B<Node> block, the following per-connection options are
+understood:
+
+=over 4
+
+=item B<Host> I<Address>
+
+Hostname or address to connect to. Defaults to C<localhost>.
+
+=item B<Port> I<Service>
+
+Service name or port number to connect to. Defaults to C<5555>.
+
+=item B<Delay> I<Seconds>
+
+Time (in seconds) that is added to each I<data set's> interval when calculating
+the I<time to live> (TTL) of the metric to be sent to I<Riemann>. Defaults to
+B<1>.
+
+=item B<StoreRates> B<false>|B<true>
+
+If set to B<true> (the default), convert counter values to rates. If set to
+B<false> counter values are stored as is, i.e. as an increasing integer number.
+
+This will be reflected in the C<ds_type> tag: If B<StoreRates> is enabled,
+converted values will have "rate" appended to the data source type, e.g.
+C<ds_type:derive:rate>.
+
+=back
+
+=item B<Tag> I<String>
+
+Add the given string as an additional tag to the metric being sent to
+I<Riemann>.
+
+=back
+
 =head1 THRESHOLD CONFIGURATION
 
 Starting with version C<4.3.0> collectd has support for B<monitoring>. By that
