@@ -1,5 +1,5 @@
 /*
- * collectd - src/riemann.c
+ * collectd - src/write_riemann.c
  *
  * Copyright (C) 2012  Pierre-Yves Ritschard <pyr@spootnik.org>
  *
@@ -32,11 +32,13 @@
 #include <pthread.h>
 
 #define RIEMANN_DELAY		1
+#define RIEMANN_HOST		"localhost"
 #define RIEMANN_PORT		"5555"
 #define RIEMANN_MAX_TAGS	37
 #define RIEMANN_EXTRA_TAGS	32
 
 struct riemann_host {
+	char			*name;
 #define F_CONNECT		 0x01
 	uint8_t			 flags;
 	pthread_mutex_t		 lock;
@@ -58,7 +60,7 @@ static int	riemann_write(const data_set_t *, const value_list_t *, user_data_t *
 static int	riemann_connect(struct riemann_host *);
 static int	riemann_disconnect (struct riemann_host *host);
 static void	riemann_free(void *);
-static int	riemann_config_host(oconfig_item_t *);
+static int	riemann_config_node(oconfig_item_t *);
 static int	riemann_config(oconfig_item_t *);
 void	module_register(void);
 
@@ -134,7 +136,7 @@ riemann_send(struct riemann_host *host, Msg const *msg)
 		pthread_mutex_unlock (&host->lock);
 
 		ERROR ("write_riemann plugin: Sending to Riemann at %s:%s failed: %s",
-				host->node,
+				(host->node != NULL) ? host->node : RIEMANN_HOST,
 				(host->service != NULL) ? host->service : RIEMANN_PORT,
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		sfree (buffer);
@@ -442,6 +444,7 @@ riemann_connect(struct riemann_host *host)
 {
 	int			 e;
 	struct addrinfo		*ai, *res, hints;
+	char const		*node;
 	char const		*service;
 
 	if (host->flags & F_CONNECT)
@@ -455,12 +458,12 @@ riemann_connect(struct riemann_host *host)
 	hints.ai_flags |= AI_ADDRCONFIG;
 #endif
 
-	assert (host->node != NULL);
+	node = (host->node != NULL) ? host->node : RIEMANN_HOST;
 	service = (host->service != NULL) ? host->service : RIEMANN_PORT;
 
-	if ((e = getaddrinfo(host->node, service, &hints, &res)) != 0) {
+	if ((e = getaddrinfo(node, service, &hints, &res)) != 0) {
 		ERROR ("write_riemann plugin: Unable to resolve host \"%s\": %s",
-			host->node, gai_strerror(e));
+			node, gai_strerror(e));
 		return -1;
 	}
 
@@ -480,7 +483,7 @@ riemann_connect(struct riemann_host *host)
 
 		host->flags |= F_CONNECT;
 		DEBUG("write_riemann plugin: got a succesful connection for: %s:%s",
-				host->node, service);
+				node, service);
 		break;
 	}
 
@@ -488,7 +491,7 @@ riemann_connect(struct riemann_host *host)
 
 	if (host->s < 0) {
 		WARNING("write_riemann plugin: Unable to connect to Riemann at %s:%s",
-				host->node, service);
+				node, service);
 		return -1;
 	}
 	return 0;
@@ -533,14 +536,13 @@ riemann_free(void *p)
 }
 
 static int
-riemann_config_host(oconfig_item_t *ci)
+riemann_config_node(oconfig_item_t *ci)
 {
 	struct riemann_host	*host = NULL;
 	int			 status = 0;
 	int			 i;
 	oconfig_item_t		*child;
-	char			 w_cb_name[DATA_MAX_NAME_LEN];
-	char			 n_cb_name[DATA_MAX_NAME_LEN];
+	char			 callback_name[DATA_MAX_NAME_LEN];
 	user_data_t		 ud;
 
 	if ((host = calloc(1, sizeof (*host))) == NULL) {
@@ -553,7 +555,7 @@ riemann_config_host(oconfig_item_t *ci)
 	host->service = NULL;
 	host->delay = RIEMANN_DELAY;
 
-	status = cf_util_get_string (ci, &host->node);
+	status = cf_util_get_string (ci, &host->name);
 	if (status != 0) {
 		WARNING("write_riemann plugin: Required host name is missing.");
 		riemann_free (host);
@@ -568,7 +570,11 @@ riemann_config_host(oconfig_item_t *ci)
 		child = &ci->children[i];
 		status = 0;
 
-		if (strcasecmp(child->key, "port") == 0) {
+		if (strcasecmp ("Host", child->key) == 0) {
+			status = cf_util_get_string (child, &host->node);
+			if (status != 0)
+				break;
+		} else if (strcasecmp ("Port", child->key) == 0) {
 			status = cf_util_get_service (child, &host->service);
 			if (status != 0) {
 				ERROR ("write_riemann plugin: Invalid argument "
@@ -593,31 +599,27 @@ riemann_config_host(oconfig_item_t *ci)
 		return status;
 	}
 
-	ssnprintf(w_cb_name, sizeof(w_cb_name), "write-riemann/%s:%s",
-		  host->node,
-		  (host->service != NULL) ? host->service : RIEMANN_PORT);
-	ssnprintf(n_cb_name, sizeof(n_cb_name), "notification-riemann/%s:%s",
-		  host->node,
-		  (host->service != NULL) ? host->service : RIEMANN_PORT);
+	ssnprintf (callback_name, sizeof (callback_name), "write_riemann/%s",
+			host->name);
 	ud.data = host;
 	ud.free_func = riemann_free;
 
 	pthread_mutex_lock (&host->lock);
 
-	status = plugin_register_write (w_cb_name, riemann_write, &ud);
+	status = plugin_register_write (callback_name, riemann_write, &ud);
 	if (status != 0)
 		WARNING ("write_riemann plugin: plugin_register_write (\"%s\") "
 				"failed with status %i.",
-				w_cb_name, status);
+				callback_name, status);
 	else /* success */
 		host->reference_count++;
 
-	status = plugin_register_notification (n_cb_name,
+	status = plugin_register_notification (callback_name,
 			riemann_notification, &ud);
 	if (status != 0)
 		WARNING ("write_riemann plugin: plugin_register_notification (\"%s\") "
 				"failed with status %i.",
-				n_cb_name, status);
+				callback_name, status);
 	else /* success */
 		host->reference_count++;
 
@@ -648,8 +650,8 @@ riemann_config(oconfig_item_t *ci)
 	for (i = 0; i < ci->children_num; i++)  {
 		child = &ci->children[i];
 
-		if (strcasecmp(child->key, "host") == 0) {
-			riemann_config_host(child);
+		if (strcasecmp("Node", child->key) == 0) {
+			riemann_config_node (child);
 		} else if (strcasecmp(child->key, "tag") == 0) {
 			char *tmp = NULL;
 			status = cf_util_get_string(child, &tmp);
@@ -671,7 +673,7 @@ riemann_config(oconfig_item_t *ci)
 void
 module_register(void)
 {
-	plugin_register_complex_config ("riemann", riemann_config);
+	plugin_register_complex_config ("write_riemann", riemann_config);
 }
 
 /* vim: set sw=8 sts=8 ts=8 noet : */
