@@ -118,7 +118,7 @@ riemann_send(struct riemann_host *host, Msg const *msg)
 	buffer = malloc (buffer_len);
 	if (buffer == NULL) {
 		pthread_mutex_unlock (&host->lock);
-		ERROR ("riemann plugin: malloc failed.");
+		ERROR ("write_riemann plugin: malloc failed.");
 		return ENOMEM;
 	}
 	memset (buffer, 0, buffer_len);
@@ -133,7 +133,7 @@ riemann_send(struct riemann_host *host, Msg const *msg)
 		riemann_disconnect (host);
 		pthread_mutex_unlock (&host->lock);
 
-		ERROR ("riemann plugin: Sending to Riemann at %s:%s failed: %s",
+		ERROR ("write_riemann plugin: Sending to Riemann at %s:%s failed: %s",
 				host->node,
 				(host->service != NULL) ? host->service : RIEMANN_PORT,
 				sstrerror (errno, errbuf, sizeof (errbuf)));
@@ -176,7 +176,7 @@ static Msg *riemann_notification_to_protobuf (struct riemann_host *host, /* {{{ 
 	msg = malloc (sizeof (*msg));
 	if (msg == NULL)
 	{
-		ERROR ("riemann plugin: malloc failed.");
+		ERROR ("write_riemann plugin: malloc failed.");
 		return (NULL);
 	}
 	memset (msg, 0, sizeof (*msg));
@@ -185,7 +185,7 @@ static Msg *riemann_notification_to_protobuf (struct riemann_host *host, /* {{{ 
 	msg->events = malloc (sizeof (*msg->events));
 	if (msg->events == NULL)
 	{
-		ERROR ("riemann plugin: malloc failed.");
+		ERROR ("write_riemann plugin: malloc failed.");
 		sfree (msg);
 		return (NULL);
 	}
@@ -193,7 +193,7 @@ static Msg *riemann_notification_to_protobuf (struct riemann_host *host, /* {{{ 
 	event = malloc (sizeof (*event));
 	if (event == NULL)
 	{
-		ERROR ("riemann plugin: malloc failed.");
+		ERROR ("write_riemann plugin: malloc failed.");
 		sfree (msg->events);
 		sfree (msg);
 		return (NULL);
@@ -250,7 +250,7 @@ static Msg *riemann_notification_to_protobuf (struct riemann_host *host, /* {{{ 
 		break;
 	}
 
-	DEBUG ("riemann plugin: Successfully created protobuf for notification: "
+	DEBUG ("write_riemann plugin: Successfully created protobuf for notification: "
 			"host = \"%s\", service = \"%s\", state = \"%s\"",
 			event->host, event->service, event->state);
 	return (msg);
@@ -268,7 +268,7 @@ static Event *riemann_value_to_protobuf (struct riemann_host const *host, /* {{{
 	event = malloc (sizeof (*event));
 	if (event == NULL)
 	{
-		ERROR ("riemann plugin: malloc failed.");
+		ERROR ("write_riemann plugin: malloc failed.");
 		return (NULL);
 	}
 	memset (event, 0, sizeof (*event));
@@ -333,7 +333,7 @@ static Event *riemann_value_to_protobuf (struct riemann_host const *host, /* {{{
 			vl->type, vl->type_instance, ds->ds[index].name);
 	event->service = strdup (service_buffer);
 
-	DEBUG ("riemann plugin: Successfully created protobuf for metric: "
+	DEBUG ("write_riemann plugin: Successfully created protobuf for metric: "
 			"host = \"%s\", service = \"%s\"",
 			event->host, event->service);
 	return (event);
@@ -351,7 +351,7 @@ static Msg *riemann_value_list_to_protobuf (struct riemann_host const *host, /* 
 	msg = malloc (sizeof (*msg));
 	if (msg == NULL)
 	{
-		ERROR ("riemann plugin: malloc failed.");
+		ERROR ("write_riemann plugin: malloc failed.");
 		return (NULL);
 	}
 	memset (msg, 0, sizeof (*msg));
@@ -362,7 +362,7 @@ static Msg *riemann_value_list_to_protobuf (struct riemann_host const *host, /* 
 	msg->events = calloc (msg->n_events, sizeof (*msg->events));
 	if (msg->events == NULL)
 	{
-		ERROR ("riemann plugin: calloc failed.");
+		ERROR ("write_riemann plugin: calloc failed.");
 		riemann_msg_protobuf_free (msg);
 		return (NULL);
 	}
@@ -372,7 +372,7 @@ static Msg *riemann_value_list_to_protobuf (struct riemann_host const *host, /* 
 		rates = uc_get_rate (ds, vl);
 		if (rates == NULL)
 		{
-			ERROR ("riemann plugin: uc_get_rate failed.");
+			ERROR ("write_riemann plugin: uc_get_rate failed.");
 			riemann_msg_protobuf_free (msg);
 			return (NULL);
 		}
@@ -407,7 +407,7 @@ riemann_notification(const notification_t *n, user_data_t *ud)
 
 	status = riemann_send (host, msg);
 	if (status != 0)
-		ERROR ("riemann plugin: riemann_send failed with status %i",
+		ERROR ("write_riemann plugin: riemann_send failed with status %i",
 				status);
 
 	riemann_msg_protobuf_free (msg);
@@ -429,7 +429,7 @@ riemann_write(const data_set_t *ds,
 
 	status = riemann_send (host, msg);
 	if (status != 0)
-		ERROR ("riemann plugin: riemann_send failed with status %i",
+		ERROR ("write_riemann plugin: riemann_send failed with status %i",
 				status);
 
 	riemann_msg_protobuf_free (msg);
@@ -459,7 +459,7 @@ riemann_connect(struct riemann_host *host)
 	service = (host->service != NULL) ? host->service : RIEMANN_PORT;
 
 	if ((e = getaddrinfo(host->node, service, &hints, &res)) != 0) {
-		ERROR ("riemann plugin: Unable to resolve host \"%s\": %s",
+		ERROR ("write_riemann plugin: Unable to resolve host \"%s\": %s",
 			host->node, gai_strerror(e));
 		return -1;
 	}
@@ -479,7 +479,7 @@ riemann_connect(struct riemann_host *host)
 		}
 
 		host->flags |= F_CONNECT;
-		DEBUG("riemann plugin: got a succesful connection for: %s:%s",
+		DEBUG("write_riemann plugin: got a succesful connection for: %s:%s",
 				host->node, service);
 		break;
 	}
@@ -487,7 +487,7 @@ riemann_connect(struct riemann_host *host)
 	freeaddrinfo(res);
 
 	if (host->s < 0) {
-		WARNING("riemann plugin: Unable to connect to Riemann at %s:%s",
+		WARNING("write_riemann plugin: Unable to connect to Riemann at %s:%s",
 				host->node, service);
 		return -1;
 	}
@@ -543,14 +543,8 @@ riemann_config_host(oconfig_item_t *ci)
 	char			 n_cb_name[DATA_MAX_NAME_LEN];
 	user_data_t		 ud;
 
-	if (ci->values_num != 1 ||
-	    ci->values[0].type != OCONFIG_TYPE_STRING) {
-		WARNING("riemann hosts need one string argument");
-		return -1;
-	}
-
 	if ((host = calloc(1, sizeof (*host))) == NULL) {
-		WARNING("riemann host allocation failed");
+		ERROR ("write_riemann plugin: calloc failed.");
 		return ENOMEM;
 	}
 	pthread_mutex_init (&host->lock, NULL);
@@ -561,7 +555,7 @@ riemann_config_host(oconfig_item_t *ci)
 
 	status = cf_util_get_string (ci, &host->node);
 	if (status != 0) {
-		WARNING("riemann plugin: Required host name is missing.");
+		WARNING("write_riemann plugin: Required host name is missing.");
 		riemann_free (host);
 		return -1;
 	}
@@ -577,7 +571,7 @@ riemann_config_host(oconfig_item_t *ci)
 		if (strcasecmp(child->key, "port") == 0) {
 			status = cf_util_get_service (child, &host->service);
 			if (status != 0) {
-				ERROR ("riemann plugin: Invalid argument "
+				ERROR ("write_riemann plugin: Invalid argument "
 						"configured for the \"Port\" "
 						"option.");
 				break;
@@ -590,7 +584,7 @@ riemann_config_host(oconfig_item_t *ci)
 			if (status != 0)
 				break;
 		} else {
-			WARNING("riemann plugin: ignoring unknown config "
+			WARNING("write_riemann plugin: ignoring unknown config "
 				"option: \"%s\"", child->key);
 		}
 	}
@@ -605,8 +599,6 @@ riemann_config_host(oconfig_item_t *ci)
 	ssnprintf(n_cb_name, sizeof(n_cb_name), "notification-riemann/%s:%s",
 		  host->node,
 		  (host->service != NULL) ? host->service : RIEMANN_PORT);
-	DEBUG("riemann w_cb_name: %s", w_cb_name);
-	DEBUG("riemann n_cb_name: %s", n_cb_name);
 	ud.data = host;
 	ud.free_func = riemann_free;
 
@@ -614,7 +606,7 @@ riemann_config_host(oconfig_item_t *ci)
 
 	status = plugin_register_write (w_cb_name, riemann_write, &ud);
 	if (status != 0)
-		WARNING ("riemann plugin: plugin_register_write (\"%s\") "
+		WARNING ("write_riemann plugin: plugin_register_write (\"%s\") "
 				"failed with status %i.",
 				w_cb_name, status);
 	else /* success */
@@ -623,7 +615,7 @@ riemann_config_host(oconfig_item_t *ci)
 	status = plugin_register_notification (n_cb_name,
 			riemann_notification, &ud);
 	if (status != 0)
-		WARNING ("riemann plugin: plugin_register_notification (\"%s\") "
+		WARNING ("write_riemann plugin: plugin_register_notification (\"%s\") "
 				"failed with status %i.",
 				n_cb_name, status);
 	else /* success */
@@ -665,10 +657,10 @@ riemann_config(oconfig_item_t *ci)
 				continue;
 
 			strarray_add (&riemann_tags, &riemann_tags_num, tmp);
-			DEBUG("riemann plugin: Got tag: %s", tmp);
+			DEBUG("write_riemann plugin: Got tag: %s", tmp);
 			sfree (tmp);
 		} else {
-			WARNING ("riemann plugin: Ignoring unknown "
+			WARNING ("write_riemann plugin: Ignoring unknown "
 				 "configuration option \"%s\" at top level.",
 				 child->key);
 		}
@@ -679,8 +671,6 @@ riemann_config(oconfig_item_t *ci)
 void
 module_register(void)
 {
-	DEBUG("riemann: module_register");
-
 	plugin_register_complex_config ("riemann", riemann_config);
 }
 
