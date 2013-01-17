@@ -470,7 +470,7 @@ static int wg_send_message (const char* key, const char* value,
         status = wg_callback_init (cb);
         if (status != 0)
         {
-            ERROR ("write_graphite plugin: wg_callback_init failed.");
+            /* An error message has already been printed. */
             pthread_mutex_unlock (&cb->send_lock);
             return (-1);
         }
@@ -554,8 +554,7 @@ static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
         status = wg_send_message (key, values, vl->time, cb);
         if (status != 0)
         {
-            ERROR ("write_graphite plugin: error with "
-                    "wg_send_message");
+            /* An error message has already been printed. */
             return (status);
         }
     }
