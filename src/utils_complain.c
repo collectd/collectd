@@ -1,6 +1,6 @@
 /**
  * collectd - src/utils_complain.c
- * Copyright (C) 2006-2007  Florian octo Forster
+ * Copyright (C) 2006-2013  Florian octo Forster
  * Copyright (C) 2008  Sebastian tokkee Harl
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -29,10 +29,10 @@
 static int vcomplain (int level, c_complain_t *c,
 		const char *format, va_list ap)
 {
-	time_t now;
+	cdtime_t now;
 	char   message[512];
 
-	now = time (NULL);
+	now = cdtime ();
 
 	if (c->last + c->interval > now)
 		return 0;
@@ -44,8 +44,8 @@ static int vcomplain (int level, c_complain_t *c,
 	else
 		c->interval *= 2;
 
-	if (c->interval > 86400)
-		c->interval = 86400;
+	if (c->interval > TIME_T_TO_CDTIME_T (86400))
+		c->interval = TIME_T_TO_CDTIME_T (86400);
 
 	vsnprintf (message, sizeof (message), format, ap);
 	message[sizeof (message) - 1] = '\0';
@@ -58,12 +58,9 @@ void c_complain (int level, c_complain_t *c, const char *format, ...)
 {
 	va_list ap;
 
-	/* reset the old interval */
-	if (c->interval < 0)
-		c->interval *= -1;
-
 	va_start (ap, format);
-	vcomplain (level, c, format, ap);
+	if (vcomplain (level, c, format, ap))
+		c->complained_once = 1;
 	va_end (ap);
 } /* c_complain */
 
@@ -71,12 +68,12 @@ void c_complain_once (int level, c_complain_t *c, const char *format, ...)
 {
 	va_list ap;
 
-	if (c->interval < 0)
+	if (c->complained_once)
 		return;
 
 	va_start (ap, format);
 	if (vcomplain (level, c, format, ap))
-		c->interval *= -1;
+		c->complained_once = 1;
 	va_end (ap);
 } /* c_complain_once */
 
@@ -89,6 +86,7 @@ void c_do_release (int level, c_complain_t *c, const char *format, ...)
 		return;
 
 	c->interval = 0;
+	c->complained_once = 0;
 
 	va_start (ap, format);
 	vsnprintf (message, sizeof (message), format, ap);
