@@ -125,7 +125,6 @@
 #@BUILD_PLUGIN_PYTHON_TRUE@  Globals true
 #@BUILD_PLUGIN_PYTHON_TRUE@</LoadPlugin>
 #@BUILD_PLUGIN_REDIS_TRUE@LoadPlugin redis
-#@BUILD_PLUGIN_RIEMANN_TRUE@LoadPlugin riemann
 #@BUILD_PLUGIN_ROUTEROS_TRUE@LoadPlugin routeros
 #@BUILD_PLUGIN_RRDCACHED_TRUE@LoadPlugin rrdcached
 @LOAD_PLUGIN_RRDTOOL@LoadPlugin rrdtool
@@ -151,8 +150,9 @@
 #@BUILD_PLUGIN_WIRELESS_TRUE@LoadPlugin wireless
 #@BUILD_PLUGIN_WRITE_GRAPHITE_TRUE@LoadPlugin write_graphite
 #@BUILD_PLUGIN_WRITE_HTTP_TRUE@LoadPlugin write_http
-#@BUILD_PLUGIN_WRITE_REDIS_TRUE@LoadPlugin write_redis
 #@BUILD_PLUGIN_WRITE_MONGODB_TRUE@LoadPlugin write_mongodb
+#@BUILD_PLUGIN_WRITE_REDIS_TRUE@LoadPlugin write_redis
+#@BUILD_PLUGIN_WRITE_RIEMANN_TRUE@LoadPlugin write_riemann
 #@BUILD_PLUGIN_XMMS_TRUE@LoadPlugin xmms
 #@BUILD_PLUGIN_ZFS_ARC_TRUE@LoadPlugin zfs_arc
 
@@ -813,13 +813,6 @@
 #   </Node>
 #</Plugin>
 
-#<Plugin riemann>
-#   <Host "localhost">
-#      Port 5555
-#      Delay 2
-#   </Host>
-#</Plugin>
-
 #<Plugin routeros>
 #	<Router>
 #		Host "router.example.com"
@@ -1029,6 +1022,15 @@
 #	</URL>
 #</Plugin>
 
+#<Plugin write_mongodb>
+#	<Node "example">
+#		Host "localhost"
+#		Port "27017"
+#		Timeout 1000
+#		StoreRates false
+#	</Node>
+#</Plugin>
+
 #<Plugin write_redis>
 #	<Node "example">
 #		Host "localhost"
@@ -1037,13 +1039,11 @@
 #	</Node>
 #</Plugin>
 
-#<Plugin write_mongodb>
-#	<Node "example">
-#		Host "localhost"
-#		Port "27017"
-#		Timeout 1000
-#		StoreRates false
-#	</Node>
+#<Plugin write_riemann>
+#   <Host "localhost">
+#      Port 5555
+#      Delay 2
+#   </Host>
 #</Plugin>
 
 ##############################################################################
