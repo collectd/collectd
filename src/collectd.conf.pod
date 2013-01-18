@@ -5550,12 +5550,6 @@ Hostname or address to connect to. Defaults to C<localhost>.
 
 Service name or port number to connect to. Defaults to C<5555>.
 
-=item B<Delay> I<Seconds>
-
-Time (in seconds) that is added to each I<data set's> interval when calculating
-the I<time to live> (TTL) of the metric to be sent to I<Riemann>. Defaults to
-B<1>.
-
 =item B<StoreRates> B<false>|B<true>
 
 If set to B<true> (the default), convert counter values to rates. If set to

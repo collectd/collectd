@@ -1044,7 +1044,6 @@
 #		Host "localhost">
 #		Port 5555
 #		StoreRates true
-#		Delay 1
 #	</Node>
 #	Tag "foobar"
 #</Plugin>

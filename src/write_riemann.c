@@ -31,7 +31,6 @@
 #include <inttypes.h>
 #include <pthread.h>
 
-#define RIEMANN_DELAY		1
 #define RIEMANN_HOST		"localhost"
 #define RIEMANN_PORT		"5555"
 
@@ -40,7 +39,6 @@ struct riemann_host {
 #define F_CONNECT		 0x01
 	uint8_t			 flags;
 	pthread_mutex_t		 lock;
-	int			 delay;
 	_Bool			 store_rates;
 	char			*node;
 	char			*service;
@@ -277,7 +275,7 @@ static Event *riemann_value_to_protobuf (struct riemann_host const *host, /* {{{
 	event->host = strdup (vl->host);
 	event->time = CDTIME_T_TO_TIME_T (vl->time);
 	event->has_time = 1;
-	event->ttl = CDTIME_T_TO_TIME_T (vl->interval) + host->delay;
+	event->ttl = CDTIME_T_TO_TIME_T (2 * vl->interval);
 	event->has_ttl = 1;
 
 	riemann_event_add_tag (event, "plugin:%s", vl->plugin);
@@ -551,7 +549,6 @@ riemann_config_node(oconfig_item_t *ci)
 	host->reference_count = 1;
 	host->node = NULL;
 	host->service = NULL;
-	host->delay = RIEMANN_DELAY;
 	host->store_rates = 1;
 
 	status = cf_util_get_string (ci, &host->name);
@@ -581,9 +578,6 @@ riemann_config_node(oconfig_item_t *ci)
 						"option.");
 				break;
 			}
-		} else if (strcasecmp(child->key, "delay") == 0) {
-			if ((status = cf_util_get_int(ci, &host->delay)) != 0)
-				break;
 		} else if (strcasecmp ("StoreRates", child->key) == 0) {
 			status = cf_util_get_boolean (ci, &host->store_rates);
 			if (status != 0)
