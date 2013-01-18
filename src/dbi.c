@@ -299,7 +299,7 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
       status = udb_query_pick_from_list (child, queries, queries_num,
           &db->queries, &db->queries_num);
     else if (strcasecmp ("Hostname", child->key) == 0)
-      status = cdbi_config_set_string(&db->hostname, child);
+      status = cf_util_get_string (child, &db->hostname);
     else
     {
       WARNING ("dbi plugin: Option `%s' not allowed here.", child->key);
