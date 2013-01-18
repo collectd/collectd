@@ -34,8 +34,6 @@
 #define RIEMANN_DELAY		1
 #define RIEMANN_HOST		"localhost"
 #define RIEMANN_PORT		"5555"
-#define RIEMANN_MAX_TAGS	37
-#define RIEMANN_EXTRA_TAGS	32
 
 struct riemann_host {
 	char			*name;
