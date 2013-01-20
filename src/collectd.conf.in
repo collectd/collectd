@@ -335,6 +335,7 @@
 #		#SelectDB "custdb0"
 #		Query "num_of_customers"
 #		#Query "..."
+#		#Host "..."
 #	</Database>
 #</Plugin>
 
