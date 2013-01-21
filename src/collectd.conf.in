@@ -135,6 +135,7 @@
 #@BUILD_PLUGIN_PYTHON_TRUE@  Globals true
 #@BUILD_PLUGIN_PYTHON_TRUE@</LoadPlugin>
 #@BUILD_PLUGIN_REDIS_TRUE@LoadPlugin redis
+#@BUILD_PLUGIN_RIEMANN_TRUE@LoadPlugin riemann
 #@BUILD_PLUGIN_ROUTEROS_TRUE@LoadPlugin routeros
 #@BUILD_PLUGIN_RRDCACHED_TRUE@LoadPlugin rrdcached
 @LOAD_PLUGIN_RRDTOOL@LoadPlugin rrdtool
@@ -832,6 +833,13 @@
 #      Port "6379"
 #      Timeout 2000
 #   </Node>
+#</Plugin>
+
+#<Plugin riemann>
+#   <Host "localhost">
+#      Port 5555
+#      Delay 2
+#   </Host>
 #</Plugin>
 
 #<Plugin routeros>
