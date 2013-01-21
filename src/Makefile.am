@@ -1339,6 +1339,17 @@ collectd_LDADD += "-dlopen" write_redis.la
 collectd_DEPENDENCIES += write_redis.la
 endif
 
+if BUILD_PLUGIN_WRITE_RIEMANN
+BUILT_SOURCES += riemann.pb-c.c riemann.pb-c.h
+CLEANFILES += riemann.pb-c.c riemann.pb-c.h
+pkglib_LTLIBRARIES += write_riemann.la
+write_riemann_la_SOURCES = write_riemann.c riemann.pb-c.c
+write_riemann_la_LDFLAGS = -module -avoid-version
+write_riemann_la_LIBADD = -lprotobuf-c
+collectd_LDADD += "-dlopen" write_riemann.la
+collectd_DEPENDENCIES += write_riemann.la
+endif
+
 if BUILD_PLUGIN_XMMS
 pkglib_LTLIBRARIES += xmms.la
 xmms_la_SOURCES = xmms.c
@@ -1379,7 +1390,7 @@ dist_man_MANS = collectd.1 \
 
 #collectd_1_SOURCES = collectd.pod
 
-EXTRA_DIST = types.db pinba.proto
+EXTRA_DIST = types.db pinba.proto riemann.proto
 
 EXTRA_DIST +=   collectd.conf.pod \
 		collectd-email.pod \
@@ -1416,6 +1427,9 @@ EXTRA_DIST +=   collectd.conf.pod \
 
 pinba.pb-c.c pinba.pb-c.h: pinba.proto
 	protoc-c --c_out . pinba.proto
+
+riemann.pb-c.c riemann.pb-c.h: riemann.proto
+	protoc-c --c_out . riemann.proto
 
 install-exec-hook:
 	$(mkinstalldirs) $(DESTDIR)$(sysconfdir)
