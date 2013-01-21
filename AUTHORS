@@ -165,6 +165,10 @@ Peter Holik <peter at holik.at>
 Phoenix Kayo <kayo.k11.4 at gmail.com>
  - pinba plugin.
 
+Pierre-Yves Ritschard <pyr at spootnik.org>
+ - Write-Riemann plugin.
+ - Write-Graphite plugin: Notification support.
+
 Piotr Hosowicz <the55 at wp.pl>
  - SMF manifest for collectd.
 

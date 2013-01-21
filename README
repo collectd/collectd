@@ -379,8 +379,14 @@ Features
       requests. The transmitted data is either in a form understood by the
       Exec plugin or formatted in JSON.
 
+    - write_mongodb
+      Sends data to MongoDB, a NoSQL database.
+
     - write_redis
       Sends the values to a Redis key-value database server.
+
+    - write_riemann
+      Sends data to Riemann, a stream processing and monitoring system.
 
   * Logging is, as everything in collectd, provided by plugins. The following
     plugins keep up informed about what's going on:
