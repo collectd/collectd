@@ -1936,11 +1936,6 @@ int plugin_dispatch_values (value_list_t const *vl)
 	return (0);
 }
 
-int plugin_dispatch_values_secure (const value_list_t *vl)
-{
-  return (plugin_dispatch_values (vl));
-} /* int plugin_dispatch_values_secure */
-
 int plugin_dispatch_notification (const notification_t *notif)
 {
 	llentry_t *le;

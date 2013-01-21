@@ -367,7 +367,7 @@ static int agg_instance_read_func (agg_instance_t *inst, /* {{{ */
   vl->values = &v;
   vl->values_len = 1;
 
-  plugin_dispatch_values_secure (vl);
+  plugin_dispatch_values (vl);
 
   vl->values = NULL;
   vl->values_len = 0;
