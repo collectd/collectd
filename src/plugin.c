@@ -629,6 +629,35 @@ static value_list_t *plugin_value_list_clone (value_list_t const *vl_orig) /* {{
 		return (NULL);
 	}
 
+	if (vl->time == 0)
+		vl->time = cdtime ();
+
+	/* Once this gets dequeued by a write thread, we don't have access to
+	 * the thread context anymore. We therefore fill in the interval here,
+	 * if required. An alternative would be to copy the context and clone
+	 * the context in the write thread, but that seems overly complicated
+	 * for the interval alone. */
+	if (vl->interval == 0)
+	{
+		plugin_ctx_t ctx = plugin_get_ctx ();
+
+		if (ctx.interval != 0)
+			vl->interval = ctx.interval;
+		else
+		{
+			char name[6 * DATA_MAX_NAME_LEN];
+			FORMAT_VL (name, sizeof (name), vl);
+			ERROR ("plugin_value_list_clone: Unable to determine "
+					"interval from context for "
+					"value list \"%s\". "
+					"This indicates a broken plugin. "
+					"Please report this problem to the "
+					"collectd mailing list or at "
+					"<http://collectd.org/bugs/>.", name);
+			vl->interval = cf_get_default_interval ();
+		}
+	}
+
 	return (vl);
 } /* }}} value_list_t *plugin_value_list_clone */
 
@@ -1778,29 +1807,11 @@ static int plugin_dispatch_values_internal (value_list_t *vl)
 		return (-1);
 	}
 
-	if (vl->time == 0)
-		vl->time = cdtime ();
-
-	if (vl->interval <= 0)
-	{
-		plugin_ctx_t ctx = plugin_get_ctx ();
-
-		if (ctx.interval != 0)
-			vl->interval = ctx.interval;
-		else
-		{
-			char name[6 * DATA_MAX_NAME_LEN];
-			FORMAT_VL (name, sizeof (name), vl);
-			ERROR ("plugin_dispatch_values: Unable to determine "
-					"interval from context for "
-					"value list \"%s\". "
-					"This indicates a broken plugin. "
-					"Please report this problem to the "
-					"collectd mailing list or at "
-					"<http://collectd.org/bugs/>.", name);
-			vl->interval = cf_get_default_interval ();
-		}
-	}
+	/* Assured by plugin_value_list_clone(). The write thread doesn't have
+	 * access to the thread context, so the interval has to be filled in
+	 * already. The time is determined at _enqueue_ time. */
+	assert (vl->time != 0);
+	assert (vl->interval != 0);
 
 	DEBUG ("plugin_dispatch_values: time = %.3f; interval = %.3f; "
 			"host = %s; "
