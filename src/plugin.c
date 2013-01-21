@@ -74,6 +74,7 @@ typedef struct write_queue_s write_queue_t;
 struct write_queue_s
 {
 	value_list_t *vl;
+	plugin_ctx_t ctx;
 	write_queue_t *next;
 };
 
@@ -661,6 +662,15 @@ static value_list_t *plugin_value_list_clone (value_list_t const *vl_orig) /* {{
 	return (vl);
 } /* }}} value_list_t *plugin_value_list_clone */
 
+static void plugin_write_queue_item_free (write_queue_t *q) /* {{{ */
+{
+	if (q == NULL)
+		return;
+
+	plugin_value_list_free (q->vl);
+	sfree (q);
+} /* }}} void plugin_write_queue_item_free */
+
 static int plugin_write_enqueue (value_list_t const *vl) /* {{{ */
 {
 	write_queue_t *q;
@@ -676,6 +686,11 @@ static int plugin_write_enqueue (value_list_t const *vl) /* {{{ */
 		sfree (q);
 		return (ENOMEM);
 	}
+
+	/* store context of caller (read plugin); else, the write plugins
+	 * won't have the right interval settings available when actually
+	 * dispatching the value-list later on */
+	q->ctx = plugin_get_ctx ();
 
 	pthread_mutex_lock (&write_lock);
 
@@ -696,10 +711,9 @@ static int plugin_write_enqueue (value_list_t const *vl) /* {{{ */
 	return (0);
 } /* }}} int plugin_write_enqueue */
 
-static value_list_t *plugin_write_dequeue (void) /* {{{ */
+static write_queue_t *plugin_write_dequeue (void) /* {{{ */
 {
 	write_queue_t *q;
-	value_list_t *vl;
 
 	pthread_mutex_lock (&write_lock);
 
@@ -719,22 +733,28 @@ static value_list_t *plugin_write_dequeue (void) /* {{{ */
 
 	pthread_mutex_unlock (&write_lock);
 
-	vl = q->vl;
-	sfree (q);
-	return (vl);
+	q->next = NULL;
+
+	return (q);
 } /* }}} value_list_t *plugin_write_dequeue */
 
 static void *plugin_write_thread (void __attribute__((unused)) *args) /* {{{ */
 {
 	while (write_loop)
 	{
-		value_list_t *vl = plugin_write_dequeue ();
-		if (vl == NULL)
+		write_queue_t *q = plugin_write_dequeue ();
+		plugin_ctx_t old_ctx;
+
+		if (q == NULL)
 			continue;
 
-		plugin_dispatch_values_internal (vl);
+		old_ctx = plugin_set_ctx (q->ctx);
 
-		plugin_value_list_free (vl);
+		if (q->vl != NULL)
+			plugin_dispatch_values_internal (q->vl);
+
+		plugin_write_queue_item_free (q);
+		plugin_set_ctx (old_ctx);
 	}
 
 	pthread_exit (NULL);
