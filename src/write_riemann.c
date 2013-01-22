@@ -235,11 +235,10 @@ static Msg *riemann_notification_to_protobuf (struct riemann_host *host, /* {{{ 
 	for (i = 0; i < riemann_tags_num; i++)
 		riemann_event_add_tag (event, "%s", riemann_tags[i]);
 
-	/* TODO: Use FORMAT_VL() here. */
-	ssnprintf (service_buffer, sizeof(service_buffer),
-			"%s-%s-%s-%s", n->plugin, n->plugin_instance,
+	format_name (service_buffer, sizeof (service_buffer),
+			/* host = */ "", n->plugin, n->plugin_instance,
 			n->type, n->type_instance);
-	event->service = strdup (service_buffer);
+	event->service = strdup (&service_buffer[1]);
 
 	/* Pull in values from threshold */
 	for (meta = n->meta; meta != NULL; meta = meta->next)
@@ -264,6 +263,7 @@ static Event *riemann_value_to_protobuf (struct riemann_host const *host, /* {{{
 		gauge_t const *rates)
 {
 	Event *event;
+	char name_buffer[5 * DATA_MAX_NAME_LEN];
 	char service_buffer[6 * DATA_MAX_NAME_LEN];
 	int i;
 
@@ -329,10 +329,16 @@ static Event *riemann_value_to_protobuf (struct riemann_host const *host, /* {{{
 			event->metric_sint64 = (int64_t) vl->values[index].counter;
 	}
 
-	/* TODO: Use FORMAT_VL() here. */
-	ssnprintf (service_buffer, sizeof(service_buffer),
-			"%s-%s-%s-%s-%s", vl->plugin, vl->plugin_instance,
-			vl->type, vl->type_instance, ds->ds[index].name);
+	format_name (name_buffer, sizeof (name_buffer),
+			/* host = */ "", vl->plugin, vl->plugin_instance,
+			vl->type, vl->type_instance);
+	if (ds->ds_num > 1)
+		ssnprintf (service_buffer, sizeof (service_buffer),
+				"%s/%s", &name_buffer[1], ds->ds[index].name);
+	else
+		sstrncpy (service_buffer, &name_buffer[1],
+				sizeof (service_buffer));
+
 	event->service = strdup (service_buffer);
 
 	DEBUG ("write_riemann plugin: Successfully created protobuf for metric: "
