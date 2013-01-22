@@ -74,6 +74,7 @@ typedef struct write_queue_s write_queue_t;
 struct write_queue_s
 {
 	value_list_t *vl;
+	plugin_ctx_t ctx;
 	write_queue_t *next;
 };
 
@@ -629,6 +630,31 @@ static value_list_t *plugin_value_list_clone (value_list_t const *vl_orig) /* {{
 		return (NULL);
 	}
 
+	if (vl->time == 0)
+		vl->time = cdtime ();
+
+	/* Fill in the interval from the thread context, if it is zero. */
+	if (vl->interval == 0)
+	{
+		plugin_ctx_t ctx = plugin_get_ctx ();
+
+		if (ctx.interval != 0)
+			vl->interval = ctx.interval;
+		else
+		{
+			char name[6 * DATA_MAX_NAME_LEN];
+			FORMAT_VL (name, sizeof (name), vl);
+			ERROR ("plugin_value_list_clone: Unable to determine "
+					"interval from context for "
+					"value list \"%s\". "
+					"This indicates a broken plugin. "
+					"Please report this problem to the "
+					"collectd mailing list or at "
+					"<http://collectd.org/bugs/>.", name);
+			vl->interval = cf_get_default_interval ();
+		}
+	}
+
 	return (vl);
 } /* }}} value_list_t *plugin_value_list_clone */
 
@@ -647,6 +673,11 @@ static int plugin_write_enqueue (value_list_t const *vl) /* {{{ */
 		sfree (q);
 		return (ENOMEM);
 	}
+
+	/* Store context of caller (read plugin); otherwise, it would not be
+	 * available to the write plugins when actually dispatching the
+	 * value-list later on. */
+	q->ctx = plugin_get_ctx ();
 
 	pthread_mutex_lock (&write_lock);
 
@@ -689,6 +720,8 @@ static value_list_t *plugin_write_dequeue (void) /* {{{ */
 		write_queue_tail = NULL;
 
 	pthread_mutex_unlock (&write_lock);
+
+	(void) plugin_set_ctx (q->ctx);
 
 	vl = q->vl;
 	sfree (q);
@@ -1778,29 +1811,10 @@ static int plugin_dispatch_values_internal (value_list_t *vl)
 		return (-1);
 	}
 
-	if (vl->time == 0)
-		vl->time = cdtime ();
-
-	if (vl->interval <= 0)
-	{
-		plugin_ctx_t ctx = plugin_get_ctx ();
-
-		if (ctx.interval != 0)
-			vl->interval = ctx.interval;
-		else
-		{
-			char name[6 * DATA_MAX_NAME_LEN];
-			FORMAT_VL (name, sizeof (name), vl);
-			ERROR ("plugin_dispatch_values: Unable to determine "
-					"interval from context for "
-					"value list \"%s\". "
-					"This indicates a broken plugin. "
-					"Please report this problem to the "
-					"collectd mailing list or at "
-					"<http://collectd.org/bugs/>.", name);
-			vl->interval = cf_get_default_interval ();
-		}
-	}
+	/* Assured by plugin_value_list_clone(). The time is determined at
+	 * _enqueue_ time. */
+	assert (vl->time != 0);
+	assert (vl->interval != 0);
 
 	DEBUG ("plugin_dispatch_values: time = %.3f; interval = %.3f; "
 			"host = %s; "
