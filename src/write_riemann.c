@@ -1,7 +1,8 @@
-/*
+/**
  * collectd - src/write_riemann.c
  *
- * Copyright (C) 2012  Pierre-Yves Ritschard <pyr@spootnik.org>
+ * Copyright (C) 2012,2013  Pierre-Yves Ritschard
+ * Copyright (C) 2013       Florian octo Forster
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,6 +16,9 @@
  * IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING
  * OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
+ * Authors:
+ *   Pierre-Yves Ritschard <pyr at spootnik.org>
+ *   Florian octo Forster <octo at collectd.org>
  */
 
 #include "collectd.h"
