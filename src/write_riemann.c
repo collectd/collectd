@@ -448,7 +448,7 @@ riemann_connect(struct riemann_host *host)
 
 	memset(&hints, 0, sizeof(hints));
 	memset(&service, 0, sizeof(service));
-	hints.ai_family = PF_UNSPEC;
+	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_DGRAM;
 #ifdef AI_ADDRCONFIG
 	hints.ai_flags |= AI_ADDRCONFIG;
@@ -579,7 +579,7 @@ riemann_config_node(oconfig_item_t *ci)
 				break;
 			}
 		} else if (strcasecmp ("StoreRates", child->key) == 0) {
-			status = cf_util_get_boolean (ci, &host->store_rates);
+			status = cf_util_get_boolean (child, &host->store_rates);
 			if (status != 0)
 				break;
 		} else {

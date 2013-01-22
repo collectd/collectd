@@ -1063,7 +1063,7 @@
 
 #<Plugin write_riemann>
 #	<Node "example">
-#		Host "localhost">
+#		Host "localhost"
 #		Port 5555
 #		StoreRates true
 #	</Node>
