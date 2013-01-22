@@ -633,11 +633,7 @@ static value_list_t *plugin_value_list_clone (value_list_t const *vl_orig) /* {{
 	if (vl->time == 0)
 		vl->time = cdtime ();
 
-	/* Once this gets dequeued by a write thread, we don't have access to
-	 * the thread context anymore. We therefore fill in the interval here,
-	 * if required. An alternative would be to copy the context and clone
-	 * the context in the write thread, but that seems overly complicated
-	 * for the interval alone. */
+	/* Fill in the interval from the thread context, if it is zero. */
 	if (vl->interval == 0)
 	{
 		plugin_ctx_t ctx = plugin_get_ctx ();
@@ -662,15 +658,6 @@ static value_list_t *plugin_value_list_clone (value_list_t const *vl_orig) /* {{
 	return (vl);
 } /* }}} value_list_t *plugin_value_list_clone */
 
-static void plugin_write_queue_item_free (write_queue_t *q) /* {{{ */
-{
-	if (q == NULL)
-		return;
-
-	plugin_value_list_free (q->vl);
-	sfree (q);
-} /* }}} void plugin_write_queue_item_free */
-
 static int plugin_write_enqueue (value_list_t const *vl) /* {{{ */
 {
 	write_queue_t *q;
@@ -687,9 +674,9 @@ static int plugin_write_enqueue (value_list_t const *vl) /* {{{ */
 		return (ENOMEM);
 	}
 
-	/* store context of caller (read plugin); else, the write plugins
-	 * won't have the right interval settings available when actually
-	 * dispatching the value-list later on */
+	/* Store context of caller (read plugin); otherwise, it would not be
+	 * available to the write plugins when actually dispatching the
+	 * value-list later on. */
 	q->ctx = plugin_get_ctx ();
 
 	pthread_mutex_lock (&write_lock);
@@ -711,9 +698,10 @@ static int plugin_write_enqueue (value_list_t const *vl) /* {{{ */
 	return (0);
 } /* }}} int plugin_write_enqueue */
 
-static write_queue_t *plugin_write_dequeue (void) /* {{{ */
+static value_list_t *plugin_write_dequeue (void) /* {{{ */
 {
 	write_queue_t *q;
+	value_list_t *vl;
 
 	pthread_mutex_lock (&write_lock);
 
@@ -733,28 +721,24 @@ static write_queue_t *plugin_write_dequeue (void) /* {{{ */
 
 	pthread_mutex_unlock (&write_lock);
 
-	q->next = NULL;
+	(void) plugin_set_ctx (q->ctx);
 
-	return (q);
+	vl = q->vl;
+	sfree (q);
+	return (vl);
 } /* }}} value_list_t *plugin_write_dequeue */
 
 static void *plugin_write_thread (void __attribute__((unused)) *args) /* {{{ */
 {
 	while (write_loop)
 	{
-		write_queue_t *q = plugin_write_dequeue ();
-		plugin_ctx_t old_ctx;
-
-		if (q == NULL)
+		value_list_t *vl = plugin_write_dequeue ();
+		if (vl == NULL)
 			continue;
 
-		old_ctx = plugin_set_ctx (q->ctx);
+		plugin_dispatch_values_internal (vl);
 
-		if (q->vl != NULL)
-			plugin_dispatch_values_internal (q->vl);
-
-		plugin_write_queue_item_free (q);
-		plugin_set_ctx (old_ctx);
+		plugin_value_list_free (vl);
 	}
 
 	pthread_exit (NULL);
@@ -1827,9 +1811,8 @@ static int plugin_dispatch_values_internal (value_list_t *vl)
 		return (-1);
 	}
 
-	/* Assured by plugin_value_list_clone(). The write thread doesn't have
-	 * access to the thread context, so the interval has to be filled in
-	 * already. The time is determined at _enqueue_ time. */
+	/* Assured by plugin_value_list_clone(). The time is determined at
+	 * _enqueue_ time. */
 	assert (vl->time != 0);
 	assert (vl->interval != 0);
 
