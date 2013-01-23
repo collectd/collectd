@@ -5582,6 +5582,13 @@ This will be reflected in the C<ds_type> tag: If B<StoreRates> is enabled,
 converted values will have "rate" appended to the data source type, e.g.
 C<ds_type:derive:rate>.
 
+=item B<AlwaysAppendDS> B<false>|B<true>
+
+If set the B<true>, append the name of the I<Data Source> (DS) to the
+"service", i.e. the field that, together with the "host" field, uniquely
+identifies a metric in I<Riemann>. If set to B<false> (the default), this is
+only done when there is more than one DS.
+
 =back
 
 =item B<Tag> I<String>

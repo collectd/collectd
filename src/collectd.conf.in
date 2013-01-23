@@ -1066,6 +1066,7 @@
 #		Host "localhost"
 #		Port 5555
 #		StoreRates true
+#		AlwaysAppendDS false
 #	</Node>
 #	Tag "foobar"
 #</Plugin>

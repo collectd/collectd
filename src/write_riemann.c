@@ -44,6 +44,7 @@ struct riemann_host {
 	uint8_t			 flags;
 	pthread_mutex_t		 lock;
 	_Bool			 store_rates;
+	_Bool			 always_append_ds;
 	char			*node;
 	char			*service;
 	int			 s;
@@ -332,7 +333,7 @@ static Event *riemann_value_to_protobuf (struct riemann_host const *host, /* {{{
 	format_name (name_buffer, sizeof (name_buffer),
 			/* host = */ "", vl->plugin, vl->plugin_instance,
 			vl->type, vl->type_instance);
-	if (ds->ds_num > 1)
+	if (host->always_append_ds || (ds->ds_num > 1))
 		ssnprintf (service_buffer, sizeof (service_buffer),
 				"%s/%s", &name_buffer[1], ds->ds[index].name);
 	else
@@ -560,6 +561,7 @@ riemann_config_node(oconfig_item_t *ci)
 	host->node = NULL;
 	host->service = NULL;
 	host->store_rates = 1;
+	host->always_append_ds = 0;
 
 	status = cf_util_get_string (ci, &host->name);
 	if (status != 0) {
@@ -590,6 +592,11 @@ riemann_config_node(oconfig_item_t *ci)
 			}
 		} else if (strcasecmp ("StoreRates", child->key) == 0) {
 			status = cf_util_get_boolean (child, &host->store_rates);
+			if (status != 0)
+				break;
+		} else if (strcasecmp ("AlwaysAppendDS", child->key) == 0) {
+			status = cf_util_get_boolean (child,
+					&host->always_append_ds);
 			if (status != 0)
 				break;
 		} else {
