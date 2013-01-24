@@ -151,8 +151,11 @@ static void logfile_print (const char *msg, int severity,
 		else
 			fprintf (fh, "%s%s\n", level_str, msg);
 
-		if (do_close != 0)
+		if (do_close != 0) {
 			fclose (fh);
+		} else {
+			fflush(fh);
+		}
 	}
 
 	pthread_mutex_unlock (&file_lock);
