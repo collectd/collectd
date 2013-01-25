@@ -5546,7 +5546,9 @@ Synopsis:
    <Node "example">
      Host "localhost"
      Port "5555"
-     StoreRates false
+     Protocol UDP
+     StoreRates true
+     AlwaysAppendDS false
      Delay 10
    </Node>
    Tag "foobar"
@@ -5573,7 +5575,12 @@ Hostname or address to connect to. Defaults to C<localhost>.
 
 Service name or port number to connect to. Defaults to C<5555>.
 
-=item B<StoreRates> B<false>|B<true>
+=item B<Protocol> B<UDP>|B<TCP>
+
+Specify the protocol to use when communicating with I<Riemann>. Defaults to
+B<UDP>.
+
+=item B<StoreRates> B<true>|B<false>
 
 If set to B<true> (the default), convert counter values to rates. If set to
 B<false> counter values are stored as is, i.e. as an increasing integer number.

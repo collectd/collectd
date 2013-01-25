@@ -1065,6 +1065,7 @@
 #	<Node "example">
 #		Host "localhost"
 #		Port 5555
+#		Protocol UDP
 #		StoreRates true
 #		AlwaysAppendDS false
 #	</Node>
