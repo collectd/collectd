@@ -24,7 +24,7 @@ m4_ifdef([LT_PACKAGE_VERSION],
 	]
 )
 
-AM_INIT_AUTOMAKE(dist-bzip2)
+AM_INIT_AUTOMAKE([tar-pax dist-bzip2])
 AC_LANG(C)
 
 AC_PREFIX_DEFAULT("/opt/collectd")
