@@ -1,3 +1,21 @@
+2013-01-25, Version 5.1.2
+	* Build system: "make distcheck" has been fixed. Thanks to Yves
+	  Mettier for his patches.
+	* collectd: The complaint mechanism was fixed. It reported messages
+	  more frequently than intended.
+	* dns plugin: Build issues on FreeBSD have been fixed. Thanks to
+	  Ed Schouten for his patch.
+	* ethstat plugin: Fix the "Map" config option. An incorrectly used
+	  character pointer may lead to a segmentation fault.
+	* network plugin: Build issues on FreeBSD have been fixed. Thanks to
+	  Ed Schouten for his patch.
+	* varnish plugin: Fix a problem with instances without name.
+	* write_graphite: Improve reporting of connection errors to not spam
+	  log files too much. Thanks to Pierre-Yves Ritschard for reporting
+	  this problem.
+	* zfs_arc plugin: Fix the type used for mutex misses. Thanks to Yves
+	  Mettier for reporting this bug.
+
 2012-11-11, Version 5.1.1
 	* collectd: Create new directories with mode 0777 and let umask remove
 	  unwanted permission bits.
