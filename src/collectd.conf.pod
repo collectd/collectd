@@ -2516,6 +2516,10 @@ Required capabilities are documented below.
       IgnoreSelectedSnapshot false
     </VolumeUsage>
     
+    <Quota>
+      Interval 60
+    </Quota>
+    
     <Snapvault>
       Interval 30
     </Snapvault>
@@ -2948,6 +2952,25 @@ Specify whether to collect only the volumes selected by the B<GetSnapshot>
 option or to ignore those volumes. B<IgnoreSelectedSnapshot> defaults to
 B<false>. However, if no B<GetSnapshot> option is specified at all, all
 capacities will be selected anyway.
+
+=back
+
+=head3 The Quota block
+
+This will collect (tree) quota statistics (used disk space and number of used
+files). This mechanism is useful to get usage information for single qtrees.
+In case the quotas are not used for any other purpose, an entry similar to the
+following in C</etc/quotas> would be sufficient:
+
+  /vol/volA/some_qtree tree - - - - -
+
+After adding the entry, issue C<quota on -w volA> on the NetApp filer.
+
+=over 4
+
+=item B<Interval> I<Seconds>
+
+Collect SnapVault(R) statistics every I<Seconds> seconds.
 
 =back
 

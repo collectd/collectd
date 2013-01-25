@@ -223,6 +223,16 @@ typedef struct {
 } cfg_volume_usage_t;
 /* }}} cfg_volume_usage_t */
 
+/*! Data types for quota statistics {{{
+ *
+ * \brief Persistent data for quota statistics
+ */
+typedef struct {
+	cna_interval_t interval;
+	na_elem_t *query;
+} cfg_quota_t;
+/* }}} cfg_quota_t */
+
 /*! Data types for SnapVault statistics {{{
  *
  * \brief Persistent data for SnapVault(R) statistics
@@ -264,6 +274,7 @@ struct host_config_s {
 	cfg_disk_t *cfg_disk;
 	cfg_volume_perf_t *cfg_volume_perf;
 	cfg_volume_usage_t *cfg_volume_usage;
+	cfg_quota_t *cfg_quota;
 	cfg_snapvault_t *cfg_snapvault;
 	cfg_system_t *cfg_system;
 
@@ -370,6 +381,17 @@ static void free_cfg_volume_usage (cfg_volume_usage_t *cvu) /* {{{ */
 	sfree (cvu);
 } /* }}} void free_cfg_volume_usage */
 
+static void free_cfg_quota (cfg_quota_t *q) /* {{{ */
+{
+	if (q == NULL)
+		return;
+
+	if (q->query != NULL)
+		na_elem_free (q->query);
+
+	sfree (q);
+} /* }}} void free_cfg_quota */
+
 static void free_cfg_snapvault (cfg_snapvault_t *sv) /* {{{ */
 {
 	if (sv == NULL)
@@ -411,6 +433,7 @@ static void free_host_config (host_config_t *hc) /* {{{ */
 	free_cfg_wafl (hc->cfg_wafl);
 	free_cfg_volume_perf (hc->cfg_volume_perf);
 	free_cfg_volume_usage (hc->cfg_volume_usage);
+	free_cfg_quota (hc->cfg_quota);
 	free_cfg_snapvault (hc->cfg_snapvault);
 	free_cfg_system (hc->cfg_system);
 
@@ -1801,6 +1824,130 @@ static int cna_query_volume_usage (host_config_t *host) /* {{{ */
 	return (status);
 } /* }}} int cna_query_volume_usage */
 
+/* Data corresponding to <Quota /> */
+static int cna_handle_quota_data (const host_config_t *host, /* {{{ */
+		cfg_quota_t *cfg_quota, na_elem_t *data)
+{
+	na_elem_t *elem_quota;
+	na_elem_t *elem_quotas;
+	na_elem_iter_t iter_quota;
+
+	elem_quotas = na_elem_child (data, "quotas");
+	if (elem_quotas == NULL)
+	{
+		ERROR ("netapp plugin: cna_handle_quota_data: "
+				"na_elem_child (\"quotas\") failed "
+				"for host %s.", host->name);
+		return (-1);
+	}
+
+	iter_quota = na_child_iterator (elem_quotas);
+	for (elem_quota = na_iterator_next (&iter_quota);
+			elem_quota != NULL;
+			elem_quota = na_iterator_next (&iter_quota))
+	{
+		const char *quota_type, *volume_name, *tree_name;
+		uint64_t value;
+
+		char plugin_instance[DATA_MAX_NAME_LEN];
+
+		quota_type = na_child_get_string (elem_quota, "quota-type");
+		if (quota_type == NULL)
+			continue;
+
+		/* possible TODO: support other types as well */
+		if (strcmp (quota_type, "tree") != 0)
+			continue;
+
+		tree_name = na_child_get_string (elem_quota, "tree");
+		if ((tree_name == NULL) || (*tree_name == '\0'))
+			continue;
+
+		volume_name = na_child_get_string (elem_quota, "volume");
+		if (volume_name == NULL)
+			continue;
+
+		ssnprintf (plugin_instance, sizeof (plugin_instance),
+				"quota-%s-%s", volume_name, tree_name);
+
+		value = na_child_get_uint64 (elem_quota, "disk-used", UINT64_MAX);
+		if (value != UINT64_MAX) {
+			value *= 1024; /* disk-used reports kilobytes */
+			submit_double (host->name, plugin_instance,
+					/* type = */ "df_complex", /* type instance = */ NULL,
+					(double)value, /* timestamp = */ 0, host->interval);
+		}
+
+		value = na_child_get_uint64 (elem_quota, "files-used", UINT64_MAX);
+		if (value != UINT64_MAX) {
+			submit_double (host->name, plugin_instance,
+					/* type = */ "files", /* type instance = */ NULL,
+					(double)value, /* timestamp = */ 0, host->interval);
+		}
+	} /* for (elem_quota) */
+
+	return (0);
+} /* }}} int cna_handle_volume_usage_data */
+
+static int cna_setup_quota (cfg_quota_t *cq) /* {{{ */
+{
+	if (cq == NULL)
+		return (EINVAL);
+
+	if (cq->query != NULL)
+		return (0);
+
+	cq->query = na_elem_new ("quota-report");
+	if (cq->query == NULL)
+	{
+		ERROR ("netapp plugin: na_elem_new failed.");
+		return (-1);
+	}
+
+	return (0);
+} /* }}} int cna_setup_quota */
+
+static int cna_query_quota (host_config_t *host) /* {{{ */
+{
+	na_elem_t *data;
+	int status;
+	cdtime_t now;
+
+	if (host == NULL)
+		return (EINVAL);
+
+	/* If the user did not configure quota statistics, return without
+	 * doing anything. */
+	if (host->cfg_quota == NULL)
+		return (0);
+
+	now = cdtime ();
+	if ((host->cfg_quota->interval.interval + host->cfg_quota->interval.last_read) > now)
+		return (0);
+
+	status = cna_setup_quota (host->cfg_quota);
+	if (status != 0)
+		return (status);
+	assert (host->cfg_quota->query != NULL);
+
+	data = na_server_invoke_elem (host->srv, host->cfg_quota->query);
+	if (na_results_status (data) != NA_OK)
+	{
+		ERROR ("netapp plugin: cna_query_quota: na_server_invoke_elem failed for host %s: %s",
+				host->name, na_results_reason (data));
+		na_elem_free (data);
+		return (-1);
+	}
+
+	status = cna_handle_quota_data (host, host->cfg_quota, data);
+
+	if (status == 0)
+		host->cfg_quota->interval.last_read = now;
+
+	na_elem_free (data);
+	return (status);
+} /* }}} int cna_query_quota */
+
 /* Data corresponding to <SnapVault /> */
 static int cna_handle_snapvault_data (const char *hostname, /* {{{ */
 		cfg_snapvault_t *cfg_snapvault, na_elem_t *data, cdtime_t interval)
@@ -2365,6 +2512,40 @@ static void cna_config_volume_usage_default (cfg_volume_usage_t *cvu, /* {{{ */
 		ignorelist_set_invert (il, /* invert = */ 1);
 } /* }}} void cna_config_volume_usage_default */
 
+/* Corresponds to a <Quota /> block */
+static int cna_config_quota (host_config_t *host, oconfig_item_t *ci) /* {{{ */
+{
+	cfg_quota_t *cfg_quota;
+	int i;
+
+	if ((host == NULL) || (ci == NULL))
+		return (EINVAL);
+
+	if (host->cfg_quota == NULL)
+	{
+		cfg_quota = malloc (sizeof (*cfg_quota));
+		if (cfg_quota == NULL)
+			return (ENOMEM);
+		memset (cfg_quota, 0, sizeof (*cfg_quota));
+		cfg_quota->query = NULL;
+
+		host->cfg_quota = cfg_quota;
+	}
+	cfg_quota = host->cfg_quota;
+
+	for (i = 0; i < ci->children_num; ++i) {
+		oconfig_item_t *item = ci->children + i;
+
+		if (strcasecmp (item->key, "Interval") == 0)
+			cna_config_get_interval (item, &cfg_quota->interval);
+		else
+			WARNING ("netapp plugin: The option %s is not allowed within "
+					"`Quota' blocks.", item->key);
+	}
+
+	return (0);
+} /* }}} int cna_config_quota */
+
 /* Corresponds to a <Disks /> block */
 static int cna_config_disk(host_config_t *host, oconfig_item_t *ci) { /* {{{ */
 	cfg_disk_t *cfg_disk;
@@ -2652,6 +2833,7 @@ static host_config_t *cna_alloc_host (void) /* {{{ */
 	host->cfg_disk = NULL;
 	host->cfg_volume_perf = NULL;
 	host->cfg_volume_usage = NULL;
+	host->cfg_quota = NULL;
 	host->cfg_snapvault = NULL;
 	host->cfg_system = NULL;
 
@@ -2791,6 +2973,8 @@ static int cna_config_host (host_config_t *host, /* {{{ */
 			cna_config_volume_performance(host, item);
 		} else if (!strcasecmp(item->key, "VolumeUsage")) {
 			cna_config_volume_usage(host, item);
+		} else if (!strcasecmp(item->key, "Quota")) {
+			cna_config_quota(host, item);
 		} else if (!strcasecmp(item->key, "SnapVault")) {
 			cna_config_snapvault(host, item);
 		} else if (!strcasecmp(item->key, "System")) {
@@ -2922,6 +3106,10 @@ static int cna_read_internal (host_config_t *host) { /* {{{ */
 		return (status);
 
 	status = cna_query_volume_usage (host);
+	if (status != 0)
+		return (status);
+
+	status = cna_query_quota (host);
 	if (status != 0)
 		return (status);
 
