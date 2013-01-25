@@ -181,16 +181,18 @@ typedef struct {
  *
  * \brief Configuration struct for volume usage data (free / used).
  */
-#define CFG_VOLUME_USAGE_DF             0x0002
-#define CFG_VOLUME_USAGE_SNAP           0x0004
-#define CFG_VOLUME_USAGE_ALL            0x0006
-#define HAVE_VOLUME_USAGE_NORM_FREE     0x0010
-#define HAVE_VOLUME_USAGE_NORM_USED     0x0020
-#define HAVE_VOLUME_USAGE_SNAP_RSVD     0x0040
-#define HAVE_VOLUME_USAGE_SNAP_USED     0x0080
-#define HAVE_VOLUME_USAGE_SIS_SAVED     0x0100
-#define HAVE_VOLUME_USAGE_ALL           0x01f0
-#define IS_VOLUME_USAGE_OFFLINE         0x0200
+#define CFG_VOLUME_USAGE_DF              0x0002
+#define CFG_VOLUME_USAGE_SNAP            0x0004
+#define CFG_VOLUME_USAGE_ALL             0x0006
+#define HAVE_VOLUME_USAGE_NORM_FREE      0x0010
+#define HAVE_VOLUME_USAGE_NORM_USED      0x0020
+#define HAVE_VOLUME_USAGE_SNAP_RSVD      0x0040
+#define HAVE_VOLUME_USAGE_SNAP_USED      0x0080
+#define HAVE_VOLUME_USAGE_SIS_SAVED      0x0100
+#define HAVE_VOLUME_USAGE_COMPRESS_SAVED 0x0200
+#define HAVE_VOLUME_USAGE_DEDUP_SAVED    0x0400
+#define HAVE_VOLUME_USAGE_ALL            0x07f0
+#define IS_VOLUME_USAGE_OFFLINE          0x0800
 struct data_volume_usage_s;
 typedef struct data_volume_usage_s data_volume_usage_t;
 struct data_volume_usage_s {
@@ -204,6 +206,8 @@ struct data_volume_usage_s {
 	uint64_t snap_reserved;
 	uint64_t snap_used;
 	uint64_t sis_saved;
+	uint64_t compress_saved;
+	uint64_t dedup_saved;
 
 	data_volume_usage_t *next;
 };
@@ -1402,6 +1406,8 @@ static int cna_submit_volume_usage_data (const char *hostname, /* {{{ */
 		uint64_t norm_used = v->norm_used;
 		uint64_t norm_free = v->norm_free;
 		uint64_t sis_saved = v->sis_saved;
+		uint64_t compress_saved = v->compress_saved;
+		uint64_t dedup_saved = v->dedup_saved;
 		uint64_t snap_reserve_used = 0;
 		uint64_t snap_reserve_free = v->snap_reserved;
 		uint64_t snap_norm_used = v->snap_used;
@@ -1445,6 +1451,16 @@ static int cna_submit_volume_usage_data (const char *hostname, /* {{{ */
 			submit_double (hostname, /* plugin instance = */ plugin_instance,
 					"df_complex", "sis_saved",
 					(double) sis_saved, /* timestamp = */ 0, interval);
+
+		if (HAS_ALL_FLAGS (v->flags, HAVE_VOLUME_USAGE_COMPRESS_SAVED))
+			submit_double (hostname, /* plugin instance = */ plugin_instance,
+					"df_complex", "compression_saved",
+					(double) compress_saved, /* timestamp = */ 0, interval);
+
+		if (HAS_ALL_FLAGS (v->flags, HAVE_VOLUME_USAGE_DEDUP_SAVED))
+			submit_double (hostname, /* plugin instance = */ plugin_instance,
+					"df_complex", "dedup_saved",
+					(double) dedup_saved, /* timestamp = */ 0, interval);
 
 		if (HAS_ALL_FLAGS (v->flags, HAVE_VOLUME_USAGE_NORM_USED))
 			submit_double (hostname, /* plugin instance = */ plugin_instance,
@@ -1554,6 +1570,101 @@ static void cna_handle_volume_snap_usage(const host_config_t *host, /* {{{ */
 	v->flags |= HAVE_VOLUME_USAGE_SNAP_USED;
 } /* }}} void cna_handle_volume_snap_usage */
 
+static void cna_handle_volume_sis_data (const host_config_t *host, /* {{{ */
+		data_volume_usage_t *v, na_elem_t *sis)
+{
+	const char *sis_state;
+	uint64_t sis_saved_reported;
+
+	if (na_elem_child(sis, "sis-info"))
+		sis = na_elem_child(sis, "sis-info");
+
+	sis_state = na_child_get_string(sis, "state");
+	if (sis_state == NULL)
+		return;
+
+	/* If SIS is not enabled, there's nothing left to do for this volume. */
+	if (strcmp ("enabled", sis_state) != 0)
+		return;
+
+	sis_saved_reported = na_child_get_uint64(sis, "size-saved", UINT64_MAX);
+	if (sis_saved_reported == UINT64_MAX)
+		return;
+
+	/* size-saved is actually a 32 bit number, so ... time for some guesswork. */
+	if ((sis_saved_reported >> 32) != 0) {
+		/* In case they ever fix this bug. */
+		v->sis_saved = sis_saved_reported;
+		v->flags |= HAVE_VOLUME_USAGE_SIS_SAVED;
+	} else { /* really hacky work-around code. {{{ */
+		uint64_t sis_saved_percent;
+		uint64_t sis_saved_guess;
+		uint64_t overflow_guess;
+		uint64_t guess1, guess2, guess3;
+
+		/* Check if we have v->norm_used. Without it, we cannot calculate
+		 * sis_saved_guess. */
+		if ((v->flags & HAVE_VOLUME_USAGE_NORM_USED) == 0)
+			return;
+
+		sis_saved_percent = na_child_get_uint64(sis, "percentage-saved", UINT64_MAX);
+		if (sis_saved_percent > 100)
+			return;
+
+		/* The "size-saved" value is a 32bit unsigned integer. This is a bug and
+		 * will hopefully be fixed in later versions. To work around the bug, try
+		 * to figure out how often the 32bit integer wrapped around by using the
+		 * "percentage-saved" value. Because the percentage is in the range
+		 * [0-100], this should work as long as the saved space does not exceed
+		 * 400 GBytes. */
+		/* percentage-saved = size-saved / (size-saved + size-used) */
+		if (sis_saved_percent < 100)
+			sis_saved_guess = v->norm_used * sis_saved_percent / (100 - sis_saved_percent);
+		else
+			sis_saved_guess = v->norm_used;
+
+		overflow_guess = sis_saved_guess >> 32;
+		guess1 = overflow_guess ? ((overflow_guess - 1) << 32) + sis_saved_reported : sis_saved_reported;
+		guess2 = (overflow_guess << 32) + sis_saved_reported;
+		guess3 = ((overflow_guess + 1) << 32) + sis_saved_reported;
+
+		if (sis_saved_guess < guess2) {
+			if ((sis_saved_guess - guess1) < (guess2 - sis_saved_guess))
+				v->sis_saved = guess1;
+			else
+				v->sis_saved = guess2;
+		} else {
+			if ((sis_saved_guess - guess2) < (guess3 - sis_saved_guess))
+				v->sis_saved = guess2;
+			else
+				v->sis_saved = guess3;
+		}
+		v->flags |= HAVE_VOLUME_USAGE_SIS_SAVED;
+	} /* }}} end of 32-bit workaround */
+} /* }}} void cna_handle_volume_sis_data */
+
+/* ONTAP >= 8.1 uses SIS for managing dedup and compression */
+static void cna_handle_volume_sis_saved (const host_config_t *host, /* {{{ */
+		data_volume_usage_t *v, na_elem_t *sis)
+{
+	uint64_t saved;
+
+	if (na_elem_child(sis, "sis-info"))
+		sis = na_elem_child(sis, "sis-info");
+
+	saved = na_child_get_uint64(sis, "compress-saved", UINT64_MAX);
+	if (saved != UINT64_MAX) {
+		v->compress_saved = saved;
+		v->flags |= HAVE_VOLUME_USAGE_COMPRESS_SAVED;
+	}
+
+	saved = na_child_get_uint64(sis, "dedup-saved", UINT64_MAX);
+	if (saved != UINT64_MAX) {
+		v->dedup_saved = saved;
+		v->flags |= HAVE_VOLUME_USAGE_DEDUP_SAVED;
+	}
+} /* }}} void cna_handle_volume_sis_saved */
+
 static int cna_handle_volume_usage_data (const host_config_t *host, /* {{{ */
 		cfg_volume_usage_t *cfg_volume, na_elem_t *data)
 {
@@ -1581,8 +1692,6 @@ static int cna_handle_volume_usage_data (const host_config_t *host, /* {{{ */
 		uint64_t value;
 
 		na_elem_t *sis;
-		const char *sis_state;
-		uint64_t sis_saved_reported;
 
 		volume_name = na_child_get_string (elem_volume, "name");
 		if (volume_name == NULL)
@@ -1624,74 +1733,10 @@ static int cna_handle_volume_usage_data (const host_config_t *host, /* {{{ */
 		}
 
 		sis = na_elem_child(elem_volume, "sis");
-		if (sis == NULL)
-			continue;
-
-		if (na_elem_child(sis, "sis-info"))
-			sis = na_elem_child(sis, "sis-info");
-		
-		sis_state = na_child_get_string(sis, "state");
-		if (sis_state == NULL)
-			continue;
-
-		/* If SIS is not enabled, there's nothing left to do for this volume. */
-		if (strcmp ("enabled", sis_state) != 0)
-			continue;
-
-		sis_saved_reported = na_child_get_uint64(sis, "size-saved", UINT64_MAX);
-		if (sis_saved_reported == UINT64_MAX)
-			continue;
-
-		/* size-saved is actually a 32 bit number, so ... time for some guesswork. */
-		if ((sis_saved_reported >> 32) != 0) {
-			/* In case they ever fix this bug. */
-			v->sis_saved = sis_saved_reported;
-			v->flags |= HAVE_VOLUME_USAGE_SIS_SAVED;
-		} else { /* really hacky work-around code. {{{ */
-			uint64_t sis_saved_percent;
-			uint64_t sis_saved_guess;
-			uint64_t overflow_guess;
-			uint64_t guess1, guess2, guess3;
-
-			/* Check if we have v->norm_used. Without it, we cannot calculate
-			 * sis_saved_guess. */
-			if ((v->flags & HAVE_VOLUME_USAGE_NORM_USED) == 0)
-				continue;
-
-			sis_saved_percent = na_child_get_uint64(sis, "percentage-saved", UINT64_MAX);
-			if (sis_saved_percent > 100)
-				continue;
-
-			/* The "size-saved" value is a 32bit unsigned integer. This is a bug and
-			 * will hopefully be fixed in later versions. To work around the bug, try
-			 * to figure out how often the 32bit integer wrapped around by using the
-			 * "percentage-saved" value. Because the percentage is in the range
-			 * [0-100], this should work as long as the saved space does not exceed
-			 * 400 GBytes. */
-			/* percentage-saved = size-saved / (size-saved + size-used) */
-			if (sis_saved_percent < 100)
-				sis_saved_guess = v->norm_used * sis_saved_percent / (100 - sis_saved_percent);
-			else
-				sis_saved_guess = v->norm_used;
-
-			overflow_guess = sis_saved_guess >> 32;
-			guess1 = overflow_guess ? ((overflow_guess - 1) << 32) + sis_saved_reported : sis_saved_reported;
-			guess2 = (overflow_guess << 32) + sis_saved_reported;
-			guess3 = ((overflow_guess + 1) << 32) + sis_saved_reported;
-
-			if (sis_saved_guess < guess2) {
-				if ((sis_saved_guess - guess1) < (guess2 - sis_saved_guess))
-					v->sis_saved = guess1;
-				else
-					v->sis_saved = guess2;
-			} else {
-				if ((sis_saved_guess - guess2) < (guess3 - sis_saved_guess))
-					v->sis_saved = guess2;
-				else
-					v->sis_saved = guess3;
-			}
-			v->flags |= HAVE_VOLUME_USAGE_SIS_SAVED;
-		} /* }}} end of 32-bit workaround */
+		if (sis != NULL) {
+			cna_handle_volume_sis_data (host, v, sis);
+			cna_handle_volume_sis_saved (host, v, sis);
+		}
 	} /* for (elem_volume) */
 
 	return (cna_submit_volume_usage_data (host->name, cfg_volume, host->interval));
