@@ -219,6 +219,16 @@ typedef struct {
 } cfg_volume_usage_t;
 /* }}} cfg_volume_usage_t */
 
+/*! Data types for SnapVault statistics {{{
+ *
+ * \brief Persistent data for SnapVault(R) statistics
+ */
+typedef struct {
+	cna_interval_t interval;
+	na_elem_t *query;
+} cfg_snapvault_t;
+/* }}} cfg_snapvault_t */
+
 /*! Data types for system statistics {{{
  *
  * \brief Persistent data for system performance counters
@@ -249,6 +259,7 @@ struct host_config_s {
 	cfg_disk_t *cfg_disk;
 	cfg_volume_perf_t *cfg_volume_perf;
 	cfg_volume_usage_t *cfg_volume_usage;
+	cfg_snapvault_t *cfg_snapvault;
 	cfg_system_t *cfg_system;
 
 	struct host_config_s *next;
@@ -354,6 +365,17 @@ static void free_cfg_volume_usage (cfg_volume_usage_t *cvu) /* {{{ */
 	sfree (cvu);
 } /* }}} void free_cfg_volume_usage */
 
+static void free_cfg_snapvault (cfg_snapvault_t *sv) /* {{{ */
+{
+	if (sv == NULL)
+		return;
+
+	if (sv->query != NULL)
+		na_elem_free (sv->query);
+
+	sfree (sv);
+} /* }}} void free_cfg_snapvault */
+
 static void free_cfg_system (cfg_system_t *cs) /* {{{ */
 {
 	if (cs == NULL)
@@ -383,6 +405,7 @@ static void free_host_config (host_config_t *hc) /* {{{ */
 	free_cfg_wafl (hc->cfg_wafl);
 	free_cfg_volume_perf (hc->cfg_volume_perf);
 	free_cfg_volume_usage (hc->cfg_volume_usage);
+	free_cfg_snapvault (hc->cfg_snapvault);
 	free_cfg_system (hc->cfg_system);
 
 	if (hc->srv != NULL)
@@ -1731,6 +1754,165 @@ static int cna_query_volume_usage (host_config_t *host) /* {{{ */
 	return (status);
 } /* }}} int cna_query_volume_usage */
 
+/* Data corresponding to <SnapVault /> */
+static int cna_handle_snapvault_data (const char *hostname, /* {{{ */
+		cfg_snapvault_t *cfg_snapvault, na_elem_t *data, cdtime_t interval)
+{
+	na_elem_t *status;
+	na_elem_iter_t status_iter;
+
+	status = na_elem_child (data, "status-list");
+	if (! status) {
+		ERROR ("netapp plugin: SnapVault status record missing status-list");
+		return (0);
+	}
+
+	status_iter = na_child_iterator (status);
+	for (status = na_iterator_next (&status_iter);
+			status != NULL;
+			status = na_iterator_next (&status_iter))
+	{
+		const char *dest_sys, *dest_path, *src_sys, *src_path;
+		char plugin_instance[DATA_MAX_NAME_LEN];
+		uint64_t value;
+
+		dest_sys  = na_child_get_string (status, "destination-system");
+		dest_path = na_child_get_string (status, "destination-path");
+		src_sys   = na_child_get_string (status, "source-system");
+		src_path  = na_child_get_string (status, "source-path");
+
+		if ((! dest_sys) || (! dest_path) || (! src_sys) || (! src_path))
+			continue;
+
+		value = na_child_get_uint64 (status, "lag-time", UINT64_MAX);
+		if (value == UINT64_MAX) /* no successful baseline transfer yet */
+			continue;
+
+		/* possible TODO: make plugin instance configurable */
+		ssnprintf (plugin_instance, sizeof (plugin_instance),
+				"snapvault-%s", dest_path);
+		submit_double (hostname, plugin_instance, /* type = */ "delay", NULL,
+				(double)value, /* timestamp = */ 0, interval);
+
+		value = na_child_get_uint64 (status, "last-transfer-duration", UINT64_MAX);
+		if (value != UINT64_MAX)
+			submit_double (hostname, plugin_instance, /* type = */ "duration", "last_transfer",
+					(double)value, /* timestamp = */ 0, interval);
+
+		value = na_child_get_uint64 (status, "transfer-progress", UINT64_MAX);
+		if (value == UINT64_MAX)
+			value = na_child_get_uint64 (status, "last-transfer-size", UINT64_MAX);
+		if (value != UINT64_MAX) {
+			value *= 1024; /* this is kilobytes */
+			submit_derive (hostname, plugin_instance, /* type = */ "if_rx_octets", "transferred",
+					value, /* timestamp = */ 0, interval);
+		}
+	} /* for (status) */
+
+	return (0);
+} /* }}} int cna_handle_snapvault_data */
+
+static int cna_handle_snapvault_iter (host_config_t *host, /* {{{ */
+		na_elem_t *data)
+{
+	const char *tag;
+
+	uint32_t records_count;
+	uint32_t i;
+
+	records_count = na_child_get_uint32 (data, "records", UINT32_MAX);
+	if (records_count == UINT32_MAX)
+		return 0;
+
+	tag = na_child_get_string (data, "tag");
+	if (! tag)
+		return 0;
+
+	DEBUG ("netapp plugin: Iterating %u SV records (tag = %s)", records_count, tag);
+
+	for (i = 0; i < records_count; ++i) {
+		na_elem_t *elem;
+
+		elem = na_server_invoke (host->srv,
+				"snapvault-secondary-relationship-status-list-iter-next",
+				"maximum", "1", "tag", tag, NULL);
+
+		if (na_results_status (elem) != NA_OK)
+		{
+			ERROR ("netapp plugin: cna_handle_snapvault_iter: "
+					"na_server_invoke failed for host %s: %s",
+					host->name, na_results_reason (data));
+			na_elem_free (elem);
+			return (-1);
+		}
+
+		cna_handle_snapvault_data (host->name, host->cfg_snapvault, elem, host->interval);
+		na_elem_free (elem);
+	}
+
+	na_elem_free (na_server_invoke (host->srv,
+			"snapvault-secondary-relationship-status-list-iter-end",
+			"tag", tag, NULL));
+	return (0);
+} /* }}} int cna_handle_snapvault_iter */
+
+static int cna_setup_snapvault (cfg_snapvault_t *sv) /* {{{ */
+{
+	if (sv == NULL)
+		return (EINVAL);
+
+	if (sv->query != NULL)
+		return (0);
+
+	sv->query = na_elem_new ("snapvault-secondary-relationship-status-list-iter-start");
+	if (sv->query == NULL)
+	{
+		ERROR ("netapp plugin: na_elem_new failed.");
+		return (-1);
+	}
+
+	return (0);
+} /* }}} int cna_setup_snapvault */
+
+static int cna_query_snapvault (host_config_t *host) /* {{{ */
+{
+	na_elem_t *data;
+	int status;
+	cdtime_t now;
+
+	if (host == NULL)
+		return EINVAL;
+
+	if (host->cfg_snapvault == NULL)
+		return 0;
+
+	now = cdtime ();
+	if ((host->cfg_snapvault->interval.interval + host->cfg_snapvault->interval.last_read) > now)
+		return (0);
+
+	status = cna_setup_snapvault (host->cfg_snapvault);
+	if (status != 0)
+		return (status);
+	assert (host->cfg_snapvault->query != NULL);
+
+	data = na_server_invoke_elem (host->srv, host->cfg_snapvault->query);
+	if (na_results_status (data) != NA_OK)
+	{
+		ERROR ("netapp plugin: cna_query_snapvault: na_server_invoke_elem failed for host %s: %s",
+				host->name, na_results_reason (data));
+		na_elem_free (data);
+		return (-1);
+	}
+
+	status = cna_handle_snapvault_iter (host, data);
+
+	if (status == 0)
+		host->cfg_snapvault->interval.last_read = now;
+
+	na_elem_free (data);
+	return (status);
+} /* }}} int cna_query_snapvault */
+
 /* Data corresponding to <System /> */
 static int cna_handle_system_data (const char *hostname, /* {{{ */
 		cfg_system_t *cfg_system, na_elem_t *data, int interval)
@@ -2311,6 +2493,42 @@ static int cna_config_volume_usage(host_config_t *host, /* {{{ */
 	return (0);
 } /* }}} int cna_config_volume_usage */
 
+/* Corresponds to a <SnapVault /> block */
+static int cna_config_snapvault (host_config_t *host, /* {{{ */
+		const oconfig_item_t *ci)
+{
+	cfg_snapvault_t *cfg_snapvault;
+	int i;
+
+	if ((host == NULL) || (ci == NULL))
+		return EINVAL;
+
+	if (host->cfg_snapvault == NULL)
+	{
+		cfg_snapvault = malloc (sizeof (*cfg_snapvault));
+		if (cfg_snapvault == NULL)
+			return ENOMEM;
+		memset (cfg_snapvault, 0, sizeof (*cfg_snapvault));
+		cfg_snapvault->query = NULL;
+
+		host->cfg_snapvault = cfg_snapvault;
+	}
+
+	cfg_snapvault = host->cfg_snapvault;
+
+	for (i = 0; i < ci->children_num; ++i) {
+		oconfig_item_t *item = ci->children + i;
+
+		if (strcasecmp (item->key, "Interval") == 0)
+			cna_config_get_interval (item, &cfg_snapvault->interval);
+		else
+			WARNING ("netapp plugin: The option %s is not allowed within "
+					"`SnapVault' blocks.", item->key);
+	}
+
+	return 0;
+} /* }}} int cna_config_snapvault */
+
 /* Corresponds to a <System /> block */
 static int cna_config_system (host_config_t *host, /* {{{ */
 		oconfig_item_t *ci)
@@ -2391,6 +2609,7 @@ static host_config_t *cna_config_host (const oconfig_item_t *ci) /* {{{ */
 	host->cfg_disk = NULL;
 	host->cfg_volume_perf = NULL;
 	host->cfg_volume_usage = NULL;
+	host->cfg_snapvault = NULL;
 	host->cfg_system = NULL;
 
 	status = cf_util_get_string (ci, &host->name);
@@ -2434,6 +2653,8 @@ static host_config_t *cna_config_host (const oconfig_item_t *ci) /* {{{ */
 			cna_config_volume_performance(host, item);
 		} else if (!strcasecmp(item->key, "VolumeUsage")) {
 			cna_config_volume_usage(host, item);
+		} else if (!strcasecmp(item->key, "SnapVault")) {
+			cna_config_snapvault(host, item);
 		} else if (!strcasecmp(item->key, "System")) {
 			cna_config_system(host, item);
 		} else {
@@ -2530,6 +2751,10 @@ static int cna_read_internal (host_config_t *host) { /* {{{ */
 		return (status);
 
 	status = cna_query_volume_usage (host);
+	if (status != 0)
+		return (status);
+
+	status = cna_query_snapvault (host);
 	if (status != 0)
 		return (status);
 

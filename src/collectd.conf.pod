@@ -2516,6 +2516,10 @@ Required capabilities are documented below.
       IgnoreSelectedSnapshot false
     </VolumeUsage>
     
+    <Snapvault>
+      Interval 30
+    </Snapvault>
+    
     <System>
       Interval 30
       GetCPULoad     true
@@ -2904,6 +2908,19 @@ Specify whether to collect only the volumes selected by the B<GetSnapshot>
 option or to ignore those volumes. B<IgnoreSelectedSnapshot> defaults to
 B<false>. However, if no B<GetSnapshot> option is specified at all, all
 capacities will be selected anyway.
+
+=back
+
+=head3 The SnapVault block
+
+This will collect statistics about the time and traffic of SnapVault(R)
+transfers.
+
+=over 4
+
+=item B<Interval> I<Seconds>
+
+Collect SnapVault(R) statistics every I<Seconds> seconds.
 
 =back
 
