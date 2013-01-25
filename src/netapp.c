@@ -252,6 +252,7 @@ struct host_config_s {
 	int port;
 	char *username;
 	char *password;
+	char *vfiler;
 	cdtime_t interval;
 
 	na_server_t *srv;
@@ -400,6 +401,7 @@ static void free_host_config (host_config_t *hc) /* {{{ */
 	sfree (hc->host);
 	sfree (hc->username);
 	sfree (hc->password);
+	sfree (hc->vfiler);
 
 	free_cfg_disk (hc->cfg_disk);
 	free_cfg_wafl (hc->cfg_wafl);
@@ -2585,25 +2587,21 @@ static int cna_config_system (host_config_t *host, /* {{{ */
 } /* }}} int cna_config_system */
 
 /* Corresponds to a <Host /> block. */
-static host_config_t *cna_config_host (const oconfig_item_t *ci) /* {{{ */
+static host_config_t *cna_alloc_host (void) /* {{{ */
 {
-	oconfig_item_t *item;
 	host_config_t *host;
-	int status;
-	int i;
-	
-	if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
-		WARNING("netapp plugin: \"Host\" needs exactly one string argument. Ignoring host block.");
-		return 0;
-	}
 
 	host = malloc(sizeof(*host));
+	if (! host)
+		return (NULL);
 	memset (host, 0, sizeof (*host));
+
 	host->name = NULL;
 	host->protocol = NA_SERVER_TRANSPORT_HTTPS;
 	host->host = NULL;
 	host->username = NULL;
 	host->password = NULL;
+	host->vfiler = NULL;
 	host->srv = NULL;
 	host->cfg_wafl = NULL;
 	host->cfg_disk = NULL;
@@ -2612,12 +2610,107 @@ static host_config_t *cna_config_host (const oconfig_item_t *ci) /* {{{ */
 	host->cfg_snapvault = NULL;
 	host->cfg_system = NULL;
 
+	return (host);
+} /* }}} host_config_t *cna_alloc_host */
+
+static host_config_t *cna_shallow_clone_host (host_config_t *host) /* {{{ */
+{
+	host_config_t *clone;
+
+	if (host == NULL)
+		return (NULL);
+
+	clone = cna_alloc_host ();
+	if (clone == NULL)
+		return (NULL);
+
+	if (host->name != NULL) {
+		clone->name = strdup (host->name);
+		if (clone->name == NULL) {
+			free_host_config (clone);
+			return NULL;
+		}
+	}
+
+	clone->protocol = host->protocol;
+
+	if (host->host != NULL) {
+		clone->host = strdup (host->host);
+		if (clone->host == NULL) {
+			free_host_config (clone);
+			return NULL;
+		}
+	}
+
+	clone->port = host->port;
+
+	if (host->username != NULL) {
+		clone->username = strdup (host->username);
+		if (clone->username == NULL) {
+			free_host_config (clone);
+			return NULL;
+		}
+	}
+	if (host->password != NULL) {
+		clone->password = strdup (host->password);
+		if (clone->password == NULL) {
+			free_host_config (clone);
+			return NULL;
+		}
+	}
+
+	clone->interval = host->interval;
+
+	return (clone);
+} /* }}} host_config_t *cna_shallow_clone_host */
+
+static int cna_read (user_data_t *ud);
+
+static int cna_register_host (host_config_t *host) /* {{{ */
+{
+	char cb_name[256];
+	struct timespec interval;
+	user_data_t ud;
+
+	if (host->vfiler)
+		ssnprintf (cb_name, sizeof (cb_name), "netapp-%s-%s",
+				host->name, host->vfiler);
+	else
+		ssnprintf (cb_name, sizeof (cb_name), "netapp-%s", host->name);
+
+	CDTIME_T_TO_TIMESPEC (host->interval, &interval);
+
+	memset (&ud, 0, sizeof (ud));
+	ud.data = host;
+	ud.free_func = (void (*) (void *)) free_host_config;
+
+	plugin_register_complex_read (/* group = */ NULL, cb_name,
+			/* callback  = */ cna_read,
+			/* interval  = */ (host->interval > 0) ? &interval : NULL,
+			/* user data = */ &ud);
+
+	return (0);
+} /* }}} int cna_register_host */
+
+static int cna_config_host (host_config_t *host, /* {{{ */
+		const oconfig_item_t *ci)
+{
+	oconfig_item_t *item;
+	_Bool is_vfiler = 0;
+	int status;
+	int i;
+
+	if (! strcasecmp (ci->key, "VFiler"))
+		is_vfiler = 1;
+
+	if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
+		WARNING ("netapp plugin: \"%s\" needs exactly one string argument. Ignoring host block.", ci->key);
+		return (1);
+	}
+
 	status = cf_util_get_string (ci, &host->name);
 	if (status != 0)
-	{
-		sfree (host);
-		return (NULL);
-	}
+		return (1);
 
 	for (i = 0; i < ci->children_num; ++i) {
 		item = ci->children + i;
@@ -2635,7 +2728,7 @@ static host_config_t *cna_config_host (const oconfig_item_t *ci) /* {{{ */
 		} else if (!strcasecmp(item->key, "Protocol")) {
 			if ((item->values_num != 1) || (item->values[0].type != OCONFIG_TYPE_STRING) || (strcasecmp(item->values[0].value.string, "http") && strcasecmp(item->values[0].value.string, "https"))) {
 				WARNING("netapp plugin: \"Protocol\" needs to be either \"http\" or \"https\". Ignoring host block \"%s\".", ci->values[0].value.string);
-				return 0;
+				return (1);
 			}
 			if (!strcasecmp(item->values[0].value.string, "http")) host->protocol = NA_SERVER_TRANSPORT_HTTP;
 			else host->protocol = NA_SERVER_TRANSPORT_HTTPS;
@@ -2657,9 +2750,26 @@ static host_config_t *cna_config_host (const oconfig_item_t *ci) /* {{{ */
 			cna_config_snapvault(host, item);
 		} else if (!strcasecmp(item->key, "System")) {
 			cna_config_system(host, item);
+		} else if ((!strcasecmp(item->key, "VFiler")) && (! is_vfiler)) {
+			host_config_t *vfiler;
+
+			vfiler = cna_shallow_clone_host (host);
+			if (! vfiler) {
+				ERROR ("netapp plugin: Failed to allocate host object for vfiler.");
+				continue;
+			}
+
+			if (cna_config_host (vfiler, item)) {
+				free_host_config (vfiler);
+				continue;
+			}
+
+			cna_register_host (vfiler);
+		} else if ((!strcasecmp(item->key, "VFilerName")) && is_vfiler) {
+			status = cf_util_get_string (item, &host->vfiler);
 		} else {
-			WARNING("netapp plugin: Ignoring unknown config option \"%s\" in host block \"%s\".",
-					item->key, ci->values[0].value.string);
+			WARNING ("netapp plugin: Ignoring unknown config option \"%s\" in %s block \"%s\".",
+					item->key, is_vfiler ? "vfiler" : "host", ci->values[0].value.string);
 		}
 
 		if (status != 0)
@@ -2668,6 +2778,9 @@ static host_config_t *cna_config_host (const oconfig_item_t *ci) /* {{{ */
 
 	if (host->host == NULL)
 		host->host = strdup (host->name);
+
+	if (is_vfiler && (! host->vfiler))
+		host->vfiler = strdup (host->name);
 
 	if (host->host == NULL)
 		status = -1;
@@ -2682,12 +2795,9 @@ static host_config_t *cna_config_host (const oconfig_item_t *ci) /* {{{ */
 	}
 
 	if (status != 0)
-	{
-		free_host_config (host);
-		return (NULL);
-	}
+		return status;
 
-	return host;
+	return (0);
 } /* }}} host_config_t *cna_config_host */
 
 /*
@@ -2697,15 +2807,19 @@ static host_config_t *cna_config_host (const oconfig_item_t *ci) /* {{{ */
  */
 static int cna_init_host (host_config_t *host) /* {{{ */
 {
+	/* Request version 1.1 of the ONTAP API */
+	int major_version = 1, minor_version = 1;
+
 	if (host == NULL)
 		return (EINVAL);
 
 	if (host->srv != NULL)
 		return (0);
 
-	/* Request version 1.1 of the ONTAP API */
-	host->srv = na_server_open(host->host,
-			/* major version = */ 1, /* minor version = */ 1); 
+	if (host->vfiler != NULL) /* Request version 1.7 of the ONTAP API */
+		minor_version = 7;
+
+	host->srv = na_server_open (host->host, major_version, minor_version);
 	if (host->srv == NULL) {
 		ERROR ("netapp plugin: na_server_open (%s) failed.", host->host);
 		return (-1);
@@ -2717,6 +2831,18 @@ static int cna_init_host (host_config_t *host) /* {{{ */
 	na_server_style(host->srv, NA_STYLE_LOGIN_PASSWORD);
 	na_server_adminuser(host->srv, host->username, host->password);
 	na_server_set_timeout(host->srv, 5 /* seconds */);
+
+	if (host->vfiler != NULL) {
+		if (! na_server_set_vfiler (host->srv, host->vfiler)) {
+			ERROR ("netapp plugin: Failed to connect to VFiler '%s' on host '%s'.",
+					host->vfiler, host->host);
+			return (-1);
+		}
+		else {
+			INFO ("netapp plugin: Connected to VFiler '%s' on host '%s'.",
+					host->vfiler, host->host);
+		}
+	}
 
 	return (0);
 } /* }}} int cna_init_host */
@@ -2799,27 +2925,19 @@ static int cna_config (oconfig_item_t *ci) { /* {{{ */
 		if (strcasecmp(item->key, "Host") == 0)
 		{
 			host_config_t *host;
-			char cb_name[256];
-			struct timespec interval;
-			user_data_t ud;
 
-			host = cna_config_host (item);
-			if (host == NULL)
+			host = cna_alloc_host ();
+			if (host == NULL) {
+				ERROR ("netapp plugin: Failed to allocate host object.");
 				continue;
+			}
 
-			ssnprintf (cb_name, sizeof (cb_name), "netapp-%s", host->name);
+			if (cna_config_host (host, item) != 0) {
+				free_host_config (host);
+				continue;
+			}
 
-			CDTIME_T_TO_TIMESPEC (host->interval, &interval);
-
-			memset (&ud, 0, sizeof (ud));
-			ud.data = host;
-			ud.free_func = (void (*) (void *)) free_host_config;
-
-			plugin_register_complex_read (/* group = */ NULL, cb_name,
-					/* callback  = */ cna_read, 
-					/* interval  = */ (host->interval > 0) ? &interval : NULL,
-					/* user data = */ &ud);
-			continue;
+			cna_register_host (host);
 		}
 		else /* if (item->key != "Host") */
 		{

@@ -2527,6 +2527,13 @@ Required capabilities are documented below.
       GetDiskOps     true
       GetDiskIO      true
     </System>
+
+    <VFiler vfilerA>
+      Interval 60
+
+      SnapVault true
+      # ...
+    </VFiler>
    </Host>
  </Plugin>
 
@@ -2537,7 +2544,27 @@ The netapp plugin accepts the following configuration options:
 =item B<Host> I<Name>
 
 A host block defines one NetApp filer. It will appear in collectd with the name
-you specify here which does not have to be its real name nor its hostname.
+you specify here which does not have to be its real name nor its hostname (see
+the B<Address> option below).
+
+=item B<VFiler> I<Name>
+
+A B<VFiler> block may only be used inside a host block. It accepts all the
+same options as the B<Host> block (except for cascaded B<VFiler> blocks) and
+will execute all NetApp API commands in the context of the specified
+VFiler(R). It will appear in collectd with the name you specify here which
+does not have to be its real name. The VFiler name may be specified using the
+B<VFilerName> option. If this is not specified, it will default to the name
+you specify here.
+
+The VFiler block inherits all connection related settings from the surrounding
+B<Host> block (which appear before the B<VFiler> block) but they may be
+overwritten inside the B<VFiler> block.
+
+This feature is useful, for example, when using a VFiler as SnapVault target
+(supported since OnTap 8.1). In that case, the SnapVault statistics are not
+available in the host filer (vfiler0) but only in the respective VFiler
+context.
 
 =item B<Protocol> B<httpd>|B<http>
 
@@ -2580,6 +2607,19 @@ The username and password to use to login to the NetApp.
 Mandatory
 
 Type: string
+
+=item B<VFilerName> I<Name>
+
+The name of the VFiler in which context to execute API commands. If not
+specified, the name provided to the B<VFiler> block will be used instead.
+
+Optional
+
+Type: string
+
+Default: name of the B<VFiler> block
+
+B<Note:> This option may only be used inside B<VFiler> blocks.
 
 =item B<Interval> I<Interval>
 
