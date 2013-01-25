@@ -1,6 +1,7 @@
 /**
  * collectd - src/netapp.c
  * Copyright (C) 2009,2010  Sven Trenkel
+ * Copyright (C) 2012-2013  teamix GmbH
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,7 +22,8 @@
  * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
- *   Sven Trenkel <collectd at semidefinite.de>  
+ *   Sven Trenkel <collectd at semidefinite.de>
+ *   Sebastian 'tokkee' Harl <sh@teamix.net>
  **/
 
 #include "collectd.h"
