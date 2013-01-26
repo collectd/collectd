@@ -4421,7 +4421,7 @@ PKG_CHECK_MODULES([LIBNOTIFY], [libnotify],
 		 fi])
 
 # Check if FreeBSD to enable -lgeom LDFLAGS in src/Makefile
-AM_CONDITIONAL([BUILD_FREEBSD],[test "x$x$ac_system" = "xFreeBSD"]) 
+AM_CONDITIONAL([BUILD_FREEBSD],[test "x$ac_system" = "xFreeBSD"]) 
 
 # Check for enabled/disabled features
 #
