@@ -11,7 +11,9 @@
 	* network plugin: Build issues on FreeBSD have been fixed. Thanks to
 	  Ed Schouten for his patch.
 	* postgresql plugin: A memory leak in the writing code has been fixed.
-	  Thanks to Sebastian Harl for fixing this problem.
+	  A use-after-free issue that happened when more than one database was
+	  configured was fixed. Thanks to Sebastian Harl for fixing these
+	  problems.
 	* redis plugin: A build failure has been fixed. Thanks to Pierre-Yves
 	  Ritschard for his patch.
 	* varnish plugin: Fix a problem with instances without name.
