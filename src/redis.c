@@ -26,7 +26,8 @@
 #include "configfile.h"
 
 #include <pthread.h>
-#include <credis.h>
+#include <sys/time.h>
+#include <hiredis/hiredis.h>
 
 #ifndef HOST_NAME_MAX
 # define HOST_NAME_MAX _POSIX_HOST_NAME_MAX
@@ -44,7 +45,8 @@
  *   <Node "mynode">
  *     Host "localhost"
  *     Port "6379"
- *     Timeout 2000
+ *     Timeout 2
+ *     Password "foobar"
  *   </Node>
  * </Plugin>
  */
@@ -60,6 +62,24 @@ struct redis_node_s
   int timeout;
 
   redis_node_t *next;
+};
+
+struct redis_info_s;
+typedef struct redis_info_s redis_info_t;
+struct redis_info_s
+{
+  long uptime_in_seconds;
+  int connected_clients;
+  int connected_slaves;
+  int blocked_clients;
+  unsigned long used_memory;
+  long long changes_since_last_save;
+  long last_save_time;
+  long long total_connections_received;
+  long long total_commands_processed;
+  long long expired_keys;
+  long pubsub_channels;
+  unsigned int pubsub_patterns;
 };
 
 static redis_node_t *nodes_head = NULL;
@@ -230,8 +250,13 @@ static void redis_submit_d (char *plugin_instance,
 
 static int redis_init (void) /* {{{ */
 {
-  redis_node_t rn = { "default", REDIS_DEF_HOST, REDIS_DEF_PASSWD,
-    REDIS_DEF_PORT, REDIS_DEF_TIMEOUT, /* next = */ NULL };
+  redis_node_t rn = {
+    .name = "default",
+    .host = REDIS_DEF_HOST,
+    .port = REDIS_DEF_PORT,
+    .timeout = REDIS_DEF_TIMEOUT,
+    .next = NULL
+};
 
   if (nodes_head == NULL)
     redis_node_add (&rn);
@@ -239,20 +264,48 @@ static int redis_init (void) /* {{{ */
   return (0);
 } /* }}} int redis_init */
 
+static void redis_info_line (const char *info, const char *field,  const char *format, void *storage) { /* {{{ */
+  char *str = strstr(info, field);
+  if (str) {
+    str += strlen(field) + 1; /* also skip the ':' */
+    sscanf(str, format, storage);
+  }
+} /* }}} void redis_info_item */
+
+static void redis_info (const char *str, redis_info_t *info) /* {{{ */
+{
+  redis_info_line (str, "uptime_in_seconds", "%ld", &(info->uptime_in_seconds));
+  redis_info_line (str, "connected_clients", "%d", &(info->connected_clients));
+  redis_info_line (str, "connected_slaves", "%d", &(info->connected_slaves));
+  redis_info_line (str, "blocked_clients", "%d", &(info->blocked_clients));
+  redis_info_line (str, "used_memory", "%zu", &(info->used_memory));
+  redis_info_line (str, "changes_since_last_save", "%lld", &(info->changes_since_last_save));
+  redis_info_line (str, "last_save_time", "%ld", &(info->last_save_time));
+  redis_info_line (str, "total_connections_received", "%lld", &(info->total_connections_received));
+  redis_info_line (str, "total_commands_processed", "%lld", &(info->total_commands_processed));
+  redis_info_line (str, "expired_keys", "%lld", &(info->expired_keys));
+  redis_info_line (str, "pubsub_patterns", "%u", &(info->pubsub_patterns));
+  redis_info_line (str, "pubsub_channels", "%ld", &(info->pubsub_channels));
+} /* }}} void redis_info */
+
 static int redis_read (void) /* {{{ */
 {
   redis_node_t *rn;
+  redis_info_t info;
 
   for (rn = nodes_head; rn != NULL; rn = rn->next)
   {
-    REDIS rh;
-    REDIS_INFO info;
+    redisContext *rh;
+    redisReply   *rr;
 
-    int status;
+    struct timeval tmout;
+
+    tmout.tv_sec = rn->timeout;
+    tmout.tv_usec = 0;
 
     DEBUG ("redis plugin: querying info from node `%s' (%s:%d).", rn->name, rn->host, rn->port);
 
-    rh = credis_connect (rn->host, rn->port, rn->timeout);
+    rh = redisConnectWithTimeout ((char *)rn->host, rn->port, tmout);
     if (rh == NULL)
     {
       ERROR ("redis plugin: unable to connect to node `%s' (%s:%d).", rn->name, rn->host, rn->port);
@@ -262,56 +315,38 @@ static int redis_read (void) /* {{{ */
     if (strlen (rn->passwd) > 0)
     {
       DEBUG ("redis plugin: authenticanting node `%s' passwd(%s).", rn->name, rn->passwd);
-      status = credis_auth(rh, rn->passwd);
-      if (status != 0)
+      rr = redisCommand (rh, "AUTH %s", rn->passwd);
+
+      if (rr == NULL || rr->type != 5)
       {
         WARNING ("redis plugin: unable to authenticate on node `%s'.", rn->name);
-        credis_close (rh);
+        redisFree (rh);
         continue;
       }
     }
 
-    memset (&info, 0, sizeof (info));
-    status = credis_info (rh, &info);
-    if (status != 0)
+    if ((rr = redisCommand(rh, "INFO")) == NULL)
     {
-      WARNING ("redis plugin: unable to get info from node `%s'.", rn->name);
-      credis_close (rh);
+      WARNING ("redis plugin: unable to connect to node `%s'.", rn->name);
+      redisFree (rh);
       continue;
     }
 
-    /* typedef struct _cr_info {
-     *   char redis_version[CREDIS_VERSION_STRING_SIZE];
-     *   int bgsave_in_progress;
-     *   int connected_clients;
-     *   int connected_slaves;
-     *   unsigned int used_memory;
-     *   long long changes_since_last_save;
-     *   int last_save_time;
-     *   long long total_connections_received;
-     *   long long total_commands_processed;
-     *   int uptime_in_seconds;
-     *   int uptime_in_days;
-     *   int role;
-     * } REDIS_INFO; */
+    redis_info(rr->str, &info);
 
-    DEBUG ("redis plugin: received info from node `%s': connected_clients = %d; "
-        "connected_slaves = %d; used_memory = %lu; changes_since_last_save = %lld; "
-        "bgsave_in_progress = %d; total_connections_received = %lld; "
-        "total_commands_processed = %lld; uptime_in_seconds = %ld", rn->name,
-        info.connected_clients, info.connected_slaves, info.used_memory,
-        info.changes_since_last_save, info.bgsave_in_progress,
-        info.total_connections_received, info.total_commands_processed,
-        info.uptime_in_seconds);
-
+    redis_submit_d (rn->name, "uptime", NULL, info.uptime_in_seconds);
     redis_submit_g (rn->name, "current_connections", "clients", info.connected_clients);
     redis_submit_g (rn->name, "current_connections", "slaves", info.connected_slaves);
-    redis_submit_g (rn->name, "memory", "used", info.used_memory);
-    redis_submit_g (rn->name, "volatile_changes", NULL, info.changes_since_last_save);
+    redis_submit_g (rn->name, "blocked_clients", NULL, info.blocked_clients);
+    redis_submit_g (rn->name, "memory", NULL, info.used_memory);
+    redis_submit_g (rn->name, "changes_since_last_save", NULL, info.changes_since_last_save);
     redis_submit_d (rn->name, "total_connections", NULL, info.total_connections_received);
     redis_submit_d (rn->name, "total_operations", NULL, info.total_commands_processed);
+    redis_submit_g (rn->name, "expired_keys", NULL, info.expired_keys);
+    redis_submit_g (rn->name, "pubsub", "patterns", info.pubsub_patterns);
+    redis_submit_g (rn->name, "pubsub", "channels", info.pubsub_channels);
 
-    credis_close (rh);
+    redisFree (rh);
   }
 
   return 0;
