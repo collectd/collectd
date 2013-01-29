@@ -1021,15 +1021,15 @@
 #</Plugin>
 
 #<Plugin write_graphite>
-#  <Carbon>
+#  <Node "example">
 #    Host "localhost"
 #    Port "2003"
 #    Prefix "collectd"
 #    Postfix "collectd"
-#    StoreRates false
+#    StoreRates true
 #    AlwaysAppendDS false
 #    EscapeCharacter "_"
-#  </Carbon>
+#  </Node>
 #</Plugin>
 
 #<Plugin write_http>
