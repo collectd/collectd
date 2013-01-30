@@ -675,7 +675,11 @@ static void mountstats_compute_and_submit (mountstats_t *m, mountstats_t *oldm) 
 			return; /* wrong type : cannot do anything */
 	}
 	sends = rpcsends;
-	backlog = backlogutil/rpcsends;
+	if(0 == rpcsends) {
+		backlog = 0;
+	} else {
+		backlog = backlogutil/rpcsends;
+	}
 	for(i=0; i<NFS_OPERATIONS_NB; i++) {
 	/* i=0 -> READ
 	 * i=1 -> WRITE
@@ -733,11 +737,13 @@ static void mountstats_compute_and_submit (mountstats_t *m, mountstats_t *oldm) 
 	plugin_dispatch_values (&vl);
 
 	/* type : backlog */
-	mountstats_initialize_value_list(&vl, m, "nfsclient_backlog");
-	vl.values = values;
-	vl.values_len = 1;
-	values[0].derive = backlog;
-	plugin_dispatch_values (&vl);
+	if(0 == rpcsends) {
+		mountstats_initialize_value_list(&vl, m, "nfsclient_backlog");
+		vl.values = values;
+		vl.values_len = 1;
+		values[0].derive = backlog;
+		plugin_dispatch_values (&vl);
+	}
 
 	/* type : ops */
 	mountstats_initialize_value_list(&vl, m, "nfsclient_ops");
