@@ -121,7 +121,7 @@ static int cpu_temp_retry_max     = 1;
 # define MAX_NUMCPU 256
 extern kstat_ctl_t *kc;
 static kstat_t *ksp[MAX_NUMCPU];
-static int numcpu;
+static unsigned long numcpu;
 /* #endif HAVE_LIBKSTAT */
 
 #elif CAN_USE_SYSCTL
@@ -182,6 +182,11 @@ static int init (void)
 			ksp_chain = ksp_chain->ks_next)
 		if (strncmp (ksp_chain->ks_module, "cpu_stat", 8) == 0)
 			ksp[numcpu++] = ksp_chain;
+	
+	if(numcpu == 0) {
+		ERROR ("cpu plugin: found no 'cpu_stat' in kstat chain. assert(numcpu != 0) will fail.");
+		return(-1);
+	}
 /* #endif HAVE_LIBKSTAT */
 
 #elif CAN_USE_SYSCTL
@@ -445,12 +450,17 @@ static int cpu_read (void)
 	derive_t user, syst, idle, wait, total;
 	derive_t tuser = 0, tsyst = 0, tidle = 0, twait = 0;
 	static cpu_stat_t cs;
+	unsigned long local_copy_of_numcpu = numcpu;
 
 	int hz = sysconf(_SC_CLK_TCK);
+	assert(hz != 0);
+
 	if (kc == NULL)
 		return (-1);
+	if(local_copy_of_numcpu <= 0) 
+		return(-1);
 
-	for (cpu = 0; cpu < numcpu; cpu++)
+	for (cpu = 0; cpu < local_copy_of_numcpu; cpu++)
 	{
 		if (kstat_read (kc, ksp[cpu], &cs) == -1)
 			continue; /* error message? */
@@ -474,10 +484,10 @@ static int cpu_read (void)
 		submit (ksp[cpu]->ks_instance, "idle", idle);
 		submit (ksp[cpu]->ks_instance, "wait", wait);
 	}
-	submit (-1, "user", tuser / numcpu);
-	submit (-1, "system", tsyst / numcpu);
-	submit (-1, "idle", tidle / numcpu);
-	submit (-1, "wait", twait / numcpu);
+	submit (-1, "user", tuser / local_copy_of_numcpu);
+	submit (-1, "system", tsyst / local_copy_of_numcpu);
+	submit (-1, "idle", tidle / local_copy_of_numcpu);
+	submit (-1, "wait", twait / local_copy_of_numcpu);
 /* #endif defined(HAVE_LIBKSTAT) */
 
 #elif CAN_USE_SYSCTL
