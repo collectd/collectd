@@ -125,7 +125,7 @@ static int rra_get (char ***ret, const value_list_t *vl, /* {{{ */
     rts_num = rra_timespans_num;
   }
 
-  rra_max = rts_num * rra_types_num;
+  rra_max = rts_num * (cfg->rra_types_num?cfg->rra_types_num:rra_types_num);
 
   if ((rra_def = (char **) malloc ((rra_max + 1) * sizeof (char *))) == NULL)
     return (-1);
@@ -149,7 +149,7 @@ static int rra_get (char ***ret, const value_list_t *vl, /* {{{ */
     cdp_num = (int) ceil (((double) span)
         / ((double) (cdp_len * ss)));
 
-    for (j = 0; j < rra_types_num; j++)
+    for (j = 0; j < (cfg->rra_types_num?cfg->rra_types_num:rra_types_num); j++)
     {
       int status;
 
@@ -157,7 +157,8 @@ static int rra_get (char ***ret, const value_list_t *vl, /* {{{ */
         break;
 
       status = ssnprintf (buffer, sizeof (buffer), "RRA:%s:%.10f:%u:%u",
-          rra_types[j], cfg->xff, cdp_len, cdp_num);
+          cfg->rra_types_num?cfg->rra_types[j]:rra_types[j],
+          cfg->xff, cdp_len, cdp_num);
 
       if ((status < 0) || ((size_t) status >= sizeof (buffer)))
       {
@@ -362,6 +363,34 @@ static int srrd_create (const char *filename, /* {{{ */
 /*
  * Public functions
  */
+int cu_rrd_rra_types_set(rrdcreate_config_t *cfg, const char *value) {
+  int i;
+
+  /* Alloc as much space as possible if not done yet (should be not so many...) */
+  if(NULL == cfg->rra_types) {
+    if(NULL == (cfg->rra_types = malloc(sizeof(*cfg->rra_types)*rra_types_num))) {
+      ERROR ("rrdtool plugin: malloc failed.");
+      return (-1);
+    }
+  }
+
+  /* For each value in the rra_types[] array, find out if the value was defined
+   * in the config string (value). If yes, cfg->rra_types[] will point to it
+   */
+  for(i=0; i<rra_types_num; i++) {
+    char *s;
+    if(NULL != (s=strstr(value, rra_types[i]))) {
+      char c;
+      c = s[strlen(rra_types[i])];
+      if(strchr(" ;:,\t", c) || (c == '\0')) {
+        cfg->rra_types[cfg->rra_types_num] = rra_types[i];
+        cfg->rra_types_num +=1;
+      }
+    }
+  }
+
+  return(0);
+}
 int cu_rrd_create_file (const char *filename, /* {{{ */
     const data_set_t *ds, const value_list_t *vl,
     const rrdcreate_config_t *cfg)

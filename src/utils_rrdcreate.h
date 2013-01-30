@@ -36,10 +36,15 @@ struct rrdcreate_config_s
   int *timespans;
   size_t timespans_num;
 
+  char **rra_types;
+  size_t rra_types_num;
+
   char **consolidation_functions;
   size_t consolidation_functions_num;
 };
 typedef struct rrdcreate_config_s rrdcreate_config_t;
+
+int cu_rrd_rra_types_set(rrdcreate_config_t *cfg, const char *value);
 
 int cu_rrd_create_file (const char *filename,
     const data_set_t *ds, const value_list_t *vl,

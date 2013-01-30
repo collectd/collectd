@@ -4935,6 +4935,7 @@ AC_PLUGIN([redis],       [$with_libcredis],    [Redis plugin])
 AC_PLUGIN([routeros],    [$with_librouteros],  [RouterOS plugin])
 AC_PLUGIN([rrdcached],   [$librrd_rrdc_update], [RRDTool output plugin])
 AC_PLUGIN([rrdtool],     [$with_librrd],       [RRDTool output plugin])
+AC_PLUGIN([rrdtool_createonly], [$with_librrd], [RRDTool file creation only plugin])
 AC_PLUGIN([sensors],     [$with_libsensors],   [lm_sensors statistics])
 AC_PLUGIN([serial],      [$plugin_serial],     [serial port traffic])
 AC_PLUGIN([snmp],        [$with_libnetsnmp],   [SNMP querying plugin])
@@ -5268,6 +5269,7 @@ Configuration:
     routeros  . . . . . . $enable_routeros
     rrdcached . . . . . . $enable_rrdcached
     rrdtool . . . . . . . $enable_rrdtool
+    rrdtool_createonly  . $enable_rrdtool_createonly
     sensors . . . . . . . $enable_sensors
     serial  . . . . . . . $enable_serial
     snmp  . . . . . . . . $enable_snmp

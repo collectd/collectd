@@ -4628,7 +4628,29 @@ intention is to avoid high load situations that appear when many values timeout
 at the same time. This is especially a problem shortly after the daemon starts,
 because all values were added to the internal cache at roughly the same time.
 
+=item B<RRA> I<rra types or rra types list>
+
+Specify the RRA to create. If absent, AVERAGE, MIN and MAX will be created.
+You can either give a sublist of RRA to create (eg "AVERAGE,MIN") or multiple
+lines with RRA sublists. Examples :
+
+RRA "AVERAGE,MIN,MAX"
+
+RRA "AVERAGE,MIN"
+
+RRA "AVERAGE"
+RRA "MIN
+
+The first is the default
+The last two are equivalent.
+
 =back
+
+=head2 Plugin C<rrdtool_createonly>
+
+Same as rrdtool (same options).
+However, it will only create file that does not exist.
+You need to use the plugin rrdtool or rrdcached to fill the rrdfiles.
 
 =head2 Plugin C<sensors>
 
