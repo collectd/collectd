@@ -1,4 +1,4 @@
-2013-01-27, Version 5.1.2
+2013-01-27, Version 5.2.1
 	* Build system: "make distcheck" has been fixed. Build fixes Solaris
 	  and systems without gcrypt. Thanks to Yves Mettier for his patches.
 	* collectd: The complaint mechanism was fixed. It reported messages
