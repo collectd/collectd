@@ -340,7 +340,8 @@ typedef enum {
 
 
 /* Deconfigure */
-static int nfs_deconfig_cb (void) {
+static int nfs_deconfig_cb (void) /* {{{ */
+{
 	if(config_mountpoints) {
 		void *key;
 		void *value;
@@ -353,9 +354,10 @@ static int nfs_deconfig_cb (void) {
 	}
 
 	return(0);
-}
+} /* }}} nfs_deconfig_cb */
 
-static int config_nfs_mountpoint_add(oconfig_item_t *ci) {
+static int config_nfs_mountpoint_add(oconfig_item_t *ci) /* {{{ */
+{
 	nfs_mountpoints_config_t *item;
 	char *key;
 	int i;
@@ -418,9 +420,10 @@ static int config_nfs_mountpoint_add(oconfig_item_t *ci) {
 	/* OK, insert the item into the config */
 	c_avl_insert(config_mountpoints, key, item);
 	return(0);
-}
+} /* }}} config_nfs_mountpoint_add */
 
-static int nfs_config_cb (oconfig_item_t *ci) {
+static int nfs_config_cb (oconfig_item_t *ci) /* {{{ */
+{
 	int i;
 
 	assert(config_mountpoints == NULL);
@@ -450,15 +453,14 @@ static int nfs_config_cb (oconfig_item_t *ci) {
 	} /* for (ci->children) */
 
 	return (0);	
-}
-
+} /* }}} nfs_config_cb */
 
 #if KERNEL_LINUX
 static short proc_self_mountstats_is_available = 0;
 #endif
 
 #if KERNEL_LINUX
-static int is_proc_self_mountstats_available (void)
+static int is_proc_self_mountstats_available (void) /* {{{ */
 {
 	FILE *fh;
 	void *dummy;
@@ -550,23 +552,26 @@ static int is_proc_self_mountstats_available (void)
 	}
 
 	return (0);
-}
+} /* }}} is_proc_self_mountstats_available */
 
-static void clear_mountstats(mountstats_t *m) {
+static void clear_mountstats(mountstats_t *m) /* {{{ */
+{
 	if(m->mountpoint) free(m->mountpoint);
 	m->mountpoint=NULL;
 	if(m->op) free(m->op);
 	memset(m, '\0', sizeof(*m));
-}
+} /* }}} clear_mountstats */
 
-static void free_mountstats(mountstats_t *m) {
+static void free_mountstats(mountstats_t *m) /* {{{ */
+{
 	if(m->mountpoint) free(m->mountpoint);
 	if(m->op) free(m->op);
 	free(m);
-}
+} /* }}} free_mountstats */
 
 #ifdef USE_PRINT_MOUNTSTATS
-static void print_mountstats(mountstats_t *m) {
+static void print_mountstats(mountstats_t *m) /* {{{ */
+{
 	int i;
 	if(NULL == m->mountpoint) return;
 
@@ -606,10 +611,11 @@ static void print_mountstats(mountstats_t *m) {
 					);
 	}
 	INFO(NFSPLUGININFO "End (%s)", m->mountpoint);
-}
+} /* }}} print_mountstats */
 #endif
 
-static void mountstats_initialize_value_list(value_list_t *vl, mountstats_t *m, const char *data_type) {
+static void mountstats_initialize_value_list(value_list_t *vl, mountstats_t *m, const char *data_type) /* {{{ */
+{
 	int i;
 	
 	vl->values=NULL;
@@ -632,9 +638,10 @@ static void mountstats_initialize_value_list(value_list_t *vl, mountstats_t *m, 
 			}
 	}
 	vl->type_instance[0] = '\0';
-}
+} /* }}} mountstats_initialize_value_list */
 
-static void mountstats_compute_and_submit (mountstats_t *m, mountstats_t *oldm) {
+static void mountstats_compute_and_submit (mountstats_t *m, mountstats_t *oldm) /* {{{ */
+{
 #define NFS_OPERATIONS_NB 2
 	nfs_mountpoints_config_t *config_item;
 	value_list_t vl = VALUE_LIST_INIT;
@@ -835,9 +842,10 @@ static int duplicate_mountstats(mountstats_t *dest, mountstats_t *src) {
 		}
 	}
 	return(0);
-}
+} /* }}} mountstats_compute_and_submit */
 
-static int remove_old_mountpoints(time_t t) {
+static int remove_old_mountpoints(time_t t) /* {{{ */
+{
 	char **remove;
 	char *key;
 	mountstats_t *m;
@@ -878,9 +886,10 @@ static int remove_old_mountpoints(time_t t) {
 	free(remove);
 
 	return(0);
-}
+} /* }}} remove_old_mountpoints */
 
-static int dispatch_mountstats(mountstats_t *m) {
+static int dispatch_mountstats(mountstats_t *m) /* {{{ */
+{
 	mountstats_t *oldm;
 	if(NULL == m->mountpoint) { return (0); }
 /*	print_mountstats(m); */
@@ -915,9 +924,10 @@ static int dispatch_mountstats(mountstats_t *m) {
 	/* Keep a copy of the new mountstats into oldm for next time */
 	if(0 != duplicate_mountstats(oldm, m)) { return(-1); }
 	return(0);
-}
+} /* }}} dispatch_mountstats */
 
-static int string_to_array_of_Lu(char *str, unsigned long long *a, int n) {
+static int string_to_array_of_Lu(char *str, unsigned long long *a, int n) /* {{{ */
+{
 	char *s, *endptr;
 	int i;
 
@@ -933,9 +943,10 @@ static int string_to_array_of_Lu(char *str, unsigned long long *a, int n) {
 		s = endptr;
 	}
 	return(i);
-}
+} /* }}} string_to_array_of_Lu */
 
-static int parse_proc_self_mountstats(void) {
+static int parse_proc_self_mountstats(void) /* {{{ */
+{
 	FILE *fh;
 	char buf[4096];
 	char wbuf[4096];
@@ -1151,12 +1162,12 @@ an_error_happened:
 	clear_mountstats(&mountstats);
 	ERROR("nfs plugin : parse error while reading /proc/self/mountstats (state was %d, buffer was '%s')", state, buf);
 	return(-1);
-}
+} /* }}} parse_proc_self_mountstats */
 #endif
 /* #endif KERNEL_LINUX */
 
 #if KERNEL_LINUX
-static int nfs_init (void)
+static int nfs_init (void) /* {{{ */
 {
 	proc_self_mountstats_is_available = (0 == is_proc_self_mountstats_available())?1:0;
 	INFO("nfs plugin : Statistics through /proc/self/mountstats are %s", proc_self_mountstats_is_available?"available":"unavailable");
@@ -1169,11 +1180,11 @@ static int nfs_init (void)
 		}
 	}
 	return (0);
-}
+} /* }}} nfs_init */
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
-static int nfs_init (void)
+static int nfs_init (void) /* {{{ */
 {
 	kstat_t *ksp_chain = NULL;
 
@@ -1207,10 +1218,10 @@ static int nfs_init (void)
 	}
 
 	return (0);
-} /* int nfs_init */
+} /* }}} int nfs_init */
 #endif
 
-static void nfs_procedures_submit (const char *plugin_instance,
+static void nfs_procedures_submit (const char *plugin_instance, /* {{{ */
 		const char **type_instances,
 		value_t *values, size_t values_num)
 {
@@ -1231,10 +1242,10 @@ static void nfs_procedures_submit (const char *plugin_instance,
 				sizeof (vl.type_instance));
 		plugin_dispatch_values (&vl);
 	}
-} /* void nfs_procedures_submit */
+} /* }}} void nfs_procedures_submit */
 
 #if KERNEL_LINUX
-static int nfs_submit_fields (int nfs_version, const char *instance,
+static int nfs_submit_fields (int nfs_version, const char *instance, /* {{{ */
 		char **fields, size_t fields_num,
 		const char **proc_names, size_t proc_names_num)
 {
@@ -1261,9 +1272,9 @@ static int nfs_submit_fields (int nfs_version, const char *instance,
 			proc_names_num);
 
 	return (0);
-}
+} /* }}} nfs_submit_fields */
 
-static void nfs_read_linux (FILE *fh, char *inst)
+static void nfs_read_linux (FILE *fh, char *inst) /* {{{ */
 {
 	char buffer[1024];
 
@@ -1297,11 +1308,11 @@ static void nfs_read_linux (FILE *fh, char *inst)
 		}
 	} /* while (fgets) */
 
-} /* void nfs_read_linux */
+} /* }}} void nfs_read_linux */
 #endif /* KERNEL_LINUX */
 
 #if HAVE_LIBKSTAT
-static int nfs_read_kstat (kstat_t *ksp, int nfs_version, char *inst,
+static int nfs_read_kstat (kstat_t *ksp, int nfs_version, char *inst, /* {{{ */
 		const char **proc_names, size_t proc_names_num)
 {
 	char plugin_instance[DATA_MAX_NAME_LEN];
@@ -1322,11 +1333,11 @@ static int nfs_read_kstat (kstat_t *ksp, int nfs_version, char *inst,
 	nfs_procedures_submit (plugin_instance, proc_names, values,
 			proc_names_num);
 	return (0);
-}
+} /* }}} nfs_read_kstat */
 #endif
 
 #if KERNEL_LINUX
-static int nfs_read (void)
+static int nfs_read (void) /* {{{ */
 {
 	FILE *fh;
 
@@ -1344,11 +1355,11 @@ static int nfs_read (void)
 
 	if(proc_self_mountstats_is_available && config_mountpoints) parse_proc_self_mountstats();
 	return (0);
-}
+} /* }}} nfs_read */
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
-static int nfs_read (void)
+static int nfs_read (void) /* {{{ */
 {
 	nfs_read_kstat (nfs2_ksp_client, /* version = */ 2, "client",
 			nfs2_procedures_names, nfs2_procedures_names_num);
@@ -1364,7 +1375,7 @@ static int nfs_read (void)
 			nfs4_procedures_names, nfs4_procedures_names_num);
 
 	return (0);
-}
+} /* }}} nfs_read */
 #endif /* HAVE_LIBKSTAT */
 
 
@@ -1374,4 +1385,4 @@ void module_register (void)
 	plugin_register_complex_config ("nfs", nfs_config_cb);
 	plugin_register_read ("nfs", nfs_read);
 } /* void module_register */
-/* vim: set sw=4 ts=4 tw=78 noexpandtab : */
+/* vim: set sw=4 ts=4 tw=78 noexpandtab fdm=marker : */
