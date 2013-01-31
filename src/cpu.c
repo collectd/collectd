@@ -344,8 +344,6 @@ static int cpu_read (void)
 
 		cpu_temp_retry_counter = 0;
 		cpu_temp_retry_step    = 1;
-
-		DEBUG ("cpu_temp = %i", (int) cpu_temp);
 #endif /* PROCESSOR_TEMPERATURE */
 	}
 /* #endif PROCESSOR_CPU_LOAD_INFO */
