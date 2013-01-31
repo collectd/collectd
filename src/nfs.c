@@ -828,7 +828,7 @@ static int duplicate_mountstats(mountstats_t *dest, mountstats_t *src) {
 				(!strcmp(src->op[i].op_name, "READ")) ||
 				(!strcmp(src->op[i].op_name, "WRITE"))
 		  ) { /* Copy only needed ops */
-			strncpy(dest->op[dest->nb_op].op_name, src->op[i].op_name, sizeof(src->op[i].op_name)+1);
+			strncpy(dest->op[dest->nb_op].op_name, src->op[i].op_name, sizeof(src->op[i].op_name));
 			memcpy(dest->op[dest->nb_op].op, src->op[i].op, sizeof(src->op[i].op));
 			dest->nb_op++;
 			assert(dest->nb_op <= dest->size_op);
