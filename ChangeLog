@@ -17,12 +17,12 @@
 	* redis plugin: A build failure has been fixed. Thanks to Pierre-Yves
 	  Ritschard for his patch.
 	* varnish plugin: Fix a problem with instances without name.
-	* write_graphite: A regression which rendered the "SeparateInstances"
-	  and "AlwaysAppendDS" options unusable has been fixed. A failed
-	  assertion when using types with many data sources has been fixed.
-	  Improve reporting of connection errors to not spam log files too
-	  much. Thanks to Pierre-Yves Ritschard for reporting the logging
-	  problem.
+	* write_graphite plugin: A regression which rendered the
+	  "SeparateInstances" and "AlwaysAppendDS" options unusable has been
+	  fixed. A failed assertion when using types with many data sources
+	  has been fixed. Improve reporting of connection errors to not spam
+	  log files too much. Thanks to Pierre-Yves Ritschard for reporting
+	  the logging problem.
 	* zfs_arc plugin: Fix the type used for mutex misses. Thanks to Yves
 	  Mettier for reporting this bug.
 
