@@ -86,7 +86,7 @@ static int pf_read (void)
 	close (fd);
 	fd = -1;
 
-	if (!status.running)
+	if (!state.running)
 	{
 		WARNING ("pf plugin: PF is not running.");
 		return (-1);
