@@ -27,10 +27,24 @@
 #include <err.h>
 #include <pwd.h>
 
+#ifndef FCNT_NAMES
+# if FCNT_MAX != 3
+#  error "Unexpected value for FCNT_MAX"
+# endif
+# define FCNT_NAMES {"search", "insert", "removals", NULL};
+#endif
+
+#ifndef SCNT_NAMES
+# if SCNT_MAX != 3
+#  error "Unexpected value for SCNT_MAX"
+# endif
+# define SCNT_NAMES {"search", "insert", "removals", NULL};
+#endif
+
 static char const *pf_reasons[PFRES_MAX+1] = PFRES_NAMES;
 static char const *pf_lcounters[LCNT_MAX+1] = LCNT_NAMES;
 static char const *pf_fcounters[FCNT_MAX+1] = FCNT_NAMES;
-static char const *pf_scounters[FCNT_MAX+1] = FCNT_NAMES;
+static char const *pf_scounters[SCNT_MAX+1] = SCNT_NAMES;
 
 static char const *pf_device = "/dev/pf";
 
