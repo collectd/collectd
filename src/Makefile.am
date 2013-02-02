@@ -16,6 +16,7 @@ AM_CPPFLAGS += -DPIDFILE='"${localstatedir}/run/${PACKAGE_NAME}.pid"'
 endif
 AM_CPPFLAGS += -DPLUGINDIR='"${pkglibdir}"'
 AM_CPPFLAGS += -DPKGDATADIR='"${pkgdatadir}"'
+AM_CPPFLAGS += -I$(top_builddir)/src/libcollectdclient/collectd
 
 sbin_PROGRAMS = collectd collectdmon
 bin_PROGRAMS = collectd-nagios collectdctl collectd-tg
