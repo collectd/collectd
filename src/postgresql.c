@@ -971,7 +971,7 @@ static int c_psql_flush (cdtime_t timeout,
 	size_t i;
 
 	if ((ud != NULL) && (ud->data != NULL)) {
-		dbs = (c_psql_database_t **)&ud->data;
+		dbs = (void *)&ud->data;
 		dbs_num = 1;
 	}
 
