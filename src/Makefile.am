@@ -16,7 +16,6 @@ AM_CPPFLAGS += -DPIDFILE='"${localstatedir}/run/${PACKAGE_NAME}.pid"'
 endif
 AM_CPPFLAGS += -DPLUGINDIR='"${pkglibdir}"'
 AM_CPPFLAGS += -DPKGDATADIR='"${pkgdatadir}"'
-AM_CPPFLAGS += -I$(top_builddir)/src/libcollectdclient/collectd
 
 sbin_PROGRAMS = collectd collectdmon
 bin_PROGRAMS = collectd-nagios collectdctl collectd-tg
@@ -91,6 +90,7 @@ collectdmon_SOURCES = collectdmon.c
 collectdmon_CPPFLAGS = $(AM_CPPFLAGS)
 
 collectd_nagios_SOURCES = collectd-nagios.c
+collectd_nagios_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_builddir)/src/libcollectdclient/collectd
 collectd_nagios_LDADD =
 if BUILD_WITH_LIBSOCKET
 collectd_nagios_LDADD += -lsocket
@@ -104,6 +104,7 @@ collectd_nagios_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 
 
 collectdctl_SOURCES = collectdctl.c
+collectdctl_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_builddir)/src/libcollectdclient/collectd
 collectdctl_LDADD =
 if BUILD_WITH_LIBSOCKET
 collectdctl_LDADD += -lsocket
@@ -116,6 +117,7 @@ collectdctl_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 
 collectd_tg_SOURCES = collectd-tg.c \
 		      utils_heap.c utils_heap.h
+collectd_tg_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_builddir)/src/libcollectdclient/collectd
 collectd_tg_LDADD =
 if BUILD_WITH_LIBSOCKET
 collectd_tg_LDADD += -lsocket
