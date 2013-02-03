@@ -19,13 +19,17 @@
 #include "plugin.h"
 #include "common.h"
 
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <net/if.h>
+#if HAVE_SYS_IOCTL_H
+# include <sys/ioctl.h>
+#endif
+#if HAVE_SYS_SOCKET_H
+# include <sys/socket.h>
+#endif
+#if HAVE_NET_IF_H
+# include <net/if.h>
+#endif
+
 #include <net/pfvar.h>
-#include <paths.h>
-#include <err.h>
-#include <pwd.h>
 
 #ifndef FCNT_NAMES
 # if FCNT_MAX != 3
