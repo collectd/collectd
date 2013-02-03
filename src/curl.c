@@ -370,14 +370,14 @@ static int cc_page_init_curl (web_page_t *wp) /* {{{ */
     return (-1);
   }
 
-  curl_easy_setopt (wp->curl, CURLOPT_NOSIGNAL, 1);
+  curl_easy_setopt (wp->curl, CURLOPT_NOSIGNAL, 1L);
   curl_easy_setopt (wp->curl, CURLOPT_WRITEFUNCTION, cc_curl_callback);
   curl_easy_setopt (wp->curl, CURLOPT_WRITEDATA, wp);
   curl_easy_setopt (wp->curl, CURLOPT_USERAGENT,
       PACKAGE_NAME"/"PACKAGE_VERSION);
   curl_easy_setopt (wp->curl, CURLOPT_ERRORBUFFER, wp->curl_errbuf);
   curl_easy_setopt (wp->curl, CURLOPT_URL, wp->url);
-  curl_easy_setopt (wp->curl, CURLOPT_FOLLOWLOCATION, 1);
+  curl_easy_setopt (wp->curl, CURLOPT_FOLLOWLOCATION, 1L);
 
   if (wp->user != NULL)
   {
@@ -399,9 +399,9 @@ static int cc_page_init_curl (web_page_t *wp) /* {{{ */
     curl_easy_setopt (wp->curl, CURLOPT_USERPWD, wp->credentials);
   }
 
-  curl_easy_setopt (wp->curl, CURLOPT_SSL_VERIFYPEER, wp->verify_peer);
+  curl_easy_setopt (wp->curl, CURLOPT_SSL_VERIFYPEER, (long) wp->verify_peer);
   curl_easy_setopt (wp->curl, CURLOPT_SSL_VERIFYHOST,
-      wp->verify_host ? 2 : 0);
+      wp->verify_host ? 2L : 0L);
   if (wp->cacert != NULL)
     curl_easy_setopt (wp->curl, CURLOPT_CAINFO, wp->cacert);
 
