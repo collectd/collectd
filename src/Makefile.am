@@ -1429,7 +1429,7 @@ pinba.pb-c.c pinba.pb-c.h: pinba.proto
 	protoc-c -I$(srcdir) --c_out . $(srcdir)/pinba.proto
 
 riemann.pb-c.c riemann.pb-c.h: riemann.proto
-	protoc-c --c_out . riemann.proto
+	protoc-c -I$(srcdir) --c_out . $(srcdir)/riemann.proto
 
 install-exec-hook:
 	$(mkinstalldirs) $(DESTDIR)$(sysconfdir)
