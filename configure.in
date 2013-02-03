@@ -24,7 +24,7 @@ m4_ifdef([LT_PACKAGE_VERSION],
 	]
 )
 
-AM_INIT_AUTOMAKE(dist-bzip2)
+AM_INIT_AUTOMAKE([tar-pax dist-bzip2])
 AC_LANG(C)
 
 AC_PREFIX_DEFAULT("/opt/collectd")
@@ -537,7 +537,20 @@ AC_CHECK_HEADERS(netinet/if_ether.h, [], [],
 AC_CHECK_HEADERS(netinet/ip_compat.h)
 
 have_net_pfvar_h="no"
-AC_CHECK_HEADERS(net/pfvar.h, [have_net_pfvar_h="yes"])
+AC_CHECK_HEADERS(net/pfvar.h,
+               [have_net_pfvar_h="yes"],
+               [have_net_pfvar_h="no"],
+[
+#if HAVE_SYS_IOCTL_H
+# include <sys/ioctl.h>
+#endif
+#if HAVE_SYS_SOCKET_H
+# include <sys/socket.h>
+#endif
+#if HAVE_NET_IF_H
+# include <net/if.h>
+#endif
+])
 
 # For the multimeter plugin
 have_termios_h="no"

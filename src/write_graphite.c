@@ -4,7 +4,7 @@
  * Copyright (C) 2011       Scott Sanders
  * Copyright (C) 2009       Paul Sadauskas
  * Copyright (C) 2009       Doug MacEachern
- * Copyright (C) 2007-2012  Florian octo Forster
+ * Copyright (C) 2007-2013  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -46,6 +46,7 @@
 #include "configfile.h"
 
 #include "utils_cache.h"
+#include "utils_complain.h"
 #include "utils_parse_option.h"
 #include "utils_format_graphite.h"
 
@@ -87,9 +88,7 @@ struct wg_callback
     char    *postfix;
     char     escape_char;
 
-    _Bool    store_rates;
-    _Bool    separate_instances;
-    _Bool    always_append_ds;
+    unsigned int format_flags;
 
     char     send_buf[WG_SEND_BUF_SIZE];
     size_t   send_buf_free;
@@ -97,6 +96,7 @@ struct wg_callback
     cdtime_t send_buf_init_time;
 
     pthread_mutex_t send_lock;
+    c_complain_t init_complaint;
 };
 
 
@@ -218,11 +218,18 @@ static int wg_callback_init (struct wg_callback *cb)
     if (cb->sock_fd < 0)
     {
         char errbuf[1024];
-        ERROR ("write_graphite plugin: Connecting to %s:%s failed. "
+        c_complain (LOG_ERR, &cb->init_complaint,
+                "write_graphite plugin: Connecting to %s:%s failed. "
                 "The last error was: %s", node, service,
                 sstrerror (errno, errbuf, sizeof (errbuf)));
         close (cb->sock_fd);
         return (-1);
+    }
+    else
+    {
+        c_release (LOG_INFO, &cb->init_complaint,
+                "write_graphite plugin: Successfully connected to %s:%s.",
+                node, service);
     }
 
     wg_reset_buffer (cb);
@@ -276,7 +283,7 @@ static int wg_flush (cdtime_t timeout,
         status = wg_callback_init (cb);
         if (status != 0)
         {
-            ERROR ("write_graphite plugin: wg_callback_init failed.");
+            /* An error message has already been printed. */
             pthread_mutex_unlock (&cb->send_lock);
             return (-1);
         }
@@ -302,7 +309,7 @@ static int wg_send_message (char const *message, struct wg_callback *cb)
         status = wg_callback_init (cb);
         if (status != 0)
         {
-            ERROR ("write_graphite plugin: wg_callback_init failed.");
+            /* An error message has already been printed. */
             pthread_mutex_unlock (&cb->send_lock);
             return (-1);
         }
@@ -343,7 +350,7 @@ static int wg_send_message (char const *message, struct wg_callback *cb)
 static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
         struct wg_callback *cb)
 {
-    char buffer[4096];
+    char buffer[WG_SEND_BUF_SIZE];
     int status;
 
     if (0 != strcmp (ds->type, vl->type))
@@ -355,15 +362,15 @@ static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
 
     memset (buffer, 0, sizeof (buffer));
     status = format_graphite (buffer, sizeof (buffer), ds, vl,
-            cb->prefix, cb->postfix, cb->escape_char, cb->store_rates);
+            cb->prefix, cb->postfix, cb->escape_char, cb->format_flags);
     if (status != 0) /* error message has been printed already. */
         return (status);
 
+    /* Send the message to graphite */
     wg_send_message (buffer, cb);
     if (status != 0)
     {
-        ERROR ("write_graphite plugin: wg_send_message failed "
-                "with status %i.", status);
+        /* An error message has already been printed. */
         return (status);
     }
 
@@ -438,7 +445,7 @@ static int wg_config_node (oconfig_item_t *ci)
     cb->prefix = NULL;
     cb->postfix = NULL;
     cb->escape_char = WG_DEFAULT_ESCAPE;
-    cb->store_rates = 1;
+    cb->format_flags = GRAPHITE_STORE_RATES;
 
     /* FIXME: Legacy configuration syntax. */
     if (strcasecmp ("Carbon", ci->key) != 0)
@@ -452,6 +459,7 @@ static int wg_config_node (oconfig_item_t *ci)
     }
 
     pthread_mutex_init (&cb->send_lock, /* attr = */ NULL);
+    C_COMPLAIN_INIT (&cb->init_complaint);
 
     for (i = 0; i < ci->children_num; i++)
     {
@@ -466,11 +474,14 @@ static int wg_config_node (oconfig_item_t *ci)
         else if (strcasecmp ("Postfix", child->key) == 0)
             cf_util_get_string (child, &cb->postfix);
         else if (strcasecmp ("StoreRates", child->key) == 0)
-            cf_util_get_boolean (child, &cb->store_rates);
+            cf_util_get_flag (child, &cb->format_flags,
+                    GRAPHITE_STORE_RATES);
         else if (strcasecmp ("SeparateInstances", child->key) == 0)
-            cf_util_get_boolean (child, &cb->separate_instances);
+            cf_util_get_flag (child, &cb->format_flags,
+                    GRAPHITE_SEPARATE_INSTANCES);
         else if (strcasecmp ("AlwaysAppendDS", child->key) == 0)
-            cf_util_get_boolean (child, &cb->always_append_ds);
+            cf_util_get_flag (child, &cb->format_flags,
+                    GRAPHITE_ALWAYS_APPEND_DS);
         else if (strcasecmp ("EscapeCharacter", child->key) == 0)
             config_set_char (&cb->escape_char, child);
         else

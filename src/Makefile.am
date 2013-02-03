@@ -1426,7 +1426,7 @@ EXTRA_DIST +=   collectd.conf.pod \
 	fi
 
 pinba.pb-c.c pinba.pb-c.h: pinba.proto
-	protoc-c --c_out . pinba.proto
+	protoc-c -I$(srcdir) --c_out . $(srcdir)/pinba.proto
 
 riemann.pb-c.c riemann.pb-c.h: riemann.proto
 	protoc-c --c_out . riemann.proto

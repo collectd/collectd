@@ -81,7 +81,7 @@ static void logfile_print (const char *msg, int severity,
 	   	cdtime_t timestamp_time)
 {
 	FILE *fh;
-	int do_close = 0;
+	_Bool do_close = 0;
 	struct tm timestamp_tm;
 	char timestamp_str[64];
 	char level_str[16] = "";
@@ -151,8 +151,11 @@ static void logfile_print (const char *msg, int severity,
 		else
 			fprintf (fh, "%s%s\n", level_str, msg);
 
-		if (do_close != 0)
+		if (do_close) {
 			fclose (fh);
+		} else {
+			fflush(fh);
+		}
 	}
 
 	pthread_mutex_unlock (&file_lock);

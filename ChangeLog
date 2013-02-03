@@ -1,3 +1,31 @@
+2013-01-27, Version 5.2.1
+	* Build system: "make distcheck" has been fixed. Build fixes Solaris
+	  and systems without gcrypt. Thanks to Yves Mettier for his patches.
+	* collectd: The complaint mechanism was fixed. It reported messages
+	  more frequently than intended.
+	* collectd-tg: A manual page has been added.
+	* dns plugin: Build issues on FreeBSD have been fixed. Thanks to
+	  Ed Schouten for his patch.
+	* ethstat plugin: Fix the "Map" config option. An incorrectly used
+	  character pointer may lead to a segmentation fault.
+	* network plugin: Build issues on FreeBSD have been fixed. Thanks to
+	  Ed Schouten for his patch.
+	* postgresql plugin: A memory leak in the writing code has been fixed.
+	  A use-after-free issue that happened when more than one database was
+	  configured was fixed. Thanks to Sebastian Harl for fixing these
+	  problems.
+	* redis plugin: A build failure has been fixed. Thanks to Pierre-Yves
+	  Ritschard for his patch.
+	* varnish plugin: Fix a problem with instances without name.
+	* write_graphite plugin: A regression which rendered the
+	  "SeparateInstances" and "AlwaysAppendDS" options unusable has been
+	  fixed. A failed assertion when using types with many data sources
+	  has been fixed. Improve reporting of connection errors to not spam
+	  log files too much. Thanks to Pierre-Yves Ritschard for reporting
+	  the logging problem.
+	* zfs_arc plugin: Fix the type used for mutex misses. Thanks to Yves
+	  Mettier for reporting this bug.
+
 2012-11-17, Version 5.2.0
 	* collectd: The performance of the LISTVAL command has been improved.
 	  Thanks to Yves Mettier for the patch.
@@ -46,6 +74,24 @@
 	  "traffic". Thanks to Manuel Rozada for the patch.
 	* tcpconns plugin: Use a netlink socket rather than reading from /proc
 	  for improved performance. Thanks to Michael Stapelberg for the patch.
+
+2013-01-25, Version 5.1.2
+	* Build system: "make distcheck" has been fixed. Thanks to Yves
+	  Mettier for his patches.
+	* collectd: The complaint mechanism was fixed. It reported messages
+	  more frequently than intended.
+	* dns plugin: Build issues on FreeBSD have been fixed. Thanks to
+	  Ed Schouten for his patch.
+	* ethstat plugin: Fix the "Map" config option. An incorrectly used
+	  character pointer may lead to a segmentation fault.
+	* network plugin: Build issues on FreeBSD have been fixed. Thanks to
+	  Ed Schouten for his patch.
+	* varnish plugin: Fix a problem with instances without name.
+	* write_graphite: Improve reporting of connection errors to not spam
+	  log files too much. Thanks to Pierre-Yves Ritschard for reporting
+	  this problem.
+	* zfs_arc plugin: Fix the type used for mutex misses. Thanks to Yves
+	  Mettier for reporting this bug.
 
 2012-11-11, Version 5.1.1
 	* collectd: Create new directories with mode 0777 and let umask remove

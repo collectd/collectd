@@ -25,8 +25,8 @@
 #include "plugin.h"
 #include "common.h"
 
+#include "utils_format_graphite.h"
 #include "utils_cache.h"
-#include "utils_format_json.h"
 #include "utils_parse_option.h"
 
 /* Utils functions to format data sets in graphite format.
@@ -108,11 +108,12 @@ static void gr_copy_escape_part (char *dst, const char *src, size_t dst_len,
 }
 
 static int gr_format_name (char *ret, int ret_len,
-        const value_list_t *vl,
-        const char *ds_name,
-        char *prefix,
-        char *postfix,
-        char escape_char)
+        value_list_t const *vl,
+        char const *ds_name,
+        char const *prefix,
+        char const *postfix,
+        char const escape_char,
+        unsigned int flags)
 {
     char n_host[DATA_MAX_NAME_LEN];
     char n_plugin[DATA_MAX_NAME_LEN];
@@ -143,7 +144,7 @@ static int gr_format_name (char *ret, int ret_len,
     if (n_plugin_instance[0] != '\0')
         ssnprintf (tmp_plugin, sizeof (tmp_plugin), "%s%c%s",
             n_plugin,
-            '-',
+            (flags & GRAPHITE_SEPARATE_INSTANCES) ? '.' : '-',
             n_plugin_instance);
     else
         sstrncpy (tmp_plugin, n_plugin, sizeof (tmp_plugin));
@@ -151,11 +152,13 @@ static int gr_format_name (char *ret, int ret_len,
     if (n_type_instance[0] != '\0')
         ssnprintf (tmp_type, sizeof (tmp_type), "%s%c%s",
             n_type,
-            '-',
+            (flags & GRAPHITE_SEPARATE_INSTANCES) ? '.' : '-',
             n_type_instance);
     else
         sstrncpy (tmp_type, n_type, sizeof (tmp_type));
 
+    /* Assert always_append_ds -> ds_name */
+    assert (!(flags & GRAPHITE_ALWAYS_APPEND_DS) || (ds_name != NULL));
     if (ds_name != NULL)
         ssnprintf (ret, ret_len, "%s%s%s.%s.%s.%s",
             prefix, n_host, postfix, tmp_plugin, tmp_type, ds_name);
@@ -167,31 +170,33 @@ static int gr_format_name (char *ret, int ret_len,
 }
 
 int format_graphite (char *buffer, size_t buffer_size,
-    const data_set_t *ds, const value_list_t *vl, char *prefix,
-    char *postfix, char escape_char,
-    _Bool store_rates)
+    data_set_t const *ds, value_list_t const *vl,
+    char const *prefix, char const *postfix, char const escape_char,
+    unsigned int flags)
 {
     int status = 0;
     int i;
     int buffer_pos = 0;
 
     gauge_t *rates = NULL;
-    if (store_rates)
+    if (flags & GRAPHITE_STORE_RATES)
       rates = uc_get_rate (ds, vl);
 
     for (i = 0; i < ds->ds_num; i++)
     {
-        const char *ds_name = NULL;
+        char const *ds_name = NULL;
         char        key[10*DATA_MAX_NAME_LEN];
         char        values[512];
         size_t      message_len;
         char        message[1024];
 
-        ds_name = ds->ds[i].name;
+        if ((flags & GRAPHITE_ALWAYS_APPEND_DS)
+            || (ds->ds_num > 1))
+          ds_name = ds->ds[i].name;
 
         /* Copy the identifier to `key' and escape it. */
         status = gr_format_name (key, sizeof (key), vl, ds_name,
-                    prefix, postfix, escape_char);
+                    prefix, postfix, escape_char, flags);
         if (status != 0)
         {
             ERROR ("format_graphite: error with gr_format_name");
