@@ -70,6 +70,8 @@ struct cx_s /* {{{ */
   _Bool verify_peer;
   _Bool verify_host;
   char *cacert;
+  char *post_body;
+  struct curl_slist *headers;
 
   CURL *curl;
   char curl_errbuf[CURL_ERROR_SIZE];
@@ -184,9 +186,27 @@ static void cx_free (void *arg) /* {{{ */
   sfree (db->pass);
   sfree (db->credentials);
   sfree (db->cacert);
+  sfree (db->post_body);
+  curl_slist_free_all (db->headers);
 
   sfree (db);
 } /* }}} void cx_free */
+
+static int cx_config_append_string (const char *name, struct curl_slist **dest, /* {{{ */
+    oconfig_item_t *ci)
+{
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
+  {
+    WARNING ("curl_xml plugin: `%s' needs exactly one string argument.", name);
+    return (-1);
+  }
+
+  *dest = curl_slist_append(*dest, ci->values[0].value.string);
+  if (*dest == NULL)
+    return (-1);
+
+  return (0);
+} /* }}} int cx_config_append_string */
 
 static int cx_check_type (const data_set_t *ds, cx_xpath_t *xpath) /* {{{ */
 {
@@ -769,6 +789,10 @@ static int cx_init_curl (cx_t *db) /* {{{ */
                     db->verify_host ? 2L : 0L);
   if (db->cacert != NULL)
     curl_easy_setopt (db->curl, CURLOPT_CAINFO, db->cacert);
+  if (db->headers != NULL)
+    curl_easy_setopt (db->curl, CURLOPT_HTTPHEADER, db->headers);
+  if (db->post_body != NULL)
+    curl_easy_setopt (db->curl, CURLOPT_POSTFIELDS, db->post_body);
 
   return (0);
 } /* }}} int cx_init_curl */
@@ -832,6 +856,10 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string (child, &db->cacert);
     else if (strcasecmp ("xpath", child->key) == 0)
       status = cx_config_add_xpath (db, child);
+    else if (strcasecmp ("Header", child->key) == 0)
+      status = cx_config_append_string ("Header", &db->headers, child);
+    else if (strcasecmp ("Post", child->key) == 0)
+      status = cf_util_get_string (child, &db->post_body);
     else
     {
       WARNING ("curl_xml plugin: Option `%s' not allowed here.", child->key);

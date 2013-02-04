@@ -944,6 +944,19 @@ File that holds one or more SSL certificates. If you want to use HTTPS you will
 possibly need this option. What CA certificates come bundled with C<libcurl>
 and are checked by default depends on the distribution you use.
 
+=item B<Header> I<Header>
+
+A HTTP header to add to the request. Multiple headers are added if this option
+is specified more than once.
+
+=item B<Post> I<Body>
+
+Specifies that the HTTP operation should be a POST instead of a GET. The
+complete data to be posted is given as the argument.  This option will usually
+need to be accompanied by a B<Header> option to set an appropriate
+C<Content-Type> for the post body (e.g. to
+C<application/x-www-form-urlencoded>).
+
 =item B<MeasureResponseTime> B<true>|B<false>
 
 Measure response time for the request. If this setting is enabled, B<Match>
@@ -1002,31 +1015,15 @@ The following options are valid within B<URL> blocks:
 Sets the plugin instance to I<Instance>.
 
 =item B<User> I<Name>
-
-Username to use if authorization is required to read the page.
-
 =item B<Password> I<Password>
-
-Password to use if authorization is required to read the page.
-
 =item B<VerifyPeer> B<true>|B<false>
-
-Enable or disable peer SSL certificate verification. See
-L<http://curl.haxx.se/docs/sslcerts.html> for details. Enabled by default.
-
 =item B<VerifyHost> B<true>|B<false>
-
-Enable or disable peer host name verification. If enabled, the plugin checks if
-the C<Common Name> or a C<Subject Alternate Name> field of the SSL certificate
-matches the host name provided by the B<URL> option. If this identity check
-fails, the connection is aborted. Obviously, only works when connecting to a
-SSL enabled server. Enabled by default.
-
 =item B<CACert> I<file>
+=item B<Header> I<Header>
+=item B<Post> I<Body>
 
-File that holds one or more SSL certificates. If you want to use HTTPS you will
-possibly need this option. What CA certificates come bundled with C<libcurl>
-and are checked by default depends on the distribution you use.
+These options behave exactly equivalent to the appropriate options of the
+I<cURL> plugin. Please see there for a detailed description.
 
 =back
 
@@ -1100,9 +1097,11 @@ empty string (no plugin instance).
 =item B<VerifyPeer> B<true>|B<false>
 =item B<VerifyHost> B<true>|B<false>
 =item B<CACert> I<CA Cert File>
+=item B<Header> I<Header>
+=item B<Post> I<Body>
 
 These options behave exactly equivalent to the appropriate options of the
-I<cURL> and I<cURL-JSON> plugins. Please see there for a detailed description.
+I<cURL> plugin. Please see there for a detailed description.
 
 =item E<lt>B<XPath> I<XPath-expression>E<gt>
 

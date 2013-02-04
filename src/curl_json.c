@@ -67,6 +67,8 @@ struct cj_s /* {{{ */
   _Bool verify_peer;
   _Bool verify_host;
   char *cacert;
+  struct curl_slist *headers;
+  char *post_body;
 
   CURL *curl;
   char curl_errbuf[CURL_ERROR_SIZE];
@@ -367,6 +369,8 @@ static void cj_free (void *arg) /* {{{ */
   sfree (db->pass);
   sfree (db->credentials);
   sfree (db->cacert);
+  sfree (db->post_body);
+  curl_slist_free_all (db->headers);
 
   sfree (db);
 } /* }}} void cj_free */
@@ -377,6 +381,22 @@ static c_avl_tree_t *cj_avl_create(void)
 {
   return c_avl_create ((int (*) (const void *, const void *)) strcmp);
 }
+
+static int cj_config_append_string (const char *name, struct curl_slist **dest, /* {{{ */
+    oconfig_item_t *ci)
+{
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
+  {
+    WARNING ("curl_json plugin: `%s' needs exactly one string argument.", name);
+    return (-1);
+  }
+
+  *dest = curl_slist_append(*dest, ci->values[0].value.string);
+  if (*dest == NULL)
+    return (-1);
+
+  return (0);
+} /* }}} int cj_config_append_string */
 
 static int cj_config_add_key (cj_t *db, /* {{{ */
                                    oconfig_item_t *ci)
@@ -547,6 +567,10 @@ static int cj_init_curl (cj_t *db) /* {{{ */
                     db->verify_host ? 2L : 0L);
   if (db->cacert != NULL)
     curl_easy_setopt (db->curl, CURLOPT_CAINFO, db->cacert);
+  if (db->headers != NULL)
+    curl_easy_setopt (db->curl, CURLOPT_HTTPHEADER, db->headers);
+  if (db->post_body != NULL)
+    curl_easy_setopt (db->curl, CURLOPT_POSTFIELDS, db->post_body);
 
   return (0);
 } /* }}} int cj_init_curl */
@@ -608,6 +632,10 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_boolean (child, &db->verify_host);
     else if (strcasecmp ("CACert", child->key) == 0)
       status = cf_util_get_string (child, &db->cacert);
+    else if (strcasecmp ("Header", child->key) == 0)
+      status = cj_config_append_string ("Header", &db->headers, child);
+    else if (strcasecmp ("Post", child->key) == 0)
+      status = cf_util_get_string (child, &db->post_body);
     else if (strcasecmp ("Key", child->key) == 0)
       status = cj_config_add_key (db, child);
     else
