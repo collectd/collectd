@@ -365,7 +365,7 @@ static int cx_handle_instance_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */
     instance_node = instance_node_obj->nodesetval;
     tmp_size = (instance_node) ? instance_node->nodeNr : 0;
 
-    if ( (tmp_size == 0) && (is_table) )
+    if (tmp_size <= 0)
     {
       WARNING ("curl_xml plugin: "
           "relative xpath expression for 'InstanceFrom' \"%s\" doesn't match "
