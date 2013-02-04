@@ -810,10 +810,12 @@ static void stop_write_threads (void) /* {{{ */
 
 	pthread_mutex_lock (&write_lock);
 	i = 0;
-	for (q = write_queue_head; q != NULL; q = q->next)
+	for (q = write_queue_head; q != NULL; )
 	{
+		write_queue_t *q1 = q;
 		plugin_value_list_free (q->vl);
-		sfree (q);
+		q = q->next;
+		sfree (q1);
 		i++;
 	}
 	write_queue_head = NULL;
