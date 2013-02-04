@@ -108,6 +108,8 @@ mysql_bpool_counters	value:DERIVE:0:U
 mysql_innodb_data	value:DERIVE:0:U
 mysql_innodb_dblwr	value:DERIVE:0:U
 mysql_innodb_rows	value:DERIVE:0:U
+mysql_select		value:DERIVE:0:U
+mysql_sort		value:DERIVE:0:U
 nfs_procedure		value:DERIVE:0:U
 nginx_connections	value:GAUGE:0:U
 nginx_requests		value:DERIVE:0:U
