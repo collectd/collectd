@@ -143,6 +143,7 @@ static int init (void)
   }
 
   curl_easy_setopt (curl, CURLOPT_FOLLOWLOCATION, 1L);
+  curl_easy_setopt (curl, CURLOPT_MAXREDIRS, 50L);
 
   if ((verify_peer == NULL) || IS_TRUE (verify_peer))
   {
