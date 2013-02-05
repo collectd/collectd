@@ -315,7 +315,8 @@ static void exec_child (program_list_t *pl) /* {{{ */
 
   uid = sp.pw_uid;
   gid = sp.pw_gid;
-  if (uid == 0)
+  /* allow execution as root if it's explicitly stated */
+  if ((uid == 0) && (strcmp(pl->user, "root") != 0))
   {
     ERROR ("exec plugin: Cowardly refusing to exec program as root.");
     exit (-1);
