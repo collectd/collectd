@@ -1848,6 +1848,18 @@ AC_SUBST(GCRYPT_LIBS)
 AM_CONDITIONAL(BUILD_WITH_LIBGCRYPT, test "x$with_libgcrypt" = "xyes")
 # }}}
 
+# --with-libgeom
+with_libgeom="no"
+AC_CHECK_LIB(geom, geom_stats_open, [with_geom_stats_open="yes"], [with_geom_stats_open="no"])
+if test "x$with_geom_stats_open" = "xyes"
+then
+        AC_DEFINE(HAVE_LIBGEOM_STATS_OPEN, 1,
+                  [Define to 1 if you have the 'geom' library with the 'geom_stats_open' symbol (-lgeom)])
+                with_libgeom="yes"
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBGEOM_STATS_OPEN, test "x$with_geom_stats_open" = "xyes")
+AM_CONDITIONAL(BUILD_BSD, test "x$with_geom_stats_open" = "xyes")
+
 # --with-libiptc {{{
 AC_ARG_WITH(libiptc, [AS_HELP_STRING([--with-libiptc@<:@=PREFIX@:>@], [Path to libiptc.])],
 [
@@ -4551,6 +4563,7 @@ m4_divert_once([HELP_ENABLE], [
 collectd features:])
 # FIXME: Remove these calls to `AC_COLLECTD' and then remove that macro.
 AC_COLLECTD([debug],     [enable],  [feature], [debugging])
+AC_COLLECTD([ipv6],      [enable],  [feature], [ipv6])
 AC_COLLECTD([daemon],    [disable], [feature], [daemon mode])
 AC_COLLECTD([getifaddrs],[enable],  [feature], [getifaddrs under Linux])
 
@@ -4571,6 +4584,7 @@ plugin_disk="no"
 plugin_entropy="no"
 plugin_ethstat="no"
 plugin_fscache="no"
+plugin_gstat="no"
 plugin_interface="no"
 plugin_ipmi="no"
 plugin_ipvs="no"
@@ -4579,6 +4593,7 @@ plugin_libvirt="no"
 plugin_load="no"
 plugin_memory="no"
 plugin_multimeter="no"
+plugin_netstat="no"
 plugin_nfs="no"
 plugin_numa="no"
 plugin_perl="no"
@@ -4612,6 +4627,7 @@ then
 	plugin_irq="yes"
 	plugin_load="yes"
 	plugin_memory="yes"
+	plugin_netstat="yes"
 	plugin_nfs="yes"
 	plugin_numa="yes"
 	plugin_processes="yes"
@@ -4739,6 +4755,7 @@ then
 	plugin_contextswitch="yes"
 	plugin_cpu="yes"
 	plugin_memory="yes"
+	plugin_netstat="yes"
 	plugin_tcpconns="yes"
 fi
 
@@ -4896,6 +4913,7 @@ AC_PLUGIN([exec],        [yes],                [Execution of external programs])
 AC_PLUGIN([filecount],   [yes],                [Count files in directories])
 AC_PLUGIN([fscache],     [$plugin_fscache],    [fscache statistics])
 AC_PLUGIN([gmond],       [$with_libganglia],   [Ganglia plugin])
+AC_PLUGIN([gstat],       [$with_libgeom],      [FreeBSD disk stats])
 AC_PLUGIN([hddtemp],     [yes],                [Query hddtempd])
 AC_PLUGIN([interface],   [$plugin_interface],  [Interface traffic statistics])
 AC_PLUGIN([ipmi],        [$plugin_ipmi],       [IPMI sensor statistics])
@@ -4923,6 +4941,7 @@ AC_PLUGIN([multimeter],  [$plugin_multimeter], [Read multimeter values])
 AC_PLUGIN([mysql],       [$with_libmysql],     [MySQL statistics])
 AC_PLUGIN([netapp],      [$with_libnetapp],    [NetApp plugin])
 AC_PLUGIN([netlink],     [$with_libnetlink],   [Enhanced Linux network statistics])
+AC_PLUGIN([netstat],     [yes],                [Network statistics])
 AC_PLUGIN([network],     [yes],                [Network communication plugin])
 AC_PLUGIN([nfs],         [$plugin_nfs],        [NFS statistics])
 AC_PLUGIN([nginx],       [$with_libcurl],      [nginx statistics])
@@ -4981,6 +5000,7 @@ AC_PLUGIN([write_http],  [$with_libcurl],      [HTTP output plugin])
 AC_PLUGIN([write_mongodb], [$with_libmongoc],  [MongoDB output plugin])
 AC_PLUGIN([write_redis], [$with_libcredis],    [Redis output plugin])
 AC_PLUGIN([write_riemann], [$have_protoc_c],   [Riemann output plugin])
+AC_PLUGIN([write_tsdb],  [yes],                [TSDB output plugin])
 AC_PLUGIN([xmms],        [$with_libxmms],      [XMMS statistics])
 AC_PLUGIN([zfs_arc],     [$plugin_zfs_arc],    [ZFS ARC statistics])
 
@@ -5199,6 +5219,7 @@ Configuration:
   Features:
     daemon mode . . . . . $enable_daemon
     debug . . . . . . . . $enable_debug
+    ipv6  . . . . . . . . $enable_ipv6
 
   Bindings:
     perl  . . . . . . . . $with_perl_bindings
@@ -5231,6 +5252,7 @@ Configuration:
     filecount . . . . . . $enable_filecount
     fscache . . . . . . . $enable_fscache
     gmond . . . . . . . . $enable_gmond
+    gstat . . . . . . . . $enable_gstat
     hddtemp . . . . . . . $enable_hddtemp
     interface . . . . . . $enable_interface
     ipmi  . . . . . . . . $enable_ipmi
@@ -5258,6 +5280,7 @@ Configuration:
     mysql . . . . . . . . $enable_mysql
     netapp  . . . . . . . $enable_netapp
     netlink . . . . . . . $enable_netlink
+    netstat . . . . . . . $enable_netstat
     network . . . . . . . $enable_network
     nfs . . . . . . . . . $enable_nfs
     nginx . . . . . . . . $enable_nginx
@@ -5315,6 +5338,7 @@ Configuration:
     write_mongodb . . . . $enable_write_mongodb
     write_redis . . . . . $enable_write_redis
     write_riemann . . . . $enable_write_riemann
+    write_tsdb  . . . . . $enable_write_tsdb
     xmms  . . . . . . . . $enable_xmms
     zfs_arc . . . . . . . $enable_zfs_arc
 
