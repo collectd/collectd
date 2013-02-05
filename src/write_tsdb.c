@@ -33,11 +33,11 @@
  /* write_tsdb plugin configuation example
   *
   * <Plugin write_tsdb>
-  *   <Tsdb>
+  *   <Node>
   *     Host "localhost"
   *     Port "4242"
   *     Prefix "sys"
-  *   </Tsdb>
+  *   </Node>
   * </Plugin>
   */
 
@@ -326,7 +326,7 @@ static int wt_format_values (char *ret, size_t ret_len,
                     "uc_get_rate failed.");
             return (-1);
         }
-        BUFFER_ADD ("%g", rates[ds_num]);
+        BUFFER_ADD ("%f", rates[ds_num]);
     }
     else if (ds->ds[ds_num].type == DS_TYPE_COUNTER)
         BUFFER_ADD ("%llu", vl->values[ds_num].counter);
@@ -637,7 +637,7 @@ static int wt_config (oconfig_item_t *ci)
     {
         oconfig_item_t *child = ci->children + i;
 
-        if (strcasecmp ("Tsdb", child->key) == 0)
+        if (strcasecmp ("Node", child->key) == 0)
             wt_config_tsd (child);
         else
         {
