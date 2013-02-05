@@ -52,7 +52,6 @@ dns_response		value:DERIVE:0:U
 dns_transfer		value:DERIVE:0:U
 dns_update		value:DERIVE:0:U
 dns_zops		value:DERIVE:0:U
-duration		seconds:GAUGE:0:U
 email_check		value:GAUGE:0:U
 email_count		value:GAUGE:0:U
 email_size		value:GAUGE:0:U
@@ -77,9 +76,7 @@ if_multicast		value:DERIVE:0:U
 if_octets		rx:DERIVE:0:U, tx:DERIVE:0:U
 if_packets		rx:DERIVE:0:U, tx:DERIVE:0:U
 if_rx_errors		value:DERIVE:0:U
-if_rx_octets		value:DERIVE:0:U
 if_tx_errors		value:DERIVE:0:U
-if_tx_octets		value:DERIVE:0:U
 invocations		value:DERIVE:0:U
 io_octets		rx:DERIVE:0:U, tx:DERIVE:0:U
 io_packets		rx:DERIVE:0:U, tx:DERIVE:0:U
@@ -197,3 +194,52 @@ arc_ratio		value:GAUGE:0:U
 arc_size		current:GAUGE:0:U, target:GAUGE:0:U, minlimit:GAUGE:0:U, maxlimit:GAUGE:0:U
 mysql_qcache		hits:COUNTER:0:U, inserts:COUNTER:0:U, not_cached:COUNTER:0:U, lowmem_prunes:COUNTER:0:U, queries_in_cache:GAUGE:0:U
 mysql_threads		running:GAUGE:0:U, connected:GAUGE:0:U, cached:GAUGE:0:U, created:COUNTER:0:U
+#
+# gstat types
+gdisk_mbytes                   read:GAUGE:0:U, write:GAUGE:0:U, delete:GAUGE:0:U
+gdisk_latency                  read:GAUGE:0:U, write:GAUGE:0:U, delete:GAUGE:0:U
+gdisk_ops                      read:GAUGE:0:U, write:GAUGE:0:U, delete:GAUGE:0:U
+gdisk_busy                     value:GAUGE:0:U
+gdisk_queued                   value:GAUGE:0:U
+# netstat types
+ip_packets                     value:DERIVE:0:U
+ip_cksum_error                 value:DERIVE:0:U
+ip_bad_options                 value:DERIVE:0:U
+ip_bad_version                 value:DERIVE:0:U
+ip_bad_scope                   value:DERIVE:0:U
+tcp_packets                    value:DERIVE:0:U
+tcp_bytes                      value:DERIVE:0:U
+tcp_bad_rex_packets            value:DERIVE:0:U
+tcp_mtu_resend                 value:DERIVE:0:U
+tcp_pkts_received              value:DERIVE:0:U
+tcp_received_acks              value:DERIVE:0:U
+tcp_received_ack_bytes         value:DERIVE:0:U
+tcp_dupe_acks                  value:DERIVE:0:U
+tcp_usent_data_acks            value:DERIVE:0:U
+tcp_insequence_packets         value:DERIVE:0:U
+tcp_completely_dupe_acks       value:DERIVE:0:U
+tcp_OOO_packets                        value:DERIVE:0:U
+tcp_bad_cksum                  value:DERIVE:0:U
+tcp_memory_discard             value:DERIVE:0:U
+tcp_conn_request               value:DERIVE:0:U
+tcp_conn_accept                        value:DERIVE:0:U
+tcp_bad_syn                    value:DERIVE:0:U
+tcp_queue_overflow             value:DERIVE:0:U
+tcp_ignored_rsts               value:DERIVE:0:U
+tcp_rex_timeout                        value:DERIVE:0:U
+tcp_rex_timeout_conn_drop      value:DERIVE:0:U
+tcp_persist_timeout            value:DERIVE:0:U
+tcp_persist_timeout_drop       value:DERIVE:0:U
+tcp_packets_received           value:DERIVE:0:U
+tcp_unsent_data_acks           value:DERIVE:0:U
+tcp_persit_timeout             value:DERIVE:0:U
+tcp_persit_timeout_drop                value:DERIVE:0:U
+udp_dgrams                     value:DERIVE:0:U
+udp_cksum_errors               value:DERIVE:0:U
+icmp_errors                    value:DERIVE:0:U
+icmp_cksum_error               value:DERIVE:0:U
+icmp_outbound_unreachable      value:DERIVE:0:U
+icmp_inbound_unreachable       value:DERIVE:0:U
+icmp_inbound_source_quench     value:DERIVE:0:U
+icmp_inbound_redirect          value:DERIVE:0:U
+icmp_inbound_time_exceeded     value:DERIVE:0:U
