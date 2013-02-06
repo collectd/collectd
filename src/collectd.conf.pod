@@ -1092,6 +1092,13 @@ host name setting.
 Use I<Instance> as the plugin instance when submitting values. Defaults to an
 empty string (no plugin instance).
 
+=item B<Namespaces> I<Namespace-list>
+
+If an XPath expression references namespaces, they must be specified
+with this option. The argument is a string of the form "prefix1=URI1
+prefix2=URI2 ...",
+e.g. C<Namespaces "s=http://schemas.xmlsoap.org/soap/envelope/">
+
 =item B<User> I<User>
 =item B<Password> I<Password>
 =item B<VerifyPeer> B<true>|B<false>

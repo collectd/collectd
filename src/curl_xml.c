@@ -28,6 +28,7 @@
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <libxml/xpath.h>
+#include <libxml/xpathInternals.h>
 
 #include <curl/curl.h>
 
@@ -72,6 +73,7 @@ struct cx_s /* {{{ */
   char *cacert;
   char *post_body;
   struct curl_slist *headers;
+  char *namespaces;
 
   CURL *curl;
   char curl_errbuf[CURL_ERROR_SIZE];
@@ -188,6 +190,7 @@ static void cx_free (void *arg) /* {{{ */
   sfree (db->cacert);
   sfree (db->post_body);
   curl_slist_free_all (db->headers);
+  sfree (db->namespaces);
 
   sfree (db);
 } /* }}} void cx_free */
@@ -253,6 +256,98 @@ static int cx_if_not_text_node (xmlNodePtr node) /* {{{ */
            "Node \"%s\" doesn't seem to be a text node. Skipping...", node->name);
   return -1;
 } /* }}} cx_if_not_text_node */
+
+/**
+ * cx_register_namespaces:
+ * @xpath_ctx:		the pointer to an XPath context.
+ * @nslist:		the list of known namespaces in
+ *			"<prefix1>=<href1> <prefix2>=href2> ..." format.
+ *
+ * Registers namespaces from @nslist in @xpath_ctx.
+ *
+ * Returns 0 on success and a negative value otherwise.
+ *
+ * author: 	Aleksey Sanin
+ *
+ * The following license statement applies to the function
+ * cx_register_namespaces only:
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is fur-
+ * nished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FIT-
+ * NESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+ * DANIEL VEILLARD BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CON-
+ * NECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * Except as contained in this notice, the name of Daniel Veillard shall not
+ * be used in advertising or otherwise to promote the sale, use or other deal-
+ * ings in this Software without prior written authorization from him.
+ */
+static int cx_register_namespaces(xmlXPathContextPtr xpath_ctx, /* {{{ */
+    const xmlChar* nslist)
+{
+    xmlChar* nslistdup;
+    xmlChar* prefix;
+    xmlChar* href;
+    xmlChar* next;
+
+    assert(xpath_ctx);
+    assert(nslist);
+
+    nslistdup = xmlStrdup(nslist);
+    if(nslistdup == NULL) {
+        ERROR ("curl_xml plugin: "
+	       "unable to strdup namespaces list");
+	return (-1);
+    }
+
+    next = nslistdup;
+    while(next != NULL) {
+	/* skip spaces */
+	while((*next) == ' ') next++;
+	if((*next) == '\0') break;
+
+	/* find prefix */
+	prefix = next;
+	next = (xmlChar*)xmlStrchr(next, '=');
+	if(next == NULL) {
+            ERROR ("curl_xml plugin: "
+	           "invalid namespaces list format");
+	    xmlFree(nslistdup);
+	    return (-1);
+	}
+	*(next++) = '\0';
+
+	/* find href */
+	href = next;
+	next = (xmlChar*)xmlStrchr(next, ' ');
+	if(next != NULL) {
+	    *(next++) = '\0';
+	}
+
+	/* do register namespace */
+	if(xmlXPathRegisterNs(xpath_ctx, prefix, href) != 0) {
+            ERROR ("curl_xml plugin: "
+	           "unable to register NS with prefix=\"%s\" and href=\"%s\"\n",
+                   prefix, href);
+	    xmlFree(nslistdup);
+	    return (-1);
+	}
+    }
+
+    xmlFree(nslistdup);
+    return (0);
+} /* }}} cx_register_namespaces */
 
 static int cx_handle_single_value_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */
     cx_xpath_t *xpath,
@@ -363,7 +458,7 @@ static int cx_handle_instance_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */
   memset (vl->type_instance, 0, sizeof (vl->type_instance));
 
   /* If the base xpath returns more than one block, the result is assumed to be
-   * a table. The `Instnce' option is not optional in this case. Check for the
+   * a table. The `Instance' option is not optional in this case. Check for the
    * condition and inform the user. */
   if (is_table && (vl->type_instance == NULL))
   {
@@ -554,6 +649,13 @@ static int cx_parse_stats_xml(xmlChar* xml, cx_t *db) /* {{{ */
   if(xpath_ctx == NULL)
   {
     ERROR ("curl_xml plugin: Failed to create the xml context");
+    xmlFreeDoc(doc);
+    return (-1);
+  }
+
+  if((db->namespaces != NULL) &&
+     (cx_register_namespaces(xpath_ctx, BAD_CAST db->namespaces) < 0))
+  {
     xmlFreeDoc(doc);
     return (-1);
   }
@@ -861,6 +963,8 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
       status = cx_config_append_string ("Header", &db->headers, child);
     else if (strcasecmp ("Post", child->key) == 0)
       status = cf_util_get_string (child, &db->post_body);
+    else if (strcasecmp ("Namespaces", child->key) == 0)
+      status = cf_util_get_string (child, &db->namespaces);
     else
     {
       WARNING ("curl_xml plugin: Option `%s' not allowed here.", child->key);
