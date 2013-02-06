@@ -123,12 +123,9 @@ static int numdisk = 0;
 /* #endif HAVE_LIBKSTAT */
 
 #elif defined(_LIBGEOM_H_)
-static struct devstat *gsp, *gsq;
-static void *sp, *sq;
-static double dt;
-static struct timespec tp, tq;
-static struct gmesh gmp;
-static struct gident *gid;
+static void *cursnap, *oldsnap;
+static struct timespec cursnaptime, oldsnaptime;
+static struct gmesh geom_tree;
 /* #endif defined(_LIBGEOM_H_) */
 
 #elif defined(HAVE_LIBSTATGRAB)
@@ -239,23 +236,23 @@ static int disk_init (void)
 #elif defined(_LIBGEOM_H_)
 	int i;
 
-	i = geom_gettree(&gmp);
+	i = geom_gettree(&geom_tree);
 	if (i != 0) {
-		ERROR ("geom_gettree = %d", i);
+		ERROR ("geom_gettree() failed, returned %d", i);
 		return(-1);
 	}
 	i = geom_stats_open();
-	if (i) {
-		ERROR ("geom_stats_open()");
+	if (i != 0) {
+		ERROR ("geom_stats_open() failed");
 		return(-1);
 	}
-	sq = NULL;
-	sq = geom_stats_snapshot_get();
-	if (sq == NULL) {
-		ERROR ("geom_stats_snapshot()");
+	oldsnap = NULL;
+	oldsnap = geom_stats_snapshot_get();
+	if (oldsnap == NULL) {
+		ERROR ("geom_stats_snapshot_get() failed");
 		return(-1);
 	};
-	geom_stats_snapshot_timestamp(sq, &tq);
+	geom_stats_snapshot_timestamp(oldsnap, &oldsnaptime);
 #endif /* defined(_LIBGEOM_H_) */
 
 	return (0);
@@ -772,52 +769,55 @@ static int disk_read (void)
 	long double ld[11];
 	uint64_t u64;
 	struct gprovider *pp;
+	struct devstat *cursnap_iter, *oldsnap_iter;
+	double timedelta;
+	struct gident *geom_id;
 	int i;
-	sp = geom_stats_snapshot_get();
-	if (sp == NULL) {
-		ERROR ("geom_stats_snapshot()");
+	cursnap = geom_stats_snapshot_get();
+	if (cursnap == NULL) {
+		ERROR ("geom_stats_snapshot() returned null");
 		return(-1);
 	}
-	geom_stats_snapshot_timestamp(sp, &tp);
-	dt = tp.tv_sec - tq.tv_sec;
-	dt += (tp.tv_nsec - tq.tv_nsec) * 1e-9;
-	tq = tp;
-	
-	geom_stats_snapshot_reset(sp);
-	geom_stats_snapshot_reset(sq);
+	geom_stats_snapshot_timestamp(cursnap, &cursnaptime);
+	timedelta = cursnaptime.tv_sec - oldsnaptime.tv_sec;
+	timedelta += (cursnaptime.tv_nsec - oldsnaptime.tv_nsec) * 1e-9;
+	oldsnaptime = cursnaptime;
+
+	geom_stats_snapshot_reset(cursnap);
+	geom_stats_snapshot_reset(oldsnap);
 	for (;;) {
-		gsp = geom_stats_snapshot_next(sp);
-		gsq = geom_stats_snapshot_next(sq);
-		if (gsp == NULL || gsq == NULL)
+		cursnap_iter = geom_stats_snapshot_next(cursnap);
+		oldsnap_iter = geom_stats_snapshot_next(oldsnap);
+		if (cursnap_iter == NULL || oldsnap_iter == NULL)
 			break;
-		if (gsp->id == NULL)
+		if (cursnap_iter->id == NULL)
 			continue;
-		gid = geom_lookupid(&gmp, gsp->id);
-		if (gid == NULL) {
-			geom_deletetree(&gmp);
-			i = geom_gettree(&gmp);
+		geom_id = geom_lookupid(&geom_tree, cursnap_iter->id);
+		if (geom_id == NULL) {
+			geom_deletetree(&geom_tree);
+			i = geom_gettree(&geom_tree);
 			if (i != 0) {
 				ERROR ("geom_gettree = %d", i);
 				return(-1);
 			}
-			gid = geom_lookupid(&gmp, gsp->id);
+			geom_id = geom_lookupid(&geom_tree, cursnap_iter->id);
 		}
-		if (gid == NULL)
+		if (geom_id == NULL)
 			continue;
 		/* Only PROVIDER */
-		if (gid->lg_what == ISCONSUMER)
+		if (geom_id->lg_what == ISCONSUMER)
 			continue;
-		if (gsp->sequence0 != gsp->sequence1) {
+		if (cursnap_iter->sequence0 != cursnap_iter->sequence1) {
 			/* I am dont understand this */
 			continue;
 		}
-		if (gid->lg_what == ISPROVIDER) {
-			pp = gid->lg_ptr;
+		if (geom_id->lg_what == ISPROVIDER) {
+			pp = geom_id->lg_ptr;
 			if (ignorelist_match (ignorelist, pp->lg_name) != 0) {
 				continue;
 			}
 			/* Some parametres keep for future*/
-			devstat_compute_statistics(gsp, gsq, dt, 
+			devstat_compute_statistics(cursnap_iter, oldsnap_iter, timedelta, 
 			    DSM_QUEUE_LENGTH, &u64,
 			    DSM_TRANSFERS_PER_SECOND, &ld[0],
 			    DSM_TRANSFERS_PER_SECOND_READ, &ld[1],
@@ -837,9 +837,9 @@ static int disk_read (void)
 			// Hide this so I don't have to impletment submit()
 			//submit(pp->lg_name, "gdisk_busy", ld[7]);
 		}
-		*gsq = *gsp;
+		*oldsnap_iter = *cursnap_iter;
 	}
-	geom_stats_snapshot_free(sp);
+	geom_stats_snapshot_free(cursnap);
 /* #endif defined(_LIBGEOM_H_) */
 
 #elif defined(HAVE_LIBSTATGRAB)
