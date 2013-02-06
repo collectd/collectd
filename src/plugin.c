@@ -21,22 +21,22 @@
  **/
 
 #include "collectd.h"
+#include "common.h"
+#include "plugin.h"
+#include "configfile.h"
+#include "filter_chain.h"
+#include "utils_avltree.h"
+#include "utils_cache.h"
 #include "utils_complain.h"
-
-#include <ltdl.h>
+#include "utils_llist.h"
+#include "utils_heap.h"
+#include "utils_time.h"
 
 #if HAVE_PTHREAD_H
 # include <pthread.h>
 #endif
 
-#include "common.h"
-#include "plugin.h"
-#include "configfile.h"
-#include "utils_avltree.h"
-#include "utils_llist.h"
-#include "utils_heap.h"
-#include "utils_cache.h"
-#include "filter_chain.h"
+#include <ltdl.h>
 
 /*
  * Private structures
@@ -63,9 +63,9 @@ struct read_func_s
 	char rf_group[DATA_MAX_NAME_LEN];
 	char rf_name[DATA_MAX_NAME_LEN];
 	int rf_type;
-	struct timespec rf_interval;
-	struct timespec rf_effective_interval;
-	struct timespec rf_next_read;
+	cdtime_t rf_interval;
+	cdtime_t rf_effective_interval;
+	cdtime_t rf_next_read;
 };
 typedef struct read_func_s read_func_t;
 
@@ -360,13 +360,6 @@ static int plugin_load_file (char *file, uint32_t flags)
 	return (0);
 }
 
-static _Bool timeout_reached(struct timespec timeout)
-{
-	struct timeval now;
-	gettimeofday(&now, NULL);
-	return (now.tv_sec >= timeout.tv_sec && now.tv_usec >= (timeout.tv_nsec / 1000));
-}
-
 static void *plugin_read_thread (void __attribute__((unused)) *args)
 {
 	while (read_loop != 0)
@@ -392,18 +385,15 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 		}
 		pthread_mutex_unlock (&read_lock);
 
-		if ((rf->rf_interval.tv_sec == 0) && (rf->rf_interval.tv_nsec == 0))
+		if (rf->rf_interval == 0)
 		{
 			/* this should not happen, because the interval is set
 			 * for each plugin when loading it
 			 * XXX: issue a warning? */
-			now = cdtime ();
-
-			CDTIME_T_TO_TIMESPEC (plugin_get_interval (), &rf->rf_interval);
-
+			rf->rf_interval = plugin_get_interval ();
 			rf->rf_effective_interval = rf->rf_interval;
 
-			CDTIME_T_TO_TIMESPEC (now, &rf->rf_next_read);
+			rf->rf_next_read = cdtime ();
 		}
 
 		/* sleep until this entry is due,
@@ -415,11 +405,15 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 		 * pthread_cond_timedwait returns. */
 		rc = 0;
 		while ((read_loop != 0)
-				&& !timeout_reached(rf->rf_next_read)
+				&& (cdtime () < rf->rf_next_read)
 				&& rc == 0)
 		{
+			struct timespec ts = { 0 };
+
+			CDTIME_T_TO_TIMESPEC (rf->rf_next_read, &ts);
+
 			rc = pthread_cond_timedwait (&read_cond, &read_lock,
-				&rf->rf_next_read);
+				&ts);
 		}
 
 		/* Must hold `read_lock' when accessing `rf->rf_type'. */
@@ -475,20 +469,14 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 		 * intervals in which it will be called. */
 		if (status != 0)
 		{
-			rf->rf_effective_interval.tv_sec *= 2;
-			rf->rf_effective_interval.tv_nsec *= 2;
-			NORMALIZE_TIMESPEC (rf->rf_effective_interval);
-
-			if (rf->rf_effective_interval.tv_sec >= 86400)
-			{
-				rf->rf_effective_interval.tv_sec = 86400;
-				rf->rf_effective_interval.tv_nsec = 0;
-			}
+			rf->rf_effective_interval *= 2;
+			if (rf->rf_effective_interval > TIME_T_TO_CDTIME_T (86400))
+				rf->rf_effective_interval = TIME_T_TO_CDTIME_T (86400);
 
 			NOTICE ("read-function of plugin `%s' failed. "
-					"Will suspend it for %i seconds.",
+					"Will suspend it for %.3f seconds.",
 					rf->rf_name,
-					(int) rf->rf_effective_interval.tv_sec);
+					CDTIME_T_TO_DOUBLE (rf->rf_effective_interval));
 		}
 		else
 		{
@@ -500,32 +488,26 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 		now = cdtime ();
 
 		DEBUG ("plugin_read_thread: Effective interval of the "
-				"%s plugin is %i.%09i.",
+				"%s plugin is %.3f seconds.",
 				rf->rf_name,
-				(int) rf->rf_effective_interval.tv_sec,
-				(int) rf->rf_effective_interval.tv_nsec);
+				CDTIME_T_TO_DOUBLE (rf->rf_effective_interval));
 
 		/* Calculate the next (absolute) time at which this function
 		 * should be called. */
-		rf->rf_next_read.tv_sec = rf->rf_next_read.tv_sec
-			+ rf->rf_effective_interval.tv_sec;
-		rf->rf_next_read.tv_nsec = rf->rf_next_read.tv_nsec
-			+ rf->rf_effective_interval.tv_nsec;
-		NORMALIZE_TIMESPEC (rf->rf_next_read);
+		rf->rf_next_read += rf->rf_effective_interval;
 
 		/* Check, if `rf_next_read' is in the past. */
-		if (TIMESPEC_TO_CDTIME_T (&rf->rf_next_read) < now)
+		if (rf->rf_next_read < now)
 		{
 			/* `rf_next_read' is in the past. Insert `now'
 			 * so this value doesn't trail off into the
 			 * past too much. */
-			CDTIME_T_TO_TIMESPEC (now, &rf->rf_next_read);
+			rf->rf_next_read = now;
 		}
 
-		DEBUG ("plugin_read_thread: Next read of the %s plugin at %i.%09i.",
+		DEBUG ("plugin_read_thread: Next read of the %s plugin at %.3f.",
 				rf->rf_name,
-				(int) rf->rf_next_read.tv_sec,
-				(int) rf->rf_next_read.tv_nsec);
+				CDTIME_T_TO_DOUBLE (rf->rf_next_read));
 
 		/* Re-insert this read function into the heap again. */
 		c_heap_insert (read_heap, rf);
@@ -967,13 +949,9 @@ static int plugin_compare_read_func (const void *arg0, const void *arg1)
 	rf0 = arg0;
 	rf1 = arg1;
 
-	if (rf0->rf_next_read.tv_sec < rf1->rf_next_read.tv_sec)
+	if (rf0->rf_next_read < rf1->rf_next_read)
 		return (-1);
-	else if (rf0->rf_next_read.tv_sec > rf1->rf_next_read.tv_sec)
-		return (1);
-	else if (rf0->rf_next_read.tv_nsec < rf1->rf_next_read.tv_nsec)
-		return (-1);
-	else if (rf0->rf_next_read.tv_nsec > rf1->rf_next_read.tv_nsec)
+	else if (rf0->rf_next_read > rf1->rf_next_read)
 		return (1);
 	else
 		return (0);
@@ -1100,8 +1078,7 @@ int plugin_register_read (const char *name,
 	rf->rf_group[0] = '\0';
 	sstrncpy (rf->rf_name, name, sizeof (rf->rf_name));
 	rf->rf_type = RF_SIMPLE;
-	rf->rf_interval.tv_sec = 0;
-	rf->rf_interval.tv_nsec = 0;
+	rf->rf_interval = 0;
 	rf->rf_effective_interval = rf->rf_interval;
 
 	status = plugin_insert_read (rf);
@@ -1137,17 +1114,16 @@ int plugin_register_complex_read (const char *group, const char *name,
 	rf->rf_type = RF_COMPLEX;
 	if (interval != NULL)
 	{
-		rf->rf_interval = *interval;
+		rf->rf_interval = TIMESPEC_TO_CDTIME_T (interval);
 	}
 	else if (ctx.interval != 0)
 	{
-		CDTIME_T_TO_TIMESPEC (ctx.interval, &rf->rf_interval);
+		rf->rf_interval = ctx.interval;
 	}
 	rf->rf_effective_interval = rf->rf_interval;
 
-	DEBUG ("plugin_register_read: interval = %i.%09i",
-			(int) rf->rf_interval.tv_sec,
-			(int) rf->rf_interval.tv_nsec);
+	DEBUG ("plugin_register_read: interval = %.3f",
+			CDTIME_T_TO_DOUBLE (rf->rf_interval));
 
 	/* Set user data */
 	if (user_data == NULL)
