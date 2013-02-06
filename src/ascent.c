@@ -597,7 +597,7 @@ static int ascent_read (void) /* {{{ */
   }
 
   ascent_buffer_fill = 0;
-  if (curl_easy_perform (curl) != 0)
+  if (curl_easy_perform (curl) != CURLE_OK)
   {
     ERROR ("ascent plugin: curl_easy_perform failed: %s",
         ascent_curl_error);

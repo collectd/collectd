@@ -214,7 +214,7 @@ static int nginx_read (void)
     return (-1);
 
   nginx_buffer_len = 0;
-  if (curl_easy_perform (curl) != 0)
+  if (curl_easy_perform (curl) != CURLE_OK)
   {
     WARNING ("nginx plugin: curl_easy_perform failed: %s", nginx_curl_error);
     return (-1);

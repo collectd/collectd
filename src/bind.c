@@ -1405,7 +1405,7 @@ static int bind_read (void) /* {{{ */
   }
 
   bind_buffer_fill = 0;
-  if (curl_easy_perform (curl) != 0)
+  if (curl_easy_perform (curl) != CURLE_OK)
   {
     ERROR ("bind plugin: curl_easy_perform failed: %s",
         bind_curl_error);

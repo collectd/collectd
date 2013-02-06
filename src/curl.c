@@ -618,7 +618,7 @@ static int cc_read_page (web_page_t *wp) /* {{{ */
 
   wp->buffer_fill = 0;
   status = curl_easy_perform (wp->curl);
-  if (status != 0)
+  if (status != CURLE_OK)
   {
     ERROR ("curl plugin: curl_easy_perform failed with staus %i: %s",
         status, wp->curl_errbuf);

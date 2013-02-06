@@ -818,6 +818,14 @@ static int cj_curl_perform (cj_t *db, CURL *curl) /* {{{ */
   }
 
   status = curl_easy_perform (curl);
+  if (status != CURLE_OK)
+  {
+    ERROR ("curl_json plugin: curl_easy_perform failed with status %i: %s (%s)",
+           status, db->curl_errbuf, url);
+    yajl_free (db->yajl);
+    db->yajl = yprev;
+    return (-1);
+  }
 
   curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &url);
   curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &rc);
@@ -827,15 +835,6 @@ static int cj_curl_perform (cj_t *db, CURL *curl) /* {{{ */
   {
     ERROR ("curl_json plugin: curl_easy_perform failed with response code %ld (%s)",
            rc, url);
-    yajl_free (db->yajl);
-    db->yajl = yprev;
-    return (-1);
-  }
-
-  if (status != 0)
-  {
-    ERROR ("curl_json plugin: curl_easy_perform failed with status %i: %s (%s)",
-           status, db->curl_errbuf, url);
     yajl_free (db->yajl);
     db->yajl = yprev;
     return (-1);
