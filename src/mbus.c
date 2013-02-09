@@ -441,15 +441,35 @@ static int collectd_mbus_init (void)
     pthread_mutex_lock (&plugin_lock);
     if(conf_is_serial > 0)
     {
-        handle = mbus_connect_serial(conf_device);
+        handle = mbus_context_serial(conf_device);
         if (handle == NULL)
         {
-            ERROR("mbus: collectd_mbus_init - Failed to setup serial connection to M-bus gateway");
+            ERROR("mbus: mbus_context_serial - Failed to setup serial context");
             pthread_mutex_unlock (&plugin_lock);
             return -1;
         }
+    }
+    else
+    {
+        handle = mbus_context_tcp(conf_host, conf_port);
+        if (handle == NULL)
+        {
+            ERROR("mbus: mbus_context_serial - Failed to setup TCP context");
+            pthread_mutex_unlock (&plugin_lock);
+            return -1;
+        }
+    }
 
-        if (mbus_serial_set_baudrate(handle->m_serial_handle, conf_baudrate) == -1)
+    if (mbus_connect(handle) != 0)
+    {
+        ERROR("mbus: mbus_connect - Failed to connect to the M-bus gateway");
+        pthread_mutex_unlock (&plugin_lock);
+        return -1;
+    }
+
+    if(conf_is_serial > 0)
+    {
+        if (mbus_serial_set_baudrate(handle, conf_baudrate) == -1)
         {
             ERROR("mbus: collectd_mbus_init - Failed to setup serial connection baudrate to %d",
                   conf_baudrate);
@@ -460,16 +480,6 @@ static int collectd_mbus_init (void)
         {
             DEBUG("mbus: collectd_mbus_init - set serial connection baudrate to %d",
                   conf_baudrate);
-        }
-    }
-    else
-    {
-        handle = mbus_connect_tcp(conf_host, conf_port);
-        if (handle == NULL)
-        {
-            ERROR("mbus: collectd_mbus_init - Failed to setup tcp connection to M-bus gateway");
-            pthread_mutex_unlock (&plugin_lock);
-            return -1;
         }
     }
 
@@ -495,8 +505,15 @@ static int collectd_mbus_shutdown (void)
 
     pthread_mutex_lock (&plugin_lock);
     if(handle != NULL)
-        mbus_disconnect(handle);
-
+    {
+        if( mbus_disconnect(handle) != 0)
+        {
+            ERROR("mbus: collectd_mbus_shutdown - Failed to disconnect from the M-bus gateway");
+        }
+        else
+            mbus_context_free(handle);
+    }
+        
     while(current_slave != NULL)
     {
         next_slave = current_slave->next_slave;
