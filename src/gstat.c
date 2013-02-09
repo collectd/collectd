@@ -40,7 +40,8 @@
 static const char *config_keys[] =
 {
 	"Disk",
-	"IgnoreSelected"
+	"IgnoreSelected",
+	"Interval"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -52,6 +53,7 @@ static double dt;
 static struct timespec tp, tq;
 static struct gmesh gmp;
 static struct gident *gid;
+static cdtime_t gs_interval = 0;
 
 static int gstat_config (const char *key, const char *value)
 {
@@ -71,6 +73,15 @@ static int gstat_config (const char *key, const char *value)
       invert = 0;
     ignorelist_set_invert (ignorelist, invert);
   }
+  else if (strcasecmp ("Interval", key) == 0)
+  {
+    double tmp;
+    tmp = atof(value);
+    if (tmp > 0.0)
+      gs_interval = DOUBLE_TO_CDTIME_T(tmp);
+    else
+      ERROR ("gstat plugin: Invalid `Interval' setting: %s", value);
+  } 
   else
   {
     return (-1);
@@ -78,31 +89,6 @@ static int gstat_config (const char *key, const char *value)
 
   return (0);
 } /* int gstat_config */
-
-static int gstat_init (void)
-{
-	int i;
-
-	i = geom_gettree(&gmp);
-	if (i != 0) {
-		ERROR ("geom_gettree = %d", i);
-		return(-1);
-	}
-	i = geom_stats_open();
-	if (i) {
-		ERROR ("geom_stats_open()");
-		return(-1);
-	}
-	sq = NULL;
-	sq = geom_stats_snapshot_get();
-	if (sq == NULL) {
-		ERROR ("geom_stats_snapshot()");
-		return(-1);
-	};
-	geom_stats_snapshot_timestamp(sq, &tq);
-
-	return (0);
-} /* int gstat_init */
 
 static void disk_submit (const char *plugin_instance,
 		const char *type,
@@ -166,7 +152,7 @@ static void submit_u (const char *plugin_instance,
 	plugin_dispatch_values (&vl);
 } /* void submit_u */
 
-static int gstat_read (void) 
+static int gstat_read ()
 {
 	long double ld[11];
 	uint64_t u64;
@@ -242,10 +228,40 @@ static int gstat_read (void)
 	return (0);
 } /* int gstat_read */
 
+static int gstat_init (void)
+{
+	int i;
+	struct timespec cb_interval;
+
+	i = geom_gettree(&gmp);
+	if (i != 0) {
+		ERROR ("geom_gettree = %d", i);
+		return(-1);
+	}
+	i = geom_stats_open();
+	if (i) {
+		ERROR ("geom_stats_open()");
+		return(-1);
+	}
+	sq = NULL;
+	sq = geom_stats_snapshot_get();
+	if (sq == NULL) {
+		ERROR ("geom_stats_snapshot()");
+		return(-1);
+	};
+	geom_stats_snapshot_timestamp(sq, &tq);
+
+	CDTIME_T_TO_TIMESPEC (gs_interval, &cb_interval);
+	plugin_register_complex_read (/* GROUP */ NULL, "gstat", gstat_read,
+		(gs_interval != 0) ? &cb_interval : NULL, 
+		/* USER DATA */ NULL);
+
+	return (0);
+} /* int gstat_init */
+
 void module_register (void)
 {
   plugin_register_config ("gstat", gstat_config,
       config_keys, config_keys_num);
   plugin_register_init ("gstat", gstat_init);
-  plugin_register_read ("gstat", gstat_read);
 } /* void module_register */
