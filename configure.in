@@ -4952,6 +4952,7 @@ AC_PLUGIN([rrdtool],     [$with_librrd],       [RRDTool output plugin])
 AC_PLUGIN([sensors],     [$with_libsensors],   [lm_sensors statistics])
 AC_PLUGIN([serial],      [$plugin_serial],     [serial port traffic])
 AC_PLUGIN([snmp],        [$with_libnetsnmp],   [SNMP querying plugin])
+AC_PLUGIN([snort],       [yes],                [Snort perfmon plugin])
 AC_PLUGIN([swap],        [$plugin_swap],       [Swap usage statistics])
 AC_PLUGIN([syslog],      [$have_syslog],       [Syslog logging plugin])
 AC_PLUGIN([table],       [yes],                [Parsing of tabular data])
@@ -5286,6 +5287,7 @@ Configuration:
     sensors . . . . . . . $enable_sensors
     serial  . . . . . . . $enable_serial
     snmp  . . . . . . . . $enable_snmp
+    snort . . . . . . . . $enable_snort
     swap  . . . . . . . . $enable_swap
     syslog  . . . . . . . $enable_syslog
     table . . . . . . . . $enable_table
