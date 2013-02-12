@@ -130,6 +130,7 @@ static int pnumdisk;
 
 static const char *config_keys[] =
 {
+	"Interval",
 	"Disk",
 	"UseBSDName",
 	"IgnoreSelected"
@@ -137,6 +138,33 @@ static const char *config_keys[] =
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static ignorelist_t *ignorelist = NULL;
+
+static cdtime_t dsk_interval;
+
+static void disk_submit (const char *plugin_instance,
+		const char *type,
+		derive_t read, derive_t write)
+{
+	value_t values[2];
+	value_list_t vl = VALUE_LIST_INIT;
+
+	/* Both `ignorelist' and `plugin_instance' may be NULL. */
+	if (ignorelist_match (ignorelist, plugin_instance) != 0)
+	  return;
+
+	values[0].derive = read;
+	values[1].derive = write;
+
+	vl.values = values;
+	vl.values_len = 2;
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "disk", sizeof (vl.plugin));
+	sstrncpy (vl.plugin_instance, plugin_instance,
+			sizeof (vl.plugin_instance));
+	sstrncpy (vl.type, type, sizeof (vl.type));
+
+	plugin_dispatch_values (&vl);
+} /* void disk_submit */
 
 static int disk_config (const char *key, const char *value)
 {
@@ -165,6 +193,15 @@ static int disk_config (const char *key, const char *value)
         "on Mach / Mac OS X and will be ignored.");
 #endif
   }
+  else if (strcasecmp ("Interval", key) == 0)
+  {
+    double tmp;
+    tmp = atof(value);
+    if (tmp > 0.0)
+      dsk_interval = DOUBLE_TO_CDTIME_T(tmp);
+    else
+      ERROR ("Invalid 'Interval' setting: %s", value);
+  }
   else
   {
     return (-1);
@@ -172,81 +209,6 @@ static int disk_config (const char *key, const char *value)
 
   return (0);
 } /* int disk_config */
-
-static int disk_init (void)
-{
-#if HAVE_IOKIT_IOKITLIB_H
-	kern_return_t status;
-
-	if (io_master_port != MACH_PORT_NULL)
-	{
-		mach_port_deallocate (mach_task_self (),
-				io_master_port);
-		io_master_port = MACH_PORT_NULL;
-	}
-
-	status = IOMasterPort (MACH_PORT_NULL, &io_master_port);
-	if (status != kIOReturnSuccess)
-	{
-		ERROR ("IOMasterPort failed: %s",
-				mach_error_string (status));
-		io_master_port = MACH_PORT_NULL;
-		return (-1);
-	}
-/* #endif HAVE_IOKIT_IOKITLIB_H */
-
-#elif KERNEL_LINUX
-	/* do nothing */
-/* #endif KERNEL_LINUX */
-
-#elif HAVE_LIBKSTAT
-	kstat_t *ksp_chain;
-
-	numdisk = 0;
-
-	if (kc == NULL)
-		return (-1);
-
-	for (numdisk = 0, ksp_chain = kc->kc_chain;
-			(numdisk < MAX_NUMDISK) && (ksp_chain != NULL);
-			ksp_chain = ksp_chain->ks_next)
-	{
-		if (strncmp (ksp_chain->ks_class, "disk", 4)
-				&& strncmp (ksp_chain->ks_class, "partition", 9))
-			continue;
-		if (ksp_chain->ks_type != KSTAT_TYPE_IO)
-			continue;
-		ksp[numdisk++] = ksp_chain;
-	}
-#endif /* HAVE_LIBKSTAT */
-
-	return (0);
-} /* int disk_init */
-
-static void disk_submit (const char *plugin_instance,
-		const char *type,
-		derive_t read, derive_t write)
-{
-	value_t values[2];
-	value_list_t vl = VALUE_LIST_INIT;
-
-	/* Both `ignorelist' and `plugin_instance' may be NULL. */
-	if (ignorelist_match (ignorelist, plugin_instance) != 0)
-	  return;
-
-	values[0].derive = read;
-	values[1].derive = write;
-
-	vl.values = values;
-	vl.values_len = 2;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-	sstrncpy (vl.plugin, "disk", sizeof (vl.plugin));
-	sstrncpy (vl.plugin_instance, plugin_instance,
-			sizeof (vl.plugin_instance));
-	sstrncpy (vl.type, type, sizeof (vl.type));
-
-	plugin_dispatch_values (&vl);
-} /* void disk_submit */
 
 #if KERNEL_LINUX
 static counter_t disk_calc_time_incr (counter_t delta_time, counter_t delta_ops)
@@ -259,44 +221,7 @@ static counter_t disk_calc_time_incr (counter_t delta_time, counter_t delta_ops)
 }
 #endif
 
-#if HAVE_IOKIT_IOKITLIB_H
-static signed long long dict_get_value (CFDictionaryRef dict, const char *key)
-{
-	signed long long val_int;
-	CFNumberRef      val_obj;
-	CFStringRef      key_obj;
-
-	/* `key_obj' needs to be released. */
-	key_obj = CFStringCreateWithCString (kCFAllocatorDefault, key,
-		       	kCFStringEncodingASCII);
-	if (key_obj == NULL)
-	{
-		DEBUG ("CFStringCreateWithCString (%s) failed.", key);
-		return (-1LL);
-	}
-	
-	/* get => we don't need to release (== free) the object */
-	val_obj = (CFNumberRef) CFDictionaryGetValue (dict, key_obj);
-
-	CFRelease (key_obj);
-
-	if (val_obj == NULL)
-	{
-		DEBUG ("CFDictionaryGetValue (%s) failed.", key);
-		return (-1LL);
-	}
-
-	if (!CFNumberGetValue (val_obj, kCFNumberSInt64Type, &val_int))
-	{
-		DEBUG ("CFNumberGetValue (%s) failed.", key);
-		return (-1LL);
-	}
-
-	return (val_int);
-}
-#endif /* HAVE_IOKIT_IOKITLIB_H */
-
-static int disk_read (void)
+static int disk_read ()
 {
 #if HAVE_IOKIT_IOKITLIB_H
 	io_registry_entry_t	disk;
@@ -802,10 +727,104 @@ static int disk_read (void)
 	return (0);
 } /* int disk_read */
 
+static int disk_init (void)
+{
+	struct timespec cb_interval;
+
+#if HAVE_IOKIT_IOKITLIB_H
+	kern_return_t status;
+
+	if (io_master_port != MACH_PORT_NULL)
+	{
+		mach_port_deallocate (mach_task_self (),
+				io_master_port);
+		io_master_port = MACH_PORT_NULL;
+	}
+
+	status = IOMasterPort (MACH_PORT_NULL, &io_master_port);
+	if (status != kIOReturnSuccess)
+	{
+		ERROR ("IOMasterPort failed: %s",
+				mach_error_string (status));
+		io_master_port = MACH_PORT_NULL;
+		return (-1);
+	}
+/* #endif HAVE_IOKIT_IOKITLIB_H */
+
+#elif KERNEL_LINUX
+	/* do nothing */
+/* #endif KERNEL_LINUX */
+
+#elif HAVE_LIBKSTAT
+	kstat_t *ksp_chain;
+
+	numdisk = 0;
+
+	if (kc == NULL)
+		return (-1);
+
+	for (numdisk = 0, ksp_chain = kc->kc_chain;
+			(numdisk < MAX_NUMDISK) && (ksp_chain != NULL);
+			ksp_chain = ksp_chain->ks_next)
+	{
+		if (strncmp (ksp_chain->ks_class, "disk", 4)
+				&& strncmp (ksp_chain->ks_class, "partition", 9))
+			continue;
+		if (ksp_chain->ks_type != KSTAT_TYPE_IO)
+			continue;
+		ksp[numdisk++] = ksp_chain;
+	}
+#endif /* HAVE_LIBKSTAT */
+
+	plugin_register_complex_read(/* group */ NULL, "disk", disk_read,
+		(dsk_interval != 0) ? &cb_interval : NULL,
+		/* user data */ NULL);
+	return (0);
+} /* int disk_init */
+
+#if HAVE_IOKIT_IOKITLIB_H
+static signed long long dict_get_value (CFDictionaryRef dict, const char *key)
+{
+	signed long long val_int;
+	CFNumberRef      val_obj;
+	CFStringRef      key_obj;
+
+	/* `key_obj' needs to be released. */
+	key_obj = CFStringCreateWithCString (kCFAllocatorDefault, key,
+		       	kCFStringEncodingASCII);
+	if (key_obj == NULL)
+	{
+		DEBUG ("CFStringCreateWithCString (%s) failed.", key);
+		return (-1LL);
+	}
+	
+	/* get => we don't need to release (== free) the object */
+	val_obj = (CFNumberRef) CFDictionaryGetValue (dict, key_obj);
+
+	CFRelease (key_obj);
+
+	if (val_obj == NULL)
+	{
+		DEBUG ("CFDictionaryGetValue (%s) failed.", key);
+		return (-1LL);
+	}
+
+	if (!CFNumberGetValue (val_obj, kCFNumberSInt64Type, &val_int))
+	{
+		DEBUG ("CFNumberGetValue (%s) failed.", key);
+		return (-1LL);
+	}
+
+	return (val_int);
+}
+#endif /* HAVE_IOKIT_IOKITLIB_H */
+
 void module_register (void)
 {
   plugin_register_config ("disk", disk_config,
       config_keys, config_keys_num);
   plugin_register_init ("disk", disk_init);
+/* deprecated for plugin_register_complex_read in disk_init
   plugin_register_read ("disk", disk_read);
+*/
 } /* void module_register */

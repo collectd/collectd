@@ -52,6 +52,7 @@ static const char *config_keys[] =
   "CACert"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
+static cdtime_t ng_interval;
 
 static size_t nginx_curl_callback (void *buf, size_t size, size_t nmemb,
     void __attribute__((unused)) *stream)
@@ -91,85 +92,30 @@ static int config_set (char **var, const char *value)
 
 static int config (const char *key, const char *value)
 {
-  if (strcasecmp (key, "url") == 0)
+  if (strcasecmp (key, "url") == 0) {
     return (config_set (&url, value));
-  else if (strcasecmp (key, "user") == 0)
+  } else if (strcasecmp (key, "user") == 0) {
     return (config_set (&user, value));
-  else if (strcasecmp (key, "password") == 0)
+  } else if (strcasecmp (key, "password") == 0) {
     return (config_set (&pass, value));
-  else if (strcasecmp (key, "verifypeer") == 0)
+  } else if (strcasecmp (key, "verifypeer") == 0) {
     return (config_set (&verify_peer, value));
-  else if (strcasecmp (key, "verifyhost") == 0)
+  } else if (strcasecmp (key, "verifyhost") == 0) {
     return (config_set (&verify_host, value));
-  else if (strcasecmp (key, "cacert") == 0)
+  } else if (strcasecmp (key, "cacert") == 0) {
     return (config_set (&cacert, value));
-  else
-    return (-1);
-} /* int config */
-
-static int init (void)
-{
-  static char credentials[1024];
-
-  if (curl != NULL)
-    curl_easy_cleanup (curl);
-
-  if ((curl = curl_easy_init ()) == NULL)
-  {
-    ERROR ("nginx plugin: curl_easy_init failed.");
+  } else if (strcasecmp (key, "interval") == 0) {
+    double tmp;
+    tmp = atof(value);
+    if (tmp > 0.0)
+      ng_interval = DOUBLE_TO_CDTIME_T(tmp);
+    else
+      ERROR ("nginx_plugin: Invalid 'Interval' setting: %s", value);
+  } else {
     return (-1);
   }
-
-  curl_easy_setopt (curl, CURLOPT_NOSIGNAL, 1L);
-  curl_easy_setopt (curl, CURLOPT_WRITEFUNCTION, nginx_curl_callback);
-  curl_easy_setopt (curl, CURLOPT_USERAGENT, PACKAGE_NAME"/"PACKAGE_VERSION);
-  curl_easy_setopt (curl, CURLOPT_ERRORBUFFER, nginx_curl_error);
-
-  if (user != NULL)
-  {
-    int status = ssnprintf (credentials, sizeof (credentials),
-	"%s:%s", user, pass == NULL ? "" : pass);
-    if ((status < 0) || ((size_t) status >= sizeof (credentials)))
-    {
-      ERROR ("nginx plugin: Credentials would have been truncated.");
-      return (-1);
-    }
-
-    curl_easy_setopt (curl, CURLOPT_USERPWD, credentials);
-  }
-
-  if (url != NULL)
-  {
-    curl_easy_setopt (curl, CURLOPT_URL, url);
-  }
-
-  curl_easy_setopt (curl, CURLOPT_FOLLOWLOCATION, 1L);
-
-  if ((verify_peer == NULL) || IS_TRUE (verify_peer))
-  {
-    curl_easy_setopt (curl, CURLOPT_SSL_VERIFYPEER, 1L);
-  }
-  else
-  {
-    curl_easy_setopt (curl, CURLOPT_SSL_VERIFYPEER, 0L);
-  }
-
-  if ((verify_host == NULL) || IS_TRUE (verify_host))
-  {
-    curl_easy_setopt (curl, CURLOPT_SSL_VERIFYHOST, 2L);
-  }
-  else
-  {
-    curl_easy_setopt (curl, CURLOPT_SSL_VERIFYHOST, 0L);
-  }
-
-  if (cacert != NULL)
-  {
-    curl_easy_setopt (curl, CURLOPT_CAINFO, cacert);
-  }
-
   return (0);
-} /* void init */
+} /* int config */
 
 static void submit (char *type, char *inst, long long value)
 {
@@ -196,7 +142,7 @@ static void submit (char *type, char *inst, long long value)
   plugin_dispatch_values (&vl);
 } /* void submit */
 
-static int nginx_read (void)
+static int nginx_read ()
 {
   int i;
 
@@ -274,11 +220,82 @@ static int nginx_read (void)
   return (0);
 } /* int nginx_read */
 
+static int init (void)
+{
+  static char credentials[1024];
+  struct timespec cb_interval;
+
+  if (curl != NULL)
+    curl_easy_cleanup (curl);
+
+  if ((curl = curl_easy_init ()) == NULL)
+  {
+    ERROR ("nginx plugin: curl_easy_init failed.");
+    return (-1);
+  }
+
+  curl_easy_setopt (curl, CURLOPT_NOSIGNAL, 1);
+  curl_easy_setopt (curl, CURLOPT_WRITEFUNCTION, nginx_curl_callback);
+  curl_easy_setopt (curl, CURLOPT_USERAGENT, PACKAGE_NAME"/"PACKAGE_VERSION);
+  curl_easy_setopt (curl, CURLOPT_ERRORBUFFER, nginx_curl_error);
+
+  if (user != NULL)
+  {
+    int status = ssnprintf (credentials, sizeof (credentials),
+	"%s:%s", user, pass == NULL ? "" : pass);
+    if ((status < 0) || ((size_t) status >= sizeof (credentials)))
+    {
+      ERROR ("nginx plugin: Credentials would have been truncated.");
+      return (-1);
+    }
+
+    curl_easy_setopt (curl, CURLOPT_USERPWD, credentials);
+  }
+
+  if (url != NULL)
+  {
+    curl_easy_setopt (curl, CURLOPT_URL, url);
+  }
+
+  curl_easy_setopt (curl, CURLOPT_FOLLOWLOCATION, 1);
+
+  if ((verify_peer == NULL) || IS_TRUE (verify_peer))
+  {
+    curl_easy_setopt (curl, CURLOPT_SSL_VERIFYPEER, 1);
+  }
+  else
+  {
+    curl_easy_setopt (curl, CURLOPT_SSL_VERIFYPEER, 0);
+  }
+
+  if ((verify_host == NULL) || IS_TRUE (verify_host))
+  {
+    curl_easy_setopt (curl, CURLOPT_SSL_VERIFYHOST, 2);
+  }
+  else
+  {
+    curl_easy_setopt (curl, CURLOPT_SSL_VERIFYHOST, 0);
+  }
+
+  if (cacert != NULL)
+  {
+    curl_easy_setopt (curl, CURLOPT_CAINFO, cacert);
+  }
+
+  plugin_register_complex_read(/* group */ NULL, "nginx", nginx_read,
+      (ng_interval != 0) ? &cb_interval : NULL,
+      /* user data */ NULL);
+
+  return (0);
+} /* void init */
+
 void module_register (void)
 {
   plugin_register_config ("nginx", config, config_keys, config_keys_num);
   plugin_register_init ("nginx", init);
+/* deprecated by plugin_register_complex_read in init
   plugin_register_read ("nginx", nginx_read);
+*/
 } /* void module_register */
 
 /*

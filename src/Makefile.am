@@ -71,6 +71,9 @@ endif
 if BUILD_AIX
 collectd_LDFLAGS += -Wl,-bexpall,-brtllib
 endif
+if BUILD_BSD
+collectd_LDADD += -lm -lgeom
+endif
 
 # The daemon needs to call sg_init, so we need to link it against libstatgrab,
 # too. -octo
@@ -433,6 +436,15 @@ collectd_LDADD += "-dlopen" gmond.la
 collectd_DEPENDENCIES += gmond.la
 endif
 
+if BUILD_PLUGIN_GSTAT
+pkglib_LTLIBRARIES += gstat.la
+gstat_la_SOURCES = gstat.c
+gstat_la_LDFLAGS = -module -avoid-version
+gstat_la_LIBADD = -lgeom
+collectd_LDADD += "-dlopen" gstat.la
+collectd_DEPENDENCIES += gstat.la
+endif
+
 if BUILD_PLUGIN_HDDTEMP
 pkglib_LTLIBRARIES += hddtemp.la
 hddtemp_la_SOURCES = hddtemp.c
@@ -729,6 +741,14 @@ collectd_LDADD += "-dlopen" netlink.la
 collectd_DEPENDENCIES += netlink.la
 endif
 
+if BUILD_PLUGIN_NETSTAT
+pkglib_LTLIBRARIES += netstat.la
+netstat_la_SOURCES = netstat.c
+netstat_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" netstat.la
+collectd_DEPENDENCIES += netstat.la
+endif
+
 if BUILD_PLUGIN_NETWORK
 pkglib_LTLIBRARIES += network.la
 network_la_SOURCES = network.c network.h \
@@ -982,6 +1002,14 @@ redis_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCREDIS_CPPFLAGS)
 redis_la_LIBADD = -lcredis
 collectd_LDADD += "-dlopen" redis.la
 collectd_DEPENDENCIES += redis.la
+endif
+
+if BUILD_PLUGIN_WRITE_TSDB
+pkglib_LTLIBRARIES += write_tsdb.la
+write_tsdb_la_SOURCES = write_tsdb.c
+write_tsdb_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" write_tsdb.la
+collectd_DEPENDENCIES += write_tsdb.la
 endif
 
 if BUILD_PLUGIN_ROUTEROS

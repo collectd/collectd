@@ -48,6 +48,7 @@
 
 static const char *config_keys[] =
 {
+	"Interval",
 	"Device",
 	"MountPoint",
 	"FSType",
@@ -62,23 +63,26 @@ static ignorelist_t *il_device = NULL;
 static ignorelist_t *il_mountpoint = NULL;
 static ignorelist_t *il_fstype = NULL;
 
+static cdtime_t df_interval;
+
 static _Bool by_device = 0;
 static _Bool report_inodes = 0;
 
-static int df_init (void)
-{
-	if (il_device == NULL)
-		il_device = ignorelist_create (1);
-	if (il_mountpoint == NULL)
-		il_mountpoint = ignorelist_create (1);
-	if (il_fstype == NULL)
-		il_fstype = ignorelist_create (1);
-
-	return (0);
-}
+static int df_init(void);
 
 static int df_config (const char *key, const char *value)
 {
+
+	if (strcasecmp (key, "Interval") == 0)
+	{
+		double tmp;
+		tmp = atof(value);
+		if (tmp > 0.0)
+			df_interval = DOUBLE_TO_CDTIME_T(tmp);
+		else
+			ERROR ("Invalid 'Interval' setting: %s", value);
+	}
+
 	df_init ();
 
 	if (strcasecmp (key, "Device") == 0)
@@ -161,7 +165,7 @@ static void df_submit_one (char *plugin_instance,
 	plugin_dispatch_values (&vl);
 } /* void df_submit_one */
 
-static int df_read (void)
+static int df_read ()
 {
 #if HAVE_STATVFS
 	struct statvfs statbuf;
@@ -312,10 +316,26 @@ static int df_read (void)
 	return (0);
 } /* int df_read */
 
+static int df_init (void)
+{
+	struct timespec cb_interval;
+
+	if (il_device == NULL)
+		il_device = ignorelist_create (1);
+	if (il_mountpoint == NULL)
+		il_mountpoint = ignorelist_create (1);
+	if (il_fstype == NULL)
+		il_fstype = ignorelist_create (1);
+
+	plugin_register_complex_read(/* group */ NULL, "df", df_read,
+		(df_interval != 0) ? &cb_interval : NULL,
+		/* user data */ NULL);
+	return (0);
+}
+
 void module_register (void)
 {
 	plugin_register_config ("df", df_config,
 			config_keys, config_keys_num);
 	plugin_register_init ("df", df_init);
-	plugin_register_read ("df", df_read);
 } /* void module_register */
