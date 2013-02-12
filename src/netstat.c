@@ -41,7 +41,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
+ *    may be used to endorse or promote products counterd from this software
  *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
@@ -62,7 +62,7 @@
 #include "plugin.h"
 #include "utils_ignorelist.h"
 
-#if !HAVE_SYSCTLBYNAME
+#if !HAVE_SYSCTLBYNAME && !KERNEL_LINUX
 # error "No applicable input method."
 #endif
 
@@ -81,6 +81,7 @@
 # include <net/if.h>
 #endif
 
+#ifdef HAVE_SYSCTLBYNAME
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
@@ -98,6 +99,15 @@
 #include <netinet6/in6_var.h>
 #include <netinet6/ip6_var.h>
 #endif /* COLLECT_IPV6 */
+#endif /* HAVE_SYSCTLBYNAME */
+
+#ifdef KERNEL_LINUX
+#include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "config.h"
+#endif /* KERNEL_LINUX */
 
 static const char *config_keys[] =
 {
@@ -122,13 +132,13 @@ static int netstat_config (const char *key, const char *value)
   return (0);
 }
 
-static void submit (const char *proto, const char *name, derive_t v)
+static void submit (const char *proto, const char *name, counter_t v)
 {
   value_t value;
   value_list_t vl = VALUE_LIST_INIT;
   vl.values_len = 1;
 
-  value.derive = v;
+  value.counter = v;
   vl.values = &value;
 
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
@@ -139,6 +149,7 @@ static void submit (const char *proto, const char *name, derive_t v)
   plugin_dispatch_values (&vl);
 }
 
+#ifdef HAVE_SYSCTLBYNAME
 static int netstat_read (void)
 {
   size_t len;
@@ -224,7 +235,7 @@ static int netstat_read (void)
       t("tcp_bytes", tcps_sndbyte);
       t("tcp_bad_rex_packets", tcps_sndrexmitbad);
       t("tcp_mtu_resend", tcps_mturesent);
-      t("tcp_packets_received", tcps_rcvtotal);
+      t("tcp_packetss_received", tcps_rcvtotal);
       t("tcp_received_acks", tcps_rcvackpack);
       t("tcp_received_ack_bytes", tcps_rcvackbyte);
       t("tcp_dupe_acks", tcps_rcvdupack);
@@ -241,8 +252,8 @@ static int netstat_read (void)
       t("tcp_ignored_rsts", tcps_badrst);
       t("tcp_rex_timeout", tcps_rexmttimeo);
       t("tcp_rex_timeout_conn_drop", tcps_timeoutdrop);
-      t("tcp_persist_timeout", tcps_persisttimeo);
-      t("tcp_persist_timeout_drop", tcps_persistdrop);
+      t("tcp_persit_timeout", tcps_persisttimeo);
+      t("tcp_persit_timeout_drop", tcps_persistdrop);
     }
   }
 
@@ -260,8 +271,263 @@ static int netstat_read (void)
   return(0);
 }
 
+#endif /* HAVE_SYSCTLBYNAME */
+
+#ifdef KERNEL_LINUX 
+/* 
+Linux's methods to get this data are .. well, they're stupid, but we've got to work with what we have
+unless we want to go write/rewrite huge swaths of code. 
+*/
+
+struct entry {
+	char *title;
+	char *metric;
+};
+
+struct tabs {
+	char *title;
+	struct entry *tab;
+	size_t size;
+};
+
+struct entry Iptab[] =
+{
+	{"InReceives", "ip_packets"},
+	{"InHdrErrors", "ip_cksum_error"}
+};
+
+struct entry Iptab6[] =
+{
+	{"Ip6InReceives", "ip_packets"},
+	{"Ip6InHdrErrors", "ip_cksum_error"}
+};
+
+struct entry Icmptab[] =
+{
+	{"InErrors", "icmp_errors"},
+	{"OutDestUnreachs", "icmp_outbound_unreachable"},
+	{"InDestUnreachs", "icmp_inbound_unreachable"},
+	{"InSrcQuenchs", "icmp_inbound_source_quench"},
+	{"InRedirects", "icmp_inbound_redirect"},
+	{"InTimeExcds", "icmp_inbound_time_exceeded"}
+};
+
+struct entry Icmptab6[] =
+{
+	{"Icmp6InErrors", "icmp_errors"},
+	{"Icmp6OutDestUnreachs", "icmp_outbound_unreachable"},
+	{"Icmp6InDestUnreachs", "icmp_inbound_unreachable"},
+	{"Icmp6InSrcQuenchs", "icmp_inbound_source_quench"},
+	{"Icmp6InRedirects", "icmp_inbound_redirect"},
+	{"Icmp6InTimeExcds", "icmp_inbound_time_exceeded"}
+};
+
+struct entry Tcptab[] =
+{
+	{"OutSegs", "tcp_packets"},
+	{"RetransSegs", "tcp_bad_rex_packets"},
+	{"InSegs", "tcp_packetss_received"},
+	{"ActiveOpens", "tcp_conn_active_open"},
+	{"PassiveOpens", "tcp_conn_passive_open"},
+	{"SyncookiesFailed", "tcp_bad_syn"},
+};
+
+struct entry Udptab[] =
+{
+	{"InDatagrams", "udp_dgrams"},
+	{"InErrors", "udp_cksum_error"},
+};
+
+struct entry Udptab6[] =
+{
+	{"Udp6InDatagrams", "udp_dgrams"},
+	{"Udp6InErrors", "udp_cksum_error"},
+};
+
+struct tabs alltabs[] = 
+{
+	{"ip", Iptab, sizeof(Iptab)},
+	{"tcp", Tcptab, sizeof(Tcptab)},
+	{"icmp", Icmptab, sizeof(Icmptab)},
+	{"udp", Udptab, sizeof(Udptab)},
+	{"ip6", Iptab6, sizeof(Iptab6)},
+	{"icmp6", Icmptab6, sizeof(Icmptab6)},
+	{"udp6", Udptab6, sizeof(Udptab6)},
+};
+
+int cmpentries(const void *a, const void *b)
+{
+	return strcmp(((struct entry *) a)->title, ((struct entry *) b)->title);
+}
+
+void inittab(void)
+{
+    struct tabs *t;
+
+    /* we sort at runtime because I'm lazy ;) */
+    for (t = alltabs; t->title; t++)
+        qsort(t->tab, t->size / sizeof(struct entry),
+              sizeof(struct entry), cmpentries);
+}
+
+void parsedata(const char *type, char buf1[1024], char buf2[1024])
+{
+
+	char *np, *vp, *p, *q;
+	int endflag = 0;
+	struct tabs *t;
+	struct entry *ent = NULL, key;
+	counter_t vvp;
+	
+	np = strchr(buf1, ':');
+	vp = strchr(buf2, ':');
+	np++;
+	vp++;
+
+	for (t = alltabs; t->title; t++) {
+		if (strcmp(type, t->title) == 0) {
+			while(!endflag) {
+				np += strspn(np, " ");
+				vp += strspn(vp, " ");
+		
+				p = np+strcspn(np, " \t\n");
+				q = vp+strcspn(vp, " \t\n");
+				if (*p == '\0') {
+					endflag = 1;
+				}
+
+				*p = '\0';
+				if (*np != '\0') {
+					key.title = np;
+					ent = bsearch(&key, t->tab, t->size / sizeof(struct entry), sizeof(struct entry), cmpentries);
+					if (ent) {
+						vvp = (counter_t) strtoll(vp, &vp, 0);
+						submit(type, ent->metric, vvp);
+					} 
+				}
+				np = p + 1;
+				vp = q + 1;
+			}
+		}
+	}
+}
+
+static int netstat_read (void)
+{
+
+	FILE *f;
+	char buf1[2048], buf2[2048];
+	char buf3[2048], buf4[2048];
+	char *bf1, *bf2, *sf1, *sf2;
+
+	inittab();
+
+	f = fopen("/proc/net/snmp", "r");
+	if (!f) {
+		ERROR ("Could not open /proc/net/snmp for read");
+	} else {
+		while (fgets(buf1, sizeof(buf1), f)) {
+			if (!fgets(buf2, sizeof(buf2), f)) {
+				break;
+			}
+
+			strncpy(buf3, buf1, 1024);
+			strncpy(buf4, buf2, 1024);
+
+			sf1 = strtok_r(buf1, ":", &bf1);
+			sf2 = strtok_r(buf2, ":", &bf2);
+			if (((!sf1) || (!sf2)) && (strcmp(sf1, sf2) != 0)) {
+				ERROR ("Error while parsing /proc/net/snmp");
+				return(0);
+			}
+			if (strcmp(sf1, "Ip") == 0 && ignorelist_match(ignorelist, "ip") == 0) {
+				parsedata("ip", buf3, buf4);
+			}
+			if (strcmp(sf1, "Icmp") == 0 && ignorelist_match(ignorelist, "icmp") == 0) {
+				parsedata("icmp", buf3, buf4);
+			}
+			if (strcmp(sf1, "Tcp") == 0 && ignorelist_match(ignorelist, "tcp") == 0) {
+				parsedata("tcp", buf3, buf4);
+			}
+			if (strcmp(sf1, "Udp") == 0 && ignorelist_match(ignorelist, "udp") == 0) {
+				parsedata("udp", buf3, buf4);
+			}
+		}
+	}
+	fclose(f);
+
+#ifdef COLLECT_IPV6
+	f = fopen("/proc/net/snmp6", "r");
+	if (!f) {
+		ERROR ("Could not open /proc/net/snmp6 for read");
+	} else {
+		while (fgets(buf1, sizeof(buf1), f)) {
+			if (!fgets(buf2, sizeof(buf2), f)) {
+				break;
+			}
+
+			strncpy(buf3, buf1, 1024);
+			strncpy(buf4, buf2, 1024);
+
+			sf1 = strtok_r(buf1, ":", &bf1);
+			sf2 = strtok_r(buf2, ":", &bf2);
+			if (((!sf1) || (!sf2)) && (strcmp(sf1, sf2) != 0)) {
+				ERROR ("Error while parsing /proc/net/snmp");
+				return(0);
+			}
+			if (strcmp(sf1, "Ip6") == 0 && ignorelist_match(ignorelist, "ip") == 0) {
+				parsedata("ip6", buf3, buf4);
+			}
+			if (strcmp(sf1, "Icmp6") == 0 && ignorelist_match(ignorelist, "icmp") == 0) {
+				parsedata("icmp", buf3, buf4);
+			}
+			if (strcmp(sf1, "Udp6") == 0 && ignorelist_match(ignorelist, "udp") == 0) {
+				parsedata("udp6", buf3, buf4);
+			}
+		}
+	}
+	fclose(f);
+#endif /* COLLECT_IPV6 */
+
+	f = fopen("/proc/net/netstat", "r");
+	if (!f) {
+		ERROR ("Could not open /proc/net/netstat for read");
+	} else {
+		while (fgets(buf1, sizeof(buf1), f)) {
+			if (!fgets(buf2, sizeof(buf2), f)) {
+				break;
+			}
+
+			strncpy(buf3, buf1, 1024);
+			strncpy(buf4, buf2, 1024);
+
+			sf1 = strtok_r(buf1, ":", &bf1);
+			sf2 = strtok_r(buf2, ":", &bf2);
+			if (((!sf1) || (!sf2)) && (strcmp(sf1, sf2) != 0)) {
+				ERROR ("Error while parsing /proc/net/snmp");
+				return(0);
+			}
+			if (strcmp(sf1, "IpExt") == 0 && ignorelist_match(ignorelist, "ip") == 0) {
+				parsedata("ip", buf3, buf4);
+			}
+			if (strcmp(sf1, "TcpExt") == 0 && ignorelist_match(ignorelist, "tcp") == 0) {
+				parsedata("tcp", buf3, buf4);
+			}
+		}
+	}
+	fclose(f);
+
+	return(0);
+}
+#endif /* KERNEL_LINUX */
+
+
 void module_register (void)
 {
   plugin_register_config ("netstat", netstat_config, config_keys, config_keys_num);
+#if KERNEL_LINUX
   plugin_register_read ("netstat", netstat_read);
+#elif HAVE_SYSCTLBYNAME
+  plugin_register_read ("netstat", netstat_read);
+#endif
 } /* void module_register */
