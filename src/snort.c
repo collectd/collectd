@@ -1,5 +1,7 @@
 /**
- *
+ * collectd - src/snort.c
+ * Copyright (C) 2013 Kris Nielander
+ * 
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
  * Free Software Foundation; only version 2 of the License is applicable.
@@ -20,15 +22,14 @@
  *
  **/
 
+#include "collectd.h"
+#include "plugin.h" /* plugin_register_*, plugin_dispatch_values */
+#include "common.h" /* auxiliary functions */
+#include <sys/mman.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-
-#include "collectd.h"
-#include "common.h" /* auxiliary functions */
-#include "plugin.h" /* plugin_register_*, plugin_dispatch_values */
 
 struct metric_definition_s {
     char *name;
@@ -41,7 +42,6 @@ typedef struct metric_definition_s metric_definition_t;
 
 struct instance_definition_s {
     char *name;
-    char *interface;
     char *path;
     metric_definition_t **metric_list;
     int metric_list_len;
@@ -115,13 +115,14 @@ static int snort_read(user_data_t *ud){
         return (-1);
     }
 
-    p = mmap(0, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
+    p = mmap(/* addr = */ NULL, sb.st_size, PROT_READ, MAP_SHARED, fd, 
+        /* offset = */ 0);
     if (p == MAP_FAILED){
         ERROR("snort plugin: mmap error");
         return (-1);
     }
 
-    /* Find the key characters and stop on EOL (might be an EOL on the last line, skip that (-2)) */
+    /* Set the pointer to the last line of the file. */
     count = 0;
     for (i = sb.st_size - 2; i > 0; --i){
         if (p[i] == ',')
@@ -146,7 +147,7 @@ static int snort_read(user_data_t *ud){
     munmap(p, sb.st_size);
 
     /* Create a list of all values */
-    metrics = (char **)malloc(sizeof(char *) * count);
+    metrics = (char **)calloc(count, sizeof(char *));
     if (metrics == NULL)
         return (-1);
 
@@ -182,20 +183,6 @@ static void snort_metric_definition_destroy(void *arg){
     sfree(md->name);
     sfree(md->type_instance);
     sfree(md);
-}
-
-static int snort_config_add_metric_type_instance(metric_definition_t *md, oconfig_item_t *ci){
-    if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)){
-        WARNING("snort plugin: `TypeInstance' needs exactly one string argument.");
-        return (-1);
-    }
-
-    sfree(md->type_instance);
-    md->type_instance = strdup(ci->values[0].value.string);
-    if (md->type_instance == NULL)
-        return (-1);
-
-    return (0);
 }
 
 static int snort_config_add_metric_data_source_type(metric_definition_t *md, oconfig_item_t *ci){
@@ -246,10 +233,10 @@ static int snort_config_add_metric(oconfig_item_t *ci){
         return (-1);
     }
 
-    md = (metric_definition_t *)malloc(sizeof(metric_definition_t));
+    md = (metric_definition_t *)malloc(sizeof(*md));
     if (md == NULL)
         return (-1);
-    memset(md, 0, sizeof(metric_definition_t));
+    memset(md, 0, sizeof(*md));
 
     md->name = strdup(ci->values[0].value.string);
     if (md->name == NULL){
@@ -257,12 +244,15 @@ static int snort_config_add_metric(oconfig_item_t *ci){
         return (-1);
     }
 
+    /* Reset the data source type to `-1', `0' is a gauge. */
+    md->data_source_type = -1;
+
     for (i = 0; i < ci->children_num; ++i){
         oconfig_item_t *option = ci->children + i;
         status = 0;
 
         if (strcasecmp("TypeInstance", option->key) == 0)
-            status = snort_config_add_metric_type_instance(md, option);
+            status = cf_util_get_string(option, &md->type_instance);
         else if (strcasecmp("DataSourceType", option->key) == 0)
             status = snort_config_add_metric_data_source_type(md, option);
         else if (strcasecmp("Index", option->key) == 0)
@@ -285,7 +275,7 @@ static int snort_config_add_metric(oconfig_item_t *ci){
     if (md->type_instance == NULL){
         WARNING("snort plugin: Option `TypeInstance' must be set.");
         status = -1;
-    } else if (md->data_source_type == 0){
+    } else if (md->data_source_type == -1){
         WARNING("snort plugin: Option `DataSourceType' must be set.");
         status = -1;
     } else if (md->index == 0){
@@ -325,38 +315,9 @@ static void snort_instance_definition_destroy(void *arg){
         DEBUG("snort plugin: Destroying instance definition `%s'.", id->name);
 
     sfree(id->name);
-    sfree(id->interface);
     sfree(id->path);
     sfree(id->metric_list);
     sfree(id);
-}
-
-static int snort_config_add_instance_interface(instance_definition_t *id, oconfig_item_t *ci){
-    if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)){
-        WARNING("snort plugin: The `Interface' config options needs exactly one string argument");
-        return (-1);
-    }
-
-    sfree(id->interface);
-    id->interface = strdup(ci->values[0].value.string);
-    if (id->interface == NULL)
-        return (-1);
-
-    return (0);
-}
-
-static int snort_config_add_instance_path(instance_definition_t *id, oconfig_item_t *ci){
-    if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)){
-        WARNING("snort plugin: The `Path' config option needs exactly one string argument.");
-        return (-1);
-    }
-
-    sfree(id->path);
-    id->path = strdup(ci->values[0].value.string);
-    if (id->path == NULL)
-        return (-1);
-
-    return (0);
 }
 
 static int snort_config_add_instance_collect(instance_definition_t *id, oconfig_item_t *ci){
@@ -415,10 +376,10 @@ static int snort_config_add_instance(oconfig_item_t *ci){
         return (-1);
     }
 
-    id = (instance_definition_t *)malloc(sizeof(instance_definition_t));
+    id = (instance_definition_t *)malloc(sizeof(*id));
     if (id == NULL)
         return (-1);
-    memset(id, 0, sizeof(instance_definition_t));
+    memset(id, 0, sizeof(*id));
 
     id->name = strdup(ci->values[0].value.string);
     if (id->name == NULL){
@@ -426,14 +387,15 @@ static int snort_config_add_instance(oconfig_item_t *ci){
         return (-1);
     }
 
+    /* Use default interval. */
+    id->interval = plugin_get_interval();
+
     for (i = 0; i < ci->children_num; ++i){
         oconfig_item_t *option = ci->children + i;
         status = 0;
 
-        if (strcasecmp("Interface", option->key) == 0)
-            status = snort_config_add_instance_interface(id, option);
-        else if (strcasecmp("Path", option->key) == 0)
-            status = snort_config_add_instance_path(id, option);
+        if (strcasecmp("Path", option->key) == 0)
+            status = cf_util_get_string(option, &id->path);
         else if (strcasecmp("Collect", option->key) == 0)
             status = snort_config_add_instance_collect(id, option);
         else if (strcasecmp("Interval", option->key) == 0)
@@ -453,30 +415,21 @@ static int snort_config_add_instance(oconfig_item_t *ci){
     }
 
     /* Verify all necessary options have been set. */
-    if (id->interface == NULL){
-        WARNING("snort plugin: Option `Interface' must be set.");
-        status = -1;
-    } else if (id->path == NULL){
+    if (id->path == NULL){
         WARNING("snort plugin: Option `Path' must be set.");
         status = -1;
     } else if (id->metric_list == NULL){
         WARNING("snort plugin: Option `Collect' must be set.");
         status = -1;
-    } else if (id->interval == 0){
-        WARNING("snort plugin: Option `Interval' must be set.");
-        status = -1;
-    }
+   }
 
     if (status != 0){
         snort_instance_definition_destroy(id);
         return (-1);
     }
 
-    DEBUG("snort plugin: id = { name = %s, interface = %s, path = %s }",
-        id->name, id->interface, id->path);
+    DEBUG("snort plugin: id = { name = %s, path = %s }", id->name, id->path);
 
-    /*  Set callback data (worried about this one, it's not a pointer yet it get
-        passed on to a callback) */
     ssnprintf (cb_name, sizeof (cb_name), "snort-%s", id->name);
     memset(&cb_data, 0, sizeof(cb_data));
     cb_data.data = id;
@@ -509,10 +462,6 @@ static int snort_config(oconfig_item_t *ci){
     return (0);
 } /* int snort_config */
 
-static int snort_init(void){
-    return (0);
-}
-
 static int snort_shutdown(void){
     metric_definition_t *metric_this;
     metric_definition_t *metric_next;
@@ -531,7 +480,6 @@ static int snort_shutdown(void){
 
 void module_register(void){
     plugin_register_complex_config("snort", snort_config);
-    plugin_register_init("snort", snort_init);
     plugin_register_shutdown("snort", snort_shutdown);
 }
 
