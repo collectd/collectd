@@ -33,7 +33,7 @@
 
 struct metric_definition_s {
     char *name;
-    char *type_instance;
+    char *type;
     int data_source_type;
     int index;
     struct metric_definition_s *next;
@@ -61,8 +61,8 @@ static int snort_read_submit(instance_definition_t *id, metric_definition_t *md,
     value_t value;
     value_list_t vl = VALUE_LIST_INIT;
 
-    DEBUG("snort plugin: plugin_instance=%s type_instance=%s value=%s",
-        id->name, md->type_instance, buf);
+    DEBUG("snort plugin: plugin_instance=%s type=%s value=%s", id->name, 
+        md->type, buf);
 
     if (buf == NULL)
         return (-1);
@@ -77,8 +77,7 @@ static int snort_read_submit(instance_definition_t *id, metric_definition_t *md,
     sstrncpy(vl.host, hostname_g, sizeof (vl.host));
     sstrncpy(vl.plugin, "snort", sizeof(vl.plugin));
     sstrncpy(vl.plugin_instance, id->name, sizeof(vl.plugin_instance));
-    sstrncpy(vl.type, "snort", sizeof(vl.type));
-    sstrncpy(vl.type_instance, md->type_instance, sizeof(vl.type_instance));
+    sstrncpy(vl.type, md->type, sizeof(vl.type));
 
     vl.time = id->last;
     vl.interval = id->interval;
@@ -92,14 +91,20 @@ static int snort_read_submit(instance_definition_t *id, metric_definition_t *md,
 static int snort_read(user_data_t *ud){
     instance_definition_t *id;
     metric_definition_t *md;
-    int fd;
+    
     int i;
+    int fd;
     int count;
 
     char **metrics;
+    char **metrics_t;
 
     struct stat sb;
-    char *p, *buf, *buf_s;
+    char *buf, *buf_t;
+
+    /* mmap, char pointers */
+    char *p_start;
+    char *p_end;
 
     id = ud->data;
     DEBUG("snort plugin: snort_read (instance = %s)", id->name);
@@ -111,52 +116,66 @@ static int snort_read(user_data_t *ud){
     }
 
     if ((fstat(fd, &sb) != 0) || (!S_ISREG(sb.st_mode))){
-        ERROR("snort plugin: \"%s\" is not a file.", id->path);
+        ERROR("snort plugin: `%s' is not a file.", id->path);
         return (-1);
     }
 
-    p = mmap(/* addr = */ NULL, sb.st_size, PROT_READ, MAP_SHARED, fd, 
+    if (sb.st_size == 0){
+        ERROR("snort plugin: `%s' is empty.", id->path);
+        return (-1);
+    }
+
+    p_start = mmap(/* addr = */ NULL, sb.st_size, PROT_READ, MAP_SHARED, fd, 
         /* offset = */ 0);
-    if (p == MAP_FAILED){
+    if (p_start == MAP_FAILED){
         ERROR("snort plugin: mmap error");
         return (-1);
     }
 
-    /* Set the pointer to the last line of the file. */
-    count = 0;
-    for (i = sb.st_size - 2; i > 0; --i){
-        if (p[i] == ',')
+    /* Set the start value count. */
+    count = 1; 
+
+    /* Set the pointer to the last line of the file and count the fields. 
+     (Skip the last two characters of the buffer: `\n' and `\0') */    
+    for (p_end = (p_start + sb.st_size) - 2; p_end > p_start; --p_end){
+        if (*p_end == ','){
             ++count;
-        else if (p[i] == '\n')
+        } else if (*p_end == '\n'){
+            ++p_end;
             break;
+        }
+    }
+    
+    if (count == 1){
+        ERROR("snort plugin: last line of `%s' does not contain enough values.", id->path);
+        return (-1);
     }
 
-    /* Move to the new line */
-    i++;
-
-    if (p[i] == '#'){
-        ERROR("snort plugin: last line of perfmon file is a comment.");
+    if (*p_end == '#'){
+        ERROR("snort plugin: last line of `%s' is a comment.", id->path);
         return (-1);
     }
 
     /* Copy the line to the buffer */
-    buf_s = buf = strdup(&p[i]);
+    buf_t = buf = strdup(p_end);
 
     /* Done with mmap and file pointer */
     close(fd);
-    munmap(p, sb.st_size);
+    munmap(p_start, sb.st_size);
 
     /* Create a list of all values */
     metrics = (char **)calloc(count, sizeof(char *));
-    if (metrics == NULL)
+    if (metrics == NULL){
         return (-1);
+    }
 
-    for (i = 0; i < count; ++i)
-        if ((p = strsep(&buf, ",")) != NULL)
-            metrics[i] = p;
+    for (metrics_t = metrics; (*metrics_t = strsep(&buf_t, ",")) != NULL;)
+        if (**metrics_t != '\0')
+            if (++metrics_t >= &metrics[count])
+                break;
 
     /* Set last time */
-    id->last = TIME_T_TO_CDTIME_T(strtol(metrics[0], NULL, 0));
+    id->last = TIME_T_TO_CDTIME_T(strtol(*metrics, NULL, 0));
 
     /* Register values */
     for (i = 0; i < id->metric_list_len; ++i){
@@ -166,7 +185,7 @@ static int snort_read(user_data_t *ud){
 
     /* Free up resources */
     free(metrics);
-    free(buf_s);
+    free(buf);
     return (0);
 }
 
@@ -181,30 +200,8 @@ static void snort_metric_definition_destroy(void *arg){
         DEBUG("snort plugin: Destroying metric definition `%s'.", md->name);
 
     sfree(md->name);
-    sfree(md->type_instance);
+    sfree(md->type);
     sfree(md);
-}
-
-static int snort_config_add_metric_data_source_type(metric_definition_t *md, oconfig_item_t *ci){
-    if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)){
-        WARNING("snort plugin: `DataSourceType' needs exactly one string argument.");
-        return (-1);
-    }
-
-    if (strcasecmp(ci->values[0].value.string, "GAUGE") == 0)
-        md->data_source_type = DS_TYPE_GAUGE;
-    else if (strcasecmp(ci->values[0].value.string, "COUNTER") == 0)
-        md->data_source_type = DS_TYPE_COUNTER;
-    else if (strcasecmp(ci->values[0].value.string, "DERIVE") == 0)
-        md->data_source_type = DS_TYPE_DERIVE;
-    else if (strcasecmp(ci->values[0].value.string, "ABSOLUTE") == 0)
-        md->data_source_type = DS_TYPE_ABSOLUTE;
-    else {
-        WARNING("snort plugin: Unrecognized value for `DataSourceType' `%s'.", ci->values[0].value.string);
-        return (-1);
-    }
-
-    return (0);
 }
 
 static int snort_config_add_metric_index(metric_definition_t *md, oconfig_item_t *ci){
@@ -225,6 +222,7 @@ static int snort_config_add_metric_index(metric_definition_t *md, oconfig_item_t
 /* Parse metric  */
 static int snort_config_add_metric(oconfig_item_t *ci){
     metric_definition_t *md;
+    const data_set_t *ds;
     int status = 0;
     int i;
 
@@ -244,17 +242,12 @@ static int snort_config_add_metric(oconfig_item_t *ci){
         return (-1);
     }
 
-    /* Reset the data source type to `-1', `0' is a gauge. */
-    md->data_source_type = -1;
-
     for (i = 0; i < ci->children_num; ++i){
         oconfig_item_t *option = ci->children + i;
         status = 0;
 
-        if (strcasecmp("TypeInstance", option->key) == 0)
-            status = cf_util_get_string(option, &md->type_instance);
-        else if (strcasecmp("DataSourceType", option->key) == 0)
-            status = snort_config_add_metric_data_source_type(md, option);
+        if (strcasecmp("Type", option->key) == 0)
+            status = cf_util_get_string(option, &md->type);
         else if (strcasecmp("Index", option->key) == 0)
             status = snort_config_add_metric_index(md, option);
         else {
@@ -272,11 +265,8 @@ static int snort_config_add_metric(oconfig_item_t *ci){
     }
 
     /* Verify all necessary options have been set. */
-    if (md->type_instance == NULL){
-        WARNING("snort plugin: Option `TypeInstance' must be set.");
-        status = -1;
-    } else if (md->data_source_type == -1){
-        WARNING("snort plugin: Option `DataSourceType' must be set.");
+    if (md->type == NULL){
+        WARNING("snort plugin: Option `Type' must be set.");
         status = -1;
     } else if (md->index == 0){
         WARNING("snort plugin: Option `Index' must be set.");
@@ -287,9 +277,19 @@ static int snort_config_add_metric(oconfig_item_t *ci){
         snort_metric_definition_destroy(md);
         return (-1);
     }
+    
+    /* Retrieve the data source type from the types db. */
+    ds = plugin_get_ds(md->type);
+    if (ds == NULL){
+        WARNING("snort plugin: `Type' must be defined in `types.db'.");
+        snort_metric_definition_destroy(md);
+        return (-1);
+    } else {
+        md->data_source_type = ds->ds->type;
+    }
 
-    DEBUG("snort plugin: md = { name = %s, type_instance = %s, data_source_type = %d, index = %d }",
-        md->name, md->type_instance, md->data_source_type, md->index);
+    DEBUG("snort plugin: md = { name = %s, type = %s, data_source_type = %d, index = %d }",
+        md->name, md->type, md->data_source_type, md->index);
 
     if (metric_head == NULL)
         metric_head = md;

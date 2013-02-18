@@ -917,22 +917,18 @@
 #<Plugin "snort">
 #   <Metric "dropped">
 #       TypeInstance "pkt_drop_percent"
-#       DataSourceType "GAUGE"
 #       Index 1
 #   </Metric>
 #   <Metric "mbps">
 #       TypeInstance "wire_mbits_per_sec.realtime"
-#       DataSourceType "GAUGE"
 #       Index 2
 #   </Metric>
 #   <Metric "alerts">
 #       TypeInstance "alerts_per_second"
-#       DataSourceType "GAUGE"
 #       Index 3
 #   </Metric>
 #   <Metric "kpps">
 #       TypeInstance "kpackets_wire_per_sec.realtime"
-#       DataSourceType "GAUGE"
 #       Index 4
 #   </Metric>
 #   <Instance "eth0">
