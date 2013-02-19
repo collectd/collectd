@@ -916,23 +916,22 @@
 
 #<Plugin "snort">
 #   <Metric "dropped">
-#       TypeInstance "pkt_drop_percent"
+#       Type "pkt_drop_percent"
 #       Index 1
 #   </Metric>
 #   <Metric "mbps">
-#       TypeInstance "wire_mbits_per_sec.realtime"
+#       Type "wire_mbits_per_sec.realtime"
 #       Index 2
 #   </Metric>
 #   <Metric "alerts">
-#       TypeInstance "alerts_per_second"
+#       Type "alerts_per_second"
 #       Index 3
 #   </Metric>
 #   <Metric "kpps">
-#       TypeInstance "kpackets_wire_per_sec.realtime"
+#       Type "kpackets_wire_per_sec.realtime"
 #       Index 4
 #   </Metric>
 #   <Instance "eth0">
-#       Interface "eth0"
 #       Path "/var/log/snort/snort.stats"
 #       Interval 600
 #       Collect "dropped" "mbps" "alerts" "kpps"
