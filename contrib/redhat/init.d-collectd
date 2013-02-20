@@ -20,15 +20,31 @@ CONFIG=/etc/collectd.conf
 COLLECTD=/usr/sbin/collectd
 COLLECTDMONPID=/var/run/collectdmon.pid
 
-if [ -r /etc/default/$prog ]; then
-	. /etc/default/$prog
+if [ -r /etc/sysconfig/$service ]; then
+	. /etc/sysconfig/$service
 fi
+
+check_config() {
+        if test ! -r "$CONFIG"; then
+                return 2
+        fi
+        if ! $COLLECTD -t -C "$CONFIG"; then
+                return 1
+        fi
+        return 0
+}
+
 
 start () {
 	echo -n $"Starting collectd: "
-	if [ -r "$CONFIG" ]
-	then
-		daemon $prog -P $COLLECTDMONPID -c $COLLECTD -- -C "$CONFIG"
+	check_config
+	rc="$?"
+	if test "$rc" -ne 0; then
+		RETVAL=6
+		echo $"not starting due to configuration error"
+		failure $"not starting $service due to configuration error"
+	else
+		daemon $prog -P $COLLECTDMONPID -c $COLLECTD -- -C "$CONFIG" $ARGS
 		RETVAL=$?
 		echo
 		[ $RETVAL -eq 0 ] && touch /var/lock/subsys/$service
@@ -53,8 +69,16 @@ case "$1" in
 	status $prog
 	;;
   restart|reload)
-	stop
-	start
+	check_config
+	rc="$?"
+	if test "$rc" -ne 0; then
+		RETVAL=6
+		echo $"not restarting due to configuration error"
+		failure $"not restarting $service due to configuration error"
+	else
+		stop
+		start
+	fi
 	;;
   condrestart)
 	[ -f /var/lock/subsys/$prog ] && restart || :
