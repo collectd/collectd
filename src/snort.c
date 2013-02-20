@@ -88,22 +88,100 @@ static int snort_read_submit(instance_definition_t *id, metric_definition_t *md,
     return (0);
 }
 
-static int snort_read(user_data_t *ud){
-    instance_definition_t *id;
-    metric_definition_t *md;
-
+static int snort_read_buffer (instance_definition_t *id,
+        char const *buffer, size_t buffer_size)
+{
     int i;
-    int fd;
 
     char **metrics;
     int metrics_num;
 
-    struct stat sb;
     char *buf, *buf_ptr;
 
     /* mmap, char pointers */
+    char const *p_end;
+
+    /* Set the start value count. */
+    metrics_num = 1;
+
+    /* Set the pointer to the last line of the file and count the fields.
+     (Skip the last two characters of the buffer: `\n' and `\0') */
+    for (p_end = (buffer + buffer_size) - 2; p_end > buffer; --p_end){
+        if (*p_end == ','){
+            ++metrics_num;
+        } else if (*p_end == '\n'){
+            ++p_end;
+            break;
+        }
+    }
+
+    if (metrics_num == 1){
+        ERROR("snort plugin: last line of `%s' does not contain enough values.", id->path);
+        return (-1);
+    }
+
+    if (*p_end == '#'){
+        ERROR("snort plugin: last line of `%s' is a comment.", id->path);
+        return (-1);
+    }
+
+    /* Copy the line to the buffer */
+    buf = strdup(p_end);
+
+    /* Create a list of all values */
+    metrics = calloc (metrics_num, sizeof (*metrics));
+    if (metrics == NULL) {
+        ERROR ("snort plugin: calloc failed.");
+        sfree (buf);
+        return (ENOMEM);
+    }
+
+    buf_ptr = buf;
+    i = 0;
+    while (buf_ptr != NULL) {
+        char *next = strchr (buf_ptr, ',');
+        if (next != NULL) {
+            *next = 0;
+            next++;
+        }
+        metrics[i] = buf_ptr;
+        buf_ptr = next;
+        i++;
+    }
+    assert (i == metrics_num);
+
+    /* Set last time */
+    id->last = TIME_T_TO_CDTIME_T(strtol(*metrics, NULL, 0));
+
+    /* Register values */
+    for (i = 0; i < id->metric_list_len; ++i){
+        metric_definition_t *md = id->metric_list[i];
+
+        if (md->index >= metrics_num) {
+            ERROR ("snort plugin: Metric \"%s\": Request for index %i when "
+                    "only %i fields are available.",
+                    md->name, md->index, metrics_num);
+            continue;
+        }
+
+        snort_read_submit(id, md, metrics[md->index]);
+    }
+
+    /* Free up resources */
+    free(metrics);
+    free(buf);
+    return (0);
+}
+
+static int snort_read(user_data_t *ud){
+    instance_definition_t *id;
+
+    int fd;
+
+    struct stat sb;
+
+    /* mmap, char pointers */
     char *p_start;
-    char *p_end;
 
     id = ud->data;
     DEBUG("snort plugin: snort_read (instance = %s)", id->name);
@@ -134,83 +212,11 @@ static int snort_read(user_data_t *ud){
         return (-1);
     }
 
-    /* Set the start value count. */
-    metrics_num = 1;
-
-    /* Set the pointer to the last line of the file and count the fields.
-     (Skip the last two characters of the buffer: `\n' and `\0') */
-    for (p_end = (p_start + sb.st_size) - 2; p_end > p_start; --p_end){
-        if (*p_end == ','){
-            ++metrics_num;
-        } else if (*p_end == '\n'){
-            ++p_end;
-            break;
-        }
-    }
-
-    if (metrics_num == 1){
-        ERROR("snort plugin: last line of `%s' does not contain enough values.", id->path);
-        close (fd);
-        munmap(p_start, sb.st_size);
-        return (-1);
-    }
-
-    if (*p_end == '#'){
-        ERROR("snort plugin: last line of `%s' is a comment.", id->path);
-        close (fd);
-        munmap(p_start, sb.st_size);
-        return (-1);
-    }
-
-    /* Copy the line to the buffer */
-    buf = strdup(p_end);
+    snort_read_buffer (id, p_start, (size_t) sb.st_size);
 
     /* Done with mmap and file pointer */
     close(fd);
     munmap(p_start, sb.st_size);
-
-    /* Create a list of all values */
-    metrics = calloc (metrics_num, sizeof (*metrics));
-    if (metrics == NULL) {
-        ERROR ("snort plugin: calloc failed.");
-        sfree (buf);
-        return (-1);
-    }
-
-    buf_ptr = buf;
-    i = 0;
-    while (buf_ptr != NULL) {
-        char *next = strchr (buf_ptr, ',');
-        if (next != NULL) {
-            *next = 0;
-            next++;
-        }
-        metrics[i] = buf_ptr;
-        buf_ptr = next;
-        i++;
-    }
-    assert (i == metrics_num);
-
-    /* Set last time */
-    id->last = TIME_T_TO_CDTIME_T(strtol(*metrics, NULL, 0));
-
-    /* Register values */
-    for (i = 0; i < id->metric_list_len; ++i){
-        md = id->metric_list[i];
-
-        if (md->index >= metrics_num) {
-            ERROR ("snort plugin: Metric \"%s\": Request for index %i when "
-                    "only %i fields are available.",
-                    md->name, md->index, metrics_num);
-            continue;
-        }
-
-        snort_read_submit(id, md, metrics[md->index]);
-    }
-
-    /* Free up resources */
-    free(metrics);
-    free(buf);
     return (0);
 }
 
