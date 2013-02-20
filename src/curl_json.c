@@ -113,14 +113,7 @@ static size_t cj_curl_callback (void *buf, /* {{{ */
 
   status = yajl_parse(db->yajl, (unsigned char *)buf, len);
   if (status == yajl_status_ok)
-  {
-#if HAVE_YAJL_V2
-    status = yajl_complete_parse(db->yajl);
-#else
-    status = yajl_parse_complete(db->yajl);
-#endif
     return (len);
-  }
 #if !HAVE_YAJL_V2
   else if (status == yajl_status_insufficient_data)
     return (len);
@@ -826,9 +819,6 @@ static int cj_curl_perform (cj_t *db, CURL *curl) /* {{{ */
 
   status = curl_easy_perform (curl);
 
-  yajl_free (db->yajl);
-  db->yajl = yprev;
-
   curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &url);
   curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &rc);
 
@@ -837,6 +827,8 @@ static int cj_curl_perform (cj_t *db, CURL *curl) /* {{{ */
   {
     ERROR ("curl_json plugin: curl_easy_perform failed with response code %ld (%s)",
            rc, url);
+    yajl_free (db->yajl);
+    db->yajl = yprev;
     return (-1);
   }
 
@@ -844,8 +836,29 @@ static int cj_curl_perform (cj_t *db, CURL *curl) /* {{{ */
   {
     ERROR ("curl_json plugin: curl_easy_perform failed with status %i: %s (%s)",
            status, db->curl_errbuf, url);
+    yajl_free (db->yajl);
+    db->yajl = yprev;
     return (-1);
   }
+
+#if HAVE_YAJL_V2
+  status = yajl_complete_parse(db->yajl);
+#else
+  status = yajl_parse_complete(db->yajl);
+#endif
+  if (status != yajl_status_ok)
+  {
+    ERROR ("curl_json plugin: %s failed with status %i.",
+#if HAVE_YAJL_V2
+        "yajl_complete_parse",
+#else
+        "yajl_parse_complete",
+#endif
+        status);
+  }
+
+  yajl_free (db->yajl);
+  db->yajl = yprev;
 
   return (0);
 } /* }}} int cj_curl_perform */
