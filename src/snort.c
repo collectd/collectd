@@ -34,6 +34,7 @@
 struct metric_definition_s {
     char *name;
     char *type;
+    char *instance;
     int data_source_type;
     int index;
     struct metric_definition_s *next;
@@ -78,6 +79,8 @@ static int snort_read_submit(instance_definition_t *id, metric_definition_t *md,
     sstrncpy(vl.plugin, "snort", sizeof(vl.plugin));
     sstrncpy(vl.plugin_instance, id->name, sizeof(vl.plugin_instance));
     sstrncpy(vl.type, md->type, sizeof(vl.type));
+    if (md->instance != NULL)
+        sstrncpy(vl.type_instance, md->instance, sizeof(vl.type_instance));
 
     vl.time = id->last;
     vl.interval = id->interval;
@@ -275,6 +278,8 @@ static int snort_config_add_metric(oconfig_item_t *ci){
 
         if (strcasecmp("Type", option->key) == 0)
             status = cf_util_get_string(option, &md->type);
+        else if (strcasecmp("Instance", option->key) == 0)
+            status = cf_util_get_string(option, &md->instance);
         else if (strcasecmp("Index", option->key) == 0)
             status = snort_config_add_metric_index(md, option);
         else {
