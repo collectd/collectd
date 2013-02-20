@@ -1,7 +1,7 @@
 /**
  * collectd - src/snort.c
  * Copyright (C) 2013 Kris Nielander
- * 
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
  * Free Software Foundation; only version 2 of the License is applicable.
@@ -61,7 +61,7 @@ static int snort_read_submit(instance_definition_t *id, metric_definition_t *md,
     value_t value;
     value_list_t vl = VALUE_LIST_INIT;
 
-    DEBUG("snort plugin: plugin_instance=%s type=%s value=%s", id->name, 
+    DEBUG("snort plugin: plugin_instance=%s type=%s value=%s", id->name,
         md->type, buf);
 
     if (buf == NULL)
@@ -91,10 +91,10 @@ static int snort_read_submit(instance_definition_t *id, metric_definition_t *md,
 static int snort_read(user_data_t *ud){
     instance_definition_t *id;
     metric_definition_t *md;
-    
+
     int i;
     int fd;
-    int count;
+    int metrics_num;
 
     char **metrics;
     char **metrics_t;
@@ -125,7 +125,7 @@ static int snort_read(user_data_t *ud){
         return (-1);
     }
 
-    p_start = mmap(/* addr = */ NULL, sb.st_size, PROT_READ, MAP_SHARED, fd, 
+    p_start = mmap(/* addr = */ NULL, sb.st_size, PROT_READ, MAP_SHARED, fd,
         /* offset = */ 0);
     if (p_start == MAP_FAILED){
         ERROR("snort plugin: mmap error");
@@ -133,20 +133,20 @@ static int snort_read(user_data_t *ud){
     }
 
     /* Set the start value count. */
-    count = 1; 
+    metrics_num = 1;
 
-    /* Set the pointer to the last line of the file and count the fields. 
-     (Skip the last two characters of the buffer: `\n' and `\0') */    
+    /* Set the pointer to the last line of the file and count the fields.
+     (Skip the last two characters of the buffer: `\n' and `\0') */
     for (p_end = (p_start + sb.st_size) - 2; p_end > p_start; --p_end){
         if (*p_end == ','){
-            ++count;
+            ++metrics_num;
         } else if (*p_end == '\n'){
             ++p_end;
             break;
         }
     }
-    
-    if (count == 1){
+
+    if (metrics_num == 1){
         ERROR("snort plugin: last line of `%s' does not contain enough values.", id->path);
         return (-1);
     }
@@ -164,14 +164,15 @@ static int snort_read(user_data_t *ud){
     munmap(p_start, sb.st_size);
 
     /* Create a list of all values */
-    metrics = (char **)calloc(count, sizeof(char *));
-    if (metrics == NULL){
+    metrics = calloc (metrics_num, sizeof (*metrics));
+    if (metrics == NULL) {
+        ERROR ("snort plugin: calloc failed.");
         return (-1);
     }
 
     for (metrics_t = metrics; (*metrics_t = strsep(&buf_t, ",")) != NULL;)
         if (**metrics_t != '\0')
-            if (++metrics_t >= &metrics[count])
+            if (++metrics_t >= &metrics[metrics_num])
                 break;
 
     /* Set last time */
@@ -180,6 +181,14 @@ static int snort_read(user_data_t *ud){
     /* Register values */
     for (i = 0; i < id->metric_list_len; ++i){
         md = id->metric_list[i];
+
+        if (md->index >= metrics_num) {
+            ERROR ("snort plugin: Metric \"%s\": Request for index %i when "
+                    "only %i fields are available.",
+                    md->name, md->index, metrics_num);
+            continue;
+        }
+
         snort_read_submit(id, md, metrics[md->index]);
     }
 
@@ -277,7 +286,7 @@ static int snort_config_add_metric(oconfig_item_t *ci){
         snort_metric_definition_destroy(md);
         return (-1);
     }
-    
+
     /* Retrieve the data source type from the types db. */
     ds = plugin_get_ds(md->type);
     if (ds == NULL){
