@@ -88,23 +88,90 @@ static int snort_read_submit(instance_definition_t *id, metric_definition_t *md,
     return (0);
 }
 
-static int snort_read(user_data_t *ud){
-    instance_definition_t *id;
-    metric_definition_t *md;
-    
+static int snort_read_buffer (instance_definition_t *id,
+        char const *buffer, size_t buffer_size){
+
     int i;
-    int fd;
-    int count;
+    int metrics_num;
 
     char **metrics;
     char **metrics_t;
 
+    /* mmap, char pointer */
+    char const *p_end;
+
+    char *buf, *buf_t, *buf_s;
+    
+    /* Set the pointer to the last line of the file and count the fields. 
+     (Skip the last two characters of the buffer: `\n' and `\0') */    
+    for (p_end = (buffer + buffer_size) - 2, metrics_num = 1; p_end > buffer; --p_end){
+        if (*p_end == ','){
+            ++metrics_num;
+        } else if (*p_end == '\n'){
+            ++p_end;
+            break;
+        }
+    }
+    
+    if (metrics_num == 1){
+        ERROR("snort plugin: last line of `%s' does not contain enough values.", id->path);
+        return (-1);
+    }
+
+    if (*p_end == '#'){
+        ERROR("snort plugin: last line of `%s' is a comment.", id->path);
+        return (-1);
+    }
+
+    /* Copy the line to the buffer */
+    buf = strdup(p_end);
+
+    /* Create a list of all values */
+    metrics = (char **)calloc(metrics_num, sizeof(char *));
+    if (metrics == NULL){
+        sfree(buf);
+        return (ENOMEM);
+    }
+
+    for (metrics_t = metrics, buf_t = buf, buf_s = NULL; 
+        (*metrics_t = strtok_r(buf_t, ",", &buf_s)) != NULL; buf_t = NULL)
+        if (**metrics_t != '\0')
+            if (++metrics_t >= &metrics[metrics_num])
+                break;
+
+    /* Set last time */
+    id->last = TIME_T_TO_CDTIME_T(strtol(*metrics, NULL, 0));
+
+    /* Register values */
+    for (i = 0; i < id->metric_list_len; ++i){
+        metric_definition_t *md = id->metric_list[i];
+        
+        /* Verify index bounds */
+        if (md->index >= metrics_num){
+            ERROR ("snort plugin: Metric \"%s\": Request for index %i when "
+                    "only %i fields are available.",
+                    md->name, md->index, metrics_num);
+            continue;
+        }
+    
+        snort_read_submit(id, md, metrics[md->index]);
+    }
+
+    /* Free up resources */
+    sfree(metrics);
+    sfree(buf);
+
+    return (0);
+}
+
+static int snort_read(user_data_t *ud){
+    instance_definition_t *id;
+    
+    int fd;
     struct stat sb;
-    char *buf, *buf_t;
 
     /* mmap, char pointers */
     char *p_start;
-    char *p_end;
 
     id = ud->data;
     DEBUG("snort plugin: snort_read (instance = %s)", id->name);
@@ -117,11 +184,13 @@ static int snort_read(user_data_t *ud){
 
     if ((fstat(fd, &sb) != 0) || (!S_ISREG(sb.st_mode))){
         ERROR("snort plugin: `%s' is not a file.", id->path);
+        close(fd);
         return (-1);
     }
 
     if (sb.st_size == 0){
         ERROR("snort plugin: `%s' is empty.", id->path);
+        close(fd);
         return (-1);
     }
 
@@ -129,63 +198,16 @@ static int snort_read(user_data_t *ud){
         /* offset = */ 0);
     if (p_start == MAP_FAILED){
         ERROR("snort plugin: mmap error");
+        close(fd);
         return (-1);
     }
 
-    /* Set the start value count. */
-    count = 1; 
-
-    /* Set the pointer to the last line of the file and count the fields. 
-     (Skip the last two characters of the buffer: `\n' and `\0') */    
-    for (p_end = (p_start + sb.st_size) - 2; p_end > p_start; --p_end){
-        if (*p_end == ','){
-            ++count;
-        } else if (*p_end == '\n'){
-            ++p_end;
-            break;
-        }
-    }
-    
-    if (count == 1){
-        ERROR("snort plugin: last line of `%s' does not contain enough values.", id->path);
-        return (-1);
-    }
-
-    if (*p_end == '#'){
-        ERROR("snort plugin: last line of `%s' is a comment.", id->path);
-        return (-1);
-    }
-
-    /* Copy the line to the buffer */
-    buf_t = buf = strdup(p_end);
+    snort_read_buffer(id, p_start, (size_t)sb.st_size);
 
     /* Done with mmap and file pointer */
     close(fd);
     munmap(p_start, sb.st_size);
 
-    /* Create a list of all values */
-    metrics = (char **)calloc(count, sizeof(char *));
-    if (metrics == NULL){
-        return (-1);
-    }
-
-    for (metrics_t = metrics; (*metrics_t = strsep(&buf_t, ",")) != NULL;)
-        if (**metrics_t != '\0')
-            if (++metrics_t >= &metrics[count])
-                break;
-
-    /* Set last time */
-    id->last = TIME_T_TO_CDTIME_T(strtol(*metrics, NULL, 0));
-
-    /* Register values */
-    for (i = 0; i < id->metric_list_len; ++i){
-        md = id->metric_list[i];
-        snort_read_submit(id, md, metrics[md->index]);
-    }
-
-    /* Free up resources */
-    free(metrics);
-    free(buf);
     return (0);
 }
 
@@ -226,19 +248,15 @@ static int snort_config_add_metric(oconfig_item_t *ci){
     int status = 0;
     int i;
 
-    if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)){
-        WARNING("snort plugin: The `Metric' config option needs exactly one string argument.");
-        return (-1);
-    }
-
     md = (metric_definition_t *)malloc(sizeof(*md));
     if (md == NULL)
         return (-1);
     memset(md, 0, sizeof(*md));
 
-    md->name = strdup(ci->values[0].value.string);
-    if (md->name == NULL){
-        free(md);
+    md->name = NULL;
+    status = cf_util_get_string(ci, &md->name);
+    if (status != 0) {
+        sfree(md);
         return (-1);
     }
 
@@ -277,12 +295,20 @@ static int snort_config_add_metric(oconfig_item_t *ci){
         snort_metric_definition_destroy(md);
         return (-1);
     }
-    
+
     /* Retrieve the data source type from the types db. */
     ds = plugin_get_ds(md->type);
     if (ds == NULL){
-        WARNING("snort plugin: `Type' must be defined in `types.db'.");
+        ERROR ("snort plugin: Failed to look up type \"%s\". "
+                "It may not be defined in the types.db file. "
+                "Please read the types.db(5) manual page for more details.",
+                md->type);
         snort_metric_definition_destroy(md);
+        return (-1);
+    } else if (ds->ds_num != 1){
+        ERROR ("snort plugin: The type \"%s\" has %i data sources. "
+               "Only types with a single data soure are supported.",
+               ds->type, ds->ds_num);
         return (-1);
     } else {
         md->data_source_type = ds->ds->type;
