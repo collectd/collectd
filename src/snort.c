@@ -257,19 +257,15 @@ static int snort_config_add_metric(oconfig_item_t *ci){
     int status = 0;
     int i;
 
-    if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)){
-        WARNING("snort plugin: The `Metric' config option needs exactly one string argument.");
-        return (-1);
-    }
-
     md = (metric_definition_t *)malloc(sizeof(*md));
     if (md == NULL)
         return (-1);
     memset(md, 0, sizeof(*md));
 
-    md->name = strdup(ci->values[0].value.string);
-    if (md->name == NULL){
-        free(md);
+    md->name = NULL;
+    status = cf_util_get_string (ci, &md->name);
+    if (status != 0) {
+        sfree (md);
         return (-1);
     }
 
@@ -312,8 +308,16 @@ static int snort_config_add_metric(oconfig_item_t *ci){
     /* Retrieve the data source type from the types db. */
     ds = plugin_get_ds(md->type);
     if (ds == NULL){
-        WARNING("snort plugin: `Type' must be defined in `types.db'.");
+        ERROR ("snort plugin: Failed to look up type \"%s\". "
+                "It may not be defined in the types.db file. "
+                "Please read the types.db(5) manual page for more details.",
+                md->type);
         snort_metric_definition_destroy(md);
+        return (-1);
+    } else if (ds->ds_num != 1) {
+        ERROR ("snort plugin: The type \"%s\" has %i data sources. "
+                "Only types with a single data soure are supported.",
+                ds->type, ds->ds_num);
         return (-1);
     } else {
         md->data_source_type = ds->ds->type;
