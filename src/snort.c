@@ -94,13 +94,12 @@ static int snort_read(user_data_t *ud){
 
     int i;
     int fd;
-    int metrics_num;
 
     char **metrics;
-    char **metrics_t;
+    int metrics_num;
 
     struct stat sb;
-    char *buf, *buf_t;
+    char *buf, *buf_ptr;
 
     /* mmap, char pointers */
     char *p_start;
@@ -157,7 +156,7 @@ static int snort_read(user_data_t *ud){
     }
 
     /* Copy the line to the buffer */
-    buf_t = buf = strdup(p_end);
+    buf = strdup(p_end);
 
     /* Done with mmap and file pointer */
     close(fd);
@@ -170,10 +169,19 @@ static int snort_read(user_data_t *ud){
         return (-1);
     }
 
-    for (metrics_t = metrics; (*metrics_t = strsep(&buf_t, ",")) != NULL;)
-        if (**metrics_t != '\0')
-            if (++metrics_t >= &metrics[metrics_num])
-                break;
+    buf_ptr = buf;
+    i = 0;
+    while (buf_ptr != NULL) {
+        char *next = strchr (buf_ptr, ',');
+        if (next != NULL) {
+            *next = 0;
+            next++;
+        }
+        metrics[i] = buf_ptr;
+        buf_ptr = next;
+        i++;
+    }
+    assert (i == metrics_num);
 
     /* Set last time */
     id->last = TIME_T_TO_CDTIME_T(strtol(*metrics, NULL, 0));
