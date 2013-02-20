@@ -116,11 +116,13 @@ static int snort_read(user_data_t *ud){
 
     if ((fstat(fd, &sb) != 0) || (!S_ISREG(sb.st_mode))){
         ERROR("snort plugin: `%s' is not a file.", id->path);
+        close (fd);
         return (-1);
     }
 
     if (sb.st_size == 0){
         ERROR("snort plugin: `%s' is empty.", id->path);
+        close (fd);
         return (-1);
     }
 
@@ -128,6 +130,7 @@ static int snort_read(user_data_t *ud){
         /* offset = */ 0);
     if (p_start == MAP_FAILED){
         ERROR("snort plugin: mmap error");
+        close (fd);
         return (-1);
     }
 
@@ -147,11 +150,15 @@ static int snort_read(user_data_t *ud){
 
     if (metrics_num == 1){
         ERROR("snort plugin: last line of `%s' does not contain enough values.", id->path);
+        close (fd);
+        munmap(p_start, sb.st_size);
         return (-1);
     }
 
     if (*p_end == '#'){
         ERROR("snort plugin: last line of `%s' is a comment.", id->path);
+        close (fd);
+        munmap(p_start, sb.st_size);
         return (-1);
     }
 
@@ -166,6 +173,7 @@ static int snort_read(user_data_t *ud){
     metrics = calloc (metrics_num, sizeof (*metrics));
     if (metrics == NULL) {
         ERROR ("snort plugin: calloc failed.");
+        sfree (buf);
         return (-1);
     }
 
