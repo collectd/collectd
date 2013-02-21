@@ -600,6 +600,24 @@ int c_avl_get (c_avl_tree_t *t, const void *key, void **value)
 	return (0);
 }
 
+int c_avl_update (c_avl_tree_t *t, const void *key, void *value, void **rvalue)
+{
+	c_avl_node_t *n;
+
+	assert (t != NULL);
+
+	n = search (t, key);
+	if (n == NULL)
+		return (-1);
+
+	if (rvalue != NULL)
+		*rvalue = n->value;
+
+	n->value = value;
+
+	return (0);
+}
+
 int c_avl_pick (c_avl_tree_t *t, void **key, void **value)
 {
 	c_avl_node_t *n;
@@ -712,6 +730,19 @@ int c_avl_iterator_prev (c_avl_iterator_t *iter, void **key, void **value)
 
 	return (0);
 } /* int c_avl_iterator_prev */
+
+int c_avl_iterator_update_value (c_avl_iterator_t *iter, void *value)
+{
+	if (iter == NULL)
+		return (-1);
+
+	if (iter->node == NULL)
+		return (-1);
+
+	iter->node->value = value;
+
+	return (0);
+} /* int c_avl_iterator_update_value */
 
 void c_avl_iterator_destroy (c_avl_iterator_t *iter)
 {

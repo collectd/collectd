@@ -84,6 +84,24 @@ int c_avl_insert (c_avl_tree_t *t, void *key, void *value);
 
 /*
  * NAME
+ *   c_avl_update
+ *
+ * DESCRIPTION
+ *   Stores the key-value-pair in the AVL-tree pointed to by `t'.
+ *
+ * PARAMETERS
+ *   `t'        AVL-tree to store the data in.
+ *   `key'      Key to identify the entry.
+ *   `value'    New value to be stored.
+ *   `rvalue'   Pointer to a pointer in which to store the old value. May be NULL.
+ *
+ * RETURN VALUE
+ *   Zero upon success or non-zero if the key isn't found in the tree.
+ */
+int c_avl_update (c_avl_tree_t *t, const void *key, void *value, void **rvalue);
+
+/*
+ * NAME
  *   c_avl_remove
  *
  * DESCRIPTION
@@ -146,6 +164,7 @@ int c_avl_pick (c_avl_tree_t *t, void **key, void **value);
 c_avl_iterator_t *c_avl_get_iterator (c_avl_tree_t *t);
 int c_avl_iterator_next (c_avl_iterator_t *iter, void **key, void **value);
 int c_avl_iterator_prev (c_avl_iterator_t *iter, void **key, void **value);
+int c_avl_iterator_update_value (c_avl_iterator_t *iter, void *value);
 void c_avl_iterator_destroy (c_avl_iterator_t *iter);
 
 /*
