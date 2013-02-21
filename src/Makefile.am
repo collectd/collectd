@@ -18,7 +18,7 @@ AM_CPPFLAGS += -DPLUGINDIR='"${pkglibdir}"'
 AM_CPPFLAGS += -DPKGDATADIR='"${pkgdatadir}"'
 
 sbin_PROGRAMS = collectd collectdmon
-bin_PROGRAMS = collectd-nagios collectdctl
+bin_PROGRAMS = collectd-nagios collectdctl collectd-tg
 
 collectd_SOURCES = collectd.c collectd.h \
 		   common.c common.h \
@@ -113,11 +113,36 @@ endif
 collectdctl_LDADD += libcollectdclient/libcollectdclient.la
 collectdctl_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 
+collectd_tg_SOURCES = collectd-tg.c \
+		      utils_heap.c utils_heap.h
+collectd_tg_LDADD =
+if BUILD_WITH_LIBSOCKET
+collectd_tg_LDADD += -lsocket
+endif
+if BUILD_WITH_LIBRT
+collectd_tg_LDADD += -lrt
+endif
+if BUILD_AIX
+collectd_tg_LDADD += -lm
+endif
+collectd_tg_LDADD += libcollectdclient/libcollectdclient.la
+collectd_tg_DEPENDENCIES = libcollectdclient/libcollectdclient.la
+
 
 pkglib_LTLIBRARIES = 
 
 BUILT_SOURCES = 
 CLEANFILES = 
+
+if BUILD_PLUGIN_AGGREGATION
+pkglib_LTLIBRARIES += aggregation.la
+aggregation_la_SOURCES = aggregation.c \
+                         utils_vl_lookup.c utils_vl_lookup.h
+aggregation_la_LDFLAGS = -module -avoid-version
+aggregation_la_LIBADD =
+collectd_LDADD += "-dlopen" aggregation.la
+collectd_DEPENDENCIES += aggregation.la
+endif
 
 if BUILD_PLUGIN_AMQP
 pkglib_LTLIBRARIES += amqp.la
@@ -882,6 +907,14 @@ collectd_LDADD += "-dlopen" perl.la
 collectd_DEPENDENCIES += perl.la
 endif
 
+if BUILD_PLUGIN_PF
+pkglib_LTLIBRARIES += pf.la
+pf_la_SOURCES = pf.c
+pf_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" pf.la
+collectd_DEPENDENCIES += pf.la
+endif
+
 if BUILD_PLUGIN_PINBA
 BUILT_SOURCES += pinba.pb-c.c pinba.pb-c.h
 CLEANFILES += pinba.pb-c.c pinba.pb-c.h
@@ -1322,6 +1355,17 @@ collectd_LDADD += "-dlopen" write_redis.la
 collectd_DEPENDENCIES += write_redis.la
 endif
 
+if BUILD_PLUGIN_WRITE_RIEMANN
+BUILT_SOURCES += riemann.pb-c.c riemann.pb-c.h
+CLEANFILES += riemann.pb-c.c riemann.pb-c.h
+pkglib_LTLIBRARIES += write_riemann.la
+write_riemann_la_SOURCES = write_riemann.c riemann.pb-c.c
+write_riemann_la_LDFLAGS = -module -avoid-version
+write_riemann_la_LIBADD = -lprotobuf-c
+collectd_LDADD += "-dlopen" write_riemann.la
+collectd_DEPENDENCIES += write_riemann.la
+endif
+
 if BUILD_PLUGIN_XMMS
 pkglib_LTLIBRARIES += xmms.la
 xmms_la_SOURCES = xmms.c
@@ -1342,6 +1386,8 @@ collectd_LDADD += "-dlopen" zfs_arc.la
 collectd_DEPENDENCIES += zfs_arc.la
 endif
 
+BUILT_SOURCES += $(dist_man_MANS)
+
 dist_man_MANS = collectd.1 \
 		collectd.conf.5 \
 		collectd-email.5 \
@@ -1353,13 +1399,14 @@ dist_man_MANS = collectd.1 \
 		collectd-perl.5 \
 		collectd-python.5 \
 		collectd-snmp.5 \
+		collectd-tg.1 \
 		collectd-threshold.5 \
 		collectd-unixsock.5 \
 		types.db.5
 
 #collectd_1_SOURCES = collectd.pod
 
-EXTRA_DIST = types.db pinba.proto
+EXTRA_DIST = types.db pinba.proto riemann.proto
 
 EXTRA_DIST +=   collectd.conf.pod \
 		collectd-email.pod \
@@ -1372,6 +1419,7 @@ EXTRA_DIST +=   collectd.conf.pod \
 		collectd-python.pod \
 		collectd.pod \
 		collectd-snmp.pod \
+		collectd-tg.pod \
 		collectd-threshold.pod \
 		collectd-unixsock.pod \
 		postgresql_default.conf \
@@ -1394,7 +1442,10 @@ EXTRA_DIST +=   collectd.conf.pod \
 	fi
 
 pinba.pb-c.c pinba.pb-c.h: pinba.proto
-	protoc-c --c_out . pinba.proto
+	protoc-c -I$(srcdir) --c_out . $(srcdir)/pinba.proto
+
+riemann.pb-c.c riemann.pb-c.h: riemann.proto
+	protoc-c -I$(srcdir) --c_out . $(srcdir)/riemann.proto
 
 install-exec-hook:
 	$(mkinstalldirs) $(DESTDIR)$(sysconfdir)
@@ -1413,3 +1464,16 @@ uninstall-hook:
 	rm -f $(DESTDIR)$(pkgdatadir)/types.db;
 	rm -f $(DESTDIR)$(sysconfdir)/collectd.conf
 	rm -f $(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
+
+if BUILD_FEATURE_DEBUG
+bin_PROGRAMS += utils_vl_lookup_test
+utils_vl_lookup_test_SOURCES = utils_vl_lookup_test.c \
+                               utils_vl_lookup.h utils_vl_lookup.c \
+                               utils_avltree.c utils_avltree.h \
+                               common.h
+
+utils_vl_lookup_test_CPPFLAGS =  $(AM_CPPFLAGS) $(LTDLINCL) -DBUILD_TEST=1
+utils_vl_lookup_test_CFLAGS = $(AM_CFLAGS)
+utils_vl_lookup_test_LDFLAGS = -export-dynamic
+utils_vl_lookup_test_LDADD =
+endif

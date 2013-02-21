@@ -7,11 +7,15 @@ collectd.conf - Configuration for the system statistics collection daemon B<coll
   BaseDir "/path/to/data/"
   PIDFile "/path/to/pidfile/collectd.pid"
   Server  "123.123.123.123" 12345
-
+  
   LoadPlugin cpu
   LoadPlugin load
+  
+  <LoadPlugin df>
+    Interval 3600
+  </LoadPlugin>
+  
   LoadPlugin ping
-
   <Plugin ping>
     Host "example.org"
     Host "provider.net"
@@ -73,6 +77,7 @@ options are allowed inside a B<LoadPlugin> block:
 
   <LoadPlugin perl>
     Globals true
+    Interval 10
   </LoadPlugin>
 
 =over 4
@@ -96,9 +101,15 @@ By default, this is disabled. As a special exception, if the plugin name is
 either C<perl> or C<python>, the default is changed to enabled in order to keep
 the average user from ever having to deal with this low level linking stuff.
 
+=item B<Interval> I<Seconds>
+
+Sets a plugin-specific interval for collecting metrics. This overrides the
+global B<Interval> setting. If a plugin provides own support for specifying an
+interval, that setting will take precedence.
+
 =back
 
-=item B<Include> I<Path>
+=item B<Include> I<Path> [I<pattern>]
 
 If I<Path> points to a file, includes that file. If I<Path> points to a
 directory, recursively includes all files within that directory and its
@@ -107,6 +118,15 @@ shell-like wildcards are expanded before files are included. This means you can
 use statements like the following:
 
   Include "/etc/collectd.d/*.conf"
+
+If the C<fnmatch> function is available on your system, a shell-like wildcard
+I<pattern> may be specified to filter which files to include. This may be used
+in combination with recursively including a directory to easily be able to
+arbitrarily mix configuration files and other documents (e.g. README files).
+The following statement is similar to the example above but includes all files
+matching C<*.conf> in any subdirectory of C</etc/collectd.d>:
+
+  Include "/etc/collectd.d" "*.conf"
 
 If more than one files are included by a single B<Include> option, the files
 will be included in lexicographical order (as defined by the C<strcmp>
@@ -161,8 +181,14 @@ see L<collectd-threshold(5)> for details.
 
 Number of threads to start for reading plugins. The default value is B<5>, but
 you may want to increase this if you have more than five plugins that take a
-long time to read. Mostly those are plugin that do network-IO. Setting this to
-a value higher than the number of plugins you've loaded is totally useless.
+long time to read. Mostly those are plugins that do network-IO. Setting this to
+a value higher than the number of registered read callbacks is not recommended.
+
+=item B<WriteThreads> I<Num>
+
+Number of threads to start for dispatching value lists to write plugins. The
+default value is B<5>, but you may want to increase this if you have more than
+five plugins that may take relatively long to write to.
 
 =item B<Hostname> I<Name>
 
@@ -193,11 +219,182 @@ C<Plugin>-Section. Which options exist depends on the plugin used. Some plugins
 require external configuration, too. The C<apache plugin>, for example,
 required C<mod_status> to be configured in the webserver you're going to
 collect data from. These plugins are listed below as well, even if they don't
-require any configuration within collectd's configfile.
+require any configuration within collectd's configuration file.
 
 A list of all plugins and a short summary for each plugin can be found in the
 F<README> file shipped with the sourcecode and hopefully binary packets as
 well.
+
+=head2 Plugin C<aggregation>
+
+The I<Aggregation plugin> makes it possible to aggregate several values into
+one using aggregation functions such as I<sum>, I<average>, I<min> and I<max>.
+This can be put to a wide variety of uses, e.g. average and total CPU
+statistics for your entire fleet.
+
+The grouping is powerful but, as with many powerful tools, may be a bit
+difficult to wrap your head around. The grouping will therefore be
+demonstrated using an example: The average and sum of the CPU usage across
+all CPUs of each host is to be calculated.
+
+To select all the affected values for our example, set C<Plugin cpu> and
+C<Type cpu>. The other values are left unspecified, meaning "all values". The
+I<Host>, I<Plugin>, I<PluginInstance>, I<Type> and I<TypeInstance> options
+work as if they were specified in the C<WHERE> clause of an C<SELECT> SQL
+statement.
+
+  Plugin "cpu"
+  Type "cpu"
+
+Although the I<Host>, I<PluginInstance> (CPU number, i.e. 0, 1, 2, ...)  and
+I<TypeInstance> (idle, user, system, ...) fields are left unspecified in the
+example, the intention is to have a new value for each host / type instance
+pair. This is achieved by "grouping" the values using the C<GroupBy> option.
+It can be specified multiple times to group by more than one field.
+
+  GroupBy "Host"
+  GroupBy "TypeInstance"
+
+We do neither specify nor group by I<plugin instance> (the CPU number), so all
+metrics that differ in the CPU number only will be aggregated. Each
+aggregation needs I<at least one> such field, otherwise no aggregation would
+take place.
+
+The full example configuration looks like this:
+
+ <Plugin "aggregation">
+   <Aggregation>
+     Plugin "cpu"
+     Type "cpu"
+     
+     GroupBy "Host"
+     GroupBy "TypeInstance"
+     
+     CalculateSum true
+     CalculateAverage true
+   </Aggregation>
+ </Plugin>
+
+There are a couple of limitations you should be aware of:
+
+=over 4
+
+=item
+
+The I<Type> cannot be left unspecified, because it is not reasonable to add
+apples to oranges. Also, the internal lookup structure won't work if you try
+to group by type.
+
+=item
+
+There must be at least one unspecified, ungrouped field. Otherwise nothing
+will be aggregated.
+
+=back
+
+As you can see in the example above, each aggregation has its own
+B<Aggregation> block. You can have multiple aggregation blocks and aggregation
+blocks may match the same values, i.e. one value list can update multiple
+aggregations. The following options are valid inside B<Aggregation> blocks:
+
+=over 4
+
+=item B<Host> I<Host>
+
+=item B<Plugin> I<Plugin>
+
+=item B<PluginInstance> I<PluginInstance>
+
+=item B<Type> I<Type>
+
+=item B<TypeInstance> I<TypeInstance>
+
+Selects the value lists to be added to this aggregation. B<Type> must be a
+valid data set name, see L<types.db(5)> for details.
+
+If the string starts with and ends with a slash (C</>), the string is
+interpreted as a I<regular expression>. The regex flavor used are POSIX
+extended regular expressions as described in L<regex(7)>. Example usage:
+
+ Host "/^db[0-9]\\.example\\.com$/"
+
+=item B<GroupBy> B<Host>|B<Plugin>|B<PluginInstance>|B<TypeInstance>
+
+Group valued by the specified field. The B<GroupBy> option may be repeated to
+group by multiple fields.
+
+=item B<SetHost> I<Host>
+
+=item B<SetPlugin> I<Plugin>
+
+=item B<SetPluginInstance> I<PluginInstance>
+
+=item B<SetTypeInstance> I<TypeInstance>
+
+Sets the appropriate part of the identifier to the provided string.
+
+The I<PluginInstance> should include the placeholder C<%{aggregation}> which
+will be replaced with the aggregation function, e.g. "average". Not including
+the placeholder will result in duplication warnings and/or messed up values if
+more than one aggregation function are enabled.
+
+The following example calculates the average usage of all "even" CPUs:
+
+ <Plugin "aggregation">
+   <Aggregation>
+     Plugin "cpu"
+     PluginInstance "/[0,2,4,6,8]$/"
+     Type "cpu"
+     
+     SetPlugin "cpu"
+     SetPluginInstance "even-%{aggregation}"
+     
+     GroupBy "Host"
+     GroupBy "TypeInstance"
+     
+     CalculateAverage true
+   </Aggregation>
+ </Plugin>
+
+This will create the files:
+
+=over 4
+
+=item
+
+foo.example.com/cpu-even-average/cpu-idle
+
+=item
+
+foo.example.com/cpu-even-average/cpu-system
+
+=item
+
+foo.example.com/cpu-even-average/cpu-user
+
+=item
+
+...
+
+=back
+
+=item B<CalculateNum> B<true>|B<false>
+
+=item B<CalculateSum> B<true>|B<false>
+
+=item B<CalculateAverage> B<true>|B<false>
+
+=item B<CalculateMinimum> B<true>|B<false>
+
+=item B<CalculateMaximum> B<true>|B<false>
+
+=item B<CalculateStddev> B<true>|B<false>
+
+Boolean options for enabling calculation of the number of value lists, their
+sum, average, minimum, maximum andE<nbsp>/ or standard deviation. All options
+are disabled by default.
+
+=back
 
 =head2 Plugin C<amqp>
 
@@ -311,7 +508,7 @@ mode will be used, i.e. delivery is guaranteed. If set to B<false> (the
 default), the I<transient> delivery mode will be used, i.e. messages may be
 lost due to high load, overflowing queues or similar issues.
 
-=item B<Format> B<Command>|B<JSON> (Publish only)
+=item B<Format> B<Command>|B<JSON>|B<Graphite> (Publish only)
 
 Selects the format in which messages are sent to the broker. If set to
 B<Command> (the default), values are sent as C<PUTVAL> commands which are
@@ -449,6 +646,12 @@ B<apcupsd> can handle it.
 =item B<Port> I<Port>
 
 TCP-Port to connect to. Defaults to B<3551>.
+
+=item B<ReportSeconds> B<true|false>
+
+If set to B<true>, the time reported in the C<timeleft> metric will be
+converted to seconds. This is the recommended setting. If set to B<false>, the
+default for backwards compatibility, the time will be reported in minutes.
 
 =back
 
@@ -1163,11 +1366,23 @@ documentation for each driver, somewhere at
 L<http://libdbi-drivers.sourceforge.net/>. However, the options "host",
 "username", "password", and "dbname" seem to be deE<nbsp>facto standards.
 
+DBDs can register two types of options: String options and numeric options. The
+plugin will use the C<dbi_conn_set_option> function when the configuration
+provides a string and the C<dbi_conn_require_option_numeric> function when the
+configuration provides a number. So these two lines will actually result in
+different calls being used:
+
+  DriverOption "Port" 1234      # numeric
+  DriverOption "Port" "1234"    # string
+
 Unfortunately, drivers are not too keen to report errors when an unknown option
 is passed to them, so invalid settings here may go unnoticed. This is not the
 plugin's fault, it will report errors if it gets them from the libraryE<nbsp>/
 the driver. If a driver complains about an option, the plugin will dump a
-complete list of all options understood by that driver to the log.
+complete list of all options understood by that driver to the log. There is no
+way to programatically find out if an option expects a string or a numeric
+argument, so you will have to refer to the appropriate DBD's documentation to
+find this out. Sorry.
 
 =item B<SelectDB> I<Database>
 
@@ -1181,6 +1396,11 @@ Associates the query named I<QueryName> with this database connection. The
 query needs to be defined I<before> this statement, i.E<nbsp>e. all query
 blocks you want to refer to must be placed above the database block you want to
 refer to them from.
+
+=item B<Host> I<Hostname>
+
+Sets the B<host> field of I<value lists> to I<Hostname> when dispatching
+values. Defaults to the global hostname setting.
 
 =back
 
@@ -2332,6 +2552,14 @@ Required capabilities are documented below.
       IgnoreSelectedSnapshot false
     </VolumeUsage>
     
+    <Quota>
+      Interval 60
+    </Quota>
+    
+    <Snapvault>
+      Interval 30
+    </Snapvault>
+    
     <System>
       Interval 30
       GetCPULoad     true
@@ -2339,6 +2567,13 @@ Required capabilities are documented below.
       GetDiskOps     true
       GetDiskIO      true
     </System>
+
+    <VFiler vfilerA>
+      Interval 60
+
+      SnapVault true
+      # ...
+    </VFiler>
    </Host>
  </Plugin>
 
@@ -2349,7 +2584,27 @@ The netapp plugin accepts the following configuration options:
 =item B<Host> I<Name>
 
 A host block defines one NetApp filer. It will appear in collectd with the name
-you specify here which does not have to be its real name nor its hostname.
+you specify here which does not have to be its real name nor its hostname (see
+the B<Address> option below).
+
+=item B<VFiler> I<Name>
+
+A B<VFiler> block may only be used inside a host block. It accepts all the
+same options as the B<Host> block (except for cascaded B<VFiler> blocks) and
+will execute all NetApp API commands in the context of the specified
+VFiler(R). It will appear in collectd with the name you specify here which
+does not have to be its real name. The VFiler name may be specified using the
+B<VFilerName> option. If this is not specified, it will default to the name
+you specify here.
+
+The VFiler block inherits all connection related settings from the surrounding
+B<Host> block (which appear before the B<VFiler> block) but they may be
+overwritten inside the B<VFiler> block.
+
+This feature is useful, for example, when using a VFiler as SnapVault target
+(supported since OnTap 8.1). In that case, the SnapVault statistics are not
+available in the host filer (vfiler0) but only in the respective VFiler
+context.
 
 =item B<Protocol> B<httpd>|B<http>
 
@@ -2392,6 +2647,19 @@ The username and password to use to login to the NetApp.
 Mandatory
 
 Type: string
+
+=item B<VFilerName> I<Name>
+
+The name of the VFiler in which context to execute API commands. If not
+specified, the name provided to the B<VFiler> block will be used instead.
+
+Optional
+
+Type: string
+
+Default: name of the B<VFiler> block
+
+B<Note:> This option may only be used inside B<VFiler> blocks.
 
 =item B<Interval> I<Interval>
 
@@ -2720,6 +2988,38 @@ Specify whether to collect only the volumes selected by the B<GetSnapshot>
 option or to ignore those volumes. B<IgnoreSelectedSnapshot> defaults to
 B<false>. However, if no B<GetSnapshot> option is specified at all, all
 capacities will be selected anyway.
+
+=back
+
+=head3 The Quota block
+
+This will collect (tree) quota statistics (used disk space and number of used
+files). This mechanism is useful to get usage information for single qtrees.
+In case the quotas are not used for any other purpose, an entry similar to the
+following in C</etc/quotas> would be sufficient:
+
+  /vol/volA/some_qtree tree - - - - -
+
+After adding the entry, issue C<quota on -w volA> on the NetApp filer.
+
+=over 4
+
+=item B<Interval> I<Seconds>
+
+Collect SnapVault(R) statistics every I<Seconds> seconds.
+
+=back
+
+=head3 The SnapVault block
+
+This will collect statistics about the time and traffic of SnapVault(R)
+transfers.
+
+=over 4
+
+=item B<Interval> I<Seconds>
+
+Collect SnapVault(R) statistics every I<Seconds> seconds.
 
 =back
 
@@ -3547,6 +3847,13 @@ which are available in a PostgreSQL database or use future or special
 statistics provided by PostgreSQL without the need to upgrade your collectd
 installation.
 
+Starting with version 5.2, the C<postgresql> plugin supports writing data to
+PostgreSQL databases as well. This has been implemented in a generic way. You
+need to specify an SQL statement which will then be executed by collectd in
+order to write the data (see below for details). The benefit of that approach
+is that there is no fixed database layout. Rather, the layout may be optimized
+for the current setup.
+
 The B<PostgreSQL Documentation> manual can be found at
 L<http://www.postgresql.org/docs/manuals/>.
 
@@ -3576,6 +3883,11 @@ L<http://www.postgresql.org/docs/manuals/>.
       </Result>
     </Query>
 
+    <Writer sqlstore>
+      Statement "SELECT collectd_insert($1, $2, $3, $4, $5, $6, $7, $8, $9);"
+      StoreRates true
+    </Writer>
+
     <Database foo>
       Host "hostname"
       Port "5432"
@@ -3591,6 +3903,12 @@ L<http://www.postgresql.org/docs/manuals/>.
       Service "service_name"
       Query backend # predefined
       Query rt36_tickets
+    </Database>
+
+    <Database qux>
+      # ...
+      Writer sqlstore
+      CommitInterval 10
     </Database>
   </Plugin>
 
@@ -3758,6 +4076,101 @@ This query collects the on-disk size of the database in bytes.
 
 =back
 
+In addition, the following detailed queries are available by default. Please
+note that each of those queries collects information B<by table>, thus,
+potentially producing B<a lot> of data. For details see the description of the
+non-by_table queries above.
+
+=over 4
+
+=item B<queries_by_table>
+
+=item B<query_plans_by_table>
+
+=item B<table_states_by_table>
+
+=item B<disk_io_by_table>
+
+=back
+
+The B<Writer> block defines a PostgreSQL writer backend. It accepts a single
+mandatory argument specifying the name of the writer. This will then be used
+in the B<Database> specification in order to activate the writer instance. The
+names of all writers have to be unique. The following options may be
+specified:
+
+=over 4
+
+=item B<Statement> I<sql statement>
+
+This mandatory option specifies the SQL statement that will be executed for
+each submitted value. A single SQL statement is allowed only. Anything after
+the first semicolon will be ignored.
+
+Nine parameters will be passed to the statement and should be specified as
+tokens B<$1>, B<$2>, through B<$9> in the statement string. The following
+values are made available through those parameters:
+
+=over 4
+
+=item B<$1>
+
+The timestamp of the queried value as a floating point number.
+
+=item B<$2>
+
+The hostname of the queried value.
+
+=item B<$3>
+
+The plugin name of the queried value.
+
+=item B<$4>
+
+The plugin instance of the queried value. This value may be B<NULL> if there
+is no plugin instance.
+
+=item B<$5>
+
+The type of the queried value (cf. L<types.db(5)>).
+
+=item B<$6>
+
+The type instance of the queried value. This value may be B<NULL> if there is
+no type instance.
+
+=item B<$7>
+
+An array of names for the submitted values (i.E<nbsp>e., the name of the data
+sources of the submitted value-list).
+
+=item B<$8>
+
+An array of types for the submitted values (i.E<nbsp>e., the type of the data
+sources of the submitted value-list; C<counter>, C<gauge>, ...). Note, that if
+B<StoreRates> is enabled (which is the default, see below), all types will be
+C<gauge>.
+
+=item B<$9>
+
+An array of the submitted values. The dimensions of the value name and value
+arrays match.
+
+=back
+
+In general, it is advisable to create and call a custom function in the
+PostgreSQL database for this purpose. Any procedural language supported by
+PostgreSQL will do (see chapter "Server Programming" in the PostgreSQL manual
+for details).
+
+=item B<StoreRates> B<false>|B<true>
+
+If set to B<true> (the default), convert counter values to rates. If set to
+B<false> counter values are stored as is, i.E<nbsp>e. as an increasing integer
+number.
+
+=back
+
 The B<Database> block defines one PostgreSQL database for which to collect
 statistics. It accepts a single mandatory argument which specifies the
 database name. None of the other options are required. PostgreSQL will use
@@ -3772,6 +4185,17 @@ for details.
 
 Specify the interval with which the database should be queried. The default is
 to use the global B<Interval> setting.
+
+=item B<CommitInterval> I<seconds>
+
+This option may be used for database connections which have "writers" assigned
+(see above). If specified, it causes a writer to put several updates into a
+single transaction. This transaction will last for the specified amount of
+time. By default, each update will be executed in a separate transaction. Each
+transaction generates a fair amount of overhead which can, thus, be reduced by
+activating this option. The draw-back is, that data covering the specified
+amount of time will be lost, for example, if a single statement within the
+transaction fails or if the database server crashes.
 
 =item B<Host> I<hostname>
 
@@ -3845,11 +4269,36 @@ B<PostgreSQL Documentation> for details.
 
 =item B<Query> I<query>
 
-Specify a I<query> which should be executed for the database connection. This
-may be any of the predefined or user-defined queries. If no such option is
-given, it defaults to "backends", "transactions", "queries", "query_plans",
-"table_states", "disk_io" and "disk_usage". Else, the specified queries are
-used only.
+Specifies a I<query> which should be executed in the context of the database
+connection. This may be any of the predefined or user-defined queries. If no
+such option is given, it defaults to "backends", "transactions", "queries",
+"query_plans", "table_states", "disk_io" and "disk_usage" (unless a B<Writer>
+has been specified). Else, the specified queries are used only.
+
+=item B<Writer> I<writer>
+
+Assigns the specified I<writer> backend to the database connection. This
+causes all collected data to be send to the database using the settings
+defined in the writer configuration (see the section "FILTER CONFIGURATION"
+below for details on how to selectively send data to certain plugins).
+
+Each writer will register a flush callback which may be used when having long
+transactions enabled (see the B<CommitInterval> option above). When issuing
+the B<FLUSH> command (see L<collectd-unixsock(5)> for details) the current
+transaction will be committed right away. Two different kinds of flush
+callbacks are available with the C<postgresql> plugin:
+
+=over 4
+
+=item B<postgresql>
+
+Flush all writer backends.
+
+=item B<postgresql->I<database>
+
+Flush all writers of the specified I<database> only.
+
+=back
 
 =back
 
@@ -4231,6 +4680,50 @@ Enables or disables the creation of RRD files. If the daemon is not running
 locally, or B<DataDir> is set to a relative path, this will not work as
 expected. Default is B<true>.
 
+=item B<StepSize> I<Seconds>
+
+B<Force> the stepsize of newly created RRD-files. Ideally (and per default)
+this setting is unset and the stepsize is set to the interval in which the data
+is collected. Do not use this option unless you absolutely have to for some
+reason. Setting this option may cause problems with the C<snmp plugin>, the
+C<exec plugin> or when the daemon is set up to receive data from other hosts.
+
+=item B<HeartBeat> I<Seconds>
+
+B<Force> the heartbeat of newly created RRD-files. This setting should be unset
+in which case the heartbeat is set to twice the B<StepSize> which should equal
+the interval in which data is collected. Do not set this option unless you have
+a very good reason to do so.
+
+=item B<RRARows> I<NumRows>
+
+The C<rrdtool plugin> calculates the number of PDPs per CDP based on the
+B<StepSize>, this setting and a timespan. This plugin creates RRD-files with
+three times five RRAs, i. e. five RRAs with the CFs B<MIN>, B<AVERAGE>, and
+B<MAX>. The five RRAs are optimized for graphs covering one hour, one day, one
+week, one month, and one year.
+
+So for each timespan, it calculates how many PDPs need to be consolidated into
+one CDP by calculating:
+  number of PDPs = timespan / (stepsize * rrarows)
+
+Bottom line is, set this no smaller than the width of you graphs in pixels. The
+default is 1200.
+
+=item B<RRATimespan> I<Seconds>
+
+Adds an RRA-timespan, given in seconds. Use this option multiple times to have
+more then one RRA. If this option is never used, the built-in default of (3600,
+86400, 604800, 2678400, 31622400) is used.
+
+For more information on how RRA-sizes are calculated see B<RRARows> above.
+
+=item B<XFF> I<Factor>
+
+Set the "XFiles Factor". The default is 0.1. If unsure, don't set this option.
+I<Factor> must be in the range C<[0.0-1.0)>, i.e. between zero (inclusive) and
+one (exclusive).
+
 =back
 
 =head2 Plugin C<rrdtool>
@@ -4288,6 +4781,8 @@ For more information on how RRA-sizes are calculated see B<RRARows> above.
 =item B<XFF> I<Factor>
 
 Set the "XFiles Factor". The default is 0.1. If unsure, don't set this option.
+I<Factor> must be in the range C<[0.0-1.0)>, i.e. between zero (inclusive) and
+one (exclusive).
 
 =item B<CacheFlush> I<Seconds>
 
@@ -4993,12 +5488,15 @@ minimize the number of network packets.
 Synopsis:
 
  <Plugin write_graphite>
-   <Carbon>
+   <Node "example">
      Host "localhost"
      Port "2003"
      Prefix "collectd"
-   </Carbon>
+   </Node>
  </Plugin>
+
+The configuration consists of one or more E<lt>B<Node>E<nbsp>I<Name>E<gt>
+blocks. Inside the B<Node> blocks, the following options are recognized:
 
 =over 4
 
@@ -5152,6 +5650,77 @@ Defaults to B<Command>.
 If set to B<true>, convert counter values to rates. If set to B<false> (the
 default) counter values are stored as is, i.E<nbsp>e. as an increasing integer
 number.
+
+=back
+
+=head2 Plugin C<write_riemann>
+
+The I<write_riemann plugin> will send values to I<Riemann>, a powerfull stream
+aggregation and monitoring system. The plugin sends I<Protobuf> encoded data to
+I<Riemann> using UDP packets.
+
+Synopsis:
+
+ <Plugin "write_riemann">
+   <Node "example">
+     Host "localhost"
+     Port "5555"
+     Protocol UDP
+     StoreRates true
+     AlwaysAppendDS false
+     Delay 10
+   </Node>
+   Tag "foobar"
+ </Plugin>
+
+The following options are understood by the I<write_riemann plugin>:
+
+=over 4
+
+=item E<lt>B<Node> I<Name>E<gt>
+
+The plugin's configuration consists of one or more B<Node> blocks. Each block
+is given a unique I<Name> and specifies one connection to an instance of
+I<Riemann>. Indise the B<Node> block, the following per-connection options are
+understood:
+
+=over 4
+
+=item B<Host> I<Address>
+
+Hostname or address to connect to. Defaults to C<localhost>.
+
+=item B<Port> I<Service>
+
+Service name or port number to connect to. Defaults to C<5555>.
+
+=item B<Protocol> B<UDP>|B<TCP>
+
+Specify the protocol to use when communicating with I<Riemann>. Defaults to
+B<UDP>.
+
+=item B<StoreRates> B<true>|B<false>
+
+If set to B<true> (the default), convert counter values to rates. If set to
+B<false> counter values are stored as is, i.e. as an increasing integer number.
+
+This will be reflected in the C<ds_type> tag: If B<StoreRates> is enabled,
+converted values will have "rate" appended to the data source type, e.g.
+C<ds_type:derive:rate>.
+
+=item B<AlwaysAppendDS> B<false>|B<true>
+
+If set the B<true>, append the name of the I<Data Source> (DS) to the
+"service", i.e. the field that, together with the "host" field, uniquely
+identifies a metric in I<Riemann>. If set to B<false> (the default), this is
+only done when there is more than one DS.
+
+=back
+
+=item B<Tag> I<String>
+
+Add the given string as an additional tag to the metric being sent to
+I<Riemann>.
 
 =back
 

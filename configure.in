@@ -24,7 +24,7 @@ m4_ifdef([LT_PACKAGE_VERSION],
 	]
 )
 
-AM_INIT_AUTOMAKE(dist-bzip2)
+AM_INIT_AUTOMAKE([tar-pax dist-bzip2])
 AC_LANG(C)
 
 AC_PREFIX_DEFAULT("/opt/collectd")
@@ -128,7 +128,7 @@ AC_HEADER_SYS_WAIT
 AC_HEADER_DIRENT
 AC_HEADER_STDBOOL
 
-AC_CHECK_HEADERS(stdio.h errno.h math.h stdarg.h syslog.h fcntl.h signal.h assert.h sys/types.h sys/socket.h sys/select.h poll.h netdb.h arpa/inet.h sys/resource.h sys/param.h kstat.h regex.h sys/ioctl.h endian.h sys/isa_defs.h)
+AC_CHECK_HEADERS(stdio.h errno.h math.h stdarg.h syslog.h fcntl.h signal.h assert.h sys/types.h sys/socket.h sys/select.h poll.h netdb.h arpa/inet.h sys/resource.h sys/param.h kstat.h regex.h sys/ioctl.h endian.h sys/isa_defs.h fnmatch.h libgen.h)
 
 # For ping library
 AC_CHECK_HEADERS(netinet/in_systm.h, [], [],
@@ -270,7 +270,19 @@ if test "x$ac_system" = "xDarwin"
 then
 	AC_CHECK_HEADERS(mach/mach_init.h mach/host_priv.h mach/mach_error.h mach/mach_host.h mach/mach_port.h mach/mach_types.h mach/message.h mach/processor_set.h mach/processor.h mach/processor_info.h mach/task.h mach/thread_act.h mach/vm_region.h mach/vm_map.h mach/vm_prot.h mach/vm_statistics.h mach/kern_return.h)
 	AC_CHECK_HEADERS(CoreFoundation/CoreFoundation.h IOKit/IOKitLib.h IOKit/IOTypes.h IOKit/ps/IOPSKeys.h IOKit/IOBSD.h IOKit/storage/IOBlockStorageDriver.h)
+	# For the battery plugin
+	AC_CHECK_HEADERS(IOKit/ps/IOPowerSources.h, [], [],
+[
+#if HAVE_IOKIT_IOKITLIB_H
+#  include <IOKit/IOKitLib.h>
+#endif
+#if HAVE_IOKIT_IOTYPES_H
+#  include <IOKit/IOTypes.h>
+#endif
+])
+
 fi
+
 AC_CHECK_HEADERS(sys/sysctl.h, [], [],
 [
 #if HAVE_SYS_TYPES_H
@@ -298,7 +310,7 @@ else
 fi
 
 # For hddtemp module
-AC_CHECK_HEADERS(linux/major.h libgen.h)
+AC_CHECK_HEADERS(linux/major.h)
 
 # For md module (Linux only)
 if test "x$ac_system" = "xLinux"
@@ -314,17 +326,6 @@ then
 else
 	have_linux_raid_md_u_h="no"
 fi
-
-# For the battery plugin
-AC_CHECK_HEADERS(IOKit/ps/IOPowerSources.h, [], [],
-[
-#if HAVE_IOKIT_IOKITLIB_H
-#  include <IOKit/IOKitLib.h>
-#endif
-#if HAVE_IOKIT_IOTYPES_H
-#  include <IOKit/IOTypes.h>
-#endif
-])
 
 # For the swap module
 have_linux_wireless_h="no"
@@ -534,6 +535,22 @@ AC_CHECK_HEADERS(netinet/if_ether.h, [], [],
 ])
 
 AC_CHECK_HEADERS(netinet/ip_compat.h)
+
+have_net_pfvar_h="no"
+AC_CHECK_HEADERS(net/pfvar.h,
+               [have_net_pfvar_h="yes"],
+               [have_net_pfvar_h="no"],
+[
+#if HAVE_SYS_IOCTL_H
+# include <sys/ioctl.h>
+#endif
+#if HAVE_SYS_SOCKET_H
+# include <sys/socket.h>
+#endif
+#if HAVE_NET_IF_H
+# include <net/if.h>
+#endif
+])
 
 # For the multimeter plugin
 have_termios_h="no"
@@ -2145,7 +2162,7 @@ then
 	if test -d "$with_java_home"
 	then
 		AC_MSG_CHECKING([for jni.h])
-		TMPDIR=`find "$with_java_home" -name jni.h -type f -exec 'dirname' '{}' ';' | head -n 1`
+		TMPDIR=`find "$with_java_home" -name jni.h -type f -exec 'dirname' '{}' ';' 2>/dev/null | head -n 1`
 		if test "x$TMPDIR" != "x"
 		then
 			AC_MSG_RESULT([found in $TMPDIR])
@@ -2155,7 +2172,7 @@ then
 		fi
 
 		AC_MSG_CHECKING([for jni_md.h])
-		TMPDIR=`find "$with_java_home" -name jni_md.h -type f -exec 'dirname' '{}' ';' | head -n 1`
+		TMPDIR=`find "$with_java_home" -name jni_md.h -type f -exec 'dirname' '{}' ';' 2>/dev/null | head -n 1`
 		if test "x$TMPDIR" != "x"
 		then
 			AC_MSG_RESULT([found in $TMPDIR])
@@ -2165,7 +2182,7 @@ then
 		fi
 
 		AC_MSG_CHECKING([for libjvm.so])
-		TMPDIR=`find "$with_java_home" -name libjvm.so -type f -exec 'dirname' '{}' ';' | head -n 1`
+		TMPDIR=`find "$with_java_home" -name libjvm.so -type f -exec 'dirname' '{}' ';' 2>/dev/null | head -n 1`
 		if test "x$TMPDIR" != "x"
 		then
 			AC_MSG_RESULT([found in $TMPDIR])
@@ -2177,7 +2194,7 @@ then
 		if test "x$JAVAC" = "x"
 		then
 			AC_MSG_CHECKING([for javac])
-			TMPDIR=`find "$with_java_home" -name javac -type f | head -n 1`
+			TMPDIR=`find "$with_java_home" -name javac -type f 2>/dev/null | head -n 1`
 			if test "x$TMPDIR" != "x"
 			then
 				JAVAC="$TMPDIR"
@@ -2189,7 +2206,7 @@ then
 		if test "x$JAR" = "x"
 		then
 			AC_MSG_CHECKING([for jar])
-			TMPDIR=`find "$with_java_home" -name jar -type f | head -n 1`
+			TMPDIR=`find "$with_java_home" -name jar -type f 2>/dev/null | head -n 1`
 			if test "x$TMPDIR" != "x"
 			then
 				JAR="$TMPDIR"
@@ -2634,21 +2651,20 @@ then
 #include <asm/types.h>
 #include <sys/socket.h>])
 
-	AC_COMPILE_IFELSE(
-[#include <stdio.h>
-#include <sys/types.h>
-#include <asm/types.h>
-#include <sys/socket.h>
-#include <linux/netlink.h>
-#include <linux/rtnetlink.h>
-
-int main (void)
-{
-	int retval = TCA_STATS2;
-	return (retval);
-}],
-	[AC_DEFINE([HAVE_TCA_STATS2], 1, [True if the enum-member TCA_STATS2 exists])]
-	[]);
+        AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+                           [
+                            #include <stdio.h>
+                            #include <sys/types.h>
+                            #include <asm/types.h>
+                            #include <sys/socket.h>
+                            #include <linux/netlink.h>
+                            #include <linux/rtnetlink.h>
+                            ], [
+                                int retval = TCA_STATS2;
+                                return (retval);
+                                ]
+                            )],
+                            [AC_DEFINE([HAVE_TCA_STATS2], [1], [True if the enum-member TCA_STATS2 exists])])
 
 	AC_COMPILE_IFELSE(
 [#include <stdio.h>
@@ -5028,6 +5044,7 @@ AC_ARG_ENABLE([all-plugins],
 
 m4_divert_once([HELP_ENABLE], [])
 
+AC_PLUGIN([aggregation], [yes],                [Aggregation plugin])
 AC_PLUGIN([amqp],        [$with_librabbitmq],  [AMQP output plugin])
 AC_PLUGIN([apache],      [$with_libcurl],      [Apache httpd statistics])
 AC_PLUGIN([apcups],      [yes],                [Statistics of UPSes by APC])
@@ -5097,6 +5114,7 @@ AC_PLUGIN([onewire],     [$with_libowcapi],    [OneWire sensor statistics])
 AC_PLUGIN([openvpn],     [yes],                [OpenVPN client statistics])
 AC_PLUGIN([oracle],      [$with_oracle],       [Oracle plugin])
 AC_PLUGIN([perl],        [$plugin_perl],       [Embed a Perl interpreter])
+AC_PLUGIN([pf],          [$have_net_pfvar_h],  [BSD packet filter (PF) statistics])
 # FIXME: Check for libevent, too.
 AC_PLUGIN([pinba],       [$have_protoc_c],     [Pinba statistics])
 AC_PLUGIN([ping],        [$with_liboping],     [Network latency statistics])
@@ -5138,8 +5156,9 @@ AC_PLUGIN([vserver],     [$plugin_vserver],    [Linux VServer statistics])
 AC_PLUGIN([wireless],    [$plugin_wireless],   [Wireless statistics])
 AC_PLUGIN([write_graphite], [yes],             [Graphite / Carbon output plugin])
 AC_PLUGIN([write_http],  [$with_libcurl],      [HTTP output plugin])
-AC_PLUGIN([write_redis], [$with_libcredis],    [Redis output plugin])
 AC_PLUGIN([write_mongodb], [$with_libmongoc],  [MongoDB output plugin])
+AC_PLUGIN([write_redis], [$with_libcredis],    [Redis output plugin])
+AC_PLUGIN([write_riemann], [$have_protoc_c],   [Riemann output plugin])
 AC_PLUGIN([xmms],        [$with_libxmms],      [XMMS statistics])
 AC_PLUGIN([zfs_arc],     [$plugin_zfs_arc],    [ZFS ARC statistics])
 
@@ -5280,7 +5299,7 @@ AC_SUBST(LCC_VERSION_PATCH)
 AC_SUBST(LCC_VERSION_EXTRA)
 AC_SUBST(LCC_VERSION_STRING)
 
-AC_CONFIG_FILES(src/libcollectdclient/lcc_features.h)
+AC_CONFIG_FILES(src/libcollectdclient/collectd/lcc_features.h)
 
 AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/libcollectdclient/Makefile src/libcollectdclient/libcollectdclient.pc src/liboconfig/Makefile bindings/Makefile bindings/java/Makefile)
 
@@ -5365,6 +5384,7 @@ Configuration:
     perl  . . . . . . . . $with_perl_bindings
 
   Modules:
+    aggregation . . . . . $enable_aggregation
     amqp    . . . . . . . $enable_amqp
     apache  . . . . . . . $enable_apache
     apcups  . . . . . . . $enable_apcups
@@ -5434,6 +5454,7 @@ Configuration:
     openvpn . . . . . . . $enable_openvpn
     oracle  . . . . . . . $enable_oracle
     perl  . . . . . . . . $enable_perl
+    pf  . . . . . . . . . $enable_pf
     pinba . . . . . . . . $enable_pinba
     ping  . . . . . . . . $enable_ping
     postgresql  . . . . . $enable_postgresql
@@ -5474,8 +5495,9 @@ Configuration:
     wireless  . . . . . . $enable_wireless
     write_graphite  . . . $enable_write_graphite
     write_http  . . . . . $enable_write_http
-    write_redis . . . . . $enable_write_redis
     write_mongodb . . . . $enable_write_mongodb
+    write_redis . . . . . $enable_write_redis
+    write_riemann . . . . $enable_write_riemann
     xmms  . . . . . . . . $enable_xmms
     zfs_arc . . . . . . . $enable_zfs_arc
 

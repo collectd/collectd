@@ -102,6 +102,7 @@ void boot_DynaLoader (PerlInterpreter *, CV *);
 static XS (Collectd_plugin_register_ds);
 static XS (Collectd_plugin_unregister_ds);
 static XS (Collectd_plugin_dispatch_values);
+static XS (Collectd_plugin_get_interval);
 static XS (Collectd__plugin_write);
 static XS (Collectd__plugin_flush);
 static XS (Collectd_plugin_dispatch_notification);
@@ -177,6 +178,7 @@ static struct {
 	{ "Collectd::plugin_register_data_set",   Collectd_plugin_register_ds },
 	{ "Collectd::plugin_unregister_data_set", Collectd_plugin_unregister_ds },
 	{ "Collectd::plugin_dispatch_values",     Collectd_plugin_dispatch_values },
+	{ "Collectd::plugin_get_interval",        Collectd_plugin_get_interval },
 	{ "Collectd::_plugin_write",              Collectd__plugin_write },
 	{ "Collectd::_plugin_flush",              Collectd__plugin_flush },
 	{ "Collectd::plugin_dispatch_notification",
@@ -1659,6 +1661,21 @@ static XS (Collectd_plugin_dispatch_values)
 		XSRETURN_EMPTY;
 } /* static XS (Collectd_plugin_dispatch_values) */
 
+/*
+ * Collectd::plugin_get_interval ().
+ */
+static XS (Collectd_plugin_get_interval)
+{
+	dXSARGS;
+
+	/* make sure we don't get any unused variable warnings for 'items';
+	 * don't abort, though */
+	if (items)
+		log_err ("Usage: Collectd::plugin_get_interval()");
+
+	XSRETURN_NV ((NV) CDTIME_T_TO_DOUBLE (plugin_get_interval ()));
+} /* static XS (Collectd_plugin_get_interval) */
+
 /* Collectd::plugin_write (plugin, ds, vl).
  *
  * plugin:
@@ -2130,23 +2147,20 @@ static int g_pv_set (pTHX_ SV *var, MAGIC *mg)
 
 static int g_interval_get (pTHX_ SV *var, MAGIC *mg)
 {
-	cdtime_t *interval = (cdtime_t *)mg->mg_ptr;
-	double nv;
-
-	nv = CDTIME_T_TO_DOUBLE (*interval);
-
-	sv_setnv (var, nv);
+	log_warn ("Accessing $interval_g is deprecated (and might not "
+			"give the desired results) - plugin_get_interval() should "
+			"be used instead.");
+	sv_setnv (var, CDTIME_T_TO_DOUBLE (interval_g));
 	return 0;
 } /* static int g_interval_get (pTHX_ SV *, MAGIC *) */
 
 static int g_interval_set (pTHX_ SV *var, MAGIC *mg)
 {
-	cdtime_t *interval = (cdtime_t *)mg->mg_ptr;
-	double nv;
-
-	nv = (double)SvNV (var);
-
-	*interval = DOUBLE_TO_CDTIME_T (nv);
+	double nv = (double)SvNV (var);
+	log_warn ("Accessing $interval_g is deprecated (and might not "
+			"give the desired results) - plugin_get_interval() should "
+			"be used instead.");
+	interval_g = DOUBLE_TO_CDTIME_T (nv);
 	return 0;
 } /* static int g_interval_set (pTHX_ SV *, MAGIC *) */
 
@@ -2202,7 +2216,7 @@ static void xs_init (pTHX)
 	tmp = get_sv ("Collectd::interval_g", /* create = */ 1);
 	sv_magicext (tmp, NULL, /* how = */ PERL_MAGIC_ext,
 			/* vtbl = */ &g_interval_vtbl,
-			/* name = */ (char *) &interval_g, /* namelen = */ 0);
+			/* name = */ NULL, /* namelen = */ 0);
 
 	return;
 } /* static void xs_init (pTHX) */

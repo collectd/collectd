@@ -35,6 +35,14 @@
 # include <wordexp.h>
 #endif /* HAVE_WORDEXP_H */
 
+#if HAVE_FNMATCH_H
+# include <fnmatch.h>
+#endif /* HAVE_FNMATCH_H */
+
+#if HAVE_LIBGEN_H
+# include <libgen.h>
+#endif /* HAVE_LIBGEN_H */
+
 #define ESCAPE_NULL(str) ((str) == NULL ? "(null)" : (str))
 
 /*
@@ -46,6 +54,7 @@ typedef struct cf_callback
 	int  (*callback) (const char *, const char *);
 	const char **keys;
 	int    keys_num;
+	plugin_ctx_t ctx;
 	struct cf_callback *next;
 } cf_callback_t;
 
@@ -53,6 +62,7 @@ typedef struct cf_complex_callback_s
 {
 	char *type;
 	int (*callback) (oconfig_item_t *);
+	plugin_ctx_t ctx;
 	struct cf_complex_callback_s *next;
 } cf_complex_callback_t;
 
@@ -88,7 +98,7 @@ static cf_value_map_t cf_value_map[] =
 	{"PluginDir",  dispatch_value_plugindir},
 	{"LoadPlugin", dispatch_loadplugin}
 };
-static int cf_value_map_num = STATIC_ARRAY_LEN (cf_value_map);
+static int cf_value_map_num = STATIC_ARRAY_SIZE (cf_value_map);
 
 static cf_global_option_t cf_global_options[] =
 {
@@ -96,13 +106,14 @@ static cf_global_option_t cf_global_options[] =
 	{"PIDFile",     NULL, PIDFILE},
 	{"Hostname",    NULL, NULL},
 	{"FQDNLookup",  NULL, "true"},
-	{"Interval",    NULL, "10"},
+	{"Interval",    NULL, NULL},
 	{"ReadThreads", NULL, "5"},
+	{"WriteThreads", NULL, "5"},
 	{"Timeout",     NULL, "2"},
 	{"PreCacheChain",  NULL, "PreCache"},
 	{"PostCacheChain", NULL, "PostCache"}
 };
-static int cf_global_options_num = STATIC_ARRAY_LEN (cf_global_options);
+static int cf_global_options_num = STATIC_ARRAY_SIZE (cf_global_options);
 
 static int cf_default_typesdb = 1;
 
@@ -128,6 +139,7 @@ static int cf_dispatch (const char *type, const char *orig_key,
 		const char *orig_value)
 {
 	cf_callback_t *cf_cb;
+	plugin_ctx_t old_ctx;
 	char *key;
 	char *value;
 	int ret;
@@ -156,6 +168,8 @@ static int cf_dispatch (const char *type, const char *orig_key,
 
 	ret = -1;
 
+	old_ctx = plugin_set_ctx (cf_cb->ctx);
+
 	for (i = 0; i < cf_cb->keys_num; i++)
 	{
 		if ((cf_cb->keys[i] != NULL)
@@ -165,6 +179,8 @@ static int cf_dispatch (const char *type, const char *orig_key,
 			break;
 		}
 	}
+
+	plugin_set_ctx (old_ctx);
 
 	if (i >= cf_cb->keys_num)
 		WARNING ("Plugin `%s' did not register for value `%s'.", type, key);
@@ -244,6 +260,10 @@ static int dispatch_loadplugin (const oconfig_item_t *ci)
 	int i;
 	const char *name;
 	unsigned int flags = 0;
+	plugin_ctx_t ctx;
+	plugin_ctx_t old_ctx;
+	int ret_val;
+
 	assert (strcasecmp (ci->key, "LoadPlugin") == 0);
 
 	if (ci->values_num != 1)
@@ -252,6 +272,10 @@ static int dispatch_loadplugin (const oconfig_item_t *ci)
 		return (-1);
 
 	name = ci->values[0].value.string;
+
+	/* default to the global interval set before loading this plugin */
+	memset (&ctx, 0, sizeof (ctx));
+	ctx.interval = cf_get_default_interval ();
 
 	/*
 	 * XXX: Magic at work:
@@ -271,6 +295,16 @@ static int dispatch_loadplugin (const oconfig_item_t *ci)
 	for (i = 0; i < ci->children_num; ++i) {
 		if (strcasecmp("Globals", ci->children[i].key) == 0)
 			cf_util_get_flag (ci->children + i, &flags, PLUGIN_FLAGS_GLOBAL);
+		else if (strcasecmp ("Interval", ci->children[i].key) == 0) {
+			double interval = 0.0;
+
+			if (cf_util_get_double (ci->children + i, &interval) != 0) {
+				/* cf_util_get_double will log an error */
+				continue;
+			}
+
+			ctx.interval = DOUBLE_TO_CDTIME_T (interval);
+		}
 		else {
 			WARNING("Ignoring unknown LoadPlugin option \"%s\" "
 					"for plugin \"%s\"",
@@ -278,7 +312,12 @@ static int dispatch_loadplugin (const oconfig_item_t *ci)
 		}
 	}
 
-	return (plugin_load (name, (uint32_t) flags));
+	old_ctx = plugin_set_ctx (ctx);
+	ret_val = plugin_load (name, (uint32_t) flags);
+	/* reset to the "global" context */
+	plugin_set_ctx (old_ctx);
+
+	return (ret_val);
 } /* int dispatch_value_loadplugin */
 
 static int dispatch_value_plugin (const char *plugin, oconfig_item_t *ci)
@@ -357,8 +396,18 @@ static int dispatch_block_plugin (oconfig_item_t *ci)
 
 	/* Check for a complex callback first */
 	for (cb = complex_callback_head; cb != NULL; cb = cb->next)
+	{
 		if (strcasecmp (name, cb->type) == 0)
-			return (cb->callback (ci));
+		{
+			plugin_ctx_t old_ctx;
+			int ret_val;
+
+			old_ctx = plugin_set_ctx (cb->ctx);
+			ret_val = (cb->callback (ci));
+			plugin_set_ctx (old_ctx);
+			return (ret_val);
+		}
+	}
 
 	/* Hm, no complex plugin found. Dispatch the values one by one */
 	for (i = 0; i < ci->children_num; i++)
@@ -495,7 +544,8 @@ static int cf_ci_append_children (oconfig_item_t *dst, oconfig_item_t *src)
 } /* int cf_ci_append_children */
 
 #define CF_MAX_DEPTH 8
-static oconfig_item_t *cf_read_generic (const char *path, int depth);
+static oconfig_item_t *cf_read_generic (const char *path,
+		const char *pattern, int depth);
 
 static int cf_include_all (oconfig_item_t *root, int depth)
 {
@@ -506,9 +556,9 @@ static int cf_include_all (oconfig_item_t *root, int depth)
 		oconfig_item_t *new;
 		oconfig_item_t *old;
 
-		/* Ignore all blocks, including `Include' blocks. */
-		if (root->children[i].children_num != 0)
-			continue;
+		char *pattern = NULL;
+
+		int j;
 
 		if (strcasecmp (root->children[i].key, "Include") != 0)
 			continue;
@@ -522,7 +572,20 @@ static int cf_include_all (oconfig_item_t *root, int depth)
 			continue;
 		}
 
-		new = cf_read_generic (old->values[0].value.string, depth + 1);
+		for (j = 0; j < old->children_num; ++j)
+		{
+			oconfig_item_t *child = old->children + j;
+
+			if (strcasecmp (child->key, "Filter") == 0)
+				cf_util_get_string (child, &pattern);
+			else
+				ERROR ("configfile: Option `%s' not allowed in <Include> block.",
+						child->key);
+		}
+
+		new = cf_read_generic (old->values[0].value.string, pattern, depth + 1);
+		sfree (pattern);
+
 		if (new == NULL)
 			continue;
 
@@ -539,11 +602,33 @@ static int cf_include_all (oconfig_item_t *root, int depth)
 	return (0);
 } /* int cf_include_all */
 
-static oconfig_item_t *cf_read_file (const char *file, int depth)
+static oconfig_item_t *cf_read_file (const char *file,
+		const char *pattern, int depth)
 {
 	oconfig_item_t *root;
 
 	assert (depth < CF_MAX_DEPTH);
+
+	if (pattern != NULL) {
+#if HAVE_FNMATCH_H && HAVE_LIBGEN_H
+		char *tmp = sstrdup (file);
+		char *filename = basename (tmp);
+
+		if ((filename != NULL) && (fnmatch (pattern, filename, 0) != 0)) {
+			DEBUG ("configfile: Not including `%s' because it "
+					"does not match pattern `%s'.",
+					filename, pattern);
+			free (tmp);
+			return (NULL);
+		}
+
+		free (tmp);
+#else
+		ERROR ("configfile: Cannot apply pattern filter '%s' "
+				"to file '%s': functions basename() and / or "
+				"fnmatch() not available.", pattern, file);
+#endif /* HAVE_FNMATCH_H && HAVE_LIBGEN_H */
+	}
 
 	root = oconfig_parse_file (file);
 	if (root == NULL)
@@ -562,7 +647,8 @@ static int cf_compare_string (const void *p1, const void *p2)
 	return strcmp (*(const char **) p1, *(const char **) p2);
 }
 
-static oconfig_item_t *cf_read_dir (const char *dir, int depth)
+static oconfig_item_t *cf_read_dir (const char *dir,
+		const char *pattern, int depth)
 {
 	oconfig_item_t *root = NULL;
 	DIR *dh;
@@ -637,7 +723,7 @@ static oconfig_item_t *cf_read_dir (const char *dir, int depth)
 		oconfig_item_t *temp;
 		char *name = filenames[i];
 
-		temp = cf_read_generic (name, depth);
+		temp = cf_read_generic (name, pattern, depth);
 		if (temp == NULL)
 		{
 			/* An error should already have been reported. */
@@ -668,7 +754,8 @@ static oconfig_item_t *cf_read_dir (const char *dir, int depth)
  * simpler function is used which does not do any such expansion.
  */
 #if HAVE_WORDEXP_H
-static oconfig_item_t *cf_read_generic (const char *path, int depth)
+static oconfig_item_t *cf_read_generic (const char *path,
+		const char *pattern, int depth)
 {
 	oconfig_item_t *root = NULL;
 	int status;
@@ -721,9 +808,9 @@ static oconfig_item_t *cf_read_generic (const char *path, int depth)
 		}
 
 		if (S_ISREG (statbuf.st_mode))
-			temp = cf_read_file (path_ptr, depth);
+			temp = cf_read_file (path_ptr, pattern, depth);
 		else if (S_ISDIR (statbuf.st_mode))
-			temp = cf_read_dir (path_ptr, depth);
+			temp = cf_read_dir (path_ptr, pattern, depth);
 		else
 		{
 			WARNING ("configfile: %s is neither a file nor a "
@@ -754,7 +841,8 @@ static oconfig_item_t *cf_read_generic (const char *path, int depth)
 /* #endif HAVE_WORDEXP_H */
 
 #else /* if !HAVE_WORDEXP_H */
-static oconfig_item_t *cf_read_generic (const char *path, int depth)
+static oconfig_item_t *cf_read_generic (const char *path,
+		const char *pattern, int depth)
 {
 	struct stat statbuf;
 	int status;
@@ -777,9 +865,9 @@ static oconfig_item_t *cf_read_generic (const char *path, int depth)
 	}
 
 	if (S_ISREG (statbuf.st_mode))
-		return (cf_read_file (path, depth));
+		return (cf_read_file (path, pattern, depth));
 	else if (S_ISDIR (statbuf.st_mode))
-		return (cf_read_dir (path, depth));
+		return (cf_read_dir (path, pattern, depth));
 
 	ERROR ("configfile: %s is neither a file nor a directory.", path);
 	return (NULL);
@@ -827,6 +915,29 @@ const char *global_option_get (const char *option)
 			? cf_global_options[i].value
 			: cf_global_options[i].def);
 } /* char *global_option_get */
+
+cdtime_t cf_get_default_interval (void)
+{
+  char const *str = global_option_get ("Interval");
+  double interval_double = COLLECTD_DEFAULT_INTERVAL;
+
+  if (str != NULL)
+  {
+    char *endptr = NULL;
+    double tmp = strtod (str, &endptr);
+
+    if ((endptr == NULL) || (endptr == str) || (*endptr != 0))
+      ERROR ("cf_get_default_interval: Unable to parse string \"%s\" "
+          "as number.", str);
+    else if (tmp <= 0.0)
+      ERROR ("cf_get_default_interval: Interval must be a positive number. "
+          "The current number is %g.", tmp);
+    else
+      interval_double = tmp;
+  }
+
+  return (DOUBLE_TO_CDTIME_T (interval_double));
+} /* }}} cdtime_t cf_get_default_interval */
 
 void cf_unregister (const char *type)
 {
@@ -884,6 +995,7 @@ void cf_register (const char *type,
 	cf_cb->callback = callback;
 	cf_cb->keys     = keys;
 	cf_cb->keys_num = keys_num;
+	cf_cb->ctx      = plugin_get_ctx ();
 
 	cf_cb->next = first_callback;
 	first_callback = cf_cb;
@@ -907,6 +1019,8 @@ int cf_register_complex (const char *type, int (*callback) (oconfig_item_t *))
 	new->callback = callback;
 	new->next = NULL;
 
+	new->ctx = plugin_get_ctx ();
+
 	if (complex_callback_head == NULL)
 	{
 		complex_callback_head = new;
@@ -927,7 +1041,7 @@ int cf_read (char *filename)
 	oconfig_item_t *conf;
 	int i;
 
-	conf = cf_read_generic (filename, 0 /* depth */);
+	conf = cf_read_generic (filename, /* pattern = */ NULL, /* depth = */ 0);
 	if (conf == NULL)
 	{
 		ERROR ("Unable to read config file %s.", filename);
@@ -1014,6 +1128,23 @@ int cf_util_get_int (const oconfig_item_t *ci, int *ret_value) /* {{{ */
 
 	return (0);
 } /* }}} int cf_util_get_int */
+
+int cf_util_get_double (const oconfig_item_t *ci, double *ret_value) /* {{{ */
+{
+	if ((ci == NULL) || (ret_value == NULL))
+		return (EINVAL);
+
+	if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
+	{
+		ERROR ("cf_util_get_double: The %s option requires "
+				"exactly one numeric argument.", ci->key);
+		return (-1);
+	}
+
+	*ret_value = ci->values[0].value.number;
+
+	return (0);
+} /* }}} int cf_util_get_double */
 
 int cf_util_get_boolean (const oconfig_item_t *ci, _Bool *ret_bool) /* {{{ */
 {

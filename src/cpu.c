@@ -163,7 +163,7 @@ static int init (void)
 	DEBUG ("host_processors returned %i %s", (int) cpu_list_len, cpu_list_len == 1 ? "processor" : "processors");
 	INFO ("cpu plugin: Found %i processor%s.", (int) cpu_list_len, cpu_list_len == 1 ? "" : "s");
 
-	cpu_temp_retry_max = 86400 / CDTIME_T_TO_TIME_T (interval_g);
+	cpu_temp_retry_max = 86400 / CDTIME_T_TO_TIME_T (plugin_get_interval ());
 /* #endif PROCESSOR_CPU_LOAD_INFO */
 
 #elif defined(HAVE_LIBKSTAT)
@@ -344,8 +344,6 @@ static int cpu_read (void)
 
 		cpu_temp_retry_counter = 0;
 		cpu_temp_retry_step    = 1;
-
-		DEBUG ("cpu_temp = %i", (int) cpu_temp);
 #endif /* PROCESSOR_TEMPERATURE */
 	}
 /* #endif PROCESSOR_CPU_LOAD_INFO */

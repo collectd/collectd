@@ -37,7 +37,7 @@ for collectd in Python. This is a lot more efficient than executing a
 Python-script every time you want to read a value with the C<exec plugin> (see
 L<collectd-exec(5)>) and provides a lot more functionality, too.
 
-At least python I<version 2.3> is required.
+The minimum required Python version is I<2.3>.
 
 =head1 CONFIGURATION
 
@@ -47,9 +47,9 @@ At least python I<version 2.3> is required.
 
 Loads the Python plugin I<Plugin>. Unlike most other LoadPlugin lines, this one
 should be a block containing the line "Globals true". This will cause collectd
-to export the name of all objects in the python interpreter for all plugins to
+to export the name of all objects in the Python interpreter for all plugins to
 see. If you don't do this or your platform does not support it, the embedded
-interpreter will start anyway but you won't be able to load certain python
+interpreter will start anyway but you won't be able to load certain Python
 modules, e.g. "time".
 
 =item B<Encoding> I<Name>
@@ -68,25 +68,25 @@ use multiple B<ModulePath> lines to add more than one directory.
 
 =item B<LogTraces> I<bool>
 
-If a python script throws an exception it will be logged by collectd with the
+If a Python script throws an exception it will be logged by collectd with the
 name of the exception and the message. If you set this option to true it will
 also log the full stacktrace just like the default output of an interactive
-python interpreter. This should probably be set to false most of the time but
+Python interpreter. This should probably be set to false most of the time but
 is very useful for development and debugging of new modules.
 
 =item B<Interactive> I<bool>
 
-This option will cause the module to launch an interactive python interpreter
+This option will cause the module to launch an interactive Python interpreter
 that reads from and writes to the terminal. Note that collectd will terminate
 right after starting up if you try to run it as a daemon while this option is
-enabled to make sure to start collectd with the B<-f> option.
+enabled so make sure to start collectd with the B<-f> option.
 
 The B<collectd> module is I<not> imported into the interpreter's globals. You
 have to do it manually. Be sure to read the help text of the module, it can be
 used as a reference guide during coding.
 
 This interactive session will behave slightly differently from a daemonized
-collectd script as well as from a normal python interpreter:
+collectd script as well as from a normal Python interpreter:
 
 =over 4
 
@@ -107,22 +107,22 @@ To quit collectd send I<EOF> (press I<Ctrl+D> at the beginning of a new line).
 
 =item
 
-B<3.> collectd handles I<SIGCHLD>. This means that python won't be able to
+B<3.> collectd handles I<SIGCHLD>. This means that Python won't be able to
 determine the return code of spawned processes with system(), popen() and
-subprocess. This will result in python not using external programs like less
+subprocess. This will result in Python not using external programs like less
 to display help texts. You can override this behavior with the B<PAGER>
 environment variable, e.g. I<export PAGER=less> before starting collectd.
-Depending on your version of python this might or might not result in an
+Depending on your version of Python this might or might not result in an
 B<OSError> exception which can be ignored.
 
-If you really need to spawn new processes from python you can register an init
+If you really need to spawn new processes from Python you can register an init
 callback and reset the action for SIGCHLD to the default behavior. Please note
 that this I<will> break the exec plugin. Do not even load the exec plugin if
 you intend to do this!
 
 There is an example script located in B<contrib/python/getsigchld.py>  to do
 this. If you import this from I<collectd.conf> SIGCHLD will be handled
-normally and spawning processes from python will work as intended.
+normally and spawning processes from Python will work as intended.
 
 =back
 
@@ -139,22 +139,22 @@ The I<name> identifies the callback.
 
 =head1 STRINGS
 
-There are a lot of places where strings are send from collectd to python and
-from python to collectd. How exactly this works depends on wheather byte or
-unicode strings or python2 or python3 are used.
+There are a lot of places where strings are sent from collectd to Python and
+from Python to collectd. How exactly this works depends on whether byte or
+unicode strings or Python2 or Python3 are used.
 
 Python2 has I<str>, which is just bytes, and I<unicode>. Python3 has I<str>,
 which is a unicode object, and I<bytes>.
 
-When passing strings from python to collectd all of these object are supported
+When passing strings from Python to collectd all of these object are supported
 in all places, however I<str> should be used if possible. These strings must
 not contain a NUL byte. Ignoring this will result in a I<TypeError> exception.
 If a byte string was used it will be used as is by collectd. If a unicode
 object was used it will be encoded using the default encoding (see above). If
-this is not possible python will raise a I<UnicodeEncodeError> exception.
+this is not possible Python will raise a I<UnicodeEncodeError> exception.
 
-Wenn passing strings from collectd to python the behavior depends on the
-python version used. Python2 will always receive a I<str> object. Python3 will
+When passing strings from collectd to Python the behavior depends on the
+Python version used. Python2 will always receive a I<str> object. Python3 will
 usually receive a I<str> object as well, however the original string will be
 decoded to unicode using the default encoding. If this fails because the
 string is not a valid sequence for this encoding a I<bytes> object will be
@@ -174,7 +174,7 @@ example. The following types of B<callback functions> are known to collectd
 
 =item configuration functions
 
-This type of functions is called during configuration if an appropriate
+These are called during configuration if an appropriate
 B<Module> block has been encountered. It is called once for each B<Module>
 block which matches the name of the callback as provided with the
 B<register_config> method - see below.
@@ -184,14 +184,14 @@ threading functions here!
 
 =item init functions
 
-This type of functions is called once after loading the module and before any
+These are called once after loading the module and before any
 calls to the read and write functions. It should be used to initialize the
 internal state of the plugin (e.E<nbsp>g. open sockets, ...). This is the
 earliest point where you may use threads.
 
 =item read functions
 
-This type of function is used to collect the actual data. It is called once
+These are used to collect the actual data. It is called once
 per interval (see the B<Interval> configuration option of collectd). Usually
 it will call B<plugin_dispatch_values> to dispatch the values to collectd
 which will pass them on to all registered B<write functions>. If this function
@@ -200,23 +200,23 @@ amount of time until it returns normally again.
 
 =item write functions
 
-This type of function is used to write the dispatched values. It is called
+These are used to write the dispatched values. It is called
 once for every value that was dispatched by any plugin.
 
 =item flush functions
 
-This type of function is used to flush internal caches of plugins. It is
+These are used to flush internal caches of plugins. It is
 usually triggered by the user only. Any plugin which caches data before
 writing it to disk should provide this kind of callback function.
 
 =item log functions
 
-This type of function is used to pass messages of plugins or the daemon itself
+These are used to pass messages of plugins or the daemon itself
 to the user.
 
 =item notification function
 
-This type of function is used to act upon notifications. In general, a
+These are used to act upon notifications. In general, a
 notification is a status message that may be associated with a data instance.
 Usually, a notification is generated by the daemon if a configured threshold
 has been exceeded (see the section "THRESHOLD CONFIGURATION" in
@@ -225,12 +225,12 @@ notifications as well.
 
 =item shutdown functions
 
-This type of function is called once before the daemon shuts down. It should
+These are called once before the daemon shuts down. It should
 be used to clean up the plugin (e.g. close sockets, ...).
 
 =back
 
-Any function (except log functions) may set throw an exception in case of any
+Any function (except log functions) may throw an exception in case of
 errors. The exception will be passed on to the user using collectd's logging
 mechanism. If a log callback throws an exception it will be printed to standard
 error instead.
@@ -306,7 +306,7 @@ config file. It will always be a string.
 This is a tuple (which might be empty) of all value, i.e. words following the
 keyword in any given line in the config file.
 
-Every item in this tuple will be either a string or a float or a boolean,
+Every item in this tuple will be either a string, a float or a boolean,
 depending on the contents of the configuration file.
 
 =item children
@@ -367,7 +367,7 @@ Type instance string. May be empty.
 
 =head2 Values
 
-A Value is an object which features a sequence of values. It is based on then
+A Value is an object which features a sequence of values. It is based on the
 I<PluginData> type and uses its members to identify the values.
 
  class Values(PluginData)
@@ -495,7 +495,7 @@ Data descriptors defined here:
 
 =item message
 
-Some kind of description what's going on and why this Notification was
+Some kind of description of what's going on and why this Notification was
 generated.
 
 =item severity
@@ -534,9 +534,12 @@ your callback, not even None.
 I<name> is an optional identifier for this callback. The default name is
 B<python>.I<module>. I<module> is taken from the B<__module__> attribute of
 your callback function. Every callback needs a unique identifier, so if you
-want to register the same callback multiple time in the same module you need to
-specify a name here. Otherwise it's save to ignore this parameter I<identifier>
-is the full identifier assigned to this callback.
+want to register the same callback multiple times in the same module you need to
+specify a name here. Otherwise it's safe to ignore this parameter.
+
+=item
+
+I<identifier> is the full identifier assigned to this callback.
 
 =back
 
@@ -549,7 +552,7 @@ L<"WRITING YOUR OWN PLUGINS"> above) and are passed the following arguments:
 
 The only argument passed is a I<Config> object. See above for the layout of this
 data type.
-Note that you can not receive the whole config files this way, only B<Module>
+Note that you cannot receive the whole config files this way, only B<Module>
 blocks inside the Python configuration block. Additionally you will only
 receive blocks where your callback identifier matches B<python.>I<blockname>.
 
@@ -570,7 +573,7 @@ The callback will be called without arguments.
 
 =item register_write
 
-The callback function will be called with one arguments passed, which will be a
+The callback function will be called with one argument passed, which will be a
 I<Values> object. For the layout of I<Values> see above.
 If this callback function throws an exception the next call will be delayed by
 an increasing interval.
@@ -657,7 +660,7 @@ types used by the read, write and match functions.
 
 =item
 
-Please feel free to send in new plugins to collectd's mailinglist at
+Please feel free to send in new plugins to collectd's mailing list at
 E<lt>collectdE<nbsp>atE<nbsp>verplant.orgE<gt> for review and, possibly,
 inclusion in the main distribution. In the latter case, we will take care of
 keeping the plugin up to date and adapting it to new versions of collectd.
@@ -673,7 +676,7 @@ L<http://collectd.org/dev-info.shtml>.
 
 =item
 
-collectd is heavily multi-threaded. Each collectd thread accessing the python
+collectd is heavily multi-threaded. Each collectd thread accessing the Python
 plugin will be mapped to a Python interpreter thread. Any such thread will be
 created and destroyed transparently and on-the-fly.
 
@@ -703,7 +706,7 @@ dispatched by the python plugin after upgrades.
 
 =item
 
-Not all aspects of the collectd API are accessible from python. This includes
+Not all aspects of the collectd API are accessible from Python. This includes
 but is not limited to filters and data sets.
 
 =back

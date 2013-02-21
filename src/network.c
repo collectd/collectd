@@ -66,6 +66,11 @@
  */
 #  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 # endif
+/* FreeBSD's copy of libgcrypt extends the existing GCRYPT_NO_DEPRECATED
+ * to properly hide all deprecated functionality.
+ * http://svnweb.freebsd.org/ports/head/security/libgcrypt/files/patch-src__gcrypt.h.in
+ */
+# define GCRYPT_NO_DEPRECATED
 # include <gcrypt.h>
 # if defined __APPLE__
 /* Re enable deprecation warnings */
@@ -455,7 +460,7 @@ static int network_dispatch_values (value_list_t *vl, /* {{{ */
     }
   }
 
-  plugin_dispatch_values_secure (vl);
+  plugin_dispatch_values (vl);
   stats_values_dispatched++;
 
   meta_data_destroy (vl->meta);
@@ -3306,7 +3311,6 @@ static int network_stats_read (void) /* {{{ */
 	vl.values = values;
 	vl.values_len = 2;
 	vl.time = 0;
-	vl.interval = interval_g;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "network", sizeof (vl.plugin));
 
@@ -3314,13 +3318,13 @@ static int network_stats_read (void) /* {{{ */
 	vl.values[0].derive = (derive_t) copy_octets_rx;
 	vl.values[1].derive = (derive_t) copy_octets_tx;
 	sstrncpy (vl.type, "if_octets", sizeof (vl.type));
-	plugin_dispatch_values_secure (&vl);
+	plugin_dispatch_values (&vl);
 
 	/* Packets received / send */
 	vl.values[0].derive = (derive_t) copy_packets_rx;
 	vl.values[1].derive = (derive_t) copy_packets_tx;
 	sstrncpy (vl.type, "if_packets", sizeof (vl.type));
-	plugin_dispatch_values_secure (&vl);
+	plugin_dispatch_values (&vl);
 
 	/* Values (not) dispatched and (not) send */
 	sstrncpy (vl.type, "total_values", sizeof (vl.type));
@@ -3329,28 +3333,28 @@ static int network_stats_read (void) /* {{{ */
 	vl.values[0].derive = (derive_t) copy_values_dispatched;
 	sstrncpy (vl.type_instance, "dispatch-accepted",
 			sizeof (vl.type_instance));
-	plugin_dispatch_values_secure (&vl);
+	plugin_dispatch_values (&vl);
 
 	vl.values[0].derive = (derive_t) copy_values_not_dispatched;
 	sstrncpy (vl.type_instance, "dispatch-rejected",
 			sizeof (vl.type_instance));
-	plugin_dispatch_values_secure (&vl);
+	plugin_dispatch_values (&vl);
 
 	vl.values[0].derive = (derive_t) copy_values_sent;
 	sstrncpy (vl.type_instance, "send-accepted",
 			sizeof (vl.type_instance));
-	plugin_dispatch_values_secure (&vl);
+	plugin_dispatch_values (&vl);
 
 	vl.values[0].derive = (derive_t) copy_values_not_sent;
 	sstrncpy (vl.type_instance, "send-rejected",
 			sizeof (vl.type_instance));
-	plugin_dispatch_values_secure (&vl);
+	plugin_dispatch_values (&vl);
 
 	/* Receive queue length */
 	vl.values[0].gauge = (gauge_t) copy_receive_list_length;
 	sstrncpy (vl.type, "queue_length", sizeof (vl.type));
 	vl.type_instance[0] = 0;
-	plugin_dispatch_values_secure (&vl);
+	plugin_dispatch_values (&vl);
 
 	return (0);
 } /* }}} int network_stats_read */
@@ -3366,9 +3370,17 @@ static int network_init (void)
 	have_init = 1;
 
 #if HAVE_LIBGCRYPT
-	gcry_control (GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
-	gcry_control (GCRYCTL_INIT_SECMEM, 32768, 0);
-	gcry_control (GCRYCTL_INITIALIZATION_FINISHED, 0);
+    /* http://lists.gnupg.org/pipermail/gcrypt-devel/2003-August/000458.html
+     * Because you can't know in a library whether another library has
+     * already initialized the library
+     */
+    if (!gcry_control (GCRYCTL_ANY_INITIALIZATION_P))
+    {
+        gcry_check_version(NULL); /* before calling any other functions */
+        gcry_control (GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
+        gcry_control (GCRYCTL_INIT_SECMEM, 32768, 0);
+        gcry_control (GCRYCTL_INITIALIZATION_FINISHED, 0);
+    }
 #endif
 
 	if (network_config_stats != 0)
@@ -3402,7 +3414,7 @@ static int network_init (void)
 	if (dispatch_thread_running == 0)
 	{
 		int status;
-		status = pthread_create (&dispatch_thread_id,
+		status = plugin_thread_create (&dispatch_thread_id,
 				NULL /* no attributes */,
 				dispatch_thread,
 				NULL /* no argument */);
@@ -3422,7 +3434,7 @@ static int network_init (void)
 	if (receive_thread_running == 0)
 	{
 		int status;
-		status = pthread_create (&receive_thread_id,
+		status = plugin_thread_create (&receive_thread_id,
 				NULL /* no attributes */,
 				receive_thread,
 				NULL /* no argument */);

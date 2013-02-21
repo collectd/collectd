@@ -39,6 +39,23 @@
 #include "plugin.h"
 #include "common.h"
 
+#if HAVE_SYS_SOCKET_H
+# include <sys/socket.h>
+#endif
+
+#if HAVE_NET_IF_ARP_H
+# include <net/if_arp.h>
+#endif
+#if HAVE_NET_IF_H
+# include <net/if.h>
+#endif
+#if HAVE_NET_PPP_DEFS_H
+# include <net/ppp_defs.h>
+#endif
+#if HAVE_NET_IF_PPP_H
+# include <net/if_ppp.h>
+#endif
+
 #if HAVE_NETINET_IN_SYSTM_H
 # include <netinet/in_systm.h>
 #endif
@@ -51,13 +68,22 @@
 #if HAVE_NETINET_IP_COMPAT_H
 # include <netinet/ip_compat.h>
 #endif
+#if HAVE_NETINET_IF_ETHER_H
+# include <netinet/if_ether.h>
+#endif
+#if HAVE_NETINET_IP_H
+# include <netinet/ip.h>
+#endif
+#ifdef HAVE_NETINET_IP_VAR_H
+# include <netinet/ip_var.h>
+#endif
+#if HAVE_NETINET_UDP_H
+# include <netinet/udp.h>
+#endif
+
 #if HAVE_ARPA_INET_H
 # include <arpa/inet.h>
 #endif
-#if HAVE_SYS_SOCKET_H
-# include <sys/socket.h>
-#endif
-
 #if HAVE_ARPA_NAMESER_H
 # include <arpa/nameser.h>
 #endif
@@ -65,37 +91,8 @@
 # include <arpa/nameser_compat.h>
 #endif
 
-#if HAVE_NET_IF_ARP_H
-# include <net/if_arp.h>
-#endif
-#if HAVE_NET_IF_H
-# include <net/if.h>
-#endif
-#if HAVE_NETINET_IF_ETHER_H
-# include <netinet/if_ether.h>
-#endif
-#if HAVE_NET_PPP_DEFS_H
-# include <net/ppp_defs.h>
-#endif
-#if HAVE_NET_IF_PPP_H
-# include <net/if_ppp.h>
-#endif
-
 #if HAVE_NETDB_H
 # include <netdb.h>
-#endif
-
-#if HAVE_NETINET_IP_H
-# include <netinet/ip.h>
-#endif
-#ifdef HAVE_NETINET_IP_VAR_H
-# include <netinet/ip_var.h>
-#endif
-#if HAVE_NETINET_IP6_H
-# include <netinet/ip6.h>
-#endif
-#if HAVE_NETINET_UDP_H
-# include <netinet/udp.h>
 #endif
 
 #if HAVE_PCAP_H

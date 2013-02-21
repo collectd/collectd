@@ -258,7 +258,9 @@ typedef int _Bool;
 # define COLLECTD_GRP_NAME "collectd"
 #endif
 
-#define STATIC_ARRAY_LEN(array) (sizeof (array) / sizeof ((array)[0]))
+#ifndef COLLECTD_DEFAULT_INTERVAL
+# define COLLECTD_DEFAULT_INTERVAL 10.0
+#endif
 
 /* Remove GNU specific __attribute__ settings when using another compiler */
 #if !__GNUC__

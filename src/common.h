@@ -47,6 +47,14 @@
 		|| (strcasecmp ("no", (s)) == 0) \
 		|| (strcasecmp ("off", (s)) == 0))
 
+struct rate_to_value_state_s
+{
+  value_t last_value;
+  cdtime_t last_time;
+  gauge_t residual;
+};
+typedef struct rate_to_value_state_s rate_to_value_state_t;
+
 char *sstrncpy (char *dest, const char *src, size_t n);
 int ssnprintf (char *dest, size_t n, const char *format, ...);
 char *sstrdup(const char *s);
@@ -292,6 +300,15 @@ int read_file_contents (const char *filename, char *buf, int bufsize);
 
 counter_t counter_diff (counter_t old_value, counter_t new_value);
 
+/* Convert a rate back to a value_t. When converting to a derive_t, counter_t
+ * or absoltue_t, take fractional residuals into account. This is important
+ * when scaling counters, for example.
+ * Returns zero on success. Returns EAGAIN when called for the first time; in
+ * this case the value_t is invalid and the next call should succeed. Other
+ * return values indicate an error. */
+int rate_to_value (value_t *ret_value, gauge_t rate,
+		rate_to_value_state_t *state, int ds_type, cdtime_t t);
+
 /* Converts a service name (a string) to a port number
  * (in the range [1-65535]). Returns less than zero on error. */
 int service_name_to_port_number (const char *service_name);
@@ -299,5 +316,8 @@ int service_name_to_port_number (const char *service_name);
 /** Parse a string to a derive_t value. Returns zero on success or non-zero on
  * failure. If failure is returned, ret_value is not touched. */
 int strtoderive (const char *string, derive_t *ret_value);
+
+int strarray_add (char ***ret_array, size_t *ret_array_len, char const *str);
+void strarray_free (char **array, size_t array_len);
 
 #endif /* COMMON_H */

@@ -12,13 +12,23 @@
 
 #Hostname    "localhost"
 #FQDNLookup   true
-#BaseDir     "@prefix@/var/lib/@PACKAGE_NAME@"
-#PIDFile     "@prefix@/var/run/@PACKAGE_NAME@.pid"
-#PluginDir   "@prefix@/lib/@PACKAGE_NAME@"
+#BaseDir     "@localstatedir@/lib/@PACKAGE_NAME@"
+#PIDFile     "@localstatedir@/run/@PACKAGE_NAME@.pid"
+#PluginDir   "@libdir@/@PACKAGE_NAME@"
 #TypesDB     "@prefix@/share/@PACKAGE_NAME@/types.db"
+
+#----------------------------------------------------------------------------#
+# Interval at which to query values. This may be overwritten on a per-plugin #
+# base by using the 'Interval' option of the LoadPlugin block:               #
+#   <LoadPlugin foo>                                                         #
+#       Interval 60                                                          #
+#   </LoadPlugin>                                                            #
+#----------------------------------------------------------------------------#
 #Interval     10
+
 #Timeout      2
 #ReadThreads  5
+#WriteThreads 5
 
 ##############################################################################
 # Logging                                                                    #
@@ -52,6 +62,7 @@
 # to missing dependencies or because they have been deactivated explicitly.  #
 ##############################################################################
 
+#@BUILD_PLUGIN_AGGREGATION_TRUE@LoadPlugin aggregation
 #@BUILD_PLUGIN_AMQP_TRUE@LoadPlugin amqp
 #@BUILD_PLUGIN_APACHE_TRUE@LoadPlugin apache
 #@BUILD_PLUGIN_APCUPS_TRUE@LoadPlugin apcups
@@ -149,8 +160,9 @@
 #@BUILD_PLUGIN_WIRELESS_TRUE@LoadPlugin wireless
 #@BUILD_PLUGIN_WRITE_GRAPHITE_TRUE@LoadPlugin write_graphite
 #@BUILD_PLUGIN_WRITE_HTTP_TRUE@LoadPlugin write_http
-#@BUILD_PLUGIN_WRITE_REDIS_TRUE@LoadPlugin write_redis
 #@BUILD_PLUGIN_WRITE_MONGODB_TRUE@LoadPlugin write_mongodb
+#@BUILD_PLUGIN_WRITE_REDIS_TRUE@LoadPlugin write_redis
+#@BUILD_PLUGIN_WRITE_RIEMANN_TRUE@LoadPlugin write_riemann
 #@BUILD_PLUGIN_XMMS_TRUE@LoadPlugin xmms
 #@BUILD_PLUGIN_ZFS_ARC_TRUE@LoadPlugin zfs_arc
 
@@ -160,6 +172,26 @@
 # In this section configuration stubs for each plugin are provided. A desc-  #
 # ription of those options is available in the collectd.conf(5) manual page. #
 ##############################################################################
+
+#<Plugin "aggregation">
+#  <Aggregation>
+#    #Host "unspecified"
+#    Plugin "cpu"
+#    #PluginInstance "unspecified"
+#    Type "cpu"
+#    #TypeInstance "unspecified"
+#
+#    GroupBy "Host"
+#    GroupBy "TypeInstance"
+#
+#    CalculateNum false
+#    CalculateSum false
+#    CalculateAverage true
+#    CalculateMinimum false
+#    CalculateMaximum false
+#    CalculateStddev false
+#  </Aggregation>
+#</Plugin>
 
 #<Plugin "amqp">
 #  <Publish "name">
@@ -187,6 +219,7 @@
 #<Plugin apcups>
 #	Host "localhost"
 #	Port "3551"
+#	ReportSeconds true
 #</Plugin>
 
 #<Plugin ascent>
@@ -217,7 +250,7 @@
 #</Plugin>
 
 #<Plugin csv>
-#	DataDir "@prefix@/var/lib/@PACKAGE_NAME@/csv"
+#	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/csv"
 #	StoreRates false
 #</Plugin>
 
@@ -304,6 +337,7 @@
 #		#SelectDB "custdb0"
 #		Query "num_of_customers"
 #		#Query "..."
+#		#Host "..."
 #	</Database>
 #</Plugin>
 
@@ -330,7 +364,7 @@
 #</Plugin>
 
 #<Plugin email>
-#	SocketFile "@prefix@/var/run/@PACKAGE_NAME@-email"
+#	SocketFile "@localstatedir@/run/@PACKAGE_NAME@-email"
 #	SocketGroup "collectd"
 #	SocketPerms "0770"
 #	MaxConns 5
@@ -731,6 +765,11 @@
 #			ValuesFrom "count"
 #		</Result>
 #	</Query>
+#	<Writer sqlstore>
+#		# See contrib/postgresql/collectd_insert.sql for details
+#		Statement "SELECT collectd_insert($1, $2, $3, $4, $5, $6, $7, $8, $9);"
+#		StoreRates true
+#	</Writer>
 #	<Database foo>
 #		Host "hostname"
 #		Port "5432"
@@ -745,6 +784,12 @@
 #		Service "service_name"
 #		Query backend # predefined
 #		Query rt36_tickets
+#	</Database>
+#	<Database qux>
+#		Service "collectd_store"
+#		Writer sqlstore
+#		# see collectd.conf(5) for details
+#		CommitInterval 30
 #	</Database>
 #</Plugin>
 
@@ -807,13 +852,13 @@
 
 #<Plugin rrdcached>
 #	DaemonAddress "unix:/tmp/rrdcached.sock"
-#	DataDir "@prefix@/var/lib/@PACKAGE_NAME@/rrd"
+#	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/rrd"
 #	CreateFiles true
 #	CollectStatistics true
 #</Plugin>
 
 #<Plugin rrdtool>
-#	DataDir "@prefix@/var/lib/@PACKAGE_NAME@/rrd"
+#	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/rrd"
 #	CacheTimeout 120
 #	CacheFlush   900
 #</Plugin>
@@ -976,15 +1021,15 @@
 #</Plugin>
 
 #<Plugin write_graphite>
-#  <Carbon>
+#  <Node "example">
 #    Host "localhost"
 #    Port "2003"
 #    Prefix "collectd"
 #    Postfix "collectd"
-#    StoreRates false
+#    StoreRates true
 #    AlwaysAppendDS false
 #    EscapeCharacter "_"
-#  </Carbon>
+#  </Node>
 #</Plugin>
 
 #<Plugin write_http>
@@ -999,6 +1044,15 @@
 #	</URL>
 #</Plugin>
 
+#<Plugin write_mongodb>
+#	<Node "example">
+#		Host "localhost"
+#		Port "27017"
+#		Timeout 1000
+#		StoreRates false
+#	</Node>
+#</Plugin>
+
 #<Plugin write_redis>
 #	<Node "example">
 #		Host "localhost"
@@ -1007,13 +1061,15 @@
 #	</Node>
 #</Plugin>
 
-#<Plugin write_mongodb>
+#<Plugin write_riemann>
 #	<Node "example">
 #		Host "localhost"
-#		Port "27017"
-#		Timeout 1000
-#		StoreRates false
+#		Port 5555
+#		Protocol UDP
+#		StoreRates true
+#		AlwaysAppendDS false
 #	</Node>
+#	Tag "foobar"
 #</Plugin>
 
 ##############################################################################

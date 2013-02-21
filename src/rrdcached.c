@@ -1,6 +1,6 @@
 /**
  * collectd - src/rrdcached.c
- * Copyright (C) 2008  Florian octo Forster
+ * Copyright (C) 2008-2012  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,7 +16,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
@@ -33,8 +33,8 @@
  */
 static char *datadir = NULL;
 static char *daemon_address = NULL;
-static int config_create_files = 1;
-static int config_collect_stats = 1;
+static _Bool config_create_files = 1;
+static _Bool config_collect_stats = 1;
 static rrdcreate_config_t rrdcreate_config =
 {
 	/* stepsize = */ 0,
@@ -161,89 +161,130 @@ static int value_list_to_filename (char *buffer, int buffer_len,
   return (0);
 } /* int value_list_to_filename */
 
-static const char *config_get_string (oconfig_item_t *ci)
+static int rc_config_get_int_positive (oconfig_item_t const *ci, int *ret)
 {
-  if ((ci->children_num != 0) || (ci->values_num != 1)
-      || ((ci->values[0].type != OCONFIG_TYPE_STRING)
-        && (ci->values[0].type != OCONFIG_TYPE_BOOLEAN)))
+  int status;
+  int tmp = 0;
+
+  status = cf_util_get_int (ci, &tmp);
+  if (status != 0)
+    return (status);
+  if (tmp < 0)
+    return (EINVAL);
+
+  *ret = tmp;
+  return (0);
+} /* int rc_config_get_int_positive */
+
+static int rc_config_get_xff (oconfig_item_t const *ci, double *ret)
+{
+  double value;
+
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
   {
-    ERROR ("rrdcached plugin: %s expects a single string argument.",
-        ci->key);
-    return (NULL);
+    ERROR ("rrdcached plugin: The \"%s\" needs exactly one numeric argument "
+        "in the range [0.0, 1.0)", ci->key);
+    return (EINVAL);
   }
 
-  if (ci->values[0].type == OCONFIG_TYPE_BOOLEAN) {
-    if (ci->values[0].value.boolean)
-      return "true";
-    else
-      return "false";
+  value = ci->values[0].value.number;
+  if ((value >= 0.0) && (value < 1.0))
+  {
+    *ret = value;
+    return (0);
   }
-  return (ci->values[0].value.string);
-} /* const char *config_get_string */
+
+  ERROR ("rrdcached plugin: The \"%s\" needs exactly one numeric argument "
+      "in the range [0.0, 1.0)", ci->key);
+  return (EINVAL);
+} /* int rc_config_get_xff */
+
+static int rc_config_add_timespan (int timespan)
+{
+  int *tmp;
+
+  if (timespan <= 0)
+    return (EINVAL);
+
+  tmp = realloc (rrdcreate_config.timespans,
+      sizeof (*rrdcreate_config.timespans)
+      * (rrdcreate_config.timespans_num + 1));
+  if (tmp == NULL)
+    return (ENOMEM);
+  rrdcreate_config.timespans = tmp;
+
+  rrdcreate_config.timespans[rrdcreate_config.timespans_num] = timespan;
+  rrdcreate_config.timespans_num++;
+
+  return (0);
+} /* int rc_config_add_timespan */
 
 static int rc_config (oconfig_item_t *ci)
 {
   int i;
 
-  for (i = 0; i < ci->children_num; ++i) {
-    const char *key = ci->children[i].key;
-    const char *value = config_get_string (ci->children + i);
-
-    if (value == NULL) /* config_get_strings prints error message */
-      continue;
+  for (i = 0; i < ci->children_num; i++)
+  {
+    oconfig_item_t const *child = ci->children + i;
+    const char *key = child->key;
+    int status = 0;
 
     if (strcasecmp ("DataDir", key) == 0)
     {
-      if (datadir != NULL)
-        free (datadir);
-      datadir = strdup (value);
-      if (datadir != NULL)
+      status = cf_util_get_string (child, &datadir);
+      if (status == 0)
       {
         int len = strlen (datadir);
+
         while ((len > 0) && (datadir[len - 1] == '/'))
         {
           len--;
-          datadir[len] = '\0';
+          datadir[len] = 0;
         }
+
         if (len <= 0)
-        {
-          free (datadir);
-          datadir = NULL;
-        }
+          sfree (datadir);
       }
     }
     else if (strcasecmp ("DaemonAddress", key) == 0)
-    {
-      sfree (daemon_address);
-      daemon_address = strdup (value);
-      if (daemon_address == NULL)
-      {
-        ERROR ("rrdcached plugin: strdup failed.");
-        continue;
-      }
-    }
+      status = cf_util_get_string (child, &daemon_address);
     else if (strcasecmp ("CreateFiles", key) == 0)
-    {
-      if (IS_FALSE (value))
-        config_create_files = 0;
-      else
-        config_create_files = 1;
-    }
+      status = cf_util_get_boolean (child, &config_create_files);
     else if (strcasecmp ("CollectStatistics", key) == 0)
+      status = cf_util_get_boolean (child, &config_collect_stats);
+    else if (strcasecmp ("StepSize", key) == 0)
     {
-      if (IS_FALSE (value))
-        config_collect_stats = 0;
-      else
-        config_collect_stats = 1;
+      int tmp = -1;
+
+      status = rc_config_get_int_positive (child, &tmp);
+      if (status == 0)
+        rrdcreate_config.stepsize = (unsigned long) tmp;
     }
+    else if (strcasecmp ("HeartBeat", key) == 0)
+      status = rc_config_get_int_positive (child, &rrdcreate_config.heartbeat);
+    else if (strcasecmp ("RRARows", key) == 0)
+      status = rc_config_get_int_positive (child, &rrdcreate_config.rrarows);
+    else if (strcasecmp ("RRATimespan", key) == 0)
+    {
+      int tmp = -1;
+      status = rc_config_get_int_positive (child, &tmp);
+      if (status == 0)
+        status = rc_config_add_timespan (tmp);
+    }
+    else if (strcasecmp ("XFF", key) == 0)
+      status = rc_config_get_xff (child, &rrdcreate_config.xff);
     else
     {
       WARNING ("rrdcached plugin: Ignoring invalid option %s.", key);
       continue;
     }
+
+    if (status != 0)
+      WARNING ("rrdcached plugin: Handling the \"%s\" option failed.", key);
   }
 
-  if (daemon_address != NULL) {
+  if (daemon_address != NULL)
+  {
     plugin_register_write ("rrdcached", rc_write, /* user_data = */ NULL);
     plugin_register_flush ("rrdcached", rc_flush, /* user_data = */ NULL);
   }
@@ -262,7 +303,7 @@ static int rc_read (void)
   if (daemon_address == NULL)
     return (-1);
 
-  if (config_collect_stats == 0)
+  if (!config_collect_stats)
     return (-1);
 
   vl.values = values;
@@ -354,7 +395,7 @@ static int rc_read (void)
 
 static int rc_init (void)
 {
-  if (config_collect_stats != 0)
+  if (config_collect_stats)
     plugin_register_read ("rrdcached", rc_read);
 
   return (0);
@@ -396,7 +437,7 @@ static int rc_write (const data_set_t *ds, const value_list_t *vl,
   values_array[0] = values;
   values_array[1] = NULL;
 
-  if (config_create_files != 0)
+  if (config_create_files)
   {
     struct stat statbuf;
 

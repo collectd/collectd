@@ -482,8 +482,8 @@ static void *open_connection (void __attribute__((unused)) *arg)
 			collectors[i] = (collector_t *)smalloc (sizeof (collector_t));
 			collectors[i]->socket = NULL;
 
-			if (0 != (err = pthread_create (&collectors[i]->thread, &ptattr,
-							collect, collectors[i]))) {
+			if (0 != (err = plugin_thread_create (&collectors[i]->thread,
+							&ptattr, collect, collectors[i]))) {
 				char errbuf[1024];
 				log_err ("pthread_create() failed: %s",
 						sstrerror (errno, errbuf, sizeof (errbuf)));
@@ -558,7 +558,7 @@ static int email_init (void)
 {
 	int err = 0;
 
-	if (0 != (err = pthread_create (&connector, NULL,
+	if (0 != (err = plugin_thread_create (&connector, NULL,
 				open_connection, NULL))) {
 		char errbuf[1024];
 		disabled = 1;

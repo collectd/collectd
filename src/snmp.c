@@ -108,7 +108,7 @@ static int csnmp_read_host (user_data_t *ud);
  */
 static void csnmp_oid_init (oid_t *dst, oid const *src, size_t n)
 {
-  assert (n <= STATIC_ARRAY_LEN (dst->oid));
+  assert (n <= STATIC_ARRAY_SIZE (dst->oid));
   memcpy (dst->oid, src, sizeof (*src) * n);
   dst->oid_len = n;
 }
@@ -1643,7 +1643,7 @@ static int csnmp_read_host (user_data_t *ud)
   host = ud->data;
 
   if (host->interval == 0)
-    host->interval = interval_g;
+    host->interval = plugin_get_interval ();
 
   time_start = cdtime ();
 

@@ -111,7 +111,7 @@ static int wh_callback_init (wh_callback_t *cb) /* {{{ */
                 return (-1);
         }
 
-        curl_easy_setopt (cb->curl, CURLOPT_NOSIGNAL, 1);
+        curl_easy_setopt (cb->curl, CURLOPT_NOSIGNAL, 1L);
         curl_easy_setopt (cb->curl, CURLOPT_USERAGENT, PACKAGE_NAME"/"PACKAGE_VERSION);
 
         headers = NULL;
@@ -147,9 +147,9 @@ static int wh_callback_init (wh_callback_t *cb) /* {{{ */
                 curl_easy_setopt (cb->curl, CURLOPT_HTTPAUTH, CURLAUTH_ANY);
         }
 
-        curl_easy_setopt (cb->curl, CURLOPT_SSL_VERIFYPEER, cb->verify_peer);
+        curl_easy_setopt (cb->curl, CURLOPT_SSL_VERIFYPEER, (long) cb->verify_peer);
         curl_easy_setopt (cb->curl, CURLOPT_SSL_VERIFYHOST,
-                        cb->verify_host ? 2 : 0);
+                        cb->verify_host ? 2L : 0L);
         if (cb->cacert != NULL)
                 curl_easy_setopt (cb->curl, CURLOPT_CAINFO, cb->cacert);
 
