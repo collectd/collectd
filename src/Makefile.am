@@ -285,6 +285,13 @@ collectd_LDADD += "-dlopen" csv.la
 collectd_DEPENDENCIES += csv.la
 endif
 
+if BUILD_PLUGIN_TOP
+pkglib_LTLIBRARIES += top.la
+top_la_SOURCES = top.c
+top_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" top.la
+collectd_DEPENDENCIES += top.la
+endif
 if BUILD_PLUGIN_CURL
 pkglib_LTLIBRARIES += curl.la
 curl_la_SOURCES = curl.c

@@ -4673,6 +4673,7 @@ then
 	plugin_nfs="yes"
 	plugin_uptime="yes"
 	plugin_zfs_arc="yes"
+	plugin_vmem="yes"
 fi
 
 if test "x$with_devinfo$with_kstat" = "xyesyes"
@@ -4967,6 +4968,7 @@ AC_PLUGIN([teamspeak2],  [yes],                [TeamSpeak2 server statistics])
 AC_PLUGIN([ted],         [$plugin_ted],        [Read The Energy Detective values])
 AC_PLUGIN([thermal],     [$plugin_thermal],    [Linux ACPI thermal zone statistics])
 AC_PLUGIN([threshold],   [yes],                [Threshold checking plugin])
+AC_PLUGIN([top],         [yes],                [Top notification])
 AC_PLUGIN([tokyotyrant], [$with_libtokyotyrant],  [TokyoTyrant database statistics])
 AC_PLUGIN([unixsock],    [yes],                [Unixsock communication plugin])
 AC_PLUGIN([uptime],      [$plugin_uptime],     [Uptime statistics])
@@ -5301,6 +5303,7 @@ Configuration:
     ted . . . . . . . . . $enable_ted
     thermal . . . . . . . $enable_thermal
     threshold . . . . . . $enable_threshold
+    top . . . . . . . . . $enable_top
     tokyotyrant . . . . . $enable_tokyotyrant
     unixsock  . . . . . . $enable_unixsock
     uptime  . . . . . . . $enable_uptime
