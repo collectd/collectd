@@ -1072,6 +1072,12 @@
 #	Tag "foobar"
 #</Plugin>
 
+#<Plugin write_top>
+#	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/top"
+#	FlushWhenOlderThanMin 60
+#	FlushWhenBiggerThanK 500
+#</Plugin>
+
 ##############################################################################
 # Filter configuration                                                       #
 #----------------------------------------------------------------------------#
