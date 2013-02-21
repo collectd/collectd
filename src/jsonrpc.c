@@ -38,6 +38,9 @@
 #ifdef JSONRPC_USE_PERFWATCHER
 #include "jsonrpc_cb_perfwatcher.h"
 #endif
+#ifdef JSONRPC_USE_TOPPS
+#include "jsonrpc_cb_topps.h"
+#endif
 
 #define OUTPUT_PREFIX_JSONRPC "JSONRPC plugin : "
 
@@ -103,6 +106,9 @@ static jsonrpc_method_cb_definition_t jsonrpc_methods_table [] =
 #ifdef JSONRPC_USE_PERFWATCHER
 		JSONRPC_CB_TABLE_PERFWATCHER
 #endif
+#ifdef JSONRPC_USE_TOPPS
+		JSONRPC_CB_TABLE_TOPPS
+#endif
 		{ "", NULL }
 	};
 
@@ -159,13 +165,17 @@ static const char *config_keys[] =
 {
 	"Port",
 	"MaxClients",
-	"JsonrpcCacheExpirationTime"
+	"JsonrpcCacheExpirationTime",
+	"TopPsDataDir"
 
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static int httpd_server_port=-1;
 static int max_clients = 16;
+#ifdef JSONRPC_USE_TOPPS
+char toppsdatadir[2048] = "";
+#endif
 
 
 /* Cache of the tree
@@ -850,6 +860,13 @@ static int jsonrpc_config (const char *key, const char *val)
 			ERROR(OUTPUT_PREFIX_JSONRPC "JsonrpcCacheExpirationTime '%ld' should be between 1 and 3600 seconds", jsonrpc_cache_expiration_time);
 			return(-1);
 		}
+	} else if (strcasecmp (key, "TopPsDataDir") == 0) {
+#ifdef JSONRPC_USE_TOPPS
+		errno=0;
+		strncpy(toppsdatadir, val, sizeof(toppsdatadir));
+#else
+			WARNING(OUTPUT_PREFIX_JSONRPC "TopPsDataDir specified but this mudule was not compiled to use it.");
+#endif
 	} else {
 		return (-1);
 	}
