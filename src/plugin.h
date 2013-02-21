@@ -59,7 +59,7 @@
 # define LOG_DEBUG 7
 #endif
 
-#define NOTIF_MAX_MSG_LEN 256
+#define NOTIF_MAX_MSG_LEN (65535-1024)
 
 #define NOTIF_FAILURE 1
 #define NOTIF_WARNING 2
