@@ -25,12 +25,17 @@
 #include "plugin.h"
 #include "configfile.h"
 #include "utils_cache.h"
+#include "utils_avltree.h"
 #include "jsonrpc.h"
 
 #include <microhttpd.h>
 
 #include <json/json.h>
 #include <pthread.h>
+
+#if HAVE_CRYPT || HAVE_CRYPT_R
+#include <crypt.h>
+#endif
 
 #ifdef JSONRPC_USE_BASE
 #include "jsonrpc_cb_base.h"
@@ -82,6 +87,12 @@ static pthread_mutex_t nb_clients_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t nb_new_connections_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t nb_jsonrpc_request_success_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t nb_jsonrpc_request_failed_lock = PTHREAD_MUTEX_INITIALIZER;
+#if HAVE_CRYPT_R
+/* crypt_r(3) is reentrant */
+#elif HAVE_CRYPT
+/* crypt(3) is not reentrant */
+static pthread_mutex_t crypt_lock = PTHREAD_MUTEX_INITIALIZER;
+#endif
 
 #define lock_and_increment(lock,var, n) do { \
 			pthread_mutex_lock(&(lock)); \
@@ -117,6 +128,11 @@ static unsigned int nb_clients = 0;
 static unsigned int nb_new_connections = 0;
 static unsigned int nb_jsonrpc_request_failed = 0;
 static unsigned int nb_jsonrpc_request_success = 0;
+
+#define HTTP_AUTH_REALM_COLLECTD "collectd jsonrpc"
+
+const char *authpagedenied = 
+  "<html><body><h1>Access Denied</h1></body></html>";
 
 const char *busypage =
   "{ \"jsonrpc\": \"2.0\", \"error\": {\"code\": -32400, \"message\": \"Too many connections\"}, \"id\": null}";
@@ -165,6 +181,8 @@ static const char *config_keys[] =
 {
 	"Port",
 	"MaxClients",
+	"Authentication",
+	"Authfile",
 	"JsonrpcCacheExpirationTime",
 	"TopPsDataDir"
 
@@ -173,6 +191,17 @@ static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static int httpd_server_port=-1;
 static int max_clients = 16;
+
+typedef enum {
+	config_authentication_type_none,
+	config_authentication_type_basic,
+} config_authentication_type_e;
+
+config_authentication_type_e config_authentication_type = config_authentication_type_none;
+char *config_authentication_type_basic_filename = NULL;
+time_t config_authentication_type_basic_filename_tm_last_read = 0;
+c_avl_tree_t *config_authentication_type_basic_filename_cache = NULL;
+
 #ifdef JSONRPC_USE_TOPPS
 char toppsdatadir[2048] = "";
 #endif
@@ -443,6 +472,181 @@ static int decode_from_www_urlencoded(char *s, int l)
 	}
 
 	return o - dest;
+}
+
+static void update_config_authentication_type_basic_filename_cache(time_t mtime) {
+	char *name;
+	char *value;
+	FILE *fh;
+	char line[1024];
+
+	if(NULL == config_authentication_type_basic_filename_cache) {
+		config_authentication_type_basic_filename_cache = c_avl_create((int (*) (const void *, const void *)) strcmp);
+	}
+	if(NULL == config_authentication_type_basic_filename_cache) return;
+
+	/* Empty the tree */
+	while (c_avl_pick (config_authentication_type_basic_filename_cache, (void *) &name, (void *) &value) == 0)
+	{
+		sfree (value);
+		sfree (name);
+	}
+	config_authentication_type_basic_filename_tm_last_read = 0;
+
+	/* Open the file and fill the tree */
+	if(NULL == (fh = fopen(config_authentication_type_basic_filename, "r"))) return;
+
+	while(fgets(line, sizeof(line), fh)) {
+		int i,name,pass;
+		char *namestr,*passstr;
+		/* Remove spaces at beginnning of the file */
+		for(i=0; line[i] && ((line[i] == ' ') || (line[i] == '\t')); i++);
+		name = i;
+		/* Char # is for comments. Ignore anything after. */
+		for(; line[i] && (line[i] != '#'); i++);
+		line[i] = '\0';
+		/* Find name */
+		for(i=name; line[i] && (line[i] != ' ') && (line[i] != '\t'); i++);
+		if(line[i] == '\0') continue; /* syntax error : ignore line */
+		line[i] = '\0';
+		/* Find password */
+		for(i+=1; line[i] && ((line[i] == ' ') || (line[i] == '\t')); i++);
+		if(line[i] == '\0') continue; /* syntax error : ignore line */
+		pass = i;
+		for(; line[i] && (line[i] != ' ') && (line[i] != '\t') && (line[i] != '\r') && (line[i] != '\n'); i++);
+		line[i] = '\0';
+		if((line[name] == '\0') || (line[pass] == '\0')) return; /* syntax error : empty name or pass. Ignore line */
+
+		/* Store name and passwd in the tree */
+		if(NULL == (namestr = strdup(line+name))) {
+			fclose(fh);
+			ERROR(OUTPUT_PREFIX_JSONRPC "Could not allocate memory");
+			return;
+		}
+		if(NULL == (passstr = strdup(line+pass))) {
+			fclose(fh);
+			free(namestr);
+			ERROR(OUTPUT_PREFIX_JSONRPC "Could not allocate memory");
+			return;
+		}
+		c_avl_insert(config_authentication_type_basic_filename_cache, namestr, passstr);
+	}
+	fclose(fh);
+	config_authentication_type_basic_filename_tm_last_read = mtime;
+}
+
+static int passwd_check(const char *pass, const char *salt, const char *cryptpass, int *err) {
+	/* Return 0 if passwd match */
+	/* If returned value is not null, and if err is not null, an
+	 * error occured */
+#if HAVE_CRYPT_R
+	struct crypt_data d;
+	char *s;
+	*err = 0;
+
+	d.initialized = 0;
+	s = crypt_r(pass, salt, &d);
+	if(NULL == s) {
+		*err = 1;
+		return(-1);
+	}
+	return strcmp(s,cryptpass)?1:0;
+#elif HAVE_CRYPT
+	int r;
+	char *s;
+
+	*err = 0;
+	pthread_mutex_lock(&crypt_lock);
+	s = crypt(pass, salt);
+	if(NULL == s) {
+		pthread_mutex_unlock(&crypt_lock);
+		*err = 1;
+		return(-1);
+	}
+	r = strcmp(s,cryptpass)?1:0;
+	pthread_mutex_unlock(&crypt_lock);
+	return r;
+#else
+	*err = 1;
+	return(1);
+#endif
+}
+
+
+static int basic_auth_check(const char *user, const char *pass) {
+	struct stat st;
+#define SALT_BUFFER_SIZE 1024
+	char salt_buffer[SALT_BUFFER_SIZE];
+	size_t l;
+	char *cachedpass;
+	int err;
+
+	if(NULL == user) return(1);
+	if(NULL == pass) return(1);
+
+	if(0 != lstat(config_authentication_type_basic_filename, &st)) {
+		ERROR(OUTPUT_PREFIX_JSONRPC "Missing or unreaddable file '%s'. No authentication can be done.", config_authentication_type_basic_filename); 
+		return(1);
+	}
+	if(st.st_mtime != config_authentication_type_basic_filename_tm_last_read) {
+		update_config_authentication_type_basic_filename_cache(st.st_mtime);
+	}
+
+	if(NULL == config_authentication_type_basic_filename_cache) return(1);
+
+	if(0 != c_avl_get(config_authentication_type_basic_filename_cache, user, (void *) &cachedpass)) return(1);
+/* Check for plain text password */
+	if(cachedpass[0] == '"') {
+		int i;
+		for(i=1; cachedpass[i] && (cachedpass[i] != '"'); i++);
+		if(cachedpass[i] != '"') {
+			ERROR(OUTPUT_PREFIX_JSONRPC "Syntax error in file '%s' for user '%s'", config_authentication_type_basic_filename, user); 
+		} else {
+			if(strncmp(cachedpass+1, pass, i-1)) return(1); /* password differ */
+			if((i-1) != strlen(pass)) return(1); /* first chars are the same, but password differ on length */
+			return(0);
+		}
+	}
+/* Check for crypted password */
+
+	/* Get salt 
+	 * format is $id$salt$encrypted (or XXencrypted with XX as the salt with old DES)
+	 * see man crypt(3) for more info.
+	 */
+	l = strlen(cachedpass);
+	memcpy(salt_buffer, cachedpass, (l>SALT_BUFFER_SIZE)?SALT_BUFFER_SIZE:l);
+	if(salt_buffer[0] == '$') {
+		int i;
+		int n = 0;
+		int salt_pos = 0;
+		for(i=1; (i<SALT_BUFFER_SIZE) && (n < 2); i++) {
+			if(salt_buffer[i] == '$') {
+				if(n == 1) salt_pos = i+1;
+				n++;
+			}
+		}
+		if(i>=SALT_BUFFER_SIZE) {
+			ERROR(OUTPUT_PREFIX_JSONRPC "Syntax error in file '%s' for user '%s'", config_authentication_type_basic_filename, user); 
+			return(1);
+		}
+		salt_buffer[i-1] = '\0';
+	} else {
+		salt_buffer[2] = '\0';
+		ERROR(OUTPUT_PREFIX_JSONRPC "DES not supported (if this is what you wanted to use). User='%s'", user); 
+		/* Note for developers : crypt(3) is not reentrant. And crypt_r is a
+		 * GNU extension. So it is not so easy to code.
+		 * Have fun searching in how to do with libgcrypt :)
+		 */
+		return(1);
+	}
+	if(0 == passwd_check(pass, salt_buffer, cachedpass, &err)) {
+		return(0);
+	}
+
+	/* If we are here, either password differ, or an unexpected error occured.
+	 * In both cases, return an authentication failure.
+	 */
+	return(1);
 }
 
 char *
@@ -740,13 +944,15 @@ static int jsonrpc_proceed_request_cb(void * cls,
 
 	if (NULL == *con_cls) {
 		connection_info_struct_t *con_info;
+		char *basic_auth_user = NULL;
+		char *basic_auth_password = NULL;
+		int basic_auth_status;
 
 		if (nb_clients >= max_clients) {
 			DEBUG(OUTPUT_PREFIX_JSONRPC "Request failed : nb clients (%d) > %d", nb_clients,max_clients);
 			return send_page (connection, busypage, MHD_HTTP_SERVICE_UNAVAILABLE, MHD_RESPMEM_PERSISTENT, MIMETYPE_JSONRPC,
 					CLOSE_CONNECTION_YES,JSONRPC_REQUEST_FAILED);
 		}
-
 
 		if(NULL == (con_info = malloc (sizeof (connection_info_struct_t)))) 
 			return MHD_NO;
@@ -768,12 +974,41 @@ static int jsonrpc_proceed_request_cb(void * cls,
 			con_info->errorpage = errorpage;
 			con_info->answerstring = NULL;
 			con_info->answer_mimetype = MIMETYPE_TEXTHTML;
-		} else {
+		} else if (0 == strcmp (method, "GET")) {
 			con_info->connectiontype = GET;
+		} else {
+			free(con_info);
+			return MHD_NO;
 		}
 
 		*con_cls = (void *) con_info;
 
+		if(config_authentication_type == config_authentication_type_basic) {
+			basic_auth_user = MHD_basic_auth_get_username_password (connection, &basic_auth_password);
+			basic_auth_status = basic_auth_check(basic_auth_user,basic_auth_password);
+			if(basic_auth_password) free (basic_auth_password);
+
+			if(0 != basic_auth_status) {
+				int ret;
+				struct MHD_Response *response;
+
+				response = MHD_create_response_from_buffer (strlen (authpagedenied), (void *) authpagedenied, MHD_RESPMEM_PERSISTENT);
+				if (!response) {
+					*con_cls = NULL;
+					free(con_info);
+					return MHD_NO;
+				}
+
+				ret = MHD_queue_basic_auth_fail_response(connection, HTTP_AUTH_REALM_COLLECTD, response);
+				if(MHD_NO == ret) {
+					*con_cls = NULL;
+					free(con_info);
+					return MHD_NO;
+				}
+				MHD_destroy_response (response);
+				return(ret);
+			}
+		}
 		return MHD_YES;
 	}
 
@@ -838,6 +1073,19 @@ static int jsonrpc_config (const char *key, const char *val)
 			ERROR(OUTPUT_PREFIX_JSONRPC "Port '%d' should be between 1 and 65535", httpd_server_port);
 			return(-1);
 		}
+	} else if (strcasecmp (key, "Authentication") == 0) {
+		if( !strcasecmp(val, "None") ) {
+			config_authentication_type = config_authentication_type_none;
+		} else if( !strcasecmp(val, "Basic") ) {
+			config_authentication_type = config_authentication_type_basic;
+		} else {
+			ERROR(OUTPUT_PREFIX_JSONRPC "Authentication type '%s' not supported. Currently supported : 'None' and 'Basic' only", key);
+		}
+	} else if (strcasecmp (key, "Authfile") == 0) {
+		char *s = strdup (val);
+		if (s == NULL) return (1);
+		if(config_authentication_type_basic_filename) free (config_authentication_type_basic_filename);
+		config_authentication_type_basic_filename = s;
 	} else if (strcasecmp (key, "MaxClients") == 0) {
 		errno=0;
 		max_clients = strtol(val,NULL,10);
@@ -882,6 +1130,14 @@ static int jsonrpc_init (void)
 	if (have_init != 0)
 		return (0);
 	have_init = 1;
+
+	/* Check some args */
+	if(config_authentication_type == config_authentication_type_basic) {
+		if(NULL == config_authentication_type_basic_filename) {
+			ERROR(OUTPUT_PREFIX_JSONRPC "Authentication is Basic but no Authfile was specified.");
+			return 1;
+		}
+	}
 
 	/* Initialize the local caches */
 	memset(uc_cache_copy, '\0', sizeof(uc_cache_copy));

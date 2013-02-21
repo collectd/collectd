@@ -580,6 +580,109 @@ then
 	CFLAGS="$CFLAGS -Wall -Werror"
 fi
 
+# Check for crypt() in libcrypt
+build_with_libcrypt="no"
+SAVE_LIBS="$LIBS"
+BUILD_WITH_LIBCRYPT_CFLAGS=""
+BUILD_WITH_LIBCRYPT_LIBS=""
+AC_SEARCH_LIBS(crypt, [crypt],
+			[build_with_libcrypt="yes"],
+			[build_with_libcrypt="no"],
+			[])
+LIBS="$SAVE_LIBS"
+if test "x$build_with_libcrypt" = "xyes"
+then
+  case "x$ac_cv_search_crypt" in
+    no*) BUILD_WITH_LIBCRYPT_LIBS="" ;;
+	*) BUILD_WITH_LIBCRYPT_LIBS="$ac_cv_search_crypt" ;;
+  esac
+  AC_DEFINE(HAVE_CRYPT, 1, [Define if the crypt(3) function is available.])
+fi
+
+# Check for crypt_r
+have_crypt_r="no"
+SAVE_LIBS="$LIBS"
+LIBS="$LIBS $BUILD_WITH_LIBCRYPT_LIBS"
+AC_CACHE_CHECK([for crypt_r],
+  [c_cv_have_crypt_r_default],
+  AC_LINK_IFELSE(
+    AC_LANG_PROGRAM(
+    [[[[
+#include <stdlib.h>
+#include <stdio.h>
+#include <crypt.h>
+    ]]]],
+    [[[[
+      char *pass = "password";
+      char *salt = "sa";
+      struct crypt_data d;
+      char *s;
+
+      d.initialized = 0;
+      s = crypt_r(pass, salt, &d);
+      assert(NULL != s);
+    ]]]]),
+    [
+    c_cv_have_crypt_r_default="yes"
+    have_crypt_r="yes"
+    ],
+    [c_cv_have_crypt_r_default="no"]
+  )
+)
+
+# Check for crypt_r as a GNU extension if not found yet
+if test "x$c_cv_have_crypt_r_default" = "xno"
+then
+  SAVE_CFLAGS="$CFLAGS"
+  CFLAGS="$CFLAGS -DBUG_GNU_SOURCE"
+
+  AC_CACHE_CHECK([if crypt_r needs _GNU_SOURCE],
+    [c_cv_have_crypt_r_gnusource],
+    AC_LINK_IFELSE(
+      AC_LANG_PROGRAM(
+      [[[[
+#include <stdlib.h>
+#include <stdio.h>
+#include <crypt.h>
+#include <assert.h>
+      ]]]],
+      [[[[
+      char *pass = "password";
+      char *salt = "sa";
+      struct crypt_data d;
+      char *s;
+
+      d.initialized = 0;
+      s = crypt_r(pass, salt, &d);
+      assert(NULL != s);
+      ]]]]),
+      [
+        c_cv_have_crypt_r_gnusource="yes"
+        have_crypt_r="yes"
+      ],
+      [c_cv_have_crypt_r_gnusource="no"]
+    )
+  )
+
+  if test "x$c_cv_have_crypt_r_gnusource" = "xyes"
+  then
+  	BUILD_WITH_LIBCRYPT_CFLAGS="-D_GNU_SOURCE"
+  fi
+
+  CFLAGS="$SAVE_CFLAGS"
+fi
+
+LIBS="$SAVE_LIBS"
+if test "x$have_crypt_r" = "xyes"
+then
+	AC_DEFINE(HAVE_CRYPT_R, 1, [Define if the crypt_r(3) function is available.])
+else
+    AC_MSG_WARN([crypt_r isn't available. Will use crypt(3) with a mutex when needed (too bad)])
+fi
+
+AC_SUBST(BUILD_WITH_LIBCRYPT_CFLAGS)
+AC_SUBST(BUILD_WITH_LIBCRYPT_LIBS)
+
 AC_CACHE_CHECK([for strtok_r],
   [c_cv_have_strtok_r_default],
   AC_LINK_IFELSE(
