@@ -434,7 +434,7 @@ static int srrd_create (const char *filename, /* {{{ */
 } /* }}} int srrd_create */
 #endif /* !HAVE_THREADSAFE_LIBRRD */
 
-static void *srrd_create_thread (void *targs)
+static void *srrd_create_thread (void *targs) /* {{{ */
 {
   srrd_create_args_t *args = targs;
   int status;
@@ -455,9 +455,9 @@ static void *srrd_create_thread (void *targs)
   srrd_create_args_destroy (args);
 
   return (0);
-} /* void *srrd_create_thread */
+} /* }}} void *srrd_create_thread */
 
-static int srrd_create_async (const char *filename,
+static int srrd_create_async (const char *filename, /* {{{ */
     unsigned long pdp_step, time_t last_up,
     int argc, const char **argv)
 {
@@ -499,7 +499,7 @@ static int srrd_create_async (const char *filename,
   pthread_attr_destroy (&attr);
   /* args is freed in srrd_create_thread(). */
   return (0);
-}
+} /* }}} int srrd_create_async */
 
 /*
  * Public functions
