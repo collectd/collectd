@@ -472,11 +472,18 @@ static int srrd_create_async (const char *filename,
 
   status = pthread_attr_init (&attr);
   if (status != 0)
+  {
+    srrd_create_args_destroy (args);
     return (-1);
+  }
 
   status = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
   if (status != 0)
+  {
+    pthread_attr_destroy (&attr);
+    srrd_create_args_destroy (args);
     return (-1);
+  }
 
   status = pthread_create (&thread, &attr, srrd_create_thread, args);
   if (status != 0)
@@ -490,6 +497,7 @@ static int srrd_create_async (const char *filename,
   }
 
   pthread_attr_destroy (&attr);
+  /* args is freed in srrd_create_thread(). */
   return (0);
 }
 
