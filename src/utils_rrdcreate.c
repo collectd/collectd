@@ -1,6 +1,6 @@
 /**
  * collectd - src/utils_rrdcreate.c
- * Copyright (C) 2006-2008  Florian octo Forster
+ * Copyright (C) 2006-2013  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,7 +16,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
@@ -25,6 +25,16 @@
 
 #include <pthread.h>
 #include <rrd.h>
+
+struct srrd_create_args_s
+{
+  char *filename;
+  unsigned long pdp_step;
+  time_t last_up;
+  int argc;
+  char **argv;
+};
+typedef struct srrd_create_args_s srrd_create_args_t;
 
 /*
  * Private variables
@@ -64,6 +74,71 @@ static void rra_free (int rra_num, char **rra_def) /* {{{ */
   }
   sfree (rra_def);
 } /* }}} void rra_free */
+
+static void srrd_create_args_destroy (srrd_create_args_t *args)
+{
+  if (args == NULL)
+    return;
+
+  sfree (args->filename);
+  if (args->argv != NULL)
+  {
+    int i;
+    for (i = 0; i < args->argc; i++)
+      sfree (args->argv[i]);
+    sfree (args->argv);
+  }
+} /* void srrd_create_args_destroy */
+
+static srrd_create_args_t *srrd_create_args_create (const char *filename,
+    unsigned long pdp_step, time_t last_up,
+    int argc, const char **argv)
+{
+  srrd_create_args_t *args;
+
+  args = malloc (sizeof (*args));
+  if (args == NULL)
+  {
+    ERROR ("srrd_create_args_create: malloc failed.");
+    return (NULL);
+  }
+  memset (args, 0, sizeof (*args));
+  args->filename = NULL;
+  args->pdp_step = pdp_step;
+  args->last_up = last_up;
+  args->argv = NULL;
+
+  args->filename = strdup (filename);
+  if (args->filename == NULL)
+  {
+    ERROR ("srrd_create_args_create: strdup failed.");
+    srrd_create_args_destroy (args);
+    return (NULL);
+  }
+
+  args->argv = calloc ((size_t) (argc + 1), sizeof (*args->argv));
+  if (args->argv == NULL)
+  {
+    ERROR ("srrd_create_args_create: calloc failed.");
+    srrd_create_args_destroy (args);
+    return (NULL);
+  }
+
+  for (args->argc = 0; args->argc < argc; args->argc++)
+  {
+    args->argv[args->argc] = strdup (argv[args->argc]);
+    if (args->argv[args->argc] == NULL)
+    {
+      ERROR ("srrd_create_args_create: strdup failed.");
+      srrd_create_args_destroy (args);
+      return (NULL);
+    }
+  }
+  assert (args->argc == argc);
+  args->argv[args->argc] = NULL;
+
+  return (args);
+} /* srrd_create_args_t *srrd_create_args_create */
 
 /* * * * * * * * * *
  * WARNING:  Magic *
@@ -359,6 +434,65 @@ static int srrd_create (const char *filename, /* {{{ */
 } /* }}} int srrd_create */
 #endif /* !HAVE_THREADSAFE_LIBRRD */
 
+static void *srrd_create_thread (void *targs)
+{
+  srrd_create_args_t *args = targs;
+  int status;
+
+  status = srrd_create (args->filename, args->pdp_step, args->last_up,
+      args->argc, (void *) args->argv);
+  if (status != 0)
+  {
+    WARNING ("srrd_create_thread: srrd_create (%s) returned status %i.",
+        args->filename, status);
+  }
+  else
+  {
+    DEBUG ("srrd_create_thread: Successfully created RRD file \"%s\".",
+        args->filename);
+  }
+
+  srrd_create_args_destroy (args);
+
+  return (0);
+} /* void *srrd_create_thread */
+
+static int srrd_create_async (const char *filename,
+    unsigned long pdp_step, time_t last_up,
+    int argc, const char **argv)
+{
+  srrd_create_args_t *args;
+  pthread_t thread;
+  pthread_attr_t attr;
+  int status;
+
+  args = srrd_create_args_create (filename, pdp_step, last_up, argc, argv);
+  if (args == NULL)
+    return (-1);
+
+  status = pthread_attr_init (&attr);
+  if (status != 0)
+    return (-1);
+
+  status = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+  if (status != 0)
+    return (-1);
+
+  status = pthread_create (&thread, &attr, srrd_create_thread, args);
+  if (status != 0)
+  {
+    char errbuf[1024];
+    ERROR ("srrd_create_async: pthread_create failed: %s",
+        sstrerror (status, errbuf, sizeof (errbuf)));
+    pthread_attr_destroy (&attr);
+    srrd_create_args_destroy (args);
+    return (status);
+  }
+
+  pthread_attr_destroy (&attr);
+  return (0);
+}
+
 /*
  * Public functions
  */
@@ -415,23 +549,35 @@ int cu_rrd_create_file (const char *filename, /* {{{ */
   else
     stepsize = (unsigned long) CDTIME_T_TO_TIME_T (vl->interval);
 
-  status = srrd_create (filename, stepsize, last_up,
-      argc, (const char **) argv);
+  if (cfg->async)
+  {
+    status = srrd_create_async (filename, stepsize, last_up,
+        argc, (const char **) argv);
+    if (status != 0)
+      WARNING ("cu_rrd_create_file: srrd_create_async (%s) "
+          "returned status %i.",
+          filename, status);
+  }
+  else /* synchronous */
+  {
+    status = srrd_create (filename, stepsize, last_up,
+        argc, (const char **) argv);
+
+    if (status != 0)
+    {
+      WARNING ("cu_rrd_create_file: srrd_create (%s) returned status %i.",
+          filename, status);
+    }
+    else
+    {
+      DEBUG ("cu_rrd_create_file: Successfully created RRD file \"%s\".",
+          filename);
+    }
+  }
 
   free (argv);
   ds_free (ds_num, ds_def);
   rra_free (rra_num, rra_def);
-
-  if (status != 0)
-  {
-    WARNING ("cu_rrd_create_file: srrd_create (%s) returned status %i.",
-        filename, status);
-  }
-  else
-  {
-    DEBUG ("cu_rrd_create_file: Successfully created RRD file \"%s\".",
-        filename);
-  }
 
   return (status);
 } /* }}} int cu_rrd_create_file */
