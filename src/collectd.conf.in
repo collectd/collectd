@@ -916,11 +916,13 @@
 
 #<Plugin "snort">
 #   <Metric "dropped">
-#       Type "pkt_drop_percent"
+#       Type "percent"
+#       Instance "dropped"
 #       Index 1
 #   </Metric>
 #   <Metric "mbps">
-#       Type "wire_mbits_per_sec.realtime"
+#       Type "bits"
+#       Instance "wire-realtime"
 #       Index 2
 #   </Metric>
 #   <Metric "alerts">
