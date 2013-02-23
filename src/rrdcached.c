@@ -48,7 +48,7 @@ static rrdcreate_config_t rrdcreate_config =
 	/* consolidation_functions = */ NULL,
 	/* consolidation_functions_num = */ 0,
 
-        /* async = */ 0
+	/* async = */ 0
 };
 
 /*

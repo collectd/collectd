@@ -105,7 +105,7 @@ static rrdcreate_config_t rrdcreate_config =
 	/* consolidation_functions = */ NULL,
 	/* consolidation_functions_num = */ 0,
 
-        /* async = */ 0
+	/* async = */ 0
 };
 
 /* XXX: If you need to lock both, cache_lock and queue_lock, at the same time,
