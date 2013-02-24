@@ -965,6 +965,9 @@ static int plugin_insert_read (read_func_t *rf)
 	int status;
 	llentry_t *le;
 
+	rf->rf_next_read = cdtime ();
+	rf->rf_effective_interval = rf->rf_interval;
+
 	pthread_mutex_lock (&read_lock);
 
 	if (read_list == NULL)
@@ -1026,42 +1029,11 @@ static int plugin_insert_read (read_func_t *rf)
 	return (0);
 } /* int plugin_insert_read */
 
-static int read_cb_wrapper (user_data_t *ud)
-{
-	int (*callback) (void);
-
-	if (ud == NULL)
-		return -1;
-
-	callback = ud->data;
-	return callback();
-} /* int read_cb_wrapper */
-
 int plugin_register_read (const char *name,
 		int (*callback) (void))
 {
 	read_func_t *rf;
-	plugin_ctx_t ctx = plugin_get_ctx ();
 	int status;
-
-	if (ctx.interval != 0) {
-		/* If ctx.interval is not zero (== use the plugin or global
-		 * interval), we need to use the "complex" read callback,
-		 * because only that allows to specify a different interval.
-		 * Wrap the callback using read_cb_wrapper(). */
-		struct timespec interval;
-		user_data_t user_data;
-
-		user_data.data = callback;
-		user_data.free_func = NULL;
-
-		CDTIME_T_TO_TIMESPEC (ctx.interval, &interval);
-		return plugin_register_complex_read (/* group = */ NULL,
-				name, read_cb_wrapper, &interval, &user_data);
-	}
-
-	DEBUG ("plugin_register_read: default_interval = %.3f",
-			CDTIME_T_TO_DOUBLE(plugin_get_interval ()));
 
 	rf = malloc (sizeof (*rf));
 	if (rf == NULL)
@@ -1074,12 +1046,11 @@ int plugin_register_read (const char *name,
 	rf->rf_callback = (void *) callback;
 	rf->rf_udata.data = NULL;
 	rf->rf_udata.free_func = NULL;
-	rf->rf_ctx = ctx;
+	rf->rf_ctx = plugin_get_ctx ();
 	rf->rf_group[0] = '\0';
 	sstrncpy (rf->rf_name, name, sizeof (rf->rf_name));
 	rf->rf_type = RF_SIMPLE;
-	rf->rf_interval = 0;
-	rf->rf_effective_interval = rf->rf_interval;
+	rf->rf_interval = plugin_get_interval ();
 
 	status = plugin_insert_read (rf);
 	if (status != 0)
@@ -1094,7 +1065,6 @@ int plugin_register_complex_read (const char *group, const char *name,
 		user_data_t *user_data)
 {
 	read_func_t *rf;
-	plugin_ctx_t ctx = plugin_get_ctx ();
 	int status;
 
 	rf = malloc (sizeof (*rf));
@@ -1113,17 +1083,9 @@ int plugin_register_complex_read (const char *group, const char *name,
 	sstrncpy (rf->rf_name, name, sizeof (rf->rf_name));
 	rf->rf_type = RF_COMPLEX;
 	if (interval != NULL)
-	{
 		rf->rf_interval = TIMESPEC_TO_CDTIME_T (interval);
-	}
-	else if (ctx.interval != 0)
-	{
-		rf->rf_interval = ctx.interval;
-	}
-	rf->rf_effective_interval = rf->rf_interval;
-
-	DEBUG ("plugin_register_read: interval = %.3f",
-			CDTIME_T_TO_DOUBLE (rf->rf_interval));
+	else
+		rf->rf_interval = plugin_get_interval ();
 
 	/* Set user data */
 	if (user_data == NULL)
@@ -1136,7 +1098,7 @@ int plugin_register_complex_read (const char *group, const char *name,
 		rf->rf_udata = *user_data;
 	}
 
-	rf->rf_ctx = ctx;
+	rf->rf_ctx = plugin_get_ctx ();
 
 	status = plugin_insert_read (rf);
 	if (status != 0)
