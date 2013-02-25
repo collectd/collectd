@@ -326,8 +326,7 @@ int plugin_unregister_notification (const char *name);
  *  `vl'        Value list of the values that have been read by a `read'
  *              function.
  */
-int plugin_dispatch_values (value_list_t *vl);
-int plugin_dispatch_values_secure (const value_list_t *vl);
+int plugin_dispatch_values (value_list_t const *vl);
 int plugin_dispatch_missing (const value_list_t *vl);
 
 int plugin_dispatch_notification (const notification_t *notif);

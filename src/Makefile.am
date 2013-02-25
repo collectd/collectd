@@ -119,6 +119,9 @@ collectd_tg_LDADD =
 if BUILD_WITH_LIBSOCKET
 collectd_tg_LDADD += -lsocket
 endif
+if BUILD_WITH_LIBRT
+collectd_tg_LDADD += -lrt
+endif
 if BUILD_AIX
 collectd_tg_LDADD += -lm
 endif
@@ -1336,6 +1339,17 @@ collectd_LDADD += "-dlopen" write_redis.la
 collectd_DEPENDENCIES += write_redis.la
 endif
 
+if BUILD_PLUGIN_WRITE_RIEMANN
+BUILT_SOURCES += riemann.pb-c.c riemann.pb-c.h
+CLEANFILES += riemann.pb-c.c riemann.pb-c.h
+pkglib_LTLIBRARIES += write_riemann.la
+write_riemann_la_SOURCES = write_riemann.c riemann.pb-c.c
+write_riemann_la_LDFLAGS = -module -avoid-version
+write_riemann_la_LIBADD = -lprotobuf-c
+collectd_LDADD += "-dlopen" write_riemann.la
+collectd_DEPENDENCIES += write_riemann.la
+endif
+
 if BUILD_PLUGIN_XMMS
 pkglib_LTLIBRARIES += xmms.la
 xmms_la_SOURCES = xmms.c
@@ -1369,13 +1383,14 @@ dist_man_MANS = collectd.1 \
 		collectd-perl.5 \
 		collectd-python.5 \
 		collectd-snmp.5 \
+		collectd-tg.1 \
 		collectd-threshold.5 \
 		collectd-unixsock.5 \
 		types.db.5
 
 #collectd_1_SOURCES = collectd.pod
 
-EXTRA_DIST = types.db pinba.proto
+EXTRA_DIST = types.db pinba.proto riemann.proto
 
 EXTRA_DIST +=   collectd.conf.pod \
 		collectd-email.pod \
@@ -1388,6 +1403,7 @@ EXTRA_DIST +=   collectd.conf.pod \
 		collectd-python.pod \
 		collectd.pod \
 		collectd-snmp.pod \
+		collectd-tg.pod \
 		collectd-threshold.pod \
 		collectd-unixsock.pod \
 		postgresql_default.conf \
@@ -1410,7 +1426,10 @@ EXTRA_DIST +=   collectd.conf.pod \
 	fi
 
 pinba.pb-c.c pinba.pb-c.h: pinba.proto
-	protoc-c --c_out . pinba.proto
+	protoc-c -I$(srcdir) --c_out . $(srcdir)/pinba.proto
+
+riemann.pb-c.c riemann.pb-c.h: riemann.proto
+	protoc-c -I$(srcdir) --c_out . $(srcdir)/riemann.proto
 
 install-exec-hook:
 	$(mkinstalldirs) $(DESTDIR)$(sysconfdir)

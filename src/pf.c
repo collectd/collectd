@@ -19,18 +19,36 @@
 #include "plugin.h"
 #include "common.h"
 
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <net/if.h>
+#if HAVE_SYS_IOCTL_H
+# include <sys/ioctl.h>
+#endif
+#if HAVE_SYS_SOCKET_H
+# include <sys/socket.h>
+#endif
+#if HAVE_NET_IF_H
+# include <net/if.h>
+#endif
+
 #include <net/pfvar.h>
-#include <paths.h>
-#include <err.h>
-#include <pwd.h>
+
+#ifndef FCNT_NAMES
+# if FCNT_MAX != 3
+#  error "Unexpected value for FCNT_MAX"
+# endif
+# define FCNT_NAMES {"search", "insert", "removals", NULL};
+#endif
+
+#ifndef SCNT_NAMES
+# if SCNT_MAX != 3
+#  error "Unexpected value for SCNT_MAX"
+# endif
+# define SCNT_NAMES {"search", "insert", "removals", NULL};
+#endif
 
 static char const *pf_reasons[PFRES_MAX+1] = PFRES_NAMES;
 static char const *pf_lcounters[LCNT_MAX+1] = LCNT_NAMES;
 static char const *pf_fcounters[FCNT_MAX+1] = FCNT_NAMES;
-static char const *pf_scounters[FCNT_MAX+1] = FCNT_NAMES;
+static char const *pf_scounters[SCNT_MAX+1] = SCNT_NAMES;
 
 static char const *pf_device = "/dev/pf";
 
@@ -86,7 +104,7 @@ static int pf_read (void)
 	close (fd);
 	fd = -1;
 
-	if (!status.running)
+	if (!state.running)
 	{
 		WARNING ("pf plugin: PF is not running.");
 		return (-1);

@@ -16,9 +16,19 @@
 #PIDFile     "@localstatedir@/run/@PACKAGE_NAME@.pid"
 #PluginDir   "@libdir@/@PACKAGE_NAME@"
 #TypesDB     "@prefix@/share/@PACKAGE_NAME@/types.db"
+
+#----------------------------------------------------------------------------#
+# Interval at which to query values. This may be overwritten on a per-plugin #
+# base by using the 'Interval' option of the LoadPlugin block:               #
+#   <LoadPlugin foo>                                                         #
+#       Interval 60                                                          #
+#   </LoadPlugin>                                                            #
+#----------------------------------------------------------------------------#
 #Interval     10
+
 #Timeout      2
 #ReadThreads  5
+#WriteThreads 5
 
 ##############################################################################
 # Logging                                                                    #
@@ -150,8 +160,9 @@
 #@BUILD_PLUGIN_WIRELESS_TRUE@LoadPlugin wireless
 #@BUILD_PLUGIN_WRITE_GRAPHITE_TRUE@LoadPlugin write_graphite
 #@BUILD_PLUGIN_WRITE_HTTP_TRUE@LoadPlugin write_http
-#@BUILD_PLUGIN_WRITE_REDIS_TRUE@LoadPlugin write_redis
 #@BUILD_PLUGIN_WRITE_MONGODB_TRUE@LoadPlugin write_mongodb
+#@BUILD_PLUGIN_WRITE_REDIS_TRUE@LoadPlugin write_redis
+#@BUILD_PLUGIN_WRITE_RIEMANN_TRUE@LoadPlugin write_riemann
 #@BUILD_PLUGIN_XMMS_TRUE@LoadPlugin xmms
 #@BUILD_PLUGIN_ZFS_ARC_TRUE@LoadPlugin zfs_arc
 
@@ -326,6 +337,7 @@
 #		#SelectDB "custdb0"
 #		Query "num_of_customers"
 #		#Query "..."
+#		#Host "..."
 #	</Database>
 #</Plugin>
 
@@ -753,6 +765,11 @@
 #			ValuesFrom "count"
 #		</Result>
 #	</Query>
+#	<Writer sqlstore>
+#		# See contrib/postgresql/collectd_insert.sql for details
+#		Statement "SELECT collectd_insert($1, $2, $3, $4, $5, $6, $7, $8, $9);"
+#		StoreRates true
+#	</Writer>
 #	<Database foo>
 #		Host "hostname"
 #		Port "5432"
@@ -767,6 +784,12 @@
 #		Service "service_name"
 #		Query backend # predefined
 #		Query rt36_tickets
+#	</Database>
+#	<Database qux>
+#		Service "collectd_store"
+#		Writer sqlstore
+#		# see collectd.conf(5) for details
+#		CommitInterval 30
 #	</Database>
 #</Plugin>
 
@@ -998,15 +1021,15 @@
 #</Plugin>
 
 #<Plugin write_graphite>
-#  <Carbon>
+#  <Node "example">
 #    Host "localhost"
 #    Port "2003"
 #    Prefix "collectd"
 #    Postfix "collectd"
-#    StoreRates false
+#    StoreRates true
 #    AlwaysAppendDS false
 #    EscapeCharacter "_"
-#  </Carbon>
+#  </Node>
 #</Plugin>
 
 #<Plugin write_http>
@@ -1021,6 +1044,15 @@
 #	</URL>
 #</Plugin>
 
+#<Plugin write_mongodb>
+#	<Node "example">
+#		Host "localhost"
+#		Port "27017"
+#		Timeout 1000
+#		StoreRates false
+#	</Node>
+#</Plugin>
+
 #<Plugin write_redis>
 #	<Node "example">
 #		Host "localhost"
@@ -1029,13 +1061,15 @@
 #	</Node>
 #</Plugin>
 
-#<Plugin write_mongodb>
+#<Plugin write_riemann>
 #	<Node "example">
 #		Host "localhost"
-#		Port "27017"
-#		Timeout 1000
-#		StoreRates false
+#		Port 5555
+#		Protocol UDP
+#		StoreRates true
+#		AlwaysAppendDS false
 #	</Node>
+#	Tag "foobar"
 #</Plugin>
 
 ##############################################################################

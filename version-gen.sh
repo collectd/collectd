@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-DEFAULT_VERSION="5.2.0.git"
+DEFAULT_VERSION="5.2.1.git"
 
 VERSION="`git describe 2> /dev/null | sed -e 's/^collectd-//'`"
 

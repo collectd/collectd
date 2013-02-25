@@ -1,6 +1,6 @@
 /**
  * collectd - src/utils_complain.h
- * Copyright (C) 2006-2007  Florian octo Forster
+ * Copyright (C) 2006-2013  Florian octo Forster
  * Copyright (C) 2008  Sebastian tokkee Harl
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -24,23 +24,26 @@
 #ifndef UTILS_COMPLAIN_H
 #define UTILS_COMPLAIN_H 1
 
-#include <time.h>
+#include "utils_time.h"
 
 typedef struct
 {
 	/* time of the last report */
-	time_t last;
+	cdtime_t last;
 
-	/* how long to wait until reporting again
-	 *   0 indicates that the complaint is no longer valid
-	 * < 0 indicates that the complaint has been reported once
-	 *     => c_complain_once will not report again
-	 *     => c_complain uses the absolute value to reset the old value */
-	int interval;
+	/* How long to wait until reporting again.
+	 * 0 indicates that the complaint is no longer valid. */
+	cdtime_t interval;
+
+	_Bool complained_once;
 } c_complain_t;
 
-#define C_COMPLAIN_INIT_STATIC { 0, 0 }
-#define C_COMPLAIN_INIT(c) do { (c)->last = 0; (c)->interval = 0; } while (0)
+#define C_COMPLAIN_INIT_STATIC { 0, 0, 0 }
+#define C_COMPLAIN_INIT(c) do { \
+	(c)->last = 0; \
+	(c)->interval = 0; \
+	(c)->complained_once = 0; \
+} while (0)
 
 /*
  * NAME

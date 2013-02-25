@@ -246,7 +246,7 @@ static void nfs_procedures_submit (const char *plugin_instance,
 		vl.values = values + i;
 		sstrncpy (vl.type_instance, type_instances[i],
 				sizeof (vl.type_instance));
-		plugin_dispatch_values_secure (&vl);
+		plugin_dispatch_values (&vl);
 	}
 } /* void nfs_procedures_submit */
 

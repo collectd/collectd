@@ -239,6 +239,7 @@ int cu_tail_read (cu_tail_t *obj, char *buf, int buflen, tailfunc_t *callback,
 			if (buf[len - 1] != '\n')
 				break;
 			buf[len - 1] = '\0';
+			len--;
 		}
 
 		status = callback (data, buf, buflen);

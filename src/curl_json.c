@@ -521,7 +521,7 @@ static int cj_init_curl (cj_t *db) /* {{{ */
     return (-1);
   }
 
-  curl_easy_setopt (db->curl, CURLOPT_NOSIGNAL, 1);
+  curl_easy_setopt (db->curl, CURLOPT_NOSIGNAL, 1L);
   curl_easy_setopt (db->curl, CURLOPT_WRITEFUNCTION, cj_curl_callback);
   curl_easy_setopt (db->curl, CURLOPT_WRITEDATA, db);
   curl_easy_setopt (db->curl, CURLOPT_USERAGENT,
@@ -549,9 +549,9 @@ static int cj_init_curl (cj_t *db) /* {{{ */
     curl_easy_setopt (db->curl, CURLOPT_USERPWD, db->credentials);
   }
 
-  curl_easy_setopt (db->curl, CURLOPT_SSL_VERIFYPEER, (int) db->verify_peer);
+  curl_easy_setopt (db->curl, CURLOPT_SSL_VERIFYPEER, (long) db->verify_peer);
   curl_easy_setopt (db->curl, CURLOPT_SSL_VERIFYHOST,
-                    (int) (db->verify_host ? 2 : 0));
+                    db->verify_host ? 2L : 0L);
   if (db->cacert != NULL)
     curl_easy_setopt (db->curl, CURLOPT_CAINFO, db->cacert);
 

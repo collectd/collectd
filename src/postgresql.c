@@ -170,14 +170,14 @@ static char *def_queries[] = {
 };
 static int def_queries_num = STATIC_ARRAY_SIZE (def_queries);
 
-static c_psql_database_t *databases     = NULL;
-static size_t             databases_num = 0;
+static c_psql_database_t **databases     = NULL;
+static size_t              databases_num = 0;
 
-static udb_query_t      **queries       = NULL;
-static size_t             queries_num   = 0;
+static udb_query_t       **queries       = NULL;
+static size_t              queries_num   = 0;
 
-static c_psql_writer_t   *writers       = NULL;
-static size_t             writers_num   = 0;
+static c_psql_writer_t    *writers       = NULL;
+static size_t              writers_num   = 0;
 
 static int c_psql_begin (c_psql_database_t *db)
 {
@@ -220,17 +220,25 @@ static int c_psql_commit (c_psql_database_t *db)
 
 static c_psql_database_t *c_psql_database_new (const char *name)
 {
-	c_psql_database_t *db;
+	c_psql_database_t **tmp;
+	c_psql_database_t  *db;
 
-	db = (c_psql_database_t *)realloc (databases,
-			(databases_num + 1) * sizeof (*db));
+	db = (c_psql_database_t *)malloc (sizeof(*db));
 	if (NULL == db) {
 		log_err ("Out of memory.");
 		return NULL;
 	}
 
-	databases = db;
-	db = databases + databases_num;
+	tmp = (c_psql_database_t **)realloc (databases,
+			(databases_num + 1) * sizeof (*databases));
+	if (NULL == tmp) {
+		log_err ("Out of memory.");
+		sfree (db);
+		return NULL;
+	}
+
+	databases = tmp;
+	databases[databases_num] = db;
 	++databases_num;
 
 	db->conn = NULL;
@@ -324,7 +332,9 @@ static void c_psql_database_delete (void *data)
 	sfree (db->service);
 
 	/* don't care about freeing or reordering the 'databases' array
-	 * this is done in 'shutdown' */
+	 * this is done in 'shutdown'; also, don't free the database instance
+	 * object just to make sure that in case anybody accesses it before
+	 * shutdown won't segfault */
 	return;
 } /* c_psql_database_delete */
 
@@ -370,9 +380,6 @@ static int c_psql_check_connection (c_psql_database_t *db)
 
 		c_psql_connect (db);
 	}
-
-	/* "ping" */
-	PQclear (PQexec (db->conn, "SELECT 42;"));
 
 	if (CONNECTION_OK != PQstatus (db->conn)) {
 		PQreset (db->conn);
@@ -513,6 +520,12 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q,
 
 	if (PGRES_TUPLES_OK != PQresultStatus (res)) {
 		pthread_mutex_lock (&db->db_lock);
+
+		if ((CONNECTION_OK != PQstatus (db->conn))
+				&& (0 == c_psql_check_connection (db))) {
+			PQclear (res);
+			return c_psql_exec_query (db, q, prep_area);
+		}
 
 		log_err ("Failed to execute SQL query: %s",
 				PQerrorMessage (db->conn));
@@ -900,10 +913,10 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 
 		if ((PGRES_COMMAND_OK != PQresultStatus (res))
 				&& (PGRES_TUPLES_OK != PQresultStatus (res))) {
+			PQclear (res);
+
 			if ((CONNECTION_OK != PQstatus (db->conn))
 					&& (0 == c_psql_check_connection (db))) {
-				PQclear (res);
-
 				/* try again */
 				res = PQexecParams (db->conn, writer->statement,
 						STATIC_ARRAY_SIZE (params), NULL,
@@ -912,6 +925,7 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 
 				if ((PGRES_COMMAND_OK == PQresultStatus (res))
 						|| (PGRES_TUPLES_OK == PQresultStatus (res))) {
+					PQclear (res);
 					success = 1;
 					continue;
 				}
@@ -932,6 +946,8 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 			pthread_mutex_unlock (&db->db_lock);
 			return -1;
 		}
+
+		PQclear (res);
 		success = 1;
 	}
 
@@ -953,17 +969,17 @@ static int c_psql_flush (cdtime_t timeout,
 		__attribute__((unused)) const char *ident,
 		user_data_t *ud)
 {
-	c_psql_database_t *dbs = databases;
+	c_psql_database_t **dbs = databases;
 	size_t dbs_num = databases_num;
 	size_t i;
 
 	if ((ud != NULL) && (ud->data != NULL)) {
-		dbs = ud->data;
+		dbs = (void *)&ud->data;
 		dbs_num = 1;
 	}
 
 	for (i = 0; i < dbs_num; ++i) {
-		c_psql_database_t *db = dbs + i;
+		c_psql_database_t *db = dbs[i];
 
 		/* don't commit if the timeout is larger than the regular commit
 		 * interval as in that case all requested data has already been
@@ -983,7 +999,7 @@ static int c_psql_shutdown (void)
 	plugin_unregister_read_group ("postgresql");
 
 	for (i = 0; i < databases_num; ++i) {
-		c_psql_database_t *db = databases + i;
+		c_psql_database_t *db = databases[i];
 
 		if (db->writers_num > 0) {
 			char cb_name[DATA_MAX_NAME_LEN];
@@ -998,6 +1014,8 @@ static int c_psql_shutdown (void)
 			plugin_unregister_flush (cb_name);
 			plugin_unregister_write (cb_name);
 		}
+
+		sfree (db);
 	}
 
 	udb_query_free (queries, queries_num);
