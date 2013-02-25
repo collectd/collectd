@@ -913,6 +913,8 @@ static int rrd_write (const data_set_t *ds, const value_list_t *vl,
 					ds, vl, &rrdcreate_config);
 			if (status != 0)
 				return (-1);
+			else if (rrdcreate_config.async)
+				return (0);
 		}
 		else
 		{
