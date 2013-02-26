@@ -235,6 +235,7 @@ static void snort_metric_definition_destroy(void *arg){
 
     sfree(md->name);
     sfree(md->type);
+    sfree(md->instance);
     sfree(md);
 }
 
@@ -264,8 +265,11 @@ static int snort_config_add_metric(oconfig_item_t *ci){
     if (md == NULL)
         return (-1);
     memset(md, 0, sizeof(*md));
-
     md->name = NULL;
+    md->type = NULL;
+    md->instance = NULL;
+    md->next = NULL;
+
     status = cf_util_get_string (ci, &md->name);
     if (status != 0) {
         sfree (md);
