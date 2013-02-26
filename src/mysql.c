@@ -557,6 +557,7 @@ static int mysql_read_master_stats (mysql_database_t *db, MYSQL *con)
 	{
 		ERROR ("mysql plugin: Failed to get master statistics: "
 				"`%s' did not return any rows.", query);
+		mysql_free_result (res);
 		return (-1);
 	}
 
@@ -565,6 +566,7 @@ static int mysql_read_master_stats (mysql_database_t *db, MYSQL *con)
 	{
 		ERROR ("mysql plugin: Failed to get master statistics: "
 				"`%s' returned less than two columns.", query);
+		mysql_free_result (res);
 		return (-1);
 	}
 
@@ -608,6 +610,7 @@ static int mysql_read_slave_stats (mysql_database_t *db, MYSQL *con)
 	{
 		ERROR ("mysql plugin: Failed to get slave statistics: "
 				"`%s' did not return any rows.", query);
+		mysql_free_result (res);
 		return (-1);
 	}
 
@@ -616,6 +619,7 @@ static int mysql_read_slave_stats (mysql_database_t *db, MYSQL *con)
 	{
 		ERROR ("mysql plugin: Failed to get slave statistics: "
 				"`%s' returned less than 33 columns.", query);
+		mysql_free_result (res);
 		return (-1);
 	}
 
