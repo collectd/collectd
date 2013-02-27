@@ -4649,9 +4649,10 @@ expected. Default is B<true>.
 When enabled, new RRD files are enabled asynchronously, using a separate thread
 that runs in the background. This prevents writes to block, which is a problem
 especially when many hundreds of files need to be created at once. However,
-this may lead to transient errors reported by code that assumes that the files
-are already existing. When disabled (the default) files are created
-synchronously, blocking for a short while, while the file is being written.
+since the purpose of creating the files asynchronously is I<not> to block until
+the file is available, values before the file is available will be discarded.
+When disabled (the default) files are created synchronously, blocking for a
+short while, while the file is being written.
 
 =item B<StepSize> I<Seconds>
 
@@ -4718,9 +4719,10 @@ beneath the daemon's working directory, i.e. the B<BaseDir>.
 When enabled, new RRD files are enabled asynchronously, using a separate thread
 that runs in the background. This prevents writes to block, which is a problem
 especially when many hundreds of files need to be created at once. However,
-this may lead to transient errors reported by code that assumes that the files
-are already existing. When disabled (the default) files are created
-synchronously, blocking for a short while, while the file is being written.
+since the purpose of creating the files asynchronously is I<not> to block until
+the file is available, values before the file is available will be discarded.
+When disabled (the default) files are created synchronously, blocking for a
+short while, while the file is being written.
 
 =item B<StepSize> I<Seconds>
 
