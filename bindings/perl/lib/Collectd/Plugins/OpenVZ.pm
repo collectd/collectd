@@ -25,7 +25,7 @@ package Collectd::Plugins::OpenVZ;
 use strict;
 use warnings;
 
-#use Collectd qw( :all );
+use Collectd qw( :all );
 
 my $vzctl = '/usr/sbin/vzctl';
 my $vzlist = '/usr/sbin/vzlist';
@@ -45,8 +45,10 @@ my @ignored_interfaces = ( "lo" );
 sub interface_read($$) {
     my $veid = shift;
     my $name = shift;
-    my ($current_interface, $val, @lines, @parts, @counters, $i);
+    my ($val, @lines, @parts, @counters, $i);
     my @if_instances = ('if_octets', 'if_packets', 'if_errors');
+    my @rx_fields = qw(if_octets if_packets if_errors drop fifo frame compressed multicast);
+    my @tx_fields = qw(if_octets if_packets if_errors drop fifo frame compressed);
     my %v = _build_report_hash($name);
 
     $v{'plugin'} = 'interface';
@@ -58,23 +60,28 @@ sub interface_read($$) {
     # face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
     #     lo:       0       0    0    0    0     0          0         0        0       0    0    0    0     0       0          0
     #     venet0:    2420      27    0    0    0     0          0         0     2200      29    0    0    0     0       0          0
-    foreach (@lines) {
-        next if (!/:/);
+    #
 
-        @parts = split(/:/);
-        ($current_interface = $parts[0]) =~ s/^\s*(.*?)\s*$/$1/;
-        next if grep { $current_interface eq $_ } @ignored_interfaces;
+    for my $line (@lines) {
+        next if $line !~ /:/;
 
-        ($val = $parts[1]) =~ s/^\s*(.*?)\s*$/$1/;
-        @counters = split(/ +/, $val);
+        $line =~ s/^\s+|\s+$//g;
 
-        $v{'plugin_instance'} = $current_interface;
-        for ($i= 0; $i <= $#if_instances; ++$i) {
-            $v{'type'} = $if_instances[$i];
-            $v{'values'} = [ $counters[$i], $counters[$i + 8] ];
+        my ($iface, %rx, %tx);
+
+        # Build our hash data
+        ($iface, @rx{@rx_fields}, @tx{@tx_fields}) = split /[: ]+/, $line;
+
+        # Skip this interface if it is in the ignored list
+        next if grep { $iface eq $_ } @ignored_interfaces;
+
+        $v{'plugin_instance'} = $iface;
+        for my $instance (@if_instances) {
+            $v{'type'} = $instance;
+            $v{'values'} = [ $rx{$instance}, $tx{$instance} ];
             plugin_dispatch_values(\%v);
+        }
     }
-}
 }
 
 sub cpu_read($$) {
