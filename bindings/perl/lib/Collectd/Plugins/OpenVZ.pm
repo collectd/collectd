@@ -39,10 +39,13 @@ my $enable_load      = 1;
 my $enable_processes = 1;
 my $enable_users     = 1;
 
+# We probably don't care about loopback transfer
+my @ignored_interfaces = ( "lo" );
+
 sub interface_read($$) {
     my $veid = shift;
     my $name = shift;
-    my ($key, $val, @lines, @parts, @counters);
+    my ($key, $current_interface, $val, @lines, @parts, @counters, $i);
     my @if_instances = ('if_octets', 'if_packets', 'if_errors');
     my %v = _build_report_hash($name);
 
@@ -50,18 +53,25 @@ sub interface_read($$) {
     delete $v{'plugin_instance'};
 
     @lines = split(/\n/, `$vzctl exec $veid cat /proc/net/dev`);
+    #$ vzctl exec 1106221 cat /proc/net/dev
+    #Inter-|   Receive                                                |  Transmit
+    # face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+    #     lo:       0       0    0    0    0     0          0         0        0       0    0    0    0     0       0          0
+    #     venet0:    2420      27    0    0    0     0          0         0     2200      29    0    0    0     0       0          0
     foreach (@lines) {
         next if (!/:/);
 
         @parts = split(/:/);
-        ($key = $parts[0]) =~ s/^\s*(.*?)\s*$/$1/;
+        ($current_interface = $parts[0]) =~ s/^\s*(.*?)\s*$/$1/;
+        next if grep { $current_interface eq $_ } @ignored_interfaces;
+
         ($val = $parts[1]) =~ s/^\s*(.*?)\s*$/$1/;
         @counters = split(/ +/, $val);
 
-        $v{'type_instance'} = $key;
-        for ($key = 0; $key <= $#if_instances; ++$key) {
-            $v{'type'} = $if_instances[$key];
-            $v{'values'} = [ $counters[$key], $counters[$key + 8] ];
+        $v{'plugin_instance'} = $key;
+        for ($i= 0; $i <= $#if_instances; ++$i) {
+            $v{'type'} = $if_instances[$i];
+            $v{'values'} = [ $counters[$i], $counters[$i + 8] ];
             plugin_dispatch_values(\%v);
     }
 }
