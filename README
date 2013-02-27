@@ -274,6 +274,10 @@ Features
       network devices such as switches, routers, thermometers, rack monitoring
       servers, etc. See collectd-snmp(5).
 
+    - snort
+      Reads the statistics file written by Snort, a network intrution detection
+      system (IDS) and dispatches the values according to the configuration.
+
     - swap
       Pages swapped out onto harddisk or whatever is called `swap' by the OS..
 
