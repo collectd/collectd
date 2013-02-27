@@ -25,7 +25,7 @@ package Collectd::Plugins::OpenVZ;
 use strict;
 use warnings;
 
-use Collectd qw( :all );
+#use Collectd qw( :all );
 
 my $vzctl = '/usr/sbin/vzctl';
 my $vzlist = '/usr/sbin/vzlist';
@@ -45,7 +45,7 @@ my @ignored_interfaces = ( "lo" );
 sub interface_read($$) {
     my $veid = shift;
     my $name = shift;
-    my ($key, $current_interface, $val, @lines, @parts, @counters, $i);
+    my ($current_interface, $val, @lines, @parts, @counters, $i);
     my @if_instances = ('if_octets', 'if_packets', 'if_errors');
     my %v = _build_report_hash($name);
 
@@ -68,7 +68,7 @@ sub interface_read($$) {
         ($val = $parts[1]) =~ s/^\s*(.*?)\s*$/$1/;
         @counters = split(/ +/, $val);
 
-        $v{'plugin_instance'} = $key;
+        $v{'plugin_instance'} = $current_interface;
         for ($i= 0; $i <= $#if_instances; ++$i) {
             $v{'type'} = $if_instances[$i];
             $v{'values'} = [ $counters[$i], $counters[$i + 8] ];
