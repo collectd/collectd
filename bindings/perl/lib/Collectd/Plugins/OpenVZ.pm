@@ -202,6 +202,7 @@ sub openvz_read {
 
     foreach $veid (@veids) {
         ($name = `$vzlist -Ho name $veid`) =~ s/^\s*(.*?)\s*$/$1/;
+        ($name = `$vzlist -Ho hostname $veid`) =~ s/^\s*(.*?)\s*$/$1/ if($name =~ /^-$/);
         $name = $veid if ($name =~ /^-$/);
 
         if($enable_interface) {
