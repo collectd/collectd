@@ -4845,6 +4845,98 @@ Since the configuration of the C<snmp plugin> is a little more complicated than
 other plugins, its documentation has been moved to an own manpage,
 L<collectd-snmp(5)>. Please see there for details.
 
+=head2 Plugin C<snort>
+
+The I<snort plugin> reads the statistics file written by I<Snort>, a free
+network intrusion detection system (IDS). The file is written by Snort's
+I<Performance Monitor> preprocessor and needs to be configured to write to a
+file.
+
+B<Synopsis:>
+
+ <Plugin "snort">
+   <Metric "dropped">
+       Type "percent"
+       Instance "dropped"
+       Index 1
+   </Metric>
+   <Instance "eth0">
+       Path "/var/log/snort/snort.stats"
+       Interval 600
+       Collect "dropped"
+   </Instance>
+ </Plugin>
+
+The configuration consists of one or more B<Metric> blocks that define an index
+into the line written by I<Snort> and how this value is mapped to I<collectd's>
+internal representation. These are followed by one or more B<Instance> blocks
+which configure which file to read, in which interval and which metrics to
+extract.
+
+=over 4
+
+=item E<lt>B<Metric> I<Name>E<gt>
+
+The B<Metric> block configures a new metric to be extracted from the statistics
+file and how it is mapped on I<collectd's> data model. The string I<Name> is
+only used inside the B<Instance> blocks to refer to this block, so you can use
+one B<Metric> block for multiple I<Snort> instances.
+
+=over 4
+
+=item B<Type> I<Type>
+
+Configures which I<Type> to use when dispatching this metric. Types are defined
+in the L<types.db(5)> file, see the appropriate manual page for more
+information on specifying types. Only types with a single I<data source> are
+supported by the I<snort plugin>. The information whether the value is an
+absolute value (i.e. a C<GAUGE>) or a rate (i.e. a C<DERIVE>) is taken from the
+I<Type's> definition.
+
+=item B<Instance> I<TypeInstance>
+
+If set, I<TypeInstance> is used to populate the type instance field of the
+created value lists. Otherwise, no type instance is used.
+
+=item B<Index> I<Index>
+
+Each line in the statistics file is broken into many fields with the first
+field, the timestamp of the line, is index with zero. This option configures to
+read the value from the field with index I<Index>. Since the first field is
+always the timestamp, I<Index> must be greater than zero.
+
+=back
+
+=item E<lt>B<Instance> I<Name>E<gt>
+
+Configures an instance of I<Snort> to extract values for. The block's I<Name>
+will be used as I<plugin instance> when dispatching the values and is used to
+support multiple separate I<Snort> instances. There must be at least one
+I<Instance> block but there can be multiple if you have multiple instances of
+I<Snort> running.
+
+=over 4
+
+=item B<Path> I<Path>
+
+Configures the I<Path> to the statistics file to read.
+
+=item B<Collect> I<Metric>
+
+Specifies which I<Metric> to collect. This option must be specified at least
+once, and you can use this option multiple times to specify more than one
+metric to be extracted from this statistic file.
+
+=item B<Interval> I<Seconds>
+
+Configures the interval in which to read values from this instance / file. This
+should match the interval in which I<Snort's> performance monitor is writing to
+the file. Defaults to the plugin's default interval.
+
+=back
+
+=back
+
 =head2 Plugin C<swap>
 
 The I<Swap plugin> collects information about used and available swap space. On
