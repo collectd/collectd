@@ -43,7 +43,7 @@ my $enable_users     = 1;
 my @ignored_interfaces = ( "lo" );
 
 sub interface_read {
-    my ($veid, $name) = @_
+    my ($veid, $name) = @_;
     my @rx_fields = qw(if_octets if_packets if_errors drop fifo frame compressed multicast);
     my @tx_fields = qw(if_octets if_packets if_errors drop fifo frame compressed);
     my %v = _build_report_hash($name);
