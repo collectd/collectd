@@ -42,49 +42,41 @@ my $enable_users     = 1;
 # We probably don't care about loopback transfer
 my @ignored_interfaces = ( "lo" );
 
-sub interface_read($$) {
-    my $veid = shift;
-    my $name = shift;
-    my ($val, @lines, @parts, @counters, $i);
-    my @if_instances = ('if_octets', 'if_packets', 'if_errors');
+sub interface_read {
+    my ($veid, $name) = @_
     my @rx_fields = qw(if_octets if_packets if_errors drop fifo frame compressed multicast);
     my @tx_fields = qw(if_octets if_packets if_errors drop fifo frame compressed);
     my %v = _build_report_hash($name);
 
-    $v{'plugin'} = 'interface';
-    delete $v{'plugin_instance'};
-
-    @lines = split(/\n/, `$vzctl exec $veid cat /proc/net/dev`);
-    #$ vzctl exec 1106221 cat /proc/net/dev
-    #Inter-|   Receive                                                |  Transmit
-    # face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
-    #     lo:       0       0    0    0    0     0          0         0        0       0    0    0    0     0       0          0
-    #     venet0:    2420      27    0    0    0     0          0         0     2200      29    0    0    0     0       0          0
-    #
+    my @lines = `$vzctl exec $veid cat /proc/net/dev`;
 
     for my $line (@lines) {
+        # skip explanatory text
         next if $line !~ /:/;
 
         $line =~ s/^\s+|\s+$//g;
 
         my ($iface, %rx, %tx);
 
-        # Build our hash data
+        # read /proc/net/dev fields
         ($iface, @rx{@rx_fields}, @tx{@tx_fields}) = split /[: ]+/, $line;
 
         # Skip this interface if it is in the ignored list
         next if grep { $iface eq $_ } @ignored_interfaces;
 
-        $v{'plugin_instance'} = $iface;
-        for my $instance (@if_instances) {
-            $v{'type'} = $instance;
-            $v{'values'} = [ $rx{$instance}, $tx{$instance} ];
-            plugin_dispatch_values(\%v);
+        for my $instance (qw(if_octets if_packets if_errors)) {
+            plugin_dispatch_values({
+                'plugin'          => 'interface',
+                'plugin_instance' => $iface,
+                'type'            => $instance,
+                'values'          => [ $rx{$instance}, $tx{$instance} ],
+                %v,
+            });
         }
     }
 }
 
-sub cpu_read($$) {
+sub cpu_read {
     my $veid = shift;
     my $name = shift;
     my ($key, $val, $i, @lines, @counters);
@@ -122,7 +114,7 @@ sub cpu_read($$) {
 }
 }
 
-sub df_read($$) {
+sub df_read {
     my $veid = shift;
     my $name = shift;
     my ($key, $val, @lines, @parts);
@@ -148,7 +140,7 @@ sub df_read($$) {
 }
 }
 
-sub load_read($$) {
+sub load_read {
     my $veid = shift;
     my $name = shift;
     my ($key, $val, @lines, @parts);
@@ -164,7 +156,7 @@ sub load_read($$) {
     plugin_dispatch_values(\%v);
 }
 
-sub processes_read($$) {
+sub processes_read {
     my $veid = shift;
     my $name = shift;
     my ($key, $val, @lines);
@@ -191,7 +183,7 @@ sub processes_read($$) {
 }
 }
 
-sub users_read($$) {
+sub users_read {
     my $veid = shift;
     my $name = shift;
     my ($key, $val, @lines);
@@ -207,7 +199,7 @@ sub users_read($$) {
     plugin_dispatch_values(\%v);
 }
 
-sub _build_report_hash($) {
+sub _build_report_hash {
     my $name = shift;
     return (time => time(), interval => plugin_get_interval(), host => $name);
 }
