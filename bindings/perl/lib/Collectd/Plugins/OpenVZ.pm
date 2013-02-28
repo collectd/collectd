@@ -46,10 +46,7 @@ sub interface_read {
     my ($veid, $name) = @_
     my @rx_fields = qw(if_octets if_packets if_errors drop fifo frame compressed multicast);
     my @tx_fields = qw(if_octets if_packets if_errors drop fifo frame compressed);
-    my $v = _build_report_hash($name);
-
-    $v->{'plugin'} = 'interface';
-    delete $v->{'plugin_instance'};
+    my %v = _build_report_hash($name);
 
     my @lines = `$vzctl exec $veid cat /proc/net/dev`;
 
@@ -67,11 +64,14 @@ sub interface_read {
         # Skip this interface if it is in the ignored list
         next if grep { $iface eq $_ } @ignored_interfaces;
 
-        $v->{'plugin_instance'} = $iface;
         for my $instance (qw(if_octets if_packets if_errors)) {
-            $v->{'type'} = $instance;
-            $v->{'values'} = [ $rx{$instance}, $tx{$instance} ];
-            plugin_dispatch_values($v);
+            plugin_dispatch_values({
+                'plugin'          => 'interface',
+                'plugin_instance' => $iface,
+                'type'            => $instance,
+                'values'          => [ $rx{$instance}, $tx{$instance} ],
+                %v,
+            });
         }
     }
 }
