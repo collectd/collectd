@@ -582,14 +582,14 @@ fi
 
 # Check for crypt() in libcrypt
 build_with_libcrypt="no"
-SAVE_LIBS="$LIBS"
+save_libs_for_crypt_r_test="$LIBS"
 BUILD_WITH_LIBCRYPT_CFLAGS=""
 BUILD_WITH_LIBCRYPT_LIBS=""
 AC_SEARCH_LIBS(crypt, [crypt],
 			[build_with_libcrypt="yes"],
 			[build_with_libcrypt="no"],
 			[])
-LIBS="$SAVE_LIBS"
+LIBS="${save_libs_for_crypt_r_test}"
 if test "x$build_with_libcrypt" = "xyes"
 then
   case "x$ac_cv_search_crypt" in
@@ -601,7 +601,7 @@ fi
 
 # Check for crypt_r
 have_crypt_r="no"
-SAVE_LIBS="$LIBS"
+save_libs_for_crypt_r_test="$LIBS"
 LIBS="$LIBS $BUILD_WITH_LIBCRYPT_LIBS"
 AC_CACHE_CHECK([for crypt_r],
   [c_cv_have_crypt_r_default],
@@ -633,8 +633,8 @@ AC_CACHE_CHECK([for crypt_r],
 # Check for crypt_r as a GNU extension if not found yet
 if test "x$c_cv_have_crypt_r_default" = "xno"
 then
-  SAVE_CFLAGS="$CFLAGS"
-  CFLAGS="$CFLAGS -DBUG_GNU_SOURCE"
+  save_cflags_for_crypt_r_test="$CFLAGS"
+  CFLAGS="$CFLAGS -D_GNU_SOURCE"
 
   AC_CACHE_CHECK([if crypt_r needs _GNU_SOURCE],
     [c_cv_have_crypt_r_gnusource],
@@ -669,10 +669,10 @@ then
   	BUILD_WITH_LIBCRYPT_CFLAGS="-D_GNU_SOURCE"
   fi
 
-  CFLAGS="$SAVE_CFLAGS"
+  CFLAGS="${save_cflags_for_crypt_r_test}"
 fi
 
-LIBS="$SAVE_LIBS"
+LIBS="${save_libs_for_crypt_r_test}"
 if test "x$have_crypt_r" = "xyes"
 then
 	AC_DEFINE(HAVE_CRYPT_R, 1, [Define if the crypt_r(3) function is available.])
