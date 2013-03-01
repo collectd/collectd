@@ -291,16 +291,31 @@ static wt_chunk_t * wt_chunk_find_host_or_new(const notification_t *n) { /* {{{ 
         return(ch);
 } /* }}} wt_chunk_find_host_or_new */
 
-static void wt_chunk_mark_for_flush(wt_chunk_t *ch) { /* {{{ */
+static void wt_chunk_mark_for_flush(wt_chunk_t *ch, short priority) { /* {{{ */
 
         pthread_mutex_lock(&wt_chunk_flush_lock);
         ch->flush = 1;
-        ch->next = wt_chunks_flush;
-        ch->prev = NULL;
-        wt_chunks_flush = ch;
-        if(NULL == ch->next) {
+        if(! wt_chunks_flush) {
+                ch->next = NULL;
+                ch->prev = NULL;
+                wt_chunks_flush = ch;
+                wt_chunks_flush_last = ch;
+        } else if(priority) {
+                /* Append at the end because flush process starts at the end
+                 * of the list.
+                 */
+                ch->next = NULL;
+                ch->prev = wt_chunks_flush_last;
+                ch->prev->next = ch;
                 wt_chunks_flush_last = ch;
         } else {
+                /* Prepend because flush process starts at the end
+                 * of the list.
+                 * This will be flushed in normal FIFO mode.
+                 */
+                ch->next = wt_chunks_flush;
+                ch->prev = NULL;
+                wt_chunks_flush = ch;
                 ch->next->prev = ch;
         }
         wt_chunk_flush_nb += 1;
@@ -313,7 +328,7 @@ static wt_chunk_t * wt_chunk_mark_for_flush_and_get_new(wt_chunk_t *ch) { /* {{{
         wt_chunk_t *ch_old;
         int status;
 
-        wt_chunk_mark_for_flush(ch);
+        wt_chunk_mark_for_flush(ch, 0);
 
         ch_new = wt_chunk_new(ch->hostname);
         status = c_avl_update(wt_chunks_tree, ch->hostname, ch_new, (void *) &ch_old);
@@ -480,7 +495,7 @@ static void wt_flush_and_free_chunks_tree(void) /* {{{ */
                 iter = c_avl_get_iterator (wt_chunks_tree);
                 while (c_avl_iterator_next (iter, (void *) &key, (void *) &ch) == 0)
                 {
-                        wt_chunk_mark_for_flush(ch);
+                        wt_chunk_mark_for_flush(ch, 0);
                 } /* while (c_avl_iterator_next) */
                 c_avl_iterator_destroy (iter);
 
@@ -509,7 +524,7 @@ static void wt_chunks_mark_all_for_flush (time_t olderthan, char *hostname) /* {
                 if(hostname && strcmp(hostname, ch->hostname)) continue;
 
                 wt_chunk_t *ch_new;
-                wt_chunk_mark_for_flush(ch);
+                wt_chunk_mark_for_flush(ch, hostname?1:0);
                 ch_new = wt_chunk_new(ch->hostname);
                 c_avl_iterator_update_value(iter, ch_new);
         } /* while (c_avl_iterator_next) */
