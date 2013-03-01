@@ -326,26 +326,19 @@ static int top_read(void)
                 }                
                 pwd = getpwuid(status->Uid[1]);
                 grp = getgrgid(status->Gid[1]);
+
 #if KERNEL_LINUX              
-                snprintf(buf, sizeof(buf), "%d %d %lu %s %lu %s %ld %ld %ld %s\n", 
-                    stat->pid, stat->ppid, status->Uid[1], pwd->pw_name, status->Gid[1], 
-                    grp->gr_name, stat->rss, stat->stime * 100 / hz,
-                    stat->utime * 100 / hz, status->Name);
+#define TO_100_DIV_H2(x) ((x) * 100 / (hz))
 #elif KERNEL_SOLARIS
-              if ((pwd != NULL) && (grp != NULL))
-                {
-                  snprintf (buf, sizeof (buf), "%d %d %lu %s %lu %s %ld %ld %ld %s\n",
-                            stat->pid, stat->ppid, status->Uid[1], pwd->pw_name, status->Gid[1],
-                            grp->gr_name, stat->rss, stat->stime,
-                            stat->utime, status->Name);
-                } else
-                {
-                  snprintf (buf, sizeof (buf), "%d %d %lu %s %lu %s %ld %ld %ld %s\n",
-                            stat->pid, stat->ppid, status->Uid[1], "NA", status->Gid[1],
-                            "NA", stat->rss, stat->stime,
-                            stat->utime, status->Name);
-                }
+#define TO_100_DIV_H2(x) (x)
 #endif                
+
+                snprintf(buf, sizeof(buf), "%d %d %lu %s %lu %s %ld %ld %ld %s\n", 
+								stat->pid, stat->ppid, 
+								status->Uid[1], pwd?pwd->pw_name:"NA", 
+								status->Gid[1], grp?grp->gr_name:"NA",
+								stat->rss, TO_100_DIV_H2(stat->stime),
+								TO_100_DIV_H2(stat->utime), status->Name);
                 free(namelist[n]);
                 free(stat);
                 free(status);
