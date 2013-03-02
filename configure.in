@@ -1831,6 +1831,8 @@ then
 
 	if test "$with_libgcrypt" != "no"; then
 		AM_PATH_LIBGCRYPT(1:1.2.0,,with_libgcrypt="no (version 1.2.0+ required)")
+		GCRYPT_CPPFLAGS="$LIBGCRYPT_CPPFLAGS"
+		GCRYPT_LIBS="$LIBGCRYPT_LIBS"
 	fi
 fi
 
