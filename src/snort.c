@@ -1,6 +1,7 @@
 /**
  * collectd - src/snort.c
  * Copyright (C) 2013 Kris Nielander
+ * Copyright (C) 2013 Florian Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,15 +17,15 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Kris Nielander <nielander@fox-it.com>
- *
- * This plugin is based on the snmp plugin by Florian octo Forster.
- *
+ *   Kris Nielander <nielander at fox-it.com>
+ *   Florian Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
 #include "plugin.h" /* plugin_register_*, plugin_dispatch_values */
 #include "common.h" /* auxiliary functions */
+#include "utils_tail.h"
+
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -44,9 +45,9 @@ typedef struct metric_definition_s metric_definition_t;
 struct instance_definition_s {
     char *name;
     char *path;
+    cu_tail_t *tail;
     metric_definition_t **metric_list;
-    int metric_list_len;
-    cdtime_t last;
+    size_t metric_list_len;
     cdtime_t interval;
     struct instance_definition_s *next;
 };
@@ -55,25 +56,16 @@ typedef struct instance_definition_s instance_definition_t;
 /* Private */
 static metric_definition_t *metric_head = NULL;
 
-static int snort_read_submit(instance_definition_t *id, metric_definition_t *md,
-    const char *buf){
-
+static int snort_submit (instance_definition_t *id,
+        metric_definition_t *md,
+        value_t v, cdtime_t t)
+{
     /* Registration variables */
-    value_t value;
     value_list_t vl = VALUE_LIST_INIT;
-
-    DEBUG("snort plugin: plugin_instance=%s type=%s value=%s", id->name,
-        md->type, buf);
-
-    if (buf == NULL)
-        return (-1);
-
-    /* Parse value */
-    parse_value(buf, &value, md->data_source_type);
 
     /* Register */
     vl.values_len = 1;
-    vl.values = &value;
+    vl.values = &v;
 
     sstrncpy(vl.host, hostname_g, sizeof (vl.host));
     sstrncpy(vl.plugin, "snort", sizeof(vl.plugin));
@@ -82,7 +74,7 @@ static int snort_read_submit(instance_definition_t *id, metric_definition_t *md,
     if (md->instance != NULL)
         sstrncpy(vl.type_instance, md->instance, sizeof(vl.type_instance));
 
-    vl.time = id->last;
+    vl.time = t;
     vl.interval = id->interval;
 
     DEBUG("snort plugin: -> plugin_dispatch_values (&vl);");
@@ -91,135 +83,153 @@ static int snort_read_submit(instance_definition_t *id, metric_definition_t *md,
     return (0);
 }
 
-static int snort_read_buffer (instance_definition_t *id,
-        char const *buffer, size_t buffer_size)
+static cdtime_t parse_time (char const *tbuf)
 {
-    int i;
+    double t;
+    char *endptr = 0;
 
+    errno = 0;
+    t = strtod (tbuf, &endptr);
+    if ((errno != 0) || (endptr == NULL) || (endptr[0] != 0))
+        return (cdtime ());
+
+    return (DOUBLE_TO_CDTIME_T (t));
+}
+
+static int snort_read_metric (instance_definition_t *id,
+        metric_definition_t *md,
+        char **fields, size_t fields_num)
+{
+    value_t v;
+    cdtime_t t;
+    int status;
+
+    if (md->index >= fields_num)
+        return (EINVAL);
+
+    t = parse_time (fields[0]);
+
+    status = parse_value (fields[md->index], &v, md->data_source_type);
+    if (status != 0)
+        return (status);
+
+    return (snort_submit (id, md, v, t));
+}
+
+static int snort_read_buffer (instance_definition_t *id,
+        char *buffer, size_t buffer_size)
+{
     char **metrics;
-    int metrics_num;
+    size_t metrics_num;
 
-    char *buf, *buf_ptr;
+    char *ptr;
+    size_t i;
 
-    /* mmap, char pointers */
-    char const *p_end;
-
-    /* Set the start value count. */
-    metrics_num = 1;
-
-    /* Set the pointer to the last line of the file and count the fields.
-     (Skip the last two characters of the buffer: `\n' and `\0') */
-    for (p_end = (buffer + buffer_size) - 2; p_end > buffer; --p_end){
-        if (*p_end == ','){
-            ++metrics_num;
-        } else if (*p_end == '\n'){
-            ++p_end;
+    /* Remove newlines at the end of line. */
+    while (buffer_size > 0) {
+        if ((buffer[buffer_size - 1] == '\n')
+                || (buffer[buffer_size - 1] == '\r')) {
+            buffer[buffer_size - 1] = 0;
+            buffer_size--;
+        } else {
             break;
         }
     }
 
-    if (metrics_num == 1){
-        ERROR("snort plugin: last line of `%s' does not contain enough values.", id->path);
-        return (-1);
+    /* Ignore empty lines. */
+    if ((buffer_size == 0) || (buffer[0] == '#'))
+        return (0);
+
+    /* Count the number of fields. */
+    metrics_num = 1;
+    for (i = 0; i < buffer_size; i++) {
+        if (buffer[i] == ',')
+            metrics_num++;
     }
 
-    if (*p_end == '#'){
-        ERROR("snort plugin: last line of `%s' is a comment.", id->path);
+    if (metrics_num == 1) {
+        ERROR("snort plugin: last line of `%s' does not contain "
+                "enough values.", id->path);
         return (-1);
     }
-
-    /* Copy the line to the buffer */
-    buf = strdup(p_end);
 
     /* Create a list of all values */
     metrics = calloc (metrics_num, sizeof (*metrics));
     if (metrics == NULL) {
         ERROR ("snort plugin: calloc failed.");
-        sfree (buf);
         return (ENOMEM);
     }
 
-    buf_ptr = buf;
-    i = 0;
-    while (buf_ptr != NULL) {
-        char *next = strchr (buf_ptr, ',');
-        if (next != NULL) {
-            *next = 0;
-            next++;
-        }
-        metrics[i] = buf_ptr;
-        buf_ptr = next;
+    ptr = buffer;
+    metrics[0] = ptr;
+    i = 1;
+    for (ptr = buffer; *ptr != 0; ptr++) {
+        if (*ptr != ',')
+            continue;
+
+        *ptr = 0;
+        metrics[i] = ptr + 1;
         i++;
     }
     assert (i == metrics_num);
-
-    /* Set last time */
-    id->last = TIME_T_TO_CDTIME_T(strtol(*metrics, NULL, 0));
 
     /* Register values */
     for (i = 0; i < id->metric_list_len; ++i){
         metric_definition_t *md = id->metric_list[i];
 
-        if (md->index >= metrics_num) {
+        if (((size_t) md->index) >= metrics_num) {
             ERROR ("snort plugin: Metric \"%s\": Request for index %i when "
-                    "only %i fields are available.",
+                    "only %zu fields are available.",
                     md->name, md->index, metrics_num);
             continue;
         }
 
-        snort_read_submit(id, md, metrics[md->index]);
+        snort_read_metric (id, md, metrics, metrics_num);
     }
 
     /* Free up resources */
-    free(metrics);
-    free(buf);
+    sfree (metrics);
     return (0);
 }
 
-static int snort_read(user_data_t *ud){
+static int snort_read (user_data_t *ud) {
     instance_definition_t *id;
-
-    int fd;
-
-    struct stat sb;
-
-    /* mmap, char pointers */
-    char *p_start;
 
     id = ud->data;
     DEBUG("snort plugin: snort_read (instance = %s)", id->name);
 
-    fd = open(id->path, O_RDONLY);
-    if (fd == -1){
-        ERROR("snort plugin: Unable to open `%s'.", id->path);
-        return (-1);
+    if (id->tail == NULL)
+    {
+        id->tail = cu_tail_create (id->path);
+        if (id->tail == NULL)
+        {
+            ERROR ("snort plugin: cu_tail_create (\"%s\") failed.",
+                    id->path);
+            return (-1);
+        }
     }
 
-    if ((fstat(fd, &sb) != 0) || (!S_ISREG(sb.st_mode))){
-        ERROR("snort plugin: `%s' is not a file.", id->path);
-        close (fd);
-        return (-1);
+    while (42)
+    {
+        char buffer[1024];
+        size_t buffer_len;
+        int status;
+
+        status = cu_tail_readline (id->tail, buffer, (int) sizeof (buffer));
+        if (status != 0)
+        {
+            ERROR ("snort plugin: Instance \"%s\": cu_tail_readline failed "
+                    "with status %i.", id->name, status);
+            return (-1);
+        }
+
+        buffer_len = strlen (buffer);
+        if (buffer_len == 0)
+            break;
+
+        snort_read_buffer (id, buffer, buffer_len);
     }
 
-    if (sb.st_size == 0){
-        ERROR("snort plugin: `%s' is empty.", id->path);
-        close (fd);
-        return (-1);
-    }
-
-    p_start = mmap(/* addr = */ NULL, sb.st_size, PROT_READ, MAP_SHARED, fd,
-        /* offset = */ 0);
-    if (p_start == MAP_FAILED){
-        ERROR("snort plugin: mmap error");
-        close (fd);
-        return (-1);
-    }
-
-    snort_read_buffer (id, p_start, (size_t) sb.st_size);
-
-    /* Done with mmap and file pointer */
-    close(fd);
-    munmap(p_start, sb.st_size);
     return (0);
 }
 
@@ -357,6 +367,9 @@ static void snort_instance_definition_destroy(void *arg){
 
     if (id->name != NULL)
         DEBUG("snort plugin: Destroying instance definition `%s'.", id->name);
+
+    cu_tail_destroy (id->tail);
+    id->tail = NULL;
 
     sfree(id->name);
     sfree(id->path);
@@ -527,3 +540,4 @@ void module_register(void){
     plugin_register_shutdown("snort", snort_shutdown);
 }
 
+/* vim: set sw=4 sts=4 et : */
