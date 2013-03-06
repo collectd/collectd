@@ -1947,20 +1947,32 @@ with JSON-RPC protocol.
 Synopsis:
 
  <Plugin "jsonrpc">
+   BindAddress "*"
    Port 8080
+   ConnectionTimeout 30
    MaxClients 16
    Authentication "Basic"
    Authfile "/etc/collectd.passwd.txt"
    JsonrpcCacheExpirationTime 60
+   TopPsDataDir "/var/lib/collectd/top"
  </Plugin>
 
 Available configuration options:
 
 =over 4
 
+=item B<BindAddress> I<Argument>
+
+Argument is the IP address the JSON-RPC HTTP server listens on. If unset or if set to "*", it will
+listen on 0.0.0.0.
+
 =item B<Port> I<Argument>
 
 Argument is the port number the JSON-RPC HTTP server listens on.
+
+=item B<ConnectionTimeout> I<Argument>
+
+Argument is the connection timeout.
 
 =item B<Authentication> I<Argument>
 
@@ -2039,6 +2051,11 @@ own cache.
 
 Time (in seconds) specifies how long to keep the cache and when to refresh it from the
 collectd cache.
+
+=item B<TopPsDataDir> I<path>
+
+If the plugin was compiled with support for TopPs, this is the path where to find
+files from the write_top plugin.
 
 =back
 

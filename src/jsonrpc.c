@@ -31,6 +31,11 @@
 #include <microhttpd.h>
 
 #include <json/json.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <arpa/inet.h>
+
 #include <pthread.h>
 
 #if HAVE_CRYPT || HAVE_CRYPT_R
@@ -179,7 +184,9 @@ typedef struct connection_info_struct_s
 /* valid configuration file keys */
 static const char *config_keys[] =
 {
+	"BindAddress",
 	"Port",
+	"ConnectionTimeout",
 	"MaxClients",
 	"Authentication",
 	"Authfile",
@@ -191,6 +198,9 @@ static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static int httpd_server_port=-1;
 static int max_clients = 16;
+static unsigned int httpd_server_connectiontimeout = 0;
+static short httpd_server_address_any = 1;
+static struct sockaddr_in httpd_server_address;
 
 typedef enum {
 	config_authentication_type_none,
@@ -1062,7 +1072,20 @@ static int jsonrpc_proceed_request_cb(void * cls,
 
 static int jsonrpc_config (const char *key, const char *val)
 {
-	if (strcasecmp (key, "Port") == 0) {
+	if (strcasecmp (key, "BindAddress") == 0) {
+		if( !strcasecmp(val, "*") ) {
+			httpd_server_address_any = 1;
+		} else {
+			memset (&httpd_server_address, 0, sizeof (struct sockaddr_in));
+			httpd_server_address.sin_family = AF_INET;
+			httpd_server_address.sin_port = 0; /* Will be set before the connection */
+			if(1 != inet_pton(AF_INET, val, &(httpd_server_address.sin_addr.s_addr))) {
+				ERROR(OUTPUT_PREFIX_JSONRPC "BindAddress '%s' not supported.", key);
+				return(-1);
+			}
+			httpd_server_address_any = 0;
+		}
+	} else if (strcasecmp (key, "Port") == 0) {
 		errno=0;
 		httpd_server_port = strtol(val,NULL,10);
 		if(errno) {
@@ -1073,6 +1096,19 @@ static int jsonrpc_config (const char *key, const char *val)
 			ERROR(OUTPUT_PREFIX_JSONRPC "Port '%d' should be between 1 and 65535", httpd_server_port);
 			return(-1);
 		}
+	} else if (strcasecmp (key, "ConnectionTimeout") == 0) {
+		int v;
+		errno=0;
+		v = strtol(val,NULL,10);
+		if(errno) {
+			ERROR(OUTPUT_PREFIX_JSONRPC "ConnectionTimeout '%s' is not a number or could not be parsed", val);
+			return(-1);
+		}
+		if(v < 0) {
+			ERROR(OUTPUT_PREFIX_JSONRPC "ConnectionTimeout '%d' should be bigger than 0 (or 0 for no timeout)", httpd_server_port);
+			return(-1);
+		}
+		httpd_server_connectiontimeout = v;
 	} else if (strcasecmp (key, "Authentication") == 0) {
 		if( !strcasecmp(val, "None") ) {
 			config_authentication_type = config_authentication_type_none;
@@ -1125,6 +1161,14 @@ static int jsonrpc_config (const char *key, const char *val)
 static int jsonrpc_init (void)
 {
 	static int have_init = 0;
+	struct MHD_OptionItem opts[] = {
+		{ MHD_OPTION_NOTIFY_COMPLETED, (intptr_t) request_completed, NULL},
+		{ MHD_OPTION_END, 0, NULL },
+		{ MHD_OPTION_END, 0, NULL },
+		{ MHD_OPTION_END, 0, NULL },
+		{ MHD_OPTION_END, 0, NULL },
+		{ MHD_OPTION_END, 0, NULL }};
+	int i;
 
 	/* Initialize only once. */
 	if (have_init != 0)
@@ -1148,6 +1192,17 @@ static int jsonrpc_init (void)
 		assert(NB_CACHE_ENTRY_MAX <= (sizeof(cache_plugin_instance)/sizeof(*cache_plugin_instance)));
 	}
 
+	/* Add options */
+	i = 1;
+	if(0 == httpd_server_address_any) {
+		httpd_server_address.sin_port = htons(httpd_server_port);
+		opts[i++] = (struct MHD_OptionItem) { MHD_OPTION_SOCK_ADDR, 0, &httpd_server_address };
+		ERROR(OUTPUT_PREFIX_JSONRPC "Binding to address %s", inet_ntoa(httpd_server_address.sin_addr));
+	}
+	if(httpd_server_connectiontimeout) {
+		opts[i++] = (struct MHD_OptionItem) { MHD_OPTION_CONNECTION_TIMEOUT, httpd_server_connectiontimeout, NULL };
+	}
+
 	/* Start the web server */
 	jsonrpc_daemon = MHD_start_daemon(
 			MHD_USE_THREAD_PER_CONNECTION,
@@ -1156,8 +1211,7 @@ static int jsonrpc_init (void)
 			NULL,
 			&jsonrpc_proceed_request_cb,
 			NULL,
-			MHD_OPTION_NOTIFY_COMPLETED, request_completed,
-			NULL,
+			MHD_OPTION_ARRAY, opts,
 			MHD_OPTION_END);
 
 	if (jsonrpc_daemon == NULL)
