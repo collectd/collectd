@@ -24,6 +24,7 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+#include "utils_avltree.h"
 #include "utils_ignorelist.h"
 
 #if HAVE_MACH_MACH_TYPES_H
@@ -113,6 +114,13 @@ static diskstats_t *disklist;
 extern kstat_ctl_t *kc;
 static kstat_t *ksp[MAX_NUMDISK];
 static int numdisk = 0;
+static c_avl_tree_t *solaris_disks_by_name = NULL;
+static c_avl_tree_t *solaris_disks_by_physical_name = NULL;
+typedef struct {
+	char *ks_name;
+	char *physical_name;
+	char *cXtXdX;
+} solaris_disk_names_t;
 /* #endif HAVE_LIBKSTAT */
 
 #elif defined(HAVE_LIBSTATGRAB)
@@ -137,6 +145,288 @@ static const char *config_keys[] =
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static ignorelist_t *ignorelist = NULL;
+
+#if HAVE_LIBKSTAT
+
+static solaris_disk_names_t *solaris_disk_names_new(char *ks_name, char *physical_name, char *cXtXdX) {
+		solaris_disk_names_t *disk;
+		if(NULL == (disk = malloc(sizeof(*disk)))) {
+				ERROR("Plugin Disk : Could not allocate memory");
+				return(NULL);
+		}
+
+		disk->ks_name = ks_name;
+		disk->physical_name = physical_name;
+		disk->cXtXdX = cXtXdX;
+		return(disk);
+
+}
+
+static int parse_path_to_inst (void) {
+		FILE *fh;
+		char buffer[4096];
+
+		if(NULL == (fh = fopen("/etc/path_to_inst", "r"))) {
+				return(1);
+		}
+		while(NULL != fgets(buffer, sizeof(buffer), fh)) {
+				char *physical_name;
+				long n;
+				char *driver_binding_name;
+				char *pbuffer;
+				int l;
+				solaris_disk_names_t *disk;
+
+				if(buffer[0] != '"') continue; /* syntax error on this line. Ignore. */
+				for(l=1; buffer[l] && (buffer[l] != '"'); l++);
+				if('\0' == buffer[l]) {
+						fclose(fh);
+						return(1);
+				}
+				buffer[l] = '\0';
+				if(NULL == (physical_name = strdup(buffer+1))) {
+						fclose(fh);
+						return(1);
+				}
+				for(l++; buffer[l] == ' '; l++);
+				errno=0;
+				n = strtol(buffer+l, &pbuffer, 0);
+				if(errno) {
+						free(physical_name);
+						fclose(fh);
+						return(1);
+				}
+				for(;pbuffer[0] && (pbuffer[0] != '"'); pbuffer++);
+				if((pbuffer[0] != '"') || (pbuffer[1] == '\0')) { /* syntax error. Ignore. */
+						free(physical_name);
+						fclose(fh);
+						return(1);
+				}
+				pbuffer++;
+				for(l=0; pbuffer[l] && (pbuffer[l] != '"'); l++);
+				if(pbuffer[l] != '"') { /* syntax error. Ignore. */
+						free(physical_name);
+						fclose(fh);
+						return(1);
+				}
+				pbuffer[l]= '\0';
+
+				l = strlen(pbuffer)+12;
+				if(NULL == (driver_binding_name = malloc(l))) {
+						free(physical_name);
+						fclose(fh);
+						return(1);
+				}
+				snprintf(driver_binding_name, l, "%s%d", pbuffer,n);
+
+				/* Check if already known. If not, create a new one. */
+				if(0 != c_avl_get(solaris_disks_by_name, driver_binding_name, (void **) &disk)) {
+
+						if(NULL == (disk = solaris_disk_names_new(driver_binding_name, physical_name, NULL))) {
+								ERROR("Plugin Disk : Could not allocate memory");
+								free(physical_name);
+								free(driver_binding_name);
+								fclose(fh);
+								return(1);
+						}
+
+						c_avl_insert(solaris_disks_by_name, disk->ks_name, disk);
+						c_avl_insert(solaris_disks_by_physical_name, disk->physical_name, disk);
+				}
+		}
+		return(0);
+}
+
+int read_solaris_dev(char *path) {
+		DIR *dp = NULL;
+		struct dirent *de_buffer;
+		struct dirent *de = NULL;
+		size_t len;
+		size_t pc_name_max;
+		char *filename = NULL;
+		size_t filename_offset;
+		size_t filename_size;
+		struct stat stat_buffer;
+		char *link_name = NULL;
+		char *physical_name_with_partition = NULL;
+
+		pc_name_max = pathconf(path, _PC_NAME_MAX);
+		len = offsetof(struct dirent, d_name) + pc_name_max + 1;
+		if(NULL == (de_buffer = malloc(len))) {
+				ERROR("Plugin disk : Not enough memory");
+				goto read_solaris_dev_error_label;
+		}
+
+		filename_offset = strlen(path);
+		filename_size = filename_offset + pc_name_max + 2;
+		if(NULL == (filename = malloc(filename_size))) {
+				ERROR("Plugin disk : Not enough memory");
+				goto read_solaris_dev_error_label;
+		}
+		memcpy(filename, path, filename_offset);
+		filename[filename_offset++] = '/';
+
+		if(NULL == (link_name = malloc(MAXNAMLEN+1))) {
+				ERROR("Plugin disk : Not enough memory");
+				goto read_solaris_dev_error_label;
+		}
+
+		if(NULL == (physical_name_with_partition = malloc(MAXNAMLEN+1))) {
+				ERROR("Plugin disk : Not enough memory");
+				goto read_solaris_dev_error_label;
+		}
+
+
+		if (NULL == (dp = opendir(path))) {
+				ERROR("Plugin disk : Not enough memory");
+				goto read_solaris_dev_error_label;
+		}
+
+		errno = 0;
+		while((0 == readdir_r(dp,de_buffer,&de)) && (NULL != de)) {
+				char *device;
+				char *link;
+				char *partition;
+				size_t l,l2;
+				solaris_disk_names_t *disk;
+
+				if (! strcmp(de->d_name, ".")) continue;
+				if (! strcmp(de->d_name, "..")) continue;
+				strncpy(filename+filename_offset, de->d_name, pc_name_max + 1);
+				if(0 != lstat(filename, &stat_buffer)) continue; /* lstat failed. Not interesting */
+				if(! S_ISLNK(stat_buffer.st_mode)) continue; /* Not a link. Not interesting */
+				if(-1 == (l = readlink(filename, link_name, MAXNAMLEN+1))) /* Could not read link. Not interesting */
+
+						/* Links are like "../../devices/xxx". Remove the beginning. */
+						link_name[l] = '\0';
+				for(l=0; link_name[l]; l++) {
+						if(!strncmp(link_name+l, "/devices/", sizeof("/devices/")-1)) break;
+				}
+				l += sizeof("/devices/") - 2; /* keep the first slash for the resulting string */
+
+
+				/* Search a ':' near the end for slices/partitions */
+				l2 = strlen(link_name+l);
+				strncpy(physical_name_with_partition, link_name+l, l2+1);
+				while((l2 > 0) && (link_name[l+l2] != ':')) l2--;
+				if(link_name[l+l2] == ':') {
+						link_name[l+l2] = '\0';
+						partition = link_name+l+l2+1;
+				} else {
+						partition = NULL;
+				}
+
+				if(partition) {
+						if(0 != c_avl_get(solaris_disks_by_physical_name, physical_name_with_partition, (void **) &disk)) {
+								char *cXtXdX;
+								char *ks_name;
+								char *ph_name;
+								size_t ks_name_len;
+								solaris_disk_names_t *d;
+								if(0 != c_avl_get(solaris_disks_by_physical_name, link_name+l, (void **) &d)) {
+										/* Note : this entry should exist, even if d->cXtXdX is NULL. But no importance fir that. */
+										ERROR("Plugin disk : we should have found an entry for '%s' in the tree", link_name+l);
+										continue;
+								}
+
+								if(NULL == (cXtXdX = strdup(filename+filename_offset))) {
+										ERROR("Plugin disk : Not enough memory");
+										goto read_solaris_dev_error_label;
+								}
+								if(NULL == (ph_name = strdup(physical_name_with_partition))) {
+										ERROR("Plugin disk : Not enough memory");
+										free(cXtXdX);
+										goto read_solaris_dev_error_label;
+
+								}
+								if(NULL == (disk = solaris_disk_names_new(NULL, ph_name, cXtXdX))) {
+										free(cXtXdX);
+										free(ph_name);
+										goto read_solaris_dev_error_label;
+								}
+								ks_name_len = strlen(d->ks_name)+strlen(partition)+2;
+								if(NULL == (ks_name = malloc(ks_name_len))) {
+										ERROR("Plugin disk : Not enough memory");
+										free(cXtXdX);
+										free(ph_name);
+										free(disk);
+										goto read_solaris_dev_error_label;
+								}
+								snprintf(ks_name, ks_name_len, "%s,%s", d->ks_name,partition);
+								disk->ks_name = ks_name;
+								c_avl_insert(solaris_disks_by_name, disk->ks_name, disk);
+								c_avl_insert(solaris_disks_by_physical_name, disk->physical_name, disk);
+						}
+				}
+
+				if(0 == c_avl_get(solaris_disks_by_physical_name, link_name+l, (void **) &disk)) {
+						if(NULL == disk->cXtXdX) {
+								char *cXtXdX;
+								l2 = strlen(filename);
+								while((l2 > filename_offset) && (filename[l2] != 's') && (filename[l2] != 'p')) l2--;
+								if((filename[l2] == 's') || (filename[l2] == 'p')) filename[l2] = '\0';
+								if(NULL == (cXtXdX = strdup(filename+filename_offset))) {
+										ERROR("Plugin disk : Not enough memory");
+										goto read_solaris_dev_error_label;
+								}
+								disk->cXtXdX = cXtXdX;
+						}
+				}
+		}
+		if(errno) {
+				ERROR("Plugin disk : Error reading directory");
+				goto read_solaris_dev_error_label;
+		}
+		closedir(dp);
+		free(de);
+		free(filename);
+		free(link_name);
+		free(physical_name_with_partition);
+		return(0);
+
+read_solaris_dev_error_label:
+		if(dp) closedir(dp);
+		if(de) free(de);
+		if(filename) free(filename);
+		if(link_name) free(link_name);
+		if(physical_name_with_partition) free(physical_name_with_partition);
+		return(1);
+}
+
+
+static const char *get_solaris_disk_name(char *ks_name) {
+/* If ks_name == NULL, this is initialization only. Will return NULL even with no error. */
+	solaris_disk_names_t *disk;
+
+/* Initialize the trees if not done yet in a previous call to this function. */
+	if(NULL == solaris_disks_by_name) {
+		solaris_disks_by_name = c_avl_create((int (*) (const void *, const void *)) strcmp);
+	}
+	if(NULL == solaris_disks_by_physical_name) {
+		solaris_disks_by_physical_name = c_avl_create((int (*) (const void *, const void *)) strcmp);
+	}
+
+/* Check if we can find the disk name */
+	if(ks_name && (0 == c_avl_get(solaris_disks_by_name, ks_name, (void **) &disk))) {
+		return(disk->cXtXdX);
+	}
+
+/* The disk name was not found. Either we are at first call to this function,
+ * or this is a new disk inserted/configured at runtime.
+ * In both case, reinitialize the data.
+ */
+
+	parse_path_to_inst();
+	read_solaris_dev("/dev/dsk");
+	read_solaris_dev("/dev/rmt");
+
+	/* Try again */
+	if(ks_name && (0 == c_avl_get(solaris_disks_by_name, ks_name, (void **) &disk))) {
+		return(disk->cXtXdX);
+	}
+	return(NULL);
+}
+#endif
 
 static int disk_config (const char *key, const char *value)
 {
@@ -218,6 +508,10 @@ static int disk_init (void)
 			continue;
 		ksp[numdisk++] = ksp_chain;
 	}
+
+	/* (re)Initialize the disks list */
+	get_solaris_disk_name(NULL);
+
 #endif /* HAVE_LIBKSTAT */
 
 	return (0);
@@ -707,26 +1001,33 @@ static int disk_read (void)
 
 	for (i = 0; i < numdisk; i++)
 	{
-		if (kstat_read (kc, ksp[i], &kio) == -1)
-			continue;
+			if (kstat_read (kc, ksp[i], &kio) == -1)
+					continue;
 
-		if (strncmp (ksp[i]->ks_class, "disk", 4) == 0)
-		{
-			disk_submit (ksp[i]->ks_name, "disk_octets",
-					kio.KIO_ROCTETS, kio.KIO_WOCTETS);
-			disk_submit (ksp[i]->ks_name, "disk_ops",
-					kio.KIO_ROPS, kio.KIO_WOPS);
-			/* FIXME: Convert this to microseconds if necessary */
-			disk_submit (ksp[i]->ks_name, "disk_time",
-					kio.KIO_RTIME, kio.KIO_WTIME);
-		}
-		else if (strncmp (ksp[i]->ks_class, "partition", 9) == 0)
-		{
-			disk_submit (ksp[i]->ks_name, "disk_octets",
-					kio.KIO_ROCTETS, kio.KIO_WOCTETS);
-			disk_submit (ksp[i]->ks_name, "disk_ops",
-					kio.KIO_ROPS, kio.KIO_WOPS);
-		}
+			if (strncmp (ksp[i]->ks_class, "disk", 4) == 0)
+			{
+					const char *disk_name;
+					disk_name = get_solaris_disk_name(ksp[i]->ks_name);
+					disk_name = disk_name?disk_name:ksp[i]->ks_name;
+
+					disk_submit (disk_name, "disk_octets",
+									kio.KIO_ROCTETS, kio.KIO_WOCTETS);
+					disk_submit (disk_name, "disk_ops",
+									kio.KIO_ROPS, kio.KIO_WOPS);
+					/* FIXME: Convert this to microseconds if necessary */
+					disk_submit (disk_name, "disk_time",
+									kio.KIO_RTIME, kio.KIO_WTIME);
+			}
+			else if (strncmp (ksp[i]->ks_class, "partition", 9) == 0)
+			{
+					const char *disk_name;
+					disk_name = get_solaris_disk_name(ksp[i]->ks_name);
+					disk_name = disk_name?disk_name:ksp[i]->ks_name;
+					disk_submit (disk_name, "disk_octets",
+									kio.KIO_ROCTETS, kio.KIO_WOCTETS);
+					disk_submit (disk_name, "disk_ops",
+									kio.KIO_ROPS, kio.KIO_WOPS);
+			}
 	}
 /* #endif defined(HAVE_LIBKSTAT) */
 
