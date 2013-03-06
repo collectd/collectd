@@ -1,6 +1,6 @@
 /**
  * collectd - src/netcmd.c
- * Copyright (C) 2007-2012  Florian octo Forster
+ * Copyright (C) 2007-2013  Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -118,8 +118,8 @@ static size_t     peers_num;
 static struct pollfd  *pollfd = NULL;
 static size_t          pollfd_num;
 
-static int       listen_thread_loop = 0;
-static int       listen_thread_running = 0;
+static _Bool     listen_thread_loop = 0;
+static _Bool     listen_thread_running = 0;
 static pthread_t listen_thread;
 
 /*
@@ -1048,7 +1048,7 @@ static void *nc_server_thread (void __attribute__((unused)) *arg) /* {{{ */
     pthread_exit ((void *) -1);
   }
 
-  while (listen_thread_loop != 0)
+  while (listen_thread_loop)
   {
     status = poll (pollfd, (nfds_t) pollfd_num, /* timeout = */ -1);
     if (status < 0)
