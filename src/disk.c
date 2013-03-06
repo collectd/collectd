@@ -114,6 +114,8 @@ static diskstats_t *disklist;
 extern kstat_ctl_t *kc;
 static kstat_t *ksp[MAX_NUMDISK];
 static int numdisk = 0;
+
+static _Bool use_solaris_cxtxdx_name = 0;
 static c_avl_tree_t *solaris_disks_by_name = NULL;
 static c_avl_tree_t *solaris_disks_by_physical_name = NULL;
 typedef struct {
@@ -140,7 +142,8 @@ static const char *config_keys[] =
 {
 	"Disk",
 	"UseBSDName",
-	"IgnoreSelected"
+	"IgnoreSelected",
+	"UseSolariscXtXdXName"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -398,6 +401,9 @@ static const char *get_solaris_disk_name(char *ks_name) {
 /* If ks_name == NULL, this is initialization only. Will return NULL even with no error. */
 	solaris_disk_names_t *disk;
 
+/* Initialize nothing/return NULL if we do not use cXtXdX names */
+	if(0 == use_solaris_cxtxdx_name) return(NULL);
+
 /* Initialize the trees if not done yet in a previous call to this function. */
 	if(NULL == solaris_disks_by_name) {
 		solaris_disks_by_name = c_avl_create((int (*) (const void *, const void *)) strcmp);
@@ -453,6 +459,15 @@ static int disk_config (const char *key, const char *value)
 #else
     WARNING ("disk plugin: The \"UseBSDName\" option is only supported "
         "on Mach / Mac OS X and will be ignored.");
+#endif
+  }
+  else if (strcasecmp ("UseSolariscXtXdXName", key) == 0)
+  {
+#if HAVE_LIBKSTAT
+    use_solaris_cxtxdx_name = IS_TRUE (value) ? 1 : 0;
+#else
+    WARNING ("disk plugin: The \"UseSolariscXtXdXName\" option is only supported "
+        "on Solaris and will be ignored.");
 #endif
   }
   else
