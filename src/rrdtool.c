@@ -75,6 +75,7 @@ static const char *config_keys[] =
 {
 	"CacheTimeout",
 	"CacheFlush",
+	"CreateFilesAsync",
 	"DataDir",
 	"StepSize",
 	"HeartBeat",
@@ -102,7 +103,9 @@ static rrdcreate_config_t rrdcreate_config =
 	/* timespans_num = */ 0,
 
 	/* consolidation_functions = */ NULL,
-	/* consolidation_functions_num = */ 0
+	/* consolidation_functions_num = */ 0,
+
+	/* async = */ 0
 };
 
 /* XXX: If you need to lock both, cache_lock and queue_lock, at the same time,
@@ -910,6 +913,8 @@ static int rrd_write (const data_set_t *ds, const value_list_t *vl,
 					ds, vl, &rrdcreate_config);
 			if (status != 0)
 				return (-1);
+			else if (rrdcreate_config.async)
+				return (0);
 		}
 		else
 		{
@@ -1007,6 +1012,13 @@ static int rrd_config (const char *key, const char *value)
 		int temp = atoi (value);
 		if (temp > 0)
 			rrdcreate_config.heartbeat = temp;
+	}
+	else if (strcasecmp ("CreateFilesAsync", key) == 0)
+	{
+		if (IS_TRUE (value))
+			rrdcreate_config.async = 1;
+		else
+			rrdcreate_config.async = 0;
 	}
 	else if (strcasecmp ("RRARows", key) == 0)
 	{

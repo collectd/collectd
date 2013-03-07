@@ -854,13 +854,16 @@
 #	DaemonAddress "unix:/tmp/rrdcached.sock"
 #	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/rrd"
 #	CreateFiles true
+#	CreateFilesAsync false
 #	CollectStatistics true
 #</Plugin>
 
 #<Plugin rrdtool>
 #	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/rrd"
+#	CreateFilesAsync false
 #	CacheTimeout 120
 #	CacheFlush   900
+#	WritesPerSecond 50
 #</Plugin>
 
 #<Plugin sensors>

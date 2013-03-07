@@ -46,7 +46,9 @@ static rrdcreate_config_t rrdcreate_config =
 	/* timespans_num = */ 0,
 
 	/* consolidation_functions = */ NULL,
-	/* consolidation_functions_num = */ 0
+	/* consolidation_functions_num = */ 0,
+
+	/* async = */ 0
 };
 
 /*
@@ -250,6 +252,8 @@ static int rc_config (oconfig_item_t *ci)
       status = cf_util_get_string (child, &daemon_address);
     else if (strcasecmp ("CreateFiles", key) == 0)
       status = cf_util_get_boolean (child, &config_create_files);
+    else if (strcasecmp ("CreateFilesAsync", key) == 0)
+      status = cf_util_get_boolean (child, &rrdcreate_config.async);
     else if (strcasecmp ("CollectStatistics", key) == 0)
       status = cf_util_get_boolean (child, &config_collect_stats);
     else if (strcasecmp ("StepSize", key) == 0)
@@ -459,6 +463,8 @@ static int rc_write (const data_set_t *ds, const value_list_t *vl,
             filename);
         return (-1);
       }
+      else if (rrdcreate_config.async)
+        return (0);
     }
   }
 

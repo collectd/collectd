@@ -4644,6 +4644,16 @@ Enables or disables the creation of RRD files. If the daemon is not running
 locally, or B<DataDir> is set to a relative path, this will not work as
 expected. Default is B<true>.
 
+=item B<CreateFilesAsync> B<false>|B<true>
+
+When enabled, new RRD files are enabled asynchronously, using a separate thread
+that runs in the background. This prevents writes to block, which is a problem
+especially when many hundreds of files need to be created at once. However,
+since the purpose of creating the files asynchronously is I<not> to block until
+the file is available, values before the file is available will be discarded.
+When disabled (the default) files are created synchronously, blocking for a
+short while, while the file is being written.
+
 =item B<StepSize> I<Seconds>
 
 B<Force> the stepsize of newly created RRD-files. Ideally (and per default)
@@ -4701,8 +4711,18 @@ can safely ignore these settings.
 
 =item B<DataDir> I<Directory>
 
-Set the directory to store RRD-files under. Per default RRD-files are generated
-beneath the daemon's working directory, i.E<nbsp>e. the B<BaseDir>.
+Set the directory to store RRD files under. By default RRD files are generated
+beneath the daemon's working directory, i.e. the B<BaseDir>.
+
+=item B<CreateFilesAsync> B<false>|B<true>
+
+When enabled, new RRD files are enabled asynchronously, using a separate thread
+that runs in the background. This prevents writes to block, which is a problem
+especially when many hundreds of files need to be created at once. However,
+since the purpose of creating the files asynchronously is I<not> to block until
+the file is available, values before the file is available will be discarded.
+When disabled (the default) files are created synchronously, blocking for a
+short while, while the file is being written.
 
 =item B<StepSize> I<Seconds>
 
@@ -4723,7 +4743,7 @@ a very good reason to do so.
 
 The C<rrdtool plugin> calculates the number of PDPs per CDP based on the
 B<StepSize>, this setting and a timespan. This plugin creates RRD-files with
-three times five RRAs, i. e. five RRAs with the CFs B<MIN>, B<AVERAGE>, and
+three times five RRAs, i.e. five RRAs with the CFs B<MIN>, B<AVERAGE>, and
 B<MAX>. The five RRAs are optimized for graphs covering one hour, one day, one
 week, one month, and one year.
 
