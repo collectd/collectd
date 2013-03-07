@@ -226,9 +226,9 @@ static Msg *riemann_notification_to_protobuf (struct riemann_host *host, /* {{{ 
 
 	switch (n->severity)
 	{
-		case NOTIF_OKAY:	severity = "okay"; break;
+		case NOTIF_OKAY:	severity = "ok"; break;
 		case NOTIF_WARNING:	severity = "warning"; break;
-		case NOTIF_FAILURE:	severity = "failure"; break;
+		case NOTIF_FAILURE:	severity = "critical"; break;
 		default:		severity = "unknown";
 	}
 	event->state = strdup (severity);
