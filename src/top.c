@@ -248,86 +248,83 @@ static int getStat (int pid, stat_t *s) /* {{{ */
 
 static int getStatus (int pid, status_t *s) /* {{{ */
 {
+	char f_psinfo[64];
+	char *buffer;
 
-  char f_psinfo[64];
-  char *buffer;
 
+	psinfo_t *myInfo;
 
-  psinfo_t *myInfo;
+	snprintf (f_psinfo, sizeof(f_psinfo), "/proc/%d/psinfo", pid);
 
-  snprintf (f_psinfo, sizeof(f_psinfo), "/proc/%d/psinfo", pid);
+	buffer = malloc (sizeof (psinfo_t));
+	memset (buffer, 0, sizeof (psinfo_t));
+	read_file_contents (f_psinfo, buffer, sizeof (psinfo_t));
+	myInfo = (psinfo_t *) buffer;
 
-  buffer = malloc (sizeof (psinfo_t));
-  memset (buffer, 0, sizeof (psinfo_t));
-  read_file_contents (f_psinfo, buffer, sizeof (psinfo_t));
-  myInfo = (psinfo_t *) buffer;
+	sstrncpy (s->Name, myInfo->pr_fname, sizeof (myInfo->pr_fname));
+	s->Uid[1] = myInfo->pr_euid;
+	s->Gid[1] = myInfo->pr_egid;
 
-  sstrncpy (s->Name, myInfo->pr_fname, sizeof (myInfo->pr_fname));
-  s->Uid[1] = myInfo->pr_euid;
-  s->Gid[1] = myInfo->pr_egid;
-
-  sfree (myInfo);
-  return (1);
+	sfree (myInfo);
+	return (1);
 } /* }}} getStatus (KERNEL_SOLARIS)*/
 #endif
 
 static int top_read(void) /* {{{ */
 {
-    struct dirent **namelist;
-    int n;
-    n = scandir ("/proc", &namelist, 0, alphasort);
-    if (n < 0)
-        perror ("scandir");
-    else {
-        int hz;
-        hz = sysconf(_SC_CLK_TCK);
-        char *bufferout;
-        notification_t notif;
-        memset (&notif, '\0', sizeof (notif));
-        bufferout = malloc(n * sizeof(char) * 256);
-        *bufferout = '\0';
-        //printf("pid ppid    uid user gid group rss stime    utime  name\n");
-        while (n--) {
-            if (atoi (namelist[n]->d_name)) {
-                stat_t *stat;
-                status_t *status;
-                char buf[256];
-                struct passwd *pwd;
-                struct group *grp;
+    struct dirent **namelist = NULL;
+    int n = -1;
+    int hz;
+    stat_t *stat = NULL;
+    status_t *status = NULL;
+    char *bufferout = NULL;
+    notification_t notif;
+    int an_error_happened = 1;
 
-                stat = malloc(sizeof(stat_t));
-				if(NULL == stat) {
-					int i;
-					ERROR ("plugin top : Not enough memory (%s:%d)", __FILE__, __LINE__);
-					for(i=0; i<=n; i++) free(namelist[n]);
-					free(namelist);
-					free(bufferout);
-					return(1);
-				}
-                //if (getStat (atoi (namelist[n]->d_name), stat) == 0 || stat->ppid == 2 || stat->ppid == 0) {
-                if (getStat (atoi (namelist[n]->d_name), stat) == 0) {
-                    free(namelist[n]);
-                    free(stat);
-                    continue;
-                }
-                status = malloc(sizeof(status_t));
-				if(NULL == stat) {
-					int i;
-					ERROR ("plugin top : Not enough memory (%s:%d)", __FILE__, __LINE__);
-					for(i=0; i<=n; i++) free(namelist[n]);
-                    free(stat);
-					free(namelist);
-					free(bufferout);
-					return(1);
-				}
-                if (getStatus (atoi (namelist[n]->d_name), status) == 0) {
-                    free(namelist[n]);
-                    free(stat);
-                    free(status);
-					continue;
-                }
-                pwd = getpwuid(status->Uid[1]);
-                grp = getgrgid(status->Gid[1]);
+    /* Allocate some buffers for stats */
+    if(NULL == (stat = malloc(sizeof(stat_t)))) {
+        ERROR ("plugin top : Not enough memory (%s:%d)", __FILE__, __LINE__);
+        goto top_read_free_mem_after_failure;
+    }
+
+    if(NULL == (status = malloc(sizeof(status_t)))) {
+        ERROR ("plugin top : Not enough memory (%s:%d)", __FILE__, __LINE__);
+        goto top_read_free_mem_after_failure;
+    }
+
+    n = scandir ("/proc", &namelist, 0, alphasort);
+    if (n < 0) {
+        ERROR ("plugin top : scandir() failed (%s:%d)", __FILE__, __LINE__);
+        goto top_read_free_mem_after_failure;
+    }
+
+    hz = sysconf(_SC_CLK_TCK);
+    memset (&notif, '\0', sizeof (notif));
+
+    if(NULL == (bufferout = malloc(n * sizeof(char) * 256))) {
+        ERROR ("plugin top : Not enough memory (%s:%d)", __FILE__, __LINE__);
+        goto top_read_free_mem_after_failure;
+    }
+    *bufferout = '\0';
+
+    /* printf("pid ppid    uid user gid group rss stime    utime  name\n"); */
+    while (n--) {
+        int p;
+        if ((p = atoi (namelist[n]->d_name))) {
+            char buf[256];
+            struct passwd *pwd;
+            struct group *grp;
+
+            if (getStat (p, stat) == 0) {
+                free(namelist[n]);
+                continue;
+            }
+            if (getStatus (p, status) == 0) {
+                free(namelist[n]);
+                continue;
+            }
+            pwd = getpwuid(status->Uid[1]);
+            grp = getgrgid(status->Gid[1]);
 
 #if KERNEL_LINUX
 #define TO_100_DIV_H2(x) ((x) * 100 / (hz))
@@ -335,30 +332,38 @@ static int top_read(void) /* {{{ */
 #define TO_100_DIV_H2(x) (x)
 #endif
 
-                snprintf(buf, sizeof(buf), "%d %d %lu %s %lu %s %ld %ld %ld %s\n",
-								stat->pid, stat->ppid,
-								status->Uid[1], pwd?pwd->pw_name:"NA",
-								status->Gid[1], grp?grp->gr_name:"NA",
-								stat->rss, TO_100_DIV_H2(stat->stime),
-								TO_100_DIV_H2(stat->utime), status->Name);
-                free(namelist[n]);
-                free(stat);
-                free(status);
-                strncat(bufferout, buf, sizeof(buf));
-            }
+            snprintf(buf, sizeof(buf), "%d %d %lu %s %lu %s %ld %ld %ld %s\n",
+                    stat->pid, stat->ppid,
+                    status->Uid[1], pwd?pwd->pw_name:"NA",
+                    status->Gid[1], grp?grp->gr_name:"NA",
+                    stat->rss, TO_100_DIV_H2(stat->stime),
+                    TO_100_DIV_H2(stat->utime), status->Name);
+            strncat(bufferout, buf, sizeof(buf));
         }
-        //ERROR("%s", bufferout);
-        notif.severity = NOTIF_OKAY;
-        notif.time = cdtime ();
-        sstrncpy(notif.host, hostname_g, sizeof(notif.host));
-        sstrncpy(notif.plugin, "top", sizeof(notif.plugin));
-        sstrncpy(notif.type, "ps", sizeof(notif.type));
-        sstrncpy(notif.message, bufferout, sizeof(notif.message));
-        plugin_dispatch_notification(&notif);
-        free(bufferout);
+        free(namelist[n]);
     }
-    free(namelist);
-    return 0;
+    //ERROR("%s", bufferout);
+    notif.severity = NOTIF_OKAY;
+    notif.time = cdtime ();
+    sstrncpy(notif.host, hostname_g, sizeof(notif.host));
+    sstrncpy(notif.plugin, "top", sizeof(notif.plugin));
+    sstrncpy(notif.type, "ps", sizeof(notif.type));
+    sstrncpy(notif.message, bufferout, sizeof(notif.message));
+    plugin_dispatch_notification(&notif);
+    an_error_happened = 0;
+
+top_read_free_mem_after_failure :
+    {
+        int i;
+        if(namelist) {
+            for(i=0; i<=n; i++) free(namelist[n]);
+            free(namelist);
+        }
+        if(stat) free(stat);
+        if(status) free(status);
+        if(bufferout) free(bufferout);
+    }
+    return(an_error_happened);
 } /* }}} top_read */
 
 void module_register (void)
