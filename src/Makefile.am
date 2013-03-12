@@ -1014,6 +1014,16 @@ collectd_LDADD += "-dlopen" rrdtool.la
 collectd_DEPENDENCIES += rrdtool.la
 endif
 
+if BUILD_PLUGIN_RRDTOOL_CREATEONLY
+pkglib_LTLIBRARIES += rrdtool_createonly.la
+rrdtool_createonly_la_SOURCES = rrdtool_createonly.c utils_rrdcreate.c utils_rrdcreate.h
+rrdtool_createonly_la_LDFLAGS = -module -avoid-version
+rrdtool_createonly_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBRRD_CFLAGS)
+rrdtool_createonly_la_LIBADD = $(BUILD_WITH_LIBRRD_LDFLAGS)
+collectd_LDADD += "-dlopen" rrdtool_createonly.la
+collectd_DEPENDENCIES += rrdtool_createonly.la
+endif
+
 if BUILD_PLUGIN_SENSORS
 pkglib_LTLIBRARIES += sensors.la
 sensors_la_SOURCES = sensors.c
