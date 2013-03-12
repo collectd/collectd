@@ -83,7 +83,9 @@ static const char *config_keys[] =
 	"RRATimespan",
 	"XFF",
 	"WritesPerSecond",
-	"RandomTimeout"
+	"RandomTimeout",
+	"CreateRRDOnly",
+	"RRA"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -102,6 +104,9 @@ static rrdcreate_config_t rrdcreate_config =
 	/* timespans = */ NULL,
 	/* timespans_num = */ 0,
 
+	/* rra_types = */ NULL,
+	/* rra_types_num = */ 0,
+
 	/* consolidation_functions = */ NULL,
 	/* consolidation_functions_num = */ 0,
 
@@ -113,6 +118,7 @@ static rrdcreate_config_t rrdcreate_config =
 static cdtime_t    cache_timeout = 0;
 static cdtime_t    cache_flush_timeout = 0;
 static cdtime_t    random_timeout = TIME_T_TO_CDTIME_T (1);
+static short       createrrdonly = 0;
 static cdtime_t    cache_flush_last;
 static c_avl_tree_t *cache = NULL;
 static pthread_mutex_t cache_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -932,7 +938,9 @@ static int rrd_write (const data_set_t *ds, const value_list_t *vl,
 		return (-1);
 	}
 
-	status = rrd_cache_insert (filename, values, vl->time);
+	if(!createrrdonly) {
+		status = rrd_cache_insert (filename, values, vl->time);
+	}
 
 	return (status);
 } /* int rrd_write */
@@ -1121,6 +1129,23 @@ static int rrd_config (const char *key, const char *value)
 			random_timeout = DOUBLE_TO_CDTIME_T (tmp);
 		}
 	}
+	else if (strcasecmp ("RRA", key) == 0)
+        {
+			if(NULL != value) {
+				if(0 != cu_rrd_rra_types_set(&rrdcreate_config, value))
+					return(-1);
+			}
+	}
+	else if (strcasecmp ("CreateRRDOnly", key) == 0)
+        {
+			if(
+				!strcasecmp(value,"yes") || 
+				!strcasecmp(value,"true") || 
+				!strcasecmp(value,"1")
+				) {
+					createrrdonly = 1;
+				}
+	}
 	else
 	{
 		return (-1);
@@ -1222,6 +1247,6 @@ void module_register (void)
 			config_keys, config_keys_num);
 	plugin_register_init ("rrdtool", rrd_init);
 	plugin_register_write ("rrdtool", rrd_write, /* user_data = */ NULL);
-	plugin_register_flush ("rrdtool", rrd_flush, /* user_data = */ NULL);
+	if(!createrrdonly) plugin_register_flush ("rrdtool", rrd_flush, /* user_data = */ NULL);
 	plugin_register_shutdown ("rrdtool", rrd_shutdown);
 }
