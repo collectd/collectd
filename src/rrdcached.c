@@ -45,6 +45,9 @@ static rrdcreate_config_t rrdcreate_config =
 	/* timespans = */ NULL,
 	/* timespans_num = */ 0,
 
+	/* rra_types = */ NULL,
+	/* rra_types_num = */ 0,
+
 	/* consolidation_functions = */ NULL,
 	/* consolidation_functions_num = */ 0,
 
@@ -277,6 +280,16 @@ static int rc_config (oconfig_item_t *ci)
     }
     else if (strcasecmp ("XFF", key) == 0)
       status = rc_config_get_xff (child, &rrdcreate_config.xff);
+	else if (strcasecmp ("RRA", key) == 0)
+    {
+      char buffer[1024];
+      memset (buffer, 0, sizeof (buffer));
+      status = cf_util_get_string_buffer (child, buffer, sizeof(buffer));
+      if(0 == status) {
+        if(0 != cu_rrd_rra_types_set(&rrdcreate_config, buffer))
+          return(-1);
+      }
+    }
     else
     {
       WARNING ("rrdcached plugin: Ignoring invalid option %s.", key);
