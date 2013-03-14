@@ -191,6 +191,7 @@ default value is B<5>, but you may want to increase this if you have more than
 five plugins that may take relatively long to write to.
 
 =item B<WriteQueueLengthLimitHigh> I<Num>
+
 =item B<WriteQueueLengthLimitLow> I<Num>
 
 Default value for high limit is 0 (no limit).
