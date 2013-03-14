@@ -190,6 +190,23 @@ Number of threads to start for dispatching value lists to write plugins. The
 default value is B<5>, but you may want to increase this if you have more than
 five plugins that may take relatively long to write to.
 
+=item B<WriteQueueLengthLimitHigh> I<Num>
+=item B<WriteQueueLengthLimitLow> I<Num>
+
+Default value for high limit is 0 (no limit).
+Default value for low limit is 50% of high limit.
+
+When the write queue size becomes bigger than the high limit, values I<will> be dropped.
+When the write queue size is between low and high, values I<may> be dropped (depending
+on the queue size)
+
+If high limit is set to 0, there is no limit. This is the default.
+If high limit is set, but not low limit, low will be computed as 50% of high.
+
+If you do not want to randomly drop values when the queue size is between low
+and high value, set the same value for low and high. When low=high and when the
+queue size is bigger, values are just dropped until the queue size becomes smaller.
+
 =item B<Hostname> I<Name>
 
 Sets the hostname that identifies a host. If you omit this setting, the
