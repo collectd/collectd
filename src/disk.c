@@ -109,7 +109,7 @@ static diskstats_t *disklist;
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
-#define MAX_NUMDISK 256
+#define MAX_NUMDISK 1024
 extern kstat_ctl_t *kc;
 static kstat_t *ksp[MAX_NUMDISK];
 static int numdisk = 0;
