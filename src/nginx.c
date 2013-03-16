@@ -144,6 +144,7 @@ static int init (void)
   }
 
   curl_easy_setopt (curl, CURLOPT_FOLLOWLOCATION, 1L);
+  curl_easy_setopt (curl, CURLOPT_MAXREDIRS, 50L);
 
   if ((verify_peer == NULL) || IS_TRUE (verify_peer))
   {
@@ -214,7 +215,7 @@ static int nginx_read (void)
     return (-1);
 
   nginx_buffer_len = 0;
-  if (curl_easy_perform (curl) != 0)
+  if (curl_easy_perform (curl) != CURLE_OK)
   {
     WARNING ("nginx plugin: curl_easy_perform failed: %s", nginx_curl_error);
     return (-1);
