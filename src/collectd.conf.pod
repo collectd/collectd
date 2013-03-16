@@ -1092,23 +1092,34 @@ host name setting.
 Use I<Instance> as the plugin instance when submitting values. Defaults to an
 empty string (no plugin instance).
 
-=item B<Namespaces> I<Namespace-list>
+=item B<Namespaces> I<Prefix> I<URL>
 
 If an XPath expression references namespaces, they must be specified
-with this option. The argument is a string of the form "prefix1=URI1
-prefix2=URI2 ...",
-e.g. C<Namespaces "s=http://schemas.xmlsoap.org/soap/envelope/">
+with this option. I<Prefix> is the "namespace prefix" used in the XML document.
+I<URL> is the "namespace name", an URI reference uniquely identifying the
+namespace. The option can be repeated to register multiple namespaces.
+
+Examples:
+
+  Namespace "s" "http://schemas.xmlsoap.org/soap/envelope/"
+  Namespace "m" "http://www.w3.org/1998/Math/MathML"
 
 =item B<User> I<User>
+
 =item B<Password> I<Password>
+
 =item B<VerifyPeer> B<true>|B<false>
+
 =item B<VerifyHost> B<true>|B<false>
+
 =item B<CACert> I<CA Cert File>
+
 =item B<Header> I<Header>
+
 =item B<Post> I<Body>
 
 These options behave exactly equivalent to the appropriate options of the
-I<cURL> plugin. Please see there for a detailed description.
+I<cURL plugin>. Please see there for a detailed description.
 
 =item E<lt>B<XPath> I<XPath-expression>E<gt>
 

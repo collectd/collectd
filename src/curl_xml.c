@@ -59,6 +59,14 @@ struct cx_xpath_s /* {{{ */
 typedef struct cx_xpath_s cx_xpath_t;
 /* }}} */
 
+struct cx_namespace_s /* {{{ */
+{
+  char *prefix;
+  char *url;
+};
+typedef struct cx_namespace_s cx_namespace_t;
+/* }}} */
+
 struct cx_s /* {{{ */
 {
   char *instance;
@@ -73,7 +81,9 @@ struct cx_s /* {{{ */
   char *cacert;
   char *post_body;
   struct curl_slist *headers;
-  char *namespaces;
+
+  cx_namespace_t *namespaces;
+  size_t namespaces_num;
 
   CURL *curl;
   char curl_errbuf[CURL_ERROR_SIZE];
@@ -164,6 +174,7 @@ static void cx_list_free (llist_t *list) /* {{{ */
 static void cx_free (void *arg) /* {{{ */
 {
   cx_t *db;
+  size_t i;
 
   DEBUG ("curl_xml plugin: cx_free (arg = %p);", arg);
 
@@ -190,6 +201,12 @@ static void cx_free (void *arg) /* {{{ */
   sfree (db->cacert);
   sfree (db->post_body);
   curl_slist_free_all (db->headers);
+
+  for (i = 0; i < db->namespaces_num; i++)
+  {
+    sfree (db->namespaces[i].prefix);
+    sfree (db->namespaces[i].url);
+  }
   sfree (db->namespaces);
 
   sfree (db);
@@ -256,98 +273,6 @@ static int cx_if_not_text_node (xmlNodePtr node) /* {{{ */
            "Node \"%s\" doesn't seem to be a text node. Skipping...", node->name);
   return -1;
 } /* }}} cx_if_not_text_node */
-
-/**
- * cx_register_namespaces:
- * @xpath_ctx:		the pointer to an XPath context.
- * @nslist:		the list of known namespaces in
- *			"<prefix1>=<href1> <prefix2>=href2> ..." format.
- *
- * Registers namespaces from @nslist in @xpath_ctx.
- *
- * Returns 0 on success and a negative value otherwise.
- *
- * author: 	Aleksey Sanin
- *
- * The following license statement applies to the function
- * cx_register_namespaces only:
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is fur-
- * nished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FIT-
- * NESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
- * DANIEL VEILLARD BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CON-
- * NECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- * Except as contained in this notice, the name of Daniel Veillard shall not
- * be used in advertising or otherwise to promote the sale, use or other deal-
- * ings in this Software without prior written authorization from him.
- */
-static int cx_register_namespaces(xmlXPathContextPtr xpath_ctx, /* {{{ */
-    const xmlChar* nslist)
-{
-    xmlChar* nslistdup;
-    xmlChar* prefix;
-    xmlChar* href;
-    xmlChar* next;
-
-    assert(xpath_ctx);
-    assert(nslist);
-
-    nslistdup = xmlStrdup(nslist);
-    if(nslistdup == NULL) {
-        ERROR ("curl_xml plugin: "
-	       "unable to strdup namespaces list");
-	return (-1);
-    }
-
-    next = nslistdup;
-    while(next != NULL) {
-	/* skip spaces */
-	while((*next) == ' ') next++;
-	if((*next) == '\0') break;
-
-	/* find prefix */
-	prefix = next;
-	next = (xmlChar*)xmlStrchr(next, '=');
-	if(next == NULL) {
-            ERROR ("curl_xml plugin: "
-	           "invalid namespaces list format");
-	    xmlFree(nslistdup);
-	    return (-1);
-	}
-	*(next++) = '\0';
-
-	/* find href */
-	href = next;
-	next = (xmlChar*)xmlStrchr(next, ' ');
-	if(next != NULL) {
-	    *(next++) = '\0';
-	}
-
-	/* do register namespace */
-	if(xmlXPathRegisterNs(xpath_ctx, prefix, href) != 0) {
-            ERROR ("curl_xml plugin: "
-	           "unable to register NS with prefix=\"%s\" and href=\"%s\"\n",
-                   prefix, href);
-	    xmlFree(nslistdup);
-	    return (-1);
-	}
-    }
-
-    xmlFree(nslistdup);
-    return (0);
-} /* }}} cx_register_namespaces */
 
 static int cx_handle_single_value_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */
     cx_xpath_t *xpath,
@@ -636,6 +561,7 @@ static int cx_parse_stats_xml(xmlChar* xml, cx_t *db) /* {{{ */
   int status;
   xmlDocPtr doc;
   xmlXPathContextPtr xpath_ctx;
+  size_t i;
 
   /* Load the XML */
   doc = xmlParseDoc(xml);
@@ -653,11 +579,20 @@ static int cx_parse_stats_xml(xmlChar* xml, cx_t *db) /* {{{ */
     return (-1);
   }
 
-  if((db->namespaces != NULL) &&
-     (cx_register_namespaces(xpath_ctx, BAD_CAST db->namespaces) < 0))
+  for (i = 0; i < db->namespaces_num; i++)
   {
-    xmlFreeDoc(doc);
-    return (-1);
+    cx_namespace_t const *ns = db->namespaces + i;
+    status = xmlXPathRegisterNs (xpath_ctx,
+        BAD_CAST ns->prefix, BAD_CAST ns->url);
+    if (status != 0)
+    {
+      ERROR ("curl_xml plugin: "
+          "unable to register NS with prefix=\"%s\" and href=\"%s\"\n",
+          ns->prefix, ns->url);
+      xmlXPathFreeContext(xpath_ctx);
+      xmlFreeDoc (doc);
+      return (status);
+    }
   }
 
   status = cx_handle_parsed_xml (doc, xpath_ctx, db);
@@ -849,6 +784,46 @@ static int cx_config_add_xpath (cx_t *db, /* {{{ */
   return (status);
 } /* }}} int cx_config_add_xpath */
 
+static int cx_config_add_namespace (cx_t *db, /* {{{ */
+    oconfig_item_t *ci)
+{
+  cx_namespace_t *ns;
+
+  if ((ci->values_num != 2)
+      || (ci->values[0].type != OCONFIG_TYPE_STRING)
+      || (ci->values[1].type != OCONFIG_TYPE_STRING))
+  {
+    WARNING ("curl_xml plugin: The `Namespace' option "
+             "needs exactly two string arguments.");
+    return (EINVAL);
+  }
+
+  ns = realloc (db->namespaces, sizeof (*db->namespaces)
+      * (db->namespaces_num + 1));
+  if (ns == NULL)
+  {
+    ERROR ("curl_xml plugin: realloc failed.");
+    return (ENOMEM);
+  }
+  db->namespaces = ns;
+  ns = db->namespaces + db->namespaces_num;
+  memset (ns, 0, sizeof (*ns));
+
+  ns->prefix = strdup (ci->values[0].value.string);
+  ns->url = strdup (ci->values[1].value.string);
+
+  if ((ns->prefix == NULL) || (ns->url == NULL))
+  {
+    sfree (ns->prefix);
+    sfree (ns->url);
+    ERROR ("curl_xml plugin: strdup failed.");
+    return (ENOMEM);
+  }
+
+  db->namespaces_num++;
+  return (0);
+} /* }}} int cx_config_add_namespace */
+
 /* Initialize db->curl */
 static int cx_init_curl (cx_t *db) /* {{{ */
 {
@@ -963,8 +938,8 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
       status = cx_config_append_string ("Header", &db->headers, child);
     else if (strcasecmp ("Post", child->key) == 0)
       status = cf_util_get_string (child, &db->post_body);
-    else if (strcasecmp ("Namespaces", child->key) == 0)
-      status = cf_util_get_string (child, &db->namespaces);
+    else if (strcasecmp ("Namespace", child->key) == 0)
+      status = cx_config_add_namespace (db, child);
     else
     {
       WARNING ("curl_xml plugin: Option `%s' not allowed here.", child->key);
