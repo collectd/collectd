@@ -726,6 +726,9 @@ static int plugin_insert_read (read_func_t *rf)
 	int status;
 	llentry_t *le;
 
+	cdtime_t now = cdtime ();
+	CDTIME_T_TO_TIMESPEC (now, &rf->rf_next_read);
+
 	pthread_mutex_lock (&read_lock);
 
 	if (read_list == NULL)

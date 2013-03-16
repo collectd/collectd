@@ -111,16 +111,9 @@ static size_t cj_curl_callback (void *buf, /* {{{ */
   if (db == NULL)
     return (0);
 
-  status = yajl_parse(db->yajl, (unsigned char *) buf, len);
+  status = yajl_parse(db->yajl, (unsigned char *)buf, len);
   if (status == yajl_status_ok)
-  {
-#if HAVE_YAJL_V2
-    status = yajl_complete_parse(db->yajl);
-#else
-    status = yajl_parse_complete(db->yajl);
-#endif
     return (len);
-  }
 #if !HAVE_YAJL_V2
   else if (status == yajl_status_insufficient_data)
     return (len);
@@ -770,7 +763,7 @@ static int cj_curl_perform (cj_t *db, CURL *curl) /* {{{ */
   curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &url);
 
   status = curl_easy_perform (curl);
-  if (status != 0)
+  if (status != CURLE_OK)
   {
     ERROR ("curl_json plugin: curl_easy_perform failed with status %i: %s (%s)",
            status, db->curl_errbuf, (url != NULL) ? url : "<null>");
