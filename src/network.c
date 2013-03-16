@@ -281,6 +281,10 @@ static size_t network_config_packet_size = 1452;
 static int network_config_forward = 0;
 static int network_config_stats = 0;
 
+static uint64_t network_config_queue_length_limit_low = 0;
+static uint64_t network_config_queue_length_limit_high = 0;
+static short dropping_mode = 0;
+
 static sockent_t *sending_sockets = NULL;
 
 static receive_list_entry_t *receive_list_head = NULL;
@@ -327,6 +331,24 @@ static pthread_mutex_t stats_lock = PTHREAD_MUTEX_INITIALIZER;
 /*
  * Private functions
  */
+static void check_dropping_mode(void) /* {{{ */
+{
+	uint64_t copy_receive_list_length = receive_list_length;
+	if(0 == network_config_queue_length_limit_high) return;
+	if(copy_receive_list_length > network_config_queue_length_limit_high) {
+			if(0 == dropping_mode) {
+				INFO("network : receive queue length too high. Start dropping packets");
+			}
+			dropping_mode = 1;
+	} else if(copy_receive_list_length < network_config_queue_length_limit_low) {
+			if(1 == dropping_mode) {
+				INFO("network : receive queue length low enough. Stop dropping packets");
+			}
+			dropping_mode = 0;
+	}
+	/* else do nothing : wait that the queue length is low enough. */
+} /* }}} check_dropping_mode */
+
 static _Bool check_receive_okay (const value_list_t *vl) /* {{{ */
 {
   uint64_t time_sent = 0;
@@ -1446,7 +1468,9 @@ static int parse_packet (sockent_t *se, /* {{{ */
 			if (status != 0)
 				break;
 
-			network_dispatch_values (&vl, username);
+			if(0 == dropping_mode) {
+					network_dispatch_values (&vl, username);
+			}
 
 			sfree (vl.values);
 		}
@@ -1561,7 +1585,9 @@ static int parse_packet (sockent_t *se, /* {{{ */
 			}
 			else
 			{
-				network_dispatch_notification (&n);
+				if(0 == dropping_mode) {
+						network_dispatch_notification (&n);
+				}
 			}
 		}
 		else if (pkg_type == TYPE_SEVERITY)
@@ -2271,6 +2297,7 @@ static void *dispatch_thread (void __attribute__((unused)) *arg) /* {{{ */
     if (ent != NULL)
       receive_list_head = ent->next;
     receive_list_length--;
+	check_dropping_mode();
     pthread_mutex_unlock (&receive_list_lock);
 
     /* Check whether we are supposed to exit. We do NOT check `listen_loop'
@@ -2413,6 +2440,7 @@ static int network_receive (void) /* {{{ */
 					receive_list_tail->next = private_list_head;
 				receive_list_tail = private_list_tail;
 				receive_list_length += private_list_length;
+				check_dropping_mode();
 
 				pthread_cond_signal (&receive_list_cond);
 				pthread_mutex_unlock (&receive_list_lock);
@@ -2435,6 +2463,7 @@ static int network_receive (void) /* {{{ */
 			receive_list_tail->next = private_list_head;
 		receive_list_tail = private_list_tail;
 		receive_list_length += private_list_length;
+		check_dropping_mode();
 
 		private_list_head = NULL;
 		private_list_tail = NULL;
@@ -2920,6 +2949,42 @@ static int network_config_set_buffer_size (const oconfig_item_t *ci) /* {{{ */
   return (0);
 } /* }}} int network_config_set_buffer_size */
 
+static int network_config_set_queue_length_limit_low (const oconfig_item_t *ci) /* {{{ */
+{
+  int tmp;
+  if ((ci->values_num != 1)
+      || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
+  {
+    WARNING ("network plugin: The `QueueLengthLimitLow' config option needs exactly "
+        "one numeric argument.");
+    return (-1);
+  }
+
+  tmp = (int) ci->values[0].value.number;
+  if (tmp >= 0)
+    network_config_queue_length_limit_low = tmp;
+
+  return (0);
+} /* }}} int network_config_set_queue_length_limit_low */
+
+static int network_config_set_queue_length_limit_high (const oconfig_item_t *ci) /* {{{ */
+{
+  int tmp;
+  if ((ci->values_num != 1)
+      || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
+  {
+    WARNING ("network plugin: The `QueueLengthLimitHigh' config option needs exactly "
+        "one numeric argument.");
+    return (-1);
+  }
+
+  tmp = (int) ci->values[0].value.number;
+  if (tmp >= 0)
+    network_config_queue_length_limit_high = tmp;
+
+  return (0);
+} /* }}} int network_config_set_queue_length_limit_low */
+
 #if HAVE_LIBGCRYPT
 static int network_config_set_string (const oconfig_item_t *ci, /* {{{ */
     char **ret_string)
@@ -3153,6 +3218,10 @@ static int network_config (oconfig_item_t *ci) /* {{{ */
       network_config_set_ttl (child);
     else if (strcasecmp ("MaxPacketSize", child->key) == 0)
       network_config_set_buffer_size (child);
+    else if (strcasecmp ("QueueLengthLimitLow", child->key) == 0)
+      network_config_set_queue_length_limit_low (child);
+    else if (strcasecmp ("QueueLengthLimitHigh", child->key) == 0)
+      network_config_set_queue_length_limit_high (child);
     else if (strcasecmp ("Forward", child->key) == 0)
       network_config_set_boolean (child, &network_config_forward);
     else if (strcasecmp ("ReportStats", child->key) == 0)
@@ -3382,6 +3451,13 @@ static int network_init (void)
         gcry_control (GCRYCTL_INITIALIZATION_FINISHED, 0);
     }
 #endif
+
+	if(0 == network_config_queue_length_limit_low) {
+		if(0 != network_config_queue_length_limit_high) {
+			network_config_queue_length_limit_low = network_config_queue_length_limit_high/2 + 1;
+			INFO ("network: QueueLengthLimitLow was set to %ld because you cannot have nul QueueLengthLimitLow and QueueLengthLimitHigh not nul.", network_config_queue_length_limit_low);
+		}
+	}
 
 	if (network_config_stats != 0)
 		plugin_register_read ("network", network_stats_read);
