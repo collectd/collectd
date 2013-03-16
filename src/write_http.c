@@ -88,7 +88,7 @@ static int wh_send_buffer (wh_callback_t *cb) /* {{{ */
 
         curl_easy_setopt (cb->curl, CURLOPT_POSTFIELDS, cb->send_buffer);
         status = curl_easy_perform (cb->curl);
-        if (status != 0)
+        if (status != CURLE_OK)
         {
                 ERROR ("write_http plugin: curl_easy_perform failed with "
                                 "status %i: %s",

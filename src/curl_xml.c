@@ -365,7 +365,7 @@ static int cx_handle_instance_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */
     instance_node = instance_node_obj->nodesetval;
     tmp_size = (instance_node) ? instance_node->nodeNr : 0;
 
-    if ( (tmp_size == 0) && (is_table) )
+    if (tmp_size <= 0)
     {
       WARNING ("curl_xml plugin: "
           "relative xpath expression for 'InstanceFrom' \"%s\" doesn't match "
@@ -553,6 +553,12 @@ static int cx_curl_perform (cx_t *db, CURL *curl) /* {{{ */
 
   db->buffer_fill = 0; 
   status = curl_easy_perform (curl);
+  if (status != CURLE_OK)
+  {
+    ERROR ("curl_xml plugin: curl_easy_perform failed with status %i: %s (%s)",
+           status, db->curl_errbuf, url);
+    return (-1);
+  }
 
   curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &url);
   curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &rc);
@@ -562,13 +568,6 @@ static int cx_curl_perform (cx_t *db, CURL *curl) /* {{{ */
   {
     ERROR ("curl_xml plugin: curl_easy_perform failed with response code %ld (%s)",
            rc, url);
-    return (-1);
-  }
-
-  if (status != 0)
-  {
-    ERROR ("curl_xml plugin: curl_easy_perform failed with status %i: %s (%s)",
-           status, db->curl_errbuf, url);
     return (-1);
   }
 

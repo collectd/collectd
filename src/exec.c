@@ -493,7 +493,7 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out, int *fd_err)
       close (fd_pipe_out[1]);
     }
 
-    /* Now connect the `out' pipe to STDOUT */
+    /* Now connect the `err' pipe to STDERR */
     if (fd_pipe_err[1] != STDERR_FILENO)
     {
       dup2 (fd_pipe_err[1], STDERR_FILENO);
