@@ -208,6 +208,13 @@ int strsubstitute (char *str, char c_from, char c_to);
  */
 int strunescape (char *buf, size_t buf_len);
 
+/**
+ * Removed trailing newline characters (CR and LF) from buffer, which must be
+ * null terminated. Returns the length of the resulting string.
+ */
+__attribute__((nonnull (1)))
+size_t strstripnewline (char *buffer);
+
 /*
  * NAME
  *   timeval_cmp

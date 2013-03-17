@@ -36,11 +36,11 @@
 #define UUID_PRINTABLE_COMPACT_LENGTH  (UUID_RAW_LENGTH * 2)
 #define UUID_PRINTABLE_NORMAL_LENGTH  (UUID_PRINTABLE_COMPACT_LENGTH + 4)
 
-#define HANDLE_PREFIX "Handle"
-#define SYSINFO_PREFIX "System Information"
-#define ALT_SYSINFO_PREFIX "\tSystem Information"
-#define UUID_PREFIX "\tUUID:"
-#define ALT_UUID_PREFIX "\t\tUUID:"
+static char *uuidfile = NULL;
+
+static const char *config_keys[] = {
+    "UUIDFile"
+};
 
 static int
 looks_like_a_uuid (const char *uuid)
@@ -65,42 +65,28 @@ static char *
 uuid_parse_dmidecode(FILE *file)
 {
     char line[1024];
-    int inSysInfo = 0;
 
-    for (;;) {
-        if (!fgets(line, sizeof(line)/sizeof(char), file)) {
-            return NULL;
-        }
-        if (strncmp(line, HANDLE_PREFIX,
-                    (sizeof(HANDLE_PREFIX)/sizeof(char))-1) == 0) {
-            /*printf("Got handle %s\n", line);*/
-            inSysInfo = 0;
-        } else if (strncmp(line, SYSINFO_PREFIX,
-                           (sizeof(SYSINFO_PREFIX)/sizeof(char))-1) == 0) {
-            /*printf("Got system info %s\n", line);*/
-            inSysInfo = 1;
-        } else if (strncmp(line, ALT_SYSINFO_PREFIX,
-                           (sizeof(ALT_SYSINFO_PREFIX)/sizeof(char))-1) == 0) {
-            /*printf("Got alt system info %s\n", line);*/
-            inSysInfo = 1;
-        }
-        
-        if (inSysInfo) {
-            if (strncmp(line, UUID_PREFIX,
-                        (sizeof(UUID_PREFIX)/sizeof(char))-1) == 0) {
-                char *uuid = line + (sizeof(UUID_PREFIX)/sizeof(char));
-                /*printf("Got uuid [%s]\n", uuid);*/
-                if (looks_like_a_uuid (uuid))
-                    return strdup (uuid);
-            }
-            if (strncmp(line, ALT_UUID_PREFIX,
-                        (sizeof(ALT_UUID_PREFIX)/sizeof(char))-1) == 0) {
-                char *uuid = line + (sizeof(ALT_UUID_PREFIX)/sizeof(char));
-                /*printf("Got alt uuid [%s]\n", uuid);*/
-                if (looks_like_a_uuid (uuid))
-                    return strdup (uuid);
-            }
-        }
+    while (fgets (line, sizeof (line), file) != NULL)
+    {
+        char *fields[4];
+        int fields_num;
+
+        strstripnewline (line);
+
+        /* Look for a line reading:
+         *   UUID: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
+         */
+        fields_num = strsplit (line, fields, STATIC_ARRAY_SIZE (fields));
+        if (fields_num != 2)
+            continue;
+
+        if (strcmp("UUID:", fields[0]) != 0)
+            continue;
+
+        if (!looks_like_a_uuid (fields[1]))
+            continue;
+
+        return strdup (fields[1]);
     }
     return NULL;
 }
@@ -187,22 +173,21 @@ static char *
 uuid_get_from_file(const char *path)
 {
     FILE *file;
-    char uuid[UUID_PRINTABLE_NORMAL_LENGTH+1];
+    char uuid[UUID_PRINTABLE_NORMAL_LENGTH + 1] = "";
 
-    if (!(file = fopen(path, "r"))) {
+    file = fopen (path, "r");
+    if (file == NULL)
         return NULL;
-    }
 
     if (!fgets(uuid, sizeof(uuid), file)) {
         fclose(file);
         return NULL;
     }
     fclose(file);
+    strstripnewline (uuid);
 
     return strdup (uuid);
 }
-
-static char *uuidfile = NULL;
 
 static char *
 uuid_get_local(void)
@@ -231,23 +216,19 @@ uuid_get_local(void)
     return NULL;
 }
 
-static const char *config_keys[] = {
-    "UUIDFile",
-    NULL
-};
-#define NR_CONFIG_KEYS ((sizeof config_keys / sizeof config_keys[0]) - 1)
-
 static int
 uuid_config (const char *key, const char *value)
 {
     if (strcasecmp (key, "UUIDFile") == 0) {
-        if (uuidfile) {
-            ERROR ("UUIDFile given twice in configuration file");
-            return 1;
-        }
-        uuidfile = strdup (value);
-        return 0;
+        char *tmp = strdup (value);
+        if (tmp == NULL)
+            return -1;
+        sfree (uuidfile);
+        uuidfile = tmp;
+    } else {
+        return 1;
     }
+
     return 0;
 }
 
@@ -268,9 +249,9 @@ uuid_init (void)
 
 void module_register (void)
 {
-	plugin_register_config ("uuid", uuid_config,
-                            config_keys, NR_CONFIG_KEYS);
-	plugin_register_init ("uuid", uuid_init);
+    plugin_register_config ("uuid", uuid_config,
+            config_keys, STATIC_ARRAY_SIZE (config_keys));
+    plugin_register_init ("uuid", uuid_init);
 }
 
 /*

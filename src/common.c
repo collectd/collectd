@@ -361,6 +361,22 @@ int strunescape (char *buf, size_t buf_len)
 	return (0);
 } /* int strunescape */
 
+size_t strstripnewline (char *buffer)
+{
+	size_t buffer_len = strlen (buffer);
+
+	while (buffer_len > 0)
+	{
+		if ((buffer[buffer_len - 1] != '\n')
+				&& (buffer[buffer_len - 1] != '\r'))
+			break;
+		buffer[buffer_len] = 0;
+		buffer_len--;
+	}
+
+	return (buffer_len);
+} /* size_t strstripnewline */
+
 int escape_slashes (char *buf, int buf_len)
 {
 	int i;
