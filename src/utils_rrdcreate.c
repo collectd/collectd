@@ -463,9 +463,8 @@ static int lock_file (char const *filename) /* {{{ */
     return (EEXIST);
   }
 
-  errno = 0;
   status = stat (filename, &sb);
-  if (errno != ENOENT)
+  if ((status == 0) || (errno != ENOENT))
   {
     pthread_mutex_unlock (&async_creation_lock);
     return (EEXIST);
