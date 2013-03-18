@@ -441,7 +441,7 @@ lv_read (void)
         }
 
         cpu_submit (info.cpuTime, domains[i], "virt_cpu_total");
-        memory_submit ((gauge_t) info.memory, domains[i]);
+        memory_submit ((gauge_t) info.memory * 1024, domains[i]);
 
         vinfo = malloc (info.nrVirtCpu * sizeof (vinfo[0]));
         if (vinfo == NULL) {
