@@ -178,7 +178,7 @@ init_value_list (value_list_t *vl, virDomainPtr dom)
 } /* void init_value_list */
 
 static void
-memory_submit (unsigned long memory, virDomainPtr dom, const char *type)
+memory_submit (gauge_t memory, virDomainPtr dom)
 {
     value_t values[1];
     value_list_t vl = VALUE_LIST_INIT;
@@ -190,7 +190,7 @@ memory_submit (unsigned long memory, virDomainPtr dom, const char *type)
     vl.values = values;
     vl.values_len = 1;
 
-    sstrncpy (vl.type, type, sizeof (vl.type));
+    sstrncpy (vl.type, "memory", sizeof (vl.type));
 
     plugin_dispatch_values (&vl);
 }
@@ -441,7 +441,7 @@ lv_read (void)
         }
 
         cpu_submit (info.cpuTime, domains[i], "virt_cpu_total");
-	memory_submit (info.memory, domains[i], "memory");
+        memory_submit ((gauge_t) info.memory, domains[i]);
 
         vinfo = malloc (info.nrVirtCpu * sizeof (vinfo[0]));
         if (vinfo == NULL) {
