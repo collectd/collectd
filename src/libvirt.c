@@ -191,6 +191,7 @@ memory_submit (gauge_t memory, virDomainPtr dom)
     vl.values_len = 1;
 
     sstrncpy (vl.type, "memory", sizeof (vl.type));
+    sstrncpy (vl.type_instance, "total", sizeof (vl.type_instance));
 
     plugin_dispatch_values (&vl);
 }
