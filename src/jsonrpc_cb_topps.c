@@ -143,8 +143,8 @@ static int check_path(const char *hostname, int tm_start, int tm_end, char *buff
         int best_tm;
         int last_seen_n_low,last_seen_n_high;
         int last_seen_tm_low,last_seen_tm_high;
-        int last_before_flush_n;
-        int last_before_flush_tm;
+        int last_before_flush_n = -1;
+        int last_before_flush_tm = -1;
         int flush_needed = 0;
         int flush_already_done = 0;
         short watchdog;
@@ -196,6 +196,8 @@ static int check_path(const char *hostname, int tm_start, int tm_end, char *buff
 
                 if((0 == flush_already_done) && (2 == flush_needed)) {
                         /* Back to flush position */
+                        assert(last_before_flush_tm != -1); /* ensure that it was initialized */
+                        assert(last_before_flush_n != -1);  /* ensure that it was initialized */
                         tm = last_before_flush_tm;
                         n = last_before_flush_n;
                 }
