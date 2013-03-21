@@ -1092,7 +1092,7 @@ host name setting.
 Use I<Instance> as the plugin instance when submitting values. Defaults to an
 empty string (no plugin instance).
 
-=item B<Namespaces> I<Prefix> I<URL>
+=item B<Namespace> I<Prefix> I<URL>
 
 If an XPath expression references namespaces, they must be specified
 with this option. I<Prefix> is the "namespace prefix" used in the XML document.
