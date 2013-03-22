@@ -1,5 +1,5 @@
 /**
- * collectd - src/snort.c
+ * collectd - src/tail_csv.c
  * Copyright (C) 2013 Kris Nielander
  * Copyright (C) 2013 Florian Forster
  *
@@ -56,7 +56,7 @@ typedef struct instance_definition_s instance_definition_t;
 /* Private */
 static metric_definition_t *metric_head = NULL;
 
-static int snort_submit (instance_definition_t *id,
+static int tcsv_submit (instance_definition_t *id,
         metric_definition_t *md,
         value_t v, cdtime_t t)
 {
@@ -68,7 +68,7 @@ static int snort_submit (instance_definition_t *id,
     vl.values = &v;
 
     sstrncpy(vl.host, hostname_g, sizeof (vl.host));
-    sstrncpy(vl.plugin, "snort", sizeof(vl.plugin));
+    sstrncpy(vl.plugin, "tail_csv", sizeof(vl.plugin));
     sstrncpy(vl.plugin_instance, id->name, sizeof(vl.plugin_instance));
     sstrncpy(vl.type, md->type, sizeof(vl.type));
     if (md->instance != NULL)
@@ -77,7 +77,7 @@ static int snort_submit (instance_definition_t *id,
     vl.time = t;
     vl.interval = id->interval;
 
-    DEBUG("snort plugin: -> plugin_dispatch_values (&vl);");
+    DEBUG("tail_csv plugin: -> plugin_dispatch_values (&vl);");
     plugin_dispatch_values(&vl);
 
     return (0);
@@ -96,7 +96,7 @@ static cdtime_t parse_time (char const *tbuf)
     return (DOUBLE_TO_CDTIME_T (t));
 }
 
-static int snort_read_metric (instance_definition_t *id,
+static int tcsv_read_metric (instance_definition_t *id,
         metric_definition_t *md,
         char **fields, size_t fields_num)
 {
@@ -113,10 +113,10 @@ static int snort_read_metric (instance_definition_t *id,
     if (status != 0)
         return (status);
 
-    return (snort_submit (id, md, v, t));
+    return (tcsv_submit (id, md, v, t));
 }
 
-static int snort_read_buffer (instance_definition_t *id,
+static int tcsv_read_buffer (instance_definition_t *id,
         char *buffer, size_t buffer_size)
 {
     char **metrics;
@@ -148,7 +148,7 @@ static int snort_read_buffer (instance_definition_t *id,
     }
 
     if (metrics_num == 1) {
-        ERROR("snort plugin: last line of `%s' does not contain "
+        ERROR("tail_csv plugin: last line of `%s' does not contain "
                 "enough values.", id->path);
         return (-1);
     }
@@ -156,7 +156,7 @@ static int snort_read_buffer (instance_definition_t *id,
     /* Create a list of all values */
     metrics = calloc (metrics_num, sizeof (*metrics));
     if (metrics == NULL) {
-        ERROR ("snort plugin: calloc failed.");
+        ERROR ("tail_csv plugin: calloc failed.");
         return (ENOMEM);
     }
 
@@ -178,13 +178,13 @@ static int snort_read_buffer (instance_definition_t *id,
         metric_definition_t *md = id->metric_list[i];
 
         if (((size_t) md->index) >= metrics_num) {
-            ERROR ("snort plugin: Metric \"%s\": Request for index %i when "
+            ERROR ("tail_csv plugin: Metric \"%s\": Request for index %i when "
                     "only %zu fields are available.",
                     md->name, md->index, metrics_num);
             continue;
         }
 
-        snort_read_metric (id, md, metrics, metrics_num);
+        tcsv_read_metric (id, md, metrics, metrics_num);
     }
 
     /* Free up resources */
@@ -192,18 +192,18 @@ static int snort_read_buffer (instance_definition_t *id,
     return (0);
 }
 
-static int snort_read (user_data_t *ud) {
+static int tcsv_read (user_data_t *ud) {
     instance_definition_t *id;
 
     id = ud->data;
-    DEBUG("snort plugin: snort_read (instance = %s)", id->name);
+    DEBUG("tail_csv plugin: tcsv_read (instance = %s)", id->name);
 
     if (id->tail == NULL)
     {
         id->tail = cu_tail_create (id->path);
         if (id->tail == NULL)
         {
-            ERROR ("snort plugin: cu_tail_create (\"%s\") failed.",
+            ERROR ("tail_csv plugin: cu_tail_create (\"%s\") failed.",
                     id->path);
             return (-1);
         }
@@ -218,7 +218,7 @@ static int snort_read (user_data_t *ud) {
         status = cu_tail_readline (id->tail, buffer, (int) sizeof (buffer));
         if (status != 0)
         {
-            ERROR ("snort plugin: Instance \"%s\": cu_tail_readline failed "
+            ERROR ("tail_csv plugin: Instance \"%s\": cu_tail_readline failed "
                     "with status %i.", id->name, status);
             return (-1);
         }
@@ -227,13 +227,13 @@ static int snort_read (user_data_t *ud) {
         if (buffer_len == 0)
             break;
 
-        snort_read_buffer (id, buffer, buffer_len);
+        tcsv_read_buffer (id, buffer, buffer_len);
     }
 
     return (0);
 }
 
-static void snort_metric_definition_destroy(void *arg){
+static void tcsv_metric_definition_destroy(void *arg){
     metric_definition_t *md;
 
     md = arg;
@@ -241,7 +241,7 @@ static void snort_metric_definition_destroy(void *arg){
         return;
 
     if (md->name != NULL)
-        DEBUG("snort plugin: Destroying metric definition `%s'.", md->name);
+        DEBUG("tail_csv plugin: Destroying metric definition `%s'.", md->name);
 
     sfree(md->name);
     sfree(md->type);
@@ -249,15 +249,15 @@ static void snort_metric_definition_destroy(void *arg){
     sfree(md);
 }
 
-static int snort_config_add_metric_index(metric_definition_t *md, oconfig_item_t *ci){
+static int tcsv_config_add_metric_index(metric_definition_t *md, oconfig_item_t *ci){
     if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER)){
-        WARNING("snort plugin: `Index' needs exactly one integer argument.");
+        WARNING("tail_csv plugin: `Index' needs exactly one integer argument.");
         return (-1);
     }
 
     md->index = (int)ci->values[0].value.number;
     if (md->index <= 0){
-        WARNING("snort plugin: `Index' must be higher than 0.");
+        WARNING("tail_csv plugin: `Index' must be higher than 0.");
         return (-1);
     }
 
@@ -265,7 +265,7 @@ static int snort_config_add_metric_index(metric_definition_t *md, oconfig_item_t
 }
 
 /* Parse metric  */
-static int snort_config_add_metric(oconfig_item_t *ci){
+static int tcsv_config_add_metric(oconfig_item_t *ci){
     metric_definition_t *md;
     const data_set_t *ds;
     int status = 0;
@@ -295,9 +295,9 @@ static int snort_config_add_metric(oconfig_item_t *ci){
         else if (strcasecmp("Instance", option->key) == 0)
             status = cf_util_get_string(option, &md->instance);
         else if (strcasecmp("Index", option->key) == 0)
-            status = snort_config_add_metric_index(md, option);
+            status = tcsv_config_add_metric_index(md, option);
         else {
-            WARNING("snort plugin: Option `%s' not allowed here.", option->key);
+            WARNING("tail_csv plugin: Option `%s' not allowed here.", option->key);
             status = -1;
         }
 
@@ -306,35 +306,35 @@ static int snort_config_add_metric(oconfig_item_t *ci){
     }
 
     if (status != 0){
-        snort_metric_definition_destroy(md);
+        tcsv_metric_definition_destroy(md);
         return (-1);
     }
 
     /* Verify all necessary options have been set. */
     if (md->type == NULL){
-        WARNING("snort plugin: Option `Type' must be set.");
+        WARNING("tail_csv plugin: Option `Type' must be set.");
         status = -1;
     } else if (md->index == 0){
-        WARNING("snort plugin: Option `Index' must be set.");
+        WARNING("tail_csv plugin: Option `Index' must be set.");
         status = -1;
     }
 
     if (status != 0){
-        snort_metric_definition_destroy(md);
+        tcsv_metric_definition_destroy(md);
         return (-1);
     }
 
     /* Retrieve the data source type from the types db. */
     ds = plugin_get_ds(md->type);
     if (ds == NULL){
-        ERROR ("snort plugin: Failed to look up type \"%s\". "
+        ERROR ("tail_csv plugin: Failed to look up type \"%s\". "
                 "It may not be defined in the types.db file. "
                 "Please read the types.db(5) manual page for more details.",
                 md->type);
-        snort_metric_definition_destroy(md);
+        tcsv_metric_definition_destroy(md);
         return (-1);
     } else if (ds->ds_num != 1) {
-        ERROR ("snort plugin: The type \"%s\" has %i data sources. "
+        ERROR ("tail_csv plugin: The type \"%s\" has %i data sources. "
                 "Only types with a single data soure are supported.",
                 ds->type, ds->ds_num);
         return (-1);
@@ -342,7 +342,7 @@ static int snort_config_add_metric(oconfig_item_t *ci){
         md->data_source_type = ds->ds->type;
     }
 
-    DEBUG("snort plugin: md = { name = %s, type = %s, data_source_type = %d, index = %d }",
+    DEBUG("tail_csv plugin: md = { name = %s, type = %s, data_source_type = %d, index = %d }",
         md->name, md->type, md->data_source_type, md->index);
 
     if (metric_head == NULL)
@@ -358,7 +358,7 @@ static int snort_config_add_metric(oconfig_item_t *ci){
     return (0);
 }
 
-static void snort_instance_definition_destroy(void *arg){
+static void tcsv_instance_definition_destroy(void *arg){
     instance_definition_t *id;
 
     id = arg;
@@ -366,7 +366,7 @@ static void snort_instance_definition_destroy(void *arg){
         return;
 
     if (id->name != NULL)
-        DEBUG("snort plugin: Destroying instance definition `%s'.", id->name);
+        DEBUG("tail_csv plugin: Destroying instance definition `%s'.", id->name);
 
     cu_tail_destroy (id->tail);
     id->tail = NULL;
@@ -377,19 +377,19 @@ static void snort_instance_definition_destroy(void *arg){
     sfree(id);
 }
 
-static int snort_config_add_instance_collect(instance_definition_t *id, oconfig_item_t *ci){
+static int tcsv_config_add_instance_collect(instance_definition_t *id, oconfig_item_t *ci){
     metric_definition_t *metric;
     int i;
 
     if (ci->values_num < 1){
-        WARNING("snort plugin: The `Collect' config option needs at least one argument.");
+        WARNING("tail_csv plugin: The `Collect' config option needs at least one argument.");
         return (-1);
     }
 
     /* Verify string arguments */
     for (i = 0; i < ci->values_num; ++i)
         if (ci->values[i].type != OCONFIG_TYPE_STRING){
-            WARNING("snort plugin: All arguments to `Collect' must be strings.");
+            WARNING("tail_csv plugin: All arguments to `Collect' must be strings.");
             return (-1);
         }
 
@@ -403,11 +403,11 @@ static int snort_config_add_instance_collect(instance_definition_t *id, oconfig_
                 break;
 
         if (metric == NULL){
-            WARNING("snort plugin: `Collect' argument not found `%s'.", ci->values[i].value.string);
+            WARNING("tail_csv plugin: `Collect' argument not found `%s'.", ci->values[i].value.string);
             return (-1);
         }
 
-        DEBUG("snort plugin: id { name=%s md->name=%s }", id->name, metric->name);
+        DEBUG("tail_csv plugin: id { name=%s md->name=%s }", id->name, metric->name);
 
         id->metric_list[i] = metric;
         id->metric_list_len++;
@@ -417,7 +417,7 @@ static int snort_config_add_instance_collect(instance_definition_t *id, oconfig_
 }
 
 /* Parse instance  */
-static int snort_config_add_instance(oconfig_item_t *ci){
+static int tcsv_config_add_instance(oconfig_item_t *ci){
 
     instance_definition_t* id;
     int status = 0;
@@ -429,7 +429,7 @@ static int snort_config_add_instance(oconfig_item_t *ci){
     struct timespec cb_interval;
 
     if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)){
-        WARNING("snort plugin: The `Instance' config option needs exactly one string argument.");
+        WARNING("tail_csv plugin: The `Instance' config option needs exactly one string argument.");
         return (-1);
     }
 
@@ -454,11 +454,11 @@ static int snort_config_add_instance(oconfig_item_t *ci){
         if (strcasecmp("Path", option->key) == 0)
             status = cf_util_get_string(option, &id->path);
         else if (strcasecmp("Collect", option->key) == 0)
-            status = snort_config_add_instance_collect(id, option);
+            status = tcsv_config_add_instance_collect(id, option);
         else if (strcasecmp("Interval", option->key) == 0)
             cf_util_get_cdtime(option, &id->interval);
         else {
-            WARNING("snort plugin: Option `%s' not allowed here.", option->key);
+            WARNING("tail_csv plugin: Option `%s' not allowed here.", option->key);
             status = -1;
         }
 
@@ -467,36 +467,36 @@ static int snort_config_add_instance(oconfig_item_t *ci){
     }
 
     if (status != 0){
-        snort_instance_definition_destroy(id);
+        tcsv_instance_definition_destroy(id);
         return (-1);
     }
 
     /* Verify all necessary options have been set. */
     if (id->path == NULL){
-        WARNING("snort plugin: Option `Path' must be set.");
+        WARNING("tail_csv plugin: Option `Path' must be set.");
         status = -1;
     } else if (id->metric_list == NULL){
-        WARNING("snort plugin: Option `Collect' must be set.");
+        WARNING("tail_csv plugin: Option `Collect' must be set.");
         status = -1;
    }
 
     if (status != 0){
-        snort_instance_definition_destroy(id);
+        tcsv_instance_definition_destroy(id);
         return (-1);
     }
 
-    DEBUG("snort plugin: id = { name = %s, path = %s }", id->name, id->path);
+    DEBUG("tail_csv plugin: id = { name = %s, path = %s }", id->name, id->path);
 
-    ssnprintf (cb_name, sizeof (cb_name), "snort-%s", id->name);
+    ssnprintf (cb_name, sizeof (cb_name), "tail_csv/%s", id->name);
     memset(&cb_data, 0, sizeof(cb_data));
     cb_data.data = id;
-    cb_data.free_func = snort_instance_definition_destroy;
+    cb_data.free_func = tcsv_instance_definition_destroy;
     CDTIME_T_TO_TIMESPEC(id->interval, &cb_interval);
-    status = plugin_register_complex_read(NULL, cb_name, snort_read, &cb_interval, &cb_data);
+    status = plugin_register_complex_read(NULL, cb_name, tcsv_read, &cb_interval, &cb_data);
 
     if (status != 0){
-        ERROR("snort plugin: Registering complex read function failed.");
-        snort_instance_definition_destroy(id);
+        ERROR("tail_csv plugin: Registering complex read function failed.");
+        tcsv_instance_definition_destroy(id);
         return (-1);
     }
 
@@ -504,22 +504,22 @@ static int snort_config_add_instance(oconfig_item_t *ci){
 }
 
 /* Parse blocks */
-static int snort_config(oconfig_item_t *ci){
+static int tcsv_config(oconfig_item_t *ci){
     int i;
     for (i = 0; i < ci->children_num; ++i){
         oconfig_item_t *child = ci->children + i;
         if (strcasecmp("Metric", child->key) == 0)
-            snort_config_add_metric(child);
+            tcsv_config_add_metric(child);
         else if (strcasecmp("Instance", child->key) == 0)
-            snort_config_add_instance(child);
+            tcsv_config_add_instance(child);
         else
-            WARNING("snort plugin: Ignore unknown config option `%s'.", child->key);
+            WARNING("tail_csv plugin: Ignore unknown config option `%s'.", child->key);
     }
 
     return (0);
-} /* int snort_config */
+} /* int tcsv_config */
 
-static int snort_shutdown(void){
+static int tcsv_shutdown(void){
     metric_definition_t *metric_this;
     metric_definition_t *metric_next;
 
@@ -528,7 +528,7 @@ static int snort_shutdown(void){
 
     while (metric_this != NULL){
         metric_next = metric_this->next;
-        snort_metric_definition_destroy(metric_this);
+        tcsv_metric_definition_destroy(metric_this);
         metric_this = metric_next;
     }
 
@@ -536,8 +536,8 @@ static int snort_shutdown(void){
 }
 
 void module_register(void){
-    plugin_register_complex_config("snort", snort_config);
-    plugin_register_shutdown("snort", snort_shutdown);
+    plugin_register_complex_config("tail_csv", tcsv_config);
+    plugin_register_shutdown("tail_csv", tcsv_shutdown);
 }
 
 /* vim: set sw=4 sts=4 et : */
