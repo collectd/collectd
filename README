@@ -133,7 +133,7 @@ Features
       technique built into IBM's POWER processors.
 
     - libvirt
-      CPU, disk and network I/O statistics from virtual machines.
+      CPU, memory, disk and network I/O statistics from virtual machines.
 
     - madwifi
       Queries very detailed usage statistics from wireless LAN adapters and
