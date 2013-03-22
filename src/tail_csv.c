@@ -43,7 +43,7 @@ struct metric_definition_s {
 typedef struct metric_definition_s metric_definition_t;
 
 struct instance_definition_s {
-    char *name;
+    char *instance;
     char *path;
     cu_tail_t *tail;
     metric_definition_t **metric_list;
@@ -69,7 +69,7 @@ static int tcsv_submit (instance_definition_t *id,
 
     sstrncpy(vl.host, hostname_g, sizeof (vl.host));
     sstrncpy(vl.plugin, "tail_csv", sizeof(vl.plugin));
-    sstrncpy(vl.plugin_instance, id->name, sizeof(vl.plugin_instance));
+    sstrncpy(vl.plugin_instance, id->instance, sizeof(vl.plugin_instance));
     sstrncpy(vl.type, md->type, sizeof(vl.type));
     if (md->instance != NULL)
         sstrncpy(vl.type_instance, md->instance, sizeof(vl.type_instance));
@@ -196,7 +196,7 @@ static int tcsv_read (user_data_t *ud) {
     instance_definition_t *id;
 
     id = ud->data;
-    DEBUG("tail_csv plugin: tcsv_read (instance = %s)", id->name);
+    DEBUG("tail_csv plugin: tcsv_read (instance = %s)", id->instance);
 
     if (id->tail == NULL)
     {
@@ -219,7 +219,7 @@ static int tcsv_read (user_data_t *ud) {
         if (status != 0)
         {
             ERROR ("tail_csv plugin: Instance \"%s\": cu_tail_readline failed "
-                    "with status %i.", id->name, status);
+                    "with status %i.", id->instance, status);
             return (-1);
         }
 
@@ -365,13 +365,13 @@ static void tcsv_instance_definition_destroy(void *arg){
     if (id == NULL)
         return;
 
-    if (id->name != NULL)
-        DEBUG("tail_csv plugin: Destroying instance definition `%s'.", id->name);
+    if (id->instance != NULL)
+        DEBUG("tail_csv plugin: Destroying instance definition `%s'.", id->instance);
 
     cu_tail_destroy (id->tail);
     id->tail = NULL;
 
-    sfree(id->name);
+    sfree(id->instance);
     sfree(id->path);
     sfree(id->metric_list);
     sfree(id);
@@ -407,7 +407,7 @@ static int tcsv_config_add_instance_collect(instance_definition_t *id, oconfig_i
             return (-1);
         }
 
-        DEBUG("tail_csv plugin: id { name=%s md->name=%s }", id->name, metric->name);
+        DEBUG("tail_csv plugin: id { instance=%s md->name=%s }", id->instance, metric->name);
 
         id->metric_list[i] = metric;
         id->metric_list_len++;
@@ -417,8 +417,8 @@ static int tcsv_config_add_instance_collect(instance_definition_t *id, oconfig_i
 }
 
 /* Parse instance  */
-static int tcsv_config_add_instance(oconfig_item_t *ci){
-
+static int tcsv_config_add_file(oconfig_item_t *ci)
+{
     instance_definition_t* id;
     int status = 0;
     int i;
@@ -428,20 +428,19 @@ static int tcsv_config_add_instance(oconfig_item_t *ci){
     user_data_t cb_data;
     struct timespec cb_interval;
 
-    if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)){
-        WARNING("tail_csv plugin: The `Instance' config option needs exactly one string argument.");
-        return (-1);
-    }
-
-    id = (instance_definition_t *)malloc(sizeof(*id));
+    id = malloc(sizeof(*id));
     if (id == NULL)
         return (-1);
     memset(id, 0, sizeof(*id));
+    id->instance = NULL;
+    id->path = NULL;
+    id->metric_list = NULL;
+    id->next = NULL;
 
-    id->name = strdup(ci->values[0].value.string);
-    if (id->name == NULL){
-        free(id);
-        return (-1);
+    status = cf_util_get_string (ci, &id->path);
+    if (status != 0) {
+        sfree (id);
+        return (status);
     }
 
     /* Use default interval. */
@@ -451,8 +450,8 @@ static int tcsv_config_add_instance(oconfig_item_t *ci){
         oconfig_item_t *option = ci->children + i;
         status = 0;
 
-        if (strcasecmp("Path", option->key) == 0)
-            status = cf_util_get_string(option, &id->path);
+        if (strcasecmp("Instance", option->key) == 0)
+            status = cf_util_get_string(option, &id->instance);
         else if (strcasecmp("Collect", option->key) == 0)
             status = tcsv_config_add_instance_collect(id, option);
         else if (strcasecmp("Interval", option->key) == 0)
@@ -485,9 +484,9 @@ static int tcsv_config_add_instance(oconfig_item_t *ci){
         return (-1);
     }
 
-    DEBUG("tail_csv plugin: id = { name = %s, path = %s }", id->name, id->path);
+    DEBUG("tail_csv plugin: id = { instance = %s, path = %s }", id->instance, id->path);
 
-    ssnprintf (cb_name, sizeof (cb_name), "tail_csv/%s", id->name);
+    ssnprintf (cb_name, sizeof (cb_name), "tail_csv/%s", id->path);
     memset(&cb_data, 0, sizeof(cb_data));
     cb_data.data = id;
     cb_data.free_func = tcsv_instance_definition_destroy;
@@ -510,8 +509,8 @@ static int tcsv_config(oconfig_item_t *ci){
         oconfig_item_t *child = ci->children + i;
         if (strcasecmp("Metric", child->key) == 0)
             tcsv_config_add_metric(child);
-        else if (strcasecmp("Instance", child->key) == 0)
-            tcsv_config_add_instance(child);
+        else if (strcasecmp("File", child->key) == 0)
+            tcsv_config_add_file(child);
         else
             WARNING("tail_csv plugin: Ignore unknown config option `%s'.", child->key);
     }

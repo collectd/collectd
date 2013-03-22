@@ -5127,16 +5127,16 @@ written by I<Snort>.
 B<Synopsis:>
 
  <Plugin "tail_csv">
-   <Metric "dropped">
+   <Metric "snort-dropped">
        Type "percent"
        Instance "dropped"
        Index 1
    </Metric>
-   <Instance "snort-eth0">
-       Path "/var/log/snort/snort.stats"
+   <File "/var/log/snort/snort.stats">
+       Instance "snort-eth0"
        Interval 600
-       Collect "dropped"
-   </Instance>
+       Collect "snort-dropped"
+   </File>
  </Plugin>
 
 The configuration consists of one or more B<Metric> blocks that define an index
@@ -5179,18 +5179,16 @@ always the timestamp, I<Index> must be greater than zero.
 
 =back
 
-=item E<lt>B<Instance> I<Name>E<gt>
+=item E<lt>B<File> I<Path>E<gt>
 
-Each B<Instance> block represents on CSV file to read. The block's I<Name>
-will be used as I<plugin instance> when dispatching the values and is used to
-support multiple separate CSV files. There must be at least one I<Instance>
-block but there can be multiple if you have multiple CSV files.
+Each B<File> block represents one CSV file to read. There must be at least one
+I<File> block but there can be multiple if you have multiple CSV files.
 
 =over 4
 
-=item B<Path> I<Path>
+=item B<Instance> I<PluginInstance>
 
-Configures the I<Path> to the statistics file to read.
+Sets the I<plugin instance> used when dispatching the values.
 
 =item B<Collect> I<Metric>
 

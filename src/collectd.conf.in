@@ -976,11 +976,11 @@
 #       Type "kpackets_wire_per_sec.realtime"
 #       Index 4
 #   </Metric>
-#   <Instance "snort-eth0">
-#       Path "/var/log/snort/snort.stats"
+#   <File "/var/log/snort/snort.stats">
+#       Instance "snort-eth0"
 #       Interval 600
 #       Collect "dropped" "mbps" "alerts" "kpps"
-#   </Instance>
+#   </File>
 #</Plugin>
 
 #<Plugin tcpconns>
