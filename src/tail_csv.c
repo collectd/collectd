@@ -49,6 +49,7 @@ struct instance_definition_s {
     metric_definition_t **metric_list;
     size_t metric_list_len;
     cdtime_t interval;
+    int time_from;
     struct instance_definition_s *next;
 };
 typedef struct instance_definition_s instance_definition_t;
@@ -105,16 +106,31 @@ static int tcsv_read_metric (instance_definition_t *id,
     if (md->data_source_type == -1)
         return (EINVAL);
 
-    if (md->value_from >= fields_num)
+    if ((md->value_from >= fields_num) || (id->time_from >= fields_num))
         return (EINVAL);
 
-    t = parse_time (fields[0]);
+    t = 0;
+    if (id->time_from >= 0)
+        t = parse_time (fields[id->time_from]);
 
     status = parse_value (fields[md->value_from], &v, md->data_source_type);
     if (status != 0)
         return (status);
 
     return (tcsv_submit (id, md, v, t));
+}
+
+static _Bool tcsv_check_index (int index, size_t fields_num, char const *name)
+{
+    if (index < 0)
+        return 1;
+    else if (((size_t) index) < fields_num)
+        return 1;
+
+    ERROR ("tail_csv plugin: Metric \"%s\": Request for index %i when "
+            "only %zu fields are available.",
+            name, index, fields_num);
+    return (0);
 }
 
 static int tcsv_read_buffer (instance_definition_t *id,
@@ -178,12 +194,9 @@ static int tcsv_read_buffer (instance_definition_t *id,
     for (i = 0; i < id->metric_list_len; ++i){
         metric_definition_t *md = id->metric_list[i];
 
-        if (((size_t) md->value_from) >= metrics_num) {
-            ERROR ("tail_csv plugin: Metric \"%s\": Request for index %i when "
-                    "only %zu fields are available.",
-                    md->name, md->value_from, metrics_num);
+        if (!tcsv_check_index (md->value_from, metrics_num, md->name)
+                || !tcsv_check_index (id->time_from, metrics_num, md->name))
             continue;
-        }
 
         tcsv_read_metric (id, md, metrics, metrics_num);
     }
@@ -351,7 +364,8 @@ static void tcsv_instance_definition_destroy(void *arg){
     if (id == NULL)
         return;
 
-    cu_tail_destroy (id->tail);
+    if (id->tail != NULL)
+        cu_tail_destroy (id->tail);
     id->tail = NULL;
 
     sfree(id->instance);
@@ -416,6 +430,7 @@ static int tcsv_config_add_file(oconfig_item_t *ci)
     id->instance = NULL;
     id->path = NULL;
     id->metric_list = NULL;
+    id->time_from = -1;
     id->next = NULL;
 
     status = cf_util_get_string (ci, &id->path);
@@ -437,6 +452,8 @@ static int tcsv_config_add_file(oconfig_item_t *ci)
             status = tcsv_config_add_instance_collect(id, option);
         else if (strcasecmp("Interval", option->key) == 0)
             cf_util_get_cdtime(option, &id->interval);
+        else if (strcasecmp("TimeFrom", option->key) == 0)
+            status = tcsv_config_get_index (option, &id->time_from);
         else {
             WARNING("tail_csv plugin: Option `%s' not allowed here.", option->key);
             status = -1;

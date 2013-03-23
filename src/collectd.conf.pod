@@ -5172,9 +5172,9 @@ created value lists. Otherwise, no type instance is used.
 
 =item B<ValueFrom> I<Index>
 
-Each line in the statistics file is broken into many fields with the first
-field, the timestamp of the line, is index with zero. This option configures to
-read the value from the field with index I<Index>.
+Configure to read the value from the field with the zero-based index I<Index>.
+If the value is parsed as signed integer, unsigned integer or double depends on
+the B<Type> setting, see above.
 
 =back
 
@@ -5199,6 +5199,12 @@ metric to be extracted from this statistic file.
 
 Configures the interval in which to read values from this instance / file.
 Defaults to the plugin's default interval.
+
+=item B<TimeFrom> I<Index>
+
+Rather than using the local time when dispatching a value, read the timestamp
+from the field with the zero-based index I<Index>. The value is interpreted as
+seconds since epoch. The value is parsed as a double and may be factional.
 
 =back
 

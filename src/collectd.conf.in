@@ -980,6 +980,7 @@
 #       Instance "snort-eth0"
 #       Interval 600
 #       Collect "dropped" "mbps" "alerts" "kpps"
+#       TimeFrom 0
 #   </File>
 #</Plugin>
 
