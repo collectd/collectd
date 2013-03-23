@@ -69,7 +69,8 @@ static int tcsv_submit (instance_definition_t *id,
 
     sstrncpy(vl.host, hostname_g, sizeof (vl.host));
     sstrncpy(vl.plugin, "tail_csv", sizeof(vl.plugin));
-    sstrncpy(vl.plugin_instance, id->instance, sizeof(vl.plugin_instance));
+    if (id->instance != NULL)
+        sstrncpy(vl.plugin_instance, id->instance, sizeof(vl.plugin_instance));
     sstrncpy(vl.type, md->type, sizeof(vl.type));
     if (md->instance != NULL)
         sstrncpy(vl.type_instance, md->instance, sizeof(vl.type_instance));
@@ -77,10 +78,7 @@ static int tcsv_submit (instance_definition_t *id,
     vl.time = t;
     vl.interval = id->interval;
 
-    DEBUG("tail_csv plugin: -> plugin_dispatch_values (&vl);");
-    plugin_dispatch_values(&vl);
-
-    return (0);
+    return (plugin_dispatch_values(&vl));
 }
 
 static cdtime_t parse_time (char const *tbuf)
@@ -103,6 +101,9 @@ static int tcsv_read_metric (instance_definition_t *id,
     value_t v;
     cdtime_t t;
     int status;
+
+    if (md->data_source_type == -1)
+        return (EINVAL);
 
     if (md->index >= fields_num)
         return (EINVAL);
@@ -194,9 +195,7 @@ static int tcsv_read_buffer (instance_definition_t *id,
 
 static int tcsv_read (user_data_t *ud) {
     instance_definition_t *id;
-
     id = ud->data;
-    DEBUG("tail_csv plugin: tcsv_read (instance = %s)", id->instance);
 
     if (id->tail == NULL)
     {
@@ -218,8 +217,8 @@ static int tcsv_read (user_data_t *ud) {
         status = cu_tail_readline (id->tail, buffer, (int) sizeof (buffer));
         if (status != 0)
         {
-            ERROR ("tail_csv plugin: Instance \"%s\": cu_tail_readline failed "
-                    "with status %i.", id->instance, status);
+            ERROR ("tail_csv plugin: File \"%s\": cu_tail_readline failed "
+                    "with status %i.", id->path, status);
             return (-1);
         }
 
@@ -235,18 +234,21 @@ static int tcsv_read (user_data_t *ud) {
 
 static void tcsv_metric_definition_destroy(void *arg){
     metric_definition_t *md;
+    metric_definition_t *next;
 
     md = arg;
     if (md == NULL)
         return;
 
-    if (md->name != NULL)
-        DEBUG("tail_csv plugin: Destroying metric definition `%s'.", md->name);
+    next = md->next;
+    md->next = NULL;
 
     sfree(md->name);
     sfree(md->type);
     sfree(md->instance);
     sfree(md);
+
+    tcsv_metric_definition_destroy (next);
 }
 
 static int tcsv_config_add_metric_index(metric_definition_t *md, oconfig_item_t *ci){
@@ -267,7 +269,6 @@ static int tcsv_config_add_metric_index(metric_definition_t *md, oconfig_item_t 
 /* Parse metric  */
 static int tcsv_config_add_metric(oconfig_item_t *ci){
     metric_definition_t *md;
-    const data_set_t *ds;
     int status = 0;
     int i;
 
@@ -278,6 +279,7 @@ static int tcsv_config_add_metric(oconfig_item_t *ci){
     md->name = NULL;
     md->type = NULL;
     md->instance = NULL;
+    md->data_source_type = -1;
     md->next = NULL;
 
     status = cf_util_get_string (ci, &md->name);
@@ -311,39 +313,20 @@ static int tcsv_config_add_metric(oconfig_item_t *ci){
     }
 
     /* Verify all necessary options have been set. */
-    if (md->type == NULL){
+    if (md->type == NULL) {
         WARNING("tail_csv plugin: Option `Type' must be set.");
         status = -1;
-    } else if (md->index == 0){
+    } else if (md->index == 0) {
         WARNING("tail_csv plugin: Option `Index' must be set.");
         status = -1;
     }
-
-    if (status != 0){
+    if (status != 0) {
         tcsv_metric_definition_destroy(md);
-        return (-1);
+        return (status);
     }
 
-    /* Retrieve the data source type from the types db. */
-    ds = plugin_get_ds(md->type);
-    if (ds == NULL){
-        ERROR ("tail_csv plugin: Failed to look up type \"%s\". "
-                "It may not be defined in the types.db file. "
-                "Please read the types.db(5) manual page for more details.",
-                md->type);
-        tcsv_metric_definition_destroy(md);
-        return (-1);
-    } else if (ds->ds_num != 1) {
-        ERROR ("tail_csv plugin: The type \"%s\" has %i data sources. "
-                "Only types with a single data soure are supported.",
-                ds->type, ds->ds_num);
-        return (-1);
-    } else {
-        md->data_source_type = ds->ds->type;
-    }
-
-    DEBUG("tail_csv plugin: md = { name = %s, type = %s, data_source_type = %d, index = %d }",
-        md->name, md->type, md->data_source_type, md->index);
+    DEBUG ("tail_csv plugin: md = { name = %s, type = %s, index = %d }",
+            md->name, md->type, md->index);
 
     if (metric_head == NULL)
         metric_head = md;
@@ -364,9 +347,6 @@ static void tcsv_instance_definition_destroy(void *arg){
     id = arg;
     if (id == NULL)
         return;
-
-    if (id->instance != NULL)
-        DEBUG("tail_csv plugin: Destroying instance definition `%s'.", id->instance);
 
     cu_tail_destroy (id->tail);
     id->tail = NULL;
@@ -407,8 +387,6 @@ static int tcsv_config_add_instance_collect(instance_definition_t *id, oconfig_i
             return (-1);
         }
 
-        DEBUG("tail_csv plugin: id { instance=%s md->name=%s }", id->instance, metric->name);
-
         id->metric_list[i] = metric;
         id->metric_list_len++;
     }
@@ -416,7 +394,7 @@ static int tcsv_config_add_instance_collect(instance_definition_t *id, oconfig_i
     return (0);
 }
 
-/* Parse instance  */
+/* <File /> block */
 static int tcsv_config_add_file(oconfig_item_t *ci)
 {
     instance_definition_t* id;
@@ -484,8 +462,6 @@ static int tcsv_config_add_file(oconfig_item_t *ci)
         return (-1);
     }
 
-    DEBUG("tail_csv plugin: id = { instance = %s, path = %s }", id->instance, id->path);
-
     ssnprintf (cb_name, sizeof (cb_name), "tail_csv/%s", id->path);
     memset(&cb_data, 0, sizeof(cb_data));
     cb_data.data = id;
@@ -518,24 +494,51 @@ static int tcsv_config(oconfig_item_t *ci){
     return (0);
 } /* int tcsv_config */
 
-static int tcsv_shutdown(void){
-    metric_definition_t *metric_this;
-    metric_definition_t *metric_next;
+static int tcsv_init(void) { /* {{{ */
+    static _Bool have_init = 0;
+    metric_definition_t *md;
 
-    metric_this = metric_head;
-    metric_head = NULL;
+    if (have_init)
+        return (0);
 
-    while (metric_this != NULL){
-        metric_next = metric_this->next;
-        tcsv_metric_definition_destroy(metric_this);
-        metric_this = metric_next;
+    for (md = metric_head; md != NULL; md = md->next) {
+        data_set_t const *ds;
+
+        /* Retrieve the data source type from the types db. */
+        ds = plugin_get_ds(md->type);
+        if (ds == NULL)
+        {
+            ERROR ("tail_csv plugin: Failed to look up type \"%s\" for "
+                    "metric \"%s\". It may not be defined in the types.db "
+                    "file. Please read the types.db(5) manual page for more "
+                    "details.",
+                    md->type, md->name);
+            continue;
+        }
+        else if (ds->ds_num != 1)
+        {
+            ERROR ("tail_csv plugin: The type \"%s\" has %i data sources. "
+                    "Only types with a single data soure are supported.",
+                    ds->type, ds->ds_num);
+            continue;
+        }
+
+        md->data_source_type = ds->ds->type;
     }
+
+    return (0);
+} /* }}} int tcsv_init */
+
+static int tcsv_shutdown (void) {
+    tcsv_metric_definition_destroy (metric_head);
+    metric_head = NULL;
 
     return (0);
 }
 
 void module_register(void){
     plugin_register_complex_config("tail_csv", tcsv_config);
+    plugin_register_init("tail_csv", tcsv_init);
     plugin_register_shutdown("tail_csv", tcsv_shutdown);
 }
 
