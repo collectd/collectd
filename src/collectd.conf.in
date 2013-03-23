@@ -141,6 +141,7 @@
 #@BUILD_PLUGIN_SENSORS_TRUE@LoadPlugin sensors
 #@BUILD_PLUGIN_SERIAL_TRUE@LoadPlugin serial
 #@BUILD_PLUGIN_SNMP_TRUE@LoadPlugin snmp
+#@BUILD_PLUGIN_SNORT_TRUE@LoadPlugin snort
 #@BUILD_PLUGIN_SWAP_TRUE@LoadPlugin swap
 #@BUILD_PLUGIN_TABLE_TRUE@LoadPlugin table
 #@BUILD_PLUGIN_TAIL_TRUE@LoadPlugin tail
@@ -914,6 +915,32 @@
 #       Collect "powerplus_voltge_input"
 #       Interval 300
 #   </Host>
+#</Plugin>
+
+#<Plugin "snort">
+#   <Metric "dropped">
+#       Type "percent"
+#       Instance "dropped"
+#       Index 1
+#   </Metric>
+#   <Metric "mbps">
+#       Type "bits"
+#       Instance "wire-realtime"
+#       Index 2
+#   </Metric>
+#   <Metric "alerts">
+#       Type "alerts_per_second"
+#       Index 3
+#   </Metric>
+#   <Metric "kpps">
+#       Type "kpackets_wire_per_sec.realtime"
+#       Index 4
+#   </Metric>
+#   <Instance "eth0">
+#       Path "/var/log/snort/snort.stats"
+#       Interval 600
+#       Collect "dropped" "mbps" "alerts" "kpps"
+#   </Instance>
 #</Plugin>
 
 #<Plugin "swap">

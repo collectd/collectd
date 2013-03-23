@@ -327,6 +327,15 @@ else
 	have_linux_raid_md_u_h="no"
 fi
 
+# For the snort module
+have_mman_h="no"
+AC_CHECK_HEADERS(sys/mman.h,
+    [have_mman_h="yes"],
+    [have_mman_h="no"],
+[
+#include <sys/stat.h>
+])
+
 # For the swap module
 have_linux_wireless_h="no"
 if test "x$ac_system" = "xLinux"
@@ -4952,6 +4961,7 @@ AC_PLUGIN([rrdtool],     [$with_librrd],       [RRDTool output plugin])
 AC_PLUGIN([sensors],     [$with_libsensors],   [lm_sensors statistics])
 AC_PLUGIN([serial],      [$plugin_serial],     [serial port traffic])
 AC_PLUGIN([snmp],        [$with_libnetsnmp],   [SNMP querying plugin])
+AC_PLUGIN([snort],       [$have_mman_h],       [Snort perfmon plugin])
 AC_PLUGIN([swap],        [$plugin_swap],       [Swap usage statistics])
 AC_PLUGIN([syslog],      [$have_syslog],       [Syslog logging plugin])
 AC_PLUGIN([table],       [yes],                [Parsing of tabular data])
@@ -5286,6 +5296,7 @@ Configuration:
     sensors . . . . . . . $enable_sensors
     serial  . . . . . . . $enable_serial
     snmp  . . . . . . . . $enable_snmp
+    snort . . . . . . . . $enable_snort
     swap  . . . . . . . . $enable_swap
     syslog  . . . . . . . $enable_syslog
     table . . . . . . . . $enable_table

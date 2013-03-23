@@ -1052,6 +1052,14 @@ collectd_LDADD += "-dlopen" snmp.la
 collectd_DEPENDENCIES += snmp.la
 endif
 
+if BUILD_PLUGIN_SNORT
+pkglib_LTLIBRARIES += snort.la
+snort_la_SOURCES = snort.c
+snort_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" snort.la
+collectd_DEPENDENCIES += snort.la
+endif
+
 if BUILD_PLUGIN_SWAP
 pkglib_LTLIBRARIES += swap.la
 swap_la_SOURCES = swap.c
