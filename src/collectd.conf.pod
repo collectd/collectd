@@ -5679,6 +5679,16 @@ If set to B<true> (the default), convert counter values to rates. If set to
 B<false> counter values are stored as is, i.e. as an increasing integer
 number.
 
+=item B<Database> I<Database>
+
+=item B<User> I<User>
+
+=item B<Password> I<Password>
+
+Sets the information used when authenticating to a I<MongoDB> database. The
+fields are optional (in which case no authentication is attempted), but if you
+want to use authentication all three fields must be set.
+
 =back
 
 =head2 Plugin C<write_http>

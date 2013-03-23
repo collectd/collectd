@@ -1,6 +1,6 @@
 /**
  * collectd - src/write_mongodb.c
- * Copyright (C) 2010-2012  Florian Forster
+ * Copyright (C) 2010-2013  Florian Forster
  * Copyright (C) 2010       Akkarit Sangpetch
  * Copyright (C) 2012       Chris Lundquist
  *
@@ -23,7 +23,7 @@
  * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
- *   Florian Forster <ff at octo.it>
+ *   Florian Forster <octo at collectd.org>
  *   Akkarit Sangpetch <asangpet at andrew.cmu.edu>
  *   Chris Lundquist <clundquist at bluebox.net>
  **/
@@ -50,6 +50,11 @@ struct wm_node_s
   char *host;
   int port;
   int timeout;
+
+  /* Authentication information */
+  char *db;
+  char *user;
+  char *passwd;
 
   _Bool store_rates;
 
@@ -183,6 +188,23 @@ static int wm_write (const data_set_t *ds, /* {{{ */
       return (-1);
     }
 
+    if ((node->db != NULL) && (node->user != NULL) && (node->passwd != NULL))
+    {
+      status = mongo_cmd_authenticate (node->conn,
+          node->db, node->user, node->passwd);
+      if (status != MONGO_OK)
+      {
+        ERROR ("write_mongodb plugin: Authenticating to [%s]%i for database "
+            "\"%s\" as user \"%s\" failed.",
+          (node->host != NULL) ? node->host : "localhost",
+          (node->port != 0) ? node->port : MONGO_DEFAULT_PORT,
+          node->db, node->user);
+        mongo_destroy (node->conn);
+        pthread_mutex_unlock (&node->lock);
+        return (-1);
+      }
+    }
+
     if (node->timeout > 0) {
       status = mongo_set_op_timeout (node->conn, node->timeout);
       if (status != MONGO_OK) {
@@ -203,13 +225,14 @@ static int wm_write (const data_set_t *ds, /* {{{ */
     status = mongo_insert (node->conn, collection_name, bson_record);
   #endif
 
-  if(status != MONGO_OK)
+  if (status != MONGO_OK)
   {
     ERROR ( "write_mongodb plugin: error inserting record: %d", node->conn->err);
     if (node->conn->err != MONGO_BSON_INVALID)
       ERROR ("write_mongodb plugin: %s", node->conn->errstr);
-    else if (bson_record->err)
-      ERROR ("write_mongodb plugin: %s", bson_record->errstr);
+    else
+      ERROR ("write_mongodb plugin: Invalid BSON structure, error = %#x",
+          (unsigned int) bson_record->err);
 
     /* Disconnect except on data errors. */
     if ((node->conn->err != MONGO_BSON_INVALID)
@@ -281,6 +304,12 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_int (child, &node->timeout);
     else if (strcasecmp ("StoreRates", child->key) == 0)
       status = cf_util_get_boolean (child, &node->store_rates);
+    else if (strcasecmp ("Database", child->key) == 0)
+      status = cf_util_get_string (child, &node->db);
+    else if (strcasecmp ("User", child->key) == 0)
+      status = cf_util_get_string (child, &node->user);
+    else if (strcasecmp ("Password", child->key) == 0)
+      status = cf_util_get_string (child, &node->passwd);
     else
       WARNING ("write_mongodb plugin: Ignoring unknown config option \"%s\".",
           child->key);
@@ -288,6 +317,20 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
     if (status != 0)
       break;
   } /* for (i = 0; i < ci->children_num; i++) */
+
+  if ((node->db != NULL) || (node->user != NULL) || (node->passwd != NULL))
+  {
+    if ((node->db == NULL) || (node->user == NULL) || (node->passwd == NULL))
+    {
+      WARNING ("write_mongodb plugin: Authentication requires the "
+          "\"Database\", \"User\" and \"Password\" options to be specified, "
+          "but at last one of them is missing. Authentication will NOT be "
+          "used.");
+      sfree (node->db);
+      sfree (node->user);
+      sfree (node->passwd);
+    }
+  }
 
   if (status == 0)
   {

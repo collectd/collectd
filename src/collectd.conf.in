@@ -1081,6 +1081,9 @@
 #		Port "27017"
 #		Timeout 1000
 #		StoreRates false
+#		Database "auth_db"
+#		User "auth_user"
+#		Password "auth_passwd"
 #	</Node>
 #</Plugin>
 
