@@ -1103,6 +1103,14 @@ collectd_LDADD += "-dlopen" tail.la
 collectd_DEPENDENCIES += tail.la
 endif
 
+if BUILD_PLUGIN_TAIL_CSV
+pkglib_LTLIBRARIES += tail_csv.la
+tail_csv_la_SOURCES = tail_csv.c
+tail_csv_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" tail_csv.la
+collectd_DEPENDENCIES += tail_csv.la
+endif
+
 if BUILD_PLUGIN_TAPE
 pkglib_LTLIBRARIES += tape.la
 tape_la_SOURCES = tape.c

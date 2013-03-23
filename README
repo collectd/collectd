@@ -284,6 +284,10 @@ Features
       Follows (tails) logfiles, parses them by lines and submits matched
       values.
 
+    - tail_csv
+      Follows (tails) files in CSV format, parses each line and submits
+      extracted values.
+
     - tape
       Bytes and operations read and written on tape devices. Solaris only.
 
