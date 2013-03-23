@@ -769,18 +769,19 @@ AC_CHECK_FUNCS(swapctl, [have_swapctl="yes"], [have_swapctl="no"])
 if test "x$have_swapctl" = "xyes"; then
         AC_CACHE_CHECK([whether swapctl takes two arguments],
                 [c_cv_have_swapctl_two_args],
-                AC_COMPILE_IFELSE(
-                        AC_LANG_PROGRAM([[AC_INCLUDES_DEFAULT
+                AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+[[
 #if HAVE_SYS_SWAP_H && !defined(_LP64) && _FILE_OFFSET_BITS == 64
 #  undef _FILE_OFFSET_BITS
 #  undef _LARGEFILE64_SOURCE
 #endif
 #include <sys/stat.h>
-#include <sys/swap.h>]],
-                                [[
-                                int num = swapctl(0, NULL);
-                                ]]
-                        ),
+#include <sys/swap.h>
+]],
+[[
+int num = swapctl(0, NULL);
+]]
+                        )],
                         [c_cv_have_swapctl_two_args="yes"],
                         [c_cv_have_swapctl_two_args="no"]
                 )
@@ -788,17 +789,19 @@ if test "x$have_swapctl" = "xyes"; then
         AC_CACHE_CHECK([whether swapctl takes three arguments],
                 [c_cv_have_swapctl_three_args],
                 AC_COMPILE_IFELSE(
-                        AC_LANG_PROGRAM([[AC_INCLUDES_DEFAULT
+                        [AC_LANG_PROGRAM(
+[[
 #if HAVE_SYS_SWAP_H && !defined(_LP64) && _FILE_OFFSET_BITS == 64
 #  undef _FILE_OFFSET_BITS
 #  undef _LARGEFILE64_SOURCE
 #endif
 #include <sys/stat.h>
-#include <sys/swap.h>]],
-                                [[
-                                int num = swapctl(0, NULL,0);
-                                ]]
-                        ),
+#include <sys/swap.h>
+]],
+[[
+int num = swapctl(0, NULL, 0);
+]]
+                        )],
                         [c_cv_have_swapctl_three_args="yes"],
                         [c_cv_have_swapctl_three_args="no"]
                 )
@@ -1130,15 +1133,17 @@ if test "x$have_getmntent" = "xc"; then
 	AC_CACHE_CHECK([whether getmntent takes one argument],
 		[c_cv_have_one_getmntent],
 		AC_COMPILE_IFELSE(
-			AC_LANG_PROGRAM([[AC_INCLUDES_DEFAULT
-#include "$srcdir/src/utils_mount.h"]],
-				[[
-				 FILE *fh;
-				 struct mntent *me;
-				 fh = setmntent ("/etc/mtab", "r");
-				 me = getmntent (fh);
-				]]
-			),
+			[AC_LANG_PROGRAM(
+[[
+#include "$srcdir/src/utils_mount.h"
+]],
+[[
+FILE *fh;
+struct mntent *me;
+fh = setmntent ("/etc/mtab", "r");
+me = getmntent (fh);
+]]
+			)],
 			[c_cv_have_one_getmntent="yes"],
 			[c_cv_have_one_getmntent="no"]
 		)
@@ -1146,16 +1151,18 @@ if test "x$have_getmntent" = "xc"; then
 	AC_CACHE_CHECK([whether getmntent takes two arguments],
 		[c_cv_have_two_getmntent],
 		AC_COMPILE_IFELSE(
-			AC_LANG_PROGRAM([[AC_INCLUDES_DEFAULT
-#include "$srcdir/src/utils_mount.h"]],
-				[[
+			[AC_LANG_PROGRAM(
+[[
+#include "$srcdir/src/utils_mount.h"
+]],
+[[
 				 FILE *fh;
 				 struct mnttab mt;
 				 int status;
 				 fh = fopen ("/etc/mnttab", "r");
 				 status = getmntent (fh, &mt);
-				]]
-			),
+]]
+			)],
 			[c_cv_have_two_getmntent="yes"],
 			[c_cv_have_two_getmntent="no"]
 		)
@@ -1244,7 +1251,6 @@ AC_CHECK_MEMBERS([struct kinfo_proc.ki_pid, struct kinfo_proc.ki_rssize, struct 
 		have_struct_kinfo_proc_freebsd="no"
 	],
 	[
-AC_INCLUDES_DEFAULT
 #include <kvm.h>
 #include <sys/param.h>
 #include <sys/sysctl.h>
@@ -1261,7 +1267,6 @@ AC_CHECK_MEMBERS([struct kinfo_proc.kp_proc, struct kinfo_proc.kp_eproc],
 		have_struct_kinfo_proc_openbsd="no"
 	],
 	[
-AC_INCLUDES_DEFAULT
 #include <sys/param.h>
 #include <sys/sysctl.h>
 #include <kvm.h>
@@ -2483,35 +2488,36 @@ then
 #include <sys/socket.h>])
 
         AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
-                           [
-                            #include <stdio.h>
-                            #include <sys/types.h>
-                            #include <asm/types.h>
-                            #include <sys/socket.h>
-                            #include <linux/netlink.h>
-                            #include <linux/rtnetlink.h>
-                            ], [
-                                int retval = TCA_STATS2;
-                                return (retval);
-                                ]
-                            )],
-                            [AC_DEFINE([HAVE_TCA_STATS2], [1], [True if the enum-member TCA_STATS2 exists])])
-
-	AC_COMPILE_IFELSE(
-[#include <stdio.h>
+[[
+#include <stdio.h>
 #include <sys/types.h>
 #include <asm/types.h>
 #include <sys/socket.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
+]],
+[[
+int retval = TCA_STATS2;
+return (retval);
+]]
+	)],
+	[AC_DEFINE([HAVE_TCA_STATS2], [1], [True if the enum-member TCA_STATS2 exists])])
 
-int main (void)
-{
-	int retval = TCA_STATS;
-	return (retval);
-}],
-	[AC_DEFINE([HAVE_TCA_STATS], 1, [True if the enum-member TCA_STATS exists])]
-	[]);
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+[[
+#include <stdio.h>
+#include <sys/types.h>
+#include <asm/types.h>
+#include <sys/socket.h>
+#include <linux/netlink.h>
+#include <linux/rtnetlink.h>
+]],
+[[
+int retval = TCA_STATS;
+return (retval);
+]]
+	)],
+	[AC_DEFINE([HAVE_TCA_STATS], 1, [True if the enum-member TCA_STATS exists])])
 
 	CFLAGS="$SAVE_CFLAGS"
 fi
@@ -2531,8 +2537,9 @@ then
 		[if function 'rtnl_dump_filter' expects five arguments],
 		[c_cv_rtnl_dump_filter_five_args],
 		AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
-				[
-AC_INCLUDES_DEFAULT
+[[
+#include <stdio.h>
+#include <sys/types.h>
 #include <asm/types.h>
 #include <sys/socket.h>
 #if HAVE_LIBNETLINK_H
@@ -2542,24 +2549,25 @@ AC_INCLUDES_DEFAULT
 #elif HAVE_LINUX_LIBNETLINK_H
 # include <linux/libnetlink.h>
 #endif
-				],
-				[
+]],
+[[
 if (rtnl_dump_filter(NULL, NULL, NULL, NULL, NULL))
 	return 1;
 return 0;
-				]
-			)],
-			[c_cv_rtnl_dump_filter_five_args="yes"],
-			[c_cv_rtnl_dump_filter_five_args="no"]
-		)
+]]
+	)],
+	[c_cv_rtnl_dump_filter_five_args="yes"],
+	[c_cv_rtnl_dump_filter_five_args="no"]
 	)
+)
 
 	AC_CACHE_CHECK(
 		[if function 'rtnl_dump_filter' expects three arguments],
 		[c_cv_rtnl_dump_filter_three_args],
 		AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
-				[
-AC_INCLUDES_DEFAULT
+[[
+#include <stdio.h>
+#include <sys/types.h>
 #include <asm/types.h>
 #include <sys/socket.h>
 #if HAVE_LIBNETLINK_H
@@ -2569,17 +2577,17 @@ AC_INCLUDES_DEFAULT
 #elif HAVE_LINUX_LIBNETLINK_H
 # include <linux/libnetlink.h>
 #endif
-				],
-				[
+]],
+[[
 if (rtnl_dump_filter(NULL, NULL, NULL))
 	return 1;
 return 0;
-				]
-			)],
-			[c_cv_rtnl_dump_filter_three_args="yes"],
-			[c_cv_rtnl_dump_filter_three_args="no"]
-		)
+]]
+	)],
+	[c_cv_rtnl_dump_filter_three_args="yes"],
+	[c_cv_rtnl_dump_filter_three_args="no"]
 	)
+)
 
 	CFLAGS="$SAVE_CFLAGS"
 
