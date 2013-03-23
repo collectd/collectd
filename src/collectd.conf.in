@@ -961,20 +961,20 @@
 #   <Metric "dropped">
 #       Type "percent"
 #       Instance "dropped"
-#       Index 1
+#       ValueFrom 1
 #   </Metric>
 #   <Metric "mbps">
 #       Type "bytes"
 #       Instance "wire-realtime"
-#       Index 2
+#       ValueFrom 2
 #   </Metric>
 #   <Metric "alerts">
 #       Type "alerts_per_second"
-#       Index 3
+#       ValueFrom 3
 #   </Metric>
 #   <Metric "kpps">
 #       Type "kpackets_wire_per_sec.realtime"
-#       Index 4
+#       ValueFrom 4
 #   </Metric>
 #   <File "/var/log/snort/snort.stats">
 #       Instance "snort-eth0"

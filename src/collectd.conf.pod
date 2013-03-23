@@ -5170,12 +5170,11 @@ I<Type's> definition.
 If set, I<TypeInstance> is used to populate the type instance field of the
 created value lists. Otherwise, no type instance is used.
 
-=item B<Index> I<Index>
+=item B<ValueFrom> I<Index>
 
 Each line in the statistics file is broken into many fields with the first
 field, the timestamp of the line, is index with zero. This option configures to
-read the value from the field with index I<Index>. Since the first field is
-always the timestamp, I<Index> must be greater than zero.
+read the value from the field with index I<Index>.
 
 =back
 

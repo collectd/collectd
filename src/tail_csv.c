@@ -37,7 +37,7 @@ struct metric_definition_s {
     char *type;
     char *instance;
     int data_source_type;
-    int index;
+    int value_from;
     struct metric_definition_s *next;
 };
 typedef struct metric_definition_s metric_definition_t;
@@ -105,12 +105,12 @@ static int tcsv_read_metric (instance_definition_t *id,
     if (md->data_source_type == -1)
         return (EINVAL);
 
-    if (md->index >= fields_num)
+    if (md->value_from >= fields_num)
         return (EINVAL);
 
     t = parse_time (fields[0]);
 
-    status = parse_value (fields[md->index], &v, md->data_source_type);
+    status = parse_value (fields[md->value_from], &v, md->data_source_type);
     if (status != 0)
         return (status);
 
@@ -178,10 +178,10 @@ static int tcsv_read_buffer (instance_definition_t *id,
     for (i = 0; i < id->metric_list_len; ++i){
         metric_definition_t *md = id->metric_list[i];
 
-        if (((size_t) md->index) >= metrics_num) {
+        if (((size_t) md->value_from) >= metrics_num) {
             ERROR ("tail_csv plugin: Metric \"%s\": Request for index %i when "
                     "only %zu fields are available.",
-                    md->name, md->index, metrics_num);
+                    md->name, md->value_from, metrics_num);
             continue;
         }
 
@@ -251,18 +251,23 @@ static void tcsv_metric_definition_destroy(void *arg){
     tcsv_metric_definition_destroy (next);
 }
 
-static int tcsv_config_add_metric_index(metric_definition_t *md, oconfig_item_t *ci){
+static int tcsv_config_get_index(oconfig_item_t *ci, int *ret_index) {
+    int index;
+
     if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER)){
-        WARNING("tail_csv plugin: `Index' needs exactly one integer argument.");
+        WARNING("tail_csv plugin: The \"%s\" config option needs exactly one "
+                "integer argument.", ci->key);
         return (-1);
     }
 
-    md->index = (int)ci->values[0].value.number;
-    if (md->index <= 0){
-        WARNING("tail_csv plugin: `Index' must be higher than 0.");
+    index = (int) ci->values[0].value.number;
+    if (index < 0) {
+        WARNING("tail_csv plugin: The \"%s\" config option must be positive "
+                "(or zero).", ci->key);
         return (-1);
     }
 
+    *ret_index = index;
     return (0);
 }
 
@@ -280,6 +285,7 @@ static int tcsv_config_add_metric(oconfig_item_t *ci){
     md->type = NULL;
     md->instance = NULL;
     md->data_source_type = -1;
+    md->value_from = -1;
     md->next = NULL;
 
     status = cf_util_get_string (ci, &md->name);
@@ -296,8 +302,8 @@ static int tcsv_config_add_metric(oconfig_item_t *ci){
             status = cf_util_get_string(option, &md->type);
         else if (strcasecmp("Instance", option->key) == 0)
             status = cf_util_get_string(option, &md->instance);
-        else if (strcasecmp("Index", option->key) == 0)
-            status = tcsv_config_add_metric_index(md, option);
+        else if (strcasecmp("ValueFrom", option->key) == 0)
+            status = tcsv_config_get_index (option, &md->value_from);
         else {
             WARNING("tail_csv plugin: Option `%s' not allowed here.", option->key);
             status = -1;
@@ -316,17 +322,14 @@ static int tcsv_config_add_metric(oconfig_item_t *ci){
     if (md->type == NULL) {
         WARNING("tail_csv plugin: Option `Type' must be set.");
         status = -1;
-    } else if (md->index == 0) {
-        WARNING("tail_csv plugin: Option `Index' must be set.");
+    } else if (md->value_from < 0) {
+        WARNING("tail_csv plugin: Option `ValueFrom' must be set.");
         status = -1;
     }
     if (status != 0) {
         tcsv_metric_definition_destroy(md);
         return (status);
     }
-
-    DEBUG ("tail_csv plugin: md = { name = %s, type = %s, index = %d }",
-            md->name, md->type, md->index);
 
     if (metric_head == NULL)
         metric_head = md;
