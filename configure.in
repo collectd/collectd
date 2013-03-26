@@ -2848,55 +2848,49 @@ AM_CONDITIONAL(BUILD_WITH_LIBOPING, test "x$with_liboping" = "xyes")
 # }}}
 
 # --with-libz {{{
+with_libz_cppflags=""
+with_libz_libs="-lz"
 AC_ARG_WITH(libz, [AS_HELP_STRING([--with-libz@<:@=PREFIX@:>@], [Path to libz.])],
 [
- if test "x$withval" = "xyes"
- then
-	 with_libz="yes"
- else if test "x$withval" = "xno"
- then
-	 with_libz="no"
- else
-	 with_libz="yes"
-	 LIBZ_CPPFLAGS="$LIBZ_CPPFLAGS -I$withval/include"
-	 LIBZ_LDFLAGS="$LIBZ_LDFLAGS -L$withval/lib"
- fi; fi
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	then
+		with_libz_cppflags="-I$withval/include"
+		with_libz_libs="-L$withval/lib -lz"
+		with_libz="yes"
+	else
+		with_libz="$withval"
+	fi
 ],
-[with_libz="yes"])
-
-SAVE_CPPFLAGS="$CPPFLAGS"
-SAVE_LDFLAGS="$LDFLAGS"
-
-CPPFLAGS="$CPPFLAGS $LIBZ_CPPFLAGS"
-LDFLAGS="$LDFLAGS $LIBZ_LDFLAGS"
-
+[
+	with_libz="yes"
+])
 if test "x$with_libz" = "xyes"
 then
-	if test "x$LIBZ_CPPFLAGS" != "x"
-	then
-		AC_MSG_NOTICE([libz CPPFLAGS: $LIBZ_CPPFLAGS])
-	fi
-	AC_CHECK_HEADERS(zlib.h,
-	[with_libz="yes"],
-	[with_libz="no (zlib.h not found)"])
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$with_libz_cppflags"
+	
+	AC_CHECK_HEADERS(zlib.h, [with_libz="yes"], [with_libz="no (zlib.h not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
 fi
 if test "x$with_libz" = "xyes"
 then
-	if test "x$LIBZ_LDFLAGS" != "x"
-	then
-		AC_MSG_NOTICE([libz LDFLAGS: $LIBZ_LDFLAGS])
-	fi
+	SAVE_LDFLAGS="$LDFLAGS"
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	LDFLAGS="$with_libz_libs"
+	CPPFLAGS="$with_libz_cppflags"
+	
+	AC_CHECK_LIB(z, gzopen, [with_libz="yes"], [with_libz="no (libz not found)"])
+
+	LDFLAGS="$SAVE_LDFLAGS"
+	CPPFLAGS="$SAVE_CPPFLAGS"
 fi
-
-CPPFLAGS="$SAVE_CPPFLAGS"
-LDFLAGS="$SAVE_LDFLAGS"
-
 if test "x$with_libz" = "xyes"
 then
-	BUILD_WITH_LIBZ_CPPFLAGS="$LIBZ_CPPFLAGS"
-	BUILD_WITH_LIBZ_LDFLAGS="$LIBZ_LDFLAGS"
+	BUILD_WITH_LIBZ_CPPFLAGS="$with_libz_cppflags"
+	BUILD_WITH_LIBZ_LIBS="$with_libz_libs"
 	AC_SUBST(BUILD_WITH_LIBZ_CPPFLAGS)
-	AC_SUBST(BUILD_WITH_LIBZ_LDFLAGS)
+	AC_SUBST(BUILD_WITH_LIBZ_LIBS)
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBZ, test "x$with_libz" = "xyes")
 # }}}
@@ -5246,11 +5240,11 @@ Configuration:
     libxml2 . . . . . . . $with_libxml2
     libxmms . . . . . . . $with_libxmms
     libyajl . . . . . . . $with_libyajl
-    libz      . . . . . . $with_libz
     libevent  . . . . . . $with_libevent
     protobuf-c  . . . . . $have_protoc_c
     oracle  . . . . . . . $with_oracle
     python  . . . . . . . $with_python
+    zlib  . . . . . . . . $with_libz
 
   Features:
     daemon mode . . . . . $enable_daemon

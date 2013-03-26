@@ -1354,8 +1354,8 @@ if BUILD_PLUGIN_WRITE_TOP
 pkglib_LTLIBRARIES += write_top.la
 write_top_la_SOURCES = write_top.c 
 write_top_la_LDFLAGS = -module -avoid-version
-write_top_la_CFLAGS = $(AM_CFLAGS)
-write_top_la_LIBADD = -lz
+write_top_la_CFLAGS = $(AM_CFLAGS) ${BUILD_WITH_LIBZ_CPPFLAGS}
+write_top_la_LIBADD = ${BUILD_WITH_LIBZ_LIBS}
 collectd_LDADD += "-dlopen" write_top.la
 collectd_DEPENDENCIES += write_top.la
 endif
