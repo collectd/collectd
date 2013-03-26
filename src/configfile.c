@@ -109,6 +109,8 @@ static cf_global_option_t cf_global_options[] =
 	{"Interval",    NULL, NULL},
 	{"ReadThreads", NULL, "5"},
 	{"WriteThreads", NULL, "5"},
+	{"WriteQueueLengthLimitHigh", NULL, NULL},
+	{"WriteQueueLengthLimitLow", NULL, NULL},
 	{"Timeout",     NULL, "2"},
 	{"PreCacheChain",  NULL, "PreCache"},
 	{"PostCacheChain", NULL, "PostCache"}
