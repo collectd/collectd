@@ -918,6 +918,33 @@ const char *global_option_get (const char *option)
 			: cf_global_options[i].def);
 } /* char *global_option_get */
 
+long global_option_get_long (const char *option, long default_value)
+{
+		const char *str;
+		long value;
+
+		str = global_option_get(option);
+		if(NULL == str) return(default_value);
+
+		errno = 0;
+		value = strtol(str, NULL, 10);
+		if (errno == ERANGE && (value == LONG_MAX || value == LONG_MIN)) return(default_value);
+		if (errno != 0 && value == 0) return(default_value);
+		return(value);
+} /* char *global_option_get_long */
+
+long global_option_get_long_in_range (const char *option, long default_value, long min, long max)
+{
+		long value;
+
+		assert(min < max);
+		value = global_option_get_long(option, default_value);
+		if(value < min) return(default_value);
+		if(value > max) return(default_value);
+		return(value);
+
+} /* char *global_option_get_long_in_range */
+
 cdtime_t cf_get_default_interval (void)
 {
   char const *str = global_option_get ("Interval");

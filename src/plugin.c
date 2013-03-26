@@ -31,6 +31,7 @@
 #include "utils_llist.h"
 #include "utils_heap.h"
 #include "utils_time.h"
+#include "utils_random.h"
 
 #if HAVE_PTHREAD_H
 # include <pthread.h>
@@ -106,7 +107,7 @@ static int             read_threads_num = 0;
 
 static write_queue_t  *write_queue_head;
 static write_queue_t  *write_queue_tail;
-static long           write_queue_size = 0;
+static long            write_queue_length = 0;
 static _Bool           write_loop = 1;
 static pthread_mutex_t write_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  write_cond = PTHREAD_COND_INITIALIZER;
@@ -116,10 +117,9 @@ static size_t          write_threads_num = 0;
 static pthread_key_t   plugin_ctx_key;
 static _Bool           plugin_ctx_key_initialized = 0;
 
-static long            writequeuelengthlimit_high = 0;
-static long            writequeuelengthlimit_low = 0;
-
-static unsigned int    random_seed;
+static long            write_limit_high = 0;
+static long            write_limit_low = 0;
+cdtime_t               last_drop_time = 0;
 
 /*
  * Static functions
@@ -673,13 +673,13 @@ static int plugin_write_enqueue (value_list_t const *vl) /* {{{ */
 	{
 		write_queue_head = q;
 		write_queue_tail = q;
-		write_queue_size = 1;
+		write_queue_length = 1;
 	}
 	else
 	{
 		write_queue_tail->next = q;
 		write_queue_tail = q;
-		write_queue_size += 1;
+		write_queue_length += 1;
 	}
 
 	pthread_cond_signal (&write_cond);
@@ -706,10 +706,10 @@ static value_list_t *plugin_write_dequeue (void) /* {{{ */
 
 	q = write_queue_head;
 	write_queue_head = q->next;
-	write_queue_size -= 1;
+	write_queue_length -= 1;
 	if (write_queue_head == NULL) {
 		write_queue_tail = NULL;
-		write_queue_size = 0; /* Maybe instead of setting write_queue_size to 0, we should assert(write_queue_size == 0) ? */
+		assert(0 == write_queue_length);
 		}
 
 	pthread_mutex_unlock (&write_lock);
@@ -813,7 +813,7 @@ static void stop_write_threads (void) /* {{{ */
 	}
 	write_queue_head = NULL;
 	write_queue_tail = NULL;
-	write_queue_size = 0;
+	write_queue_length = 0;
 	pthread_mutex_unlock (&write_lock);
 
 	if (i > 0)
@@ -1377,60 +1377,8 @@ void plugin_init_all (void)
 	chain_name = global_option_get ("PostCacheChain");
 	post_cache_chain = fc_chain_get_by_name (chain_name);
 
-	{
-		const char *str_writequeuelengthlimithigh = global_option_get ("WriteQueueLengthLimitHigh");
-		const char *str_writequeuelengthlimitlow = global_option_get ("WriteQueueLengthLimitLow");
-
-		writequeuelengthlimit_high = 0;
-		writequeuelengthlimit_low = 0;
-
-		if(NULL != str_writequeuelengthlimithigh) {
-			errno = 0;
-			/* get high limit */
-			writequeuelengthlimit_high = strtol(str_writequeuelengthlimithigh, NULL, 10);
-			if ((errno == ERANGE && (writequeuelengthlimit_high == LONG_MAX || writequeuelengthlimit_high == LONG_MIN))
-					|| (errno != 0 && writequeuelengthlimit_high == 0)
-			   ) {
-				writequeuelengthlimit_high = 0;
-				ERROR("Config 'WriteQueueLengthLimitHigh' accepts one integer value only. Running with no limit !");
-			}
-			if(writequeuelengthlimit_high < 0) {
-				ERROR("Config 'WriteQueueLengthLimitHigh' accepts positive values only. Running with no limit !");
-				writequeuelengthlimit_high = 0;
-			}
-		}
-
-		if((writequeuelengthlimit_high > 0) && (NULL != str_writequeuelengthlimitlow)) {
-			errno = 0;
-			/* get low limit */
-			writequeuelengthlimit_low = strtol(str_writequeuelengthlimitlow, NULL, 10);
-			if ((errno == ERANGE && (writequeuelengthlimit_low == LONG_MAX || writequeuelengthlimit_low == LONG_MIN))
-					|| (errno != 0 && writequeuelengthlimit_low == 0)
-			   ) {
-				writequeuelengthlimit_low = 0;
-				ERROR("Config 'WriteQueueLengthLimitLow' accepts one integer value only. Using default low limit instead");
-			}
-
-			if(writequeuelengthlimit_low < 0) {
-				ERROR("Config 'WriteQueueLengthLimitLow' accepts positive values only. Using default low limit instead");
-				writequeuelengthlimit_low = 0;
-			} else if(writequeuelengthlimit_low > writequeuelengthlimit_high) {
-				ERROR("Config 'WriteQueueLengthLimitLow' (%ld) cannot be bigger than high limit (%ld). Using default low limit instead",
-						writequeuelengthlimit_low, writequeuelengthlimit_high);
-				writequeuelengthlimit_low = 0;
-			}
-		}
-		/* Check/compute low limit if not/badly defined */
-		if(writequeuelengthlimit_high > 0) {
-			if(0 == writequeuelengthlimit_low) {
-				writequeuelengthlimit_low = .5 * writequeuelengthlimit_high;
-			}
-			INFO("Config 'WriteQueueLengthLimit*' : Running with limits high=%ld low=%ld", writequeuelengthlimit_high, writequeuelengthlimit_low);
-			random_seed = time(0);
-		} else {
-			writequeuelengthlimit_low = 0; /* This should be useless, but in case... */
-		}
-	}
+	write_limit_high = global_option_get_long_in_range("WriteQueueLengthLimitHigh",0, 0, LONG_MAX);
+	write_limit_low = global_option_get_long_in_range("WriteQueueLengthLimitLow", (write_limit_high+1)/2, 0, write_limit_high-1 );
 
 	{
 		char const *tmp = global_option_get ("WriteThreads");
@@ -1944,63 +1892,63 @@ static int plugin_dispatch_values_internal (value_list_t *vl)
 	return (0);
 } /* int plugin_dispatch_values_internal */
 
-int plugin_dispatch_values (value_list_t const *vl)
-{
-	int status;
-	int wq_size = write_queue_size;
-	/* We store write_queue_size in a local variable because other threads may update write_queue_size.
+static _Bool drop_metric(void) {
+	_Bool drop = 0;
+	int wq_len = write_queue_length;
+	/* We store write_queue_length in a local variable because other threads may update write_queue_length.
 	 * Having this in a local variable (like a cache) is better : we do not need a lock */
-	short metric_will_be_dropped = 0;
 
-	if((writequeuelengthlimit_high > 0) && (wq_size > writequeuelengthlimit_low)) {
-		if(wq_size >= writequeuelengthlimit_high) {
+	if(wq_len < write_limit_low) return(0);
+
+	if((write_limit_high > 0) && (wq_len > write_limit_low)) {
+		if(wq_len >= write_limit_high) {
 			/* if high == low, we come here too */
-			metric_will_be_dropped = 1;
+			drop = 1;
 		} else {
 			/* here, high != low */
 			long probability_to_drop;
 			long n;
 
-			probability_to_drop = (wq_size - writequeuelengthlimit_low);
+			probability_to_drop = (wq_len - write_limit_low);
 
-			/* We use rand_r with its bad RNG because it's enough for playing dices.
-			 * There is no security consideration here so rand_r() should be enough here.
-			 */
-			n = rand_r(&random_seed) % (writequeuelengthlimit_high - writequeuelengthlimit_low) ;
+			n = cdrand_range(write_limit_low, write_limit_high);
 
 			/* Let's have X = high - low.
 			 *   n is in range [0..X]
 			 *   probability_to_drop is in range [1..X[
-			 *   probability_to_drop gets bigger when wq_size gets bigger.
+			 *   probability_to_drop gets bigger when wq_len gets bigger.
 			 */
 			if(n <= probability_to_drop) {
-				metric_will_be_dropped = 1;
+				drop = 1;
 			}
 		}
 	}
-
-	if( ! metric_will_be_dropped) {
-		status = plugin_write_enqueue (vl);
-		if (status != 0)
-		{
-			char errbuf[1024];
-			ERROR ("plugin_dispatch_values: plugin_write_enqueue failed "
-					"with status %i (%s).", status,
-					sstrerror (status, errbuf, sizeof (errbuf)));
-			return (status);
+	if(drop) {
+		cdtime_t now = cdtime();
+		if((now - last_drop_time) > TIME_T_TO_CDTIME_T (60)) {
+			last_drop_time = now;
+			/* If you want to count dropped metrics, don't forget to add a lock here */
+			/* dropped_metrics++; */
+			ERROR ("plugin_dispatch_values : Low water mark reached, dropping a metric");
 		}
 	}
-	else
+	return(drop);
+}
+
+int plugin_dispatch_values (value_list_t const *vl)
+{
+	int status;
+
+	if(drop_metric ()) return(0);
+
+	status = plugin_write_enqueue (vl);
+	if (status != 0)
 	{
-		/* If you want to count dropped metrics, don't forget to add a lock here */
-		/* dropped_metrics++; */
-		ERROR ("plugin_dispatch_values: value dropped (write queue %ld > %ld) : time = %.3f; interval = %.3f ; %s/%s%s%s/%s%s%s",
-			write_queue_size, writequeuelengthlimit_low,
-			CDTIME_T_TO_DOUBLE (vl->time),
-			CDTIME_T_TO_DOUBLE (vl->interval),
-			vl->host,
-			vl->plugin, vl->plugin_instance[0]?"-":"", vl->plugin_instance,
-			vl->type, vl->type_instance[0]?"-":"", vl->type_instance);
+		char errbuf[1024];
+		ERROR ("plugin_dispatch_values: plugin_write_enqueue failed "
+				"with status %i (%s).", status,
+				sstrerror (status, errbuf, sizeof (errbuf)));
+		return (status);
 	}
 
 	return (0);
