@@ -896,71 +896,6 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
   return (ret);
 } /* value_t csnmp_value_list_to_value */
 
-/* Returns true if all OIDs have left their subtree */
-static int csnmp_check_res_left_subtree (const host_definition_t *host,
-    const data_definition_t *data,
-    struct snmp_pdu *res)
-{
-  struct variable_list *vb;
-  int num_checked;
-  int num_left_subtree;
-  int i;
-
-  vb = res->variables;
-  if (vb == NULL)
-    return (-1);
-
-  num_checked = 0;
-  num_left_subtree = 0;
-
-  /* check all the variables and count how many have left their subtree */
-  for (vb = res->variables, i = 0;
-      (vb != NULL) && (i < data->values_len);
-      vb = vb->next_variable, i++)
-  {
-    num_checked++;
-
-    if ((vb->type == SNMP_ENDOFMIBVIEW)
-        || (snmp_oid_ncompare (data->values[i].oid,
-            data->values[i].oid_len,
-            vb->name, vb->name_length,
-            data->values[i].oid_len) != 0))
-      num_left_subtree++;
-  }
-
-  /* check if enough variables have been returned */
-  if (i < data->values_len)
-  {
-    ERROR ("snmp plugin: host %s: Expected %i variables, but got only %i",
-        host->name, data->values_len, i);
-    return (-1);
-  }
-
-  if (data->instance.oid.oid_len > 0)
-  {
-    if (vb == NULL)
-    {
-      ERROR ("snmp plugin: host %s: Expected one more variable for "
-          "the instance..", host->name);
-      return (-1);
-    }
-
-    num_checked++;
-    if (snmp_oid_ncompare (data->instance.oid.oid,
-          data->instance.oid.oid_len,
-          vb->name, vb->name_length,
-          data->instance.oid.oid_len) != 0)
-      num_left_subtree++;
-  }
-
-  DEBUG ("snmp plugin: csnmp_check_res_left_subtree: %i of %i variables have "
-      "left their subtree",
-      num_left_subtree, num_checked);
-  if (num_left_subtree >= num_checked)
-    return (1);
-  return (0);
-} /* int csnmp_check_res_left_subtree */
-
 static int csnmp_strvbcopy_hexstring (char *dst, /* {{{ */
     const struct variable_list *vb, size_t dst_size)
 {
@@ -1268,7 +1203,7 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
   uint32_t oid_list_len;
 
   int status;
-  int i;
+  int i, j;
 
   /* `value_list_head' and `value_list_tail' implement a linked list for each
    * value. `instance_list_head' and `instance_list_tail' implement a linked list of
@@ -1315,6 +1250,11 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
   else
     oid_list_len--;
 
+  /* We also need a 0(=finished)|1(=todo) mask for a todo list */
+  int oid_todo_list[oid_list_len];
+  for (i=0;i<oid_list_len;i++)
+    oid_todo_list[i] = 1;
+
   /* We're going to construct n linked lists, one for each "value".
    * value_list_head will contain pointers to the heads of these linked lists,
    * value_list_tail will contain pointers to the tail of the lists. */
@@ -1343,8 +1283,20 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
       break;
     }
 
-    for (i = 0; (uint32_t) i < oid_list_len; i++)
+    for (i = 0, j = 0; (uint32_t) i < oid_list_len; i++) {
+      /* Do not rerequest already finished OIDs */
+      if ( oid_todo_list[i] == 0 )
+        continue;
+      j++;
       snmp_add_null_var (req, oid_list[i].oid, oid_list[i].oid_len);
+    }
+
+    if ( j == 0 ) {
+      /* The request is still empty - so we are finished */
+      DEBUG ("snmp plugin: all variables have left their subtree");
+      status = 0;
+      break;
+    }
 
     res = NULL;
     status = snmp_sess_synch_response (host->sess_handle, req, &res);
@@ -1382,78 +1334,70 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
       break;
     }
 
-    /* Check if all values (and possibly the instance) have left their
-     * subtree */
-    if (csnmp_check_res_left_subtree (host, data, res) != 0)
+    for (vb = res->variables, i = 0; (vb != NULL); vb = vb->next_variable, i++)
     {
-      status = 0;
-      break;
-    }
+      /* Calculate value index from todo list */
+      while(oid_todo_list[i] == 0 && i < oid_list_len)
+        i++;
 
-    /* Copy the OID of the value used as instance to oid_list, if an instance
-     * is configured. */
-    if (data->instance.oid.oid_len > 0)
-    {
+      /* An instance is configured and the res variable we process is the instance value (last index) */
+      if (data->instance.oid.oid_len > 0 && i == data->values_len) {
+
+        if ((vb->type == SNMP_ENDOFMIBVIEW)
+             || (snmp_oid_ncompare (data->instance.oid.oid,
+                   data->instance.oid.oid_len,
+                   vb->name, vb->name_length,
+                  data->instance.oid.oid_len) != 0)) 
+      {
+        DEBUG ("snmp plugin: host = %s; data = %s; Instance left its subtree.",
+            host->name, data->name);
+        oid_todo_list[i] = 0;
+        continue;
+      } 
+
       /* Allocate a new `csnmp_list_instances_t', insert the instance name and
        * add it to the list */
       if (csnmp_instance_list_add (&instance_list_head, &instance_list_tail,
-	    res, host, data) != 0)
+           res, host, data) != 0)
       {
         ERROR ("snmp plugin: csnmp_instance_list_add failed.");
         status = -1;
         break;
       }
 
-      /* The instance OID is added to the list of OIDs to GET from the
-       * snmp agent last, so set vb on the last variable returned and copy
-       * that OID. */
-      for (vb = res->variables;
-          (vb != NULL) && (vb->next_variable != NULL);
-          vb = vb->next_variable)
-        /* do nothing */;
-      assert (vb != NULL);
+      /* The variable we are processing is a normal value */
+      } else {
 
-      /* Copy the OID of the instance value to oid_list[data->values_len].
-       * "oid_list" is used for the next GETNEXT request. */
-      memcpy (oid_list[data->values_len].oid, vb->name,
-          sizeof (oid) * vb->name_length);
-      oid_list[data->values_len].oid_len = vb->name_length;
-    }
+        csnmp_table_values_t *vt;
+        oid_t vb_name;
+        oid_t suffix;
 
-    /* Iterate over all the (non-instance) values returned by the agent. The
-     * (i < value_len) check will make sure we're not handling the instance OID
-     * twice. */
-    for (vb = res->variables, i = 0;
-        (vb != NULL) && (i < data->values_len);
-        vb = vb->next_variable, i++)
-    {
-      csnmp_table_values_t *vt;
-      oid_t vb_name;
-      oid_t suffix;
+        csnmp_oid_init (&vb_name, vb->name, vb->name_length);
 
-      csnmp_oid_init (&vb_name, vb->name, vb->name_length);
+        /* Calculate the current suffix. This is later used to check that the
+         * suffix is increasing. This also checks if we left the subtree */
+        int ret;
+        ret = csnmp_oid_suffix (&suffix, &vb_name, data->values + i);
+        if (ret != 0)
+        {
+          DEBUG ("snmp plugin: host = %s; data = %s; i = %i; "
+              "Value probably left its subtree.",
+              host->name, data->name, i);
+          oid_todo_list[i] = 0;
+          continue;
+         }
 
-      /* Calculate the current suffix. This is later used to check that the
-       * suffix is increasing. This also checks if we left the subtree */
-      status = csnmp_oid_suffix (&suffix, &vb_name, data->values + i);
-      if (status != 0)
-      {
-        DEBUG ("snmp plugin: host = %s; data = %s; Value %i failed. "
-            "It probably left its subtree.",
-            host->name, data->name, i);
-        continue;
-      }
-
-      /* Make sure the OIDs returned by the agent are increasing. Otherwise our
-       * table matching algorithm will get confused. */
-      if ((value_list_tail[i] != NULL)
-          && (csnmp_oid_compare (&suffix, &value_list_tail[i]->suffix) <= 0))
-      {
-        DEBUG ("snmp plugin: host = %s; data = %s; i = %i; "
-            "Suffix is not increasing.",
-            host->name, data->name, i);
-        continue;
-      }
+        /* Make sure the OIDs returned by the agent are increasing. Otherwise our
+         * table matching algorithm will get confused. */
+        if ((value_list_tail[i] != NULL)
+            && (csnmp_oid_compare (&suffix, &value_list_tail[i]->suffix) <= 0))
+        {
+          DEBUG ("snmp plugin: host = %s; data = %s; i = %i; "
+              "Suffix is not increasing.",
+              host->name, data->name, i);
+          oid_todo_list[i] = 0;
+          continue;
+        }
 
       vt = malloc (sizeof (*vt));
       if (vt == NULL)
@@ -1475,10 +1419,12 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
         value_list_tail[i]->next = vt;
       value_list_tail[i] = vt;
 
-      /* Copy OID to oid_list[i + 1] */
+      }
+      /* Copy OID to oid_list[i] */
       memcpy (oid_list[i].oid, vb->name, sizeof (oid) * vb->name_length);
       oid_list[i].oid_len = vb->name_length;
-    } /* for (i = data->values_len) */
+
+    } /* for (vb = res->variables ...) */
 
     if (res != NULL)
       snmp_free_pdu (res);
