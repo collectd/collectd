@@ -77,7 +77,7 @@ int jsonrpc_cb_pw_get_status (struct json_object *params, struct json_object *re
 				return (JSONRPC_ERROR_CODE_32602_INVALID_PARAMS);
 		}
 
-		if(NULL == (servers = c_avl_create((int (*) (const void *, const void *)) strcmp))) {
+		if(NULL == (servers = c_avl_create((void *) strcmp))) {
 				DEBUG(OUTPUT_PREFIX_JSONRPC_CB_PERFWATCHER "Internal error %s:%d", __FILE__, __LINE__);
 				return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
 		}
@@ -225,11 +225,11 @@ int jsonrpc_cb_pw_get_metric (struct json_object *params, struct json_object *re
 				return (JSONRPC_ERROR_CODE_32602_INVALID_PARAMS);
 		}
 
-		if(NULL == (servers = c_avl_create((int (*) (const void *, const void *)) strcmp))) {
+		if(NULL == (servers = c_avl_create((void *) strcmp))) {
 				DEBUG(OUTPUT_PREFIX_JSONRPC_CB_PERFWATCHER "Internal error %s:%d", __FILE__, __LINE__);
 				return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);
 		}
-		if(NULL == (metrics = c_avl_create((int (*) (const void *, const void *)) strcmp))) {
+		if(NULL == (metrics = c_avl_create((void *) strcmp))) {
 				c_avl_destroy(servers);
 				DEBUG(OUTPUT_PREFIX_JSONRPC_CB_PERFWATCHER "Internal error %s:%d", __FILE__, __LINE__);
 				return (JSONRPC_ERROR_CODE_32603_INTERNAL_ERROR);

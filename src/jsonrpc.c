@@ -491,7 +491,7 @@ static void update_config_authentication_type_basic_filename_cache(time_t mtime)
 	char line[1024];
 
 	if(NULL == config_authentication_type_basic_filename_cache) {
-		config_authentication_type_basic_filename_cache = c_avl_create((int (*) (const void *, const void *)) strcmp);
+		config_authentication_type_basic_filename_cache = c_avl_create((void *) strcmp);
 	}
 	if(NULL == config_authentication_type_basic_filename_cache) return;
 
