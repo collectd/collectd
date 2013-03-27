@@ -98,6 +98,20 @@ typedef struct cx_s cx_t; /* }}} */
 /*
  * Private functions
  */
+void cx_gen_random(char *s, const int len) {/*{{{*/
+  int i;
+  static const char alphanum[] =
+    "0123456789"
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "abcdefghijklmnopqrstuvwxyz";
+
+  for (i = 0; i < len; ++i) {
+    s[i] = alphanum[rand() % (sizeof(alphanum) - 1)];
+  }
+
+  s[len] = 0;
+}/*}}}*/
+
 static size_t cx_curl_callback (void *buf, /* {{{ */
     size_t size, size_t nmemb, void *user_data)
 {
@@ -967,6 +981,7 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
   {
     user_data_t ud;
     char cb_name[DATA_MAX_NAME_LEN];
+    char cb_name_random[DATA_MAX_NAME_LEN];
 
     if (db->instance == NULL)
       db->instance = strdup("default");
@@ -978,8 +993,9 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
     ud.data = (void *) db;
     ud.free_func = cx_free;
 
+    cx_gen_random (cb_name_random, DATA_MAX_NAME_LEN);
     ssnprintf (cb_name, sizeof (cb_name), "curl_xml-%s-%s",
-               db->instance, db->url);
+               db->instance, cb_name_random);
 
     plugin_register_complex_read (/* group = */ NULL, cb_name, cx_read,
                                   /* interval = */ NULL, &ud);
