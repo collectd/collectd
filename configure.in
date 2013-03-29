@@ -582,13 +582,13 @@ fi
 AC_CACHE_CHECK([for strtok_r],
   [c_cv_have_strtok_r_default],
   AC_LINK_IFELSE(
-    AC_LANG_PROGRAM(
-    [[[[
+    [AC_LANG_PROGRAM(
+[[[
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-    ]]]],
-    [[[[
+]]],
+[[[
       char buffer[] = "foo,bar,baz";
       char *token;
       char *dummy;
@@ -601,7 +601,8 @@ AC_CACHE_CHECK([for strtok_r],
 	dummy = NULL;
         printf ("token = %s;\n", token);
       }
-    ]]]]),
+]]]
+    )],
     [c_cv_have_strtok_r_default="yes"],
     [c_cv_have_strtok_r_default="no"]
   )
@@ -614,13 +615,13 @@ then
   AC_CACHE_CHECK([if strtok_r needs _REENTRANT],
     [c_cv_have_strtok_r_reentrant],
     AC_LINK_IFELSE(
-      AC_LANG_PROGRAM(
-      [[[[
+      [AC_LANG_PROGRAM(
+[[[
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-      ]]]],
-      [[[[
+]]],
+[[[
         char buffer[] = "foo,bar,baz";
         char *token;
         char *dummy;
@@ -633,7 +634,8 @@ then
 	  dummy = NULL;
           printf ("token = %s;\n", token);
         }
-      ]]]]),
+]]]
+      )],
       [c_cv_have_strtok_r_reentrant="yes"],
       [AC_MSG_FAILURE([strtok_r isn't available. Please file a bugreport!])]
     )
@@ -711,16 +713,15 @@ if test "x$have_strptime" = "xyes"
 then
 	AC_CACHE_CHECK([whether strptime is exported by default],
 		       [c_cv_have_strptime_default],
-		       AC_COMPILE_IFELSE(
-AC_LANG_PROGRAM(
-[[
-AC_INCLUDES_DEFAULT
+		       AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+[[[
 #include <time.h>
-]],
-[[
+]]],
+[[[
  struct tm stm;
  (void) strptime ("2010-12-30%13:42:42", "%Y-%m-%dT%T", &stm);
-]]),
+]]]
+		       )],
 		       [c_cv_have_strptime_default="yes"],
 		       [c_cv_have_strptime_default="no"]))
 fi
@@ -728,9 +729,8 @@ if test "x$have_strptime" = "xyes" && test "x$c_cv_have_strptime_default" = "xno
 then
 	AC_CACHE_CHECK([whether strptime needs standards mode],
 		       [c_cv_have_strptime_standards],
-		       AC_COMPILE_IFELSE(
-AC_LANG_PROGRAM(
-[[
+		       AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+[[[
 #ifndef _ISOC99_SOURCE
 # define _ISOC99_SOURCE 1
 #endif
@@ -740,13 +740,13 @@ AC_LANG_PROGRAM(
 #ifndef _XOPEN_SOURCE
 # define _XOPEN_SOURCE 500
 #endif
-AC_INCLUDES_DEFAULT
 #include <time.h>
-]],
-[[
+]]],
+[[[
  struct tm stm;
  (void) strptime ("2010-12-30%13:42:42", "%Y-%m-%dT%T", &stm);
-]]),
+]]]
+		       )],
 		       [c_cv_have_strptime_standards="yes"],
 		       [c_cv_have_strptime_standards="no"]))
 
@@ -762,7 +762,6 @@ if test "x$GCC" = "xyes"
 then
 	CFLAGS="$SAVE_CFLAGS"
 fi
-
 # }}} Check for strptime
 
 AC_CHECK_FUNCS(swapctl, [have_swapctl="yes"], [have_swapctl="no"])
@@ -770,17 +769,17 @@ if test "x$have_swapctl" = "xyes"; then
         AC_CACHE_CHECK([whether swapctl takes two arguments],
                 [c_cv_have_swapctl_two_args],
                 AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
-[[
+[[[
 #if HAVE_SYS_SWAP_H && !defined(_LP64) && _FILE_OFFSET_BITS == 64
 #  undef _FILE_OFFSET_BITS
 #  undef _LARGEFILE64_SOURCE
 #endif
 #include <sys/stat.h>
 #include <sys/swap.h>
-]],
-[[
+]]],
+[[[
 int num = swapctl(0, NULL);
-]]
+]]]
                         )],
                         [c_cv_have_swapctl_two_args="yes"],
                         [c_cv_have_swapctl_two_args="no"]
@@ -790,17 +789,17 @@ int num = swapctl(0, NULL);
                 [c_cv_have_swapctl_three_args],
                 AC_COMPILE_IFELSE(
                         [AC_LANG_PROGRAM(
-[[
+[[[
 #if HAVE_SYS_SWAP_H && !defined(_LP64) && _FILE_OFFSET_BITS == 64
 #  undef _FILE_OFFSET_BITS
 #  undef _LARGEFILE64_SOURCE
 #endif
 #include <sys/stat.h>
 #include <sys/swap.h>
-]],
-[[
+]]],
+[[[
 int num = swapctl(0, NULL, 0);
-]]
+]]]
                         )],
                         [c_cv_have_swapctl_three_args="yes"],
                         [c_cv_have_swapctl_three_args="no"]
@@ -834,19 +833,19 @@ AC_ARG_WITH(nan-emulation, [AS_HELP_STRING([--with-nan-emulation], [use emulated
 if test "x$nan_type" = "xnone"; then
   AC_CACHE_CHECK([whether NAN is defined by default],
     [c_cv_have_nan_default],
-    AC_COMPILE_IFELSE(
-      AC_LANG_PROGRAM(
-      [[
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+[[[
 #include <stdlib.h>
 #include <math.h>
 static double foo = NAN;
-      ]],
-      [[
+]]],
+[[[
        if (isnan (foo))
         return 0;
        else
 	return 1;
-      ]]),
+]]]
+      )],
       [c_cv_have_nan_default="yes"],
       [c_cv_have_nan_default="no"]
     )
@@ -859,20 +858,20 @@ fi
 if test "x$nan_type" = "xnone"; then
   AC_CACHE_CHECK([whether NAN is defined by __USE_ISOC99],
     [c_cv_have_nan_isoc],
-    AC_COMPILE_IFELSE(
-      AC_LANG_PROGRAM(
-      [[
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+[[[
 #include <stdlib.h>
 #define __USE_ISOC99 1
 #include <math.h>
 static double foo = NAN;
-      ]],
-      [[
+]]],
+[[[
        if (isnan (foo))
         return 0;
        else
 	return 1;
-      ]]),
+]]]
+      )],
       [c_cv_have_nan_isoc="yes"],
       [c_cv_have_nan_isoc="no"]
     )
@@ -887,9 +886,8 @@ if test "x$nan_type" = "xnone"; then
   LDFLAGS="$LDFLAGS -lm"
   AC_CACHE_CHECK([whether NAN can be defined by 0/0],
     [c_cv_have_nan_zero],
-    AC_RUN_IFELSE(
-      AC_LANG_PROGRAM(
-      [[
+    AC_RUN_IFELSE([AC_LANG_PROGRAM(
+[[[
 #include <stdlib.h>
 #include <math.h>
 #ifdef NAN
@@ -900,13 +898,14 @@ if test "x$nan_type" = "xnone"; then
 # define isnan(f) ((f) != (f))
 #endif
 static double foo = NAN;
-      ]],
-      [[
+]]],
+[[[
        if (isnan (foo))
         return 0;
        else
 	return 1;
-      ]]),
+]]]
+      )],
       [c_cv_have_nan_zero="yes"],
       [c_cv_have_nan_zero="no"]
     )
@@ -948,9 +947,8 @@ fi; fi; fi
 if test "x$fp_layout_type" = "xunknown"; then
   AC_CACHE_CHECK([if doubles are stored in x86 representation],
     [c_cv_fp_layout_need_nothing],
-    AC_RUN_IFELSE(
-      AC_LANG_PROGRAM(
-      [[[[
+    AC_RUN_IFELSE([AC_LANG_PROGRAM(
+[[[
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -963,8 +961,8 @@ if test "x$fp_layout_type" = "xunknown"; then
 #if HAVE_STDBOOL_H
 # include <stdbool.h>
 #endif
-      ]]]],
-      [[[[
+]]],
+[[[
 	uint64_t i0;
 	uint64_t i1;
 	uint8_t c[8];
@@ -983,7 +981,8 @@ if test "x$fp_layout_type" = "xunknown"; then
 		return (0);
 	else
 		return (1);
-      ]]]]),
+]]]
+      )],
       [c_cv_fp_layout_need_nothing="yes"],
       [c_cv_fp_layout_need_nothing="no"]
     )
@@ -995,9 +994,8 @@ fi
 if test "x$fp_layout_type" = "xunknown"; then
   AC_CACHE_CHECK([if endianflip converts to x86 representation],
     [c_cv_fp_layout_need_endianflip],
-    AC_RUN_IFELSE(
-      AC_LANG_PROGRAM(
-      [[[[
+    AC_RUN_IFELSE([AC_LANG_PROGRAM(
+[[[
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -1018,8 +1016,8 @@ if test "x$fp_layout_type" = "xunknown"; then
                        (((uint64_t)(A) & 0x0000000000ff0000LL) << 24) | \
                        (((uint64_t)(A) & 0x000000000000ff00LL) << 40) | \
                        (((uint64_t)(A) & 0x00000000000000ffLL) << 56))
-      ]]]],
-      [[[[
+]]],
+[[[
 	uint64_t i0;
 	uint64_t i1;
 	uint8_t c[8];
@@ -1038,7 +1036,8 @@ if test "x$fp_layout_type" = "xunknown"; then
 		return (0);
 	else
 		return (1);
-      ]]]]),
+]]]
+      )],
       [c_cv_fp_layout_need_endianflip="yes"],
       [c_cv_fp_layout_need_endianflip="no"]
     )
@@ -1050,9 +1049,8 @@ fi
 if test "x$fp_layout_type" = "xunknown"; then
   AC_CACHE_CHECK([if intswap converts to x86 representation],
     [c_cv_fp_layout_need_intswap],
-    AC_RUN_IFELSE(
-      AC_LANG_PROGRAM(
-      [[[[
+    AC_RUN_IFELSE([AC_LANG_PROGRAM(
+[[[
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -1067,8 +1065,8 @@ if test "x$fp_layout_type" = "xunknown"; then
 #endif
 #define intswap(A)    ((((uint64_t)(A) & 0xffffffff00000000LL) >> 32) | \
                        (((uint64_t)(A) & 0x00000000ffffffffLL) << 32))
-      ]]]],
-      [[[[
+]]],
+[[[
 	uint64_t i0;
 	uint64_t i1;
 	uint8_t c[8];
@@ -1087,7 +1085,8 @@ if test "x$fp_layout_type" = "xunknown"; then
 		return (0);
 	else
 		return (1);
-      ]]]]),
+]]]
+      )],
       [c_cv_fp_layout_need_intswap="yes"],
       [c_cv_fp_layout_need_intswap="no"]
     )
@@ -1134,15 +1133,15 @@ if test "x$have_getmntent" = "xc"; then
 		[c_cv_have_one_getmntent],
 		AC_COMPILE_IFELSE(
 			[AC_LANG_PROGRAM(
-[[
+[[[
 #include "$srcdir/src/utils_mount.h"
-]],
-[[
+]]],
+[[[
 FILE *fh;
 struct mntent *me;
 fh = setmntent ("/etc/mtab", "r");
 me = getmntent (fh);
-]]
+]]]
 			)],
 			[c_cv_have_one_getmntent="yes"],
 			[c_cv_have_one_getmntent="no"]
@@ -1152,16 +1151,16 @@ me = getmntent (fh);
 		[c_cv_have_two_getmntent],
 		AC_COMPILE_IFELSE(
 			[AC_LANG_PROGRAM(
-[[
+[[[
 #include "$srcdir/src/utils_mount.h"
-]],
-[[
+]]],
+[[[
 				 FILE *fh;
 				 struct mnttab mt;
 				 int status;
 				 fh = fopen ("/etc/mnttab", "r");
 				 status = getmntent (fh, &mt);
-]]
+]]]
 			)],
 			[c_cv_have_two_getmntent="yes"],
 			[c_cv_have_two_getmntent="no"]
@@ -1198,17 +1197,19 @@ fi
 AC_MSG_CHECKING([if have htonll defined])
 
     have_htonll="no"
-    AC_LINK_IFELSE([
-       AC_LANG_PROGRAM([
+    AC_LINK_IFELSE([AC_LANG_PROGRAM(
+[[[
 #include <sys/types.h>
 #include <netinet/in.h>
 #if HAVE_INTTYPES_H
 # include <inttypes.h>
 #endif
-       ], [
+]]],
+[[[
           return htonll(0);
-       ])
-    ], [
+]]]
+    )],
+    [
       have_htonll="yes"
       AC_DEFINE(HAVE_HTONLL, 1, [Define if the function htonll exists.])
     ])
@@ -2488,34 +2489,34 @@ then
 #include <sys/socket.h>])
 
         AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
-[[
+[[[
 #include <stdio.h>
 #include <sys/types.h>
 #include <asm/types.h>
 #include <sys/socket.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
-]],
-[[
+]]],
+[[[
 int retval = TCA_STATS2;
 return (retval);
-]]
+]]]
 	)],
 	[AC_DEFINE([HAVE_TCA_STATS2], [1], [True if the enum-member TCA_STATS2 exists])])
 
 	AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
-[[
+[[[
 #include <stdio.h>
 #include <sys/types.h>
 #include <asm/types.h>
 #include <sys/socket.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
-]],
-[[
+]]],
+[[[
 int retval = TCA_STATS;
 return (retval);
-]]
+]]]
 	)],
 	[AC_DEFINE([HAVE_TCA_STATS], 1, [True if the enum-member TCA_STATS exists])])
 
@@ -2537,7 +2538,7 @@ then
 		[if function 'rtnl_dump_filter' expects five arguments],
 		[c_cv_rtnl_dump_filter_five_args],
 		AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
-[[
+[[[
 #include <stdio.h>
 #include <sys/types.h>
 #include <asm/types.h>
@@ -2549,12 +2550,12 @@ then
 #elif HAVE_LINUX_LIBNETLINK_H
 # include <linux/libnetlink.h>
 #endif
-]],
-[[
+]]],
+[[[
 if (rtnl_dump_filter(NULL, NULL, NULL, NULL, NULL))
 	return 1;
 return 0;
-]]
+]]]
 	)],
 	[c_cv_rtnl_dump_filter_five_args="yes"],
 	[c_cv_rtnl_dump_filter_five_args="no"]
@@ -2565,7 +2566,7 @@ return 0;
 		[if function 'rtnl_dump_filter' expects three arguments],
 		[c_cv_rtnl_dump_filter_three_args],
 		AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
-[[
+[[[
 #include <stdio.h>
 #include <sys/types.h>
 #include <asm/types.h>
@@ -2577,12 +2578,12 @@ return 0;
 #elif HAVE_LINUX_LIBNETLINK_H
 # include <linux/libnetlink.h>
 #endif
-]],
-[[
+]]],
+[[[
 if (rtnl_dump_filter(NULL, NULL, NULL))
 	return 1;
 return 0;
-]]
+]]]
 	)],
 	[c_cv_rtnl_dump_filter_three_args="yes"],
 	[c_cv_rtnl_dump_filter_three_args="no"]
@@ -3052,20 +3053,20 @@ dnl ARCHFLAGS="" -> disable multi -arch on OSX (see Config_heavy.pl:fetch_string
 
   AC_CACHE_CHECK([for libperl],
     [c_cv_have_libperl],
-    AC_LINK_IFELSE(
-      AC_LANG_PROGRAM(
-      [[
+    AC_LINK_IFELSE([AC_LANG_PROGRAM(
+[[[
 #define PERL_NO_GET_CONTEXT
 #include <EXTERN.h>
 #include <perl.h>
 #include <XSUB.h>
-      ]],
-      [[
+]]],
+[[[
        dTHX;
        load_module (PERL_LOADMOD_NOIMPORT,
 			 newSVpv ("Collectd::Plugin::FooBar", 24),
 			 Nullsv);
-      ]]),
+]]]
+      )],
       [c_cv_have_libperl="yes"],
       [c_cv_have_libperl="no"]
     )
@@ -3097,9 +3098,8 @@ then
 
 	AC_CACHE_CHECK([if perl supports ithreads],
 		[c_cv_have_perl_ithreads],
-		AC_LINK_IFELSE(
-			AC_LANG_PROGRAM(
-			[[
+		AC_LINK_IFELSE([AC_LANG_PROGRAM(
+[[[
 #include <EXTERN.h>
 #include <perl.h>
 #include <XSUB.h>
@@ -3107,8 +3107,9 @@ then
 #if !defined(USE_ITHREADS)
 # error "Perl does not support ithreads!"
 #endif /* !defined(USE_ITHREADS) */
-			]],
-			[[ ]]),
+]]],
+[[[ ]]]
+			)],
 			[c_cv_have_perl_ithreads="yes"],
 			[c_cv_have_perl_ithreads="no"]
 		)
@@ -3134,20 +3135,20 @@ then
 
 	AC_CACHE_CHECK([for broken Perl_load_module()],
 		[c_cv_have_broken_perl_load_module],
-		AC_LINK_IFELSE(
-			AC_LANG_PROGRAM(
-			[[
+		AC_LINK_IFELSE([AC_LANG_PROGRAM(
+[[[
 #define PERL_NO_GET_CONTEXT
 #include <EXTERN.h>
 #include <perl.h>
 #include <XSUB.h>
-			]],
-			[[
+]]],
+[[[
 			 dTHX;
 			 load_module (PERL_LOADMOD_NOIMPORT,
 			     newSVpv ("Collectd::Plugin::FooBar", 24),
 			     Nullsv);
-			]]),
+]]]
+			)],
 			[c_cv_have_broken_perl_load_module="no"],
 			[c_cv_have_broken_perl_load_module="yes"]
 		)
