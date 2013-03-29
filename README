@@ -112,6 +112,10 @@ Features
       Interface traffic: Number of octets, packets and errors for each
       interface.
 
+    - ipc
+      IPC counters: semaphores used, number of allocated segments in shared
+      memory and more.
+
     - iptables
       Iptables' counters: Number of bytes that were matched by a certain
       iptables rule.
