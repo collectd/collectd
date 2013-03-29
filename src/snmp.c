@@ -1203,6 +1203,7 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
   uint32_t oid_list_len = (uint32_t) (data->values_len + 1);
   /* Holds the last OID returned by the device. We use this in the GETNEXT
    * request to proceed. */
+  oid_t oid_list[oid_list_len];
   oid_t *oid_list;
   /* Set to false when an OID has left its subtree so we don't re-request it
    * again. */
@@ -1244,12 +1245,6 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
   }
 
   /* We need a copy of all the OIDs, because GETNEXT will destroy them. */
-  oid_list = (oid_t *) malloc (sizeof (oid_t) * (oid_list_len));
-  if (oid_list == NULL)
-  {
-    ERROR ("snmp plugin: csnmp_read_table: malloc failed.");
-    return (-1);
-  }
   memcpy (oid_list, data->values, data->values_len * sizeof (oid_t));
   if (data->instance.oid.oid_len > 0)
     memcpy (oid_list + data->values_len, &data->instance.oid, sizeof (oid_t));
@@ -1267,7 +1262,6 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
   if ((value_list_head == NULL) || (value_list_tail == NULL))
   {
     ERROR ("snmp plugin: csnmp_read_table: calloc failed.");
-    sfree (oid_list);
     sfree (value_list_head);
     sfree (value_list_tail);
     return (-1);
@@ -1467,7 +1461,6 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
 
   sfree (value_list_head);
   sfree (value_list_tail);
-  sfree (oid_list);
 
   return (0);
 } /* int csnmp_read_table */
