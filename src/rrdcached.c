@@ -1,6 +1,6 @@
 /**
  * collectd - src/rrdcached.c
- * Copyright (C) 2008  Florian octo Forster
+ * Copyright (C) 2008-2013  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,7 +16,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
@@ -274,6 +274,14 @@ static int rc_read (void)
   else
     sstrncpy (vl.host, daemon_address, sizeof (vl.host));
   sstrncpy (vl.plugin, "rrdcached", sizeof (vl.plugin));
+
+  status = rrdc_connect (daemon_address);
+  if (status != 0)
+  {
+    ERROR ("rrdcached plugin: rrdc_connect (%s) failed with status %i.",
+        daemon_address, status);
+    return (-1);
+  }
 
   head = NULL;
   status = rrdc_stats_get (&head);
