@@ -1204,7 +1204,6 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
   /* Holds the last OID returned by the device. We use this in the GETNEXT
    * request to proceed. */
   oid_t oid_list[oid_list_len];
-  oid_t *oid_list;
   /* Set to false when an OID has left its subtree so we don't re-request it
    * again. */
   _Bool oid_list_todo[oid_list_len];
