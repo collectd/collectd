@@ -137,7 +137,7 @@ pkglib_LTLIBRARIES =
 
 BUILT_SOURCES = 
 CLEANFILES = 
-DISTCLEANFILES = 
+MAINTAINERCLEANFILES =
 
 if BUILD_PLUGIN_AGGREGATION
 pkglib_LTLIBRARIES += aggregation.la
@@ -904,11 +904,9 @@ collectd_LDADD += "-dlopen" pf.la
 collectd_DEPENDENCIES += pf.la
 endif
 
-BUILT_SOURCES += pinba.pb-c.c pinba.pb-c.h
-DISTCLEANFILES += pinba.pb-c.c pinba.pb-c.h
 if BUILD_PLUGIN_PINBA
 pkglib_LTLIBRARIES += pinba.la
-pinba_la_SOURCES = pinba.c
+pinba_la_SOURCES = pinba.c pinba.pb-c.c pinba.pb-c.h
 pinba_la_LDFLAGS = -module -avoid-version
 pinba_la_LIBADD = -lprotobuf-c
 collectd_LDADD += "-dlopen" pinba.la
@@ -1352,11 +1350,9 @@ collectd_LDADD += "-dlopen" write_redis.la
 collectd_DEPENDENCIES += write_redis.la
 endif
 
-BUILT_SOURCES += riemann.pb-c.c riemann.pb-c.h
-DISTCLEANFILES += riemann.pb-c.c riemann.pb-c.h
 if BUILD_PLUGIN_WRITE_RIEMANN
 pkglib_LTLIBRARIES += write_riemann.la
-write_riemann_la_SOURCES = write_riemann.c riemann.pb-c.c
+write_riemann_la_SOURCES = write_riemann.c riemann.pb-c.c riemann.pb-c.h
 write_riemann_la_LDFLAGS = -module -avoid-version
 write_riemann_la_LIBADD = -lprotobuf-c
 collectd_LDADD += "-dlopen" write_riemann.la
@@ -1405,9 +1401,6 @@ dist_man_MANS = collectd.1 \
 
 EXTRA_DIST = types.db
 
-EXTRA_DIST += pinba.proto pinba.pb-c.c pinba.pb-c.h
-EXTRA_DIST += riemann.proto riemann.pb-c.c riemann.pb-c.h
-
 EXTRA_DIST +=   collectd.conf.pod \
 		collectd-email.pod \
 		collectd-exec.pod \
@@ -1441,24 +1434,26 @@ EXTRA_DIST +=   collectd.conf.pod \
 		echo "$@ has some POD errors!"; false; \
 	fi
 
-pinba.pb-c.c pinba.pb-c.h: pinba.proto
+# Protocol buffer for the "pinba" plugin.
+EXTRA_DIST += pinba.proto pinba.pb-c.c pinba.pb-c.h
+MAINTAINERCLEANFILES += pinba.pb-c.c pinba.pb-c.h
+
 if HAVE_PROTOC_C
+BUILT_SOURCES += pinba.pb-c.c pinba.pb-c.h
+
+pinba.pb-c.c pinba.pb-c.h: pinba.proto
 	protoc-c -I$(srcdir) --c_out . $(srcdir)/pinba.proto
-else
-	@echo "INFO Could not find protoc-c. This tool is necessary to generate $@"
-	@echo "INFO Check http://code.google.com/p/protobuf-c for more information"
-	@echo "INFO Note : package for Debian (Ubuntu...) is protobuf-c-compiler and protobuf-c0-dev will also be needed"
-	@echo "INFO Note : package for Fedora (Redhat, Centos...) is protobuf-c and protobuf-c-devel will also be needed"
 endif
 
-riemann.pb-c.c riemann.pb-c.h: riemann.proto
+# Protocol buffer for the "write_riemann" plugin.
+EXTRA_DIST += riemann.proto riemann.pb-c.c riemann.pb-c.h
+MAINTAINERCLEANFILES += riemann.pb-c.c riemann.pb-c.h
+
 if HAVE_PROTOC_C
+BUILT_SOURCES += riemann.pb-c.c riemann.pb-c.h
+
+riemann.pb-c.c riemann.pb-c.h: riemann.proto
 	protoc-c -I$(srcdir) --c_out . $(srcdir)/riemann.proto
-else
-	@echo "INFO Could not find protoc-c. This tool is necessary to generate $@"
-	@echo "INFO Check http://code.google.com/p/protobuf-c for more information"
-	@echo "INFO Note : package for Debian (Ubuntu...) is protobuf-c-compiler and protobuf-c0-dev will also be needed"
-	@echo "INFO Note : package for Fedora (Redhat, Centos...) is protobuf-c and protobuf-c-devel will also be needed"
 endif
 
 install-exec-hook:
