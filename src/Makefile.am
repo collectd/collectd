@@ -137,6 +137,7 @@ pkglib_LTLIBRARIES =
 
 BUILT_SOURCES = 
 CLEANFILES = 
+DISTCLEANFILES = 
 
 if BUILD_PLUGIN_AGGREGATION
 pkglib_LTLIBRARIES += aggregation.la
@@ -903,9 +904,9 @@ collectd_LDADD += "-dlopen" pf.la
 collectd_DEPENDENCIES += pf.la
 endif
 
-if BUILD_PLUGIN_PINBA
 BUILT_SOURCES += pinba.pb-c.c pinba.pb-c.h
-CLEANFILES += pinba.pb-c.c pinba.pb-c.h
+DISTCLEANFILES += pinba.pb-c.c pinba.pb-c.h
+if BUILD_PLUGIN_PINBA
 pkglib_LTLIBRARIES += pinba.la
 pinba_la_SOURCES = pinba.c
 pinba_la_LDFLAGS = -module -avoid-version
@@ -1351,9 +1352,9 @@ collectd_LDADD += "-dlopen" write_redis.la
 collectd_DEPENDENCIES += write_redis.la
 endif
 
-if BUILD_PLUGIN_WRITE_RIEMANN
 BUILT_SOURCES += riemann.pb-c.c riemann.pb-c.h
-CLEANFILES += riemann.pb-c.c riemann.pb-c.h
+DISTCLEANFILES += riemann.pb-c.c riemann.pb-c.h
+if BUILD_PLUGIN_WRITE_RIEMANN
 pkglib_LTLIBRARIES += write_riemann.la
 write_riemann_la_SOURCES = write_riemann.c riemann.pb-c.c
 write_riemann_la_LDFLAGS = -module -avoid-version
@@ -1402,7 +1403,10 @@ dist_man_MANS = collectd.1 \
 
 #collectd_1_SOURCES = collectd.pod
 
-EXTRA_DIST = types.db pinba.proto riemann.proto
+EXTRA_DIST = types.db
+
+EXTRA_DIST += pinba.proto pinba.pb-c.c pinba.pb-c.h
+EXTRA_DIST += riemann.proto riemann.pb-c.c riemann.pb-c.h
 
 EXTRA_DIST +=   collectd.conf.pod \
 		collectd-email.pod \
@@ -1438,10 +1442,24 @@ EXTRA_DIST +=   collectd.conf.pod \
 	fi
 
 pinba.pb-c.c pinba.pb-c.h: pinba.proto
+if HAVE_PROTOC_C
 	protoc-c -I$(srcdir) --c_out . $(srcdir)/pinba.proto
+else
+	@echo "INFO Could not find protoc-c. This tool is necessary to generate $@"
+	@echo "INFO Check http://code.google.com/p/protobuf-c for more information"
+	@echo "INFO Note : package for Debian (Ubuntu...) is protobuf-c-compiler and protobuf-c0-dev will also be needed"
+	@echo "INFO Note : package for Fedora (Redhat, Centos...) is protobuf-c and protobuf-c-devel will also be needed"
+endif
 
 riemann.pb-c.c riemann.pb-c.h: riemann.proto
+if HAVE_PROTOC_C
 	protoc-c -I$(srcdir) --c_out . $(srcdir)/riemann.proto
+else
+	@echo "INFO Could not find protoc-c. This tool is necessary to generate $@"
+	@echo "INFO Check http://code.google.com/p/protobuf-c for more information"
+	@echo "INFO Note : package for Debian (Ubuntu...) is protobuf-c-compiler and protobuf-c0-dev will also be needed"
+	@echo "INFO Note : package for Fedora (Redhat, Centos...) is protobuf-c and protobuf-c-devel will also be needed"
+endif
 
 install-exec-hook:
 	$(mkinstalldirs) $(DESTDIR)$(sysconfdir)
