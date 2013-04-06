@@ -24,9 +24,6 @@
 #include "plugin.h"
 #include <lvm2app.h>
 
-#define GB (1024*1024*1024)
-#define MB (1024*1024)
-
 static void volume_submit(const char *vol_name, gauge_t size, gauge_t free)
 {
     value_t values[2];
@@ -63,7 +60,7 @@ static int volume_read(void)
 
     dm_list_iterate_items(strl, vgnames) {
         vg = lvm_vg_open(lvm, strl->str, "r", 0);
-        volume_submit(strl->str, (float)lvm_vg_get_size(vg)/GB, (float)lvm_vg_get_free_size(vg)/GB);
+        volume_submit(strl->str, lvm_vg_get_size(vg), lvm_vg_get_free_size(vg));
         lvm_vg_close(vg);
     }
 
