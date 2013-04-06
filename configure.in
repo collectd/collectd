@@ -2153,6 +2153,58 @@ AC_SUBST(JAVA_LIBS)
 AM_CONDITIONAL(BUILD_WITH_JAVA, test "x$with_java" = "xyes")
 # }}}
 
+# --with-liblvm2app {{{
+with_liblvm2app_cppflags=""
+with_liblvm2app_ldflags=""
+AC_ARG_WITH(liblvm2app, [AS_HELP_STRING([--with-liblvm2app@<:@=PREFIX@:>@], [Path to liblvm2app.])],
+[
+        if test "x$withval" != "xno" && test "x$withval" != "xyes"
+        then
+                with_liblvm2app_cppflags="-I$withval/include"
+                with_liblvm2app_ldflags="-L$withval/lib"
+                with_liblvm2app="yes"
+        else
+                with_liblvm2app="$withval"
+        fi
+],
+[
+        with_liblvm2app="yes"
+])
+if test "x$with_liblvm2app" = "xyes"
+then
+        SAVE_CPPFLAGS="$CPPFLAGS"
+        CPPFLAGS="$CPPFLAGS $with_liblvm2app_cppflags"
+
+        AC_CHECK_HEADERS(lvm2app.h, [with_liblvm2app="yes"], [with_liblvm2app="no (lvm2app.h not found)"])
+
+        CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+
+if test "x$with_liblvm2app" = "xyes"
+then
+        SAVE_CPPFLAGS="$CPPFLAGS"
+        SAVE_LDFLAGS="$LDFLAGS"
+        CPPFLAGS="$CPPFLAGS $with_liblvm2app_cppflags"
+        LDFLAGS="$LDFLAGS $with_liblvm2app_ldflags"
+
+        AC_CHECK_LIB(liblvm2app, lvm_init[with_liblvm2app="yes"], [with_liblvm2app="no (Symbol 'lvm_init' not found)"])
+
+        CPPFLAGS="$SAVE_CPPFLAGS"
+        LDFLAGS="$SAVE_LDFLAGS"
+fi
+if test "x$with_liblvm2app" = "xyes"
+then
+        BUILD_WITH_LIBLVM2APP_CPPFLAGS="$with_liblvm2app_cppflags"
+        BUILD_WITH_LIBLVM2APP_LDFLAGS="$with_liblvm2app_ldflags"
+        BUILD_WITH_LIBLVM2APP_LIBS="-llvm2app"
+        AC_SUBST(BUILD_WITH_LIBLVM2APP_CPPFLAGS)
+        AC_SUBST(BUILD_WITH_LIBLVM2APP_LDFLAGS)
+        AC_SUBST(BUILD_WITH_LIBLVM2APP_LIBS)
+        AC_DEFINE(HAVE_LIBLVM2APP, 1, [Define if liblvm2app is present and usable.])
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBLVM2APP, test "x$with_liblvm2app" = "xyes")
+# }}}
+
 # --with-libmemcached {{{
 with_libmemcached_cppflags=""
 with_libmemcached_ldflags=""
@@ -4612,6 +4664,7 @@ plugin_thermal="no"
 plugin_users="no"
 plugin_uptime="no"
 plugin_vmem="no"
+plugin_volume="no"
 plugin_vserver="no"
 plugin_wireless="no"
 plugin_zfs_arc="no"
@@ -4641,6 +4694,7 @@ then
 	plugin_thermal="yes"
 	plugin_uptime="yes"
 	plugin_vmem="yes"
+	plugin_volume="yes"
 	plugin_vserver="yes"
 	plugin_wireless="yes"
 
@@ -4994,6 +5048,7 @@ AC_PLUGIN([users],       [$plugin_users],      [User statistics])
 AC_PLUGIN([uuid],        [yes],                [UUID as hostname plugin])
 AC_PLUGIN([varnish],     [$with_libvarnish],   [Varnish cache statistics])
 AC_PLUGIN([vmem],        [$plugin_vmem],       [Virtual memory statistics])
+AC_PLUGIN([volume],      [$with_liblvm2app],   [Volume statistics])
 AC_PLUGIN([vserver],     [$plugin_vserver],    [Linux VServer statistics])
 AC_PLUGIN([wireless],    [$plugin_wireless],   [Wireless statistics])
 AC_PLUGIN([write_graphite], [yes],             [Graphite / Carbon output plugin])
@@ -5329,6 +5384,7 @@ Configuration:
     uuid  . . . . . . . . $enable_uuid
     varnish . . . . . . . $enable_varnish
     vmem  . . . . . . . . $enable_vmem
+    volume  . . . . . . . $enable_volume
     vserver . . . . . . . $enable_vserver
     wireless  . . . . . . $enable_wireless
     write_graphite  . . . $enable_write_graphite

@@ -158,6 +158,7 @@
 #@BUILD_PLUGIN_VARNISH_TRUE@LoadPlugin varnish
 #@BUILD_PLUGIN_VMEM_TRUE@LoadPlugin vmem
 #@BUILD_PLUGIN_VSERVER_TRUE@LoadPlugin vserver
+#@BUILD_PLUGIN_VOLUME_TRUE@LoadPlugin volume
 #@BUILD_PLUGIN_WIRELESS_TRUE@LoadPlugin wireless
 #@BUILD_PLUGIN_WRITE_GRAPHITE_TRUE@LoadPlugin write_graphite
 #@BUILD_PLUGIN_WRITE_HTTP_TRUE@LoadPlugin write_http

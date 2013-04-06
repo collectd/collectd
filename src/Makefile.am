@@ -1290,6 +1290,15 @@ collectd_LDADD += "-dlopen" vmem.la
 collectd_DEPENDENCIES += vmem.la
 endif
 
+if BUILD_PLUGIN_VOLUME
+pkglib_LTLIBRARIES += volume.la
+volume_la_SOURCES = volume.c
+volume_la_LDFLAGS = -module -avoid-version
+volume_la_LIBADD = -llvm2app
+collectd_LDADD += "-dlopen" volume.la
+collectd_DEPENDENCIES += volume.la
+endif
+
 if BUILD_PLUGIN_VSERVER
 pkglib_LTLIBRARIES += vserver.la
 vserver_la_SOURCES = vserver.c
