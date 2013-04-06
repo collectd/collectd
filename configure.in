@@ -49,15 +49,12 @@ AC_PROG_YACC
 PKG_PROG_PKG_CONFIG
 
 AC_CHECK_PROG([have_protoc_c], [protoc-c], [yes], [no])
-if test "x$have_protoc_c" = "xyes"
-then
-	AC_CHECK_HEADERS([google/protobuf-c/protobuf-c.h],
-			 [have_protobuf_c_h="yes"],
-			 [have_protobuf_c_h="no"])
-fi
+AC_CHECK_HEADERS([google/protobuf-c/protobuf-c.h],
+                 [have_protobuf_c_h="yes"],
+                 [have_protobuf_c_h="no"])
 if test "x$have_protoc_c" = "xyes" && test "x$have_protobuf_c_h" != "xyes"
 then
-	have_protoc_c="no (unable to find protobuf-c.h)"
+	have_protoc_c="no (unable to find <google/protobuf-c/protobuf-c.h>)"
 fi
 AM_CONDITIONAL(HAVE_PROTOC_C, test "x$have_protoc_c" = "xyes")
 
@@ -4957,7 +4954,7 @@ AC_PLUGIN([oracle],      [$with_oracle],       [Oracle plugin])
 AC_PLUGIN([perl],        [$plugin_perl],       [Embed a Perl interpreter])
 AC_PLUGIN([pf],          [$have_net_pfvar_h],  [BSD packet filter (PF) statistics])
 # FIXME: Check for libevent, too.
-AC_PLUGIN([pinba],       [$have_protoc_c],     [Pinba statistics])
+AC_PLUGIN([pinba],       [$have_protobuf_c_h], [Pinba statistics])
 AC_PLUGIN([ping],        [$with_liboping],     [Network latency statistics])
 AC_PLUGIN([postgresql],  [$with_libpq],        [PostgreSQL database statistics])
 AC_PLUGIN([powerdns],    [yes],                [PowerDNS statistics])
@@ -5000,7 +4997,7 @@ AC_PLUGIN([write_graphite], [yes],             [Graphite / Carbon output plugin]
 AC_PLUGIN([write_http],  [$with_libcurl],      [HTTP output plugin])
 AC_PLUGIN([write_mongodb], [$with_libmongoc],  [MongoDB output plugin])
 AC_PLUGIN([write_redis], [$with_libcredis],    [Redis output plugin])
-AC_PLUGIN([write_riemann], [$have_protoc_c],   [Riemann output plugin])
+AC_PLUGIN([write_riemann], [$have_protobuf_c_h], [Riemann output plugin])
 AC_PLUGIN([xmms],        [$with_libxmms],      [XMMS statistics])
 AC_PLUGIN([zfs_arc],     [$plugin_zfs_arc],    [ZFS ARC statistics])
 
