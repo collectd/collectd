@@ -675,7 +675,7 @@ static int submit_cache_ratio (const char *host, /* {{{ */
 
 /* Submits all the caches used by WAFL. Uses "submit_cache_ratio". */
 static int submit_wafl_data (const char *hostname, const char *instance, /* {{{ */
-		cfg_wafl_t *old_data, const cfg_wafl_t *new_data, int interval)
+		cfg_wafl_t *old_data, const cfg_wafl_t *new_data, cdtime_t interval)
 {
 	/* Submit requested counters */
 	if (HAS_ALL_FLAGS (old_data->flags, CFG_WAFL_NAME_CACHE | HAVE_WAFL_NAME_CACHE)
@@ -836,7 +836,7 @@ static cdtime_t cna_child_get_cdtime (na_elem_t *data) /* {{{ */
  */
 /* Data corresponding to <WAFL /> */
 static int cna_handle_wafl_data (const char *hostname, cfg_wafl_t *cfg_wafl, /* {{{ */
-		na_elem_t *data, int interval)
+		na_elem_t *data, cdtime_t interval)
 {
 	cfg_wafl_t perf_data;
 	const char *plugin_inst;
@@ -989,7 +989,8 @@ static int cna_query_wafl (host_config_t *host) /* {{{ */
 		return (-1);
 	}
 
-	status = cna_handle_wafl_data (host->name, host->cfg_wafl, data, host->interval);
+	status = cna_handle_wafl_data (host->name, host->cfg_wafl, data,
+			host->cfg_wafl->interval.interval);
 
 	if (status == 0)
 		host->cfg_wafl->interval.last_read = now;
@@ -1184,7 +1185,8 @@ static int cna_query_disk (host_config_t *host) /* {{{ */
 		return (-1);
 	}
 
-	status = cna_handle_disk_data (host->name, host->cfg_disk, data, host->interval);
+	status = cna_handle_disk_data (host->name, host->cfg_disk, data,
+			host->cfg_disk->interval.interval);
 
 	if (status == 0)
 		host->cfg_disk->interval.last_read = now;
@@ -1355,7 +1357,8 @@ static int cna_query_volume_perf (host_config_t *host) /* {{{ */
 		return (-1);
 	}
 
-	status = cna_handle_volume_perf_data (host->name, host->cfg_volume_perf, data, host->interval);
+	status = cna_handle_volume_perf_data (host->name, host->cfg_volume_perf, data,
+			host->cfg_volume_perf->interval.interval);
 
 	if (status == 0)
 		host->cfg_volume_perf->interval.last_read = now;
@@ -1669,7 +1672,8 @@ static int cna_handle_volume_usage_data (const host_config_t *host, /* {{{ */
 		} /* }}} end of 32-bit workaround */
 	} /* for (elem_volume) */
 
-	return (cna_submit_volume_usage_data (host->name, cfg_volume, host->interval));
+	return (cna_submit_volume_usage_data (host->name, cfg_volume,
+				host->cfg_volume_usage->interval.interval));
 } /* }}} int cna_handle_volume_usage_data */
 
 static int cna_setup_volume_usage (cfg_volume_usage_t *cvu) /* {{{ */
@@ -1881,7 +1885,8 @@ static int cna_query_system (host_config_t *host) /* {{{ */
 		return (-1);
 	}
 
-	status = cna_handle_system_data (host->name, host->cfg_system, data, host->interval);
+	status = cna_handle_system_data (host->name, host->cfg_system, data,
+			host->cfg_system->interval.interval);
 
 	if (status == 0)
 		host->cfg_system->interval.last_read = now;
