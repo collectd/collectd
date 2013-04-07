@@ -162,22 +162,43 @@ riemann_send(struct riemann_host *host, Msg const *msg)
 	return 0;
 }
 
-static int riemann_event_add_tag (Event *event, /* {{{ */
-		char const *format, ...)
+static int riemann_event_add_tag (Event *event, char const *tag) /* {{{ */
 {
-	va_list ap;
-	char buffer[1024];
-	size_t ret;
-
-	va_start (ap, format);
-	ret = vsnprintf (buffer, sizeof (buffer), format, ap);
-	if (ret >= sizeof (buffer))
-		ret = sizeof (buffer) - 1;
-	buffer[ret] = 0;
-	va_end (ap);
-
-	return (strarray_add (&event->tags, &event->n_tags, buffer));
+	return (strarray_add (&event->tags, &event->n_tags, tag));
 } /* }}} int riemann_event_add_tag */
+
+static int riemann_event_add_attribute (Event *event, /* {{{ */
+		char const *key, char const *value)
+{
+	Attribute **new_attributes;
+	Attribute *a;
+
+	new_attributes = realloc (event->attributes,
+			sizeof (*event->attributes) * (event->n_attributes + 1));
+	if (new_attributes == NULL)
+	{
+		ERROR ("write_riemann plugin: realloc failed.");
+		return (ENOMEM);
+	}
+	event->attributes = new_attributes;
+
+	a = malloc (sizeof (*a));
+	if (a == NULL)
+	{
+		ERROR ("write_riemann plugin: malloc failed.");
+		return (ENOMEM);
+	}
+	attribute__init (a);
+
+	a->key = strdup (key);
+	if (value != NULL)
+		a->value = strdup (value);
+
+	event->attributes[event->n_attributes] = a;
+	event->n_attributes++;
+
+	return (0);
+} /* }}} int riemann_event_add_attribute */
 
 static Msg *riemann_notification_to_protobuf (struct riemann_host *host, /* {{{ */
 		notification_t const *n)
@@ -234,20 +255,22 @@ static Msg *riemann_notification_to_protobuf (struct riemann_host *host, /* {{{ 
 	event->state = strdup (severity);
 
 	riemann_event_add_tag (event, "notification");
+	if (n->host[0] != 0)
+		riemann_event_add_attribute (event, "host", n->host);
 	if (n->plugin[0] != 0)
-		riemann_event_add_tag (event, "plugin:%s", n->plugin);
+		riemann_event_add_attribute (event, "plugin", n->plugin);
 	if (n->plugin_instance[0] != 0)
-		riemann_event_add_tag (event, "plugin_instance:%s",
+		riemann_event_add_attribute (event, "plugin_instance",
 				n->plugin_instance);
 
 	if (n->type[0] != 0)
-		riemann_event_add_tag (event, "type:%s", n->type);
+		riemann_event_add_attribute (event, "type", n->type);
 	if (n->type_instance[0] != 0)
-		riemann_event_add_tag (event, "type_instance:%s",
+		riemann_event_add_attribute (event, "type_instance",
 				n->type_instance);
 
 	for (i = 0; i < riemann_tags_num; i++)
-		riemann_event_add_tag (event, "%s", riemann_tags[i]);
+		riemann_event_add_tag (event, riemann_tags[i]);
 
 	format_name (service_buffer, sizeof (service_buffer),
 			/* host = */ "", n->plugin, n->plugin_instance,
@@ -296,31 +319,39 @@ static Event *riemann_value_to_protobuf (struct riemann_host const *host, /* {{{
 	event->ttl = CDTIME_T_TO_TIME_T (2 * vl->interval);
 	event->has_ttl = 1;
 
-	riemann_event_add_tag (event, "plugin:%s", vl->plugin);
+	riemann_event_add_attribute (event, "plugin", vl->plugin);
 	if (vl->plugin_instance[0] != 0)
-		riemann_event_add_tag (event, "plugin_instance:%s",
+		riemann_event_add_attribute (event, "plugin_instance",
 				vl->plugin_instance);
 
-	riemann_event_add_tag (event, "type:%s", vl->type);
+	riemann_event_add_attribute (event, "type", vl->type);
 	if (vl->type_instance[0] != 0)
-		riemann_event_add_tag (event, "type_instance:%s",
+		riemann_event_add_attribute (event, "type_instance",
 				vl->type_instance);
 
 	if ((ds->ds[index].type != DS_TYPE_GAUGE) && (rates != NULL))
 	{
-		riemann_event_add_tag (event, "ds_type:%s:rate",
+		char ds_type[DATA_MAX_NAME_LEN];
+
+		ssnprintf (ds_type, sizeof (ds_type), "%s:rate",
 				DS_TYPE_TO_STRING(ds->ds[index].type));
+		riemann_event_add_attribute (event, "ds_type", ds_type);
 	}
 	else
 	{
-		riemann_event_add_tag (event, "ds_type:%s",
+		riemann_event_add_attribute (event, "ds_type",
 				DS_TYPE_TO_STRING(ds->ds[index].type));
 	}
-	riemann_event_add_tag (event, "ds_name:%s", ds->ds[index].name);
-	riemann_event_add_tag (event, "ds_index:%zu", index);
+	riemann_event_add_attribute (event, "ds_name", ds->ds[index].name);
+	{
+		char ds_index[DATA_MAX_NAME_LEN];
+
+		ssnprintf (ds_index, sizeof (ds_index), "%zu", index);
+		riemann_event_add_attribute (event, "ds_index", ds_index);
+	}
 
 	for (i = 0; i < riemann_tags_num; i++)
-		riemann_event_add_tag (event, "%s", riemann_tags[i]);
+		riemann_event_add_tag (event, riemann_tags[i]);
 
 	if (ds->ds[index].type == DS_TYPE_GAUGE)
 	{
