@@ -92,7 +92,7 @@ static void fc_free_matches (fc_match_t *m) /* {{{ */
     (*m->proc.destroy) (&m->user_data);
   else if (m->user_data != NULL)
   {
-    ERROR ("Filter sybsystem: fc_free_matches: There is user data, but no "
+    ERROR ("Filter subsystem: fc_free_matches: There is user data, but no "
         "destroy functions has been specified. "
         "Memory will probably be lost!");
   }
@@ -112,7 +112,7 @@ static void fc_free_targets (fc_target_t *t) /* {{{ */
     (*t->proc.destroy) (&t->user_data);
   else if (t->user_data != NULL)
   {
-    ERROR ("Filter sybsystem: fc_free_targets: There is user data, but no "
+    ERROR ("Filter subsystem: fc_free_targets: There is user data, but no "
         "destroy functions has been specified. "
         "Memory will probably be lost!");
   }

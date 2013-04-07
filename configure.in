@@ -582,7 +582,7 @@ AC_CACHE_CHECK([for strtok_r],
       saveptr = NULL;
       while ((token = strtok_r (dummy, ",", &saveptr)) != NULL)
       {
-	dummy = NULL;
+        dummy = NULL;
         printf ("token = %s;\n", token);
       }
 ]]]
@@ -615,7 +615,7 @@ then
         saveptr = NULL;
         while ((token = strtok_r (dummy, ",", &saveptr)) != NULL)
         {
-	  dummy = NULL;
+          dummy = NULL;
           printf ("token = %s;\n", token);
         }
 ]]]
@@ -1983,31 +1983,31 @@ then
 	if test -d "$with_java_home"
 	then
 		AC_MSG_CHECKING([for jni.h])
-		TMPDIR=`find "$with_java_home" -name jni.h -type f -exec 'dirname' '{}' ';' | head -n 1`
-		if test "x$TMPDIR" != "x"
+		TMPVAR=`find "$with_java_home" -name jni.h -type f -exec 'dirname' '{}' ';' | head -n 1`
+		if test "x$TMPVAR" != "x"
 		then
-			AC_MSG_RESULT([found in $TMPDIR])
-			JAVA_CPPFLAGS="$JAVA_CPPFLAGS -I$TMPDIR"
+			AC_MSG_RESULT([found in $TMPVAR])
+			JAVA_CPPFLAGS="$JAVA_CPPFLAGS -I$TMPVAR"
 		else
 			AC_MSG_RESULT([not found])
 		fi
 
 		AC_MSG_CHECKING([for jni_md.h])
-		TMPDIR=`find "$with_java_home" -name jni_md.h -type f -exec 'dirname' '{}' ';' | head -n 1`
-		if test "x$TMPDIR" != "x"
+		TMPVAR=`find "$with_java_home" -name jni_md.h -type f -exec 'dirname' '{}' ';' | head -n 1`
+		if test "x$TMPVAR" != "x"
 		then
-			AC_MSG_RESULT([found in $TMPDIR])
-			JAVA_CPPFLAGS="$JAVA_CPPFLAGS -I$TMPDIR"
+			AC_MSG_RESULT([found in $TMPVAR])
+			JAVA_CPPFLAGS="$JAVA_CPPFLAGS -I$TMPVAR"
 		else
 			AC_MSG_RESULT([not found])
 		fi
 
 		AC_MSG_CHECKING([for libjvm.so])
-		TMPDIR=`find "$with_java_home" -name libjvm.so -type f -exec 'dirname' '{}' ';' | head -n 1`
-		if test "x$TMPDIR" != "x"
+		TMPVAR=`find "$with_java_home" -name libjvm.so -type f -exec 'dirname' '{}' ';' | head -n 1`
+		if test "x$TMPVAR" != "x"
 		then
-			AC_MSG_RESULT([found in $TMPDIR])
-			JAVA_LDFLAGS="$JAVA_LDFLAGS -L$TMPDIR -Wl,-rpath -Wl,$TMPDIR"
+			AC_MSG_RESULT([found in $TMPVAR])
+			JAVA_LDFLAGS="$JAVA_LDFLAGS -L$TMPVAR -Wl,-rpath -Wl,$TMPVAR"
 		else
 			AC_MSG_RESULT([not found])
 		fi
@@ -2015,10 +2015,10 @@ then
 		if test "x$JAVAC" = "x"
 		then
 			AC_MSG_CHECKING([for javac])
-			TMPDIR=`find "$with_java_home" -name javac -type f | head -n 1`
-			if test "x$TMPDIR" != "x"
+			TMPVAR=`find "$with_java_home" -name javac -type f | head -n 1`
+			if test "x$TMPVAR" != "x"
 			then
-				JAVAC="$TMPDIR"
+				JAVAC="$TMPVAR"
 				AC_MSG_RESULT([$JAVAC])
 			else
 				AC_MSG_RESULT([not found])
@@ -2027,10 +2027,10 @@ then
 		if test "x$JAR" = "x"
 		then
 			AC_MSG_CHECKING([for jar])
-			TMPDIR=`find "$with_java_home" -name jar -type f | head -n 1`
-			if test "x$TMPDIR" != "x"
+			TMPVAR=`find "$with_java_home" -name jar -type f | head -n 1`
+			if test "x$TMPVAR" != "x"
 			then
-				JAR="$TMPDIR"
+				JAR="$TMPVAR"
 				AC_MSG_RESULT([$JAR])
 			else
 				AC_MSG_RESULT([not found])
