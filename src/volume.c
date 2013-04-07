@@ -45,20 +45,19 @@ static int volume_read(void)
 {
     lvm_t lvm;
     vg_t vg;
-    int status = 0;
     struct dm_list *vg_names;
     struct lvm_str_list *name_list;
 
     lvm = lvm_init(NULL);
     if (!lvm) {
-    	status = lvm_errno(lvm);
     	ERROR("volume plugin: lvm_init failed: %s", lvm_errmsg(lvm));
+    	return (lvm_errno(lvm));
     }
 
     vg_names = lvm_list_vg_names(lvm);
     if (!vg_names) {
-    	status = lvm_errno(lvm);
     	ERROR("volume plugin lvm_list_vg_name failed %s", lvm_errmsg(lvm));
+    	return (lvm_errno(lvm));
     }
 
     dm_list_iterate_items(name_list, vg_names) {
