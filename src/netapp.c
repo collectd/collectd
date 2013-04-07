@@ -1881,14 +1881,16 @@ static int cna_handle_quota_data (const host_config_t *host, /* {{{ */
 			value *= 1024; /* disk-used reports kilobytes */
 			submit_double (host->name, plugin_instance,
 					/* type = */ "df_complex", /* type instance = */ NULL,
-					(double)value, /* timestamp = */ 0, host->interval);
+					(double)value, /* timestamp = */ 0,
+					host->cfg_quota->interval.interval);
 		}
 
 		value = na_child_get_uint64 (elem_quota, "files-used", UINT64_MAX);
 		if (value != UINT64_MAX) {
 			submit_double (host->name, plugin_instance,
 					/* type = */ "files", /* type instance = */ NULL,
-					(double)value, /* timestamp = */ 0, host->interval);
+					(double)value, /* timestamp = */ 0,
+					host->cfg_quota->interval.interval);
 		}
 	} /* for (elem_quota) */
 
@@ -2046,7 +2048,8 @@ static int cna_handle_snapvault_iter (host_config_t *host, /* {{{ */
 			return (-1);
 		}
 
-		cna_handle_snapvault_data (host->name, host->cfg_snapvault, elem, host->interval);
+		cna_handle_snapvault_data (host->name, host->cfg_snapvault, elem,
+				host->cfg_snapvault->interval.interval);
 		na_elem_free (elem);
 	}
 
