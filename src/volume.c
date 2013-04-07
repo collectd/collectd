@@ -25,7 +25,7 @@
 #include "common.h"
 #include "plugin.h"
 
-static void volume_submit(const char *vol_name, const char *type, const char type_instance, gauge_t value)
+static void volume_submit(const char *vol_name, const char *type, const char *type_instance, gauge_t value)
 {
     value_t values[1];
     value_list_t vl = VALUE_LIST_INIT;
@@ -36,7 +36,7 @@ static void volume_submit(const char *vol_name, const char *type, const char typ
     vl.values_len = STATIC_ARRAY_SIZE (values);
     sstrncpy(vl.host, hostname_g, sizeof (vl.host));
     sstrncpy(vl.type, type, sizeof (vl.type));
-    sstrncpy(vl.type_instance, type_instacne, sizeof (vl.type_instance));
+    sstrncpy(vl.type_instance, type_instance, sizeof (vl.type_instance));
 
     plugin_dispatch_values (&vl);
 }
