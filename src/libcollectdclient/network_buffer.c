@@ -146,6 +146,7 @@ static _Bool have_gcrypt (void) /* {{{ */
 #endif
 } /* }}} _Bool have_gcrypt */
 
+#ifndef HAVE_HTONLL
 static uint64_t htonll (uint64_t val) /* {{{ */
 {
   static int config = 0;
@@ -175,6 +176,7 @@ static uint64_t htonll (uint64_t val) /* {{{ */
 
   return ((((uint64_t) lo) << 32) | ((uint64_t) hi));
 } /* }}} uint64_t htonll */
+#endif
 
 static double htond (double val) /* {{{ */
 {
