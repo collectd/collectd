@@ -192,7 +192,7 @@ static int vmw_query_memory (VMGuestLibHandle handle, const char *function_name,
   /* The returned value is in megabytes, so multiply it by 2^20. It's not
    * 10^6, because we're talking about memory. */
   submit_vmw_gauge ("memory", type_instance,
-      (gauge_t) (1024 * 1024 * value));
+      (gauge_t) (BYTES_PER_MB * value));
   return (0);
 } /* }}} int vmw_query_megabyte */
 
@@ -215,20 +215,7 @@ static int vmware_read (void)
   /* cpufreq */
   uint32_t hostMHz = 0;
 
-  /* memory */
-  uint64_t memTargetSizeMB = 0;
-  uint32_t memUsedMB = 0;
-  uint32_t memMappedMB = 0;
-  uint32_t memActiveMB = 0;
-  uint32_t memOverheadMB = 0;
-  uint32_t memSharedMB = 0;
-  uint32_t memSharedSavedMB = 0;
-  uint32_t memBalloonedMB = 0;
-  uint32_t memSwappedMB = 0;
-
   /* memory (quality of service) */
-  uint32_t memReservationMB = 0;
-  uint32_t memLimitMB = 0;
   uint32_t memShares = 0;
 
   VMSessionId sessionId = 0;
@@ -331,86 +318,6 @@ static int vmware_read (void)
   VMW_QUERY_MEMORY (GetMemLimitMB,       "limit");
 
 #undef VMW_QUERY_MEMORY
-
-  /* GetMemTargetSizeMB */
-  glError = GuestLib_GetMemTargetSizeMB(glHandle, &memTargetSizeMB);
-  if (glError != VMGUESTLIB_ERROR_SUCCESS) {
-    DEBUG ("vmware plugin: Failed to get target mem size: %s\n", GuestLib_GetErrorText(glError));
-    if (glError == VMGUESTLIB_ERROR_UNSUPPORTED_VERSION) {
-      memTargetSizeMB = 0;
-    }
-  }
-  submit_vmw_gauge ("memory", "target", BYTES_PER_MB * (gauge_t) memTargetSizeMB);
-
-  /* GetMemUsedMB */
-  glError = GuestLib_GetMemUsedMB(glHandle, &memUsedMB);
-  if (glError != VMGUESTLIB_ERROR_SUCCESS) {
-    DEBUG ("vmware plugin: Failed to get used mem: %s\n", GuestLib_GetErrorText(glError));
-  }
-  submit_vmw_gauge ("memory", "used", BYTES_PER_MB * (gauge_t) memUsedMB);
-
-  /* GetMemMappedMB */
-  glError = GuestLib_GetMemMappedMB(glHandle, &memMappedMB);
-  if (glError != VMGUESTLIB_ERROR_SUCCESS) {
-    DEBUG ("vmware plugin: Failed to get mapped mem: %s\n", GuestLib_GetErrorText(glError));
-  }
-  submit_vmw_gauge ("memory", "mapped", BYTES_PER_MB * (gauge_t) memMappedMB);
-
-  /* GetMemActiveMB */
-  glError = GuestLib_GetMemActiveMB(glHandle, &memActiveMB);
-  if (glError != VMGUESTLIB_ERROR_SUCCESS) {
-    DEBUG ("vmware plugin: Failed to get active mem: %s\n", GuestLib_GetErrorText(glError));
-  }
-  submit_vmw_gauge ("memory", "active", BYTES_PER_MB * (gauge_t) memActiveMB);
-
-  /* GetMemOverheadMB */
-  glError = GuestLib_GetMemOverheadMB(glHandle, &memOverheadMB);
-  if (glError != VMGUESTLIB_ERROR_SUCCESS) {
-    DEBUG ("vmware plugin: Failed to get overhead mem: %s\n", GuestLib_GetErrorText(glError));
-  }
-  submit_vmw_gauge ("memory", "overhead", BYTES_PER_MB * (gauge_t) memOverheadMB);
-
-  /* GetMemSharedMB */
-  glError = GuestLib_GetMemSharedMB(glHandle, &memSharedMB);
-  if (glError != VMGUESTLIB_ERROR_SUCCESS) {
-    DEBUG ("vmware plugin: Failed to get shared mem: %s\n", GuestLib_GetErrorText(glError));
-  }
-  submit_vmw_gauge ("memory", "shared", BYTES_PER_MB * (gauge_t) memSharedMB);
-
-  /* GetMemSharedSavedMB */
-  glError = GuestLib_GetMemSharedSavedMB(glHandle, &memSharedSavedMB);
-  if (glError != VMGUESTLIB_ERROR_SUCCESS) {
-    DEBUG ("vmware plugin: Failed to get shared saved mem: %s\n", GuestLib_GetErrorText(glError));
-  }
-  submit_vmw_gauge ("memory", "shared_saved", BYTES_PER_MB * (gauge_t) memSharedSavedMB);
-
-  /* GetMemBalloonedMB */
-  glError = GuestLib_GetMemBalloonedMB(glHandle, &memBalloonedMB);
-  if (glError != VMGUESTLIB_ERROR_SUCCESS) {
-    DEBUG ("vmware plugin: Failed to get ballooned mem: %s\n", GuestLib_GetErrorText(glError));
-  }
-  submit_vmw_gauge ("memory", "ballooned", BYTES_PER_MB * (gauge_t) memBalloonedMB);
-
-  /* GetMemSwappedMB */
-  glError = GuestLib_GetMemSwappedMB(glHandle, &memSwappedMB);
-  if (glError != VMGUESTLIB_ERROR_SUCCESS) {
-    DEBUG ("vmware plugin: Failed to get swapped mem: %s\n", GuestLib_GetErrorText(glError));
-  }
-  submit_vmw_gauge ("memory", "swapped", BYTES_PER_MB * (gauge_t) memSwappedMB);
-
-  /* GetMemReservationMB */
-  glError = GuestLib_GetMemReservationMB(glHandle, &memReservationMB);
-  if (glError != VMGUESTLIB_ERROR_SUCCESS) {
-    DEBUG ("vmware plugin: Failed to get mem reservation: %s\n", GuestLib_GetErrorText(glError));
-  }
-  submit_vmw_gauge ("memory", "reservation", BYTES_PER_MB * (gauge_t) memReservationMB);
-
-  /* GetMemLimitMB */
-  glError = GuestLib_GetMemLimitMB(glHandle, &memLimitMB);
-  if (glError != VMGUESTLIB_ERROR_SUCCESS) {
-    DEBUG ("vmware plugin: Failed to get mem limit: %s\n", GuestLib_GetErrorText(glError));
-  }
-  submit_vmw_gauge ("memory", "limit", BYTES_PER_MB * (gauge_t) memLimitMB);
 
   /* GetMemShares */
   glError = GuestLib_GetMemShares(glHandle, &memShares);
