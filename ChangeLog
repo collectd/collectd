@@ -351,6 +351,27 @@
 	* v5upgrade target: Target for converting v4 data sets to the v5
 	  schema.
 
+2013-04-07, Version 4.10.9
+	* Build system: A bad interaction between the Java detection code and
+	  libltdl has been fixed. Thanks to Dave Cottlehuber for his patch.
+	* apache, ascent, bind, curl, curl_json, curl_xml, nginx and
+	  write_http plugins: Portability fixes, protection from infinite
+	  redirect loops, improved error handling and incorrect dereferences
+	  have been fixed. Most of these are related to the cURL library.
+	  Thanks to Dan Fandrich for his patches.
+	* logfile plugin: Flush the output file handle. This works around
+	  caching when logging to STDOUT and redirecting into a file. Thanks
+	  to Nathan Huff for the patch.
+	* network plugin: Build issues under FreeBSD and initialization have
+	  been fixed. Thanks to Ed Schouten for his patch.
+	* mysql plugin: Fix a memory leak in the error handling. Thanks to
+	  Tomas Doran for his patch.
+	* thermal plugin: The initialization of dispatched value lists has
+	  been fixed. Thanks to Markus Knetschke for his patch.
+	* unixsock plugin: Parsing of options with an underscore, e.g.
+	  "plugin_instance" has been fixed. Thanks to Tommie Gannert for his
+	  patch.
+
 2012-11-11, Version 4.10.8
 	* collectd: Create new directories with mode 0777 and let umask remove
 	  unwanted permission bits.
