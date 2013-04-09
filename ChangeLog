@@ -75,6 +75,35 @@
 	* tcpconns plugin: Use a netlink socket rather than reading from /proc
 	  for improved performance. Thanks to Michael Stapelberg for the patch.
 
+2013-04-08, Version 5.1.3
+	* Build system: A bad interaction between the Java detection code and
+	  libltdl has been fixed. Thanks to Dave Cottlehuber for his patch.
+	* collectd: Fixed read callback scheduling at startup.
+	* apache, ascent, bind, curl, curl_json, curl_xml, nginx and
+	  write_http plugins: Portability fixes, protection from infinite
+	  redirect loops, improved error handling and incorrect dereferences
+	  have been fixed. Most of these are related to the cURL library.
+	  Thanks to Dan Fandrich for his patches.
+	* logfile plugin: Flush the output file handle. This works around
+	  caching when logging to STDOUT and redirecting into a file. Thanks
+	  to Nathan Huff for the patch.
+	* mysql plugin: Fix a memory leak in the error handling. Thanks to
+	  Tomas Doran for his patch.
+	* netapp plugin: Fix the interval with which values are dispatched.
+	* network plugin: Build issues under FreeBSD and initialization have
+	  been fixed. Thanks to Ed Schouten for his patch.
+	* nfs plugin: A compilation problem has been fixed.
+	* notify_email plugin: Add a character set to the mail header. Thanks
+	  to Manuel Cissé for his patch.
+	* rrdcached plugin: Connect to the daemon from the read callback.
+	* snmp plugin: Matching of SNMP subtrees has been improved. Thanks to
+	  "jkrabbe" for the patch.
+	* thermal plugin: The initialization of dispatched value lists has
+	  been fixed. Thanks to Markus Knetschke for his patch.
+	* unixsock plugin: Parsing of options with an underscore, e.g.
+	  "plugin_instance" has been fixed. Thanks to Tommie Gannert for his
+	  patch.
+
 2013-01-25, Version 5.1.2
 	* Build system: "make distcheck" has been fixed. Thanks to Yves
 	  Mettier for his patches.
@@ -427,6 +456,27 @@
 	  alternatives.
 	* v5upgrade target: Target for converting v4 data sets to the v5
 	  schema.
+
+2013-04-07, Version 4.10.9
+	* Build system: A bad interaction between the Java detection code and
+	  libltdl has been fixed. Thanks to Dave Cottlehuber for his patch.
+	* apache, ascent, bind, curl, curl_json, curl_xml, nginx and
+	  write_http plugins: Portability fixes, protection from infinite
+	  redirect loops, improved error handling and incorrect dereferences
+	  have been fixed. Most of these are related to the cURL library.
+	  Thanks to Dan Fandrich for his patches.
+	* logfile plugin: Flush the output file handle. This works around
+	  caching when logging to STDOUT and redirecting into a file. Thanks
+	  to Nathan Huff for the patch.
+	* network plugin: Build issues under FreeBSD and initialization have
+	  been fixed. Thanks to Ed Schouten for his patch.
+	* mysql plugin: Fix a memory leak in the error handling. Thanks to
+	  Tomas Doran for his patch.
+	* thermal plugin: The initialization of dispatched value lists has
+	  been fixed. Thanks to Markus Knetschke for his patch.
+	* unixsock plugin: Parsing of options with an underscore, e.g.
+	  "plugin_instance" has been fixed. Thanks to Tommie Gannert for his
+	  patch.
 
 2012-11-11, Version 4.10.8
 	* collectd: Create new directories with mode 0777 and let umask remove
