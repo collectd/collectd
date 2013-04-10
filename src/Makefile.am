@@ -136,8 +136,7 @@ collectd_tg_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 pkglib_LTLIBRARIES = 
 
 BUILT_SOURCES = 
-CLEANFILES = 
-MAINTAINERCLEANFILES =
+CLEANFILES =
 
 if BUILD_PLUGIN_AGGREGATION
 pkglib_LTLIBRARIES += aggregation.la
@@ -1434,22 +1433,19 @@ EXTRA_DIST +=   collectd.conf.pod \
 		echo "$@ has some POD errors!"; false; \
 	fi
 
-# Protocol buffer for the "pinba" plugin.
-EXTRA_DIST += pinba.proto pinba.pb-c.c pinba.pb-c.h
-MAINTAINERCLEANFILES += pinba.pb-c.c pinba.pb-c.h
-
 if HAVE_PROTOC_C
+# Protocol buffer for the "pinba" plugin.
+CLEANFILES += pinba.pb-c.c pinba.pb-c.h
 BUILT_SOURCES += pinba.pb-c.c pinba.pb-c.h
 
 pinba.pb-c.c pinba.pb-c.h: pinba.proto
 	protoc-c -I$(srcdir) --c_out . $(srcdir)/pinba.proto
 endif
 
-# Protocol buffer for the "write_riemann" plugin.
-EXTRA_DIST += riemann.proto riemann.pb-c.c riemann.pb-c.h
-MAINTAINERCLEANFILES += riemann.pb-c.c riemann.pb-c.h
-
 if HAVE_PROTOC_C
+# Protocol buffer for the "write_riemann" plugin.
+CLEANFILES += riemann.pb-c.c riemann.pb-c.h
+
 BUILT_SOURCES += riemann.pb-c.c riemann.pb-c.h
 
 riemann.pb-c.c riemann.pb-c.h: riemann.proto
