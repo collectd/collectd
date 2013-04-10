@@ -1433,8 +1433,9 @@ EXTRA_DIST +=   collectd.conf.pod \
 		echo "$@ has some POD errors!"; false; \
 	fi
 
-if HAVE_PROTOC_C
 # Protocol buffer for the "pinba" plugin.
+EXTRA_DIST += pinba.proto
+if HAVE_PROTOC_C
 CLEANFILES += pinba.pb-c.c pinba.pb-c.h
 BUILT_SOURCES += pinba.pb-c.c pinba.pb-c.h
 
@@ -1442,8 +1443,9 @@ pinba.pb-c.c pinba.pb-c.h: pinba.proto
 	protoc-c -I$(srcdir) --c_out . $(srcdir)/pinba.proto
 endif
 
-if HAVE_PROTOC_C
 # Protocol buffer for the "write_riemann" plugin.
+EXTRA_DIST += riemann.proto
+if HAVE_PROTOC_C
 CLEANFILES += riemann.pb-c.c riemann.pb-c.h
 
 BUILT_SOURCES += riemann.pb-c.c riemann.pb-c.h
