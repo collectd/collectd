@@ -38,6 +38,9 @@
 #define REDIS_DEF_PORT    6379
 #define REDIS_DEF_TIMEOUT 2000
 #define MAX_REDIS_NODE_NAME 64
+#define MAX_REDIS_QUERY_NAME 64
+#define MAX_REDIS_COMMAND_LEN 256
+#define MAX_REDIS_TYPE_LEN 256
 
 /* Redis plugin configuration example:
  *
@@ -47,9 +50,24 @@
  *     Port "6379"
  *     Timeout 2
  *     Password "foobar"
+ *     <Query "len-queue">
+ *        Command "LLEN queue"
+ *        Type "gauge"
+ *     </Query>
  *   </Node>
  * </Plugin>
  */
+
+struct redis_query_s;
+typedef struct redis_query_s redis_query_t;
+struct redis_query_s
+{
+  char name[MAX_REDIS_QUERY_NAME];
+  char command[MAX_REDIS_COMMAND_LEN];
+  char type[MAX_REDIS_TYPE_LEN];
+
+  redis_query_t *next;
+};
 
 struct redis_node_s;
 typedef struct redis_node_s redis_node_t;
@@ -60,6 +78,7 @@ struct redis_node_s
   char passwd[HOST_NAME_MAX];
   int port;
   int timeout;
+  redis_query_t *query;
 
   redis_node_t *next;
 };
@@ -126,6 +145,72 @@ static int redis_node_add (const redis_node_t *rn) /* {{{ */
   return (0);
 } /* }}} */
 
+static int redis_config_query_add (redis_node_t *rn, oconfig_item_t *ci) /* {{{ */
+{
+  redis_query_t *n;
+  int status;
+  int i;
+
+  if ((n=malloc(sizeof(redis_query_t))) == NULL)
+  {
+    return (-1);
+  }
+
+  memset (n, 0, sizeof (redis_query_t));
+
+  if ((status = cf_util_get_string_buffer (ci, n->name, sizeof (n->name))) != 0)
+  {
+    sfree(n);
+    return (-1);
+  }
+
+  for (i = 0; i < ci->children_num; i++)
+  {
+    oconfig_item_t *option = ci->children + i;
+    if (strcasecmp ("Command", option->key) == 0)
+    {
+      if ((option->values_num != 1) || (option->values[0].type != OCONFIG_TYPE_STRING))
+      {
+        WARNING ("redis plugin: `Command' needs exactly one string argument.");
+        continue;
+      }
+      status = cf_util_get_string_buffer (option, n->command, sizeof (n->command));
+    }
+    else if (strcasecmp ("Type", option->key) == 0)
+    {
+      if ((option->values_num != 1) || (option->values[0].type != OCONFIG_TYPE_STRING))
+      {
+        WARNING ("redis plugin: `Type' needs exactly one string argument.");
+        continue;
+      }
+      status = cf_util_get_string_buffer (option, n->type, sizeof (n->type));
+    }
+    else
+      WARNING ("redis plugin: Option `%s' not allowed inside a `Query' "
+          "block. I'll ignore this option.", option->key);
+
+    if (status != 0)
+      break;
+  }
+
+  if (status != 0)
+    return (status);
+
+  if (rn->query == NULL)
+  {
+    rn->query = n;
+  }
+  else
+  {
+    redis_query_t *p;
+    for(p=rn->query; p->next != NULL; p=p->next);
+    p->next = n;
+  }
+
+  return (status);
+
+} /* }}} */
+
 static int redis_config_node (oconfig_item_t *ci) /* {{{ */
 {
   redis_node_t rn;
@@ -160,6 +245,10 @@ static int redis_config_node (oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_int (option, &rn.timeout);
     else if (strcasecmp ("Password", option->key) == 0)
       status = cf_util_get_string_buffer (option, rn.passwd, sizeof (rn.passwd));
+    else if (strcasecmp ("Query", option->key) == 0)
+    {
+      status = redis_config_query_add(&rn, option);
+    }
     else
       WARNING ("redis plugin: Option `%s' not allowed inside a `Node' "
           "block. I'll ignore this option.", option->key);
@@ -290,8 +379,14 @@ static void redis_info (const char *str, redis_info_t *info) /* {{{ */
 
 static int redis_read (void) /* {{{ */
 {
+  int i;
   redis_node_t *rn;
   redis_info_t info;
+  redis_query_t *query;
+
+  const data_set_t *ds;
+  value_list_t vl = VALUE_LIST_INIT;
+
 
   for (rn = nodes_head; rn != NULL; rn = rn->next)
   {
@@ -345,6 +440,66 @@ static int redis_read (void) /* {{{ */
     redis_submit_g (rn->name, "expired_keys", NULL, info.expired_keys);
     redis_submit_g (rn->name, "pubsub", "patterns", info.pubsub_patterns);
     redis_submit_g (rn->name, "pubsub", "channels", info.pubsub_channels);
+
+    /* Read custom queries */
+    for (query=rn->query; query!=NULL; query=query->next)
+    {
+      if ((rr = redisCommand (rh, query->command)) == NULL)
+      {
+        WARNING ("redis plugin: unable to execute query `%s' on node `%s'.", query->name, rn->name);
+        redisFree (rh);
+        continue;
+      }
+
+      if(rr->type != 3)
+      {
+        WARNING ("redis plugin: unable to get reply for query `%s' on node `%s', integer expected.", query->name, rn->name);
+        redisFree (rh);
+        continue;
+      }
+      DEBUG("Get data from query `%s' executing `%s' on node `%s'.", query->name, query->command, rn->name);
+
+
+      ds = plugin_get_ds (query->type);
+      if (!ds)
+      {
+        ERROR ("redis plugin: DataSet `%s' not defined.", query->type);
+        redisFree (rh);
+        continue;
+      }
+
+      if (ds->ds_num != 1)
+      {
+        ERROR ("redis plugin: DataSet `%s' requires %i values, but config talks about %i",
+            query->type, ds->ds_num, 1);
+        redisFree (rh);
+        continue;
+      }
+
+      vl.values_len = ds->ds_num;
+      vl.values = (value_t *) malloc (sizeof (value_t) * vl.values_len);
+      if (vl.values == NULL)
+      {
+        redisFree (rh);
+        continue;
+      }
+      for (i = 0; i < vl.values_len; i++)
+      {
+        if (ds->ds[i].type == DS_TYPE_COUNTER)
+          vl.values[i].counter = rr->integer;
+        else
+          vl.values[i].gauge = rr->integer;
+      }
+
+      sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+      sstrncpy (vl.plugin, "redis-query", sizeof (vl.plugin));
+      sstrncpy (vl.plugin_instance, rn->name, sizeof (vl.plugin));
+      sstrncpy (vl.type, query->type, sizeof (vl.type));
+      sstrncpy (vl.type_instance, query->name, sizeof (vl.type));
+
+      plugin_dispatch_values(&vl);
+
+    }
 
     redisFree (rh);
   }
