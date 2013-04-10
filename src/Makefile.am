@@ -905,7 +905,8 @@ endif
 
 if BUILD_PLUGIN_PINBA
 pkglib_LTLIBRARIES += pinba.la
-pinba_la_SOURCES = pinba.c pinba.pb-c.c pinba.pb-c.h
+pinba_la_SOURCES = pinba.c
+nodist_pinba_la_SOURCES = pinba.pb-c.c pinba.pb-c.h
 pinba_la_LDFLAGS = -module -avoid-version
 pinba_la_LIBADD = -lprotobuf-c
 collectd_LDADD += "-dlopen" pinba.la
@@ -1351,7 +1352,8 @@ endif
 
 if BUILD_PLUGIN_WRITE_RIEMANN
 pkglib_LTLIBRARIES += write_riemann.la
-write_riemann_la_SOURCES = write_riemann.c riemann.pb-c.c riemann.pb-c.h
+write_riemann_la_SOURCES = write_riemann.c
+nodist_write_riemann_la_SOURCES = riemann.pb-c.c riemann.pb-c.h
 write_riemann_la_LDFLAGS = -module -avoid-version
 write_riemann_la_LIBADD = -lprotobuf-c
 collectd_LDADD += "-dlopen" write_riemann.la
