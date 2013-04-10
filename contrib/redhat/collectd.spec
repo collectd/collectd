@@ -71,6 +71,7 @@
 %define with_syslog 0%{!?_without_syslog:1}
 %define with_table 0%{!?_without_table:1}
 %define with_tail 0%{!?_without_tail:1}
+%define with_tail_csv 0%{!?_without_tail_csv:1}
 %define with_tcpconns 0%{!?_without_tcpconns:1}
 %define with_teamspeak2 0%{!?_without_teamspeak2:1}
 %define with_ted 0%{!?_without_ted:1}
@@ -86,6 +87,7 @@
 %define with_wireless 0%{!?_without_wireless:1}
 %define with_write_graphite 0%{!?_without_write_graphite:1}
 %define with_write_http 0%{!?_without_write_http:1}
+%define with_write_riemann 0%{!?_without_write_riemann:1}
 
 # disabled plugins
 %define with_apple_sensors 0%{!?_without_apple_sensors:0}
@@ -108,10 +110,10 @@
 
 Summary:	Statistics collection daemon for filling RRD files
 Name:		collectd
-Version:	5.2.0
-Release:	3%{?dist}
+Version:	5.3.0
+Release:	1%{?dist}
 URL:		http://collectd.org
-Source:		http://collectd.org/files/%{name}-%{version}.tar.gz
+Source:		http://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
 Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
@@ -509,6 +511,16 @@ BuildRequires:	credis-devel
 The Write Redis plugin stores values in Redis, a “data structures server”.
 %endif
 
+%if %{with_write_riemann}
+%package write_riemann
+Summary:	riemann plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	protobuf-c-devel
+%description write_riemann
+The riemann plugin submits values to Riemann, an event stream processor.
+%endif
+
 %package collection3
 Summary:	Web-based viewer for collectd
 Group:		System Environment/Daemons
@@ -552,7 +564,6 @@ Development files for libcollectdclient
 
 %prep
 %setup -q
-
 
 %build
 %if %{with_aggregation}
@@ -1041,6 +1052,12 @@ Development files for libcollectdclient
 %define _with_tail --disable-tail
 %endif
 
+%if %{with_tail_csv}
+%define _with_tail_csv --enable-tail_csv
+%else
+%define _with_tail_csv --disable-tail_csv
+%endif
+
 %if %{with_tape}
 %define _with_tape --enable-tape
 %else
@@ -1153,6 +1170,12 @@ Development files for libcollectdclient
 %define _with_write_redis --enable-write_redis
 %else
 %define _with_write_redis --disable-write_redis --without-libcredis
+%endif
+
+%if %{with_write_riemann}
+%define _with_write_riemann --enable-write_riemann
+%else
+%define _with_write_riemann --disable-write_riemann
 %endif
 
 %if %{with_xmms}
@@ -1271,6 +1294,7 @@ Development files for libcollectdclient
 	%{?_with_syslog} \
 	%{?_with_table} \
 	%{?_with_tail} \
+	%{?_with_tail_csv} \
 	%{?_with_tcpconns} \
 	%{?_with_teamspeak2} \
 	%{?_with_ted} \
@@ -1284,7 +1308,8 @@ Development files for libcollectdclient
 	%{?_with_vserver} \
 	%{?_with_wireless}\
 	%{?_with_write_graphite} \
-	%{?_with_write_http}
+	%{?_with_write_http} \
+	%{?_with_write_riemann}
 
 
 %{__make} %{?_smp_mflags}
@@ -1375,6 +1400,7 @@ fi
 %{_mandir}/man1/collectd.1*
 %{_mandir}/man1/collectdctl.1*
 %{_mandir}/man1/collectdmon.1*
+%{_mandir}/man1/collectd-tg.1*
 %{_mandir}/man5/collectd-email.5*
 %{_mandir}/man5/collectd-exec.5*
 %{_mandir}/man5/collectd-threshold.5*
@@ -1513,6 +1539,9 @@ fi
 %endif
 %if %{with_tail}
 %{_libdir}/%{name}/tail.so
+%endif
+%if %{with_tail_csv}
+%{_libdir}/%{name}/tail_csv.so
 %endif
 %if %{with_tcpconns}
 %{_libdir}/%{name}/tcpconns.so
@@ -1767,6 +1796,11 @@ fi
 %{_libdir}/%{name}/write_redis.so
 %endif
 
+%if %{with_write_riemann}
+%files write_riemann
+%{_libdir}/%{name}/write_riemann.so
+%endif
+
 %files collection3
 %{_localstatedir}/www/collection3
 %{_sysconfdir}/httpd/conf.d/collection3.conf
@@ -1779,6 +1813,12 @@ fi
 %doc contrib/
 
 %changelog
+* Wed Apr 10 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.3.0-1
+- New upstream version
+- Enabled write_riemann plugin
+- Enabled tail_csv plugin
+- Installed collectd-tc manpage
+
 * Thu Jan 11 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.2.0-3
 - remove dependency on libstatgrab, which isn't required on linux
 
