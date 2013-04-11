@@ -38,9 +38,9 @@ static void vg_submit(const char *vg_name, gauge_t used, gauge_t free, gauge_t s
     vl.values_len = STATIC_ARRAY_SIZE (values);
 
     sstrncpy(vl.host, hostname_g, sizeof (vl.host));
-    sstrncpy(vl.plugin, "vg", sizeof (vl.plugin));
+    sstrncpy(vl.plugin, "vol_group", sizeof (vl.plugin));
     sstrncpy(vl.plugin_instance, vg_name, sizeof (vl.plugin_instance));
-    sstrncpy(vl.type, "vg", sizeof (vl.type));
+    sstrncpy(vl.type, "vol_group", sizeof (vl.type));
     sstrncpy(vl.type_instance, vg_name, sizeof (vl.type_instance));
 
     plugin_dispatch_values (&vl);
@@ -58,9 +58,9 @@ static void lv_submit(const char *vg_name, const char *lv_name, gauge_t value)
     vl.values_len = STATIC_ARRAY_SIZE (values);
 
     sstrncpy(vl.host, hostname_g, sizeof (vl.host));
-    sstrncpy(vl.plugin, "vg", sizeof (vl.plugin));
+    sstrncpy(vl.plugin, "vol_group", sizeof (vl.plugin));
     sstrncpy(vl.plugin_instance, vg_name, sizeof (vl.plugin_instance));
-    sstrncpy(vl.type, "lv", sizeof (vl.type));
+    sstrncpy(vl.type, "logical_vol", sizeof (vl.type));
     sstrncpy(vl.type_instance, lv_name, sizeof (vl.type_instance));
 
     plugin_dispatch_values (&vl); 
