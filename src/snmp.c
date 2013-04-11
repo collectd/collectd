@@ -1211,6 +1211,8 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
   int status;
   int i;
   uint32_t j;
+  int ret;
+  int oid_list_todo_num;
 
   /* `value_list_head' and `value_list_tail' implement a linked list for each
    * value. `instance_list_head' and `instance_list_tail' implement a linked list of
@@ -1272,7 +1274,6 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
   status = 0;
   while (status == 0)
   {
-    int oid_list_todo_num;
 
     req = snmp_pdu_create (SNMP_MSG_GETNEXT);
     if (req == NULL)
@@ -1378,7 +1379,6 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
 
         /* Calculate the current suffix. This is later used to check that the
          * suffix is increasing. This also checks if we left the subtree */
-        int ret;
         ret = csnmp_oid_suffix (&suffix, &vb_name, data->values + i);
         if (ret != 0)
         {
