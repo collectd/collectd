@@ -3883,8 +3883,11 @@ Collect SnapVault(R) statistics every I<Seconds> seconds.
 
 The C<netcmd> plugin provides a management interface for I<collectd> much like
 the C<unixsock> plugin. Please see L<collectd-unixsock(5)> for a description of
-the commands understood on the socket. Optionally, network traffic is encrypted
-and authenticated using I<Transport Layer Security> (TLS).
+the commands understood on the socket.
+
+Optionally, network traffic is encrypted and authenticated using I<Transport
+Layer Security> (TLS). To use TLS you have to specify the B<TLSCertFile> and
+B<TLSKeyFile> options.
 
 The configuration of the C<netcmd> plugin consists of one or more B<Listen>
 block, each defining a socket to bind to and listen on. Example:
@@ -3916,10 +3919,12 @@ Port number or service name to bind to. Defaults to C<"25826">.
 =item B<TLSCertFile> I<Path>
 
 Path to the TLS certificate file.
+If this option is unset, TLS will not be enabled.
 
 =item B<TLSKeyFile> I<Path>
 
 Path to the TLS key file.
+If this option is unset, TLS will not be enabled.
 
 =item B<TLSCAFile> I<Path>
 
@@ -3931,7 +3936,7 @@ Path to the TLS I<Certificate Revokation List> (CRL) file.
 
 =item B<TLSVerifyPeer> B<true>|B<false>
 
-Controlls whether or not to verify the client certificate of connecting peers.
+Controls whether or not to verify the client certificate of connecting peers.
 The plugin will I<request> a client certificate either way, but it will only
 I<require> a valid certificate when this option is set to B<true>. Defaults to
 B<false>.
