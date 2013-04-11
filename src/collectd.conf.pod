@@ -3911,8 +3911,7 @@ Address or hostname to bind to. If not specified, bind to the I<any> address.
 
 =item B<Port> I<Port>|I<Service>
 
-Port number or service name to bind to. Defaults to C<"25826">. Please note
-that even numeric ports must be specified as a string.
+Port number or service name to bind to. Defaults to C<"25826">.
 
 =item B<TLSCertFile> I<Path>
 

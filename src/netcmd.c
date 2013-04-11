@@ -1218,7 +1218,7 @@ static int nc_config_peer (const oconfig_item_t *ci) /* {{{ */
     if (strcasecmp ("Address", child->key) == 0)
       cf_util_get_string (child, &p->node);
     else if (strcasecmp ("Port", child->key) == 0)
-      cf_util_get_string (child, &p->service);
+      cf_util_get_service (child, &p->service);
     else if (strcasecmp ("TLSCertFile", child->key) == 0)
       cf_util_get_string (child, &p->tls_cert_file);
     else if (strcasecmp ("TLSKeyFile", child->key) == 0)
