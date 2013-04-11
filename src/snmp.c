@@ -1378,9 +1378,8 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
 
         /* Calculate the current suffix. This is later used to check that the
          * suffix is increasing. This also checks if we left the subtree */
-        int ret;
-        ret = csnmp_oid_suffix (&suffix, &vb_name, data->values + i);
-        if (ret != 0)
+        status = csnmp_oid_suffix (&suffix, &vb_name, data->values + i);
+        if (status != 0)
         {
           DEBUG ("snmp plugin: host = %s; data = %s; i = %i; "
               "Value probably left its subtree.",
