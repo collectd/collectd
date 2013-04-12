@@ -316,6 +316,10 @@ Features
     - varnish
       Various statistics from Varnish, an HTTP accelerator.
 
+    - vmware
+      The VMware plugin collects information exposed to a guest virtual
+      machine running on a VMware hypervisor through the VMware Guest SDK.
+
     - vmem
       Virtual memory statistics, e. g. the number of page-ins/-outs or the
       number of pagefaults.

@@ -1289,6 +1289,15 @@ collectd_LDADD += "-dlopen" vmem.la
 collectd_DEPENDENCIES += vmem.la
 endif
 
+if BUILD_PLUGIN_VMWARE
+pkglib_LTLIBRARIES += vmware.la
+vmware_la_SOURCES = vmware.c
+vmware_la_LDFLAGS = -module -avoid-version
+vmware_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBVMWARE_CPPFLAGS)
+collectd_LDADD += "-dlopen" vmware.la
+collectd_DEPENDENCIES += vmware.la
+endif
+
 if BUILD_PLUGIN_VSERVER
 pkglib_LTLIBRARIES += vserver.la
 vserver_la_SOURCES = vserver.c

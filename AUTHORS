@@ -73,6 +73,9 @@ Doug MacEachern <dougm at hyperic.com>
 Edward “Koko” Konetzko <konetzed at quixoticagony.com>
  - fscache plugin.
 
+Edward Muller <emuller at engineyard.com>
+ - vmware plugin.
+
 Fabian Linzberger <e at lefant.net>
  - Percentage aggregation for `collectd-nagios'.
 
@@ -90,6 +93,9 @@ Jason Pepas <cell at ices.utexas.edu>
 
 Jérôme Renard <jerome.renard at gmail.com>
  - varnish plugin.
+
+Keith Chambers <chambers_keith at yahoo.com>
+ - vmware plugin.
 
 Kris Nielander <nielander at fox-it.com>
  - tail_csv plugin.
