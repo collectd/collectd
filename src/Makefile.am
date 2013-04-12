@@ -1293,8 +1293,7 @@ if BUILD_PLUGIN_VMWARE
 pkglib_LTLIBRARIES += vmware.la
 vmware_la_SOURCES = vmware.c
 vmware_la_LDFLAGS = -module -avoid-version
-vmware_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS) -I/usr/lib/vmware-tools/GuestSDK
-vmware_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
+vmware_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBVMWARE_CPPFLAGS)
 collectd_LDADD += "-dlopen" vmware.la
 collectd_DEPENDENCIES += vmware.la
 endif

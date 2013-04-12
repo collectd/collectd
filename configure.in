@@ -4244,12 +4244,12 @@ fi
 # }}}
 
 # --with-libvmware {{{
-with_libvmware_cflags=""
+with_libvmware_cppflags=""
 AC_ARG_WITH(libvmware, [AS_HELP_STRING([--with-libvmware@<:@=PREFIX@:>@], [Path to libvmware.])],
 [
 	if test "x$withval" != "xno" && test "x$withval" != "xyes"
 	then
-		with_libvmware_cflags="-I$withval"
+		with_libvmware_cppflags="-I$withval"
 		with_libvmware="yes"
 	else
 		with_libvmware="$withval"
@@ -4260,17 +4260,17 @@ AC_ARG_WITH(libvmware, [AS_HELP_STRING([--with-libvmware@<:@=PREFIX@:>@], [Path 
 ])
 if test "x$with_libvmware" = "xyes"
 then
-	SAVE_CFLAGS="$CFLAGS"
-	CFLAGS="$CFLAGS $with_libvmware_cflags"
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libvmware_cppflags"
 
 	AC_CHECK_HEADERS(vmGuestLib.h, [with_libvmware="yes"], [with_libvmware="no (vmGuestLib.h not found)"])
 
-	CFLAGS="$SAVE_CFLAGS"
+	CPPFLAGS="$SAVE_CPPFLAGS"
 fi
 if test "x$with_libvmware" = "xyes"
 then
-	BUILD_WITH_LIBVMWARE_CFLAGS="$with_libvmware_cflags"
-	AC_SUBST(BUILD_WITH_LIBVMWARE_CFLAGS)
+	BUILD_WITH_LIBVMWARE_CPPFLAGS="$with_libvmware_cppflags"
+	AC_SUBST(BUILD_WITH_LIBVMWARE_CPPFLAGS)
 	#AC_DEFINE(HAVE_LIBVMWARE, 1, [Define if libvmware is present and usable.])
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBVMWARE, test "x$with_libvmware" = "xyes")
