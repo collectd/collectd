@@ -56,35 +56,35 @@ static VMGuestLibError (*GuestLib_GetMemLimitMB)(VMGuestLibHandle handle, uint32
 static VMGuestLibError (*GuestLib_GetMemShares)(VMGuestLibHandle handle, uint32_t *memShares);
 
 /* handle for use with shared library */
-static VMGuestLibHandle glHandle;
+static VMGuestLibHandle gl_handle;
+static VMSessionId gl_session;
 
 /* used when converting megabytes to bytes for memory counters */
 #define BYTES_PER_MB 1024*1024
 
 /* macro to load a single GuestLib function from the shared library */
-#define LOAD_ONE_FUNC(funcname)                               \
-  do {                                                       \
-    funcname = dlsym(dlHandle, "VM" #funcname);             \
-    if ((dlErrStr = dlerror()) != NULL) {                   \
-      ERROR ("vmware plugin: Failed to load \"%s\": %s",   \
-#funcname, dlErrStr);                         \
-      return (-1);                                         \
-    }                                                       \
-  } while (0)
+#define LOAD_ONE_FUNC(funcname) do {                                         \
+    char const *errmsg;                                                      \
+    funcname = dlsym(dl_handle, "VM" #funcname);                             \
+    if ((errmsg = dlerror()) != NULL) {                                      \
+      ERROR ("vmware plugin: Failed to load \"%s\": %s",                     \
+          #funcname, errmsg);                                                \
+      return (-1);                                                           \
+    }                                                                        \
+} while (0)
 
-  _Bool
-static LoadFunctions(void)
+_Bool static vmware_load_functions (void)
 {
-  void *dlHandle = NULL;
+  void *dl_handle;
 
-  /* first try to load the shared library */
-  char const *dlErrStr;
+  dl_handle = dlopen("libvmGuestLib.so", RTLD_NOW);
+  if (!dl_handle)
+  {
+    char const *errmsg;
 
-  dlHandle = dlopen("libvmGuestLib.so", RTLD_NOW);
-  if (!dlHandle) {
-    dlErrStr = dlerror();
+    errmsg = dlerror();
     ERROR("vmware plugin: dlopen (\"libvmGuestLib.so\") failed: %s",
-        dlErrStr);
+        errmsg);
     return (-1);
   }
 
@@ -119,17 +119,19 @@ static LoadFunctions(void)
 
 static int vmware_init (void)
 {
-  VMGuestLibError glError;
+  VMGuestLibError status;
 
-  if (!LoadFunctions()) {
+  if (!vmware_load_functions()) {
     ERROR ("vmware plugin: Unable to load GuestLib functions");
     return (-1);
   }
 
   /* try to load the library */
-  glError = GuestLib_OpenHandle(&glHandle);
-  if (glError != VMGUESTLIB_ERROR_SUCCESS) {
-    ERROR ("vmware plugin: OpenHandle failed: %s", GuestLib_GetErrorText(glError));
+  status = GuestLib_OpenHandle(&gl_handle);
+  if (status != VMGUESTLIB_ERROR_SUCCESS)
+  {
+    ERROR ("vmware plugin: OpenHandle failed: %s",
+        GuestLib_GetErrorText (status));
     return (-1);
   }
 
@@ -174,18 +176,19 @@ static void submit_vmw_gauge (const char *type, const char *type_inst,
   plugin_dispatch_values (&vl);
 }
 
-static int vmw_query_memory (VMGuestLibHandle handle, const char *function_name,
-    VMGuestLibError (*function) (VMGuestLibHandle handle, uint32_t *ret_data),
-    const char *type_instance)
+static int vmw_query_memory (VMGuestLibHandle handle,
+    char const *function_name,
+    VMGuestLibError (*function) (VMGuestLibHandle, uint32_t *),
+    char const *type_instance)
 {
   uint32_t value;
   VMGuestLibError status;
 
   status = (*function) (handle, &value);
-  if (status != VMGUESTLIB_ERROR_SUCCESS) {
+  if (status != VMGUESTLIB_ERROR_SUCCESS)
+  {
     WARNING ("vmware plugin: %s failed: %s",
-        function_name,
-        GuestLib_GetErrorText(glError));
+        function_name, GuestLib_GetErrorText (status));
     return (-1);
   }
 
@@ -198,134 +201,117 @@ static int vmw_query_memory (VMGuestLibHandle handle, const char *function_name,
 
 static int vmware_read (void)
 {
-  VMGuestLibError glError;
 
-  /* total_time_in_ms */
-  uint64_t elapsedMs = 0;
+  VMGuestLibError status;
 
-  /* virt_vcpu */
-  uint64_t cpuUsedMs = 0;
-  uint64_t cpuStolenMs = 0;
+  uint32_t tmp32;
+  uint64_t tmp64;
 
-  /* vcpu (quality of service) */
-  uint32_t cpuReservationMHz = 0;
-  uint32_t cpuLimitMHz = 0;
-  uint32_t cpuShares = 0;
-
-  /* cpufreq */
-  uint32_t hostMHz = 0;
-
-  /* memory (quality of service) */
-  uint32_t memShares = 0;
-
-  VMSessionId sessionId = 0;
-
-  /* attempt to retrieve info from the host */
-  VMSessionId tmpSession;
-
-  glError = GuestLib_UpdateInfo(glHandle);
-  if (glError != VMGUESTLIB_ERROR_SUCCESS) {
-    ERROR ("vmware plugin: UpdateInfo failed: %s", GuestLib_GetErrorText(glError));
+  status = GuestLib_UpdateInfo(gl_handle);
+  if (status != VMGUESTLIB_ERROR_SUCCESS) {
+    ERROR ("vmware plugin: UpdateInfo failed: %s",
+        GuestLib_GetErrorText(status));
     return (-1);
   }
 
   /* retrieve and check the session ID */
-  glError = GuestLib_GetSessionId(glHandle, &tmpSession);
-  if (glError != VMGUESTLIB_ERROR_SUCCESS) {
-    ERROR ("vmware plugin: Failed to get session ID: %s", GuestLib_GetErrorText(glError));
+  status = GuestLib_GetSessionId(gl_handle, &gl_session);
+  if (status != VMGUESTLIB_ERROR_SUCCESS) {
+    ERROR ("vmware plugin: Failed to get session ID: %s",
+        GuestLib_GetErrorText(status));
     return (-1);
   }
 
-  if (tmpSession == 0) {
+  if (gl_session == 0) {
     ERROR ("vmware plugin: Error: Got zero sessionId from GuestLib");
     return (-1);
   }
 
-  if (sessionId == 0) {
-    sessionId = tmpSession;
-    DEBUG ("vmware plugin: Initial session ID is %#"PRIx64, (uint64_t) sessionId);
-  } else if (tmpSession != sessionId) {
-    sessionId = tmpSession;
-    DEBUG ("vmware plugin: Session ID changed to %#"PRIx64, (uint64_t) sessionId);
-  }
-
   /* GetElapsedMs */
-  glError = GuestLib_GetElapsedMs(glHandle, &elapsedMs);
-  if (glError != VMGUESTLIB_ERROR_SUCCESS)
-    WARNING ("vmware plugin: Failed to get elapsed ms: %s", GuestLib_GetErrorText(glError));
+  status = GuestLib_GetElapsedMs(gl_handle, &tmp64);
+  if (status != VMGUESTLIB_ERROR_SUCCESS)
+    WARNING ("vmware plugin: Failed to get elapsed ms: %s",
+        GuestLib_GetErrorText(status));
   else
-    submit_vmw_counter ("total_time_in_ms", "elapsed", (derive_t) elapsedMs);
+    submit_vmw_counter ("total_time_in_ms", "elapsed", (derive_t) tmp64);
 
   /* GetCpuUsedMs */
-  glError = GuestLib_GetCpuUsedMs(glHandle, &cpuUsedMs);
-  if (glError != VMGUESTLIB_ERROR_SUCCESS)
+  status = GuestLib_GetCpuUsedMs(gl_handle, &tmp64);
+  if (status != VMGUESTLIB_ERROR_SUCCESS)
     WARNING ("vmware plugin: Failed to get used ms: %s",
-        GuestLib_GetErrorText(glError));
+        GuestLib_GetErrorText(status));
   else
-    submit_vmw_counter ("virt_vcpu", "used", (derive_t) cpuUsedMs);
+    submit_vmw_counter ("virt_vcpu", "used", (derive_t) tmp64);
 
   /* GetCpuStolenMs */
-  glError = GuestLib_GetCpuStolenMs(glHandle, &cpuStolenMs);
-  if (glError != VMGUESTLIB_ERROR_SUCCESS) {
-    DEBUG ("vmware plugin: Failed to get CPU stolen: %s\n", GuestLib_GetErrorText(glError));
-    if (glError == VMGUESTLIB_ERROR_UNSUPPORTED_VERSION) {
-      cpuStolenMs = 0;
-    }
-  }
-  submit_vmw_counter ("virt_vcpu", "stolen", (derive_t) cpuStolenMs);
+  status = GuestLib_GetCpuStolenMs(gl_handle, &tmp64);
+  if (status == VMGUESTLIB_ERROR_UNSUPPORTED_VERSION)
+    /* ignore */;
+  else if (status != VMGUESTLIB_ERROR_SUCCESS)
+    WARNING ("vmware plugin: Failed to get CPU stolen: %s",
+        GuestLib_GetErrorText(status));
+  else
+    submit_vmw_counter ("virt_vcpu", "stolen", (derive_t) tmp64);
 
   /* GetCpuReservationMHz */
-  glError = GuestLib_GetCpuReservationMHz(glHandle, &cpuReservationMHz);
-  if (glError != VMGUESTLIB_ERROR_SUCCESS) {
-    DEBUG ("vmware plugin: Failed to get CPU reservation: %s\n", GuestLib_GetErrorText(glError));
-  }
-  submit_vmw_gauge ("vcpu", "reservation", (gauge_t) cpuReservationMHz);
+  status = GuestLib_GetCpuReservationMHz(gl_handle, &tmp32);
+  if (status != VMGUESTLIB_ERROR_SUCCESS)
+    WARNING ("vmware plugin: Failed to get CPU reservation: %s",
+        GuestLib_GetErrorText(status));
+  else
+    submit_vmw_gauge ("vcpu", "reservation", (gauge_t) tmp32);
 
   /* GetCpuLimitMHz */
-  glError = GuestLib_GetCpuLimitMHz(glHandle, &cpuLimitMHz);
-  if (glError != VMGUESTLIB_ERROR_SUCCESS) {
-    DEBUG ("vmware plugin: Failed to get CPU limit: %s\n", GuestLib_GetErrorText(glError));
-  }
-  submit_vmw_gauge ("vcpu", "limit", (gauge_t) cpuLimitMHz);
+  status = GuestLib_GetCpuLimitMHz(gl_handle, &tmp32);
+  if (status != VMGUESTLIB_ERROR_SUCCESS)
+    WARNING ("vmware plugin: Failed to get CPU limit: %s",
+        GuestLib_GetErrorText(status));
+  else
+    submit_vmw_gauge ("vcpu", "limit", (gauge_t) tmp32);
 
   /* GetCpuShares */
-  glError = GuestLib_GetCpuShares(glHandle, &cpuShares);
-  if (glError != VMGUESTLIB_ERROR_SUCCESS) {
-    DEBUG ("vmware plugin: Failed to get cpu shares: %s\n", GuestLib_GetErrorText(glError));
-  }
-  submit_vmw_gauge ("vcpu", "shares", (gauge_t) cpuShares);
+  status = GuestLib_GetCpuShares(gl_handle, &tmp32);
+  if (status != VMGUESTLIB_ERROR_SUCCESS)
+    WARNING ("vmware plugin: Failed to get cpu shares: %s",
+        GuestLib_GetErrorText(status));
+  else
+    submit_vmw_gauge ("vcpu", "shares", (gauge_t) tmp32);
 
   /* GetHostProcessorSpeed */
-  glError = GuestLib_GetHostProcessorSpeed(glHandle, &hostMHz);
-  if (glError != VMGUESTLIB_ERROR_SUCCESS) {
-    DEBUG ("vmware plugin: Failed to get host proc speed: %s\n", GuestLib_GetErrorText(glError));
-  }
-  submit_vmw_gauge ("cpufreq", "", 1.0e6 * (gauge_t) hostMHz);
+  status = GuestLib_GetHostProcessorSpeed(gl_handle, &tmp32);
+  if (status != VMGUESTLIB_ERROR_SUCCESS)
+    WARNING ("vmware plugin: Failed to get host proc speed: %s",
+        GuestLib_GetErrorText(status));
+  else
+    submit_vmw_gauge ("cpufreq", "", 1.0e6 * (gauge_t) tmp32);
+
+  /* GetMemTargetSizeMB */
+  status = GuestLib_GetMemTargetSizeMB(gl_handle, &tmp64);
+  if (status != VMGUESTLIB_ERROR_SUCCESS)
+    WARNING ("vmware plugin: GuestLib_GetMemTargetSizeMB failed: %s",
+        GuestLib_GetErrorText (status));
+  else
+    submit_vmw_gauge ("memory", "target", (gauge_t) (BYTES_PER_MB * tmp64));
 
 #define VMW_QUERY_MEMORY(func, type) \
-  vmw_query_memory (glHandle, #func, GuestLib_ ## func, type)
+  vmw_query_memory (gl_handle, #func, GuestLib_ ## func, type)
 
-  VMW_QUERY_MEMORY (GetMemTargetSizeMB,  "target");
-  VMW_QUERY_MEMORY (GetMemUsedMB,        "used");
-  VMW_QUERY_MEMORY (GetMemMappedMB,      "mapped");
+  VMW_QUERY_MEMORY (GetMemUsedMB,        "used"); /* pysical; used = mapped - shared_saved */
+  VMW_QUERY_MEMORY (GetMemMappedMB,      "mapped"); /* mapped = used + shared_saved */
   VMW_QUERY_MEMORY (GetMemActiveMB,      "active");
   VMW_QUERY_MEMORY (GetMemOverheadMB,    "overhead");
-  VMW_QUERY_MEMORY (GetMemSharedMB,      "shared");
+  VMW_QUERY_MEMORY (GetMemSharedMB,      "shared"); /* physical */
   VMW_QUERY_MEMORY (GetMemSharedSavedMB, "shared_saved");
   VMW_QUERY_MEMORY (GetMemBalloonedMB,   "ballooned");
-  VMW_QUERY_MEMORY (GetMemSwappedMB,     "swapped");
+  VMW_QUERY_MEMORY (GetMemSwappedMB,     "swapped"); /* physical? */
+  /* min memory available to the guest */
   VMW_QUERY_MEMORY (GetMemReservationMB, "reservation");
+  /* max memory available to the guest */
   VMW_QUERY_MEMORY (GetMemLimitMB,       "limit");
+  /* ??? */
+  VMW_QUERY_MEMORY (GetMemShares,        "shares");
 
 #undef VMW_QUERY_MEMORY
-
-  /* GetMemShares */
-  glError = GuestLib_GetMemShares(glHandle, &memShares);
-  if (glError != VMGUESTLIB_ERROR_SUCCESS) {
-    DEBUG ("vmware plugin: Failed to get mem shares: %s\n", GuestLib_GetErrorText(glError));
-    memShares = 0;
-  }
-  submit_vmw_gauge ("memory", "shares", (gauge_t) memShares);
 
   return (0);
 }
