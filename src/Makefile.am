@@ -568,6 +568,15 @@ collectd_DEPENDENCIES += lpar.la
 lpar_la_LIBADD = -lperfstat
 endif
 
+if BUILD_PLUGIN_LVM
+pkglib_LTLIBRARIES += lvm.la
+lvm_la_SOURCES = lvm.c
+lvm_la_LDFLAGS = -module -avoid-version
+lvm_la_LIBADD = $(BUILD_WITH_LIBLVM2APP_LIBS)
+collectd_LDADD += "-dlopen" lvm.la
+collectd_DEPENDENCIES += lvm.la
+endif
+
 if BUILD_PLUGIN_MADWIFI
 pkglib_LTLIBRARIES += madwifi.la
 madwifi_la_SOURCES = madwifi.c madwifi.h
@@ -1288,15 +1297,6 @@ vmem_la_SOURCES = vmem.c
 vmem_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" vmem.la
 collectd_DEPENDENCIES += vmem.la
-endif
-
-if BUILD_PLUGIN_VOLUME
-pkglib_LTLIBRARIES += volume.la
-volume_la_SOURCES = volume.c
-volume_la_LDFLAGS = -module -avoid-version
-volume_la_LIBADD = $(BUILD_WITH_LIBLVM2APP_LIBS)
-collectd_LDADD += "-dlopen" volume.la
-collectd_DEPENDENCIES += volume.la
 endif
 
 if BUILD_PLUGIN_VSERVER

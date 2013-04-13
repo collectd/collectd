@@ -1,5 +1,5 @@
 /**
- * collectd - src/volume.c
+ * collectd - src/lvm.c
  * Copyright (C) 2013       Chad Malfait
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -68,13 +68,13 @@ static int lvm_read(void)
 
     lvm = lvm_init(NULL);
     if (!lvm) {
-        ERROR("volume plugin: lvm_init failed.");
+        ERROR("lvm plugin: lvm_init failed.");
         return (-1);
     }
 
     vg_names = lvm_list_vg_names(lvm);
     if (!vg_names) {
-        ERROR("volume plugin lvm_list_vg_name failed %s", lvm_errmsg(lvm));
+        ERROR("lvm plugin lvm_list_vg_name failed %s", lvm_errmsg(lvm));
         lvm_quit(lvm);
         return (-1);
     }
@@ -84,7 +84,7 @@ static int lvm_read(void)
 
         vg = lvm_vg_open(lvm, name_list->str, "r", 0);
         if (!vg) {
-            ERROR ("volume plugin: lvm_vg_open (%s) failed: %s",
+            ERROR ("lvm plugin: lvm_vg_open (%s) failed: %s",
                     name_list->str, lvm_errmsg(lvm));
             continue;
         }
@@ -99,5 +99,5 @@ static int lvm_read(void)
 
 void module_register(void)
 {
-    plugin_register_read("volume", lvm_read);
+    plugin_register_read("lvm", lvm_read);
 } /* void module_register */
