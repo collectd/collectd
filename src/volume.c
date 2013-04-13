@@ -25,97 +25,79 @@
 #include "common.h"
 #include "plugin.h"
 
-static void vg_submit(const char *vg_name, gauge_t used, gauge_t free, gauge_t size)
+static void lvm_submit (char const *plugin_instance, char const *type_instance,
+        uint64_t ivalue)
 {
-    value_t values[3];
+    value_t v;
     value_list_t vl = VALUE_LIST_INIT;
 
-    values[0].gauge = used;
-    values[1].gauge = free;
-    values[2].gauge = size;
+    v.gauge = (gauge_t) ivalue;
 
-    vl.values = values;
-    vl.values_len = STATIC_ARRAY_SIZE (values);
+    vl.values = &v;
+    vl.values_len = 1;
 
     sstrncpy(vl.host, hostname_g, sizeof (vl.host));
-    sstrncpy(vl.plugin, "vol_group", sizeof (vl.plugin));
-    sstrncpy(vl.plugin_instance, vg_name, sizeof (vl.plugin_instance));
-    sstrncpy(vl.type, "vol_group", sizeof (vl.type));
-    sstrncpy(vl.type_instance, vg_name, sizeof (vl.type_instance));
+    sstrncpy(vl.plugin, "lvm", sizeof (vl.plugin));
+    sstrncpy(vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
+    sstrncpy(vl.type, "df_complex", sizeof (vl.type));
+    sstrncpy(vl.type_instance, type_instance, sizeof (vl.type_instance));
 
     plugin_dispatch_values (&vl);
 }
 
-static void lv_submit(const char *vg_name, const char *lv_name, gauge_t value)
-{
-
-    value_t values[1];
-    value_list_t vl = VALUE_LIST_INIT;
-
-    values[0].gauge = value;
-
-    vl.values = values;
-    vl.values_len = STATIC_ARRAY_SIZE (values);
-
-    sstrncpy(vl.host, hostname_g, sizeof (vl.host));
-    sstrncpy(vl.plugin, "vol_group", sizeof (vl.plugin));
-    sstrncpy(vl.plugin_instance, vg_name, sizeof (vl.plugin_instance));
-    sstrncpy(vl.type, "logical_vol", sizeof (vl.type));
-    sstrncpy(vl.type_instance, lv_name, sizeof (vl.type_instance));
-
-    plugin_dispatch_values (&vl); 
-}
-
-static int lv_read(vg_t vg, const char *vg_name, unsigned long vg_free, unsigned long vg_size)
+static int vg_read(vg_t vg, char const *vg_name)
 {
     struct dm_list *lvs;
     struct lvm_lv_list *lvl;
-    unsigned long vg_used = 0;
 
-    vg_used = vg_size - vg_free;
+    lvm_submit (vg_name, "free", lvm_vg_get_free_size(vg));
+
     lvs = lvm_vg_list_lvs(vg);
-
-    vg_submit(vg_name, vg_used, vg_free, vg_size);
-
     dm_list_iterate_items(lvl, lvs) {
-         lv_submit(vg_name, lvm_lv_get_name(lvl->lv), lvm_lv_get_size(lvl->lv));
+         lvm_submit(vg_name, lvm_lv_get_name(lvl->lv), lvm_lv_get_size(lvl->lv));
     }
+
     return (0);
 }
 
-static int vg_read(void)
+static int lvm_read(void)
 {
     lvm_t lvm;
-    vg_t vg;
     struct dm_list *vg_names;
     struct lvm_str_list *name_list;
 
     lvm = lvm_init(NULL);
     if (!lvm) {
-    	ERROR("volume plugin: lvm_init failed: %s", lvm_errmsg(lvm));
-        lvm_quit(lvm);
-        exit(-1);
+        ERROR("volume plugin: lvm_init failed.");
+        return (-1);
     }
 
     vg_names = lvm_list_vg_names(lvm);
     if (!vg_names) {
-    	ERROR("volume plugin lvm_list_vg_name failed %s", lvm_errmsg(lvm));
+        ERROR("volume plugin lvm_list_vg_name failed %s", lvm_errmsg(lvm));
         lvm_quit(lvm);
-        exit(-1);
+        return (-1);
     }
 
     dm_list_iterate_items(name_list, vg_names) {
-        vg = lvm_vg_open(lvm, name_list->str, "r", 0);
-        lv_read(vg, name_list->str, lvm_vg_get_free_size(vg), lvm_vg_get_size(vg));
+        vg_t vg;
 
+        vg = lvm_vg_open(lvm, name_list->str, "r", 0);
+        if (!vg) {
+            ERROR ("volume plugin: lvm_vg_open (%s) failed: %s",
+                    name_list->str, lvm_errmsg(lvm));
+            continue;
+        }
+
+        vg_read(vg, name_list->str);
         lvm_vg_close(vg);
     }
 
     lvm_quit(lvm);
     return (0);
-} /*vg_read */
+} /*lvm_read */
 
 void module_register(void)
 {
-	plugin_register_read("volume", vg_read);
+    plugin_register_read("volume", lvm_read);
 } /* void module_register */
