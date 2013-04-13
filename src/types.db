@@ -89,7 +89,6 @@ irq			value:DERIVE:0:U
 latency			value:GAUGE:0:65535
 links			value:GAUGE:0:U
 load			shortterm:GAUGE:0:100, midterm:GAUGE:0:100, longterm:GAUGE:0:100
-logical_vol             value:GAUGE:0:U
 md_disks		value:GAUGE:0:U
 memcached_command	value:DERIVE:0:U
 memcached_connections	value:GAUGE:0:U
@@ -175,7 +174,6 @@ total_values		value:DERIVE:0:U
 uptime			value:GAUGE:0:4294967295
 users			value:GAUGE:0:65535
 vcpu			value:GAUGE:0:U
-vol_group               used:GAUGE:0:U, free:GAUGE:0:U, size:GAUGE:0:U
 virt_cpu_total		value:DERIVE:0:U
 virt_vcpu		value:DERIVE:0:U
 vmpage_action		value:DERIVE:0:U
