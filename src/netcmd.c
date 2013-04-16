@@ -54,7 +54,7 @@
 /*
  * Private data structures
  */
-struct nc_peer_s
+struct nc_peer_s /* {{{ */
 {
   char *node;
   char *service;
@@ -70,8 +70,7 @@ struct nc_peer_s
   gnutls_certificate_credentials_t tls_credentials;
   gnutls_dh_params_t tls_dh_params;
   gnutls_priority_t tls_priority;
-
-};
+}; /* }}} */
 typedef struct nc_peer_s nc_peer_t;
 
 #if defined(PAGESIZE)
@@ -82,7 +81,7 @@ typedef struct nc_peer_s nc_peer_t;
 # define NC_READ_BUFFER_SIZE 4096
 #endif
 
-struct nc_connection_s
+struct nc_connection_s /* {{{ */
 {
   /* TLS fields */
   int fd;
@@ -95,8 +94,18 @@ struct nc_connection_s
 
   gnutls_session_t tls_session;
   _Bool have_tls_session;
-};
+  _Bool tls_verify_peer;
+}; /* }}} */
 typedef struct nc_connection_s nc_connection_t;
+
+struct nc_proxy_s
+{
+  int pipe_rx;
+  int pipe_tx;
+
+  gnutls_session_t tls_session;
+};
+typedef struct nc_proxy_s nc_proxy_t;
 
 /*
  * Private variables
@@ -116,6 +125,258 @@ static pthread_t listen_thread;
 /*
  * Functions
  */
+static const char *nc_verify_status_to_string (gnutls_certificate_status_t status)
+{
+  if (status == 0)
+    return ("Valid");
+  else if (status & GNUTLS_CERT_INVALID)
+    return ("Invalid");
+  else if (status & GNUTLS_CERT_REVOKED)
+    return ("Revoked");
+  else if (status & GNUTLS_CERT_SIGNER_NOT_FOUND)
+    return ("Signer not found");
+  else if (status & GNUTLS_CERT_SIGNER_NOT_CA)
+    return ("Signer not a CA");
+  else if (status & GNUTLS_CERT_INSECURE_ALGORITHM)
+    return ("Insecure algorithm");
+#if GNUTLS_VERSION_NUMBER >= 0x020708
+  else if (status & GNUTLS_CERT_NOT_ACTIVATED)
+    return ("Not activated");
+  else if (status & GNUTLS_CERT_EXPIRED)
+    return ("Expired");
+#endif
+  else
+    return (NULL);
+} /* }}} const char *nc_verify_status_to_string */
+
+static void *nc_proxy_thread (void *args) /* {{{ */
+{
+  nc_proxy_t *data = args;
+  struct pollfd fds[2];
+  int gtls_fd;
+  long pagesize;
+
+  gtls_fd = (int) gnutls_transport_get_ptr (data->tls_session);
+  DEBUG ("netcmd plugin: nc_proxy_thread: pipe_rx = %i; pipe_tx = %i; gtls_fd = %i;",
+      data->pipe_rx, data->pipe_tx, gtls_fd);
+
+  memset (fds, 0, sizeof (fds));
+  fds[0].fd = data->pipe_rx;
+  fds[0].events = POLLIN | POLLPRI;
+  fds[1].fd = gtls_fd;
+  fds[1].events = POLLIN | POLLPRI;
+
+  pagesize = sysconf (_SC_PAGESIZE);
+
+  while (42)
+  {
+    char errbuf[1024];
+    char buffer[pagesize];
+    int status;
+
+    status = poll (fds, STATIC_ARRAY_SIZE(fds), /* timeout = */ -1);
+    if (status < 0)
+    {
+      if ((errno == EINTR) || (errno == EAGAIN))
+        continue;
+      ERROR ("netcmd plugin: poll(2) failed: %s",
+          sstrerror (errno, errbuf, sizeof (errbuf)));
+      break;
+    }
+
+    /* pipe -> TLS */
+    if (fds[0].revents != 0) /* {{{ */
+    {
+      ssize_t iostatus;
+      size_t buffer_size;
+      char *buffer_ptr;
+
+      DEBUG ("netcmd plugin: nc_proxy_thread: Something's up on the pipe.");
+
+      /* Check for hangup, error, ... */
+      if ((fds[0].revents & (POLLIN | POLLPRI)) == 0)
+        break;
+
+      iostatus = read (fds[0].fd, buffer, sizeof (buffer));
+      DEBUG ("netcmd plugin: nc_proxy_thread: Received %zi bytes from pipe.",
+          iostatus);
+      if (iostatus < 0)
+      {
+        if ((errno == EINTR) || (errno == EAGAIN))
+          continue;
+        ERROR ("netcmd plugin: read(2) failed: %s",
+            sstrerror (errno, errbuf, sizeof (errbuf)));
+        break;
+      }
+      else if (iostatus == 0)
+      {
+        break;
+      }
+
+      buffer_ptr = buffer;
+      buffer_size = (size_t) iostatus;
+      while (buffer_size > 0)
+      {
+        iostatus = gnutls_record_send (data->tls_session,
+            buffer, buffer_size);
+        DEBUG ("netcmd plugin: nc_proxy_thread: Wrote %zi bytes to GNU-TLS.",
+            iostatus);
+        if (iostatus < 0)
+        {
+          ERROR ("netcmd plugin: gnutls_record_send failed: %s",
+              gnutls_strerror ((int) iostatus));
+          break;
+        }
+
+        assert (iostatus <= buffer_size);
+        buffer_ptr += iostatus;
+        buffer_size -= iostatus;
+      } /* while (buffer_size > 0) */
+
+      if (buffer_size != 0)
+        break;
+
+      fds[0].revents = 0;
+    } /* }}} if (fds[0].revents != 0) */
+
+    /* TLS -> pipe */
+    if (fds[1].revents != 0) /* {{{ */
+    {
+      ssize_t iostatus;
+      size_t buffer_size;
+
+      DEBUG ("netcmd plugin: nc_proxy_thread: Something's up on the TLS socket.");
+
+      /* Check for hangup, error, ... */
+      if ((fds[1].revents & (POLLIN | POLLPRI)) == 0)
+        break;
+
+      iostatus = gnutls_record_recv (data->tls_session, buffer, sizeof (buffer));
+      DEBUG ("netcmd plugin: nc_proxy_thread: Received %zi bytes from GNU-TLS.",
+          iostatus);
+      if (iostatus < 0)
+      {
+        if ((iostatus == GNUTLS_E_INTERRUPTED)
+            || (iostatus == GNUTLS_E_AGAIN))
+          continue;
+        ERROR ("netcmd plugin: gnutls_record_recv failed: %s",
+            gnutls_strerror ((int) iostatus));
+        break;
+      }
+      else if (iostatus == 0)
+      {
+        break;
+      }
+
+      buffer_size = (size_t) iostatus;
+      iostatus = swrite (data->pipe_tx, buffer, buffer_size);
+      DEBUG ("netcmd plugin: nc_proxy_thread:  Wrote %zi bytes to pipe.",
+          iostatus);
+
+      fds[1].revents = 0;
+    } /* }}} if (fds[1].revents != 0) */
+  } /* while (42) */
+
+  DEBUG ("netcmd plugin: nc_proxy_thread: Shutting down.");
+  return (NULL);
+} /* }}} void *nc_proxy_thread */
+
+/* Creates two pipes and a separate thread to pass data between two FILE* and
+ * the GNUTLS back and forth. This is required because the handle_<cmd>
+ * functions expect to be able to write to a FILE*. */
+static int nc_start_tls_file_handles (nc_connection_t *conn) /* {{{ */
+{
+#define BAIL_OUT(status) do { \
+  DEBUG ("netcmd plugin: nc_start_tls_file_handles: Bailing out with status %i.", (status)); \
+  if (proxy_config->pipe_rx >= 0) { close (proxy_config->pipe_rx); }         \
+  if (proxy_config->pipe_tx >= 0) { close (proxy_config->pipe_tx); }         \
+  if (conn->fh_in != NULL) { fclose (conn->fh_in); conn->fh_in = NULL; }     \
+  if (conn->fh_out != NULL) { fclose (conn->fh_out); conn->fh_out = NULL; }  \
+  free (proxy_config);                                                       \
+  return (status);                                                           \
+} while (0)
+
+  nc_proxy_t *proxy_config;
+  int pipe_fd[2];
+  int status;
+
+  pthread_attr_t attr;
+  pthread_t thread;
+
+  if ((conn->fh_in != NULL) || (conn->fh_out != NULL))
+  {
+    ERROR ("netcmd plugin: nc_start_tls_file_handles: Connection already connected.");
+    return (EEXIST);
+  }
+
+  proxy_config = malloc (sizeof (*proxy_config));
+  if (proxy_config == NULL)
+  {
+    ERROR ("netcmd plugin: malloc failed.");
+    return (ENOMEM);
+  }
+  memset (proxy_config, 0, sizeof (*proxy_config));
+  proxy_config->pipe_rx = -1;
+  proxy_config->pipe_tx = -1;
+  proxy_config->tls_session = conn->tls_session;
+
+  pipe_fd[0] = pipe_fd[1] = -1;
+  status = pipe (pipe_fd);
+  if (status != 0)
+  {
+    char errmsg[1024];
+    ERROR ("netcmd plugin: pipe(2) failed: %s",
+        sstrerror (errno, errmsg, sizeof (errmsg)));
+    BAIL_OUT (-1);
+  }
+  proxy_config->pipe_rx = pipe_fd[0];
+  conn->fh_out = fdopen (pipe_fd[1], "w");
+  if (conn->fh_out == NULL)
+  {
+    char errmsg[1024];
+    ERROR ("netcmd plugin: fdopen(2) failed: %s",
+        sstrerror (errno, errmsg, sizeof (errmsg)));
+    close (pipe_fd[1]);
+    BAIL_OUT (-1);
+  }
+
+  pipe_fd[0] = pipe_fd[1] = -1;
+  status = pipe (pipe_fd);
+  if (status != 0)
+  {
+    char errmsg[1024];
+    ERROR ("netcmd plugin: pipe(2) failed: %s",
+        sstrerror (errno, errmsg, sizeof (errmsg)));
+    BAIL_OUT (-1);
+  }
+  proxy_config->pipe_tx = pipe_fd[1];
+  conn->fh_in = fdopen (pipe_fd[0], "r");
+  if (conn->fh_in == NULL)
+  {
+    char errmsg[1024];
+    ERROR ("netcmd plugin: fdopen(2) failed: %s",
+        sstrerror (errno, errmsg, sizeof (errmsg)));
+    close (pipe_fd[0]);
+    BAIL_OUT (-1);
+  }
+
+  pthread_attr_init (&attr);
+  pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
+
+  status = pthread_create (&thread, &attr, nc_proxy_thread, proxy_config);
+  pthread_attr_destroy (&attr);
+  if (status != 0)
+  {
+    char errmsg[1024];
+    ERROR ("netcmd plugin: pthread_create(2) failed: %s",
+        sstrerror (errno, errmsg, sizeof (errmsg)));
+    BAIL_OUT (-1);
+  }
+
+  DEBUG ("netcmd plugin: nc_start_tls_file_handles: Successfully started proxy thread.");
+  return (0);
+} /* }}} int nc_start_tls_file_handles */
+
 static nc_peer_t *nc_fd_to_peer (int fd) /* {{{ */
 {
   size_t i;
@@ -202,8 +463,7 @@ static int nc_tls_init (nc_peer_t *peer) /* {{{ */
   if (peer == NULL)
     return (EINVAL);
 
-  if ((peer->tls_cert_file == NULL)
-      || (peer->tls_key_file == NULL))
+  if (peer->tls_key_file == NULL)
   {
     DEBUG ("netcmd plugin: Not setting up TLS environment for peer.");
     return (0);
@@ -439,46 +699,83 @@ static void nc_connection_close (nc_connection_t *conn) /* {{{ */
   sfree (conn);
 } /* }}} void nc_connection_close */
 
+static int nc_connection_init_tls (nc_connection_t *conn) /* {{{ */
+{
+  int status;
+  intptr_t fd;
+
+  conn->read_buffer = malloc (NC_READ_BUFFER_SIZE);
+  if (conn->read_buffer == NULL)
+    return (ENOMEM);
+  memset (conn->read_buffer, 0, NC_READ_BUFFER_SIZE);
+
+  /* Make (relatively) sure that 'fd' and 'void*' have the same size to make
+   * GCC happy. */
+  fd = (intptr_t) conn->fd;
+  gnutls_transport_set_ptr (conn->tls_session,
+      (gnutls_transport_ptr_t) fd);
+
+  while (42)
+  {
+    status = gnutls_handshake (conn->tls_session);
+    if (status == GNUTLS_E_SUCCESS)
+      break;
+    else if ((status == GNUTLS_E_AGAIN) || (status == GNUTLS_E_INTERRUPTED))
+      continue;
+    else
+    {
+      ERROR ("netcmd plugin: gnutls_handshake failed: %s",
+          gnutls_strerror (status));
+      return (status);
+    }
+  }
+
+  if (conn->tls_verify_peer)
+  {
+    unsigned int verify_status = 0;
+
+    status = gnutls_certificate_verify_peers2 (conn->tls_session,
+        &verify_status);
+    if (status != GNUTLS_E_SUCCESS)
+    {
+      ERROR ("netcmd plugin: gnutls_certificate_verify_peers2 failed: %s",
+          gnutls_strerror (status));
+      return (status);
+    }
+
+    if (verify_status != 0)
+    {
+      const char *reason;
+
+      reason = nc_verify_status_to_string (verify_status);
+      if (reason == NULL)
+        ERROR ("netcmd plugin: Verification of peer failed with "
+            "status %i (%#x)", verify_status, verify_status);
+      else
+        ERROR ("netcmd plugin: Verification of peer failed with "
+            "status %i (%s)", verify_status, reason);
+
+      return (-1);
+    }
+  } /* if (conn->tls_verify_peer) */
+
+  status = nc_start_tls_file_handles (conn);
+  if (status != 0)
+  {
+    nc_connection_close (conn);
+    return (-1);
+  }
+
+  return (0);
+} /* }}} int nc_connection_init_tls */
+
 static int nc_connection_init (nc_connection_t *conn) /* {{{ */
 {
   int fd_copy;
   char errbuf[1024];
 
-  DEBUG ("netcmd plugin: nc_connection_init();");
-
   if (conn->have_tls_session)
-  {
-    int status;
-    intptr_t fd;
-
-    conn->read_buffer = malloc (NC_READ_BUFFER_SIZE);
-    if (conn->read_buffer == NULL)
-      return (ENOMEM);
-    memset (conn->read_buffer, 0, NC_READ_BUFFER_SIZE);
-
-    /* Make (relatively) sure that 'fd' and 'void*' have the same size to make
-     * GCC happy. */
-    fd = (intptr_t) conn->fd;
-    gnutls_transport_set_ptr (conn->tls_session,
-        (gnutls_transport_ptr_t) fd);
-
-    while (42)
-    {
-      status = gnutls_handshake (conn->tls_session);
-      if (status == GNUTLS_E_SUCCESS)
-        break;
-      else if ((status == GNUTLS_E_AGAIN) || (status == GNUTLS_E_INTERRUPTED))
-        continue;
-      else
-      {
-        ERROR ("netcmd plugin: gnutls_handshake failed: %s",
-            gnutls_strerror (status));
-        return (-1);
-      }
-    }
-
-    return (0);
-  }
+    return (nc_connection_init_tls (conn));
 
   /* Duplicate the file descriptor. We need two file descriptors, because we
    * create two FILE* objects. If they pointed to the same FD and we called
@@ -818,17 +1115,33 @@ static void *nc_server_thread (void __attribute__((unused)) *arg) /* {{{ */
       conn->fh_out = NULL;
 
       conn->fd = status;
+
+      /* Start up the TLS session if the required configuration options have
+       * been given. */
       if ((peer != NULL)
-          && (peer->tls_cert_file != NULL))
+          && (peer->tls_key_file != NULL))
       {
-        DEBUG ("netcmd plugin: Starting TLS session on [%s]:%s",
+        DEBUG ("netcmd plugin: Starting TLS session on a connection "
+            "via [%s]:%s",
             (peer->node != NULL) ? peer->node : "any",
             (peer->service != NULL) ? peer->service : NC_DEFAULT_SERVICE);
         conn->tls_session = nc_tls_get_session (peer);
+        if (conn->tls_session == NULL)
+        {
+          ERROR ("netcmd plugin: Creating TLS session on a connection via "
+              "[%s]:%s failed. For security reasons this connection will be "
+              "terminated.",
+              (peer->node != NULL) ? peer->node : "any",
+              (peer->service != NULL) ? peer->service : NC_DEFAULT_SERVICE);
+          nc_connection_close (conn);
+          continue;
+        }
         conn->have_tls_session = 1;
+        conn->tls_verify_peer = peer->tls_verify_peer;
       }
 
-      DEBUG ("Spawning child to handle connection on fd %i", conn->fd);
+      DEBUG ("netcmd plugin: Spawning child to handle connection on fd #%i",
+          conn->fd);
 
       pthread_attr_init (&th_attr);
       pthread_attr_setdetachstate (&th_attr, PTHREAD_CREATE_DETACHED);
@@ -878,8 +1191,8 @@ static void *nc_server_thread (void __attribute__((unused)) *arg) /* {{{ */
 static int nc_config_peer (const oconfig_item_t *ci) /* {{{ */
 {
   nc_peer_t *p;
-  int i;
   _Bool success;
+  int i;
 
   p = realloc (peers, sizeof (*peers) * (peers_num + 1));
   if (p == NULL)
@@ -921,22 +1234,44 @@ static int nc_config_peer (const oconfig_item_t *ci) /* {{{ */
           "a \"%s\" block.", child->key, ci->key);
   }
 
+  /* TLS is confusing for many people. Be verbose on mis-configurations to
+   * help people set up encryption correctly. */
   success = 1;
-
-  if (p->tls_verify_peer
-      && ((p->tls_cert_file == NULL)
-        || (p->tls_key_file == NULL)
-        || (p->tls_ca_file == NULL)))
+  if (p->tls_key_file == NULL)
   {
-    ERROR ("netcmd plugin: You have requested to verify peers (using the "
-        "\"TLSVerifyPeer\" option), but the TLS setup is incomplete. "
-        "The \"TLSCertFile\", \"TLSKeyFile\" and \"TLSCAFile\" are "
-        "required for this to work. This \"Listen\" block will be disabled.");
+    if (p->tls_cert_file != NULL)
+    {
+      WARNING ("netcmd plugin: The \"TLSCertFile\" option is only valid in "
+          "combination with the \"TLSKeyFile\" option.");
+      success = 0;
+    }
+    if (p->tls_ca_file != NULL)
+    {
+      WARNING ("netcmd plugin: The \"TLSCAFile\" option is only valid when "
+          "the \"TLSKeyFile\" option has been specified.");
+      success = 0;
+    }
+    if (p->tls_crl_file != NULL)
+    {
+      WARNING ("netcmd plugin: The \"TLSCRLFile\" option is only valid when "
+          "the \"TLSKeyFile\" option has been specified.");
+      success = 0;
+    }
+  }
+  else if (p->tls_cert_file == NULL)
+  {
+    WARNING ("netcmd plugin: The \"TLSKeyFile\" option is only valid in "
+        "combination with the \"TLSCertFile\" option.");
     success = 0;
   }
 
   if (!success)
   {
+    ERROR ("netcmd plugin: Problems in the security settings have been "
+        "detected in the <Listen /> block for [%s]:%s. The entire block "
+        "will be ignored to prevent unauthorized access.",
+        (p->node == NULL) ? "::0" : p->node,
+        (p->service == NULL) ? NC_DEFAULT_SERVICE : p->service);
     nc_free_peer (p);
     return (-1);
   }
@@ -1022,11 +1357,11 @@ static int nc_shutdown (void) /* {{{ */
   return (0);
 } /* }}} int nc_shutdown */
 
-void module_register (void)
+void module_register (void) /* {{{ */
 {
   plugin_register_complex_config ("netcmd", nc_config);
   plugin_register_init ("netcmd", nc_init);
   plugin_register_shutdown ("netcmd", nc_shutdown);
-} /* void module_register (void) */
+} /* }}} void module_register (void) */
 
 /* vim: set sw=2 sts=2 tw=78 et fdm=marker : */
