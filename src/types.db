@@ -186,6 +186,7 @@ voltage			value:GAUGE:U:U
 vs_memory		value:GAUGE:0:9223372036854775807
 vs_processes		value:GAUGE:0:65535
 vs_threads		value:GAUGE:0:65535
+
 #
 # Legacy types
 # (required for the v5 upgrade target)

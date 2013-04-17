@@ -47,6 +47,9 @@ Bruno Prémont <bonbons at linux-vserver.org>
    especially a nasty bug in the network plugin.
  - Wireshark dissector.
 
+Chad Malfait <malfaitc at yahoo.com>
+ - LVM plugin.
+
 Chris Lundquist <clundquist at bluebox.net>
  - Improvements to the write_mongodb plugin.
 
