@@ -39,14 +39,11 @@ __attribute__ ((nonnull(1)))
 __attribute__ ((nonnull(2)))
 static void cgroups_submit_one (const char *plugin_instance,
 		const char *type, const char *type_instance,
-		derive_t value)
+		value_t value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].derive = value;
-
-	vl.values = values;
+	vl.values = &value;
 	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "cgroups_cpuacct", sizeof (vl.plugin));
@@ -63,9 +60,8 @@ static void cgroups_submit_one (const char *plugin_instance,
 
 /*
  * This callback reads the user/system CPU time for each cgroup.
- *
  */
-static int read_cpuacct_procs (const char *dirname, const char *filename,
+static int read_cpuacct_procs (const char *dirname, char const *cgroup_name,
     void *user_data)
 {
 	char abs_path[PATH_MAX];
@@ -73,10 +69,16 @@ static int read_cpuacct_procs (const char *dirname, const char *filename,
 	char buf[1024];
 	int status;
 
-	if (ignorelist_match (il_cgroup, filename))
+	char *fields[8];
+	int numfields = 0;
+
+	value_t usertime;
+	value_t systemtime;
+
+	if (ignorelist_match (il_cgroup, cgroup_name))
 		return (0);
 
-	ssnprintf (abs_path, sizeof (abs_path), "%s/%s", dirname, filename);
+	ssnprintf (abs_path, sizeof (abs_path), "%s/%s", dirname, cgroup_name);
 
 	status = lstat (abs_path, &statbuf);
 	if (status != 0)
@@ -87,34 +89,37 @@ static int read_cpuacct_procs (const char *dirname, const char *filename,
 
 	/* We are only interested in directories, so skip everything else. */
 	if (!S_ISDIR (statbuf.st_mode))
-	{
 		return (0);
-	}
 
-	ssnprintf (abs_path, sizeof (abs_path), "%s/%s/cpuacct.stat", dirname, filename);
-	int bytes_read;
-	if ((bytes_read = read_file_contents (abs_path, buf, sizeof(buf))) <= 0)
+	ssnprintf (abs_path, sizeof (abs_path), "%s/%s/cpuacct.stat",
+			dirname, cgroup_name);
+	status = (int) read_file_contents (abs_path, buf, sizeof (buf) - 1);
+	if (status <= 0)
 	{
 		char errbuf[1024];
 		ERROR ("cgroups_cpuacct plugin: read_file_contents(%s): %s",
 				abs_path, sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
-	buf[bytes_read] = '\0';
+	buf[status] = '\0';
 
-	char *fields[4];
-	int numfields = 0;
-	if ((numfields = strsplit (buf, fields, 4)) != 4)
+	numfields = strsplit (buf, fields, STATIC_ARRAY_SIZE (fields));
+	if (numfields != 4)
 	{
-		ERROR ("cgroups_cpuacct plugin: unexpected content in file %s", abs_path);
+		ERROR ("cgroups_cpuacct plugin: unexpected content in file %s",
+				abs_path);
 		return (-1);
 	}
-	uint64_t usertime, systemtime;
-	usertime = atoll (fields[1]);
-	systemtime = atoll (fields[3]);
 
-	cgroups_submit_one(filename, "cpuacct", "user", (derive_t)usertime);
-	cgroups_submit_one(filename, "cpuacct", "system", (derive_t)systemtime);
+	status = parse_value (fields[1], &usertime, DS_TYPE_DERIVE);
+	if (status != 0)
+		return (-1);
+	status = parse_value (fields[3], &systemtime, DS_TYPE_DERIVE);
+	if (status != 0)
+		return (-1);
+
+	cgroups_submit_one (cgroup_name, "cpuacct", "user", usertime);
+	cgroups_submit_one (cgroup_name, "cpuacct", "system", systemtime);
 
 	return (0);
 }
@@ -143,7 +148,9 @@ static int read_cpuacct_root (const char *dirname, const char *filename,
 
   if (S_ISDIR (statbuf.st_mode))
   {
-    status = walk_directory (abs_path, read_cpuacct_procs, NULL, 0);
+    status = walk_directory (abs_path, read_cpuacct_procs,
+		    /* user_data = */ NULL,
+		    /* include_hidden = */ 0);
     return (status);
   }
 
@@ -171,13 +178,9 @@ static int cgroups_config (const char *key, const char *value)
 	else if (strcasecmp (key, "IgnoreSelected") == 0)
 	{
 		if (IS_TRUE (value))
-		{
 			ignorelist_set_invert (il_cgroup, 0);
-		}
 		else
-		{
 			ignorelist_set_invert (il_cgroup, 1);
-		}
 		return (0);
 	}
 
@@ -188,7 +191,7 @@ static int cgroups_read (void)
 {
 	cu_mount_t *mnt_list;
 	cu_mount_t *mnt_ptr;
-	int cgroup_found = 0;
+	_Bool cgroup_found = 0;
 
 	mnt_list = NULL;
 	if (cu_mount_getlist (&mnt_list) == NULL)
@@ -205,17 +208,23 @@ static int cgroups_read (void)
 			!cu_mount_getoptionvalue(mnt_ptr->options, "cpuacct"))
 			continue;
 
-		walk_directory (mnt_ptr->dir, read_cpuacct_root, NULL, 0);
+		walk_directory (mnt_ptr->dir, read_cpuacct_root,
+				/* user_data = */ NULL,
+				/* include_hidden = */ 0);
 		cgroup_found = 1;
 		/* It doesn't make sense to check other cpuacct mount-points
 		 * (if any), they contain the same data. */
 		break;
 	}
 
-	if (!cgroup_found)
-		WARNING ("cpuacct mountpoint not found. Cannot collect any data.");
-
 	cu_mount_freelist (mnt_list);
+
+	if (!cgroup_found)
+	{
+		WARNING ("cgroups_cpuacct plugin: Unable to find cgroup "
+				"mount-point with the \"cpuacct\" option.");
+		return (-1);
+	}
 
 	return (0);
 } /* int cgroup_read */
