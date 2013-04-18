@@ -26,7 +26,7 @@
 #include "utils_mount.h"
 #include "utils_ignorelist.h"
 
-static const char *config_keys[] =
+static char const *config_keys[] =
 {
 	"CGroup",
 	"IgnoreSelected"
@@ -123,33 +123,32 @@ static int read_cpuacct_procs (const char *dirname, char const *cgroup_name,
  * Gets called for every file/folder in /sys/fs/cgroup/cpu,cpuacct (or
  * whereever cpuacct is mounted on the system). Calls walk_directory with the
  * read_cpuacct_procs callback on every folder it finds, such as "system".
- *
  */
 static int read_cpuacct_root (const char *dirname, const char *filename,
-    void *user_data)
+		void *user_data)
 {
-  char abs_path[PATH_MAX];
-  struct stat statbuf;
-  int status;
+	char abs_path[PATH_MAX];
+	struct stat statbuf;
+	int status;
 
-  ssnprintf (abs_path, sizeof (abs_path), "%s/%s", dirname, filename);
+	ssnprintf (abs_path, sizeof (abs_path), "%s/%s", dirname, filename);
 
-  status = lstat (abs_path, &statbuf);
-  if (status != 0)
-  {
-    ERROR ("cgroups_cpuacct plugin: stat (%s) failed.", abs_path);
-    return (-1);
-  }
+	status = lstat (abs_path, &statbuf);
+	if (status != 0)
+	{
+		ERROR ("cgroups_cpuacct plugin: stat (%s) failed.", abs_path);
+		return (-1);
+	}
 
-  if (S_ISDIR (statbuf.st_mode))
-  {
-    status = walk_directory (abs_path, read_cpuacct_procs,
-		    /* user_data = */ NULL,
-		    /* include_hidden = */ 0);
-    return (status);
-  }
+	if (S_ISDIR (statbuf.st_mode))
+	{
+		status = walk_directory (abs_path, read_cpuacct_procs,
+				/* user_data = */ NULL,
+				/* include_hidden = */ 0);
+		return (status);
+	}
 
-  return (0);
+	return (0);
 }
 
 static int cgroups_init (void)
