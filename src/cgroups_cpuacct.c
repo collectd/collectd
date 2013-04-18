@@ -37,9 +37,8 @@ static ignorelist_t *il_cgroup = NULL;
 
 __attribute__ ((nonnull(1)))
 __attribute__ ((nonnull(2)))
-static void cgroups_submit_one (const char *plugin_instance,
-		const char *type, const char *type_instance,
-		value_t value)
+static void cgroups_submit_one (char const *plugin_instance,
+		char const *type_instance, value_t value)
 {
 	value_list_t vl = VALUE_LIST_INIT;
 
@@ -48,15 +47,13 @@ static void cgroups_submit_one (const char *plugin_instance,
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "cgroups_cpuacct", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, plugin_instance,
-		sizeof (vl.plugin_instance));
-	sstrncpy (vl.type, type, sizeof (vl.type));
-	if (type_instance != NULL)
-		sstrncpy (vl.type_instance, type_instance,
-				sizeof (vl.type_instance));
+			sizeof (vl.plugin_instance));
+	sstrncpy (vl.type, "cpu", sizeof (vl.type));
+	sstrncpy (vl.type_instance, type_instance,
+			sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
 } /* void cgroups_submit_one */
-
 
 /*
  * This callback reads the user/system CPU time for each cgroup.
@@ -112,14 +109,12 @@ static int read_cpuacct_procs (const char *dirname, char const *cgroup_name,
 	}
 
 	status = parse_value (fields[1], &usertime, DS_TYPE_DERIVE);
-	if (status != 0)
-		return (-1);
-	status = parse_value (fields[3], &systemtime, DS_TYPE_DERIVE);
-	if (status != 0)
-		return (-1);
+	if (status == 0)
+		cgroups_submit_one (cgroup_name, "user", usertime);
 
-	cgroups_submit_one (cgroup_name, "cpuacct", "user", usertime);
-	cgroups_submit_one (cgroup_name, "cpuacct", "system", systemtime);
+	status = parse_value (fields[3], &systemtime, DS_TYPE_DERIVE);
+	if (status == 0)
+		cgroups_submit_one (cgroup_name, "system", systemtime);
 
 	return (0);
 }
