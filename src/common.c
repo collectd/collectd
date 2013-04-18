@@ -1213,18 +1213,25 @@ int walk_directory (const char *dir, dirwalk_callback_f callback,
 	return (0);
 }
 
-int read_file_contents (const char *filename, char *buf, int bufsize)
+ssize_t read_file_contents (const char *filename, char *buf, size_t bufsize)
 {
 	FILE *fh;
-	int n;
+	ssize_t ret;
 
-	if ((fh = fopen (filename, "r")) == NULL)
-		return -1;
+	fh = fopen (filename, "r");
+	if (fh == NULL)
+		return (-1);
 
-	n = fread(buf, 1, bufsize, fh);
+	ret = (ssize_t) fread (buf, 1, bufsize, fh);
+	if ((ret == 0) && (ferror (fh) != 0))
+	{
+		ERROR ("read_file_contents: Reading file \"%s\" failed.",
+				filename);
+		ret = -1;
+	}
+
 	fclose(fh);
-
-	return n;
+	return (ret);
 }
 
 counter_t counter_diff (counter_t old_value, counter_t new_value)
