@@ -29,6 +29,7 @@
 #include <MicThermalAPI.h>
 
 #define MAX_MICS 32
+#define MAX_CORES 256
 
 static MicDeviceOnSystem mics[MAX_MICS];
 static U32 numMics = MAX_MICS;
@@ -91,6 +92,29 @@ static void mic_submit_temp(int micnumber, const char *type, gauge_t val)
   plugin_dispatch_values (&vl);
 } 
 
+static void mic_submit_cpu(int micnumber, const char *type, int core, derive_t val)
+{
+  value_t values[1];
+  value_list_t vl = VALUE_LIST_INIT;
+
+  values[0].derive = val;
+
+  vl.values=values;
+  vl.values_len=1;
+
+  strncpy (vl.host, hostname_g, sizeof (vl.host));
+  strncpy (vl.plugin, "mic", sizeof (vl.plugin));
+  ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance), "%i", micnumber);
+  strncpy (vl.type, "cpu", sizeof (vl.type));
+  if (core < 0)
+	strncpy (vl.type_instance, type, sizeof (vl.type_instance));
+  else
+	ssnprintf (vl.type_instance, sizeof (vl.type_instance), "%i-%s", core, type);
+
+  plugin_dispatch_values (&vl);
+} 
+
+
 
 static int mic_read (void)
 {
@@ -99,6 +123,8 @@ static int mic_read (void)
   U32 *tempBuffer;
   int error;
   U32 mem_total,mem_used,mem_bufs;
+  MicCoreUtil coreUtil;
+  MicCoreJiff coreJiffs[MAX_CORES];
 
   error=0;
   for (i=0;i<numMics;i++) {
@@ -138,6 +164,25 @@ static int mic_read (void)
 	if (error)
 	  break;
 
+	/*Gather CPU Utilization Information */
+	bufferSize=MAX_CORES*sizeof(MicCoreJiff);
+	ret = MicGetCoreUtilization(micHandle,&coreUtil,coreJiffs,&bufferSize);
+	if (ret != MIC_ACCESS_API_SUCCESS) {
+	  ERROR("Problem getting CPU utilization: %s",MicGetErrorString(ret));
+	  error=5;
+	  break;
+	}
+	mic_submit_cpu(i,"user",-1,coreUtil.sum.user);
+	mic_submit_cpu(i,"sys",-1,coreUtil.sum.sys);
+	mic_submit_cpu(i,"nice",-1,coreUtil.sum.nice);
+	mic_submit_cpu(i,"idle",-1,coreUtil.sum.idle);
+	for (j=0;j<coreUtil.core;j++) {
+	  mic_submit_cpu(i,"user",j,coreJiffs[j].user);
+	  mic_submit_cpu(i,"sys",j,coreJiffs[j].sys);
+	  mic_submit_cpu(i,"nice",j,coreJiffs[j].nice);
+	  mic_submit_cpu(i,"idle",j,coreJiffs[j].idle);
+	}
+
 	ret = MicCloseAdapter(micHandle);
 	if (ret != MIC_ACCESS_API_SUCCESS) {
 	  ERROR("Problem initializing MicAdapter: %s",MicGetErrorString(ret));
@@ -152,7 +197,7 @@ static int mic_read (void)
 static int mic_shutdown (void)
 {
   if (micHandle)
-	MicCloseAPI(micHandle);
+	MicCloseAPI(&micHandle);
   return (0);
 }
 
