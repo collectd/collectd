@@ -1216,6 +1216,16 @@ collectd_LDADD += "-dlopen" tokyotyrant.la
 collectd_DEPENDENCIES += tokyotyrant.la
 endif
 
+if BUILD_PLUGIN_TWEMPROXY
+pkglib_LTLIBRARIES += twemproxy.la
+twemproxy_la_SOURCES = twemproxy.c
+twemproxy_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBJSONC_LDFLAGS)
+twemproxy_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBJSONC_CPPFLAGS)
+twemproxy_la_LIBADD = -ljson-c
+collectd_LDADD += "-dlopen" twemproxy.la
+collectd_DEPENDENCIES += twemproxy.la
+endif
+
 if BUILD_PLUGIN_UNIXSOCK
 pkglib_LTLIBRARIES += unixsock.la
 unixsock_la_SOURCES = unixsock.c \

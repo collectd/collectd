@@ -97,6 +97,7 @@ io_packets		rx:DERIVE:0:U, tx:DERIVE:0:U
 ipt_bytes		value:DERIVE:0:U
 ipt_packets		value:DERIVE:0:U
 irq			value:DERIVE:0:U
+keys			value:GAUGE:0:U
 keyspace_hits			value:GAUGE:0:U
 keyspace_misses			value:GAUGE:0:U
 latency			value:GAUGE:0:65535
@@ -118,6 +119,20 @@ mysql_handler		value:DERIVE:0:U
 mysql_locks		value:DERIVE:0:U
 mysql_log_position	value:DERIVE:0:U
 mysql_octets		rx:DERIVE:0:U, tx:DERIVE:0:U
+nc_client_connections   value:GAUGE:0:U
+nc_client_eof           value:GAUGE:0:U
+nc_client_err           value:GAUGE:0:U
+nc_forward_error        value:GAUGE:0:U
+nc_fragments            value:GAUGE:0:U
+nc_queue                value:DERIVE:0:U
+nc_queue_bytes          value:DERIVE:0:U
+nc_request_bytes        value:DERIVE:0:U
+nc_requests             value:DERIVE:0:U
+nc_server_connections   value:GAUGE:0:U
+nc_server_ejects        value:GAUGE:0:U
+nc_server_eof           value:GAUGE:0:U
+nc_server_err           value:GAUGE:0:U
+nc_server_timedout      value:GAUGE:0:U
 nfs_procedure		value:DERIVE:0:U
 nginx_connections	value:GAUGE:0:U
 nginx_requests		value:DERIVE:0:U
