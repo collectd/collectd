@@ -58,6 +58,8 @@ static size_t	  riemann_tags_num;
 
 static void riemann_event_protobuf_free (Event *event) /* {{{ */
 {
+	size_t i;
+
 	if (event == NULL)
 		return;
 
@@ -69,6 +71,11 @@ static void riemann_event_protobuf_free (Event *event) /* {{{ */
 	strarray_free (event->tags, event->n_tags);
 	event->tags = NULL;
 	event->n_tags = 0;
+
+	for (i = 0; i < event->n_attributes; i++)
+		sfree (event->attributes[i]);
+	sfree (event->attributes);
+	event->n_attributes = 0;
 
 	sfree (event);
 } /* }}} void riemann_event_protobuf_free */
