@@ -1,5 +1,5 @@
 /**
- * collectd - src/xmms.c
+ * collectd - src/mic.c
  * Copyright (C) 2013  
  *
  * This program is free software; you can redistribute it and/or modify it
