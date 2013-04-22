@@ -84,6 +84,7 @@ struct redis_node_s
   char passwd[HOST_NAME_MAX];
   int port;
   int timeout;
+  redisContext *rc;
   RedisQuery *query;
   RedisNode *next;
 };
@@ -434,107 +435,75 @@ static int redisConfig(oconfig_item_t *ci)
   return 0;
 }
 
-__attribute__((nonnull(2)))
-static void redisSubmitGauge(const char* hostname, const char *plugin_instance, const char *type, const char *type_instance, gauge_t value)
-{
-  value_t values[1];
-  value_list_t vl = VALUE_LIST_INIT;
-
-  values[0].gauge = value;
-
-  vl.values = values;
-  vl.values_len = 1;
-
-  sstrncpy(vl.host, hostname, sizeof(vl.host));
-
-  sstrncpy(vl.plugin, type, sizeof(vl.plugin));
-
-  if(plugin_instance)
-    sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
-
-  sstrncpy(vl.type, type, sizeof(vl.type));
-
-  if(type_instance)
-    sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
-
-  plugin_dispatch_values(&vl);
+#define redisSubmitDeclare(value_type) \
+__attribute__((nonnull(2))) \
+static void redisSubmit_ ## value_type(const char* hostname, const char *plugin_instance, const char *type, const char *type_instance, value_type ## _t value) \
+{ \
+  value_t values[1]; \
+  value_list_t vl = VALUE_LIST_INIT; \
+  values[0].value_type = value; \
+  vl.values = values; \
+  vl.values_len = 1; \
+  sstrncpy(vl.host, hostname, sizeof(vl.host)); \
+  sstrncpy(vl.plugin, type, sizeof(vl.plugin)); \
+  if(plugin_instance) sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance)); \
+  sstrncpy(vl.type, type, sizeof(vl.type)); \
+  if(type_instance) sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance)); \
+  plugin_dispatch_values(&vl); \
 }
 
-__attribute__((nonnull(2)))
-static void redisSubmitDerive(const char* hostname, const char *plugin_instance, const char *type, const char *type_instance, derive_t value)
-{
-  value_t values[1];
-  value_list_t vl = VALUE_LIST_INIT;
-
-  values[0].derive = value;
-
-  vl.values = values;
-  vl.values_len = 1;
-
-  sstrncpy(vl.host, hostname, sizeof(vl.host));
-
-  sstrncpy(vl.plugin, type, sizeof(vl.plugin));
-
-  if(plugin_instance)
-    sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
-
-  sstrncpy(vl.type, type, sizeof(vl.type));
-
-  if(type_instance)
-    sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
-
-  plugin_dispatch_values(&vl);
-}
+redisSubmitDeclare(gauge);
+redisSubmitDeclare(derive);
 
 static void redisSubmit(const char* hostname, const char *name, const RedisInfo *info)
 {
   // #Server
-  redisSubmitDerive(hostname, name, "uptime", NULL, info->uptime_in_seconds);
+  redisSubmit_derive(hostname, name, "uptime", NULL, info->uptime_in_seconds);
 
   // #Clients
-  redisSubmitGauge(hostname, name, "connected_clients", NULL, info->connected_clients);
-  redisSubmitGauge(hostname, name, "blocked_clients", NULL, info->blocked_clients);
-  redisSubmitGauge(hostname, name, "client_biggest_input_buf", NULL, info->client_biggest_input_buf);
-  redisSubmitGauge(hostname, name, "client_longest_output_list", NULL, info->client_longest_output_list);
+  redisSubmit_gauge(hostname, name, "connected_clients", NULL, info->connected_clients);
+  redisSubmit_gauge(hostname, name, "blocked_clients", NULL, info->blocked_clients);
+  redisSubmit_gauge(hostname, name, "client_biggest_input_buf", NULL, info->client_biggest_input_buf);
+  redisSubmit_gauge(hostname, name, "client_longest_output_list", NULL, info->client_longest_output_list);
 
   // #Memory
-  redisSubmitGauge(hostname, name, "memory", "used_memory", info->used_memory);
-  redisSubmitGauge(hostname, name, "memory", "used_memory_lua", info->used_memory_lua);
-  redisSubmitGauge(hostname, name, "memory", "used_memory_peak", info->used_memory_peak);
-  redisSubmitGauge(hostname, name, "memory", "used_memory_rss", info->used_memory_rss);
-  redisSubmitGauge(hostname, name, "mem_fragmentation_ratio", NULL, info->mem_fragmentation_ratio);
+  redisSubmit_gauge(hostname, name, "memory", "used_memory", info->used_memory);
+  redisSubmit_gauge(hostname, name, "memory", "used_memory_lua", info->used_memory_lua);
+  redisSubmit_gauge(hostname, name, "memory", "used_memory_peak", info->used_memory_peak);
+  redisSubmit_gauge(hostname, name, "memory", "used_memory_rss", info->used_memory_rss);
+  redisSubmit_gauge(hostname, name, "mem_fragmentation_ratio", NULL, info->mem_fragmentation_ratio);
 
   // #Persistence
-  redisSubmitGauge(hostname, name, "rdb_changes_since_last_save", NULL, info->rdb_changes_since_last_save);
-  redisSubmitGauge(hostname, name, "rdb_bgsave_in_progress", NULL, info->rdb_bgsave_in_progress);
-  redisSubmitGauge(hostname, name, "rdb_last_bgsave_time_sec", NULL, info->rdb_last_bgsave_time_sec);
-  redisSubmitGauge(hostname, name, "aof_last_rewrite_time_sec", NULL, info->aof_last_rewrite_time_sec);
-  redisSubmitGauge(hostname, name, "aof_rewrite_in_progress", NULL, info->aof_rewrite_in_progress);
+  redisSubmit_gauge(hostname, name, "rdb_changes_since_last_save", NULL, info->rdb_changes_since_last_save);
+  redisSubmit_gauge(hostname, name, "rdb_bgsave_in_progress", NULL, info->rdb_bgsave_in_progress);
+  redisSubmit_gauge(hostname, name, "rdb_last_bgsave_time_sec", NULL, info->rdb_last_bgsave_time_sec);
+  redisSubmit_gauge(hostname, name, "aof_last_rewrite_time_sec", NULL, info->aof_last_rewrite_time_sec);
+  redisSubmit_gauge(hostname, name, "aof_rewrite_in_progress", NULL, info->aof_rewrite_in_progress);
 
   // #Stats
-  redisSubmitDerive(hostname, name, "total_connections_received", NULL, info->total_connections_received);
-  redisSubmitDerive(hostname, name, "total_commands_processed", NULL, info->total_commands_processed);
-  redisSubmitGauge(hostname, name, "instantaneous_ops_per_sec", NULL, info->instantaneous_ops_per_sec);
-  redisSubmitGauge(hostname, name, "rejected_connections", NULL, info->rejected_connections);
-  redisSubmitGauge(hostname, name, "expired_keys", NULL, info->expired_keys);
-  redisSubmitGauge(hostname, name, "evicted_keys", NULL, info->evicted_keys);
-  redisSubmitGauge(hostname, name, "keyspace_hits", NULL, info->keyspace_hits);
-  redisSubmitGauge(hostname, name, "keyspace_misses", NULL, info->keyspace_misses);
-  redisSubmitGauge(hostname, name, "pubsub", "patterns", info->pubsub_patterns);
-  redisSubmitGauge(hostname, name, "pubsub", "channels", info->pubsub_channels);
-  redisSubmitGauge(hostname, name, "latest_fork_usec", NULL, info->latest_fork_usec);
+  redisSubmit_derive(hostname, name, "total_connections_received", NULL, info->total_connections_received);
+  redisSubmit_derive(hostname, name, "total_commands_processed", NULL, info->total_commands_processed);
+  redisSubmit_gauge(hostname, name, "instantaneous_ops_per_sec", NULL, info->instantaneous_ops_per_sec);
+  redisSubmit_gauge(hostname, name, "rejected_connections", NULL, info->rejected_connections);
+  redisSubmit_gauge(hostname, name, "expired_keys", NULL, info->expired_keys);
+  redisSubmit_gauge(hostname, name, "evicted_keys", NULL, info->evicted_keys);
+  redisSubmit_gauge(hostname, name, "keyspace_hits", NULL, info->keyspace_hits);
+  redisSubmit_gauge(hostname, name, "keyspace_misses", NULL, info->keyspace_misses);
+  redisSubmit_gauge(hostname, name, "pubsub", "patterns", info->pubsub_patterns);
+  redisSubmit_gauge(hostname, name, "pubsub", "channels", info->pubsub_channels);
+  redisSubmit_gauge(hostname, name, "latest_fork_usec", NULL, info->latest_fork_usec);
 
   // #Replication
-  redisSubmitGauge(hostname, name, "connected_slaves", NULL, info->connected_slaves);
+  redisSubmit_gauge(hostname, name, "connected_slaves", NULL, info->connected_slaves);
 
   // #CPU
-  redisSubmitGauge(hostname, name, "used_cpu_sys", NULL, info->used_cpu_sys);
-  redisSubmitGauge(hostname, name, "used_cpu_user", NULL, info->used_cpu_user);
-  redisSubmitGauge(hostname, name, "used_cpu_sys_children", NULL, info->used_cpu_sys_children);
-  redisSubmitGauge(hostname, name, "used_cpu_user_children", NULL, info->used_cpu_user_children);
+  redisSubmit_gauge(hostname, name, "used_cpu_sys", NULL, info->used_cpu_sys);
+  redisSubmit_gauge(hostname, name, "used_cpu_user", NULL, info->used_cpu_user);
+  redisSubmit_gauge(hostname, name, "used_cpu_sys_children", NULL, info->used_cpu_sys_children);
+  redisSubmit_gauge(hostname, name, "used_cpu_user_children", NULL, info->used_cpu_user_children);
 
   // #Keyspace
-  redisSubmitGauge(hostname, name, "keys", NULL, info->keys);
+  redisSubmit_gauge(hostname, name, "keys", NULL, info->keys);
 }
 
 static int redisInit(void)
@@ -546,6 +515,7 @@ static int redisInit(void)
     .host = REDIS_DEF_HOST,
     .port = REDIS_DEF_PORT,
     .timeout = REDIS_DEF_TIMEOUT,
+    .rc = NULL,
     .next = NULL
   };
 
@@ -557,7 +527,7 @@ static int redisInit(void)
 
 static void redisParseInfoLine(const char *info, const char *field, const char *format, void *storage)
 {
-  char *str = strstr(info, field);
+  const char *str = strstr(info, field);
 
   if(str)
   {
@@ -593,11 +563,11 @@ static void redisGetInfo(const char *str, RedisInfo *info)
   redisParseInfoLine(str, "rdb_bgsave_in_progress", "%llu", &(info->rdb_bgsave_in_progress));
 
   redisParseInfoLine(str, "rdb_last_bgsave_time_sec", "%llu", &(info->rdb_last_bgsave_time_sec));
-  if(info->rdb_last_bgsave_time_sec == -1)
+  if(info->rdb_last_bgsave_time_sec < 0)
     info->rdb_last_bgsave_time_sec = 0;
 
   redisParseInfoLine(str, "aof_last_rewrite_time_sec", "%llu", &(info->aof_last_rewrite_time_sec));
-  if(info->aof_last_rewrite_time_sec == -1)
+  if(info->aof_last_rewrite_time_sec < 0)
     info->aof_last_rewrite_time_sec = 0;
 
   redisParseInfoLine(str, "aof_rewrite_in_progress", "%llu", &(info->aof_rewrite_in_progress));
@@ -679,7 +649,7 @@ static void sumInfo(RedisInfo *dst, const RedisInfo *src)
   dst->keys += src->keys;
 }
 
-static int readCustomQueries(const RedisNode *rn, redisContext *rc)
+static int readCustomQueries(RedisNode *rn)
 {
   int i;
   RedisQuery *query;
@@ -695,9 +665,11 @@ static int readCustomQueries(const RedisNode *rn, redisContext *rc)
       rr = NULL;
     }
 
-    if((rr = redisCommand(rc, query->command)) == NULL)
+    if((rr = redisCommand(rn->rc, query->command)) == NULL)
     {
       WARNING("redis plugin: unable to execute query '%s' on node '%s'.", query->name, rn->name);
+      redisFree(rn->rc);
+      rn->rc = NULL;
       continue;
     }
 
@@ -749,18 +721,17 @@ static int readCustomQueries(const RedisNode *rn, redisContext *rc)
     freeReplyObject(rr);
     rr = NULL;
   }
-  
+
   return 0;
 }
 
 static int redisRead(void)
 {
-  const RedisNode *rn;
+  RedisNode *rn;
   RedisInfo info;
   RedisInfo infoGlobal;
   RedisHost *rh;
-  redisContext *rc = NULL;
-  redisReply *rr = NULL;
+  redisReply *rr;
   struct timeval tmout;
 
   if(gGlobalData)
@@ -772,51 +743,56 @@ static int redisRead(void)
 
   for(rn = gRedisNodesHead; rn; rn = rn->next)
   {
-    if(rr)
+    if(rn->rc == NULL)
     {
-      freeReplyObject(rr);
-      rr = NULL;
-    }
+      tmout.tv_sec = rn->timeout;
+      tmout.tv_usec = 0;
 
-    if(rc)
-    {
-      redisFree(rc);
-      rc = NULL;
-    }
+      DEBUG("redis plugin: connecting to node '%s' (%s:%d).", rn->name, rn->host, rn->port);
 
-    tmout.tv_sec = rn->timeout;
-    tmout.tv_usec = 0;
-
-    DEBUG("redis plugin: querying info from node '%s' (%s:%d).", rn->name, rn->host, rn->port);
-
-    if((rc = redisConnectWithTimeout((char *)rn->host, rn->port, tmout)) == NULL)
-    {
-      ERROR("redis plugin: unable to connect to node '%s' (%s:%d).", rn->name, rn->host, rn->port);
-      continue;
+      if((rn->rc = redisConnectWithTimeout((char *)rn->host, rn->port, tmout)) == NULL)
+      {
+        ERROR("redis plugin: unable to connect to node '%s' (%s:%d).", rn->name, rn->host, rn->port);
+        continue;
+      }
     }
 
     if(strlen(rn->passwd) > 0)
     {
       DEBUG("redis plugin: authenticanting node '%s' passwd(%s).", rn->name, rn->passwd);
 
-      if((rr = redisCommand(rc, "AUTH %s", rn->passwd)) == NULL || rr->type != REDIS_REPLY_STATUS)
+      if((rr = redisCommand(rn->rc, "AUTH %s", rn->passwd)) == NULL || rr->type != REDIS_REPLY_STATUS)
       {
         WARNING("redis plugin: unable to authenticate on node '%s'.", rn->name);
+
+        if(rr)
+          freeReplyObject(rr);
+
+        redisFree(rn->rc);
+        rn->rc = NULL;
         continue;
       }
+
+      freeReplyObject(rr);
     }
 
-    if((rr = redisCommand(rc, "INFO")) == NULL)
+    DEBUG("redis plugin: querying info from node '%s' (%s:%d).", rn->name, rn->host, rn->port);
+
+    if((rr = redisCommand(rn->rc, "INFO")) == NULL)
     {
-      WARNING("redis plugin: unable to connect to node '%s'.", rn->name);
+      WARNING("redis plugin: unable to query info from node '%s'.", rn->name);
+      redisFree(rn->rc);
+      rn->rc = NULL;
       continue;
     }
 
     redisGetInfo(rr->str, &info);
-    
+
+    freeReplyObject(rr);
+
     redisSubmit(rn->hostname, rn->name, &info);
 
-    readCustomQueries(rn, rc);
+    readCustomQueries(rn);
 
     if(gGlobalData)
       sumInfo(&infoGlobal, &info);
@@ -832,18 +808,6 @@ static int redisRead(void)
         }
       }
     }
-  }
-
-  if(rr)
-  {
-    freeReplyObject(rr);
-    rr = NULL;
-  }
-
-  if(rc)
-  {
-    redisFree(rc);
-    rc = NULL;
   }
 
   if(gGlobalData)
