@@ -1028,7 +1028,17 @@
 #</Plugin>
 
 #<Plugin mic>
+#   ShowTotalCPU true
+#   ShowPerCPU true
+#   ShowMemory true
+#   ShowTemps true
+#Temperature Sensors can be ignored/shown by repeaded 
+#TempSensor Lines, and then inverted with a IgnoreTempSelected
+#Known Temperature sensors: die, devmem, fin, fout, vccp, vddg, vddq
+#   TempSensor vddg
+#   IgnoreTempSelected true
 #</Plugin>
+
 
 #<Plugin varnish>
 #   This tag support an argument if you want to

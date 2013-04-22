@@ -22,6 +22,7 @@
 #include "collectd.h"
 #include "plugin.h"
 #include "common.h"
+#include "utils_ignorelist.h"
 
 #include <MicAccessTypes.h>
 #include <MicAccessErrorTypes.h>
@@ -38,6 +39,23 @@ static HANDLE micHandle=NULL;
 static const int therms[NUM_THERMS] = {eMicThermalDie,eMicThermalDevMem,eMicThermalFin,eMicThermalFout,eMicThermalVccp,eMicThermalVddg,eMicThermalVddq};
 static const char *thermNames[NUM_THERMS] = {"die","devmem","fin","fout","vccp","vddg","vddq"};
 
+static const char *config_keys[] =
+{
+  "ShowTotalCPU",
+  "ShowPerCPU",
+  "ShowTemps",
+  "ShowMemory",
+  "TempSensor",
+  "IgnoreTempSelected",
+};
+static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
+
+static _Bool show_total_cpu = 1;
+static _Bool show_per_cpu = 1;
+static _Bool show_temps = 1;
+static _Bool show_memory = 1;
+static ignorelist_t *temp_ignore = NULL;
+
 
 static int mic_init (void)
 {
@@ -47,11 +65,52 @@ static int mic_init (void)
   if (ret != MIC_ACCESS_API_SUCCESS) {
 	ERROR("Problem initializing MicAccessAPI: %s",MicGetErrorString(ret));
   }
-  INFO("MICs found: %d",numMics);
+  DEBUG("MICs found: %d",numMics);
+  
   if (numMics<0 || numMics>=MAX_MICS)
 	return (1);
   else
 	return (0);
+}
+
+static int mic_config (const char *key, const char *value) {
+  if (temp_ignore == NULL)
+	temp_ignore = ignorelist_create(1);
+  if (temp_ignore == NULL)
+	return (1);
+
+  if (strcasecmp("ShowTotalCPU",key) == 0)
+  {
+	show_total_cpu = IS_TRUE(value);
+  }
+  else if (strcasecmp("ShowPerCPU",key) == 0)
+  {
+	show_per_cpu = IS_TRUE(value);
+  }
+  else if (strcasecmp("ShowTemps",key) == 0)
+  {
+	show_temps = IS_TRUE(value);
+  }
+  else if (strcasecmp("ShowMemory",key) == 0)
+  {
+	show_memory = IS_TRUE(value);
+  }
+  else if (strcasecmp("TempSensor",key) == 0)
+  {
+	ignorelist_add(temp_ignore,value);
+  }
+  else if (strcasecmp("IgnoreTempSelected",key) == 0)
+  {
+	int invert = 1;
+	if (IS_TRUE(value))
+	  invert = 0;
+	ignorelist_set_invert(temp_ignore,invert);
+  }
+  else
+  {
+	return (-1);
+  }
+  return (0);
 }
 
 static void mic_submit_memory_use(int micnumber, const char *type, gauge_t val)
@@ -73,6 +132,25 @@ static void mic_submit_memory_use(int micnumber, const char *type, gauge_t val)
   plugin_dispatch_values (&vl);
 } 
 
+/* Gather memory Utilization */
+static int mic_read_memory(int mic)
+{
+  U32 ret;
+  U32 mem_total,mem_used,mem_bufs;
+  
+  ret = MicGetMemoryUtilization(micHandle,&mem_total,&mem_used,&mem_bufs);
+  if (ret != MIC_ACCESS_API_SUCCESS) {
+	ERROR("Problem getting Memory Utilization: %s",MicGetErrorString(ret));
+	return (1);
+  }
+  /* API reprots KB's of memory, adjust for this */ 
+  mic_submit_memory_use(mic,"total",mem_total*1024);
+  mic_submit_memory_use(mic,"used",mem_used*1024);
+  mic_submit_memory_use(mic,"bufs",mem_bufs*1024);
+  /*INFO("Memory Read: %u %u %u",mem_total,mem_used,mem_bufs);*/
+  return (0);
+}
+
 static void mic_submit_temp(int micnumber, const char *type, gauge_t val)
 {
   value_t values[1];
@@ -91,6 +169,30 @@ static void mic_submit_temp(int micnumber, const char *type, gauge_t val)
 
   plugin_dispatch_values (&vl);
 } 
+
+/* Gather Temperature Information */
+static int mic_read_temps(int mic)
+{
+  int j;
+  U32 ret;
+  U32 bufferSize;
+  U32 *tempBuffer;
+ 
+  bufferSize = sizeof(U32);
+  tempBuffer = malloc(bufferSize);
+  for (j=0;j<NUM_THERMS;j++) {
+	if (ignorelist_match(temp_ignore,thermNames[j])!=0)
+	  continue;
+	ret = MicGetTemperature(micHandle,therms[j],tempBuffer,&bufferSize);
+	if (ret != MIC_ACCESS_API_SUCCESS) {
+	  ERROR("Problem getting Temperature(%d) %s",j,MicGetErrorString(ret));
+	  return (1);
+	}
+	/*INFO("Temp Read: %u: %u %s",j,tempBuffer[0],thermNames[j]);*/
+	mic_submit_temp(mic,thermNames[j],tempBuffer[0]);
+  }
+  return (0);
+}
 
 static void mic_submit_cpu(int micnumber, const char *type, int core, derive_t val)
 {
@@ -114,17 +216,43 @@ static void mic_submit_cpu(int micnumber, const char *type, int core, derive_t v
   plugin_dispatch_values (&vl);
 } 
 
+/*Gather CPU Utilization Information */
+static int mic_read_cpu(int mic)
+{
+  U32 ret;
+  U32 bufferSize;
+  int j;
+  MicCoreUtil coreUtil;
+  MicCoreJiff coreJiffs[MAX_CORES];
 
+  bufferSize=MAX_CORES*sizeof(MicCoreJiff);
+  ret = MicGetCoreUtilization(micHandle,&coreUtil,coreJiffs,&bufferSize);
+  if (ret != MIC_ACCESS_API_SUCCESS) {
+	ERROR("Problem getting CPU utilization: %s",MicGetErrorString(ret));
+	return(0);
+  }
+  if (show_total_cpu) {
+	mic_submit_cpu(mic,"user",-1,coreUtil.sum.user);
+	mic_submit_cpu(mic,"sys",-1,coreUtil.sum.sys);
+	mic_submit_cpu(mic,"nice",-1,coreUtil.sum.nice);
+	mic_submit_cpu(mic,"idle",-1,coreUtil.sum.idle);
+  }
+  if (show_per_cpu) {
+	for (j=0;j<coreUtil.core;j++) {
+	  mic_submit_cpu(mic,"user",j,coreJiffs[j].user);
+	  mic_submit_cpu(mic,"sys",j,coreJiffs[j].sys);
+	  mic_submit_cpu(mic,"nice",j,coreJiffs[j].nice);
+	  mic_submit_cpu(mic,"idle",j,coreJiffs[j].idle);
+	}
+  }
+  return (0);
+}
 
 static int mic_read (void)
 {
-  int i,j;
-  U32 ret,bufferSize;
-  U32 *tempBuffer;
+  int i;
+  U32 ret;
   int error;
-  U32 mem_total,mem_used,mem_bufs;
-  MicCoreUtil coreUtil;
-  MicCoreJiff coreJiffs[MAX_CORES];
 
   error=0;
   for (i=0;i<numMics;i++) {
@@ -132,56 +260,16 @@ static int mic_read (void)
 	if (ret != MIC_ACCESS_API_SUCCESS) {
 	  ERROR("Problem initializing MicAdapter: %s",MicGetErrorString(ret));
 	  error=1;
-	  break;
 	}
 
-	/* Gather memory Utilization */
-	ret = MicGetMemoryUtilization(micHandle,&mem_total,&mem_used,&mem_bufs);
-	if (ret != MIC_ACCESS_API_SUCCESS) {
-	  ERROR("Problem getting Memory Utilization: %s",MicGetErrorString(ret));
-	  error=3;
-	  break;
-	}
-	/* API reprots KB's of memory, adjust for this */ 
-	mic_submit_memory_use(i,"total",mem_total*1024);
-	mic_submit_memory_use(i,"used",mem_used*1024);
-	mic_submit_memory_use(i,"bufs",mem_bufs*1024);
-	/*INFO("Memory Read: %u %u %u",mem_total,mem_used,mem_bufs);*/
+	if (error == 0 && show_memory)
+	  error = mic_read_memory(i);
 
-	/* Gather Temperature Information */
-	bufferSize = sizeof(U32);
-	tempBuffer = malloc(bufferSize);
-	for (j=0;j<NUM_THERMS;j++) {
-	  ret = MicGetTemperature(micHandle,therms[j],tempBuffer,&bufferSize);
-	  if (ret != MIC_ACCESS_API_SUCCESS) {
-		ERROR("Problem getting Temperature(%d) %s",j,MicGetErrorString(ret));
-		error=4;
-		break;
-	  }
-	  /*INFO("Temp Read: %u: %u %s",j,tempBuffer[0],thermNames[j]);*/
-	  mic_submit_temp(i,thermNames[j],tempBuffer[0]);
-	}
-	if (error)
-	  break;
+	if (error == 0 && show_temps)
+	  error = mic_read_temps(i);
 
-	/*Gather CPU Utilization Information */
-	bufferSize=MAX_CORES*sizeof(MicCoreJiff);
-	ret = MicGetCoreUtilization(micHandle,&coreUtil,coreJiffs,&bufferSize);
-	if (ret != MIC_ACCESS_API_SUCCESS) {
-	  ERROR("Problem getting CPU utilization: %s",MicGetErrorString(ret));
-	  error=5;
-	  break;
-	}
-	mic_submit_cpu(i,"user",-1,coreUtil.sum.user);
-	mic_submit_cpu(i,"sys",-1,coreUtil.sum.sys);
-	mic_submit_cpu(i,"nice",-1,coreUtil.sum.nice);
-	mic_submit_cpu(i,"idle",-1,coreUtil.sum.idle);
-	for (j=0;j<coreUtil.core;j++) {
-	  mic_submit_cpu(i,"user",j,coreJiffs[j].user);
-	  mic_submit_cpu(i,"sys",j,coreJiffs[j].sys);
-	  mic_submit_cpu(i,"nice",j,coreJiffs[j].nice);
-	  mic_submit_cpu(i,"idle",j,coreJiffs[j].idle);
-	}
+	if (error == 0 && (show_total_cpu || show_per_cpu))
+	  error = mic_read_cpu(i);
 
 	ret = MicCloseAdapter(micHandle);
 	if (ret != MIC_ACCESS_API_SUCCESS) {
@@ -206,6 +294,7 @@ void module_register (void)
   plugin_register_init ("mic", mic_init);
   plugin_register_shutdown ("mic", mic_shutdown);
   plugin_register_read ("mic", mic_read);
+  plugin_register_config ("mic",mic_config, config_keys, config_keys_num);
 } /* void module_register */
 
 /*
