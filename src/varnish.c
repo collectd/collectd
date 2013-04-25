@@ -496,6 +496,7 @@ static int varnish_config_apply_default (user_config_t *conf) /* {{{ */
 #endif
 	conf->collect_sms         = 0;
 	conf->collect_totals      = 0;
+	conf->collect_workers     = 0;
 
 	return (0);
 } /* }}} int varnish_config_apply_default */
