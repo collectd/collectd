@@ -66,11 +66,7 @@ static int read_cpuacct_procs (const char *dirname, char const *cgroup_name,
 	char buf[1024];
 	int status;
 
-	char *fields[8];
-	int numfields = 0;
-
-	value_t usertime;
-	value_t systemtime;
+	FILE *fh;
 
 	if (ignorelist_match (il_cgroup, cgroup_name))
 		return (0);
@@ -80,7 +76,8 @@ static int read_cpuacct_procs (const char *dirname, char const *cgroup_name,
 	status = lstat (abs_path, &statbuf);
 	if (status != 0)
 	{
-		ERROR ("cgroups_cpuacct plugin: stat (%s) failed.", abs_path);
+		ERROR ("cgroups_cpuacct plugin: stat (\"%s\") failed.",
+				abs_path);
 		return (-1);
 	}
 
@@ -90,34 +87,54 @@ static int read_cpuacct_procs (const char *dirname, char const *cgroup_name,
 
 	ssnprintf (abs_path, sizeof (abs_path), "%s/%s/cpuacct.stat",
 			dirname, cgroup_name);
-	status = (int) read_file_contents (abs_path, buf, sizeof (buf) - 1);
-	if (status <= 0)
+	fh = fopen (abs_path, "r");
+	if (fh == NULL)
 	{
 		char errbuf[1024];
-		ERROR ("cgroups_cpuacct plugin: read_file_contents(%s): %s",
-				abs_path, sstrerror (errno, errbuf, sizeof (errbuf)));
+		ERROR ("cgroups_cpuacct pluign: fopen (\"%s\") failed: %s",
+				abs_path,
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
-	buf[status] = '\0';
 
-	numfields = strsplit (buf, fields, STATIC_ARRAY_SIZE (fields));
-	if (numfields != 4)
+	while (fgets (buf, sizeof (buf), fh) != NULL)
 	{
-		ERROR ("cgroups_cpuacct plugin: unexpected content in file %s",
-				abs_path);
-		return (-1);
+		char *fields[8];
+		int numfields = 0;
+		char *key;
+		size_t key_len;
+		value_t value;
+
+		/* Expected format:
+		 *
+		 *   user: 12345
+		 *   system: 23456
+		 */
+		strstripnewline (buf);
+		numfields = strsplit (buf, fields, STATIC_ARRAY_SIZE (fields));
+		if (numfields != 2)
+			continue;
+
+		key = fields[0];
+		key_len = strlen (key);
+		if (key_len < 2)
+			continue;
+
+		/* Strip colon off the first column */
+		if (key[key_len - 1] != ':')
+			continue;
+		key[key_len - 1] = 0;
+
+		status = parse_value (fields[1], &value, DS_TYPE_DERIVE);
+		if (status != 0)
+			continue;
+
+		cgroups_submit_one (cgroup_name, key, value);
 	}
 
-	status = parse_value (fields[1], &usertime, DS_TYPE_DERIVE);
-	if (status == 0)
-		cgroups_submit_one (cgroup_name, "user", usertime);
-
-	status = parse_value (fields[3], &systemtime, DS_TYPE_DERIVE);
-	if (status == 0)
-		cgroups_submit_one (cgroup_name, "system", systemtime);
-
+	fclose (fh);
 	return (0);
-}
+} /* int read_cpuacct_procs */
 
 /*
  * Gets called for every file/folder in /sys/fs/cgroup/cpu,cpuacct (or
