@@ -275,12 +275,47 @@ static int dns_run_pcap_loop (void)
 	return (status);
 } /* int dns_run_pcap_loop */
 
+static int dns_sleep_one_interval (void) /* {{{ */
+{
+	cdtime_t interval;
+	struct timespec ts = { 0, 0 };
+	int status = 0;
+
+	interval = plugin_get_interval ();
+	CDTIME_T_TO_TIMESPEC (interval, &ts);
+
+	while (42)
+	{
+		struct timespec rem = { 0, 0 };
+
+		status = nanosleep (&ts, &rem);
+		if (status == 0)
+			break;
+		else if ((errno == EINTR) || (errno == EAGAIN))
+		{
+			ts = rem;
+			continue;
+		}
+		else
+			break;
+	}
+
+	return (status);
+} /* }}} int dns_sleep_one_interval */
+
 static void *dns_child_loop (__attribute__((unused)) void *dummy) /* {{{ */
 {
-	int status = PCAP_ERROR_IFACE_NOT_UP;
+	int status;
 
-	while (status == PCAP_ERROR_IFACE_NOT_UP)
+	while (42)
+	{
 		status = dns_run_pcap_loop ();
+		if (status != PCAP_ERROR_IFACE_NOT_UP)
+			break;
+
+		dns_sleep_one_interval ();
+	}
+
 	if (status != PCAP_ERROR_BREAK)
 		ERROR ("dns plugin: PCAP returned error %s.",
 				pcap_statustostr (status));
