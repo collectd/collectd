@@ -320,7 +320,7 @@ instance. Note that another plugin, named `memcached', exists and does a
 similar job, without requiring the installation of libmemcached.
 %endif
 
-%if %{with_mmic}
+%if %{with_mic}
 %package mic
 Summary:	Intel Many Integrated Cores data plugin
 Group:		System Environment/Daemons
