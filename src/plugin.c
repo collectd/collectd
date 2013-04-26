@@ -1378,7 +1378,7 @@ void plugin_init_all (void)
 	post_cache_chain = fc_chain_get_by_name (chain_name);
 
 	write_limit_high = global_option_get_long_in_range("WriteQueueLengthLimitHigh",0, 0, LONG_MAX);
-	write_limit_low = global_option_get_long_in_range("WriteQueueLengthLimitLow", (write_limit_high+1)/2, 0, write_limit_high-1 );
+	write_limit_low = global_option_get_long_in_range("WriteQueueLengthLimitLow", (write_limit_high+1)/2, 0, (write_limit_high == 0) ? 0 : write_limit_high-1 );
 
 	{
 		char const *tmp = global_option_get ("WriteThreads");

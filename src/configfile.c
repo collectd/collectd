@@ -937,7 +937,7 @@ long global_option_get_long_in_range (const char *option, long default_value, lo
 {
 		long value;
 
-		assert(min < max);
+		assert(min <= max);
 		value = global_option_get_long(option, default_value);
 		if(value < min) return(default_value);
 		if(value > max) return(default_value);
