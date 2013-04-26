@@ -4668,6 +4668,7 @@ AC_DEFUN(
 		    fi
 	    else # User passed "yes" but dependency checking yielded "no" => Dependency problem.
 		    dependency_error="yes"
+			echo Crap plugin $1 does has dependency errors.
 		    enable_plugin="no (dependency error)"
 	    fi
     fi
