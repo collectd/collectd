@@ -10,6 +10,7 @@ BuildPrereq:	lm_sensors-devel
 BuildPrereq:	mysql-devel
 BuildPrereq:	rrdtool-devel
 BuildPrereq:	net-snmp-devel
+BuildRequires:  intel-mic-sysmgmt
 Requires:	rrdtool
 Requires:	perl-Regexp-Common
 Packager:	Florian octo Forster <octo@verplant.org>

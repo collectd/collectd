@@ -118,6 +118,7 @@ License:	GPLv2
 Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
 BuildRequires:	libgcrypt-devel
+BuildRequires:  intel-mic-sysmgmt
 Vendor:		collectd development team <collectd@verplant.org>
 
 Requires(post):		chkconfig
