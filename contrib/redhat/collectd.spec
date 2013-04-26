@@ -43,6 +43,7 @@
 %define with_memcachec 0%{!?_without_memcachec:1}
 %define with_memcached 0%{!?_without_memcached:1}
 %define with_memory 0%{!?_without_memory:1}
+%define with_mic 0%{!?_without_mic:1}
 %define with_multimeter 0%{!?_without_multimeter:1}
 %define with_mysql 0%{!?_without_mysql:1}
 %define with_network 0%{!?_without_network:1}
@@ -117,8 +118,7 @@ Source:		http://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
 Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
-BuildRequires:	libgcrypt-devel
-BuildRequires:  intel-mic-sysmgmt
+BuildRequires:	libgcrypt-devel, lvm2-devel
 Vendor:		collectd development team <collectd@verplant.org>
 
 Requires(post):		chkconfig
@@ -318,6 +318,17 @@ BuildRequires:	libmemcached-devel
 The Memcachec plugin uses libmemcached to read statistics from a Memcached
 instance. Note that another plugin, named `memcached', exists and does a
 similar job, without requiring the installation of libmemcached.
+%endif
+
+%if %{with_mmic}
+%package mic
+Summary:	Intel Many Integrated Cores data plugin
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:  intel-mic-sysmgmt
+%description mic
+The MIC plugin uses the Intel MicAccessAPI to gather processor, temperature
+ and memory staistitcs from multiple MIC cards attached to a host
 %endif
 
 %if %{with_mysql}
@@ -831,6 +842,12 @@ Development files for libcollectdclient
 %define _with_memory --disable-memory
 %endif
 
+%if %{with_mic}
+%define _with_mic --enable-mic
+%else
+%define _with_mic --disable-mic
+%endif
+
 %if %{with_modbus}
 %define _with_modbus --enable-modbus
 %else
@@ -1281,6 +1298,7 @@ Development files for libcollectdclient
 	%{?_with_md} \
 	%{?_with_memcached} \
 	%{?_with_memory} \
+	%{?_with_mic} \
 	%{?_with_network} \
 	%{?_with_nfs} \
 	%{?_with_ntpd} \
@@ -1495,6 +1513,9 @@ fi
 %endif
 %if %{with_memory}
 %{_libdir}/%{name}/memory.so
+%endif
+%if %{with_mic}
+%{_libdir}/%{name}/mic.so
 %endif
 %if %{with_multimeter}
 %{_libdir}/%{name}/multimeter.so
