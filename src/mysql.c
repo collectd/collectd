@@ -64,7 +64,6 @@ struct mysql_database_s /* {{{ */
 };
 typedef struct mysql_database_s mysql_database_t; /* }}} */
 
-struct st_mysql_options *options;
 static int mysql_read (user_data_t *ud);
 
 void mysql_read_default_options(struct st_mysql_options *options,
@@ -274,8 +273,8 @@ static MYSQL *getconnection (mysql_database_t *db)
 		}
 	}
 
-	options->connect_timeout = db->timeout;
-	mysql_read_default_options(options, NULL, NULL);
+	/* Configure TCP connect timeout (default: 0) */
+	db->con->options.connect_timeout = db->timeout;
 
 	if (mysql_real_connect (db->con, db->host, db->user, db->pass,
 				db->database, db->port, db->socket, 0) == NULL)
