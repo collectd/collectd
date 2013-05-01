@@ -37,6 +37,7 @@
 %define with_libvirt 0%{!?_without_libvirt:1}
 %define with_load 0%{!?_without_load:1}
 %define with_logfile 0%{!?_without_logfile:1}
+%define with_lvm 0%{!?_without_lvm:1}
 %define with_madwifi 0%{!?_without_madwifi:1}
 %define with_mbmon 0%{!?_without_mbmon:1}
 %define with_md 0%{!?_without_md:1}
@@ -118,7 +119,7 @@ Source:		http://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
 Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
-BuildRequires:	libgcrypt-devel, lvm2-devel
+BuildRequires:	libgcrypt-devel
 Vendor:		collectd development team <collectd@verplant.org>
 
 Requires(post):		chkconfig
@@ -306,6 +307,16 @@ Requires:	%{name}%{?_isa} = %{version}-%{release}
 BuildRequires:	libvirt-devel
 %description libvirt
 This plugin collects information from virtualized guests.
+%endif
+
+%if %{with_lvm}
+%package lvm
+Summary:	Lvm plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires: lvm2-devel	
+%description lvm
+This plugin collects information from lvm devices
 %endif
 
 %if %{with_memcachec}
@@ -798,6 +809,12 @@ Development files for libcollectdclient
 %define _with_logfile --enable-logfile
 %else
 %define _with_logfile --disable-logfile
+%endif
+
+%if %{with_lvm}
+%define _with_lvm --enable-lvm
+%else
+%define _with_lvm --disable-lvm
 %endif
 
 %if %{with_lpar}
@@ -1293,6 +1310,7 @@ Development files for libcollectdclient
 	%{?_with_irq} \
 	%{?_with_load} \
 	%{?_with_logfile} \
+	%{?_with_lvm} \
 	%{?_with_madwifi} \
 	%{?_with_mbmon} \
 	%{?_with_md} \
@@ -1498,6 +1516,9 @@ fi
 %endif
 %if %{with_logfile}
 %{_libdir}/%{name}/logfile.so
+%endif
+%if %{with_lvm}
+%{_libdir}/%{name}/lvm.so
 %endif
 %if %{with_madwifi}
 %{_libdir}/%{name}/madwifi.so
