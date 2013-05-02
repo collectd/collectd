@@ -237,14 +237,16 @@ static int parse_path_to_inst (void) {
 						c_avl_insert(solaris_disks_by_physical_name, disk->physical_name, disk);
 				} else {
 					free(physical_name);
+					free(driver_binding_name);
 				}
 		}
+		fclose(fh);
 		return(0);
 }
 
 int read_solaris_dev(char *path) {
 		DIR *dp = NULL;
-		struct dirent *de_buffer;
+		struct dirent *de_buffer = NULL;
 		struct dirent *de = NULL;
 		size_t len;
 		size_t pc_name_max;
@@ -383,6 +385,7 @@ int read_solaris_dev(char *path) {
 				goto read_solaris_dev_error_label;
 		}
 		closedir(dp);
+		free(de_buffer);
 		free(de);
 		free(filename);
 		free(link_name);
@@ -391,6 +394,7 @@ int read_solaris_dev(char *path) {
 
 read_solaris_dev_error_label:
 		if(dp) closedir(dp);
+		if(de_buffer) free(de_buffer);
 		if(de) free(de);
 		if(filename) free(filename);
 		if(link_name) free(link_name);
