@@ -235,6 +235,8 @@ static int parse_path_to_inst (void) {
 
 						c_avl_insert(solaris_disks_by_name, disk->ks_name, disk);
 						c_avl_insert(solaris_disks_by_physical_name, disk->physical_name, disk);
+				} else {
+					free(physical_name);
 				}
 		}
 		return(0);
