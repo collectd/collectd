@@ -109,7 +109,7 @@ interval, that setting will take precedence.
 
 =back
 
-=item B<Include> I<Path> [I<pattern>]
+=item B<Include> I<Path>
 
 If I<Path> points to a file, includes that file. If I<Path> points to a
 directory, recursively includes all files within that directory and its
@@ -119,14 +119,28 @@ use statements like the following:
 
   Include "/etc/collectd.d/*.conf"
 
+Starting with version 5.3, this may also be a block in which further options
+affecting the behavior of B<Include> may be specified. The following option is
+currently allowed:
+
+  <Include "/etc/collectd.d">
+    Filter "*.conf"
+  </Include>
+
+=over 4
+
+=item B<Filter> I<pattern>
+
 If the C<fnmatch> function is available on your system, a shell-like wildcard
 I<pattern> may be specified to filter which files to include. This may be used
 in combination with recursively including a directory to easily be able to
 arbitrarily mix configuration files and other documents (e.g. README files).
-The following statement is similar to the example above but includes all files
+The given example is similar to the first example above but includes all files
 matching C<*.conf> in any subdirectory of C</etc/collectd.d>:
 
   Include "/etc/collectd.d" "*.conf"
+
+=back
 
 If more than one files are included by a single B<Include> option, the files
 will be included in lexicographical order (as defined by the C<strcmp>
