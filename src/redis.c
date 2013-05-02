@@ -141,6 +141,7 @@ struct redis_info_s
 
   // #Keyspace
   unsigned long long int keys;
+  unsigned long long int expires;
 };
 
 struct redis_host_s;
@@ -458,7 +459,7 @@ redisSubmitDeclare(derive);
 static void redisSubmit(const char* hostname, const char *name, const RedisInfo *info)
 {
   // #Server
-  redisSubmit_derive(hostname, name, "uptime", NULL, info->uptime_in_seconds);
+  redisSubmit_gauge(hostname, name, "uptime", NULL, info->uptime_in_seconds);
 
   // #Clients
   redisSubmit_gauge(hostname, name, "connected_clients", NULL, info->connected_clients);
@@ -487,8 +488,8 @@ static void redisSubmit(const char* hostname, const char *name, const RedisInfo 
   redisSubmit_gauge(hostname, name, "rejected_connections", NULL, info->rejected_connections);
   redisSubmit_gauge(hostname, name, "expired_keys", NULL, info->expired_keys);
   redisSubmit_gauge(hostname, name, "evicted_keys", NULL, info->evicted_keys);
-  redisSubmit_gauge(hostname, name, "keyspace_hits", NULL, info->keyspace_hits);
-  redisSubmit_gauge(hostname, name, "keyspace_misses", NULL, info->keyspace_misses);
+  redisSubmit_derive(hostname, name, "keyspace_hits", NULL, info->keyspace_hits);
+  redisSubmit_derive(hostname, name, "keyspace_misses", NULL, info->keyspace_misses);
   redisSubmit_gauge(hostname, name, "pubsub", "patterns", info->pubsub_patterns);
   redisSubmit_gauge(hostname, name, "pubsub", "channels", info->pubsub_channels);
   redisSubmit_gauge(hostname, name, "latest_fork_usec", NULL, info->latest_fork_usec);
@@ -497,13 +498,14 @@ static void redisSubmit(const char* hostname, const char *name, const RedisInfo 
   redisSubmit_gauge(hostname, name, "connected_slaves", NULL, info->connected_slaves);
 
   // #CPU
-  redisSubmit_gauge(hostname, name, "used_cpu_sys", NULL, info->used_cpu_sys);
-  redisSubmit_gauge(hostname, name, "used_cpu_user", NULL, info->used_cpu_user);
-  redisSubmit_gauge(hostname, name, "used_cpu_sys_children", NULL, info->used_cpu_sys_children);
-  redisSubmit_gauge(hostname, name, "used_cpu_user_children", NULL, info->used_cpu_user_children);
+  redisSubmit_derive(hostname, name, "used_cpu_sys", NULL, info->used_cpu_sys);
+  redisSubmit_derive(hostname, name, "used_cpu_user", NULL, info->used_cpu_user);
+  redisSubmit_derive(hostname, name, "used_cpu_sys_children", NULL, info->used_cpu_sys_children);
+  redisSubmit_derive(hostname, name, "used_cpu_user_children", NULL, info->used_cpu_user_children);
 
   // #Keyspace
-  redisSubmit_gauge(hostname, name, "keys", NULL, info->keys);
+  redisSubmit_gauge(hostname, name, "keys", "keys", info->keys);
+  redisSubmit_gauge(hostname, name, "keys", "expires", info->expires);
 }
 
 static int redisInit(void)
@@ -525,16 +527,23 @@ static int redisInit(void)
   return 0;
 }
 
-static void redisParseInfoLine(const char *info, const char *field, const char *format, void *storage)
+// old gcc bug with c99 not declaring this function inside stdio.h
+int vsscanf(const char *str, const char *format, va_list ap);
+
+static void redisParseInfoLine(const char *info, const char *field, const char *format, ...)
 {
   const char *str = strstr(info, field);
 
   if(str)
   {
+    va_list ap;
+
     // also skip the ':'
     str += strlen(field) + 1;
 
-    sscanf(str, format, storage);
+    va_start(ap, format);
+    vsscanf(str, format, ap);
+    va_end(ap);
   }
 }
 
@@ -595,7 +604,7 @@ static void redisGetInfo(const char *str, RedisInfo *info)
   redisParseInfoLine(str, "used_cpu_user_children", "%lf", &(info->used_cpu_user_children));
 
   // #Keyspace
-  redisParseInfoLine(str, "db0:keys", "%llu", &(info->keys));
+  redisParseInfoLine(str, "db0:keys", "%llu,expires=%llu", &(info->keys), &(info->expires));
 }
 
 static void sumInfo(RedisInfo *dst, const RedisInfo *src)
@@ -647,6 +656,7 @@ static void sumInfo(RedisInfo *dst, const RedisInfo *src)
 
   // #Keyspace
   dst->keys += src->keys;
+  dst->expires += src->expires;
 }
 
 static int readCustomQueries(RedisNode *rn)

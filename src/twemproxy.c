@@ -556,12 +556,12 @@ end:
 
 static void twemproxySubmitPool(const char* nodename, const char *name, const TwemproxyPool *pool)
 {
-  twemproxySubmit_gauge(nodename, name, "nc_client_eof", NULL, pool->client_eof);
-  twemproxySubmit_gauge(nodename, name, "nc_client_err", NULL, pool->client_err);
+  twemproxySubmit_derive(nodename, name, "nc_client_eof", NULL, pool->client_eof);
+  twemproxySubmit_derive(nodename, name, "nc_client_err", NULL, pool->client_err);
   twemproxySubmit_gauge(nodename, name, "nc_client_connections", NULL, pool->client_connections);
-  twemproxySubmit_gauge(nodename, name, "nc_server_ejects", NULL, pool->server_ejects);
-  twemproxySubmit_gauge(nodename, name, "nc_forward_error", NULL, pool->forward_error);
-  twemproxySubmit_gauge(nodename, name, "nc_fragments", NULL, pool->fragments);
+  twemproxySubmit_derive(nodename, name, "nc_server_ejects", NULL, pool->server_ejects);
+  twemproxySubmit_derive(nodename, name, "nc_forward_error", NULL, pool->forward_error);
+  twemproxySubmit_derive(nodename, name, "nc_fragments", NULL, pool->fragments);
 }
 
 static void twemproxySubmitInstance(const char* nodename, const char *name, const TwemproxyInstance *instance)
@@ -569,18 +569,18 @@ static void twemproxySubmitInstance(const char* nodename, const char *name, cons
   if(instance->requests == 0)
     return;
 
-  twemproxySubmit_gauge(nodename, name, "nc_server_eof", NULL, instance->server_eof);
-  twemproxySubmit_gauge(nodename, name, "nc_server_err", NULL, instance->server_err);
-  twemproxySubmit_gauge(nodename, name, "nc_server_timedout", NULL, instance->server_timedout);
+  twemproxySubmit_derive(nodename, name, "nc_server_eof", NULL, instance->server_eof);
+  twemproxySubmit_derive(nodename, name, "nc_server_err", NULL, instance->server_err);
+  twemproxySubmit_derive(nodename, name, "nc_server_timedout", NULL, instance->server_timedout);
   twemproxySubmit_gauge(nodename, name, "nc_server_connections", NULL, instance->server_connections);
   twemproxySubmit_derive(nodename, name, "nc_requests", "requests", instance->requests);
   twemproxySubmit_derive(nodename, name, "nc_requests", "responses", instance->responses);
   twemproxySubmit_derive(nodename, name, "nc_request_bytes", "request_bytes", instance->request_bytes);
   twemproxySubmit_derive(nodename, name, "nc_request_bytes", "response_bytes", instance->response_bytes);
-  twemproxySubmit_derive(nodename, name, "nc_queue", "in_queue", instance->in_queue);
-  twemproxySubmit_derive(nodename, name, "nc_queue", "out_queue", instance->out_queue);
-  twemproxySubmit_derive(nodename, name, "nc_queue_bytes", "in_queue_bytes", instance->in_queue_bytes);
-  twemproxySubmit_derive(nodename, name, "nc_queue_bytes", "out_queue_bytes", instance->out_queue_bytes);
+  twemproxySubmit_gauge(nodename, name, "nc_queue", "in_queue", instance->in_queue);
+  twemproxySubmit_gauge(nodename, name, "nc_queue", "out_queue", instance->out_queue);
+  twemproxySubmit_gauge(nodename, name, "nc_queue_bytes", "in_queue_bytes", instance->in_queue_bytes);
+  twemproxySubmit_gauge(nodename, name, "nc_queue_bytes", "out_queue_bytes", instance->out_queue_bytes);
 }
 
 static void sumPool(TwemproxyPool *dst, const TwemproxyPool *src)
