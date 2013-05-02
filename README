@@ -260,6 +260,11 @@ Features
       The redis plugin gathers information from a redis server, including:
       uptime, used memory, total connections etc.
 
+    - twemproxy
+      The twemproxy plugin gathers information from a twemproxy redis proxy
+      (aka "nutcracker"), including:
+      timeouts, requests, responses, request bytes, response bytes etc.
+
     - routeros
       Query interface and wireless registration statistics from RouterOS.
 
@@ -598,6 +603,9 @@ Prerequisites
     force the build system to use the shipped version by specifying
       --with-libiptc=shipped
     when running the configure script.
+
+  * libjsonc (optional)
+    Used by the twemproxy plugin. <https://github.com/json-c/json-c>
 
   * libjvm (optional)
     Library that encapsulates the `Java Virtual Machine' (JVM). This library is

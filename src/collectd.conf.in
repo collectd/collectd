@@ -152,6 +152,7 @@
 #@BUILD_PLUGIN_TED_TRUE@LoadPlugin ted
 #@BUILD_PLUGIN_THERMAL_TRUE@LoadPlugin thermal
 #@BUILD_PLUGIN_TOKYOTYRANT_TRUE@LoadPlugin tokyotyrant
+#@BUILD_PLUGIN_TWEMPROXY_TRUE@LoadPlugin twemproxy
 #@BUILD_PLUGIN_UNIXSOCK_TRUE@LoadPlugin unixsock
 #@BUILD_PLUGIN_UPTIME_TRUE@LoadPlugin uptime
 #@BUILD_PLUGIN_USERS_TRUE@LoadPlugin users
@@ -1014,6 +1015,12 @@
 #<Plugin tokyotyrant>
 #	Host "localhost"
 #	Port "1978"
+#</Plugin>
+
+#<Plugin twemproxy>
+#   <Node example>
+#      Host "redis.example.com"
+#   </Node>
 #</Plugin>
 
 #<Plugin unixsock>
