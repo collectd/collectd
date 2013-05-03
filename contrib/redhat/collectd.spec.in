@@ -89,12 +89,12 @@
 %define with_write_graphite 0%{!?_without_write_graphite:1}
 %define with_write_http 0%{!?_without_write_http:1}
 %define with_write_riemann 0%{!?_without_write_riemann:1}
+%define with_mic 0%{!?_with_mic:0}
 
 # disabled plugins
 %define with_apple_sensors 0%{!?_without_apple_sensors:0}
 %define with_lpar 0%{!?_without_lpar:0}
 %define with_modbus 0%{!?_without_modbus:0}
-%define with_mic 0%{!?_without_mic:0}
 %define with_netapp 0%{!?_without_netapp:0}
 %define with_netlink 0%{!?_without_netlink:0}
 %define with_onewire 0%{!?_without_onewire:0}
