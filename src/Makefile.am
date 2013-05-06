@@ -1275,7 +1275,7 @@ if BUILD_PLUGIN_MIC
 pkglib_LTLIBRARIES += mic.la
 mic_la_SOURCES = mic.c
 mic_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_MIC_LIBPATH)
-mic_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_MIC_CFLAGS)
+mic_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_MIC_CPPFLAGS)
 mic_la_LIBADD = $(BUILD_WITH_MIC_LDADD)
 collectd_LDADD += "-dlopen" mic.la
 collectd_DEPENDENCIES += mic.la
