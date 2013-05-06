@@ -89,7 +89,7 @@
 %define with_write_graphite 0%{!?_without_write_graphite:1}
 %define with_write_http 0%{!?_without_write_http:1}
 %define with_write_riemann 0%{!?_without_write_riemann:1}
-%define with_mic 0%{!?_with_mic:0}
+%define with_mic 0%{?_with_mic:1}
 
 # disabled plugins
 %define with_apple_sensors 0%{!?_without_apple_sensors:0}
@@ -860,9 +860,9 @@ Development files for libcollectdclient
 %endif
 
 %if %{with_mic}
-%define _with_mic --enable-mic
+%define _with_mic2 --enable-mic
 %else
-%define _with_mic --disable-mic
+%define _with_mic2 --disable-mic
 %endif
 
 %if %{with_modbus}
@@ -1316,7 +1316,7 @@ Development files for libcollectdclient
 	%{?_with_md} \
 	%{?_with_memcached} \
 	%{?_with_memory} \
-	%{?_with_mic} \
+	%{?_with_mic2} \
 	%{?_with_network} \
 	%{?_with_nfs} \
 	%{?_with_ntpd} \
