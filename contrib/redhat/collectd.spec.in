@@ -336,7 +336,7 @@ similar job, without requiring the installation of libmemcached.
 Summary:	Intel Many Integrated Cores data plugin
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-BuildRequires:  intel-mic-sysmgmt
+BuildRequires:  intel-mic-sysmgmt, intel-mic-gpl
 %description mic
 The MIC plugin uses the Intel MicAccessAPI to gather processor, temperature
  and memory staistitcs from multiple MIC cards attached to a host
