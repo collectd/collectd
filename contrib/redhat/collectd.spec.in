@@ -1535,9 +1535,6 @@ fi
 %if %{with_memory}
 %{_libdir}/%{name}/memory.so
 %endif
-%if %{with_mic}
-%{_libdir}/%{name}/mic.so
-%endif
 %if %{with_multimeter}
 %{_libdir}/%{name}/multimeter.so
 %endif
@@ -1739,6 +1736,11 @@ fi
 %if %{with_memcachec}
 %files memcachec
 %{_libdir}/%{name}/memcachec.so
+%endif
+
+%if %{with_mic}
+%files mic
+%{_libdir}/%{name}/mic.so
 %endif
 
 %if %{with_mysql}
