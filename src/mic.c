@@ -118,12 +118,14 @@ static int mic_config (const char *key, const char *value) {
 	return (0);
 }
 
-static void mic_submit_memory_use(int micnumber, const char *type_instance, gauge_t val)
+static void mic_submit_memory_use(int micnumber, const char *type_instance, U32 val)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = val;
+	/* MicAccessAPI reports KB's of memory, adjust for this */ 
+	DEBUG("Memory Value Report; %u %lf",val,((gauge_t)val)*1024.0);
+	values[0].gauge = ((gauge_t)val)*1024.0;
 
 	vl.values=values;
 	vl.values_len=1;
@@ -141,18 +143,17 @@ static void mic_submit_memory_use(int micnumber, const char *type_instance, gaug
 static int mic_read_memory(int mic)
 {
 	U32 ret;
-	U32 mem_total,mem_used,mem_bufs;
+	U32 mem_total,mem_free,mem_bufs;
 	
-	ret = MicGetMemoryUtilization(mic_handle,&mem_total,&mem_used,&mem_bufs);
+	ret = MicGetMemoryUtilization(mic_handle,&mem_total,&mem_free,&mem_bufs);
 	if (ret != MIC_ACCESS_API_SUCCESS) {
 		ERROR("Problem getting Memory Utilization: %s",MicGetErrorString(ret));
 		return (1);
 	}
-	/* API reprots KB's of memory, adjust for this */ 
-	mic_submit_memory_use(mic,"free",(mem_total-mem_used-mem_bufs)*1024);
-	mic_submit_memory_use(mic,"used",mem_used*1024);
-	mic_submit_memory_use(mic,"buffered",mem_bufs*1024);
-	/*INFO("Memory Read: %u %u %u",mem_total,mem_used,mem_bufs);*/
+	mic_submit_memory_use(mic,"free",mem_free);
+	mic_submit_memory_use(mic,"used",mem_total-mem_free-mem_bufs);
+	mic_submit_memory_use(mic,"buffered",mem_bufs);
+	DEBUG("Memory Read: %u %u %u",mem_total,mem_free,mem_bufs);
 	return (0);
 }
 
