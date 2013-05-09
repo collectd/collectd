@@ -1600,8 +1600,7 @@ then
 	AC_SUBST(BUILD_WITH_LIBCURL_LIBS)
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBCURL, test "x$with_libcurl" = "xyes")
-#
- }}}
+#}}}
 
 # --with-libdbi {{{
 with_libdbi_cppflags=""
@@ -4222,7 +4221,7 @@ AC_ARG_WITH(mic,[AS_HELP_STRING([--with-mic@<:@=PREFIX@:>@], [Path to Intel MIC 
 	then
 		AC_MSG_NOTICE([Not checking for Intel Mic: Manually configured])
 		with_mic_cflags="-I$withval/include"
-		with_mic_ldpath="-L$withval/lib"
+		with_mic_ldpath="-L$withval/lib/Linux"
 		with_mic_libs="-lMicAccessSDK -lscif -lpthread"
 		with_mic="yes"
 	fi; fi; fi
@@ -4244,9 +4243,9 @@ then
 	LDFLAGS="$LDFLAGS $with_mic_ldpath"
 
 	AC_CHECK_LIB(MicAccessSDK, MicInitAPI,
-		     [with_mic_ldpath="$with_mic_ldpath"
-			  with_mic_libs="-lMicAccessSDK -lscif -lpthread"],
-		     [with_mic="no (symbol MicInitAPI not found)"],[-lscif -lpthread])
+			[with_mic_ldpath="$with_mic_ldpath"
+			with_mic_libs="-lMicAccessSDK -lscif -lpthread"],
+			[with_mic="no (symbol MicInitAPI not found)"],[-lscif -lpthread])
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
 	LDFLAGS="$SAVE_LDFLAGS"
@@ -4668,7 +4667,6 @@ AC_DEFUN(
 		    fi
 	    else # User passed "yes" but dependency checking yielded "no" => Dependency problem.
 		    dependency_error="yes"
-			echo Crap plugin $1 does has dependency errors.
 		    enable_plugin="no (dependency error)"
 	    fi
     fi
@@ -4708,7 +4706,6 @@ plugin_irq="no"
 plugin_libvirt="no"
 plugin_load="no"
 plugin_memory="no"
-plugin_mic="no"
 plugin_multimeter="no"
 plugin_nfs="no"
 plugin_numa="no"
@@ -5055,7 +5052,7 @@ AC_PLUGIN([md],          [$have_linux_raid_md_u_h], [md (Linux software RAID) de
 AC_PLUGIN([memcachec],   [$with_libmemcached], [memcachec statistics])
 AC_PLUGIN([memcached],   [yes],                [memcached statistics])
 AC_PLUGIN([memory],      [$plugin_memory],     [Memory usage])
-AC_PLUGIN([mic],         [$plugin_mic],          [Intel Many Integrated Core stats])
+AC_PLUGIN([mic],         [$with_mic],          [Intel Many Integrated Core stats])
 AC_PLUGIN([modbus],      [$with_libmodbus],    [Modbus plugin])
 AC_PLUGIN([multimeter],  [$plugin_multimeter], [Read multimeter values])
 AC_PLUGIN([mysql],       [$with_libmysql],     [MySQL statistics])
