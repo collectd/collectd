@@ -33,8 +33,8 @@
 #define MAX_CORES 256
 
 static MicDeviceOnSystem mics[MAX_MICS];
-static U32 num_mics = 0;
-static HANDLE mic_handle=NULL;
+static U32 num_mics = MAX_MICS;
+static HANDLE mic_handle = NULL;
 #define NUM_THERMS 7
 static const int therms[NUM_THERMS] = {eMicThermalDie,eMicThermalDevMem,eMicThermalFin,eMicThermalFout,eMicThermalVccp,eMicThermalVddg,eMicThermalVddq};
 static const char *therm_names[NUM_THERMS] = {"die","devmem","fin","fout","vccp","vddg","vddq"};
