@@ -129,6 +129,7 @@ Michael Hanselmann <public at hansmi.ch>
 
 Michael Stapelberg <michael+git at stapelberg.de>
  - OpenBSD port of the tcpconns plugin.
+ - cgroups plugin.
 
 Michał Mirosław <mirq-linux at rere.qmqm.pl>
  - thermal plugin.
