@@ -37,6 +37,9 @@ Features
       Name server and resolver statistics from the `statistics-channel'
       interface of BIND 9.5, 9,6 and later.
 
+    - cgroups
+      CPU accounting information for process groups under Linux.
+
     - conntrack
       Number of nf_conntrack entries.
 

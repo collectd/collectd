@@ -303,7 +303,7 @@ typedef int (*dirwalk_callback_f)(const char *dirname, const char *filename,
 int walk_directory (const char *dir, dirwalk_callback_f callback,
 		void *user_data, int hidden);
 /* Returns the number of bytes read or negative on error. */
-int read_file_contents (const char *filename, char *buf, int bufsize);
+ssize_t read_file_contents (char const *filename, char *buf, size_t bufsize);
 
 counter_t counter_diff (counter_t old_value, counter_t new_value);
 

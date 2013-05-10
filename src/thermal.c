@@ -80,12 +80,12 @@ static int thermal_sysfs_device_read (const char __attribute__((unused)) *dir,
 	if (device_list && ignorelist_match (device_list, name))
 		return -1;
 
-	len = snprintf (filename, sizeof (filename),
+	len = ssnprintf (filename, sizeof (filename),
 			"%s/%s/temp", dirname_sysfs, name);
 	if ((len < 0) || ((size_t) len >= sizeof (filename)))
 		return -1;
 
-	len = read_file_contents (filename, data, sizeof(data));
+	len = (ssize_t) read_file_contents (filename, data, sizeof(data));
 	if (len > 1 && data[--len] == '\n') {
 		char *endptr = NULL;
 		double temp;
@@ -100,12 +100,12 @@ static int thermal_sysfs_device_read (const char __attribute__((unused)) *dir,
 		}
 	}
 
-	len = snprintf (filename, sizeof (filename),
+	len = ssnprintf (filename, sizeof (filename),
 			"%s/%s/cur_state", dirname_sysfs, name);
 	if ((len < 0) || ((size_t) len >= sizeof (filename)))
 		return -1;
 
-	len = read_file_contents (filename, data, sizeof(data));
+	len = (ssize_t) read_file_contents (filename, data, sizeof(data));
 	if (len > 1 && data[--len] == '\n') {
 		char *endptr = NULL;
 		double state;
@@ -139,12 +139,12 @@ static int thermal_procfs_device_read (const char __attribute__((unused)) *dir,
 	 * temperature:             55 C
 	 */
 	
-	len = snprintf (filename, sizeof (filename),
+	len = ssnprintf (filename, sizeof (filename),
 			"%s/%s/temperature", dirname_procfs, name);
 	if ((len < 0) || ((size_t) len >= sizeof (filename)))
 		return -1;
 
-	len = read_file_contents (filename, data, sizeof(data));
+	len = (ssize_t) read_file_contents (filename, data, sizeof(data));
 	if ((len > 0) && ((size_t) len > sizeof(str_temp))
 			&& (data[--len] == '\n')
 			&& (! strncmp(data, str_temp, sizeof(str_temp)-1))) {

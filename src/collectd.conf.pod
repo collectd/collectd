@@ -852,6 +852,29 @@ By default no detailed zone information is collected.
 
 =back
 
+=head2 Plugin C<cgroups>
+
+This plugin collects the CPU user/system time for each I<cgroup> by reading the
+F<cpuacct.stat> files in the first cpuacct-mountpoint (typically
+F</sys/fs/cgroup/cpu.cpuacct> on machines using systemd).
+
+=over 4
+
+=item B<CGroup> I<Directory>
+
+Select I<cgroup> based on the name. Whether only matching I<cgroups> are
+collected or if they are ignored is controlled by the B<IgnoreSelected> option;
+see below.
+
+=item B<IgnoreSelected> B<true>|B<false>
+
+Invert the selection: If set to true, all cgroups I<except> the ones that
+match any one of the criteria are collected. By default only selected
+cgroups are collected if a selection is made. If no selection is configured
+at all, B<all> cgroups are selected.
+
+=back
+
 =head2 Plugin C<cpufreq>
 
 This plugin doesn't have any options. It reads
