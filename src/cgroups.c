@@ -1,6 +1,7 @@
 /**
- * collectd - src/cgroups_cpuacct.c
+ * collectd - src/cgroups.c
  * Copyright (C) 2011  Michael Stapelberg
+ * Copyright (C) 2013  Florian Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,6 +18,7 @@
  *
  * Authors:
  *   Michael Stapelberg <michael at stapelberg.de>
+ *   Florian Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
@@ -45,7 +47,7 @@ static void cgroups_submit_one (char const *plugin_instance,
 	vl.values = &value;
 	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-	sstrncpy (vl.plugin, "cgroups_cpuacct", sizeof (vl.plugin));
+	sstrncpy (vl.plugin, "cgroups", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, plugin_instance,
 			sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, "cpu", sizeof (vl.type));
@@ -76,7 +78,7 @@ static int read_cpuacct_procs (const char *dirname, char const *cgroup_name,
 	status = lstat (abs_path, &statbuf);
 	if (status != 0)
 	{
-		ERROR ("cgroups_cpuacct plugin: stat (\"%s\") failed.",
+		ERROR ("cgroups plugin: stat (\"%s\") failed.",
 				abs_path);
 		return (-1);
 	}
@@ -91,7 +93,7 @@ static int read_cpuacct_procs (const char *dirname, char const *cgroup_name,
 	if (fh == NULL)
 	{
 		char errbuf[1024];
-		ERROR ("cgroups_cpuacct pluign: fopen (\"%s\") failed: %s",
+		ERROR ("cgroups pluign: fopen (\"%s\") failed: %s",
 				abs_path,
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
@@ -153,7 +155,7 @@ static int read_cpuacct_root (const char *dirname, const char *filename,
 	status = lstat (abs_path, &statbuf);
 	if (status != 0)
 	{
-		ERROR ("cgroups_cpuacct plugin: stat (%s) failed.", abs_path);
+		ERROR ("cgroups plugin: stat (%s) failed.", abs_path);
 		return (-1);
 	}
 
@@ -207,7 +209,7 @@ static int cgroups_read (void)
 	mnt_list = NULL;
 	if (cu_mount_getlist (&mnt_list) == NULL)
 	{
-		ERROR ("cgroups_cpuacct plugin: cu_mount_getlist failed.");
+		ERROR ("cgroups plugin: cu_mount_getlist failed.");
 		return (-1);
 	}
 
@@ -232,7 +234,7 @@ static int cgroups_read (void)
 
 	if (!cgroup_found)
 	{
-		WARNING ("cgroups_cpuacct plugin: Unable to find cgroup "
+		WARNING ("cgroups plugin: Unable to find cgroup "
 				"mount-point with the \"cpuacct\" option.");
 		return (-1);
 	}
@@ -242,8 +244,8 @@ static int cgroups_read (void)
 
 void module_register (void)
 {
-	plugin_register_config ("cgroups_cpuacct", cgroups_config,
+	plugin_register_config ("cgroups", cgroups_config,
 			config_keys, config_keys_num);
-	plugin_register_init ("cgroups_cpuacct", cgroups_init);
-	plugin_register_read ("cgroups_cpuacct", cgroups_read);
+	plugin_register_init ("cgroups", cgroups_init);
+	plugin_register_read ("cgroups", cgroups_read);
 } /* void module_register */

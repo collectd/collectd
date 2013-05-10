@@ -852,7 +852,7 @@ By default no detailed zone information is collected.
 
 =back
 
-=head2 Plugin C<cgroups_cpuacct>
+=head2 Plugin C<cgroups>
 
 This plugin collects the CPU user/system time for each I<cgroup> by reading the
 F<cpuacct.stat> files in the first cpuacct-mountpoint (typically

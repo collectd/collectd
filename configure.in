@@ -4630,6 +4630,7 @@ dependency_error="no"
 plugin_ascent="no"
 plugin_battery="no"
 plugin_bind="no"
+plugin_cgroups="no"
 plugin_conntrack="no"
 plugin_contextswitch="no"
 plugin_cpu="no"
@@ -4673,6 +4674,7 @@ then
 	plugin_battery="yes"
 	plugin_conntrack="yes"
 	plugin_contextswitch="yes"
+	plugin_cgroups="yes"
 	plugin_cpu="yes"
 	plugin_cpufreq="yes"
 	plugin_disk="yes"
@@ -4956,7 +4958,7 @@ AC_PLUGIN([csv],         [yes],                [CSV output plugin])
 AC_PLUGIN([curl],        [$with_libcurl],      [CURL generic web statistics])
 AC_PLUGIN([curl_json],   [$plugin_curl_json],    [CouchDB statistics])
 AC_PLUGIN([curl_xml],   [$plugin_curl_xml],    [CURL generic xml statistics])
-AC_PLUGIN([cgroups_cpuacct], [yes],            [CGroups CPU usage accounting])
+AC_PLUGIN([cgroups],     [$plugin_cgroups],    [CGroups CPU usage accounting])
 AC_PLUGIN([dbi],         [$with_libdbi],       [General database statistics])
 AC_PLUGIN([df],          [$plugin_df],         [Filesystem usage statistics])
 AC_PLUGIN([disk],        [$plugin_disk],       [Disk usage statistics])
@@ -5287,7 +5289,7 @@ Configuration:
     bind  . . . . . . . . $enable_bind
     conntrack . . . . . . $enable_conntrack
     contextswitch . . . . $enable_contextswitch
-    cgroups_cpuacct . . . $enable_cgroups_cpuacct
+    cgroups . . . . . . . $enable_cgroups
     cpu . . . . . . . . . $enable_cpu
     cpufreq . . . . . . . $enable_cpufreq
     csv . . . . . . . . . $enable_csv
