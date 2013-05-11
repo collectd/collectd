@@ -72,7 +72,8 @@ static int mic_init (void)
 	mic_count = (U32) STATIC_ARRAY_SIZE(mics);
 	ret = MicInitAPI(&mic_handle,  eTARGET_SCIF_DRIVER, mics, &mic_count);
 	if (ret != MIC_ACCESS_API_SUCCESS) {
-		ERROR("mic plugin: Problem initializing MicAccessAPI: %s",MicGetErrorString(ret));
+		ERROR("mic plugin: Problem initializing MicAccessAPI: %s",
+				MicGetErrorString(ret));
 	}
 	DEBUG("mic plugin: found: %"PRIu32" MIC(s)",mic_count);
 	
@@ -155,7 +156,8 @@ static int mic_read_memory(int mic)
 	
 	ret = MicGetMemoryUtilization(mic_handle,&mem_total,&mem_free,&mem_bufs);
 	if (ret != MIC_ACCESS_API_SUCCESS) {
-		ERROR("mic plugin: Problem getting Memory Utilization: %s",MicGetErrorString(ret));
+		ERROR("mic plugin: Problem getting Memory Utilization: %s",
+				MicGetErrorString(ret));
 		return (1);
 	}
 	mic_submit_memory_use(mic,"free",mem_free);
@@ -177,7 +179,8 @@ static void mic_submit_temp(int micnumber, const char *type, gauge_t val)
 
 	strncpy (vl.host, hostname_g, sizeof (vl.host));
 	strncpy (vl.plugin, "mic", sizeof (vl.plugin));
-	ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance), "%i", micnumber);
+	ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
+			"%i", micnumber);
 	strncpy (vl.type, "temperature", sizeof (vl.type));
 	strncpy (vl.type_instance, type, sizeof (vl.type_instance));
 
@@ -228,7 +231,8 @@ static void mic_submit_cpu(int micnumber, const char *type_instance, int core, d
 	if (core < 0)
 		strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 	else
-		ssnprintf (vl.type_instance, sizeof (vl.type_instance), "%i-%s", core, type_instance);
+		ssnprintf (vl.type_instance, sizeof (vl.type_instance),
+				"%i-%s", core, type_instance);
 
 	plugin_dispatch_values (&vl);
 } 
@@ -236,30 +240,34 @@ static void mic_submit_cpu(int micnumber, const char *type_instance, int core, d
 /*Gather CPU Utilization Information */
 static int mic_read_cpu(int mic)
 {
-	U32 ret;
-	U32 buffer_size;
-	int j;
 	MicCoreUtil core_util;
 	MicCoreJiff core_jiffs[MAX_CORES];
+	U32 core_jiffs_size;
+	U32 status;
 
-	buffer_size=MAX_CORES*sizeof(MicCoreJiff);
-	ret = MicGetCoreUtilization(mic_handle,&core_util,core_jiffs,&buffer_size);
-	if (ret != MIC_ACCESS_API_SUCCESS) {
-		ERROR("mic plugin: Problem getting CPU utilization: %s",MicGetErrorString(ret));
-		return(0);
+	core_jiffs_size = MAX_CORES * sizeof(MicCoreJiff);
+	status = MicGetCoreUtilization(mic_handle, &core_util,
+			core_jiffs, &core_jiffs_size);
+	if (status != MIC_ACCESS_API_SUCCESS) {
+		ERROR("mic plugin: Problem getting CPU utilization: %s",
+				MicGetErrorString(status));
+		return(-1);
 	}
+
 	if (show_total_cpu) {
-		mic_submit_cpu(mic,"user",-1,core_util.sum.user);
-		mic_submit_cpu(mic,"sys",-1,core_util.sum.sys);
-		mic_submit_cpu(mic,"nice",-1,core_util.sum.nice);
-		mic_submit_cpu(mic,"idle",-1,core_util.sum.idle);
+		mic_submit_cpu(mic, "user", -1, core_util.sum.user);
+		mic_submit_cpu(mic, "sys", -1, core_util.sum.sys);
+		mic_submit_cpu(mic, "nice", -1, core_util.sum.nice);
+		mic_submit_cpu(mic, "idle", -1, core_util.sum.idle);
 	}
+
 	if (show_per_cpu) {
-		for (j=0;j<core_util.core;j++) {
-			mic_submit_cpu(mic,"user",j,core_jiffs[j].user);
-			mic_submit_cpu(mic,"sys",j,core_jiffs[j].sys);
-			mic_submit_cpu(mic,"nice",j,core_jiffs[j].nice);
-			mic_submit_cpu(mic,"idle",j,core_jiffs[j].idle);
+		int j;
+		for (j = 0; j < core_util.core; j++) {
+			mic_submit_cpu(mic, "user", j, core_jiffs[j].user);
+			mic_submit_cpu(mic, "sys", j, core_jiffs[j].sys);
+			mic_submit_cpu(mic, "nice", j, core_jiffs[j].nice);
+			mic_submit_cpu(mic, "idle", j, core_jiffs[j].idle);
 		}
 	}
 	return (0);
@@ -275,7 +283,8 @@ static int mic_read (void)
 	for (i=0;i<num_mics;i++) {
 		ret = MicInitAdapter(&mic_handle,&mics[i]);
 		if (ret != MIC_ACCESS_API_SUCCESS) {
-			ERROR("mic plugin: Problem initializing MicAdapter: %s",MicGetErrorString(ret));
+			ERROR("mic plugin: Problem initializing MicAdapter: %s",
+					MicGetErrorString(ret));
 			error=1;
 		}
 
@@ -290,7 +299,8 @@ static int mic_read (void)
 
 		ret = MicCloseAdapter(mic_handle);
 		if (ret != MIC_ACCESS_API_SUCCESS) {
-			ERROR("mic plugin: Problem closing MicAdapter: %s",MicGetErrorString(ret));
+			ERROR("mic plugin: Problem closing MicAdapter: %s",
+					MicGetErrorString(ret));
 			error=2;
 			break;
 		}
