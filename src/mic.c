@@ -16,7 +16,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Evan Felix <evan.felix@pnnl.gov>
+ *   Evan Felix <evan.felix at pnnl.gov>
  **/
 
 #include "collectd.h"

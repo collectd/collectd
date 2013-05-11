@@ -158,6 +158,10 @@ Features
       Memory utilization: Memory occupied by running processes, page cache,
       buffer cache and free.
 
+    - mic
+      Collects CPU usage, memory usage and temperatures from Intel Many
+      Integrated Core (MIC) CPUs.
+
     - modbus
       Reads values from Modbus/TCP enabled devices. Supports reading values
       from multiple "slaves" so gateway devices can be used.
