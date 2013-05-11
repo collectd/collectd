@@ -35,9 +35,13 @@
 static MicDeviceOnSystem mics[MAX_MICS];
 static U32 num_mics = 0;
 static HANDLE mic_handle = NULL;
-#define NUM_THERMS 7
-static const int therms[NUM_THERMS] = {eMicThermalDie,eMicThermalDevMem,eMicThermalFin,eMicThermalFout,eMicThermalVccp,eMicThermalVddg,eMicThermalVddq};
-static const char *therm_names[NUM_THERMS] = {"die","devmem","fin","fout","vccp","vddg","vddq"};
+
+static int const therm_ids[] = {
+	eMicThermalDie, eMicThermalDevMem, eMicThermalFin, eMicThermalFout,
+	eMicThermalVccp, eMicThermalVddg, eMicThermalVddq };
+static char const * const therm_names[] = {
+	"die", "devmem", "fin", "fout",
+	"vccp", "vddg", "vddq" };
 
 static const char *config_keys[] =
 {
@@ -183,20 +187,26 @@ static void mic_submit_temp(int micnumber, const char *type, gauge_t val)
 /* Gather Temperature Information */
 static int mic_read_temps(int mic)
 {
-	int j;
-	U32 ret;
-	U32 temp_buffer;
-	U32 buffer_size = (U32)sizeof(temp_buffer);
+	size_t num_therms = STATIC_ARRAY_SIZE(therm_ids);
+	size_t j;
 	
-	for (j=0;j<NUM_THERMS;j++) {
-		if (ignorelist_match(temp_ignore,therm_names[j])!=0)
+	for (j = 0; j < num_therms; j++) {
+		U32 status;
+		U32 temp_buffer;
+		U32 buffer_size = (U32)sizeof(temp_buffer);
+		char const *name = therm_names[j];
+
+		if (ignorelist_match(temp_ignore, name) != 0)
 			continue;
-		ret = MicGetTemperature(mic_handle,therms[j],&temp_buffer,&buffer_size);
-		if (ret != MIC_ACCESS_API_SUCCESS) {
-			ERROR("mic plugin: Problem getting Temperature(%d) %s",j,MicGetErrorString(ret));
+
+		status = MicGetTemperature(mic_handle, therm_ids[j],
+				&temp_buffer, &buffer_size);
+		if (status != MIC_ACCESS_API_SUCCESS) {
+			ERROR("mic plugin: Error reading temperature \"%s\": "
+					"%s", name, MicGetErrorString(status));
 			return (1);
 		}
-		mic_submit_temp(mic,therm_names[j],temp_buffer);
+		mic_submit_temp(mic, name, temp_buffer);
 	}
 	return (0);
 }
@@ -307,5 +317,5 @@ void module_register (void)
 } /* void module_register */
 
 /*
- * vim: shiftwidth=2:softtabstop=2:textwidth=78
+ * vim: set shiftwidth=8 softtabstop=8 noet textwidth=78 :
  */
