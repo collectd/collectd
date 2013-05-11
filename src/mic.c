@@ -45,21 +45,20 @@ static char const * const therm_names[] = {
 
 static const char *config_keys[] =
 {
-	"ShowTotalCPU",
-	"ShowPerCPU",
-	"ShowTemps",
+	"ShowCPU",
+	"ShowCPUCores",
 	"ShowMemory",
-	"TempSensor",
-	"IgnoreTempSelected",
+	"ShowTemperatures",
+	"Temperature",
+	"IgnoreSelectedTemperature",
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
-static _Bool show_total_cpu = 1;
-static _Bool show_per_cpu = 1;
-static _Bool show_temps = 1;
+static _Bool show_cpu = 1;
+static _Bool show_cpu_cores = 1;
 static _Bool show_memory = 1;
+static _Bool show_temps = 1;
 static ignorelist_t *temp_ignore = NULL;
-
 
 static int mic_init (void)
 {
@@ -93,15 +92,15 @@ static int mic_config (const char *key, const char *value) {
 	if (temp_ignore == NULL)
 		return (1);
 
-	if (strcasecmp("ShowTotalCPU",key) == 0)
+	if (strcasecmp("ShowCPU",key) == 0)
 	{
-		show_total_cpu = IS_TRUE(value);
+		show_cpu = IS_TRUE(value);
 	}
-	else if (strcasecmp("ShowPerCPU",key) == 0)
+	else if (strcasecmp("ShowCPUCores",key) == 0)
 	{
-		show_per_cpu = IS_TRUE(value);
+		show_cpu_cores = IS_TRUE(value);
 	}
-	else if (strcasecmp("ShowTemps",key) == 0)
+	else if (strcasecmp("ShowTemperatures",key) == 0)
 	{
 		show_temps = IS_TRUE(value);
 	}
@@ -109,11 +108,11 @@ static int mic_config (const char *key, const char *value) {
 	{
 		show_memory = IS_TRUE(value);
 	}
-	else if (strcasecmp("TempSensor",key) == 0)
+	else if (strcasecmp("Temperature",key) == 0)
 	{
 		ignorelist_add(temp_ignore,value);
 	}
-	else if (strcasecmp("IgnoreTempSelected",key) == 0)
+	else if (strcasecmp("IgnoreSelectedTemperature",key) == 0)
 	{
 		int invert = 1;
 		if (IS_TRUE(value))
@@ -256,14 +255,14 @@ static int mic_read_cpu(int mic)
 		return(-1);
 	}
 
-	if (show_total_cpu) {
+	if (show_cpu) {
 		mic_submit_cpu(mic, "user", -1, core_util.sum.user);
 		mic_submit_cpu(mic, "sys", -1, core_util.sum.sys);
 		mic_submit_cpu(mic, "nice", -1, core_util.sum.nice);
 		mic_submit_cpu(mic, "idle", -1, core_util.sum.idle);
 	}
 
-	if (show_per_cpu) {
+	if (show_cpu_cores) {
 		int j;
 		for (j = 0; j < core_util.core; j++) {
 			mic_submit_cpu(mic, "user", j, core_jiffs[j].user);
@@ -296,7 +295,7 @@ static int mic_read (void)
 		if (error == 0 && show_temps)
 			error = mic_read_temps(i);
 
-		if (error == 0 && (show_total_cpu || show_per_cpu))
+		if (error == 0 && (show_cpu || show_cpu_cores))
 			error = mic_read_cpu(i);
 
 		ret = MicCloseAdapter(mic_handle);
