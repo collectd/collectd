@@ -4816,10 +4816,6 @@ then
 	plugin_memory="yes"
 	plugin_tcpconns="yes"
 fi
-if test "x$with_mic" = "xyes"
-then
-	plugin_mic="yes"
-fi
 
 # Df plugin: Check if we know how to determine mount points first.
 #if test "x$have_listmntent" = "xyes"; then
@@ -5233,6 +5229,7 @@ cat <<EOF;
 
 Configuration:
   Libraries:
+    intel mic . . . . . . $with_mic
     libcurl . . . . . . . $with_libcurl
     libdbi  . . . . . . . $with_libdbi
     libcredis . . . . . . $with_libcredis
@@ -5266,7 +5263,6 @@ Configuration:
     libstatgrab . . . . . $with_libstatgrab
     libtokyotyrant  . . . $with_libtokyotyrant
     libupsclient  . . . . $with_libupsclient
-    mic  . . .  . . . . . $with_mic
     libvarnish  . . . . . $with_libvarnish
     libvirt . . . . . . . $with_libvirt
     libxml2 . . . . . . . $with_libxml2
