@@ -61,7 +61,7 @@ struct read_func_s
 #define rf_ctx rf_super.cf_ctx
 	callback_func_t rf_super;
 	char rf_group[DATA_MAX_NAME_LEN];
-	char rf_name[DATA_MAX_NAME_LEN];
+	char *rf_name;
 	int rf_type;
 	cdtime_t rf_interval;
 	cdtime_t rf_effective_interval;
@@ -437,6 +437,7 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 		{
 			DEBUG ("plugin_read_thread: Destroying the `%s' "
 					"callback.", rf->rf_name);
+			sfree (rf->rf_name);
 			destroy_callback ((callback_func_t *) rf);
 			rf = NULL;
 			continue;
@@ -1048,7 +1049,7 @@ int plugin_register_read (const char *name,
 	rf->rf_udata.free_func = NULL;
 	rf->rf_ctx = plugin_get_ctx ();
 	rf->rf_group[0] = '\0';
-	sstrncpy (rf->rf_name, name, sizeof (rf->rf_name));
+	rf->rf_name = strdup (name);
 	rf->rf_type = RF_SIMPLE;
 	rf->rf_interval = plugin_get_interval ();
 
@@ -1080,7 +1081,7 @@ int plugin_register_complex_read (const char *group, const char *name,
 		sstrncpy (rf->rf_group, group, sizeof (rf->rf_group));
 	else
 		rf->rf_group[0] = '\0';
-	sstrncpy (rf->rf_name, name, sizeof (rf->rf_name));
+	rf->rf_name = strdup (name);
 	rf->rf_type = RF_COMPLEX;
 	if (interval != NULL)
 		rf->rf_interval = TIMESPEC_TO_CDTIME_T (interval);
