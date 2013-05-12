@@ -966,7 +966,7 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
   if (status == 0)
   {
     user_data_t ud;
-    char cb_name[DATA_MAX_NAME_LEN];
+    char *cb_name;
 
     if (db->instance == NULL)
       db->instance = strdup("default");
@@ -978,11 +978,10 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
     ud.data = (void *) db;
     ud.free_func = cx_free;
 
-    ssnprintf (cb_name, sizeof (cb_name), "curl_xml-%s-%s",
-               db->instance, db->url);
-
-    plugin_register_complex_read (/* group = */ NULL, cb_name, cx_read,
+    cb_name = ssnprintf_alloc ("curl_xml-%s-%s", db->instance, db->url);
+    plugin_register_complex_read (/* group = */ "curl_xml", cb_name, cx_read,
                                   /* interval = */ NULL, &ud);
+    sfree (cb_name);
   }
   else
   {
