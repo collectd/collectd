@@ -56,7 +56,13 @@ struct rate_to_value_state_s
 typedef struct rate_to_value_state_s rate_to_value_state_t;
 
 char *sstrncpy (char *dest, const char *src, size_t n);
+
+__attribute__ ((format(printf,3,4)))
 int ssnprintf (char *dest, size_t n, const char *format, ...);
+
+__attribute__ ((format(printf,1,2)))
+char *ssnprintf_alloc (char const *format, ...);
+
 char *sstrdup(const char *s);
 void *smalloc(size_t size);
 char *sstrerror (int errnum, char *buf, size_t buflen);
