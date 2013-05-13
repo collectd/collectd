@@ -39,6 +39,11 @@ struct udb_result_s
   char   **values;
   size_t   values_num;
 
+  char    *database_name;
+  char    *schema_name;
+  char    *table_name;
+  char    *index_name;
+
   udb_result_t *next;
 }; /* }}} */
 
@@ -61,6 +66,15 @@ struct udb_result_preparation_area_s /* {{{ */
   size_t *values_pos;
   char  **instances_buffer;
   char  **values_buffer;
+
+  size_t *database_name_pos;
+  size_t *schema_name_pos;
+  size_t *table_name_pos;
+  size_t *index_name_pos;
+  char   *database_name_buffer;
+  char   *schema_name_buffer;
+  char   *table_name_buffer;
+  char   *index_name_buffer;
 
   struct udb_result_preparation_area_s *next;
 }; /* }}} */
@@ -188,6 +202,7 @@ static int udb_result_submit (udb_result_t *r, /* {{{ */
 {
   value_list_t vl = VALUE_LIST_INIT;
   size_t i;
+  int status;
 
   assert (r != NULL);
   assert (r_area->ds != NULL);
@@ -253,8 +268,69 @@ static int udb_result_submit (udb_result_t *r, /* {{{ */
   vl.type_instance[sizeof (vl.type_instance) - 1] = 0;
   /* }}} */
 
+  /* Annotate meta data. {{{ */
+  vl.meta = meta_data_create ();
+  if (vl.meta == NULL)
+  {
+    ERROR ("db query utils:: meta_data_create failed.");
+    return (-ENOMEM);
+  }
+
+  if (r_area->database_name_pos == NULL)
+    status = meta_data_add_string (vl.meta, "database", vl.plugin_instance);
+  else
+    status = meta_data_add_string (vl.meta, "database",
+        r_area->database_name_buffer);
+  if (status != 0)
+  {
+    ERROR ("db query utils:: meta_data_add_string failed. (database)");
+    meta_data_destroy (vl.meta);
+    vl.meta = NULL;
+    return (status);
+  }
+
+  if (r_area->schema_name_pos != NULL)
+  {
+    status = meta_data_add_string (vl.meta, "schema",
+        r_area->schema_name_buffer);
+    if (status != 0)
+    {
+      ERROR ("db query utils:: meta_data_add_string failed. (schema)");
+      meta_data_destroy (vl.meta);
+      vl.meta = NULL;
+      return (status);
+    }
+  }
+
+  if (r_area->table_name_pos != NULL)
+  {
+    status = meta_data_add_string (vl.meta, "table", r_area->table_name_buffer);
+    if (status != 0)
+    {
+      ERROR ("db query utils:: meta_data_add_string failed. (table)");
+      meta_data_destroy (vl.meta);
+      vl.meta = NULL;
+      return (status);
+    }
+  }
+
+  if (r_area->index_name_pos != NULL)
+  {
+    status = meta_data_add_string (vl.meta, "index", r_area->index_name_buffer);
+    if (status != 0)
+    {
+      ERROR ("db query utils:: meta_data_add_string failed. (index)");
+      meta_data_destroy (vl.meta);
+      vl.meta = NULL;
+      return (status);
+    }
+  }
+  /* }}} */
+
   plugin_dispatch_values (&vl);
 
+  meta_data_destroy (vl.meta);
+  vl.meta = NULL;
   sfree (vl.values);
   return (0);
 } /* }}} void udb_result_submit */
@@ -270,6 +346,10 @@ static void udb_result_finish_result (udb_result_t const *r, /* {{{ */
   sfree (prep_area->values_pos);
   sfree (prep_area->instances_buffer);
   sfree (prep_area->values_buffer);
+  sfree (prep_area->database_name_pos);
+  sfree (prep_area->schema_name_pos);
+  sfree (prep_area->table_name_pos);
+  sfree (prep_area->index_name_pos);
 } /* }}} void udb_result_finish_result */
 
 static int udb_result_handle_result (udb_result_t *r, /* {{{ */
@@ -286,6 +366,15 @@ static int udb_result_handle_result (udb_result_t *r, /* {{{ */
 
   for (i = 0; i < r->values_num; i++)
     r_area->values_buffer[i] = column_values[r_area->values_pos[i]];
+
+  if (r_area->database_name_pos != NULL)
+    r_area->database_name_buffer = column_values[*r_area->database_name_pos];
+  if (r_area->schema_name_pos != NULL)
+    r_area->schema_name_buffer = column_values[*r_area->schema_name_pos];
+  if (r_area->table_name_pos != NULL)
+    r_area->table_name_buffer = column_values[*r_area->table_name_pos];
+  if (r_area->index_name_pos != NULL)
+    r_area->index_name_buffer = column_values[*r_area->index_name_pos];
 
   return udb_result_submit (r, r_area, q, q_area);
 } /* }}} int udb_result_handle_result */
@@ -305,12 +394,25 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
   sfree (prep_area->values_pos); \
   sfree (prep_area->instances_buffer); \
   sfree (prep_area->values_buffer); \
+  sfree (prep_area->database_name_pos); \
+  sfree (prep_area->schema_name_pos); \
+  sfree (prep_area->table_name_pos); \
+  sfree (prep_area->index_name_pos); \
   return (status)
 
   /* Make sure previous preparations are cleaned up. */
   udb_result_finish_result (r, prep_area);
   prep_area->instances_pos = NULL;
   prep_area->values_pos = NULL;
+
+  prep_area->database_name_pos = NULL;
+  prep_area->schema_name_pos = NULL;
+  prep_area->table_name_pos = NULL;
+  prep_area->index_name_pos = NULL;
+  prep_area->database_name_buffer = NULL;
+  prep_area->schema_name_buffer = NULL;
+  prep_area->table_name_buffer = NULL;
+  prep_area->index_name_buffer = NULL;
 
   /* Read `ds' and check number of values {{{ */
   prep_area->ds = plugin_get_ds (r->type);
@@ -369,6 +471,46 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
     ERROR ("db query utils: udb_result_prepare_result: malloc failed.");
     BAIL_OUT (-ENOMEM);
   }
+
+  if (r->database_name != NULL)
+  {
+    prep_area->database_name_pos = (size_t *) malloc (sizeof (size_t));
+    if (prep_area->database_name_pos == NULL)
+    {
+      ERROR ("db query utils: malloc failed.");
+      BAIL_OUT (-ENOMEM);
+    }
+  }
+
+  if (r->schema_name != NULL)
+  {
+    prep_area->schema_name_pos = (size_t *) malloc (sizeof (size_t));
+    if (prep_area->schema_name_pos == NULL)
+    {
+      ERROR ("db query utils: malloc failed.");
+      BAIL_OUT (-ENOMEM);
+    }
+  }
+
+  if (r->table_name != NULL)
+  {
+    prep_area->table_name_pos = (size_t *) malloc (sizeof (size_t));
+    if (prep_area->table_name_pos == NULL)
+    {
+      ERROR ("db query utils: malloc failed.");
+      BAIL_OUT (-ENOMEM);
+    }
+  }
+
+  if (r->index_name != NULL)
+  {
+    prep_area->index_name_pos = (size_t *) malloc (sizeof (size_t));
+    if (prep_area->index_name_pos == NULL)
+    {
+      ERROR ("db query utils: malloc failed.");
+      BAIL_OUT (-ENOMEM);
+    }
+  }
   /* }}} */
 
   /* Determine the position of the instance columns {{{ */
@@ -401,6 +543,19 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
 
     for (j = 0; j < column_num; j++)
     {
+      if (r->database_name != NULL
+          && strcasecmp (r->database_name, column_names[j]) == 0)
+        *prep_area->database_name_pos = j;
+      if (r->schema_name != NULL
+          && strcasecmp (r->schema_name, column_names[j]) == 0)
+        *prep_area->schema_name_pos = j;
+      if (r->table_name != NULL
+          && strcasecmp (r->table_name, column_names[j]) == 0)
+        *prep_area->table_name_pos = j;
+      if (r->index_name != NULL
+          && strcasecmp (r->index_name, column_names[j]) == 0)
+        *prep_area->index_name_pos = j;
+
       if (strcasecmp (r->values[i], column_names[j]) == 0)
       {
         prep_area->values_pos[i] = j;
@@ -470,6 +625,11 @@ static int udb_result_create (const char *query_name, /* {{{ */
   r->values = NULL;
   r->next = NULL;
 
+  r->database_name = NULL;
+  r->schema_name = NULL;
+  r->table_name = NULL;
+  r->index_name = NULL;
+
   /* Fill the `udb_result_t' structure.. */
   status = 0;
   for (i = 0; i < ci->children_num; i++)
@@ -484,6 +644,14 @@ static int udb_result_create (const char *query_name, /* {{{ */
       status = udb_config_add_string (&r->instances, &r->instances_num, child);
     else if (strcasecmp ("ValuesFrom", child->key) == 0)
       status = udb_config_add_string (&r->values, &r->values_num, child);
+    else if (strcasecmp ("DatabaseNameFrom", child->key) == 0)
+      status = udb_config_set_string (&r->database_name, child);
+    else if (strcasecmp ("SchemaNameFrom", child->key) == 0)
+      status = udb_config_set_string (&r->schema_name, child);
+    else if (strcasecmp ("TableNameFrom", child->key) == 0)
+      status = udb_config_set_string (&r->table_name, child);
+    else if (strcasecmp ("IndexNameFrom", child->key) == 0)
+      status = udb_config_set_string (&r->index_name, child);
     else
     {
       WARNING ("db query utils: Query `%s': Option `%s' not allowed here.",
