@@ -63,6 +63,7 @@ struct web_page_s /* {{{ */
   struct curl_slist *headers;
   char *post_body;
   int   response_time;
+  int   response_code;
 
   CURL *curl;
   char curl_errbuf[CURL_ERROR_SIZE];
@@ -89,7 +90,7 @@ static size_t cc_curl_callback (void *buf, /* {{{ */
 {
   web_page_t *wp;
   size_t len;
-  
+
   len = size * nmemb;
   if (len <= 0)
     return (len);
@@ -459,6 +460,7 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
   page->verify_peer = 1;
   page->verify_host = 1;
   page->response_time = 0;
+  page->response_code = 0;
 
   page->instance = strdup (ci->values[0].value.string);
   if (page->instance == NULL)
@@ -486,6 +488,8 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
       status = cc_config_set_boolean ("VerifyHost", &page->verify_host, child);
     else if (strcasecmp ("MeasureResponseTime", child->key) == 0)
       status = cc_config_set_boolean (child->key, &page->response_time, child);
+    else if (strcasecmp ("MeasureResponseCode", child->key) == 0)
+      status = cc_config_set_boolean (child->key, &page->response_code, child);
     else if (strcasecmp ("CACert", child->key) == 0)
       status = cc_config_add_string ("CACert", &page->cacert, child);
     else if (strcasecmp ("Match", child->key) == 0)
@@ -514,11 +518,12 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
       status = -1;
     }
 
-    if (page->matches == NULL && !page->response_time)
+    if (page->matches == NULL && !page->response_time && !page->response_code)
     {
       assert (page->instance != NULL);
       WARNING ("curl plugin: No (valid) `Match' block "
-          "or MeasureResponseTime within `Page' block `%s'.", page->instance);
+          "or MeasureResponseTime or MeasureResponseCode within "
+          "`Page' block `%s'.", page->instance);
       status = -1;
     }
 
@@ -617,6 +622,23 @@ static void cc_submit (const web_page_t *wp, const web_match_t *wm, /* {{{ */
   plugin_dispatch_values (&vl);
 } /* }}} void cc_submit */
 
+static void cc_submit_response_code (const web_page_t *wp, long code) /* {{{ */
+{
+  value_t values[1];
+  value_list_t vl = VALUE_LIST_INIT;
+
+  values[0].gauge = code;
+
+  vl.values = values;
+  vl.values_len = 1;
+  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+  sstrncpy (vl.plugin, "curl", sizeof (vl.plugin));
+  sstrncpy (vl.plugin_instance, wp->instance, sizeof (vl.plugin_instance));
+  sstrncpy (vl.type, "response_code", sizeof (vl.type));
+
+  plugin_dispatch_values (&vl);
+} /* }}} void cc_submit_response_code */
+
 static void cc_submit_response_time (const web_page_t *wp, double seconds) /* {{{ */
 {
   value_t values[1];
@@ -650,6 +672,18 @@ static int cc_read_page (web_page_t *wp) /* {{{ */
     ERROR ("curl plugin: curl_easy_perform failed with staus %i: %s",
         status, wp->curl_errbuf);
     return (-1);
+  }
+
+  if(wp->response_code)
+  {
+    long *response_code;
+    status = curl_easy_getinfo(wp->curl, CURLINFO_RESPONSE_CODE, &response_code);
+    if(status != CURLE_OK) {
+      ERROR ("curl plugin: curl_easy_getinfo failed with staus %i: %s",
+        status, wp->curl_errbuf);
+      return (-1); // TODO: do we need to return in here? this is nonfatal error
+    }
+    cc_submit_response_code(wp, response_code);
   }
 
   if (wp->response_time)

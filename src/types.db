@@ -145,6 +145,7 @@ queue_length		value:GAUGE:0:U
 records			value:GAUGE:0:U
 requests		value:GAUGE:0:U
 response_time		value:GAUGE:0:U
+response_code		value:GAUGE:0:U
 route_etx		value:GAUGE:0:U
 route_metric		value:GAUGE:0:U
 routes			value:GAUGE:0:U
