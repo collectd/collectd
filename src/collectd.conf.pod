@@ -2255,6 +2255,11 @@ B<Synopsis:>
    Temperature vddg
    Temperature vddq
    IgnoreSelectedTemperature true
+
+   ShowPower true
+   Power total0
+   Power total1
+   IgnoreSelectedPower true   
  </Plugin>
 
 The following options are valid inside the B<PluginE<nbsp>mic> block:
@@ -2299,17 +2304,96 @@ Known temperature names are:
 
 =item die
 
+Die. hello
+
 =item devmem
+
+Device Memory
 
 =item fin
 
+Fan In
+
 =item fout
+
+Fan Out 
 
 =item vccp
 
+Voltage ccp
+
 =item vddg
 
+Voltage ddg
+
 =item vddq
+
+Voltage ddq
+
+=back
+
+=item B<ShowPower> B<true>|B<false>
+
+If enabled (the default) various temperatures of the MIC system are reported.
+
+=item B<Power> I<Name>
+
+This option controls which power readings are being reported. Whether matching
+power readings are being ignored or I<only> matching power readings are reported
+depends on the B<IgnoreSelectedPower> setting below. By default I<all>
+power readings are reported.
+
+=item B<IgnoreSelectedPower> B<false>|B<true>
+
+Controls the behavior of the B<Power> setting above. If set to B<false>
+(the default) only power readings matching a B<Power> option are reported
+or, if no B<Power> option is specified, all power readings are reported. If
+set to B<true>, matching power readings are I<ignored> and all other power readings
+are reported.
+
+Known power names are:
+
+=over 4
+
+=item total0
+
+Total power utilization averaged over Time Window 0 (uWatts). 
+
+=item total1
+
+Total power utilization averaged over Time Window 0 (uWatts). 
+
+=item inst
+
+Instantaneous power (uWatts).
+
+=item imax
+
+Max instantaneous power (uWatts). 
+
+=item pcie
+
+PCI-E connector power (uWatts). 
+
+=item c2x3
+
+2x3 connector power (uWatts). 
+
+=item c2x4
+
+2x4 connector power (uWatts). 
+
+=item vccp
+
+Core rail (uVolts). 
+
+=item vddg
+
+Uncore rail (uVolts). 
+
+=item vddq
+
+Memory subsystem rail (uVolts). 
 
 =back
 
