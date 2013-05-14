@@ -1600,7 +1600,7 @@ then
 	AC_SUBST(BUILD_WITH_LIBCURL_LIBS)
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBCURL, test "x$with_libcurl" = "xyes")
-#}}}
+# }}}
 
 # --with-libdbi {{{
 with_libdbi_cppflags=""
@@ -1766,7 +1766,6 @@ AC_SUBST(GANGLIA_CPPFLAGS)
 AC_SUBST(GANGLIA_LDFLAGS)
 AC_SUBST(GANGLIA_LIBS)
 AM_CONDITIONAL(BUILD_WITH_LIBGANGLIA, test "x$with_libganglia" = "xyes")
-
 # }}}
 
 # --with-libgcrypt {{{
@@ -5288,6 +5287,7 @@ cat <<EOF;
 
 Configuration:
   Libraries:
+    intel mic . . . . . . $with_mic
     libcurl . . . . . . . $with_libcurl
     libdbi  . . . . . . . $with_libdbi
     libcredis . . . . . . $with_libcredis
@@ -5321,7 +5321,6 @@ Configuration:
     libstatgrab . . . . . $with_libstatgrab
     libtokyotyrant  . . . $with_libtokyotyrant
     libupsclient  . . . . $with_libupsclient
-    mic  . . .  . . . . . $with_mic
     libvarnish  . . . . . $with_libvarnish
     libvirt . . . . . . . $with_libvirt
     libxml2 . . . . . . . $with_libxml2
