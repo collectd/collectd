@@ -28,6 +28,7 @@
 #include <MicAccessErrorTypes.h>
 #include <MicAccessApi.h>
 #include <MicThermalAPI.h>
+#include <MicPowerManagerAPI.h>
 
 #define MAX_MICS 32
 #define MAX_CORES 256
@@ -51,6 +52,9 @@ static const char *config_keys[] =
 	"ShowTemperatures",
 	"Temperature",
 	"IgnoreSelectedTemperature",
+	"ShowPower",
+	"PowerSensor",
+	"IgnorePowerSelected"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -59,6 +63,8 @@ static _Bool show_cpu_cores = 1;
 static _Bool show_memory = 1;
 static _Bool show_temps = 1;
 static ignorelist_t *temp_ignore = NULL;
+static _Bool show_power = 1;
+static ignorelist_t *power_ignore = NULL;
 
 static int mic_init (void)
 {
@@ -75,7 +81,7 @@ static int mic_init (void)
 				MicGetErrorString(ret));
 	}
 	DEBUG("mic plugin: found: %"PRIu32" MIC(s)",mic_count);
-	
+
 	if (mic_count<0 || mic_count>=MAX_MICS) {
 		ERROR("mic plugin: No Intel MICs in system");
 		return (1);
@@ -89,7 +95,9 @@ static int mic_init (void)
 static int mic_config (const char *key, const char *value) {
 	if (temp_ignore == NULL)
 		temp_ignore = ignorelist_create(1);
-	if (temp_ignore == NULL)
+	if (power_ignore == NULL)
+		power_ignore = ignorelist_create(1);
+	if (temp_ignore == NULL || power_ignore == NULL)
 		return (1);
 
 	if (strcasecmp("ShowCPU",key) == 0)
@@ -108,6 +116,10 @@ static int mic_config (const char *key, const char *value) {
 	{
 		show_memory = IS_TRUE(value);
 	}
+	else if (strcasecmp("ShowPower",key) == 0)
+	{
+		show_power = IS_TRUE(value);
+	}
 	else if (strcasecmp("Temperature",key) == 0)
 	{
 		ignorelist_add(temp_ignore,value);
@@ -118,6 +130,17 @@ static int mic_config (const char *key, const char *value) {
 		if (IS_TRUE(value))
 			invert = 0;
 		ignorelist_set_invert(temp_ignore,invert);
+	}
+	else if (strcasecmp("PowerSensor",key) == 0)
+	{
+		ignorelist_add(power_ignore,value);
+	}
+	else if (strcasecmp("IgnorePowerSelected",key) == 0)
+	{
+		int invert = 1;
+		if (IS_TRUE(value))
+			invert = 0;
+		ignorelist_set_invert(power_ignore,invert);
 	}
 	else
 	{
@@ -131,7 +154,7 @@ static void mic_submit_memory_use(int micnumber, const char *type_instance, U32 
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	/* MicAccessAPI reports KB's of memory, adjust for this */ 
+	/* MicAccessAPI reports KB's of memory, adjust for this */
 	DEBUG("mic plugin: Memory Value Report; %u %lf",val,((gauge_t)val)*1024.0);
 	values[0].gauge = ((gauge_t)val)*1024.0;
 
@@ -145,14 +168,14 @@ static void mic_submit_memory_use(int micnumber, const char *type_instance, U32 
 	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
-} 
+}
 
 /* Gather memory Utilization */
 static int mic_read_memory(int mic)
 {
 	U32 ret;
 	U32 mem_total,mem_free,mem_bufs;
-	
+
 	ret = MicGetMemoryUtilization(mic_handle,&mem_total,&mem_free,&mem_bufs);
 	if (ret != MIC_ACCESS_API_SUCCESS) {
 		ERROR("mic plugin: Problem getting Memory Utilization: %s",
@@ -184,14 +207,14 @@ static void mic_submit_temp(int micnumber, const char *type, gauge_t val)
 	strncpy (vl.type_instance, type, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
-} 
+}
 
 /* Gather Temperature Information */
 static int mic_read_temps(int mic)
 {
 	size_t num_therms = STATIC_ARRAY_SIZE(therm_ids);
 	size_t j;
-	
+
 	for (j = 0; j < num_therms; j++) {
 		U32 status;
 		U32 temp_buffer;
@@ -236,7 +259,7 @@ static void mic_submit_cpu(int micnumber, const char *type_instance,
 	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
-} 
+}
 
 /*Gather CPU Utilization Information */
 static int mic_read_cpu(int mic)
@@ -274,6 +297,61 @@ static int mic_read_cpu(int mic)
 	return (0);
 }
 
+static void mic_submit_power(int micnumber, const char *type_instance, gauge_t val)
+{
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
+
+	values[0].gauge = val;
+
+	vl.values=values;
+	vl.values_len=1;
+
+	strncpy (vl.host, hostname_g, sizeof (vl.host));
+	strncpy (vl.plugin, "mic", sizeof (vl.plugin));
+	ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance), "%i", micnumber);
+	strncpy (vl.type, "power", sizeof (vl.type));
+	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
+
+	plugin_dispatch_values (&vl);
+}
+
+/* Gather Power Information */
+static int mic_read_power(int mic)
+{
+	U32 ret;
+	MicPwrUsage power_use;
+
+	ret = MicGetPowerUsage(mic_handle,&power_use);
+	if (ret != MIC_ACCESS_API_SUCCESS) {
+		ERROR("mic plugin: Problem getting Power Usage: %s",
+			MicGetErrorString(ret));
+		return (1);
+	}
+
+	#define SUB_POWER(name) do { if (ignorelist_match(power_ignore,#name)==0) \
+		mic_submit_power(mic,#name,(gauge_t)power_use.name.prr); \
+	} while(0)
+	#define SUB_VOLTS(name) do { if (ignorelist_match(power_ignore,#name)==0) {\
+		mic_submit_power(mic,#name "-pwr",(gauge_t)power_use.name.pwr); \
+		mic_submit_power(mic,#name "-cur",(gauge_t)power_use.name.pwr); \
+		mic_submit_power(mic,#name "-volt",(gauge_t)power_use.name.pwr); \
+	}} while(0)
+
+	SUB_POWER(total0);
+	SUB_POWER(total1);
+	SUB_POWER(inst);
+	SUB_POWER(imax);
+	SUB_POWER(pcie);
+	SUB_POWER(c2x3);
+	SUB_POWER(c2x4);
+	SUB_VOLTS(vccp);
+	SUB_VOLTS(vddg);
+	SUB_VOLTS(vddq);
+
+	return (0);
+}
+
 static int mic_read (void)
 {
 	int i;
@@ -297,6 +375,9 @@ static int mic_read (void)
 
 		if (error == 0 && (show_cpu || show_cpu_cores))
 			error = mic_read_cpu(i);
+
+		if (error == 0 && (show_power))
+			error = mic_read_power(i);
 
 		ret = MicCloseAdapter(mic_handle);
 		if (ret != MIC_ACCESS_API_SUCCESS) {
