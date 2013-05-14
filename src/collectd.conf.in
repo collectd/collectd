@@ -1033,11 +1033,17 @@
 #   ShowCPUCores true
 #   ShowMemory true
 #   ShowTemperatures true
-##  Temperature Sensors can be ignored/shown by repeaded #TempSensor lines, and
-##  then inverted with a IgnoreTempSelected.
+##  Temperature Sensors can be ignored/shown by repeated #Temperature lines, and
+##  then inverted with a IgnoreSelectedTemperature.
 ##  Known Temperature sensors: die, devmem, fin, fout, vccp, vddg, vddq
 #   Temperature vddg
 #   IgnoreSelectedTemperature true
+#   ShowPower true
+##  Power Sensors can be ignored/shown by repeated #Power lines, and
+##  then inverted with a IgnoreSelectedTemperature.
+##  Known Temperature sensors: total0, total1, inst, imax, pci3, c2x3, c2x4, vccp, vddg, vddq
+#   Power total1
+#   IgnoreSelectedPower true
 #</Plugin>
 
 #<Plugin varnish>
