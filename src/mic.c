@@ -335,9 +335,9 @@ static int mic_read_power(int mic)
 		mic_submit_power(mic,"power",#name,(gauge_t)power_use.name.prr*0.000001); \
 	} while(0)
 	#define SUB_VOLTS(name) do { if (ignorelist_match(power_ignore,#name)==0) {\
-		mic_submit_power(mic,"power",#name "-pwr",(gauge_t)(power_use.name.pwr*0.000001)); \
-		mic_submit_power(mic,"current",#name "-cur",(gauge_t)(power_use.name.cur*0.001)); \
-		mic_submit_power(mic,"voltage",#name "-volt",(gauge_t)(power_use.name.volt*0.000001)); \
+		mic_submit_power(mic,"power",#name,(gauge_t)(power_use.name.pwr*0.000001)); \
+		mic_submit_power(mic,"current",#name,(gauge_t)(power_use.name.cur*0.001)); \
+		mic_submit_power(mic,"voltage",#name,(gauge_t)(power_use.name.volt*0.000001)); \
 	}} while(0)
 
 	SUB_POWER(total0);
