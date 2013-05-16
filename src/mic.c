@@ -297,7 +297,7 @@ static int mic_read_cpu(int mic)
 	return (0);
 }
 
-static void mic_submit_power(int micnumber, const char *type_instance, gauge_t val)
+static void mic_submit_power(int micnumber, const char *type, const char *type_instance, gauge_t val)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
@@ -310,7 +310,7 @@ static void mic_submit_power(int micnumber, const char *type_instance, gauge_t v
 	strncpy (vl.host, hostname_g, sizeof (vl.host));
 	strncpy (vl.plugin, "mic", sizeof (vl.plugin));
 	ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance), "%i", micnumber);
-	strncpy (vl.type, "power", sizeof (vl.type));
+	strncpy (vl.type, type, sizeof (vl.type));
 	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
@@ -329,13 +329,15 @@ static int mic_read_power(int mic)
 		return (1);
 	}
 	
+/* power is in uWatts, current in mA, voltage in uVolts..   convert to
+ * base unit */
 	#define SUB_POWER(name) do { if (ignorelist_match(power_ignore,#name)==0) \
-		mic_submit_power(mic,#name,(gauge_t)power_use.name.prr); \
+		mic_submit_power(mic,"power",#name,(gauge_t)power_use.name.prr*0.000001); \
 	} while(0)
 	#define SUB_VOLTS(name) do { if (ignorelist_match(power_ignore,#name)==0) {\
-		mic_submit_power(mic,#name "-pwr",(gauge_t)power_use.name.pwr); \
-		mic_submit_power(mic,#name "-cur",(gauge_t)power_use.name.pwr); \
-		mic_submit_power(mic,#name "-volt",(gauge_t)power_use.name.pwr); \
+		mic_submit_power(mic,"power",#name "-pwr",(gauge_t)(power_use.name.pwr*0.000001)); \
+		mic_submit_power(mic,"current",#name "-cur",(gauge_t)(power_use.name.cur*0.001)); \
+		mic_submit_power(mic,"voltage",#name "-volt",(gauge_t)(power_use.name.volt*0.000001)); \
 	}} while(0)
 
 	SUB_POWER(total0);
