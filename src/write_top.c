@@ -441,9 +441,9 @@ static int wt_config (const char *key, const char *value) /* {{{ */
 		errno=0;
 		s = strtol(value, NULL, 10);
 		if(0 != errno) {
-				ERROR ("write_top plugin: FlushWhenBiggerThanK should be a number. Using default value %ld", flushwhenbiggerthan/1000);
+				ERROR ("write_top plugin: FlushWhenBiggerThanK should be a number. Using default value %zu", flushwhenbiggerthan/1000);
 		} else if(s <= 0) {
-				ERROR ("write_top plugin: FlushWhenBiggerThanK should be strictly positive. Using default value %ld", flushwhenbiggerthan/1000);
+				ERROR ("write_top plugin: FlushWhenBiggerThanK should be strictly positive. Using default value %zu", flushwhenbiggerthan/1000);
 		} else {
 				flushwhenbiggerthan = 1000 * s;
 		}
@@ -452,11 +452,11 @@ static int wt_config (const char *key, const char *value) /* {{{ */
 		errno=0;
 		m = strtol(value, NULL, 10);
 		if(0 != errno) {
-				ERROR ("write_top plugin: FlushWhenOlderThanMin should be a number (in minutes). Using default value %ld", flushwhenolderthan/60);
+				ERROR ("write_top plugin: FlushWhenOlderThanMin should be a number (in minutes). Using default value %" PRIu64, flushwhenolderthan/60);
 		} else if(m <= 0) {
-				ERROR ("write_top plugin: FlushWhenOlderThanMin should be a number (in minutes). Using default value %ld", flushwhenolderthan/60);
+				ERROR ("write_top plugin: FlushWhenOlderThanMin should be a number (in minutes). Using default value %" PRIu64, flushwhenolderthan/60);
 		} else {
-				flushwhenbiggerthan = TIME_T_TO_CDTIME_T(60 * m);
+				flushwhenolderthan = TIME_T_TO_CDTIME_T(60 * m);
 		}
 	} else {
 		return (-1);
