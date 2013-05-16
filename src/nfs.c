@@ -651,9 +651,9 @@ static void mountstats_compute_and_submit (mountstats_t *m, mountstats_t *oldm) 
 	derive_t sends, backlog, ops[NFS_OPERATIONS_NB], kilobytes[NFS_OPERATIONS_NB];
 	gauge_t retrans[NFS_OPERATIONS_NB], kb_per_op[NFS_OPERATIONS_NB], rtt_per_op[NFS_OPERATIONS_NB], exe_per_op[NFS_OPERATIONS_NB];
 
-	if(0 != c_avl_get(config_mountpoints, m->mountpoint, (void**)&config_item)) {
+	if(0 != c_avl_get(config_mountpoints, m->mountpoint, (void*)&config_item)) {
 		int r;
-		r = c_avl_get(config_mountpoints, "all", (void**)&config_item);
+		r = c_avl_get(config_mountpoints, "all", (void*)&config_item);
 		assert(r == 0);
 	}
 
@@ -899,7 +899,7 @@ static int dispatch_mountstats(mountstats_t *m) /* {{{ */
  * 2nd step, if not found : allocate memory
  * 3rd step : in any case, store the new value into the memory of the old one.
  */
-	if(0 == c_avl_get(mountstats_per_mountpoint, m->mountpoint, (void**)&oldm)) {
+	if(0 == c_avl_get(mountstats_per_mountpoint, m->mountpoint, (void*)&oldm)) {
 		/* if mountpoint was remounted, we do not compute and submit data this time
 		 * However, we already have oldm allocated so we do not need to
 		 * malloc. */
