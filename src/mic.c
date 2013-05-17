@@ -53,8 +53,8 @@ static const char *config_keys[] =
 	"Temperature",
 	"IgnoreSelectedTemperature",
 	"ShowPower",
-	"PowerSensor",
-	"IgnorePowerSelected"
+	"Power",
+	"IgnoreSelectedPower"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -131,11 +131,11 @@ static int mic_config (const char *key, const char *value) {
 			invert = 0;
 		ignorelist_set_invert(temp_ignore,invert);
 	}
-	else if (strcasecmp("PowerSensor",key) == 0)
+	else if (strcasecmp("Power",key) == 0)
 	{
 		ignorelist_add(power_ignore,value);
 	}
-	else if (strcasecmp("IgnorePowerSelected",key) == 0)
+	else if (strcasecmp("IgnoreSelectedPower",key) == 0)
 	{
 		int invert = 1;
 		if (IS_TRUE(value))
