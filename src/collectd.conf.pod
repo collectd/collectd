@@ -2304,7 +2304,7 @@ Known temperature names are:
 
 =item die
 
-Die. hello
+Die of the CPU
 
 =item devmem
 

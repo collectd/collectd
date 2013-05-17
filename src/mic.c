@@ -50,9 +50,9 @@ static const char *config_keys[] =
 	"ShowCPUCores",
 	"ShowMemory",
 	"ShowTemperatures",
-	"ShowPower",
 	"Temperature",
 	"IgnoreSelectedTemperature",
+	"ShowPower",
 	"Power",
 	"IgnoreSelectedPower"
 };
@@ -61,9 +61,9 @@ static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 static _Bool show_cpu = 1;
 static _Bool show_cpu_cores = 1;
 static _Bool show_memory = 1;
-static _Bool show_power = 1;
 static _Bool show_temps = 1;
 static ignorelist_t *temp_ignore = NULL;
+static _Bool show_power = 1;
 static ignorelist_t *power_ignore = NULL;
 
 static int mic_init (void)
@@ -81,7 +81,7 @@ static int mic_init (void)
 				MicGetErrorString(ret));
 	}
 	DEBUG("mic plugin: found: %"PRIu32" MIC(s)",mic_count);
-	
+
 	if (mic_count<0 || mic_count>=MAX_MICS) {
 		ERROR("mic plugin: No Intel MICs in system");
 		return (1);
@@ -154,7 +154,7 @@ static void mic_submit_memory_use(int micnumber, const char *type_instance, U32 
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	/* MicAccessAPI reports KB's of memory, adjust for this */ 
+	/* MicAccessAPI reports KB's of memory, adjust for this */
 	DEBUG("mic plugin: Memory Value Report; %u %lf",val,((gauge_t)val)*1024.0);
 	values[0].gauge = ((gauge_t)val)*1024.0;
 
@@ -168,14 +168,14 @@ static void mic_submit_memory_use(int micnumber, const char *type_instance, U32 
 	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
-} 
+}
 
 /* Gather memory Utilization */
 static int mic_read_memory(int mic)
 {
 	U32 ret;
 	U32 mem_total,mem_free,mem_bufs;
-	
+
 	ret = MicGetMemoryUtilization(mic_handle,&mem_total,&mem_free,&mem_bufs);
 	if (ret != MIC_ACCESS_API_SUCCESS) {
 		ERROR("mic plugin: Problem getting Memory Utilization: %s",
@@ -207,14 +207,14 @@ static void mic_submit_temp(int micnumber, const char *type, gauge_t val)
 	strncpy (vl.type_instance, type, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
-} 
+}
 
 /* Gather Temperature Information */
 static int mic_read_temps(int mic)
 {
 	size_t num_therms = STATIC_ARRAY_SIZE(therm_ids);
 	size_t j;
-	
+
 	for (j = 0; j < num_therms; j++) {
 		U32 status;
 		U32 temp_buffer;
@@ -259,7 +259,7 @@ static void mic_submit_cpu(int micnumber, const char *type_instance,
 	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
-} 
+}
 
 /*Gather CPU Utilization Information */
 static int mic_read_cpu(int mic)
@@ -314,7 +314,7 @@ static void mic_submit_power(int micnumber, const char *type, const char *type_i
 	strncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
-} 
+}
 
 /* Gather Power Information */
 static int mic_read_power(int mic)
@@ -328,9 +328,9 @@ static int mic_read_power(int mic)
 			MicGetErrorString(ret));
 		return (1);
 	}
-	
-/* power is in uWatts, current in mA, voltage in uVolts..   convert to
- * base unit */
+
+	/* power is in uWatts, current in mA, voltage in uVolts..   convert to
+	 * base unit */
 	#define SUB_POWER(name) do { if (ignorelist_match(power_ignore,#name)==0) \
 		mic_submit_power(mic,"power",#name,(gauge_t)power_use.name.prr*0.000001); \
 	} while(0)
