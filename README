@@ -159,8 +159,8 @@ Features
       buffer cache and free.
 
     - mic
-      Collects CPU usage, memory usage and temperatures from Intel Many
-      Integrated Core (MIC) CPUs.
+      Collects CPU usage, memory usage, temperatures and power consumption from
+      Intel Many Integrated Core (MIC) CPUs.
 
     - modbus
       Reads values from Modbus/TCP enabled devices. Supports reading values
