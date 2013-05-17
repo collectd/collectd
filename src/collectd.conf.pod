@@ -5497,6 +5497,17 @@ and closed connections. True by default.
 Statistics about the shared memory log, a memory region to store
 log messages which is flushed to disk when full. True by default.
 
+=item B<CollectBan> B<true>|B<false>
+
+Statistics about ban operations, such as number of bans added, retired, and
+number of objects tested against ban operations. Only available with Varnish
+3.x. False by default.
+
+=item B<CollectDirectorDNS> B<true>|B<false>
+
+DNS director lookup cache statistics. Only available with Varnish 3.x. False by
+default.
+
 =item B<CollectESI> B<true>|B<false>
 
 Edge Side Includes (ESI) parse statistics. False by default.
@@ -5510,10 +5521,27 @@ Statistics about fetches (HTTP requests sent to the backend). False by default.
 Inserts and look-ups in the crit bit tree based hash. Look-ups are
 divided into locked and unlocked look-ups. False by default.
 
+=item B<CollectObjects> B<true>|B<false>
+
+Statistics on cached objects: number of objects expired, nuked (prematurely
+expired), saved, moved, etc. False by default.
+
+=item B<CollectPurge> B<true>|B<false>
+
+Statistics about purge operations, such as number of purges added, retired, and
+number of objects tested against purge operations. Only available with Varnish
+2.x. False by default.
+
+=item B<CollectSession> B<true>|B<false>
+
+Client session statistics. Number of past and current sessions, session herd and
+linger counters, etc. False by default.
+
 =item B<CollectSMA> B<true>|B<false>
 
-malloc or umem (umem_alloc(3MALLOC) based) storage statistics.
-The umem storage component is Solaris specific. False by default.
+malloc or umem (umem_alloc(3MALLOC) based) storage statistics. The umem storage
+component is Solaris specific. Only available with Varnish 2.x. False by
+default.
 
 =item B<CollectSMS> B<true>|B<false>
 
@@ -5522,12 +5550,27 @@ component is used internally only. False by default.
 
 =item B<CollectSM> B<true>|B<false>
 
-file (memory mapped file) storage statistics. False by default.
+file (memory mapped file) storage statistics. Only available with Varnish 2.x.
+False by default.
+
+=item B<CollectStruct> B<true>|B<false>
+
+Current varnish internal state statistics. Number of current sessions, objects
+in cache store, open connections to backends (with Varnish 2.x), etc. False by
+default.
 
 =item B<CollectTotals> B<true>|B<false>
 
 Collects overview counters, such as the number of sessions created,
 the number of requests and bytes transferred. False by default.
+
+=item B<CollectUptime> B<true>|B<false>
+
+Varnish uptime. False by default.
+
+=item B<CollectVCL> B<true>|B<false>
+
+Number of total (available + discarded) VCL (config files). False by default.
 
 =item B<CollectWorkers> B<true>|B<false>
 
