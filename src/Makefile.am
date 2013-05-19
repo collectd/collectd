@@ -1565,15 +1565,24 @@ uninstall-hook:
 	rm -f $(DESTDIR)$(sysconfdir)/collectd.conf
 	rm -f $(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
 
-if BUILD_FEATURE_DEBUG
-bin_PROGRAMS += utils_vl_lookup_test
+check_PROGRAMS = common_test utils_vl_lookup_test
+
+common_test_SOURCES = common_test.c \
+		      common.h common.c \
+		      mock/plugin.c \
+		      mock/utils_cache.c \
+		      mock/utils_time.c
+common_test_CPPFLAGS = $(AM_CPPFLAGS) $(LTDLINCL)
+common_test_LDFLAGS = -export-dynamic
+common_test_LDADD =
+
 utils_vl_lookup_test_SOURCES = utils_vl_lookup_test.c \
                                utils_vl_lookup.h utils_vl_lookup.c \
                                utils_avltree.c utils_avltree.h \
                                common.h
-
-utils_vl_lookup_test_CPPFLAGS =  $(AM_CPPFLAGS) $(LTDLINCL) -DBUILD_TEST=1
+utils_vl_lookup_test_CPPFLAGS =  $(AM_CPPFLAGS) $(LTDLINCL)
 utils_vl_lookup_test_CFLAGS = $(AM_CFLAGS)
 utils_vl_lookup_test_LDFLAGS = -export-dynamic
 utils_vl_lookup_test_LDADD =
-endif
+
+TESTS = common_test utils_vl_lookup_test
