@@ -4871,6 +4871,10 @@ then
 	plugin_memory="yes"
 	plugin_tcpconns="yes"
 fi
+if test "x$with_mic" = "xyes"
+then
+	plugin_mic="yes"
+fi
 
 # Df plugin: Check if we know how to determine mount points first.
 #if test "x$have_listmntent" = "xyes"; then
@@ -5256,7 +5260,7 @@ AC_SUBST(LCC_VERSION_STRING)
 
 AC_CONFIG_FILES(src/libcollectdclient/collectd/lcc_features.h)
 
-AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/libcollectdclient/Makefile src/libcollectdclient/libcollectdclient.pc src/liboconfig/Makefile bindings/Makefile bindings/java/Makefile)
+AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/libcollectdclient/Makefile src/libcollectdclient/libcollectdclient.pc src/liboconfig/Makefile bindings/Makefile bindings/java/Makefile contrib/redhat/collectd.spec)
 
 if test "x$with_librrd" = "xyes" \
 	&& test "x$librrd_threadsafe" != "xyes"

@@ -37,13 +37,13 @@
 %define with_libvirt 0%{!?_without_libvirt:1}
 %define with_load 0%{!?_without_load:1}
 %define with_logfile 0%{!?_without_logfile:1}
+%define with_lvm 0%{!?_without_lvm:1}
 %define with_madwifi 0%{!?_without_madwifi:1}
 %define with_mbmon 0%{!?_without_mbmon:1}
 %define with_md 0%{!?_without_md:1}
 %define with_memcachec 0%{!?_without_memcachec:1}
 %define with_memcached 0%{!?_without_memcached:1}
 %define with_memory 0%{!?_without_memory:1}
-%define with_mic 0%{!?_without_mic:1}
 %define with_multimeter 0%{!?_without_multimeter:1}
 %define with_mysql 0%{!?_without_mysql:1}
 %define with_network 0%{!?_without_network:1}
@@ -89,6 +89,7 @@
 %define with_write_graphite 0%{!?_without_write_graphite:1}
 %define with_write_http 0%{!?_without_write_http:1}
 %define with_write_riemann 0%{!?_without_write_riemann:1}
+%define with_mic 0%{?_with_mic:1}
 
 # disabled plugins
 %define with_apple_sensors 0%{!?_without_apple_sensors:0}
@@ -111,14 +112,14 @@
 
 Summary:	Statistics collection daemon for filling RRD files
 Name:		collectd
-Version:	5.3.0
+Version:	@VERSION@
 Release:	1%{?dist}
 URL:		http://collectd.org
 Source:		http://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
 Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
-BuildRequires:	libgcrypt-devel, lvm2-devel
+BuildRequires:	libgcrypt-devel
 Vendor:		collectd development team <collectd@verplant.org>
 
 Requires(post):		chkconfig
@@ -308,6 +309,16 @@ BuildRequires:	libvirt-devel
 This plugin collects information from virtualized guests.
 %endif
 
+%if %{with_lvm}
+%package lvm
+Summary:	Lvm plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires: lvm2-devel	
+%description lvm
+This plugin collects information from lvm devices
+%endif
+
 %if %{with_memcachec}
 %package memcachec
 Summary:	Memcachec plugin for collectd
@@ -320,7 +331,7 @@ instance. Note that another plugin, named `memcached', exists and does a
 similar job, without requiring the installation of libmemcached.
 %endif
 
-%if %{with_mmic}
+%if %{with_mic}
 %package mic
 Summary:	Intel Many Integrated Cores data plugin
 Group:		System Environment/Daemons
@@ -800,6 +811,12 @@ Development files for libcollectdclient
 %define _with_logfile --disable-logfile
 %endif
 
+%if %{with_lvm}
+%define _with_lvm --enable-lvm
+%else
+%define _with_lvm --disable-lvm
+%endif
+
 %if %{with_lpar}
 %define _with_lpar --enable-lpar
 %else
@@ -843,9 +860,9 @@ Development files for libcollectdclient
 %endif
 
 %if %{with_mic}
-%define _with_mic --enable-mic
+%define _with_mic2 --enable-mic
 %else
-%define _with_mic --disable-mic
+%define _with_mic2 --disable-mic
 %endif
 
 %if %{with_modbus}
@@ -1293,12 +1310,13 @@ Development files for libcollectdclient
 	%{?_with_irq} \
 	%{?_with_load} \
 	%{?_with_logfile} \
+	%{?_with_lvm} \
 	%{?_with_madwifi} \
 	%{?_with_mbmon} \
 	%{?_with_md} \
 	%{?_with_memcached} \
 	%{?_with_memory} \
-	%{?_with_mic} \
+	%{?_with_mic2} \
 	%{?_with_network} \
 	%{?_with_nfs} \
 	%{?_with_ntpd} \
@@ -1499,6 +1517,9 @@ fi
 %if %{with_logfile}
 %{_libdir}/%{name}/logfile.so
 %endif
+%if %{with_lvm}
+%{_libdir}/%{name}/lvm.so
+%endif
 %if %{with_madwifi}
 %{_libdir}/%{name}/madwifi.so
 %endif
@@ -1513,9 +1534,6 @@ fi
 %endif
 %if %{with_memory}
 %{_libdir}/%{name}/memory.so
-%endif
-%if %{with_mic}
-%{_libdir}/%{name}/mic.so
 %endif
 %if %{with_multimeter}
 %{_libdir}/%{name}/multimeter.so
@@ -1718,6 +1736,11 @@ fi
 %if %{with_memcachec}
 %files memcachec
 %{_libdir}/%{name}/memcachec.so
+%endif
+
+%if %{with_mic}
+%files mic
+%{_libdir}/%{name}/mic.so
 %endif
 
 %if %{with_mysql}
