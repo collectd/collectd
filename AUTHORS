@@ -76,6 +76,9 @@ Doug MacEachern <dougm at hyperic.com>
 Edward “Koko” Konetzko <konetzed at quixoticagony.com>
  - fscache plugin.
 
+Evan Felix <evan.felix at pnnl.gov>
+ - mic plugin.
+
 Fabian Linzberger <e at lefant.net>
  - Percentage aggregation for `collectd-nagios'.
 

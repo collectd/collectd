@@ -2230,7 +2230,7 @@ interpreted. For a description of match blocks, please see L<"Plugin tail">.
 
 =head2 Plugin C<memcached>
 
-The C<memcached plugin> connects to a memcached server and queries statistics
+The B<memcached plugin> connects to a memcached server and queries statistics
 about cache utilization, memory and bandwidth used.
 L<http://www.danga.com/memcached/>
 
@@ -2262,6 +2262,166 @@ setting is given, the B<Host> and B<Port> settings are ignored.
 
 =back
 
+=head2 Plugin C<mic>
+
+The B<mic plugin> gathers CPU statistics, memory usage and temperatures from
+Intel's Many Integrated Core (MIC) systems.
+
+B<Synopsis:>
+
+ <Plugin mic>
+   ShowCPU true
+   ShowCPUCores true
+   ShowMemory true
+   
+   ShowTemperatures true
+   Temperature vddg
+   Temperature vddq
+   IgnoreSelectedTemperature true
+
+   ShowPower true
+   Power total0
+   Power total1
+   IgnoreSelectedPower true   
+ </Plugin>
+
+The following options are valid inside the B<PluginE<nbsp>mic> block:
+
+=over 4
+
+=item B<ShowCPU> B<true>|B<false>
+
+If enabled (the default) a sum of the CPU usage accross all cores is reported.
+
+=item B<ShowCPUCores> B<true>|B<false>
+
+If enabled (the default) per-core CPU usage is reported.
+
+=item B<ShowMemory> B<true>|B<false>
+
+If enabled (the default) the physical memory usage of the MIC system is
+reported.
+
+=item B<ShowTemperatures> B<true>|B<false>
+
+If enabled (the default) various temperatures of the MIC system are reported.
+
+=item B<Temperature> I<Name>
+
+This option controls which temperatures are being reported. Whether matching
+temperatures are being ignored or I<only> matching temperatures are reported
+depends on the B<IgnoreSelectedTemperature> setting below. By default I<all>
+temperatures are reported.
+
+=item B<IgnoreSelectedTemperature> B<false>|B<true>
+
+Controls the behavior of the B<Temperature> setting above. If set to B<false>
+(the default) only temperatures matching a B<Temperature> option are reported
+or, if no B<Temperature> option is specified, all temperatures are reported. If
+set to B<true>, matching temperatures are I<ignored> and all other temperatures
+are reported.
+
+Known temperature names are:
+
+=over 4
+
+=item die
+
+Die of the CPU
+
+=item devmem
+
+Device Memory
+
+=item fin
+
+Fan In
+
+=item fout
+
+Fan Out 
+
+=item vccp
+
+Voltage ccp
+
+=item vddg
+
+Voltage ddg
+
+=item vddq
+
+Voltage ddq
+
+=back
+
+=item B<ShowPower> B<true>|B<false>
+
+If enabled (the default) various temperatures of the MIC system are reported.
+
+=item B<Power> I<Name>
+
+This option controls which power readings are being reported. Whether matching
+power readings are being ignored or I<only> matching power readings are reported
+depends on the B<IgnoreSelectedPower> setting below. By default I<all>
+power readings are reported.
+
+=item B<IgnoreSelectedPower> B<false>|B<true>
+
+Controls the behavior of the B<Power> setting above. If set to B<false>
+(the default) only power readings matching a B<Power> option are reported
+or, if no B<Power> option is specified, all power readings are reported. If
+set to B<true>, matching power readings are I<ignored> and all other power readings
+are reported.
+
+Known power names are:
+
+=over 4
+
+=item total0
+
+Total power utilization averaged over Time Window 0 (uWatts). 
+
+=item total1
+
+Total power utilization averaged over Time Window 0 (uWatts). 
+
+=item inst
+
+Instantaneous power (uWatts).
+
+=item imax
+
+Max instantaneous power (uWatts). 
+
+=item pcie
+
+PCI-E connector power (uWatts). 
+
+=item c2x3
+
+2x3 connector power (uWatts). 
+
+=item c2x4
+
+2x4 connector power (uWatts). 
+
+=item vccp
+
+Core rail (uVolts). 
+
+=item vddg
+
+Uncore rail (uVolts). 
+
+=item vddq
+
+Memory subsystem rail (uVolts). 
+
+=back
+
+=back
+
 =head2 Plugin C<modbus>
 
 The B<modbus plugin> connects to a Modbus "slave" via Modbus/TCP and reads
@@ -2269,7 +2429,7 @@ register values. It supports reading single registers (unsigned 16E<nbsp>bit
 values), large integer values (unsigned 32E<nbsp>bit values) and floating point
 values (two registers interpreted as IEEE floats in big endian notation).
 
-Synopsis:
+B<Synopsis:>
 
  <Data "voltage-input-1">
    RegisterBase 0
