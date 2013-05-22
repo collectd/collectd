@@ -1577,9 +1577,12 @@ common_test_LDFLAGS = -export-dynamic
 common_test_LDADD =
 
 utils_vl_lookup_test_SOURCES = utils_vl_lookup_test.c \
-                               utils_vl_lookup.h utils_vl_lookup.c \
-                               utils_avltree.c utils_avltree.h \
-                               common.h
+			       utils_vl_lookup.h utils_vl_lookup.c \
+			       utils_avltree.c utils_avltree.h \
+			       common.c common.h \
+			       mock/plugin.c \
+			       mock/utils_cache.c \
+			       mock/utils_time.c
 utils_vl_lookup_test_CPPFLAGS =  $(AM_CPPFLAGS) $(LTDLINCL)
 utils_vl_lookup_test_CFLAGS = $(AM_CFLAGS)
 utils_vl_lookup_test_LDFLAGS = -export-dynamic
