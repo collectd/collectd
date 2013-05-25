@@ -5168,7 +5168,33 @@ Take the UUID from the given file (default I</etc/uuid>).
 
 =head2 Plugin C<varnish>
 
-The Varnish plugin collects information about Varnish, an HTTP accelerator.
+The I<varnish plugin> collects information about Varnish, an HTTP accelerator.
+
+Synopsis:
+
+ <Plugin "varnish">
+   <Instance "example">
+     CollectCache       true
+     CollectConnections true
+     CollectBackend     true
+     CollectSHM         true
+     CollectESI         false
+     CollectFetch       false
+     CollectHCB         false
+     CollectSMA         false
+     CollectSMS         false
+     CollectSM          false
+     CollectTotals      false
+     CollectWorkers     false
+   </Instance>
+ </Plugin>
+
+The configuration consists of one or more E<lt>B<Instance>E<nbsp>I<Name>E<gt>
+blocks. I<Name> is the parameter passed to "varnishd -n". If left empty, it
+will collectd statistics from the default "varnishd" instance (this should work
+fine in most cases).
+
+Inside each E<lt>B<Instance>E<gt> blocks, the following options are recognized:
 
 =over 4
 
