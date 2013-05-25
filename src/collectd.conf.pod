@@ -80,6 +80,14 @@ options are allowed inside a B<LoadPlugin> block:
     Interval 10
   </LoadPlugin>
 
+Only the first B<LoadPlugin> statement or block for a given plugin name has any
+effect. This is useful when you want to split up the configuration into smaller
+files and want each file to be "self contained", i.e. it contains a B<Plugin>
+block I<and> then appropriate B<LoadPlugin> statement. The downside is that if
+you have multiple conflicting B<LoadPlugin> blocks, e.g. when they specify
+different intervals, only one of them (the first one encountered) will take
+effect and all others will be silently ignored.
+
 =over 4
 
 =item B<Globals> B<true|false>
