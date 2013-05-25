@@ -377,8 +377,6 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
   uint16_t values[2];
   int values_num;
   const data_set_t *ds;
-  struct sockaddr sockaddr;
-  socklen_t saddrlen = sizeof(sockaddr);
   int status;
 
   if ((host == NULL) || (slave == NULL) || (data == NULL))
@@ -416,32 +414,41 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
   else
     values_num = 1;
 
-  if(host->connection == NULL)
-    goto try_connect;
+  status = 0;
+  if (host->connection == NULL)
+  {
+    status = EBADF;
+  }
+  else
+  {
+    struct sockaddr sockaddr;
+    socklen_t saddrlen = sizeof (sockaddr);
 
-  if(getpeername(modbus_get_socket(host->connection),
-                 &sockaddr, &saddrlen) != 0)
-    switch(errno){
-    case EBADF:
-    case ENOTSOCK:
-    case ENOTCONN:
-    try_connect:
-      status = mb_init_connection (host);
-      if (status != 0)
-      {
-        ERROR ("Modbus plugin: mb_init_connection (%s/%s) failed. ",
-           host->host, host->node);
-        host->is_connected = 0;
-        host->connection = NULL;
-        return (-1);
-      }
-    break;
-    default:
+    status = getpeername (modbus_get_socket (host->connection),
+        &sockaddr, &saddrlen);
+    if (status != 0)
+      status = errno;
+  }
+
+  if ((status == EBADF) || (status == ENOTSOCK) || (status == ENOTCONN))
+  {
+    status = mb_init_connection (host);
+    if (status != 0)
+    {
+      ERROR ("Modbus plugin: mb_init_connection (%s/%s) failed. ",
+          host->host, host->node);
+      host->is_connected = 0;
+      host->connection = NULL;
+      return (-1);
+    }
+  }
+  else if (status != 0)
+  {
 #if LEGACY_LIBMODBUS
-      modbus_close (&host->connection);
+    modbus_close (&host->connection);
 #else
-      modbus_close (host->connection);
-      modbus_free (host->connection);
+    modbus_close (host->connection);
+    modbus_free (host->connection);
 #endif
   }
  
