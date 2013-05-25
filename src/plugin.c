@@ -901,6 +901,21 @@ int plugin_load (char const *plugin_name, uint32_t flags)
 	dir = plugin_get_dir ();
 	ret = 1;
 
+	/*
+	 * XXX: Magic at work:
+	 *
+	 * Some of the language bindings, for example the Python and Perl
+	 * plugins, need to be able to export symbols to the scripts they run.
+	 * For this to happen, the "Globals" flag needs to be set.
+	 * Unfortunately, this technical detail is hard to explain to the
+	 * average user and she shouldn't have to worry about this, ideally.
+	 * So in order to save everyone's sanity use a different default for a
+	 * handful of special plugins. --octo
+	 */
+	if ((strcasecmp ("perl", plugin_name) == 0)
+			|| (strcasecmp ("python", plugin_name) == 0))
+		flags |= PLUGIN_FLAGS_GLOBAL;
+
 	/* `cpu' should not match `cpufreq'. To solve this we add `.so' to the
 	 * type when matching the filename */
 	status = ssnprintf (typename, sizeof (typename), "%s.so", plugin_name);
