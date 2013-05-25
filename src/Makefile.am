@@ -1565,7 +1565,7 @@ uninstall-hook:
 	rm -f $(DESTDIR)$(sysconfdir)/collectd.conf
 	rm -f $(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
 
-check_PROGRAMS = common_test utils_vl_lookup_test
+check_PROGRAMS = common_test utils_avltree_test utils_vl_lookup_test
 
 common_test_SOURCES = common_test.c \
 		      common.h common.c \
@@ -1575,6 +1575,12 @@ common_test_SOURCES = common_test.c \
 common_test_CPPFLAGS = $(AM_CPPFLAGS) $(LTDLINCL)
 common_test_LDFLAGS = -export-dynamic
 common_test_LDADD =
+
+utils_avltree_test_SOURCES = utils_avltree_test.c \
+			     utils_avltree.c utils_avltree.h
+utils_avltree_test_CPPFLAGS = $(AM_CPPFLAGS) $(LTDLINCL)
+utils_avltree_test_LDFLAGS = -export-dynamic
+utils_avltree_test_LDADD =
 
 utils_vl_lookup_test_SOURCES = utils_vl_lookup_test.c \
 			       utils_vl_lookup.h utils_vl_lookup.c \
@@ -1588,4 +1594,4 @@ utils_vl_lookup_test_CFLAGS = $(AM_CFLAGS)
 utils_vl_lookup_test_LDFLAGS = -export-dynamic
 utils_vl_lookup_test_LDADD =
 
-TESTS = common_test utils_vl_lookup_test
+TESTS = common_test utils_avltree_test utils_vl_lookup_test
