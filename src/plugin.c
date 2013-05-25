@@ -81,6 +81,8 @@ struct write_queue_s
 /*
  * Private variables
  */
+static c_avl_tree_t *plugins_loaded = NULL;
+
 static llist_t *list_init;
 static llist_t *list_write;
 static llist_t *list_flush;
@@ -831,8 +833,52 @@ void plugin_set_dir (const char *dir)
 	}
 }
 
+static _Bool plugin_is_loaded (char const *name)
+{
+	int status;
+
+	if (plugins_loaded == NULL)
+		plugins_loaded = c_avl_create ((void *) strcasecmp);
+	assert (plugins_loaded != NULL);
+
+	status = c_avl_get (plugins_loaded, name, /* ret_value = */ NULL);
+	return (status == 0);
+}
+
+static int plugin_mark_loaded (char const *name)
+{
+	char *name_copy;
+	int status;
+
+	name_copy = strdup (name);
+	if (name_copy == NULL)
+		return (ENOMEM);
+
+	status = c_avl_insert (plugins_loaded,
+			/* key = */ name_copy, /* value = */ NULL);
+	return (status);
+}
+
+static void plugin_free_loaded ()
+{
+	void *key;
+	void *value;
+
+	if (plugins_loaded == NULL)
+		return;
+
+	while (c_avl_pick (plugins_loaded, &key, &value) == 0)
+	{
+		sfree (key);
+		assert (value == NULL);
+	}
+
+	c_avl_destroy (plugins_loaded);
+	plugins_loaded = NULL;
+}
+
 #define BUFSIZE 512
-int plugin_load (const char *type, uint32_t flags)
+int plugin_load (char const *plugin_name, uint32_t flags)
 {
 	DIR  *dh;
 	const char *dir;
@@ -844,15 +890,23 @@ int plugin_load (const char *type, uint32_t flags)
 	struct dirent *de;
 	int status;
 
+	if (plugin_name == NULL)
+		return (EINVAL);
+
+	/* Check if plugin is already loaded and don't do anything in this
+	 * case. */
+	if (plugin_is_loaded (plugin_name))
+		return (0);
+
 	dir = plugin_get_dir ();
 	ret = 1;
 
 	/* `cpu' should not match `cpufreq'. To solve this we add `.so' to the
 	 * type when matching the filename */
-	status = ssnprintf (typename, sizeof (typename), "%s.so", type);
+	status = ssnprintf (typename, sizeof (typename), "%s.so", plugin_name);
 	if ((status < 0) || ((size_t) status >= sizeof (typename)))
 	{
-		WARNING ("plugin_load: Filename too long: \"%s.so\"", type);
+		WARNING ("plugin_load: Filename too long: \"%s.so\"", plugin_name);
 		return (-1);
 	}
 	typename_len = strlen (typename);
@@ -899,13 +953,14 @@ int plugin_load (const char *type, uint32_t flags)
 		if (status == 0)
 		{
 			/* success */
+			plugin_mark_loaded (plugin_name);
 			ret = 0;
 			break;
 		}
 		else
 		{
 			ERROR ("plugin_load: Load plugin \"%s\" failed with "
-					"status %i.", type, status);
+					"status %i.", plugin_name, status);
 		}
 	}
 
@@ -913,7 +968,7 @@ int plugin_load (const char *type, uint32_t flags)
 
 	if (filename[0] == 0)
 		ERROR ("plugin_load: Could not find plugin \"%s\" in %s",
-				type, dir);
+				plugin_name, dir);
 
 	return (ret);
 }
@@ -1658,6 +1713,8 @@ void plugin_shutdown_all (void)
 	destroy_all_callbacks (&list_notification);
 	destroy_all_callbacks (&list_shutdown);
 	destroy_all_callbacks (&list_log);
+
+	plugin_free_loaded ();
 } /* void plugin_shutdown_all */
 
 int plugin_dispatch_missing (const value_list_t *vl) /* {{{ */
