@@ -110,6 +110,7 @@ static cf_global_option_t cf_global_options[] =
 	{"ReadThreads", NULL, "5"},
 	{"WriteThreads", NULL, "5"},
 	{"Timeout",     NULL, "2"},
+	{"AutoLoadPlugin", NULL, "false"},
 	{"PreCacheChain",  NULL, "PreCache"},
 	{"PostCacheChain", NULL, "PostCache"}
 };
@@ -378,6 +379,19 @@ static int dispatch_block_plugin (oconfig_item_t *ci)
 		return (-1);
 
 	name = ci->values[0].value.string;
+
+	if (IS_TRUE (global_option_get ("AutoLoadPlugin")))
+	{
+		int status;
+
+		status = plugin_load (name, /* flags = */ 0);
+		if (status != 0)
+		{
+			ERROR ("Automatically loading plugin \"%s\" failed "
+					"with status %i.", name, status);
+			return (status);
+		}
+	}
 
 	/* Check for a complex callback first */
 	for (cb = complex_callback_head; cb != NULL; cb = cb->next)

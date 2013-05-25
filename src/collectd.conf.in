@@ -18,6 +18,13 @@
 #TypesDB     "@prefix@/share/@PACKAGE_NAME@/types.db"
 
 #----------------------------------------------------------------------------#
+# When enabled, plugins are loaded automatically with the default options    #
+# when an appropriate <Plugin ...> block is encountered.                     #
+# Disabled by default.                                                       #
+#----------------------------------------------------------------------------#
+#AutoLoadPlugin false
+
+#----------------------------------------------------------------------------#
 # Interval at which to query values. This may be overwritten on a per-plugin #
 # base by using the 'Interval' option of the LoadPlugin block:               #
 #   <LoadPlugin foo>                                                         #

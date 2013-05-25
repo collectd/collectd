@@ -68,17 +68,9 @@ directory for the daemon.
 
 =item B<LoadPlugin> I<Plugin>
 
-Loads the plugin I<Plugin>. There must be at least one such line or B<collectd>
-will be mostly useless.
-
-Starting with collectd 4.9, this may also be a block in which further options
-affecting the behavior of B<LoadPlugin> may be specified. The following
-options are allowed inside a B<LoadPlugin> block:
-
-  <LoadPlugin perl>
-    Globals true
-    Interval 10
-  </LoadPlugin>
+Loads the plugin I<Plugin>. This is required to load plugins, unless the
+B<AutoLoadPlugin> option is enabled (see below). Without any loaded plugins,
+I<collectd> will be mostly useless.
 
 Only the first B<LoadPlugin> statement or block for a given plugin name has any
 effect. This is useful when you want to split up the configuration into smaller
@@ -87,6 +79,22 @@ block I<and> then appropriate B<LoadPlugin> statement. The downside is that if
 you have multiple conflicting B<LoadPlugin> blocks, e.g. when they specify
 different intervals, only one of them (the first one encountered) will take
 effect and all others will be silently ignored.
+
+B<LoadPlugin> may either be a simple configuration I<statement> or a I<block>
+with additional options, affecting the behavior of B<LoadPlugin>. A simple
+statement looks like this:
+
+ LoadPlugin "cpu"
+
+Options inside a B<LoadPlugin> block can override default settings and
+influence the way plugins are loaded, e.g.:
+
+ <LoadPlugin perl>
+   Globals true
+   Interval 60
+ </LoadPlugin>
+
+The following options are valid inside B<LoadPlugin> blocks:
 
 =over 4
 
@@ -116,6 +124,19 @@ global B<Interval> setting. If a plugin provides own support for specifying an
 interval, that setting will take precedence.
 
 =back
+
+=item B<AutoLoadPlugin> B<false>|B<true>
+
+When set to B<false> (the default), each plugin needs to be loaded explicitly,
+using the B<LoadPlugin> statement documented above. If a
+B<E<lt>PluginE<nbsp>...E<gt>> block is encountered and no configuration
+handling callback for this plugin has been registered, a warning is logged and
+the block is ignored.
+
+When set to B<true>, explicit B<LoadPlugin> statements are not required. Each
+B<E<lt>PluginE<nbsp>...E<gt>> block acts as if it was immediately preceded by a
+B<LoadPlugin> statement. B<LoadPlugin> statements are still required for
+plugins that don't provide any configuration, e.g. the I<Load plugin>.
 
 =item B<Include> I<Path> [I<pattern>]
 
