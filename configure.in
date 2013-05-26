@@ -1532,6 +1532,75 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LIBCREDIS, test "x$with_libcredis" = "xyes")
 # }}}
 
+# --with-libcbugzilla {{{
+with_cbugzilla_config="pkg-config libcbugzilla"
+with_cbugzilla_cflags=""
+with_cbugzilla_libs=""
+AC_ARG_WITH(libcbugzilla, [AS_HELP_STRING([--with-libcbugzilla@<:@=PREFIX@:>@], [Path to libcbugzilla.])],
+[
+	if test "x$withval" = "xno"
+	then
+		with_libcbugzilla="no"
+	else if test "x$withval" = "xyes"
+	then
+		with_libcbugzilla="yes"
+	else
+		if test -f "$withval" && test -x "$withval"
+		then
+			with_cbugzilla_config="$withval"
+			with_libcbugzilla="yes"
+		else if test -x "$withval/bin/cbugzilla-config"
+		then
+			with_cbugzilla_config="$withval/bin/cbugzilla-config"
+			with_libcbugzilla="yes"
+		fi; fi
+		with_libcbugzilla="yes"
+	fi; fi
+],
+[
+	with_libcbugzilla="yes"
+])
+if test "x$with_libcbugzilla" = "xyes"
+then
+	with_cbugzilla_cflags=`$with_cbugzilla_config --cflags`
+	cbugzilla_config_status=$?
+
+	if test $cbugzilla_config_status -ne 0
+	then
+		with_libcbugzilla="no ($with_cbugzilla_config failed)"
+	else
+		SAVE_CPPFLAGS="$CPPFLAGS"
+		CPPFLAGS="$CPPFLAGS $with_cbugzilla_cflags"
+
+		AC_CHECK_HEADERS(libcbugzilla/cb.h, [], [with_libcbugzilla="no (libcbugzilla/cb.h not found)"], [])
+
+		CPPFLAGS="$SAVE_CPPFLAGS"
+	fi
+fi
+if test "x$with_libcbugzilla" = "xyes"
+then
+	with_cbugzilla_libs=`$with_cbugzilla_config --libs`
+	cbugzilla_config_status=$?
+
+	if test $cbugzilla_config_status -ne 0
+	then
+		with_libcbugzilla="no ($with_cbugzilla_config failed)"
+	else
+		AC_CHECK_LIB(cbugzilla, cbi_new,
+		 [with_libcbugzilla="yes"],
+		 [with_libcbugzilla="no (symbol 'cbi_new' not found)"],
+		 [$with_cbugzilla_libs])
+	fi
+fi
+if test "x$with_libcbugzilla" = "xyes"
+then
+	BUILD_WITH_LIBCBUGZILLA_CFLAGS="$with_cbugzilla_cflags"
+	BUILD_WITH_LIBCBUGZILLA_LIBS="$with_cbugzilla_libs"
+	AC_SUBST(BUILD_WITH_LIBCBUGZILLA_CFLAGS)
+	AC_SUBST(BUILD_WITH_LIBCBUGZILLA_LIBS)
+fi
+AM_CONDITIONAL(BUILD_PLUGIN_LIBCBUGZILLA, test "x$with_libcbugzilla" = "xyes")
+# }}}
 # --with-libcurl {{{
 with_curl_config="curl-config"
 with_curl_cflags=""
@@ -4901,6 +4970,7 @@ AC_PLUGIN([cpufreq],     [$plugin_cpufreq],    [CPU frequency statistics])
 AC_PLUGIN([cpu],         [$plugin_cpu],        [CPU usage statistics])
 AC_PLUGIN([csv],         [yes],                [CSV output plugin])
 AC_PLUGIN([curl],        [$with_libcurl],      [CURL generic web statistics])
+AC_PLUGIN([cbugzilla],   [$with_libcbugzilla], [Bugzilla statistics])
 AC_PLUGIN([curl_json],   [$plugin_curl_json],    [CouchDB statistics])
 AC_PLUGIN([curl_xml],   [$plugin_curl_xml],    [CURL generic xml statistics])
 AC_PLUGIN([dbi],         [$with_libdbi],       [General database statistics])
@@ -5172,6 +5242,7 @@ cat <<EOF;
 Configuration:
   Libraries:
     libcurl . . . . . . . $with_libcurl
+    libcbugzilla  . . . . $with_libcbugzilla
     libdbi  . . . . . . . $with_libdbi
     libcredis . . . . . . $with_libcredis
     libesmtp  . . . . . . $with_libesmtp
@@ -5230,6 +5301,7 @@ Configuration:
     ascent  . . . . . . . $enable_ascent
     battery . . . . . . . $enable_battery
     bind  . . . . . . . . $enable_bind
+    cbugzilla . . . . . . $enable_cbugzilla
     conntrack . . . . . . $enable_conntrack
     contextswitch . . . . $enable_contextswitch
     cpu . . . . . . . . . $enable_cpu

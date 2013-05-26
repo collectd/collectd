@@ -303,6 +303,17 @@ endif
 collectd_DEPENDENCIES += curl.la
 endif
 
+if BUILD_PLUGIN_LIBCBUGZILLA
+pkglib_LTLIBRARIES += cbugzilla.la
+cbugzilla_la_SOURCES = cbugzilla.c
+cbugzilla_la_LDFLAGS = -module -avoid-version
+cbugzilla_la_CFLAGS = $(AM_CFLAGS)
+cbugzilla_la_LIBADD =
+cbugzilla_la_CFLAGS += $(BUILD_WITH_LIBCBUGZILLA_CFLAGS)
+cbugzilla_la_LIBADD += $(BUILD_WITH_LIBCBUGZILLA_LIBS)
+collectd_DEPENDENCIES += cbugzilla.la
+endif
+
 if BUILD_PLUGIN_CURL_JSON
 pkglib_LTLIBRARIES += curl_json.la
 curl_json_la_SOURCES = curl_json.c
