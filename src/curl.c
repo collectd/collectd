@@ -676,7 +676,7 @@ static int cc_read_page (web_page_t *wp) /* {{{ */
 
   if(wp->response_code)
   {
-    long *response_code;
+    long response_code = 0;
     status = curl_easy_getinfo(wp->curl, CURLINFO_RESPONSE_CODE, &response_code);
     if(status != CURLE_OK) {
       ERROR ("curl plugin: curl_easy_getinfo failed with staus %i: %s",
