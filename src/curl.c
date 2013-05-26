@@ -647,11 +647,11 @@ static int cc_read_page (web_page_t *wp) /* {{{ */
     long response_code = 0;
     status = curl_easy_getinfo(wp->curl, CURLINFO_RESPONSE_CODE, &response_code);
     if(status != CURLE_OK) {
-      ERROR ("curl plugin: curl_easy_getinfo failed with staus %i: %s",
+      ERROR ("curl plugin: Fetching response code failed with staus %i: %s",
         status, wp->curl_errbuf);
-      return (-1); // TODO: do we need to return in here? this is nonfatal error
+    } else {
+      cc_submit_response_code(wp, response_code);
     }
-    cc_submit_response_code(wp, response_code);
   }
 
   if (wp->response_time)
