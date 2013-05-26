@@ -26,6 +26,7 @@
 #include "plugin.h"
 #include "configfile.h"
 #include "utils_match.h"
+#include "utils_time.h"
 
 #include <curl/curl.h>
 
@@ -607,12 +608,13 @@ static void cc_submit_response_code (const web_page_t *wp, long code) /* {{{ */
   plugin_dispatch_values (&vl);
 } /* }}} void cc_submit_response_code */
 
-static void cc_submit_response_time (const web_page_t *wp, double seconds) /* {{{ */
+static void cc_submit_response_time (const web_page_t *wp, /* {{{ */
+    cdtime_t response_time)
 {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  values[0].gauge = seconds;
+  values[0].gauge = CDTIME_T_TO_DOUBLE (response_time);
 
   vl.values = values;
   vl.values_len = 1;
@@ -628,10 +630,10 @@ static int cc_read_page (web_page_t *wp) /* {{{ */
 {
   web_match_t *wm;
   int status;
-  struct timeval start, end;
+  cdtime_t start;
 
   if (wp->response_time)
-    gettimeofday (&start, NULL);
+    start = cdtime ();
 
   wp->buffer_fill = 0;
   status = curl_easy_perform (wp->curl);
@@ -641,6 +643,9 @@ static int cc_read_page (web_page_t *wp) /* {{{ */
         status, wp->curl_errbuf);
     return (-1);
   }
+
+  if (wp->response_time)
+    cc_submit_response_time (wp, cdtime() - start);
 
   if(wp->response_code)
   {
@@ -652,15 +657,6 @@ static int cc_read_page (web_page_t *wp) /* {{{ */
     } else {
       cc_submit_response_code(wp, response_code);
     }
-  }
-
-  if (wp->response_time)
-  {
-    double secs = 0;
-    gettimeofday (&end, NULL);
-    secs += end.tv_sec - start.tv_sec;
-    secs += (end.tv_usec - start.tv_usec) / 1000000.0;
-    cc_submit_response_time (wp, secs);
   }
 
   for (wm = wp->matches; wm != NULL; wm = wm->next)
