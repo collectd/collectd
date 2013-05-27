@@ -628,10 +628,8 @@ static int basic_auth_check(const char *user, const char *pass) {
 	if(salt_buffer[0] == '$') {
 		int i;
 		int n = 0;
-		int salt_pos = 0;
 		for(i=1; (i<SALT_BUFFER_SIZE) && (n < 2); i++) {
 			if(salt_buffer[i] == '$') {
-				if(n == 1) salt_pos = i+1;
 				n++;
 			}
 		}

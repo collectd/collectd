@@ -50,7 +50,7 @@ static int mkpath_by_tm_and_num(char *buffer, size_t bufferlen, time_t tm, int n
 
 } /* }}} mkpath_by_tm_and_num */
 
-static int check_if_file_contains_tm(gzFile *gzfh, const char *filename, time_t tm_start, int *err) { /* {{{ */
+static int check_if_file_contains_tm(gzFile gzfh, const char *filename, time_t tm_start, int *err) { /* {{{ */
         /* Return 0 if tm_start is inside the file,
          *          or if an error occured (*err is not nul if an error occured)
          * Return -n if we should look before 
@@ -131,7 +131,7 @@ static int check_path(const char *hostname, int tm_start, int tm_end, char *buff
          *
          * Start at tm_start. If tm_end < tm_start, search backward.
          */
-        gzFile *gzfh=NULL;
+        gzFile gzfh=NULL;
         int offset = 0;
         int status;
         short file_found;
@@ -364,7 +364,7 @@ static struct json_object *read_top_ps_file(const char *filename, int tm, short 
          *   value.
          *   If err is not nul, an error occured.
          */
-        gzFile *gzfh=NULL;
+        gzFile gzfh=NULL;
         int errnum;
         char line[4096];
         size_t l;
