@@ -54,7 +54,8 @@ static const char *config_keys[] =
 	"IgnoreSelected",
 	"ReportByDevice",
 	"ReportReserved",
-	"ReportInodes"
+	"ReportInodes",
+        "FreePercentage"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -64,6 +65,7 @@ static ignorelist_t *il_fstype = NULL;
 
 static _Bool by_device = 0;
 static _Bool report_inodes = 0;
+static _Bool report_free_percentage = 0;
 
 static int df_init (void)
 {
@@ -132,6 +134,15 @@ static int df_config (const char *key, const char *value)
 		return (0);
 	}
 
+	else if (strcasecmp (key, "FreePercentage") == 0)
+	{
+		if (IS_TRUE (value))
+			report_free_percentage = 1;
+		else
+			report_free_percentage = 0;
+
+		return (0);
+	}
 
 	return (-1);
 }
@@ -186,6 +197,7 @@ static int df_read (void)
 		uint64_t blk_free;
 		uint64_t blk_reserved;
 		uint64_t blk_used;
+		float blk_free_percentage;
 
 		if (ignorelist_match (il_device,
 					(mnt_ptr->spec_device != NULL)
@@ -281,6 +293,16 @@ static int df_read (void)
 		df_submit_one (disk_name, "df_complex", "used",
 				(gauge_t) (blk_used * blocksize));
 
+
+		if (report_free_percentage)
+		{
+		    blk_free_percentage  = (float)((statbuf.f_blocks - statbuf.f_bfree) / statbuf.f_blocks * 100);
+                    float diff = statbuf.f_blocks - statbuf.f_bfree;
+                    float div = diff/statbuf.f_blocks ;
+
+                    df_submit_one (disk_name, "df_complex", "free_percentage", 
+				    (gauge_t) (div * 100));
+		}
 		/* inode handling */
 		if (report_inodes)
 		{
