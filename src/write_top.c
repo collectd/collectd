@@ -229,7 +229,7 @@ static int wt_chunk_write_to_disk(wt_chunk_t *ch) { /* {{{ */
         char timebuffer[64];
         char write_top_version[] = "Version 1.0\n";
         size_t timebuffer_len;
-        gzFile *gfd;
+        gzFile gfd;
         time_t tm;
         struct tm stm;
 
