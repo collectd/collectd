@@ -951,7 +951,6 @@ static int parse_proc_self_mountstats(void) /* {{{ */
 	char buf[4096];
 	char wbuf[4096];
 	proc_self_mountstats_state_e state;
-	short parse_error = 0;
 	mountstats_t mountstats;
 	time_t now;
 
@@ -999,7 +998,6 @@ static int parse_proc_self_mountstats(void) /* {{{ */
 				for(i=0; wbuf[i] && wbuf[i] != ' '; i++);
 				wbuf[i] = '\0';
 				if(strcmp(wbuf, "device")) {
-					parse_error = 1;
 					clear_mountstats(&mountstats);
 					goto an_error_happened;
 				}
@@ -1010,7 +1008,6 @@ static int parse_proc_self_mountstats(void) /* {{{ */
 				/* Find the FS type */
 				str = strstr(nfsdir, " with fstype ");
 				if(NULL == str) {
-					parse_error = 1;
 					goto an_error_happened;
 				}
 				nfsdir_end = str;
@@ -1032,7 +1029,6 @@ static int parse_proc_self_mountstats(void) /* {{{ */
 				/* If NFS, find the share and save it in mountstats.mountpoint */
 				str = strstr(nfsdir, " mounted on ");
 				if(NULL == str) {
-					parse_error = 1;
 					goto an_error_happened;
 				}
 #ifdef comment_this_is_old_code_to_be_removed
@@ -1058,25 +1054,21 @@ static int parse_proc_self_mountstats(void) /* {{{ */
 					str += sizeof("age:");
 					NEXT_NON_SPACE_CHAR(str);
 					if(str[0] == '\0') {
-						parse_error = 1;
 						goto an_error_happened;
 					}
 					errno=0;
 					mountstats.age = strtol(str,NULL, 10);
 					if(errno) {
-						parse_error = 1;
 						goto an_error_happened;
 					}
 				} else if(!strncmp(str,"events:", sizeof("events:")-1)) {
 					int n = string_to_array_of_Lu(str+sizeof("events:"),mountstats.events, NB_NFS_EVENT_COUNTERS);
 					if(n != NB_NFS_EVENT_COUNTERS) {
-						parse_error = 1;
 						goto an_error_happened;
 					}
 				} else if(!strncmp(str,"bytes:", sizeof("bytes:")-1)) {
 					int n = string_to_array_of_Lu(str+sizeof("bytes:"),mountstats.bytes, NB_NFS_BYTE_COUNTERS);
 					if(n != NB_NFS_BYTE_COUNTERS) {
-						parse_error = 1;
 						goto an_error_happened;
 					}
 				} else if(!strncmp(str,"xprt:", sizeof("xprt:")-1)) {
@@ -1097,7 +1089,6 @@ static int parse_proc_self_mountstats(void) /* {{{ */
 						mountstats.xprt_type = nfs_xprt_type_rdma;
 					}
 					if(n != 0) {
-						parse_error = 1;
 						goto an_error_happened;
 					}
 				} else if(!strncmp(str,"per-op statistics", sizeof("per-op statistics")-1)) {
@@ -1110,7 +1101,6 @@ static int parse_proc_self_mountstats(void) /* {{{ */
 				if((str[0] == '\0') || (str[0] == '\n')) { break; }
 				for(i=0; str[i] && (str[i] != ':'); i++);
 				if((str[0] == '\0') || (str[0] == '\n')) { 
-						parse_error = 1;
 						goto an_error_happened;
 				}
 				if(mountstats.nb_op >= mountstats.size_op) {
@@ -1127,7 +1117,6 @@ static int parse_proc_self_mountstats(void) /* {{{ */
 								sizeof(mountstats.op[mountstats.nb_op].op_name):(i+1));
 				str+= i+1;
 				if(8 != string_to_array_of_Lu(str,mountstats.op[mountstats.nb_op].op, 8)) {
-					parse_error = 1;
 					goto an_error_happened;
 				}
 				mountstats.nb_op++;
