@@ -6081,6 +6081,37 @@ I<Riemann>.
 
 =back
 
+=head2 Plugin C<write_top>
+
+The C<write_top> plugin selects I<top> notifications and write them to disk.
+
+Synopsis:
+
+ <Plugin write_top>
+     DataDir 
+     FlushWhenOlderThanMin 60
+     FlushWhenBiggerThanK 500
+ </Plugin>
+
+=over 4
+
+=item B<DataDir> I<Directory>
+
+Set the directory to store Top-files under. Per default RRD-files are generated
+beneath the daemon's working directory, i.E<nbsp>e. the B<BaseDir>.
+
+=item B<FlushWhenOlderThanMin> I<Duration>
+
+When set, I<Duration> is the time (in minutes) after when all the top data
+will be flushed on disk for one host.
+
+=item B<FlushWhenBiggerThanK> I<Size>
+
+When set, I<Size> is the maximum size (in Kb) of memory used for the cache of one host
+for top data. When more memory is needed for one host, the data will be flushed.
+
+=back
+
 =head1 THRESHOLD CONFIGURATION
 
 Starting with version C<4.3.0> collectd has support for B<monitoring>. By that
