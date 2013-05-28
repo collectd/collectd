@@ -1,5 +1,5 @@
 /**
- * collectd - src/utils_avltree_test.c
+ * collectd - src/tests/macros.h
  *
  * Copyright (C) 2013       Florian octo Forster
  *
@@ -25,59 +25,44 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
-#include "tests/macros.h"
-#include "collectd.h"
-#include "utils_avltree.h"
+static int fail_count__ = 0;
+static int check_count__ = 0;
 
-static int compare_total_count = 0;
-#define RESET_COUNTS() do { compare_total_count = 0; } while (0)
+#define DEF_TEST(func) static int test_##func ()
 
-static int compare_callback (void const *v0, void const *v1)
-{
-  assert (v0 != NULL);
-  assert (v1 != NULL);
+#define RUN_TEST(func) do { \
+  int status; \
+  printf ("Testing %s ...\n", #func); \
+  status = test_ ## func (); \
+  printf ("%s.\n", (status == 0) ? "Success" : "FAILURE"); \
+  if (status != 0) { fail_count__++; } \
+} while (0)
 
-  compare_total_count++;
-  return (strcmp (v0, v1));
-}
+#define END_TEST exit ((fail_count__ == 0) ? 0 : 1);
 
-DEF_TEST(success)
-{
-  c_avl_tree_t *t;
-  char key_orig[] = "foo";
-  char value_orig[] = "bar";
-  char *key_ret = NULL;
-  char *value_ret = NULL;
+#define OK1(cond, text) do { \
+  _Bool result = (cond); \
+  printf ("%s %i - %s\n", result ? "ok" : "not ok", ++check_count__, text); \
+} while (0)
+#define OK(cond) OK1(cond, #cond)
 
-  RESET_COUNTS ();
-  t = c_avl_create (compare_callback);
-  OK (t != NULL);
+#define STREQ(expect, actual) do { \
+  if (strcmp (expect, actual) != 0) { \
+    printf ("not ok %i - %s incorrect: expected \"%s\", got \"%s\"\n", \
+        ++check_count__, #actual, expect, actual); \
+    return (-1); \
+  } \
+  printf ("ok %i - %s evaluates to \"%s\"\n", ++check_count__, #actual, expect); \
+} while (0)
 
-  OK (c_avl_insert (t, key_orig, value_orig) == 0);
-  OK (c_avl_size (t) == 1);
+#define CHECK_NOT_NULL(expr) do { \
+  void *ptr_; \
+  ptr_ = (expr); \
+  OK1(ptr_ != NULL, #expr); \
+} while (0)
 
-  /* Key already exists. */
-  OK (c_avl_insert (t, "foo", "qux") > 0);
-
-  OK (c_avl_get (t, "foo", (void *) &value_ret) == 0);
-  OK (value_ret == &value_orig[0]);
-
-  key_ret = value_ret = NULL;
-  OK (c_avl_remove (t, "foo", (void *) &key_ret, (void *) &value_ret) == 0);
-  OK (key_ret == &key_orig[0]);
-  OK (value_ret == &value_orig[0]);
-  OK (c_avl_size (t) == 0);
-
-  c_avl_destroy (t);
-
-  return (0);
-}
-
-int main (void)
-{
-  RUN_TEST(success);
-
-  END_TEST;
-}
-
-/* vim: set sw=2 sts=2 et : */
+#define CHECK_ZERO(expr) do { \
+  long status_; \
+  status_ = (long) (expr); \
+  OK1(status_ == 0L, #expr); \
+} while (0)

@@ -25,37 +25,10 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
+#include "tests/macros.h"
 #include "common.h"
 
-static int fail_count = 0;
-static int check_count = 0;
-
-#define TEST(func) do { \
-  int status; \
-  printf ("Testing %s ...\n", #func); \
-  status = test_ ## func (); \
-  printf ("%s.\n", (status == 0) ? "Success" : "FAILURE"); \
-  if (status != 0) { fail_count++; } \
-} while (0);
-
-#define OK1(cond, text) do { \
-  _Bool result = (cond); \
-  printf ("%s %i - %s\n", result ? "ok" : "not ok", ++check_count, text); \
-  if (!result) { return (-1); } \
-} while (0);
-
-#define STREQ(expect, actual) do { \
-  if (strcmp (expect, actual) != 0) { \
-    printf ("not ok %i - %s incorrect: expected \"%s\", got \"%s\"\n", \
-        ++check_count, #actual, expect, actual); \
-    return (-1); \
-  } \
-  printf ("ok %i - %s evaluates to \"%s\"\n", ++check_count, #actual, expect); \
-} while (0)
-
-#define OK(cond) OK1(cond, #cond)
-
-static int test_sstrncpy (void)
+DEF_TEST(sstrncpy)
 {
   char buffer[16] = "";
   char *ptr = &buffer[4];
@@ -83,7 +56,7 @@ static int test_sstrncpy (void)
   return (0);
 }
 
-static int test_ssnprintf (void)
+DEF_TEST(ssnprintf)
 {
   char buffer[16] = "";
   char *ptr = &buffer[4];
@@ -105,7 +78,7 @@ static int test_ssnprintf (void)
   return (0);
 }
 
-static int test_sstrdup (void)
+DEF_TEST(sstrdup)
 {
   char *ptr;
 
@@ -122,7 +95,7 @@ static int test_sstrdup (void)
   return (0);
 }
 
-static int test_strsplit (void)
+DEF_TEST(strsplit)
 {
   char buffer[32];
   char *fields[8];
@@ -173,7 +146,7 @@ static int test_strsplit (void)
   return (0);
 }
 
-int test_strjoin (void)
+DEF_TEST(strjoin)
 {
   char buffer[16];
   char *fields[4];
@@ -217,7 +190,7 @@ int test_strjoin (void)
   return (0);
 }
 
-static int test_strunescape ()
+DEF_TEST(strunescape)
 {
   char buffer[16];
   int status;
@@ -261,16 +234,14 @@ static int test_strunescape ()
 
 int main (void)
 {
-  TEST(sstrncpy);
-  TEST(ssnprintf);
-  TEST(sstrdup);
-  TEST(strsplit);
-  TEST(strjoin);
-  TEST(strunescape);
+  RUN_TEST(sstrncpy);
+  RUN_TEST(ssnprintf);
+  RUN_TEST(sstrdup);
+  RUN_TEST(strsplit);
+  RUN_TEST(strjoin);
+  RUN_TEST(strunescape);
 
-  if (fail_count != 0)
-    exit (EXIT_FAILURE);
-  exit (EXIT_SUCCESS);
+  END_TEST;
 }
 
 /* vim: set sw=2 sts=2 et : */
