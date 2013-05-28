@@ -1567,28 +1567,28 @@ uninstall-hook:
 
 check_PROGRAMS = common_test utils_avltree_test utils_vl_lookup_test
 
-common_test_SOURCES = common_test.c \
+common_test_SOURCES = tests/common_test.c \
 		      common.h common.c \
-		      mock/plugin.c \
-		      mock/utils_cache.c \
-		      mock/utils_time.c
+		      tests/mock/plugin.c \
+		      tests/mock/utils_cache.c \
+		      tests/mock/utils_time.c
 common_test_CPPFLAGS = $(AM_CPPFLAGS) $(LTDLINCL)
 common_test_LDFLAGS = -export-dynamic
 common_test_LDADD =
 
-utils_avltree_test_SOURCES = utils_avltree_test.c \
+utils_avltree_test_SOURCES = tests/utils_avltree_test.c \
 			     utils_avltree.c utils_avltree.h
 utils_avltree_test_CPPFLAGS = $(AM_CPPFLAGS) $(LTDLINCL)
 utils_avltree_test_LDFLAGS = -export-dynamic
 utils_avltree_test_LDADD =
 
-utils_vl_lookup_test_SOURCES = utils_vl_lookup_test.c \
+utils_vl_lookup_test_SOURCES = tests/utils_vl_lookup_test.c \
 			       utils_vl_lookup.h utils_vl_lookup.c \
 			       utils_avltree.c utils_avltree.h \
 			       common.c common.h \
-			       mock/plugin.c \
-			       mock/utils_cache.c \
-			       mock/utils_time.c
+			       tests/mock/plugin.c \
+			       tests/mock/utils_cache.c \
+			       tests/mock/utils_time.c
 utils_vl_lookup_test_CPPFLAGS =  $(AM_CPPFLAGS) $(LTDLINCL)
 utils_vl_lookup_test_CFLAGS = $(AM_CFLAGS)
 utils_vl_lookup_test_LDFLAGS = -export-dynamic
