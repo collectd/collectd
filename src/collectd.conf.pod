@@ -2008,6 +2008,126 @@ independent from the I<JavaClass> argument passed to B<LoadPlugin>.
 
 =back
 
+=head2 Plugin C<jsonrpc>
+
+The I<Jsonrpc> plugin makes it possible to communicate through a HTTP connection
+with JSON-RPC protocol.
+
+Synopsis:
+
+ <Plugin "jsonrpc">
+   BindAddress "*"
+   Port 8080
+   ConnectionTimeout 30
+   MaxClients 16
+   Authentication "Basic"
+   Authfile "/etc/collectd.passwd.txt"
+   JsonrpcCacheExpirationTime 60
+   TopPsDataDir "/var/lib/collectd/top"
+ </Plugin>
+
+Available configuration options:
+
+=over 4
+
+=item B<BindAddress> I<Argument>
+
+Argument is the IP address the JSON-RPC HTTP server listens on. If unset or if set to "*", it will
+listen on 0.0.0.0.
+
+=item B<Port> I<Argument>
+
+Argument is the port number the JSON-RPC HTTP server listens on.
+
+=item B<ConnectionTimeout> I<Argument>
+
+Argument is the connection timeout.
+
+=item B<Authentication> I<Argument>
+
+Argument is one of I<None> or I<Basic>. If using I<None>, there will be no
+authentication. Everyone can connect to jsonrpc. If using I<Basic>, the
+authentication will be of type Basic as defined in RFC2617 and you will be
+prompted a login and a password.
+
+=item B<Authfile> I<Argument>
+
+When using Basic authentication scheme, Argument is a filename where to store
+login/password credentials. Each line of this file has the following syntax :
+
+  login password
+
+Example :
+  Joe     $6$Joe_J03D$EwsXtIFSSCSB7Q36NYCCBjqjXs1Yna3ruVEj/b57t2Oq7g1gbwnHbREefsRpG6ki0dIl94bFuB3pT8TCkGYCe1
+  Jack    $1$J.D4lt0n$.uCooL.00nv/UphluGAe1.
+  William wdRHh/Alm41TQ
+  Avrael "rantanplan"
+
+Use I<#> for comments.
+Spaces can be either ' ' or '\t'.
+
+The password can have 3 possible forms :
+
+=over 4
+
+=item "clear password"
+
+The password is stored in clear form. Please protect your file ! Notice
+the double quotes that is part of the syntax.
+
+=item cryptedpassword
+
+The password is stored crypted as in crypt(3). The 2 first chars is the
+salt and the following is the crypted password. Generate a password with
+tools like htpasswd (from apache) or like this :
+
+  perl -e 'print crypt("Passw0rd", "s0")."\n";'
+
+Where I<Passw0rd> is the clear text password and I<s0> is a salt (salt is 2 chars).
+
+=item $id$salt$cryptedpassword
+
+The password is stored crypted as in crypt(3). The dollars are part of the
+syntax. I<id> is the crypt algorithm to use (for example, 1 means md5). I<salt>
+is a up to 8 chars salt. I<cryptedpassword> is the crypted password.
+Generate a password like this :
+
+  perl -e 'print crypt("Passw0rd", "\$1\$SaLts4lT")."\n";'
+
+where Passw0rd is the clear text password and SaLts4lT is a salt (salt is up to 8 chars).
+
+See B<man crypt> for more information.
+
+=back
+
+WARNINGS :
+If your jsonrpc module was not compiled with libcrypt, only clear text password
+will work.
+
+If your system does not have crypt_r(3), it will use crypt(3) with a mutex (which may
+slow the performances of the server). If you do not have crypt_r(3) and feel your server
+too slow, try to use clear text passwords only.
+
+=item B<MaxClients> I<Argument>
+
+Argument is the maximum number of simultaneous connexions.
+
+=item B<JsonrpcCacheExpirationTime> I<time>
+
+The jsonrpc plugin has a local cache of the types. It is a copy of the collectd cache.
+Because using the collectd cache would cost a lot of time to collectd, jsonrpc has its
+own cache.
+
+Time (in seconds) specifies how long to keep the cache and when to refresh it from the
+collectd cache.
+
+=item B<TopPsDataDir> I<path>
+
+If the plugin was compiled with support for TopPs, this is the path where to find
+files from the write_top plugin.
+
+=back
+
 =head2 Plugin C<libvirt>
 
 This plugin allows CPU, disk and network load to be collected for virtualized

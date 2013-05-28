@@ -9,6 +9,7 @@ ath_stat		value:DERIVE:0:U
 backends		value:GAUGE:0:65535
 bitrate			value:GAUGE:0:4294967295
 bytes			value:GAUGE:0:U
+cache_entries		value:GAUGE:0:U
 cache_eviction		value:DERIVE:0:U
 cache_operation		value:DERIVE:0:U
 cache_ratio		value:GAUGE:0:100
@@ -104,6 +105,7 @@ mysql_handler		value:DERIVE:0:U
 mysql_locks		value:DERIVE:0:U
 mysql_log_position	value:DERIVE:0:U
 mysql_octets		rx:DERIVE:0:U, tx:DERIVE:0:U
+nb_values		value:GAUGE:0:U
 nfs_procedure		value:DERIVE:0:U
 nginx_connections	value:GAUGE:0:U
 nginx_requests		value:DERIVE:0:U
