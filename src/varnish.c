@@ -603,7 +603,9 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 		else
 		{
 			WARNING ("Varnish plugin: Ignoring unknown "
-					"configuration option: \"%s\"",
+					"configuration option: \"%s\". Did "
+					"you forget to add an <Instance /> "
+					"block around the configuration?",
 					child->key);
 		}
 	}

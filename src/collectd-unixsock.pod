@@ -1,3 +1,5 @@
+=encoding UTF-8
+
 =head1 NAME
 
 collectd-unixsock - Documentation of collectd's C<unixsock plugin>

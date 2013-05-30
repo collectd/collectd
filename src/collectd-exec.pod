@@ -1,3 +1,5 @@
+=encoding UTF-8
+
 =head1 NAME
 
 collectd-exec - Documentation of collectd's C<exec plugin>
@@ -116,12 +118,8 @@ case you're confused.
 
 Since examples usually let one understand a lot better, here are some:
 
-  leeloo/cpu-0/cpu-idle N:2299366
-  alice/interface/if_octets-eth0 interval=10 1180647081:421465:479194
-
-Since this action was the only one supported with older versions of the C<exec
-plugin> all lines were treated as if they were prefixed with B<PUTVAL>. This is
-still the case to maintain backwards compatibility but deprecated.
+  PUTVAL leeloo/cpu-0/cpu-idle N:2299366
+  PUTVAL alice/interface/if_octets-eth0 interval=10 1180647081:421465:479194
 
 =item B<PUTNOTIF> [I<OptionList>] B<message=>I<Message>
 

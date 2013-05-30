@@ -587,7 +587,7 @@ static int cf_include_all (oconfig_item_t *root, int depth)
 		sfree (pattern);
 
 		if (new == NULL)
-			continue;
+			return (-1);
 
 		/* Now replace the i'th child in `root' with `new'. */
 		cf_ci_replace_child (root, new, i);
@@ -606,6 +606,7 @@ static oconfig_item_t *cf_read_file (const char *file,
 		const char *pattern, int depth)
 {
 	oconfig_item_t *root;
+	int status;
 
 	assert (depth < CF_MAX_DEPTH);
 
@@ -637,7 +638,12 @@ static oconfig_item_t *cf_read_file (const char *file,
 		return (NULL);
 	}
 
-	cf_include_all (root, depth);
+	status = cf_include_all (root, depth);
+	if (status != 0)
+	{
+		oconfig_free (root);
+		return (NULL);
+	}
 
 	return (root);
 } /* oconfig_item_t *cf_read_file */
@@ -829,12 +835,6 @@ static oconfig_item_t *cf_read_generic (const char *path,
 	}
 
 	wordfree (&we);
-
-	if (root->children == NULL)
-	{
-		oconfig_free (root);
-		return (NULL);
-	}
 
 	return (root);
 } /* oconfig_item_t *cf_read_generic */
@@ -1045,6 +1045,12 @@ int cf_read (char *filename)
 	if (conf == NULL)
 	{
 		ERROR ("Unable to read config file %s.", filename);
+		return (-1);
+	}
+	else if (conf->children_num == 0)
+	{
+		ERROR ("Configuration file %s is empty.", filename);
+		oconfig_free (conf);
 		return (-1);
 	}
 

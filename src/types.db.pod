@@ -1,3 +1,5 @@
+=encoding UTF-8
+
 =head1 NAME
 
 types.db - Data-set specifications for the system statistics collection daemon

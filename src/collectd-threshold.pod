@@ -1,3 +1,5 @@
+=encoding UTF-8
+
 =head1 NAME
 
 collectd-threshold - Documentation of collectd's I<Threshold plugin>
