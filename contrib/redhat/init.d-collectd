@@ -18,16 +18,16 @@ prog="collectdmon"
 service="collectd"
 CONFIG=/etc/collectd.conf
 COLLECTD=/usr/sbin/collectd
-COLLECTDMONPIDIR="/var/run"
-COLLECTDMONPID="$COLLECTDMONPIDIR/collectdmon.pid"
+COLLECTDMONPIDDIR="/var/run"
+COLLECTDMONPID="$COLLECTDMONPIDDIR/collectdmon.pid"
 
 if [ -r /etc/sysconfig/$service ]; then
 	. /etc/sysconfig/$service
 fi
 
-if [ ! -d $COLLECTDMONPIDIR ]; then
-	mkdir -p $COLLECTDMONPIDIR
-	[ -n "${RUNAS-}" ] && chown $RUNAS: $COLLECTDMONPIDIR
+if [[ ! -d $COLLECTDMONPIDDIR ]]; then
+	mkdir -p $COLLECTDMONPIDDIR
+	[ -n "${RUNAS}" ] && chown "${RUNAS}:" "$COLLECTDMONPIDDIR"
 fi
 
 check_config() {
@@ -50,7 +50,7 @@ start () {
 		echo $"not starting due to configuration error"
 		failure $"not starting $service due to configuration error"
 	else
-		daemon --user "${RUNAS-root}" $prog -P $COLLECTDMONPID -c $COLLECTD -- -C "$CONFIG" $ARGS
+		daemon --user "${RUNAS:-root}" $prog -P $COLLECTDMONPID -c $COLLECTD -- -C "$CONFIG" $ARGS
 		RETVAL=$?
 		echo
 		[ $RETVAL -eq 0 ] && touch /var/lock/subsys/$service
