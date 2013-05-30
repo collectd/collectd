@@ -534,7 +534,7 @@ static int mysql_read_slave_stats (mysql_database_t *db, MYSQL *con)
 			ssnprintf (n.message, sizeof (n.message),
 					"slave SQL thread started");
 			plugin_dispatch_notification (&n);
-			db->slave_sql_running = 0;
+			db->slave_sql_running = 1;
 		}
 	}
 
