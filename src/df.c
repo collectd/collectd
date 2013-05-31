@@ -196,7 +196,11 @@ static int df_read (void)
 		char disk_name[256];
 		uint64_t blk_free;
 		uint64_t blk_reserved;
+<<<<<<< HEAD
 		uint64_t blk_used;
+=======
+		uint64_t blk_used;		
+>>>>>>> 0d0832b903fcd55e8fdc3d432cf16b3503b71f56
 
 		if (ignorelist_match (il_device,
 					(mnt_ptr->spec_device != NULL)
@@ -286,12 +290,25 @@ static int df_read (void)
 		blk_used     = (uint64_t) (statbuf.f_blocks - statbuf.f_bfree);
 
 		if (report_percentage && statbuf.f_blocks > 0)
+<<<<<<< HEAD
 		{
 			df_submit_one (disk_name, "df_complex_pct", "free", 
 				(gauge_t) ((float_t)(blk_free) / statbuf.f_blocks * 100));
 			df_submit_one (disk_name, "df_complex_pct", "reserved", 
 				(gauge_t) ((float_t)(blk_reserved) / statbuf.f_blocks * 100));
 			df_submit_one (disk_name, "df_complex_pct", "used", 
+=======
+		{ 			                
+			double f = (double)((float_t)((blk_free) / statbuf.f_blocks * 100));
+			DEBUG("DF Free percentage %f", f); 
+
+			
+			df_submit_one (disk_name, "percent", "free", 
+				(gauge_t) ((float_t)(blk_free) / statbuf.f_blocks * 100));
+			df_submit_one (disk_name, "percent", "reserved", 
+				(gauge_t) ((float_t)(blk_reserved) / statbuf.f_blocks * 100));
+			df_submit_one (disk_name, "percent", "used", 
+>>>>>>> 0d0832b903fcd55e8fdc3d432cf16b3503b71f56
 				(gauge_t) ((float_t)(blk_used) / statbuf.f_blocks * 100));
 		}
 		else
@@ -307,20 +324,39 @@ static int df_read (void)
 		/* inode handling */
 		if (report_inodes)
 		{
-			uint64_t inode_free;
-			uint64_t inode_reserved;
-			uint64_t inode_used;
+				uint64_t inode_free;
+				uint64_t inode_reserved;
+				uint64_t inode_used;
 
-			/* Sanity-check for the values in the struct */
-			if (statbuf.f_ffree < statbuf.f_favail)
-				statbuf.f_ffree = statbuf.f_favail;
-			if (statbuf.f_files < statbuf.f_ffree)
-				statbuf.f_files = statbuf.f_ffree;
-
-			inode_free = (uint64_t) statbuf.f_favail;
-			inode_reserved = (uint64_t) (statbuf.f_ffree - statbuf.f_favail);
-			inode_used = (uint64_t) (statbuf.f_files - statbuf.f_ffree);
+				/* Sanity-check for the values in the struct */
+				if (statbuf.f_ffree < statbuf.f_favail)
+					statbuf.f_ffree = statbuf.f_favail;
+				if (statbuf.f_files < statbuf.f_ffree)
+					statbuf.f_files = statbuf.f_ffree;
+					
+				inode_free = (uint64_t) statbuf.f_favail;
+				inode_reserved = (uint64_t) (statbuf.f_ffree - statbuf.f_favail);
+				inode_used = (uint64_t) (statbuf.f_files - statbuf.f_ffree);
+					
+				if (report_percentage && statbuf.f_files > 0){
+					df_submit_one (disk_name, "percent", "free", 
+						(gauge_t) ((float_t)(inode_free) / statbuf.f_files * 100));
+					df_submit_one (disk_name, "percent", "reserved", 
+						(gauge_t) ((float_t)(inode_reserved) / statbuf.f_files * 100));
+					df_submit_one (disk_name, "percent", "used", 
+						(gauge_t) ((float_t)(inode_used) / statbuf.f_files * 100));
+				}
+				else 
+				{
+					df_submit_one (disk_name, "df_inodes", "free",
+							(gauge_t) inode_free);
+					df_submit_one (disk_name, "df_inodes", "reserved",
+							(gauge_t) inode_reserved);
+					df_submit_one (disk_name, "df_inodes", "used",
+							(gauge_t) inode_used);
+				}
 			
+<<<<<<< HEAD
 			if (report_percentage && statbuf.f_files > 0)
 			{
 				df_submit_one (disk_name, "df_inodes_pct", "free", 
@@ -339,6 +375,8 @@ static int df_read (void)
 				df_submit_one (disk_name, "df_inodes", "used",
 						(gauge_t) inode_used);
 			}
+=======
+>>>>>>> 0d0832b903fcd55e8fdc3d432cf16b3503b71f56
 		}
 	}
 
