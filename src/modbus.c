@@ -49,6 +49,7 @@
  *   RegisterBase 1234
  *   RegisterType float
  *   Type gauge
+ *   Function holding
  *   Instance "..."
  * </Data>
  *
@@ -75,7 +76,13 @@ enum mb_register_type_e /* {{{ */
   REG_TYPE_UINT32,
   REG_TYPE_FLOAT
 }; /* }}} */
+enum mb_function_e /* {{{ */ 
+{
+  FCN_HOLDING,
+  FCN_INPUT
+}; /* }}} */
 typedef enum mb_register_type_e mb_register_type_t;
+typedef enum mb_function_e mb_function_t;
 
 struct mb_data_s;
 typedef struct mb_data_s mb_data_t;
@@ -84,6 +91,7 @@ struct mb_data_s /* {{{ */
   char *name;
   int register_base;
   mb_register_type_t register_type;
+  mb_function_t function;
   char type[DATA_MAX_NAME_LEN];
   char instance[DATA_MAX_NAME_LEN];
 
@@ -467,10 +475,16 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
     return (-1);
   }
 #endif
-
-  status = modbus_read_registers (host->connection,
+  if (data->function == FCN_INPUT){
+    status = modbus_read_input_registers (host->connection,
         /* start_addr = */ data->register_base,
         /* num_registers = */ values_num, /* buffer = */ values);
+  }
+  else{
+    status = modbus_read_registers (host->connection,
+        /* start_addr = */ data->register_base,
+        /* num_registers = */ values_num, /* buffer = */ values);
+  }
   if (status != values_num)
   {
     ERROR ("Modbus plugin: modbus_read_registers (%s/%s) failed. status = %i, values_num = %i "
@@ -708,6 +722,26 @@ static int mb_config_add_data (oconfig_item_t *ci) /* {{{ */
         ERROR ("Modbus plugin: The register type \"%s\" is unknown.", tmp);
         status = -1;
       }
+    }
+    else if (strcasecmp ("Function", child->key) == 0)
+    {
+      #if LEGACY_LIBMODBUS
+        ERROR("Modbus plugin: Function parameter can not be used with your libmodbus version");
+      #else
+        char tmp[16];
+        status = cf_util_get_string_buffer (child, tmp, sizeof (tmp));
+        if (status != 0)
+          /* do nothing */;
+        else if (strcasecmp ("holding", tmp) == 0)
+          data.function = FCN_HOLDING;
+        else if (strcasecmp ("input", tmp) == 0)
+          data.function = FCN_INPUT;
+        else
+        {
+          ERROR ("Modbus plugin: The function type \"%s\" is unknown.", tmp);
+          status = -1;
+        }
+      #endif
     }
     else
     {
