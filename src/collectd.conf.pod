@@ -1511,6 +1511,15 @@ Enable this option if inodes are a scarce resource for you, usually because
 many small files are stored on the disk. This is a usual scenario for mail
 transfer agents and web caches.
 
+=item B<ReportPercentage> B<true>|B<false>
+
+Enables or disables reporting of memory and memory in percentage. Defaults to
+false.
+
+This is useful for deploying collectd on the cloud, where machines with
+different disk size may exist. Then it is more practical to configure thresholds
+based on relative disk size.
+
 =back
 
 =head2 Plugin C<disk>
