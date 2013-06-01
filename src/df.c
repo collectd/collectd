@@ -54,7 +54,8 @@ static const char *config_keys[] =
 	"IgnoreSelected",
 	"ReportByDevice",
 	"ReportReserved",
-	"ReportInodes"
+	"ReportInodes",
+	"ReportPercentage"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -64,6 +65,7 @@ static ignorelist_t *il_fstype = NULL;
 
 static _Bool by_device = 0;
 static _Bool report_inodes = 0;
+static _Bool report_percentage = 0;
 
 static int df_init (void)
 {
@@ -132,6 +134,15 @@ static int df_config (const char *key, const char *value)
 		return (0);
 	}
 
+	else if (strcasecmp (key, "ReportPercentage") == 0)
+	{
+		if (IS_TRUE (value))
+			report_percentage = 1;
+		else
+			report_percentage = 0;
+
+		return (0);
+	}
 
 	return (-1);
 }
@@ -210,7 +221,7 @@ static int df_read (void)
 		if (!statbuf.f_blocks)
 			continue;
 
-		if (by_device) 
+		if (by_device)
 		{
 			/* eg, /dev/hda1  -- strip off the "/dev/" */
 			if (strncmp (mnt_ptr->spec_device, "/dev/", strlen ("/dev/")) == 0)
@@ -218,13 +229,13 @@ static int df_read (void)
 			else
 				sstrncpy (disk_name, mnt_ptr->spec_device, sizeof (disk_name));
 
-			if (strlen(disk_name) < 1) 
+			if (strlen(disk_name) < 1)
 			{
 				DEBUG("df: no device name name for mountpoint %s, skipping", mnt_ptr->dir);
 				continue;
 			}
-		} 
-		else 
+		}
+		else
 		{
 			if (strcmp (mnt_ptr->dir, "/") == 0)
 			{
@@ -274,12 +285,30 @@ static int df_read (void)
 		blk_reserved = (uint64_t) (statbuf.f_bfree - statbuf.f_bavail);
 		blk_used     = (uint64_t) (statbuf.f_blocks - statbuf.f_bfree);
 
-		df_submit_one (disk_name, "df_complex", "free",
+		if (report_percentage && (statbuf.f_blocks > 0))
+		{
+			uint64_t blk_total = (uint64_t) statbuf.f_blocks;
+			char plugin_instance[DATA_MAX_NAME_LEN];
+
+			ssnprintf (plugin_instance, sizeof (plugin_instance),
+					"%s-bytes", disk_name);
+
+			df_submit_one (plugin_instance, "percent", "free",
+					100.0 * ((gauge_t) blk_free) / ((gauge_t) blk_total));
+			df_submit_one (plugin_instance, "percent", "reserved",
+					100.0 * ((gauge_t) blk_reserved) / ((gauge_t) blk_total));
+			df_submit_one (plugin_instance, "percent", "used",
+					100.0 * ((gauge_t) blk_used) / ((gauge_t) blk_total));
+		}
+		else if (!report_percentage)
+		{
+			df_submit_one (disk_name, "df_complex", "free",
 				(gauge_t) (blk_free * blocksize));
-		df_submit_one (disk_name, "df_complex", "reserved",
+			df_submit_one (disk_name, "df_complex", "reserved",
 				(gauge_t) (blk_reserved * blocksize));
-		df_submit_one (disk_name, "df_complex", "used",
+			df_submit_one (disk_name, "df_complex", "used",
 				(gauge_t) (blk_used * blocksize));
+		}
 
 		/* inode handling */
 		if (report_inodes)
@@ -297,13 +326,31 @@ static int df_read (void)
 			inode_free = (uint64_t) statbuf.f_favail;
 			inode_reserved = (uint64_t) (statbuf.f_ffree - statbuf.f_favail);
 			inode_used = (uint64_t) (statbuf.f_files - statbuf.f_ffree);
-			
-			df_submit_one (disk_name, "df_inodes", "free",
-					(gauge_t) inode_free);
-			df_submit_one (disk_name, "df_inodes", "reserved",
-					(gauge_t) inode_reserved);
-			df_submit_one (disk_name, "df_inodes", "used",
-					(gauge_t) inode_used);
+
+			if (report_percentage && (statbuf.f_files > 0))
+			{
+				uint64_t inode_total = (uint64_t) statbuf.f_files;
+				char plugin_instance[DATA_MAX_NAME_LEN];
+
+				ssnprintf (plugin_instance, sizeof (plugin_instance),
+						"%s-inodes", disk_name);
+
+				df_submit_one (plugin_instance, "percent", "free",
+						100.0 * ((gauge_t) inode_free) / ((gauge_t) inode_total));
+				df_submit_one (plugin_instance, "percent", "reserved",
+						100.0 * ((gauge_t) inode_reserved) / ((gauge_t) inode_total));
+				df_submit_one (plugin_instance, "percent", "used",
+						100.0 * ((gauge_t) inode_used) / ((gauge_t) inode_total));
+			}
+			else if (!report_percentage)
+			{
+				df_submit_one (disk_name, "df_inodes", "free",
+						(gauge_t) inode_free);
+				df_submit_one (disk_name, "df_inodes", "reserved",
+						(gauge_t) inode_reserved);
+				df_submit_one (disk_name, "df_inodes", "used",
+						(gauge_t) inode_used);
+			}
 		}
 	}
 
