@@ -30,8 +30,6 @@ delay			value:GAUGE:-1000000:1000000
 derive			value:DERIVE:0:U
 df_complex		value:GAUGE:0:U
 df_inodes		value:GAUGE:0:U
-df_complex_pct		value:GAUGE:0:100.1
-df_inodes_pct		value:GAUGE:0:100.1
 df			used:GAUGE:0:1125899906842623, free:GAUGE:0:1125899906842623
 disk_latency		read:GAUGE:0:U, write:GAUGE:0:U
 disk_merged		read:DERIVE:0:U, write:DERIVE:0:U

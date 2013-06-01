@@ -285,19 +285,22 @@ static int df_read (void)
 		blk_reserved = (uint64_t) (statbuf.f_bfree - statbuf.f_bavail);
 		blk_used     = (uint64_t) (statbuf.f_blocks - statbuf.f_bfree);
 
-		if (report_percentage)
+		if (report_percentage && (statbuf.f_blocks > 0))
 		{
-			if (statbuf.f_files > 0)
-			{
-				df_submit_one (disk_name, "df_complex_pct", "free",
-						(gauge_t) ((float_t)(blk_free) / statbuf.f_blocks * 100));
-				df_submit_one (disk_name, "df_complex_pct", "reserved",
-						(gauge_t) ((float_t)(blk_reserved) / statbuf.f_blocks * 100));
-				df_submit_one (disk_name, "df_complex_pct", "used",
-						(gauge_t) ((float_t)(blk_used) / statbuf.f_blocks * 100));
-			}
+			uint64_t blk_total = (uint64_t) statbuf.f_blocks;
+			char plugin_instance[DATA_MAX_NAME_LEN];
+
+			ssnprintf (plugin_instance, sizeof (plugin_instance),
+					"%s-bytes", disk_name);
+
+			df_submit_one (plugin_instance, "percent", "free",
+					100.0 * ((gauge_t) blk_free) / ((gauge_t) blk_total));
+			df_submit_one (plugin_instance, "percent", "reserved",
+					100.0 * ((gauge_t) blk_reserved) / ((gauge_t) blk_total));
+			df_submit_one (plugin_instance, "percent", "used",
+					100.0 * ((gauge_t) blk_used) / ((gauge_t) blk_total));
 		}
-		else
+		else if (!report_percentage)
 		{
 			df_submit_one (disk_name, "df_complex", "free",
 				(gauge_t) (blk_free * blocksize));
@@ -324,19 +327,22 @@ static int df_read (void)
 			inode_reserved = (uint64_t) (statbuf.f_ffree - statbuf.f_favail);
 			inode_used = (uint64_t) (statbuf.f_files - statbuf.f_ffree);
 
-			if (report_percentage)
+			if (report_percentage && (statbuf.f_files > 0))
 			{
-				if (statbuf.f_files > 0)
-				{
-					df_submit_one (disk_name, "df_inodes_pct", "free",
-							(gauge_t) ((float_t)(inode_free) / statbuf.f_files * 100));
-					df_submit_one (disk_name, "df_inodes_pct", "reserved",
-							(gauge_t) ((float_t)(inode_reserved) / statbuf.f_files * 100));
-					df_submit_one (disk_name, "df_inodes_pct", "used",
-							(gauge_t) ((float_t)(inode_used) / statbuf.f_files * 100));
-				}
+				uint64_t inode_total = (uint64_t) statbuf.f_files;
+				char plugin_instance[DATA_MAX_NAME_LEN];
+
+				ssnprintf (plugin_instance, sizeof (plugin_instance),
+						"%s-inodes", disk_name);
+
+				df_submit_one (plugin_instance, "percent", "free",
+						100.0 * ((gauge_t) inode_free) / ((gauge_t) inode_total));
+				df_submit_one (plugin_instance, "percent", "reserved",
+						100.0 * ((gauge_t) inode_reserved) / ((gauge_t) inode_total));
+				df_submit_one (plugin_instance, "percent", "used",
+						100.0 * ((gauge_t) inode_used) / ((gauge_t) inode_total));
 			}
-			else
+			else if (!report_percentage)
 			{
 				df_submit_one (disk_name, "df_inodes", "free",
 						(gauge_t) inode_free);
