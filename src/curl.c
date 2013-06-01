@@ -630,7 +630,7 @@ static int cc_read_page (web_page_t *wp) /* {{{ */
 {
   web_match_t *wm;
   int status;
-  cdtime_t start;
+  cdtime_t start = 0;
 
   if (wp->response_time)
     start = cdtime ();
