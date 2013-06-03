@@ -36,6 +36,7 @@
   *     Host "localhost"
   *     Port "2003"
   *     Protocol "udp"
+  *     LogSendErrors true
   *     Prefix "collectd"
   *   </Carbon>
   * </Plugin>
@@ -69,6 +70,10 @@
 # define WG_DEFAULT_PROTOCOL "udp"
 #endif
 
+#ifndef WG_DEFAULT_LOG_SEND_ERRORS
+# define WG_DEFAULT_LOG_SEND_ERRORS 1
+#endif
+
 #ifndef WG_DEFAULT_ESCAPE
 # define WG_DEFAULT_ESCAPE '_'
 #endif
@@ -90,6 +95,7 @@ struct wg_callback
     char    *node;
     char    *service;
     char    *protocol;
+    _Bool   log_send_errors;
     char    *prefix;
     char    *postfix;
     char     escape_char;
@@ -122,7 +128,7 @@ static int wg_send_buffer (struct wg_callback *cb)
     ssize_t status = 0;
 
     status = swrite (cb->sock_fd, cb->send_buf, strlen (cb->send_buf));
-    if (status < 0)
+    if (cb->log_send_errors && status < 0)
     {
         char errbuf[1024];
         ERROR ("write_graphite plugin: send to %s:%s (%s) failed with status %zi (%s)",
@@ -463,6 +469,7 @@ static int wg_config_node (oconfig_item_t *ci)
     cb->node = NULL;
     cb->service = NULL;
     cb->protocol = NULL;
+    cb->log_send_errors = WG_DEFAULT_LOG_SEND_ERRORS;
     cb->prefix = NULL;
     cb->postfix = NULL;
     cb->escape_char = WG_DEFAULT_ESCAPE;
@@ -492,6 +499,8 @@ static int wg_config_node (oconfig_item_t *ci)
             cf_util_get_service (child, &cb->service);
         else if (strcasecmp ("Protocol", child->key) == 0)
             cf_util_get_string (child, &cb->protocol);
+        else if (strcasecmp ("LogSendErrors", child->key) == 0)
+            cf_util_get_boolean (child, &cb->log_send_errors);
         else if (strcasecmp ("Prefix", child->key) == 0)
             cf_util_get_string (child, &cb->prefix);
         else if (strcasecmp ("Postfix", child->key) == 0)
