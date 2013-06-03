@@ -37,6 +37,7 @@
 
 #define RIEMANN_HOST		"localhost"
 #define RIEMANN_PORT		"5555"
+#define RIEMANN_TTL_FACTOR      2.0
 
 struct riemann_host {
 	char			*name;
@@ -49,6 +50,7 @@ struct riemann_host {
 	char			*service;
 	_Bool			 use_tcp;
 	int			 s;
+	double			 ttl_factor;
 
 	int			 reference_count;
 };
@@ -365,6 +367,7 @@ static Event *riemann_value_to_protobuf (struct riemann_host const *host, /* {{{
 	Event *event;
 	char name_buffer[5 * DATA_MAX_NAME_LEN];
 	char service_buffer[6 * DATA_MAX_NAME_LEN];
+	double ttl;
 	int i;
 
 	event = malloc (sizeof (*event));
@@ -379,7 +382,9 @@ static Event *riemann_value_to_protobuf (struct riemann_host const *host, /* {{{
 	event->host = strdup (vl->host);
 	event->time = CDTIME_T_TO_TIME_T (vl->time);
 	event->has_time = 1;
-	event->ttl = CDTIME_T_TO_TIME_T (2 * vl->interval);
+
+	ttl = CDTIME_T_TO_DOUBLE (vl->interval) * host->ttl_factor;
+	event->ttl = (float) ttl;
 	event->has_ttl = 1;
 
 	riemann_event_add_attribute (event, "plugin", vl->plugin);
@@ -597,6 +602,7 @@ riemann_config_node(oconfig_item_t *ci)
 	host->store_rates = 1;
 	host->always_append_ds = 0;
 	host->use_tcp = 0;
+	host->ttl_factor = RIEMANN_TTL_FACTOR;
 
 	status = cf_util_get_string (ci, &host->name);
 	if (status != 0) {
@@ -656,6 +662,33 @@ riemann_config_node(oconfig_item_t *ci)
 					&host->always_append_ds);
 			if (status != 0)
 				break;
+		} else if (strcasecmp ("TTLFactor", child->key) == 0) {
+			double tmp = NAN;
+			status = cf_util_get_double (child, &tmp);
+			if (status != 0)
+				break;
+			if (tmp >= 2.0) {
+				host->ttl_factor = tmp;
+			} else if (tmp >= 1.0) {
+				NOTICE ("write_riemann plugin: The configured "
+						"TTLFactor is very small "
+						"(%.1f). A value of 2.0 or "
+						"greater is recommended.",
+						tmp);
+				host->ttl_factor = tmp;
+			} else if (tmp > 0.0) {
+				WARNING ("write_riemann plugin: The configured "
+						"TTLFactor is too small to be "
+						"useful (%.1f). I'll use it "
+						"since the user knows best, "
+						"but under protest.",
+						tmp);
+				host->ttl_factor = tmp;
+			} else { /* zero, negative and NAN */
+				ERROR ("write_riemann plugin: The configured "
+						"TTLFactor is invalid (%.1f).",
+						tmp);
+			}
 		} else {
 			WARNING("write_riemann plugin: ignoring unknown config "
 				"option: \"%s\"", child->key);
