@@ -5848,6 +5848,7 @@ Synopsis:
      Host "localhost"
      Port "2003"
      Protocol "udp"
+     LogSendErrors true
      Prefix "collectd"
    </Node>
  </Plugin>
@@ -5868,6 +5869,13 @@ Service name or port number to connect to. Defaults to C<2003>.
 =item B<Protocol> I<String>
 
 Protocol to use when connecting to I<Graphite>. Defaults to C<tcp>.
+
+=item B<LogSendErrors> B<false>|B<true>
+
+If set to B<true> (the default), logs errors when sending data to I<Graphite>.
+If set to B<false>, it will not log the errors. This is especially useful when
+using Protocol UDP since many times we want to use the "fire-and-forget"
+approach and logging errors fills syslog with unneeded messages.
 
 =item B<Prefix> I<String>
 

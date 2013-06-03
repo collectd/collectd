@@ -1092,6 +1092,7 @@
 #    Host "localhost"
 #    Port "2003"
 #    Protocol "udp"
+#    LogSendErrors true
 #    Prefix "collectd"
 #    Postfix "collectd"
 #    StoreRates true
