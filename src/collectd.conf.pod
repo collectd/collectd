@@ -5837,9 +5837,9 @@ iptables to feed data for the guest IPs into the iptables plugin.
 
 The C<write_graphite> plugin writes data to I<Graphite>, an open-source metrics
 storage and graphing project. The plugin connects to I<Carbon>, the data layer
-of I<Graphite>, and sends data via the "line based" protocol (per default using
-portE<nbsp>2003). The data will be sent in blocks of at most 1428 bytes to
-minimize the number of network packets.
+of I<Graphite>, via I<TCP> or I<UDP> and sends data via the "line based"
+protocol (per default using portE<nbsp>2003). The data will be sent in blocks
+of at most 1428 bytes to minimize the number of network packets.
 
 Synopsis:
 
@@ -5847,6 +5847,7 @@ Synopsis:
    <Node "example">
      Host "localhost"
      Port "2003"
+     Protocol "udp"
      Prefix "collectd"
    </Node>
  </Plugin>
@@ -5863,6 +5864,10 @@ Hostname or address to connect to. Defaults to C<localhost>.
 =item B<Port> I<Service>
 
 Service name or port number to connect to. Defaults to C<2003>.
+
+=item B<Protocol> I<String>
+
+Protocol to use when connecting to I<Graphite>. Defaults to C<tcp>.
 
 =item B<Prefix> I<String>
 

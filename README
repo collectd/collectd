@@ -387,7 +387,7 @@ Features
       done.
 
     - write_graphite
-      Sends data to Carbon, the storage layer of Graphite.
+      Sends data to Carbon, the storage layer of Graphite using TCP or UDP.
 
     - write_http
       Sends the values collected by collectd to a web-server using HTTP POST

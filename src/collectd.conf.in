@@ -1091,6 +1091,7 @@
 #  <Node "example">
 #    Host "localhost"
 #    Port "2003"
+#    Protocol "udp"
 #    Prefix "collectd"
 #    Postfix "collectd"
 #    StoreRates true
