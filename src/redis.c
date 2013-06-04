@@ -724,6 +724,8 @@ static int readCustomQueries(RedisNode *rn)
     sstrncpy(vl.type_instance, query->name, sizeof(vl.type));
 
     plugin_dispatch_values(&vl);
+
+    free(vl.values);
   }
 
   if(rr)
