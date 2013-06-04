@@ -53,6 +53,10 @@
 #if HAVE_IOKIT_IOBSD_H
 #  include <IOKit/IOBSD.h>
 #endif
+#if KERNEL_FREEBSD
+#include <devstat.h>
+#include <libgeom.h>
+#endif
 
 #if HAVE_LIMITS_H
 # include <limits.h>
@@ -107,6 +111,11 @@ typedef struct diskstats
 
 static diskstats_t *disklist;
 /* #endif KERNEL_LINUX */
+#elif KERNEL_FREEBSD
+static void *snap_previous;
+static struct timespec tsnap_previous;
+static struct gmesh geom_tree;
+/* #endif KERNEL_FREEBSD */
 
 #elif HAVE_LIBKSTAT
 #define MAX_NUMDISK 1024
@@ -198,6 +207,27 @@ static int disk_init (void)
 #elif KERNEL_LINUX
 	/* do nothing */
 /* #endif KERNEL_LINUX */
+
+#elif KERNEL_FREEBSD
+	int rv;
+
+	rv = geom_gettree(&geom_tree);
+	if (rv != 0) {
+		ERROR ("geom_gettree() failed, returned %d", rv);
+		return (-1);
+	}
+	rv = geom_stats_open();
+	if (rv != 0) {
+		ERROR ("geom_stats_open() failed, returned %d", rv);
+		return (-1);
+	}
+	snap_previous = geom_stats_snapshot_get();
+	if (snap_previous == NULL) {
+		ERROR ("geom_stats_snapshot_get() failed");
+		return (-1);
+	}
+	geom_stats_snapshot_timestamp(snap_previous, &tsnap_previous);
+/* #endif KERNEL_FREEBSD */
 
 #elif HAVE_LIBKSTAT
 	kstat_t *ksp_chain;
@@ -468,6 +498,151 @@ static int disk_read (void)
 	}
 	IOObjectRelease (disk_list);
 /* #endif HAVE_IOKIT_IOKITLIB_H */
+
+#elif KERNEL_FREEBSD
+	int retry, dirty;
+
+	void *snap_present = NULL;
+	struct devstat *snap_present_iter, *snap_previous_iter;
+	struct timespec tsnap_present;
+
+	struct gident *geom_id;
+	double timedelta;
+	long double ld[11];
+
+	const char *disk_name;
+	derive_t read_bytes, write_bytes;
+	derive_t read_ops, write_ops;
+	derive_t read_time, write_time;
+
+	for (retry = 0, dirty = 1; retry < 5 && dirty == 1; retry++) {
+		if (snap_present != NULL)
+			geom_stats_snapshot_free(snap_present);
+
+		/* Get a fresh copy of stats snapshot */
+		snap_present = geom_stats_snapshot_get();
+		if (snap_present == NULL) {
+			ERROR("disk plugin: geom_stats_snapshot_get() failed.");
+			return (-1);
+		}
+
+		/* Check if we have dirty read from this snapshot */
+		dirty = 0;
+		geom_stats_snapshot_reset(snap_present);
+		while ((snap_present_iter = geom_stats_snapshot_next(snap_present)) != NULL) {
+			if (snap_present_iter->id == NULL)
+				continue;
+			geom_id = geom_lookupid(&geom_tree, snap_present_iter->id);
+
+			/* New device? refresh GEOM tree */
+			if (geom_id == NULL) {
+				geom_deletetree(&geom_tree);
+				if (geom_gettree(&geom_tree) != 0) {
+					ERROR("disk plugin: geom_gettree() failed");
+					geom_stats_snapshot_free(snap_present);
+					return (-1);
+				}
+				geom_id = geom_lookupid(&geom_tree, snap_present_iter->id);
+			}
+			/*
+			 * This should be rare: the device come right before we take the
+			 * snapshot and went away right after it.  We will handle this
+			 * case later, so don't mark dirty but silently ignore it.
+			 */
+			if (geom_id == NULL)
+				continue;
+
+			/* Only collect PROVIDER data */
+			if (geom_id->lg_what != ISPROVIDER)
+				continue;
+
+			/* Only collect data when rank is 1 (physical devices) */
+			if (((struct gprovider *)(geom_id->lg_ptr))->lg_geom->lg_rank != 1)
+				continue;
+
+			/* Check if this is a dirty read quit for another try */
+			if (snap_present_iter->sequence0 != snap_present_iter->sequence1) {
+				dirty = 1;
+				break;
+			}
+		}
+	}
+
+	/*
+	 * Now we have a snapshot that is either clean, or still dirty after 5
+	 * reads.
+	 */
+	geom_stats_snapshot_timestamp(snap_present, &tsnap_present);
+	timedelta = tsnap_present.tv_sec - tsnap_previous.tv_sec;
+	timedelta += (tsnap_present.tv_nsec - tsnap_previous.tv_nsec) * 1e-9;
+	tsnap_previous = tsnap_present;
+
+	/* Reset iterators for both snapshots */
+	geom_stats_snapshot_reset(snap_present);
+	geom_stats_snapshot_reset(snap_previous);
+	for (;;) {
+		snap_present_iter = geom_stats_snapshot_next(snap_present);
+		snap_previous_iter = geom_stats_snapshot_next(snap_previous);
+		if (snap_present_iter == NULL || snap_previous_iter == NULL)
+			break;
+
+		if (snap_present_iter->id == NULL)
+			continue;
+		geom_id = geom_lookupid(&geom_tree, snap_present_iter->id);
+		if (geom_id == NULL)
+			continue;
+		if (geom_id->lg_what != ISPROVIDER)
+			continue;
+		if (((struct gprovider *)(geom_id->lg_ptr))->lg_geom->lg_rank != 1)
+			continue;
+		/* Skip dirty reads, if present */
+		if (dirty && (snap_present_iter->sequence0 != snap_present_iter->sequence1))
+			continue;
+
+		devstat_compute_statistics(snap_present_iter, snap_previous_iter, timedelta,
+		    DSM_TRANSFERS_PER_SECOND, &ld[0],
+
+		    DSM_TRANSFERS_PER_SECOND_READ, &ld[1],
+		    DSM_MB_PER_SECOND_READ, &ld[2],
+		    DSM_MS_PER_TRANSACTION_READ, &ld[3],
+
+		    DSM_TRANSFERS_PER_SECOND_WRITE, &ld[4],
+		    DSM_MB_PER_SECOND_WRITE, &ld[5],
+		    DSM_MS_PER_TRANSACTION_WRITE, &ld[6],
+
+		    DSM_BUSY_PCT, &ld[7],
+
+		    DSM_TRANSFERS_PER_SECOND_FREE, &ld[8],
+		    DSM_MB_PER_SECOND_FREE, &ld[9],
+		    DSM_MS_PER_TRANSACTION_FREE, &ld[10],
+		    DSM_NONE);
+		*snap_previous_iter = *snap_present_iter;
+
+		/* Derive data to be submitted */
+		read_ops = (derive_t)ld[1];
+		write_ops = (derive_t)ld[4];
+		read_bytes = (derive_t)(ld[2] * 1048576LL);
+		write_bytes = (derive_t)(ld[5] * 1048576LL);
+		read_time = (derive_t)ld[3];
+		write_time = (derive_t)ld[6];
+
+		disk_name = ((struct gprovider *)geom_id->lg_ptr)->lg_name;
+
+		if ((read_bytes != 0) || (write_bytes != 0))
+			disk_submit(disk_name, "disk_octets",
+					read_bytes, write_bytes);
+
+		if ((read_ops != 0) || (write_ops != 0))
+			disk_submit(disk_name, "disk_ops",
+					read_ops, write_ops);
+
+		if ((read_time != 0) || (write_time != 0))
+			disk_submit (disk_name, "disk_time",
+					read_time, write_time);
+
+		/* TODO: TRIM statistics collected but not reported. */
+	}
+	geom_stats_snapshot_free(snap_present);
 
 #elif KERNEL_LINUX
 	FILE *fh;
