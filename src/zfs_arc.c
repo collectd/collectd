@@ -160,16 +160,16 @@ static int za_read (void)
 	za_read_gauge (ksp, "size",    "cache_size", "arc");
 	za_read_gauge (ksp, "l2_size", "cache_size", "L2");
 
-        /* Operations */
+	/* Operations */
 	za_read_derive (ksp, "allocated","cache_operation", "allocated");
 	za_read_derive (ksp, "deleted",  "cache_operation", "deleted");
 	za_read_derive (ksp, "stolen",   "cache_operation", "stolen");
 
-        /* Issue indicators */
-        za_read_derive (ksp, "mutex_miss", "mutex_operations", "miss");
+	/* Issue indicators */
+	za_read_derive (ksp, "mutex_miss", "mutex_operations", "miss");
 	za_read_derive (ksp, "hash_collisions", "hash_collisions", "");
 	
-        /* Evictions */
+	/* Evictions */
 	za_read_derive (ksp, "evict_l2_cached",     "cache_eviction", "cached");
 	za_read_derive (ksp, "evict_l2_eligible",   "cache_eviction", "eligible");
 	za_read_derive (ksp, "evict_l2_ineligible", "cache_eviction", "ineligible");
