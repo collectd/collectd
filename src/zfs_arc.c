@@ -49,23 +49,19 @@ const char zfs_arcstat[] = "kstat.zfs.misc.arcstats.";
 typedef void kstat_t;
 #endif
 
-static long long get_zfs_value(void * dummy __unused, const char *kstat_value)
+static long long get_zfs_value(kstat_t *dummy __attribute__((unused)),
+		char const *name)
 {
+	char buffer[256];
 	long long value;
 	size_t valuelen = sizeof(value);
 	int rv;
-	char *key;
 
-	key = ssnprintf_alloc("%s%s", zfs_arcstat, kstat_value);
-	if (key != NULL) {
-		if (strlen(key) > 0) {
-			rv = sysctlbyname(key, (void *)&value, &valuelen, NULL, (size_t)0);
-			free(key);
-			if (rv == 0)
-				return (value);
-		} else
-			free(key);
-	}
+	ssnprintf (buffer, sizeof (buffer), "%s%s", zfs_arcstat, name);
+	rv = sysctlbyname (buffer, (void *) &value, &valuelen,
+			/* new value = */ NULL, /* new length = */ (size_t) 0);
+	if (rv == 0)
+		return (value);
 
 	return (-1);
 }
