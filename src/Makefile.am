@@ -1402,7 +1402,11 @@ pkglib_LTLIBRARIES += zfs_arc.la
 zfs_arc_la_SOURCES = zfs_arc.c
 zfs_arc_la_CFLAGS = $(AM_CFLAGS)
 zfs_arc_la_LDFLAGS = -module -avoid-version
+if BUILD_FREEBSD
+zfs_arc_la_LIBADD = -lm
+else
 zfs_arc_la_LIBADD = -lkstat
+endif
 collectd_LDADD += "-dlopen" zfs_arc.la
 collectd_DEPENDENCIES += zfs_arc.la
 endif
