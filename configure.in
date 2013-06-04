@@ -1368,7 +1368,7 @@ collectd additional packages:])
 
 AM_CONDITIONAL([BUILD_FREEBSD],[test "x$ac_system" = "xFreeBSD"])
 
-AM_CONDITIONAL([BUILD_AIX],[test "x$x$ac_system" = "xAIX"]) 
+AM_CONDITIONAL([BUILD_AIX],[test "x$ac_system" = "xAIX"]) 
 
 if test "x$ac_system" = "xAIX"
 then
