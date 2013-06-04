@@ -226,6 +226,9 @@ Tommie Gannert <d00-tga at d.kth.se>
 Vincent Stehlé <vincent.stehle at free.fr>
  - hddtemp plugin.
 
+Xin Li <delphij at freebsd.org>
+ - FreeBSD port of the ZFS-ARC plugin.
+
 collectd is available at:
   <http://collectd.org/>
 
