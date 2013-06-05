@@ -41,6 +41,7 @@ Twemproxy plugin configuration example:
   PerHostData true
   <Node "mynode">
     Host "127.0.0.1"
+    Port "22222"
   </Node>
 </Plugin>
 */
@@ -58,6 +59,7 @@ struct twemproxy_node_s
 {
   char name[MAX_TWEMPROXY_NAME];
   char host[HOST_NAME_MAX];
+  int port;
   TwemproxyNode *next;
 };
 
@@ -251,6 +253,7 @@ static int twemproxyInit(void)
   {
     .name = "default",
     .host = TWEMPROXY_DEF_HOST,
+    .port = TWEMPROXY_STATS_PORT,
     .next = NULL
   };
 
@@ -322,7 +325,6 @@ static int parseTwemproxyStats(TwemproxyStats *stats, const char* const buffer)
           ERROR("twemproxy plugin: unexpected object type for uptime");
           ret = 1;
           goto end;
-          ;
         }
 
         DEBUG("twemproxy plugin: uptime %ld", json_object_get_int64(poolLevelVal));
@@ -350,7 +352,6 @@ static int parseTwemproxyStats(TwemproxyStats *stats, const char* const buffer)
           ERROR("twemproxy plugin: unexpected object type for pool data");
           ret = 1;
           goto end;
-          ;
         }
 
         if(isJSONField(nodeLevelKey, "client_eof"))
@@ -635,14 +636,15 @@ static int twemproxyRead(void)
 
     if((s = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
-      ERROR("twemproxy plugin: error openning socket");
+      ERROR("twemproxy plugin: error openning socket (%s)", strerror(errno));
       return 1;
     }
 
     if((server = gethostbyname(tn->host)) == NULL)
     {
       ERROR("twemproxy plugin: no such host '%s'", tn->host);
-      goto error;
+      close(s);
+      continue;
     }
 
     memset(&serv_addr, 0, sizeof(serv_addr));
@@ -650,15 +652,17 @@ static int twemproxyRead(void)
     memcpy(&serv_addr.sin_addr, server->h_addr, server->h_length);
 
     serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(TWEMPROXY_STATS_PORT);
+    serv_addr.sin_port = htons(tn->port);
 
     if(connect(s, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
     {
       ERROR("twemproxy plugin: error connecting to '%s' (%s)", tn->host, strerror(errno));
-      goto error;
+      close(s);
+      continue;
     }
 
     posBuffer = 0;
+    status = 0;
 
     do
     {
@@ -667,18 +671,21 @@ static int twemproxyRead(void)
       if(nread == -1 && errno != EAGAIN && errno != EINTR)
       {
         ERROR("twemproxy plugin: reading from '%s': %s", tn->host, strerror(errno));
-        goto error;
+        status = 1;
+        break;
       }
 
       if(nread > 0)
         posBuffer += nread;
-
     }
     while(nread > 0);
 
-    status = parseTwemproxyStats(&stats, buffer);
-
     close(s);
+
+    if(status)
+      continue;
+
+    parseTwemproxyStats(&stats, buffer);
 
     memset(&poolTotal, 0, sizeof(TwemproxyPool));
     memset(&instanceGlobal, 0, sizeof(TwemproxyInstance));
@@ -722,16 +729,9 @@ static int twemproxyRead(void)
     }
 
     twemproxyPoolFree(stats.head);
-
-    if(status)
-      return 1;
   }
 
   return 0;
-
-error:
-  close(s);
-  return 1;
 }
 
 static int twemproxyConfigNode(oconfig_item_t *ci)
@@ -744,6 +744,7 @@ static int twemproxyConfigNode(oconfig_item_t *ci)
   memset(&tn, 0, sizeof(tn));
 
   sstrncpy(tn.host, TWEMPROXY_DEF_HOST, sizeof(tn.host));
+  tn.port = TWEMPROXY_STATS_PORT;
 
   if((status = cf_util_get_string_buffer(ci, tn.name, sizeof(tn.name))))
     return status;
@@ -754,6 +755,16 @@ static int twemproxyConfigNode(oconfig_item_t *ci)
     {
       if((status = cf_util_get_string_buffer(option, tn.host, sizeof(tn.host))))
         return status;
+
+      continue;
+    }
+
+    if(strcasecmp("Port", option->key) == 0)
+    {
+      if((status = cf_util_get_port_number(option)) <= 0)
+        return status;
+
+      tn.port = status;
 
       continue;
     }
