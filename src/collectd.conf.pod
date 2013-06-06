@@ -1511,14 +1511,19 @@ Enable this option if inodes are a scarce resource for you, usually because
 many small files are stored on the disk. This is a usual scenario for mail
 transfer agents and web caches.
 
-=item B<ReportPercentage> B<false>|B<true>
+=item B<ValuesAbsolute> B<true>|B<false>
 
-Enables or disables reporting of disk space and inodes as a percentage.
-Defaults to B<false>.
+Enables or disables reporting of free, used and used disk space in 1K-blocks. 
+Defaults to true.
 
-This is useful for deploying I<collectd> on the cloud, where machines with
-different disk size may exist. Then it is more practical to configure
-thresholds based on relative disk size.
+=item B<ValuesPercentage> B<true>|B<false>
+
+Enables or disables reporting of free, used and used disk space in percentage.
+Defaults to false.
+
+This is useful for deploying collectd on the cloud, where machines with
+different disk size may exist. Then it is more practical to configure thresholds
+based on relative disk size.
 
 =back
 
@@ -6034,7 +6039,7 @@ Synopsis:
      Protocol UDP
      StoreRates true
      AlwaysAppendDS false
-     TTLFactor 2.0
+     Delay 10
    </Node>
    Tag "foobar"
  </Plugin>
@@ -6080,15 +6085,6 @@ If set the B<true>, append the name of the I<Data Source> (DS) to the
 "service", i.e. the field that, together with the "host" field, uniquely
 identifies a metric in I<Riemann>. If set to B<false> (the default), this is
 only done when there is more than one DS.
-
-=item B<TTLFactor> I<Factor>
-
-I<Riemann> events have a I<Time to Live> (TTL) which specifies how long each
-event is considered active. I<collectd> populates this field based on the
-metrics interval setting. This setting controls the factor with which the
-interval is multiplied to set the TTL. The default value is B<2.0>. Unless you
-know exactly what you're doing, you should only increase this setting from its
-default value.
 
 =back
 
