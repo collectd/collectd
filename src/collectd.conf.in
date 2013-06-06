@@ -627,6 +627,7 @@
 #	<Data "data_name">
 #		RegisterBase 1234
 #		RegisterType float
+#		ModbusRegisterType holding
 #		Type gauge
 #		Instance "..."
 #	</Data>
