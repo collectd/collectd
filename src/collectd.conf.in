@@ -469,6 +469,11 @@
 #	InterfaceFormat name
 #</Plugin>
 
+#<Plugin load>
+#	ReportAbsoluteLoad	true
+#	ReportRelativeLoad	false
+#</Plugin>
+
 #<Plugin lpar>
 #	CpuPoolStats   false
 #	ReportBySerial false

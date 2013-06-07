@@ -2104,6 +2104,30 @@ interface path might change between reboots of a guest or across migrations.
 
 =back
 
+=head2 Plugin C<load>
+
+The I<Load plugin> collects the system load. These numbers give a rough overview 
+over the utilization of a machine. The system load is defined as the number of 
+runnable tasks in the run-queue and is provided by many operating systems as a 
+one, five or fifteen minute average.
+
+The following configuration options are available:
+
+=over 4
+
+=item B<ReportAbsoluteLoad> B<false>|B<true>
+
+When enabled, system load is reported for intervals 1 min, 5 min
+and 15 min.
+Defaults to true.
+
+=item B<ReportRelativeLoad> B<false>|B<true>
+
+When enabled, system load divided by number of available CPU cores is reported 
+for intervals 1 min, 5 min and 15 min. Defaults to false.
+
+=back
+
 =head2 Plugin C<logfile>
 
 =over 4

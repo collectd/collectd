@@ -90,6 +90,7 @@ irq			value:DERIVE:0:U
 latency			value:GAUGE:0:65535
 links			value:GAUGE:0:U
 load			shortterm:GAUGE:0:100, midterm:GAUGE:0:100, longterm:GAUGE:0:100
+load_relative		shortterm:GAUGE:0:100, midterm:GAUGE:0:100, longterm:GAUGE:0:100
 md_disks		value:GAUGE:0:U
 memcached_command	value:DERIVE:0:U
 memcached_connections	value:GAUGE:0:U
