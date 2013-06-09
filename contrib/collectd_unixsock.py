@@ -158,7 +158,7 @@ class Collectd():
         self._sock.send(c + "\n")
         status_message = self._readline()
         if self.noisy:
-            print "[recive] %s" % status_message
+            print "[receive] %s" % status_message
         if not status_message:
             return None
         code, message = status_message.split(' ', 1)
