@@ -2503,8 +2503,8 @@ AM_CONDITIONAL(BUILD_WITH_LIBMYSQL, test "x$with_libmysql" = "xyes")
 
 # --with-libnetlink {{{
 with_libnetlink_cflags=""
-with_libnetlink_libs="-lnetlink"
-AC_ARG_WITH(libnetlink, [AS_HELP_STRING([--with-libnetlink@<:@=PREFIX@:>@], [Path to libnetlink.])],
+with_libnetlink_libs="-lmnl"
+AC_ARG_WITH(libnetlink, [AS_HELP_STRING([--with-libnetlink@<:@=PREFIX@:>@], [Path to libmnl.])],
 [
  echo "libnetlink: withval = $withval"
  if test "x$withval" = "xyes"
@@ -2517,7 +2517,7 @@ AC_ARG_WITH(libnetlink, [AS_HELP_STRING([--with-libnetlink@<:@=PREFIX@:>@], [Pat
 	 if test -d "$withval/include"
 	 then
 		 with_libnetlink_cflags="-I$withval/include"
-		 with_libnetlink_libs="-L$withval/lib -lnetlink"
+		 with_libnetlink_libs="-L$withval/lib -lmnl"
 		 with_libnetlink="yes"
 	 else
 		 AC_MSG_ERROR("no such directory: $withval/include")
