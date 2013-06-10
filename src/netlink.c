@@ -201,7 +201,7 @@ static void submit_two (const char *dev, const char *type,
   plugin_dispatch_values (&vl);
 } /* void submit_two */
 
-static int update_iflist(struct ifinfomsg *msg)
+static int update_iflist(struct ifinfomsg *msg, const char *dev)
 {
   /* Update the `iflist'. It's used to know which interfaces exist and query
    * them later for qdiscs and classes. */
@@ -300,7 +300,7 @@ static int link_filter_cb (const struct nlmsghdr *nlh,
     }
 
     dev = mnl_attr_get_str (attr);
-    if (update_iflist (ifm) < 0)
+    if (update_iflist (ifm, dev) < 0)
       return MNL_CB_ERROR;
     break;
   }
@@ -336,6 +336,7 @@ static int link_filter_cb (const struct nlmsghdr *nlh,
   return MNL_CB_OK;
 } /* int link_filter_cb */
 
+#if HAVE_TCA_STATS2
 static int qos_attr_cb (const struct nlattr *attr, void *data)
 {
   struct gnet_stats_basic *bs = *(struct gnet_stats_basic **)data;
@@ -357,10 +358,13 @@ static int qos_attr_cb (const struct nlattr *attr, void *data)
 
   return MNL_CB_OK;
 } /* qos_attr_cb */
+#endif
 
-static int qos_filter_cb (constr struct nlmsghdr *nlh, void *args)
+static int qos_filter_cb (const struct nlmsghdr *nlh, void *args)
 {
   struct tcmsg *tm = mnl_nlmsg_get_payload(nlh);
+  struct nlattr *attr;
+
   int wanted_ifindex = *((int *) args);
 
   const char *dev;
@@ -402,11 +406,11 @@ static int qos_filter_cb (constr struct nlmsghdr *nlh, void *args)
     return MNL_CB_ERROR;
   }
 
-  dev = iflist[msg->tcm_ifindex];
+  dev = iflist[tm->tcm_ifindex];
   if (dev == NULL)
   {
     ERROR ("netlink plugin: qos_filter_cb: iflist[%i] == NULL",
-	msg->tcm_ifindex);
+	tm->tcm_ifindex);
     return MNL_CB_ERROR;
   }
 
@@ -615,6 +619,8 @@ static int ir_read (void)
   int ret;
   unsigned int seq, portid;
 
+  size_t ifindex;
+
   static const int type_id[] = { RTM_GETQDISC, RTM_GETTCLASS, RTM_GETTFILTER };
   static const char *type_name[] = { "qdisc", "class", "filter" };
 
@@ -649,7 +655,7 @@ static int ir_read (void)
 
   /* `link_filter_cb' will update `iflist' which is used here to iterate
    * over all interfaces. */
-  for (ifindex = 0; (size_t) ifindex < iflist_len; ifindex++)
+  for (ifindex = 0; ifindex < iflist_len; ifindex++)
   {
     struct tcmsg *tm;
     int ifindex;
