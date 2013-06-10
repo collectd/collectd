@@ -369,12 +369,12 @@ static int qos_filter_cb (const struct nlmsghdr *nlh, void *args)
 
   const char *dev;
   const char *kind = NULL;
-  struct gnet_stats_basic *bs = NULL;
-  struct tc_stats *ts = NULL;
 
   /* char *type_instance; */
   char *tc_type;
   char tc_inst[DATA_MAX_NAME_LEN];
+
+  int __attribute__((unused)) stats_found = 0;
 
   if (tm->tcm_ifindex != wanted_ifindex)
   {
@@ -457,6 +457,8 @@ static int qos_filter_cb (const struct nlmsghdr *nlh, void *args)
 #if HAVE_TCA_STATS2
   mnl_attr_for_each (attr, nlh, sizeof (*tm))
   {
+    struct gnet_stats_basic *bs = NULL;
+
     if (mnl_attr_get_type(attr) != TCA_STATS2)
       continue;
 
@@ -468,10 +470,13 @@ static int qos_filter_cb (const struct nlmsghdr *nlh, void *args)
 
     mnl_attr_parse_nested(attr, qos_attr_cb, &bs);
 
+    if (bs != NULL)
+      stats_found = 1;
+
     break;
   }
 
-  if (bs != NULL)
+  if (stats_found)
   {
     char type_instance[DATA_MAX_NAME_LEN];
 
@@ -486,6 +491,8 @@ static int qos_filter_cb (const struct nlmsghdr *nlh, void *args)
 #if HAVE_TCA_STATS
   mnl_attr_for_each (attr, nlh, sizeof (*tm))
   {
+    struct tc_stats *ts = NULL;
+
     if (mnl_attr_get_type(attr) != TCA_STATS)
       continue;
 
@@ -495,19 +502,21 @@ static int qos_filter_cb (const struct nlmsghdr *nlh, void *args)
       return MNL_CB_ERROR;
     }
     ts = mnl_attr_get_payload(attr);
+
+    if (!stats_found && ts != NULL)
+    {
+      char type_instance[DATA_MAX_NAME_LEN];
+
+      ssnprintf (type_instance, sizeof (type_instance), "%s-%s",
+          tc_type, tc_inst);
+
+      submit_one (dev, "ipt_bytes", type_instance, ts->bytes);
+      submit_one (dev, "ipt_packets", type_instance, ts->packets);
+    }
+
     break;
   }
 
-  if (bs == NULL && ts != NULL)
-  {
-    char type_instance[DATA_MAX_NAME_LEN];
-
-    ssnprintf (type_instance, sizeof (type_instance), "%s-%s",
-	tc_type, tc_inst);
-
-    submit_one (dev, "ipt_bytes", type_instance, ts->bytes);
-    submit_one (dev, "ipt_packets", type_instance, ts->packets);
-  }
 #endif /* TCA_STATS */
 
 #if !(HAVE_TCA_STATS && HAVE_TCA_STATS2)
