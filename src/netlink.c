@@ -374,7 +374,7 @@ static int qos_filter_cb (const struct nlmsghdr *nlh, void *args)
   char *tc_type;
   char tc_inst[DATA_MAX_NAME_LEN];
 
-  int __attribute__((unused)) stats_found = 0;
+  int __attribute__((unused)) stats_submitted = 0;
 
   if (tm->tcm_ifindex != wanted_ifindex)
   {
@@ -471,20 +471,19 @@ static int qos_filter_cb (const struct nlmsghdr *nlh, void *args)
     mnl_attr_parse_nested(attr, qos_attr_cb, &bs);
 
     if (bs != NULL)
-      stats_found = 1;
+    {
+      char type_instance[DATA_MAX_NAME_LEN];
+
+      stats_submitted = 1;
+
+      ssnprintf (type_instance, sizeof (type_instance), "%s-%s",
+          tc_type, tc_inst);
+
+      submit_one (dev, "ipt_bytes", type_instance, bs->bytes);
+      submit_one (dev, "ipt_packets", type_instance, bs->packets);
+    }
 
     break;
-  }
-
-  if (stats_found)
-  {
-    char type_instance[DATA_MAX_NAME_LEN];
-
-    ssnprintf (type_instance, sizeof (type_instance), "%s-%s",
-        tc_type, tc_inst);
-
-    submit_one (dev, "ipt_bytes", type_instance, bs->bytes);
-    submit_one (dev, "ipt_packets", type_instance, bs->packets);
   }
 #endif /* TCA_STATS2 */
 
@@ -503,7 +502,7 @@ static int qos_filter_cb (const struct nlmsghdr *nlh, void *args)
     }
     ts = mnl_attr_get_payload(attr);
 
-    if (!stats_found && ts != NULL)
+    if (!stats_submitted && ts != NULL)
     {
       char type_instance[DATA_MAX_NAME_LEN];
 
