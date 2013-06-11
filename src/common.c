@@ -670,8 +670,6 @@ long long get_kstat_value (kstat_t *ksp, char *name)
 
 int kstatvaluetostring (kstat_named_t *kn, char *ret_name, size_t ret_name_size, char *ret_value, size_t ret_value_size)
 {
-  char tmp_val[16];
-
   if (kn == NULL)
     return (-1);
 

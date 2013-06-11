@@ -220,11 +220,12 @@ static int read_kstat(const char *mod_name)
         && (ksp_chain->ks_type == KSTAT_TYPE_NAMED)
        ) {						
 
+      int i;
       kstat_named_t *kn = NULL;				
       kstat_read(kc, ksp_chain, kn);			
       kn = (kstat_named_t *)ksp_chain->ks_data;								
 
-      for(int i=0; (kn != NULL) && (i<ksp_chain->ks_ndata); i++,kn++)
+      for(i=0; (kn != NULL) && (i<ksp_chain->ks_ndata); i++,kn++)
       {	
         char value[sizeof(kn->value)];
         char name[KSTAT_STRLEN];
