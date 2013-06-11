@@ -447,7 +447,7 @@ static int cpu_read (void)
 
 #elif defined(HAVE_LIBKSTAT)
 	int cpu;
-	derive_t user, syst, idle, wait, total;
+	derive_t user, syst, idle, wait;
 	derive_t tuser = 0, tsyst = 0, tidle = 0, twait = 0;
 	static cpu_stat_t cs;
 	unsigned long local_copy_of_numcpu = numcpu;
