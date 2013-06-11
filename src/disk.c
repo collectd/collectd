@@ -220,7 +220,7 @@ static int parse_path_to_inst (void) {
 						fclose(fh);
 						return(1);
 				}
-				snprintf(driver_binding_name, l, "%s%d", pbuffer,n);
+				snprintf(driver_binding_name, l, "%s%ld", pbuffer,n);
 
 				/* Check if already known. If not, create a new one. */
 				if(0 != c_avl_get(solaris_disks_by_name, driver_binding_name, (void **) &disk)) {
@@ -291,8 +291,6 @@ int read_solaris_dev(char *path) {
 
 		errno = 0;
 		while((0 == readdir_r(dp,de_buffer,&de)) && (NULL != de)) {
-				char *device;
-				char *link;
 				char *partition;
 				size_t l,l2;
 				solaris_disk_names_t *disk;
