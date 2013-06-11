@@ -333,9 +333,9 @@ static int interface_read (void)
 		if(solaris_version_10_and_upper && 
 						( !strcmp("mac", ksp[i]->ks_name) || !strcmp("phys", ksp[i]->ks_name) )
 		  ) {
-				snprintf(device_name, sizeof(device_name), "%s%ld", ksp[i]->ks_module, ksp[i]->ks_instance);
+				snprintf(device_name, sizeof(device_name), "%s%d", ksp[i]->ks_module, ksp[i]->ks_instance);
 		} else {
-				snprintf(device_name, sizeof(device_name), "%s_%ld", ksp[i]->ks_name, ksp[i]->ks_instance);
+				snprintf(device_name, sizeof(device_name), "%s_%d", ksp[i]->ks_name, ksp[i]->ks_instance);
 		}
 
 		/* try to get 64bit counters */
