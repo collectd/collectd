@@ -329,7 +329,9 @@ typedef struct {
 	time_t last_updated;
 } mountstats_t;
 
+#if KERNEL_LINUX
 static c_avl_tree_t *mountstats_per_mountpoint = NULL;
+#endif
 
 typedef enum {
 	psm_state_start,
