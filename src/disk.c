@@ -234,14 +234,13 @@ static int disk_init (void)
 
 #if KERNEL_LINUX
 
-#define MAX_RESOLVELEN 1024
-
-static int resolve_linked_device_aliases(const char **search_paths, int num_search_paths, const char *real_device, char*** aliases)
+static int resolve_linked_device_aliases(const char **search_paths, int num_search_paths,
+		const char *real_device, char*** aliases)
 {
 	int i,linkname_allocamount,n_found_aliases=0;
 	char** reallocated_aliases = NULL;
-	char link_path[MAX_RESOLVELEN];
-	char buf[MAX_RESOLVELEN];
+	char link_path[NAME_MAX];
+	char buf[NAME_MAX];
 	char *dev_basename;
 	ssize_t link_len;
 	DIR *dir;
@@ -253,9 +252,9 @@ static int resolve_linked_device_aliases(const char **search_paths, int num_sear
 		{
 			while((ent = readdir(dir)) != NULL)
 			{
-				snprintf(link_path, MAX_RESOLVELEN, "%s/%s", search_paths[i], ent->d_name);
+				snprintf(link_path, NAME_MAX, "%s/%s", search_paths[i], ent->d_name);
 
-				if((link_len = readlink(link_path, buf, (MAX_RESOLVELEN - 1))) != -1)
+				if((link_len = readlink(link_path, buf, (NAME_MAX - 1))) != -1)
 				{
 					buf[link_len] = '\0';
 					/* small implementation of basename, will point to \0 if link is to / */
