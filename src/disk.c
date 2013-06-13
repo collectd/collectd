@@ -81,6 +81,9 @@ static _Bool use_bsd_name = 0;
 /* #endif HAVE_IOKIT_IOKITLIB_H */
 
 #elif KERNEL_LINUX
+
+static _Bool use_named_symlinks = 0;
+
 typedef struct diskstats
 {
 	char *name;
@@ -132,7 +135,8 @@ static const char *config_keys[] =
 {
 	"Disk",
 	"UseBSDName",
-	"IgnoreSelected"
+	"IgnoreSelected",
+	"UseNamedSymlinks"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -164,6 +168,10 @@ static int disk_config (const char *key, const char *value)
     WARNING ("disk plugin: The \"UseBSDName\" option is only supported "
         "on Mach / Mac OS X and will be ignored.");
 #endif
+  }
+  else if (strcasecmp ("UseNamedSymlinks", key) == 0)
+  {
+    use_named_symlinks = IS_TRUE (value) ? 1 : 0;
   }
   else
   {
@@ -223,16 +231,97 @@ static int disk_init (void)
 	return (0);
 } /* int disk_init */
 
+
+#if KERNEL_LINUX
+
+#define MAX_RESOLVELEN 1024
+
+static int resolve_linked_device_aliases(const char **search_paths, int num_search_paths, const char *real_device, char*** aliases)
+{
+	int i,linkname_allocamount,n_found_aliases=0;
+	char** reallocated_aliases = NULL;
+	char link_path[MAX_RESOLVELEN];
+	char buf[MAX_RESOLVELEN];
+	char *dev_basename;
+	ssize_t link_len;
+	DIR *dir;
+	struct dirent *ent;
+
+	for(i=0;i<num_search_paths;++i)
+	{
+		if((dir = opendir(search_paths[i])) != NULL)
+		{
+			while((ent = readdir(dir)) != NULL)
+			{
+				snprintf(link_path, MAX_RESOLVELEN, "%s/%s", search_paths[i], ent->d_name);
+
+				if((link_len = readlink(link_path, buf, (MAX_RESOLVELEN - 1))) != -1)
+				{
+					buf[link_len] = '\0';
+					/* small implementation of basename, will point to \0 if link is to / */
+					dev_basename = (strrchr(buf, '/') + 1);
+
+					if(strcmp(real_device, dev_basename) == 0)
+					{
+						++n_found_aliases;
+						reallocated_aliases = (char**)realloc(*aliases, sizeof(char*) * n_found_aliases);
+						if(reallocated_aliases != NULL)
+						{
+							*aliases = reallocated_aliases;
+							reallocated_aliases = NULL;
+
+							linkname_allocamount = strlen(ent->d_name) + 1;
+							(*aliases)[n_found_aliases-1] = (char*)malloc(sizeof(char) * (linkname_allocamount));
+
+							if(((*aliases)[n_found_aliases-1]) != NULL) {
+								strncpy(((*aliases)[n_found_aliases-1]), ent->d_name, (linkname_allocamount));
+							}
+						}
+						else
+						{
+							/* failed to allocate space for alias so decrement the count... */
+							--n_found_aliases;
+						}
+					}
+				}
+			}
+			closedir(dir);
+		}
+	}
+
+	return n_found_aliases;
+}
+
+#endif
+
+
 static void disk_submit (const char *plugin_instance,
 		const char *type,
 		derive_t read, derive_t write)
 {
+#if KERNEL_LINUX
+	int n_disk_aliases,i;
+	char **aliases = NULL;
+	const char *alias_search_paths[] = {
+		"/dev/disk/by-id",
+		"/dev/disk/by-label",
+		"/dev/disk/by-path",
+		"/dev/disk/by-uuid"
+	};
+	int n_alias_search_paths = STATIC_ARRAY_SIZE(alias_search_paths);
+#endif
 	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
 
+#if KERNEL_LINUX
+	/* Both `ignorelist' and `plugin_instance' may be NULL. */
+	if (ignorelist_match (ignorelist, plugin_instance) != 0 && use_named_symlinks == 0)
+	  return;
+#else
 	/* Both `ignorelist' and `plugin_instance' may be NULL. */
 	if (ignorelist_match (ignorelist, plugin_instance) != 0)
 	  return;
+#endif
 
 	values[0].derive = read;
 	values[1].derive = write;
@@ -241,11 +330,58 @@ static void disk_submit (const char *plugin_instance,
 	vl.values_len = 2;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "disk", sizeof (vl.plugin));
+
+#if KERNEL_LINUX
+	sstrncpy (vl.type, type, sizeof (vl.type));
+
+	/* We can use /dev/disk named symlinks here if requested */
+	if (use_named_symlinks == 1)
+	{
+		n_disk_aliases = resolve_linked_device_aliases(alias_search_paths,
+				n_alias_search_paths, plugin_instance, &aliases);
+
+		if(n_disk_aliases > 0)
+		{
+			for(i=0;i<n_disk_aliases;++i)
+			{
+				if(aliases[i] != NULL)
+				{
+					if (ignorelist_match (ignorelist, aliases[i]) == 0)
+					{
+						sstrncpy (vl.plugin_instance, aliases[i],
+								sizeof (vl.plugin_instance));
+
+						plugin_dispatch_values (&vl);
+					}
+
+					free(aliases[i]);
+					aliases[i] = NULL;
+				}
+			}
+
+			if(aliases != NULL)
+			{
+				free(aliases);
+				aliases = NULL;
+			}
+		}
+	}
+	else
+	{
+		sstrncpy (vl.plugin_instance, plugin_instance,
+				sizeof (vl.plugin_instance));
+
+		plugin_dispatch_values (&vl);
+	}
+
+#else
 	sstrncpy (vl.plugin_instance, plugin_instance,
 			sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, type, sizeof (vl.type));
 
 	plugin_dispatch_values (&vl);
+#endif
+
 } /* void disk_submit */
 
 #if KERNEL_LINUX
