@@ -24,12 +24,21 @@
 #include "plugin.h"
 #include "utils_ignorelist.h"
 
-#if !KERNEL_LINUX
+#if !(KERNEL_LINUX || KERNEL_SOLARIS)
 # error "No applicable input method."
 #endif
 
+#if KERNEL_LINUX
 #define SNMP_FILE "/proc/net/snmp"
 #define NETSTAT_FILE "/proc/net/netstat"
+#endif
+
+/*
+ * On Solaris, all the key/value pairs are read via kstat
+ */
+#if HAVE_KSTAT_H
+#include <kstat.h>
+#endif 
 
 /*
  * Global variables
@@ -72,6 +81,7 @@ static void submit (const char *protocol_name,
   plugin_dispatch_values (&vl);
 } /* void submit */
 
+#if KERNEL_LINUX
 static int read_file (const char *path)
 {
   FILE *fh;
@@ -188,12 +198,62 @@ static int read_file (const char *path)
 
   return (status);
 } /* int read_file */
+#endif
+
+#if KERNEL_SOLARIS && HAVE_KSTAT_H
+/*
+ * Retrieves all available key/value pairs for IP, ICMP, UDP and TCP from kstat
+ * modules ip, icmp, tcp and udp
+ */
+static int read_kstat(const char *mod_name)
+{
+  extern kstat_ctl_t *kc;
+  kstat_t *ksp_chain = NULL;
+
+  if (mod_name == NULL) return (-1);
+
+  if (kc == NULL) return (-1);
+
+  for (ksp_chain = kc->kc_chain; ksp_chain != NULL; ksp_chain = ksp_chain->ks_next) {
+    if (
+        (0 == strncmp(ksp_chain->ks_module, mod_name, sizeof (ksp_chain->ks_module)))
+        && (ksp_chain->ks_type == KSTAT_TYPE_NAMED)
+       ) {						
+
+      int i;
+      kstat_named_t *kn = NULL;				
+      kstat_read(kc, ksp_chain, kn);			
+      kn = (kstat_named_t *)ksp_chain->ks_data;								
+
+      for(i=0; (kn != NULL) && (i<ksp_chain->ks_ndata); i++,kn++)
+      {	
+        char value[sizeof(kn->value)];
+        char name[KSTAT_STRLEN];
+
+        if (kn == NULL) {						
+          continue;
+        }
+
+        kstatvaluetostring(kn, name, sizeof(name), value, sizeof(value));				
+        if((strlen(name) > 0) && 
+            (strlen(value) > 0))
+        {
+          submit(mod_name, name, value);						
+        }
+
+      } /* end for */
+    } /* end if mod_name && KSTAT_TYPE_NAMED */		
+  } /* end main for loop */	
+  return (0);
+}
+#endif
 
 static int protocols_read (void)
 {
   int status;
   int success = 0;
 
+#if KERNEL_LINUX
   status = read_file (SNMP_FILE);
   if (status == 0)
     success++;
@@ -201,6 +261,20 @@ static int protocols_read (void)
   status = read_file (NETSTAT_FILE);
   if (status == 0)
     success++;
+#elif KERNEL_SOLARIS
+  status = read_kstat("ip");
+  if (status == 0)
+    success++;
+  status = read_kstat("icmp");
+  if (status == 0)
+    success++;
+  status = read_kstat("udp");
+  if (status == 0)
+    success++;
+  status = read_kstat("tcp");
+  if (status == 0)
+    success++;
+#endif
 
   if (success == 0)
     return (-1);
