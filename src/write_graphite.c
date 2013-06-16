@@ -199,14 +199,8 @@ static int wg_callback_init (struct wg_callback *cb)
 
     if (0 == strcasecmp ("tcp", protocol))
         ai_hints.ai_socktype = SOCK_STREAM;
-    else if (0 == strcasecmp ("udp", protocol))
-        ai_hints.ai_socktype = SOCK_DGRAM;
     else
-    {
-        ERROR ("write_graphite plugin: unknown protocol (%s)",
-                protocol);
-        return (-1);
-    }
+        ai_hints.ai_socktype = SOCK_DGRAM;
 
     ai_list = NULL;
 
@@ -499,7 +493,17 @@ static int wg_config_node (oconfig_item_t *ci)
         else if (strcasecmp ("Port", child->key) == 0)
             cf_util_get_service (child, &cb->service);
         else if (strcasecmp ("Protocol", child->key) == 0)
+        {
             cf_util_get_string (child, &cb->protocol);
+
+            if (strcasecmp ("UDP", cb->protocol) != 0 &&
+                strcasecmp ("TCP", cb->protocol) != 0)
+            {
+                ERROR ("write_graphite plugin: Unknown protocol (%s)",
+                        cb->protocol);
+                status = -1;
+            }
+        }
         else if (strcasecmp ("LogSendErrors", child->key) == 0)
             cf_util_get_boolean (child, &cb->log_send_errors);
         else if (strcasecmp ("Prefix", child->key) == 0)
