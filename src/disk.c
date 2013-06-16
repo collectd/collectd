@@ -73,6 +73,13 @@
 # include <libperfstat.h>
 #endif
 
+#if __FreeBSD__
+# include <sys/devicestat.h>
+# include <sys/resource.h>
+# include <devstat.h>
+# include <libgeom.h>
+#endif
+
 #if HAVE_IOKIT_IOKITLIB_H
 static mach_port_t io_master_port = MACH_PORT_NULL;
 /* This defaults to false for backwards compatibility. Please fix in the next
@@ -114,6 +121,12 @@ extern kstat_ctl_t *kc;
 static kstat_t *ksp[MAX_NUMDISK];
 static int numdisk = 0;
 /* #endif HAVE_LIBKSTAT */
+
+#elif defined(_LIBGEOM_H_)
+static void *cursnap, *oldsnap;
+static struct timespec cursnaptime, oldsnaptime;
+static struct gmesh geom_tree;
+/* #endif defined(_LIBGEOM_H_) */
 
 #elif defined(HAVE_LIBSTATGRAB)
 /* #endif HAVE_LIBKSTATGRAB */
@@ -218,7 +231,29 @@ static int disk_init (void)
 			continue;
 		ksp[numdisk++] = ksp_chain;
 	}
-#endif /* HAVE_LIBKSTAT */
+/* #endif HAVE_LIBKSTAT */
+
+#elif defined(_LIBGEOM_H_)
+	int i;
+
+	i = geom_gettree(&geom_tree);
+	if (i != 0) {
+		ERROR ("geom_gettree() failed, returned %d", i);
+		return(-1);
+	}
+	i = geom_stats_open();
+	if (i != 0) {
+		ERROR ("geom_stats_open() failed");
+		return(-1);
+	}
+	oldsnap = NULL;
+	oldsnap = geom_stats_snapshot_get();
+	if (oldsnap == NULL) {
+		ERROR ("geom_stats_snapshot_get() failed");
+		return(-1);
+	};
+	geom_stats_snapshot_timestamp(oldsnap, &oldsnaptime);
+#endif /* defined(_LIBGEOM_H_) */
 
 	return (0);
 } /* int disk_init */
@@ -729,6 +764,83 @@ static int disk_read (void)
 		}
 	}
 /* #endif defined(HAVE_LIBKSTAT) */
+
+#elif defined(_LIBGEOM_H_)
+	long double ld[11];
+	uint64_t u64;
+	struct gprovider *pp;
+	struct devstat *cursnap_iter, *oldsnap_iter;
+	double timedelta;
+	struct gident *geom_id;
+	int i;
+	cursnap = geom_stats_snapshot_get();
+	if (cursnap == NULL) {
+		ERROR ("geom_stats_snapshot() returned null");
+		return(-1);
+	}
+	geom_stats_snapshot_timestamp(cursnap, &cursnaptime);
+	timedelta = cursnaptime.tv_sec - oldsnaptime.tv_sec;
+	timedelta += (cursnaptime.tv_nsec - oldsnaptime.tv_nsec) * 1e-9;
+	oldsnaptime = cursnaptime;
+
+	geom_stats_snapshot_reset(cursnap);
+	geom_stats_snapshot_reset(oldsnap);
+	for (;;) {
+		cursnap_iter = geom_stats_snapshot_next(cursnap);
+		oldsnap_iter = geom_stats_snapshot_next(oldsnap);
+		if (cursnap_iter == NULL || oldsnap_iter == NULL)
+			break;
+		if (cursnap_iter->id == NULL)
+			continue;
+		geom_id = geom_lookupid(&geom_tree, cursnap_iter->id);
+		if (geom_id == NULL) {
+			geom_deletetree(&geom_tree);
+			i = geom_gettree(&geom_tree);
+			if (i != 0) {
+				ERROR ("geom_gettree = %d", i);
+				return(-1);
+			}
+			geom_id = geom_lookupid(&geom_tree, cursnap_iter->id);
+		}
+		if (geom_id == NULL)
+			continue;
+		/* Only PROVIDER */
+		if (geom_id->lg_what == ISCONSUMER)
+			continue;
+		if (cursnap_iter->sequence0 != cursnap_iter->sequence1) {
+			/* I am dont understand this */
+			continue;
+		}
+		if (geom_id->lg_what == ISPROVIDER) {
+			pp = geom_id->lg_ptr;
+			if (ignorelist_match (ignorelist, pp->lg_name) != 0) {
+				continue;
+			}
+			/* Some parametres keep for future*/
+			devstat_compute_statistics(cursnap_iter, oldsnap_iter, timedelta, 
+			    DSM_QUEUE_LENGTH, &u64,
+			    DSM_TRANSFERS_PER_SECOND, &ld[0],
+			    DSM_TRANSFERS_PER_SECOND_READ, &ld[1],
+			    DSM_MB_PER_SECOND_READ, &ld[2],
+			    DSM_MS_PER_TRANSACTION_READ, &ld[3],
+			    DSM_TRANSFERS_PER_SECOND_WRITE, &ld[4],
+			    DSM_MB_PER_SECOND_WRITE, &ld[5],
+			    DSM_MS_PER_TRANSACTION_WRITE, &ld[6],
+			    DSM_BUSY_PCT, &ld[7],
+			    DSM_TRANSFERS_PER_SECOND_FREE, &ld[8],
+			    DSM_MB_PER_SECOND_FREE, &ld[9],
+			    DSM_MS_PER_TRANSACTION_FREE, &ld[10],
+			    DSM_NONE);
+			disk_submit (pp->lg_name, "disk_ops", ld[1], ld[4]);
+			disk_submit (pp->lg_name, "disk_octets", ld[2], ld[5]);
+			disk_submit (pp->lg_name, "disk_time", ld[3], ld[6]);
+			// Hide this so I don't have to impletment submit()
+			//submit(pp->lg_name, "gdisk_busy", ld[7]);
+		}
+		*oldsnap_iter = *cursnap_iter;
+	}
+	geom_stats_snapshot_free(cursnap);
+/* #endif defined(_LIBGEOM_H_) */
 
 #elif defined(HAVE_LIBSTATGRAB)
 	sg_disk_io_stats *ds;

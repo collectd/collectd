@@ -72,6 +72,9 @@ endif
 if BUILD_AIX
 collectd_LDFLAGS += -Wl,-bexpall,-brtllib
 endif
+if BUILD_FREEBSD
+collectd_LDFLAGS += -lgeom
+endif
 
 # The daemon needs to call sg_init, so we need to link it against libstatgrab,
 # too. -octo
