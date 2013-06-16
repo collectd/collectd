@@ -456,6 +456,7 @@ static int wg_config_node (oconfig_item_t *ci)
     user_data_t user_data;
     char callback_name[DATA_MAX_NAME_LEN];
     int i;
+    int status = 0;
 
     cb = malloc (sizeof (*cb));
     if (cb == NULL)
@@ -478,7 +479,7 @@ static int wg_config_node (oconfig_item_t *ci)
     /* FIXME: Legacy configuration syntax. */
     if (strcasecmp ("Carbon", ci->key) != 0)
     {
-        int status = cf_util_get_string (ci, &cb->name);
+        status = cf_util_get_string (ci, &cb->name);
         if (status != 0)
         {
             wg_callback_free (cb);
@@ -520,7 +521,17 @@ static int wg_config_node (oconfig_item_t *ci)
         {
             ERROR ("write_graphite plugin: Invalid configuration "
                         "option: %s.", child->key);
+            status = -1;
         }
+
+        if (status != 0)
+            break;
+    }
+
+    if (status != 0)
+    {
+        wg_callback_free (cb);
+        return (status);
     }
 
     /* FIXME: Legacy configuration syntax. */
