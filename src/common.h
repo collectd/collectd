@@ -129,6 +129,29 @@ int strsplit (char *string, char **fields, size_t size);
 
 /*
  * NAME
+ *   strsplitsep
+ *
+ * DESCRIPTION
+ *   Splits a string into parts and stores pointers to the parts in `fields'.
+ *   The string with characters that act as field separators is given as an
+ *   argument (`sep').
+ *
+ * PARAMETERS
+ *   `string'      String to split. This string will be modified. `fields' will
+ *                 contain pointers to parts of this string, so free'ing it
+ *                 will destroy `fields' as well.
+ *   `fields'      Array of strings where pointers to the parts will be stored.
+ *   `sep'         String with characters that act as field separators.
+ *   `size'        Number of elements in the array. No more than `size'
+ *                 pointers will be stored in `fields'.
+ *
+ * RETURN VALUE
+ *    Returns the number of parts stored in `fields'.
+ */
+int strsplitsep (char *string, char **fields, const char *sep, size_t size);
+
+/*
+ * NAME
  *   strjoin
  *
  * DESCRIPTION

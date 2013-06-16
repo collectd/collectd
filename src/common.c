@@ -288,6 +288,11 @@ ssize_t swrite (int fd, const void *buf, size_t count)
 
 int strsplit (char *string, char **fields, size_t size)
 {
+    return strsplitsep (string, fields, " \t\r\n", size);
+}
+
+int strsplitsep (char *string, char **fields, const char *sep, size_t size)
+{
 	size_t i;
 	char *ptr;
 	char *saveptr;
@@ -295,7 +300,7 @@ int strsplit (char *string, char **fields, size_t size)
 	i = 0;
 	ptr = string;
 	saveptr = NULL;
-	while ((fields[i] = strtok_r (ptr, " \t\r\n", &saveptr)) != NULL)
+	while ((fields[i] = strtok_r (ptr, sep, &saveptr)) != NULL)
 	{
 		ptr = NULL;
 		i++;
