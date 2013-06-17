@@ -5103,6 +5103,28 @@ Since the configuration of the C<snmp plugin> is a little more complicated than
 other plugins, its documentation has been moved to an own manpage,
 L<collectd-snmp(5)>. Please see there for details.
 
+=head2 Plugin C<statsd>
+
+The I<statsd plugin> listens to a UDP socket, reads "events" in the statsd
+protocol and dispatches rates or other aggregates of these numbers
+periodically.
+
+The following configuration options are valid:
+
+=over 4
+
+=item B<Host> I<Host>
+
+Bind to the hostname / address I<Host>. By default, the plugin will bind to the
+"any" address, i.e. accept packets sent to any of the hosts addresses.
+
+=item B<Port> I<Port>
+
+UDP port to listen to. This can be either a service name or a port number.
+Defaults to C<8125>.
+
+=back
+
 =head2 Plugin C<swap>
 
 The I<Swap plugin> collects information about used and available swap space. On

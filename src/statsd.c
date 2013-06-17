@@ -459,6 +459,27 @@ static void *statsd_network_thread (void *args) /* {{{ */
   return ((void *) 0);
 } /* }}} void *statsd_network_thread */
 
+static int statsd_config (oconfig_item_t *ci) /* {{{ */
+{
+  int i;
+
+  for (i = 0; i < ci->children_num; i++)
+  {
+    oconfig_item_t *child = ci->children + i;
+
+    if (strcasecmp ("Host", child->key) == 0)
+      cf_util_get_string (child, &conf_node);
+    else if (strcasecmp ("Port", child->key) == 0)
+      cf_util_get_service (child, &conf_service);
+    /* TODO: Add configuration for Delete{Counters,Timers,Gauges} */
+    else
+      ERROR ("statsd plugin: The \"%s\" config option is not valid.",
+          child->key);
+  }
+
+  return (0);
+} /* }}} int statsd_config */
+
 static int statsd_init (void) /* {{{ */
 {
   pthread_mutex_lock (&metrics_lock);
@@ -532,6 +553,7 @@ static int statsd_read (void) /* {{{ */
   }
 
   i = c_avl_get_iterator (metrics_tree);
+  /* TODO: Delete legacy metrics */
   while (c_avl_iterator_next (i, (void *) &name, (void *) &metric) == 0)
     statsd_metric_submit (name, metric);
   c_avl_iterator_destroy (i);
@@ -564,6 +586,9 @@ static int statsd_shutdown (void) /* {{{ */
   c_avl_destroy (metrics_tree);
   metrics_tree = NULL;
 
+  sfree (conf_node);
+  sfree (conf_service);
+
   pthread_mutex_unlock (&metrics_lock);
 
   return (0);
@@ -571,6 +596,7 @@ static int statsd_shutdown (void) /* {{{ */
 
 void module_register (void)
 {
+  plugin_register_complex_config ("statsd", statsd_config);
   plugin_register_init ("statsd", statsd_init);
   plugin_register_read ("statsd", statsd_read);
   plugin_register_shutdown ("statsd", statsd_shutdown);

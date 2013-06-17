@@ -928,6 +928,11 @@
 #   </Host>
 #</Plugin>
 
+#<Plugin statsd>
+#  Host "::"
+#  Port "8125"
+#</Plugin>
+
 #<Plugin "swap">
 #	ReportByDevice false
 #	ReportBytes true
