@@ -932,8 +932,9 @@
 #  Host "::"
 #  Port "8125"
 #  DeleteCounters false
-#  DeleteTimers false
-#  DeleteGauges false
+#  DeleteTimers   false
+#  DeleteGauges   false
+#  DeleteSets     false
 #</Plugin>
 
 #<Plugin "swap">

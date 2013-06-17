@@ -5109,8 +5109,9 @@ The I<statsd plugin> listens to a UDP socket, reads "events" in the statsd
 protocol and dispatches rates or other aggregates of these numbers
 periodically.
 
-The plugin implements the I<Counter>, I<Timer> and I<Gauge> types which are
-dispatched as C<derive>, C<latency> and C<gauge> respectively.
+The plugin implements the I<Counter>, I<Timer>, I<Gauge> and I<Set> types which
+are dispatched as the I<collectd> types C<derive>, C<latency>, C<gauge> and
+C<objects> respectively.
 
 The following configuration options are valid:
 
@@ -5132,11 +5133,13 @@ Defaults to C<8125>.
 
 =item B<DeleteGauges> B<false>|B<true>
 
+=item B<DeleteSets> B<false>|B<true>
+
 These options control what happens if metrics are not updated in an interval.
 If set to B<False>, the default, metrics are dispatched unchanged, i.e. the
-rate of counters will be zero, timers report C<NaN> and gauges are unchanged.
-If set to B<True>, the such metrics are not dispatched and removed from the
-internal cache.
+rate of counters and size of sets will be zero, timers report C<NaN> and gauges
+are unchanged. If set to B<True>, the such metrics are not dispatched and
+removed from the internal cache.
 
 =back
 
