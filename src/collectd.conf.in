@@ -931,6 +931,9 @@
 #<Plugin statsd>
 #  Host "::"
 #  Port "8125"
+#  DeleteCounters false
+#  DeleteTimers false
+#  DeleteGauges false
 #</Plugin>
 
 #<Plugin "swap">

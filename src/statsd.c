@@ -53,7 +53,7 @@ struct statsd_metric_s
 {
   metric_type_t type;
   int64_t value;
-  cdtime_t last_update;
+  unsigned long updates_num;
 };
 typedef struct statsd_metric_s statsd_metric_t;
 
@@ -67,26 +67,30 @@ static _Bool     network_thread_shutdown = 0;
 static char *conf_node = NULL;
 static char *conf_service = NULL;
 
+static _Bool conf_delete_counters = 0;
+static _Bool conf_delete_timers   = 0;
+static _Bool conf_delete_gauges   = 0;
+
 /* Must hold metrics_lock when calling this function. */
 static int statsd_metric_set_unsafe (char const *name, int64_t value, /* {{{ */
     metric_type_t type)
 {
-  cdtime_t now;
   statsd_metric_t *metric;
   char *key;
   int status;
-
-  now = cdtime ();
 
   status = c_avl_get (metrics_tree, name, (void *) &metric);
   if (status == 0)
   {
     metric->value = value;
-    metric->last_update = now;
+    metric->updates_num++;
 
     return (0);
   }
 
+  DEBUG ("stats plugin: Adding new metric \"%s\".", name);
+  /* FIXME: The keys should have a prefix so counter, gauge and timer with the
+   * same name can exist. */
   key = strdup (name);
   metric = calloc (1, sizeof (*metric));
   if ((key == NULL) || (metric == NULL))
@@ -98,7 +102,7 @@ static int statsd_metric_set_unsafe (char const *name, int64_t value, /* {{{ */
 
   metric->type = type;
   metric->value = value;
-  metric->last_update = now;
+  metric->updates_num = 1;
 
   status = c_avl_insert (metrics_tree, key, metric);
   if (status != 0)
@@ -127,18 +131,16 @@ static int statsd_metric_set (char const *name, int64_t value, /* {{{ */
 static int statsd_metric_add (char const *name, int64_t delta, /* {{{ */
     metric_type_t type)
 {
-  cdtime_t now;
   statsd_metric_t *metric;
   int status;
 
-  now = cdtime ();
   pthread_mutex_lock (&metrics_lock);
 
   status = c_avl_get (metrics_tree, name, (void *) &metric);
   if (status == 0)
   {
     metric->value += delta;
-    metric->last_update = now;
+    metric->updates_num++;
 
     pthread_mutex_unlock (&metrics_lock);
     return (0);
@@ -471,7 +473,12 @@ static int statsd_config (oconfig_item_t *ci) /* {{{ */
       cf_util_get_string (child, &conf_node);
     else if (strcasecmp ("Port", child->key) == 0)
       cf_util_get_service (child, &conf_service);
-    /* TODO: Add configuration for Delete{Counters,Timers,Gauges} */
+    else if (strcasecmp ("DeleteCounters", child->key) == 0)
+      cf_util_get_boolean (child, &conf_delete_counters);
+    else if (strcasecmp ("DeleteTimers", child->key) == 0)
+      cf_util_get_boolean (child, &conf_delete_timers);
+    else if (strcasecmp ("DeleteGauges", child->key) == 0)
+      cf_util_get_boolean (child, &conf_delete_gauges);
     else
       ERROR ("statsd plugin: The \"%s\" config option is not valid.",
           child->key);
@@ -518,6 +525,14 @@ static int statsd_metric_submit (char const *name, /* {{{ */
 
   if (metric->type == STATSD_GAUGE)
     values[0].gauge = (gauge_t) metric->value;
+  else if (metric->type == STATSD_TIMER)
+  {
+    if (metric->updates_num == 0)
+      values[0].gauge = NAN;
+    else
+      values[0].gauge =
+        ((gauge_t) metric->value) / ((gauge_t) metric->updates_num);
+  }
   else
     values[0].derive = (derive_t) metric->value;
 
@@ -529,7 +544,7 @@ static int statsd_metric_submit (char const *name, /* {{{ */
   if (metric->type == STATSD_GAUGE)
     sstrncpy (vl.type, "gauge", sizeof (vl.type));
   else if (metric->type == STATSD_TIMER)
-    sstrncpy (vl.type, "total_time_in_ms", sizeof (vl.type));
+    sstrncpy (vl.type, "latency", sizeof (vl.type));
   else /* if (metric->type == STATSD_COUNTER) */
     sstrncpy (vl.type, "derive", sizeof (vl.type));
 
@@ -540,9 +555,13 @@ static int statsd_metric_submit (char const *name, /* {{{ */
 
 static int statsd_read (void) /* {{{ */
 {
-  c_avl_iterator_t *i;
+  c_avl_iterator_t *iter;
   char *name;
   statsd_metric_t *metric;
+
+  char **to_be_deleted = NULL;
+  size_t to_be_deleted_num = 0;
+  size_t i;
 
   pthread_mutex_lock (&metrics_lock);
 
@@ -552,13 +571,44 @@ static int statsd_read (void) /* {{{ */
     return (0);
   }
 
-  i = c_avl_get_iterator (metrics_tree);
-  /* TODO: Delete legacy metrics */
-  while (c_avl_iterator_next (i, (void *) &name, (void *) &metric) == 0)
+  iter = c_avl_get_iterator (metrics_tree);
+  while (c_avl_iterator_next (iter, (void *) &name, (void *) &metric) == 0)
+  {
+    if ((metric->updates_num == 0)
+        && ((conf_delete_counters && (metric->type == STATSD_COUNTER))
+          || (conf_delete_timers && (metric->type == STATSD_TIMER))
+          || (conf_delete_gauges && (metric->type == STATSD_GAUGE))))
+    {
+      DEBUG ("statsd plugin: Deleting metric \"%s\".", name);
+      strarray_add (&to_be_deleted, &to_be_deleted_num, name);
+      continue;
+    }
+
     statsd_metric_submit (name, metric);
-  c_avl_iterator_destroy (i);
+    metric->updates_num = 0;
+  }
+  c_avl_iterator_destroy (iter);
+
+  for (i = 0; i < to_be_deleted_num; i++)
+  {
+    int status;
+
+    status = c_avl_remove (metrics_tree, to_be_deleted[i],
+        (void *) &name, (void *) &metric);
+    if (status != 0)
+    {
+      ERROR ("stats plugin: c_avl_remove (\"%s\") failed with status %i.",
+          to_be_deleted[i], status);
+      continue;
+    }
+
+    sfree (name);
+    sfree (metric);
+  }
 
   pthread_mutex_unlock (&metrics_lock);
+
+  strarray_free (to_be_deleted, to_be_deleted_num);
 
   return (0);
 } /* }}} int statsd_read */
