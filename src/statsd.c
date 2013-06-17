@@ -89,8 +89,6 @@ static int statsd_metric_set_unsafe (char const *name, int64_t value, /* {{{ */
   }
 
   DEBUG ("stats plugin: Adding new metric \"%s\".", name);
-  /* FIXME: The keys should have a prefix so counter, gauge and timer with the
-   * same name can exist. */
   key = strdup (name);
   metric = calloc (1, sizeof (*metric));
   if ((key == NULL) || (metric == NULL))
@@ -158,6 +156,7 @@ static int statsd_handle_counter (char const *name, /* {{{ */
     char const *value_str,
     char const *extra)
 {
+  char key[DATA_MAX_NAME_LEN + 2];
   value_t value;
   value_t scale;
   int status;
@@ -184,7 +183,9 @@ static int statsd_handle_counter (char const *name, /* {{{ */
   if (value.derive < 1)
     return (-1);
 
-  return (statsd_metric_add (name,
+  ssnprintf (key, sizeof (key), "c:%s", name);
+
+  return (statsd_metric_add (key,
         (int64_t) (((gauge_t) value.derive) / scale.gauge),
         STATSD_COUNTER));
 } /* }}} int statsd_handle_counter */
@@ -192,6 +193,7 @@ static int statsd_handle_counter (char const *name, /* {{{ */
 static int statsd_handle_gauge (char const *name, /* {{{ */
     char const *value_str)
 {
+  char key[DATA_MAX_NAME_LEN + 2];
   value_t value;
   int status;
 
@@ -200,15 +202,18 @@ static int statsd_handle_gauge (char const *name, /* {{{ */
   if (status != 0)
     return (status);
 
+  ssnprintf (key, sizeof (key), "g:%s", name);
+
   if ((value_str[0] == '+') || (value_str[0] == '-'))
-    return (statsd_metric_add (name, (int64_t) value.derive, STATSD_GAUGE));
+    return (statsd_metric_add (key, (int64_t) value.derive, STATSD_GAUGE));
   else
-    return (statsd_metric_set (name, (int64_t) value.derive, STATSD_GAUGE));
+    return (statsd_metric_set (key, (int64_t) value.derive, STATSD_GAUGE));
 } /* }}} int statsd_handle_gauge */
 
 static int statsd_handle_timer (char const *name, /* {{{ */
     char const *value_str)
 {
+  char key[DATA_MAX_NAME_LEN + 2];
   value_t value;
   int status;
 
@@ -217,7 +222,9 @@ static int statsd_handle_timer (char const *name, /* {{{ */
   if (status != 0)
     return (status);
 
-  return (statsd_metric_add (name, (int64_t) value.derive, STATSD_TIMER));
+  ssnprintf (key, sizeof (key), "t:%s", name);
+
+  return (statsd_metric_add (key, (int64_t) value.derive, STATSD_TIMER));
 } /* }}} int statsd_handle_timer */
 
 static int statsd_handle_set (char const *name __attribute__((unused)), /* {{{ */
@@ -584,7 +591,9 @@ static int statsd_read (void) /* {{{ */
       continue;
     }
 
-    statsd_metric_submit (name, metric);
+    /* Names have a prefix, e.g. "c:", which determines the (statsd) type.
+     * Remove this here. */
+    statsd_metric_submit (name + 2, metric);
     metric->updates_num = 0;
   }
   c_avl_iterator_destroy (iter);
