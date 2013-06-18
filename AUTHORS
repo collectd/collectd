@@ -94,6 +94,9 @@ Franck Lombardi
 Jason Pepas <cell at ices.utexas.edu>
  - nfs plugin.
 
+J. Javier Maestro <jjmaestro at ieee.org>
+ - Write-Graphite plugin: UDP support and LogSendErrors flag.
+
 Jérôme Renard <jerome.renard at gmail.com>
  - varnish plugin.
 
