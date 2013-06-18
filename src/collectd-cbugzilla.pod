@@ -1,0 +1,115 @@
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+
+=head1 NAME
+
+collectd-cbugzilla - Documentation of collectd's C<cbugzilla plugin>
+
+=head1 SYNOPSIS
+
+  <LoadPlugin cbugzilla>
+    Interval 14400
+  </LoadPlugin>
+  # ...
+  <Plugin cbugzilla>
+    <Bugzilla "gentoo">
+      URL "https://bugs.gentoo.org"
+      User "foo"
+      Password "bar"
+
+      <NamedCmd "twisted">
+          MeasureResponseTime true
+      </NamedCmd>
+
+      <NamedCmd "yac cc'd">
+      # ...
+    </Bugzilla>
+  </Plugin>
+
+=head1 DESCRIPTION
+
+The C<cbugzilla plugin> uses cbugzilla to run saved queries in bugzilla and
+extract the number of bugs returned.
+
+=head1 CONFIGURATION
+
+=over 4
+
+=item B<LoadPlugin> I<Plugin>
+
+Loads the cbugzilla plugin I<Plugin>. As this metric is unlikely to change
+often and sometimes can be expensive to run, you should set Interval to some
+reasonable value like twice a day or so. Use your judgement.
+
+=back
+
+=head2 The B<Bugzilla> I<Instance> block
+
+=over 4
+
+=item B<URL> I<Name>
+
+The url to root of the bugzilla instance.
+
+=item B<User> I<Name>
+
+User to log in as.
+
+=item B<Password> I<Name>
+
+Password log in with.
+
+=item B<VerifyPeer> I<bool>
+
+Verify the authenticity of peer's certificate.
+For details see CURLOPT_SSL_VERIFYPEER.
+
+Default: true
+
+=item B<VerifyHost> I<bool>
+
+Verify that the server cert is for the server it is known as.
+For details see CURLOPT_SSL_VERIFYHOST.
+
+Default: true
+
+=item B<HTTPLog> I<bool>
+
+If true, the plugin logs all responses to a http log located at BaseDir/cbugzilla/I<instance>/http_log
+
+Default: false
+
+=back
+
+=head3 The B<NamedCmd> I<Name> block
+
+I<Name> defines the Named Command (aka saved query) to be executed. Only the I<Name> is required. It takes following optional options:
+
+=over 4
+
+=item B<MeasureResponseTime> I<bool>
+
+If true, then in addition to number of bugs, timing data associated with the query, as provided by cbugzilla, are collected too.
+
+Default: false
+
+=back
+
+=head1 SEE ALSO
+
+L<collectd(1)>,
+L<collectd.conf(5)>
+
+=head1 AUTHOR
+
+The C<cbugzilla plugin> has been written by
+Jan Matejka E<lt>yac@gentoo.orgE<gt>
+
+=cut
