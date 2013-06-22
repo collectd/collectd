@@ -5141,6 +5141,15 @@ rate of counters and size of sets will be zero, timers report C<NaN> and gauges
 are unchanged. If set to B<True>, the such metrics are not dispatched and
 removed from the internal cache.
 
+=item B<TimerPercentile> I<Percent>
+
+Calculate and dispatch the configured percentile, i.e. compute the latency, so
+that I<Percent> of all reported timers are smaller than or equal to the
+computed latency. This is useful for cutting off the long tail latency, as it's
+often done in I<Service Level Agreements> (SLAs).
+
+If not specified, no percentile is calculated / dispatched.
+
 =back
 
 =head2 Plugin C<swap>

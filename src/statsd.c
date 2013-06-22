@@ -25,6 +25,7 @@
 #include "configfile.h"
 #include "utils_avltree.h"
 #include "utils_complain.h"
+#include "utils_latency.h"
 
 #include <pthread.h>
 
@@ -54,6 +55,7 @@ struct statsd_metric_s
 {
   metric_type_t type;
   int64_t value;
+  latency_counter_t *latency;
   c_avl_tree_t *set;
   unsigned long updates_num;
 };
@@ -74,85 +76,108 @@ static _Bool conf_delete_timers   = 0;
 static _Bool conf_delete_gauges   = 0;
 static _Bool conf_delete_sets     = 0;
 
+static double *conf_timer_percentile = NULL;
+static size_t  conf_timer_percentile_num = 0;
+
 /* Must hold metrics_lock when calling this function. */
-static int statsd_metric_set_unsafe (char const *name, int64_t value, /* {{{ */
+static statsd_metric_t *statsd_metric_lookup_unsafe (char const *name,
     metric_type_t type)
 {
+  char const *prefix;
+  char key[DATA_MAX_NAME_LEN + 2];
+  char *key_copy;
   statsd_metric_t *metric;
-  char *key;
   int status;
 
-  status = c_avl_get (metrics_tree, name, (void *) &metric);
+  switch (type)
+  {
+    case STATSD_COUNTER: prefix = "c"; break;
+    case STATSD_TIMER:   prefix = "t"; break;
+    case STATSD_GAUGE:   prefix = "g"; break;
+    case STATSD_SET:     prefix = "s"; break;
+    default: return (NULL);
+  }
+
+  ssnprintf (key, sizeof (key), "%s:%s", prefix, name);
+
+  status = c_avl_get (metrics_tree, key, (void *) &metric);
   if (status == 0)
-  {
-    metric->value = value;
-    metric->updates_num++;
+    return (metric);
 
-    return (0);
+  key_copy = strdup (key);
+  if (key_copy == NULL)
+  {
+    ERROR ("statsd plugin: strdup failed.");
+    return (NULL);
   }
 
-  DEBUG ("stats plugin: Adding new metric \"%s\".", name);
-  key = strdup (name);
-  metric = calloc (1, sizeof (*metric));
-  if ((key == NULL) || (metric == NULL))
+  metric = malloc (sizeof (*metric));
+  if (metric == NULL)
   {
-    sfree (key);
-    sfree (metric);
-    return (-1);
+    ERROR ("statsd plugin: malloc failed.");
+    sfree (key_copy);
+    return (NULL);
   }
+  memset (metric, 0, sizeof (*metric));
 
   metric->type = type;
-  metric->value = value;
-  metric->updates_num = 1;
+  metric->latency = NULL;
+  metric->set = NULL;
 
-  status = c_avl_insert (metrics_tree, key, metric);
+  status = c_avl_insert (metrics_tree, key_copy, metric);
   if (status != 0)
   {
-    sfree (key);
+    ERROR ("statsd plugin: c_avl_insert failed.");
+    sfree (key_copy);
     sfree (metric);
-
-    return (-1);
+    return (NULL);
   }
 
-  return (0);
-} /* }}} int statsd_metric_set_unsafe */
+  return (metric);
+} /* }}} statsd_metric_lookup_unsafe */
 
 static int statsd_metric_set (char const *name, int64_t value, /* {{{ */
     metric_type_t type)
 {
-  int status;
+  statsd_metric_t *metric;
 
   pthread_mutex_lock (&metrics_lock);
-  status = statsd_metric_set_unsafe (name, value, type);
+
+  metric = statsd_metric_lookup_unsafe (name, type);
+  if (metric == NULL)
+  {
+    pthread_mutex_unlock (&metrics_lock);
+    return (-1);
+  }
+
+  metric->value = value;
+  metric->updates_num++;
+
   pthread_mutex_unlock (&metrics_lock);
 
-  return (status);
+  return (0);
 } /* }}} int statsd_metric_set */
 
 static int statsd_metric_add (char const *name, int64_t delta, /* {{{ */
     metric_type_t type)
 {
   statsd_metric_t *metric;
-  int status;
 
   pthread_mutex_lock (&metrics_lock);
 
-  status = c_avl_get (metrics_tree, name, (void *) &metric);
-  if (status == 0)
+  metric = statsd_metric_lookup_unsafe (name, type);
+  if (metric == NULL)
   {
-    metric->value += delta;
-    metric->updates_num++;
-
     pthread_mutex_unlock (&metrics_lock);
-    return (0);
+    return (-1);
   }
-  else /* no such value yet */
-  {
-    status = statsd_metric_set_unsafe (name, delta, type);
 
-    pthread_mutex_unlock (&metrics_lock);
-    return (status);
-  }
+  metric->value += delta;
+  metric->updates_num++;
+
+  pthread_mutex_unlock (&metrics_lock);
+
+  return (0);
 } /* }}} int statsd_metric_add */
 
 static int statsd_handle_counter (char const *name, /* {{{ */
@@ -216,69 +241,57 @@ static int statsd_handle_gauge (char const *name, /* {{{ */
 static int statsd_handle_timer (char const *name, /* {{{ */
     char const *value_str)
 {
-  char key[DATA_MAX_NAME_LEN + 2];
-  value_t value;
+  statsd_metric_t *metric;
+  value_t value_ms;
+  cdtime_t value;
   int status;
 
-  value.derive = 0;
-  status = parse_value (value_str, &value, DS_TYPE_DERIVE);
+  value_ms.derive = 0;
+  status = parse_value (value_str, &value_ms, DS_TYPE_DERIVE);
   if (status != 0)
     return (status);
 
-  ssnprintf (key, sizeof (key), "t:%s", name);
-
-  return (statsd_metric_add (key, (int64_t) value.derive, STATSD_TIMER));
-} /* }}} int statsd_handle_timer */
-
-static int statsd_handle_set (char const *key_orig, /* {{{ */
-    char const *name_orig)
-{
-  char key[DATA_MAX_NAME_LEN + 2];
-  char *name;
-  statsd_metric_t *metric = NULL;
-  int status;
-
-  ssnprintf (key, sizeof (key), "s:%s", key_orig);
+  value = MS_TO_CDTIME_T (value_ms.derive);
 
   pthread_mutex_lock (&metrics_lock);
 
-  status = c_avl_get (metrics_tree, key, (void *) &metric);
-  if (status != 0) /* Create a new metric */
+  metric = statsd_metric_lookup_unsafe (name, STATSD_TIMER);
+  if (metric == NULL)
   {
-    char *key_copy;
-
-    DEBUG ("stats plugin: Adding new metric \"%s\".", key);
-    key_copy = strdup (key);
-    if (key_copy == NULL)
-    {
-      pthread_mutex_unlock (&metrics_lock);
-      ERROR ("statsd plugin: strdup failed.");
-      return (-1);
-    }
-
-    metric = calloc (1, sizeof (*metric));
-    if (metric == NULL)
-    {
-      pthread_mutex_unlock (&metrics_lock);
-      ERROR ("statsd plugin: calloc failed.");
-      sfree (key_copy);
-      return (-1);
-    }
-    metric->type = STATSD_SET;
-    metric->set = NULL;
-
-    status = c_avl_insert (metrics_tree, key_copy, metric);
-    if (status != 0)
-    {
-      pthread_mutex_unlock (&metrics_lock);
-      ERROR ("statsd plugin: c_avl_insert (\"%s\") failed with status %i.",
-          key_copy, status);
-      sfree (key_copy);
-      sfree (metric);
-      return (-1);
-    }
+    pthread_mutex_unlock (&metrics_lock);
+    return (-1);
   }
-  assert (metric != NULL);
+
+  if (metric->latency == NULL)
+    metric->latency = latency_counter_create ();
+  if (metric->latency == NULL)
+  {
+    pthread_mutex_unlock (&metrics_lock);
+    return (-1);
+  }
+
+  latency_counter_add (metric->latency, value);
+  metric->updates_num++;
+
+  pthread_mutex_unlock (&metrics_lock);
+  return (0);
+} /* }}} int statsd_handle_timer */
+
+static int statsd_handle_set (char const *name, /* {{{ */
+    char const *set_key_orig)
+{
+  statsd_metric_t *metric = NULL;
+  char *set_key;
+  int status;
+
+  pthread_mutex_lock (&metrics_lock);
+
+  metric = statsd_metric_lookup_unsafe (name, STATSD_SET);
+  if (metric == NULL)
+  {
+    pthread_mutex_unlock (&metrics_lock);
+    return (-1);
+  }
 
   /* Make sure metric->set exists. */
   if (metric->set == NULL)
@@ -291,27 +304,27 @@ static int statsd_handle_set (char const *key_orig, /* {{{ */
     return (-1);
   }
 
-  name = strdup (name_orig);
-  if (name == NULL)
+  set_key = strdup (set_key_orig);
+  if (set_key == NULL)
   {
     pthread_mutex_unlock (&metrics_lock);
     ERROR ("statsd plugin: strdup failed.");
     return (-1);
   }
 
-  status = c_avl_insert (metric->set, name, /* value = */ NULL);
+  status = c_avl_insert (metric->set, set_key, /* value = */ NULL);
   if (status < 0)
   {
     pthread_mutex_unlock (&metrics_lock);
     if (status < 0)
       ERROR ("statsd plugin: c_avl_insert (\"%s\") failed with status %i.",
-          name, status);
-    sfree (name);
+          set_key, status);
+    sfree (set_key);
     return (-1);
   }
   else if (status > 0) /* key already exists */
   {
-    sfree (name);
+    sfree (set_key);
   }
 
   metric->updates_num++;
@@ -550,6 +563,37 @@ static void *statsd_network_thread (void *args) /* {{{ */
   return ((void *) 0);
 } /* }}} void *statsd_network_thread */
 
+static int statsd_config_timer_percentile (oconfig_item_t *ci) /* {{{ */
+{
+  double percent = NAN;
+  double *tmp;
+  int status;
+
+  status = cf_util_get_double (ci, &percent);
+  if (status != 0)
+    return (status);
+
+  if ((percent <= 0.0) || (percent >= 100))
+  {
+    ERROR ("statsd plugin: The value for \"%s\" must be between 0 and 100, "
+        "exclusively.", ci->key);
+    return (ERANGE);
+  }
+
+  tmp = realloc (conf_timer_percentile,
+      sizeof (*conf_timer_percentile) * (conf_timer_percentile_num + 1));
+  if (tmp == NULL)
+  {
+    ERROR ("statsd plugin: realloc failed.");
+    return (ENOMEM);
+  }
+  conf_timer_percentile = tmp;
+  conf_timer_percentile[conf_timer_percentile_num] = percent;
+  conf_timer_percentile_num++;
+
+  return (0);
+} /* }}} int statsd_config_timer_percentile */
+
 static int statsd_config (oconfig_item_t *ci) /* {{{ */
 {
   int i;
@@ -570,6 +614,8 @@ static int statsd_config (oconfig_item_t *ci) /* {{{ */
       cf_util_get_boolean (child, &conf_delete_gauges);
     else if (strcasecmp ("DeleteSets", child->key) == 0)
       cf_util_get_boolean (child, &conf_delete_sets);
+    else if (strcasecmp ("TimerPercentile", child->key) == 0)
+      statsd_config_timer_percentile (child);
     else
       ERROR ("statsd plugin: The \"%s\" config option is not valid.",
           child->key);
@@ -636,26 +682,6 @@ static int statsd_metric_submit_unsafe (char const *name, /* {{{ */
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  if (metric->type == STATSD_GAUGE)
-    values[0].gauge = (gauge_t) metric->value;
-  else if (metric->type == STATSD_TIMER)
-  {
-    if (metric->updates_num == 0)
-      values[0].gauge = NAN;
-    else
-      values[0].gauge =
-        ((gauge_t) metric->value) / ((gauge_t) metric->updates_num);
-  }
-  else if (metric->type == STATSD_SET)
-  {
-    if (metric->set == NULL)
-      values[0].gauge = 0.0;
-    else
-      values[0].gauge = (gauge_t) c_avl_size (metric->set);
-  }
-  else
-    values[0].derive = (derive_t) metric->value;
-
   vl.values = values;
   vl.values_len = 1;
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
@@ -671,6 +697,46 @@ static int statsd_metric_submit_unsafe (char const *name, /* {{{ */
     sstrncpy (vl.type, "derive", sizeof (vl.type));
 
   sstrncpy (vl.type_instance, name, sizeof (vl.type_instance));
+
+  if (metric->type == STATSD_GAUGE)
+    values[0].gauge = (gauge_t) metric->value;
+  else if (metric->type == STATSD_TIMER)
+  {
+    size_t i;
+
+    if (metric->updates_num == 0)
+      return (0);
+
+    vl.time = cdtime ();
+
+    ssnprintf (vl.type_instance, sizeof (vl.type_instance),
+        "%s-average", name);
+    values[0].gauge = CDTIME_T_TO_DOUBLE (
+        latency_counter_get_average (metric->latency));
+    plugin_dispatch_values (&vl);
+
+    for (i = 0; i < conf_timer_percentile_num; i++)
+    {
+      ssnprintf (vl.type_instance, sizeof (vl.type_instance),
+          "%s-percentile-%.0f", name, conf_timer_percentile[i]);
+      values[0].gauge = CDTIME_T_TO_DOUBLE (
+          latency_counter_get_percentile (
+            metric->latency, conf_timer_percentile[i]));
+      plugin_dispatch_values (&vl);
+    }
+
+    latency_counter_reset (metrics->latency);
+    return (0);
+  }
+  else if (metric->type == STATSD_SET)
+  {
+    if (metric->set == NULL)
+      values[0].gauge = 0.0;
+    else
+      values[0].gauge = (gauge_t) c_avl_size (metric->set);
+  }
+  else
+    values[0].derive = (derive_t) metric->value;
 
   return (plugin_dispatch_values (&vl));
 } /* }}} int statsd_metric_submit_unsafe */

@@ -935,6 +935,7 @@
 #  DeleteTimers   false
 #  DeleteGauges   false
 #  DeleteSets     false
+#  TimerPercentile 90.0
 #</Plugin>
 
 #<Plugin "swap">

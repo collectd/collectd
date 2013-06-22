@@ -1071,7 +1071,8 @@ endif
 
 if BUILD_PLUGIN_STATSD
 pkglib_LTLIBRARIES += statsd.la
-statsd_la_SOURCES = statsd.c
+statsd_la_SOURCES = statsd.c \
+                    utils_latency.h utils_latency.c
 statsd_la_LDFLAGS = -module -avoid-version
 statsd_la_LIBADD = -lpthread
 collectd_LDADD += "-dlopen" statsd.la
