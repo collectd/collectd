@@ -986,6 +986,16 @@ collectd_LDADD += "-dlopen" redis.la
 collectd_DEPENDENCIES += redis.la
 endif
 
+if BUILD_PLUGIN_REDIS_SENTINEL
+pkglib_LTLIBRARIES += redis_sentinel.la
+redis_sentinel_la_SOURCES = redis_sentinel.c
+redis_sentinel_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBCREDIS_SENTINEL_LDFLAGS)
+redis_sentinel_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCREDIS_SENTINEL_CPPFLAGS)
+redis_sentinel_la_LIBADD = -lhiredis
+collectd_LDADD += "-dlopen" redis_sentinel.la
+collectd_DEPENDENCIES += redis_sentinel.la
+endif
+
 if BUILD_PLUGIN_ROUTEROS
 pkglib_LTLIBRARIES += routeros.la
 routeros_la_SOURCES = routeros.c

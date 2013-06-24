@@ -135,6 +135,7 @@
 #@BUILD_PLUGIN_PYTHON_TRUE@  Globals true
 #@BUILD_PLUGIN_PYTHON_TRUE@</LoadPlugin>
 #@BUILD_PLUGIN_REDIS_TRUE@LoadPlugin redis
+#@BUILD_PLUGIN_REDIS_SENTINEL_TRUE@LoadPlugin redis_sentinel
 #@BUILD_PLUGIN_ROUTEROS_TRUE@LoadPlugin routeros
 #@BUILD_PLUGIN_RRDCACHED_TRUE@LoadPlugin rrdcached
 @LOAD_PLUGIN_RRDTOOL@LoadPlugin rrdtool
@@ -833,6 +834,14 @@
 #   <Node example>
 #      Host "redis.example.com"
 #      Port "6379"
+#      Timeout 2000
+#   </Node>
+#</Plugin>
+
+#<Plugin redis_sentinel>
+#   <Node example>
+#      Host "redis.example.com"
+#      Port "26379"
 #      Timeout 2000
 #   </Node>
 #</Plugin>
