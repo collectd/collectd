@@ -1893,9 +1893,12 @@ other interfaces are collected.
 
 =over 4
 
-=item B<Sensor> I<Sensor>
+=item B<Sensor> I<SensorName>|I<SensorName;CustomSensorName>
 
 Selects sensors to collect or to ignore, depending on B<IgnoreSelected>.
+
+Also, the default sensor name can be overriden with an alias given after the
+default sensor name followed by a semicolon.
 
 =item B<IgnoreSelected> I<true>|I<false>
 
@@ -1904,6 +1907,16 @@ sensors found of type "temperature", "voltage", "current" and "fanspeed".
 This option enables you to do that: By setting B<IgnoreSelected> to I<true>
 the effect of B<Sensor> is inverted: All selected sensors are ignored and
 all other sensors are collected.
+
+=item B<IgnoreSensorFail> I<true>|I<false>
+
+Before, the B<ipmi> plugin would remove a sensor when a single read failure
+occurred. With this option set to I<true>, the sensor won't be removed after
+failing (i.e. the B<ipmi> plugin will retry reading from the sensor the next
+time it gathers data).
+    
+By default, it's set to I<false> (i.e. removing sensors even if they fail one
+reading).
 
 =item B<NotifySensorAdd> I<true>|I<false>
 
