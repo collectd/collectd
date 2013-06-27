@@ -4795,6 +4795,10 @@ which configures the connection parameters for this node.
         Host "localhost"
         Port "6379"
         Timeout 2000
+        <Query "example">
+        	Command "LLEN queue"
+        	Type "gauge"
+        </Query>
     </Node>
   </Plugin>
 
@@ -4831,6 +4835,22 @@ The B<Timeout> option set the socket timeout for node response. Since the Redis
 read function is blocking, you should keep this value as low as possible. Keep
 in mind that the sum of all B<Timeout> values for all B<Nodes> should be lower
 than B<Interval> defined globally.
+
+=item B<Query> I<QueryName>
+
+The B<Query> option allows you to define custom queries to the redis node.
+The result must be a single numeric field (like LLEN does, for example). The
+QueryName is used as plugin_instance prefix to identify this query.
+
+=item B<Command> I<RedisCommandLine>
+
+The B<Command> option is the command to be issued to the redis node to
+produce a result to be collectd.
+
+=item B<Type> I<TypeToUse>
+
+The B<Type> option is used by collectd to link the value collectd in the
+command with the final data to be saved.
 
 =back
 

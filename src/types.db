@@ -8,12 +8,14 @@ ath_nodes		value:GAUGE:0:65535
 ath_stat		value:DERIVE:0:U
 backends		value:GAUGE:0:65535
 bitrate			value:GAUGE:0:4294967295
+blocked_clients value:GAUGE:0:U
 bytes			value:GAUGE:0:U
 cache_eviction		value:DERIVE:0:U
 cache_operation		value:DERIVE:0:U
 cache_ratio		value:GAUGE:0:100
 cache_result		value:DERIVE:0:U
 cache_size		value:GAUGE:0:4294967295
+changes_since_last_save 	value:GAUGE:0:U
 charge			value:GAUGE:0:U
 compression_ratio	value:GAUGE:0:2
 compression		uncompressed:DERIVE:0:U, compressed:DERIVE:0:U
@@ -58,6 +60,7 @@ email_check		value:GAUGE:0:U
 email_count		value:GAUGE:0:U
 email_size		value:GAUGE:0:U
 entropy			value:GAUGE:0:4294967295
+expired_keys    value:GAUGE:0:U
 fanspeed		value:GAUGE:0:U
 file_size		value:GAUGE:0:U
 files			value:GAUGE:0:U
@@ -143,6 +146,7 @@ ps_rss			value:GAUGE:0:9223372036854775807
 ps_stacksize		value:GAUGE:0:9223372036854775807
 ps_state		value:GAUGE:0:65535
 ps_vm			value:GAUGE:0:9223372036854775807
+pubsub 		 	value:GAUGE:0:U
 queue_length		value:GAUGE:0:U
 records			value:GAUGE:0:U
 requests		value:GAUGE:0:U

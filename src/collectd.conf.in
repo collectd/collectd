@@ -842,7 +842,11 @@
 #   <Node example>
 #      Host "redis.example.com"
 #      Port "6379"
-#      Timeout 2000
+#      Timeout 2
+#      <Query example_query>
+#      	 Command "LLEN queue"
+#      	 Type "gauge"
+#      </Query>
 #   </Node>
 #</Plugin>
 

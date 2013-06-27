@@ -997,9 +997,9 @@ endif
 if BUILD_PLUGIN_REDIS
 pkglib_LTLIBRARIES += redis.la
 redis_la_SOURCES = redis.c
-redis_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBCREDIS_LDFLAGS)
-redis_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCREDIS_CPPFLAGS)
-redis_la_LIBADD = -lcredis
+redis_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBHIREDIS_LDFLAGS)
+redis_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBHIREDIS_CPPFLAGS)
+redis_la_LIBADD = -lhiredis
 collectd_LDADD += "-dlopen" redis.la
 collectd_DEPENDENCIES += redis.la
 endif
