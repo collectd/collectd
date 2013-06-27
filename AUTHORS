@@ -130,6 +130,10 @@ Marco Chiappero <marco at absence.it>
  - ip6tables support in the iptables plugin.
  - openvpn plugin (support for more status file formats)
 
+Marina Zapater <marina at die.upm.es>
+ - Custom sensor naming
+ - Avoid removing sensors on failure
+
 Michael Hanselmann <public at hansmi.ch>
  - md plugin.
 
