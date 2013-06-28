@@ -10,7 +10,6 @@ Makefile.in
 /configure
 /depcomp
 /install-sh
-/libltdl/
 /ltmain.sh
 /missing
 src/config.h.in
