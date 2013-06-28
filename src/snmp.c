@@ -65,8 +65,22 @@ struct host_definition_s
 {
   char *name;
   char *address;
-  char *community;
   int version;
+
+  /* snmpv1/2 options */
+  char *community;
+
+  /* snmpv3 security options */
+  char *username;
+  oid *auth_protocol;
+  size_t auth_protocol_len;
+  char *auth_passphrase;
+  oid *priv_protocol;
+  size_t priv_protocol_len;
+  char *priv_passphrase;
+  int security_level;
+  char *context;
+
   void *sess_handle;
   c_complain_t complaint;
   cdtime_t interval;
@@ -183,6 +197,10 @@ static void csnmp_host_definition_destroy (void *arg) /* {{{ */
   sfree (hd->name);
   sfree (hd->address);
   sfree (hd->community);
+  sfree (hd->username);
+  sfree (hd->auth_passphrase);
+  sfree (hd->priv_passphrase);
+  sfree (hd->context);
   sfree (hd->data_list);
 
   sfree (hd);
@@ -207,6 +225,13 @@ static void csnmp_host_definition_destroy (void *arg) /* {{{ */
  *      +-> csnmp_config_add_host_community
  *      +-> csnmp_config_add_host_version
  *      +-> csnmp_config_add_host_collect
+ *      +-> csnmp_config_add_host_username
+ *      +-> csnmp_config_add_host_auth_protocol
+ *      +-> csnmp_config_add_host_priv_protocol
+ *      +-> csnmp_config_add_host_auth_passphrase
+ *      +-> csnmp_config_add_host_priv_passphrase
+ *      +-> csnmp_config_add_host_security_level
+ *      +-> esnmp_config_add_host_context
  */
 static void call_snmp_init_once (void)
 {
@@ -528,9 +553,9 @@ static int csnmp_config_add_host_version (host_definition_t *hd, oconfig_item_t 
   }
 
   version = (int) ci->values[0].value.number;
-  if ((version != 1) && (version != 2))
+  if ((version < 1) || (version > 3))
   {
-    WARNING ("snmp plugin: `Version' must either be `1' or `2'.");
+    WARNING ("snmp plugin: `Version' must either be `1', `2', or `3'.");
     return (-1);
   }
 
@@ -590,6 +615,165 @@ static int csnmp_config_add_host_collect (host_definition_t *host,
   return (0);
 } /* int csnmp_config_add_host_collect */
 
+static int csnmp_config_add_host_username (host_definition_t *hd, oconfig_item_t *ci)
+{
+  if ((ci->values_num != 1)
+      || (ci->values[0].type != OCONFIG_TYPE_STRING))
+  {
+    WARNING ("snmp plugin: The `Username' config option needs exactly one string argument.");
+    return (-1);
+  }
+
+  free (hd->username);
+  hd->username = strdup (ci->values[0].value.string);
+  if (hd->username == NULL)
+    return (-1);
+
+  DEBUG ("snmp plugin: host = %s; host->username = %s;",
+      hd->name, hd->username);
+
+  return (0);
+} /* int csnmp_config_add_host_username */
+
+static int csnmp_config_add_host_auth_protocol (host_definition_t *hd, oconfig_item_t *ci)
+{
+  if ((ci->values_num != 1)
+      || (ci->values[0].type != OCONFIG_TYPE_STRING)
+      || ((strcasecmp("MD5", ci->values[0].value.string) != 0)
+	&& (strcasecmp("SHA", ci->values[0].value.string) != 0)))
+  {
+    WARNING ("snmp plugin: The `AuthProtocol' config option must be `MD5' or `SHA'.");
+    return (-1);
+  }
+
+  if (strcasecmp("MD5", ci->values[0].value.string) == 0) {
+    hd->auth_protocol = usmHMACMD5AuthProtocol;
+    hd->auth_protocol_len = sizeof(usmHMACMD5AuthProtocol)/sizeof(oid);
+  }
+  else if (strcasecmp("SHA", ci->values[0].value.string) == 0) {
+    hd->auth_protocol = usmHMACSHA1AuthProtocol;
+    hd->auth_protocol_len = sizeof(usmHMACSHA1AuthProtocol)/sizeof(oid);
+  }
+
+  DEBUG ("snmp plugin: host = %s; host->auth_protocol = %s;",
+      hd->name, hd->auth_protocol == usmHMACMD5AuthProtocol ? "MD5" : "SHA");
+
+  return (0);
+} /* int csnmp_config_add_host_auth_protocol */
+
+static int csnmp_config_add_host_priv_protocol (host_definition_t *hd, oconfig_item_t *ci)
+{
+  if ((ci->values_num != 1)
+      || (ci->values[0].type != OCONFIG_TYPE_STRING)
+      || ((strcasecmp("AES", ci->values[0].value.string) != 0)
+	&& (strcasecmp("DES", ci->values[0].value.string) != 0)))
+  {
+    WARNING ("snmp plugin: The `PrivProtocol' config option must be `AES' or `DES'.");
+    return (-1);
+  }
+
+  if (strcasecmp("AES", ci->values[0].value.string) == 0) {
+    hd->priv_protocol = usmAESPrivProtocol;
+    hd->priv_protocol_len = sizeof(usmAESPrivProtocol)/sizeof(oid);
+  }
+  else if (strcasecmp("DES", ci->values[0].value.string) == 0) {
+    hd->priv_protocol = usmDESPrivProtocol;
+    hd->priv_protocol_len = sizeof(usmDESPrivProtocol)/sizeof(oid);
+  }
+
+  DEBUG ("snmp plugin: host = %s; host->priv_protocol = %s;",
+      hd->name, hd->priv_protocol == usmAESPrivProtocol ? "AES" : "DES");
+
+  return (0);
+} /* int csnmp_config_add_host_priv_protocol */
+
+static int csnmp_config_add_host_auth_passphrase (host_definition_t *hd, oconfig_item_t *ci)
+{
+  if ((ci->values_num != 1)
+      || (ci->values[0].type != OCONFIG_TYPE_STRING))
+  {
+    WARNING ("snmp plugin: The `AuthPassphrase' config option needs exactly one string argument.");
+    return (-1);
+  }
+
+  free (hd->auth_passphrase);
+  hd->auth_passphrase = strdup (ci->values[0].value.string);
+  if (hd->auth_passphrase == NULL)
+    return (-1);
+
+  DEBUG ("snmp plugin: host = %s; host->auth_passphrase = %s;",
+      hd->name, hd->auth_passphrase);
+
+  return (0);
+} /* int csnmp_config_add_host_auth_passphrase */
+
+static int csnmp_config_add_host_priv_passphrase (host_definition_t *hd, oconfig_item_t *ci)
+{
+  if ((ci->values_num != 1)
+      || (ci->values[0].type != OCONFIG_TYPE_STRING))
+  {
+    WARNING ("snmp plugin: The `PrivacyPassphrase' config option needs exactly one string argument.");
+    return (-1);
+  }
+
+  free (hd->priv_passphrase);
+  hd->priv_passphrase = strdup (ci->values[0].value.string);
+  if (hd->priv_passphrase == NULL)
+    return (-1);
+
+  DEBUG ("snmp plugin: host = %s; host->priv_passphrase = %s;",
+      hd->name, hd->priv_passphrase);
+
+  return (0);
+} /* int csnmp_config_add_host_priv_passphrase */
+
+static int csnmp_config_add_host_security_level (host_definition_t *hd, oconfig_item_t *ci)
+{
+  if ((ci->values_num != 1)
+      || (ci->values[0].type != OCONFIG_TYPE_STRING)
+      || ((strcasecmp("noAuthNoPriv", ci->values[0].value.string) != 0)
+	&& (strcasecmp("authNoPriv", ci->values[0].value.string) != 0)
+	&& (strcasecmp("authPriv", ci->values[0].value.string) != 0)))
+  {
+    WARNING ("snmp plugin: The `SecurityLevel' config option must be `noAuthNoPriv', `authNoPriv', or `authPriv'.");
+    return (-1);
+  }
+
+  if (strcasecmp("noAuthNoPriv", ci->values[0].value.string) == 0)
+    hd->security_level = SNMP_SEC_LEVEL_NOAUTH;
+  else if (strcasecmp("authNoPriv", ci->values[0].value.string) == 0)
+    hd->security_level = SNMP_SEC_LEVEL_AUTHNOPRIV;
+  else if (strcasecmp("authPriv", ci->values[0].value.string) == 0)
+    hd->security_level = SNMP_SEC_LEVEL_AUTHPRIV;
+
+  DEBUG ("snmp plugin: host = %s; host->security_level = %d;",
+      hd->name, hd->security_level);
+
+  return (0);
+} /* int csnmp_config_add_host_security_level */
+
+static int csnmp_config_add_host_context (host_definition_t *hd, oconfig_item_t *ci)
+{
+  if ((ci->values_num != 1)
+      || (ci->values[0].type != OCONFIG_TYPE_STRING))
+  {
+    WARNING ("snmp plugin: The `Context' config option needs exactly one string argument.");
+    return (-1);
+  }
+
+  free (hd->context);
+  hd->context = strdup (ci->values[0].value.string);
+  if (hd->context == NULL)
+    return (-1);
+
+  DEBUG ("snmp plugin: host = %s; host->context = %s;",
+      hd->name, hd->context);
+
+  return (0);
+} /* int csnmp_config_add_host_context */
+
+// fooooo
+
 static int csnmp_config_add_host (oconfig_item_t *ci)
 {
   host_definition_t *hd;
@@ -639,6 +823,20 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
       csnmp_config_add_host_collect (hd, option);
     else if (strcasecmp ("Interval", option->key) == 0)
       cf_util_get_cdtime (option, &hd->interval);
+    else if (strcasecmp ("Username", option->key) == 0)
+      status = csnmp_config_add_host_username (hd, option);
+    else if (strcasecmp ("AuthProtocol", option->key) == 0)
+      status = csnmp_config_add_host_auth_protocol (hd, option);
+    else if (strcasecmp ("PrivacyProtocol", option->key) == 0)
+      status = csnmp_config_add_host_priv_protocol (hd, option);
+    else if (strcasecmp ("AuthPassphrase", option->key) == 0)
+      status = csnmp_config_add_host_auth_passphrase (hd, option);
+    else if (strcasecmp ("PrivacyPassphrase", option->key) == 0)
+      status = csnmp_config_add_host_priv_passphrase (hd, option);
+    else if (strcasecmp ("SecurityLevel", option->key) == 0)
+      status = csnmp_config_add_host_security_level (hd, option);
+    else if (strcasecmp ("Context", option->key) == 0)
+      status = csnmp_config_add_host_context (hd, option);
     else
     {
       WARNING ("snmp plugin: csnmp_config_add_host: Option `%s' not allowed here.", option->key);
@@ -657,11 +855,56 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
       status = -1;
       break;
     }
-    if (hd->community == NULL)
+    if (hd->community == NULL && hd->version < 3)
     {
       WARNING ("snmp plugin: `Community' not given for host `%s'", hd->name);
       status = -1;
       break;
+    }
+    if (hd->version == 3)
+    {
+      if (hd->username == NULL)
+      {
+        WARNING ("snmp plugin: `Username' not given for host `%s'", hd->name);
+        status = -1;
+        break;
+      }
+      if (hd->security_level == 0)
+      {
+        WARNING ("snmp plugin: `SecurityLevel' not given for host `%s'", hd->name);
+        status = -1;
+        break;
+      }
+      if (hd->security_level == SNMP_SEC_LEVEL_AUTHNOPRIV || hd->security_level == SNMP_SEC_LEVEL_AUTHPRIV)
+      {
+	if (hd->auth_protocol == NULL)
+	{
+	  WARNING ("snmp plugin: `AuthProtocol' not given for host `%s'", hd->name);
+	  status = -1;
+	  break;
+	}
+	if (hd->auth_passphrase == NULL)
+	{
+	  WARNING ("snmp plugin: `AuthPassphrase' not given for host `%s'", hd->name);
+	  status = -1;
+	  break;
+	}
+      }
+      if (hd->security_level == SNMP_SEC_LEVEL_AUTHPRIV)
+      {
+	if (hd->priv_protocol == NULL)
+	{
+	  WARNING ("snmp plugin: `PrivacyProtocol' not given for host `%s'", hd->name);
+	  status = -1;
+	  break;
+	}
+	if (hd->priv_passphrase == NULL)
+	{
+	  WARNING ("snmp plugin: `PrivacyPassphrase' not given for host `%s'", hd->name);
+	  status = -1;
+	  break;
+	}
+      }
     }
 
     break;
@@ -724,15 +967,75 @@ static int csnmp_config (oconfig_item_t *ci)
 static void csnmp_host_open_session (host_definition_t *host)
 {
   struct snmp_session sess;
+  int error;
 
   if (host->sess_handle != NULL)
     csnmp_host_close_session (host);
 
   snmp_sess_init (&sess);
   sess.peername = host->address;
-  sess.community = (u_char *) host->community;
-  sess.community_len = strlen (host->community);
-  sess.version = (host->version == 1) ? SNMP_VERSION_1 : SNMP_VERSION_2c;
+  switch (host->version)
+  {
+    case 1:
+      sess.version = SNMP_VERSION_1;
+      break;
+    case 3:
+      sess.version = SNMP_VERSION_3;
+      break;
+    default:
+      sess.version = SNMP_VERSION_2c;
+      break;
+  }
+
+  if (host->version == 3)
+  {
+    sess.securityName = host->username;
+    sess.securityNameLen = strlen (host->username);
+    sess.securityLevel = host->security_level;
+
+    if (sess.securityLevel == SNMP_SEC_LEVEL_AUTHNOPRIV || sess.securityLevel == SNMP_SEC_LEVEL_AUTHPRIV)
+    {
+      sess.securityAuthProto = host->auth_protocol;
+      sess.securityAuthProtoLen = host->auth_protocol_len;
+      sess.securityAuthKeyLen = USM_AUTH_KU_LEN;
+      error = generate_Ku (sess.securityAuthProto,
+	    sess.securityAuthProtoLen,
+	    (u_char *) host->auth_passphrase,
+	    strlen(host->auth_passphrase),
+	    sess.securityAuthKey,
+	    &sess.securityAuthKeyLen);
+      if (error != SNMPERR_SUCCESS) {
+	ERROR ("snmp plugin: host %s: Error generating Ku from auth_passphrase. (Error %d)", host->name, error);
+      }
+    }
+
+    if (sess.securityLevel == SNMP_SEC_LEVEL_AUTHPRIV)
+    {
+      sess.securityPrivProto = host->priv_protocol;
+      sess.securityPrivProtoLen = host->priv_protocol_len;
+      sess.securityPrivKeyLen = USM_PRIV_KU_LEN;
+      error = generate_Ku (sess.securityAuthProto,
+	    sess.securityAuthProtoLen,
+	    (u_char *) host->priv_passphrase,
+	    strlen(host->priv_passphrase),
+	    sess.securityPrivKey,
+	    &sess.securityPrivKeyLen);
+      if (error != SNMPERR_SUCCESS) {
+	ERROR ("snmp plugin: host %s: Error generating Ku from priv_passphrase. (Error %d)", host->name, error);
+      }
+    }
+
+    if (host->context != NULL)
+    {
+      sess.contextName = host->context;
+      sess.contextNameLen = strlen (host->context);
+    }
+  }
+  else /* SNMPv1/2 "authenticates" with community string */
+  {
+    sess.community = (u_char *) host->community;
+    sess.community_len = strlen (host->community);
+  }
 
   /* snmp_sess_open will copy the `struct snmp_session *'. */
   host->sess_handle = snmp_sess_open (&sess);
