@@ -1967,7 +1967,6 @@ then
 #include "$srcdir/src/owniptc/ipt_kernel_headers.h"
 	])
 fi
-AM_CONDITIONAL(BUILD_WITH_OWN_LIBIPTC, test "x$with_libiptc" = "xown")
 if test "x$with_libiptc" = "xown"
 then
 	AC_DEFINE(OWN_LIBIPTC, 1, [Define to 1 if we use the shipped iptc library.])
@@ -2297,11 +2296,18 @@ fi
 # }}}
 
 # --with-libmongoc {{{
+AM_CONDITIONAL(BUILD_WITH_OWN_LIBMONGOC, test "x$with_libmongoc" = "xown")
 AC_ARG_WITH(libmongoc, [AS_HELP_STRING([--with-libmongoc@<:@=PREFIX@:>@], [Path to libmongoc.])],
 [
  if test "x$withval" = "xyes"
  then
 	 with_libmongoc="yes"
+ if test "x$withval" = "xown"
+ then
+	 with_libmongoc="yes"
+         LIBMONGOC_CPPFLAGS="$LIBMONGOC_CPPFLAGS -Ilibmongoc/src"
+	 LIBMONGOC_LDFLAGS="$LIBMONGOC_LDFLAGS -Llibmongoc/src"
+	 AC_DEFINE(OWN_LIBMONGOC, 1, [Define to 1 if we use the shipped mongoc lib.])
  else if test "x$withval" = "xno"
  then
 	 with_libmongoc="no"

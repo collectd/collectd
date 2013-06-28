@@ -2,7 +2,9 @@ SUBDIRS = libcollectdclient
 if BUILD_WITH_OWN_LIBOCONFIG
 SUBDIRS += liboconfig
 endif
-
+if BUILD_WITH_OWN_LIBMONGOC
+SUBDIRS +=libmongoc
+endif
 if COMPILER_IS_GCC
 AM_CFLAGS = -Wall -Werror
 endif
@@ -696,7 +698,11 @@ pkglib_LTLIBRARIES += mongodb.la
 mongodb_la_SOURCES = mongodb.c
 mongodb_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBMONGOC_CPPFLAGS)
 mongodb_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBMONGOC_LDFLAGS)
+if BUILD_WITH_OWN_LIBMONGOC
+mongodb_la_LIBADD = -Wl,-Bstatic -lmongoc 
+else
 mongodb_la_LIBADD = -lmongoc
+endif
 collectd_LDADD += "-dlopen" mongodb.la
 collectd_DEPENDENCIES += mongodb.la
 endif
