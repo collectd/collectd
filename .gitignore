@@ -1,5 +1,7 @@
 # configure stuff:
 Makefile
+# allow the libmongoc Makefile until we have time to integrate it further
+!src/libmongoc/Makefile
 config.log
 config.status
 libtool
