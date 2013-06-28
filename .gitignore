@@ -26,14 +26,6 @@ src/libcollectdclient/lcc_features.h
 *.rej
 *.orig
 
-# lex / yacc stuff:
-src/liboconfig/parser.c
-src/liboconfig/parser.h
-src/liboconfig/scanner.c
-
-# protobuf stuff:
-src/*.pb-c.[ch]
-
 # make dist stuff:
 /collectd-*.tar.gz
 /collectd-*.tar.bz2
