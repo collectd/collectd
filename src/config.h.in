@@ -1,0 +1,1364 @@
+/* src/config.h.in.  Generated from configure.in by autoheader.  */
+
+/* wether or not to enable feature daemon mode */
+#undef COLLECT_DAEMON
+
+/* wether or not to enable feature debugging */
+#undef COLLECT_DEBUG
+
+/* wether or not to enable feature getifaddrs under Linux */
+#undef COLLECT_GETIFADDRS
+
+/* Wether or not to use the esmtp library */
+#undef COLLECT_LIBESMTP
+
+/* Define if endianflip is needed to convert to x86 representation. */
+#undef FP_LAYOUT_NEED_ENDIANFLIP
+
+/* Define if intswap is needed to convert to x86 representation. */
+#undef FP_LAYOUT_NEED_INTSWAP
+
+/* Define if doubles are stored in x86 representation. */
+#undef FP_LAYOUT_NEED_NOTHING
+
+/* Define to 1 if you have the <amqp.h> header file. */
+#undef HAVE_AMQP_H
+
+/* Define to 1 if `library_errno' is a member of `amqp_rpc_reply_t'. */
+#undef HAVE_AMQP_RPC_REPLY_T_LIBRARY_ERRNO
+
+/* Define to 1 if you have the <arpa/inet.h> header file. */
+#undef HAVE_ARPA_INET_H
+
+/* Define to 1 if you have the <arpa/nameser_compat.h> header file. */
+#undef HAVE_ARPA_NAMESER_COMPAT_H
+
+/* Define to 1 if you have the <arpa/nameser.h> header file. */
+#undef HAVE_ARPA_NAMESER_H
+
+/* Define to 1 if you have the <assert.h> header file. */
+#undef HAVE_ASSERT_H
+
+/* Define to 1 if you have the <bsd/nlist.h> header file. */
+#undef HAVE_BSD_NLIST_H
+
+/* Define if the clock_gettime(2) function is available. */
+#undef HAVE_CLOCK_GETTIME
+
+/* Define to 1 if you have the `closelog' function. */
+#undef HAVE_CLOSELOG
+
+/* Define to 1 if you have the <CoreFoundation/CoreFoundation.h> header file.
+   */
+#undef HAVE_COREFOUNDATION_COREFOUNDATION_H
+
+/* Define to 1 if you have the <ctype.h> header file. */
+#undef HAVE_CTYPE_H
+
+/* Define to 1 if you have the <curl/curl.h> header file. */
+#undef HAVE_CURL_CURL_H
+
+/* Define to 1 if you have the <dbi/dbi.h> header file. */
+#undef HAVE_DBI_DBI_H
+
+/* Define to 1 if you have the declaration of `strerror_r', and to 0 if you
+   don't. */
+#undef HAVE_DECL_STRERROR_R
+
+/* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.
+   */
+#undef HAVE_DIRENT_H
+
+/* Define to 1 if you have the <endian.h> header file. */
+#undef HAVE_ENDIAN_H
+
+/* Define to 1 if you have the <errno.h> header file. */
+#undef HAVE_ERRNO_H
+
+/* Define to 1 if you have the <fcntl.h> header file. */
+#undef HAVE_FCNTL_H
+
+/* Define to 1 if you have the <fnmatch.h> header file. */
+#undef HAVE_FNMATCH_H
+
+/* Define to 1 if you have the <fshelp.h> header file. */
+#undef HAVE_FSHELP_H
+
+/* Define to 1 if you have the <fs_info.h> header file. */
+#undef HAVE_FS_INFO_H
+
+/* Define to 1 if you have the <gcrypt.h> header file. */
+#undef HAVE_GCRYPT_H
+
+/* Define if the function getmntent exists. It's the version from libgen. */
+#undef HAVE_GEN_GETMNTENT
+
+/* Define to 1 if you have the `getaddrinfo' function. */
+#undef HAVE_GETADDRINFO
+
+/* Define to 1 if you have the `getfsstat' function. */
+#undef HAVE_GETFSSTAT
+
+/* Define to 1 if you have the `getgrnam_r' function. */
+#undef HAVE_GETGRNAM_R
+
+/* Define to 1 if you have the `getifaddrs' function. */
+#undef HAVE_GETIFADDRS
+
+/* Define to 1 if you have the `getloadavg' function. */
+#undef HAVE_GETLOADAVG
+
+/* Define to 1 if you have the `getmntent' function. */
+#undef HAVE_GETMNTENT
+
+/* Define to 1 if you have the `getnameinfo' function. */
+#undef HAVE_GETNAMEINFO
+
+/* Define to 1 if you have the `getpwnam_r' function. */
+#undef HAVE_GETPWNAM_R
+
+/* Define to 1 if you have the `gettimeofday' function. */
+#undef HAVE_GETTIMEOFDAY
+
+/* Define to 1 if you have the `getutent' function. */
+#undef HAVE_GETUTENT
+
+/* Define to 1 if you have the `getutxent' function. */
+#undef HAVE_GETUTXENT
+
+/* Define to 1 if you have the `getvfsstat' function. */
+#undef HAVE_GETVFSSTAT
+
+/* Define to 1 if you have the <gm_protocol.h> header file. */
+#undef HAVE_GM_PROTOCOL_H
+
+/* Define to 1 if you have the <google/protobuf-c/protobuf-c.h> header file.
+   */
+#undef HAVE_GOOGLE_PROTOBUF_C_PROTOBUF_C_H
+
+/* Define to 1 if you have the <grp.h> header file. */
+#undef HAVE_GRP_H
+
+/* Define to 1 if you have the <hiredis/hiredis.h> header file. */
+#undef HAVE_HIREDIS_HIREDIS_H
+
+/* Define to 1 if you have the `host_statistics' function. */
+#undef HAVE_HOST_STATISTICS
+
+/* Define if the function htonll exists. */
+#undef HAVE_HTONLL
+
+/* Define to 1 if you have the <ifaddrs.h> header file. */
+#undef HAVE_IFADDRS_H
+
+/* Define to 1 if you have the `if_indextoname' function. */
+#undef HAVE_IF_INDEXTONAME
+
+/* Define to 1 if you have the <inttypes.h> header file. */
+#undef HAVE_INTTYPES_H
+
+/* Define to 1 if you have the <IOKit/IOBSD.h> header file. */
+#undef HAVE_IOKIT_IOBSD_H
+
+/* Define to 1 if you have the <IOKit/IOKitLib.h> header file. */
+#undef HAVE_IOKIT_IOKITLIB_H
+
+/* Define to 1 if you have the <IOKit/IOTypes.h> header file. */
+#undef HAVE_IOKIT_IOTYPES_H
+
+/* Define to 1 if you have the <IOKit/ps/IOPowerSources.h> header file. */
+#undef HAVE_IOKIT_PS_IOPOWERSOURCES_H
+
+/* Define to 1 if you have the <IOKit/ps/IOPSKeys.h> header file. */
+#undef HAVE_IOKIT_PS_IOPSKEYS_H
+
+/* Define to 1 if you have the <IOKit/storage/IOBlockStorageDriver.h> header
+   file. */
+#undef HAVE_IOKIT_STORAGE_IOBLOCKSTORAGEDRIVER_H
+
+/* Define to 1 if the system has the type `ip6tc_handle_t'. */
+#undef HAVE_IP6TC_HANDLE_T
+
+/* Define to 1 if you have the <iproute/libnetlink.h> header file. */
+#undef HAVE_IPROUTE_LIBNETLINK_H
+
+/* Define to 1 if the system has the type `iptc_handle_t'. */
+#undef HAVE_IPTC_HANDLE_T
+
+/* Define to 1 if you have the <ip_vs.h> header file. */
+#undef HAVE_IP_VS_H
+
+/* Define to 1 if you have the <jni.h> header file. */
+#undef HAVE_JNI_H
+
+/* Define to 1 if you have the <kstat.h> header file. */
+#undef HAVE_KSTAT_H
+
+/* Define to 1 if `nwrites' is a member of `kstat_io_t'. */
+#undef HAVE_KSTAT_IO_T_NWRITES
+
+/* Define to 1 if `nwritten' is a member of `kstat_io_t'. */
+#undef HAVE_KSTAT_IO_T_NWRITTEN
+
+/* Define to 1 if `writes' is a member of `kstat_io_t'. */
+#undef HAVE_KSTAT_IO_T_WRITES
+
+/* Define to 1 if `wtime' is a member of `kstat_io_t'. */
+#undef HAVE_KSTAT_IO_T_WTIME
+
+/* Define to 1 if you have the <kvm.h> header file. */
+#undef HAVE_KVM_H
+
+/* Define to 1 if you have the esmtp library (-lesmtp). */
+#undef HAVE_LIBESMTP
+
+/* Define to 1 if you have the <libesmtp.h> header file. */
+#undef HAVE_LIBESMTP_H
+
+/* Define to 1 if you have the ganglia library (-lganglia). */
+#undef HAVE_LIBGANGLIA
+
+/* Define to 1 if you have the gcrypt library (-lgcrypt). */
+#undef HAVE_LIBGCRYPT
+
+/* Define to 1 if you have the <libgen.h> header file. */
+#undef HAVE_LIBGEN_H
+
+/* Define to 1 if you have 'hal' library */
+#undef HAVE_LIBHAL
+
+/* Define to 1 if you have the <libiptc/libip6tc.h> header file. */
+#undef HAVE_LIBIPTC_LIBIP6TC_H
+
+/* Define to 1 if you have the <libiptc/libiptc.h> header file. */
+#undef HAVE_LIBIPTC_LIBIPTC_H
+
+/* Define to 1 if you have the 'kstat' library (-lkstat) */
+#undef HAVE_LIBKSTAT
+
+/* Define to 1 if you have the 'kvm' library with the 'kvm_getprocs' symbol
+   (-lkvm) */
+#undef HAVE_LIBKVM_GETPROCS
+
+/* Define to 1 if you have the 'kvm' library with the 'kvm_getswapinfo' symbol
+   (-lkvm) */
+#undef HAVE_LIBKVM_GETSWAPINFO
+
+/* Define to 1 if you have the 'kvm' library with the 'kvm_openfiles' symbol
+   (-lkvm) */
+#undef HAVE_LIBKVM_NLIST
+
+/* Define if libmemcached is present and usable. */
+#undef HAVE_LIBMEMCACHED
+
+/* Define to 1 if you have the <libmemcached/memcached.h> header file. */
+#undef HAVE_LIBMEMCACHED_MEMCACHED_H
+
+/* Define to 1 if you have the netapp library (-lnetapp). */
+#undef HAVE_LIBNETAPP
+
+/* Define to 1 if you have the <libnetlink.h> header file. */
+#undef HAVE_LIBNETLINK_H
+
+/* Define to 1 if you have the pcap library (-lpcap). */
+#undef HAVE_LIBPCAP
+
+/* Define if libperl is present and usable. */
+#undef HAVE_LIBPERL
+
+/* Define to 1 if you have the <libpq-fe.h> header file. */
+#undef HAVE_LIBPQ_FE_H
+
+/* Wether or not to use pthread (POSIX threads) library */
+#undef HAVE_LIBPTHREAD
+
+/* Define if librabbitmq is present and usable. */
+#undef HAVE_LIBRABBITMQ
+
+/* Define to 1 if you have the 'resolv' library (-lresolv). */
+#undef HAVE_LIBRESOLV
+
+/* Define to 1 if you have the sensors library (-lsensors). */
+#undef HAVE_LIBSENSORS
+
+/* Define to 1 if you have the 'statgrab' library (-lstatgrab) */
+#undef HAVE_LIBSTATGRAB
+
+/* Define to 1 if you have the tokyotyrant library (-ltokyotyrant). */
+#undef HAVE_LIBTOKYOTYRANT
+
+/* Define to 1 if you have the <libvirt/libvirt.h> header file. */
+#undef HAVE_LIBVIRT_LIBVIRT_H
+
+/* Define to 1 if you have the <libxml/parser.h> header file. */
+#undef HAVE_LIBXML_PARSER_H
+
+/* Define to 1 if you have the 'xmms' library (-lxmms). */
+#undef HAVE_LIBXMMS
+
+/* Define if libyajl is present and usable. */
+#undef HAVE_LIBYAJL
+
+/* Define to 1 if you have the <limits.h> header file. */
+#undef HAVE_LIMITS_H
+
+/* Define to 1 if you have the <linux/config.h> header file. */
+#undef HAVE_LINUX_CONFIG_H
+
+/* Define to 1 if you have the <linux/ethtool.h> header file. */
+#undef HAVE_LINUX_ETHTOOL_H
+
+/* Define to 1 if you have the <linux/gen_stats.h> header file. */
+#undef HAVE_LINUX_GEN_STATS_H
+
+/* Define to 1 if you have the <linux/if.h> header file. */
+#undef HAVE_LINUX_IF_H
+
+/* Define to 1 if you have the <linux/ip_vs.h> header file. */
+#undef HAVE_LINUX_IP_VS_H
+
+/* Define to 1 if you have the <linux/libnetlink.h> header file. */
+#undef HAVE_LINUX_LIBNETLINK_H
+
+/* Define to 1 if you have the <linux/major.h> header file. */
+#undef HAVE_LINUX_MAJOR_H
+
+/* Define to 1 if you have the <linux/netdevice.h> header file. */
+#undef HAVE_LINUX_NETDEVICE_H
+
+/* Define to 1 if you have the <linux/netfilter_ipv4/ip_tables.h> header file.
+   */
+#undef HAVE_LINUX_NETFILTER_IPV4_IP_TABLES_H
+
+/* Define to 1 if you have the <linux/netfilter_ipv6/ip6_tables.h> header
+   file. */
+#undef HAVE_LINUX_NETFILTER_IPV6_IP6_TABLES_H
+
+/* Define to 1 if you have the <linux/netfilter/x_tables.h> header file. */
+#undef HAVE_LINUX_NETFILTER_X_TABLES_H
+
+/* Define to 1 if you have the <linux/pkt_sched.h> header file. */
+#undef HAVE_LINUX_PKT_SCHED_H
+
+/* Define to 1 if you have the <linux/raid/md_u.h> header file. */
+#undef HAVE_LINUX_RAID_MD_U_H
+
+/* Define to 1 if you have the <linux/sockios.h> header file. */
+#undef HAVE_LINUX_SOCKIOS_H
+
+/* Define to 1 if you have the <linux/un.h> header file. */
+#undef HAVE_LINUX_UN_H
+
+/* Define to 1 if you have the <linux/wireless.h> header file. */
+#undef HAVE_LINUX_WIRELESS_H
+
+/* Define to 1 if you have the `listmntent' function. */
+#undef HAVE_LISTMNTENT
+
+/* Define to 1 if you have the <mach/host_priv.h> header file. */
+#undef HAVE_MACH_HOST_PRIV_H
+
+/* Define to 1 if you have the <mach/kern_return.h> header file. */
+#undef HAVE_MACH_KERN_RETURN_H
+
+/* Define to 1 if you have the <mach/mach_error.h> header file. */
+#undef HAVE_MACH_MACH_ERROR_H
+
+/* Define to 1 if you have the <mach/mach_host.h> header file. */
+#undef HAVE_MACH_MACH_HOST_H
+
+/* Define to 1 if you have the <mach/mach_init.h> header file. */
+#undef HAVE_MACH_MACH_INIT_H
+
+/* Define to 1 if you have the <mach/mach_port.h> header file. */
+#undef HAVE_MACH_MACH_PORT_H
+
+/* Define to 1 if you have the <mach/mach_types.h> header file. */
+#undef HAVE_MACH_MACH_TYPES_H
+
+/* Define to 1 if you have the <mach/message.h> header file. */
+#undef HAVE_MACH_MESSAGE_H
+
+/* Define to 1 if you have the <mach/processor.h> header file. */
+#undef HAVE_MACH_PROCESSOR_H
+
+/* Define to 1 if you have the <mach/processor_info.h> header file. */
+#undef HAVE_MACH_PROCESSOR_INFO_H
+
+/* Define to 1 if you have the <mach/processor_set.h> header file. */
+#undef HAVE_MACH_PROCESSOR_SET_H
+
+/* Define to 1 if you have the <mach/task.h> header file. */
+#undef HAVE_MACH_TASK_H
+
+/* Define to 1 if you have the <mach/thread_act.h> header file. */
+#undef HAVE_MACH_THREAD_ACT_H
+
+/* Define to 1 if you have the <mach/vm_map.h> header file. */
+#undef HAVE_MACH_VM_MAP_H
+
+/* Define to 1 if you have the <mach/vm_prot.h> header file. */
+#undef HAVE_MACH_VM_PROT_H
+
+/* Define to 1 if you have the <mach/vm_region.h> header file. */
+#undef HAVE_MACH_VM_REGION_H
+
+/* Define to 1 if you have the <mach/vm_statistics.h> header file. */
+#undef HAVE_MACH_VM_STATISTICS_H
+
+/* Define to 1 if you have the <math.h> header file. */
+#undef HAVE_MATH_H
+
+/* Define to 1 if you have the `memcpy' function. */
+#undef HAVE_MEMCPY
+
+/* Define to 1 if you have the <memory.h> header file. */
+#undef HAVE_MEMORY_H
+
+/* Define to 1 if you have the <mntent.h> header file. */
+#undef HAVE_MNTENT_H
+
+/* Define to 1 if you have the <mnttab.h> header file. */
+#undef HAVE_MNTTAB_H
+
+/* Define to 1 if you have the <modbus/modbus.h> header file. */
+#undef HAVE_MODBUS_MODBUS_H
+
+/* Define to 1 if you have the <mongo.h> header file. */
+#undef HAVE_MONGO_H
+
+/* Define to 1 if you have the <mysql.h> header file. */
+#undef HAVE_MYSQL_H
+
+/* Define to 1 if you have the <mysql/mysql.h> header file. */
+#undef HAVE_MYSQL_MYSQL_H
+
+/* Define to 1 if you have the `nanosleep' function. */
+#undef HAVE_NANOSLEEP
+
+/* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
+#undef HAVE_NDIR_H
+
+/* Define to 1 if you have the <netapp_api.h> header file. */
+#undef HAVE_NETAPP_API_H
+
+/* Define to 1 if you have the <netdb.h> header file. */
+#undef HAVE_NETDB_H
+
+/* Define to 1 if you have the <netinet/icmp6.h> header file. */
+#undef HAVE_NETINET_ICMP6_H
+
+/* Define to 1 if you have the <netinet/if_ether.h> header file. */
+#undef HAVE_NETINET_IF_ETHER_H
+
+/* Define to 1 if you have the <netinet/in.h> header file. */
+#undef HAVE_NETINET_IN_H
+
+/* Define to 1 if you have the <netinet/in_systm.h> header file. */
+#undef HAVE_NETINET_IN_SYSTM_H
+
+/* Define to 1 if you have the <netinet/ip6.h> header file. */
+#undef HAVE_NETINET_IP6_H
+
+/* Define to 1 if you have the <netinet/ip_compat.h> header file. */
+#undef HAVE_NETINET_IP_COMPAT_H
+
+/* Define to 1 if you have the <netinet/ip.h> header file. */
+#undef HAVE_NETINET_IP_H
+
+/* Define to 1 if you have the <netinet/ip_icmp.h> header file. */
+#undef HAVE_NETINET_IP_ICMP_H
+
+/* Define to 1 if you have the <netinet/ip_var.h> header file. */
+#undef HAVE_NETINET_IP_VAR_H
+
+/* Define to 1 if you have the <netinet/tcp.h> header file. */
+#undef HAVE_NETINET_TCP_H
+
+/* Define to 1 if you have the <netinet/udp.h> header file. */
+#undef HAVE_NETINET_UDP_H
+
+/* Define to 1 if you have the <net/if_arp.h> header file. */
+#undef HAVE_NET_IF_ARP_H
+
+/* Define to 1 if you have the <net/if.h> header file. */
+#undef HAVE_NET_IF_H
+
+/* Define to 1 if you have the <net/if_ppp.h> header file. */
+#undef HAVE_NET_IF_PPP_H
+
+/* Define to 1 if you have the <net/ip_vs.h> header file. */
+#undef HAVE_NET_IP_VS_H
+
+/* Define to 1 if you have the <net/pfvar.h> header file. */
+#undef HAVE_NET_PFVAR_H
+
+/* Define to 1 if you have the <net/ppp_defs.h> header file. */
+#undef HAVE_NET_PPP_DEFS_H
+
+/* Define to 1 if you have the <net-snmp/net-snmp-config.h> header file. */
+#undef HAVE_NET_SNMP_NET_SNMP_CONFIG_H
+
+/* Define to 1 if you have the <nlist.h> header file. */
+#undef HAVE_NLIST_H
+
+/* Define to 1 if you have the <oci.h> header file. */
+#undef HAVE_OCI_H
+
+/* Define if the function getmntent exists and takes one argument. */
+#undef HAVE_ONE_GETMNTENT
+
+/* Define to 1 if you have the <OpenIPMI/ipmi_smi.h> header file. */
+#undef HAVE_OPENIPMI_IPMI_SMI_H
+
+/* Define to 1 if you have the `openlog' function. */
+#undef HAVE_OPENLOG
+
+/* Define to 1 if you have the <oping.h> header file. */
+#undef HAVE_OPING_H
+
+/* Define to 1 if you have the <owcapi.h> header file. */
+#undef HAVE_OWCAPI_H
+
+/* Define to 1 if you have the <paths.h> header file. */
+#undef HAVE_PATHS_H
+
+/* Define to 1 if you have the <pcap-bpf.h> header file. */
+#undef HAVE_PCAP_BPF_H
+
+/* Define to 1 if you have the <pcap.h> header file. */
+#undef HAVE_PCAP_H
+
+/* Define to 1 if you have the 'perfstat' library (-lperfstat) */
+#undef HAVE_PERFSTAT
+
+/* Define if Perl supports ithreads. */
+#undef HAVE_PERL_ITHREADS
+
+/* Define if Perl's struct mgvtbl has member svt_local. */
+#undef HAVE_PERL_STRUCT_MGVTBL_SVT_LOCAL
+
+/* Define to 1 if the aggregation plugin is enabled. */
+#undef HAVE_PLUGIN_AGGREGATION
+
+/* Define to 1 if the amqp plugin is enabled. */
+#undef HAVE_PLUGIN_AMQP
+
+/* Define to 1 if the apache plugin is enabled. */
+#undef HAVE_PLUGIN_APACHE
+
+/* Define to 1 if the apcups plugin is enabled. */
+#undef HAVE_PLUGIN_APCUPS
+
+/* Define to 1 if the apple_sensors plugin is enabled. */
+#undef HAVE_PLUGIN_APPLE_SENSORS
+
+/* Define to 1 if the ascent plugin is enabled. */
+#undef HAVE_PLUGIN_ASCENT
+
+/* Define to 1 if the battery plugin is enabled. */
+#undef HAVE_PLUGIN_BATTERY
+
+/* Define to 1 if the bind plugin is enabled. */
+#undef HAVE_PLUGIN_BIND
+
+/* Define to 1 if the conntrack plugin is enabled. */
+#undef HAVE_PLUGIN_CONNTRACK
+
+/* Define to 1 if the contextswitch plugin is enabled. */
+#undef HAVE_PLUGIN_CONTEXTSWITCH
+
+/* Define to 1 if the cpu plugin is enabled. */
+#undef HAVE_PLUGIN_CPU
+
+/* Define to 1 if the cpufreq plugin is enabled. */
+#undef HAVE_PLUGIN_CPUFREQ
+
+/* Define to 1 if the csv plugin is enabled. */
+#undef HAVE_PLUGIN_CSV
+
+/* Define to 1 if the curl plugin is enabled. */
+#undef HAVE_PLUGIN_CURL
+
+/* Define to 1 if the curl_json plugin is enabled. */
+#undef HAVE_PLUGIN_CURL_JSON
+
+/* Define to 1 if the curl_xml plugin is enabled. */
+#undef HAVE_PLUGIN_CURL_XML
+
+/* Define to 1 if the dbi plugin is enabled. */
+#undef HAVE_PLUGIN_DBI
+
+/* Define to 1 if the df plugin is enabled. */
+#undef HAVE_PLUGIN_DF
+
+/* Define to 1 if the disk plugin is enabled. */
+#undef HAVE_PLUGIN_DISK
+
+/* Define to 1 if the dns plugin is enabled. */
+#undef HAVE_PLUGIN_DNS
+
+/* Define to 1 if the email plugin is enabled. */
+#undef HAVE_PLUGIN_EMAIL
+
+/* Define to 1 if the entropy plugin is enabled. */
+#undef HAVE_PLUGIN_ENTROPY
+
+/* Define to 1 if the ethstat plugin is enabled. */
+#undef HAVE_PLUGIN_ETHSTAT
+
+/* Define to 1 if the exec plugin is enabled. */
+#undef HAVE_PLUGIN_EXEC
+
+/* Define to 1 if the filecount plugin is enabled. */
+#undef HAVE_PLUGIN_FILECOUNT
+
+/* Define to 1 if the fscache plugin is enabled. */
+#undef HAVE_PLUGIN_FSCACHE
+
+/* Define to 1 if the gmond plugin is enabled. */
+#undef HAVE_PLUGIN_GMOND
+
+/* Define to 1 if the hddtemp plugin is enabled. */
+#undef HAVE_PLUGIN_HDDTEMP
+
+/* Define to 1 if the interface plugin is enabled. */
+#undef HAVE_PLUGIN_INTERFACE
+
+/* Define to 1 if the ipmi plugin is enabled. */
+#undef HAVE_PLUGIN_IPMI
+
+/* Define to 1 if the iptables plugin is enabled. */
+#undef HAVE_PLUGIN_IPTABLES
+
+/* Define to 1 if the ipvs plugin is enabled. */
+#undef HAVE_PLUGIN_IPVS
+
+/* Define to 1 if the irq plugin is enabled. */
+#undef HAVE_PLUGIN_IRQ
+
+/* Define to 1 if the java plugin is enabled. */
+#undef HAVE_PLUGIN_JAVA
+
+/* Define to 1 if the libvirt plugin is enabled. */
+#undef HAVE_PLUGIN_LIBVIRT
+
+/* Define to 1 if the load plugin is enabled. */
+#undef HAVE_PLUGIN_LOAD
+
+/* Define to 1 if the logfile plugin is enabled. */
+#undef HAVE_PLUGIN_LOGFILE
+
+/* Define to 1 if the lpar plugin is enabled. */
+#undef HAVE_PLUGIN_LPAR
+
+/* Define to 1 if the madwifi plugin is enabled. */
+#undef HAVE_PLUGIN_MADWIFI
+
+/* Define to 1 if the match_empty_counter plugin is enabled. */
+#undef HAVE_PLUGIN_MATCH_EMPTY_COUNTER
+
+/* Define to 1 if the match_hashed plugin is enabled. */
+#undef HAVE_PLUGIN_MATCH_HASHED
+
+/* Define to 1 if the match_regex plugin is enabled. */
+#undef HAVE_PLUGIN_MATCH_REGEX
+
+/* Define to 1 if the match_timediff plugin is enabled. */
+#undef HAVE_PLUGIN_MATCH_TIMEDIFF
+
+/* Define to 1 if the match_value plugin is enabled. */
+#undef HAVE_PLUGIN_MATCH_VALUE
+
+/* Define to 1 if the mbmon plugin is enabled. */
+#undef HAVE_PLUGIN_MBMON
+
+/* Define to 1 if the md plugin is enabled. */
+#undef HAVE_PLUGIN_MD
+
+/* Define to 1 if the memcachec plugin is enabled. */
+#undef HAVE_PLUGIN_MEMCACHEC
+
+/* Define to 1 if the memcached plugin is enabled. */
+#undef HAVE_PLUGIN_MEMCACHED
+
+/* Define to 1 if the memory plugin is enabled. */
+#undef HAVE_PLUGIN_MEMORY
+
+/* Define to 1 if the modbus plugin is enabled. */
+#undef HAVE_PLUGIN_MODBUS
+
+/* Define to 1 if the mongodb plugin is enabled. */
+#undef HAVE_PLUGIN_MONGODB
+
+/* Define to 1 if the multimeter plugin is enabled. */
+#undef HAVE_PLUGIN_MULTIMETER
+
+/* Define to 1 if the mysql plugin is enabled. */
+#undef HAVE_PLUGIN_MYSQL
+
+/* Define to 1 if the netapp plugin is enabled. */
+#undef HAVE_PLUGIN_NETAPP
+
+/* Define to 1 if the netlink plugin is enabled. */
+#undef HAVE_PLUGIN_NETLINK
+
+/* Define to 1 if the network plugin is enabled. */
+#undef HAVE_PLUGIN_NETWORK
+
+/* Define to 1 if the nfs plugin is enabled. */
+#undef HAVE_PLUGIN_NFS
+
+/* Define to 1 if the nginx plugin is enabled. */
+#undef HAVE_PLUGIN_NGINX
+
+/* Define to 1 if the notify_desktop plugin is enabled. */
+#undef HAVE_PLUGIN_NOTIFY_DESKTOP
+
+/* Define to 1 if the notify_email plugin is enabled. */
+#undef HAVE_PLUGIN_NOTIFY_EMAIL
+
+/* Define to 1 if the ntpd plugin is enabled. */
+#undef HAVE_PLUGIN_NTPD
+
+/* Define to 1 if the numa plugin is enabled. */
+#undef HAVE_PLUGIN_NUMA
+
+/* Define to 1 if the nut plugin is enabled. */
+#undef HAVE_PLUGIN_NUT
+
+/* Define to 1 if the olsrd plugin is enabled. */
+#undef HAVE_PLUGIN_OLSRD
+
+/* Define to 1 if the onewire plugin is enabled. */
+#undef HAVE_PLUGIN_ONEWIRE
+
+/* Define to 1 if the openvpn plugin is enabled. */
+#undef HAVE_PLUGIN_OPENVPN
+
+/* Define to 1 if the oracle plugin is enabled. */
+#undef HAVE_PLUGIN_ORACLE
+
+/* Define to 1 if the perl plugin is enabled. */
+#undef HAVE_PLUGIN_PERL
+
+/* Define to 1 if the pf plugin is enabled. */
+#undef HAVE_PLUGIN_PF
+
+/* Define to 1 if the pinba plugin is enabled. */
+#undef HAVE_PLUGIN_PINBA
+
+/* Define to 1 if the ping plugin is enabled. */
+#undef HAVE_PLUGIN_PING
+
+/* Define to 1 if the postgresql plugin is enabled. */
+#undef HAVE_PLUGIN_POSTGRESQL
+
+/* Define to 1 if the powerdns plugin is enabled. */
+#undef HAVE_PLUGIN_POWERDNS
+
+/* Define to 1 if the processes plugin is enabled. */
+#undef HAVE_PLUGIN_PROCESSES
+
+/* Define to 1 if the protocols plugin is enabled. */
+#undef HAVE_PLUGIN_PROTOCOLS
+
+/* Define to 1 if the python plugin is enabled. */
+#undef HAVE_PLUGIN_PYTHON
+
+/* Define to 1 if the redis plugin is enabled. */
+#undef HAVE_PLUGIN_REDIS
+
+/* Define to 1 if the routeros plugin is enabled. */
+#undef HAVE_PLUGIN_ROUTEROS
+
+/* Define to 1 if the rrdcached plugin is enabled. */
+#undef HAVE_PLUGIN_RRDCACHED
+
+/* Define to 1 if the rrdtool plugin is enabled. */
+#undef HAVE_PLUGIN_RRDTOOL
+
+/* Define to 1 if the sensors plugin is enabled. */
+#undef HAVE_PLUGIN_SENSORS
+
+/* Define to 1 if the serial plugin is enabled. */
+#undef HAVE_PLUGIN_SERIAL
+
+/* Define to 1 if the snmp plugin is enabled. */
+#undef HAVE_PLUGIN_SNMP
+
+/* Define to 1 if the swap plugin is enabled. */
+#undef HAVE_PLUGIN_SWAP
+
+/* Define to 1 if the syslog plugin is enabled. */
+#undef HAVE_PLUGIN_SYSLOG
+
+/* Define to 1 if the table plugin is enabled. */
+#undef HAVE_PLUGIN_TABLE
+
+/* Define to 1 if the tail plugin is enabled. */
+#undef HAVE_PLUGIN_TAIL
+
+/* Define to 1 if the tail_csv plugin is enabled. */
+#undef HAVE_PLUGIN_TAIL_CSV
+
+/* Define to 1 if the tape plugin is enabled. */
+#undef HAVE_PLUGIN_TAPE
+
+/* Define to 1 if the target_notification plugin is enabled. */
+#undef HAVE_PLUGIN_TARGET_NOTIFICATION
+
+/* Define to 1 if the target_replace plugin is enabled. */
+#undef HAVE_PLUGIN_TARGET_REPLACE
+
+/* Define to 1 if the target_scale plugin is enabled. */
+#undef HAVE_PLUGIN_TARGET_SCALE
+
+/* Define to 1 if the target_set plugin is enabled. */
+#undef HAVE_PLUGIN_TARGET_SET
+
+/* Define to 1 if the target_v5upgrade plugin is enabled. */
+#undef HAVE_PLUGIN_TARGET_V5UPGRADE
+
+/* Define to 1 if the tcpconns plugin is enabled. */
+#undef HAVE_PLUGIN_TCPCONNS
+
+/* Define to 1 if the teamspeak2 plugin is enabled. */
+#undef HAVE_PLUGIN_TEAMSPEAK2
+
+/* Define to 1 if the ted plugin is enabled. */
+#undef HAVE_PLUGIN_TED
+
+/* Define to 1 if the thermal plugin is enabled. */
+#undef HAVE_PLUGIN_THERMAL
+
+/* Define to 1 if the threshold plugin is enabled. */
+#undef HAVE_PLUGIN_THRESHOLD
+
+/* Define to 1 if the tokyotyrant plugin is enabled. */
+#undef HAVE_PLUGIN_TOKYOTYRANT
+
+/* Define to 1 if the unixsock plugin is enabled. */
+#undef HAVE_PLUGIN_UNIXSOCK
+
+/* Define to 1 if the uptime plugin is enabled. */
+#undef HAVE_PLUGIN_UPTIME
+
+/* Define to 1 if the users plugin is enabled. */
+#undef HAVE_PLUGIN_USERS
+
+/* Define to 1 if the uuid plugin is enabled. */
+#undef HAVE_PLUGIN_UUID
+
+/* Define to 1 if the varnish plugin is enabled. */
+#undef HAVE_PLUGIN_VARNISH
+
+/* Define to 1 if the vmem plugin is enabled. */
+#undef HAVE_PLUGIN_VMEM
+
+/* Define to 1 if the vserver plugin is enabled. */
+#undef HAVE_PLUGIN_VSERVER
+
+/* Define to 1 if the wireless plugin is enabled. */
+#undef HAVE_PLUGIN_WIRELESS
+
+/* Define to 1 if the write_graphite plugin is enabled. */
+#undef HAVE_PLUGIN_WRITE_GRAPHITE
+
+/* Define to 1 if the write_http plugin is enabled. */
+#undef HAVE_PLUGIN_WRITE_HTTP
+
+/* Define to 1 if the write_mongodb plugin is enabled. */
+#undef HAVE_PLUGIN_WRITE_MONGODB
+
+/* Define to 1 if the write_redis plugin is enabled. */
+#undef HAVE_PLUGIN_WRITE_REDIS
+
+/* Define to 1 if the write_riemann plugin is enabled. */
+#undef HAVE_PLUGIN_WRITE_RIEMANN
+
+/* Define to 1 if the xmms plugin is enabled. */
+#undef HAVE_PLUGIN_XMMS
+
+/* Define to 1 if the zfs_arc plugin is enabled. */
+#undef HAVE_PLUGIN_ZFS_ARC
+
+/* Define to 1 if you have the <poll.h> header file. */
+#undef HAVE_POLL_H
+
+/* Define to 1 if you have the `processor_info' function. */
+#undef HAVE_PROCESSOR_INFO
+
+/* Define to 1 if you have the procinfo.h */
+#undef HAVE_PROCINFO_H
+
+/* Define to 1 if you have the <pthread.h> header file. */
+#undef HAVE_PTHREAD_H
+
+/* Define to 1 if you have the <pwd.h> header file. */
+#undef HAVE_PWD_H
+
+/* Define to 1 if you have the <Python.h> header file. */
+#undef HAVE_PYTHON_H
+
+/* Define to 1 if you have the `regcomp' function. */
+#undef HAVE_REGCOMP
+
+/* Define to 1 if you have the `regerror' function. */
+#undef HAVE_REGERROR
+
+/* Define to 1 if you have the `regexec' function. */
+#undef HAVE_REGEXEC
+
+/* Define to 1 if you have the <regex.h> header file. */
+#undef HAVE_REGEX_H
+
+/* Define to 1 if you have the `regfree' function. */
+#undef HAVE_REGFREE
+
+/* Define to 1 if you have the <routeros_api.h> header file. */
+#undef HAVE_ROUTEROS_API_H
+
+/* Define to 1 if you have the <rrd.h> header file. */
+#undef HAVE_RRD_H
+
+/* Define to 1 if you have the `select' function. */
+#undef HAVE_SELECT
+
+/* Define to 1 if you have the <sensors/sensors.h> header file. */
+#undef HAVE_SENSORS_SENSORS_H
+
+/* Define if the function getmntent exists. It's the version from libseq. */
+#undef HAVE_SEQ_GETMNTENT
+
+/* Define to 1 if you have the `setenv' function. */
+#undef HAVE_SETENV
+
+/* Define to 1 if you have the `setgroups' function. */
+#undef HAVE_SETGROUPS
+
+/* Define to 1 if you have the <signal.h> header file. */
+#undef HAVE_SIGNAL_H
+
+/* Define to 1 if you have the `socket' function. */
+#undef HAVE_SOCKET
+
+/* Define to 1 if you have the `statfs' function. */
+#undef HAVE_STATFS
+
+/* Define to 1 if you have the <statgrab.h> header file. */
+#undef HAVE_STATGRAB_H
+
+/* Define to 1 if you have the `statvfs' function. */
+#undef HAVE_STATVFS
+
+/* Define to 1 if you have the <stdarg.h> header file. */
+#undef HAVE_STDARG_H
+
+/* Define to 1 if stdbool.h conforms to C99. */
+#undef HAVE_STDBOOL_H
+
+/* Define to 1 if you have the <stdint.h> header file. */
+#undef HAVE_STDINT_H
+
+/* Define to 1 if you have the <stdio.h> header file. */
+#undef HAVE_STDIO_H
+
+/* Define to 1 if you have the <stdlib.h> header file. */
+#undef HAVE_STDLIB_H
+
+/* Define to 1 if you have the `strcasecmp' function. */
+#undef HAVE_STRCASECMP
+
+/* Define to 1 if you have the `strchr' function. */
+#undef HAVE_STRCHR
+
+/* Define to 1 if you have the `strcmp' function. */
+#undef HAVE_STRCMP
+
+/* Define to 1 if you have the `strdup' function. */
+#undef HAVE_STRDUP
+
+/* Define to 1 if you have the `strerror_r' function. */
+#undef HAVE_STRERROR_R
+
+/* Define to 1 if you have the <strings.h> header file. */
+#undef HAVE_STRINGS_H
+
+/* Define to 1 if you have the <string.h> header file. */
+#undef HAVE_STRING_H
+
+/* Define to 1 if you have the `strlen' function. */
+#undef HAVE_STRLEN
+
+/* Define to 1 if you have the `strncasecmp' function. */
+#undef HAVE_STRNCASECMP
+
+/* Define to 1 if you have the `strncmp' function. */
+#undef HAVE_STRNCMP
+
+/* Define to 1 if you have the `strncpy' function. */
+#undef HAVE_STRNCPY
+
+/* Define to 1 if you have the `strptime' function. */
+#undef HAVE_STRPTIME
+
+/* Define to 1 if you have the `strstr' function. */
+#undef HAVE_STRSTR
+
+/* Define to 1 if you have the `strtol' function. */
+#undef HAVE_STRTOL
+
+/* Define if struct if_data exists and is usable. */
+#undef HAVE_STRUCT_IF_DATA
+
+/* Define to 1 if `ifi_ibytes' is a member of `struct if_data'. */
+#undef HAVE_STRUCT_IF_DATA_IFI_IBYTES
+
+/* Define to 1 if `ifi_ierrors' is a member of `struct if_data'. */
+#undef HAVE_STRUCT_IF_DATA_IFI_IERRORS
+
+/* Define to 1 if `ifi_opackets' is a member of `struct if_data'. */
+#undef HAVE_STRUCT_IF_DATA_IFI_OPACKETS
+
+/* Define to 1 if `imr_ifindex' is a member of `struct ip_mreqn'. */
+#undef HAVE_STRUCT_IP_MREQN_IMR_IFINDEX
+
+/* Define if struct kinfo_proc exists in the FreeBSD variant. */
+#undef HAVE_STRUCT_KINFO_PROC_FREEBSD
+
+/* Define to 1 if `ki_pid' is a member of `struct kinfo_proc'. */
+#undef HAVE_STRUCT_KINFO_PROC_KI_PID
+
+/* Define to 1 if `ki_rssize' is a member of `struct kinfo_proc'. */
+#undef HAVE_STRUCT_KINFO_PROC_KI_RSSIZE
+
+/* Define to 1 if `ki_rusage' is a member of `struct kinfo_proc'. */
+#undef HAVE_STRUCT_KINFO_PROC_KI_RUSAGE
+
+/* Define to 1 if `kp_eproc' is a member of `struct kinfo_proc'. */
+#undef HAVE_STRUCT_KINFO_PROC_KP_EPROC
+
+/* Define to 1 if `kp_proc' is a member of `struct kinfo_proc'. */
+#undef HAVE_STRUCT_KINFO_PROC_KP_PROC
+
+/* Define if struct kinfo_proc exists in the OpenBSD variant. */
+#undef HAVE_STRUCT_KINFO_PROC_OPENBSD
+
+/* Define if struct net_device_stats exists and is usable. */
+#undef HAVE_STRUCT_NET_DEVICE_STATS
+
+/* Define to 1 if `rx_bytes' is a member of `struct net_device_stats'. */
+#undef HAVE_STRUCT_NET_DEVICE_STATS_RX_BYTES
+
+/* Define to 1 if `rx_errors' is a member of `struct net_device_stats'. */
+#undef HAVE_STRUCT_NET_DEVICE_STATS_RX_ERRORS
+
+/* Define to 1 if `tx_packets' is a member of `struct net_device_stats'. */
+#undef HAVE_STRUCT_NET_DEVICE_STATS_TX_PACKETS
+
+/* Define to 1 if `dest' is a member of `struct udphdr'. */
+#undef HAVE_STRUCT_UDPHDR_DEST
+
+/* Define to 1 if `source' is a member of `struct udphdr'. */
+#undef HAVE_STRUCT_UDPHDR_SOURCE
+
+/* Define to 1 if `uh_dport' is a member of `struct udphdr'. */
+#undef HAVE_STRUCT_UDPHDR_UH_DPORT
+
+/* Define to 1 if `uh_sport' is a member of `struct udphdr'. */
+#undef HAVE_STRUCT_UDPHDR_UH_SPORT
+
+/* Define if the function getmntent exists. It's the version from libsun. */
+#undef HAVE_SUN_GETMNTENT
+
+/* Define to 1 if you have the `swapctl' function. */
+#undef HAVE_SWAPCTL
+
+/* Define if the function swapctl exists and takes three arguments. */
+#undef HAVE_SWAPCTL_THREE_ARGS
+
+/* Define if the function swapctl exists and takes two arguments. */
+#undef HAVE_SWAPCTL_TWO_ARGS
+
+/* Define to 1 if you have the `sysconf' function. */
+#undef HAVE_SYSCONF
+
+/* Define to 1 if you have the `sysctl' function. */
+#undef HAVE_SYSCTL
+
+/* Define to 1 if you have the `sysctlbyname' function. */
+#undef HAVE_SYSCTLBYNAME
+
+/* Define if sysctl supports kern.cp_times */
+#undef HAVE_SYSCTL_KERN_CP_TIMES
+
+/* Define to 1 if you have the `syslog' function. */
+#undef HAVE_SYSLOG
+
+/* Define to 1 if you have the <syslog.h> header file. */
+#undef HAVE_SYSLOG_H
+
+/* Define to 1 if you have the <sys/dir.h> header file, and it defines `DIR'.
+   */
+#undef HAVE_SYS_DIR_H
+
+/* Define to 1 if you have the <sys/dkstat.h> header file. */
+#undef HAVE_SYS_DKSTAT_H
+
+/* Define to 1 if you have the <sys/fstyp.h> header file. */
+#undef HAVE_SYS_FSTYP_H
+
+/* Define to 1 if you have the <sys/fs_types.h> header file. */
+#undef HAVE_SYS_FS_TYPES_H
+
+/* Define to 1 if you have the <sys/ioctl.h> header file. */
+#undef HAVE_SYS_IOCTL_H
+
+/* Define to 1 if you have the <sys/isa_defs.h> header file. */
+#undef HAVE_SYS_ISA_DEFS_H
+
+/* Define to 1 if you have the <sys/loadavg.h> header file. */
+#undef HAVE_SYS_LOADAVG_H
+
+/* Define to 1 if you have the <sys/mntent.h> header file. */
+#undef HAVE_SYS_MNTENT_H
+
+/* Define to 1 if you have the <sys/mnttab.h> header file. */
+#undef HAVE_SYS_MNTTAB_H
+
+/* Define to 1 if you have the <sys/mount.h> header file. */
+#undef HAVE_SYS_MOUNT_H
+
+/* Define to 1 if you have the <sys/ndir.h> header file, and it defines `DIR'.
+   */
+#undef HAVE_SYS_NDIR_H
+
+/* Define to 1 if you have the <sys/param.h> header file. */
+#undef HAVE_SYS_PARAM_H
+
+/* Define to 1 if you have the <sys/resource.h> header file. */
+#undef HAVE_SYS_RESOURCE_H
+
+/* Define to 1 if you have the <sys/select.h> header file. */
+#undef HAVE_SYS_SELECT_H
+
+/* Define to 1 if you have the <sys/socket.h> header file. */
+#undef HAVE_SYS_SOCKET_H
+
+/* Define to 1 if you have the <sys/statfs.h> header file. */
+#undef HAVE_SYS_STATFS_H
+
+/* Define to 1 if you have the <sys/statvfs.h> header file. */
+#undef HAVE_SYS_STATVFS_H
+
+/* Define to 1 if you have the <sys/stat.h> header file. */
+#undef HAVE_SYS_STAT_H
+
+/* Define to 1 if you have the <sys/swap.h> header file. */
+#undef HAVE_SYS_SWAP_H
+
+/* Define to 1 if you have the <sys/sysctl.h> header file. */
+#undef HAVE_SYS_SYSCTL_H
+
+/* Define to 1 if you have the <sys/types.h> header file. */
+#undef HAVE_SYS_TYPES_H
+
+/* Define to 1 if you have the <sys/ucred.h> header file. */
+#undef HAVE_SYS_UCRED_H
+
+/* Define to 1 if you have the <sys/un.h> header file. */
+#undef HAVE_SYS_UN_H
+
+/* Define to 1 if you have the <sys/vfstab.h> header file. */
+#undef HAVE_SYS_VFSTAB_H
+
+/* Define to 1 if you have the <sys/vfs.h> header file. */
+#undef HAVE_SYS_VFS_H
+
+/* Define to 1 if you have <sys/wait.h> that is POSIX.1 compatible. */
+#undef HAVE_SYS_WAIT_H
+
+/* True if the enum-member TCA_STATS exists */
+#undef HAVE_TCA_STATS
+
+/* True if the enum-member TCA_STATS2 exists */
+#undef HAVE_TCA_STATS2
+
+/* Define to 1 if you have the <tcrdb.h> header file. */
+#undef HAVE_TCRDB_H
+
+/* Define to 1 if you have the <termios.h> header file. */
+#undef HAVE_TERMIOS_H
+
+/* Define to 1 if you have the threadsafe rrd library (-lrrd_th). */
+#undef HAVE_THREADSAFE_LIBRRD
+
+/* Define to 1 if you have the `thread_info' function. */
+#undef HAVE_THREAD_INFO
+
+/* Define if the function getmntent exists and takes two arguments. */
+#undef HAVE_TWO_GETMNTENT
+
+/* Define to 1 if you have the <unistd.h> header file. */
+#undef HAVE_UNISTD_H
+
+/* Define to 1 if you have the <upsclient.h> header file. */
+#undef HAVE_UPSCLIENT_H
+
+/* Define to 1 if the system has the type `UPSCONN'. */
+#undef HAVE_UPSCONN
+
+/* Define to 1 if the system has the type `UPSCONN_t'. */
+#undef HAVE_UPSCONN_T
+
+/* Define to 1 if you have the <utmpx.h> header file. */
+#undef HAVE_UTMPX_H
+
+/* Define to 1 if you have the <utmp.h> header file. */
+#undef HAVE_UTMP_H
+
+/* Varnish 2 API support */
+#undef HAVE_VARNISH_V2
+
+/* Varnish 3 API support */
+#undef HAVE_VARNISH_V3
+
+/* Define to 1 if you have the <varnish/varnishapi.h> header file. */
+#undef HAVE_VARNISH_VARNISHAPI_H
+
+/* Define to 1 if you have the <varnish/vsc.h> header file. */
+#undef HAVE_VARNISH_VSC_H
+
+/* Define to 1 if you have the <vm/anon.h> header file. */
+#undef HAVE_VM_ANON_H
+
+/* Define to 1 if you have the <wordexp.h> header file. */
+#undef HAVE_WORDEXP_H
+
+/* Define to 1 if you have the <xfs/xqm.h> header file. */
+#undef HAVE_XFS_XQM_H
+
+/* Define to 1 if you have the <yajl/yajl_parse.h> header file. */
+#undef HAVE_YAJL_YAJL_PARSE_H
+
+/* Define to 1 if you have the <yajl/yajl_version.h> header file. */
+#undef HAVE_YAJL_YAJL_VERSION_H
+
+/* Define to 1 if the system has the type `_Bool'. */
+#undef HAVE__BOOL
+
+/* True if program is to be compiled for a AIX kernel */
+#undef KERNEL_AIX
+
+/* True if program is to be compiled for a Linux kernel */
+#undef KERNEL_LINUX
+
+/* True if program is to be compiled for a Solaris kernel */
+#undef KERNEL_SOLARIS
+
+/* Define to used libtool version. */
+#undef LIBTOOL_VERSION
+
+/* Define if NAN is defined by default and can initialize static variables. */
+#undef NAN_STATIC_DEFAULT
+
+/* Define if NAN is defined by __USE_ISOC99 and can initialize static
+   variables. */
+#undef NAN_STATIC_ISOC
+
+/* Define if NAN can be defined as (0.0 / 0.0) */
+#undef NAN_ZERO_ZERO
+
+/* Define to 1 if we use the shipped iptc library. */
+#undef OWN_LIBIPTC
+
+/* Define to 1 if we use the shipped mongoc lib. */
+#undef OWN_LIBMONGOC
+
+/* Define to the address where bug reports for this package should be sent. */
+#undef PACKAGE_BUGREPORT
+
+/* Define to the full name of this package. */
+#undef PACKAGE_NAME
+
+/* Define to the full name and version of this package. */
+#undef PACKAGE_STRING
+
+/* Define to the one symbol short name of this package. */
+#undef PACKAGE_TARNAME
+
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
+
+/* Define to the version of this package. */
+#undef PACKAGE_VERSION
+
+/* Define to 1 if your version of the 'perfstat' library supports donation */
+#undef PERFSTAT_SUPPORTS_DONATION
+
+/* Define to 1 if function 'rtnl_dump_filter' expects five arguments. */
+#undef RTNL_DUMP_FILTER_FIVE_ARGS
+
+/* Define to 1 if function 'rtnl_dump_filter' expects three arguments. */
+#undef RTNL_DUMP_FILTER_THREE_ARGS
+
+/* Define to 1 if you have the ANSI C header files. */
+#undef STDC_HEADERS
+
+/* Define to 1 if strerror_r returns char *. */
+#undef STRERROR_R_CHAR_P
+
+/* Set to true if strptime is only exported in X/Open mode (GNU libc). */
+#undef STRPTIME_NEEDS_STANDARDS
+
+/* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
+#undef TIME_WITH_SYS_TIME
+
+/* Define to 1 if `lex' declares `yytext' as a `char *' by default, not a
+   `char[]'. */
+#undef YYTEXT_POINTER
+
+/* Enable large inode numbers on Mac OS X 10.5.  */
+#ifndef _DARWIN_USE_64_BIT_INODE
+# define _DARWIN_USE_64_BIT_INODE 1
+#endif
+
+/* Number of bits in a file offset, on hosts where this is settable. */
+#undef _FILE_OFFSET_BITS
+
+/* Define to enforce ISO C99 compliance. */
+#undef _ISOC99_SOURCE
+
+/* Define for large files, on AIX-style hosts. */
+#undef _LARGE_FILES
+
+/* Define to enforce POSIX.1-2008 compliance. */
+#undef _POSIX_C_SOURCE
+
+/* Define to enforce POSIX thread semantics under Solaris. */
+#undef _POSIX_PTHREAD_SEMANTICS
+
+/* Define to enable reentrancy interfaces. */
+#undef _REENTRANT
+
+/* Define to use the thread-safe version of errno under AIX. */
+#undef _THREAD_SAFE_ERRNO
+
+/* Define to enforce X/Open 7 (XSI) compliance. */
+#undef _XOPEN_SOURCE
+
+/* Define to empty if `const' does not conform to ANSI C. */
+#undef const
+
+/* Define to `int' if <sys/types.h> doesn't define. */
+#undef gid_t
+
+/* Define to `int' if <sys/types.h> does not define. */
+#undef pid_t
+
+/* Define to `unsigned int' if <sys/types.h> does not define. */
+#undef size_t
+
+/* Define to `int' if <sys/types.h> doesn't define. */
+#undef uid_t
