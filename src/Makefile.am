@@ -699,8 +699,7 @@ mongodb_la_SOURCES = mongodb.c
 mongodb_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBMONGOC_CPPFLAGS)
 mongodb_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBMONGOC_LDFLAGS)
 if BUILD_WITH_OWN_LIBMONGOC
-mongodb_la_LDADD += $(LIBLTDL) libmongoc/libmongoc.a libmongoc/libbson.a
-mongodb_la_DEPENDENCIES += libmongoc/libmongoc.a libmongoc/libbson.a
+mongodb_la_LIBADD = libmongoc/libmongoc.a libmongoc/libbson.a
 mongodb_la_CPPFLAGS += -I libmongoc/src
 else
 mongodb_la_LIBADD = -lmongoc
