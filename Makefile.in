@@ -63,9 +63,16 @@ DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
 	libltdl/config/compile libltdl/config/config.guess \
 	libltdl/config/config.sub libltdl/config/depcomp \
 	libltdl/config/install-sh libltdl/config/ltmain.sh \
-	libltdl/config/missing
+	libltdl/config/missing libltdl/config/ylwrap
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/configure.in
+am__aclocal_m4_deps = $(top_srcdir)/libltdl/m4/argz.m4 \
+	$(top_srcdir)/libltdl/m4/libtool.m4 \
+	$(top_srcdir)/libltdl/m4/ltdl.m4 \
+	$(top_srcdir)/libltdl/m4/ltoptions.m4 \
+	$(top_srcdir)/libltdl/m4/ltsugar.m4 \
+	$(top_srcdir)/libltdl/m4/ltversion.m4 \
+	$(top_srcdir)/libltdl/m4/lt~obsolete.m4 \
+	$(top_srcdir)/configure.in
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \

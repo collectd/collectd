@@ -66,8 +66,8 @@ DIST_COMMON = README $(am__configure_deps) $(am__include_HEADERS_DIST) \
 	$(top_srcdir)/config/missing $(top_srcdir)/configure \
 	COPYING.LIB argz.c config/compile config/config.guess \
 	config/config.sub config/depcomp config/install-sh \
-	config/ltmain.sh  config/missing \
-	 lt__dirent.c lt__strl.c
+	config/ltmain.sh config/missing config/ylwrap lt__dirent.c \
+	lt__strl.c
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/argz.m4 \
 	$(top_srcdir)/m4/libtool.m4 $(top_srcdir)/m4/ltdl.m4 \
