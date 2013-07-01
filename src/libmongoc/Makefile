@@ -159,6 +159,8 @@ $(BSON_STLIBNAME): $(BSON_OBJECTS)
 
 install:
 
+check:
+
 test: $(TESTS)
 	sh runtests.sh
 
