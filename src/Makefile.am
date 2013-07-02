@@ -698,8 +698,9 @@ mongodb_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBMONGOC_LDFLAGS)
 if BUILD_WITH_OWN_LIBMONGOC
 # If upgrading libmongoc, we must check that the correct defines are set
 mongodb_la_SOURCES += libmongoc/src/encoding.c libmongoc/src/bson.c libmongoc/src/env_posix.c libmongoc/src/gridfs.c libmongoc/src/md5.c libmongoc/src/mongo.c libmongoc/src/numbers.c
-# turn off warn_unused_result being treated as an error since libmongoc calls functions that some libc implementations warn on if results aren't checked
-mongodb_la_CPPFLAGS += -I libmongoc/src -DMONGO_HAVE_STDINT -Wno-error=unused-result
+# unused-result being treated as an error since libmongoc calls functions that some libc implementations warn on if results aren't checked
+# turn off errors on warnings using -Wno-error since the -Wunused-result flag does not exist until gcc 4.5
+mongodb_la_CPPFLAGS += -I libmongoc/src -DMONGO_HAVE_STDINT -Wno-error
 else
 mongodb_la_LIBADD = -lmongoc
 endif
