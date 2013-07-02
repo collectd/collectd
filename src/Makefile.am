@@ -2,9 +2,6 @@ SUBDIRS = libcollectdclient
 if BUILD_WITH_OWN_LIBOCONFIG
 SUBDIRS += liboconfig
 endif
-if BUILD_WITH_OWN_LIBMONGOC
-SUBDIRS +=libmongoc
-endif
 if COMPILER_IS_GCC
 AM_CFLAGS = -Wall -Werror
 endif
@@ -699,8 +696,9 @@ mongodb_la_SOURCES = mongodb.c
 mongodb_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBMONGOC_CPPFLAGS)
 mongodb_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBMONGOC_LDFLAGS)
 if BUILD_WITH_OWN_LIBMONGOC
-mongodb_la_LIBADD = libmongoc/libmongoc.a libmongoc/libbson.a
-mongodb_la_CPPFLAGS += -I libmongoc/src
+# If upgrading libmongoc, we must check that the correct defines are set
+mongodb_la_SOURCES += libmongoc/src/encoding.c libmongoc/src/bson.c libmongoc/src/env_posix.c libmongoc/src/gridfs.c libmongoc/src/md5.c libmongoc/src/mongo.c libmongoc/src/numbers.c
+mongodb_la_CPPFLAGS += -I libmongoc/src -DMONGO_HAVE_STDINT
 else
 mongodb_la_LIBADD = -lmongoc
 endif
