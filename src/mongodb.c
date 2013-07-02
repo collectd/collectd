@@ -262,7 +262,6 @@ static int handle_index_counters (bson_iterator *iter) /* {{{ */
 
     bson_iterator_subobject (iter, &subobj);
     status = handle_btree (&subobj);
-    bson_destroy (&subobj);
 
     return (status);
 } /* }}} int handle_index_counters */
