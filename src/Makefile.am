@@ -699,7 +699,7 @@ if BUILD_WITH_OWN_LIBMONGOC
 # If upgrading libmongoc, we must check that the correct defines are set
 mongodb_la_SOURCES += libmongoc/src/encoding.c libmongoc/src/bson.c libmongoc/src/env_posix.c libmongoc/src/gridfs.c libmongoc/src/md5.c libmongoc/src/mongo.c libmongoc/src/numbers.c
 # turn off warn_unused_result being treated as an error since libmongoc calls functions that some libc implementations warn on if results aren't checked
-mongodb_la_CPPFLAGS += -I libmongoc/src -DMONGO_HAVE_STDINT -Wno-error=warn_unused_result
+mongodb_la_CPPFLAGS += -I libmongoc/src -DMONGO_HAVE_STDINT -Wno-error=unused-result
 else
 mongodb_la_LIBADD = -lmongoc
 endif
