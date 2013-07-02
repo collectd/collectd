@@ -638,13 +638,17 @@ gridfs_offset gridfile_write_file( gridfile *gfile, FILE *stream ) {
     bson_iterator it;
     const char *data;
     const int num = gridfile_get_numchunks( gfile );
+    gridfs_offset items_written = 0;
 
     for ( i=0; i<num; i++ ) {
         gridfile_get_chunk( gfile, i, &chunk );
         bson_find( &it, &chunk, "data" );
         len = bson_iterator_bin_len( &it );
         data = bson_iterator_bin_data( &it );
-        fwrite( data, sizeof( char ), len, stream );
+
+        // use this for now to suppress warning for ignoring the return value of fread
+        // the upgrade to 7.x requires refactoring the mongodb collectd plugin
+        items_written = fwrite( data, sizeof( char ), len, stream );
         bson_destroy( &chunk );
     }
 
