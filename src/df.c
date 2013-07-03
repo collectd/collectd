@@ -231,7 +231,7 @@ static int df_read (void)
 		if (!statbuf.f_blocks)
 			continue;
 
-		if (by_device) 
+		if (by_device)
 		{
 			/* eg, /dev/hda1  -- strip off the "/dev/" */
 			if (strncmp (mnt_ptr->spec_device, "/dev/", strlen ("/dev/")) == 0)
@@ -239,13 +239,13 @@ static int df_read (void)
 			else
 				sstrncpy (disk_name, mnt_ptr->spec_device, sizeof (disk_name));
 
-			if (strlen(disk_name) < 1) 
+			if (strlen(disk_name) < 1)
 			{
-				DEBUG("df: no device name name for mountpoint %s, skipping", mnt_ptr->dir);
+				DEBUG("df: no device name for mountpoint %s, skipping", mnt_ptr->dir);
 				continue;
 			}
-		} 
-		else 
+		}
+		else
 		{
 			if (strcmp (mnt_ptr->dir, "/") == 0)
 			{
@@ -307,13 +307,13 @@ static int df_read (void)
 		
 		if (values_percentage)
 		{
-			if (statbuf.f_blocks > 0) 
+			if (statbuf.f_blocks > 0)
 				{
-				df_submit_one (disk_name, "df_complex_pct", "free", 
+				df_submit_one (disk_name, "df_complex_pct", "free",
 					(gauge_t) ((float_t)(blk_free) / statbuf.f_blocks * 100));
-				df_submit_one (disk_name, "df_complex_pct", "reserved", 
+				df_submit_one (disk_name, "df_complex_pct", "reserved",
 					(gauge_t) ((float_t)(blk_reserved) / statbuf.f_blocks * 100));
-				df_submit_one (disk_name, "df_complex_pct", "used", 
+				df_submit_one (disk_name, "df_complex_pct", "used",
 					(gauge_t) ((float_t)(blk_used) / statbuf.f_blocks * 100));
 				}
 			else return (-1);
@@ -338,18 +338,18 @@ static int df_read (void)
 
 			if (values_percentage)
 			{
-				if (statbuf.f_files > 0) 
+				if (statbuf.f_files > 0)
 				{
-					df_submit_one (disk_name, "df_inodes_pct", "free", 
+					df_submit_one (disk_name, "df_inodes_pct", "free",
 						(gauge_t) ((float_t)(inode_free) / statbuf.f_files * 100));
-					df_submit_one (disk_name, "df_inodes_pct", "reserved", 
+					df_submit_one (disk_name, "df_inodes_pct", "reserved",
 						(gauge_t) ((float_t)(inode_reserved) / statbuf.f_files * 100));
-					df_submit_one (disk_name, "df_inodes_pct", "used", 
+					df_submit_one (disk_name, "df_inodes_pct", "used",
 						(gauge_t) ((float_t)(inode_used) / statbuf.f_files * 100));
 				}
 				else return (-1);
 			}
-			if (values_absolute) 
+			if (values_absolute)
 			{
 				df_submit_one (disk_name, "df_inodes", "free",
 						(gauge_t) inode_free);
