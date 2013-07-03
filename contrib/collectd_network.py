@@ -17,10 +17,15 @@ Collectd network protocol implementation.
 """
 
 import socket,struct,sys
-try:
-  from io import StringIO
-except ImportError:
-  from cStringIO import StringIO
+import platform
+if platform.python_version() < '2.8.0':
+    # Python 2.7 and below io.StringIO does not like unicode
+    from StringIO import StringIO
+else:
+    try:
+      from io import StringIO
+    except ImportError:
+      from cStringIO import StringIO
 
 from datetime import datetime
 from copy import deepcopy
