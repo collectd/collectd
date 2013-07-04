@@ -1897,8 +1897,14 @@ other interfaces are collected.
 
 Selects sensors to collect or to ignore, depending on B<IgnoreSelected>.
 
-Also, the default sensor name can be overriden with an alias given after the
-default sensor name followed by a semicolon.
+=item B<SensorAlias> I<SensorName> I<SensorNameAlias>
+
+Assigns an alias to be used instead of the default sensor name.
+
+This is very useful when adapting the default B<ipmi> sensor names (quite long
+and with spaces) to something else required by an external monitoring tool. For
+example, in B<graphite>, metric keys are recommended to have a namespacing with
+the dot as separator (I<namespace.server.servername.id>).
 
 =item B<IgnoreSelected> I<true>|I<false>
 

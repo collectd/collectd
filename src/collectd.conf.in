@@ -430,7 +430,7 @@
 
 #<Plugin ipmi>
 #	Sensor "default_sensor_name"
-#	Sensor "another_default_sensor_name;custom_sensor_name"
+#	SensorAlias "default sensor name" "sensor.name.alias"
 #	IgnoreSelected false
 #	IgnoreSensorFail false
 #	NotifySensorAdd false
