@@ -62,25 +62,15 @@ static int c_ipmi_init_in_progress = 0;
 static int c_ipmi_active = 0;
 static pthread_t thread_id = (pthread_t) 0;
 
-static const char *config_keys[] =
-{
-	"Sensor",
-	"IgnoreSelected",
-	"NotifySensorAdd",
-	"NotifySensorRemove",
-	"NotifySensorNotPresent",
-	"IgnoreSensorFail"
-};
-static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
-
 static ignorelist_t *ignorelist = NULL;
 
-static llist_t *custom_name_list = NULL;
+static llist_t *aliased_name_list = NULL;
 
-static int c_ipmi_nofiy_add = 0;
-static int c_ipmi_nofiy_remove = 0;
-static int c_ipmi_nofiy_notpresent = 0;
-static int c_ipmi_ignore_failed = 0;
+static _Bool c_ipmi_nofiy_add = 0;
+static _Bool c_ipmi_nofiy_remove = 0;
+static _Bool c_ipmi_nofiy_notpresent = 0;
+static _Bool c_ipmi_ignore_failed = 0;
+static _Bool c_ipmi_ignore_selected = 1;
 
 /*
  * Misc private functions
@@ -254,7 +244,7 @@ static int sensor_list_add (ipmi_sensor_t *sensor)
   const char *entity_id_string;
   char sensor_name[DATA_MAX_NAME_LEN];
   char *sensor_name_ptr;
-  llentry_t *custom_name_entry;
+  llentry_t *aliased_name_entry;
   int sensor_type;
   const char *type;
   ipmi_entity_t *ent = ipmi_sensor_get_entity(sensor);
@@ -370,20 +360,23 @@ static int sensor_list_add (ipmi_sensor_t *sensor)
   else
     sensor_list = list_item;
 
-  custom_name_entry = llist_search (custom_name_list, sensor_name_ptr);
-  if (custom_name_entry == NULL)
+  aliased_name_entry = llist_search (aliased_name_list, sensor_name_ptr);
+  if (aliased_name_entry == NULL)
   {
     sstrncpy (list_item->sensor_name, sensor_name_ptr,
               sizeof (list_item->sensor_name));
+
+    INFO ("ipmi plugin: sensor_list_add: using non-aliased name \"%s\"",
+          sensor_name_ptr);
   }
   else
   {
-    sstrncpy (list_item->sensor_name, custom_name_entry->value,
+    sstrncpy (list_item->sensor_name, aliased_name_entry->value,
               sizeof (list_item->sensor_name));
 
-    INFO ("ipmi plugin: sensor_list_add: using custom name \"%s\" "
+    INFO ("ipmi plugin: sensor_list_add: using aliased name \"%s\" "
           "instead of the default name \"%s\"",
-          (char*) custom_name_entry->value, sensor_name_ptr);
+          (char*) aliased_name_entry->value, sensor_name_ptr);
   }
 
   sstrncpy (list_item->sensor_type, type, sizeof (list_item->sensor_type));
@@ -647,90 +640,103 @@ static void *thread_main (void __attribute__((unused)) *user_data)
   return ((void *) 0);
 } /* void *thread_main */
 
-static int c_ipmi_config (const char *key, const char *value)
+static int c_ipmi_config (oconfig_item_t *ci)
 {
-  int fields_num;
-  char *fields[2];
-  char *default_name;
-  llentry_t *custom_name_entry;
+  char *default_name = NULL;
+  char *aliased_name = NULL;
+
+  int status = 0;
+  int i;
 
   if (ignorelist == NULL)
     ignorelist = ignorelist_create (/* invert = */ 1);
   if (ignorelist == NULL)
     return (1);
 
-  if (strcasecmp ("Sensor", key) == 0)
+  for (i = 0; i < ci->children_num; i++)
   {
-    default_name = strdup (value);
-    if (default_name == NULL)
-      return (-1);
+    oconfig_item_t *child = ci->children + i;
 
-    fields_num = strsplitsep (default_name, fields, ";", STATIC_ARRAY_SIZE (fields));
-    if ((fields_num < 1) || (fields_num > 2))
+    if (strcasecmp ("Sensor", child->key) == 0)
+    {
+      status = cf_util_get_string (child, &default_name);
+
+      if (status == 0)
+        ignorelist_add (ignorelist, default_name);
+    }
+    else if (strcasecmp ("SensorAlias", child->key) == 0)
+    {
+      llentry_t *aliased_name_entry;
+
+      status = cf_util_get_strings (child, 2, &default_name, &aliased_name);
+
+      if (status == 0)
+      {
+        if (aliased_name_list == NULL)
+          aliased_name_list = llist_create ();
+
+        if (aliased_name_list != NULL)
+        {
+          aliased_name_entry = llentry_create (default_name, aliased_name);
+          /* NOTE: pointing the names to NULL to avoid freeing them in
+           * cf_util_get_strings!!
+           */
+          default_name = aliased_name = NULL;
+
+          if (aliased_name_entry != NULL)
+          {
+            llist_append (aliased_name_list, aliased_name_entry);
+          }
+          else
+          {
+            ERROR("ipmi plugin: c_ipmi_config: Error creating new aliased name entry");
+            status = -1;
+          }
+        }
+        else
+        {
+          ERROR("ipmi plugin: c_ipmi_config: Error creating aliased name list");
+          status = -1;
+        }
+      }
+    }
+    else if (strcasecmp ("IgnoreSelected", child->key) == 0)
+    {
+      status = cf_util_get_boolean (child, &c_ipmi_ignore_selected);
+      if (status == 0)
+        ignorelist_set_invert (ignorelist, !c_ipmi_ignore_selected);
+    }
+    else if (strcasecmp ("NotifySensorAdd", child->key) == 0)
+    {
+      status = cf_util_get_boolean (child, &c_ipmi_nofiy_add);
+    }
+    else if (strcasecmp ("NotifySensorRemove", child->key) == 0)
+    {
+      status = cf_util_get_boolean (child, &c_ipmi_nofiy_remove);
+    }
+    else if (strcasecmp ("NotifySensorNotPresent", child->key) == 0)
+    {
+      status = cf_util_get_boolean (child, &c_ipmi_nofiy_notpresent);
+    }
+    else if (strcasecmp ("IgnoreSensorFail", child->key) == 0)
+    {
+      status = cf_util_get_boolean (child, &c_ipmi_ignore_failed);
+    }
+    else
+    {
+      WARNING ("ipmi plugin: c_ipmi_config: Unknown config option `%s'.", child->key);
+      status = -1;
+    }
+
+    if (status != 0)
     {
       sfree (default_name);
-      INFO("ipmi plugin: c_ipmi_config: Sensor has incorrect number of fields");
-      return (-1);
+      sfree (aliased_name);
+      break;
     }
-
-    if (fields_num == 2)
-    {
-      if (custom_name_list == NULL)
-        custom_name_list = llist_create ();
-      if (custom_name_list == NULL)
-      {
-        ERROR("ipmi plugin: c_ipmi_config: Error creating custom name list");
-        return (-1);
-      }
-
-      custom_name_entry = llentry_create (fields[0], fields[1]);
-      if (custom_name_entry == NULL)
-      {
-        ERROR("ipmi plugin: c_ipmi_config: Error creating new custom name entry");
-        return (-1);
-      }
-
-      INFO ("ipmi plugin: c_ipmi_config: Sensor default_name: \"%s\" -- custom_name: \"%s\"",
-            fields[0], fields[1]);
-
-      llist_append (custom_name_list, custom_name_entry);
-    }
-
-    ignorelist_add (ignorelist, fields[0]);
-  }
-  else if (strcasecmp ("IgnoreSelected", key) == 0)
-  {
-    int invert = 1;
-    if (IS_TRUE (value))
-      invert = 0;
-    ignorelist_set_invert (ignorelist, invert);
-  }
-  else if (strcasecmp ("NotifySensorAdd", key) == 0)
-  {
-    if (IS_TRUE (value))
-      c_ipmi_nofiy_add = 1;
-  }
-  else if (strcasecmp ("NotifySensorRemove", key) == 0)
-  {
-    if (IS_TRUE (value))
-      c_ipmi_nofiy_remove = 1;
-  }
-  else if (strcasecmp ("NotifySensorNotPresent", key) == 0)
-  {
-    if (IS_TRUE (value))
-      c_ipmi_nofiy_notpresent = 1;
-  }
-  else if (strcasecmp ("IgnoreSensorFail", key) == 0)
-  {
-    if (IS_TRUE (value))
-      c_ipmi_ignore_failed = 1;
-  }
-  else
-  {
-    return (-1);
   }
 
-  return (0);
+  return (status);
 } /* int c_ipmi_config */
 
 static int c_ipmi_init (void)
@@ -791,8 +797,7 @@ static int c_ipmi_shutdown (void)
 
 void module_register (void)
 {
-  plugin_register_config ("ipmi", c_ipmi_config,
-      config_keys, config_keys_num);
+  plugin_register_complex_config ("ipmi", c_ipmi_config);
   plugin_register_init ("ipmi", c_ipmi_init);
   plugin_register_read ("ipmi", c_ipmi_read);
   plugin_register_shutdown ("ipmi", c_ipmi_shutdown);
