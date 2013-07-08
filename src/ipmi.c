@@ -70,7 +70,6 @@ static _Bool c_ipmi_nofiy_add = 0;
 static _Bool c_ipmi_nofiy_remove = 0;
 static _Bool c_ipmi_nofiy_notpresent = 0;
 static _Bool c_ipmi_ignore_failed = 0;
-static _Bool c_ipmi_ignore_selected = 1;
 
 /*
  * Misc private functions
@@ -659,13 +658,19 @@ static int c_ipmi_config (oconfig_item_t *ci)
 
     if (strcasecmp ("Sensor", child->key) == 0)
     {
+      char *default_name = NULL;
+
       status = cf_util_get_string (child, &default_name);
 
       if (status == 0)
         ignorelist_add (ignorelist, default_name);
+        sfree (default_name);
     }
     else if (strcasecmp ("SensorAlias", child->key) == 0)
     {
+      char *default_name = NULL;
+      char *aliased_name = NULL;
+
       llentry_t *aliased_name_entry;
 
       status = cf_util_get_strings (child, 2, &default_name, &aliased_name);
@@ -678,10 +683,6 @@ static int c_ipmi_config (oconfig_item_t *ci)
         if (aliased_name_list != NULL)
         {
           aliased_name_entry = llentry_create (default_name, aliased_name);
-          /* NOTE: pointing the names to NULL to avoid freeing them in
-           * cf_util_get_strings!!
-           */
-          default_name = aliased_name = NULL;
 
           if (aliased_name_entry != NULL)
           {
@@ -702,9 +703,11 @@ static int c_ipmi_config (oconfig_item_t *ci)
     }
     else if (strcasecmp ("IgnoreSelected", child->key) == 0)
     {
-      status = cf_util_get_boolean (child, &c_ipmi_ignore_selected);
+      _Bool ignore_selected = 1;
+
+      status = cf_util_get_boolean (child, &ignore_selected);
       if (status == 0)
-        ignorelist_set_invert (ignorelist, !c_ipmi_ignore_selected);
+        ignorelist_set_invert (ignorelist, !ignore_selected);
     }
     else if (strcasecmp ("NotifySensorAdd", child->key) == 0)
     {
