@@ -47,6 +47,7 @@ Twemproxy plugin configuration example:
 */
 
 #define isJSONField(key, field) (strncasecmp(key, field, sizeof(field) - 1) == 0)
+#define isJSONFieldFull(key, field) (strcasecmp(key, field) == 0)
 
 #define TWEMPROXY_STATS_PORT    (22222)
 #define TWEMPROXY_DEF_HOST      "127.0.0.1"
@@ -498,7 +499,7 @@ static int parseTwemproxyStats(TwemproxyStats *stats, const char* const buffer)
           continue;
         }
 
-        if(isJSONField(instanceLevelKey, "in_queue"))
+        if(isJSONFieldFull(instanceLevelKey, "in_queue"))
         {
           DEBUG("twemproxy plugin: \t\tin_queue: %ld", json_object_get_int64(instanceLevelVal));
 
@@ -516,7 +517,7 @@ static int parseTwemproxyStats(TwemproxyStats *stats, const char* const buffer)
           continue;
         }
 
-        if(isJSONField(instanceLevelKey, "out_queue"))
+        if(isJSONFieldFull(instanceLevelKey, "out_queue"))
         {
           DEBUG("twemproxy plugin: \t\tout_queue: %ld", json_object_get_int64(instanceLevelVal));
 
