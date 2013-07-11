@@ -184,7 +184,6 @@ static int statsd_handle_counter (char const *name, /* {{{ */
     char const *value_str,
     char const *extra)
 {
-  char key[DATA_MAX_NAME_LEN + 2];
   value_t value;
   value_t scale;
   int status;
@@ -211,9 +210,7 @@ static int statsd_handle_counter (char const *name, /* {{{ */
   if (value.derive < 1)
     return (-1);
 
-  ssnprintf (key, sizeof (key), "c:%s", name);
-
-  return (statsd_metric_add (key,
+  return (statsd_metric_add (name,
         (int64_t) (((gauge_t) value.derive) / scale.gauge),
         STATSD_COUNTER));
 } /* }}} int statsd_handle_counter */
@@ -221,7 +218,6 @@ static int statsd_handle_counter (char const *name, /* {{{ */
 static int statsd_handle_gauge (char const *name, /* {{{ */
     char const *value_str)
 {
-  char key[DATA_MAX_NAME_LEN + 2];
   value_t value;
   int status;
 
@@ -230,12 +226,10 @@ static int statsd_handle_gauge (char const *name, /* {{{ */
   if (status != 0)
     return (status);
 
-  ssnprintf (key, sizeof (key), "g:%s", name);
-
   if ((value_str[0] == '+') || (value_str[0] == '-'))
-    return (statsd_metric_add (key, (int64_t) value.derive, STATSD_GAUGE));
+    return (statsd_metric_add (name, (int64_t) value.derive, STATSD_GAUGE));
   else
-    return (statsd_metric_set (key, (int64_t) value.derive, STATSD_GAUGE));
+    return (statsd_metric_set (name, (int64_t) value.derive, STATSD_GAUGE));
 } /* }}} int statsd_handle_gauge */
 
 static int statsd_handle_timer (char const *name, /* {{{ */
