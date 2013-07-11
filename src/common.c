@@ -664,7 +664,7 @@ long long get_kstat_value (kstat_t *ksp, char *name)
 		retval = (long long) kn->value.ui64; /* XXX: Might overflow! */
 	else
 		WARNING ("get_kstat_value: Not a numeric value: %s", name);
-		 
+
 	return (retval);
 }
 #endif /* HAVE_LIBKSTAT */
@@ -771,36 +771,43 @@ int format_name (char *ret, int ret_len,
 		const char *plugin, const char *plugin_instance,
 		const char *type, const char *type_instance)
 {
-	int  status;
+  char *buffer;
+  size_t buffer_size;
 
-	assert (plugin != NULL);
-	assert (type != NULL);
+  buffer = ret;
+  buffer_size = (size_t) ret_len;
 
-	if ((plugin_instance == NULL) || (strlen (plugin_instance) == 0))
-	{
-		if ((type_instance == NULL) || (strlen (type_instance) == 0))
-			status = ssnprintf (ret, ret_len, "%s/%s/%s",
-					hostname, plugin, type);
-		else
-			status = ssnprintf (ret, ret_len, "%s/%s/%s-%s",
-					hostname, plugin, type,
-					type_instance);
-	}
-	else
-	{
-		if ((type_instance == NULL) || (strlen (type_instance) == 0))
-			status = ssnprintf (ret, ret_len, "%s/%s-%s/%s",
-					hostname, plugin, plugin_instance,
-					type);
-		else
-			status = ssnprintf (ret, ret_len, "%s/%s-%s/%s-%s",
-					hostname, plugin, plugin_instance,
-					type, type_instance);
-	}
+#define APPEND(str) do {                                               \
+  size_t l = strlen (str);                                             \
+  if (l >= buffer_size)                                                \
+    return (ENOBUFS);                                                  \
+  memcpy (buffer, (str), l);                                           \
+  buffer += l; buffer_size -= l;                                       \
+} while (0)
 
-	if ((status < 1) || (status >= ret_len))
-		return (-1);
-	return (0);
+  assert (plugin != NULL);
+  assert (type != NULL);
+
+  APPEND (hostname);
+  APPEND ("/");
+  APPEND (plugin);
+  if ((plugin_instance != NULL) && (plugin_instance[0] != 0))
+  {
+    APPEND ("-");
+    APPEND (plugin_instance);
+  }
+  APPEND ("/");
+  APPEND (type);
+  if ((type_instance != NULL) && (type_instance[0] != 0))
+  {
+    APPEND ("-");
+    APPEND (type_instance);
+  }
+  assert (buffer_size > 0);
+  buffer[0] = 0;
+
+#undef APPEND
+  return (0);
 } /* int format_name */
 
 int format_values (char *ret, size_t ret_len, /* {{{ */
