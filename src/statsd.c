@@ -80,7 +80,7 @@ static double *conf_timer_percentile = NULL;
 static size_t  conf_timer_percentile_num = 0;
 
 /* Must hold metrics_lock when calling this function. */
-static statsd_metric_t *statsd_metric_lookup_unsafe (char const *name,
+static statsd_metric_t *statsd_metric_lookup_unsafe (char const *name, /* {{{ */
     metric_type_t type)
 {
   char key[DATA_MAX_NAME_LEN + 2];
@@ -180,6 +180,17 @@ static int statsd_metric_add (char const *name, int64_t delta, /* {{{ */
   return (0);
 } /* }}} int statsd_metric_add */
 
+static int statsd_parse_value (char const *str, value_t *ret_value) /* {{{ */
+{
+  char *endptr = NULL;
+
+  ret_value->derive = (derive_t) strtoll (str, &endptr, /* base = */ 0);
+  if ((str == endptr) || ((endptr != NULL) && (*endptr != 0)))
+    return (-1);
+
+  return (0);
+} /* }}} int statsd_parse_value */
+
 static int statsd_handle_counter (char const *name, /* {{{ */
     char const *value_str,
     char const *extra)
@@ -203,7 +214,7 @@ static int statsd_handle_counter (char const *name, /* {{{ */
   }
 
   value.derive = 1;
-  status = parse_value (value_str, &value, DS_TYPE_DERIVE);
+  status = statsd_parse_value (value_str, &value);
   if (status != 0)
     return (status);
 
@@ -222,7 +233,7 @@ static int statsd_handle_gauge (char const *name, /* {{{ */
   int status;
 
   value.derive = 0;
-  status = parse_value (value_str, &value, DS_TYPE_DERIVE);
+  status = statsd_parse_value (value_str, &value);
   if (status != 0)
     return (status);
 
@@ -241,7 +252,7 @@ static int statsd_handle_timer (char const *name, /* {{{ */
   int status;
 
   value_ms.derive = 0;
-  status = parse_value (value_str, &value_ms, DS_TYPE_DERIVE);
+  status = statsd_parse_value (value_str, &value_ms);
   if (status != 0)
     return (status);
 
