@@ -643,7 +643,7 @@ static int statsd_init (void) /* {{{ */
 {
   pthread_mutex_lock (&metrics_lock);
   if (metrics_tree == NULL)
-    metrics_tree = c_avl_create ((void *) strcasecmp);
+    metrics_tree = c_avl_create ((void *) strcmp);
 
   if (!network_thread_running)
   {
