@@ -83,7 +83,6 @@ static size_t  conf_timer_percentile_num = 0;
 static statsd_metric_t *statsd_metric_lookup_unsafe (char const *name,
     metric_type_t type)
 {
-  char const *prefix;
   char key[DATA_MAX_NAME_LEN + 2];
   char *key_copy;
   statsd_metric_t *metric;
@@ -91,14 +90,15 @@ static statsd_metric_t *statsd_metric_lookup_unsafe (char const *name,
 
   switch (type)
   {
-    case STATSD_COUNTER: prefix = "c"; break;
-    case STATSD_TIMER:   prefix = "t"; break;
-    case STATSD_GAUGE:   prefix = "g"; break;
-    case STATSD_SET:     prefix = "s"; break;
+    case STATSD_COUNTER: key[0] = 'c'; break;
+    case STATSD_TIMER:   key[0] = 't'; break;
+    case STATSD_GAUGE:   key[0] = 'g'; break;
+    case STATSD_SET:     key[0] = 's'; break;
     default: return (NULL);
   }
 
-  ssnprintf (key, sizeof (key), "%s:%s", prefix, name);
+  key[1] = ':';
+  sstrncpy (&key[2], name, sizeof (key) - 2);
 
   status = c_avl_get (metrics_tree, key, (void *) &metric);
   if (status == 0)
