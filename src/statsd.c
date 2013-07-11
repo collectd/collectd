@@ -383,22 +383,32 @@ static int statsd_parse_line (char *buffer) /* {{{ */
 
 static void statsd_parse_buffer (char *buffer) /* {{{ */
 {
-  char *dummy;
-  char *saveptr = NULL;
-  char *ptr;
-
-  for (dummy = buffer;
-      (ptr = strtok_r (dummy, "\r\n", &saveptr)) != NULL;
-      dummy = NULL)
+  while (buffer != NULL)
   {
-    char *line_orig = sstrdup (ptr);
+    char orig[64];
+    char *next;
     int status;
 
-    status = statsd_parse_line (ptr);
-    if (status != 0)
-      ERROR ("statsd plugin: Unable to parse line: \"%s\"", line_orig);
+    next = strchr (buffer, '\n');
+    if (next != NULL)
+    {
+      *next = 0;
+      next++;
+    }
 
-    sfree (line_orig);
+    if (*buffer == 0)
+    {
+      buffer = next;
+      continue;
+    }
+
+    sstrncpy (orig, buffer, sizeof (orig));
+
+    status = statsd_parse_line (buffer);
+    if (status != 0)
+      ERROR ("statsd plugin: Unable to parse line: \"%s\"", orig);
+
+    buffer = next;
   }
 } /* }}} void statsd_parse_buffer */
 
