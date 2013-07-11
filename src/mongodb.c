@@ -435,6 +435,18 @@ static int mc_init (void) /* {{{ */
                 return (-1);
             }
         }
+
+        if (mc_user!=NULL && mc_password!=NULL) {
+        status = mongo_cmd_authenticate (&mc_connection, mc_db, mc_user, mc_password);
+            if (status != MONGO_OK)
+            {
+                ERROR ("mongo plugin: Authenticating to %s:%i failed: %s",
+                        (mc_host != NULL) ? mc_host : MC_MONGO_DEF_HOST,
+                        (mc_port > 0) ? mc_port : MONGO_DEFAULT_PORT,
+                        mc_connection.errstr);
+                return (-1);
+            }
+        }
         return (0);
     }
 
