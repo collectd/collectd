@@ -421,8 +421,22 @@ static int mc_init (void) /* {{{ */
 {
     int status;
 
-    if (mc_have_connection)
+    if (mc_have_connection) {
+        // reconnect if needed
+        status = mongo_check_connection(&mc_connection);
+        if (status == MONGO_ERROR) {
+            status = mongo_reconnect(&mc_connection);
+            if (status != MONGO_OK)
+            {
+                ERROR ("mongo plugin: Reonnecting to %s:%i failed: %s",
+                        (mc_host != NULL) ? mc_host : MC_MONGO_DEF_HOST,
+                        (mc_port > 0) ? mc_port : MONGO_DEFAULT_PORT,
+                        mc_connection.errstr);
+                return (-1);
+            }
+        }
         return (0);
+    }
 
     mongo_init (&mc_connection);
 
