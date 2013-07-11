@@ -649,6 +649,9 @@ gridfs_offset gridfile_write_file( gridfile *gfile, FILE *stream ) {
         // use this for now to suppress warning for ignoring the return value of fread
         // the upgrade to 7.x requires refactoring the mongodb collectd plugin
         items_written = fwrite( data, sizeof( char ), len, stream );
+        if (items_written != len) {
+            fprintf(stderr, "Error writting to file stream\n");
+        }
         bson_destroy( &chunk );
     }
 
