@@ -1373,13 +1373,14 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
         csnmp_table_values_t *vt;
         oid_t vb_name;
         oid_t suffix;
+        int ret;
 
         csnmp_oid_init (&vb_name, vb->name, vb->name_length);
 
         /* Calculate the current suffix. This is later used to check that the
          * suffix is increasing. This also checks if we left the subtree */
-        status = csnmp_oid_suffix (&suffix, &vb_name, data->values + i);
-        if (status != 0)
+        ret = csnmp_oid_suffix (&suffix, &vb_name, data->values + i);
+        if (ret != 0)
         {
           DEBUG ("snmp plugin: host = %s; data = %s; i = %i; "
               "Value probably left its subtree.",

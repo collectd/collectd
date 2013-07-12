@@ -943,12 +943,12 @@ static int ut_missing (const value_list_t *vl,
   char identifier[6 * DATA_MAX_NAME_LEN];
   notification_t n;
 
-  /* dispatch notifications for "interesting" values only */
   if (threshold_tree == NULL)
     return (0);
 
   th = threshold_search (vl);
-  if (th == NULL)
+  /* dispatch notifications for "interesting" values only */
+  if ((th == NULL) || ((th->flags & UT_FLAG_INTERESTING) == 0))
     return (0);
 
   missing_time = cdtime () - vl->time;

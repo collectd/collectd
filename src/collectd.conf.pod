@@ -1,3 +1,5 @@
+=encoding UTF-8
+
 =head1 NAME
 
 collectd.conf - Configuration for the system statistics collection daemon B<collectd>
@@ -148,14 +150,28 @@ use statements like the following:
 
   Include "/etc/collectd.d/*.conf"
 
+Starting with version 5.3, this may also be a block in which further options
+affecting the behavior of B<Include> may be specified. The following option is
+currently allowed:
+
+  <Include "/etc/collectd.d">
+    Filter "*.conf"
+  </Include>
+
+=over 4
+
+=item B<Filter> I<pattern>
+
 If the C<fnmatch> function is available on your system, a shell-like wildcard
 I<pattern> may be specified to filter which files to include. This may be used
 in combination with recursively including a directory to easily be able to
 arbitrarily mix configuration files and other documents (e.g. README files).
-The following statement is similar to the example above but includes all files
+The given example is similar to the first example above but includes all files
 matching C<*.conf> in any subdirectory of C</etc/collectd.d>:
 
   Include "/etc/collectd.d" "*.conf"
+
+=back
 
 If more than one files are included by a single B<Include> option, the files
 will be included in lexicographical order (as defined by the C<strcmp>
@@ -5701,7 +5717,33 @@ Take the UUID from the given file (default I</etc/uuid>).
 
 =head2 Plugin C<varnish>
 
-The Varnish plugin collects information about Varnish, an HTTP accelerator.
+The I<varnish plugin> collects information about Varnish, an HTTP accelerator.
+
+Synopsis:
+
+ <Plugin "varnish">
+   <Instance "example">
+     CollectCache       true
+     CollectConnections true
+     CollectBackend     true
+     CollectSHM         true
+     CollectESI         false
+     CollectFetch       false
+     CollectHCB         false
+     CollectSMA         false
+     CollectSMS         false
+     CollectSM          false
+     CollectTotals      false
+     CollectWorkers     false
+   </Instance>
+ </Plugin>
+
+The configuration consists of one or more E<lt>B<Instance>E<nbsp>I<Name>E<gt>
+blocks. I<Name> is the parameter passed to "varnishd -n". If left empty, it
+will collectd statistics from the default "varnishd" instance (this should work
+fine in most cases).
+
+Inside each E<lt>B<Instance>E<gt> blocks, the following options are recognized:
 
 =over 4
 
