@@ -54,7 +54,7 @@ typedef enum metric_type_e metric_type_t;
 struct statsd_metric_s
 {
   metric_type_t type;
-  int64_t value;
+  double value;
   latency_counter_t *latency;
   c_avl_tree_t *set;
   unsigned long updates_num;
@@ -136,7 +136,7 @@ static statsd_metric_t *statsd_metric_lookup_unsafe (char const *name, /* {{{ */
   return (metric);
 } /* }}} statsd_metric_lookup_unsafe */
 
-static int statsd_metric_set (char const *name, int64_t value, /* {{{ */
+static int statsd_metric_set (char const *name, double value, /* {{{ */
     metric_type_t type)
 {
   statsd_metric_t *metric;
@@ -158,7 +158,7 @@ static int statsd_metric_set (char const *name, int64_t value, /* {{{ */
   return (0);
 } /* }}} int statsd_metric_set */
 
-static int statsd_metric_add (char const *name, int64_t delta, /* {{{ */
+static int statsd_metric_add (char const *name, double delta, /* {{{ */
     metric_type_t type)
 {
   statsd_metric_t *metric;
@@ -184,7 +184,7 @@ static int statsd_parse_value (char const *str, value_t *ret_value) /* {{{ */
 {
   char *endptr = NULL;
 
-  ret_value->derive = (derive_t) strtoll (str, &endptr, /* base = */ 0);
+  ret_value->gauge = (gauge_t) strtod (str, &endptr);
   if ((str == endptr) || ((endptr != NULL) && (*endptr != 0)))
     return (-1);
 
@@ -205,7 +205,7 @@ static int statsd_handle_counter (char const *name, /* {{{ */
   scale.gauge = 1.0;
   if (extra != NULL)
   {
-    status = parse_value (extra + 1, &scale, DS_TYPE_GAUGE);
+    status = statsd_parse_value (extra + 1, &scale);
     if (status != 0)
       return (status);
 
@@ -213,7 +213,7 @@ static int statsd_handle_counter (char const *name, /* {{{ */
       return (-1);
   }
 
-  value.derive = 1;
+  value.gauge = 1.0;
   status = statsd_parse_value (value_str, &value);
   if (status != 0)
     return (status);
@@ -221,8 +221,7 @@ static int statsd_handle_counter (char const *name, /* {{{ */
   if (value.derive < 1)
     return (-1);
 
-  return (statsd_metric_add (name,
-        (int64_t) (((gauge_t) value.derive) / scale.gauge),
+  return (statsd_metric_add (name, (double) (value.gauge / scale.gauge),
         STATSD_COUNTER));
 } /* }}} int statsd_handle_counter */
 
@@ -232,15 +231,15 @@ static int statsd_handle_gauge (char const *name, /* {{{ */
   value_t value;
   int status;
 
-  value.derive = 0;
+  value.gauge = 0;
   status = statsd_parse_value (value_str, &value);
   if (status != 0)
     return (status);
 
   if ((value_str[0] == '+') || (value_str[0] == '-'))
-    return (statsd_metric_add (name, (int64_t) value.derive, STATSD_GAUGE));
+    return (statsd_metric_add (name, (double) value.gauge, STATSD_GAUGE));
   else
-    return (statsd_metric_set (name, (int64_t) value.derive, STATSD_GAUGE));
+    return (statsd_metric_set (name, (double) value.gauge, STATSD_GAUGE));
 } /* }}} int statsd_handle_gauge */
 
 static int statsd_handle_timer (char const *name, /* {{{ */
@@ -256,7 +255,7 @@ static int statsd_handle_timer (char const *name, /* {{{ */
   if (status != 0)
     return (status);
 
-  value = MS_TO_CDTIME_T (value_ms.derive);
+  value = MS_TO_CDTIME_T (value_ms.gauge);
 
   pthread_mutex_lock (&metrics_lock);
 
