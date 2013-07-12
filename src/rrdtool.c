@@ -240,47 +240,26 @@ static int value_list_to_string (char *buffer, int buffer_len,
 	return (0);
 } /* int value_list_to_string */
 
-static int value_list_to_filename (char *buffer, int buffer_len,
-		const data_set_t __attribute__((unused)) *ds, const value_list_t *vl)
+static int value_list_to_filename (char *buffer, size_t buffer_size,
+		value_list_t const *vl)
 {
-	int offset = 0;
+	char const suffix[] = ".rrd";
 	int status;
+	size_t len;
 
-	if (datadir != NULL)
-	{
-		status = ssnprintf (buffer + offset, buffer_len - offset,
-				"%s/", datadir);
-		if ((status < 1) || (status >= buffer_len - offset))
-			return (-1);
-		offset += status;
-	}
+	status = FORMAT_VL (buffer, buffer_size, vl);
+	if (status != 0)
+		return (status);
 
-	status = ssnprintf (buffer + offset, buffer_len - offset,
-			"%s/", vl->host);
-	if ((status < 1) || (status >= buffer_len - offset))
-		return (-1);
-	offset += status;
+	len = strlen (buffer);
+	assert (len < buffer_size);
+	buffer += len;
+	buffer_size -= len;
 
-	if (strlen (vl->plugin_instance) > 0)
-		status = ssnprintf (buffer + offset, buffer_len - offset,
-				"%s-%s/", vl->plugin, vl->plugin_instance);
-	else
-		status = ssnprintf (buffer + offset, buffer_len - offset,
-				"%s/", vl->plugin);
-	if ((status < 1) || (status >= buffer_len - offset))
-		return (-1);
-	offset += status;
+	if (buffer_size <= sizeof (suffix))
+		return (ENOMEM);
 
-	if (strlen (vl->type_instance) > 0)
-		status = ssnprintf (buffer + offset, buffer_len - offset,
-				"%s-%s.rrd", vl->type, vl->type_instance);
-	else
-		status = ssnprintf (buffer + offset, buffer_len - offset,
-				"%s.rrd", vl->type);
-	if ((status < 1) || (status >= buffer_len - offset))
-		return (-1);
-	offset += status;
-
+	memcpy (buffer, suffix, sizeof (suffix));
 	return (0);
 } /* int value_list_to_filename */
 
@@ -896,7 +875,7 @@ static int rrd_write (const data_set_t *ds, const value_list_t *vl,
 		return -1;
 	}
 
-	if (value_list_to_filename (filename, sizeof (filename), ds, vl) != 0)
+	if (value_list_to_filename (filename, sizeof (filename), vl) != 0)
 		return (-1);
 
 	if (value_list_to_string (values, sizeof (values), ds, vl) != 0)
