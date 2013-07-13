@@ -364,12 +364,9 @@ static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
         return (status);
 
     /* Send the message to graphite */
-    wg_send_message (buffer, cb);
-    if (status != 0)
-    {
-        /* An error message has already been printed. */
+    status = wg_send_message (buffer, cb);
+    if (status != 0) /* error message has been printed already. */
         return (status);
-    }
 
     return (0);
 } /* int wg_write_messages */
