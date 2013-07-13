@@ -86,6 +86,8 @@ int cf_read (char *filename);
 
 int global_option_set (const char *option, const char *value);
 const char *global_option_get (const char *option);
+long global_option_get_long (const char *option, long default_value);
+long global_option_get_long_in_range (const char *option, long default_value, long min, long max);
 
 cdtime_t cf_get_default_interval (void);
 
