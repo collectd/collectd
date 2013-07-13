@@ -1435,7 +1435,8 @@ int plugin_unregister_notification (const char *name)
 
 void plugin_init_all (void)
 {
-	const char *chain_name;
+	char const *chain_name;
+	long write_threads_num;
 	llentry_t *le;
 	int status;
 
@@ -1448,18 +1449,37 @@ void plugin_init_all (void)
 	chain_name = global_option_get ("PostCacheChain");
 	post_cache_chain = fc_chain_get_by_name (chain_name);
 
-	write_limit_high = global_option_get_long_in_range("WriteQueueLengthLimitHigh",0, 0, LONG_MAX);
-	write_limit_low = global_option_get_long_in_range("WriteQueueLengthLimitLow", (write_limit_high+1)/2, 0, (write_limit_high == 0) ? 0 : write_limit_high-1 );
-
+	write_limit_high = global_option_get_long ("WriteQueueLimitHigh",
+			/* default = */ 0);
+	if (write_limit_high < 0)
 	{
-		char const *tmp = global_option_get ("WriteThreads");
-		int num = atoi (tmp);
-
-		if (num < 1)
-			num = 5;
-
-		start_write_threads ((size_t) num);
+		ERROR ("WriteQueueLimitHigh must be positive or zero.");
+		write_limit_high = 0;
 	}
+
+	write_limit_low = global_option_get_long ("WriteQueueLimitLow",
+			/* default = */ write_limit_high / 2);
+	if (write_limit_low < 0)
+	{
+		ERROR ("WriteQueueLimitLow must be positive or zero.");
+		write_limit_low = write_limit_high / 2;
+	}
+	else if (write_limit_low > write_limit_high)
+	{
+		ERROR ("WriteQueueLimitLow must not be larger than "
+				"WriteQueueLimitHigh.");
+		write_limit_low = write_limit_high;
+	}
+
+	write_threads_num = global_option_get_long ("WriteThreads",
+			/* default = */ 5);
+	if (write_threads_num < 1)
+	{
+		ERROR ("WriteThreads must be positive.");
+		write_threads_num = 5;
+	}
+
+	start_write_threads ((size_t) write_threads_num);
 
 	if ((list_init == NULL) && (read_heap == NULL))
 		return;
