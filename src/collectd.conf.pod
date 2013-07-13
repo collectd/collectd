@@ -235,6 +235,36 @@ Number of threads to start for dispatching value lists to write plugins. The
 default value is B<5>, but you may want to increase this if you have more than
 five plugins that may take relatively long to write to.
 
+=item B<WriteQueueLimitHigh> I<HighNum>
+
+=item B<WriteQueueLimitLow> I<LowNum>
+
+Metrics are read by the I<read threads> and then put into a queue to be handled
+by the I<write threads>. If one of the I<write plugins> is slow (e.g. network
+timeouts, I/O saturation of the disk) this queue will grow. In order to avoid
+running into memory issues in such a case, you can limit the size of this
+queue.
+
+By default, there is no limit and memory may grow indefinitely. This is most
+likely not an issue for clients, i.e. instances that only handle the local
+metrics. For servers it is recommended to set this to a non-zero value, though.
+
+You can set the limits using B<WriteQueueLimitHigh> and B<WriteQueueLimitLow>.
+Each of them takes a numerical argument which is the number of metrics in the
+queue. If there are I<HighNum> metrics in the queue, any new metrics I<will> be
+dropped. If there are less than I<LowNum> metrics in the queue, all new metrics
+I<will> be enqueued. If the number of metrics currently in the queue is between
+I<LowNum> and I<HighNum>, the metric is dropped with a probability that is
+proportional to the number of metrics in the queue (i.e. it increases linearly
+until it reaches 100%.)
+
+If B<WriteQueueLimitHigh> is set to non-zero and B<WriteQueueLimitLow> is
+unset, the latter will default to half of B<WriteQueueLimitHigh>.
+
+If you do not want to randomly drop values when the queue size is between
+I<LowNum> and I<HighNum>, set If B<WriteQueueLimitHigh> and
+B<WriteQueueLimitLow> to same value.
+
 =item B<Hostname> I<Name>
 
 Sets the hostname that identifies a host. If you omit this setting, the

@@ -109,6 +109,8 @@ static cf_global_option_t cf_global_options[] =
 	{"Interval",    NULL, NULL},
 	{"ReadThreads", NULL, "5"},
 	{"WriteThreads", NULL, "5"},
+	{"WriteQueueLimitHigh", NULL, NULL},
+	{"WriteQueueLimitLow", NULL, NULL},
 	{"Timeout",     NULL, "2"},
 	{"AutoLoadPlugin", NULL, "false"},
 	{"PreCacheChain",  NULL, "PreCache"},
@@ -914,6 +916,23 @@ const char *global_option_get (const char *option)
 			? cf_global_options[i].value
 			: cf_global_options[i].def);
 } /* char *global_option_get */
+
+long global_option_get_long (const char *option, long default_value)
+{
+		const char *str;
+		long value;
+
+		str = global_option_get (option);
+		if (NULL == str)
+			return (default_value);
+
+		errno = 0;
+		value = strtol (str, /* endptr = */ NULL, /* base = */ 0);
+		if (errno != 0)
+			return (default_value);
+
+		return (value);
+} /* char *global_option_get_long */
 
 cdtime_t cf_get_default_interval (void)
 {
