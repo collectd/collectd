@@ -247,8 +247,11 @@ static void wg_callback_free (void *data)
 
     wg_flush_nolock (/* timeout = */ 0, cb);
 
-    close(cb->sock_fd);
-    cb->sock_fd = -1;
+    if (cb->sock_fd >= 0)
+    {
+        close (cb->sock_fd);
+        cb->sock_fd = -1;
+    }
 
     sfree(cb->node);
     sfree(cb->service);
