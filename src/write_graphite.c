@@ -220,7 +220,6 @@ static int wg_callback_init (struct wg_callback *cb)
                 "write_graphite plugin: Connecting to %s:%s failed. "
                 "The last error was: %s", node, service,
                 sstrerror (errno, errbuf, sizeof (errbuf)));
-        close (cb->sock_fd);
         return (-1);
     }
     else
