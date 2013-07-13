@@ -1135,6 +1135,27 @@ int plugin_register_shutdown (const char *name,
 				(void *) callback, /* user_data = */ NULL));
 } /* int plugin_register_shutdown */
 
+static void plugin_free_data_sets (void)
+{
+	void *key;
+	void *value;
+
+	if (data_sets == NULL)
+		return;
+
+	while (c_avl_pick (data_sets, &key, &value) == 0)
+	{
+		data_set_t *ds = value;
+		/* key is a pointer to ds->type */
+
+		sfree (ds->ds);
+		sfree (ds);
+	}
+
+	c_avl_destroy (data_sets);
+	data_sets = NULL;
+} /* void plugin_free_data_sets */
+
 int plugin_register_data_set (const data_set_t *ds)
 {
 	data_set_t *ds_copy;
@@ -1657,6 +1678,8 @@ void plugin_shutdown_all (void)
 	destroy_all_callbacks (&list_notification);
 	destroy_all_callbacks (&list_shutdown);
 	destroy_all_callbacks (&list_log);
+
+	plugin_free_data_sets ();
 } /* void plugin_shutdown_all */
 
 int plugin_dispatch_missing (const value_list_t *vl) /* {{{ */
