@@ -266,7 +266,7 @@ bin_PROGRAMS = collectd-nagios$(EXEEXT) collectdctl$(EXEEXT) \
 @BUILD_PLUGIN_MODBUS_TRUE@am__append_205 = modbus.la
 @BUILD_PLUGIN_MONGODB_TRUE@am__append_206 = mongodb.la
 # If upgrading libmongoc, we must check that the correct defines are set
-@BUILD_PLUGIN_MONGODB_TRUE@@BUILD_WITH_OWN_LIBMONGOC_TRUE@am__append_207 = libmongoc/src/encoding.c libmongoc/src/bson.c libmongoc/src/env_posix.c libmongoc/src/gridfs.c libmongoc/src/md5.c libmongoc/src/mongo.c libmongoc/src/numbers.c
+@BUILD_PLUGIN_MONGODB_TRUE@@BUILD_WITH_OWN_LIBMONGOC_TRUE@am__append_207 = libmongoc/src/encoding.c libmongoc/src/bson.c libmongoc/src/bcon.c libmongoc/src/env.c libmongoc/src/gridfs.c libmongoc/src/md5.c libmongoc/src/mongo.c libmongoc/src/numbers.c
 # unused-result being treated as an error since libmongoc calls functions that some libc implementations warn on if results aren't checked
 # turn off errors on warnings using -Wno-error since the -Wunused-result flag does not exist until gcc 4.5
 @BUILD_PLUGIN_MONGODB_TRUE@@BUILD_WITH_OWN_LIBMONGOC_TRUE@am__append_208 = -I libmongoc/src -DMONGO_HAVE_STDINT
@@ -1040,12 +1040,13 @@ modbus_la_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) \
 @BUILD_PLUGIN_MODBUS_TRUE@am_modbus_la_rpath = -rpath $(pkglibdir)
 mongodb_la_DEPENDENCIES =
 am__mongodb_la_SOURCES_DIST = mongodb.c libmongoc/src/encoding.c \
-	libmongoc/src/bson.c libmongoc/src/env_posix.c \
+	libmongoc/src/bson.c libmongoc/src/bcon.c libmongoc/src/env.c \
 	libmongoc/src/gridfs.c libmongoc/src/md5.c \
 	libmongoc/src/mongo.c libmongoc/src/numbers.c
 @BUILD_PLUGIN_MONGODB_TRUE@@BUILD_WITH_OWN_LIBMONGOC_TRUE@am__objects_1 = mongodb_la-encoding.lo \
 @BUILD_PLUGIN_MONGODB_TRUE@@BUILD_WITH_OWN_LIBMONGOC_TRUE@	mongodb_la-bson.lo \
-@BUILD_PLUGIN_MONGODB_TRUE@@BUILD_WITH_OWN_LIBMONGOC_TRUE@	mongodb_la-env_posix.lo \
+@BUILD_PLUGIN_MONGODB_TRUE@@BUILD_WITH_OWN_LIBMONGOC_TRUE@	mongodb_la-bcon.lo \
+@BUILD_PLUGIN_MONGODB_TRUE@@BUILD_WITH_OWN_LIBMONGOC_TRUE@	mongodb_la-env.lo \
 @BUILD_PLUGIN_MONGODB_TRUE@@BUILD_WITH_OWN_LIBMONGOC_TRUE@	mongodb_la-gridfs.lo \
 @BUILD_PLUGIN_MONGODB_TRUE@@BUILD_WITH_OWN_LIBMONGOC_TRUE@	mongodb_la-md5.lo \
 @BUILD_PLUGIN_MONGODB_TRUE@@BUILD_WITH_OWN_LIBMONGOC_TRUE@	mongodb_la-mongo.lo \
@@ -3332,9 +3333,10 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcached.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memory_la-memory.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/modbus_la-modbus.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mongodb_la-bcon.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mongodb_la-bson.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mongodb_la-encoding.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mongodb_la-env_posix.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mongodb_la-env.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mongodb_la-gridfs.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mongodb_la-md5.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mongodb_la-mongo.Plo@am__quote@
@@ -3645,12 +3647,19 @@ mongodb_la-bson.lo: libmongoc/src/bson.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mongodb_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o mongodb_la-bson.lo `test -f 'libmongoc/src/bson.c' || echo '$(srcdir)/'`libmongoc/src/bson.c
 
-mongodb_la-env_posix.lo: libmongoc/src/env_posix.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mongodb_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT mongodb_la-env_posix.lo -MD -MP -MF $(DEPDIR)/mongodb_la-env_posix.Tpo -c -o mongodb_la-env_posix.lo `test -f 'libmongoc/src/env_posix.c' || echo '$(srcdir)/'`libmongoc/src/env_posix.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/mongodb_la-env_posix.Tpo $(DEPDIR)/mongodb_la-env_posix.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='libmongoc/src/env_posix.c' object='mongodb_la-env_posix.lo' libtool=yes @AMDEPBACKSLASH@
+mongodb_la-bcon.lo: libmongoc/src/bcon.c
+@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mongodb_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT mongodb_la-bcon.lo -MD -MP -MF $(DEPDIR)/mongodb_la-bcon.Tpo -c -o mongodb_la-bcon.lo `test -f 'libmongoc/src/bcon.c' || echo '$(srcdir)/'`libmongoc/src/bcon.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/mongodb_la-bcon.Tpo $(DEPDIR)/mongodb_la-bcon.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='libmongoc/src/bcon.c' object='mongodb_la-bcon.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mongodb_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o mongodb_la-env_posix.lo `test -f 'libmongoc/src/env_posix.c' || echo '$(srcdir)/'`libmongoc/src/env_posix.c
+@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mongodb_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o mongodb_la-bcon.lo `test -f 'libmongoc/src/bcon.c' || echo '$(srcdir)/'`libmongoc/src/bcon.c
+
+mongodb_la-env.lo: libmongoc/src/env.c
+@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mongodb_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT mongodb_la-env.lo -MD -MP -MF $(DEPDIR)/mongodb_la-env.Tpo -c -o mongodb_la-env.lo `test -f 'libmongoc/src/env.c' || echo '$(srcdir)/'`libmongoc/src/env.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/mongodb_la-env.Tpo $(DEPDIR)/mongodb_la-env.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='libmongoc/src/env.c' object='mongodb_la-env.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mongodb_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o mongodb_la-env.lo `test -f 'libmongoc/src/env.c' || echo '$(srcdir)/'`libmongoc/src/env.c
 
 mongodb_la-gridfs.lo: libmongoc/src/gridfs.c
 @am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mongodb_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT mongodb_la-gridfs.lo -MD -MP -MF $(DEPDIR)/mongodb_la-gridfs.Tpo -c -o mongodb_la-gridfs.lo `test -f 'libmongoc/src/gridfs.c' || echo '$(srcdir)/'`libmongoc/src/gridfs.c

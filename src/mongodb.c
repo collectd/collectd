@@ -53,6 +53,68 @@ static const char *config_keys[] = {
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
+static int mc_connect() { /* {{{ */
+    int status;
+
+    if (mc_have_connection) {
+        // reconnect if needed
+        status = mongo_check_connection(&mc_connection);
+        if (status == MONGO_ERROR) {
+            status = mongo_reconnect(&mc_connection);
+            if (status != MONGO_OK)
+            {
+                ERROR ("mongo plugin: Reonnecting to %s:%i failed: %s",
+                        (mc_host != NULL) ? mc_host : MC_MONGO_DEF_HOST,
+                        (mc_port > 0) ? mc_port : MONGO_DEFAULT_PORT,
+                        mc_connection.errstr);
+                return (-1);
+            }
+        }
+
+        if (mc_user!=NULL && mc_password!=NULL) {
+        status = mongo_cmd_authenticate (&mc_connection, mc_db, mc_user, mc_password);
+            if (status != MONGO_OK)
+            {
+                ERROR ("mongo plugin: Authenticating to %s:%i failed: %s",
+                        (mc_host != NULL) ? mc_host : MC_MONGO_DEF_HOST,
+                        (mc_port > 0) ? mc_port : MONGO_DEFAULT_PORT,
+                        mc_connection.errstr);
+                return (-1);
+            }
+        }
+        return (0);
+    }
+
+    mongo_init (&mc_connection);
+
+    status = mongo_client (&mc_connection,
+            (mc_host != NULL) ? mc_host : MC_MONGO_DEF_HOST,
+            (mc_port > 0) ? mc_port : MONGO_DEFAULT_PORT);
+    if (status != MONGO_OK)
+    {
+        ERROR ("mongo plugin: Connecting to %s:%i failed: %s",
+                (mc_host != NULL) ? mc_host : MC_MONGO_DEF_HOST,
+                (mc_port > 0) ? mc_port : MONGO_DEFAULT_PORT,
+                mc_connection.errstr);
+        return (-1);
+    }
+
+    if (mc_user!=NULL && mc_password!=NULL) {
+        status = mongo_cmd_authenticate (&mc_connection, mc_db, mc_user, mc_password);
+        if (status != MONGO_OK)
+        {
+            ERROR ("mongo plugin: Authenticating to %s:%i failed: %s",
+                    (mc_host != NULL) ? mc_host : MC_MONGO_DEF_HOST,
+                    (mc_port > 0) ? mc_port : MONGO_DEFAULT_PORT,
+                    mc_connection.errstr);
+            return (-1);
+        }
+    }
+
+    mc_have_connection = 1;
+    return (0);
+} /* }}} int mc_connect */
+
 static void submit (const char *type, const char *instance, /* {{{ */
         value_t *values, size_t values_len)
 {
@@ -260,7 +322,7 @@ static int handle_index_counters (bson_iterator *iter) /* {{{ */
     if (strcmp ("btree", key) != 0)
         return (0);
 
-    bson_iterator_subobject (iter, &subobj);
+    bson_iterator_subobject_init (iter, &subobj, 0);
     status = handle_btree (&subobj);
 
     return (status);
@@ -370,6 +432,10 @@ static int query_dbstats (void) /* {{{ */
 
 static int mc_read(void) /* {{{ */
 {
+    if (mc_connect() != 0) {
+        return (-1);
+    }
+
     if (query_server_status () != 0)
         return (-1);
 
@@ -417,73 +483,9 @@ static int mc_config (const char *key, const char *value) /* {{{ */
     return (0);
 } /* }}} int mc_config */
 
-static int mc_init (void) /* {{{ */
-{
-    int status;
-
-    if (mc_have_connection) {
-        // reconnect if needed
-        status = mongo_check_connection(&mc_connection);
-        if (status == MONGO_ERROR) {
-            status = mongo_reconnect(&mc_connection);
-            if (status != MONGO_OK)
-            {
-                ERROR ("mongo plugin: Reonnecting to %s:%i failed: %s",
-                        (mc_host != NULL) ? mc_host : MC_MONGO_DEF_HOST,
-                        (mc_port > 0) ? mc_port : MONGO_DEFAULT_PORT,
-                        mc_connection.errstr);
-                return (-1);
-            }
-        }
-
-        if (mc_user!=NULL && mc_password!=NULL) {
-        status = mongo_cmd_authenticate (&mc_connection, mc_db, mc_user, mc_password);
-            if (status != MONGO_OK)
-            {
-                ERROR ("mongo plugin: Authenticating to %s:%i failed: %s",
-                        (mc_host != NULL) ? mc_host : MC_MONGO_DEF_HOST,
-                        (mc_port > 0) ? mc_port : MONGO_DEFAULT_PORT,
-                        mc_connection.errstr);
-                return (-1);
-            }
-        }
-        return (0);
-    }
-
-    mongo_init (&mc_connection);
-
-    status = mongo_connect (&mc_connection,
-            (mc_host != NULL) ? mc_host : MC_MONGO_DEF_HOST,
-            (mc_port > 0) ? mc_port : MONGO_DEFAULT_PORT);
-    if (status != MONGO_OK)
-    {
-        ERROR ("mongo plugin: Connecting to %s:%i failed: %s",
-                (mc_host != NULL) ? mc_host : MC_MONGO_DEF_HOST,
-                (mc_port > 0) ? mc_port : MONGO_DEFAULT_PORT,
-                mc_connection.errstr);
-        return (-1);
-    }
-
-    if (mc_user!=NULL && mc_password!=NULL) {
-        status = mongo_cmd_authenticate (&mc_connection, mc_db, mc_user, mc_password);
-        if (status != MONGO_OK)
-        {
-            ERROR ("mongo plugin: Authenticating to %s:%i failed: %s",
-                    (mc_host != NULL) ? mc_host : MC_MONGO_DEF_HOST,
-                    (mc_port > 0) ? mc_port : MONGO_DEFAULT_PORT,
-                    mc_connection.errstr);
-            return (-1);
-        }
-    }
-
-    mc_have_connection = 1;
-    return (0);
-} /* }}} int mc_init */
-
 static int mc_shutdown(void) /* {{{ */
 {
     if (mc_have_connection) {
-        mongo_disconnect (&mc_connection);
         mongo_destroy (&mc_connection);
         mc_have_connection = 0;
     }
@@ -501,7 +503,6 @@ void module_register(void)
     plugin_register_config ("mongodb", mc_config,
             config_keys, config_keys_num);
     plugin_register_read ("mongodb", mc_read);
-    plugin_register_init ("mongodb", mc_init);
     plugin_register_shutdown ("mongodb", mc_shutdown);
 }
 
