@@ -32,12 +32,12 @@ Next, initialize it:
 
     mongo_init( &conn );
 
-Set any optional values, like a timeout, and then call ``mongo_connect``:
+Set any optional values, like a timeout, and then call ``mongo_client``:
 
 .. code-block:: c
 
     mongo_set_op_timeout( &conn, 1000 );
-    mongo_connect( &conn, "127.0.0.1", 27017 );
+    mongo_client( &conn, "127.0.0.1", 27017 );
 
 When you're finished, destroy the mongo object:
 
@@ -51,7 +51,7 @@ as you learn the API and start using the driver.
 Connecting
 ----------
 
-Let's start by that connects to the database:
+Let's start with a simple program that connects to the database:
 
 .. code-block:: c
 
@@ -60,11 +60,10 @@ Let's start by that connects to the database:
 
     int main() {
       mongo conn[1];
-      int status = mongo_connect( conn, "127.0.0.1", 27017 );
+      int status = mongo_client( conn, "127.0.0.1", 27017 );
 
       if( status != MONGO_OK ) {
           switch ( conn->err ) {
-            case MONGO_CONN_SUCCESS:    printf( "connection succeeded\n" ); break;
             case MONGO_CONN_NO_SOCKET:  printf( "no socket\n" ); return 1;
             case MONGO_CONN_FAIL:       printf( "connection failed\n" ); return 1;
             case MONGO_CONN_NOT_MASTER: printf( "not master\n" ); return 1;
@@ -104,14 +103,14 @@ then you add seed nodes, and finally you connect. Here's an example:
     int main() {
       mongo conn[1];
 
-      mongo_replset_init( conn, "shard1" );
-      mongo_replset_add_seed( conn, "10.4.3.22", 27017 );
-      mongo_replset_add_seed( conn, "10.4.3.32", 27017 );
+      mongo_replica_set_init( conn, "shard1" );
+      mongo_replica_set_add_seed( conn, "10.4.3.22", 27017 );
+      mongo_replica_set_add_seed( conn, "10.4.3.32", 27017 );
 
-      status = mongo_replset_connect( conn );
+      status = mongo_replica_set_client( conn );
 
       if( status != MONGO_OK ) {
-          // Check conn->err for error code.
+          /* Check conn->err for error code. */
       }
 
       mongo_destroy( conn );
@@ -170,7 +169,7 @@ Here's how we save our person object to the database's "people" collection:
 
     mongo_insert( conn, "tutorial.people", b );
 
-The first parameter to ``mongo_insert`` is the pointer to the ``mongo_connection``
+The first parameter to ``mongo_insert`` is the pointer to the ``mongo``
 object. The second parameter is the namespace, which include the database name, followed
 by a dot followed by the collection name. Thus, ``tutorial`` is the database and ``people``
 is the collection name. The third parameter is a pointer to the ``bson`` object that
@@ -183,7 +182,7 @@ We can do batch inserts as well:
 
 .. code-block:: c
 
-    static void tutorial_insert_batch( mongo_connection *conn ) {
+    static void tutorial_insert_batch( mongo *conn ) {
       bson *p, **ps;
       char *names[4];
       int ages[] = { 29, 24, 24, 32 };
@@ -217,7 +216,7 @@ Let's now fetch all objects from the ``persons`` collection, and display them.
 
 .. code-block:: c
 
-    static void tutorial_empty_query( mongo_connection *conn) {
+    static void tutorial_empty_query( mongo *conn) {
       mongo_cursor cursor[1];
       mongo_cursor_init( cursor, conn, "tutorial.persons" );
 
@@ -240,12 +239,12 @@ whose age is 24:
 
 .. code-block:: c
 
-    static void tutorial_simple_query( mongo_connection *conn ) {
+    static void tutorial_simple_query( mongo *conn ) {
       bson query[1];
       mongo_cursor cursor[1];
 
       bson_init( query );
-      bson_append_int( query_buf, "age", 24 );
+      bson_append_int( query, "age", 24 );
       bson_finish( query );
 
       mongo_cursor_init( cursor, conn, "tutorial.persons" );
@@ -331,7 +330,7 @@ is equivalent to the following C function:
 
 .. code-block:: c
 
-    static void tutorial_update( mongo_connection *conn ) {
+    static void tutorial_update( mongo *conn ) {
       bson cond[1], op[1];
 
       bson_init( cond );
@@ -367,14 +366,14 @@ the second is a compound index on ``name`` and ``age``.
 
 .. code-block:: c
 
-    static void tutorial_index( mongo_connection *conn ) {
+    static void tutorial_index( mongo *conn ) {
       bson key[1];
 
       bson_init( key );
       bson_append_int( key, "name", 1 );
       bson_finish( key );
 
-      mongo_create_index( conn, "tutorial.persons", key, 0, NULL );
+      mongo_create_index( conn, "tutorial.persons", key, NULL, 0, NULL );
 
       bson_destroy( key );
 
@@ -385,7 +384,7 @@ the second is a compound index on ``name`` and ``age``.
       bson_append_int( key, "name", 1 );
       bson_finish( key );
 
-      mongo_create_index( conn, "tutorial.persons", key, 0, NULL );
+      mongo_create_index( conn, "tutorial.persons", key, NULL, 0, NULL );
 
       bson_destroy( key );
 

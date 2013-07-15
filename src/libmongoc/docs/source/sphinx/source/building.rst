@@ -2,11 +2,11 @@ Building the MongoDB C Driver
 =============================
 
 First checkout the version you want to build. *Always build from a particular tag, since HEAD may be
-a work in progress.* For example, to build version 0.5.1, run:
+a work in progress.* For example, to build version 0.7.1, run:
 
 .. code-block:: bash
 
-    git checkout v0.5.1
+    git checkout v0.7.1
 
 Then follow the build steps below.
 
@@ -99,6 +99,18 @@ Then run the program:
 
     ./example
 
+To clean up objects:
+
+.. code-block:: bash
+
+    make clean
+
+To clobber products, includes clean:
+
+.. code-block:: bash
+
+    make clobber
+
 Building with SCons:
 --------------------
 
@@ -138,11 +150,19 @@ To build the docs:
 
     scons docs
 
+To cleanup:
+
+.. code-block:: bash
+
+    scons -c
+
 Building on Windows
 -------------------
 
 When building the driver on Windows, you must use the Python build
-utility, SCons_. For your compiler, we recommend that you use Visual Studio.
+utility, SCons_. Install Python 2 (NOT Python 3) from www.python.org, making sure
+to install the 32-bit version and NOT the 64-bit version. Install SCons from
+www.scons.org. For your compiler, we recommend that you use Visual Studio.
 If you don't have Visual Studio, a free version is available. Search for Visual
 Studio C++ Express to find it.
 
@@ -168,16 +188,11 @@ the increased use of the driver. In particular, it now makes sense to provide
 platform-specific features, such as socket timeouts and DNS resolution, and to
 return platform-specific error codes.
 
-To that end, we've organized all platform-specific code in the following files:
+To that end, we've organized all platform-specific code in the following file:
 
-* ``env_standard.c``: a standard, platform-agnostic implementation.
-* ``env_posix.c``: an implementation geared for Posix-compliant systems (Linux, OS X).
-* ``env_win32.c``: a Windows implementation.
+* ``env.c``: environment-specific implementation for Posix-compliant systems (Linux, OS X) and Windows.
 
-Each of these implements the interface defined in ``env.h``.
-
-When building with ``make``, we use ``env_posix.c``. When building with SCons_, we
-use ``env_posix.c`` or ``env_win32.c``, depending on the platform.
+This implements the interface defined in ``env.h``.
 
 If you want to compile with the generic, platform implementation, you have to do so
 explicity. In SCons_:

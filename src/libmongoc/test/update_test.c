@@ -14,15 +14,11 @@ int main() {
     const char *ns = "test.c.update_test";
 
     INIT_SOCKETS_FOR_WINDOWS;
-
-    if ( mongo_connect( conn , TEST_SERVER, 27017 ) ) {
-        printf( "failed to connect\n" );
-        exit( 1 );
-    }
+    CONN_CLIENT_TEST;
 
     /* if the collection doesn't exist dropping it will fail */
     if ( mongo_cmd_drop_collection( conn, "test", col, NULL ) == MONGO_OK
-            && mongo_find_one( conn, ns, bson_empty( &obj ), bson_empty( &obj ), NULL ) != MONGO_OK ) {
+            && mongo_find_one( conn, ns, bson_shared_empty( ), bson_shared_empty( ), NULL ) != MONGO_OK ) {
         printf( "failed to drop collection\n" );
         exit( 1 );
     }

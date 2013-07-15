@@ -18,7 +18,7 @@ static void make_small_invalid( bson *out, int i ) {
 
 int main() {
     mongo conn[1];
-    bson b, empty;
+    bson b;
     mongo_cursor cursor[1];
     unsigned char not_utf8[3];
     int result = 0;
@@ -33,17 +33,14 @@ int main() {
     not_utf8[2] = '\0';
 
     INIT_SOCKETS_FOR_WINDOWS;
-
-    if ( mongo_connect( conn, TEST_SERVER, 27017 ) ) {
-        printf( "failed to connect\n" );
-        exit( 1 );
-    }
+    CONN_CLIENT_TEST;
 
     /* Test checking for finished bson. */
     bson_init( &b );
     bson_append_int( &b, "foo", 1 );
     ASSERT( mongo_insert( conn, "test.foo", &b, NULL ) == MONGO_ERROR );
     ASSERT( conn->err == MONGO_BSON_NOT_FINISHED );
+    bson_destroy( &b );
 
     /* Test valid keys. */
     bson_init( &b );
@@ -86,7 +83,7 @@ int main() {
     ASSERT( result == MONGO_ERROR );
     ASSERT( conn->err & MONGO_BSON_NOT_FINISHED );
 
-    result = mongo_update( conn, ns, bson_empty( &empty ), &b, 0, NULL );
+    result = mongo_update( conn, ns, bson_shared_empty( ), &b, 0, NULL );
     ASSERT( result == MONGO_ERROR );
     ASSERT( conn->err & MONGO_BSON_NOT_FINISHED );
 
@@ -98,9 +95,10 @@ int main() {
     ASSERT( cursor->conn->err & MONGO_BSON_NOT_FINISHED );
 
     bson_destroy( &b );
+    mongo_cursor_destroy( cursor );
 
     /* Test valid strings. */
-    bson_init( & b );
+    bson_init( &b );
     result = bson_append_string( &b , "foo" , "bar" );
     ASSERT( result == BSON_OK );
     ASSERT( b.err == 0 );
@@ -129,6 +127,7 @@ int main() {
     for ( j=0; j < BATCH_SIZE; j++ )
         bson_destroy( &bs[j] );
 
+    bson_destroy( &b );
     mongo_cmd_drop_db( conn, "test" );
     mongo_disconnect( conn );
 

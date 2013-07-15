@@ -9,8 +9,8 @@
 #include <stdlib.h>
 
 #ifdef _MSC_VER
-#include <ws2tcpip.h>  // send,recv,socklen_t etc
-#include <wspiapi.h>   // addrinfo
+#include <ws2tcpip.h>  /* send,recv,socklen_t etc */
+#include <wspiapi.h>   /* addrinfo */
 #else
 #include <windows.h>
 #include <winsock.h>
@@ -25,10 +25,7 @@ int test_read_timeout( void ) {
     bson b, obj, out, fields;
     int res;
 
-    if ( mongo_connect( conn, TEST_SERVER, 27017 ) ) {
-        printf( "failed to connect\n" );
-        exit( 1 );
-    }
+    CONN_CLIENT_TEST;
 
     bson_init( &b );
     bson_append_code( &b, "$where", "sleep( 10 * 1000 );");
@@ -63,7 +60,7 @@ int test_getaddrinfo( void ) {
     const char *ns = "test.foo";
     const char *errmsg = "getaddrinfo failed";
 
-    if( mongo_connect( conn, "badhost", 27017 ) == MONGO_OK ) {
+    if( mongo_client( conn, "badhost.example.com", 27017 ) == MONGO_OK ) {
         printf( "connected to bad host!\n" );
         exit( 1 );
     } else {
@@ -71,7 +68,7 @@ int test_getaddrinfo( void ) {
     }
 
 
-    if( mongo_connect( conn, "localhost", 27017 ) != MONGO_OK ) {
+    if( mongo_client( conn, "localhost", 27017 ) != MONGO_OK ) {
         printf( "failed to connect\n" );
         exit( 1 );
     }

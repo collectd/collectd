@@ -21,7 +21,7 @@ A good example of an operating system error is a connection failure.
 
     mongo conn[1];
 
-    if ( mongo_connect( conn, "foo.example.com", 27017 ) == MONGO_ERROR ) {
+    if ( mongo_client( conn, "foo.example.com", 27017 ) == MONGO_ERROR ) {
         printf( "mongo_error_t: %d\n", conn->err );
         printf( "errno (or WSAGetLastError() on Windows: %d\n", conn->errcode );
         printf( "Error string: %s\n", conn->errstr );
@@ -53,7 +53,7 @@ We can force this sort of error by trying to run an invalid command:
     mongo conn[1];
     int res;
 
-    if( mongo_connect( conn, "foo.example.com", 27017 ) == MONGO_ERROR ) {
+    if( mongo_client( conn, "foo.example.com", 27017 ) == MONGO_ERROR ) {
         exit( 1 );
     }
 

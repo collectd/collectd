@@ -16,11 +16,7 @@ int main() {
     const char *ns = "test.c.simple";
 
     INIT_SOCKETS_FOR_WINDOWS;
-
-    if ( mongo_connect( conn , TEST_SERVER , 27017 ) ) {
-        printf( "failed to connect\n" );
-        exit( 1 );
-    }
+    CONN_CLIENT_TEST;
 
     /* if the collection doesn't exist dropping it will fail */
     if ( !mongo_cmd_drop_collection( conn, "test", col, NULL )

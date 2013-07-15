@@ -4,7 +4,7 @@
 #include <cstring>
 #include <cstdio>
 
-// this is just a simple test to make sure everything works when compiled with a c++ compiler
+/* this is just a simple test to make sure everything works when compiled with a c++ compiler */
 
 using namespace std;
 
@@ -13,11 +13,7 @@ int main(){
     bson b;
 
     INIT_SOCKETS_FOR_WINDOWS;
-
-    if (mongo_connect( conn, TEST_SERVER, 27017 )){
-        cout << "failed to connect" << endl;
-        return 1;
-    }
+    CONN_CLIENT_TEST;
 
     for(int i=0; i< 5; i++){
         bson_init( &b );

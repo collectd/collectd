@@ -11,11 +11,7 @@ int main() {
     mongo conn[1];
 
     INIT_SOCKETS_FOR_WINDOWS;
-
-    if ( mongo_connect( conn , TEST_SERVER, 27017 ) ) {
-        printf( "failed to connect\n" );
-        exit( 1 );
-    }
+    CONN_CLIENT_TEST;
 
     mongo_cmd_drop_db( conn, db );
 

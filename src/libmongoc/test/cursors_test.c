@@ -42,14 +42,13 @@ void remove_sample_data( mongo *conn ) {
 
 int test_multiple_getmore( mongo *conn ) {
     mongo_cursor *cursor;
-    bson b;
     int count;
 
     remove_sample_data( conn );
     create_capped_collection( conn );
     insert_sample_data( conn, 10000 );
 
-    cursor = mongo_find( conn, "test.cursors", bson_empty( &b ), bson_empty( &b ), 0, 0, 0 );
+    cursor = mongo_find( conn, "test.cursors", bson_shared_empty( ), bson_shared_empty( ), 0, 0, 0 );
 
     count = 0;
     while( mongo_cursor_next( cursor ) == MONGO_OK )
@@ -67,7 +66,7 @@ int test_multiple_getmore( mongo *conn ) {
 
 int test_tailable( mongo *conn ) {
     mongo_cursor *cursor;
-    bson b, e;
+    bson b;
     int count;
 
     remove_sample_data( conn );
@@ -82,7 +81,7 @@ int test_tailable( mongo *conn ) {
     bson_append_finish_object( &b );
     bson_finish( &b );
 
-    cursor = mongo_find( conn, "test.cursors", &b, bson_empty( &e ), 0, 0, MONGO_TAILABLE );
+    cursor = mongo_find( conn, "test.cursors", &b, bson_shared_empty( ), 0, 0, MONGO_TAILABLE );
     bson_destroy( &b );
 
     count = 0;
@@ -154,7 +153,7 @@ int test_bad_query( mongo *conn ) {
 
     ASSERT( mongo_cursor_next( cursor ) == MONGO_ERROR );
     ASSERT( cursor->err == MONGO_CURSOR_QUERY_FAIL );
-    ASSERT( cursor->conn->lasterrcode == 10068 );
+    ASSERT( cursor->conn->lasterrcode == 10068 || cursor->conn->lasterrcode == 16810 );
     ASSERT( strlen( cursor->conn->lasterrstr ) > 0 );
 
     mongo_cursor_destroy( cursor );
@@ -187,11 +186,7 @@ int main() {
     mongo conn[1];
 
     INIT_SOCKETS_FOR_WINDOWS;
-
-    if( mongo_connect( conn, TEST_SERVER, 27017 ) != MONGO_OK ) {
-        printf( "Failed to connect" );
-        exit( 1 );
-    }
+    CONN_CLIENT_TEST;
 
     test_multiple_getmore( conn );
     test_tailable( conn );

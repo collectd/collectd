@@ -27,7 +27,7 @@ int main() {
 
     ASSERT( BSON_OBJECT == type );
 
-    bson_iterator_subobject( it, sub );
+    bson_iterator_subobject_init( it, sub, 0 );
     ASSERT( sub->finished == 1 );
 
     bson_iterator_init( it2, sub );
@@ -43,6 +43,7 @@ int main() {
     ASSERT( 0 == copy->stackPos );
     ASSERT( 0 == copy->err );
 
+    bson_destroy( copy );
     bson_destroy( b );
 
     return 0;

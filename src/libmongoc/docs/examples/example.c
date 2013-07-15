@@ -74,7 +74,7 @@ int main() {
     bson_print( &sub );
 
     /* Now make a connection to MongoDB. */
-    if( mongo_connect( &conn, "127.0.0.1", 27017 ) != MONGO_OK ) {
+    if( mongo_client( &conn, "127.0.0.1", 27017 ) != MONGO_OK ) {
       switch( conn.err ) {
         case MONGO_CONN_NO_SOCKET:
           printf( "FAIL: Could not create a socket!\n" );
@@ -88,7 +88,7 @@ int main() {
     }
 
     /* Insert the sample BSON document. */
-    if( mongo_insert( &conn, "test.records", &b ) != MONGO_OK ) {
+    if( mongo_insert( &conn, "test.records", &b, NULL ) != MONGO_OK ) {
       printf( "FAIL: Failed to insert document with error %d\n", conn.err );
       exit( 1 );
     }

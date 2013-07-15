@@ -33,7 +33,8 @@ def gen_sphinx(dir):
         subprocess.call(["make", "html"], stdout=null, stderr=null)
 
     os.chdir("../../../")
-    os.rename("docs/source/sphinx/build/html", dir)
+    if os.path.isdir("docs/source/sphinx/build/html"):
+        os.rename("docs/source/sphinx/build/html", dir)
 
 def version():
     """Get the driver version from doxygenConfig.

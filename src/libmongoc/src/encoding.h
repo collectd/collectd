@@ -35,7 +35,7 @@ MONGO_EXTERN_C_START
  *     Set the value of b->err appropriately.
  */
 int bson_check_field_name( bson *b, const char *string,
-                           const int length );
+                           const size_t length );
 
 /**
  * Check that a string is valid UTF8. Sets the buffer bit field appropriately.
@@ -48,7 +48,7 @@ int bson_check_field_name( bson *b, const char *string,
  *     Sets b->err on error.
  */
 bson_bool_t bson_check_string( bson *b, const char *string,
-                               const int length );
+                               const size_t length );
 
 MONGO_EXTERN_C_END
 #endif

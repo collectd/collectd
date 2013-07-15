@@ -7,7 +7,7 @@
 static const char *db = "test";
 static const char *ns = "test.c.error";
 
-int test_namespace_validation() {
+int test_namespace_validation( void ) {
     mongo conn[1];
     char longns[130] = "test.foo";
     int i;
@@ -16,6 +16,9 @@ int test_namespace_validation() {
 
     /* Test a few legal namespaces. */
     ASSERT( mongo_validate_ns( conn, "test.foo" ) == MONGO_OK );
+    ASSERT( conn->err == 0 );
+
+    ASSERT( mongo_validate_ns( conn, "test.f" ) == MONGO_OK );
     ASSERT( conn->err == 0 );
 
     ASSERT( mongo_validate_ns( conn, "test.foo.bar" ) == MONGO_OK );
@@ -34,7 +37,12 @@ int test_namespace_validation() {
 
     ASSERT( mongo_validate_ns( conn, "test" ) == MONGO_ERROR );
     ASSERT( conn->err == MONGO_NS_INVALID );
-    ASSERT( strncmp( conn->errstr, "ns cannot start with", 20 ) == 0 );
+    ASSERT( strncmp( conn->errstr, "Collection name missing.", 24 ) == 0 );
+    mongo_clear_errors( conn );
+
+    ASSERT( mongo_validate_ns( conn, "test." ) == MONGO_ERROR );
+    ASSERT( conn->err == MONGO_NS_INVALID );
+    ASSERT( strncmp( conn->errstr, "Collection name missing.", 24 ) == 0 );
     mongo_clear_errors( conn );
 
     ASSERT( mongo_validate_ns( conn, "." ) == MONGO_ERROR );
@@ -95,11 +103,7 @@ int test_namespace_validation_on_insert( void ) {
     bson *objs[2];
 
     INIT_SOCKETS_FOR_WINDOWS;
-
-    if ( mongo_connect( conn , TEST_SERVER, 27017 ) ) {
-        printf( "failed to connect\n" );
-        exit( 1 );
-    }
+    CONN_CLIENT_TEST;
 
     bson_init( b );
     bson_append_int( b, "foo", 1 );
@@ -122,6 +126,10 @@ int test_namespace_validation_on_insert( void ) {
     ASSERT( conn->err == MONGO_NS_INVALID );
     ASSERT( strncmp( conn->errstr, "Collection may not contain '$'", 29 ) == 0 );
 
+    bson_destroy( b );
+    bson_destroy( b2 );
+    mongo_destroy( conn );
+
     return 0;
 }
 
@@ -141,10 +149,7 @@ int test_insert_limits( void ) {
     if( mongo_get_server_version( version ) != -1 && version[0] <= '1' )
         return 0;
 
-    if ( mongo_connect( conn , TEST_SERVER, 27017 ) ) {
-        printf( "failed to connect\n" );
-        exit( 1 );
-    }
+    CONN_CLIENT_TEST;
 
     ASSERT( conn->max_bson_size > MONGO_DEFAULT_MAX_BSON_SIZE );
 
@@ -174,6 +179,10 @@ int test_insert_limits( void ) {
           NULL, 0 ) == MONGO_ERROR );
     ASSERT( conn->err == MONGO_BSON_TOO_LARGE );
 
+    bson_destroy( b );
+    bson_destroy( b2 );
+    mongo_destroy( conn );
+
     return 0;
 }
 
@@ -182,11 +191,7 @@ int test_get_last_error_commands( void ) {
     bson obj;
 
     INIT_SOCKETS_FOR_WINDOWS;
-
-    if ( mongo_connect( conn , TEST_SERVER, 27017 ) ) {
-        printf( "failed to connect\n" );
-        exit( 1 );
-    }
+    CONN_CLIENT_TEST;
 
     /*********************/
     ASSERT( mongo_cmd_get_prev_error( conn, db, NULL ) == MONGO_OK );
@@ -219,7 +224,7 @@ int test_get_last_error_commands( void ) {
     bson_destroy( &obj );
 
     /* should clear lasterror but not preverror */
-    mongo_find_one( conn, ns, bson_empty( &obj ), bson_empty( &obj ), NULL );
+    mongo_find_one( conn, ns, bson_shared_empty( ), bson_shared_empty( ), NULL );
 
     ASSERT( mongo_cmd_get_prev_error( conn, db, NULL ) == MONGO_ERROR );
     ASSERT( mongo_cmd_get_last_error( conn, db, NULL ) == MONGO_OK );

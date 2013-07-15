@@ -62,10 +62,12 @@ int main() {
     bson_find( &it, &b, "items" );
 
     /* Get the subobject representing items */
-    bson_iterator_subobject( &it, &sub );
+    bson_iterator_subobject_init( &it, &sub, 0 );
 
     /* Now iterate that object */
     bson_print( &sub );
+
+    bson_destroy( &b );
 
     return 0;
 }

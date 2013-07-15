@@ -27,7 +27,7 @@
 
   This code implements the MD5 Algorithm defined in RFC 1321, whose
   text is available at
-	http://www.ietf.org/rfc/rfc1321.txt
+    http://www.ietf.org/rfc/rfc1321.txt
   The code is derived from the text of the RFC, including the test suite
   (section A.5) but excluding the rest of Appendix A.  It does not include
   any code or documentation that is identified in the RFC as being
@@ -38,14 +38,14 @@
   that follows (in reverse chronological order):
 
   2002-04-13 lpd Clarified derivation from RFC 1321; now handles byte order
-	either statically or dynamically; added missing #include <string.h>
-	in library.
+    either statically or dynamically; added missing #include <string.h>
+    in library.
   2002-03-11 lpd Corrected argument list for main(), and added int return
-	type, in test program and T value program.
+    type, in test program and T value program.
   2002-02-21 lpd Added missing #include <stdio.h> in test program.
   2000-07-03 lpd Patched to eliminate warnings about "constant is
-	unsigned in ANSI C, signed in traditional"; made test program
-	self-checking.
+    unsigned in ANSI C, signed in traditional"; made test program
+    self-checking.
   1999-11-04 lpd Edited comments slightly for automatic TOC extraction.
   1999-10-18 lpd Fixed typo in header comment (ansi2knr rather than md5).
   1999-05-03 lpd Original version.
@@ -54,7 +54,7 @@
 #include "md5.h"
 #include <string.h>
 
-#undef BYTE_ORDER	/* 1 = big-endian, -1 = little-endian, 0 = unknown */
+#undef BYTE_ORDER   /* 1 = big-endian, -1 = little-endian, 0 = unknown */
 #ifdef MONGO_BIG_ENDIAN
 #  define BYTE_ORDER 1
 #else
@@ -129,11 +129,10 @@
 
 
 static void
-mongo_md5_process(mongo_md5_state_t *pms, const mongo_md5_byte_t *data /*[64]*/)
-{
+mongo_md5_process(mongo_md5_state_t *pms, const mongo_md5_byte_t *data /*[64]*/) {
     mongo_md5_word_t
-	a = pms->abcd[0], b = pms->abcd[1],
-	c = pms->abcd[2], d = pms->abcd[3];
+    a = pms->abcd[0], b = pms->abcd[1],
+    c = pms->abcd[2], d = pms->abcd[3];
     mongo_md5_word_t t;
 #if BYTE_ORDER > 0
     /* Define storage only for big-endian CPUs. */
@@ -146,51 +145,52 @@ mongo_md5_process(mongo_md5_state_t *pms, const mongo_md5_byte_t *data /*[64]*/)
 
     {
 #if BYTE_ORDER == 0
-	/*
-	 * Determine dynamically whether this is a big-endian or
-	 * little-endian machine, since we can use a more efficient
-	 * algorithm on the latter.
-	 */
-	static const int w = 1;
+        /*
+         * Determine dynamically whether this is a big-endian or
+         * little-endian machine, since we can use a more efficient
+         * algorithm on the latter.
+         */
+        static const int w = 1;
 
-	if (*((const mongo_md5_byte_t *)&w)) /* dynamic little-endian */
+        if (*((const mongo_md5_byte_t *)&w)) /* dynamic little-endian */
 #endif
-#if BYTE_ORDER <= 0		/* little-endian */
-	{
-	    /*
-	     * On little-endian machines, we can process properly aligned
-	     * data without copying it.
-	     */
-	    if (!((data - (const mongo_md5_byte_t *)0) & 3)) {
-		/* data are properly aligned */
-		X = (const mongo_md5_word_t *)data;
-	    } else {
-		/* not aligned */
-		memcpy(xbuf, data, 64);
-		X = xbuf;
-	    }
-	}
+#if BYTE_ORDER <= 0     /* little-endian */
+        {
+            /*
+             * On little-endian machines, we can process properly aligned
+             * data without copying it.
+             */
+            if (!((data - (const mongo_md5_byte_t *)0) & 3)) {
+                /* data are properly aligned */
+                X = (const mongo_md5_word_t *)data;
+            }
+            else {
+                /* not aligned */
+                memcpy(xbuf, data, 64);
+                X = xbuf;
+            }
+        }
 #endif
 #if BYTE_ORDER == 0
-	else			/* dynamic big-endian */
+        else            /* dynamic big-endian */
 #endif
-#if BYTE_ORDER >= 0		/* big-endian */
-	{
-	    /*
-	     * On big-endian machines, we must arrange the bytes in the
-	     * right order.
-	     */
-	    const mongo_md5_byte_t *xp = data;
-	    int i;
+#if BYTE_ORDER >= 0     /* big-endian */
+        {
+            /*
+             * On big-endian machines, we must arrange the bytes in the
+             * right order.
+             */
+            const mongo_md5_byte_t *xp = data;
+            int i;
 
 #  if BYTE_ORDER == 0
-	    X = xbuf;		/* (dynamic only) */
+            X = xbuf;       /* (dynamic only) */
 #  else
-#    define xbuf X		/* (static only) */
+#    define xbuf X      /* (static only) */
 #  endif
-	    for (i = 0; i < 16; ++i, xp += 4)
-		xbuf[i] = xp[0] + (xp[1] << 8) + (xp[2] << 16) + (xp[3] << 24);
-	}
+            for (i = 0; i < 16; ++i, xp += 4)
+                xbuf[i] = xp[0] + (xp[1] << 8) + (xp[2] << 16) + (xp[3] << 24);
+        }
 #endif
     }
 
@@ -201,8 +201,8 @@ mongo_md5_process(mongo_md5_state_t *pms, const mongo_md5_byte_t *data /*[64]*/)
        a = b + ((a + F(b,c,d) + X[k] + T[i]) <<< s). */
 #define F(x, y, z) (((x) & (y)) | (~(x) & (z)))
 #define SET(a, b, c, d, k, s, Ti)\
-  t = a + F(b,c,d) + X[k] + Ti;\
-  a = ROTATE_LEFT(t, s) + b
+    t = a + F(b,c,d) + X[k] + Ti;\
+    a = ROTATE_LEFT(t, s) + b
     /* Do the following 16 operations. */
     SET(a, b, c, d,  0,  7,  T1);
     SET(d, a, b, c,  1, 12,  T2);
@@ -222,14 +222,14 @@ mongo_md5_process(mongo_md5_state_t *pms, const mongo_md5_byte_t *data /*[64]*/)
     SET(b, c, d, a, 15, 22, T16);
 #undef SET
 
-     /* Round 2. */
-     /* Let [abcd k s i] denote the operation
-          a = b + ((a + G(b,c,d) + X[k] + T[i]) <<< s). */
+    /* Round 2. */
+    /* Let [abcd k s i] denote the operation
+         a = b + ((a + G(b,c,d) + X[k] + T[i]) <<< s). */
 #define G(x, y, z) (((x) & (z)) | ((y) & ~(z)))
 #define SET(a, b, c, d, k, s, Ti)\
-  t = a + G(b,c,d) + X[k] + Ti;\
-  a = ROTATE_LEFT(t, s) + b
-     /* Do the following 16 operations. */
+    t = a + G(b,c,d) + X[k] + Ti;\
+    a = ROTATE_LEFT(t, s) + b
+    /* Do the following 16 operations. */
     SET(a, b, c, d,  1,  5, T17);
     SET(d, a, b, c,  6,  9, T18);
     SET(c, d, a, b, 11, 14, T19);
@@ -248,14 +248,14 @@ mongo_md5_process(mongo_md5_state_t *pms, const mongo_md5_byte_t *data /*[64]*/)
     SET(b, c, d, a, 12, 20, T32);
 #undef SET
 
-     /* Round 3. */
-     /* Let [abcd k s t] denote the operation
-          a = b + ((a + H(b,c,d) + X[k] + T[i]) <<< s). */
+    /* Round 3. */
+    /* Let [abcd k s t] denote the operation
+         a = b + ((a + H(b,c,d) + X[k] + T[i]) <<< s). */
 #define H(x, y, z) ((x) ^ (y) ^ (z))
 #define SET(a, b, c, d, k, s, Ti)\
-  t = a + H(b,c,d) + X[k] + Ti;\
-  a = ROTATE_LEFT(t, s) + b
-     /* Do the following 16 operations. */
+    t = a + H(b,c,d) + X[k] + Ti;\
+    a = ROTATE_LEFT(t, s) + b
+    /* Do the following 16 operations. */
     SET(a, b, c, d,  5,  4, T33);
     SET(d, a, b, c,  8, 11, T34);
     SET(c, d, a, b, 11, 16, T35);
@@ -274,14 +274,14 @@ mongo_md5_process(mongo_md5_state_t *pms, const mongo_md5_byte_t *data /*[64]*/)
     SET(b, c, d, a,  2, 23, T48);
 #undef SET
 
-     /* Round 4. */
-     /* Let [abcd k s t] denote the operation
-          a = b + ((a + I(b,c,d) + X[k] + T[i]) <<< s). */
+    /* Round 4. */
+    /* Let [abcd k s t] denote the operation
+         a = b + ((a + I(b,c,d) + X[k] + T[i]) <<< s). */
 #define I(x, y, z) ((y) ^ ((x) | ~(z)))
 #define SET(a, b, c, d, k, s, Ti)\
-  t = a + I(b,c,d) + X[k] + Ti;\
-  a = ROTATE_LEFT(t, s) + b
-     /* Do the following 16 operations. */
+    t = a + I(b,c,d) + X[k] + Ti;\
+    a = ROTATE_LEFT(t, s) + b
+    /* Do the following 16 operations. */
     SET(a, b, c, d,  0,  6, T49);
     SET(d, a, b, c,  7, 10, T50);
     SET(c, d, a, b, 14, 15, T51);
@@ -300,9 +300,9 @@ mongo_md5_process(mongo_md5_state_t *pms, const mongo_md5_byte_t *data /*[64]*/)
     SET(b, c, d, a,  9, 21, T64);
 #undef SET
 
-     /* Then perform the following additions. (That is increment each
-        of the four registers by the value it had before this block
-        was started.) */
+    /* Then perform the following additions. (That is increment each
+       of the four registers by the value it had before this block
+       was started.) */
     pms->abcd[0] += a;
     pms->abcd[1] += b;
     pms->abcd[2] += c;
@@ -310,8 +310,7 @@ mongo_md5_process(mongo_md5_state_t *pms, const mongo_md5_byte_t *data /*[64]*/)
 }
 
 MONGO_EXPORT void
-mongo_md5_init(mongo_md5_state_t *pms)
-{
+mongo_md5_init(mongo_md5_state_t *pms) {
     pms->count[0] = pms->count[1] = 0;
     pms->abcd[0] = 0x67452301;
     pms->abcd[1] = /*0xefcdab89*/ T_MASK ^ 0x10325476;
@@ -320,62 +319,60 @@ mongo_md5_init(mongo_md5_state_t *pms)
 }
 
 MONGO_EXPORT void
-mongo_md5_append(mongo_md5_state_t *pms, const mongo_md5_byte_t *data, int nbytes)
-{
+mongo_md5_append(mongo_md5_state_t *pms, const mongo_md5_byte_t *data, int nbytes) {
     const mongo_md5_byte_t *p = data;
     int left = nbytes;
     int offset = (pms->count[0] >> 3) & 63;
     mongo_md5_word_t nbits = (mongo_md5_word_t)(nbytes << 3);
 
     if (nbytes <= 0)
-	return;
+        return;
 
     /* Update the message length. */
     pms->count[1] += nbytes >> 29;
     pms->count[0] += nbits;
     if (pms->count[0] < nbits)
-	pms->count[1]++;
+        pms->count[1]++;
 
     /* Process an initial partial block. */
     if (offset) {
-	int copy = (offset + nbytes > 64 ? 64 - offset : nbytes);
+        int copy = (offset + nbytes > 64 ? 64 - offset : nbytes);
 
-	memcpy(pms->buf + offset, p, copy);
-	if (offset + copy < 64)
-	    return;
-	p += copy;
-	left -= copy;
-	mongo_md5_process(pms, pms->buf);
+        memcpy(pms->buf + offset, p, copy);
+        if (offset + copy < 64)
+            return;
+        p += copy;
+        left -= copy;
+        mongo_md5_process(pms, pms->buf);
     }
 
     /* Process full blocks. */
     for (; left >= 64; p += 64, left -= 64)
-	mongo_md5_process(pms, p);
+        mongo_md5_process(pms, p);
 
     /* Process a final partial block. */
     if (left)
-	memcpy(pms->buf, p, left);
+        memcpy(pms->buf, p, left);
 }
 
 MONGO_EXPORT void
-mongo_md5_finish(mongo_md5_state_t *pms, mongo_md5_byte_t digest[16])
-{
+mongo_md5_finish(mongo_md5_state_t *pms, mongo_md5_byte_t digest[16]) {
     static const mongo_md5_byte_t pad[64] = {
-	0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     };
     mongo_md5_byte_t data[8];
     int i;
 
     /* Save the length before padding. */
     for (i = 0; i < 8; ++i)
-	data[i] = (mongo_md5_byte_t)(pms->count[i >> 2] >> ((i & 3) << 3));
+        data[i] = (mongo_md5_byte_t)(pms->count[i >> 2] >> ((i & 3) << 3));
     /* Pad to 56 bytes mod 64. */
     mongo_md5_append(pms, pad, ((55 - (pms->count[0] >> 3)) & 63) + 1);
     /* Append the length. */
     mongo_md5_append(pms, data, 8);
     for (i = 0; i < 16; ++i)
-	digest[i] = (mongo_md5_byte_t)(pms->abcd[i >> 2] >> ((i & 3) << 3));
+        digest[i] = (mongo_md5_byte_t)(pms->abcd[i >> 2] >> ((i & 3) << 3));
 }

@@ -35,6 +35,7 @@ typedef struct {
     const char *prefix; /**> The prefix of the GridFS's collections, default is NULL */
     const char *files_ns; /**> The namespace where the file's metadata is stored */
     const char *chunks_ns; /**. The namespace where the files's data is stored in chunks */
+    bson_bool_t caseInsensitive; /**. If true then files are matched in case insensitive fashion */
 } gridfs;
 
 /* A GridFile is a single GridFS file. */
@@ -48,14 +49,30 @@ typedef struct {
     gridfs_offset length; /**> The length of this gridfile */
     int chunk_num;      /**> The number of the current chunk being written to */
     char *pending_data; /**> A buffer storing data still to be written to chunks */
-    int pending_len;    /**> Length of pending_data buffer */
+    size_t pending_len;    /**> Length of pending_data buffer */
+    int flags;          /**> Store here special flags such as: No MD5 calculation and Zlib Compression enabled*/
+    int chunkSize;   /**> Let's cache here the cache size to avoid accesing it on the Meta mongo object every time is needed */
 } gridfile;
 
-MONGO_EXPORT gridfs* gridfs_create();
-MONGO_EXPORT void gridfs_dispose(gridfs* gfs);
-MONGO_EXPORT gridfile* gridfile_create();
-MONGO_EXPORT void gridfile_dispose(gridfile* gf);
+enum gridfile_storage_type {
+    GRIDFILE_DEFAULT = 0,
+    GRIDFILE_NOMD5 = ( 1<<0 )
+};
+
+#ifndef _MSC_VER
+char *_strupr(char *str);
+char *_strlwr(char *str);
+#endif
+
+typedef int ( *gridfs_chunk_filter_func )( char** targetBuf, size_t* targetLen, const char* srcBuf, size_t srcLen, int flags );
+typedef size_t ( *gridfs_pending_data_size_func ) (int flags);
+
+MONGO_EXPORT gridfs* gridfs_alloc( void );
+MONGO_EXPORT void gridfs_dealloc(gridfs* gfs);
+MONGO_EXPORT gridfile* gridfile_create( void );
+MONGO_EXPORT void gridfile_dealloc(gridfile* gf);
 MONGO_EXPORT void gridfile_get_descriptor(gridfile* gf, bson* out);
+MONGO_EXPORT void gridfs_set_chunk_filter_funcs(gridfs_chunk_filter_func writeFilter, gridfs_chunk_filter_func readFilter, gridfs_pending_data_size_func pendingDataNeededSize);
 
 /**
  *  Initializes a GridFS object
@@ -67,7 +84,7 @@ MONGO_EXPORT void gridfile_get_descriptor(gridfile* gf, bson* out);
  *  @return - MONGO_OK or MONGO_ERROR.
  */
 MONGO_EXPORT int gridfs_init( mongo *client, const char *dbname,
-                 const char *prefix, gridfs *gfs );
+                              const char *prefix, gridfs *gfs );
 
 /**
  * Destroys a GridFS object. Call this when finished with
@@ -78,22 +95,44 @@ MONGO_EXPORT int gridfs_init( mongo *client, const char *dbname,
 MONGO_EXPORT void gridfs_destroy( gridfs *gfs );
 
 /**
+ *  Initializes a GridFile containing the GridFS and file bson
+ *  @param gfs - the GridFS where the GridFile is located
+ *  @param meta - the file object
+ *  @param gfile - the output GridFile that is being initialized
+ *
+ *  @return - MONGO_OK or MONGO_ERROR.
+ */
+MONGO_EXPORT int gridfile_init( gridfs *gfs, const bson *meta, gridfile *gfile );
+
+/**
+ *  Destroys the GridFile
+ *
+ *  @param oGridFIle - the GridFile being destroyed
+ */
+MONGO_EXPORT void gridfile_destroy( gridfile *gfile );
+
+/**
  *  Initializes a gridfile for writing incrementally with gridfs_write_buffer.
  *  Once initialized, you can write any number of buffers with gridfs_write_buffer.
  *  When done, you must call gridfs_writer_done to save the file metadata.
+ *  +-+-+-+-  This modified version of GridFS allows the file to read/write randomly
+ *  +-+-+-+-  when using this function
  *
  */
-MONGO_EXPORT void gridfile_writer_init( gridfile *gfile, gridfs *gfs, const char *remote_name,
-                           const char *content_type );
+MONGO_EXPORT int gridfile_writer_init( gridfile *gfile, gridfs *gfs, const char *remote_name,
+                                       const char *content_type, int flags );
 
 /**
  *  Write to a GridFS file incrementally. You can call this function any number
  *  of times with a new buffer each time. This allows you to effectively
  *  stream to a GridFS file. When finished, be sure to call gridfs_writer_done.
- *
+ * 
+ *  @param gfile - GridFile to write to
+ *  @param data - Pointer to buffer with data to be written
+ *  @param length - Size of buffer with data to be written
+ *  @return - Number of bytes written. If different from length assume somethind went wrong
  */
-MONGO_EXPORT void gridfile_write_buffer( gridfile *gfile, const char *data,
-                            gridfs_offset length );
+MONGO_EXPORT gridfs_offset gridfile_write_buffer( gridfile *gfile, const char *data, gridfs_offset length );
 
 /**
  *  Signal that writing of this gridfile is complete by
@@ -116,7 +155,7 @@ MONGO_EXPORT int gridfile_writer_done( gridfile *gfile );
  */
 MONGO_EXPORT int gridfs_store_buffer( gridfs *gfs, const char *data, gridfs_offset length,
                           const char *remotename,
-                          const char *contenttype );
+                          const char *contenttype, int flags );
 
 /**
  *  Open the file referenced by filename and store it as a GridFS file.
@@ -128,14 +167,18 @@ MONGO_EXPORT int gridfs_store_buffer( gridfs *gfs, const char *data, gridfs_offs
  *  @return - MONGO_OK or MONGO_ERROR.
  */
 MONGO_EXPORT int gridfs_store_file( gridfs *gfs, const char *filename,
-                        const char *remotename, const char *contenttype );
+                        const char *remotename, const char *contenttype, int flags );
 
 /**
  *  Removes the files referenced by filename from the db
+ *
  *  @param gfs - the working GridFS
  *  @param filename - the filename of the file/s to be removed
+ *
+ *  @return MONGO_OK if a matching file was removed, and MONGO_ERROR if
+ *    an error occurred or the file did not exist
  */
-MONGO_EXPORT void gridfs_remove_filename( gridfs *gfs, const char *filename );
+MONGO_EXPORT int gridfs_remove_filename( gridfs *gfs, const char *filename );
 
 /**
  *  Find the first file matching the provided query within the
@@ -147,7 +190,7 @@ MONGO_EXPORT void gridfs_remove_filename( gridfs *gfs, const char *filename );
  *
  *  @return MONGO_OK if successful, MONGO_ERROR otherwise
  */
-MONGO_EXPORT int gridfs_find_query( gridfs *gfs, bson *query, gridfile *gfile );
+MONGO_EXPORT int gridfs_find_query( gridfs *gfs, const bson *query, gridfile *gfile );
 
 /**
  *  Find the first file referenced by filename within the GridFS
@@ -161,27 +204,10 @@ MONGO_EXPORT int gridfs_find_query( gridfs *gfs, bson *query, gridfile *gfile );
 MONGO_EXPORT int gridfs_find_filename( gridfs *gfs, const char *filename, gridfile *gfile );
 
 /**
- *  Initializes a GridFile containing the GridFS and file bson
- *  @param gfs - the GridFS where the GridFile is located
- *  @param meta - the file object
- *  @param gfile - the output GridFile that is being initialized
- *
- *  @return - MONGO_OK or MONGO_ERROR.
- */
-MONGO_EXPORT int gridfile_init( gridfs *gfs, bson *meta, gridfile *gfile );
-
-/**
- *  Destroys the GridFile
- *
- *  @param oGridFIle - the GridFile being destroyed
- */
-MONGO_EXPORT void gridfile_destroy( gridfile *gfile );
-
-/**
  *  Returns whether or not the GridFile exists
  *  @param gfile - the GridFile being examined
  */
-MONGO_EXPORT bson_bool_t gridfile_exists( gridfile *gfile );
+MONGO_EXPORT bson_bool_t gridfile_exists( const gridfile *gfile );
 
 /**
  *  Returns the filename of GridFile
@@ -189,7 +215,7 @@ MONGO_EXPORT bson_bool_t gridfile_exists( gridfile *gfile );
  *
  *  @return - the filename of the Gridfile
  */
-MONGO_EXPORT const char *gridfile_get_filename( gridfile *gfile );
+MONGO_EXPORT const char *gridfile_get_filename( const gridfile *gfile );
 
 /**
  *  Returns the size of the chunks of the GridFile
@@ -197,7 +223,7 @@ MONGO_EXPORT const char *gridfile_get_filename( gridfile *gfile );
  *
  *  @return - the size of the chunks of the Gridfile
  */
-MONGO_EXPORT int gridfile_get_chunksize( gridfile *gfile );
+MONGO_EXPORT int gridfile_get_chunksize( const gridfile *gfile );
 
 /**
  *  Returns the length of GridFile's data
@@ -206,7 +232,7 @@ MONGO_EXPORT int gridfile_get_chunksize( gridfile *gfile );
  *
  *  @return - the length of the Gridfile's data
  */
-MONGO_EXPORT gridfs_offset gridfile_get_contentlength( gridfile *gfile );
+MONGO_EXPORT gridfs_offset gridfile_get_contentlength( const gridfile *gfile );
 
 /**
  *  Returns the MIME type of the GridFile
@@ -216,7 +242,7 @@ MONGO_EXPORT gridfs_offset gridfile_get_contentlength( gridfile *gfile );
  *  @return - the MIME type of the Gridfile
  *            (NULL if no type specified)
  */
-MONGO_EXPORT const char *gridfile_get_contenttype( gridfile *gfile );
+MONGO_EXPORT const char *gridfile_get_contenttype( const gridfile *gfile );
 
 /**
  *  Returns the upload date of GridFile
@@ -225,7 +251,7 @@ MONGO_EXPORT const char *gridfile_get_contenttype( gridfile *gfile );
  *
  *  @return - the upload date of the Gridfile
  */
-MONGO_EXPORT bson_date_t gridfile_get_uploaddate( gridfile *gfile );
+MONGO_EXPORT bson_date_t gridfile_get_uploaddate( const gridfile *gfile );
 
 /**
  *  Returns the MD5 of GridFile
@@ -234,7 +260,16 @@ MONGO_EXPORT bson_date_t gridfile_get_uploaddate( gridfile *gfile );
  *
  *  @return - the MD5 of the Gridfile
  */
-MONGO_EXPORT const char *gridfile_get_md5( gridfile *gfile );
+MONGO_EXPORT const char *gridfile_get_md5( const gridfile *gfile );
+
+/**
+ *  Returns the _id in GridFile specified by name
+ *
+ *  @param gfile - the working GridFile
+ * 
+ *  @return - the _id field in metadata
+ */
+MONGO_EXPORT bson_oid_t gridfile_get_id( const gridfile *gfile );
 
 /**
  *  Returns the field in GridFile specified by name
@@ -245,8 +280,42 @@ MONGO_EXPORT const char *gridfile_get_md5( gridfile *gfile );
  *  @return - the data of the field specified
  *            (NULL if none exists)
  */
-const char *gridfile_get_field( gridfile *gfile,
-                                const char *name );
+MONGO_EXPORT const char *gridfile_get_field( gridfile *gfile,
+                                             const char *name );
+
+/**
+ *  Returns the caseInsensitive flag value of gfs
+ *  @param gfile - the working GridFile
+ *
+ *  @return - the caseInsensitive flag of the gfs
+ */
+MONGO_EXPORT bson_bool_t gridfs_get_caseInsensitive( const gridfs *gfs );
+
+/**
+ *  Sets the caseInsensitive flag value of gfs
+ *  @param gfs - the working gfs
+ *  @param newValue - the new value for the caseInsensitive flag of gfs
+ *
+ *  @return - void
+ */
+MONGO_EXPORT void gridfs_set_caseInsensitive(gridfs *gfs, bson_bool_t newValue);
+
+/**
+ *  Sets the flags of the GridFile
+ *  @param gfile - the working GridFile
+ *  @param flags - the value of the flags to set on the provided GridFile
+ *
+ *  @return - void
+ */
+MONGO_EXPORT void gridfile_set_flags(gridfile *gfile, int flags);
+
+/**
+ *  gets the flags of the GridFile
+ *  @param gfile - the working GridFile
+  *
+ *  @return - void
+ */
+MONGO_EXPORT int gridfile_get_flags( const gridfile *gfile );
 
 /**
  *  Returns a boolean field in GridFile specified by name
@@ -256,17 +325,24 @@ const char *gridfile_get_field( gridfile *gfile,
  *  @return - the boolean of the field specified
  *            (NULL if none exists)
  */
-bson_bool_t gridfile_get_boolean( gridfile *gfile,
+MONGO_EXPORT bson_bool_t gridfile_get_boolean( const gridfile *gfile,
                                   const char *name );
 
 /**
- *  Returns the metadata of GridFile
- *  @param gfile - the working GridFile
+ *  Returns the metadata of GridFile. Calls bson_init_empty on metadata
+ *  if none exits.
  *
- *  @return - the metadata of the Gridfile in a bson object
- *            (an empty bson is returned if none exists)
+ * @note When copyData is false, the metadata object becomes invalid
+ *       when gfile is destroyed. For either value of copyData, you
+ *       must pass the metadata object to bson_destroy when you are
+ *       done using it.
+ *
+ *  @param gfile - the working GridFile
+ *  @param metadata an uninitialized BSON object to receive the metadata.
+ *  @param copyData when true, makes a copy of the scope data which will remain
+ *    valid when the grid file is deallocated.
  */
-MONGO_EXPORT void gridfile_get_metadata( gridfile *gfile, bson* out );
+MONGO_EXPORT void gridfile_get_metadata( const gridfile *gfile, bson* metadata, bson_bool_t copyData );
 
 /**
  *  Returns the number of chunks in the GridFile
@@ -274,7 +350,7 @@ MONGO_EXPORT void gridfile_get_metadata( gridfile *gfile, bson* out );
  *
  *  @return - the number of chunks in the Gridfile
  */
-MONGO_EXPORT int gridfile_get_numchunks( gridfile *gfile );
+MONGO_EXPORT int gridfile_get_numchunks( const gridfile *gfile );
 
 /**
  *  Returns chunk n of GridFile
@@ -293,7 +369,7 @@ MONGO_EXPORT void gridfile_get_chunk( gridfile *gfile, int n, bson* out );
  *
  *  @return - mongo_cursor of the chunks (must be destroyed after use)
  */
-MONGO_EXPORT mongo_cursor *gridfile_get_chunks( gridfile *gfile, int start, int size );
+MONGO_EXPORT mongo_cursor *gridfile_get_chunks( gridfile *gfile, size_t start, size_t size );
 
 /**
  *  Writes the GridFile to a stream
@@ -315,7 +391,7 @@ MONGO_EXPORT gridfs_offset gridfile_write_file( gridfile *gfile, FILE *stream );
  *
  *  @return - the number of bytes read
  */
-MONGO_EXPORT gridfs_offset gridfile_read( gridfile *gfile, gridfs_offset size, char *buf );
+MONGO_EXPORT gridfs_offset gridfile_read_buffer( gridfile *gfile, char *buf, gridfs_offset size );
 
 /**
  *  Updates the position in the file
@@ -328,5 +404,26 @@ MONGO_EXPORT gridfs_offset gridfile_read( gridfile *gfile, gridfs_offset size, c
  *  @return - resulting offset location
  */
 MONGO_EXPORT gridfs_offset gridfile_seek( gridfile *gfile, gridfs_offset offset );
+
+/**
+ *  @param gfile - the working GridFile
+ *  @param newSize - the new size after truncation
+ *
+ */
+MONGO_EXPORT gridfs_offset gridfile_truncate(gridfile *gfile, gridfs_offset newSize);
+
+/**
+ *  @param gfile - the working GridFile
+ *  @param bytesToExpand - number of bytes the file will be expanded
+ *
+ */
+MONGO_EXPORT gridfs_offset gridfile_expand(gridfile *gfile, gridfs_offset bytesToExpand);
+
+/**
+ *  @param gfile - the working GridFile
+ *  @param newSize - the new size of file
+ *
+ */
+MONGO_EXPORT gridfs_offset gridfile_set_size(gridfile *gfile, gridfs_offset newSize);
 
 #endif

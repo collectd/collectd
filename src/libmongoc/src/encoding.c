@@ -102,28 +102,28 @@ static int isLegalUTF8( const unsigned char *source, int length ) {
 }
 
 /* If the name is part of a db ref ($ref, $db, or $id), then return true. */
-static int bson_string_is_db_ref( const unsigned char *string, const int length ) {
+static int bson_string_is_db_ref( const unsigned char *string, const size_t length ) {
     int result = 0;
 
     if( length >= 4 ) {
-      if( string[1] == 'r' && string[2] == 'e' && string[3] == 'f' )
-        result = 1;
+        if( string[1] == 'r' && string[2] == 'e' && string[3] == 'f' )
+            result = 1;
     }
     else if( length >= 3 ) {
-      if( string[1] == 'i' && string[2] == 'd' )
-        result = 1;
-      else if( string[1] == 'd' && string[2] == 'b' )
-        result = 1;
+        if( string[1] == 'i' && string[2] == 'd' )
+            result = 1;
+        else if( string[1] == 'd' && string[2] == 'b' )
+            result = 1;
     }
 
-   return result;
+    return result;
 }
 
 static int bson_validate_string( bson *b, const unsigned char *string,
-                                 const int length, const char check_utf8, const char check_dot,
+                                 const size_t length, const char check_utf8, const char check_dot,
                                  const char check_dollar ) {
 
-    int position = 0;
+    size_t position = 0;
     int sequence_length = 1;
 
     if( check_dollar && string[0] == '$' ) {
@@ -155,13 +155,13 @@ static int bson_validate_string( bson *b, const unsigned char *string,
 
 
 int bson_check_string( bson *b, const char *string,
-                       const int length ) {
+                       const size_t length ) {
 
     return bson_validate_string( b, ( const unsigned char * )string, length, 1, 0, 0 );
 }
 
 int bson_check_field_name( bson *b, const char *string,
-                           const int length ) {
+                           const size_t length ) {
 
     return bson_validate_string( b, ( const unsigned char * )string, length, 1, 1, 1 );
 }

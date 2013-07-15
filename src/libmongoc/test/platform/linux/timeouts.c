@@ -13,7 +13,7 @@ int main() {
     bson b;
     int res;
 
-    if( mongo_connect( conn, TEST_SERVER, 27017 ) != MONGO_OK ) {
+    if( mongo_client( conn, TEST_SERVER, 27017 ) != MONGO_OK ) {
         printf("Failed to connect");
         exit(1);
     }

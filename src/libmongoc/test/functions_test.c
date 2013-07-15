@@ -68,7 +68,7 @@ int main() {
 
     bson_malloc_func = my_malloc;
     bson_realloc_func = my_realloc;
-    bson_free = my_free;
+    bson_free_func = my_free;
 
     ptr = bson_malloc( size );
     ASSERT( test_value == 1 );

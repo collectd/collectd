@@ -4,7 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-int test_bson_generic() {
+int test_bson_generic( void ) {
 
    bson_iterator it, it2, it3;
    bson_oid_t oid;
@@ -73,6 +73,8 @@ int test_bson_generic() {
 
    ASSERT( 1 == copy->finished );
    ASSERT( 0 == copy->err );
+
+   bson_destroy( copy );
 
    bson_print( b );
 
@@ -199,7 +201,7 @@ int test_bson_generic() {
 
    {
        bson scope;
-       bson_iterator_code_scope( &it, &scope );
+       bson_iterator_code_scope_init( &it, &scope, 0 );
        bson_iterator_init( &it2, &scope );
 
        ASSERT( bson_iterator_more( &it2 ) );
@@ -235,18 +237,59 @@ int test_bson_generic() {
 
    bson_destroy( b );
 
+   {
+       bson bsrc[1];
+       bson_init( bsrc );
+       bson_append_double( bsrc, "d", 3.14 );
+       bson_finish( bsrc );
+       ASSERT( bsrc->err == BSON_VALID );
+       bson_init( b );
+       bson_append_double( b, "", 3.14 ); /* test empty name (in general) */
+       bson_iterator_init( &it, bsrc );
+       ASSERT( bson_iterator_more( &it ) );
+       ASSERT( bson_iterator_next( &it ) == BSON_DOUBLE );
+       ASSERT( bson_iterator_type( &it ) == BSON_DOUBLE );
+       bson_append_element( b, "d", &it );
+       bson_append_element( b, 0, &it ); /* test null */
+       bson_append_element( b, "", &it ); /* test empty name */
+       bson_finish( b );
+       ASSERT( b->err == BSON_VALID );
+       /* bson_print( b ); */
+       bson_iterator_init( &it, b );
+       ASSERT( bson_iterator_more( &it ) );
+       ASSERT( bson_iterator_next( &it ) == BSON_DOUBLE );
+       ASSERT( !strcmp( bson_iterator_key( &it ), "" ) );
+       ASSERT( bson_iterator_double( &it ) == 3.14 );
+       ASSERT( bson_iterator_more( &it ) );
+       ASSERT( bson_iterator_next( &it ) == BSON_DOUBLE );
+       ASSERT( !strcmp( bson_iterator_key( &it ), "d" ) );
+       ASSERT( bson_iterator_double( &it ) == 3.14 );
+       ASSERT( bson_iterator_more( &it ) );
+       ASSERT( bson_iterator_next( &it ) == BSON_DOUBLE );
+       ASSERT( !strcmp( bson_iterator_key( &it ), "d" ) );
+       ASSERT( bson_iterator_double( &it ) == 3.14 );
+       ASSERT( bson_iterator_more( &it ) );
+       ASSERT( bson_iterator_next( &it ) == BSON_DOUBLE );
+       ASSERT( !strcmp( bson_iterator_key( &it ), "" ) );
+       ASSERT( bson_iterator_double( &it ) == 3.14 );
+       ASSERT( bson_iterator_more( &it ) );
+       ASSERT( bson_iterator_next( &it ) == BSON_EOO );
+       ASSERT( !bson_iterator_more( &it ) );
+       bson_destroy( bsrc );
+       bson_destroy( b );
+   }
+
    return 0;
 }
 
-int test_bson_iterator() {
-    bson b[1];
+int test_bson_iterator( void ) {
     bson_iterator i[1];
 
-    bson_iterator_init( i, bson_empty( b ) );
+    bson_iterator_init( i, bson_shared_empty( ) );
     bson_iterator_next( i );
     bson_iterator_type( i );
 
-    bson_find( i, bson_empty( b ), "foo" );
+    bson_find( i, bson_shared_empty( ), "foo" );
 
     return 0;
 }
@@ -260,6 +303,45 @@ int test_bson_size( void ) {
     
     ASSERT( bson_size( bsmall ) == 12 );
 
+    bson_destroy( bsmall );
+
+    return 0;
+}
+
+int test_bson_deep_nesting( void ) {
+    int i;
+    bson b[1];
+    bson_init( b );
+
+    for ( i = 0; i < 128; ++i )
+    {
+        bson_append_start_object( b, "sub" );
+        bson_append_string( b, "hello", "hi" );
+    }
+
+    for ( i = 0; i < 128; ++i )
+    {
+        bson_append_finish_object( b );
+    }
+
+    bson_finish( b );
+    bson_destroy( b );
+
+    return 0;
+}
+
+int test_bson_oid_generated_time( void ) {
+    time_t cur_time;
+    bson_oid_t oid;
+
+    printf("\nsizeof(time_t) is %lu\n\n", (long unsigned) sizeof(time_t));
+
+    cur_time = time ( NULL );
+    bson_oid_gen(&oid);
+
+    ASSERT( bson_oid_generated_time(&oid) >= cur_time );
+    ASSERT( bson_oid_generated_time(&oid) < cur_time + 1 );
+
     return 0;
 }
 
@@ -268,6 +350,8 @@ int main() {
   test_bson_generic();
   test_bson_iterator();
   test_bson_size();
+  test_bson_deep_nesting();
+  test_bson_oid_generated_time();
 
   return 0;
 }

@@ -3,7 +3,7 @@
 #---------------------------------------------------------------------------
 DOXYFILE_ENCODING      = UTF-8
 PROJECT_NAME           = MongoDB C Driver
-PROJECT_NUMBER         = 0.6
+PROJECT_NUMBER         = 0.7.1
 OUTPUT_DIRECTORY       = docs/source/doxygen
 CREATE_SUBDIRS         = NO
 OUTPUT_LANGUAGE        = English

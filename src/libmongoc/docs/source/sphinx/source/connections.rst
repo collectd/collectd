@@ -15,15 +15,24 @@ to the router for a shard cluster (``mongos``).
    mongo conn[1];
    int result;
 
-   result = mongo_connect( conn, "127.0.0.1", 27017 );
+   result = mongo_client( conn, "127.0.0.1", 27017 );
 
 First we create the ``mongo`` object to manage the connection. Then we connect
-using ``mongo_connect``. If the function returns ``MONGO_OK``, then we've
+using ``mongo_client``. If the function returns ``MONGO_OK``, then we've
 successfully connected.
 
 Notice that when specifying the host, we must use dot-decimal notation. If you'd like
 to use a hostname, then you'll have to compile the driver with the ``--use-platform=LINUX``
 option and ensure that ``_MONGO_USE_GETADDRINFO`` is defined.
+
+The C driver now also supports connecting to mongodb through unix domain 
+sockets (only on POSIX systems, of course). To connect to a unix domain socket, 
+pass the path to the socket in place of the host address to ``mongo_client``
+and pass a negative number in as the port number. For instance, 
+
+.. code-block:: c
+
+    result = mongo_client( conn, "/tmp/mongodb-27017.sock", -1 );
 
 In the event of an error, the result will be ``MONGO_ERROR``. You can then check the error
 value by examining the connection's ``err`` field. Continuing:
@@ -74,15 +83,15 @@ Here's how you go about that:
    mongo conn[1];
    int result;
 
-   mongo_replset_init( conn, "rs-dc-1" );
-   mongo_replset_add_seed( conn, '10.4.3.1', 27017 );
-   mongo_replset_add_seed( conn, '10.4.3.2', 27017 );
+   mongo_replica_set_init( conn, "rs-dc-1" );
+   mongo_replica_set_add_seed( conn, '10.4.3.1', 27017 );
+   mongo_replica_set_add_seed( conn, '10.4.3.2', 27017 );
 
-   result = mongo_replset_connect( conn );
+   result = mongo_replica_set_client( conn );
 
 First we initiaize the connection object, providing the name of the replica set,
 in this case, "rs-dc-1." Next, we add two seed nodes. Finally, we connect
-by pass the connection to ``mongo_replset_connect``.
+by pass the connection to ``mongo_replica_set_client``.
 
 As with the basic connection, we'll want to check for any errors on connect. Notice
 that there are two more error conditions we check for:
