@@ -181,9 +181,7 @@ static void submit (char *type, char *inst, long long value)
     values[0].gauge = value;
   else if (strcmp (type, "nginx_requests") == 0)
     values[0].derive = value;
-  else if (strcmp (type, "nginx_accepts") == 0)
-    values[0].derive = value;
-  else if (strcmp (type, "nginx_handled") == 0)
+  else if (strcmp (type, "connections") == 0)
     values[0].derive = value;
   else
     return;
@@ -258,8 +256,8 @@ static int nginx_read (void)
 	  && (atoll (fields[1]) != 0)
 	  && (atoll (fields[2]) != 0))
       {
-	submit ("nginx_accepts", NULL, atoll (fields[0]));
-	submit ("nginx_handled", NULL, atoll (fields[1]));
+	submit ("connections", "accepted", atoll (fields[0]));
+	submit ("connections", "handled", atoll (fields[1]));
 	submit ("nginx_requests", NULL, atoll (fields[2]));
       }
     }
