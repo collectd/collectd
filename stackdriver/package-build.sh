@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -xe
 VERSION=5.3.0
 
 if [ "x$PKGFORMAT" == "xdeb" ]
