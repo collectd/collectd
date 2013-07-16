@@ -1,6 +1,6 @@
 Jenkins build files
 
-To build packages simply commit a tag build/<yyyyddmm>-<incrementor>
+To build packages simply commit a tag build/<yyyyddmm>-<inc>
 
 Example:
 
