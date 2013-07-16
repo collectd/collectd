@@ -22,11 +22,11 @@ source:
 build: source
 	ifeq ($(PKGFORMAT),deb)
 		pushd agent-deb ; \
-		make DISTRO="$(DISTRO)" ARCH="$(ARCH)" VERSION="$(VERSION)" BUILD_NUM="$(BUILD_NUMBER)" build ; \
+		make DISTRO="$(DISTRO)" ARCH="$(ARCH)" VERSION="$(VERSION)" BUILD_NUM="$(BUILD_NUM)" build ; \
 		popd
 	else ifeq ($(PKGFORMAT),rpm)
 		pushd agent-rpm ; \
-		make DISTRO="$(DISTRO)" ARCH="$(ARCH)" VERSION="$(VERSION)" BUILD_NUM="$(BUILD_NUMBER)" build ; \
+		make DISTRO="$(DISTRO)" ARCH="$(ARCH)" VERSION="$(VERSION)" BUILD_NUM="$(BUILD_NUM)" build ; \
 		popd
 	else
 	    echo "I don't know how to handle label '$(PKGFORMAT)'. Aborting build"
