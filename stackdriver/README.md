@@ -1,8 +1,8 @@
 Jenkins build files
 
-To build packages simply commit a tag build/<yyyyddmm>-<inc>
+To build packages simply commit a tag stack-build/<yyyyddmm>-<inc>
 
 Example:
 
-git tag build/20131907-1
+git tag stack-build/20131907-1
 git push --tags
