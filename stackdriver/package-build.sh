@@ -9,7 +9,7 @@ then
     make DISTRO="$DISTRO" ARCH="$ARCH" VERSION="$VERSION" BUILD_NUM="$BUILD_NUM" build
     if [ $? -ne 0 ]
     then
-        return $?
+        exit $?
     fi
 	popd
 elif [ "x$PKGFORMAT" == "xrpm" ]
@@ -20,7 +20,7 @@ then
     make DISTRO="$DISTRO" ARCH="$ARCH" VERSION="$VERSION" BUILD_NUM="$BUILD_NUM" build
     if [ $? -ne 0 ]
     then
-        return $?
+        exit $?
     fi
     popd
 else
