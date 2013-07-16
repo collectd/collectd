@@ -1,37 +1,22 @@
-# simple makefile to handle grabbing deb and rpm repos and setting off their builds
-
+#!/bin/bash
 VERSION=5.3.0
-SHELL=/bin/bash
 
-source:
-ifeq ($(PKGFORMAT),deb)
+if [ "x$PKGFORMAT" == "xdeb" ]
+then
 	[ -d agent-deb ] || git clone git@github.com:Stackdriver/agent-deb.git
-	pushd agent-deb ; \
-	git pull ; \
+	pushd agent-deb
+	git pull
+	make DISTRO="$DISTRO" ARCH="$ARCH" VERSION="$VERSION" BUILD_NUM="$BUILD_NUM" build
 	popd
-else ifeq ($(PKGFORMAT),rpm)
+elif [ "x$PKGFORMAT" == "xrpm" ]
+then
 	[ -d agent-rpm ] || git clone git@github.com:Stackdriver/agent-rpm.git
-	pushd agent-rpm ; \
-	git pull ; \
+	pushd agent-rpm
+	git pull
+	make DISTRO="$DISTRO" ARCH="$ARCH" VERSION="$VERSION" BUILD_NUM="$BUILD_NUM" build
 	popd
 else
-	echo "I don't know how to handle label '$(PKGFORMAT)'. Aborting build"
+	echo "I don't know how to handle label '$PKGFORMAT'. Aborting build"
 	exit 1
-endif
+fi
 
-build: source
-ifeq ($(PKGFORMAT),deb)
-	pushd agent-deb ; \
-	make DISTRO="$(DISTRO)" ARCH="$(ARCH)" VERSION="$(VERSION)" BUILD_NUM="$(BUILD_NUM)" build ; \
-	popd
-else ifeq ($(PKGFORMAT),rpm)
-	pushd agent-rpm ; \
-	make DISTRO="$(DISTRO)" ARCH="$(ARCH)" VERSION="$(VERSION)" BUILD_NUM="$(BUILD_NUM)" build ; \
-	popd
-else
-	echo "I don't know how to handle label '$(PKGFORMAT)'. Aborting build"
-	exit 1
-endif
-
-clean:
-	rm -rf *.dsc *.deb *.tar.gz *.tar.bz2 agent-deb agent-rpm result apt *.rpm
