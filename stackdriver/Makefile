@@ -5,12 +5,12 @@ SHELL=/bin/bash
 
 source:
 	ifeq ($(PKGFORMAT),deb)
-		[ -d agent-deb.git ] || git clone https://github.com/Stackdriver/agent-deb.git
+		[ -d agent-deb ] || git clone https://github.com/Stackdriver/agent-deb.git
 		pushd agent-deb ; \
 		git pull ; \
 		popd
 	else ifeq ($(PKGFORMAT),rpm)
-		[ -d agent-rpm.git ] || git clone https://github.com/Stackdriver/agent-rpm.git
+		[ -d agent-rpm ] || git clone https://github.com/Stackdriver/agent-rpm.git
 		pushd agent-rpm ; \
 		git pull ; \
 		popd
