@@ -309,11 +309,11 @@ static int df_read (void)
 		{
 			if (statbuf.f_blocks > 0)
 				{
-				df_submit_one (disk_name, "df_complex_pct", "free",
+				df_submit_one (disk_name, "percent_bytes", "free",
 					(gauge_t) ((float_t)(blk_free) / statbuf.f_blocks * 100));
-				df_submit_one (disk_name, "df_complex_pct", "reserved",
+				df_submit_one (disk_name, "percent_bytes", "reserved",
 					(gauge_t) ((float_t)(blk_reserved) / statbuf.f_blocks * 100));
-				df_submit_one (disk_name, "df_complex_pct", "used",
+				df_submit_one (disk_name, "percent_bytes", "used",
 					(gauge_t) ((float_t)(blk_used) / statbuf.f_blocks * 100));
 				}
 			else return (-1);
@@ -340,11 +340,11 @@ static int df_read (void)
 			{
 				if (statbuf.f_files > 0)
 				{
-					df_submit_one (disk_name, "df_inodes_pct", "free",
+					df_submit_one (disk_name, "percent_inodes", "free",
 						(gauge_t) ((float_t)(inode_free) / statbuf.f_files * 100));
-					df_submit_one (disk_name, "df_inodes_pct", "reserved",
+					df_submit_one (disk_name, "percent_inodes", "reserved",
 						(gauge_t) ((float_t)(inode_reserved) / statbuf.f_files * 100));
-					df_submit_one (disk_name, "df_inodes_pct", "used",
+					df_submit_one (disk_name, "percent_inodes", "used",
 						(gauge_t) ((float_t)(inode_used) / statbuf.f_files * 100));
 				}
 				else return (-1);
