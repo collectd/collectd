@@ -304,7 +304,7 @@ static int df_read (void)
 			df_submit_one (disk_name, "df_complex", "used",
 				(gauge_t) (blk_used * blocksize));
 		}
-		
+
 		if (values_percentage)
 		{
 			if (statbuf.f_blocks > 0)
@@ -318,7 +318,7 @@ static int df_read (void)
 				}
 			else return (-1);
 		}
-		
+
 		/* inode handling */
 		if (report_inodes)
 		{
@@ -331,7 +331,7 @@ static int df_read (void)
 				statbuf.f_ffree = statbuf.f_favail;
 			if (statbuf.f_files < statbuf.f_ffree)
 				statbuf.f_files = statbuf.f_ffree;
-				
+
 			inode_free = (uint64_t) statbuf.f_favail;
 			inode_reserved = (uint64_t) (statbuf.f_ffree - statbuf.f_favail);
 			inode_used = (uint64_t) (statbuf.f_files - statbuf.f_ffree);
