@@ -3,6 +3,8 @@ VERSION=5.3.0
 
 if [ "x$PKGFORMAT" == "xdeb" ]
 then
+    # debian denotes 64 arches with amd64
+    [ "x$ARCH" == "xx86_64" ] && ARCH="amd64" || true
     [ -d agent-deb ] || git clone git@github.com:Stackdriver/agent-deb.git
     pushd agent-deb
     git pull
