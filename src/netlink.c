@@ -376,14 +376,6 @@ static int qos_filter_cb (const struct nlmsghdr *nlh, void *args)
 
   int __attribute__((unused)) stats_submitted = 0;
 
-  if (tm->tcm_ifindex != wanted_ifindex)
-  {
-    DEBUG ("netlink plugin: qos_filter_cb: Got %s for interface #%i, "
-	"but expected #%i.",
-	tc_type, msg->tcm_ifindex, wanted_ifindex);
-    return MNL_CB_OK;
-  }
-
   if (nlh->nlmsg_type == RTM_NEWQDISC)
     tc_type = "qdisc";
   else if (nlh->nlmsg_type == RTM_NEWTCLASS)
@@ -395,6 +387,14 @@ static int qos_filter_cb (const struct nlmsghdr *nlh, void *args)
     ERROR ("netlink plugin: qos_filter_cb: Don't know how to handle type %i.",
 	nlh->nlmsg_type);
     return MNL_CB_ERROR;
+  }
+
+  if (tm->tcm_ifindex != wanted_ifindex)
+  {
+    DEBUG ("netlink plugin: qos_filter_cb: Got %s for interface #%i, "
+	"but expected #%i.",
+	tc_type, tm->tcm_ifindex, wanted_ifindex);
+    return MNL_CB_OK;
   }
 
   if ((tm->tcm_ifindex >= 0)
@@ -449,7 +449,7 @@ static int qos_filter_cb (const struct nlmsghdr *nlh, void *args)
   }
 
   DEBUG ("netlink plugin: qos_filter_cb: got %s for %s (%i).",
-      tc_type, dev, msg->tcm_ifindex);
+      tc_type, dev, tm->tcm_ifindex);
 
   if (check_ignorelist (dev, tc_type, tc_inst))
     return MNL_CB_OK;
