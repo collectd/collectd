@@ -16,7 +16,7 @@ then
     fi
 	popd
 	[ -d result ] && rm -rf result || true
-	cp -r stackdriver/agent-deb/result .
+	cp -r agent-deb/result .
 elif [ "x$PKGFORMAT" == "xrpm" ]
 then
     [ -d agent-rpm ] || git clone git@github.com:Stackdriver/agent-rpm.git
@@ -30,7 +30,7 @@ then
     fi
     popd
     [ -d result ] && rm -rf result || true
-	cp -r stackdriver/agent-rpm/result .
+	cp -r agent-rpm/result .
 else
     echo "I don't know how to handle label '$PKGFORMAT'. Aborting build"
     exit 1
