@@ -663,10 +663,9 @@ static int ir_read (void)
 
   /* `link_filter_cb' will update `iflist' which is used here to iterate
    * over all interfaces. */
-  for (ifindex = 0; ifindex < iflist_len; ifindex++)
+  for (ifindex = 1; ifindex < iflist_len; ifindex++)
   {
     struct tcmsg *tm;
-    int ifindex;
     size_t type_index;
 
     if (iflist[ifindex] == NULL)
@@ -681,7 +680,7 @@ static int ir_read (void)
 	continue;
       }
 
-      DEBUG ("netlink plugin: ir_read: querying %s from %s (%i).",
+      DEBUG ("netlink plugin: ir_read: querying %s from %s (%lu).",
 	  type_name[type_index], iflist[ifindex], ifindex);
 
       nlh = mnl_nlmsg_put_header (buf);
