@@ -37,6 +37,9 @@
 
 #ifndef bson_iterator_subobject_init
 #define bson_iterator_subobject_init(iter, subiter, copy) bson_iterator_subobject(iter, subiter)
+#define _bson_subobject_destroy(obj) /* noop */
+#else
+#define _bson_subobject_destroy(obj) bson_destroy(obj)
 #endif /* ifndef bson_iterator_subobject_init */
 
 static char *mc_user     = NULL;
@@ -328,6 +331,7 @@ static int handle_index_counters (bson_iterator *iter) /* {{{ */
 
     bson_iterator_subobject_init (iter, &subobj, 0);
     status = handle_btree (&subobj);
+    _bson_subobject_destroy(&subobj);
 
     return (status);
 } /* }}} int handle_index_counters */
