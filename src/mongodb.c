@@ -35,6 +35,10 @@
 #define MC_MONGO_DEF_HOST "127.0.0.1"
 #define MC_MONGO_DEF_DB "admin"
 
+#ifndef bson_iterator_subobject_init
+#define bson_iterator_subobject_init(iter, subiter, copy) bson_iterator_subobject(iter, subiter)
+#endif /* ifndef bson_iterator_subobject_init */
+
 static char *mc_user     = NULL;
 static char *mc_password = NULL;
 static char *mc_db       = NULL;
