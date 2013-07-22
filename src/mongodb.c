@@ -24,7 +24,7 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
-
+#include "utils_llist.h"
 
 #if HAVE_STDINT_H
 # define MONGO_HAVE_STDINT 1
@@ -32,17 +32,19 @@
 # define MONGO_USE_LONG_LONG_INT 1
 #endif
 #include <mongo.h>
+#include <bson.h>
+#include <libmongoc/src/env.h>
 
 #define MC_MONGO_DEF_HOST "127.0.0.1"
 #define MC_MONGO_DEF_DB "admin"
 
-#ifndef bson_iterator_subobject_init
-#define bson_iterator_subobject_init(iter, subiter, copy) bson_iterator_subobject(iter, subiter)
-#define _bson_subobject_destroy(obj) /* noop */
-#else
-#define _bson_subobject_destroy(obj) bson_destroy(obj)
-#endif /* ifndef bson_iterator_subobject_init */
 
+/* FIXME: use autoconf to determine if bson_iterator_subobject_init or
+          the older bson_iterator_subobject should be used.  Right now
+          you need to use the unreleased mongo c driver out of git.
+*/
+
+# define _bson_subobject_destroy(obj) bson_destroy(obj)
 
 /* TODO: Flesh this all out a bit more for use with non-auto-discover
  *       setups
@@ -50,7 +52,13 @@
 struct mongo_db_s /* {{{ */
 {
     char *name;
+    char *user;
+    char *password;
+    mongo connection;
+
+    _Bool read_from_secondary;
 };
+
 typedef struct mongo_db_s mongo_db_t; /* }}} */
 
 struct mongo_config_s /* {{{ */
@@ -60,14 +68,17 @@ struct mongo_config_s /* {{{ */
     char *host;
     char *name;
     int   port;
+
+    char *set_name;
     mongo connection;
-    _Bool have_connection;
 
     _Bool is_primary;
     _Bool run_dbstats;
     _Bool auto_discover;
 
-    mongo_db_t **dbs;
+    char *secondary_query_host;
+
+    llist_t *db_llist;
 };
 typedef struct mongo_config_s mongo_config_t; /* }}} */
 
@@ -82,68 +93,81 @@ static const char *config_keys[] = {
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
-static int mc_connect() { /* {{{ */
+static void mc_config_set (char **dest, const char *src ) /* {{{ */
+{
+    sfree(*dest);
+    *dest = strdup (src);
+} /* }}} void mc_config_set */
+
+/*
+ * This should be upstreamed into the mongo-c-driver
+ *   connect and authenticate while returning the output of is_master command
+ */
+static MONGO_EXPORT int _mongo_client_complex( mongo *conn , const char *host, int port, const char *user, const char *pass, bson *is_master_out ) { /* {{{ */
     int status;
 
-    if (mc->have_connection) {
-        // reconnect if needed
-        status = mongo_check_connection(&(mc->connection));
-        if (status == MONGO_ERROR) {
-            status = mongo_reconnect(&(mc->connection));
-            if (status != MONGO_OK)
-            {
-                ERROR ("mongo plugin: Reconnecting to %s:%i failed: %s",
-                        (mc->host != NULL) ? mc->host : MC_MONGO_DEF_HOST,
-                        (mc->port > 0) ? mc->port : MONGO_DEFAULT_PORT,
-                        mc->connection.errstr);
-                return (-1);
-            }
-        }
+    mongo_init( conn );
 
-        if (mc->user!=NULL && mc->password!=NULL) {
-            status = mongo_cmd_authenticate (&(mc->connection), "admin", mc->user, mc->password);
-            if (status != MONGO_OK)
-            {
-                ERROR ("mongo plugin: Authenticating to %s:%i failed: %s",
-                        (mc->host != NULL) ? mc->host : MC_MONGO_DEF_HOST,
-                        (mc->port > 0) ? mc->port : MONGO_DEFAULT_PORT,
-                        mc->connection.errstr);
-                return (-1);
-            }
-        }
-        return (0);
-    }
+    conn->primary = (mongo_host_port*)bson_malloc( sizeof( mongo_host_port ) );
+    snprintf( conn->primary->host, MAXHOSTNAMELEN, "%s", host);
+    conn->primary->port = port;
+    conn->primary->next = NULL;
 
-    status = mongo_client (&(mc->connection),
-            (mc->host != NULL) ? mc->host : MC_MONGO_DEF_HOST,
-            (mc->port > 0) ? mc->port : MONGO_DEFAULT_PORT);
-    if (status != MONGO_OK)
-    {
-        ERROR ("mongo plugin: Connecting to %s:%i failed: %s",
-                (mc->host != NULL) ? mc->host : MC_MONGO_DEF_HOST,
-                (mc->port > 0) ? mc->port : MONGO_DEFAULT_PORT,
-                mc->connection.errstr);
-        return (-1);
-    }
+    if( mongo_env_socket_connect( conn, host, port ) != MONGO_OK )
+        return MONGO_ERROR;
 
-    if (mc->user!=NULL && mc->password!=NULL) {
-        status = mongo_cmd_authenticate (&mc->connection, "admin", mc->user, mc->password);
+    if (user!=NULL && pass!=NULL) {
+        status = mongo_cmd_authenticate (conn, "admin", user, pass);
         if (status != MONGO_OK)
         {
             ERROR ("mongo plugin: Authenticating to %s:%i failed: %s",
-                    (mc->host != NULL) ? mc->host : MC_MONGO_DEF_HOST,
-                    (mc->port > 0) ? mc->port : MONGO_DEFAULT_PORT,
-                    mc->connection.errstr);
+                    host,
+                    port,
+                    conn->errstr);
             return (-1);
         }
     }
 
-    mc->have_connection = 1;
+    if (is_master_out != NULL)
+        return mongo_cmd_ismaster( conn, is_master_out );
+    return status;
+} /* }}} int _mongo_client_complex */
+
+/*
+ *  Check connection and connect if needed
+ */
+static int mc_connect(mongo *conn, const char *host, int port, const char *user, const char *pass, bson *is_master_out) { /* {{{ */
+    int status;
+
+    status = mongo_check_connection(conn);
+    if (status == MONGO_ERROR) {
+        mongo_disconnect(conn);
+    } else {
+        // we are still connected
+        return MONGO_OK;
+    }
+
+    status = _mongo_client_complex (conn,
+            (host != NULL) ? host : MC_MONGO_DEF_HOST,
+            (port > 0) ? port : MONGO_DEFAULT_PORT,
+            user,
+            pass,
+            is_master_out);
+    if (status != MONGO_OK)
+    {
+        ERROR ("mongo plugin: Connecting to %s:%i failed: %s",
+                (host != NULL) ? host : MC_MONGO_DEF_HOST,
+                (port > 0) ? port : MONGO_DEFAULT_PORT,
+                conn->errstr);
+        return (-1);
+    }
+
     return (0);
 } /* }}} int mc_connect */
 
 static void submit (const char *type, const char *instance, /* {{{ */
-        value_t *values, size_t values_len)
+        value_t *values, size_t values_len,
+        mongo_db_t *db)
 {
     value_list_t v = VALUE_LIST_INIT;
 
@@ -152,7 +176,17 @@ static void submit (const char *type, const char *instance, /* {{{ */
 
     sstrncpy (v.host, hostname_g, sizeof(v.host));
     sstrncpy (v.plugin, "mongodb", sizeof(v.plugin));
-    ssnprintf (v.plugin_instance, sizeof (v.plugin_instance), "%i", mc->port);
+    if (db == NULL) {
+        if (mc->set_name) {
+            ssnprintf (v.plugin_instance, sizeof (v.plugin_instance), "%s", mc->set_name);
+        }
+    }else {
+        if (mc->set_name) {
+            ssnprintf (v.plugin_instance, sizeof (v.plugin_instance), "%s.%s", mc->set_name, db->name);
+        } else {
+            ssnprintf (v.plugin_instance, sizeof (v.plugin_instance), "%s", db->name);
+        }
+    }
     sstrncpy (v.type, type, sizeof(v.type));
 
     if (instance != NULL)
@@ -162,12 +196,12 @@ static void submit (const char *type, const char *instance, /* {{{ */
 } /* }}} void submit */
 
 static void submit_gauge (const char *type, const char *instance, /* {{{ */
-        gauge_t gauge)
+        gauge_t gauge, mongo_db_t *db)
 {
     value_t v;
 
     v.gauge = gauge;
-    submit(type, instance, &v, /* values_len = */ 1);
+    submit(type, instance, &v, /* values_len = */ 1, db);
 } /* }}} void submit_gauge */
 
 static void submit_derive (const char *type, const char *instance, /* {{{ */
@@ -176,7 +210,7 @@ static void submit_derive (const char *type, const char *instance, /* {{{ */
     value_t v;
 
     v.derive = derive;
-    submit(type, instance, &v, /* values_len = */ 1);
+    submit(type, instance, &v, /* values_len = */ 1, NULL);
 } /* }}} void submit_derive */
 
 static int handle_field (bson *obj, const char *field, /* {{{ */
@@ -248,7 +282,7 @@ static int handle_mem (bson_iterator *iter) /* {{{ */
     /* All values are in MByte */
     value *= 1048576.0;
 
-    submit_gauge ("memory", key, value);
+    submit_gauge ("memory", key, value, NULL);
     return (0);
 } /* }}} int handle_mem */
 
@@ -271,7 +305,7 @@ static int handle_connections (bson_iterator *iter) /* {{{ */
 
     value = (gauge_t) bson_iterator_double (iter);
 
-    submit_gauge ("current_connections", NULL, value);
+    submit_gauge ("current_connections", NULL, value, NULL);
     return (0);
 } /* }}} int handle_connections */
 
@@ -323,9 +357,9 @@ static int handle_btree (const bson *obj) /* {{{ */
         value = (gauge_t) bson_iterator_double (&i);
 
         if (strcmp ("hits", key) == 0)
-            submit_gauge ("cache_result", "hit", value);
+            submit_gauge ("cache_result", "hit", value, NULL);
         else if (strcmp ("misses", key) != 0)
-            submit_gauge ("cache_result", "miss", value);
+            submit_gauge ("cache_result", "miss", value, NULL);
     }
 
     return (0);
@@ -382,7 +416,7 @@ static int query_server_status (void) /* {{{ */
     return (0);
 } /* }}} int query_server_status */
 
-static int handle_dbstats (const bson *obj) /* {{{ */
+static int handle_dbstats (mongo_db_t *db, const bson *obj) /* {{{ */
 {
     bson_iterator i;
 
@@ -405,46 +439,48 @@ static int handle_dbstats (const bson *obj) /* {{{ */
 
         /* counts */
         if (strcmp ("collections", key) == 0)
-            submit_gauge ("gauge", "collections", value);
+            submit_gauge ("gauge", "collections", value, db);
         else if (strcmp ("objects", key) == 0)
-            submit_gauge ("gauge", "objects", value);
+            submit_gauge ("gauge", "objects", value, db);
         else if (strcmp ("numExtents", key) == 0)
-            submit_gauge ("gauge", "num_extents", value);
+            submit_gauge ("gauge", "num_extents", value, db);
         else if (strcmp ("indexes", key) == 0)
-            submit_gauge ("gauge", "indexes", value);
+            submit_gauge ("gauge", "indexes", value, db);
         /* sizes */
         else if (strcmp ("dataSize", key) == 0)
-            submit_gauge ("bytes", "data", value);
+            submit_gauge ("bytes", "data", value, db);
         else if (strcmp ("storageSize", key) == 0)
-            submit_gauge ("bytes", "storage", value);
+            submit_gauge ("bytes", "storage", value, db);
         else if (strcmp ("indexSize", key) == 0)
-            submit_gauge ("bytes", "index", value);
+            submit_gauge ("bytes", "index", value, db);
     }
 
     return (0);
 } /* }}} int handle_dbstats */
 
-static int query_dbstats (void) /* {{{ */
+static int mc_db_stats_read_cb (user_data_t *ud) /* {{{ */
 {
     bson result;
+    bson b;
     int status;
+    mongo_db_t *db = (mongo_db_t *) ud;
 
-    /* TODO:
-     *
-     *  change this to raw runCommand
-     *       db.runCommand( { dbstats : 1 } );
-     *       succeeds but is getting back all zeros !?!
-     *  modify bson_print to print type 18
-     *  repro problem w/o db name - show dbs doesn't work again
-     *  why does db.admin.dbstats() work fine in shell?
-     *  implement retries ? noticed that if db is unavailable, collectd dies
-     */
+    if (mc_connect(&(db->connection),
+                        mc->host,
+                        mc->port,
+                        (db->user != NULL) ? db->user : mc->user,
+                        (db->password != NULL) ? db->password : mc->password,
+                        NULL) != 0) {
+        return (-1);
+    }
 
-    memset (&result, 0, sizeof (result));
-    status = mongo_simple_int_command (&(mc->connection),
-            (mc_db != NULL) ? mc_db : MC_MONGO_DEF_DB,
-            /* cmd = */ "dbstats", /* arg = */ 1,
-            &result);
+    bson_init (&result);
+    bson_init (&b);
+    bson_append_int (&b, "dbStats", 1);
+    bson_append_int (&b, "scale", 1);
+    bson_finish (&b);
+    status = mongo_run_command (&(db->connection), db->name, &b, &result);
+    bson_destroy (&b);
     if (status != MONGO_OK)
     {
         ERROR ("mongodb plugin: Calling {\"dbstats\": 1} failed: %s",
@@ -452,59 +488,177 @@ static int query_dbstats (void) /* {{{ */
         return (-1);
     }
 
-    handle_dbstats (&result);
+    handle_dbstats (db, &result);
 
     bson_destroy (&result);
     return (0);
 } /* }}} int query_dbstats */
 
-static int mc_read(void) /* {{{ */
+static void mc_unregister_and_free_ghost_dbs(llist_t *ghost_dbs, _Bool free_list) {
+    llentry_t *e_this;
+    llentry_t *e_next;
+
+    if (ghost_dbs == NULL)
+        return;
+
+    for (e_this = llist_head(ghost_dbs); e_this != NULL; e_this = e_next)
+    {
+        e_next = e_this->next;
+        plugin_unregister_read (e_this->key);
+        llentry_destroy (e_this);
+    }
+
+    if (free_list)
+        free (ghost_dbs);
+}
+
+static void free_db_userdata(void *data) {
+    mongo_db_t *db = (mongo_db_t *) data;
+    sfree (db->name);
+    sfree (db->user);
+    sfree (db->password);
+    mongo_destroy (&(db->connection));
+}
+
+static int setup_dbs(void) /* {{{ */
 {
-    if (mc_connect() != 0) {
+    bson out;
+    bson_iterator it;
+    llist_t *active_db_llist = llist_create ();
+    llist_t *old_db_llist = mc->db_llist;
+    mongo_db_t *db;
+
+    if (!mongo_simple_int_command( &(mc->connection), "admin", "listDatabases", 1, &out ) != MONGO_OK )
+        return MONGO_ERROR;
+
+    bson_iterator_init (&it, &out);
+    while (bson_iterator_next (&it)) {
+        llentry_t *entry;
+        bson sub;
+        const char *db_name;
+        char cb_name[DATA_MAX_NAME_LEN];
+        bson_iterator sub_it;
+
+        bson_iterator_subobject_init (&it, &sub, 0);
+        if (bson_find(&sub_it, &sub, "name")) {
+            db_name = bson_iterator_string (&sub_it);
+        } else {
+            // shouldn't happen
+            continue;
+        }
+
+        ssnprintf (cb_name, sizeof (cb_name), "mongo-%s", db_name);
+        entry = llist_search (old_db_llist, cb_name);
+
+        if (entry == NULL) {
+            user_data_t ud;
+            char *new_cb_name = strdup (cb_name);
+            if (new_cb_name == NULL) {
+                 ERROR ("mongodb plugin: OOM configuring dbs");
+                 return MONGO_ERROR;
+            }
+
+            entry = llentry_create (new_cb_name, NULL);
+            if (entry == NULL) {
+                ERROR ("mongodb plugin: OOM configuring dbs");
+                return MONGO_ERROR;
+            }
+
+            DEBUG ("mongodb plugin: Registering new read callback: %s",
+                   cb_name);
+
+            db = malloc (sizeof (mongo_db_t));
+            if (db == NULL) {
+                ERROR ("mongodb plugin: OOM configuring dbs");
+                return MONGO_ERROR;
+            }
+
+            memset (db, 0, sizeof (mongo_db_t));
+            db->name = strdup (db_name);
+            if (db->name == NULL) {
+                ERROR ("mongodb plugin: OOM configuring dbs");
+                return MONGO_ERROR;
+            }
+
+            memset (&ud, 0, sizeof (ud));
+            ud.data = (void *) db;
+            ud.free_func = free_db_userdata;
+
+            plugin_register_complex_read (NULL, cb_name, mc_db_stats_read_cb, NULL, &ud);
+        } else {
+            llist_remove (old_db_llist, entry);
+            llist_append (active_db_llist, entry);
+        }
+        _bson_subobject_destroy (&sub);
+    }
+    bson_destroy (&out);
+
+    mc->db_llist = active_db_llist;
+
+    /* clean up any dbs that were removed */
+    mc_unregister_and_free_ghost_dbs (old_db_llist, 1);
+    return (0);
+}
+/* }}} setup_dbs */
+
+static int mc_setup_read(void) /* {{{ */
+{
+    bson is_master_out;
+    bson_iterator it;
+    int max_bson_size = MONGO_DEFAULT_MAX_BSON_SIZE;
+
+    if (mc_connect(&(mc->connection), mc->host, mc->port, mc->user, mc->password, &is_master_out) != 0) {
         return (-1);
     }
 
-    if (query_ismaster () != 0)
-        return (-1);
+    if( bson_find( &it, &is_master_out, "ismaster" ) )
+        mc->is_primary = bson_iterator_bool( &it );
+    if( bson_find( &it, &is_master_out, "maxBsonObjectSize" ) )
+        max_bson_size = bson_iterator_int( &it );
+    if( bson_find( &it, &is_master_out, "setName" ) )
+        mc_config_set(&(mc->set_name), bson_iterator_string( &it ));
+    mc->connection.max_bson_size = max_bson_size;
+
+    bson_destroy( &is_master_out );
 
     /* Only the primary node sends back stats for now
      * though it may query a secondary node for queries that are
      * intensive
      */
-    if (!mc->is_primary)
+    if (!mc->is_primary) {
+        /* unregister any db reads */
+        mc_unregister_and_free_ghost_dbs (mc->db_llist, 0);
         return (0);
+    }
+
+    if (setup_dbs () != 0)
+        return (-1);
 
     if (query_server_status () != 0)
         return (-1);
 
-    /* right now we are sequential but we should kick off a read per db
-     *  with their own connections
-     *  It should do so on a secondary node if possible
-     */
-    if (query_dbstats () != 0)
-        return (-1);
-
     return (0);
-} /* }}} int mc_read */
-
-static void mc_config_set (char **dest, const char *src ) /* {{{ */
-{
-    sfree(*dest);
-    *dest = strdup (src);
-} /* }}} void mc_config_set */
+} /* }}} int mc_setup_read */
 
 static int mc_init () { /* {{{ */
     if (mc == NULL) {
         mc = (mongo_config_t *) malloc (sizeof(mongo_config_t));
         if (mc == NULL) {
             ERROR ("mongodb plugin: malloc failed for configuration data.");
-		    return (-1);
+            return (-1);
         }
         memset (mc, 0, sizeof (mongo_config_t));
         /* autodiscover on by default */
         mc->auto_discover = 1;
+        mc->db_llist = llist_create();
+        if (mc->db_llist != 0) {
+            ERROR ("OOM trying to allocate the db list");
+            return (-1);
+        }
+
         mongo_init(&(mc->connection));
     }
+    return (0);
 } /* }}} int mc_init */
 
 static int mc_config (const char *key, const char *value) /* {{{ */
@@ -525,9 +679,9 @@ static int mc_config (const char *key, const char *value) /* {{{ */
         }
     }
     else if(strcasecmp("User", key) == 0)
-        mc_config_set(&mc->user,value);
+        mc_config_set(&mc->user, value);
     else if(strcasecmp("Password", key) == 0)
-        mc_config_set(&mc->password,value);
+        mc_config_set(&mc->password, value);
     else
     {
         ERROR ("mongodb plugin: Unknown config option: %s", key);
@@ -539,17 +693,16 @@ static int mc_config (const char *key, const char *value) /* {{{ */
 
 static int mc_shutdown(void) /* {{{ */
 {
-    if (mc->have_connection) {
-        mongo_destroy (&(mc->connection));
-        mc->have_connection = 0;
-    }
+    mongo_destroy (&(mc->connection));
 
     sfree (mc->user);
     sfree (mc->password);
     sfree (mc->host);
 
-    free (mc);
+    llist_destroy(mc->db_llist);
 
+
+    free (mc);
     return (0);
 } /* }}} int mc_shutdown */
 
@@ -558,7 +711,9 @@ void module_register(void)
     plugin_register_init ("mongodb", mc_init);
     plugin_register_config ("mongodb", mc_config,
             config_keys, config_keys_num);
-    plugin_register_read ("mongodb", mc_read);
+
+    /* the setup read checks if we are a master node and sets up database reads accordingly */
+    plugin_register_read ("mongodb", mc_setup_read);
     plugin_register_shutdown ("mongodb", mc_shutdown);
 }
 
