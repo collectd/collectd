@@ -640,7 +640,7 @@ static int mc_setup_read(void) /* {{{ */
     return (0);
 } /* }}} int mc_setup_read */
 
-static int mc_init () { /* {{{ */
+static int mc_init_config_struct (void) {
     if (mc == NULL) {
         mc = (mongo_config_t *) malloc (sizeof(mongo_config_t));
         if (mc == NULL) {
@@ -658,11 +658,15 @@ static int mc_init () { /* {{{ */
 
         mongo_init(&(mc->connection));
     }
-    return (0);
-} /* }}} int mc_init */
+    return 0;
+}
 
 static int mc_config (const char *key, const char *value) /* {{{ */
 {
+
+    if (mc_init_config_struct != 0)
+        return -1;
+
     if (strcasecmp("Host", key) == 0)
         mc_config_set(&(mc->host),value);
     else if (strcasecmp("Port", key) == 0)
@@ -708,7 +712,6 @@ static int mc_shutdown(void) /* {{{ */
 
 void module_register(void)
 {
-    plugin_register_init ("mongodb", mc_init);
     plugin_register_config ("mongodb", mc_config,
             config_keys, config_keys_num);
 
