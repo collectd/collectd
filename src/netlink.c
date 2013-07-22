@@ -271,7 +271,7 @@ static void check_ignorelist_and_submit (const char *dev,
 } /* void check_ignorelist_and_submit */
 
 static int link_filter_cb (const struct nlmsghdr *nlh,
-    void __attribute__((unused)) *args)
+    void *args __attribute__((unused)))
 {
   struct ifinfomsg *ifm = mnl_nlmsg_get_payload (nlh);
   struct nlattr *attr;
@@ -372,7 +372,7 @@ static int qos_filter_cb (const struct nlmsghdr *nlh, void *args)
   char *tc_type;
   char tc_inst[DATA_MAX_NAME_LEN];
 
-  int __attribute__((unused)) stats_submitted = 0;
+  _Bool stats_submitted = 0;
 
   if (nlh->nlmsg_type == RTM_NEWQDISC)
     tc_type = "qdisc";
