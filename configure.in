@@ -2501,24 +2501,24 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LIBMYSQL, test "x$with_libmysql" = "xyes")
 # }}}
 
-# --with-libnetlink {{{
-with_libnetlink_cflags=""
-with_libnetlink_libs="-lmnl"
-AC_ARG_WITH(libnetlink, [AS_HELP_STRING([--with-libnetlink@<:@=PREFIX@:>@], [Path to libmnl.])],
+# --with-libmnl {{{
+with_libmnl_cflags=""
+with_libmnl_libs="-lmnl"
+AC_ARG_WITH(libmnl, [AS_HELP_STRING([--with-libmnl@<:@=PREFIX@:>@], [Path to libmnl.])],
 [
- echo "libnetlink: withval = $withval"
+ echo "libmnl: withval = $withval"
  if test "x$withval" = "xyes"
  then
-	 with_libnetlink="yes"
+	 with_libmnl="yes"
  else if test "x$withval" = "xno"
  then
-	 with_libnetlink="no"
+	 with_libmnl="no"
  else
 	 if test -d "$withval/include"
 	 then
-		 with_libnetlink_cflags="-I$withval/include"
-		 with_libnetlink_libs="-L$withval/lib -lmnl"
-		 with_libnetlink="yes"
+		 with_libmnl_cflags="-I$withval/include"
+		 with_libmnl_libs="-L$withval/lib -lmnl"
+		 with_libmnl="yes"
 	 else
 		 AC_MSG_ERROR("no such directory: $withval/include")
 	 fi
@@ -2527,21 +2527,18 @@ AC_ARG_WITH(libnetlink, [AS_HELP_STRING([--with-libnetlink@<:@=PREFIX@:>@], [Pat
 [
  if test "x$ac_system" = "xLinux"
  then
-	 with_libnetlink="yes"
+	 with_libmnl="yes"
  else
-	 with_libnetlink="no (Linux only library)"
+	 with_libmnl="no (Linux only library)"
  fi
 ])
-if test "x$with_libnetlink" = "xyes"
+if test "x$with_libmnl" = "xyes"
 then
-	SAVE_CFLAGS="$CFLAGS"
-	CFLAGS="$CFLAGS $with_libnetlink_cflags"
+	with_libmnl="no (libmnl.h not found)"
 
-	with_libnetlink="no (libnetlink.h not found)"
-
-	AC_CHECK_HEADERS(libnetlink.h iproute/libnetlink.h linux/libnetlink.h,
+	AC_CHECK_HEADERS(libmnl.h libmnl/libmnl.h,
 	[
-	 with_libnetlink="yes"
+	 with_libmnl="yes"
 	 break
 	], [],
 [#include <stdio.h>
@@ -2587,96 +2584,23 @@ return (retval);
 ]]
 	)],
 	[AC_DEFINE([HAVE_TCA_STATS], 1, [True if the enum-member TCA_STATS exists])])
-
-	CFLAGS="$SAVE_CFLAGS"
 fi
-if test "x$with_libnetlink" = "xyes"
+if test "x$with_libmnl" = "xyes"
 then
-	AC_CHECK_LIB(netlink, rtnl_open,
-		     [with_libnetlink="yes"],
-		     [with_libnetlink="no (symbol 'rtnl_open' not found)"],
-		     [$with_libnetlink_libs])
+	AC_CHECK_LIB(mnl, mnl_nlmsg_get_payload,
+		     [with_libmnl="yes"],
+		     [with_libmnl="no (symbol 'mnl_nlmsg_get_payload' not found)"],
+		     [$with_libmnl_libs])
 fi
-if test "x$with_libnetlink" = "xyes"
+if test "x$with_libmnl" = "xyes"
 then
-	SAVE_CFLAGS="$CFLAGS"
-	CFLAGS="$CFLAGS $with_libnetlink_cflags"
-
-	AC_CACHE_CHECK(
-		[if function 'rtnl_dump_filter' expects five arguments],
-		[c_cv_rtnl_dump_filter_five_args],
-		AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
-[[[
-#include <stdio.h>
-#include <sys/types.h>
-#include <asm/types.h>
-#include <sys/socket.h>
-#if HAVE_LIBNETLINK_H
-# include <libnetlink.h>
-#elif HAVE_IPROUTE_LIBNETLINK_H
-# include <iproute/libnetlink.h>
-#elif HAVE_LINUX_LIBNETLINK_H
-# include <linux/libnetlink.h>
-#endif
-]]],
-[[[
-if (rtnl_dump_filter(NULL, NULL, NULL, NULL, NULL))
-	return 1;
-return 0;
-]]]
-	)],
-	[c_cv_rtnl_dump_filter_five_args="yes"],
-	[c_cv_rtnl_dump_filter_five_args="no"]
-	)
-)
-
-	AC_CACHE_CHECK(
-		[if function 'rtnl_dump_filter' expects three arguments],
-		[c_cv_rtnl_dump_filter_three_args],
-		AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
-[[[
-#include <stdio.h>
-#include <sys/types.h>
-#include <asm/types.h>
-#include <sys/socket.h>
-#if HAVE_LIBNETLINK_H
-# include <libnetlink.h>
-#elif HAVE_IPROUTE_LIBNETLINK_H
-# include <iproute/libnetlink.h>
-#elif HAVE_LINUX_LIBNETLINK_H
-# include <linux/libnetlink.h>
-#endif
-]]],
-[[[
-if (rtnl_dump_filter(NULL, NULL, NULL))
-	return 1;
-return 0;
-]]]
-	)],
-	[c_cv_rtnl_dump_filter_three_args="yes"],
-	[c_cv_rtnl_dump_filter_three_args="no"]
-	)
-)
-
-	CFLAGS="$SAVE_CFLAGS"
-
-	if test "x$c_cv_rtnl_dump_filter_five_args" = "xyes"
-	then
-		AC_DEFINE(RTNL_DUMP_FILTER_FIVE_ARGS, 1,
-				[Define to 1 if function 'rtnl_dump_filter' expects five arguments.])
-	fi
-	if test "x$c_cv_rtnl_dump_filter_three_args" = "xyes"
-	then
-		AC_DEFINE(RTNL_DUMP_FILTER_THREE_ARGS, 1,
-				[Define to 1 if function 'rtnl_dump_filter' expects three arguments.])
-	fi
-
-	BUILD_WITH_LIBNETLINK_CFLAGS="$with_libnetlink_cflags"
-	BUILD_WITH_LIBNETLINK_LIBS="$with_libnetlink_libs"
-	AC_SUBST(BUILD_WITH_LIBNETLINK_CFLAGS)
-	AC_SUBST(BUILD_WITH_LIBNETLINK_LIBS)
+	AC_DEFINE(HAVE_LIBMNL, 1, [Define if libmnl is present and usable.])
+	BUILD_WITH_LIBMNL_CFLAGS="$with_libmnl_cflags"
+	BUILD_WITH_LIBMNL_LIBS="$with_libmnl_libs"
+	AC_SUBST(BUILD_WITH_LIBMNL_CFLAGS)
+	AC_SUBST(BUILD_WITH_LIBMNL_LIBS)
 fi
-AM_CONDITIONAL(BUILD_WITH_LIBNETLINK, test "x$with_libnetlink" = "xyes")
+AM_CONDITIONAL(BUILD_WITH_LIBMNL, test "x$with_libmnl" = "xyes")
 # }}}
 
 # --with-libnetapp {{{
@@ -5069,7 +4993,7 @@ AC_PLUGIN([modbus],      [$with_libmodbus],    [Modbus plugin])
 AC_PLUGIN([multimeter],  [$plugin_multimeter], [Read multimeter values])
 AC_PLUGIN([mysql],       [$with_libmysql],     [MySQL statistics])
 AC_PLUGIN([netapp],      [$with_libnetapp],    [NetApp plugin])
-AC_PLUGIN([netlink],     [$with_libnetlink],   [Enhanced Linux network statistics])
+AC_PLUGIN([netlink],     [$with_libmnl],       [Enhanced Linux network statistics])
 AC_PLUGIN([network],     [yes],                [Network communication plugin])
 AC_PLUGIN([nfs],         [$plugin_nfs],        [NFS statistics])
 AC_PLUGIN([nginx],       [$with_libcurl],      [nginx statistics])
@@ -5313,10 +5237,10 @@ Configuration:
     libkstat  . . . . . . $with_kstat
     libkvm  . . . . . . . $with_libkvm
     libmemcached  . . . . $with_libmemcached
+    libmnl  . . . . . . . $with_libmnl
     libmodbus . . . . . . $with_libmodbus
     libmysql  . . . . . . $with_libmysql
     libnetapp . . . . . . $with_libnetapp
-    libnetlink  . . . . . $with_libnetlink
     libnetsnmp  . . . . . $with_libnetsnmp
     libnotify . . . . . . $with_libnotify
     liboconfig  . . . . . $with_liboconfig
