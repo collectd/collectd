@@ -37,8 +37,6 @@
 
 #include <time.h>
 #include <libmnl/libmnl.h>
-//#include <linux/if.h>
-//#include <linux/if_link.h>
 
 typedef struct ir_ignorelist_s
 {
@@ -229,7 +227,7 @@ static int update_iflist (struct ifinfomsg *msg, const char *dev)
   }
 
   return (0);
-}
+} /* int update_iflist */
 
 static void check_ignorelist_and_submit (const char *dev,
     struct rtnl_link_stats *stats)
@@ -270,7 +268,7 @@ static void check_ignorelist_and_submit (const char *dev,
     DEBUG ("netlink plugin: Ignoring %s/if_detail.", dev);
   }
 
-}
+} /* void check_ignorelist_and_submit */
 
 static int link_filter_cb (const struct nlmsghdr *nlh,
     void __attribute__((unused)) *args)
@@ -287,6 +285,7 @@ static int link_filter_cb (const struct nlmsghdr *nlh,
     return MNL_CB_ERROR;
   }
 
+  /* Scan attribute list for device name. */
   mnl_attr_for_each (attr, nlh, sizeof (*ifm))
   {
     if (mnl_attr_get_type (attr) != IFLA_IFNAME)
@@ -434,7 +433,7 @@ static int qos_filter_cb (const struct nlmsghdr *nlh, void *args)
     return (-1);
   }
 
-  { /* The the ID */
+  { /* The ID */
     uint32_t numberic_id;
 
     numberic_id = tm->tcm_handle;
