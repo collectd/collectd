@@ -518,7 +518,7 @@ static void free_db_userdata(void *data) {
 static int setup_dbs(void) /* {{{ */
 {
     bson out;
-    bson_iterator it;
+    bson_iterator it, it_dbs;
     llist_t *active_db_llist = llist_create ();
     llist_t *old_db_llist = mc->db_llist;
     mongo_db_t *db;
@@ -526,15 +526,16 @@ static int setup_dbs(void) /* {{{ */
     if (!mongo_simple_int_command( &(mc->connection), "admin", "listDatabases", 1, &out ) != MONGO_OK )
         return MONGO_ERROR;
 
-    bson_iterator_init (&it, &out);
-    while (bson_iterator_next (&it)) {
+    bson_find (&it, &out, "databases");
+    bson_iterator_subiterator (&it, &it_dbs);
+    while (bson_iterator_next (&it_dbs)) {
         llentry_t *entry;
         bson sub;
         const char *db_name;
         char cb_name[DATA_MAX_NAME_LEN];
         bson_iterator sub_it;
 
-        bson_iterator_subobject_init (&it, &sub, 0);
+        bson_iterator_subobject_init (&it_dbs, &sub, 0);
         if (bson_find(&sub_it, &sub, "name")) {
             db_name = bson_iterator_string (&sub_it);
         } else {
