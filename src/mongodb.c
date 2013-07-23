@@ -458,7 +458,7 @@ static int mc_db_stats_read_cb (user_data_t *ud) /* {{{ */
     bson result;
     bson b;
     int status;
-    mongo_db_t *db = (mongo_db_t *) ud;
+    mongo_db_t *db = (mongo_db_t *) ud->data;
 
     if (mc_connect(&(db->connection),
                         mc->host,
