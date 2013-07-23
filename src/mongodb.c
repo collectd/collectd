@@ -523,7 +523,7 @@ static int setup_dbs(void) /* {{{ */
     llist_t *old_db_llist = mc->db_llist;
     mongo_db_t *db;
 
-    if (!mongo_simple_int_command( &(mc->connection), "admin", "listDatabases", 1, &out ) != MONGO_OK )
+    if (mongo_simple_int_command( &(mc->connection), "admin", "listDatabases", 1, &out ) != MONGO_OK)
         return MONGO_ERROR;
 
     bson_find (&it, &out, "databases");
