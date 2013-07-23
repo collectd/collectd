@@ -664,7 +664,7 @@ static int mc_init_config_struct (void) {
 static int mc_config (const char *key, const char *value) /* {{{ */
 {
 
-    if (mc_init_config_struct != 0)
+    if (mc_init_config_struct() != 0)
         return -1;
 
     if (strcasecmp("Host", key) == 0)
