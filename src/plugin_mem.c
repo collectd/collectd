@@ -136,6 +136,7 @@ static int pm_read (void) {
     FILE *pid_f;
     FILE *maps_f;
     char maps_path[PATH_MAX];
+    char maps_line[PATH_MAX];
     int pid;
     int plugin_dir_len = strlen(plugin_dir);
     llist_t *mem_list = llist_create();
@@ -159,7 +160,7 @@ static int pm_read (void) {
         return (-1);
     }
 
-    while (!feof (maps_f)) {
+    while (fgets (maps_line, PATH_MAX, maps_f) != NULL) {
         unsigned long start;
         unsigned long end;
         char r, w, e, p;
@@ -169,23 +170,23 @@ static int pm_read (void) {
         unsigned long inode;
         char path[PATH_MAX];
 
-        fscanf (maps_f, "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu %s", &start, &end, &r, &w, &e, &p, &offset, &dev_maj, &dev_min, &inode, path);
+        if (sscanf (maps_line, "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu %s", &start, &end, &r, &w, &e, &p, &offset, &dev_maj, &dev_min, &inode, path) == 11) {
+            if (strncmp (plugin_dir, path, plugin_dir_len) == 0) {
+                char *plugin = path + plugin_dir_len;
+                llentry_t *entry = llist_search (mem_list, plugin);
+                if (entry == NULL) {
+                    char *plugin_cpy;
+                    plugin_cpy = strdup(plugin);
+                    if ( plugin_cpy == NULL) {
+                        ERROR ("plugin mem plugin: OOM");
+                        return (-1);
+                    }
 
-        if (strncmp (plugin_dir, path, plugin_dir_len) == 0) {
-            char *plugin = path + plugin_dir_len;
-            llentry_t *entry = llist_search (mem_list, plugin);
-            if (entry == NULL) {
-                char *plugin_cpy;
-                plugin_cpy = strdup(plugin);
-                if ( plugin_cpy == NULL) {
-                    ERROR ("plugin mem plugin: OOM");
-                    return (-1);
+                    entry = llentry_create (plugin_cpy, (void *)0);
+                    llist_append (mem_list, entry);
                 }
-
-                entry = llentry_create (plugin_cpy, (void *)0);
-                llist_append (mem_list, entry);
+                entry->value += end - start;
             }
-            entry->value += end - start;
         }
     }
 
