@@ -155,17 +155,20 @@ static int pm_read (void) {
         unsigned long inode;
         char path[PATH_MAX];
 
-        fscanf (maps_f, "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu %s", &start, &end, &r, &w, &e, %p, &offset, &dev_maj, &dev_min, &inode, &path);
+        fscanf (maps_f, "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu %s", &start, &end, &r, &w, &e, &p, &offset, &dev_maj, &dev_min, &inode, path);
 
         if (strncmp (plugin_dir, path, plugin_dir_len)) {
             char *plugin = path + plugin_dir_len;
             llentry_t *entry = llist_search (mem_list, plugin);
             if (entry == NULL) {
                 char *plugin_cpy;
-                if (strcpy(plugin_cpy, plugin) == NULL) {
+                plugin_cpy = malloc (strlen(plugin) + 1);
+                if ( plugin_cpy == NULL) {
                     ERROR ("plugin mem plugin: OOM");
                     return (-1);
                 }
+
+                strcpy(plugin_cpy, plugin);
                 entry = llentry_create (plugin_cpy, (void *)0);
                 llist_append (mem_list, entry);
             }
