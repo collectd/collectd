@@ -42,11 +42,24 @@ static char *collectd_pid_file = NULL;
 static int pm_config (const char *key, const char *value)
 {
     if (strcasecmp("PluginDir", key) == 0) {
+        size_t dir_len;
         sfree (plugin_dir);
         plugin_dir = strdup(value);
         if (plugin_dir == NULL) {
             ERROR ("plugin mem plugin: OOM");
             return (-1);
+        }
+
+        dir_len = strlen (plugin_dir);
+        /* add a slash to the end if one is not present */
+        if (plugin_dir[dir_len - 1] != '/') {
+            plugin_dir = realloc (plugin_dir, dir_len + 1);
+            if (plugin_dir == NULL) {
+                ERROR ("plugin mem plugin: OOM");
+                return (-1);
+            }
+            plugin_dir[dir_len + 1] = '\0';
+            plugin_dir[dir_len] = '/';
         }
     }
     else if (strcasecmp("PidFile", key) == 0) {
@@ -158,7 +171,7 @@ static int pm_read (void) {
 
         fscanf (maps_f, "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu %s", &start, &end, &r, &w, &e, &p, &offset, &dev_maj, &dev_min, &inode, path);
 
-        if (strncmp (plugin_dir, path, plugin_dir_len)) {
+        if (strncmp (plugin_dir, path, plugin_dir_len) == 0) {
             char *plugin = path + plugin_dir_len;
             llentry_t *entry = llist_search (mem_list, plugin);
             if (entry == NULL) {
@@ -181,11 +194,20 @@ static int pm_read (void) {
     return (0);
 }
 
-void module_register(void)
+static int pm_shutdown (void)
+{
+    sfree (plugin_dir);
+    sfree (collectd_pid_file);
+
+    return (0);
+}
+
+void module_register (void)
 {
     plugin_register_config ("plugin_mem", pm_config,
                             config_keys, config_keys_num);
 
     plugin_register_read ("plugin_mem", pm_read);
+    plugin_register_shutdown ("plugin_mem", pm_shutdown);
 }
 /* vim: set sw=4 sts=4 et fdm=marker : */
