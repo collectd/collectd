@@ -651,7 +651,7 @@ static int mc_init_config_struct (void) {
         /* autodiscover on by default */
         mc->auto_discover = 1;
         mc->db_llist = llist_create();
-        if (mc->db_llist != 0) {
+        if (mc->db_llist == NULL) {
             ERROR ("OOM trying to allocate the db list");
             return (-1);
         }
