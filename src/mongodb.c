@@ -177,16 +177,8 @@ static void submit (const char *type, const char *instance, /* {{{ */
 
     sstrncpy (v.host, hostname_g, sizeof(v.host));
     sstrncpy (v.plugin, "mongodb", sizeof(v.plugin));
-    if (db == NULL) {
-        if (mc->set_name) {
-            ssnprintf (v.plugin_instance, sizeof (v.plugin_instance), "%s", mc->set_name);
-        }
-    }else {
-        if (mc->set_name) {
-            ssnprintf (v.plugin_instance, sizeof (v.plugin_instance), "%s.%s", mc->set_name, db->name);
-        } else {
-            ssnprintf (v.plugin_instance, sizeof (v.plugin_instance), "%s", db->name);
-        }
+    if (db != NULL) {
+        ssnprintf (v.plugin_instance, sizeof (v.plugin_instance), "%s", db->name);
     }
     sstrncpy (v.type, type, sizeof(v.type));
 
