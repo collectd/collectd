@@ -32,6 +32,7 @@
 
 static const char *config_keys[] = {
     "PluginDir",
+    "PidFile"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
