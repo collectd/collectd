@@ -818,6 +818,9 @@
 /* Define to 1 if the ping plugin is enabled. */
 #undef HAVE_PLUGIN_PING
 
+/* Define to 1 if the plugin_mem plugin is enabled. */
+#undef HAVE_PLUGIN_PLUGIN_MEM
+
 /* Define to 1 if the postgresql plugin is enabled. */
 #undef HAVE_PLUGIN_POSTGRESQL
 

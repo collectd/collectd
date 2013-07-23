@@ -940,6 +940,15 @@ collectd_LDADD += "-dlopen" ping.la
 collectd_DEPENDENCIES += ping.la
 endif
 
+if BUILD_PLUGIN_PLUGIN_MEM
+pkglib_LTLIBRARIES += plugin_mem.la
+plugin_mem_la_SOURCES = plugin_mem.c
+plugin_mem_la_CPPFLAGS = $(AM_CPPFLAGS)
+plugin_mem_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" plugin_mem.la
+collectd_DEPENDENCIES += plugin_mem.la
+endif
+
 if BUILD_PLUGIN_POSTGRESQL
 pkglib_LTLIBRARIES += postgresql.la
 postgresql_la_SOURCES = postgresql.c \

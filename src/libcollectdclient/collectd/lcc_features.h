@@ -41,7 +41,7 @@
 #define LCC_VERSION_MINOR 3
 #define LCC_VERSION_PATCH 0
 
-#define LCC_VERSION_EXTRA "44.g5a14d3f"
+#define LCC_VERSION_EXTRA "93.g1b0a0e7"
 
 #define LCC_VERSION_STRING "5.3.0"
 
