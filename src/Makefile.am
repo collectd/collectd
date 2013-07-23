@@ -196,6 +196,16 @@ collectd_LDADD += "-dlopen" apple_sensors.la
 collectd_DEPENDENCIES += apple_sensors.la
 endif
 
+if BUILD_PLUGIN_AQUAERO
+pkglib_LTLIBRARIES += aquaero.la
+aquaero_la_SOURCES = aquaero.c
+aquaero_la_LDFLAGS = -module -avoid-version
+aquaero_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBAQUAERO_CFLAGS)
+aquaero_la_LIBADD = -laquaero
+collectd_LDADD += "-dlopen" aquaero.la
+collectd_DEPENDENCIES += aquaero.la
+endif
+
 if BUILD_PLUGIN_ASCENT
 pkglib_LTLIBRARIES += ascent.la
 ascent_la_SOURCES = ascent.c

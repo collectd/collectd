@@ -79,6 +79,7 @@
 #@BUILD_PLUGIN_APACHE_TRUE@LoadPlugin apache
 #@BUILD_PLUGIN_APCUPS_TRUE@LoadPlugin apcups
 #@BUILD_PLUGIN_APPLE_SENSORS_TRUE@LoadPlugin apple_sensors
+#@BUILD_PLUGIN_AQUAERO_TRUE@LoadPlugin aquaero
 #@BUILD_PLUGIN_ASCENT_TRUE@LoadPlugin ascent
 #@BUILD_PLUGIN_BATTERY_TRUE@LoadPlugin battery
 #@BUILD_PLUGIN_BIND_TRUE@LoadPlugin bind
@@ -236,6 +237,15 @@
 #	Host "localhost"
 #	Port "3551"
 #	ReportSeconds true
+#</Plugin>
+
+#<Plugin aquaero>
+#	# If you specify an empty string for the device (the default) it
+#	# will autodetect the first Aquaero 5 installed.
+#	Device ""
+#	# Optionally, you can specify the device path, make sure the Aquaero
+#	# device is readable by collectd.
+#	#Device "/dev/usb/hiddev0"
 #</Plugin>
 
 #<Plugin ascent>
