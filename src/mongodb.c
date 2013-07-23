@@ -2,6 +2,7 @@
  * collectd - src/mongo.c
  * Copyright (C) 2010 Ryan Cox
  * Copyright (C) 2012 Florian Forster
+ * Copyright (C) 2013 John (J5) Palmieri
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,6 +20,7 @@
  * Authors:
  *   Ryan Cox <ryan.a.cox at gmail.com>
  *   Florian Forster <octo at collectd.org>
+ *   John (J5) Palmieri <j5 at stackdriver.com>
  **/
 
 #include "collectd.h"
