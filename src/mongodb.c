@@ -103,17 +103,17 @@ static void mc_config_set (char **dest, const char *src ) /* {{{ */
  * This should be upstreamed into the mongo-c-driver
  *   connect and authenticate while returning the output of is_master command
  */
-static MONGO_EXPORT int _mongo_client_complex( mongo *conn , const char *host, int port, const char *user, const char *pass, bson *is_master_out ) { /* {{{ */
+static MONGO_EXPORT int _mongo_client_complex (mongo *conn , const char *host, int port, const char *user, const char *pass, bson *is_master_out) { /* {{{ */
     int status;
 
     mongo_init( conn );
 
-    conn->primary = (mongo_host_port*)bson_malloc( sizeof( mongo_host_port ) );
+    conn->primary = (mongo_host_port*) bson_malloc (sizeof (mongo_host_port));
     snprintf( conn->primary->host, MAXHOSTNAMELEN, "%s", host);
     conn->primary->port = port;
     conn->primary->next = NULL;
 
-    if( mongo_env_socket_connect( conn, host, port ) != MONGO_OK )
+    if( mongo_env_socket_connect (conn, host, port) != MONGO_OK )
         return MONGO_ERROR;
 
     if (user!=NULL && pass!=NULL) {
@@ -129,14 +129,15 @@ static MONGO_EXPORT int _mongo_client_complex( mongo *conn , const char *host, i
     }
 
     if (is_master_out != NULL)
-        return mongo_cmd_ismaster( conn, is_master_out );
-    return status;
+        mongo_cmd_ismaster (conn, is_master_out);
+
+    return MONGO_OK;
 } /* }}} int _mongo_client_complex */
 
 /*
  *  Check connection and connect if needed
  */
-static int mc_connect(mongo *conn, const char *host, int port, const char *user, const char *pass, bson *is_master_out) { /* {{{ */
+static int mc_connect (mongo *conn, const char *host, int port, const char *user, const char *pass, bson *is_master_out) { /* {{{ */
     int status;
 
     status = mongo_check_connection(conn);
