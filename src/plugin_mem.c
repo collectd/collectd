@@ -163,13 +163,12 @@ static int pm_read (void) {
             llentry_t *entry = llist_search (mem_list, plugin);
             if (entry == NULL) {
                 char *plugin_cpy;
-                plugin_cpy = malloc (strlen(plugin) + 1);
+                plugin_cpy = strdup(plugin);
                 if ( plugin_cpy == NULL) {
                     ERROR ("plugin mem plugin: OOM");
                     return (-1);
                 }
 
-                strcpy(plugin_cpy, plugin);
                 entry = llentry_create (plugin_cpy, (void *)0);
                 llist_append (mem_list, entry);
             }
@@ -184,9 +183,9 @@ static int pm_read (void) {
 
 void module_register(void)
 {
-    plugin_register_config ("plugin_memusage", pm_config,
+    plugin_register_config ("plugin_mem", pm_config,
                             config_keys, config_keys_num);
 
-    plugin_register_read ("plugin_memusage", pm_read);
+    plugin_register_read ("plugin_mem", pm_read);
 }
 /* vim: set sw=4 sts=4 et fdm=marker : */
