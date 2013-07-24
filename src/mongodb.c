@@ -426,11 +426,11 @@ static int handle_dbstats (mongo_db_t *db, const bson *obj) /* {{{ */
 
         type = bson_iterator_type (&i);
         if ((type != BSON_DOUBLE) && (type != BSON_LONG) && (type != BSON_INT))
-            return (0);
+            continue;
 
         key = bson_iterator_key (&i);
         if (key == NULL)
-            return (0);
+            continue;
 
         value = (gauge_t) bson_iterator_double (&i);
 
