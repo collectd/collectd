@@ -147,6 +147,8 @@ static int mc_connect (mongo *conn, const char *host, int port, const char *user
         mongo_disconnect(conn);
     } else {
         // we are still connected
+        if (is_master_out != NULL)
+            mongo_cmd_ismaster (conn, is_master_out);
         return MONGO_OK;
     }
 
