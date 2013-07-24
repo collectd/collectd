@@ -98,12 +98,16 @@ static void submit (const char *type, const char *type_instance, const char *ins
     plugin_dispatch_values (&v);
 }
 
-static void submit_measurments (llist_t *mem_list) {
+static void submit_measurments (llist_t *mem_list, unsigned long long total) {
     llentry_t *e_this;
     llentry_t *e_next;
+    value_t v_total;
 
     if (mem_list == NULL)
         return;
+
+    v_total.gauge = total;
+    submit ("memory", "used", "collectd", &v_total, 1);
 
     for (e_this = llist_head(mem_list); e_this != NULL; e_this = e_next)
     {
@@ -141,6 +145,7 @@ static int pm_read (void) {
     int pid;
     int plugin_dir_len = strlen(plugin_dir);
     llist_t *mem_list = llist_create();
+    unsigned long long total_size = 0;
 
     if( (pid_f = fopen(collectd_pid_file, "r")) == NULL) {
         ERROR ("plugin mem plugin: pid file %s can not be opened", collectd_pid_file);
@@ -162,16 +167,19 @@ static int pm_read (void) {
     }
 
     while (fgets (maps_line, PATH_MAX, maps_f) != NULL) {
-        unsigned long start;
-        unsigned long end;
+        unsigned long long start;
+        unsigned long long end;
         char r, w, e, p;
         unsigned long long offset;
         unsigned int dev_maj;
         unsigned int dev_min;
         unsigned long inode;
         char path[PATH_MAX];
+        int parse_count;
 
-        if (sscanf (maps_line, "%16lx-%16lx %c%c%c%c %08llx %02x:%02x %lu %s", &start, &end, &r, &w, &e, &p, &offset, &dev_maj, &dev_min, &inode, path) == 11) {
+        parse_count = sscanf (maps_line, "%16llx-%16llx %c%c%c%c %08llx %02x:%02x %lu %s", &start, &end, &r, &w, &e, &p, &offset, &dev_maj, &dev_min, &inode, path);
+
+        if ( parse_count == 11) {
             if (strncmp (plugin_dir, path, plugin_dir_len) == 0) {
                 char *plugin = path + plugin_dir_len;
                 llentry_t *entry = llist_search (mem_list, plugin);
@@ -189,9 +197,13 @@ static int pm_read (void) {
                 entry->value += end - start;
             }
         }
+
+        if (parse_count >= 2) {
+            total_size += end - start;
+        }
     }
 
-    submit_measurments (mem_list);
+    submit_measurments (mem_list, total_size);
     free_measurements (mem_list);
     return (0);
 }
