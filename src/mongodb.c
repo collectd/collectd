@@ -580,8 +580,9 @@ static int setup_dbs(void) /* {{{ */
             }
         } else {
             llist_remove (old_db_llist, entry);
-            llist_append (active_db_llist, entry);
         }
+
+        llist_append (active_db_llist, entry);
 cont:
         _bson_subobject_destroy (&sub);
     }
