@@ -79,8 +79,8 @@ static int pm_config (const char *key, const char *value)
     return (0);
 }
 
-static void submit (const char *type, const char *instance,
-        value_t *values, size_t values_len)
+static void submit (const char *type, const char *type_instance, const char *instance,
+                    value_t *values, size_t values_len)
 {
     value_list_t v = VALUE_LIST_INIT;
 
@@ -90,9 +90,10 @@ static void submit (const char *type, const char *instance,
     sstrncpy (v.host, hostname_g, sizeof(v.host));
     sstrncpy (v.plugin, "plugin_mem", sizeof(v.plugin));
     sstrncpy (v.type, type, sizeof(v.type));
+    sstrncpy (v.type_instance, type_instance, sizeof (v.type_instance));
 
     if (instance != NULL)
-        sstrncpy (v.type_instance, instance, sizeof (v.type_instance));
+        sstrncpy (v.plugin_instance, instance, sizeof (v.plugin_instance));
 
     plugin_dispatch_values (&v);
 }
@@ -110,7 +111,7 @@ static void submit_measurments (llist_t *mem_list) {
 
         e_next = e_this->next;
         v.gauge = (size_t) e_this->value;
-        submit ("gauge", e_this->key, &v, 1);
+        submit ("memory", "used", e_this->key, &v, 1);
     }
 
 }
