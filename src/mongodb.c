@@ -542,7 +542,7 @@ static int setup_dbs(void) /* {{{ */
             db_name = bson_iterator_string (&sub_it);
         } else {
             // shouldn't happen
-            continue;
+            goto cont;
         }
 
         ssnprintf (cb_name, sizeof (cb_name), "mongo-%s", db_name);
@@ -551,32 +551,24 @@ static int setup_dbs(void) /* {{{ */
         if (entry == NULL) {
             user_data_t ud;
             char *new_cb_name = strdup (cb_name);
-            if (new_cb_name == NULL) {
-                 ERROR ("mongodb plugin: OOM configuring dbs");
-                 return MONGO_ERROR;
-            }
+            if (new_cb_name == NULL)
+                 goto oom;
 
             entry = llentry_create (new_cb_name, NULL);
-            if (entry == NULL) {
-                ERROR ("mongodb plugin: OOM configuring dbs");
-                return MONGO_ERROR;
-            }
+            if (entry == NULL)
+                goto oom;
 
             DEBUG ("mongodb plugin: Registering new read callback: %s",
                    cb_name);
 
             db = malloc (sizeof (mongo_db_t));
-            if (db == NULL) {
-                ERROR ("mongodb plugin: OOM configuring dbs");
-                return MONGO_ERROR;
-            }
+            if (db == NULL)
+                goto oom;
 
             memset (db, 0, sizeof (mongo_db_t));
             db->name = strdup (db_name);
-            if (db->name == NULL) {
-                ERROR ("mongodb plugin: OOM configuring dbs");
-                return MONGO_ERROR;
-            }
+            if (db->name == NULL)
+                goto oom;
 
             memset (&ud, 0, sizeof (ud));
             ud.data = (void *) db;
@@ -584,11 +576,13 @@ static int setup_dbs(void) /* {{{ */
 
             if (plugin_register_complex_read (NULL, cb_name, mc_db_stats_read_cb, NULL, &ud) != 0) {
                 free_db_userdata (db);
+                goto cont;
             }
         } else {
             llist_remove (old_db_llist, entry);
             llist_append (active_db_llist, entry);
         }
+cont:
         _bson_subobject_destroy (&sub);
     }
     bson_destroy (&out);
@@ -598,6 +592,11 @@ static int setup_dbs(void) /* {{{ */
     /* clean up any dbs that were removed */
     mc_unregister_and_free_ghost_dbs (old_db_llist, 1);
     return (0);
+
+oom:
+    bson_destroy (&out);
+    ERROR ("mongodb plugin: OOM configuring dbs");
+    return MONGO_ERROR;
 }
 /* }}} setup_dbs */
 
