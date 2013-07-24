@@ -1,6 +1,6 @@
 /**
  * collectd - src/rrdtool.c
- * Copyright (C) 2006-2008  Florian octo Forster
+ * Copyright (C) 2006-2013  Florian octo Forster
  * Copyright (C) 2008-2008  Sebastian Harl
  * Copyright (C) 2009       Mariusz Gronczewski
  *
@@ -18,7 +18,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  *   Sebastian Harl <sh at tokkee.org>
  *   Mariusz Gronczewski <xani666 at gmail.com>
  **/
@@ -246,6 +246,18 @@ static int value_list_to_filename (char *buffer, size_t buffer_size,
 	char const suffix[] = ".rrd";
 	int status;
 	size_t len;
+
+	if (datadir != NULL)
+	{
+		size_t datadir_len = strlen (datadir);
+
+		if (datadir_len >= buffer_size)
+			return (ENOMEM);
+
+		sstrncpy (buffer, datadir, buffer_size);
+		buffer += datadir_len;
+		buffer_size -= datadir_len;
+	}
 
 	status = FORMAT_VL (buffer, buffer_size, vl);
 	if (status != 0)
