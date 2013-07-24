@@ -170,7 +170,7 @@ static int pm_read (void) {
         unsigned long inode;
         char path[PATH_MAX];
 
-        if (sscanf (maps_line, "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu %s", &start, &end, &r, &w, &e, &p, &offset, &dev_maj, &dev_min, &inode, path) == 11) {
+        if (sscanf (maps_line, "%16lx-%16lx %c%c%c%c %08llx %02x:%02x %lu %s", &start, &end, &r, &w, &e, &p, &offset, &dev_maj, &dev_min, &inode, path) == 11) {
             if (strncmp (plugin_dir, path, plugin_dir_len) == 0) {
                 char *plugin = path + plugin_dir_len;
                 llentry_t *entry = llist_search (mem_list, plugin);
