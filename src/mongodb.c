@@ -582,7 +582,9 @@ static int setup_dbs(void) /* {{{ */
             ud.data = (void *) db;
             ud.free_func = free_db_userdata;
 
-            plugin_register_complex_read (NULL, cb_name, mc_db_stats_read_cb, NULL, &ud);
+            if (plugin_register_complex_read (NULL, cb_name, mc_db_stats_read_cb, NULL, &ud) != 0) {
+                free_db_userdata (db);
+            }
         } else {
             llist_remove (old_db_llist, entry);
             llist_append (active_db_llist, entry);
