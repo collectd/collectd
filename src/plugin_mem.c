@@ -203,6 +203,8 @@ static int pm_read (void) {
         }
     }
 
+    fclose (maps_f);
+
     submit_measurments (mem_list, total_size);
     free_measurements (mem_list);
     return (0);
