@@ -218,9 +218,6 @@ static int statsd_handle_counter (char const *name, /* {{{ */
   if (status != 0)
     return (status);
 
-  if (value.derive < 1)
-    return (-1);
-
   return (statsd_metric_add (name, (double) (value.gauge / scale.gauge),
         STATSD_COUNTER));
 } /* }}} int statsd_handle_counter */
