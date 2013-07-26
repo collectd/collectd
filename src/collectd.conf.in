@@ -154,6 +154,7 @@
 @LOAD_PLUGIN_RRDTOOL@LoadPlugin rrdtool
 #@BUILD_PLUGIN_SENSORS_TRUE@LoadPlugin sensors
 #@BUILD_PLUGIN_SERIAL_TRUE@LoadPlugin serial
+#@BUILD_PLUGIN_SIGROK_TRUE@LoadPlugin sigrok
 #@BUILD_PLUGIN_SNMP_TRUE@LoadPlugin snmp
 #@BUILD_PLUGIN_SWAP_TRUE@LoadPlugin swap
 #@BUILD_PLUGIN_TABLE_TRUE@LoadPlugin table
@@ -888,6 +889,19 @@
 #	Sensor "it8712-isa-0290/fanspeed-fan3"
 #	Sensor "it8712-isa-0290/voltage-in8"
 #	IgnoreSelected false
+#</Plugin>
+
+#<Plugin sigrok>
+#  LogLevel 3
+#  <Device "AC Voltage">
+#     Driver "fluke-dmm"
+#      Interval 10
+#      Conn "/dev/ttyUSB2"
+#  </Device>
+#  <Device "Sound Level">
+#     Driver "cem-dt-885x"
+#     Conn "/dev/ttyUSB1"
+#  </Device>
 #</Plugin>
 
 #<Plugin snmp>
