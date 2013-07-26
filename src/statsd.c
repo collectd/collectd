@@ -81,6 +81,7 @@ static size_t  conf_timer_percentile_num = 0;
 
 static _Bool conf_timer_lower     = 0;
 static _Bool conf_timer_upper     = 0;
+static _Bool conf_timer_sum       = 0;
 
 /* Must hold metrics_lock when calling this function. */
 static statsd_metric_t *statsd_metric_lookup_unsafe (char const *name, /* {{{ */
@@ -632,6 +633,8 @@ static int statsd_config (oconfig_item_t *ci) /* {{{ */
       cf_util_get_boolean (child, &conf_timer_lower);
     else if (strcasecmp ("TimerUpper", child->key) == 0)
       cf_util_get_boolean (child, &conf_timer_upper);
+    else if (strcasecmp ("TimerSum", child->key) == 0)
+      cf_util_get_boolean (child, &conf_timer_sum);
     else if (strcasecmp ("TimerPercentile", child->key) == 0)
       statsd_config_timer_percentile (child);
     else
@@ -746,6 +749,14 @@ static int statsd_metric_submit_unsafe (char const *name, /* {{{ */
           "%s-upper", name);
       values[0].gauge = CDTIME_T_TO_DOUBLE (
           latency_counter_get_max (metric->latency));
+      plugin_dispatch_values (&vl);
+    }
+
+    if (conf_timer_sum) {
+      ssnprintf (vl.type_instance, sizeof (vl.type_instance),
+          "%s-sum", name);
+      values[0].gauge = CDTIME_T_TO_DOUBLE (
+          latency_counter_get_sum (metric->latency));
       plugin_dispatch_values (&vl);
     }
 
