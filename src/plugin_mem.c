@@ -34,6 +34,13 @@ static const char *config_keys[] = {
     "PluginDir",
     "PidFile"
 };
+
+typedef enum {
+    PARSE_HEADER,
+    PARSE_TOTALMEM,
+    PARSE_PLUGINMEM
+} parse_state_t;
+
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static char *plugin_dir = NULL;
@@ -98,7 +105,8 @@ static void submit (const char *type, const char *type_instance, const char *ins
     plugin_dispatch_values (&v);
 }
 
-static void submit_measurments (llist_t *mem_list, unsigned long long total) {
+static void submit_measurments (llist_t *mem_list, unsigned long long total)
+{
     llentry_t *e_this;
     llentry_t *e_next;
     value_t v_total;
@@ -120,7 +128,8 @@ static void submit_measurments (llist_t *mem_list, unsigned long long total) {
 
 }
 
-static void free_measurements (llist_t *mem_list) {
+static void free_measurements (llist_t *mem_list)
+{
     llentry_t *e_this;
     llentry_t *e_next;
 
@@ -137,15 +146,48 @@ static void free_measurements (llist_t *mem_list) {
     free (mem_list);
 }
 
-static int pm_read (void) {
+static int scan_header (const char *maps_line, char *plugin)
+{
+    unsigned long long start;
+    unsigned long long end;
+    char r, w, e, p;
+    unsigned long long offset;
+    unsigned int dev_maj;
+    unsigned int dev_min;
+    unsigned long inode;
+    char path[PATH_MAX];
+    int parse_count;
+    int plugin_dir_len = strlen(plugin_dir);
+
+    parse_count = sscanf (maps_line, "%16llx-%16llx %c%c%c%c %08llx %02x:%02x %lu %s", &start, &end, &r, &w, &e, &p, &offset, &dev_maj, &dev_min, &inode, path);
+
+    /* if the file we are looking at resides in the plugin dir then return the file name in plugin */
+    if (parse_count == 11 && strncmp (plugin_dir, path, plugin_dir_len) == 0) {
+        strcpy (plugin, path + plugin_dir_len);
+    }
+
+    return parse_count;
+}
+
+static int scan_field (const char *maps_line, const char *field, unsigned int *size_in_kb)
+{
+    int parse_count;
+    char parse_str[PATH_MAX];
+    snprintf(parse_str, PATH_MAX, "%s:%%u kb", field);
+    parse_count = sscanf (maps_line, parse_str, size_in_kb);
+    return parse_count;
+}
+
+static int pm_read (void)
+{
     FILE *pid_f;
     FILE *maps_f;
     char maps_path[PATH_MAX];
     char maps_line[PATH_MAX];
     int pid;
-    int plugin_dir_len = strlen(plugin_dir);
     llist_t *mem_list = llist_create();
     unsigned long long total_size = 0;
+    parse_state_t state = PARSE_HEADER;
 
     if( (pid_f = fopen(collectd_pid_file, "r")) == NULL) {
         ERROR ("plugin mem plugin: pid file %s can not be opened", collectd_pid_file);
@@ -167,39 +209,58 @@ static int pm_read (void) {
     }
 
     while (fgets (maps_line, PATH_MAX, maps_f) != NULL) {
-        unsigned long long start;
-        unsigned long long end;
-        char r, w, e, p;
-        unsigned long long offset;
-        unsigned int dev_maj;
-        unsigned int dev_min;
-        unsigned long inode;
-        char path[PATH_MAX];
+        char plugin[PATH_MAX] = {0,};
         int parse_count;
+        unsigned int size_in_kb;
 
-        parse_count = sscanf (maps_line, "%16llx-%16llx %c%c%c%c %08llx %02x:%02x %lu %s", &start, &end, &r, &w, &e, &p, &offset, &dev_maj, &dev_min, &inode, path);
+        switch (state) {
+            case PARSE_HEADER:
+                parse_count = scan_header (maps_line, plugin);
 
-        if ( parse_count == 11) {
-            if (strncmp (plugin_dir, path, plugin_dir_len) == 0) {
-                char *plugin = path + plugin_dir_len;
-                llentry_t *entry = llist_search (mem_list, plugin);
-                if (entry == NULL) {
-                    char *plugin_cpy;
-                    plugin_cpy = strdup(plugin);
-                    if ( plugin_cpy == NULL) {
-                        ERROR ("plugin mem plugin: OOM");
-                        return (-1);
+                if (parse_count == 11) {
+                    if (strlen(plugin) > 0) {
+                        state = PARSE_PLUGINMEM;
+                    } else {
+                        state = PARSE_TOTALMEM;
+                    }
+                } else if (parse_count > 2) {
+                    state = PARSE_TOTALMEM;
+                }
+
+                break;
+            case PARSE_PLUGINMEM:
+                /* get resident mem usage (e.g. Rss) */
+                parse_count = scan_field (maps_line, "Rss", &size_in_kb);
+                if (parse_count == 1) {
+                    llentry_t *entry = llist_search (mem_list, plugin);
+                    if (entry == NULL) {
+                        char *plugin_cpy;
+                        plugin_cpy = strdup(plugin);
+                        if ( plugin_cpy == NULL) {
+                            ERROR ("plugin mem plugin: OOM");
+                            return (-1);
+                        }
+                        entry = llentry_create (plugin_cpy, (void *)0);
+                        llist_append (mem_list, entry);
+                        entry->value += size_in_kb * 1024;
                     }
 
-                    entry = llentry_create (plugin_cpy, (void *)0);
-                    llist_append (mem_list, entry);
+                    total_size += size_in_kb * 1024;
+                    /* if we need to parse more than one field then we need a
+                       complex trigger for switching back to parsing headers */
+                    state = PARSE_HEADER;
                 }
-                entry->value += end - start;
-            }
-        }
-
-        if (parse_count >= 2) {
-            total_size += end - start;
+                break;
+            case PARSE_TOTALMEM:
+                /* get resident mem usage (e.g. Rss) */
+                parse_count = scan_field (maps_line, "Rss", &size_in_kb);
+                if (parse_count == 1) {
+                    total_size += size_in_kb * 1024;
+                    /* if we need to parse more than one field then we need a
+                       complex trigger for switching back to parsing headers */
+                    state = PARSE_HEADER;
+                }
+                break;
         }
     }
 
