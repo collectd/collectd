@@ -39,6 +39,7 @@ void latency_counter_reset (latency_counter_t *lc);
 cdtime_t latency_counter_get_min (latency_counter_t *lc);
 cdtime_t latency_counter_get_max (latency_counter_t *lc);
 cdtime_t latency_counter_get_sum (latency_counter_t *lc);
+size_t   latency_counter_get_num (latency_counter_t *lc);
 cdtime_t latency_counter_get_average (latency_counter_t *lc);
 cdtime_t latency_counter_get_percentile (latency_counter_t *lc,
     double percent);

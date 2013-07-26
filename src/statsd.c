@@ -82,6 +82,7 @@ static size_t  conf_timer_percentile_num = 0;
 static _Bool conf_timer_lower     = 0;
 static _Bool conf_timer_upper     = 0;
 static _Bool conf_timer_sum       = 0;
+static _Bool conf_timer_count     = 0;
 
 /* Must hold metrics_lock when calling this function. */
 static statsd_metric_t *statsd_metric_lookup_unsafe (char const *name, /* {{{ */
@@ -635,6 +636,8 @@ static int statsd_config (oconfig_item_t *ci) /* {{{ */
       cf_util_get_boolean (child, &conf_timer_upper);
     else if (strcasecmp ("TimerSum", child->key) == 0)
       cf_util_get_boolean (child, &conf_timer_sum);
+    else if (strcasecmp ("TimerCount", child->key) == 0)
+      cf_util_get_boolean (child, &conf_timer_count);
     else if (strcasecmp ("TimerPercentile", child->key) == 0)
       statsd_config_timer_percentile (child);
     else
@@ -767,6 +770,16 @@ static int statsd_metric_submit_unsafe (char const *name, /* {{{ */
       values[0].gauge = CDTIME_T_TO_DOUBLE (
           latency_counter_get_percentile (
             metric->latency, conf_timer_percentile[i]));
+      plugin_dispatch_values (&vl);
+    }
+
+    /* Keep this at the end, since vl.type is set to "gauge" here. The
+     * vl.type's above are implicitly set to "latency". */
+    if (conf_timer_count) {
+      sstrncpy (vl.type, "gauge", sizeof (vl.type));
+      ssnprintf (vl.type_instance, sizeof (vl.type_instance),
+          "%s-count", name);
+      values[0].gauge = latency_counter_get_num (metric->latency);
       plugin_dispatch_values (&vl);
     }
 
