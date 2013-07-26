@@ -201,7 +201,7 @@ static int pm_read (void)
 
     fclose (pid_f);
 
-    sprintf(maps_path, "/proc/%d/maps", pid);
+    sprintf(maps_path, "/proc/%d/smaps", pid);
 
     if( (maps_f = fopen(maps_path, "r")) == NULL) {
         ERROR ("plugin mem plugin: maps file %s can not be opened", maps_path);
