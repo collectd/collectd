@@ -188,6 +188,7 @@ static int pm_read (void)
     llist_t *mem_list = llist_create();
     unsigned long long total_size = 0;
     parse_state_t state = PARSE_HEADER;
+    char plugin[PATH_MAX] = {0,};
 
     if( (pid_f = fopen(collectd_pid_file, "r")) == NULL) {
         ERROR ("plugin mem plugin: pid file %s can not be opened", collectd_pid_file);
@@ -209,12 +210,12 @@ static int pm_read (void)
     }
 
     while (fgets (maps_line, PATH_MAX, maps_f) != NULL) {
-        char plugin[PATH_MAX] = {0,};
         int parse_count;
         unsigned int size_in_kb;
 
         switch (state) {
             case PARSE_HEADER:
+                plugin[0] = '\0';
                 parse_count = scan_header (maps_line, plugin);
 
                 if (parse_count == 11) {
@@ -242,8 +243,8 @@ static int pm_read (void)
                         }
                         entry = llentry_create (plugin_cpy, (void *)0);
                         llist_append (mem_list, entry);
-                        entry->value += size_in_kb * 1024;
                     }
+                    entry->value += size_in_kb * 1024;
 
                     total_size += size_in_kb * 1024;
                     /* if we need to parse more than one field then we need a
