@@ -36,6 +36,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -63,6 +64,8 @@
 # endif
 #endif
 
+#define ERRBUF_SIZE 1024
+
 /* Secure/static macros. They work like `strcpy' and `strcat', but assure null
  * termination. They work for static buffers only, because they use `sizeof'.
  * The `SSTRCATF' combines the functionality of `snprintf' and `strcat' which
@@ -84,17 +87,29 @@
     _b[sizeof (_b) - 1] = 0; \
     SSTRCAT ((d), _b); \
   } while (0)
-    
-
-#define LCC_SET_ERRSTR(c, ...) do { \
-  snprintf ((c)->errbuf, sizeof ((c)->errbuf), __VA_ARGS__); \
-  (c)->errbuf[sizeof ((c)->errbuf) - 1] = 0; \
-} while (0)
 
 #if COLLECT_DEBUG
 # define LCC_DEBUG(...) printf (__VA_ARGS__)
 #else
 # define LCC_DEBUG(...) /**/
+#endif
+
+#ifdef HAVE_THREAD_TLS
+/*
+ *	GCC on most Linux systems
+ */
+#  define __THREAD __thread
+
+#elif defined(HAVE_DECLSPEC_THREAD)
+/*
+ *	Visual C++, Borland (microsoft)
+ */
+#  define __THREAD __declspec(thread)
+#  define HAVE_THREAD_TLS 1
+#endif
+
+#ifdef HAVE_THREAD_TLS
+static __THREAD char strerror_buf[ERRBUF_SIZE];
 #endif
 
 /*
@@ -103,7 +118,7 @@
 struct lcc_connection_s
 {
   FILE *fh;
-  char errbuf[1024];
+  char errbuf[ERRBUF_SIZE];
 };
 
 struct lcc_response_s
@@ -118,6 +133,20 @@ typedef struct lcc_response_s lcc_response_t;
 /*
  * Private functions
  */
+static void lcc_set_errstr (lcc_connection_t *c, char *fmt, ...)
+{
+  va_list va;
+  va_start(va, fmt);
+
+  vsnprintf(c->errbuf, sizeof (c->errbuf), fmt, va);
+  c->errbuf[sizeof ((c->errbuf) - 1)] = '\0';
+
+#ifdef HAVE_THREAD_TLS
+  strcpy(strerror_buf, c->errbuf);
+#endif
+
+  va_end(va);
+}
 /* Even though Posix requires "strerror_r" to return an "int",
  * some systems (e.g. the GNU libc) return a "char *" _and_
  * ignore the second argument ... -tokkee */
@@ -457,7 +486,7 @@ static int lcc_open_netsocket (lcc_connection_t *c, /* {{{ */
     port = strchr (addr, ']');
     if (port == NULL)
     {
-      LCC_SET_ERRSTR (c, "malformed address: %s", addr_orig);
+      lcc_set_errstr (c, "malformed address: %s", addr_orig);
       return (-1);
     }
     *port = 0;
@@ -469,7 +498,7 @@ static int lcc_open_netsocket (lcc_connection_t *c, /* {{{ */
       port = NULL;
     else
     {
-      LCC_SET_ERRSTR (c, "garbage after address: %s", port);
+      lcc_set_errstr (c, "garbage after address: %s", port);
       return (-1);
     }
   } /* if (*addr = ']') */
@@ -489,7 +518,7 @@ static int lcc_open_netsocket (lcc_connection_t *c, /* {{{ */
                         &ai_hints, &ai_res);
   if (status != 0)
   {
-    LCC_SET_ERRSTR (c, "getaddrinfo: %s", gai_strerror (status));
+    lcc_set_errstr (c, "getaddrinfo: %s", gai_strerror (status));
     return (-1);
   }
 
@@ -655,7 +684,7 @@ int lcc_getval (lcc_connection_t *c, lcc_identifier_t *ident, /* {{{ */
 
   if (res.status != 0)
   {
-    LCC_SET_ERRSTR (c, "Server error: %s", res.message);
+    lcc_set_errstr (c, "Server error: %s", res.message);
     lcc_response_free (&res);
     return (-1);
   }
@@ -799,7 +828,7 @@ int lcc_putval (lcc_connection_t *c, const lcc_value_list_t *vl) /* {{{ */
 
   if (res.status != 0)
   {
-    LCC_SET_ERRSTR (c, "Server error: %s", res.message);
+    lcc_set_errstr (c, "Server error: %s", res.message);
     lcc_response_free (&res);
     return (-1);
   }
@@ -852,7 +881,7 @@ int lcc_flush (lcc_connection_t *c, const char *plugin, /* {{{ */
 
   if (res.status != 0)
   {
-    LCC_SET_ERRSTR (c, "Server error: %s", res.message);
+    lcc_set_errstr (c, "Server error: %s", res.message);
     lcc_response_free (&res);
     return (-1);
   }
@@ -888,7 +917,7 @@ int lcc_listval (lcc_connection_t *c, /* {{{ */
 
   if (res.status != 0)
   {
-    LCC_SET_ERRSTR (c, "Server error: %s", res.message);
+    lcc_set_errstr (c, "Server error: %s", res.message);
     lcc_response_free (&res);
     return (-1);
   }
@@ -949,7 +978,12 @@ int lcc_listval (lcc_connection_t *c, /* {{{ */
 const char *lcc_strerror (lcc_connection_t *c) /* {{{ */
 {
   if (c == NULL)
-    return ("Invalid object");
+#ifdef HAVE_THREAD_TLS
+    return strerror_buf;
+#else
+    return "__thread support required for library errors";
+#endif
+
   return (c->errbuf);
 } /* }}} const char *lcc_strerror */
 
@@ -1018,7 +1052,7 @@ int lcc_string_to_identifier (lcc_connection_t *c, /* {{{ */
   plugin = strchr (host, '/');
   if (plugin == NULL)
   {
-    LCC_SET_ERRSTR (c, "Malformed identifier string: %s", string);
+    lcc_set_errstr (c, "Malformed identifier string: %s", string);
     free (string_copy);
     return (-1);
   }
@@ -1028,7 +1062,7 @@ int lcc_string_to_identifier (lcc_connection_t *c, /* {{{ */
   type = strchr (plugin, '/');
   if (type == NULL)
   {
-    LCC_SET_ERRSTR (c, "Malformed identifier string: %s", string);
+    lcc_set_errstr (c, "Malformed identifier string: %s", string);
     free (string_copy);
     return (-1);
   }
