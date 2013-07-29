@@ -200,16 +200,66 @@ static void sigrok_feed_callback(const struct sr_dev_inst *sdi,
 
 }
 
+static int sigrok_init_driver(struct config_device *cfdev,
+		struct sr_dev_driver *drv)
+{
+	struct sr_config *src;
+	GSList *devlist, *drvopts;
+	char hwident[512];
+
+	if (sr_driver_init(sr_ctx, drv) != SR_OK)
+		/* Error was logged by libsigrok. */
+		return -1;
+
+	drvopts = NULL;
+	if (cfdev->conn) {
+		if (!(src = malloc(sizeof(struct sr_config))))
+			return -1;
+		src->key = SR_CONF_CONN;
+		src->data = g_variant_new_string(cfdev->conn);
+		drvopts = g_slist_append(drvopts, src);
+	}
+	if (cfdev->serialcomm) {
+		if (!(src = malloc(sizeof(struct sr_config))))
+			return -1;
+		src->key = SR_CONF_SERIALCOMM;
+		src->data = g_variant_new_string(cfdev->serialcomm);
+		drvopts = g_slist_append(drvopts, src);
+	}
+	devlist = sr_driver_scan(drv, drvopts);
+	g_slist_free_full(drvopts, (GDestroyNotify)free_drvopts);
+	if (!devlist)
+		/* No devices found for this driver, not an error. */
+		return 0;
+
+	if (g_slist_length(devlist) > 1) {
+		INFO("sigrok: %d sigrok devices for device entry '%s': must be 1.",
+				g_slist_length(devlist), cfdev->name);
+		return -1;
+	}
+	cfdev->sdi = devlist->data;
+	g_slist_free(devlist);
+	ssnprintf(hwident, sizeof(hwident), "%s %s %s",
+			cfdev->sdi->vendor ? cfdev->sdi->vendor : "",
+			cfdev->sdi->model ? cfdev->sdi->model : "",
+			cfdev->sdi->version ? cfdev->sdi->version : "");
+	INFO("sigrok: Device '%s' is a %s", cfdev->name, hwident);
+
+	if (sr_dev_open(cfdev->sdi) != SR_OK)
+		return -1;
+
+	if (sr_session_dev_add(cfdev->sdi) != SR_OK)
+		return -1;
+
+	return 1;
+}
+
 static void *thread_init(void *arg __attribute__((unused)))
 {
 	struct sr_dev_driver *drv, **drvlist;
-	struct sr_config *src;
-	GSList *devlist, *drvopts, *l;
+	GSList *l;
 	struct config_device *cfdev;
 	int ret, i;
-	char hwident[512];
-
-	(void)arg;
 
 	sr_log_callback_set(cd_logger, NULL);
 	sr_log_loglevel_set(loglevel);
@@ -238,50 +288,11 @@ static void *thread_init(void *arg __attribute__((unused)))
 			return NULL;
 		}
 
-		if (sr_driver_init(sr_ctx, drv) != SR_OK)
+		if ((ret = sigrok_init_driver(cfdev, drv)) < 0)
+			/* Error was already logged. */
 			return NULL;
 
-		drvopts = NULL;
-		if (cfdev->conn) {
-			if (!(src = malloc(sizeof(struct sr_config))))
-				return NULL;
-			src->key = SR_CONF_CONN;
-			src->data = g_variant_new_string(cfdev->conn);
-			drvopts = g_slist_append(drvopts, src);
-		}
-		if (cfdev->serialcomm) {
-			if (!(src = malloc(sizeof(struct sr_config))))
-				return NULL;
-			src->key = SR_CONF_SERIALCOMM;
-			src->data = g_variant_new_string(cfdev->serialcomm);
-			drvopts = g_slist_append(drvopts, src);
-		}
-		devlist = sr_driver_scan(drv, drvopts);
-		g_slist_free_full(drvopts, (GDestroyNotify)free_drvopts);
-		if (!devlist)
-			/* No devices found for this driver. */
-			continue;
-
-		if (g_slist_length(devlist) > 1) {
-			INFO("sigrok: %d sigrok devices for device entry '%s': must be 1.",
-					g_slist_length(devlist), cfdev->name);
-			return NULL;
-		}
-		cfdev->sdi = devlist->data;
-		g_slist_free(devlist);
-		ssnprintf(hwident, sizeof(hwident), "%s %s %s",
-				cfdev->sdi->vendor ? cfdev->sdi->vendor : "",
-				cfdev->sdi->model ? cfdev->sdi->model : "",
-				cfdev->sdi->version ? cfdev->sdi->version : "");
-		INFO("sigrok: Device '%s' is a %s.", cfdev->name, hwident);
-
-		if (sr_dev_open(cfdev->sdi) != SR_OK)
-			return NULL;
-
-		if (sr_session_dev_add(cfdev->sdi) != SR_OK)
-			return NULL;
-
-		num_devices++;
+		num_devices += ret;
 	}
 
 	if (num_devices > 0) {
