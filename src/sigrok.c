@@ -36,7 +36,6 @@
 static pthread_t sr_thread;
 static int sr_thread_running = FALSE;
 GSList *config_devices;
-static struct sr_session *session = NULL;
 static int num_devices;
 static int loglevel = SR_LOG_WARN;
 static struct sr_context *sr_ctx;
@@ -52,8 +51,8 @@ struct config_device {
 };
 
 
-static int cd_logger(void *cb_data, int msg_loglevel, const char *format,
-		va_list args)
+static int sigrok_log_callback(void*cb_data __attribute__((unused)),
+		int msg_loglevel, const char *format, va_list args)
 {
 	char s[512];
 
@@ -75,8 +74,9 @@ static int sigrok_config_device(oconfig_item_t *ci)
 		ERROR("malloc() failed.");
 		return 1;
 	}
-	memset(cfdev, 0, sizeof(struct config_device));
+	memset(cfdev, 0, sizeof(*cfdev));
 	if (cf_util_get_string(ci, &cfdev->name)) {
+		free(cfdev);
 		WARNING("Invalid device name.");
 		return 1;
 	}
@@ -85,6 +85,7 @@ static int sigrok_config_device(oconfig_item_t *ci)
 	for (i = 0; i < ci->children_num; i++) {
 		item = ci->children + i;
 		if (item->values_num != 1) {
+			free(cfdev);
 			WARNING("Missing value for '%s'.", item->key);
 			return 1;
 		}
@@ -139,15 +140,8 @@ static void sigrok_feed_callback(const struct sr_dev_inst *sdi,
 	const struct sr_datafeed_analog *analog;
 	struct config_device *cfdev;
 	GSList *l;
-	value_t *values;
+	value_t value;
 	value_list_t vl = VALUE_LIST_INIT;
-	int num_probes, s, p;
-
-	if (packet->type == SR_DF_END) {
-		/* TODO: try to restart acquisition after a delay? */
-		INFO("oops! ended");
-		return;
-	}
 
 	/* Find this device's configuration. */
 	cfdev = NULL;
@@ -164,32 +158,31 @@ static void sigrok_feed_callback(const struct sr_dev_inst *sdi,
 		return;
 	}
 
-	if (packet->type == SR_DF_ANALOG) {
-		if (cdtime() - cfdev->last_dispatch < cfdev->min_dispatch_interval)
-			return;
-
-		analog = packet->payload;
-		num_probes = g_slist_length(analog->probes);
-		if (!(values = malloc(sizeof(value_t) * num_probes))) {
-			ERROR("malloc() failed.");
-			return;
-		}
-		for (s = 0; s < analog->num_samples; s++) {
-			for (p = 0; p < num_probes; p++) {
-				values[s + p].gauge = analog->data[s + p];
-			}
-		}
-		vl.values = values;
-		vl.values_len = num_probes;
-		sstrncpy(vl.host, hostname_g, sizeof(vl.host));
-		sstrncpy(vl.plugin, "sigrok", sizeof(vl.plugin));
-		ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance),
-				"%s", cfdev->name);
-		sstrncpy(vl.type, "gauge", sizeof(vl.type));
-		plugin_dispatch_values(&vl);
-
-		cfdev->last_dispatch = cdtime();
+	if (packet->type == SR_DF_END) {
+		/* TODO: try to restart acquisition after a delay? */
+		INFO("sigrok: acquisition for '%s' ended.", cfdev->name);
+		return;
 	}
+
+	if (packet->type != SR_DF_ANALOG)
+		return;
+
+	if (cdtime() - cfdev->last_dispatch < cfdev->min_dispatch_interval)
+		return;
+
+	/* Ignore all but the first sample on the first probe. */
+	analog = packet->payload;
+	value.gauge = analog->data[0];
+	vl.values = &value;
+	vl.values_len = 1;
+	sstrncpy(vl.host, hostname_g, sizeof(vl.host));
+	sstrncpy(vl.plugin, "sigrok", sizeof(vl.plugin));
+	ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance),
+			"%s", cfdev->name);
+	sstrncpy(vl.type, "gauge", sizeof(vl.type));
+	plugin_dispatch_values(&vl);
+
+	cfdev->last_dispatch = cdtime();
 
 }
 
@@ -254,7 +247,7 @@ static void *thread_init(void *arg __attribute__((unused)))
 	struct config_device *cfdev;
 	int ret, i;
 
-	sr_log_callback_set(cd_logger, NULL);
+	sr_log_callback_set(sigrok_log_callback, NULL);
 	sr_log_loglevel_set(loglevel);
 
 	if ((ret = sr_init(&sr_ctx)) != SR_OK) {
@@ -262,7 +255,7 @@ static void *thread_init(void *arg __attribute__((unused)))
 		return NULL;
 	}
 
-	if (!(session = sr_session_new()))
+	if (!sr_session_new())
 		return NULL;
 
 	num_devices = 0;
