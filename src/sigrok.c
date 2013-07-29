@@ -69,39 +69,35 @@ static int sigrok_config_device(oconfig_item_t *ci)
 {
 	oconfig_item_t *item;
 	struct config_device *cfdev;
-	int ret, i;
-
-	if (ci->values_num != 1 || ci->values[0].type != OCONFIG_TYPE_STRING) {
-		ERROR("Invalid device name.");
-		return 1;
-	}
+	int i;
 
 	if (!(cfdev = malloc(sizeof(struct config_device)))) {
 		ERROR("malloc() failed.");
 		return 1;
 	}
 	memset(cfdev, 0, sizeof(struct config_device));
-	cf_util_get_string(ci, &cfdev->name);
+	if (cf_util_get_string(ci, &cfdev->name)) {
+		WARNING("Invalid device name.");
+		return 1;
+	}
 	cfdev->min_dispatch_interval = DEFAULT_MIN_DISPATCH_INTERVAL;
 
 	for (i = 0; i < ci->children_num; i++) {
 		item = ci->children + i;
 		if (item->values_num != 1) {
-			ERROR("Missing value for '%s'.", item->key);
+			WARNING("Missing value for '%s'.", item->key);
 			return 1;
 		}
 		if (!strcasecmp(item->key, "driver"))
-			ret = cf_util_get_string(item, &cfdev->driver);
+			cf_util_get_string(item, &cfdev->driver);
 		else if (!strcasecmp(item->key, "conn"))
-			ret = cf_util_get_string(item, &cfdev->conn);
+			cf_util_get_string(item, &cfdev->conn);
 		else if (!strcasecmp(item->key, "serialcomm"))
-			ret = cf_util_get_string(item, &cfdev->serialcomm);
+			cf_util_get_string(item, &cfdev->serialcomm);
 		else if (!strcasecmp(item->key, "interval"))
-			ret = cf_util_get_cdtime(item, &cfdev->min_dispatch_interval);
-		if (ret) {
-			ERROR("Invalid keyword '%s'.", item->key);
-			return 1;
-		}
+			cf_util_get_cdtime(item, &cfdev->min_dispatch_interval);
+		else
+			WARNING("Invalid keyword '%s'.", item->key);
 	}
 
 	config_devices = g_slist_append(config_devices, cfdev);
@@ -119,16 +115,13 @@ static int sigrok_config(oconfig_item_t *ci)
 		if (!strcasecmp(item->key, "loglevel")) {
 			if (cf_util_get_int(item, &tmp) || tmp < 0 || tmp > 5) {
 				ERROR("Invalid loglevel");
-				return 1;
+				continue;
 			}
 			loglevel = tmp;
-		} else if (!strcasecmp(item->key, "Device")) {
-			if (sigrok_config_device(item) != 0)
-				return 1;
-		} else {
-			ERROR("Invalid keyword '%s'.", item->key);
-			return 1;
-		}
+		} else if (!strcasecmp(item->key, "Device"))
+			sigrok_config_device(item);
+		else
+			WARNING("Invalid keyword '%s'.", item->key);
 	}
 
 	return 0;
