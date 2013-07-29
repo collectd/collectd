@@ -200,7 +200,7 @@ static void sigrok_feed_callback(const struct sr_dev_inst *sdi,
 
 }
 
-static void *thread_init(void *arg)
+static void *thread_init(void *arg __attribute__((unused)))
 {
 	struct sr_dev_driver *drv, **drvlist;
 	struct sr_config *src;
