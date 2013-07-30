@@ -57,8 +57,6 @@ struct mongo_db_s /* {{{ */
     char *user;
     char *password;
     mongo connection;
-
-    _Bool read_from_secondary;
 };
 
 typedef struct mongo_db_s mongo_db_t; /* }}} */
@@ -78,6 +76,7 @@ struct mongo_config_s /* {{{ */
     _Bool run_dbstats;
     _Bool auto_discover;
 
+    _Bool allow_secondary_query;
     char *secondary_query_host;
 
     llist_t *db_llist;
@@ -461,13 +460,17 @@ static int mc_db_stats_read_cb (user_data_t *ud) /* {{{ */
     bson b;
     int status;
     mongo_db_t *db = (mongo_db_t *) ud->data;
+    const char *host = mc->host;
+
+    if (mc->allow_secondary_query && mc->secondary_query_host != NULL)
+        host = mc->secondary_query_host;
 
     if (mc_connect(&(db->connection),
-                        mc->host,
-                        mc->port,
-                        (db->user != NULL) ? db->user : mc->user,
-                        (db->password != NULL) ? db->password : mc->password,
-                        NULL) != 0) {
+                   host,
+                   mc->port,
+                   (db->user != NULL) ? db->user : mc->user,
+                   (db->password != NULL) ? db->password : mc->password,
+                   NULL) != 0) {
         return (-1);
     }
 
@@ -515,6 +518,7 @@ static void free_db_userdata(void *data) {
     sfree (db->user);
     sfree (db->password);
     mongo_destroy (&(db->connection));
+    free (db);
 }
 
 static int setup_dbs(void) /* {{{ */
@@ -601,6 +605,37 @@ oom:
 }
 /* }}} setup_dbs */
 
+static void mc_config_secondary (bson *is_master) /* {{{ */
+{
+    bson_iterator it;
+    bson_iterator hosts_it;
+    const char *primary;
+    mc->secondary_query_host = NULL;
+
+
+    if (bson_find (&it, is_master, "primary")) {
+        primary = bson_iterator_string (&it);
+    } else {
+        WARNING("mongodb plugin: failed to find the primary db from call to isMaster");
+        return;
+    }
+
+    /* grab the first address that is not the primary */
+    if (bson_find (&it, is_master, "hosts")) {
+       bson_iterator_subiterator (&it, &hosts_it);
+       while (bson_iterator_next (&hosts_it)) {
+           const char *host;
+           host = bson_iterator_string (&hosts_it);
+           if (strcmp (host, primary) != 0) {
+               mc_config_set (&mc->secondary_query_host, host);
+               break;
+           }
+       }
+    } else {
+        WARNING("mongodb plugin: failed to find list of hosts from call to isMaster");
+    }
+} /* }}} int mc_config_secondary */
+
 static int mc_setup_read(void) /* {{{ */
 {
     bson is_master_out;
@@ -619,7 +654,11 @@ static int mc_setup_read(void) /* {{{ */
         mc_config_set(&(mc->set_name), bson_iterator_string( &it ));
     mc->connection.max_bson_size = max_bson_size;
 
-    bson_destroy( &is_master_out );
+    if (mc->allow_secondary_query) {
+        mc_config_secondary (&is_master_out);
+    }
+
+    bson_destroy (&is_master_out);
 
     /* Only the primary node sends back stats for now
      * though it may query a secondary node for queries that are
@@ -682,10 +721,15 @@ static int mc_config (const char *key, const char *value) /* {{{ */
             return (-1);
         }
     }
-    else if(strcasecmp("User", key) == 0)
+    else if (strcasecmp("User", key) == 0)
         mc_config_set(&mc->user, value);
-    else if(strcasecmp("Password", key) == 0)
+    else if (strcasecmp("Password", key) == 0)
         mc_config_set(&mc->password, value);
+    else if (strcasecmp("AllowSecondaryQuery", key) == 0)
+        if (strcasecmp("true", value) == 0 || strcasecmp("1", value) == 0)
+            mc->allow_secondary_query = 1;
+        else
+            mc->allow_secondary_query = 0;
     else
     {
         ERROR ("mongodb plugin: Unknown config option: %s", key);
@@ -702,6 +746,7 @@ static int mc_shutdown(void) /* {{{ */
     sfree (mc->user);
     sfree (mc->password);
     sfree (mc->host);
+    sfree (mc->secondary_query_host);
 
     llist_destroy(mc->db_llist);
 
