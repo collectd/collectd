@@ -45,6 +45,8 @@ static const char *config_keys[] = {
     "HostnameFormat",
     "InterfaceFormat",
 
+    "PluginInstanceFormat",
+
     NULL
 };
 #define NR_CONFIG_KEYS ((sizeof config_keys / sizeof config_keys[0]) - 1)
@@ -113,6 +115,18 @@ enum hf_field {
 static enum hf_field hostname_format[HF_MAX_FIELDS] =
     { hf_name };
 
+/* PluginInstanceFormat */
+#define PLGINST_MAX_FIELDS 2
+
+enum plginst_field {
+    plginst_none = 0,
+    plginst_name,
+    plginst_uuid
+};
+
+static enum plginst_field plugin_instance_format[PLGINST_MAX_FIELDS] =
+    { plginst_name };
+
 /* InterfaceFormat. */
 enum if_field {
     if_address,
@@ -175,6 +189,35 @@ init_value_list (value_list_t *vl, virDomainPtr dom)
     }
 
     vl->host[sizeof (vl->host) - 1] = '\0';
+
+    /* Construct the plugin instance field according to PluginInstanceFormat. */
+    for (i = 0; i < PLGINST_MAX_FIELDS; ++i) {
+        if (plugin_instance_format[i] == plginst_none)
+            continue;
+
+        n = DATA_MAX_NAME_LEN - strlen (vl->plugin_instance) - 2;
+
+        if (i > 0 && n >= 1) {
+            strncat (vl->plugin_instance, ":", 1);
+            n--;
+        }
+
+        switch (plugin_instance_format[i]) {
+        case plginst_none: break;
+        case plginst_name:
+            name = virDomainGetName (dom);
+            if (name)
+                strncat (vl->plugin_instance, name, n);
+            break;
+        case plginst_uuid:
+            if (virDomainGetUUIDString (dom, uuid) == 0)
+                strncat (vl->plugin_instance, uuid, n);
+            break;
+        }
+    }
+
+    vl->plugin_instance[sizeof (vl->plugin_instance) - 1] = '\0';
+
 } /* void init_value_list */
 
 static void
@@ -358,6 +401,43 @@ lv_config (const char *key, const char *value)
 
         for (i = n; i < HF_MAX_FIELDS; ++i)
             hostname_format[i] = hf_none;
+
+        return 0;
+    }
+
+    if (strcasecmp (key, "PluginInstanceFormat") == 0) {
+        char *value_copy;
+        char *fields[PLGINST_MAX_FIELDS];
+        int i, n;
+
+        value_copy = strdup (value);
+        if (value_copy == NULL) {
+            ERROR ("libvirt plugin: strdup failed.");
+            return -1;
+        }
+
+        n = strsplit (value_copy, fields, PLGINST_MAX_FIELDS);
+        if (n < 1) {
+            sfree (value_copy);
+            ERROR ("PluginInstanceFormat: no fields");
+            return -1;
+        }
+
+        for (i = 0; i < n; ++i) {
+            if (strcasecmp (fields[i], "name") == 0)
+                plugin_instance_format[i] = plginst_name;
+            else if (strcasecmp (fields[i], "uuid") == 0)
+                plugin_instance_format[i] = plginst_uuid;
+            else {
+                sfree (value_copy);
+                ERROR ("unknown HostnameFormat field: %s", fields[i]);
+                return -1;
+            }
+        }
+        sfree (value_copy);
+
+        for (i = n; i < PLGINST_MAX_FIELDS; ++i)
+            plugin_instance_format[i] = plginst_none;
 
         return 0;
     }
