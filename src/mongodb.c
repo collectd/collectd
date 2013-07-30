@@ -90,7 +90,8 @@ static const char *config_keys[] = {
     "Password",
     "Database",
     "Host",
-    "Port"
+    "Port",
+    "AllowSecondaryQuery"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
