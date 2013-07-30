@@ -328,7 +328,7 @@ static int handle_lock (bson_iterator *iter) /* {{{ */
      * milliseconds (ms). */
     value = value / 1000;
 
-    submit_derive ("global_lock", "held", value);
+    submit_derive ("total_time_in_ms", "global_lock_held", value);
     return (0);
 } /* }}} int handle_lock */
 
@@ -436,20 +436,20 @@ static int handle_dbstats (mongo_db_t *db, const bson *obj) /* {{{ */
 
         /* counts */
         if (strcmp ("collections", key) == 0)
-            submit_gauge ("collections", "count", value, db);
+            submit_gauge ("gauge", "collections", value, db);
         else if (strcmp ("objects", key) == 0)
-            submit_gauge ("objects", "count", value, db);
+            submit_gauge ("guage", "objects", value, db);
         else if (strcmp ("numExtents", key) == 0)
-            submit_gauge ("num_extents", "count", value, db);
+            submit_gauge ("gauge", "num_extents", value, db);
         else if (strcmp ("indexes", key) == 0)
-            submit_gauge ("indexes", "count", value, db);
+            submit_gauge ("guage", "indexes", value, db);
         /* sizes */
         else if (strcmp ("dataSize", key) == 0)
-            submit_gauge ("data", "bytes", value, db);
+            submit_gauge ("bytes", "data", value, db);
         else if (strcmp ("storageSize", key) == 0)
-            submit_gauge ("storage", "bytes", value, db);
+            submit_gauge ("bytes", "storage", value, db);
         else if (strcmp ("indexSize", key) == 0)
-            submit_gauge ("index", "bytes", value, db);
+            submit_gauge ("bytes", "index", value, db);
     }
 
     return (0);
