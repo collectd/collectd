@@ -439,11 +439,11 @@ static int handle_dbstats (mongo_db_t *db, const bson *obj) /* {{{ */
         if (strcmp ("collections", key) == 0)
             submit_gauge ("gauge", "collections", value, db);
         else if (strcmp ("objects", key) == 0)
-            submit_gauge ("guage", "objects", value, db);
+            submit_gauge ("gauge", "objects", value, db);
         else if (strcmp ("numExtents", key) == 0)
             submit_gauge ("gauge", "num_extents", value, db);
         else if (strcmp ("indexes", key) == 0)
-            submit_gauge ("guage", "indexes", value, db);
+            submit_gauge ("gauge", "indexes", value, db);
         /* sizes */
         else if (strcmp ("dataSize", key) == 0)
             submit_gauge ("bytes", "data", value, db);
