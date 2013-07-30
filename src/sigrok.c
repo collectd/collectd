@@ -66,28 +66,27 @@ static int sigrok_log_callback(void*cb_data __attribute__((unused)),
 
 static int sigrok_config_device(oconfig_item_t *ci)
 {
-	oconfig_item_t *item;
 	struct config_device *cfdev;
 	int i;
 
 	if (!(cfdev = malloc(sizeof(struct config_device)))) {
 		ERROR("malloc() failed.");
-		return 1;
+		return -1;
 	}
 	memset(cfdev, 0, sizeof(*cfdev));
 	if (cf_util_get_string(ci, &cfdev->name)) {
 		free(cfdev);
 		WARNING("Invalid device name.");
-		return 1;
+		return -1;
 	}
 	cfdev->min_dispatch_interval = DEFAULT_MIN_DISPATCH_INTERVAL;
 
 	for (i = 0; i < ci->children_num; i++) {
-		item = ci->children + i;
+		oconfig_item_t *item = ci->children + i;
 		if (item->values_num != 1) {
 			free(cfdev);
 			WARNING("Missing value for '%s'.", item->key);
-			return 1;
+			return -1;
 		}
 		if (!strcasecmp(item->key, "driver"))
 			cf_util_get_string(item, &cfdev->driver);
@@ -108,11 +107,10 @@ static int sigrok_config_device(oconfig_item_t *ci)
 
 static int sigrok_config(oconfig_item_t *ci)
 {
-	oconfig_item_t *item;
 	int tmp, i;
 
 	for (i = 0; i < ci->children_num; i++) {
-		item = ci->children + i;
+		oconfig_item_t *item = ci->children + i;
 		if (!strcasecmp(item->key, "loglevel")) {
 			if (cf_util_get_int(item, &tmp) || tmp < 0 || tmp > 5) {
 				ERROR("Invalid loglevel");
@@ -126,12 +124,6 @@ static int sigrok_config(oconfig_item_t *ci)
 	}
 
 	return 0;
-}
-
-static void free_drvopts(struct sr_config *src)
-{
-	g_variant_unref(src->data);
-	g_free(src);
 }
 
 static void sigrok_feed_callback(const struct sr_dev_inst *sdi,
@@ -160,7 +152,7 @@ static void sigrok_feed_callback(const struct sr_dev_inst *sdi,
 
 	if (packet->type == SR_DF_END) {
 		/* TODO: try to restart acquisition after a delay? */
-		INFO("sigrok: acquisition for '%s' ended.", cfdev->name);
+		WARNING("sigrok: acquisition for '%s' ended.", cfdev->name);
 		return;
 	}
 
@@ -184,6 +176,12 @@ static void sigrok_feed_callback(const struct sr_dev_inst *sdi,
 
 	cfdev->last_dispatch = cdtime();
 
+}
+
+static void free_drvopts(struct sr_config *src)
+{
+	g_variant_unref(src->data);
+	g_free(src);
 }
 
 static int sigrok_init_driver(struct config_device *cfdev,
@@ -214,9 +212,11 @@ static int sigrok_init_driver(struct config_device *cfdev,
 	}
 	devlist = sr_driver_scan(drv, drvopts);
 	g_slist_free_full(drvopts, (GDestroyNotify)free_drvopts);
-	if (!devlist)
-		/* No devices found for this driver, not an error. */
+	if (!devlist) {
+		/* Not an error, but the user should know about it. */
+		WARNING("No device found for '%s'.", cfdev->name);
 		return 0;
+	}
 
 	if (g_slist_length(devlist) > 1) {
 		INFO("sigrok: %d sigrok devices for device entry '%s': must be 1.",
@@ -240,7 +240,7 @@ static int sigrok_init_driver(struct config_device *cfdev,
 	return 1;
 }
 
-static void *thread_init(void *arg __attribute__((unused)))
+static void *sigrok_read_thread(void *arg __attribute__((unused)))
 {
 	struct sr_dev_driver *drv, **drvlist;
 	GSList *l;
@@ -316,7 +316,8 @@ static int sigrok_init(void)
 		return -1;
 	}
 
-	if ((status = plugin_thread_create(&sr_thread, NULL, thread_init, NULL)) != 0) {
+	if ((status = plugin_thread_create(&sr_thread, NULL, sigrok_read_thread,
+			NULL)) != 0) {
 		ERROR("sigrok: Failed to create thread: %s.", strerror(status));
 		return -1;
 	}
