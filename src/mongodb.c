@@ -78,6 +78,7 @@ struct mongo_config_s /* {{{ */
 
     _Bool allow_secondary_query;
     char *secondary_query_host;
+    int   secondary_query_port;
 
     llist_t *db_llist;
 };
@@ -462,13 +463,16 @@ static int mc_db_stats_read_cb (user_data_t *ud) /* {{{ */
     int status;
     mongo_db_t *db = (mongo_db_t *) ud->data;
     const char *host = mc->host;
+    int port = mc->port;
 
-    if (mc->allow_secondary_query && mc->secondary_query_host != NULL)
+    if (mc->allow_secondary_query && mc->secondary_query_host != NULL) {
         host = mc->secondary_query_host;
+        port = mc->secondary_query_port;
+    }
 
     if (mc_connect(&(db->connection),
                    host,
-                   mc->port,
+                   port,
                    (db->user != NULL) ? db->user : mc->user,
                    (db->password != NULL) ? db->password : mc->password,
                    NULL) != 0) {
@@ -606,6 +610,23 @@ oom:
 }
 /* }}} setup_dbs */
 
+static void mc_split_host_port (const char *full_host, char **host_in, int *port_in) /* {{{ */
+{
+    char *delimit_c;
+    delimit_c = strrchr(full_host, ':');
+    if (delimit_c == NULL) {
+        /* this is ulikely but use a default port if no port is given */
+        *port_in = 27017;
+        *host_in = strdup (full_host);
+    } else {
+        /* grab the port from the right side of the delimiter */
+        sscanf (delimit_c, ":%d", port_in);
+
+        /* dup the string up to the delimit pointer */
+        *host_in = strndup (full_host, (size_t)(delimit_c - full_host));
+    }
+} /* }}} void mc_split_host_port */
+
 static void mc_config_secondary (bson *is_master) /* {{{ */
 {
     bson_iterator it;
@@ -628,14 +649,14 @@ static void mc_config_secondary (bson *is_master) /* {{{ */
            const char *host;
            host = bson_iterator_string (&hosts_it);
            if (strcmp (host, primary) != 0) {
-               mc_config_set (&mc->secondary_query_host, host);
+               mc_split_host_port (host, &mc->secondary_query_host, &mc->secondary_query_port);
                break;
            }
        }
     } else {
         WARNING("mongodb plugin: failed to find list of hosts from call to isMaster");
     }
-} /* }}} int mc_config_secondary */
+} /* }}} void mc_config_secondary */
 
 static int mc_setup_read(void) /* {{{ */
 {
