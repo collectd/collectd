@@ -126,6 +126,28 @@ static int sigrok_config(oconfig_item_t *ci)
 	return 0;
 }
 
+static char *sigrok_value_type(const struct sr_datafeed_analog *analog)
+{
+	char *s;
+
+	if (analog->mq == SR_MQ_VOLTAGE)
+		s = "voltage";
+	else if (analog->mq == SR_MQ_CURRENT)
+		s = "current";
+	else if (analog->mq == SR_MQ_FREQUENCY)
+		s = "frequency";
+	else if (analog->mq == SR_MQ_POWER)
+		s = "power";
+	else if (analog->mq == SR_MQ_TEMPERATURE)
+		s = "temperature";
+	else if (analog->mq == SR_MQ_RELATIVE_HUMIDITY)
+		s = "humidity";
+	else
+		s = "gauge";
+
+	return s;
+}
+
 static void sigrok_feed_callback(const struct sr_dev_inst *sdi,
 		const struct sr_datafeed_packet *packet, void *cb_data)
 {
@@ -171,7 +193,7 @@ static void sigrok_feed_callback(const struct sr_dev_inst *sdi,
 	sstrncpy(vl.plugin, "sigrok", sizeof(vl.plugin));
 	ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance),
 			"%s", cfdev->name);
-	sstrncpy(vl.type, "gauge", sizeof(vl.type));
+	sstrncpy(vl.type, sigrok_value_type(analog), sizeof(vl.type));
 	plugin_dispatch_values(&vl);
 
 	cfdev->last_dispatch = cdtime();
