@@ -160,10 +160,11 @@ signal_quality		value:GAUGE:0:U
 snr			value:GAUGE:0:U
 spam_check		value:GAUGE:0:U
 spam_score		value:GAUGE:U:U
+spl			value:GAUGE:U:U
 swap_io			value:DERIVE:0:U
 swap			value:GAUGE:0:1099511627776
 tcp_connections		value:GAUGE:0:4294967295
-temperature		value:GAUGE:-273.15:U
+temperature		value:GAUGE:U:U
 threads			value:GAUGE:0:U
 time_dispersion		value:GAUGE:-1000000:1000000
 timeleft		value:GAUGE:0:U

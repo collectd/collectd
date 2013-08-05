@@ -1052,6 +1052,16 @@ collectd_LDADD += "-dlopen" serial.la
 collectd_DEPENDENCIES += serial.la
 endif
 
+if BUILD_PLUGIN_SIGROK
+pkglib_LTLIBRARIES += sigrok.la
+sigrok_la_SOURCES = sigrok.c
+sigrok_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBSIGROK_CFLAGS)
+sigrok_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBSIGROK_LDFLAGS)
+sigrok_la_LIBADD = -lsigrok
+collectd_LDADD += "-dlopen" sigrok.la
+collectd_DEPENDENCIES += sigrok.la
+endif
+
 if BUILD_PLUGIN_SNMP
 pkglib_LTLIBRARIES += snmp.la
 snmp_la_SOURCES = snmp.c

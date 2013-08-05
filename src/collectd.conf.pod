@@ -5148,6 +5148,73 @@ and all other sensors are collected.
 
 =back
 
+=head2 Plugin "sigrok"
+
+The I<sigrok> plugin uses libsigrok to retrieve measurements from any device
+supported by the L<sigrok|http://sigrok.org/> project.
+
+B<Synopsis>
+
+ <Plugin sigrok>
+   LogLevel 3
+   <Device "AC Voltage">
+      Driver "fluke-dmm"
+	  MinimumInterval 10
+	  Conn "/dev/ttyUSB2"
+   </Device>
+   <Device "Sound Level">
+      Driver "cem-dt-885x"
+	  Conn "/dev/ttyUSB1"
+   </Device>
+ </Plugin>
+
+=over 4
+
+=item B<LogLevel> B<0-5>
+
+The sigrok logging level to pass on to the collectd log, as a number 0-5.
+These levels correspond to None, Errors, Warnings, Informational, Debug
+and Spew, respectively.  The default is 2 (Warnings). The sigrok log messages,
+regardless of their level, are always submitted to collectd at its INFO
+log level.
+
+=item E<lt>B<Device> I<name>E<gt>
+
+A sigrok-supported device, uniquely identified by this section's options. The
+I<name> is passed to collectd as the I<plugin instance>.
+
+=item B<Driver>
+
+The sigrok driver to use for this device.
+
+=item B<Conn>
+
+If the device cannot be auto-discovered, or more than one might be discovered
+by the driver, I<Conn> specifies the connection string to the device. It can
+be of the form of a serial port (I</dev/ttyUSB2>), or, in case of a non-serial
+USB-connected device, the USB VendorID/ProductID separated by a period
+(I<0403.6001>). A USB device can also be specified as bus.address
+(I<1.41>).
+
+=item B<SerialComm>
+
+For serial devices with non-standard port settings, this option can be used
+to specify them in the form I<9600/8n1>. This should not be necessary; drivers
+know how to communicate with devices they support.
+
+=item B<MinimumInterval>
+
+Specifies the minimum time between measurement dispatches to collectd, in
+seconds. Since some sigrok-supported devices can acquire measurements many
+times per second, it may be necessary to throttle these. For example, the
+RRD plugin cannot process writes more than once per second.
+
+The default MinimumInterval is 0, meaning measurements received from the
+device are always dispatched to collectd. When throttled, unused measurements
+are discarded.
+
+=back
+
 =head2 Plugin C<snmp>
 
 Since the configuration of the C<snmp plugin> is a little more complicated than
