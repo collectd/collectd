@@ -5159,7 +5159,7 @@ B<Synopsis>
    LogLevel 3
    <Device "AC Voltage">
       Driver "fluke-dmm"
-	  Interval 10
+	  MinimumInterval 10
 	  Conn "/dev/ttyUSB2"
    </Device>
    <Device "Sound Level">
@@ -5202,15 +5202,16 @@ For serial devices with non-standard port settings, this option can be used
 to specify them in the form I<9600/8n1>. This should not be necessary; drivers
 know how to communicate with devices they support.
 
-=item B<Interval>
+=item B<MinimumInterval>
 
 Specifies the minimum time between measurement dispatches to collectd, in
 seconds. Since some sigrok-supported devices can acquire measurements many
 times per second, it may be necessary to throttle these. For example, the
 RRD plugin cannot process writes more than once per second.
 
-The default (and minimum) interval is 1 second. Unused measurements are
-discarded.
+The default MinimumInterval is 0, meaning measurements received from the
+device are always dispatched to collectd. When throttled, unused measurements
+are discarded.
 
 =back
 

@@ -895,7 +895,7 @@
 #  LogLevel 3
 #  <Device "AC Voltage">
 #     Driver "fluke-dmm"
-#      Interval 10
+#      MinimumInterval 10
 #      Conn "/dev/ttyUSB2"
 #  </Device>
 #  <Device "Sound Level">
