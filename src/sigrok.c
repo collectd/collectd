@@ -31,7 +31,7 @@
 
 /* Minimum interval between dispatches coming from this plugin. The RRD
  * plugin, at least, complains when written to with sub-second intervals.*/
-#define DEFAULT_MIN_DISPATCH_INTERVAL TIME_T_TO_CDTIME_T(1)
+#define DEFAULT_MIN_DISPATCH_INTERVAL TIME_T_TO_CDTIME_T(0)
 
 static pthread_t sr_thread;
 static int sr_thread_running = FALSE;
@@ -94,7 +94,7 @@ static int sigrok_config_device(oconfig_item_t *ci)
 			cf_util_get_string(item, &cfdev->conn);
 		else if (!strcasecmp(item->key, "serialcomm"))
 			cf_util_get_string(item, &cfdev->serialcomm);
-		else if (!strcasecmp(item->key, "interval"))
+		else if (!strcasecmp(item->key, "minimuminterval"))
 			cf_util_get_cdtime(item, &cfdev->min_dispatch_interval);
 		else
 			WARNING("Invalid keyword '%s'.", item->key);
@@ -183,7 +183,8 @@ static void sigrok_feed_callback(const struct sr_dev_inst *sdi,
 	if (packet->type != SR_DF_ANALOG)
 		return;
 
-	if (cdtime() - cfdev->last_dispatch < cfdev->min_dispatch_interval)
+	if (cfdev->min_dispatch_interval && \
+			cdtime() - cfdev->last_dispatch < cfdev->min_dispatch_interval)
 		return;
 
 	/* Ignore all but the first sample on the first probe. */
