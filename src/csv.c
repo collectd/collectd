@@ -215,7 +215,10 @@ static int csv_config (const char *key, const char *value)
 	if (strcasecmp ("DataDir", key) == 0)
 	{
 		if (datadir != NULL)
+		{
 			free (datadir);
+			datadir = NULL;
+		}
 		if (strcasecmp ("stdout", value) == 0)
 		{
 			use_stdio = 1;
