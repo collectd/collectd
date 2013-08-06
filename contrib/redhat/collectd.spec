@@ -1,6 +1,51 @@
+#
+# q: What is this ?
+# a: A specfile for building RPM packages of current collectd releases, for
+#    RHEL/CentOS versions 5 and 6. By default all the plugins which are
+#    buildable based on the libraries available in the distribution + the
+#    EPEL repository, will be built. Plugins depending on external libs will
+#    be packaged in separate RPMs.
+#
+# q: And how can I do that ?
+# a: By following these instructions, using mock:
+#
+# - install and configure mock (https://fedoraproject.org/wiki/Projects/Mock)
+#
+# - enable the EPEL repository (http://dl.fedoraproject.org/pub/epel/) in the
+#   configuration files for your target systems (/etc/mock/*.cfg).
+#
+# - copy this file in your ~/rpmbuild/SPECS/ directory
+#
+# - fetch the desired collectd release file from https://collectd.org/files/
+#   and save it in your ~/rpmbuild/SOURCES/ directory
+#
+# - build the SRPM first:
+#   mock -r centos-6-x86_64 --buildsrpm --spec ~/rpmbuild/SPECS/collectd.spec \
+#     --sources ~/rpmbuild/SOURCES/
+#
+# - then build the RPMs:
+#   mock -r centos-6-x86_64 --no-clean --rebuild \
+#     /var/lib/mock/centos-6-x86_64/result/collectd-X.Y.Z-NN.src.rpm
+#
+# - you can also optionally enable/disable plugins which are disabled/enabled
+#   by default:
+#   mock -r centos-6-x86_64 --no-clean --without=java --with=oracle --rebuild \
+#     /var/lib/mock/centos-6-x86_64/result/collectd-X.Y.Z-NN.src.rpm
+#
+
 %global _hardened_build 1
 
-# enabled plugins
+# plugins only buildable on RHEL6
+# (NB: %{elN} macro is not available on RHEL < 6)
+%{?el6:%global _has_libyajl 1}
+%{?el6:%global _has_recent_libpcap 1}
+%{?el6:%global _has_recent_sockios_h 1}
+%{?el6:%global _has_recent_libganglia 1}
+%{?el6:%global _has_working_libiptc 1}
+%{?el6:%global _has_ip_vs_h 1}
+%{?el6:%global _has_perl_extutils_embed 1}
+
+# plugins enabled by default
 %define with_aggregation 0%{!?_without_aggregation:1}
 %define with_amqp 0%{!?_without_amqp:1}
 %define with_apache 0%{!?_without_apache:1}
@@ -14,24 +59,24 @@
 %define with_cpufreq 0%{!?_without_cpufreq:1}
 %define with_csv 0%{!?_without_csv:1}
 %define with_curl 0%{!?_without_curl:1}
-%define with_curl_json 0%{!?_without_curl_json:1}
+%define with_curl_json 0%{!?_without_curl_json:0%{?_has_libyajl}}
 %define with_curl_xml 0%{!?_without_curl_xml:1}
 %define with_dbi 0%{!?_without_dbi:1}
 %define with_df 0%{!?_without_df:1}
 %define with_disk 0%{!?_without_disk:1}
-%define with_dns 0%{!?_without_dns:1}
+%define with_dns 0%{!?_without_dns:0%{?_has_recent_libpcap}}
 %define with_email 0%{!?_without_email:1}
 %define with_entropy 0%{!?_without_entropy:1}
-%define with_ethstat 0%{!?_without_ethstat:1}
+%define with_ethstat 0%{!?_without_ethstat:0%{?_has_recent_sockios_h}}
 %define with_exec 0%{!?_without_exec:1}
 %define with_filecount 0%{!?_without_filecount:1}
 %define with_fscache 0%{!?_without_fscache:1}
-%define with_gmond 0%{!?_without_gmond:1}
+%define with_gmond 0%{!?_without_gmond:0%{?_has_recent_libganglia}}
 %define with_hddtemp 0%{!?_without_hddtemp:1}
 %define with_interface 0%{!?_without_interface:1}
 %define with_ipmi 0%{!?_without_ipmi:1}
-%define with_iptables 0%{!?_without_iptables:1}
-%define with_ipvs 0%{!?_without_ipvs:1}
+%define with_iptables 0%{!?_without_iptables:0%{?_has_working_libiptc}}
+%define with_ipvs 0%{!?_without_ipvs:0%{?_has_ip_vs_h}}
 %define with_irq 0%{!?_without_irq:1}
 %define with_java 0%{!?_without_java:1}
 %define with_libvirt 0%{!?_without_libvirt:1}
@@ -55,7 +100,7 @@
 %define with_nut 0%{!?_without_nut:1}
 %define with_olsrd 0%{!?_without_olsrd:1}
 %define with_openvpn 0%{!?_without_openvpn:1}
-%define with_perl 0%{!?_without_perl:1}
+%define with_perl 0%{!?_without_perl:0%{?_has_perl_extutils_embed}}
 %define with_pinba 0%{!?_without_pinba:1}
 %define with_ping 0%{!?_without_ping:1}
 %define with_postgresql 0%{!?_without_postgresql:1}
@@ -89,35 +134,54 @@
 %define with_write_http 0%{!?_without_write_http:1}
 %define with_write_riemann 0%{!?_without_write_riemann:1}
 
-# disabled plugins
+# Plugins not built by default because of dependencies on libraries not
+# available in RHEL or EPEL:
+
+# plugin apple_sensors disabled, requires a Mac
 %define with_apple_sensors 0%{!?_without_apple_sensors:0}
+# plugin lpar disabled, requires AIX
 %define with_lpar 0%{!?_without_lpar:0}
+# plugin modbus disabled, requires libmodbus
 %define with_modbus 0%{!?_without_modbus:0}
+# plugin netapp disabled, requires libnetapp
 %define with_netapp 0%{!?_without_netapp:0}
+# plugin netlink disabled, requires libnetlink.h
 %define with_netlink 0%{!?_without_netlink:0}
+# plugin onewire disabled, requires libowfs
 %define with_onewire 0%{!?_without_onewire:0}
+# plugin oracle disabled, requires Oracle
 %define with_oracle 0%{!?_without_oracle:0}
+# plugin oracle disabled, requires BSD
 %define with_pf 0%{!?_without_pf:0}
+# plugin redis disabled, requires credis
 %define with_redis 0%{!?_without_redis:0}
+# plugin routeros disabled, requires librouteros
 %define with_routeros 0%{!?_without_routeros:0}
+# plugin rrdcached disabled, requires rrdtool >= 1.4
 %define with_rrdcached 0%{!?_without_rrdcached:0}
+# plugin tape disabled, requires libkstat
 %define with_tape 0%{!?_without_tape:0}
+# plugin tokyotyrant disabled, requires tcrdb.h
 %define with_tokyotyrant 0%{!?_without_tokyotyrant:0}
+# plugin write_mongodb disabled, requires libmongoc
 %define with_write_mongodb 0%{!?_without_write_mongodb:0}
+# plugin write_redis disabled, requires credis
 %define with_write_redis 0%{!?_without_write_redis:0}
+# plugin xmms disabled, requires xmms
 %define with_xmms 0%{!?_without_xmms:0}
+# plugin zfs_arc disabled, requires FreeBSD/Solaris
 %define with_zfs_arc 0%{!?_without_zfs_arc:0}
 
 Summary:	Statistics collection daemon for filling RRD files
 Name:		collectd
-Version:	5.3.0
+Version:	5.3.1
 Release:	1%{?dist}
 URL:		http://collectd.org
 Source:		http://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
 Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
-BuildRequires:	libgcrypt-devel
+BuildRequires:	libgcrypt-devel, kernel-headers
 Vendor:		collectd development team <collectd@verplant.org>
 
 Requires(post):		chkconfig
@@ -192,7 +256,7 @@ the configuration.
 Summary:	Curl_json plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-Buildrequires:	curl-devel, yajl-devel
+BuildRequires:	curl-devel, yajl-devel
 %description curl_json
 The cURL-JSON plugin queries JavaScript Object Notation (JSON) data using the
 cURL library and parses it according to the user's configuration.
@@ -214,7 +278,7 @@ Markup Language (XML).
 Summary:	DBI plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-Buildrequires:	libdbi-devel
+BuildRequires:	libdbi-devel
 %description dbi
 The DBI plugin uses libdbi, a database abstraction library, to execute SQL
 statements on a database and read back the result.
@@ -224,8 +288,8 @@ statements on a database and read back the result.
 %package dns
 Summary:	DNS plugin for collectd
 Group:		System Environment/Daemons
-Requires:	%{name}%{?_isa} = %{version}-%{release}
-Buildrequires:	libpcap-devel
+Requires:	%{name}%{?_isa} = %{version}-%{release}, libpcap >= 1.0
+BuildRequires:	libpcap-devel >= 1.0
 %description dns
 The DNS plugin has a similar functionality to dnstop: It uses libpcap to get a
 copy of all traffic from/to port UDP/53 (that's the DNS port), interprets the
@@ -345,7 +409,7 @@ This plugin gets data provided by nginx.
 Summary:	Notify_desktop plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-BuildRequires:	libnotify-devel
+BuildRequires:	libnotify-devel, gtk2-devel
 %description notify_desktop
 The Notify Desktop plugin uses libnotify to display notifications to the user
 via the desktop notification specification, i. e. on an X display.
@@ -422,7 +486,11 @@ database.
 Summary:	Python plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-BuildRequires:	python-devel
+%if 0%{?rhel} >= 6
+BuildRequires: python-devel
+%else
+BuildRequires: python26-devel
+%endif
 %description python
 The Python plugin embeds a Python interpreter into collectd and exposes the
 application programming interface (API) to Python-scripts.
@@ -551,11 +619,13 @@ package.
 
 %package -n libcollectdclient
 Summary:	Collectd client library
+Group:		System Environment/Daemons
 %description -n libcollectdclient
 Collectd client library
 
 %package -n libcollectdclient-devel
 Summary:	Development files for libcollectdclient
+Group:		System Environment/Daemons
 Requires:	pkgconfig
 Requires:	libcollectdclient%{?_isa} = %{version}-%{release}
 %description -n libcollectdclient-devel
@@ -981,7 +1051,11 @@ Development files for libcollectdclient
 %endif
 
 %if %{with_python}
+%if 0%{?rhel} >= 6
 %define _with_python --enable-python
+%else
+%define _with_python --enable-python --with-python=%{_bindir}/python2.6
+%endif
 %else
 %define _with_python --disable-python
 %endif
@@ -1194,7 +1268,6 @@ Development files for libcollectdclient
 	--disable-static \
 	--without-included-ltdl \
 	--enable-all-plugins=yes \
-	--enable-aggregation \
 	--enable-match_empty_counter \
 	--enable-match_hashed \
 	--enable-match_regex \
@@ -1353,6 +1426,8 @@ rm -f %{buildroot}%{_mandir}/man5/collectd-java.5*
 %if ! %{with_perl}
 rm -f %{buildroot}%{_mandir}/man5/collectd-perl.5*
 rm -f %{buildroot}%{_mandir}/man3/Collectd::Unixsock.3pm*
+rm -fr perl-examples/
+rm -fr %{buildroot}/usr/lib/perl5/
 %endif
 
 %if ! %{with_python}
@@ -1583,21 +1658,6 @@ fi
 %{_libdir}/%{name}/write_graphite.so
 %endif
 
-# All plugins not built by default because of dependencies on libraries not
-# available in RHEL or EPEL:
-# plugin modbus disabled, requires libmodbus
-# plugin netlink disabled, requires libnetlink.h
-# plugin numa disabled, requires libnetapp
-# plugin onewire disabled, requires libowfs
-# plugin oracle disabled, requires Oracle
-# plugin redis disabled, requires credis
-# plugin routeros disabled, requires librouteros
-# plugin rrdcached disabled, requires rrdtool >= 1.4
-# plugin tokyotyrant disabled, requires tcrdb.h
-# plugin write_mongodb disabled, requires libmongoc
-# plugin write_redis disabled, requires credis
-# plugin xmms disabled, requires xmms
-
 
 %files -n libcollectdclient-devel
 %{_includedir}/collectd/client.h
@@ -1682,8 +1742,8 @@ fi
 
 %if %{with_java}
 %files java
-%{_datarootdir}/collectd/java/collectd-api.jar
-%{_datarootdir}/collectd/java/generic-jmx.jar
+%{_prefix}/share/collectd/java/collectd-api.jar
+%{_prefix}/share/collectd/java/generic-jmx.jar
 %{_libdir}/%{name}/java.so
 %{_mandir}/man5/collectd-java.5*
 %endif
@@ -1745,7 +1805,7 @@ fi
 
 %if %{with_postgresql}
 %files postgresql
-%{_datarootdir}/collectd/postgresql_default.conf
+%{_prefix}/share/collectd/postgresql_default.conf
 %{_libdir}/%{name}/postgresql.so
 %endif
 
@@ -1813,6 +1873,16 @@ fi
 %doc contrib/
 
 %changelog
+* Tue Aug 06 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.3.1-1
+- New upstream version
+- Added RHEL5 support:
+  * conditionally disable plugins not building on this platform
+  * add/specify some build dependencies and options
+  * replace some RPM macros not available on this platform
+- Removed duplicate --enable-aggregation
+- Added some comments & usage examples
+- Replaced a couple of "Buildrequires" by "BuildRequires"
+
 * Wed Apr 10 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.3.0-1
 - New upstream version
 - Enabled write_riemann plugin
