@@ -84,6 +84,15 @@ static int memcached_connect_unix (memcached_t *st)
     return (-1);
   }
 
+  /* connect to the memcached daemon */
+  int status = connect (fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
+  if (status != 0)
+  {
+      shutdown (fd, SHUT_RDWR);
+      close (fd);
+      fd = -1;
+  }
+
   return (fd);
 } /* int memcached_connect_unix */
 
