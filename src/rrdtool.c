@@ -290,6 +290,18 @@ static int value_list_to_filename (char *buffer, size_t buffer_size,
 	int status;
 	size_t len;
 
+	if (datadir != NULL)
+	{
+		size_t len = strlen (datadir) + 1;
+		if (len >= buffer_size)
+			return (ENOBUFS);
+
+		memcpy (buffer, datadir, len);
+		buffer[len-1] = '/';
+		buffer += len;
+		buffer_size -= len;
+	}
+
 	status = FORMAT_VL (buffer, buffer_size, vl);
 	if (status != 0)
 		return (status);
