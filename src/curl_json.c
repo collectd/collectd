@@ -94,7 +94,6 @@ typedef unsigned int yajl_len_t;
 #endif
 
 static int cj_read (user_data_t *ud);
-static int cj_curl_perform (cj_t *db, CURL *curl);
 static void cj_submit (cj_t *db, cj_key_t *key, value_t *value);
 
 static size_t cj_curl_callback (void *buf, /* {{{ */
@@ -766,11 +765,38 @@ static void cj_submit (cj_t *db, cj_key_t *key, value_t *value) /* {{{ */
   plugin_dispatch_values (&vl);
 } /* }}} int cj_submit */
 
-static int cj_curl_perform (cj_t *db, CURL *curl) /* {{{ */
+static int cj_curl_perform (cj_t *db) /* {{{ */
 {
   int status;
   long rc;
   char *url;
+  url = NULL;
+  curl_easy_getinfo(db->curl, CURLINFO_EFFECTIVE_URL, &url);
+
+  status = curl_easy_perform (db->curl);
+  if (status != CURLE_OK)
+  {
+    ERROR ("curl_json plugin: curl_easy_perform failed with status %i: %s (%s)",
+           status, db->curl_errbuf, (url != NULL) ? url : "<null>");
+    return (-1);
+  }
+
+  curl_easy_getinfo(db->curl, CURLINFO_RESPONSE_CODE, &rc);
+
+  /* The response code is zero if a non-HTTP transport was used. */
+  if ((rc != 0) && (rc != 200))
+  {
+    ERROR ("curl_json plugin: curl_easy_perform failed with "
+        "response code %ld (%s)", rc, url);
+    return (-1);
+  }
+
+  return (0);
+} /* }}} int cj_curl_perform */
+
+static int cj_perform (cj_t *db) /* {{{ */
+{
+  int status;
   yajl_handle yprev = db->yajl;
 
   db->yajl = yajl_alloc (&ycallbacks,
@@ -787,26 +813,8 @@ static int cj_curl_perform (cj_t *db, CURL *curl) /* {{{ */
     return (-1);
   }
 
-  url = NULL;
-  curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &url);
-
-  status = curl_easy_perform (curl);
-  if (status != CURLE_OK)
+  if (cj_curl_perform(db) < 0)
   {
-    ERROR ("curl_json plugin: curl_easy_perform failed with status %i: %s (%s)",
-           status, db->curl_errbuf, (url != NULL) ? url : "<null>");
-    yajl_free (db->yajl);
-    db->yajl = yprev;
-    return (-1);
-  }
-
-  curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &rc);
-
-  /* The response code is zero if a non-HTTP transport was used. */
-  if ((rc != 0) && (rc != 200))
-  {
-    ERROR ("curl_json plugin: curl_easy_perform failed with "
-        "response code %ld (%s)", rc, url);
     yajl_free (db->yajl);
     db->yajl = yprev;
     return (-1);
@@ -834,7 +842,7 @@ static int cj_curl_perform (cj_t *db, CURL *curl) /* {{{ */
   yajl_free (db->yajl);
   db->yajl = yprev;
   return (0);
-} /* }}} int cj_curl_perform */
+} /* }}} int cj_perform */
 
 static int cj_read (user_data_t *ud) /* {{{ */
 {
@@ -853,7 +861,7 @@ static int cj_read (user_data_t *ud) /* {{{ */
   db->state[db->depth].tree = db->tree;
   db->key = NULL;
 
-  return cj_curl_perform (db, db->curl);
+  return cj_perform (db);
 } /* }}} int cj_read */
 
 void module_register (void)
