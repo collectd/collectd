@@ -5148,6 +5148,74 @@ and all other sensors are collected.
 
 =back
 
+=head2 Plugin C<sigrok>
+
+The I<sigrok plugin> uses I<libsigrok> to retrieve measurements from any device
+supported by the L<sigrok|http://sigrok.org/> project.
+
+B<Synopsis>
+
+ <Plugin sigrok>
+   LogLevel 3
+   <Device "AC Voltage">
+      Driver "fluke-dmm"
+      MinimumInterval 10
+      Conn "/dev/ttyUSB2"
+   </Device>
+   <Device "Sound Level">
+      Driver "cem-dt-885x"
+      Conn "/dev/ttyUSB1"
+   </Device>
+ </Plugin>
+
+=over 4
+
+=item B<LogLevel> B<0-5>
+
+The I<sigrok> logging level to pass on to the I<collectd> log, as a number
+between B<0> and B<5> (inclusive). These levels correspond to C<None>,
+C<Errors>, C<Warnings>, C<Informational>, C<Debug >and C<Spew>, respectively.
+The default is B<2> (C<Warnings>). The I<sigrok> log messages, regardless of
+their level, are always submitted to I<collectd> at its INFO log level.
+
+=item E<lt>B<Device> I<Name>E<gt>
+
+A sigrok-supported device, uniquely identified by this section's options. The
+I<Name> is passed to I<collectd> as the I<plugin instance>.
+
+=item B<Driver> I<DriverName>
+
+The sigrok driver to use for this device.
+
+=item B<Conn> I<ConnectionSpec>
+
+If the device cannot be auto-discovered, or more than one might be discovered
+by the driver, I<ConnectionSpec> specifies the connection string to the device.
+It can be of the form of a device path (e.g.E<nbsp>C</dev/ttyUSB2>), or, in
+case of a non-serial USB-connected device, the USB I<VendorID>B<.>I<ProductID>
+separated by a period (e.g.E<nbsp>C<0403.6001>). A USB device can also be
+specified as I<Bus>B<.>I<Address> (e.g.E<nbsp>C<1.41>).
+
+=item B<SerialComm> I<SerialSpec>
+
+For serial devices with non-standard port settings, this option can be used
+to specify them in a form understood by I<sigrok>, e.g.E<nbsp>C<9600/8n1>.
+This should not be necessary; drivers know how to communicate with devices they
+support.
+
+=item B<MinimumInterval> I<Seconds>
+
+Specifies the minimum time between measurement dispatches to I<collectd>, in
+seconds. Since some I<sigrok> supported devices can acquire measurements many
+times per second, it may be necessary to throttle these. For example, the
+I<RRD plugin> cannot process writes more than once per second.
+
+The default B<MinimumInterval> is B<0>, meaning measurements received from the
+device are always dispatched to I<collectd>. When throttled, unused
+measurements are discarded.
+
+=back
+
 =head2 Plugin C<snmp>
 
 Since the configuration of the C<snmp plugin> is a little more complicated than
