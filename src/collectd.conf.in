@@ -894,13 +894,13 @@
 #<Plugin sigrok>
 #  LogLevel 3
 #  <Device "AC Voltage">
-#     Driver "fluke-dmm"
-#      MinimumInterval 10
-#      Conn "/dev/ttyUSB2"
+#    Driver "fluke-dmm"
+#    MinimumInterval 10
+#    Conn "/dev/ttyUSB2"
 #  </Device>
 #  <Device "Sound Level">
-#     Driver "cem-dt-885x"
-#     Conn "/dev/ttyUSB1"
+#    Driver "cem-dt-885x"
+#    Conn "/dev/ttyUSB1"
 #  </Device>
 #</Plugin>
 
