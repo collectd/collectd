@@ -2503,7 +2503,7 @@ AM_CONDITIONAL(BUILD_WITH_LIBMYSQL, test "x$with_libmysql" = "xyes")
 
 # --with-libmnl {{{
 with_libmnl_cflags=""
-with_libmnl_libs="-lmnl"
+with_libmnl_libs=""
 AC_ARG_WITH(libmnl, [AS_HELP_STRING([--with-libmnl@<:@=PREFIX@:>@], [Path to libmnl.])],
 [
  echo "libmnl: withval = $withval"
@@ -2532,9 +2532,16 @@ AC_ARG_WITH(libmnl, [AS_HELP_STRING([--with-libmnl@<:@=PREFIX@:>@], [Path to lib
 	 with_libmnl="no (Linux only library)"
  fi
 ])
+if test "x$PKG_CONFIG" = "x"
+then
+	with_libmnl="no (Don't have pkg-config)"
+fi
 if test "x$with_libmnl" = "xyes"
 then
-	with_libmnl="no (libmnl.h not found)"
+	if $PKG_CONFIG --exists libmnl 2>/dev/null; then
+	  with_libmnl_cflags="$with_libmnl_ldflags `$PKG_CONFIG --cflags libmnl`"
+	  with_libmnl_libs="$with_libmnl_libs `$PKG_CONFIG --libs libmnl`"
+	fi
 
 	AC_CHECK_HEADERS(libmnl.h libmnl/libmnl.h,
 	[
