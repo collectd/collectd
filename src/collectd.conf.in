@@ -156,6 +156,7 @@
 #@BUILD_PLUGIN_SERIAL_TRUE@LoadPlugin serial
 #@BUILD_PLUGIN_SIGROK_TRUE@LoadPlugin sigrok
 #@BUILD_PLUGIN_SNMP_TRUE@LoadPlugin snmp
+#@BUILD_PLUGIN_STATSD_TRUE@LoadPlugin statsd
 #@BUILD_PLUGIN_SWAP_TRUE@LoadPlugin swap
 #@BUILD_PLUGIN_TABLE_TRUE@LoadPlugin table
 #@BUILD_PLUGIN_TAIL_TRUE@LoadPlugin tail
@@ -944,6 +945,16 @@
 #       Collect "powerplus_voltge_input"
 #       Interval 300
 #   </Host>
+#</Plugin>
+
+#<Plugin statsd>
+#  Host "::"
+#  Port "8125"
+#  DeleteCounters false
+#  DeleteTimers   false
+#  DeleteGauges   false
+#  DeleteSets     false
+#  TimerPercentile 90.0
 #</Plugin>
 
 #<Plugin "swap">

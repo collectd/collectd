@@ -5222,6 +5222,55 @@ Since the configuration of the C<snmp plugin> is a little more complicated than
 other plugins, its documentation has been moved to an own manpage,
 L<collectd-snmp(5)>. Please see there for details.
 
+=head2 Plugin C<statsd>
+
+The I<statsd plugin> listens to a UDP socket, reads "events" in the statsd
+protocol and dispatches rates or other aggregates of these numbers
+periodically.
+
+The plugin implements the I<Counter>, I<Timer>, I<Gauge> and I<Set> types which
+are dispatched as the I<collectd> types C<derive>, C<latency>, C<gauge> and
+C<objects> respectively.
+
+The following configuration options are valid:
+
+=over 4
+
+=item B<Host> I<Host>
+
+Bind to the hostname / address I<Host>. By default, the plugin will bind to the
+"any" address, i.e. accept packets sent to any of the hosts addresses.
+
+=item B<Port> I<Port>
+
+UDP port to listen to. This can be either a service name or a port number.
+Defaults to C<8125>.
+
+=item B<DeleteCounters> B<false>|B<true>
+
+=item B<DeleteTimers> B<false>|B<true>
+
+=item B<DeleteGauges> B<false>|B<true>
+
+=item B<DeleteSets> B<false>|B<true>
+
+These options control what happens if metrics are not updated in an interval.
+If set to B<False>, the default, metrics are dispatched unchanged, i.e. the
+rate of counters and size of sets will be zero, timers report C<NaN> and gauges
+are unchanged. If set to B<True>, the such metrics are not dispatched and
+removed from the internal cache.
+
+=item B<TimerPercentile> I<Percent>
+
+Calculate and dispatch the configured percentile, i.e. compute the latency, so
+that I<Percent> of all reported timers are smaller than or equal to the
+computed latency. This is useful for cutting off the long tail latency, as it's
+often done in I<Service Level Agreements> (SLAs).
+
+If not specified, no percentile is calculated / dispatched.
+
+=back
+
 =head2 Plugin C<swap>
 
 The I<Swap plugin> collects information about used and available swap space. On
