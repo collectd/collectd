@@ -1,6 +1,9 @@
 /**
  * collectd - src/netlink.c
  * Copyright (C) 2007-2010  Florian octo Forster
+ * Copyright (C) 2008-2012  Sebastian Harl
+ * Copyright (C) 2013       Andreas Henriksson
+ * Copyright (C) 2013       Marc Fournier
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,6 +20,9 @@
  *
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
+ *   Sebastian Harl <sh at tokkee.org>
+ *   Andreas Henriksson <andreas at fatal.se>
+ *   Marc Fournier <marc.fournier at camptocamp.com>
  **/
 
 #include "collectd.h"
