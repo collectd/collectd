@@ -266,7 +266,8 @@ static int cj_cb_start (void *ctx)
   cj_t *db = (cj_t *)ctx;
   if (++db->depth >= YAJL_MAX_DEPTH)
   {
-    ERROR ("curl_json plugin: %s depth exceeds max, aborting.", db->url ? db->url : db->sock);
+    ERROR ("curl_json plugin: %s depth exceeds max, aborting.",
+           db->url ? db->url : db->sock);
     return (CJ_CB_ABORT);
   }
   return (CJ_CB_CONTINUE);
@@ -658,8 +659,8 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
   {
     if (db->tree == NULL)
     {
-      WARNING ("curl_json plugin: No (valid) `Key' block "
-               "within `%s' block `%s'.", db->url ? "URL" : "Sock", db->url ? db->url : db->sock);
+      WARNING ("curl_json plugin: No (valid) `Key' block within `%s' \"`%s'\".",
+               db->url ? "URL" : "Sock", db->url ? db->url : db->sock);
       status = -1;
     }
     if (status == 0 && db->url)
@@ -712,7 +713,8 @@ static int cj_config (oconfig_item_t *ci) /* {{{ */
   {
     oconfig_item_t *child = ci->children + i;
 
-    if (strcasecmp ("Sock", child->key) == 0 || strcasecmp ("URL", child->key) == 0)
+    if (strcasecmp ("Sock", child->key) == 0
+        || strcasecmp ("URL", child->key) == 0)
     {
       status = cj_config_add_url (child);
       if (status == 0)
@@ -857,7 +859,11 @@ static int cj_perform (cj_t *db) /* {{{ */
     return (-1);
   }
 
-  if (db->url ? cj_curl_perform (db) < 0 : cj_sock_perform (db) < 0)
+  if (db->url)
+    status = cj_curl_perform (db);
+  else
+    status = cj_sock_perform (db);
+  if (status < 0)
   {
     yajl_free (db->yajl);
     db->yajl = yprev;
