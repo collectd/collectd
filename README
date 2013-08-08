@@ -280,6 +280,11 @@ Features
     - serial
       RX and TX of serial interfaces. Linux only; needs root privileges.
 
+    - sigrok
+      Uses libsigrok as a backend, allowing any sigrok-supported device
+      to have its measurements fed to collectd. This includes multimeters,
+      sound level meters, thermometers, and much more.
+
     - snmp
       Read values from SNMP (Simple Network Management Protocol) enabled
       network devices such as switches, routers, thermometers, rack monitoring
