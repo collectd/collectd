@@ -623,6 +623,10 @@ Prerequisites
     Used by the `memcachec' plugin to connect to a memcache daemon.
     <http://tangent.org/552/libmemcached.html>
 
+  * libmnl (optional)
+    Used by the `netlink' plugin.
+    <http://www.netfilter.org/projects/libmnl/>
+
   * libmodbus (optional)
     Used by the “modbus” plugin to communicate with Modbus/TCP devices. The
     “modbus” plugin works with version 2.0.3 of the library – due to frequent
@@ -636,10 +640,6 @@ Prerequisites
   * libnetapp (optional)
     Required for the “netapp” plugin.
     This library is part of the “Manage ONTAP SDK” published by NetApp.
-
-  * libnetlink (optional)
-    Used, obviously, for the `netlink' plugin.
-    <http://www.linuxfoundation.org/en/Net:Iproute2>
 
   * libnetsnmp (optional)
     For the `snmp' plugin.

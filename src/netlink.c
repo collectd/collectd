@@ -1,6 +1,9 @@
 /**
  * collectd - src/netlink.c
  * Copyright (C) 2007-2010  Florian octo Forster
+ * Copyright (C) 2008-2012  Sebastian Harl
+ * Copyright (C) 2013       Andreas Henriksson
+ * Copyright (C) 2013       Marc Fournier
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,6 +20,9 @@
  *
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
+ *   Sebastian Harl <sh at tokkee.org>
+ *   Andreas Henriksson <andreas at fatal.se>
+ *   Marc Fournier <marc.fournier at camptocamp.com>
  **/
 
 #include "collectd.h"
@@ -35,13 +41,7 @@
 # include <linux/pkt_sched.h>
 #endif
 
-#if HAVE_LIBNETLINK_H
-# include <libnetlink.h>
-#elif HAVE_IPROUTE_LIBNETLINK_H
-# include <iproute/libnetlink.h>
-#elif HAVE_LINUX_LIBNETLINK_H
-# include <linux/libnetlink.h>
-#endif
+#include <libmnl/libmnl.h>
 
 typedef struct ir_ignorelist_s
 {
@@ -54,19 +54,19 @@ typedef struct ir_ignorelist_s
 static int ir_ignorelist_invert = 1;
 static ir_ignorelist_t *ir_ignorelist_head = NULL;
 
-static struct rtnl_handle rth;
+static struct mnl_socket *nl;
 
 static char **iflist = NULL;
 static size_t iflist_len = 0;
 
 static const char *config_keys[] =
 {
-	"Interface",
-	"VerboseInterface",
-	"QDisc",
-	"Class",
-	"Filter",
-	"IgnoreSelected"
+        "Interface",
+        "VerboseInterface",
+        "QDisc",
+        "Class",
+        "Filter",
+        "IgnoreSelected"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -117,7 +117,7 @@ static int add_ignorelist (const char *dev, const char *type,
   return (0);
 } /* int add_ignorelist */
 
-/* 
+/*
  * Checks wether a data set should be ignored. Returns `true' is the value
  * should be ignored, `false' otherwise.
  */
@@ -135,24 +135,24 @@ static int check_ignorelist (const char *dev,
   {
     /* i->device == NULL  =>  match all devices */
     if ((i->device != NULL)
-	&& (strcasecmp (i->device, dev) != 0))
+        && (strcasecmp (i->device, dev) != 0))
       continue;
 
     if (strcasecmp (i->type, type) != 0)
       continue;
 
     if ((i->inst != NULL) && (type_instance != NULL)
-	&& (strcasecmp (i->inst, type_instance) != 0))
+        && (strcasecmp (i->inst, type_instance) != 0))
       continue;
 
     DEBUG ("netlink plugin: check_ignorelist: "
-	"(dev = %s; type = %s; inst = %s) matched "
-	"(dev = %s; type = %s; inst = %s)",
-	dev, type,
-	type_instance == NULL ? "(nil)" : type_instance,
-	i->device == NULL ? "(nil)" : i->device,
-	i->type,
-	i->inst == NULL ? "(nil)" : i->inst);
+        "(dev = %s; type = %s; inst = %s) matched "
+        "(dev = %s; type = %s; inst = %s)",
+        dev, type,
+        type_instance == NULL ? "(nil)" : type_instance,
+        i->device == NULL ? "(nil)" : i->device,
+        i->type,
+        i->inst == NULL ? "(nil)" : i->inst);
 
     return (ir_ignorelist_invert ? 0 : 1);
   } /* for i */
@@ -204,46 +204,8 @@ static void submit_two (const char *dev, const char *type,
   plugin_dispatch_values (&vl);
 } /* void submit_two */
 
-static int link_filter (const struct sockaddr_nl __attribute__((unused)) *sa,
-    struct nlmsghdr *nmh, void __attribute__((unused)) *args)
+static int update_iflist (struct ifinfomsg *msg, const char *dev)
 {
-  struct ifinfomsg *msg;
-  int msg_len;
-  struct rtattr *attrs[IFLA_MAX + 1];
-  struct rtnl_link_stats *stats;
-
-  const char *dev;
-
-  if (nmh->nlmsg_type != RTM_NEWLINK)
-  {
-    ERROR ("netlink plugin: link_filter: Don't know how to handle type %i.",
-	nmh->nlmsg_type);
-    return (-1);
-  }
-
-  msg = NLMSG_DATA (nmh);
-
-  msg_len = nmh->nlmsg_len - NLMSG_LENGTH(sizeof (struct ifinfomsg));
-  if (msg_len < 0)
-  {
-    ERROR ("netlink plugin: link_filter: msg_len = %i < 0;", msg_len);
-    return (-1);
-  }
-
-  memset (attrs, '\0', sizeof (attrs));
-  if (parse_rtattr (attrs, IFLA_MAX, IFLA_RTA (msg), msg_len) != 0)
-  {
-    ERROR ("netlink plugin: link_filter: parse_rtattr failed.");
-    return (-1);
-  }
-
-  if (attrs[IFLA_IFNAME] == NULL)
-  {
-    ERROR ("netlink plugin: link_filter: attrs[IFLA_IFNAME] == NULL");
-    return (-1);
-  }
-  dev = RTA_DATA (attrs[IFLA_IFNAME]);
-
   /* Update the `iflist'. It's used to know which interfaces exist and query
    * them later for qdiscs and classes. */
   if ((msg->ifi_index >= 0) && ((size_t) msg->ifi_index >= iflist_len))
@@ -253,12 +215,12 @@ static int link_filter (const struct sockaddr_nl __attribute__((unused)) *sa,
     temp = (char **) realloc (iflist, (msg->ifi_index + 1) * sizeof (char *));
     if (temp == NULL)
     {
-      ERROR ("netlink plugin: link_filter: realloc failed.");
+      ERROR ("netlink plugin: update_iflist: realloc failed.");
       return (-1);
     }
 
     memset (temp + iflist_len, '\0',
-	(msg->ifi_index + 1 - iflist_len) * sizeof (char *));
+        (msg->ifi_index + 1 - iflist_len) * sizeof (char *));
     iflist = temp;
     iflist_len = msg->ifi_index + 1;
   }
@@ -269,12 +231,12 @@ static int link_filter (const struct sockaddr_nl __attribute__((unused)) *sa,
     iflist[msg->ifi_index] = strdup (dev);
   }
 
-  if (attrs[IFLA_STATS] == NULL)
-  {
-    DEBUG ("netlink plugin: link_filter: No statistics for interface %s.", dev);
-    return (0);
-  }
-  stats = RTA_DATA (attrs[IFLA_STATS]);
+  return (0);
+} /* int update_iflist */
+
+static void check_ignorelist_and_submit (const char *dev,
+    struct rtnl_link_stats *stats)
+{
 
   if (check_ignorelist (dev, "interface", NULL) == 0)
   {
@@ -311,158 +273,261 @@ static int link_filter (const struct sockaddr_nl __attribute__((unused)) *sa,
     DEBUG ("netlink plugin: Ignoring %s/if_detail.", dev);
   }
 
-  return (0);
-} /* int link_filter */
+} /* void check_ignorelist_and_submit */
 
-static int qos_filter (const struct sockaddr_nl __attribute__((unused)) *sa,
-    struct nlmsghdr *nmh, void *args)
+static int link_filter_cb (const struct nlmsghdr *nlh,
+    void *args __attribute__((unused)))
 {
-  struct tcmsg *msg;
-  int msg_len;
-  struct rtattr *attrs[TCA_MAX + 1];
+  struct ifinfomsg *ifm = mnl_nlmsg_get_payload (nlh);
+  struct nlattr *attr;
+  struct rtnl_link_stats *stats = NULL;
+  const char *dev = NULL;
+
+  if (nlh->nlmsg_type != RTM_NEWLINK)
+  {
+    ERROR ("netlink plugin: link_filter_cb: Don't know how to handle type %i.",
+        nlh->nlmsg_type);
+    return MNL_CB_ERROR;
+  }
+
+  /* Scan attribute list for device name. */
+  mnl_attr_for_each (attr, nlh, sizeof (*ifm))
+  {
+    if (mnl_attr_get_type (attr) != IFLA_IFNAME)
+      continue;
+
+    if (mnl_attr_validate (attr, MNL_TYPE_STRING) < 0)
+    {
+      ERROR ("netlink plugin: link_filter_cb: IFLA_IFNAME mnl_attr_validate failed.");
+      return MNL_CB_ERROR;
+    }
+
+    dev = mnl_attr_get_str (attr);
+    if (update_iflist (ifm, dev) < 0)
+      return MNL_CB_ERROR;
+    break;
+  }
+
+  if (dev == NULL)
+  {
+    ERROR ("netlink plugin: link_filter_cb: dev == NULL");
+    return MNL_CB_ERROR;
+  }
+
+  mnl_attr_for_each (attr, nlh, sizeof (*ifm))
+  {
+    if (mnl_attr_get_type (attr) != IFLA_STATS)
+      continue;
+
+    if (mnl_attr_validate2 (attr, MNL_TYPE_UNSPEC, sizeof (*stats)) < 0)
+    {
+      ERROR ("netlink plugin: link_filter_cb: IFLA_STATS mnl_attr_validate2 failed.");
+      return MNL_CB_ERROR;
+    }
+    stats = mnl_attr_get_payload (attr);
+
+    check_ignorelist_and_submit (dev, stats);
+    break;
+  }
+
+  if (stats == NULL)
+  {
+    DEBUG ("netlink plugin: link_filter: No statistics for interface %s.", dev);
+    return MNL_CB_OK;
+  }
+
+  return MNL_CB_OK;
+} /* int link_filter_cb */
+
+#if HAVE_TCA_STATS2
+static int qos_attr_cb (const struct nlattr *attr, void *data)
+{
+  struct gnet_stats_basic **bs = (struct gnet_stats_basic **)data;
+
+  /* skip unsupported attribute in user-space */
+  if (mnl_attr_type_valid (attr, TCA_STATS_MAX) < 0)
+    return MNL_CB_OK;
+
+  if (mnl_attr_get_type (attr) == TCA_STATS_BASIC)
+  {
+    if (mnl_attr_validate2 (attr, MNL_TYPE_UNSPEC, sizeof (**bs)) < 0)
+    {
+      ERROR ("netlink plugin: qos_attr_cb: TCA_STATS_BASIC mnl_attr_validate2 failed.");
+      return MNL_CB_ERROR;
+    }
+    *bs = mnl_attr_get_payload (attr);
+    return MNL_CB_STOP;
+  }
+
+  return MNL_CB_OK;
+} /* qos_attr_cb */
+#endif
+
+static int qos_filter_cb (const struct nlmsghdr *nlh, void *args)
+{
+  struct tcmsg *tm = mnl_nlmsg_get_payload (nlh);
+  struct nlattr *attr;
 
   int wanted_ifindex = *((int *) args);
 
   const char *dev;
+  const char *kind = NULL;
 
   /* char *type_instance; */
   char *tc_type;
   char tc_inst[DATA_MAX_NAME_LEN];
 
-  if (nmh->nlmsg_type == RTM_NEWQDISC)
+  _Bool stats_submitted = 0;
+
+  if (nlh->nlmsg_type == RTM_NEWQDISC)
     tc_type = "qdisc";
-  else if (nmh->nlmsg_type == RTM_NEWTCLASS)
+  else if (nlh->nlmsg_type == RTM_NEWTCLASS)
     tc_type = "class";
-  else if (nmh->nlmsg_type == RTM_NEWTFILTER)
+  else if (nlh->nlmsg_type == RTM_NEWTFILTER)
     tc_type = "filter";
   else
   {
-    ERROR ("netlink plugin: qos_filter: Don't know how to handle type %i.",
-	nmh->nlmsg_type);
-    return (-1);
+    ERROR ("netlink plugin: qos_filter_cb: Don't know how to handle type %i.",
+        nlh->nlmsg_type);
+    return MNL_CB_ERROR;
   }
 
-  msg = NLMSG_DATA (nmh);
-
-  msg_len = nmh->nlmsg_len - sizeof (struct tcmsg);
-  if (msg_len < 0)
+  if (tm->tcm_ifindex != wanted_ifindex)
   {
-    ERROR ("netlink plugin: qos_filter: msg_len = %i < 0;", msg_len);
-    return (-1);
+    DEBUG ("netlink plugin: qos_filter_cb: Got %s for interface #%i, "
+        "but expected #%i.",
+        tc_type, tm->tcm_ifindex, wanted_ifindex);
+    return MNL_CB_OK;
   }
 
-  if (msg->tcm_ifindex != wanted_ifindex)
+  if ((tm->tcm_ifindex >= 0)
+      && ((size_t) tm->tcm_ifindex >= iflist_len))
   {
-    DEBUG ("netlink plugin: qos_filter: Got %s for interface #%i, "
-	"but expected #%i.",
-	tc_type, msg->tcm_ifindex, wanted_ifindex);
-    return (0);
+    ERROR ("netlink plugin: qos_filter_cb: tm->tcm_ifindex = %i "
+        ">= iflist_len = %zu",
+        tm->tcm_ifindex, iflist_len);
+    return MNL_CB_ERROR;
   }
 
-  if ((msg->tcm_ifindex >= 0)
-      && ((size_t) msg->tcm_ifindex >= iflist_len))
-  {
-    ERROR ("netlink plugin: qos_filter: msg->tcm_ifindex = %i "
-	">= iflist_len = %zu",
-	msg->tcm_ifindex, iflist_len);
-    return (-1);
-  }
-
-  dev = iflist[msg->tcm_ifindex];
+  dev = iflist[tm->tcm_ifindex];
   if (dev == NULL)
   {
-    ERROR ("netlink plugin: qos_filter: iflist[%i] == NULL",
-	msg->tcm_ifindex);
-    return (-1);
+    ERROR ("netlink plugin: qos_filter_cb: iflist[%i] == NULL",
+        tm->tcm_ifindex);
+    return MNL_CB_ERROR;
   }
 
-  memset (attrs, '\0', sizeof (attrs));
-  if (parse_rtattr (attrs, TCA_MAX, TCA_RTA (msg), msg_len) != 0)
+  mnl_attr_for_each (attr, nlh, sizeof (*tm))
   {
-    ERROR ("netlink plugin: qos_filter: parse_rtattr failed.");
-    return (-1);
+    if (mnl_attr_get_type (attr) != TCA_KIND)
+      continue;
+
+    if (mnl_attr_validate (attr, MNL_TYPE_STRING) < 0)
+    {
+      ERROR ("netlink plugin: qos_filter_cb: TCA_KIND mnl_attr_validate failed.");
+      return MNL_CB_ERROR;
+    }
+
+    kind = mnl_attr_get_str (attr);
+    break;
   }
 
-  if (attrs[TCA_KIND] == NULL)
+  if (kind == NULL)
   {
-    ERROR ("netlink plugin: qos_filter: attrs[TCA_KIND] == NULL");
+    ERROR ("netlink plugin: qos_filter_cb: kind == NULL");
     return (-1);
   }
 
-  { /* The the ID */
+  { /* The ID */
     uint32_t numberic_id;
 
-    numberic_id = msg->tcm_handle;
+    numberic_id = tm->tcm_handle;
     if (strcmp (tc_type, "filter") == 0)
-      numberic_id = msg->tcm_parent;
+      numberic_id = tm->tcm_parent;
 
     ssnprintf (tc_inst, sizeof (tc_inst), "%s-%x:%x",
-	(const char *) RTA_DATA (attrs[TCA_KIND]),
-	numberic_id >> 16,
-	numberic_id & 0x0000FFFF);
+        kind,
+        numberic_id >> 16,
+        numberic_id & 0x0000FFFF);
   }
 
-  DEBUG ("netlink plugin: qos_filter: got %s for %s (%i).",
-      tc_type, dev, msg->tcm_ifindex);
-  
+  DEBUG ("netlink plugin: qos_filter_cb: got %s for %s (%i).",
+      tc_type, dev, tm->tcm_ifindex);
+
   if (check_ignorelist (dev, tc_type, tc_inst))
-    return (0);
+    return MNL_CB_OK;
 
 #if HAVE_TCA_STATS2
-  if (attrs[TCA_STATS2])
+  mnl_attr_for_each (attr, nlh, sizeof (*tm))
   {
-    struct rtattr *attrs_stats[TCA_STATS_MAX + 1];
+    struct gnet_stats_basic *bs = NULL;
 
-    memset (attrs_stats, '\0', sizeof (attrs_stats));
-    parse_rtattr_nested (attrs_stats, TCA_STATS_MAX, attrs[TCA_STATS2]);
+    if (mnl_attr_get_type (attr) != TCA_STATS2)
+      continue;
 
-    if (attrs_stats[TCA_STATS_BASIC])
+    if (mnl_attr_validate (attr, MNL_TYPE_NESTED) < 0)
     {
-      struct gnet_stats_basic bs;
+      ERROR ("netlink plugin: qos_filter_cb: TCA_STATS2 mnl_attr_validate failed.");
+      return MNL_CB_ERROR;
+    }
+
+    mnl_attr_parse_nested (attr, qos_attr_cb, &bs);
+
+    if (bs != NULL)
+    {
+      char type_instance[DATA_MAX_NAME_LEN];
+
+      stats_submitted = 1;
+
+      ssnprintf (type_instance, sizeof (type_instance), "%s-%s",
+          tc_type, tc_inst);
+
+      submit_one (dev, "ipt_bytes", type_instance, bs->bytes);
+      submit_one (dev, "ipt_packets", type_instance, bs->packets);
+    }
+
+    break;
+  }
+#endif /* TCA_STATS2 */
+
+#if HAVE_TCA_STATS
+  mnl_attr_for_each (attr, nlh, sizeof (*tm))
+  {
+    struct tc_stats *ts = NULL;
+
+    if (mnl_attr_get_type (attr) != TCA_STATS)
+      continue;
+
+    if (mnl_attr_validate2 (attr, MNL_TYPE_UNSPEC, sizeof (*ts)) < 0)
+    {
+      ERROR ("netlink plugin: qos_filter_cb: TCA_STATS mnl_attr_validate2 failed.");
+      return MNL_CB_ERROR;
+    }
+    ts = mnl_attr_get_payload (attr);
+
+    if (!stats_submitted && ts != NULL)
+    {
       char type_instance[DATA_MAX_NAME_LEN];
 
       ssnprintf (type_instance, sizeof (type_instance), "%s-%s",
-	  tc_type, tc_inst);
+          tc_type, tc_inst);
 
-      memset (&bs, '\0', sizeof (bs));
-      memcpy (&bs, RTA_DATA (attrs_stats[TCA_STATS_BASIC]),
-	  MIN (RTA_PAYLOAD (attrs_stats[TCA_STATS_BASIC]), sizeof(bs)));
-
-      submit_one (dev, "ipt_bytes", type_instance, bs.bytes);
-      submit_one (dev, "ipt_packets", type_instance, bs.packets);
+      submit_one (dev, "ipt_bytes", type_instance, ts->bytes);
+      submit_one (dev, "ipt_packets", type_instance, ts->packets);
     }
+
+    break;
   }
-#endif /* TCA_STATS2 */
-#if HAVE_TCA_STATS && HAVE_TCA_STATS2
-  else
-#endif
-#if HAVE_TCA_STATS
-  if (attrs[TCA_STATS] != NULL)
-  {
-    struct tc_stats ts;
-    char type_instance[DATA_MAX_NAME_LEN];
 
-    ssnprintf (type_instance, sizeof (type_instance), "%s-%s",
-	tc_type, tc_inst);
-
-    memset(&ts, '\0', sizeof (ts));
-    memcpy(&ts, RTA_DATA (attrs[TCA_STATS]),
-	MIN (RTA_PAYLOAD (attrs[TCA_STATS]), sizeof (ts)));
-
-    submit_one (dev, "ipt_bytes", type_instance, ts.bytes);
-    submit_one (dev, "ipt_packets", type_instance, ts.packets);
-  }
 #endif /* TCA_STATS */
-#if HAVE_TCA_STATS || HAVE_TCA_STATS2
-  else
-#endif
-  {
-    DEBUG ("netlink plugin: qos_filter: Have neither TCA_STATS2 nor "
-	"TCA_STATS.");
-  }
 
-  return (0);
-} /* int qos_filter */
+#if !(HAVE_TCA_STATS && HAVE_TCA_STATS2)
+  DEBUG ("netlink plugin: qos_filter_cb: Have neither TCA_STATS2 nor "
+      "TCA_STATS.");
+#endif
+
+  return MNL_CB_OK;
+} /* int qos_filter_cb */
 
 static int ir_config (const char *key, const char *value)
 {
@@ -488,14 +553,14 @@ static int ir_config (const char *key, const char *value)
     if (fields_num != 1)
     {
       ERROR ("netlink plugin: Invalid number of fields for option "
-	  "`%s'. Got %i, expected 1.", key, fields_num);
+          "`%s'. Got %i, expected 1.", key, fields_num);
       status = -1;
     }
     else
     {
       add_ignorelist (fields[0], "interface", NULL);
       if (strcasecmp (key, "VerboseInterface") == 0)
-	add_ignorelist (fields[0], "if_detail", NULL);
+        add_ignorelist (fields[0], "if_detail", NULL);
       status = 0;
     }
   }
@@ -506,13 +571,13 @@ static int ir_config (const char *key, const char *value)
     if ((fields_num < 1) || (fields_num > 2))
     {
       ERROR ("netlink plugin: Invalid number of fields for option "
-	  "`%s'. Got %i, expected 1 or 2.", key, fields_num);
+          "`%s'. Got %i, expected 1 or 2.", key, fields_num);
       return (-1);
     }
     else
     {
       add_ignorelist (fields[0], key,
-	  (fields_num == 2) ? fields[1] : NULL);
+          (fields_num == 2) ? fields[1] : NULL);
       status = 0;
     }
   }
@@ -521,15 +586,15 @@ static int ir_config (const char *key, const char *value)
     if (fields_num != 1)
     {
       ERROR ("netlink plugin: Invalid number of fields for option "
-	  "`IgnoreSelected'. Got %i, expected 1.", fields_num);
+          "`IgnoreSelected'. Got %i, expected 1.", fields_num);
       status = -1;
     }
     else
     {
       if (IS_TRUE (fields[0]))
-	ir_ignorelist_invert = 0;
+        ir_ignorelist_invert = 0;
       else
-	ir_ignorelist_invert = 1;
+        ir_ignorelist_invert = 1;
       status = 0;
     }
   }
@@ -541,11 +606,16 @@ static int ir_config (const char *key, const char *value)
 
 static int ir_init (void)
 {
-  memset (&rth, '\0', sizeof (rth));
-
-  if (rtnl_open (&rth, 0) != 0)
+  nl = mnl_socket_open (NETLINK_ROUTE);
+  if (nl == NULL)
   {
-    ERROR ("netlink plugin: ir_init: rtnl_open failed.");
+    ERROR ("netlink plugin: ir_init: mnl_socket_open failed.");
+    return (-1);
+  }
+
+  if (mnl_socket_bind (nl, 0, MNL_SOCKET_AUTOPID) < 0)
+  {
+    ERROR ("netlink plugin: ir_init: mnl_socket_bind failed.");
     return (-1);
   }
 
@@ -554,35 +624,51 @@ static int ir_init (void)
 
 static int ir_read (void)
 {
-  struct tcmsg tm;
-  int ifindex;
+  char buf[MNL_SOCKET_BUFFER_SIZE];
+  struct nlmsghdr *nlh;
+  struct rtgenmsg *rt;
+  int ret;
+  unsigned int seq, portid;
+
+  size_t ifindex;
 
   static const int type_id[] = { RTM_GETQDISC, RTM_GETTCLASS, RTM_GETTFILTER };
   static const char *type_name[] = { "qdisc", "class", "filter" };
 
-  if (rtnl_wilddump_request (&rth, AF_UNSPEC, RTM_GETLINK) < 0)
+  portid = mnl_socket_get_portid (nl);
+
+  nlh = mnl_nlmsg_put_header (buf);
+  nlh->nlmsg_type = RTM_GETLINK;
+  nlh->nlmsg_flags = NLM_F_REQUEST | NLM_F_DUMP;
+  nlh->nlmsg_seq = seq = time (NULL);
+  rt = mnl_nlmsg_put_extra_header (nlh, sizeof (*rt));
+  rt->rtgen_family = AF_PACKET;
+
+  if (mnl_socket_sendto (nl, nlh, nlh->nlmsg_len) < 0)
   {
     ERROR ("netlink plugin: ir_read: rtnl_wilddump_request failed.");
     return (-1);
   }
 
-#ifdef RTNL_DUMP_FILTER_FIVE_ARGS
-  if (rtnl_dump_filter (&rth, link_filter, /* arg1 = */ NULL,
-	NULL, NULL) != 0)
-#elif defined(RTNL_DUMP_FILTER_THREE_ARGS)
-  if (rtnl_dump_filter (&rth, link_filter, /* arg = */ NULL) != 0)
-#else
-#error "Failed to determine the number of arguments to 'rtnl_dump_filter'!"
-#endif
+  ret = mnl_socket_recvfrom (nl, buf, sizeof (buf));
+  while (ret > 0)
   {
-    ERROR ("netlink plugin: ir_read: rtnl_dump_filter failed.");
+    ret = mnl_cb_run (buf, ret, seq, portid, link_filter_cb, NULL);
+    if (ret <= MNL_CB_STOP)
+      break;
+    ret = mnl_socket_recvfrom (nl, buf, sizeof (buf));
+  }
+  if (ret < 0)
+  {
+    ERROR ("netlink plugin: ir_read: mnl_socket_recvfrom failed.");
     return (-1);
   }
 
-  /* `link_filter' will update `iflist' which is used here to iterate over all
-   * interfaces. */
-  for (ifindex = 0; (size_t) ifindex < iflist_len; ifindex++)
+  /* `link_filter_cb' will update `iflist' which is used here to iterate
+   * over all interfaces. */
+  for (ifindex = 1; ifindex < iflist_len; ifindex++)
   {
+    struct tcmsg *tm;
     size_t type_index;
 
     if (iflist[ifindex] == NULL)
@@ -592,36 +678,42 @@ static int ir_read (void)
     {
       if (check_ignorelist (iflist[ifindex], type_name[type_index], NULL))
       {
-	DEBUG ("netlink plugin: ir_read: check_ignorelist (%s, %s, (nil)) "
-	    "== TRUE", iflist[ifindex], type_name[type_index]);
-	continue;
+        DEBUG ("netlink plugin: ir_read: check_ignorelist (%s, %s, (nil)) "
+            "== TRUE", iflist[ifindex], type_name[type_index]);
+        continue;
       }
 
-      DEBUG ("netlink plugin: ir_read: querying %s from %s (%i).",
-	  type_name[type_index], iflist[ifindex], ifindex);
+      DEBUG ("netlink plugin: ir_read: querying %s from %s (%lu).",
+          type_name[type_index], iflist[ifindex], ifindex);
 
-      memset (&tm, '\0', sizeof (tm));
-      tm.tcm_family = AF_UNSPEC;
-      tm.tcm_ifindex = ifindex;
+      nlh = mnl_nlmsg_put_header (buf);
+      nlh->nlmsg_type = type_id[type_index];
+      nlh->nlmsg_flags = NLM_F_REQUEST | NLM_F_DUMP;
+      nlh->nlmsg_seq = seq = time (NULL);
+      tm = mnl_nlmsg_put_extra_header (nlh, sizeof (*tm));
+      tm->tcm_family = AF_PACKET;
+      tm->tcm_ifindex = ifindex;
 
-      if (rtnl_dump_request (&rth, type_id[type_index], &tm, sizeof (tm)) < 0)
+      if (mnl_socket_sendto (nl, nlh, nlh->nlmsg_len) < 0)
       {
-	ERROR ("netlink plugin: ir_read: rtnl_dump_request failed.");
-	continue;
+        ERROR ("netlink plugin: ir_read: mnl_socket_sendto failed.");
+        continue;
       }
 
-#ifdef RTNL_DUMP_FILTER_FIVE_ARGS
-      if (rtnl_dump_filter (&rth, qos_filter, (void *) &ifindex,
-	    NULL, NULL) != 0)
-#elif defined(RTNL_DUMP_FILTER_THREE_ARGS)
-      if (rtnl_dump_filter (&rth, qos_filter, /* arg = */ &ifindex) != 0)
-#else
-#error "Failed to determine the number of arguments to 'rtnl_dump_filter'!"
-#endif
+      ret = mnl_socket_recvfrom (nl, buf, sizeof (buf));
+      while (ret > 0)
       {
-	ERROR ("netlink plugin: ir_read: rtnl_dump_filter failed.");
-	continue;
+        ret = mnl_cb_run (buf, ret, seq, portid, qos_filter_cb, &ifindex);
+        if (ret <= MNL_CB_STOP)
+          break;
+        ret = mnl_socket_recvfrom (nl, buf, sizeof (buf));
       }
+      if (ret < 0)
+      {
+        ERROR ("netlink plugin: ir_read:mnl_socket_recvfrom failed.");
+        continue;
+      }
+
     } /* for (type_index) */
   } /* for (if_index) */
 
@@ -630,12 +722,12 @@ static int ir_read (void)
 
 static int ir_shutdown (void)
 {
-  if ((rth.fd != 0) || (rth.seq != 0) || (rth.dump != 0))
+  if (nl)
   {
-    rtnl_close(&rth);
-    memset (&rth, '\0', sizeof (rth));
+    mnl_socket_close (nl);
+    nl = NULL;
   }
-  
+
   return (0);
 } /* int ir_shutdown */
 

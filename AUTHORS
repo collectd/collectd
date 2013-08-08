@@ -28,6 +28,9 @@ Amit Gupta <amit.gupta221 at gmail.com>
  - Multiple servers in the apache plugin.
  - curl_xml plugin.
 
+Andreas Henriksson <andreas at fatal.se>
+ - libmnl support in the netlink plugin.
+
 Anthony Dewhurst <dewhurst at gmail.com>
  - zfs_arc plugin.
 
@@ -127,6 +130,11 @@ Manuel Sanmartin
    + processes
    + swap
  - Various AIX-related fixes and hacks.
+
+Marc Fournier <marc.fournier at camptocamp.com>
+ - Various fixes to the varnish plugin.
+ - RPM specfile update.
+ - libmnl support in the netlink plugin.
 
 Marco Chiappero <marco at absence.it>
  - uptime plugin.
