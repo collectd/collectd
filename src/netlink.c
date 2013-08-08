@@ -35,7 +35,6 @@
 # include <linux/pkt_sched.h>
 #endif
 
-#include <time.h>
 #include <libmnl/libmnl.h>
 
 typedef struct ir_ignorelist_s
