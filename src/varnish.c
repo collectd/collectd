@@ -67,7 +67,9 @@ struct user_config_s {
 #endif
 	_Bool collect_struct;
 	_Bool collect_totals;
+#ifdef HAVE_VARNISH_V3
 	_Bool collect_uptime;
+#endif
 	_Bool collect_vcl;
 	_Bool collect_workers;
 };
@@ -381,10 +383,12 @@ static void varnish_monitor (const user_config_t *conf, /* {{{ */
 		varnish_submit_gauge (conf->instance, "struct", "current_sessions", "sess",      stats->n_sess);
 		/* N struct object         */
 		varnish_submit_gauge (conf->instance, "struct", "objects", "object",             stats->n_object);
+#ifdef HAVE_VARNISH_V3
 		/* N unresurrected objects */
 		varnish_submit_gauge (conf->instance, "struct", "objects", "vampireobject",      stats->n_vampireobject);
 		/* N struct objectcore     */
 		varnish_submit_gauge (conf->instance, "struct", "objects", "objectcore",         stats->n_objectcore);
+#endif
 		/* N struct objecthead     */
 		varnish_submit_gauge (conf->instance, "struct", "objects", "objecthead",         stats->n_objecthead);
 #ifdef HAVE_VARNISH_V2
@@ -417,11 +421,13 @@ static void varnish_monitor (const user_config_t *conf, /* {{{ */
 		varnish_submit_derive (conf->instance, "totals", "total_bytes", "body-bytes",   stats->s_bodybytes);
 	}
 
+#ifdef HAVE_VARNISH_V3
 	if (conf->collect_uptime)
 	{
 		/* Client uptime */
 		varnish_submit_gauge (conf->instance, "uptime", "uptime", "client_uptime", stats->uptime);
 	}
+#endif
 
 	if (conf->collect_vcl)
 	{
@@ -569,7 +575,9 @@ static int varnish_config_apply_default (user_config_t *conf) /* {{{ */
 	conf->collect_sms         = 0;
 	conf->collect_struct      = 0;
 	conf->collect_totals      = 0;
+#ifdef HAVE_VARNISH_V3
 	conf->collect_uptime      = 0;
+#endif
 	conf->collect_vcl         = 0;
 	conf->collect_workers     = 0;
 
@@ -691,8 +699,10 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 			cf_util_get_boolean (child, &conf->collect_struct);
 		else if (strcasecmp ("CollectTotals", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_totals);
+#ifdef HAVE_VARNISH_V3
 		else if (strcasecmp ("CollectUptime", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_uptime);
+#endif
 		else if (strcasecmp ("CollectVCL", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_vcl);
 		else if (strcasecmp ("CollectWorkers", child->key) == 0)
@@ -731,7 +741,9 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 #endif
 			&& !conf->collect_struct
 			&& !conf->collect_totals
+#ifdef HAVE_VARNISH_V3
 			&& !conf->collect_uptime
+#endif
 			&& !conf->collect_vcl
 			&& !conf->collect_workers)
 	{
