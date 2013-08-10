@@ -1109,6 +1109,10 @@ socket.
       <Key "workers/*/requests">
         Type "http_requests"
       </Key>
+
+      <Key "workers/*/apps/*/requests">
+        Type "http_requests"
+      </Key>
     </Sock>
   </Plugin>
 
