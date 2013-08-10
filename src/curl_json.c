@@ -500,6 +500,7 @@ static int cj_config_add_key (cj_t *db, /* {{{ */
         len = ptr-name;
         if (len == 0)
           break;
+        len = COUCH_MIN(len, sizeof (ent)-1);
         sstrncpy (ent, name, len+1);
 
         if (c_avl_get (tree, ent, (void *) &value) != 0)
