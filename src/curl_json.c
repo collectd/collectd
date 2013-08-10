@@ -371,6 +371,8 @@ static void cj_free (void *arg) /* {{{ */
   sfree (db->instance);
   sfree (db->host);
 
+  sfree (db->sock);
+
   sfree (db->url);
   sfree (db->user);
   sfree (db->pass);
