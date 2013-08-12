@@ -1,0 +1,203 @@
+
+client.c,1564
+# define NI_MAXHOST 54,1830
+#  define EILSEQ 60,1970
+#  define EILSEQ 62,2001
+#define SSTRCPY(70,2344
+#define SSTRCAT(75,2456
+#define SSTRCATF(81,2608
+#define LCC_SET_ERRSTR(89,2790
+# define LCC_DEBUG(95,2969
+# define LCC_DEBUG(97,3020
+struct lcc_connection_s103,3073
+  FILE *fh;fh105,3099
+  char errbuf[errbuf106,3111
+struct lcc_response_s109,3136
+  int status;111,3160
+  char message[message112,3174
+  char **lines;lines113,3196
+  size_t lines_num;114,3212
+typedef struct lcc_response_s lcc_response_t;116,3235
+static char *sstrerror sstrerror124,3478
+static int lcc_set_errno 161,4303
+static char *lcc_strescape lcc_strescape172,4543
+static void lcc_chomp 222,5487
+static void lcc_response_free 236,5722
+static int lcc_send 249,5974
+static int lcc_receive 265,6270
+static int lcc_sendreceive 357,8288
+static int lcc_open_unixsocket 381,8775
+static int lcc_open_netsocket 423,9648
+static int lcc_open_socket 537,12003
+unsigned int lcc_version 561,12531
+const char *lcc_version_string lcc_version_string566,12637
+const char *lcc_version_extra lcc_version_extra571,12762
+int lcc_connect 576,12884
+int lcc_disconnect 603,13369
+int lcc_getval 618,13583
+#define BAIL_OUT(665,14724
+int lcc_putval 746,16477
+int lcc_flush 811,18220
+int lcc_listval 866,19399
+const char *lcc_strerror lcc_strerror949,21021
+int lcc_identifier_to_string 956,21188
+int lcc_string_to_identifier 1000,22312
+int lcc_identifier_compare 1066,23698
+#define CMP_FIELD(1078,23945
+#undef CMP_FIELD1090,24236
+int lcc_sort_identifiers 1095,24310
+
+network.c,960
+struct lcc_network_s50,1605
+  lcc_server_t *servers;servers52,1628
+struct lcc_server_s55,1657
+  char *node;node57,1679
+  char *service;service58,1693
+  int ttl;60,1711
+  lcc_security_level_t security_level;61,1722
+  char *username;username62,1761
+  char *password;password63,1779
+  int fd;65,1798
+  struct sockaddr *sa;sa66,1808
+  socklen_t sa_len;67,1831
+  lcc_network_buffer_t *buffer;buffer69,1852
+  lcc_server_t *next;next71,1885
+static int server_close_socket 77,1939
+static void int_server_destroy 93,2205
+static int server_open_socket 119,2614
+static int server_send_buffer 200,4575
+static int server_value_add 243,5550
+lcc_network_t *lcc_network_create lcc_network_create259,5900
+void lcc_network_destroy 273,6168
+lcc_server_t *lcc_server_create lcc_server_create281,6346
+int lcc_server_destroy 343,7471
+int lcc_server_set_ttl 372,8000
+int lcc_server_set_security_level 382,8184
+int lcc_network_values_send 390,8476
+
+collectd/client.h,1280
+#define LIBCOLLECTD_COLLECTDCLIENT_H 28,1298
+#define LCC_NAME_LEN 44,1506
+#define LCC_DEFAULT_PORT 45,1530
+#define LCC_TYPE_COUNTER 50,1580
+#define LCC_TYPE_GAUGE 51,1607
+#define LCC_TYPE_DERIVE 52,1634
+#define LCC_TYPE_ABSOLUTE 53,1662
+typedef uint64_t counter_t;57,1710
+typedef double gauge_t;58,1738
+typedef uint64_t derive_t;59,1762
+typedef uint64_t absolute_t;60,1789
+union value_u62,1819
+  counter_t counter;64,1835
+  gauge_t   gauge;65,1856
+  derive_t  derive;66,1875
+  absolute_t absolute;67,1895
+typedef union value_u value_t;69,1921
+struct lcc_identifier_s71,1953
+  char host[host73,1979
+  char plugin[plugin74,2006
+  char plugin_instance[plugin_instance75,2035
+  char type[type76,2073
+  char type_instance[type_instance77,2100
+typedef struct lcc_identifier_s lcc_identifier_t;79,2139
+#define LCC_IDENTIFIER_INIT 80,2189
+struct lcc_value_list_s82,2250
+  value_t *values;values84,2276
+  int     *values_types;values_types85,2295
+  size_t   values_len;86,2320
+  double   time;87,2343
+  double   interval;88,2360
+  lcc_identifier_t identifier;89,2381
+typedef struct lcc_value_list_s lcc_value_list_t;91,2415
+#define LCC_VALUE_LIST_INIT 92,2465
+typedef struct lcc_connection_s lcc_connection_t;95,2564
+#define LCC_DESTROY(102,2744
+
+collectd/lcc_features.h,448
+#define LIBCOLLECTD_LCC_FEATURES_H 28,1279
+# define LCC_BEGIN_DECLS 31,1336
+# define LCC_END_DECLS 32,1374
+# define LCC_BEGIN_DECLS34,1407
+# define LCC_END_DECLS35,1432
+#define LCC_API_VERSION 38,1463
+#define LCC_VERSION_MAJOR 40,1490
+#define LCC_VERSION_MINOR 41,1518
+#define LCC_VERSION_PATCH 42,1546
+#define LCC_VERSION_EXTRA 44,1575
+#define LCC_VERSION_STRING 46,1608
+#define LCC_VERSION_ENCODE(48,1644
+#define LCC_VERSION 51,1740
+
+collectd/network_buffer.h,167
+#define LIBCOLLECTDCLIENT_NETWORK_BUFFER_H 28,1303
+#define LCC_NETWORK_BUFFER_SIZE_DEFAULT 35,1453
+typedef struct lcc_network_buffer_s lcc_network_buffer_t;38,1528
+
+network_buffer.c,1976
+# define GCRYPT_NO_DEPRECATED51,2033
+GCRY_THREAD_OPTION_PTHREAD_IMPL;57,2213
+#define TYPE_HOST 62,2292
+#define TYPE_TIME 63,2328
+#define TYPE_TIME_HR 64,2364
+#define TYPE_PLUGIN 65,2400
+#define TYPE_PLUGIN_INSTANCE 66,2436
+#define TYPE_TYPE 67,2472
+#define TYPE_TYPE_INSTANCE 68,2508
+#define TYPE_VALUES 69,2544
+#define TYPE_INTERVAL 70,2580
+#define TYPE_INTERVAL_HR 71,2616
+#define TYPE_MESSAGE 74,2691
+#define TYPE_SEVERITY 75,2727
+#define TYPE_SIGN_SHA256 77,2764
+#define TYPE_ENCR_AES256 78,2800
+#define PART_SIGNATURE_SHA256_SIZE 80,2837
+#define PART_ENCRYPTION_AES256_SIZE 81,2875
+#define ADD_GENERIC(83,2915
+#define ADD_STATIC(90,3183
+struct lcc_network_buffer_s96,3272
+  char *buffer;buffer98,3302
+  size_t size;99,3318
+  lcc_value_list_t state;101,3334
+  char *ptr;ptr102,3360
+  size_t free;103,3373
+  lcc_security_level_t seclevel;105,3389
+  char *username;username106,3422
+  char *password;password107,3440
+  gcry_cipher_hd_t encr_cypher;110,3478
+  size_t encr_header_len;111,3510
+  char encr_iv[encr_iv112,3536
+#define SSTRNCPY(116,3567
+static _Bool have_gcrypt 124,3716
+static uint64_t htonll 149,4207
+static double htond 179,4695
+  union { uint8_t byte[byte183,4766
+  union { uint8_t byte[8]; double floating;183,4766
+  union { uint8_t byte[byte184,4816
+  union { uint8_t byte[8]; double floating;184,4816
+static int nb_add_values 255,6647
+static int nb_add_number 334,8964
+static int nb_add_time 374,9943
+static int nb_add_string 383,10279
+static int nb_add_value_list 422,11239
+static int nb_add_signature 504,13672
+static int nb_add_encryption 550,14931
+lcc_network_buffer_t *lcc_network_buffer_create lcc_network_buffer_create635,17087
+void lcc_network_buffer_destroy 672,17770
+int lcc_network_buffer_set_security_level 681,17951
+int lcc_network_buffer_initialize 721,18872
+int lcc_network_buffer_finalize 782,20756
+int lcc_network_buffer_add_value 797,21072
+int lcc_network_buffer_get 809,21353
+
+collectd/network.h,403
+#define LIBCOLLECTDCLIENT_NETWORK_H 28,1289
+#define NET_DEFAULT_V4_ADDR 35,1392
+#define NET_DEFAULT_V6_ADDR 36,1436
+#define NET_DEFAULT_PORT 37,1482
+typedef struct lcc_network_s lcc_network_t;40,1541
+typedef struct lcc_server_s lcc_server_t;43,1607
+enum lcc_security_level_e45,1650
+  NONE,47,1678
+  SIGN,48,1686
+  ENCRYPT49,1694
+typedef enum lcc_security_level_e lcc_security_level_t;51,1707

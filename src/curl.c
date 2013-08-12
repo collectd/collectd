@@ -60,6 +60,8 @@ struct web_page_s /* {{{ */
   int   verify_peer;
   int   verify_host;
   char *cacert;
+  struct curl_slist *headers;
+  char *post_body;
   int   response_time;
 
   CURL *curl;
@@ -148,6 +150,8 @@ static void cc_web_page_free (web_page_t *wp) /* {{{ */
   sfree (wp->pass);
   sfree (wp->credentials);
   sfree (wp->cacert);
+  sfree (wp->post_body);
+  curl_slist_free_all (wp->headers);
 
   sfree (wp->buffer);
 
@@ -172,6 +176,23 @@ static int cc_config_add_string (const char *name, char **dest, /* {{{ */
 
   return (0);
 } /* }}} int cc_config_add_string */
+
+static int cc_config_append_string (const char *name, struct curl_slist **dest, /* {{{ */
+    oconfig_item_t *ci)
+{
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
+  {
+    WARNING ("curl plugin: `%s' needs exactly one string argument.", name);
+    return (-1);
+  }
+
+  *dest = curl_slist_append(*dest, ci->values[0].value.string);
+  if (*dest == NULL)
+    return (-1);
+
+  return (0);
+} /* }}} int cc_config_append_string */
+
 
 static int cc_config_set_boolean (const char *name, int *dest, /* {{{ */
     oconfig_item_t *ci)
@@ -378,6 +399,7 @@ static int cc_page_init_curl (web_page_t *wp) /* {{{ */
   curl_easy_setopt (wp->curl, CURLOPT_ERRORBUFFER, wp->curl_errbuf);
   curl_easy_setopt (wp->curl, CURLOPT_URL, wp->url);
   curl_easy_setopt (wp->curl, CURLOPT_FOLLOWLOCATION, 1L);
+  curl_easy_setopt (wp->curl, CURLOPT_MAXREDIRS, 50L);
 
   if (wp->user != NULL)
   {
@@ -404,6 +426,10 @@ static int cc_page_init_curl (web_page_t *wp) /* {{{ */
       wp->verify_host ? 2L : 0L);
   if (wp->cacert != NULL)
     curl_easy_setopt (wp->curl, CURLOPT_CAINFO, wp->cacert);
+  if (wp->headers != NULL)
+    curl_easy_setopt (wp->curl, CURLOPT_HTTPHEADER, wp->headers);
+  if (wp->post_body != NULL)
+    curl_easy_setopt (wp->curl, CURLOPT_POSTFIELDS, wp->post_body);
 
   return (0);
 } /* }}} int cc_page_init_curl */
@@ -465,6 +491,10 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp ("Match", child->key) == 0)
       /* Be liberal with failing matches => don't set `status'. */
       cc_config_add_match (page, child);
+    else if (strcasecmp ("Header", child->key) == 0)
+      status = cc_config_append_string ("Header", &page->headers, child);
+    else if (strcasecmp ("Post", child->key) == 0)
+      status = cc_config_add_string ("Post", &page->post_body, child);
     else
     {
       WARNING ("curl plugin: Option `%s' not allowed here.", child->key);
@@ -615,7 +645,7 @@ static int cc_read_page (web_page_t *wp) /* {{{ */
 
   wp->buffer_fill = 0;
   status = curl_easy_perform (wp->curl);
-  if (status != 0)
+  if (status != CURLE_OK)
   {
     ERROR ("curl plugin: curl_easy_perform failed with staus %i: %s",
         status, wp->curl_errbuf);

@@ -1,0 +1,58 @@
+*************** use Collectd::Unixsock();
+*** 57,65 ****
+  	my $sock = Collectd::Unixsock->new($path);
+  
+  	my $cmds = {
+- 		PUTVAL => \&putval,
+- 		GETVAL => \&getval,
+- 		FLUSH  => \&flush,
+  	};
+  
+  	if (! $sock) {
+--- 57,66 ----
+  	my $sock = Collectd::Unixsock->new($path);
+  
+  	my $cmds = {
++ 		PUTVAL  => \&putval,
++ 		GETVAL  => \&getval,
++ 		FLUSH   => \&flush,
++ 		LISTVAL => \&listval,
+  	};
+  
+  	if (! $sock) {
+*************** use Collectd::Unixsock();
+*** 67,73 ****
+  		exit 1;
+  	}
+  
+- 	print "cussh version 0.2, Copyright (C) 2007 Sebastian Harl\n"
+  		. "cussh comes with ABSOLUTELY NO WARRANTY. This is free software,\n"
+  		. "and you are welcome to redistribute it under certain conditions.\n"
+  		. "See the GNU General Public License 2 for more details.\n\n";
+--- 68,74 ----
+  		exit 1;
+  	}
+  
++ 	print "cussh version 0.2, Copyright (C) 2007-2008 Sebastian Harl\n"
+  		. "cussh comes with ABSOLUTELY NO WARRANTY. This is free software,\n"
+  		. "and you are welcome to redistribute it under certain conditions.\n"
+  		. "See the GNU General Public License 2 for more details.\n\n";
+*************** sub getval {
+*** 162,167 ****
+  	return 1;
+  }
+  
+  sub flush {
+  	my $sock = shift || return;
+  	my $line = shift;
+--- 188,197 ----
+  	return 1;
+  }
+  
++ =item B<FLUSH> [B<timeout>=I<$timeout>] [B<plugin>=I<$plugin>[ ...]]
++ 
++ =cut
++ 
+  sub flush {
+  	my $sock = shift || return;
+  	my $line = shift;

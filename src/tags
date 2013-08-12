@@ -1,0 +1,874 @@
+APPEND	logfile.c	/^#define APPEND(bufptr, buflen, key, value) \\$/
+BAIL_OUT	collectdctl.c	/^#define BAIL_OUT(s) \\$/
+BALANCE	utils_avltree.c	/^#define BALANCE(n) ((((n)->left == NULL) ? 0 : (n)/
+BLOCKSIZE	df.c	/^# define BLOCKSIZE(s) ((s).f_frsize ? (s).f_frsize/
+BUFFER_ADD	network.c	/^#define BUFFER_ADD(p,s) do { \\$/
+BUFFER_ADD_FIELD	syslog.c	/^#define BUFFER_ADD_FIELD(field) do { \\$/
+BUFFER_ADD_KEYVAL	utils_format_json.c	/^#define BUFFER_ADD_KEYVAL(key, value) do { \\$/
+BUFFER_READ	network.c	/^#define BUFFER_READ(p,s) do { \\$/
+CDTIME_T_TO_DOUBLE	utils_time.h	/^#define CDTIME_T_TO_DOUBLE(t) (((double) (t)) \/ 1/
+CDTIME_T_TO_MS	utils_time.h	/^#define CDTIME_T_TO_MS(t)  ((long)        (((doubl/
+CDTIME_T_TO_NS	utils_time.h	/^#define CDTIME_T_TO_NS(t)  ((long)        (((doubl/
+CDTIME_T_TO_TIMESPEC	utils_time.h	/^#define CDTIME_T_TO_TIMESPEC(cdt,tsp) do {        /
+CDTIME_T_TO_TIMEVAL	utils_time.h	/^#define CDTIME_T_TO_TIMEVAL(cdt,tvp) do {         /
+CDTIME_T_TO_TIME_T	utils_time.h	/^#define CDTIME_T_TO_TIME_T(t) ((time_t) ((t) \/ 10/
+CDTIME_T_TO_US	utils_time.h	/^#define CDTIME_T_TO_US(t)  ((suseconds_t) (((doubl/
+C_COMPLAIN_INIT	utils_complain.h	/^#define C_COMPLAIN_INIT(c) do { \\$/
+DOUBLE_TO_CDTIME_T	utils_time.h	/^#define DOUBLE_TO_CDTIME_T(d) ((cdtime_t) ((d) * 1/
+DS_TYPE_TO_STRING	plugin.h	/^#define DS_TYPE_TO_STRING(t) (t == DS_TYPE_COUNTER/
+ESCAPE_NULL	configfile.c	/^#define ESCAPE_NULL(str) ((str) == NULL ? "(null)"/
+FORMAT_VL	common.h	/^#define FORMAT_VL(ret, ret_len, vl) \\$/
+FP_CONVERT	common.c	/^#  define FP_CONVERT(A) ((((uint64_t)(A) & 0xff000/
+GETPWNAM_COPY_MEMBER	common.c	/^#define GETPWNAM_COPY_MEMBER(member) \\$/
+IS_FALSE	common.h	/^#define IS_FALSE(s) ((strcasecmp ("false", (s)) ==/
+IS_TRUE	common.h	/^#define IS_TRUE(s) ((strcasecmp ("true", (s)) == 0/
+LU_IS_ALL	utils_vl_lookup.h	/^#define LU_IS_ALL(str) (strcmp (str, LU_ALL) == 0)/
+LU_IS_ANY	utils_vl_lookup.h	/^#define LU_IS_ANY(str) (strcmp (str, LU_ANY) == 0)/
+LU_IS_WILDCARD	utils_vl_lookup.h	/^#define LU_IS_WILDCARD(str) (LU_IS_ANY(str) || LU_/
+MAX	swap.c	/^#define MAX(x,y) ((x) > (y) ? (x) : (y))$/
+MS_TO_CDTIME_T	utils_time.h	/^#define MS_TO_CDTIME_T(ms) ((cdtime_t)    (((doubl/
+Mcollectd	collectd.c	/^int main (int argc, char **argv)$/
+Mcollectd-nagios	collectd-nagios.c	/^int main (int argc, char **argv)$/
+Mcollectd-tg	collectd-tg.c	/^int main (int argc, char **argv) \/* {{{ *\/$/
+Mcollectdctl	collectdctl.c	/^int main (int argc, char **argv) {$/
+Mcollectdmon	collectdmon.c	/^int main (int argc, char **argv)$/
+Mutils_vl_lookup_test	utils_vl_lookup_test.c	/^int main (int argc, char **argv) \/* {{{ *\/$/
+NAMLEN	collectd.h	/^# define NAMLEN(dirent) strlen((dirent)->d_name)$/
+NORMALIZE_TIMESPEC	common.h	/^#define NORMALIZE_TIMESPEC(tv) \\$/
+NORMALIZE_TIMEVAL	common.h	/^#define NORMALIZE_TIMEVAL(tv) \\$/
+NOTIFICATION_INIT_VL	common.h	/^#define NOTIFICATION_INIT_VL(n, vl) \\$/
+NS_TO_CDTIME_T	utils_time.h	/^#define NS_TO_CDTIME_T(ns) ((cdtime_t)    (((doubl/
+STATIC_ARRAY_LEN	collectd.h	/^#define STATIC_ARRAY_LEN(array) (sizeof (array) \//
+STATIC_ARRAY_SIZE	common.h	/^#define STATIC_ARRAY_SIZE(a) (sizeof (a) \/ sizeof/
+TIMESPEC_TO_CDTIME_T	utils_time.h	/^#define TIMESPEC_TO_CDTIME_T(ts) (TIME_T_TO_CDTIME/
+TIMEVAL_TO_CDTIME_T	utils_time.h	/^#define TIMEVAL_TO_CDTIME_T(tv) (TIME_T_TO_CDTIME_/
+TIME_T_TO_CDTIME_T	utils_time.h	/^#define TIME_T_TO_CDTIME_T(t) (((cdtime_t) (t)) * /
+UC_WRAP	utils_cache.c	/^#define UC_WRAP(wrap_function) { \\$/
+US_TO_CDTIME_T	utils_time.h	/^#define US_TO_CDTIME_T(us) ((cdtime_t)    (((doubl/
+WCOREDUMP	collectdmon.c	/^# define WCOREDUMP(s) 0$/
+WEXITSTATUS	collectd.h	/^# define WEXITSTATUS(stat_val) ((unsigned int) (st/
+WIFEXITED	collectd.h	/^# define WIFEXITED(stat_val) (((stat_val) & 255) =/
+_Bool	collectd.h	/^typedef int _Bool;$/
+__attribute__	collectd-nagios.c	/^# define __attribute__(x) \/**\/$/
+_cu_mount_t	utils_mount.h	/^struct _cu_mount_t {$/
+_remove	utils_avltree.c	/^static int _remove (c_avl_tree_t *t, c_avl_node_t /
+absolute_t	plugin.h	/^typedef uint64_t absolute_t;$/
+add_to_array	utils_cmd_flush.c	/^static int add_to_array (char ***array, int *array/
+add_to_buffer	network.c	/^static int add_to_buffer (char *buffer, int buffer/
+apache_curl_callback	apache.c	/^static size_t apache_curl_callback (void *buf, siz/
+apache_free	apache.c	/^static void apache_free (apache_t *st)$/
+apache_header_callback	apache.c	/^static size_t apache_header_callback (void *buf, s/
+apache_read_host	apache.c	/^static int apache_read_host (user_data_t *user_dat/
+apache_s	apache.c	/^struct apache_s$/
+apache_t	apache.c	/^typedef struct apache_s apache_t;$/
+array_grow	collectdctl.c	/^static int array_grow (void **array, int *array_le/
+assert	collectd.h	/^# define assert(...) \/* nop *\/$/
+asubst	utils_subst.c	/^char *asubst (const char *string, int off1, int of/
+by_type_entry_s	utils_vl_lookup.c	/^struct by_type_entry_s$/
+by_type_entry_t	utils_vl_lookup.c	/^typedef struct by_type_entry_s by_type_entry_t;$/
+c_avl_create	utils_avltree.c	/^c_avl_tree_t *c_avl_create (int (*compare) (const /
+c_avl_destroy	utils_avltree.c	/^void c_avl_destroy (c_avl_tree_t *t)$/
+c_avl_get	utils_avltree.c	/^int c_avl_get (c_avl_tree_t *t, const void *key, v/
+c_avl_get_iterator	utils_avltree.c	/^c_avl_iterator_t *c_avl_get_iterator (c_avl_tree_t/
+c_avl_insert	utils_avltree.c	/^int c_avl_insert (c_avl_tree_t *t, void *key, void/
+c_avl_iterator_destroy	utils_avltree.c	/^void c_avl_iterator_destroy (c_avl_iterator_t *ite/
+c_avl_iterator_next	utils_avltree.c	/^int c_avl_iterator_next (c_avl_iterator_t *iter, v/
+c_avl_iterator_prev	utils_avltree.c	/^int c_avl_iterator_prev (c_avl_iterator_t *iter, v/
+c_avl_iterator_s	utils_avltree.c	/^struct c_avl_iterator_s$/
+c_avl_iterator_t	utils_avltree.h	/^struct c_avl_iterator_s;$/
+c_avl_node_next	utils_avltree.c	/^static c_avl_node_t *c_avl_node_next (c_avl_node_t/
+c_avl_node_prev	utils_avltree.c	/^static c_avl_node_t *c_avl_node_prev (c_avl_node_t/
+c_avl_node_s	utils_avltree.c	/^struct c_avl_node_s$/
+c_avl_node_t	utils_avltree.c	/^typedef struct c_avl_node_s c_avl_node_t;$/
+c_avl_pick	utils_avltree.c	/^int c_avl_pick (c_avl_tree_t *t, void **key, void /
+c_avl_remove	utils_avltree.c	/^int c_avl_remove (c_avl_tree_t *t, const void *key/
+c_avl_size	utils_avltree.c	/^int c_avl_size (c_avl_tree_t *t)$/
+c_avl_tree_s	utils_avltree.c	/^struct c_avl_tree_s$/
+c_avl_tree_t	utils_avltree.h	/^struct c_avl_tree_s;$/
+c_complain	utils_complain.c	/^void c_complain (int level, c_complain_t *c, const/
+c_complain_once	utils_complain.c	/^void c_complain_once (int level, c_complain_t *c, /
+c_complain_t	utils_complain.h	/^} c_complain_t;$/
+c_do_release	utils_complain.c	/^void c_do_release (int level, c_complain_t *c, con/
+c_heap_create	utils_heap.c	/^c_heap_t *c_heap_create (int (*compare) (const voi/
+c_heap_destroy	utils_heap.c	/^void c_heap_destroy (c_heap_t *h)$/
+c_heap_get_root	utils_heap.c	/^void *c_heap_get_root (c_heap_t *h)$/
+c_heap_insert	utils_heap.c	/^int c_heap_insert (c_heap_t *h, void *ptr)$/
+c_heap_s	utils_heap.c	/^struct c_heap_s$/
+c_heap_t	utils_heap.h	/^struct c_heap_s;$/
+c_release	utils_complain.h	/^#define c_release(level, c, ...) \\$/
+c_would_release	utils_complain.h	/^#define c_would_release(c) ((c)->interval != 0)$/
+cache_alloc	utils_cache.c	/^static cache_entry_t *cache_alloc (int values_num)/
+cache_compare	utils_cache.c	/^static int cache_compare (const cache_entry_t *a, /
+cache_entry_t	utils_cache.c	/^} cache_entry_t;$/
+cache_free	utils_cache.c	/^static void cache_free (cache_entry_t *ce)$/
+calc_height	utils_avltree.c	/^static int calc_height (c_avl_node_t *n)$/
+call_snmp_init_once	snmp.c	/^static void call_snmp_init_once (void)$/
+callback_func_s	plugin.c	/^struct callback_func_s$/
+callback_func_t	plugin.c	/^typedef struct callback_func_s callback_func_t;$/
+cc_config	curl.c	/^static int cc_config (oconfig_item_t *ci) \/* {{{ /
+cc_config_add_match	curl.c	/^static int cc_config_add_match (web_page_t *page, /
+cc_config_add_match_dstype	curl.c	/^static int cc_config_add_match_dstype (int *dstype/
+cc_config_add_page	curl.c	/^static int cc_config_add_page (oconfig_item_t *ci)/
+cc_config_add_string	curl.c	/^static int cc_config_add_string (const char *name,/
+cc_config_set_boolean	curl.c	/^static int cc_config_set_boolean (const char *name/
+cc_curl_callback	curl.c	/^static size_t cc_curl_callback (void *buf, \/* {{{/
+cc_init	curl.c	/^static int cc_init (void) \/* {{{ *\/$/
+cc_page_init_curl	curl.c	/^static int cc_page_init_curl (web_page_t *wp) \/* /
+cc_read	curl.c	/^static int cc_read (void) \/* {{{ *\/$/
+cc_read_page	curl.c	/^static int cc_read_page (web_page_t *wp) \/* {{{ */
+cc_shutdown	curl.c	/^static int cc_shutdown (void) \/* {{{ *\/$/
+cc_submit	curl.c	/^static void cc_submit (const web_page_t *wp, const/
+cc_submit_response_time	curl.c	/^static void cc_submit_response_time (const web_pag/
+cc_web_match_free	curl.c	/^static void cc_web_match_free (web_match_t *wm) \//
+cc_web_page_free	curl.c	/^static void cc_web_page_free (web_page_t *wp) \/* /
+cdtime	utils_time.c	/^cdtime_t cdtime (void) \/* {{{ *\/$/
+cdtime_t	collectd.h	/^typedef uint64_t cdtime_t;$/
+cdtime_to_iso8601	utils_time.c	/^size_t cdtime_to_iso8601 (char *s, size_t max, cdt/
+cf_callback_t	configfile.c	/^} cf_callback_t;$/
+cf_ci_append_children	configfile.c	/^static int cf_ci_append_children (oconfig_item_t */
+cf_ci_replace_child	configfile.c	/^static int cf_ci_replace_child (oconfig_item_t *ds/
+cf_compare_string	configfile.c	/^static int cf_compare_string (const void *p1, cons/
+cf_complex_callback_t	configfile.c	/^} cf_complex_callback_t;$/
+cf_dispatch	configfile.c	/^static int cf_dispatch (const char *type, const ch/
+cf_get_default_interval	configfile.c	/^cdtime_t cf_get_default_interval (void)$/
+cf_global_option_t	configfile.c	/^} cf_global_option_t;$/
+cf_include_all	configfile.c	/^static int cf_include_all (oconfig_item_t *root, i/
+cf_read	configfile.c	/^int cf_read (char *filename)$/
+cf_read_dir	configfile.c	/^static oconfig_item_t *cf_read_dir (const char *di/
+cf_read_file	configfile.c	/^static oconfig_item_t *cf_read_file (const char *f/
+cf_read_generic	configfile.c	/^static oconfig_item_t *cf_read_generic (const char/
+cf_register	configfile.c	/^void cf_register (const char *type,$/
+cf_register_complex	configfile.c	/^int cf_register_complex (const char *type, int (*c/
+cf_search	configfile.c	/^static cf_callback_t *cf_search (const char *type)/
+cf_unregister	configfile.c	/^void cf_unregister (const char *type)$/
+cf_unregister_complex	configfile.c	/^void cf_unregister_complex (const char *type)$/
+cf_util_get_boolean	configfile.c	/^int cf_util_get_boolean (const oconfig_item_t *ci,/
+cf_util_get_cdtime	configfile.c	/^int cf_util_get_cdtime (const oconfig_item_t *ci, /
+cf_util_get_double	configfile.c	/^int cf_util_get_double (const oconfig_item_t *ci, /
+cf_util_get_flag	configfile.c	/^int cf_util_get_flag (const oconfig_item_t *ci, \//
+cf_util_get_int	configfile.c	/^int cf_util_get_int (const oconfig_item_t *ci, int/
+cf_util_get_port_number	configfile.c	/^int cf_util_get_port_number (const oconfig_item_t /
+cf_util_get_service	configfile.c	/^int cf_util_get_service (const oconfig_item_t *ci,/
+cf_util_get_string	configfile.c	/^int cf_util_get_string (const oconfig_item_t *ci, /
+cf_util_get_string_buffer	configfile.c	/^int cf_util_get_string_buffer (const oconfig_item_/
+cf_value_map_t	configfile.c	/^} cf_value_map_t;$/
+change_basedir	collectd.c	/^static int change_basedir (const char *orig_dir)$/
+check_create_dir	common.c	/^int check_create_dir (const char *file_orig)$/
+check_notify_received	network.c	/^static _Bool check_notify_received (const notifica/
+check_receive_okay	network.c	/^static _Bool check_receive_okay (const value_list_/
+check_respawn	collectdmon.c	/^static void check_respawn (void)$/
+check_send_notify_okay	network.c	/^static _Bool check_send_notify_okay (const notific/
+check_send_okay	network.c	/^static _Bool check_send_okay (const value_list_t */
+checked_lookup_add	utils_vl_lookup_test.c	/^static void checked_lookup_add (lookup_t *obj, \/*/
+checked_lookup_create	utils_vl_lookup_test.c	/^static lookup_t *checked_lookup_create (void)$/
+checked_lookup_search	utils_vl_lookup_test.c	/^static int checked_lookup_search (lookup_t *obj,$/
+collectd_start	collectdmon.c	/^static int collectd_start (char **argv)$/
+collectd_stop	collectdmon.c	/^static int collectd_stop (void)$/
+compare_read_func_group	plugin.c	/^static int compare_read_func_group (llentry_t *e, /
+compare_time	collectd-tg.c	/^static int compare_time (const void *v0, const voi/
+config	nginx.c	/^static int config (const char *key, const char *va/
+config_add	apache.c	/^static int config_add (oconfig_item_t *ci)$/
+config_set	nginx.c	/^static int config_set (char **var, const char *val/
+config_set_boolean	write_http.c	/^static int config_set_boolean (int *dest, oconfig_/
+config_set_char	write_tsdb.c	/^static int config_set_char (char *dest,$/
+config_set_format	write_http.c	/^static int config_set_format (wh_callback_t *cb, /
+config_set_string	write_http.c	/^static int config_set_string (char **ret_string, /
+conn_config	tcpconns.c	/^static int conn_config (const char *key, const cha/
+conn_get_port_entry	tcpconns.c	/^static port_entry_t *conn_get_port_entry (uint16_t/
+conn_handle_line	tcpconns.c	/^static int conn_handle_line (char *buffer)$/
+conn_handle_ports	tcpconns.c	/^static int conn_handle_ports (uint16_t port_local,/
+conn_init	tcpconns.c	/^static int conn_init (void)$/
+conn_read	tcpconns.c	/^static int conn_read (void)$/
+conn_read_file	tcpconns.c	/^static int conn_read_file (const char *file)$/
+conn_read_netlink	tcpconns.c	/^static int conn_read_netlink (void)$/
+conn_reset_port_entry	tcpconns.c	/^static void conn_reset_port_entry (void)$/
+conn_submit_all	tcpconns.c	/^static void conn_submit_all (void)$/
+conn_submit_port_entry	tcpconns.c	/^static void conn_submit_port_entry (port_entry_t */
+count_chars	collectdctl.c	/^static int count_chars (const char *str, char chr)/
+counter_diff	common.c	/^counter_t counter_diff (counter_t old_value, count/
+counter_t	plugin.h	/^typedef unsigned long long counter_t;$/
+cpu_read	cpu.c	/^static int cpu_read (void)$/
+create_putval	utils_cmd_putval.c	/^int create_putval (char *ret, size_t ret_len, \/* /
+create_register_callback	plugin.c	/^static int create_register_callback (llist_t **lis/
+create_value_list	collectd-tg.c	/^static lcc_value_list_t *create_value_list (void) /
+csnmp_check_res_left_subtree	snmp.c	/^static int csnmp_check_res_left_subtree (const hos/
+csnmp_config	snmp.c	/^static int csnmp_config (oconfig_item_t *ci)$/
+csnmp_config_add_data	snmp.c	/^static int csnmp_config_add_data (oconfig_item_t */
+csnmp_config_add_data_instance	snmp.c	/^static int csnmp_config_add_data_instance (data_de/
+csnmp_config_add_data_instance_prefix	snmp.c	/^static int csnmp_config_add_data_instance_prefix (/
+csnmp_config_add_data_scale	snmp.c	/^static int csnmp_config_add_data_scale (data_defin/
+csnmp_config_add_data_shift	snmp.c	/^static int csnmp_config_add_data_shift (data_defin/
+csnmp_config_add_data_table	snmp.c	/^static int csnmp_config_add_data_table (data_defin/
+csnmp_config_add_data_type	snmp.c	/^static int csnmp_config_add_data_type (data_defini/
+csnmp_config_add_data_values	snmp.c	/^static int csnmp_config_add_data_values (data_defi/
+csnmp_config_add_host	snmp.c	/^static int csnmp_config_add_host (oconfig_item_t */
+csnmp_config_add_host_address	snmp.c	/^static int csnmp_config_add_host_address (host_def/
+csnmp_config_add_host_collect	snmp.c	/^static int csnmp_config_add_host_collect (host_def/
+csnmp_config_add_host_community	snmp.c	/^static int csnmp_config_add_host_community (host_d/
+csnmp_config_add_host_version	snmp.c	/^static int csnmp_config_add_host_version (host_def/
+csnmp_dispatch_table	snmp.c	/^static int csnmp_dispatch_table (host_definition_t/
+csnmp_host_close_session	snmp.c	/^static void csnmp_host_close_session (host_definit/
+csnmp_host_definition_destroy	snmp.c	/^static void csnmp_host_definition_destroy (void *a/
+csnmp_host_open_session	snmp.c	/^static void csnmp_host_open_session (host_definiti/
+csnmp_init	snmp.c	/^static int csnmp_init (void)$/
+csnmp_instance_list_add	snmp.c	/^static int csnmp_instance_list_add (csnmp_list_ins/
+csnmp_list_instances_s	snmp.c	/^struct csnmp_list_instances_s$/
+csnmp_list_instances_t	snmp.c	/^typedef struct csnmp_list_instances_s csnmp_list_i/
+csnmp_oid_compare	snmp.c	/^static int csnmp_oid_compare (oid_t const *left, o/
+csnmp_oid_init	snmp.c	/^static void csnmp_oid_init (oid_t *dst, oid const /
+csnmp_oid_suffix	snmp.c	/^static int csnmp_oid_suffix (oid_t *dst, oid_t con/
+csnmp_oid_to_string	snmp.c	/^static int csnmp_oid_to_string (char *buffer, size/
+csnmp_read_host	snmp.c	/^static int csnmp_read_host (user_data_t *ud)$/
+csnmp_read_table	snmp.c	/^static int csnmp_read_table (host_definition_t *ho/
+csnmp_read_value	snmp.c	/^static int csnmp_read_value (host_definition_t *ho/
+csnmp_shutdown	snmp.c	/^static int csnmp_shutdown (void)$/
+csnmp_strvbcopy	snmp.c	/^static int csnmp_strvbcopy (char *dst, \/* {{{ *\//
+csnmp_strvbcopy_hexstring	snmp.c	/^static int csnmp_strvbcopy_hexstring (char *dst, /
+csnmp_table_values_s	snmp.c	/^struct csnmp_table_values_s$/
+csnmp_table_values_t	snmp.c	/^typedef struct csnmp_table_values_s csnmp_table_va/
+csnmp_value_list_to_value	snmp.c	/^static value_t csnmp_value_list_to_value (struct v/
+cu_match_s	utils_match.c	/^struct cu_match_s$/
+cu_match_t	utils_match.h	/^struct cu_match_s;$/
+cu_match_value_s	utils_match.h	/^struct cu_match_value_s$/
+cu_match_value_t	utils_match.h	/^typedef struct cu_match_value_s cu_match_value_t;$/
+cu_mount_checkoption	utils_mount.c	/^cu_mount_checkoption(char *line, char *keyword, in/
+cu_mount_freelist	utils_mount.c	/^void cu_mount_freelist (cu_mount_t *list)$/
+cu_mount_gen_getmntent	utils_mount.c	/^static cu_mount_t *cu_mount_gen_getmntent (void)$/
+cu_mount_getfsstat	utils_mount.c	/^static cu_mount_t *cu_mount_getfsstat (void)$/
+cu_mount_getlist	utils_mount.c	/^cu_mount_t *cu_mount_getlist(cu_mount_t **list)$/
+cu_mount_getmntent	utils_mount.c	/^static cu_mount_t *cu_mount_getmntent (void)$/
+cu_mount_getoptionvalue	utils_mount.c	/^cu_mount_getoptionvalue(char *line, char *keyword)/
+cu_mount_listmntent	utils_mount.c	/^static cu_mount_t *cu_mount_listmntent (void)$/
+cu_mount_t	utils_mount.h	/^typedef struct _cu_mount_t cu_mount_t;$/
+cu_mount_type	utils_mount.c	/^cu_mount_type(const char *type)$/
+cu_tail_create	utils_tail.c	/^cu_tail_t *cu_tail_create (const char *file)$/
+cu_tail_destroy	utils_tail.c	/^int cu_tail_destroy (cu_tail_t *obj)$/
+cu_tail_match_match_s	utils_tail_match.c	/^struct cu_tail_match_match_s$/
+cu_tail_match_match_t	utils_tail_match.c	/^typedef struct cu_tail_match_match_s cu_tail_match/
+cu_tail_match_s	utils_tail_match.c	/^struct cu_tail_match_s$/
+cu_tail_match_simple_s	utils_tail_match.c	/^struct cu_tail_match_simple_s$/
+cu_tail_match_simple_t	utils_tail_match.c	/^typedef struct cu_tail_match_simple_s cu_tail_matc/
+cu_tail_match_t	utils_tail_match.h	/^struct cu_tail_match_s;$/
+cu_tail_read	utils_tail.c	/^int cu_tail_read (cu_tail_t *obj, char *buf, int b/
+cu_tail_readline	utils_tail.c	/^int cu_tail_readline (cu_tail_t *obj, char *buf, i/
+cu_tail_reopen	utils_tail.c	/^static int cu_tail_reopen (cu_tail_t *obj)$/
+cu_tail_s	utils_tail.c	/^struct cu_tail_s$/
+cu_tail_t	utils_tail.h	/^struct cu_tail_s;$/
+daemonize	collectdmon.c	/^static int daemonize (void)$/
+data_definition_s	snmp.c	/^struct data_definition_s$/
+data_definition_t	snmp.c	/^typedef struct data_definition_s data_definition_t/
+data_set_s	plugin.h	/^struct data_set_s$/
+data_set_t	plugin.h	/^typedef struct data_set_s data_set_t;$/
+data_source_s	plugin.h	/^struct data_source_s$/
+data_source_t	plugin.h	/^typedef struct data_source_s data_source_t;$/
+default_callback	utils_match.c	/^static int default_callback (const char __attribut/
+derive_t	plugin.h	/^typedef int64_t derive_t;$/
+destroy_all_callbacks	plugin.c	/^static void destroy_all_callbacks (llist_t **list)/
+destroy_callback	plugin.c	/^static void destroy_callback (callback_func_t *cf)/
+destroy_read_heap	plugin.c	/^static void destroy_read_heap (void) \/* {{{ *\/$/
+destroy_value_list	collectd-tg.c	/^static void destroy_value_list (lcc_value_list_t */
+df_config	df.c	/^static int df_config (const char *key, const char /
+df_init	df.c	/^static int df_init (void)$/
+df_read	df.c	/^static int df_read (void)$/
+disk_submit	gstat.c	/^static void disk_submit (const char *plugin_instan/
+dispatch_block	configfile.c	/^static int dispatch_block (oconfig_item_t *ci)$/
+dispatch_block_plugin	configfile.c	/^static int dispatch_block_plugin (oconfig_item_t */
+dispatch_global_option	configfile.c	/^static int dispatch_global_option (const oconfig_i/
+dispatch_loadplugin	configfile.c	/^static int dispatch_loadplugin (const oconfig_item/
+dispatch_thread	network.c	/^static void *dispatch_thread (void __attribute__((/
+dispatch_value	configfile.c	/^static int dispatch_value (const oconfig_item_t *c/
+dispatch_value_plugin	configfile.c	/^static int dispatch_value_plugin (const char *plug/
+dispatch_value_plugindir	configfile.c	/^static int dispatch_value_plugindir (const oconfig/
+dispatch_value_typesdb	configfile.c	/^static int dispatch_value_typesdb (const oconfig_i/
+dispatch_values	utils_cmd_putval.c	/^static int dispatch_values (const data_set_t *ds, /
+do_check	collectd-nagios.c	/^static int do_check (lcc_connection_t *connection)/
+do_check_con_average	collectd-nagios.c	/^static int do_check_con_average (size_t values_num/
+do_check_con_none	collectd-nagios.c	/^static int do_check_con_none (size_t values_num,$/
+do_check_con_percentage	collectd-nagios.c	/^static int do_check_con_percentage (size_t values_/
+do_check_con_sum	collectd-nagios.c	/^static int do_check_con_sum (size_t values_num,$/
+do_flush	collectd.c	/^static void *do_flush (void __attribute__((unused)/
+do_init	collectd.c	/^static int do_init (void)$/
+do_listval	collectd-nagios.c	/^static int do_listval (lcc_connection_t *connectio/
+do_loop	collectd.c	/^static int do_loop (void)$/
+do_shutdown	collectd.c	/^static int do_shutdown (void)$/
+dsnames_to_json	utils_format_json.c	/^static int dsnames_to_json (char *buffer, size_t b/
+dstypes_to_json	utils_format_json.c	/^static int dstypes_to_json (char *buffer, size_t b/
+escape_slashes	common.c	/^int escape_slashes (char *buf, int buf_len)$/
+escape_string	utils_format_json.c	/^static int escape_string (char *buffer, size_t buf/
+exec_config	exec.c	/^static int exec_config (oconfig_item_t *ci) \/* {{/
+exec_config_exec	exec.c	/^static int exec_config_exec (oconfig_item_t *ci) /
+exec_init	exec.c	/^static int exec_init (void) \/* {{{ *\/$/
+exec_notification	exec.c	/^static int exec_notification (const notification_t/
+exec_notification_one	exec.c	/^static void *exec_notification_one (void *arg) \/*/
+exec_read	exec.c	/^static int exec_read (void) \/* {{{ *\/$/
+exec_read_one	exec.c	/^static void *exec_read_one (void *arg) \/* {{{ *\//
+exec_shutdown	exec.c	/^static int exec_shutdown (void) \/* {{{ *\/$/
+exit_usage	collectd.c	/^static void exit_usage (int status)$/
+ext2_super_block	utils_mount.c	/^struct ext2_super_block {$/
+ext2magic	utils_mount.c	/^#define ext2magic(s) ((unsigned int)s.s_magic[0] /
+fbh_check_file	utils_fbhash.c	/^static int fbh_check_file (fbhash_t *h) \/* {{{ */
+fbh_create	utils_fbhash.c	/^fbhash_t *fbh_create (const char *file) \/* {{{ */
+fbh_destroy	utils_fbhash.c	/^void fbh_destroy (fbhash_t *h) \/* {{{ *\/$/
+fbh_free_tree	utils_fbhash.c	/^static void fbh_free_tree (c_avl_tree_t *tree) \/*/
+fbh_get	utils_fbhash.c	/^char *fbh_get (fbhash_t *h, const char *key) \/* {/
+fbh_read_file	utils_fbhash.c	/^static int fbh_read_file (fbhash_t *h) \/* {{{ *\//
+fbhash_s	utils_fbhash.c	/^struct fbhash_s$/
+fbhash_t	utils_fbhash.h	/^struct fbhash_s;$/
+fc_bit_jump_create	filter_chain.c	/^static int fc_bit_jump_create (const oconfig_item_/
+fc_bit_jump_destroy	filter_chain.c	/^static int fc_bit_jump_destroy (void **user_data) /
+fc_bit_jump_invoke	filter_chain.c	/^static int fc_bit_jump_invoke (const data_set_t *d/
+fc_bit_return_invoke	filter_chain.c	/^static int fc_bit_return_invoke (const data_set_t /
+fc_bit_stop_invoke	filter_chain.c	/^static int fc_bit_stop_invoke (const data_set_t __/
+fc_bit_write_create	filter_chain.c	/^static int fc_bit_write_create (const oconfig_item/
+fc_bit_write_destroy	filter_chain.c	/^static int fc_bit_write_destroy (void **user_data)/
+fc_bit_write_invoke	filter_chain.c	/^static int fc_bit_write_invoke (const data_set_t */
+fc_chain_get_by_name	filter_chain.c	/^fc_chain_t *fc_chain_get_by_name (const char *chai/
+fc_chain_t	filter_chain.h	/^struct fc_chain_s;$/
+fc_config_add_chain	filter_chain.c	/^static int fc_config_add_chain (const oconfig_item/
+fc_config_add_match	filter_chain.c	/^static int fc_config_add_match (fc_match_t **match/
+fc_config_add_rule	filter_chain.c	/^static int fc_config_add_rule (fc_chain_t *chain, /
+fc_config_add_target	filter_chain.c	/^static int fc_config_add_target (fc_target_t **tar/
+fc_configure	filter_chain.c	/^int fc_configure (const oconfig_item_t *ci) \/* {{/
+fc_default_action	filter_chain.c	/^int fc_default_action (const data_set_t *ds, value/
+fc_free_chains	filter_chain.c	/^static void fc_free_chains (fc_chain_t *c) \/* {{{/
+fc_free_matches	filter_chain.c	/^static void fc_free_matches (fc_match_t *m) \/* {{/
+fc_free_rules	filter_chain.c	/^static void fc_free_rules (fc_rule_t *r) \/* {{{ */
+fc_free_targets	filter_chain.c	/^static void fc_free_targets (fc_target_t *t) \/* {/
+fc_init_once	filter_chain.c	/^static int fc_init_once (void) \/* {{{ *\/$/
+fc_match_s	filter_chain.c	/^struct fc_match_s$/
+fc_match_t	filter_chain.c	/^struct fc_match_s;$/
+fc_process_chain	filter_chain.c	/^int fc_process_chain (const data_set_t *ds, value_/
+fc_register_match	filter_chain.c	/^int fc_register_match (const char *name, match_pro/
+fc_register_target	filter_chain.c	/^int fc_register_target (const char *name, target_p/
+fc_rule_s	filter_chain.c	/^struct fc_rule_s$/
+fc_rule_t	filter_chain.c	/^struct fc_rule_s;$/
+fc_strdup	filter_chain.c	/^static char *fc_strdup (const char *orig) \/* {{{ /
+fc_target_s	filter_chain.c	/^struct fc_target_s$/
+fc_target_t	filter_chain.c	/^struct fc_target_s;$/
+filter_ds	collectd-nagios.c	/^static int filter_ds (size_t *values_num,$/
+flush	collectdctl.c	/^static int flush (lcc_connection_t *c, int argc, c/
+flush_buffer	network.c	/^static void flush_buffer (void)$/
+fork_child	exec.c	/^static int fork_child (program_list_t *pl, int *fd/
+format_graphite	utils_format_graphite.c	/^int format_graphite (char *buffer, size_t buffer_s/
+format_json_finalize	utils_format_json.c	/^int format_json_finalize (char *buffer, \/* {{{ */
+format_json_initialize	utils_format_json.c	/^int format_json_initialize (char *buffer, \/* {{{ /
+format_json_value_list	utils_format_json.c	/^int format_json_value_list (char *buffer, \/* {{{ /
+format_json_value_list_nocheck	utils_format_json.c	/^static int format_json_value_list_nocheck (char *b/
+format_name	common.c	/^int format_name (char *ret, int ret_len,$/
+format_values	common.c	/^int format_values (char *ret, size_t ret_len, \/* /
+free_everything_and_return	utils_cmd_listval.c	/^#define free_everything_and_return(status) do { \\/
+free_node	utils_avltree.c	/^static void free_node (c_avl_node_t *n)$/
+free_sockent_client	network.c	/^static void free_sockent_client (struct sockent_cl/
+free_sockent_server	network.c	/^static void free_sockent_server (struct sockent_se/
+fromhex	utils_mount.c	/^fromhex(char c)$/
+gauge_t	plugin.h	/^typedef double gauge_t;$/
+get_boundet_random	collectd-tg.c	/^static int get_boundet_random (int min, int max) /
+get_device_name	utils_mount.c	/^static char *get_device_name(const char *optstr)$/
+get_double_opt	collectd-tg.c	/^static int get_double_opt (const char *str, double/
+get_integer_opt	collectd-tg.c	/^static int get_integer_opt (const char *str, int */
+get_kstat	common.c	/^int get_kstat (kstat_t **ksp_ptr, char *module, in/
+get_kstat_value	common.c	/^long long get_kstat_value (kstat_t *ksp, char *nam/
+get_label_uuid	utils_mount.c	/^get_label_uuid(const char *device, char **label, c/
+get_spec_by_uuid	utils_mount.c	/^get_spec_by_uuid(const char *s)$/
+get_spec_by_volume_label	utils_mount.c	/^static char *get_spec_by_volume_label(const char */
+get_spec_by_x	utils_mount.c	/^get_spec_by_x(int n, const char *t)$/
+getpwnam_r	common.c	/^int getpwnam_r (const char *name, struct passwd *p/
+getval	collectdctl.c	/^static int getval (lcc_connection_t *c, int argc, /
+global_option_get	configfile.c	/^const char *global_option_get (const char *option)/
+global_option_set	configfile.c	/^int global_option_set (const char *option, const c/
+gr_copy_escape_part	utils_format_graphite.c	/^static void gr_copy_escape_part (char *dst, const /
+gr_format_name	utils_format_graphite.c	/^static int gr_format_name (char *ret, int ret_len,/
+gr_format_values	utils_format_graphite.c	/^static int gr_format_values (char *ret, size_t ret/
+gstat_config	gstat.c	/^static int gstat_config (const char *key, const ch/
+gstat_init	gstat.c	/^static int gstat_init (void)$/
+gstat_read	gstat.c	/^static int gstat_read (void) $/
+handle_flush	utils_cmd_flush.c	/^int handle_flush (FILE *fh, char *buffer)$/
+handle_getval	utils_cmd_getval.c	/^int handle_getval (FILE *fh, char *buffer)$/
+handle_listval	utils_cmd_listval.c	/^int handle_listval (FILE *fh, char *buffer)$/
+handle_putnotif	utils_cmd_putnotif.c	/^int handle_putnotif (FILE *fh, char *buffer)$/
+handle_putval	utils_cmd_putval.c	/^int handle_putval (FILE *fh, char *buffer)$/
+host_definition_s	snmp.c	/^struct host_definition_s$/
+host_definition_t	snmp.c	/^typedef struct host_definition_s host_definition_t/
+htond	common.c	/^double htond (double d)$/
+htonll	common.c	/^unsigned long long htonll (unsigned long long n)$/
+i	netstat.c	/^#define i(n,v) submit("ip", n, ipstat.v)$/
+i6	netstat.c	/^#define i6(n,v) submit("ip6", n, ip6stat.v)$/
+ic	netstat.c	/^#define ic(n,v) submit("icmp", n, icmpstat.v)$/
+ic6	netstat.c	/^#define ic6(n,v) submit("icmp6", n, icmp6stat.v)$/
+identifier_s	utils_vl_lookup.h	/^struct identifier_s$/
+identifier_t	utils_vl_lookup.h	/^typedef struct identifier_s identifier_t;$/
+if_submit	interface.c	/^static void if_submit (const char *dev, const char/
+ignorelist_add	utils_ignorelist.c	/^int ignorelist_add (ignorelist_t *il, const char */
+ignorelist_append	utils_ignorelist.c	/^static inline void ignorelist_append (ignorelist_t/
+ignorelist_append_regex	utils_ignorelist.c	/^static int ignorelist_append_regex(ignorelist_t *i/
+ignorelist_append_string	utils_ignorelist.c	/^static int ignorelist_append_string(ignorelist_t */
+ignorelist_create	utils_ignorelist.c	/^ignorelist_t *ignorelist_create (int invert)$/
+ignorelist_free	utils_ignorelist.c	/^void ignorelist_free (ignorelist_t *il)$/
+ignorelist_item_s	utils_ignorelist.c	/^struct ignorelist_item_s$/
+ignorelist_item_t	utils_ignorelist.c	/^typedef struct ignorelist_item_s ignorelist_item_t/
+ignorelist_match	utils_ignorelist.c	/^int ignorelist_match (ignorelist_t *il, const char/
+ignorelist_match_regex	utils_ignorelist.c	/^static int ignorelist_match_regex (ignorelist_item/
+ignorelist_match_string	utils_ignorelist.c	/^static int ignorelist_match_string (ignorelist_ite/
+ignorelist_s	utils_ignorelist.c	/^struct ignorelist_s$/
+ignorelist_set_invert	utils_ignorelist.c	/^void ignorelist_set_invert (ignorelist_t *il, int /
+ignorelist_t	utils_ignorelist.h	/^struct ignorelist_s;$/
+init	nginx.c	/^static int init (void)$/
+init_global_variables	collectd.c	/^static int init_global_variables (void)$/
+init_host	apache.c	/^static int init_host (apache_t *st) \/* {{{ *\/$/
+init_hostname	collectd.c	/^static int init_hostname (void)$/
+instance_t	snmp.c	/^typedef union instance_u instance_t;$/
+instance_u	snmp.c	/^union instance_u$/
+interface_config	interface.c	/^static int interface_config (const char *key, cons/
+interface_init	interface.c	/^static int interface_init (void)$/
+interface_read	interface.c	/^static int interface_read (void)$/
+isfinite	collectd-nagios.c	/^#  define isfinite(f) (((f) - (f)) == 0.0)$/
+isinf	collectd-nagios.c	/^#  define isinf(f) (!isfinite(f) && !isnan(f))$/
+isnan	collectd-nagios.c	/^#  define isnan(f) ((f) != (f))$/
+kread	tcpconns.c	/^static int kread (u_long addr, void *buf, int size/
+listval	collectdctl.c	/^static int listval (lcc_connection_t *c, int argc,/
+llentry_create	utils_llist.c	/^llentry_t *llentry_create (char *key, void *value)/
+llentry_destroy	utils_llist.c	/^void llentry_destroy (llentry_t *e)$/
+llentry_s	utils_llist.h	/^struct llentry_s$/
+llentry_t	utils_llist.h	/^typedef struct llentry_s llentry_t;$/
+llist_append	utils_llist.c	/^void llist_append (llist_t *l, llentry_t *e)$/
+llist_create	utils_llist.c	/^llist_t *llist_create (void)$/
+llist_destroy	utils_llist.c	/^void llist_destroy (llist_t *l)$/
+llist_head	utils_llist.c	/^llentry_t *llist_head (llist_t *l)$/
+llist_prepend	utils_llist.c	/^void llist_prepend (llist_t *l, llentry_t *e)$/
+llist_remove	utils_llist.c	/^void llist_remove (llist_t *l, llentry_t *e)$/
+llist_s	utils_llist.c	/^struct llist_s$/
+llist_search	utils_llist.c	/^llentry_t *llist_search (llist_t *l, const char *k/
+llist_search_custom	utils_llist.c	/^llentry_t *llist_search_custom (llist_t *l,$/
+llist_size	utils_llist.c	/^int llist_size (llist_t *l)$/
+llist_strcmp	utils_llist.c	/^static int llist_strcmp (llentry_t *e, void *ud)$/
+llist_t	utils_llist.h	/^struct llist_s;$/
+llist_tail	utils_llist.c	/^llentry_t *llist_tail (llist_t *l)$/
+load_read	load.c	/^static int load_read (void)$/
+load_submit	load.c	/^static void load_submit (gauge_t snum, gauge_t mnu/
+log_status	collectdmon.c	/^static void log_status (int status)$/
+logfile_config	logfile.c	/^static int logfile_config (const char *key, const /
+logfile_log	logfile.c	/^static void logfile_log (int severity, const char /
+logfile_notification	logfile.c	/^static int logfile_notification (const notificatio/
+logfile_print	logfile.c	/^static void logfile_print (const char *msg, int se/
+lookup_add	utils_vl_lookup.c	/^int lookup_add (lookup_t *obj, \/* {{{ *\/$/
+lookup_class_callback	utils_vl_lookup_test.c	/^static void *lookup_class_callback (data_set_t con/
+lookup_create	utils_vl_lookup.c	/^lookup_t *lookup_create (lookup_class_callback_t c/
+lookup_destroy	utils_vl_lookup.c	/^void lookup_destroy (lookup_t *obj) \/* {{{ *\/$/
+lookup_obj_callback	utils_vl_lookup_test.c	/^static int lookup_obj_callback (data_set_t const */
+lookup_s	utils_vl_lookup.c	/^struct lookup_s$/
+lookup_search	utils_vl_lookup.c	/^int lookup_search (lookup_t *obj, \/* {{{ *\/$/
+lookup_t	utils_vl_lookup.h	/^struct lookup_s;$/
+lu_add_by_plugin	utils_vl_lookup.c	/^static int lu_add_by_plugin (by_type_entry_t *by_t/
+lu_create_user_obj	utils_vl_lookup.c	/^static void *lu_create_user_obj (lookup_t *obj, \//
+lu_destroy_by_type	utils_vl_lookup.c	/^static void lu_destroy_by_type (lookup_t *obj, \/*/
+lu_destroy_user_class_list	utils_vl_lookup.c	/^static void lu_destroy_user_class_list (lookup_t */
+lu_destroy_user_obj	utils_vl_lookup.c	/^static void lu_destroy_user_obj (lookup_t *obj, \//
+lu_find_user_obj	utils_vl_lookup.c	/^static user_obj_t *lu_find_user_obj (user_class_t /
+lu_handle_user_class	utils_vl_lookup.c	/^static int lu_handle_user_class (lookup_t *obj, \//
+lu_handle_user_class_list	utils_vl_lookup.c	/^static int lu_handle_user_class_list (lookup_t *ob/
+lu_search_by_type	utils_vl_lookup.c	/^static by_type_entry_t *lu_search_by_type (lookup_/
+mach_get_task_name	processes.c	/^static int mach_get_task_name (task_t t, int *pid,/
+match_apply	utils_match.c	/^int match_apply (cu_match_t *obj, const char *str)/
+match_create_callback	utils_match.c	/^cu_match_t *match_create_callback (const char *reg/
+match_create_simple	utils_match.c	/^cu_match_t *match_create_simple (const char *regex/
+match_destroy	utils_match.c	/^void match_destroy (cu_match_t *obj)$/
+match_get_user_data	utils_match.c	/^void *match_get_user_data (cu_match_t *obj)$/
+match_proc_s	filter_chain.h	/^struct match_proc_s$/
+match_proc_t	filter_chain.h	/^typedef struct match_proc_s match_proc_t;$/
+match_range	collectd-nagios.c	/^static int match_range (range_t *range, double val/
+match_substr	utils_match.c	/^static char *match_substr (const char *str, int be/
+md_entry_alloc	meta_data.c	/^static meta_entry_t *md_entry_alloc (const char *k/
+md_entry_clone	meta_data.c	/^static meta_entry_t *md_entry_clone (const meta_en/
+md_entry_free	meta_data.c	/^static void md_entry_free (meta_entry_t *e) \/* {{/
+md_entry_insert	meta_data.c	/^static int md_entry_insert (meta_data_t *md, meta_/
+md_entry_lookup	meta_data.c	/^static meta_entry_t *md_entry_lookup (meta_data_t /
+md_strdup	meta_data.c	/^static char *md_strdup (const char *orig) \/* {{{ /
+memory_init	memory.c	/^static int memory_init (void)$/
+memory_read	memory.c	/^static int memory_read (void)$/
+memory_submit	memory.c	/^static void memory_submit (const char *type_instan/
+meta_data_add_boolean	meta_data.c	/^int meta_data_add_boolean (meta_data_t *md, \/* {{/
+meta_data_add_double	meta_data.c	/^int meta_data_add_double (meta_data_t *md, \/* {{{/
+meta_data_add_signed_int	meta_data.c	/^int meta_data_add_signed_int (meta_data_t *md, \/*/
+meta_data_add_string	meta_data.c	/^int meta_data_add_string (meta_data_t *md, \/* {{{/
+meta_data_add_unsigned_int	meta_data.c	/^int meta_data_add_unsigned_int (meta_data_t *md, /
+meta_data_clone	meta_data.c	/^meta_data_t *meta_data_clone (meta_data_t *orig) /
+meta_data_create	meta_data.c	/^meta_data_t *meta_data_create (void) \/* {{{ *\/$/
+meta_data_delete	meta_data.c	/^int meta_data_delete (meta_data_t *md, const char /
+meta_data_destroy	meta_data.c	/^void meta_data_destroy (meta_data_t *md) \/* {{{ */
+meta_data_exists	meta_data.c	/^int meta_data_exists (meta_data_t *md, const char /
+meta_data_get_boolean	meta_data.c	/^int meta_data_get_boolean (meta_data_t *md, \/* {{/
+meta_data_get_double	meta_data.c	/^int meta_data_get_double (meta_data_t *md, \/* {{{/
+meta_data_get_signed_int	meta_data.c	/^int meta_data_get_signed_int (meta_data_t *md, \/*/
+meta_data_get_string	meta_data.c	/^int meta_data_get_string (meta_data_t *md, \/* {{{/
+meta_data_get_unsigned_int	meta_data.c	/^int meta_data_get_unsigned_int (meta_data_t *md, /
+meta_data_s	meta_data.c	/^struct meta_data_s$/
+meta_data_t	meta_data.h	/^struct meta_data_s;$/
+meta_data_to_json	utils_format_json.c	/^static int meta_data_to_json (char *buffer, size_t/
+meta_data_toc	meta_data.c	/^int meta_data_toc (meta_data_t *md, char ***toc) /
+meta_data_type	meta_data.c	/^int meta_data_type (meta_data_t *md, const char *k/
+meta_entry_s	meta_data.c	/^struct meta_entry_s$/
+meta_entry_t	meta_data.c	/^struct meta_entry_s;$/
+meta_value_t	meta_data.c	/^typedef union meta_value_u meta_value_t;$/
+meta_value_u	meta_data.c	/^union meta_value_u$/
+module_register	unixsock.c	/^void module_register (void)$/
+netinfo_conn	tcpconns.c	/^struct netinfo_conn {$/
+netinfo_header	tcpconns.c	/^struct netinfo_header {$/
+netstat_config	netstat.c	/^static int netstat_config (const char *key, const /
+netstat_read	netstat.c	/^static int netstat_read (void)$/
+network_bind_socket	network.c	/^static int network_bind_socket (int fd, const stru/
+network_config	network.c	/^static int network_config (oconfig_item_t *ci) \/*/
+network_config_add_listen	network.c	/^static int network_config_add_listen (const oconfi/
+network_config_add_server	network.c	/^static int network_config_add_server (const oconfi/
+network_config_set_boolean	network.c	/^static int network_config_set_boolean (const oconf/
+network_config_set_buffer_size	network.c	/^static int network_config_set_buffer_size (const o/
+network_config_set_interface	network.c	/^static int network_config_set_interface (const oco/
+network_config_set_security_level	network.c	/^static int network_config_set_security_level (ocon/
+network_config_set_string	network.c	/^static int network_config_set_string (const oconfi/
+network_config_set_ttl	network.c	/^static int network_config_set_ttl (const oconfig_i/
+network_dispatch_notification	network.c	/^static int network_dispatch_notification (notifica/
+network_dispatch_values	network.c	/^static int network_dispatch_values (value_list_t */
+network_flush	network.c	/^static int network_flush (__attribute__((unused)) /
+network_get_aes256_cypher	network.c	/^static gcry_cipher_hd_t network_get_aes256_cypher /
+network_init	network.c	/^static int network_init (void)$/
+network_init_buffer	network.c	/^static void network_init_buffer (void)$/
+network_notification	network.c	/^static int network_notification (const notificatio/
+network_receive	network.c	/^static int network_receive (void) \/* {{{ *\/$/
+network_send_buffer	network.c	/^static void network_send_buffer (char *buffer, siz/
+network_set_interface	network.c	/^static int network_set_interface (const sockent_t /
+network_set_ttl	network.c	/^static int network_set_ttl (const sockent_t *se, c/
+network_shutdown	network.c	/^static int network_shutdown (void)$/
+network_stats_read	network.c	/^static int network_stats_read (void) \/* {{{ *\/$/
+network_write	network.c	/^static int network_write (const data_set_t *ds, co/
+networt_send_buffer_encrypted	network.c	/^static void networt_send_buffer_encrypted (sockent/
+networt_send_buffer_plain	network.c	/^static void networt_send_buffer_plain (const socke/
+networt_send_buffer_signed	network.c	/^static void networt_send_buffer_signed (const sock/
+nginx_curl_callback	nginx.c	/^static size_t nginx_curl_callback (void *buf, size/
+nginx_read	nginx.c	/^static int nginx_read (void)$/
+nlreq	tcpconns.c	/^struct nlreq {$/
+notification_init	common.c	/^int notification_init (notification_t *n, int seve/
+notification_meta_t	plugin.h	/^} notification_meta_t;$/
+notification_meta_type_e	plugin.h	/^enum notification_meta_type_e$/
+notification_t	plugin.h	/^} notification_t;$/
+ntohd	common.c	/^double ntohd (double d)$/
+ntohll	common.c	/^unsigned long long ntohll (unsigned long long n)$/
+oid_s	snmp.c	/^struct oid_s$/
+oid_t	snmp.c	/^typedef struct oid_s oid_t;$/
+parse_ds	types_list.c	/^static int parse_ds (data_source_t *dsrc, char *bu/
+parse_file	types_list.c	/^static void parse_file (FILE *fh)$/
+parse_identifier	collectdctl.c	/^static int parse_identifier (lcc_connection_t *c,$/
+parse_identifier_vl	common.c	/^int parse_identifier_vl (const char *str, value_li/
+parse_line	exec.c	/^static int parse_line (char *buffer) \/* {{{ *\/$/
+parse_log_severity	plugin.c	/^int parse_log_severity (const char *severity)$/
+parse_notif_severity	plugin.c	/^int parse_notif_severity (const char *severity)$/
+parse_option	utils_parse_option.c	/^int parse_option (char **ret_buffer, char **ret_ke/
+parse_packet	network.c	/^static int parse_packet (sockent_t *se, \/* {{{ */
+parse_part_encr_aes256	network.c	/^static int parse_part_encr_aes256 (sockent_t *se, /
+parse_part_number	network.c	/^static int parse_part_number (void **ret_buffer, s/
+parse_part_sign_sha256	network.c	/^static int parse_part_sign_sha256 (sockent_t *se, /
+parse_part_string	network.c	/^static int parse_part_string (void **ret_buffer, s/
+parse_part_values	network.c	/^static int parse_part_values (void **ret_buffer, s/
+parse_range	collectd-nagios.c	/^static void parse_range (char *string, range_t *ra/
+parse_string	utils_parse_option.c	/^int parse_string (char **ret_buffer, char **ret_st/
+parse_value	common.c	/^int parse_value (const char *value_orig, value_t */
+parse_values	common.c	/^int parse_values (char *buffer, value_list_t *vl, /
+part_encryption_aes256_s	network.c	/^struct part_encryption_aes256_s$/
+part_encryption_aes256_t	network.c	/^typedef struct part_encryption_aes256_s part_encry/
+part_header_s	network.c	/^struct part_header_s$/
+part_header_t	network.c	/^typedef struct part_header_s part_header_t;$/
+part_number_s	network.c	/^struct part_number_s$/
+part_number_t	network.c	/^typedef struct part_number_s part_number_t;$/
+part_signature_sha256_s	network.c	/^struct part_signature_sha256_s$/
+part_signature_sha256_t	network.c	/^typedef struct part_signature_sha256_s part_signat/
+part_string_s	network.c	/^struct part_string_s$/
+part_string_t	network.c	/^typedef struct part_string_s part_string_t;$/
+part_values_s	network.c	/^struct part_values_s$/
+part_values_t	network.c	/^typedef struct part_values_s part_values_t;$/
+pidfile_create	collectd.c	/^static int pidfile_create (void)$/
+pidfile_delete	collectdmon.c	/^static int pidfile_delete (void)$/
+pidfile_remove	collectd.c	/^static int pidfile_remove (void)$/
+plugin_compare_read_func	plugin.c	/^static int plugin_compare_read_func (const void *a/
+plugin_ctx_create	plugin.c	/^static plugin_ctx_t *plugin_ctx_create (void)$/
+plugin_ctx_destructor	plugin.c	/^static void plugin_ctx_destructor (void *ctx)$/
+plugin_ctx_s	plugin.h	/^struct plugin_ctx_s$/
+plugin_ctx_t	plugin.h	/^typedef struct plugin_ctx_s plugin_ctx_t;$/
+plugin_dispatch_missing	plugin.c	/^int plugin_dispatch_missing (const value_list_t *v/
+plugin_dispatch_notification	plugin.c	/^int plugin_dispatch_notification (const notificati/
+plugin_dispatch_values	plugin.c	/^int plugin_dispatch_values (value_list_t *vl)$/
+plugin_dispatch_values_secure	plugin.c	/^int plugin_dispatch_values_secure (const value_lis/
+plugin_flush	plugin.c	/^int plugin_flush (const char *plugin, cdtime_t tim/
+plugin_get_ctx	plugin.c	/^plugin_ctx_t plugin_get_ctx (void)$/
+plugin_get_dir	plugin.c	/^static const char *plugin_get_dir (void)$/
+plugin_get_ds	plugin.c	/^const data_set_t *plugin_get_ds (const char *name)/
+plugin_get_interval	plugin.c	/^cdtime_t plugin_get_interval (void)$/
+plugin_init_all	plugin.c	/^void plugin_init_all (void)$/
+plugin_init_ctx	plugin.c	/^void plugin_init_ctx (void)$/
+plugin_insert_read	plugin.c	/^static int plugin_insert_read (read_func_t *rf)$/
+plugin_load	plugin.c	/^int plugin_load (const char *type, uint32_t flags)/
+plugin_load_file	plugin.c	/^static int plugin_load_file (char *file, uint32_t /
+plugin_log	plugin.c	/^void plugin_log (int level, const char *format, ../
+plugin_notification_meta_add	plugin.c	/^static int plugin_notification_meta_add (notificat/
+plugin_notification_meta_add_boolean	plugin.c	/^int plugin_notification_meta_add_boolean (notifica/
+plugin_notification_meta_add_double	plugin.c	/^int plugin_notification_meta_add_double (notificat/
+plugin_notification_meta_add_signed_int	plugin.c	/^int plugin_notification_meta_add_signed_int (notif/
+plugin_notification_meta_add_string	plugin.c	/^int plugin_notification_meta_add_string (notificat/
+plugin_notification_meta_add_unsigned_int	plugin.c	/^int plugin_notification_meta_add_unsigned_int (not/
+plugin_notification_meta_copy	plugin.c	/^int plugin_notification_meta_copy (notification_t /
+plugin_notification_meta_free	plugin.c	/^int plugin_notification_meta_free (notification_me/
+plugin_read_all	plugin.c	/^void plugin_read_all (void)$/
+plugin_read_all_once	plugin.c	/^int plugin_read_all_once (void)$/
+plugin_read_thread	plugin.c	/^static void *plugin_read_thread (void __attribute_/
+plugin_register_complex_config	plugin.c	/^int plugin_register_complex_config (const char *ty/
+plugin_register_complex_read	plugin.c	/^int plugin_register_complex_read (const char *grou/
+plugin_register_config	plugin.c	/^int plugin_register_config (const char *name,$/
+plugin_register_data_set	plugin.c	/^int plugin_register_data_set (const data_set_t *ds/
+plugin_register_flush	plugin.c	/^int plugin_register_flush (const char *name,$/
+plugin_register_init	plugin.c	/^int plugin_register_init (const char *name,$/
+plugin_register_log	plugin.c	/^int plugin_register_log (const char *name,$/
+plugin_register_missing	plugin.c	/^int plugin_register_missing (const char *name,$/
+plugin_register_notification	plugin.c	/^int plugin_register_notification (const char *name/
+plugin_register_read	plugin.c	/^int plugin_register_read (const char *name,$/
+plugin_register_shutdown	plugin.c	/^int plugin_register_shutdown (const char *name,$/
+plugin_register_write	plugin.c	/^int plugin_register_write (const char *name,$/
+plugin_set_ctx	plugin.c	/^plugin_ctx_t plugin_set_ctx (plugin_ctx_t ctx)$/
+plugin_set_dir	plugin.c	/^void plugin_set_dir (const char *dir)$/
+plugin_shutdown_all	plugin.c	/^void plugin_shutdown_all (void)$/
+plugin_thread_create	plugin.c	/^int plugin_thread_create (pthread_t *thread, const/
+plugin_thread_start	plugin.c	/^static void *plugin_thread_start (void *arg)$/
+plugin_thread_t	plugin.c	/^} plugin_thread_t;$/
+plugin_unregister	plugin.c	/^static int plugin_unregister (llist_t *list, const/
+plugin_unregister_complex_config	plugin.c	/^int plugin_unregister_complex_config (const char */
+plugin_unregister_config	plugin.c	/^int plugin_unregister_config (const char *name)$/
+plugin_unregister_data_set	plugin.c	/^int plugin_unregister_data_set (const char *name)$/
+plugin_unregister_flush	plugin.c	/^int plugin_unregister_flush (const char *name)$/
+plugin_unregister_init	plugin.c	/^int plugin_unregister_init (const char *name)$/
+plugin_unregister_log	plugin.c	/^int plugin_unregister_log (const char *name)$/
+plugin_unregister_missing	plugin.c	/^int plugin_unregister_missing (const char *name)$/
+plugin_unregister_notification	plugin.c	/^int plugin_unregister_notification (const char *na/
+plugin_unregister_read	plugin.c	/^int plugin_unregister_read (const char *name) \/* /
+plugin_unregister_read_group	plugin.c	/^int plugin_unregister_read_group (const char *grou/
+plugin_unregister_shutdown	plugin.c	/^int plugin_unregister_shutdown (const char *name)$/
+plugin_unregister_write	plugin.c	/^int plugin_unregister_write (const char *name)$/
+plugin_write	plugin.c	/^int plugin_write (const char *plugin, \/* {{{ *\/$/
+port_entry_t	tcpconns.c	/^} port_entry_t;$/
+print_to_socket	utils_cmd_putnotif.c	/^#define print_to_socket(fh, ...) \\$/
+procstat_entry_t	processes.c	/^} procstat_entry_t;$/
+procstat_t	processes.c	/^} procstat_t;$/
+program_list_and_notification_t	exec.c	/^} program_list_and_notification_t;$/
+program_list_s	exec.c	/^struct program_list_s$/
+program_list_t	exec.c	/^struct program_list_s;$/
+ps_config	processes.c	/^static int ps_config (oconfig_item_t *ci)$/
+ps_get_cmdline	processes.c	/^static char *ps_get_cmdline (pid_t pid, char *name/
+ps_init	processes.c	/^static int ps_init (void)$/
+ps_list_add	processes.c	/^static void ps_list_add (const char *name, const c/
+ps_list_match	processes.c	/^static int ps_list_match (const char *name, const /
+ps_list_register	processes.c	/^static void ps_list_register (const char *name, co/
+ps_list_reset	processes.c	/^static void ps_list_reset (void)$/
+ps_read	processes.c	/^static int ps_read (void)$/
+ps_read_io	processes.c	/^static procstat_t *ps_read_io (int pid, procstat_t/
+ps_read_process	processes.c	/^int ps_read_process (int pid, procstat_t *ps, char/
+ps_read_tasks	processes.c	/^static int ps_read_tasks (int pid)$/
+ps_read_vmem	processes.c	/^static procstat_t *ps_read_vmem (int pid, procstat/
+ps_submit_fork_rate	processes.c	/^static void ps_submit_fork_rate (derive_t value)$/
+ps_submit_proc_list	processes.c	/^static void ps_submit_proc_list (procstat_t *ps)$/
+ps_submit_state	processes.c	/^static void ps_submit_state (const char *state, do/
+putval	collectdctl.c	/^static int putval (lcc_connection_t *c, int argc, /
+range_s	collectd-nagios.c	/^struct range_s$/
+range_t	collectd-nagios.c	/^typedef struct range_s range_t;$/
+rate_to_value	common.c	/^int rate_to_value (value_t *ret_value, gauge_t rat/
+rate_to_value_state_s	common.h	/^struct rate_to_value_state_s$/
+rate_to_value_state_t	common.h	/^typedef struct rate_to_value_state_s rate_to_value/
+read_cb_wrapper	plugin.c	/^static int read_cb_wrapper (user_data_t *ud)$/
+read_file_contents	common.c	/^int read_file_contents (const char *filename, char/
+read_fork_rate	processes.c	/^static int read_fork_rate ()$/
+read_func_s	plugin.c	/^struct read_func_s$/
+read_func_t	plugin.c	/^typedef struct read_func_s read_func_t;$/
+read_options	collectd-tg.c	/^static int read_options (int argc, char **argv) \//
+read_types_list	types_list.c	/^int read_types_list (const char *file)$/
+rebalance	utils_avltree.c	/^static void rebalance (c_avl_tree_t *t, c_avl_node/
+receive_list_entry_s	network.c	/^struct receive_list_entry_s$/
+receive_list_entry_t	network.c	/^typedef struct receive_list_entry_s receive_list_e/
+receive_thread	network.c	/^static void *receive_thread (void __attribute__((u/
+register_callback	plugin.c	/^static int register_callback (llist_t **list, \/* /
+reheap	utils_heap.c	/^static void reheap (c_heap_t *h, size_t root, enum/
+reheap_direction	utils_heap.c	/^enum reheap_direction$/
+reiserfs_super_block	utils_mount.c	/^struct reiserfs_super_block {$/
+replace_special	common.c	/^void replace_special (char *buffer, size_t buffer_/
+reset_signal_mask	exec.c	/^static void reset_signal_mask (void) \/* {{{ *\/$/
+rotate_left	utils_avltree.c	/^static c_avl_node_t *rotate_left (c_avl_tree_t *t,/
+rotate_left_right	utils_avltree.c	/^static c_avl_node_t *rotate_left_right (c_avl_tree/
+rotate_right	utils_avltree.c	/^static c_avl_node_t *rotate_right (c_avl_tree_t *t/
+rotate_right_left	utils_avltree.c	/^static c_avl_node_t *rotate_right_left (c_avl_tree/
+search	utils_avltree.c	/^static c_avl_node_t *search (c_avl_tree_t *t, cons/
+send_value	collectd-tg.c	/^static int send_value (lcc_value_list_t *vl) \/* {/
+server_enum	apache.c	/^enum server_enum$/
+service_name_to_port_number	common.c	/^int service_name_to_port_number (const char *servi/
+set_environment	exec.c	/^static void set_environment (void) \/* {{{ *\/$/
+set_option	utils_cmd_putnotif.c	/^static int set_option (notification_t *n, const ch/
+set_option_severity	utils_cmd_putnotif.c	/^static int set_option_severity (notification_t *n,/
+set_option_time	utils_cmd_putnotif.c	/^static int set_option_time (notification_t *n, con/
+sfree	common.c	/^void sfree (void **ptr)$/
+sig_hup_handler	collectdmon.c	/^static void sig_hup_handler (int __attribute__((un/
+sig_int_handler	collectd.c	/^static void sig_int_handler (int __attribute__((un/
+sig_int_term_handler	collectdmon.c	/^static void sig_int_term_handler (int __attribute_/
+sig_term_handler	collectd.c	/^static void sig_term_handler (int __attribute__((u/
+sig_usr1_handler	collectd.c	/^static void sig_usr1_handler (int __attribute__((u/
+sigchld_handler	exec.c	/^static void sigchld_handler (int __attribute__((un/
+signal_handler	collectd-tg.c	/^static void signal_handler (int signal) \/* {{{ */
+simple_submit_match	utils_tail_match.c	/^static int simple_submit_match (cu_match_t *match,/
+sl_config	syslog.c	/^static int sl_config (const char *key, const char /
+sl_log	syslog.c	/^static void sl_log (int severity, const char *msg,/
+sl_notification	syslog.c	/^static int sl_notification (const notification_t */
+sl_shutdown	syslog.c	/^static int sl_shutdown (void)$/
+smalloc	common.c	/^void *smalloc (size_t size)$/
+sockent_add	network.c	/^static int sockent_add (sockent_t *se) \/* {{{ *\//
+sockent_client	network.c	/^struct sockent_client$/
+sockent_destroy	network.c	/^static void sockent_destroy (sockent_t *se) \/* {{/
+sockent_init	network.c	/^static int sockent_init (sockent_t *se, int type) /
+sockent_open	network.c	/^static int sockent_open (sockent_t *se) \/* {{{ */
+sockent_server	network.c	/^struct sockent_server$/
+sockent_t	network.c	/^} sockent_t;$/
+sread	common.c	/^ssize_t sread (int fd, void *buf, size_t count)$/
+ssnprintf	common.c	/^int ssnprintf (char *dest, size_t n, const char *f/
+sstrdup	common.c	/^char *sstrdup (const char *s)$/
+sstrerror	common.c	/^char *sstrerror (int errnum, char *buf, size_t buf/
+sstrncpy	common.c	/^char *sstrncpy (char *dest, const char *src, size_/
+start_read_threads	plugin.c	/^static void start_read_threads (int num)$/
+stop_read_threads	plugin.c	/^static void stop_read_threads (void)$/
+strjoin	common.c	/^int strjoin (char *dst, size_t dst_len,$/
+strsplit	common.c	/^int strsplit (char *string, char **fields, size_t /
+strsubstitute	common.c	/^int strsubstitute (char *str, char c_from, char c_/
+strtoderive	common.c	/^int strtoderive (const char *string, derive_t *ret/
+strunescape	common.c	/^int strunescape (char *buf, size_t buf_len)$/
+submit	netstat.c	/^static void submit (const char *proto, const char /
+submit_derive	apache.c	/^static void submit_derive (const char *type, const/
+submit_gauge	apache.c	/^static void submit_gauge (const char *type, const /
+submit_scoreboard	apache.c	/^static void submit_scoreboard (char *buf, apache_t/
+submit_u	gstat.c	/^static void submit_u (const char *plugin_instance,/
+submit_value	apache.c	/^static void submit_value (const char *type, const /
+subst	utils_subst.c	/^char *subst (char *buf, size_t buflen, const char /
+subst_string	utils_subst.c	/^char *subst_string (char *buf, size_t buflen, cons/
+swap_config	swap.c	/^static int swap_config (const char *key, const cha/
+swap_init	swap.c	/^static int swap_init (void) \/* {{{ *\/$/
+swap_read	swap.c	/^static int swap_read (void) \/* {{{ *\/$/
+swap_read_combined	swap.c	/^static int swap_read_combined (void) \/* {{{ *\/$/
+swap_read_io	swap.c	/^static int swap_read_io (void) \/* {{{ *\/$/
+swap_read_kstat	swap.c	/^static int swap_read_kstat (void) \/* {{{ *\/$/
+swap_read_separate	swap.c	/^static int swap_read_separate (void) \/* {{{ *\/$/
+swap_submit	swap.c	/^static void swap_submit (const char *plugin_instan/
+swap_submit_derive	swap.c	/^static void swap_submit_derive (const char *plugin/
+swap_submit_gauge	swap.c	/^static void swap_submit_gauge (const char *plugin_/
+swrite	common.c	/^ssize_t swrite (int fd, const void *buf, size_t co/
+t	netstat.c	/^#define t(n,v) submit("tcp", n, tcpstat.v)$/
+tail_callback	utils_tail_match.c	/^static int tail_callback (void *data, char *buf,$/
+tail_match_add_match	utils_tail_match.c	/^int tail_match_add_match (cu_tail_match_t *obj, cu/
+tail_match_add_match_simple	utils_tail_match.c	/^int tail_match_add_match_simple (cu_tail_match_t */
+tail_match_create	utils_tail_match.c	/^cu_tail_match_t *tail_match_create (const char *fi/
+tail_match_destroy	utils_tail_match.c	/^void tail_match_destroy (cu_tail_match_t *obj)$/
+tail_match_read	utils_tail_match.c	/^int tail_match_read (cu_tail_match_t *obj)$/
+tailfunc_t	utils_tail.h	/^typedef int tailfunc_t(void *data, char *buf, int /
+target_proc_s	filter_chain.h	/^struct target_proc_s$/
+target_proc_t	filter_chain.h	/^typedef struct target_proc_s target_proc_t;$/
+testcase0	utils_vl_lookup_test.c	/^static void testcase0 (void)$/
+testcase1	utils_vl_lookup_test.c	/^static void testcase1 (void)$/
+testcase2	utils_vl_lookup_test.c	/^static void testcase2 (void)$/
+timeout_reached	plugin.c	/^static _Bool timeout_reached(struct timespec timeo/
+timeval_cmp	common.c	/^int timeval_cmp (struct timeval tv0, struct timeva/
+u	netstat.c	/^#define u(n,v) submit("udp", n, udpstat.v)$/
+uc_check_range	utils_cache.c	/^static void uc_check_range (const data_set_t *ds, /
+uc_check_timeout	utils_cache.c	/^int uc_check_timeout (void)$/
+uc_get_history	utils_cache.c	/^int uc_get_history (const data_set_t *ds, const va/
+uc_get_history_by_name	utils_cache.c	/^int uc_get_history_by_name (const char *name,$/
+uc_get_hits	utils_cache.c	/^int uc_get_hits (const data_set_t *ds, const value/
+uc_get_meta	utils_cache.c	/^static meta_data_t *uc_get_meta (const value_list_/
+uc_get_names	utils_cache.c	/^int uc_get_names (char ***ret_names, cdtime_t **re/
+uc_get_rate	utils_cache.c	/^gauge_t *uc_get_rate (const data_set_t *ds, const /
+uc_get_rate_by_name	utils_cache.c	/^int uc_get_rate_by_name (const char *name, gauge_t/
+uc_get_state	utils_cache.c	/^int uc_get_state (const data_set_t *ds, const valu/
+uc_inc_hits	utils_cache.c	/^int uc_inc_hits (const data_set_t *ds, const value/
+uc_init	utils_cache.c	/^int uc_init (void)$/
+uc_insert	utils_cache.c	/^static int uc_insert (const data_set_t *ds, const /
+uc_meta_data_add_string	utils_cache.c	/^int uc_meta_data_add_string (const value_list_t *v/
+uc_meta_data_exists	utils_cache.c	/^int uc_meta_data_exists (const value_list_t *vl, c/
+uc_set_hits	utils_cache.c	/^int uc_set_hits (const data_set_t *ds, const value/
+uc_set_state	utils_cache.c	/^int uc_set_state (const data_set_t *ds, const valu/
+uc_update	utils_cache.c	/^int uc_update (const data_set_t *ds, const value_l/
+update_kstat	collectd.c	/^static void update_kstat (void)$/
+uptime_init	uptime.c	/^static int uptime_init (void) \/* {{{ *\/$/
+uptime_read	uptime.c	/^static int uptime_read (void)$/
+uptime_submit	uptime.c	/^static void uptime_submit (gauge_t uptime)$/
+us_config	unixsock.c	/^static int us_config (const char *key, const char /
+us_handle_client	unixsock.c	/^static void *us_handle_client (void *arg)$/
+us_init	unixsock.c	/^static int us_init (void)$/
+us_open_socket	unixsock.c	/^static int us_open_socket (void)$/
+us_server_thread	unixsock.c	/^static void *us_server_thread (void __attribute__(/
+us_shutdown	unixsock.c	/^static int us_shutdown (void)$/
+usage	collectd-nagios.c	/^static void usage (const char *name)$/
+user_class	utils_vl_lookup.h	/^    value_list_t const *vl, void *user_class);$/
+user_class_list_s	utils_vl_lookup.c	/^struct user_class_list_s$/
+user_class_list_t	utils_vl_lookup.c	/^struct user_class_list_s;$/
+user_class_s	utils_vl_lookup.c	/^struct user_class_s$/
+user_class_t	utils_vl_lookup.c	/^typedef struct user_class_s user_class_t;$/
+user_data	common.h	/^		void *user_data);$/
+user_data_s	plugin.h	/^struct user_data_s$/
+user_data_t	plugin.h	/^typedef struct user_data_s user_data_t;$/
+user_obj	utils_vl_lookup.h	/^    void *user_class, void *user_obj);$/
+user_obj_s	utils_vl_lookup.c	/^struct user_obj_s$/
+user_obj_t	utils_vl_lookup.c	/^struct user_obj_s;$/
+uuidCache_s	utils_mount.c	/^static struct uuidCache_s {$/
+uuidcache_addentry	utils_mount.c	/^uuidcache_addentry(char *device, char *label, char/
+uuidcache_init	utils_mount.c	/^uuidcache_init(void)$/
+value_list_s	plugin.h	/^struct value_list_s$/
+value_list_t	plugin.h	/^typedef struct value_list_s value_list_t;$/
+value_list_to_json	utils_format_json.c	/^static int value_list_to_json (char *buffer, size_/
+value_t	plugin.h	/^typedef union value_u value_t;$/
+value_u	plugin.h	/^union value_u$/
+values_to_json	utils_format_json.c	/^static int values_to_json (char *buffer, size_t bu/
+vcomplain	utils_complain.c	/^static int vcomplain (int level, c_complain_t *c,$/
+verify_tree	utils_avltree.c	/^static void verify_tree (c_avl_node_t *n)$/
+void	plugin.h	/^typedef int (*plugin_init_cb) (void);$/
+walk_directory	common.c	/^int walk_directory (const char *dir, dirwalk_callb/
+web_match_t	curl.c	/^struct web_match_s;$/
+web_page_t	curl.c	/^struct web_page_s;$/
+wg_callback	write_graphite.c	/^struct wg_callback$/
+wg_callback_free	write_graphite.c	/^static void wg_callback_free (void *data)$/
+wg_callback_init	write_graphite.c	/^static int wg_callback_init (struct wg_callback *c/
+wg_config	write_graphite.c	/^static int wg_config (oconfig_item_t *ci)$/
+wg_config_carbon	write_graphite.c	/^static int wg_config_carbon (oconfig_item_t *ci)$/
+wg_flush	write_graphite.c	/^static int wg_flush (cdtime_t timeout,$/
+wg_flush_nolock	write_graphite.c	/^static int wg_flush_nolock (cdtime_t timeout, stru/
+wg_reset_buffer	write_graphite.c	/^static void wg_reset_buffer (struct wg_callback *c/
+wg_send_buffer	write_graphite.c	/^static int wg_send_buffer (struct wg_callback *cb)/
+wg_send_message	write_graphite.c	/^static int wg_send_message (char const *message, s/
+wg_write	write_graphite.c	/^static int wg_write (const data_set_t *ds, const v/
+wg_write_messages	write_graphite.c	/^static int wg_write_messages (const data_set_t *ds/
+wh_callback_free	write_http.c	/^static void wh_callback_free (void *data) \/* {{{ /
+wh_callback_init	write_http.c	/^static int wh_callback_init (wh_callback_t *cb) \//
+wh_callback_s	write_http.c	/^struct wh_callback_s$/
+wh_callback_t	write_http.c	/^typedef struct wh_callback_s wh_callback_t;$/
+wh_config	write_http.c	/^static int wh_config (oconfig_item_t *ci) \/* {{{ /
+wh_config_url	write_http.c	/^static int wh_config_url (oconfig_item_t *ci) \/* /
+wh_flush	write_http.c	/^static int wh_flush (cdtime_t timeout, \/* {{{ *\//
+wh_flush_nolock	write_http.c	/^static int wh_flush_nolock (cdtime_t timeout, wh_c/
+wh_reset_buffer	write_http.c	/^static void wh_reset_buffer (wh_callback_t *cb)  /
+wh_send_buffer	write_http.c	/^static int wh_send_buffer (wh_callback_t *cb) \/* /
+wh_write	write_http.c	/^static int wh_write (const data_set_t *ds, const v/
+wh_write_command	write_http.c	/^static int wh_write_command (const data_set_t *ds,/
+wh_write_json	write_http.c	/^static int wh_write_json (const data_set_t *ds, co/
+write_part_number	network.c	/^static int write_part_number (char **ret_buffer, i/
+write_part_string	network.c	/^static int write_part_string (char **ret_buffer, i/
+write_part_values	network.c	/^static int write_part_values (char **ret_buffer, i/
+wt_callback	write_tsdb.c	/^struct wt_callback$/
+wt_callback_free	write_tsdb.c	/^static void wt_callback_free (void *data)$/
+wt_callback_init	write_tsdb.c	/^static int wt_callback_init (struct wt_callback *c/
+wt_config	write_tsdb.c	/^static int wt_config (oconfig_item_t *ci)$/
+wt_config_tsd	write_tsdb.c	/^static int wt_config_tsd (oconfig_item_t *ci)$/
+wt_flush	write_tsdb.c	/^static int wt_flush (cdtime_t timeout,$/
+wt_flush_nolock	write_tsdb.c	/^static int wt_flush_nolock (cdtime_t timeout, stru/
+wt_format_name	write_tsdb.c	/^static int wt_format_name (char *ret, int ret_len,/
+wt_format_values	write_tsdb.c	/^static int wt_format_values (char *ret, size_t ret/
+wt_reset_buffer	write_tsdb.c	/^static void wt_reset_buffer (struct wt_callback *c/
+wt_send_buffer	write_tsdb.c	/^static int wt_send_buffer (struct wt_callback *cb)/
+wt_send_message	write_tsdb.c	/^static int wt_send_message (const char* key, const/
+wt_write	write_tsdb.c	/^static int wt_write (const data_set_t *ds, const v/
+wt_write_messages	write_tsdb.c	/^static int wt_write_messages (const data_set_t *ds/
+xfs_super_block	utils_mount.c	/^struct xfs_super_block {$/

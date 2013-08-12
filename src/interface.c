@@ -87,11 +87,9 @@ static const char *config_keys[] =
 {
 	"Interface",
 	"IgnoreSelected",
-	"Interval",
 	NULL
 };
 static int config_keys_num = 2;
-static cdtime_t int_interval;
 
 static ignorelist_t *ignorelist = NULL;
 
@@ -118,17 +116,6 @@ static int interface_config (const char *key, const char *value)
 			invert = 0;
 		ignorelist_set_invert (ignorelist, invert);
 	}
-	else if (strcasecmp (key, "Interval") == 0)
-	{
-		double tmp;
-		tmp = atof(value);
-		if (tmp > 0.0) {
-			int_interval = DOUBLE_TO_CDTIME_T(tmp);
-			#define CUSTOMER_INTERVAL 1
-		} else {
-			ERROR ("interface_plugin: Invalid 'Interval' setting: %s", value);
-		}
-	}
 	else
 	{
 		return (-1);
@@ -136,6 +123,36 @@ static int interface_config (const char *key, const char *value)
 
 	return (0);
 }
+
+#if HAVE_LIBKSTAT
+static int interface_init (void)
+{
+	kstat_t *ksp_chain;
+	derive_t val;
+
+	numif = 0;
+
+	if (kc == NULL)
+		return (-1);
+
+	for (numif = 0, ksp_chain = kc->kc_chain;
+			(numif < MAX_NUMIF) && (ksp_chain != NULL);
+			ksp_chain = ksp_chain->ks_next)
+	{
+		if (strncmp (ksp_chain->ks_class, "net", 3))
+			continue;
+		if (ksp_chain->ks_type != KSTAT_TYPE_NAMED)
+			continue;
+		if (kstat_read (kc, ksp_chain, NULL) == -1)
+			continue;
+		if ((val = get_kstat_value (ksp_chain, "obytes")) == -1LL)
+			continue;
+		ksp[numif++] = ksp_chain;
+	}
+
+	return (0);
+} /* int interface_init */
+#endif /* HAVE_LIBKSTAT */
 
 static void if_submit (const char *dev, const char *type,
 		derive_t rx,
@@ -160,7 +177,7 @@ static void if_submit (const char *dev, const char *type,
 	plugin_dispatch_values (&vl);
 } /* void if_submit */
 
-static int interface_read ()
+static int interface_read (void)
 {
 #if HAVE_GETIFADDRS
 	struct ifaddrs *if_list;
@@ -359,42 +376,6 @@ static int interface_read ()
 	return (0);
 } /* int interface_read */
 
-#if HAVE_LIBKSTAT
-static int interface_init (void)
-{
-	kstat_t *ksp_chain;
-	derive_t val;
-	struct timespec cb_interval;
-
-	numif = 0;
-
-	if (kc == NULL)
-		return (-1);
-
-	for (numif = 0, ksp_chain = kc->kc_chain;
-			(numif < MAX_NUMIF) && (ksp_chain != NULL);
-			ksp_chain = ksp_chain->ks_next)
-	{
-		if (strncmp (ksp_chain->ks_class, "net", 3))
-			continue;
-		if (ksp_chain->ks_type != KSTAT_TYPE_NAMED)
-			continue;
-		if (kstat_read (kc, ksp_chain, NULL) == -1)
-			continue;
-		if ((val = get_kstat_value (ksp_chain, "obytes")) == -1LL)
-			continue;
-		ksp[numif++] = ksp_chain;
-	}
-
-#ifdef CUSTOM_INTERVAL
-	plugin_register_complex_read(/* group */ NULL, "interface", interface_read,
-		(int_interval != 0) ? &cb_interval : NULL,
-		/* user data */ NULL);
-#endif
-	return (0);
-} /* int interface_init */
-#endif /* HAVE_LIBKSTAT */
-
 void module_register (void)
 {
 	plugin_register_config ("interface", interface_config,
@@ -402,7 +383,5 @@ void module_register (void)
 #if HAVE_LIBKSTAT
 	plugin_register_init ("interface", interface_init);
 #endif
-#ifndef CUSTOM_INTERVAL
 	plugin_register_read ("interface", interface_read);
-#endif
 } /* void module_register */

@@ -1,6 +1,6 @@
 /**
  * collectd - src/utils_rrdcreate.c
- * Copyright (C) 2006-2008  Florian octo Forster
+ * Copyright (C) 2006-2013  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,7 +16,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
@@ -25,6 +25,24 @@
 
 #include <pthread.h>
 #include <rrd.h>
+
+struct srrd_create_args_s
+{
+  char *filename;
+  unsigned long pdp_step;
+  time_t last_up;
+  int argc;
+  char **argv;
+};
+typedef struct srrd_create_args_s srrd_create_args_t;
+
+struct async_create_file_s;
+typedef struct async_create_file_s async_create_file_t;
+struct async_create_file_s
+{
+  char *filename;
+  async_create_file_t *next;
+};
 
 /*
  * Private variables
@@ -51,6 +69,9 @@ static int rra_types_num = STATIC_ARRAY_SIZE (rra_types);
 static pthread_mutex_t librrd_lock = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
+static async_create_file_t *async_creation_list = NULL;
+static pthread_mutex_t async_creation_lock = PTHREAD_MUTEX_INITIALIZER;
+
 /*
  * Private functions
  */
@@ -64,6 +85,71 @@ static void rra_free (int rra_num, char **rra_def) /* {{{ */
   }
   sfree (rra_def);
 } /* }}} void rra_free */
+
+static void srrd_create_args_destroy (srrd_create_args_t *args)
+{
+  if (args == NULL)
+    return;
+
+  sfree (args->filename);
+  if (args->argv != NULL)
+  {
+    int i;
+    for (i = 0; i < args->argc; i++)
+      sfree (args->argv[i]);
+    sfree (args->argv);
+  }
+} /* void srrd_create_args_destroy */
+
+static srrd_create_args_t *srrd_create_args_create (const char *filename,
+    unsigned long pdp_step, time_t last_up,
+    int argc, const char **argv)
+{
+  srrd_create_args_t *args;
+
+  args = malloc (sizeof (*args));
+  if (args == NULL)
+  {
+    ERROR ("srrd_create_args_create: malloc failed.");
+    return (NULL);
+  }
+  memset (args, 0, sizeof (*args));
+  args->filename = NULL;
+  args->pdp_step = pdp_step;
+  args->last_up = last_up;
+  args->argv = NULL;
+
+  args->filename = strdup (filename);
+  if (args->filename == NULL)
+  {
+    ERROR ("srrd_create_args_create: strdup failed.");
+    srrd_create_args_destroy (args);
+    return (NULL);
+  }
+
+  args->argv = calloc ((size_t) (argc + 1), sizeof (*args->argv));
+  if (args->argv == NULL)
+  {
+    ERROR ("srrd_create_args_create: calloc failed.");
+    srrd_create_args_destroy (args);
+    return (NULL);
+  }
+
+  for (args->argc = 0; args->argc < argc; args->argc++)
+  {
+    args->argv[args->argc] = strdup (argv[args->argc]);
+    if (args->argv[args->argc] == NULL)
+    {
+      ERROR ("srrd_create_args_create: strdup failed.");
+      srrd_create_args_destroy (args);
+      return (NULL);
+    }
+  }
+  assert (args->argc == argc);
+  args->argv[args->argc] = NULL;
+
+  return (args);
+} /* srrd_create_args_t *srrd_create_args_create */
 
 /* * * * * * * * * *
  * WARNING:  Magic *
@@ -359,6 +445,197 @@ static int srrd_create (const char *filename, /* {{{ */
 } /* }}} int srrd_create */
 #endif /* !HAVE_THREADSAFE_LIBRRD */
 
+static int lock_file (char const *filename) /* {{{ */
+{
+  async_create_file_t *ptr;
+  struct stat sb;
+  int status;
+
+  pthread_mutex_lock (&async_creation_lock);
+
+  for (ptr = async_creation_list; ptr != NULL; ptr = ptr->next)
+    if (strcmp (filename, ptr->filename) == 0)
+      break;
+
+  if (ptr != NULL)
+  {
+    pthread_mutex_unlock (&async_creation_lock);
+    return (EEXIST);
+  }
+
+  status = stat (filename, &sb);
+  if ((status == 0) || (errno != ENOENT))
+  {
+    pthread_mutex_unlock (&async_creation_lock);
+    return (EEXIST);
+  }
+
+  ptr = malloc (sizeof (*ptr));
+  if (ptr == NULL)
+  {
+    pthread_mutex_unlock (&async_creation_lock);
+    return (ENOMEM);
+  }
+
+  ptr->filename = strdup (filename);
+  if (ptr->filename == NULL)
+  {
+    pthread_mutex_unlock (&async_creation_lock);
+    sfree (ptr);
+    return (ENOMEM);
+  }
+
+  ptr->next = async_creation_list;
+  async_creation_list = ptr;
+
+  pthread_mutex_unlock (&async_creation_lock);
+
+  return (0);
+} /* }}} int lock_file */
+
+static int unlock_file (char const *filename) /* {{{ */
+{
+  async_create_file_t *this;
+  async_create_file_t *prev;
+
+
+  pthread_mutex_lock (&async_creation_lock);
+
+  prev = NULL;
+  for (this = async_creation_list; this != NULL; this = this->next)
+  {
+    if (strcmp (filename, this->filename) == 0)
+      break;
+    prev = this;
+  }
+
+  if (this == NULL)
+  {
+    pthread_mutex_unlock (&async_creation_lock);
+    return (ENOENT);
+  }
+
+  if (prev == NULL)
+  {
+    assert (this == async_creation_list);
+    async_creation_list = this->next;
+  }
+  else
+  {
+    assert (this == prev->next);
+    prev->next = this->next;
+  }
+  this->next = NULL;
+
+  pthread_mutex_unlock (&async_creation_lock);
+
+  sfree (this->filename);
+  sfree (this);
+
+  return (0);
+} /* }}} int unlock_file */
+
+static void *srrd_create_thread (void *targs) /* {{{ */
+{
+  srrd_create_args_t *args = targs;
+  char tmpfile[PATH_MAX];
+  int status;
+
+  status = lock_file (args->filename);
+  if (status != 0)
+  {
+    if (status == EEXIST)
+      NOTICE ("srrd_create_thread: File \"%s\" is already being created.",
+          args->filename);
+    else
+      ERROR ("srrd_create_thread: Unable to lock file \"%s\".",
+          args->filename);
+    srrd_create_args_destroy (args);
+    return (0);
+  }
+
+  ssnprintf (tmpfile, sizeof (tmpfile), "%s.async", args->filename);
+
+  status = srrd_create (tmpfile, args->pdp_step, args->last_up,
+      args->argc, (void *) args->argv);
+  if (status != 0)
+  {
+    WARNING ("srrd_create_thread: srrd_create (%s) returned status %i.",
+        args->filename, status);
+    unlink (tmpfile);
+    unlock_file (args->filename);
+    srrd_create_args_destroy (args);
+    return (0);
+  }
+
+  status = rename (tmpfile, args->filename);
+  if (status != 0)
+  {
+    char errbuf[1024];
+    ERROR ("srrd_create_thread: rename (\"%s\", \"%s\") failed: %s",
+        tmpfile, args->filename,
+        sstrerror (errno, errbuf, sizeof (errbuf)));
+    unlink (tmpfile);
+    unlock_file (args->filename);
+    srrd_create_args_destroy (args);
+    return (0);
+  }
+
+  DEBUG ("srrd_create_thread: Successfully created RRD file \"%s\".",
+      args->filename);
+
+  unlock_file (args->filename);
+  srrd_create_args_destroy (args);
+
+  return (0);
+} /* }}} void *srrd_create_thread */
+
+static int srrd_create_async (const char *filename, /* {{{ */
+    unsigned long pdp_step, time_t last_up,
+    int argc, const char **argv)
+{
+  srrd_create_args_t *args;
+  pthread_t thread;
+  pthread_attr_t attr;
+  int status;
+
+  DEBUG ("srrd_create_async: Creating \"%s\" in the background.", filename);
+
+  args = srrd_create_args_create (filename, pdp_step, last_up, argc, argv);
+  if (args == NULL)
+    return (-1);
+
+  status = pthread_attr_init (&attr);
+  if (status != 0)
+  {
+    srrd_create_args_destroy (args);
+    return (-1);
+  }
+
+  status = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+  if (status != 0)
+  {
+    pthread_attr_destroy (&attr);
+    srrd_create_args_destroy (args);
+    return (-1);
+  }
+
+  status = pthread_create (&thread, &attr, srrd_create_thread, args);
+  if (status != 0)
+  {
+    char errbuf[1024];
+    ERROR ("srrd_create_async: pthread_create failed: %s",
+        sstrerror (status, errbuf, sizeof (errbuf)));
+    pthread_attr_destroy (&attr);
+    srrd_create_args_destroy (args);
+    return (status);
+  }
+
+  pthread_attr_destroy (&attr);
+  /* args is freed in srrd_create_thread(). */
+  return (0);
+} /* }}} int srrd_create_async */
+
 /*
  * Public functions
  */
@@ -415,23 +692,35 @@ int cu_rrd_create_file (const char *filename, /* {{{ */
   else
     stepsize = (unsigned long) CDTIME_T_TO_TIME_T (vl->interval);
 
-  status = srrd_create (filename, stepsize, last_up,
-      argc, (const char **) argv);
+  if (cfg->async)
+  {
+    status = srrd_create_async (filename, stepsize, last_up,
+        argc, (const char **) argv);
+    if (status != 0)
+      WARNING ("cu_rrd_create_file: srrd_create_async (%s) "
+          "returned status %i.",
+          filename, status);
+  }
+  else /* synchronous */
+  {
+    status = srrd_create (filename, stepsize, last_up,
+        argc, (const char **) argv);
+
+    if (status != 0)
+    {
+      WARNING ("cu_rrd_create_file: srrd_create (%s) returned status %i.",
+          filename, status);
+    }
+    else
+    {
+      DEBUG ("cu_rrd_create_file: Successfully created RRD file \"%s\".",
+          filename);
+    }
+  }
 
   free (argv);
   ds_free (ds_num, ds_def);
   rra_free (rra_num, rra_def);
-
-  if (status != 0)
-  {
-    WARNING ("cu_rrd_create_file: srrd_create (%s) returned status %i.",
-        filename, status);
-  }
-  else
-  {
-    DEBUG ("cu_rrd_create_file: Successfully created RRD file \"%s\".",
-        filename);
-  }
 
   return (status);
 } /* }}} int cu_rrd_create_file */

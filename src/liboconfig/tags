@@ -1,0 +1,30 @@
+EOL	scanner.l	/^EOL (\\r\\n|\\n)$/
+argument	parser.y	/^argument:$/
+argument_list	parser.y	/^argument_list:$/
+argument_list_s	aux_types.h	/^struct argument_list_s$/
+argument_list_t	aux_types.h	/^typedef struct argument_list_s argument_list_t;$/
+block	parser.y	/^block:$/
+block_begin	parser.y	/^block_begin:$/
+block_end	parser.y	/^block_end:$/
+entire_file	parser.y	/^entire_file:$/
+identifier	parser.y	/^identifier:$/
+oconfig_clone	oconfig.c	/^oconfig_item_t *oconfig_clone (const oconfig_item_/
+oconfig_free	oconfig.c	/^void oconfig_free (oconfig_item_t *ci)$/
+oconfig_item_s	oconfig.h	/^struct oconfig_item_s$/
+oconfig_item_t	oconfig.h	/^struct oconfig_item_s;$/
+oconfig_parse_fh	oconfig.c	/^oconfig_item_t *oconfig_parse_fh (FILE *fh)$/
+oconfig_parse_file	oconfig.c	/^oconfig_item_t *oconfig_parse_file (const char *fi/
+oconfig_value_s	oconfig.h	/^struct oconfig_value_s$/
+oconfig_value_t	oconfig.h	/^typedef struct oconfig_value_s oconfig_value_t;$/
+option	parser.y	/^option:$/
+statement	parser.y	/^statement:$/
+statement_list	parser.y	/^statement_list:$/
+statement_list_s	aux_types.h	/^struct statement_list_s$/
+statement_list_t	aux_types.h	/^typedef struct statement_list_s statement_list_t;$/
+string	parser.y	/^string:$/
+unquote	parser.y	/^static char *unquote (const char *orig)$/
+yyerror	parser.y	/^static int yyerror (const char *s)$/
+yylex	scanner.l	/^%%$/
+yyparse	parser.y	/^%%$/
+yyset_in	oconfig.c	/^static void yyset_in  (FILE *fd)$/
+yyterminate	scanner.l	/^#define yyterminate() \\$/

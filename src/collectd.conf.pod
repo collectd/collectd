@@ -944,6 +944,19 @@ File that holds one or more SSL certificates. If you want to use HTTPS you will
 possibly need this option. What CA certificates come bundled with C<libcurl>
 and are checked by default depends on the distribution you use.
 
+=item B<Header> I<Header>
+
+A HTTP header to add to the request. Multiple headers are added if this option
+is specified more than once.
+
+=item B<Post> I<Body>
+
+Specifies that the HTTP operation should be a POST instead of a GET. The
+complete data to be posted is given as the argument.  This option will usually
+need to be accompanied by a B<Header> option to set an appropriate
+C<Content-Type> for the post body (e.g. to
+C<application/x-www-form-urlencoded>).
+
 =item B<MeasureResponseTime> B<true>|B<false>
 
 Measure response time for the request. If this setting is enabled, B<Match>
@@ -1002,31 +1015,15 @@ The following options are valid within B<URL> blocks:
 Sets the plugin instance to I<Instance>.
 
 =item B<User> I<Name>
-
-Username to use if authorization is required to read the page.
-
 =item B<Password> I<Password>
-
-Password to use if authorization is required to read the page.
-
 =item B<VerifyPeer> B<true>|B<false>
-
-Enable or disable peer SSL certificate verification. See
-L<http://curl.haxx.se/docs/sslcerts.html> for details. Enabled by default.
-
 =item B<VerifyHost> B<true>|B<false>
-
-Enable or disable peer host name verification. If enabled, the plugin checks if
-the C<Common Name> or a C<Subject Alternate Name> field of the SSL certificate
-matches the host name provided by the B<URL> option. If this identity check
-fails, the connection is aborted. Obviously, only works when connecting to a
-SSL enabled server. Enabled by default.
-
 =item B<CACert> I<file>
+=item B<Header> I<Header>
+=item B<Post> I<Body>
 
-File that holds one or more SSL certificates. If you want to use HTTPS you will
-possibly need this option. What CA certificates come bundled with C<libcurl>
-and are checked by default depends on the distribution you use.
+These options behave exactly equivalent to the appropriate options of the
+I<cURL> plugin. Please see there for a detailed description.
 
 =back
 
@@ -1095,14 +1092,34 @@ host name setting.
 Use I<Instance> as the plugin instance when submitting values. Defaults to an
 empty string (no plugin instance).
 
+=item B<Namespace> I<Prefix> I<URL>
+
+If an XPath expression references namespaces, they must be specified
+with this option. I<Prefix> is the "namespace prefix" used in the XML document.
+I<URL> is the "namespace name", an URI reference uniquely identifying the
+namespace. The option can be repeated to register multiple namespaces.
+
+Examples:
+
+  Namespace "s" "http://schemas.xmlsoap.org/soap/envelope/"
+  Namespace "m" "http://www.w3.org/1998/Math/MathML"
+
 =item B<User> I<User>
+
 =item B<Password> I<Password>
+
 =item B<VerifyPeer> B<true>|B<false>
+
 =item B<VerifyHost> B<true>|B<false>
+
 =item B<CACert> I<CA Cert File>
 
+=item B<Header> I<Header>
+
+=item B<Post> I<Body>
+
 These options behave exactly equivalent to the appropriate options of the
-I<cURL> and I<cURL-JSON> plugins. Please see there for a detailed description.
+I<cURL plugin>. Please see there for a detailed description.
 
 =item E<lt>B<XPath> I<XPath-expression>E<gt>
 
@@ -4644,6 +4661,16 @@ Enables or disables the creation of RRD files. If the daemon is not running
 locally, or B<DataDir> is set to a relative path, this will not work as
 expected. Default is B<true>.
 
+=item B<CreateFilesAsync> B<false>|B<true>
+
+When enabled, new RRD files are enabled asynchronously, using a separate thread
+that runs in the background. This prevents writes to block, which is a problem
+especially when many hundreds of files need to be created at once. However,
+since the purpose of creating the files asynchronously is I<not> to block until
+the file is available, values before the file is available will be discarded.
+When disabled (the default) files are created synchronously, blocking for a
+short while, while the file is being written.
+
 =item B<StepSize> I<Seconds>
 
 B<Force> the stepsize of newly created RRD-files. Ideally (and per default)
@@ -4701,8 +4728,18 @@ can safely ignore these settings.
 
 =item B<DataDir> I<Directory>
 
-Set the directory to store RRD-files under. Per default RRD-files are generated
-beneath the daemon's working directory, i.E<nbsp>e. the B<BaseDir>.
+Set the directory to store RRD files under. By default RRD files are generated
+beneath the daemon's working directory, i.e. the B<BaseDir>.
+
+=item B<CreateFilesAsync> B<false>|B<true>
+
+When enabled, new RRD files are enabled asynchronously, using a separate thread
+that runs in the background. This prevents writes to block, which is a problem
+especially when many hundreds of files need to be created at once. However,
+since the purpose of creating the files asynchronously is I<not> to block until
+the file is available, values before the file is available will be discarded.
+When disabled (the default) files are created synchronously, blocking for a
+short while, while the file is being written.
 
 =item B<StepSize> I<Seconds>
 
@@ -4723,7 +4760,7 @@ a very good reason to do so.
 
 The C<rrdtool plugin> calculates the number of PDPs per CDP based on the
 B<StepSize>, this setting and a timespan. This plugin creates RRD-files with
-three times five RRAs, i. e. five RRAs with the CFs B<MIN>, B<AVERAGE>, and
+three times five RRAs, i.e. five RRAs with the CFs B<MIN>, B<AVERAGE>, and
 B<MAX>. The five RRAs are optimized for graphs covering one hour, one day, one
 week, one month, and one year.
 
@@ -5116,6 +5153,97 @@ their configuration can be found in L<types.db(5)>.
 =item B<Instance> I<TypeInstance>
 
 This optional setting sets the type instance to use.
+
+=back
+
+=head2 Plugin C<tail_csv>
+
+The I<tail_csv plugin> reads files in the CSV format, e.g. the statistics file
+written by I<Snort>.
+
+B<Synopsis:>
+
+ <Plugin "tail_csv">
+   <Metric "snort-dropped">
+       Type "percent"
+       Instance "dropped"
+       Index 1
+   </Metric>
+   <File "/var/log/snort/snort.stats">
+       Instance "snort-eth0"
+       Interval 600
+       Collect "snort-dropped"
+   </File>
+ </Plugin>
+
+The configuration consists of one or more B<Metric> blocks that define an index
+into the line of the CSV file and how this value is mapped to I<collectd's>
+internal representation. These are followed by one or more B<Instance> blocks
+which configure which file to read, in which interval and which metrics to
+extract.
+
+=over 4
+
+=item E<lt>B<Metric> I<Name>E<gt>
+
+The B<Metric> block configures a new metric to be extracted from the statistics
+file and how it is mapped on I<collectd's> data model. The string I<Name> is
+only used inside the B<Instance> blocks to refer to this block, so you can use
+one B<Metric> block for multiple CSV files.
+
+=over 4
+
+=item B<Type> I<Type>
+
+Configures which I<Type> to use when dispatching this metric. Types are defined
+in the L<types.db(5)> file, see the appropriate manual page for more
+information on specifying types. Only types with a single I<data source> are
+supported by the I<tail_csv plugin>. The information whether the value is an
+absolute value (i.e. a C<GAUGE>) or a rate (i.e. a C<DERIVE>) is taken from the
+I<Type's> definition.
+
+=item B<Instance> I<TypeInstance>
+
+If set, I<TypeInstance> is used to populate the type instance field of the
+created value lists. Otherwise, no type instance is used.
+
+=item B<ValueFrom> I<Index>
+
+Configure to read the value from the field with the zero-based index I<Index>.
+If the value is parsed as signed integer, unsigned integer or double depends on
+the B<Type> setting, see above.
+
+=back
+
+=item E<lt>B<File> I<Path>E<gt>
+
+Each B<File> block represents one CSV file to read. There must be at least one
+I<File> block but there can be multiple if you have multiple CSV files.
+
+=over 4
+
+=item B<Instance> I<PluginInstance>
+
+Sets the I<plugin instance> used when dispatching the values.
+
+=item B<Collect> I<Metric>
+
+Specifies which I<Metric> to collect. This option must be specified at least
+once, and you can use this option multiple times to specify more than one
+metric to be extracted from this statistic file.
+
+=item B<Interval> I<Seconds>
+
+Configures the interval in which to read values from this instance / file.
+Defaults to the plugin's default interval.
+
+=item B<TimeFrom> I<Index>
+
+Rather than using the local time when dispatching a value, read the timestamp
+from the field with the zero-based index I<Index>. The value is interpreted as
+seconds since epoch. The value is parsed as a double and may be factional.
+
+=back
 
 =back
 
@@ -5550,6 +5678,16 @@ Setting this option to zero means no timeout, which is the default.
 If set to B<true> (the default), convert counter values to rates. If set to
 B<false> counter values are stored as is, i.e. as an increasing integer
 number.
+
+=item B<Database> I<Database>
+
+=item B<User> I<User>
+
+=item B<Password> I<Password>
+
+Sets the information used when authenticating to a I<MongoDB> database. The
+fields are optional (in which case no authentication is attempted), but if you
+want to use authentication all three fields must be set.
 
 =back
 

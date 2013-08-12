@@ -1,6 +1,6 @@
 /**
  * collectd - src/rrdcached.c
- * Copyright (C) 2008-2012  Florian octo Forster
+ * Copyright (C) 2008-2013  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -46,7 +46,9 @@ static rrdcreate_config_t rrdcreate_config =
 	/* timespans_num = */ 0,
 
 	/* consolidation_functions = */ NULL,
-	/* consolidation_functions_num = */ 0
+	/* consolidation_functions_num = */ 0,
+
+	/* async = */ 0
 };
 
 /*
@@ -250,6 +252,8 @@ static int rc_config (oconfig_item_t *ci)
       status = cf_util_get_string (child, &daemon_address);
     else if (strcasecmp ("CreateFiles", key) == 0)
       status = cf_util_get_boolean (child, &config_create_files);
+    else if (strcasecmp ("CreateFilesAsync", key) == 0)
+      status = cf_util_get_boolean (child, &rrdcreate_config.async);
     else if (strcasecmp ("CollectStatistics", key) == 0)
       status = cf_util_get_boolean (child, &config_collect_stats);
     else if (strcasecmp ("StepSize", key) == 0)
@@ -315,6 +319,14 @@ static int rc_read (void)
   else
     sstrncpy (vl.host, daemon_address, sizeof (vl.host));
   sstrncpy (vl.plugin, "rrdcached", sizeof (vl.plugin));
+
+  status = rrdc_connect (daemon_address);
+  if (status != 0)
+  {
+    ERROR ("rrdcached plugin: rrdc_connect (%s) failed with status %i.",
+        daemon_address, status);
+    return (-1);
+  }
 
   head = NULL;
   status = rrdc_stats_get (&head);
@@ -459,6 +471,8 @@ static int rc_write (const data_set_t *ds, const value_list_t *vl,
             filename);
         return (-1);
       }
+      else if (rrdcreate_config.async)
+        return (0);
     }
   }
 

@@ -1,3 +1,75 @@
+2013-04-09, Version 5.3.0
+	* collectd: The "Include" statements can now be limited to include
+	  only matching files in a directory. Thanks to Sebastian Harl for his
+	  patch.
+	* collectd: Dispatches / writes are now handled by a thread pool. This
+	  improves reliability and throughput for instances configured to act
+	  as a "server". Thanks to Sebastian Harl and Dan Fandrich for
+	  reviewing this change and fixing bugs.
+	* aggregation plugin: Selection of value lists is now possible using
+	  regular expressions. Parts of the identifier of the resulting metric
+	  can now be set via the configuration file.
+	* apcups plugin: The "ReportSeconds" option has been implemented.
+	* curl* plugins: Support for POST requests and custom request headers
+	  has been added. Thanks to Dan Fandrich for his patch.
+	* curl_xml plugin: Support for XML namespaces has been added. Thanks
+	  to Dan Fandrich for his patch.
+	* dbi plugin: Support for numeric options has been added. The
+	  "Host" option has been added. Thanks to Daniel Hilst for his patch.
+	* disk plugin: Support for systems with >256 has been fixed. Thanks to
+	  Greg Mason for his patch.
+	* libvirt plugin: Support for memory allocation has been added. Thanks
+	  to Johan Wirén for his patch.
+	* netapp plugin: Support for "SnapVault", "VFiler" and deduplication /
+	  compression and quota metrics. Thanks to Sebastian Harl for his
+	  patches and teamix GmbH for sponsoring this work.
+	* postgresql plugin: The reconnection logic has been improved. Thanks
+	  to Sebastian Harl for his patches.
+	* rrdtool, rrdcached plugins: The "CreateFilesAsync" option has been
+	  implemented. When enabled, new RRD files will be created
+	  asynchronously, which improved throughput of "server" instances.
+	  Many thanks to Yves Mettier for all his input and code.
+	* tail_csv plugin: This new plugins allows to read metrics from CSV
+	  files, such as Snort's statistics file. Thanks to Kris Nielander for
+	  his patch.
+	* write_mongodb plugin: Authentication options have been added.
+	* write_riemann plugin: This new plugin allows sending metrics to
+	  Riemann, a stream processing and alerting tool. Big thanks to
+	  Pierre-Yves Ritschard for his work.
+
+2013-04-08, Version 5.2.2
+	* Build system: A bad interaction between the Java detection code and
+	  libltdl has been fixed. Thanks to Dave Cottlehuber for his patch.
+	  Installation of the Perl bindings has been improved / fixed. Thanks
+	  to Sebastian Harl for his patch.
+	* collectd: Fixed read callback scheduling at startup.
+	* apache, ascent, bind, curl, curl_json, curl_xml, nginx and
+	  write_http plugins: Portability fixes, protection from infinite
+	  redirect loops, improved error handling and incorrect dereferences
+	  have been fixed. Most of these are related to the cURL library.
+	  Thanks to Dan Fandrich for his patches.
+	* logfile plugin: Flush the output file handle. This works around
+	  caching when logging to STDOUT and redirecting into a file. Thanks
+	  to Nathan Huff for the patch.
+	* mysql plugin: Fix a memory leak in the error handling. Thanks to
+	  Tomas Doran for his patch.
+	* netapp plugin: Fix the interval with which values are dispatched.
+	* network plugin: Build issues under FreeBSD and initialization have
+	  been fixed. Thanks to Ed Schouten for his patch.
+	* nfs plugin: A compilation problem has been fixed.
+	* notify_email plugin: Add a character set to the mail header. Thanks
+	  to Manuel Cissé for his patch.
+	* pf plugin: Build issues have been fixed.
+	* postgresql plugin: Build issues have been fixed.
+	* rrdcached plugin: Connect to the daemon from the read callback.
+	* snmp plugin: Matching of SNMP subtrees has been improved. Thanks to
+	  "jkrabbe" for the patch.
+	* thermal plugin: The initialization of dispatched value lists has
+	  been fixed. Thanks to Markus Knetschke for his patch.
+	* unixsock plugin: Parsing of options with an underscore, e.g.
+	  "plugin_instance" has been fixed. Thanks to Tommie Gannert for his
+	  patch.
+
 2013-01-27, Version 5.2.1
 	* Build system: "make distcheck" has been fixed. Build fixes Solaris
 	  and systems without gcrypt. Thanks to Yves Mettier for his patches.
@@ -74,6 +146,35 @@
 	  "traffic". Thanks to Manuel Rozada for the patch.
 	* tcpconns plugin: Use a netlink socket rather than reading from /proc
 	  for improved performance. Thanks to Michael Stapelberg for the patch.
+
+2013-04-08, Version 5.1.3
+	* Build system: A bad interaction between the Java detection code and
+	  libltdl has been fixed. Thanks to Dave Cottlehuber for his patch.
+	* collectd: Fixed read callback scheduling at startup.
+	* apache, ascent, bind, curl, curl_json, curl_xml, nginx and
+	  write_http plugins: Portability fixes, protection from infinite
+	  redirect loops, improved error handling and incorrect dereferences
+	  have been fixed. Most of these are related to the cURL library.
+	  Thanks to Dan Fandrich for his patches.
+	* logfile plugin: Flush the output file handle. This works around
+	  caching when logging to STDOUT and redirecting into a file. Thanks
+	  to Nathan Huff for the patch.
+	* mysql plugin: Fix a memory leak in the error handling. Thanks to
+	  Tomas Doran for his patch.
+	* netapp plugin: Fix the interval with which values are dispatched.
+	* network plugin: Build issues under FreeBSD and initialization have
+	  been fixed. Thanks to Ed Schouten for his patch.
+	* nfs plugin: A compilation problem has been fixed.
+	* notify_email plugin: Add a character set to the mail header. Thanks
+	  to Manuel Cissé for his patch.
+	* rrdcached plugin: Connect to the daemon from the read callback.
+	* snmp plugin: Matching of SNMP subtrees has been improved. Thanks to
+	  "jkrabbe" for the patch.
+	* thermal plugin: The initialization of dispatched value lists has
+	  been fixed. Thanks to Markus Knetschke for his patch.
+	* unixsock plugin: Parsing of options with an underscore, e.g.
+	  "plugin_instance" has been fixed. Thanks to Tommie Gannert for his
+	  patch.
 
 2013-01-25, Version 5.1.2
 	* Build system: "make distcheck" has been fixed. Thanks to Yves
@@ -427,6 +528,27 @@
 	  alternatives.
 	* v5upgrade target: Target for converting v4 data sets to the v5
 	  schema.
+
+2013-04-07, Version 4.10.9
+	* Build system: A bad interaction between the Java detection code and
+	  libltdl has been fixed. Thanks to Dave Cottlehuber for his patch.
+	* apache, ascent, bind, curl, curl_json, curl_xml, nginx and
+	  write_http plugins: Portability fixes, protection from infinite
+	  redirect loops, improved error handling and incorrect dereferences
+	  have been fixed. Most of these are related to the cURL library.
+	  Thanks to Dan Fandrich for his patches.
+	* logfile plugin: Flush the output file handle. This works around
+	  caching when logging to STDOUT and redirecting into a file. Thanks
+	  to Nathan Huff for the patch.
+	* network plugin: Build issues under FreeBSD and initialization have
+	  been fixed. Thanks to Ed Schouten for his patch.
+	* mysql plugin: Fix a memory leak in the error handling. Thanks to
+	  Tomas Doran for his patch.
+	* thermal plugin: The initialization of dispatched value lists has
+	  been fixed. Thanks to Markus Knetschke for his patch.
+	* unixsock plugin: Parsing of options with an underscore, e.g.
+	  "plugin_instance" has been fixed. Thanks to Tommie Gannert for his
+	  patch.
 
 2012-11-11, Version 4.10.8
 	* collectd: Create new directories with mode 0777 and let umask remove

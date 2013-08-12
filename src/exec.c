@@ -80,7 +80,7 @@ typedef struct program_list_and_notification_s
  */
 static program_list_t *pl_head = NULL;
 static pthread_mutex_t pl_lock = PTHREAD_MUTEX_INITIALIZER;
-static cdtime_t exec_interval = 0;
+
 /*
  * Functions
  */
@@ -111,21 +111,6 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
         ci->key);
     return (-1);
   }
-
-  /* put this in front of the value len check, it's going to cause an error
-     when it hits that, but for the sake of not getting twitched lets just
-     deal with it and move on
-  */
-  if (strcasecmp ("Interval", ci->key) == 0)
-  {
-    double tmp;
-    tmp = atof (ci->values[0].value.string);
-    if (tmp > 0.0)
-      exec_interval = DOUBLE_TO_CDTIME_T(tmp);
-    else
-      ERROR ("exec_plugin: unable to set interval: %s", ci->values[0].value.string);
-  }
-
   if (ci->values_num < 2)
   {
     WARNING ("exec plugin: The config option `%s' needs at least two "
@@ -269,8 +254,7 @@ static int exec_config (oconfig_item_t *ci) /* {{{ */
   {
     oconfig_item_t *child = ci->children + i;
     if ((strcasecmp ("Exec", child->key) == 0)
-        || (strcasecmp ("NotificationExec", child->key) == 0)
-				|| (strcasecmp ("Interval", child->key) == 0))
+        || (strcasecmp ("NotificationExec", child->key) == 0))
       exec_config_exec (child);
     else
     {
@@ -331,8 +315,7 @@ static void exec_child (program_list_t *pl) /* {{{ */
 
   uid = sp.pw_uid;
   gid = sp.pw_gid;
-  /* if we explicitly tell it to run as root, bypass the cowardly lion */
-  if ((uid == 0) && (strcmp(pl->user, "root") != 0))
+  if (uid == 0)
   {
     ERROR ("exec plugin: Cowardly refusing to exec program as root.");
     exit (-1);
@@ -510,7 +493,7 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out, int *fd_err)
       close (fd_pipe_out[1]);
     }
 
-    /* Now connect the `out' pipe to STDOUT */
+    /* Now connect the `err' pipe to STDERR */
     if (fd_pipe_err[1] != STDERR_FILENO)
     {
       dup2 (fd_pipe_err[1], STDERR_FILENO);
@@ -808,7 +791,18 @@ static void *exec_notification_one (void *arg) /* {{{ */
   return (NULL);
 } /* void *exec_notification_one }}} */
 
-static int exec_read () /* {{{ */
+static int exec_init (void) /* {{{ */
+{
+  struct sigaction sa;
+
+  memset (&sa, '\0', sizeof (sa));
+  sa.sa_handler = sigchld_handler;
+  sigaction (SIGCHLD, &sa, NULL);
+
+  return (0);
+} /* int exec_init }}} */
+
+static int exec_read (void) /* {{{ */
 {
   program_list_t *pl;
 
@@ -884,22 +878,6 @@ static int exec_notification (const notification_t *n, /* {{{ */
   return (0);
 } /* }}} int exec_notification */
 
-static int exec_init (void) /* {{{ */
-{
-  struct sigaction sa;
-	struct timespec cb_interval;
-
-  memset (&sa, '\0', sizeof (sa));
-  sa.sa_handler = sigchld_handler;
-  sigaction (SIGCHLD, &sa, NULL);
-
-	CDTIME_T_TO_TIMESPEC (exec_interval, &cb_interval);
-	plugin_register_complex_read(/* group = */ NULL, "exec", exec_read,
-		(exec_interval != 0) ? &cb_interval : NULL,
-		/* user data = */ NULL);
-  return (0);
-} /* int exec_init }}} */
-
 static int exec_shutdown (void) /* {{{ */
 {
   program_list_t *pl;
@@ -930,6 +908,7 @@ void module_register (void)
 {
   plugin_register_complex_config ("exec", exec_config);
   plugin_register_init ("exec", exec_init);
+  plugin_register_read ("exec", exec_read);
   plugin_register_notification ("exec", exec_notification,
       /* user_data = */ NULL);
   plugin_register_shutdown ("exec", exec_shutdown);

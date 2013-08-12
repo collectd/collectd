@@ -144,6 +144,7 @@
 #@BUILD_PLUGIN_SWAP_TRUE@LoadPlugin swap
 #@BUILD_PLUGIN_TABLE_TRUE@LoadPlugin table
 #@BUILD_PLUGIN_TAIL_TRUE@LoadPlugin tail
+#@BUILD_PLUGIN_TAIL_CSV_TRUE@LoadPlugin tail_csv
 #@BUILD_PLUGIN_TAPE_TRUE@LoadPlugin tape
 #@BUILD_PLUGIN_TCPCONNS_TRUE@LoadPlugin tcpconns
 #@BUILD_PLUGIN_TEAMSPEAK2_TRUE@LoadPlugin teamspeak2
@@ -854,13 +855,16 @@
 #	DaemonAddress "unix:/tmp/rrdcached.sock"
 #	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/rrd"
 #	CreateFiles true
+#	CreateFilesAsync false
 #	CollectStatistics true
 #</Plugin>
 
 #<Plugin rrdtool>
 #	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/rrd"
+#	CreateFilesAsync false
 #	CacheTimeout 120
 #	CacheFlush   900
+#	WritesPerSecond 50
 #</Plugin>
 
 #<Plugin sensors>
@@ -954,6 +958,33 @@
 #      Instance "local_user"
 #    </Match>
 #  </File>
+#</Plugin>
+
+#<Plugin "tail_csv">
+#   <Metric "dropped">
+#       Type "percent"
+#       Instance "dropped"
+#       ValueFrom 1
+#   </Metric>
+#   <Metric "mbps">
+#       Type "bytes"
+#       Instance "wire-realtime"
+#       ValueFrom 2
+#   </Metric>
+#   <Metric "alerts">
+#       Type "alerts_per_second"
+#       ValueFrom 3
+#   </Metric>
+#   <Metric "kpps">
+#       Type "kpackets_wire_per_sec.realtime"
+#       ValueFrom 4
+#   </Metric>
+#   <File "/var/log/snort/snort.stats">
+#       Instance "snort-eth0"
+#       Interval 600
+#       Collect "dropped" "mbps" "alerts" "kpps"
+#       TimeFrom 0
+#   </File>
 #</Plugin>
 
 #<Plugin tcpconns>
@@ -1050,6 +1081,9 @@
 #		Port "27017"
 #		Timeout 1000
 #		StoreRates false
+#		Database "auth_db"
+#		User "auth_user"
+#		Password "auth_passwd"
 #	</Node>
 #</Plugin>
 

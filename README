@@ -133,7 +133,7 @@ Features
       technique built into IBM's POWER processors.
 
     - libvirt
-      CPU, disk and network I/O statistics from virtual machines.
+      CPU, memory, disk and network I/O statistics from virtual machines.
 
     - madwifi
       Queries very detailed usage statistics from wireless LAN adapters and
@@ -283,6 +283,10 @@ Features
     - tail
       Follows (tails) logfiles, parses them by lines and submits matched
       values.
+
+    - tail_csv
+      Follows (tails) files in CSV format, parses each line and submits
+      extracted values.
 
     - tape
       Bytes and operations read and written on tape devices. Solaris only.

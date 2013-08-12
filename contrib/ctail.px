@@ -1,0 +1,103 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+#use lib ('/tmp/collectd/share/perl/5.8.8');
+
+use Collectd::Unixsock ();
+
+sub identifier_to_string
+{
+  my $ident = shift;
+
+  if (!$ident || !defined ($ident->{'host'}) || !defined ($ident->{'plugin'})
+    || !defined ($ident->{'type'}))
+  {
+    return;
+  }
+
+  return ($ident->{'host'} . '/'
+  . $ident->{'plugin'} . (defined ($ident->{'plugin_instance'}) ? ('-' . $ident->{'plugin_instance'}) : '') . '/'
+  . $ident->{'type'} . (defined ($ident->{'type_instance'}) ? ('-' . $ident->{'type_instance'}) : ''));
+}
+
+sub handle_ident
+{
+  my $ident = shift;
+  my $cache = shift;
+  my $sock = shift;
+  my $str;
+  my $value;
+
+  $str = identifier_to_string ($ident);
+
+  if (!defined ($str))
+  {
+    return;
+  }
+
+  if (defined ($cache->{$str})
+    && ($cache->{$str}{'time'} >= $ident->{'time'}))
+  {
+    return;
+  }
+
+  print "$str..";
+
+  $value = $sock->getval (%$ident);
+  if (!$value)
+  {
+    print STDERR "->getval ($str) failed.\n";
+    return;
+  }
+
+  print " done\n";
+
+  for (sort (keys %$value))
+  {
+    my $ds = $_;
+    my $v = $value->{$ds};
+
+    print "$str/$ds $v\n";
+  }
+
+  $cache->{$str}{'time'} = $ident->{'time'};
+} # handle_ident
+
+sub main
+{
+  my $sock = Collectd::Unixsock->new ('/var/run/collectd-unixsock');
+  my $cache = {};
+
+  if (!$sock)
+  {
+    print STDERR "Connecting failed.\n";
+    exit (1);
+  }
+
+  while (42)
+  {
+    my @list;
+
+    @list = $sock->listval ();
+    if (!@list)
+    {
+      print STDERR "->listval failed.\n";
+      exit (1);
+    }
+
+    for (@list)
+    {
+      handle_ident ($_, $cache, $sock);
+    }
+
+    sleep 1;
+  }
+
+  $sock->disconnect ();
+  exit (0);
+} # main
+
+main (@ARGV);
+
+# vim: set sw=2 sts=2 et :

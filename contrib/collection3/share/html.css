@@ -1,0 +1,64 @@
+/* CSS 2 style sheet March 2009 */
+
+/* entities */
+body {
+/* reference center grey */
+	background-color: #cccccc;
+	font-size: 1em;
+	font-family: vera-sans, arial, helvetica, sans-serif;
+}
+
+
+form {
+    width: 80%;
+    background-color: #66abdf;
+    padding: 1em;
+    border: 4px solid silver;
+ 
+}
+
+/* classes */
+
+
+.graphTitle {
+/* formats a title beneath each graph */
+    font-size: 1em;
+    text-indent: 2em;
+/* font same color as the page background */
+    color: #bcbcbc;
+    background-color: #66abdf;
+}
+
+.graphArgs {
+/* displays the arguments sent to the graph.cgi script */
+    font-size: smaller;
+    color: #bcbcbc;
+    border: 2px solid;
+}
+
+.graphWrapper {
+/* wraps each graph and related notes in a box */
+    border: 1px #bababa solid;
+    padding: 0.6em;
+    
+}
+
+.sectionWrapper {
+/* wraps major page sections */
+    border: 2px #bababa solid;
+    margin: 2em;
+    padding: 1em;
+    width: 80%;
+    font-size: 1.6em;
+}
+
+
+.typeTitle {
+/* formats the title per graph group */
+    font-size: 1.2em;
+/* not quite full white */
+    color: #eaeaea;
+    text-align: center;
+    background-color: #bababa;
+    border: solid 1px;
+}

@@ -1,0 +1,2685 @@
+
+utils_parse_option.h,35
+#define UTILS_PARSE_OPTION 23,864
+
+unixsock.c,678
+# define UNIX_PATH_MAX 43,1268
+#define US_DEFAULT_PATH 46,1344
+static const char *config_keys[config_keys52,1477
+static int config_keys_num 59,1580
+static int loop 61,1643
+static int   sock_fd 64,1692
+static char *sock_file sock_file65,1722
+static char *sock_group sock_group66,1754
+static int   sock_perms 67,1786
+static _Bool delete_socket 68,1831
+static pthread_t listen_thread 70,1864
+static int us_open_socket 75,1933
+static void *us_handle_client us_handle_client177,4235
+static void *us_server_thread us_server_thread321,7359
+static int us_config 395,9106
+static int us_init 434,9826
+static int us_shutdown 460,10270
+void module_register 479,10602
+
+snmp.c,3038
+struct oid_s35,1058
+  oid oid[oid37,1073
+  size_t oid_len;38,1097
+typedef struct oid_s oid_t;40,1118
+union instance_u42,1147
+  char  string[string44,1166
+  oid_t oid;45,1201
+typedef union instance_u instance_t;47,1217
+struct data_definition_s49,1255
+  char *name;name51,1282
+  char *type;type52,1351
+  int is_table;53,1397
+  instance_t instance;54,1413
+  char *instance_prefix;instance_prefix55,1436
+  oid_t *values;values56,1461
+  int values_len;57,1478
+  double scale;58,1496
+  double shift;59,1512
+  struct data_definition_s *next;next60,1528
+typedef struct data_definition_s data_definition_t;62,1565
+struct host_definition_s64,1618
+  char *name;name66,1645
+  char *address;address67,1659
+  char *community;community68,1676
+  int version;69,1695
+  void *sess_handle;sess_handle70,1710
+  c_complain_t complaint;71,1731
+  cdtime_t interval;72,1757
+  data_definition_t **data_list;data_list73,1778
+  int data_list_len;74,1811
+typedef struct host_definition_s host_definition_t;76,1835
+struct csnmp_list_instances_s80,1986
+  oid_t suffix;82,2018
+  char instance[instance83,2034
+  struct csnmp_list_instances_s *next;next84,2070
+typedef struct csnmp_list_instances_s csnmp_list_instances_t;86,2112
+struct csnmp_table_values_s88,2175
+  oid_t suffix;90,2205
+  value_t value;91,2221
+  struct csnmp_table_values_s *next;next92,2238
+typedef struct csnmp_table_values_s csnmp_table_values_t;94,2278
+static data_definition_t *data_head data_head99,2365
+static void csnmp_oid_init 109,2506
+static int csnmp_oid_compare 116,2687
+static int csnmp_oid_suffix 122,2853
+static int csnmp_oid_to_string 140,3374
+static void csnmp_host_close_session 157,3803
+static void csnmp_host_definition_destroy 166,4034
+static void call_snmp_init_once 211,5178
+static int csnmp_config_add_data_type 220,5351
+static int csnmp_config_add_data_table 236,5775
+static int csnmp_config_add_data_instance 249,6147
+static int csnmp_config_add_data_instance_prefix 280,6961
+static int csnmp_config_add_data_values 304,7619
+static int csnmp_config_add_data_shift 347,8681
+static int csnmp_config_add_data_scale 361,9063
+static int csnmp_config_add_data 375,9445
+static int csnmp_config_add_host_address 475,12041
+static int csnmp_config_add_host_community 497,12623
+static int csnmp_config_add_host_version 519,13223
+static int csnmp_config_add_host_collect 542,13789
+static int csnmp_config_add_host 593,15154
+static int csnmp_config 700,17987
+static void csnmp_host_open_session 724,18573
+static value_t csnmp_value_list_to_value 753,19459
+static int csnmp_check_res_left_subtree 900,23454
+static int csnmp_strvbcopy_hexstring 964,25135
+static int csnmp_strvbcopy 997,25888
+static int csnmp_instance_list_add 1030,26609
+static int csnmp_dispatch_table 1101,28267
+static int csnmp_read_table 1260,32703
+static int csnmp_read_value 1520,40455
+static int csnmp_read_host 1634,43454
+static int csnmp_init 1686,44518
+static int csnmp_shutdown 1693,44614
+void module_register 1719,45185
+
+utils_cmd_getval.h,35
+#define UTILS_CMD_GETVAL_H 23,867
+
+utils_cache.c,1341
+typedef struct cache_entry_s32,1020
+	char name[name34,1051
+	int        values_num;35,1086
+	gauge_t   *values_gauge;values_gauge36,1110
+	value_t   *values_raw;values_raw37,1136
+	cdtime_t last_time;40,1225
+	cdtime_t last_update;43,1317
+	cdtime_t interval;46,1417
+	int state;47,1437
+	int hits;48,1449
+	gauge_t *history;history59,1918
+	size_t   history_index;60,1937
+	size_t   history_length;61,2009
+	meta_data_t *meta;meta63,2036
+} cache_entry_t;64,2056
+static c_avl_tree_t   *cache_tree cache_tree66,2074
+static pthread_mutex_t cache_lock 67,2116
+static int cache_compare 69,2180
+static cache_entry_t *cache_alloc cache_alloc75,2360
+static void cache_free 106,3148
+static void uc_check_range 122,3427
+static int uc_insert 137,3799
+int uc_init 217,5614
+int uc_check_timeout 226,5784
+int uc_update 359,9094
+int uc_get_rate_by_name 485,12269
+gauge_t *uc_get_rate uc_get_rate535,13310
+int uc_get_names 566,14073
+int uc_get_state 652,15951
+int uc_set_state 677,16465
+int uc_get_history_by_name 703,17004
+int uc_get_history 772,18576
+int uc_get_hits 786,18978
+int uc_set_hits 811,19489
+int uc_inc_hits 837,20022
+static meta_data_t *uc_get_meta uc_get_meta867,20664
+#define UC_WRAP(901,21444
+int uc_meta_data_exists 910,21685
+#undef UC_WRAP915,21876
+#define UC_WRAP(919,21989
+#undef UC_WRAP969,23535
+
+network.c,6906
+#define _BSD_SOURCE 25,938
+# define GCRYPT_NO_DEPRECATED73,2146
+GCRY_THREAD_OPTION_PTHREAD_IMPL;79,2326
+#  define IPV6_ADD_MEMBERSHIP 84,2419
+#define BUFF_SIG_SIZE 98,2745
+#define SECURITY_LEVEL_NONE 103,2801
+# define SECURITY_LEVEL_SIGN 105,2854
+# define SECURITY_LEVEL_ENCRYPT 106,2888
+struct sockent_client108,2929
+	int fd;110,2953
+	struct sockaddr_storage *addr;addr111,2962
+	socklen_t                addrlen;112,2994
+	int security_level;114,3048
+	char *username;username115,3069
+	char *password;password116,3086
+	gcry_cipher_hd_t cypher;117,3103
+	unsigned char password_hash[password_hash118,3129
+struct sockent_server122,3174
+	int *fd;fd124,3198
+	size_t fd_num;125,3208
+	int security_level;127,3243
+	char *auth_file;auth_file128,3264
+	fbhash_t *userdb;userdb129,3282
+	gcry_cipher_hd_t cypher;130,3301
+typedef struct sockent134,3338
+#define SOCKENT_TYPE_CLIENT 136,3363
+#define SOCKENT_TYPE_SERVER 137,3393
+	int type;138,3423
+	char *node;node140,3435
+	char *service;service141,3448
+	int interface;142,3464
+		struct sockent_client client;146,3491
+		struct sockent_server server;147,3523
+	} data;148,3555
+	struct sockent *next;next150,3565
+} sockent_t;151,3588
+struct part_header_s159,3949
+	uint16_t type;161,3972
+	uint16_t length;162,3988
+typedef struct part_header_s part_header_t;164,4009
+struct part_string_s174,4539
+	part_header_t *head;head176,4562
+	char *value;value177,4584
+typedef struct part_string_s part_string_t;179,4601
+struct part_number_s189,5131
+	part_header_t *head;head191,5154
+	uint64_t *value;value192,5176
+typedef struct part_number_s part_number_t;194,5197
+struct part_values_s210,6141
+	part_header_t *head;head212,6164
+	uint16_t *num_values;num_values213,6186
+	uint8_t  *values_types;values_types214,6209
+	value_t  *values;values215,6234
+typedef struct part_values_s part_values_t;217,6256
+#define PART_SIGNATURE_SHA256_SIZE 230,6943
+struct part_signature_sha256_s231,6981
+  part_header_t head;233,7014
+  unsigned char hash[hash234,7036
+  char *username;username235,7062
+typedef struct part_signature_sha256_s part_signature_sha256_t;237,7083
+#define PART_ENCRYPTION_AES256_SIZE 252,7928
+struct part_encryption_aes256_s253,7967
+  part_header_t head;255,8001
+  uint16_t username_length;256,8023
+  char *username;username257,8051
+  unsigned char iv[iv258,8069
+  unsigned char hash[hash260,8113
+typedef struct part_encryption_aes256_s part_encryption_aes256_t;264,8185
+struct receive_list_entry_s266,8252
+  char *data;data268,8282
+  int  data_len;269,8296
+  int  fd;270,8313
+  struct receive_list_entry_s *next;next271,8324
+typedef struct receive_list_entry_s receive_list_entry_t;273,8364
+static int network_config_ttl 278,8451
+static size_t network_config_packet_size 280,8541
+static int network_config_forward 281,8590
+static int network_config_stats 282,8629
+static sockent_t *sending_sockets sending_sockets284,8667
+static receive_list_entry_t *receive_list_head receive_list_head286,8710
+static receive_list_entry_t *receive_list_tail receive_list_tail287,8765
+static pthread_mutex_t       receive_list_lock 288,8820
+static pthread_cond_t        receive_list_cond 289,8896
+static uint64_t              receive_list_length 290,8971
+static sockent_t     *listen_sockets listen_sockets292,9026
+static struct pollfd *listen_sockets_pollfd listen_sockets_pollfd293,9071
+static size_t         listen_sockets_num 294,9123
+static int       listen_loop 298,9262
+static int       receive_thread_running 299,9296
+static pthread_t receive_thread_id;300,9341
+static int       dispatch_thread_running 301,9377
+static pthread_t dispatch_thread_id;302,9423
+static char            *send_buffer;send_buffer305,9527
+static char            *send_buffer_ptr;send_buffer_ptr306,9564
+static int              send_buffer_fill;307,9605
+static value_list_t     send_buffer_vl 308,9647
+static pthread_mutex_t  send_buffer_lock 309,9707
+static derive_t stats_octets_rx 317,10202
+static derive_t stats_octets_tx 318,10240
+static derive_t stats_packets_rx 319,10278
+static derive_t stats_packets_tx 320,10316
+static derive_t stats_values_dispatched 321,10354
+static derive_t stats_values_not_dispatched 322,10399
+static derive_t stats_values_sent 323,10448
+static derive_t stats_values_not_sent 324,10487
+static pthread_mutex_t stats_lock 325,10530
+static _Bool check_receive_okay 330,10622
+static _Bool check_send_okay 346,11058
+static _Bool check_notify_received 372,11679
+static _Bool check_send_notify_okay 384,12035
+static int network_dispatch_values 409,12859
+static int network_dispatch_notification 472,14298
+static gcry_cipher_hd_t network_get_aes256_cypher 496,14874
+static int write_part_values 572,16618
+static int write_part_number 673,19244
+static int write_part_string 708,20024
+static int parse_part_values 745,20883
+static int parse_part_number 858,23710
+static int parse_part_string 898,24658
+#define PP_SIGNED 982,26926
+#define PP_ENCRYPTED 983,26952
+#define BUFFER_READ(988,27091
+static int parse_part_sign_sha256 994,27228
+static int parse_part_sign_sha256 1129,30774
+static int parse_part_encr_aes256 1175,32009
+static int parse_part_encr_aes256 1299,35481
+#undef BUFFER_READ1345,36691
+static int parse_packet 1347,36711
+static void free_sockent_client 1590,42642
+static void free_sockent_server 1606,42981
+static void sockent_destroy 1628,43400
+static int network_set_ttl 1660,44110
+static int network_set_interface 1716,45574
+static int network_bind_socket 1820,48420
+static int sockent_init 1974,52795
+static int sockent_open 2014,53688
+static int sockent_add 2199,58346
+static void *dispatch_thread dispatch_thread2256,59457
+static int network_receive 2316,60961
+static void *receive_thread receive_thread2450,64398
+static void network_init_buffer 2455,64550
+static void networt_send_buffer_plain 2464,64789
+#define BUFFER_ADD(2491,65442
+static void networt_send_buffer_signed 2496,65559
+static void networt_send_buffer_encrypted 2573,67725
+#undef BUFFER_ADD2652,70248
+static void network_send_buffer 2655,70295
+static int add_to_buffer 2674,71035
+static void flush_buffer 2744,73021
+static int network_write 2757,73306
+static int network_config_set_boolean 2829,74923
+static int network_config_set_ttl 2868,75822
+static int network_config_set_interface 2886,76285
+static int network_config_set_buffer_size 2905,76765
+static int network_config_set_string 2924,77280
+static int network_config_set_security_level 2948,77842
+static int network_config_add_listen 2977,78631
+static int network_config_add_server 3057,80816
+static int network_config 3140,83182
+static int network_notification 3170,84133
+static int network_shutdown 3244,86012
+static int network_stats_read 3286,87093
+static int network_init 3362,89570
+static int network_flush 3464,92284
+void module_register 3478,92628
+
+utils_match.c,598
+#define UTILS_MATCH_FLAGS_FREE_USER_DATA 31,975
+#define UTILS_MATCH_FLAGS_EXCLUDE_REGEX 32,1021
+struct cu_match_s34,1067
+  regex_t regex;36,1087
+  regex_t excluderegex;37,1104
+  int flags;38,1128
+  int (*callback)callback40,1142
+  void *user_data;user_data42,1245
+static char *match_substr match_substr48,1296
+static int default_callback 73,1882
+cu_match_t *match_create_callback match_create_callback215,5185
+cu_match_t *match_create_simple match_create_simple257,6317
+void match_destroy 282,6951
+int match_apply 295,7155
+void *match_get_user_data match_get_user_data362,8673
+
+syslog.c,463
+static int log_level 32,979
+static int log_level 34,1019
+static int notif_severity 36,1079
+static const char *config_keys[config_keys38,1111
+static int config_keys_num 43,1180
+static int sl_config 45,1242
+static void sl_log 63,1607
+static int sl_shutdown 72,1800
+static int sl_notification 79,1863
+#define BUFFER_ADD(110,2491
+#define BUFFER_ADD_FIELD(121,2771
+#undef BUFFER_ADD_FIELD134,3135
+#undef BUFFER_ADD135,3159
+void module_register 144,3288
+
+netstat.c,397
+static const char *config_keys[config_keys102,3697
+static int config_keys_num 106,3747
+static ignorelist_t *ignorelist ignorelist107,3809
+static int netstat_config 109,3850
+static void submit 125,4163
+static int netstat_read 142,4611
+#define i(151,4764
+#define ic(152,4805
+#define t(153,4851
+#define u(154,4894
+#define i6(160,5015
+#define ic6(161,5059
+void module_register 263,8714
+
+collectd-nagios.c,1407
+#  define DISABLE_ISOC99 43,1231
+#  define __USE_ISOC99 44,1258
+#  undef DISABLE_ISOC9948,1359
+#  undef __USE_ISOC9949,1383
+#  undef NAN55,1514
+# define NAN 57,1535
+#  define isnan(59,1575
+#  define isfinite(62,1655
+#  define isinf(65,1721
+#define RET_OKAY 71,1852
+#define RET_WARNING 72,1875
+#define RET_CRITICAL 73,1898
+#define RET_UNKNOWN 74,1921
+#define CON_NONE 76,1945
+#define CON_AVERAGE 77,1968
+#define CON_SUM 78,1991
+#define CON_PERCENTAGE 79,2014
+struct range_s81,2041
+	double min;83,2058
+	double max;84,2071
+	int    invert;85,2084
+typedef struct range_s range_t;87,2103
+static char *socket_file_g socket_file_g92,2193
+static char *value_string_g value_string_g93,2228
+static char *hostname_g hostname_g94,2264
+static range_t range_critical_g;96,2297
+static range_t range_warning_g;97,2330
+static int consolitation_g 98,2362
+static _Bool nan_is_error_g 99,2401
+static char **match_ds_g match_ds_g101,2435
+static int    match_ds_num_g 102,2468
+static char *cn_strdup cn_strdup108,2749
+static int filter_ds 120,2995
+static void parse_range 190,4578
+static int match_range 231,5253
+static void usage 243,5520
+static int do_listval 272,6929
+static int do_check_con_none 333,8392
+static int do_check_con_average 394,9670
+static int do_check_con_sum 454,10812
+static int do_check_con_percentage 511,11888
+static int do_check 572,13123
+int main 631,14723
+
+utils_cache.h,145
+#define UTILS_CACHE_H 23,857
+#define STATE_OKAY 27,903
+#define STATE_WARNING 28,928
+#define STATE_ERROR 29,953
+#define STATE_MISSING 30,978
+
+network.h,570
+#define NETWORK_H23,855
+#define NET_DEFAULT_V4_ADDR 53,1767
+#define NET_DEFAULT_V6_ADDR 54,1811
+#define NET_DEFAULT_PORT 55,1857
+#define TYPE_HOST 57,1894
+#define TYPE_TIME 58,1930
+#define TYPE_TIME_HR 59,1966
+#define TYPE_PLUGIN 60,2002
+#define TYPE_PLUGIN_INSTANCE 61,2038
+#define TYPE_TYPE 62,2074
+#define TYPE_TYPE_INSTANCE 63,2110
+#define TYPE_VALUES 64,2146
+#define TYPE_INTERVAL 65,2182
+#define TYPE_INTERVAL_HR 66,2218
+#define TYPE_MESSAGE 69,2293
+#define TYPE_SEVERITY 70,2329
+#define TYPE_SIGN_SHA256 72,2366
+#define TYPE_ENCR_AES256 73,2402
+
+plugin.c,4924
+struct callback_func_s44,1215
+	void *cf_callback;cf_callback46,1240
+	user_data_t cf_udata;47,1260
+	plugin_ctx_t cf_ctx;48,1283
+typedef struct callback_func_s callback_func_t;50,1308
+#define RF_SIMPLE 52,1357
+#define RF_COMPLEX 53,1378
+#define RF_REMOVE 54,1399
+struct read_func_s55,1424
+#define rf_callback 59,1568
+#define rf_udata 60,1609
+#define rf_ctx 61,1644
+	callback_func_t rf_super;62,1675
+	char rf_group[rf_group63,1702
+	char rf_name[rf_name64,1737
+	int rf_type;65,1771
+	struct timespec rf_interval;66,1785
+	struct timespec rf_effective_interval;67,1815
+	struct timespec rf_next_read;68,1855
+typedef struct read_func_s read_func_t;70,1889
+static llist_t *list_init;list_init75,1958
+static llist_t *list_write;list_write76,1985
+static llist_t *list_flush;list_flush77,2013
+static llist_t *list_missing;list_missing78,2041
+static llist_t *list_shutdown;list_shutdown79,2071
+static llist_t *list_log;list_log80,2102
+static llist_t *list_notification;list_notification81,2128
+static fc_chain_t *pre_cache_chain pre_cache_chain83,2164
+static fc_chain_t *post_cache_chain post_cache_chain84,2207
+static c_avl_tree_t *data_sets;data_sets86,2252
+static char *plugindir plugindir88,2285
+static c_heap_t       *read_heap read_heap90,2317
+static llist_t        *read_list;read_list91,2358
+static int             read_loop 92,2392
+static pthread_mutex_t read_lock 93,2430
+static pthread_cond_t  read_cond 94,2492
+static pthread_t      *read_threads read_threads95,2553
+static int             read_threads_num 96,2597
+static pthread_key_t   plugin_ctx_key;98,2643
+static _Bool           plugin_ctx_key_initialized 99,2682
+static const char *plugin_get_dir plugin_get_dir104,2765
+static void destroy_callback 112,2885
+static void destroy_all_callbacks 126,3207
+static void destroy_read_heap 151,3584
+static int register_callback 171,3885
+static int create_register_callback 230,4927
+static int plugin_unregister 259,5519
+static int plugin_load_file 285,6036
+static _Bool timeout_reached(344,7439
+static void *plugin_read_thread plugin_read_thread351,7629
+static void start_read_threads 519,12261
+static void stop_read_threads 549,12838
+void plugin_set_dir 579,13482
+#define BUFSIZE 594,13760
+int plugin_load 595,13780
+int plugin_register_config 680,15571
+int plugin_register_complex_config 688,15804
+int plugin_register_init 694,15990
+static int plugin_compare_read_func 701,16194
+static int plugin_insert_read 724,16927
+static int read_cb_wrapper 790,18340
+int plugin_register_read 801,18515
+int plugin_register_complex_read 853,19911
+int plugin_register_write 911,21161
+int plugin_register_flush 918,21371
+int plugin_register_missing 925,21581
+int plugin_register_shutdown 932,21799
+int plugin_register_data_set 939,22019
+int plugin_register_log 976,22945
+int plugin_register_notification 983,23147
+int plugin_unregister_config 990,23376
+int plugin_unregister_complex_config 996,23500
+int plugin_unregister_init 1002,23648
+int plugin_unregister_read 1007,23746
+static int compare_read_func_group 1047,24476
+int plugin_unregister_read_group 1055,24700
+int plugin_unregister_write 1108,25599
+int plugin_unregister_flush 1113,25699
+int plugin_unregister_missing 1118,25799
+int plugin_unregister_shutdown 1123,25903
+int plugin_unregister_data_set 1128,26009
+int plugin_unregister_log 1144,26281
+int plugin_unregister_notification 1149,26377
+void plugin_init_all 1154,26491
+void plugin_read_all 1218,27980
+int plugin_read_all_once 1226,28145
+int plugin_write 1278,28967
+int plugin_flush 1360,30683
+void plugin_shutdown_all 1394,31329
+int plugin_dispatch_missing 1452,32820
+int plugin_dispatch_values 1493,33637
+int plugin_dispatch_values_secure 1689,38642
+int plugin_dispatch_notification 1735,39896
+void plugin_log 1775,40858
+int parse_log_severity 1815,41562
+int parse_notif_severity 1838,42219
+const data_set_t *plugin_get_ds plugin_get_ds1853,42628
+static int plugin_notification_meta_add 1866,42875
+int plugin_notification_meta_add_string 1945,44668
+int plugin_notification_meta_add_signed_int 1952,44852
+int plugin_notification_meta_add_unsigned_int 1959,45041
+int plugin_notification_meta_add_double 1966,45235
+int plugin_notification_meta_add_boolean 1973,45415
+int plugin_notification_meta_copy 1980,45596
+int plugin_notification_meta_free 2012,46699
+static void plugin_ctx_destructor 2041,47216
+static plugin_ctx_t ctx_init 2046,47314
+static plugin_ctx_t *plugin_ctx_create plugin_ctx_create2048,47370
+void plugin_init_ctx 2067,47814
+plugin_ctx_t plugin_get_ctx 2073,47969
+plugin_ctx_t plugin_set_ctx 2090,48304
+cdtime_t plugin_get_interval 2111,48674
+	plugin_ctx_t ctx;2123,48902
+	void *(*start_routine)start_routine2124,48921
+	void *arg;arg2125,48955
+} plugin_thread_t;2126,48967
+static void *plugin_thread_start plugin_thread_start2128,48987
+int plugin_thread_create 2142,49314
+
+gstat.c,679
+static const char *config_keys[config_keys40,953
+static int config_keys_num 45,1020
+static ignorelist_t *ignorelist ignorelist47,1083
+static struct devstat *gsp,gsp49,1124
+static struct devstat *gsp, *gsq;gsq49,1124
+static void *sp,sp50,1158
+static void *sp, *sq;sq50,1158
+static double dt;51,1180
+static struct timespec tp,52,1198
+static struct timespec tp, tq;52,1198
+static struct gmesh gmp;53,1229
+static struct gident *gid;gid54,1254
+static int gstat_config 56,1282
+static int gstat_init 82,1798
+static void disk_submit 107,2207
+static void submit 129,2821
+static void submit_u 149,3320
+static int gstat_read 169,3820
+void module_register 245,5915
+
+utils_match.h,994
+#define UTILS_MATCH_H 24,888
+#define UTILS_MATCH_DS_TYPE_GAUGE 31,952
+#define UTILS_MATCH_DS_TYPE_COUNTER 32,994
+#define UTILS_MATCH_DS_TYPE_DERIVE 33,1036
+#define UTILS_MATCH_DS_TYPE_ABSOLUTE 34,1078
+#define UTILS_MATCH_CF_GAUGE_AVERAGE 36,1121
+#define UTILS_MATCH_CF_GAUGE_MIN 37,1163
+#define UTILS_MATCH_CF_GAUGE_MAX 38,1205
+#define UTILS_MATCH_CF_GAUGE_LAST 39,1247
+#define UTILS_MATCH_CF_COUNTER_SET 41,1290
+#define UTILS_MATCH_CF_COUNTER_ADD 42,1332
+#define UTILS_MATCH_CF_COUNTER_INC 43,1374
+#define UTILS_MATCH_CF_DERIVE_SET 45,1417
+#define UTILS_MATCH_CF_DERIVE_ADD 46,1458
+#define UTILS_MATCH_CF_DERIVE_INC 47,1499
+#define UTILS_MATCH_CF_ABSOLUTE_SET 49,1541
+#define UTILS_MATCH_CF_ABSOLUTE_ADD 50,1584
+#define UTILS_MATCH_CF_ABSOLUTE_INC 51,1627
+typedef struct cu_match_s cu_match_t;57,1711
+struct cu_match_value_s59,1750
+  int ds_type;61,1776
+  value_t value;62,1791
+  unsigned int values_num;63,1808
+typedef struct cu_match_value_s cu_match_value_t;65,1838
+
+collectd.c,658
+char hostname_g[hostname_g42,1147
+cdtime_t interval_g;43,1183
+int  timeout_g;44,1204
+kstat_ctl_t *kc;kc46,1238
+static int loop 49,1283
+static void *do_flush do_flush51,1305
+static void sig_int_handler 62,1555
+static void sig_term_handler 67,1634
+static void sig_usr1_handler 72,1714
+static int init_hostname 85,2089
+static int init_global_variables 139,3281
+static int change_basedir 166,3888
+static void update_kstat 228,5047
+static void exit_usage 256,5573
+static int do_init 283,6514
+static int do_loop 310,6900
+static int do_shutdown 358,7833
+static int pidfile_create 365,7947
+static int pidfile_remove 384,8329
+int main 393,8581
+
+utils_heap.c,420
+struct c_heap_s31,991
+  pthread_mutex_t lock;33,1009
+  int (*compare)compare34,1033
+  void **list;list36,1081
+  size_t list_len;37,1096
+  size_t list_size;38,1136
+enum reheap_direction41,1186
+  DIR_UP,43,1210
+  DIR_DOWN44,1220
+static void reheap 47,1235
+c_heap_t *c_heap_create c_heap_create104,2380
+void c_heap_destroy 126,2790
+int c_heap_insert 141,3010
+void *c_heap_get_root c_heap_get_root178,3770
+
+plugin.h,3563
+#define PLUGIN_H2,17
+#define PLUGIN_FLAGS_GLOBAL 30,1003
+#define DATA_MAX_NAME_LEN 32,1039
+#define DS_TYPE_COUNTER 34,1069
+#define DS_TYPE_GAUGE 35,1096
+#define DS_TYPE_DERIVE 36,1123
+#define DS_TYPE_ABSOLUTE 37,1150
+#define DS_TYPE_TO_STRING(39,1178
+# define LOG_ERR 47,1418
+# define LOG_WARNING 50,1464
+# define LOG_NOTICE 53,1513
+# define LOG_INFO 56,1559
+# define LOG_DEBUG 59,1604
+#define NOTIF_MAX_MSG_LEN 62,1633
+#define NOTIF_FAILURE 64,1664
+#define NOTIF_WARNING 65,1688
+#define NOTIF_OKAY 66,1712
+#define plugin_interval 68,1737
+typedef unsigned long long counter_t;73,1818
+typedef double gauge_t;74,1856
+typedef int64_t derive_t;75,1880
+typedef uint64_t absolute_t;76,1906
+union value_u78,1936
+	counter_t  counter;80,1952
+	gauge_t    gauge;81,1973
+	derive_t   derive;82,1992
+	absolute_t absolute;83,2012
+typedef union value_u value_t;85,2037
+struct value_list_s87,2069
+	value_t *values;values89,2091
+	int      values_len;90,2109
+	cdtime_t time;91,2131
+	cdtime_t interval;92,2147
+	char     host[host93,2167
+	char     plugin[plugin94,2202
+	char     plugin_instance[plugin_instance95,2239
+	char     type[type96,2285
+	char     type_instance[type_instance97,2320
+	meta_data_t *meta;meta98,2364
+typedef struct value_list_s value_list_t;100,2387
+#define VALUE_LIST_INIT 102,2430
+#define VALUE_LIST_STATIC 104,2531
+struct data_source_s106,2611
+	char   name[name108,2634
+	int    type;109,2667
+	double min;110,2681
+	double max;111,2694
+typedef struct data_source_s data_source_t;113,2710
+struct data_set_s115,2755
+	char           type[type117,2775
+	int            ds_num;118,2816
+	data_source_t *ds;ds119,2840
+typedef struct data_set_s data_set_t;121,2863
+enum notification_meta_type_e123,2902
+	NM_TYPE_STRING,125,2934
+	NM_TYPE_SIGNED_INT,126,2951
+	NM_TYPE_UNSIGNED_INT,127,2972
+	NM_TYPE_DOUBLE,128,2995
+	NM_TYPE_BOOLEAN129,3012
+typedef struct notification_meta_s132,3033
+	char name[name134,3070
+	enum notification_meta_type_e type;135,3101
+		const char *nm_string;nm_string138,3148
+		int64_t nm_signed_int;139,3173
+		uint64_t nm_unsigned_int;140,3198
+		double nm_double;141,3226
+		_Bool nm_boolean;142,3246
+	} nm_value;143,3266
+	struct notification_meta_s *next;next144,3279
+} notification_meta_t;145,3314
+typedef struct notification_s147,3338
+	int    severity;149,3370
+	cdtime_t time;150,3388
+	char   message[message151,3404
+	char   host[host152,3440
+	char   plugin[plugin153,3473
+	char   plugin_instance[plugin_instance154,3508
+	char   type[type155,3552
+	char   type_instance[type_instance156,3585
+	notification_meta_t *meta;meta157,3627
+} notification_t;158,3655
+struct user_data_s160,3674
+	void *data;data162,3695
+	void (*free_func)free_func163,3708
+typedef struct user_data_s user_data_t;165,3740
+struct plugin_ctx_s167,3781
+	cdtime_t interval;169,3803
+typedef struct plugin_ctx_s plugin_ctx_t;171,3826
+typedef int (*plugin_init_cb)plugin_init_cb176,3894
+typedef int (*plugin_read_cb)plugin_read_cb177,3932
+typedef int (*plugin_write_cb)plugin_write_cb178,3979
+typedef int (*plugin_flush_cb)plugin_flush_cb180,4071
+typedef int (*plugin_missing_cb)plugin_missing_cb185,4329
+typedef void (*plugin_log_cb)plugin_log_cb186,4401
+typedef int (*plugin_shutdown_cb)plugin_shutdown_cb188,4485
+typedef int (*plugin_notification_cb)plugin_notification_cb189,4527
+void plugin_log 335,9631
+#define ERROR(342,9900
+#define WARNING(343,9959
+#define NOTICE(344,10018
+#define INFO(345,10077
+# define DEBUG(347,10154
+# define DEBUG(349,10239
+
+nginx.c,707
+static char *url url32,1058
+static char *user user33,1091
+static char *pass pass34,1124
+static char *verify_peer verify_peer35,1157
+static char *verify_host verify_host36,1190
+static char *cacert cacert37,1223
+static CURL *curl curl39,1257
+static char   nginx_buffer[nginx_buffer41,1284
+static size_t nginx_buffer_len 42,1319
+static char   nginx_curl_error[nginx_curl_error43,1355
+static const char *config_keys[config_keys45,1405
+static int config_keys_num 54,1521
+static size_t nginx_curl_callback 56,1584
+static int config_set 78,2153
+static int config 92,2353
+static int init 110,2973
+static void submit 174,4457
+static int nginx_read 199,5155
+void module_register 277,6846
+
+utils_cmd_putnotif.c,168
+#define print_to_socket(28,938
+static int set_option_severity 36,1191
+static int set_option_time 50,1564
+static int set_option 63,1775
+int handle_putnotif 93,2903
+
+utils_complain.c,112
+static int vcomplain 29,1061
+void c_complain 57,1628
+void c_complain_once 67,1837
+void c_do_release 80,2092
+
+collectd.h,1587
+#define COLLECTD_H23,857
+# define WEXITSTATUS(66,1538
+# define WIFEXITED(69,1627
+# define assert(97,2073
+typedef int _Bool;101,2152
+# undef HAVE__BOOL102,2171
+# define HAVE__BOOL 103,2190
+#  define DISABLE_ISOC99 111,2337
+#  define __USE_ISOC99 112,2364
+#  undef DISABLE_ISOC99116,2465
+#  undef __USE_ISOC99117,2489
+#  undef NAN123,2620
+# define NAN 125,2641
+#  define isnan(127,2681
+#  define isfinite(130,2761
+#  define isinf(133,2827
+#  define BYTE_ORDER 148,3231
+#  define BYTE_ORDER 150,3293
+#  define BYTE_ORDER 152,3363
+#  define BIG_ENDIAN 157,3464
+#  define BIG_ENDIAN 159,3526
+#  define BIG_ENDIAN 161,3596
+#  define LITTLE_ENDIAN 166,3703
+#  define LITTLE_ENDIAN 168,3774
+#  define LITTLE_ENDIAN 170,3853
+#  undef BIG_ENDIAN175,3986
+#  define BIG_ENDIAN 176,4006
+#  define LITTLE_ENDIAN 177,4032
+#  define BYTE_ORDER 178,4061
+#  undef LITTLE_ENDIAN180,4147
+#  define BIG_ENDIAN 181,4170
+#  define LITTLE_ENDIAN 182,4196
+#  define BYTE_ORDER 183,4225
+# define NAMLEN(192,4409
+# define dirent 194,4464
+# define NAMLEN(195,4487
+#define PACKAGE_NAME 222,4896
+#define PREFIX 226,4951
+#define SYSCONFDIR 230,5014
+#define CONFIGFILE 234,5074
+#define LOCALSTATEDIR 238,5150
+#define PKGLOCALSTATEDIR 242,5219
+#define PIDFILE 246,5300
+#define PLUGINDIR 250,5381
+#define PKGDATADIR 254,5454
+# define COLLECTD_GRP_NAME 258,5537
+# define COLLECTD_DEFAULT_INTERVAL 262,5617
+#define STATIC_ARRAY_LEN(265,5665
+# undef strcpy273,5944
+# undef strcat274,5959
+# undef strtok275,5974
+#  undef sprintf287,6401
+typedef uint64_t cdtime_t;293,6509
+
+utils_vl_lookup.c,1663
+# define sstrncpy 33,1333
+# define plugin_log(34,1359
+struct lookup_s44,1509
+  c_avl_tree_t *by_type_tree;by_type_tree46,1527
+  lookup_class_callback_t cb_user_class;48,1558
+  lookup_obj_callback_t cb_user_obj;49,1599
+  lookup_free_class_callback_t cb_free_class;50,1636
+  lookup_free_obj_callback_t cb_free_obj;51,1682
+typedef struct user_obj_s user_obj_t;55,1747
+struct user_obj_s56,1785
+  void *user_obj;user_obj58,1805
+  identifier_t ident;59,1823
+  user_obj_t *next;next61,1846
+struct user_class_s64,1870
+  void *user_class;user_class66,1892
+  identifier_t ident;67,1912
+  user_obj_t *user_obj_list;user_obj_list68,1934
+typedef struct user_class_s user_class_t;70,1989
+typedef struct user_class_list_s user_class_list_t;73,2058
+struct user_class_list_s74,2110
+  user_class_t entry;76,2137
+  user_class_list_t *next;next77,2159
+struct by_type_entry_s80,2190
+  c_avl_tree_t *by_plugin_tree;by_plugin_tree82,2215
+  user_class_list_t *wildcard_plugin_list;wildcard_plugin_list83,2281
+typedef struct by_type_entry_s by_type_entry_t;85,2327
+static void *lu_create_user_obj lu_create_user_obj90,2404
+static user_obj_t *lu_find_user_obj lu_find_user_obj144,4054
+static int lu_handle_user_class 169,4727
+static int lu_handle_user_class_list 218,6285
+static by_type_entry_t *lu_search_by_type lu_search_by_type239,6782
+static int lu_add_by_plugin 294,8142
+static void lu_destroy_user_obj 356,9777
+static void lu_destroy_user_class_list 372,10130
+static void lu_destroy_by_type 391,10699
+lookup_t *lookup_create lookup_create424,11478
+void lookup_destroy 453,12238
+int lookup_add 480,12780
+int lookup_search 506,13625
+
+utils_heap.h,70
+#define UTILS_HEAP_H 24,886
+typedef struct c_heap_s c_heap_t;27,927
+
+utils_avltree.c,1509
+#define BALANCE(32,1002
+struct c_avl_node_s38,1153
+	void *key;key40,1175
+	void *value;value41,1187
+	int height;43,1202
+	struct c_avl_node_s *left;left44,1215
+	struct c_avl_node_s *right;right45,1243
+	struct c_avl_node_s *parent;parent46,1272
+typedef struct c_avl_node_s c_avl_node_t;48,1305
+struct c_avl_tree_s50,1348
+	c_avl_node_t *root;root52,1370
+	int (*compare)compare53,1391
+	int size;54,1437
+struct c_avl_iterator_s57,1452
+	c_avl_tree_t *tree;tree59,1478
+	c_avl_node_t *node;node60,1499
+static void verify_tree 67,1558
+# define verify_tree(79,1847
+static void free_node 82,1884
+static int calc_height 95,2060
+static c_avl_node_t *search search111,2398
+static c_avl_node_t *rotate_right rotate_right139,2899
+static c_avl_node_t *rotate_left rotate_left180,3646
+static c_avl_node_t *rotate_left_right rotate_left_right212,4166
+static c_avl_node_t *rotate_right_left rotate_right_left218,4332
+static void rebalance 224,4499
+static c_avl_node_t *c_avl_node_next c_avl_node_next268,5363
+static c_avl_node_t *c_avl_node_prev c_avl_node_prev313,6210
+static int _remove 358,7061
+c_avl_tree_t *c_avl_create c_avl_create471,9075
+void c_avl_destroy 488,9366
+int c_avl_insert 496,9467
+int c_avl_remove 565,10513
+int c_avl_get 587,10892
+int c_avl_pick 603,11110
+c_avl_iterator_t *c_avl_get_iterator c_avl_get_iterator642,11802
+int c_avl_iterator_next 658,12149
+int c_avl_iterator_prev 687,12636
+void c_avl_iterator_destroy 716,13124
+int c_avl_size 721,13196
+
+write_tsdb.c,1277
+# define WT_DEFAULT_NODE 59,1768
+# define WT_DEFAULT_SERVICE 63,1840
+# define WT_DEFAULT_ESCAPE 67,1909
+# define WT_SEND_BUF_SIZE 72,2029
+struct wt_callback78,2096
+    int      sock_fd;80,2117
+    char    *node;node82,2140
+    char    *service;service83,2159
+    char    *prefix;prefix84,2181
+    char    *postfix;postfix85,2202
+    char     escape_char;86,2224
+    _Bool    store_rates;88,2251
+    _Bool    separate_instances;89,2277
+    _Bool    always_append_ds;90,2310
+    char     send_buf[send_buf92,2342
+    size_t   send_buf_free;93,2383
+    size_t   send_buf_fill;94,2411
+    cdtime_t send_buf_init_time;95,2439
+    pthread_mutex_t send_lock;97,2473
+static void wt_reset_buffer 104,2529
+static int wt_send_buffer 112,2754
+static int wt_flush_nolock 134,3269
+static int wt_callback_init 165,3925
+static void wt_callback_free 231,5591
+static int wt_flush 257,6010
+static int wt_format_values 288,6685
+#define BUFFER_ADD(300,6982
+#undef BUFFER_ADD345,8276
+static int wt_format_name 351,8333
+static int wt_send_message 396,9630
+static int wt_write_messages 464,11584
+static int wt_write 519,13106
+static int config_set_char 535,13402
+static int wt_config_tsd 566,14098
+static int wt_config 632,16365
+void module_register 652,16776
+
+utils_cmd_flush.c,92
+#define print_to_socket(29,1018
+static int add_to_array 37,1263
+int handle_flush 52,1560
+
+interface.c,991
+#  undef HAVE_GETIFADDRS69,1868
+static perfstat_netinterface_t *ifstat;ifstat74,1972
+static int nif;75,2012
+static int pnif;76,2028
+static const char *config_keys[config_keys86,2250
+static int config_keys_num 92,2329
+static ignorelist_t *ignorelist ignorelist94,2362
+#define MAX_NUMIF 97,2424
+static kstat_t *ksp[ksp99,2470
+static int numif 100,2502
+static int interface_config 103,2552
+static int interface_init 128,3004
+static void if_submit 157,3602
+static int interface_read 180,4170
+#  define IFA_DATA 188,4347
+#  define IFA_RX_BYTES 189,4374
+#  define IFA_TX_BYTES 190,4408
+#  define IFA_RX_PACKT 191,4442
+#  define IFA_TX_PACKT 192,4478
+#  define IFA_RX_ERROR 193,4514
+#  define IFA_TX_ERROR 194,4549
+#  define IFA_DATA 198,4653
+#  define IFA_RX_BYTES 199,4689
+#  define IFA_TX_BYTES 200,4721
+#  define IFA_RX_PACKT 201,4753
+#  define IFA_TX_PACKT 202,4787
+#  define IFA_RX_ERROR 203,4821
+#  define IFA_TX_ERROR 204,4854
+void module_register 379,9079
+
+tcpconns.c,2709
+#undef HAVE_SYSCTLBYNAME 65,2943
+struct nlreq 140,4758
+  struct nlmsghdr nlh;141,4773
+  struct inet_diag_req r;142,4796
+static const char *tcp_state[tcp_state145,4826
+# define TCP_STATE_LISTEN 161,5044
+# define TCP_STATE_MIN 162,5073
+# define TCP_STATE_MAX 163,5098
+static const char *tcp_state[tcp_state167,5175
+# define TCP_STATE_LISTEN 182,5370
+# define TCP_STATE_MIN 183,5398
+# define TCP_STATE_MAX 184,5423
+static const char *tcp_state[tcp_state188,5505
+static kvm_t *kvmd;kvmd203,5700
+static u_long      inpcbtable_off 204,5720
+struct inpcbtable *inpcbtable_ptr inpcbtable_ptr205,5759
+# define TCP_STATE_LISTEN 207,5802
+# define TCP_STATE_MIN 208,5830
+# define TCP_STATE_MAX 209,5855
+static const char *tcp_state[tcp_state213,5930
+# define TCP_STATE_LISTEN 228,6127
+# define TCP_STATE_MIN 229,6155
+# define TCP_STATE_MAX 230,6180
+struct netinfo_conn 232,6207
+  uint32_t unknow1[unknow1233,6229
+  uint16_t dstport;234,6252
+  uint16_t unknow2;235,6272
+  struct in6_addr dstaddr;236,6292
+  uint16_t srcport;237,6319
+  uint16_t unknow3;238,6339
+  struct in6_addr srcaddr;239,6359
+  uint32_t unknow4[unknow4240,6386
+  uint16_t tcp_state;241,6410
+  uint16_t unknow5[unknow5242,6432
+struct netinfo_header 245,6459
+  unsigned int proto;246,6483
+  unsigned int size;247,6505
+# define NETINFO_TCP 250,6530
+#define PORT_COLLECT_LOCAL 254,6641
+#define PORT_COLLECT_REMOTE 255,6674
+#define PORT_IS_LISTENING 256,6707
+typedef struct port_entry_s258,6741
+  uint16_t port;260,6771
+  uint16_t flags;261,6788
+  uint32_t count_local[count_local262,6806
+  uint32_t count_remote[count_remote263,6849
+  struct port_entry_s *next;next264,6893
+} port_entry_t;265,6922
+static const char *config_keys[config_keys267,6939
+static int config_keys_num 273,7029
+static int port_collect_listening 275,7092
+static port_entry_t *port_list_head port_list_head276,7131
+static uint32_t sequence_number 279,7193
+  SRC_DUNNO,283,7238
+  SRC_NETLINK,284,7251
+  SRC_PROC285,7266
+} linux_source 286,7277
+static void conn_submit_port_entry 289,7313
+static void conn_submit_all 333,8468
+static port_entry_t *conn_get_port_entry conn_get_port_entry341,8644
+static void conn_reset_port_entry 370,9312
+static int conn_handle_ports 407,10181
+static int conn_read_netlink 447,11247
+static int conn_handle_line 579,14684
+static int conn_read_file 635,16080
+static int conn_config 661,16533
+static int conn_init 703,17424
+static int conn_read 711,17554
+static int conn_read 767,18781
+static int kread 844,20643
+static int conn_init 858,20947
+#define N_TCBTABLE 863,21033
+static int conn_read 896,21732
+static int conn_read 950,23108
+void module_register 1008,24200
+
+utils_cmd_putnotif.h,37
+#define UTILS_CMD_PUTNOTIF_H 23,871
+
+utils_tail_match.c,935
+struct cu_tail_match_simple_s34,1147
+  char plugin[plugin36,1179
+  char plugin_instance[plugin_instance37,1213
+  char type[type38,1256
+  char type_instance[type_instance39,1288
+typedef struct cu_tail_match_simple_s cu_tail_match_simple_t;41,1332
+struct cu_tail_match_match_s43,1395
+  cu_match_t *match;match45,1426
+  void *user_data;user_data46,1447
+  int (*submit)submit47,1466
+  void (*free)free48,1520
+typedef struct cu_tail_match_match_s cu_tail_match_match_t;50,1557
+struct cu_tail_match_s52,1618
+  int flags;54,1643
+  cu_tail_t *tail;tail55,1656
+  cu_tail_match_match_t *matches;matches57,1676
+  size_t matches_num;58,1710
+static int simple_submit_match 64,1764
+static int tail_callback 102,2873
+cu_tail_match_t *tail_match_create tail_match_create117,3184
+void tail_match_destroy 136,3590
+int tail_match_add_match 168,4186
+int tail_match_add_match_simple 193,4836
+int tail_match_read 236,6064
+
+utils_complain.h,275
+#define UTILS_COMPLAIN_H 25,960
+	cdtime_t last;32,1061
+	cdtime_t interval;36,1180
+	_Bool complained_once;38,1201
+} c_complain_t;39,1225
+#define C_COMPLAIN_INIT_STATIC 41,1242
+#define C_COMPLAIN_INIT(42,1285
+#define c_would_release(87,2656
+#define c_release(100,2987
+
+meta_data.c,1486
+union meta_value_u31,948
+  char    *mv_string;mv_string33,969
+  int64_t  mv_signed_int;34,991
+  uint64_t mv_unsigned_int;35,1017
+  double   mv_double;36,1045
+  _Bool    mv_boolean;37,1067
+typedef union meta_value_u meta_value_t;39,1093
+typedef struct meta_entry_s meta_entry_t;42,1156
+struct meta_entry_s43,1198
+  char         *key;key45,1220
+  meta_value_t  value;46,1241
+  int           type;47,1264
+  meta_entry_t *next;next48,1286
+struct meta_data_s51,1312
+  meta_entry_t   *head;head53,1333
+  pthread_mutex_t lock;54,1357
+static char *md_strdup md_strdup60,1413
+static meta_entry_t *md_entry_alloc md_entry_alloc78,1706
+static meta_entry_t *md_entry_clone md_entry_clone104,2189
+static void md_entry_free 122,2629
+static int md_entry_insert 138,2895
+static meta_entry_t *md_entry_lookup md_entry_lookup194,3845
+meta_data_t *meta_data_create meta_data_create212,4192
+meta_data_t *meta_data_clone meta_data_clone230,4564
+void meta_data_destroy 248,4935
+int meta_data_exists 259,5169
+int meta_data_type 281,5599
+int meta_data_toc 303,6025
+int meta_data_delete 324,6491
+int meta_data_add_string 367,7189
+int meta_data_add_signed_int 391,7738
+int meta_data_add_unsigned_int 409,8126
+int meta_data_add_double 427,8523
+int meta_data_add_boolean 445,8894
+int meta_data_get_string 466,9292
+int meta_data_get_signed_int 506,10120
+int meta_data_get_unsigned_int 536,10779
+int meta_data_get_double 566,11449
+int meta_data_get_boolean 596,12087
+
+utils_fbhash.c,353
+struct fbhash_s30,956
+  char *filename;filename32,974
+  time_t mtime;33,992
+  pthread_mutex_t lock;35,1009
+  c_avl_tree_t *tree;tree36,1033
+static void fbh_free_tree 42,1088
+static int fbh_read_file 65,1453
+static int fbh_check_file 175,3610
+fbhash_t *fbh_create fbh_create199,4036
+void fbh_destroy 232,4569
+char *fbh_get fbh_get242,4757
+
+collectdctl.c,704
+#  define DISABLE_ISOC99 42,1244
+#  define __USE_ISOC99 43,1271
+#  undef DISABLE_ISOC9947,1372
+#  undef __USE_ISOC9948,1396
+#  undef NAN54,1527
+# define NAN 56,1548
+#  define isnan(58,1588
+#  define isfinite(61,1668
+#  define isinf(64,1734
+#define DEFAULT_SOCK 70,1865
+static void exit_usage 75,1974
+static int count_chars 110,3141
+static int array_grow 123,3334
+static int parse_identifier 140,3701
+static int getval 178,4809
+#define BAIL_OUT(201,5315
+#undef BAIL_OUT224,5929
+static int flush 227,5961
+#define BAIL_OUT(242,6235
+#undef BAIL_OUT343,8989
+static int listval 346,9020
+#define BAIL_OUT(361,9360
+#undef BAIL_OUT388,10020
+static int putval 391,10053
+int main 546,14038
+
+utils_vl_lookup.h,763
+#define UTILS_VL_LOOKUP_H 28,1245
+typedef struct lookup_s lookup_t;36,1328
+typedef void *(*lookup_class_callback_t)lookup_class_callback_t39,1416
+typedef int (*lookup_obj_callback_t)lookup_obj_callback_t44,1653
+typedef void (*lookup_free_class_callback_t)lookup_free_class_callback_t50,1868
+typedef void (*lookup_free_obj_callback_t)lookup_free_obj_callback_t54,2019
+struct identifier_s56,2081
+  char host[host58,2103
+  char plugin[plugin59,2135
+  char plugin_instance[plugin_instance60,2169
+  char type[type61,2212
+  char type_instance[type_instance62,2244
+typedef struct identifier_s identifier_t;64,2288
+#define LU_ANY 66,2331
+#define LU_ALL 67,2354
+#define LU_IS_ANY(69,2378
+#define LU_IS_ALL(70,2429
+#define LU_IS_WILDCARD(71,2480
+
+utils_avltree.h,139
+#define UTILS_AVLTREE_H 24,897
+typedef struct c_avl_tree_s c_avl_tree_t;27,945
+typedef struct c_avl_iterator_s c_avl_iterator_t;30,1013
+
+utils_cmd_flush.h,34
+#define UTILS_CMD_FLUSH_H 23,858
+
+utils_tail.c,276
+struct cu_tail_s32,1091
+	char  *file;file34,1110
+	FILE  *fh;fh35,1124
+	struct stat stat;36,1136
+static int cu_tail_reopen 39,1159
+cu_tail_t *cu_tail_create cu_tail_create113,3008
+int cu_tail_destroy 134,3358
+int cu_tail_readline 144,3514
+int cu_tail_read 216,5147
+
+utils_format_json.c,788
+static int escape_string 29,962
+#define BUFFER_ADD(43,1224
+#undef BUFFER_ADD70,1835
+static int values_to_json 75,1899
+#define BUFFER_ADD(84,2143
+#undef BUFFER_ADD147,3643
+static int dstypes_to_json 154,3787
+#define BUFFER_ADD(162,3966
+#undef BUFFER_ADD184,4484
+static int dsnames_to_json 191,4615
+#define BUFFER_ADD(199,4794
+#undef BUFFER_ADD221,5292
+static int meta_data_to_json 228,5423
+#define BUFFER_ADD(239,5641
+#undef BUFFER_ADD303,7310
+static int value_list_to_json 308,7374
+#define BUFFER_ADD(317,7620
+#define BUFFER_ADD_KEYVAL(350,8623
+#undef BUFFER_ADD_KEYVAL376,9410
+#undef BUFFER_ADD377,9435
+static int format_json_value_list_nocheck 384,9572
+int format_json_initialize 404,10161
+int format_json_finalize 429,10755
+int format_json_value_list 456,11360
+
+utils_format_graphite.c,198
+static int gr_format_values 35,1213
+#define BUFFER_ADD(46,1486
+#undef BUFFER_ADD78,2476
+static void gr_copy_escape_part 83,2514
+static int gr_format_name 110,3026
+int format_graphite 172,5109
+
+utils_tail_match.h,56
+typedef struct cu_tail_match_s cu_tail_match_t;34,1324
+
+meta_data.h,243
+#define META_DATA_H23,859
+#define MD_TYPE_STRING 30,921
+#define MD_TYPE_SIGNED_INT 31,952
+#define MD_TYPE_UNSIGNED_INT 32,983
+#define MD_TYPE_DOUBLE 33,1014
+#define MD_TYPE_BOOLEAN 34,1045
+typedef struct meta_data_s meta_data_t;37,1097
+
+utils_fbhash.h,73
+#define UTILS_FBHASH_H 23,860
+typedef struct fbhash_s fbhash_t;36,1184
+
+memory.c,374
+static mach_port_t port_host;61,1647
+static vm_size_t pagesize;62,1677
+static int pagesize;74,1913
+static kstat_t *ksp;ksp75,1934
+static int pagesize;79,2001
+static int pagesize;86,2146
+static perfstat_memory_total_t pmemory;87,2167
+static int memory_init 93,2285
+static void memory_submit 137,3187
+static int memory_read 154,3643
+void module_register 449,11491
+
+exec.c,1309
+#define _BSD_SOURCE 26,993
+#define PL_NORMAL 42,1260
+#define PL_NOTIF_ACTION 43,1290
+#define PL_RUNNING 45,1321
+typedef struct program_list_s program_list_t;59,1810
+struct program_list_s60,1856
+  char           *user;user62,1880
+  char           *group;group63,1904
+  char           *exec;exec64,1929
+  char          **argv;argv65,1953
+  int             pid;66,1977
+  int             status;67,2000
+  int             flags;68,2026
+  program_list_t *next;next69,2051
+typedef struct program_list_and_notification_s72,2079
+  program_list_t *pl;pl74,2128
+  notification_t n;75,2150
+} program_list_and_notification_t;76,2170
+static program_list_t *pl_head pl_head81,2234
+static pthread_mutex_t pl_lock 82,2273
+static void sigchld_handler 87,2354
+static int exec_config_exec 102,2737
+static int exec_config 249,5988
+static void set_environment 268,6442
+static void exec_child 290,7111
+static void reset_signal_mask 408,9708
+static int fork_child 423,10205
+static int parse_line 534,12484
+static void *exec_read_one exec_read_one548,12902
+static void *exec_notification_one exec_notification_one708,16497
+static int exec_init 794,18956
+static int exec_read 805,19166
+static int exec_notification 837,19947
+static int exec_shutdown 881,21170
+void module_register 907,21607
+
+write_graphite.c,1113
+# define WG_DEFAULT_NODE 60,1801
+# define WG_DEFAULT_SERVICE 64,1873
+# define WG_DEFAULT_ESCAPE 68,1942
+# define WG_SEND_BUF_SIZE 73,2062
+struct wg_callback79,2129
+    int      sock_fd;81,2150
+    char    *node;node83,2173
+    char    *service;service84,2192
+    char    *prefix;prefix85,2214
+    char    *postfix;postfix86,2235
+    char     escape_char;87,2257
+    unsigned int format_flags;89,2284
+    char     send_buf[send_buf91,2316
+    size_t   send_buf_free;92,2357
+    size_t   send_buf_fill;93,2385
+    cdtime_t send_buf_init_time;94,2413
+    pthread_mutex_t send_lock;96,2447
+    c_complain_t init_complaint;97,2478
+static void wg_reset_buffer 104,2536
+static int wg_send_buffer 112,2761
+static int wg_flush_nolock 134,3280
+static int wg_callback_init 165,3940
+static void wg_callback_free 238,5843
+static int wg_flush 264,6262
+static int wg_send_message 295,6931
+static int wg_write_messages 347,8371
+static int wg_write 377,9213
+static int config_set_char 393,9509
+static int wg_config_carbon 424,10213
+static int wg_config 494,12678
+void module_register 514,13098
+
+uptime.c,190
+# define STAT_FILE 27,899
+static time_t boottime;54,1614
+static void uptime_submit 60,1716
+static int uptime_init 77,2076
+static int uptime_read 239,5723
+void module_register 254,5966
+
+utils_mount.c,2381
+#define XFS_SUPER_MAGIC_STR 31,940
+#define XFS_SUPER_MAGIC2_STR 32,975
+#  undef COLLECTD_MNTTAB71,1636
+#  define COLLECTD_MNTTAB 75,1708
+#  define COLLECTD_MNTTAB 77,1784
+#  define COLLECTD_MNTTAB 79,1843
+#  define COLLECTD_MNTTAB 81,1906
+#  define COLLECTD_MNTTAB 83,1964
+#  define COLLECTD_MNTTAB 85,2002
+#define PROC_PARTITIONS 94,2323
+#define DEVLABELDIR 95,2366
+#define UUID 96,2397
+#define VOL 97,2414
+static struct uuidCache_s 99,2432
+	struct uuidCache_s *next;next100,2460
+	char uuid[uuid101,2487
+	char *label;label102,2503
+	char *device;device103,2517
+} *uuidCache uuidCache104,2532
+#define EXT2_SUPER_MAGIC 106,2554
+struct ext2_super_block 107,2586
+	unsigned char s_dummy1[s_dummy1108,2612
+	unsigned char s_magic[s_magic109,2641
+	unsigned char s_dummy2[s_dummy2110,2668
+	unsigned char s_uuid[s_uuid111,2697
+	char s_volume_name[s_volume_name112,2724
+#define ext2magic(114,2752
+struct xfs_super_block 118,2863
+	unsigned char s_magic[s_magic119,2888
+	unsigned char s_dummy[s_dummy120,2915
+	unsigned char s_uuid[s_uuid121,2943
+	unsigned char s_dummy2[s_dummy2122,2970
+	char s_fsname[s_fsname123,2999
+#define REISER_SUPER_MAGIC 127,3051
+struct reiserfs_super_block 128,3090
+	unsigned char s_dummy1[s_dummy1129,3120
+	unsigned char s_magic[s_magic130,3149
+	unsigned char s_dummy2[s_dummy2131,3177
+	unsigned char s_uuid[s_uuid132,3206
+	char s_volume_name[s_volume_name133,3233
+get_label_uuid(138,3320
+uuidcache_addentry(188,4911
+uuidcache_init(206,5329
+fromhex(276,6885
+get_spec_by_x(288,7056
+get_spec_by_uuid(314,7437
+static char *get_spec_by_volume_label(get_spec_by_volume_label341,7915
+static char *get_device_name(get_device_name346,8012
+static cu_mount_t *cu_mount_listmntent cu_mount_listmntent378,8648
+static cu_mount_t *cu_mount_getfsstat cu_mount_getfsstat433,10204
+#  define STRUCT_STATFS 436,10271
+#  define CMD_STATFS 437,10310
+#  define FLAGS_STATFS 438,10345
+#  define STRUCT_STATFS 441,10429
+#  define CMD_STATFS 442,10467
+#  define FLAGS_STATFS 443,10501
+static cu_mount_t *cu_mount_gen_getmntent cu_mount_gen_getmntent520,12330
+static cu_mount_t *cu_mount_getmntent cu_mount_getmntent577,13660
+cu_mount_t *cu_mount_getlist(cu_mount_getlist638,15211
+void cu_mount_freelist 686,16179
+cu_mount_checkoption(705,16530
+cu_mount_getoptionvalue(745,17183
+cu_mount_type(773,17675
+
+types_list.c,123
+static int parse_ds 28,923
+static void parse_line 94,2314
+static void parse_file 137,3264
+int read_types_list 172,3983
+
+filter_chain.c,1906
+typedef struct fc_match_s fc_match_t;35,1114
+struct fc_match_s36,1162
+  char name[name38,1182
+  match_proc_t proc;39,1214
+  void *user_data;user_data40,1235
+  fc_match_t *next;next41,1254
+typedef struct fc_target_s fc_target_t;47,1400
+struct fc_target_s48,1450
+  char name[name50,1471
+  void *user_data;user_data51,1503
+  target_proc_t proc;52,1522
+  fc_target_t *next;next53,1544
+typedef struct fc_rule_s fc_rule_t;58,1637
+struct fc_rule_s59,1683
+  char name[name61,1702
+  fc_match_t  *matches;matches62,1734
+  fc_target_t *targets;targets63,1758
+  fc_rule_t *next;next64,1782
+struct fc_chain_s 68,1864
+  char name[name70,1894
+  fc_rule_t   *rules;rules71,1926
+  fc_target_t *targets;targets72,1948
+  fc_chain_t  *next;next73,1972
+static fc_match_t  *match_list_head;match_list_head79,2034
+static fc_target_t *target_list_head;target_list_head80,2071
+static fc_chain_t  *chain_list_head;chain_list_head81,2109
+static void fc_free_matches 86,2175
+static void fc_free_targets 106,2642
+static void fc_free_rules 126,3110
+static void fc_free_chains 140,3355
+static char *fc_strdup fc_strdup154,3600
+static int fc_config_add_match 193,4276
+static int fc_config_add_target 265,5766
+static int fc_config_add_rule 341,7309
+static int fc_config_add_chain 436,9414
+static int fc_bit_jump_create 511,11050
+static int fc_bit_jump_destroy 550,12033
+static int fc_bit_jump_invoke 561,12226
+static int fc_bit_stop_invoke 591,12987
+static int fc_bit_return_invoke 599,13287
+static int fc_bit_write_create 607,13593
+static int fc_bit_write_destroy 666,15118
+static int fc_bit_write_invoke 683,15458
+static int fc_init_once 740,17232
+int fc_register_match 780,18203
+int fc_register_target 814,18861
+fc_chain_t *fc_chain_get_by_name fc_chain_get_by_name847,19480
+int fc_process_chain 861,19815
+int fc_default_action 1017,24177
+int fc_configure 1024,24455
+
+logfile.c,535
+#define DEFAULT_LOGFILE 30,989
+static int log_level 33,1065
+static int log_level 35,1105
+static pthread_mutex_t file_lock 38,1166
+static char *log_file log_file40,1229
+static int print_timestamp 41,1259
+static int print_severity 42,1291
+static const char *config_keys[config_keys44,1323
+static int config_keys_num 51,1416
+static int logfile_config 53,1479
+static void logfile_print 80,2143
+static void logfile_log 163,3879
+static int logfile_notification 172,4114
+#define APPEND(190,4605
+void module_register 213,5318
+
+utils_time.c,83
+cdtime_t cdtime 28,938
+cdtime_t cdtime 46,1384
+size_t cdtime_to_iso8601 64,1767
+
+utils_tail.h,106
+#define UTILS_TAIL_H 28,1031
+typedef struct cu_tail_s cu_tail_t;31,1073
+typedef int tailfunc_t(33,1110
+
+utils_subst.c,96
+char *subst subst29,939
+char *asubst asubst59,1609
+char *subst_string subst_string82,2087
+
+utils_format_json.h,36
+#define UTILS_FORMAT_JSON_H 23,870
+
+utils_format_graphite.h,164
+#define UTILS_FORMAT_GRAPHITE_H 23,859
+#define GRAPHITE_STORE_RATES 28,937
+#define GRAPHITE_SEPARATE_INSTANCES 29,978
+#define GRAPHITE_ALWAYS_APPEND_DS 30,1019
+
+utils_cmd_listval.c,104
+#define free_everything_and_return(30,993
+#define print_to_socket(41,1232
+int handle_listval 49,1506
+
+config.h.in,17400
+#undef COLLECT_DAEMON4,119
+#undef COLLECT_DEBUG7,190
+#undef COLLECT_GETIFADDRS10,273
+#undef COLLECT_IPV613,343
+#undef COLLECT_LIBESMTP16,409
+#undef FP_LAYOUT_NEED_ENDIANFLIP19,505
+#undef FP_LAYOUT_NEED_INTSWAP22,607
+#undef FP_LAYOUT_NEED_NOTHING25,696
+#undef HAVE_AMQP_H28,783
+#undef HAVE_AMQP_RPC_REPLY_T_LIBRARY_ERRNO31,875
+#undef HAVE_ARGZ_ADD34,974
+#undef HAVE_ARGZ_APPEND37,1054
+#undef HAVE_ARGZ_COUNT40,1136
+#undef HAVE_ARGZ_CREATE_SEP43,1222
+#undef HAVE_ARGZ_H46,1307
+#undef HAVE_ARGZ_INSERT49,1385
+#undef HAVE_ARGZ_NEXT52,1466
+#undef HAVE_ARGZ_STRINGIFY55,1550
+#undef HAVE_ARPA_INET_H58,1639
+#undef HAVE_ARPA_NAMESER_COMPAT_H61,1735
+#undef HAVE_ARPA_NAMESER_H64,1834
+#undef HAVE_ASSERT_H67,1920
+#undef HAVE_BSD_NLIST_H70,2003
+#undef HAVE_CLOCK_GETTIME73,2088
+#undef HAVE_CLOSEDIR76,2170
+#undef HAVE_CLOSELOG79,2247
+#undef HAVE_COREFOUNDATION_COREFOUNDATION_H83,2353
+#undef HAVE_CREDIS_H86,2456
+#undef HAVE_CTYPE_H89,2535
+#undef HAVE_CURL_CURL_H92,2617
+#undef HAVE_DBI_DBI_H95,2701
+#undef HAVE_DECL_CYGWIN_CONV_PATH99,2819
+#undef HAVE_DECL_STRERROR_R103,2943
+#undef HAVE_DIRENT_H107,3055
+#undef HAVE_DLD110,3123
+#undef HAVE_DLD_H113,3195
+#undef HAVE_DLERROR116,3268
+#undef HAVE_DLFCN_H119,3346
+#undef HAVE_DL_H122,3421
+#undef HAVE_DYLD125,3496
+#undef HAVE_ENDIAN_H128,3572
+#undef HAVE_ERRNO_H131,3651
+#undef HAVE_ERROR_T134,3728
+#undef HAVE_FCNTL_H137,3806
+#undef HAVE_FSHELP_H140,3885
+#undef HAVE_FS_INFO_H143,3966
+#undef HAVE_GCRYPT_H146,4047
+#undef HAVE_GEN_GETMNTENT149,4146
+#undef HAVE_GETADDRINFO152,4231
+#undef HAVE_GETFSSTAT155,4312
+#undef HAVE_GETGRNAM_R158,4392
+#undef HAVE_GETIFADDRS161,4473
+#undef HAVE_GETLOADAVG164,4554
+#undef HAVE_GETMNTENT167,4634
+#undef HAVE_GETNAMEINFO170,4715
+#undef HAVE_GETPWNAM_R173,4797
+#undef HAVE_GETTIMEOFDAY176,4880
+#undef HAVE_GETUTENT179,4961
+#undef HAVE_GETUTXENT182,5039
+#undef HAVE_GETVFSSTAT185,5119
+#undef HAVE_GM_PROTOCOL_H188,5206
+#undef HAVE_GRP_H191,5288
+#undef HAVE_HOST_STATISTICS194,5369
+#undef HAVE_HTONLL197,5442
+#undef HAVE_IFADDRS_H200,5521
+#undef HAVE_IF_INDEXTONAME203,5605
+#undef HAVE_INTTYPES_H206,5693
+#undef HAVE_IOKIT_IOBSD_H209,5780
+#undef HAVE_IOKIT_IOKITLIB_H212,5873
+#undef HAVE_IOKIT_IOTYPES_H215,5968
+#undef HAVE_IOKIT_PS_IOPOWERSOURCES_H218,6072
+#undef HAVE_IOKIT_PS_IOPSKEYS_H221,6180
+#undef HAVE_IOKIT_STORAGE_IOBLOCKSTORAGEDRIVER_H225,6302
+#undef HAVE_IP6TC_HANDLE_T228,6415
+#undef HAVE_IPROUTE_LIBNETLINK_H231,6513
+#undef HAVE_IPTC_HANDLE_T234,6609
+#undef HAVE_IP_VS_H237,6693
+#undef HAVE_JNI_H240,6769
+#undef HAVE_KSTAT_H243,6845
+#undef HAVE_KSTAT_IO_T_NWRITES246,6926
+#undef HAVE_KSTAT_IO_T_NWRITTEN249,7019
+#undef HAVE_KSTAT_IO_T_WRITES252,7111
+#undef HAVE_KSTAT_IO_T_WTIME255,7200
+#undef HAVE_KVM_H258,7285
+#undef HAVE_LIBDL261,7362
+#undef HAVE_LIBDLLOADER264,7440
+#undef HAVE_LIBESMTP267,7524
+#undef HAVE_LIBESMTP_H270,7606
+#undef HAVE_LIBGANGLIA273,7693
+#undef HAVE_LIBGCRYPT276,7778
+#undef HAVE_LIBGEN_H279,7859
+#undef HAVE_LIBGEOM_STATS_OPEN283,7976
+#undef HAVE_LIBHAL286,8052
+#undef HAVE_LIBIPTC_LIBIP6TC_H289,8140
+#undef HAVE_LIBIPTC_LIBIPTC_H292,8239
+#undef HAVE_LIBKSTAT295,8330
+#undef HAVE_LIBKVM_GETPROCS299,8442
+#undef HAVE_LIBKVM_GETSWAPINFO303,8564
+#undef HAVE_LIBKVM_NLIST307,8687
+#undef HAVE_LIBMEMCACHED310,8765
+#undef HAVE_LIBMEMCACHED_MEMCACHED_H313,8865
+#undef HAVE_LIBNETAPP316,8964
+#undef HAVE_LIBNETLINK_H319,9049
+#undef HAVE_LIBPCAP322,9132
+#undef HAVE_LIBPERL325,9200
+#undef HAVE_LIBPQ_FE_H328,9281
+#undef HAVE_LIBPTHREAD331,9364
+#undef HAVE_LIBRABBITMQ334,9439
+#undef HAVE_LIBRESOLV337,9527
+#undef HAVE_LIBSENSORS340,9613
+#undef HAVE_LIBSTATGRAB343,9703
+#undef HAVE_LIBTOKYOTYRANT346,9799
+#undef HAVE_LIBVIRT_LIBVIRT_H349,9894
+#undef HAVE_LIBXML_PARSER_H352,9990
+#undef HAVE_LIBXMMS355,10078
+#undef HAVE_LIBYAJL358,10146
+#undef HAVE_LIMITS_H361,10225
+#undef HAVE_LINUX_CONFIG_H364,10311
+#undef HAVE_LINUX_ETHTOOL_H367,10404
+#undef HAVE_LINUX_GEN_STATS_H370,10500
+#undef HAVE_LINUX_IF_H373,10591
+#undef HAVE_LINUX_IP_VS_H376,10678
+#undef HAVE_LINUX_LIBNETLINK_H379,10773
+#undef HAVE_LINUX_MAJOR_H382,10868
+#undef HAVE_LINUX_NETDEVICE_H385,10962
+#undef HAVE_LINUX_NETFILTER_IPV4_IP_TABLES_H389,11078
+#undef HAVE_LINUX_NETFILTER_IPV6_IP6_TABLES_H393,11210
+#undef HAVE_LINUX_NETFILTER_X_TABLES_H396,11333
+#undef HAVE_LINUX_PKT_SCHED_H399,11440
+#undef HAVE_LINUX_RAID_MD_U_H402,11538
+#undef HAVE_LINUX_SOCKIOS_H405,11634
+#undef HAVE_LINUX_UN_H408,11723
+#undef HAVE_LINUX_WIRELESS_H411,11813
+#undef HAVE_LISTMNTENT414,11900
+#undef HAVE_LTDL417,11983
+#undef HAVE_MACH_HOST_PRIV_H420,12067
+#undef HAVE_MACH_KERN_RETURN_H423,12165
+#undef HAVE_MACH_MACH_ERROR_H426,12264
+#undef HAVE_MACH_MACH_HOST_H429,12361
+#undef HAVE_MACH_MACH_INIT_H432,12457
+#undef HAVE_MACH_MACH_PORT_H435,12553
+#undef HAVE_MACH_MACH_TYPES_H438,12650
+#undef HAVE_MACH_MESSAGE_H441,12745
+#undef HAVE_MACH_O_DYLD_H444,12836
+#undef HAVE_MACH_PROCESSOR_H447,12929
+#undef HAVE_MACH_PROCESSOR_INFO_H450,13030
+#undef HAVE_MACH_PROCESSOR_SET_H453,13135
+#undef HAVE_MACH_TASK_H456,13230
+#undef HAVE_MACH_THREAD_ACT_H459,13322
+#undef HAVE_MACH_VM_MAP_H462,13416
+#undef HAVE_MACH_VM_PROT_H465,13507
+#undef HAVE_MACH_VM_REGION_H468,13601
+#undef HAVE_MACH_VM_STATISTICS_H471,13701
+#undef HAVE_MATH_H474,13791
+#undef HAVE_MEMCPY477,13864
+#undef HAVE_MEMORY_H480,13942
+#undef HAVE_MNTENT_H483,14022
+#undef HAVE_MNTTAB_H486,14102
+#undef HAVE_MODBUS_MODBUS_H489,14189
+#undef HAVE_MONGO_H492,14275
+#undef HAVE_MYSQL_H495,14353
+#undef HAVE_MYSQL_MYSQL_H498,14437
+#undef HAVE_NANOSLEEP501,14520
+#undef HAVE_NDIR_H504,14621
+#undef HAVE_NETAPP_API_H507,14703
+#undef HAVE_NETDB_H510,14786
+#undef HAVE_NETINET_ICMP6_H513,14872
+#undef HAVE_NETINET_IF_ETHER_H516,14969
+#undef HAVE_NETINET_IN_H519,15063
+#undef HAVE_NETINET_IN_SYSTM_H522,15157
+#undef HAVE_NETINET_IP6_H525,15252
+#undef HAVE_NETINET_IP_COMPAT_H528,15348
+#undef HAVE_NETINET_IP_H531,15443
+#undef HAVE_NETINET_IP_ICMP_H534,15536
+#undef HAVE_NETINET_IP_VAR_H537,15633
+#undef HAVE_NETINET_TCP_H540,15726
+#undef HAVE_NETINET_UDP_H543,15816
+#undef HAVE_NET_IF_ARP_H546,15905
+#undef HAVE_NET_IF_H549,15989
+#undef HAVE_NET_IF_PPP_H552,16073
+#undef HAVE_NET_IP_VS_H555,16160
+#undef HAVE_NET_PFVAR_H558,16246
+#undef HAVE_NET_PPP_DEFS_H561,16335
+#undef HAVE_NET_SNMP_NET_SNMP_CONFIG_H564,16439
+#undef HAVE_NLIST_H567,16536
+#undef HAVE_OCI_H570,16612
+#undef HAVE_ONE_GETMNTENT573,16701
+#undef HAVE_OPENDIR576,16782
+#undef HAVE_OPENIPMI_IPMI_SMI_H579,16872
+#undef HAVE_OPENLOG582,16959
+#undef HAVE_OPING_H585,17037
+#undef HAVE_OWCAPI_H588,17116
+#undef HAVE_PATHS_H591,17195
+#undef HAVE_PCAP_BPF_H594,17276
+#undef HAVE_PCAP_H597,17356
+#undef HAVE_PERFSTAT600,17442
+#undef HAVE_PERL_ITHREADS603,17504
+#undef HAVE_PERL_STRUCT_MGVTBL_SVT_LOCAL606,17590
+#undef HAVE_PLUGIN_AGGREGATION609,17688
+#undef HAVE_PLUGIN_AMQP612,17769
+#undef HAVE_PLUGIN_APACHE615,17845
+#undef HAVE_PLUGIN_APCUPS618,17923
+#undef HAVE_PLUGIN_APPLE_SENSORS621,18008
+#undef HAVE_PLUGIN_ASCENT624,18093
+#undef HAVE_PLUGIN_BATTERY627,18172
+#undef HAVE_PLUGIN_BIND630,18249
+#undef HAVE_PLUGIN_CONNTRACK633,18328
+#undef HAVE_PLUGIN_CONTEXTSWITCH636,18416
+#undef HAVE_PLUGIN_CPU639,18498
+#undef HAVE_PLUGIN_CPUFREQ642,18574
+#undef HAVE_PLUGIN_CSV645,18650
+#undef HAVE_PLUGIN_CURL648,18723
+#undef HAVE_PLUGIN_CURL_JSON651,18802
+#undef HAVE_PLUGIN_CURL_XML654,18885
+#undef HAVE_PLUGIN_DBI657,18962
+#undef HAVE_PLUGIN_DF660,19033
+#undef HAVE_PLUGIN_DISK663,19105
+#undef HAVE_PLUGIN_DNS666,19178
+#undef HAVE_PLUGIN_EMAIL669,19252
+#undef HAVE_PLUGIN_ENTROPY672,19330
+#undef HAVE_PLUGIN_ETHSTAT675,19410
+#undef HAVE_PLUGIN_EXEC678,19487
+#undef HAVE_PLUGIN_FILECOUNT681,19566
+#undef HAVE_PLUGIN_FSCACHE684,19648
+#undef HAVE_PLUGIN_GMOND687,19726
+#undef HAVE_PLUGIN_GSTAT690,19802
+#undef HAVE_PLUGIN_HDDTEMP693,19880
+#undef HAVE_PLUGIN_INTERFACE696,19962
+#undef HAVE_PLUGIN_IPMI699,20041
+#undef HAVE_PLUGIN_IPTABLES702,20119
+#undef HAVE_PLUGIN_IPVS705,20197
+#undef HAVE_PLUGIN_IRQ708,20270
+#undef HAVE_PLUGIN_JAVA711,20343
+#undef HAVE_PLUGIN_LIBVIRT714,20420
+#undef HAVE_PLUGIN_LOAD717,20497
+#undef HAVE_PLUGIN_LOGFILE720,20574
+#undef HAVE_PLUGIN_LPAR723,20651
+#undef HAVE_PLUGIN_MADWIFI726,20728
+#undef HAVE_PLUGIN_MATCH_EMPTY_COUNTER729,20820
+#undef HAVE_PLUGIN_MATCH_HASHED732,20917
+#undef HAVE_PLUGIN_MATCH_REGEX735,21006
+#undef HAVE_PLUGIN_MATCH_TIMEDIFF738,21097
+#undef HAVE_PLUGIN_MATCH_VALUE741,21188
+#undef HAVE_PLUGIN_MBMON744,21270
+#undef HAVE_PLUGIN_MD747,21343
+#undef HAVE_PLUGIN_MEMCACHEC750,21420
+#undef HAVE_PLUGIN_MEMCACHED753,21504
+#undef HAVE_PLUGIN_MEMORY756,21585
+#undef HAVE_PLUGIN_MODBUS759,21663
+#undef HAVE_PLUGIN_MULTIMETER762,21745
+#undef HAVE_PLUGIN_MYSQL765,21826
+#undef HAVE_PLUGIN_NETAPP768,21903
+#undef HAVE_PLUGIN_NETLINK771,21982
+#undef HAVE_PLUGIN_NETSTAT774,22062
+#undef HAVE_PLUGIN_NETWORK777,22142
+#undef HAVE_PLUGIN_NFS780,22218
+#undef HAVE_PLUGIN_NGINX783,22292
+#undef HAVE_PLUGIN_NOTIFY_DESKTOP786,22377
+#undef HAVE_PLUGIN_NOTIFY_EMAIL789,22469
+#undef HAVE_PLUGIN_NTPD792,22551
+#undef HAVE_PLUGIN_NUMA795,22625
+#undef HAVE_PLUGIN_NUT798,22698
+#undef HAVE_PLUGIN_OLSRD801,22772
+#undef HAVE_PLUGIN_ONEWIRE804,22850
+#undef HAVE_PLUGIN_OPENVPN807,22930
+#undef HAVE_PLUGIN_ORACLE810,23009
+#undef HAVE_PLUGIN_PERL813,23085
+#undef HAVE_PLUGIN_PF816,23157
+#undef HAVE_PLUGIN_PINBA819,23230
+#undef HAVE_PLUGIN_PING822,23305
+#undef HAVE_PLUGIN_POSTGRESQL825,23385
+#undef HAVE_PLUGIN_POWERDNS828,23469
+#undef HAVE_PLUGIN_PROCESSES831,23552
+#undef HAVE_PLUGIN_PROTOCOLS834,23636
+#undef HAVE_PLUGIN_PYTHON837,23717
+#undef HAVE_PLUGIN_REDIS840,23794
+#undef HAVE_PLUGIN_ROUTEROS843,23873
+#undef HAVE_PLUGIN_RRDCACHED846,23956
+#undef HAVE_PLUGIN_RRDTOOL849,24038
+#undef HAVE_PLUGIN_SENSORS852,24118
+#undef HAVE_PLUGIN_SERIAL855,24197
+#undef HAVE_PLUGIN_SNMP858,24273
+#undef HAVE_PLUGIN_SWAP861,24347
+#undef HAVE_PLUGIN_SYSLOG864,24423
+#undef HAVE_PLUGIN_TABLE867,24500
+#undef HAVE_PLUGIN_TAIL870,24575
+#undef HAVE_PLUGIN_TAPE873,24649
+#undef HAVE_PLUGIN_TARGET_NOTIFICATION876,24738
+#undef HAVE_PLUGIN_TARGET_REPLACE879,24837
+#undef HAVE_PLUGIN_TARGET_SCALE882,24929
+#undef HAVE_PLUGIN_TARGET_SET885,25017
+#undef HAVE_PLUGIN_TARGET_V5UPGRADE888,25109
+#undef HAVE_PLUGIN_TCPCONNS891,25199
+#undef HAVE_PLUGIN_TEAMSPEAK2894,25283
+#undef HAVE_PLUGIN_TED897,25362
+#undef HAVE_PLUGIN_THERMAL900,25438
+#undef HAVE_PLUGIN_THRESHOLD903,25520
+#undef HAVE_PLUGIN_TOKYOTYRANT906,25606
+#undef HAVE_PLUGIN_UNIXSOCK909,25691
+#undef HAVE_PLUGIN_UPTIME912,25771
+#undef HAVE_PLUGIN_USERS915,25848
+#undef HAVE_PLUGIN_UUID918,25923
+#undef HAVE_PLUGIN_VARNISH921,26000
+#undef HAVE_PLUGIN_VMEM924,26077
+#undef HAVE_PLUGIN_VSERVER927,26154
+#undef HAVE_PLUGIN_WIRELESS930,26235
+#undef HAVE_PLUGIN_WRITE_GRAPHITE933,26323
+#undef HAVE_PLUGIN_WRITE_HTTP936,26413
+#undef HAVE_PLUGIN_WRITE_MONGODB939,26502
+#undef HAVE_PLUGIN_WRITE_REDIS942,26592
+#undef HAVE_PLUGIN_WRITE_TSDB945,26679
+#undef HAVE_PLUGIN_XMMS948,26759
+#undef HAVE_PLUGIN_ZFS_ARC951,26836
+#undef HAVE_POLL_H954,26920
+#undef HAVE_PRELOADED_SYMBOLS957,27008
+#undef HAVE_PROCESSOR_INFO960,27100
+#undef HAVE_PROCINFO_H963,27173
+#undef HAVE_PTHREAD_H966,27256
+#undef HAVE_PWD_H969,27334
+#undef HAVE_PYTHON_H972,27411
+#undef HAVE_READDIR975,27487
+#undef HAVE_REGCOMP978,27562
+#undef HAVE_REGERROR981,27638
+#undef HAVE_REGEXEC984,27714
+#undef HAVE_REGEX_H987,27792
+#undef HAVE_REGFREE990,27867
+#undef HAVE_ROUTEROS_API_H993,27952
+#undef HAVE_RRD_H996,28035
+#undef HAVE_SELECT999,28107
+#undef HAVE_SENSORS_SENSORS_H1002,28194
+#undef HAVE_SEQ_GETMNTENT1005,28302
+#undef HAVE_SETENV1008,28382
+#undef HAVE_SETGROUPS1011,28458
+#undef HAVE_SHL_LOAD1014,28529
+#undef HAVE_SIGNAL_H1017,28609
+#undef HAVE_SOCKET1020,28684
+#undef HAVE_STATFS1023,28757
+#undef HAVE_STATGRAB_H1026,28837
+#undef HAVE_STATVFS1029,28915
+#undef HAVE_STDARG_H1032,28994
+#undef HAVE_STDBOOL_H1035,29064
+#undef HAVE_STDINT_H1038,29145
+#undef HAVE_STDIO_H1041,29224
+#undef HAVE_STDLIB_H1044,29303
+#undef HAVE_STRCASECMP1047,29382
+#undef HAVE_STRCHR1050,29459
+#undef HAVE_STRCMP1053,29532
+#undef HAVE_STRDUP1056,29605
+#undef HAVE_STRERROR_R1059,29682
+#undef HAVE_STRINGS_H1062,29765
+#undef HAVE_STRING_H1065,29846
+#undef HAVE_STRLCAT1068,29922
+#undef HAVE_STRLCPY1071,29997
+#undef HAVE_STRLEN1074,30071
+#undef HAVE_STRNCASECMP1077,30149
+#undef HAVE_STRNCMP1080,30228
+#undef HAVE_STRNCPY1083,30303
+#undef HAVE_STRPTIME1086,30379
+#undef HAVE_STRSTR1089,30454
+#undef HAVE_STRTOL1092,30527
+#undef HAVE_STRUCT_IF_DATA1095,30600
+#undef HAVE_STRUCT_IF_DATA_IFI_IBYTES1098,30695
+#undef HAVE_STRUCT_IF_DATA_IFI_IERRORS1101,30802
+#undef HAVE_STRUCT_IF_DATA_IFI_OPACKETS1104,30911
+#undef HAVE_STRUCT_IP_MREQN_IMR_IFINDEX1107,31021
+#undef HAVE_STRUCT_KINFO_PROC_FREEBSD1110,31127
+#undef HAVE_STRUCT_KINFO_PROC_KI_PID1113,31232
+#undef HAVE_STRUCT_KINFO_PROC_KI_RSSIZE1116,31339
+#undef HAVE_STRUCT_KINFO_PROC_KI_RUSAGE1119,31449
+#undef HAVE_STRUCT_KINFO_PROC_KP_EPROC1122,31558
+#undef HAVE_STRUCT_KINFO_PROC_KP_PROC1125,31665
+#undef HAVE_STRUCT_KINFO_PROC_OPENBSD1128,31769
+#undef HAVE_STRUCT_NET_DEVICE_STATS1131,31870
+#undef HAVE_STRUCT_NET_DEVICE_STATS_RX_BYTES1134,31981
+#undef HAVE_STRUCT_NET_DEVICE_STATS_RX_ERRORS1137,32102
+#undef HAVE_STRUCT_NET_DEVICE_STATS_TX_PACKETS1140,32225
+#undef HAVE_STRUCT_UDPHDR_DEST1143,32333
+#undef HAVE_STRUCT_UDPHDR_SOURCE1146,32427
+#undef HAVE_STRUCT_UDPHDR_UH_DPORT1149,32525
+#undef HAVE_STRUCT_UDPHDR_UH_SPORT1152,32625
+#undef HAVE_SUN_GETMNTENT1155,32738
+#undef HAVE_SWAPCTL1158,32819
+#undef HAVE_SWAPCTL_THREE_ARGS1161,32911
+#undef HAVE_SWAPCTL_TWO_ARGS1164,33012
+#undef HAVE_SYSCONF1167,33096
+#undef HAVE_SYSCTL1170,33170
+#undef HAVE_SYSCTLBYNAME1173,33249
+#undef HAVE_SYSCTL_KERN_CP_TIMES1176,33321
+#undef HAVE_SYSLOG1179,33408
+#undef HAVE_SYSLOG_H1182,33486
+#undef HAVE_SYS_DIR_H1186,33592
+#undef HAVE_SYS_DKSTAT_H1189,33677
+#undef HAVE_SYS_DL_H1192,33761
+#undef HAVE_SYS_FSTYP_H1195,33844
+#undef HAVE_SYS_FS_TYPES_H1198,33933
+#undef HAVE_SYS_IOCTL_H1201,34022
+#undef HAVE_SYS_ISA_DEFS_H1204,34111
+#undef HAVE_SYS_LOADAVG_H1207,34202
+#undef HAVE_SYS_MNTENT_H1210,34291
+#undef HAVE_SYS_MNTTAB_H1213,34379
+#undef HAVE_SYS_MOUNT_H1216,34466
+#undef HAVE_SYS_NDIR_H1220,34576
+#undef HAVE_SYS_PARAM_H1223,34661
+#undef HAVE_SYS_RESOURCE_H1226,34750
+#undef HAVE_SYS_SELECT_H1229,34840
+#undef HAVE_SYS_SOCKET_H1232,34928
+#undef HAVE_SYS_STATFS_H1235,35016
+#undef HAVE_SYS_STATVFS_H1238,35105
+#undef HAVE_SYS_STAT_H1241,35192
+#undef HAVE_SYS_SWAP_H1244,35276
+#undef HAVE_SYS_SYSCTL_H1247,35362
+#undef HAVE_SYS_TYPES_H1250,35449
+#undef HAVE_SYS_UCRED_H1253,35535
+#undef HAVE_SYS_UN_H1256,35618
+#undef HAVE_SYS_VFSTAB_H1259,35702
+#undef HAVE_SYS_VFS_H1262,35787
+#undef HAVE_SYS_WAIT_H1265,35881
+#undef HAVE_TCA_STATS1268,35952
+#undef HAVE_TCA_STATS21271,36023
+#undef HAVE_TCRDB_H1274,36104
+#undef HAVE_TERMIOS_H1277,36184
+#undef HAVE_THREADSAFE_LIBRRD1280,36276
+#undef HAVE_THREAD_INFO1283,36365
+#undef HAVE_TWO_GETMNTENT1286,36461
+#undef HAVE_UNISTD_H1289,36546
+#undef HAVE_UPSCLIENT_H1292,36629
+#undef HAVE_UPSCONN1295,36710
+#undef HAVE_UPSCONN_T1298,36789
+#undef HAVE_UTMPX_H1301,36869
+#undef HAVE_UTMP_H1304,36946
+#undef HAVE_VARNISH_V21307,36994
+#undef HAVE_VARNISH_V31310,37046
+#undef HAVE_VARNISH_VARNISHAPI_H1313,37140
+#undef HAVE_VARNISH_VSC_H1316,37237
+#undef HAVE_VM_ANON_H1319,37323
+#undef HAVE_WORDEXP_H1322,37405
+#undef HAVE_WORKING_ARGZ1325,37505
+#undef HAVE_XFS_XQM_H1328,37590
+#undef HAVE_YAJL_YAJL_PARSE_H1331,37680
+#undef HAVE_YAJL_YAJL_VERSION_H1334,37780
+#undef HAVE__BOOL1337,37867
+#undef KERNEL_AIX1340,37943
+#undef KERNEL_LINUX1343,38021
+#undef KERNEL_SOLARIS1346,38103
+#undef LIBTOOL_VERSION1349,38164
+#undef LTDL_DLOPEN_DEPLIBS1352,38264
+#undef LT_DLSEARCH_PATH1355,38348
+#undef LT_LIBEXT1358,38401
+#undef LT_LIBPREFIX1361,38444
+#undef LT_MODULE_EXT1364,38542
+#undef LT_MODULE_PATH_VAR1368,38669
+#undef LT_OBJDIR1372,38780
+#undef LT_SHARED_EXT1375,38856
+#undef NAN_STATIC_DEFAULT1378,38957
+#undef NAN_STATIC_ISOC1382,39071
+#undef NAN_ZERO_ZERO1385,39145
+#undef NEED_USCORE1388,39238
+#undef NO_MINUS_C_MINUS_O1391,39330
+#undef OWN_LIBIPTC1394,39411
+#undef PACKAGE1397,39453
+#undef PACKAGE_BUGREPORT1400,39548
+#undef PACKAGE_NAME1403,39621
+#undef PACKAGE_STRING1406,39701
+#undef PACKAGE_TARNAME1409,39783
+#undef PACKAGE_URL1412,39855
+#undef PACKAGE_VERSION1415,39920
+#undef PERFSTAT_SUPPORTS_DONATION1418,40022
+#undef RTNL_DUMP_FILTER_FIVE_ARGS1421,40130
+#undef RTNL_DUMP_FILTER_THREE_ARGS1424,40239
+#undef STDC_HEADERS1427,40330
+#undef STRERROR_R_CHAR_P1430,40399
+#undef STRPTIME_NEEDS_STANDARDS1433,40499
+#undef TIME_WITH_SYS_TIME1436,40608
+#undef VERSION1439,40667
+#undef YYTEXT_POINTER1443,40773
+# define _DARWIN_USE_64_BIT_INODE 1447,40881
+#undef _FILE_OFFSET_BITS1451,40997
+#undef _ISOC99_SOURCE1454,41067
+#undef _LARGE_FILES1457,41140
+#undef _POSIX_C_SOURCE1460,41210
+#undef _POSIX_PTHREAD_SEMANTICS1463,41296
+#undef _REENTRANT1466,41375
+#undef _THREAD_SAFE_ERRNO1469,41458
+#undef _XOPEN_SOURCE1472,41536
+#undef __error_t_defined1475,41625
+#undef const1478,41712
+#undef error_t1481,41804
+#undef gid_t1484,41875
+#undef pid_t1487,41945
+#undef size_t1490,42024
+#undef uid_t1493,42094
+
+utils_vl_lookup_test.c,705
+static _Bool expect_new_obj 30,1276
+static _Bool have_new_obj 31,1309
+static identifier_t last_class_ident;33,1341
+static identifier_t last_obj_ident;34,1379
+static data_source_t dsrc_test 36,1416
+static data_set_t const ds_test 37,1488
+static data_source_t dsrc_unknown 39,1550
+static data_set_t const ds_unknown 40,1625
+static int lookup_obj_callback 42,1696
+static void *lookup_class_callback lookup_class_callback60,2142
+static void checked_lookup_add 82,2814
+static int checked_lookup_search 105,3603
+static lookup_t *checked_lookup_create checked_lookup_create131,4356
+static void testcase0 142,4580
+static void testcase1 159,5122
+static void testcase2 184,6066
+int main 208,6837
+
+collectd-tg.c,1107
+# define _ISOC99_SOURCE27,918
+# define _POSIX_C_SOURCE 31,974
+# define _XOPEN_SOURCE 35,1037
+#define DEF_NUM_HOSTS 56,1438
+#define DEF_NUM_PLUGINS 57,1468
+#define DEF_NUM_VALUES 58,1498
+#define DEF_INTERVAL 59,1528
+static int conf_num_hosts 61,1561
+static int conf_num_plugins 62,1604
+static int conf_num_values 63,1651
+static double conf_interval 64,1696
+static const char *conf_destination conf_destination65,1740
+static const char *conf_service conf_service66,1799
+static lcc_network_t *net;net68,1852
+static c_heap_t *values_heap values_heap70,1880
+static struct sigaction sigint_action;72,1918
+static struct sigaction sigterm_action;73,1957
+static _Bool loop 75,1998
+static void exit_usage 78,2048
+static void signal_handler 104,3198
+static int compare_time 109,3295
+static int get_boundet_random 122,3586
+static lcc_value_list_t *create_value_list create_value_list136,3895
+static void destroy_value_list 192,5372
+static int send_value 202,5567
+static int get_integer_opt 220,6056
+static int get_double_opt 249,6723
+static int read_options 278,7372
+int main 321,8192
+
+utils_ignorelist.c,703
+struct ignorelist_item_s63,2191
+	regex_t *rmatch;rmatch66,2235
+	char *smatch;smatch68,2306
+	struct ignorelist_item_s *next;next69,2356
+typedef struct ignorelist_item_s ignorelist_item_t;71,2392
+struct ignorelist_s73,2445
+	int ignore;75,2467
+	ignorelist_item_t *head;head76,2502
+static inline void ignorelist_append 83,2794
+static int ignorelist_append_regex(92,2982
+static int ignorelist_append_string(155,4460
+static int ignorelist_match_regex 179,5005
+static int ignorelist_match_string 196,5438
+ignorelist_t *ignorelist_create ignorelist_create216,6088
+void ignorelist_free 236,6501
+void ignorelist_set_invert 269,7038
+int ignorelist_add 284,7344
+int ignorelist_match 334,8392
+
+utils_mount.h,487
+#define COLLECTD_UTILS_MOUNT_H 27,930
+#define CUMT_UNKNOWN 70,1653
+#define CUMT_EXT2 71,1678
+#define CUMT_EXT3 72,1703
+#define CUMT_XFS 73,1728
+#define CUMT_UFS 74,1753
+#define CUMT_VXFS 75,1778
+#define CUMT_ZFS 76,1803
+typedef struct _cu_mount_t cu_mount_t;78,1829
+struct _cu_mount_t 79,1868
+	char *dir;dir80,1889
+	char *spec_device;spec_device81,1929
+	char *device;device82,2000
+	char *type;type83,2058
+	char *options;options84,2102
+	cu_mount_t *next;next85,2167
+
+cpu.c,929
+#  define CP_USER 69,2009
+#  define CP_NICE 70,2031
+#  define CP_SYS 71,2053
+#  define CP_INTR 72,2075
+#  define CP_IDLE 73,2097
+#  define CPUSTATES 74,2119
+#  define CAN_USE_SYSCTL 81,2323
+#  define CAN_USE_SYSCTL 83,2357
+# define CAN_USE_SYSCTL 86,2398
+static mach_port_t port_host;104,2812
+static processor_port_array_t cpu_list;105,2842
+static mach_msg_type_number_t cpu_list_len;106,2882
+static int cpu_temp_retry_counter 109,2953
+static int cpu_temp_retry_step 110,2992
+static int cpu_temp_retry_max 111,3031
+# define MAX_NUMCPU 121,3340
+static kstat_t *ksp[ksp123,3388
+static int numcpu;124,3421
+static int numcpu;128,3489
+static int numcpu;132,3570
+static int maxcpu;134,3624
+static perfstat_cpu_t *perfcpu;perfcpu143,3835
+static int numcpu;144,3867
+static int pnumcpu;145,3886
+static int init 148,3934
+static void submit 244,6372
+static int cpu_read 263,6910
+void module_register 604,15375
+
+types_list.h,27
+#define TYPES_LIST_H 2,21
+
+filter_chain.h,592
+#define FILTER_CHAIN_H 23,865
+#define FC_MATCH_NO_MATCH 28,934
+#define FC_MATCH_MATCHES 29,963
+#define FC_TARGET_CONTINUE 31,993
+#define FC_TARGET_STOP 32,1022
+#define FC_TARGET_RETURN 33,1051
+struct match_proc_s38,1107
+  int (*create)create40,1129
+  int (*destroy)destroy41,1191
+  int (*match)match42,1228
+typedef struct match_proc_s match_proc_t;45,1346
+struct target_proc_s52,1478
+  int (*create)create54,1501
+  int (*destroy)destroy55,1563
+  int (*invoke)invoke56,1600
+typedef struct target_proc_s target_proc_t;59,1713
+typedef struct fc_chain_s fc_chain_t;62,1777
+
+utils_time.h,515
+#define UTILS_TIME_H 23,849
+#define TIME_T_TO_CDTIME_T(40,1473
+#define CDTIME_T_TO_TIME_T(41,1535
+#define CDTIME_T_TO_DOUBLE(43,1596
+#define DOUBLE_TO_CDTIME_T(44,1658
+#define MS_TO_CDTIME_T(46,1723
+#define CDTIME_T_TO_MS(47,1798
+#define US_TO_CDTIME_T(48,1873
+#define CDTIME_T_TO_US(49,1948
+#define NS_TO_CDTIME_T(50,2023
+#define CDTIME_T_TO_NS(51,2098
+#define CDTIME_T_TO_TIMEVAL(53,2174
+#define TIMEVAL_TO_CDTIME_T(57,2423
+#define CDTIME_T_TO_TIMESPEC(60,2541
+#define TIMESPEC_TO_CDTIME_T(64,2790
+
+utils_subst.h,30
+#define UTILS_SUBST_H 27,918
+
+utils_cmd_listval.h,36
+#define UTILS_CMD_LISTVAL_H 23,869
+
+utils_cmd_putval.c,154
+#define print_to_socket(28,941
+static int dispatch_values 36,1187
+static int set_option 52,1523
+int handle_putval 76,1998
+int create_putval 230,5818
+
+configfile.c,2630
+#define ESCAPE_NULL(38,1157
+typedef struct cf_callback43,1242
+	const char  *type;type45,1271
+	int  (*callback)callback46,1291
+	const char **keys;keys47,1339
+	int    keys_num;48,1359
+	plugin_ctx_t ctx;49,1377
+	struct cf_callback *next;next50,1396
+} cf_callback_t;51,1423
+typedef struct cf_complex_callback_s53,1441
+	char *type;type55,1480
+	int (*callback)callback56,1493
+	plugin_ctx_t ctx;57,1530
+	struct cf_complex_callback_s *next;next58,1549
+} cf_complex_callback_t;59,1586
+typedef struct cf_value_map_s61,1612
+	char *key;key63,1644
+	int (*func)func64,1656
+} cf_value_map_t;65,1695
+typedef struct cf_global_option_s67,1714
+	char *key;key69,1750
+	char *value;value70,1762
+	char *def;def71,1776
+} cf_global_option_t;72,1788
+static cf_callback_t *first_callback first_callback84,2068
+static cf_complex_callback_t *complex_callback_head complex_callback_head85,2113
+static cf_value_map_t cf_value_map[cf_value_map87,2174
+static int cf_value_map_num 93,2339
+static cf_global_option_t cf_global_options[cf_global_options95,2403
+static int cf_global_options_num 107,2759
+static int cf_default_typesdb 109,2833
+static cf_callback_t *cf_search cf_search115,2962
+static int cf_dispatch 129,3216
+static int dispatch_global_option 187,4344
+static int dispatch_value_typesdb 210,5005
+static int dispatch_value_plugindir 236,5573
+static int dispatch_loadplugin 249,5857
+static int dispatch_value_plugin 314,7764
+static int dispatch_value 350,8738
+static int dispatch_block_plugin 372,9170
+static int dispatch_block 424,10326
+static int cf_ci_replace_child 436,10637
+static int cf_ci_append_children 511,12821
+#define CF_MAX_DEPTH 537,13420
+static int cf_include_all 540,13514
+static oconfig_item_t *cf_read_file cf_read_file582,14445
+static int cf_compare_string 600,14788
+static oconfig_item_t *cf_read_dir cf_read_dir605,14914
+static oconfig_item_t *cf_read_generic cf_read_generic711,17314
+static oconfig_item_t *cf_read_generic cf_read_generic797,19140
+int global_option_set 832,19937
+const char *global_option_get global_option_get855,20391
+cdtime_t cf_get_default_interval 871,20762
+void cf_unregister 894,21449
+void cf_unregister_complex 913,21809
+void cf_register 933,22223
+int cf_register_complex 956,22822
+int cf_read 991,23467
+int cf_util_get_string 1023,24220
+int cf_util_get_string_buffer 1047,24832
+int cf_util_get_int 1067,25439
+int cf_util_get_double 1084,25867
+int cf_util_get_boolean 1101,26301
+int cf_util_get_flag 1118,26744
+int cf_util_get_port_number 1149,27404
+int cf_util_get_service 1180,28281
+int cf_util_get_cdtime 1228,29339
+
+write_http.c,1314
+struct wh_callback_s42,1263
+        char *location;location44,1286
+        char *user;user46,1311
+        char *pass;pass47,1331
+        char *credentials;credentials48,1351
+        int   verify_peer;49,1378
+        int   verify_host;50,1405
+        char *cacert;cacert51,1432
+        int   store_rates;52,1454
+#define WH_FORMAT_COMMAND 54,1482
+#define WH_FORMAT_JSON 55,1510
+        int format;56,1538
+        CURL *curl;curl58,1559
+        char curl_errbuf[curl_errbuf59,1579
+        char   send_buffer[send_buffer61,1623
+        size_t send_buffer_free;62,1657
+        size_t send_buffer_fill;63,1690
+        cdtime_t send_buffer_init_time;64,1723
+        pthread_mutex_t send_lock;66,1764
+typedef struct wh_callback_s wh_callback_t;68,1802
+static void wh_reset_buffer 70,1847
+static int wh_send_buffer 85,2369
+static int wh_callback_init 100,2853
+static int wh_flush_nolock 161,5106
+static int wh_flush 224,7096
+static void wh_callback_free 255,7936
+static int wh_write_command 276,8376
+static int wh_write_json 363,11560
+static int wh_write 417,13442
+static int config_set_string 436,13922
+static int config_set_boolean 463,14696
+static int config_set_format 477,15164
+static int wh_config_url 505,16058
+static int wh_config 573,18541
+void module_register 593,19089
+
+utils_ignorelist.h,86
+#define UTILS_IGNORELIST_H 29,1008
+typedef struct ignorelist_s ignorelist_t;40,1152
+
+processes.c,3066
+#    define CONFIG_HZ 93,2704
+#define MAXPROCENTRY 109,3086
+#define MAXTHRDENTRY 110,3110
+#define MAXARGLN 111,3134
+#  define ARG_MAX 132,3436
+typedef struct procstat_entry_s135,3467
+	unsigned long id;137,3501
+	unsigned long age;138,3520
+	unsigned long num_proc;140,3541
+	unsigned long num_lwp;141,3566
+	unsigned long vmem_size;142,3590
+	unsigned long vmem_rss;143,3616
+	unsigned long vmem_data;144,3641
+	unsigned long vmem_code;145,3667
+	unsigned long stack_size;146,3693
+	unsigned long vmem_minflt;148,3721
+	unsigned long vmem_majflt;149,3749
+	derive_t      vmem_minflt_counter;150,3777
+	derive_t      vmem_majflt_counter;151,3813
+	unsigned long cpu_user;153,3850
+	unsigned long cpu_system;154,3875
+	derive_t      cpu_user_counter;155,3902
+	derive_t      cpu_system_counter;156,3935
+	derive_t io_rchar;159,3986
+	derive_t io_wchar;160,4006
+	derive_t io_syscr;161,4026
+	derive_t io_syscw;162,4046
+	struct procstat_entry_s *next;next164,4067
+} procstat_entry_t;165,4099
+#define PROCSTAT_NAME_LEN 167,4120
+typedef struct procstat168,4150
+	char          name[name170,4176
+	regex_t *re;re172,4233
+	unsigned long num_proc;175,4255
+	unsigned long num_lwp;176,4280
+	unsigned long vmem_size;177,4304
+	unsigned long vmem_rss;178,4330
+	unsigned long vmem_data;179,4355
+	unsigned long vmem_code;180,4381
+	unsigned long stack_size;181,4407
+	derive_t vmem_minflt_counter;183,4435
+	derive_t vmem_majflt_counter;184,4466
+	derive_t cpu_user_counter;186,4498
+	derive_t cpu_system_counter;187,4526
+	derive_t io_rchar;190,4572
+	derive_t io_wchar;191,4592
+	derive_t io_syscr;192,4612
+	derive_t io_syscw;193,4632
+	struct procstat   *next;next195,4653
+	struct procstat_entry_s *instances;instances196,4679
+} procstat_t;197,4716
+static procstat_t *list_head_g list_head_g199,4731
+static mach_port_t port_host_self;202,4792
+static mach_port_t port_task_self;203,4827
+static processor_set_name_array_t pset_list;205,4863
+static mach_msg_type_number_t     pset_list_len;206,4908
+static long pagesize_g;210,5007
+static int pagesize;214,5119
+static  struct procentry64 procentry[procentry218,5231
+static  struct thrdentry64 thrdentry[thrdentry219,5283
+static int pagesize;220,5335
+static void ps_list_register 232,5821
+static int ps_list_match 305,7489
+static void ps_list_add 335,8059
+static void ps_list_reset 473,11806
+static int ps_config 527,12884
+static int ps_init 587,14516
+static void ps_submit_state 634,15629
+static void ps_submit_proc_list 653,16220
+static void ps_submit_fork_rate 741,19019
+static int ps_read_tasks 762,19647
+static procstat_t *ps_read_vmem ps_read_vmem790,20205
+static procstat_t *ps_read_io ps_read_io852,21438
+int ps_read_process 907,22631
+static char *ps_get_cmdline ps_get_cmdline1056,26428
+static int read_fork_rate 1151,28152
+static const char *ps_get_cmdline ps_get_cmdline1198,29027
+static int ps_read_process(1229,29929
+static int read_fork_rate(1340,33048
+static int mach_get_task_name 1373,33683
+static int ps_read 1410,34601
+void module_register 2172,54257
+
+load.c,212
+#define _BSD_SOURCE24,901
+#define LOADAVG_1MIN 40,1198
+#define LOADAVG_5MIN 41,1222
+#define LOADAVG_15MIN 42,1246
+static void load_submit 52,1452
+static int load_read 70,1904
+void module_register 169,3906
+
+utils_cmd_putval.h,35
+#define UTILS_CMD_PUTVAL_H 23,867
+
+configfile.h,26
+#define CONFIGFILE_H2,21
+
+common.c,1513
+static pthread_mutex_t getpwnam_r_lock 61,1495
+static pthread_mutex_t strerror_r_lock 65,1592
+char *sstrncpy sstrncpy68,1668
+int ssnprintf 76,1812
+char *sstrdup sstrdup89,2042
+char *sstrerror sstrerror114,2614
+void *smalloc smalloc158,3463
+void sfree 172,3631
+ssize_t sread 184,3745
+ssize_t swrite 222,4343
+int strsplit 248,4767
+int strjoin 269,5050
+int strsubstitute 309,5675
+int strunescape 330,5922
+int escape_slashes 364,6508
+void replace_special 396,6979
+int timeval_cmp 409,7231
+int check_create_dir 460,8221
+int get_kstat 589,10934
+long long get_kstat_value 634,11816
+unsigned long long ntohll 673,12913
+unsigned long long htonll 682,13122
+#  define FP_CONVERT(698,13539
+#  define FP_CONVERT(707,14151
+double ntohd 711,14309
+		uint8_t  byte[byte715,14345
+		uint64_t integer;716,14365
+		double   floating;717,14385
+double htond 740,14829
+		uint8_t  byte[byte744,14865
+		uint64_t integer;745,14885
+		double   floating;746,14905
+int format_name 769,15342
+int format_values 806,16303
+#define BUFFER_ADD(819,16611
+#undef BUFFER_ADD869,18473
+int parse_identifier 875,18566
+int parse_identifier_vl 921,19509
+int parse_value 955,20427
+int parse_values 1014,21851
+int getpwnam_r 1072,23008
+#define GETPWNAM_COPY_MEMBER(1091,23356
+int notification_init 1124,24064
+int walk_directory 1151,24875
+int read_file_contents 1200,25718
+counter_t counter_diff 1214,25928
+int rate_to_value 1234,26294
+int service_name_to_port_number 1329,28580
+int strtoderive 1382,29749
+
+utils_llist.c,590
+struct llist_s34,960
+	llentry_t *head;head36,977
+	llentry_t *tail;tail37,995
+	int size;38,1013
+llist_t *llist_create llist_create44,1055
+void llist_destroy 57,1242
+llentry_t *llentry_create llentry_create74,1475
+void llentry_destroy 89,1680
+void llist_append 94,1732
+void llist_prepend 108,1894
+void llist_remove 119,2032
+int llist_size 137,2320
+static int llist_strcmp 142,2380
+llentry_t *llist_search llist_search149,2528
+llentry_t *llist_search_custom llist_search_custom154,2649
+llentry_t *llist_head llist_head175,2945
+llentry_t *llist_tail llist_tail182,3037
+
+curl.c,1572
+typedef struct web_match_s web_match_t;36,1085
+struct web_match_s 37,1125
+  char *regex;regex39,1156
+  char *exclude_regex;exclude_regex40,1171
+  int dstype;41,1194
+  char *type;type42,1208
+  char *instance;instance43,1222
+  cu_match_t *match;match45,1241
+  web_match_t *next;next47,1263
+typedef struct web_page_s web_page_t;51,1317
+struct web_page_s 52,1355
+  char *instance;instance54,1385
+  char *url;url56,1404
+  char *user;user57,1417
+  char *pass;pass58,1431
+  char *credentials;credentials59,1445
+  int   verify_peer;60,1466
+  int   verify_host;61,1487
+  char *cacert;cacert62,1508
+  int   response_time;63,1524
+  CURL *curl;curl65,1548
+  char curl_errbuf[curl_errbuf66,1562
+  char *buffer;buffer67,1599
+  size_t buffer_size;68,1615
+  size_t buffer_fill;69,1637
+  web_match_t *matches;matches71,1660
+  web_page_t *next;next73,1685
+static web_page_t *pages_g pages_g80,1780
+static size_t cc_curl_callback 85,1844
+static void cc_web_match_free 122,2615
+static void cc_web_page_free 135,2882
+static int cc_config_add_string 159,3321
+static int cc_config_set_boolean 176,3754
+static int cc_config_add_match_dstype 190,4134
+static int cc_config_add_match 268,6690
+static int cc_page_init_curl 364,9056
+static int cc_config_add_page 411,10519
+static int cc_config 523,13629
+static int cc_init 561,14302
+static void cc_submit 571,14482
+static void cc_submit_response_time 590,15085
+static int cc_read_page 607,15616
+static int cc_read 658,16750
+static int cc_shutdown 668,16918
+void module_register 676,17052
+
+apache.c,1104
+enum server_enum34,1170
+	APACHE 36,1189
+	LIGHTTPD37,1202
+struct apache_s40,1216
+	int server_type;42,1234
+	char *name;name43,1252
+	char *host;host44,1265
+	char *url;url45,1278
+	char *user;user46,1290
+	char *pass;pass47,1303
+	int   verify_peer;48,1316
+	int   verify_host;49,1336
+	char *cacert;cacert50,1356
+	char *server;server51,1371
+	char *apache_buffer;apache_buffer52,1418
+	char apache_curl_error[apache_curl_error53,1440
+	size_t apache_buffer_size;54,1482
+	size_t apache_buffer_fill;55,1510
+	CURL *curl;curl56,1538
+typedef struct apache_s apache_t;59,1570
+static void apache_free 64,1694
+static size_t apache_curl_callback 83,2018
+static size_t apache_header_callback 122,2878
+static int config_set_string 168,3851
+static int config_set_boolean 195,4413
+static int config_add 232,5273
+static int config 334,7779
+static int init_host 357,8310
+static void submit_value 456,10842
+static void submit_derive 480,11474
+static void submit_gauge 488,11675
+static void submit_scoreboard 496,11872
+static int apache_read_host 584,15333
+void module_register 673,17405
+
+utils_parse_option.c,80
+int parse_string 27,932
+int parse_option 112,2594
+int escape_string 153,3416
+
+common.h,577
+#define COMMON_H24,894
+#define sfree(33,996
+#define STATIC_ARRAY_SIZE(41,1103
+#define IS_TRUE(43,1162
+#define IS_FALSE(46,1290
+struct rate_to_value_state_s50,1421
+  value_t last_value;52,1452
+  cdtime_t last_time;53,1474
+  gauge_t residual;54,1496
+typedef struct rate_to_value_state_s rate_to_value_state_t;56,1519
+#define NORMALIZE_TIMEVAL(227,6903
+#define NORMALIZE_TIMESPEC(234,7092
+# define ntohd(253,7599
+# define htond(254,7621
+#define FORMAT_VL(266,8017
+#define NOTIFICATION_INIT_VL(289,8971
+typedef int (*dirwalk_callback_f)dirwalk_callback_f294,9146
+
+utils_cmd_getval.c,59
+#define print_to_socket(29,961
+int handle_getval 37,1212
+
+df.c,644
+# define STATANYFS 35,1139
+# define STATANYFS_STR 36,1166
+# define BLOCKSIZE(37,1199
+# define STATANYFS 42,1340
+# define STATANYFS_STR 43,1366
+# define BLOCKSIZE(44,1398
+static const char *config_keys[config_keys49,1484
+static int config_keys_num 59,1634
+static ignorelist_t *il_device il_device61,1697
+static ignorelist_t *il_mountpoint il_mountpoint62,1736
+static ignorelist_t *il_fstype il_fstype63,1779
+static _Bool by_device 65,1819
+static _Bool report_inodes 66,1847
+static int df_init 68,1880
+static int df_config 80,2116
+static void df_submit_one 140,3226
+static int df_read 164,3890
+void module_register 315,7879
+
+utils_llist.h,224
+#define UTILS_LLIST_H 25,865
+struct llentry_s30,911
+	char *key;key32,930
+	void *value;value33,942
+	struct llentry_s *next;next34,956
+typedef struct llentry_s llentry_t;36,984
+typedef struct llist_s llist_t;39,1037
+
+swap.c,1309
+# undef HAVE_CONFIG_H29,1081
+#  undef _FILE_OFFSET_BITS33,1265
+#  undef _LARGEFILE64_SOURCE34,1292
+#undef  MAX69,1824
+#define MAX(70,1836
+# define SWAP_HAVE_REPORT_BY_DEVICE 73,1895
+static derive_t pagesize;74,1933
+static _Bool report_bytes 75,1959
+static _Bool report_by_device 76,1990
+# define SWAP_HAVE_REPORT_BY_DEVICE 80,2096
+static derive_t pagesize;81,2134
+static _Bool report_by_device 82,2160
+static kvm_t *kvm_obj kvm_obj90,2367
+int kvm_pagesize;91,2397
+static int pagesize;99,2553
+static perfstat_memory_total_t pmemory;100,2574
+static const char *config_keys[config_keys107,2717
+static int config_keys_num 112,2791
+static int swap_config 114,2854
+static int swap_init 147,3604
+static void swap_submit 194,4571
+static void swap_submit_gauge 215,5228
+static void swap_submit_derive 225,5503
+static int swap_read_separate 236,5775
+static int swap_read_combined 294,6891
+static int swap_read_io 359,8387
+static int swap_read 439,9862
+static int swap_read_kstat 463,10621
+static int swap_read 515,12166
+static int swap_read 636,15669
+# define C_SWAP_BLOCK_SIZE 673,16427
+# define C_SWAP_BLOCK_SIZE 675,16483
+static int swap_read 707,17206
+static int swap_read 732,17811
+static int swap_read 765,18516
+static int swap_read 782,18851
+void module_register 802,19674
+
+collectdmon.c,568
+# define COLLECTDMON_PIDFILE 54,1263
+# define WCOREDUMP(58,1382
+static int loop 61,1432
+static int restart 62,1456
+static char  *pidfile pidfile64,1481
+static pid_t  collectd_pid 65,1516
+static void exit_usage 67,1549
+static int pidfile_create 84,2036
+static int pidfile_delete 102,2408
+static int daemonize 114,2647
+static int collectd_start 173,3769
+static int collectd_stop 192,4140
+static void sig_int_term_handler 204,4369
+static void sig_hup_handler 210,4488
+static void log_status 216,4600
+static void check_respawn 234,5123
+int main 259,5592
+
+/usr/local/src/collectd/src/libcollectdclient/TAGS,include
+
+/usr/local/src/collectd/src/liboconfig/TAGS,include

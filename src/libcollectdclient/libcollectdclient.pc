@@ -1,0 +1,11 @@
+prefix=/usr/local/collectd
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: libcollectdclient
+Description: Client library for the unixsock plugin of collectd.
+Version: 5.2.1
+URL: http://collectd.org/
+Libs: -L${libdir} -lcollectdclient
+Cflags: -I${includedir}

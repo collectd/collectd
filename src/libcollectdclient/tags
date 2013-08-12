@@ -1,0 +1,89 @@
+ADD_GENERIC	network_buffer.c	/^#define ADD_GENERIC(nb,srcptr,size) do {         /
+ADD_STATIC	network_buffer.c	/^#define ADD_STATIC(nb,var) \\$/
+BAIL_OUT	client.c	/^#define BAIL_OUT(e) do { \\$/
+CMP_FIELD	client.c	/^#define CMP_FIELD(f) do {         \\$/
+LCC_DEBUG	client.c	/^# define LCC_DEBUG(...) printf (__VA_ARGS__)$/
+LCC_DESTROY	collectd/client.h	/^#define LCC_DESTROY(c) do { lcc_disconnect (c); (c/
+LCC_SET_ERRSTR	client.c	/^#define LCC_SET_ERRSTR(c, ...) do { \\$/
+LCC_VERSION_ENCODE	collectd/lcc_features.h	/^#define LCC_VERSION_ENCODE(major, minor, patch) \\/
+SSTRCAT	client.c	/^#define SSTRCAT(d,s) do { \\$/
+SSTRCATF	client.c	/^#define SSTRCATF(d, ...) do { \\$/
+SSTRCPY	client.c	/^#define SSTRCPY(d,s) do { \\$/
+SSTRNCPY	network_buffer.c	/^#define SSTRNCPY(dst,src,sz) do { \\$/
+__attribute__	client.c	/^# define __attribute__(x) \/**\/$/
+absolute_t	collectd/client.h	/^typedef uint64_t absolute_t;$/
+counter_t	collectd/client.h	/^typedef uint64_t counter_t;$/
+derive_t	collectd/client.h	/^typedef uint64_t derive_t;$/
+gauge_t	collectd/client.h	/^typedef double gauge_t;$/
+have_gcrypt	network_buffer.c	/^static _Bool have_gcrypt (void) \/* {{{ *\/$/
+htond	network_buffer.c	/^static double htond (double val) \/* {{{ *\/$/
+htonll	network_buffer.c	/^static uint64_t htonll (uint64_t val) \/* {{{ *\/$/
+int_server_destroy	network.c	/^static void int_server_destroy (lcc_server_t *srv)/
+lcc_chomp	client.c	/^static void lcc_chomp (char *str) \/* {{{ *\/$/
+lcc_connect	client.c	/^int lcc_connect (const char *address, lcc_connecti/
+lcc_connection_s	client.c	/^struct lcc_connection_s$/
+lcc_connection_t	collectd/client.h	/^struct lcc_connection_s;$/
+lcc_disconnect	client.c	/^int lcc_disconnect (lcc_connection_t *c) \/* {{{ */
+lcc_flush	client.c	/^int lcc_flush (lcc_connection_t *c, const char *pl/
+lcc_getval	client.c	/^int lcc_getval (lcc_connection_t *c, lcc_identifie/
+lcc_identifier_compare	client.c	/^int lcc_identifier_compare (const lcc_identifier_t/
+lcc_identifier_s	collectd/client.h	/^struct lcc_identifier_s$/
+lcc_identifier_t	collectd/client.h	/^typedef struct lcc_identifier_s lcc_identifier_t;$/
+lcc_identifier_to_string	client.c	/^int lcc_identifier_to_string (lcc_connection_t *c,/
+lcc_listval	client.c	/^int lcc_listval (lcc_connection_t *c, \/* {{{ *\/$/
+lcc_network_buffer_add_value	network_buffer.c	/^int lcc_network_buffer_add_value (lcc_network_buff/
+lcc_network_buffer_create	network_buffer.c	/^lcc_network_buffer_t *lcc_network_buffer_create (s/
+lcc_network_buffer_destroy	network_buffer.c	/^void lcc_network_buffer_destroy (lcc_network_buffe/
+lcc_network_buffer_finalize	network_buffer.c	/^int lcc_network_buffer_finalize (lcc_network_buffe/
+lcc_network_buffer_get	network_buffer.c	/^int lcc_network_buffer_get (lcc_network_buffer_t */
+lcc_network_buffer_initialize	network_buffer.c	/^int lcc_network_buffer_initialize (lcc_network_buf/
+lcc_network_buffer_s	network_buffer.c	/^struct lcc_network_buffer_s$/
+lcc_network_buffer_set_security_level	network_buffer.c	/^int lcc_network_buffer_set_security_level (lcc_net/
+lcc_network_buffer_t	collectd/network_buffer.h	/^struct lcc_network_buffer_s;$/
+lcc_network_create	network.c	/^lcc_network_t *lcc_network_create (void) \/* {{{ */
+lcc_network_destroy	network.c	/^void lcc_network_destroy (lcc_network_t *net) \/* /
+lcc_network_s	network.c	/^struct lcc_network_s$/
+lcc_network_t	collectd/network.h	/^struct lcc_network_s;$/
+lcc_network_values_send	network.c	/^int lcc_network_values_send (lcc_network_t *net, /
+lcc_open_netsocket	client.c	/^static int lcc_open_netsocket (lcc_connection_t *c/
+lcc_open_socket	client.c	/^static int lcc_open_socket (lcc_connection_t *c, c/
+lcc_open_unixsocket	client.c	/^static int lcc_open_unixsocket (lcc_connection_t */
+lcc_putval	client.c	/^int lcc_putval (lcc_connection_t *c, const lcc_val/
+lcc_receive	client.c	/^static int lcc_receive (lcc_connection_t *c, \/* {/
+lcc_response_free	client.c	/^static void lcc_response_free (lcc_response_t *res/
+lcc_response_s	client.c	/^struct lcc_response_s$/
+lcc_response_t	client.c	/^typedef struct lcc_response_s lcc_response_t;$/
+lcc_security_level_e	collectd/network.h	/^enum lcc_security_level_e$/
+lcc_security_level_t	collectd/network.h	/^typedef enum lcc_security_level_e lcc_security_lev/
+lcc_send	client.c	/^static int lcc_send (lcc_connection_t *c, const ch/
+lcc_sendreceive	client.c	/^static int lcc_sendreceive (lcc_connection_t *c, /
+lcc_server_create	network.c	/^lcc_server_t *lcc_server_create (lcc_network_t *ne/
+lcc_server_destroy	network.c	/^int lcc_server_destroy (lcc_network_t *net, lcc_se/
+lcc_server_s	network.c	/^struct lcc_server_s$/
+lcc_server_set_security_level	network.c	/^int lcc_server_set_security_level (lcc_server_t *s/
+lcc_server_set_ttl	network.c	/^int lcc_server_set_ttl (lcc_server_t *srv, uint8_t/
+lcc_server_t	collectd/network.h	/^struct lcc_server_s;$/
+lcc_set_errno	client.c	/^static int lcc_set_errno (lcc_connection_t *c, int/
+lcc_sort_identifiers	client.c	/^int lcc_sort_identifiers (lcc_connection_t *c, \/*/
+lcc_strerror	client.c	/^const char *lcc_strerror (lcc_connection_t *c) \/*/
+lcc_strescape	client.c	/^static char *lcc_strescape (char *dest, const char/
+lcc_string_to_identifier	client.c	/^int lcc_string_to_identifier (lcc_connection_t *c,/
+lcc_value_list_s	collectd/client.h	/^struct lcc_value_list_s$/
+lcc_value_list_t	collectd/client.h	/^typedef struct lcc_value_list_s lcc_value_list_t;$/
+lcc_version	client.c	/^unsigned int lcc_version (void) \/* {{{ *\/$/
+lcc_version_extra	client.c	/^const char *lcc_version_extra (void) \/* {{{ *\/$/
+lcc_version_string	client.c	/^const char *lcc_version_string (void) \/* {{{ *\/$/
+nb_add_encryption	network_buffer.c	/^static int nb_add_encryption (lcc_network_buffer_t/
+nb_add_number	network_buffer.c	/^static int nb_add_number (char **ret_buffer, \/* {/
+nb_add_signature	network_buffer.c	/^static int nb_add_signature (lcc_network_buffer_t /
+nb_add_string	network_buffer.c	/^static int nb_add_string (char **ret_buffer, \/* {/
+nb_add_time	network_buffer.c	/^static int nb_add_time (char **ret_buffer, \/* {{{/
+nb_add_value_list	network_buffer.c	/^static int nb_add_value_list (lcc_network_buffer_t/
+nb_add_values	network_buffer.c	/^static int nb_add_values (char **ret_buffer, \/* {/
+server_close_socket	network.c	/^static int server_close_socket (lcc_server_t *srv)/
+server_open_socket	network.c	/^static int server_open_socket (lcc_server_t *srv) /
+server_send_buffer	network.c	/^static int server_send_buffer (lcc_server_t *srv) /
+server_value_add	network.c	/^static int server_value_add (lcc_server_t *srv, \//
+sstrerror	client.c	/^static char *sstrerror (int errnum, char *buf, siz/
+value_t	collectd/client.h	/^typedef union value_u value_t;$/
+value_u	collectd/client.h	/^union value_u$/

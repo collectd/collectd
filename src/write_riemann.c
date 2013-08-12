@@ -56,16 +56,6 @@ struct riemann_host {
 static char	**riemann_tags;
 static size_t	  riemann_tags_num;
 
-static int	riemann_send(struct riemann_host *, Msg const *);
-static int	riemann_notification(const notification_t *, user_data_t *);
-static int	riemann_write(const data_set_t *, const value_list_t *, user_data_t *);
-static int	riemann_connect(struct riemann_host *);
-static int	riemann_disconnect (struct riemann_host *host);
-static void	riemann_free(void *);
-static int	riemann_config_node(oconfig_item_t *);
-static int	riemann_config(oconfig_item_t *);
-void	module_register(void);
-
 static void riemann_event_protobuf_free (Event *event) /* {{{ */
 {
 	if (event == NULL)
@@ -101,6 +91,79 @@ static void riemann_msg_protobuf_free (Msg *msg) /* {{{ */
 
 	sfree (msg);
 } /* }}} void riemann_msg_protobuf_free */
+
+/* host->lock must be held when calling this function. */
+static int
+riemann_connect(struct riemann_host *host)
+{
+	int			 e;
+	struct addrinfo		*ai, *res, hints;
+	char const		*node;
+	char const		*service;
+
+	if (host->flags & F_CONNECT)
+		return 0;
+
+	memset(&hints, 0, sizeof(hints));
+	memset(&service, 0, sizeof(service));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = host->use_tcp ? SOCK_STREAM : SOCK_DGRAM;
+#ifdef AI_ADDRCONFIG
+	hints.ai_flags |= AI_ADDRCONFIG;
+#endif
+
+	node = (host->node != NULL) ? host->node : RIEMANN_HOST;
+	service = (host->service != NULL) ? host->service : RIEMANN_PORT;
+
+	if ((e = getaddrinfo(node, service, &hints, &res)) != 0) {
+		ERROR ("write_riemann plugin: Unable to resolve host \"%s\": %s",
+			node, gai_strerror(e));
+		return -1;
+	}
+
+	host->s = -1;
+	for (ai = res; ai != NULL; ai = ai->ai_next) {
+		if ((host->s = socket(ai->ai_family,
+				      ai->ai_socktype,
+				      ai->ai_protocol)) == -1) {
+			continue;
+		}
+
+		if (connect(host->s, ai->ai_addr, ai->ai_addrlen) != 0) {
+			close(host->s);
+			host->s = -1;
+			continue;
+		}
+
+		host->flags |= F_CONNECT;
+		DEBUG("write_riemann plugin: got a succesful connection for: %s:%s",
+				node, service);
+		break;
+	}
+
+	freeaddrinfo(res);
+
+	if (host->s < 0) {
+		WARNING("write_riemann plugin: Unable to connect to Riemann at %s:%s",
+				node, service);
+		return -1;
+	}
+	return 0;
+}
+
+/* host->lock must be held when calling this function. */
+static int
+riemann_disconnect (struct riemann_host *host)
+{
+	if ((host->flags & F_CONNECT) == 0)
+		return (0);
+
+	close (host->s);
+	host->s = -1;
+	host->flags &= ~F_CONNECT;
+
+	return (0);
+}
 
 static int
 riemann_send(struct riemann_host *host, Msg const *msg)
@@ -162,22 +225,43 @@ riemann_send(struct riemann_host *host, Msg const *msg)
 	return 0;
 }
 
-static int riemann_event_add_tag (Event *event, /* {{{ */
-		char const *format, ...)
+static int riemann_event_add_tag (Event *event, char const *tag) /* {{{ */
 {
-	va_list ap;
-	char buffer[1024];
-	size_t ret;
-
-	va_start (ap, format);
-	ret = vsnprintf (buffer, sizeof (buffer), format, ap);
-	if (ret >= sizeof (buffer))
-		ret = sizeof (buffer) - 1;
-	buffer[ret] = 0;
-	va_end (ap);
-
-	return (strarray_add (&event->tags, &event->n_tags, buffer));
+	return (strarray_add (&event->tags, &event->n_tags, tag));
 } /* }}} int riemann_event_add_tag */
+
+static int riemann_event_add_attribute (Event *event, /* {{{ */
+		char const *key, char const *value)
+{
+	Attribute **new_attributes;
+	Attribute *a;
+
+	new_attributes = realloc (event->attributes,
+			sizeof (*event->attributes) * (event->n_attributes + 1));
+	if (new_attributes == NULL)
+	{
+		ERROR ("write_riemann plugin: realloc failed.");
+		return (ENOMEM);
+	}
+	event->attributes = new_attributes;
+
+	a = malloc (sizeof (*a));
+	if (a == NULL)
+	{
+		ERROR ("write_riemann plugin: malloc failed.");
+		return (ENOMEM);
+	}
+	attribute__init (a);
+
+	a->key = strdup (key);
+	if (value != NULL)
+		a->value = strdup (value);
+
+	event->attributes[event->n_attributes] = a;
+	event->n_attributes++;
+
+	return (0);
+} /* }}} int riemann_event_add_attribute */
 
 static Msg *riemann_notification_to_protobuf (struct riemann_host *host, /* {{{ */
 		notification_t const *n)
@@ -226,28 +310,30 @@ static Msg *riemann_notification_to_protobuf (struct riemann_host *host, /* {{{ 
 
 	switch (n->severity)
 	{
-		case NOTIF_OKAY:	severity = "okay"; break;
+		case NOTIF_OKAY:	severity = "ok"; break;
 		case NOTIF_WARNING:	severity = "warning"; break;
-		case NOTIF_FAILURE:	severity = "failure"; break;
+		case NOTIF_FAILURE:	severity = "critical"; break;
 		default:		severity = "unknown";
 	}
 	event->state = strdup (severity);
 
 	riemann_event_add_tag (event, "notification");
+	if (n->host[0] != 0)
+		riemann_event_add_attribute (event, "host", n->host);
 	if (n->plugin[0] != 0)
-		riemann_event_add_tag (event, "plugin:%s", n->plugin);
+		riemann_event_add_attribute (event, "plugin", n->plugin);
 	if (n->plugin_instance[0] != 0)
-		riemann_event_add_tag (event, "plugin_instance:%s",
+		riemann_event_add_attribute (event, "plugin_instance",
 				n->plugin_instance);
 
 	if (n->type[0] != 0)
-		riemann_event_add_tag (event, "type:%s", n->type);
+		riemann_event_add_attribute (event, "type", n->type);
 	if (n->type_instance[0] != 0)
-		riemann_event_add_tag (event, "type_instance:%s",
+		riemann_event_add_attribute (event, "type_instance",
 				n->type_instance);
 
 	for (i = 0; i < riemann_tags_num; i++)
-		riemann_event_add_tag (event, "%s", riemann_tags[i]);
+		riemann_event_add_tag (event, riemann_tags[i]);
 
 	format_name (service_buffer, sizeof (service_buffer),
 			/* host = */ "", n->plugin, n->plugin_instance,
@@ -296,31 +382,39 @@ static Event *riemann_value_to_protobuf (struct riemann_host const *host, /* {{{
 	event->ttl = CDTIME_T_TO_TIME_T (2 * vl->interval);
 	event->has_ttl = 1;
 
-	riemann_event_add_tag (event, "plugin:%s", vl->plugin);
+	riemann_event_add_attribute (event, "plugin", vl->plugin);
 	if (vl->plugin_instance[0] != 0)
-		riemann_event_add_tag (event, "plugin_instance:%s",
+		riemann_event_add_attribute (event, "plugin_instance",
 				vl->plugin_instance);
 
-	riemann_event_add_tag (event, "type:%s", vl->type);
+	riemann_event_add_attribute (event, "type", vl->type);
 	if (vl->type_instance[0] != 0)
-		riemann_event_add_tag (event, "type_instance:%s",
+		riemann_event_add_attribute (event, "type_instance",
 				vl->type_instance);
 
 	if ((ds->ds[index].type != DS_TYPE_GAUGE) && (rates != NULL))
 	{
-		riemann_event_add_tag (event, "ds_type:%s:rate",
+		char ds_type[DATA_MAX_NAME_LEN];
+
+		ssnprintf (ds_type, sizeof (ds_type), "%s:rate",
 				DS_TYPE_TO_STRING(ds->ds[index].type));
+		riemann_event_add_attribute (event, "ds_type", ds_type);
 	}
 	else
 	{
-		riemann_event_add_tag (event, "ds_type:%s",
+		riemann_event_add_attribute (event, "ds_type",
 				DS_TYPE_TO_STRING(ds->ds[index].type));
 	}
-	riemann_event_add_tag (event, "ds_name:%s", ds->ds[index].name);
-	riemann_event_add_tag (event, "ds_index:%zu", index);
+	riemann_event_add_attribute (event, "ds_name", ds->ds[index].name);
+	{
+		char ds_index[DATA_MAX_NAME_LEN];
+
+		ssnprintf (ds_index, sizeof (ds_index), "%zu", index);
+		riemann_event_add_attribute (event, "ds_index", ds_index);
+	}
 
 	for (i = 0; i < riemann_tags_num; i++)
-		riemann_event_add_tag (event, "%s", riemann_tags[i]);
+		riemann_event_add_tag (event, riemann_tags[i]);
 
 	if (ds->ds[index].type == DS_TYPE_GAUGE)
 	{
@@ -456,79 +550,6 @@ riemann_write(const data_set_t *ds,
 
 	riemann_msg_protobuf_free (msg);
 	return status;
-}
-
-/* host->lock must be held when calling this function. */
-static int
-riemann_connect(struct riemann_host *host)
-{
-	int			 e;
-	struct addrinfo		*ai, *res, hints;
-	char const		*node;
-	char const		*service;
-
-	if (host->flags & F_CONNECT)
-		return 0;
-
-	memset(&hints, 0, sizeof(hints));
-	memset(&service, 0, sizeof(service));
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = host->use_tcp ? SOCK_STREAM : SOCK_DGRAM;
-#ifdef AI_ADDRCONFIG
-	hints.ai_flags |= AI_ADDRCONFIG;
-#endif
-
-	node = (host->node != NULL) ? host->node : RIEMANN_HOST;
-	service = (host->service != NULL) ? host->service : RIEMANN_PORT;
-
-	if ((e = getaddrinfo(node, service, &hints, &res)) != 0) {
-		ERROR ("write_riemann plugin: Unable to resolve host \"%s\": %s",
-			node, gai_strerror(e));
-		return -1;
-	}
-
-	host->s = -1;
-	for (ai = res; ai != NULL; ai = ai->ai_next) {
-		if ((host->s = socket(ai->ai_family,
-				      ai->ai_socktype,
-				      ai->ai_protocol)) == -1) {
-			continue;
-		}
-
-		if (connect(host->s, ai->ai_addr, ai->ai_addrlen) != 0) {
-			close(host->s);
-			host->s = -1;
-			continue;
-		}
-
-		host->flags |= F_CONNECT;
-		DEBUG("write_riemann plugin: got a succesful connection for: %s:%s",
-				node, service);
-		break;
-	}
-
-	freeaddrinfo(res);
-
-	if (host->s < 0) {
-		WARNING("write_riemann plugin: Unable to connect to Riemann at %s:%s",
-				node, service);
-		return -1;
-	}
-	return 0;
-}
-
-/* host->lock must be held when calling this function. */
-static int
-riemann_disconnect (struct riemann_host *host)
-{
-	if ((host->flags & F_CONNECT) == 0)
-		return (0);
-
-	close (host->s);
-	host->s = -1;
-	host->flags &= ~F_CONNECT;
-
-	return (0);
 }
 
 static void

@@ -33,6 +33,7 @@ collectd_SOURCES = collectd.c collectd.h \
 		   utils_ignorelist.c utils_ignorelist.h \
 		   utils_llist.c utils_llist.h \
 		   utils_parse_option.c utils_parse_option.h \
+		   utils_random.c utils_random.h \
 		   utils_tail_match.c utils_tail_match.h \
 		   utils_match.c utils_match.h \
 		   utils_subst.c utils_subst.h \
@@ -71,9 +72,6 @@ endif
 if BUILD_AIX
 collectd_LDFLAGS += -Wl,-bexpall,-brtllib
 endif
-if BUILD_BSD
-collectd_LDADD += -lm -lgeom
-endif
 
 # The daemon needs to call sg_init, so we need to link it against libstatgrab,
 # too. -octo
@@ -93,6 +91,7 @@ collectdmon_SOURCES = collectdmon.c
 collectdmon_CPPFLAGS = $(AM_CPPFLAGS)
 
 collectd_nagios_SOURCES = collectd-nagios.c
+collectd_nagios_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_builddir)/src/libcollectdclient/collectd
 collectd_nagios_LDADD =
 if BUILD_WITH_LIBSOCKET
 collectd_nagios_LDADD += -lsocket
@@ -106,6 +105,7 @@ collectd_nagios_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 
 
 collectdctl_SOURCES = collectdctl.c
+collectdctl_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_builddir)/src/libcollectdclient/collectd
 collectdctl_LDADD =
 if BUILD_WITH_LIBSOCKET
 collectdctl_LDADD += -lsocket
@@ -118,6 +118,7 @@ collectdctl_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 
 collectd_tg_SOURCES = collectd-tg.c \
 		      utils_heap.c utils_heap.h
+collectd_tg_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_builddir)/src/libcollectdclient/collectd
 collectd_tg_LDADD =
 if BUILD_WITH_LIBSOCKET
 collectd_tg_LDADD += -lsocket
@@ -135,7 +136,7 @@ collectd_tg_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 pkglib_LTLIBRARIES = 
 
 BUILT_SOURCES = 
-CLEANFILES = 
+CLEANFILES =
 
 if BUILD_PLUGIN_AGGREGATION
 pkglib_LTLIBRARIES += aggregation.la
@@ -436,15 +437,6 @@ collectd_LDADD += "-dlopen" gmond.la
 collectd_DEPENDENCIES += gmond.la
 endif
 
-if BUILD_PLUGIN_GSTAT
-pkglib_LTLIBRARIES += gstat.la
-gstat_la_SOURCES = gstat.c
-gstat_la_LDFLAGS = -module -avoid-version
-gstat_la_LIBADD = -lgeom
-collectd_LDADD += "-dlopen" gstat.la
-collectd_DEPENDENCIES += gstat.la
-endif
-
 if BUILD_PLUGIN_HDDTEMP
 pkglib_LTLIBRARIES += hddtemp.la
 hddtemp_la_SOURCES = hddtemp.c
@@ -741,14 +733,6 @@ collectd_LDADD += "-dlopen" netlink.la
 collectd_DEPENDENCIES += netlink.la
 endif
 
-if BUILD_PLUGIN_NETSTAT
-pkglib_LTLIBRARIES += netstat.la
-netstat_la_SOURCES = netstat.c
-netstat_la_LDFLAGS = -module -avoid-version
-collectd_LDADD += "-dlopen" netstat.la
-collectd_DEPENDENCIES += netstat.la
-endif
-
 if BUILD_PLUGIN_NETWORK
 pkglib_LTLIBRARIES += network.la
 network_la_SOURCES = network.c network.h \
@@ -920,10 +904,9 @@ collectd_DEPENDENCIES += pf.la
 endif
 
 if BUILD_PLUGIN_PINBA
-BUILT_SOURCES += pinba.pb-c.c pinba.pb-c.h
-CLEANFILES += pinba.pb-c.c pinba.pb-c.h
 pkglib_LTLIBRARIES += pinba.la
 pinba_la_SOURCES = pinba.c
+nodist_pinba_la_SOURCES = pinba.pb-c.c pinba.pb-c.h
 pinba_la_LDFLAGS = -module -avoid-version
 pinba_la_LIBADD = -lprotobuf-c
 collectd_LDADD += "-dlopen" pinba.la
@@ -1002,14 +985,6 @@ redis_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCREDIS_CPPFLAGS)
 redis_la_LIBADD = -lcredis
 collectd_LDADD += "-dlopen" redis.la
 collectd_DEPENDENCIES += redis.la
-endif
-
-if BUILD_PLUGIN_WRITE_TSDB
-pkglib_LTLIBRARIES += write_tsdb.la
-write_tsdb_la_SOURCES = write_tsdb.c
-write_tsdb_la_LDFLAGS = -module -avoid-version
-collectd_LDADD += "-dlopen" write_tsdb.la
-collectd_DEPENDENCIES += write_tsdb.la
 endif
 
 if BUILD_PLUGIN_ROUTEROS
@@ -1126,6 +1101,14 @@ tail_la_SOURCES = tail.c
 tail_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" tail.la
 collectd_DEPENDENCIES += tail.la
+endif
+
+if BUILD_PLUGIN_TAIL_CSV
+pkglib_LTLIBRARIES += tail_csv.la
+tail_csv_la_SOURCES = tail_csv.c
+tail_csv_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" tail_csv.la
+collectd_DEPENDENCIES += tail_csv.la
 endif
 
 if BUILD_PLUGIN_TAPE
@@ -1368,10 +1351,9 @@ collectd_DEPENDENCIES += write_redis.la
 endif
 
 if BUILD_PLUGIN_WRITE_RIEMANN
-BUILT_SOURCES += riemann.pb-c.c riemann.pb-c.h
-CLEANFILES += riemann.pb-c.c riemann.pb-c.h
 pkglib_LTLIBRARIES += write_riemann.la
-write_riemann_la_SOURCES = write_riemann.c riemann.pb-c.c
+write_riemann_la_SOURCES = write_riemann.c
+nodist_write_riemann_la_SOURCES = riemann.pb-c.c riemann.pb-c.h
 write_riemann_la_LDFLAGS = -module -avoid-version
 write_riemann_la_LIBADD = -lprotobuf-c
 collectd_LDADD += "-dlopen" write_riemann.la
@@ -1418,7 +1400,7 @@ dist_man_MANS = collectd.1 \
 
 #collectd_1_SOURCES = collectd.pod
 
-EXTRA_DIST = types.db pinba.proto riemann.proto
+EXTRA_DIST = types.db
 
 EXTRA_DIST +=   collectd.conf.pod \
 		collectd-email.pod \
@@ -1453,11 +1435,26 @@ EXTRA_DIST +=   collectd.conf.pod \
 		echo "$@ has some POD errors!"; false; \
 	fi
 
+# Protocol buffer for the "pinba" plugin.
+EXTRA_DIST += pinba.proto
+if HAVE_PROTOC_C
+CLEANFILES += pinba.pb-c.c pinba.pb-c.h
+BUILT_SOURCES += pinba.pb-c.c pinba.pb-c.h
+
 pinba.pb-c.c pinba.pb-c.h: pinba.proto
 	protoc-c -I$(srcdir) --c_out . $(srcdir)/pinba.proto
+endif
+
+# Protocol buffer for the "write_riemann" plugin.
+EXTRA_DIST += riemann.proto
+if HAVE_PROTOC_C
+CLEANFILES += riemann.pb-c.c riemann.pb-c.h
+
+BUILT_SOURCES += riemann.pb-c.c riemann.pb-c.h
 
 riemann.pb-c.c riemann.pb-c.h: riemann.proto
 	protoc-c -I$(srcdir) --c_out . $(srcdir)/riemann.proto
+endif
 
 install-exec-hook:
 	$(mkinstalldirs) $(DESTDIR)$(sysconfdir)

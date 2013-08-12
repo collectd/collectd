@@ -1,0 +1,65 @@
+
+oconfig.h,676
+#define OCONFIG_H 2,18
+#define OCONFIG_TYPE_STRING 27,868
+#define OCONFIG_TYPE_NUMBER 28,899
+#define OCONFIG_TYPE_BOOLEAN 29,930
+struct oconfig_value_s31,962
+    char  *string;string35,999
+    double number;36,1018
+    int    boolean;37,1037
+  } value;38,1057
+  int type;39,1068
+typedef struct oconfig_value_s oconfig_value_t;41,1083
+typedef struct oconfig_item_s oconfig_item_t;44,1155
+struct oconfig_item_s45,1201
+  char            *key;key47,1225
+  oconfig_value_t *values;values48,1249
+  int              values_num;49,1276
+  oconfig_item_t  *parent;parent51,1308
+  oconfig_item_t  *children;children52,1335
+  int              children_num;53,1364
+
+aux_types.h,359
+#define AUX_TYPES_H 2,20
+struct statement_list_s4,43
+	oconfig_item_t *statement;statement6,69
+	int             statement_num;7,97
+typedef struct statement_list_s statement_list_t;9,132
+struct argument_list_s11,183
+	oconfig_value_t *argument;argument13,208
+	int              argument_num;14,236
+typedef struct argument_list_s argument_list_t;16,271
+
+oconfig.c,310
+oconfig_item_t *ci_root;ci_root29,934
+const char     *c_file;c_file30,959
+static void yyset_in 32,984
+oconfig_item_t *oconfig_parse_fh oconfig_parse_fh37,1055
+oconfig_item_t *oconfig_parse_file oconfig_parse_file76,1723
+oconfig_item_t *oconfig_clone oconfig_clone98,2103
+void oconfig_free 190,4425
+
+parser.y,604
+	double  number;39,1119
+	int     boolean;40,1136
+	char   *string;string41,1154
+	oconfig_value_t  cv;42,1171
+	oconfig_item_t   ci;43,1193
+	argument_list_t  al;44,1215
+	statement_list_t sl;45,1237
+string:string72,1769
+argument:argument77,1857
+argument_list:argument_list84,2136
+identifier:identifier100,2454
+option:option104,2509
+block_begin:block_begin114,2669
+block_end:block_end130,2947
+block:block137,3020
+statement:statement166,3590
+statement_list:statement_list172,3675
+entire_file:entire_file199,4193
+static int yyerror 217,4589
+static char *unquote unquote231,4844
+
+scanner.l,0

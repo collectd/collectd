@@ -1,6 +1,6 @@
 /**
  * collectd - src/rrdtool.c
- * Copyright (C) 2006-2008  Florian octo Forster
+ * Copyright (C) 2006-2013  Florian octo Forster
  * Copyright (C) 2008-2008  Sebastian Harl
  * Copyright (C) 2009       Mariusz Gronczewski
  *
@@ -18,7 +18,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  *   Sebastian Harl <sh at tokkee.org>
  *   Mariusz Gronczewski <xani666 at gmail.com>
  **/
@@ -27,6 +27,7 @@
 #include "plugin.h"
 #include "common.h"
 #include "utils_avltree.h"
+#include "utils_random.h"
 #include "utils_rrdcreate.h"
 
 #include <rrd.h>
@@ -75,6 +76,7 @@ static const char *config_keys[] =
 {
 	"CacheTimeout",
 	"CacheFlush",
+	"CreateFilesAsync",
 	"DataDir",
 	"StepSize",
 	"HeartBeat",
@@ -102,7 +104,9 @@ static rrdcreate_config_t rrdcreate_config =
 	/* timespans_num = */ 0,
 
 	/* consolidation_functions = */ NULL,
-	/* consolidation_functions_num = */ 0
+	/* consolidation_functions_num = */ 0,
+
+	/* async = */ 0
 };
 
 /* XXX: If you need to lock both, cache_lock and queue_lock, at the same time,
@@ -652,11 +656,8 @@ static int rrd_cache_flush_identifier (cdtime_t timeout,
 
 static int64_t rrd_get_random_variation (void)
 {
-  double dbl_timeout;
-  cdtime_t ctm_timeout;
-  double rand_fact;
-  _Bool negative;
-  int64_t ret;
+  long min;
+  long max;
 
   if (random_timeout <= 0)
     return (0);
@@ -669,20 +670,10 @@ static int64_t rrd_get_random_variation (void)
 	  random_timeout = cache_timeout;
   }
 
-  /* This seems a bit complicated, but "random_timeout" is likely larger than
-   * RAND_MAX, so we can't simply use modulo here. */
-  dbl_timeout = CDTIME_T_TO_DOUBLE (random_timeout);
-  rand_fact = ((double) random ())
-    / ((double) RAND_MAX);
-  negative = (_Bool) (random () % 2);
+  max = (long) (random_timeout / 2);
+  min = max - ((long) random_timeout);
 
-  ctm_timeout = DOUBLE_TO_CDTIME_T (dbl_timeout * rand_fact);
-
-  ret = (int64_t) ctm_timeout;
-  if (negative)
-    ret *= -1;
-
-  return (ret);
+  return ((int64_t) cdrand_range (min, max));
 } /* int64_t rrd_get_random_variation */
 
 static int rrd_cache_insert (const char *filename,
@@ -910,6 +901,8 @@ static int rrd_write (const data_set_t *ds, const value_list_t *vl,
 					ds, vl, &rrdcreate_config);
 			if (status != 0)
 				return (-1);
+			else if (rrdcreate_config.async)
+				return (0);
 		}
 		else
 		{
@@ -1007,6 +1000,13 @@ static int rrd_config (const char *key, const char *value)
 		int temp = atoi (value);
 		if (temp > 0)
 			rrdcreate_config.heartbeat = temp;
+	}
+	else if (strcasecmp ("CreateFilesAsync", key) == 0)
+	{
+		if (IS_TRUE (value))
+			rrdcreate_config.async = 1;
+		else
+			rrdcreate_config.async = 0;
 	}
 	else if (strcasecmp ("RRARows", key) == 0)
 	{
