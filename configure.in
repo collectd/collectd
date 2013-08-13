@@ -1519,7 +1519,7 @@ then
 	then
 		AC_MSG_NOTICE([libaquaero5 LDFLAGS: $LIBAQUAERO5_LDFLAGS])
 	fi
-	AC_CHECK_LIB(aquaero, libaquaero5_poll,
+	AC_CHECK_LIB(aquaero5, libaquaero5_poll,
 	[with_libaquaero5="yes"],
 	[with_libaquaero5="no (symbol 'libaquaero5_poll' not found)"])
 fi
