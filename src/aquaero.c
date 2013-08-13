@@ -19,8 +19,6 @@
  *   Alex Deymo
  **/
 
-#define _BSD_SOURCE
-
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
@@ -148,28 +146,29 @@ static int aquaero_read (void)
 	/* Fans */
 	for (i = 0; i < AQ5_NUM_FAN; i++)
 	{
-		if ((aq_sett.fan_data_source[i] != NONE) && (aq_data.fan_vrm_temp[i] != AQ5_FLOAT_UNDEF))
-		{
-			snprintf(type_instance, sizeof(type_instance), "fan%d", i+1);
-			aquaero_submit("fanspeed", type_instance, aq_data.fan_rpm[i]);
-			snprintf(type_instance, sizeof(type_instance), "fan-vrm%d", i+1);
-			aquaero_submit("temperature", type_instance, aq_data.fan_vrm_temp[i]);
+		if ((aq_sett.fan_data_source[i] == NONE) || (aq_data.fan_vrm_temp[i] != AQ5_FLOAT_UNDEF))
+			continue;
 
-			snprintf(type_instance, sizeof(type_instance), "fan%d", i+1);
-			aquaero_submit("percentage", type_instance, aq_data.fan_duty[i]);
+		/* Always report fanthe fan VRM (Voltage Regulator) temp if a regulator is installed. */
+		snprintf(type_instance, sizeof(type_instance), "fan%d", i+1);
+		aquaero_submit("fanspeed", type_instance, aq_data.fan_rpm[i]);
+		snprintf(type_instance, sizeof(type_instance), "fan-vrm%d", i+1);
+		aquaero_submit("temperature", type_instance, aq_data.fan_vrm_temp[i]);
 
-			snprintf(type_instance, sizeof(type_instance), "fan%d", i+1);
-			aquaero_submit("voltage", type_instance, aq_data.fan_voltage[i]);
-			snprintf(type_instance, sizeof(type_instance), "fan%d", i+1);
-			aquaero_submit("current", type_instance, aq_data.fan_current[i]);
-		}
+		snprintf(type_instance, sizeof(type_instance), "fan%d", i+1);
+		aquaero_submit("percentage", type_instance, aq_data.fan_duty[i]);
+
+		snprintf(type_instance, sizeof(type_instance), "fan%d", i+1);
+		aquaero_submit("voltage", type_instance, aq_data.fan_voltage[i]);
+		snprintf(type_instance, sizeof(type_instance), "fan%d", i+1);
+		aquaero_submit("current", type_instance, aq_data.fan_current[i]);
 	}
 
 	/* Flow sensors */
 	aquaero_submit_array("flow", "flow", aq_data.flow, AQ5_NUM_FLOW);
 
 	/* Liquid level */
-	aquaero_submit_array("level", "level", aq_data.level, AQ5_NUM_LEVEL);
+	aquaero_submit_array("percentage", "waterlevel", aq_data.level, AQ5_NUM_LEVEL);
 
 	return (0);
 }
