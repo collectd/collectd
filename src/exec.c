@@ -287,70 +287,10 @@ static void set_environment (void) /* {{{ */
 } /* }}} void set_environment */
 
 __attribute__((noreturn))
-static void exec_child (program_list_t *pl) /* {{{ */
+static void exec_child (program_list_t *pl, int uid, int gid, int egid) /* {{{ */
 {
   int status;
-  int uid;
-  int gid;
-  int egid;
-
-  struct passwd *sp_ptr;
-  struct passwd sp;
-  char nambuf[2048];
   char errbuf[1024];
-
-  sp_ptr = NULL;
-  status = getpwnam_r (pl->user, &sp, nambuf, sizeof (nambuf), &sp_ptr);
-  if (status != 0)
-  {
-    ERROR ("exec plugin: Failed to get user information for user ``%s'': %s",
-        pl->user, sstrerror (errno, errbuf, sizeof (errbuf)));
-    exit (-1);
-  }
-  if (sp_ptr == NULL)
-  {
-    ERROR ("exec plugin: No such user: `%s'", pl->user);
-    exit (-1);
-  }
-
-  uid = sp.pw_uid;
-  gid = sp.pw_gid;
-  if (uid == 0)
-  {
-    ERROR ("exec plugin: Cowardly refusing to exec program as root.");
-    exit (-1);
-  }
-
-  /* The group configured in the configfile is set as effective group, because
-   * this way the forked process can (re-)gain the user's primary group. */
-  egid = -1;
-  if (NULL != pl->group)
-  {
-    if ('\0' != *pl->group) {
-      struct group *gr_ptr = NULL;
-      struct group gr;
-
-      status = getgrnam_r (pl->group, &gr, nambuf, sizeof (nambuf), &gr_ptr);
-      if (0 != status)
-      {
-        ERROR ("exec plugin: Failed to get group information "
-            "for group ``%s'': %s", pl->group,
-            sstrerror (errno, errbuf, sizeof (errbuf)));
-        exit (-1);
-      }
-      if (NULL == gr_ptr)
-      {
-        ERROR ("exec plugin: No such group: `%s'", pl->group);
-        exit (-1);
-      }
-
-      egid = gr.gr_gid;
-    }
-    else
-    {
-      egid = gid;
-    }
-  } /* if (pl->group == NULL) */
 
 #if HAVE_SETGROUPS
   if (getuid () == 0)
@@ -429,6 +369,14 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out, int *fd_err)
   int status;
   int pid;
 
+  int uid;
+  int gid;
+  int egid;
+
+  struct passwd *sp_ptr;
+  struct passwd sp;
+  char nambuf[2048];
+
   if (pl->pid != 0)
     return (-1);
 
@@ -455,6 +403,59 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out, int *fd_err)
         sstrerror (errno, errbuf, sizeof (errbuf)));
     return (-1);
   }
+
+  sp_ptr = NULL;
+  status = getpwnam_r (pl->user, &sp, nambuf, sizeof (nambuf), &sp_ptr);
+  if (status != 0)
+  {
+    ERROR ("exec plugin: Failed to get user information for user ``%s'': %s",
+        pl->user, sstrerror (errno, errbuf, sizeof (errbuf)));
+    return (-1);
+  }
+  if (sp_ptr == NULL)
+  {
+    ERROR ("exec plugin: No such user: `%s'", pl->user);
+    return (-1);
+  }
+
+  uid = sp.pw_uid;
+  gid = sp.pw_gid;
+  if (uid == 0)
+  {
+    ERROR ("exec plugin: Cowardly refusing to exec program as root.");
+    return (-1);
+  }
+
+  /* The group configured in the configfile is set as effective group, because
+   * this way the forked process can (re-)gain the user's primary group. */
+  egid = -1;
+  if (NULL != pl->group)
+  {
+    if ('\0' != *pl->group) {
+      struct group *gr_ptr = NULL;
+      struct group gr;
+
+      status = getgrnam_r (pl->group, &gr, nambuf, sizeof (nambuf), &gr_ptr);
+      if (0 != status)
+      {
+        ERROR ("exec plugin: Failed to get group information "
+            "for group ``%s'': %s", pl->group,
+            sstrerror (errno, errbuf, sizeof (errbuf)));
+        return (-1);
+      }
+      if (NULL == gr_ptr)
+      {
+        ERROR ("exec plugin: No such group: `%s'", pl->group);
+        return (-1);
+      }
+
+      egid = gr.gr_gid;
+    }
+    else
+    {
+      egid = gid;
+    }
+  } /* if (pl->group == NULL) */
 
   pid = fork ();
   if (pid < 0)
@@ -505,7 +506,7 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out, int *fd_err)
     /* Unblock all signals */
     reset_signal_mask ();
 
-    exec_child (pl);
+    exec_child (pl, uid, gid, egid);
     /* does not return */
   }
 
