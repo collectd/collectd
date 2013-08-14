@@ -33,11 +33,12 @@ src/stamp-h1
 .libs/
 src/collectd
 src/collectd-nagios
+src/collectd-tg
 src/collectdctl
 src/collectdmon
 src/*.1
 src/*.5
-src/libcollectdclient/lcc_features.h
+src/libcollectdclient/collectd/lcc_features.h
 
 # patch stuff
 *.rej
