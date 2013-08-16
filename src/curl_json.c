@@ -82,6 +82,8 @@ struct cj_s /* {{{ */
       c_avl_tree_t *tree;
       cj_key_t *key;
     };
+    _Bool in_array;
+    int index;
     char name[DATA_MAX_NAME_LEN];
   } state[YAJL_MAX_DEPTH];
 };
@@ -167,9 +169,40 @@ static int cj_get_type (cj_key_t *key)
   return ds->ds[0].type;
 }
 
+static int cj_cb_map_key (void *ctx, const unsigned char *val,
+    yajl_len_t len);
+
+static void cj_cb_inc_array_index (void * ctx, _Bool ignore)
+{
+  cj_t *db = (cj_t *)ctx;
+
+  if (db->state[db->depth].in_array) {
+    if (ignore)
+      db->state[db->depth].index++;
+    else {
+      char name[DATA_MAX_NAME_LEN];
+      cj_cb_map_key (ctx, (unsigned char *)name,
+                     ssnprintf (name, sizeof (name),
+                                "%d", db->state[db->depth].index++));
+    }
+  }
+}
+
 /* yajl callbacks */
 #define CJ_CB_ABORT    0
 #define CJ_CB_CONTINUE 1
+
+static int cj_cb_boolean (void * ctx, int boolVal)
+{
+  cj_cb_inc_array_index (ctx, 1);
+  return (CJ_CB_CONTINUE);
+}
+
+static int cj_cb_null (void * ctx)
+{
+  cj_cb_inc_array_index (ctx, 1);
+  return (CJ_CB_CONTINUE);
+}
 
 /* "number" may not be null terminated, so copy it into a buffer before
  * parsing. */
@@ -184,8 +217,15 @@ static int cj_cb_number (void *ctx,
   int type;
   int status;
 
-  if ((key == NULL) || !CJ_IS_KEY (key))
+  if ((key == NULL) || !CJ_IS_KEY (key)) {
+    if (key != NULL)
+      NOTICE ("curl_json plugin: Found \"%.*s\", but the configuration expects"
+              " a map.", (int)number_len > number_len ? 0 : (int)number_len,
+              number);
+    cj_cb_inc_array_index (ctx, 1);
     return (CJ_CB_CONTINUE);
+  } else
+    cj_cb_inc_array_index (ctx, 0);
 
   memcpy (buffer, number, number_len);
   buffer[sizeof (buffer) - 1] = 0;
@@ -233,24 +273,6 @@ static int cj_cb_map_key (void *ctx, const unsigned char *val,
 static int cj_cb_string (void *ctx, const unsigned char *val,
     yajl_len_t len)
 {
-  cj_t *db = (cj_t *)ctx;
-  char str[len + 1];
-
-  /* Create a null-terminated version of the string. */
-  memcpy (str, val, len);
-  str[len] = 0;
-
-  /* No configuration for this string -> simply return. */
-  if (db->state[db->depth].key == NULL)
-    return (CJ_CB_CONTINUE);
-
-  if (!CJ_IS_KEY (db->state[db->depth].key))
-  {
-    NOTICE ("curl_json plugin: Found string \"%s\", but the configuration "
-        "expects a map here.", str);
-    return (CJ_CB_CONTINUE);
-  }
-
   /* Handle the string as if it was a number. */
   return (cj_cb_number (ctx, (const char *) val, len));
 } /* int cj_cb_string */
@@ -276,6 +298,7 @@ static int cj_cb_end (void *ctx)
 
 static int cj_cb_start_map (void *ctx)
 {
+  cj_cb_inc_array_index (ctx, 0);
   return cj_cb_start (ctx);
 }
 
@@ -286,17 +309,25 @@ static int cj_cb_end_map (void *ctx)
 
 static int cj_cb_start_array (void * ctx)
 {
+  cj_t *db = (cj_t *)ctx;
+  cj_cb_inc_array_index (ctx, 0);
+  if (db->depth+1 < YAJL_MAX_DEPTH) {
+    db->state[db->depth+1].in_array = 1;
+    db->state[db->depth+1].index = 0;
+  }
   return cj_cb_start (ctx);
 }
 
 static int cj_cb_end_array (void * ctx)
 {
+  cj_t *db = (cj_t *)ctx;
+  db->state[db->depth].in_array = 0;
   return cj_cb_end (ctx);
 }
 
 static yajl_callbacks ycallbacks = {
-  NULL, /* null */
-  NULL, /* boolean */
+  cj_cb_null, /* null */
+  cj_cb_boolean, /* boolean */
   NULL, /* integer */
   NULL, /* double */
   cj_cb_number,

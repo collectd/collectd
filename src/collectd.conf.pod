@@ -1104,6 +1104,11 @@ The B<Key> string argument must be in a path format, which is used to collect a
 value from a JSON map object. If a path element of B<Key> is the
 I<*>E<nbsp>wildcard, the values for all keys will be collectd.
 
+The B<Key> string argument must be in a path format. Each component is
+used to match the key from a JSON map or the index of an JSON
+array. If a path component of a B<Key> is a I<*>E<nbsp>wildcard, the
+values for all map keys or array indices will be collectd.
+
 The following options are valid within B<URL> blocks:
 
 =over 4
