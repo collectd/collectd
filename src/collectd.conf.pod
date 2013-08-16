@@ -1072,13 +1072,15 @@ is set to B<true>, B<Match> blocks are optional.
 
 =head2 Plugin C<curl_json>
 
-The B<curl_json plugin> uses B<libcurl> (L<http://curl.haxx.se/>) and
-B<libyajl> (L<http://www.lloydforge.org/projects/yajl/>) to retrieve JSON data
-via cURL. This can be used to collect values from CouchDB documents (which are
-stored JSON notation), for example.
+The B<curl_json plugin> collects values from JSON data to be parsed by
+B<libyajl> (L<http://www.lloydforge.org/projects/yajl/>) retrieved via
+either B<libcurl> (L<http://curl.haxx.se/>) or read directly from a
+unix socket. The former can be used, for example, to collect values
+from CouchDB documents (which are stored JSON notation), and the
+latter to collect values from a uWSGI stats socket.
 
-The following example will collect several values from the built-in `_stats'
-runtime statistics module of CouchDB
+The following example will collect several values from the built-in
+`_stats' runtime statistics module of CouchDB
 (L<http://wiki.apache.org/couchdb/Runtime_Statistics>).
 
   <Plugin curl_json>
@@ -1098,8 +1100,27 @@ runtime statistics module of CouchDB
     </URL>
   </Plugin>
 
-In the B<Plugin> block, there may be one or more B<URL> blocks, each defining
-a URL to be fetched via HTTP (using libcurl) and one or more B<Key> blocks.
+This example will collect data directly from a uWSGI Stats Server
+socket.
+
+  <Plugin curl_json>
+    <Sock "/var/run/uwsgi.stats.sock">
+      Instance "uwsgi"
+      <Key "workers/*/requests">
+        Type "http_requests"
+      </Key>
+
+      <Key "workers/*/apps/*/requests">
+        Type "http_requests"
+      </Key>
+    </Sock>
+  </Plugin>
+
+In the B<Plugin> block, there may be one or more B<URL> blocks, each
+defining a URL to be fetched via HTTP (using libcurl) or B<Sock>
+blocks defining a unix socket to read JSON from directly.  Each of
+these blocks may have one or more B<Key> blocks.
+
 The B<Key> string argument must be in a path format, which is used to collect a
 value from a JSON map object. If a path element of B<Key> is the
 I<*>E<nbsp>wildcard, the values for all keys will be collectd.
