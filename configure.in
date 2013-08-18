@@ -1492,7 +1492,7 @@ AC_ARG_WITH(libaquaero5, [AS_HELP_STRING([--with-libaquaero5@<:@=PREFIX@:>@], [P
  else
 	 with_libaquaero5="yes"
 	 LIBAQUAERO5_CFLAGS="$LIBAQUAERO5_CFLAGS -I$withval/src"
-	 LIBAQUAERO5_LDFLAGS="$LIBAQUAERO5_LDFLAGS -L$withval/lib"
+	 LIBAQUAERO5_LDFLAGS="$LIBAQUAERO5_LDFLAGS -L$withval/obj"
  fi; fi
 ],
 [with_libaquaero5="yes"])
