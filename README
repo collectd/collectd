@@ -706,6 +706,11 @@ Prerequisites
     To read from `lm_sensors', see the `sensors' plugin.
     <http://www.lm-sensors.org/>
 
+  * libsigrok (optional)
+    Used by the sigrok plugin. In addition, libsigrok depends on glib,
+    libzip, and optionally (depending on which drivers are enabled) on
+    libusb, libftdi and libudev.
+
   * libstatgrab (optional)
     Used by various plugins to collect statistics on systems other than Linux
     and/or Solaris.
