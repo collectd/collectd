@@ -732,24 +732,24 @@ default for backwards compatibility, the time will be reported in minutes.
 
 =head2 Plugin C<aquaero>
 
-This plugin collects the value of the available sensors in an Aquaero 5 board.
-Aquaero 5 is a watercooling controller board, manufactured by Aqua Computer GmbH
-L<http://www.aquacomputer.de/>, with a USB2 connection for monitoring and
-configuration. The board can handle multiple temperature sensors, fans, water
-pumps and water level sensors and adjust the output settings such as fan voltage
-or power the water pump based on the available inputs using a configurable
-controller included in the board. This plugin collects all the available inputs
-as well as some of the output values choosen by this controler. The plugin is
-based on the libaquaero5 library provided by aquatools-ng.
+This plugin collects the value of the available sensors in an
+I<AquaeroE<nbsp>5> board. AquaeroE<nbsp>5 is a water-cooling controller board,
+manufactured by Aqua Computer GmbH L<http://www.aquacomputer.de/>, with a USB2
+connection for monitoring and configuration. The board can handle multiple
+temperature sensors, fans, water pumps and water level sensors and adjust the
+output settings such as fan voltage or power used by the water pump based on
+the available inputs using a configurable controller included in the board.
+This plugin collects all the available inputs as well as some of the output
+values chosen by this controller. The plugin is based on the I<libaquaero5>
+library provided by I<aquatools-ng>.
 
 =over 4
 
 =item B<Device> I<DevicePath>
 
-Device path of the HID USB device, usually of the form /dev/usb/hiddevX, where
-the Aquaero 5 device is. If this option is no set or is the empty string the
-plugin will try to autodetect the first Aquaero 5 USB device based on the
-VendorID and ProductID. 
+Device path of the AquaeroE<nbsp>5's USB HID (human interface device), usually
+in the form C</dev/usb/hiddevX>. If this option is no set the plugin will try
+to auto-detect the Aquaero 5 USB device based on vendor-ID and product-ID.
 
 =back
 
