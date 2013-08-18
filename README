@@ -26,6 +26,9 @@ Features
       Sensors in Macs running Mac OS X / Darwin: Temperature, fanspeed and
       voltage sensors.
 
+    - aquaero
+      Various sensors in the Aquaero 5 watercooling board made by Aquacomputer.
+
     - ascent
       Statistics about Ascent, a free server for the game `World of Warcraft'.
 
