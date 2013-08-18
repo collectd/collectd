@@ -126,12 +126,25 @@ static int value_list_to_filename (char *buffer, size_t buffer_size,
 {
 	int status;
 
-	char *ptr;
-	size_t ptr_size;
+	char *ptr = buffer;
+	size_t ptr_size = buffer_size;
 	time_t now;
 	struct tm struct_tm;
 
-	status = FORMAT_VL (buffer, buffer_size, vl);
+	if (datadir != NULL)
+	{
+		size_t len = strlen (datadir) + 1;
+
+		if (len >= ptr_size)
+			return (ENOBUFS);
+
+		memcpy (ptr, datadir, len);
+		ptr[len-1] = '/';
+		ptr_size -= len;
+		ptr += len;
+	}
+
+	status = FORMAT_VL (ptr, ptr_size, vl);
 	if (status != 0)
 		return (status);
 
@@ -140,8 +153,8 @@ static int value_list_to_filename (char *buffer, size_t buffer_size,
 	if (use_stdio)
 		return (0);
 
-	ptr_size = buffer_size - strlen (buffer);
-	ptr = buffer + strlen (buffer);
+	ptr_size -= strlen (ptr);
+	ptr +=  strlen (ptr);
 
 	/* "-2013-07-12" => 11 bytes */
 	if (ptr_size < 12)
@@ -202,7 +215,10 @@ static int csv_config (const char *key, const char *value)
 	if (strcasecmp ("DataDir", key) == 0)
 	{
 		if (datadir != NULL)
+		{
 			free (datadir);
+			datadir = NULL;
+		}
 		if (strcasecmp ("stdout", value) == 0)
 		{
 			use_stdio = 1;
