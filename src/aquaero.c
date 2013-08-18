@@ -31,33 +31,25 @@
 /* Default values for contacting daemon */
 static char *conf_device = NULL;
 
-static const char *config_keys[] =
+static int aquaero_config (oconfig_item_t *ci)
 {
-	"Device",
-};
-static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
+	int i;
 
-
-static int aquaero_config (const char *key, const char *value)
-{
-	if (strcasecmp (key, "Device") == 0)
+	for (i = 0; i < ci->children_num; i++)
 	{
-		if (conf_device != NULL)
+		oconfig_item_t *child = ci->children + i;
+
+		if (strcasecmp ("Device", child->key))
+			cf_util_get_string (child, &conf_device);
+		else
 		{
-			free (conf_device);
-			conf_device = NULL;
+			ERROR ("aquaero plugin: Unknown config option \"%s\".",
+					child->key);
 		}
-		if (value[0] == '\0')
-			return (0);
-		if ((conf_device = strdup (value)) == NULL)
-			return (1);
 	}
-	else
-	{
-		return (-1);
-	}
+
 	return (0);
-} /* int aquaero_config */
+}
 
 static int aquaero_shutdown (void)
 {
@@ -193,8 +185,7 @@ static int aquaero_read (void)
 
 void module_register (void)
 {
-	plugin_register_config ("aquaero", aquaero_config, config_keys,
-			config_keys_num);
+	plugin_register_complex_config ("aquaero", aquaero_config);
 	plugin_register_read ("aquaero", aquaero_read);
 	plugin_register_shutdown ("aquaero", aquaero_shutdown);
 } /* void module_register */
