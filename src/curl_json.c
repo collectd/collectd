@@ -1,7 +1,7 @@
 /**
  * collectd - src/curl_json.c
  * Copyright (C) 2009       Doug MacEachern
- * Copyright (C) 2006-2011  Florian octo Forster
+ * Copyright (C) 2006-2013  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -178,19 +178,22 @@ static int cj_get_type (cj_key_t *key)
 static int cj_cb_map_key (void *ctx, const unsigned char *val,
     yajl_len_t len);
 
-static void cj_cb_inc_array_index (void * ctx, _Bool ignore)
+static void cj_cb_inc_array_index (void *ctx, _Bool update_key)
 {
   cj_t *db = (cj_t *)ctx;
 
-  if (db->state[db->depth].in_array) {
-    if (ignore)
-      db->state[db->depth].index++;
-    else {
-      char name[DATA_MAX_NAME_LEN];
-      cj_cb_map_key (ctx, (unsigned char *)name,
-                     ssnprintf (name, sizeof (name),
-                                "%d", db->state[db->depth].index++));
-    }
+  if (!db->state[db->depth].in_array)
+    return;
+
+  db->state[db->depth].index++;
+
+  if (update_key)
+  {
+    char name[DATA_MAX_NAME_LEN];
+
+    ssnprintf (name, sizeof (name), "%d", db->state[db->depth].index - 1);
+
+    cj_cb_map_key (ctx, (unsigned char *)name, (yajl_len_t) strlen (name));
   }
 }
 
@@ -200,18 +203,16 @@ static void cj_cb_inc_array_index (void * ctx, _Bool ignore)
 
 static int cj_cb_boolean (void * ctx, int boolVal)
 {
-  cj_cb_inc_array_index (ctx, 1);
+  cj_cb_inc_array_index (ctx, /* update_key = */ 0);
   return (CJ_CB_CONTINUE);
 }
 
 static int cj_cb_null (void * ctx)
 {
-  cj_cb_inc_array_index (ctx, 1);
+  cj_cb_inc_array_index (ctx, /* update_key = */ 0);
   return (CJ_CB_CONTINUE);
 }
 
-/* "number" may not be null terminated, so copy it into a buffer before
- * parsing. */
 static int cj_cb_number (void *ctx,
     const char *number, yajl_len_t number_len)
 {
@@ -223,18 +224,19 @@ static int cj_cb_number (void *ctx,
   int type;
   int status;
 
-  if ((key == NULL) || !CJ_IS_KEY (key)) {
-    if (key != NULL)
-      NOTICE ("curl_json plugin: Found \"%.*s\", but the configuration expects"
-              " a map.", (int)number_len > number_len ? 0 : (int)number_len,
-              number);
-    cj_cb_inc_array_index (ctx, 1);
-    return (CJ_CB_CONTINUE);
-  } else
-    cj_cb_inc_array_index (ctx, 0);
-
+  /* Create a null-terminated version of the string. */
   memcpy (buffer, number, number_len);
   buffer[sizeof (buffer) - 1] = 0;
+
+  if ((key == NULL) || !CJ_IS_KEY (key)) {
+    if (key != NULL)
+      NOTICE ("curl_json plugin: Found \"%s\", but the configuration expects"
+              " a map.", buffer);
+    cj_cb_inc_array_index (ctx, /* update_key = */ 0);
+    return (CJ_CB_CONTINUE);
+  } else {
+    cj_cb_inc_array_index (ctx, /* update_key = */ 1);
+  }
 
   type = cj_get_type (key);
   status = parse_value (buffer, &vt, type);
@@ -248,8 +250,11 @@ static int cj_cb_number (void *ctx,
   return (CJ_CB_CONTINUE);
 } /* int cj_cb_number */
 
-static int cj_cb_map_key (void *ctx, const unsigned char *val,
-    yajl_len_t len)
+/* Queries the key-tree of the parent context for "in_name" and, if found,
+ * updates the "key" field of the current context. Otherwise, "key" is set to
+ * NULL. */
+static int cj_cb_map_key (void *ctx,
+    unsigned char const *in_name, yajl_len_t in_name_len)
 {
   cj_t *db = (cj_t *)ctx;
   c_avl_tree_t *tree;
@@ -258,12 +263,16 @@ static int cj_cb_map_key (void *ctx, const unsigned char *val,
 
   if (tree != NULL)
   {
-    cj_key_t *value;
+    cj_key_t *value = NULL;
     char *name;
+    size_t name_len;
 
+    /* Create a null-terminated version of the name. */
     name = db->state[db->depth].name;
-    len = COUCH_MIN(len, sizeof (db->state[db->depth].name)-1);
-    sstrncpy (name, (char *)val, len+1);
+    name_len = COUCH_MIN ((size_t) in_name_len,
+        sizeof (db->state[db->depth].name) - 1);
+    memcpy (name, in_name, name_len);
+    name[name_len] = 0;
 
     if (c_avl_get (tree, name, (void *) &value) == 0)
       db->state[db->depth].key = value;
@@ -305,7 +314,7 @@ static int cj_cb_end (void *ctx)
 
 static int cj_cb_start_map (void *ctx)
 {
-  cj_cb_inc_array_index (ctx, 0);
+  cj_cb_inc_array_index (ctx, /* update_key = */ 1);
   return cj_cb_start (ctx);
 }
 
@@ -317,7 +326,7 @@ static int cj_cb_end_map (void *ctx)
 static int cj_cb_start_array (void * ctx)
 {
   cj_t *db = (cj_t *)ctx;
-  cj_cb_inc_array_index (ctx, 0);
+  cj_cb_inc_array_index (ctx, /* update_key = */ 1);
   if (db->depth+1 < YAJL_MAX_DEPTH) {
     db->state[db->depth+1].in_array = 1;
     db->state[db->depth+1].index = 0;
