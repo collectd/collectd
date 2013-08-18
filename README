@@ -26,6 +26,9 @@ Features
       Sensors in Macs running Mac OS X / Darwin: Temperature, fanspeed and
       voltage sensors.
 
+    - aquaero
+      Various sensors in the Aquaero 5 watercooling board made by Aquacomputer.
+
     - ascent
       Statistics about Ascent, a free server for the game `World of Warcraft'.
 
@@ -565,6 +568,14 @@ Prerequisites
     etc) the collectd is parallelized. The POSIX threads interface is being
     used and should be found in various implementations for hopefully all
     platforms.
+
+  * aerotools-ng (optional)
+    Used by the `aquaero' plugin. Currently, the `libaquaero5' library, which
+    is used by the `aerotools-ng' toolkit, is not compiled as a shared object
+    nor does it feature an installation routine. Therefore, you need to point
+    collectd's configure script at the source directory of the `aerotools-ng'
+    project.
+    <https://github.com/lynix/aerotools-ng>
 
   * CoreFoundation.framework and IOKit.framework (optional)
     For compiling on Darwin in general and the `apple_sensors' plugin in

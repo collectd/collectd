@@ -1480,6 +1480,63 @@ then
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBKVM_OPENFILES, test "x$with_kvm_openfiles" = "xyes")
 
+# --with-libaquaero5 {{{
+AC_ARG_WITH(libaquaero5, [AS_HELP_STRING([--with-libaquaero5@<:@=PREFIX@:>@], [Path to aquatools-ng source code.])],
+[
+ if test "x$withval" = "xyes"
+ then
+	 with_libaquaero5="yes"
+ else if test "x$withval" = "xno"
+ then
+	 with_libaquaero5="no"
+ else
+	 with_libaquaero5="yes"
+	 LIBAQUAERO5_CFLAGS="$LIBAQUAERO5_CFLAGS -I$withval/src"
+	 LIBAQUAERO5_LDFLAGS="$LIBAQUAERO5_LDFLAGS -L$withval/obj"
+ fi; fi
+],
+[with_libaquaero5="yes"])
+
+SAVE_CPPFLAGS="$CPPFLAGS"
+SAVE_LDFLAGS="$LDFLAGS"
+
+CPPFLAGS="$CPPFLAGS $LIBAQUAERO5_CFLAGS"
+LDFLAGS="$LDFLAGS $LIBAQUAERO5_LDFLAGS"
+
+if test "x$with_libaquaero5" = "xyes"
+then
+	if test "x$LIBAQUAERO5_CFLAGS" != "x"
+	then
+		AC_MSG_NOTICE([libaquaero5 CPPFLAGS: $LIBAQUAERO5_CFLAGS])
+	fi
+	AC_CHECK_HEADERS(libaquaero5.h,
+	[with_libaquaero5="yes"],
+	[with_libaquaero5="no (libaquaero5.h not found)"])
+fi
+if test "x$with_libaquaero5" = "xyes"
+then
+	if test "x$LIBAQUAERO5_LDFLAGS" != "x"
+	then
+		AC_MSG_NOTICE([libaquaero5 LDFLAGS: $LIBAQUAERO5_LDFLAGS])
+	fi
+	AC_CHECK_LIB(aquaero5, libaquaero5_poll,
+	[with_libaquaero5="yes"],
+	[with_libaquaero5="no (symbol 'libaquaero5_poll' not found)"])
+fi
+
+CPPFLAGS="$SAVE_CPPFLAGS"
+LDFLAGS="$SAVE_LDFLAGS"
+
+if test "x$with_libaquaero5" = "xyes"
+then
+	BUILD_WITH_LIBAQUAERO5_CFLAGS="$LIBAQUAERO5_CFLAGS"
+	BUILD_WITH_LIBAQUAERO5_LDFLAGS="$LIBAQUAERO5_LDFLAGS"
+	AC_SUBST(BUILD_WITH_LIBAQUAERO5_CFLAGS)
+	AC_SUBST(BUILD_WITH_LIBAQUAERO5_LDFLAGS)
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBAQUAERO5, test "x$with_libaquaero5" = "xyes")
+# }}}
+
 # --with-libcredis {{{
 AC_ARG_WITH(libcredis, [AS_HELP_STRING([--with-libcredis@<:@=PREFIX@:>@], [Path to libcredis.])],
 [
@@ -5017,6 +5074,7 @@ AC_PLUGIN([amqp],        [$with_librabbitmq],  [AMQP output plugin])
 AC_PLUGIN([apache],      [$with_libcurl],      [Apache httpd statistics])
 AC_PLUGIN([apcups],      [yes],                [Statistics of UPSes by APC])
 AC_PLUGIN([apple_sensors], [$with_libiokit],   [Apple's hardware sensors])
+AC_PLUGIN([aquaero],     [$with_libaquaero5],  [Aquaero's hardware sensors])
 AC_PLUGIN([ascent],      [$plugin_ascent],     [AscentEmu player statistics])
 AC_PLUGIN([battery],     [$plugin_battery],    [Battery statistics])
 AC_PLUGIN([bind],        [$plugin_bind],       [ISC Bind nameserver statistics])
@@ -5302,6 +5360,7 @@ cat <<EOF;
 Configuration:
   Libraries:
     intel mic . . . . . . $with_mic
+    libaquaero5 . . . . . $with_libaquaero5
     libcurl . . . . . . . $with_libcurl
     libdbi  . . . . . . . $with_libdbi
     libcredis . . . . . . $with_libcredis
@@ -5358,6 +5417,7 @@ Configuration:
     amqp    . . . . . . . $enable_amqp
     apache  . . . . . . . $enable_apache
     apcups  . . . . . . . $enable_apcups
+    aquaero . . . . . . . $enable_aquaero
     apple_sensors . . . . $enable_apple_sensors
     ascent  . . . . . . . $enable_ascent
     battery . . . . . . . $enable_battery
