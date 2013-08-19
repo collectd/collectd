@@ -229,7 +229,7 @@ static int cj_cb_number (void *ctx,
   buffer[sizeof (buffer) - 1] = 0;
 
   if ((key == NULL) || !CJ_IS_KEY (key)) {
-    if (key != NULL)
+    if (key != NULL && !db->state[db->depth].in_array/*can be inhomogeneous*/)
       NOTICE ("curl_json plugin: Found \"%s\", but the configuration expects"
               " a map.", buffer);
     cj_cb_inc_array_index (ctx, /* update_key = */ 0);
