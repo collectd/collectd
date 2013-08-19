@@ -63,7 +63,7 @@ static int za_read_derive (kstat_t *ksp, const char *kstat_value,
   tmp = get_kstat_value (ksp, (char *)kstat_value);
   if (tmp == -1LL)
   {
-    ERROR ("zfs_arc plugin: Reading kstat value \"%s\" failed.", kstat_value);
+    WARNING ("zfs_arc plugin: Reading kstat value \"%s\" failed.", kstat_value);
     return (-1);
   }
 
@@ -81,7 +81,7 @@ static int za_read_gauge (kstat_t *ksp, const char *kstat_value,
   tmp = get_kstat_value (ksp, (char *)kstat_value);
   if (tmp == -1LL)
   {
-    ERROR ("zfs_arc plugin: Reading kstat value \"%s\" failed.", kstat_value);
+    WARNING ("zfs_arc plugin: Reading kstat value \"%s\" failed.", kstat_value);
     return (-1);
   }
 
@@ -123,9 +123,11 @@ static int za_read (void)
 	za_read_gauge (ksp, "l2_size", "cache_size", "L2");
 
         /* Operations */
-	za_read_derive (ksp, "allocated","cache_operation", "allocated");
 	za_read_derive (ksp, "deleted",  "cache_operation", "deleted");
+#if __FreeBSD__
+	za_read_derive (ksp, "allocated","cache_operation", "allocated");
 	za_read_derive (ksp, "stolen",   "cache_operation", "stolen");
+#endif
 
         /* Issue indicators */
         za_read_derive (ksp, "mutex_miss", "mutex_operations", "miss");
