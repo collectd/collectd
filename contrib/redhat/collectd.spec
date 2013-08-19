@@ -55,6 +55,7 @@
 %define with_bind 0%{!?_without_bind:1}
 %define with_conntrack 0%{!?_without_conntrack:1}
 %define with_contextswitch 0%{!?_without_contextswitch:1}
+%define with_cgroups 0%{!?_without_cgroups:1}
 %define with_cpu 0%{!?_without_cpu:1}
 %define with_cpufreq 0%{!?_without_cpufreq:1}
 %define with_csv 0%{!?_without_csv:1}
@@ -82,6 +83,7 @@
 %define with_libvirt 0%{!?_without_libvirt:1}
 %define with_load 0%{!?_without_load:1}
 %define with_logfile 0%{!?_without_logfile:1}
+%define with_lvm 0%{!?_without_lvm:1}
 %define with_madwifi 0%{!?_without_madwifi:1}
 %define with_mbmon 0%{!?_without_mbmon:1}
 %define with_md 0%{!?_without_md:1}
@@ -112,6 +114,7 @@
 %define with_sensors 0%{!?_without_sensors:1}
 %define with_serial 0%{!?_without_serial:1}
 %define with_snmp 0%{!?_without_snmp:1}
+%define with_statsd 0%{!?_without_statsd:1}
 %define with_swap 0%{!?_without_swap:1}
 %define with_syslog 0%{!?_without_syslog:1}
 %define with_table 0%{!?_without_table:1}
@@ -139,8 +142,12 @@
 
 # plugin apple_sensors disabled, requires a Mac
 %define with_apple_sensors 0%{!?_without_apple_sensors:0}
+# plugin aquaero disabled, requires aquatools-ng
+%define with_aquaero 0%{!?_without_aquaero:0}
 # plugin lpar disabled, requires AIX
 %define with_lpar 0%{!?_without_lpar:0}
+# plugin mic disabled, requires Intel MIC SDK
+%define with_mic 0%{!?_without_mic:0}
 # plugin modbus disabled, requires libmodbus
 %define with_modbus 0%{!?_without_modbus:0}
 # plugin netapp disabled, requires libnetapp
@@ -159,6 +166,8 @@
 %define with_routeros 0%{!?_without_routeros:0}
 # plugin rrdcached disabled, requires rrdtool >= 1.4
 %define with_rrdcached 0%{!?_without_rrdcached:0}
+# plugin sigrok disabled, requires libsigrok
+%define with_sigrok 0%{!?_without_sigrok:0}
 # plugin tape disabled, requires libkstat
 %define with_tape 0%{!?_without_tape:0}
 # plugin tokyotyrant disabled, requires tcrdb.h
@@ -174,7 +183,7 @@
 
 Summary:	Statistics collection daemon for filling RRD files
 Name:		collectd
-Version:	5.3.1
+Version:	5.4.0
 Release:	1%{?dist}
 URL:		http://collectd.org
 Source:		http://collectd.org/files/%{name}-%{version}.tar.bz2
@@ -369,6 +378,16 @@ Requires:	%{name}%{?_isa} = %{version}-%{release}
 BuildRequires:	libvirt-devel
 %description libvirt
 This plugin collects information from virtualized guests.
+%endif
+
+%if %{with_lvm}
+%package lvm
+Summary:	lvm plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	lvm2-devel
+%description lvm
+This plugin gets logical volume metrics.
 %endif
 
 %if %{with_memcachec}
@@ -696,6 +715,12 @@ Development files for libcollectdclient
 %define _with_contextswitch --disable-contextswitch
 %endif
 
+%if %{with_cgroups}
+%define _with_cgroups --enable-cgroups
+%else
+%define _with_groups --disable-cgroups
+%endif
+
 %if %{with_cpu}
 %define _with_cpu --enable-cpu
 %else
@@ -840,6 +865,12 @@ Development files for libcollectdclient
 %define _with_java --disable-java
 %endif
 
+%if %{with_aquaero}
+%define _with_aquaero --enable-aquaero
+%else
+%define _with_aquaero --disable-aquaero
+%endif
+
 %if %{with_libvirt}
 %define _with_libvirt --enable-libvirt
 %else
@@ -864,6 +895,11 @@ Development files for libcollectdclient
 %define _with_lpar --disable-lpar
 %endif
 
+%if %{with_lvm}
+%define _with_lvm --enable-lvm
+%else
+%define _with_lvm --disable-lvm
+%endif
 %if %{with_madwifi}
 %define _with_madwifi --enable-madwifi
 %else
@@ -898,6 +934,12 @@ Development files for libcollectdclient
 %define _with_memory --enable-memory
 %else
 %define _with_memory --disable-memory
+%endif
+
+%if %{with_mic}
+%define _with_mic --enable-mic
+%else
+%define _with_mic --disable-mic
 %endif
 
 %if %{with_modbus}
@@ -1096,10 +1138,22 @@ Development files for libcollectdclient
 %define _with_serial --disable-serial
 %endif
 
+%if %{with_sigrok}
+%define _with_sigrok --enable-sigrok
+%else
+%define _with_sigrok --disable-sigrok
+%endif
+
 %if %{with_snmp}
 %define _with_snmp --enable-snmp
 %else
 %define _with_snmp --disable-snmp
+%endif
+
+%if %{with_statsd}
+%define _with_statsd --enable-statsd
+%else
+%define _with_statsd --disable-statsd
 %endif
 
 %if %{with_swap}
@@ -1288,6 +1342,7 @@ Development files for libcollectdclient
 	%{?_with_bind} \
 	%{?_with_conntrack} \
 	%{?_with_contextswitch} \
+	%{?_with_cgroups} \
 	%{?_with_cpu} \
 	%{?_with_cpufreq} \
 	%{?_with_csv} \
@@ -1311,9 +1366,12 @@ Development files for libcollectdclient
 	%{?_with_iptables} \
 	%{?_with_ipvs} \
 	%{?_with_java} \
+	%{?_with_aquaero} \
 	%{?_with_libvirt} \
 	%{?_with_lpar} \
+	%{?_with_lvm} \
 	%{?_with_memcachec} \
+	%{?_with_mic} \
 	%{?_with_modbus} \
 	%{?_with_multimeter} \
 	%{?_with_mysql} \
@@ -1337,6 +1395,7 @@ Development files for libcollectdclient
 	%{?_with_rrdtool} \
 	%{?_with_sensors} \
 	%{?_with_snmp} \
+	%{?_with_statsd} \
 	%{?_with_tape} \
 	%{?_with_tokyotyrant} \
 	%{?_with_varnish} \
@@ -1363,6 +1422,7 @@ Development files for libcollectdclient
 	%{?_with_processes} \
 	%{?_with_protocols} \
 	%{?_with_serial} \
+	%{?_with_sigrok} \
 	%{?_with_swap} \
 	%{?_with_syslog} \
 	%{?_with_table} \
@@ -1510,6 +1570,9 @@ fi
 %if %{with_contextswitch}
 %{_libdir}/%{name}/contextswitch.so
 %endif
+%if %{with_cgroups}
+%{_libdir}/%{name}/cgroups.so
+%endif
 %if %{with_cpu}
 %{_libdir}/%{name}/cpu.so
 %endif
@@ -1602,6 +1665,9 @@ fi
 %endif
 %if %{with_serial}
 %{_libdir}/%{name}/serial.so
+%endif
+%if %{with_statsd}
+%{_libdir}/%{name}/statsd.so
 %endif
 %if %{with_swap}
 %{_libdir}/%{name}/swap.so
@@ -1753,6 +1819,11 @@ fi
 %{_libdir}/%{name}/libvirt.so
 %endif
 
+%if %{with_lvm}
+%files lvm
+%{_libdir}/%{name}/lvm.so
+%endif
+
 %if %{with_memcachec}
 %files memcachec
 %{_libdir}/%{name}/memcachec.so
@@ -1873,6 +1944,15 @@ fi
 %doc contrib/
 
 %changelog
+* Mon Aug 19 2013 Rick Sherman <shermdog@swbell.net> - 5.4.0-1
+- New upstream version
+- Initial enable of cgroups
+- Initial enable of lvm
+- Initial enable of statsd
+- Initial disable of aquaero
+- Initial disable of mic
+- Initial disable of sigrok
+
 * Tue Aug 06 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.3.1-1
 - New upstream version
 - Added RHEL5 support:
