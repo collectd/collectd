@@ -100,19 +100,101 @@ static void sigchld_handler (int __attribute__((unused)) signal) /* {{{ */
   } /* while (waitpid) */
 } /* void sigchld_handler }}} */
 
-static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
-{
-  program_list_t *pl;
-  char buffer[128];
-  int i;
+static int exec_lookup_user (char const *user_group, int *ret_uid, int *ret_gid, int *ret_egid) {
   int status;
-
   char nambuf[2048];
   char errbuf[1024];
   char *user, *group;
 
   struct passwd *sp_ptr;
   struct passwd sp;
+
+  user = strdup (user_group);
+  if (user == NULL)
+  {
+    ERROR ("exec plugin: strdup failed.");
+    sfree (user);
+    return (-1);
+  }
+
+  group = strchr (user, ':');
+  if (group != NULL)
+  {
+    *group = '\0';
+    group++;
+  }
+
+  sp_ptr = NULL;
+  status = getpwnam_r (user, &sp, nambuf, sizeof (nambuf), &sp_ptr);
+  if (status != 0)
+  {
+    ERROR ("exec plugin: Failed to get user information for user ``%s'': %s",
+        user, sstrerror (errno, errbuf, sizeof (errbuf)));
+    sfree (user);
+    return (-1);
+  }
+  if (sp_ptr == NULL)
+  {
+    ERROR ("exec plugin: No such user: `%s'", user);
+    sfree (user);
+    return (-1);
+  }
+
+  *ret_uid = sp.pw_uid;
+  *ret_gid = sp.pw_gid;
+  if (*ret_uid == 0)
+  {
+    ERROR ("exec plugin: Cowardly refusing to exec program as root.");
+    sfree (user);
+    return (-1);
+  }
+
+  /* The group configured in the configfile is set as effective group, because
+   * this way the forked process can (re-)gain the user's primary group. */
+  *ret_egid = -1;
+  if (NULL != group)
+  {
+    if ('\0' != *group) {
+      struct group *gr_ptr = NULL;
+      struct group gr;
+
+      status = getgrnam_r (group, &gr, nambuf, sizeof (nambuf), &gr_ptr);
+      if (0 != status)
+      {
+        ERROR ("exec plugin: Failed to get group information "
+            "for group ``%s'': %s", group,
+            sstrerror (errno, errbuf, sizeof (errbuf)));
+        sfree (user);
+        return (-1);
+      }
+      if (NULL == gr_ptr)
+      {
+        ERROR ("exec plugin: No such group: `%s'", group);
+        sfree (user);
+        return (-1);
+      }
+
+      *ret_egid = gr.gr_gid;
+    }
+    else
+    {
+      *ret_egid = *ret_gid;
+    }
+  } /* if (pl->group == NULL) */
+
+  DEBUG ("exec plugin: user: %s; group:%s; uid: %i; gid:%i; egid: %i\n",
+	user, group, *ret_uid, *ret_gid, *ret_egid);
+
+  sfree (user);
+  return (0);
+}
+
+static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
+{
+  program_list_t *pl;
+  char buffer[128];
+  int i;
+  int status;
 
   if (ci->children_num != 0)
   {
@@ -147,80 +229,14 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
   else
     pl->flags |= PL_NORMAL;
 
-  user = strdup (ci->values[0].value.string);
-  if (user == NULL)
-  {
-    ERROR ("exec plugin: strdup failed.");
-    sfree (pl);
-    return (-1);
-  }
-
-  group = strchr (user, ':');
-  if (group != NULL)
-  {
-    *group = '\0';
-    group++;
-  }
-
-
-  sp_ptr = NULL;
-  status = getpwnam_r (user, &sp, nambuf, sizeof (nambuf), &sp_ptr);
+  status = exec_lookup_user(ci->values[0].value.string, &pl->uid, &pl->gid, &pl->egid);
   if (status != 0)
-  {
-    ERROR ("exec plugin: Failed to get user information for user ``%s'': %s",
-        user, sstrerror (errno, errbuf, sizeof (errbuf)));
-    return (-1);
-  }
-  if (sp_ptr == NULL)
-  {
-    ERROR ("exec plugin: No such user: `%s'", user);
-    return (-1);
-  }
-
-  pl->uid = sp.pw_uid;
-  pl->gid = sp.pw_gid;
-  if (pl->uid == 0)
-  {
-    ERROR ("exec plugin: Cowardly refusing to exec program as root.");
-    return (-1);
-  }
-
-  /* The group configured in the configfile is set as effective group, because
-   * this way the forked process can (re-)gain the user's primary group. */
-  pl->egid = -1;
-  if (NULL != group)
-  {
-    if ('\0' != *group) {
-      struct group *gr_ptr = NULL;
-      struct group gr;
-
-      status = getgrnam_r (group, &gr, nambuf, sizeof (nambuf), &gr_ptr);
-      if (0 != status)
-      {
-        ERROR ("exec plugin: Failed to get group information "
-            "for group ``%s'': %s", group,
-            sstrerror (errno, errbuf, sizeof (errbuf)));
-        return (-1);
-      }
-      if (NULL == gr_ptr)
-      {
-        ERROR ("exec plugin: No such group: `%s'", group);
-        return (-1);
-      }
-
-      pl->egid = gr.gr_gid;
-    }
-    else
-    {
-      pl->egid = pl->gid;
-    }
-  } /* if (pl->group == NULL) */
+    return status;
 
   pl->exec = strdup (ci->values[1].value.string);
   if (pl->exec == NULL)
   {
     ERROR ("exec plugin: strdup failed.");
-    sfree (user);
     sfree (pl);
     return (-1);
   }
@@ -230,7 +246,6 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
   {
     ERROR ("exec plugin: malloc failed.");
     sfree (pl->exec);
-    sfree (user);
     sfree (pl);
     return (-1);
   }
@@ -249,7 +264,6 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
     ERROR ("exec plugin: malloc failed.");
     sfree (pl->argv);
     sfree (pl->exec);
-    sfree (user);
     sfree (pl);
     return (-1);
   }
@@ -293,7 +307,6 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
     }
     sfree (pl->argv);
     sfree (pl->exec);
-    sfree (user);
     sfree (pl);
     return (-1);
   }
@@ -306,7 +319,6 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
   pl->next = pl_head;
   pl_head = pl;
 
-  sfree (user);
   return (0);
 } /* int exec_config_exec }}} */
 
