@@ -111,6 +111,11 @@ static int read_cpuacct_procs (const char *dirname, char const *cgroup_name,
 		 *
 		 *   user: 12345
 		 *   system: 23456
+		 *
+		 * Or:
+		 *
+		 *   user 12345
+		 *   system 23456
 		 */
 		strstripnewline (buf);
 		numfields = strsplit (buf, fields, STATIC_ARRAY_SIZE (fields));
@@ -122,10 +127,9 @@ static int read_cpuacct_procs (const char *dirname, char const *cgroup_name,
 		if (key_len < 2)
 			continue;
 
-		/* Strip colon off the first column */
-		if (key[key_len - 1] != ':')
-			continue;
-		key[key_len - 1] = 0;
+		/* Strip colon off the first column, if found */
+		if (key[key_len - 1] == ':')
+			key[key_len - 1] = 0;
 
 		status = parse_value (fields[1], &value, DS_TYPE_DERIVE);
 		if (status != 0)
