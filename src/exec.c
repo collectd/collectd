@@ -59,8 +59,9 @@ struct program_list_s;
 typedef struct program_list_s program_list_t;
 struct program_list_s
 {
-  char           *user;
-  char           *group;
+  int             uid;
+  int             gid;
+  int             egid;
   char           *exec;
   char          **argv;
   int             pid;
@@ -104,6 +105,14 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
   program_list_t *pl;
   char buffer[128];
   int i;
+  int status;
+
+  char nambuf[2048];
+  char errbuf[1024];
+  char *user, *group;
+
+  struct passwd *sp_ptr;
+  struct passwd sp;
 
   if (ci->children_num != 0)
   {
@@ -138,26 +147,80 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
   else
     pl->flags |= PL_NORMAL;
 
-  pl->user = strdup (ci->values[0].value.string);
-  if (pl->user == NULL)
+  user = strdup (ci->values[0].value.string);
+  if (user == NULL)
   {
     ERROR ("exec plugin: strdup failed.");
     sfree (pl);
     return (-1);
   }
 
-  pl->group = strchr (pl->user, ':');
-  if (pl->group != NULL)
+  group = strchr (user, ':');
+  if (group != NULL)
   {
-    *pl->group = '\0';
-    pl->group++;
+    *group = '\0';
+    group++;
   }
+
+
+  sp_ptr = NULL;
+  status = getpwnam_r (user, &sp, nambuf, sizeof (nambuf), &sp_ptr);
+  if (status != 0)
+  {
+    ERROR ("exec plugin: Failed to get user information for user ``%s'': %s",
+        user, sstrerror (errno, errbuf, sizeof (errbuf)));
+    return (-1);
+  }
+  if (sp_ptr == NULL)
+  {
+    ERROR ("exec plugin: No such user: `%s'", user);
+    return (-1);
+  }
+
+  pl->uid = sp.pw_uid;
+  pl->gid = sp.pw_gid;
+  if (pl->uid == 0)
+  {
+    ERROR ("exec plugin: Cowardly refusing to exec program as root.");
+    return (-1);
+  }
+
+  /* The group configured in the configfile is set as effective group, because
+   * this way the forked process can (re-)gain the user's primary group. */
+  pl->egid = -1;
+  if (NULL != group)
+  {
+    if ('\0' != *group) {
+      struct group *gr_ptr = NULL;
+      struct group gr;
+
+      status = getgrnam_r (group, &gr, nambuf, sizeof (nambuf), &gr_ptr);
+      if (0 != status)
+      {
+        ERROR ("exec plugin: Failed to get group information "
+            "for group ``%s'': %s", group,
+            sstrerror (errno, errbuf, sizeof (errbuf)));
+        return (-1);
+      }
+      if (NULL == gr_ptr)
+      {
+        ERROR ("exec plugin: No such group: `%s'", group);
+        return (-1);
+      }
+
+      pl->egid = gr.gr_gid;
+    }
+    else
+    {
+      pl->egid = pl->gid;
+    }
+  } /* if (pl->group == NULL) */
 
   pl->exec = strdup (ci->values[1].value.string);
   if (pl->exec == NULL)
   {
     ERROR ("exec plugin: strdup failed.");
-    sfree (pl->user);
+    sfree (user);
     sfree (pl);
     return (-1);
   }
@@ -167,7 +230,7 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
   {
     ERROR ("exec plugin: malloc failed.");
     sfree (pl->exec);
-    sfree (pl->user);
+    sfree (user);
     sfree (pl);
     return (-1);
   }
@@ -186,7 +249,7 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
     ERROR ("exec plugin: malloc failed.");
     sfree (pl->argv);
     sfree (pl->exec);
-    sfree (pl->user);
+    sfree (user);
     sfree (pl);
     return (-1);
   }
@@ -230,7 +293,7 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
     }
     sfree (pl->argv);
     sfree (pl->exec);
-    sfree (pl->user);
+    sfree (user);
     sfree (pl);
     return (-1);
   }
@@ -243,6 +306,7 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
   pl->next = pl_head;
   pl_head = pl;
 
+  sfree (user);
   return (0);
 } /* int exec_config_exec }}} */
 
@@ -287,7 +351,7 @@ static void set_environment (void) /* {{{ */
 } /* }}} void set_environment */
 
 __attribute__((noreturn))
-static void exec_child (program_list_t *pl, int uid, int gid, int egid) /* {{{ */
+static void exec_child (program_list_t *pl) /* {{{ */
 {
   int status;
   char errbuf[1024];
@@ -298,12 +362,12 @@ static void exec_child (program_list_t *pl, int uid, int gid, int egid) /* {{{ *
     gid_t  glist[2];
     size_t glist_len;
 
-    glist[0] = gid;
+    glist[0] = pl->gid;
     glist_len = 1;
 
-    if ((gid != egid) && (egid != -1))
+    if ((pl->gid != pl->egid) && (pl->egid != -1))
     {
-      glist[1] = egid;
+      glist[1] = pl->egid;
       glist_len = 2;
     }
 
@@ -311,30 +375,30 @@ static void exec_child (program_list_t *pl, int uid, int gid, int egid) /* {{{ *
   }
 #endif /* HAVE_SETGROUPS */
 
-  status = setgid (gid);
+  status = setgid (pl->gid);
   if (status != 0)
   {
     ERROR ("exec plugin: setgid (%i) failed: %s",
-        gid, sstrerror (errno, errbuf, sizeof (errbuf)));
+        pl->gid, sstrerror (errno, errbuf, sizeof (errbuf)));
     exit (-1);
   }
 
-  if (egid != -1)
+  if (pl->egid != -1)
   {
-    status = setegid (egid);
+    status = setegid (pl->egid);
     if (status != 0)
     {
       ERROR ("exec plugin: setegid (%i) failed: %s",
-          egid, sstrerror (errno, errbuf, sizeof (errbuf)));
+          pl->egid, sstrerror (errno, errbuf, sizeof (errbuf)));
       exit (-1);
     }
   }
 
-  status = setuid (uid);
+  status = setuid (pl->uid);
   if (status != 0)
   {
     ERROR ("exec plugin: setuid (%i) failed: %s",
-        uid, sstrerror (errno, errbuf, sizeof (errbuf)));
+        pl->uid, sstrerror (errno, errbuf, sizeof (errbuf)));
     exit (-1);
   }
 
@@ -369,14 +433,6 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out, int *fd_err)
   int status;
   int pid;
 
-  int uid;
-  int gid;
-  int egid;
-
-  struct passwd *sp_ptr;
-  struct passwd sp;
-  char nambuf[2048];
-
   if (pl->pid != 0)
     return (-1);
 
@@ -404,58 +460,6 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out, int *fd_err)
     return (-1);
   }
 
-  sp_ptr = NULL;
-  status = getpwnam_r (pl->user, &sp, nambuf, sizeof (nambuf), &sp_ptr);
-  if (status != 0)
-  {
-    ERROR ("exec plugin: Failed to get user information for user ``%s'': %s",
-        pl->user, sstrerror (errno, errbuf, sizeof (errbuf)));
-    return (-1);
-  }
-  if (sp_ptr == NULL)
-  {
-    ERROR ("exec plugin: No such user: `%s'", pl->user);
-    return (-1);
-  }
-
-  uid = sp.pw_uid;
-  gid = sp.pw_gid;
-  if (uid == 0)
-  {
-    ERROR ("exec plugin: Cowardly refusing to exec program as root.");
-    return (-1);
-  }
-
-  /* The group configured in the configfile is set as effective group, because
-   * this way the forked process can (re-)gain the user's primary group. */
-  egid = -1;
-  if (NULL != pl->group)
-  {
-    if ('\0' != *pl->group) {
-      struct group *gr_ptr = NULL;
-      struct group gr;
-
-      status = getgrnam_r (pl->group, &gr, nambuf, sizeof (nambuf), &gr_ptr);
-      if (0 != status)
-      {
-        ERROR ("exec plugin: Failed to get group information "
-            "for group ``%s'': %s", pl->group,
-            sstrerror (errno, errbuf, sizeof (errbuf)));
-        return (-1);
-      }
-      if (NULL == gr_ptr)
-      {
-        ERROR ("exec plugin: No such group: `%s'", pl->group);
-        return (-1);
-      }
-
-      egid = gr.gr_gid;
-    }
-    else
-    {
-      egid = gid;
-    }
-  } /* if (pl->group == NULL) */
 
   pid = fork ();
   if (pid < 0)
@@ -506,7 +510,7 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out, int *fd_err)
     /* Unblock all signals */
     reset_signal_mask ();
 
-    exec_child (pl, uid, gid, egid);
+    exec_child (pl);
     /* does not return */
   }
 
@@ -895,7 +899,6 @@ static int exec_shutdown (void) /* {{{ */
       INFO ("exec plugin: Sent SIGTERM to %hu", (unsigned short int) pl->pid);
     }
 
-    sfree (pl->user);
     sfree (pl);
 
     pl = next;
