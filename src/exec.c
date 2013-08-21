@@ -313,13 +313,18 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
 static int exec_config (oconfig_item_t *ci) /* {{{ */
 {
   int i;
+  int status;
 
   for (i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
     if ((strcasecmp ("Exec", child->key) == 0)
         || (strcasecmp ("NotificationExec", child->key) == 0))
-      exec_config_exec (child);
+    {
+        status = exec_config_exec (child);
+        if (status != 0)
+          return status;
+    }
     else
     {
       WARNING ("exec plugin: Unknown config option `%s'.", child->key);
