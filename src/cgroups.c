@@ -217,8 +217,9 @@ static int cgroups_read (void)
 	{
 		/* Find the cgroup mountpoint which contains the cpuacct
 		 * controller. */
-		if (strcmp(mnt_ptr->type, "cgroup") != 0 ||
-			!cu_mount_getoptionvalue(mnt_ptr->options, "cpuacct"))
+		if ((strcmp(mnt_ptr->type, "cgroup") != 0)
+				|| !cu_mount_checkoption(mnt_ptr->options,
+					"cpuacct", /* full = */ 1))
 			continue;
 
 		walk_directory (mnt_ptr->dir, read_cpuacct_root,
