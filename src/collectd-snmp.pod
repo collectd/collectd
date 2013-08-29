@@ -202,6 +202,18 @@ degrees Celsius. The default value is, of course, B<0.0>.
 
 This value is not applied to counter-values.
 
+=item B<Ignore> I<Value> [, I<Value> ...]
+
+The ignore values allows to ignore Instances based on their name and the patterns
+specified by the various values you've entered. The match is a glob-type shell
+matching.
+
+=item B<InvertMatch> I<true|false(default)>
+
+The invertmatch value should be use in combination of the Ignore option.
+It changes the behaviour of the Ignore option, from a blacklist behaviour
+when InvertMatch is set to false, to a whitelist when specified to true.
+
 =back
 
 =head2 The Host block
