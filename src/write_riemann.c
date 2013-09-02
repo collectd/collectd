@@ -353,15 +353,20 @@ static Msg *riemann_notification_to_protobuf (struct riemann_host *host, /* {{{ 
 			n->type, n->type_instance);
 	event->service = strdup (&service_buffer[1]);
 
-	/* Pull in values from threshold */
+	/* Pull in values from threshold and add extra attributes */
 	for (meta = n->meta; meta != NULL; meta = meta->next)
 	{
-		if (strcasecmp ("CurrentValue", meta->name) != 0)
+		if (strcasecmp ("CurrentValue", meta->name) == 0 && meta->type == NM_TYPE_DOUBLE)
+		{
+			event->metric_d = meta->nm_value.nm_double;
+			event->has_metric_d = 1;
 			continue;
+		}
 
-		event->metric_d = meta->nm_value.nm_double;
-		event->has_metric_d = 1;
-		break;
+		if (meta->type == NM_TYPE_STRING) {
+			riemann_event_add_attribute (event, meta->name, meta->nm_value.nm_string);
+			continue;
+		}
 	}
 
 	DEBUG ("write_riemann plugin: Successfully created protobuf for notification: "
