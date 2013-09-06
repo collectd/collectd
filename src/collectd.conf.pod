@@ -6106,7 +6106,7 @@ Service name or port number to connect to. Defaults to C<2003>.
 
 =item B<Protocol> I<String>
 
-Protocol to use when connecting to I<Graphite>. Defaults to C<tcp>.
+Protocol to use when connecting to I<Graphite>. Defaults to C<udp>.
 
 =item B<LogSendErrors> B<false>|B<true>
 
