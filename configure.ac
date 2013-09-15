@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(collectd, [m4_esyscmd(./version-gen.sh)])
+AC_INIT([collectd],[m4_esyscmd(./version-gen.sh)])
 AC_CONFIG_SRCDIR(src/collectd.c)
 AC_CONFIG_HEADERS(src/config.h)
 AC_CONFIG_AUX_DIR([libltdl/config])
@@ -4691,7 +4691,7 @@ AC_DEFUN(
   [
     enable_plugin="no"
     force="no"
-    AC_ARG_ENABLE([$1], AC_HELP_STRING([--enable-$1], [$3]),
+    AC_ARG_ENABLE([$1], AS_HELP_STRING([--enable-$1],[$3]),
     [
      if test "x$enableval" = "xyes"
      then
@@ -5052,8 +5052,7 @@ m4_divert_once([HELP_ENABLE], [
 collectd plugins:])
 
 AC_ARG_ENABLE([all-plugins],
-		AC_HELP_STRING([--enable-all-plugins],
-				[enable all plugins (auto by def)]),
+		AS_HELP_STRING([--enable-all-plugins],[enable all plugins (auto by def)]),
 		[
 		 if test "x$enableval" = "xyes"
 		 then
@@ -5329,7 +5328,8 @@ AC_SUBST(LCC_VERSION_STRING)
 
 AC_CONFIG_FILES(src/libcollectdclient/collectd/lcc_features.h)
 
-AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/libcollectdclient/Makefile src/libcollectdclient/libcollectdclient.pc src/liboconfig/Makefile bindings/Makefile bindings/java/Makefile)
+AC_CONFIG_FILES([Makefile src/Makefile src/collectd.conf src/libcollectdclient/Makefile src/libcollectdclient/libcollectdclient.pc src/liboconfig/Makefile bindings/Makefile bindings/java/Makefile])
+AC_OUTPUT
 
 if test "x$with_librrd" = "xyes" \
 	&& test "x$librrd_threadsafe" != "xyes"
