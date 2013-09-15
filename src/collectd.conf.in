@@ -1182,6 +1182,7 @@
 #		Protocol UDP
 #		StoreRates true
 #		AlwaysAppendDS false
+#		TTLFactor 2.0
 #	</Node>
 #	Tag "foobar"
 #</Plugin>
