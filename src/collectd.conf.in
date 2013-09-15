@@ -378,6 +378,8 @@
 #	ReportByDevice false
 #	ReportReserved false
 #	ReportInodes false
+#	ValuesAbsolute true
+#	ValuesPercentage false
 #</Plugin>
 
 #<Plugin disk>
