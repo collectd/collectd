@@ -272,6 +272,11 @@
 #  </View>
 #</Plugin>
 
+#<Plugin cgroup>
+#  CGroup "libvirt"
+#  IgnoreSelected false
+#</Plugin>
+
 #<Plugin csv>
 #	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/csv"
 #	StoreRates false
