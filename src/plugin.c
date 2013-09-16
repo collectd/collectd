@@ -562,12 +562,9 @@ static void stop_read_threads (void)
 	pthread_cond_broadcast (&read_cond);
 	pthread_mutex_unlock (&read_lock);
 
+	sleep(0.25);
 	for (i = 0; i < read_threads_num; i++)
 	{
-		if (pthread_join (read_threads[i], NULL) != 0)
-		{
-			ERROR ("plugin: stop_read_threads: pthread_join failed.");
-		}
 		read_threads[i] = (pthread_t) 0;
 	}
 	sfree (read_threads);
@@ -779,12 +776,9 @@ static void stop_write_threads (void) /* {{{ */
 	pthread_cond_broadcast (&write_cond);
 	pthread_mutex_unlock (&write_lock);
 
+	sleep(0.25);
 	for (i = 0; i < write_threads_num; i++)
 	{
-		if (pthread_join (write_threads[i], NULL) != 0)
-		{
-			ERROR ("plugin: stop_write_threads: pthread_join failed.");
-		}
 		write_threads[i] = (pthread_t) 0;
 	}
 	sfree (write_threads);
