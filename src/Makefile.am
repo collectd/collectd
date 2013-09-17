@@ -769,7 +769,7 @@ perl_la_CFLAGS += -Wno-nonnull
 endif
 perl_la_LDFLAGS = $(PLUGIN_LDFLAGS) \
 		$(PERL_LDFLAGS)
-perl_la_LIBS = $(PERL_LIBS)
+perl_la_LIBADD = $(PERL_LIBS)
 endif
 
 if BUILD_PLUGIN_PF
