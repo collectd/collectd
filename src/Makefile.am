@@ -891,7 +891,7 @@ perl_la_CFLAGS += -Wno-nonnull
 endif
 perl_la_LDFLAGS = -module -avoid-version \
 		$(PERL_LDFLAGS)
-perl_la_LIBS = $(PERL_LIBS)
+perl_la_LIBADD = $(PERL_LIBS)
 collectd_LDADD += "-dlopen" perl.la
 collectd_DEPENDENCIES += perl.la
 endif
