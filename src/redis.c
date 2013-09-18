@@ -324,7 +324,7 @@ int redis_handle_info (char *node, char const *info_line, char const *type, char
       buf[i] = *str;
     buf[i] ='\0';
 
-    if(parse_value (buf, &val, ds_type) == -1)
+    if(parse_value (buf, &val, ds_ntype) == -1)
     {
       WARNING ("redis plugin: Unable to parse field `%s'.", field_name);
       return (-1);
@@ -387,8 +387,8 @@ static int redis_read (void) /* {{{ */
     }
 
     redis_handle_info (rn->name, rr->str, "uptime", NULL, "uptime_in_seconds", DS_TYPE_GAUGE);
-    redis_handle_info (rn->name, rr->str, "connections", "clients", "connected_clients", DS_TYPE_GAUGE);
-    redis_handle_info (rn->name, rr->str, "connections", "slaves", "connected_slaves", DS_TYPE_GAUGE);
+    redis_handle_info (rn->name, rr->str, "current_connections", "clients", "connected_clients", DS_TYPE_GAUGE);
+    redis_handle_info (rn->name, rr->str, "current_connections", "slaves", "connected_slaves", DS_TYPE_GAUGE);
     redis_handle_info (rn->name, rr->str, "blocked_clients", NULL, "blocked_clients", DS_TYPE_GAUGE);
     redis_handle_info (rn->name, rr->str, "memory", NULL, "used_memory", DS_TYPE_GAUGE);
     redis_handle_info (rn->name, rr->str, "changes_since_last_save", NULL, "changes_since_last_save", DS_TYPE_GAUGE);
