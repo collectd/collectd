@@ -275,12 +275,25 @@ static int redis_config (oconfig_item_t *ci) /* {{{ */
   __attribute__ ((nonnull(2)))
 static void redis_submit (char *plugin_instance,
     const char *type, const char *type_instance,
-    value_t value) /* {{{ */
+    value_t value, int ds_type) /* {{{ */
 {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  values[0] = value;
+  switch (ds_type) {
+    case DS_TYPE_ABSOLUTE:
+      values[0].absolute = value.absolute;
+      break;
+    case DS_TYPE_COUNTER:
+      values[0].counter = value.counter;
+      break;
+    case DS_TYPE_DERIVE:
+      values[0].derive = value.derive;
+      break;
+    case DS_TYPE_GAUGE:
+      values[0].gauge = value.gauge;
+      break;
+  }
 
   vl.values = values;
   vl.values_len = 1;
@@ -333,16 +346,7 @@ int redis_handle_info (char *node, char const *info_line, char const *type, char
       return (-1);
     }
 
-    switch (ds_type) {
-      case DS_TYPE_GAUGE:
-           printf("Buf: %s, Parsed Val: %f", buf, val.gauge);
-           break;
-      case DS_TYPE_DERIVE:
-           printf("Buf: %s, Parsed Val: %" PRId64, buf, val.derive);
-           break;
-    }
-
-    redis_submit (node, type, type_instance, val);
+    redis_submit (node, type, type_instance, val, ds_type);
     return (0);
   }
   return (-1);
