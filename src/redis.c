@@ -324,7 +324,7 @@ int redis_handle_info (char *node, char const *info_line, char const *type, char
       buf[i] = *str;
     buf[i] ='\0';
 
-    if(parse_value (buf, &val, ds_ntype) == -1)
+    if(parse_value (buf, &val, ds_type) == -1)
     {
       WARNING ("redis plugin: Unable to parse field `%s'.", field_name);
       return (-1);
