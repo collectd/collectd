@@ -311,25 +311,14 @@ static int redis_init (void) /* {{{ */
   return (0);
 } /* }}} int redis_init */
 
-int redis_handle_info (char *node, char const *info_line, char const *type, char const *type_instance, char const *field_name, int ds_type) /* {{{ */
+int redis_handle_info (char *node, char const *info_line, char const *type, char const *type_instance, char const *field_name, const char *format, int ds_type) /* {{{ */
 {
-  char *str = strstr (info_line, field_name);
-  static char buf[MAX_REDIS_VAL_SIZE];
+  char *str = strstr(info_line, field_name);
   value_t val;
-  if (str)
-  {
-    int i;
 
-    str += strlen (field_name) + 1; /* also skip the ':' */
-    for(i=0;(*str && (isdigit(*str) || *str == '.'));i++,str++)
-      buf[i] = *str;
-    buf[i] ='\0';
-
-    if(parse_value (buf, &val, ds_type) == -1)
-    {
-      WARNING ("redis plugin: Unable to parse field `%s'.", field_name);
-      return (-1);
-    }
+  if (str) {
+    str += strlen(field_name) + 1; /* also skip the ':' */
+    sscanf(str, format, val);
 
     redis_submit (node, type, type_instance, val);
     return (0);
@@ -387,16 +376,16 @@ static int redis_read (void) /* {{{ */
       continue;
     }
 
-    redis_handle_info (rn->name, rr->str, "uptime", NULL, "uptime_in_seconds", DS_TYPE_GAUGE);
-    redis_handle_info (rn->name, rr->str, "connections", "clients", "connected_clients", DS_TYPE_GAUGE);
-    redis_handle_info (rn->name, rr->str, "connections", "slaves", "connected_slaves", DS_TYPE_GAUGE);
-    redis_handle_info (rn->name, rr->str, "blocked_clients", NULL, "blocked_clients", DS_TYPE_GAUGE);
-    redis_handle_info (rn->name, rr->str, "memory", NULL, "used_memory", DS_TYPE_GAUGE);
-    redis_handle_info (rn->name, rr->str, "changes_since_last_save", NULL, "changes_since_last_save", DS_TYPE_GAUGE);
-    redis_handle_info (rn->name, rr->str, "operations", NULL, "total_commands_processed", DS_TYPE_DERIVE);
-    redis_handle_info (rn->name, rr->str, "expired_keys", NULL, "expired_keys", DS_TYPE_GAUGE);
-    redis_handle_info (rn->name, rr->str, "pubsub", "patterns", "pubsub_patterns", DS_TYPE_GAUGE);
-    redis_handle_info (rn->name, rr->str, "pubsub", "channels", "pubsub_channels", DS_TYPE_GAUGE);
+    redis_handle_info (rn->name, rr->str, "uptime", NULL, "uptime_in_seconds", "%ld", DS_TYPE_GAUGE);
+    redis_handle_info (rn->name, rr->str, "connections", "clients", "connected_clients", "%d", DS_TYPE_GAUGE);
+    redis_handle_info (rn->name, rr->str, "connections", "slaves", "connected_slaves", "%d", DS_TYPE_GAUGE);
+    redis_handle_info (rn->name, rr->str, "blocked_clients", NULL, "blocked_clients", "%d", DS_TYPE_GAUGE);
+    redis_handle_info (rn->name, rr->str, "memory", NULL, "used_memory", "%zu", DS_TYPE_GAUGE);
+    redis_handle_info (rn->name, rr->str, "changes_since_last_save", NULL, "changes_since_last_save", "%lld", DS_TYPE_GAUGE);
+    redis_handle_info (rn->name, rr->str, "operations", NULL, "total_commands_processed", "%lld", DS_TYPE_DERIVE);
+    redis_handle_info (rn->name, rr->str, "expired_keys", NULL, "expired_keys", "%lld", DS_TYPE_GAUGE);
+    redis_handle_info (rn->name, rr->str, "pubsub", "patterns", "pubsub_patterns", "%u", DS_TYPE_GAUGE);
+    redis_handle_info (rn->name, rr->str, "pubsub", "channels", "pubsub_channels", "%ld", DS_TYPE_GAUGE);
 
     /* Read custom queries */
     for (query=rn->query; query!=NULL; query=query->next)
