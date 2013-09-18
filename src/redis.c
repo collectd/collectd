@@ -338,7 +338,7 @@ int redis_handle_info (char *node, char const *info_line, char const *type, char
            printf("Buf: %s, Parsed Val: %f", buf, val.gauge);
            break;
       case DS_TYPE_DERIVE:
-           printf("Buf: %s, Parsed Val: %li", buf, val.derive);
+           printf("Buf: %s, Parsed Val: %" PRId64, buf, val.derive);
            break;
     }
 
