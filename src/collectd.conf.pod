@@ -1339,6 +1339,11 @@ The following options are valid within B<URL> blocks:
 
 Sets the plugin instance to I<Instance>.
 
+=item B<Interval> I<Interval>
+
+Sets the interval (in seconds) in which the values will be collected from this
+URL. By default the global B<Interval> setting will be used.
+
 =item B<User> I<Name>
 
 =item B<Password> I<Password>
