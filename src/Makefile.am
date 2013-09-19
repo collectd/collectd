@@ -728,7 +728,8 @@ endif
 
 if BUILD_PLUGIN_MYSQL
 pkglib_LTLIBRARIES += mysql.la
-mysql_la_SOURCES = mysql.c
+mysql_la_SOURCES = mysql.c \
+                 utils_db_query.c utils_db_query.h
 mysql_la_LDFLAGS = -module -avoid-version
 mysql_la_CFLAGS = $(AM_CFLAGS)
 mysql_la_LIBADD =
