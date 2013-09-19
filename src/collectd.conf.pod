@@ -6085,7 +6085,7 @@ Synopsis:
    <Node "example">
      Host "localhost"
      Port "2003"
-     Protocol "udp"
+     Protocol "tcp"
      LogSendErrors true
      Prefix "collectd"
    </Node>
@@ -6106,7 +6106,7 @@ Service name or port number to connect to. Defaults to C<2003>.
 
 =item B<Protocol> I<String>
 
-Protocol to use when connecting to I<Graphite>. Defaults to C<udp>.
+Protocol to use when connecting to I<Graphite>. Defaults to C<tcp>.
 
 =item B<LogSendErrors> B<false>|B<true>
 

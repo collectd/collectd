@@ -67,7 +67,7 @@
 #endif
 
 #ifndef WG_DEFAULT_PROTOCOL
-# define WG_DEFAULT_PROTOCOL "udp"
+# define WG_DEFAULT_PROTOCOL "tcp"
 #endif
 
 #ifndef WG_DEFAULT_LOG_SEND_ERRORS
