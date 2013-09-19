@@ -1133,7 +1133,7 @@
 #  <Node "example">
 #    Host "localhost"
 #    Port "2003"
-#    Protocol "udp"
+#    Protocol "tcp"
 #    LogSendErrors true
 #    Prefix "collectd"
 #    Postfix "collectd"
