@@ -26,6 +26,9 @@ Features
       Sensors in Macs running Mac OS X / Darwin: Temperature, fanspeed and
       voltage sensors.
 
+    - aquaero
+      Various sensors in the Aquaero 5 watercooling board made by Aquacomputer.
+
     - ascent
       Statistics about Ascent, a free server for the game `World of Warcraft'.
 
@@ -566,6 +569,14 @@ Prerequisites
     used and should be found in various implementations for hopefully all
     platforms.
 
+  * aerotools-ng (optional)
+    Used by the `aquaero' plugin. Currently, the `libaquaero5' library, which
+    is used by the `aerotools-ng' toolkit, is not compiled as a shared object
+    nor does it feature an installation routine. Therefore, you need to point
+    collectd's configure script at the source directory of the `aerotools-ng'
+    project.
+    <https://github.com/lynix/aerotools-ng>
+
   * CoreFoundation.framework and IOKit.framework (optional)
     For compiling on Darwin in general and the `apple_sensors' plugin in
     particular.
@@ -623,6 +634,10 @@ Prerequisites
     Used by the `memcachec' plugin to connect to a memcache daemon.
     <http://tangent.org/552/libmemcached.html>
 
+  * libmnl (optional)
+    Used by the `netlink' plugin.
+    <http://www.netfilter.org/projects/libmnl/>
+
   * libmodbus (optional)
     Used by the “modbus” plugin to communicate with Modbus/TCP devices. The
     “modbus” plugin works with version 2.0.3 of the library – due to frequent
@@ -636,10 +651,6 @@ Prerequisites
   * libnetapp (optional)
     Required for the “netapp” plugin.
     This library is part of the “Manage ONTAP SDK” published by NetApp.
-
-  * libnetlink (optional)
-    Used, obviously, for the `netlink' plugin.
-    <http://www.linuxfoundation.org/en/Net:Iproute2>
 
   * libnetsnmp (optional)
     For the `snmp' plugin.
@@ -705,6 +716,11 @@ Prerequisites
   * libsensors (optional)
     To read from `lm_sensors', see the `sensors' plugin.
     <http://www.lm-sensors.org/>
+
+  * libsigrok (optional)
+    Used by the sigrok plugin. In addition, libsigrok depends on glib,
+    libzip, and optionally (depending on which drivers are enabled) on
+    libusb, libftdi and libudev.
 
   * libstatgrab (optional)
     Used by various plugins to collect statistics on systems other than Linux

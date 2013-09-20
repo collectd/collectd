@@ -196,6 +196,16 @@ collectd_LDADD += "-dlopen" apple_sensors.la
 collectd_DEPENDENCIES += apple_sensors.la
 endif
 
+if BUILD_PLUGIN_AQUAERO
+pkglib_LTLIBRARIES += aquaero.la
+aquaero_la_SOURCES = aquaero.c
+aquaero_la_LDFLAGS = -module -avoid-version
+aquaero_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBAQUAERO5_CFLAGS)
+aquaero_la_LIBADD = $(BUILD_WITH_LIBAQUAERO5_LDFLAGS) -laquaero5
+collectd_LDADD += "-dlopen" aquaero.la
+collectd_DEPENDENCIES += aquaero.la
+endif
+
 if BUILD_PLUGIN_ASCENT
 pkglib_LTLIBRARIES += ascent.la
 ascent_la_SOURCES = ascent.c
@@ -744,8 +754,8 @@ if BUILD_PLUGIN_NETLINK
 pkglib_LTLIBRARIES += netlink.la
 netlink_la_SOURCES = netlink.c
 netlink_la_LDFLAGS = -module -avoid-version
-netlink_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBNETLINK_CFLAGS)
-netlink_la_LIBADD = $(BUILD_WITH_LIBNETLINK_LIBS)
+netlink_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMNL_CFLAGS)
+netlink_la_LIBADD = $(BUILD_WITH_LIBMNL_LIBS)
 collectd_LDADD += "-dlopen" netlink.la
 collectd_DEPENDENCIES += netlink.la
 endif

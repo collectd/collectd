@@ -1,3 +1,72 @@
+2013-08-18, Version 5.4.0
+	* collectd: The "LoadPlugin" config option no longer attempts to load
+	  plugins twice. If more than one "LoadPlugin" statement or block is
+	  encountered, only the first will have any effect.
+	* collectd: The "AutoLoadPlugin" option allows to automatically load
+	  plugins for which a configuration is found.
+	* collectd: The "WriteQueueLimitHigh" and "WriteQueueLimitLow" options
+	  allow collectd to drop values when under stress, to avoid running out
+	  of memory. Thanks to Yves Mettier for his patch.
+	* amqp plugin: The "GraphiteSeparateInstances" and
+	  "GraphiteAlwaysAppendDS" options have been added. Thanks to Laurent
+	  for the patch.
+	* aquaero plugin: This new plugin reads various metrics, e.g. fan
+	  speeds and temperatures, from Aquaero 5, a fan and water cooling
+	  control panel. Thanks to Alex Deymo for his patch.
+	* curl plugin: The "MeasureResponseCode" option has been added. Thanks
+	  to Jan Matějka for his patch.
+	* curl_json plugin: Support for UNIX domain sockets and array wildcards
+	  has been added. Thanks to Jim Radford for his patch.
+	* curl_xml plugin: Support for long URLs has been improved.
+	* cgroups plugin: This new plugin collects CPU accounting information
+	  for processes in a cgroup. Thanks to Michael Stapelberg for his patch.
+	* df plugin: The "ValuesAbsolute" and "ValuesPercentage" options have
+	  been added. Thanks to Vedran Bartonicek for the patch.
+	* exec plugin: Do UID / GID lookups before forking. This should prevent
+	  a race condition in the NSS library. Thanks to Ceri Storey for the
+	  patch.
+	* lvm plugin: This new plugin collects size information from Linux'
+	  Logical Volume Manager (LVM). Thanks to Chad Malfait for his work.
+	* memcached plugin: Support for increment and decrement counts has been
+	  added. Thanks to Blake Matheny for the patch.
+	* mic plugin: This new plugin collects CPU and memory usage, power
+	  consumption and temperatures of Intel's Many-Integrated-Core (MIC)
+	  architecture, such as Xeon Phi cards. Thanks to Evan Felix for his
+	  work.
+	* netlink plugin: This plugin has been converted to use the supported
+	  "libmnl" library. Thanks to Andreas Henriksson for his patch.
+	* nginx plugin: Collection of accepted and handled connections has been
+	  added. Thanks to Patrick Shan for his patch.
+	* sigrok plugin: This new plugin collects metrics from sigrok, a signal
+	  processing framework reading various hardware devices, from light
+	  meters to spectrum analyzers. Thanks to Bert Vermeulen for his patch.
+	* statsd plugin: This new plugin listens to a UDP socket and reads
+	  metrics in the StatsD format.
+	* varnish plugin: Many additional metrics have been added. Thanks to
+	  Nick Stenning for his patch.
+	* write_graphite plugin: Support for "UDP" has been added. Thanks to
+	  Javier Maestro for his patch.
+	* write_riemann plugin: The "TTLFactor" option has been added.
+	* zfs_arc plugin: Support for FreeBSD has been added. Thanks to Xin Li
+	  for his patch.
+
+2013-07-13, Version 5.3.1
+	* Documentation: Various fixes.
+	* Configuration: Fix error handling: Errors in included files were
+	  ignored, causing configuration mistakes to go unnoticed.
+	* dns plugin: Don't abort when PCAP returns an error.
+	* modbus plugin: The reconnection strategy was improved, fixing a
+	  segfault in the libmodbud library. Thanks to Stefan Nickl and
+	  Fabien Wernli for their patches.
+	* mysql plugin: The notification about a newly running MySQL slave
+	  thread has been fixed. Thanks to Joaquín Cuenca Abela for the patch.
+	* snmp plugin: A build issue has been fixed (C99 mixed declaration).
+	  The end-of-tree check has been improved by Pierre-Yves Ritschard.
+	* threshold plugin: Handling of the "Interesting" configuration option
+	  has been fixed. Thanks to Björn for the patch.
+	* write_riemann plugin: A memory leak has been fixed. Thanks to Dave
+	  Cottlehuber for reporting it.
+
 2013-04-09, Version 5.3.0
 	* collectd: The "Include" statements can now be limited to include
 	  only matching files in a directory. Thanks to Sebastian Harl for his

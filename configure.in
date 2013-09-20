@@ -1480,6 +1480,63 @@ then
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBKVM_OPENFILES, test "x$with_kvm_openfiles" = "xyes")
 
+# --with-libaquaero5 {{{
+AC_ARG_WITH(libaquaero5, [AS_HELP_STRING([--with-libaquaero5@<:@=PREFIX@:>@], [Path to aquatools-ng source code.])],
+[
+ if test "x$withval" = "xyes"
+ then
+	 with_libaquaero5="yes"
+ else if test "x$withval" = "xno"
+ then
+	 with_libaquaero5="no"
+ else
+	 with_libaquaero5="yes"
+	 LIBAQUAERO5_CFLAGS="$LIBAQUAERO5_CFLAGS -I$withval/src"
+	 LIBAQUAERO5_LDFLAGS="$LIBAQUAERO5_LDFLAGS -L$withval/obj"
+ fi; fi
+],
+[with_libaquaero5="yes"])
+
+SAVE_CPPFLAGS="$CPPFLAGS"
+SAVE_LDFLAGS="$LDFLAGS"
+
+CPPFLAGS="$CPPFLAGS $LIBAQUAERO5_CFLAGS"
+LDFLAGS="$LDFLAGS $LIBAQUAERO5_LDFLAGS"
+
+if test "x$with_libaquaero5" = "xyes"
+then
+	if test "x$LIBAQUAERO5_CFLAGS" != "x"
+	then
+		AC_MSG_NOTICE([libaquaero5 CPPFLAGS: $LIBAQUAERO5_CFLAGS])
+	fi
+	AC_CHECK_HEADERS(libaquaero5.h,
+	[with_libaquaero5="yes"],
+	[with_libaquaero5="no (libaquaero5.h not found)"])
+fi
+if test "x$with_libaquaero5" = "xyes"
+then
+	if test "x$LIBAQUAERO5_LDFLAGS" != "x"
+	then
+		AC_MSG_NOTICE([libaquaero5 LDFLAGS: $LIBAQUAERO5_LDFLAGS])
+	fi
+	AC_CHECK_LIB(aquaero5, libaquaero5_poll,
+	[with_libaquaero5="yes"],
+	[with_libaquaero5="no (symbol 'libaquaero5_poll' not found)"])
+fi
+
+CPPFLAGS="$SAVE_CPPFLAGS"
+LDFLAGS="$SAVE_LDFLAGS"
+
+if test "x$with_libaquaero5" = "xyes"
+then
+	BUILD_WITH_LIBAQUAERO5_CFLAGS="$LIBAQUAERO5_CFLAGS"
+	BUILD_WITH_LIBAQUAERO5_LDFLAGS="$LIBAQUAERO5_LDFLAGS"
+	AC_SUBST(BUILD_WITH_LIBAQUAERO5_CFLAGS)
+	AC_SUBST(BUILD_WITH_LIBAQUAERO5_LDFLAGS)
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBAQUAERO5, test "x$with_libaquaero5" = "xyes")
+# }}}
+
 # --with-libcredis {{{
 AC_ARG_WITH(libcredis, [AS_HELP_STRING([--with-libcredis@<:@=PREFIX@:>@], [Path to libcredis.])],
 [
@@ -2501,24 +2558,24 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LIBMYSQL, test "x$with_libmysql" = "xyes")
 # }}}
 
-# --with-libnetlink {{{
-with_libnetlink_cflags=""
-with_libnetlink_libs="-lnetlink"
-AC_ARG_WITH(libnetlink, [AS_HELP_STRING([--with-libnetlink@<:@=PREFIX@:>@], [Path to libnetlink.])],
+# --with-libmnl {{{
+with_libmnl_cflags=""
+with_libmnl_libs=""
+AC_ARG_WITH(libmnl, [AS_HELP_STRING([--with-libmnl@<:@=PREFIX@:>@], [Path to libmnl.])],
 [
- echo "libnetlink: withval = $withval"
+ echo "libmnl: withval = $withval"
  if test "x$withval" = "xyes"
  then
-	 with_libnetlink="yes"
+	 with_libmnl="yes"
  else if test "x$withval" = "xno"
  then
-	 with_libnetlink="no"
+	 with_libmnl="no"
  else
 	 if test -d "$withval/include"
 	 then
-		 with_libnetlink_cflags="-I$withval/include"
-		 with_libnetlink_libs="-L$withval/lib -lnetlink"
-		 with_libnetlink="yes"
+		 with_libmnl_cflags="-I$withval/include"
+		 with_libmnl_libs="-L$withval/lib -lmnl"
+		 with_libmnl="yes"
 	 else
 		 AC_MSG_ERROR("no such directory: $withval/include")
 	 fi
@@ -2527,21 +2584,25 @@ AC_ARG_WITH(libnetlink, [AS_HELP_STRING([--with-libnetlink@<:@=PREFIX@:>@], [Pat
 [
  if test "x$ac_system" = "xLinux"
  then
-	 with_libnetlink="yes"
+	 with_libmnl="yes"
  else
-	 with_libnetlink="no (Linux only library)"
+	 with_libmnl="no (Linux only library)"
  fi
 ])
-if test "x$with_libnetlink" = "xyes"
+if test "x$PKG_CONFIG" = "x"
 then
-	SAVE_CFLAGS="$CFLAGS"
-	CFLAGS="$CFLAGS $with_libnetlink_cflags"
+	with_libmnl="no (Don't have pkg-config)"
+fi
+if test "x$with_libmnl" = "xyes"
+then
+	if $PKG_CONFIG --exists libmnl 2>/dev/null; then
+	  with_libmnl_cflags="$with_libmnl_ldflags `$PKG_CONFIG --cflags libmnl`"
+	  with_libmnl_libs="$with_libmnl_libs `$PKG_CONFIG --libs libmnl`"
+	fi
 
-	with_libnetlink="no (libnetlink.h not found)"
-
-	AC_CHECK_HEADERS(libnetlink.h iproute/libnetlink.h linux/libnetlink.h,
+	AC_CHECK_HEADERS(libmnl.h libmnl/libmnl.h,
 	[
-	 with_libnetlink="yes"
+	 with_libmnl="yes"
 	 break
 	], [],
 [#include <stdio.h>
@@ -2557,126 +2618,53 @@ then
 #include <sys/socket.h>])
 
         AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
-[[[
+[[
 #include <stdio.h>
 #include <sys/types.h>
 #include <asm/types.h>
 #include <sys/socket.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
-]]],
-[[[
+]],
+[[
 int retval = TCA_STATS2;
 return (retval);
-]]]
+]]
 	)],
 	[AC_DEFINE([HAVE_TCA_STATS2], [1], [True if the enum-member TCA_STATS2 exists])])
 
 	AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
-[[[
+[[
 #include <stdio.h>
 #include <sys/types.h>
 #include <asm/types.h>
 #include <sys/socket.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
-]]],
-[[[
+]],
+[[
 int retval = TCA_STATS;
 return (retval);
-]]]
+]]
 	)],
 	[AC_DEFINE([HAVE_TCA_STATS], 1, [True if the enum-member TCA_STATS exists])])
-
-	CFLAGS="$SAVE_CFLAGS"
 fi
-if test "x$with_libnetlink" = "xyes"
+if test "x$with_libmnl" = "xyes"
 then
-	AC_CHECK_LIB(netlink, rtnl_open,
-		     [with_libnetlink="yes"],
-		     [with_libnetlink="no (symbol 'rtnl_open' not found)"],
-		     [$with_libnetlink_libs])
+	AC_CHECK_LIB(mnl, mnl_nlmsg_get_payload,
+		     [with_libmnl="yes"],
+		     [with_libmnl="no (symbol 'mnl_nlmsg_get_payload' not found)"],
+		     [$with_libmnl_libs])
 fi
-if test "x$with_libnetlink" = "xyes"
+if test "x$with_libmnl" = "xyes"
 then
-	SAVE_CFLAGS="$CFLAGS"
-	CFLAGS="$CFLAGS $with_libnetlink_cflags"
-
-	AC_CACHE_CHECK(
-		[if function 'rtnl_dump_filter' expects five arguments],
-		[c_cv_rtnl_dump_filter_five_args],
-		AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
-[[[
-#include <stdio.h>
-#include <sys/types.h>
-#include <asm/types.h>
-#include <sys/socket.h>
-#if HAVE_LIBNETLINK_H
-# include <libnetlink.h>
-#elif HAVE_IPROUTE_LIBNETLINK_H
-# include <iproute/libnetlink.h>
-#elif HAVE_LINUX_LIBNETLINK_H
-# include <linux/libnetlink.h>
-#endif
-]]],
-[[[
-if (rtnl_dump_filter(NULL, NULL, NULL, NULL, NULL))
-	return 1;
-return 0;
-]]]
-	)],
-	[c_cv_rtnl_dump_filter_five_args="yes"],
-	[c_cv_rtnl_dump_filter_five_args="no"]
-	)
-)
-
-	AC_CACHE_CHECK(
-		[if function 'rtnl_dump_filter' expects three arguments],
-		[c_cv_rtnl_dump_filter_three_args],
-		AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
-[[[
-#include <stdio.h>
-#include <sys/types.h>
-#include <asm/types.h>
-#include <sys/socket.h>
-#if HAVE_LIBNETLINK_H
-# include <libnetlink.h>
-#elif HAVE_IPROUTE_LIBNETLINK_H
-# include <iproute/libnetlink.h>
-#elif HAVE_LINUX_LIBNETLINK_H
-# include <linux/libnetlink.h>
-#endif
-]]],
-[[[
-if (rtnl_dump_filter(NULL, NULL, NULL))
-	return 1;
-return 0;
-]]]
-	)],
-	[c_cv_rtnl_dump_filter_three_args="yes"],
-	[c_cv_rtnl_dump_filter_three_args="no"]
-	)
-)
-
-	CFLAGS="$SAVE_CFLAGS"
-
-	if test "x$c_cv_rtnl_dump_filter_five_args" = "xyes"
-	then
-		AC_DEFINE(RTNL_DUMP_FILTER_FIVE_ARGS, 1,
-				[Define to 1 if function 'rtnl_dump_filter' expects five arguments.])
-	fi
-	if test "x$c_cv_rtnl_dump_filter_three_args" = "xyes"
-	then
-		AC_DEFINE(RTNL_DUMP_FILTER_THREE_ARGS, 1,
-				[Define to 1 if function 'rtnl_dump_filter' expects three arguments.])
-	fi
-
-	BUILD_WITH_LIBNETLINK_CFLAGS="$with_libnetlink_cflags"
-	BUILD_WITH_LIBNETLINK_LIBS="$with_libnetlink_libs"
-	AC_SUBST(BUILD_WITH_LIBNETLINK_CFLAGS)
-	AC_SUBST(BUILD_WITH_LIBNETLINK_LIBS)
+	AC_DEFINE(HAVE_LIBMNL, 1, [Define if libmnl is present and usable.])
+	BUILD_WITH_LIBMNL_CFLAGS="$with_libmnl_cflags"
+	BUILD_WITH_LIBMNL_LIBS="$with_libmnl_libs"
+	AC_SUBST(BUILD_WITH_LIBMNL_CFLAGS)
+	AC_SUBST(BUILD_WITH_LIBMNL_LIBS)
 fi
-AM_CONDITIONAL(BUILD_WITH_LIBNETLINK, test "x$with_libnetlink" = "xyes")
+AM_CONDITIONAL(BUILD_WITH_LIBMNL, test "x$with_libmnl" = "xyes")
 # }}}
 
 # --with-libnetapp {{{
@@ -5086,6 +5074,7 @@ AC_PLUGIN([amqp],        [$with_librabbitmq],  [AMQP output plugin])
 AC_PLUGIN([apache],      [$with_libcurl],      [Apache httpd statistics])
 AC_PLUGIN([apcups],      [yes],                [Statistics of UPSes by APC])
 AC_PLUGIN([apple_sensors], [$with_libiokit],   [Apple's hardware sensors])
+AC_PLUGIN([aquaero],     [$with_libaquaero5],  [Aquaero's hardware sensors])
 AC_PLUGIN([ascent],      [$plugin_ascent],     [AscentEmu player statistics])
 AC_PLUGIN([battery],     [$plugin_battery],    [Battery statistics])
 AC_PLUGIN([bind],        [$plugin_bind],       [ISC Bind nameserver statistics])
@@ -5137,7 +5126,7 @@ AC_PLUGIN([modbus],      [$with_libmodbus],    [Modbus plugin])
 AC_PLUGIN([multimeter],  [$plugin_multimeter], [Read multimeter values])
 AC_PLUGIN([mysql],       [$with_libmysql],     [MySQL statistics])
 AC_PLUGIN([netapp],      [$with_libnetapp],    [NetApp plugin])
-AC_PLUGIN([netlink],     [$with_libnetlink],   [Enhanced Linux network statistics])
+AC_PLUGIN([netlink],     [$with_libmnl],       [Enhanced Linux network statistics])
 AC_PLUGIN([network],     [yes],                [Network communication plugin])
 AC_PLUGIN([nfs],         [$plugin_nfs],        [NFS statistics])
 AC_PLUGIN([nginx],       [$with_libcurl],      [nginx statistics])
@@ -5371,6 +5360,7 @@ cat <<EOF;
 Configuration:
   Libraries:
     intel mic . . . . . . $with_mic
+    libaquaero5 . . . . . $with_libaquaero5
     libcurl . . . . . . . $with_libcurl
     libdbi  . . . . . . . $with_libdbi
     libcredis . . . . . . $with_libcredis
@@ -5383,10 +5373,10 @@ Configuration:
     libkstat  . . . . . . $with_kstat
     libkvm  . . . . . . . $with_libkvm
     libmemcached  . . . . $with_libmemcached
+    libmnl  . . . . . . . $with_libmnl
     libmodbus . . . . . . $with_libmodbus
     libmysql  . . . . . . $with_libmysql
     libnetapp . . . . . . $with_libnetapp
-    libnetlink  . . . . . $with_libnetlink
     libnetsnmp  . . . . . $with_libnetsnmp
     libnotify . . . . . . $with_libnotify
     liboconfig  . . . . . $with_liboconfig
@@ -5427,6 +5417,7 @@ Configuration:
     amqp    . . . . . . . $enable_amqp
     apache  . . . . . . . $enable_apache
     apcups  . . . . . . . $enable_apcups
+    aquaero . . . . . . . $enable_aquaero
     apple_sensors . . . . $enable_apple_sensors
     ascent  . . . . . . . $enable_ascent
     battery . . . . . . . $enable_battery
@@ -5461,7 +5452,7 @@ Configuration:
     libvirt . . . . . . . $enable_libvirt
     load  . . . . . . . . $enable_load
     logfile . . . . . . . $enable_logfile
-    lpar... . . . . . . . $enable_lpar
+    lpar  . . . . . . . . $enable_lpar
     lvm . . . . . . . . . $enable_lvm
     madwifi . . . . . . . $enable_madwifi
     match_empty_counter . $enable_match_empty_counter
