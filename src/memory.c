@@ -90,6 +90,39 @@ static perfstat_memory_total_t pmemory;
 # error "No applicable input method."
 #endif
 
+static _Bool values_absolute = 1;
+static _Bool values_percentage = 0;
+
+static const char *config_keys[] =
+{
+	"ValuesAbsolute",
+	"ValuesPercentage"
+};
+static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
+
+static int memory_config (const char *key, const char *value) /* {{{ */
+{
+	if (strcasecmp (key, "ValuesAbsolute") == 0)
+	{
+		if (IS_TRUE (value))
+			values_absolute = 1;
+		else
+			values_absolute = 0;
+
+		return (0);
+	}
+	else if (strcasecmp (key, "ValuesPercentage") == 0)
+	{
+		if (IS_TRUE (value))
+			values_percentage = 1;
+		else
+			values_percentage = 0;
+
+		return (0);
+	}
+	return (-1);
+} /* }}} int memory_config */
+
 static int memory_init (void)
 {
 #if HAVE_HOST_STATISTICS
@@ -162,6 +195,7 @@ static int memory_read (void)
 	gauge_t active;
 	gauge_t inactive;
 	gauge_t free;
+	gauge_t total;
 
 	if (!port_host || !pagesize)
 		return (-1);
@@ -199,11 +233,22 @@ static int memory_read (void)
 	active   = (gauge_t) (((uint64_t) vm_data.active_count)   * ((uint64_t) pagesize));
 	inactive = (gauge_t) (((uint64_t) vm_data.inactive_count) * ((uint64_t) pagesize));
 	free     = (gauge_t) (((uint64_t) vm_data.free_count)     * ((uint64_t) pagesize));
+	total    = wired + active + inactive + free;
 
-	memory_submit ("wired",    wired);
-	memory_submit ("active",   active);
-	memory_submit ("inactive", inactive);
-	memory_submit ("free",     free);
+	if (values_absolute)
+	{
+		memory_submit ("wired",    wired);
+		memory_submit ("active",   active);
+		memory_submit ("inactive", inactive);
+		memory_submit ("free",     free);
+	}
+	if (values_percentage)
+	{
+		memory_submit ("percent_wired",    (gauge_t) ((float_t) wired) / total * 100);
+		memory_submit ("percent_active",   (gauge_t) ((float_t) active) / total * 100);
+		memory_submit ("percent_inactive", (gauge_t) ((float_t) inactive / total * 100);
+		memory_submit ("percent_free",     (gauge_t) ((float_t) free / total * 100);
+	}
 /* #endif HAVE_HOST_STATISTICS */
 
 #elif HAVE_SYSCTLBYNAME
@@ -253,11 +298,23 @@ static int memory_read (void)
 		if (!isnan (sysctl_vals[i]))
 			sysctl_vals[i] *= sysctl_vals[0];
 
-	memory_submit ("free",     sysctl_vals[2]);
-	memory_submit ("wired",    sysctl_vals[3]);
-	memory_submit ("active",   sysctl_vals[4]);
-	memory_submit ("inactive", sysctl_vals[5]);
-	memory_submit ("cache",    sysctl_vals[6]);
+	if (values_absolute)
+	{
+		memory_submit ("free",     sysctl_vals[2]);
+		memory_submit ("wired",    sysctl_vals[3]);
+		memory_submit ("active",   sysctl_vals[4]);
+		memory_submit ("inactive", sysctl_vals[5]);
+		memory_submit ("cache",    sysctl_vals[6]);
+	}
+	if (values_percentage)
+	{
+		double total = sysctl_vals[2] + sysctl_vals[3] + sysctl_vals[4] + sysctl_vals[5] + sysctl_vals[6];
+		memory_submit ("percent_free",     (gauge_t) ((float_t) sysctl_vals[2]) / total * 100);
+		memory_submit ("percent_wired",    (gauge_t) ((float_t) sysctl_vals[3]) / total * 100);
+		memory_submit ("percent_active",   (gauge_t) ((float_t) sysctl_vals[4]) / total * 100);
+		memory_submit ("percent_inactive", (gauge_t) ((float_t) sysctl_vals[5]) / total * 100);
+		memory_submit ("percent_cache",    (gauge_t) ((float_t) sysctl_vals[6]) / total * 100);
+	}
 /* #endif HAVE_SYSCTLBYNAME */
 
 #elif KERNEL_LINUX
@@ -267,6 +324,7 @@ static int memory_read (void)
 	char *fields[8];
 	int numfields;
 
+	long long mem_total = 0;
 	long long mem_used = 0;
 	long long mem_buffered = 0;
 	long long mem_cached = 0;
@@ -285,7 +343,7 @@ static int memory_read (void)
 		long long *val = NULL;
 
 		if (strncasecmp (buffer, "MemTotal:", 9) == 0)
-			val = &mem_used;
+			val = &mem_total;
 		else if (strncasecmp (buffer, "MemFree:", 8) == 0)
 			val = &mem_free;
 		else if (strncasecmp (buffer, "Buffers:", 8) == 0)
@@ -310,13 +368,23 @@ static int memory_read (void)
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 	}
 
-	if (mem_used >= (mem_free + mem_buffered + mem_cached))
+	if (mem_total >= (mem_free + mem_buffered + mem_cached))
 	{
-		mem_used -= mem_free + mem_buffered + mem_cached;
-		memory_submit ("used",     mem_used);
-		memory_submit ("buffered", mem_buffered);
-		memory_submit ("cached",   mem_cached);
-		memory_submit ("free",     mem_free);
+		mem_used = mem_total - (mem_free + mem_buffered + mem_cached);
+		if (values_absolute)
+		{
+			memory_submit ("used",     mem_used);
+			memory_submit ("buffered", mem_buffered);
+			memory_submit ("cached",   mem_cached);
+			memory_submit ("free",     mem_free);
+		}
+		if (values_percentage)
+		{
+			memory_submit ("percent_used",     (gauge_t) ((float_t) mem_used) / mem_total * 100);
+			memory_submit ("percent_buffered", (gauge_t) ((float_t) mem_buffered) / mem_total * 100);
+			memory_submit ("percent_cached",   (gauge_t) ((float_t) mem_cached) / mem_total * 100);
+			memory_submit ("percent_free",     (gauge_t) ((float_t) mem_free) / mem_total * 100);
+		}
 	}
 /* #endif KERNEL_LINUX */
 
@@ -389,11 +457,23 @@ static int memory_read (void)
 	mem_kern *= pagesize; /* it's 2011 RAM is cheap */
 	mem_unus *= pagesize;
 
-	memory_submit ("used",   mem_used);
-	memory_submit ("free",   mem_free);
-	memory_submit ("locked", mem_lock);
-	memory_submit ("kernel", mem_kern);
-	memory_submit ("unusable", mem_unus);
+	if (values_absolute)
+	{
+		memory_submit ("used",   mem_used);
+		memory_submit ("free",   mem_free);
+		memory_submit ("locked", mem_lock);
+		memory_submit ("kernel", mem_kern);
+		memory_submit ("unusable", mem_unus);
+	}
+	if (values_percentage)
+	{
+		memory_submit ("percent_used",   (gauge_t) ((float_t) mem_used) / (mem_used + mem_free + mem_lock + mem_kern + mem_unus) * 100);
+		memory_submit ("percent_free",   (gauge_t) ((float_t) mem_free) / (mem_used + mem_free + mem_lock + mem_kern + mem_unus) * 100);
+		memory_submit ("percent_locked", (gauge_t) ((float_t) mem_lock) / (mem_used + mem_free + mem_lock + mem_kern + mem_unus) * 100);
+		memory_submit ("percent_kernel", (gauge_t) ((float_t) mem_kern) / (mem_used + mem_free + mem_lock + mem_kern + mem_unus) * 100);
+		memory_submit ("percent_unusable", (gauge_t) ((float_t) mem_unus) / (mem_used + mem_free + mem_lock + mem_kern + mem_unus) * 100);
+
+	}
 /* #endif HAVE_LIBKSTAT */
 
 #elif HAVE_SYSCTL
@@ -412,9 +492,18 @@ static int memory_read (void)
 	}
 
 	assert (pagesize > 0);
-	memory_submit ("active",   vmtotal.t_arm * pagesize);
-	memory_submit ("inactive", (vmtotal.t_rm - vmtotal.t_arm) * pagesize);
-	memory_submit ("free",     vmtotal.t_free * pagesize);
+	if (values_absolute)
+	{
+		memory_submit ("active",   vmtotal.t_arm * pagesize);
+		memory_submit ("inactive", (vmtotal.t_rm - vmtotal.t_arm) * pagesize);
+		memory_submit ("free",     vmtotal.t_free * pagesize);
+	}
+	if (values_percentage)
+	{
+		memory_submit ("percent_active",   (gauge_t) ((float_t) vmtotal.t_arm) / (vmtotal.t_rm + vmtotal.t_free) * 100);
+		memory_submit ("percent_inactive", (gauge_t) ((float_t) (vmtotal.t_rm - vmtotal.t_arm) / (vmtotal.t_rm + vmtotal.t_free) * 100);
+		memory_submit ("percent_free",     (gauge_t) ((float_t) vmtotal.t_free) / (vmtotal.t_rm + vmtotal.t_free) * 100);
+	}
 /* #endif HAVE_SYSCTL */
 
 #elif HAVE_LIBSTATGRAB
@@ -422,9 +511,18 @@ static int memory_read (void)
 
 	if ((ios = sg_get_mem_stats ()) != NULL)
 	{
-		memory_submit ("used",   ios->used);
-		memory_submit ("cached", ios->cache);
-		memory_submit ("free",   ios->free);
+		if (values_absolute)
+		{
+			memory_submit ("used",   ios->used);
+			memory_submit ("cached", ios->cache);
+			memory_submit ("free",   ios->free);
+		}
+		if (values_percentage)
+		{
+			memory_submit ("percent_used",   (gauge_t) ((float_t) ios->used) / (ios->used + ios->cache + ios->free) * 100);
+			memory_submit ("percent_cached", (gauge_t) ((float_t) ios->cache) / (ios->used + ios->cache + ios->free) * 100);
+			memory_submit ("percent_free",   (gauge_t) ((float_t) ios->free) / (ios->used + ios->cache + ios->free) * 100);
+		}
 	}
 /* #endif HAVE_LIBSTATGRAB */
 
@@ -436,11 +534,22 @@ static int memory_read (void)
 			sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
-	memory_submit ("used",   pmemory.real_inuse * pagesize);
-	memory_submit ("free",   pmemory.real_free * pagesize);
-	memory_submit ("cached", pmemory.numperm * pagesize);
-	memory_submit ("system", pmemory.real_system * pagesize);
-	memory_submit ("user",   pmemory.real_process * pagesize);
+	if (values_absolute)
+	{
+		memory_submit ("used",   pmemory.real_inuse * pagesize);
+		memory_submit ("free",   pmemory.real_free * pagesize);
+		memory_submit ("cached", pmemory.numperm * pagesize);
+		memory_submit ("system", pmemory.real_system * pagesize);
+		memory_submit ("user",   pmemory.real_process * pagesize);
+	}
+	if (values_percentage)
+	{
+		memory_submit ("percent_used",   (gauge_t) ((float_t) pmemory.real_inuse) / pmemory.real_total * 100);
+		memory_submit ("percent_free",   (gauge_t) ((float_t) pmemory.real_free) / pmemory.real_total * 100);
+		memory_submit ("percent_cached", (gauge_t) ((float_t) pmemory.numperm) / pmemory.real_total * 100);
+		memory_submit ("percent_system", (gauge_t) ((float_t) pmemory.real_system) / pmemory.real_total * 100);
+		memory_submit ("percent_user",   (gauge_t) ((float_t) pmemory.real_process) / pmemory.real_total * 100);
+	}
 #endif /* HAVE_PERFSTAT */
 
 	return (0);
@@ -448,6 +557,8 @@ static int memory_read (void)
 
 void module_register (void)
 {
+	plugin_register_config ("memory", memory_config,
+			config_keys, config_keys_num);
 	plugin_register_init ("memory", memory_init);
 	plugin_register_read ("memory", memory_read);
 } /* void module_register */
