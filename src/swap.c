@@ -104,10 +104,15 @@ static perfstat_memory_total_t pmemory;
 # error "No applicable input method."
 #endif /* HAVE_LIBSTATGRAB */
 
+static _Bool values_absolute = 1;
+static _Bool values_percentage = 0;
+
 static const char *config_keys[] =
 {
 	"ReportBytes",
-	"ReportByDevice"
+	"ReportByDevice",
+	"ValuesAbsolute",
+	"ValuesPercentage"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -135,6 +140,24 @@ static int swap_config (const char *key, const char *value) /* {{{ */
 				"supported on this platform. "
 				"The option is going to be ignored.");
 #endif /* SWAP_HAVE_REPORT_BY_DEVICE */
+	}
+	else if (strcasecmp (key, "ValuesAbsolute") == 0)
+	{
+		if (IS_TRUE (value))
+			values_absolute = 1;
+		else
+			values_absolute = 0;
+
+		return (0);
+	}
+	else if (strcasecmp (key, "ValuesPercentage") == 0)
+	{
+		if (IS_TRUE (value))
+			values_percentage = 1;
+		else
+			values_percentage = 0;
+
+		return (0);
 	}
 	else
 	{
@@ -282,8 +305,16 @@ static int swap_read_separate (void) /* {{{ */
 
 		free = size - used;
 
-		swap_submit_gauge (path, "used", used);
-		swap_submit_gauge (path, "free", free);
+		if (values_absolute)
+		{
+			swap_submit_gauge (path, "used", used);
+			swap_submit_gauge (path, "free", free);
+		}
+		if (values_percentage)
+		{
+			swap_submit_gauge (path, "percent_used", (gauge_t) ((float_t) used) / (used + free) * 100);
+			swap_submit_gauge (path, "percent_free", (gauge_t) ((float_t) free) / (used + free) * 100);
+		}
 	}
 
 	fclose (fh);
@@ -349,9 +380,18 @@ static int swap_read_combined (void) /* {{{ */
 
 	swap_used = swap_total - (swap_free + swap_cached);
 
-	swap_submit_gauge (NULL, "used",   1024.0 * swap_used);
-	swap_submit_gauge (NULL, "free",   1024.0 * swap_free);
-	swap_submit_gauge (NULL, "cached", 1024.0 * swap_cached);
+	if (values_absolute)
+	{
+		swap_submit_gauge (NULL, "used",   1024.0 * swap_used);
+		swap_submit_gauge (NULL, "free",   1024.0 * swap_free);
+		swap_submit_gauge (NULL, "cached", 1024.0 * swap_cached);
+	}
+	if (values_percentage)
+	{
+		swap_submit_gauge (NULL, "percent_used", (gauge_t) ((float_t) swap_used) / (swap_used + swap_free + swap_cached) * 100);
+		swap_submit_gauge (NULL, "percent_free", (gauge_t) ((float_t) swap_free) / (swap_used + swap_free + swap_cached) * 100);
+		swap_submit_gauge (NULL, "percent_cached", (gauge_t) ((float_t) swap_cached) / (swap_used + swap_free + swap_cached) * 100);
+	}
 
 	return (0);
 } /* }}} int swap_read_combined */
@@ -502,9 +542,18 @@ static int swap_read_kstat (void) /* {{{ */
 			* pagesize);
 	swap_avail  = (derive_t) ((ai.ani_max - ai.ani_resv) * pagesize);
 
-	swap_submit_gauge (NULL, "used", swap_alloc);
-	swap_submit_gauge (NULL, "free", swap_avail);
-	swap_submit_gauge (NULL, "reserved", swap_resv);
+	if (values_absolute)
+	{
+		swap_submit_gauge (NULL, "used", swap_alloc);
+		swap_submit_gauge (NULL, "free", swap_avail);
+		swap_submit_gauge (NULL, "reserved", swap_resv);
+	}
+	if (values_percentage)
+	{
+		swap_submit_gauge (NULL, "percent_used", (gauge_t) ((float_t) swap_alloc) / (swap_alloc + swap_avail + swap_resv) * 100);
+		swap_submit_gauge (NULL, "percent_free", (gauge_t) ((float_t) swap_avail) / (swap_alloc + swap_avail + swap_resv) * 100);
+		swap_submit_gauge (NULL, "percent_reserved", (gauge_t) ((float_t) swap_resv) / (swap_alloc + swap_avail + swap_resv) * 100);
+	}
 
 	return (0);
 } /* }}} int swap_read_kstat */
@@ -604,8 +653,17 @@ static int swap_read (void) /* {{{ */
 		sstrncpy (path, s->swt_ent[i].ste_path, sizeof (path));
 		escape_slashes (path, sizeof (path));
 
-		swap_submit_gauge (path, "used", (gauge_t) (this_total - this_avail));
-		swap_submit_gauge (path, "free", (gauge_t) this_avail);
+		if (values_absolute)
+		{
+			swap_submit_gauge (path, "used", (gauge_t) (this_total - this_avail));
+			swap_submit_gauge (path, "free", (gauge_t) this_avail);
+		}
+		if (values_percentage)
+		{
+			swap_submit_gauge (path, "percent_used", (gauge_t) ((float_t) (this_total - this_avail)) / this_total * 100);
+			swap_submit_gauge (path, "percent_free", (gauge_t) ((float_t) this_avail) / this_total * 100);
+		}
+
         } /* for (swap_num) */
 
         if (total < avail)
@@ -622,8 +680,16 @@ static int swap_read (void) /* {{{ */
 	 * values have already been dispatched from within the loop. */
 	if (!report_by_device)
 	{
-		swap_submit_gauge (NULL, "used", (gauge_t) (total - avail));
-		swap_submit_gauge (NULL, "free", (gauge_t) avail);
+		if (values_absolute)
+		{
+			swap_submit_gauge (NULL, "used", (gauge_t) (total - avail));
+			swap_submit_gauge (NULL, "free", (gauge_t) avail);
+		}
+		if (values_percentage)
+		{
+			swap_submit_gauge (NULL, "percent_used", (gauge_t) ((float_t) (total - avail)) / total * 100);
+			swap_submit_gauge (NULL, "percent_free", (gauge_t) ((float_t) avail) / total * 100);
+		}
 	}
 
 	sfree (s_paths);
@@ -694,8 +760,16 @@ static int swap_read (void) /* {{{ */
 		return (-1);
 	}
 
-	swap_submit_gauge (NULL, "used", (gauge_t) used);
-	swap_submit_gauge (NULL, "free", (gauge_t) (total - used));
+	if (values_absolute)
+	{
+		swap_submit_gauge (NULL, "used", (gauge_t) used);
+		swap_submit_gauge (NULL, "free", (gauge_t) (total - used));
+	}
+	if (values_percentage)
+	{
+		swap_submit_gauge (NULL, "percent_used", (gauge_t) ((float_t) used) / total * 100);
+		swap_submit_gauge (NULL, "percent_free", (gauge_t) ((float_t) (total - used)) / total * 100);
+	}
 
 	sfree (swap_entries);
 
@@ -721,8 +795,16 @@ static int swap_read (void) /* {{{ */
 		return (-1);
 
 	/* The returned values are bytes. */
-	swap_submit_gauge (NULL, "used", (gauge_t) sw_usage.xsu_used);
-	swap_submit_gauge (NULL, "free", (gauge_t) sw_usage.xsu_avail);
+	if (values_absolute)
+	{
+		swap_submit_gauge (NULL, "used", (gauge_t) sw_usage.xsu_used);
+		swap_submit_gauge (NULL, "free", (gauge_t) sw_usage.xsu_avail);
+	}
+	if (values_percentage)
+	{
+		swap_submit_gauge (NULL, "percent_used", (gauge_t) ((float_t) sw_usage.xsu_used) / (sw_usage.xsu_used + sw_usage.xsu_avail) * 100);
+		swap_submit_gauge (NULL, "percent_free", (gauge_t) ((float_t) sw_usage.xsu_avail) / (sw_usage.xsu_used + sw_usage.xsu_avail) * 100);
+	}
 
 	return (0);
 } /* }}} int swap_read */
@@ -754,8 +836,16 @@ static int swap_read (void) /* {{{ */
 
 	free = total - used;
 
-	swap_submit_gauge (NULL, "used", (gauge_t) used);
-	swap_submit_gauge (NULL, "free", (gauge_t) free);
+	if (values_absolute)
+	{
+		swap_submit_gauge (NULL, "used", (gauge_t) used);
+		swap_submit_gauge (NULL, "free", (gauge_t) free);
+	}
+	if (values_percentage)
+	{
+		swap_submit_gauge (NULL, "percent_used", (gauge_t) ((float_t) used) / total * 100);
+		swap_submit_gauge (NULL, "percent_free", (gauge_t) ((float_t) free) / total * 100);
+	}
 
 	return (0);
 } /* }}} int swap_read */
@@ -771,8 +861,16 @@ static int swap_read (void) /* {{{ */
 	if (swap == NULL)
 		return (-1);
 
-	swap_submit_gauge (NULL, "used", (gauge_t) swap->used);
-	swap_submit_gauge (NULL, "free", (gauge_t) swap->free);
+	if (values_absolute)
+	{
+		swap_submit_gauge (NULL, "used", (gauge_t) swap->used);
+		swap_submit_gauge (NULL, "free", (gauge_t) swap->free);
+	}
+	if (values_percentage)
+	{
+		swap_submit_gauge (NULL, "percent_used", (gauge_t) ((float_t) swap->used) / (swap->used + swap->free) * 100);
+		swap_submit_gauge (NULL, "percent_free", (gauge_t) ((float_t) swap->free) / (swap_used + swap->free) * 100);
+	}
 
 	return (0);
 } /* }}} int swap_read */
@@ -789,9 +887,18 @@ static int swap_read (void) /* {{{ */
                 return (-1);
         }
 
-	swap_submit_gauge (NULL, "used", (gauge_t) (pmemory.pgsp_total - pmemory.pgsp_free) * pagesize);
-	swap_submit_gauge (NULL, "free", (gauge_t) pmemory.pgsp_free * pagesize );
-	swap_submit_gauge (NULL, "reserved", (gauge_t) pmemory.pgsp_rsvd * pagesize);
+        if (values_absolute)
+        {
+		swap_submit_gauge (NULL, "used", (gauge_t) (pmemory.pgsp_total - pmemory.pgsp_free) * pagesize);
+		swap_submit_gauge (NULL, "free", (gauge_t) pmemory.pgsp_free * pagesize );
+		swap_submit_gauge (NULL, "reserved", (gauge_t) pmemory.pgsp_rsvd * pagesize);
+	}
+        if (values_percentage)
+        {
+		swap_submit_gauge (NULL, "percent_used", (gauge_t) ((float_t) (pmemory.pgsp_total - pmemory.pgsp_free)) / pmemory.pgsp_total * 100);
+		swap_submit_gauge (NULL, "percent_free", (gauge_t) ((float_t) pmemory.pgsp_free) / pmemory.pgsp_total * 100);
+		swap_submit_gauge (NULL, "percent_reserved", (gauge_t) ((float_t) pmemory.pgsp_rsvd) / pmemory.pgsp_total * 100);
+	}
 	swap_submit_derive (NULL, "in",  (derive_t) pmemory.pgspins * pagesize);
 	swap_submit_derive (NULL, "out", (derive_t) pmemory.pgspouts * pagesize);
 
