@@ -158,7 +158,7 @@ static int aquaero_read (void)
 
 		aquaero_submit ("fanspeed", type_instance,
 				aq_data.fan_rpm[i]);
-		aquaero_submit ("percentage", type_instance,
+		aquaero_submit ("percent", type_instance,
 				aq_data.fan_duty[i]);
 		aquaero_submit ("voltage", type_instance,
 				aq_data.fan_voltage[i]);
@@ -177,7 +177,7 @@ static int aquaero_read (void)
 	aquaero_submit_array("flow", "sensor", aq_data.flow, AQ5_NUM_FLOW);
 
 	/* Liquid level */
-	aquaero_submit_array("percentage", "waterlevel",
+	aquaero_submit_array("percent", "waterlevel",
 			aq_data.level, AQ5_NUM_LEVEL);
 
 	return (0);
