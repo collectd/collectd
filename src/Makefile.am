@@ -15,6 +15,11 @@ AM_CPPFLAGS += -DPIDFILE='"${localstatedir}/run/${PACKAGE_NAME}.pid"'
 endif
 AM_CPPFLAGS += -DPLUGINDIR='"${pkglibdir}"'
 AM_CPPFLAGS += -DPKGDATADIR='"${pkgdatadir}"'
+if USE_CUSTOM_USERAGENT
+AM_CPPFLAGS += -DUSERAGENT='"${USERAGENT_OPTION}"'
+else
+AM_CPPFLAGS += -DUSERAGENT='"${PACKAGE_NAME}/${PACKAGE_VERSION}"'
+endif
 
 sbin_PROGRAMS = collectd collectdmon
 bin_PROGRAMS = collectd-nagios collectdctl collectd-tg
