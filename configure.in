@@ -2651,6 +2651,15 @@ return (retval);
 fi
 if test "x$with_libmnl" = "xyes"
 then
+	AC_CHECK_MEMBERS([struct rtnl_link_stats64.tx_window_errors],
+	[AC_DEFINE(HAVE_RTNL_LINK_STATS64, 1, [Define if struct rtnl_link_stats64 exists and is usable.])],
+	[],
+	[
+	#include <linux/if_link.h>
+	])
+fi
+if test "x$with_libmnl" = "xyes"
+then
 	AC_CHECK_LIB(mnl, mnl_nlmsg_get_payload,
 		     [with_libmnl="yes"],
 		     [with_libmnl="no (symbol 'mnl_nlmsg_get_payload' not found)"],
