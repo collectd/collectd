@@ -262,6 +262,10 @@ typedef int _Bool;
 # define COLLECTD_DEFAULT_INTERVAL 10.0
 #endif
 
+ #ifndef COLLECTD_USERAGENT
+ # define COLLECTD_USERAGENT PACKAGE_NAME"/"PACKAGE_VERSION
+ #endif
+
 /* Remove GNU specific __attribute__ settings when using another compiler */
 #if !__GNUC__
 # define __attribute__(x) /**/

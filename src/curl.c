@@ -364,8 +364,7 @@ static int cc_page_init_curl (web_page_t *wp) /* {{{ */
   curl_easy_setopt (wp->curl, CURLOPT_NOSIGNAL, 1L);
   curl_easy_setopt (wp->curl, CURLOPT_WRITEFUNCTION, cc_curl_callback);
   curl_easy_setopt (wp->curl, CURLOPT_WRITEDATA, wp);
-  curl_easy_setopt (wp->curl, CURLOPT_USERAGENT,
-      PACKAGE_NAME"/"PACKAGE_VERSION);
+  curl_easy_setopt (wp->curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
   curl_easy_setopt (wp->curl, CURLOPT_ERRORBUFFER, wp->curl_errbuf);
   curl_easy_setopt (wp->curl, CURLOPT_URL, wp->url);
   curl_easy_setopt (wp->curl, CURLOPT_FOLLOWLOCATION, 1L);

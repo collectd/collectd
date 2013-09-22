@@ -1665,6 +1665,17 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LIBCURL, test "x$with_libcurl" = "xyes")
 # }}}
 
+# --with-useragent {{{
+AC_ARG_WITH(useragent, [AS_HELP_STRING([--with-useragent@<:@=OPTIONS@:>@], [User agent to use on http requests])],
+[
+    if test "x$withval" != "xno" && test "x$withval" != "xyes"
+    then
+        AC_DEFINE_UNQUOTED(COLLECTD_USERAGENT, ["$withval"], [User agent for http requests])
+    fi
+])
+
+# }}}
+
 # --with-libdbi {{{
 with_libdbi_cppflags=""
 with_libdbi_ldflags=""
