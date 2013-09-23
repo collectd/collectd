@@ -310,31 +310,31 @@ static void check_ignorelist_and_submit (const char *dev,
 
 } /* void check_ignorelist_and_submit */
 
-#define COPY_RTNL_LINK_VALUE(dst_stats, src_stats, value_name) \
+#define COPY_RTNL_LINK_VALUE (dst_stats, src_stats, value_name) \
   (dst_stats)->value_name = (src_stats)->value_name
 
-#define COPY_RTNL_LINK_STATS(dst_stats, src_stats)  \
-  COPY_RTNL_LINK_VALUE(dst_stats, src_stats, rx_bytes); \
-  COPY_RTNL_LINK_VALUE(dst_stats, src_stats, tx_packets); \
-  COPY_RTNL_LINK_VALUE(dst_stats, src_stats, rx_bytes); \
-  COPY_RTNL_LINK_VALUE(dst_stats, src_stats, tx_bytes); \
-  COPY_RTNL_LINK_VALUE(dst_stats, src_stats, rx_errors); \
-  COPY_RTNL_LINK_VALUE(dst_stats, src_stats, tx_errors); \
-  COPY_RTNL_LINK_VALUE(dst_stats, src_stats, rx_dropped); \
-  COPY_RTNL_LINK_VALUE(dst_stats, src_stats, tx_dropped); \
-  COPY_RTNL_LINK_VALUE(dst_stats, src_stats, multicast); \
-  COPY_RTNL_LINK_VALUE(dst_stats, src_stats, collisions); \
-  COPY_RTNL_LINK_VALUE(dst_stats, src_stats, rx_length_errors); \
-  COPY_RTNL_LINK_VALUE(dst_stats, src_stats, rx_over_errors); \
-  COPY_RTNL_LINK_VALUE(dst_stats, src_stats, rx_crc_errors); \
-  COPY_RTNL_LINK_VALUE(dst_stats, src_stats, rx_frame_errors); \
-  COPY_RTNL_LINK_VALUE(dst_stats, src_stats, rx_fifo_errors); \
-  COPY_RTNL_LINK_VALUE(dst_stats, src_stats, rx_missed_errors); \
-  COPY_RTNL_LINK_VALUE(dst_stats, src_stats, tx_aborted_errors); \
-  COPY_RTNL_LINK_VALUE(dst_stats, src_stats, tx_carrier_errors); \
-  COPY_RTNL_LINK_VALUE(dst_stats, src_stats, tx_fifo_errors); \
-  COPY_RTNL_LINK_VALUE(dst_stats, src_stats, tx_heartbeat_errors); \
-  COPY_RTNL_LINK_VALUE(dst_stats, src_stats, tx_window_errors)
+#define COPY_RTNL_LINK_STATS (dst_stats, src_stats) \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, rx_packets); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, tx_packets); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, rx_bytes); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, tx_bytes); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, rx_errors); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, tx_errors); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, rx_dropped); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, tx_dropped); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, multicast); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, collisions); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, rx_length_errors); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, rx_over_errors); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, rx_crc_errors); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, rx_frame_errors); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, rx_fifo_errors); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, rx_missed_errors); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, tx_aborted_errors); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, tx_carrier_errors); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, tx_fifo_errors); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, tx_heartbeat_errors); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, tx_window_errors)
 
 #ifdef HAVE_RTNL_LINK_STATS64
 static void check_ignorelist_and_submit64 (const char *dev,
@@ -342,7 +342,7 @@ static void check_ignorelist_and_submit64 (const char *dev,
 {
   struct ir_link_stats_storage_s s;
 
-  COPY_RTNL_LINK_STATS(&s, stats);
+  COPY_RTNL_LINK_STATS (&s, stats);
 
   check_ignorelist_and_submit (dev, &s);
 }
