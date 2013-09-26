@@ -402,7 +402,7 @@ static int init_host (apache_t *st) /* {{{ */
 		curl_easy_setopt (st->curl, CURLOPT_WRITEHEADER, st);
 	}
 
-	curl_easy_setopt (st->curl, CURLOPT_USERAGENT, PACKAGE_NAME"/"PACKAGE_VERSION);
+	curl_easy_setopt (st->curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
 	curl_easy_setopt (st->curl, CURLOPT_ERRORBUFFER, st->apache_curl_error);
 
 	if (st->user != NULL)
