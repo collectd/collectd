@@ -6382,7 +6382,7 @@ When a value comes within range again or is received after it was missing, an
 Here is a configuration example to get you started. Read below for more
 information.
 
- <Threshold>
+ <Plugin threshold>
    <Type "foo">
      WarningMin    0.00
      WarningMax 1000.00
@@ -6413,7 +6413,7 @@ information.
        </Type>
      </Plugin>
    </Host>
- </Threshold>
+ </Plugin>
 
 There are basically two types of configuration statements: The C<Host>,
 C<Plugin>, and C<Type> blocks select the value for which a threshold should be
