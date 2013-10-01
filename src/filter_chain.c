@@ -450,7 +450,7 @@ static int fc_config_add_chain (const oconfig_item_t *ci) /* {{{ */
 
   if (chain_list_head != NULL)
   {
-    if ((chain = fc_chain_get_by_name (ci->values[0].value.string)))
+    if ((chain = fc_chain_get_by_name (ci->values[0].value.string)) != NULL)
       new_chain = 0;
   }
 
