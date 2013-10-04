@@ -5472,6 +5472,7 @@ user using (extended) regular expressions, as described in L<regex(7)>.
   <Plugin "tail">
     <File "/var/log/exim4/mainlog">
       Instance "exim"
+      Interval 60
       <Match>
         Regex "S=([1-9][0-9]*)"
         DSType "CounterAdd"
@@ -5497,6 +5498,9 @@ instance. So in the above example the plugin name C<tail-foo> would be used.
 This plugin instance is for all B<Match> blocks that B<follow> it, until the
 next B<Instance> option. This way you can extract several plugin instances from
 one logfile, handy when parsing syslog and the like.
+
+The B<Interval> option allows you to define the length of time between reads. If
+this is not set, the default Interval will be used.
 
 Each B<Match> block has the following options to describe how the match should
 be performed:
