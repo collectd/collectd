@@ -262,7 +262,7 @@ instances_of_types_tree_update (void) {
 				}
 			}
 			if(type_instance_is_missing) {
-				if(i >= v->nb) {
+				if(i >= (v->nb - 1)) {
 					v->nb += 128;
 					if(NULL == (v->instance = realloc(v->instance, v->nb*sizeof(*(v->instance))))) {
 						ERROR(OUTPUT_PREFIX_STRING "Could not allocate memory");
@@ -444,6 +444,7 @@ INFO(OUTPUT_PREFIX_STRING "DEBUG : dispatch '%s/%s-%s/%s%s%s DS '%s'=%12e", vl.h
 		}
 	} /* while (c_avl_iterator_next) */
 	c_avl_iterator_destroy (iter);
+	free(values);
 	sfree (identifier);
 	return(0);
 } /* void basic_aggregator_submit_resultvalue */
@@ -1001,7 +1002,10 @@ basic_aggregator_read_config_file_and_update_aggregator_definitions(char *filena
 				c_avl_destroy (aggregator);
 		}
 		aggregator = c_avl_create((void *) strcmp);
-		if(NULL == aggregator) return (-1);
+		if(NULL == aggregator) {
+				oconfig_free(ci);
+				return (-1);
+		}
 
 		/* Parse the configuration file */
 		for (i = 0; i < ci->children_num; i++)
@@ -1041,6 +1045,8 @@ basic_aggregator_read_config_file_and_update_aggregator_definitions(char *filena
 						WARNING (OUTPUT_PREFIX_STRING "Option \"%s\" not allowed here.",
 										child->key);
 		}
+
+		oconfig_free(ci);
 
 		INFO(OUTPUT_PREFIX_STRING "Registered %d aggregators", nb_aggregators);
 		return(status);
