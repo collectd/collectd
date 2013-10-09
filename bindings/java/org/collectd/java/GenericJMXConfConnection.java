@@ -118,6 +118,7 @@ private void connect () /* {{{ */
 
     environment = new HashMap ();
     environment.put (JMXConnector.CREDENTIALS, credentials);
+    environment.put(JMXConnectorFactory.PROTOCOL_PROVIDER_CLASS_LOADER, this.getClass().getClassLoader());
   }
 
   try
