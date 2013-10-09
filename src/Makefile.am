@@ -310,7 +310,7 @@ endif
 if BUILD_PLUGIN_CURL_JSON
 pkglib_LTLIBRARIES += curl_json.la
 curl_json_la_SOURCES = curl_json.c
-curl_json_la_CFLAGS = $(AM_CFLAGS)
+curl_json_la_CFLAGS = $(AM_CFLAGS) $(AM_CPPFLAGS)
 curl_json_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBYAJL_LDFLAGS)
 curl_json_la_CPPFLAGS = $(BUILD_WITH_LIBYAJL_CPPFLAGS)
 curl_json_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
