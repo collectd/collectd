@@ -259,7 +259,7 @@ typedef int _Bool;
 #endif
 
 #ifndef COLLECTD_DEFAULT_INTERVAL
-# define COLLECTD_DEFAULT_INTERVAL 10.0
+# define COLLECTD_DEFAULT_INTERVAL 60.0
 #endif
 
 /* Remove GNU specific __attribute__ settings when using another compiler */

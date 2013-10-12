@@ -932,6 +932,8 @@ cdtime_t cf_get_default_interval (void)
     else if (tmp <= 0.0)
       ERROR ("cf_get_default_interval: Interval must be a positive number. "
           "The current number is %g.", tmp);
+    else if (tmp < 60)
+      ERROR ("The Stackdriver agent only supports intervals of 60 seconds or more, using 60 seconds");
     else
       interval_double = tmp;
   }
