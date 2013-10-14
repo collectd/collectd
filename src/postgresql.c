@@ -571,6 +571,7 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q,
 	}
 
 	if (C_PSQL_IS_UNIX_DOMAIN_SOCKET (db->host)
+			|| (0 == strcmp (db->host, "127.0.0.1"))
 			|| (0 == strcmp (db->host, "localhost")))
 		host = hostname_g;
 	else
