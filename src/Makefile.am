@@ -217,6 +217,14 @@ collectd_LDADD += "-dlopen" ascent.la
 collectd_DEPENDENCIES += ascent.la
 endif
 
+if BUILD_PLUGIN_BASIC_AGGREGATOR
+pkglib_LTLIBRARIES += basic_aggregator.la
+basic_aggregator_la_SOURCES = basic_aggregator.c
+basic_aggregator_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" basic_aggregator.la
+collectd_DEPENDENCIES += basic_aggregator.la
+endif
+
 if BUILD_PLUGIN_BATTERY
 pkglib_LTLIBRARIES += battery.la
 battery_la_SOURCES = battery.c
@@ -1444,6 +1452,7 @@ endif
 BUILT_SOURCES += $(dist_man_MANS)
 
 dist_man_MANS = collectd.1 \
+		collectd-basic_aggregator.5 \
 		collectd.conf.5 \
 		collectd-email.5 \
 		collectd-exec.5 \
@@ -1464,6 +1473,7 @@ dist_man_MANS = collectd.1 \
 EXTRA_DIST = types.db
 
 EXTRA_DIST +=   collectd.conf.pod \
+		collectd-basic_aggregator.pod \
 		collectd-email.pod \
 		collectd-exec.pod \
 		collectdctl.pod \
