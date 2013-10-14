@@ -385,6 +385,9 @@ if BUILD_WITH_LIBSTATGRAB
 disk_la_CFLAGS += $(BUILD_WITH_LIBSTATGRAB_CFLAGS)  
 disk_la_LIBADD += $(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
 endif
+if BUILD_FREEBSD
+disk_la_LIBADD += -ldevstat -lkvm -lgeom -lbsdxml -lsbuf
+endif
 if BUILD_WITH_PERFSTAT
 disk_la_LIBADD += -lperfstat
 endif
