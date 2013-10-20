@@ -50,7 +50,7 @@ struct data_definition_s
 {
   char *name; /* used to reference this from the `Collect' option */
   char *type; /* used to find the data_set */
-  int is_table;
+  _Bool is_table;
   instance_t instance;
   char *instance_prefix;
   oid_t *values;
@@ -215,23 +215,15 @@ static void csnmp_host_definition_destroy (void *arg) /* {{{ */
  *  csnmp_config
  *  +-> call_snmp_init_once
  *  +-> csnmp_config_add_data
- *  !   +-> csnmp_config_add_data_type
- *  !   +-> csnmp_config_add_data_table
  *  !   +-> csnmp_config_add_data_instance
  *  !   +-> csnmp_config_add_data_instance_prefix
  *  !   +-> csnmp_config_add_data_values
  *  +-> csnmp_config_add_host
- *      +-> csnmp_config_add_host_address
- *      +-> csnmp_config_add_host_community
  *      +-> csnmp_config_add_host_version
  *      +-> csnmp_config_add_host_collect
- *      +-> csnmp_config_add_host_username
  *      +-> csnmp_config_add_host_auth_protocol
  *      +-> csnmp_config_add_host_priv_protocol
- *      +-> csnmp_config_add_host_auth_passphrase
- *      +-> csnmp_config_add_host_priv_passphrase
  *      +-> csnmp_config_add_host_security_level
- *      +-> esnmp_config_add_host_context
  */
 static void call_snmp_init_once (void)
 {
@@ -242,60 +234,31 @@ static void call_snmp_init_once (void)
   have_init = 1;
 } /* void call_snmp_init_once */
 
-static int csnmp_config_add_data_type (data_definition_t *dd, oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("snmp plugin: `Type' needs exactly one string argument.");
-    return (-1);
-  }
-
-  sfree (dd->type);
-  dd->type = strdup (ci->values[0].value.string);
-  if (dd->type == NULL)
-    return (-1);
-
-  return (0);
-} /* int csnmp_config_add_data_type */
-
-static int csnmp_config_add_data_table (data_definition_t *dd, oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
-  {
-    WARNING ("snmp plugin: `Table' needs exactly one boolean argument.");
-    return (-1);
-  }
-
-  dd->is_table = ci->values[0].value.boolean ? 1 : 0;
-
-  return (0);
-} /* int csnmp_config_add_data_table */
-
 static int csnmp_config_add_data_instance (data_definition_t *dd, oconfig_item_t *ci)
 {
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("snmp plugin: `Instance' needs exactly one string argument.");
-    return (-1);
-  }
+  char buffer[DATA_MAX_NAME_LEN];
+  int status;
+
+  status = cf_util_get_string_buffer(ci, buffer, sizeof(buffer));
+  if (status != 0)
+    return status;
 
   if (dd->is_table)
   {
     /* Instance is an OID */
     dd->instance.oid.oid_len = MAX_OID_LEN;
 
-    if (!read_objid (ci->values[0].value.string,
+    if (!read_objid (buffer,
           dd->instance.oid.oid, &dd->instance.oid.oid_len))
     {
-      ERROR ("snmp plugin: read_objid (%s) failed.",
-          ci->values[0].value.string);
+      ERROR ("snmp plugin: read_objid (%s) failed.", buffer);
       return (-1);
     }
   }
   else
   {
     /* Instance is a simple string */
-    sstrncpy (dd->instance.string, ci->values[0].value.string,
+    sstrncpy (dd->instance.string, buffer,
         sizeof (dd->instance.string));
   }
 
@@ -305,11 +268,7 @@ static int csnmp_config_add_data_instance (data_definition_t *dd, oconfig_item_t
 static int csnmp_config_add_data_instance_prefix (data_definition_t *dd,
     oconfig_item_t *ci)
 {
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("snmp plugin: `InstancePrefix' needs exactly one string argument.");
-    return (-1);
-  }
+  int status;
 
   if (!dd->is_table)
   {
@@ -318,12 +277,8 @@ static int csnmp_config_add_data_instance_prefix (data_definition_t *dd,
     return (-1);
   }
 
-  sfree (dd->instance_prefix);
-  dd->instance_prefix = strdup (ci->values[0].value.string);
-  if (dd->instance_prefix == NULL)
-    return (-1);
-
-  return (0);
+  status = cf_util_get_string(ci, &dd->instance_prefix);
+  return status;
 } /* int csnmp_config_add_data_instance_prefix */
 
 static int csnmp_config_add_data_values (data_definition_t *dd, oconfig_item_t *ci)
@@ -369,58 +324,24 @@ static int csnmp_config_add_data_values (data_definition_t *dd, oconfig_item_t *
   return (0);
 } /* int csnmp_config_add_data_instance */
 
-static int csnmp_config_add_data_shift (data_definition_t *dd, oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
-  {
-    WARNING ("snmp plugin: The `Shift' config option needs exactly one number argument.");
-    return (-1);
-  }
-
-  dd->shift = ci->values[0].value.number;
-
-  return (0);
-} /* int csnmp_config_add_data_shift */
-
-static int csnmp_config_add_data_scale (data_definition_t *dd, oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
-  {
-    WARNING ("snmp plugin: The `Scale' config option needs exactly one number argument.");
-    return (-1);
-  }
-
-  dd->scale = ci->values[0].value.number;
-
-  return (0);
-} /* int csnmp_config_add_data_scale */
-
 static int csnmp_config_add_data (oconfig_item_t *ci)
 {
   data_definition_t *dd;
   int status = 0;
   int i;
 
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("snmp plugin: The `Data' config option needs exactly one string argument.");
-    return (-1);
-  }
-
   dd = (data_definition_t *) malloc (sizeof (data_definition_t));
   if (dd == NULL)
     return (-1);
   memset (dd, '\0', sizeof (data_definition_t));
 
-  dd->name = strdup (ci->values[0].value.string);
-  if (dd->name == NULL)
+  status = cf_util_get_string(ci, &dd->name);
+  if (status != 0)
   {
     free (dd);
     return (-1);
   }
+
   dd->scale = 1.0;
   dd->shift = 0.0;
 
@@ -430,9 +351,9 @@ static int csnmp_config_add_data (oconfig_item_t *ci)
     status = 0;
 
     if (strcasecmp ("Type", option->key) == 0)
-      status = csnmp_config_add_data_type (dd, option);
+      status = cf_util_get_string(option, &dd->type);
     else if (strcasecmp ("Table", option->key) == 0)
-      status = csnmp_config_add_data_table (dd, option);
+      status = cf_util_get_boolean(option, &dd->is_table);
     else if (strcasecmp ("Instance", option->key) == 0)
       status = csnmp_config_add_data_instance (dd, option);
     else if (strcasecmp ("InstancePrefix", option->key) == 0)
@@ -440,9 +361,9 @@ static int csnmp_config_add_data (oconfig_item_t *ci)
     else if (strcasecmp ("Values", option->key) == 0)
       status = csnmp_config_add_data_values (dd, option);
     else if (strcasecmp ("Shift", option->key) == 0)
-      status = csnmp_config_add_data_shift (dd, option);
+      status = cf_util_get_double(option, &dd->shift);
     else if (strcasecmp ("Scale", option->key) == 0)
-      status = csnmp_config_add_data_scale (dd, option);
+      status = cf_util_get_double(option, &dd->scale);
     else
     {
       WARNING ("snmp plugin: Option `%s' not allowed here.", option->key);
@@ -496,50 +417,6 @@ static int csnmp_config_add_data (oconfig_item_t *ci)
 
   return (0);
 } /* int csnmp_config_add_data */
-
-static int csnmp_config_add_host_address (host_definition_t *hd, oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("snmp plugin: The `Address' config option needs exactly one string argument.");
-    return (-1);
-  }
-
-  if (hd->address == NULL)
-    free (hd->address);
-
-  hd->address = strdup (ci->values[0].value.string);
-  if (hd->address == NULL)
-    return (-1);
-
-  DEBUG ("snmp plugin: host = %s; host->address = %s;",
-      hd->name, hd->address);
-
-  return (0);
-} /* int csnmp_config_add_host_address */
-
-static int csnmp_config_add_host_community (host_definition_t *hd, oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("snmp plugin: The `Community' config option needs exactly one string argument.");
-    return (-1);
-  }
-
-  if (hd->community == NULL)
-    free (hd->community);
-
-  hd->community = strdup (ci->values[0].value.string);
-  if (hd->community == NULL)
-    return (-1);
-
-  DEBUG ("snmp plugin: host = %s; host->community = %s;",
-      hd->name, hd->community);
-
-  return (0);
-} /* int csnmp_config_add_host_community */
 
 static int csnmp_config_add_host_version (host_definition_t *hd, oconfig_item_t *ci)
 {
@@ -615,44 +492,27 @@ static int csnmp_config_add_host_collect (host_definition_t *host,
   return (0);
 } /* int csnmp_config_add_host_collect */
 
-static int csnmp_config_add_host_username (host_definition_t *hd, oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("snmp plugin: The `Username' config option needs exactly one string argument.");
-    return (-1);
-  }
-
-  free (hd->username);
-  hd->username = strdup (ci->values[0].value.string);
-  if (hd->username == NULL)
-    return (-1);
-
-  DEBUG ("snmp plugin: host = %s; host->username = %s;",
-      hd->name, hd->username);
-
-  return (0);
-} /* int csnmp_config_add_host_username */
-
 static int csnmp_config_add_host_auth_protocol (host_definition_t *hd, oconfig_item_t *ci)
 {
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING)
-      || ((strcasecmp("MD5", ci->values[0].value.string) != 0)
-	&& (strcasecmp("SHA", ci->values[0].value.string) != 0)))
-  {
-    WARNING ("snmp plugin: The `AuthProtocol' config option must be `MD5' or `SHA'.");
-    return (-1);
-  }
+  char buffer[4];
+  int status;
 
-  if (strcasecmp("MD5", ci->values[0].value.string) == 0) {
+  status = cf_util_get_string_buffer(ci, buffer, sizeof(buffer));
+  if (status != 0)
+    return status;
+
+  if (strcasecmp("MD5", buffer) == 0) {
     hd->auth_protocol = usmHMACMD5AuthProtocol;
     hd->auth_protocol_len = sizeof(usmHMACMD5AuthProtocol)/sizeof(oid);
   }
-  else if (strcasecmp("SHA", ci->values[0].value.string) == 0) {
+  else if (strcasecmp("SHA", buffer) == 0) {
     hd->auth_protocol = usmHMACSHA1AuthProtocol;
     hd->auth_protocol_len = sizeof(usmHMACSHA1AuthProtocol)/sizeof(oid);
+  }
+  else
+  {
+    WARNING ("snmp plugin: The `AuthProtocol' config option must be `MD5' or `SHA'.");
+    return (-1);
   }
 
   DEBUG ("snmp plugin: host = %s; host->auth_protocol = %s;",
@@ -663,22 +523,26 @@ static int csnmp_config_add_host_auth_protocol (host_definition_t *hd, oconfig_i
 
 static int csnmp_config_add_host_priv_protocol (host_definition_t *hd, oconfig_item_t *ci)
 {
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING)
-      || ((strcasecmp("AES", ci->values[0].value.string) != 0)
-	&& (strcasecmp("DES", ci->values[0].value.string) != 0)))
-  {
-    WARNING ("snmp plugin: The `PrivProtocol' config option must be `AES' or `DES'.");
-    return (-1);
-  }
+  char buffer[4];
+  int status;
 
-  if (strcasecmp("AES", ci->values[0].value.string) == 0) {
+  status = cf_util_get_string_buffer(ci, buffer, sizeof(buffer));
+  if (status != 0)
+    return status;
+
+  if (strcasecmp("AES", buffer) == 0)
+  {
     hd->priv_protocol = usmAESPrivProtocol;
     hd->priv_protocol_len = sizeof(usmAESPrivProtocol)/sizeof(oid);
   }
-  else if (strcasecmp("DES", ci->values[0].value.string) == 0) {
+  else if (strcasecmp("DES", buffer) == 0) {
     hd->priv_protocol = usmDESPrivProtocol;
     hd->priv_protocol_len = sizeof(usmDESPrivProtocol)/sizeof(oid);
+  }
+  else
+  {
+    WARNING ("snmp plugin: The `PrivProtocol' config option must be `AES' or `DES'.");
+    return (-1);
   }
 
   DEBUG ("snmp plugin: host = %s; host->priv_protocol = %s;",
@@ -687,92 +551,32 @@ static int csnmp_config_add_host_priv_protocol (host_definition_t *hd, oconfig_i
   return (0);
 } /* int csnmp_config_add_host_priv_protocol */
 
-static int csnmp_config_add_host_auth_passphrase (host_definition_t *hd, oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("snmp plugin: The `AuthPassphrase' config option needs exactly one string argument.");
-    return (-1);
-  }
-
-  free (hd->auth_passphrase);
-  hd->auth_passphrase = strdup (ci->values[0].value.string);
-  if (hd->auth_passphrase == NULL)
-    return (-1);
-
-  DEBUG ("snmp plugin: host = %s; host->auth_passphrase = %s;",
-      hd->name, hd->auth_passphrase);
-
-  return (0);
-} /* int csnmp_config_add_host_auth_passphrase */
-
-static int csnmp_config_add_host_priv_passphrase (host_definition_t *hd, oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("snmp plugin: The `PrivacyPassphrase' config option needs exactly one string argument.");
-    return (-1);
-  }
-
-  free (hd->priv_passphrase);
-  hd->priv_passphrase = strdup (ci->values[0].value.string);
-  if (hd->priv_passphrase == NULL)
-    return (-1);
-
-  DEBUG ("snmp plugin: host = %s; host->priv_passphrase = %s;",
-      hd->name, hd->priv_passphrase);
-
-  return (0);
-} /* int csnmp_config_add_host_priv_passphrase */
-
 static int csnmp_config_add_host_security_level (host_definition_t *hd, oconfig_item_t *ci)
 {
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING)
-      || ((strcasecmp("noAuthNoPriv", ci->values[0].value.string) != 0)
-	&& (strcasecmp("authNoPriv", ci->values[0].value.string) != 0)
-	&& (strcasecmp("authPriv", ci->values[0].value.string) != 0)))
+  char buffer[16];
+  int status;
+
+  status = cf_util_get_string_buffer(ci, buffer, sizeof(buffer));
+  if (status != 0)
+    return status;
+
+  if (strcasecmp("noAuthNoPriv", buffer) == 0)
+    hd->security_level = SNMP_SEC_LEVEL_NOAUTH;
+  else if (strcasecmp("authNoPriv", buffer) == 0)
+    hd->security_level = SNMP_SEC_LEVEL_AUTHNOPRIV;
+  else if (strcasecmp("authPriv", buffer) == 0)
+    hd->security_level = SNMP_SEC_LEVEL_AUTHPRIV;
+  else
   {
     WARNING ("snmp plugin: The `SecurityLevel' config option must be `noAuthNoPriv', `authNoPriv', or `authPriv'.");
     return (-1);
   }
-
-  if (strcasecmp("noAuthNoPriv", ci->values[0].value.string) == 0)
-    hd->security_level = SNMP_SEC_LEVEL_NOAUTH;
-  else if (strcasecmp("authNoPriv", ci->values[0].value.string) == 0)
-    hd->security_level = SNMP_SEC_LEVEL_AUTHNOPRIV;
-  else if (strcasecmp("authPriv", ci->values[0].value.string) == 0)
-    hd->security_level = SNMP_SEC_LEVEL_AUTHPRIV;
 
   DEBUG ("snmp plugin: host = %s; host->security_level = %d;",
       hd->name, hd->security_level);
 
   return (0);
 } /* int csnmp_config_add_host_security_level */
-
-static int csnmp_config_add_host_context (host_definition_t *hd, oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("snmp plugin: The `Context' config option needs exactly one string argument.");
-    return (-1);
-  }
-
-  free (hd->context);
-  hd->context = strdup (ci->values[0].value.string);
-  if (hd->context == NULL)
-    return (-1);
-
-  DEBUG ("snmp plugin: host = %s; host->context = %s;",
-      hd->name, hd->context);
-
-  return (0);
-} /* int csnmp_config_add_host_context */
-
-// fooooo
 
 static int csnmp_config_add_host (oconfig_item_t *ci)
 {
@@ -785,12 +589,6 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
   user_data_t cb_data;
   struct timespec cb_interval;
 
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("snmp plugin: `Host' needs exactly one string argument.");
-    return (-1);
-  }
-
   hd = (host_definition_t *) malloc (sizeof (host_definition_t));
   if (hd == NULL)
     return (-1);
@@ -798,12 +596,9 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
   hd->version = 2;
   C_COMPLAIN_INIT (&hd->complaint);
 
-  hd->name = strdup (ci->values[0].value.string);
-  if (hd->name == NULL)
-  {
-    free (hd);
-    return (-1);
-  }
+  status = cf_util_get_string(ci, &hd->name);
+  if (status != 0)
+    return status;
 
   hd->sess_handle = NULL;
   hd->interval = 0;
@@ -814,9 +609,9 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
     status = 0;
 
     if (strcasecmp ("Address", option->key) == 0)
-      status = csnmp_config_add_host_address (hd, option);
+      status = cf_util_get_string(option, &hd->address);
     else if (strcasecmp ("Community", option->key) == 0)
-      status = csnmp_config_add_host_community (hd, option);
+      status = cf_util_get_string(option, &hd->community);
     else if (strcasecmp ("Version", option->key) == 0)
       status = csnmp_config_add_host_version (hd, option);
     else if (strcasecmp ("Collect", option->key) == 0)
@@ -824,19 +619,19 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
     else if (strcasecmp ("Interval", option->key) == 0)
       cf_util_get_cdtime (option, &hd->interval);
     else if (strcasecmp ("Username", option->key) == 0)
-      status = csnmp_config_add_host_username (hd, option);
+      status = cf_util_get_string(option, &hd->username);
     else if (strcasecmp ("AuthProtocol", option->key) == 0)
       status = csnmp_config_add_host_auth_protocol (hd, option);
     else if (strcasecmp ("PrivacyProtocol", option->key) == 0)
       status = csnmp_config_add_host_priv_protocol (hd, option);
     else if (strcasecmp ("AuthPassphrase", option->key) == 0)
-      status = csnmp_config_add_host_auth_passphrase (hd, option);
+      status = cf_util_get_string(option, &hd->auth_passphrase);
     else if (strcasecmp ("PrivacyPassphrase", option->key) == 0)
-      status = csnmp_config_add_host_priv_passphrase (hd, option);
+      status = cf_util_get_string(option, &hd->priv_passphrase);
     else if (strcasecmp ("SecurityLevel", option->key) == 0)
       status = csnmp_config_add_host_security_level (hd, option);
     else if (strcasecmp ("Context", option->key) == 0)
-      status = csnmp_config_add_host_context (hd, option);
+      status = cf_util_get_string(option, &hd->context);
     else
     {
       WARNING ("snmp plugin: csnmp_config_add_host: Option `%s' not allowed here.", option->key);
