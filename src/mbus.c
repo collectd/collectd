@@ -29,7 +29,6 @@
 
 /* this is the standard lib, not the plugin!!! */
 #include <mbus/mbus.h>
-#include <mbus/mbus-protocol-aux.h>
 
 /*
   Max number of records per slave?
@@ -698,7 +697,7 @@ static void parse_and_submit_variable (mbus_slave *    slave,
 {
     mbus_data_variable *data;
     mbus_data_record   *data_record;
-    size_t              i;
+    int                 i;
     mbus_record        *record;
     value_t             values[1];
     int                 result;

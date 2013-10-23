@@ -339,17 +339,6 @@ else
 	have_linux_raid_md_u_h="no"
 fi
 
-# For the battery plugin
-AC_CHECK_HEADERS(IOKit/ps/IOPowerSources.h, [], [],
-[
-#if HAVE_IOKIT_IOKITLIB_H
-#  include <IOKit/IOKitLib.h>
-#endif
-#if HAVE_IOKIT_IOTYPES_H
-#  include <IOKit/IOTypes.h>
-#endif
-])
-
 # For the swap module
 have_linux_wireless_h="no"
 if test "x$ac_system" = "xLinux"
@@ -764,7 +753,6 @@ then
 #ifndef _XOPEN_SOURCE
 # define _XOPEN_SOURCE 500
 #endif
-AC_INCLUDES_DEFAULT
 #include <time.h>
 ]]],
 [[[
@@ -787,7 +775,6 @@ if test "x$GCC" = "xyes"
 then
 	CFLAGS="$SAVE_CFLAGS"
 fi
-
 # }}} Check for strptime
 
 AC_CHECK_FUNCS(swapctl, [have_swapctl="yes"], [have_swapctl="no"])
@@ -2228,98 +2215,6 @@ then
 	AC_MSG_NOTICE([Building with JAVA_LIBS set to: $JAVA_LIBS])
 fi
 
-# --with-libmbus {{{
-with_libmbus_config=""
-with_libmbus_cflags=""
-with_libmbus_libs=""
-AC_ARG_WITH(libmbus, [AS_HELP_STRING([--with-libmbus@<:@=PREFIX@:>@], [Path to the libmbus library.])],
-[
-	if test "x$withval" = "xno"
-	then
-		with_libmbus="no"
-	else if test "x$withval" = "xyes"
-	then
-		with_libmbus="use_pkgconfig"
-	else if test -d "$with_libmbus/lib"
-	then
-		AC_MSG_NOTICE([Not checking for libmbus: Manually configured])
-		with_libmbus_cflags="-I$withval/include"
-		with_libmbus_libs="-L$withval/lib -lmbus"
-		with_libmbus="yes"
-	fi; fi; fi
-],
-[with_libmbus="use_pkgconfig"])
-
-# configure using pkg-config
-if test "x$with_libmbus" = "xuse_pkgconfig"
-then
-	if test "x$PKG_CONFIG" = "x"
-	then
-		with_libmbus="no (Don't have pkg-config)"
-	fi
-fi
-if test "x$with_libmbus" = "xuse_pkgconfig"
-then
-	AC_MSG_NOTICE([Checking for libmbus using $PKG_CONFIG])
-	$PKG_CONFIG --exists libmbus 2>/dev/null
-	if test $? -ne 0
-	then
-		with_libmbus="no (pkg-config doesn't know libmbus)"
-	fi
-fi
-if test "x$with_libmbus" = "xuse_pkgconfig"
-then
-	with_libmbus_cflags="`$PKG_CONFIG --cflags libmbus`"
-	if test $? -ne 0
-	then
-		with_libmbus="no ($PKG_CONFIG failed)"
-	fi
-	with_libmbus_libs="`$PKG_CONFIG --libs libmbus`"
-	if test $? -ne 0
-	then
-		with_libmbus="no ($PKG_CONFIG failed)"
-	fi
-fi
-if test "x$with_libmbus" = "xuse_pkgconfig"
-then
-	with_libmbus="yes"
-fi
-
-# with_libmbus_cflags and with_libmbus_libs are set up now, let's do
-# the actual checks.
-if test "x$with_libmbus" = "xyes"
-then
-	SAVE_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$CPPFLAGS $with_libmbus_cflags"
-
-	AC_CHECK_HEADERS(mbus/mbus-protocol.h, [], [with_libmbus="no (mbus/mbus-protocol.h not found)"])
-
-	CPPFLAGS="$SAVE_CPPFLAGS"
-fi
-if test "x$with_libmbus" = "xyes"
-then
-	SAVE_CPPFLAGS="$CPPFLAGS"
-	SAVE_LDFLAGS="$LDFLAGS"
-
-	CPPFLAGS="$CPPFLAGS $with_libmbus_cflags"
-	LDFLAGS="$LDFLAGS $with_libmbus_libs"
-
-	AC_CHECK_LIB(mbus, mbus_init,
-		     [with_libmbus="yes"],
-		     [with_libmbus="no (symbol mbus_init not found)"])
-
-	CPPFLAGS="$SAVE_CPPFLAGS"
-	LDFLAGS="$SAVE_LDFLAGS"
-fi
-if test "x$with_libmbus" = "xyes"
-then
-	BUILD_WITH_LIBMBUS_CFLAGS="$with_libmbus_cflags"
-	BUILD_WITH_LIBMBUS_LIBS="$with_libmbus_libs"
-	AC_SUBST(BUILD_WITH_LIBMBUS_CFLAGS)
-	AC_SUBST(BUILD_WITH_LIBMBUS_LIBS)
-fi
-# }}}
-
 CPPFLAGS="$SAVE_CPPFLAGS"
 CFLAGS="$SAVE_CFLAGS"
 LDFLAGS="$SAVE_LDFLAGS"
@@ -2381,6 +2276,99 @@ then
         AC_DEFINE(HAVE_LIBLVM2APP, 1, [Define if liblvm2app is present and usable.])
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBLVM2APP, test "x$with_liblvm2app" = "xyes")
+# }}}
+
+# --with-libmbus {{{
+with_libmbus_config=""
+with_libmbus_cflags=""
+with_libmbus_libs=""
+AC_ARG_WITH(libmbus, [AS_HELP_STRING([--with-libmbus@<:@=PREFIX@:>@], [Path to the libmbus library.])],
+[
+	if test "x$withval" = "xno"
+	then
+		with_libmbus="no"
+	else if test "x$withval" = "xyes"
+	then
+		with_libmbus="use_pkgconfig"
+	else if test -d "$with_libmbus/lib"
+	then
+		AC_MSG_NOTICE([Not checking for libmbus: Manually configured])
+		with_libmbus_cflags="-I$withval/include"
+		with_libmbus_libs="-L$withval/lib -lmbus -lm"
+		with_libmbus="yes"
+	fi; fi; fi
+],
+[with_libmbus="use_pkgconfig"])
+
+# configure using pkg-config
+if test "x$with_libmbus" = "xuse_pkgconfig"
+then
+	if test "x$PKG_CONFIG" = "x"
+	then
+		with_libmbus="no (Don't have pkg-config)"
+	fi
+fi
+if test "x$with_libmbus" = "xuse_pkgconfig"
+then
+	AC_MSG_NOTICE([Checking for libmbus using $PKG_CONFIG])
+	$PKG_CONFIG --exists libmbus 2>/dev/null
+	if test $? -ne 0
+	then
+		with_libmbus="no (pkg-config doesn't know libmbus)"
+	fi
+fi
+if test "x$with_libmbus" = "xuse_pkgconfig"
+then
+	with_libmbus_cflags="`$PKG_CONFIG --cflags libmbus`"
+	if test $? -ne 0
+	then
+		with_libmbus="no ($PKG_CONFIG failed)"
+	fi
+	with_libmbus_libs="`$PKG_CONFIG --libs libmbus`"
+	if test $? -ne 0
+	then
+		with_libmbus="no ($PKG_CONFIG failed)"
+	fi
+fi
+if test "x$with_libmbus" = "xuse_pkgconfig"
+then
+	with_libmbus="yes"
+fi
+
+# with_libmbus_cflags and with_libmbus_libs are set up now, let's do
+# the actual checks.
+if test "x$with_libmbus" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libmbus_cflags"
+
+	AC_CHECK_HEADERS(mbus/mbus.h, [], [with_libmbus="no (mbus/mbus.h not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_libmbus" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+
+	CPPFLAGS="$CPPFLAGS $with_libmbus_cflags"
+	LDFLAGS="$LDFLAGS $with_libmbus_libs"
+
+	AC_CHECK_LIB(mbus, mbus_init,
+		     [with_libmbus="yes"],
+		     [with_libmbus="no (symbol mbus_init not found)"],
+             [-lm])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+if test "x$with_libmbus" = "xyes"
+then
+	BUILD_WITH_LIBMBUS_CFLAGS="$with_libmbus_cflags"
+	BUILD_WITH_LIBMBUS_LIBS="$with_libmbus_libs"
+	AC_SUBST(BUILD_WITH_LIBMBUS_CFLAGS)
+	AC_SUBST(BUILD_WITH_LIBMBUS_LIBS)
+fi
 # }}}
 
 # --with-libmemcached {{{
@@ -5586,12 +5574,10 @@ AC_ARG_WITH(perl-bindings, [AS_HELP_STRING([--with-perl-bindings@<:@=OPTIONS@:>@
 		PERL_BINDINGS_OPTIONS="$withval"
 		with_perl_bindings="yes"
 	else
-		PERL_BINDINGS_OPTIONS=""
 		with_perl_bindings="$withval"
 	fi
 ],
 [
-	PERL_BINDINGS_OPTIONS=""
 	if test -n "$perl_interpreter"
 	then
 		with_perl_bindings="yes"
@@ -5676,7 +5662,6 @@ Configuration:
     libmodbus . . . . . . $with_libmodbus
     libmysql  . . . . . . $with_libmysql
     libnetapp . . . . . . $with_libnetapp
-    libnetlink  . . . . . $with_libnetlink
     libnetsnmp  . . . . . $with_libnetsnmp
     libnotify . . . . . . $with_libnotify
     liboconfig  . . . . . $with_liboconfig
