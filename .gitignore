@@ -38,7 +38,9 @@ src/collectdctl
 src/collectdmon
 src/*.1
 src/*.5
+src/.pod2man.tmp.*
 src/libcollectdclient/collectd/lcc_features.h
+src/utils_vl_lookup_test
 
 # patch stuff
 *.rej
@@ -62,6 +64,7 @@ bindings/.perl-directory-stamp
 bindings/perl/Collectd/pm_to_blib
 bindings/perl/blib/
 bindings/perl/pm_to_blib
+bindings/buildperl
 
 # java stuff
 bindings/java/java-build-stamp
