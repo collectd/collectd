@@ -1177,6 +1177,7 @@
 #		AlwaysAppendDS false
 #	</Node>
 #	Tag "foobar"
+#       Attribute "foo" "bar"
 #</Plugin>
 
 ##############################################################################
