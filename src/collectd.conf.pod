@@ -6288,6 +6288,7 @@ Synopsis:
      TTLFactor 2.0
    </Node>
    Tag "foobar"
+   Attribute "foo" "bar"
  </Plugin>
 
 The following options are understood by the I<write_riemann plugin>:
@@ -6347,6 +6348,11 @@ default value.
 
 Add the given string as an additional tag to the metric being sent to
 I<Riemann>.
+
+=item B<Attribute> I<String> I<String>
+
+Consider the two given strings to be the key and value of an additional
+attribute for each metric being sent out to I<Riemann>.
 
 =back
 
