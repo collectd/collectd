@@ -57,6 +57,8 @@ struct riemann_host {
 
 static char	**riemann_tags;
 static size_t	  riemann_tags_num;
+static char	**riemann_attrs;
+static size_t     riemann_attrs_num;
 
 static void riemann_event_protobuf_free (Event *event) /* {{{ */
 {
@@ -422,6 +424,11 @@ static Msg *riemann_notification_to_protobuf (struct riemann_host *host, /* {{{ 
 		riemann_event_add_attribute (event, "type_instance",
 				n->type_instance);
 
+	for (i = 0; i < riemann_attrs_num; i += 2)
+		riemann_event_add_attribute(event,
+					    riemann_attrs[i],
+					    riemann_attrs[i +1]);
+
 	for (i = 0; i < riemann_tags_num; i++)
 		riemann_event_add_tag (event, riemann_tags[i]);
 
@@ -510,6 +517,11 @@ static Event *riemann_value_to_protobuf (struct riemann_host const *host, /* {{{
 		ssnprintf (ds_index, sizeof (ds_index), "%zu", index);
 		riemann_event_add_attribute (event, "ds_index", ds_index);
 	}
+
+	for (i = 0; i < riemann_attrs_num; i += 2)
+		riemann_event_add_attribute(event,
+					    riemann_attrs[i],
+					    riemann_attrs[i +1]);
 
 	for (i = 0; i < riemann_tags_num; i++)
 		riemann_event_add_tag (event, riemann_tags[i]);
@@ -845,6 +857,32 @@ riemann_config(oconfig_item_t *ci)
 
 		if (strcasecmp("Node", child->key) == 0) {
 			riemann_config_node (child);
+		} else if (strcasecmp(child->key, "attribute") == 0) {
+			char *key = NULL;
+			char *val = NULL;
+
+			if (child->values_num != 2) {
+				WARNING("riemann attributes need both a key and a value.");
+				return (-1);
+			}
+			if (child->values[0].type != OCONFIG_TYPE_STRING ||
+			    child->values[1].type != OCONFIG_TYPE_STRING) {
+				WARNING("riemann attribute needs string arguments.");
+				return (-1);
+			}
+			if ((key = strdup(child->values[0].value.string)) == NULL) {
+				WARNING("cannot allocate memory for attribute key.");
+				return (-1);
+			}
+			if ((val = strdup(child->values[1].value.string)) == NULL) {
+				WARNING("cannot allocate memory for attribute value.");
+				return (-1);
+			}
+			strarray_add(&riemann_attrs, &riemann_attrs_num, key);
+			strarray_add(&riemann_attrs, &riemann_attrs_num, val);
+			DEBUG("write_riemann: got attr: %s => %s", key, val);
+			sfree(key);
+			sfree(val);
 		} else if (strcasecmp(child->key, "tag") == 0) {
 			char *tmp = NULL;
 			status = cf_util_get_string(child, &tmp);
