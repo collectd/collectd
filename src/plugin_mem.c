@@ -163,7 +163,7 @@ static int scan_header (const char *maps_line, char *plugin)
 
     /* if the file we are looking at resides in the plugin dir then return the file name in plugin */
     if (parse_count == 11 && strncmp (plugin_dir, path, plugin_dir_len) == 0) {
-        strcpy (plugin, path + plugin_dir_len);
+        strncpy (plugin, path + plugin_dir_len, PATH_MAX);
     }
 
     return parse_count;
@@ -202,7 +202,7 @@ static int pm_read (void)
 
     fclose (pid_f);
 
-    sprintf(maps_path, "/proc/%d/smaps", pid);
+    snprintf(maps_path, PATH_MAX, "/proc/%d/smaps", pid);
 
     if( (maps_f = fopen(maps_path, "r")) == NULL) {
         ERROR ("plugin mem plugin: maps file %s can not be opened", maps_path);
