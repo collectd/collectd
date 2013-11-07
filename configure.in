@@ -4811,6 +4811,7 @@ then
 	plugin_entropy="yes"
 	plugin_fscache="yes"
 	plugin_interface="yes"
+	plugin_ipc="yes"
 	plugin_irq="yes"
 	plugin_load="yes"
 	plugin_lvm="yes"
@@ -5111,6 +5112,7 @@ AC_PLUGIN([fscache],     [$plugin_fscache],    [fscache statistics])
 AC_PLUGIN([gmond],       [$with_libganglia],   [Ganglia plugin])
 AC_PLUGIN([hddtemp],     [yes],                [Query hddtempd])
 AC_PLUGIN([interface],   [$plugin_interface],  [Interface traffic statistics])
+AC_PLUGIN([ipc],         [$plugin_ipc],        [IPC statistics])
 AC_PLUGIN([ipmi],        [$plugin_ipmi],       [IPMI sensor statistics])
 AC_PLUGIN([iptables],    [$with_libiptc],      [IPTables rule counters])
 AC_PLUGIN([ipvs],        [$plugin_ipvs],       [IPVS connection statistics])
@@ -5455,6 +5457,7 @@ Configuration:
     gmond . . . . . . . . $enable_gmond
     hddtemp . . . . . . . $enable_hddtemp
     interface . . . . . . $enable_interface
+    ipc . . . . . . . . . $enable_ipc
     ipmi  . . . . . . . . $enable_ipmi
     iptables  . . . . . . $enable_iptables
     ipvs  . . . . . . . . $enable_ipvs

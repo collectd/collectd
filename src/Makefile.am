@@ -491,6 +491,14 @@ interface_la_LIBADD += -lperfstat
 endif
 endif # BUILD_PLUGIN_INTERFACE
 
+if BUILD_PLUGIN_IPC
+pkglib_LTLIBRARIES += ipc.la
+ipc_la_SOURCES = ipc.c
+ipc_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" ipc.la
+collectd_DEPENDENCIES += ipc.la
+endif
+
 if BUILD_PLUGIN_IPTABLES
 pkglib_LTLIBRARIES += iptables.la
 iptables_la_SOURCES = iptables.c
