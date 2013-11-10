@@ -1427,13 +1427,12 @@ AM_CONDITIONAL(BUILD_WITH_LIBKSTAT, test "x$with_kstat" = "xyes")
 AM_CONDITIONAL(BUILD_WITH_LIBDEVINFO, test "x$with_devinfo" = "xyes")
 
 with_libiokit="no"
-AC_CHECK_LIB(IOKit, IOServiceGetMatchingServices,
-[
+if test "x$ac_system" = "xDarwin"
+then
 	with_libiokit="yes"
-], 
-[
+else
 	with_libiokit="no"
-])
+fi
 AM_CONDITIONAL(BUILD_WITH_LIBIOKIT, test "x$with_libiokit" = "xyes")
 
 with_libkvm="no"
