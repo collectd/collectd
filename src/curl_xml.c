@@ -608,6 +608,7 @@ static int cx_curl_perform (cx_t *db, CURL *curl) /* {{{ */
   long rc;
   char *ptr;
   char *url;
+  url = db->url;
 
   db->buffer_fill = 0; 
   status = curl_easy_perform (curl);
