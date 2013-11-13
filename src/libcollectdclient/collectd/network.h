@@ -65,6 +65,7 @@ int lcc_server_destroy (lcc_network_t *net, lcc_server_t *srv);
 
 /* Configure servers */
 int lcc_server_set_ttl (lcc_server_t *srv, uint8_t ttl);
+int lcc_server_set_interface (lcc_server_t *srv, char const *interface);
 int lcc_server_set_security_level (lcc_server_t *srv,
     lcc_security_level_t level,
     const char *username, const char *password);
