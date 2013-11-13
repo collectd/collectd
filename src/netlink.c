@@ -43,6 +43,41 @@
 
 #include <libmnl/libmnl.h>
 
+struct ir_link_stats_storage_s {
+
+  uint64_t rx_packets;
+  uint64_t tx_packets;
+  uint64_t rx_bytes;
+  uint64_t tx_bytes;
+  uint64_t rx_errors;
+  uint64_t tx_errors;
+
+  uint64_t rx_dropped;
+  uint64_t tx_dropped;
+  uint64_t multicast;
+  uint64_t collisions;
+
+  uint64_t rx_length_errors;
+  uint64_t rx_over_errors;
+  uint64_t rx_crc_errors;
+  uint64_t rx_frame_errors;
+  uint64_t rx_fifo_errors;
+  uint64_t rx_missed_errors;
+
+  uint64_t tx_aborted_errors;
+  uint64_t tx_carrier_errors;
+  uint64_t tx_fifo_errors;
+  uint64_t tx_heartbeat_errors;
+  uint64_t tx_window_errors;
+};
+
+union ir_link_stats_u {
+  struct rtnl_link_stats *stats32;
+#ifdef HAVE_RTNL_LINK_STATS64
+  struct rtnl_link_stats64 *stats64;
+#endif
+};
+
 typedef struct ir_ignorelist_s
 {
   char *device;
@@ -235,7 +270,7 @@ static int update_iflist (struct ifinfomsg *msg, const char *dev)
 } /* int update_iflist */
 
 static void check_ignorelist_and_submit (const char *dev,
-    struct rtnl_link_stats *stats)
+    struct ir_link_stats_storage_s *stats)
 {
 
   if (check_ignorelist (dev, "interface", NULL) == 0)
@@ -275,13 +310,61 @@ static void check_ignorelist_and_submit (const char *dev,
 
 } /* void check_ignorelist_and_submit */
 
+#define COPY_RTNL_LINK_VALUE (dst_stats, src_stats, value_name) \
+  (dst_stats)->value_name = (src_stats)->value_name
+
+#define COPY_RTNL_LINK_STATS (dst_stats, src_stats) \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, rx_packets); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, tx_packets); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, rx_bytes); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, tx_bytes); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, rx_errors); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, tx_errors); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, rx_dropped); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, tx_dropped); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, multicast); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, collisions); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, rx_length_errors); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, rx_over_errors); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, rx_crc_errors); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, rx_frame_errors); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, rx_fifo_errors); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, rx_missed_errors); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, tx_aborted_errors); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, tx_carrier_errors); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, tx_fifo_errors); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, tx_heartbeat_errors); \
+  COPY_RTNL_LINK_VALUE (dst_stats, src_stats, tx_window_errors)
+
+#ifdef HAVE_RTNL_LINK_STATS64
+static void check_ignorelist_and_submit64 (const char *dev,
+    struct rtnl_link_stats64 *stats)
+{
+  struct ir_link_stats_storage_s s;
+
+  COPY_RTNL_LINK_STATS (&s, stats);
+
+  check_ignorelist_and_submit (dev, &s);
+}
+#endif
+
+static void check_ignorelist_and_submit32 (const char *dev,
+    struct rtnl_link_stats *stats)
+{
+  struct ir_link_stats_storage_s s;
+
+  COPY_RTNL_LINK_STATS(&s, stats);
+
+  check_ignorelist_and_submit (dev, &s);
+}
+
 static int link_filter_cb (const struct nlmsghdr *nlh,
     void *args __attribute__((unused)))
 {
   struct ifinfomsg *ifm = mnl_nlmsg_get_payload (nlh);
   struct nlattr *attr;
-  struct rtnl_link_stats *stats = NULL;
   const char *dev = NULL;
+  union ir_link_stats_u stats;
 
   if (nlh->nlmsg_type != RTM_NEWLINK)
   {
@@ -313,30 +396,44 @@ static int link_filter_cb (const struct nlmsghdr *nlh,
     ERROR ("netlink plugin: link_filter_cb: dev == NULL");
     return MNL_CB_ERROR;
   }
+#ifdef HAVE_RTNL_LINK_STATS64
+  mnl_attr_for_each (attr, nlh, sizeof (*ifm))
+  {
+    if (mnl_attr_get_type (attr) != IFLA_STATS64)
+      continue;
 
+    if (mnl_attr_validate2 (attr, MNL_TYPE_UNSPEC, sizeof (*stats.stats64)) < 0)
+    {
+      ERROR ("netlink plugin: link_filter_cb: IFLA_STATS64 mnl_attr_validate2 failed.");
+      return MNL_CB_ERROR;
+    }
+    stats.stats64 = mnl_attr_get_payload (attr);
+
+    check_ignorelist_and_submit64 (dev, stats.stats64);
+
+    return MNL_CB_OK;
+  }
+#endif
   mnl_attr_for_each (attr, nlh, sizeof (*ifm))
   {
     if (mnl_attr_get_type (attr) != IFLA_STATS)
       continue;
 
-    if (mnl_attr_validate2 (attr, MNL_TYPE_UNSPEC, sizeof (*stats)) < 0)
+    if (mnl_attr_validate2 (attr, MNL_TYPE_UNSPEC, sizeof (*stats.stats32)) < 0)
     {
       ERROR ("netlink plugin: link_filter_cb: IFLA_STATS mnl_attr_validate2 failed.");
       return MNL_CB_ERROR;
     }
-    stats = mnl_attr_get_payload (attr);
+    stats.stats32 = mnl_attr_get_payload (attr);
 
-    check_ignorelist_and_submit (dev, stats);
-    break;
-  }
+    check_ignorelist_and_submit32 (dev, stats.stats32);
 
-  if (stats == NULL)
-  {
-    DEBUG ("netlink plugin: link_filter: No statistics for interface %s.", dev);
     return MNL_CB_OK;
   }
 
+  DEBUG ("netlink plugin: link_filter: No statistics for interface %s.", dev);
   return MNL_CB_OK;
+
 } /* int link_filter_cb */
 
 #if HAVE_TCA_STATS2
