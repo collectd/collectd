@@ -60,7 +60,7 @@ struct redis_node_s
   char host[HOST_NAME_MAX];
   char passwd[HOST_NAME_MAX];
   int port;
-  int timeout;
+  struct timeval timeout;
 
   redis_node_t *next;
 };
@@ -115,11 +115,12 @@ static int redis_config_node (oconfig_item_t *ci) /* {{{ */
   redis_node_t rn;
   int i;
   int status;
+  int timeout;
 
   memset (&rn, 0, sizeof (rn));
   sstrncpy (rn.host, REDIS_DEF_HOST, sizeof (rn.host));
   rn.port = REDIS_DEF_PORT;
-  rn.timeout = REDIS_DEF_TIMEOUT;
+  rn.timeout.tv_usec = REDIS_DEF_TIMEOUT;
 
   status = cf_util_get_string_buffer (ci, rn.name, sizeof (rn.name));
   if (status != 0)
@@ -141,7 +142,10 @@ static int redis_config_node (oconfig_item_t *ci) /* {{{ */
       }
     }
     else if (strcasecmp ("Timeout", option->key) == 0)
-      status = cf_util_get_int (option, &rn.timeout);
+    {
+      status = cf_util_get_int (option, &timeout);
+      if (status == 0) rn.timeout.tv_usec = timeout;
+    }
     else if (strcasecmp ("Password", option->key) == 0)
       status = cf_util_get_string_buffer (option, rn.passwd, sizeof (rn.passwd));
     else
@@ -213,7 +217,8 @@ static int redis_init (void) /* {{{ */
     .name = "default",
     .host = REDIS_DEF_HOST,
     .port = REDIS_DEF_PORT,
-    .timeout = REDIS_DEF_TIMEOUT,
+    .timeout.tv_sec = 0,
+    .timeout.tv_usec = REDIS_DEF_TIMEOUT,
     .next = NULL
 };
 
@@ -259,14 +264,9 @@ static int redis_read (void) /* {{{ */
     redisContext *rh;
     redisReply   *rr;
 
-    struct timeval tmout;
-
-    tmout.tv_sec = rn->timeout;
-    tmout.tv_usec = 0;
-
     DEBUG ("redis plugin: querying info from node `%s' (%s:%d).", rn->name, rn->host, rn->port);
 
-    rh = redisConnectWithTimeout ((char *)rn->host, rn->port, tmout);
+    rh = redisConnectWithTimeout ((char *)rn->host, rn->port, rn->timeout);
     if (rh == NULL)
     {
       ERROR ("redis plugin: unable to connect to node `%s' (%s:%d).", rn->name, rn->host, rn->port);
