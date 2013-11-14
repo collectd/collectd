@@ -1167,9 +1167,9 @@ endif
 if BUILD_PLUGIN_WRITE_REDIS
 pkglib_LTLIBRARIES += write_redis.la
 write_redis_la_SOURCES = write_redis.c
-write_redis_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBCREDIS_LDFLAGS)
-write_redis_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCREDIS_CPPFLAGS)
-write_redis_la_LIBADD = -lcredis
+write_redis_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBHIREDIS_LDFLAGS)
+write_redis_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBHIREDIS_CPPFLAGS)
+write_redis_la_LIBADD = -lhiredis
 endif
 
 if BUILD_PLUGIN_WRITE_RIEMANN
