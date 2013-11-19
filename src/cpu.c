@@ -113,8 +113,9 @@ static int cpu_temp_retry_max     = 1;
 /* #endif PROCESSOR_CPU_LOAD_INFO */
 
 #elif defined(KERNEL_LINUX)
-/* no variables needed */
-/* #endif KERNEL_LINUX */
+
+static int numcpu;
+
 
 #elif defined(HAVE_LIBKSTAT)
 /* colleague tells me that Sun doesn't sell systems with more than 100 or so CPUs.. */
@@ -144,6 +145,7 @@ static perfstat_cpu_t *perfcpu;
 static int numcpu;
 static int pnumcpu;
 #endif /* HAVE_PERFSTAT */
+
 
 static int init (void)
 {
@@ -238,8 +240,24 @@ static int init (void)
 	/* nothing to initialize */
 #endif /* HAVE_PERFSTAT */
 
+#ifdef KERNEL_LINUX
+	FILE *cmdline = fopen("/proc/cpuinfo", "rb");
+	char buf[1024];
+	numcpu=0;
+	 while (fgets (buf, 1024, cmdline) != NULL)
+        {
+      		if(!strncmp(buf,"processor",9)) {
+			numcpu++;	
+		}
+   	}
+	NOTICE ("cpu: Checked cpuinfo Found:  %i cores", numcpu);
+   	fclose(cmdline);
+
+#endif /*KERNEL_LINUX*/
+
 	return (0);
 } /* int init */
+
 
 static void submit (int cpu_num, const char *type_instance, derive_t value)
 {
@@ -259,6 +277,40 @@ static void submit (int cpu_num, const char *type_instance, derive_t value)
 
 	plugin_dispatch_values (&vl);
 }
+
+#ifdef KERNEL_LINUX
+
+static void submit_global (char *cpu_label,const char *type_instance, derive_t value)
+{
+
+	//if cpu_label != "cpu" is a core info 
+	if ( strlen(cpu_label)!=3 )  {
+
+		int cpu=atoi(cpu_label+3);
+		submit(cpu,type_instance,value);
+		return;
+	}
+	// here only submit values for "cpu" ( global )info.
+
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
+
+	values[0].derive = value/numcpu;
+
+	vl.values = values;
+	vl.values_len = 1;
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "cpu", sizeof (vl.plugin));
+	sstrncpy (vl.plugin_instance, "global", sizeof (vl.plugin_instance));
+	sstrncpy (vl.type, "cpu", sizeof (vl.type));
+	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
+
+	plugin_dispatch_values (&vl);
+	
+}
+
+#endif  /* KERNEL_LINUX */
+
 
 static int cpu_read (void)
 {
@@ -349,7 +401,7 @@ static int cpu_read (void)
 /* #endif PROCESSOR_CPU_LOAD_INFO */
 
 #elif defined(KERNEL_LINUX)
-	int cpu;
+	char *lcpu;
 	derive_t user, nice, syst, idle;
 	derive_t wait, intr, sitr; /* sitr == soft interrupt */
 	FILE *fh;
@@ -370,23 +422,25 @@ static int cpu_read (void)
 	{
 		if (strncmp (buf, "cpu", 3))
 			continue;
-		if ((buf[3] < '0') || (buf[3] > '9'))
-			continue;
 
 		numfields = strsplit (buf, fields, 9);
 		if (numfields < 5)
 			continue;
 
-		cpu = atoi (fields[0] + 3);
+		//cpu = atoi (fields[0] + 3);
+		lcpu = fields[0]; 
 		user = atoll (fields[1]);
 		nice = atoll (fields[2]);
 		syst = atoll (fields[3]);
 		idle = atoll (fields[4]);
 
-		submit (cpu, "user", user);
-		submit (cpu, "nice", nice);
-		submit (cpu, "system", syst);
-		submit (cpu, "idle", idle);
+		submit_global (lcpu, "user", user);
+		submit_global (lcpu, "nice", nice);
+		submit_global (lcpu, "system", syst);
+		submit_global (lcpu, "idle", idle);
+
+
+		
 
 		if (numfields >= 8)
 		{
@@ -394,12 +448,15 @@ static int cpu_read (void)
 			intr = atoll (fields[6]);
 			sitr = atoll (fields[7]);
 
-			submit (cpu, "wait", wait);
-			submit (cpu, "interrupt", intr);
-			submit (cpu, "softirq", sitr);
+			submit_global (lcpu, "wait", wait);
+			submit_global (lcpu, "interrupt", intr);
+			submit_global (lcpu, "softirq", sitr);
+			
 
-			if (numfields >= 9)
-				submit (cpu, "steal", atoll (fields[8]));
+			if (numfields >= 9) {
+				submit_global (lcpu, "steal",atoll (fields[8]));
+				
+			}
 		}
 	}
 
