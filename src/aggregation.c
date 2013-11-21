@@ -72,7 +72,6 @@ struct agg_ds_s /* {{{ */
   gauge_t squares_sum;
   gauge_t min;
   gauge_t max;
-
 }; /* }}} */
 
 struct agg_instance_s;
@@ -144,7 +143,7 @@ static void agg_instance_destroy (agg_instance_t *inst) /* {{{ */
       prev->next = inst->next;
   }
   pthread_mutex_unlock (&agg_instance_list_lock);
-    
+
   sfree (inst->state_num);
   sfree (inst->state_sum);
   sfree (inst->state_average);
@@ -163,9 +162,6 @@ static void agg_instance_destroy (agg_instance_t *inst) /* {{{ */
   }
 
   memset (inst, 0, sizeof (*inst));
-
-  /* XXX: missing sfree(inst); ? */
-
 } /* }}} void agg_instance_destroy */
 
 static int agg_instance_create_name (agg_instance_t *inst, /* {{{ */
@@ -369,8 +365,8 @@ static int agg_instance_update (agg_instance_t *inst, /* {{{ */
   return (0);
 } /* }}} int agg_instance_update */
 
-static void agg_instance_read_func (char const *func, /* {{{ */
-  char const *pi_prefix, value_list_t *vl, value_t *v, int v_len)
+static void agg_instance_read_func (value_list_t *vl, /* {{{ */
+  char const *func, char const *pi_prefix, value_t *values, int values_len)
 {
   if (pi_prefix[0] != 0)
     subst_string (vl->plugin_instance, sizeof (vl->plugin_instance),
@@ -378,14 +374,14 @@ static void agg_instance_read_func (char const *func, /* {{{ */
   else
     sstrncpy (vl->plugin_instance, func, sizeof (vl->plugin_instance));
 
-  vl->values = v;
-  vl->values_len = v_len;
+  vl->values = values;
+  vl->values_len = values_len;
 
   plugin_dispatch_values (vl);
 
 } /* }}} int agg_instance_read_func */
 
-static int agg_instance_read_conv (value_t *value, gauge_t rate,
+static int agg_instance_read_calc (value_t *value, gauge_t rate, /* {{{ */
   rate_to_value_state_t *state, int ds_type, cdtime_t t)
 {
   int status;
@@ -404,7 +400,7 @@ static int agg_instance_read_conv (value_t *value, gauge_t rate,
   }
 
   return (0);
-}
+} /* }}} int agg_instance_read_calc */
 
 static int agg_instance_read (agg_instance_t *inst, cdtime_t t) /* {{{ */
 {
@@ -445,12 +441,14 @@ static int agg_instance_read (agg_instance_t *inst, cdtime_t t) /* {{{ */
   if (inst->state_ ## func != NULL) { \
     int errors = 0; \
     for (i = 0; i < inst->ds_num; i++) \
-      if (!agg_instance_read_conv (&values[i], rate, \
-          &inst->state_ ## func [i], inst->ds[i].ds_type, t)) \
+      if (agg_instance_read_calc (&values[i], rate, \
+          &inst->state_ ## func [i], inst->ds[i].ds_type, t) != 0) { \
         errors++; \
+        break; \
+      } \
     if (!errors) \
-      agg_instance_read_func (#func, inst->ident.plugin_instance, \
-          &vl, values, inst->ds_num); \
+      agg_instance_read_func (&vl, #func, inst->ident.plugin_instance, \
+          values, inst->ds_num); \
   } \
 } while (0)
 
