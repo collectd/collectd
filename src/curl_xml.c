@@ -862,11 +862,11 @@ static int cx_init_curl (cx_t *db) /* {{{ */
     curl_easy_setopt (db->curl, CURLOPT_USERPWD, db->credentials);
     
     if (db->digest)
-	{
-	  curl_easy_setopt (db->curl, CURLOPT_HTTPAUTH, CURLAUTH_DIGEST);
-	  curl_easy_setopt (db->curl, CURLOPT_USERNAME, db->user);
-	  curl_easy_setopt (db->curl, CURLOPT_PASSWORD, db->pass);
-	}
+    {
+      curl_easy_setopt (db->curl, CURLOPT_HTTPAUTH, CURLAUTH_DIGEST);
+      curl_easy_setopt (db->curl, CURLOPT_USERNAME, db->user);
+      curl_easy_setopt (db->curl, CURLOPT_PASSWORD, db->pass);
+    }
   }
 
   curl_easy_setopt (db->curl, CURLOPT_SSL_VERIFYPEER, db->verify_peer ? 1L : 0L);

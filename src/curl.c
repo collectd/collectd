@@ -391,11 +391,11 @@ static int cc_page_init_curl (web_page_t *wp) /* {{{ */
     curl_easy_setopt (wp->curl, CURLOPT_USERPWD, wp->credentials);
     
     if (wp->digest)
-	{
-	  curl_easy_setopt (wp->curl, CURLOPT_HTTPAUTH, CURLAUTH_DIGEST);
-	  curl_easy_setopt (wp->curl, CURLOPT_USERNAME, wp->user);
-	  curl_easy_setopt (wp->curl, CURLOPT_PASSWORD, wp->pass);
-	}
+    {
+      curl_easy_setopt (wp->curl, CURLOPT_HTTPAUTH, CURLAUTH_DIGEST);
+      curl_easy_setopt (wp->curl, CURLOPT_USERNAME, wp->user);
+      curl_easy_setopt (wp->curl, CURLOPT_PASSWORD, wp->pass);
+    }
   }
 
   curl_easy_setopt (wp->curl, CURLOPT_SSL_VERIFYPEER, (long) wp->verify_peer);
