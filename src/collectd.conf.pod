@@ -1046,6 +1046,10 @@ Username to use if authorization is required to read the page.
 
 Password to use if authorization is required to read the page.
 
+=item B<Digest> B<true>|B<false>
+
+Enable HTTP digest authentication.
+
 =item B<VerifyPeer> B<true>|B<false>
 
 Enable or disable peer SSL certificate verification. See
@@ -1157,11 +1161,19 @@ The following options are valid within B<URL> blocks:
 Sets the plugin instance to I<Instance>.
 
 =item B<User> I<Name>
+
 =item B<Password> I<Password>
+
+=item B<Digest> B<true>|B<false>
+
 =item B<VerifyPeer> B<true>|B<false>
+
 =item B<VerifyHost> B<true>|B<false>
+
 =item B<CACert> I<file>
+
 =item B<Header> I<Header>
+
 =item B<Post> I<Body>
 
 These options behave exactly equivalent to the appropriate options of the
@@ -1249,6 +1261,8 @@ Examples:
 =item B<User> I<User>
 
 =item B<Password> I<Password>
+
+=item B<Digest> B<true>|B<false>
 
 =item B<VerifyPeer> B<true>|B<false>
 
