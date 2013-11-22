@@ -268,12 +268,13 @@ static const char *config_keys[] =
 {
   "ListeningPorts",
   "LocalPort",
-  "RemotePort"
+  "RemotePort",
+  "AllPortsSummary"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static int port_collect_listening = 0;
-static int port_collect_total = 1;
+static int port_collect_total = 0;
 static port_entry_t *port_list_head = NULL;
 static uint32_t count_total[TCP_STATE_MAX + 1];
 
@@ -288,7 +289,7 @@ enum
 } linux_source = SRC_DUNNO;
 #endif
 
-static void connt_prepare_vl (value_list_t *vl, value_t *values)
+static void conn_prepare_vl (value_list_t *vl, value_t *values)
 {
   vl->values = values;
   vl->values_len = 1;
@@ -303,7 +304,7 @@ static void conn_submit_port_entry (port_entry_t *pe)
   value_list_t vl = VALUE_LIST_INIT;
   int i;
 
-  connt_prepare_vl (&vl, values);
+  conn_prepare_vl (&vl, values);
 
   if (((port_collect_listening != 0) && (pe->flags & PORT_IS_LISTENING))
       || (pe->flags & PORT_COLLECT_LOCAL))
@@ -343,9 +344,9 @@ static void conn_submit_port_total (void)
   value_list_t vl = VALUE_LIST_INIT;
   int i;
 
-  connt_prepare_vl (&vl, values);
+  conn_prepare_vl (&vl, values);
 
-  sstrncpy (vl.plugin, "all", sizeof (vl.plugin));
+  sstrncpy (vl.plugin_instance, "all", sizeof (vl.plugin_instance));
 
   for (i = 1; i <= TCP_STATE_MAX; i++)
   {
@@ -724,6 +725,13 @@ static int conn_config (const char *key, const char *value)
 	pe->flags |= PORT_COLLECT_LOCAL;
       else
 	pe->flags |= PORT_COLLECT_REMOTE;
+  }
+  else if (strcasecmp (key, "AllPortsSummary") == 0)
+  {
+    if (IS_TRUE (value))
+      port_collect_total = 1;
+    else
+      port_collect_total = 0;
   }
   else
   {
