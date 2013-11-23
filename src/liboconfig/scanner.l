@@ -65,8 +65,19 @@ BOOL_TRUE (true|yes|on)
 BOOL_FALSE (false|no|off)
 COMMENT #.*
 PORT (6(5(5(3[0-5]|[0-2][0-9])|[0-4][0-9][0-9])|[0-4][0-9][0-9][0-9])|[1-5][0-9][0-9][0-9][0-9]|[1-9][0-9]?[0-9]?[0-9]?)
+
 IP_BYTE (2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])
 IPV4_ADDR {IP_BYTE}\.{IP_BYTE}\.{IP_BYTE}\.{IP_BYTE}(:{PORT})?
+
+/* IPv6 address according to http://www.ietf.org/rfc/rfc2373.txt
+ * This supports embedded IPv4 addresses as well but does not strictly check
+ * for the right prefix (::0:<v4> or ::FFFF:<v4>) because there are too many
+ * ways to correctly represent the zero bytes. It's up to the user to check
+ * for valid addresses. */
+HEX16 ([0-9A-Fa-f]{1,4})
+V6_PART ({HEX16}:{HEX16}|{IPV4_ADDR})
+IPV6_BASE ({HEX16}:){6}{V6_PART}|::({HEX16}:){5}{V6_PART}|({HEX16})?::({HEX16}:){4}{V6_PART}|(({HEX16}:){0,1}{HEX16})?::({HEX16}:){3}{V6_PART}|(({HEX16}:){0,2}{HEX16})?::({HEX16}:){2}{V6_PART}|(({HEX16}:){0,3}{HEX16})?::{HEX16}:{V6_PART}|(({HEX16}:){0,4}{HEX16})?::{V6_PART}|(({HEX16}:){0,5}{HEX16})?::{HEX16}|(({HEX16}:){0,6}{HEX16})?::
+IPV6_ADDR ({IPV6_BASE})|(\[{IPV6_BASE}\](:{PORT})?)
 
 %%
 {WHITE_SPACE}		|
@@ -82,6 +93,7 @@ IPV4_ADDR {IP_BYTE}\.{IP_BYTE}\.{IP_BYTE}\.{IP_BYTE}(:{PORT})?
 {BOOL_FALSE}		{yylval.boolean = 0; return (BFALSE);}
 
 {IPV4_ADDR}		{yylval.string = yytext; return (UNQUOTED_STRING);}
+{IPV6_ADDR}		{yylval.string = yytext; return (UNQUOTED_STRING);}
 
 {NUMBER}		{yylval.number = strtod (yytext, NULL); return (NUMBER);}
 
