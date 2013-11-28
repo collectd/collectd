@@ -100,6 +100,7 @@ memcached_items		value:GAUGE:0:U
 memcached_octets	rx:DERIVE:0:U, tx:DERIVE:0:U
 memcached_ops		value:DERIVE:0:U
 memory			value:GAUGE:0:281474976710656
+memory_lua		value:GAUGE:0:281474976710656
 multimeter		value:GAUGE:U:U
 mutex_operations	value:DERIVE:0:U
 mysql_commands		value:DERIVE:0:U
