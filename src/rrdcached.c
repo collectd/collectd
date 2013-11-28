@@ -46,7 +46,9 @@ static rrdcreate_config_t rrdcreate_config =
 	/* timespans_num = */ 0,
 
 	/* rra_types = */ NULL,
-	/* rra_types_num = */ 0,
+
+	/* rra_param = */ NULL,
+	/* rra_param_num = */ 0,
 
 	/* consolidation_functions = */ NULL,
 	/* consolidation_functions_num = */ 0,
@@ -155,64 +157,6 @@ static int value_list_to_filename (char *buffer, size_t buffer_size,
   return (0);
 } /* int value_list_to_filename */
 
-static int rc_config_get_int_positive (oconfig_item_t const *ci, int *ret)
-{
-  int status;
-  int tmp = 0;
-
-  status = cf_util_get_int (ci, &tmp);
-  if (status != 0)
-    return (status);
-  if (tmp < 0)
-    return (EINVAL);
-
-  *ret = tmp;
-  return (0);
-} /* int rc_config_get_int_positive */
-
-static int rc_config_get_xff (oconfig_item_t const *ci, double *ret)
-{
-  double value;
-
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
-  {
-    ERROR ("rrdcached plugin: The \"%s\" needs exactly one numeric argument "
-        "in the range [0.0, 1.0)", ci->key);
-    return (EINVAL);
-  }
-
-  value = ci->values[0].value.number;
-  if ((value >= 0.0) && (value < 1.0))
-  {
-    *ret = value;
-    return (0);
-  }
-
-  ERROR ("rrdcached plugin: The \"%s\" needs exactly one numeric argument "
-      "in the range [0.0, 1.0)", ci->key);
-  return (EINVAL);
-} /* int rc_config_get_xff */
-
-static int rc_config_add_timespan (int timespan)
-{
-  int *tmp;
-
-  if (timespan <= 0)
-    return (EINVAL);
-
-  tmp = realloc (rrdcreate_config.timespans,
-      sizeof (*rrdcreate_config.timespans)
-      * (rrdcreate_config.timespans_num + 1));
-  if (tmp == NULL)
-    return (ENOMEM);
-  rrdcreate_config.timespans = tmp;
-
-  rrdcreate_config.timespans[rrdcreate_config.timespans_num] = timespan;
-  rrdcreate_config.timespans_num++;
-
-  return (0);
-} /* int rc_config_add_timespan */
-
 static int rc_config (oconfig_item_t *ci)
 {
   int i;
@@ -265,19 +209,19 @@ static int rc_config (oconfig_item_t *ci)
       int tmp = -1;
       status = rc_config_get_int_positive (child, &tmp);
       if (status == 0)
-        status = rc_config_add_timespan (tmp);
+        status = rc_config_add_timespan (tmp, &rrdcreate_config);
     }
     else if (strcasecmp ("XFF", key) == 0)
       status = rc_config_get_xff (child, &rrdcreate_config.xff);
 	else if (strcasecmp ("RRA", key) == 0)
     {
-      char buffer[1024];
-      memset (buffer, 0, sizeof (buffer));
-      status = cf_util_get_string_buffer (child, buffer, sizeof(buffer));
-      if(0 == status) {
-        if(0 != cu_rrd_rra_types_set(&rrdcreate_config, buffer))
-          return(-1);
-      }
+      if(0 != cu_rrd_rra_types_set(child, &rrdcreate_config))
+        return(-1);
+    }
+	else if (strcasecmp ("RRADef", key) == 0)
+    {
+      if(0 != cu_rrd_rra_param_append(child, &rrdcreate_config))
+        return(-1);
     }
     else
     {
@@ -288,6 +232,8 @@ static int rc_config (oconfig_item_t *ci)
     if (status != 0)
       WARNING ("rrdcached plugin: Handling the \"%s\" option failed.", key);
   }
+
+  cu_rrd_sort_config_items(&rrdcreate_config);
 
   if (daemon_address != NULL)
   {

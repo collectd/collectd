@@ -2112,6 +2112,136 @@ independent from the I<JavaClass> argument passed to B<LoadPlugin>.
 
 =back
 
+=head2 Plugin C<jsonrpc>
+
+The I<Jsonrpc> plugin makes it possible to communicate through a HTTP connection
+with JSON-RPC protocol.
+
+Synopsis:
+
+ <Plugin "jsonrpc">
+   BindAddress "*"
+   Port 8080
+   ConnectionTimeout 30
+   MaxClients 16
+   Authentication "Basic"
+   Authfile "/etc/collectd.passwd.txt"
+   JsonrpcCacheExpirationTime 60
+   TopPsDataDir "/var/lib/collectd/top"
+   RRDToolPath "/usr/bin/rrdtool"
+   RRDCachedDaemonAddress "unix:/var/run/rrdcached.sock"
+ </Plugin>
+
+Available configuration options:
+
+=over 4
+
+=item B<BindAddress> I<Argument>
+
+Argument is the IP address the JSON-RPC HTTP server listens on. If unset or if set to "*", it will
+listen on 0.0.0.0.
+
+=item B<Port> I<Argument>
+
+Argument is the port number the JSON-RPC HTTP server listens on.
+
+=item B<ConnectionTimeout> I<Argument>
+
+Argument is the connection timeout.
+
+=item B<Authentication> I<Argument>
+
+Argument is one of I<None> or I<Basic>. If using I<None>, there will be no
+authentication. Everyone can connect to jsonrpc. If using I<Basic>, the
+authentication will be of type Basic as defined in RFC2617 and you will be
+prompted a login and a password.
+
+=item B<Authfile> I<Argument>
+
+When using Basic authentication scheme, Argument is a filename where to store
+login/password credentials. Each line of this file has the following syntax :
+
+  login password
+
+Example :
+  Joe     $6$Joe_J03D$EwsXtIFSSCSB7Q36NYCCBjqjXs1Yna3ruVEj/b57t2Oq7g1gbwnHbREefsRpG6ki0dIl94bFuB3pT8TCkGYCe1
+  Jack    $1$J.D4lt0n$.uCooL.00nv/UphluGAe1.
+  William wdRHh/Alm41TQ
+  Avrael "rantanplan"
+
+Use I<#> for comments.
+Spaces can be either ' ' or '\t'.
+
+The password can have 3 possible forms :
+
+=over 4
+
+=item "clear password"
+
+The password is stored in clear form. Please protect your file ! Notice
+the double quotes that is part of the syntax.
+
+=item cryptedpassword
+
+The password is stored crypted as in crypt(3). The 2 first chars is the
+salt and the following is the crypted password. Generate a password with
+tools like htpasswd (from apache) or like this :
+
+  perl -e 'print crypt("Passw0rd", "s0")."\n";'
+
+Where I<Passw0rd> is the clear text password and I<s0> is a salt (salt is 2 chars).
+
+=item $id$salt$cryptedpassword
+
+The password is stored crypted as in crypt(3). The dollars are part of the
+syntax. I<id> is the crypt algorithm to use (for example, 1 means md5). I<salt>
+is a up to 8 chars salt. I<cryptedpassword> is the crypted password.
+Generate a password like this :
+
+  perl -e 'print crypt("Passw0rd", "\$1\$SaLts4lT")."\n";'
+
+where Passw0rd is the clear text password and SaLts4lT is a salt (salt is up to 8 chars).
+
+See B<man crypt> for more information.
+
+=back
+
+WARNINGS :
+If your jsonrpc module was not compiled with libcrypt, only clear text password
+will work.
+
+If your system does not have crypt_r(3), it will use crypt(3) with a mutex (which may
+slow the performances of the server). If you do not have crypt_r(3) and feel your server
+too slow, try to use clear text passwords only.
+
+=item B<MaxClients> I<Argument>
+
+Argument is the maximum number of simultaneous connexions.
+
+=item B<JsonrpcCacheExpirationTime> I<time>
+
+The jsonrpc plugin has a local cache of the types. It is a copy of the collectd cache.
+Because using the collectd cache would cost a lot of time to collectd, jsonrpc has its
+own cache.
+
+Time (in seconds) specifies how long to keep the cache and when to refresh it from the
+collectd cache.
+
+=item B<TopPsDataDir> I<path>
+
+If the plugin was compiled with support for TopPs, this is the path where to find
+files from the write_top plugin.
+
+=item B<RRDToolPath> I<path>
+
+Path of rrdtool.
+
+=item B<RRDCachedDaemonAddress> I<path>
+
+Path of the rrdcached communication socket.
+
+=back
+
 =head2 Plugin C<libvirt>
 
 This plugin allows CPU, disk and network load to be collected for virtualized
@@ -2226,6 +2356,10 @@ Prefix all lines printed by the current time. Defaults to B<true>.
 
 When enabled, all lines are prefixed by the severity of the log message, for
 example "warning". Defaults to B<false>.
+
+=item B<LogNotification> B<true>|B<false>
+
+When disabled, C<logfile> do not log notification. Defaults to B<true>.
 
 =back
 
@@ -3580,6 +3714,62 @@ statistics available. Defaults to B<false>.
 
 =back
 
+=head2 Plugin C<nfs>
+
+This plugin collects statistics about NFS (client and server).
+
+The configuration options can be used to have a specific configuration
+of what to collect from /proc/self/mountstat.
+
+Example :
+
+ <Plugin "nfs">
+   EnableClientStatsPerMountpoint <true|false>
+   <Mountpoint "all">
+     MinAge 3600
+     Enable true
+   </Mountpoint>
+   <Mountpoint "/mnt">
+     Enable false
+   </Mountpoint>
+   <Mountpoint "/mynfsmountpoints/data1">
+     MinAge 0
+     Enable true
+   </Mountpoint>
+   <Mountpoint "/mynfsmountpoints/data2">
+     MinAge 0
+     Enable true
+   </Mountpoint>
+ </Plugin>
+
+The following options are accepted by the C<nfs plugin>:
+
+=over 4
+
+=item B<EnableClientStatsPerMountpoint> I<boolean>
+
+Enable collecting statistics from /proc/self/mountstats (if available).
+
+=item B<Mountpoint> I<mountpoint>
+
+This starts a block with options for I<mountpoint>. If I<mountpoint> is "all",
+the options are defined for all mountpoints unless redefined with other B<mountpoint>
+blocks.
+
+=over 4
+
+=item B<Enable> B<true|false>
+
+Enable or not this mountpoint.
+
+=item B<MinAge> I<seconds>
+
+Ignore mountpoint unless its age is more than I<seconds>. Do not ignore if set to 0.
+
+=back
+
+=back
+
 =head2 Plugin C<nginx>
 
 This plugin collects the number of connections and requests handled by the
@@ -3707,6 +3897,55 @@ with the hostname.
 Default: C<Collectd notify: %s@%s>
 
 =back
+
+=head2 Plugin C<notify_file>
+
+This plugin writes a notification to the disk.
+
+=over 4
+
+=item B<DataDir> I<path>
+
+=item B<Plugin> I<type>
+
+=item B<InvertPluginList> B<true>|B<false>
+
+=item B<LinkLast> I<type>
+
+=back
+
+Write notifications to I<DataDir>/I<hostname>/I<plugin>[-I<instance>]/I<timestamp path>/I<type>[-I<instance>]-I<timestamp>.gz
+
+I<timestamp path> is a subpath like AA/AABB/AABBCC for a timestamp like AABBCCDDDD.
+
+Example (timestamp is 1362495702) :
+
+  /datadir/hostname/plugin-instance/13/1361/136249/type-instance-1362495702.gz
+
+The I<Plugin> directive can be used (one or more times) to build the include list of notifications to write.
+
+The I<InvertPluginList>, when set, transforms the include list into an exclude list.
+
+The I<LinkLast> directive can be used (one or more times) to build the list of plugins (the same as in I<Plugin>)
+for which a symlink will be created and linked to the last notification file.
+
+Example (timestamp is 1362495702) : when our file /datadir/hostname/plugin-instance/13/1361/136249/type-instance-1362495702.gz
+is created, the following symlink will be created (or removed/recreated) :
+
+  /datadir/hostname/plugin-instance/last/type-instance-last.gz -> /datadir/hostname/plugin-instance/13/1361/136249/type-instance-1362495702.gz
+
+Example :
+
+ <Plugin notify_file>
+   DataDir /var/lib/collectd/notification
+   Plugin "sysconfig"
+   Plugin "top"
+   InvertPluginList false
+   LinkLast "sysconfig"
+ </Plugin>
+
+Notifications for plugins I<sysconfig> and I<top> will be written to disk. Additionnaly, there will be links to last notifications
+of type I<sysconfig> (but not for I<top>).
 
 =head2 Plugin C<ntpd>
 
@@ -4754,6 +4993,36 @@ slashes.
 
 =back
 
+=head2 Plugin C<procnetstat>
+
+=over 4
+
+=item B<Process> I<Name>
+
+Select more detailed statistics of processes matching this name. The statistics
+collected for these selected processes are size of the resident segment size
+(RSS), user- and system-time used, number of processes and number of threads,
+io data (where available) and minor and major pagefaults.
+
+=item B<ProcessMatch> I<name> I<regex> I<ip> I<port>
+
+Gather statistics for processes matching the specified I<regex> for the network
+socket opened on I<ip>:I<port>.
+
+The statistics are Recv and Transmit queues, as seen with C<netstat -natp | egrep regex>
+
+I<name> is the name (or prefix) of the metric. It should not contain slashes. It should
+be empty.
+I<regex> is a regex to match some processes (see L<regex(7)> for details). If empty,
+statistics are on all processes opening a socket on I<ip>:I<port>.
+I<ip> is a string in the form x.x.x.x for IPv4 addresses or in the form x:x:x:x:x:x:x:x
+for IPv6 addresses (see L<inet_pton(3)> for more information). If empty, statistics are 
+on any IP the matched processes work with.
+I<port> is a number to match a port number. If nul, statistics are on any port the
+matched processes work with.
+
+=back
+
 =head2 Plugin C<protocols>
 
 Collects a lot of information about various network protocols, such as I<IP>,
@@ -5030,6 +5299,49 @@ For more information on how RRA-sizes are calculated see B<RRARows> above.
 Set the "XFiles Factor". The default is 0.1. If unsure, don't set this option.
 I<Factor> must be in the range C<[0.0-1.0)>, i.e. between zero (inclusive) and
 one (exclusive).
+
+=item B<RRA> I<rra types or rra types list>
+
+Specify the RRA to create. If absent, AVERAGE, MIN and MAX will be created.
+You can either give a sublist of RRA to create (eg "AVERAGE,MIN") or multiple
+lines with RRA sublists. Examples :
+
+RRA "AVERAGE,MIN,MAX"
+
+RRA "AVERAGE,MIN"
+
+RRA "AVERAGE"
+RRA "MIN
+
+The first is the default
+The last two are equivalent.
+
+=item B<RRADef> I<timespan> I<pdp per row> I<rra types list> I<XFF>
+
+Fully specify the RRA to create. This will define a set of 1 to 3 RRA (according
+to the types list you specify) with the given timespan, pdp per row and XFF.
+
+This will overwrite the definition of RRATimespan if given.
+
+Timespan : same as RRATimespan
+
+pdp per row : defines the precision of a RRA (multiply with the interval to know it).
+
+rra types list : same as RRA
+
+XFF : same as XFF
+
+Except for timespan, you can write "default" and the default value will be used.
+
+When receiving metrics with interval=60, configuration is computed as it was :
+RRADef     3600   1 MIN,MAX,AVERAGE 0.1
+RRADef    86400   1 MIN,MAX,AVERAGE 0.1
+RRADef   604800   8 MIN,MAX,AVERAGE 0.1
+RRADef  2678400  37 MIN,MAX,AVERAGE 0.1
+RRADef 31622400 439 MIN,MAX,AVERAGE 0.1
+
+Note : when interval is different, the pdp per row may change if you do not use RRADef.
+This is why you may want to use RRADef instead of only RRATimespan.
 
 =back
 
@@ -6304,7 +6616,6 @@ Synopsis:
      TTLFactor 2.0
    </Node>
    Tag "foobar"
-   Attribute "foo" "bar"
  </Plugin>
 
 The following options are understood by the I<write_riemann plugin>:
@@ -6365,10 +6676,36 @@ default value.
 Add the given string as an additional tag to the metric being sent to
 I<Riemann>.
 
-=item B<Attribute> I<String> I<String>
+=back
 
-Consider the two given strings to be the key and value of an additional
-attribute for each metric being sent out to I<Riemann>.
+=head2 Plugin C<write_top>
+
+The C<write_top> plugin selects I<top> notifications and write them to disk.
+
+Synopsis:
+
+ <Plugin write_top>
+     DataDir 
+     FlushWhenOlderThanMin 60
+     FlushWhenBiggerThanK 500
+ </Plugin>
+
+=over 4
+
+=item B<DataDir> I<Directory>
+
+Set the directory to store Top-files under. Per default RRD-files are generated
+beneath the daemon's working directory, i.E<nbsp>e. the B<BaseDir>.
+
+=item B<FlushWhenOlderThanMin> I<Duration>
+
+When set, I<Duration> is the time (in minutes) after when all the top data
+will be flushed on disk for one host.
+
+=item B<FlushWhenBiggerThanK> I<Size>
+
+When set, I<Size> is the maximum size (in Kb) of memory used for the cache of one host
+for top data. When more memory is needed for one host, the data will be flushed.
 
 =back
 
