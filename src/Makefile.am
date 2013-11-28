@@ -1007,9 +1007,9 @@ endif
 if BUILD_PLUGIN_REDIS
 pkglib_LTLIBRARIES += redis.la
 redis_la_SOURCES = redis.c
-redis_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBCREDIS_LDFLAGS)
-redis_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCREDIS_CPPFLAGS)
-redis_la_LIBADD = -lcredis
+redis_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBHIREDIS_LDFLAGS)
+redis_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBHIREDIS_CPPFLAGS)
+redis_la_LIBADD = -lhiredis
 collectd_LDADD += "-dlopen" redis.la
 collectd_DEPENDENCIES += redis.la
 endif
@@ -1400,9 +1400,9 @@ endif
 if BUILD_PLUGIN_WRITE_REDIS
 pkglib_LTLIBRARIES += write_redis.la
 write_redis_la_SOURCES = write_redis.c
-write_redis_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBCREDIS_LDFLAGS)
-write_redis_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCREDIS_CPPFLAGS)
-write_redis_la_LIBADD = -lcredis
+write_redis_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBHIREDIS_LDFLAGS)
+write_redis_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBHIREDIS_CPPFLAGS)
+write_redis_la_LIBADD = -lhiredis
 collectd_LDADD += "-dlopen" write_redis.la
 collectd_DEPENDENCIES += write_redis.la
 endif
