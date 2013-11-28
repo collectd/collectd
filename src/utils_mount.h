@@ -26,6 +26,7 @@
 #ifndef COLLECTD_UTILS_MOUNT_H
 #define COLLECTD_UTILS_MOUNT_H 1
 
+#include <stdio.h>
 #if HAVE_FS_INFO_H
 # include <fs_info.h>
 #endif

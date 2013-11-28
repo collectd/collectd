@@ -8,6 +8,8 @@
 # The above copyright notice and this permission notice shall be included in
 # all copies or substantial portions of the Software.
 
+=encoding UTF-8
+
 =head1 NAME
 
 collectd-python - Documentation of collectd's C<python plugin>

@@ -1,3 +1,5 @@
+=encoding UTF-8
+
 =head1 NAME
 
 collectd.conf - Configuration for the system statistics collection daemon B<collectd>
@@ -68,17 +70,33 @@ directory for the daemon.
 
 =item B<LoadPlugin> I<Plugin>
 
-Loads the plugin I<Plugin>. There must be at least one such line or B<collectd>
-will be mostly useless.
+Loads the plugin I<Plugin>. This is required to load plugins, unless the
+B<AutoLoadPlugin> option is enabled (see below). Without any loaded plugins,
+I<collectd> will be mostly useless.
 
-Starting with collectd 4.9, this may also be a block in which further options
-affecting the behavior of B<LoadPlugin> may be specified. The following
-options are allowed inside a B<LoadPlugin> block:
+Only the first B<LoadPlugin> statement or block for a given plugin name has any
+effect. This is useful when you want to split up the configuration into smaller
+files and want each file to be "self contained", i.e. it contains a B<Plugin>
+block I<and> then appropriate B<LoadPlugin> statement. The downside is that if
+you have multiple conflicting B<LoadPlugin> blocks, e.g. when they specify
+different intervals, only one of them (the first one encountered) will take
+effect and all others will be silently ignored.
 
-  <LoadPlugin perl>
-    Globals true
-    Interval 10
-  </LoadPlugin>
+B<LoadPlugin> may either be a simple configuration I<statement> or a I<block>
+with additional options, affecting the behavior of B<LoadPlugin>. A simple
+statement looks like this:
+
+ LoadPlugin "cpu"
+
+Options inside a B<LoadPlugin> block can override default settings and
+influence the way plugins are loaded, e.g.:
+
+ <LoadPlugin perl>
+   Globals true
+   Interval 60
+ </LoadPlugin>
+
+The following options are valid inside B<LoadPlugin> blocks:
 
 =over 4
 
@@ -109,6 +127,19 @@ interval, that setting will take precedence.
 
 =back
 
+=item B<AutoLoadPlugin> B<false>|B<true>
+
+When set to B<false> (the default), each plugin needs to be loaded explicitly,
+using the B<LoadPlugin> statement documented above. If a
+B<E<lt>PluginE<nbsp>...E<gt>> block is encountered and no configuration
+handling callback for this plugin has been registered, a warning is logged and
+the block is ignored.
+
+When set to B<true>, explicit B<LoadPlugin> statements are not required. Each
+B<E<lt>PluginE<nbsp>...E<gt>> block acts as if it was immediately preceded by a
+B<LoadPlugin> statement. B<LoadPlugin> statements are still required for
+plugins that don't provide any configuration, e.g. the I<Load plugin>.
+
 =item B<Include> I<Path> [I<pattern>]
 
 If I<Path> points to a file, includes that file. If I<Path> points to a
@@ -119,14 +150,28 @@ use statements like the following:
 
   Include "/etc/collectd.d/*.conf"
 
+Starting with version 5.3, this may also be a block in which further options
+affecting the behavior of B<Include> may be specified. The following option is
+currently allowed:
+
+  <Include "/etc/collectd.d">
+    Filter "*.conf"
+  </Include>
+
+=over 4
+
+=item B<Filter> I<pattern>
+
 If the C<fnmatch> function is available on your system, a shell-like wildcard
 I<pattern> may be specified to filter which files to include. This may be used
 in combination with recursively including a directory to easily be able to
 arbitrarily mix configuration files and other documents (e.g. README files).
-The following statement is similar to the example above but includes all files
+The given example is similar to the first example above but includes all files
 matching C<*.conf> in any subdirectory of C</etc/collectd.d>:
 
   Include "/etc/collectd.d" "*.conf"
+
+=back
 
 If more than one files are included by a single B<Include> option, the files
 will be included in lexicographical order (as defined by the C<strcmp>
@@ -189,6 +234,36 @@ a value higher than the number of registered read callbacks is not recommended.
 Number of threads to start for dispatching value lists to write plugins. The
 default value is B<5>, but you may want to increase this if you have more than
 five plugins that may take relatively long to write to.
+
+=item B<WriteQueueLimitHigh> I<HighNum>
+
+=item B<WriteQueueLimitLow> I<LowNum>
+
+Metrics are read by the I<read threads> and then put into a queue to be handled
+by the I<write threads>. If one of the I<write plugins> is slow (e.g. network
+timeouts, I/O saturation of the disk) this queue will grow. In order to avoid
+running into memory issues in such a case, you can limit the size of this
+queue.
+
+By default, there is no limit and memory may grow indefinitely. This is most
+likely not an issue for clients, i.e. instances that only handle the local
+metrics. For servers it is recommended to set this to a non-zero value, though.
+
+You can set the limits using B<WriteQueueLimitHigh> and B<WriteQueueLimitLow>.
+Each of them takes a numerical argument which is the number of metrics in the
+queue. If there are I<HighNum> metrics in the queue, any new metrics I<will> be
+dropped. If there are less than I<LowNum> metrics in the queue, all new metrics
+I<will> be enqueued. If the number of metrics currently in the queue is between
+I<LowNum> and I<HighNum>, the metric is dropped with a probability that is
+proportional to the number of metrics in the queue (i.e. it increases linearly
+until it reaches 100%.)
+
+If B<WriteQueueLimitHigh> is set to non-zero and B<WriteQueueLimitLow> is
+unset, the latter will default to half of B<WriteQueueLimitHigh>.
+
+If you do not want to randomly drop values when the queue size is between
+I<LowNum> and I<HighNum>, set If B<WriteQueueLimitHigh> and
+B<WriteQueueLimitLow> to same value.
 
 =item B<Hostname> I<Name>
 
@@ -655,6 +730,29 @@ default for backwards compatibility, the time will be reported in minutes.
 
 =back
 
+=head2 Plugin C<aquaero>
+
+This plugin collects the value of the available sensors in an
+I<AquaeroE<nbsp>5> board. AquaeroE<nbsp>5 is a water-cooling controller board,
+manufactured by Aqua Computer GmbH L<http://www.aquacomputer.de/>, with a USB2
+connection for monitoring and configuration. The board can handle multiple
+temperature sensors, fans, water pumps and water level sensors and adjust the
+output settings such as fan voltage or power used by the water pump based on
+the available inputs using a configurable controller included in the board.
+This plugin collects all the available inputs as well as some of the output
+values chosen by this controller. The plugin is based on the I<libaquaero5>
+library provided by I<aquatools-ng>.
+
+=over 4
+
+=item B<Device> I<DevicePath>
+
+Device path of the AquaeroE<nbsp>5's USB HID (human interface device), usually
+in the form C</dev/usb/hiddevX>. If this option is no set the plugin will try
+to auto-detect the Aquaero 5 USB device based on vendor-ID and product-ID.
+
+=back
+
 =head2 Plugin C<ascent>
 
 This plugin collects information about an Ascent server, a free server for the
@@ -852,6 +950,29 @@ By default no detailed zone information is collected.
 
 =back
 
+=head2 Plugin C<cgroups>
+
+This plugin collects the CPU user/system time for each I<cgroup> by reading the
+F<cpuacct.stat> files in the first cpuacct-mountpoint (typically
+F</sys/fs/cgroup/cpu.cpuacct> on machines using systemd).
+
+=over 4
+
+=item B<CGroup> I<Directory>
+
+Select I<cgroup> based on the name. Whether only matching I<cgroups> are
+collected or if they are ignored is controlled by the B<IgnoreSelected> option;
+see below.
+
+=item B<IgnoreSelected> B<true>|B<false>
+
+Invert the selection: If set to true, all cgroups I<except> the ones that
+match any one of the criteria are collected. By default only selected
+cgroups are collected if a selection is made. If no selection is configured
+at all, B<all> cgroups are selected.
+
+=back
+
 =head2 Plugin C<cpufreq>
 
 This plugin doesn't have any options. It reads
@@ -944,6 +1065,19 @@ File that holds one or more SSL certificates. If you want to use HTTPS you will
 possibly need this option. What CA certificates come bundled with C<libcurl>
 and are checked by default depends on the distribution you use.
 
+=item B<Header> I<Header>
+
+A HTTP header to add to the request. Multiple headers are added if this option
+is specified more than once.
+
+=item B<Post> I<Body>
+
+Specifies that the HTTP operation should be a POST instead of a GET. The
+complete data to be posted is given as the argument.  This option will usually
+need to be accompanied by a B<Header> option to set an appropriate
+C<Content-Type> for the post body (e.g. to
+C<application/x-www-form-urlencoded>).
+
 =item B<MeasureResponseTime> B<true>|B<false>
 
 Measure response time for the request. If this setting is enabled, B<Match>
@@ -961,13 +1095,15 @@ is set to B<true>, B<Match> blocks are optional.
 
 =head2 Plugin C<curl_json>
 
-The B<curl_json plugin> uses B<libcurl> (L<http://curl.haxx.se/>) and
-B<libyajl> (L<http://www.lloydforge.org/projects/yajl/>) to retrieve JSON data
-via cURL. This can be used to collect values from CouchDB documents (which are
-stored JSON notation), for example.
+The B<curl_json plugin> collects values from JSON data to be parsed by
+B<libyajl> (L<http://www.lloydforge.org/projects/yajl/>) retrieved via
+either B<libcurl> (L<http://curl.haxx.se/>) or read directly from a
+unix socket. The former can be used, for example, to collect values
+from CouchDB documents (which are stored JSON notation), and the
+latter to collect values from a uWSGI stats socket.
 
-The following example will collect several values from the built-in `_stats'
-runtime statistics module of CouchDB
+The following example will collect several values from the built-in
+C<_stats> runtime statistics module of I<CouchDB>
 (L<http://wiki.apache.org/couchdb/Runtime_Statistics>).
 
   <Plugin curl_json>
@@ -987,11 +1123,30 @@ runtime statistics module of CouchDB
     </URL>
   </Plugin>
 
-In the B<Plugin> block, there may be one or more B<URL> blocks, each defining
-a URL to be fetched via HTTP (using libcurl) and one or more B<Key> blocks.
-The B<Key> string argument must be in a path format, which is used to collect a
-value from a JSON map object. If a path element of B<Key> is the
-I<*>E<nbsp>wildcard, the values for all keys will be collectd.
+This example will collect data directly from a I<uWSGI> "Stats Server" socket.
+
+  <Plugin curl_json>
+    <Sock "/var/run/uwsgi.stats.sock">
+      Instance "uwsgi"
+      <Key "workers/*/requests">
+        Type "http_requests"
+      </Key>
+
+      <Key "workers/*/apps/*/requests">
+        Type "http_requests"
+      </Key>
+    </Sock>
+  </Plugin>
+
+In the B<Plugin> block, there may be one or more B<URL> blocks, each
+defining a URL to be fetched via HTTP (using libcurl) or B<Sock>
+blocks defining a unix socket to read JSON from directly.  Each of
+these blocks may have one or more B<Key> blocks.
+
+The B<Key> string argument must be in a path format. Each component is
+used to match the key from a JSON map or the index of an JSON
+array. If a path component of a B<Key> is a I<*>E<nbsp>wildcard, the
+values for all map keys or array indices will be collectd.
 
 The following options are valid within B<URL> blocks:
 
@@ -1002,31 +1157,15 @@ The following options are valid within B<URL> blocks:
 Sets the plugin instance to I<Instance>.
 
 =item B<User> I<Name>
-
-Username to use if authorization is required to read the page.
-
 =item B<Password> I<Password>
-
-Password to use if authorization is required to read the page.
-
 =item B<VerifyPeer> B<true>|B<false>
-
-Enable or disable peer SSL certificate verification. See
-L<http://curl.haxx.se/docs/sslcerts.html> for details. Enabled by default.
-
 =item B<VerifyHost> B<true>|B<false>
-
-Enable or disable peer host name verification. If enabled, the plugin checks if
-the C<Common Name> or a C<Subject Alternate Name> field of the SSL certificate
-matches the host name provided by the B<URL> option. If this identity check
-fails, the connection is aborted. Obviously, only works when connecting to a
-SSL enabled server. Enabled by default.
-
 =item B<CACert> I<file>
+=item B<Header> I<Header>
+=item B<Post> I<Body>
 
-File that holds one or more SSL certificates. If you want to use HTTPS you will
-possibly need this option. What CA certificates come bundled with C<libcurl>
-and are checked by default depends on the distribution you use.
+These options behave exactly equivalent to the appropriate options of the
+I<cURL> plugin. Please see there for a detailed description.
 
 =back
 
@@ -1095,14 +1234,34 @@ host name setting.
 Use I<Instance> as the plugin instance when submitting values. Defaults to an
 empty string (no plugin instance).
 
+=item B<Namespace> I<Prefix> I<URL>
+
+If an XPath expression references namespaces, they must be specified
+with this option. I<Prefix> is the "namespace prefix" used in the XML document.
+I<URL> is the "namespace name", an URI reference uniquely identifying the
+namespace. The option can be repeated to register multiple namespaces.
+
+Examples:
+
+  Namespace "s" "http://schemas.xmlsoap.org/soap/envelope/"
+  Namespace "m" "http://www.w3.org/1998/Math/MathML"
+
 =item B<User> I<User>
+
 =item B<Password> I<Password>
+
 =item B<VerifyPeer> B<true>|B<false>
+
 =item B<VerifyHost> B<true>|B<false>
+
 =item B<CACert> I<CA Cert File>
 
+=item B<Header> I<Header>
+
+=item B<Post> I<Body>
+
 These options behave exactly equivalent to the appropriate options of the
-I<cURL> and I<cURL-JSON> plugins. Please see there for a detailed description.
+I<cURL plugin>. Please see there for a detailed description.
 
 =item E<lt>B<XPath> I<XPath-expression>E<gt>
 
@@ -1441,6 +1600,20 @@ inode collection being disabled.
 Enable this option if inodes are a scarce resource for you, usually because
 many small files are stored on the disk. This is a usual scenario for mail
 transfer agents and web caches.
+
+=item B<ValuesAbsolute> B<true>|B<false>
+
+Enables or disables reporting of free, used and used disk space in 1K-blocks. 
+Defaults to true.
+
+=item B<ValuesPercentage> B<true>|B<false>
+
+Enables or disables reporting of free, used and used disk space in percentage.
+Defaults to false.
+
+This is useful for deploying collectd on the cloud, where machines with
+different disk size may exist. Then it is more practical to configure thresholds
+based on relative disk size.
 
 =back
 
@@ -2190,7 +2363,7 @@ interpreted. For a description of match blocks, please see L<"Plugin tail">.
 
 =head2 Plugin C<memcached>
 
-The C<memcached plugin> connects to a memcached server and queries statistics
+The B<memcached plugin> connects to a memcached server and queries statistics
 about cache utilization, memory and bandwidth used.
 L<http://www.danga.com/memcached/>
 
@@ -2222,6 +2395,166 @@ setting is given, the B<Host> and B<Port> settings are ignored.
 
 =back
 
+=head2 Plugin C<mic>
+
+The B<mic plugin> gathers CPU statistics, memory usage and temperatures from
+Intel's Many Integrated Core (MIC) systems.
+
+B<Synopsis:>
+
+ <Plugin mic>
+   ShowCPU true
+   ShowCPUCores true
+   ShowMemory true
+   
+   ShowTemperatures true
+   Temperature vddg
+   Temperature vddq
+   IgnoreSelectedTemperature true
+
+   ShowPower true
+   Power total0
+   Power total1
+   IgnoreSelectedPower true   
+ </Plugin>
+
+The following options are valid inside the B<PluginE<nbsp>mic> block:
+
+=over 4
+
+=item B<ShowCPU> B<true>|B<false>
+
+If enabled (the default) a sum of the CPU usage accross all cores is reported.
+
+=item B<ShowCPUCores> B<true>|B<false>
+
+If enabled (the default) per-core CPU usage is reported.
+
+=item B<ShowMemory> B<true>|B<false>
+
+If enabled (the default) the physical memory usage of the MIC system is
+reported.
+
+=item B<ShowTemperatures> B<true>|B<false>
+
+If enabled (the default) various temperatures of the MIC system are reported.
+
+=item B<Temperature> I<Name>
+
+This option controls which temperatures are being reported. Whether matching
+temperatures are being ignored or I<only> matching temperatures are reported
+depends on the B<IgnoreSelectedTemperature> setting below. By default I<all>
+temperatures are reported.
+
+=item B<IgnoreSelectedTemperature> B<false>|B<true>
+
+Controls the behavior of the B<Temperature> setting above. If set to B<false>
+(the default) only temperatures matching a B<Temperature> option are reported
+or, if no B<Temperature> option is specified, all temperatures are reported. If
+set to B<true>, matching temperatures are I<ignored> and all other temperatures
+are reported.
+
+Known temperature names are:
+
+=over 4
+
+=item die
+
+Die of the CPU
+
+=item devmem
+
+Device Memory
+
+=item fin
+
+Fan In
+
+=item fout
+
+Fan Out 
+
+=item vccp
+
+Voltage ccp
+
+=item vddg
+
+Voltage ddg
+
+=item vddq
+
+Voltage ddq
+
+=back
+
+=item B<ShowPower> B<true>|B<false>
+
+If enabled (the default) various temperatures of the MIC system are reported.
+
+=item B<Power> I<Name>
+
+This option controls which power readings are being reported. Whether matching
+power readings are being ignored or I<only> matching power readings are reported
+depends on the B<IgnoreSelectedPower> setting below. By default I<all>
+power readings are reported.
+
+=item B<IgnoreSelectedPower> B<false>|B<true>
+
+Controls the behavior of the B<Power> setting above. If set to B<false>
+(the default) only power readings matching a B<Power> option are reported
+or, if no B<Power> option is specified, all power readings are reported. If
+set to B<true>, matching power readings are I<ignored> and all other power readings
+are reported.
+
+Known power names are:
+
+=over 4
+
+=item total0
+
+Total power utilization averaged over Time Window 0 (uWatts). 
+
+=item total1
+
+Total power utilization averaged over Time Window 0 (uWatts). 
+
+=item inst
+
+Instantaneous power (uWatts).
+
+=item imax
+
+Max instantaneous power (uWatts). 
+
+=item pcie
+
+PCI-E connector power (uWatts). 
+
+=item c2x3
+
+2x3 connector power (uWatts). 
+
+=item c2x4
+
+2x4 connector power (uWatts). 
+
+=item vccp
+
+Core rail (uVolts). 
+
+=item vddg
+
+Uncore rail (uVolts). 
+
+=item vddq
+
+Memory subsystem rail (uVolts). 
+
+=back
+
+=back
+
 =head2 Plugin C<modbus>
 
 The B<modbus plugin> connects to a Modbus "slave" via Modbus/TCP and reads
@@ -2229,7 +2562,7 @@ register values. It supports reading single registers (unsigned 16E<nbsp>bit
 values), large integer values (unsigned 32E<nbsp>bit values) and floating point
 values (two registers interpreted as IEEE floats in big endian notation).
 
-Synopsis:
+B<Synopsis:>
 
  <Data "voltage-input-1">
    RegisterBase 0
@@ -4875,11 +5208,128 @@ and all other sensors are collected.
 
 =back
 
+=head2 Plugin C<sigrok>
+
+The I<sigrok plugin> uses I<libsigrok> to retrieve measurements from any device
+supported by the L<sigrok|http://sigrok.org/> project.
+
+B<Synopsis>
+
+ <Plugin sigrok>
+   LogLevel 3
+   <Device "AC Voltage">
+      Driver "fluke-dmm"
+      MinimumInterval 10
+      Conn "/dev/ttyUSB2"
+   </Device>
+   <Device "Sound Level">
+      Driver "cem-dt-885x"
+      Conn "/dev/ttyUSB1"
+   </Device>
+ </Plugin>
+
+=over 4
+
+=item B<LogLevel> B<0-5>
+
+The I<sigrok> logging level to pass on to the I<collectd> log, as a number
+between B<0> and B<5> (inclusive). These levels correspond to C<None>,
+C<Errors>, C<Warnings>, C<Informational>, C<Debug >and C<Spew>, respectively.
+The default is B<2> (C<Warnings>). The I<sigrok> log messages, regardless of
+their level, are always submitted to I<collectd> at its INFO log level.
+
+=item E<lt>B<Device> I<Name>E<gt>
+
+A sigrok-supported device, uniquely identified by this section's options. The
+I<Name> is passed to I<collectd> as the I<plugin instance>.
+
+=item B<Driver> I<DriverName>
+
+The sigrok driver to use for this device.
+
+=item B<Conn> I<ConnectionSpec>
+
+If the device cannot be auto-discovered, or more than one might be discovered
+by the driver, I<ConnectionSpec> specifies the connection string to the device.
+It can be of the form of a device path (e.g.E<nbsp>C</dev/ttyUSB2>), or, in
+case of a non-serial USB-connected device, the USB I<VendorID>B<.>I<ProductID>
+separated by a period (e.g.E<nbsp>C<0403.6001>). A USB device can also be
+specified as I<Bus>B<.>I<Address> (e.g.E<nbsp>C<1.41>).
+
+=item B<SerialComm> I<SerialSpec>
+
+For serial devices with non-standard port settings, this option can be used
+to specify them in a form understood by I<sigrok>, e.g.E<nbsp>C<9600/8n1>.
+This should not be necessary; drivers know how to communicate with devices they
+support.
+
+=item B<MinimumInterval> I<Seconds>
+
+Specifies the minimum time between measurement dispatches to I<collectd>, in
+seconds. Since some I<sigrok> supported devices can acquire measurements many
+times per second, it may be necessary to throttle these. For example, the
+I<RRD plugin> cannot process writes more than once per second.
+
+The default B<MinimumInterval> is B<0>, meaning measurements received from the
+device are always dispatched to I<collectd>. When throttled, unused
+measurements are discarded.
+
+=back
+
 =head2 Plugin C<snmp>
 
 Since the configuration of the C<snmp plugin> is a little more complicated than
 other plugins, its documentation has been moved to an own manpage,
 L<collectd-snmp(5)>. Please see there for details.
+
+=head2 Plugin C<statsd>
+
+The I<statsd plugin> listens to a UDP socket, reads "events" in the statsd
+protocol and dispatches rates or other aggregates of these numbers
+periodically.
+
+The plugin implements the I<Counter>, I<Timer>, I<Gauge> and I<Set> types which
+are dispatched as the I<collectd> types C<derive>, C<latency>, C<gauge> and
+C<objects> respectively.
+
+The following configuration options are valid:
+
+=over 4
+
+=item B<Host> I<Host>
+
+Bind to the hostname / address I<Host>. By default, the plugin will bind to the
+"any" address, i.e. accept packets sent to any of the hosts addresses.
+
+=item B<Port> I<Port>
+
+UDP port to listen to. This can be either a service name or a port number.
+Defaults to C<8125>.
+
+=item B<DeleteCounters> B<false>|B<true>
+
+=item B<DeleteTimers> B<false>|B<true>
+
+=item B<DeleteGauges> B<false>|B<true>
+
+=item B<DeleteSets> B<false>|B<true>
+
+These options control what happens if metrics are not updated in an interval.
+If set to B<False>, the default, metrics are dispatched unchanged, i.e. the
+rate of counters and size of sets will be zero, timers report C<NaN> and gauges
+are unchanged. If set to B<True>, the such metrics are not dispatched and
+removed from the internal cache.
+
+=item B<TimerPercentile> I<Percent>
+
+Calculate and dispatch the configured percentile, i.e. compute the latency, so
+that I<Percent> of all reported timers are smaller than or equal to the
+computed latency. This is useful for cutting off the long tail latency, as it's
+often done in I<Service Level Agreements> (SLAs).
+
+If not specified, no percentile is calculated / dispatched.
+
+=back
 
 =head2 Plugin C<swap>
 
@@ -5155,6 +5605,97 @@ This optional setting sets the type instance to use.
 
 =back
 
+=head2 Plugin C<tail_csv>
+
+The I<tail_csv plugin> reads files in the CSV format, e.g. the statistics file
+written by I<Snort>.
+
+B<Synopsis:>
+
+ <Plugin "tail_csv">
+   <Metric "snort-dropped">
+       Type "percent"
+       Instance "dropped"
+       Index 1
+   </Metric>
+   <File "/var/log/snort/snort.stats">
+       Instance "snort-eth0"
+       Interval 600
+       Collect "snort-dropped"
+   </File>
+ </Plugin>
+
+The configuration consists of one or more B<Metric> blocks that define an index
+into the line of the CSV file and how this value is mapped to I<collectd's>
+internal representation. These are followed by one or more B<Instance> blocks
+which configure which file to read, in which interval and which metrics to
+extract.
+
+=over 4
+
+=item E<lt>B<Metric> I<Name>E<gt>
+
+The B<Metric> block configures a new metric to be extracted from the statistics
+file and how it is mapped on I<collectd's> data model. The string I<Name> is
+only used inside the B<Instance> blocks to refer to this block, so you can use
+one B<Metric> block for multiple CSV files.
+
+=over 4
+
+=item B<Type> I<Type>
+
+Configures which I<Type> to use when dispatching this metric. Types are defined
+in the L<types.db(5)> file, see the appropriate manual page for more
+information on specifying types. Only types with a single I<data source> are
+supported by the I<tail_csv plugin>. The information whether the value is an
+absolute value (i.e. a C<GAUGE>) or a rate (i.e. a C<DERIVE>) is taken from the
+I<Type's> definition.
+
+=item B<Instance> I<TypeInstance>
+
+If set, I<TypeInstance> is used to populate the type instance field of the
+created value lists. Otherwise, no type instance is used.
+
+=item B<ValueFrom> I<Index>
+
+Configure to read the value from the field with the zero-based index I<Index>.
+If the value is parsed as signed integer, unsigned integer or double depends on
+the B<Type> setting, see above.
+
+=back
+
+=item E<lt>B<File> I<Path>E<gt>
+
+Each B<File> block represents one CSV file to read. There must be at least one
+I<File> block but there can be multiple if you have multiple CSV files.
+
+=over 4
+
+=item B<Instance> I<PluginInstance>
+
+Sets the I<plugin instance> used when dispatching the values.
+
+=item B<Collect> I<Metric>
+
+Specifies which I<Metric> to collect. This option must be specified at least
+once, and you can use this option multiple times to specify more than one
+metric to be extracted from this statistic file.
+
+=item B<Interval> I<Seconds>
+
+Configures the interval in which to read values from this instance / file.
+Defaults to the plugin's default interval.
+
+=item B<TimeFrom> I<Index>
+
+Rather than using the local time when dispatching a value, read the timestamp
+from the field with the zero-based index I<Index>. The value is interpreted as
+seconds since epoch. The value is parsed as a double and may be factional.
+
+=back
+
+=back
+
 =head2 Plugin C<teamspeak2>
 
 The C<teamspeak2 plugin> connects to the query port of a teamspeak2 server and
@@ -5383,7 +5924,33 @@ Take the UUID from the given file (default I</etc/uuid>).
 
 =head2 Plugin C<varnish>
 
-The Varnish plugin collects information about Varnish, an HTTP accelerator.
+The I<varnish plugin> collects information about Varnish, an HTTP accelerator.
+
+Synopsis:
+
+ <Plugin "varnish">
+   <Instance "example">
+     CollectCache       true
+     CollectConnections true
+     CollectBackend     true
+     CollectSHM         true
+     CollectESI         false
+     CollectFetch       false
+     CollectHCB         false
+     CollectSMA         false
+     CollectSMS         false
+     CollectSM          false
+     CollectTotals      false
+     CollectWorkers     false
+   </Instance>
+ </Plugin>
+
+The configuration consists of one or more E<lt>B<Instance>E<nbsp>I<Name>E<gt>
+blocks. I<Name> is the parameter passed to "varnishd -n". If left empty, it
+will collectd statistics from the default "varnishd" instance (this should work
+fine in most cases).
+
+Inside each E<lt>B<Instance>E<gt> blocks, the following options are recognized:
 
 =over 4
 
@@ -5405,6 +5972,17 @@ and closed connections. True by default.
 Statistics about the shared memory log, a memory region to store
 log messages which is flushed to disk when full. True by default.
 
+=item B<CollectBan> B<true>|B<false>
+
+Statistics about ban operations, such as number of bans added, retired, and
+number of objects tested against ban operations. Only available with Varnish
+3.x. False by default.
+
+=item B<CollectDirectorDNS> B<true>|B<false>
+
+DNS director lookup cache statistics. Only available with Varnish 3.x. False by
+default.
+
 =item B<CollectESI> B<true>|B<false>
 
 Edge Side Includes (ESI) parse statistics. False by default.
@@ -5418,10 +5996,27 @@ Statistics about fetches (HTTP requests sent to the backend). False by default.
 Inserts and look-ups in the crit bit tree based hash. Look-ups are
 divided into locked and unlocked look-ups. False by default.
 
+=item B<CollectObjects> B<true>|B<false>
+
+Statistics on cached objects: number of objects expired, nuked (prematurely
+expired), saved, moved, etc. False by default.
+
+=item B<CollectPurge> B<true>|B<false>
+
+Statistics about purge operations, such as number of purges added, retired, and
+number of objects tested against purge operations. Only available with Varnish
+2.x. False by default.
+
+=item B<CollectSession> B<true>|B<false>
+
+Client session statistics. Number of past and current sessions, session herd and
+linger counters, etc. False by default.
+
 =item B<CollectSMA> B<true>|B<false>
 
-malloc or umem (umem_alloc(3MALLOC) based) storage statistics.
-The umem storage component is Solaris specific. False by default.
+malloc or umem (umem_alloc(3MALLOC) based) storage statistics. The umem storage
+component is Solaris specific. Only available with Varnish 2.x. False by
+default.
 
 =item B<CollectSMS> B<true>|B<false>
 
@@ -5430,12 +6025,27 @@ component is used internally only. False by default.
 
 =item B<CollectSM> B<true>|B<false>
 
-file (memory mapped file) storage statistics. False by default.
+file (memory mapped file) storage statistics. Only available with Varnish 2.x.
+False by default.
+
+=item B<CollectStruct> B<true>|B<false>
+
+Current varnish internal state statistics. Number of current sessions, objects
+in cache store, open connections to backends (with Varnish 2.x), etc. False by
+default.
 
 =item B<CollectTotals> B<true>|B<false>
 
 Collects overview counters, such as the number of sessions created,
 the number of requests and bytes transferred. False by default.
+
+=item B<CollectUptime> B<true>|B<false>
+
+Varnish uptime. False by default.
+
+=item B<CollectVCL> B<true>|B<false>
+
+Number of total (available + discarded) VCL (config files). False by default.
 
 =item B<CollectWorkers> B<true>|B<false>
 
@@ -5481,9 +6091,9 @@ iptables to feed data for the guest IPs into the iptables plugin.
 
 The C<write_graphite> plugin writes data to I<Graphite>, an open-source metrics
 storage and graphing project. The plugin connects to I<Carbon>, the data layer
-of I<Graphite>, and sends data via the "line based" protocol (per default using
-portE<nbsp>2003). The data will be sent in blocks of at most 1428 bytes to
-minimize the number of network packets.
+of I<Graphite>, via I<TCP> or I<UDP> and sends data via the "line based"
+protocol (per default using portE<nbsp>2003). The data will be sent in blocks
+of at most 1428 bytes to minimize the number of network packets.
 
 Synopsis:
 
@@ -5491,6 +6101,8 @@ Synopsis:
    <Node "example">
      Host "localhost"
      Port "2003"
+     Protocol "udp"
+     LogSendErrors true
      Prefix "collectd"
    </Node>
  </Plugin>
@@ -5507,6 +6119,17 @@ Hostname or address to connect to. Defaults to C<localhost>.
 =item B<Port> I<Service>
 
 Service name or port number to connect to. Defaults to C<2003>.
+
+=item B<Protocol> I<String>
+
+Protocol to use when connecting to I<Graphite>. Defaults to C<tcp>.
+
+=item B<LogSendErrors> B<false>|B<true>
+
+If set to B<true> (the default), logs errors when sending data to I<Graphite>.
+If set to B<false>, it will not log the errors. This is especially useful when
+using Protocol UDP since many times we want to use the "fire-and-forget"
+approach and logging errors fills syslog with unneeded messages.
 
 =item B<Prefix> I<String>
 
@@ -5586,6 +6209,16 @@ Setting this option to zero means no timeout, which is the default.
 If set to B<true> (the default), convert counter values to rates. If set to
 B<false> counter values are stored as is, i.e. as an increasing integer
 number.
+
+=item B<Database> I<Database>
+
+=item B<User> I<User>
+
+=item B<Password> I<Password>
+
+Sets the information used when authenticating to a I<MongoDB> database. The
+fields are optional (in which case no authentication is attempted), but if you
+want to use authentication all three fields must be set.
 
 =back
 
@@ -5668,9 +6301,10 @@ Synopsis:
      Protocol UDP
      StoreRates true
      AlwaysAppendDS false
-     Delay 10
+     TTLFactor 2.0
    </Node>
    Tag "foobar"
+   Attribute "foo" "bar"
  </Plugin>
 
 The following options are understood by the I<write_riemann plugin>:
@@ -5715,12 +6349,26 @@ If set the B<true>, append the name of the I<Data Source> (DS) to the
 identifies a metric in I<Riemann>. If set to B<false> (the default), this is
 only done when there is more than one DS.
 
+=item B<TTLFactor> I<Factor>
+
+I<Riemann> events have a I<Time to Live> (TTL) which specifies how long each
+event is considered active. I<collectd> populates this field based on the
+metrics interval setting. This setting controls the factor with which the
+interval is multiplied to set the TTL. The default value is B<2.0>. Unless you
+know exactly what you're doing, you should only increase this setting from its
+default value.
+
 =back
 
 =item B<Tag> I<String>
 
 Add the given string as an additional tag to the metric being sent to
 I<Riemann>.
+
+=item B<Attribute> I<String> I<String>
+
+Consider the two given strings to be the key and value of an additional
+attribute for each metric being sent out to I<Riemann>.
 
 =back
 

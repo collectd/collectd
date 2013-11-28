@@ -178,6 +178,25 @@ init_value_list (value_list_t *vl, virDomainPtr dom)
 } /* void init_value_list */
 
 static void
+memory_submit (gauge_t memory, virDomainPtr dom)
+{
+    value_t values[1];
+    value_list_t vl = VALUE_LIST_INIT;
+
+    init_value_list (&vl, dom);
+
+    values[0].gauge = memory;
+
+    vl.values = values;
+    vl.values_len = 1;
+
+    sstrncpy (vl.type, "memory", sizeof (vl.type));
+    sstrncpy (vl.type_instance, "total", sizeof (vl.type_instance));
+
+    plugin_dispatch_values (&vl);
+}
+
+static void
 cpu_submit (unsigned long long cpu_time,
             virDomainPtr dom, const char *type)
 {
@@ -407,7 +426,7 @@ lv_read (void)
                  interface_devices[i].path);
 #endif
 
-    /* Get CPU usage, VCPU usage for each domain. */
+    /* Get CPU usage, memory, VCPU usage for each domain. */
     for (i = 0; i < nr_domains; ++i) {
         virDomainInfo info;
         virVcpuInfoPtr vinfo = NULL;
@@ -423,6 +442,7 @@ lv_read (void)
         }
 
         cpu_submit (info.cpuTime, domains[i], "virt_cpu_total");
+        memory_submit ((gauge_t) info.memory * 1024, domains[i]);
 
         vinfo = malloc (info.nrVirtCpu * sizeof (vinfo[0]));
         if (vinfo == NULL) {

@@ -84,6 +84,15 @@ static int memcached_connect_unix (memcached_t *st)
     return (-1);
   }
 
+  /* connect to the memcached daemon */
+  int status = connect (fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
+  if (status != 0)
+  {
+      shutdown (fd, SHUT_RDWR);
+      close (fd);
+      fd = -1;
+  }
+
   return (fd);
 } /* int memcached_connect_unix */
 
@@ -340,6 +349,10 @@ static int memcached_read (user_data_t *user_data)
   gauge_t bytes_total = NAN;
   gauge_t hits = NAN;
   gauge_t gets = NAN;
+  gauge_t incr_hits = NAN;
+  derive_t incr = 0;
+  gauge_t decr_hits = NAN;
+  derive_t decr = 0;
   derive_t rusage_user = 0;
   derive_t rusage_syst = 0;
   derive_t octets_rx = 0;
@@ -437,6 +450,36 @@ static int memcached_read (user_data_t *user_data)
     }
 
     /*
+     * Increment/Decrement
+     */
+    else if (FIELD_IS("incr_misses"))
+    {
+      derive_t incr_count = atoll (fields[2]);
+      submit_derive ("memcached_ops", "incr_misses", incr_count, st);
+      incr += incr_count;
+    }
+    else if (FIELD_IS ("incr_hits"))
+    {
+      derive_t incr_count = atoll (fields[2]);
+      submit_derive ("memcached_ops", "incr_hits", incr_count, st);
+      incr_hits = atof (fields[2]);
+      incr += incr_count;
+    }
+    else if (FIELD_IS ("decr_misses"))
+    {
+      derive_t decr_count = atoll (fields[2]);
+      submit_derive ("memcached_ops", "decr_misses", decr_count, st);
+      decr += decr_count;
+    }
+    else if (FIELD_IS ("decr_hits"))
+    {
+      derive_t decr_count = atoll (fields[2]);
+      submit_derive ("memcached_ops", "decr_hits", decr_count, st);
+      decr_hits = atof (fields[2]);
+      decr += decr_count;
+    }
+
+    /*
      * Operations on the cache, i. e. cache hits, cache misses and evictions of items
      */
     else if (FIELD_IS ("get_hits"))
@@ -483,6 +526,20 @@ static int memcached_read (user_data_t *user_data)
       rate = 100.0 * hits / gets;
 
     submit_gauge ("percent", "hitratio", rate, st);
+  }
+
+  if (!isnan (incr_hits) && incr != 0)
+  {
+    gauge_t incr_rate = 100.0 * incr_hits / incr;
+    submit_gauge ("percent", "incr_hitratio", incr_rate, st);
+    submit_derive ("memcached_ops", "incr", incr, st);
+  }
+
+  if (!isnan (decr_hits) && decr != 0)
+  {
+    gauge_t decr_rate = 100.0 * decr_hits / decr;
+    submit_gauge ("percent", "decr_hitratio", decr_rate, st);
+    submit_derive ("memcached_ops", "decr", decr, st);
   }
 
   return 0;

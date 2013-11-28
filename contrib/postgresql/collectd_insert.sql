@@ -104,7 +104,7 @@ CREATE OR REPLACE VIEW collectd
                     WHEN type_inst IS NOT NULL THEN '-'
                     ELSE ''
                 END
-                || coalesce(plugin_inst, '') AS identifier,
+                || coalesce(type_inst, '') AS identifier,
             tstamp, name, value
         FROM identifiers
             JOIN values

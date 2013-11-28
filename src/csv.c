@@ -121,65 +121,62 @@ static int value_list_to_string (char *buffer, int buffer_len,
 	return (0);
 } /* int value_list_to_string */
 
-static int value_list_to_filename (char *buffer, int buffer_len,
-		const data_set_t *ds, const value_list_t *vl)
+static int value_list_to_filename (char *buffer, size_t buffer_size,
+		value_list_t const *vl)
 {
-	int offset = 0;
 	int status;
 
-	assert (0 == strcmp (ds->type, vl->type));
+	char *ptr = buffer;
+	size_t ptr_size = buffer_size;
+	time_t now;
+	struct tm struct_tm;
 
 	if (datadir != NULL)
 	{
-		status = ssnprintf (buffer + offset, buffer_len - offset,
-				"%s/", datadir);
-		if ((status < 1) || (status >= buffer_len - offset))
-			return (-1);
-		offset += status;
+		size_t len = strlen (datadir) + 1;
+
+		if (len >= ptr_size)
+			return (ENOBUFS);
+
+		memcpy (ptr, datadir, len);
+		ptr[len-1] = '/';
+		ptr_size -= len;
+		ptr += len;
 	}
 
-	status = ssnprintf (buffer + offset, buffer_len - offset,
-			"%s/", vl->host);
-	if ((status < 1) || (status >= buffer_len - offset))
-		return (-1);
-	offset += status;
+	status = FORMAT_VL (ptr, ptr_size, vl);
+	if (status != 0)
+		return (status);
 
-	if (strlen (vl->plugin_instance) > 0)
-		status = ssnprintf (buffer + offset, buffer_len - offset,
-				"%s-%s/", vl->plugin, vl->plugin_instance);
-	else
-		status = ssnprintf (buffer + offset, buffer_len - offset,
-				"%s/", vl->plugin);
-	if ((status < 1) || (status >= buffer_len - offset))
-		return (-1);
-	offset += status;
+	/* Skip all the time formatting stuff when printing to STDOUT or
+	 * STDERR. */
+	if (use_stdio)
+		return (0);
 
-	if (strlen (vl->type_instance) > 0)
-		status = ssnprintf (buffer + offset, buffer_len - offset,
-				"%s-%s", vl->type, vl->type_instance);
-	else
-		status = ssnprintf (buffer + offset, buffer_len - offset,
-				"%s", vl->type);
-	if ((status < 1) || (status >= buffer_len - offset))
-		return (-1);
-	offset += status;
+	ptr_size -= strlen (ptr);
+	ptr +=  strlen (ptr);
 
-	if (!use_stdio)
+	/* "-2013-07-12" => 11 bytes */
+	if (ptr_size < 12)
 	{
-		time_t now;
-		struct tm stm;
+		ERROR ("csv plugin: Buffer too small.");
+		return (ENOMEM);
+	}
 
-		/* TODO: Find a way to minimize the calls to `localtime_r',
-		 * since they are pretty expensive.. */
-		now = time (NULL);
-		if (localtime_r (&now, &stm) == NULL)
-		{
-			ERROR ("csv plugin: localtime_r failed");
-			return (1);
-		}
+	/* TODO: Find a way to minimize the calls to `localtime_r',
+	 * since they are pretty expensive.. */
+	now = time (NULL);
+	if (localtime_r (&now, &struct_tm) == NULL)
+	{
+		ERROR ("csv plugin: localtime_r failed");
+		return (-1);
+	}
 
-		strftime (buffer + offset, buffer_len - offset,
-				"-%Y-%m-%d", &stm);
+	status = strftime (ptr, ptr_size, "-%Y-%m-%d", &struct_tm);
+	if (status == 0) /* yep, it returns zero on error. */
+	{
+		ERROR ("csv plugin: strftime failed");
+		return (-1);
 	}
 
 	return (0);
@@ -218,7 +215,10 @@ static int csv_config (const char *key, const char *value)
 	if (strcasecmp ("DataDir", key) == 0)
 	{
 		if (datadir != NULL)
+		{
 			free (datadir);
+			datadir = NULL;
+		}
 		if (strcasecmp ("stdout", value) == 0)
 		{
 			use_stdio = 1;
@@ -275,7 +275,8 @@ static int csv_write (const data_set_t *ds, const value_list_t *vl,
 		return -1;
 	}
 
-	if (value_list_to_filename (filename, sizeof (filename), ds, vl) != 0)
+	status = value_list_to_filename (filename, sizeof (filename), vl);
+	if (status != 0)
 		return (-1);
 
 	DEBUG ("csv plugin: csv_write: filename = %s;", filename);

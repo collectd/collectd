@@ -88,7 +88,7 @@ static int wh_send_buffer (wh_callback_t *cb) /* {{{ */
 
         curl_easy_setopt (cb->curl, CURLOPT_POSTFIELDS, cb->send_buffer);
         status = curl_easy_perform (cb->curl);
-        if (status != 0)
+        if (status != CURLE_OK)
         {
                 ERROR ("write_http plugin: curl_easy_perform failed with "
                                 "status %i: %s",
@@ -112,7 +112,7 @@ static int wh_callback_init (wh_callback_t *cb) /* {{{ */
         }
 
         curl_easy_setopt (cb->curl, CURLOPT_NOSIGNAL, 1L);
-        curl_easy_setopt (cb->curl, CURLOPT_USERAGENT, PACKAGE_NAME"/"PACKAGE_VERSION);
+        curl_easy_setopt (cb->curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
 
         headers = NULL;
         headers = curl_slist_append (headers, "Accept:  */*");

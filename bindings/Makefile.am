@@ -45,7 +45,13 @@ perl: buildperl/Makefile
 
 buildperl/Makefile: .perl-directory-stamp buildperl/Makefile.PL \
 	$(top_builddir)/config.status
-	cd buildperl && @PERL@ Makefile.PL INSTALL_BASE=$(DESTDIR)$(prefix) @PERL_BINDINGS_OPTIONS@
+	@# beautify the output a bit
+	@echo 'cd buildperl && @PERL@ Makefile.PL @PERL_BINDINGS_OPTIONS@'
+	@cd buildperl && ( if ! @PERL@ Makefile.PL @PERL_BINDINGS_OPTIONS@; then \
+			echo ""; \
+			echo 'Check whether you have set $$PERL_MM_OPT in your environment and try using ./configure --with-perl-bindings=""'; \
+			echo ""; \
+		fi )
 
 buildperl/Makefile.PL: .perl-directory-stamp $(top_builddir)/config.status
 

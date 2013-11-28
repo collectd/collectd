@@ -223,7 +223,8 @@ void plugin_set_dir (const char *dir);
  *  and a value below zero if an error occurs.
  *
  * NOTES
- *  No attempt is made to re-load an already loaded module.
+ *  Re-loading an already loaded module is detected and zero is returned in
+ *  this case.
  */
 int plugin_load (const char *name, uint32_t flags);
 

@@ -1,6 +1,6 @@
 /**
  * collectd - src/network.c
- * Copyright (C) 2005-2010  Florian octo Forster
+ * Copyright (C) 2005-2013  Florian octo Forster
  * Copyright (C) 2009       Aman Gupta
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -18,7 +18,7 @@
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  *   Aman Gupta <aman at tmm1.net>
  **/
 
@@ -493,6 +493,20 @@ static int network_dispatch_notification (notification_t *n) /* {{{ */
 } /* }}} int network_dispatch_notification */
 
 #if HAVE_LIBGCRYPT
+static void network_init_gcrypt (void) /* {{{ */
+{
+  /* http://lists.gnupg.org/pipermail/gcrypt-devel/2003-August/000458.html
+   * Because you can't know in a library whether another library has
+   * already initialized the library */
+  if (gcry_control (GCRYCTL_ANY_INITIALIZATION_P))
+    return;
+
+  gcry_check_version (NULL); /* before calling any other functions */
+  gcry_control (GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
+  gcry_control (GCRYCTL_INIT_SECMEM, 32768);
+  gcry_control (GCRYCTL_INITIALIZATION_FINISHED);
+} /* }}} void network_init_gcrypt */
+
 static gcry_cipher_hd_t network_get_aes256_cypher (sockent_t *se, /* {{{ */
     const void *iv, size_t iv_size, const char *username)
 {
@@ -2029,6 +2043,8 @@ static int sockent_open (sockent_t *se) /* {{{ */
 	{
 		if (se->data.client.security_level > SECURITY_LEVEL_NONE)
 		{
+			network_init_gcrypt ();
+
 			if ((se->data.client.username == NULL)
 					|| (se->data.client.password == NULL))
 			{
@@ -2047,6 +2063,8 @@ static int sockent_open (sockent_t *se) /* {{{ */
 	{
 		if (se->data.server.security_level > SECURITY_LEVEL_NONE)
 		{
+			network_init_gcrypt ();
+
 			if (se->data.server.auth_file == NULL)
 			{
 				ERROR ("network plugin: Server socket with "
@@ -3370,17 +3388,7 @@ static int network_init (void)
 	have_init = 1;
 
 #if HAVE_LIBGCRYPT
-    /* http://lists.gnupg.org/pipermail/gcrypt-devel/2003-August/000458.html
-     * Because you can't know in a library whether another library has
-     * already initialized the library
-     */
-    if (!gcry_control (GCRYCTL_ANY_INITIALIZATION_P))
-    {
-        gcry_check_version(NULL); /* before calling any other functions */
-        gcry_control (GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
-        gcry_control (GCRYCTL_INIT_SECMEM, 32768, 0);
-        gcry_control (GCRYCTL_INITIALIZATION_FINISHED, 0);
-    }
+	network_init_gcrypt ();
 #endif
 
 	if (network_config_stats != 0)

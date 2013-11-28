@@ -26,6 +26,9 @@ Features
       Sensors in Macs running Mac OS X / Darwin: Temperature, fanspeed and
       voltage sensors.
 
+    - aquaero
+      Various sensors in the Aquaero 5 watercooling board made by Aquacomputer.
+
     - ascent
       Statistics about Ascent, a free server for the game `World of Warcraft'.
 
@@ -36,6 +39,9 @@ Features
     - bind
       Name server and resolver statistics from the `statistics-channel'
       interface of BIND 9.5, 9,6 and later.
+
+    - cgroups
+      CPU accounting information for process groups under Linux.
 
     - conntrack
       Number of nf_conntrack entries.
@@ -133,7 +139,11 @@ Features
       technique built into IBM's POWER processors.
 
     - libvirt
-      CPU, disk and network I/O statistics from virtual machines.
+      CPU, memory, disk and network I/O statistics from virtual machines.
+
+    - lvm
+      Size of “Logical Volumes” (LV) and “Volume Groups” (VG) of Linux'
+      “Logical Volume Manager” (LVM).
 
     - madwifi
       Queries very detailed usage statistics from wireless LAN adapters and
@@ -157,6 +167,10 @@ Features
     - memory
       Memory utilization: Memory occupied by running processes, page cache,
       buffer cache and free.
+
+    - mic
+      Collects CPU usage, memory usage, temperatures and power consumption from
+      Intel Many Integrated Core (MIC) CPUs.
 
     - modbus
       Reads values from Modbus/TCP enabled devices. Supports reading values
@@ -269,6 +283,11 @@ Features
     - serial
       RX and TX of serial interfaces. Linux only; needs root privileges.
 
+    - sigrok
+      Uses libsigrok as a backend, allowing any sigrok-supported device
+      to have its measurements fed to collectd. This includes multimeters,
+      sound level meters, thermometers, and much more.
+
     - snmp
       Read values from SNMP (Simple Network Management Protocol) enabled
       network devices such as switches, routers, thermometers, rack monitoring
@@ -283,6 +302,10 @@ Features
     - tail
       Follows (tails) logfiles, parses them by lines and submits matched
       values.
+
+    - tail_csv
+      Follows (tails) files in CSV format, parses each line and submits
+      extracted values.
 
     - tape
       Bytes and operations read and written on tape devices. Solaris only.
@@ -372,7 +395,9 @@ Features
       done.
 
     - write_graphite
-      Sends data to Carbon, the storage layer of Graphite.
+      Sends data to Carbon, the storage layer of Graphite using TCP or UDP. It
+      can be configured to avoid logging send errors (especially useful when
+      using UDP).
 
     - write_http
       Sends the values collected by collectd to a web-server using HTTP POST
@@ -544,6 +569,14 @@ Prerequisites
     used and should be found in various implementations for hopefully all
     platforms.
 
+  * aerotools-ng (optional)
+    Used by the `aquaero' plugin. Currently, the `libaquaero5' library, which
+    is used by the `aerotools-ng' toolkit, is not compiled as a shared object
+    nor does it feature an installation routine. Therefore, you need to point
+    collectd's configure script at the source directory of the `aerotools-ng'
+    project.
+    <https://github.com/lynix/aerotools-ng>
+
   * CoreFoundation.framework and IOKit.framework (optional)
     For compiling on Darwin in general and the `apple_sensors' plugin in
     particular.
@@ -601,6 +634,10 @@ Prerequisites
     Used by the `memcachec' plugin to connect to a memcache daemon.
     <http://tangent.org/552/libmemcached.html>
 
+  * libmnl (optional)
+    Used by the `netlink' plugin.
+    <http://www.netfilter.org/projects/libmnl/>
+
   * libmodbus (optional)
     Used by the “modbus” plugin to communicate with Modbus/TCP devices. The
     “modbus” plugin works with version 2.0.3 of the library – due to frequent
@@ -614,10 +651,6 @@ Prerequisites
   * libnetapp (optional)
     Required for the “netapp” plugin.
     This library is part of the “Manage ONTAP SDK” published by NetApp.
-
-  * libnetlink (optional)
-    Used, obviously, for the `netlink' plugin.
-    <http://www.linuxfoundation.org/en/Net:Iproute2>
 
   * libnetsnmp (optional)
     For the `snmp' plugin.
@@ -683,6 +716,11 @@ Prerequisites
   * libsensors (optional)
     To read from `lm_sensors', see the `sensors' plugin.
     <http://www.lm-sensors.org/>
+
+  * libsigrok (optional)
+    Used by the sigrok plugin. In addition, libsigrok depends on glib,
+    libzip, and optionally (depending on which drivers are enabled) on
+    libusb, libftdi and libudev.
 
   * libstatgrab (optional)
     Used by various plugins to collect statistics on systems other than Linux

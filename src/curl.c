@@ -26,6 +26,7 @@
 #include "plugin.h"
 #include "configfile.h"
 #include "utils_match.h"
+#include "utils_time.h"
 
 #include <curl/curl.h>
 
@@ -57,10 +58,13 @@ struct web_page_s /* {{{ */
   char *user;
   char *pass;
   char *credentials;
-  int   verify_peer;
-  int   verify_host;
+  _Bool verify_peer;
+  _Bool verify_host;
   char *cacert;
-  int   response_time;
+  struct curl_slist *headers;
+  char *post_body;
+  _Bool response_time;
+  _Bool response_code;
 
   CURL *curl;
   char curl_errbuf[CURL_ERROR_SIZE];
@@ -87,7 +91,7 @@ static size_t cc_curl_callback (void *buf, /* {{{ */
 {
   web_page_t *wp;
   size_t len;
-  
+
   len = size * nmemb;
   if (len <= 0)
     return (len);
@@ -148,6 +152,8 @@ static void cc_web_page_free (web_page_t *wp) /* {{{ */
   sfree (wp->pass);
   sfree (wp->credentials);
   sfree (wp->cacert);
+  sfree (wp->post_body);
+  curl_slist_free_all (wp->headers);
 
   sfree (wp->buffer);
 
@@ -156,7 +162,7 @@ static void cc_web_page_free (web_page_t *wp) /* {{{ */
   sfree (wp);
 } /* }}} void cc_web_page_free */
 
-static int cc_config_add_string (const char *name, char **dest, /* {{{ */
+static int cc_config_append_string (const char *name, struct curl_slist **dest, /* {{{ */
     oconfig_item_t *ci)
 {
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
@@ -165,27 +171,12 @@ static int cc_config_add_string (const char *name, char **dest, /* {{{ */
     return (-1);
   }
 
-  sfree (*dest);
-  *dest = strdup (ci->values[0].value.string);
+  *dest = curl_slist_append(*dest, ci->values[0].value.string);
   if (*dest == NULL)
     return (-1);
 
   return (0);
-} /* }}} int cc_config_add_string */
-
-static int cc_config_set_boolean (const char *name, int *dest, /* {{{ */
-    oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
-  {
-    WARNING ("curl plugin: `%s' needs exactly one boolean argument.", name);
-    return (-1);
-  }
-
-  *dest = ci->values[0].value.boolean ? 1 : 0;
-
-  return (0);
-} /* }}} int cc_config_set_boolean */
+} /* }}} int cc_config_append_string */
 
 static int cc_config_add_match_dstype (int *dstype_ret, /* {{{ */
     oconfig_item_t *ci)
@@ -291,15 +282,15 @@ static int cc_config_add_match (web_page_t *page, /* {{{ */
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp ("Regex", child->key) == 0)
-      status = cc_config_add_string ("Regex", &match->regex, child);
+      status = cf_util_get_string (child, &match->regex);
     else if (strcasecmp ("ExcludeRegex", child->key) == 0)
-      status = cc_config_add_string ("ExcludeRegex", &match->exclude_regex, child);
+      status = cf_util_get_string (child, &match->exclude_regex);
     else if (strcasecmp ("DSType", child->key) == 0)
       status = cc_config_add_match_dstype (&match->dstype, child);
     else if (strcasecmp ("Type", child->key) == 0)
-      status = cc_config_add_string ("Type", &match->type, child);
+      status = cf_util_get_string (child, &match->type);
     else if (strcasecmp ("Instance", child->key) == 0)
-      status = cc_config_add_string ("Instance", &match->instance, child);
+      status = cf_util_get_string (child, &match->instance);
     else
     {
       WARNING ("curl plugin: Option `%s' not allowed here.", child->key);
@@ -373,11 +364,11 @@ static int cc_page_init_curl (web_page_t *wp) /* {{{ */
   curl_easy_setopt (wp->curl, CURLOPT_NOSIGNAL, 1L);
   curl_easy_setopt (wp->curl, CURLOPT_WRITEFUNCTION, cc_curl_callback);
   curl_easy_setopt (wp->curl, CURLOPT_WRITEDATA, wp);
-  curl_easy_setopt (wp->curl, CURLOPT_USERAGENT,
-      PACKAGE_NAME"/"PACKAGE_VERSION);
+  curl_easy_setopt (wp->curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
   curl_easy_setopt (wp->curl, CURLOPT_ERRORBUFFER, wp->curl_errbuf);
   curl_easy_setopt (wp->curl, CURLOPT_URL, wp->url);
   curl_easy_setopt (wp->curl, CURLOPT_FOLLOWLOCATION, 1L);
+  curl_easy_setopt (wp->curl, CURLOPT_MAXREDIRS, 50L);
 
   if (wp->user != NULL)
   {
@@ -404,6 +395,10 @@ static int cc_page_init_curl (web_page_t *wp) /* {{{ */
       wp->verify_host ? 2L : 0L);
   if (wp->cacert != NULL)
     curl_easy_setopt (wp->curl, CURLOPT_CAINFO, wp->cacert);
+  if (wp->headers != NULL)
+    curl_easy_setopt (wp->curl, CURLOPT_HTTPHEADER, wp->headers);
+  if (wp->post_body != NULL)
+    curl_easy_setopt (wp->curl, CURLOPT_POSTFIELDS, wp->post_body);
 
   return (0);
 } /* }}} int cc_page_init_curl */
@@ -433,6 +428,7 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
   page->verify_peer = 1;
   page->verify_host = 1;
   page->response_time = 0;
+  page->response_code = 0;
 
   page->instance = strdup (ci->values[0].value.string);
   if (page->instance == NULL)
@@ -449,22 +445,28 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp ("URL", child->key) == 0)
-      status = cc_config_add_string ("URL", &page->url, child);
+      status = cf_util_get_string (child, &page->url);
     else if (strcasecmp ("User", child->key) == 0)
-      status = cc_config_add_string ("User", &page->user, child);
+      status = cf_util_get_string (child, &page->user);
     else if (strcasecmp ("Password", child->key) == 0)
-      status = cc_config_add_string ("Password", &page->pass, child);
+      status = cf_util_get_string (child, &page->pass);
     else if (strcasecmp ("VerifyPeer", child->key) == 0)
-      status = cc_config_set_boolean ("VerifyPeer", &page->verify_peer, child);
+      status = cf_util_get_boolean (child, &page->verify_peer);
     else if (strcasecmp ("VerifyHost", child->key) == 0)
-      status = cc_config_set_boolean ("VerifyHost", &page->verify_host, child);
+      status = cf_util_get_boolean (child, &page->verify_host);
     else if (strcasecmp ("MeasureResponseTime", child->key) == 0)
-      status = cc_config_set_boolean (child->key, &page->response_time, child);
+      status = cf_util_get_boolean (child, &page->response_time);
+    else if (strcasecmp ("MeasureResponseCode", child->key) == 0)
+      status = cf_util_get_boolean (child, &page->response_code);
     else if (strcasecmp ("CACert", child->key) == 0)
-      status = cc_config_add_string ("CACert", &page->cacert, child);
+      status = cf_util_get_string (child, &page->cacert);
     else if (strcasecmp ("Match", child->key) == 0)
       /* Be liberal with failing matches => don't set `status'. */
       cc_config_add_match (page, child);
+    else if (strcasecmp ("Header", child->key) == 0)
+      status = cc_config_append_string ("Header", &page->headers, child);
+    else if (strcasecmp ("Post", child->key) == 0)
+      status = cf_util_get_string (child, &page->post_body);
     else
     {
       WARNING ("curl plugin: Option `%s' not allowed here.", child->key);
@@ -484,11 +486,12 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
       status = -1;
     }
 
-    if (page->matches == NULL && !page->response_time)
+    if (page->matches == NULL && !page->response_time && !page->response_code)
     {
       assert (page->instance != NULL);
       WARNING ("curl plugin: No (valid) `Match' block "
-          "or MeasureResponseTime within `Page' block `%s'.", page->instance);
+          "or MeasureResponseTime or MeasureResponseCode within "
+          "`Page' block `%s'.", page->instance);
       status = -1;
     }
 
@@ -587,12 +590,30 @@ static void cc_submit (const web_page_t *wp, const web_match_t *wm, /* {{{ */
   plugin_dispatch_values (&vl);
 } /* }}} void cc_submit */
 
-static void cc_submit_response_time (const web_page_t *wp, double seconds) /* {{{ */
+static void cc_submit_response_code (const web_page_t *wp, long code) /* {{{ */
 {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  values[0].gauge = seconds;
+  values[0].gauge = code;
+
+  vl.values = values;
+  vl.values_len = 1;
+  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+  sstrncpy (vl.plugin, "curl", sizeof (vl.plugin));
+  sstrncpy (vl.plugin_instance, wp->instance, sizeof (vl.plugin_instance));
+  sstrncpy (vl.type, "response_code", sizeof (vl.type));
+
+  plugin_dispatch_values (&vl);
+} /* }}} void cc_submit_response_code */
+
+static void cc_submit_response_time (const web_page_t *wp, /* {{{ */
+    cdtime_t response_time)
+{
+  value_t values[1];
+  value_list_t vl = VALUE_LIST_INIT;
+
+  values[0].gauge = CDTIME_T_TO_DOUBLE (response_time);
 
   vl.values = values;
   vl.values_len = 1;
@@ -608,14 +629,14 @@ static int cc_read_page (web_page_t *wp) /* {{{ */
 {
   web_match_t *wm;
   int status;
-  struct timeval start, end;
+  cdtime_t start = 0;
 
   if (wp->response_time)
-    gettimeofday (&start, NULL);
+    start = cdtime ();
 
   wp->buffer_fill = 0;
   status = curl_easy_perform (wp->curl);
-  if (status != 0)
+  if (status != CURLE_OK)
   {
     ERROR ("curl plugin: curl_easy_perform failed with staus %i: %s",
         status, wp->curl_errbuf);
@@ -623,12 +644,18 @@ static int cc_read_page (web_page_t *wp) /* {{{ */
   }
 
   if (wp->response_time)
+    cc_submit_response_time (wp, cdtime() - start);
+
+  if(wp->response_code)
   {
-    double secs = 0;
-    gettimeofday (&end, NULL);
-    secs += end.tv_sec - start.tv_sec;
-    secs += (end.tv_usec - start.tv_usec) / 1000000.0;
-    cc_submit_response_time (wp, secs);
+    long response_code = 0;
+    status = curl_easy_getinfo(wp->curl, CURLINFO_RESPONSE_CODE, &response_code);
+    if(status != CURLE_OK) {
+      ERROR ("curl plugin: Fetching response code failed with staus %i: %s",
+        status, wp->curl_errbuf);
+    } else {
+      cc_submit_response_code(wp, response_code);
+    }
   }
 
   for (wm = wp->matches; wm != NULL; wm = wm->next)

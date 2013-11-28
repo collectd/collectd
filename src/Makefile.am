@@ -33,6 +33,7 @@ collectd_SOURCES = collectd.c collectd.h \
 		   utils_ignorelist.c utils_ignorelist.h \
 		   utils_llist.c utils_llist.h \
 		   utils_parse_option.c utils_parse_option.h \
+		   utils_random.c utils_random.h \
 		   utils_tail_match.c utils_tail_match.h \
 		   utils_match.c utils_match.h \
 		   utils_subst.c utils_subst.h \
@@ -90,6 +91,7 @@ collectdmon_SOURCES = collectdmon.c
 collectdmon_CPPFLAGS = $(AM_CPPFLAGS)
 
 collectd_nagios_SOURCES = collectd-nagios.c
+collectd_nagios_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_builddir)/src/libcollectdclient/collectd
 collectd_nagios_LDADD =
 if BUILD_WITH_LIBSOCKET
 collectd_nagios_LDADD += -lsocket
@@ -103,6 +105,7 @@ collectd_nagios_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 
 
 collectdctl_SOURCES = collectdctl.c
+collectdctl_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_builddir)/src/libcollectdclient/collectd
 collectdctl_LDADD =
 if BUILD_WITH_LIBSOCKET
 collectdctl_LDADD += -lsocket
@@ -115,6 +118,7 @@ collectdctl_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 
 collectd_tg_SOURCES = collectd-tg.c \
 		      utils_heap.c utils_heap.h
+collectd_tg_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_builddir)/src/libcollectdclient/collectd
 collectd_tg_LDADD =
 if BUILD_WITH_LIBSOCKET
 collectd_tg_LDADD += -lsocket
@@ -132,7 +136,7 @@ collectd_tg_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 pkglib_LTLIBRARIES = 
 
 BUILT_SOURCES = 
-CLEANFILES = 
+CLEANFILES =
 
 if BUILD_PLUGIN_AGGREGATION
 pkglib_LTLIBRARIES += aggregation.la
@@ -192,6 +196,16 @@ collectd_LDADD += "-dlopen" apple_sensors.la
 collectd_DEPENDENCIES += apple_sensors.la
 endif
 
+if BUILD_PLUGIN_AQUAERO
+pkglib_LTLIBRARIES += aquaero.la
+aquaero_la_SOURCES = aquaero.c
+aquaero_la_LDFLAGS = -module -avoid-version
+aquaero_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBAQUAERO5_CFLAGS)
+aquaero_la_LIBADD = $(BUILD_WITH_LIBAQUAERO5_LDFLAGS) -laquaero5
+collectd_LDADD += "-dlopen" aquaero.la
+collectd_DEPENDENCIES += aquaero.la
+endif
+
 if BUILD_PLUGIN_ASCENT
 pkglib_LTLIBRARIES += ascent.la
 ascent_la_SOURCES = ascent.c
@@ -224,6 +238,14 @@ bind_la_CFLAGS = $(AM_CFLAGS) \
 bind_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
 collectd_LDADD += "-dlopen" bind.la
 collectd_DEPENDENCIES += bind.la
+endif
+
+if BUILD_PLUGIN_CGROUPS
+pkglib_LTLIBRARIES += cgroups.la
+cgroups_la_SOURCES = cgroups.c utils_mount.c utils_mount.h
+cgroups_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" cgroups.la
+collectd_DEPENDENCIES += cgroups.la
 endif
 
 if BUILD_PLUGIN_CONNTRACK
@@ -564,6 +586,15 @@ collectd_DEPENDENCIES += lpar.la
 lpar_la_LIBADD = -lperfstat
 endif
 
+if BUILD_PLUGIN_LVM
+pkglib_LTLIBRARIES += lvm.la
+lvm_la_SOURCES = lvm.c
+lvm_la_LDFLAGS = -module -avoid-version
+lvm_la_LIBADD = $(BUILD_WITH_LIBLVM2APP_LIBS)
+collectd_LDADD += "-dlopen" lvm.la
+collectd_DEPENDENCIES += lvm.la
+endif
+
 if BUILD_PLUGIN_MADWIFI
 pkglib_LTLIBRARIES += madwifi.la
 madwifi_la_SOURCES = madwifi.c madwifi.h
@@ -723,8 +754,8 @@ if BUILD_PLUGIN_NETLINK
 pkglib_LTLIBRARIES += netlink.la
 netlink_la_SOURCES = netlink.c
 netlink_la_LDFLAGS = -module -avoid-version
-netlink_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBNETLINK_CFLAGS)
-netlink_la_LIBADD = $(BUILD_WITH_LIBNETLINK_LIBS)
+netlink_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMNL_CFLAGS)
+netlink_la_LIBADD = $(BUILD_WITH_LIBMNL_LIBS)
 collectd_LDADD += "-dlopen" netlink.la
 collectd_DEPENDENCIES += netlink.la
 endif
@@ -900,10 +931,9 @@ collectd_DEPENDENCIES += pf.la
 endif
 
 if BUILD_PLUGIN_PINBA
-BUILT_SOURCES += pinba.pb-c.c pinba.pb-c.h
-CLEANFILES += pinba.pb-c.c pinba.pb-c.h
 pkglib_LTLIBRARIES += pinba.la
 pinba_la_SOURCES = pinba.c
+nodist_pinba_la_SOURCES = pinba.pb-c.c pinba.pb-c.h
 pinba_la_LDFLAGS = -module -avoid-version
 pinba_la_LIBADD = -lprotobuf-c
 collectd_LDADD += "-dlopen" pinba.la
@@ -1032,6 +1062,16 @@ collectd_LDADD += "-dlopen" serial.la
 collectd_DEPENDENCIES += serial.la
 endif
 
+if BUILD_PLUGIN_SIGROK
+pkglib_LTLIBRARIES += sigrok.la
+sigrok_la_SOURCES = sigrok.c
+sigrok_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBSIGROK_CFLAGS)
+sigrok_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBSIGROK_LDFLAGS)
+sigrok_la_LIBADD = -lsigrok
+collectd_LDADD += "-dlopen" sigrok.la
+collectd_DEPENDENCIES += sigrok.la
+endif
+
 if BUILD_PLUGIN_SNMP
 pkglib_LTLIBRARIES += snmp.la
 snmp_la_SOURCES = snmp.c
@@ -1047,6 +1087,16 @@ snmp_la_LIBADD += -lpthread
 endif
 collectd_LDADD += "-dlopen" snmp.la
 collectd_DEPENDENCIES += snmp.la
+endif
+
+if BUILD_PLUGIN_STATSD
+pkglib_LTLIBRARIES += statsd.la
+statsd_la_SOURCES = statsd.c \
+                    utils_latency.h utils_latency.c
+statsd_la_LDFLAGS = -module -avoid-version
+statsd_la_LIBADD = -lpthread
+collectd_LDADD += "-dlopen" statsd.la
+collectd_DEPENDENCIES += statsd.la
 endif
 
 if BUILD_PLUGIN_SWAP
@@ -1098,6 +1148,14 @@ tail_la_SOURCES = tail.c
 tail_la_LDFLAGS = -module -avoid-version
 collectd_LDADD += "-dlopen" tail.la
 collectd_DEPENDENCIES += tail.la
+endif
+
+if BUILD_PLUGIN_TAIL_CSV
+pkglib_LTLIBRARIES += tail_csv.la
+tail_csv_la_SOURCES = tail_csv.c
+tail_csv_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" tail_csv.la
+collectd_DEPENDENCIES += tail_csv.la
 endif
 
 if BUILD_PLUGIN_TAPE
@@ -1260,6 +1318,16 @@ collectd_LDADD += "-dlopen" uuid.la
 collectd_DEPENDENCIES += uuid.la
 endif
 
+if BUILD_PLUGIN_MIC
+pkglib_LTLIBRARIES += mic.la
+mic_la_SOURCES = mic.c
+mic_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_MIC_LIBPATH)
+mic_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_MIC_CPPFLAGS)
+mic_la_LIBADD = $(BUILD_WITH_MIC_LDADD)
+collectd_LDADD += "-dlopen" mic.la
+collectd_DEPENDENCIES += mic.la
+endif
+
 if BUILD_PLUGIN_VARNISH
 pkglib_LTLIBRARIES += varnish.la
 varnish_la_SOURCES = varnish.c
@@ -1340,10 +1408,9 @@ collectd_DEPENDENCIES += write_redis.la
 endif
 
 if BUILD_PLUGIN_WRITE_RIEMANN
-BUILT_SOURCES += riemann.pb-c.c riemann.pb-c.h
-CLEANFILES += riemann.pb-c.c riemann.pb-c.h
 pkglib_LTLIBRARIES += write_riemann.la
-write_riemann_la_SOURCES = write_riemann.c riemann.pb-c.c
+write_riemann_la_SOURCES = write_riemann.c
+nodist_write_riemann_la_SOURCES = riemann.pb-c.c riemann.pb-c.h
 write_riemann_la_LDFLAGS = -module -avoid-version
 write_riemann_la_LIBADD = -lprotobuf-c
 collectd_LDADD += "-dlopen" write_riemann.la
@@ -1365,7 +1432,11 @@ pkglib_LTLIBRARIES += zfs_arc.la
 zfs_arc_la_SOURCES = zfs_arc.c
 zfs_arc_la_CFLAGS = $(AM_CFLAGS)
 zfs_arc_la_LDFLAGS = -module -avoid-version
+if BUILD_FREEBSD
+zfs_arc_la_LIBADD = -lm
+else
 zfs_arc_la_LIBADD = -lkstat
+endif
 collectd_LDADD += "-dlopen" zfs_arc.la
 collectd_DEPENDENCIES += zfs_arc.la
 endif
@@ -1390,7 +1461,7 @@ dist_man_MANS = collectd.1 \
 
 #collectd_1_SOURCES = collectd.pod
 
-EXTRA_DIST = types.db pinba.proto riemann.proto
+EXTRA_DIST = types.db
 
 EXTRA_DIST +=   collectd.conf.pod \
 		collectd-email.pod \
@@ -1425,11 +1496,26 @@ EXTRA_DIST +=   collectd.conf.pod \
 		echo "$@ has some POD errors!"; false; \
 	fi
 
+# Protocol buffer for the "pinba" plugin.
+EXTRA_DIST += pinba.proto
+if HAVE_PROTOC_C
+CLEANFILES += pinba.pb-c.c pinba.pb-c.h
+BUILT_SOURCES += pinba.pb-c.c pinba.pb-c.h
+
 pinba.pb-c.c pinba.pb-c.h: pinba.proto
 	protoc-c -I$(srcdir) --c_out . $(srcdir)/pinba.proto
+endif
+
+# Protocol buffer for the "write_riemann" plugin.
+EXTRA_DIST += riemann.proto
+if HAVE_PROTOC_C
+CLEANFILES += riemann.pb-c.c riemann.pb-c.h
+
+BUILT_SOURCES += riemann.pb-c.c riemann.pb-c.h
 
 riemann.pb-c.c riemann.pb-c.h: riemann.proto
 	protoc-c -I$(srcdir) --c_out . $(srcdir)/riemann.proto
+endif
 
 install-exec-hook:
 	$(mkinstalldirs) $(DESTDIR)$(sysconfdir)

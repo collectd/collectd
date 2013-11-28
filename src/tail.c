@@ -52,22 +52,6 @@ typedef struct ctail_config_match_s ctail_config_match_t;
 cu_tail_match_t **tail_match_list = NULL;
 size_t tail_match_list_num = 0;
 
-static int ctail_config_add_string (const char *name, char **dest, oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("tail plugin: `%s' needs exactly one string argument.", name);
-    return (-1);
-  }
-
-  sfree (*dest);
-  *dest = strdup (ci->values[0].value.string);
-  if (*dest == NULL)
-    return (-1);
-
-  return (0);
-} /* int ctail_config_add_string */
-
 static int ctail_config_add_match_dstype (ctail_config_match_t *cm,
     oconfig_item_t *ci)
 {
@@ -158,16 +142,15 @@ static int ctail_config_add_match (cu_tail_match_t *tm,
     oconfig_item_t *option = ci->children + i;
 
     if (strcasecmp ("Regex", option->key) == 0)
-      status = ctail_config_add_string ("Regex", &cm.regex, option);
+      status = cf_util_get_string (option, &cm.regex);
     else if (strcasecmp ("ExcludeRegex", option->key) == 0)
-      status = ctail_config_add_string ("ExcludeRegex", &cm.excluderegex,
-					option);
+      status = cf_util_get_string (option, &cm.excluderegex);
     else if (strcasecmp ("DSType", option->key) == 0)
       status = ctail_config_add_match_dstype (&cm, option);
     else if (strcasecmp ("Type", option->key) == 0)
-      status = ctail_config_add_string ("Type", &cm.type, option);
+      status = cf_util_get_string (option, &cm.type);
     else if (strcasecmp ("Instance", option->key) == 0)
-      status = ctail_config_add_string ("Instance", &cm.type_instance, option);
+      status = cf_util_get_string (option, &cm.type_instance);
     else
     {
       WARNING ("tail plugin: Option `%s' not allowed here.", option->key);
@@ -259,7 +242,7 @@ static int ctail_config_add_file (oconfig_item_t *ci)
       status = 0;
     }
     else if (strcasecmp ("Instance", option->key) == 0)
-      status = ctail_config_add_string ("Instance", &plugin_instance, option);
+      status = cf_util_get_string (option, &plugin_instance);
     else
     {
       WARNING ("tail plugin: Option `%s' not allowed here.", option->key);

@@ -21,6 +21,7 @@ true \
 && rm -f Makefile \
 && rm -f Makefile.in \
 && rm -f missing \
+&& rm -f INSTALL \
 && rm -f -r src/.deps \
 && rm -f -r src/.libs \
 && rm -f src/*.o \
@@ -28,6 +29,11 @@ true \
 && rm -f src/*.lo \
 && rm -f src/collectd \
 && rm -f src/collectd.1 \
+&& rm -f src/collectd.conf \
+&& rm -f src/collectdctl \
+&& rm -f src/collectd-tg \
+&& rm -f src/collectd-nagios \
+&& rm -f src/collectdmon \
 && rm -f src/config.h \
 && rm -f src/config.h.in \
 && rm -f src/config.h.in~ \
@@ -35,6 +41,18 @@ true \
 && rm -f src/Makefile.in \
 && rm -f src/stamp-h1 \
 && rm -f src/stamp-h1.in \
+&& rm -f src/*.pb-c.c \
+&& rm -f src/*.pb-c.h \
+&& rm -f src/Makefile.in \
+&& rm -f src/liboconfig/*.o \
+&& rm -f src/liboconfig/*.la \
+&& rm -f src/liboconfig/*.lo \
+&& rm -f -r src/liboconfig/.libs \
+&& rm -f -r src/liboconfig/Makefile \
+&& rm -f -r src/liboconfig/Makefile.in \
+&& rm -f -r src/liboconfig/parser.c \
+&& rm -f -r src/liboconfig/parser.h \
+&& rm -f -r src/liboconfig/scanner.c \
 && rm -f -r src/libping/.libs \
 && rm -f src/libping/*.o \
 && rm -f src/libping/*.la \
@@ -48,5 +66,17 @@ true \
 && rm -f src/libcollectdclient/*.o \
 && rm -f src/libcollectdclient/*.la \
 && rm -f src/libcollectdclient/*.lo \
+&& rm -f src/libcollectdclient/Makefile \
+&& rm -f src/libcollectdclient/Makefile.in \
+&& rm -f src/libcollectdclient/collectd/lcc_features.h \
+&& rm -f src/libcollectdclient/libcollectdclient.pc \
+&& rm -f bindings/Makefile \
+&& rm -f bindings/Makefile.in \
+&& rm -f -r bindings/java/.libs \
+&& rm -f bindings/java/Makefile \
+&& rm -f bindings/java/Makefile.in \
+&& rm -f bindings/java/java-build-stamp \
+&& rm -f bindings/java/org/collectd/api/*.class \
+&& rm -f bindings/java/org/collectd/java/*.class \
 && rm -f bindings/.perl-directory-stamp \
 && rm -f -r bindings/buildperl

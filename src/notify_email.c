@@ -258,7 +258,7 @@ static int notify_email_notification (const notification_t *n,
   /* Let's make RFC822 message text with \r\n EOLs */
   ssnprintf (buf, buf_len,
       "MIME-Version: 1.0\r\n"
-      "Content-Type: text/plain;\r\n"
+      "Content-Type: text/plain; charset=\"US-ASCII\"\r\n"
       "Content-Transfer-Encoding: 8bit\r\n"
       "Subject: %s\r\n"
       "\r\n"

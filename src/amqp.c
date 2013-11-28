@@ -877,6 +877,7 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
     /* publish only */
     conf->delivery_mode = CAMQP_DM_VOLATILE;
     conf->store_rates = 0;
+    conf->graphite_flags = 0;
     /* publish & graphite only */
     conf->prefix = NULL;
     conf->postfix = NULL;
@@ -942,6 +943,12 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
         }
         else if ((strcasecmp ("Format", child->key) == 0) && publish)
             status = camqp_config_set_format (child, conf);
+        else if ((strcasecmp ("GraphiteSeparateInstances", child->key) == 0) && publish)
+            status = cf_util_get_flag (child, &conf->graphite_flags,
+                    GRAPHITE_SEPARATE_INSTANCES);
+        else if ((strcasecmp ("GraphiteAlwaysAppendDS", child->key) == 0) && publish)
+            status = cf_util_get_flag (child, &conf->graphite_flags,
+                    GRAPHITE_ALWAYS_APPEND_DS);
         else if ((strcasecmp ("GraphitePrefix", child->key) == 0) && publish)
             status = cf_util_get_string (child, &conf->prefix);
         else if ((strcasecmp ("GraphitePostfix", child->key) == 0) && publish)

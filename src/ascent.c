@@ -541,7 +541,7 @@ static int ascent_init (void) /* {{{ */
 
   curl_easy_setopt (curl, CURLOPT_NOSIGNAL, 1L);
   curl_easy_setopt (curl, CURLOPT_WRITEFUNCTION, ascent_curl_callback);
-  curl_easy_setopt (curl, CURLOPT_USERAGENT, PACKAGE_NAME"/"PACKAGE_VERSION);
+  curl_easy_setopt (curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
   curl_easy_setopt (curl, CURLOPT_ERRORBUFFER, ascent_curl_error);
 
   if (user != NULL)
@@ -562,6 +562,7 @@ static int ascent_init (void) /* {{{ */
 
   curl_easy_setopt (curl, CURLOPT_URL, url);
   curl_easy_setopt (curl, CURLOPT_FOLLOWLOCATION, 1L);
+  curl_easy_setopt (curl, CURLOPT_MAXREDIRS, 50L);
 
   if ((verify_peer == NULL) || IS_TRUE (verify_peer))
     curl_easy_setopt (curl, CURLOPT_SSL_VERIFYPEER, 1L);
@@ -596,7 +597,7 @@ static int ascent_read (void) /* {{{ */
   }
 
   ascent_buffer_fill = 0;
-  if (curl_easy_perform (curl) != 0)
+  if (curl_easy_perform (curl) != CURLE_OK)
   {
     ERROR ("ascent plugin: curl_easy_perform failed: %s",
         ascent_curl_error);

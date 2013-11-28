@@ -56,7 +56,13 @@ struct rate_to_value_state_s
 typedef struct rate_to_value_state_s rate_to_value_state_t;
 
 char *sstrncpy (char *dest, const char *src, size_t n);
+
+__attribute__ ((format(printf,3,4)))
 int ssnprintf (char *dest, size_t n, const char *format, ...);
+
+__attribute__ ((format(printf,1,2)))
+char *ssnprintf_alloc (char const *format, ...);
+
 char *sstrdup(const char *s);
 void *smalloc(size_t size);
 char *sstrerror (int errnum, char *buf, size_t buflen);
@@ -208,6 +214,13 @@ int strsubstitute (char *str, char c_from, char c_to);
  */
 int strunescape (char *buf, size_t buf_len);
 
+/**
+ * Removed trailing newline characters (CR and LF) from buffer, which must be
+ * null terminated. Returns the length of the resulting string.
+ */
+__attribute__((nonnull (1)))
+size_t strstripnewline (char *buffer);
+
 /*
  * NAME
  *   timeval_cmp
@@ -296,7 +309,7 @@ typedef int (*dirwalk_callback_f)(const char *dirname, const char *filename,
 int walk_directory (const char *dir, dirwalk_callback_f callback,
 		void *user_data, int hidden);
 /* Returns the number of bytes read or negative on error. */
-int read_file_contents (const char *filename, char *buf, int bufsize);
+ssize_t read_file_contents (char const *filename, char *buf, size_t bufsize);
 
 counter_t counter_diff (counter_t old_value, counter_t new_value);
 

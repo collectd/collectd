@@ -68,6 +68,8 @@ static size_t            queries_num   = 0;
 static cdbi_database_t **databases     = NULL;
 static size_t            databases_num = 0;
 
+static int cdbi_read_database (user_data_t *ud);
+
 /*
  * Functions
  */
@@ -369,9 +371,24 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
     }
     else
     {
+      user_data_t ud;
+      char *name = NULL;
+
       databases = temp;
       databases[databases_num] = db;
       databases_num++;
+
+      memset (&ud, 0, sizeof (ud));
+      ud.data = (void *) db;
+      ud.free_func = NULL;
+      name = ssnprintf_alloc("dbi:%s", db->name);
+
+      plugin_register_complex_read (/* group = */ NULL,
+          /* name = */ name ? name : db->name,
+          /* callback = */ cdbi_read_database,
+          /* interval = */ NULL,
+          /* user_data = */ &ud);
+      free (name);
     }
   }
 
@@ -398,7 +415,7 @@ static int cdbi_config (oconfig_item_t *ci) /* {{{ */
       cdbi_config_add_database (child);
     else
     {
-      WARNING ("snmp plugin: Ignoring unknown config option `%s'.", child->key);
+      WARNING ("dbi plugin: Ignoring unknown config option `%s'.", child->key);
     }
   } /* for (ci->children) */
 
@@ -758,8 +775,9 @@ static int cdbi_connect_database (cdbi_database_t *db) /* {{{ */
   return (0);
 } /* }}} int cdbi_connect_database */
 
-static int cdbi_read_database (cdbi_database_t *db) /* {{{ */
+static int cdbi_read_database (user_data_t *ud) /* {{{ */
 {
+  cdbi_database_t *db = (cdbi_database_t *) ud->data;
   size_t i;
   int success;
   int status;
@@ -798,29 +816,6 @@ static int cdbi_read_database (cdbi_database_t *db) /* {{{ */
   return (0);
 } /* }}} int cdbi_read_database */
 
-static int cdbi_read (void) /* {{{ */
-{
-  size_t i;
-  int success = 0;
-  int status;
-
-  for (i = 0; i < databases_num; i++)
-  {
-    status = cdbi_read_database (databases[i]);
-    if (status == 0)
-      success++;
-  }
-
-  if (success == 0)
-  {
-    ERROR ("dbi plugin: No database could be read. Will return an error so "
-        "the plugin will be delayed.");
-    return (-1);
-  }
-
-  return (0);
-} /* }}} int cdbi_read */
-
 static int cdbi_shutdown (void) /* {{{ */
 {
   size_t i;
@@ -848,7 +843,6 @@ void module_register (void) /* {{{ */
 {
   plugin_register_complex_config ("dbi", cdbi_config);
   plugin_register_init ("dbi", cdbi_init);
-  plugin_register_read ("dbi", cdbi_read);
   plugin_register_shutdown ("dbi", cdbi_shutdown);
 } /* }}} void module_register */
 

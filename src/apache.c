@@ -402,7 +402,7 @@ static int init_host (apache_t *st) /* {{{ */
 		curl_easy_setopt (st->curl, CURLOPT_WRITEHEADER, st);
 	}
 
-	curl_easy_setopt (st->curl, CURLOPT_USERAGENT, PACKAGE_NAME"/"PACKAGE_VERSION);
+	curl_easy_setopt (st->curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
 	curl_easy_setopt (st->curl, CURLOPT_ERRORBUFFER, st->apache_curl_error);
 
 	if (st->user != NULL)
@@ -426,6 +426,7 @@ static int init_host (apache_t *st) /* {{{ */
 
 	curl_easy_setopt (st->curl, CURLOPT_URL, st->url);
 	curl_easy_setopt (st->curl, CURLOPT_FOLLOWLOCATION, 1L);
+	curl_easy_setopt (st->curl, CURLOPT_MAXREDIRS, 50L);
 
 	if (st->verify_peer != 0)
 	{
@@ -611,7 +612,7 @@ static int apache_read_host (user_data_t *user_data) /* {{{ */
 	assert (st->curl != NULL);
 
 	st->apache_buffer_fill = 0;
-	if (curl_easy_perform (st->curl) != 0)
+	if (curl_easy_perform (st->curl) != CURLE_OK)
 	{
 		ERROR ("apache: curl_easy_perform failed: %s",
 				st->apache_curl_error);

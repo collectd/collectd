@@ -86,6 +86,47 @@ int ssnprintf (char *dest, size_t n, const char *format, ...)
 	return (ret);
 } /* int ssnprintf */
 
+char *ssnprintf_alloc (char const *format, ...) /* {{{ */
+{
+	char static_buffer[1024] = "";
+	char *alloc_buffer;
+	size_t alloc_buffer_size;
+	int status;
+	va_list ap;
+
+	/* Try printing into the static buffer. In many cases it will be
+	 * sufficiently large and we can simply return a strdup() of this
+	 * buffer. */
+	va_start (ap, format);
+	status = vsnprintf (static_buffer, sizeof (static_buffer), format, ap);
+	va_end (ap);
+	if (status < 0)
+		return (NULL);
+
+	/* "status" does not include the null byte. */
+	alloc_buffer_size = (size_t) (status + 1);
+	if (alloc_buffer_size <= sizeof (static_buffer))
+		return (strdup (static_buffer));
+
+	/* Allocate a buffer large enough to hold the string. */
+	alloc_buffer = malloc (alloc_buffer_size);
+	if (alloc_buffer == NULL)
+		return (NULL);
+	memset (alloc_buffer, 0, alloc_buffer_size);
+
+	/* Print again into this new buffer. */
+	va_start (ap, format);
+	status = vsnprintf (alloc_buffer, alloc_buffer_size, format, ap);
+	va_end (ap);
+	if (status < 0)
+	{
+		sfree (alloc_buffer);
+		return (NULL);
+	}
+
+	return (alloc_buffer);
+} /* }}} char *ssnprintf_alloc */
+
 char *sstrdup (const char *s)
 {
 	char *r;
@@ -360,6 +401,22 @@ int strunescape (char *buf, size_t buf_len)
 	}
 	return (0);
 } /* int strunescape */
+
+size_t strstripnewline (char *buffer)
+{
+	size_t buffer_len = strlen (buffer);
+
+	while (buffer_len > 0)
+	{
+		if ((buffer[buffer_len - 1] != '\n')
+				&& (buffer[buffer_len - 1] != '\r'))
+			break;
+		buffer[buffer_len] = 0;
+		buffer_len--;
+	}
+
+	return (buffer_len);
+} /* size_t strstripnewline */
 
 int escape_slashes (char *buf, int buf_len)
 {
@@ -664,7 +721,7 @@ long long get_kstat_value (kstat_t *ksp, char *name)
 		retval = (long long) kn->value.ui64; /* XXX: Might overflow! */
 	else
 		WARNING ("get_kstat_value: Not a numeric value: %s", name);
-		 
+
 	return (retval);
 }
 #endif /* HAVE_LIBKSTAT */
@@ -771,36 +828,43 @@ int format_name (char *ret, int ret_len,
 		const char *plugin, const char *plugin_instance,
 		const char *type, const char *type_instance)
 {
-	int  status;
+  char *buffer;
+  size_t buffer_size;
 
-	assert (plugin != NULL);
-	assert (type != NULL);
+  buffer = ret;
+  buffer_size = (size_t) ret_len;
 
-	if ((plugin_instance == NULL) || (strlen (plugin_instance) == 0))
-	{
-		if ((type_instance == NULL) || (strlen (type_instance) == 0))
-			status = ssnprintf (ret, ret_len, "%s/%s/%s",
-					hostname, plugin, type);
-		else
-			status = ssnprintf (ret, ret_len, "%s/%s/%s-%s",
-					hostname, plugin, type,
-					type_instance);
-	}
-	else
-	{
-		if ((type_instance == NULL) || (strlen (type_instance) == 0))
-			status = ssnprintf (ret, ret_len, "%s/%s-%s/%s",
-					hostname, plugin, plugin_instance,
-					type);
-		else
-			status = ssnprintf (ret, ret_len, "%s/%s-%s/%s-%s",
-					hostname, plugin, plugin_instance,
-					type, type_instance);
-	}
+#define APPEND(str) do {                                               \
+  size_t l = strlen (str);                                             \
+  if (l >= buffer_size)                                                \
+    return (ENOBUFS);                                                  \
+  memcpy (buffer, (str), l);                                           \
+  buffer += l; buffer_size -= l;                                       \
+} while (0)
 
-	if ((status < 1) || (status >= ret_len))
-		return (-1);
-	return (0);
+  assert (plugin != NULL);
+  assert (type != NULL);
+
+  APPEND (hostname);
+  APPEND ("/");
+  APPEND (plugin);
+  if ((plugin_instance != NULL) && (plugin_instance[0] != 0))
+  {
+    APPEND ("-");
+    APPEND (plugin_instance);
+  }
+  APPEND ("/");
+  APPEND (type);
+  if ((type_instance != NULL) && (type_instance[0] != 0))
+  {
+    APPEND ("-");
+    APPEND (type_instance);
+  }
+  assert (buffer_size > 0);
+  buffer[0] = 0;
+
+#undef APPEND
+  return (0);
 } /* int format_name */
 
 int format_values (char *ret, size_t ret_len, /* {{{ */
@@ -1197,18 +1261,25 @@ int walk_directory (const char *dir, dirwalk_callback_f callback,
 	return (0);
 }
 
-int read_file_contents (const char *filename, char *buf, int bufsize)
+ssize_t read_file_contents (const char *filename, char *buf, size_t bufsize)
 {
 	FILE *fh;
-	int n;
+	ssize_t ret;
 
-	if ((fh = fopen (filename, "r")) == NULL)
-		return -1;
+	fh = fopen (filename, "r");
+	if (fh == NULL)
+		return (-1);
 
-	n = fread(buf, 1, bufsize, fh);
+	ret = (ssize_t) fread (buf, 1, bufsize, fh);
+	if ((ret == 0) && (ferror (fh) != 0))
+	{
+		ERROR ("read_file_contents: Reading file \"%s\" failed.",
+				filename);
+		ret = -1;
+	}
+
 	fclose(fh);
-
-	return n;
+	return (ret);
 }
 
 counter_t counter_diff (counter_t old_value, counter_t new_value)

@@ -2,6 +2,7 @@
  * collectd - src/zfs_arc.c
  * Copyright (C) 2009  Anthony Dewhurst
  * Copyright (C) 2012  Aurelien Rougemont
+ * Copyright (C) 2013  Xin Li
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,6 +20,7 @@
  * Authors:
  *   Anthony Dewhurst <dewhurst at gmail>
  *   Aurelien Rougemont <beorn at gandi.net>
+ *   Xin Li <delphij at FreeBSD.org>
  **/
 
 #include "collectd.h"
@@ -29,7 +31,41 @@
  * Global variables
  */
 
+#if !defined(__FreeBSD__)
 extern kstat_ctl_t *kc;
+
+static long long get_zfs_value(kstat_t *ksp, char *name)
+{
+
+	return (get_kstat_value(ksp, name));
+}
+#else
+#include <sys/types.h>
+#include <sys/sysctl.h>
+
+const char zfs_arcstat[] = "kstat.zfs.misc.arcstats.";
+
+#if !defined(kstat_t)
+typedef void kstat_t;
+#endif
+
+static long long get_zfs_value(kstat_t *dummy __attribute__((unused)),
+		char const *name)
+{
+	char buffer[256];
+	long long value;
+	size_t valuelen = sizeof(value);
+	int rv;
+
+	ssnprintf (buffer, sizeof (buffer), "%s%s", zfs_arcstat, name);
+	rv = sysctlbyname (buffer, (void *) &value, &valuelen,
+			/* new value = */ NULL, /* new length = */ (size_t) 0);
+	if (rv == 0)
+		return (value);
+
+	return (-1);
+}
+#endif
 
 static void za_submit (const char* type, const char* type_instance, value_t* values, int values_len)
 {
@@ -60,7 +96,7 @@ static int za_read_derive (kstat_t *ksp, const char *kstat_value,
   long long tmp;
   value_t v;
 
-  tmp = get_kstat_value (ksp, (char *)kstat_value);
+  tmp = get_zfs_value (ksp, (char *)kstat_value);
   if (tmp == -1LL)
   {
     ERROR ("zfs_arc plugin: Reading kstat value \"%s\" failed.", kstat_value);
@@ -78,7 +114,7 @@ static int za_read_gauge (kstat_t *ksp, const char *kstat_value,
   long long tmp;
   value_t v;
 
-  tmp = get_kstat_value (ksp, (char *)kstat_value);
+  tmp = get_zfs_value (ksp, (char *)kstat_value);
   if (tmp == -1LL)
   {
     ERROR ("zfs_arc plugin: Reading kstat value \"%s\" failed.", kstat_value);
@@ -111,27 +147,29 @@ static int za_read (void)
 	value_t  l2_io[2];
 	kstat_t	 *ksp	= NULL;
 
+#if !defined(__FreeBSD__)
 	get_kstat (&ksp, "zfs", 0, "arcstats");
 	if (ksp == NULL)
 	{
 		ERROR ("zfs_arc plugin: Cannot find zfs:0:arcstats kstat.");
 		return (-1);
 	}
+#endif
 
 	/* Sizes */
 	za_read_gauge (ksp, "size",    "cache_size", "arc");
 	za_read_gauge (ksp, "l2_size", "cache_size", "L2");
 
-        /* Operations */
+	/* Operations */
 	za_read_derive (ksp, "allocated","cache_operation", "allocated");
 	za_read_derive (ksp, "deleted",  "cache_operation", "deleted");
 	za_read_derive (ksp, "stolen",   "cache_operation", "stolen");
 
-        /* Issue indicators */
-        za_read_derive (ksp, "mutex_miss", "mutex_operations", "miss");
+	/* Issue indicators */
+	za_read_derive (ksp, "mutex_miss", "mutex_operations", "miss");
 	za_read_derive (ksp, "hash_collisions", "hash_collisions", "");
 	
-        /* Evictions */
+	/* Evictions */
 	za_read_derive (ksp, "evict_l2_cached",     "cache_eviction", "cached");
 	za_read_derive (ksp, "evict_l2_eligible",   "cache_eviction", "eligible");
 	za_read_derive (ksp, "evict_l2_ineligible", "cache_eviction", "ineligible");
@@ -147,17 +185,17 @@ static int za_read (void)
 	za_read_derive (ksp, "prefetch_metadata_misses", "cache_result", "prefetch_metadata-miss");
 
 	/* Ratios */
-	arc_hits   = (gauge_t) get_kstat_value(ksp, "hits");
-	arc_misses = (gauge_t) get_kstat_value(ksp, "misses");
-	l2_hits    = (gauge_t) get_kstat_value(ksp, "l2_hits");
-	l2_misses  = (gauge_t) get_kstat_value(ksp, "l2_misses");
+	arc_hits   = (gauge_t) get_zfs_value(ksp, "hits");
+	arc_misses = (gauge_t) get_zfs_value(ksp, "misses");
+	l2_hits    = (gauge_t) get_zfs_value(ksp, "l2_hits");
+	l2_misses  = (gauge_t) get_zfs_value(ksp, "l2_misses");
 
 	za_submit_ratio ("arc", arc_hits, arc_misses);
 	za_submit_ratio ("L2", l2_hits, l2_misses);
 
 	/* I/O */
-	l2_io[0].derive = get_kstat_value(ksp, "l2_read_bytes");
-	l2_io[1].derive = get_kstat_value(ksp, "l2_write_bytes");
+	l2_io[0].derive = get_zfs_value(ksp, "l2_read_bytes");
+	l2_io[1].derive = get_zfs_value(ksp, "l2_write_bytes");
 
 	za_submit ("io_octets", "L2", l2_io, /* num values = */ 2);
 
@@ -166,12 +204,14 @@ static int za_read (void)
 
 static int za_init (void) /* {{{ */
 {
+#if !defined(__FreeBSD__)
 	/* kstats chain already opened by update_kstat (using *kc), verify everything went fine. */
 	if (kc == NULL)
 	{
 		ERROR ("zfs_arc plugin: kstat chain control structure not available.");
 		return (-1);
 	}
+#endif
 
 	return (0);
 } /* }}} int za_init */
