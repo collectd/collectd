@@ -266,9 +266,14 @@ static int rra_get (char ***ret, const value_list_t *vl, /* {{{ */
 
     if(cfg->rra_param && (0 != cfg->rra_param[i].pdp_per_row)) {
       cdp_len = cfg->rra_param[i].pdp_per_row;
+    } else if (cfg->rra_param && (0 != cfg->rra_param[i].precision)) {
+      cdp_len = (int) floor( ((double)cfg->rra_param[i].precision) / ((double)ss) );
+      if(0 == cdp_len) cdp_len = 1;
     } else if (cdp_len == 0) {
+      /* This happens when we use RRATimespan and when this is the 1st one */
       cdp_len = 1;
     } else {
+      /* This happens when we use RRATimespan and when this is not the 1st one */
       cdp_len = (int) floor (((double) span)
           / ((double) (cfg->rrarows * ss)));
     }
@@ -824,10 +829,11 @@ int cu_rrd_rra_param_append(const oconfig_item_t *ci, rrdcreate_config_t *cfg) {
   int pos;
 
   rra_param_t rra_param = {
-    /* types = */ {0, 0, 0},
-    /* span = */ 0,
+    /* types       = */ {0, 0, 0},
+    /* span        = */ 0,
     /* pdp_per_row = */ 0,
-    /* xff = */ -1.
+    /* precision   = */ 0,
+    /* xff         = */ -1.
   };
 
   if(ci->values_num < 1) {
@@ -853,6 +859,16 @@ int cu_rrd_rra_param_append(const oconfig_item_t *ci, rrdcreate_config_t *cfg) {
       return(-1);
     }
     rra_param.pdp_per_row = (int) ci->values[pos].value.number;
+    pos += 1;
+  }
+
+  /* precision */
+  if(pos < ci->values_num) {
+    if(ci->values[pos].type != OCONFIG_TYPE_NUMBER) {
+      ERROR ("rrdtool plugin: Argument %d for %s should be an INT", pos+1, ci->key);
+      return(-1);
+    }
+    rra_param.precision = (int) ci->values[pos].value.number;
     pos += 1;
   }
 

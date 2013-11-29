@@ -38,6 +38,7 @@ struct rra_param_s
   short type[RRA_TYPE_NUM];   /* 0=undef, 1=yes, -1=no */ /* Check rra_types[] in utils_rrdcreate.c */
   int span;        /* 0 = undef */
   int pdp_per_row; /* 0 = undef */
+  int precision;   /* 0 = undef; ignored if pdp_per_row is set */
   double xff;      /* <0 = undef (for example, -1.) */
 };
 typedef struct rra_param_s rra_param_t;
