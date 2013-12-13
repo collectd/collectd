@@ -112,6 +112,7 @@
 %define with_processes 0%{!?_without_processes:1}
 %define with_protocols 0%{!?_without_protocols:1}
 %define with_python 0%{!?_without_python:1}
+%define with_redis 0%{!?_without_redis:1}
 %define with_rrdtool 0%{!?_without_rrdtool:1}
 %define with_sensors 0%{!?_without_sensors:1}
 %define with_serial 0%{!?_without_serial:1}
@@ -137,6 +138,7 @@
 %define with_wireless 0%{!?_without_wireless:1}
 %define with_write_graphite 0%{!?_without_write_graphite:1}
 %define with_write_http 0%{!?_without_write_http:1}
+%define with_write_redis 0%{!?_without_write_redis:1}
 %define with_write_riemann 0%{!?_without_write_riemann:1}
 
 # Plugins not built by default because of dependencies on libraries not
@@ -160,8 +162,6 @@
 %define with_oracle 0%{!?_without_oracle:0}
 # plugin oracle disabled, requires BSD
 %define with_pf 0%{!?_without_pf:0}
-# plugin redis disabled, requires credis
-%define with_redis 0%{!?_without_redis:0}
 # plugin routeros disabled, requires librouteros
 %define with_routeros 0%{!?_without_routeros:0}
 # plugin rrdcached disabled, requires rrdtool >= 1.4
@@ -174,8 +174,6 @@
 %define with_tokyotyrant 0%{!?_without_tokyotyrant:0}
 # plugin write_mongodb disabled, requires libmongoc
 %define with_write_mongodb 0%{!?_without_write_mongodb:0}
-# plugin write_redis disabled, requires credis
-%define with_write_redis 0%{!?_without_write_redis:0}
 # plugin xmms disabled, requires xmms
 %define with_xmms 0%{!?_without_xmms:0}
 # plugin zfs_arc disabled, requires FreeBSD/Solaris
@@ -184,7 +182,7 @@
 Summary:	Statistics collection daemon for filling RRD files
 Name:		collectd
 Version:	5.4.0
-Release:	1%{?dist}
+Release:	2%{?dist}
 URL:		http://collectd.org
 Source:		http://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
@@ -551,10 +549,10 @@ application programming interface (API) to Python-scripts.
 Summary:	Redis plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-BuildRequires:	credis-devel
+BuildRequires:	hiredis-devel
 %description redis
 The Redis plugin connects to one or more instances of Redis, a key-value store,
-and collects usage information using the credis library.
+and collects usage information using the hiredis library.
 %endif
 
 %if %{with_rrdcached}
@@ -635,7 +633,7 @@ using HTTP POST requests.
 Summary:	Write-Redis plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-BuildRequires:	credis-devel
+BuildRequires:	hiredis-devel
 %description write_redis
 The Write Redis plugin stores values in Redis, a “data structures server”.
 %endif
@@ -1340,7 +1338,7 @@ Development files for libcollectdclient
 %if %{with_write_redis}
 %define _with_write_redis --enable-write_redis
 %else
-%define _with_write_redis --disable-write_redis --without-libcredis
+%define _with_write_redis --disable-write_redis --without-libhiredis
 %endif
 
 %if %{with_write_riemann}
@@ -2007,6 +2005,9 @@ fi
 %doc contrib/
 
 %changelog
+* Fri Dec 13 2013 Michael Spiegle <mike@nauticaltech.com> 5.4.0-2
+- Accomodate switch from credis to hiredis
+
 * Mon Aug 19 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.4.0-1
 - New upstream version
 - Build netlink plugin by default
