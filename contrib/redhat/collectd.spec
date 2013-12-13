@@ -48,6 +48,7 @@
 %{?el6:%global _has_libudev 1}
 %{?el6:%global _has_iproute 1}
 %{?el6:%global _has_atasmart 1}
+%{?el6:%global _has_hiredis 1}
 
 %{?el7:%global _has_libyajl 1}
 %{?el7:%global _has_recent_libpcap 1}
@@ -61,6 +62,7 @@
 %{?el7:%global _has_broken_libmemcached 1}
 %{?el7:%global _has_iproute 1}
 %{?el7:%global _has_atasmart 1}
+%{?el7:%global _has_hiredis 1}
 
 # plugins enabled by default
 %define with_aggregation 0%{!?_without_aggregation:1}
@@ -132,6 +134,7 @@
 %define with_processes 0%{!?_without_processes:1}
 %define with_protocols 0%{!?_without_protocols:1}
 %define with_python 0%{!?_without_python:1}
+%define with_redis 0%{!?_without_redis:0%{?_has_hiredis}}
 %define with_rrdcached 0%{!?_without_rrdcached:0%{?_has_recent_librrd}}
 %define with_rrdtool 0%{!?_without_rrdtool:1}
 %define with_sensors 0%{!?_without_sensors:1}
@@ -159,6 +162,7 @@
 %define with_wireless 0%{!?_without_wireless:1}
 %define with_write_graphite 0%{!?_without_write_graphite:1}
 %define with_write_http 0%{!?_without_write_http:1}
+%define with_write_redis 0%{!?_without_write_redis:0%{?_has_hiredis}}
 %define with_write_riemann 0%{!?_without_write_riemann:1}
 %define with_write_tsdb 0%{!?_without_write_tsdb:1}
 %define with_zfs_arc 0%{!?_without_zfs_arc:1}
@@ -184,8 +188,6 @@
 %define with_oracle 0%{!?_without_oracle:0}
 # plugin oracle disabled, requires BSD
 %define with_pf 0%{!?_without_pf:0}
-# plugin redis disabled, requires credis
-%define with_redis 0%{!?_without_redis:0}
 # plugin routeros disabled, requires librouteros
 %define with_routeros 0%{!?_without_routeros:0}
 # plugin sigrok disabled, requires libsigrok
@@ -198,8 +200,6 @@
 %define with_write_kafka 0%{!?_without_write_kafka:0}
 # plugin write_mongodb disabled, requires libmongoc
 %define with_write_mongodb 0%{!?_without_write_mongodb:0}
-# plugin write_redis disabled, requires credis
-%define with_write_redis 0%{!?_without_write_redis:0}
 # plugin xmms disabled, requires xmms
 %define with_xmms 0%{!?_without_xmms:0}
 
@@ -616,10 +616,10 @@ application programming interface (API) to Python-scripts.
 Summary:	Redis plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-BuildRequires:	credis-devel
+BuildRequires:	hiredis-devel
 %description redis
 The Redis plugin connects to one or more instances of Redis, a key-value store,
-and collects usage information using the credis library.
+and collects usage information using the hiredis library.
 %endif
 
 %if %{with_rrdcached}
@@ -731,7 +731,7 @@ The write_kafka plugin sends values to kafka, a distributed messaging system.
 Summary:	Write-Redis plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-BuildRequires:	credis-devel
+BuildRequires:	hiredis-devel
 %description write_redis
 The Write Redis plugin stores values in Redis, a “data structures server”.
 %endif
@@ -1472,7 +1472,7 @@ Development files for libcollectdclient
 %if %{with_write_redis}
 %define _with_write_redis --enable-write_redis
 %else
-%define _with_write_redis --disable-write_redis --without-libcredis
+%define _with_write_redis --disable-write_redis
 %endif
 
 %if %{with_write_riemann}
@@ -2194,7 +2194,7 @@ fi
 %changelog
 # * TODO 5.5.0-1
 # - New upstream version
-# - New plugins enabled by default: drbd, log_logstash, write_tsdb, smart, openldap
+# - New plugins enabled by default: drbd, log_logstash, write_tsdb, smart, openldap, redis, write_redis
 # - New plugins disabled by default: barometer, write_kafka
 # - Enable zfs_arc, now supported on Linux
 # - Install disk plugin in an dedicated package, as it depends on libudev
