@@ -565,7 +565,7 @@ Prerequisites
 
   * A POSIX-threads (pthread) implementation.
     Since gathering some statistics is slow (network connections, slow devices,
-    etc) the collectd is parallelized. The POSIX threads interface is being
+    etc) collectd is parallelized. The POSIX threads interface is being
     used and should be found in various implementations for hopefully all
     platforms.
 
