@@ -162,6 +162,7 @@ static int memory_read (void)
 	gauge_t active;
 	gauge_t inactive;
 	gauge_t free;
+        gauge_t total;
 
 	if (!port_host || !pagesize)
 		return (-1);
@@ -199,14 +200,17 @@ static int memory_read (void)
 	active   = (gauge_t) (((uint64_t) vm_data.active_count)   * ((uint64_t) pagesize));
 	inactive = (gauge_t) (((uint64_t) vm_data.inactive_count) * ((uint64_t) pagesize));
 	free     = (gauge_t) (((uint64_t) vm_data.free_count)     * ((uint64_t) pagesize));
+        total    = wired + active + inactive + free;
 
 	memory_submit ("wired",    wired);
 	memory_submit ("active",   active);
 	memory_submit ("inactive", inactive);
 	memory_submit ("free",     free);
+        memory_submit ("percent",  (gauge_t) ((active / total) * 100.0));
 /* #endif HAVE_HOST_STATISTICS */
 
 #elif HAVE_SYSCTLBYNAME
+        gauge_t total;
 	/*
 	 * vm.stats.vm.v_page_size: 4096
 	 * vm.stats.vm.v_page_count: 246178
@@ -258,6 +262,8 @@ static int memory_read (void)
 	memory_submit ("active",   sysctl_vals[4]);
 	memory_submit ("inactive", sysctl_vals[5]);
 	memory_submit ("cache",    sysctl_vals[6]);
+
+        memory_submit ("percent", (sysctl_vals[4] / sysctl_vals[1]) * 100.0);
 /* #endif HAVE_SYSCTLBYNAME */
 
 #elif KERNEL_LINUX
@@ -271,6 +277,8 @@ static int memory_read (void)
 	long long mem_buffered = 0;
 	long long mem_cached = 0;
 	long long mem_free = 0;
+	long long mem_total = 0;
+	gauge_t mem_percent = 0;
 
 	if ((fh = fopen ("/proc/meminfo", "r")) == NULL)
 	{
@@ -285,7 +293,7 @@ static int memory_read (void)
 		long long *val = NULL;
 
 		if (strncasecmp (buffer, "MemTotal:", 9) == 0)
-			val = &mem_used;
+			val = &mem_total;
 		else if (strncasecmp (buffer, "MemFree:", 8) == 0)
 			val = &mem_free;
 		else if (strncasecmp (buffer, "Buffers:", 8) == 0)
@@ -310,13 +318,15 @@ static int memory_read (void)
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 	}
 
-	if (mem_used >= (mem_free + mem_buffered + mem_cached))
+	if (mem_total >= (mem_free + mem_buffered + mem_cached))
 	{
-		mem_used -= mem_free + mem_buffered + mem_cached;
+		mem_used = mem_total - (mem_free + mem_buffered + mem_cached);
+                mem_percent = (gauge_t) ((gauge_t)mem_used / (gauge_t)mem_total) * 100.0;
 		memory_submit ("used",     mem_used);
 		memory_submit ("buffered", mem_buffered);
 		memory_submit ("cached",   mem_cached);
 		memory_submit ("free",     mem_free);
+                memory_submit ("percent",  mem_percent);
 	}
 /* #endif KERNEL_LINUX */
 
@@ -328,6 +338,7 @@ static int memory_read (void)
 	long long mem_lock;
 	long long mem_kern;
 	long long mem_unus;
+        gauge_t mem_percent;
 
 	long long pp_kernel;
 	long long physmem;
@@ -383,6 +394,7 @@ static int memory_read (void)
 		mem_lock = 0;
 	}
 
+        mem_percent = ((gauge_t)mem_used / (gauge_t)(mem_used + mem_free + mem_lock + mem_kern)) * 100.0;
 	mem_used *= pagesize; /* If this overflows you have some serious */
 	mem_free *= pagesize; /* memory.. Why not call me up and give me */
 	mem_lock *= pagesize; /* some? ;) */
@@ -394,6 +406,7 @@ static int memory_read (void)
 	memory_submit ("locked", mem_lock);
 	memory_submit ("kernel", mem_kern);
 	memory_submit ("unusable", mem_unus);
+        memory_submit ("percent", mem_percent);
 /* #endif HAVE_LIBKSTAT */
 
 #elif HAVE_SYSCTL
@@ -415,6 +428,7 @@ static int memory_read (void)
 	memory_submit ("active",   vmtotal.t_arm * pagesize);
 	memory_submit ("inactive", (vmtotal.t_rm - vmtotal.t_arm) * pagesize);
 	memory_submit ("free",     vmtotal.t_free * pagesize);
+        memory_submit ("percent", ((vmtotal.t_arm / vmtotal.t_rm) * 100.0));
 /* #endif HAVE_SYSCTL */
 
 #elif HAVE_LIBSTATGRAB
@@ -441,6 +455,7 @@ static int memory_read (void)
 	memory_submit ("cached", pmemory.numperm * pagesize);
 	memory_submit ("system", pmemory.real_system * pagesize);
 	memory_submit ("user",   pmemory.real_process * pagesize);
+        memory_submit ("percent", (pmemory.real_inuse / pmemory.real_total) * 100.0);
 #endif /* HAVE_PERFSTAT */
 
 	return (0);
