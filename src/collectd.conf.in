@@ -481,6 +481,10 @@
 #	InterfaceFormat name
 #</Plugin>
 
+#<Plugin load>
+#        ReportRelative true
+#</Plugin>
+
 #<Plugin lpar>
 #	CpuPoolStats   false
 #	ReportBySerial false
