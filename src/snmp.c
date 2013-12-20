@@ -29,6 +29,8 @@
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
 
+#include <fnmatch.h>
+
 /*
  * Private data structes
  */
@@ -58,6 +60,9 @@ struct data_definition_s
   double scale;
   double shift;
   struct data_definition_s *next;
+  char **ignores;
+  size_t ignores_len;
+  int invert_match;
 };
 typedef struct data_definition_s data_definition_t;
 
@@ -324,6 +329,50 @@ static int csnmp_config_add_data_values (data_definition_t *dd, oconfig_item_t *
   return (0);
 } /* int csnmp_config_add_data_instance */
 
+static int csnmp_config_add_data_blacklist(data_definition_t *dd, oconfig_item_t *ci)
+{
+  int i;
+
+  if (ci->values_num < 1)
+    return (0);
+
+  for (i = 0; i < ci->values_num; i++)
+  {
+    if (ci->values[i].type != OCONFIG_TYPE_STRING)
+    {
+      WARNING ("snmp plugin: `Ignore' needs only string argument.");
+      return (-1);
+    }
+  }
+
+  dd->ignores_len = 0;
+  dd->ignores = NULL;
+
+  for (i = 0; i < ci->values_num; ++i)
+  {
+    if (strarray_add(&(dd->ignores), &(dd->ignores_len), ci->values[i].value.string) != 0)
+    {
+      ERROR("snmp plugin: Can't allocate memory");
+      strarray_free(dd->ignores, dd->ignores_len);
+      return (ENOMEM); 
+    }
+  }
+  return 0;
+} /* int csnmp_config_add_data_blacklist */
+
+static int csnmp_config_add_data_blacklist_match_inverted(data_definition_t *dd, oconfig_item_t *ci)
+{
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
+  {
+    WARNING ("snmp plugin: `InvertMatch' needs exactly one boolean argument.");
+    return (-1);
+  }
+
+  dd->invert_match = ci->values[0].value.boolean ? 1 : 0;
+
+  return (0);
+} /* int csnmp_config_add_data_blacklist_match_inverted */
+
 static int csnmp_config_add_data (oconfig_item_t *ci)
 {
   data_definition_t *dd;
@@ -364,6 +413,10 @@ static int csnmp_config_add_data (oconfig_item_t *ci)
       status = cf_util_get_double(option, &dd->shift);
     else if (strcasecmp ("Scale", option->key) == 0)
       status = cf_util_get_double(option, &dd->scale);
+    else if (strcasecmp ("Ignore", option->key) == 0)
+      status = csnmp_config_add_data_blacklist(dd, option);
+    else if (strcasecmp ("InvertMatch", option->key) == 0)
+      status = csnmp_config_add_data_blacklist_match_inverted(dd, option);
     else
     {
       WARNING ("snmp plugin: Option `%s' not allowed here.", option->key);
@@ -397,6 +450,7 @@ static int csnmp_config_add_data (oconfig_item_t *ci)
     sfree (dd->name);
     sfree (dd->instance_prefix);
     sfree (dd->values);
+    sfree (dd->ignores);
     sfree (dd);
     return (-1);
   }
@@ -1069,6 +1123,8 @@ static int csnmp_instance_list_add (csnmp_list_instances_t **head,
   struct variable_list *vb;
   oid_t vb_name;
   int status;
+  uint32_t i;
+  uint32_t is_matched;
 
   /* Set vb on the last variable */
   for (vb = res->variables;
@@ -1102,7 +1158,29 @@ static int csnmp_instance_list_add (csnmp_list_instances_t **head,
     char *ptr;
 
     csnmp_strvbcopy (il->instance, vb, sizeof (il->instance));
-
+    is_matched = 0;
+    for (i = 0; i < dd->ignores_len; i++)
+    {
+      status = fnmatch(dd->ignores[i], il->instance, 0);
+      if (status == 0)
+      {
+        if (dd->invert_match == 0)
+        {
+          sfree(il);
+          return 0;
+        }
+	else
+	{
+          is_matched = 1;
+	  break;
+	}
+      }
+    }
+    if (dd->invert_match != 0 && is_matched == 0)
+    {
+      sfree(il);
+      return 0;
+    }
     for (ptr = il->instance; *ptr != '\0'; ptr++)
     {
       if ((*ptr > 0) && (*ptr < 32))
@@ -1753,6 +1831,7 @@ static int csnmp_shutdown (void)
     sfree (data_this->name);
     sfree (data_this->type);
     sfree (data_this->values);
+    sfree (data_this->ignores);
     sfree (data_this);
 
     data_this = data_next;
