@@ -268,6 +268,7 @@ static int cpu_read (void)
 	kern_return_t status;
 	
 #if PROCESSOR_CPU_LOAD_INFO
+	derive_t                       cpu_active;
 	processor_cpu_load_info_data_t cpu_info;
 	mach_msg_type_number_t         cpu_info_len;
 #endif
@@ -302,6 +303,11 @@ static int cpu_read (void)
 		submit (cpu, "nice", (derive_t) cpu_info.cpu_ticks[CPU_STATE_NICE]);
 		submit (cpu, "system", (derive_t) cpu_info.cpu_ticks[CPU_STATE_SYSTEM]);
 		submit (cpu, "idle", (derive_t) cpu_info.cpu_ticks[CPU_STATE_IDLE]);
+		cpu_active = (derive_t) (cpu_info.cpu_ticks[CPU_STATE_USER] +
+					 cpu_info.cpu_ticks[CPU_STATE_NICE] +
+					 cpu_info.cpu_ticks[CPU_STATE_SYSTEM]);
+		submit (cpu, "active", cpu_active);
+					 
 #endif /* PROCESSOR_CPU_LOAD_INFO */
 #if PROCESSOR_TEMPERATURE
 		/*
@@ -350,6 +356,7 @@ static int cpu_read (void)
 
 #elif defined(KERNEL_LINUX)
 	int cpu;
+	derive_t cpu_active;
 	derive_t user, nice, syst, idle;
 	derive_t wait, intr, sitr; /* sitr == soft interrupt */
 	FILE *fh;
@@ -387,6 +394,7 @@ static int cpu_read (void)
 		submit (cpu, "nice", nice);
 		submit (cpu, "system", syst);
 		submit (cpu, "idle", idle);
+		cpu_active = user + nice + syst;
 
 		if (numfields >= 8)
 		{
@@ -397,10 +405,14 @@ static int cpu_read (void)
 			submit (cpu, "wait", wait);
 			submit (cpu, "interrupt", intr);
 			submit (cpu, "softirq", sitr);
+			
+			cpu_active += wait + intr + sitr;
 
 			if (numfields >= 9)
+				cpu_active += (derive_t) atoll (fields[8]);
 				submit (cpu, "steal", atoll (fields[8]));
 		}
+		submit (cpu, "active", cpu_active);
 	}
 
 	fclose (fh);
@@ -428,6 +440,7 @@ static int cpu_read (void)
 		submit (ksp[cpu]->ks_instance, "system", syst);
 		submit (ksp[cpu]->ks_instance, "idle", idle);
 		submit (ksp[cpu]->ks_instance, "wait", wait);
+		submit (ksp[cpu]->ks_instance, "active", user + syst + wait);
 	}
 /* #endif defined(HAVE_LIBKSTAT) */
 
@@ -492,6 +505,10 @@ static int cpu_read (void)
 		submit (i, "system",    cpuinfo[i][CP_SYS]);
 		submit (i, "idle",      cpuinfo[i][CP_IDLE]);
 		submit (i, "interrupt", cpuinfo[i][CP_INTR]);
+		submit (i, "active",    cpuinfo[i][CP_USER] +
+			                cpuinfo[i][CP_NICE] +
+			                cpuinfo[i][CP_SYS] +
+			                cpuinfo[i][CP_INTR]);
 	}
 /* #endif CAN_USE_SYSCTL */
 #elif defined(HAVE_SYSCTLBYNAME) && defined(HAVE_SYSCTL_KERN_CP_TIMES)
@@ -516,6 +533,10 @@ static int cpu_read (void)
 		submit (i, "system", cpuinfo[i][CP_SYS]);
 		submit (i, "idle", cpuinfo[i][CP_IDLE]);
 		submit (i, "interrupt", cpuinfo[i][CP_INTR]);
+		submit (i, "active", cpuinfo[i][CP_USER] +
+			cpuinfo[i][CP_NICE] +
+			cpuinfo[i][CP_SYS] +
+			cpuinfo[i][CP_INTR]);
 	}
 /* #endif HAVE_SYSCTL_KERN_CP_TIMES */
 #elif defined(HAVE_SYSCTLBYNAME)
@@ -537,6 +558,10 @@ static int cpu_read (void)
 	submit (0, "system", cpuinfo[CP_SYS]);
 	submit (0, "idle", cpuinfo[CP_IDLE]);
 	submit (0, "interrupt", cpuinfo[CP_INTR]);
+	submit (0, "active", cpuinfo[CP_USER] +
+		cpuinfo[CP_NICE] +
+		cpuinfo[CP_SYS] +
+		cpuinfo[CP_INTR]);
 /* #endif HAVE_SYSCTLBYNAME */
 
 #elif defined(HAVE_LIBSTATGRAB)
@@ -555,6 +580,12 @@ static int cpu_read (void)
 	submit (0, "system", (derive_t) cs->kernel);
 	submit (0, "user",   (derive_t) cs->user);
 	submit (0, "wait",   (derive_t) cs->iowait);
+	submit (0, "active", (derive_t) cs->nice + 
+		cs->swap +
+		cs->kernel +
+		cs->user +
+		cs->iowait +
+		cs->nice);
 /* #endif HAVE_LIBSTATGRAB */
 
 #elif defined(HAVE_PERFSTAT)
@@ -593,6 +624,9 @@ static int cpu_read (void)
 		submit (i, "system", (derive_t) perfcpu[i].sys);
 		submit (i, "user",   (derive_t) perfcpu[i].user);
 		submit (i, "wait",   (derive_t) perfcpu[i].wait);
+		submit (i, "active", (derive_t) perfcpu[i].sys +
+			perfcpu[i].user +
+			perfcpu[i].wait);
 	}
 #endif /* HAVE_PERFSTAT */
 
