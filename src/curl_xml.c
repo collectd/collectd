@@ -551,12 +551,12 @@ static int cx_curl_perform (cx_t *db, CURL *curl) /* {{{ */
   char *ptr;
   char *url;
 
-  db->buffer_fill = 0; 
+  db->buffer_fill = 0;
   status = curl_easy_perform (curl);
   if (status != CURLE_OK)
   {
-    ERROR ("curl_xml plugin: curl_easy_perform failed with status %i: %s (%s)",
-           status, db->curl_errbuf, url);
+    ERROR ("curl_xml plugin: curl_easy_perform failed with status %i: %s",
+           status, db->curl_errbuf);
     return (-1);
   }
 
