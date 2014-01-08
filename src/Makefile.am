@@ -1183,6 +1183,14 @@ collectd_LDADD += "-dlopen" target_replace.la
 collectd_DEPENDENCIES += target_replace.la
 endif
 
+if BUILD_PLUGIN_TARGET_CONCAT
+pkglib_LTLIBRARIES += target_concat.la
+target_concat_la_SOURCES = target_concat.c
+target_concat_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" target_concat.la
+collectd_DEPENDENCIES += target_concat.la
+endif
+
 if BUILD_PLUGIN_TARGET_SCALE
 pkglib_LTLIBRARIES += target_scale.la
 target_scale_la_SOURCES = target_scale.c
