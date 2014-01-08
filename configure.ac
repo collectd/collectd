@@ -1434,13 +1434,12 @@ AM_CONDITIONAL(BUILD_WITH_LIBKSTAT, test "x$with_kstat" = "xyes")
 AM_CONDITIONAL(BUILD_WITH_LIBDEVINFO, test "x$with_devinfo" = "xyes")
 
 with_libiokit="no"
-AC_CHECK_LIB(IOKit, IOServiceGetMatchingServices,
-[
+if test "x$ac_system" = "xDarwin"
+then
 	with_libiokit="yes"
-], 
-[
+else
 	with_libiokit="no"
-])
+fi
 AM_CONDITIONAL(BUILD_WITH_LIBIOKIT, test "x$with_libiokit" = "xyes")
 
 with_libkvm="no"
@@ -3059,6 +3058,25 @@ if test "x$with_libpcap" = "xyes"
 then
 	AC_CHECK_HEADERS(pcap-bpf.h,,
 			 [with_libpcap="no (pcap-bpf.h not found)"])
+fi
+if test "x$with_libpcap" = "xyes"
+then
+	AC_CACHE_CHECK([whether libpcap has PCAP_ERROR_IFACE_NOT_UP],
+		       [c_cv_libpcap_have_pcap_error_iface_not_up],
+		       AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+[[[
+#include <pcap.h>
+]]],
+[[[
+  int val = PCAP_ERROR_IFACE_NOT_UP;
+]]]
+		       )],
+		       [c_cv_libpcap_have_pcap_error_iface_not_up="yes"],
+		       [c_cv_libpcap_have_pcap_error_iface_not_up="no"]))
+fi
+if test "x$c_cv_libpcap_have_pcap_error_iface_not_up" != "xyes"
+then
+		with_libpcap="no (pcap.h misses PCAP_ERROR_IFACE_NOT_UP)"
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBPCAP, test "x$with_libpcap" = "xyes")
 # }}}

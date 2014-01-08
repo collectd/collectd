@@ -171,8 +171,8 @@ static int ts_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
         /* && (data->type == NULL) */
         && (data->type_instance == NULL))
     {
-      ERROR ("Target `set': You need to set at lease one of `Host', "
-          "`Plugin', `PluginInstance', `Type', or `TypeInstance'.");
+      ERROR ("Target `set': You need to set at least one of `Host', "
+          "`Plugin', `PluginInstance' or `TypeInstance'.");
       status = -1;
     }
 
