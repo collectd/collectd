@@ -272,6 +272,11 @@
 #  </View>
 #</Plugin>
 
+#<Plugin cgroup>
+#  CGroup "libvirt"
+#  IgnoreSelected false
+#</Plugin>
+
 #<Plugin csv>
 #	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/csv"
 #	StoreRates false
@@ -373,6 +378,8 @@
 #	ReportByDevice false
 #	ReportReserved false
 #	ReportInodes false
+#	ValuesAbsolute true
+#	ValuesPercentage false
 #</Plugin>
 
 #<Plugin disk>
@@ -1130,7 +1137,7 @@
 #  <Node "example">
 #    Host "localhost"
 #    Port "2003"
-#    Protocol "udp"
+#    Protocol "tcp"
 #    LogSendErrors true
 #    Prefix "collectd"
 #    Postfix "collectd"
@@ -1179,6 +1186,7 @@
 #		Protocol UDP
 #		StoreRates true
 #		AlwaysAppendDS false
+#		TTLFactor 2.0
 #	</Node>
 #	Tag "foobar"
 #       Attribute "foo" "bar"

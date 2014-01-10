@@ -13,7 +13,7 @@ cache_eviction		value:DERIVE:0:U
 cache_operation		value:DERIVE:0:U
 cache_ratio		value:GAUGE:0:100
 cache_result		value:DERIVE:0:U
-cache_size		value:GAUGE:0:4294967295
+cache_size		value:GAUGE:0:U
 charge			value:GAUGE:0:U
 compression_ratio	value:GAUGE:0:2
 compression		uncompressed:DERIVE:0:U, compressed:DERIVE:0:U
@@ -61,6 +61,7 @@ entropy			value:GAUGE:0:4294967295
 fanspeed		value:GAUGE:0:U
 file_size		value:GAUGE:0:U
 files			value:GAUGE:0:U
+flow			value:GAUGE:0:U
 fork_rate		value:DERIVE:0:U
 frequency_offset	value:GAUGE:-1000000:1000000
 frequency		value:GAUGE:0:U
