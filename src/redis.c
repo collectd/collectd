@@ -278,9 +278,12 @@ static int redis_read (void) /* {{{ */
       DEBUG ("redis plugin: authenticanting node `%s' passwd(%s).", rn->name, rn->passwd);
       rr = redisCommand (rh, "AUTH %s", rn->passwd);
 
-      if (rr == NULL || rr->type != 5)
+      if (rr == NULL || rr->type != REDIS_REPLY_STATUS)
       {
         WARNING ("redis plugin: unable to authenticate on node `%s'.", rn->name);
+        if (rr != NULL)
+          freeReplyObject (rr);
+
         redisFree (rh);
         continue;
       }
@@ -307,6 +310,7 @@ static int redis_read (void) /* {{{ */
     redis_handle_info (rn->name, rr->str, "pubsub", "patterns", "pubsub_patterns", DS_TYPE_GAUGE);
     redis_handle_info (rn->name, rr->str, "current_connections", "slaves", "connected_slaves", DS_TYPE_GAUGE);
 
+    freeReplyObject (rr);
     redisFree (rh);
   }
 
