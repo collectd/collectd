@@ -284,6 +284,7 @@ static int swap_read_separate (void) /* {{{ */
 
 		swap_submit_gauge (path, "used", used);
 		swap_submit_gauge (path, "free", free);
+                swap_submit_gauge (path, "percent", (used / size) * 100.0);
 	}
 
 	fclose (fh);
@@ -352,6 +353,7 @@ static int swap_read_combined (void) /* {{{ */
 	swap_submit_gauge (NULL, "used",   1024.0 * swap_used);
 	swap_submit_gauge (NULL, "free",   1024.0 * swap_free);
 	swap_submit_gauge (NULL, "cached", 1024.0 * swap_cached);
+        swap_submit_gauge (NULL, "percent", (swap_used / swap_total) * 100.0);
 
 	return (0);
 } /* }}} int swap_read_combined */
@@ -505,6 +507,7 @@ static int swap_read_kstat (void) /* {{{ */
 	swap_submit_gauge (NULL, "used", swap_alloc);
 	swap_submit_gauge (NULL, "free", swap_avail);
 	swap_submit_gauge (NULL, "reserved", swap_resv);
+        swap_submit_gauge (NULL, "percent", ((ai.ani_max - ai.ani_free) / ai.ani_max) * 100.0);
 
 	return (0);
 } /* }}} int swap_read_kstat */
@@ -624,6 +627,7 @@ static int swap_read (void) /* {{{ */
 	{
 		swap_submit_gauge (NULL, "used", (gauge_t) (total - avail));
 		swap_submit_gauge (NULL, "free", (gauge_t) avail);
+                swap_submit_gauge (NULL, "percent", (gauge_t) ((avail/total) * 100.0));
 	}
 
 	sfree (s_paths);
@@ -696,6 +700,7 @@ static int swap_read (void) /* {{{ */
 
 	swap_submit_gauge (NULL, "used", (gauge_t) used);
 	swap_submit_gauge (NULL, "free", (gauge_t) (total - used));
+        swap_submit_gauge (NULL, "percent", (gauge_t) ((used / total) * 100.0));
 
 	sfree (swap_entries);
 
@@ -756,6 +761,7 @@ static int swap_read (void) /* {{{ */
 
 	swap_submit_gauge (NULL, "used", (gauge_t) used);
 	swap_submit_gauge (NULL, "free", (gauge_t) free);
+        swap_submit_gauge (NULL, "percent", (gauge_t) ((used / total) * 100.0));
 
 	return (0);
 } /* }}} int swap_read */
@@ -792,6 +798,7 @@ static int swap_read (void) /* {{{ */
 	swap_submit_gauge (NULL, "used", (gauge_t) (pmemory.pgsp_total - pmemory.pgsp_free) * pagesize);
 	swap_submit_gauge (NULL, "free", (gauge_t) pmemory.pgsp_free * pagesize );
 	swap_submit_gauge (NULL, "reserved", (gauge_t) pmemory.pgsp_rsvd * pagesize);
+        swap_submit_gauge (NULL, "percent", (gauge_t) (((pmemory.pgsp_total - pmemory.pgsp_free) / pmemory.pgsp_total) * 100.0));
 	swap_submit_derive (NULL, "in",  (derive_t) pmemory.pgspins * pagesize);
 	swap_submit_derive (NULL, "out", (derive_t) pmemory.pgspouts * pagesize);
 
