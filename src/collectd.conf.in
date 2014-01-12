@@ -539,6 +539,11 @@
 #	</Instance>
 #</Plugin>
 
+#<Plugin memory>
+#	ValuesAbsolute true
+#	ValuesPercentage false
+#</Plugin>
+
 #<Plugin modbus>
 #	<Data "data_name">
 #		RegisterBase 1234
