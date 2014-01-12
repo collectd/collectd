@@ -1,6 +1,6 @@
 /**
  * collectd - src/swap.c
- * Copyright (C) 2005-2012  Florian octo Forster
+ * Copyright (C) 2005-2014  Florian octo Forster
  * Copyright (C) 2009       Stefan Völkel
  * Copyright (C) 2009       Manuel Sanmartin
  * Copyright (C) 2010       Aurélien Reynaud
@@ -97,7 +97,6 @@ int kvm_pagesize;
 
 #elif HAVE_PERFSTAT
 static int pagesize;
-static perfstat_memory_total_t pmemory;
 /*# endif HAVE_PERFSTAT */
 
 #else
@@ -235,13 +234,13 @@ static void swap_submit (const char *plugin_instance, /* {{{ */
 	plugin_dispatch_values (&vl);
 } /* }}} void swap_submit_inst */
 
-static void swap_submit_gauge (const char *plugin_instance, /* {{{ */
-		const char *type_instance, gauge_t value)
+static void swap_submit_gauge (char const *plugin_instance, char const *type, /* {{{ */
+		char const *type_instance, gauge_t value)
 {
 	value_t v;
 
 	v.gauge = value;
-	swap_submit (plugin_instance, "swap", type_instance, v);
+	swap_submit (plugin_instance, type, type_instance, v);
 } /* }}} void swap_submit_gauge */
 
 #if KERNEL_LINUX || HAVE_PERFSTAT
@@ -307,13 +306,13 @@ static int swap_read_separate (void) /* {{{ */
 
 		if (values_absolute)
 		{
-			swap_submit_gauge (path, "used", used);
-			swap_submit_gauge (path, "free", free);
+			swap_submit_gauge (path, "swap", "used", used);
+			swap_submit_gauge (path, "swap", "free", free);
 		}
 		if (values_percentage)
 		{
-			swap_submit_gauge (path, "percent_used", (gauge_t) ((float_t) used) / (used + free) * 100);
-			swap_submit_gauge (path, "percent_free", (gauge_t) ((float_t) free) / (used + free) * 100);
+			swap_submit_gauge (path, "percent", "used", 100.0 * used / (used + free));
+			swap_submit_gauge (path, "percent", "free", 100.0 * free / (used + free));
 		}
 	}
 
@@ -382,15 +381,15 @@ static int swap_read_combined (void) /* {{{ */
 
 	if (values_absolute)
 	{
-		swap_submit_gauge (NULL, "used",   1024.0 * swap_used);
-		swap_submit_gauge (NULL, "free",   1024.0 * swap_free);
-		swap_submit_gauge (NULL, "cached", 1024.0 * swap_cached);
+		swap_submit_gauge (NULL, "swap", "used",   1024.0 * swap_used);
+		swap_submit_gauge (NULL, "swap", "free",   1024.0 * swap_free);
+		swap_submit_gauge (NULL, "swap", "cached", 1024.0 * swap_cached);
 	}
 	if (values_percentage)
 	{
-		swap_submit_gauge (NULL, "percent_used", (gauge_t) ((float_t) swap_used) / (swap_used + swap_free + swap_cached) * 100);
-		swap_submit_gauge (NULL, "percent_free", (gauge_t) ((float_t) swap_free) / (swap_used + swap_free + swap_cached) * 100);
-		swap_submit_gauge (NULL, "percent_cached", (gauge_t) ((float_t) swap_cached) / (swap_used + swap_free + swap_cached) * 100);
+		swap_submit_gauge (NULL, "percent", "used",   100.0 * swap_used / swap_total);
+		swap_submit_gauge (NULL, "percent", "free",   100.0 * swap_free / swap_total);
+		swap_submit_gauge (NULL, "percent", "cached", 100.0 * swap_cached / swap_total);
 	}
 
 	return (0);
@@ -502,9 +501,9 @@ static int swap_read (void) /* {{{ */
 /* kstat-based read function */
 static int swap_read_kstat (void) /* {{{ */
 {
-	derive_t swap_alloc;
-	derive_t swap_resv;
-	derive_t swap_avail;
+	gauge_t swap_alloc;
+	gauge_t swap_resv;
+	gauge_t swap_avail;
 
 	struct anoninfo ai;
 
@@ -537,22 +536,23 @@ static int swap_read_kstat (void) /* {{{ */
 	 * swap_alloc = pagesize * ( ai.ani_max - ai.ani_free );
 	 * can suffer from a 32bit overflow.
 	 */
-	swap_alloc  = (derive_t) ((ai.ani_max - ai.ani_free) * pagesize);
-	swap_resv   = (derive_t) ((ai.ani_resv + ai.ani_free - ai.ani_max)
-			* pagesize);
-	swap_avail  = (derive_t) ((ai.ani_max - ai.ani_resv) * pagesize);
+	swap_alloc = (gauge_t) ((ai.ani_max - ai.ani_free) * pagesize);
+	swap_resv  = (gauge_t) ((ai.ani_resv + ai.ani_free - ai.ani_max) * pagesize);
+	swap_avail = (gauge_t) ((ai.ani_max - ai.ani_resv) * pagesize);
 
 	if (values_absolute)
 	{
-		swap_submit_gauge (NULL, "used", swap_alloc);
-		swap_submit_gauge (NULL, "free", swap_avail);
-		swap_submit_gauge (NULL, "reserved", swap_resv);
+		swap_submit_gauge (NULL, "swap", "used", swap_alloc);
+		swap_submit_gauge (NULL, "swap", "free", swap_avail);
+		swap_submit_gauge (NULL, "swap", "reserved", swap_resv);
 	}
 	if (values_percentage)
 	{
-		swap_submit_gauge (NULL, "percent_used", (gauge_t) ((float_t) swap_alloc) / (swap_alloc + swap_avail + swap_resv) * 100);
-		swap_submit_gauge (NULL, "percent_free", (gauge_t) ((float_t) swap_avail) / (swap_alloc + swap_avail + swap_resv) * 100);
-		swap_submit_gauge (NULL, "percent_reserved", (gauge_t) ((float_t) swap_resv) / (swap_alloc + swap_avail + swap_resv) * 100);
+		gauge_t swap_total = swap_alloc + swap_avail + swap_resv;
+
+		swap_submit_gauge (NULL, "percent", "used", 100.0 * swap_alloc / swap_total);
+		swap_submit_gauge (NULL, "percent", "free", 100.0 * swap_avail / swap_total);
+		swap_submit_gauge (NULL, "percent", "cached", 100.0 * swap_resv / swap_total);
 	}
 
 	return (0);
@@ -569,8 +569,8 @@ static int swap_read (void) /* {{{ */
         int status;
         int i;
 
-        derive_t avail = 0;
-        derive_t total = 0;
+        gauge_t avail = 0;
+        gauge_t total = 0;
 
         swap_num = swapctl (SC_GETNSWP, NULL);
         if (swap_num < 0)
@@ -633,14 +633,14 @@ static int swap_read (void) /* {{{ */
         for (i = 0; i < swap_num; i++)
         {
 		char path[PATH_MAX];
-		derive_t this_total;
-		derive_t this_avail;
+		gauge_t this_total;
+		gauge_t this_avail;
 
                 if ((s->swt_ent[i].ste_flags & ST_INDEL) != 0)
                         continue;
 
-		this_total = ((derive_t) s->swt_ent[i].ste_pages) * pagesize;
-		this_avail = ((derive_t) s->swt_ent[i].ste_free)  * pagesize;
+		this_total = (gauge_t) (s->swt_ent[i].ste_pages * pagesize);
+		this_avail = (gauge_t) (s->swt_ent[i].ste_free  * pagesize);
 
 		/* Shortcut for the "combined" setting (default) */
 		if (!report_by_device)
@@ -655,21 +655,20 @@ static int swap_read (void) /* {{{ */
 
 		if (values_absolute)
 		{
-			swap_submit_gauge (path, "used", (gauge_t) (this_total - this_avail));
-			swap_submit_gauge (path, "free", (gauge_t) this_avail);
+			swap_submit_gauge (path, "swap", "used", this_total - this_avail);
+			swap_submit_gauge (path, "swap", "free", this_avail);
 		}
 		if (values_percentage)
 		{
-			swap_submit_gauge (path, "percent_used", (gauge_t) ((float_t) (this_total - this_avail)) / this_total * 100);
-			swap_submit_gauge (path, "percent_free", (gauge_t) ((float_t) this_avail) / this_total * 100);
+			swap_submit_gauge (path, "percent", "used", 100.0 * (this_total - this_avail) / this_total);
+			swap_submit_gauge (path, "percent", "free", 100.0 * this_avail / this_total);
 		}
 
         } /* for (swap_num) */
 
         if (total < avail)
         {
-                ERROR ("swap plugin: Total swap space (%"PRIi64") "
-                                "is less than free swap space (%"PRIi64").",
+                ERROR ("swap plugin: Total swap space (%g) is less than free swap space (%g).",
                                 total, avail);
 		sfree (s_paths);
                 sfree (s);
@@ -682,13 +681,13 @@ static int swap_read (void) /* {{{ */
 	{
 		if (values_absolute)
 		{
-			swap_submit_gauge (NULL, "used", (gauge_t) (total - avail));
-			swap_submit_gauge (NULL, "free", (gauge_t) avail);
+			swap_submit_gauge (NULL, "swap", "used", (total - avail));
+			swap_submit_gauge (NULL, "swap", "free", avail);
 		}
 		if (values_percentage)
 		{
-			swap_submit_gauge (NULL, "percent_used", (gauge_t) ((float_t) (total - avail)) / total * 100);
-			swap_submit_gauge (NULL, "percent_free", (gauge_t) ((float_t) avail) / total * 100);
+			swap_submit_gauge (NULL, "percent", "used", 100.0 * (total - avail) / total);
+			swap_submit_gauge (NULL, "percent", "free", 100.0 * avail / total);
 		}
 	}
 
@@ -706,8 +705,8 @@ static int swap_read (void) /* {{{ */
 	int status;
 	int i;
 
-	derive_t used  = 0;
-	derive_t total = 0;
+	gauge_t used  = 0;
+	gauge_t total = 0;
 
 	swap_num = swapctl (SWAP_NSWAP, NULL, 0);
 	if (swap_num < 0)
@@ -736,9 +735,9 @@ static int swap_read (void) /* {{{ */
 	}
 
 #if defined(DEV_BSIZE) && (DEV_BSIZE > 0)
-# define C_SWAP_BLOCK_SIZE ((derive_t) DEV_BSIZE)
+# define C_SWAP_BLOCK_SIZE ((gauge_t) DEV_BSIZE)
 #else
-# define C_SWAP_BLOCK_SIZE ((derive_t) 512)
+# define C_SWAP_BLOCK_SIZE 512.0
 #endif
 
 	for (i = 0; i < swap_num; i++)
@@ -746,29 +745,26 @@ static int swap_read (void) /* {{{ */
 		if ((swap_entries[i].se_flags & SWF_ENABLE) == 0)
 			continue;
 
-		used  += ((derive_t) swap_entries[i].se_inuse)
-			* C_SWAP_BLOCK_SIZE;
-		total += ((derive_t) swap_entries[i].se_nblks)
-			* C_SWAP_BLOCK_SIZE;
+		used  += ((gauge_t) swap_entries[i].se_inuse) * C_SWAP_BLOCK_SIZE;
+		total += ((gauge_t) swap_entries[i].se_nblks) * C_SWAP_BLOCK_SIZE;
 	}
 
 	if (total < used)
 	{
-		ERROR ("swap plugin: Total swap space (%"PRIu64") "
-				"is less than used swap space (%"PRIu64").",
+		ERROR ("swap plugin: Total swap space (%g) is less than used swap space (%g).",
 				total, used);
 		return (-1);
 	}
 
 	if (values_absolute)
 	{
-		swap_submit_gauge (NULL, "used", (gauge_t) used);
-		swap_submit_gauge (NULL, "free", (gauge_t) (total - used));
+		swap_submit_gauge (NULL, "swap", "used", used);
+		swap_submit_gauge (NULL, "swap", "free", (total - used));
 	}
 	if (values_percentage)
 	{
-		swap_submit_gauge (NULL, "percent_used", (gauge_t) ((float_t) used) / total * 100);
-		swap_submit_gauge (NULL, "percent_free", (gauge_t) ((float_t) (total - used)) / total * 100);
+		swap_submit_gauge (NULL, "percent", "used", 100.0 * used / total);
+		swap_submit_gauge (NULL, "percent", "free", 100.0 * (total - used) / total);
 	}
 
 	sfree (swap_entries);
@@ -797,13 +793,14 @@ static int swap_read (void) /* {{{ */
 	/* The returned values are bytes. */
 	if (values_absolute)
 	{
-		swap_submit_gauge (NULL, "used", (gauge_t) sw_usage.xsu_used);
-		swap_submit_gauge (NULL, "free", (gauge_t) sw_usage.xsu_avail);
+		swap_submit_gauge (NULL, "swap", "used", (gauge_t) sw_usage.xsu_used);
+		swap_submit_gauge (NULL, "swap", "free", (gauge_t) sw_usage.xsu_avail);
 	}
 	if (values_percentage)
 	{
-		swap_submit_gauge (NULL, "percent_used", (gauge_t) ((float_t) sw_usage.xsu_used) / (sw_usage.xsu_used + sw_usage.xsu_avail) * 100);
-		swap_submit_gauge (NULL, "percent_free", (gauge_t) ((float_t) sw_usage.xsu_avail) / (sw_usage.xsu_used + sw_usage.xsu_avail) * 100);
+		gauge_t swap_total = (gauge_t) (sw_usage.xsu_used + sw_usage.xsu_avail);
+		swap_submit_gauge (NULL, "percent", "used", 100.0 * ((gauge_t) sw_usage.xsu_used)  / swap_total);
+		swap_submit_gauge (NULL, "percent", "free", 100.0 * ((gauge_t) sw_usage.xsu_avail) / swap_total);
 	}
 
 	return (0);
@@ -816,9 +813,9 @@ static int swap_read (void) /* {{{ */
 	struct kvm_swap data_s;
 	int             status;
 
-	derive_t used;
-	derive_t free;
-	derive_t total;
+	gauge_t used;
+	gauge_t free;
+	gauge_t total;
 
 	if (kvm_obj == NULL)
 		return (-1);
@@ -828,23 +825,23 @@ static int swap_read (void) /* {{{ */
 	if (status == -1)
 		return (-1);
 
-	total = (derive_t) data_s.ksw_total;
-	used  = (derive_t) data_s.ksw_used;
+	total = (gauge_t) data_s.ksw_total;
+	used  = (gauge_t) data_s.ksw_used;
 
-	total *= (derive_t) kvm_pagesize;
-	used  *= (derive_t) kvm_pagesize;
+	total *= (gauge_t) kvm_pagesize;
+	used  *= (gauge_t) kvm_pagesize;
 
 	free = total - used;
 
 	if (values_absolute)
 	{
-		swap_submit_gauge (NULL, "used", (gauge_t) used);
-		swap_submit_gauge (NULL, "free", (gauge_t) free);
+		swap_submit_gauge (NULL, "swap", "used", used);
+		swap_submit_gauge (NULL, "swap", "free", free);
 	}
 	if (values_percentage)
 	{
-		swap_submit_gauge (NULL, "percent_used", (gauge_t) ((float_t) used) / total * 100);
-		swap_submit_gauge (NULL, "percent_free", (gauge_t) ((float_t) free) / total * 100);
+		swap_submit_gauge (NULL, "percent", "used", 100.0 * used / total);
+		swap_submit_gauge (NULL, "percent", "free", 100.0 * free / total);
 	}
 
 	return (0);
@@ -863,13 +860,14 @@ static int swap_read (void) /* {{{ */
 
 	if (values_absolute)
 	{
-		swap_submit_gauge (NULL, "used", (gauge_t) swap->used);
-		swap_submit_gauge (NULL, "free", (gauge_t) swap->free);
+		swap_submit_gauge (NULL, "swap", "used", (gauge_t) swap->used);
+		swap_submit_gauge (NULL, "swap", "free", (gauge_t) swap->free);
 	}
 	if (values_percentage)
 	{
-		swap_submit_gauge (NULL, "percent_used", (gauge_t) ((float_t) swap->used) / (swap->used + swap->free) * 100);
-		swap_submit_gauge (NULL, "percent_free", (gauge_t) ((float_t) swap->free) / (swap_used + swap->free) * 100);
+		gauge_t swap_total = (gauge_t) (swap->used + swap->free);
+		swap_submit_gauge (NULL, "percent", "used", 100.0 * ((gauge_t) swap->used) / swap_total);
+		swap_submit_gauge (NULL, "percent", "free", 100.0 * ((gauge_t) swap->free) / swap_total);
 	}
 
 	return (0);
@@ -879,25 +877,31 @@ static int swap_read (void) /* {{{ */
 #elif HAVE_PERFSTAT
 static int swap_read (void) /* {{{ */
 {
-        if(perfstat_memory_total(NULL, &pmemory, sizeof(perfstat_memory_total_t), 1) < 0)
+	perfstat_memory_total_t pmemory;
+	int status;
+
+	memset (&pmemory, 0, sizeof (pmemory));
+        status = perfstat_memory_total (NULL, &pmemory, sizeof(perfstat_memory_total_t), 1);
+	if (status < 0)
 	{
                 char errbuf[1024];
-                WARNING ("memory plugin: perfstat_memory_total failed: %s",
+                WARNING ("swap plugin: perfstat_memory_total failed: %s",
                         sstrerror (errno, errbuf, sizeof (errbuf)));
                 return (-1);
         }
 
         if (values_absolute)
         {
-		swap_submit_gauge (NULL, "used", (gauge_t) (pmemory.pgsp_total - pmemory.pgsp_free) * pagesize);
-		swap_submit_gauge (NULL, "free", (gauge_t) pmemory.pgsp_free * pagesize );
-		swap_submit_gauge (NULL, "reserved", (gauge_t) pmemory.pgsp_rsvd * pagesize);
+		swap_submit_gauge (NULL, "swap", "used", (gauge_t) (pmemory.pgsp_total - pmemory.pgsp_free) * pagesize);
+		swap_submit_gauge (NULL, "swap", "free", (gauge_t) pmemory.pgsp_free * pagesize);
+		swap_submit_gauge (NULL, "swap", "reserved", (gauge_t) pmemory.pgsp_rsvd * pagesize);
 	}
         if (values_percentage)
         {
-		swap_submit_gauge (NULL, "percent_used", (gauge_t) ((float_t) (pmemory.pgsp_total - pmemory.pgsp_free)) / pmemory.pgsp_total * 100);
-		swap_submit_gauge (NULL, "percent_free", (gauge_t) ((float_t) pmemory.pgsp_free) / pmemory.pgsp_total * 100);
-		swap_submit_gauge (NULL, "percent_reserved", (gauge_t) ((float_t) pmemory.pgsp_rsvd) / pmemory.pgsp_total * 100);
+		gauge_t swap_total = (gauge_t) pmemory.pgsp_total;
+		swap_submit_gauge (NULL, "percent", "used",     100.0 * ((gauge_t) (pmemory.pgsp_total - pmemory.pgsp_free)) / swap_total);
+		swap_submit_gauge (NULL, "percent", "free",     100.0 * ((gauge_t) pmemory.pgsp_free) / swap_total);
+		swap_submit_gauge (NULL, "percent", "reserved", 100.0 * ((gauge_t) pmemory.pgsp_rsvd) / swap_total);
 	}
 	swap_submit_derive (NULL, "in",  (derive_t) pmemory.pgspins * pagesize);
 	swap_submit_derive (NULL, "out", (derive_t) pmemory.pgspouts * pagesize);
