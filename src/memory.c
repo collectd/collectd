@@ -1,6 +1,6 @@
 /**
  * collectd - src/memory.c
- * Copyright (C) 2005-2008  Florian octo Forster
+ * Copyright (C) 2005-2014  Florian octo Forster
  * Copyright (C) 2009       Simon Kuhnle
  * Copyright (C) 2009       Manuel Sanmartin
  *
@@ -93,34 +93,23 @@ static perfstat_memory_total_t pmemory;
 static _Bool values_absolute = 1;
 static _Bool values_percentage = 0;
 
-static const char *config_keys[] =
+static int memory_config (oconfig_item_t *ci) /* {{{ */
 {
-	"ValuesAbsolute",
-	"ValuesPercentage"
-};
-static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
+	int i;
 
-static int memory_config (const char *key, const char *value) /* {{{ */
-{
-	if (strcasecmp (key, "ValuesAbsolute") == 0)
+	for (i = 0; i < ci->children_num; i++)
 	{
-		if (IS_TRUE (value))
-			values_absolute = 1;
+		oconfig_item_t *child = ci->children + i;
+		if (strcasecmp ("ValuesAbsolute", child->key) == 0)
+			cf_util_get_boolean (child, &values_absolute);
+		else if (strcasecmp ("ValuesPercentage", child->key) == 0)
+			cf_util_get_boolean (child, &values_percentage);
 		else
-			values_absolute = 0;
-
-		return (0);
+			ERROR ("memory plugin: Invalid configuration option: "
+					"\"%s\".", child->key);
 	}
-	else if (strcasecmp (key, "ValuesPercentage") == 0)
-	{
-		if (IS_TRUE (value))
-			values_percentage = 1;
-		else
-			values_percentage = 0;
 
-		return (0);
-	}
-	return (-1);
+	return (0);
 } /* }}} int memory_config */
 
 static int memory_init (void)
@@ -557,8 +546,7 @@ static int memory_read (void)
 
 void module_register (void)
 {
-	plugin_register_config ("memory", memory_config,
-			config_keys, config_keys_num);
+	plugin_register_complex_config ("memory", memory_config);
 	plugin_register_init ("memory", memory_init);
 	plugin_register_read ("memory", memory_read);
 } /* void module_register */
