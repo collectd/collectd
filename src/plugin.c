@@ -1,6 +1,6 @@
 /**
  * collectd - src/plugin.c
- * Copyright (C) 2005-2013  Florian octo Forster
+ * Copyright (C) 2005-2014  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -2088,6 +2088,65 @@ int plugin_dispatch_values (value_list_t const *vl)
 
 	return (0);
 }
+
+__attribute__((sentinel))
+int plugin_dispatch_multivalue (value_list_t const *template, /* {{{ */
+		_Bool store_percentage, ...)
+{
+	value_list_t *vl;
+	int failed = 0;
+	gauge_t sum = 0.0;
+	va_list ap;
+
+	assert (template->values_len == 1);
+
+	va_start (ap, store_percentage);
+	while (42)
+	{
+		char const *name;
+		gauge_t value;
+
+		name = va_arg (ap, char const *);
+		if (name == NULL)
+			break;
+
+		value = va_arg (ap, gauge_t);
+		if (!isnan (value))
+			sum += value;
+	}
+	va_end (ap);
+
+	vl = plugin_value_list_clone (template);
+	/* plugin_value_list_clone makes sure vl->time is set to non-zero. */
+	if (store_percentage)
+		sstrncpy (vl->type, "percent", sizeof (vl->type));
+
+	va_start (ap, store_percentage);
+	while (42)
+	{
+		char const *name;
+		int status;
+
+		/* Set the type instance. */
+		name = va_arg (ap, char const *);
+		if (name == NULL)
+			break;
+		sstrncpy (vl->type_instance, name, sizeof (vl->type_instance));
+
+		/* Set the value. */
+		vl->values[0].gauge = va_arg (ap, gauge_t);
+		if (store_percentage)
+			vl->values[0].gauge *= 100.0 / sum;
+
+		status = plugin_write_enqueue (vl);
+		if (status != 0)
+			failed++;
+	}
+	va_end (ap);
+
+	plugin_value_list_free (vl);
+	return (failed);
+} /* }}} int plugin_dispatch_multivalue */
 
 int plugin_dispatch_notification (const notification_t *notif)
 {
