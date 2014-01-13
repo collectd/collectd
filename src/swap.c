@@ -384,7 +384,6 @@ static int swap_read_combined (void) /* {{{ */
 
 	swap_used = swap_total - (swap_free + swap_cached);
 
-	INFO ("swap plugin: used = %g, free = %g, cached = %g", swap_used, swap_free, swap_cached);
 	swap_submit_usage (NULL, swap_used, swap_free, "cached", swap_cached);
 	return (0);
 } /* }}} int swap_read_combined */
