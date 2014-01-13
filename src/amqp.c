@@ -44,10 +44,12 @@
 #ifdef HAVE_AMQP_SOCKET_H
 # include <amqp_socket.h>
 #endif
+#ifdef HAVE_AMQP_TCP_SOCKET
 #if defined HAVE_DECL_AMQP_SOCKET_CLOSE && !HAVE_DECL_AMQP_SOCKET_CLOSE
 /* rabbitmq-c does not currently ship amqp_socket.h
  * and, thus, does not define this function. */
 int amqp_socket_close(amqp_socket_t *);
+#endif
 #endif
 
 /* Defines for the delivery mode. I have no idea why they're not defined by the
@@ -445,7 +447,7 @@ static int camqp_connect (camqp_config_t *conf) /* {{{ */
         return (status);
     }
 #else /* HAVE_AMQP_TCP_SOCKET */
-# define CLOSE_SOCKET close(sockfd)
+# define CLOSE_SOCKET() close(sockfd)
     /* this interface is deprecated as of rabbitmq-c 0.4 */
     sockfd = amqp_open_socket (CONF(conf, host), conf->port);
     if (sockfd < 0)
