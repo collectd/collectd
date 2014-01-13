@@ -106,61 +106,36 @@ static int pagesize;
 static _Bool values_absolute = 1;
 static _Bool values_percentage = 0;
 
-static const char *config_keys[] =
+static int swap_config (oconfig_item_t *ci) /* {{{ */
 {
-	"ReportBytes",
-	"ReportByDevice",
-	"ValuesAbsolute",
-	"ValuesPercentage"
-};
-static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
+	int i;
 
-static int swap_config (const char *key, const char *value) /* {{{ */
-{
-	if (strcasecmp ("ReportBytes", key) == 0)
+	for (i = 0; i < ci->children_num; i++)
 	{
+		oconfig_item_t *child = ci->children + i;
+		if (strcasecmp ("ReportBytes", child->key) == 0)
 #if KERNEL_LINUX
-		report_bytes = IS_TRUE (value) ? 1 : 0;
+			cf_util_get_boolean (child, &report_bytes);
 #else
-		WARNING ("swap plugin: The \"ReportBytes\" option is only "
-				"valid under Linux. "
-				"The option is going to be ignored.");
+			WARNING ("swap plugin: The \"ReportBytes\" option "
+					"is only valid under Linux. "
+					"The option is going to be ignored.");
 #endif
-	}
-	else if (strcasecmp ("ReportByDevice", key) == 0)
-	{
+		else if (strcasecmp ("ReportByDevice", child->key) == 0)
 #if SWAP_HAVE_REPORT_BY_DEVICE
-		if (IS_TRUE (value))
-			report_by_device = 1;
-		else
-			report_by_device = 0;
+			cf_util_get_boolean (child, &report_by_device);
 #else
-		WARNING ("swap plugin: The \"ReportByDevice\" option is not "
-				"supported on this platform. "
-				"The option is going to be ignored.");
+			WARNING ("swap plugin: The \"ReportByDevice\" option "
+					"is not supported on this platform. "
+					"The option is going to be ignored.");
 #endif /* SWAP_HAVE_REPORT_BY_DEVICE */
-	}
-	else if (strcasecmp (key, "ValuesAbsolute") == 0)
-	{
-		if (IS_TRUE (value))
-			values_absolute = 1;
+		else if (strcasecmp ("ValuesAbsolute", child->key) == 0)
+			cf_util_get_boolean (child, &values_absolute);
+		else if (strcasecmp ("ValuesPercentage", child->key) == 0)
+			cf_util_get_boolean (child, &values_percentage);
 		else
-			values_absolute = 0;
-
-		return (0);
-	}
-	else if (strcasecmp (key, "ValuesPercentage") == 0)
-	{
-		if (IS_TRUE (value))
-			values_percentage = 1;
-		else
-			values_percentage = 0;
-
-		return (0);
-	}
-	else
-	{
-		return (-1);
+			WARNING ("swap plugin: Unknown config option: \"%s\"",
+					child->key);
 	}
 
 	return (0);
@@ -829,8 +804,7 @@ static int swap_read (void) /* {{{ */
 
 void module_register (void)
 {
-	plugin_register_config ("swap", swap_config,
-			config_keys, config_keys_num);
+	plugin_register_complex_config ("swap", swap_config);
 	plugin_register_init ("swap", swap_init);
 	plugin_register_read ("swap", swap_read);
 } /* void module_register */
