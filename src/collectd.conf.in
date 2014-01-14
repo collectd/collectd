@@ -981,6 +981,8 @@
 #<Plugin "swap">
 #	ReportByDevice false
 #	ReportBytes true
+#	ValuesAbsolute true
+#	ValuesPercentage false
 #</Plugin>
 
 #<Plugin "table">
