@@ -188,27 +188,6 @@ static int swap_init (void) /* {{{ */
 	return (0);
 } /* }}} int swap_init */
 
-static void swap_submit (const char *plugin_instance, /* {{{ */
-		const char *type, const char *type_instance,
-		value_t value)
-{
-	value_list_t vl = VALUE_LIST_INIT;
-
-	assert (type != NULL);
-
-	vl.values = &value;
-	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-	sstrncpy (vl.plugin, "swap", sizeof (vl.plugin));
-	if (plugin_instance != NULL)
-		sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
-	sstrncpy (vl.type, type, sizeof (vl.type));
-	if (type_instance != NULL)
-		sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
-
-	plugin_dispatch_values (&vl);
-} /* }}} void swap_submit_inst */
-
 static void swap_submit_usage (char const *plugin_instance, /* {{{ */
 		gauge_t used, gauge_t free,
 		char const *other_name, gauge_t other_value)
@@ -236,13 +215,23 @@ static void swap_submit_usage (char const *plugin_instance, /* {{{ */
 } /* }}} void swap_submit_usage */
 
 #if KERNEL_LINUX || HAVE_PERFSTAT
-static void swap_submit_derive (const char *plugin_instance, /* {{{ */
-		const char *type_instance, derive_t value)
+__attribute__((nonnull(1)))
+static void swap_submit_derive (char const *type_instance, /* {{{ */
+		derive_t value)
 {
-	value_t v;
+	value_list_t vl = VALUE_LIST_INIT;
+	value_t v[1];
 
-	v.derive = value;
-	swap_submit (plugin_instance, "swap_io", type_instance, v);
+	v[0].derive = value;
+
+	vl.values = v;
+	vl.values_len = STATIC_ARRAY_SIZE (v);
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "swap", sizeof (vl.plugin));
+	sstrncpy (vl.type, "swap_io", sizeof (vl.type));
+	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
+
+	plugin_dispatch_values (&vl);
 } /* }}} void swap_submit_derive */
 #endif
 
@@ -437,8 +426,8 @@ static int swap_read_io (void) /* {{{ */
 		swap_out = swap_out * pagesize;
 	}
 
-	swap_submit_derive (NULL, "in",  swap_in);
-	swap_submit_derive (NULL, "out", swap_out);
+	swap_submit_derive ("in",  swap_in);
+	swap_submit_derive ("out", swap_out);
 
 	return (0);
 } /* }}} int swap_read_io */
@@ -795,8 +784,8 @@ static int swap_read (void) /* {{{ */
 	reserved = (gauge_t) (pmemory.pgsp_rsvd * pagesize);
 
 	swap_submit_usage (NULL, total - free, free, "reserved", reserved);
-	swap_submit_derive (NULL, "in",  (derive_t) pmemory.pgspins * pagesize);
-	swap_submit_derive (NULL, "out", (derive_t) pmemory.pgspouts * pagesize);
+	swap_submit_derive ("in",  (derive_t) pmemory.pgspins * pagesize);
+	swap_submit_derive ("out", (derive_t) pmemory.pgspouts * pagesize);
 
 	return (0);
 } /* }}} int swap_read */
