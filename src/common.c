@@ -1,6 +1,6 @@
 /**
  * collectd - src/common.c
- * Copyright (C) 2005-2010  Florian octo Forster
+ * Copyright (C) 2005-2014  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -418,34 +418,36 @@ size_t strstripnewline (char *buffer)
 	return (buffer_len);
 } /* size_t strstripnewline */
 
-int escape_slashes (char *buf, int buf_len)
+int escape_slashes (char *buffer, size_t buffer_size)
 {
 	int i;
+	size_t buffer_len;
 
-	if (strcmp (buf, "/") == 0)
+	buffer_len = strlen (buffer);
+
+	if (buffer_len <= 1)
 	{
-		if (buf_len < 5)
-			return (-1);
-
-		strncpy (buf, "root", buf_len);
+		if (strcmp ("/", buffer) == 0)
+		{
+			if (buffer_size < 5)
+				return (-1);
+			sstrncpy (buffer, "root", buffer_size);
+		}
 		return (0);
 	}
-
-	if (buf_len <= 1)
-		return (0);
 
 	/* Move one to the left */
-	if (buf[0] == '/')
-		memmove (buf, buf + 1, buf_len - 1);
-
-	for (i = 0; i < buf_len - 1; i++)
+	if (buffer[0] == '/')
 	{
-		if (buf[i] == '\0')
-			break;
-		else if (buf[i] == '/')
-			buf[i] = '_';
+		memmove (buffer, buffer + 1, buffer_len);
+		buffer_len--;
 	}
-	buf[i] = '\0';
+
+	for (i = 0; i < buffer_len - 1; i++)
+	{
+		if (buffer[i] == '/')
+			buffer[i] = '_';
+	}
 
 	return (0);
 } /* int escape_slashes */
