@@ -1603,17 +1603,17 @@ transfer agents and web caches.
 
 =item B<ValuesAbsolute> B<true>|B<false>
 
-Enables or disables reporting of free, used and used disk space in 1K-blocks. 
-Defaults to true.
+Enables or disables reporting of free, used and used disk space in 1K-blocks.
+Defaults to B<true>.
 
-=item B<ValuesPercentage> B<true>|B<false>
+=item B<ValuesPercentage> B<false>|B<true>
 
 Enables or disables reporting of free, used and used disk space in percentage.
-Defaults to false.
+Defaults to B<false>.
 
-This is useful for deploying collectd on the cloud, where machines with
-different disk size may exist. Then it is more practical to configure thresholds
-based on relative disk size.
+This is useful for deploying I<collectd> on the cloud, where machines with
+different disk size may exist. Then it is more practical to configure
+thresholds based on relative disk size.
 
 =back
 
@@ -2430,11 +2430,11 @@ B<Synopsis:>
    Temperature vddg
    Temperature vddq
    IgnoreSelectedTemperature true
-
+   
    ShowPower true
    Power total0
    Power total1
-   IgnoreSelectedPower true   
+   IgnoreSelectedPower true
  </Plugin>
 
 The following options are valid inside the B<PluginE<nbsp>mic> block:
@@ -2491,7 +2491,7 @@ Fan In
 
 =item fout
 
-Fan Out 
+Fan Out
 
 =item vccp
 
@@ -2532,11 +2532,11 @@ Known power names are:
 
 =item total0
 
-Total power utilization averaged over Time Window 0 (uWatts). 
+Total power utilization averaged over Time Window 0 (uWatts).
 
 =item total1
 
-Total power utilization averaged over Time Window 0 (uWatts). 
+Total power utilization averaged over Time Window 0 (uWatts).
 
 =item inst
 
@@ -2544,31 +2544,31 @@ Instantaneous power (uWatts).
 
 =item imax
 
-Max instantaneous power (uWatts). 
+Max instantaneous power (uWatts).
 
 =item pcie
 
-PCI-E connector power (uWatts). 
+PCI-E connector power (uWatts).
 
 =item c2x3
 
-2x3 connector power (uWatts). 
+2x3 connector power (uWatts).
 
 =item c2x4
 
-2x4 connector power (uWatts). 
+2x4 connector power (uWatts).
 
 =item vccp
 
-Core rail (uVolts). 
+Core rail (uVolts).
 
 =item vddg
 
-Uncore rail (uVolts). 
+Uncore rail (uVolts).
 
 =item vddq
 
-Memory subsystem rail (uVolts). 
+Memory subsystem rail (uVolts).
 
 =back
 
@@ -5355,6 +5355,19 @@ This option is only available if the I<Swap plugin> can read C</proc/swaps>
 
 When enabled, the I<swap I/O> is reported in bytes. When disabled, the default,
 I<swap I/O> is reported in pages. This option is available under Linux only.
+
+=item B<ValuesAbsolute> B<true>|B<false>
+
+Enables or disables reporting of absolute swap metrics, i.e. number of I<bytes>
+available and used. Defaults to B<true>.
+
+=item B<ValuesPercentage> B<false>|B<true>
+
+Enables or disables reporting of relative swap metrics, i.e. I<percent>
+available and free. Defaults to B<false>.
+
+This is useful for deploying I<collectd> in a heterogeneous environment, where
+swap sizes differ and you want to specify generic thresholds or similar.
 
 =back
 
