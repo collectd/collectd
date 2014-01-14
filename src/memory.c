@@ -212,7 +212,7 @@ static int memory_read_internal (value_list_t *vl)
 	free     = (gauge_t) (((uint64_t) vm_data.free_count)     * ((uint64_t) pagesize));
 
 	MEMORY_SUBMIT ("wired",    wired,
-                       "active",   active,
+	               "active",   active,
 	               "inactive", inactive,
 	               "free",     free);
 /* #endif HAVE_HOST_STATISTICS */
@@ -332,14 +332,13 @@ static int memory_read_internal (value_list_t *vl)
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
-        /* Most of the additions here were taken as-is from the k9toolkit from
-         * Brendan Gregg and are subject to change I guess */
+	/* Most of the additions here were taken as-is from the k9toolkit from
+	 * Brendan Gregg and are subject to change I guess */
 	long long mem_used;
 	long long mem_free;
 	long long mem_lock;
 	long long mem_kern;
 	long long mem_unus;
-	long long mem_total;
 
 	long long pp_kernel;
 	long long physmem;

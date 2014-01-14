@@ -2588,7 +2588,7 @@ i.e. bytes. Defaults to B<true>.
 =item B<ValuesPercentage> B<false>|B<true>
 
 Enables or disables reporting of physical memory usage in percentages, e.g.
-percent of physical memory used. Defaults to B<true>.
+percent of physical memory used. Defaults to B<false>.
 
 This is useful for deploying I<collectd> in a heterogeneous environment in
 which the sizes of physical memory vary.
