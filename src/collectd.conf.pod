@@ -2574,6 +2574,27 @@ Memory subsystem rail (uVolts).
 
 =back
 
+=head2 Plugin C<memory>
+
+The I<memory plugin> provides the following configuration options:
+
+=over 4
+
+=item B<ValuesAbsolute> B<true>|B<false>
+
+Enables or disables reporting of physical memory usage in absolute numbers,
+i.e. bytes. Defaults to B<true>.
+
+=item B<ValuesPercentage> B<false>|B<true>
+
+Enables or disables reporting of physical memory usage in percentages, e.g.
+percent of physical memory used. Defaults to B<false>.
+
+This is useful for deploying I<collectd> in a heterogeneous environment in
+which the sizes of physical memory vary.
+
+=back
+
 =head2 Plugin C<modbus>
 
 The B<modbus plugin> connects to a Modbus "slave" via Modbus/TCP and reads
