@@ -155,32 +155,14 @@ static int memory_init (void)
 	return (0);
 } /* int memory_init */
 
-static void memory_submit (const char *type_instance, gauge_t value, gauge_t total)
-{
-	value_t values[1];
-	value_list_t vl = VALUE_LIST_INIT;
+#define MEMORY_SUBMIT(...) do { \
+	if (values_absolute) \
+		plugin_dispatch_multivalue (vl, 0, __VA_ARGS__, NULL); \
+	if (values_percentage) \
+		plugin_dispatch_multivalue (vl, 1, __VA_ARGS__, NULL); \
+} while (0)
 
-	vl.values = values;
-	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-	sstrncpy (vl.plugin, "memory", sizeof (vl.plugin));
-	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
-
-	if (values_absolute)
-	{
-		values[0].gauge = value;
-		sstrncpy (vl.type, "memory", sizeof (vl.type));
-		plugin_dispatch_values (&vl);
-	}
-	if (values_percentage)
-	{
-		values[0].gauge = 100.0 * value / total;
-		sstrncpy (vl.type, "percent", sizeof (vl.type));
-		plugin_dispatch_values (&vl);
-	}
-}
-
-static int memory_read (void)
+static int memory_read_internal (value_list_t *vl)
 {
 #if HAVE_HOST_STATISTICS
 	kern_return_t status;
@@ -191,7 +173,6 @@ static int memory_read (void)
 	gauge_t active;
 	gauge_t inactive;
 	gauge_t free;
-	gauge_t total;
 
 	if (!port_host || !pagesize)
 		return (-1);
@@ -229,12 +210,11 @@ static int memory_read (void)
 	active   = (gauge_t) (((uint64_t) vm_data.active_count)   * ((uint64_t) pagesize));
 	inactive = (gauge_t) (((uint64_t) vm_data.inactive_count) * ((uint64_t) pagesize));
 	free     = (gauge_t) (((uint64_t) vm_data.free_count)     * ((uint64_t) pagesize));
-	total    = wired + active + inactive + free;
 
-	memory_submit ("wired",    wired,    total);
-	memory_submit ("active",   active,   total);
-	memory_submit ("inactive", inactive, total);
-	memory_submit ("free",     free,     total);
+	MEMORY_SUBMIT ("wired",    wired,
+                       "active",   active,
+	               "inactive", inactive,
+	               "free",     free);
 /* #endif HAVE_HOST_STATISTICS */
 
 #elif HAVE_SYSCTLBYNAME
@@ -259,7 +239,6 @@ static int memory_read (void)
 		NULL
 	};
 	double sysctl_vals[8];
-	gauge_t total;
 
 	int    i;
 
@@ -285,12 +264,11 @@ static int memory_read (void)
 		if (!isnan (sysctl_vals[i]))
 			sysctl_vals[i] *= sysctl_vals[0];
 
-	total = sysctl_vals[2] + sysctl_vals[3] + sysctl_vals[4] + sysctl_vals[5] + sysctl_vals[6];
-	memory_submit ("free",     sysctl_vals[2], total);
-	memory_submit ("wired",    sysctl_vals[3], total);
-	memory_submit ("active",   sysctl_vals[4], total);
-	memory_submit ("inactive", sysctl_vals[5], total);
-	memory_submit ("cache",    sysctl_vals[6], total);
+	MEMORY_SUBMIT ("free",     (gauge_t) sysctl_vals[2],
+	               "wired",    (gauge_t) sysctl_vals[3],
+	               "active",   (gauge_t) sysctl_vals[4],
+	               "inactive", (gauge_t) sysctl_vals[5],
+	               "cache",    (gauge_t) sysctl_vals[6]);
 /* #endif HAVE_SYSCTLBYNAME */
 
 #elif KERNEL_LINUX
@@ -300,11 +278,11 @@ static int memory_read (void)
 	char *fields[8];
 	int numfields;
 
-	long long mem_total = 0;
-	long long mem_used = 0;
-	long long mem_buffered = 0;
-	long long mem_cached = 0;
-	long long mem_free = 0;
+	gauge_t mem_total = 0;
+	gauge_t mem_used = 0;
+	gauge_t mem_buffered = 0;
+	gauge_t mem_cached = 0;
+	gauge_t mem_free = 0;
 
 	if ((fh = fopen ("/proc/meminfo", "r")) == NULL)
 	{
@@ -314,9 +292,9 @@ static int memory_read (void)
 		return (-1);
 	}
 
-	while (fgets (buffer, 1024, fh) != NULL)
+	while (fgets (buffer, sizeof (buffer), fh) != NULL)
 	{
-		long long *val = NULL;
+		gauge_t *val = NULL;
 
 		if (strncasecmp (buffer, "MemTotal:", 9) == 0)
 			val = &mem_total;
@@ -329,12 +307,11 @@ static int memory_read (void)
 		else
 			continue;
 
-		numfields = strsplit (buffer, fields, 8);
-
+		numfields = strsplit (buffer, fields, STATIC_ARRAY_SIZE (fields));
 		if (numfields < 2)
 			continue;
 
-		*val = atoll (fields[1]) * 1024LL;
+		*val = 1024.0 * atof (fields[1]);
 	}
 
 	if (fclose (fh))
@@ -345,13 +322,13 @@ static int memory_read (void)
 	}
 
 	if (mem_total < (mem_free + mem_buffered + mem_cached))
-		return (0);
+		return (-1);
 
 	mem_used = mem_total - (mem_free + mem_buffered + mem_cached);
-	memory_submit ("used",     (gauge_t) mem_used,     (gauge_t) mem_total);
-	memory_submit ("buffered", (gauge_t) mem_buffered, (gauge_t) mem_total);
-	memory_submit ("cached",   (gauge_t) mem_cached,   (gauge_t) mem_total);
-	memory_submit ("free",     (gauge_t) mem_free,     (gauge_t) mem_total);
+	MEMORY_SUBMIT ("used",     mem_used,
+	               "buffered", mem_buffered,
+	               "cached",   mem_cached,
+	               "free",     mem_free);
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
@@ -423,13 +400,12 @@ static int memory_read (void)
 	mem_lock *= pagesize; /* some? ;) */
 	mem_kern *= pagesize; /* it's 2011 RAM is cheap */
 	mem_unus *= pagesize;
-	mem_total = mem_used + mem_free + mem_lock + mem_kern + mem_unus;
 
-	memory_submit ("used",     (gauge_t) mem_used, (gauge_t) mem_total);
-	memory_submit ("free",     (gauge_t) mem_free, (gauge_t) mem_total);
-	memory_submit ("locked",   (gauge_t) mem_lock, (gauge_t) mem_total);
-	memory_submit ("kernel",   (gauge_t) mem_kern, (gauge_t) mem_total);
-	memory_submit ("unusable", (gauge_t) mem_unus, (gauge_t) mem_total);
+	MEMORY_SUBMIT ("used",     (gauge_t) mem_used,
+	               "free",     (gauge_t) mem_free,
+	               "locked",   (gauge_t) mem_lock,
+	               "kernel",   (gauge_t) mem_kern,
+	               "unusable", (gauge_t) mem_unus);
 /* #endif HAVE_LIBKSTAT */
 
 #elif HAVE_SYSCTL
@@ -438,7 +414,6 @@ static int memory_read (void)
 	gauge_t mem_active;
 	gauge_t mem_inactive;
 	gauge_t mem_free;
-	gauge_t mem_total;
 	size_t size;
 
 	memset (&vmtotal, 0, sizeof (vmtotal));
@@ -455,25 +430,22 @@ static int memory_read (void)
 	mem_active   = (gauge_t) (vmtotal.t_arm * pagesize);
 	mem_inactive = (gauge_t) ((vmtotal.t_rm - vmtotal.t_arm) * pagesize);
 	mem_free     = (gauge_t) (vmtotal.t_free * pagesize);
-	mem_total    = mem_active + mem_inactive + mem_free;
 
-	memory_submit ("active",   mem_active,   mem_total);
-	memory_submit ("inactive", mem_inactive, mem_total);
-	memory_submit ("free",     mem_free,     mem_total);
+	MEMORY_SUBMIT ("active",   mem_active,
+	               "inactive", mem_inactive,
+	               "free",     mem_free);
 /* #endif HAVE_SYSCTL */
 
 #elif HAVE_LIBSTATGRAB
 	sg_mem_stats *ios;
-	gauge_t total;
 
 	ios = sg_get_mem_stats ();
 	if (ios == NULL)
 		return (-1);
 
-	total = (gauge_t) (ios->used + ios->cache + ios->free);
-	memory_submit ("used",   (gauge_t) ios->used,  total);
-	memory_submit ("cached", (gauge_t) ios->cache, total);
-	memory_submit ("free",   (gauge_t) ios->free,  total);
+	MEMORY_SUBMIT ("used",   (gauge_t) ios->used,
+	               "cached", (gauge_t) ios->cache,
+	               "free",   (gauge_t) ios->free);
 /* #endif HAVE_LIBSTATGRAB */
 
 #elif HAVE_PERFSTAT
@@ -498,14 +470,28 @@ static int memory_read (void)
 	 *   real_total = real_free + real_inuse
 	 *   real_inuse = "active" + real_pinned + numperm
 	 */
-	memory_submit ("free",   pmemory.real_free    * pagesize, pmemory.real_total * pagesize);
-	memory_submit ("cached", pmemory.numperm      * pagesize, pmemory.real_total * pagesize);
-	memory_submit ("system", pmemory.real_system  * pagesize, pmemory.real_total * pagesize);
-	memory_submit ("user",   pmemory.real_process * pagesize, pmemory.real_total * pagesize);
+	MEMORY_SUBMIT ("free",   (gauge_t) (pmemory.real_free    * pagesize),
+	               "cached", (gauge_t) (pmemory.numperm      * pagesize),
+	               "system", (gauge_t) (pmemory.real_system  * pagesize),
+	               "user",   (gauge_t) (pmemory.real_process * pagesize));
 #endif /* HAVE_PERFSTAT */
 
 	return (0);
-}
+} /* }}} int memory_read_internal */
+
+static int memory_read (void) /* {{{ */
+{
+	value_t v[1];
+	value_list_t vl = VALUE_LIST_INIT;
+
+	vl.values = v;
+	vl.values_len = STATIC_ARRAY_SIZE (v);
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "memory", sizeof (vl.plugin));
+	vl.time = cdtime ();
+
+	return (memory_read_internal (&vl));
+} /* }}} int memory_read */
 
 void module_register (void)
 {
