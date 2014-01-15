@@ -8,7 +8,7 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the GNU
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -32,8 +32,8 @@
 #define CONNTRACK_FILE "/proc/sys/net/netfilter/nf_conntrack_count"
 #define CONNTRACK_MAX_FILE "/proc/sys/net/netfilter/nf_conntrack_max"
 
-static void conntrack_submit (const char *type_instance,
-			      const char *type, value_t conntrack)
+static void conntrack_submit (const char *type, const char *type_instance,
+			      value_t conntrack)
 {
 	value_list_t vl = VALUE_LIST_INIT;
 
@@ -41,10 +41,10 @@ static void conntrack_submit (const char *type_instance,
 	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "conntrack", sizeof (vl.plugin));
-	sstrncpy (vl.type, "conntrack", sizeof (vl.type));
-        if (type_instance != NULL)
-                sstrncpy (vl.type_instance, type_instance,
-                          sizeof (vl.type_instance));
+	sstrncpy (vl.type, type, sizeof (vl.type));
+	if (type_instance != NULL)
+		sstrncpy (vl.type_instance, type_instance,
+			  sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
 } /* static void conntrack_submit */
@@ -79,7 +79,7 @@ static int conntrack_read (void)
 	if (parse_value (buffer, &conntrack, DS_TYPE_GAUGE) != 0)
 		return (-1);
 
-	conntrack_submit (NULL, "conntrack", conntrack);
+	conntrack_submit ("conntrack", NULL, conntrack);
 
 	fh = fopen (CONNTRACK_MAX_FILE, "r");
 	if (fh == NULL)
@@ -104,10 +104,9 @@ static int conntrack_read (void)
 	if (parse_value (buffer, &conntrack_max, DS_TYPE_GAUGE) != 0)
 		return (-1);
 
-	conntrack_submit ("max", "conntrack", conntrack_max);
-
-        conntrack_pct.gauge = (conntrack.gauge / conntrack_max.gauge) * 100;
-	conntrack_submit ("percent", "percent", conntrack_pct);
+	conntrack_submit ("conntrack", "max", conntrack_max);
+	conntrack_pct.gauge = (conntrack.gauge / conntrack_max.gauge) * 100;
+	conntrack_submit ("percent", "used", conntrack_pct);
 
 
 	return (0);
