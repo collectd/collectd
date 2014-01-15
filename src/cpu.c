@@ -175,7 +175,7 @@ static int pnumcpu;
 static gauge_t percents[CPU_SUBMIT_MAX] = {
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
-int cpu_num = 0;
+int cpu_count = 0;
 
 static _Bool report_by_cpu = 1;
 static _Bool report_percent = 0;
@@ -317,7 +317,7 @@ static void submit_value (int cpu_num, int cpu_state, const char *type, value_t 
 
 	if (cpu_num > 0) {
 		ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
-			   "%i", plugin_instance);
+			   "%i", cpu_num);
 	}
 	plugin_dispatch_values (&vl);
 }
@@ -327,7 +327,7 @@ static void submit_percent(int cpu_num, int cpu_state, gauge_t percent)
         value_t value;
 
         value.gauge = percent;
-        submit_value (cpu_num, cpu_state, "percent", value;)
+        submit_value (cpu_num, cpu_state, "percent", value);
 }
 
 static void submit_derive(int cpu_num, int cpu_state, derive_t derive)
@@ -335,7 +335,7 @@ static void submit_derive(int cpu_num, int cpu_state, derive_t derive)
         value_t value;
 
         value.derive = derive;
-        submit_value (cpu_num, cpu_state, "cpu", value;)
+        submit_value (cpu_num, cpu_state, "cpu", value);
 }
 
 static void submit_flush (void)
@@ -348,9 +348,9 @@ static void submit_flush (void)
         for (i = 1; i < CPU_SUBMIT_MAX; i++) {
                 if (percents[i] == -1)
                         continue;
-                submit_percent (-1, i, percents[i] / numcpu);
+                submit_percent (-1, i, percents[i] / cpu_count);
         }
-        numcpu = 0;
+        cpu_count = 0;
         memset(percents, 0, sizeof(percents));
 }
 
@@ -391,7 +391,7 @@ static void submit (int cpu_num, derive_t *derives)
                 else
                         derives[CPU_SUBMIT_ACTIVE] = -1;
 
-		numcpu++;
+		cpu_count++;
 		for (i = 1; i < CPU_SUBMIT_MAX; i++) {
 			if (derives[i] == -1) {
 				percents[i] = -1;
@@ -401,7 +401,7 @@ static void submit (int cpu_num, derive_t *derives)
 
 			if (report_by_cpu)
 			{
-				submit_percent (cpu_num, i, gauges[i]);
+				submit_percent (cpu_num, i, percent);
 			} else if (percents[i] != -1) {
                                 percents[i] += percent;
 			}
