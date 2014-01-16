@@ -86,18 +86,17 @@
 # define CAN_USE_SYSCTL 0
 #endif
 
-#define CPU_SUBMIT_USER 1
-#define CPU_SUBMIT_SYSTEM 2
-#define CPU_SUBMIT_WAIT 3
-#define CPU_SUBMIT_NICE 4
-#define CPU_SUBMIT_SWAP 5
-#define CPU_SUBMIT_INTERRUPT 6
-#define CPU_SUBMIT_SOFTIRQ 7
-#define CPU_SUBMIT_STEAL 8
-#define CPU_SUBMIT_IDLE 9
-#define CPU_SUBMIT_ACTIVE 10
-#define CPU_SUBMIT_MAX 11
-#define CPU_SUBMIT_FLUSH -1
+#define CPU_SUBMIT_USER 0
+#define CPU_SUBMIT_SYSTEM 1
+#define CPU_SUBMIT_WAIT 2
+#define CPU_SUBMIT_NICE 3
+#define CPU_SUBMIT_SWAP 4
+#define CPU_SUBMIT_INTERRUPT 5
+#define CPU_SUBMIT_SOFTIRQ 6
+#define CPU_SUBMIT_STEAL 7
+#define CPU_SUBMIT_IDLE 8
+#define CPU_SUBMIT_ACTIVE 9
+#define CPU_SUBMIT_MAX 10
 
 #if HAVE_STATGRAB_H
 # include <statgrab.h>
@@ -114,7 +113,6 @@
 #endif
 
 static const char *cpu_state_names[] = {
-	"none",
 	"user",
 	"system",
 	"wait",
@@ -172,10 +170,14 @@ static int numcpu;
 static int pnumcpu;
 #endif /* HAVE_PERFSTAT */
 
-static gauge_t percents[CPU_SUBMIT_MAX] = {
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+static value_to_rate_state_t *percents = NULL;
+static gauge_t agg_percents[CPU_SUBMIT_MAX] = {
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+
 };
-int cpu_count = 0;
+static int percents_cells = 0;
+static int cpu_count = 0;
+
 
 static _Bool report_by_cpu = 1;
 static _Bool report_percent = 0;
@@ -188,6 +190,7 @@ static const char *config_keys[] =
 	"ValuesPercentage"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
+
 
 static int cpu_config (const char *key, const char *value)
 {
@@ -202,6 +205,47 @@ static int cpu_config (const char *key, const char *value)
                 report_active = IS_TRUE (value) ? 1 : 0;
 	return (-1);
 }
+
+static int cpu_states_grow (void)
+{
+  void *tmp;
+  int size;
+  int i;
+
+  size = cpu_count * CPU_SUBMIT_MAX; /* always alloc for all states */
+
+  if (size <= 0)
+	  return 0;
+
+  if (percents_cells >= size)
+	  return 0;
+
+  if (percents == NULL) {
+	  percents = malloc(size * sizeof(*percents));
+	  if (percents == NULL)
+		  return -1;
+	  for (i = 0; i < size; i++)
+		  memset(&percents[i], 0, sizeof(*percents));
+	  percents_cells = size;
+	  return 0;
+  }
+
+  tmp = realloc(percents, size * sizeof(*percents));
+
+  if (tmp == NULL) {
+	  ERROR ("cpu plugin: could not reserve enough space to hold states");
+	  percents = NULL;
+	  return -1;
+  }
+
+  for (i = percents_cells; i < size; i++)
+	  memset(&percents[i], 0, sizeof(*percents));
+
+  percents = tmp;
+  percents_cells = size;
+  return 0;
+} /* cpu_states_grow */
+
 
 static int init (void)
 {
@@ -342,28 +386,29 @@ static void submit_flush (void)
 {
         int i = 0;
 
-        if (report_by_cpu)
-                return;
+        if (report_by_cpu) {
+		cpu_count = 0;
+		return;
+	}
 
-        for (i = 1; i < CPU_SUBMIT_MAX; i++) {
-                if (percents[i] == -1)
-                        continue;
-                submit_percent (-1, i, percents[i] / cpu_count);
+        for (i = 0; i < CPU_SUBMIT_MAX; i++) {
+		if (agg_percents[i] == -1)
+			continue;
+
+		submit_percent(-1, i, agg_percents[i] / cpu_count);
+		agg_percents[i] = -1;
         }
         cpu_count = 0;
-        memset(percents, 0, sizeof(percents));
 }
 
 static void submit (int cpu_num, derive_t *derives)
 {
 
 	int i = 0;
-	derive_t cpu_active = 0;
-	derive_t cpu_total = 0;
-        gauge_t percent;
-        
+
 	if (!report_percent && report_by_cpu) {
-		for (i = 1; i < CPU_SUBMIT_ACTIVE; i++)
+		derive_t cpu_active = 0;
+		for (i = 0; i < CPU_SUBMIT_ACTIVE; i++)
 		{
 			if (derives[i] == -1)
 				continue;
@@ -378,32 +423,58 @@ static void submit (int cpu_num, derive_t *derives)
 	}
 	else /* we are reporting percents */
 	{
-		for (i = 1; i < CPU_SUBMIT_ACTIVE; i++) {
-			if (derives[i] == -1)
-				continue;
-			cpu_total += derives[i];
-			if (i != CPU_SUBMIT_IDLE)
-				cpu_active += derives[i];
-		}
-                if (report_active)
-                        derives[CPU_SUBMIT_ACTIVE] = cpu_active;
-                else
-                        derives[CPU_SUBMIT_ACTIVE] = -1;
+		cdtime_t cdt;
+		gauge_t percent;
+		gauge_t cpu_total = 0;
+		gauge_t cpu_active = 0;
+		gauge_t local_rates[CPU_SUBMIT_MAX];
 
 		cpu_count++;
-		for (i = 1; i < CPU_SUBMIT_MAX; i++) {
-			if (derives[i] == -1) {
-				percents[i] = -1;
+		if (cpu_states_grow())
+			return;
+
+		memset(local_rates, 0, sizeof(local_rates));
+
+		cdt = cdtime();
+		for (i = 0; i < CPU_SUBMIT_ACTIVE; i++) {
+			value_t rate;
+			int index;
+
+			if (derives[i] == -1)
+				continue;
+
+			index = (cpu_num * CPU_SUBMIT_MAX) + i;
+			if (value_to_rate(&rate, derives[i], &percents[index],
+					  DS_TYPE_DERIVE, cdt) != 0) {
+				local_rates[i] = -1;
 				continue;
 			}
-			percent = ((gauge_t)derives[i] / (gauge_t)cpu_total) * 100.0;
 
+			local_rates[i] = rate.gauge;
+			cpu_total += rate.gauge;
+			if (i != CPU_SUBMIT_IDLE)
+				cpu_active += rate.gauge;
+		}
+		if (cpu_total == 0.0)
+			return;
+
+		if (report_active)
+			local_rates[CPU_SUBMIT_ACTIVE] = cpu_active;
+
+		for (i = 0; i < CPU_SUBMIT_MAX; i++) {
+			if (local_rates[i] == -1)
+				continue;
+
+			percent = (local_rates[i] / cpu_total) * 100;
 			if (report_by_cpu)
-			{
 				submit_percent (cpu_num, i, percent);
-			} else if (percents[i] != -1) {
-                                percents[i] += percent;
+			else {
+				if (agg_percents[i] == -1)
+					agg_percents[i] = percent;
+				else
+					agg_percents[i] += percent;
 			}
+
 		}
 	}
 }
@@ -431,7 +502,7 @@ static int cpu_read (void)
 	{
 #if PROCESSOR_CPU_LOAD_INFO
                 derive_t derives[CPU_SUBMIT_MAX] = {
-                        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1      
+                        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
                 };
 		memset(derives, -1, sizeof(derives));
 		cpu_host = 0;
@@ -523,9 +594,9 @@ static int cpu_read (void)
 	while (fgets (buf, 1024, fh) != NULL)
 	{
                 derive_t derives[CPU_SUBMIT_MAX] = {
-                        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1      
+                        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
                 };
-                
+
 		if (strncmp (buf, "cpu", 3))
 			continue;
 		if ((buf[3] < '0') || (buf[3] > '9'))
@@ -567,9 +638,9 @@ static int cpu_read (void)
 	for (cpu = 0; cpu < numcpu; cpu++)
 	{
                 derive_t derives[CPU_SUBMIT_MAX] = {
-                        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1      
+                        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
                 };
-                
+
 		if (kstat_read (kc, ksp[cpu], &cs) == -1)
 			continue; /* error message? */
 
@@ -640,9 +711,9 @@ static int cpu_read (void)
 
 	for (i = 0; i < numcpu; i++) {
                 derive_t derives[CPU_SUBMIT_MAX] = {
-                        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1      
+                        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
                 };
-                
+
 		derives[CPU_SUBMIT_USER] = cpuinfo[i][CP_USER];
 		derives[CPU_SUBMIT_NICE] = cpuinfo[i][CP_NICE];
 		derives[CPU_SUBMIT_SYSTEM] = cpuinfo[i][CP_SYS];
@@ -670,7 +741,7 @@ static int cpu_read (void)
 
 	for (i = 0; i < numcpu; i++) {
                 derive_t derives[CPU_SUBMIT_MAX] = {
-                        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1      
+                        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
                 };
 
 		derives[CPU_SUBMIT_USER] = cpuinfo[i][CP_USER];
@@ -687,7 +758,7 @@ static int cpu_read (void)
 	long cpuinfo[CPUSTATES];
 	size_t cpuinfo_size;
         derive_t derives[CPU_SUBMIT_MAX] = {
-                -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1      
+                -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
         };
 
 	cpuinfo_size = sizeof (cpuinfo);
@@ -713,7 +784,7 @@ static int cpu_read (void)
 #elif defined(HAVE_LIBSTATGRAB)
 	sg_cpu_stats *cs;
         derive_t derives[CPU_SUBMIT_MAX] = {
-                -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1      
+                -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
         };
 	cs = sg_get_cpu_stats ();
 
@@ -766,7 +837,7 @@ static int cpu_read (void)
 	for (i = 0; i < cpus; i++)
 	{
                 derive_t derives[CPU_SUBMIT_MAX] = {
-                        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1      
+                        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
                 };
 		derives[CPU_SUBMIT_IDLE] = perfcpu[i].idle;
 		derives[CPU_SUBMIT_SYSTEM] = perfcpu[i].sys;
