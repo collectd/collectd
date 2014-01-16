@@ -315,7 +315,7 @@ static void submit_value (int cpu_num, int cpu_state, const char *type, value_t 
 	sstrncpy (vl.type_instance, cpu_state_names[cpu_state],
 		  sizeof (vl.type_instance));
 
-	if (cpu_num > 0) {
+	if (cpu_num >= 0) {
 		ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
 			   "%i", cpu_num);
 	}
@@ -363,7 +363,6 @@ static void submit (int cpu_num, derive_t *derives)
         gauge_t percent;
         
 	if (!report_percent && report_by_cpu) {
-
 		for (i = 1; i < CPU_SUBMIT_ACTIVE; i++)
 		{
 			if (derives[i] == -1)
