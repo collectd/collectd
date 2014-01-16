@@ -24,7 +24,7 @@
 #include "plugin.h"
 #include "utils_ignorelist.h"
 
-#if !(KERNEL_LINUX || KERNEL_SOLARIS)
+#if !(KERNEL_LINUX || (KERNEL_SOLARIS && HAVE_KSTAT_H))
 # error "No applicable input method."
 #endif
 
