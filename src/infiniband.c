@@ -112,8 +112,8 @@ static char *counterMap[][3] = {
 	{ "port_xmit_discards", "ib_discards", "tx" },
 	{ "port_xmit_packets", "ib_packets", "tx" },
 	{ "port_xmit_wait", "ib_wait", "tx" },
-	{ "symbol_error", "symbol_errors", "value"},
-	{ "VL15_dropped", "VL15_dropped", "value"},
+	{ "symbol_error", "ib_symbol_errors", "value"},
+	{ "VL15_dropped", "ib_VL15_dropped", "value"},
 };
 
 static int walk_counters(const char *dir, const char *counter, void *typesList)
