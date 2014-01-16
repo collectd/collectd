@@ -1603,12 +1603,12 @@ transfer agents and web caches.
 
 =item B<ValuesAbsolute> B<true>|B<false>
 
-Enables or disables reporting of free, used and used disk space in 1K-blocks.
+Enables or disables reporting of free and used disk space in 1K-blocks.
 Defaults to B<true>.
 
 =item B<ValuesPercentage> B<false>|B<true>
 
-Enables or disables reporting of free, used and used disk space in percentage.
+Enables or disables reporting of free and used disk space in percentage.
 Defaults to B<false>.
 
 This is useful for deploying I<collectd> on the cloud, where machines with
