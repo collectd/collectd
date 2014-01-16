@@ -55,6 +55,13 @@ struct rate_to_value_state_s
 };
 typedef struct rate_to_value_state_s rate_to_value_state_t;
 
+struct value_to_rate_state_s
+{
+  value_t last_value;
+  cdtime_t last_time;
+};
+typedef struct value_to_rate_state_s value_to_rate_state_t;
+
 char *sstrncpy (char *dest, const char *src, size_t n);
 
 __attribute__ ((format(printf,3,4)))
@@ -323,6 +330,9 @@ counter_t counter_diff (counter_t old_value, counter_t new_value);
  * return values indicate an error. */
 int rate_to_value (value_t *ret_value, gauge_t rate,
 		rate_to_value_state_t *state, int ds_type, cdtime_t t);
+
+int value_to_rate (value_t *ret_rate, derive_t value,
+		value_to_rate_state_t *state, int ds_type, cdtime_t t);
 
 /* Converts a service name (a string) to a port number
  * (in the range [1-65535]). Returns less than zero on error. */
