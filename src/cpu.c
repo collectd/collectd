@@ -487,7 +487,6 @@ static int cpu_read (void)
 	kern_return_t status;
 
 #if PROCESSOR_CPU_LOAD_INFO
-	derive_t                       cpu_active;
 	processor_cpu_load_info_data_t cpu_info;
 	mach_msg_type_number_t         cpu_info_len;
 #endif
@@ -522,10 +521,10 @@ static int cpu_read (void)
 			continue;
 		}
 
-		derives[CPU_USER] = (derive_t) cpu_info.cpu_ticks[CPU_STATE_USER];
-		derives[CPU_NICE] = (derive_t) cpu_info.cpu_ticks[CPU_STATE_NICE];
-		derives[CPU_SYSTEM] = (derive_t) cpu_info.cpu_ticks[CPU_STATE_SYSTEM];
-		derives[CPU_IDLE] = (derive_t) cpu_info.cpu_ticks[CPU_STATE_IDLE];
+		derives[CPU_SUBMIT_USER] = (derive_t) cpu_info.cpu_ticks[CPU_STATE_USER];
+		derives[CPU_SUBMIT_NICE] = (derive_t) cpu_info.cpu_ticks[CPU_STATE_NICE];
+		derives[CPU_SUBMIT_SYSTEM] = (derive_t) cpu_info.cpu_ticks[CPU_STATE_SYSTEM];
+		derives[CPU_SUBMIT_IDLE] = (derive_t) cpu_info.cpu_ticks[CPU_STATE_IDLE];
 		submit (cpu, derives);
 
 #endif /* PROCESSOR_CPU_LOAD_INFO */
