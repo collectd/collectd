@@ -1603,12 +1603,12 @@ transfer agents and web caches.
 
 =item B<ValuesAbsolute> B<true>|B<false>
 
-Enables or disables reporting of free, used and used disk space in 1K-blocks.
+Enables or disables reporting of free and used disk space in 1K-blocks.
 Defaults to B<true>.
 
 =item B<ValuesPercentage> B<false>|B<true>
 
-Enables or disables reporting of free, used and used disk space in percentage.
+Enables or disables reporting of free and used disk space in percentage.
 Defaults to B<false>.
 
 This is useful for deploying I<collectd> on the cloud, where machines with
@@ -2571,6 +2571,27 @@ Uncore rail (uVolts).
 Memory subsystem rail (uVolts).
 
 =back
+
+=back
+
+=head2 Plugin C<memory>
+
+The I<memory plugin> provides the following configuration options:
+
+=over 4
+
+=item B<ValuesAbsolute> B<true>|B<false>
+
+Enables or disables reporting of physical memory usage in absolute numbers,
+i.e. bytes. Defaults to B<true>.
+
+=item B<ValuesPercentage> B<false>|B<true>
+
+Enables or disables reporting of physical memory usage in percentages, e.g.
+percent of physical memory used. Defaults to B<false>.
+
+This is useful for deploying I<collectd> in a heterogeneous environment in
+which the sizes of physical memory vary.
 
 =back
 
