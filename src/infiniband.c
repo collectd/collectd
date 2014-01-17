@@ -125,12 +125,16 @@ static int walk_counters(const char *dir, const char *counter, void *typesList)
 	llentry_t *cur;
 	llist_t *typeInstanceList;
 	int i;
+	int fsize;
 
 	ssnprintf(counterFileName, sizeof(counterFileName), "%s/%s", dir, counter);
 	if((counterFile = fopen(counterFileName, "r")) == NULL) {
 		return 1;
 	}
-	fread(counterValue, sizeof(char), sizeof(counterValue), counterFile);
+	fseek(counterFile, 0, SEEK_END);
+	fsize = ftell(counterFile);
+	frewind(counterFile);
+	fread(counterValue, sizeof(char), sizeof(counterValue) < fsize ? sizeof(counterValue) : fsize, counterFile);
 	fclose(counterFile);
 	if(parse_value(counterValue, &value, DS_TYPE_DERIVE) != -1) {
 		return 2;
