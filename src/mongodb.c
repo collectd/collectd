@@ -682,15 +682,16 @@ static int mc_setup_read(void) /* {{{ */
 
     bson_destroy (&is_master_out);
 
+    /* NOTE Disabling this to allow collection of stats from secondary nodes. */
     /* Only the primary node sends back stats for now
      * though it may query a secondary node for queries that are
      * intensive
      */
-    if (!mc->is_primary) {
-        /* unregister any db reads */
-        mc_unregister_and_free_ghost_dbs (mc->db_llist, 0);
-        return (0);
-    }
+    //if (!mc->is_primary) {
+    //    /* unregister any db reads */
+    //    mc_unregister_and_free_ghost_dbs (mc->db_llist, 0);
+    //    return (0);
+    //}
 
     if (setup_dbs () != 0)
         return (-1);
