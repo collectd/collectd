@@ -131,6 +131,7 @@ static int walk_counters(const char *dir, const char *counter, void *typesList)
 		return 1;
 	}
 	fread(counterValue, sizeof(char), sizeof(counterValue), counterFile);
+	fclose(counterFile);
 	if(parse_value(counterValue, &value, DS_TYPE_DERIVE) != -1) {
 		return 2;
 	}
@@ -157,7 +158,7 @@ static int walk_ports(const char *dir, const char *port, void *adapter)
 	llentry_t *valEntry;
 	int res;
 
-	ssnprintf(counterDir, sizeof(counterDir), "%s/%s/counters", dir, (char *)adapter);
+	ssnprintf(counterDir, sizeof(counterDir), "%s/%s/counters", dir, (char *)port);
 	res = walk_directory(counterDir, walk_counters, typesList, 0);
 
 	value_t values[2];
