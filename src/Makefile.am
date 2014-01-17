@@ -577,6 +577,17 @@ collectd_LDADD += "-dlopen" logfile.la
 collectd_DEPENDENCIES += logfile.la
 endif
 
+if BUILD_PLUGIN_LOG_LOGSTASH
+pkglib_LTLIBRARIES += log_logstash.la
+log_logstash_la_SOURCES = log_logstash.c
+log_logstash_la_CFLAGS = $(AM_CFLAGS)
+log_logstash_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBYAJL_LDFLAGS)
+log_logstash_la_CPPFLAGS = $(BUILD_WITH_LIBYAJL_CPPFLAGS)
+log_logstash_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
+collectd_LDADD += "-dlopen" log_logstash.la
+collectd_DEPENDENCIES += log_logstash.la
+endif
+
 if BUILD_PLUGIN_LPAR
 pkglib_LTLIBRARIES += lpar.la
 lpar_la_SOURCES = lpar.c

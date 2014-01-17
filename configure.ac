@@ -981,7 +981,7 @@ if test "x$fp_layout_type" = "xunknown"; then
 	uint8_t c[8];
 	double d;
 
-	d = 8.642135e130; 
+	d = 8.642135e130;
 	memcpy ((void *) &i0, (void *) &d, 8);
 
 	i1 = i0;
@@ -1036,7 +1036,7 @@ if test "x$fp_layout_type" = "xunknown"; then
 	uint8_t c[8];
 	double d;
 
-	d = 8.642135e130; 
+	d = 8.642135e130;
 	memcpy ((void *) &i0, (void *) &d, 8);
 
 	i1 = endianflip (i0);
@@ -1085,7 +1085,7 @@ if test "x$fp_layout_type" = "xunknown"; then
 	uint8_t c[8];
 	double d;
 
-	d = 8.642135e130; 
+	d = 8.642135e130;
 	memcpy ((void *) &i0, (void *) &d, 8);
 
 	i1 = intswap (i0);
@@ -1237,7 +1237,7 @@ AC_MSG_CHECKING([if have htonll defined])
       have_htonll="yes"
       AC_DEFINE(HAVE_HTONLL, 1, [Define if the function htonll exists.])
     ])
- 
+
 AC_MSG_RESULT([$have_htonll])
 
 # Check for structures
@@ -1380,7 +1380,7 @@ collectd additional packages:])
 
 AM_CONDITIONAL([BUILD_FREEBSD],[test "x$x$ac_system" = "xFreeBSD"])
 
-AM_CONDITIONAL([BUILD_AIX],[test "x$x$ac_system" = "xAIX"]) 
+AM_CONDITIONAL([BUILD_AIX],[test "x$x$ac_system" = "xAIX"])
 
 if test "x$ac_system" = "xAIX"
 then
@@ -2794,7 +2794,7 @@ then
 	else
 		SAVE_CPPFLAGS="$CPPFLAGS"
 		CPPFLAGS="$CPPFLAGS $with_snmp_cflags"
-		
+
 		AC_CHECK_HEADERS(net-snmp/net-snmp-config.h, [], [with_libnetsnmp="no (net-snmp/net-snmp-config.h not found)"])
 
 		CPPFLAGS="$SAVE_CPPFLAGS"
@@ -3021,7 +3021,7 @@ if test "x$with_libowcapi" = "xyes"
 then
 	SAVE_CPPFLAGS="$CPPFLAGS"
 	CPPFLAGS="$with_libowcapi_cppflags"
-	
+
 	AC_CHECK_HEADERS(owcapi.h, [with_libowcapi="yes"], [with_libowcapi="no (owcapi.h not found)"])
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
@@ -3032,7 +3032,7 @@ then
 	SAVE_CPPFLAGS="$CPPFLAGS"
 	LDFLAGS="$with_libowcapi_libs"
 	CPPFLAGS="$with_libowcapi_cppflags"
-	
+
 	AC_CHECK_LIB(owcapi, OW_get, [with_libowcapi="yes"], [with_libowcapi="no (libowcapi not found)"])
 
 	LDFLAGS="$SAVE_LDFLAGS"
@@ -4039,7 +4039,7 @@ CPPFLAGS="$SAVE_CPPFLAGS"
 LDFLAGS="$SAVE_LDFLAGS"
 
 if test "x$with_libtokyotyrant" = "xyes"
-then 
+then
   BUILD_WITH_LIBTOKYOTYRANT_CPPFLAGS="$with_libtokyotyrant_cppflags"
   BUILD_WITH_LIBTOKYOTYRANT_LDFLAGS="$with_libtokyotyrant_ldflags"
   BUILD_WITH_LIBTOKYOTYRANT_LIBS="$with_libtokyotyrant_libs"
@@ -4806,6 +4806,7 @@ plugin_ipvs="no"
 plugin_irq="no"
 plugin_libvirt="no"
 plugin_load="no"
+plugin_log_logstash="no"
 plugin_memory="no"
 plugin_multimeter="no"
 plugin_nfs="no"
@@ -5036,6 +5037,11 @@ then
 	plugin_load="yes"
 fi
 
+if test "x$with_libyajl" = "xyes"
+then
+	plugin_log_logstash="yes"
+fi
+
 if test "x$c_cv_have_libperl$c_cv_have_perl_ithreads" = "xyesyes"
 then
 	plugin_perl="yes"
@@ -5146,6 +5152,7 @@ AC_PLUGIN([java],        [$with_java],         [Embed the Java Virtual Machine])
 AC_PLUGIN([libvirt],     [$plugin_libvirt],    [Virtual machine statistics])
 AC_PLUGIN([load],        [$plugin_load],       [System load])
 AC_PLUGIN([logfile],     [yes],                [File logging plugin])
+AC_PLUGIN([log_logstash], [$plugin_log_logstash], [Logstash json_event compatible logging])
 AC_PLUGIN([lpar],        [$with_perfstat],     [AIX logical partitions statistics])
 AC_PLUGIN([lvm],         [$with_liblvm2app],   [LVM statistics])
 AC_PLUGIN([madwifi],     [$have_linux_wireless_h], [Madwifi wireless statistics])
@@ -5492,6 +5499,7 @@ Configuration:
     load  . . . . . . . . $enable_load
     logfile . . . . . . . $enable_logfile
     lpar  . . . . . . . . $enable_lpar
+    log_logstash ........ $enable_log_logstash
     lvm . . . . . . . . . $enable_lvm
     madwifi . . . . . . . $enable_madwifi
     match_empty_counter . $enable_match_empty_counter
