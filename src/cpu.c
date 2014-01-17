@@ -1,9 +1,9 @@
 /**
  * collectd - src/cpu.c
  * Copyright (C) 2005-2010  Florian octo Forster
- * Copyright (C) 2008       Oleg King
- * Copyright (C) 2009       Simon Kuhnle
- * Copyright (C) 2009       Manuel Sanmartin
+ * Copyright (C) 2008	    Oleg King
+ * Copyright (C) 2009	    Simon Kuhnle
+ * Copyright (C) 2009	    Manuel Sanmartin
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -11,7 +11,7 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the GNU
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -132,8 +132,8 @@ static mach_msg_type_number_t cpu_list_len;
 
 #if PROCESSOR_TEMPERATURE
 static int cpu_temp_retry_counter = 0;
-static int cpu_temp_retry_step    = 1;
-static int cpu_temp_retry_max     = 1;
+static int cpu_temp_retry_step	  = 1;
+static int cpu_temp_retry_max	  = 1;
 #endif /* PROCESSOR_TEMPERATURE */
 /* #endif PROCESSOR_CPU_LOAD_INFO */
 
@@ -186,7 +186,7 @@ static _Bool report_active = 0;
 static const char *config_keys[] =
 {
 	"ReportByCpu",
-        "ReportActive",
+	"ReportActive",
 	"ValuesPercentage"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
@@ -199,10 +199,13 @@ static int cpu_config (const char *key, const char *value)
 		if (!report_by_cpu)
 			report_percent = 1;
 	}
-	if (strcasecmp (key, "ValuesPercentage") == 0)
+	if (strcasecmp (key, "ValuesPercentage") == 0) {
 		report_percent = IS_TRUE (value) ? 1 : 0;
-        if (strcasecmp (key, "ReportActive") == 0)
-                report_active = IS_TRUE (value) ? 1 : 0;
+		if (!report_percent)
+			report_by_cpu = 1;
+	}
+	if (strcasecmp (key, "ReportActive") == 0)
+		report_active = IS_TRUE (value) ? 1 : 0;
 	return (-1);
 }
 
@@ -348,10 +351,10 @@ static void submit_value (int cpu_num, int cpu_state, const char *type, value_t 
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-        memcpy(&values[0], &value, sizeof(value));
+	memcpy(&values[0], &value, sizeof(value));
 
-        vl.values = values;
-        vl.values_len = 1;
+	vl.values = values;
+	vl.values_len = 1;
 
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "cpu", sizeof (vl.plugin));
@@ -368,37 +371,37 @@ static void submit_value (int cpu_num, int cpu_state, const char *type, value_t 
 
 static void submit_percent(int cpu_num, int cpu_state, gauge_t percent)
 {
-        value_t value;
+	value_t value;
 
-        value.gauge = percent;
-        submit_value (cpu_num, cpu_state, "percent", value);
+	value.gauge = percent;
+	submit_value (cpu_num, cpu_state, "percent", value);
 }
 
 static void submit_derive(int cpu_num, int cpu_state, derive_t derive)
 {
-        value_t value;
+	value_t value;
 
-        value.derive = derive;
-        submit_value (cpu_num, cpu_state, "cpu", value);
+	value.derive = derive;
+	submit_value (cpu_num, cpu_state, "cpu", value);
 }
 
 static void submit_flush (void)
 {
-        int i = 0;
+	int i = 0;
 
-        if (report_by_cpu) {
+	if (report_by_cpu) {
 		cpu_count = 0;
 		return;
 	}
 
-        for (i = 0; i < CPU_SUBMIT_MAX; i++) {
+	for (i = 0; i < CPU_SUBMIT_MAX; i++) {
 		if (agg_percents[i] == -1)
 			continue;
 
 		submit_percent(-1, i, agg_percents[i] / cpu_count);
 		agg_percents[i] = -1;
-        }
-        cpu_count = 0;
+	}
+	cpu_count = 0;
 }
 
 static void submit (int cpu_num, derive_t *derives)
@@ -418,8 +421,8 @@ static void submit (int cpu_num, derive_t *derives)
 
 			submit_derive(cpu_num, i, derives[i]);
 		}
-                if (report_active)
-                        submit_derive(cpu_num, CPU_SUBMIT_ACTIVE, cpu_active);
+		if (report_active)
+			submit_derive(cpu_num, CPU_SUBMIT_ACTIVE, cpu_active);
 	}
 	else /* we are reporting percents */
 	{
@@ -488,11 +491,11 @@ static int cpu_read (void)
 
 #if PROCESSOR_CPU_LOAD_INFO
 	processor_cpu_load_info_data_t cpu_info;
-	mach_msg_type_number_t         cpu_info_len;
+	mach_msg_type_number_t	       cpu_info_len;
 #endif
 #if PROCESSOR_TEMPERATURE
-	processor_info_data_t          cpu_temp;
-	mach_msg_type_number_t         cpu_temp_len;
+	processor_info_data_t	       cpu_temp;
+	mach_msg_type_number_t	       cpu_temp_len;
 #endif
 
 	host_t cpu_host;
@@ -500,9 +503,9 @@ static int cpu_read (void)
 	for (cpu = 0; cpu < cpu_list_len; cpu++)
 	{
 #if PROCESSOR_CPU_LOAD_INFO
-                derive_t derives[CPU_SUBMIT_MAX] = {
-                        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
-                };
+		derive_t derives[CPU_SUBMIT_MAX] = {
+			-1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+		};
 		memset(derives, -1, sizeof(derives));
 		cpu_host = 0;
 		cpu_info_len = PROCESSOR_BASIC_INFO_COUNT;
@@ -563,7 +566,7 @@ static int cpu_read (void)
 		if (cpu_temp_len != 1)
 		{
 			DEBUG ("processor_info (PROCESSOR_TEMPERATURE) returned %i elements..?",
-				       	(int) cpu_temp_len);
+					(int) cpu_temp_len);
 			continue;
 		}
 
@@ -571,7 +574,7 @@ static int cpu_read (void)
 		cpu_temp_retry_step    = 1;
 #endif /* PROCESSOR_TEMPERATURE */
 	}
-        submit_flush ();
+	submit_flush ();
 /* #endif PROCESSOR_CPU_LOAD_INFO */
 
 #elif defined(KERNEL_LINUX)
@@ -592,9 +595,9 @@ static int cpu_read (void)
 
 	while (fgets (buf, 1024, fh) != NULL)
 	{
-                derive_t derives[CPU_SUBMIT_MAX] = {
-                        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
-                };
+		derive_t derives[CPU_SUBMIT_MAX] = {
+			-1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+		};
 
 		if (strncmp (buf, "cpu", 3))
 			continue;
@@ -622,7 +625,7 @@ static int cpu_read (void)
 		}
 		submit(cpu, derives);
 	}
-        submit_flush();
+	submit_flush();
 
 	fclose (fh);
 /* #endif defined(KERNEL_LINUX) */
@@ -636,9 +639,9 @@ static int cpu_read (void)
 
 	for (cpu = 0; cpu < numcpu; cpu++)
 	{
-                derive_t derives[CPU_SUBMIT_MAX] = {
-                        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
-                };
+		derive_t derives[CPU_SUBMIT_MAX] = {
+			-1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+		};
 
 		if (kstat_read (kc, ksp[cpu], &cs) == -1)
 			continue; /* error message? */
@@ -650,7 +653,7 @@ static int cpu_read (void)
 		derives[CPU_SUBMIT_WAIT] = cs.cpu_sysinfo.cpu[CPU_WAIT];
 		submit (ksp[cpu]->ks_instance, derives);
 	}
-        submit_flush ();
+	submit_flush ();
 /* #endif defined(HAVE_LIBKSTAT) */
 
 #elif CAN_USE_SYSCTL
@@ -709,9 +712,9 @@ static int cpu_read (void)
 	}
 
 	for (i = 0; i < numcpu; i++) {
-                derive_t derives[CPU_SUBMIT_MAX] = {
-                        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
-                };
+		derive_t derives[CPU_SUBMIT_MAX] = {
+			-1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+		};
 
 		derives[CPU_SUBMIT_USER] = cpuinfo[i][CP_USER];
 		derives[CPU_SUBMIT_NICE] = cpuinfo[i][CP_NICE];
@@ -720,7 +723,7 @@ static int cpu_read (void)
 		derives[CPU_SUBMIT_INTERRUPT] = cpuinfo[i][CP_INTR];
 		submit(i, derives);
 	}
-        submit_flush();
+	submit_flush();
 /* #endif CAN_USE_SYSCTL */
 #elif defined(HAVE_SYSCTLBYNAME) && defined(HAVE_SYSCTL_KERN_CP_TIMES)
 	long cpuinfo[maxcpu][CPUSTATES];
@@ -739,26 +742,26 @@ static int cpu_read (void)
 	}
 
 	for (i = 0; i < numcpu; i++) {
-                derive_t derives[CPU_SUBMIT_MAX] = {
-                        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
-                };
+		derive_t derives[CPU_SUBMIT_MAX] = {
+			-1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+		};
 
 		derives[CPU_SUBMIT_USER] = cpuinfo[i][CP_USER];
 		derives[CPU_SUBMIT_NICE] = cpuinfo[i][CP_NICE];
 		derives[CPU_SUBMIT_SYSTEM] = cpuinfo[i][CP_SYS];
 		derives[CPU_SUBMIT_IDLE] = cpuinfo[i][CP_IDLE];
 		derives[CPU_SUBMIT_INTERRUPT] = cpuinfo[i][CP_INTR];
-                submit(i, derives);
+		submit(i, derives);
 	}
-        submit_flush();
+	submit_flush();
 
 /* #endif HAVE_SYSCTL_KERN_CP_TIMES */
 #elif defined(HAVE_SYSCTLBYNAME)
 	long cpuinfo[CPUSTATES];
 	size_t cpuinfo_size;
-        derive_t derives[CPU_SUBMIT_MAX] = {
-                -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
-        };
+	derive_t derives[CPU_SUBMIT_MAX] = {
+		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+	};
 
 	cpuinfo_size = sizeof (cpuinfo);
 
@@ -770,21 +773,21 @@ static int cpu_read (void)
 		return (-1);
 	}
 
-        derives[CPU_SUBMIT_USER] = cpuinfo[CP_USER];
-        derives[CPU_SUBMIT_SYSTEM] = cpuinfo[CP_SYS];
-        derives[CPU_SUBMIT_NICE] = cpuinfo[CP_NICE];
-        derives[CPU_SUBMIT_IDLE] = cpuinfo[CP_IDLE];
-        derives[CPU_SUBMIT_INTERRUPT] = cpuinfo[CP_INTR];
+	derives[CPU_SUBMIT_USER] = cpuinfo[CP_USER];
+	derives[CPU_SUBMIT_SYSTEM] = cpuinfo[CP_SYS];
+	derives[CPU_SUBMIT_NICE] = cpuinfo[CP_NICE];
+	derives[CPU_SUBMIT_IDLE] = cpuinfo[CP_IDLE];
+	derives[CPU_SUBMIT_INTERRUPT] = cpuinfo[CP_INTR];
 	submit(0, derives);
-        submit_flush();
+	submit_flush();
 
 /* #endif HAVE_SYSCTLBYNAME */
 
 #elif defined(HAVE_LIBSTATGRAB)
 	sg_cpu_stats *cs;
-        derive_t derives[CPU_SUBMIT_MAX] = {
-                -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
-        };
+	derive_t derives[CPU_SUBMIT_MAX] = {
+		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+	};
 	cs = sg_get_cpu_stats ();
 
 	if (cs == NULL)
@@ -799,8 +802,8 @@ static int cpu_read (void)
 	derives[CPU_SUBMIT_SYSTEM] = (derive_t) cs->kernel;
 	derives[CPU_SUBMIT_USER] = (derive_t) cs->user;
 	derives[CPU_SUBMIT_WAIT] = (derive_t) cs->iowait;
-        submit(0, derives);
-        submit_flush();
+	submit(0, derives);
+	submit_flush();
 /* #endif HAVE_LIBSTATGRAB */
 
 #elif defined(HAVE_PERFSTAT)
@@ -835,16 +838,16 @@ static int cpu_read (void)
 
 	for (i = 0; i < cpus; i++)
 	{
-                derive_t derives[CPU_SUBMIT_MAX] = {
-                        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
-                };
+		derive_t derives[CPU_SUBMIT_MAX] = {
+			-1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+		};
 		derives[CPU_SUBMIT_IDLE] = perfcpu[i].idle;
 		derives[CPU_SUBMIT_SYSTEM] = perfcpu[i].sys;
 		derives[CPU_SUBMIT_USER] = perfcpu[i].user;
 		derives[CPU_SUBMIT_WAIT] = perfcpu[i].wait;
-                submit(i, derives);
+		submit(i, derives);
 	}
-        submit_flush();
+	submit_flush();
 #endif /* HAVE_PERFSTAT */
 
 	return (0);
