@@ -3,6 +3,7 @@
  * Copyright (C) 2007-2010  Florian Forster
  * Copyright (C) 2008-2009  Sebastian Harl
  * Copyright (C) 2009       Andrés J. Díaz
+ * Copyright (C) 2014       Pierre-Yves Ritschard
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -18,6 +19,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Author:
+ *   Pierre-Yves Ritschard <pyr at spootnik.org>
  *   Florian octo Forster <octo at collectd.org>
  *   Sebastian Harl <sh at tokkee.org>
  *   Andrés J. Díaz <ajdiaz at connectical.com>
@@ -171,7 +173,7 @@ static int ut_threshold_add (const threshold_t *th)
   return (status);
 } /* }}} int ut_threshold_add */
 
-/* 
+/*
  * threshold_t *threshold_search
  *
  * Searches for a threshold configuration using all the possible variations of
@@ -521,195 +523,6 @@ static int ut_config_host (const threshold_t *th_orig, oconfig_item_t *ci)
 /* }}} */
 
 /*
- * int ut_report_state
- *
- * Checks if the `state' differs from the old state and creates a notification
- * if appropriate.
- * Does not fail.
- */
-static int ut_report_state (const data_set_t *ds,
-    const value_list_t *vl,
-    const threshold_t *th,
-    const gauge_t *values,
-    int ds_index,
-    int state)
-{ /* {{{ */
-  int state_old;
-  notification_t n;
-
-  char *buf;
-  size_t bufsize;
-
-  int status;
-
-  /* Check if hits matched */
-  if ( (th->hits != 0) )
-  {
-    int hits = uc_get_hits(ds,vl);
-    /* STATE_OKAY resets hits unless PERSIST_OK flag is set. Hits resets if
-     * threshold is hit. */
-    if ( ( (state == STATE_OKAY) && ((th->flags & UT_FLAG_PERSIST_OK) == 0) ) || (hits > th->hits) )
-    {
-        DEBUG("ut_report_state: reset uc_get_hits = 0");
-        uc_set_hits(ds,vl,0); /* reset hit counter and notify */
-    } else {
-      DEBUG("ut_report_state: th->hits = %d, uc_get_hits = %d",th->hits,uc_get_hits(ds,vl));
-      (void) uc_inc_hits(ds,vl,1); /* increase hit counter */
-      return (0);
-    }
-  } /* end check hits */
-
-  state_old = uc_get_state (ds, vl);
-
-  /* If the state didn't change, report if `persistent' is specified. If the
-   * state is `okay', then only report if `persist_ok` flag is set. */
-  if (state == state_old)
-  {
-    if ((th->flags & UT_FLAG_PERSIST) == 0)
-      return (0);
-    else if ( (state == STATE_OKAY) && ((th->flags & UT_FLAG_PERSIST_OK) == 0) )
-      return (0);
-  }
-
-  if (state != state_old)
-    uc_set_state (ds, vl, state);
-
-  NOTIFICATION_INIT_VL (&n, vl);
-
-  buf = n.message;
-  bufsize = sizeof (n.message);
-
-  if (state == STATE_OKAY)
-    n.severity = NOTIF_OKAY;
-  else if (state == STATE_WARNING)
-    n.severity = NOTIF_WARNING;
-  else
-    n.severity = NOTIF_FAILURE;
-
-  n.time = vl->time;
-
-  status = ssnprintf (buf, bufsize, "Host %s, plugin %s",
-      vl->host, vl->plugin);
-  buf += status;
-  bufsize -= status;
-
-  if (vl->plugin_instance[0] != '\0')
-  {
-    status = ssnprintf (buf, bufsize, " (instance %s)",
-	vl->plugin_instance);
-    buf += status;
-    bufsize -= status;
-  }
-
-  status = ssnprintf (buf, bufsize, " type %s", vl->type);
-  buf += status;
-  bufsize -= status;
-
-  if (vl->type_instance[0] != '\0')
-  {
-    status = ssnprintf (buf, bufsize, " (instance %s)",
-	vl->type_instance);
-    buf += status;
-    bufsize -= status;
-  }
-
-  plugin_notification_meta_add_string (&n, "DataSource",
-      ds->ds[ds_index].name);
-  plugin_notification_meta_add_double (&n, "CurrentValue", values[ds_index]);
-  plugin_notification_meta_add_double (&n, "WarningMin", th->warning_min);
-  plugin_notification_meta_add_double (&n, "WarningMax", th->warning_max);
-  plugin_notification_meta_add_double (&n, "FailureMin", th->failure_min);
-  plugin_notification_meta_add_double (&n, "FailureMax", th->failure_max);
-
-  /* Send an okay notification */
-  if (state == STATE_OKAY)
-  {
-    if (state_old == STATE_MISSING)
-      status = ssnprintf (buf, bufsize,
-          ": Value is no longer missing.");
-    else
-      status = ssnprintf (buf, bufsize,
-          ": All data sources are within range again.");
-    buf += status;
-    bufsize -= status;
-  }
-  else
-  {
-    double min;
-    double max;
-
-    min = (state == STATE_ERROR) ? th->failure_min : th->warning_min;
-    max = (state == STATE_ERROR) ? th->failure_max : th->warning_max;
-
-    if (th->flags & UT_FLAG_INVERT)
-    {
-      if (!isnan (min) && !isnan (max))
-      {
-        status = ssnprintf (buf, bufsize, ": Data source \"%s\" is currently "
-            "%f. That is within the %s region of %f%s and %f%s.",
-            ds->ds[ds_index].name, values[ds_index],
-            (state == STATE_ERROR) ? "failure" : "warning",
-            min, ((th->flags & UT_FLAG_PERCENTAGE) != 0) ? "%" : "",
-            max, ((th->flags & UT_FLAG_PERCENTAGE) != 0) ? "%" : "");
-      }
-      else
-      {
-	status = ssnprintf (buf, bufsize, ": Data source \"%s\" is currently "
-	    "%f. That is %s the %s threshold of %f%s.",
-	    ds->ds[ds_index].name, values[ds_index],
-	    isnan (min) ? "below" : "above",
-	    (state == STATE_ERROR) ? "failure" : "warning",
-	    isnan (min) ? max : min,
-	    ((th->flags & UT_FLAG_PERCENTAGE) != 0) ? "%" : "");
-      }
-    }
-    else if (th->flags & UT_FLAG_PERCENTAGE)
-    {
-      gauge_t value;
-      gauge_t sum;
-      int i;
-
-      sum = 0.0;
-      for (i = 0; i < vl->values_len; i++)
-      {
-        if (isnan (values[i]))
-          continue;
-
-        sum += values[i];
-      }
-
-      if (sum == 0.0)
-        value = NAN;
-      else
-        value = 100.0 * values[ds_index] / sum;
-
-      status = ssnprintf (buf, bufsize, ": Data source \"%s\" is currently "
-          "%g (%.2f%%). That is %s the %s threshold of %.2f%%.",
-          ds->ds[ds_index].name, values[ds_index], value,
-          (value < min) ? "below" : "above",
-          (state == STATE_ERROR) ? "failure" : "warning",
-          (value < min) ? min : max);
-    }
-    else /* is not inverted */
-    {
-      status = ssnprintf (buf, bufsize, ": Data source \"%s\" is currently "
-	  "%f. That is %s the %s threshold of %f.",
-	  ds->ds[ds_index].name, values[ds_index],
-	  (values[ds_index] < min) ? "below" : "above",
-	  (state == STATE_ERROR) ? "failure" : "warning",
-	  (values[ds_index] < min) ? min : max);
-    }
-    buf += status;
-    bufsize -= status;
-  }
-
-  plugin_dispatch_notification (&n);
-
-  plugin_notification_meta_free (n.meta);
-  return (0);
-} /* }}} int ut_report_state */
-
-/*
  * int ut_check_one_data_source
  *
  * Checks one data source against the given threshold configuration. If the
@@ -796,11 +609,11 @@ static int ut_check_one_threshold (const data_set_t *ds,
     const value_list_t *vl,
     const threshold_t *th,
     const gauge_t *values,
-    int *ret_ds_index)
+    int *statuses)
 { /* {{{ */
   int ret = -1;
-  int ds_index = -1;
   int i;
+  int status;
   gauge_t values_copy[ds->ds_num];
 
   memcpy (values_copy, values, sizeof (values_copy));
@@ -841,18 +654,13 @@ static int ut_check_one_threshold (const data_set_t *ds,
 
   for (i = 0; i < ds->ds_num; i++)
   {
-    int status;
-
     status = ut_check_one_data_source (ds, vl, th, values_copy, i);
-    if (ret < status)
-    {
-      ret = status;
-      ds_index = i;
+    if (status != -1) {
+	    ret = 0;
+	    if (statuses[i] < status)
+		    statuses[i] = status;
     }
   } /* for (ds->ds_num) */
-
-  if (ret_ds_index != NULL)
-    *ret_ds_index = ds_index;
 
   return (ret);
 } /* }}} int ut_check_one_threshold */
@@ -862,23 +670,22 @@ static int ut_check_one_threshold (const data_set_t *ds,
  *
  * Gets a list of matching thresholds and searches for the worst status by one
  * of the thresholds. Then reports that status using the ut_report_state
- * function above. 
+ * function above.
  * Returns zero on success and if no threshold has been configured. Returns
  * less than zero on failure.
  */
-static int ut_check_threshold (const data_set_t *ds, const value_list_t *vl,
-    __attribute__((unused)) user_data_t *ud)
+int write_riemann_threshold_check (const data_set_t *ds, const value_list_t *vl,
+				   int *statuses)
 { /* {{{ */
   threshold_t *th;
   gauge_t *values;
   int status;
 
-  int worst_state = -1;
-  threshold_t *worst_th = NULL;
-  int worst_ds_index = -1;
+  memset(statuses, 0, vl->values_len * sizeof(*statuses));
+
 
   if (threshold_tree == NULL)
-    return (0);
+	  return 0;
 
   /* Is this lock really necessary? So far, thresholds are only inserted at
    * startup. -octo */
@@ -886,19 +693,17 @@ static int ut_check_threshold (const data_set_t *ds, const value_list_t *vl,
   th = threshold_search (vl);
   pthread_mutex_unlock (&threshold_lock);
   if (th == NULL)
-    return (0);
+	  return (0);
 
   DEBUG ("ut_check_threshold: Found matching threshold(s)");
 
   values = uc_get_rate (ds, vl);
   if (values == NULL)
-    return (0);
+	  return (0);
 
   while (th != NULL)
   {
-    int ds_index = -1;
-
-    status = ut_check_one_threshold (ds, vl, th, values, &ds_index);
+    status = ut_check_one_threshold (ds, vl, th, values, statuses);
     if (status < 0)
     {
       ERROR ("ut_check_threshold: ut_check_one_threshold failed.");
@@ -906,63 +711,13 @@ static int ut_check_threshold (const data_set_t *ds, const value_list_t *vl,
       return (-1);
     }
 
-    if (worst_state < status)
-    {
-      worst_state = status;
-      worst_th = th;
-      worst_ds_index = ds_index;
-    }
-
     th = th->next;
   } /* while (th) */
-
-  status = ut_report_state (ds, vl, worst_th, values,
-      worst_ds_index, worst_state);
-  if (status != 0)
-  {
-    ERROR ("ut_check_threshold: ut_report_state failed.");
-    sfree (values);
-    return (-1);
-  }
 
   sfree (values);
 
   return (0);
 } /* }}} int ut_check_threshold */
-
-/*
- * int ut_missing
- *
- * This function is called whenever a value goes "missing".
- */
-static int ut_missing (const value_list_t *vl,
-    __attribute__((unused)) user_data_t *ud)
-{ /* {{{ */
-  threshold_t *th;
-  cdtime_t missing_time;
-  char identifier[6 * DATA_MAX_NAME_LEN];
-  notification_t n;
-
-  if (threshold_tree == NULL)
-    return (0);
-
-  th = threshold_search (vl);
-  /* dispatch notifications for "interesting" values only */
-  if ((th == NULL) || ((th->flags & UT_FLAG_INTERESTING) == 0))
-    return (0);
-
-  missing_time = cdtime () - vl->time;
-  FORMAT_VL (identifier, sizeof (identifier), vl);
-
-  NOTIFICATION_INIT_VL (&n, vl);
-  ssnprintf (n.message, sizeof (n.message),
-      "%s has not been updated for %.3f seconds.",
-      identifier, CDTIME_T_TO_DOUBLE (missing_time));
-
-  plugin_dispatch_notification (&n);
-
-  return (0);
-} /* }}} int ut_missing */
 
 int write_riemann_threshold_config (oconfig_item_t *ci)
 { /* {{{ */
@@ -990,7 +745,7 @@ int write_riemann_threshold_config (oconfig_item_t *ci)
   th.hits = 0;
   th.hysteresis = 0;
   th.flags = UT_FLAG_INTERESTING; /* interesting by default */
-    
+
   for (i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
@@ -1010,13 +765,6 @@ int write_riemann_threshold_config (oconfig_item_t *ci)
 
     if (status != 0)
       break;
-  }
-
-  if (c_avl_size (threshold_tree) > 0) {
-    plugin_register_missing ("threshold", ut_missing,
-        /* user data = */ NULL);
-    plugin_register_write ("threshold", ut_check_threshold,
-        /* user data = */ NULL);
   }
 
   return (status);

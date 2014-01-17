@@ -39,6 +39,9 @@
 #define RIEMANN_PORT		"5555"
 #define RIEMANN_TTL_FACTOR      2.0
 
+int write_riemann_threshold_check(const data_set_t *, const value_list_t *, int *);
+int write_riemann_threshold_config(oconfig_item_t *);
+
 struct riemann_host {
 	char			*name;
 #define F_CONNECT		 0x01
@@ -450,7 +453,8 @@ static Msg *riemann_notification_to_protobuf (struct riemann_host *host, /* {{{ 
 static Event *riemann_value_to_protobuf (struct riemann_host const *host, /* {{{ */
 		data_set_t const *ds,
 		value_list_t const *vl, size_t index,
-		gauge_t const *rates)
+					 gauge_t const *rates,
+					 int status)
 {
 	Event *event;
 	char name_buffer[5 * DATA_MAX_NAME_LEN];
@@ -470,6 +474,21 @@ static Event *riemann_value_to_protobuf (struct riemann_host const *host, /* {{{
 	event->host = strdup (vl->host);
 	event->time = CDTIME_T_TO_TIME_T (vl->time);
 	event->has_time = 1;
+
+	switch (status) {
+	case STATE_OKAY:
+		event->state = strdup("ok");
+		break;
+	case STATE_ERROR:
+		event->state = strdup("critical");
+		break;
+	case STATE_WARNING:
+		event->state = strdup("warning");
+		break;
+	case STATE_MISSING:
+		event->state = strdup("unknown");
+		break;
+	}
 
 	ttl = CDTIME_T_TO_DOUBLE (vl->interval) * host->ttl_factor;
 	event->ttl = (float) ttl;
@@ -554,8 +573,9 @@ static Event *riemann_value_to_protobuf (struct riemann_host const *host, /* {{{
 } /* }}} Event *riemann_value_to_protobuf */
 
 static Msg *riemann_value_list_to_protobuf (struct riemann_host const *host, /* {{{ */
-		data_set_t const *ds,
-		value_list_t const *vl)
+					    data_set_t const *ds,
+					    value_list_t const *vl,
+					    int *statuses)
 {
 	Msg *msg;
 	size_t i;
@@ -595,7 +615,7 @@ static Msg *riemann_value_list_to_protobuf (struct riemann_host const *host, /* 
 	for (i = 0; i < msg->n_events; i++)
 	{
 		msg->events[i] = riemann_value_to_protobuf (host, ds, vl,
-				(int) i, rates);
+							    (int) i, rates, statuses[i]);
 		if (msg->events[i] == NULL)
 		{
 			riemann_msg_protobuf_free (msg);
@@ -632,10 +652,12 @@ static int riemann_write(const data_set_t *ds, /* {{{ */
 	      user_data_t *ud)
 {
 	int			 status;
+	int			 statuses[vl->values_len];
 	struct riemann_host	*host = ud->data;
 	Msg			*msg;
 
-	msg = riemann_value_list_to_protobuf (host, ds, vl);
+	write_riemann_threshold_check(ds, vl, statuses);
+	msg = riemann_value_list_to_protobuf (host, ds, vl, statuses);
 	if (msg == NULL)
 		return (-1);
 
@@ -710,6 +732,10 @@ static int riemann_config_node(oconfig_item_t *ci) /* {{{ */
 
 		if (strcasecmp ("Host", child->key) == 0) {
 			status = cf_util_get_string (child, &host->node);
+			if (status != 0)
+				break;
+		} else if (strcasecmp ("Threshold", child->key) == 0) {
+			status = write_riemann_threshold_config(child);
 			if (status != 0)
 				break;
 		} else if (strcasecmp ("Port", child->key) == 0) {
