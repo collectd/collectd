@@ -118,38 +118,32 @@ static char *counterMap[][3] = {
 
 static int walk_counters(const char *dir, const char *counter, void *typesList)
 {
-	FILE *counterFile;
 	char counterFileName[256];
 	char counterValue[256];
-	value_t value;
+	value_t *value;
 	llentry_t *cur;
 	llist_t *typeInstanceList;
 	int i;
-	int fsize;
 
 	ssnprintf(counterFileName, sizeof(counterFileName), "%s/%s", dir, counter);
-	if((counterFile = fopen(counterFileName, "r")) == NULL) {
-		return 1;
-	}
-	fseek(counterFile, 0, SEEK_END);
-	fsize = ftell(counterFile);
-	frewind(counterFile);
-	fread(counterValue, sizeof(char), sizeof(counterValue) < fsize ? sizeof(counterValue) : fsize, counterFile);
-	fclose(counterFile);
-	if(parse_value(counterValue, &value, DS_TYPE_DERIVE) != -1) {
+	read_file_contents(counterFileName, counterValue, sizeof(counterValue));
+	value = (value_t *)malloc(sizeof(value_t));
+	if(parse_value(counterValue, value, DS_TYPE_DERIVE) == -1) {
+		free(value);
 		return 2;
 	}
 	for(i=0; i < sizeof(counterMap)/3/sizeof(char *); i++) {
-		if(! strcmp(counterMap[i][0], counterFileName)) {
-			if((cur = llist_search(typesList, counterMap[i][0])) == NULL) {
+		if(! strcmp(counterMap[i][0], counter)) {
+			if((cur = llist_search(typesList, counterMap[i][1])) == NULL) {
 				typeInstanceList = llist_create();
 				cur = llentry_create(counterMap[i][1], (void *)typeInstanceList);
-				llist_append(typeInstanceList, cur);
+				llist_append(typesList, cur);
 			} else {
 				typeInstanceList = (llist_t *)cur->value;
 			}
-			cur = llentry_create(counterMap[i][2], (void *)counterValue);
+			cur = llentry_create(counterMap[i][2], (void *)value);
 			llist_append(typeInstanceList, cur);
+			break;
 		}
 	}
 	return 0;
@@ -161,6 +155,7 @@ static int walk_ports(const char *dir, const char *port, void *adapter)
 	llist_t *typesList = llist_create();
 	llentry_t *valEntry;
 	int res;
+	value_t *value;
 
 	ssnprintf(counterDir, sizeof(counterDir), "%s/%s/counters", dir, (char *)port);
 	res = walk_directory(counterDir, walk_counters, typesList, 0);
@@ -176,10 +171,16 @@ static int walk_ports(const char *dir, const char *port, void *adapter)
 		strncpy(vl.type, valEntry->key, sizeof(vl.type));
 		vl.values_len = llist_size((llist_t *)valEntry->value);
 		if(vl.values_len == 2) {
-			values[0].derive = (derive_t)llist_search(valEntry->value, "tx")->value;
-			values[1].derive = (derive_t)llist_search(valEntry->value, "rx")->value;
+			value = (value_t *)llist_search(valEntry->value, "tx")->value;
+			values[0].derive = value->derive;
+			free(value);
+			value = (value_t *)llist_search(valEntry->value, "rx")->value;
+			values[1].derive = value->derive;
+			free(value);
 		} else {
-			values[0].derive = (derive_t)llist_head(valEntry->value)->value;
+			value = (value_t *)llist_head(valEntry->value)->value;
+			values[0].derive = value->derive;
+			free(value);
 		}
 		plugin_dispatch_values(&vl);
 	}
