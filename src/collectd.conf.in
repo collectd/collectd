@@ -539,6 +539,11 @@
 #	</Instance>
 #</Plugin>
 
+#<Plugin memory>
+#	ValuesAbsolute true
+#	ValuesPercentage false
+#</Plugin>
+
 #<Plugin modbus>
 #	<Data "data_name">
 #		RegisterBase 1234
@@ -976,6 +981,8 @@
 #<Plugin "swap">
 #	ReportByDevice false
 #	ReportBytes true
+#	ValuesAbsolute true
+#	ValuesPercentage false
 #</Plugin>
 
 #<Plugin "table">
