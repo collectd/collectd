@@ -23,70 +23,35 @@
 #include "plugin.h"
 #include "common.h"
 #include "utils_llist.h"
+#include "utils_ignorelist.h"
 
-/*
-static int const therm_ids[] = {
-	eMicThermalDie, eMicThermalDevMem, eMicThermalFin, eMicThermalFout,
-	eMicThermalVccp, eMicThermalVddg, eMicThermalVddq };
-static char const * const therm_names[] = {
-	"die", "devmem", "fin", "fout",
-	"vccp", "vddg", "vddq" };
+#define SYSFSDIR "/sys/class/infiniband/"
 
 static const char *config_keys[] =
 {
 	"Ports",
+	"IgnoreSelectedPorts"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
-static int mic_config (const char *key, const char *value) {
-	if (temp_ignore == NULL)
-		temp_ignore = ignorelist_create(1);
+static ignorelist_t *ports_ignore = NULL;
+
+static int infiniband_config (const char *key, const char *value) {
+	if (ports_ignore == NULL)
+		ports_ignore = ignorelist_create(1);
 	if (power_ignore == NULL)
-		power_ignore = ignorelist_create(1);
-	if (temp_ignore == NULL || power_ignore == NULL)
 		return (1);
 
-	if (strcasecmp("ShowCPU",key) == 0)
+	if (strcasecmp("Ports",key) == 0)
 	{
-		show_cpu = IS_TRUE(value);
+		ignorelist_add(ports_ignore,value);
 	}
-	else if (strcasecmp("ShowCPUCores",key) == 0)
-	{
-		show_cpu_cores = IS_TRUE(value);
-	}
-	else if (strcasecmp("ShowTemperatures",key) == 0)
-	{
-		show_temps = IS_TRUE(value);
-	}
-	else if (strcasecmp("ShowMemory",key) == 0)
-	{
-		show_memory = IS_TRUE(value);
-	}
-	else if (strcasecmp("ShowPower",key) == 0)
-	{
-		show_power = IS_TRUE(value);
-	}
-	else if (strcasecmp("Temperature",key) == 0)
-	{
-		ignorelist_add(temp_ignore,value);
-	}
-	else if (strcasecmp("IgnoreSelectedTemperature",key) == 0)
+	else if (strcasecmp("IgnoreSelectedPorts",key) == 0)
 	{
 		int invert = 1;
 		if (IS_TRUE(value))
 			invert = 0;
-		ignorelist_set_invert(temp_ignore,invert);
-	}
-	else if (strcasecmp("Power",key) == 0)
-	{
-		ignorelist_add(power_ignore,value);
-	}
-	else if (strcasecmp("IgnoreSelectedPower",key) == 0)
-	{
-		int invert = 1;
-		if (IS_TRUE(value))
-			invert = 0;
-		ignorelist_set_invert(power_ignore,invert);
+		ignorelist_set_invert(ports_ignore,invert);
 	}
 	else
 	{
@@ -94,7 +59,6 @@ static int mic_config (const char *key, const char *value) {
 	}
 	return (0);
 }
-*/
 
 static char *counterMap[][3] = {
 	{ "excessive_buffer_overrun_errors", "ib_buffer_overruns", "value" },
@@ -151,11 +115,16 @@ static int walk_counters(const char *dir, const char *counter, void *typesList)
 
 static int walk_ports(const char *dir, const char *port, void *adapter)
 {
+	char portName[32];
 	char counterDir[256];
 	llist_t *typesList = llist_create();
 	llentry_t *valEntry;
 	int res;
 	value_t *value;
+
+	ssnprintf(portName, sizeof(portName), "%s:%s", adapter, port);
+	if (ignorelist_match(temp_ignore, portName) != 0)
+		return 0;
 
 	ssnprintf(counterDir, sizeof(counterDir), "%s/%s/counters", dir, (char *)port);
 	res = walk_directory(counterDir, walk_counters, typesList, 0);
@@ -196,16 +165,13 @@ static int walk_adapters(const char *dir, const char *adapter, void *user_data)
 
 static int infiniband_read (void)
 {
-	char *baseDir = "/sys/class/infiniband/";
-
-	return walk_directory (baseDir, walk_adapters, NULL, 0);
+	return walk_directory (SYSFSDIR, walk_adapters, NULL, 0);
 }
 
 void module_register (void)
 {
-	//plugin_register_init ("infiniband", infiniband_init);
 	plugin_register_read ("infiniband", infiniband_read);
-	//plugin_register_config ("mic",mic_config, config_keys, config_keys_num);
+	plugin_register_config ("infiniband", infiniband_config, config_keys, config_keys_num);
 } /* void module_register */
 
 /*
