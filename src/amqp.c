@@ -422,7 +422,7 @@ static int camqp_connect (camqp_config_t *conf) /* {{{ */
     }
 
 #ifdef HAVE_AMQP_TCP_SOCKET
-# define CLOSE_SOCKET() amqp_socket_close (socket)
+# define CLOSE_SOCKET() // amqp_destroy_connection() closes the socket for us
     /* TODO: add support for SSL using amqp_ssl_socket_new
      *       and related functions */
     socket = amqp_tcp_socket_new (conf->connection);
@@ -441,7 +441,6 @@ static int camqp_connect (camqp_config_t *conf) /* {{{ */
         status *= -1;
         ERROR ("amqp plugin: amqp_socket_open failed: %s",
                 sstrerror (status, errbuf, sizeof (errbuf)));
-        CLOSE_SOCKET ();
         amqp_destroy_connection (conf->connection);
         conf->connection = NULL;
         return (status);
