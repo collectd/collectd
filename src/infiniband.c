@@ -38,8 +38,8 @@ static ignorelist_t *ports_ignore = NULL;
 
 static int infiniband_config (const char *key, const char *value) {
 	if (ports_ignore == NULL)
-		ports_ignore = ignorelist_create(1);
-	if (power_ignore == NULL)
+		ports_ignore = ignorelist_create(0);
+	if (ports_ignore == NULL)
 		return (1);
 
 	if (strcasecmp("Ports",key) == 0)
@@ -91,6 +91,10 @@ static int walk_counters(const char *dir, const char *counter, void *typesList)
 
 	ssnprintf(counterFileName, sizeof(counterFileName), "%s/%s", dir, counter);
 	read_file_contents(counterFileName, counterValue, sizeof(counterValue));
+
+	//the counters seem to always pad binary data after the newline in the file
+	strtok(counterValue, "\n");
+
 	value = (value_t *)malloc(sizeof(value_t));
 	if(parse_value(counterValue, value, DS_TYPE_DERIVE) == -1) {
 		free(value);
@@ -122,8 +126,8 @@ static int walk_ports(const char *dir, const char *port, void *adapter)
 	int res;
 	value_t *value;
 
-	ssnprintf(portName, sizeof(portName), "%s:%s", adapter, port);
-	if (ignorelist_match(temp_ignore, portName) != 0)
+	ssnprintf(portName, sizeof(portName), "%s:%s", (const char *)adapter, port);
+	if (ignorelist_match(ports_ignore, portName) != 0)
 		return 0;
 
 	ssnprintf(counterDir, sizeof(counterDir), "%s/%s/counters", dir, (char *)port);
