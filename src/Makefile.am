@@ -191,6 +191,7 @@ if BUILD_PLUGIN_APPLE_SENSORS
 pkglib_LTLIBRARIES += apple_sensors.la
 apple_sensors_la_SOURCES = apple_sensors.c
 apple_sensors_la_LDFLAGS = -module -avoid-version
+apple_sensors_la_LDFLAGS += -framework IOKit
 apple_sensors_la_LIBADD = -lIOKit
 collectd_LDADD += "-dlopen" apple_sensors.la
 collectd_DEPENDENCIES += apple_sensors.la
@@ -223,6 +224,7 @@ battery_la_SOURCES = battery.c
 battery_la_LDFLAGS = -module -avoid-version
 battery_la_LIBADD =
 if BUILD_WITH_LIBIOKIT
+battery_la_LDFLAGS += -framework IOKit
 battery_la_LIBADD += -lIOKit
 endif
 collectd_LDADD += "-dlopen" battery.la
@@ -379,6 +381,7 @@ if BUILD_WITH_LIBDEVINFO
 disk_la_LIBADD += -ldevinfo
 endif
 if BUILD_WITH_LIBIOKIT
+disk_la_LDFLAGS += -framework IOKit
 disk_la_LIBADD += -lIOKit
 endif
 if BUILD_WITH_LIBSTATGRAB
