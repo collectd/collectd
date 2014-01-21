@@ -293,6 +293,9 @@ Features
       network devices such as switches, routers, thermometers, rack monitoring
       servers, etc. See collectd-snmp(5).
 
+    - suricata
+      Statistics from Suricata IDS engine via command unix socket.
+
     - swap
       Pages swapped out onto harddisk or whatever is called `swap' by the OS..
 

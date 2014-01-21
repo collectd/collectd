@@ -191,7 +191,7 @@ if BUILD_PLUGIN_APPLE_SENSORS
 pkglib_LTLIBRARIES += apple_sensors.la
 apple_sensors_la_SOURCES = apple_sensors.c
 apple_sensors_la_LDFLAGS = -module -avoid-version
-apple_sensors_la_LDFLAGS += -framework IOKit
+apple_sensors_la_LIBADD = -lIOKit
 collectd_LDADD += "-dlopen" apple_sensors.la
 collectd_DEPENDENCIES += apple_sensors.la
 endif
@@ -223,7 +223,7 @@ battery_la_SOURCES = battery.c
 battery_la_LDFLAGS = -module -avoid-version
 battery_la_LIBADD =
 if BUILD_WITH_LIBIOKIT
-battery_la_LDFLAGS += -framework IOKit
+battery_la_LIBADD += -lIOKit
 endif
 collectd_LDADD += "-dlopen" battery.la
 collectd_DEPENDENCIES += battery.la
@@ -379,7 +379,7 @@ if BUILD_WITH_LIBDEVINFO
 disk_la_LIBADD += -ldevinfo
 endif
 if BUILD_WITH_LIBIOKIT
-disk_la_LDFLAGS += -framework IOKit
+disk_la_LIBADD += -lIOKit
 endif
 if BUILD_WITH_LIBSTATGRAB
 disk_la_CFLAGS += $(BUILD_WITH_LIBSTATGRAB_CFLAGS)  
@@ -1097,6 +1097,16 @@ statsd_la_LDFLAGS = -module -avoid-version
 statsd_la_LIBADD = -lpthread
 collectd_LDADD += "-dlopen" statsd.la
 collectd_DEPENDENCIES += statsd.la
+endif
+
+if BUILD_PLUGIN_SURICATA
+pkglib_LTLIBRARIES += suricata.la
+suricata_la_SOURCES = suricata.c
+suricata_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBJSON_C_LDFLAGS)
+suricata_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBJSON_C_CPPFLAGS)
+suricata_la_LIBADD = $(BUILD_WITH_LIBJSON_C_LIBS)
+collectd_LDADD += "-dlopen" suricata.la
+collectd_DEPENDENCIES += suricata.la
 endif
 
 if BUILD_PLUGIN_SWAP
