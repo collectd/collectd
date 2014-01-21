@@ -48,9 +48,9 @@ static int infiniband_config (const char *key, const char *value) {
 	}
 	else if (strcasecmp("IgnoreSelectedPorts",key) == 0)
 	{
-		int invert = 1;
+		int invert = 0;
 		if (IS_TRUE(value))
-			invert = 0;
+			invert = 1;
 		ignorelist_set_invert(ports_ignore,invert);
 	}
 	else
