@@ -4791,6 +4791,7 @@ plugin_bind="no"
 plugin_cgroups="no"
 plugin_conntrack="no"
 plugin_contextswitch="no"
+plugin_cpu="ceph"
 plugin_cpu="no"
 plugin_cpufreq="no"
 plugin_curl_json="no"
@@ -4959,6 +4960,11 @@ then
 	plugin_curl_xml="yes"
 fi
 
+if test "x$with_libjson" = "xyes"
+then
+	plugin_ceph="yes"
+fi
+
 if test "x$have_processor_info" = "xyes"
 then
 	plugin_cpu="yes"
@@ -5116,6 +5122,7 @@ AC_PLUGIN([aquaero],     [$with_libaquaero5],  [Aquaero's hardware sensors])
 AC_PLUGIN([ascent],      [$plugin_ascent],     [AscentEmu player statistics])
 AC_PLUGIN([battery],     [$plugin_battery],    [Battery statistics])
 AC_PLUGIN([bind],        [$plugin_bind],       [ISC Bind nameserver statistics])
+AC_PLUGIN([ceph],        [$plugin_ceph],       [Ceph daemon statistics])
 AC_PLUGIN([conntrack],   [$plugin_conntrack],  [nf_conntrack statistics])
 AC_PLUGIN([contextswitch], [$plugin_contextswitch], [context switch statistics])
 AC_PLUGIN([cpufreq],     [$plugin_cpufreq],    [CPU frequency statistics])
@@ -5461,6 +5468,7 @@ Configuration:
     ascent  . . . . . . . $enable_ascent
     battery . . . . . . . $enable_battery
     bind  . . . . . . . . $enable_bind
+	ceph  . . . . . . . . $enable_ceph
     conntrack . . . . . . $enable_conntrack
     contextswitch . . . . $enable_contextswitch
     cgroups . . . . . . . $enable_cgroups
