@@ -76,7 +76,7 @@ struct mongo_config_s /* {{{ */
     _Bool run_dbstats;
     _Bool auto_discover;
 
-    _Bool allow_secondary_query;
+    _Bool prefer_secondary_query;
     char *secondary_query_host;
     int   secondary_query_port;
 
@@ -92,7 +92,8 @@ static const char *config_keys[] = {
     "Database",
     "Host",
     "Port",
-    "AllowSecondaryQuery"
+    "AllowSecondaryQuery", /* XXX DEPRECATED */
+    "PreferSecondaryQuery"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -465,7 +466,7 @@ static int mc_db_stats_read_cb (user_data_t *ud) /* {{{ */
     const char *host = mc->host;
     int port = mc->port;
 
-    if (mc->allow_secondary_query && mc->secondary_query_host != NULL) {
+    if (mc->prefer_secondary_query && mc->secondary_query_host != NULL) {
         host = mc->secondary_query_host;
         port = mc->secondary_query_port;
     }
@@ -676,7 +677,7 @@ static int mc_setup_read(void) /* {{{ */
         mc_config_set(&(mc->set_name), bson_iterator_string( &it ));
     mc->connection.max_bson_size = max_bson_size;
 
-    if (mc->allow_secondary_query) {
+    if (mc->prefer_secondary_query) {
         mc_config_secondary (&is_master_out);
     }
 
@@ -748,11 +749,17 @@ static int mc_config (const char *key, const char *value) /* {{{ */
         mc_config_set(&mc->user, value);
     else if (strcasecmp("Password", key) == 0)
         mc_config_set(&mc->password, value);
-    else if (strcasecmp("AllowSecondaryQuery", key) == 0)
+    else if ((strcasecmp("PreferSecondaryQuery", key) == 0)
+            || (strcasecmp("AllowSecondaryQuery", key) == 0)) /* XXX DEPRECATED */
+    {
+        if (strcasecmp("AllowSecondaryQuery", key) == 0)
+            WARNING("mongodb plugin: config option 'AllowSecondaryQuery' is deprecated. use 'PreferSecondaryQuery' instead.");
+
         if (strcasecmp("true", value) == 0 || strcasecmp("1", value) == 0)
-            mc->allow_secondary_query = 1;
+            mc->prefer_secondary_query = 1;
         else
-            mc->allow_secondary_query = 0;
+            mc->prefer_secondary_query = 0;
+    }
     else
     {
         ERROR ("mongodb plugin: Unknown config option: %s", key);
