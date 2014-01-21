@@ -275,6 +275,7 @@ typedef struct receive_list_entry_s receive_list_entry_t;
 /*
  * Private variables
  */
+static cdtime_t network_config_max_age = 0;
 static int network_config_ttl = 0;
 /* Ethernet - (IPv6 + UDP) = 1500 - (40 + 8) = 1452 */
 static size_t network_config_packet_size = 1452;
@@ -305,6 +306,7 @@ static pthread_t dispatch_thread_id;
 static char            *send_buffer;
 static char            *send_buffer_ptr;
 static int              send_buffer_fill;
+static cdtime_t         send_buffer_expiry;
 static value_list_t     send_buffer_vl = VALUE_LIST_STATIC;
 static pthread_mutex_t  send_buffer_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -2475,6 +2477,7 @@ static void network_init_buffer (void)
 	memset (send_buffer, 0, network_config_packet_size);
 	send_buffer_ptr = send_buffer;
 	send_buffer_fill = 0;
+	send_buffer_expiry = 0;
 
 	memset (&send_buffer_vl, 0, sizeof (send_buffer_vl));
 } /* int network_init_buffer */
@@ -2809,6 +2812,9 @@ static int network_write (const data_set_t *ds, const value_list_t *vl,
 		send_buffer_fill += status;
 		send_buffer_ptr  += status;
 
+		if (network_config_max_age != 0 && send_buffer_expiry == 0)
+			send_buffer_expiry = cdtime() + network_config_max_age;
+
 		stats_values_sent++;
 	}
 	else
@@ -2825,6 +2831,9 @@ static int network_write (const data_set_t *ds, const value_list_t *vl,
 			send_buffer_fill += status;
 			send_buffer_ptr  += status;
 
+                        if (network_config_max_age != 0 && send_buffer_expiry == 0)
+				send_buffer_expiry = cdtime() + network_config_max_age;
+
 			stats_values_sent++;
 		}
 	}
@@ -2834,7 +2843,8 @@ static int network_write (const data_set_t *ds, const value_list_t *vl,
 		ERROR ("network plugin: Unable to append to the "
 				"buffer for some weird reason");
 	}
-	else if ((network_config_packet_size - send_buffer_fill) < 15)
+	else if (((network_config_packet_size - send_buffer_fill) < 15) ||
+	         ((network_config_max_age != 0) && (cdtime() > send_buffer_expiry)))
 	{
 		flush_buffer ();
 	}
@@ -2882,6 +2892,24 @@ static int network_config_set_boolean (const oconfig_item_t *ci, /* {{{ */
 
   return (0);
 } /* }}} int network_config_set_boolean */
+
+static int network_config_set_max_age (const oconfig_item_t *ci) /* {{{ */
+{
+  double tmp;
+  if ((ci->values_num != 1)
+      || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
+  {
+    WARNING ("network plugin: The `MaxAge' config option needs exactly "
+        "one numeric argument.");
+    return (-1);
+  }
+
+  tmp = (int) ci->values[0].value.number;
+  if (tmp >= 0)
+    network_config_max_age = MS_TO_CDTIME_T(tmp);
+
+  return (0);
+} /* }}} int network_config_set_ttl */
 
 static int network_config_set_ttl (const oconfig_item_t *ci) /* {{{ */
 {
@@ -3167,6 +3195,8 @@ static int network_config (oconfig_item_t *ci) /* {{{ */
       network_config_add_listen (child);
     else if (strcasecmp ("Server", child->key) == 0)
       network_config_add_server (child);
+    else if (strcasecmp("MaxAge", child->key) == 0)
+      network_config_set_max_age (child);
     else if (strcasecmp ("TimeToLive", child->key) == 0)
       network_config_set_ttl (child);
     else if (strcasecmp ("MaxPacketSize", child->key) == 0)

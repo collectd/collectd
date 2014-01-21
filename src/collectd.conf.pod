@@ -3585,6 +3585,12 @@ multicast, and IPv4 and IPv6 packets. The default is to not change this value.
 That means that multicast packets will be sent with a TTL of C<1> (one) on most
 operating systems.
 
+=item B<MaxAge> I<Milliseconds>
+
+Automatically flush the data accumulation buffer when new data is appended and
+the oldest data in the buffer is older then the maximum age. Set to zero to
+disable time based flushing (this is the default).
+
 =item B<MaxPacketSize> I<1024-65535>
 
 Set the maximum size for datagrams received over the network. Packets larger
