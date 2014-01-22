@@ -691,8 +691,7 @@ static int sc_stats_read (void)
 /* shutdown function for collectd. */
 static int sc_stats_shutdown (void)
 {
-  if(sock_fd != (int)NULL)
-    close(sock_fd);
+   close(sock_fd);
 
   return (0);
 } /* static int sc_stats_shutdown (void) */
