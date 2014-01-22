@@ -248,14 +248,13 @@ collectd_LDADD += "-dlopen" cgroups.la
 collectd_DEPENDENCIES += cgroups.la
 endif
 
-if BUILD_PLUGIN_CEPH
 pkglib_LTLIBRARIES += ceph.la
 ceph_la_SOURCES = ceph.c
 ceph_la_LDFLAGS = -module -avoid-version
 ceph_la_LIBADD = -ljson
-+collectd_LDADD += "-dlopen" ceph.la
+collectd_LDADD += "-dlopen" ceph.la
 collectd_DEPENDENCIES += ceph.la
-endif
+
 
 if BUILD_PLUGIN_CONNTRACK
 pkglib_LTLIBRARIES += conntrack.la
