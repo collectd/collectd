@@ -310,10 +310,10 @@ static void check_ignorelist_and_submit (const char *dev,
 
 } /* void check_ignorelist_and_submit */
 
-#define COPY_RTNL_LINK_VALUE (dst_stats, src_stats, value_name) \
+#define COPY_RTNL_LINK_VALUE(dst_stats, src_stats, value_name) \
   (dst_stats)->value_name = (src_stats)->value_name
 
-#define COPY_RTNL_LINK_STATS (dst_stats, src_stats) \
+#define COPY_RTNL_LINK_STATS(dst_stats, src_stats) \
   COPY_RTNL_LINK_VALUE (dst_stats, src_stats, rx_packets); \
   COPY_RTNL_LINK_VALUE (dst_stats, src_stats, tx_packets); \
   COPY_RTNL_LINK_VALUE (dst_stats, src_stats, rx_bytes); \
