@@ -422,7 +422,7 @@ static int camqp_connect (camqp_config_t *conf) /* {{{ */
     }
 
 #ifdef HAVE_AMQP_TCP_SOCKET
-# define CLOSE_SOCKET() // amqp_destroy_connection() closes the socket for us
+# define CLOSE_SOCKET() /* amqp_destroy_connection() closes the socket for us */
     /* TODO: add support for SSL using amqp_ssl_socket_new
      *       and related functions */
     socket = amqp_tcp_socket_new (conf->connection);
