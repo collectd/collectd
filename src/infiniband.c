@@ -96,7 +96,7 @@ static int ib_walk_counters(const char *dir, const char *counter, void *typesLis
 	strtok(counterValue, "\n");
 
 	value = (value_t *)malloc(sizeof(value_t));
-	if(parse_value(counterValue, value, DS_TYPE_DERIVE) == -1) {
+	if(parse_value(counterValue, value, DS_TYPE_COUNTER) == -1) {
 		free(value);
 		return 2;
 	}
@@ -145,14 +145,14 @@ static int ib_walk_ports(const char *dir, const char *port, void *adapter)
 		vl.values_len = llist_size((llist_t *)valEntry->value);
 		if(vl.values_len == 2) {
 			value = (value_t *)llist_search(valEntry->value, "tx")->value;
-			values[0].derive = value->derive;
+			values[0].counter = value->counter;
 			free(value);
 			value = (value_t *)llist_search(valEntry->value, "rx")->value;
-			values[1].derive = value->derive;
+			values[1].counter = value->counter;
 			free(value);
 		} else {
 			value = (value_t *)llist_head(valEntry->value)->value;
-			values[0].derive = value->derive;
+			values[0].counter = value->counter;
 			free(value);
 		}
 		plugin_dispatch_values(&vl);
