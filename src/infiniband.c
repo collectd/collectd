@@ -1,6 +1,6 @@
 /**
  * collectd - src/infinibandc
- * Copyright (C) 2013 Battelle Memorial Institute
+ * Copyright (C) 2014 Battelle Memorial Institute
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
