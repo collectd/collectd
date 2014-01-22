@@ -466,7 +466,7 @@ static int mc_db_stats_read_cb (user_data_t *ud) /* {{{ */
     const char *host = mc->host;
     int port = mc->port;
 
-    if (mc->prefer_secondary_query && mc->secondary_query_host != NULL) {
+    if (mc->is_primary && mc->prefer_secondary_query && mc->secondary_query_host != NULL) {
         host = mc->secondary_query_host;
         port = mc->secondary_query_port;
     }
@@ -677,7 +677,14 @@ static int mc_setup_read(void) /* {{{ */
         mc_config_set(&(mc->set_name), bson_iterator_string( &it ));
     mc->connection.max_bson_size = max_bson_size;
 
-    if (mc->prefer_secondary_query) {
+    /* If we are (or have become) the primary and querying a secondary node is
+     * preferred, reset the configured secondary host.
+     */
+    if (mc->is_primary && mc->prefer_secondary_query) {
+        if (mc->secondary_query_host != NULL) {
+            free (mc->secondary_query_host);
+            mc->secondary_query_host = NULL;
+        }
         mc_config_secondary (&is_master_out);
     }
 
