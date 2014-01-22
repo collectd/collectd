@@ -3454,6 +3454,11 @@ fi
 
 if test "x$with_python" = "xyes"
 then
+  AM_PATH_PYTHON([2.6], [], [AC_MSG_FAILURE([Failed to find Python 2.7 or newer])])
+fi
+
+if test "x$with_python" = "xyes"
+then
 	AC_MSG_CHECKING([for Python CPPFLAGS])
 	python_include_path=`echo "import distutils.sysconfig;import sys;sys.stdout.write(distutils.sysconfig.get_python_inc())" | "$with_python_prog" 2>&1`
 	python_config_status=$?
