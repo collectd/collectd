@@ -1,5 +1,5 @@
 /**
- * collectd - src/infinibandc
+ * collectd - src/infiniband.c
  * Copyright (C) 2014 Battelle Memorial Institute
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -80,7 +80,7 @@ static char *counterMap[][3] = {
 	{ "VL15_dropped", "ib_VL15_dropped", "value"},
 };
 
-static int walk_counters(const char *dir, const char *counter, void *typesList)
+static int ib_walk_counters(const char *dir, const char *counter, void *typesList)
 {
 	char counterFileName[256];
 	char counterValue[256];
@@ -117,7 +117,7 @@ static int walk_counters(const char *dir, const char *counter, void *typesList)
 	return 0;
 }
 
-static int walk_ports(const char *dir, const char *port, void *adapter)
+static int ib_walk_ports(const char *dir, const char *port, void *adapter)
 {
 	char portName[32];
 	char counterDir[256];
@@ -131,7 +131,7 @@ static int walk_ports(const char *dir, const char *port, void *adapter)
 		return 0;
 
 	ssnprintf(counterDir, sizeof(counterDir), "%s/%s/counters", dir, (char *)port);
-	res = walk_directory(counterDir, walk_counters, typesList, 0);
+	res = walk_directory(counterDir, ib_walk_counters, typesList, 0);
 
 	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
@@ -160,16 +160,16 @@ static int walk_ports(const char *dir, const char *port, void *adapter)
 	return 0;
 }
 
-static int walk_adapters(const char *dir, const char *adapter, void *user_data)
+static int ib_walk_adapters(const char *dir, const char *adapter, void *user_data)
 {
 	char portsDir[256];
 	ssnprintf(portsDir, sizeof(portsDir), "%s/%s/ports", dir, adapter);
-	return walk_directory(portsDir, walk_ports, (void *)adapter, 0);
+	return walk_directory(portsDir, ib_walk_ports, (void *)adapter, 0);
 }
 
 static int infiniband_read (void)
 {
-	return walk_directory (SYSFSDIR, walk_adapters, NULL, 0);
+	return walk_directory (SYSFSDIR, ib_walk_adapters, NULL, 0);
 }
 
 void module_register (void)
