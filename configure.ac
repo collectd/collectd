@@ -3575,6 +3575,41 @@ fi
 CPPFLAGS="$SAVE_CPPFLAGS"
 LDFLAGS="$SAVE_LDFLAGS"
 AM_CONDITIONAL(BUILD_WITH_LIBRABBITMQ, test "x$with_librabbitmq" = "xyes")
+
+with_amqp_tcp_socket="no"
+if test "x$with_librabbitmq" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+	SAVE_LIBS="$LIBS"
+	CPPFLAGS="$CPPFLAGS $with_librabbitmq_cppflags"
+	LDFLAGS="$LDFLAGS $with_librabbitmq_ldflags"
+	LIBS="-lrabbitmq"
+
+	AC_CHECK_HEADERS(amqp_tcp_socket.h amqp_socket.h)
+	AC_CHECK_FUNC(amqp_tcp_socket_new, [with_amqp_tcp_socket="yes"], [with_amqp_tcp_socket="no"])
+	if test "x$with_amqp_tcp_socket" = "xyes"
+	then
+		AC_DEFINE(HAVE_AMQP_TCP_SOCKET, 1,
+				[Define if librabbitmq provides the new TCP socket interface.])
+	fi
+
+	AC_CHECK_DECLS(amqp_socket_close,
+				[amqp_socket_close_decl="yes"], [amqp_socket_close_decl="no"],
+				[[
+#include <amqp.h>
+#ifdef HAVE_AMQP_TCP_SOCKET_H
+# include <amqp_tcp_socket.h>
+#endif
+#ifdef HAVE_AMQP_SOCKET_H
+# include <amqp_socket.h>
+#endif
+				]])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+	LIBS="$SAVE_LIBS"
+fi
 # }}}
 
 # --with-librouteros {{{
