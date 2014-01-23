@@ -6,10 +6,14 @@ import string
 import subprocess
 import sys
 import time
+import signal
 
 g_cephtool_path = ""
 g_ceph_config = ""
 
+def init():
+	signal.signal(signal.SIGCHLD, signal.SIG_DFL)
+	
 def cephtool_config(config):
     global g_cephtool_path, g_ceph_config
     for child in config.children:
@@ -196,7 +200,8 @@ def cephtool_read(data=None):
         type_instance='num_mons_in_quorum',\
         values=[len(mon_json["quorum"])],
     ).dispatch()
-
+	
+collectd.register_init(init)
 collectd.register_config(cephtool_config)
 collectd.warning("Initializing cephtool plugin")
 collectd.register_read(cephtool_read)
