@@ -29,6 +29,8 @@
 #include "utils_cache.h"
 #include "utils_parse_option.h"
 
+#define GRAPHITE_FORBIDDEN " \t\"\\:!/\n\r"
+
 /* Utils functions to format data sets in graphite format.
  * Largely taken from write_graphite.c as it remains the same formatting */
 
@@ -169,6 +171,18 @@ static int gr_format_name (char *ret, int ret_len,
     return (0);
 }
 
+static void escape_graphite_string (char *buffer, char escape_char)
+{
+	char *head;
+
+	assert (strchr(GRAPHITE_FORBIDDEN, escape_char) == NULL);
+
+	for (head = buffer + strcspn(buffer, GRAPHITE_FORBIDDEN);
+	     *head != '\0';
+	     head += strcspn(head, GRAPHITE_FORBIDDEN))
+		*head = escape_char;
+}
+
 int format_graphite (char *buffer, size_t buffer_size,
     data_set_t const *ds, value_list_t const *vl,
     char const *prefix, char const *postfix, char const escape_char,
@@ -204,7 +218,7 @@ int format_graphite (char *buffer, size_t buffer_size,
             return (status);
         }
 
-        escape_string (key, sizeof (key));
+        escape_graphite_string (key, escape_char);
         /* Convert the values to an ASCII representation and put that into
          * `values'. */
         status = gr_format_values (values, sizeof (values), i, ds, vl, rates);
