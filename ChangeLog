@@ -1,3 +1,27 @@
+2014-01-26, Version 5.4.1
+	* amqp plugin: Add support for RabbitMQ 0.4.x to avoid compiler
+	  warnings. Thanks to Sebastian Harl for implementing this.
+	* apache / network plugins: Improved initialization order hopefully
+	  resolved gcrypt initialization problems.
+	* aquaero plugin: The type used to submit fan utilization was fixed.
+	  Thanks to Alex Deymo for the patch.
+	* cgroups plugin: A small memory leak was fixed. Checking the existence
+	  of a mount option without a value was fixed. More permissive parsing
+	  of the cpuacct.stats file fixes support for some versions of Linux.
+	  Thanks to Marc Fournier for bug reports and patches.
+	* curl plugin: Fix <Match> blocks without an instance. Thanks to
+	  Alexander Golovko for reporting and Sebastian Harl for fixing this.
+	* curl_json plugin: Potentially invalid memory access has been
+	  sanitized. Thanks to Jim Radford for his patch.
+	* interface plugin: Fix behavior under FreeBSD 10: Reporting of
+	  per-address statistics caused duplicate updates to the same metric.
+	  Thanks to demon / @trtrmitya for the patch.
+	* write_graphite plugin: Use TCP to connect to Graphite by default. The
+	  default changed from TCP to UDP between 5.3.1 and 5.4.0, which is a
+	  regression. Thanks to Marc Fournier for fixing this. Reconnect
+	  behavior was improved. Thanks to Michael Hart for his patch.
+	* zfs_arc plugin: Collect "allocated" and "stolen" on FreeBSD only.
+
 2013-08-18, Version 5.4.0
 	* collectd: The "LoadPlugin" config option no longer attempts to load
 	  plugins twice. If more than one "LoadPlugin" statement or block is
