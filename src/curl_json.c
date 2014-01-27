@@ -956,9 +956,18 @@ static int cj_read (user_data_t *ud) /* {{{ */
   return cj_perform (db);
 } /* }}} int cj_read */
 
+static int cj_init (void) /* {{{ */
+{
+  /* Call this while collectd is still single-threaded to avoid
+   * initialization issues in libgcrypt. */
+  curl_global_init (CURL_GLOBAL_SSL);
+  return (0);
+} /* }}} int cj_init */
+
 void module_register (void)
 {
   plugin_register_complex_config ("curl_json", cj_config);
+  plugin_register_init ("curl_json", cj_init);
 } /* void module_register */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */
