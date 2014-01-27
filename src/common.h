@@ -1,6 +1,6 @@
 /**
  * collectd - src/common.h
- * Copyright (C) 2005-2010  Florian octo Forster
+ * Copyright (C) 2005-2014  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -158,19 +158,21 @@ int strjoin (char *dst, size_t dst_len, char **fields, size_t fields_num, const 
  *   escape_slashes
  *
  * DESCRIPTION
- *   Removes slashes from the string `buf' and substitutes them with something
- *   appropriate. This function should be used whenever a path is to be used as
- *   (part of) an instance.
+ *   Removes slashes ("/") from "buffer". If buffer contains a single slash,
+ *   the result will be "root". Leading slashes are removed. All other slashes
+ *   are replaced with underscores ("_").
+ *   This function is used by plugin_dispatch_values() to escape all parts of
+ *   the identifier.
  *
  * PARAMETERS
- *   `buf'         String to be escaped.
- *   `buf_len'     Length of the buffer. No more then this many bytes will be
- *   written to `buf', including the trailing null-byte.
+ *   `buffer'         String to be escaped.
+ *   `buffer_size'    Size of the buffer. No more then this many bytes will be
+ *                    written to `buffer', including the trailing null-byte.
  *
  * RETURN VALUE
  *   Returns zero upon success and a value smaller than zero upon failure.
  */
-int escape_slashes (char *buf, int buf_len);
+int escape_slashes (char *buffer, size_t buffer_size);
 
 /*
  * NAME

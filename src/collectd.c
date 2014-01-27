@@ -118,7 +118,7 @@ static int init_hostname (void)
 		ERROR ("Looking up \"%s\" failed. You have set the "
 				"\"FQDNLookup\" option, but I cannot resolve "
 				"my hostname to a fully qualified domain "
-				"name. Please fix you network "
+				"name. Please fix the network "
 				"configuration.", hostname_g);
 		return (-1);
 	}

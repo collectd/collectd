@@ -68,7 +68,9 @@ static pthread_mutex_t cache_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static int cache_compare (const cache_entry_t *a, const cache_entry_t *b)
 {
+#if COLLECT_DEBUG
   assert ((a != NULL) && (b != NULL));
+#endif
   return (strcmp (a->name, b->name));
 } /* int cache_compare */
 

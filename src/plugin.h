@@ -2,7 +2,7 @@
 #define PLUGIN_H
 /**
  * collectd - src/plugin.h
- * Copyright (C) 2005-2011  Florian octo Forster
+ * Copyright (C) 2005-2014  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -328,6 +328,35 @@ int plugin_unregister_notification (const char *name);
  *              function.
  */
 int plugin_dispatch_values (value_list_t const *vl);
+
+/*
+ * NAME
+ *  plugin_dispatch_multivalue
+ *
+ * SYNOPSIS
+ *  plugin_dispatch_multivalue (vl, 1,
+ *                              "free", 42.0,
+ *                              "used", 58.0,
+ *                              NULL);
+ *
+ * DESCRIPTION
+ *  Takes a list of type instances and values and dispatches that in a batch,
+ *  making sure that all values have the same time stamp. If "store_percentage"
+ *  is set to true, the "type" is set to "percent" and a percentage is
+ *  calculated and dispatched, rather than the absolute values. Values that are
+ *  NaN are dispatched as NaN and will not influence the total.
+ *
+ *  The variadic arguments is a list of type_instance / gauge pairs, that are
+ *  interpreted as type "char const *" and "gauge_t". The last argument must be
+ *  a NULL pointer to signal end-of-list.
+ *
+ * RETURNS
+ *  The number of values it failed to dispatch (zero on success).
+ */
+__attribute__((sentinel))
+int plugin_dispatch_multivalue (value_list_t const *vl,
+		_Bool store_percentage, ...);
+
 int plugin_dispatch_missing (const value_list_t *vl);
 
 int plugin_dispatch_notification (const notification_t *notif);

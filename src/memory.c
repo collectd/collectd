@@ -1,6 +1,6 @@
 /**
  * collectd - src/memory.c
- * Copyright (C) 2005-2008  Florian octo Forster
+ * Copyright (C) 2005-2014  Florian octo Forster
  * Copyright (C) 2009       Simon Kuhnle
  * Copyright (C) 2009       Manuel Sanmartin
  *
@@ -84,11 +84,32 @@ static int pagesize;
 /* endif HAVE_LIBSTATGRAB */
 #elif HAVE_PERFSTAT
 static int pagesize;
-static perfstat_memory_total_t pmemory;
 /* endif HAVE_PERFSTAT */
 #else
 # error "No applicable input method."
 #endif
+
+static _Bool values_absolute = 1;
+static _Bool values_percentage = 0;
+
+static int memory_config (oconfig_item_t *ci) /* {{{ */
+{
+	int i;
+
+	for (i = 0; i < ci->children_num; i++)
+	{
+		oconfig_item_t *child = ci->children + i;
+		if (strcasecmp ("ValuesAbsolute", child->key) == 0)
+			cf_util_get_boolean (child, &values_absolute);
+		else if (strcasecmp ("ValuesPercentage", child->key) == 0)
+			cf_util_get_boolean (child, &values_percentage);
+		else
+			ERROR ("memory plugin: Invalid configuration option: "
+					"\"%s\".", child->key);
+	}
+
+	return (0);
+} /* }}} int memory_config */
 
 static int memory_init (void)
 {
@@ -134,24 +155,14 @@ static int memory_init (void)
 	return (0);
 } /* int memory_init */
 
-static void memory_submit (const char *type_instance, gauge_t value)
-{
-	value_t values[1];
-	value_list_t vl = VALUE_LIST_INIT;
+#define MEMORY_SUBMIT(...) do { \
+	if (values_absolute) \
+		plugin_dispatch_multivalue (vl, 0, __VA_ARGS__, NULL); \
+	if (values_percentage) \
+		plugin_dispatch_multivalue (vl, 1, __VA_ARGS__, NULL); \
+} while (0)
 
-	values[0].gauge = value;
-
-	vl.values = values;
-	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-	sstrncpy (vl.plugin, "memory", sizeof (vl.plugin));
-	sstrncpy (vl.type, "memory", sizeof (vl.type));
-	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
-
-	plugin_dispatch_values (&vl);
-}
-
-static int memory_read (void)
+static int memory_read_internal (value_list_t *vl)
 {
 #if HAVE_HOST_STATISTICS
 	kern_return_t status;
@@ -200,10 +211,10 @@ static int memory_read (void)
 	inactive = (gauge_t) (((uint64_t) vm_data.inactive_count) * ((uint64_t) pagesize));
 	free     = (gauge_t) (((uint64_t) vm_data.free_count)     * ((uint64_t) pagesize));
 
-	memory_submit ("wired",    wired);
-	memory_submit ("active",   active);
-	memory_submit ("inactive", inactive);
-	memory_submit ("free",     free);
+	MEMORY_SUBMIT ("wired",    wired,
+	               "active",   active,
+	               "inactive", inactive,
+	               "free",     free);
 /* #endif HAVE_HOST_STATISTICS */
 
 #elif HAVE_SYSCTLBYNAME
@@ -253,11 +264,11 @@ static int memory_read (void)
 		if (!isnan (sysctl_vals[i]))
 			sysctl_vals[i] *= sysctl_vals[0];
 
-	memory_submit ("free",     sysctl_vals[2]);
-	memory_submit ("wired",    sysctl_vals[3]);
-	memory_submit ("active",   sysctl_vals[4]);
-	memory_submit ("inactive", sysctl_vals[5]);
-	memory_submit ("cache",    sysctl_vals[6]);
+	MEMORY_SUBMIT ("free",     (gauge_t) sysctl_vals[2],
+	               "wired",    (gauge_t) sysctl_vals[3],
+	               "active",   (gauge_t) sysctl_vals[4],
+	               "inactive", (gauge_t) sysctl_vals[5],
+	               "cache",    (gauge_t) sysctl_vals[6]);
 /* #endif HAVE_SYSCTLBYNAME */
 
 #elif KERNEL_LINUX
@@ -267,10 +278,11 @@ static int memory_read (void)
 	char *fields[8];
 	int numfields;
 
-	long long mem_used = 0;
-	long long mem_buffered = 0;
-	long long mem_cached = 0;
-	long long mem_free = 0;
+	gauge_t mem_total = 0;
+	gauge_t mem_used = 0;
+	gauge_t mem_buffered = 0;
+	gauge_t mem_cached = 0;
+	gauge_t mem_free = 0;
 
 	if ((fh = fopen ("/proc/meminfo", "r")) == NULL)
 	{
@@ -280,12 +292,12 @@ static int memory_read (void)
 		return (-1);
 	}
 
-	while (fgets (buffer, 1024, fh) != NULL)
+	while (fgets (buffer, sizeof (buffer), fh) != NULL)
 	{
-		long long *val = NULL;
+		gauge_t *val = NULL;
 
 		if (strncasecmp (buffer, "MemTotal:", 9) == 0)
-			val = &mem_used;
+			val = &mem_total;
 		else if (strncasecmp (buffer, "MemFree:", 8) == 0)
 			val = &mem_free;
 		else if (strncasecmp (buffer, "Buffers:", 8) == 0)
@@ -295,12 +307,11 @@ static int memory_read (void)
 		else
 			continue;
 
-		numfields = strsplit (buffer, fields, 8);
-
+		numfields = strsplit (buffer, fields, STATIC_ARRAY_SIZE (fields));
 		if (numfields < 2)
 			continue;
 
-		*val = atoll (fields[1]) * 1024LL;
+		*val = 1024.0 * atof (fields[1]);
 	}
 
 	if (fclose (fh))
@@ -310,19 +321,19 @@ static int memory_read (void)
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 	}
 
-	if (mem_used >= (mem_free + mem_buffered + mem_cached))
-	{
-		mem_used -= mem_free + mem_buffered + mem_cached;
-		memory_submit ("used",     mem_used);
-		memory_submit ("buffered", mem_buffered);
-		memory_submit ("cached",   mem_cached);
-		memory_submit ("free",     mem_free);
-	}
+	if (mem_total < (mem_free + mem_buffered + mem_cached))
+		return (-1);
+
+	mem_used = mem_total - (mem_free + mem_buffered + mem_cached);
+	MEMORY_SUBMIT ("used",     mem_used,
+	               "buffered", mem_buffered,
+	               "cached",   mem_cached,
+	               "free",     mem_free);
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
-        /* Most of the additions here were taken as-is from the k9toolkit from
-         * Brendan Gregg and are subject to change I guess */
+	/* Most of the additions here were taken as-is from the k9toolkit from
+	 * Brendan Gregg and are subject to change I guess */
 	long long mem_used;
 	long long mem_free;
 	long long mem_lock;
@@ -372,7 +383,7 @@ static int memory_read (void)
 	}
 
 	/* mem_kern is accounted for in mem_lock */
-	if ( pp_kernel < mem_lock )
+	if (pp_kernel < mem_lock)
 	{
 		mem_kern = pp_kernel;
 		mem_lock -= pp_kernel;
@@ -389,16 +400,19 @@ static int memory_read (void)
 	mem_kern *= pagesize; /* it's 2011 RAM is cheap */
 	mem_unus *= pagesize;
 
-	memory_submit ("used",   mem_used);
-	memory_submit ("free",   mem_free);
-	memory_submit ("locked", mem_lock);
-	memory_submit ("kernel", mem_kern);
-	memory_submit ("unusable", mem_unus);
+	MEMORY_SUBMIT ("used",     (gauge_t) mem_used,
+	               "free",     (gauge_t) mem_free,
+	               "locked",   (gauge_t) mem_lock,
+	               "kernel",   (gauge_t) mem_kern,
+	               "unusable", (gauge_t) mem_unus);
 /* #endif HAVE_LIBKSTAT */
 
 #elif HAVE_SYSCTL
 	int mib[] = {CTL_VM, VM_METER};
 	struct vmtotal vmtotal;
+	gauge_t mem_active;
+	gauge_t mem_inactive;
+	gauge_t mem_free;
 	size_t size;
 
 	memset (&vmtotal, 0, sizeof (vmtotal));
@@ -412,42 +426,75 @@ static int memory_read (void)
 	}
 
 	assert (pagesize > 0);
-	memory_submit ("active",   vmtotal.t_arm * pagesize);
-	memory_submit ("inactive", (vmtotal.t_rm - vmtotal.t_arm) * pagesize);
-	memory_submit ("free",     vmtotal.t_free * pagesize);
+	mem_active   = (gauge_t) (vmtotal.t_arm * pagesize);
+	mem_inactive = (gauge_t) ((vmtotal.t_rm - vmtotal.t_arm) * pagesize);
+	mem_free     = (gauge_t) (vmtotal.t_free * pagesize);
+
+	MEMORY_SUBMIT ("active",   mem_active,
+	               "inactive", mem_inactive,
+	               "free",     mem_free);
 /* #endif HAVE_SYSCTL */
 
 #elif HAVE_LIBSTATGRAB
 	sg_mem_stats *ios;
 
-	if ((ios = sg_get_mem_stats ()) != NULL)
-	{
-		memory_submit ("used",   ios->used);
-		memory_submit ("cached", ios->cache);
-		memory_submit ("free",   ios->free);
-	}
+	ios = sg_get_mem_stats ();
+	if (ios == NULL)
+		return (-1);
+
+	MEMORY_SUBMIT ("used",   (gauge_t) ios->used,
+	               "cached", (gauge_t) ios->cache,
+	               "free",   (gauge_t) ios->free);
 /* #endif HAVE_LIBSTATGRAB */
 
 #elif HAVE_PERFSTAT
-	if (perfstat_memory_total(NULL, &pmemory, sizeof(perfstat_memory_total_t), 1) < 0)
+	perfstat_memory_total_t pmemory;
+
+	memset (&pmemory, 0, sizeof (pmemory));
+	if (perfstat_memory_total(NULL, &pmemory, sizeof(pmemory), 1) < 0)
 	{
 		char errbuf[1024];
 		WARNING ("memory plugin: perfstat_memory_total failed: %s",
 			sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
-	memory_submit ("used",   pmemory.real_inuse * pagesize);
-	memory_submit ("free",   pmemory.real_free * pagesize);
-	memory_submit ("cached", pmemory.numperm * pagesize);
-	memory_submit ("system", pmemory.real_system * pagesize);
-	memory_submit ("user",   pmemory.real_process * pagesize);
+
+	/* Unfortunately, the AIX documentation is not very clear on how these
+	 * numbers relate to one another. The only thing is states explcitly
+	 * is:
+	 *   real_total = real_process + real_free + numperm + real_system
+	 *
+	 * Another segmentation, which would be closer to the numbers reported
+	 * by the "svmon" utility, would be:
+	 *   real_total = real_free + real_inuse
+	 *   real_inuse = "active" + real_pinned + numperm
+	 */
+	MEMORY_SUBMIT ("free",   (gauge_t) (pmemory.real_free    * pagesize),
+	               "cached", (gauge_t) (pmemory.numperm      * pagesize),
+	               "system", (gauge_t) (pmemory.real_system  * pagesize),
+	               "user",   (gauge_t) (pmemory.real_process * pagesize));
 #endif /* HAVE_PERFSTAT */
 
 	return (0);
-}
+} /* }}} int memory_read_internal */
+
+static int memory_read (void) /* {{{ */
+{
+	value_t v[1];
+	value_list_t vl = VALUE_LIST_INIT;
+
+	vl.values = v;
+	vl.values_len = STATIC_ARRAY_SIZE (v);
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "memory", sizeof (vl.plugin));
+	vl.time = cdtime ();
+
+	return (memory_read_internal (&vl));
+} /* }}} int memory_read */
 
 void module_register (void)
 {
+	plugin_register_complex_config ("memory", memory_config);
 	plugin_register_init ("memory", memory_init);
 	plugin_register_read ("memory", memory_read);
 } /* void module_register */
