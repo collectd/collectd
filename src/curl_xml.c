@@ -1032,9 +1032,18 @@ static int cx_config (oconfig_item_t *ci) /* {{{ */
   return (0);
 } /* }}} int cx_config */
 
+static int cx_init (void) /* {{{ */
+{
+  /* Call this while collectd is still single-threaded to avoid
+   * initialization issues in libgcrypt. */
+  curl_global_init (CURL_GLOBAL_SSL);
+  return (0);
+} /* }}} int cx_init */
+
 void module_register (void)
 {
   plugin_register_complex_config ("curl_xml", cx_config);
+  plugin_register_init ("curl_xml", cx_init);
 } /* void module_register */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */
