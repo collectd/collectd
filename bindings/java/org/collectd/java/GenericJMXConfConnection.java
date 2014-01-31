@@ -89,7 +89,7 @@ class GenericJMXConfConnection
     try
     {
       InetAddress localHost = InetAddress.getLocalHost();
-      return (localHost.getHostName ());
+      return (localHost.getCanonicalHostName ());
     }
     catch (UnknownHostException e)
     {
