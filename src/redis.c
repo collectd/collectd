@@ -78,7 +78,7 @@ struct redis_node_s
 {
   char name[MAX_REDIS_NODE_NAME];
   char host[HOST_NAME_MAX];
-  char passwd[HOST_NAME_MAX];
+  char passwd[512];
   int port;
   int timeout;
   redis_query_t *query;
