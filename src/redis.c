@@ -37,6 +37,7 @@
 #define REDIS_DEF_PORT    6379
 #define REDIS_DEF_TIMEOUT 2000
 #define MAX_REDIS_NODE_NAME 64
+#define MAX_REDIS_PASSWD_LENGTH 512
 
 /* Redis plugin configuration example:
  *
@@ -55,7 +56,7 @@ struct redis_node_s
 {
   char name[MAX_REDIS_NODE_NAME];
   char host[HOST_NAME_MAX];
-  char passwd[HOST_NAME_MAX];
+  char passwd[MAX_REDIS_PASSWD_LENGTH];
   int port;
   int timeout;
 
