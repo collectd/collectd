@@ -676,6 +676,10 @@ static int sc_stats_read (void)
   {
     log_err("sc_stats_read: failure command protocol.\n");
     json_object_put(cmd_dump);
+
+    /* Set disabled so we can try to reconnect later. */
+    disabled = 1;
+
     return (-1);
   }
 

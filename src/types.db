@@ -163,6 +163,8 @@ spam_check		value:GAUGE:0:U
 spam_score		value:GAUGE:U:U
 spl			value:GAUGE:U:U
 suricata_detect.alert                   value:GAUGE:0:U
+suricata_http.memcap                    value:GAUGE:0:U
+suricata_http.memuse                    value:GAUGE:0:U
 suricata_tcp.invalid_checksum           value:GAUGE:0:U
 suricata_tcp.memuse                     value:GAUGE:0:U
 suricata_tcp.no_flow                    value:GAUGE:0:U
@@ -190,6 +192,7 @@ suricata_decoder.ethernet               value:GAUGE:0:U
 suricata_decoder.gre                    value:GAUGE:0:U
 suricata_decoder.icmpv4                 value:GAUGE:0:U
 suricata_decoder.icmpv6                 value:GAUGE:0:U
+suricata_decoder.invalid                value:GAUGE:0:U
 suricata_decoder.ipv4                   value:GAUGE:0:U
 suricata_decoder.ipv4_in_ipv6           value:GAUGE:0:U
 suricata_decoder.ipv6                   value:GAUGE:0:U
