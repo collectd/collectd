@@ -4860,6 +4860,7 @@ then
 	plugin_vmem="yes"
 	plugin_vserver="yes"
 	plugin_wireless="yes"
+	plugin_zfs_arc="yes"
 
 	if test "x$have_linux_ip_vs_h" = "xyes" || test "x$have_net_ip_vs_h" = "xyes" || test "x$have_ip_vs_h" = "xyes"
 	then

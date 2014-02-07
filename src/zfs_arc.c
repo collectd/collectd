@@ -3,6 +3,7 @@
  * Copyright (C) 2009  Anthony Dewhurst
  * Copyright (C) 2012  Aurelien Rougemont
  * Copyright (C) 2013  Xin Li
+ * Copyright (C) 2014  Marc Fournier
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -21,6 +22,7 @@
  *   Anthony Dewhurst <dewhurst at gmail>
  *   Aurelien Rougemont <beorn at gandi.net>
  *   Xin Li <delphij at FreeBSD.org>
+ *   Marc Fournier <marc.fournier at camptocamp.com>
  **/
 
 #include "collectd.h"
@@ -31,7 +33,31 @@
  * Global variables
  */
 
-#if !defined(__FreeBSD__)
+#if defined(KERNEL_LINUX)
+#include "utils_llist.h"
+#define ZOL_ARCSTATS_FILE "/proc/spl/kstat/zfs/arcstats"
+
+#if !defined(kstat_t)
+typedef void kstat_t;
+static llist_t *zfs_stats = NULL;
+#endif
+
+static long long get_zfs_value(kstat_t *dummy __attribute__((unused)),
+		char *name)
+{
+	llentry_t *e;
+
+	e = llist_search (zfs_stats, name);
+	if (e == NULL)
+	{
+		ERROR ("zfs_arc plugin: `llist_search` failed for key: '%s'.", name);
+		return (-1);
+	}
+
+	return ((long long int)e->value);
+}
+
+#elif !defined(__FreeBSD__) // Solaris
 extern kstat_ctl_t *kc;
 
 static long long get_zfs_value(kstat_t *ksp, char *name)
@@ -39,7 +65,7 @@ static long long get_zfs_value(kstat_t *ksp, char *name)
 
 	return (get_kstat_value(ksp, name));
 }
-#else
+#else // FreeBSD
 #include <sys/types.h>
 #include <sys/sysctl.h>
 
@@ -147,7 +173,70 @@ static int za_read (void)
 	value_t  l2_io[2];
 	kstat_t	 *ksp	= NULL;
 
-#if !defined(__FreeBSD__)
+#if KERNEL_LINUX
+	FILE *fh;
+
+	char buf[1024];
+	char *fields[3];
+	int numfields;
+
+	if ((fh = fopen (ZOL_ARCSTATS_FILE, "r")) == NULL)
+	{
+		char errbuf[1024];
+		ERROR ("zfs_arc plugin: `fopen (%s)' failed: %s",
+			ZOL_ARCSTATS_FILE,
+			sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (-1);
+	}
+
+	zfs_stats = llist_create ();
+	if (zfs_stats == NULL)
+	{
+		ERROR ("zfs_arc plugin: `llist_create' failed.");
+		fclose (fh);
+		return (-1);
+	}
+
+	while (fgets (buf, 1024, fh) != NULL)
+	{
+		numfields = strsplit (buf, fields, 4);
+		if (numfields != 3)
+			continue;
+
+		char *llkey;
+		long long int llvalue;
+
+		llkey = strdup (fields[0]);
+		if (llkey == NULL) {
+			char errbuf[1024];
+			ERROR ("zfs_arc plugin: `strdup' failed: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+			continue;
+		}
+
+		llvalue = atoll (fields[2]);
+
+		llentry_t *e;
+		e = llentry_create (llkey, (void *)llvalue);
+		if (e == NULL)
+		{
+			ERROR ("zfs_arc plugin: `llentry_create' failed.");
+			free (llkey);
+			continue;
+		}
+
+		free (llkey);
+
+		llist_append (zfs_stats, e);
+	}
+
+	if (fclose (fh))
+	{
+		char errbuf[1024];
+		WARNING ("zfs_arc: `fclose' failed: %s", sstrerror (errno, errbuf, sizeof (errbuf)));
+	}
+
+#elif !defined(__FreeBSD__) // Solaris
 	get_kstat (&ksp, "zfs", 0, "arcstats");
 	if (ksp == NULL)
 	{
@@ -170,7 +259,7 @@ static int za_read (void)
 	/* Issue indicators */
 	za_read_derive (ksp, "mutex_miss", "mutex_operations", "miss");
 	za_read_derive (ksp, "hash_collisions", "hash_collisions", "");
-	
+
 	/* Evictions */
 	za_read_derive (ksp, "evict_l2_cached",     "cache_eviction", "cached");
 	za_read_derive (ksp, "evict_l2_eligible",   "cache_eviction", "eligible");
@@ -201,12 +290,19 @@ static int za_read (void)
 
 	za_submit ("io_octets", "L2", l2_io, /* num values = */ 2);
 
+#if defined(KERNEL_LINUX)
+	if (zfs_stats != NULL)
+	{
+		llist_destroy (zfs_stats);
+	}
+#endif
+
 	return (0);
 } /* int za_read */
 
 static int za_init (void) /* {{{ */
 {
-#if !defined(__FreeBSD__)
+#if !defined(__FreeBSD__) && !defined(KERNEL_LINUX) // Solaris
 	/* kstats chain already opened by update_kstat (using *kc), verify everything went fine. */
 	if (kc == NULL)
 	{
