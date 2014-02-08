@@ -20,6 +20,7 @@
  *   Sebastian Harl <sh at tokkee.org>
  **/
 
+#define _GNU_SOURCE 
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
@@ -545,6 +546,17 @@ static void start_read_threads (int num)
 		if (pthread_create (read_threads + read_threads_num, NULL,
 					plugin_read_thread, NULL) == 0)
 		{
+#if defined(HAVE_PTHREAD_SETNAME_NP) || defined(HAVE_PTHREAD_SET_NAME_NP)
+			char thread_name[16];
+			sstrncpy (thread_name, "plugin reader", sizeof(thread_name));
+# if defined(HAVE_PTHREAD_SETNAME_NP)
+			pthread_setname_np (*(read_threads + read_threads_num),
+				thread_name);
+# elif defined(HAVE_PTHREAD_SET_NAME_NP)
+			pthread_set_name_np (*(read_threads + read_threads_num),
+				thread_name);
+# endif
+#endif
 			read_threads_num++;
 		}
 		else
@@ -770,9 +782,20 @@ static void start_write_threads (size_t num) /* {{{ */
 					"with status %i (%s).", status,
 					sstrerror (status, errbuf, sizeof (errbuf)));
 			return;
+		} else {
+#if defined(HAVE_PTHREAD_SETNAME_NP) || defined(HAVE_PTHREAD_SET_NAME_NP)
+			char thread_name[16];
+			sstrncpy (thread_name, "plugin writer", sizeof(thread_name));
+# if defined(HAVE_PTHREAD_SETNAME_NP)
+			pthread_setname_np (*(write_threads + write_threads_num),
+				thread_name);
+# elif defined(HAVE_PTHREAD_SET_NAME_NP)
+			pthread_set_name_np (*(write_threads + write_threads_num),
+				thread_name);
+# endif
+#endif
+			write_threads_num++;
 		}
-
-		write_threads_num++;
 	} /* for (i) */
 } /* }}} void start_write_threads */
 
@@ -2562,9 +2585,10 @@ static void *plugin_thread_start (void *arg)
 } /* void *plugin_thread_start */
 
 int plugin_thread_create (pthread_t *thread, const pthread_attr_t *attr,
-		void *(*start_routine) (void *), void *arg)
+		void *(*start_routine) (void *), void *arg, char *name)
 {
 	plugin_thread_t *plugin_thread;
+	int ret;
 
 	plugin_thread = malloc (sizeof (*plugin_thread));
 	if (plugin_thread == NULL)
@@ -2574,8 +2598,22 @@ int plugin_thread_create (pthread_t *thread, const pthread_attr_t *attr,
 	plugin_thread->start_routine = start_routine;
 	plugin_thread->arg           = arg;
 
-	return pthread_create (thread, attr,
+	ret = pthread_create (thread, attr,
 			plugin_thread_start, plugin_thread);
+
+	if (ret == 0 && name != NULL) {
+#if defined(HAVE_PTHREAD_SETNAME_NP) || defined(HAVE_PTHREAD_SET_NAME_NP)
+		char thread_name[16];
+		sstrncpy (thread_name, name, sizeof(thread_name));
+# if defined(HAVE_PTHREAD_SETNAME_NP)
+		pthread_setname_np (*thread, thread_name);
+# elif defined(HAVE_PTHREAD_SET_NAME_NP)
+		pthread_set_name_np (*thread, thread_name);
+# endif
+#endif
+	}
+
+	return ret;
 } /* int plugin_thread_create */
 
 /* vim: set sw=8 ts=8 noet fdm=marker : */

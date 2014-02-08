@@ -933,7 +933,7 @@ static int cpy_init(void) {
 	pthread_sigmask(SIG_BLOCK, &sigset, NULL);
 	state = PyEval_SaveThread();
 	if (do_interactive) {
-		if (plugin_thread_create(&thread, NULL, cpy_interactive, NULL)) {
+		if (plugin_thread_create(&thread, NULL, cpy_interactive, NULL, "python interpreter")) {
 			ERROR("python: Error creating thread for interactive interpreter.");
 		}
 	}

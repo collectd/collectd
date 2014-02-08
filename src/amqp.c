@@ -674,7 +674,7 @@ static int camqp_subscribe_init (camqp_config_t *conf) /* {{{ */
     memset (tmp, 0, sizeof (*tmp));
 
     status = plugin_thread_create (tmp, /* attr = */ NULL,
-            camqp_subscribe_thread, conf);
+            camqp_subscribe_thread, conf, "amqp subscribe");
     if (status != 0)
     {
         char errbuf[1024];
