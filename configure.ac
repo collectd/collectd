@@ -5168,6 +5168,7 @@ AC_PLUGIN([netlink],     [$with_libmnl],       [Enhanced Linux network statistic
 AC_PLUGIN([network],     [yes],                [Network communication plugin])
 AC_PLUGIN([nfs],         [$plugin_nfs],        [NFS statistics])
 AC_PLUGIN([nginx],       [$with_libcurl],      [nginx statistics])
+AC_PLUGIN([notify_dbi],  [$with_libdbi],       [Database notifier])
 AC_PLUGIN([notify_desktop], [$with_libnotify], [Desktop notifications])
 AC_PLUGIN([notify_email], [$with_libesmtp],    [Email notifier])
 AC_PLUGIN([ntpd],        [yes],                [NTPd statistics])
@@ -5513,6 +5514,7 @@ Configuration:
     network . . . . . . . $enable_network
     nfs . . . . . . . . . $enable_nfs
     nginx . . . . . . . . $enable_nginx
+    notify_dbi  . . . . . $enable_notify_dbi
     notify_desktop  . . . $enable_notify_desktop
     notify_email  . . . . $enable_notify_email
     ntpd  . . . . . . . . $enable_ntpd

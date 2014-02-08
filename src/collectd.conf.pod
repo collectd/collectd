@@ -3693,6 +3693,106 @@ has been specified, the default is used as well.
 
 =back
 
+=head2 Plugin C<notify_dbi>
+
+The I<notify_dbi> plugin use the I<dbi> library (L<http://libdbi.sourceforge.net/>) 
+to send notifications to various databases, executing I<SQL> statements when 
+a notification arrives.
+
+ <Plugin notify_dbi>
+   <Database "mysql">
+     Driver "mysql"
+     DriverOption "host" "127.0.0.1"
+     DriverOption "port" "3306"
+     DriverOption "username" "collectd"
+     DriverOption "password" "collectd"
+     DriverOption "dbname" "collectd"
+
+     Query "Failure" "Warning" "Ok" "INSERT INTO alert_history (host, plugin, plugin_instance, type, type_instance, time, severity, message) VALUES ('%{host}', '%{plugin}', '%{plugin_instance}', '%{type}', '%{type_instance}', '%{time}', '%{severity}', '%{message}')"
+     Query "Failure" "Warning" "DELETE FROM alert where host = '%{host}' and plugin = '%{plugin}' and plugin_instance = '%{plugin_instance}' and type = '%{type}' and type_instance = '%{type_instance}'"
+     Query "Failure" "Warning" "INSERT INTO alert (host, plugin, plugin_instance, type, type_instance, time, severity, message) VALUES ('%{host}', '%{plugin}', '%{plugin_instance}', '%{type}', '%{type_instance}', '%{time}', '%{severity}', '%{message}')"
+     Query "Ok" "DELETE FROM alert where host = '%{host}' and plugin = '%{plugin}' and plugin_instance = '%{plugin_instance}' and type = '%{type}' and type_instance = '%{type_instance}'"
+   </Database>
+ </Plugin>
+
+=head3 B<Database> blocks
+
+Database blocks define a connection to a database and which queries should be
+sent to that database. Since the used "dbi" library can handle a wide variety
+of databases, the configuration is very generic. If in doubt, refer to libdbi's
+documentationE<nbsp>- we stick as close to the terminology used there.
+
+Each database needs a "name" as string argument in the starting tag of the
+block.
+
+=over 4
+
+=item B<Driver> I<Driver>
+
+Specifies the driver to use to connect to the database. In many cases those
+drivers are named after the database they can connect to, but this is not a
+technical necessity. These drivers are sometimes referred to as "DBD",
+B<D>ataB<B>ase B<D>river, and some distributions ship them in separate
+packages. Drivers for the "dbi" library are developed by the B<libdbi-drivers>
+project at L<http://libdbi-drivers.sourceforge.net/>.
+
+You need to give the driver name as expected by the "dbi" library here. You
+should be able to find that in the documentation for each driver. If you
+mistype the driver name, the plugin will dump a list of all known driver names
+to the log.
+
+=item B<DriverOption> I<Key> I<Value>
+
+Sets driver-specific options. What option a driver supports can be found in the
+documentation for each driver, somewhere at
+L<http://libdbi-drivers.sourceforge.net/>. However, the options "host",
+"username", "password", and "dbname" seem to be deE<nbsp>facto standards.
+
+Unfortunately, drivers are not too keen to report errors when an unknown option
+is passed to them, so invalid settings here may go unnoticed. This is not the
+plugin's fault, it will report errors if it gets them from the libraryE<nbsp>/
+the driver. If a driver complains about an option, the plugin will dump a
+complete list of all options understood by that driver to the log.
+
+=item B<SelectDB> I<Database>
+
+In some cases, the database name you connect with is not the database name you
+want to use for querying data. If this option is set, the plugin will "select"
+(switch to) that database after the connection is established.
+
+=item B<Query> [B<Failure>|B<Warning>|B<Ok> ...] I<Statement>
+
+Execute the statement when a notification match any of the serverities defined.
+The following placeholders will be replaced by an appropriate value:
+
+=over 4
+
+=item B<%{severity}>
+
+=item B<%{time}>
+
+=item B<%{host}>
+
+=item B<%{plugin}>
+
+=item B<%{plugin_instance}>
+
+=item B<%{type}>
+
+=item B<%{type_instance}>
+
+=item B<%{message}>
+
+=item B<%{data_source}>
+
+=item B<%{value}>
+
+These placeholders are replaced by the identifier field of the same name.
+
+=back
+
+=back
+
 =head2 Plugin C<notify_email>
 
 The I<notify_email> plugin uses the I<ESMTP> library to send notifications to a

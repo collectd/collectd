@@ -809,6 +809,16 @@ collectd_LDADD += "-dlopen" nginx.la
 collectd_DEPENDENCIES += nginx.la
 endif
 
+if BUILD_PLUGIN_NOTIFY_DBI
+pkglib_LTLIBRARIES += notify_dbi.la
+notify_dbi_la_SOURCES = notify_dbi.c
+notify_dbi_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBDBI_CPPFLAGS)
+notify_dbi_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBDBI_LDFLAGS)
+notify_dbi_la_LIBADD = $(BUILD_WITH_LIBDBI_LIBS)
+collectd_LDADD += "-dlopen" notify_dbi.la
+collectd_DEPENDENCIES += notify_dbi.la
+endif
+
 if BUILD_PLUGIN_NOTIFY_DESKTOP
 pkglib_LTLIBRARIES += notify_desktop.la
 notify_desktop_la_SOURCES = notify_desktop.c

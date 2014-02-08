@@ -128,6 +128,7 @@
 @LOAD_PLUGIN_NETWORK@LoadPlugin network
 #@BUILD_PLUGIN_NFS_TRUE@LoadPlugin nfs
 #@BUILD_PLUGIN_NGINX_TRUE@LoadPlugin nginx
+#@BUILD_PLUGIN_NOTIFY_DBI_TRUE@LoadPlugin notify_dbi
 #@BUILD_PLUGIN_NOTIFY_DESKTOP_TRUE@LoadPlugin notify_desktop
 #@BUILD_PLUGIN_NOTIFY_EMAIL_TRUE@LoadPlugin notify_email
 #@BUILD_PLUGIN_NTPD_TRUE@LoadPlugin ntpd
@@ -677,6 +678,22 @@
 #	User "www-user"
 #	Password "secret"
 #	CACert "/etc/ssl/ca.crt"
+#</Plugin>
+
+#<Plugin notify_dbi>
+#  <Database "mysql">
+#    Driver "mysql"
+#    DriverOption "host" "127.0.0.1"
+#    DriverOption "port" "3306"
+#    DriverOption "username" "db_user"
+#    DriverOption "password" "secret"
+#    DriverOption "dbname" "db_name"
+#
+#    Query "Failure" "Warning" "Ok" "INSERT INTO alert_history (host, plugin, plugin_instance, type, type_instance, time, severity, message) VALUES ('%{host}', '%{plugin}', '%{plugin_instance}', '%{type}', '%{type_instance}', '%{time}', '%{severity}', '%{message}')"
+#    Query "Failure" "Warning" "DELETE FROM alert where host = '%{host}' and plugin = '%{plugin}' and plugin_instance = '%{plugin_instance}' and type = '%{type}' and type_instance = '%{type_instance}'"
+#    Query "Failure" "Warning" "INSERT INTO alert (host, plugin, plugin_instance, type, type_instance, time, severity, message) VALUES ('%{host}', '%{plugin}', '%{plugin_instance}', '%{type}', '%{type_instance}', '%{time}', '%{severity}', '%{message}')"
+#    Query "Ok" "DELETE FROM alert where host = '%{host}' and plugin = '%{plugin}' and plugin_instance = '%{plugin_instance}' and type = '%{type}' and type_instance = '%{type_instance}'" 
+#  </Database>
 #</Plugin>
 
 #<Plugin notify_desktop>
