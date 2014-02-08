@@ -40,6 +40,8 @@ struct rrdcreate_config_s
   size_t consolidation_functions_num;
 
   _Bool async;
+  int file_uid;
+  int file_gid;
 };
 typedef struct rrdcreate_config_s rrdcreate_config_t;
 

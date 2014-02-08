@@ -24,6 +24,9 @@
 #include "common.h"
 #include "utils_rrdcreate.h"
 
+#include <sys/types.h>
+#include <grp.h>
+
 #undef HAVE_CONFIG_H
 #include <rrd.h>
 #include <rrd_client.h>
@@ -33,6 +36,7 @@
  */
 static char *datadir = NULL;
 static char *daemon_address = NULL;
+static char *file_user_group = NULL;
 static _Bool config_create_files = 1;
 static _Bool config_collect_stats = 1;
 static rrdcreate_config_t rrdcreate_config =
@@ -48,7 +52,9 @@ static rrdcreate_config_t rrdcreate_config =
 	/* consolidation_functions = */ NULL,
 	/* consolidation_functions_num = */ 0,
 
-	/* async = */ 0
+	/* async = */ 0,
+	/* file_uid = */ -1,
+	/* file_gid = */ -1
 };
 
 /*
@@ -243,6 +249,60 @@ static int rc_config (oconfig_item_t *ci)
       status = cf_util_get_boolean (child, &config_create_files);
     else if (strcasecmp ("CreateFilesAsync", key) == 0)
       status = cf_util_get_boolean (child, &rrdcreate_config.async);
+	else if (strcasecmp ("CreateFilesUser", key) == 0)
+	{
+	  status = cf_util_get_string (child, &file_user_group);
+	  if (status == 0)
+	  {
+        struct passwd *sp_ptr;
+        struct passwd sp;
+	    char nambuf[2048];
+
+		sp_ptr = NULL;
+		status = getpwnam_r (file_user_group, &sp, nambuf, sizeof (nambuf), &sp_ptr);
+		if (status != 0)
+		{
+		  char errbuf[1024];
+		  ERROR ("rrdcached plugin: Failed to get user information for user ``%s'': %s",
+			  file_user_group, sstrerror( errno, errbuf, sizeof (errbuf)));
+		}
+		else if (sp_ptr == NULL)
+		{
+		  ERROR ("rrdcached plugin: No such user: `%s'", file_user_group);
+		}
+		else
+		{
+		  rrdcreate_config.file_uid = sp.pw_uid;
+		}
+	  }
+	}
+	else if (strcasecmp ("CreateFilesGroup", key) == 0)
+	{
+	  status = cf_util_get_string (child, &file_user_group);
+	  if (status == 0)
+	  {
+        struct group *gr_ptr;
+        struct group gr;
+	    char nambuf[2048];
+
+		gr_ptr = NULL;
+		status = getgrnam_r (file_user_group, &gr, nambuf, sizeof (nambuf), &gr_ptr);
+		if (status != 0)
+		{
+		  char errbuf[1024];
+		  ERROR ("rrdcached plugin: Failed to get group information for group ``%s'': %s",
+			  file_user_group, sstrerror( errno, errbuf, sizeof (errbuf)));
+		}
+		else if (gr_ptr == NULL)
+		{
+		  ERROR ("rrdcached plugin: No such group: `%s'", file_user_group);
+		}
+		else
+		{
+		  rrdcreate_config.file_gid = gr.gr_gid;
+		}
+	  }
+	}
     else if (strcasecmp ("CollectStatistics", key) == 0)
       status = cf_util_get_boolean (child, &config_collect_stats);
     else if (strcasecmp ("StepSize", key) == 0)
