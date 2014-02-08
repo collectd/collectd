@@ -196,6 +196,26 @@ static int cf_dispatch (const char *type, const char *orig_key,
 	return (ret);
 } /* int cf_dispatch */
 
+static int cf_load_plugin (const char *name, cdtime_t interval, uint32_t flags)
+{
+	plugin_ctx_t old_ctx;
+	plugin_ctx_t ctx;
+	int status;
+
+	memset (&ctx, 0, sizeof (ctx));
+	if (interval > 0)
+		ctx.interval = interval;
+	else
+		ctx.interval = cf_get_default_interval ();
+
+	old_ctx = plugin_set_ctx (ctx);
+	status = plugin_load (name, flags);
+	/* reset to the "global" context */
+	plugin_set_ctx (old_ctx);
+
+	return (status);
+} /* cf_load_plugin */
+
 static int dispatch_global_option (const oconfig_item_t *ci)
 {
 	if (ci->values_num != 1)
@@ -263,9 +283,7 @@ static int dispatch_loadplugin (const oconfig_item_t *ci)
 	int i;
 	const char *name;
 	unsigned int flags = 0;
-	plugin_ctx_t ctx;
-	plugin_ctx_t old_ctx;
-	int ret_val;
+	cdtime_t interval = 0;
 
 	assert (strcasecmp (ci->key, "LoadPlugin") == 0);
 
@@ -275,10 +293,6 @@ static int dispatch_loadplugin (const oconfig_item_t *ci)
 		return (-1);
 
 	name = ci->values[0].value.string;
-
-	/* default to the global interval set before loading this plugin */
-	memset (&ctx, 0, sizeof (ctx));
-	ctx.interval = cf_get_default_interval ();
 
 	for (i = 0; i < ci->children_num; ++i) {
 		if (strcasecmp("Globals", ci->children[i].key) == 0)
@@ -291,7 +305,7 @@ static int dispatch_loadplugin (const oconfig_item_t *ci)
 				continue;
 			}
 
-			ctx.interval = DOUBLE_TO_CDTIME_T (interval);
+			interval = DOUBLE_TO_CDTIME_T (interval);
 		}
 		else {
 			WARNING("Ignoring unknown LoadPlugin option \"%s\" "
@@ -300,12 +314,7 @@ static int dispatch_loadplugin (const oconfig_item_t *ci)
 		}
 	}
 
-	old_ctx = plugin_set_ctx (ctx);
-	ret_val = plugin_load (name, (uint32_t) flags);
-	/* reset to the "global" context */
-	plugin_set_ctx (old_ctx);
-
-	return (ret_val);
+	return cf_load_plugin (name, interval, (uint32_t) flags);
 } /* int dispatch_value_loadplugin */
 
 static int dispatch_value_plugin (const char *plugin, oconfig_item_t *ci)
@@ -386,7 +395,7 @@ static int dispatch_block_plugin (oconfig_item_t *ci)
 	{
 		int status;
 
-		status = plugin_load (name, /* flags = */ 0);
+		status = cf_load_plugin (name, /* interval = */ 0, /* flags = */ 0);
 		if (status != 0)
 		{
 			ERROR ("Automatically loading plugin \"%s\" failed "
