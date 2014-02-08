@@ -352,7 +352,7 @@ static int sigrok_init(void)
 	}
 
 	status = plugin_thread_create(&sr_thread, NULL, sigrok_read_thread,
-			NULL);
+			NULL, "sigrok read");
 	if (status != 0)
 	{
 		char errbuf[1024];
