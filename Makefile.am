@@ -1489,6 +1489,14 @@ notify_nagios_la_SOURCES = src/notify_nagios.c
 notify_nagios_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_NOTIFY_SNMP
+pkglib_LTLIBRARIES += notify_snmp.la
+notify_snmp_la_SOURCES = src/notify_snmp.c
+notify_snmp_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBNETSNMP_LDFLAGS)
+notify_snmp_la_CFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBNETSNMP_CPPFLAGS)
+notify_snmp_la_LIBADD = $(BUILD_WITH_LIBNETSNMP_LIBS)
+endif
+
 if BUILD_PLUGIN_NTPD
 pkglib_LTLIBRARIES += ntpd.la
 ntpd_la_SOURCES = src/ntpd.c

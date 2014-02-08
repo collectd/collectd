@@ -6084,6 +6084,131 @@ Sets the I<command file> to write to. Defaults to F</usr/local/nagios/var/rw/nag
 
 =back
 
+=head2 Plugin C<notify_snmp>
+
+This plugin use the Net-SNMP library to send notifications as B<SNMP> B<Traps>.
+
+ <Plugin notify_snmp>
+   <OIDs collectd>
+     EnterpriseOID     "SNMPv2-SMI::experimental.100"
+     TrapOID           "SNMPv2-SMI::experimental.100.1"
+     TimeStampOID      "SNMPv2-SMI::experimental.100.2.1"
+     SeverityOID       "SNMPv2-SMI::experimental.100.2.2"
+     HostOID           "SNMPv2-SMI::experimental.100.2.3"
+     PluginOID         "SNMPv2-SMI::experimental.100.2.4"
+     PluginInstanceOID "SNMPv2-SMI::experimental.100.2.5"
+     TypeOID           "SNMPv2-SMI::experimental.100.2.6"
+     TypeInstanceOID   "SNMPv2-SMI::experimental.100.2.7"
+     DataSourceOID     "SNMPv2-SMI::experimental.100.2.8"
+     ValueOID          "SNMPv2-SMI::experimental.100.2.9"
+     MessageOID        "SNMPv2-SMI::experimental.100.2.10"
+   </OIDs>
+   <Target localhost>
+     Address "localhost:162"
+     Version 2
+     Community "public"
+     OIDs collectd
+     SessionReuse true
+   </Target>
+ </Plugin>
+
+The plugin's configuration consists of a number of B<OIDs> and B<Target> blocks.
+
+=head3 B<OIDs> blocks
+
+The B<OIDs> block configure the list of object identifiers to send in the
+B<SNMP> B<Trap>. There are sent in the order show.
+They are identified by the name that is given in the opening line of the block.
+
+=over 4
+
+=item B<EnterpriseOID> I<OID>
+
+Set the Enterprise I<OID>, used in B<SNMP> version 1.
+
+=item B<TrapOID> I<OID>
+
+Set the Trap I<OID>, used in B<SNMP> version 2.
+
+=item B<TimeStampOID> I<OID>
+
+Set the I<OID> for the notification timestamp.
+
+=item B<SeverityOID> I<OID>
+
+Set the I<OID> for the notification severity.
+
+=item B<HostOID> I<OID>
+
+Set the I<OID> for the notification host.
+
+=item B<PluginOID> I<OID>
+
+Set the I<OID> for the notification plugin.
+
+=item B<PluginInstanceOID> I<OID>
+
+Set the I<OID> for the notification plugin instance.
+
+=item B<TypeOID> I<OID>
+
+Set the I<OID> for the notification type.
+
+=item B<TypeInstanceOID> I<OID>
+
+Set the I<OID> for the notification type instance.
+
+=item B<DataSourceOID> I<OID>
+
+Set the I<OID> for the notification data source.
+
+=item B<ValueOID> I<OID>
+
+Set the I<OID> for the notification value of the data source.
+
+=item B<MessageOID> I<OID>
+
+Set the I<OID> for the notification message.
+
+=back
+
+=head3 B<Target> blocks
+
+The B<Target> block configure the destination of the B<SNMP> B<Trap> and
+which OIDs should be send in the trap.
+They are identified by the name that is given in the opening line of the block.
+
+=over 4
+
+=item B<Address> I<address>
+
+Set the address of the target to connect to. The default protocol is udp and
+the port is 161. See the L<snmpcmd(1)> manual page for more details.
+
+=item B<Version> I<1|2>
+
+Set the SNMP version to use. When giving B<2> version C<2c> is actually used.
+Version 3 is not supported by this plugin.
+
+=item B<Community> I<comunity>
+
+Pass the I<Community> to the target.
+
+=item B<OIDs> I<name>
+
+Defines which OIDs are used in the Trap. I<name> refers to one of the B<OIDs>
+block above. Since the config file is read top-down you need to define the data
+before using it here.
+
+If option B<OIDs> is not specified the default values defined in the plugin
+are used.
+
+=item B<SessionReuse> B<true>|B<false>
+
+Keep SNMP session open between notifications send.
+
+=back
+
 =head2 Plugin C<ntpd>
 
 The C<ntpd> plugin collects per-peer ntp data such as time offset and time
