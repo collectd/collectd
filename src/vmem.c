@@ -24,6 +24,27 @@
 #include "plugin.h"
 
 #if KERNEL_LINUX
+/* none */
+/* #endif KERNEL_LINUX */
+
+#elif HAVE_PERFSTAT
+# include <sys/vminfo.h>
+# include <libperfstat.h>
+/* #endif HAVE_PERFSTAT */
+
+#else
+# error "No applicable input method."
+#endif
+
+/*
+ * Global variables
+ */
+
+#if HAVE_PERFSTAT
+static perfstat_cpu_t *perfcpu;
+static int pnumcpu;
+#endif
+
 static const char *config_keys[] =
 {
   "Verbose"
@@ -31,11 +52,6 @@ static const char *config_keys[] =
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static int verbose_output = 0;
-/* #endif KERNEL_LINUX */
-
-#else
-# error "No applicable input method."
-#endif /* HAVE_LIBSTATGRAB */
 
 static void submit (const char *plugin_instance, const char *type,
     const char *type_instance, value_t *values, int values_len)
@@ -267,7 +283,130 @@ static int vmem_read (void)
 
   if (pswpvalid == 0x03)
     submit_two (NULL, "vmpage_io", "swap", pswpin, pswpout);
-#endif /* KERNEL_LINUX */
+/* #endif KERNEL_LINUX */
+
+#elif HAVE_PERFSTAT
+  struct vminfo64 vm;
+  perfstat_id_t id;
+  int numcpu;
+  int i,cpus;
+  derive_t minfaults;
+  derive_t majfaults;
+
+  if (vmgetinfo(&vm, VMINFO64, sizeof(vm)) < 0)
+  {
+    char errbuf[1024];
+    WARNING ("vmem plugin: vmgetinfo: %s",
+      sstrerror (errno, errbuf, sizeof (errbuf)));
+    return (-1);
+  }
+
+  submit_two (NULL, "vmpage_io", "memory", vm.pageins, vm.pageouts);
+
+  submit_two (NULL, "vmpage_io", "swap", vm.pgspgins, vm.pgspgouts);
+
+  submit_two (NULL, "vmpage_io", "compress",
+    vm.cmem_ncomp_ops, vm.cmem_ndecomp_ops);
+
+  if (verbose_output == 1)
+  {
+    value_t value;
+
+    /* count of page faults */
+    value.derive = vm.pgexct;
+    submit_one (NULL, "vmpage_action", "fault", value);
+
+    /* count of page reclaims */
+    value.derive = vm.pgrclm;
+    submit_one (NULL, "vmpage_action", "reclaim", value);
+
+    /* count of clock hand cycles */
+    value.derive = vm.cycles;
+    submit_one (NULL, "vmpage_action", "cycles", value);
+
+     /* count of page steals */
+    value.derive = vm.pgsteals;
+    submit_one (NULL, "vmpage_action", "steal", value);
+
+    /* count of lockmisses */
+    value.derive = vm.lockexct;
+    submit_one (NULL, "vmpage_action", "lockmiss", value);
+
+    /* count of backtracks */
+    value.derive = vm.backtrks;
+    submit_one (NULL, "vmpage_action", "backtrack", value);
+
+    /* count of start I/Os */
+    value.derive = vm.numsios;
+    submit_one (NULL, "vmpage_action", "startio", value);
+
+    /* count of iodones */
+    value.derive = vm.numiodone;
+    submit_one (NULL, "vmpage_action", "iodone", value);
+
+    /* count of zero filled pages */
+    value.derive = vm.zerofills;
+    submit_one (NULL, "vmpage_action", "zerofill", value);
+
+    /* count of exec filled pages */
+    value.derive = vm.exfills;
+    submit_one (NULL, "vmpage_action", "execfill", value);
+
+    /* count of page scans by clock */
+    value.derive = vm.scans;
+    submit_one (NULL, "vmpage_action", "scans", value);
+
+    /* count of free frame waits */
+    value.derive = vm.freewts;
+    submit_one (NULL, "vmpage_action", "freewts", value);
+
+    /* count of extend XPT waits */
+    value.derive = vm.extendwts;
+    submit_one (NULL, "vmpage_action", "extendwts", value);
+
+    /* count of pending I/O waits */
+    value.derive = vm.pendiowts;
+    submit_one (NULL, "vmpage_action", "pendiowait", value);
+  }
+
+  numcpu =  perfstat_cpu(NULL, NULL, sizeof(perfstat_cpu_t), 0);
+  if(numcpu == -1)
+  {
+    char errbuf[1024];
+    WARNING ("vmem plugin: perfstat_cpu: %s",
+      sstrerror (errno, errbuf, sizeof (errbuf)));
+    return (-1);
+  }
+
+  if (pnumcpu != numcpu || perfcpu == NULL)
+  {
+    sfree(perfcpu);
+    perfcpu = malloc(numcpu * sizeof(perfstat_cpu_t));
+  }
+  pnumcpu = numcpu;
+
+  id.name[0] = '\0';
+  cpus = perfstat_cpu(&id, perfcpu, sizeof(perfstat_cpu_t), numcpu);
+  if (cpus < 0)
+  {
+    char errbuf[1024];
+    WARNING ("vmem plugin: perfstat_cpu: %s",
+      sstrerror (errno, errbuf, sizeof (errbuf)));
+    return (-1);
+  }
+
+  minfaults = 0;
+  majfaults = 0;
+
+  for (i = 0; i < cpus; i++)
+  {
+    minfaults += perfcpu[i].minfaults;
+    majfaults += perfcpu[i].majfaults;
+  }
+
+  submit_two (NULL, "vmpage_faults", NULL, minfaults, majfaults);
+
+#endif /* HAVE_PERFSTAT */
 
   return (0);
 } /* int vmem_read */

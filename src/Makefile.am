@@ -1342,6 +1342,10 @@ if BUILD_PLUGIN_VMEM
 pkglib_LTLIBRARIES += vmem.la
 vmem_la_SOURCES = vmem.c
 vmem_la_LDFLAGS = -module -avoid-version
+vmem_la_LIBADD =
+if BUILD_WITH_PERFSTAT
+vmem_la_LIBADD += -lperfstat
+endif
 collectd_LDADD += "-dlopen" vmem.la
 collectd_DEPENDENCIES += vmem.la
 endif

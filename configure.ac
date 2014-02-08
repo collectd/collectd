@@ -4899,6 +4899,7 @@ then
 	plugin_interface="yes"
 	plugin_load="yes"
 	plugin_uptime="yes"
+	plugin_vmem="yes"
 fi
 
 if test "x$with_procinfo" = "xyes"
