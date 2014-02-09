@@ -20,7 +20,9 @@
  *   Sebastian Harl <sh at tokkee.org>
  **/
 
+/* _GNU_SOURCE is needed in Linux to use pthread_setname_np */
 #define _GNU_SOURCE 
+
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
