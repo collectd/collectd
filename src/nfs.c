@@ -492,10 +492,12 @@ static int nfs_submit_nfs4_client (const char *instance, char **fields,
 	switch (fields_num)
 	{
 		case 34:
-			proc40_names_num = 34;
-			break;
 		case 35:
-			proc40_names_num = 35;
+		case 36:
+		case 37:
+		case 38:
+			/* 4.0-only configuration */
+			proc40_names_num = fields_num;
 			break;
 		case 40:
 			proc40_names_num = 35;
