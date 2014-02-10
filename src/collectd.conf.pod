@@ -1649,6 +1649,12 @@ collected. If at least one B<Disk> option is given and no B<IgnoreSelected> or
 set to B<false>, B<only> matching disks will be collected. If B<IgnoreSelected>
 is set to B<true>, all disks are collected B<except> the ones matched.
 
+=item B<UdevNameAttr> I<Attribute>
+
+Attempt to override disk instance name with the value of a specified udev
+attribute When built with B<libudev>.  If the attribute is not defined for the
+given device, the default name is used.
+
 =back
 
 =head2 Plugin C<dns>
