@@ -296,11 +296,11 @@ static const char *nfs4_client40_procedures_names[] =
 
 static const char *nfs4_client41_procedures_names[] =
 {
-	"exchange_id",		/* |40| 3.6.30 */
-	"create_session",	/* |40| 3.6.30 */
-	"destroy_session",	/* |40| 3.6.30 */
-	"sequence",		/* |40| 3.6.30 */
-	"get_lease_time",	/* |40| 3.6.30 */
+	"exchange_id",		/* |40| 2.6.30 */
+	"create_session",	/* |40| 2.6.30 */
+	"destroy_session",	/* |40| 2.6.30 */
+	"sequence",		/* |40| 2.6.30 */
+	"get_lease_time",	/* |40| 2.6.30 */
 	"reclaim_complete",	/* |41| 2.6.33 */
 	"layoutget",		/* |44| 2.6.37 */
 	"getdeviceinfo",	/* |44| 2.6.37 */
