@@ -500,26 +500,14 @@ static int nfs_submit_nfs4_client (const char *instance, char **fields,
 			proc40_names_num = fields_num;
 			break;
 		case 40:
-			proc40_names_num = 35;
-			break;
 		case 41:
 			proc40_names_num = 35;
 			break;
 		case 42:
-			proc40_names_num = 36;
-			break;
 		case 44:
-			proc40_names_num = 36;
-			break;
 		case 46:
-			proc40_names_num = 36;
-			break;
 		case 47:
-			proc40_names_num = 36;
-			break;
 		case 51:
-			proc40_names_num = 36;
-			break;
 		case 53:
 			proc40_names_num = 36;
 			break;
