@@ -41,6 +41,7 @@
  */
 char hostname_g[DATA_MAX_NAME_LEN];
 cdtime_t interval_g;
+int  pidfile_from_cli = 0;
 int  timeout_g;
 #if HAVE_LIBKSTAT
 kstat_ctl_t *kc;
@@ -439,6 +440,7 @@ int main (int argc, char **argv)
 #if COLLECT_DAEMON
 			case 'P':
 				global_option_set ("PIDFile", optarg);
+				pidfile_from_cli = 1;
 				break;
 			case 'f':
 				daemonize = 0;

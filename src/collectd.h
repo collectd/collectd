@@ -296,6 +296,7 @@ typedef uint64_t cdtime_t;
 
 extern char     hostname_g[];
 extern cdtime_t interval_g;
+extern int      pidfile_from_cli;
 extern int      timeout_g;
 
 #endif /* COLLECTD_H */
