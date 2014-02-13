@@ -792,7 +792,7 @@ static int redisRead(void)
 
     if((rr = redisCommand(rn->rc, "INFO")) == NULL)
     {
-      WARNING("redis plugin: unable to query info from node '%s'.", rn->name);
+      WARNING("redis plugin: unable to query info from node '%s' (%d / %s)", rn->name, rn->rc->err, rn->rc->errstr);
       redisFree(rn->rc);
       rn->rc = NULL;
       continue;

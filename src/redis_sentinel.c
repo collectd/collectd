@@ -102,20 +102,20 @@ static int redisSentinelNodeAdd(const RedisSentinelNode *rn)
 
   if(rn_ptr)
   {
-    ERROR("redis plugin: A node with the name '%s' already exists.", rn->name);
+    ERROR("redis sentinel plugin: A node with the name '%s' already exists.", rn->name);
     return -1;
   }
 
   if((rn_copy = malloc(sizeof(*rn_copy))) == NULL)
   {
-    ERROR("redis plugin: malloc failed adding redis_node to the tree.");
+    ERROR("redis sentinel plugin: malloc failed adding redis_node to the tree.");
     return -1;
   }
 
   memcpy(rn_copy, rn, sizeof(*rn_copy));
   rn_copy->next = NULL;
 
-  DEBUG("redis plugin: Adding node \"%s\".", rn->name);
+  DEBUG("redis sentinel plugin: Adding node \"%s\".", rn->name);
 
   if(gRedisSentinelNodesHead == NULL)
     gRedisSentinelNodesHead = rn_copy;
@@ -185,7 +185,7 @@ static int redisSentinelConfigNode(oconfig_item_t *ci)
       continue;
     }
 
-    WARNING("redis plugin: Option '%s' not allowed inside a 'Node' block. I'll ignore this option.", option->key);
+    WARNING("redis sentinel plugin: Option '%s' not allowed inside a 'Node' block. I'll ignore this option.", option->key);
   }
 
   return redisSentinelNodeAdd(&rn);
@@ -207,12 +207,12 @@ static int redisSentinelConfig(oconfig_item_t *ci)
       continue;
     }
 
-    WARNING("redis plugin: Option '%s' not allowed in redis configuration. It will be ignored.", option->key);
+    WARNING("redis sentinel plugin: Option '%s' not allowed in redis configuration. It will be ignored.", option->key);
   }
 
   if(gRedisSentinelNodesHead == NULL)
   {
-    ERROR("redis plugin: No valid node configuration could be found.");
+    ERROR("redis sentinel plugin: No valid node configuration could be found.");
     return ENOENT;
   }
 
@@ -365,20 +365,20 @@ static int redisSentinelRead(void)
       tmout.tv_sec = rn->timeout;
       tmout.tv_usec = 0;
 
-      DEBUG("redis plugin: connecting to node '%s' (%s:%d).", rn->name, rn->host, rn->port);
+      DEBUG("redis sentinel plugin: connecting to node '%s' (%s:%d).", rn->name, rn->host, rn->port);
 
       if((rn->rc = redisConnectWithTimeout((char *)rn->host, rn->port, tmout)) == NULL)
       {
-        ERROR("redis plugin: unable to connect to node '%s' (%s:%d).", rn->name, rn->host, rn->port);
+        ERROR("redis sentinel plugin: unable to connect to node '%s' (%s:%d).", rn->name, rn->host, rn->port);
         continue;
       }
     }
 
-    DEBUG("redis plugin: querying info from node '%s' (%s:%d).", rn->name, rn->host, rn->port);
+    DEBUG("redis sentinel plugin: querying info from node '%s' (%s:%d).", rn->name, rn->host, rn->port);
 
     if((rr = redisCommand(rn->rc, "INFO")) == NULL)
     {
-      WARNING("redis plugin: unable to query info from node '%s'.", rn->name);
+      WARNING("redis sentinel plugin: unable to query info from node '%s' (%d / %s)", rn->name, rn->rc->err, rn->rc->errstr);
       redisFree(rn->rc);
       rn->rc = NULL;
       continue;
