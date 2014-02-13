@@ -5588,6 +5588,58 @@ Configuration:
 
 EOF
 
+# Check if we should set LD_LIBRARY_PATH for json-c
+(IFS='
+'
+if test "`find / -name libjson.la`" == "" ; then
+   echo "ERROR - libjson.la is required for ceph plugin - please install json-c parser"
+   exit
+elif test "`find / -name libjson-c.la`" == "" ; then
+   echo "ERROR - libjson-c.la is reqiured for ceph plugin - please install json-c parser"
+   exit
+fi
+
+GOOD_LD=""
+USR_JSON_LOC=""
+BACKUP=""
+
+for x in `find / -name libjson.la` ;
+do
+   LIBJSON_DIR=`dirname $x`
+   if @<:@@<:@ "`echo $LD_LIBRARY_PATH`" == *$LIBJSON_DIR* @:>@@:>@ ; then
+        GOOD_LD="true"
+   fi
+
+   if @<:@@<:@ "$BACKUP" == "" && -e "$LIBJSON_DIR/libjson-c.la" @:>@@:>@ ; then
+        BACKUP="$LIBJSON_DIR"
+   fi
+
+   if @<:@@<:@ "$LIBJSON_DIR" == *usr* && "$USR_JSON_LOC" == "" @:>@@:>@ ; then
+        if test -e "$LIBJSON_DIR/libjson-c.la" ; then
+            USR_JSON_LOC="$LIBJSON_DIR"
+        fi
+   fi
+done
+
+if test "$USR_JSON_LOC" == "" ; then
+   if test "$BACKUP" == "" ; then
+        echo "WARNING - libjson.la and libjson-c.la are not in the same directory"
+        echo "Please move them to the same directory and retry"
+        exit
+   fi
+   USR_JSON_LOC="$BACKUP"
+fi
+
+if test "$GOOD_LD" == "" ; then
+   echo "WARNING - some Linux distributions (tested on Ubuntu-Precise) need LD_LIBRARY_PATH to be" \
+   "set or the ceph plugin may not link correctly with the JSON library necessary to support 64 bit integers," \
+   "execute the following command to add the path before running 'make':"
+   echo "export LD_LIBRARY_PATH=$USR_JSON_LOC"
+   echo ""
+fi
+)
+
+
 if test "x$dependency_error" = "xyes"; then
 	AC_MSG_ERROR("Some plugins are missing dependencies - see the summary above for details")
 fi
