@@ -5637,6 +5637,14 @@ if test "$GOOD_LD" == "" ; then
    echo "export LD_LIBRARY_PATH=$USR_JSON_LOC"
    echo ""
 fi
+
+echo ""
+echo "Some Linux distributions (tested on Ubuntu-precise 12.04) need special library targets"\
+" added to src/Makefile for the ceph plugin. You modify src/Makefile to the following for 'ceph_la_LDFLAGS'"
+echo "Since libjson.la and libjson-c.la were found at $USR_JSON_LOC:"
+echo "ceph_la_LDFLAGS = $USR_JSON_LOC/libjson.la $USR_JSON_LOC/libjson-c.la -module -avoid-version)"
+echo ""
+
 )
 
 
