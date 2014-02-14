@@ -253,6 +253,9 @@ num_objects_unfound			value:GAUGE:0:4294967295
 num_monitors				value:GAUGE:0:4294967295
 num_monitors_in_quorum			value:GAUGE:0:4294967295
 
+pool_stats              p_id:GAUGE:0:U, kb_used:GAUGE:U:U, num_objects:GAUGE:U:U
+pool_util_stats         total_bytes:GAUGE:U:U, bytes_used:GAUGE:U:U, bytes_avail:GAUGE:U:U
+
 #
 # Legacy types
 # (required for the v5 upgrade target)
