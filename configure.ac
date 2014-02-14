@@ -5588,10 +5588,26 @@ Configuration:
 
 EOF
 
+CEPH_LD_PROBLEM=""
+MAKE_LD_SET=`cat src/Makefile | grep 'ceph_la_LDFLAGS ='`
+JSON_MAKE_PATH=""
+JSONC_MAKE_PATH=""
+JSON_FIND_CMD=`find / -name libjson.la`
+set -- junk $MAKE_LD_SET
+shift
+for word ;
+do
+   if @<:@@<:@ "$word" == *libjson.la* @:>@@:>@ ; then
+        JSON_MAKE_PATH="`dirname "$word"`"
+   elif @<:@@<:@ "$word" == *libjson-c.la* @:>@@:>@ ; then
+        JSONC_MAKE_PATH="`dirname "$word"`"
+   fi
+done
+
 # Check if we should set LD_LIBRARY_PATH for json-c
 (IFS='
 '
-if test "`find / -name libjson.la`" == "" ; then
+if test "$JSON_FIND_CMD" == "" ; then
    echo "ERROR - libjson.la is required for ceph plugin - please install json-c parser"
    exit
 elif test "`find / -name libjson-c.la`" == "" ; then
@@ -5603,11 +5619,11 @@ GOOD_LD=""
 USR_JSON_LOC=""
 BACKUP=""
 
-for x in `find / -name libjson.la` ;
+for x in $JSON_FIND_CMD ;
 do
    LIBJSON_DIR=`dirname $x`
-   if @<:@@<:@ "`echo $LD_LIBRARY_PATH`" == *$LIBJSON_DIR* @:>@@:>@ ; then
-        GOOD_LD="true"
+   if @<:@@<:@ "$LD_LIBRARY_PATH" == *$LIBJSON_DIR* @:>@@:>@ ; then
+        GOOD_LD="$LIBJSON_DIR"
    fi
 
    if @<:@@<:@ "$BACKUP" == "" && -e "$LIBJSON_DIR/libjson-c.la" @:>@@:>@ ; then
@@ -5630,23 +5646,45 @@ if test "$USR_JSON_LOC" == "" ; then
    USR_JSON_LOC="$BACKUP"
 fi
 
+CEPH_LD_WARN="WARNING - some Linux distributions (tested on Ubuntu-Precise) need special actions to be taken for JSON dependencies"
+CEPH_LD_WARN="$CEPH_LD_WARN or the ceph plugin may not link correctly with the JSON library necessary to support 64 bit integers"
+CEPH_LD_MAKE_WARN="You should modify src/Makefile to the following for 'ceph_la_LDFLAGS'"
+NO_JSON_MAKE_PATH=""
+if @<:@@<:@ "$JSON_MAKE_PATH" == "" || "$JSONC_MAKE_PATH" == "" @:>@@:>@ ; then
+   NO_JSON_MAKE_PATH="true"
+fi
+
 if test "$GOOD_LD" == "" ; then
-   echo "WARNING - some Linux distributions (tested on Ubuntu-Precise) need LD_LIBRARY_PATH to be" \
-   "set or the ceph plugin may not link correctly with the JSON library necessary to support 64 bit integers," \
-   "execute the following command to add the path before running 'make':"
+   CEPH_LD_PROBLEM="true"
+   echo "$CEPH_LD_WARN"
+   echo ""
+   if test "$NO_JSON_MAKE_PATH" != "" ; then
+        echo "$CEPH_LD_MAKE_WARN"
+        echo "ceph_la_LDFLAGS = $USR_JSON_LOC/libjson.la $USR_JSON_LOC/libjson-c.la -module -avoid-version)"
+        echo ""
+   fi
+   echo "Execute the following command to add the path before running 'make':"
    echo "export LD_LIBRARY_PATH=$USR_JSON_LOC"
+   echo ""
+elif test "$NO_JSON_MAKE_PATH" != "" ; then
+   CEPH_LD_PROBLEM="true"
+   echo "$CEPH_LD_WARN"
+   echo ""
+   echo "$CEPH_LD_MAKE_WARN"
+   echo "ceph_la_LDFLAGS = $GOOD_LD/libjson.la $GOOD_LD/libjson-c.la -module -avoid-version)"
    echo ""
 fi
 
-echo ""
-echo "Some Linux distributions (tested on Ubuntu-precise 12.04) need special library targets"\
-" added to src/Makefile for the ceph plugin. You modify src/Makefile to the following for 'ceph_la_LDFLAGS'"
-echo "Since libjson.la and libjson-c.la were found at $USR_JSON_LOC:"
-echo "ceph_la_LDFLAGS = $USR_JSON_LOC/libjson.la $USR_JSON_LOC/libjson-c.la -module -avoid-version)"
-echo ""
+if test "$CEPH_LD_PROBLEM" != "" ; then
+   echo "As a rule of thumb, these directives should be followed. However, since some operating systems"\
+   "don't require this, run 'make' and 'make install'. After installing, run the following command:"
+   echo "ldd /opt/collectd/lib/collectd/ceph.so"
+   echo ""
+   echo "Make sure the output of this command shows some form of libjson-c.so has been found"
+   echo ""
+fi
 
 )
-
 
 if test "x$dependency_error" = "xyes"; then
 	AC_MSG_ERROR("Some plugins are missing dependencies - see the summary above for details")
