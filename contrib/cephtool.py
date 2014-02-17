@@ -93,6 +93,7 @@ def cephtool_read_pool(pool_json):
         type_instance='num_pools',\
         values=[len(pool_json)]\
     ).dispatch()
+    
     for pool in pool_json:
         name = pool["name"]
         p_id = pool["id"]
@@ -100,7 +101,7 @@ def cephtool_read_pool(pool_json):
         num_objects = pool["stats"]["objects"]
         collectd.Values(plugin="ceph.pool",\
             type="pool_stats",\
-            type_instance=(name),\
+            type_instance=("pool." + str(p_id)),\
             values=[p_id,kb_used,num_objects]\
         ).dispatch()
 
