@@ -576,9 +576,9 @@ static int mysql_read_innodb_stats (mysql_database_t *db, MYSQL *con)
 
 
 		if (strncmp (type, "counter", strlen ("counter")) == 0 || strncmp(type, "status_counter", strlen("status_counter")) == 0) {
-				counter_submit ("innodb", key, val, db);
+				counter_submit ("mysql_innodb", key, val, db);
     } else if (strncmp (type, "value", strlen("value")) == 0) {
-				gauge_submit ("innodb", key, val, db);
+				gauge_submit ("mysql_innodb", key, val, db);
     }
     
   }
