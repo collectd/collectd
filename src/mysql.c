@@ -1,5 +1,6 @@
 /**
  * collectd - src/mysql.c
+ * Copyright (C) 2014       Arijan Luiken
  * Copyright (C) 2006-2010  Florian octo Forster
  * Copyright (C) 2008       Mirko Buffoni
  * Copyright (C) 2009       Doug MacEachern
@@ -20,6 +21,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
+ *   Arijan Luiken <arijan.luiken at me.com>
  *   Florian octo Forster <octo at collectd.org>
  *   Mirko Buffoni <briareos at eswat.org>
  *   Doug MacEachern <dougm at hyperic.com>
@@ -549,6 +551,42 @@ static int mysql_read_slave_stats (mysql_database_t *db, MYSQL *con)
 	return (0);
 } /* mysql_read_slave_stats */
 
+static int mysql_read_innodb_stats (mysql_database_t *db, MYSQL *con)
+{
+	MYSQL_RES *res;
+	MYSQL_ROW  row;
+
+	char *query;
+
+	query = "SELECT name, count, type FROM information_schema.innodb_metrics WHERE status = 'enabled'";
+
+	res = exec_query (con, query);
+	if (res == NULL)
+		return (-1);
+
+	while ((row = mysql_fetch_row (res)))
+	{
+		char *key;
+    char *type;
+		unsigned long long val;
+
+		key = row[0];
+		val = atoll (row[1]);
+    type = row[2];
+
+
+		if (strncmp (type, "counter", strlen ("counter")) == 0 || strncmp(type, "status_counter", strlen("status_counter")) == 0) {
+				counter_submit ("innodb", key, val, db);
+    } else if (strncmp (type, "value", strlen("value")) == 0) {
+				gauge_submit ("innodb", key, val, db);
+    }
+    
+  }
+
+  mysql_free_result(res);
+  return (0);
+}
+
 static int mysql_read (user_data_t *ud)
 {
 	mysql_database_t *db;
@@ -570,6 +608,7 @@ static int mysql_read (user_data_t *ud)
 
 	unsigned long long traffic_incoming = 0ULL;
 	unsigned long long traffic_outgoing = 0ULL;
+  unsigned long mysql_version = 0ULL;
 
 	if ((ud == NULL) || (ud->data == NULL))
 	{
@@ -583,8 +622,10 @@ static int mysql_read (user_data_t *ud)
 	if ((con = getconnection (db)) == NULL)
 		return (-1);
 
+  mysql_version = mysql_get_server_version(con);
+
 	query = "SHOW STATUS";
-	if (mysql_get_server_version (con) >= 50002)
+	if (mysql_version >= 50002)
 		query = "SHOW GLOBAL STATUS";
 
 	res = exec_query (con, query);
@@ -697,6 +738,9 @@ static int mysql_read (user_data_t *ud)
 	}
 
 	traffic_submit  (traffic_incoming, traffic_outgoing, db);
+
+	if (mysql_version >= 50600)
+    mysql_read_innodb_stats (db, con);
 
 	if (db->master_stats)
 		mysql_read_master_stats (db, con);
