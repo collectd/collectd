@@ -53,6 +53,11 @@ static int vg_read(vg_t vg, char const *vg_name)
     lvm_submit (vg_name, "free", lvm_vg_get_free_size(vg));
 
     lvs = lvm_vg_list_lvs(vg);
+    if (!lvs) {
+        /* no VGs are defined, which is not an error per se */
+        return (0);
+    }
+
     dm_list_iterate_items(lvl, lvs) {
          lvm_submit(vg_name, lvm_lv_get_name(lvl->lv), lvm_lv_get_size(lvl->lv));
     }
