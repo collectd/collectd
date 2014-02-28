@@ -285,7 +285,6 @@ static int memory_read_internal (value_list_t *vl)
 	gauge_t mem_free = 0;
 	gauge_t mem_slab_reclaimable = 0;
 	gauge_t mem_slab_unreclaimable = 0;
-	gauge_t mem_shared = 0;
 
 	if ((fh = fopen ("/proc/meminfo", "r")) == NULL)
 	{
@@ -311,8 +310,6 @@ static int memory_read_internal (value_list_t *vl)
 			val = &mem_slab_reclaimable;
 		else if (strncasecmp (buffer, "SUnreclaim:", 11) == 0)
 			val = &mem_slab_unreclaimable;
-		else if (strncasecmp (buffer, "Shmem:", 6) == 0)
-			val = &mem_shared;
 		else
 			continue;
 
@@ -333,14 +330,13 @@ static int memory_read_internal (value_list_t *vl)
 	if (mem_total < (mem_free + mem_buffered + mem_cached))
 		return (-1);
 
-	mem_used = mem_total - (mem_free + mem_buffered + mem_cached + mem_slab_unreclaimable + mem_slab_reclaimable + mem_shared);
+	mem_used = mem_total - (mem_free + mem_buffered + mem_cached + mem_slab_unreclaimable + mem_slab_reclaimable);
 	MEMORY_SUBMIT ("used",        mem_used,
 	               "buffered",    mem_buffered,
 	               "cached",      mem_cached,
 	               "free",        mem_free,
 	               "slab_unrecl", mem_slab_unreclaimable,
-	               "slab_recl",   mem_slab_reclaimable,
-	               "shared",      mem_shared);
+	               "slab_recl",   mem_slab_reclaimable);
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
