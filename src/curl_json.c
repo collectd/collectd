@@ -53,10 +53,10 @@ struct cj_key_s;
 typedef struct cj_key_s cj_key_t;
 struct cj_key_s /* {{{ */
 {
+  unsigned long magic;
   char *path;
   char *type;
   char *instance;
-  unsigned long magic;
 };
 /* }}} */
 
@@ -549,6 +549,7 @@ static int cj_config_add_key (cj_t *db, /* {{{ */
         len = ptr-name;
         if (len == 0)
           break;
+        len = COUCH_MIN(len, sizeof (ent)-1);
         sstrncpy (ent, name, len+1);
 
         if (c_avl_get (tree, ent, (void *) &value) != 0)
@@ -586,8 +587,7 @@ static int cj_init_curl (cj_t *db) /* {{{ */
   curl_easy_setopt (db->curl, CURLOPT_NOSIGNAL, 1L);
   curl_easy_setopt (db->curl, CURLOPT_WRITEFUNCTION, cj_curl_callback);
   curl_easy_setopt (db->curl, CURLOPT_WRITEDATA, db);
-  curl_easy_setopt (db->curl, CURLOPT_USERAGENT,
-                    PACKAGE_NAME"/"PACKAGE_VERSION);
+  curl_easy_setopt (db->curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
   curl_easy_setopt (db->curl, CURLOPT_ERRORBUFFER, db->curl_errbuf);
   curl_easy_setopt (db->curl, CURLOPT_URL, db->url);
 
@@ -859,17 +859,17 @@ static int cj_curl_perform(cj_t *db) /* {{{ */
   int status;
   long rc;
   char *url;
-  url = NULL;
-  curl_easy_getinfo(db->curl, CURLINFO_EFFECTIVE_URL, &url);
+  url = db->url;
 
   status = curl_easy_perform (db->curl);
   if (status != CURLE_OK)
   {
     ERROR ("curl_json plugin: curl_easy_perform failed with status %i: %s (%s)",
-           status, db->curl_errbuf, (url != NULL) ? url : "<null>");
+           status, db->curl_errbuf, url);
     return (-1);
   }
 
+  curl_easy_getinfo(db->curl, CURLINFO_EFFECTIVE_URL, &url);
   curl_easy_getinfo(db->curl, CURLINFO_RESPONSE_CODE, &rc);
 
   /* The response code is zero if a non-HTTP transport was used. */

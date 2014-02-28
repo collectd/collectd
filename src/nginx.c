@@ -122,7 +122,7 @@ static int init (void)
 
   curl_easy_setopt (curl, CURLOPT_NOSIGNAL, 1L);
   curl_easy_setopt (curl, CURLOPT_WRITEFUNCTION, nginx_curl_callback);
-  curl_easy_setopt (curl, CURLOPT_USERAGENT, PACKAGE_NAME"/"PACKAGE_VERSION);
+  curl_easy_setopt (curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
   curl_easy_setopt (curl, CURLOPT_ERRORBUFFER, nginx_curl_error);
 
   if (user != NULL)

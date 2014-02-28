@@ -1603,17 +1603,17 @@ transfer agents and web caches.
 
 =item B<ValuesAbsolute> B<true>|B<false>
 
-Enables or disables reporting of free, used and used disk space in 1K-blocks. 
-Defaults to true.
+Enables or disables reporting of free and used disk space in 1K-blocks.
+Defaults to B<true>.
 
-=item B<ValuesPercentage> B<true>|B<false>
+=item B<ValuesPercentage> B<false>|B<true>
 
-Enables or disables reporting of free, used and used disk space in percentage.
-Defaults to false.
+Enables or disables reporting of free and used disk space in percentage.
+Defaults to B<false>.
 
-This is useful for deploying collectd on the cloud, where machines with
-different disk size may exist. Then it is more practical to configure thresholds
-based on relative disk size.
+This is useful for deploying I<collectd> on the cloud, where machines with
+different disk size may exist. Then it is more practical to configure
+thresholds based on relative disk size.
 
 =back
 
@@ -2199,6 +2199,25 @@ interface path might change between reboots of a guest or across migrations.
 
 =back
 
++=head2 Plugin C<load>
+
+The I<Load plugin> collects the system load. These numbers give a rough overview
+over the utilization of a machine. The system load is defined as the number of
+runnable tasks in the run-queue and is provided by many operating systems as a
+one, five or fifteen minute average.
+
+The following configuration options are available:
+
+=over 4
+
+=item B<ReportRelative> B<false>|B<true>
+
+When enabled, system load divided by number of available CPU cores is reported
+for intervals 1 min, 5 min and 15 min. Defaults to false.
+
+=back
+
+
 =head2 Plugin C<logfile>
 
 =over 4
@@ -2411,11 +2430,11 @@ B<Synopsis:>
    Temperature vddg
    Temperature vddq
    IgnoreSelectedTemperature true
-
+   
    ShowPower true
    Power total0
    Power total1
-   IgnoreSelectedPower true   
+   IgnoreSelectedPower true
  </Plugin>
 
 The following options are valid inside the B<PluginE<nbsp>mic> block:
@@ -2472,7 +2491,7 @@ Fan In
 
 =item fout
 
-Fan Out 
+Fan Out
 
 =item vccp
 
@@ -2513,11 +2532,11 @@ Known power names are:
 
 =item total0
 
-Total power utilization averaged over Time Window 0 (uWatts). 
+Total power utilization averaged over Time Window 0 (uWatts).
 
 =item total1
 
-Total power utilization averaged over Time Window 0 (uWatts). 
+Total power utilization averaged over Time Window 0 (uWatts).
 
 =item inst
 
@@ -2525,33 +2544,54 @@ Instantaneous power (uWatts).
 
 =item imax
 
-Max instantaneous power (uWatts). 
+Max instantaneous power (uWatts).
 
 =item pcie
 
-PCI-E connector power (uWatts). 
+PCI-E connector power (uWatts).
 
 =item c2x3
 
-2x3 connector power (uWatts). 
+2x3 connector power (uWatts).
 
 =item c2x4
 
-2x4 connector power (uWatts). 
+2x4 connector power (uWatts).
 
 =item vccp
 
-Core rail (uVolts). 
+Core rail (uVolts).
 
 =item vddg
 
-Uncore rail (uVolts). 
+Uncore rail (uVolts).
 
 =item vddq
 
-Memory subsystem rail (uVolts). 
+Memory subsystem rail (uVolts).
 
 =back
+
+=back
+
+=head2 Plugin C<memory>
+
+The I<memory plugin> provides the following configuration options:
+
+=over 4
+
+=item B<ValuesAbsolute> B<true>|B<false>
+
+Enables or disables reporting of physical memory usage in absolute numbers,
+i.e. bytes. Defaults to B<true>.
+
+=item B<ValuesPercentage> B<false>|B<true>
+
+Enables or disables reporting of physical memory usage in percentages, e.g.
+percent of physical memory used. Defaults to B<false>.
+
+This is useful for deploying I<collectd> in a heterogeneous environment in
+which the sizes of physical memory vary.
 
 =back
 
@@ -5337,6 +5377,19 @@ This option is only available if the I<Swap plugin> can read C</proc/swaps>
 When enabled, the I<swap I/O> is reported in bytes. When disabled, the default,
 I<swap I/O> is reported in pages. This option is available under Linux only.
 
+=item B<ValuesAbsolute> B<true>|B<false>
+
+Enables or disables reporting of absolute swap metrics, i.e. number of I<bytes>
+available and used. Defaults to B<true>.
+
+=item B<ValuesPercentage> B<false>|B<true>
+
+Enables or disables reporting of relative swap metrics, i.e. I<percent>
+available and free. Defaults to B<false>.
+
+This is useful for deploying I<collectd> in a heterogeneous environment, where
+swap sizes differ and you want to specify generic thresholds or similar.
+
 =back
 
 =head2 Plugin C<syslog>
@@ -6085,7 +6138,7 @@ Synopsis:
    <Node "example">
      Host "localhost"
      Port "2003"
-     Protocol "udp"
+     Protocol "tcp"
      LogSendErrors true
      Prefix "collectd"
    </Node>
@@ -6288,6 +6341,7 @@ Synopsis:
      TTLFactor 2.0
    </Node>
    Tag "foobar"
+   Attribute "foo" "bar"
  </Plugin>
 
 The following options are understood by the I<write_riemann plugin>:
@@ -6348,6 +6402,11 @@ default value.
 Add the given string as an additional tag to the metric being sent to
 I<Riemann>.
 
+=item B<Attribute> I<String> I<String>
+
+Consider the two given strings to be the key and value of an additional
+attribute for each metric being sent out to I<Riemann>.
+
 =back
 
 =head1 THRESHOLD CONFIGURATION
@@ -6382,7 +6441,7 @@ When a value comes within range again or is received after it was missing, an
 Here is a configuration example to get you started. Read below for more
 information.
 
- <Threshold>
+ <Plugin threshold>
    <Type "foo">
      WarningMin    0.00
      WarningMax 1000.00
@@ -6413,7 +6472,7 @@ information.
        </Type>
      </Plugin>
    </Host>
- </Threshold>
+ </Plugin>
 
 There are basically two types of configuration statements: The C<Host>,
 C<Plugin>, and C<Type> blocks select the value for which a threshold should be

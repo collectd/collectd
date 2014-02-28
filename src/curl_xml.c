@@ -608,6 +608,7 @@ static int cx_curl_perform (cx_t *db, CURL *curl) /* {{{ */
   long rc;
   char *ptr;
   char *url;
+  url = db->url;
 
   db->buffer_fill = 0; 
   status = curl_easy_perform (curl);
@@ -837,8 +838,7 @@ static int cx_init_curl (cx_t *db) /* {{{ */
   curl_easy_setopt (db->curl, CURLOPT_NOSIGNAL, 1L);
   curl_easy_setopt (db->curl, CURLOPT_WRITEFUNCTION, cx_curl_callback);
   curl_easy_setopt (db->curl, CURLOPT_WRITEDATA, db);
-  curl_easy_setopt (db->curl, CURLOPT_USERAGENT,
-                    PACKAGE_NAME"/"PACKAGE_VERSION);
+  curl_easy_setopt (db->curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
   curl_easy_setopt (db->curl, CURLOPT_ERRORBUFFER, db->curl_errbuf);
   curl_easy_setopt (db->curl, CURLOPT_URL, db->url);
 

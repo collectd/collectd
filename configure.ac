@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(collectd, [m4_esyscmd(./version-gen.sh)])
+AC_INIT([collectd],[m4_esyscmd(./version-gen.sh)])
 AC_CONFIG_SRCDIR(src/collectd.c)
 AC_CONFIG_HEADERS(src/config.h)
 AC_CONFIG_AUX_DIR([libltdl/config])
@@ -24,7 +24,8 @@ m4_ifdef([LT_PACKAGE_VERSION],
 	]
 )
 
-AM_INIT_AUTOMAKE([tar-pax dist-bzip2])
+AM_INIT_AUTOMAKE([tar-pax dist-bzip2 foreign])
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 AC_LANG(C)
 
 AC_PREFIX_DEFAULT("/opt/collectd")
@@ -1121,6 +1122,17 @@ else
   AC_MSG_ERROR([Didn't find out how doubles are stored in memory. Sorry.])
 fi; fi; fi
 
+# --with-useragent {{{
+AC_ARG_WITH(useragent, [AS_HELP_STRING([--with-useragent@<:@=AGENT@:>@], [User agent to use on http requests])],
+[
+    if test "x$withval" != "xno" && test "x$withval" != "xyes"
+    then
+        AC_DEFINE_UNQUOTED(COLLECTD_USERAGENT, ["$withval"], [User agent for http requests])
+    fi
+])
+
+# }}}
+
 have_getfsstat="no"
 AC_CHECK_FUNCS(getfsstat, [have_getfsstat="yes"])
 have_getvfsstat="no"
@@ -1433,13 +1445,12 @@ AM_CONDITIONAL(BUILD_WITH_LIBKSTAT, test "x$with_kstat" = "xyes")
 AM_CONDITIONAL(BUILD_WITH_LIBDEVINFO, test "x$with_devinfo" = "xyes")
 
 with_libiokit="no"
-AC_CHECK_LIB(IOKit, IOServiceGetMatchingServices,
-[
+if test "x$ac_system" = "xDarwin"
+then
 	with_libiokit="yes"
-], 
-[
+else
 	with_libiokit="no"
-])
+fi
 AM_CONDITIONAL(BUILD_WITH_LIBIOKIT, test "x$with_libiokit" = "xyes")
 
 with_libkvm="no"
@@ -2651,6 +2662,15 @@ return (retval);
 fi
 if test "x$with_libmnl" = "xyes"
 then
+	AC_CHECK_MEMBERS([struct rtnl_link_stats64.tx_window_errors],
+	[AC_DEFINE(HAVE_RTNL_LINK_STATS64, 1, [Define if struct rtnl_link_stats64 exists and is usable.])],
+	[],
+	[
+	#include <linux/if_link.h>
+	])
+fi
+if test "x$with_libmnl" = "xyes"
+then
 	AC_CHECK_LIB(mnl, mnl_nlmsg_get_payload,
 		     [with_libmnl="yes"],
 		     [with_libmnl="no (symbol 'mnl_nlmsg_get_payload' not found)"],
@@ -3058,6 +3078,25 @@ if test "x$with_libpcap" = "xyes"
 then
 	AC_CHECK_HEADERS(pcap-bpf.h,,
 			 [with_libpcap="no (pcap-bpf.h not found)"])
+fi
+if test "x$with_libpcap" = "xyes"
+then
+	AC_CACHE_CHECK([whether libpcap has PCAP_ERROR_IFACE_NOT_UP],
+		       [c_cv_libpcap_have_pcap_error_iface_not_up],
+		       AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+[[[
+#include <pcap.h>
+]]],
+[[[
+  int val = PCAP_ERROR_IFACE_NOT_UP;
+]]]
+		       )],
+		       [c_cv_libpcap_have_pcap_error_iface_not_up="yes"],
+		       [c_cv_libpcap_have_pcap_error_iface_not_up="no"]))
+fi
+if test "x$c_cv_libpcap_have_pcap_error_iface_not_up" != "xyes"
+then
+		with_libpcap="no (pcap.h misses PCAP_ERROR_IFACE_NOT_UP)"
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBPCAP, test "x$with_libpcap" = "xyes")
 # }}}
@@ -4691,7 +4730,7 @@ AC_DEFUN(
   [
     enable_plugin="no"
     force="no"
-    AC_ARG_ENABLE([$1], AC_HELP_STRING([--enable-$1], [$3]),
+    AC_ARG_ENABLE([$1], AS_HELP_STRING([--enable-$1],[$3]),
     [
      if test "x$enableval" = "xyes"
      then
@@ -5052,8 +5091,7 @@ m4_divert_once([HELP_ENABLE], [
 collectd plugins:])
 
 AC_ARG_ENABLE([all-plugins],
-		AC_HELP_STRING([--enable-all-plugins],
-				[enable all plugins (auto by def)]),
+		AS_HELP_STRING([--enable-all-plugins],[enable all plugins (auto by def)]),
 		[
 		 if test "x$enableval" = "xyes"
 		 then
@@ -5329,7 +5367,8 @@ AC_SUBST(LCC_VERSION_STRING)
 
 AC_CONFIG_FILES(src/libcollectdclient/collectd/lcc_features.h)
 
-AC_OUTPUT(Makefile src/Makefile src/collectd.conf src/libcollectdclient/Makefile src/libcollectdclient/libcollectdclient.pc src/liboconfig/Makefile bindings/Makefile bindings/java/Makefile)
+AC_CONFIG_FILES([Makefile src/Makefile src/collectd.conf src/libcollectdclient/Makefile src/libcollectdclient/libcollectdclient.pc src/liboconfig/Makefile bindings/Makefile bindings/java/Makefile])
+AC_OUTPUT
 
 if test "x$with_librrd" = "xyes" \
 	&& test "x$librrd_threadsafe" != "xyes"
@@ -5465,6 +5504,7 @@ Configuration:
     memcachec . . . . . . $enable_memcachec
     memcached . . . . . . $enable_memcached
     memory  . . . . . . . $enable_memory
+    mic . . . . . . . . . $enable_mic
     modbus  . . . . . . . $enable_modbus
     multimeter  . . . . . $enable_multimeter
     mysql . . . . . . . . $enable_mysql

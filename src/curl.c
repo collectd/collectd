@@ -364,8 +364,7 @@ static int cc_page_init_curl (web_page_t *wp) /* {{{ */
   curl_easy_setopt (wp->curl, CURLOPT_NOSIGNAL, 1L);
   curl_easy_setopt (wp->curl, CURLOPT_WRITEFUNCTION, cc_curl_callback);
   curl_easy_setopt (wp->curl, CURLOPT_WRITEDATA, wp);
-  curl_easy_setopt (wp->curl, CURLOPT_USERAGENT,
-      PACKAGE_NAME"/"PACKAGE_VERSION);
+  curl_easy_setopt (wp->curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
   curl_easy_setopt (wp->curl, CURLOPT_ERRORBUFFER, wp->curl_errbuf);
   curl_easy_setopt (wp->curl, CURLOPT_URL, wp->url);
   curl_easy_setopt (wp->curl, CURLOPT_FOLLOWLOCATION, 1L);
@@ -586,7 +585,8 @@ static void cc_submit (const web_page_t *wp, const web_match_t *wm, /* {{{ */
   sstrncpy (vl.plugin, "curl", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, wp->instance, sizeof (vl.plugin_instance));
   sstrncpy (vl.type, wm->type, sizeof (vl.type));
-  sstrncpy (vl.type_instance, wm->instance, sizeof (vl.type_instance));
+  if (wm->instance != NULL)
+    sstrncpy (vl.type_instance, wm->instance, sizeof (vl.type_instance));
 
   plugin_dispatch_values (&vl);
 } /* }}} void cc_submit */

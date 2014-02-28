@@ -435,9 +435,10 @@ static int fc_config_add_rule (fc_chain_t *chain, /* {{{ */
 
 static int fc_config_add_chain (const oconfig_item_t *ci) /* {{{ */
 {
-  fc_chain_t *chain;
+  fc_chain_t *chain = NULL;
   int status = 0;
   int i;
+  int new_chain = 1;
 
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_STRING))
@@ -447,17 +448,26 @@ static int fc_config_add_chain (const oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  chain = (fc_chain_t *) malloc (sizeof (*chain));
+  if (chain_list_head != NULL)
+  {
+    if ((chain = fc_chain_get_by_name (ci->values[0].value.string)) != NULL)
+      new_chain = 0;
+  }
+
   if (chain == NULL)
   {
-    ERROR ("fc_config_add_chain: malloc failed.");
-    return (-1);
+    chain = (fc_chain_t *) malloc (sizeof (*chain));
+    if (chain == NULL)
+    {
+      ERROR ("fc_config_add_chain: malloc failed.");
+      return (-1);
+    }
+    memset (chain, 0, sizeof (*chain));
+    sstrncpy (chain->name, ci->values[0].value.string, sizeof (chain->name));
+    chain->rules = NULL;
+    chain->targets = NULL;
+    chain->next = NULL;
   }
-  memset (chain, 0, sizeof (*chain));
-  sstrncpy (chain->name, ci->values[0].value.string, sizeof (chain->name));
-  chain->rules = NULL;
-  chain->targets = NULL;
-  chain->next = NULL;
 
   for (i = 0; i < ci->children_num; i++)
   {
@@ -487,6 +497,9 @@ static int fc_config_add_chain (const oconfig_item_t *ci) /* {{{ */
 
   if (chain_list_head != NULL)
   {
+    if (!new_chain)
+      return (0);
+
     fc_chain_t *ptr;
 
     ptr = chain_list_head;

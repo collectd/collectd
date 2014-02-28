@@ -93,7 +93,7 @@ static int read_cpuacct_procs (const char *dirname, char const *cgroup_name,
 	if (fh == NULL)
 	{
 		char errbuf[1024];
-		ERROR ("cgroups pluign: fopen (\"%s\") failed: %s",
+		ERROR ("cgroups plugin: fopen (\"%s\") failed: %s",
 				abs_path,
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
@@ -111,6 +111,11 @@ static int read_cpuacct_procs (const char *dirname, char const *cgroup_name,
 		 *
 		 *   user: 12345
 		 *   system: 23456
+		 *
+		 * Or:
+		 *
+		 *   user 12345
+		 *   system 23456
 		 */
 		strstripnewline (buf);
 		numfields = strsplit (buf, fields, STATIC_ARRAY_SIZE (fields));
@@ -122,10 +127,9 @@ static int read_cpuacct_procs (const char *dirname, char const *cgroup_name,
 		if (key_len < 2)
 			continue;
 
-		/* Strip colon off the first column */
-		if (key[key_len - 1] != ':')
-			continue;
-		key[key_len - 1] = 0;
+		/* Strip colon off the first column, if found */
+		if (key[key_len - 1] == ':')
+			key[key_len - 1] = 0;
 
 		status = parse_value (fields[1], &value, DS_TYPE_DERIVE);
 		if (status != 0)
@@ -217,8 +221,9 @@ static int cgroups_read (void)
 	{
 		/* Find the cgroup mountpoint which contains the cpuacct
 		 * controller. */
-		if (strcmp(mnt_ptr->type, "cgroup") != 0 ||
-			!cu_mount_getoptionvalue(mnt_ptr->options, "cpuacct"))
+		if ((strcmp(mnt_ptr->type, "cgroup") != 0)
+				|| !cu_mount_checkoption(mnt_ptr->options,
+					"cpuacct", /* full = */ 1))
 			continue;
 
 		walk_directory (mnt_ptr->dir, read_cpuacct_root,

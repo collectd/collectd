@@ -2,6 +2,7 @@
  * collectd - src/load.c
  * Copyright (C) 2005-2008  Florian octo Forster
  * Copyright (C) 2009       Manuel Sanmartin
+ * Copyright (C) 2013       Vedran Bartonicek
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,6 +20,7 @@
  * Authors:
  *   Florian octo Forster <octo at verplant.org>
  *   Manuel Sanmartin
+ *   Vedran Bartonicek <vbartoni at gmail.com>
  **/
 
 #define _BSD_SOURCE
@@ -26,6 +28,8 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+
+#include <unistd.h>
 
 #ifdef HAVE_SYS_LOADAVG_H
 #include <sys/loadavg.h>
@@ -49,10 +53,47 @@
 # include <libperfstat.h>
 #endif /* HAVE_PERFSTAT */
 
+static _Bool report_relative_load = 0;
+
+static const char *config_keys[] =
+{
+	"ReportRelative"
+};
+static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
+
+static int load_config (const char *key, const char *value)
+{
+	if (strcasecmp (key, "ReportRelative") == 0)
+#ifdef _SC_NPROCESSORS_ONLN
+		report_relative_load = IS_TRUE (value) ? 1 : 0;
+#else
+                WARNING ("load plugin: The \"ReportRelative\" configuration "
+                         "is not available, because I can't determine the "
+                         "number of CPUS on this system. Sorry.");
+#endif
+	return (-1);
+
+}
 static void load_submit (gauge_t snum, gauge_t mnum, gauge_t lnum)
 {
 	value_t values[3];
 	value_list_t vl = VALUE_LIST_INIT;
+        int cores = 0;
+        char errbuf[1024];
+
+#ifdef  _SC_NPROCESSORS_ONLN
+        if (report_relative_load) {
+                if ((cores = sysconf(_SC_NPROCESSORS_ONLN)) < 1) {
+			WARNING ("load: sysconf failed : %s",
+				 sstrerror (errno, errbuf, sizeof (errbuf)));
+		}
+	}
+#endif
+	if (cores > 0) {
+		snum /= cores;
+		mnum /= cores;
+		lnum /= cores;
+	}
 
 	values[0].gauge = snum;
 	values[1].gauge = mnum;
@@ -60,9 +101,15 @@ static void load_submit (gauge_t snum, gauge_t mnum, gauge_t lnum)
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
+
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "load", sizeof (vl.plugin));
 	sstrncpy (vl.type, "load", sizeof (vl.type));
+
+	if (cores > 0) {
+		sstrncpy(vl.type_instance, "relative",
+			 sizeof (vl.type_instance));
+	}
 
 	plugin_dispatch_values (&vl);
 }
@@ -73,17 +120,17 @@ static int load_read (void)
 	double load[3];
 
 	if (getloadavg (load, 3) == 3)
-		load_submit (load[LOADAVG_1MIN], load[LOADAVG_5MIN], load[LOADAVG_15MIN]);
-	else
-	{
-		char errbuf[1024];
-		WARNING ("load: getloadavg failed: %s",
-				sstrerror (errno, errbuf, sizeof (errbuf)));
+                load_submit (load[LOADAVG_1MIN], load[LOADAVG_5MIN], load[LOADAVG_15MIN]);
+        else
+        {
+                char errbuf[1024];
+                WARNING ("load: getloadavg failed: %s",
+                         sstrerror (errno, errbuf, sizeof (errbuf)));
 	}
 /* #endif HAVE_GETLOADAVG */
 
 #elif defined(KERNEL_LINUX)
-	gauge_t snum, mnum, lnum;
+        gauge_t snum, mnum, lnum;
 	FILE *loadavg;
 	char buffer[16];
 
@@ -123,11 +170,11 @@ static int load_read (void)
 	mnum = atof (fields[1]);
 	lnum = atof (fields[2]);
 
-	load_submit (snum, mnum, lnum);
+        load_submit(snum, mnum, lnum);
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBSTATGRAB
-	gauge_t snum, mnum, lnum;
+        gauge_t snum, mnum, lnum;
 	sg_load_stats *ls;
 
 	if ((ls = sg_get_load_stats ()) == NULL)
@@ -136,12 +183,11 @@ static int load_read (void)
 	snum = ls->min1;
 	mnum = ls->min5;
 	lnum = ls->min15;
-
-	load_submit (snum, mnum, lnum);
+        load_submit(snum, mnum, lnum);
 /* #endif HAVE_LIBSTATGRAB */
 
 #elif HAVE_PERFSTAT
-	gauge_t snum, mnum, lnum;
+        gauge_t snum, mnum, lnum;
 	perfstat_cpu_total_t cputotal;
 
 	if (perfstat_cpu_total(NULL,  &cputotal, sizeof(perfstat_cpu_total_t), 1) < 0)
@@ -155,8 +201,7 @@ static int load_read (void)
 	snum = (float)cputotal.loadavg[0]/(float)(1<<SBITS);
 	mnum = (float)cputotal.loadavg[1]/(float)(1<<SBITS);
 	lnum = (float)cputotal.loadavg[2]/(float)(1<<SBITS);
-
-	load_submit (snum, mnum, lnum);
+        load_submit(snum, mnum, lnum);
 /* #endif HAVE_PERFSTAT */
 
 #else
@@ -168,5 +213,6 @@ static int load_read (void)
 
 void module_register (void)
 {
+	plugin_register_config ("load", load_config, config_keys, config_keys_num);
 	plugin_register_read ("load", load_read);
 } /* void module_register */

@@ -43,6 +43,17 @@ collectd-snmp - Documentation of collectd's C<snmp plugin>
       Community "another_string"
       Collect "std_traffic" "hr_users"
     </Host>
+    <Host "secure.router.mydomain.org">
+      Address "192.168.0.7"
+      Version 3
+      SecurityLevel "authPriv"
+      Username "cosmo"
+      AuthProtocol "SHA"
+      AuthPassphrase "setec_astronomy"
+      PrivacyProtocol "AES"
+      PrivacyPassphrase "too_many_secrets"
+      Collect "std_traffic"
+    </Host>
     <Host "some.ups.mydomain.org">
       Address "192.168.0.3"
       Version 1
@@ -191,6 +202,18 @@ degrees Celsius. The default value is, of course, B<0.0>.
 
 This value is not applied to counter-values.
 
+=item B<Ignore> I<Value> [, I<Value> ...]
+
+The ignore values allows to ignore Instances based on their name and the patterns
+specified by the various values you've entered. The match is a glob-type shell
+matching.
+
+=item B<InvertMatch> I<true|false(default)>
+
+The invertmatch value should be use in combination of the Ignore option.
+It changes the behaviour of the Ignore option, from a blacklist behaviour
+when InvertMatch is set to false, to a whitelist when specified to true.
+
 =back
 
 =head2 The Host block
@@ -207,14 +230,41 @@ stored by collectd.
 
 Set the address to connect to.
 
-=item B<Version> B<1>|B<2>
+=item B<Version> B<1>|B<2>|B<3>
 
 Set the SNMP version to use. When giving B<2> version C<2c> is actually used.
-Version 3 is not supported by this plugin.
 
 =item B<Community> I<Community>
 
-Pass I<Community> to the host.
+Pass I<Community> to the host. (Ignored for SNMPv3).
+
+=item B<Username> I<Username>
+
+Sets the I<Username> to use for SNMPv3 security.
+
+=item B<SecurityLevel> I<authPriv>|I<authNoPriv>|I<noAuthNoPriv>
+
+Selects the security level for SNMPv3 security.
+
+=item B<Context> I<Context>
+
+Sets the I<Context> for SNMPv3 security.
+
+=item B<AuthProtocol> I<MD5>|I<SHA>
+
+Selects the authentication protocol for SNMPv3 security.
+
+=item B<AuthPassphrase> I<Passphrase>
+
+Sets the authentication passphrase for SNMPv3 security. 
+
+=item B<PrivacyProtocol> I<AES>|I<DES>
+
+Selects the privacy (encryption) protocol for SNMPv3 security.
+
+=item B<PrivacyPassphrase> I<Passphrase>
+
+Sets the privacy (encryption) passphrase for SNMPv3 security. 
 
 =item B<Collect> I<Data> [I<Data> ...]
 
@@ -241,8 +291,9 @@ L<snmpgetnext(1)>,
 L<variables(5)>,
 L<unix(7)>
 
-=head1 AUTHOR
+=head1 AUTHORS
 
 Florian Forster E<lt>octo@verplant.orgE<gt>
+Michael Pilat E<lt>mike@mikepilat.comE<gt>
 
 =cut
