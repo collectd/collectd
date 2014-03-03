@@ -53,6 +53,10 @@
 #if HAVE_IOKIT_IOBSD_H
 #  include <IOKit/IOBSD.h>
 #endif
+#if HAVE_LIBUDEV_H
+#  include <linux/kdev_t.h> /* for MKDEV macro */
+#  include <libudev.h>
+#endif
 
 #if HAVE_LIMITS_H
 # include <limits.h>
@@ -84,6 +88,7 @@ static _Bool use_bsd_name = 0;
 typedef struct diskstats
 {
 	char *name;
+	char *dm_name; /* allow dm to replace */
 
 	/* This overflows in roughly 1361 years */
 	unsigned int poll_count;
@@ -106,6 +111,12 @@ typedef struct diskstats
 } diskstats_t;
 
 static diskstats_t *disklist;
+
+# define DM_MAJOR 252
+static _Bool use_dm_name = 0;
+#if HAVE_LIBUDEV_H
+static struct udev *udev_ctx = NULL;
+#endif
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
@@ -132,7 +143,8 @@ static const char *config_keys[] =
 {
 	"Disk",
 	"UseBSDName",
-	"IgnoreSelected"
+	"IgnoreSelected",
+	"UseDMName"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -163,6 +175,15 @@ static int disk_config (const char *key, const char *value)
 #else
     WARNING ("disk plugin: The \"UseBSDName\" option is only supported "
         "on Mach / Mac OS X and will be ignored.");
+#endif
+  }
+  else if (strcasecmp ("UseDMName", key) == 0)
+  {
+#if HAVE_LIBUDEV_H
+    use_dm_name = IS_TRUE (value) ? 1 : 0;
+#else
+    WARNING ("disk plugin: The \"UseDMName\" option is only supported "
+        "on Linux when compiled with libudev.");
 #endif
   }
   else
@@ -196,7 +217,11 @@ static int disk_init (void)
 /* #endif HAVE_IOKIT_IOKITLIB_H */
 
 #elif KERNEL_LINUX
+# if HAVE_LIBUDEV_H
+	udev_ctx = udev_new();
+# else
 	/* do nothing */
+# endif
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
@@ -477,6 +502,7 @@ static int disk_read (void)
 	int numfields;
 	int fieldshift = 0;
 
+	int major = 0;
 	int minor = 0;
 
 	derive_t read_sectors  = 0;
@@ -514,6 +540,7 @@ static int disk_read (void)
 		if ((numfields != (14 + fieldshift)) && (numfields != 7))
 			continue;
 
+		major = atoll (fields[0]);
 		minor = atoll (fields[1]);
 
 		disk_name = fields[2 + fieldshift];
@@ -532,6 +559,30 @@ static int disk_read (void)
 				free (ds);
 				continue;
 			}
+
+	        if (use_dm_name && major == DM_MAJOR)
+    	    {
+#if HAVE_LIBUDEV_H
+				struct udev_device *device;
+				const char *dm_name = NULL;
+			
+				device = udev_device_new_from_devnum(udev_ctx, 'b', MKDEV(major, minor));
+				if (device == NULL)
+					WARNING("disk plugin: udev device lookup failed for \"%s\"", disk_name);
+				else
+				{
+					dm_name = udev_device_get_property_value(device, "DM_NAME");
+					if (dm_name)
+					{
+						if ((ds->dm_name = sstrdup(dm_name)) == NULL)
+							continue;
+		    			DEBUG ("disk plugin: DM renamed \"%s\" to \"%s\"",
+							disk_name, dm_name);
+					}
+					udev_device_unref(device);
+				}
+#endif
+        	}
 
 			if (pre_ds == NULL)
 				disklist = ds;
@@ -659,6 +710,9 @@ static int disk_read (void)
 			continue;
 		}
 
+		/* If using dm name send that if available */
+		if (ds->dm_name != NULL)
+			disk_name = ds->dm_name;
 		if ((ds->read_bytes != 0) || (ds->write_bytes != 0))
 			disk_submit (disk_name, "disk_octets",
 					ds->read_bytes, ds->write_bytes);

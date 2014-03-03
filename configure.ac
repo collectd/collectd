@@ -4659,6 +4659,55 @@ PKG_CHECK_MODULES([LIBNOTIFY], [libnotify],
 			 with_libnotify="no ($LIBNOTIFY_PKG_ERRORS)"
 		 fi])
 
+
+dnl Check for libudev (Linux only)
+AC_ARG_WITH(libudev, [AS_HELP_STRING([--with-libudev@<:@=PREFIX@:>@], [Path to libudev.])],
+	[
+		if test "x$withval" = "xyes"
+		then
+			with_libudev="use_pkgconfig"
+		else
+			if test "x$withval" = "xno"
+			then
+				with_libudev="no"
+			else
+				AC_MSG_NOTICE([Not checking for libudev: Manually configured])
+				with_libudev="yes"
+				BUILD_LIBUDEV_CFLAGS="$LIBUDEV_CFLAGS -I$withval/src"
+				BUILD_LIBUDEV_LIBS="$LIBUDEV_LIBS -L$withval/lib -ludev"
+			fi
+		fi
+	],
+	[with_libudev="use_pkgconfig"])
+if test "x$with_libudev" = "xuse_pkgconfig"
+then
+
+    if test "x$PKG_CONFIG" = "x"
+	then
+		with_libudev="no (Don't have pkg-config)"
+	fi
+fi
+if test "x$with_libudev" = "xuse_pkgconfig"
+then
+	AC_MSG_NOTICE([Checking for libudev using $PKG_CONFIG])
+	$PKG_CONFIG --exists 'libudev' 2>/dev/null
+	if test $? -ne 0
+	then
+		with_libudev="no (pkg-config doesn't know libudev)"
+	else
+		BUILD_WITH_LIBUDEV_CFLAGS="`pkg-config --cflags libudev`"
+		BUILD_WITH_LIBUDEV_LIBS="`pkg-config --libs libudev`"
+		with_libudev="yes"
+	fi
+fi
+if test "x$with_libudev" = "xyes"
+then
+	AC_DEFINE(HAVE_LIBUDEV_H, 1, [Define to 1 if you have 'libudev' library])
+	AC_SUBST(BUILD_WITH_LIBUDEV_CFLAGS)
+	AC_SUBST(BUILD_WITH_LIBUDEV_LIBS)
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBUDEV, test "x$with_libudev" = "xyes")
+
 # Check for enabled/disabled features
 #
 
@@ -5433,6 +5482,7 @@ Configuration:
     libsigrok   . . . . . $with_libsigrok
     libstatgrab . . . . . $with_libstatgrab
     libtokyotyrant  . . . $with_libtokyotyrant
+    libudev . . . . . . . $with_libudev
     libupsclient  . . . . $with_libupsclient
     libvarnish  . . . . . $with_libvarnish
     libvirt . . . . . . . $with_libvirt
