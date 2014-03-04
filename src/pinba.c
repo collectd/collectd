@@ -35,6 +35,11 @@
 
 #include "pinba.pb-c.h"
 
+/* AIX doesn't have MSG_DONTWAIT */
+#ifndef MSG_DONTWAIT
+#  define MSG_DONTWAIT MSG_NONBLOCK
+#endif
+
 /*
  * Defines
  */
