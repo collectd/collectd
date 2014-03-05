@@ -5648,7 +5648,6 @@ fi
 
 CEPH_LD_WARN="WARNING - some Linux distributions (tested on Ubuntu-Precise) need special actions to be taken for JSON dependencies"
 CEPH_LD_WARN="$CEPH_LD_WARN or the ceph plugin may not link correctly with the JSON library necessary to support 64 bit integers"
-CEPH_LD_MAKE_WARN="You should modify src/Makefile to the following for 'ceph_la_LDFLAGS'"
 NO_JSON_MAKE_PATH=""
 if @<:@@<:@ "$JSON_MAKE_PATH" == "" || "$JSONC_MAKE_PATH" == "" @:>@@:>@ ; then
    NO_JSON_MAKE_PATH="true"
@@ -5659,20 +5658,21 @@ if test "$GOOD_LD" == "" ; then
    echo "$CEPH_LD_WARN"
    echo ""
    if test "$NO_JSON_MAKE_PATH" != "" ; then
-        echo "$CEPH_LD_MAKE_WARN"
-        echo "ceph_la_LDFLAGS = $USR_JSON_LOC/libjson.la $USR_JSON_LOC/libjson-c.la -module -avoid-version)"
-        echo ""
+	JSON_LOC_BSLASH=$(echo $USR_JSON_LOC | sed 's:/:\\/:g')
+        `cat src/Makefile | sed -e "s:ceph_la_LDFLAGS =:ceph_la_LDFLAGS = $JSON_LOC_BSLASH\/libjson.la $JSON_LOC_BSLASH\/libjson-c.la:" > Makefile.tmp`
+        `rm -f src/Makefile`
+        `cp Makefile.tmp src/Makefile`
+        `rm -f Makefile.tmp`
    fi
-   echo "Execute the following command to add the path before running 'make':"
+   echo "Execute the following command to add the json dependencypath before running 'make':"
    echo "export LD_LIBRARY_PATH=$USR_JSON_LOC"
    echo ""
 elif test "$NO_JSON_MAKE_PATH" != "" ; then
-   CEPH_LD_PROBLEM="true"
-   echo "$CEPH_LD_WARN"
-   echo ""
-   echo "$CEPH_LD_MAKE_WARN"
-   echo "ceph_la_LDFLAGS = $GOOD_LD/libjson.la $GOOD_LD/libjson-c.la -module -avoid-version)"
-   echo ""
+   JSON_LOC_BSLASH=$(echo $USR_JSON_LOC | sed 's:/:\\/:g')
+   `cat src/Makefile | sed -e "s:ceph_la_LDFLAGS =:ceph_la_LDFLAGS = $JSON_LOC_BSLASH\/libjson.la $JSON_LOC_BSLASH\/libjson-c.la:" > Makefile.tmp`
+   `rm -f src/Makefile`
+   `cp Makefile.tmp src/Makefile`
+   `rm -f Makefile.tmp`
 fi
 
 if test "$CEPH_LD_PROBLEM" != "" ; then
@@ -5680,7 +5680,8 @@ if test "$CEPH_LD_PROBLEM" != "" ; then
    "don't require this, run 'make' and 'make install'. After installing, run the following command:"
    echo "ldd /opt/collectd/lib/collectd/ceph.so"
    echo ""
-   echo "Make sure the output of this command shows some form of libjson-c.so has been found"
+   echo "Make sure the output of this command shows some form of libjson-c.so has been found, for example:"
+   echo "libjson.so.0 => /usr/lib/x86_64-linux-gnu/libjson.so.0 (0x00007f0d2a31d000)"
    echo ""
 fi
 
