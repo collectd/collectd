@@ -87,24 +87,6 @@ def cephtool_read_pg_states(pg_json):
             values=[v]\
         ).dispatch()
 
-def cephtool_read_pool(pool_json):
-    collectd.Values(plugin="ceph.pool",\
-        type="gauge",\
-        type_instance='num_pools',\
-        values=[len(pool_json)]\
-    ).dispatch()
-    
-    for pool in pool_json:
-        name = pool["name"]
-        p_id = pool["id"]
-        kb_used = pool["stats"]["kb_used"]
-        num_objects = pool["stats"]["objects"]
-        collectd.Values(plugin="ceph.pool",\
-            type="pool_stats",\
-            type_instance=("pool." + str(p_id)),\
-            values=[p_id,kb_used,num_objects]\
-        ).dispatch()
-
 def cephtool_read_osd(osd_json):
     num_in = 0
     num_up = 0
@@ -140,16 +122,6 @@ def cephtool_read(data=None):
     osd_json = cephtool_get_json(["osd", "dump"])
     pg_json = cephtool_get_json(["pg", "dump"])
     mon_json = cephtool_get_json(["mon", "dump"])
-    pool_json = cephtool_get_json(["df"])
-
-    pool_stats = pool_json["stats"]
-    collectd.Values(plugin="ceph.pool",\
-        type='pool_util_stats',\
-        values=[pool_stats["total_space"],\
-                pool_stats["total_used"],pool_stats["total_avail"]]\
-    ).dispatch()
-
-    cephtool_read_pool(pool_json["pools"])
 
     collectd.Values(plugin="ceph.osd",\
         type='gauge',\
