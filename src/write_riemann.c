@@ -425,6 +425,9 @@ static Msg *riemann_notification_to_protobuf (struct riemann_host *host, /* {{{ 
 			n->type, n->type_instance);
 	event->service = strdup (&service_buffer[1]);
 
+	if (n->message[0] != 0)
+		riemann_event_add_attribute (event, "description", n->message);
+
 	/* Pull in values from threshold and add extra attributes */
 	for (meta = n->meta; meta != NULL; meta = meta->next)
 	{
