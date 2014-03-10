@@ -82,7 +82,7 @@ static int gr_format_values (char *ret, size_t ret_len,
 }
 
 static void gr_copy_escape_part (char *dst, const char *src, size_t dst_len,
-    char escape_char)
+    char escape_char,char separate_char)
 {
     size_t i;
 
@@ -103,6 +103,9 @@ static void gr_copy_escape_part (char *dst, const char *src, size_t dst_len,
                 || isspace ((int) src[i])
                 || iscntrl ((int) src[i]))
             dst[i] = escape_char;
+	else if ((src[i] == separate_char 
+		&& separate_char != '\0'))
+	    dst[i] = '.';
         else
             dst[i] = src[i];
     }
@@ -114,6 +117,7 @@ static int gr_format_name (char *ret, int ret_len,
         char const *prefix,
         char const *postfix,
         char const escape_char,
+	char const separate_char,
         unsigned int flags)
 {
     char n_host[DATA_MAX_NAME_LEN];
@@ -132,20 +136,20 @@ static int gr_format_name (char *ret, int ret_len,
         postfix = "";
 
     gr_copy_escape_part (n_host, vl->host,
-            sizeof (n_host), escape_char);
+            sizeof (n_host), escape_char,separate_char);
     gr_copy_escape_part (n_plugin, vl->plugin,
-            sizeof (n_plugin), escape_char);
+            sizeof (n_plugin), escape_char, separate_char);
     gr_copy_escape_part (n_plugin_instance, vl->plugin_instance,
-            sizeof (n_plugin_instance), escape_char);
+            sizeof (n_plugin_instance), escape_char, separate_char);
     gr_copy_escape_part (n_type, vl->type,
-            sizeof (n_type), escape_char);
+            sizeof (n_type), escape_char,separate_char);
     gr_copy_escape_part (n_type_instance, vl->type_instance,
-            sizeof (n_type_instance), escape_char);
+            sizeof (n_type_instance), escape_char,separate_char);
 
     if (n_plugin_instance[0] != '\0')
         ssnprintf (tmp_plugin, sizeof (tmp_plugin), "%s%c%s",
             n_plugin,
-            (flags & GRAPHITE_SEPARATE_INSTANCES) ? '.' : '-',
+            (flags & GRAPHITE_SEPARATE_PLUGIN_INSTANCES) ? '.' : '-',
             n_plugin_instance);
     else
         sstrncpy (tmp_plugin, n_plugin, sizeof (tmp_plugin));
@@ -153,7 +157,7 @@ static int gr_format_name (char *ret, int ret_len,
     if (n_type_instance[0] != '\0')
         ssnprintf (tmp_type, sizeof (tmp_type), "%s%c%s",
             n_type,
-            (flags & GRAPHITE_SEPARATE_INSTANCES) ? '.' : '-',
+            (flags & GRAPHITE_SEPARATE_TYPE_INSTANCES) ? '.' : '-',
             n_type_instance);
     else
         sstrncpy (tmp_type, n_type, sizeof (tmp_type));
@@ -182,9 +186,66 @@ static void escape_graphite_string (char *buffer, char escape_char)
 		*head = escape_char;
 }
 
+/*after escaped and separated with separate char '@' by example
+* depending on the plugin and how it make the plugin and type
+*  instance and its prefix/suffix parameters  it is possible to
+*  find substrings we must remove like:
+*  a) xxx.-yyy (bad)=> xxx.yyy (good)
+*  b) xxx-.yyy (bad)=> xxx.yyy (good)
+* ---------------
+*  when fix_keymetric_after_searation() is done
+* this key metric:
+* 	test1.test2-.-test3-.test4-test5.test6.-test7-.test8-test9
+* will be:
+*	test1.test2.test3.test4-test5.test6.test7.test8-test9
+* by supress -. and .- combinations
+*/
+
+
+static void  fix_keymetric_after_separation(char *buffer) 
+{
+	char bcopy[10*DATA_MAX_NAME_LEN];
+	int i=1;
+	int j=0;
+	int dotfound=0;
+	char prev;
+	if(buffer[0] == '\0'){ 
+		DEBUG("void buffer found");
+		 return;
+	}
+
+	strncpy(bcopy, buffer,10*DATA_MAX_NAME_LEN);
+	prev=bcopy[0];
+	while (bcopy[i]!= '\0' && i<10*DATA_MAX_NAME_LEN) {
+		if( prev=='-' && bcopy[i] == '.') {
+			DEBUG("found forbidden convination '-.'");
+		}
+		else if( prev=='.' && bcopy[i] == '-'){
+			buffer[j]=prev;
+			j++;
+			dotfound=1;
+		}
+		else if( dotfound == 1 && prev == '-') {
+			DEBUG("found forbidden convination '.-'");	
+			dotfound=0;
+		}
+		else {
+			buffer[j]=prev;
+			j++;
+		}
+		prev=bcopy[i];
+		i++;
+	
+	}
+	
+	buffer[j]=prev;
+	buffer[j+1]='\0';
+}
+
 int format_graphite (char *buffer, size_t buffer_size,
     data_set_t const *ds, value_list_t const *vl,
     char const *prefix, char const *postfix, char const escape_char,
+    char const separate_char,
     unsigned int flags)
 {
     int status = 0;
@@ -209,13 +270,18 @@ int format_graphite (char *buffer, size_t buffer_size,
 
         /* Copy the identifier to `key' and escape it. */
         status = gr_format_name (key, sizeof (key), vl, ds_name,
-                    prefix, postfix, escape_char, flags);
+                    prefix, postfix, escape_char, separate_char, flags);
         if (status != 0)
         {
             ERROR ("format_graphite: error with gr_format_name");
             sfree (rates);
             return (status);
         }
+	/*after escaped and if separation done we should fix some 
+	* metric paths ( depending the plugin and their options)
+	*/
+
+	if(separate_char != '\0' ) fix_keymetric_after_separation(key);
 
         escape_graphite_string (key, escape_char);
         /* Convert the values to an ASCII representation and put that into

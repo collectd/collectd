@@ -26,13 +26,17 @@
 #include "plugin.h"
 
 #define GRAPHITE_STORE_RATES        0x01
-#define GRAPHITE_SEPARATE_INSTANCES 0x02
-#define GRAPHITE_ALWAYS_APPEND_DS   0x04
+#define GRAPHITE_ALWAYS_APPEND_DS   0x02
+#define GRAPHITE_SEPARATE_PLUGIN_INSTANCES	0x04
+#define GRAPHITE_SEPARATE_TYPE_INSTANCES	0x08
+//for backward compatibility
+#define GRAPHITE_SEPARATE_INSTANCES ((GRAPHITE_SEPARATE_PLUGIN_INSTANCES | GRAPHITE_SEPARATE_TYPE_INSTANCES ))
 
 int format_graphite (char *buffer,
     size_t buffer_size, const data_set_t *ds,
     const value_list_t *vl, const char *prefix,
     const char *postfix, const char escape_char,
+    const char separate_char,
     unsigned int flags);
 
 #endif /* UTILS_FORMAT_GRAPHITE_H */

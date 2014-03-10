@@ -102,6 +102,7 @@ struct wg_callback
     char    *prefix;
     char    *postfix;
     char     escape_char;
+    char     separate_char;
 
     unsigned int format_flags;
 
@@ -400,7 +401,7 @@ static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
 
     memset (buffer, 0, sizeof (buffer));
     status = format_graphite (buffer, sizeof (buffer), ds, vl,
-            cb->prefix, cb->postfix, cb->escape_char, cb->format_flags);
+            cb->prefix, cb->postfix, cb->escape_char, cb->separate_char,cb->format_flags);
     if (status != 0) /* error message has been printed already. */
         return (status);
 
@@ -483,6 +484,7 @@ static int wg_config_node (oconfig_item_t *ci)
     cb->prefix = NULL;
     cb->postfix = NULL;
     cb->escape_char = WG_DEFAULT_ESCAPE;
+    cb->separate_char = '\0';
     cb->format_flags = GRAPHITE_STORE_RATES;
 
     /* FIXME: Legacy configuration syntax. */
@@ -528,7 +530,13 @@ static int wg_config_node (oconfig_item_t *ci)
         else if (strcasecmp ("StoreRates", child->key) == 0)
             cf_util_get_flag (child, &cb->format_flags,
                     GRAPHITE_STORE_RATES);
-        else if (strcasecmp ("SeparateInstances", child->key) == 0)
+        else if (strcasecmp ("SeparatePluginInstances", child->key) == 0)
+            cf_util_get_flag (child, &cb->format_flags,
+                    GRAPHITE_SEPARATE_PLUGIN_INSTANCES);
+        else if (strcasecmp ("SeparateTypeInstances", child->key) == 0)
+            cf_util_get_flag (child, &cb->format_flags,
+                    GRAPHITE_SEPARATE_TYPE_INSTANCES);
+         else if (strcasecmp ("SeparateInstances", child->key) == 0)
             cf_util_get_flag (child, &cb->format_flags,
                     GRAPHITE_SEPARATE_INSTANCES);
         else if (strcasecmp ("AlwaysAppendDS", child->key) == 0)
@@ -536,6 +544,9 @@ static int wg_config_node (oconfig_item_t *ci)
                     GRAPHITE_ALWAYS_APPEND_DS);
         else if (strcasecmp ("EscapeCharacter", child->key) == 0)
             config_set_char (&cb->escape_char, child);
+        else if (strcasecmp ("SeparateLevelCharacter", child->key) == 0)
+            config_set_char (&cb->separate_char, child);
+
         else
         {
             ERROR ("write_graphite plugin: Invalid configuration "
