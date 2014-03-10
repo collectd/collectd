@@ -19,6 +19,10 @@ Features
       Apache server utilization: Number of bytes transferred, number of
       requests handled and detailed scoreboard statistics
 
+    - apachelog
+      Apache log parser to get global and extended ( per HTTP CODE) hits count 
+      and response time, also supporting the rotatelogs tools
+
     - apcups
       APC UPS Daemon: UPS charge, load, input/output/battery voltage, etc.
 

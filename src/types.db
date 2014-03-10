@@ -217,3 +217,4 @@ arc_ratio		value:GAUGE:0:U
 arc_size		current:GAUGE:0:U, target:GAUGE:0:U, minlimit:GAUGE:0:U, maxlimit:GAUGE:0:U
 mysql_qcache		hits:COUNTER:0:U, inserts:COUNTER:0:U, not_cached:COUNTER:0:U, lowmem_prunes:COUNTER:0:U, queries_in_cache:GAUGE:0:U
 mysql_threads		running:GAUGE:0:U, connected:GAUGE:0:U, cached:GAUGE:0:U, created:COUNTER:0:U
+http_perf               hit_x_interval:GAUGE:0:U, hit_rate:ABSOLUTE:0:U, rt_avg:GAUGE:0:U, rt_max:GAUGE:0:U, rt_min:GAUGE:0:U
