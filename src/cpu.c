@@ -1,9 +1,9 @@
 /**
  * collectd - src/cpu.c
  * Copyright (C) 2005-2010  Florian octo Forster
- * Copyright (C) 2008       Oleg King
- * Copyright (C) 2009       Simon Kuhnle
- * Copyright (C) 2009       Manuel Sanmartin
+ * Copyright (C) 2008	    Oleg King
+ * Copyright (C) 2009	    Simon Kuhnle
+ * Copyright (C) 2009	    Manuel Sanmartin
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -11,7 +11,7 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the GNU
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -86,6 +86,18 @@
 # define CAN_USE_SYSCTL 0
 #endif
 
+#define CPU_SUBMIT_USER 0
+#define CPU_SUBMIT_SYSTEM 1
+#define CPU_SUBMIT_WAIT 2
+#define CPU_SUBMIT_NICE 3
+#define CPU_SUBMIT_SWAP 4
+#define CPU_SUBMIT_INTERRUPT 5
+#define CPU_SUBMIT_SOFTIRQ 6
+#define CPU_SUBMIT_STEAL 7
+#define CPU_SUBMIT_IDLE 8
+#define CPU_SUBMIT_ACTIVE 9
+#define CPU_SUBMIT_MAX 10
+
 #if HAVE_STATGRAB_H
 # include <statgrab.h>
 #endif
@@ -100,6 +112,19 @@
 # error "No applicable input method."
 #endif
 
+static const char *cpu_state_names[] = {
+	"user",
+	"system",
+	"wait",
+	"nice",
+	"swap",
+	"interrupt",
+	"softirq",
+	"steal",
+	"idle",
+	"active"
+};
+
 #ifdef PROCESSOR_CPU_LOAD_INFO
 static mach_port_t port_host;
 static processor_port_array_t cpu_list;
@@ -107,8 +132,8 @@ static mach_msg_type_number_t cpu_list_len;
 
 #if PROCESSOR_TEMPERATURE
 static int cpu_temp_retry_counter = 0;
-static int cpu_temp_retry_step    = 1;
-static int cpu_temp_retry_max     = 1;
+static int cpu_temp_retry_step	  = 1;
+static int cpu_temp_retry_max	  = 1;
 #endif /* PROCESSOR_TEMPERATURE */
 /* #endif PROCESSOR_CPU_LOAD_INFO */
 
@@ -144,6 +169,86 @@ static perfstat_cpu_t *perfcpu;
 static int numcpu;
 static int pnumcpu;
 #endif /* HAVE_PERFSTAT */
+
+static value_to_rate_state_t *percents = NULL;
+static gauge_t agg_percents[CPU_SUBMIT_MAX] = {
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+
+};
+static int percents_cells = 0;
+static int cpu_count = 0;
+
+
+static _Bool report_by_cpu = 1;
+static _Bool report_percent = 0;
+static _Bool report_active = 0;
+
+static const char *config_keys[] =
+{
+	"ReportByCpu",
+	"ReportActive",
+	"ValuesPercentage"
+};
+static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
+
+
+static int cpu_config (const char *key, const char *value)
+{
+	if (strcasecmp (key, "ReportByCpu") == 0) {
+		report_by_cpu = IS_TRUE (value) ? 1 : 0;
+		if (!report_by_cpu)
+			report_percent = 1;
+	}
+	if (strcasecmp (key, "ValuesPercentage") == 0) {
+		report_percent = IS_TRUE (value) ? 1 : 0;
+		if (!report_percent)
+			report_by_cpu = 1;
+	}
+	if (strcasecmp (key, "ReportActive") == 0)
+		report_active = IS_TRUE (value) ? 1 : 0;
+	return (-1);
+}
+
+static int cpu_states_grow (void)
+{
+  void *tmp;
+  int size;
+  int i;
+
+  size = cpu_count * CPU_SUBMIT_MAX; /* always alloc for all states */
+
+  if (size <= 0)
+	  return 0;
+
+  if (percents_cells >= size)
+	  return 0;
+
+  if (percents == NULL) {
+	  percents = malloc(size * sizeof(*percents));
+	  if (percents == NULL)
+		  return -1;
+	  for (i = 0; i < size; i++)
+		  memset(&percents[i], 0, sizeof(*percents));
+	  percents_cells = size;
+	  return 0;
+  }
+
+  tmp = realloc(percents, size * sizeof(*percents));
+
+  if (tmp == NULL) {
+	  ERROR ("cpu plugin: could not reserve enough space to hold states");
+	  percents = NULL;
+	  return -1;
+  }
+
+  for (i = percents_cells; i < size; i++)
+	  memset(&percents[i], 0, sizeof(*percents));
+
+  percents = tmp;
+  percents_cells = size;
+  return 0;
+} /* cpu_states_grow */
+
 
 static int init (void)
 {
@@ -241,23 +346,140 @@ static int init (void)
 	return (0);
 } /* int init */
 
-static void submit (int cpu_num, const char *type_instance, derive_t value)
+static void submit_value (int cpu_num, int cpu_state, const char *type, value_t value)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].derive = value;
+	memcpy(&values[0], &value, sizeof(value));
 
 	vl.values = values;
 	vl.values_len = 1;
+
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "cpu", sizeof (vl.plugin));
-	ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
-			"%i", cpu_num);
-	sstrncpy (vl.type, "cpu", sizeof (vl.type));
-	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
+	sstrncpy (vl.type, type, sizeof (vl.type));
+	sstrncpy (vl.type_instance, cpu_state_names[cpu_state],
+		  sizeof (vl.type_instance));
 
+	if (cpu_num >= 0) {
+		ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
+			   "%i", cpu_num);
+	}
 	plugin_dispatch_values (&vl);
+}
+
+static void submit_percent(int cpu_num, int cpu_state, gauge_t percent)
+{
+	value_t value;
+
+	value.gauge = percent;
+	submit_value (cpu_num, cpu_state, "percent", value);
+}
+
+static void submit_derive(int cpu_num, int cpu_state, derive_t derive)
+{
+	value_t value;
+
+	value.derive = derive;
+	submit_value (cpu_num, cpu_state, "cpu", value);
+}
+
+static void submit_flush (void)
+{
+	int i = 0;
+
+	if (report_by_cpu) {
+		cpu_count = 0;
+		return;
+	}
+
+	for (i = 0; i < CPU_SUBMIT_MAX; i++) {
+		if (agg_percents[i] == -1)
+			continue;
+
+		submit_percent(-1, i, agg_percents[i] / cpu_count);
+		agg_percents[i] = -1;
+	}
+	cpu_count = 0;
+}
+
+static void submit (int cpu_num, derive_t *derives)
+{
+
+	int i = 0;
+
+	if (!report_percent && report_by_cpu) {
+		derive_t cpu_active = 0;
+		for (i = 0; i < CPU_SUBMIT_ACTIVE; i++)
+		{
+			if (derives[i] == -1)
+				continue;
+
+			if (i != CPU_SUBMIT_IDLE)
+				cpu_active += derives[i];
+
+			submit_derive(cpu_num, i, derives[i]);
+		}
+		if (report_active)
+			submit_derive(cpu_num, CPU_SUBMIT_ACTIVE, cpu_active);
+	}
+	else /* we are reporting percents */
+	{
+		cdtime_t cdt;
+		gauge_t percent;
+		gauge_t cpu_total = 0;
+		gauge_t cpu_active = 0;
+		gauge_t local_rates[CPU_SUBMIT_MAX];
+
+		cpu_count++;
+		if (cpu_states_grow())
+			return;
+
+		memset(local_rates, 0, sizeof(local_rates));
+
+		cdt = cdtime();
+		for (i = 0; i < CPU_SUBMIT_ACTIVE; i++) {
+			value_t rate;
+			int index;
+
+			if (derives[i] == -1)
+				continue;
+
+			index = (cpu_num * CPU_SUBMIT_MAX) + i;
+			if (value_to_rate(&rate, derives[i], &percents[index],
+					  DS_TYPE_DERIVE, cdt) != 0) {
+				local_rates[i] = -1;
+				continue;
+			}
+
+			local_rates[i] = rate.gauge;
+			cpu_total += rate.gauge;
+			if (i != CPU_SUBMIT_IDLE)
+				cpu_active += rate.gauge;
+		}
+		if (cpu_total == 0.0)
+			return;
+
+		if (report_active)
+			local_rates[CPU_SUBMIT_ACTIVE] = cpu_active;
+
+		for (i = 0; i < CPU_SUBMIT_MAX; i++) {
+			if (local_rates[i] == -1)
+				continue;
+
+			percent = (local_rates[i] / cpu_total) * 100;
+			if (report_by_cpu)
+				submit_percent (cpu_num, i, percent);
+			else {
+				if (agg_percents[i] == -1)
+					agg_percents[i] = percent;
+				else
+					agg_percents[i] += percent;
+			}
+
+		}
+	}
 }
 
 static int cpu_read (void)
@@ -266,15 +488,14 @@ static int cpu_read (void)
 	int cpu;
 
 	kern_return_t status;
-	
+
 #if PROCESSOR_CPU_LOAD_INFO
-	derive_t                       cpu_active;
 	processor_cpu_load_info_data_t cpu_info;
-	mach_msg_type_number_t         cpu_info_len;
+	mach_msg_type_number_t	       cpu_info_len;
 #endif
 #if PROCESSOR_TEMPERATURE
-	processor_info_data_t          cpu_temp;
-	mach_msg_type_number_t         cpu_temp_len;
+	processor_info_data_t	       cpu_temp;
+	mach_msg_type_number_t	       cpu_temp_len;
 #endif
 
 	host_t cpu_host;
@@ -282,6 +503,10 @@ static int cpu_read (void)
 	for (cpu = 0; cpu < cpu_list_len; cpu++)
 	{
 #if PROCESSOR_CPU_LOAD_INFO
+		derive_t derives[CPU_SUBMIT_MAX] = {
+			-1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+		};
+		memset(derives, -1, sizeof(derives));
 		cpu_host = 0;
 		cpu_info_len = PROCESSOR_BASIC_INFO_COUNT;
 
@@ -299,15 +524,12 @@ static int cpu_read (void)
 			continue;
 		}
 
-		submit (cpu, "user", (derive_t) cpu_info.cpu_ticks[CPU_STATE_USER]);
-		submit (cpu, "nice", (derive_t) cpu_info.cpu_ticks[CPU_STATE_NICE]);
-		submit (cpu, "system", (derive_t) cpu_info.cpu_ticks[CPU_STATE_SYSTEM]);
-		submit (cpu, "idle", (derive_t) cpu_info.cpu_ticks[CPU_STATE_IDLE]);
-		cpu_active = (derive_t) (cpu_info.cpu_ticks[CPU_STATE_USER] +
-					 cpu_info.cpu_ticks[CPU_STATE_NICE] +
-					 cpu_info.cpu_ticks[CPU_STATE_SYSTEM]);
-		submit (cpu, "active", cpu_active);
-					 
+		derives[CPU_SUBMIT_USER] = (derive_t) cpu_info.cpu_ticks[CPU_STATE_USER];
+		derives[CPU_SUBMIT_NICE] = (derive_t) cpu_info.cpu_ticks[CPU_STATE_NICE];
+		derives[CPU_SUBMIT_SYSTEM] = (derive_t) cpu_info.cpu_ticks[CPU_STATE_SYSTEM];
+		derives[CPU_SUBMIT_IDLE] = (derive_t) cpu_info.cpu_ticks[CPU_STATE_IDLE];
+		submit (cpu, derives);
+
 #endif /* PROCESSOR_CPU_LOAD_INFO */
 #if PROCESSOR_TEMPERATURE
 		/*
@@ -344,7 +566,7 @@ static int cpu_read (void)
 		if (cpu_temp_len != 1)
 		{
 			DEBUG ("processor_info (PROCESSOR_TEMPERATURE) returned %i elements..?",
-				       	(int) cpu_temp_len);
+					(int) cpu_temp_len);
 			continue;
 		}
 
@@ -352,13 +574,11 @@ static int cpu_read (void)
 		cpu_temp_retry_step    = 1;
 #endif /* PROCESSOR_TEMPERATURE */
 	}
+	submit_flush ();
 /* #endif PROCESSOR_CPU_LOAD_INFO */
 
 #elif defined(KERNEL_LINUX)
 	int cpu;
-	derive_t cpu_active;
-	derive_t user, nice, syst, idle;
-	derive_t wait, intr, sitr; /* sitr == soft interrupt */
 	FILE *fh;
 	char buf[1024];
 
@@ -375,6 +595,10 @@ static int cpu_read (void)
 
 	while (fgets (buf, 1024, fh) != NULL)
 	{
+		derive_t derives[CPU_SUBMIT_MAX] = {
+			-1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+		};
+
 		if (strncmp (buf, "cpu", 3))
 			continue;
 		if ((buf[3] < '0') || (buf[3] > '9'))
@@ -385,42 +609,29 @@ static int cpu_read (void)
 			continue;
 
 		cpu = atoi (fields[0] + 3);
-		user = atoll (fields[1]);
-		nice = atoll (fields[2]);
-		syst = atoll (fields[3]);
-		idle = atoll (fields[4]);
-
-		submit (cpu, "user", user);
-		submit (cpu, "nice", nice);
-		submit (cpu, "system", syst);
-		submit (cpu, "idle", idle);
-		cpu_active = user + nice + syst;
+		derives[CPU_SUBMIT_USER] = atoll(fields[1]);
+		derives[CPU_SUBMIT_NICE] = atoll(fields[2]);
+		derives[CPU_SUBMIT_SYSTEM] = atoll(fields[3]);
+		derives[CPU_SUBMIT_IDLE] = atoll(fields[4]);
 
 		if (numfields >= 8)
 		{
-			wait = atoll (fields[5]);
-			intr = atoll (fields[6]);
-			sitr = atoll (fields[7]);
-
-			submit (cpu, "wait", wait);
-			submit (cpu, "interrupt", intr);
-			submit (cpu, "softirq", sitr);
-			
-			cpu_active += wait + intr + sitr;
+			derives[CPU_SUBMIT_WAIT] = atoll(fields[5]);
+			derives[CPU_SUBMIT_INTERRUPT] = atoll(fields[6]);
+			derives[CPU_SUBMIT_SOFTIRQ] = atoll(fields[6]);
 
 			if (numfields >= 9)
-				cpu_active += (derive_t) atoll (fields[8]);
-				submit (cpu, "steal", atoll (fields[8]));
+				derives[CPU_SUBMIT_STEAL] = atoll(fields[8]);
 		}
-		submit (cpu, "active", cpu_active);
+		submit(cpu, derives);
 	}
+	submit_flush();
 
 	fclose (fh);
 /* #endif defined(KERNEL_LINUX) */
 
 #elif defined(HAVE_LIBKSTAT)
 	int cpu;
-	derive_t user, syst, idle, wait;
 	static cpu_stat_t cs;
 
 	if (kc == NULL)
@@ -428,20 +639,21 @@ static int cpu_read (void)
 
 	for (cpu = 0; cpu < numcpu; cpu++)
 	{
+		derive_t derives[CPU_SUBMIT_MAX] = {
+			-1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+		};
+
 		if (kstat_read (kc, ksp[cpu], &cs) == -1)
 			continue; /* error message? */
 
-		idle = (derive_t) cs.cpu_sysinfo.cpu[CPU_IDLE];
-		user = (derive_t) cs.cpu_sysinfo.cpu[CPU_USER];
-		syst = (derive_t) cs.cpu_sysinfo.cpu[CPU_KERNEL];
-		wait = (derive_t) cs.cpu_sysinfo.cpu[CPU_WAIT];
-
-		submit (ksp[cpu]->ks_instance, "user", user);
-		submit (ksp[cpu]->ks_instance, "system", syst);
-		submit (ksp[cpu]->ks_instance, "idle", idle);
-		submit (ksp[cpu]->ks_instance, "wait", wait);
-		submit (ksp[cpu]->ks_instance, "active", user + syst + wait);
+		memset(derives, -1, sizeof(derives));
+		derives[CPU_SUBMIT_IDLE] = cs.cpu_sysinfo.cpu[CPU_IDLE];
+		derives[CPU_SUBMIT_USER] = cs.cpu_sysinfo.cpu[CPU_USER];
+		derives[CPU_SUBMIT_SYSTEM] = cs.cpu_sysinfo.cpu[CPU_KERNEL];
+		derives[CPU_SUBMIT_WAIT] = cs.cpu_sysinfo.cpu[CPU_WAIT];
+		submit (ksp[cpu]->ks_instance, derives);
 	}
+	submit_flush ();
 /* #endif defined(HAVE_LIBKSTAT) */
 
 #elif CAN_USE_SYSCTL
@@ -500,16 +712,18 @@ static int cpu_read (void)
 	}
 
 	for (i = 0; i < numcpu; i++) {
-		submit (i, "user",      cpuinfo[i][CP_USER]);
-		submit (i, "nice",      cpuinfo[i][CP_NICE]);
-		submit (i, "system",    cpuinfo[i][CP_SYS]);
-		submit (i, "idle",      cpuinfo[i][CP_IDLE]);
-		submit (i, "interrupt", cpuinfo[i][CP_INTR]);
-		submit (i, "active",    cpuinfo[i][CP_USER] +
-			                cpuinfo[i][CP_NICE] +
-			                cpuinfo[i][CP_SYS] +
-			                cpuinfo[i][CP_INTR]);
+		derive_t derives[CPU_SUBMIT_MAX] = {
+			-1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+		};
+
+		derives[CPU_SUBMIT_USER] = cpuinfo[i][CP_USER];
+		derives[CPU_SUBMIT_NICE] = cpuinfo[i][CP_NICE];
+		derives[CPU_SUBMIT_SYSTEM] = cpuinfo[i][CP_SYS];
+		derives[CPU_SUBMIT_IDLE] = cpuinfo[i][CP_IDLE];
+		derives[CPU_SUBMIT_INTERRUPT] = cpuinfo[i][CP_INTR];
+		submit(i, derives);
 	}
+	submit_flush();
 /* #endif CAN_USE_SYSCTL */
 #elif defined(HAVE_SYSCTLBYNAME) && defined(HAVE_SYSCTL_KERN_CP_TIMES)
 	long cpuinfo[maxcpu][CPUSTATES];
@@ -528,20 +742,26 @@ static int cpu_read (void)
 	}
 
 	for (i = 0; i < numcpu; i++) {
-		submit (i, "user", cpuinfo[i][CP_USER]);
-		submit (i, "nice", cpuinfo[i][CP_NICE]);
-		submit (i, "system", cpuinfo[i][CP_SYS]);
-		submit (i, "idle", cpuinfo[i][CP_IDLE]);
-		submit (i, "interrupt", cpuinfo[i][CP_INTR]);
-		submit (i, "active", cpuinfo[i][CP_USER] +
-			cpuinfo[i][CP_NICE] +
-			cpuinfo[i][CP_SYS] +
-			cpuinfo[i][CP_INTR]);
+		derive_t derives[CPU_SUBMIT_MAX] = {
+			-1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+		};
+
+		derives[CPU_SUBMIT_USER] = cpuinfo[i][CP_USER];
+		derives[CPU_SUBMIT_NICE] = cpuinfo[i][CP_NICE];
+		derives[CPU_SUBMIT_SYSTEM] = cpuinfo[i][CP_SYS];
+		derives[CPU_SUBMIT_IDLE] = cpuinfo[i][CP_IDLE];
+		derives[CPU_SUBMIT_INTERRUPT] = cpuinfo[i][CP_INTR];
+		submit(i, derives);
 	}
+	submit_flush();
+
 /* #endif HAVE_SYSCTL_KERN_CP_TIMES */
 #elif defined(HAVE_SYSCTLBYNAME)
 	long cpuinfo[CPUSTATES];
 	size_t cpuinfo_size;
+	derive_t derives[CPU_SUBMIT_MAX] = {
+		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+	};
 
 	cpuinfo_size = sizeof (cpuinfo);
 
@@ -553,19 +773,21 @@ static int cpu_read (void)
 		return (-1);
 	}
 
-	submit (0, "user", cpuinfo[CP_USER]);
-	submit (0, "nice", cpuinfo[CP_NICE]);
-	submit (0, "system", cpuinfo[CP_SYS]);
-	submit (0, "idle", cpuinfo[CP_IDLE]);
-	submit (0, "interrupt", cpuinfo[CP_INTR]);
-	submit (0, "active", cpuinfo[CP_USER] +
-		cpuinfo[CP_NICE] +
-		cpuinfo[CP_SYS] +
-		cpuinfo[CP_INTR]);
+	derives[CPU_SUBMIT_USER] = cpuinfo[CP_USER];
+	derives[CPU_SUBMIT_SYSTEM] = cpuinfo[CP_SYS];
+	derives[CPU_SUBMIT_NICE] = cpuinfo[CP_NICE];
+	derives[CPU_SUBMIT_IDLE] = cpuinfo[CP_IDLE];
+	derives[CPU_SUBMIT_INTERRUPT] = cpuinfo[CP_INTR];
+	submit(0, derives);
+	submit_flush();
+
 /* #endif HAVE_SYSCTLBYNAME */
 
 #elif defined(HAVE_LIBSTATGRAB)
 	sg_cpu_stats *cs;
+	derive_t derives[CPU_SUBMIT_MAX] = {
+		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+	};
 	cs = sg_get_cpu_stats ();
 
 	if (cs == NULL)
@@ -574,18 +796,14 @@ static int cpu_read (void)
 		return (-1);
 	}
 
-	submit (0, "idle",   (derive_t) cs->idle);
-	submit (0, "nice",   (derive_t) cs->nice);
-	submit (0, "swap",   (derive_t) cs->swap);
-	submit (0, "system", (derive_t) cs->kernel);
-	submit (0, "user",   (derive_t) cs->user);
-	submit (0, "wait",   (derive_t) cs->iowait);
-	submit (0, "active", (derive_t) cs->nice + 
-		cs->swap +
-		cs->kernel +
-		cs->user +
-		cs->iowait +
-		cs->nice);
+	derives[CPU_SUBMIT_IDLE] = (derive_t) cs->idle;
+	derives[CPU_SUBMIT_NICE] = (derive_t) cs->nice;
+	derives[CPU_SUBMIT_SWAP] = (derive_t) cs->swap;
+	derives[CPU_SUBMIT_SYSTEM] = (derive_t) cs->kernel;
+	derives[CPU_SUBMIT_USER] = (derive_t) cs->user;
+	derives[CPU_SUBMIT_WAIT] = (derive_t) cs->iowait;
+	submit(0, derives);
+	submit_flush();
 /* #endif HAVE_LIBSTATGRAB */
 
 #elif defined(HAVE_PERFSTAT)
@@ -600,10 +818,10 @@ static int cpu_read (void)
 			sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
-	
-	if (pnumcpu != numcpu || perfcpu == NULL) 
+
+	if (pnumcpu != numcpu || perfcpu == NULL)
 	{
-		if (perfcpu != NULL) 
+		if (perfcpu != NULL)
 			free(perfcpu);
 		perfcpu = malloc(numcpu * sizeof(perfstat_cpu_t));
 	}
@@ -618,16 +836,18 @@ static int cpu_read (void)
 		return (-1);
 	}
 
-	for (i = 0; i < cpus; i++) 
+	for (i = 0; i < cpus; i++)
 	{
-		submit (i, "idle",   (derive_t) perfcpu[i].idle);
-		submit (i, "system", (derive_t) perfcpu[i].sys);
-		submit (i, "user",   (derive_t) perfcpu[i].user);
-		submit (i, "wait",   (derive_t) perfcpu[i].wait);
-		submit (i, "active", (derive_t) perfcpu[i].sys +
-			perfcpu[i].user +
-			perfcpu[i].wait);
+		derive_t derives[CPU_SUBMIT_MAX] = {
+			-1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+		};
+		derives[CPU_SUBMIT_IDLE] = perfcpu[i].idle;
+		derives[CPU_SUBMIT_SYSTEM] = perfcpu[i].sys;
+		derives[CPU_SUBMIT_USER] = perfcpu[i].user;
+		derives[CPU_SUBMIT_WAIT] = perfcpu[i].wait;
+		submit(i, derives);
 	}
+	submit_flush();
 #endif /* HAVE_PERFSTAT */
 
 	return (0);
@@ -636,5 +856,6 @@ static int cpu_read (void)
 void module_register (void)
 {
 	plugin_register_init ("cpu", init);
+	plugin_register_config ("cpu", cpu_config, config_keys, config_keys_num);
 	plugin_register_read ("cpu", cpu_read);
 } /* void module_register */
