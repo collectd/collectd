@@ -973,7 +973,7 @@ at all, B<all> cgroups are selected.
 
 =back
 
-+=head2 Plugin C<cpu>
+=head2 Plugin C<cpu>
 
 The I<CPU plugin> collects CPU usage metrics.
 
