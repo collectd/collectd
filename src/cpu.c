@@ -177,15 +177,20 @@ static gauge_t agg_percents[CPU_SUBMIT_MAX] = {
 };
 static int percents_cells = 0;
 static int cpu_count = 0;
+static derive_t agg_cpu[CPU_SUBMIT_MAX] = {
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+};
 
 
 static _Bool report_by_cpu = 1;
+static _Bool report_total = 0;
 static _Bool report_percent = 0;
 static _Bool report_active = 0;
 
 static const char *config_keys[] =
 {
 	"ReportByCpu",
+	"ReportTotal",
 	"ReportActive",
 	"ValuesPercentage"
 };
@@ -197,13 +202,15 @@ static int cpu_config (const char *key, const char *value)
 	if (strcasecmp (key, "ReportByCpu") == 0) {
 		report_by_cpu = IS_TRUE (value) ? 1 : 0;
 		if (!report_by_cpu)
-			report_percent = 1;
+			report_total = 1;
 	}
-	if (strcasecmp (key, "ValuesPercentage") == 0) {
-		report_percent = IS_TRUE (value) ? 1 : 0;
-		if (!report_percent)
+	if (strcasecmp (key, "ReportTotal") == 0) {
+		report_total = IS_TRUE (value) ? 1 : 0;
+		if (!report_total)
 			report_by_cpu = 1;
 	}
+	if (strcasecmp (key, "ValuesPercentage") == 0)
+		report_percent = IS_TRUE (value) ? 1 : 0;
 	if (strcasecmp (key, "ReportActive") == 0)
 		report_active = IS_TRUE (value) ? 1 : 0;
 	return (-1);
@@ -389,17 +396,33 @@ static void submit_flush (void)
 {
 	int i = 0;
 
-	if (report_by_cpu) {
-		cpu_count = 0;
-		return;
+	if (!report_percent)
+	{
+		if (report_total)
+		{
+			for (i = 0; i < CPU_SUBMIT_MAX; i++)
+			{
+				if (agg_cpu[i] == -1)
+					continue;
+				if (cpu_count > 0)
+					submit_derive(-1, i, agg_cpu[i] / cpu_count);
+				agg_cpu[i] = -1;
+			}
+		}
 	}
-
-	for (i = 0; i < CPU_SUBMIT_MAX; i++) {
-		if (agg_percents[i] == -1)
-			continue;
-
-		submit_percent(-1, i, agg_percents[i] / cpu_count);
-		agg_percents[i] = -1;
+	else /* we are reporting percents */
+	{
+		if (report_total)
+		{
+			for (i = 0; i < CPU_SUBMIT_MAX; i++)
+			{
+				if (agg_percents[i] == -1)
+					continue;
+				if (cpu_count > 0)
+					submit_percent(-1, i, agg_percents[i] / cpu_count);
+				agg_percents[i] = -1;
+			}
+		}
 	}
 	cpu_count = 0;
 }
@@ -409,8 +432,12 @@ static void submit (int cpu_num, derive_t *derives)
 
 	int i = 0;
 
-	if (!report_percent && report_by_cpu) {
+	if (!report_percent)
+	{
 		derive_t cpu_active = 0;
+
+		cpu_count++;
+
 		for (i = 0; i < CPU_SUBMIT_ACTIVE; i++)
 		{
 			if (derives[i] == -1)
@@ -419,7 +446,10 @@ static void submit (int cpu_num, derive_t *derives)
 			if (i != CPU_SUBMIT_IDLE)
 				cpu_active += derives[i];
 
-			submit_derive(cpu_num, i, derives[i]);
+			if (report_by_cpu)
+				submit_derive(cpu_num, i, derives[i]);
+			if (report_total)
+				agg_cpu[i] += derives[i];
 		}
 		if (report_active)
 			submit_derive(cpu_num, CPU_SUBMIT_ACTIVE, cpu_active);
@@ -439,7 +469,8 @@ static void submit (int cpu_num, derive_t *derives)
 		memset(local_rates, 0, sizeof(local_rates));
 
 		cdt = cdtime();
-		for (i = 0; i < CPU_SUBMIT_ACTIVE; i++) {
+		for (i = 0; i < CPU_SUBMIT_ACTIVE; i++)
+		{
 			value_t rate;
 			int index;
 
@@ -448,7 +479,8 @@ static void submit (int cpu_num, derive_t *derives)
 
 			index = (cpu_num * CPU_SUBMIT_MAX) + i;
 			if (value_to_rate(&rate, derives[i], &percents[index],
-					  DS_TYPE_DERIVE, cdt) != 0) {
+					  DS_TYPE_DERIVE, cdt) != 0)
+			{
 				local_rates[i] = -1;
 				continue;
 			}
@@ -464,14 +496,16 @@ static void submit (int cpu_num, derive_t *derives)
 		if (report_active)
 			local_rates[CPU_SUBMIT_ACTIVE] = cpu_active;
 
-		for (i = 0; i < CPU_SUBMIT_MAX; i++) {
+		for (i = 0; i < CPU_SUBMIT_MAX; i++)
+		{
 			if (local_rates[i] == -1)
 				continue;
 
 			percent = (local_rates[i] / cpu_total) * 100;
 			if (report_by_cpu)
 				submit_percent (cpu_num, i, percent);
-			else {
+			if (report_total)
+			{
 				if (agg_percents[i] == -1)
 					agg_percents[i] = percent;
 				else
