@@ -388,6 +388,10 @@ endif
 if BUILD_WITH_PERFSTAT
 disk_la_LIBADD += -lperfstat
 endif
+if BUILD_WITH_LIBUDEV
+disk_la_CFLAGS += $(BUILD_WITH_LIBUDEV_CFLAGS)
+disk_la_LIBADD += $(BUILD_WITH_LIBUDEV_LIBS)
+endif
 collectd_LDADD += "-dlopen" disk.la
 collectd_DEPENDENCIES += disk.la
 endif
