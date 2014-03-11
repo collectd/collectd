@@ -629,7 +629,9 @@ static int ut_report_state (const data_set_t *ds,
           ": Value is no longer missing.");
     else
       status = ssnprintf (buf, bufsize,
-          ": All data sources are within range again.");
+          ": All data sources are within range again. "
+          "Current value of \"%s\" is %f.",
+          ds->ds[ds_index].name, values[ds_index]);
     buf += status;
     bufsize -= status;
   }
