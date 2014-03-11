@@ -749,23 +749,40 @@ static int ut_check_one_data_source (const data_set_t *ds,
 
   /* XXX: This is an experimental code, not optimized, not fast, not reliable,
    * and probably, do not work as you expect. Enjoy! :D */
-  if ( (th->hysteresis > 0) && ((prev_state = uc_get_state(ds,vl)) != STATE_OKAY) )
+  if (th->hysteresis > 0)
   {
-    switch(prev_state)
+    prev_state = uc_get_state(ds,vl);
+    /* The purpose of hysteresis is elliminating flapping state when the value
+     * oscilates around the thresholds. In other words, what is important is
+     * the previous state; if the new value would trigger a transition, make
+     * sure that we artificially widen the range which is considered to apply
+     * for the previous state, and only trigger the notification if the value
+     * is outside of this expanded range.
+     *
+     * There is no hysteresis for the OKAY state.
+     * */
+    gauge_t hysteresis_for_warning = 0, hysteresis_for_failure = 0;
+    switch (prev_state)
     {
       case STATE_ERROR:
-	if ( (!isnan (th->failure_min) && ((th->failure_min + th->hysteresis) < values[ds_index])) ||
-	     (!isnan (th->failure_max) && ((th->failure_max - th->hysteresis) > values[ds_index])) )
-	  return (STATE_OKAY);
-	else
-	  is_failure++;
+        hysteresis_for_failure = th->hysteresis;
+        break;
       case STATE_WARNING:
-	if ( (!isnan (th->warning_min) && ((th->warning_min + th->hysteresis) < values[ds_index])) ||
-	     (!isnan (th->warning_max) && ((th->warning_max - th->hysteresis) > values[ds_index])) )
-	  return (STATE_OKAY);
-	else
-	  is_warning++;
-     }
+        hysteresis_for_warning = th->hysteresis;
+        break;
+      case STATE_OKAY:
+        /* do nothing -- the hysteresis only applies to the non-normal states */
+        break;
+    }
+
+    if ((!isnan (th->failure_min) && (th->failure_min + hysteresis_for_failure > values[ds_index]))
+	|| (!isnan (th->failure_max) && (th->failure_max - hysteresis_for_failure < values[ds_index])))
+      is_failure++;
+
+    if ((!isnan (th->warning_min) && (th->warning_min + hysteresis_for_warning > values[ds_index]))
+	|| (!isnan (th->warning_max) && (th->warning_max - hysteresis_for_warning < values[ds_index])))
+      is_warning++;
+
   }
   else { /* no hysteresis */
     if ((!isnan (th->failure_min) && (th->failure_min > values[ds_index]))
