@@ -773,7 +773,7 @@ static int ut_check_one_data_source (const data_set_t *ds,
     if ((!isnan (th->warning_min) && (th->warning_min > values[ds_index]))
 	|| (!isnan (th->warning_max) && (th->warning_max < values[ds_index])))
       is_warning++;
- }
+  }
 
   if (is_failure != 0)
     return (STATE_ERROR);
