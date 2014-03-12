@@ -4,7 +4,7 @@ SUBDIRS += liboconfig
 endif
 
 if COMPILER_IS_GCC
-AM_CFLAGS = -Wall -Werror
+AM_CFLAGS = -Wall
 endif
 
 AM_CPPFLAGS = -DPREFIX='"${prefix}"'
