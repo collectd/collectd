@@ -191,7 +191,7 @@ static void compact_ds_name(char *source, char *dest)
 		 */
 		reserved += 4;
 	}
-	snprintf(dest, MAX_RRD_DS_NAME_LEN - reserved, "%s", tmp);
+	snprintf(dest, MAX_RRD_DS_NAME_LEN - reserved, tmp);
 	offset = strlen(dest);
 	switch (append_status)
 	{
@@ -297,7 +297,7 @@ static int ceph_daemon_add_ds_entry(struct ceph_daemon *d, const char *name,
 	struct data_source_s *ds;
 	struct data_set_s *dset;
 	struct data_set_s *dset_array;
-	int **pc_types_array = NULL;
+	int **pc_types_array;
 	int *pc_types;
 	int *pc_types_new;
 	int idx = 0;
@@ -500,7 +500,9 @@ static int traverse_json(const char *json, node_handler_t handler,
 	root = json_tokener_parse(json);
 	if (!root)
 		return -EDOM;
-	return traverse_json_impl(root, buf, sizeof(buf), handler, handler_arg);
+	int result = traverse_json_impl(root, buf, sizeof(buf), handler, handler_arg);
+	json_object_put(root);
+	return result;
 }
 
 static int node_handler_define_schema(void *arg, json_object *jo,
