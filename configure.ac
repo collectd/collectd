@@ -5664,7 +5664,7 @@ if test "$GOOD_LD" == "" ; then
         `cp Makefile.tmp src/Makefile`
         `rm -f Makefile.tmp`
    fi
-   echo "Execute the following command to add the json dependencypath before running 'make':"
+   echo "Execute the following command to add the json dependency path before running 'make':"
    echo "export LD_LIBRARY_PATH=$USR_JSON_LOC"
    echo ""
 elif test "$NO_JSON_MAKE_PATH" != "" ; then
