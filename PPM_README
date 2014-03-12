@@ -1,0 +1,98 @@
+In order to work correctly with PPM, collectd-ceph requires some special installation procedures. Find the installation instructions for your OS type below.
+
+Debian / Ubuntu:
+
+    Install json-c library -
+        cd libs/json-c-master
+        sh autogen.sh
+        ./configure
+        make
+        make install
+
+    Install other dependencies -
+        apt-get install librrd-dev byacc bison flex automake libtool pkg-config libgcrypt11-dev libglib2.0-dev python-dev chkconfig
+
+    Install collectd-ceph -
+        sh build.sh
+        ./configure --with-librrd=yes --with-python=yes --enable-libvirt=false
+        export LD_LIBRARY_PATH=/usr/local/lib (THIS IS WHERE JSON LIBRARY IS INSTALLED)
+        make
+        make install
+
+    Check the collectd.conf file -
+        vi /opt/collectd/etc/collectd.conf
+
+        For Ceph python plugin (cephtool):
+            Make sure "ModulePath" under <Plugin python> matches the directory structure where the cephtool plugin was installed. The only thing to be checked here is the version of python you have running.
+            To check this, look in /opt/collectd/lib/ for the pythonX.X directory. This should match the definition in collectd.conf.
+
+        For Ceph C plugin:
+            By default, the Ceph plugin is turned off. First, uncomment "#LoadPlugin ceph" so it looks like "LoadPlugin ceph".
+            Next, uncomment the type of Ceph device you are trying to monitor. Look for "<Plugin ceph>" definition in collectd.conf. There are sample configurations for OSD, MON, and MDS. Uncomment whichever types you wish to collectd data for.
+            Check the "SocketPath" definitions to make sure they match where the Ceph daemon is actually running. Run "ls /var/run/ceph" to see the list of Ceph daemons which are running on your device. If necessary, change the "SocketPath" definitions to match these paths.
+            Follow the naming structure for "Name" as provided in the example. The socket name is generated as follows: $cluster_name-$NAME_WE_WANT.asok.
+
+    Install init-script -
+        cp contrib/ubuntu/init.d-collectd /etc/init.d/collectd
+        chmod 755 /etc/init.d/collectd
+        chown root:root /etc/init.d/collectd
+
+    Run collectd -
+        chkconfig --add collectd
+            If error about "insserv", execute "ln -s /usr/lib/insserv/insserv /sbin/insserv" and try to run the command again.
+        /etc/init.d/collectd start
+        chkconfig collectd on
+
+
+
+RPM / RHEL:
+
+        Install RRDTool -
+            cd libs/rrdtool-1.4.7
+            ./configure
+            make
+            make install
+            (NOTE - May need to install/update libtool, following packages were needed for RHEL 5.x:
+                libtool-2.2.6-15.5.el5.1.x86_64.rpm
+                libtool-ltdl-2.2.6-15.5.el5.1.x86_64.rpm
+                libtool-ltdl-devel-2.2.6-15.5.el5.1.x86_64.rpm
+            )
+
+        Update python to 2.6 -
+            python -V (to check version)
+
+        Install json-c library -
+            cd libs/json-c-master
+            sh autogen.sh
+            ./configure
+            make
+            make install
+
+        Install collectd-ceph -
+            sh build.sh
+            ./configure --with-librrd=/opt/rrdtool-1.4.7 --with-python=yes --enable-libvirt=false
+            make
+            make install
+
+        Check the collectd.conf file -
+            vi /opt/collectd/etc/collectd.conf
+
+            For Ceph python plugin (cephtool):
+                Make sure "ModulePath" under <Plugin python> matches the directory structure where the cephtool plugin was installed. The only thing to be checked here is the version of python you have running.
+                To check this, look in /opt/collectd/lib/ for the pythonX.X directory. This should match the definition in collectd.conf.
+
+            For Ceph C plugin:
+                By default, the Ceph plugin is turned off. First, uncomment "#LoadPlugin ceph" so it looks like "LoadPlugin ceph".
+                Next, uncomment the type of Ceph device you are trying to monitor. Look for "<Plugin ceph>" definition in collectd.conf. There are sample configurations for OSD, MON, and MDS. Uncomment whichever types you wish to collectd data for.
+                Check the "SocketPath" definitions to make sure they match where the Ceph daemon is actually running. Run "ls /var/run/ceph" to see the list of Ceph daemons which are running on your device. If necessary, change the "SocketPath" definitions to match these paths.
+                Follow the naming structure for "Name" as provided in the example. The socket name is generated as follows: $cluster_name-$NAME_WE_WANT.asok.
+
+        Install init script -
+            cp contrib/redhat/init.d-collectd /etc/rc.d/init.d/collectd
+            chmod 755 /etc/rc.d/init.d/collectd
+            chown root:root /etc/rc.d/init.d/collectd
+
+        Run collectd -
+            chkconfig --add collectd
+            chkconfig --level 2345 collectd on
+            /etc/init.d/collectd start
