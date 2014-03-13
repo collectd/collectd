@@ -1,0 +1,76 @@
+Round Robin Database Tools
+==========================
+$Id: README 1844 2009-06-07 11:35:52Z oetiker $
+
+It is pretty easy to gather status information from all sorts of things,
+ranging from the temperature in your office to the number of octets which
+have passed through the FDDI interface of your router. But it is not so
+trivial to store this data in a efficient and systematic manner. This is
+where RRDtool kicks in. It lets you log and analyze the data you gather from
+all kinds of data-sources (DS). The data analysis part of RRDtool is based
+on the ability to quickly generate graphical representations of the data
+values collected over a definable time period.
+
+
+To compile:
+-----------
+
+check out the instructions in doc/rrdbuild.txt
+
+Getting Started:
+----------------
+
+Either after compiling or after installing you can try the example
+RRDtool applications in the examples directory.
+
+To learn:
+---------
+
+Read the documentation in the doc directory. Start of with
+RRDtool. All documents are available as html and as ASCII text.  
+
+If you are looking for a more slow paced introduction, make sure to read
+Alex van den Bogaerdt's rrdtutorial which is also available from the doc
+directory. Also read his cdeftutorial and Steve Rader's rpntutorial.
+ 
+If you want to know about the format of the log files check
+src/rrd_format.h there are a lot of comments in there ...
+
+How to make Tobi happy:
+-----------------------
+
+If you want to show your appreciation for RRDtool you could make me happy
+by going to http://tobi.oetiker.ch/wish and ordering a CD from
+my CD wish list ... 
+
+
+How to keep in touch:
+---------------------
+
+There are 3 Mailing lists for RRDtool:
+
+rrd-announce	LOW volume RRDtool Announcements List (Only Stable Releases)
+rrd-users       For discussion amongst people who use RRDtool in their applications
+rrd-developers  For people who actually HACK RRDtool code
+
+To subscribe to <MAILGLIST> send a message with the subject 'subscribe'
+to <MAILGLIST>-request@lists.oetiker.ch
+
+Note, that postings to rrd-announce will always be cross-posted 
+to rrd-users and rrd-developers as well.
+
+To Contribute:
+--------------
+
+Contributed feature and bug patches are most welcome. But please
+send complete patches. A complete patch patches the CODE as well
+as the CHANGES, CONTRIBUTORS and the POD files.
+
+Use GNU   diff --unified --recursive olddir newdir   to build your patches.
+
+The latest Version:
+-------------------
+Is available from http://oss.oetiker.ch/rrdtool/
+
+
+Tobias Oetiker <tobi@oetiker.ch>
