@@ -3,7 +3,8 @@ In order to work correctly with PPM, collectd-ceph requires some special install
 Debian / Ubuntu:
 
     Install json-c library -
-        cd libs/json-c-master
+        Download from https://github.com/json-c/json-c
+        cd json-c-master
         sh autogen.sh
         ./configure
         make
@@ -48,7 +49,9 @@ Debian / Ubuntu:
 RPM / RHEL:
 
         Install RRDTool -
-            cd libs/rrdtool-1.4.7
+            Download from http://oss.oetiker.ch/rrdtool/pub/rrdtool-1.4.7.tar.gz
+            tar -zxvf rrdtool-1.4.7.tar.gz
+            cd rrdtool-1.4.7
             ./configure
             make
             make install
@@ -62,7 +65,8 @@ RPM / RHEL:
             python -V (to check version)
 
         Install json-c library -
-            cd libs/json-c-master
+            Download from https://github.com/json-c/json-c
+            cd json-c-master
             sh autogen.sh
             ./configure
             make
