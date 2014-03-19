@@ -1407,6 +1407,16 @@ collectd_LDADD += "-dlopen" write_redis.la
 collectd_DEPENDENCIES += write_redis.la
 endif
 
+if BUILD_PLUGIN_WRITE_REDIS_PUBSUB
+pkglib_LTLIBRARIES += write_redis_pubsub.la
+write_redis_pubsub_la_SOURCES = write_redis_pubsub.c utils_format_json.c utils_format_json.h
+write_redis_pubsub_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBCREDIS_LDFLAGS)
+write_redis_pubsub_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCREDIS_CPPFLAGS)
+write_redis_pubsub_la_LIBADD = -lhiredis
+collectd_LDADD += "-dlopen" write_redis_pubsub.la
+collectd_DEPENDENCIES += write_redis_pubsub.la
+endif
+
 if BUILD_PLUGIN_WRITE_RIEMANN
 pkglib_LTLIBRARIES += write_riemann.la
 write_riemann_la_SOURCES = write_riemann.c

@@ -410,6 +410,11 @@ Features
     - write_redis
       Sends the values to a Redis key-value database server.
 
+    - write_redis_pubsub
+      Sends the values collected by collectd to a Redis key-value database server
+      using Pub/Sub subsystem. The transmitted data is either in a form understood by the
+      Exec plugin or formatted in JSON.
+
     - write_riemann
       Sends data to Riemann, a stream processing and monitoring system.
 
