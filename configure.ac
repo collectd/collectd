@@ -1705,23 +1705,9 @@ AC_ARG_WITH(libjson, [AS_HELP_STRING([--with-libjson@<:@=PREFIX@:>@], [Path to l
 
 if test "x$with_libjson" = "xyes"
 then
-        AC_CHECK_HEADERS(json-c/json.h,
+        AC_CHECK_HEADERS(json-c/json.h json-c/json_c_version.h json-c/json_inttypes.h,
           [with_libjson="yes"],
-          [with_libjson="no (json.h not found)"])
-fi
-
-if test "x$with_libjson" = "xyes"
-then
-        AC_CHECK_HEADERS(json-c/json_c_version.h,
-          [with_libjson="yes"],
-          [with_libjson="no (json_c_version.h not found)"])
-fi
-
-if test "x$with_libjson" = "xyes"
-then
-        AC_CHECK_HEADERS(json-c/json_inttypes.h,
-         [with_libjson="yes"],
-         [with_libjson="no (json_inttypes.h not found)"])
+          [with_libjson="no (Json-c headers not found)"])
 fi
 
 if test "x$with_libjson" = "xyes"
