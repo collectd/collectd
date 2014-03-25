@@ -18,6 +18,7 @@
  * Authors:
  *   Colin McCabe <cmccabe@alumni.cmu.edu>
  *   Dennis Zou <yunzou@cisco.com>
+ *   Dan Ryder <daryder@cisco.com>
  **/
 
 #define _BSD_SOURCE
@@ -297,7 +298,7 @@ static int ceph_daemon_add_ds_entry(struct ceph_daemon *d, const char *name,
 	struct data_source_s *ds;
 	struct data_set_s *dset;
 	struct data_set_s *dset_array;
-	int **pc_types_array;
+	int **pc_types_array = NULL;
 	int *pc_types;
 	int *pc_types_new;
 	int idx = 0;
