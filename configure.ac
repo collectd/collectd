@@ -1676,6 +1676,62 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LIBCURL, test "x$with_libcurl" = "xyes")
 # }}}
 
+# --with-libjson {{{
+with_json_ldflags=""
+AC_ARG_WITH(libjson, [AS_HELP_STRING([--with-libjson@<:@=PREFIX@:>@], [Path to libjson.])],
+[
+        if test "x$withval" = "xno"
+        then
+                with_libjson="no"
+        else if test "x$withval" = "xyes"
+        then
+                with_libjson="yes"
+        else
+                if test -d "$withval"
+                then
+                        with_libjson="yes"
+                        if test -d "$withval/lib"
+                        then
+                                with_json_ldflags="-L$withval/lib"
+                        fi
+                else
+                        with_libjson="no"
+                fi
+        fi; fi
+],
+[
+        with_libjson="yes"
+])
+
+if test "x$with_libjson" = "xyes"
+then
+        AC_CHECK_HEADERS(json-c/json.h,
+          [with_libjson="yes"],
+          [with_libjson="no (json.h not found)"])
+fi
+
+if test "x$with_libjson" = "xyes"
+then
+        AC_CHECK_HEADERS(json-c/json_c_version.h,
+          [with_libjson="yes"],
+          [with_libjson="no (json_c_version.h not found)"])
+fi
+
+if test "x$with_libjson" = "xyes"
+then
+        AC_CHECK_HEADERS(json-c/json_inttypes.h,
+         [with_libjson="yes"],
+         [with_libjson="no (json_inttypes.h not found)"])
+fi
+
+if test "x$with_libjson" = "xyes"
+then
+        BUILD_WITH_LIBJSON_LDFLAGS="$with_json_ldflags"
+        AC_SUBST(BUILD_WITH_LIBJSON_LDFLAGS)
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBJSON, test "x$with_libjson" = "xyes")
+# }}}
+
 # --with-libdbi {{{
 with_libdbi_cppflags=""
 with_libdbi_ldflags=""
@@ -5127,7 +5183,7 @@ AC_PLUGIN([aquaero],     [$with_libaquaero5],  [Aquaero's hardware sensors])
 AC_PLUGIN([ascent],      [$plugin_ascent],     [AscentEmu player statistics])
 AC_PLUGIN([battery],     [$plugin_battery],    [Battery statistics])
 AC_PLUGIN([bind],        [$plugin_bind],       [ISC Bind nameserver statistics])
-AC_PLUGIN([ceph],        [$plugin_ceph],       [Ceph daemon statistics])
+AC_PLUGIN([ceph],        [$with_libjson],       [Ceph daemon statistics])
 AC_PLUGIN([conntrack],   [$plugin_conntrack],  [nf_conntrack statistics])
 AC_PLUGIN([contextswitch], [$plugin_contextswitch], [context switch statistics])
 AC_PLUGIN([cpufreq],     [$plugin_cpufreq],    [CPU frequency statistics])
@@ -5421,6 +5477,7 @@ Configuration:
     libiokit  . . . . . . $with_libiokit
     libiptc . . . . . . . $with_libiptc
     libjvm  . . . . . . . $with_java
+    libjson . . . . . . . $with_libjson
     libkstat  . . . . . . $with_kstat
     libkvm  . . . . . . . $with_libkvm
     libmemcached  . . . . $with_libmemcached
@@ -5473,7 +5530,7 @@ Configuration:
     ascent  . . . . . . . $enable_ascent
     battery . . . . . . . $enable_battery
     bind  . . . . . . . . $enable_bind
-	ceph  . . . . . . . . $enable_ceph
+    ceph  . . . . . . . . $enable_ceph
     conntrack . . . . . . $enable_conntrack
     contextswitch . . . . $enable_contextswitch
     cgroups . . . . . . . $enable_cgroups
@@ -5587,105 +5644,6 @@ Configuration:
     zfs_arc . . . . . . . $enable_zfs_arc
 
 EOF
-
-CEPH_LD_PROBLEM=""
-MAKE_LD_SET=`cat src/Makefile | grep 'ceph_la_LDFLAGS ='`
-JSON_MAKE_PATH=""
-JSONC_MAKE_PATH=""
-JSON_FIND_CMD=`find / -name libjson.la`
-set -- junk $MAKE_LD_SET
-shift
-for word ;
-do
-   if @<:@@<:@ "$word" == *libjson.la* @:>@@:>@ ; then
-        JSON_MAKE_PATH="`dirname "$word"`"
-   elif @<:@@<:@ "$word" == *libjson-c.la* @:>@@:>@ ; then
-        JSONC_MAKE_PATH="`dirname "$word"`"
-   fi
-done
-
-# Check if we should set LD_LIBRARY_PATH for json-c
-(IFS='
-'
-if test "$JSON_FIND_CMD" == "" ; then
-   echo "ERROR - libjson.la is required for ceph plugin - please install json-c parser"
-   exit
-elif test "`find / -name libjson-c.la`" == "" ; then
-   echo "ERROR - libjson-c.la is reqiured for ceph plugin - please install json-c parser"
-   exit
-fi
-
-GOOD_LD=""
-USR_JSON_LOC=""
-BACKUP=""
-
-for x in $JSON_FIND_CMD ;
-do
-   LIBJSON_DIR=`dirname $x`
-   if @<:@@<:@ "$LD_LIBRARY_PATH" == *$LIBJSON_DIR* @:>@@:>@ ; then
-        GOOD_LD="$LIBJSON_DIR"
-   fi
-
-   if @<:@@<:@ "$BACKUP" == "" && -e "$LIBJSON_DIR/libjson-c.la" @:>@@:>@ ; then
-        BACKUP="$LIBJSON_DIR"
-   fi
-
-   if @<:@@<:@ "$LIBJSON_DIR" == *usr* && "$USR_JSON_LOC" == "" @:>@@:>@ ; then
-        if test -e "$LIBJSON_DIR/libjson-c.la" ; then
-            USR_JSON_LOC="$LIBJSON_DIR"
-        fi
-   fi
-done
-
-if test "$USR_JSON_LOC" == "" ; then
-   if test "$BACKUP" == "" ; then
-        echo "WARNING - libjson.la and libjson-c.la are not in the same directory"
-        echo "Please move them to the same directory and retry"
-        exit
-   fi
-   USR_JSON_LOC="$BACKUP"
-fi
-
-CEPH_LD_WARN="WARNING - some Linux distributions (tested on Ubuntu-Precise) need special actions to be taken for JSON dependencies"
-CEPH_LD_WARN="$CEPH_LD_WARN or the ceph plugin may not link correctly with the JSON library necessary to support 64 bit integers"
-NO_JSON_MAKE_PATH=""
-if @<:@@<:@ "$JSON_MAKE_PATH" == "" || "$JSONC_MAKE_PATH" == "" @:>@@:>@ ; then
-   NO_JSON_MAKE_PATH="true"
-fi
-
-if test "$GOOD_LD" == "" ; then
-   CEPH_LD_PROBLEM="true"
-   echo "$CEPH_LD_WARN"
-   echo ""
-   if test "$NO_JSON_MAKE_PATH" != "" ; then
-	JSON_LOC_BSLASH=$(echo $USR_JSON_LOC | sed 's:/:\\/:g')
-        `cat src/Makefile | sed -e "s:ceph_la_LDFLAGS =:ceph_la_LDFLAGS = $JSON_LOC_BSLASH\/libjson.la $JSON_LOC_BSLASH\/libjson-c.la:" > Makefile.tmp`
-        `rm -f src/Makefile`
-        `cp Makefile.tmp src/Makefile`
-        `rm -f Makefile.tmp`
-   fi
-   echo "Execute the following command to add the json dependency path before running 'make':"
-   echo "export LD_LIBRARY_PATH=$USR_JSON_LOC"
-   echo ""
-elif test "$NO_JSON_MAKE_PATH" != "" ; then
-   JSON_LOC_BSLASH=$(echo $USR_JSON_LOC | sed 's:/:\\/:g')
-   `cat src/Makefile | sed -e "s:ceph_la_LDFLAGS =:ceph_la_LDFLAGS = $JSON_LOC_BSLASH\/libjson.la $JSON_LOC_BSLASH\/libjson-c.la:" > Makefile.tmp`
-   `rm -f src/Makefile`
-   `cp Makefile.tmp src/Makefile`
-   `rm -f Makefile.tmp`
-fi
-
-if test "$CEPH_LD_PROBLEM" != "" ; then
-   echo "As a rule of thumb, these directives should be followed. However, since some operating systems"\
-   "don't require this, run 'make' and 'make install'. After installing, run the following command:"
-   echo "ldd /opt/collectd/lib/collectd/ceph.so"
-   echo ""
-   echo "Make sure the output of this command shows some form of libjson-c.so has been found, for example:"
-   echo "libjson.so.0 => /usr/lib/x86_64-linux-gnu/libjson.so.0 (0x00007f0d2a31d000)"
-   echo ""
-fi
-
-)
 
 if test "x$dependency_error" = "xyes"; then
 	AC_MSG_ERROR("Some plugins are missing dependencies - see the summary above for details")
