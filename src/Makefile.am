@@ -4,7 +4,7 @@ SUBDIRS += liboconfig
 endif
 
 if COMPILER_IS_GCC
-AM_CFLAGS = -Wall
+AM_CFLAGS = -Wall -Werror
 endif
 
 AM_CPPFLAGS = -DPREFIX='"${prefix}"'
@@ -248,13 +248,17 @@ collectd_LDADD += "-dlopen" cgroups.la
 collectd_DEPENDENCIES += cgroups.la
 endif
 
+if BUILD_PLUGIN_CEPH
 pkglib_LTLIBRARIES += ceph.la
 ceph_la_SOURCES = ceph.c
 ceph_la_LDFLAGS = -module -avoid-version
+if BUILD_WITH_LIBJSON
+ceph_la_LDFLAGS += $(BUILD_WITH_LIBJSON_LDFLAGS)
+endif
 ceph_la_LIBADD = -ljson
 collectd_LDADD += "-dlopen" ceph.la
 collectd_DEPENDENCIES += ceph.la
-
+endif
 
 if BUILD_PLUGIN_CONNTRACK
 pkglib_LTLIBRARIES += conntrack.la
