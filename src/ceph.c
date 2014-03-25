@@ -192,7 +192,7 @@ static void compact_ds_name(char *source, char *dest)
 		 */
 		reserved += 4;
 	}
-	snprintf(dest, MAX_RRD_DS_NAME_LEN - reserved, tmp);
+	snprintf(dest, MAX_RRD_DS_NAME_LEN - reserved, "%s", tmp);
 	offset = strlen(dest);
 	switch (append_status)
 	{
