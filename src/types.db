@@ -197,63 +197,6 @@ vs_processes		value:GAUGE:0:65535
 vs_threads		value:GAUGE:0:65535
 
 #
-# Cephtool plugin types
-#
-num_osds		                value:GAUGE:0:4294967295
-
-num_osds_in				value:GAUGE:0:4294967295
-num_osds_out                            value:GAUGE:0:4294967295
-num_osds_up                             value:GAUGE:0:4294967295
-num_osds_down                           value:GAUGE:0:4294967295
-
-osd_stats_kb_used			value:GAUGE:0:4294967295
-osd_stats_kb_avail			value:GAUGE:0:4294967295
-osd_stats_snap_trim_queue_len		value:GAUGE:0:4294967295
-osd_stats_num_snap_trimming		value:GAUGE:0:4294967295
-
-num_pgs		                        value:GAUGE:0:4294967295
-
-num_pgs_active		                value:GAUGE:0:4294967295
-num_pgs_clean		                value:GAUGE:0:4294967295
-num_pgs_crashed		                value:GAUGE:0:4294967295
-num_pgs_creating	                value:GAUGE:0:4294967295
-num_pgs_degraded	                value:GAUGE:0:4294967295
-num_pgs_down		                value:GAUGE:0:4294967295
-num_pgs_inconsistent	                value:GAUGE:0:4294967295
-num_pgs_peering		                value:GAUGE:0:4294967295
-num_pgs_repair		                value:GAUGE:0:4294967295
-num_pgs_replay		                value:GAUGE:0:4294967295
-num_pgs_scanning	                value:GAUGE:0:4294967295
-num_pgs_scrubbing	                value:GAUGE:0:4294967295
-num_pgs_scrubq		                value:GAUGE:0:4294967295
-num_pgs_splitting	                value:GAUGE:0:4294967295
-num_pgs_stray		                value:GAUGE:0:4294967295
-
-num_lingering_crashed_pgs		value:GAUGE:0:4294967295
-num_lingering_creating_pgs		value:GAUGE:0:4294967295
-num_lingering_degraded_pgs		value:GAUGE:0:4294967295
-num_lingering_down_pgs			value:GAUGE:0:4294967295
-num_lingering_inconsistent_pgs		value:GAUGE:0:4294967295
-num_lingering_peering_pgs		value:GAUGE:0:4294967295
-num_lingering_repair_pgs		value:GAUGE:0:4294967295
-num_lingering_replay_pgs		value:GAUGE:0:4294967295
-num_lingering_stray_pgs			value:GAUGE:0:4294967295
-
-num_old_bad_pgs				value:GAUGE:0:4294967295
-num_older_bad_pgs			value:GAUGE:0:4294967295
-num_oldest_bad_pgs			value:GAUGE:0:4294967295
-
-num_pools		                value:GAUGE:0:4294967295
-num_objects		                value:GAUGE:0:4294967295
-pg_stats_sum_num_bytes			value:GAUGE:0:4294967295
-num_objects_missing_on_primary		value:GAUGE:0:4294967295
-num_objects_degraded			value:GAUGE:0:4294967295
-num_objects_unfound			value:GAUGE:0:4294967295
-
-num_monitors				value:GAUGE:0:4294967295
-num_monitors_in_quorum			value:GAUGE:0:4294967295
-
-#
 # Legacy types
 # (required for the v5 upgrade target)
 #
