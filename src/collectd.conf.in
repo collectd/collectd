@@ -285,14 +285,6 @@
 #        Name "mds.ceph-node1"
 #        SocketPath "/var/run/ceph/ceph-mds.ceph-node1.asok"
 #</Plugin>
-#<Plugin python>
-#       ModulePath "/opt/collectd/lib/python2.7/site-packages/"
-#        Import "cephtool"
-#        <Module "cephtool">
-#                cephtool "/usr/bin/ceph"
-#                config "/etc/ceph/ceph.conf"
-#        </Module>
-#</Plugin>
 
 #<Plugin cgroup>
 #  CGroup "libvirt"
