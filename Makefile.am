@@ -6,8 +6,6 @@ INCLUDES = $(LTDLINCL)
 
 EXTRA_DIST = contrib version-gen.sh
 
-python_PYTHON = contrib/cephtool.py
-
 install-exec-hook:
 	$(mkinstalldirs) $(DESTDIR)$(localstatedir)/run
 	$(mkinstalldirs) $(DESTDIR)$(localstatedir)/lib/$(PACKAGE_NAME)
