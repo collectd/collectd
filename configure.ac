@@ -1676,46 +1676,76 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LIBCURL, test "x$with_libcurl" = "xyes")
 # }}}
 
-# --with-libjson {{{
-with_json_ldflags=""
-AC_ARG_WITH(libjson, [AS_HELP_STRING([--with-libjson@<:@=PREFIX@:>@], [Path to libjson.])],
+# --with-libjson-c {{{
+with_json_c_cppflags=""
+with_json_c_ldflags=""
+with_json_c_libs=""
+AC_ARG_WITH(libjson-c, [AS_HELP_STRING([--with-libjson-c@<:@=PREFIX@:>@], [Path to libjson-c.])],
 [
         if test "x$withval" = "xno"
         then
-                with_libjson="no"
+                with_libjson_c="no"
         else if test "x$withval" = "xyes"
         then
-                with_libjson="yes"
+                with_libjson_c="yes"
         else
                 if test -d "$withval"
                 then
-                        with_libjson="yes"
-                        if test -d "$withval/lib"
+                        with_libjson_c_cppflags="-I$withval/include"
+                        if test -e "$withval/lib/libjson-c.so"
                         then
-                                with_json_ldflags="-L$withval/lib"
+                                with_libjson_c="yes"
+                                with_json_c_ldflags="-L$withval/lib"
+                                with_json_c_libs="-ljson-c"
+                        else
+                                with_libjson_c="no (libjson-c library not found)"
                         fi
                 else
-                        with_libjson="no"
+                        with_libjson="no ($withval does not exist or is not a directory)"
                 fi
         fi; fi
 ],
 [
-        with_libjson="yes"
+        with_libjson_c="yes"
 ])
 
-if test "x$with_libjson" = "xyes"
+if test "x$with_libjson_c" = "xyes"
 then
+        SAVE_CPPFLAGS="$CPPFLAGS"
+        CPPFLAGS="$CPPFLAGS $with_libjson_c_cppflags"
+
         AC_CHECK_HEADERS(json-c/json.h json-c/json_c_version.h json-c/json_inttypes.h,
           [with_libjson="yes"],
           [with_libjson="no (Json-c headers not found)"])
+
+        CPPFLAGS="$SAVE_CPPFLAGS"
 fi
 
-if test "x$with_libjson" = "xyes"
+if test "x$with_libjson_c" = "xyes"
 then
-        BUILD_WITH_LIBJSON_LDFLAGS="$with_json_ldflags"
-        AC_SUBST(BUILD_WITH_LIBJSON_LDFLAGS)
+        if test "x$with_json_c_ldflags" = "x"
+        then
+                AC_CHECK_LIB(json-c,
+                  [json_c_version],
+                  [with_libjson_c="yes"],
+                  [with_libjson_c="no (libjson-c library not found"])
+        fi
 fi
-AM_CONDITIONAL(BUILD_WITH_LIBJSON, test "x$with_libjson" = "xyes")
+
+if test "x$with_libjson_c" = "xyes"
+then
+        if test "x$with_json_c_ldflags" = "x"
+        then
+                with_json_c_ldflags="-ljson-c"
+        fi
+        BUILD_WITH_LIBJSON_C_CPPFLAGS="$with_libjson_c_cppflags"
+        BUILD_WITH_LIBJSON_C_LDFLAGS="$with_json_c_ldflags"
+        BUILD_WITH_LIBJSON_C_LIBS="$with_json_c_libs"
+        AC_SUBST(BUILD_WITH_LIBJSON_C_CPPFLAGS)
+        AC_SUBST(BUILD_WITH_LIBJSON_C_LDFLAGS)
+        AC_SUBST(BUILD_WITH_LIBJSON_C_LIBS)
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBJSON_C, test "x$with_libjson_c" = "xyes")
 # }}}
 
 # --with-libdbi {{{
@@ -5007,7 +5037,7 @@ then
 	plugin_curl_xml="yes"
 fi
 
-if test "x$with_libjson" = "xyes"
+if test "x$with_libjson_c" = "xyes"
 then
 	plugin_ceph="yes"
 fi
@@ -5169,7 +5199,7 @@ AC_PLUGIN([aquaero],     [$with_libaquaero5],  [Aquaero's hardware sensors])
 AC_PLUGIN([ascent],      [$plugin_ascent],     [AscentEmu player statistics])
 AC_PLUGIN([battery],     [$plugin_battery],    [Battery statistics])
 AC_PLUGIN([bind],        [$plugin_bind],       [ISC Bind nameserver statistics])
-AC_PLUGIN([ceph],        [$with_libjson],       [Ceph daemon statistics])
+AC_PLUGIN([ceph],        [$with_libjson_c],       [Ceph daemon statistics])
 AC_PLUGIN([conntrack],   [$plugin_conntrack],  [nf_conntrack statistics])
 AC_PLUGIN([contextswitch], [$plugin_contextswitch], [context switch statistics])
 AC_PLUGIN([cpufreq],     [$plugin_cpufreq],    [CPU frequency statistics])
@@ -5448,6 +5478,10 @@ then
 	with_perl_bindings="yes ($PERL_BINDINGS_OPTIONS)"
 fi
 
+if test "x$with_libjson_c" != "xyes"
+then
+        enable_ceph="no (needs libjson-c)"
+fi
 cat <<EOF;
 
 Configuration:
@@ -5463,7 +5497,7 @@ Configuration:
     libiokit  . . . . . . $with_libiokit
     libiptc . . . . . . . $with_libiptc
     libjvm  . . . . . . . $with_java
-    libjson . . . . . . . $with_libjson
+    libjson-c . . . . . . $with_libjson_c
     libkstat  . . . . . . $with_kstat
     libkvm  . . . . . . . $with_libkvm
     libmemcached  . . . . $with_libmemcached
