@@ -252,10 +252,12 @@ if BUILD_PLUGIN_CEPH
 pkglib_LTLIBRARIES += ceph.la
 ceph_la_SOURCES = ceph.c
 ceph_la_LDFLAGS = -module -avoid-version
-if BUILD_WITH_LIBJSON
-ceph_la_LDFLAGS += $(BUILD_WITH_LIBJSON_LDFLAGS)
+ceph_la_LIBADD =
+if BUILD_WITH_LIBJSON_C
+ceph_la_LDFLAGS += $(BUILD_WITH_LIBJSON_C_LDFLAGS)
+ceph_la_LIBADD += $(BUILD_WITH_LIBJSON_C_LIBS)
+ceph_la_CPPFLAGS = $(BUILD_WITH_LIBJSON_C_CPPFLAGS)
 endif
-ceph_la_LIBADD = -ljson
 collectd_LDADD += "-dlopen" ceph.la
 collectd_DEPENDENCIES += ceph.la
 endif
