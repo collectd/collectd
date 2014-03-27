@@ -1687,58 +1687,86 @@ AC_ARG_WITH(libjson-c, [AS_HELP_STRING([--with-libjson-c@<:@=PREFIX@:>@], [Path 
                 with_libjson_c="no"
         else if test "x$withval" = "xyes"
         then
-                with_libjson_c="yes"
+                with_libjson_c="pkgconfig"
         else
-                if test -d "$withval"
-                then
-                        with_libjson_c_cppflags="-I$withval/include"
-                        if test -e "$withval/lib/libjson-c.so"
-                        then
-                                with_libjson_c="yes"
-                                with_json_c_ldflags="-L$withval/lib"
-                                with_json_c_libs="-ljson-c"
-                        else
-                                with_libjson_c="no (libjson-c library not found)"
-                        fi
-                else
-                        with_libjson="no ($withval does not exist or is not a directory)"
-                fi
+                with_libjson_c="yes"
+                with_json_c_cppflags="-I$withval/include"
+                with_json_c_ldflags="-L$withval/lib"
+                with_json_c_libs="-ljson-c"
         fi; fi
 ],
 [
-        with_libjson_c="yes"
+        if test "x$ac_system" = "xLinux"
+        then
+                with_libjson_c="pkgconfig"
+        else
+                with_libjson_c="no (Linux only)"
+        fi
 ])
 
+if test "x$with_libjson_c" = "xpkgconfig" && test "x$PKG_CONFIG" = "x"
+then
+        with_libjson_c="no (Don't have pkg-config)"
+fi
+
+if test "x$with_libjson_c" = "xpkgconfig"
+then
+        $PKG_CONFIG --exists --print-errors 'json-c' 2>/dev/null
+        if test $? -ne 0
+        then
+                with_libjson_c="no (pkg-config doesn't know json-c)"
+        fi
+fi
+
+if test "x$with_libjson_c" = "xpkgconfig"
+then
+        with_json_c_cflags="`$PKG_CONFIG --cflags 'json-c'`"
+        if test $? -ne 0
+        then
+                with_libjson_c="no ($PKG_CONFIG failed)"
+        fi
+        with_json_c_libs="`$PKG_CONFIG --libs 'json-c'`"
+        with_json_c_ldflags="$with_json_c_libs"
+        if test $? -ne 0
+        then
+                with_libjson_c="no ($PKG_CONFIG failed)"
+        fi
+fi
+
+if test "x$with_libjson_c" = "xpkgconfig"
+then
+        with_libjson_c="yes"
+fi
+
+SAVE_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS $with_json_c_cflags"
+
+# check for json headers
 if test "x$with_libjson_c" = "xyes"
 then
-        SAVE_CPPFLAGS="$CPPFLAGS"
-        CPPFLAGS="$CPPFLAGS $with_libjson_c_cppflags"
-
         AC_CHECK_HEADERS(json-c/json.h json-c/json_c_version.h json-c/json_inttypes.h,
-          [with_libjson="yes"],
-          [with_libjson="no (Json-c headers not found)"])
-
-        CPPFLAGS="$SAVE_CPPFLAGS"
+          [with_libjson_c="yes"],
+          [with_libjson_c="no (Json-c headers not found)"])
 fi
 
 if test "x$with_libjson_c" = "xyes"
 then
-        if test "x$with_json_c_ldflags" = "x"
-        then
-                AC_CHECK_LIB(json-c,
-                  [json_c_version],
-                  [with_libjson_c="yes"],
-                  [with_libjson_c="no (libjson-c library not found"])
-        fi
+        SAVE_LIBS="$LIBS"
+        LIBS="$LIBS $with_json_c_libs"
+
+        AC_CHECK_LIB(json-c,
+          [json_c_version],
+          [with_libjson_c="yes"],
+          [with_libjson_c="no (libjson-c library not found"])
+
+        LIBS="$SAVE_LIBS"
 fi
+
+CPPFLAGS="$SAVE_CPPFLAGS"
 
 if test "x$with_libjson_c" = "xyes"
 then
-        if test "x$with_json_c_ldflags" = "x"
-        then
-                with_json_c_ldflags="-ljson-c"
-        fi
-        BUILD_WITH_LIBJSON_C_CPPFLAGS="$with_libjson_c_cppflags"
+        BUILD_WITH_LIBJSON_C_CPPFLAGS="$with_json_c_cppflags"
         BUILD_WITH_LIBJSON_C_LDFLAGS="$with_json_c_ldflags"
         BUILD_WITH_LIBJSON_C_LIBS="$with_json_c_libs"
         AC_SUBST(BUILD_WITH_LIBJSON_C_CPPFLAGS)
