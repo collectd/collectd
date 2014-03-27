@@ -253,8 +253,9 @@ pkglib_LTLIBRARIES += ceph.la
 ceph_la_SOURCES = ceph.c
 ceph_la_LDFLAGS = -module -avoid-version
 ceph_la_LIBADD =
+ceph_la_CPPFLAGS =
 if BUILD_WITH_LIBJSON_C
-ceph_la_LDFLAGS += $(BUILD_WITH_LIBJSON_C_LDFLAGS)
+#ceph_la_LDFLAGS += $(BUILD_WITH_LIBJSON_C_LDFLAGS)
 ceph_la_LIBADD += $(BUILD_WITH_LIBJSON_C_LIBS)
 ceph_la_CPPFLAGS = $(BUILD_WITH_LIBJSON_C_CPPFLAGS)
 endif
