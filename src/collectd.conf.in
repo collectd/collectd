@@ -1007,6 +1007,7 @@
 #<Plugin "tail">
 #  <File "/var/log/exim4/mainlog">
 #    Instance "exim"
+#    Interval 60
 #    <Match>
 #      Regex "S=([1-9][0-9]*)"
 #      DSType "CounterAdd"
