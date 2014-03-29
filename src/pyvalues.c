@@ -767,7 +767,7 @@ static void Values_dealloc(PyObject *self) {
 }
 
 static PyMemberDef Values_members[] = {
-	{"interval", T_INT, offsetof(Values, interval), 0, interval_doc},
+	{"interval", T_DOUBLE, offsetof(Values, interval), 0, interval_doc},
 	{"values", T_OBJECT_EX, offsetof(Values, values), 0, values_doc},
 	{"meta", T_OBJECT_EX, offsetof(Values, meta), 0, meta_doc},
 	{NULL}
