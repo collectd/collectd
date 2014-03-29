@@ -658,10 +658,10 @@ static int wh_config (oconfig_item_t *ci) /* {{{ */
 
 static int wh_init (void) /* {{{ */
 {
-  /* Call this while collectd is still single-threaded to avoid
-   * initialization issues in libgcrypt. */
-  curl_global_init (CURL_GLOBAL_SSL);
-  return (0);
+        /* Call this while collectd is still single-threaded to avoid
+         * initialization issues in libgcrypt. */
+        curl_global_init (CURL_GLOBAL_SSL);
+        return (0);
 } /* }}} int wh_init */
 
 void module_register (void) /* {{{ */
