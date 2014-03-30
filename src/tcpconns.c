@@ -215,13 +215,13 @@ static const char *tcp_state[] =
   "CLOSED",
   "LISTEN",
   "SYN_SENT",
-  "SYN_RCVD",
+  "SYN_RECV",
   "ESTABLISHED",
   "CLOSE_WAIT",
-  "FIN_WAIT_1",
+  "FIN_WAIT1",
   "CLOSING",
   "LAST_ACK",
-  "FIN_WAIT_2",
+  "FIN_WAIT2",
   "TIME_WAIT"
 };
 
