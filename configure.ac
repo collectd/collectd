@@ -1218,10 +1218,9 @@ if test "x$have_getmntent" = "xgen"; then
 fi
 
 # Check for htonll
-AC_MSG_CHECKING([if have htonll defined])
-
-    have_htonll="no"
-    AC_LINK_IFELSE([AC_LANG_PROGRAM(
+AC_CACHE_CHECK([if have htonll defined],
+                  [c_cv_have_htonll],
+                  AC_LINK_IFELSE([AC_LANG_PROGRAM(
 [[[
 #include <sys/types.h>
 #include <netinet/in.h>
@@ -1233,12 +1232,14 @@ AC_MSG_CHECKING([if have htonll defined])
           return htonll(0);
 ]]]
     )],
-    [
-      have_htonll="yes"
-      AC_DEFINE(HAVE_HTONLL, 1, [Define if the function htonll exists.])
-    ])
- 
-AC_MSG_RESULT([$have_htonll])
+    [c_cv_have_htonll="yes"],
+    [c_cv_have_htonll="no"]
+       )
+)
+if test "x$c_cv_have_htonll" = "xyes"
+then
+    AC_DEFINE(HAVE_HTONLL, 1, [Define if the function htonll exists.])
+fi
 
 # Check for structures
 AC_CHECK_MEMBERS([struct if_data.ifi_ibytes, struct if_data.ifi_opackets, struct if_data.ifi_ierrors],
