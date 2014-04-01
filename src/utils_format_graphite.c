@@ -29,7 +29,7 @@
 #include "utils_cache.h"
 #include "utils_parse_option.h"
 
-#define GRAPHITE_FORBIDDEN " \t\"\\:!/\n\r"
+#define GRAPHITE_FORBIDDEN " \t\"\\:!/()\n\r"
 
 /* Utils functions to format data sets in graphite format.
  * Largely taken from write_graphite.c as it remains the same formatting */
