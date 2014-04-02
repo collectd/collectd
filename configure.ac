@@ -1676,6 +1676,106 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LIBCURL, test "x$with_libcurl" = "xyes")
 # }}}
 
+# --with-libjson-c {{{
+with_json_c_cppflags=""
+with_json_c_ldflags=""
+with_json_c_libs=""
+AC_ARG_WITH(libjson-c, [AS_HELP_STRING([--with-libjson-c@<:@=PREFIX@:>@], [Path to libjson-c.])],
+[
+        if test "x$withval" = "xno"
+        then
+                with_libjson_c="no"
+        else if test "x$withval" = "xyes"
+        then
+                with_libjson_c="pkgconfig"
+        else
+                with_libjson_c="yes"
+                with_json_c_cppflags="-I$withval/include"
+                with_json_c_ldflags="-L$withval/lib"
+                with_json_c_libs="-ljson-c"
+        fi; fi
+],
+[
+        if test "x$ac_system" = "xLinux"
+        then
+                with_libjson_c="pkgconfig"
+        else
+                with_libjson_c="no (Linux only)"
+        fi
+])
+
+if test "x$with_libjson_c" = "xpkgconfig" && test "x$PKG_CONFIG" = "x"
+then
+        with_libjson_c="no (Don't have pkg-config)"
+fi
+
+if test "x$with_libjson_c" = "xpkgconfig"
+then
+        $PKG_CONFIG --exists --print-errors 'json-c' 2>/dev/null
+        if test $? -ne 0
+        then
+                with_libjson_c="no (pkg-config doesn't know json-c)"
+        fi
+fi
+
+if test "x$with_libjson_c" = "xpkgconfig"
+then
+        with_json_c_cflags="`$PKG_CONFIG --cflags 'json-c'`"
+        if test $? -ne 0
+        then
+                with_libjson_c="no ($PKG_CONFIG failed)"
+        fi
+        with_json_c_libs="`$PKG_CONFIG --libs 'json-c'`"
+        with_json_c_ldflags="$with_json_c_libs"
+        if test $? -ne 0
+        then
+                with_libjson_c="no ($PKG_CONFIG failed)"
+        fi
+fi
+
+if test "x$with_libjson_c" = "xpkgconfig"
+then
+        with_libjson_c="yes"
+fi
+
+SAVE_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS $with_json_c_cflags"
+
+# check for json headers
+if test "x$with_libjson_c" = "xyes"
+then
+        AC_CHECK_HEADERS(json-c/json.h json-c/json_c_version.h json-c/json_inttypes.h,
+          [with_libjson_c="yes"],
+          [with_libjson_c="no (Json-c headers not found)"])
+fi
+
+if test "x$with_libjson_c" = "xyes"
+then
+        SAVE_LIBS="$LIBS"
+        LIBS="$LIBS $with_json_c_libs"
+
+        AC_CHECK_LIB(json-c,
+          [json_c_version],
+          [with_libjson_c="yes"],
+          [with_libjson_c="no (libjson-c library not found"])
+
+        LIBS="$SAVE_LIBS"
+fi
+
+CPPFLAGS="$SAVE_CPPFLAGS"
+
+if test "x$with_libjson_c" = "xyes"
+then
+        BUILD_WITH_LIBJSON_C_CPPFLAGS="$with_json_c_cppflags"
+        BUILD_WITH_LIBJSON_C_LDFLAGS="$with_json_c_ldflags"
+        BUILD_WITH_LIBJSON_C_LIBS="$with_json_c_libs"
+        AC_SUBST(BUILD_WITH_LIBJSON_C_CPPFLAGS)
+        AC_SUBST(BUILD_WITH_LIBJSON_C_LDFLAGS)
+        AC_SUBST(BUILD_WITH_LIBJSON_C_LIBS)
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBJSON_C, test "x$with_libjson_c" = "xyes")
+# }}}
+
 # --with-libdbi {{{
 with_libdbi_cppflags=""
 with_libdbi_ldflags=""
@@ -3454,6 +3554,11 @@ fi
 
 if test "x$with_python" = "xyes"
 then
+  AM_PATH_PYTHON([2.6], [], [AC_MSG_FAILURE([Failed to find Python 2.7 or newer])])
+fi
+
+if test "x$with_python" = "xyes"
+then
 	AC_MSG_CHECKING([for Python CPPFLAGS])
 	python_include_path=`echo "import distutils.sysconfig;import sys;sys.stdout.write(distutils.sysconfig.get_python_inc())" | "$with_python_prog" 2>&1`
 	python_config_status=$?
@@ -4791,6 +4896,7 @@ plugin_bind="no"
 plugin_cgroups="no"
 plugin_conntrack="no"
 plugin_contextswitch="no"
+plugin_ceph="no"
 plugin_cpu="no"
 plugin_cpufreq="no"
 plugin_curl_json="no"
@@ -4959,6 +5065,11 @@ then
 	plugin_curl_xml="yes"
 fi
 
+if test "x$with_libjson_c" = "xyes"
+then
+	plugin_ceph="yes"
+fi
+
 if test "x$have_processor_info" = "xyes"
 then
 	plugin_cpu="yes"
@@ -5116,6 +5227,7 @@ AC_PLUGIN([aquaero],     [$with_libaquaero5],  [Aquaero's hardware sensors])
 AC_PLUGIN([ascent],      [$plugin_ascent],     [AscentEmu player statistics])
 AC_PLUGIN([battery],     [$plugin_battery],    [Battery statistics])
 AC_PLUGIN([bind],        [$plugin_bind],       [ISC Bind nameserver statistics])
+AC_PLUGIN([ceph],        [$with_libjson_c],       [Ceph daemon statistics])
 AC_PLUGIN([conntrack],   [$plugin_conntrack],  [nf_conntrack statistics])
 AC_PLUGIN([contextswitch], [$plugin_contextswitch], [context switch statistics])
 AC_PLUGIN([cpufreq],     [$plugin_cpufreq],    [CPU frequency statistics])
@@ -5394,6 +5506,10 @@ then
 	with_perl_bindings="yes ($PERL_BINDINGS_OPTIONS)"
 fi
 
+if test "x$with_libjson_c" != "xyes"
+then
+        enable_ceph="no (needs libjson-c)"
+fi
 cat <<EOF;
 
 Configuration:
@@ -5409,6 +5525,7 @@ Configuration:
     libiokit  . . . . . . $with_libiokit
     libiptc . . . . . . . $with_libiptc
     libjvm  . . . . . . . $with_java
+    libjson-c . . . . . . $with_libjson_c
     libkstat  . . . . . . $with_kstat
     libkvm  . . . . . . . $with_libkvm
     libmemcached  . . . . $with_libmemcached
@@ -5461,6 +5578,7 @@ Configuration:
     ascent  . . . . . . . $enable_ascent
     battery . . . . . . . $enable_battery
     bind  . . . . . . . . $enable_bind
+    ceph  . . . . . . . . $enable_ceph
     conntrack . . . . . . $enable_conntrack
     contextswitch . . . . $enable_contextswitch
     cgroups . . . . . . . $enable_cgroups

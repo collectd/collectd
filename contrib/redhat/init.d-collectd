@@ -16,9 +16,9 @@ RETVAL=0
 ARGS=""
 prog="collectdmon"
 service="collectd"
-CONFIG=/etc/collectd.conf
-COLLECTD=/usr/sbin/collectd
-COLLECTDMONPIDDIR="/var/run"
+CONFIG=/opt/collectd/etc/collectd.conf
+COLLECTD=/opt/collectd/sbin/collectd
+COLLECTDMONPIDDIR="/opt/collectd/var/run"
 COLLECTDMONPID="$COLLECTDMONPIDDIR/collectdmon.pid"
 
 if [ -r /etc/sysconfig/$service ]; then
@@ -50,7 +50,7 @@ start () {
 		echo $"not starting due to configuration error"
 		failure $"not starting $service due to configuration error"
 	else
-		daemon --user "${RUNAS:-root}" $prog -P $COLLECTDMONPID -c $COLLECTD -- -C "$CONFIG" $ARGS
+		daemon --user "${RUNAS:-root}" /opt/collectd/sbin/$prog -P $COLLECTDMONPID -c $COLLECTD -- -C "$CONFIG" $ARGS
 		RETVAL=$?
 		echo
 		[ $RETVAL -eq 0 ] && touch /var/lock/subsys/$service
