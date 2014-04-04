@@ -274,16 +274,15 @@
 #</Plugin>
 
 #<Plugin ceph>
-#       Name "osd.0"
-#       SocketPath "/var/run/ceph/ceph-osd.0.asok"
-#</Plugin>
-#<Plugin ceph>
-#        Name "mon.ceph-node1"
-#        SocketPath "/var/run/ceph/ceph-mon.ceph-node1.asok"
-#</Plugin>
-#<Plugin ceph>
-#        Name "mds.ceph-node1"
-#        SocketPath "/var/run/ceph/ceph-mds.ceph-node1.asok"
+#  <Daemon "osd.0">
+#    SocketPath "/var/run/ceph/ceph-osd.0.asok"
+#  </Daemon>
+#  <Daemon "mon.a">
+#    SocketPath "/var/run/ceph/ceph-mon.ceph1.asok"
+#  </Daemon>
+#  <Daemon "mds.a">
+#    SocketPath "/var/run/ceph/ceph-mds.ceph1.asok"
+#  </Daemon>
 #</Plugin>
 
 
