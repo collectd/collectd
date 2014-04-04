@@ -950,6 +950,42 @@ By default no detailed zone information is collected.
 
 =back
 
+=head2 Plugin C<ceph>
+
+The ceph plugin collects values from JSON data to be parsed by B<libjson-c> 
+(L<https://github.com/json-c/json-c>) retrieved from a ceph daemon admin socket.
+
+A separate B<Daemon> block must be configured for each ceph daemon to be 
+monitored. The following example will read daemon statistics from three 
+separate ceph daemons running on the same device (one OSD, one MON, one MDS) :
+
+  <Plugin ceph>
+    <Daemon "osd.0">
+      SocketPath "/var/run/ceph/ceph-osd.0.asok"
+    </Daemon>
+    <Daemon "mon.a">
+      SocketPath "/var/run/ceph/ceph-mon.ceph1.asok"
+    </Daemon>
+    <Daemon "mds.a">
+      SocketPath "/var/run/ceph/ceph-mds.ceph1.asok"
+    </Daemon>
+  </Plugin>
+
+Each B<Daemon> block must have a string argument for the plugin instance name.
+A B<SocketPath> is also required for each B<Daemon> block.
+
+=over 4
+
+=item B<Daemon> I<Name>
+
+Name to be used as the instance name for this daemon.
+
+=item B<SocketPath> I<SocketPath>
+
+Specifies the path to the UNIX admin socket of the ceph daemon.
+
+=back
+
 =head2 Plugin C<cgroups>
 
 This plugin collects the CPU user/system time for each I<cgroup> by reading the
