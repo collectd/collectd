@@ -392,24 +392,82 @@ static int cc_handle_str(struct oconfig_item_s *item, char *dest, int dest_len)
 	return 0;
 }
 
+static int cc_add_daemon_config(oconfig_item_t *ci)
+{
+        int ret, i;
+        struct ceph_daemon *array, *nd, cd;
+        memset(&cd, 0, sizeof(struct ceph_daemon));
+
+        if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
+        {
+                WARNING("ceph plugin: `Daemon' blocks need exactly one string argument.");
+                return (-1);
+        }
+
+        ret = cc_handle_str(ci, cd.name, DATA_MAX_NAME_LEN);
+        if (ret)
+                return ret;
+
+        for (i=0; i < ci->children_num; i++)
+        {
+                oconfig_item_t *child = ci->children + i;
+
+                if (strcasecmp("SocketPath", child->key) == 0)
+                {
+                        ret = cc_handle_str(child, cd.asok_path, sizeof(cd.asok_path));
+                        if (ret)
+                                return ret;
+                }
+                else
+                {
+                        WARNING("ceph plugin: ignoring unknown option %s", child->key);
+                }
+        }
+        if (cd.name[0] == '\0')
+        {
+                ERROR("ceph plugin: you must configure a daemon name.\n");
+                return -EINVAL;
+        }
+        else if (cd.asok_path[0] == '\0')
+        {
+                ERROR("ceph plugin(name=%s): you must configure an administrative "
+                "socket path.\n", cd.name);
+                return -EINVAL;
+        }
+        else if (!((cd.asok_path[0] == '/')
+                        || (cd.asok_path[0] == '.' && cd.asok_path[1] == '/')))
+        {
+                ERROR("ceph plugin(name=%s): administrative socket paths must begin with "
+                                "'/' or './' Can't parse: '%s'\n", cd.name, cd.asok_path);
+                return -EINVAL;
+        }
+        array = realloc(g_daemons,
+                        sizeof(struct ceph_daemon *) * (g_num_daemons + 1));
+        if (array == NULL)
+        {
+                /* The positive return value here indicates that this is a
+                 * runtime error, not a configuration error.  */
+                return ENOMEM;
+        }
+        g_daemons = (struct ceph_daemon**) array;
+        nd = malloc(sizeof(struct ceph_daemon));
+        if (!nd)
+                return ENOMEM;
+        memcpy(nd, &cd, sizeof(struct ceph_daemon));
+        g_daemons[g_num_daemons++] = nd;
+        return 0;
+}
+
 static int ceph_config(oconfig_item_t *ci)
 {
 	int ret, i;
-	struct ceph_daemon *array, *nd, cd;
-	memset(&cd, 0, sizeof(struct ceph_daemon));
 
 	for (i = 0; i < ci->children_num; ++i)
 	{
 		oconfig_item_t *child = ci->children + i;
-		if (strcasecmp("Name", child->key) == 0)
+		if (strcasecmp("Daemon", child->key) == 0)
 		{
-			ret = cc_handle_str(child, cd.name, DATA_MAX_NAME_LEN);
-			if (ret)
-				return ret;
-		}
-		else if (strcasecmp("SocketPath", child->key) == 0)
-		{
-			ret = cc_handle_str(child, cd.asok_path, sizeof(cd.asok_path));
+			ret = cc_add_daemon_config(child);
 			if (ret)
 				return ret;
 		}
@@ -418,38 +476,6 @@ static int ceph_config(oconfig_item_t *ci)
 			WARNING("ceph plugin: ignoring unknown option %s", child->key);
 		}
 	}
-	if (cd.name[0] == '\0')
-	{
-		ERROR("ceph plugin: you must configure a daemon name.\n");
-		return -EINVAL;
-	}
-	else if (cd.asok_path[0] == '\0')
-	{
-		ERROR("ceph plugin(name=%s): you must configure an administrative "
-		"socket path.\n", cd.name);
-		return -EINVAL;
-	}
-	else if (!((cd.asok_path[0] == '/')
-			|| (cd.asok_path[0] == '.' && cd.asok_path[1] == '/')))
-	{
-		ERROR("ceph plugin(name=%s): administrative socket paths must begin with "
-				"'/' or './' Can't parse: '%s'\n", cd.name, cd.asok_path);
-		return -EINVAL;
-	}
-	array = realloc(g_daemons,
-			sizeof(struct ceph_daemon *) * (g_num_daemons + 1));
-	if (array == NULL)
-	{
-		/* The positive return value here indicates that this is a
-		 * runtime error, not a configuration error.  */
-		return ENOMEM;
-	}
-	g_daemons = (struct ceph_daemon**) array;
-	nd = malloc(sizeof(struct ceph_daemon));
-	if (!nd)
-		return ENOMEM;
-	memcpy(nd, &cd, sizeof(struct ceph_daemon));
-	g_daemons[g_num_daemons++] = nd;
 	return 0;
 }
 
