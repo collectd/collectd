@@ -128,11 +128,19 @@ static int pnumdisk;
 # error "No applicable input method."
 #endif
 
+#if HAVE_LIBUDEV
+#include <libudev.h>
+
+static char *conf_udev_name_attr = NULL;
+static struct udev *handle_udev;
+#endif
+
 static const char *config_keys[] =
 {
 	"Disk",
 	"UseBSDName",
-	"IgnoreSelected"
+	"IgnoreSelected",
+	"UdevNameAttr"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -163,6 +171,21 @@ static int disk_config (const char *key, const char *value)
 #else
     WARNING ("disk plugin: The \"UseBSDName\" option is only supported "
         "on Mach / Mac OS X and will be ignored.");
+#endif
+  }
+  else if (strcasecmp ("UdevNameAttr", key) == 0)
+  {
+#if HAVE_LIBUDEV
+    if (conf_udev_name_attr != NULL)
+    {
+      free (conf_udev_name_attr);
+      conf_udev_name_attr = NULL;
+    }
+    if ((conf_udev_name_attr = strdup (value)) == NULL)
+      return (1);
+#else
+    WARNING ("disk plugin: The \"UdevNameAttr\" option is only supported "
+        "if collectd is built with libudev support");
 #endif
   }
   else
@@ -256,6 +279,34 @@ static counter_t disk_calc_time_incr (counter_t delta_time, counter_t delta_ops)
 	double avg_time_incr = interval * avg_time;
 
 	return ((counter_t) (avg_time_incr + .5));
+}
+#endif
+
+#if HAVE_LIBUDEV
+/**
+ * Attempt to provide an rename disk instance from an assigned udev attribute.
+ *
+ * On success, it returns a strduped char* to the desired attribute value.
+ * Otherwise it returns NULL.
+ */
+
+static char *disk_udev_attr_name (struct udev *udev, char *disk_name, const char *attr)
+{
+	struct udev_device *dev;
+	const char *prop;
+	char *output = NULL;
+
+	dev = udev_device_new_from_subsystem_sysname (udev, "block", disk_name);
+	if (dev != NULL)
+	{
+		prop = udev_device_get_property_value (dev, attr);
+		if (prop) {
+			output = strdup (prop);
+			DEBUG ("disk plugin: renaming %s => %s", disk_name, output);
+		}
+		udev_device_unref (dev);
+	}
+	return output;
 }
 #endif
 
@@ -505,9 +556,15 @@ static int disk_read (void)
 		fieldshift = 1;
 	}
 
+#if HAVE_LIBUDEV
+	handle_udev = udev_new();
+#endif
+
 	while (fgets (buffer, sizeof (buffer), fh) != NULL)
 	{
 		char *disk_name;
+		char *output_name;
+		char *alt_name;
 
 		numfields = strsplit (buffer, fields, 32);
 
@@ -659,24 +716,42 @@ static int disk_read (void)
 			continue;
 		}
 
+		output_name = disk_name;
+
+#if HAVE_LIBUDEV
+		alt_name = disk_udev_attr_name (handle_udev, disk_name,
+				conf_udev_name_attr);
+#else
+		alt_name = NULL;
+#endif
+		if (alt_name != NULL)
+			output_name = alt_name;
+
 		if ((ds->read_bytes != 0) || (ds->write_bytes != 0))
-			disk_submit (disk_name, "disk_octets",
+			disk_submit (output_name, "disk_octets",
 					ds->read_bytes, ds->write_bytes);
 
 		if ((ds->read_ops != 0) || (ds->write_ops != 0))
-			disk_submit (disk_name, "disk_ops",
+			disk_submit (output_name, "disk_ops",
 					read_ops, write_ops);
 
 		if ((ds->avg_read_time != 0) || (ds->avg_write_time != 0))
-			disk_submit (disk_name, "disk_time",
+			disk_submit (output_name, "disk_time",
 					ds->avg_read_time, ds->avg_write_time);
 
 		if (is_disk)
 		{
-			disk_submit (disk_name, "disk_merged",
+			disk_submit (output_name, "disk_merged",
 					read_merged, write_merged);
 		} /* if (is_disk) */
+
+		/* release udev-based alternate name, if allocated */
+		free(alt_name);
 	} /* while (fgets (buffer, sizeof (buffer), fh) != NULL) */
+
+#if HAVE_LIBUDEV
+	udev_unref(handle_udev);
+#endif
 
 	fclose (fh);
 /* #endif defined(KERNEL_LINUX) */
