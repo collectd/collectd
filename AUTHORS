@@ -47,6 +47,9 @@ Aurélien Reynaud <collectd at wattapower.net>
  - LPAR plugin.
  - Various fixes for AIX, HP-UX and Solaris.
 
+Benjamin Gilbert <bgilbert at cs.cmu.edu>
+ - Improvements to the LVM plugin.
+
 Bert Vermeulen <bert at biot.com>
  - sigrok plugin
 
