@@ -45,7 +45,7 @@ static void lvm_submit (char const *plugin_instance, char const *type_instance,
     plugin_dispatch_values (&vl);
 }
 
-static int vg_read(vg_t vg, char const *vg_name)
+static void vg_read(vg_t vg, char const *vg_name)
 {
     struct dm_list *lvs;
     struct lvm_lv_list *lvl;
@@ -56,8 +56,6 @@ static int vg_read(vg_t vg, char const *vg_name)
     dm_list_iterate_items(lvl, lvs) {
          lvm_submit(vg_name, lvm_lv_get_name(lvl->lv), lvm_lv_get_size(lvl->lv));
     }
-
-    return (0);
 }
 
 static int lvm_read(void)
