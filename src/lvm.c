@@ -49,12 +49,31 @@ static void vg_read(vg_t vg, char const *vg_name)
 {
     struct dm_list *lvs;
     struct lvm_lv_list *lvl;
+    char const *attrs;
 
     lvm_submit (vg_name, "free", lvm_vg_get_free_size(vg));
 
     lvs = lvm_vg_list_lvs(vg);
     dm_list_iterate_items(lvl, lvs) {
-         lvm_submit(vg_name, lvm_lv_get_name(lvl->lv), lvm_lv_get_size(lvl->lv));
+        attrs = lvm_lv_get_attr(lvl->lv);
+        if (attrs == NULL)
+            continue;
+        /* Condition on volume type.  We want the reported sizes in the
+           volume group to sum to the size of the volume group, so we ignore
+           virtual volumes.  */
+        switch (attrs[0]) {
+            case 't':
+                /* Thin pool virtual volume.  We report the underlying data
+                   and metadata volumes, not this one.  Ignore. */
+                continue;
+            case 'v':
+                /* Virtual volume.  Ignore. */
+                continue;
+            case 'V':
+                /* Thin volume or thin snapshot.  Ignore. */
+                continue;
+        }
+        lvm_submit(vg_name, lvm_lv_get_name(lvl->lv), lvm_lv_get_size(lvl->lv));
     }
 }
 
