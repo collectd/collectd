@@ -119,6 +119,8 @@ static void vg_read(vg_t vg, char const *vg_name)
     lvm_submit (vg_name, "free", lvm_vg_get_free_size(vg));
 
     lvs = lvm_vg_list_lvs(vg);
+    if (lvs == NULL)
+        return;
     dm_list_iterate_items(lvl, lvs) {
         name = lvm_lv_get_name(lvl->lv);
         attrs = lvm_lv_get_attr(lvl->lv);
