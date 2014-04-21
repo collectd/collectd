@@ -30,6 +30,7 @@
 #endif
 
 #define CONNTRACK_FILE "/proc/sys/net/netfilter/nf_conntrack_count"
+#define CONNTRACK_FILE_OLD "/proc/sys/net/ipv4/netfilter/ip_conntrack_count"
 #define CONNTRACK_MAX_FILE "/proc/sys/net/netfilter/nf_conntrack_max"
 
 static void conntrack_submit (const char *type, const char *type_instance,
@@ -58,8 +59,12 @@ static int conntrack_read (void)
 
 	fh = fopen (CONNTRACK_FILE, "r");
 	if (fh == NULL)
-		return (-1);
-
+	{
+		/* try again with the old style */
+		fh = fopen(CONNTRACK_FILE_OLD, "r");
+		if(fh == NULL)
+			return (-1);
+	}
 	memset (buffer, 0, sizeof (buffer));
 	if (fgets (buffer, sizeof (buffer), fh) == NULL)
 	{
