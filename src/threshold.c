@@ -626,10 +626,10 @@ static int ut_report_state (const data_set_t *ds,
   {
     if (state_old == STATE_MISSING)
       status = ssnprintf (buf, bufsize,
-          ": Value is no longer missing.");
+          ": Value is no longer missing (%f).", values[ds_index]);
     else
       status = ssnprintf (buf, bufsize,
-          ": All data sources are within range again.");
+          ": Data source \"%s\" is within range again (%f).", ds->ds[ds_index].name, values[ds_index]);
     buf += status;
     bufsize -= status;
   }
