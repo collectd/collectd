@@ -2905,7 +2905,7 @@ sub meta_graph_df
   $opts->{'title'} = "Disk usage $prefix";
 
   $opts->{'number_format'} = '%5.1lf%s';
-  $opts->{'rrd_opts'} = ['-b', '1024', '-v', 'Bytes'];
+  $opts->{'rrd_opts'} = ['-l', 0, '-b', '1024', '-v', 'Bytes'];
 
   my @files = ();
 
