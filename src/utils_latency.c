@@ -38,14 +38,15 @@ struct latency_counter_s
 
   cdtime_t sum;
   size_t num;
+  int scale;
 
   cdtime_t min;
   cdtime_t max;
 
-  int histogram[LATENCY_HISTOGRAM_SIZE];
+  uint64_t histogram[LATENCY_HISTOGRAM_SIZE];
 };
 
-latency_counter_t *latency_counter_create () /* {{{ */
+latency_counter_t *latency_counter_create (int Resolution) /* {{{ */
 {
   latency_counter_t *lc;
 
@@ -54,6 +55,7 @@ latency_counter_t *latency_counter_create () /* {{{ */
     return (NULL);
 
   latency_counter_reset (lc);
+  lc->scale = Resolution;
   return (lc);
 } /* }}} latency_counter_t *latency_counter_create */
 
@@ -82,9 +84,11 @@ void latency_counter_add (latency_counter_t *lc, cdtime_t latency) /* {{{ */
   /* A latency of _exactly_ 1.0 ms should be stored in the buffer 0, so
    * subtract one from the cdtime_t value so that exactly 1.0 ms get sorted
    * accordingly. */
-  latency_ms = (size_t) CDTIME_T_TO_MS (latency - 1);
+  latency_ms = (size_t) (CDTIME_T_TO_MS (latency - 1) / lc->scale);
   if (latency_ms < STATIC_ARRAY_SIZE (lc->histogram))
     lc->histogram[latency_ms]++;
+  else
+    lc->histogram[LATENCY_HISTOGRAM_SIZE - 1]++;
 } /* }}} void latency_counter_add */
 
 void latency_counter_reset (latency_counter_t *lc) /* {{{ */
@@ -172,8 +176,8 @@ cdtime_t latency_counter_get_percentile (latency_counter_t *lc,
   assert (percent_upper >= percent);
   assert (percent_lower < percent);
 
-  ms_upper = (double) (i + 1);
-  ms_lower = (double) i;
+  ms_upper = (double) (i * lc->scale + 1);
+  ms_lower = (double) i * lc->scale;
   if (i == 0)
     return (MS_TO_CDTIME_T (ms_upper));
 
