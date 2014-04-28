@@ -54,8 +54,7 @@ latency_counter_t *latency_counter_create (int Resolution) /* {{{ */
   if (lc == NULL)
     return (NULL);
 
-  latency_counter_reset (lc);
-  lc->scale = Resolution;
+  latency_counter_reset (lc, Resolution);
   return (lc);
 } /* }}} latency_counter_t *latency_counter_create */
 
@@ -84,20 +83,24 @@ void latency_counter_add (latency_counter_t *lc, cdtime_t latency) /* {{{ */
   /* A latency of _exactly_ 1.0 ms should be stored in the buffer 0, so
    * subtract one from the cdtime_t value so that exactly 1.0 ms get sorted
    * accordingly. */
-  latency_ms = (size_t) (CDTIME_T_TO_MS (latency - 1) / lc->scale);
+  latency_ms = (size_t) CDTIME_T_TO_MS (latency - 1);
+  if ((latency_ms > 0) && (lc->scale > 1))
+    latency_ms /= lc->scale;
+
   if (latency_ms < STATIC_ARRAY_SIZE (lc->histogram))
     lc->histogram[latency_ms]++;
   else
     lc->histogram[LATENCY_HISTOGRAM_SIZE - 1]++;
 } /* }}} void latency_counter_add */
 
-void latency_counter_reset (latency_counter_t *lc) /* {{{ */
+void latency_counter_reset (latency_counter_t *lc, int Resolution) /* {{{ */
 {
   if (lc == NULL)
     return;
 
   memset (lc, 0, sizeof (*lc));
   lc->start_time = cdtime ();
+  lc->scale = Resolution;
 } /* }}} void latency_counter_reset */
 
 cdtime_t latency_counter_get_min (latency_counter_t *lc) /* {{{ */

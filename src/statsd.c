@@ -803,7 +803,7 @@ static int statsd_metric_submit_unsafe (char const *name, /* {{{ */
       plugin_dispatch_values (&vl);
     }
 
-    latency_counter_reset (metric->latency);
+    latency_counter_reset (metric->latency, conf_timer_percentile_resolution_ms);
     return (0);
   }
   else if (metric->type == STATSD_SET)
