@@ -46,10 +46,10 @@ struct wh_callback_s
         char *user;
         char *pass;
         char *credentials;
-        int   verify_peer;
-        int   verify_host;
+        _Bool verify_peer;
+        _Bool verify_host;
         char *cacert;
-        int   store_rates;
+        _Bool store_rates;
 
 #define WH_FORMAT_COMMAND 0
 #define WH_FORMAT_JSON    1
@@ -433,47 +433,6 @@ static int wh_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
         return (status);
 } /* }}} int wh_write */
 
-static int config_set_string (char **ret_string, /* {{{ */
-                oconfig_item_t *ci)
-{
-        char *string;
-
-        if ((ci->values_num != 1)
-                        || (ci->values[0].type != OCONFIG_TYPE_STRING))
-        {
-                WARNING ("write_http plugin: The `%s' config option "
-                                "needs exactly one string argument.", ci->key);
-                return (-1);
-        }
-
-        string = strdup (ci->values[0].value.string);
-        if (string == NULL)
-        {
-                ERROR ("write_http plugin: strdup failed.");
-                return (-1);
-        }
-
-        if (*ret_string != NULL)
-                free (*ret_string);
-        *ret_string = string;
-
-        return (0);
-} /* }}} int config_set_string */
-
-static int config_set_boolean (int *dest, oconfig_item_t *ci) /* {{{ */
-{
-        if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
-        {
-                WARNING ("write_http plugin: The `%s' config option "
-                                "needs exactly one boolean argument.", ci->key);
-                return (-1);
-        }
-
-        *dest = ci->values[0].value.boolean ? 1 : 0;
-
-        return (0);
-} /* }}} int config_set_boolean */
-
 static int config_set_format (wh_callback_t *cb, /* {{{ */
                 oconfig_item_t *ci)
 {
@@ -500,7 +459,7 @@ static int config_set_format (wh_callback_t *cb, /* {{{ */
         }
 
         return (0);
-} /* }}} int config_set_string */
+} /* }}} int config_set_format */
 
 static int wh_config_url (oconfig_item_t *ci) /* {{{ */
 {
@@ -527,7 +486,7 @@ static int wh_config_url (oconfig_item_t *ci) /* {{{ */
 
         pthread_mutex_init (&cb->send_lock, /* attr = */ NULL);
 
-        config_set_string (&cb->location, ci);
+        cf_util_get_string (ci, &cb->location);
         if (cb->location == NULL)
                 return (-1);
 
@@ -536,19 +495,19 @@ static int wh_config_url (oconfig_item_t *ci) /* {{{ */
                 oconfig_item_t *child = ci->children + i;
 
                 if (strcasecmp ("User", child->key) == 0)
-                        config_set_string (&cb->user, child);
+                        cf_util_get_string (child, &cb->user);
                 else if (strcasecmp ("Password", child->key) == 0)
-                        config_set_string (&cb->pass, child);
+                        cf_util_get_string (child, &cb->pass);
                 else if (strcasecmp ("VerifyPeer", child->key) == 0)
-                        config_set_boolean (&cb->verify_peer, child);
+                        cf_util_get_boolean (child, &cb->verify_peer);
                 else if (strcasecmp ("VerifyHost", child->key) == 0)
-                        config_set_boolean (&cb->verify_host, child);
+                        cf_util_get_boolean (child, &cb->verify_host);
                 else if (strcasecmp ("CACert", child->key) == 0)
-                        config_set_string (&cb->cacert, child);
+                        cf_util_get_string (child, &cb->cacert);
                 else if (strcasecmp ("Format", child->key) == 0)
                         config_set_format (cb, child);
                 else if (strcasecmp ("StoreRates", child->key) == 0)
-                        config_set_boolean (&cb->store_rates, child);
+                        cf_util_get_boolean (child, &cb->store_rates);
                 else
                 {
                         ERROR ("write_http plugin: Invalid configuration "
