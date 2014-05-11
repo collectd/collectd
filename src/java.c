@@ -2436,7 +2436,7 @@ static void cjni_callback_info_destroy (void *arg) /* {{{ */
 
   cbi = (cjni_callback_info_t *) arg;
 
-  /* This condition can occurr when shutting down. */
+  /* This condition can occur when shutting down. */
   if (jvm == NULL)
   {
     sfree (cbi);

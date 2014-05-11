@@ -2482,7 +2482,7 @@ The following options are valid inside the B<PluginE<nbsp>mic> block:
 
 =item B<ShowCPU> B<true>|B<false>
 
-If enabled (the default) a sum of the CPU usage accross all cores is reported.
+If enabled (the default) a sum of the CPU usage across all cores is reported.
 
 =item B<ShowCPUCores> B<true>|B<false>
 
@@ -6368,7 +6368,7 @@ number.
 
 =head2 Plugin C<write_riemann>
 
-The I<write_riemann plugin> will send values to I<Riemann>, a powerfull stream
+The I<write_riemann plugin> will send values to I<Riemann>, a powerful stream
 aggregation and monitoring system. The plugin sends I<Protobuf> encoded data to
 I<Riemann> using UDP packets.
 

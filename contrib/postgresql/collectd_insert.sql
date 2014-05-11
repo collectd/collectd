@@ -33,8 +33,8 @@
 -- and 'values' to store the value-list identifier and the actual values
 -- respectively.
 --
--- The 'values' table is partitioned to improve performance and maintainance.
--- Please note that additional maintainance scripts are required in order to
+-- The 'values' table is partitioned to improve performance and maintenance.
+-- Please note that additional maintenance scripts are required in order to
 -- keep the setup running -- see the comments below for details.
 --
 -- The function 'collectd_insert' may be used to actually insert values

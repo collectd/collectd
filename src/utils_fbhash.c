@@ -253,7 +253,7 @@ char *fbh_get (fbhash_t *h, const char *key) /* {{{ */
 
   pthread_mutex_lock (&h->lock);
 
-  /* TODO: Checking this everytime may be a bit much..? */
+  /* TODO: Checking this every time may be a bit much..? */
   fbh_check_file (h);
 
   status = c_avl_get (h->tree, key, (void *) &value);

@@ -144,7 +144,7 @@ static int read_cpuacct_procs (const char *dirname, char const *cgroup_name,
 
 /*
  * Gets called for every file/folder in /sys/fs/cgroup/cpu,cpuacct (or
- * whereever cpuacct is mounted on the system). Calls walk_directory with the
+ * wherever cpuacct is mounted on the system). Calls walk_directory with the
  * read_cpuacct_procs callback on every folder it finds, such as "system".
  */
 static int read_cpuacct_root (const char *dirname, const char *filename,
