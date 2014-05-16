@@ -74,10 +74,10 @@ static bson *wm_create_bson (const data_set_t *ds, /* {{{ */
   gauge_t *rates;
   int i;
 
-  ret = bson_create ();
+  ret = bson_alloc ();
   if (ret == NULL)
   {
-    ERROR ("write_mongodb plugin: bson_create failed.");
+    ERROR ("write_mongodb plugin: bson_alloc failed.");
     return (NULL);
   }
 
@@ -243,7 +243,7 @@ static int wm_write (const data_set_t *ds, /* {{{ */
   pthread_mutex_unlock (&node->lock);
 
   /* free our resource as not to leak memory */
-  bson_dispose (bson_record);
+  bson_dealloc (bson_record);
 
   return (0);
 } /* }}} int wm_write */
