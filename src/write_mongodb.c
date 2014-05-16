@@ -58,6 +58,11 @@ struct wm_node_s
 
   _Bool store_rates;
 
+  int max_size;
+  int max_doc;
+  char *db_name;
+  char *collection_name;
+
   mongo conn[1];
   pthread_mutex_t lock;
 };
@@ -155,17 +160,104 @@ static bson *wm_create_bson (const data_set_t *ds, /* {{{ */
   return (ret);
 } /* }}} bson *wm_create_bson */
 
+static void wm_check_collection (wm_node_t *node, /* {{{ */
+    const char *coll_name)
+{
+    /* If max_size is set then create a capped collection */
+    if (node->max_size) {
+      /* Check if collection exists:
+       * db['system.namespaces'].find({'name':'nsc.collectd'})
+       * {
+       *     "name" : "nsc.collectd",
+       *     "options" : {
+       *                 "capped" : true,
+       *                  "size" : 100096
+       *                }
+       *      }
+       *
+       * */
+      int status;
+      bson query;
+      bson response;
+      char ns[512];
+      char collection_ns[512];
+
+      strcpy (ns, node->db_name);
+      strcat (ns, ".system.namespaces");
+      strcpy (collection_ns, node->db_name);
+      strcat (collection_ns, ".");
+      strcat (collection_ns, coll_name);
+
+      bson_init (&query);
+      bson_append_start_object (&query, "$query");
+        bson_append_string (&query, "name", collection_ns);
+      bson_append_finish_object (&query);
+      bson_finish ( &query );
+
+      status = mongo_find_one (node->conn, ns, &query, NULL, &response);
+      bson_destroy (&query);
+
+      if (status == MONGO_OK) {
+        /* Collection already exists */
+        bson_iterator i, item;
+        bson_bool_t is_capped = 0;
+
+        /* get "options.capped" value */
+        if (bson_find (&i, &response, "options")) {
+          bson options;
+          bson_iterator_subobject_init (&i, &options, 0);
+          if(bson_find (&item, &options, "capped")) {
+            is_capped = bson_iterator_bool (&item);
+          }
+
+          /* cleanup */
+          bson_destroy (&options);
+        }
+
+        if (!is_capped) {
+          // TODO: Need to convert to capped
+          ERROR ("write_mongodb plugin: Collection %s exists but is not capped.",
+              collection_ns);
+        }else{
+          DEBUG ("write_mongodb plugin: Collection %s exists and is capped.",
+              collection_ns);
+        }
+      }else{
+        // Collection does not exists, create
+        status = mongo_create_capped_collection (node->conn, node->db_name, coll_name, node->max_size, node->max_doc, NULL);
+        if (status != MONGO_OK)
+        {
+          ERROR ("write_mongodb plugin: Create capped collection %s.%s(%i/%i) failed %i.", 
+              node->db_name, coll_name, node->max_size, node->max_doc, status);
+        }else{
+          INFO ("write_mongodb plugin: Create capped collection %s.%s(%i/%i) succeed.",
+              node->db_name, coll_name, node->max_size, node->max_doc);
+        }
+      }
+      bson_destroy (&response);
+    }
+} /* }}} void wm_check_collection */
+
 static int wm_write (const data_set_t *ds, /* {{{ */
     const value_list_t *vl,
     user_data_t *ud)
 {
   wm_node_t *node = ud->data;
   char collection_name[512];
+  const char * coll_name = NULL;
   bson *bson_record;
   int status;
 
-  ssnprintf (collection_name, sizeof (collection_name), "collectd.%s",
-      vl->plugin);
+  /* build collection name */
+  strcpy (collection_name, node->db_name);
+  strcat (collection_name, ".");
+  if (node->collection_name) {
+    strcat (collection_name, node->collection_name);
+    coll_name = node->collection_name;
+  }else{
+    strcat (collection_name, vl->plugin);
+    coll_name = vl->plugin;
+  }
 
   bson_record = wm_create_bson (ds, vl, node->store_rates);
   if (bson_record == NULL)
@@ -212,10 +304,20 @@ static int wm_write (const data_set_t *ds, /* {{{ */
             node->timeout, node->conn->errstr);
       }
     }
+    /* If all into one collection, we can check collection at connection time */
+    if (node->collection_name) {
+      wm_check_collection (node, coll_name);
+    }
   }
 
   /* Assert if the connection has been established */
   assert (mongo_is_connected (node->conn));
+
+  /* If NOT all into one collection, we need to check collection here as we
+   * don't know all plugins name */
+  if (!node->collection_name) {
+    wm_check_collection (node, coll_name);
+  }
 
   #if MONGO_MINOR >= 6
     /* There was an API change in 0.6.0 as linked below */
@@ -259,6 +361,8 @@ static void wm_config_free (void *ptr) /* {{{ */
     mongo_destroy (node->conn);
 
   sfree (node->host);
+  sfree (node->db_name);
+  sfree (node->collection_name);
   sfree (node);
 } /* }}} void wm_config_free */
 
@@ -310,6 +414,14 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string (child, &node->user);
     else if (strcasecmp ("Password", child->key) == 0)
       status = cf_util_get_string (child, &node->passwd);
+    else if (strcasecmp ("DbName", child->key) == 0)
+      status = cf_util_get_string (child, &node->db_name);
+    else if (strcasecmp ("CollectionName", child->key) == 0)
+      status = cf_util_get_string (child, &node->collection_name);
+    else if (strcasecmp ("MaxSize", child->key) == 0)
+      status = cf_util_get_int (child, &node->max_size);
+    else if (strcasecmp ("MaxDoc", child->key) == 0)
+      status = cf_util_get_int (child, &node->max_doc);
     else
       WARNING ("write_mongodb plugin: Ignoring unknown config option \"%s\".",
           child->key);
@@ -330,6 +442,11 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
       sfree (node->user);
       sfree (node->passwd);
     }
+  }
+  /* Set db_name if not specified */
+  if (NULL == node->db_name) {
+    node->db_name = malloc (strlen("collectd") + 1);
+    strcpy (node->db_name, "collectd");
   }
 
   if (status == 0)
