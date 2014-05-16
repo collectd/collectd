@@ -63,6 +63,9 @@ struct wm_node_s
   char *db_name;
   char *collection_name;
 
+  _Bool write_data_set;
+  _Bool write_notification;
+
   mongo conn[1];
   pthread_mutex_t lock;
 };
@@ -71,7 +74,69 @@ typedef struct wm_node_s wm_node_t;
 /*
  * Functions
  */
-static bson *wm_create_bson (const data_set_t *ds, /* {{{ */
+static bson *wm_create_bson_notification (const notification_t *notification) /* {{{ */
+{
+  bson *ret;
+  notification_meta_t * meta = NULL;
+
+  ret = bson_alloc ();
+  if (ret == NULL)
+  {
+    ERROR ("write_mongodb plugin: bson_alloc failed.");
+    return (NULL);
+  }
+
+  /* Prepare bson doc */
+  bson_init (ret);
+  /* Add header */
+  bson_append_date (ret, "time", (bson_date_t) CDTIME_T_TO_MS (notification->time));
+  bson_append_string (ret, "host", notification->host);
+  bson_append_string (ret, "plugin", notification->plugin);
+  bson_append_string (ret, "plugin_instance", notification->plugin_instance);
+  bson_append_string (ret, "type", notification->type);
+  bson_append_string (ret, "type_instance", notification->type_instance);
+  bson_append_int (ret, "severity", notification->severity);
+  bson_append_string (ret, "message", notification->message);
+
+  /* Add meta */
+  bson_append_start_object (ret, "meta"); /* {{{ */
+  meta = notification->meta;
+
+  while (meta)
+  {
+    switch (meta->type)
+    {
+      case NM_TYPE_STRING:
+        bson_append_string (ret, meta->name, meta->nm_value.nm_string);
+        break;
+      case NM_TYPE_SIGNED_INT:
+        bson_append_long (ret, meta->name, (int64_t)meta->nm_value.nm_signed_int);
+        break;
+      case NM_TYPE_UNSIGNED_INT:
+        bson_append_long (ret, meta->name, (int64_t)meta->nm_value.nm_signed_int);
+        break;
+      case NM_TYPE_DOUBLE:
+        bson_append_double (ret, meta->name, meta->nm_value.nm_double);
+        break;
+      case NM_TYPE_BOOLEAN:
+        bson_append_bool (ret, meta->name, meta->nm_value.nm_boolean);
+        break;
+      default:
+        WARNING ("write_mongodb plugin: Ignoring unknown notification meta type %s(%i).",
+            meta->name, meta->type);
+        break;
+    }
+    meta = meta->next;
+  };
+
+  bson_append_finish_object (ret); /* }}} meta */
+
+  bson_finish (ret);
+
+  return (ret);
+} /* }}} */
+
+static bson *wm_create_bson_data_set (const data_set_t *ds, /* {{{ */
     const value_list_t *vl,
     _Bool store_rates)
 {
@@ -238,14 +303,10 @@ static void wm_check_collection (wm_node_t *node, /* {{{ */
     }
 } /* }}} void wm_check_collection */
 
-static int wm_write (const data_set_t *ds, /* {{{ */
-    const value_list_t *vl,
-    user_data_t *ud)
-{
-  wm_node_t *node = ud->data;
+static int wm_write_mongo (wm_node_t *node, const char *plugin, bson *bson_record)
+{/*{{{*/
   char collection_name[512];
   const char * coll_name = NULL;
-  bson *bson_record;
   int status;
 
   /* build collection name */
@@ -255,13 +316,9 @@ static int wm_write (const data_set_t *ds, /* {{{ */
     strcat (collection_name, node->collection_name);
     coll_name = node->collection_name;
   }else{
-    strcat (collection_name, vl->plugin);
-    coll_name = vl->plugin;
+    strcat (collection_name, plugin);
+    coll_name = plugin;
   }
-
-  bson_record = wm_create_bson (ds, vl, node->store_rates);
-  if (bson_record == NULL)
-    return (ENOMEM);
 
   pthread_mutex_lock (&node->lock);
 
@@ -304,20 +361,13 @@ static int wm_write (const data_set_t *ds, /* {{{ */
             node->timeout, node->conn->errstr);
       }
     }
-    /* If all into one collection, we can check collection at connection time */
-    if (node->collection_name) {
-      wm_check_collection (node, coll_name);
-    }
   }
 
   /* Assert if the connection has been established */
   assert (mongo_is_connected (node->conn));
 
-  /* If NOT all into one collection, we need to check collection here as we
-   * don't know all plugins name */
-  if (!node->collection_name) {
-    wm_check_collection (node, coll_name);
-  }
+  /* Check collection */
+  wm_check_collection (node, coll_name);
 
   #if MONGO_MINOR >= 6
     /* There was an API change in 0.6.0 as linked below */
@@ -344,10 +394,48 @@ static int wm_write (const data_set_t *ds, /* {{{ */
 
   pthread_mutex_unlock (&node->lock);
 
+  return (0);
+
+}/*}}}*/
+
+static int wm_write_notification (const notification_t *notification, /*{{{*/
+		user_data_t *ud)
+{
+  wm_node_t *node = ud->data;
+  bson *bson_record;
+  int status;
+
+  bson_record = wm_create_bson_notification (notification);
+  if (bson_record == NULL)
+    return (ENOMEM);
+
+  status = wm_write_mongo (node, notification->plugin, bson_record);
+
   /* free our resource as not to leak memory */
   bson_dealloc (bson_record);
 
-  return (0);
+  return (status);
+
+} /*}}}*/
+
+static int wm_write_data_set (const data_set_t *ds, /* {{{ */
+    const value_list_t *vl,
+    user_data_t *ud)
+{
+  wm_node_t *node = ud->data;
+  bson *bson_record;
+  int status;
+
+  bson_record = wm_create_bson_data_set (ds, vl, node->store_rates);
+  if (bson_record == NULL)
+    return (ENOMEM);
+
+  status = wm_write_mongo (node, vl->plugin, bson_record);
+
+  /* free our resource as not to leak memory */
+  bson_dealloc (bson_record);
+
+  return (status);
 } /* }}} int wm_write */
 
 static void wm_config_free (void *ptr) /* {{{ */
@@ -379,6 +467,7 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
   mongo_init (node->conn);
   node->host = NULL;
   node->store_rates = 1;
+  node->write_data_set = 1;
   pthread_mutex_init (&node->lock, /* attr = */ NULL);
 
   status = cf_util_get_string_buffer (ci, node->name, sizeof (node->name));
@@ -422,6 +511,10 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_int (child, &node->max_size);
     else if (strcasecmp ("MaxDoc", child->key) == 0)
       status = cf_util_get_int (child, &node->max_doc);
+    else if (strcasecmp ("WriteDataSet", child->key) == 0)
+      status = cf_util_get_boolean (child, &node->write_data_set);
+    else if (strcasecmp ("WriteNotification", child->key) == 0)
+      status = cf_util_get_boolean (child, &node->write_notification);
     else
       WARNING ("write_mongodb plugin: Ignoring unknown config option \"%s\".",
           child->key);
@@ -459,8 +552,18 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
     ud.data = node;
     ud.free_func = wm_config_free;
 
-    status = plugin_register_write (cb_name, wm_write, &ud);
-    INFO ("write_mongodb plugin: registered write plugin %s %d",cb_name,status);
+    /* Write data set ? */
+    if (status == 0 && node->write_data_set)
+    {
+      status = plugin_register_write (cb_name, wm_write_data_set, &ud);
+      INFO ("write_mongodb plugin: registered write plugin %s %d",cb_name,status);
+    }
+    /* Write notification ? */
+    if (status == 0 && node->write_notification)
+    {
+      status = plugin_register_notification (cb_name, wm_write_notification, &ud);
+      INFO ("write_mongodb plugin: registered notification plugin %s %d",cb_name,status);
+    }
   }
 
   if (status != 0)
