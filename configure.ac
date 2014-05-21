@@ -2057,6 +2057,58 @@ then
 fi
 # }}}
 
+# --with-json-c {{{
+with_json_c_cppflags=""
+with_json_c_ldflags=""
+AC_ARG_WITH(libjson-c, [AS_HELP_STRING([--with-libjson-c@<:@=PREFIX@:>@], [Path to libjson-c.])],
+[
+        if test "x$withval" != "xno" && test "x$withval" != "xyes"
+        then
+                with_libjson_c_cppflags="-I$withval/include"
+                with_libjson_c_ldflags="-L$withval/lib"
+                with_libjson_c="yes"
+        else
+                with_libjson_c="$withval"
+        fi
+],
+[
+        with_libjson_c="yes"
+])
+if test "x$with_libjson_c" = "xyes"
+then
+        SAVE_CPPFLAGS="$CPPFLAGS"
+        CPPFLAGS="$CPPFLAGS $with_libjson_c_cppflags"
+
+        AC_CHECK_HEADERS(json/json.h, [with_libjson_c="yes"], [with_libjson_c="no (json/json.h not found)"])
+        AC_CHECK_HEADERS(json/json_tokener.h)
+
+        CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_libjson_c" = "xyes"
+then
+        SAVE_CPPFLAGS="$CPPFLAGS"
+        SAVE_LDFLAGS="$LDFLAGS"
+        CPPFLAGS="$CPPFLAGS $with_libjson_c_cppflags"
+        LDFLAGS="$LDFLAGS $with_libjson_c_ldflags"
+
+        AC_CHECK_LIB(json, json_tokener_new, [with_libjson_c="yes"], [with_libjson_c="no (Symbol 'json' not found)"])
+
+        CPPFLAGS="$SAVE_CPPFLAGS"
+        LDFLAGS="$SAVE_LDFLAGS"
+fi
+if test "x$with_libjson_c" = "xyes"
+then
+        BUILD_WITH_LIBJSON_C_CPPFLAGS="$with_libjson_c_cppflags"
+        BUILD_WITH_LIBJSON_C_LDFLAGS="$with_libjson_c_ldflags"
+        BUILD_WITH_LIBJSON_C_LIBS="-ljson"
+        AC_SUBST(BUILD_WITH_LIBJSON_C_CPPFLAGS)
+        AC_SUBST(BUILD_WITH_LIBJSON_C_LDFLAGS)
+        AC_SUBST(BUILD_WITH_LIBJSON_C_LIBS)
+        AC_DEFINE(HAVE_LIBJSON_C, 1, [Define if libjson-c is present and usable.])
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBJSON_C, test "x$with_libjson_c" = "xyes")
+# }}}
+
 # --with-java {{{
 with_java_home="$JAVA_HOME"
 with_java_vmtype="client"
@@ -4815,6 +4867,7 @@ plugin_processes="no"
 plugin_protocols="no"
 plugin_serial="no"
 plugin_swap="no"
+plugin_suricata="no"
 plugin_tape="no"
 plugin_tcpconns="no"
 plugin_ted="no"
@@ -4921,6 +4974,11 @@ then
 	plugin_interface="yes"
 	plugin_memory="yes"
 	plugin_tape="yes"
+fi
+
+if test "x$with_libjson_c" = "xyes"
+then
+	plugin_suricata="yes"
 fi
 
 # libstatgrab
@@ -5196,6 +5254,7 @@ AC_PLUGIN([serial],      [$plugin_serial],     [serial port traffic])
 AC_PLUGIN([sigrok],      [$with_libsigrok],    [sigrok acquisition sources])
 AC_PLUGIN([snmp],        [$with_libnetsnmp],   [SNMP querying plugin])
 AC_PLUGIN([statsd],      [yes],                [StatsD plugin])
+AC_PLUGIN([suricata],	 [$plugin_suricata],   [Suricata Stats plugin])
 AC_PLUGIN([swap],        [$plugin_swap],       [Swap usage statistics])
 AC_PLUGIN([syslog],      [$have_syslog],       [Syslog logging plugin])
 AC_PLUGIN([table],       [yes],                [Parsing of tabular data])
@@ -5408,6 +5467,7 @@ Configuration:
     libgcrypt . . . . . . $with_libgcrypt
     libiokit  . . . . . . $with_libiokit
     libiptc . . . . . . . $with_libiptc
+    libjson-c . . . . . . $with_libjson_c
     libjvm  . . . . . . . $with_java
     libkstat  . . . . . . $with_kstat
     libkvm  . . . . . . . $with_libkvm
@@ -5540,6 +5600,7 @@ Configuration:
     sigrok  . . . . . . . $enable_sigrok
     snmp  . . . . . . . . $enable_snmp
     statsd  . . . . . . . $enable_statsd
+    suricata  . . . . . . $enable_suricata
     swap  . . . . . . . . $enable_swap
     syslog  . . . . . . . $enable_syslog
     table . . . . . . . . $enable_table

@@ -117,6 +117,7 @@
 %define with_serial 0%{!?_without_serial:1}
 %define with_snmp 0%{!?_without_snmp:1}
 %define with_statsd 0%{!?_without_statsd:1}
+%define with_suricata 0%{!?_without_suricata:1}
 %define with_swap 0%{!?_without_swap:1}
 %define with_syslog 0%{!?_without_syslog:1}
 %define with_table 0%{!?_without_table:1}
@@ -607,6 +608,17 @@ Requires:	%{name}%{?_isa} = %{version}-%{release}
 BuildRequires:	net-snmp-devel
 %description snmp
 This plugin for collectd allows querying of network equipment using SNMP.
+%endif
+
+%if %{with_suricata}
+%package suricata
+Summary:        Suricata plugin for collectd
+Group:          System Environment/Daemons
+Requires:       %{name}%{?_isa} = %{version}-%{release}
+Requires:       json-c
+BuildRequires:  json-c-devel
+%description suricata
+This plugin for collectd allows querying of Suricata IDS/IPS engine counters.
 %endif
 
 %if %{with_varnish}
@@ -1199,6 +1211,12 @@ Development files for libcollectdclient
 %define _with_statsd --disable-statsd
 %endif
 
+%if %{with_suricata}
+%define _with_suricata --enable-suricata
+%else
+%define _with_suricata --disable-suricata
+%endif
+
 %if %{with_swap}
 %define _with_swap --enable-swap
 %else
@@ -1466,6 +1484,7 @@ Development files for libcollectdclient
 	%{?_with_protocols} \
 	%{?_with_serial} \
 	%{?_with_statsd} \
+        %{?_with_suricata} \
 	%{?_with_swap} \
 	%{?_with_syslog} \
 	%{?_with_table} \
@@ -1964,6 +1983,11 @@ fi
 %{_libdir}/%{name}/sensors.so
 %endif
 
+%if %{with_suricata}
+%files suricata
+%{_libdir}/%{name}/suricata.so
+%endif
+
 %if %{with_sigrok}
 %files sigrok
 %{_libdir}/%{name}/sigrok.so
@@ -2007,6 +2031,8 @@ fi
 %doc contrib/
 
 %changelog
+* Tue Jan 21 2014 Domingo Kiser <dkiser@godaddy.com> 5.4.0-2
+- Update to include suricata plugin.
 * Mon Aug 19 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.4.0-1
 - New upstream version
 - Build netlink plugin by default

@@ -158,6 +158,7 @@
 #@BUILD_PLUGIN_SIGROK_TRUE@LoadPlugin sigrok
 #@BUILD_PLUGIN_SNMP_TRUE@LoadPlugin snmp
 #@BUILD_PLUGIN_STATSD_TRUE@LoadPlugin statsd
+##@BUILD_PLUGIN_SURICATA_TRUE@LoadPlugin suricata
 #@BUILD_PLUGIN_SWAP_TRUE@LoadPlugin swap
 #@BUILD_PLUGIN_TABLE_TRUE@LoadPlugin table
 #@BUILD_PLUGIN_TAIL_TRUE@LoadPlugin tail
@@ -976,6 +977,10 @@
 #  DeleteGauges   false
 #  DeleteSets     false
 #  TimerPercentile 90.0
+#</Plugin>
+
+#<Plugin "suricata">
+#	SocketFile "/var/run/suricata/suricata-command.socket"
 #</Plugin>
 
 #<Plugin "swap">
