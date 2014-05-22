@@ -741,7 +741,7 @@ static int camqp_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
 {
     camqp_config_t *conf = user_data->data;
     char routing_key[6 * DATA_MAX_NAME_LEN];
-    char buffer[4096];
+    char buffer[8192];
     int status;
 
     if ((ds == NULL) || (vl == NULL) || (conf == NULL))
