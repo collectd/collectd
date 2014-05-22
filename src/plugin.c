@@ -477,9 +477,14 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 		 * intervals in which it will be called. */
 		if (status != 0)
 		{
+			const char *mei = global_option_get ("MaxEffectiveInterval");
+			int max_effective_interval = atoi (mei);
+			if (max_effective_interval <= 0) {
+				max_effective_interval = 86400;
+			}
 			rf->rf_effective_interval *= 2;
-			if (rf->rf_effective_interval > TIME_T_TO_CDTIME_T (86400))
-				rf->rf_effective_interval = TIME_T_TO_CDTIME_T (86400);
+			if (rf->rf_effective_interval > TIME_T_TO_CDTIME_T (max_effective_interval))
+				rf->rf_effective_interval = TIME_T_TO_CDTIME_T (max_effective_interval);
 
 			NOTICE ("read-function of plugin `%s' failed. "
 					"Will suspend it for %.3f seconds.",

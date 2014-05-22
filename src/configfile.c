@@ -114,7 +114,8 @@ static cf_global_option_t cf_global_options[] =
 	{"Timeout",     NULL, "2"},
 	{"AutoLoadPlugin", NULL, "false"},
 	{"PreCacheChain",  NULL, "PreCache"},
-	{"PostCacheChain", NULL, "PostCache"}
+	{"PostCacheChain", NULL, "PostCache"},
+	{"MaxEffectiveInterval", NULL, "86400"}
 };
 static int cf_global_options_num = STATIC_ARRAY_SIZE (cf_global_options);
 
