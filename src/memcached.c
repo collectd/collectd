@@ -437,6 +437,10 @@ static int memcached_read (user_data_t *user_data)
     {
       submit_gauge ("memcached_connections", "current", atof (fields[2]), st);
     }
+    else if (FIELD_IS ("listen_disabled_num"))
+    {
+      submit_derive ("memcached_connections", "listen_disabled_num", atof (fields[2]), st);
+    }
 
     /*
      * Commands
