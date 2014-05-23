@@ -93,6 +93,8 @@ struct camqp_config_s
     /* subscribe only */
     char   *exchange_type;
     char   *queue;
+    _Bool   queue_durable;
+    _Bool   queue_auto_delete;
 
     amqp_connection_state_t connection;
     pthread_mutex_t lock;
@@ -328,9 +330,9 @@ static int camqp_setup_queue (camqp_config_t *conf) /* {{{ */
             ? amqp_cstring_bytes (conf->queue)
             : AMQP_EMPTY_BYTES,
             /* passive     = */ 0,
-            /* durable     = */ 0,
+            /* durable     = */ conf->queue_durable,
             /* exclusive   = */ 0,
-            /* auto_delete = */ 1,
+            /* auto_delete = */ conf->queue_auto_delete,
             /* arguments   = */ AMQP_EMPTY_TABLE);
     if (qd_ret == NULL)
     {
@@ -931,6 +933,8 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
     /* subscribe only */
     conf->exchange_type = NULL;
     conf->queue = NULL;
+    conf->queue_durable = 0;
+    conf->queue_auto_delete = 1;
     /* general */
     conf->connection = NULL;
     pthread_mutex_init (&conf->lock, /* attr = */ NULL);
@@ -970,6 +974,10 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
             status = cf_util_get_string (child, &conf->exchange_type);
         else if ((strcasecmp ("Queue", child->key) == 0) && !publish)
             status = cf_util_get_string (child, &conf->queue);
+        else if (strcasecmp ("QueueDurable", child->key) == 0)
+            status = cf_util_get_boolean (child, &conf->queue_durable);
+        else if (strcasecmp ("QueueAutoDelete", child->key) == 0)
+            status = cf_util_get_boolean (child, &conf->queue_auto_delete);
         else if (strcasecmp ("RoutingKey", child->key) == 0)
             status = cf_util_get_string (child, &conf->routing_key);
         else if ((strcasecmp ("Persistent", child->key) == 0) && publish)
