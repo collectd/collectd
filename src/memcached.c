@@ -387,7 +387,7 @@ static int memcached_read (user_data_t *user_data)
 
     /*
      * For an explanation on these fields please refer to
-     * <http://code.sixapart.com/svn/memcached/trunk/server/doc/protocol.txt>
+     * <https://github.com/memcached/memcached/blob/master/doc/protocol.txt>
      */
 
     /*
