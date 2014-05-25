@@ -439,7 +439,7 @@ static int memcached_read (user_data_t *user_data)
     }
     else if (FIELD_IS ("listen_disabled_num"))
     {
-      submit_derive ("memcached_connections", "listen_disabled_num", atof (fields[2]), st);
+      submit_derive ("memcached_connections", "listen_disabled", atof (fields[2]), st);
     }
 
     /*
