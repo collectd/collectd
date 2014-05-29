@@ -123,7 +123,7 @@ static void vg_read(vg_t vg, char const *vg_name)
         return;
     dm_list_iterate_items(lvl, lvs) {
         name = lvm_lv_get_name(lvl->lv);
-        attrs = lvm_lv_get_attr(lvl->lv);
+        attrs = get_lv_property_string(lvl->lv, "lv_attr");
         size = lvm_lv_get_size(lvl->lv);
         if (name == NULL || attrs == NULL || size == NO_VALUE)
             continue;
