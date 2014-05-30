@@ -26,20 +26,23 @@
  *   Scott Sanders <scott at jssjr.com>
  *   Pierre-Yves Ritschard <pyr at spootnik.org>
  *
- * Modified by Brett Hawn <bhawn at llnw.com> 
+ * Modified by:
+ *   Brett Hawn <bhawn at llnw.com>
+ *   Kevin Bowling <kbowling@llnw.com>
+ *
  * Based on the write_graphite plugin.
  **/
 
- /* write_tsdb plugin configuation example
-  *
-  * <Plugin write_tsdb>
-  *   <Node>
-  *     Host "localhost"
-  *     Port "4242"
-  *     Prefix "sys"
-  *   </Node>
-  * </Plugin>
-  */
+/* write_tsdb plugin configuation example
+ *
+ * <Plugin write_tsdb>
+ *   <Node>
+ *     Host "localhost"
+ *     Port "4242"
+ *     Prefix "sys"
+ *   </Node>
+ * </Plugin>
+ */
 
 #include "collectd.h"
 #include "common.h"
@@ -118,7 +121,7 @@ static int wt_send_buffer (struct wt_callback *cb)
     {
         char errbuf[1024];
         ERROR ("write_tsdb plugin: send failed with status %zi (%s)",
-                status, sstrerror (errno, errbuf, sizeof (errbuf)));
+               status, sstrerror (errno, errbuf, sizeof (errbuf)));
 
 
         close (cb->sock_fd);
@@ -136,9 +139,9 @@ static int wt_flush_nolock (cdtime_t timeout, struct wt_callback *cb)
     int status;
 
     DEBUG ("write_tsdb plugin: wt_flush_nolock: timeout = %.3f; "
-            "send_buf_fill = %zu;",
-            (double)timeout,
-            cb->send_buf_fill);
+           "send_buf_fill = %zu;",
+           (double)timeout,
+           cb->send_buf_fill);
 
     /* timeout == 0  => flush unconditionally */
     if (timeout > 0)
@@ -188,7 +191,7 @@ static int wt_callback_init (struct wt_callback *cb)
     if (status != 0)
     {
         ERROR ("write_tsdb plugin: getaddrinfo (%s, %s) failed: %s",
-                node, service, gai_strerror (status));
+               node, service, gai_strerror (status));
         return (-1);
     }
 
@@ -196,7 +199,7 @@ static int wt_callback_init (struct wt_callback *cb)
     for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
     {
         cb->sock_fd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype,
-                ai_ptr->ai_protocol);
+                              ai_ptr->ai_protocol);
         if (cb->sock_fd < 0)
             continue;
 
@@ -217,8 +220,8 @@ static int wt_callback_init (struct wt_callback *cb)
     {
         char errbuf[1024];
         ERROR ("write_tsdb plugin: Connecting to %s:%s failed. "
-                "The last error was: %s", node, service,
-                sstrerror (errno, errbuf, sizeof (errbuf)));
+               "The last error was: %s", node, service,
+               sstrerror (errno, errbuf, sizeof (errbuf)));
         close (cb->sock_fd);
         return (-1);
     }
@@ -255,8 +258,8 @@ static void wt_callback_free (void *data)
 }
 
 static int wt_flush (cdtime_t timeout,
-        const char *identifier __attribute__((unused)),
-        user_data_t *user_data)
+                     const char *identifier __attribute__((unused)),
+                     user_data_t *user_data)
 {
     struct wt_callback *cb;
     int status;
@@ -286,8 +289,9 @@ static int wt_flush (cdtime_t timeout,
 }
 
 static int wt_format_values (char *ret, size_t ret_len,
-        int ds_num, const data_set_t *ds, const value_list_t *vl,
-        _Bool store_rates)
+                             int ds_num, const data_set_t *ds,
+                             const value_list_t *vl,
+                             _Bool store_rates)
 {
     size_t offset = 0;
     int status;
@@ -298,20 +302,20 @@ static int wt_format_values (char *ret, size_t ret_len,
     memset (ret, 0, ret_len);
 
 #define BUFFER_ADD(...) do { \
-    status = ssnprintf (ret + offset, ret_len - offset, \
-            __VA_ARGS__); \
-    if (status < 1) \
-    { \
-        sfree (rates); \
-        return (-1); \
-    } \
-    else if (((size_t) status) >= (ret_len - offset)) \
-    { \
-        sfree (rates); \
-        return (-1); \
-    } \
-    else \
-    offset += ((size_t) status); \
+        status = ssnprintf (ret + offset, ret_len - offset, \
+                            __VA_ARGS__); \
+        if (status < 1) \
+        { \
+            sfree (rates); \
+            return (-1); \
+        } \
+        else if (((size_t) status) >= (ret_len - offset)) \
+        { \
+            sfree (rates); \
+            return (-1); \
+        } \
+        else \
+            offset += ((size_t) status); \
 } while (0)
 
     if (ds->ds[ds_num].type == DS_TYPE_GAUGE)
@@ -323,7 +327,7 @@ static int wt_format_values (char *ret, size_t ret_len,
         if (rates == NULL)
         {
             WARNING ("format_values: "
-                    "uc_get_rate failed.");
+                     "uc_get_rate failed.");
             return (-1);
         }
         BUFFER_ADD ("%f", rates[ds_num]);
@@ -331,13 +335,13 @@ static int wt_format_values (char *ret, size_t ret_len,
     else if (ds->ds[ds_num].type == DS_TYPE_COUNTER)
         BUFFER_ADD ("%llu", vl->values[ds_num].counter);
     else if (ds->ds[ds_num].type == DS_TYPE_DERIVE)
-        BUFFER_ADD ("%"PRIi64, vl->values[ds_num].derive);
+        BUFFER_ADD ("%" PRIi64, vl->values[ds_num].derive);
     else if (ds->ds[ds_num].type == DS_TYPE_ABSOLUTE)
-        BUFFER_ADD ("%"PRIu64, vl->values[ds_num].absolute);
+        BUFFER_ADD ("%" PRIu64, vl->values[ds_num].absolute);
     else
     {
         ERROR ("format_values plugin: Unknown data source type: %i",
-                ds->ds[ds_num].type);
+               ds->ds[ds_num].type);
         sfree (rates);
         return (-1);
     }
@@ -349,9 +353,9 @@ static int wt_format_values (char *ret, size_t ret_len,
 }
 
 static int wt_format_name (char *ret, int ret_len,
-        const value_list_t *vl,
-        const struct wt_callback *cb,
-        const char *ds_name)
+                           const value_list_t *vl,
+                           const struct wt_callback *cb,
+                           const char *ds_name)
 {
     char *prefix;
     char *postfix;
@@ -365,36 +369,39 @@ static int wt_format_name (char *ret, int ret_len,
         postfix = "";
 
     if (ds_name != NULL) {
-		if (vl->plugin_instance[0] == '\0') {
-			ssnprintf(ret, ret_len, "%s.%s.%s",
-				prefix, vl->plugin, ds_name);
-		} else if (vl->type_instance == '\0') {
-			ssnprintf(ret, ret_len, "%s.%s.%s.%s.%s",
-				prefix, vl->plugin, vl->plugin_instance, vl->type_instance, ds_name);
-		} else {
-			ssnprintf(ret, ret_len, "%s.%s.%s.%s.%s",
-				prefix, vl->plugin, vl->plugin_instance, vl->type, ds_name);
-		}
-	} else if (vl->plugin_instance[0] == '\0') {
-		if (vl->type_instance[0] == '\0') 
-			ssnprintf(ret, ret_len, "%s.%s.%s",
-				prefix, vl->plugin, vl->type);
-		else 
-			ssnprintf(ret, ret_len, "%s.%s.%s",
-				prefix, vl->plugin, vl->type_instance);
+        if (vl->plugin_instance[0] == '\0') {
+            ssnprintf(ret, ret_len, "%s.%s.%s",
+                      prefix, vl->plugin, ds_name);
+        } else if (vl->type_instance == '\0') {
+            ssnprintf(ret, ret_len, "%s.%s.%s.%s.%s",
+                      prefix, vl->plugin, vl->plugin_instance,
+                      vl->type_instance, ds_name);
+        } else {
+            ssnprintf(ret, ret_len, "%s.%s.%s.%s.%s",
+                      prefix, vl->plugin, vl->plugin_instance, vl->type,
+                      ds_name);
+        }
+    } else if (vl->plugin_instance[0] == '\0') {
+        if (vl->type_instance[0] == '\0')
+            ssnprintf(ret, ret_len, "%s.%s.%s",
+                      prefix, vl->plugin, vl->type);
+        else
+            ssnprintf(ret, ret_len, "%s.%s.%s",
+                      prefix, vl->plugin, vl->type_instance);
     } else if (vl->type_instance[0] == '\0') {
-		ssnprintf(ret, ret_len, "%s.%s.%s.%s",
-			prefix, vl->plugin, vl->plugin_instance, vl->type);
+        ssnprintf(ret, ret_len, "%s.%s.%s.%s",
+                  prefix, vl->plugin, vl->plugin_instance, vl->type);
     } else {
-		ssnprintf(ret, ret_len, "%s.%s.%s.%s",
-			prefix, vl->plugin, vl->plugin_instance, vl->type_instance);
+        ssnprintf(ret, ret_len, "%s.%s.%s.%s",
+                  prefix, vl->plugin, vl->plugin_instance, vl->type_instance);
     }
 
     return (0);
 }
 
 static int wt_send_message (const char* key, const char* value,
-        cdtime_t time, struct wt_callback *cb, const char* host)
+                            cdtime_t time, struct wt_callback *cb,
+                            const char* host)
 {
     int status;
     size_t message_len;
@@ -402,17 +409,18 @@ static int wt_send_message (const char* key, const char* value,
 
     /* skip if value is NaN */
     if (value[0] == 'n')
-      return (0);
+        return (0);
 
     message_len = (size_t) ssnprintf (message, sizeof (message),
-            "put %s %u %s fqdn=%s\r\n",
-            key,
-            (unsigned int) CDTIME_T_TO_TIME_T (time),
-            value,
-	    host);
+                                      "put %s %u %s fqdn=%s\r\n",
+                                      key,
+                                      (unsigned int) CDTIME_T_TO_TIME_T (
+                                          time),
+                                      value,
+                                      host);
     if (message_len >= sizeof (message)) {
         ERROR ("write_tsdb plugin: message buffer too small: "
-                "Need %zu bytes.", message_len + 1);
+               "Need %zu bytes.", message_len + 1);
         return (-1);
     }
 
@@ -450,11 +458,12 @@ static int wt_send_message (const char* key, const char* value,
     cb->send_buf_free -= message_len;
 
     DEBUG ("write_tsdb plugin: [%s]:%s buf %zu/%zu (%.1f %%) \"%s\"",
-            cb->node,
-            cb->service,
-            cb->send_buf_fill, sizeof (cb->send_buf),
-            100.0 * ((double) cb->send_buf_fill) / ((double) sizeof (cb->send_buf)),
-            message);
+           cb->node,
+           cb->service,
+           cb->send_buf_fill, sizeof (cb->send_buf),
+           100.0 * ((double) cb->send_buf_fill) /
+           ((double) sizeof (cb->send_buf)),
+           message);
 
     pthread_mutex_unlock (&cb->send_lock);
 
@@ -462,7 +471,7 @@ static int wt_send_message (const char* key, const char* value,
 }
 
 static int wt_write_messages (const data_set_t *ds, const value_list_t *vl,
-        struct wt_callback *cb)
+                              struct wt_callback *cb)
 {
     char key[10*DATA_MAX_NAME_LEN];
     char values[512];
@@ -472,7 +481,7 @@ static int wt_write_messages (const data_set_t *ds, const value_list_t *vl,
     if (0 != strcmp (ds->type, vl->type))
     {
         ERROR ("write_tsdb plugin: DS type does not match "
-                "value list type");
+               "value list type");
         return -1;
     }
 
@@ -495,11 +504,11 @@ static int wt_write_messages (const data_set_t *ds, const value_list_t *vl,
         /* Convert the values to an ASCII representation and put that into
          * `values'. */
         status = wt_format_values (values, sizeof (values), i, ds, vl,
-                    cb->store_rates);
+                                   cb->store_rates);
         if (status != 0)
         {
             ERROR ("write_tsdb plugin: error with "
-                    "wt_format_values");
+                   "wt_format_values");
             return (status);
         }
 
@@ -508,7 +517,7 @@ static int wt_write_messages (const data_set_t *ds, const value_list_t *vl,
         if (status != 0)
         {
             ERROR ("write_tsdb plugin: error with "
-                    "wt_send_message");
+                   "wt_send_message");
             return (status);
         }
     }
@@ -517,7 +526,7 @@ static int wt_write_messages (const data_set_t *ds, const value_list_t *vl,
 }
 
 static int wt_write (const data_set_t *ds, const value_list_t *vl,
-        user_data_t *user_data)
+                     user_data_t *user_data)
 {
     struct wt_callback *cb;
     int status;
@@ -533,7 +542,7 @@ static int wt_write (const data_set_t *ds, const value_list_t *vl,
 }
 
 static int config_set_char (char *dest,
-        oconfig_item_t *ci)
+                            oconfig_item_t *ci)
 {
     char buffer[4];
     int status;
@@ -547,15 +556,15 @@ static int config_set_char (char *dest,
     if (buffer[0] == 0)
     {
         ERROR ("write_tsdb plugin: Cannot use an empty string for the "
-                "\"EscapeCharacter\" option.");
+               "\"EscapeCharacter\" option.");
         return (-1);
     }
 
     if (buffer[1] != 0)
     {
         WARNING ("write_tsdb plugin: Only the first character of the "
-                "\"EscapeCharacter\" option ('%c') will be used.",
-                (int) buffer[0]);
+                 "\"EscapeCharacter\" option ('%c') will be used.",
+                 (int) buffer[0]);
     }
 
     *dest = buffer[0];
@@ -610,13 +619,13 @@ static int wt_config_tsd (oconfig_item_t *ci)
         else
         {
             ERROR ("write_tsdb plugin: Invalid configuration "
-                        "option: %s.", child->key);
+                   "option: %s.", child->key);
         }
     }
 
     ssnprintf (callback_name, sizeof (callback_name), "write_tsdb/%s/%s",
-            cb->node != NULL ? cb->node : WT_DEFAULT_NODE,
-            cb->service != NULL ? cb->service : WT_DEFAULT_SERVICE);
+               cb->node != NULL ? cb->node : WT_DEFAULT_NODE,
+               cb->service != NULL ? cb->service : WT_DEFAULT_SERVICE);
 
     memset (&user_data, 0, sizeof (user_data));
     user_data.data = cb;
@@ -642,7 +651,7 @@ static int wt_config (oconfig_item_t *ci)
         else
         {
             ERROR ("write_tsdb plugin: Invalid configuration "
-                    "option: %s.", child->key);
+                   "option: %s.", child->key);
         }
     }
 
