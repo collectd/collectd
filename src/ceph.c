@@ -88,7 +88,7 @@ struct ceph_daemon
 
 enum perfcounter_type_d
 {
-	PERFCOUNTER_LONGRUNAVG = 0x4, PERFCOUNTER_COUNTER = 0x8,
+	PERFCOUNTER_LATENCY = 0x4, PERFCOUNTER_DERIVE = 0x8,
 };
 
 /** Array of daemons to monitor */
@@ -110,6 +110,9 @@ static void ceph_daemons_print(void)
 		ceph_daemon_print(g_daemons[i]);
 	}
 }
+
+struct last_data **last_poll_data = NULL;
+int last_idx = 0;
 
 /*static void ceph_daemon_free(struct ceph_daemon *d)
  {
@@ -364,8 +367,8 @@ static int ceph_daemon_add_ds_entry(struct ceph_daemon *d, const char *name,
 	ds = &ds_array[dset->ds_num++];
 	snprintf(ds->name, MAX_RRD_DS_NAME_LEN, "%s", ds_name);
 	ds->type =
-			(pc_type & PERFCOUNTER_COUNTER) ? DS_TYPE_COUNTER : DS_TYPE_GAUGE;
-	ds->min = NAN;
+			(pc_type & PERFCOUNTER_DERIVE) ? DS_TYPE_DERIVE : DS_TYPE_GAUGE;
+	ds->min = 0;
 	ds->max = NAN;
 	return 0;
 }
@@ -560,6 +563,95 @@ struct values_tmp
 	struct values_holder vh[0];
 };
 
+struct last_data
+{
+        char dset_name[DATA_MAX_NAME_LEN];
+        char ds_name[MAX_RRD_DS_NAME_LEN];
+        double last_sum;
+        uint64_t last_count;
+};
+
+int add_last(const char *dset_n, const char *ds_n, double cur_sum, uint64_t cur_count)
+{
+        last_poll_data[last_idx] = malloc(1 * sizeof(struct last_data));
+        if(!last_poll_data[last_idx])
+        {
+                return ENOMEM;
+        }
+        sstrncpy(last_poll_data[last_idx]->dset_name,dset_n,sizeof(last_poll_data[last_idx]->dset_name));
+        sstrncpy(last_poll_data[last_idx]->ds_name,ds_n,sizeof(last_poll_data[last_idx]->ds_name));
+        last_poll_data[last_idx]->last_sum = cur_sum;
+        last_poll_data[last_idx]->last_count = cur_count;
+        last_idx++;
+        return 1;
+}
+
+int update_last(const char *dset_n, const char *ds_n, double cur_sum, uint64_t cur_count)
+{
+        int i;
+        for(i = 0; i < last_idx; i++)
+        {
+                if(strcmp(last_poll_data[i]->dset_name,dset_n) == 0)
+                {
+                        if(strcmp(last_poll_data[i]->ds_name,ds_n) == 0)
+                        {
+                                last_poll_data[i]->last_sum = cur_sum;
+                                last_poll_data[i]->last_count = cur_count;
+                                return 1;
+                        }
+                }
+        }
+
+        if(NULL == last_poll_data)
+        {
+                last_poll_data = malloc(1 * sizeof(struct last_data *));
+                if(!last_poll_data)
+                {
+                        return ENOMEM;
+                }
+        }
+        else
+        {
+                struct last_data **tmp_last = realloc(last_poll_data, ((last_idx+1) * sizeof(struct last_data *)));
+                if(!tmp_last)
+                {
+                        return ENOMEM;
+                }
+                last_poll_data = tmp_last;
+        }
+        add_last(dset_n,ds_n,cur_sum,cur_count);
+        return -1;
+}
+
+double get_last_avg(const char *dset_n, const char *ds_n, double cur_sum, uint64_t cur_count)
+{
+        int i;
+        double result = -1.1;
+        double sum_delt = 0.0;
+        uint64_t count_delt = 0;
+        for(i = 0; i < last_idx; i++)
+        {
+                if(strcmp(last_poll_data[i]->dset_name,dset_n) == 0)
+                {
+                        if(strcmp(last_poll_data[i]->ds_name,ds_n) == 0)
+                        {
+                                if(cur_count < last_poll_data[i]->last_count)
+                                {
+                                        break;
+                                }
+                                sum_delt = (cur_sum - last_poll_data[i]->last_sum);
+                                count_delt = (cur_count - last_poll_data[i]->last_count);
+                                result = (sum_delt / count_delt);
+                                break;
+                        }
+                }
+        }
+
+        result = (result == -1.1) ? NAN : result;
+        update_last(dset_n,ds_n,cur_sum,cur_count);
+        return result;
+}
+
 static int node_handler_fetch_data(void *arg, json_object *jo, const char *key)
 {
 	int dset_idx, ds_idx;
@@ -580,7 +672,7 @@ static int node_handler_fetch_data(void *arg, json_object *jo, const char *key)
 		return 1;DEBUG("DSet:%s, DS:%s, DSet idx:%d, DS idx:%d",
 			dset_name,ds_name,dset_idx,ds_idx);
 	uv = &(vtmp->vh[dset_idx].values[ds_idx]);
-	if (vtmp->d->pc_types[dset_idx][ds_idx] & PERFCOUNTER_LONGRUNAVG)
+	if (vtmp->d->pc_types[dset_idx][ds_idx] & PERFCOUNTER_LATENCY)
 	{
 		json_object *avgcount, *sum;
 		uint64_t avgcounti;
@@ -595,17 +687,18 @@ static int node_handler_fetch_data(void *arg, json_object *jo, const char *key)
 		DEBUG("avgcounti:%ld",avgcounti);
 		if (avgcounti == 0)
 			avgcounti = 1;
-		sumd = json_object_get_int(sum);
+		sumd = json_object_get_double(sum);
 		DEBUG("sumd:%lf",sumd);
-		uv->gauge = sumd / avgcounti;
-		DEBUG("uv->gauge = sumd / avgcounti = :%lf",uv->gauge);
+		double last_avg = get_last_avg(dset_name, ds_name, sumd, avgcounti);
+		uv->gauge = last_avg;
+		DEBUG("uv->gauge = (sumd_now - sumd_last) / (avgcounti_now - avgcounti_last) = :%lf",uv->gauge);
 	}
-	else if (vtmp->d->pc_types[dset_idx][ds_idx] & PERFCOUNTER_COUNTER)
+	else if (vtmp->d->pc_types[dset_idx][ds_idx] & PERFCOUNTER_DERIVE)
 	{
 		/* We use json_object_get_double here because anything > 32 
 		 * bits may get truncated by json_object_get_int */
-		uv->counter = json_object_get_double(jo);
-		DEBUG("uv->counter %ld",(long)uv->counter);
+		uv->derive = (uint64_t) json_object_get_double(jo);
+		DEBUG("uv->derive %" PRIu64 "",(uint64_t)uv->derive);
 	}
 	else
 	{
@@ -1166,6 +1259,13 @@ static int ceph_shutdown(void)
 	sfree(g_daemons);
 	g_daemons = NULL;
 	g_num_daemons = 0;
+	for(i = 0; i < last_idx; i++)
+	{
+                sfree(last_poll_data[i]);
+        }
+        sfree(last_poll_data);
+        last_poll_data = NULL;
+        last_idx = 0;
 	DEBUG("finished ceph_shutdown");
 	return 0;
 }
