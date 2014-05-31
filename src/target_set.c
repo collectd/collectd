@@ -35,6 +35,8 @@ struct ts_data_s
   char *plugin_instance;
   /* char *type; */
   char *type_instance;
+  char *tsdb_prefix;
+  char *tsdb_tags;
 };
 typedef struct ts_data_s ts_data_t;
 
@@ -108,6 +110,8 @@ static int ts_destroy (void **user_data) /* {{{ */
   free (data->plugin_instance);
   /* free (data->type); */
   free (data->type_instance);
+  free (data->tsdb_prefix);
+  free (data->tsdb_tags);
   free (data);
 
   return (0);
@@ -132,6 +136,8 @@ static int ts_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   data->plugin_instance = NULL;
   /* data->type = NULL; */
   data->type_instance = NULL;
+  data->tsdb_prefix = NULL;
+  data->tsdb_tags = NULL;
 
   status = 0;
   for (i = 0; i < ci->children_num; i++)
@@ -156,6 +162,12 @@ static int ts_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
     else if (strcasecmp ("TypeInstance", child->key) == 0)
       status = ts_config_add_string (&data->type_instance, child,
           /* may be empty = */ 1);
+    else if (strcasecmp ("TSDBPrefix", child->key) == 0)
+      status = ts_config_add_string (&data->tsdb_prefix, child,
+          /* may be empty = */ 1);
+    else if (strcasecmp ("TSDBTags", child->key) == 0)
+      status = ts_config_add_string (&data->tsdb_tags, child,
+          /* may be empty = */ 1);
     else
     {
       ERROR ("Target `set': The `%s' configuration option is not understood "
@@ -174,10 +186,13 @@ static int ts_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
         && (data->plugin == NULL)
         && (data->plugin_instance == NULL)
         /* && (data->type == NULL) */
-        && (data->type_instance == NULL))
+        && (data->type_instance == NULL)
+        && (data->tsdb_prefix == NULL)
+        && (data->tsdb_tags == NULL))
     {
       ERROR ("Target `set': You need to set at least one of `Host', "
-          "`Plugin', `PluginInstance' or `TypeInstance'.");
+          "`Plugin', `PluginInstance', `TypeInstance', 'TSDBPrefix' "
+          "or 'TSDBTags'.");
       status = -1;
     }
 
@@ -194,9 +209,65 @@ static int ts_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   return (0);
 } /* }}} int ts_create */
 
+static int ts_opentsdb_tagger (value_list_t *vl, ts_data_t *data) /* {{{ */
+{
+  int status;
+  char *old_tags = NULL;
+  char new_tags[1024];
+  const char *meta_tsdb = "tsdb_tags";
+
+  if (data->tsdb_tags != NULL) {
+    if (vl->meta == NULL)
+      vl->meta = meta_data_create ();
+
+    if (meta_data_exists (vl->meta, meta_tsdb)) {
+        status = meta_data_get_string ( vl->meta, meta_tsdb, &old_tags );
+        if (status < 0) {
+          sfree (old_tags);
+          return status;
+        }
+
+        ssnprintf ( new_tags, sizeof (new_tags), "%s %s", old_tags,
+                    data->tsdb_tags);
+
+        status = meta_data_add_string ( vl->meta, meta_tsdb, new_tags);
+        if (status < 0) {
+          sfree (old_tags);
+          return status;
+        }
+
+    } else {
+      status = meta_data_add_string ( vl->meta, meta_tsdb, data->tsdb_tags);
+      if (status < 0)
+        return status;
+    }
+  }
+
+  sfree (old_tags);
+  return 0;
+} /* }}} int ts_opentsdb_tagger */
+
+static int ts_opentsdb_prefix (value_list_t *vl, ts_data_t *data) /* {{{ */
+{
+  int status;
+  const char *meta_tsdb = "tsdb_prefix";
+
+  if (data->tsdb_prefix != NULL) {
+    if (vl->meta == NULL)
+      vl->meta = meta_data_create ();
+
+    status = meta_data_add_string ( vl->meta, meta_tsdb, data->tsdb_prefix);
+    if (status < 0)
+      return status;
+  }
+
+  return 0;
+} /* }}} int ts_opentsdb_prefix */
+
 static int ts_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
     notification_meta_t __attribute__((unused)) **meta, void **user_data)
 {
+  int status;
   ts_data_t *data;
 
   if ((ds == NULL) || (vl == NULL) || (user_data == NULL))
@@ -215,6 +286,14 @@ static int ts_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
   SET_FIELD (plugin_instance);
   /* SET_FIELD (type); */
   SET_FIELD (type_instance);
+
+  status = ts_opentsdb_tagger (vl, data);
+  if (status < 0)
+    return status;
+
+  status = ts_opentsdb_prefix (vl, data);
+  if (status < 0)
+    return status;
 
   return (FC_TARGET_CONTINUE);
 } /* }}} int ts_invoke */
