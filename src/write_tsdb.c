@@ -36,7 +36,6 @@
  *   <Node>
  *     Host "localhost"
  *     Port "4242"
- *     Prefix "sys"
  *     HostTags "status=production deviceclass=www"
  *   </Node>
  * </Plugin>
@@ -80,7 +79,6 @@ struct wt_callback
 
     char     *node;
     char     *service;
-    char     *prefix;
     char     *host_tags;
     char     escape_char;
 
@@ -244,7 +242,6 @@ static void wt_callback_free(void *data)
 
     sfree(cb->node);
     sfree(cb->service);
-    sfree(cb->prefix);
     sfree(cb->host_tags);
 
     pthread_mutex_destroy(&cb->send_lock);
@@ -352,11 +349,20 @@ static int wt_format_name(char *ret, int ret_len,
                           const struct wt_callback *cb,
                           const char *ds_name)
 {
+    int status;
+    char *temp;
     char *prefix;
+    const char *meta_prefix = "tsdb_prefix";
 
-    prefix = cb->prefix;
-    if (prefix == NULL)
+    status = meta_data_get_string(vl->meta, meta_prefix, &temp);
+    if (status == -ENOENT) {
         prefix = "";
+    } else if (status < 0) {
+        sfree(temp);
+        return status;
+    } else {
+        prefix = temp;
+    }
 
     if (ds_name != NULL) {
         if (vl->plugin_instance[0] == '\0') {
@@ -386,23 +392,38 @@ static int wt_format_name(char *ret, int ret_len,
                   prefix, vl->plugin, vl->plugin_instance, vl->type_instance);
     }
 
+    sfree(temp);
     return 0;
 }
 
 static int wt_send_message (const char* key, const char* value,
                             cdtime_t time, struct wt_callback *cb,
-                            const char* host)
+                            const char* host, meta_data_t *md)
 {
     int status;
     int message_len;
-    const char *message_fmt;
+    char *temp, *tags;
     char message[1024];
+    const char *message_fmt;
+    const char *meta_tsdb = "tsdb_tags";
 
     /* skip if value is NaN */
     if (value[0] == 'n')
         return 0;
 
-    message_fmt = "put %s %u %s fqdn=%s %s\r\n";
+    status = meta_data_get_string(md, meta_tsdb, &temp);
+    if (status == -ENOENT) {
+        tags = "";
+    } else if (status < 0) {
+        ERROR("write_tsdb plugin: tags metadata get failure");
+        sfree(temp);
+        pthread_mutex_unlock(&cb->send_lock);
+        return status;
+    } else {
+        tags = temp;
+    }
+
+    message_fmt = "put %s %u %s fqdn=%s %s %s\r\n";
     message_len = ssnprintf (message, sizeof(message),
                                       message_fmt,
                                       key,
@@ -410,7 +431,11 @@ static int wt_send_message (const char* key, const char* value,
                                           time),
                                       value,
                                       host,
+                                      tags,
                                       cb->host_tags);
+
+    sfree(tags);
+
     if (message_len >= sizeof(message)) {
         ERROR("write_tsdb plugin: message buffer too small: "
               "Need %d bytes.", message_len + 1);
@@ -506,7 +531,7 @@ static int wt_write_messages(const data_set_t *ds, const value_list_t *vl,
         }
 
         /* Send the message to tsdb */
-        status = wt_send_message(key, values, vl->time, cb, vl->host);
+        status = wt_send_message(key, values, vl->time, cb, vl->host, vl->meta);
         if (status != 0)
         {
             ERROR("write_tsdb plugin: error with "
@@ -582,7 +607,6 @@ static int wt_config_tsd(oconfig_item_t *ci)
     cb->sock_fd = -1;
     cb->node = NULL;
     cb->service = NULL;
-    cb->prefix = NULL;
     cb->host_tags = NULL;
     cb->escape_char = WT_DEFAULT_ESCAPE;
     cb->store_rates = 1;
@@ -597,8 +621,6 @@ static int wt_config_tsd(oconfig_item_t *ci)
             cf_util_get_string(child, &cb->node);
         else if (strcasecmp("Port", child->key) == 0)
             cf_util_get_service(child, &cb->service);
-        else if (strcasecmp("Prefix", child->key) == 0)
-            cf_util_get_string(child, &cb->prefix);
         else if (strcasecmp("HostTags", child->key) == 0)
             cf_util_get_string(child, &cb->host_tags);
         else if (strcasecmp("StoreRates", child->key) == 0)
