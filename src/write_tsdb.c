@@ -350,45 +350,47 @@ static int wt_format_name(char *ret, int ret_len,
                           const char *ds_name)
 {
     int status;
-    char *temp;
-    char *prefix;
+    char *temp = NULL;
+    char *prefix = "";
     const char *meta_prefix = "tsdb_prefix";
 
-    status = meta_data_get_string(vl->meta, meta_prefix, &temp);
-    if (status == -ENOENT) {
-        prefix = "";
-    } else if (status < 0) {
-        sfree(temp);
-        return status;
-    } else {
-        prefix = temp;
+    if (vl->meta) {
+        status = meta_data_get_string(vl->meta, meta_prefix, &temp);
+        if (status == -ENOENT) {
+            /* defaults to empty string */
+        } else if (status < 0) {
+            sfree(temp);
+            return status;
+        } else {
+            prefix = temp;
+        }
     }
 
     if (ds_name != NULL) {
         if (vl->plugin_instance[0] == '\0') {
-            ssnprintf(ret, ret_len, "%s.%s.%s",
+            ssnprintf(ret, ret_len, "%s%s.%s",
                       prefix, vl->plugin, ds_name);
         } else if (vl->type_instance == '\0') {
-            ssnprintf(ret, ret_len, "%s.%s.%s.%s.%s",
+            ssnprintf(ret, ret_len, "%s%s.%s.%s.%s",
                       prefix, vl->plugin, vl->plugin_instance,
                       vl->type_instance, ds_name);
         } else {
-            ssnprintf(ret, ret_len, "%s.%s.%s.%s.%s",
+            ssnprintf(ret, ret_len, "%s%s.%s.%s.%s",
                       prefix, vl->plugin, vl->plugin_instance, vl->type,
                       ds_name);
         }
     } else if (vl->plugin_instance[0] == '\0') {
         if (vl->type_instance[0] == '\0')
-            ssnprintf(ret, ret_len, "%s.%s.%s",
+            ssnprintf(ret, ret_len, "%s%s.%s",
                       prefix, vl->plugin, vl->type);
         else
-            ssnprintf(ret, ret_len, "%s.%s.%s",
+            ssnprintf(ret, ret_len, "%s%s.%s",
                       prefix, vl->plugin, vl->type_instance);
     } else if (vl->type_instance[0] == '\0') {
-        ssnprintf(ret, ret_len, "%s.%s.%s.%s",
+        ssnprintf(ret, ret_len, "%s%s.%s.%s",
                   prefix, vl->plugin, vl->plugin_instance, vl->type);
     } else {
-        ssnprintf(ret, ret_len, "%s.%s.%s.%s",
+        ssnprintf(ret, ret_len, "%s%s.%s.%s",
                   prefix, vl->plugin, vl->plugin_instance, vl->type_instance);
     }
 
@@ -402,7 +404,8 @@ static int wt_send_message (const char* key, const char* value,
 {
     int status;
     int message_len;
-    char *temp, *tags;
+    char *temp = NULL;
+    char *tags = "";
     char message[1024];
     const char *message_fmt;
     const char *meta_tsdb = "tsdb_tags";
@@ -411,16 +414,18 @@ static int wt_send_message (const char* key, const char* value,
     if (value[0] == 'n')
         return 0;
 
-    status = meta_data_get_string(md, meta_tsdb, &temp);
-    if (status == -ENOENT) {
-        tags = "";
-    } else if (status < 0) {
-        ERROR("write_tsdb plugin: tags metadata get failure");
-        sfree(temp);
-        pthread_mutex_unlock(&cb->send_lock);
-        return status;
-    } else {
-        tags = temp;
+    if (md) {
+        status = meta_data_get_string(md, meta_tsdb, &temp);
+        if (status == -ENOENT) {
+            /* defaults to empty string */
+        } else if (status < 0) {
+            ERROR("write_tsdb plugin: tags metadata get failure");
+            sfree(temp);
+            pthread_mutex_unlock(&cb->send_lock);
+            return status;
+        } else {
+            tags = temp;
+        }
     }
 
     message_fmt = "put %s %u %s fqdn=%s %s %s\r\n";
@@ -434,7 +439,7 @@ static int wt_send_message (const char* key, const char* value,
                                       tags,
                                       cb->host_tags);
 
-    sfree(tags);
+    sfree(temp);
 
     if (message_len >= sizeof(message)) {
         ERROR("write_tsdb plugin: message buffer too small: "
