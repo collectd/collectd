@@ -3,6 +3,7 @@
  * Copyright (C) 2005,2006  Vincent Stehlé
  * Copyright (C) 2006-2010  Florian octo Forster
  * Copyright (C) 2008       Sebastian Harl
+ * Copyright (C) 2014       Carnegie Mellon University
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -22,6 +23,7 @@
  *   Vincent Stehlé <vincent.stehle at free.fr>
  *   Florian octo Forster <octo at collectd.org>
  *   Sebastian Harl <sh at tokkee.org>
+ *   Benjamin Gilbert <bgilbert at cs.cmu.edu>
  *
  * TODO:
  *   Do a pass, some day, and spare some memory. We consume too much for now
@@ -241,51 +243,41 @@ static void hddtemp_submit (char *type_instance, double value)
 static int hddtemp_read (void)
 {
 	char buf[1024];
-	char *fields[128];
 	char *ptr;
 	char *saveptr;
-	int num_fields;
-	int num_disks;
+	char *name;
+	char *model;
+	char *temperature;
+	char *mode;
 
 	/* get data from daemon */
 	if (hddtemp_query_daemon (buf, sizeof (buf)) < 0)
 		return (-1);
 
 	/* NB: strtok_r will eat up "||" and leading "|"'s */
-	num_fields = 0;
 	ptr = buf;
 	saveptr = NULL;
-	while ((fields[num_fields] = strtok_r (ptr, "|", &saveptr)) != NULL)
+	while ((name = strtok_r (ptr, "|", &saveptr)) != NULL &&
+	       (model = strtok_r (NULL, "|", &saveptr)) != NULL &&
+	       (temperature = strtok_r (NULL, "|", &saveptr)) != NULL &&
+	       (mode = strtok_r (NULL, "|", &saveptr)) != NULL)
 	{
+		double temperature_value;
+
 		ptr = NULL;
-		num_fields++;
-
-		if (num_fields >= 128)
-			break;
-	}
-
-	num_disks = num_fields / 4;
-
-	for (int i = 0; i < num_disks; i++)
-	{
-		char *name;
-		double temperature;
-		char *mode;
-
-		mode = fields[4*i + 3];
-		name = basename (fields[4*i + 0]);
 
 		/* Skip non-temperature information */
 		if (mode[0] != 'C' && mode[0] != 'F')
 			continue;
 
-		temperature = atof (fields[4*i + 2]);
+		name = basename (name);
+		temperature_value = atof (temperature);
 
 		/* Convert farenheit to celsius */
 		if (mode[0] == 'F')
-			temperature = (temperature - 32.0) * 5.0 / 9.0;
+			temperature_value = (temperature_value - 32.0) * 5.0 / 9.0;
 
-		hddtemp_submit (name, temperature);
+		hddtemp_submit (name, temperature_value);
 	}
 	
 	return (0);
