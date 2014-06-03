@@ -1192,7 +1192,7 @@
 #	<Node>
 #		Host "localhost"
 #		Port "4242"
-#		Prefix "sys"
+#		HostTags "status=production"
 #	</Node>
 #</Plugin>
 
