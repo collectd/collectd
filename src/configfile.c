@@ -414,6 +414,12 @@ static int cf_ci_replace_child (oconfig_item_t *dst, oconfig_item_t *src,
 
 	/* Resize the memory containing the children to be big enough to hold
 	 * all children. */
+	if (dst->children_num + src->children_num - 1 == 0)
+	{
+		dst->children_num = 0;
+		return (0);
+	}
+
 	temp = (oconfig_item_t *) realloc (dst->children,
 			sizeof (oconfig_item_t)
 			* (dst->children_num + src->children_num - 1));
@@ -514,7 +520,8 @@ static int cf_include_all (oconfig_item_t *root, int depth)
 			continue;
 
 		/* Now replace the i'th child in `root' with `new'. */
-		cf_ci_replace_child (root, new, i);
+		if (cf_ci_replace_child (root, new, i) < 0)
+			return (-1);
 
 		/* ... and go back to the new i'th child. */
 		--i;
