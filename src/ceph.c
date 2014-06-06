@@ -368,7 +368,25 @@ static int ceph_daemon_add_ds_entry(struct ceph_daemon *d, const char *name,
 	snprintf(ds->name, MAX_RRD_DS_NAME_LEN, "%s", ds_name);
 	ds->type =
 			(pc_type & PERFCOUNTER_DERIVE) ? DS_TYPE_DERIVE : DS_TYPE_GAUGE;
-	ds->min = 0;
+			
+	 /** Special case for filestore:JournalWrBytes, we don't want to
+            use what the Ceph schema gives us (sum/count pair) */
+        if((strcmp(dset_name,"filestore") == 0) &&
+           (strcmp(ds_name,"JournalWrBytes") == 0))
+        {
+                ds->type = DS_TYPE_DERIVE;
+        }
+        /** Use min of 0 for DERIVE types so we dont' get negative values
+            on Ceph service restart */
+        if(ds->type == DS_TYPE_DERIVE)
+        {
+                ds->min = 0;
+        }
+        else if(ds->type == DS_TYPE_GAUGE)
+        {
+                ds->min = NAN;
+        }
+
 	ds->max = NAN;
 	return 0;
 }
@@ -672,7 +690,20 @@ static int node_handler_fetch_data(void *arg, json_object *jo, const char *key)
 		return 1;DEBUG("DSet:%s, DS:%s, DSet idx:%d, DS idx:%d",
 			dset_name,ds_name,dset_idx,ds_idx);
 	uv = &(vtmp->vh[dset_idx].values[ds_idx]);
-	if (vtmp->d->pc_types[dset_idx][ds_idx] & PERFCOUNTER_LATENCY)
+	
+	/** Special case for filestore:JournalWrBytes, we don't want to
+            use what the Ceph schema gives us */
+        if((strcmp(dset_name,"filestore") == 0) &&
+           (strcmp(ds_name,"JournalWrBytes") == 0))
+        {
+                json_object *sum;
+                sum = json_object_object_get(jo, "sum");
+                if(!sum)
+                        return -EINVAL;
+                uv->derive = (uint64_t) json_object_get_double(sum);
+                DEBUG("uv derive = %" PRIu64 "",(uint64_t) uv->derive);
+        }
+	else if (vtmp->d->pc_types[dset_idx][ds_idx] & PERFCOUNTER_LATENCY)
 	{
 		json_object *avgcount, *sum;
 		uint64_t avgcounti;
