@@ -48,7 +48,11 @@ static int sl_config (const char *key, const char *value)
 	{
 		log_level = parse_log_severity (value);
 		if (log_level < 0)
+		{
+			log_level = LOG_INFO;
+			ERROR ("syslog: invalid loglevel [%s] defauling to 'info'", value);
 			return (1);
+		}
 	}
 	else if (strcasecmp (key, "NotifyLevel") == 0)
 	{
