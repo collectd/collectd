@@ -2247,6 +2247,8 @@ int parse_log_severity (const char *severity)
 	else if (0 == strcasecmp (severity, "debug"))
 		log_level = LOG_DEBUG;
 #endif /* COLLECT_DEBUG */
+	else
+		log_level = -2;
 
 	return (log_level);
 } /* int parse_log_severity */
