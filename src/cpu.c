@@ -241,10 +241,11 @@ static int cpu_states_grow (void)
 	  return -1;
   }
 
-  for (i = percents_cells; i < size; i++)
+  percents = tmp;
+
+  for (i = percents_cells ; i < size; i++)
 	  memset(&percents[i], 0, sizeof(*percents));
 
-  percents = tmp;
   percents_cells = size;
   return 0;
 } /* cpu_states_grow */
