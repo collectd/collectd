@@ -5066,6 +5066,15 @@ the file is available, values before the file is available will be discarded.
 When disabled (the default) files are created synchronously, blocking for a
 short while, while the file is being written.
 
+=item B<CreateFilesAsyncLimit> B<Limit>
+
+When CreateFilesAsync is enabled, new RRD files are enabled asynchronously,
+using a separate thread that runs in the background. This limit, when set to a
+positive non nul value, will limit the number of threads, e.g. the number of
+RRD files being created at the same time. This prevents too many thread (and
+file creation) at the same time, which happens for example when you start
+Collectd for the first time.
+
 =item B<StepSize> I<Seconds>
 
 B<Force> the stepsize of newly created RRD-files. Ideally (and per default)

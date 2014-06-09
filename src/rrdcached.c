@@ -48,7 +48,8 @@ static rrdcreate_config_t rrdcreate_config =
 	/* consolidation_functions = */ NULL,
 	/* consolidation_functions_num = */ 0,
 
-	/* async = */ 0
+	/* async = */ 0,
+	/* async_limit = */ 0
 };
 
 /*
@@ -243,6 +244,8 @@ static int rc_config (oconfig_item_t *ci)
       status = cf_util_get_boolean (child, &config_create_files);
     else if (strcasecmp ("CreateFilesAsync", key) == 0)
       status = cf_util_get_boolean (child, &rrdcreate_config.async);
+    else if (strcasecmp ("CreateFilesAsyncLimit", key) == 0)
+      status = cf_util_get_int (child, &rrdcreate_config.async_limit);
     else if (strcasecmp ("CollectStatistics", key) == 0)
       status = cf_util_get_boolean (child, &config_collect_stats);
     else if (strcasecmp ("StepSize", key) == 0)

@@ -894,12 +894,14 @@
 #	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/rrd"
 #	CreateFiles true
 #	CreateFilesAsync false
+#	CreateFilesAsyncLimit 0
 #	CollectStatistics true
 #</Plugin>
 
 #<Plugin rrdtool>
 #	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/rrd"
 #	CreateFilesAsync false
+#	CreateFilesAsyncLimit 0
 #	CacheTimeout 120
 #	CacheFlush   900
 #	WritesPerSecond 50

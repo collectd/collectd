@@ -106,7 +106,8 @@ static rrdcreate_config_t rrdcreate_config =
 	/* consolidation_functions = */ NULL,
 	/* consolidation_functions_num = */ 0,
 
-	/* async = */ 0
+	/* async = */ 0,
+	/* async_limit = */ 0
 };
 
 /* XXX: If you need to lock both, cache_lock and queue_lock, at the same time,
@@ -1040,6 +1041,19 @@ static int rrd_config (const char *key, const char *value)
 			rrdcreate_config.async = 1;
 		else
 			rrdcreate_config.async = 0;
+	}
+	else if (strcasecmp ("CreateFilesAsyncLimit", key) == 0)
+	{
+		int tmp = atoi (value);
+		if (tmp <= 0)
+		{
+			fprintf (stderr, "rrdtool: `CreateFilesAsyncLimit' must "
+					"be greater or equal than 0.\n");
+			ERROR ("rrdtool: `RRARows' must "
+					"be greater or equal than 0.\n");
+			return (1);
+		}
+		rrdcreate_config.async = tmp;
 	}
 	else if (strcasecmp ("RRARows", key) == 0)
 	{
