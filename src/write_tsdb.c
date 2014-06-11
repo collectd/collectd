@@ -407,6 +407,7 @@ static int wt_send_message (const char* key, const char* value,
     char *temp = NULL;
     char *tags = "";
     char message[1024];
+    char *host_tags = cb->host_tags ? cb->host_tags : "";
     const char *message_fmt;
     const char *meta_tsdb = "tsdb_tags";
 
@@ -437,7 +438,7 @@ static int wt_send_message (const char* key, const char* value,
                                       value,
                                       host,
                                       tags,
-                                      cb->host_tags);
+                                      host_tags);
 
     sfree(temp);
 
