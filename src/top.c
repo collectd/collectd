@@ -38,6 +38,11 @@
 #include <procfs.h>
 #endif
 
+#if KERNEL_LINUX
+static int hz;
+static int page_size;
+#endif
+
 typedef struct stat_s {
     int pid;            // %d
     char comm[256];     // %s
@@ -274,7 +279,6 @@ static int top_read(void) /* {{{ */
 {
     struct dirent **namelist = NULL;
     int n = -1;
-    int hz;
     stat_t *stat = NULL;
     status_t *status = NULL;
     char *bufferout = NULL;
@@ -298,7 +302,6 @@ static int top_read(void) /* {{{ */
         goto top_read_free_mem_after_failure;
     }
 
-    hz = sysconf(_SC_CLK_TCK);
     memset (&notif, '\0', sizeof (notif));
 
     if(NULL == (bufferout = malloc(n * sizeof(char) * 256))) {
@@ -332,11 +335,28 @@ static int top_read(void) /* {{{ */
 #define TO_100_DIV_H2(x) (x)
 #endif
 
+/* Historic note :
+ * Most servers were Linux and rss was sent as is, e.g. in number of pages
+ * instead of number of bytes or Kbytes.
+ * This new TO_4096_B() macro will convert pages to a 4 Kb multiple.
+ * So on most Linux, this value remains unchanged.
+ * On Solaris and on Linux with page size != 4096b, this is a fix.
+ * It would have been better to convert to bytes or Kbytes, but for
+ * compatibility with most systems, we keep the 4096b factor.
+ */
+#if KERNEL_LINUX
+/* Linux : this value is in number of pages, usually 4096 bytes */
+#define TO_4096_B(x) ((x) * (page_size) / 4096)
+#elif KERNEL_SOLARIS
+/* Solaris : this value is in bytes */
+#define TO_4096_B(x) ((x) / 4096)
+#endif
+
             snprintf(buf, sizeof(buf), "%d %d %lu %s %lu %s %ld %ld %ld %s\n",
                     stat->pid, stat->ppid,
                     status->Uid[1], pwd?pwd->pw_name:"NA",
                     status->Gid[1], grp?grp->gr_name:"NA",
-                    stat->rss, TO_100_DIV_H2(stat->stime),
+                    TO_4096_B(stat->rss), TO_100_DIV_H2(stat->stime),
                     TO_100_DIV_H2(stat->utime), status->Name);
             strncat(bufferout, buf, sizeof(buf));
         }
@@ -366,8 +386,18 @@ top_read_free_mem_after_failure :
     return(an_error_happened);
 } /* }}} top_read */
 
+static int top_init (void)
+{
+#if KERNEL_LINUX
+    hz = sysconf(_SC_CLK_TCK);
+    page_size = sysconf(_SC_PAGESIZE);
+#endif
+    return(0);    
+} /* top_init */
+
 void module_register (void)
 {
 	plugin_register_read ("top", top_read);
+	plugin_register_init ("top", top_init);
 }
 /* vim: set sw=4 ts=4 tw=78 noexpandtab et fdm=marker: */
