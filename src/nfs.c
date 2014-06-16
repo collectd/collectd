@@ -505,14 +505,15 @@ static int nfs_submit_nfs4_client (const char *instance, char **fields,
 			break;
 		case 42:
 		case 44:
+			proc40_names_num = 36;
 		case 46:
 		case 47:
 		case 51:
 		case 53:
-			proc40_names_num = 36;
+			proc40_names_num = 37;
 			break;
 		case 54:
-			proc40_names_num = 37;
+			proc40_names_num = 38;
 			break;
 		default:
 			if (!suppress_warning)
