@@ -55,7 +55,7 @@ static int set_option_time (notification_t *n, const char *value)
   if (tmp <= 0)
     return (-1);
 
-  n->time = tmp;
+  n->time = TIME_T_TO_CDTIME_T(tmp);
 
   return (0);
 } /* int set_option_time */
