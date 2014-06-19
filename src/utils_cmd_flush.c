@@ -168,7 +168,7 @@ int handle_flush (FILE *fh, char *buffer)
 	}
 	else
 	{
-		plugin_flush (NULL, timeout, NULL);
+		plugin_flush (NULL, DOUBLE_TO_CDTIME_T (timeout), NULL);
 		print_to_socket (fh, "0 Done\n");
 	}
 
