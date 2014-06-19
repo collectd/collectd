@@ -253,6 +253,55 @@ static int register_callback (llist_t **list, /* {{{ */
 	return (0);
 } /* }}} int register_callback */
 
+static void log_list_callbacks (llist_t **list, /* {{{ */
+				const char *comment, size_t clen)
+{
+	char *str;
+	char *pos;
+	int len;
+	llentry_t *le;
+	int i;
+	int n = llist_size(*list);
+	char **keys = malloc(sizeof(char* *) * n);
+		
+
+	for (le = llist_head (*list), i = 0, len = 0;
+	     le != NULL;
+	     le = le->next, i++)
+	{
+		keys[i] = le->key;
+		len += strlen(le->key) + 6;
+	}
+
+	if (len == 0)
+	{
+		len += strlen(comment) + 10;
+		str = malloc(len + 10);
+		*str = '\0';
+
+		pos = memcpy(str, comment, len);
+		pos = strncpy(pos, " [none]", len - (pos - str));
+	}
+	else
+	{
+		len += strlen(comment);
+		pos = str=malloc(len + 10);
+		*str = '\0';
+
+		strncpy(str, comment, clen);
+		pos += clen;
+		strncpy(pos, " ['", len - (pos - str));
+		pos += 3;
+
+		n = strjoin(pos, len - (pos - str), keys, n, "', '");
+		pos += n;
+		strncpy(pos, "']", len - (pos - str));
+	}
+	INFO(str);
+	free(str);
+	
+}
+
 static int create_register_callback (llist_t **list, /* {{{ */
 		const char *name, void *callback, user_data_t *ud)
 {
@@ -1345,6 +1394,13 @@ int plugin_unregister_read (const char *name) /* {{{ */
 
 	return (0);
 } /* }}} int plugin_unregister_read */
+
+#define _STR_W_LEN(a) a, sizeof(a) - 1
+void plugin_log_available_writers ()
+{
+	
+	log_list_callbacks (&list_write, _STR_W_LEN("Available writers:"));
+}
 
 static int compare_read_func_group (llentry_t *e, void *ud) /* {{{ */
 {
