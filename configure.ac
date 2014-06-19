@@ -5135,6 +5135,7 @@ plugin_tape="no"
 plugin_tcpconns="no"
 plugin_ted="no"
 plugin_thermal="no"
+plugin_turbostat="no"
 plugin_uptime="no"
 plugin_users="no"
 plugin_virt="no"
@@ -5170,6 +5171,7 @@ then
 	plugin_swap="yes"
 	plugin_tcpconns="yes"
 	plugin_thermal="yes"
+	plugin_turbostat="yes"
 	plugin_uptime="yes"
 	plugin_vmem="yes"
 	plugin_vserver="yes"
@@ -5568,6 +5570,7 @@ AC_PLUGIN([ted],         [$plugin_ted],        [Read The Energy Detective values
 AC_PLUGIN([thermal],     [$plugin_thermal],    [Linux ACPI thermal zone statistics])
 AC_PLUGIN([threshold],   [yes],                [Threshold checking plugin])
 AC_PLUGIN([tokyotyrant], [$with_libtokyotyrant],  [TokyoTyrant database statistics])
+AC_PLUGIN([turbostat],   [$plugin_turbostat],  [Advanced statistic on Intel cpu states])
 AC_PLUGIN([unixsock],    [yes],                [Unixsock communication plugin])
 AC_PLUGIN([uptime],      [$plugin_uptime],     [Uptime statistics])
 AC_PLUGIN([users],       [$plugin_users],      [User statistics])
@@ -5938,6 +5941,7 @@ Configuration:
     thermal . . . . . . . $enable_thermal
     threshold . . . . . . $enable_threshold
     tokyotyrant . . . . . $enable_tokyotyrant
+    turbostat . . . . . . $enable_turbostat
     unixsock  . . . . . . $enable_unixsock
     uptime  . . . . . . . $enable_uptime
     users . . . . . . . . $enable_users

@@ -342,6 +342,10 @@ Features
       Reads the number of records and file size from a running Tokyo Tyrant
       server.
 
+    - turbostat
+      Reads CPU frequency and C-state residency on modern Intel
+      turbo-capable processors.
+
     - uptime
       System uptime statistics.
 
