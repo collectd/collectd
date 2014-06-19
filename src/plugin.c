@@ -299,6 +299,7 @@ static void log_list_callbacks (llist_t **list, /* {{{ */
 	}
 	INFO(str);
 	free(str);
+	free(keys);
 	
 }
 
