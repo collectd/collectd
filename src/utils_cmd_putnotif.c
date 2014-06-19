@@ -49,13 +49,18 @@ static int set_option_severity (notification_t *n, const char *value)
 
 static int set_option_time (notification_t *n, const char *value)
 {
-  time_t tmp;
-  
-  tmp = (time_t) atoi (value);
-  if (tmp <= 0)
+  char *endptr = NULL;
+  double tmp;
+
+  errno = 0;
+  tmp = strtod (value, &endptr);
+  if ((errno != 0)         /* Overflow */
+      || (endptr == value) /* Invalid string */
+      || (endptr == NULL)  /* This should not happen */
+      || (*endptr != 0))   /* Trailing chars */
     return (-1);
 
-  n->time = TIME_T_TO_CDTIME_T(tmp);
+  n->time = DOUBLE_TO_CDTIME_T (tmp);
 
   return (0);
 } /* int set_option_time */
