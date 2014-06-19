@@ -906,7 +906,7 @@ static jobject ctoj_notification (JNIEnv *jvm_env, /* {{{ */
 #undef SET_STRING
 
   /* Set the `time' member. Java stores time in milliseconds. */
-  status = ctoj_long (jvm_env, ((jlong) n->time) * ((jlong) 1000),
+  status = ctoj_long (jvm_env, (jlong) CDTIME_T_TO_MS (n->time),
       c_notification, o_notification, "setTime");
   if (status != 0)
   {
@@ -1306,7 +1306,7 @@ static int jtoc_notification (JNIEnv *jvm_env, notification_t *n, /* {{{ */
     return (-1);
   }
   /* Java measures time in milliseconds. */
-  n->time = (time_t) (tmp_long / ((jlong) 1000));
+  n->time = MS_TO_CDTIME_T(tmp_long);
 
   status = jtoc_int (jvm_env, &tmp_int,
       class_ptr, object_ptr, "getSeverity");
