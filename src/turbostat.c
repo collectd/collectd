@@ -211,14 +211,12 @@ enum return_values {
 	ERR_NOT_ROOT,
 };
 
-#define STATIC_MUST_CHECK(function)          \
-function                                     \
-	__attribute__((warn_unused_result)); \
-function
+#define __must_check __attribute__((warn_unused_result))
 
 static int setup_all_buffers(void);
 
-static int cpu_is_not_present(int cpu)
+static int
+cpu_is_not_present(int cpu)
 {
 	return !CPU_ISSET_S(cpu, cpu_present_setsize, cpu_present_set);
 }
@@ -227,8 +225,9 @@ static int cpu_is_not_present(int cpu)
  * skip non-present cpus
  */
 
-STATIC_MUST_CHECK(static int for_all_cpus(int (func)(struct thread_data *, struct core_data *, struct pkg_data *),
-	struct thread_data *thread_base, struct core_data *core_base, struct pkg_data *pkg_base))
+static int __must_check
+for_all_cpus(int (func)(struct thread_data *, struct core_data *, struct pkg_data *),
+	struct thread_data *thread_base, struct core_data *core_base, struct pkg_data *pkg_base)
 {
 	int retval, pkg_no, core_no, thread_no;
 
@@ -257,7 +256,8 @@ STATIC_MUST_CHECK(static int for_all_cpus(int (func)(struct thread_data *, struc
 	return 0;
 }
 
-STATIC_MUST_CHECK(static int cpu_migrate(int cpu))
+static int __must_check
+cpu_migrate(int cpu)
 {
 	CPU_ZERO_S(cpu_affinity_setsize, cpu_affinity_set);
 	CPU_SET_S(cpu, cpu_affinity_setsize, cpu_affinity_set);
@@ -267,7 +267,8 @@ STATIC_MUST_CHECK(static int cpu_migrate(int cpu))
 		return 0;
 }
 
-STATIC_MUST_CHECK(static int get_msr(int cpu, off_t offset, unsigned long long *msr))
+static int __must_check
+get_msr(int cpu, off_t offset, unsigned long long *msr)
 {
 	ssize_t retval;
 	char pathname[32];
@@ -328,9 +329,9 @@ delta_core(struct core_data *new, struct core_data *old)
 /*
  * old = new - old
  */
-STATIC_MUST_CHECK(static int
+static int __must_check
 delta_thread(struct thread_data *new, struct thread_data *old,
-	struct core_data *core_delta))
+	struct core_data *core_delta)
 {
 	old->tsc = new->tsc - old->tsc;
 
@@ -389,9 +390,10 @@ delta_thread(struct thread_data *new, struct thread_data *old,
 	return 0;
 }
 
-STATIC_MUST_CHECK(static int delta_cpu(struct thread_data *t, struct core_data *c,
+static int __must_check
+delta_cpu(struct thread_data *t, struct core_data *c,
 	struct pkg_data *p, struct thread_data *t2,
-	struct core_data *c2, struct pkg_data *p2))
+	struct core_data *c2, struct pkg_data *p2)
 {
 	int ret;
 
@@ -411,7 +413,8 @@ STATIC_MUST_CHECK(static int delta_cpu(struct thread_data *t, struct core_data *
 	return 0;
 }
 
-static unsigned long long rdtsc(void)
+static unsigned long long
+rdtsc(void)
 {
 	unsigned int low, high;
 
@@ -426,7 +429,8 @@ static unsigned long long rdtsc(void)
  * migrate to cpu
  * acquire and record local counters for that cpu
  */
-STATIC_MUST_CHECK(static int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p))
+static int __must_check
+get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 {
 	int cpu = t->cpu_id;
 	unsigned long long msr;
@@ -538,7 +542,8 @@ STATIC_MUST_CHECK(static int get_counters(struct thread_data *t, struct core_dat
 	return 0;
 }
 
-static void free_all_buffers(void)
+static void
+free_all_buffers(void)
 {
 	allocated = false;
 	initialized = false;
@@ -571,7 +576,8 @@ static void free_all_buffers(void)
 /*
  * Parse a file containing a single int.
  */
-static int parse_int_file(const char *fmt, ...)
+static int
+parse_int_file(const char *fmt, ...)
 {
 	va_list args;
 	char path[PATH_MAX];
@@ -598,7 +604,8 @@ static int parse_int_file(const char *fmt, ...)
  * cpu_is_first_sibling_in_core(cpu)
  * return 1 if given CPU is 1st HT sibling in the core
  */
-static int cpu_is_first_sibling_in_core(int cpu)
+static int
+cpu_is_first_sibling_in_core(int cpu)
 {
 	return cpu == parse_int_file("/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", cpu);
 }
@@ -607,22 +614,26 @@ static int cpu_is_first_sibling_in_core(int cpu)
  * cpu_is_first_core_in_package(cpu)
  * return 1 if given CPU is 1st core in package
  */
-static int cpu_is_first_core_in_package(int cpu)
+static int
+cpu_is_first_core_in_package(int cpu)
 {
 	return cpu == parse_int_file("/sys/devices/system/cpu/cpu%d/topology/core_siblings_list", cpu);
 }
 
-static int get_physical_package_id(int cpu)
+static int
+get_physical_package_id(int cpu)
 {
 	return parse_int_file("/sys/devices/system/cpu/cpu%d/topology/physical_package_id", cpu);
 }
 
-static int get_core_id(int cpu)
+static int
+get_core_id(int cpu)
 {
 	return parse_int_file("/sys/devices/system/cpu/cpu%d/topology/core_id", cpu);
 }
 
-static int get_num_ht_siblings(int cpu)
+static int
+get_num_ht_siblings(int cpu)
 {
 	char path[80];
 	FILE *filep;
@@ -656,13 +667,14 @@ static int get_num_ht_siblings(int cpu)
  * skip non-present cpus
  */
 
-STATIC_MUST_CHECK(
-static int for_all_cpus_2(int (func)(struct thread_data *, struct core_data *,
+
+static int __must_check
+for_all_cpus_2(int (func)(struct thread_data *, struct core_data *,
 	struct pkg_data *, struct thread_data *, struct core_data *,
 	struct pkg_data *), struct thread_data *thread_base,
 	struct core_data *core_base, struct pkg_data *pkg_base,
 	struct thread_data *thread_base2, struct core_data *core_base2,
-	struct pkg_data *pkg_base2))
+	struct pkg_data *pkg_base2)
 {
 	int retval, pkg_no, core_no, thread_no;
 
@@ -700,7 +712,8 @@ static int for_all_cpus_2(int (func)(struct thread_data *, struct core_data *,
  * run func(cpu) on every cpu in /proc/stat
  * return max_cpu number
  */
-STATIC_MUST_CHECK(static int for_all_proc_cpus(int (func)(int)))
+static int __must_check
+for_all_proc_cpus(int (func)(int))
 {
 	FILE *fp;
 	int cpu_num;
@@ -737,7 +750,8 @@ STATIC_MUST_CHECK(static int for_all_proc_cpus(int (func)(int)))
  * count_cpus()
  * remember the last one seen, it will be the max
  */
-static int count_cpus(int cpu)
+static int
+count_cpus(int cpu)
 {
 	if (topo.max_cpu_num < cpu)
 		topo.max_cpu_num = cpu;
@@ -745,14 +759,16 @@ static int count_cpus(int cpu)
 	topo.num_cpus += 1;
 	return 0;
 }
-static int mark_cpu_present(int cpu)
+static int
+mark_cpu_present(int cpu)
 {
 	CPU_SET_S(cpu, cpu_present_setsize, cpu_present_set);
 	return 0;
 }
 
 
-static void turbostat_submit (const char *plugin_instance,
+static void
+turbostat_submit (const char *plugin_instance,
 	const char *type, const char *type_instance,
 	gauge_t value)
 {
@@ -790,7 +806,8 @@ static void turbostat_submit (const char *plugin_instance,
  * "CTMP" 4 columns %4d
  */
 #define NAME_LEN 12
-static int submit_counters(struct thread_data *t, struct core_data *c,
+static int
+submit_counters(struct thread_data *t, struct core_data *c,
 	struct pkg_data *p)
 {
 	char name[NAME_LEN];
@@ -868,7 +885,8 @@ done:
 	return 0;
 }
 
-static int turbostat_read (user_data_t * not_used)
+static int
+turbostat_read(user_data_t * not_used)
 {
 	int ret;
 
@@ -918,7 +936,8 @@ static int turbostat_read (user_data_t * not_used)
 	return 0;
 }
 
-STATIC_MUST_CHECK(static int check_dev_msr())
+static int __must_check
+check_dev_msr()
 {
 	struct stat sb;
 
@@ -930,7 +949,8 @@ STATIC_MUST_CHECK(static int check_dev_msr())
 	return 0;
 }
 
-STATIC_MUST_CHECK(static int check_super_user())
+static int __must_check
+check_super_user()
 {
 	if (getuid() != 0) {
 		ERROR("must be root");
@@ -943,7 +963,8 @@ STATIC_MUST_CHECK(static int check_super_user())
 #define	RAPL_POWER_GRANULARITY	0x7FFF	/* 15 bit power granularity */
 #define	RAPL_TIME_GRANULARITY	0x3F /* 6 bit time granularity */
 
-static double get_tdp(unsigned int model)
+static double
+get_tdp(unsigned int model)
 {
 	unsigned long long msr;
 
@@ -966,7 +987,8 @@ static double get_tdp(unsigned int model)
  *
  * sets do_rapl, rapl_power_units, rapl_energy_units, rapl_time_units
  */
-static void rapl_probe(unsigned int family, unsigned int model)
+static void
+rapl_probe(unsigned int family, unsigned int model)
 {
 	unsigned long long msr;
 	unsigned int time_unit;
@@ -1026,7 +1048,8 @@ static void rapl_probe(unsigned int family, unsigned int model)
 	return;
 }
 
-static int is_snb(unsigned int family, unsigned int model)
+static int
+is_snb(unsigned int family, unsigned int model)
 {
 	if (!genuine_intel)
 		return 0;
@@ -1045,7 +1068,8 @@ static int is_snb(unsigned int family, unsigned int model)
 	return 0;
 }
 
-static int has_c8_c9_c10(unsigned int family, unsigned int model)
+static int
+has_c8_c9_c10(unsigned int family, unsigned int model)
 {
 	if (!genuine_intel)
 		return 0;
@@ -1058,7 +1082,8 @@ static int has_c8_c9_c10(unsigned int family, unsigned int model)
 }
 
 
-static int is_slm(unsigned int family, unsigned int model)
+static int
+is_slm(unsigned int family, unsigned int model)
 {
 	if (!genuine_intel)
 		return 0;
@@ -1082,7 +1107,8 @@ static int is_slm(unsigned int family, unsigned int model)
  * below this value, including the Digital Thermal Sensor (DTS),
  * Package Thermal Management Sensor (PTM), and thermal event thresholds.
  */
-STATIC_MUST_CHECK(static int set_temperature_target(struct thread_data *t, struct core_data *c, struct pkg_data *p))
+static int __must_check
+set_temperature_target(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 {
 	unsigned long long msr;
 	unsigned int target_c_local;
@@ -1133,7 +1159,8 @@ guess:
 	return 0;
 }
 
-STATIC_MUST_CHECK(static int check_cpuid())
+static int __must_check
+check_cpuid()
 {
 	unsigned int eax, ebx, ecx, edx, max_level;
 	unsigned int fms, family, model;
@@ -1212,7 +1239,8 @@ STATIC_MUST_CHECK(static int check_cpuid())
 
 
 
-STATIC_MUST_CHECK(static int topology_probe())
+static int __must_check
+topology_probe()
 {
 	int i;
 	int ret;
@@ -1364,7 +1392,8 @@ error:
  *
  * increment topo.num_cores when 1st core in pkg seen
  */
-static int init_counter(struct thread_data *thread_base, struct core_data *core_base,
+static int
+init_counter(struct thread_data *thread_base, struct core_data *core_base,
 	struct pkg_data *pkg_base, int thread_num, int core_num,
 	int pkg_num, int cpu_id)
 {
@@ -1394,7 +1423,8 @@ static int init_counter(struct thread_data *thread_base, struct core_data *core_
 }
 
 
-static int initialize_counters(int cpu_id)
+static int
+initialize_counters(int cpu_id)
 {
 	int my_thread_id, my_core_id, my_package_id;
 	int ret;
@@ -1447,7 +1477,8 @@ err:
 	return ret;
 }
 
-static int turbostat_init(void)
+static int
+turbostat_init(void)
 {
 	int ret;
 	struct timespec ts;
@@ -1475,7 +1506,8 @@ static const char *config_keys[] =
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
-static int turbostat_config (const char *key, const char *value)
+static int
+turbostat_config(const char *key, const char *value)
 {
 	if (strcasecmp("Interval", key) == 0)
 		interval_sec = atoi(value);
@@ -1484,8 +1516,8 @@ static int turbostat_config (const char *key, const char *value)
 	return 0;
 }
 
-void module_register (void);
-void module_register (void)
+void module_register(void);
+void module_register(void)
 {
 	plugin_register_init(PLUGIN_NAME, turbostat_init);
 	plugin_register_config(PLUGIN_NAME, turbostat_config, config_keys, config_keys_num);
