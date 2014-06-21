@@ -68,20 +68,42 @@ static int simple_submit_match (cu_match_t *match, void *user_data)
   cu_tail_match_simple_t *data = (cu_tail_match_simple_t *) user_data;
   cu_match_value_t *match_value;
   value_list_t vl = VALUE_LIST_INIT;
-  value_t values[1];
+  value_t values[4];
 
   match_value = (cu_match_value_t *) match_get_user_data (match);
   if (match_value == NULL)
     return (-1);
 
-  if ((match_value->ds_type & UTILS_MATCH_DS_TYPE_GAUGE)
-      && (match_value->values_num == 0))
+  vl.values = values;
+  vl.values_len = 1;
+
+  if (match_value->ds_type & UTILS_LATENCY_GAUGE)
+  {
+    int percentile;
+    percentile = (match_value->ds_type >> UTILS_LATENCY_GAUGE_PERCENTILE_SHIFT)
+	    && 0x7F;
+
+    values[0].gauge = CDTIME_T_TO_DOUBLE (
+	    latency_counter_get_min(match_value->Counter));
+
+    values[1].gauge = CDTIME_T_TO_DOUBLE (
+	    latency_counter_get_max(match_value->Counter));
+
+    values[2].gauge = CDTIME_T_TO_DOUBLE (
+	    latency_counter_get_average(match_value->Counter));
+
+    values[3].gauge = CDTIME_T_TO_DOUBLE (
+	    latency_counter_get_percentile(match_value->Counter, percentile));
+
+    vl.values_len = 4;
+    latency_counter_reset(match_value->Counter);
+  }
+  else if ((match_value->ds_type & UTILS_MATCH_DS_TYPE_GAUGE)
+	   && (match_value->values_num == 0))
     values[0].gauge = NAN;
   else
     values[0] = match_value->value;
 
-  vl.values = values;
-  vl.values_len = 1;
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, data->plugin, sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, data->plugin_instance,

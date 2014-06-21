@@ -25,18 +25,24 @@
 
 #include "plugin.h"
 
+#include "utils_latency.h"
 /*
  * Defines
  */
-#define UTILS_MATCH_DS_TYPE_GAUGE    0x10
-#define UTILS_MATCH_DS_TYPE_COUNTER  0x20
-#define UTILS_MATCH_DS_TYPE_DERIVE   0x40
-#define UTILS_MATCH_DS_TYPE_ABSOLUTE 0x80
+#define UTILS_MATCH_DS_TYPE_GAUGE    0x20
+#define UTILS_MATCH_DS_TYPE_COUNTER  0x40
+#define UTILS_MATCH_DS_TYPE_DERIVE   0x80
+#define UTILS_MATCH_DS_TYPE_ABSOLUTE 0x100
+#define UTILS_MATCH_DS_TYPE_PERCENTILE 0x200
 
 #define UTILS_MATCH_CF_GAUGE_AVERAGE 0x01
 #define UTILS_MATCH_CF_GAUGE_MIN     0x02
 #define UTILS_MATCH_CF_GAUGE_MAX     0x04
 #define UTILS_MATCH_CF_GAUGE_LAST    0x08
+#define UTILS_MATCH_CF_GAUGE_PERCENTILE 0x10
+
+#define UTILS_LATENCY_GAUGE 0x400
+#define UTILS_LATENCY_GAUGE_PERCENTILE_SHIFT 4
 
 #define UTILS_MATCH_CF_COUNTER_SET   0x01
 #define UTILS_MATCH_CF_COUNTER_ADD   0x02
@@ -61,6 +67,7 @@ struct cu_match_value_s
   int ds_type;
   value_t value;
   unsigned int values_num;
+  latency_counter_t *Counter;
 };
 typedef struct cu_match_value_s cu_match_value_t;
 
