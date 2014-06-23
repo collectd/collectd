@@ -1456,19 +1456,19 @@ initialize_counters(int cpu_id)
 
 #define DO_OR_GOTO_ERR(something) \
 do {                         \
-	ret = something;     \
+	ret = (something);     \
 	if (ret < 0)         \
 		goto err;    \
-} while (0);
+} while (0)
 
 static int setup_all_buffers(void)
 {
 	int ret;
 
-	DO_OR_GOTO_ERR(topology_probe())
-	DO_OR_GOTO_ERR(allocate_counters(&thread_even, &core_even, &package_even))
-	DO_OR_GOTO_ERR(allocate_counters(&thread_odd, &core_odd, &package_odd))
-	DO_OR_GOTO_ERR(for_all_proc_cpus(initialize_counters))
+	DO_OR_GOTO_ERR(topology_probe());
+	DO_OR_GOTO_ERR(allocate_counters(&thread_even, &core_even, &package_even));
+	DO_OR_GOTO_ERR(allocate_counters(&thread_odd, &core_odd, &package_odd));
+	DO_OR_GOTO_ERR(for_all_proc_cpus(initialize_counters));
 
 	allocated = true;
 	return 0;
@@ -1483,11 +1483,11 @@ turbostat_init(void)
 	int ret;
 	struct timespec ts;
 
-	DO_OR_GOTO_ERR(check_cpuid())
-	DO_OR_GOTO_ERR(check_dev_msr())
-	DO_OR_GOTO_ERR(check_super_user())
-	DO_OR_GOTO_ERR(setup_all_buffers())
-	DO_OR_GOTO_ERR(for_all_cpus(set_temperature_target, EVEN_COUNTERS))
+	DO_OR_GOTO_ERR(check_cpuid());
+	DO_OR_GOTO_ERR(check_dev_msr());
+	DO_OR_GOTO_ERR(check_super_user());
+	DO_OR_GOTO_ERR(setup_all_buffers());
+	DO_OR_GOTO_ERR(for_all_cpus(set_temperature_target, EVEN_COUNTERS));
 
 	ts.tv_sec = interval_sec;
 	ts.tv_nsec = 0;
