@@ -68,7 +68,7 @@ static int simple_submit_match (cu_match_t *match, void *user_data)
   cu_tail_match_simple_t *data = (cu_tail_match_simple_t *) user_data;
   cu_match_value_t *match_value;
   value_list_t vl = VALUE_LIST_INIT;
-  value_t values[4];
+  value_t values[6];
 
   match_value = (cu_match_value_t *) match_get_user_data (match);
   if (match_value == NULL)
@@ -93,9 +93,15 @@ static int simple_submit_match (cu_match_t *match, void *user_data)
 	    latency_counter_get_average(match_value->Counter));
 
     values[3].gauge = CDTIME_T_TO_DOUBLE (
+	    latency_counter_get_sum(match_value->Counter));
+
+    values[4].gauge = CDTIME_T_TO_DOUBLE (
+	    latency_counter_get_num(match_value->Counter));
+
+    values[5].gauge = CDTIME_T_TO_DOUBLE (
 	    latency_counter_get_percentile(match_value->Counter, percentile));
 
-    vl.values_len = 4;
+    vl.values_len = 6;
     latency_counter_reset(match_value->Counter);
   }
   else if ((match_value->ds_type & UTILS_MATCH_DS_TYPE_GAUGE)
