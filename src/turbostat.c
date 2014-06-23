@@ -852,7 +852,7 @@ submit_counters(struct thread_data *t, struct core_data *c,
 	if (!(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
 		goto done;
 
-	snprintf(name, NAME_LEN, "pc%02d", p->package_id);
+	snprintf(name, NAME_LEN, "pkg%02d", p->package_id);
 
 	if (do_ptm)
 		turbostat_submit(NULL, "temperature", name, p->pkg_temp_c);
