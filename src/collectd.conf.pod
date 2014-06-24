@@ -435,6 +435,8 @@ possibly filtering or messages.
  #   StoreRates false
  #   GraphitePrefix "collectd."
  #   GraphiteEscapeChar "_"
+ #   GraphiteSeparateInstances false
+ #   GraphiteAlwaysAppendDS false
    </Publish>
    
    # Receive values from an AMQP broker
@@ -571,6 +573,19 @@ Specify a character to replace dots (.) in the host part of the metric name.
 In I<Graphite> metric name, dots are used as separators between different
 metric parts (host, plugin, type).
 Default is "_" (I<Underscore>).
+
+=item B<GraphiteSeparateInstances> B<true>|B<false>
+
+If set to B<true>, the plugin instance and type instance will be in their own
+path component, for example C<host.cpu.0.cpu.idle>. If set to B<false> (the
+default), the plugin and plugin instance (and likewise the type and type
+instance) are put into one component, for example C<host.cpu-0.cpu-idle>.
+
+=item B<GraphiteAlwaysAppendDS> B<true>|B<false>
+
+If set to B<true>, append the name of the I<Data Source> (DS) to the "metric"
+identifier. If set to B<false> (the default), this is only done when there is
+more than one DS.
 
 =back
 
@@ -5674,7 +5689,7 @@ instance) are put into one component, for example C<host.cpu-0.cpu-idle>.
 
 =item B<AlwaysAppendDS> B<false>|B<true>
 
-If set the B<true>, append the name of the I<Data Source> (DS) to the "metric"
+If set to B<true>, append the name of the I<Data Source> (DS) to the "metric"
 identifier. If set to B<false> (the default), this is only done when there is
 more than one DS.
 
