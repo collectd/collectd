@@ -928,9 +928,9 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
             status = cf_util_get_string (child, &conf->exchange_type);
         else if ((strcasecmp ("Queue", child->key) == 0) && !publish)
             status = cf_util_get_string (child, &conf->queue);
-        else if (strcasecmp ("QueueDurable", child->key) == 0)
+        else if ((strcasecmp ("QueueDurable", child->key) == 0) && !publish)
             status = cf_util_get_boolean (child, &conf->queue_durable);
-        else if (strcasecmp ("QueueAutoDelete", child->key) == 0)
+        else if ((strcasecmp ("QueueAutoDelete", child->key) == 0) && !publish)
             status = cf_util_get_boolean (child, &conf->queue_auto_delete);
         else if (strcasecmp ("RoutingKey", child->key) == 0)
             status = cf_util_get_string (child, &conf->routing_key);
