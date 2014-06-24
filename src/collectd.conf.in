@@ -192,7 +192,7 @@
 # ription of those options is available in the collectd.conf(5) manual page. #
 ##############################################################################
 
-#<Plugin "aggregation">
+#<Plugin aggregation>
 #  <Aggregation>
 #    #Host "unspecified"
 #    Plugin "cpu"
@@ -212,7 +212,7 @@
 #  </Aggregation>
 #</Plugin>
 
-#<Plugin "amqp">
+#<Plugin amqp>
 #  <Publish "name">
 #    Host "localhost"
 #    Port "5672"
@@ -252,7 +252,7 @@
 #	CACert "/etc/ssl/ca.crt"
 #</Plugin>
 
-#<Plugin "bind">
+#<Plugin bind>
 #  URL "http://localhost:8053/"
 #  ParseTime       false
 #  OpCodes         true
@@ -334,7 +334,7 @@
 #  </URL>
 #</Plugin>
 
-#<Plugin "curl_xml">
+#<Plugin curl_xml>
 #  <URL "http://localhost/stats.xml">
 #    Host "my_host"
 #    Instance "some_instance"
@@ -429,7 +429,7 @@
 #	</Directory>
 #</Plugin>
 
-#<Plugin "gmond">
+#<Plugin gmond>
 #  MCReceiveFrom "239.2.11.71" "8649"
 #  <Metric "swap_total">
 #    Type "swap"
@@ -473,7 +473,7 @@
 #	IgnoreSelected true
 #</Plugin>
 
-#<Plugin "java">
+#<Plugin java>
 #	JVMArg "-verbose:jni"
 #	JVMArg "-Djava.class.path=@prefix@/share/collectd/java/collectd-api.jar"
 #
@@ -984,14 +984,14 @@
 #  TimerPercentile 90.0
 #</Plugin>
 
-#<Plugin "swap">
+#<Plugin swap>
 #	ReportByDevice false
 #	ReportBytes true
 #	ValuesAbsolute true
 #	ValuesPercentage false
 #</Plugin>
 
-#<Plugin "table">
+#<Plugin table>
 #	<Table "/proc/slabinfo">
 #		Instance "slabinfo"
 #		Separator " "
@@ -1010,7 +1010,7 @@
 #	</Table>
 #</Plugin>
 
-#<Plugin "tail">
+#<Plugin tail>
 #  <File "/var/log/exim4/mainlog">
 #    Instance "exim"
 #    Interval 60
@@ -1030,7 +1030,7 @@
 #  </File>
 #</Plugin>
 
-#<Plugin "tail_csv">
+#<Plugin tail_csv>
 #   <Metric "dropped">
 #       Type "percent"
 #       Instance "dropped"
@@ -1246,7 +1246,7 @@
 ##############################################################################
 
 #@BUILD_PLUGIN_THRESHOLD_TRUE@LoadPlugin "threshold"
-#<Plugin "threshold">
+#<Plugin threshold>
 #  <Type "foo">
 #    WarningMin    0.00
 #    WarningMax 1000.00
