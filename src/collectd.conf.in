@@ -277,6 +277,12 @@
 #  IgnoreSelected false
 #</Plugin>
 
+#<Plugin cpu>
+#  ReportActive false
+#  ReportByCpu true
+#  ValuesPercentage false
+#</Plugin>
+#
 #<Plugin csv>
 #	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/csv"
 #	StoreRates false
