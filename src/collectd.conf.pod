@@ -506,6 +506,8 @@ possibly filtering or messages.
      Exchange "amq.fanout"
  #   ExchangeType "fanout"
  #   Queue "queue_name"
+ #   QueueDurable false
+ #   QueueAutoDelete true
  #   RoutingKey "collectd.#"
    </Subscribe>
  </Plugin>
@@ -558,8 +560,22 @@ be bound to this exchange.
 
 =item B<Queue> I<Queue> (Subscribe only)
 
-Configures the I<queue> name to subscribe to. If no queue name was configures
+Configures the I<queue> name to subscribe to. If no queue name was configured
 explicitly, a unique queue name will be created by the broker.
+
+=item B<QueueDurable> B<true>|B<false> (Subscribe only)
+
+Defines if the I<queue> subscribed to is durable (saved to persistent storage)
+or transient (will disappear if the AMQP broker is restarted). Defaults to
+"false".
+
+This option should be used in conjunction with the I<Persistent> option on the
+publish side.
+
+=item B<QueueAutoDelete> B<true>|B<false> (Subscribe only)
+
+Defines if the I<queue> subscribed to will be deleted once the last consumer
+unsubscribes. Defaults to "true".
 
 =item B<RoutingKey> I<Key>
 
