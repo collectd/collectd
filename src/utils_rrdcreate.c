@@ -127,7 +127,7 @@ static srrd_create_args_t *srrd_create_args_create (const char *filename,
   if (args->filename == NULL)
   {
     ERROR ("srrd_create_args_create: strdup failed.");
-    srrd_create_args_destroy (args);
+    srrd_create_args_destroy (args); free(args); args = NULL;
     return (NULL);
   }
 
@@ -135,7 +135,7 @@ static srrd_create_args_t *srrd_create_args_create (const char *filename,
   if (args->argv == NULL)
   {
     ERROR ("srrd_create_args_create: calloc failed.");
-    srrd_create_args_destroy (args);
+    srrd_create_args_destroy (args); free(args); args = NULL;
     return (NULL);
   }
 
@@ -145,7 +145,7 @@ static srrd_create_args_t *srrd_create_args_create (const char *filename,
     if (args->argv[args->argc] == NULL)
     {
       ERROR ("srrd_create_args_create: strdup failed.");
-      srrd_create_args_destroy (args);
+      srrd_create_args_destroy (args); free(args); args = NULL;
       return (NULL);
     }
   }
@@ -582,7 +582,7 @@ static void *srrd_create_thread (void *targs) /* {{{ */
     else
       ERROR ("srrd_create_thread: Unable to lock file \"%s\".",
           args->filename);
-    srrd_create_args_destroy (args);
+    srrd_create_args_destroy (args); free(args); args = NULL;
     return (0);
   }
 
@@ -596,7 +596,7 @@ static void *srrd_create_thread (void *targs) /* {{{ */
         args->filename, status);
     unlink (tmpfile);
     unlock_file (args->filename);
-    srrd_create_args_destroy (args);
+    srrd_create_args_destroy (args); free(args); args = NULL;
     return (0);
   }
 
@@ -609,7 +609,7 @@ static void *srrd_create_thread (void *targs) /* {{{ */
         sstrerror (errno, errbuf, sizeof (errbuf)));
     unlink (tmpfile);
     unlock_file (args->filename);
-    srrd_create_args_destroy (args);
+    srrd_create_args_destroy (args); free(args); args = NULL;
     return (0);
   }
 
@@ -617,7 +617,7 @@ static void *srrd_create_thread (void *targs) /* {{{ */
       args->filename);
 
   unlock_file (args->filename);
-  srrd_create_args_destroy (args);
+  srrd_create_args_destroy (args); free(args); args = NULL;
 
   return (0);
 } /* }}} void *srrd_create_thread */
@@ -658,7 +658,7 @@ static int srrd_create_async (const char *filename, /* {{{ */
   status = pthread_attr_init (&attr);
   if (status != 0)
   {
-    srrd_create_args_destroy (args);
+    srrd_create_args_destroy (args); free(args); args = NULL;
     return (-1);
   }
 
@@ -666,7 +666,7 @@ static int srrd_create_async (const char *filename, /* {{{ */
   if (status != 0)
   {
     pthread_attr_destroy (&attr);
-    srrd_create_args_destroy (args);
+    srrd_create_args_destroy (args); free(args); args = NULL;
     return (-1);
   }
 
@@ -677,7 +677,7 @@ static int srrd_create_async (const char *filename, /* {{{ */
     ERROR ("srrd_create_async: pthread_create failed: %s",
         sstrerror (status, errbuf, sizeof (errbuf)));
     pthread_attr_destroy (&attr);
-    srrd_create_args_destroy (args);
+    srrd_create_args_destroy (args); free(args); args = NULL;
     return (status);
   }
 
