@@ -98,6 +98,10 @@ static int default_callback (const char __attribute__((unused)) *str,
 	/ ((double) (data->values_num + 1));
       data->value.gauge = (data->value.gauge * f) + (value * (1.0 - f));
     }
+    else if (data->ds_type & UTILS_MATCH_CF_GAUGE_PERCENTILE)
+    {
+      latency_counter_add(data->Counter, value);
+    }
     else if (data->ds_type & UTILS_MATCH_CF_GAUGE_MIN)
     {
       if (data->value.gauge > value)
@@ -265,6 +269,10 @@ cu_match_t *match_create_simple (const char *regex,
     return (NULL);
   memset (user_data, '\0', sizeof (cu_match_value_t));
   user_data->ds_type = match_ds_type;
+  if (match_ds_type & UTILS_LATENCY_GAUGE)
+  {
+    user_data->Counter = latency_counter_create ();
+  }
 
   obj = match_create_callback (regex, excluderegex,
 			       default_callback, user_data);
@@ -286,6 +294,13 @@ void match_destroy (cu_match_t *obj)
 
   if (obj->flags & UTILS_MATCH_FLAGS_FREE_USER_DATA)
   {
+    cu_match_value_t *user_data;
+
+    user_data = (cu_match_value_t *) obj->user_data;
+    if (user_data->ds_type & UTILS_LATENCY_GAUGE)
+    {
+      latency_counter_destroy(user_data->Counter);
+    }
     sfree (obj->user_data);
   }
 

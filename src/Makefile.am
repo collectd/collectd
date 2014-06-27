@@ -39,6 +39,7 @@ collectd_SOURCES = collectd.c collectd.h \
 		   utils_subst.c utils_subst.h \
 		   utils_tail.c utils_tail.h \
 		   utils_time.c utils_time.h \
+		   utils_latency.c utils_latency.h \
 		   types_list.c types_list.h
 
 collectd_CPPFLAGS =  $(AM_CPPFLAGS) $(LTDLINCL)
@@ -1091,8 +1092,7 @@ endif
 
 if BUILD_PLUGIN_STATSD
 pkglib_LTLIBRARIES += statsd.la
-statsd_la_SOURCES = statsd.c \
-                    utils_latency.h utils_latency.c
+statsd_la_SOURCES = statsd.c
 statsd_la_LDFLAGS = -module -avoid-version
 statsd_la_LIBADD = -lpthread
 collectd_LDADD += "-dlopen" statsd.la

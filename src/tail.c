@@ -19,6 +19,7 @@
  *   Florian octo Forster <octo at verplant.org>
  **/
 
+#include <stdio.h>
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
@@ -45,6 +46,7 @@ struct ctail_config_match_s
   char *regex;
   char *excluderegex;
   int flags;
+  int param1;
   char *type;
   char *type_instance;
   cdtime_t interval;
@@ -75,6 +77,11 @@ static int ctail_config_add_match_dstype (ctail_config_match_t *cm,
       cm->flags |= UTILS_MATCH_CF_GAUGE_MAX;
     else if (strcasecmp ("GaugeLast", ci->values[0].value.string) == 0)
       cm->flags |= UTILS_MATCH_CF_GAUGE_LAST;
+    else if (strcasecmp ("GaugeLatency", ci->values[0].value.string) == 0)
+    {
+      cm->flags |= UTILS_MATCH_CF_GAUGE_PERCENTILE;
+      cm->flags |= UTILS_LATENCY_GAUGE;
+    }
     else
       cm->flags = 0;
   }
@@ -154,6 +161,12 @@ static int ctail_config_add_match (cu_tail_match_t *tm,
       status = cf_util_get_string (option, &cm.type);
     else if (strcasecmp ("Instance", option->key) == 0)
       status = cf_util_get_string (option, &cm.type_instance);
+    else if (strcasecmp ("Percentile", option->key) == 0)
+    {
+      int value;
+      value = atol(option->values[0].value.string);
+      cm.flags |= value << UTILS_LATENCY_GAUGE_PERCENTILE_SHIFT;
+    }
     else
     {
       WARNING ("tail plugin: Option `%s' not allowed here.", option->key);
@@ -251,6 +264,7 @@ static int ctail_config_add_file (oconfig_item_t *ci)
     }
     else
     {
+      WARNING ("tail plugin: Option `%s' not allowed here.", option->key);
       status = -1;
     }
 
