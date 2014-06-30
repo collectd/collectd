@@ -328,6 +328,7 @@ static int init_host (ldap_t *st)
 			ERROR ("openldap plugin: Failed to start tls on %s: %s",
 					st->url, ldap_err2string (rc));
 			st->state = 0;
+			ldap_destroy(st->ld);
 			return (-1);
 		}
 	}
@@ -342,6 +343,7 @@ static int init_host (ldap_t *st)
 		ERROR ("openldap plugin: Failed to bind to %s: %s",
 				st->url, ldap_err2string (rc));
 		st->state = 0;
+		ldap_destroy(st->ld);
 		return (-1);
 	}
 	else
