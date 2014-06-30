@@ -594,7 +594,7 @@ static int ldap_read_host (user_data_t *ud)
 					counter, st);
 			}
 			else if (strcmp (dn,
-					"cn=PUD,cn=Statistics,cn=Monitor")
+					"cn=PDU,cn=Statistics,cn=Monitor")
 					== 0)
 			{
 				submit_derive ("derive", "statistics-pdu",
