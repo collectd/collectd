@@ -411,9 +411,10 @@ static int ldap_read_host (user_data_t *ud)
 	int rc;
 	int status;
 
-	char *attrs[3] = { "monitorCounter",
+	char *attrs[4] = { "monitorCounter",
 				"monitorOpCompleted",
-				"monitorOpInitiated" };
+				"monitorOpInitiated",
+				"monitoredInfo" };
 
 	if ((ud == NULL) || (ud->data == NULL))
 	{
@@ -451,10 +452,12 @@ static int ldap_read_host (user_data_t *ud)
 			struct berval counter_data;
 			struct berval opc_data;
 			struct berval opi_data;
+			struct berval info_data;
 
 			struct berval **counter_list;
 			struct berval **opc_list;
 			struct berval **opi_list;
+			struct berval **info_list;
 
 			if ((counter_list = ldap_get_values_len (st->ld, e,
 				"monitorCounter")) != NULL)
@@ -475,6 +478,14 @@ static int ldap_read_host (user_data_t *ud)
 			{
 				opi_data = *opi_list[0];
 				opi = atoll (opi_data.bv_val);
+			}
+
+			if ((info_list = ldap_get_values_len (st->ld, e,
+				"monitoredInfo")) != NULL)
+			{
+				info_data = *info_list[0];
+				// don't convert search result to long long at this point,
+				// because this field is often populated with non-numerical data.
 			}
 
 			if (strcmp (dn, "cn=Total,cn=Connections,cn=Monitor")
@@ -617,6 +628,41 @@ static int ldap_read_host (user_data_t *ud)
 					counter, st);
 			}
 			else if (strcmp (dn,
+					"cn=Open,cn=Threads,cn=Monitor")
+					== 0)
+			{
+				submit_gauge ("threads", "threads-open",
+					atoll (info_data.bv_val), st);
+			}
+			else if (strcmp (dn,
+					"cn=Starting,cn=Threads,cn=Monitor")
+					== 0)
+			{
+				submit_gauge ("threads", "threads-starting",
+					atoll (info_data.bv_val), st);
+			}
+			else if (strcmp (dn,
+					"cn=Active,cn=Threads,cn=Monitor")
+					== 0)
+			{
+				submit_gauge ("threads", "threads-active",
+					atoll (info_data.bv_val), st);
+			}
+			else if (strcmp (dn,
+					"cn=Pending,cn=Threads,cn=Monitor")
+					== 0)
+			{
+				submit_gauge ("threads", "threads-pending",
+					atoll (info_data.bv_val), st);
+			}
+			else if (strcmp (dn,
+					"cn=Backload,cn=Threads,cn=Monitor")
+					== 0)
+			{
+				submit_gauge ("threads", "threads-backload",
+					atoll (info_data.bv_val), st);
+			}
+			else if (strcmp (dn,
 					"cn=Read,cn=Waiters,cn=Monitor")
 					== 0)
 			{
@@ -634,6 +680,7 @@ static int ldap_read_host (user_data_t *ud)
 			ldap_value_free_len (counter_list);
 			ldap_value_free_len (opc_list);
 			ldap_value_free_len (opi_list);
+			ldap_value_free_len (info_list);
 		}
 
 		ldap_memfree (dn);
