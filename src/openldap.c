@@ -218,6 +218,7 @@ static int ldap_read_host (user_data_t *ud) /* {{{ */
 			unsigned long long counter = 0;
 			unsigned long long opc = 0;
 			unsigned long long opi = 0;
+			unsigned long long info = 0;
 
 			struct berval counter_data;
 			struct berval opc_data;
@@ -258,8 +259,7 @@ static int ldap_read_host (user_data_t *ud) /* {{{ */
 				"monitoredInfo")) != NULL)
 			{
 				info_data = *info_list[0];
-				// don't convert search result to long long at this point,
-				// because this field is often populated with non-numerical data.
+				info = atoll (info_data.bv_val);
 			}
 
 			if (strcmp (dn, "cn=Total,cn=Connections,cn=Monitor")
@@ -448,35 +448,35 @@ static int ldap_read_host (user_data_t *ud) /* {{{ */
 					== 0)
 			{
 				ldap_submit_gauge ("threads", "threads-open",
-					atoll (info_data.bv_val), st);
+					info, st);
 			}
 			else if (strcmp (dn,
 					"cn=Starting,cn=Threads,cn=Monitor")
 					== 0)
 			{
 				ldap_submit_gauge ("threads", "threads-starting",
-					atoll (info_data.bv_val), st);
+					info, st);
 			}
 			else if (strcmp (dn,
 					"cn=Active,cn=Threads,cn=Monitor")
 					== 0)
 			{
 				ldap_submit_gauge ("threads", "threads-active",
-					atoll (info_data.bv_val), st);
+					info, st);
 			}
 			else if (strcmp (dn,
 					"cn=Pending,cn=Threads,cn=Monitor")
 					== 0)
 			{
 				ldap_submit_gauge ("threads", "threads-pending",
-					atoll (info_data.bv_val), st);
+					info, st);
 			}
 			else if (strcmp (dn,
 					"cn=Backload,cn=Threads,cn=Monitor")
 					== 0)
 			{
 				ldap_submit_gauge ("threads", "threads-backload",
-					atoll (info_data.bv_val), st);
+					info, st);
 			}
 			else if (strcmp (dn,
 					"cn=Read,cn=Waiters,cn=Monitor")
