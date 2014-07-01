@@ -146,7 +146,7 @@ static int ldap_config_set_bool (int *ret_boolean, /* {{{ */
 		return (-1);
 	}
 	return (0);
-} /* }}} ldap_config_set_bool */
+} /* }}} int ldap_config_set_bool */
 
 static int ldap_config_add (oconfig_item_t *ci) /* {{{ */
 {
@@ -267,7 +267,7 @@ static int ldap_config_add (oconfig_item_t *ci) /* {{{ */
 	return (0);
 } /* }}} int ldap_config_add */
 
-static int ldap_config (oconfig_item_t *ci)
+static int ldap_config (oconfig_item_t *ci) /* {{{ */
 {
 	int i;
 	int status = 0;
@@ -287,12 +287,12 @@ static int ldap_config (oconfig_item_t *ci)
 	} /* for (ci->children) */
 
 	return (status);
-} /* int config */
+} /* }}} int ldap_config */
 
 /* }}} End of configuration handling functions */
 
 /* initialize ldap for each host */
-static int ldap_init_host (ldap_t *st)
+static int ldap_init_host (ldap_t *st) /* {{{ */
 {
 	LDAP *ld;
 	int rc;
@@ -352,9 +352,9 @@ static int ldap_init_host (ldap_t *st)
 		st->state = 1;
 		return (0);
 	}
-} /* static init_host (ldap_t *st) */
+} /* }}} static ldap_init_host */
 
-static void ldap_submit_value (const char *type, const char *type_instance,
+static void ldap_submit_value (const char *type, const char *type_instance, /* {{{ */
 		value_t value, ldap_t *st)
 {
 	value_list_t vl = VALUE_LIST_INIT;
@@ -384,25 +384,25 @@ static void ldap_submit_value (const char *type, const char *type_instance,
 				sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
-} /* ldap_submit_value */
+} /* }}} void ldap_submit_value */
 
-static void ldap_submit_derive (const char *type, const char *type_instance,
+static void ldap_submit_derive (const char *type, const char *type_instance, /* {{{ */
 		derive_t d, ldap_t *st)
 {
 	value_t v;
 	v.derive = d;
 	ldap_submit_value (type, type_instance, v, st);
-} /* void ldap_submit_derive */
+} /* }}} void ldap_submit_derive */
 
-static void ldap_submit_gauge (const char *type, const char *type_instance,
+static void ldap_submit_gauge (const char *type, const char *type_instance, /* {{{ */
 		gauge_t g, ldap_t *st)
 {
 	value_t v;
 	v.gauge = g;
 	ldap_submit_value (type, type_instance, v, st);
-} /* void ldap_submit_gauge */
+} /* }}} void ldap_submit_gauge */
 
-static int ldap_read_host (user_data_t *ud)
+static int ldap_read_host (user_data_t *ud) /* {{{ */
 {
 	ldap_t *st;
 	LDAPMessage *e, *result;
@@ -738,9 +738,9 @@ static int ldap_read_host (user_data_t *ud)
 	ldap_msgfree (result);
 	ldap_unbind_ext_s (st->ld, NULL, NULL);
 	return (0);
-} /* int ldap_read_host */
+} /* }}} int ldap_read_host */
 
-void module_register (void)
+void module_register (void) /* {{{ */
 {
 	plugin_register_complex_config ("openldap", ldap_config);
-} /* void module_register */
+} /* }}} void module_register */
