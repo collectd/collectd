@@ -411,10 +411,14 @@ static int ldap_read_host (user_data_t *ud)
 	int rc;
 	int status;
 
-	char *attrs[4] = { "monitorCounter",
+	char *attrs[8] = { "monitorCounter",
 				"monitorOpCompleted",
 				"monitorOpInitiated",
-				"monitoredInfo" };
+				"monitoredInfo",
+				"olmBDBEntryCache",
+				"olmBDBDNCache",
+				"olmBDBIDLCache",
+				"namingContexts" };
 
 	if ((ud == NULL) || (ud->data == NULL))
 	{
@@ -429,7 +433,7 @@ static int ldap_read_host (user_data_t *ud)
 		return (-1);
 
 	rc = ldap_search_ext_s (st->ld, "cn=Monitor", LDAP_SCOPE_SUBTREE,
-		"(!(cn=* *))", attrs, 0,
+		"(|(!(cn=* *))(cn=Database*))", attrs, 0,
 		NULL, NULL, NULL, 0, &result);
 
 	if (rc != LDAP_SUCCESS)
@@ -453,11 +457,15 @@ static int ldap_read_host (user_data_t *ud)
 			struct berval opc_data;
 			struct berval opi_data;
 			struct berval info_data;
+			struct berval olmbdb_data;
+			struct berval nc_data;
 
 			struct berval **counter_list;
 			struct berval **opc_list;
 			struct berval **opi_list;
 			struct berval **info_list;
+			struct berval **olmbdb_list;
+			struct berval **nc_list;
 
 			if ((counter_list = ldap_get_values_len (st->ld, e,
 				"monitorCounter")) != NULL)
@@ -598,6 +606,48 @@ static int ldap_read_host (user_data_t *ud)
 					"extended-completed", opc, st);
 				submit_derive ("operations",
 					"extended-initiated", opi, st);
+			}
+			else if ((strncmp (dn, "cn=Database", 11) == 0)
+				&& ((nc_list = ldap_get_values_len
+						(st->ld, e, "namingContexts")) != NULL))
+			{
+				nc_data = *nc_list[0];
+				char typeinst[DATA_MAX_NAME_LEN];
+
+				if ((olmbdb_list = ldap_get_values_len (st->ld, e,
+					"olmBDBEntryCache")) != NULL)
+				{
+					olmbdb_data = *olmbdb_list[0];
+					ssnprintf (typeinst, sizeof (typeinst),
+						"bdbentrycache-%s", nc_data.bv_val);
+					submit_gauge ("cache_size", typeinst,
+						atoll (olmbdb_data.bv_val), st);
+					ldap_value_free_len (olmbdb_list);
+				}
+
+				if ((olmbdb_list = ldap_get_values_len (st->ld, e,
+					"olmBDBDNCache")) != NULL)
+				{
+					olmbdb_data = *olmbdb_list[0];
+					ssnprintf (typeinst, sizeof (typeinst),
+						"bdbdncache-%s", nc_data.bv_val);
+					submit_gauge ("cache_size", typeinst,
+						atoll (olmbdb_data.bv_val), st);
+					ldap_value_free_len (olmbdb_list);
+				}
+
+				if ((olmbdb_list = ldap_get_values_len (st->ld, e,
+					"olmBDBIDLCache")) != NULL)
+				{
+					olmbdb_data = *olmbdb_list[0];
+					ssnprintf (typeinst, sizeof (typeinst),
+						"bdbidlcache-%s", nc_data.bv_val);
+					submit_gauge ("cache_size", typeinst,
+						atoll (olmbdb_data.bv_val), st);
+					ldap_value_free_len (olmbdb_list);
+				}
+
+				ldap_value_free_len (nc_list);
 			}
 			else if (strcmp (dn,
 					"cn=Bytes,cn=Statistics,cn=Monitor")
