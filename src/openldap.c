@@ -244,7 +244,6 @@ static int ldap_config_add (oconfig_item_t *ci) /* {{{ */
 
 		memset (&ud, 0, sizeof (ud));
 		ud.data = st;
-		ud.free_func = (void *) ldap_free;
 
 		memset (callback_name, 0, sizeof (callback_name));
 		ssnprintf (callback_name, sizeof (callback_name),
