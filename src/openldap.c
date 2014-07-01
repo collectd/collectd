@@ -71,7 +71,7 @@ static void ldap_free (ldap_t *st) /* {{{ */
  * </Plugin>
  */
 
-static int config_set_string (char **ret_string, /* {{{ */
+static int ldap_config_set_string (char **ret_string, /* {{{ */
 				    oconfig_item_t *ci)
 {
 	char *string;
@@ -96,9 +96,9 @@ static int config_set_string (char **ret_string, /* {{{ */
 	*ret_string = string;
 
 	return (0);
-} /* }}} int config_set_string */
+} /* }}} int ldap_config_set_string */
 
-static int config_set_int (int *ret_int, /* {{{ */
+static int ldap_config_set_int (int *ret_int, /* {{{ */
 				 oconfig_item_t *ci)
 {
 	if ((ci->values_num != 1)
@@ -112,9 +112,9 @@ static int config_set_int (int *ret_int, /* {{{ */
 	*ret_int = ci->values[0].value.number;
 
 	return (0);
-} /* }}} int config_set_int */
+} /* }}} int ldap_config_set_int */
 
-static int config_set_bool (int *ret_boolean, /* {{{ */
+static int ldap_config_set_bool (int *ret_boolean, /* {{{ */
 				oconfig_item_t *ci)
 {
 	int status = 0;
@@ -146,9 +146,9 @@ static int config_set_bool (int *ret_boolean, /* {{{ */
 		return (-1);
 	}
 	return (0);
-} /* }}} config_set_bool */
+} /* }}} ldap_config_set_bool */
 
-static int config_add (oconfig_item_t *ci) /* {{{ */
+static int ldap_config_add (oconfig_item_t *ci) /* {{{ */
 {
 	ldap_t *st;
 	int i;
@@ -170,7 +170,7 @@ static int config_add (oconfig_item_t *ci) /* {{{ */
 	}
 	memset (st, 0, sizeof (*st));
 
-	status = config_set_string (&st->name, ci);
+	status = ldap_config_set_string (&st->name, ci);
 	if (status != 0)
 	{
 		sfree (st);
@@ -185,17 +185,17 @@ static int config_add (oconfig_item_t *ci) /* {{{ */
 		oconfig_item_t *child = ci->children + i;
 
 		if (strcasecmp ("CACert", child->key) == 0)
-			status = config_set_string (&st->cacert, child);
+			status = ldap_config_set_string (&st->cacert, child);
 		else if (strcasecmp ("StartTLS", child->key) == 0)
-			status = config_set_bool (&st->starttls, child);
+			status = ldap_config_set_bool (&st->starttls, child);
 		else if (strcasecmp ("Timeout", child->key) == 0)
-			status = config_set_int (&st->timeout, child);
+			status = ldap_config_set_int (&st->timeout, child);
 		else if (strcasecmp ("URL", child->key) == 0)
-			status = config_set_string (&st->url, child);
+			status = ldap_config_set_string (&st->url, child);
 		else if (strcasecmp ("VerifyHost", child->key) == 0)
-			status = config_set_bool (&st->verifyhost, child);
+			status = ldap_config_set_bool (&st->verifyhost, child);
 		else if (strcasecmp ("Version", child->key) == 0)
-			status = config_set_int (&st->version, child);
+			status = ldap_config_set_int (&st->version, child);
 		else
 		{
 			WARNING ("openldap plugin: Option `%s' not allowed here.",
@@ -266,9 +266,9 @@ static int config_add (oconfig_item_t *ci) /* {{{ */
 	}
 
 	return (0);
-} /* }}} int config_add */
+} /* }}} int ldap_config_add */
 
-static int config (oconfig_item_t *ci)
+static int ldap_config (oconfig_item_t *ci)
 {
 	int i;
 	int status = 0;
@@ -278,7 +278,7 @@ static int config (oconfig_item_t *ci)
 		oconfig_item_t *child = ci->children + i;
 
 		if (strcasecmp ("Instance", child->key) == 0)
-			config_add (child);
+			ldap_config_add (child);
 		else
 			WARNING ("openldap plugin: The configuration option "
 					"\"%s\" is not allowed here. Did you "
@@ -293,7 +293,7 @@ static int config (oconfig_item_t *ci)
 /* }}} End of configuration handling functions */
 
 /* initialize ldap for each host */
-static int init_host (ldap_t *st)
+static int ldap_init_host (ldap_t *st)
 {
 	LDAP *ld;
 	int rc;
@@ -355,7 +355,7 @@ static int init_host (ldap_t *st)
 	}
 } /* static init_host (ldap_t *st) */
 
-static void submit_value (const char *type, const char *type_instance,
+static void ldap_submit_value (const char *type, const char *type_instance,
 		value_t value, ldap_t *st)
 {
 	value_list_t vl = VALUE_LIST_INIT;
@@ -385,23 +385,23 @@ static void submit_value (const char *type, const char *type_instance,
 				sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
-} /* submit */
+} /* ldap_submit_value */
 
-static void submit_derive (const char *type, const char *type_instance,
+static void ldap_submit_derive (const char *type, const char *type_instance,
 		derive_t d, ldap_t *st)
 {
 	value_t v;
 	v.derive = d;
-	submit_value (type, type_instance, v, st);
-} /* void submit_derive */
+	ldap_submit_value (type, type_instance, v, st);
+} /* void ldap_submit_derive */
 
-static void submit_gauge (const char *type, const char *type_instance,
+static void ldap_submit_gauge (const char *type, const char *type_instance,
 		gauge_t g, ldap_t *st)
 {
 	value_t v;
 	v.gauge = g;
-	submit_value (type, type_instance, v, st);
-} /* void submit_gauge */
+	ldap_submit_value (type, type_instance, v, st);
+} /* void ldap_submit_gauge */
 
 static int ldap_read_host (user_data_t *ud)
 {
@@ -428,7 +428,7 @@ static int ldap_read_host (user_data_t *ud)
 
 	st = (ldap_t *) ud->data;
 
-	status = init_host (st);
+	status = ldap_init_host (st);
 	if (status != 0)
 		return (-1);
 
@@ -499,112 +499,112 @@ static int ldap_read_host (user_data_t *ud)
 			if (strcmp (dn, "cn=Total,cn=Connections,cn=Monitor")
 					== 0)
 			{
-				submit_derive ("total_connections", NULL,
+				ldap_submit_derive ("total_connections", NULL,
 					counter, st);
 			}
 			else if (strcmp (dn,
 					"cn=Current,cn=Connections,cn=Monitor")
 					== 0)
 			{
-				submit_gauge ("current_connections", NULL,
+				ldap_submit_gauge ("current_connections", NULL,
 					counter, st);
 			}
 			else if (strcmp (dn,
 					"cn=Operations,cn=Monitor") == 0)
 			{
-				submit_derive ("operations",
+				ldap_submit_derive ("operations",
 					"completed", opc, st);
-				submit_derive ("operations",
+				ldap_submit_derive ("operations",
 					"initiated", opi, st);
 			}
 			else if (strcmp (dn,
 					"cn=Bind,cn=Operations,cn=Monitor")
 					== 0)
 			{
-				submit_derive ("operations",
+				ldap_submit_derive ("operations",
 					"bind-completed", opc, st);
-				submit_derive ("operations",
+				ldap_submit_derive ("operations",
 					"bind-initiated", opi, st);
 			}
 			else if (strcmp (dn,
 					"cn=UnBind,cn=Operations,cn=Monitor")
 					== 0)
 			{
-				submit_derive ("operations",
+				ldap_submit_derive ("operations",
 					"unbind-completed", opc, st);
-				submit_derive ("operations",
+				ldap_submit_derive ("operations",
 					"unbind-initiated", opi, st);
 			}
 			else if (strcmp (dn,
 					"cn=Search,cn=Operations,cn=Monitor")
 					== 0)
 			{
-				submit_derive ("operations",
+				ldap_submit_derive ("operations",
 					"search-completed", opc, st);
-				submit_derive ("operations",
+				ldap_submit_derive ("operations",
 					"search-initiated", opi, st);
 			}
 			else if (strcmp (dn,
 					"cn=Compare,cn=Operations,cn=Monitor")
 					== 0)
 			{
-				submit_derive ("operations",
+				ldap_submit_derive ("operations",
 					"compare-completed", opc, st);
-				submit_derive ("operations",
+				ldap_submit_derive ("operations",
 					"compare-initiated", opi, st);
 			}
 			else if (strcmp (dn,
 					"cn=Modify,cn=Operations,cn=Monitor")
 					== 0)
 			{
-				submit_derive ("operations",
+				ldap_submit_derive ("operations",
 					"modify-completed", opc, st);
-				submit_derive ("operations",
+				ldap_submit_derive ("operations",
 					"modify-initiated", opi, st);
 			}
 			else if (strcmp (dn,
 					"cn=Modrdn,cn=Operations,cn=Monitor")
 					== 0)
 			{
-				submit_derive ("operations",
+				ldap_submit_derive ("operations",
 					"modrdn-completed", opc, st);
-				submit_derive ("operations",
+				ldap_submit_derive ("operations",
 					"modrdn-initiated", opi, st);
 			}
 			else if (strcmp (dn,
 					"cn=Add,cn=Operations,cn=Monitor")
 					== 0)
 			{
-				submit_derive ("operations",
+				ldap_submit_derive ("operations",
 					"add-completed", opc, st);
-				submit_derive ("operations",
+				ldap_submit_derive ("operations",
 					"add-initiated", opi, st);
 			}
 			else if (strcmp (dn,
 					"cn=Delete,cn=Operations,cn=Monitor")
 					== 0)
 			{
-				submit_derive ("operations",
+				ldap_submit_derive ("operations",
 					"delete-completed", opc, st);
-				submit_derive ("operations",
+				ldap_submit_derive ("operations",
 					"delete-initiated", opi, st);
 			}
 			else if (strcmp (dn,
 					"cn=Abandon,cn=Operations,cn=Monitor")
 					== 0)
 			{
-				submit_derive ("operations",
+				ldap_submit_derive ("operations",
 					"abandon-completed", opc, st);
-				submit_derive ("operations",
+				ldap_submit_derive ("operations",
 					"abandon-initiated", opi, st);
 			}
 			else if (strcmp (dn,
 					"cn=Extended,cn=Operations,cn=Monitor")
 					== 0)
 			{
-				submit_derive ("operations",
+				ldap_submit_derive ("operations",
 					"extended-completed", opc, st);
-				submit_derive ("operations",
+				ldap_submit_derive ("operations",
 					"extended-initiated", opi, st);
 			}
 			else if ((strncmp (dn, "cn=Database", 11) == 0)
@@ -620,7 +620,7 @@ static int ldap_read_host (user_data_t *ud)
 					olmbdb_data = *olmbdb_list[0];
 					ssnprintf (typeinst, sizeof (typeinst),
 						"bdbentrycache-%s", nc_data.bv_val);
-					submit_gauge ("cache_size", typeinst,
+					ldap_submit_gauge ("cache_size", typeinst,
 						atoll (olmbdb_data.bv_val), st);
 					ldap_value_free_len (olmbdb_list);
 				}
@@ -631,7 +631,7 @@ static int ldap_read_host (user_data_t *ud)
 					olmbdb_data = *olmbdb_list[0];
 					ssnprintf (typeinst, sizeof (typeinst),
 						"bdbdncache-%s", nc_data.bv_val);
-					submit_gauge ("cache_size", typeinst,
+					ldap_submit_gauge ("cache_size", typeinst,
 						atoll (olmbdb_data.bv_val), st);
 					ldap_value_free_len (olmbdb_list);
 				}
@@ -642,7 +642,7 @@ static int ldap_read_host (user_data_t *ud)
 					olmbdb_data = *olmbdb_list[0];
 					ssnprintf (typeinst, sizeof (typeinst),
 						"bdbidlcache-%s", nc_data.bv_val);
-					submit_gauge ("cache_size", typeinst,
+					ldap_submit_gauge ("cache_size", typeinst,
 						atoll (olmbdb_data.bv_val), st);
 					ldap_value_free_len (olmbdb_list);
 				}
@@ -653,77 +653,77 @@ static int ldap_read_host (user_data_t *ud)
 					"cn=Bytes,cn=Statistics,cn=Monitor")
 					== 0)
 			{
-				submit_derive ("derive", "statistics-bytes",
+				ldap_submit_derive ("derive", "statistics-bytes",
 					counter, st);
 			}
 			else if (strcmp (dn,
 					"cn=PDU,cn=Statistics,cn=Monitor")
 					== 0)
 			{
-				submit_derive ("derive", "statistics-pdu",
+				ldap_submit_derive ("derive", "statistics-pdu",
 					counter, st);
 			}
 			else if (strcmp (dn,
 					"cn=Entries,cn=Statistics,cn=Monitor")
 					== 0)
 			{
-				submit_derive ("derive", "statistics-entries",
+				ldap_submit_derive ("derive", "statistics-entries",
 					counter, st);
 			}
 			else if (strcmp (dn,
 					"cn=Referrals,cn=Statistics,cn=Monitor")
 					== 0)
 			{
-				submit_derive ("derive", "statistics-referrals",
+				ldap_submit_derive ("derive", "statistics-referrals",
 					counter, st);
 			}
 			else if (strcmp (dn,
 					"cn=Open,cn=Threads,cn=Monitor")
 					== 0)
 			{
-				submit_gauge ("threads", "threads-open",
+				ldap_submit_gauge ("threads", "threads-open",
 					atoll (info_data.bv_val), st);
 			}
 			else if (strcmp (dn,
 					"cn=Starting,cn=Threads,cn=Monitor")
 					== 0)
 			{
-				submit_gauge ("threads", "threads-starting",
+				ldap_submit_gauge ("threads", "threads-starting",
 					atoll (info_data.bv_val), st);
 			}
 			else if (strcmp (dn,
 					"cn=Active,cn=Threads,cn=Monitor")
 					== 0)
 			{
-				submit_gauge ("threads", "threads-active",
+				ldap_submit_gauge ("threads", "threads-active",
 					atoll (info_data.bv_val), st);
 			}
 			else if (strcmp (dn,
 					"cn=Pending,cn=Threads,cn=Monitor")
 					== 0)
 			{
-				submit_gauge ("threads", "threads-pending",
+				ldap_submit_gauge ("threads", "threads-pending",
 					atoll (info_data.bv_val), st);
 			}
 			else if (strcmp (dn,
 					"cn=Backload,cn=Threads,cn=Monitor")
 					== 0)
 			{
-				submit_gauge ("threads", "threads-backload",
+				ldap_submit_gauge ("threads", "threads-backload",
 					atoll (info_data.bv_val), st);
 			}
 			else if (strcmp (dn,
 					"cn=Read,cn=Waiters,cn=Monitor")
 					== 0)
 			{
-				submit_derive ("derive", "waiters-read",
+				ldap_submit_derive ("derive", "waiters-read",
 					counter, st);
 			}
 			else if (strcmp (dn,
 					"cn=Write,cn=Waiters,cn=Monitor")
 					== 0)
 			{
-				submit_derive ("derive", "waiters-write",
+				ldap_submit_derive ("derive", "waiters-write",
 					counter, st);
 			}
 
@@ -743,5 +743,5 @@ static int ldap_read_host (user_data_t *ud)
 
 void module_register (void)
 {
-	plugin_register_complex_config ("openldap", config);
+	plugin_register_complex_config ("openldap", ldap_config);
 } /* void module_register */
