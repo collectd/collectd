@@ -79,6 +79,9 @@ struct write_queue_s
 	write_queue_t *next;
 };
 
+#define DROP_PROBABILITY_MAX 100
+#define WRITELIMITDIFF_MAX ((long)(LONG_MAX / DROP_PROBABILITY_MAX))
+
 /*
  * Private variables
  */
@@ -1490,6 +1493,11 @@ void plugin_init_all (void)
 				"WriteQueueLimitHigh.");
 		write_limit_low = write_limit_high;
 	}
+	else if ((write_limit_high - write_limit_low) > WRITELIMITDIFF_MAX)
+	{
+		ERROR ("WriteQueueLimitHigh - WriteQueueLimitLow must not be larger than %ld", WRITELIMITDIFF_MAX);
+		write_limit_low = write_limit_high - WRITELIMITDIFF_MAX;
+	}
 
 	write_threads_num = global_option_get_long ("WriteThreads",
 			/* default = */ 5);
@@ -2006,7 +2014,7 @@ static int plugin_dispatch_values_internal (value_list_t *vl)
 	return (0);
 } /* int plugin_dispatch_values_internal */
 
-static double get_drop_probability (void) /* {{{ */
+static long get_drop_probability (void) /* {{{ */
 {
 	long pos;
 	long size;
@@ -2017,30 +2025,30 @@ static double get_drop_probability (void) /* {{{ */
 	pthread_mutex_unlock (&write_lock);
 
 	if (wql < write_limit_low)
-		return (0.0);
+		return (0);
 	if (wql >= write_limit_high)
-		return (1.0);
+		return (1);
 
 	pos = 1 + wql - write_limit_low;
 	size = 1 + write_limit_high - write_limit_low;
 
-	return (((double) pos) / ((double) size));
-} /* }}} double get_drop_probability */
+	return ((DROP_PROBABILITY_MAX * pos) / size);
+} /* }}} long get_drop_probability */
 
 static _Bool check_drop_value (void) /* {{{ */
 {
 	static cdtime_t last_message_time = 0;
 	static pthread_mutex_t last_message_lock = PTHREAD_MUTEX_INITIALIZER;
 
-	double p;
-	double q;
+	long p;
+	long q;
 	int status;
 
 	if (write_limit_high == 0)
 		return (0);
 
 	p = get_drop_probability ();
-	if (p == 0.0)
+	if (p == 0)
 		return (0);
 
 	status = pthread_mutex_trylock (&last_message_lock);
@@ -2054,15 +2062,17 @@ static _Bool check_drop_value (void) /* {{{ */
 			last_message_time = now;
 			ERROR ("plugin_dispatch_values: Low water mark "
 					"reached. Dropping %.0f%% of metrics.",
-					100.0 * p);
+					(100.0 * ((double) p) / ((double) DROP_PROBABILITY_MAX))
+			);
+					
 		}
 		pthread_mutex_unlock (&last_message_lock);
 	}
 
-	if (p == 1.0)
+	if (p >= DROP_PROBABILITY_MAX)
 		return (1);
 
-	q = cdrand_d ();
+	q = ( ((double)DROP_PROBABILITY_MAX) * cdrand_d() );
 	if (q > p)
 		return (1);
 	else
