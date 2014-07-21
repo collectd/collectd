@@ -4453,13 +4453,60 @@ then
 fi
 # }}}
 
-# pkg-config --exists 'libxml-2.0'; pkg-config --exists libvirt {{{
-with_libxml2="no (pkg-config isn't available)"
-with_libxml2_cflags=""
-with_libxml2_ldflags=""
+#pkg-config --exists libvirt {{{
 with_libvirt="no (pkg-config isn't available)"
 with_libvirt_cflags=""
 with_libvirt_ldflags=""
+if test "x$with_libvirt" = "xyes"
+then
+	with_libvirt_cflags="`pkg-config --cflags libvirt`"
+	if test $? -ne 0
+	then
+		with_libvirt="no"
+	fi
+	with_libvirt_ldflags="`pkg-config --libs libvirt`"
+	if test $? -ne 0
+	then
+		with_libvirt="no"
+	fi
+fi
+if test "x$with_libvirt" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libvirt_cflags"
+
+	AC_CHECK_HEADERS(libvirt/libvirt.h, [],
+		      [with_libvirt="no (libvirt/libvirt.h not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_libvirt" = "xyes"
+then
+	SAVE_CFLAGS="$CFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+
+	CFLAGS="$CFLAGS $with_libvirt_cflags"
+	LDFLAGS="$LDFLAGS $with_libvirt_ldflags"
+
+	AC_CHECK_LIB(virt, virDomainBlockStats,
+		     [with_libvirt="yes"],
+		     [with_libvirt="no (symbol virDomainBlockStats not found)"])
+
+	CFLAGS="$SAVE_CFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+dnl Add the right compiler flags and libraries.
+if test "x$with_libvirt" = "xyes"; then
+	BUILD_WITH_LIBVIRT_CFLAGS="$with_libvirt_cflags"
+	BUILD_WITH_LIBVIRT_LIBS="$with_libvirt_ldflags"
+	AC_SUBST(BUILD_WITH_LIBVIRT_CFLAGS)
+	AC_SUBST(BUILD_WITH_LIBVIRT_LIBS)
+fi
+
+pkg-config --exists 'libxml-2.0' #{{{
+with_libxml2="no (pkg-config isn't available)"
+with_libxml2_cflags=""
+with_libxml2_ldflags=""
 if test "x$PKG_CONFIG" != "x"
 then
 	pkg-config --exists 'libxml-2.0' 2>/dev/null
@@ -4522,51 +4569,6 @@ if test "x$with_libxml2" = "xyes"; then
 	BUILD_WITH_LIBXML2_LIBS="$with_libxml2_ldflags"
 	AC_SUBST(BUILD_WITH_LIBXML2_CFLAGS)
 	AC_SUBST(BUILD_WITH_LIBXML2_LIBS)
-fi
-if test "x$with_libvirt" = "xyes"
-then
-	with_libvirt_cflags="`pkg-config --cflags libvirt`"
-	if test $? -ne 0
-	then
-		with_libvirt="no"
-	fi
-	with_libvirt_ldflags="`pkg-config --libs libvirt`"
-	if test $? -ne 0
-	then
-		with_libvirt="no"
-	fi
-fi
-if test "x$with_libvirt" = "xyes"
-then
-	SAVE_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$CPPFLAGS $with_libvirt_cflags"
-
-	AC_CHECK_HEADERS(libvirt/libvirt.h, [],
-		      [with_libvirt="no (libvirt/libvirt.h not found)"])
-
-	CPPFLAGS="$SAVE_CPPFLAGS"
-fi
-if test "x$with_libvirt" = "xyes"
-then
-	SAVE_CFLAGS="$CFLAGS"
-	SAVE_LDFLAGS="$LDFLAGS"
-
-	CFLAGS="$CFLAGS $with_libvirt_cflags"
-	LDFLAGS="$LDFLAGS $with_libvirt_ldflags"
-
-	AC_CHECK_LIB(virt, virDomainBlockStats,
-		     [with_libvirt="yes"],
-		     [with_libvirt="no (symbol virDomainBlockStats not found)"])
-
-	CFLAGS="$SAVE_CFLAGS"
-	LDFLAGS="$SAVE_LDFLAGS"
-fi
-dnl Add the right compiler flags and libraries.
-if test "x$with_libvirt" = "xyes"; then
-	BUILD_WITH_LIBVIRT_CFLAGS="$with_libvirt_cflags"
-	BUILD_WITH_LIBVIRT_LIBS="$with_libvirt_ldflags"
-	AC_SUBST(BUILD_WITH_LIBVIRT_CFLAGS)
-	AC_SUBST(BUILD_WITH_LIBVIRT_LIBS)
 fi
 # }}}
 
