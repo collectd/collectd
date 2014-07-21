@@ -336,6 +336,21 @@ collectd_LDADD += "-dlopen" curl_json.la
 collectd_DEPENDENCIES += curl_json.la
 endif
 
+if BUILD_PLUGIN_CURL_JOLOKIA
+pkglib_LTLIBRARIES += curl_jolokia.la
+curl_jolokia_la_SOURCES = curl_jolokia.c
+curl_jolokia_la_CFLAGS = $(AM_CFLAGS)
+curl_jolokia_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBYAJL_LDFLAGS)
+curl_jolokia_la_CPPFLAGS = $(BUILD_WITH_LIBYAJL_CPPFLAGS)
+curl_jolokia_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
+if BUILD_WITH_LIBCURL
+curl_jolokia_la_CFLAGS += $(BUILD_WITH_LIBCURL_CFLAGS)
+curl_jolokia_la_LIBADD += $(BUILD_WITH_LIBCURL_LIBS)
+endif
+collectd_LDADD += "-dlopen" curl_jolokia.la
+collectd_DEPENDENCIES += curl_jolokia.la
+endif
+
 if BUILD_PLUGIN_CURL_XML
 pkglib_LTLIBRARIES += curl_xml.la
 curl_xml_la_SOURCES = curl_xml.c

@@ -4794,6 +4794,7 @@ plugin_contextswitch="no"
 plugin_cpu="no"
 plugin_cpufreq="no"
 plugin_curl_json="no"
+plugin_curl_jolokia="no"
 plugin_curl_xml="no"
 plugin_df="no"
 plugin_disk="no"
@@ -4952,6 +4953,7 @@ fi
 if test "x$with_libcurl" = "xyes" && test "x$with_libyajl" = "xyes"
 then
 	plugin_curl_json="yes"
+	plugin_curl_jolokia="yes"
 fi
 
 if test "x$with_libcurl" = "xyes" && test "x$with_libxml2" = "xyes"
@@ -5123,6 +5125,7 @@ AC_PLUGIN([cpu],         [$plugin_cpu],        [CPU usage statistics])
 AC_PLUGIN([csv],         [yes],                [CSV output plugin])
 AC_PLUGIN([curl],        [$with_libcurl],      [CURL generic web statistics])
 AC_PLUGIN([curl_json],   [$plugin_curl_json],    [CouchDB statistics])
+AC_PLUGIN([curl_jolokia], [$plugin_curl_jolokia], [Jolokia "lightweight" JMX statistics])
 AC_PLUGIN([curl_xml],   [$plugin_curl_xml],    [CURL generic xml statistics])
 AC_PLUGIN([cgroups],     [$plugin_cgroups],    [CGroups CPU usage accounting])
 AC_PLUGIN([dbi],         [$with_libdbi],       [General database statistics])
@@ -5469,6 +5472,7 @@ Configuration:
     csv . . . . . . . . . $enable_csv
     curl  . . . . . . . . $enable_curl
     curl_json . . . . . . $enable_curl_json
+    curl_jolokia. . . . . $enable_curl_jolokia
     curl_xml  . . . . . . $enable_curl_xml
     dbi . . . . . . . . . $enable_dbi
     df  . . . . . . . . . $enable_df
