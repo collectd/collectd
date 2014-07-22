@@ -6438,6 +6438,17 @@ interval is multiplied to set the TTL. The default value is B<2.0>. Unless you
 know exactly what you're doing, you should only increase this setting from its
 default value.
 
+=item B<Notifications> B<false>|B<true>
+
+If set to B<true>, create riemann events for notifications. This is B<true>
+by default. When processing thresholds from write_riemann, it might prove
+useful to avoid getting notification events.
+
+=item B<CheckThresholds> B<false>|B<true>
+
+If set to B<true>, attach state to events based on thresholds defined
+in the B<Threshold> plugin. Defaults to B<false>.
+
 =back
 
 =item B<Tag> I<String>
