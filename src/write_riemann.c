@@ -47,6 +47,7 @@ struct riemann_host {
 	uint8_t			 flags;
 	pthread_mutex_t		 lock;
     _Bool            notifications;
+    _Bool            check_thresholds;
 	_Bool			 store_rates;
 	_Bool			 always_append_ds;
 	char			*node;
@@ -478,20 +479,22 @@ static Event *riemann_value_to_protobuf (struct riemann_host const *host, /* {{{
 	event->time = CDTIME_T_TO_TIME_T (vl->time);
 	event->has_time = 1;
 
-	switch (status) {
-	case STATE_OKAY:
-		event->state = strdup("ok");
-		break;
-	case STATE_ERROR:
-		event->state = strdup("critical");
-		break;
-	case STATE_WARNING:
-		event->state = strdup("warning");
-		break;
-	case STATE_MISSING:
-		event->state = strdup("unknown");
-		break;
-	}
+    if (host->check_thresholds) {
+        switch (status) {
+        case STATE_OKAY:
+            event->state = strdup("ok");
+            break;
+        case STATE_ERROR:
+            event->state = strdup("critical");
+            break;
+        case STATE_WARNING:
+            event->state = strdup("warning");
+            break;
+        case STATE_MISSING:
+            event->state = strdup("unknown");
+            break;
+        }
+    }
 
 	ttl = CDTIME_T_TO_DOUBLE (vl->interval) * host->ttl_factor;
 	event->ttl = (float) ttl;
@@ -662,7 +665,8 @@ static int riemann_write(const data_set_t *ds, /* {{{ */
 	struct riemann_host	*host = ud->data;
 	Msg			*msg;
 
-	write_riemann_threshold_check(ds, vl, statuses);
+    if (host->check_thresholds)
+        write_riemann_threshold_check(ds, vl, statuses);
 	msg = riemann_value_list_to_protobuf (host, ds, vl, statuses);
 	if (msg == NULL)
 		return (-1);
@@ -717,6 +721,7 @@ static int riemann_config_node(oconfig_item_t *ci) /* {{{ */
 	host->node = NULL;
 	host->service = NULL;
     host->notifications = 1;
+    host->check_thresholds = 0;
 	host->store_rates = 1;
 	host->always_append_ds = 0;
 	host->use_tcp = 0;
@@ -743,6 +748,10 @@ static int riemann_config_node(oconfig_item_t *ci) /* {{{ */
 				break;
         } else if (strcasecmp ("Notifications", child->key) == 0) {
             status = cf_util_get_boolean(child, &host->notifications);
+            if (status != 0)
+                break;
+        } else if (strcasecmp ("CheckThresholds", child->key) == 0) {
+            status = cf_util_get_boolean(child, &host->check_thresholds);
             if (status != 0)
                 break;
 		} else if (strcasecmp ("Port", child->key) == 0) {
