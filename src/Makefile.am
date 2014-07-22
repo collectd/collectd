@@ -133,9 +133,9 @@ collectd_tg_LDADD += libcollectdclient/libcollectdclient.la
 collectd_tg_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 
 
-pkglib_LTLIBRARIES = 
+pkglib_LTLIBRARIES =
 
-BUILT_SOURCES = 
+BUILT_SOURCES =
 CLEANFILES =
 
 if BUILD_PLUGIN_AGGREGATION
@@ -273,7 +273,7 @@ pkglib_LTLIBRARIES += cpu.la
 cpu_la_SOURCES = cpu.c
 cpu_la_CFLAGS = $(AM_CFLAGS)
 cpu_la_LDFLAGS = -module -avoid-version
-cpu_la_LIBADD = 
+cpu_la_LIBADD =
 if BUILD_WITH_LIBKSTAT
 cpu_la_LIBADD += -lkstat
 endif
@@ -371,7 +371,7 @@ pkglib_LTLIBRARIES += disk.la
 disk_la_SOURCES = disk.c
 disk_la_CFLAGS = $(AM_CFLAGS)
 disk_la_LDFLAGS = -module -avoid-version
-disk_la_LIBADD = 
+disk_la_LIBADD =
 if BUILD_WITH_LIBKSTAT
 disk_la_LIBADD += -lkstat
 endif
@@ -382,7 +382,7 @@ if BUILD_WITH_LIBIOKIT
 disk_la_LDFLAGS += -framework IOKit
 endif
 if BUILD_WITH_LIBSTATGRAB
-disk_la_CFLAGS += $(BUILD_WITH_LIBSTATGRAB_CFLAGS)  
+disk_la_CFLAGS += $(BUILD_WITH_LIBSTATGRAB_CFLAGS)
 disk_la_LIBADD += $(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
 endif
 if BUILD_WITH_PERFSTAT
@@ -862,7 +862,7 @@ if BUILD_PLUGIN_OLSRD
 pkglib_LTLIBRARIES += olsrd.la
 olsrd_la_SOURCES = olsrd.c
 olsrd_la_LDFLAGS = -module -avoid-version
-olsrd_la_LIBADD = 
+olsrd_la_LIBADD =
 if BUILD_WITH_LIBSOCKET
 olsrd_la_LIBADD += -lsocket
 endif
@@ -1385,6 +1385,19 @@ write_http_la_CFLAGS += $(BUILD_WITH_LIBCURL_CFLAGS)
 write_http_la_LIBADD += $(BUILD_WITH_LIBCURL_LIBS)
 endif
 collectd_DEPENDENCIES += write_http.la
+endif
+
+if BUILD_PLUGIN_WRITE_KAFKA
+pkglib_LTLIBRARIES += write_kafka.la
+write_kafka_la_SOURCES = write_kafka.c \
+                        utils_format_graphite.c utils_format_graphite.h \
+                        utils_format_json.c utils_format_json.h \
+                        utils_cmd_putval.c utils_cmd_putval.h \
+                        utils_crc32.c utils_crc32.h
+write_kafka_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBRDKAFKA_LDFLAGS)
+write_kafka_la_LIBADD = $(BUILD_WITH_LIBRDKAFKA_LIBS)
+collectd_LDADD += "-dlopen" write_kafka.la
+collectd_DEPENDENCIES += write_kafka.la
 endif
 
 if BUILD_PLUGIN_WRITE_MONGODB

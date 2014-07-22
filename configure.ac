@@ -981,7 +981,7 @@ if test "x$fp_layout_type" = "xunknown"; then
 	uint8_t c[8];
 	double d;
 
-	d = 8.642135e130; 
+	d = 8.642135e130;
 	memcpy ((void *) &i0, (void *) &d, 8);
 
 	i1 = i0;
@@ -1036,7 +1036,7 @@ if test "x$fp_layout_type" = "xunknown"; then
 	uint8_t c[8];
 	double d;
 
-	d = 8.642135e130; 
+	d = 8.642135e130;
 	memcpy ((void *) &i0, (void *) &d, 8);
 
 	i1 = endianflip (i0);
@@ -1085,7 +1085,7 @@ if test "x$fp_layout_type" = "xunknown"; then
 	uint8_t c[8];
 	double d;
 
-	d = 8.642135e130; 
+	d = 8.642135e130;
 	memcpy ((void *) &i0, (void *) &d, 8);
 
 	i1 = intswap (i0);
@@ -1237,7 +1237,7 @@ AC_MSG_CHECKING([if have htonll defined])
       have_htonll="yes"
       AC_DEFINE(HAVE_HTONLL, 1, [Define if the function htonll exists.])
     ])
- 
+
 AC_MSG_RESULT([$have_htonll])
 
 # Check for structures
@@ -1380,7 +1380,7 @@ collectd additional packages:])
 
 AM_CONDITIONAL([BUILD_FREEBSD],[test "x$x$ac_system" = "xFreeBSD"])
 
-AM_CONDITIONAL([BUILD_AIX],[test "x$x$ac_system" = "xAIX"]) 
+AM_CONDITIONAL([BUILD_AIX],[test "x$x$ac_system" = "xAIX"])
 
 if test "x$ac_system" = "xAIX"
 then
@@ -2794,7 +2794,7 @@ then
 	else
 		SAVE_CPPFLAGS="$CPPFLAGS"
 		CPPFLAGS="$CPPFLAGS $with_snmp_cflags"
-		
+
 		AC_CHECK_HEADERS(net-snmp/net-snmp-config.h, [], [with_libnetsnmp="no (net-snmp/net-snmp-config.h not found)"])
 
 		CPPFLAGS="$SAVE_CPPFLAGS"
@@ -3021,7 +3021,7 @@ if test "x$with_libowcapi" = "xyes"
 then
 	SAVE_CPPFLAGS="$CPPFLAGS"
 	CPPFLAGS="$with_libowcapi_cppflags"
-	
+
 	AC_CHECK_HEADERS(owcapi.h, [with_libowcapi="yes"], [with_libowcapi="no (owcapi.h not found)"])
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
@@ -3032,7 +3032,7 @@ then
 	SAVE_CPPFLAGS="$CPPFLAGS"
 	LDFLAGS="$with_libowcapi_libs"
 	CPPFLAGS="$with_libowcapi_cppflags"
-	
+
 	AC_CHECK_LIB(owcapi, OW_get, [with_libowcapi="yes"], [with_libowcapi="no (libowcapi not found)"])
 
 	LDFLAGS="$SAVE_LDFLAGS"
@@ -3597,6 +3597,49 @@ LDFLAGS="$SAVE_LDFLAGS"
 AM_CONDITIONAL(BUILD_WITH_LIBRABBITMQ, test "x$with_librabbitmq" = "xyes")
 # }}}
 
+# --with-librdkafka {{{
+AC_ARG_WITH(librdkafka, [AS_HELP_STRING([--with-librdkafka@<:@=PREFIX@:>@], [Path to librdkafka.])],
+[
+  if test "x$withval" = "xno" && test "x$withval" != "xyes"
+  then
+    with_librdkafka_cppflags="-I$withval/include"
+    with_librdkafka_ldflags="-L$withval/lib"
+    with_librdkafka="yes"
+  else
+    with_librdkafka="$withval"
+  fi
+],
+[
+  with_librdkafka="yes"
+])
+SAVE_CPPFLAGS="$CPPFLAGS"
+SAVE_LDFLAGS="$LDFLAGS"
+
+if test "x$with_librdkafka" = "xyes"
+then
+	AC_CHECK_HEADERS(librdkafka/rdkafka.h, [with_librdkafka="yes"], [with_librdkafka="no (librdkafka/rdkafka.h not found)"])
+fi
+
+if test "x$with_librdkafka" = "xyes"
+then
+	AC_CHECK_LIB(rdkafka, rd_kafka_new, [with_librdkafka="yes"], [with_librdkafka="no (Symbol 'rd_kafka_new' not found)"])
+fi
+if test "x$with_librdkafka" = "xyes"
+then
+	BUILD_WITH_LIBRDKAFKA_CPPFLAGS="$with_librdkafka_cppflags"
+	BUILD_WITH_LIBRDKAFKA_LDFLAGS="$with_librdkafka_ldflags"
+	BUILD_WITH_LIBRDKAFKA_LIBS="-lrdkafka"
+	AC_SUBST(BUILD_WITH_LIBRDKAFKA_CPPFLAGS)
+	AC_SUBST(BUILD_WITH_LIBRDKAFKA_LDFLAGS)
+	AC_SUBST(BUILD_WITH_LIBRDKAFKA_LIBS)
+	AC_DEFINE(HAVE_LIBRDKAFKA, 1, [Define if librdkafka is present and usable.])
+fi
+CPPFLAGS="$SAVE_CPPFLAGS"
+LDFLAGS="$SAVE_LDFLAGS"
+AM_CONDITIONAL(BUILD_WITH_LIBRDKAFKA, test "x$with_librdkafka" = "xyes")
+
+# }}}
+
 # --with-librouteros {{{
 AC_ARG_WITH(librouteros, [AS_HELP_STRING([--with-librouteros@<:@=PREFIX@:>@], [Path to librouteros.])],
 [
@@ -4039,7 +4082,7 @@ CPPFLAGS="$SAVE_CPPFLAGS"
 LDFLAGS="$SAVE_LDFLAGS"
 
 if test "x$with_libtokyotyrant" = "xyes"
-then 
+then
   BUILD_WITH_LIBTOKYOTYRANT_CPPFLAGS="$with_libtokyotyrant_cppflags"
   BUILD_WITH_LIBTOKYOTYRANT_LDFLAGS="$with_libtokyotyrant_ldflags"
   BUILD_WITH_LIBTOKYOTYRANT_LIBS="$with_libtokyotyrant_libs"
@@ -5223,6 +5266,7 @@ AC_PLUGIN([vserver],     [$plugin_vserver],    [Linux VServer statistics])
 AC_PLUGIN([wireless],    [$plugin_wireless],   [Wireless statistics])
 AC_PLUGIN([write_graphite], [yes],             [Graphite / Carbon output plugin])
 AC_PLUGIN([write_http],  [$with_libcurl],      [HTTP output plugin])
+AC_PLUGIN([write_kafka],  [$with_librdkafka],  [Kafka output plugin])
 AC_PLUGIN([write_mongodb], [$with_libmongoc],  [MongoDB output plugin])
 AC_PLUGIN([write_redis], [$with_libcredis],    [Redis output plugin])
 AC_PLUGIN([write_riemann], [$have_protoc_c],   [Riemann output plugin])
@@ -5427,6 +5471,7 @@ Configuration:
     libpq . . . . . . . . $with_libpq
     libpthread  . . . . . $with_libpthread
     librabbitmq . . . . . $with_librabbitmq
+    librdkafka  . . . . . $with_librdkafka
     librouteros . . . . . $with_librouteros
     librrd  . . . . . . . $with_librrd
     libsensors  . . . . . $with_libsensors
@@ -5567,6 +5612,7 @@ Configuration:
     wireless  . . . . . . $enable_wireless
     write_graphite  . . . $enable_write_graphite
     write_http  . . . . . $enable_write_http
+    write_kafka . . . . . $enable_write_kafka
     write_mongodb . . . . $enable_write_mongodb
     write_redis . . . . . $enable_write_redis
     write_riemann . . . . $enable_write_riemann
