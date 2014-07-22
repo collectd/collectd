@@ -39,7 +39,9 @@ collectd_SOURCES = collectd.c collectd.h \
 		   utils_subst.c utils_subst.h \
 		   utils_tail.c utils_tail.h \
 		   utils_time.c utils_time.h \
-		   types_list.c types_list.h
+		   types_list.c types_list.h \
+		   utils_threshold.c utils_threshold.h
+
 
 collectd_CPPFLAGS =  $(AM_CPPFLAGS) $(LTDLINCL)
 collectd_CFLAGS = $(AM_CFLAGS)
