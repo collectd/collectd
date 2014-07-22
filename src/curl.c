@@ -58,6 +58,7 @@ struct web_page_s /* {{{ */
   char *user;
   char *pass;
   char *credentials;
+  _Bool digest;
   _Bool verify_peer;
   _Bool verify_host;
   char *cacert;
@@ -388,6 +389,13 @@ static int cc_page_init_curl (web_page_t *wp) /* {{{ */
     ssnprintf (wp->credentials, credentials_size, "%s:%s",
         wp->user, (wp->pass == NULL) ? "" : wp->pass);
     curl_easy_setopt (wp->curl, CURLOPT_USERPWD, wp->credentials);
+    
+    if (wp->digest)
+    {
+      curl_easy_setopt (wp->curl, CURLOPT_HTTPAUTH, CURLAUTH_DIGEST);
+      curl_easy_setopt (wp->curl, CURLOPT_USERNAME, wp->user);
+      curl_easy_setopt (wp->curl, CURLOPT_PASSWORD, wp->pass);
+    }
   }
 
   curl_easy_setopt (wp->curl, CURLOPT_SSL_VERIFYPEER, (long) wp->verify_peer);
@@ -425,6 +433,7 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
   page->url = NULL;
   page->user = NULL;
   page->pass = NULL;
+  page->digest = 0;
   page->verify_peer = 1;
   page->verify_host = 1;
   page->response_time = 0;
@@ -450,6 +459,8 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string (child, &page->user);
     else if (strcasecmp ("Password", child->key) == 0)
       status = cf_util_get_string (child, &page->pass);
+    else if (strcasecmp ("Digest", child->key) == 0)
+      status = cf_util_get_boolean (child, &page->digest);
     else if (strcasecmp ("VerifyPeer", child->key) == 0)
       status = cf_util_get_boolean (child, &page->verify_peer);
     else if (strcasecmp ("VerifyHost", child->key) == 0)

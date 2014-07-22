@@ -37,6 +37,7 @@ struct cu_tail_match_simple_s
   char plugin_instance[DATA_MAX_NAME_LEN];
   char type[DATA_MAX_NAME_LEN];
   char type_instance[DATA_MAX_NAME_LEN];
+  cdtime_t interval;
 };
 typedef struct cu_tail_match_simple_s cu_tail_match_simple_t;
 
@@ -54,6 +55,7 @@ struct cu_tail_match_s
   int flags;
   cu_tail_t *tail;
 
+  cdtime_t interval;
   cu_tail_match_match_t *matches;
   size_t matches_num;
 };
@@ -88,6 +90,7 @@ static int simple_submit_match (cu_match_t *match, void *user_data)
   sstrncpy (vl.type_instance, data->type_instance,
       sizeof (vl.type_instance));
 
+  vl.interval = data->interval;
   plugin_dispatch_values (&vl);
 
   if (match_value->ds_type & UTILS_MATCH_DS_TYPE_GAUGE)
@@ -180,6 +183,7 @@ int tail_match_add_match (cu_tail_match_t *obj, cu_match_t *match,
   obj->matches = temp;
   obj->matches_num++;
 
+  DEBUG ("tail_match_add_match interval %lf", CDTIME_T_TO_DOUBLE(((cu_tail_match_simple_t *)user_data)->interval));
   temp = obj->matches + (obj->matches_num - 1);
 
   temp->match = match;
@@ -193,7 +197,7 @@ int tail_match_add_match (cu_tail_match_t *obj, cu_match_t *match,
 int tail_match_add_match_simple (cu_tail_match_t *obj,
     const char *regex, const char *excluderegex, int ds_type,
     const char *plugin, const char *plugin_instance,
-    const char *type, const char *type_instance)
+    const char *type, const char *type_instance, const cdtime_t interval)
 {
   cu_match_t *match;
   cu_tail_match_simple_t *user_data;
@@ -220,6 +224,8 @@ int tail_match_add_match_simple (cu_tail_match_t *obj,
   if (type_instance != NULL)
     sstrncpy (user_data->type_instance, type_instance,
 	sizeof (user_data->type_instance));
+
+  user_data->interval = interval;
 
   status = tail_match_add_match (obj, match, simple_submit_match,
       user_data, free);

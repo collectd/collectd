@@ -9,14 +9,14 @@ collectd.conf - Configuration for the system statistics collection daemon B<coll
   BaseDir "/path/to/data/"
   PIDFile "/path/to/pidfile/collectd.pid"
   Server  "123.123.123.123" 12345
-  
+
   LoadPlugin cpu
   LoadPlugin load
-  
+
   <LoadPlugin df>
     Interval 3600
   </LoadPlugin>
-  
+
   LoadPlugin ping
   <Plugin ping>
     Host "example.org"
@@ -341,10 +341,10 @@ The full example configuration looks like this:
    <Aggregation>
      Plugin "cpu"
      Type "cpu"
-     
+
      GroupBy "Host"
      GroupBy "TypeInstance"
-     
+
      CalculateSum true
      CalculateAverage true
    </Aggregation>
@@ -420,13 +420,13 @@ The following example calculates the average usage of all "even" CPUs:
      Plugin "cpu"
      PluginInstance "/[0,2,4,6,8]$/"
      Type "cpu"
-     
+
      SetPlugin "cpu"
      SetPluginInstance "even-%{aggregation}"
-     
+
      GroupBy "Host"
      GroupBy "TypeInstance"
-     
+
      CalculateAverage true
    </Aggregation>
  </Plugin>
@@ -495,7 +495,7 @@ possibly filtering or messages.
  #   GraphitePrefix "collectd."
  #   GraphiteEscapeChar "_"
    </Publish>
-   
+
    # Receive values from an AMQP broker
    <Subscribe "some_name">
      Host "localhost"
@@ -822,17 +822,17 @@ Synopsis:
    ParseTime       false
    OpCodes         true
    QTypes          true
- 
+
    ServerStats     true
    ZoneMaintStats  true
    ResolverStats   false
    MemoryStats     true
- 
+
    <View "_default">
      QTypes        true
      ResolverStats true
      CacheRRSets   true
- 
+
      Zone "127.in-addr.arpa/IN"
    </View>
  </Plugin>
@@ -973,6 +973,31 @@ at all, B<all> cgroups are selected.
 
 =back
 
+=head2 Plugin C<cpu>
+
+The I<CPU plugin> collects CPU usage metrics.
+
+The following configuration options are available:
+
+=over 4
+
+=item B<ReportActive> B<false>|B<true>
+
+Reports non-idle CPU usage as the "active" value. Defaults to false.
+
+=item B<ReportByCpu> B<false>|B<true>
+
+When true reports usage for all cores. When false, reports cpu usage
+aggregated over all cores. Implies ValuesPercentage when false.
+Defaults to true.
+
+=item B<ValuesPercentage> B<false>|B<true>
+
+When true report percentage usage instead of tick values. Defaults to false.
+
+=back
+
+
 =head2 Plugin C<cpufreq>
 
 This plugin doesn't have any options. It reads
@@ -1045,6 +1070,10 @@ Username to use if authorization is required to read the page.
 =item B<Password> I<Password>
 
 Password to use if authorization is required to read the page.
+
+=item B<Digest> B<true>|B<false>
+
+Enable HTTP digest authentication.
 
 =item B<VerifyPeer> B<true>|B<false>
 
@@ -1157,11 +1186,19 @@ The following options are valid within B<URL> blocks:
 Sets the plugin instance to I<Instance>.
 
 =item B<User> I<Name>
+
 =item B<Password> I<Password>
+
+=item B<Digest> B<true>|B<false>
+
 =item B<VerifyPeer> B<true>|B<false>
+
 =item B<VerifyHost> B<true>|B<false>
+
 =item B<CACert> I<file>
+
 =item B<Header> I<Header>
+
 =item B<Post> I<Body>
 
 These options behave exactly equivalent to the appropriate options of the
@@ -1249,6 +1286,8 @@ Examples:
 =item B<User> I<User>
 
 =item B<Password> I<Password>
+
+=item B<Digest> B<true>|B<false>
 
 =item B<VerifyPeer> B<true>|B<false>
 
@@ -2425,12 +2464,12 @@ B<Synopsis:>
    ShowCPU true
    ShowCPUCores true
    ShowMemory true
-   
+
    ShowTemperatures true
    Temperature vddg
    Temperature vddq
    IgnoreSelectedTemperature true
-   
+
    ShowPower true
    Power total0
    Power total1
@@ -2610,19 +2649,19 @@ B<Synopsis:>
    Type voltage
    Instance "input-1"
  </Data>
- 
+
  <Data "voltage-input-2">
    RegisterBase 2
    RegisterType float
    Type voltage
    Instance "input-2"
  </Data>
- 
+
  <Host "modbus.example.com">
    Address "192.168.0.42"
    Port    "502"
    Interval 60
-   
+
    <Slave 1>
      Instance "power-supply"
      Collect  "voltage-input-1"
@@ -2855,7 +2894,7 @@ Required capabilities are documented below.
     User          "username"
     Password      "aef4Aebe"
     Interval      30
-    
+
     <WAFL>
       Interval 30
       GetNameCache   true
@@ -2863,12 +2902,12 @@ Required capabilities are documented below.
       GetBufferCache true
       GetInodeCache  true
     </WAFL>
-    
+
     <Disks>
       Interval 30
       GetBusy true
     </Disks>
-    
+
     <VolumePerf>
       Interval 30
       GetIO      "volume0"
@@ -2878,7 +2917,7 @@ Required capabilities are documented below.
       GetLatency "volume0"
       IgnoreSelectedLatency false
     </VolumePerf>
-    
+
     <VolumeUsage>
       Interval 30
       GetCapacity "vol0"
@@ -2888,15 +2927,15 @@ Required capabilities are documented below.
       GetSnapshot "vol3"
       IgnoreSelectedSnapshot false
     </VolumeUsage>
-    
+
     <Quota>
       Interval 60
     </Quota>
-    
+
     <Snapvault>
       Interval 30
     </Snapvault>
-    
+
     <System>
       Interval 30
       GetCPULoad     true
@@ -3457,7 +3496,7 @@ signature):
    # Export to an internal server
    # (demonstrates usage without additional options)
    Server "collectd.internal.tld"
-   
+
    # Export to an external server
    # (demonstrates usage with signature options)
    <Server "collectd.external.tld">
@@ -5525,6 +5564,7 @@ user using (extended) regular expressions, as described in L<regex(7)>.
   <Plugin "tail">
     <File "/var/log/exim4/mainlog">
       Instance "exim"
+      Interval 60
       <Match>
         Regex "S=([1-9][0-9]*)"
         DSType "CounterAdd"
@@ -5550,6 +5590,9 @@ instance. So in the above example the plugin name C<tail-foo> would be used.
 This plugin instance is for all B<Match> blocks that B<follow> it, until the
 next B<Instance> option. This way you can extract several plugin instances from
 one logfile, handy when parsing syslog and the like.
+
+The B<Interval> option allows you to define the length of time between reads. If
+this is not set, the default Interval will be used.
 
 Each B<Match> block has the following options to describe how the match should
 be performed:
@@ -7061,7 +7104,7 @@ Example:
    Max 100
    Satisfy "All"
  </Match>
- 
+
  # Match if the value of any data source is outside the range of 0 - 100.
  <Match "value">
    Min   0
@@ -7243,7 +7286,7 @@ Example:
  <Target "replace">
    # Replace "example.net" with "example.com"
    Host "\\<example.net\\>" "example.com"
- 
+
    # Strip "www." from hostnames
    Host "\\<www\\." ""
  </Target>

@@ -34,6 +34,11 @@
 #include <netdb.h>
 #include <poll.h>
 
+/* AIX doesn't have MSG_DONTWAIT */
+#ifndef MSG_DONTWAIT
+#  define MSG_DONTWAIT MSG_NONBLOCK
+#endif
+
 #ifndef STATSD_DEFAULT_NODE
 # define STATSD_DEFAULT_NODE NULL
 #endif
