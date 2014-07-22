@@ -40,13 +40,13 @@
 #define RIEMANN_TTL_FACTOR      2.0
 
 int write_riemann_threshold_check(const data_set_t *, const value_list_t *, int *);
-int write_riemann_threshold_config(oconfig_item_t *);
 
 struct riemann_host {
 	char			*name;
 #define F_CONNECT		 0x01
 	uint8_t			 flags;
 	pthread_mutex_t		 lock;
+    _Bool            notifications;
 	_Bool			 store_rates;
 	_Bool			 always_append_ds;
 	char			*node;
@@ -634,6 +634,9 @@ static int riemann_notification(const notification_t *n, user_data_t *ud) /* {{{
 	struct riemann_host	*host = ud->data;
 	Msg			*msg;
 
+    if (!host->notifications)
+        return 0;
+
 	msg = riemann_notification_to_protobuf (host, n);
 	if (msg == NULL)
 		return (-1);
@@ -710,6 +713,7 @@ static int riemann_config_node(oconfig_item_t *ci) /* {{{ */
 	host->reference_count = 1;
 	host->node = NULL;
 	host->service = NULL;
+    host->notifications = 1;
 	host->store_rates = 1;
 	host->always_append_ds = 0;
 	host->use_tcp = 0;
@@ -734,10 +738,10 @@ static int riemann_config_node(oconfig_item_t *ci) /* {{{ */
 			status = cf_util_get_string (child, &host->node);
 			if (status != 0)
 				break;
-		} else if (strcasecmp ("Threshold", child->key) == 0) {
-			status = write_riemann_threshold_config(child);
-			if (status != 0)
-				break;
+        } else if (strcasecmp ("Notifications", child->key) == 0) {
+            status = cf_util_get_boolean(child, &host->notifications);
+            if (status != 0)
+                break;
 		} else if (strcasecmp ("Port", child->key) == 0) {
 			status = cf_util_get_service (child, &host->service);
 			if (status != 0) {
@@ -907,7 +911,7 @@ static int riemann_config(oconfig_item_t *ci) /* {{{ */
 				 child->key);
 		}
 	}
-	return (0);
+    return 0;
 } /* }}} int riemann_config */
 
 void module_register(void)
