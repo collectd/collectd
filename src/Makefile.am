@@ -1568,16 +1568,16 @@ uninstall-hook:
 check_PROGRAMS = common_test utils_avltree_test utils_heap_test utils_mount_test utils_vl_lookup_test
 
 common_test_SOURCES = tests/common_test.c \
-		      common.h common.c \
-		      tests/mock/plugin.c \
-		      tests/mock/utils_cache.c \
-		      tests/mock/utils_time.c
+                      common.h common.c \
+                      tests/mock/plugin.c \
+                      tests/mock/utils_cache.c \
+                      tests/mock/utils_time.c
 common_test_CPPFLAGS = $(AM_CPPFLAGS) $(LTDLINCL)
 common_test_LDFLAGS = -export-dynamic
 common_test_LDADD =
 
 utils_avltree_test_SOURCES = tests/utils_avltree_test.c \
-			     utils_avltree.c utils_avltree.h
+                             utils_avltree.c utils_avltree.h
 utils_avltree_test_CPPFLAGS = $(AM_CPPFLAGS) $(LTDLINCL)
 utils_avltree_test_LDFLAGS = -export-dynamic
 utils_avltree_test_LDADD =
@@ -1590,21 +1590,21 @@ utils_heap_test_LDADD =
 
 utils_mount_test_SOURCES = tests/utils_mount_test.c \
                            utils_mount.c utils_mount.h \
-			       common.c common.h \
-			       tests/mock/plugin.c \
-			       tests/mock/utils_cache.c \
-			       tests/mock/utils_time.c
+                           common.c common.h \
+                           tests/mock/plugin.c \
+                           tests/mock/utils_cache.c \
+                           tests/mock/utils_time.c
 utils_mount_test_CPPFLAGS = $(AM_CPPFLAGS) $(LTDLINCL)
 utils_mount_test_LDFLAGS = -export-dynamic
 utils_mount_test_LDADD =
 
 utils_vl_lookup_test_SOURCES = tests/utils_vl_lookup_test.c \
-			       utils_vl_lookup.h utils_vl_lookup.c \
-			       utils_avltree.c utils_avltree.h \
-			       common.c common.h \
-			       tests/mock/plugin.c \
-			       tests/mock/utils_cache.c \
-			       tests/mock/utils_time.c
+                               utils_vl_lookup.h utils_vl_lookup.c \
+                               utils_avltree.c utils_avltree.h \
+                               common.c common.h \
+                               tests/mock/plugin.c \
+                               tests/mock/utils_cache.c \
+                               tests/mock/utils_time.c
 utils_vl_lookup_test_CPPFLAGS =  $(AM_CPPFLAGS) $(LTDLINCL)
 utils_vl_lookup_test_CFLAGS = $(AM_CFLAGS)
 utils_vl_lookup_test_LDFLAGS = -export-dynamic
