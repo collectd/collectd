@@ -172,7 +172,7 @@ static int za_read (void)
 
 #if KERNEL_LINUX
 	long long int *llvalues = NULL;
-	char FileContents[1024 * 10];
+	char file_contents[1024 * 10];
 	char *fields[3];
 	int numfields;
 	ssize_t len;
@@ -184,15 +184,15 @@ static int za_read (void)
 		return (-1);
 	}
 
-	len = read_file_contents (ZOL_ARCSTATS_FILE, FileContents, sizeof(FileContents));
+	len = read_file_contents (ZOL_ARCSTATS_FILE, file_contents, sizeof(file_contents));
 	if (len > 1)
 	{
 
 		int i=0;
-		char *pnl = FileContents;
+		char *pnl = file_contents;
 		char *pnnl;
 
-		FileContents[len] = '\0';
+		file_contents[len] = '\0';
 
 		while (pnl != NULL)
 		{
@@ -208,13 +208,13 @@ static int za_read (void)
 			llvalues = malloc(sizeof(long long int) * i);
 			i = 0;
 
-			pnl = FileContents;
+			pnl = file_contents;
 			while (pnl != NULL)
 			{
 				pnnl = strchr(pnl, '\n');
 				if (pnnl != NULL)
 					*pnnl = '\0';
-				
+
 				numfields = strsplit (pnl, fields, 4);
 				if (numfields == 3)
 				{
@@ -298,7 +298,6 @@ static int za_read (void)
 	}
 	if (ksp != NULL)
 	{
-	   
 		llist_destroy (ksp);
 	}
 #endif
