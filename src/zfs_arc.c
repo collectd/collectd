@@ -4,6 +4,7 @@
  * Copyright (C) 2012  Aurelien Rougemont
  * Copyright (C) 2013  Xin Li
  * Copyright (C) 2014  Marc Fournier
+ * Copyright (C) 2014  Wilfried Goesgens
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -23,6 +24,7 @@
  *   Aurelien Rougemont <beorn at gandi.net>
  *   Xin Li <delphij at FreeBSD.org>
  *   Marc Fournier <marc.fournier at camptocamp.com>
+ *   Wilfried Goesgens <dothebart at citadel.org>
  **/
 
 #include "collectd.h"
