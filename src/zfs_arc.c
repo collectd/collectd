@@ -220,7 +220,7 @@ static int za_read (void)
 				{
 					llvalues[i] = atoll (fields[2]);
 
-					e = llentry_create (fields[0], &llvalues[i]);
+					e = llentry_create (fields[0], (void *)llvalues[i]);
 					if (e == NULL)
 					{
 						ERROR ("zfs_arc plugin: `llentry_create' failed.");
