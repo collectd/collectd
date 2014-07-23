@@ -37,12 +37,9 @@
 #include "utils_llist.h"
 #define ZOL_ARCSTATS_FILE "/proc/spl/kstat/zfs/arcstats"
 
-#if !defined(kstat_t)
-typedef void kstat_t;
-static llist_t *zfs_stats = NULL;
-#endif
+typedef	llist_t kstat_t;
 
-static long long get_zfs_value(kstat_t *dummy __attribute__((unused)),
+static long long get_zfs_value(kstat_t *zfs_stats  __attribute__((unused)),
 		char *name)
 {
 	llentry_t *e;
@@ -174,66 +171,70 @@ static int za_read (void)
 	kstat_t	 *ksp	= NULL;
 
 #if KERNEL_LINUX
-	FILE *fh;
-
-	char buf[1024];
+	long long int *llvalues = NULL;
+	char FileContents[1024 * 10];
 	char *fields[3];
 	int numfields;
+	ssize_t len;
 
-	if ((fh = fopen (ZOL_ARCSTATS_FILE, "r")) == NULL)
-	{
-		char errbuf[1024];
-		ERROR ("zfs_arc plugin: `fopen (%s)' failed: %s",
-			ZOL_ARCSTATS_FILE,
-			sstrerror (errno, errbuf, sizeof (errbuf)));
-		return (-1);
-	}
-
-	zfs_stats = llist_create ();
-	if (zfs_stats == NULL)
+	ksp = llist_create ();
+	if (ksp == NULL)
 	{
 		ERROR ("zfs_arc plugin: `llist_create' failed.");
-		fclose (fh);
 		return (-1);
 	}
 
-	while (fgets (buf, 1024, fh) != NULL)
+	len = read_file_contents (ZOL_ARCSTATS_FILE, FileContents, sizeof(FileContents));
+	if (len > 1)
 	{
-		numfields = strsplit (buf, fields, 4);
-		if (numfields != 3)
-			continue;
 
-		char *llkey;
-		long long int llvalue;
+		int i=0;
+		char *pnl = FileContents;
+		char *pnnl;
 
-		llkey = strdup (fields[0]);
-		if (llkey == NULL) {
-			char errbuf[1024];
-			ERROR ("zfs_arc plugin: `strdup' failed: %s",
-				sstrerror (errno, errbuf, sizeof (errbuf)));
-			continue;
-		}
+		FileContents[len] = '\0';
 
-		llvalue = atoll (fields[2]);
-
-		llentry_t *e;
-		e = llentry_create (llkey, (void *)llvalue);
-		if (e == NULL)
+		while (pnl != NULL)
 		{
-			ERROR ("zfs_arc plugin: `llentry_create' failed.");
-			free (llkey);
-			continue;
+			pnl = strchr(pnl, '\n');
+			i++;
+			if (pnl && (*pnl != '\0'))
+				pnl++;
 		}
 
-		free (llkey);
+		if (i > 0)
+		{
+			llentry_t *e;
+			llvalues = malloc(sizeof(long long int) * i);
+			i = 0;
 
-		llist_append (zfs_stats, e);
-	}
+			pnl = FileContents;
+			while (pnl != NULL)
+			{
+				pnnl = strchr(pnl, '\n');
+				if (pnnl != NULL)
+					*pnnl = '\0';
+				
+				numfields = strsplit (pnl, fields, 4);
+				if (numfields == 3)
+				{
+					llvalues[i] = atoll (fields[2]);
 
-	if (fclose (fh))
-	{
-		char errbuf[1024];
-		WARNING ("zfs_arc: `fclose' failed: %s", sstrerror (errno, errbuf, sizeof (errbuf)));
+					e = llentry_create (fields[0], &llvalues[i]);
+					if (e == NULL)
+					{
+						ERROR ("zfs_arc plugin: `llentry_create' failed.");
+					}
+					else
+					{
+						llist_append (ksp, e);
+					}
+				}
+				pnl = pnnl;
+				if (pnl != NULL)
+					pnl ++;
+			}
+		}
 	}
 
 #elif !defined(__FreeBSD__) // Solaris
@@ -291,9 +292,14 @@ static int za_read (void)
 	za_submit ("io_octets", "L2", l2_io, /* num values = */ 2);
 
 #if defined(KERNEL_LINUX)
-	if (zfs_stats != NULL)
+	if (llvalues != NULL)
 	{
-		llist_destroy (zfs_stats);
+		free(llvalues);
+	}
+	if (ksp != NULL)
+	{
+	   
+		llist_destroy (ksp);
 	}
 #endif
 
