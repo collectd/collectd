@@ -28,7 +28,6 @@
 #include "utils_format_graphite.h"
 #include "utils_format_json.h"
 #include "utils_crc32.h"
-#include "riemann.pb-c.h"
 
 #include <sys/types.h>
 #include <librdkafka/rdkafka.h>
