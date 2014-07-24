@@ -951,6 +951,10 @@ static int ut_missing (const value_list_t *vl,
   if ((th == NULL) || ((th->flags & UT_FLAG_INTERESTING) == 0))
     return (0);
 
+  /* set state to STATE_MISSING so we can send an OKAY-notification
+     when the value comes back again */
+  uc_set_state(NULL, vl, STATE_MISSING);
+
   missing_time = cdtime () - vl->time;
   FORMAT_VL (identifier, sizeof (identifier), vl);
 
