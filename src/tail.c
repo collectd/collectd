@@ -75,6 +75,10 @@ static int ctail_config_add_match_dstype (ctail_config_match_t *cm,
       cm->flags |= UTILS_MATCH_CF_GAUGE_MAX;
     else if (strcasecmp ("GaugeLast", ci->values[0].value.string) == 0)
       cm->flags |= UTILS_MATCH_CF_GAUGE_LAST;
+    else if (strcasecmp ("GaugeInc", ci->values[0].value.string) == 0)
+      cm->flags |= UTILS_MATCH_CF_GAUGE_INC;
+    else if (strcasecmp ("GaugeAdd", ci->values[0].value.string) == 0)
+      cm->flags |= UTILS_MATCH_CF_GAUGE_ADD;
     else
       cm->flags = 0;
   }
