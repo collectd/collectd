@@ -1649,11 +1649,19 @@ collected. If at least one B<Disk> option is given and no B<IgnoreSelected> or
 set to B<false>, B<only> matching disks will be collected. If B<IgnoreSelected>
 is set to B<true>, all disks are collected B<except> the ones matched.
 
+=item B<UseBSDName> B<true>|B<false>
+
+Whether to use the device's "BSD Name", on MacE<nbsp>OSE<nbsp>X, instead of the
+default major/minor numbers. Requires collectd to be built with Apple's
+IOKitLib support.
+
 =item B<UdevNameAttr> I<Attribute>
 
 Attempt to override disk instance name with the value of a specified udev
-attribute When built with B<libudev>.  If the attribute is not defined for the
-given device, the default name is used.
+attribute when built with B<libudev>.  If the attribute is not defined for the
+given device, the default name is used. Example:
+
+  UdevNameAttr "DM_NAME"
 
 =back
 
