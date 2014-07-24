@@ -6366,6 +6366,111 @@ number.
 
 =back
 
+=head2 Plugin C<write_kafka>
+
+The I<write_kafka plugin> will send values to a I<Kafka> topic, a distributed
+queue.
+Synopsis:
+
+ <Plugin "write_kafka">
+   Property "metadata.broker.list" "broker1:9092,broker2:9092"
+   <Topic "collectd">
+     Format JSON
+   </Topic>
+ </Plugin>
+
+The following options are understood by the I<write_kafka plugin>:
+
+=over 4
+
+=item E<lt>B<Topic> I<Name>E<gt>
+
+The plugin's configuration consists of one or more B<Topic> blocks. Each block
+is given a unique I<Name> and specifies one kafka producer.
+Inside the B<Topic> block, the following per-topic options are
+understood:
+
+=over 4
+
+=item B<Property> I<String> I<String>
+
+Configure the named property for the current topic. Properties are
+forwarded to the kafka producer library B<librdkafka>.
+
+=item B<Key> I<String>
+
+Use the specified string as a partioning key for the topic. Kafka breaks
+topic into partitions and guarantees that for a given topology, the same
+consumer will be used for a specific key. The special (case insensitive)
+string B<Random> can be used to specify that an arbitrary partition should
+be used.
+
+=item B<Format> B<Command>|B<JSON>|B<Graphite>
+
+Selects the format in which messages are sent to the broker. If set to
+B<Command> (the default), values are sent as C<PUTVAL> commands which are
+identical to the syntax used by the I<Exec> and I<UnixSock plugins>.
+
+If set to B<JSON>, the values are encoded in the I<JavaScript Object Notation>,
+an easy and straight forward exchange format.
+
+If set to B<Graphite>, values are encoded in the I<Graphite> format, which is
+"<metric> <value> <timestamp>\n".
+
+=item B<StoreRates> B<true>|B<false>
+
+Determines whether or not C<COUNTER>, C<DERIVE> and C<ABSOLUTE> data sources
+are converted to a I<rate> (i.e. a C<GAUGE> value). If set to B<false> (the
+default), no conversion is performed. Otherwise the conversion is performed
+using the internal value cache.
+
+Please note that currently this option is only used if the B<Format> option has
+been set to B<JSON>.
+
+=item B<GraphitePrefix> (B<Format>=I<Graphite> only)
+
+A prefix can be added in the metric name when outputting in the I<Graphite> format.
+It's added before the I<Host> name.
+Metric name will be "<prefix><host><postfix><plugin><type><name>"
+
+=item B<GraphitePostfix> (B<Format>=I<Graphite> only)
+
+A postfix can be added in the metric name when outputting in the I<Graphite> format.
+It's added after the I<Host> name.
+Metric name will be "<prefix><host><postfix><plugin><type><name>"
+
+=item B<GraphiteEscapeChar> (B<Format>=I<Graphite> only)
+
+Specify a character to replace dots (.) in the host part of the metric name.
+In I<Graphite> metric name, dots are used as separators between different
+metric parts (host, plugin, type).
+Default is "_" (I<Underscore>).
+
+=item B<GraphiteSeparateInstances> B<false>|B<true>
+
+If set to B<true>, the plugin instance and type instance will be in their own
+path component, for example C<host.cpu.0.cpu.idle>. If set to B<false> (the
+default), the plugin and plugin instance (and likewise the type and type
+instance) are put into one component, for example C<host.cpu-0.cpu-idle>.
+
+=item B<StoreRates> B<true>|B<false>
+
+If set to B<true> (the default), convert counter values to rates. If set to
+B<false> counter values are stored as is, i.e. as an increasing integer number.
+
+This will be reflected in the C<ds_type> tag: If B<StoreRates> is enabled,
+converted values will have "rate" appended to the data source type, e.g.
+C<ds_type:derive:rate>.
+
+=back
+
+=item B<Property> I<String> I<String>
+
+Configure the kafka producer through properties, you almost always will
+want to set B<metadata.broker.list> to your Kafka broker list.
+
+=back
+
 =head2 Plugin C<write_riemann>
 
 The I<write_riemann plugin> will send values to I<Riemann>, a powerfull stream
