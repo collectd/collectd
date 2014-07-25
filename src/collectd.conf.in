@@ -52,7 +52,7 @@
 
 @LOAD_PLUGIN_SYSLOG@LoadPlugin syslog
 @LOAD_PLUGIN_LOGFILE@LoadPlugin logfile
-@LOAD_PLUGIN_LOG_LOGSTASH@LoadPlugin logfile
+@LOAD_PLUGIN_LOG_LOGSTASH@LoadPlugin log_logstash
 
 #<Plugin logfile>
 #	LogLevel @DEFAULT_LOG_LEVEL@
@@ -61,7 +61,7 @@
 #	PrintSeverity false
 #</Plugin>
 
-#<Plugin logfile>
+#<Plugin log_logstash>
 #	LogLevel @DEFAULT_LOG_LEVEL@
 #	File "@localstatedir@/log/@PACKAGE_NAME@.json.log"
 #</Plugin>

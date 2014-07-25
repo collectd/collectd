@@ -36,7 +36,7 @@
 # define HAVE_YAJL_V2 1
 #endif
 
-#define DEFAULT_LOGFILE LOCALSTATEDIR"/log/collectd.json.log"
+#define DEFAULT_LOGFILE LOCALSTATEDIR"/log/"PACKAGE_NAME".json.log"
 
 #if COLLECT_DEBUG
 static int log_level = LOG_DEBUG;
