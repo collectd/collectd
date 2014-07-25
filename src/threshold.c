@@ -39,31 +39,6 @@
  * The following functions add, delete, search, etc. configured thresholds to
  * the underlying AVL trees.
  */
-/*
- * threshold_t *threshold_get
- *
- * Retrieve one specific threshold configuration. For looking up a threshold
- * matching a value_list_t, see "threshold_search" below. Returns NULL if the
- * specified threshold doesn't exist.
- */
-static threshold_t *threshold_get (const char *hostname,
-    const char *plugin, const char *plugin_instance,
-    const char *type, const char *type_instance)
-{ /* {{{ */
-  char name[6 * DATA_MAX_NAME_LEN];
-  threshold_t *th = NULL;
-
-  format_name (name, sizeof (name),
-      (hostname == NULL) ? "" : hostname,
-      (plugin == NULL) ? "" : plugin, plugin_instance,
-      (type == NULL) ? "" : type, type_instance);
-  name[sizeof (name) - 1] = '\0';
-
-  if (c_avl_get (threshold_tree, name, (void *) &th) == 0)
-    return (th);
-  else
-    return (NULL);
-} /* }}} threshold_t *threshold_get */
 
 /*
  * int ut_threshold_add
@@ -137,58 +112,6 @@ static int ut_threshold_add (const threshold_t *th)
 
   return (status);
 } /* }}} int ut_threshold_add */
-
-/*
- * threshold_t *threshold_search
- *
- * Searches for a threshold configuration using all the possible variations of
- * "Host", "Plugin" and "Type" blocks. Returns NULL if no threshold could be
- * found.
- * XXX: This is likely the least efficient function in collectd.
- */
-static threshold_t *threshold_search (const value_list_t *vl)
-{ /* {{{ */
-  threshold_t *th;
-
-  if ((th = threshold_get (vl->host, vl->plugin, vl->plugin_instance,
-	  vl->type, vl->type_instance)) != NULL)
-    return (th);
-  else if ((th = threshold_get (vl->host, vl->plugin, vl->plugin_instance,
-	  vl->type, NULL)) != NULL)
-    return (th);
-  else if ((th = threshold_get (vl->host, vl->plugin, NULL,
-	  vl->type, vl->type_instance)) != NULL)
-    return (th);
-  else if ((th = threshold_get (vl->host, vl->plugin, NULL,
-	  vl->type, NULL)) != NULL)
-    return (th);
-  else if ((th = threshold_get (vl->host, "", NULL,
-	  vl->type, vl->type_instance)) != NULL)
-    return (th);
-  else if ((th = threshold_get (vl->host, "", NULL,
-	  vl->type, NULL)) != NULL)
-    return (th);
-  else if ((th = threshold_get ("", vl->plugin, vl->plugin_instance,
-	  vl->type, vl->type_instance)) != NULL)
-    return (th);
-  else if ((th = threshold_get ("", vl->plugin, vl->plugin_instance,
-	  vl->type, NULL)) != NULL)
-    return (th);
-  else if ((th = threshold_get ("", vl->plugin, NULL,
-	  vl->type, vl->type_instance)) != NULL)
-    return (th);
-  else if ((th = threshold_get ("", vl->plugin, NULL,
-	  vl->type, NULL)) != NULL)
-    return (th);
-  else if ((th = threshold_get ("", "", NULL,
-	  vl->type, vl->type_instance)) != NULL)
-    return (th);
-  else if ((th = threshold_get ("", "", NULL,
-	  vl->type, NULL)) != NULL)
-    return (th);
-
-  return (NULL);
-} /* }}} threshold_t *threshold_search */
 
 /*
  * Configuration
