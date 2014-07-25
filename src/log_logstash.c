@@ -86,7 +86,7 @@ static void log_logstash_print (yajl_gen g, int severity,
 	size_t len;
 #else
 	unsigned int len;
-#endif	
+#endif
 
 	if (yajl_gen_string(g, (u_char *)"@level", strlen("@level")) !=
 	    yajl_gen_status_ok)
@@ -134,13 +134,13 @@ static void log_logstash_print (yajl_gen g, int severity,
 	tt = CDTIME_T_TO_TIME_T (timestamp_time);
 	gmtime_r (&tt, &timestamp_tm);
 
-	/* 
+	/*
 	 * format time as a UTC ISO 8601 compliant string
 	 */
 	strftime (timestamp_str, sizeof (timestamp_str),
 		  "%Y-%m-%d %H:%M:%SZ", &timestamp_tm);
 	timestamp_str[sizeof (timestamp_str) - 1] = '\0';
-	
+
 	if (yajl_gen_string(g, (u_char *)timestamp_str,
 			    strlen(timestamp_str)) !=
 	    yajl_gen_status_ok)
@@ -157,9 +157,13 @@ static void log_logstash_print (yajl_gen g, int severity,
 	{
 		fh = fopen (DEFAULT_LOGFILE, "a");
 		do_close = 1;
-	}
-	else
-	{
+	} else if (strcasecmp(log_file, "stdout") == 0) {
+        fh = stdout;
+        do_close = 0;
+	} else if (strcasecmp(log_file, "stderr") == 0) {
+        fh = stderr;
+        do_close = 0;
+	} else {
 		fh = fopen (log_file, "a");
 		do_close = 1;
 	}
@@ -198,7 +202,7 @@ static void log_logstash_log (int severity, const char *msg,
 	yajl_gen_config conf;
 
 	conf.beautify = 0;
-#endif	
+#endif
 
 	if (severity > log_level)
 		return;
@@ -229,7 +233,7 @@ static void log_logstash_log (int severity, const char *msg,
 	yajl_gen_free(g);
 	fprintf(stderr, "Could not generate JSON message preamble\n");
 	return;
-	
+
 } /* void log_logstash_log (int, const char *) */
 
 static int log_logstash_notification (const notification_t *n,
@@ -316,7 +320,7 @@ static int log_logstash_notification (const notification_t *n,
 		    yajl_gen_status_ok)
 			goto err;
 		if (yajl_gen_string(g, (u_char *)n->type_instance,
-				    strlen(n->type_instance)) != 
+				    strlen(n->type_instance)) !=
 		    yajl_gen_status_ok)
 			goto err;
 	}
@@ -379,4 +383,3 @@ void module_register (void)
 } /* void module_register (void) */
 
 /* vim: set sw=4 ts=4 tw=78 noexpandtab : */
-
