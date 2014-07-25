@@ -4910,6 +4910,7 @@ plugin_ipvs="no"
 plugin_irq="no"
 plugin_libvirt="no"
 plugin_load="no"
+plugin_log_logstash="no"
 plugin_memory="no"
 plugin_multimeter="no"
 plugin_nfs="no"
@@ -5140,6 +5141,11 @@ then
 	plugin_load="yes"
 fi
 
+if test "x$with_libyajl" = "xyes"
+then
+	plugin_log_logstash="yes"
+fi
+
 if test "x$c_cv_have_libperl$c_cv_have_perl_ithreads" = "xyesyes"
 then
 	plugin_perl="yes"
@@ -5250,6 +5256,7 @@ AC_PLUGIN([java],        [$with_java],         [Embed the Java Virtual Machine])
 AC_PLUGIN([libvirt],     [$plugin_libvirt],    [Virtual machine statistics])
 AC_PLUGIN([load],        [$plugin_load],       [System load])
 AC_PLUGIN([logfile],     [yes],                [File logging plugin])
+AC_PLUGIN([log_logstash], [$plugin_log_logstash], [Logstash json_event compatible logging])
 AC_PLUGIN([lpar],        [$with_perfstat],     [AIX logical partitions statistics])
 AC_PLUGIN([lvm],         [$with_liblvm2app],   [LVM statistics])
 AC_PLUGIN([madwifi],     [$have_linux_wireless_h], [Madwifi wireless statistics])
@@ -5599,6 +5606,7 @@ Configuration:
     load  . . . . . . . . $enable_load
     logfile . . . . . . . $enable_logfile
     lpar  . . . . . . . . $enable_lpar
+    log_logstash ........ $enable_log_logstash
     lvm . . . . . . . . . $enable_lvm
     madwifi . . . . . . . $enable_madwifi
     match_empty_counter . $enable_match_empty_counter

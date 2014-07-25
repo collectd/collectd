@@ -2305,6 +2305,34 @@ B<Note>: There is no need to notify the daemon after moving or removing the
 log file (e.E<nbsp>g. when rotating the logs). The plugin reopens the file
 for each line it writes.
 
+=head2 Plugin C<log_logstash>
+
+The I<log logstash plugin> behaves like the logfile plugin but formats
+messages as JSON events for logstash to parse and input.
+
+=over 4
+
+=item B<LogLevel> B<debug|info|notice|warning|err>
+
+Sets the log-level. If, for example, set to B<notice>, then all events with
+severity B<notice>, B<warning>, or B<err> will be written to the logfile.
+
+Please note that B<debug> is only available if collectd has been compiled with
+debugging support.
+
+=item B<File> I<File>
+
+Sets the file to write log messages to. The special strings B<stdout> and
+B<stderr> can be used to write to the standard output and standard error
+channels, respectively. This, of course, only makes much sense when I<collectd>
+is running in foreground- or non-daemon-mode.
+
+=back
+
+B<Note>: There is no need to notify the daemon after moving or removing the
+log file (e.E<nbsp>g. when rotating the logs). The plugin reopens the file
+for each line it writes.
+
 =head2 Plugin C<lpar>
 
 The I<LPAR plugin> reads CPU statistics of I<Logical Partitions>, a
