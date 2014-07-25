@@ -5606,7 +5606,7 @@ Configuration:
     load  . . . . . . . . $enable_load
     logfile . . . . . . . $enable_logfile
     lpar  . . . . . . . . $enable_lpar
-    log_logstash ........ $enable_log_logstash
+    log_logstash  . . . . $enable_log_logstash
     lvm . . . . . . . . . $enable_lvm
     madwifi . . . . . . . $enable_madwifi
     match_empty_counter . $enable_match_empty_counter
