@@ -3413,6 +3413,7 @@ AM_CONDITIONAL(BUILD_WITH_LIBPTHREAD, test "x$with_libpthread" = "xyes")
 # --with-python {{{
 with_python_prog=""
 with_python_path="$PATH"
+with_python_config_path=""
 AC_ARG_WITH(python, [AS_HELP_STRING([--with-python@<:@=PREFIX@:>@], [Path to the python interpreter.])],
 [
  if test "x$withval" = "xyes" || test "x$withval" = "xno"
@@ -3432,6 +3433,21 @@ AC_ARG_WITH(python, [AS_HELP_STRING([--with-python@<:@=PREFIX@:>@], [Path to the
  fi; fi; fi
 ], [with_python="yes"])
 
+AC_ARG_WITH(python-config, [AS_HELP_STRING([--with-python-config=PATH], [Path to the python-config program.])],
+[
+ if test "x$withval" = "xno"
+ then
+	 with_python_config="$withval"
+ else if test -x "$withval"
+ then
+	 with_python="yes"
+	 with_python_config="yes"
+	 with_python_config_path="$withval"
+ else
+	 AC_MSG_WARN([Argument not recognized: $withval])
+ fi; fi
+], [with_python_config="no"])
+
 SAVE_PATH="$PATH"
 SAVE_CPPFLAGS="$CPPFLAGS"
 SAVE_LDFLAGS="$LDFLAGS"
@@ -3439,7 +3455,7 @@ SAVE_LIBS="$LIBS"
 
 PATH="$with_python_path"
 
-if test "x$with_python" = "xyes" && test "x$with_python_prog" = "x"
+if test "x$with_python" = "xyes" && test "x$with_python_prog" = "x" && test "x$with_python_config_path" = "x"
 then
 	AC_MSG_CHECKING([for python])
 	with_python_prog="`which python 2>/dev/null`"
@@ -3455,7 +3471,14 @@ fi
 if test "x$with_python" = "xyes"
 then
 	AC_MSG_CHECKING([for Python CPPFLAGS])
-	python_include_path=`echo "import distutils.sysconfig;import sys;sys.stdout.write(distutils.sysconfig.get_python_inc())" | "$with_python_prog" 2>&1`
+	if test "x$with_python_config_path" = "x"
+	then
+		python_include_prepend="-I"
+		python_include_path=`echo "import distutils.sysconfig;import sys;sys.stdout.write(distutils.sysconfig.get_python_inc())" | "$with_python_prog" 2>&1`
+	else
+		python_include_prepend=
+		python_include_path=`$with_python_config_path --includes`
+	fi
 	python_config_status=$?
 
 	if test "$python_config_status" -ne 0 || test "x$python_include_path" = "x"
@@ -3469,15 +3492,16 @@ fi
 
 if test "x$with_python" = "xyes"
 then
-	CPPFLAGS="-I$python_include_path $CPPFLAGS"
+	CPPFLAGS="$python_include_prepend$python_include_path $CPPFLAGS"
 	AC_CHECK_HEADERS(Python.h,
 			 [with_python="yes"],
 			 [with_python="no ('Python.h' not found)"])
 fi
 
-if test "x$with_python" = "xyes"
+if test "x$with_python" = "xyes" && test "x$with_python_config_path" = "x"
 then
 	AC_MSG_CHECKING([for Python LDFLAGS])
+	python_library_prepend="-L"
 	python_library_path=`echo "import distutils.sysconfig;import sys;sys.stdout.write(distutils.sysconfig.get_config_vars(\"LIBDIR\").__getitem__(0))" | "$with_python_prog" 2>&1`
 	python_config_status=$?
 
@@ -3493,7 +3517,14 @@ fi
 if test "x$with_python" = "xyes"
 then
 	AC_MSG_CHECKING([for Python LIBS])
-	python_library_flags=`echo "import distutils.sysconfig;import sys;sys.stdout.write(distutils.sysconfig.get_config_vars(\"BLDLIBRARY\").__getitem__(0))" | "$with_python_prog" 2>&1`
+	if test "x$with_python_config_path" = "x"
+	then
+		python_library_flags=`echo "import distutils.sysconfig;import sys;sys.stdout.write(distutils.sysconfig.get_config_vars(\"BLDLIBRARY\").__getitem__(0))" | "$with_python_prog" 2>&1`
+	else
+		python_library_prepend=
+		python_library_path=
+		python_library_flags=`$with_python_config_path --libs`
+	fi
 	python_config_status=$?
 
 	if test "$python_config_status" -ne 0 || test "x$python_library_flags" = "x"
@@ -3507,7 +3538,7 @@ fi
 
 if test "x$with_python" = "xyes"
 then
-	LDFLAGS="-L$python_library_path $LDFLAGS"
+	LDFLAGS="$python_library_prepend$python_library_path $LDFLAGS"
 	LIBS="$python_library_flags $LIBS"
 
 	AC_CHECK_FUNC(PyObject_CallFunction,
@@ -3522,8 +3553,8 @@ LIBS="$SAVE_LIBS"
 
 if test "x$with_python" = "xyes"
 then
-	BUILD_WITH_PYTHON_CPPFLAGS="-I$python_include_path"
-	BUILD_WITH_PYTHON_LDFLAGS="-L$python_library_path"
+	BUILD_WITH_PYTHON_CPPFLAGS="$python_include_prepend$python_include_path"
+	BUILD_WITH_PYTHON_LDFLAGS="$python_library_prepend$python_library_path"
 	BUILD_WITH_PYTHON_LIBS="$python_library_flags"
 	AC_SUBST(BUILD_WITH_PYTHON_CPPFLAGS)
 	AC_SUBST(BUILD_WITH_PYTHON_LDFLAGS)
