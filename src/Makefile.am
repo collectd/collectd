@@ -1392,6 +1392,19 @@ endif
 collectd_DEPENDENCIES += write_http.la
 endif
 
+if BUILD_PLUGIN_WRITE_KAFKA
+pkglib_LTLIBRARIES += write_kafka.la
+write_kafka_la_SOURCES = write_kafka.c \
+                        utils_format_graphite.c utils_format_graphite.h \
+                        utils_format_json.c utils_format_json.h \
+                        utils_cmd_putval.c utils_cmd_putval.h \
+                        utils_crc32.c utils_crc32.h
+write_kafka_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBRDKAFKA_LDFLAGS)
+write_kafka_la_LIBADD = $(BUILD_WITH_LIBRDKAFKA_LIBS)
+collectd_LDADD += "-dlopen" write_kafka.la
+collectd_DEPENDENCIES += write_kafka.la
+endif
+
 if BUILD_PLUGIN_WRITE_MONGODB
 pkglib_LTLIBRARIES += write_mongodb.la
 write_mongodb_la_SOURCES = write_mongodb.c
