@@ -2051,7 +2051,7 @@ fi
 * Sat Nov 17 2012 Ruben Kerkhof <ruben@tilaa.nl> 5.1.0-2
 - Move perl stuff to perl_vendorlib
 - Replace hardcoded paths with macros
-- Remove unneccesary Requires
+- Remove unnecessary Requires
 - Removed .a and .la files
 - Some other small cleanups
 
@@ -2059,7 +2059,7 @@ fi
 - New upstream version
 - Changes to support 5.1.0
 - Enabled all buildable plugins based on libraries available on EL6 + EPEL
-- All plugins requiring external libraries are now shipped in seperate
+- All plugins requiring external libraries are now shipped in separate
   packages.
 - No longer treat Java plugin as an exception, correctly set $JAVA_HOME during
   the build process + ensure build deps are installed.

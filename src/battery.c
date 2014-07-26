@@ -71,7 +71,7 @@ static const char *battery_acpi_dir = "/proc/acpi/battery";
 static int battery_init (void)
 {
 #if HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H
-	/* No init neccessary */
+	/* No init necessary */
 /* #endif HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H */
 
 #elif KERNEL_LINUX

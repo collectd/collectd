@@ -154,7 +154,7 @@ static int riemann_connect(struct riemann_host *host) /* {{{ */
 		}
 
 		host->flags |= F_CONNECT;
-		DEBUG("write_riemann plugin: got a succesful connection for: %s:%s",
+		DEBUG("write_riemann plugin: got a successful connection for: %s:%s",
 				node, service);
 		break;
 	}

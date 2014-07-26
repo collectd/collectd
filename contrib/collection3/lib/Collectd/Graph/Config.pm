@@ -43,7 +43,7 @@ return (1);
 =item B<gc_read_config> (I<$file>)
 
 Reads the configuration from the file located at I<$file>. Returns B<true> when
-successfull and B<false> otherwise.
+successful and B<false> otherwise.
 
 =cut
 

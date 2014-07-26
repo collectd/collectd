@@ -1632,7 +1632,7 @@
 
 2008-07-15, Version 4.4.2
 	* build system: Use pkg-config to detect the upsclient library.
-	* collectd: Try even harder to determine the endianess of the
+	* collectd: Try even harder to determine the endianness of the
 	  architecture collectd is being built on.
 	* disk plugin: Fix for Linux 2.4: A wrong field was used as the name
 	  of disks.
@@ -1697,7 +1697,7 @@
 2008-08-30, Version 4.3.4
 	* Build system: Improved detection of and linking with the statgrab
 	  library.
-	* collectd: Portability fixes, especially to determine endianess more
+	* collectd: Portability fixes, especially to determine endianness more
 	  reliable.
 	* Various plugins: Fix format strings.
 	* disk plugin: A fix for giving disks under Linux 2.4 the right names
