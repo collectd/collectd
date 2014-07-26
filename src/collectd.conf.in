@@ -1176,6 +1176,11 @@
 #		VerifyPeer true
 #		VerifyHost true
 #		CACert "/etc/ssl/ca.crt"
+#		CAPath "/etc/ssl/certs/"
+#		ClientKey "/etc/ssl/client.pem"
+#		ClientCert "/etc/ssl/client.crt"
+#		ClientKeyPass "secret"
+#		SSLVersion "TLSv1"
 #		Format "Command"
 #		StoreRates false
 #	</URL>
