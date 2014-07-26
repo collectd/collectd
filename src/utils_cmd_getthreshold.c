@@ -23,6 +23,7 @@
 #include "common.h"
 #include "plugin.h"
 
+#include "utils_avltree.h"
 #include "utils_threshold.h"
 #include "utils_parse_option.h" /* for `parse_string' */
 #include "utils_cmd_getthreshold.h"
