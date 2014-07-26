@@ -195,6 +195,10 @@ Phoenix Kayo <kayo.k11.4 at gmail.com>
 Pierre-Yves Ritschard <pyr at spootnik.org>
  - Write-Riemann plugin.
  - Write-Graphite plugin: Notification support.
+ - Write-Kafka plugin.
+ - Log-Logstash plugin.
+ - Normalization in the CPU plugin.
+ - Relative values in the Load plugin.
 
 Piotr Hosowicz <the55 at wp.pl>
  - SMF manifest for collectd.
