@@ -44,8 +44,52 @@ typedef struct ow_family_features_s ow_family_features_t;
 /* see http://owfs.sourceforge.net/ow_table.html for a list of families */
 static ow_family_features_t ow_family_features[] =
 {
-  {
+  { /* DS18S20 Precision Thermometer and DS1920 ibutton */
     /* family = */ "10.",
+    {
+      {
+        /* filename = */ "temperature",
+        /* type = */ "temperature",
+        /* type_instance = */ ""
+      }
+    },
+    /* features_num = */ 1
+  },
+  { /* DS1822 Econo Thermometer */
+    /* family = */ "22.",
+    {
+      {
+        /* filename = */ "temperature",
+        /* type = */ "temperature",
+        /* type_instance = */ ""
+      }
+    },
+    /* features_num = */ 1
+  },
+  { /* DS18B20 Programmable Resolution Thermometer */
+    /* family = */ "28.",
+    {
+      {
+        /* filename = */ "temperature",
+        /* type = */ "temperature",
+        /* type_instance = */ ""
+      }
+    },
+    /* features_num = */ 1
+  },
+  { /* DS2436 Volts/Temp */
+    /* family = */ "1B.",
+    {
+      {
+        /* filename = */ "temperature",
+        /* type = */ "temperature",
+        /* type_instance = */ ""
+      }
+    },
+    /* features_num = */ 1
+  },
+  { /* DS2438 Volts/Temp */
+    /* family = */ "26.",
     {
       {
         /* filename = */ "temperature",
