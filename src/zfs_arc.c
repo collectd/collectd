@@ -53,7 +53,7 @@ static long long get_zfs_value(kstat_t *zfs_stats  __attribute__((unused)),
 		return (-1);
 	}
 
-	return ((long long int)e->value);
+	return (*(long long int*)e->value);
 }
 
 #elif !defined(__FreeBSD__) // Solaris
@@ -222,7 +222,7 @@ static int za_read (void)
 				{
 					llvalues[i] = atoll (fields[2]);
 
-					e = llentry_create (fields[0], (void *)llvalues[i]);
+					e = llentry_create (fields[0], &llvalues[i]);
 					if (e == NULL)
 					{
 						ERROR ("zfs_arc plugin: `llentry_create' failed.");
