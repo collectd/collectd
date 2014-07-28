@@ -6408,6 +6408,33 @@ File that holds one or more SSL certificates. If you want to use HTTPS you will
 possibly need this option. What CA certificates come bundled with C<libcurl>
 and are checked by default depends on the distribution you use.
 
+=item B<CAPath> I<Directory>
+
+Directory holding one or more CA certificate files. You can use this if for
+some reason all the needed CA certificates aren't in the same file and can't be
+pointed to using the B<CACert> option. Requires C<libcurl> to be built against
+OpenSSL.
+
+=item B<ClientKey> I<File>
+
+File that holds the private key in PEM format to be used for certificate-based
+authentication.
+
+=item B<ClientCert> I<File>
+
+File that holds the SSL certificate to be used for certificate-based
+authentication.
+
+=item B<ClientKeyPass> I<Password>
+
+Password required to load the private key in B<ClientKey>.
+
+=item B<SSLVersion> B<SSLv2>|B<SSLv3>|B<TLSv1>|B<TLSv1_0>|B<TLSv1_1>|B<TLSv1_2>
+
+Define which SSL protocol version must be used. By default C<libcurl> will
+attempt to figure out the remote SSL protocol version. See
+L<curl_easy_setopt(3)> for more details.
+
 =item B<Format> B<Command>|B<JSON>
 
 Format of the output to generate. If set to B<Command>, will create output that
