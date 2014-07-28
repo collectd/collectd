@@ -267,6 +267,10 @@ int uc_check_timeout (void)
     if ((now - ce->last_update) < (ce->interval * timeout_g))
       continue;
 
+    /* If the entry was marked missing, continue */
+    if (ce->state == STATE_MISSING)
+      continue;
+
     /* If entry has not been updated, add to `keys' array */
     tmp = realloc ((void *) keys,
 	(keys_len + 1) * sizeof (char *));
@@ -341,31 +345,15 @@ int uc_check_timeout (void)
     vl.interval = keys_interval[i];
 
     plugin_dispatch_missing (&vl);
-  } /* for (i = 0; i < keys_len; i++) */
 
-  /* Now actually remove all the values from the cache. We don't re-evaluate
-   * the timestamp again, so in theory it is possible we remove a value after
-   * it is updated here. */
-  pthread_mutex_lock (&cache_lock);
-  for (int i = 0; i < keys_len; i++)
-  {
-    key = NULL;
-    ce = NULL;
+    /* set state to STATE_MISSING so we can send an OKAY-notification
+       when the value comes back again */
+    uc_set_state(NULL, &vl, STATE_MISSING);
 
-    status = c_avl_remove (cache_tree, keys[i],
-	(void *) &key, (void *) &ce);
-    if (status != 0)
-    {
-      ERROR ("uc_check_timeout: c_avl_remove (\"%s\") failed.", keys[i]);
-      sfree (keys[i]);
-      continue;
-    }
-
+    /* Leave values in the cache to track missing values when they
+       come back again */
     sfree (keys[i]);
-    sfree (key);
-    cache_free (ce);
   } /* for (i = 0; i < keys_len; i++) */
-  pthread_mutex_unlock (&cache_lock);
 
   sfree (keys);
   sfree (keys_time);
@@ -493,25 +481,18 @@ int uc_get_rate_by_name (const char *name, gauge_t **ret_values, size_t *ret_val
   if (c_avl_get (cache_tree, name, (void *) &ce) == 0)
   {
     assert (ce != NULL);
-
-    /* remove missing values from getval */
-    if (ce->state == STATE_MISSING)
+    /* Removing values with missing state would cause threshold plugin
+       to not send OKAY-notifications. Does it causes any bad side effect elsewhere ? */
+    ret_num = ce->values_num;
+    ret = (gauge_t *) malloc (ret_num * sizeof (gauge_t));
+    if (ret == NULL)
     {
+      ERROR ("utils_cache: uc_get_rate_by_name: malloc failed.");
       status = -1;
     }
     else
     {
-      ret_num = ce->values_num;
-      ret = malloc (ret_num * sizeof (*ret));
-      if (ret == NULL)
-      {
-        ERROR ("utils_cache: uc_get_rate_by_name: malloc failed.");
-        status = -1;
-      }
-      else
-      {
-        memcpy (ret, ce->values_gauge, ret_num * sizeof (gauge_t));
-      }
+      memcpy (ret, ce->values_gauge, ret_num * sizeof (gauge_t));
     }
   }
   else
