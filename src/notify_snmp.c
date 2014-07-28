@@ -953,7 +953,7 @@ static int notify_snmp_shutdown (void) /* {{{ */
         notify_snmp_oids_t *next;
         
         next = oid->next;
-        notify_snmp_free_oids(target->oids);       
+        notify_snmp_free_oids(oid);
         oid = next;
     }
 
