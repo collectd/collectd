@@ -1544,6 +1544,16 @@ it should be able to handle integer an floating point types, as well as strings
 
 There must be at least one B<ValuesFrom> option inside each B<Result> block.
 
+=item B<MetadataFrom> [I<column0> I<column1> ...]
+
+Names the columns whose content is used as metadata for the data sets
+that are dispatched to the daemon. 
+
+The actual data type in the columns is not that important. The plugin will
+automatically cast the values to the right type if it know how to do that. So
+it should be able to handle integer an floating point types, as well as strings
+(if they include a number at the beginning).
+
 =back
 
 =head3 B<Database> blocks
