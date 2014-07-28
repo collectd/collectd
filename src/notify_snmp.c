@@ -683,6 +683,14 @@ static netsnmp_pdu *notify_snmp_create_pdu (notify_snmp_target_t *target) /* {{{
         }
 
         pdu->enterprise = (oid *) malloc(oid_enterprise->len * sizeof(oid));
+        if (pdu->enterprise == NULL)
+        {
+            ERROR ("notify_snmp plugin: notify_snmp_create_pdu: "
+                "malloc failed.");
+            snmp_free_pdu(pdu);
+            return (NULL);
+        }
+
         memcpy(pdu->enterprise, oid_enterprise->objid,
             oid_enterprise->len * sizeof(oid));
         pdu->enterprise_length = oid_enterprise->len;
