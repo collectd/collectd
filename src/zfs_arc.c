@@ -208,7 +208,7 @@ static int za_read (void)
 		{
 			llentry_t *e;
 			llvalues = malloc(sizeof(long long int) * i);
-			i = 0;
+			int j = 0;
 
 			pnl = file_contents;
 			while (pnl != NULL)
@@ -220,9 +220,9 @@ static int za_read (void)
 				numfields = strsplit (pnl, fields, 4);
 				if (numfields == 3)
 				{
-					llvalues[i] = atoll (fields[2]);
+					llvalues[j] = atoll (fields[2]);
 
-					e = llentry_create (fields[0], &llvalues[i]);
+					e = llentry_create (fields[0], &llvalues[j]);
 					if (e == NULL)
 					{
 						ERROR ("zfs_arc plugin: `llentry_create' failed.");
@@ -231,6 +231,7 @@ static int za_read (void)
 					{
 						llist_append (ksp, e);
 					}
+					j++;
 				}
 				pnl = pnnl;
 				if (pnl != NULL)
