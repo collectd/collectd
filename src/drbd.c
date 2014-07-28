@@ -58,7 +58,7 @@ static int drbd_init (void)
 }
 
 
-static int drbd_submit_fields (int resource,
+static int drbd_submit_fields (long int resource,
 		char **fields, size_t fields_num)
 {
 	char plugin_instance[DATA_MAX_NAME_LEN];
@@ -75,12 +75,12 @@ static int drbd_submit_fields (int resource,
 	if (fields_num != drbd_names_num)
 	{
 		WARNING ("drbd plugin: Wrong number of fields for "
-				 "r%i statistics. Expected %zu, got %zu.",
+				 "r%ld statistics. Expected %zu, got %zu.",
 				 resource, drbd_names_num, fields_num);
 		return (EINVAL);
 	}
 
-	ssnprintf (plugin_instance, sizeof (plugin_instance), "r%i",
+	ssnprintf (plugin_instance, sizeof (plugin_instance), "r%ld",
 			resource);
 
 	for (i = 0; i < drbd_names_num; i++)
@@ -120,7 +120,7 @@ static int drbd_read (void)
 	FILE *fh;
 	char buffer[256];
 
-	int resource = -1;
+	long int resource = -1;
 	char *fields[16];
 	int fields_num = 0;
 
@@ -143,7 +143,7 @@ static int drbd_read (void)
 		if (isdigit(fields[0][0]))
 		{
 			/* parse the resource line */
-			resource = atoi(fields[0]);
+			resource = strtol(fields[0], NULL, 10);
 		}
 		else
 		{
