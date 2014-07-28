@@ -162,7 +162,7 @@ static notify_snmp_oid_t *notify_snmp_oids_get_oid (notify_snmp_oids_t *oids, /*
 {
     int i;
 
-    for (i=0; i < oids->len; i++) 
+    for (i=0; i < oids->len; i++)
     {
         if (oids->list[i].id == id)
             return &oids->list[i];
@@ -606,7 +606,7 @@ static int notify_snmp_config (oconfig_item_t *ci) /* {{{ */
 
 static void notify_snmp_exit_session(notify_snmp_target_t *target) /* {{{ */
 {
-    if(target->sess_handle != NULL && !target->sess_reuse) 
+    if(target->sess_handle != NULL && !target->sess_reuse)
     {
         int status;
 
@@ -616,7 +616,7 @@ static void notify_snmp_exit_session(notify_snmp_target_t *target) /* {{{ */
             char *errstr = NULL;
             snmp_sess_error (target->sess_handle, NULL, NULL, &errstr);
 
-            WARNING ("notify_snmp plugin: snmp_sess_close error: '%s'.", 
+            WARNING ("notify_snmp plugin: snmp_sess_close error: '%s'.",
                 errstr);
         }
         target->sess_handle = NULL;
@@ -749,7 +749,7 @@ static netsnmp_pdu *notify_snmp_create_pdu (notify_snmp_target_t *target) /* {{{
 static notification_meta_t *notify_snmp_notification_meta_get ( /* {{{ */
     notification_meta_t *meta, char *name)
 {
-    while (meta != NULL) 
+    while (meta != NULL)
     {
         if (strcmp(meta->name, name) == 0)
             return meta;
@@ -931,14 +931,14 @@ static int notify_snmp_init (void) /* {{{ */
 
 static int notify_snmp_shutdown (void) /* {{{ */
 {
-    notify_snmp_target_t *target = notify_snmp_targets;    
+    notify_snmp_target_t *target = notify_snmp_targets;
     notify_snmp_oids_t *oid = notify_snmp_oids;
 
     notify_snmp_targets = NULL;
     while (target != NULL)
     {
         notify_snmp_target_t *next;
-    
+
         next = target->next;
         pthread_mutex_lock (&target->session_lock);
         pthread_mutex_unlock (&target->session_lock);
@@ -946,12 +946,12 @@ static int notify_snmp_shutdown (void) /* {{{ */
         notify_snmp_free_target(target);
         target = next;
     }
-    
+
     notify_snmp_oids = NULL;
     while (oid != NULL)
     {
         notify_snmp_oids_t *next;
-        
+
         next = oid->next;
         notify_snmp_free_oids(oid);
         oid = next;
