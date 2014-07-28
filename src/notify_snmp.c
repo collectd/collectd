@@ -798,7 +798,8 @@ static int notify_snmp_sendsnmp(notify_snmp_target_t *target, notification_t *n)
                     value = "UNKNOWN";
                 break;
             case NOTIFY_SNMP_TIMESTAMP_OID:
-                status = ssnprintf(buffer, sizeof(buffer), "%"PRIu64, n->time);
+                status = ssnprintf(buffer, sizeof(buffer), "%u",
+                                    (unsigned int)CDTIME_T_TO_TIME_T(n->time));
                 if ((status < 0) || ((size_t) status >= sizeof (buffer)))
                     WARNING ("notify_snmp plugin: notify_snmp_sendsnmp:"
                         " truncate notification time.");
