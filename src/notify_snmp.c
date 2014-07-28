@@ -890,8 +890,8 @@ static int notify_snmp_sendsnmp(notify_snmp_target_t *target, notification_t *n)
         return (-1);
     }
 
+    snmp_free_pdu(pdu);
     notify_snmp_exit_session(target);
-
     return(0);
 } /* }}} int notify_snmp_sendsnmp */
 
