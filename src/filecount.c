@@ -18,7 +18,7 @@
  *
  * Authors:
  *   Alessandro Iurlano <alessandro.iurlano at gmail.com>
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"

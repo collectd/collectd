@@ -20,7 +20,7 @@
  * Authors:
  *   Antony Dovgal <tony at daylessday.org>
  *   Phoenix Kayo <kayo.k11.4 at gmail.com>
- *   Florian Forster <octo at verplant.org>
+ *   Florian Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"

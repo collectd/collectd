@@ -21,7 +21,7 @@
  * Authors:
  *   Sebastian Harl <sh at tokkee.org>
  *   Niki W. Waibel <niki.waibel at newlogic.com>
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  *   Oleg King <king2 at kaluga.ru>
  **/
 

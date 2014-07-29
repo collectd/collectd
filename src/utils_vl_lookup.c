@@ -1,6 +1,6 @@
 /**
  * collectd - src/utils_vl_lookup.c
- * Copyright (C) 2012  Florian Forster
+ * Copyright (C) 2012       Florian Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),

@@ -663,7 +663,7 @@ types used by the read, write and match functions.
 =item
 
 Please feel free to send in new plugins to collectd's mailing list at
-E<lt>collectdE<nbsp>atE<nbsp>verplant.orgE<gt> for review and, possibly,
+E<lt>collectdE<nbsp>atE<nbsp>collectd.orgE<gt> for review and, possibly,
 inclusion in the main distribution. In the latter case, we will take care of
 keeping the plugin up to date and adapting it to new versions of collectd.
 
@@ -730,7 +730,7 @@ Sven Trenkel E<lt>collectdE<nbsp>atE<nbsp>semidefinite.deE<gt>.
 This manpage has been written by Sven Trenkel
 E<lt>collectdE<nbsp>atE<nbsp>semidefinite.deE<gt>.
 It is based on the L<collectd-perl(5)> manual page by
-Florian Forster E<lt>octoE<nbsp>atE<nbsp>verplant.orgE<gt> and
+Florian Forster E<lt>octoE<nbsp>atE<nbsp>collectd.orgE<gt> and
 Sebastian Harl E<lt>shE<nbsp>atE<nbsp>tokkee.orgE<gt>.
 
 =cut

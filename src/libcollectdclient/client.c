@@ -84,7 +84,7 @@
     _b[sizeof (_b) - 1] = 0; \
     SSTRCAT ((d), _b); \
   } while (0)
-    
+
 
 #define LCC_SET_ERRSTR(c, ...) do { \
   snprintf ((c)->errbuf, sizeof ((c)->errbuf), __VA_ARGS__); \

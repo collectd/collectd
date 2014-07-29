@@ -20,7 +20,7 @@
  *
  * Authors:
  *   Vincent Stehlé <vincent.stehle at free.fr>
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  *   Sebastian Harl <sh at tokkee.org>
  *
  * TODO:

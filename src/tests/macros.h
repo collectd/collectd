@@ -1,6 +1,5 @@
 /**
  * collectd - src/tests/macros.h
- *
  * Copyright (C) 2013       Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
