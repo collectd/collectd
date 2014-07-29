@@ -120,7 +120,7 @@ static int cjni_match_target_destroy (void **user_data);
 static int cjni_match_target_invoke (const data_set_t *ds, value_list_t *vl,
     notification_meta_t **meta, void **user_data);
 
-/* 
+/*
  * C to Java conversion functions
  */
 static int ctoj_string (JNIEnv *jvm_env, /* {{{ */
@@ -158,6 +158,23 @@ static int ctoj_string (JNIEnv *jvm_env, /* {{{ */
 
   return (0);
 } /* }}} int ctoj_string */
+
+static jstring ctoj_output_string (JNIEnv *jvm_env, /* {{{ */
+    const char *string)
+{
+  jstring o_string;
+
+  /* Create a java.lang.String */
+  o_string = (*jvm_env)->NewStringUTF (jvm_env,
+      (string != NULL) ? string : "");
+  if (o_string == NULL)
+  {
+    ERROR ("java plugin: ctoj_output_string: NewStringUTF failed.");
+    return NULL;
+  }
+
+  return (o_string);
+} /* }}} int ctoj_output_string */
 
 static int ctoj_int (JNIEnv *jvm_env, /* {{{ */
     jint value,
@@ -1319,7 +1336,7 @@ static int jtoc_notification (JNIEnv *jvm_env, notification_t *n, /* {{{ */
 
   return (0);
 } /* }}} int jtoc_notification */
-/* 
+/*
  * Functions accessible from Java
  */
 static jint JNICALL cjni_api_dispatch_values (JNIEnv *jvm_env, /* {{{ */
@@ -1629,6 +1646,11 @@ static void JNICALL cjni_api_log (JNIEnv *jvm_env, /* {{{ */
   (*jvm_env)->ReleaseStringUTFChars (jvm_env, o_message, c_str);
 } /* }}} void cjni_api_log */
 
+static jstring JNICALL cjni_api_get_hostname (JNIEnv *jvm_env, jobject this)
+{
+    return ctoj_output_string(jvm_env, hostname_g);
+}
+
 /* List of ``native'' functions, i. e. C-functions that can be called from
  * Java. */
 static JNINativeMethod jni_api_functions[] = /* {{{ */
@@ -1688,6 +1710,11 @@ static JNINativeMethod jni_api_functions[] = /* {{{ */
   { "log",
     "(ILjava/lang/String;)V",
     cjni_api_log },
+
+  { "getHostname",
+    "()Ljava/lang/String;",
+    cjni_api_get_hostname },
+
 };
 static size_t jni_api_functions_num = sizeof (jni_api_functions)
   / sizeof (jni_api_functions[0]);

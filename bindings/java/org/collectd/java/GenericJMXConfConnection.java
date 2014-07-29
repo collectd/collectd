@@ -86,15 +86,7 @@ class GenericJMXConfConnection
       return (this._host);
     }
 
-    try
-    {
-      InetAddress localHost = InetAddress.getLocalHost();
-      return (localHost.getHostName ());
-    }
-    catch (UnknownHostException e)
-    {
-      return ("localhost");
-    }
+    return Collectd.getHostname();
   } /* }}} String getHost */
 
 private void connect () /* {{{ */
