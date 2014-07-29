@@ -30,17 +30,22 @@
 #include "plugin.h"
 
 /*
- * Defines
+ * Each type may have 12 sub-types
+ * 0x1000 = 1000000000000
+ *          ^             <- Type bit
+ *           ^^^^^^^^^^^^ <- Subtype bits
  */
-#define UTILS_MATCH_DS_TYPE_GAUGE    0x10
-#define UTILS_MATCH_DS_TYPE_COUNTER  0x20
-#define UTILS_MATCH_DS_TYPE_DERIVE   0x40
-#define UTILS_MATCH_DS_TYPE_ABSOLUTE 0x80
+#define UTILS_MATCH_DS_TYPE_GAUGE    0x1000
+#define UTILS_MATCH_DS_TYPE_COUNTER  0x2000
+#define UTILS_MATCH_DS_TYPE_DERIVE   0x4000
+#define UTILS_MATCH_DS_TYPE_ABSOLUTE 0x8000
 
 #define UTILS_MATCH_CF_GAUGE_AVERAGE 0x01
 #define UTILS_MATCH_CF_GAUGE_MIN     0x02
 #define UTILS_MATCH_CF_GAUGE_MAX     0x04
 #define UTILS_MATCH_CF_GAUGE_LAST    0x08
+#define UTILS_MATCH_CF_GAUGE_INC     0x10
+#define UTILS_MATCH_CF_GAUGE_ADD     0x20
 
 #define UTILS_MATCH_CF_COUNTER_SET   0x01
 #define UTILS_MATCH_CF_COUNTER_ADD   0x02

@@ -84,6 +84,13 @@ static int default_callback (const char __attribute__((unused)) *str,
     gauge_t value;
     char *endptr = NULL;
 
+    if (data->ds_type & UTILS_MATCH_CF_GAUGE_INC)
+    {
+      data->value.gauge = isnan (data->value.gauge) ? 1 : data->value.gauge + 1;
+      data->values_num++;
+      return(0);
+    }
+
     if (matches_num < 2)
       return (-1);
 
@@ -111,6 +118,10 @@ static int default_callback (const char __attribute__((unused)) *str,
     {
       if (data->value.gauge < value)
 	data->value.gauge = value;
+    }
+    else if (data->ds_type & UTILS_MATCH_CF_GAUGE_ADD)
+    {
+      data->value.gauge += value;
     }
     else
     {
