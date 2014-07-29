@@ -471,7 +471,7 @@ static int notify_dbi_notification_database_query (notify_dbi_database_t *db, /*
   assert (statement != NULL);
 
   status = ssnprintf (time_buffer, sizeof(time_buffer), "%u",
-    (unsigned int) n->time);
+    (unsigned int)CDTIME_T_TO_TIME_T(n->time));
   if ((status < 1) || (status >= sizeof(time_buffer)))
     return (-1);
 
