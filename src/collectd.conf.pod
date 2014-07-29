@@ -1004,7 +1004,7 @@ Reports non-idle CPU usage as the "active" value. Defaults to false.
 =item B<ReportByCpu> B<false>|B<true>
 
 When true reports usage for all cores. When false, reports cpu usage
-aggregated over all cores. Implies ValuesPercentage when false.
+aggregated over all cores.
 Defaults to true.
 
 =item B<ValuesPercentage> B<false>|B<true>
