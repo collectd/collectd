@@ -252,6 +252,13 @@ public class Collectd
   native private static void log (int severity, String message);
 
   /**
+   * Yield contents of collectd/src/collectd.h:hostname_g
+   *
+   * @return The hostname as set in the collectd configuration.
+   */
+  native public static java.lang.String getHostname ();
+
+  /**
    * Prints an error message.
    */
   public static void logError (String message)
