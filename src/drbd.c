@@ -136,18 +136,20 @@ static int drbd_read (void)
 		fields_num = strsplit (buffer,
 				fields, STATIC_ARRAY_SIZE (fields));
 
-		/* ignore headers */
+		/* ignore headers (first two iterations) */
 		if (fields_num < 4)
 			continue;
 
 		if (isdigit(fields[0][0]))
 		{
-			/* parse the resource line */
+			/* parse the resource line, next loop iteration
+			   will submit values for this resource */
 			resource = strtol(fields[0], NULL, 10);
 		}
 		else
 		{
-			/* handle stats data */
+			/* handle stats data for the resource defined in the
+			   previous iteration */
 			drbd_submit_fields(resource, fields, fields_num);
 		}
 	} /* while (fgets) */
