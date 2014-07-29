@@ -989,6 +989,19 @@ at all, B<all> cgroups are selected.
 
 =back
 
+=head2 Plugin C<conntrack>
+
+This plugin collects IP conntrack statistics.
+
+=over 4
+
+=item B<OldFiles>
+
+Assume the B<conntrack_count> and B<conntrack_max> files to be found in
+F</proc/sys/net/ipv4/netfilter> instead of F</proc/sys/net/netfilter/>.
+
+=back
+
 =head2 Plugin C<cpu>
 
 The I<CPU plugin> collects CPU usage metrics.
