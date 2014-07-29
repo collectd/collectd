@@ -254,10 +254,9 @@ static int register_callback (llist_t **list, /* {{{ */
 } /* }}} int register_callback */
 
 static void log_list_callbacks (llist_t **list, /* {{{ */
-				const char *comment, size_t clen)
+				const char *comment)
 {
 	char *str;
-	char *pos;
 	int len;
 	llentry_t *le;
 	int i;
@@ -265,11 +264,19 @@ static void log_list_callbacks (llist_t **list, /* {{{ */
 	char **keys;
 
 	n = llist_size(*list);
+	if (n == 0)
+	{
+		INFO("%s [none]", comment);
+		return;
+	}
+
 	keys = calloc(n, sizeof(char*));
 
 	if (keys == NULL)
 	{
-		ERROR("failed to allocate memory for list of callbacks");
+		ERROR("%s: failed to allocate memory for list of callbacks",
+		      comment);
+
 		return;
 	}
 
@@ -280,33 +287,19 @@ static void log_list_callbacks (llist_t **list, /* {{{ */
 		keys[i] = le->key;
 		len += strlen(le->key) + 6;
 	}
-
-	if (len == 0)
+	str = malloc(len + 10);
+	if (str == NULL)
 	{
-		len += strlen(comment) + 10;
-		str = malloc(len + 10);
-		*str = '\0';
-
-		pos = memcpy(str, comment, len);
-		pos = strncpy(pos, " [none]", len - (pos - str));
+		ERROR("%s: failed to allocate memory for list of callbacks",
+		      comment);
 	}
 	else
 	{
-		len += strlen(comment);
-		pos = str=malloc(len + 10);
 		*str = '\0';
-
-		strncpy(str, comment, clen);
-		pos += clen;
-		strncpy(pos, " ['", len - (pos - str));
-		pos += 3;
-
-		n = strjoin(pos, len - (pos - str), keys, n, "', '");
-		pos += n;
-		strncpy(pos, "']", len - (pos - str));
+		strjoin(str, len, keys, n, "', '");
+		INFO("%s ['%s']", comment, str);
+		free(str);
 	}
-	INFO(str);
-	free(str);
 	free(keys);
 } /* }}} int log_list_callbacks */
 
@@ -1403,11 +1396,9 @@ int plugin_unregister_read (const char *name) /* {{{ */
 	return (0);
 } /* }}} int plugin_unregister_read */
 
-#define _STR_W_LEN(a) a, sizeof(a) - 1
 void plugin_log_available_writers ()
 {
-	
-	log_list_callbacks (&list_write, _STR_W_LEN("Available writers:"));
+	log_list_callbacks (&list_write, "Available writers:");
 }
 
 static int compare_read_func_group (llentry_t *e, void *ud) /* {{{ */
