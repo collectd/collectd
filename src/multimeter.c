@@ -170,7 +170,7 @@ static int multimeter_init (void)
 
 			tcflush(fd, TCIFLUSH);
 			tcsetattr(fd, TCSANOW, &tios);
-			ioctl(fd, TIOCMBIC, &rts);
+			ioctl(fd, (int)TIOCMBIC, &rts);
 			
     			if (multimeter_read_value (&value) < -1)
 			{
