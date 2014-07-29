@@ -5177,7 +5177,10 @@ fi
 
 if test "x$have_termios_h" = "xyes"
 then
-	plugin_multimeter="yes"
+	if test "x$ac_system" != "xAIX"
+	then
+		plugin_multimeter="yes"
+	fi
 	plugin_ted="yes"
 fi
 
