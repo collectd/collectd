@@ -2881,9 +2881,11 @@ Synopsis:
       Password "password"
       Port "3306"
       MasterStats true
+      ConnectTimeout 10
     </Database>
 
     <Database bar>
+      Alias "squeeze"
       Host "localhost"
       Socket "/var/run/mysql/mysqld.sock"
       SlaveStats true
@@ -2897,6 +2899,11 @@ options are required. MySQL will use default values as documented in the
 section "mysql_real_connect()" in the B<MySQL reference manual>.
 
 =over 4
+
+=item B<Alias> I<Alias>
+
+Alias to use as sender instead of hostname when reporting. This may be useful
+when having cryptic hostnames.
 
 =item B<Host> I<Hostname>
 
@@ -2948,6 +2955,10 @@ privileges. See the B<User> documentation above.
 
 If enabled, the plugin sends a notification if the replication slave I/O and /
 or SQL threads are not running.
+
+=item B<ConnectTimeout> I<Seconds>
+
+Sets the connect timeout for the MySQL client.
 
 =back
 

@@ -586,9 +586,11 @@
 #		Password "secret"
 #		Database "db_name"
 #		MasterStats true
+#		ConnectTimeout 10
 #	</Database>
 #
 #	<Database db_name2>
+#		Alias "squeeze"
 #		Host "localhost"
 #		Socket "/var/run/mysql/mysqld.sock"
 #		SlaveStats true

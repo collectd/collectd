@@ -43,12 +43,14 @@
 struct mysql_database_s /* {{{ */
 {
 	char *instance;
+	char *alias;
 	char *host;
 	char *user;
 	char *pass;
 	char *database;
 	char *socket;
 	int   port;
+	int   timeout;
 
 	_Bool master_stats;
 	_Bool slave_stats;
@@ -64,6 +66,9 @@ typedef struct mysql_database_s mysql_database_t; /* }}} */
 
 static int mysql_read (user_data_t *ud);
 
+void mysql_read_default_options(struct st_mysql_options *options,
+		const char *filename,const char *group);
+
 static void mysql_database_free (void *arg) /* {{{ */
 {
 	mysql_database_t *db;
@@ -78,6 +83,7 @@ static void mysql_database_free (void *arg) /* {{{ */
 	if (db->con != NULL)
 		mysql_close (db->con);
 
+	sfree (db->alias);
 	sfree (db->host);
 	sfree (db->user);
 	sfree (db->pass);
@@ -120,12 +126,14 @@ static int mysql_config_database (oconfig_item_t *ci) /* {{{ */
 	memset (db, 0, sizeof (*db));
 
 	/* initialize all the pointers */
+	db->alias    = NULL;
 	db->host     = NULL;
 	db->user     = NULL;
 	db->pass     = NULL;
 	db->database = NULL;
 	db->socket   = NULL;
 	db->con      = NULL;
+	db->timeout  = 0;
 
 	/* trigger a notification, if it's not running */
 	db->slave_io_running  = 1;
@@ -144,7 +152,9 @@ static int mysql_config_database (oconfig_item_t *ci) /* {{{ */
 	{
 		oconfig_item_t *child = ci->children + i;
 
-		if (strcasecmp ("Host", child->key) == 0)
+		if (strcasecmp ("Alias", child->key) == 0)
+			status = cf_util_get_string (child, &db->alias);
+		else if (strcasecmp ("Host", child->key) == 0)
 			status = cf_util_get_string (child, &db->host);
 		else if (strcasecmp ("User", child->key) == 0)
 			status = cf_util_get_string (child, &db->user);
@@ -163,6 +173,8 @@ static int mysql_config_database (oconfig_item_t *ci) /* {{{ */
 			status = cf_util_get_string (child, &db->socket);
 		else if (strcasecmp ("Database", child->key) == 0)
 			status = cf_util_get_string (child, &db->database);
+		else if (strcasecmp ("ConnectTimeout", child->key) == 0)
+			status = cf_util_get_int (child, &db->timeout);
 		else if (strcasecmp ("MasterStats", child->key) == 0)
 			status = cf_util_get_boolean (child, &db->master_stats);
 		else if (strcasecmp ("SlaveStats", child->key) == 0)
@@ -261,6 +273,9 @@ static MYSQL *getconnection (mysql_database_t *db)
 		}
 	}
 
+	/* Configure TCP connect timeout (default: 0) */
+	db->con->options.connect_timeout = db->timeout;
+
 	if (mysql_real_connect (db->con, db->host, db->user, db->pass,
 				db->database, db->port, db->socket, 0) == NULL)
 	{
@@ -285,7 +300,9 @@ static MYSQL *getconnection (mysql_database_t *db)
 
 static void set_host (mysql_database_t *db, char *buf, size_t buflen)
 {
-	if ((db->host == NULL)
+	if (db->alias)
+		sstrncpy (buf, db->alias, buflen);
+	else if ((db->host == NULL)
 			|| (strcmp ("", db->host) == 0)
 			|| (strcmp ("127.0.0.1", db->host) == 0)
 			|| (strcmp ("localhost", db->host) == 0))
