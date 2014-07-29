@@ -261,9 +261,17 @@ static void log_list_callbacks (llist_t **list, /* {{{ */
 	int len;
 	llentry_t *le;
 	int i;
-	int n = llist_size(*list);
-	char **keys = malloc(sizeof(char* *) * n);
-		
+	int n;
+	char **keys;
+
+	n = llist_size(*list);
+	keys = calloc(n, sizeof(char*));
+
+	if (keys == NULL)
+	{
+		ERROR("failed to allocate memory for list of callbacks");
+		return;
+	}
 
 	for (le = llist_head (*list), i = 0, len = 0;
 	     le != NULL;
@@ -300,8 +308,7 @@ static void log_list_callbacks (llist_t **list, /* {{{ */
 	INFO(str);
 	free(str);
 	free(keys);
-	
-}
+} /* }}} int log_list_callbacks */
 
 static int create_register_callback (llist_t **list, /* {{{ */
 		const char *name, void *callback, user_data_t *ud)
