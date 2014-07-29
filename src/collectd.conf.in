@@ -472,6 +472,7 @@
 #	IgnoreSelected false
 #	HostnameFormat name
 #	InterfaceFormat name
+#	PluginInstanceFormat name
 #</Plugin>
 
 #<Plugin lpar>
