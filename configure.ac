@@ -4890,6 +4890,7 @@ dependency_warning="no"
 dependency_error="no"
 
 plugin_ascent="no"
+plugin_barometer="no"
 plugin_battery="no"
 plugin_bind="no"
 plugin_cgroups="no"
@@ -5027,6 +5028,23 @@ then
 	plugin_memory="yes"
 	plugin_tape="yes"
 fi
+
+# libi2c-dev
+with_libi2c="no"
+if test "x$ac_system" = "xLinux"
+then
+AC_CHECK_DECL(i2c_smbus_read_i2c_block_data, 
+	[with_libi2c="yes"], 
+	[with_libi2c="no (symbol i2c_smbus_read_i2c_block_data not found - have you installed libi2c-dev ?)"], 
+	[[#include <stdlib.h>
+	#include <linux/i2c-dev.h>]])
+fi
+
+if test "x$with_libi2c" = "xyes"
+then
+	plugin_barometer="yes"
+fi
+
 
 # libstatgrab
 if test "x$with_libstatgrab" = "xyes"
@@ -5224,6 +5242,7 @@ AC_PLUGIN([apcups],      [yes],                [Statistics of UPSes by APC])
 AC_PLUGIN([apple_sensors], [$with_libiokit],   [Apple's hardware sensors])
 AC_PLUGIN([aquaero],     [$with_libaquaero5],  [Aquaero's hardware sensors])
 AC_PLUGIN([ascent],      [$plugin_ascent],     [AscentEmu player statistics])
+AC_PLUGIN([barometer],   [$plugin_barometer],  [Barometer sensor on I2C])
 AC_PLUGIN([battery],     [$plugin_battery],    [Battery statistics])
 AC_PLUGIN([bind],        [$plugin_bind],       [ISC Bind nameserver statistics])
 AC_PLUGIN([conntrack],   [$plugin_conntrack],  [nf_conntrack statistics])
@@ -5518,6 +5537,7 @@ Configuration:
     libesmtp  . . . . . . $with_libesmtp
     libganglia  . . . . . $with_libganglia
     libgcrypt . . . . . . $with_libgcrypt
+    libi2c-dev  . . . . . $with_libi2c
     libiokit  . . . . . . $with_libiokit
     libiptc . . . . . . . $with_libiptc
     libjvm  . . . . . . . $with_java
@@ -5573,6 +5593,7 @@ Configuration:
     aquaero . . . . . . . $enable_aquaero
     apple_sensors . . . . $enable_apple_sensors
     ascent  . . . . . . . $enable_ascent
+    barometer . . . . . . $enable_barometer
     battery . . . . . . . $enable_battery
     bind  . . . . . . . . $enable_bind
     conntrack . . . . . . $enable_conntrack
