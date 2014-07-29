@@ -1034,6 +1034,7 @@
 
 #<Plugin tcpconns>
 #	ListeningPorts false
+#	AllPortsSummary false
 #	LocalPort "25"
 #	RemotePort "25"
 #</Plugin>

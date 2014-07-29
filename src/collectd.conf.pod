@@ -5780,6 +5780,11 @@ connections a mail server or news server has to other mail or news servers, or
 how many connections a web proxy holds to web servers. You have to give the
 port in numeric form.
 
+=item B<AllPortsSummary> I<true>|I<false>
+
+If this option is set to I<true> a summary of statistics from all connections
+are collectd. This option defaults to I<false>.
+
 =back
 
 =head2 Plugin C<thermal>
