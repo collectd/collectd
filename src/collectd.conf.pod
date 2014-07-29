@@ -2276,6 +2276,14 @@ setting B<name>.
 B<address> means use the interface's mac address. This is useful since the
 interface path might change between reboots of a guest or across migrations.
 
+=item B<PluginInstanceFormat> B<name|uuid>
+
+When the libvirt plugin logs data, it sets the plugin_instance of the collected 
+data according to this setting. The default is to use the guest name as provided 
+by the hypervisor, which is equal to setting B<name>.
+
+B<uuid> means use the guest's UUID.
+
 =back
 
 +=head2 Plugin C<load>

@@ -32,6 +32,9 @@
 #include <libxml/tree.h>
 #include <libxml/xpath.h>
 
+/* Plugin name */
+#define PLUGIN_NAME "libvirt"
+
 static const char *config_keys[] = {
     "Connection",
 
@@ -44,6 +47,8 @@ static const char *config_keys[] = {
 
     "HostnameFormat",
     "InterfaceFormat",
+
+    "PluginInstanceFormat",
 
     NULL
 };
@@ -113,6 +118,18 @@ enum hf_field {
 static enum hf_field hostname_format[HF_MAX_FIELDS] =
     { hf_name };
 
+/* PluginInstanceFormat */
+#define PLGINST_MAX_FIELDS 2
+
+enum plginst_field {
+    plginst_none = 0,
+    plginst_name,
+    plginst_uuid
+};
+
+static enum plginst_field plugin_instance_format[PLGINST_MAX_FIELDS] =
+    { plginst_name };
+
 /* InterfaceFormat. */
 enum if_field {
     if_address,
@@ -141,7 +158,7 @@ init_value_list (value_list_t *vl, virDomainPtr dom)
     const char *name;
     char uuid[VIR_UUID_STRING_BUFLEN];
 
-    sstrncpy (vl->plugin, "libvirt", sizeof (vl->plugin));
+    sstrncpy (vl->plugin, PLUGIN_NAME, sizeof (vl->plugin));
 
     vl->host[0] = '\0';
 
@@ -175,6 +192,35 @@ init_value_list (value_list_t *vl, virDomainPtr dom)
     }
 
     vl->host[sizeof (vl->host) - 1] = '\0';
+
+    /* Construct the plugin instance field according to PluginInstanceFormat. */
+    for (i = 0; i < PLGINST_MAX_FIELDS; ++i) {
+        if (plugin_instance_format[i] == plginst_none)
+            continue;
+
+        n = sizeof(vl->plugin_instance) - strlen (vl->plugin_instance) - 2;
+
+        if (i > 0 && n >= 1) {
+            strncat (vl->plugin_instance, ":", 1);
+            n--;
+        }
+
+        switch (plugin_instance_format[i]) {
+        case plginst_none: break;
+        case plginst_name:
+            name = virDomainGetName (dom);
+            if (name)
+                strncat (vl->plugin_instance, name, n);
+            break;
+        case plginst_uuid:
+            if (virDomainGetUUIDString (dom, uuid) == 0)
+                strncat (vl->plugin_instance, uuid, n);
+            break;
+        }
+    }
+
+    vl->plugin_instance[sizeof (vl->plugin_instance) - 1] = '\0';
+
 } /* void init_value_list */
 
 static void
@@ -279,7 +325,7 @@ lv_config (const char *key, const char *value)
     if (strcasecmp (key, "Connection") == 0) {
         char *tmp = strdup (value);
         if (tmp == NULL) {
-            ERROR ("libvirt plugin: Connection strdup failed.");
+            ERROR (PLUGIN_NAME " plugin: Connection strdup failed.");
             return 1;
         }
         sfree (conn_string);
@@ -330,14 +376,14 @@ lv_config (const char *key, const char *value)
 
         value_copy = strdup (value);
         if (value_copy == NULL) {
-            ERROR ("libvirt plugin: strdup failed.");
+            ERROR (PLUGIN_NAME " plugin: strdup failed.");
             return -1;
         }
 
         n = strsplit (value_copy, fields, HF_MAX_FIELDS);
         if (n < 1) {
             sfree (value_copy);
-            ERROR ("HostnameFormat: no fields");
+            ERROR (PLUGIN_NAME " plugin: HostnameFormat: no fields");
             return -1;
         }
 
@@ -350,7 +396,7 @@ lv_config (const char *key, const char *value)
                 hostname_format[i] = hf_uuid;
             else {
                 sfree (value_copy);
-                ERROR ("unknown HostnameFormat field: %s", fields[i]);
+                ERROR (PLUGIN_NAME " plugin: unknown HostnameFormat field: %s", fields[i]);
                 return -1;
             }
         }
@@ -358,6 +404,43 @@ lv_config (const char *key, const char *value)
 
         for (i = n; i < HF_MAX_FIELDS; ++i)
             hostname_format[i] = hf_none;
+
+        return 0;
+    }
+
+    if (strcasecmp (key, "PluginInstanceFormat") == 0) {
+        char *value_copy;
+        char *fields[PLGINST_MAX_FIELDS];
+        int i, n;
+
+        value_copy = strdup (value);
+        if (value_copy == NULL) {
+            ERROR (PLUGIN_NAME " plugin: strdup failed.");
+            return -1;
+        }
+
+        n = strsplit (value_copy, fields, PLGINST_MAX_FIELDS);
+        if (n < 1) {
+            sfree (value_copy);
+            ERROR (PLUGIN_NAME " plugin: PluginInstanceFormat: no fields");
+            return -1;
+        }
+
+        for (i = 0; i < n; ++i) {
+            if (strcasecmp (fields[i], "name") == 0)
+                plugin_instance_format[i] = plginst_name;
+            else if (strcasecmp (fields[i], "uuid") == 0)
+                plugin_instance_format[i] = plginst_uuid;
+            else {
+                sfree (value_copy);
+                ERROR (PLUGIN_NAME " plugin: unknown HostnameFormat field: %s", fields[i]);
+                return -1;
+            }
+        }
+        sfree (value_copy);
+
+        for (i = n; i < PLGINST_MAX_FIELDS; ++i)
+            plugin_instance_format[i] = plginst_none;
 
         return 0;
     }
@@ -370,7 +453,7 @@ lv_config (const char *key, const char *value)
         else if (strcasecmp (value, "number") == 0)
             interface_format = if_number;
         else {
-            ERROR ("unknown InterfaceFormat: %s", value);
+            ERROR (PLUGIN_NAME " plugin: unknown InterfaceFormat: %s", value);
             return -1;
         }
         return 0;
@@ -391,13 +474,13 @@ lv_read (void)
         conn = virConnectOpenReadOnly (conn_string);
         if (conn == NULL) {
             c_complain (LOG_ERR, &conn_complain,
-                    "libvirt plugin: Unable to connect: "
+                    PLUGIN_NAME " plugin: Unable to connect: "
                     "virConnectOpenReadOnly failed.");
             return -1;
         }
     }
     c_release (LOG_NOTICE, &conn_complain,
-            "libvirt plugin: Connection established.");
+            PLUGIN_NAME " plugin: Connection established.");
 
     time (&t);
 
@@ -436,7 +519,7 @@ lv_read (void)
         status = virDomainGetInfo (domains[i], &info);
         if (status != 0)
         {
-            ERROR ("libvirt plugin: virDomainGetInfo failed with status %i.",
+            ERROR (PLUGIN_NAME " plugin: virDomainGetInfo failed with status %i.",
                     status);
             continue;
         }
@@ -446,7 +529,7 @@ lv_read (void)
 
         vinfo = malloc (info.nrVirtCpu * sizeof (vinfo[0]));
         if (vinfo == NULL) {
-            ERROR ("libvirt plugin: malloc failed.");
+            ERROR (PLUGIN_NAME " plugin: malloc failed.");
             continue;
         }
 
@@ -454,7 +537,7 @@ lv_read (void)
                 /* cpu map = */ NULL, /* cpu map length = */ 0);
         if (status < 0)
         {
-            ERROR ("libvirt plugin: virDomainGetVcpus failed with status %i.",
+            ERROR (PLUGIN_NAME " plugin: virDomainGetVcpus failed with status %i.",
                     status);
             free (vinfo);
             continue;
@@ -551,7 +634,7 @@ refresh_lists (void)
         /* Get list of domains. */
         domids = malloc (sizeof (int) * n);
         if (domids == 0) {
-            ERROR ("libvirt plugin: malloc failed.");
+            ERROR (PLUGIN_NAME " plugin: malloc failed.");
             return -1;
         }
 
@@ -593,7 +676,7 @@ refresh_lists (void)
                 goto cont;
 
             if (add_domain (dom) < 0) {
-                ERROR ("libvirt plugin: malloc failed.");
+                ERROR (PLUGIN_NAME " plugin: malloc failed.");
                 goto cont;
             }
 
@@ -830,7 +913,7 @@ ignore_device_match (ignorelist_t *il, const char *domname, const char *devpath)
     n = sizeof (char) * (strlen (domname) + strlen (devpath) + 2);
     name = malloc (n);
     if (name == NULL) {
-        ERROR ("libvirt plugin: malloc failed.");
+        ERROR (PLUGIN_NAME " plugin: malloc failed.");
         return 0;
     }
     ssnprintf (name, n, "%s:%s", domname, devpath);
@@ -863,12 +946,12 @@ lv_shutdown (void)
 void
 module_register (void)
 {
-    plugin_register_config ("libvirt",
+    plugin_register_config (PLUGIN_NAME,
     lv_config,
     config_keys, NR_CONFIG_KEYS);
-    plugin_register_init ("libvirt", lv_init);
-    plugin_register_read ("libvirt", lv_read);
-    plugin_register_shutdown ("libvirt", lv_shutdown);
+    plugin_register_init (PLUGIN_NAME, lv_init);
+    plugin_register_read (PLUGIN_NAME, lv_read);
+    plugin_register_shutdown (PLUGIN_NAME, lv_shutdown);
 }
 
 /*
