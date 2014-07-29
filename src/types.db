@@ -134,6 +134,7 @@ ping_stddev		value:GAUGE:0:65535
 ping			value:GAUGE:0:65535
 players			value:GAUGE:0:1000000
 power			value:GAUGE:0:U
+pressure			value:GAUGE:0:U
 protocol_counter	value:DERIVE:0:U
 ps_code			value:GAUGE:0:9223372036854775807
 ps_count		processes:GAUGE:0:1000000, threads:GAUGE:0:1000000
