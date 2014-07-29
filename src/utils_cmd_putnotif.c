@@ -73,6 +73,18 @@ static int set_option (notification_t *n, const char *option, const char *value)
   DEBUG ("utils_cmd_putnotif: set_option (option = %s, value = %s);",
       option, value);
 
+  /* Add a meta option in the form: <type>:<key> */
+  if (option[0] != '\0' && option[1] == ':') {
+    /* Refuse empty key */
+    if (option[2] == '\0')
+      return (1);
+
+    if (option[0] == 's')
+      return plugin_notification_meta_add_string (n, option + 2, value);
+    else
+      return (1);
+  }
+
   if (strcasecmp ("severity", option) == 0)
     return (set_option_severity (n, value));
   else if (strcasecmp ("time", option) == 0)
