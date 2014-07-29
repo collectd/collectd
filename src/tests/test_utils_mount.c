@@ -1,6 +1,5 @@
 /**
- * collectd - src/utils_mount_test.c
- *
+ * collectd - src/tests/test_utils_mount.c
  * Copyright (C) 2013       Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a

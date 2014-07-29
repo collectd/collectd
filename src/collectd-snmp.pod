@@ -293,7 +293,7 @@ L<unix(7)>
 
 =head1 AUTHORS
 
-Florian Forster E<lt>octo@verplant.orgE<gt>
+Florian Forster E<lt>octo@collectd.orgE<gt>
 Michael Pilat E<lt>mike@mikepilat.comE<gt>
 
 =cut

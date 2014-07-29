@@ -1,6 +1,6 @@
 /**
- * collectd - src/owfs.c
- * Copyright (C) 2008  Florian octo Forster
+ * collectd - src/onewire.c
+ * Copyright (C) 2008  noris network AG
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the

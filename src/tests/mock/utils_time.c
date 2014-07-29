@@ -1,6 +1,5 @@
 /**
- * collectd - src/mock/utils_time.c
- *
+ * collectd - src/tests/mock/utils_time.c
  * Copyright (C) 2013       Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a

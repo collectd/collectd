@@ -291,6 +291,6 @@ L<fork(2)>, L<exec(3)>
 
 =head1 AUTHOR
 
-Florian Forster E<lt>octo@verplant.orgE<gt>
+Florian Forster E<lt>octo@collectd.orgE<gt>
 
 =cut

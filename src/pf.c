@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2010 Pierre-Yves Ritschard <pyr@openbsd.org>
- * Copyright (c) 2011 Stefan Rinkes <stefan.rinkes@gmail.org>
+ * Copyright (c) 2010 Pierre-Yves Ritschard
+ * Copyright (c) 2011 Stefan Rinkes
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -13,6 +13,10 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
+ * Authors:
+ *   Pierre-Yves Ritschard <pyr at openbsd.org>
+ *   Stefan Rinkes <stefan.rinkes at gmail.org>
  */
 
 #include "collectd.h"

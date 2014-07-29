@@ -18,7 +18,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  *   Florent EppO Monbillard <eppo at darox.net>
  *   - connections/lighttpd extension
  *   Amit Gupta <amit.gupta221 at gmail.com>

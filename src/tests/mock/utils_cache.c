@@ -1,6 +1,5 @@
 /**
- * collectd - src/mock/utils_cache.c
- *
+ * collectd - src/tests/mock/utils_cache.c
  * Copyright (C) 2013       Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a

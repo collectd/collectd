@@ -7543,6 +7543,6 @@ L<sensors(1)>
 
 =head1 AUTHOR
 
-Florian Forster E<lt>octo@verplant.orgE<gt>
+Florian Forster E<lt>octo@collectd.orgE<gt>
 
 =cut

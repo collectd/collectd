@@ -16,7 +16,7 @@
 # 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 #
 # Author:
-#   Florian octo Forster <octo at verplant.org>
+#   Florian octo Forster <octo at collectd.org>
 #
 
 package Collectd::Unixsock;
@@ -649,7 +649,7 @@ L<collectd-unixsock(5)>
 
 =head1 AUTHOR
 
-Florian octo Forster E<lt>octo@verplant.orgE<gt>
+Florian octo Forster E<lt>octo@collectd.orgE<gt>
 
 =cut
 

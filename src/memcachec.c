@@ -18,7 +18,7 @@
  *
  * Authors:
  *   Doug MacEachern <Doug.MacEachern at hyperic.com>
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"

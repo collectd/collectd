@@ -18,7 +18,7 @@
  *
  * Authors:
  *   Luke Heberling <lukeh at c-ware.com>
- *   Florian Forster <octo at verplant.org>
+ *   Florian Forster <octo at collectd.org>
  *
  * Description:
  *   `tail_match' uses `utils_tail' and `utils_match' to tail a file and try to

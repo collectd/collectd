@@ -665,7 +665,7 @@ Prerequisites
 
   * liboping (optional)
     Used by the `ping' plugin to send and receive ICMP packets.
-    <http://verplant.org/liboping/>
+    <http://octo.it/liboping/>
 
   * libowcapi (optional)
     Used by the `onewire' plugin to read values from onewire sensors (or the
@@ -708,7 +708,7 @@ Prerequisites
 
   * librouteros (optional)
     Used by the `routeros' plugin to connect to a device running `RouterOS'.
-    <http://verplant.org/librouteros/>
+    <http://octo.it/librouteros/>
 
   * librrd (optional)
     Used by the `rrdtool' and `rrdcached' plugins. The latter requires RRDtool
@@ -864,7 +864,7 @@ Contact
 
   For questions, bug reports, development information and basically all other
   concerns please send an email to collectd's mailing list at
-  <collectd at verplant.org>.
+  <list at collectd.org>.
 
   For live discussion and more personal contact visit us in IRC, we're in
   channel #collectd on freenode.
@@ -873,7 +873,7 @@ Contact
 Author
 ------
 
-  Florian octo Forster <octo at verplant.org>,
+  Florian octo Forster <octo at collectd.org>,
   Sebastian tokkee Harl <sh at tokkee.org>,
   and many contributors (see `AUTHORS').
 

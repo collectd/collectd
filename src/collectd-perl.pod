@@ -716,7 +716,7 @@ types used by the read, write and match functions.
 =item
 
 Please feel free to send in new plugins to collectd's mailing list at
-E<lt>collectdE<nbsp>atE<nbsp>verplant.orgE<gt> for review and, possibly,
+E<lt>collectdE<nbsp>atE<nbsp>collectd.orgE<gt> for review and, possibly,
 inclusion in the main distribution. In the latter case, we will take care of
 keeping the plugin up to date and adapting it to new versions of collectd.
 
@@ -796,7 +796,7 @@ The C<perl plugin> has been written by Sebastian Harl
 E<lt>shE<nbsp>atE<nbsp>tokkee.orgE<gt>.
 
 This manpage has been written by Florian Forster
-E<lt>octoE<nbsp>atE<nbsp>verplant.orgE<gt> and Sebastian Harl
+E<lt>octoE<nbsp>atE<nbsp>collectd.orgE<gt> and Sebastian Harl
 E<lt>shE<nbsp>atE<nbsp>tokkee.orgE<gt>.
 
 =cut

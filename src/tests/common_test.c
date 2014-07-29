@@ -1,6 +1,5 @@
 /**
- * collectd - src/common_test.c
- *
+ * collectd - src/tests/common_test.c
  * Copyright (C) 2013       Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a

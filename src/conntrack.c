@@ -18,7 +18,7 @@
  * Authors:
  *   Tomasz Pala <gotar at pld-linux.org>
  * based on entropy.c by:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"

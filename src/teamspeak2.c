@@ -18,7 +18,7 @@
  *
  * Authors:
  *   Stefan Hacker <d0t at dbclan dot de>
- *   Florian Forster <octo at verplant.org>
+ *   Florian Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"

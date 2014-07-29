@@ -1,6 +1,5 @@
 /**
- * collectd - src/tests/utils_heap_test.c
- *
+ * collectd - src/tests/test_utils_heap.c
  * Copyright (C) 2013       Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
