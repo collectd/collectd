@@ -99,7 +99,7 @@ static void exit_usage (int exit_status) /* {{{ */
       "    -h             Print usage information (this output).\n"
       "\n"
       "Copyright (C) 2010-2012  Florian Forster\n"
-      "Licensed under the GNU General Public License, version 2 (GPLv2)\n",
+      "Licensed under the MIT license.\n",
       DEF_NUM_VALUES, DEF_NUM_HOSTS, DEF_NUM_PLUGINS,
       DEF_INTERVAL,
       NET_DEFAULT_V6_ADDR, NET_DEFAULT_PORT);
