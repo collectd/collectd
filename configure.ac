@@ -3623,7 +3623,8 @@ fi
 if test "x$with_librdkafka" = "xyes"
 then
 	AC_CHECK_LIB(rdkafka, rd_kafka_new, [with_librdkafka="yes"], [with_librdkafka="no (Symbol 'rd_kafka_new' not found)"])
-  AC_CHECK_LIB(rdkafka, rd_kafka_conf_set_log_cb, [with_librdkafka_log="yes"], [with_librdkafka_log="no (Symbol 'rd_kafka_conf_set_log_cb not found)"])
+  AC_CHECK_LIB(rdkafka, rd_kafka_conf_set_log_cb, [with_librdkafka_log_cb="yes"], [with_librdkafka_log_cb="no"])
+  AC_CHECK_LIB(rdkafka, rd_kafka_conf_set_logger, [with_librdkafka_logger="yes"], [with_librdkafka_logger="no"])
 fi
 if test "x$with_librdkafka" = "xyes"
 then
@@ -3634,9 +3635,13 @@ then
 	AC_SUBST(BUILD_WITH_LIBRDKAFKA_LDFLAGS)
 	AC_SUBST(BUILD_WITH_LIBRDKAFKA_LIBS)
 	AC_DEFINE(HAVE_LIBRDKAFKA, 1, [Define if librdkafka is present and usable.])
-  if test "x$with_librdkafka_log" = "xyes"
+  if test "x$with_librdkafka_log_cb" = "xyes"
   then
-        AC_DEFINE(HAVE_LIBRDKAFKA_LOG, 1, [Define if librdkafka log facility is present and usable.])
+        AC_DEFINE(HAVE_LIBRDKAFKA_LOG_CB, 1, [Define if librdkafka log facility is present and usable.])
+  fi
+  if test "x$with_librdkafka_logger" = "xyes"
+  then
+        AC_DEFINE(HAVE_LIBRDKAFKA_LOGGER, 1, [Define if librdkafka log facility is present and usable.])
   fi
 fi
 CPPFLAGS="$SAVE_CPPFLAGS"
