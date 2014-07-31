@@ -1940,10 +1940,7 @@ AM_CONDITIONAL(BUILD_WITH_LIBGCRYPT, test "x$with_libgcrypt" = "xyes")
 # --with-libiptc {{{
 AC_ARG_WITH(libiptc, [AS_HELP_STRING([--with-libiptc@<:@=PREFIX@:>@], [Path to libiptc.])],
 [
-	if test "x$withval" = "xshipped"
-	then
-		with_libiptc="own"
-	else if test "x$withval" = "xyes"
+	if test "x$withval" = "xyes"
 	then
 		with_libiptc="pkgconfig"
 	else if test "x$withval" = "xno"
@@ -1953,7 +1950,7 @@ AC_ARG_WITH(libiptc, [AS_HELP_STRING([--with-libiptc@<:@=PREFIX@:>@], [Path to l
 		with_libiptc="yes"
 		with_libiptc_cflags="-I$withval/include"
 		with_libiptc_libs="-L$withval/lib"
-	fi; fi; fi
+	fi; fi
 ],
 [
 	if test "x$ac_system" = "xLinux"
@@ -2024,28 +2021,6 @@ then
 fi
 
 CPPFLAGS="$SAVE_CPPFLAGS"
-
-if test "x$with_libiptc" = "xown"
-then
-	with_libiptc_cflags=""
-	with_libiptc_libs=""
-fi
-if test "x$with_libiptc" = "xown"
-then
-	AC_CHECK_HEADERS(linux/netfilter_ipv4/ip_tables.h linux/netfilter_ipv6/ip6_tables.h linux/netfilter/x_tables.h, [],
-	[
-		with_libiptc="no (Linux iptables headers not found)"
-	],
-	[
-#include "$srcdir/src/owniptc/ipt_kernel_headers.h"
-	])
-fi
-AM_CONDITIONAL(BUILD_WITH_OWN_LIBIPTC, test "x$with_libiptc" = "xown")
-if test "x$with_libiptc" = "xown"
-then
-	AC_DEFINE(OWN_LIBIPTC, 1, [Define to 1 if we use the shipped iptc library.])
-	with_libiptc="yes"
-fi
 
 AM_CONDITIONAL(BUILD_WITH_LIBIPTC, test "x$with_libiptc" = "xyes")
 if test "x$with_libiptc" = "xyes"

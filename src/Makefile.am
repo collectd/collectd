@@ -17,6 +17,8 @@ endif
 AM_CPPFLAGS += -DPLUGINDIR='"${pkglibdir}"'
 AM_CPPFLAGS += -DPKGDATADIR='"${pkgdatadir}"'
 
+AUTOMAKE_OPTIONS = subdir-objects
+
 sbin_PROGRAMS = collectd collectdmon
 bin_PROGRAMS = collectd-nagios collectdctl collectd-tg
 
