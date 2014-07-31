@@ -33,8 +33,9 @@ Features
       Statistics about Ascent, a free server for the game `World of Warcraft'.
 
     - barometer
-      Using digital barometer sensor MPL115A2 or MPL3115 from Freescale provides
-      absolute barometric pressure, air pressure reduced to sea level and temperature.
+      Using digital barometer sensor MPL115A2 or MPL3115 from Freescale
+      provides absolute barometric pressure, air pressure reduced to sea level
+      and temperature.
 
     - battery
       Batterycharge, -current and voltage of ACPI and PMU based laptop
@@ -297,6 +298,10 @@ Features
       network devices such as switches, routers, thermometers, rack monitoring
       servers, etc. See collectd-snmp(5).
 
+    - statsd
+      Acts as a StatsD server, reading values sent over the network from StatsD
+      clients and calculating rates and other aggregates out of these values.
+
     - swap
       Pages swapped out onto harddisk or whatever is called `swap' by the OS..
 
@@ -424,7 +429,7 @@ Features
     plugins keep up informed about what's going on:
 
     - logfile
-      Writes logmessages to a file or STDOUT/STDERR.
+      Writes log messages to a file or STDOUT/STDERR.
 
     - perl
       Log messages are propagated to plugins written in Perl as well.
@@ -436,6 +441,9 @@ Features
 
     - syslog
       Logs to the standard UNIX logging mechanism, syslog.
+
+    - log_logstash
+      Writes log messages formatted as logstash JSON events.
 
   * Notifications can be handled by the following plugins:
 
@@ -593,12 +601,12 @@ Prerequisites
     Used by the `oracle' plugin.
 
   * libcredis (optional)
-    Used by the redis plugin. Please note that you require a 0.2.2 version
+    Used by the `redis' plugin. Please note that you require a 0.2.2 version
     or higher. <http://code.google.com/p/credis/>
 
   * libcurl (optional)
-    If you want to use the `apache', `ascent', `curl', `nginx', or `write_http'
-    plugin.
+    If you want to use the `apache', `ascent', `bind', `curl', `curl_json',
+    `curl_xml', `nginx', or `write_http' plugin.
     <http://curl.haxx.se/>
 
   * libdbi (optional)
@@ -618,27 +626,26 @@ Prerequisites
     <http://www.gnupg.org/>
 
   * libhal (optional)
-    If present, the uuid plugin will check for UUID from HAL.
+    If present, the `uuid' plugin will check for UUID from HAL.
     <http://hal.freedesktop.org/>
 
   * libi2c-dev (optional)
-    Used for the plugin `barometer', provides just the i2c-dev.h header file for user space i2c development.
+    Used for the plugin `barometer', provides just the i2c-dev.h header file
+    for user space i2c development.
 
   * libiptc (optional)
     For querying iptables counters.
     <http://netfilter.org/>
 
-    If not found on the system, a version shipped with this distribution can
-    be used. It requires some Linux headers in /usr/include/linux. You can
-    force the build system to use the shipped version by specifying
-      --with-libiptc=shipped
-    when running the configure script.
-
   * libjvm (optional)
     Library that encapsulates the `Java Virtual Machine' (JVM). This library is
-    used by the Java plugin to execute Java bytecode. See “Configuring with
+    used by the `java' plugin to execute Java bytecode. See “Configuring with
     libjvm” below.
     <http://openjdk.java.net/> (and others)
+
+  * liblvm2 (optional)
+    Used by the `lvm' plugin.
+    <ftp://sources.redhat.com/pub/lvm2/>
 
   * libmemcached (optional)
     Used by the `memcachec' plugin to connect to a memcache daemon.
@@ -649,8 +656,8 @@ Prerequisites
     <http://www.netfilter.org/projects/libmnl/>
 
   * libmodbus (optional)
-    Used by the “modbus” plugin to communicate with Modbus/TCP devices. The
-    “modbus” plugin works with version 2.0.3 of the library – due to frequent
+    Used by the `modbus' plugin to communicate with Modbus/TCP devices. The
+    `modbus' plugin works with version 2.0.3 of the library – due to frequent
     API changes other versions may or may not compile cleanly.
     <http://www.libmodbus.org/>
 
@@ -659,7 +666,7 @@ Prerequisites
     <http://dev.mysql.com/>
 
   * libnetapp (optional)
-    Required for the “netapp” plugin.
+    Required for the `netapp' plugin.
     This library is part of the “Manage ONTAP SDK” published by NetApp.
 
   * libnetsnmp (optional)
@@ -669,6 +676,10 @@ Prerequisites
   * libnotify (optional)
     For the `notify_desktop' plugin.
     <http://www.galago-project.org/>
+
+  * libopenipmi (optional)
+    Used by the `ipmi' plugin to prove IPMI devices.
+    <http://openipmi.sourceforge.net/>
 
   * liboping (optional)
     Used by the `ping' plugin to send and receive ICMP packets.
@@ -697,7 +708,8 @@ Prerequisites
 
   * libprotobuf-c, protoc-c (optional)
     Used by the `pinba' plugin to generate a parser for the network packets
-    sent by the Pinba PHP extension.
+    sent by the Pinba PHP extension, and by the `write_riemann' plugin to
+    generate events to be sent to a Riemann server.
     <http://code.google.com/p/protobuf-c/>
 
   * libpython (optional)
@@ -706,11 +718,12 @@ Prerequisites
     <http://www.python.org/>
 
   * librabbitmq (optional; also called “rabbitmq-c”)
-    Used by the AMQP plugin for AMQP connections, for example to RabbitMQ.
+    Used by the `amqp' plugin for AMQP connections, for example to RabbitMQ.
     <http://hg.rabbitmq.com/rabbitmq-c/>
 
   * librdkafka (optional; also called “rdkafka”)
-    Used by the Kafka plugin for producing.
+    Used by the `write_kafka' plugin for producing messages and sending them
+    to a Kafka broker.
     <https://github.com/edenhill/librdkafka>
 
   * librouteros (optional)
@@ -732,7 +745,7 @@ Prerequisites
     <http://www.lm-sensors.org/>
 
   * libsigrok (optional)
-    Used by the sigrok plugin. In addition, libsigrok depends on glib,
+    Used by the `sigrok' plugin. In addition, libsigrok depends on glib,
     libzip, and optionally (depending on which drivers are enabled) on
     libusb, libftdi and libudev.
 
@@ -742,7 +755,7 @@ Prerequisites
     <http://www.i-scream.org/libstatgrab/>
 
   * libtokyotyrant (optional)
-    Used by the tokyotyrant plugin.
+    Used by the `tokyotyrant' plugin.
     <http://1978th.net/tokyotyrant/>
 
   * libupsclient/nut (optional)
@@ -754,18 +767,21 @@ Prerequisites
     <http://libvirt.org/>
 
   * libxml2 (optional)
-    Parse XML data. This is needed for the `ascent' and `libvirt' plugins.
+    Parse XML data. This is needed for the `ascent', `bind', `curl_xml' and
+    `libvirt' plugins.
     <http://xmlsoft.org/>
 
   * libxmms (optional)
     <http://www.xmms.org/>
 
   * libyajl (optional)
-    Parse JSON data. This is needed for the `curl_json' plugin.
+    Parse JSON data. This is needed for the `curl_json' and `log_logstash'
+    plugins.
     <http://github.com/lloyd/yajl>
 
   * libvarnish (optional)
-     Fetches statistics from a Varnish instance. This is needed for the Varnish plugin
+     Fetches statistics from a Varnish instance. This is needed for the
+     `varnish' plugin.
      <http://varnish-cache.org>
 
 Configuring / Compiling / Installing
