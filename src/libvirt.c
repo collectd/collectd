@@ -479,7 +479,7 @@ lv_read (void)
         {
             ERROR ("libvirt plugin: virDomainGetVcpus failed with status %i.",
                     status);
-            free (vinfo);
+            sfree (vinfo);
             continue;
         }
 
@@ -487,6 +487,7 @@ lv_read (void)
             vcpu_submit (vinfo[j].cpuTime,
                     domains[i], vinfo[j].number, "virt_vcpu");
 
+        sfree (vinfo);
 
         minfo = malloc (VIR_DOMAIN_MEMORY_STAT_NR * sizeof (virDomainMemoryStatStruct));
         if (minfo == NULL) {
@@ -499,6 +500,7 @@ lv_read (void)
         if (status < 0) {
             ERROR ("libvirt plugin: virDomainMemoryStats failed with status %i.",
                     status);
+            sfree (minfo);
             continue;
         }
 
@@ -507,7 +509,6 @@ lv_read (void)
         }
 
         sfree (minfo);
-        sfree (vinfo);
     }
 
 
