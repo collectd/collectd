@@ -243,6 +243,28 @@ memory_submit (gauge_t memory, virDomainPtr dom)
 }
 
 static void
+memory_stats_submit (gauge_t memory, virDomainPtr dom, int tag_index)
+{
+    static const char *tags[] = { "swap_in", "swap_out", "major_fault", "minor_fault",
+                                    "unused", "available", "actual_balloon", "rss"};
+
+    value_t values[1];
+    value_list_t vl = VALUE_LIST_INIT;
+
+    init_value_list (&vl, dom);
+
+    values[0].gauge = memory;
+
+    vl.values = values;
+    vl.values_len = 1;
+
+    sstrncpy (vl.type, "memory", sizeof (vl.type));
+    sstrncpy (vl.type_instance, tags[tag_index], sizeof (vl.type_instance));
+
+    plugin_dispatch_values (&vl);
+}
+
+static void
 cpu_submit (unsigned long long cpu_time,
             virDomainPtr dom, const char *type)
 {
@@ -513,6 +535,7 @@ lv_read (void)
     for (i = 0; i < nr_domains; ++i) {
         virDomainInfo info;
         virVcpuInfoPtr vinfo = NULL;
+        virDomainMemoryStatPtr minfo = NULL;
         int status;
         int j;
 
@@ -539,7 +562,7 @@ lv_read (void)
         {
             ERROR (PLUGIN_NAME " plugin: virDomainGetVcpus failed with status %i.",
                     status);
-            free (vinfo);
+            sfree (vinfo);
             continue;
         }
 
@@ -548,7 +571,29 @@ lv_read (void)
                     domains[i], vinfo[j].number, "virt_vcpu");
 
         sfree (vinfo);
+
+        minfo = malloc (VIR_DOMAIN_MEMORY_STAT_NR * sizeof (virDomainMemoryStatStruct));
+        if (minfo == NULL) {
+            ERROR ("libvirt plugin: malloc failed.");
+            continue;
+        }
+
+        status =  virDomainMemoryStats (domains[i], minfo, VIR_DOMAIN_MEMORY_STAT_NR, 0);
+
+        if (status < 0) {
+            ERROR ("libvirt plugin: virDomainMemoryStats failed with status %i.",
+                    status);
+            sfree (minfo);
+            continue;
+        }
+
+        for (j = 0; j < status; j++) {
+            memory_stats_submit ((gauge_t) minfo[j].val, domains[i], minfo[j].tag);
+        }
+
+        sfree (minfo);
     }
+
 
     /* Get block device stats for each domain. */
     for (i = 0; i < nr_block_devices; ++i) {
