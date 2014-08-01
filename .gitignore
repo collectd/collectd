@@ -79,3 +79,6 @@ src/tags
 
 # backup stuff
 *~
+# tests stuff
+src/tests/.deps/
+src/tests/mock/.deps/
