@@ -186,6 +186,7 @@
 #@BUILD_PLUGIN_WIRELESS_TRUE@LoadPlugin wireless
 #@BUILD_PLUGIN_WRITE_GRAPHITE_TRUE@LoadPlugin write_graphite
 #@BUILD_PLUGIN_WRITE_HTTP_TRUE@LoadPlugin write_http
+#@BUILD_PLUGIN_WRITE_KAFKA_TRUE@LoadPlugin write_kafka
 #@BUILD_PLUGIN_WRITE_MONGODB_TRUE@LoadPlugin write_mongodb
 #@BUILD_PLUGIN_WRITE_REDIS_TRUE@LoadPlugin write_redis
 #@BUILD_PLUGIN_WRITE_RIEMANN_TRUE@LoadPlugin write_riemann
@@ -1198,6 +1199,13 @@
 #		Format "Command"
 #		StoreRates false
 #	</URL>
+#</Plugin>
+
+#<Plugin write_kafka>
+#  Property "metadata.broker.list" "localhost:9092"
+#  <Topic "collectd">
+#    Format JSON
+#  </Topic>
 #</Plugin>
 
 #<Plugin write_mongodb>
