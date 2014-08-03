@@ -679,6 +679,18 @@ static int mysql_read (user_data_t *ud)
 					key + strlen ("Table_locks_"),
 					val, db);
 		}
+		else if (strncmp (key, "Innodb_",
+					strlen ("Innodb_")) == 0)
+		{
+			if (val == 0ULL)
+				continue;
+			if (strcmp (key, "Innodb_have_atomic_builtins") == 0)
+				continue;
+
+			counter_submit ("mysql_innodb",
+					key + strlen ("Innodb_"),
+					val, db);
+		}
 	}
 	mysql_free_result (res); res = NULL;
 
