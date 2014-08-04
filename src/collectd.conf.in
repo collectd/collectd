@@ -18,13 +18,6 @@
 #TypesDB     "@prefix@/share/@PACKAGE_NAME@/types.db"
 
 #----------------------------------------------------------------------------#
-# When enabled, plugins are loaded automatically with the default options    #
-# when an appropriate <Plugin ...> block is encountered.                     #
-# Disabled by default.                                                       #
-#----------------------------------------------------------------------------#
-#AutoLoadPlugin false
-
-#----------------------------------------------------------------------------#
 # Interval at which to query values. This may be overwritten on a per-plugin #
 # base by using the 'Interval' option of the LoadPlugin block:               #
 #   <LoadPlugin foo>                                                         #
@@ -79,7 +72,6 @@
 #@BUILD_PLUGIN_BIND_TRUE@LoadPlugin bind
 #@BUILD_PLUGIN_CONNTRACK_TRUE@LoadPlugin conntrack
 #@BUILD_PLUGIN_CONTEXTSWITCH_TRUE@LoadPlugin contextswitch
-#@BUILD_PLUGIN_CGROUPS_TRUE@LoadPlugin cgroups
 @BUILD_PLUGIN_CPU_TRUE@@BUILD_PLUGIN_CPU_TRUE@LoadPlugin cpu
 #@BUILD_PLUGIN_CPUFREQ_TRUE@LoadPlugin cpufreq
 @LOAD_PLUGIN_CSV@LoadPlugin csv
@@ -107,7 +99,6 @@
 #@BUILD_PLUGIN_LIBVIRT_TRUE@LoadPlugin libvirt
 @BUILD_PLUGIN_LOAD_TRUE@@BUILD_PLUGIN_LOAD_TRUE@LoadPlugin load
 #@BUILD_PLUGIN_LPAR_TRUE@LoadPlugin lpar
-#@BUILD_PLUGIN_LVM_TRUE@LoadPlugin lvm
 #@BUILD_PLUGIN_MADWIFI_TRUE@LoadPlugin madwifi
 #@BUILD_PLUGIN_MBMON_TRUE@LoadPlugin mbmon
 #@BUILD_PLUGIN_MD_TRUE@LoadPlugin md
@@ -165,11 +156,9 @@
 #@BUILD_PLUGIN_USERS_TRUE@LoadPlugin users
 #@BUILD_PLUGIN_UUID_TRUE@LoadPlugin uuid
 #@BUILD_PLUGIN_VARNISH_TRUE@LoadPlugin varnish
-#@BUILD_PLUGIN_MIC_TRUE@LoadPlugin mic
 #@BUILD_PLUGIN_VMEM_TRUE@LoadPlugin vmem
 #@BUILD_PLUGIN_VSERVER_TRUE@LoadPlugin vserver
 #@BUILD_PLUGIN_WIRELESS_TRUE@LoadPlugin wireless
-#@BUILD_PLUGIN_WRITE_GCM_TRUE@LoadPlugin write_gcm
 #@BUILD_PLUGIN_WRITE_GRAPHITE_TRUE@LoadPlugin write_graphite
 #@BUILD_PLUGIN_WRITE_HTTP_TRUE@LoadPlugin write_http
 #@BUILD_PLUGIN_WRITE_MONGODB_TRUE@LoadPlugin write_mongodb
@@ -843,7 +832,11 @@
 #   <Node example>
 #      Host "redis.example.com"
 #      Port "6379"
-#      Timeout 2000
+#      Timeout 2
+#      <Query example_query>
+#      	 Command "LLEN queue"
+#      	 Type "gauge"
+#      </Query>
 #   </Node>
 #</Plugin>
 
@@ -1037,24 +1030,6 @@
 #	UUIDFile "/etc/uuid"
 #</Plugin>
 
-#<Plugin mic>
-#   ShowCPU true
-#   ShowCPUCores true
-#   ShowMemory true
-#   ShowTemperatures true
-##  Temperature Sensors can be ignored/shown by repeated #Temperature lines, and
-##  then inverted with a IgnoreSelectedTemperature.
-##  Known Temperature sensors: die, devmem, fin, fout, vccp, vddg, vddq
-#   Temperature vddg
-#   IgnoreSelectedTemperature true
-#   ShowPower true
-##  Power Sensors can be ignored/shown by repeated #Power lines, and
-##  then inverted with a IgnoreSelectedTemperature.
-##  Known Temperature sensors: total0, total1, inst, imax, pci3, c2x3, c2x4, vccp, vddg, vddq
-#   Power total1
-#   IgnoreSelectedPower true
-#</Plugin>
-
 #<Plugin varnish>
 #   This tag support an argument if you want to
 #   monitor the local instance just use </Instance>
@@ -1063,23 +1038,15 @@
 #   <Instance>
 #      CollectCache true
 #      CollectBackend true
-#      CollectBan false           # Varnish 3 only
 #      CollectConnections true
-#      CollectDirectorDNS false   # Varnish 3 only
 #      CollectSHM true
 #      CollectESI false
 #      CollectFetch false
 #      CollectHCB false
-#      CollectObjects false
-#      CollectPurge false         # Varnish 2 only
-#      CollectSession false
-#      CollectSMA false           # Varnish 2 only
+#      CollectSMA false
 #      CollectSMS false
-#      CollectSM false            # Varnish 2 only
-#      CollectStruct false
+#      CollectSM false
 #      CollectTotals false
-#      CollectUptime false
-#      CollectVCL false
 #      CollectWorkers false
 #   </Instance>
 #</Plugin>
@@ -1103,8 +1070,6 @@
 #  <Node "example">
 #    Host "localhost"
 #    Port "2003"
-#    Protocol "udp"
-#    LogSendErrors true
 #    Prefix "collectd"
 #    Postfix "collectd"
 #    StoreRates true
@@ -1235,4 +1200,3 @@
 #    </Type>
 #  </Host>
 #</Plugin>
-
