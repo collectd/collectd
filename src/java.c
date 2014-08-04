@@ -17,7 +17,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  *   Justo Alonso Achaques <justo.alonso at gmail.com>
  **/
 
@@ -120,7 +120,7 @@ static int cjni_match_target_destroy (void **user_data);
 static int cjni_match_target_invoke (const data_set_t *ds, value_list_t *vl,
     notification_meta_t **meta, void **user_data);
 
-/* 
+/*
  * C to Java conversion functions
  */
 static int ctoj_string (JNIEnv *jvm_env, /* {{{ */
@@ -158,6 +158,23 @@ static int ctoj_string (JNIEnv *jvm_env, /* {{{ */
 
   return (0);
 } /* }}} int ctoj_string */
+
+static jstring ctoj_output_string (JNIEnv *jvm_env, /* {{{ */
+    const char *string)
+{
+  jstring o_string;
+
+  /* Create a java.lang.String */
+  o_string = (*jvm_env)->NewStringUTF (jvm_env,
+      (string != NULL) ? string : "");
+  if (o_string == NULL)
+  {
+    ERROR ("java plugin: ctoj_output_string: NewStringUTF failed.");
+    return NULL;
+  }
+
+  return (o_string);
+} /* }}} int ctoj_output_string */
 
 static int ctoj_int (JNIEnv *jvm_env, /* {{{ */
     jint value,
@@ -906,7 +923,7 @@ static jobject ctoj_notification (JNIEnv *jvm_env, /* {{{ */
 #undef SET_STRING
 
   /* Set the `time' member. Java stores time in milliseconds. */
-  status = ctoj_long (jvm_env, ((jlong) n->time) * ((jlong) 1000),
+  status = ctoj_long (jvm_env, (jlong) CDTIME_T_TO_MS (n->time),
       c_notification, o_notification, "setTime");
   if (status != 0)
   {
@@ -1306,7 +1323,7 @@ static int jtoc_notification (JNIEnv *jvm_env, notification_t *n, /* {{{ */
     return (-1);
   }
   /* Java measures time in milliseconds. */
-  n->time = (time_t) (tmp_long / ((jlong) 1000));
+  n->time = MS_TO_CDTIME_T(tmp_long);
 
   status = jtoc_int (jvm_env, &tmp_int,
       class_ptr, object_ptr, "getSeverity");
@@ -1319,7 +1336,7 @@ static int jtoc_notification (JNIEnv *jvm_env, notification_t *n, /* {{{ */
 
   return (0);
 } /* }}} int jtoc_notification */
-/* 
+/*
  * Functions accessible from Java
  */
 static jint JNICALL cjni_api_dispatch_values (JNIEnv *jvm_env, /* {{{ */
@@ -1629,6 +1646,11 @@ static void JNICALL cjni_api_log (JNIEnv *jvm_env, /* {{{ */
   (*jvm_env)->ReleaseStringUTFChars (jvm_env, o_message, c_str);
 } /* }}} void cjni_api_log */
 
+static jstring JNICALL cjni_api_get_hostname (JNIEnv *jvm_env, jobject this)
+{
+    return ctoj_output_string(jvm_env, hostname_g);
+}
+
 /* List of ``native'' functions, i. e. C-functions that can be called from
  * Java. */
 static JNINativeMethod jni_api_functions[] = /* {{{ */
@@ -1688,6 +1710,11 @@ static JNINativeMethod jni_api_functions[] = /* {{{ */
   { "log",
     "(ILjava/lang/String;)V",
     cjni_api_log },
+
+  { "getHostname",
+    "()Ljava/lang/String;",
+    cjni_api_get_hostname },
+
 };
 static size_t jni_api_functions_num = sizeof (jni_api_functions)
   / sizeof (jni_api_functions[0]);
@@ -2436,7 +2463,7 @@ static void cjni_callback_info_destroy (void *arg) /* {{{ */
 
   cbi = (cjni_callback_info_t *) arg;
 
-  /* This condition can occurr when shutting down. */
+  /* This condition can occur when shutting down. */
   if (jvm == NULL)
   {
     sfree (cbi);

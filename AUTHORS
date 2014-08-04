@@ -21,12 +21,18 @@ Akkarit Sangpetch <asangpet at andrew.cmu.edu>
 Alessandro Iurlano <alessandro.iurlano at gmail.com>
  - Initial filecount plugin.
 
+Alex Deymo <deymo at chromium.org>
+ - aquaero plugin.
+
 Alvaro Barcellos <alvaro.barcellos at gmail.com>
  - Don't-fork patch.
 
 Amit Gupta <amit.gupta221 at gmail.com>
  - Multiple servers in the apache plugin.
  - curl_xml plugin.
+
+Andreas Henriksson <andreas at fatal.se>
+ - libmnl support in the netlink plugin.
 
 Anthony Dewhurst <dewhurst at gmail.com>
  - zfs_arc plugin.
@@ -41,11 +47,17 @@ Aurélien Reynaud <collectd at wattapower.net>
  - LPAR plugin.
  - Various fixes for AIX, HP-UX and Solaris.
 
+Bert Vermeulen <bert at biot.com>
+ - sigrok plugin
+
 Bruno Prémont <bonbons at linux-vserver.org>
  - BIND plugin.
  - Many bugreports and -fixes in various plugins,
    especially a nasty bug in the network plugin.
  - Wireshark dissector.
+
+Chad Malfait <malfaitc at yahoo.com>
+ - LVM plugin.
 
 Chris Lundquist <clundquist at bluebox.net>
  - Improvements to the write_mongodb plugin.
@@ -73,6 +85,9 @@ Doug MacEachern <dougm at hyperic.com>
 Edward “Koko” Konetzko <konetzed at quixoticagony.com>
  - fscache plugin.
 
+Evan Felix <evan.felix at pnnl.gov>
+ - mic plugin.
+
 Fabian Linzberger <e at lefant.net>
  - Percentage aggregation for `collectd-nagios'.
 
@@ -88,8 +103,14 @@ Franck Lombardi
 Jason Pepas <cell at ices.utexas.edu>
  - nfs plugin.
 
+J. Javier Maestro <jjmaestro at ieee.org>
+ - Write-Graphite plugin: UDP support and LogSendErrors flag.
+
 Jérôme Renard <jerome.renard at gmail.com>
  - varnish plugin.
+
+Kris Nielander <nielander at fox-it.com>
+ - tail_csv plugin.
 
 Luboš Staněk <kolektor at atlas.cz>
  - sensors plugin improvements.
@@ -113,6 +134,11 @@ Manuel Sanmartin
    + swap
  - Various AIX-related fixes and hacks.
 
+Marc Fournier <marc.fournier at camptocamp.com>
+ - Various fixes to the varnish plugin.
+ - RPM specfile update.
+ - libmnl support in the netlink plugin.
+
 Marco Chiappero <marco at absence.it>
  - uptime plugin.
  - ip6tables support in the iptables plugin.
@@ -123,6 +149,7 @@ Michael Hanselmann <public at hansmi.ch>
 
 Michael Stapelberg <michael+git at stapelberg.de>
  - OpenBSD port of the tcpconns plugin.
+ - cgroups plugin.
 
 Michał Mirosław <mirq-linux at rere.qmqm.pl>
  - thermal plugin.
@@ -164,6 +191,14 @@ Peter Holik <peter at holik.at>
 
 Phoenix Kayo <kayo.k11.4 at gmail.com>
  - pinba plugin.
+
+Pierre-Yves Ritschard <pyr at spootnik.org>
+ - Write-Riemann plugin.
+ - Write-Graphite plugin: Notification support.
+ - Write-Kafka plugin.
+ - Log-Logstash plugin.
+ - Normalization in the CPU plugin.
+ - Relative values in the Load plugin.
 
 Piotr Hosowicz <the55 at wp.pl>
  - SMF manifest for collectd.
@@ -211,6 +246,9 @@ Tommie Gannert <d00-tga at d.kth.se>
 
 Vincent Stehlé <vincent.stehle at free.fr>
  - hddtemp plugin.
+
+Xin Li <delphij at freebsd.org>
+ - FreeBSD port of the ZFS-ARC plugin.
 
 collectd is available at:
   <http://collectd.org/>

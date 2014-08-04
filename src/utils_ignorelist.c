@@ -1,7 +1,7 @@
 /**
  * collectd - src/utils_ignorelist.c
  * Copyright (C) 2006 Lubos Stanek <lubek at users.sourceforge.net>
- * Copyright (C) 2008 Florian Forster <octo at verplant.org>
+ * Copyright (C) 2008 Florian Forster <octo at collectd.org>
  *
  * This program is free software; you can redistribute it and/
  * or modify it under the terms of the GNU General Public Li-
@@ -20,7 +20,7 @@
  *
  * Authors:
  *   Lubos Stanek <lubek at users.sourceforge.net>
- *   Florian Forster <octo at verplant.org>
+ *   Florian Forster <octo at collectd.org>
  **/
 /**
  * ignorelist handles plugin's list of configured collectable

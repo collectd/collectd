@@ -5,6 +5,7 @@ SUBDIRS += java
 endif
 
 EXTRA_DIST = perl/Makefile.PL \
+	     perl/uninstall_mod.pl \
 	     perl/lib/Collectd.pm \
 	     perl/lib/Collectd/Unixsock.pm \
 	     perl/lib/Collectd/Plugins/Monitorus.pm \
@@ -33,12 +34,8 @@ install-exec-local:
 # Perl 'make uninstall' does not work as well as wanted.
 # So we do the work here.
 uninstall-local:
-	rm -f $(DESTDIR)$(mandir)/man3/Collectd::Unixsock.3pm
-	rm -f $(DESTDIR)$(datarootdir)/perl5/Collectd.pm
-	rm -f $(DESTDIR)$(datarootdir)/perl5/Collectd/Plugins/OpenVZ.pm
-	rm -f $(DESTDIR)$(datarootdir)/perl5/Collectd/Unixsock.pm
-	rm -f $(DESTDIR)$(prefix)/lib64/perl5/perllocal.pod
-	rm -f $(DESTDIR)$(prefix)/lib64/perl5/auto/Collectd/.packlist
+	@PERL@ -I$(DESTDIR)$(prefix) $(srcdir)/perl/uninstall_mod.pl Collectd
+	find $(DESTDIR)$(prefix) -name "perllocal.pod" -exec rm {} \;
 
 clean-local:
 	rm -rf buildperl
@@ -48,7 +45,13 @@ perl: buildperl/Makefile
 
 buildperl/Makefile: .perl-directory-stamp buildperl/Makefile.PL \
 	$(top_builddir)/config.status
-	cd buildperl && @PERL@ Makefile.PL INSTALL_BASE=$(prefix) @PERL_BINDINGS_OPTIONS@
+	@# beautify the output a bit
+	@echo 'cd buildperl && @PERL@ Makefile.PL @PERL_BINDINGS_OPTIONS@'
+	@cd buildperl && ( if ! @PERL@ Makefile.PL @PERL_BINDINGS_OPTIONS@; then \
+			echo ""; \
+			echo 'Check whether you have set $$PERL_MM_OPT in your environment and try using ./configure --with-perl-bindings=""'; \
+			echo ""; \
+		fi )
 
 buildperl/Makefile.PL: .perl-directory-stamp $(top_builddir)/config.status
 

@@ -1,46 +1,54 @@
 /**
  * collectd - src/utils_complain.h
- * Copyright (C) 2006-2007  Florian octo Forster
- * Copyright (C) 2008  Sebastian tokkee Harl
+ * Copyright (C) 2006-2013  Florian octo Forster
+ * Copyright (C) 2008       Sebastian tokkee Harl
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; only version 2 of the License is applicable.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  *   Sebastian tokkee Harl <sh at tokkee.org>
  **/
 
 #ifndef UTILS_COMPLAIN_H
 #define UTILS_COMPLAIN_H 1
 
-#include <time.h>
+#include "utils_time.h"
 
 typedef struct
 {
 	/* time of the last report */
-	time_t last;
+	cdtime_t last;
 
-	/* how long to wait until reporting again
-	 *   0 indicates that the complaint is no longer valid
-	 * < 0 indicates that the complaint has been reported once
-	 *     => c_complain_once will not report again
-	 *     => c_complain uses the absolute value to reset the old value */
-	int interval;
+	/* How long to wait until reporting again.
+	 * 0 indicates that the complaint is no longer valid. */
+	cdtime_t interval;
+
+	_Bool complained_once;
 } c_complain_t;
 
-#define C_COMPLAIN_INIT_STATIC { 0, 0 }
-#define C_COMPLAIN_INIT(c) do { (c)->last = 0; (c)->interval = 0; } while (0)
+#define C_COMPLAIN_INIT_STATIC { 0, 0, 0 }
+#define C_COMPLAIN_INIT(c) do { \
+	(c)->last = 0; \
+	(c)->interval = 0; \
+	(c)->complained_once = 0; \
+} while (0)
 
 /*
  * NAME

@@ -1,3 +1,5 @@
+=encoding UTF-8
+
 =head1 NAME
 
 collectd-exec - Documentation of collectd's C<exec plugin>
@@ -116,12 +118,8 @@ case you're confused.
 
 Since examples usually let one understand a lot better, here are some:
 
-  leeloo/cpu-0/cpu-idle N:2299366
-  alice/interface/if_octets-eth0 interval=10 1180647081:421465:479194
-
-Since this action was the only one supported with older versions of the C<exec
-plugin> all lines were treated as if they were prefixed with B<PUTVAL>. This is
-still the case to maintain backwards compatibility but deprecated.
+  PUTVAL leeloo/cpu-0/cpu-idle N:2299366
+  PUTVAL alice/interface/if_octets-eth0 interval=10 1180647081:421465:479194
 
 =item B<PUTNOTIF> [I<OptionList>] B<message=>I<Message>
 
@@ -170,6 +168,19 @@ GUIs may use this information to place notifications near the affected graph or
 table. All the options are optional, but B<plugin_instance> without B<plugin>
 or B<type_instance> without B<type> doesn't make much sense and should be
 avoided.
+
+=item B<type:key=>I<value>
+
+Sets user defined meta information. The B<type> key is a single character
+defining the type of the meta information.
+
+The current supported types are:
+
+=over 8
+
+=item B<s> A string passed as-is.
+
+=back
 
 =back
 
@@ -293,6 +304,6 @@ L<fork(2)>, L<exec(3)>
 
 =head1 AUTHOR
 
-Florian Forster E<lt>octo@verplant.orgE<gt>
+Florian Forster E<lt>octo@collectd.orgE<gt>
 
 =cut

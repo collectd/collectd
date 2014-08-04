@@ -3,19 +3,23 @@
  * Copyright (C) 2006-2010  Florian octo Forster
  * Copyright (C) 2008       Sebastian Harl
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
@@ -120,9 +124,9 @@ static int init (void)
     return (-1);
   }
 
-  curl_easy_setopt (curl, CURLOPT_NOSIGNAL, 1);
+  curl_easy_setopt (curl, CURLOPT_NOSIGNAL, 1L);
   curl_easy_setopt (curl, CURLOPT_WRITEFUNCTION, nginx_curl_callback);
-  curl_easy_setopt (curl, CURLOPT_USERAGENT, PACKAGE_NAME"/"PACKAGE_VERSION);
+  curl_easy_setopt (curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
   curl_easy_setopt (curl, CURLOPT_ERRORBUFFER, nginx_curl_error);
 
   if (user != NULL)
@@ -143,24 +147,25 @@ static int init (void)
     curl_easy_setopt (curl, CURLOPT_URL, url);
   }
 
-  curl_easy_setopt (curl, CURLOPT_FOLLOWLOCATION, 1);
+  curl_easy_setopt (curl, CURLOPT_FOLLOWLOCATION, 1L);
+  curl_easy_setopt (curl, CURLOPT_MAXREDIRS, 50L);
 
   if ((verify_peer == NULL) || IS_TRUE (verify_peer))
   {
-    curl_easy_setopt (curl, CURLOPT_SSL_VERIFYPEER, 1);
+    curl_easy_setopt (curl, CURLOPT_SSL_VERIFYPEER, 1L);
   }
   else
   {
-    curl_easy_setopt (curl, CURLOPT_SSL_VERIFYPEER, 0);
+    curl_easy_setopt (curl, CURLOPT_SSL_VERIFYPEER, 0L);
   }
 
   if ((verify_host == NULL) || IS_TRUE (verify_host))
   {
-    curl_easy_setopt (curl, CURLOPT_SSL_VERIFYHOST, 2);
+    curl_easy_setopt (curl, CURLOPT_SSL_VERIFYHOST, 2L);
   }
   else
   {
-    curl_easy_setopt (curl, CURLOPT_SSL_VERIFYHOST, 0);
+    curl_easy_setopt (curl, CURLOPT_SSL_VERIFYHOST, 0L);
   }
 
   if (cacert != NULL)
@@ -179,6 +184,8 @@ static void submit (char *type, char *inst, long long value)
   if (strcmp (type, "nginx_connections") == 0)
     values[0].gauge = value;
   else if (strcmp (type, "nginx_requests") == 0)
+    values[0].derive = value;
+  else if (strcmp (type, "connections") == 0)
     values[0].derive = value;
   else
     return;
@@ -214,7 +221,7 @@ static int nginx_read (void)
     return (-1);
 
   nginx_buffer_len = 0;
-  if (curl_easy_perform (curl) != 0)
+  if (curl_easy_perform (curl) != CURLE_OK)
   {
     WARNING ("nginx plugin: curl_easy_perform failed: %s", nginx_curl_error);
     return (-1);
@@ -253,6 +260,8 @@ static int nginx_read (void)
 	  && (atoll (fields[1]) != 0)
 	  && (atoll (fields[2]) != 0))
       {
+	submit ("connections", "accepted", atoll (fields[0]));
+	submit ("connections", "handled", atoll (fields[1]));
 	submit ("nginx_requests", NULL, atoll (fields[2]));
       }
     }

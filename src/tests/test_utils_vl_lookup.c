@@ -1,6 +1,6 @@
 /**
- * collectd - src/utils_vl_lookup_test.c
- * Copyright (C) 2012  Florian Forster
+ * collectd - src/tests/test_utils_vl_lookup.c
+ * Copyright (C) 2012       Florian Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,6 +24,7 @@
  *   Florian Forster <octo at collectd.org>
  **/
 
+#include "tests/macros.h"
 #include "collectd.h"
 #include "utils_vl_lookup.h"
 
@@ -46,7 +47,8 @@ static int lookup_obj_callback (data_set_t const *ds,
   identifier_t *class = user_class;
   identifier_t *obj = user_obj;
 
-  assert (expect_new_obj == have_new_obj);
+  OK1(expect_new_obj == have_new_obj,
+      (expect_new_obj ? "New obj is created." : "Updating existing obj."));
 
   memcpy (&last_class_ident, class, sizeof (last_class_ident));
   memcpy (&last_obj_ident, obj, sizeof (last_obj_ident));
@@ -63,7 +65,7 @@ static void *lookup_class_callback (data_set_t const *ds,
   identifier_t *class = user_class;
   identifier_t *obj;
 
-  assert (expect_new_obj);
+  OK(expect_new_obj);
 
   memcpy (&last_class_ident, class, sizeof (last_class_ident));
   
@@ -87,7 +89,6 @@ static void checked_lookup_add (lookup_t *obj, /* {{{ */
 {
   identifier_t ident;
   void *user_class;
-  int status;
 
   memset (&ident, 0, sizeof (ident));
   strncpy (ident.host, host, sizeof (ident.host));
@@ -99,8 +100,7 @@ static void checked_lookup_add (lookup_t *obj, /* {{{ */
   user_class = malloc (sizeof (ident));
   memmove (user_class, &ident, sizeof (ident));
 
-  status = lookup_add (obj, &ident, group_by, user_class);
-  assert (status == 0);
+  OK(lookup_add (obj, &ident, group_by, user_class) == 0);
 } /* }}} void test_add */
 
 static int checked_lookup_search (lookup_t *obj,
@@ -136,11 +136,11 @@ static lookup_t *checked_lookup_create (void)
       lookup_obj_callback,
       (void *) free,
       (void *) free);
-  assert (obj != NULL);
+  OK(obj != NULL);
   return (obj);
 }
 
-static void testcase0 (void)
+DEF_TEST(group_by_specific_host)
 {
   lookup_t *obj = checked_lookup_create ();
 
@@ -155,9 +155,10 @@ static void testcase0 (void)
       /* expect new = */ 0);
 
   lookup_destroy (obj);
+  return (0);
 }
 
-static void testcase1 (void)
+DEF_TEST(group_by_any_host)
 {
   lookup_t *obj = checked_lookup_create ();
 
@@ -180,9 +181,10 @@ static void testcase1 (void)
       /* expect new = */ 0);
 
   lookup_destroy (obj);
+  return (0);
 }
 
-static void testcase2 (void)
+DEF_TEST(multiple_lookups)
 {
   lookup_t *obj = checked_lookup_create ();
   int status;
@@ -204,9 +206,10 @@ static void testcase2 (void)
   assert (status == 2);
 
   lookup_destroy (obj);
+  return (0);
 }
 
-static void testcase3 (void)
+DEF_TEST(regex)
 {
   lookup_t *obj = checked_lookup_create ();
 
@@ -232,13 +235,15 @@ static void testcase3 (void)
       /* expect new = */ 1);
 
   lookup_destroy (obj);
+  return (0);
 }
 
 int main (int argc, char **argv) /* {{{ */
 {
-  testcase0 ();
-  testcase1 ();
-  testcase2 ();
-  testcase3 ();
-  return (EXIT_SUCCESS);
+  RUN_TEST(group_by_specific_host);
+  RUN_TEST(group_by_any_host);
+  RUN_TEST(multiple_lookups);
+  RUN_TEST(regex);
+
+  END_TEST;
 } /* }}} int main */

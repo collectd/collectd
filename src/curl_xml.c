@@ -28,6 +28,7 @@
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <libxml/xpath.h>
+#include <libxml/xpathInternals.h>
 
 #include <curl/curl.h>
 
@@ -58,6 +59,14 @@ struct cx_xpath_s /* {{{ */
 typedef struct cx_xpath_s cx_xpath_t;
 /* }}} */
 
+struct cx_namespace_s /* {{{ */
+{
+  char *prefix;
+  char *url;
+};
+typedef struct cx_namespace_s cx_namespace_t;
+/* }}} */
+
 struct cx_s /* {{{ */
 {
   char *instance;
@@ -67,9 +76,15 @@ struct cx_s /* {{{ */
   char *user;
   char *pass;
   char *credentials;
+  _Bool digest;
   _Bool verify_peer;
   _Bool verify_host;
   char *cacert;
+  char *post_body;
+  struct curl_slist *headers;
+
+  cx_namespace_t *namespaces;
+  size_t namespaces_num;
 
   CURL *curl;
   char curl_errbuf[CURL_ERROR_SIZE];
@@ -160,6 +175,7 @@ static void cx_list_free (llist_t *list) /* {{{ */
 static void cx_free (void *arg) /* {{{ */
 {
   cx_t *db;
+  size_t i;
 
   DEBUG ("curl_xml plugin: cx_free (arg = %p);", arg);
 
@@ -184,9 +200,34 @@ static void cx_free (void *arg) /* {{{ */
   sfree (db->pass);
   sfree (db->credentials);
   sfree (db->cacert);
+  sfree (db->post_body);
+  curl_slist_free_all (db->headers);
+
+  for (i = 0; i < db->namespaces_num; i++)
+  {
+    sfree (db->namespaces[i].prefix);
+    sfree (db->namespaces[i].url);
+  }
+  sfree (db->namespaces);
 
   sfree (db);
 } /* }}} void cx_free */
+
+static int cx_config_append_string (const char *name, struct curl_slist **dest, /* {{{ */
+    oconfig_item_t *ci)
+{
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
+  {
+    WARNING ("curl_xml plugin: `%s' needs exactly one string argument.", name);
+    return (-1);
+  }
+
+  *dest = curl_slist_append(*dest, ci->values[0].value.string);
+  if (*dest == NULL)
+    return (-1);
+
+  return (0);
+} /* }}} int cx_config_append_string */
 
 static int cx_check_type (const data_set_t *ds, cx_xpath_t *xpath) /* {{{ */
 {
@@ -225,7 +266,8 @@ static xmlXPathObjectPtr cx_evaluate_xpath (xmlXPathContextPtr xpath_ctx, /* {{{
 
 static int cx_if_not_text_node (xmlNodePtr node) /* {{{ */
 {
-  if (node->type == XML_TEXT_NODE || node->type == XML_ATTRIBUTE_NODE)
+  if (node->type == XML_TEXT_NODE || node->type == XML_ATTRIBUTE_NODE ||
+      node->type == XML_ELEMENT_NODE)
     return (0);
 
   WARNING ("curl_xml plugin: "
@@ -342,7 +384,7 @@ static int cx_handle_instance_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */
   memset (vl->type_instance, 0, sizeof (vl->type_instance));
 
   /* If the base xpath returns more than one block, the result is assumed to be
-   * a table. The `Instnce' option is not optional in this case. Check for the
+   * a table. The `Instance' option is not optional in this case. Check for the
    * condition and inform the user. */
   if (is_table && (vl->type_instance == NULL))
   {
@@ -365,7 +407,7 @@ static int cx_handle_instance_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */
     instance_node = instance_node_obj->nodesetval;
     tmp_size = (instance_node) ? instance_node->nodeNr : 0;
 
-    if ( (tmp_size == 0) && (is_table) )
+    if (tmp_size <= 0)
     {
       WARNING ("curl_xml plugin: "
           "relative xpath expression for 'InstanceFrom' \"%s\" doesn't match "
@@ -520,6 +562,7 @@ static int cx_parse_stats_xml(xmlChar* xml, cx_t *db) /* {{{ */
   int status;
   xmlDocPtr doc;
   xmlXPathContextPtr xpath_ctx;
+  size_t i;
 
   /* Load the XML */
   doc = xmlParseDoc(xml);
@@ -537,6 +580,22 @@ static int cx_parse_stats_xml(xmlChar* xml, cx_t *db) /* {{{ */
     return (-1);
   }
 
+  for (i = 0; i < db->namespaces_num; i++)
+  {
+    cx_namespace_t const *ns = db->namespaces + i;
+    status = xmlXPathRegisterNs (xpath_ctx,
+        BAD_CAST ns->prefix, BAD_CAST ns->url);
+    if (status != 0)
+    {
+      ERROR ("curl_xml plugin: "
+          "unable to register NS with prefix=\"%s\" and href=\"%s\"\n",
+          ns->prefix, ns->url);
+      xmlXPathFreeContext(xpath_ctx);
+      xmlFreeDoc (doc);
+      return (status);
+    }
+  }
+
   status = cx_handle_parsed_xml (doc, xpath_ctx, db);
   /* Cleanup */
   xmlXPathFreeContext(xpath_ctx);
@@ -550,9 +609,16 @@ static int cx_curl_perform (cx_t *db, CURL *curl) /* {{{ */
   long rc;
   char *ptr;
   char *url;
+  url = db->url;
 
   db->buffer_fill = 0; 
   status = curl_easy_perform (curl);
+  if (status != CURLE_OK)
+  {
+    ERROR ("curl_xml plugin: curl_easy_perform failed with status %i: %s (%s)",
+           status, db->curl_errbuf, url);
+    return (-1);
+  }
 
   curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &url);
   curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &rc);
@@ -562,13 +628,6 @@ static int cx_curl_perform (cx_t *db, CURL *curl) /* {{{ */
   {
     ERROR ("curl_xml plugin: curl_easy_perform failed with response code %ld (%s)",
            rc, url);
-    return (-1);
-  }
-
-  if (status != 0)
-  {
-    ERROR ("curl_xml plugin: curl_easy_perform failed with status %i: %s (%s)",
-           status, db->curl_errbuf, url);
     return (-1);
   }
 
@@ -727,6 +786,46 @@ static int cx_config_add_xpath (cx_t *db, /* {{{ */
   return (status);
 } /* }}} int cx_config_add_xpath */
 
+static int cx_config_add_namespace (cx_t *db, /* {{{ */
+    oconfig_item_t *ci)
+{
+  cx_namespace_t *ns;
+
+  if ((ci->values_num != 2)
+      || (ci->values[0].type != OCONFIG_TYPE_STRING)
+      || (ci->values[1].type != OCONFIG_TYPE_STRING))
+  {
+    WARNING ("curl_xml plugin: The `Namespace' option "
+             "needs exactly two string arguments.");
+    return (EINVAL);
+  }
+
+  ns = realloc (db->namespaces, sizeof (*db->namespaces)
+      * (db->namespaces_num + 1));
+  if (ns == NULL)
+  {
+    ERROR ("curl_xml plugin: realloc failed.");
+    return (ENOMEM);
+  }
+  db->namespaces = ns;
+  ns = db->namespaces + db->namespaces_num;
+  memset (ns, 0, sizeof (*ns));
+
+  ns->prefix = strdup (ci->values[0].value.string);
+  ns->url = strdup (ci->values[1].value.string);
+
+  if ((ns->prefix == NULL) || (ns->url == NULL))
+  {
+    sfree (ns->prefix);
+    sfree (ns->url);
+    ERROR ("curl_xml plugin: strdup failed.");
+    return (ENOMEM);
+  }
+
+  db->namespaces_num++;
+  return (0);
+} /* }}} int cx_config_add_namespace */
+
 /* Initialize db->curl */
 static int cx_init_curl (cx_t *db) /* {{{ */
 {
@@ -737,11 +836,10 @@ static int cx_init_curl (cx_t *db) /* {{{ */
     return (-1);
   }
 
-  curl_easy_setopt (db->curl, CURLOPT_NOSIGNAL, 1);
+  curl_easy_setopt (db->curl, CURLOPT_NOSIGNAL, 1L);
   curl_easy_setopt (db->curl, CURLOPT_WRITEFUNCTION, cx_curl_callback);
   curl_easy_setopt (db->curl, CURLOPT_WRITEDATA, db);
-  curl_easy_setopt (db->curl, CURLOPT_USERAGENT,
-                    PACKAGE_NAME"/"PACKAGE_VERSION);
+  curl_easy_setopt (db->curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
   curl_easy_setopt (db->curl, CURLOPT_ERRORBUFFER, db->curl_errbuf);
   curl_easy_setopt (db->curl, CURLOPT_URL, db->url);
 
@@ -763,6 +861,13 @@ static int cx_init_curl (cx_t *db) /* {{{ */
     ssnprintf (db->credentials, credentials_size, "%s:%s",
                db->user, (db->pass == NULL) ? "" : db->pass);
     curl_easy_setopt (db->curl, CURLOPT_USERPWD, db->credentials);
+    
+    if (db->digest)
+    {
+      curl_easy_setopt (db->curl, CURLOPT_HTTPAUTH, CURLAUTH_DIGEST);
+      curl_easy_setopt (db->curl, CURLOPT_USERNAME, db->user);
+      curl_easy_setopt (db->curl, CURLOPT_PASSWORD, db->pass);
+    }
   }
 
   curl_easy_setopt (db->curl, CURLOPT_SSL_VERIFYPEER, db->verify_peer ? 1L : 0L);
@@ -770,6 +875,10 @@ static int cx_init_curl (cx_t *db) /* {{{ */
                     db->verify_host ? 2L : 0L);
   if (db->cacert != NULL)
     curl_easy_setopt (db->curl, CURLOPT_CAINFO, db->cacert);
+  if (db->headers != NULL)
+    curl_easy_setopt (db->curl, CURLOPT_HTTPHEADER, db->headers);
+  if (db->post_body != NULL)
+    curl_easy_setopt (db->curl, CURLOPT_POSTFIELDS, db->post_body);
 
   return (0);
 } /* }}} int cx_init_curl */
@@ -825,6 +934,8 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string (child, &db->user);
     else if (strcasecmp ("Password", child->key) == 0)
       status = cf_util_get_string (child, &db->pass);
+    else if (strcasecmp ("Digest", child->key) == 0)
+      status = cf_util_get_boolean (child, &db->digest);
     else if (strcasecmp ("VerifyPeer", child->key) == 0)
       status = cf_util_get_boolean (child, &db->verify_peer);
     else if (strcasecmp ("VerifyHost", child->key) == 0)
@@ -833,6 +944,12 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string (child, &db->cacert);
     else if (strcasecmp ("xpath", child->key) == 0)
       status = cx_config_add_xpath (db, child);
+    else if (strcasecmp ("Header", child->key) == 0)
+      status = cx_config_append_string ("Header", &db->headers, child);
+    else if (strcasecmp ("Post", child->key) == 0)
+      status = cf_util_get_string (child, &db->post_body);
+    else if (strcasecmp ("Namespace", child->key) == 0)
+      status = cx_config_add_namespace (db, child);
     else
     {
       WARNING ("curl_xml plugin: Option `%s' not allowed here.", child->key);
@@ -859,7 +976,7 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
   if (status == 0)
   {
     user_data_t ud;
-    char cb_name[DATA_MAX_NAME_LEN];
+    char *cb_name;
 
     if (db->instance == NULL)
       db->instance = strdup("default");
@@ -871,11 +988,10 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
     ud.data = (void *) db;
     ud.free_func = cx_free;
 
-    ssnprintf (cb_name, sizeof (cb_name), "curl_xml-%s-%s",
-               db->instance, db->url);
-
-    plugin_register_complex_read (/* group = */ NULL, cb_name, cx_read,
+    cb_name = ssnprintf_alloc ("curl_xml-%s-%s", db->instance, db->url);
+    plugin_register_complex_read (/* group = */ "curl_xml", cb_name, cx_read,
                                   /* interval = */ NULL, &ud);
+    sfree (cb_name);
   }
   else
   {

@@ -20,7 +20,7 @@
  *
  * Authors:
  *   Flavio Stanchina <flavio at stanchina.net>
- *   Florian Forster <octo at verplant.org>
+ *   Florian Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"

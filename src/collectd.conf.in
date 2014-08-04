@@ -16,9 +16,31 @@
 #PIDFile     "@localstatedir@/run/@PACKAGE_NAME@.pid"
 #PluginDir   "@libdir@/@PACKAGE_NAME@"
 #TypesDB     "@prefix@/share/@PACKAGE_NAME@/types.db"
+
+#----------------------------------------------------------------------------#
+# When enabled, plugins are loaded automatically with the default options    #
+# when an appropriate <Plugin ...> block is encountered.                     #
+# Disabled by default.                                                       #
+#----------------------------------------------------------------------------#
+#AutoLoadPlugin false
+
+#----------------------------------------------------------------------------#
+# Interval at which to query values. This may be overwritten on a per-plugin #
+# base by using the 'Interval' option of the LoadPlugin block:               #
+#   <LoadPlugin foo>                                                         #
+#       Interval 60                                                          #
+#   </LoadPlugin>                                                            #
+#----------------------------------------------------------------------------#
 #Interval     10
+
 #Timeout      2
 #ReadThreads  5
+#WriteThreads 5
+
+# Limit the size of the write queue. Default is no limit. Setting up a limit is
+# recommended for servers handling a high volume of traffic.
+#WriteQueueLimitHigh 1000000
+#WriteQueueLimitLow   800000
 
 ##############################################################################
 # Logging                                                                    #
@@ -30,12 +52,18 @@
 
 @LOAD_PLUGIN_SYSLOG@LoadPlugin syslog
 @LOAD_PLUGIN_LOGFILE@LoadPlugin logfile
+@LOAD_PLUGIN_LOG_LOGSTASH@LoadPlugin log_logstash
 
 #<Plugin logfile>
 #	LogLevel @DEFAULT_LOG_LEVEL@
 #	File STDOUT
 #	Timestamp true
 #	PrintSeverity false
+#</Plugin>
+
+#<Plugin log_logstash>
+#	LogLevel @DEFAULT_LOG_LEVEL@
+#	File "@localstatedir@/log/@PACKAGE_NAME@.json.log"
 #</Plugin>
 
 #<Plugin syslog>
@@ -57,11 +85,14 @@
 #@BUILD_PLUGIN_APACHE_TRUE@LoadPlugin apache
 #@BUILD_PLUGIN_APCUPS_TRUE@LoadPlugin apcups
 #@BUILD_PLUGIN_APPLE_SENSORS_TRUE@LoadPlugin apple_sensors
+#@BUILD_PLUGIN_AQUAERO_TRUE@LoadPlugin aquaero
 #@BUILD_PLUGIN_ASCENT_TRUE@LoadPlugin ascent
+#@BUILD_PLUGIN_BAROMETER_TRUE@LoadPlugin barometer
 #@BUILD_PLUGIN_BATTERY_TRUE@LoadPlugin battery
 #@BUILD_PLUGIN_BIND_TRUE@LoadPlugin bind
 #@BUILD_PLUGIN_CONNTRACK_TRUE@LoadPlugin conntrack
 #@BUILD_PLUGIN_CONTEXTSWITCH_TRUE@LoadPlugin contextswitch
+#@BUILD_PLUGIN_CGROUPS_TRUE@LoadPlugin cgroups
 @BUILD_PLUGIN_CPU_TRUE@@BUILD_PLUGIN_CPU_TRUE@LoadPlugin cpu
 #@BUILD_PLUGIN_CPUFREQ_TRUE@LoadPlugin cpufreq
 @LOAD_PLUGIN_CSV@LoadPlugin csv
@@ -89,6 +120,7 @@
 #@BUILD_PLUGIN_LIBVIRT_TRUE@LoadPlugin libvirt
 @BUILD_PLUGIN_LOAD_TRUE@@BUILD_PLUGIN_LOAD_TRUE@LoadPlugin load
 #@BUILD_PLUGIN_LPAR_TRUE@LoadPlugin lpar
+#@BUILD_PLUGIN_LVM_TRUE@LoadPlugin lvm
 #@BUILD_PLUGIN_MADWIFI_TRUE@LoadPlugin madwifi
 #@BUILD_PLUGIN_MBMON_TRUE@LoadPlugin mbmon
 #@BUILD_PLUGIN_MD_TRUE@LoadPlugin md
@@ -130,10 +162,13 @@
 @LOAD_PLUGIN_RRDTOOL@LoadPlugin rrdtool
 #@BUILD_PLUGIN_SENSORS_TRUE@LoadPlugin sensors
 #@BUILD_PLUGIN_SERIAL_TRUE@LoadPlugin serial
+#@BUILD_PLUGIN_SIGROK_TRUE@LoadPlugin sigrok
 #@BUILD_PLUGIN_SNMP_TRUE@LoadPlugin snmp
+#@BUILD_PLUGIN_STATSD_TRUE@LoadPlugin statsd
 #@BUILD_PLUGIN_SWAP_TRUE@LoadPlugin swap
 #@BUILD_PLUGIN_TABLE_TRUE@LoadPlugin table
 #@BUILD_PLUGIN_TAIL_TRUE@LoadPlugin tail
+#@BUILD_PLUGIN_TAIL_CSV_TRUE@LoadPlugin tail_csv
 #@BUILD_PLUGIN_TAPE_TRUE@LoadPlugin tape
 #@BUILD_PLUGIN_TCPCONNS_TRUE@LoadPlugin tcpconns
 #@BUILD_PLUGIN_TEAMSPEAK2_TRUE@LoadPlugin teamspeak2
@@ -145,13 +180,16 @@
 #@BUILD_PLUGIN_USERS_TRUE@LoadPlugin users
 #@BUILD_PLUGIN_UUID_TRUE@LoadPlugin uuid
 #@BUILD_PLUGIN_VARNISH_TRUE@LoadPlugin varnish
+#@BUILD_PLUGIN_MIC_TRUE@LoadPlugin mic
 #@BUILD_PLUGIN_VMEM_TRUE@LoadPlugin vmem
 #@BUILD_PLUGIN_VSERVER_TRUE@LoadPlugin vserver
 #@BUILD_PLUGIN_WIRELESS_TRUE@LoadPlugin wireless
 #@BUILD_PLUGIN_WRITE_GRAPHITE_TRUE@LoadPlugin write_graphite
 #@BUILD_PLUGIN_WRITE_HTTP_TRUE@LoadPlugin write_http
-#@BUILD_PLUGIN_WRITE_REDIS_TRUE@LoadPlugin write_redis
+#@BUILD_PLUGIN_WRITE_KAFKA_TRUE@LoadPlugin write_kafka
 #@BUILD_PLUGIN_WRITE_MONGODB_TRUE@LoadPlugin write_mongodb
+#@BUILD_PLUGIN_WRITE_REDIS_TRUE@LoadPlugin write_redis
+#@BUILD_PLUGIN_WRITE_RIEMANN_TRUE@LoadPlugin write_riemann
 #@BUILD_PLUGIN_XMMS_TRUE@LoadPlugin xmms
 #@BUILD_PLUGIN_ZFS_ARC_TRUE@LoadPlugin zfs_arc
 
@@ -162,7 +200,7 @@
 # ription of those options is available in the collectd.conf(5) manual page. #
 ##############################################################################
 
-#<Plugin "aggregation">
+#<Plugin aggregation>
 #  <Aggregation>
 #    #Host "unspecified"
 #    Plugin "cpu"
@@ -182,7 +220,7 @@
 #  </Aggregation>
 #</Plugin>
 
-#<Plugin "amqp">
+#<Plugin amqp>
 #  <Publish "name">
 #    Host "localhost"
 #    Port "5672"
@@ -208,6 +246,11 @@
 #<Plugin apcups>
 #	Host "localhost"
 #	Port "3551"
+#	ReportSeconds true
+#</Plugin>
+
+#<Plugin aquaero>
+#	Device ""
 #</Plugin>
 
 #<Plugin ascent>
@@ -215,6 +258,16 @@
 #	User "www-user"
 #	Password "secret"
 #	CACert "/etc/ssl/ca.crt"
+#</Plugin>
+
+#<Plugin "barometer">
+#   Device            "/dev/i2c-0";
+#   Oversampling      512
+#   PressureOffset    0.0
+#   TemperatureOffset 0.0
+#   Normalization     2
+#   Altitude          238.0
+#   TemperatureSensor "myserver/onewire-F10FCA000800/temperature"
 #</Plugin>
 
 #<Plugin "bind">
@@ -237,6 +290,17 @@
 #  </View>
 #</Plugin>
 
+#<Plugin cgroup>
+#  CGroup "libvirt"
+#  IgnoreSelected false
+#</Plugin>
+
+#<Plugin cpu>
+#  ReportActive false
+#  ReportByCpu true
+#  ValuesPercentage false
+#</Plugin>
+#
 #<Plugin csv>
 #	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/csv"
 #	StoreRates false
@@ -288,7 +352,7 @@
 #  </URL>
 #</Plugin>
 
-#<Plugin "curl_xml">
+#<Plugin curl_xml>
 #  <URL "http://localhost/stats.xml">
 #    Host "my_host"
 #    Instance "some_instance"
@@ -325,6 +389,7 @@
 #		#SelectDB "custdb0"
 #		Query "num_of_customers"
 #		#Query "..."
+#		#Host "..."
 #	</Database>
 #</Plugin>
 
@@ -337,11 +402,15 @@
 #	ReportByDevice false
 #	ReportReserved false
 #	ReportInodes false
+#	ValuesAbsolute true
+#	ValuesPercentage false
 #</Plugin>
 
 #<Plugin disk>
 #	Disk "/^[hs]d[a-f][0-9]?$/"
 #	IgnoreSelected false
+#	UseBSDName false
+#	UdevNameAttr "DEVNAME"
 #</Plugin>
 
 #<Plugin dns>
@@ -380,7 +449,7 @@
 #	</Directory>
 #</Plugin>
 
-#<Plugin "gmond">
+#<Plugin gmond>
 #  MCReceiveFrom "239.2.11.71" "8649"
 #  <Metric "swap_total">
 #    Type "swap"
@@ -424,7 +493,7 @@
 #	IgnoreSelected true
 #</Plugin>
 
-#<Plugin "java">
+#<Plugin java>
 #	JVMArg "-verbose:jni"
 #	JVMArg "-Djava.class.path=@prefix@/share/collectd/java/collectd-api.jar"
 #
@@ -443,6 +512,11 @@
 #	IgnoreSelected false
 #	HostnameFormat name
 #	InterfaceFormat name
+#	PluginInstanceFormat name
+#</Plugin>
+
+#<Plugin load>
+#        ReportRelative true
 #</Plugin>
 
 #<Plugin lpar>
@@ -492,6 +566,11 @@
 #	</Instance>
 #</Plugin>
 
+#<Plugin memory>
+#	ValuesAbsolute true
+#	ValuesPercentage false
+#</Plugin>
+
 #<Plugin modbus>
 #	<Data "data_name">
 #		RegisterBase 1234
@@ -519,9 +598,11 @@
 #		Password "secret"
 #		Database "db_name"
 #		MasterStats true
+#		ConnectTimeout 10
 #	</Database>
 #
 #	<Database db_name2>
+#		Alias "squeeze"
 #		Host "localhost"
 #		Socket "/var/run/mysql/mysqld.sock"
 #		SlaveStats true
@@ -752,6 +833,11 @@
 #			ValuesFrom "count"
 #		</Result>
 #	</Query>
+#	<Writer sqlstore>
+#		# See contrib/postgresql/collectd_insert.sql for details
+#		Statement "SELECT collectd_insert($1, $2, $3, $4, $5, $6, $7, $8, $9);"
+#		StoreRates true
+#	</Writer>
 #	<Database foo>
 #		Host "hostname"
 #		Port "5432"
@@ -766,6 +852,12 @@
 #		Service "service_name"
 #		Query backend # predefined
 #		Query rt36_tickets
+#	</Database>
+#	<Database qux>
+#		Service "collectd_store"
+#		Writer sqlstore
+#		# see collectd.conf(5) for details
+#		CommitInterval 30
 #	</Database>
 #</Plugin>
 
@@ -830,13 +922,16 @@
 #	DaemonAddress "unix:/tmp/rrdcached.sock"
 #	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/rrd"
 #	CreateFiles true
+#	CreateFilesAsync false
 #	CollectStatistics true
 #</Plugin>
 
 #<Plugin rrdtool>
 #	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/rrd"
+#	CreateFilesAsync false
 #	CacheTimeout 120
 #	CacheFlush   900
+#	WritesPerSecond 50
 #</Plugin>
 
 #<Plugin sensors>
@@ -845,6 +940,19 @@
 #	Sensor "it8712-isa-0290/fanspeed-fan3"
 #	Sensor "it8712-isa-0290/voltage-in8"
 #	IgnoreSelected false
+#</Plugin>
+
+#<Plugin sigrok>
+#  LogLevel 3
+#  <Device "AC Voltage">
+#    Driver "fluke-dmm"
+#    MinimumInterval 10
+#    Conn "/dev/ttyUSB2"
+#  </Device>
+#  <Device "Sound Level">
+#    Driver "cem-dt-885x"
+#    Conn "/dev/ttyUSB1"
+#  </Device>
 #</Plugin>
 
 #<Plugin snmp>
@@ -889,12 +997,24 @@
 #   </Host>
 #</Plugin>
 
-#<Plugin "swap">
-#	ReportByDevice false
-#	ReportBytes true
+#<Plugin statsd>
+#  Host "::"
+#  Port "8125"
+#  DeleteCounters false
+#  DeleteTimers   false
+#  DeleteGauges   false
+#  DeleteSets     false
+#  TimerPercentile 90.0
 #</Plugin>
 
-#<Plugin "table">
+#<Plugin swap>
+#	ReportByDevice false
+#	ReportBytes true
+#	ValuesAbsolute true
+#	ValuesPercentage false
+#</Plugin>
+
+#<Plugin table>
 #	<Table "/proc/slabinfo">
 #		Instance "slabinfo"
 #		Separator " "
@@ -913,9 +1033,10 @@
 #	</Table>
 #</Plugin>
 
-#<Plugin "tail">
+#<Plugin tail>
 #  <File "/var/log/exim4/mainlog">
 #    Instance "exim"
+#    Interval 60
 #    <Match>
 #      Regex "S=([1-9][0-9]*)"
 #      DSType "CounterAdd"
@@ -930,6 +1051,33 @@
 #      Instance "local_user"
 #    </Match>
 #  </File>
+#</Plugin>
+
+#<Plugin tail_csv>
+#   <Metric "dropped">
+#       Type "percent"
+#       Instance "dropped"
+#       ValueFrom 1
+#   </Metric>
+#   <Metric "mbps">
+#       Type "bytes"
+#       Instance "wire-realtime"
+#       ValueFrom 2
+#   </Metric>
+#   <Metric "alerts">
+#       Type "alerts_per_second"
+#       ValueFrom 3
+#   </Metric>
+#   <Metric "kpps">
+#       Type "kpackets_wire_per_sec.realtime"
+#       ValueFrom 4
+#   </Metric>
+#   <File "/var/log/snort/snort.stats">
+#       Instance "snort-eth0"
+#       Interval 600
+#       Collect "dropped" "mbps" "alerts" "kpps"
+#       TimeFrom 0
+#   </File>
 #</Plugin>
 
 #<Plugin tcpconns>
@@ -971,6 +1119,24 @@
 #	UUIDFile "/etc/uuid"
 #</Plugin>
 
+#<Plugin mic>
+#   ShowCPU true
+#   ShowCPUCores true
+#   ShowMemory true
+#   ShowTemperatures true
+##  Temperature Sensors can be ignored/shown by repeated #Temperature lines, and
+##  then inverted with a IgnoreSelectedTemperature.
+##  Known Temperature sensors: die, devmem, fin, fout, vccp, vddg, vddq
+#   Temperature vddg
+#   IgnoreSelectedTemperature true
+#   ShowPower true
+##  Power Sensors can be ignored/shown by repeated #Power lines, and
+##  then inverted with a IgnoreSelectedTemperature.
+##  Known Temperature sensors: total0, total1, inst, imax, pci3, c2x3, c2x4, vccp, vddg, vddq
+#   Power total1
+#   IgnoreSelectedPower true
+#</Plugin>
+
 #<Plugin varnish>
 #   This tag support an argument if you want to
 #   monitor the local instance just use </Instance>
@@ -979,15 +1145,23 @@
 #   <Instance>
 #      CollectCache true
 #      CollectBackend true
+#      CollectBan false           # Varnish 3 only
 #      CollectConnections true
+#      CollectDirectorDNS false   # Varnish 3 only
 #      CollectSHM true
 #      CollectESI false
 #      CollectFetch false
 #      CollectHCB false
-#      CollectSMA false
+#      CollectObjects false
+#      CollectPurge false         # Varnish 2 only
+#      CollectSession false
+#      CollectSMA false           # Varnish 2 only
 #      CollectSMS false
-#      CollectSM false
+#      CollectSM false            # Varnish 2 only
+#      CollectStruct false
 #      CollectTotals false
+#      CollectUptime false
+#      CollectVCL false
 #      CollectWorkers false
 #   </Instance>
 #</Plugin>
@@ -997,15 +1171,17 @@
 #</Plugin>
 
 #<Plugin write_graphite>
-#  <Carbon>
+#  <Node "example">
 #    Host "localhost"
 #    Port "2003"
+#    Protocol "tcp"
+#    LogSendErrors true
 #    Prefix "collectd"
 #    Postfix "collectd"
-#    StoreRates false
+#    StoreRates true
 #    AlwaysAppendDS false
 #    EscapeCharacter "_"
-#  </Carbon>
+#  </Node>
 #</Plugin>
 
 #<Plugin write_http>
@@ -1015,9 +1191,33 @@
 #		VerifyPeer true
 #		VerifyHost true
 #		CACert "/etc/ssl/ca.crt"
+#		CAPath "/etc/ssl/certs/"
+#		ClientKey "/etc/ssl/client.pem"
+#		ClientCert "/etc/ssl/client.crt"
+#		ClientKeyPass "secret"
+#		SSLVersion "TLSv1"
 #		Format "Command"
 #		StoreRates false
 #	</URL>
+#</Plugin>
+
+#<Plugin write_kafka>
+#  Property "metadata.broker.list" "localhost:9092"
+#  <Topic "collectd">
+#    Format JSON
+#  </Topic>
+#</Plugin>
+
+#<Plugin write_mongodb>
+#	<Node "example">
+#		Host "localhost"
+#		Port "27017"
+#		Timeout 1000
+#		StoreRates false
+#		Database "auth_db"
+#		User "auth_user"
+#		Password "auth_passwd"
+#	</Node>
 #</Plugin>
 
 #<Plugin write_redis>
@@ -1028,13 +1228,17 @@
 #	</Node>
 #</Plugin>
 
-#<Plugin write_mongodb>
+#<Plugin write_riemann>
 #	<Node "example">
 #		Host "localhost"
-#		Port "27017"
-#		Timeout 1000
-#		StoreRates false
+#		Port 5555
+#		Protocol UDP
+#		StoreRates true
+#		AlwaysAppendDS false
+#		TTLFactor 2.0
 #	</Node>
+#	Tag "foobar"
+#       Attribute "foo" "bar"
 #</Plugin>
 
 ##############################################################################
@@ -1077,7 +1281,7 @@
 ##############################################################################
 
 #@BUILD_PLUGIN_THRESHOLD_TRUE@LoadPlugin "threshold"
-#<Plugin "threshold">
+#<Plugin threshold>
 #  <Type "foo">
 #    WarningMin    0.00
 #    WarningMax 1000.00

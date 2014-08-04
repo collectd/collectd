@@ -17,10 +17,15 @@ Collectd network protocol implementation.
 """
 
 import socket,struct,sys
-try:
-  from io import StringIO
-except ImportError:
-  from cStringIO import StringIO
+import platform
+if platform.python_version() < '2.8.0':
+    # Python 2.7 and below io.StringIO does not like unicode
+    from StringIO import StringIO
+else:
+    try:
+      from io import StringIO
+    except ImportError:
+      from cStringIO import StringIO
 
 from datetime import datetime
 from copy import deepcopy
@@ -76,7 +81,7 @@ def decode_network_values(ptype, plen, buf):
     assert double.size == number.size
 
     result = []
-    for dstype in buf[header.size+short.size:off]:
+    for dstype in [ord(x) for x in buf[header.size+short.size:off]]:
         if dstype == DS_TYPE_COUNTER:
             result.append((dstype, number.unpack_from(buf, off)[0]))
             off += valskip

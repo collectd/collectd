@@ -1,6 +1,7 @@
 /**
  * collectd - src/netapp.c
  * Copyright (C) 2009,2010  Sven Trenkel
+ * Copyright (C) 2012-2013  teamix GmbH
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,7 +22,8 @@
  * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
- *   Sven Trenkel <collectd at semidefinite.de>  
+ *   Sven Trenkel <collectd at semidefinite.de>
+ *   Sebastian 'tokkee' Harl <sh@teamix.net>
  **/
 
 #include "collectd.h"
@@ -181,16 +183,18 @@ typedef struct {
  *
  * \brief Configuration struct for volume usage data (free / used).
  */
-#define CFG_VOLUME_USAGE_DF             0x0002
-#define CFG_VOLUME_USAGE_SNAP           0x0004
-#define CFG_VOLUME_USAGE_ALL            0x0006
-#define HAVE_VOLUME_USAGE_NORM_FREE     0x0010
-#define HAVE_VOLUME_USAGE_NORM_USED     0x0020
-#define HAVE_VOLUME_USAGE_SNAP_RSVD     0x0040
-#define HAVE_VOLUME_USAGE_SNAP_USED     0x0080
-#define HAVE_VOLUME_USAGE_SIS_SAVED     0x0100
-#define HAVE_VOLUME_USAGE_ALL           0x01f0
-#define IS_VOLUME_USAGE_OFFLINE         0x0200
+#define CFG_VOLUME_USAGE_DF              0x0002
+#define CFG_VOLUME_USAGE_SNAP            0x0004
+#define CFG_VOLUME_USAGE_ALL             0x0006
+#define HAVE_VOLUME_USAGE_NORM_FREE      0x0010
+#define HAVE_VOLUME_USAGE_NORM_USED      0x0020
+#define HAVE_VOLUME_USAGE_SNAP_RSVD      0x0040
+#define HAVE_VOLUME_USAGE_SNAP_USED      0x0080
+#define HAVE_VOLUME_USAGE_SIS_SAVED      0x0100
+#define HAVE_VOLUME_USAGE_COMPRESS_SAVED 0x0200
+#define HAVE_VOLUME_USAGE_DEDUP_SAVED    0x0400
+#define HAVE_VOLUME_USAGE_ALL            0x07f0
+#define IS_VOLUME_USAGE_OFFLINE          0x0800
 struct data_volume_usage_s;
 typedef struct data_volume_usage_s data_volume_usage_t;
 struct data_volume_usage_s {
@@ -204,6 +208,8 @@ struct data_volume_usage_s {
 	uint64_t snap_reserved;
 	uint64_t snap_used;
 	uint64_t sis_saved;
+	uint64_t compress_saved;
+	uint64_t dedup_saved;
 
 	data_volume_usage_t *next;
 };
@@ -218,6 +224,26 @@ typedef struct {
 	data_volume_usage_t *volumes;
 } cfg_volume_usage_t;
 /* }}} cfg_volume_usage_t */
+
+/*! Data types for quota statistics {{{
+ *
+ * \brief Persistent data for quota statistics
+ */
+typedef struct {
+	cna_interval_t interval;
+	na_elem_t *query;
+} cfg_quota_t;
+/* }}} cfg_quota_t */
+
+/*! Data types for SnapVault statistics {{{
+ *
+ * \brief Persistent data for SnapVault(R) statistics
+ */
+typedef struct {
+	cna_interval_t interval;
+	na_elem_t *query;
+} cfg_snapvault_t;
+/* }}} cfg_snapvault_t */
 
 /*! Data types for system statistics {{{
  *
@@ -242,6 +268,7 @@ struct host_config_s {
 	int port;
 	char *username;
 	char *password;
+	char *vfiler;
 	cdtime_t interval;
 
 	na_server_t *srv;
@@ -249,6 +276,8 @@ struct host_config_s {
 	cfg_disk_t *cfg_disk;
 	cfg_volume_perf_t *cfg_volume_perf;
 	cfg_volume_usage_t *cfg_volume_usage;
+	cfg_quota_t *cfg_quota;
+	cfg_snapvault_t *cfg_snapvault;
 	cfg_system_t *cfg_system;
 
 	struct host_config_s *next;
@@ -354,6 +383,28 @@ static void free_cfg_volume_usage (cfg_volume_usage_t *cvu) /* {{{ */
 	sfree (cvu);
 } /* }}} void free_cfg_volume_usage */
 
+static void free_cfg_quota (cfg_quota_t *q) /* {{{ */
+{
+	if (q == NULL)
+		return;
+
+	if (q->query != NULL)
+		na_elem_free (q->query);
+
+	sfree (q);
+} /* }}} void free_cfg_quota */
+
+static void free_cfg_snapvault (cfg_snapvault_t *sv) /* {{{ */
+{
+	if (sv == NULL)
+		return;
+
+	if (sv->query != NULL)
+		na_elem_free (sv->query);
+
+	sfree (sv);
+} /* }}} void free_cfg_snapvault */
+
 static void free_cfg_system (cfg_system_t *cs) /* {{{ */
 {
 	if (cs == NULL)
@@ -378,11 +429,14 @@ static void free_host_config (host_config_t *hc) /* {{{ */
 	sfree (hc->host);
 	sfree (hc->username);
 	sfree (hc->password);
+	sfree (hc->vfiler);
 
 	free_cfg_disk (hc->cfg_disk);
 	free_cfg_wafl (hc->cfg_wafl);
 	free_cfg_volume_perf (hc->cfg_volume_perf);
 	free_cfg_volume_usage (hc->cfg_volume_usage);
+	free_cfg_quota (hc->cfg_quota);
+	free_cfg_snapvault (hc->cfg_snapvault);
 	free_cfg_system (hc->cfg_system);
 
 	if (hc->srv != NULL)
@@ -675,7 +729,7 @@ static int submit_cache_ratio (const char *host, /* {{{ */
 
 /* Submits all the caches used by WAFL. Uses "submit_cache_ratio". */
 static int submit_wafl_data (const char *hostname, const char *instance, /* {{{ */
-		cfg_wafl_t *old_data, const cfg_wafl_t *new_data, int interval)
+		cfg_wafl_t *old_data, const cfg_wafl_t *new_data, cdtime_t interval)
 {
 	/* Submit requested counters */
 	if (HAS_ALL_FLAGS (old_data->flags, CFG_WAFL_NAME_CACHE | HAVE_WAFL_NAME_CACHE)
@@ -836,7 +890,7 @@ static cdtime_t cna_child_get_cdtime (na_elem_t *data) /* {{{ */
  */
 /* Data corresponding to <WAFL /> */
 static int cna_handle_wafl_data (const char *hostname, cfg_wafl_t *cfg_wafl, /* {{{ */
-		na_elem_t *data, int interval)
+		na_elem_t *data, cdtime_t interval)
 {
 	cfg_wafl_t perf_data;
 	const char *plugin_inst;
@@ -989,7 +1043,8 @@ static int cna_query_wafl (host_config_t *host) /* {{{ */
 		return (-1);
 	}
 
-	status = cna_handle_wafl_data (host->name, host->cfg_wafl, data, host->interval);
+	status = cna_handle_wafl_data (host->name, host->cfg_wafl, data,
+			host->cfg_wafl->interval.interval);
 
 	if (status == 0)
 		host->cfg_wafl->interval.last_read = now;
@@ -1184,7 +1239,8 @@ static int cna_query_disk (host_config_t *host) /* {{{ */
 		return (-1);
 	}
 
-	status = cna_handle_disk_data (host->name, host->cfg_disk, data, host->interval);
+	status = cna_handle_disk_data (host->name, host->cfg_disk, data,
+			host->cfg_disk->interval.interval);
 
 	if (status == 0)
 		host->cfg_disk->interval.last_read = now;
@@ -1355,7 +1411,8 @@ static int cna_query_volume_perf (host_config_t *host) /* {{{ */
 		return (-1);
 	}
 
-	status = cna_handle_volume_perf_data (host->name, host->cfg_volume_perf, data, host->interval);
+	status = cna_handle_volume_perf_data (host->name, host->cfg_volume_perf, data,
+			host->cfg_volume_perf->interval.interval);
 
 	if (status == 0)
 		host->cfg_volume_perf->interval.last_read = now;
@@ -1377,6 +1434,8 @@ static int cna_submit_volume_usage_data (const char *hostname, /* {{{ */
 		uint64_t norm_used = v->norm_used;
 		uint64_t norm_free = v->norm_free;
 		uint64_t sis_saved = v->sis_saved;
+		uint64_t compress_saved = v->compress_saved;
+		uint64_t dedup_saved = v->dedup_saved;
 		uint64_t snap_reserve_used = 0;
 		uint64_t snap_reserve_free = v->snap_reserved;
 		uint64_t snap_norm_used = v->snap_used;
@@ -1420,6 +1479,16 @@ static int cna_submit_volume_usage_data (const char *hostname, /* {{{ */
 			submit_double (hostname, /* plugin instance = */ plugin_instance,
 					"df_complex", "sis_saved",
 					(double) sis_saved, /* timestamp = */ 0, interval);
+
+		if (HAS_ALL_FLAGS (v->flags, HAVE_VOLUME_USAGE_COMPRESS_SAVED))
+			submit_double (hostname, /* plugin instance = */ plugin_instance,
+					"df_complex", "compression_saved",
+					(double) compress_saved, /* timestamp = */ 0, interval);
+
+		if (HAS_ALL_FLAGS (v->flags, HAVE_VOLUME_USAGE_DEDUP_SAVED))
+			submit_double (hostname, /* plugin instance = */ plugin_instance,
+					"df_complex", "dedup_saved",
+					(double) dedup_saved, /* timestamp = */ 0, interval);
 
 		if (HAS_ALL_FLAGS (v->flags, HAVE_VOLUME_USAGE_NORM_USED))
 			submit_double (hostname, /* plugin instance = */ plugin_instance,
@@ -1529,6 +1598,101 @@ static void cna_handle_volume_snap_usage(const host_config_t *host, /* {{{ */
 	v->flags |= HAVE_VOLUME_USAGE_SNAP_USED;
 } /* }}} void cna_handle_volume_snap_usage */
 
+static void cna_handle_volume_sis_data (const host_config_t *host, /* {{{ */
+		data_volume_usage_t *v, na_elem_t *sis)
+{
+	const char *sis_state;
+	uint64_t sis_saved_reported;
+
+	if (na_elem_child(sis, "sis-info"))
+		sis = na_elem_child(sis, "sis-info");
+
+	sis_state = na_child_get_string(sis, "state");
+	if (sis_state == NULL)
+		return;
+
+	/* If SIS is not enabled, there's nothing left to do for this volume. */
+	if (strcmp ("enabled", sis_state) != 0)
+		return;
+
+	sis_saved_reported = na_child_get_uint64(sis, "size-saved", UINT64_MAX);
+	if (sis_saved_reported == UINT64_MAX)
+		return;
+
+	/* size-saved is actually a 32 bit number, so ... time for some guesswork. */
+	if ((sis_saved_reported >> 32) != 0) {
+		/* In case they ever fix this bug. */
+		v->sis_saved = sis_saved_reported;
+		v->flags |= HAVE_VOLUME_USAGE_SIS_SAVED;
+	} else { /* really hacky work-around code. {{{ */
+		uint64_t sis_saved_percent;
+		uint64_t sis_saved_guess;
+		uint64_t overflow_guess;
+		uint64_t guess1, guess2, guess3;
+
+		/* Check if we have v->norm_used. Without it, we cannot calculate
+		 * sis_saved_guess. */
+		if ((v->flags & HAVE_VOLUME_USAGE_NORM_USED) == 0)
+			return;
+
+		sis_saved_percent = na_child_get_uint64(sis, "percentage-saved", UINT64_MAX);
+		if (sis_saved_percent > 100)
+			return;
+
+		/* The "size-saved" value is a 32bit unsigned integer. This is a bug and
+		 * will hopefully be fixed in later versions. To work around the bug, try
+		 * to figure out how often the 32bit integer wrapped around by using the
+		 * "percentage-saved" value. Because the percentage is in the range
+		 * [0-100], this should work as long as the saved space does not exceed
+		 * 400 GBytes. */
+		/* percentage-saved = size-saved / (size-saved + size-used) */
+		if (sis_saved_percent < 100)
+			sis_saved_guess = v->norm_used * sis_saved_percent / (100 - sis_saved_percent);
+		else
+			sis_saved_guess = v->norm_used;
+
+		overflow_guess = sis_saved_guess >> 32;
+		guess1 = overflow_guess ? ((overflow_guess - 1) << 32) + sis_saved_reported : sis_saved_reported;
+		guess2 = (overflow_guess << 32) + sis_saved_reported;
+		guess3 = ((overflow_guess + 1) << 32) + sis_saved_reported;
+
+		if (sis_saved_guess < guess2) {
+			if ((sis_saved_guess - guess1) < (guess2 - sis_saved_guess))
+				v->sis_saved = guess1;
+			else
+				v->sis_saved = guess2;
+		} else {
+			if ((sis_saved_guess - guess2) < (guess3 - sis_saved_guess))
+				v->sis_saved = guess2;
+			else
+				v->sis_saved = guess3;
+		}
+		v->flags |= HAVE_VOLUME_USAGE_SIS_SAVED;
+	} /* }}} end of 32-bit workaround */
+} /* }}} void cna_handle_volume_sis_data */
+
+/* ONTAP >= 8.1 uses SIS for managing dedup and compression */
+static void cna_handle_volume_sis_saved (const host_config_t *host, /* {{{ */
+		data_volume_usage_t *v, na_elem_t *sis)
+{
+	uint64_t saved;
+
+	if (na_elem_child(sis, "sis-info"))
+		sis = na_elem_child(sis, "sis-info");
+
+	saved = na_child_get_uint64(sis, "compress-saved", UINT64_MAX);
+	if (saved != UINT64_MAX) {
+		v->compress_saved = saved;
+		v->flags |= HAVE_VOLUME_USAGE_COMPRESS_SAVED;
+	}
+
+	saved = na_child_get_uint64(sis, "dedup-saved", UINT64_MAX);
+	if (saved != UINT64_MAX) {
+		v->dedup_saved = saved;
+		v->flags |= HAVE_VOLUME_USAGE_DEDUP_SAVED;
+	}
+} /* }}} void cna_handle_volume_sis_saved */
+
 static int cna_handle_volume_usage_data (const host_config_t *host, /* {{{ */
 		cfg_volume_usage_t *cfg_volume, na_elem_t *data)
 {
@@ -1556,8 +1720,6 @@ static int cna_handle_volume_usage_data (const host_config_t *host, /* {{{ */
 		uint64_t value;
 
 		na_elem_t *sis;
-		const char *sis_state;
-		uint64_t sis_saved_reported;
 
 		volume_name = na_child_get_string (elem_volume, "name");
 		if (volume_name == NULL)
@@ -1599,77 +1761,14 @@ static int cna_handle_volume_usage_data (const host_config_t *host, /* {{{ */
 		}
 
 		sis = na_elem_child(elem_volume, "sis");
-		if (sis == NULL)
-			continue;
-
-		if (na_elem_child(sis, "sis-info"))
-			sis = na_elem_child(sis, "sis-info");
-		
-		sis_state = na_child_get_string(sis, "state");
-		if (sis_state == NULL)
-			continue;
-
-		/* If SIS is not enabled, there's nothing left to do for this volume. */
-		if (strcmp ("enabled", sis_state) != 0)
-			continue;
-
-		sis_saved_reported = na_child_get_uint64(sis, "size-saved", UINT64_MAX);
-		if (sis_saved_reported == UINT64_MAX)
-			continue;
-
-		/* size-saved is actually a 32 bit number, so ... time for some guesswork. */
-		if ((sis_saved_reported >> 32) != 0) {
-			/* In case they ever fix this bug. */
-			v->sis_saved = sis_saved_reported;
-			v->flags |= HAVE_VOLUME_USAGE_SIS_SAVED;
-		} else { /* really hacky work-around code. {{{ */
-			uint64_t sis_saved_percent;
-			uint64_t sis_saved_guess;
-			uint64_t overflow_guess;
-			uint64_t guess1, guess2, guess3;
-
-			/* Check if we have v->norm_used. Without it, we cannot calculate
-			 * sis_saved_guess. */
-			if ((v->flags & HAVE_VOLUME_USAGE_NORM_USED) == 0)
-				continue;
-
-			sis_saved_percent = na_child_get_uint64(sis, "percentage-saved", UINT64_MAX);
-			if (sis_saved_percent > 100)
-				continue;
-
-			/* The "size-saved" value is a 32bit unsigned integer. This is a bug and
-			 * will hopefully be fixed in later versions. To work around the bug, try
-			 * to figure out how often the 32bit integer wrapped around by using the
-			 * "percentage-saved" value. Because the percentage is in the range
-			 * [0-100], this should work as long as the saved space does not exceed
-			 * 400 GBytes. */
-			/* percentage-saved = size-saved / (size-saved + size-used) */
-			if (sis_saved_percent < 100)
-				sis_saved_guess = v->norm_used * sis_saved_percent / (100 - sis_saved_percent);
-			else
-				sis_saved_guess = v->norm_used;
-
-			overflow_guess = sis_saved_guess >> 32;
-			guess1 = overflow_guess ? ((overflow_guess - 1) << 32) + sis_saved_reported : sis_saved_reported;
-			guess2 = (overflow_guess << 32) + sis_saved_reported;
-			guess3 = ((overflow_guess + 1) << 32) + sis_saved_reported;
-
-			if (sis_saved_guess < guess2) {
-				if ((sis_saved_guess - guess1) < (guess2 - sis_saved_guess))
-					v->sis_saved = guess1;
-				else
-					v->sis_saved = guess2;
-			} else {
-				if ((sis_saved_guess - guess2) < (guess3 - sis_saved_guess))
-					v->sis_saved = guess2;
-				else
-					v->sis_saved = guess3;
-			}
-			v->flags |= HAVE_VOLUME_USAGE_SIS_SAVED;
-		} /* }}} end of 32-bit workaround */
+		if (sis != NULL) {
+			cna_handle_volume_sis_data (host, v, sis);
+			cna_handle_volume_sis_saved (host, v, sis);
+		}
 	} /* for (elem_volume) */
 
-	return (cna_submit_volume_usage_data (host->name, cfg_volume, host->interval));
+	return (cna_submit_volume_usage_data (host->name, cfg_volume,
+				host->cfg_volume_usage->interval.interval));
 } /* }}} int cna_handle_volume_usage_data */
 
 static int cna_setup_volume_usage (cfg_volume_usage_t *cvu) /* {{{ */
@@ -1730,6 +1829,292 @@ static int cna_query_volume_usage (host_config_t *host) /* {{{ */
 	na_elem_free (data);
 	return (status);
 } /* }}} int cna_query_volume_usage */
+
+/* Data corresponding to <Quota /> */
+static int cna_handle_quota_data (const host_config_t *host, /* {{{ */
+		cfg_quota_t *cfg_quota, na_elem_t *data)
+{
+	na_elem_t *elem_quota;
+	na_elem_t *elem_quotas;
+	na_elem_iter_t iter_quota;
+
+	elem_quotas = na_elem_child (data, "quotas");
+	if (elem_quotas == NULL)
+	{
+		ERROR ("netapp plugin: cna_handle_quota_data: "
+				"na_elem_child (\"quotas\") failed "
+				"for host %s.", host->name);
+		return (-1);
+	}
+
+	iter_quota = na_child_iterator (elem_quotas);
+	for (elem_quota = na_iterator_next (&iter_quota);
+			elem_quota != NULL;
+			elem_quota = na_iterator_next (&iter_quota))
+	{
+		const char *quota_type, *volume_name, *tree_name;
+		uint64_t value;
+
+		char plugin_instance[DATA_MAX_NAME_LEN];
+
+		quota_type = na_child_get_string (elem_quota, "quota-type");
+		if (quota_type == NULL)
+			continue;
+
+		/* possible TODO: support other types as well */
+		if (strcmp (quota_type, "tree") != 0)
+			continue;
+
+		tree_name = na_child_get_string (elem_quota, "tree");
+		if ((tree_name == NULL) || (*tree_name == '\0'))
+			continue;
+
+		volume_name = na_child_get_string (elem_quota, "volume");
+		if (volume_name == NULL)
+			continue;
+
+		ssnprintf (plugin_instance, sizeof (plugin_instance),
+				"quota-%s-%s", volume_name, tree_name);
+
+		value = na_child_get_uint64 (elem_quota, "disk-used", UINT64_MAX);
+		if (value != UINT64_MAX) {
+			value *= 1024; /* disk-used reports kilobytes */
+			submit_double (host->name, plugin_instance,
+					/* type = */ "df_complex", /* type instance = */ NULL,
+					(double)value, /* timestamp = */ 0,
+					host->cfg_quota->interval.interval);
+		}
+
+		value = na_child_get_uint64 (elem_quota, "files-used", UINT64_MAX);
+		if (value != UINT64_MAX) {
+			submit_double (host->name, plugin_instance,
+					/* type = */ "files", /* type instance = */ NULL,
+					(double)value, /* timestamp = */ 0,
+					host->cfg_quota->interval.interval);
+		}
+	} /* for (elem_quota) */
+
+	return (0);
+} /* }}} int cna_handle_volume_usage_data */
+
+static int cna_setup_quota (cfg_quota_t *cq) /* {{{ */
+{
+	if (cq == NULL)
+		return (EINVAL);
+
+	if (cq->query != NULL)
+		return (0);
+
+	cq->query = na_elem_new ("quota-report");
+	if (cq->query == NULL)
+	{
+		ERROR ("netapp plugin: na_elem_new failed.");
+		return (-1);
+	}
+
+	return (0);
+} /* }}} int cna_setup_quota */
+
+static int cna_query_quota (host_config_t *host) /* {{{ */
+{
+	na_elem_t *data;
+	int status;
+	cdtime_t now;
+
+	if (host == NULL)
+		return (EINVAL);
+
+	/* If the user did not configure quota statistics, return without
+	 * doing anything. */
+	if (host->cfg_quota == NULL)
+		return (0);
+
+	now = cdtime ();
+	if ((host->cfg_quota->interval.interval + host->cfg_quota->interval.last_read) > now)
+		return (0);
+
+	status = cna_setup_quota (host->cfg_quota);
+	if (status != 0)
+		return (status);
+	assert (host->cfg_quota->query != NULL);
+
+	data = na_server_invoke_elem (host->srv, host->cfg_quota->query);
+	if (na_results_status (data) != NA_OK)
+	{
+		ERROR ("netapp plugin: cna_query_quota: na_server_invoke_elem failed for host %s: %s",
+				host->name, na_results_reason (data));
+		na_elem_free (data);
+		return (-1);
+	}
+
+	status = cna_handle_quota_data (host, host->cfg_quota, data);
+
+	if (status == 0)
+		host->cfg_quota->interval.last_read = now;
+
+	na_elem_free (data);
+	return (status);
+} /* }}} int cna_query_quota */
+
+/* Data corresponding to <SnapVault /> */
+static int cna_handle_snapvault_data (const char *hostname, /* {{{ */
+		cfg_snapvault_t *cfg_snapvault, na_elem_t *data, cdtime_t interval)
+{
+	na_elem_t *status;
+	na_elem_iter_t status_iter;
+
+	status = na_elem_child (data, "status-list");
+	if (! status) {
+		ERROR ("netapp plugin: SnapVault status record missing status-list");
+		return (0);
+	}
+
+	status_iter = na_child_iterator (status);
+	for (status = na_iterator_next (&status_iter);
+			status != NULL;
+			status = na_iterator_next (&status_iter))
+	{
+		const char *dest_sys, *dest_path, *src_sys, *src_path;
+		char plugin_instance[DATA_MAX_NAME_LEN];
+		uint64_t value;
+
+		dest_sys  = na_child_get_string (status, "destination-system");
+		dest_path = na_child_get_string (status, "destination-path");
+		src_sys   = na_child_get_string (status, "source-system");
+		src_path  = na_child_get_string (status, "source-path");
+
+		if ((! dest_sys) || (! dest_path) || (! src_sys) || (! src_path))
+			continue;
+
+		value = na_child_get_uint64 (status, "lag-time", UINT64_MAX);
+		if (value == UINT64_MAX) /* no successful baseline transfer yet */
+			continue;
+
+		/* possible TODO: make plugin instance configurable */
+		ssnprintf (plugin_instance, sizeof (plugin_instance),
+				"snapvault-%s", dest_path);
+		submit_double (hostname, plugin_instance, /* type = */ "delay", NULL,
+				(double)value, /* timestamp = */ 0, interval);
+
+		value = na_child_get_uint64 (status, "last-transfer-duration", UINT64_MAX);
+		if (value != UINT64_MAX)
+			submit_double (hostname, plugin_instance, /* type = */ "duration", "last_transfer",
+					(double)value, /* timestamp = */ 0, interval);
+
+		value = na_child_get_uint64 (status, "transfer-progress", UINT64_MAX);
+		if (value == UINT64_MAX)
+			value = na_child_get_uint64 (status, "last-transfer-size", UINT64_MAX);
+		if (value != UINT64_MAX) {
+			value *= 1024; /* this is kilobytes */
+			submit_derive (hostname, plugin_instance, /* type = */ "if_rx_octets", "transferred",
+					value, /* timestamp = */ 0, interval);
+		}
+	} /* for (status) */
+
+	return (0);
+} /* }}} int cna_handle_snapvault_data */
+
+static int cna_handle_snapvault_iter (host_config_t *host, /* {{{ */
+		na_elem_t *data)
+{
+	const char *tag;
+
+	uint32_t records_count;
+	uint32_t i;
+
+	records_count = na_child_get_uint32 (data, "records", UINT32_MAX);
+	if (records_count == UINT32_MAX)
+		return 0;
+
+	tag = na_child_get_string (data, "tag");
+	if (! tag)
+		return 0;
+
+	DEBUG ("netapp plugin: Iterating %u SV records (tag = %s)", records_count, tag);
+
+	for (i = 0; i < records_count; ++i) {
+		na_elem_t *elem;
+
+		elem = na_server_invoke (host->srv,
+				"snapvault-secondary-relationship-status-list-iter-next",
+				"maximum", "1", "tag", tag, NULL);
+
+		if (na_results_status (elem) != NA_OK)
+		{
+			ERROR ("netapp plugin: cna_handle_snapvault_iter: "
+					"na_server_invoke failed for host %s: %s",
+					host->name, na_results_reason (data));
+			na_elem_free (elem);
+			return (-1);
+		}
+
+		cna_handle_snapvault_data (host->name, host->cfg_snapvault, elem,
+				host->cfg_snapvault->interval.interval);
+		na_elem_free (elem);
+	}
+
+	na_elem_free (na_server_invoke (host->srv,
+			"snapvault-secondary-relationship-status-list-iter-end",
+			"tag", tag, NULL));
+	return (0);
+} /* }}} int cna_handle_snapvault_iter */
+
+static int cna_setup_snapvault (cfg_snapvault_t *sv) /* {{{ */
+{
+	if (sv == NULL)
+		return (EINVAL);
+
+	if (sv->query != NULL)
+		return (0);
+
+	sv->query = na_elem_new ("snapvault-secondary-relationship-status-list-iter-start");
+	if (sv->query == NULL)
+	{
+		ERROR ("netapp plugin: na_elem_new failed.");
+		return (-1);
+	}
+
+	return (0);
+} /* }}} int cna_setup_snapvault */
+
+static int cna_query_snapvault (host_config_t *host) /* {{{ */
+{
+	na_elem_t *data;
+	int status;
+	cdtime_t now;
+
+	if (host == NULL)
+		return EINVAL;
+
+	if (host->cfg_snapvault == NULL)
+		return 0;
+
+	now = cdtime ();
+	if ((host->cfg_snapvault->interval.interval + host->cfg_snapvault->interval.last_read) > now)
+		return (0);
+
+	status = cna_setup_snapvault (host->cfg_snapvault);
+	if (status != 0)
+		return (status);
+	assert (host->cfg_snapvault->query != NULL);
+
+	data = na_server_invoke_elem (host->srv, host->cfg_snapvault->query);
+	if (na_results_status (data) != NA_OK)
+	{
+		ERROR ("netapp plugin: cna_query_snapvault: na_server_invoke_elem failed for host %s: %s",
+				host->name, na_results_reason (data));
+		na_elem_free (data);
+		return (-1);
+	}
+
+	status = cna_handle_snapvault_iter (host, data);
+
+	if (status == 0)
+		host->cfg_snapvault->interval.last_read = now;
+
+	na_elem_free (data);
+	return (status);
+} /* }}} int cna_query_snapvault */
 
 /* Data corresponding to <System /> */
 static int cna_handle_system_data (const char *hostname, /* {{{ */
@@ -1881,7 +2266,8 @@ static int cna_query_system (host_config_t *host) /* {{{ */
 		return (-1);
 	}
 
-	status = cna_handle_system_data (host->name, host->cfg_system, data, host->interval);
+	status = cna_handle_system_data (host->name, host->cfg_system, data,
+			host->cfg_system->interval.interval);
 
 	if (status == 0)
 		host->cfg_system->interval.last_read = now;
@@ -2136,6 +2522,40 @@ static void cna_config_volume_usage_default (cfg_volume_usage_t *cvu, /* {{{ */
 		ignorelist_set_invert (il, /* invert = */ 1);
 } /* }}} void cna_config_volume_usage_default */
 
+/* Corresponds to a <Quota /> block */
+static int cna_config_quota (host_config_t *host, oconfig_item_t *ci) /* {{{ */
+{
+	cfg_quota_t *cfg_quota;
+	int i;
+
+	if ((host == NULL) || (ci == NULL))
+		return (EINVAL);
+
+	if (host->cfg_quota == NULL)
+	{
+		cfg_quota = malloc (sizeof (*cfg_quota));
+		if (cfg_quota == NULL)
+			return (ENOMEM);
+		memset (cfg_quota, 0, sizeof (*cfg_quota));
+		cfg_quota->query = NULL;
+
+		host->cfg_quota = cfg_quota;
+	}
+	cfg_quota = host->cfg_quota;
+
+	for (i = 0; i < ci->children_num; ++i) {
+		oconfig_item_t *item = ci->children + i;
+
+		if (strcasecmp (item->key, "Interval") == 0)
+			cna_config_get_interval (item, &cfg_quota->interval);
+		else
+			WARNING ("netapp plugin: The option %s is not allowed within "
+					"`Quota' blocks.", item->key);
+	}
+
+	return (0);
+} /* }}} int cna_config_quota */
+
 /* Corresponds to a <Disks /> block */
 static int cna_config_disk(host_config_t *host, oconfig_item_t *ci) { /* {{{ */
 	cfg_disk_t *cfg_disk;
@@ -2311,6 +2731,42 @@ static int cna_config_volume_usage(host_config_t *host, /* {{{ */
 	return (0);
 } /* }}} int cna_config_volume_usage */
 
+/* Corresponds to a <SnapVault /> block */
+static int cna_config_snapvault (host_config_t *host, /* {{{ */
+		const oconfig_item_t *ci)
+{
+	cfg_snapvault_t *cfg_snapvault;
+	int i;
+
+	if ((host == NULL) || (ci == NULL))
+		return EINVAL;
+
+	if (host->cfg_snapvault == NULL)
+	{
+		cfg_snapvault = malloc (sizeof (*cfg_snapvault));
+		if (cfg_snapvault == NULL)
+			return ENOMEM;
+		memset (cfg_snapvault, 0, sizeof (*cfg_snapvault));
+		cfg_snapvault->query = NULL;
+
+		host->cfg_snapvault = cfg_snapvault;
+	}
+
+	cfg_snapvault = host->cfg_snapvault;
+
+	for (i = 0; i < ci->children_num; ++i) {
+		oconfig_item_t *item = ci->children + i;
+
+		if (strcasecmp (item->key, "Interval") == 0)
+			cna_config_get_interval (item, &cfg_snapvault->interval);
+		else
+			WARNING ("netapp plugin: The option %s is not allowed within "
+					"`SnapVault' blocks.", item->key);
+	}
+
+	return 0;
+} /* }}} int cna_config_snapvault */
+
 /* Corresponds to a <System /> block */
 static int cna_config_system (host_config_t *host, /* {{{ */
 		oconfig_item_t *ci)
@@ -2367,38 +2823,131 @@ static int cna_config_system (host_config_t *host, /* {{{ */
 } /* }}} int cna_config_system */
 
 /* Corresponds to a <Host /> block. */
-static host_config_t *cna_config_host (const oconfig_item_t *ci) /* {{{ */
+static host_config_t *cna_alloc_host (void) /* {{{ */
 {
-	oconfig_item_t *item;
 	host_config_t *host;
-	int status;
-	int i;
-	
-	if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
-		WARNING("netapp plugin: \"Host\" needs exactly one string argument. Ignoring host block.");
-		return 0;
-	}
 
 	host = malloc(sizeof(*host));
+	if (! host)
+		return (NULL);
 	memset (host, 0, sizeof (*host));
+
 	host->name = NULL;
 	host->protocol = NA_SERVER_TRANSPORT_HTTPS;
 	host->host = NULL;
 	host->username = NULL;
 	host->password = NULL;
+	host->vfiler = NULL;
 	host->srv = NULL;
 	host->cfg_wafl = NULL;
 	host->cfg_disk = NULL;
 	host->cfg_volume_perf = NULL;
 	host->cfg_volume_usage = NULL;
+	host->cfg_quota = NULL;
+	host->cfg_snapvault = NULL;
 	host->cfg_system = NULL;
+
+	return (host);
+} /* }}} host_config_t *cna_alloc_host */
+
+static host_config_t *cna_shallow_clone_host (host_config_t *host) /* {{{ */
+{
+	host_config_t *clone;
+
+	if (host == NULL)
+		return (NULL);
+
+	clone = cna_alloc_host ();
+	if (clone == NULL)
+		return (NULL);
+
+	if (host->name != NULL) {
+		clone->name = strdup (host->name);
+		if (clone->name == NULL) {
+			free_host_config (clone);
+			return NULL;
+		}
+	}
+
+	clone->protocol = host->protocol;
+
+	if (host->host != NULL) {
+		clone->host = strdup (host->host);
+		if (clone->host == NULL) {
+			free_host_config (clone);
+			return NULL;
+		}
+	}
+
+	clone->port = host->port;
+
+	if (host->username != NULL) {
+		clone->username = strdup (host->username);
+		if (clone->username == NULL) {
+			free_host_config (clone);
+			return NULL;
+		}
+	}
+	if (host->password != NULL) {
+		clone->password = strdup (host->password);
+		if (clone->password == NULL) {
+			free_host_config (clone);
+			return NULL;
+		}
+	}
+
+	clone->interval = host->interval;
+
+	return (clone);
+} /* }}} host_config_t *cna_shallow_clone_host */
+
+static int cna_read (user_data_t *ud);
+
+static int cna_register_host (host_config_t *host) /* {{{ */
+{
+	char cb_name[256];
+	struct timespec interval;
+	user_data_t ud;
+
+	if (host->vfiler)
+		ssnprintf (cb_name, sizeof (cb_name), "netapp-%s-%s",
+				host->name, host->vfiler);
+	else
+		ssnprintf (cb_name, sizeof (cb_name), "netapp-%s", host->name);
+
+	CDTIME_T_TO_TIMESPEC (host->interval, &interval);
+
+	memset (&ud, 0, sizeof (ud));
+	ud.data = host;
+	ud.free_func = (void (*) (void *)) free_host_config;
+
+	plugin_register_complex_read (/* group = */ NULL, cb_name,
+			/* callback  = */ cna_read,
+			/* interval  = */ (host->interval > 0) ? &interval : NULL,
+			/* user data = */ &ud);
+
+	return (0);
+} /* }}} int cna_register_host */
+
+static int cna_config_host (host_config_t *host, /* {{{ */
+		const oconfig_item_t *ci)
+{
+	oconfig_item_t *item;
+	_Bool is_vfiler = 0;
+	int status;
+	int i;
+
+	if (! strcasecmp (ci->key, "VFiler"))
+		is_vfiler = 1;
+
+	if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
+		WARNING ("netapp plugin: \"%s\" needs exactly one string argument. Ignoring host block.", ci->key);
+		return (1);
+	}
 
 	status = cf_util_get_string (ci, &host->name);
 	if (status != 0)
-	{
-		sfree (host);
-		return (NULL);
-	}
+		return (1);
 
 	for (i = 0; i < ci->children_num; ++i) {
 		item = ci->children + i;
@@ -2416,7 +2965,7 @@ static host_config_t *cna_config_host (const oconfig_item_t *ci) /* {{{ */
 		} else if (!strcasecmp(item->key, "Protocol")) {
 			if ((item->values_num != 1) || (item->values[0].type != OCONFIG_TYPE_STRING) || (strcasecmp(item->values[0].value.string, "http") && strcasecmp(item->values[0].value.string, "https"))) {
 				WARNING("netapp plugin: \"Protocol\" needs to be either \"http\" or \"https\". Ignoring host block \"%s\".", ci->values[0].value.string);
-				return 0;
+				return (1);
 			}
 			if (!strcasecmp(item->values[0].value.string, "http")) host->protocol = NA_SERVER_TRANSPORT_HTTP;
 			else host->protocol = NA_SERVER_TRANSPORT_HTTPS;
@@ -2434,11 +2983,32 @@ static host_config_t *cna_config_host (const oconfig_item_t *ci) /* {{{ */
 			cna_config_volume_performance(host, item);
 		} else if (!strcasecmp(item->key, "VolumeUsage")) {
 			cna_config_volume_usage(host, item);
+		} else if (!strcasecmp(item->key, "Quota")) {
+			cna_config_quota(host, item);
+		} else if (!strcasecmp(item->key, "SnapVault")) {
+			cna_config_snapvault(host, item);
 		} else if (!strcasecmp(item->key, "System")) {
 			cna_config_system(host, item);
+		} else if ((!strcasecmp(item->key, "VFiler")) && (! is_vfiler)) {
+			host_config_t *vfiler;
+
+			vfiler = cna_shallow_clone_host (host);
+			if (! vfiler) {
+				ERROR ("netapp plugin: Failed to allocate host object for vfiler.");
+				continue;
+			}
+
+			if (cna_config_host (vfiler, item)) {
+				free_host_config (vfiler);
+				continue;
+			}
+
+			cna_register_host (vfiler);
+		} else if ((!strcasecmp(item->key, "VFilerName")) && is_vfiler) {
+			status = cf_util_get_string (item, &host->vfiler);
 		} else {
-			WARNING("netapp plugin: Ignoring unknown config option \"%s\" in host block \"%s\".",
-					item->key, ci->values[0].value.string);
+			WARNING ("netapp plugin: Ignoring unknown config option \"%s\" in %s block \"%s\".",
+					item->key, is_vfiler ? "vfiler" : "host", ci->values[0].value.string);
 		}
 
 		if (status != 0)
@@ -2447,6 +3017,9 @@ static host_config_t *cna_config_host (const oconfig_item_t *ci) /* {{{ */
 
 	if (host->host == NULL)
 		host->host = strdup (host->name);
+
+	if (is_vfiler && (! host->vfiler))
+		host->vfiler = strdup (host->name);
 
 	if (host->host == NULL)
 		status = -1;
@@ -2461,12 +3034,9 @@ static host_config_t *cna_config_host (const oconfig_item_t *ci) /* {{{ */
 	}
 
 	if (status != 0)
-	{
-		free_host_config (host);
-		return (NULL);
-	}
+		return status;
 
-	return host;
+	return (0);
 } /* }}} host_config_t *cna_config_host */
 
 /*
@@ -2476,15 +3046,19 @@ static host_config_t *cna_config_host (const oconfig_item_t *ci) /* {{{ */
  */
 static int cna_init_host (host_config_t *host) /* {{{ */
 {
+	/* Request version 1.1 of the ONTAP API */
+	int major_version = 1, minor_version = 1;
+
 	if (host == NULL)
 		return (EINVAL);
 
 	if (host->srv != NULL)
 		return (0);
 
-	/* Request version 1.1 of the ONTAP API */
-	host->srv = na_server_open(host->host,
-			/* major version = */ 1, /* minor version = */ 1); 
+	if (host->vfiler != NULL) /* Request version 1.7 of the ONTAP API */
+		minor_version = 7;
+
+	host->srv = na_server_open (host->host, major_version, minor_version);
 	if (host->srv == NULL) {
 		ERROR ("netapp plugin: na_server_open (%s) failed.", host->host);
 		return (-1);
@@ -2496,6 +3070,18 @@ static int cna_init_host (host_config_t *host) /* {{{ */
 	na_server_style(host->srv, NA_STYLE_LOGIN_PASSWORD);
 	na_server_adminuser(host->srv, host->username, host->password);
 	na_server_set_timeout(host->srv, 5 /* seconds */);
+
+	if (host->vfiler != NULL) {
+		if (! na_server_set_vfiler (host->srv, host->vfiler)) {
+			ERROR ("netapp plugin: Failed to connect to VFiler '%s' on host '%s'.",
+					host->vfiler, host->host);
+			return (-1);
+		}
+		else {
+			INFO ("netapp plugin: Connected to VFiler '%s' on host '%s'.",
+					host->vfiler, host->host);
+		}
+	}
 
 	return (0);
 } /* }}} int cna_init_host */
@@ -2530,6 +3116,14 @@ static int cna_read_internal (host_config_t *host) { /* {{{ */
 		return (status);
 
 	status = cna_query_volume_usage (host);
+	if (status != 0)
+		return (status);
+
+	status = cna_query_quota (host);
+	if (status != 0)
+		return (status);
+
+	status = cna_query_snapvault (host);
 	if (status != 0)
 		return (status);
 
@@ -2574,27 +3168,19 @@ static int cna_config (oconfig_item_t *ci) { /* {{{ */
 		if (strcasecmp(item->key, "Host") == 0)
 		{
 			host_config_t *host;
-			char cb_name[256];
-			struct timespec interval;
-			user_data_t ud;
 
-			host = cna_config_host (item);
-			if (host == NULL)
+			host = cna_alloc_host ();
+			if (host == NULL) {
+				ERROR ("netapp plugin: Failed to allocate host object.");
 				continue;
+			}
 
-			ssnprintf (cb_name, sizeof (cb_name), "netapp-%s", host->name);
+			if (cna_config_host (host, item) != 0) {
+				free_host_config (host);
+				continue;
+			}
 
-			CDTIME_T_TO_TIMESPEC (host->interval, &interval);
-
-			memset (&ud, 0, sizeof (ud));
-			ud.data = host;
-			ud.free_func = (void (*) (void *)) free_host_config;
-
-			plugin_register_complex_read (/* group = */ NULL, cb_name,
-					/* callback  = */ cna_read, 
-					/* interval  = */ (host->interval > 0) ? &interval : NULL,
-					/* user data = */ &ud);
-			continue;
+			cna_register_host (host);
 		}
 		else /* if (item->key != "Host") */
 		{

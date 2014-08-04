@@ -2,21 +2,26 @@
  * collectd - src/collectd.c
  * Copyright (C) 2005-2007  Florian octo Forster
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; only version 2 of the License is applicable.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  *   Alvaro Barcellos <alvaro.barcellos at gmail.com>
  **/
 
@@ -41,6 +46,7 @@
  */
 char hostname_g[DATA_MAX_NAME_LEN];
 cdtime_t interval_g;
+int  pidfile_from_cli = 0;
 int  timeout_g;
 #if HAVE_LIBKSTAT
 kstat_ctl_t *kc;
@@ -118,7 +124,7 @@ static int init_hostname (void)
 		ERROR ("Looking up \"%s\" failed. You have set the "
 				"\"FQDNLookup\" option, but I cannot resolve "
 				"my hostname to a fully qualified domain "
-				"name. Please fix you network "
+				"name. Please fix the network "
 				"configuration.", hostname_g);
 		return (-1);
 	}
@@ -275,7 +281,7 @@ static void exit_usage (int status)
 			"  Plugin directory  "PLUGINDIR"\n"
 			"  Data directory    "PKGLOCALSTATEDIR"\n"
 			"\n"PACKAGE" "VERSION", http://collectd.org/\n"
-			"by Florian octo Forster <octo@verplant.org>\n"
+			"by Florian octo Forster <octo@collectd.org>\n"
 			"for contributions see `AUTHORS'\n");
 	exit (status);
 } /* static void exit_usage (int status) */
@@ -439,6 +445,7 @@ int main (int argc, char **argv)
 #if COLLECT_DAEMON
 			case 'P':
 				global_option_set ("PIDFile", optarg);
+				pidfile_from_cli = 1;
 				break;
 			case 'f':
 				daemonize = 0;

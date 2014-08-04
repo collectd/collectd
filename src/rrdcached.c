@@ -1,19 +1,24 @@
 /**
  * collectd - src/rrdcached.c
- * Copyright (C) 2008-2012  Florian octo Forster
+ * Copyright (C) 2008-2013  Florian octo Forster
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; only version 2 of the License is applicable.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
@@ -46,7 +51,9 @@ static rrdcreate_config_t rrdcreate_config =
 	/* timespans_num = */ 0,
 
 	/* consolidation_functions = */ NULL,
-	/* consolidation_functions_num = */ 0
+	/* consolidation_functions_num = */ 0,
+
+	/* async = */ 0
 };
 
 /*
@@ -112,52 +119,41 @@ static int value_list_to_string (char *buffer, int buffer_len,
   return (0);
 } /* int value_list_to_string */
 
-static int value_list_to_filename (char *buffer, int buffer_len,
-    const data_set_t *ds, const value_list_t *vl)
+static int value_list_to_filename (char *buffer, size_t buffer_size,
+    value_list_t const *vl)
 {
-  int offset = 0;
+  char const suffix[] = ".rrd";
   int status;
-
-  assert (0 == strcmp (ds->type, vl->type));
+  size_t len;
 
   if (datadir != NULL)
   {
-    status = ssnprintf (buffer + offset, buffer_len - offset,
-        "%s/", datadir);
-    if ((status < 1) || (status >= buffer_len - offset))
-      return (-1);
-    offset += status;
+    size_t datadir_len = strlen (datadir) + 1;
+
+    if (datadir_len >= buffer_size)
+      return (ENOMEM);
+
+    sstrncpy (buffer, datadir, buffer_size);
+    buffer[datadir_len - 1] = '/';
+    buffer[datadir_len] = 0;
+
+    buffer += datadir_len;
+    buffer_size -= datadir_len;
   }
 
-  status = ssnprintf (buffer + offset, buffer_len - offset,
-      "%s/", vl->host);
-  if ((status < 1) || (status >= buffer_len - offset))
-    return (-1);
-  offset += status;
+  status = FORMAT_VL (buffer, buffer_size, vl);
+  if (status != 0)
+    return (status);
 
-  if (strlen (vl->plugin_instance) > 0)
-    status = ssnprintf (buffer + offset, buffer_len - offset,
-        "%s-%s/", vl->plugin, vl->plugin_instance);
-  else
-    status = ssnprintf (buffer + offset, buffer_len - offset,
-        "%s/", vl->plugin);
-  if ((status < 1) || (status >= buffer_len - offset))
-    return (-1);
-  offset += status;
+  len = strlen (buffer);
+  assert (len < buffer_size);
+  buffer += len;
+  buffer_size -= len;
 
-  if (strlen (vl->type_instance) > 0)
-    status = ssnprintf (buffer + offset, buffer_len - offset,
-        "%s-%s", vl->type, vl->type_instance);
-  else
-    status = ssnprintf (buffer + offset, buffer_len - offset,
-        "%s", vl->type);
-  if ((status < 1) || (status >= buffer_len - offset))
-    return (-1);
-  offset += status;
+  if (buffer_size <= sizeof (suffix))
+    return (ENOMEM);
 
-  strncpy (buffer + offset, ".rrd", buffer_len - offset);
-  buffer[buffer_len - 1] = 0;
-
+  memcpy (buffer, suffix, sizeof (suffix));
   return (0);
 } /* int value_list_to_filename */
 
@@ -250,6 +246,8 @@ static int rc_config (oconfig_item_t *ci)
       status = cf_util_get_string (child, &daemon_address);
     else if (strcasecmp ("CreateFiles", key) == 0)
       status = cf_util_get_boolean (child, &config_create_files);
+    else if (strcasecmp ("CreateFilesAsync", key) == 0)
+      status = cf_util_get_boolean (child, &rrdcreate_config.async);
     else if (strcasecmp ("CollectStatistics", key) == 0)
       status = cf_util_get_boolean (child, &config_collect_stats);
     else if (strcasecmp ("StepSize", key) == 0)
@@ -315,6 +313,14 @@ static int rc_read (void)
   else
     sstrncpy (vl.host, daemon_address, sizeof (vl.host));
   sstrncpy (vl.plugin, "rrdcached", sizeof (vl.plugin));
+
+  status = rrdc_connect (daemon_address);
+  if (status != 0)
+  {
+    ERROR ("rrdcached plugin: rrdc_connect (%s) failed with status %i.",
+        daemon_address, status);
+    return (-1);
+  }
 
   head = NULL;
   status = rrdc_stats_get (&head);
@@ -422,7 +428,7 @@ static int rc_write (const data_set_t *ds, const value_list_t *vl,
     return (-1);
   }
 
-  if (value_list_to_filename (filename, sizeof (filename), ds, vl) != 0)
+  if (value_list_to_filename (filename, sizeof (filename), vl) != 0)
   {
     ERROR ("rrdcached plugin: value_list_to_filename failed.");
     return (-1);
@@ -459,6 +465,8 @@ static int rc_write (const data_set_t *ds, const value_list_t *vl,
             filename);
         return (-1);
       }
+      else if (rrdcreate_config.async)
+        return (0);
     }
   }
 

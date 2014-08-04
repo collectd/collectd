@@ -1,6 +1,6 @@
 /**
  * collectd - src/rrdtool.c
- * Copyright (C) 2006-2008  Florian octo Forster
+ * Copyright (C) 2006-2013  Florian octo Forster
  * Copyright (C) 2008-2008  Sebastian Harl
  * Copyright (C) 2009       Mariusz Gronczewski
  *
@@ -18,7 +18,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  *   Sebastian Harl <sh at tokkee.org>
  *   Mariusz Gronczewski <xani666 at gmail.com>
  **/
@@ -27,6 +27,7 @@
 #include "plugin.h"
 #include "common.h"
 #include "utils_avltree.h"
+#include "utils_random.h"
 #include "utils_rrdcreate.h"
 
 #include <rrd.h>
@@ -75,6 +76,7 @@ static const char *config_keys[] =
 {
 	"CacheTimeout",
 	"CacheFlush",
+	"CreateFilesAsync",
 	"DataDir",
 	"StepSize",
 	"HeartBeat",
@@ -102,7 +104,9 @@ static rrdcreate_config_t rrdcreate_config =
 	/* timespans_num = */ 0,
 
 	/* consolidation_functions = */ NULL,
-	/* consolidation_functions_num = */ 0
+	/* consolidation_functions_num = */ 0,
+
+	/* async = */ 0
 };
 
 /* XXX: If you need to lock both, cache_lock and queue_lock, at the same time,
@@ -194,7 +198,7 @@ static int srrd_update (char *filename, char *template,
 } /* int srrd_update */
 #endif /* !HAVE_THREADSAFE_LIBRRD */
 
-static int value_list_to_string (char *buffer, int buffer_len,
+static int value_list_to_string_multiple (char *buffer, int buffer_len,
 		const data_set_t *ds, const value_list_t *vl)
 {
 	int offset;
@@ -238,49 +242,82 @@ static int value_list_to_string (char *buffer, int buffer_len,
 	} /* for ds->ds_num */
 
 	return (0);
+} /* int value_list_to_string_multiple */
+
+static int value_list_to_string (char *buffer, int buffer_len,
+		const data_set_t *ds, const value_list_t *vl)
+{
+	int status;
+	time_t tt;
+
+	if (ds->ds_num != 1)
+		return (value_list_to_string_multiple (buffer, buffer_len,
+					ds, vl));
+
+	tt = CDTIME_T_TO_TIME_T (vl->time);
+	switch (ds->ds[0].type)
+	{
+		case DS_TYPE_DERIVE:
+			status = ssnprintf (buffer, buffer_len, "%u:%"PRIi64,
+				(unsigned) tt, vl->values[0].derive);
+			break;
+		case DS_TYPE_GAUGE:
+			status = ssnprintf (buffer, buffer_len, "%u:%lf",
+				(unsigned) tt, vl->values[0].gauge);
+			break;
+		case DS_TYPE_COUNTER:
+			status = ssnprintf (buffer, buffer_len, "%u:%llu",
+				(unsigned) tt, vl->values[0].counter);
+			break;
+		case DS_TYPE_ABSOLUTE:
+			status = ssnprintf (buffer, buffer_len, "%u:%"PRIu64,
+				(unsigned) tt, vl->values[0].absolute);
+			break;
+		default:
+			return (EINVAL);
+	}
+
+	if ((status < 1) || (status >= buffer_len))
+		return (ENOMEM);
+
+	return (0);
 } /* int value_list_to_string */
 
-static int value_list_to_filename (char *buffer, int buffer_len,
-		const data_set_t __attribute__((unused)) *ds, const value_list_t *vl)
+static int value_list_to_filename (char *buffer, size_t buffer_size,
+		value_list_t const *vl)
 {
-	int offset = 0;
+	char const suffix[] = ".rrd";
 	int status;
+	size_t len;
 
 	if (datadir != NULL)
 	{
-		status = ssnprintf (buffer + offset, buffer_len - offset,
-				"%s/", datadir);
-		if ((status < 1) || (status >= buffer_len - offset))
-			return (-1);
-		offset += status;
+		size_t datadir_len = strlen (datadir) + 1;
+
+		if (datadir_len >= buffer_size)
+			return (ENOMEM);
+
+		sstrncpy (buffer, datadir, buffer_size);
+		buffer[datadir_len - 1] = '/';
+		buffer[datadir_len] = 0;
+
+		buffer += datadir_len;
+		buffer_size -= datadir_len;
 	}
 
-	status = ssnprintf (buffer + offset, buffer_len - offset,
-			"%s/", vl->host);
-	if ((status < 1) || (status >= buffer_len - offset))
-		return (-1);
-	offset += status;
+	status = FORMAT_VL (buffer, buffer_size, vl);
+	if (status != 0)
+		return (status);
 
-	if (strlen (vl->plugin_instance) > 0)
-		status = ssnprintf (buffer + offset, buffer_len - offset,
-				"%s-%s/", vl->plugin, vl->plugin_instance);
-	else
-		status = ssnprintf (buffer + offset, buffer_len - offset,
-				"%s/", vl->plugin);
-	if ((status < 1) || (status >= buffer_len - offset))
-		return (-1);
-	offset += status;
+	len = strlen (buffer);
+	assert (len < buffer_size);
+	buffer += len;
+	buffer_size -= len;
 
-	if (strlen (vl->type_instance) > 0)
-		status = ssnprintf (buffer + offset, buffer_len - offset,
-				"%s-%s.rrd", vl->type, vl->type_instance);
-	else
-		status = ssnprintf (buffer + offset, buffer_len - offset,
-				"%s.rrd", vl->type);
-	if ((status < 1) || (status >= buffer_len - offset))
-		return (-1);
-	offset += status;
+	if (buffer_size <= sizeof (suffix))
+		return (ENOMEM);
 
+	memcpy (buffer, suffix, sizeof (suffix));
 	return (0);
 } /* int value_list_to_filename */
 
@@ -652,11 +689,8 @@ static int rrd_cache_flush_identifier (cdtime_t timeout,
 
 static int64_t rrd_get_random_variation (void)
 {
-  double dbl_timeout;
-  cdtime_t ctm_timeout;
-  double rand_fact;
-  _Bool negative;
-  int64_t ret;
+  long min;
+  long max;
 
   if (random_timeout <= 0)
     return (0);
@@ -669,20 +703,10 @@ static int64_t rrd_get_random_variation (void)
 	  random_timeout = cache_timeout;
   }
 
-  /* This seems a bit complicated, but "random_timeout" is likely larger than
-   * RAND_MAX, so we can't simply use modulo here. */
-  dbl_timeout = CDTIME_T_TO_DOUBLE (random_timeout);
-  rand_fact = ((double) random ())
-    / ((double) RAND_MAX);
-  negative = (_Bool) (random () % 2);
+  max = (long) (random_timeout / 2);
+  min = max - ((long) random_timeout);
 
-  ctm_timeout = DOUBLE_TO_CDTIME_T (dbl_timeout * rand_fact);
-
-  ret = (int64_t) ctm_timeout;
-  if (negative)
-    ret *= -1;
-
-  return (ret);
+  return ((int64_t) cdrand_range (min, max));
 } /* int64_t rrd_get_random_variation */
 
 static int rrd_cache_insert (const char *filename,
@@ -896,7 +920,7 @@ static int rrd_write (const data_set_t *ds, const value_list_t *vl,
 		return -1;
 	}
 
-	if (value_list_to_filename (filename, sizeof (filename), ds, vl) != 0)
+	if (value_list_to_filename (filename, sizeof (filename), vl) != 0)
 		return (-1);
 
 	if (value_list_to_string (values, sizeof (values), ds, vl) != 0)
@@ -910,6 +934,8 @@ static int rrd_write (const data_set_t *ds, const value_list_t *vl,
 					ds, vl, &rrdcreate_config);
 			if (status != 0)
 				return (-1);
+			else if (rrdcreate_config.async)
+				return (0);
 		}
 		else
 		{
@@ -1007,6 +1033,13 @@ static int rrd_config (const char *key, const char *value)
 		int temp = atoi (value);
 		if (temp > 0)
 			rrdcreate_config.heartbeat = temp;
+	}
+	else if (strcasecmp ("CreateFilesAsync", key) == 0)
+	{
+		if (IS_TRUE (value))
+			rrdcreate_config.async = 1;
+		else
+			rrdcreate_config.async = 0;
 	}
 	else if (strcasecmp ("RRARows", key) == 0)
 	{

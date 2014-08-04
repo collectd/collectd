@@ -1,3 +1,5 @@
+=encoding UTF-8
+
 =head1 NAME
 
 collectd-threshold - Documentation of collectd's I<Threshold plugin>
@@ -184,10 +186,12 @@ state will be keep.
 
 =item B<Interesting> B<true>|B<false>
 
-If set to B<true> (the default), the threshold must be treated as interesting
-and, when a number of B<Timeout> values will lost, then a missing notification
-will be dispatched. On the other hand, if set to B<false>, the missing
-notification will never dispatched for this threshold.
+If set to B<true> (the default), a notification with severity C<FAILURE> will
+be created when a matching value list is no longer updated and purged from the
+internal cache. When this happens depends on the I<interval> of the value list
+and the global B<Timeout> setting. See the B<Interval> and B<Timeout> settings
+in L<collectd.conf(5)> for details. If set to B<false>, this event will be
+ignored.
 
 =back
 

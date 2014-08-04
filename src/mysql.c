@@ -43,12 +43,14 @@
 struct mysql_database_s /* {{{ */
 {
 	char *instance;
+	char *alias;
 	char *host;
 	char *user;
 	char *pass;
 	char *database;
 	char *socket;
 	int   port;
+	int   timeout;
 
 	_Bool master_stats;
 	_Bool slave_stats;
@@ -58,11 +60,14 @@ struct mysql_database_s /* {{{ */
 	_Bool slave_sql_running;
 
 	MYSQL *con;
-	int    state;
+	_Bool  is_connected;
 };
 typedef struct mysql_database_s mysql_database_t; /* }}} */
 
 static int mysql_read (user_data_t *ud);
+
+void mysql_read_default_options(struct st_mysql_options *options,
+		const char *filename,const char *group);
 
 static void mysql_database_free (void *arg) /* {{{ */
 {
@@ -78,6 +83,7 @@ static void mysql_database_free (void *arg) /* {{{ */
 	if (db->con != NULL)
 		mysql_close (db->con);
 
+	sfree (db->alias);
 	sfree (db->host);
 	sfree (db->user);
 	sfree (db->pass);
@@ -120,12 +126,14 @@ static int mysql_config_database (oconfig_item_t *ci) /* {{{ */
 	memset (db, 0, sizeof (*db));
 
 	/* initialize all the pointers */
+	db->alias    = NULL;
 	db->host     = NULL;
 	db->user     = NULL;
 	db->pass     = NULL;
 	db->database = NULL;
 	db->socket   = NULL;
 	db->con      = NULL;
+	db->timeout  = 0;
 
 	/* trigger a notification, if it's not running */
 	db->slave_io_running  = 1;
@@ -144,7 +152,9 @@ static int mysql_config_database (oconfig_item_t *ci) /* {{{ */
 	{
 		oconfig_item_t *child = ci->children + i;
 
-		if (strcasecmp ("Host", child->key) == 0)
+		if (strcasecmp ("Alias", child->key) == 0)
+			status = cf_util_get_string (child, &db->alias);
+		else if (strcasecmp ("Host", child->key) == 0)
 			status = cf_util_get_string (child, &db->host);
 		else if (strcasecmp ("User", child->key) == 0)
 			status = cf_util_get_string (child, &db->user);
@@ -163,6 +173,8 @@ static int mysql_config_database (oconfig_item_t *ci) /* {{{ */
 			status = cf_util_get_string (child, &db->socket);
 		else if (strcasecmp ("Database", child->key) == 0)
 			status = cf_util_get_string (child, &db->database);
+		else if (strcasecmp ("ConnectTimeout", child->key) == 0)
+			status = cf_util_get_int (child, &db->timeout);
 		else if (strcasecmp ("MasterStats", child->key) == 0)
 			status = cf_util_get_boolean (child, &db->master_stats);
 		else if (strcasecmp ("SlaveStats", child->key) == 0)
@@ -237,31 +249,32 @@ static int mysql_config (oconfig_item_t *ci) /* {{{ */
 
 static MYSQL *getconnection (mysql_database_t *db)
 {
-	if (db->state != 0)
+	if (db->is_connected)
 	{
-		int err;
-		if ((err = mysql_ping (db->con)) != 0)
-		{
-			/* Assured by "mysql_config_database" */
-			assert (db->instance != NULL);
-			WARNING ("mysql_ping failed for instance \"%s\": %s",
-					db->instance,
-					mysql_error (db->con));
-			db->state = 0;
-		}
-		else
-		{
-			db->state = 1;
+		int status;
+
+		status = mysql_ping (db->con);
+		if (status == 0)
 			return (db->con);
+
+		WARNING ("mysql plugin: Lost connection to instance \"%s\": %s",
+				db->instance, mysql_error (db->con));
+	}
+	db->is_connected = 0;
+
+	if (db->con == NULL)
+	{
+		db->con = mysql_init (NULL);
+		if (db->con == NULL)
+		{
+			ERROR ("mysql plugin: mysql_init failed: %s",
+					mysql_error (db->con));
+			return (NULL);
 		}
 	}
 
-	if ((db->con = mysql_init (db->con)) == NULL)
-	{
-		ERROR ("mysql_init failed: %s", mysql_error (db->con));
-		db->state = 0;
-		return (NULL);
-	}
+	/* Configure TCP connect timeout (default: 0) */
+	db->con->options.connect_timeout = db->timeout;
 
 	if (mysql_real_connect (db->con, db->host, db->user, db->pass,
 				db->database, db->port, db->socket, 0) == NULL)
@@ -271,26 +284,27 @@ static MYSQL *getconnection (mysql_database_t *db)
 				(db->database != NULL) ? db->database : "<none>",
 				(db->host != NULL) ? db->host : "localhost",
 				mysql_error (db->con));
-		db->state = 0;
 		return (NULL);
 	}
-	else
-	{
-		INFO ("mysql plugin: Successfully connected to database %s "
-				"at server %s (server version: %s, protocol version: %d)",
-				(db->database != NULL) ? db->database : "<none>",
-				mysql_get_host_info (db->con),
-				mysql_get_server_info (db->con),
-				mysql_get_proto_info (db->con));
-		db->state = 1;
-		return (db->con);
-	}
+
+	INFO ("mysql plugin: Successfully connected to database %s "
+			"at server %s (server version: %s, protocol version: %d)",
+			(db->database != NULL) ? db->database : "<none>",
+			mysql_get_host_info (db->con),
+			mysql_get_server_info (db->con),
+			mysql_get_proto_info (db->con));
+
+	db->is_connected = 1;
+	return (db->con);
 } /* static MYSQL *getconnection (mysql_database_t *db) */
 
 static void set_host (mysql_database_t *db, char *buf, size_t buflen)
 {
-	if ((db->host == NULL)
+	if (db->alias)
+		sstrncpy (buf, db->alias, buflen);
+	else if ((db->host == NULL)
 			|| (strcmp ("", db->host) == 0)
+			|| (strcmp ("127.0.0.1", db->host) == 0)
 			|| (strcmp ("localhost", db->host) == 0))
 		sstrncpy (buf, hostname_g, buflen);
 	else
@@ -403,6 +417,7 @@ static int mysql_read_master_stats (mysql_database_t *db, MYSQL *con)
 	{
 		ERROR ("mysql plugin: Failed to get master statistics: "
 				"`%s' did not return any rows.", query);
+		mysql_free_result (res);
 		return (-1);
 	}
 
@@ -411,6 +426,7 @@ static int mysql_read_master_stats (mysql_database_t *db, MYSQL *con)
 	{
 		ERROR ("mysql plugin: Failed to get master statistics: "
 				"`%s' returned less than two columns.", query);
+		mysql_free_result (res);
 		return (-1);
 	}
 
@@ -454,6 +470,7 @@ static int mysql_read_slave_stats (mysql_database_t *db, MYSQL *con)
 	{
 		ERROR ("mysql plugin: Failed to get slave statistics: "
 				"`%s' did not return any rows.", query);
+		mysql_free_result (res);
 		return (-1);
 	}
 
@@ -462,6 +479,7 @@ static int mysql_read_slave_stats (mysql_database_t *db, MYSQL *con)
 	{
 		ERROR ("mysql plugin: Failed to get slave statistics: "
 				"`%s' returned less than 33 columns.", query);
+		mysql_free_result (res);
 		return (-1);
 	}
 
@@ -534,7 +552,7 @@ static int mysql_read_slave_stats (mysql_database_t *db, MYSQL *con)
 			ssnprintf (n.message, sizeof (n.message),
 					"slave SQL thread started");
 			plugin_dispatch_notification (&n);
-			db->slave_sql_running = 0;
+			db->slave_sql_running = 1;
 		}
 	}
 

@@ -1,0 +1,67 @@
+=encoding UTF-8
+
+=head1 NAME
+
+collectd-tg - Traffic generator for collectd.
+
+=head1 SYNOPSIS
+
+collectd-tg B<-n> I<num_vl> B<-H> I<num_hosts> B<-p> I<num_plugins> B<-i> I<interval> B<-d> I<dest> B<-D> I<dport>
+
+=head1 DESCRIPTION
+
+B<collectd-tg> generates bogus I<collectd> network traffic. While host, plugin
+and values are generated randomly, the generated traffic tries to mimic "real"
+traffic as closely as possible.
+
+=head1 ARGUMENTS AND OPTIONS
+
+The following options are understood by I<collectd-tg>. The order of the
+arguments generally doesn't matter, as long as no argument is passed more than
+once.
+
+=over 4
+
+=item B<-n> I<num_vl>
+
+Sets the number of unique I<value lists> (VL) to generate. Defaults to 10000.
+
+=item B<-H> I<num_hosts>
+
+Sets the number of unique hosts to simulate. Defaults to 1000.
+
+=item B<-p> I<num_plugins>
+
+Sets the number of unique plugins to simulate. Defaults to 20.
+
+=item B<-i> I<interval>
+
+Sets the interval in which each I<value list> is dispatched. Defaults to 10.0
+seconds.
+
+=item B<-d> I<dest>
+
+Sets the destination to which to send the generated network traffic. Defaults
+to the IPv6 multicast address, C<ff18::efc0:4a42>.
+
+=item B<-D> I<dport>
+
+Sets the destination port or service to which to send the generated network
+traffic. Defaults to I<collectd's> default port, C<25826>.
+
+=item B<-h>
+
+Print usage summary.
+
+=back
+
+=head1 SEE ALSO
+
+L<collectd(1)>,
+L<collectd.conf(5)>
+
+=head1 AUTHOR
+
+Florian Forster E<lt>octoE<nbsp>atE<nbsp>collectd.orgE<gt>
+
+=cut

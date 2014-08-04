@@ -1,6 +1,6 @@
 /**
  * collectd - src/write_redis.c
- * Copyright (C) 2010  Florian Forster
+ * Copyright (C) 2010       Florian Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),

@@ -18,7 +18,7 @@
  *
  * Authors:
  *   Luke Heberling <lukeh at c-ware.com>
- *   Florian Forster <octo at verplant.org>
+ *   Florian Forster <octo at collectd.org>
  *
  * Description:
  *   `tail_match' uses `utils_tail' and `utils_match' to tail a file and try to
@@ -105,7 +105,7 @@ int tail_match_add_match (cu_tail_match_t *obj, cu_match_t *match,
 int tail_match_add_match_simple (cu_tail_match_t *obj,
     const char *regex, const char *excluderegex, int ds_type,
     const char *plugin, const char *plugin_instance,
-    const char *type, const char *type_instance);
+    const char *type, const char *type_instance, const cdtime_t interval);
 
 /*
  * NAME

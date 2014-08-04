@@ -1,22 +1,27 @@
 /**
  * collectd - src/dbi.c
- * Copyright (C) 2008,2009  Florian octo Forster
+ * Copyright (C) 2008-2013  Florian octo Forster
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; only version 2 of the License is applicable.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
@@ -27,13 +32,21 @@
 
 #include <dbi/dbi.h>
 
+#ifdef HAVE_LIBDBI_R
+  dbi_inst inst = NULL;
+#endif
 /*
  * Data types
  */
 struct cdbi_driver_option_s /* {{{ */
 {
   char *key;
-  char *value;
+  union
+  {
+    char *string;
+    int numeric;
+  } value;
+  _Bool is_numeric;
 };
 typedef struct cdbi_driver_option_s cdbi_driver_option_t; /* }}} */
 
@@ -43,6 +56,7 @@ struct cdbi_database_s /* {{{ */
   char *select_db;
 
   char *driver;
+  char *host;
   cdbi_driver_option_t *driver_options;
   size_t driver_options_num;
 
@@ -61,6 +75,8 @@ static udb_query_t     **queries       = NULL;
 static size_t            queries_num   = 0;
 static cdbi_database_t **databases     = NULL;
 static size_t            databases_num = 0;
+
+static int cdbi_read_database (user_data_t *ud);
 
 /*
  * Functions
@@ -118,7 +134,7 @@ static int cdbi_result_get_field (dbi_result res, /* {{{ */
   else if (src_type == DBI_TYPE_STRING)
   {
     const char *value;
-    
+
     value = dbi_result_get_string_idx (res, index);
     if (value == NULL)
       sstrncpy (buffer, "", buffer_size);
@@ -159,7 +175,8 @@ static void cdbi_database_free (cdbi_database_t *db) /* {{{ */
   for (i = 0; i < db->driver_options_num; i++)
   {
     sfree (db->driver_options[i].key);
-    sfree (db->driver_options[i].value);
+    if (!db->driver_options[i].is_numeric)
+      sfree (db->driver_options[i].value.string);
   }
   sfree (db->driver_options);
 
@@ -183,7 +200,7 @@ static void cdbi_database_free (cdbi_database_t *db) /* {{{ */
  *     </Result>
  *     ...
  *   </Query>
- *     
+ *
  *   <Database "plugin_instance1">
  *     Driver "mysql"
  *     DriverOption "hostname" "localhost"
@@ -193,33 +210,6 @@ static void cdbi_database_free (cdbi_database_t *db) /* {{{ */
  * </Plugin>
  */
 
-static int cdbi_config_set_string (char **ret_string, /* {{{ */
-    oconfig_item_t *ci)
-{
-  char *string;
-
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("dbi plugin: The `%s' config option "
-        "needs exactly one string argument.", ci->key);
-    return (-1);
-  }
-
-  string = strdup (ci->values[0].value.string);
-  if (string == NULL)
-  {
-    ERROR ("dbi plugin: strdup failed.");
-    return (-1);
-  }
-
-  if (*ret_string != NULL)
-    free (*ret_string);
-  *ret_string = string;
-
-  return (0);
-} /* }}} int cdbi_config_set_string */
-
 static int cdbi_config_add_database_driver_option (cdbi_database_t *db, /* {{{ */
     oconfig_item_t *ci)
 {
@@ -227,10 +217,11 @@ static int cdbi_config_add_database_driver_option (cdbi_database_t *db, /* {{{ *
 
   if ((ci->values_num != 2)
       || (ci->values[0].type != OCONFIG_TYPE_STRING)
-      || (ci->values[1].type != OCONFIG_TYPE_STRING))
+      || ((ci->values[1].type != OCONFIG_TYPE_STRING)
+        && (ci->values[1].type != OCONFIG_TYPE_NUMBER)))
   {
     WARNING ("dbi plugin: The `DriverOption' config option "
-        "needs exactly two string arguments.");
+        "needs exactly two arguments.");
     return (-1);
   }
 
@@ -244,6 +235,7 @@ static int cdbi_config_add_database_driver_option (cdbi_database_t *db, /* {{{ *
 
   db->driver_options = option;
   option = db->driver_options + db->driver_options_num;
+  memset (option, 0, sizeof (*option));
 
   option->key = strdup (ci->values[0].value.string);
   if (option->key == NULL)
@@ -252,12 +244,21 @@ static int cdbi_config_add_database_driver_option (cdbi_database_t *db, /* {{{ *
     return (-1);
   }
 
-  option->value = strdup (ci->values[1].value.string);
-  if (option->value == NULL)
+  if (ci->values[1].type == OCONFIG_TYPE_STRING)
   {
-    ERROR ("dbi plugin: strdup failed.");
-    sfree (option->key);
-    return (-1);
+    option->value.string = strdup (ci->values[1].value.string);
+    if (option->value.string == NULL)
+    {
+      ERROR ("dbi plugin: strdup failed.");
+      sfree (option->key);
+      return (-1);
+    }
+  }
+  else
+  {
+    assert (ci->values[1].type == OCONFIG_TYPE_NUMBER);
+    option->value.numeric = (int) (ci->values[1].value.number + .5);
+    option->is_numeric = 1;
   }
 
   db->driver_options_num++;
@@ -286,7 +287,7 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
   }
   memset (db, 0, sizeof (*db));
 
-  status = cdbi_config_set_string (&db->name, ci);
+  status = cf_util_get_string (ci, &db->name);
   if (status != 0)
   {
     sfree (db);
@@ -299,14 +300,16 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp ("Driver", child->key) == 0)
-      status = cdbi_config_set_string (&db->driver, child);
+      status = cf_util_get_string (child, &db->driver);
     else if (strcasecmp ("DriverOption", child->key) == 0)
       status = cdbi_config_add_database_driver_option (db, child);
     else if (strcasecmp ("SelectDB", child->key) == 0)
-      status = cdbi_config_set_string (&db->select_db, child);
+      status = cf_util_get_string (child, &db->select_db);
     else if (strcasecmp ("Query", child->key) == 0)
       status = udb_query_pick_from_list (child, queries, queries_num,
           &db->queries, &db->queries_num);
+    else if (strcasecmp ("Host", child->key) == 0)
+      status = cf_util_get_string (child, &db->host);
     else
     {
       WARNING ("dbi plugin: Option `%s' not allowed here.", child->key);
@@ -376,9 +379,24 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
     }
     else
     {
+      user_data_t ud;
+      char *name = NULL;
+
       databases = temp;
       databases[databases_num] = db;
       databases_num++;
+
+      memset (&ud, 0, sizeof (ud));
+      ud.data = (void *) db;
+      ud.free_func = NULL;
+      name = ssnprintf_alloc("dbi:%s", db->name);
+
+      plugin_register_complex_read (/* group = */ NULL,
+          /* name = */ name ? name : db->name,
+          /* callback = */ cdbi_read_database,
+          /* interval = */ NULL,
+          /* user_data = */ &ud);
+      free (name);
     }
   }
 
@@ -405,7 +423,7 @@ static int cdbi_config (oconfig_item_t *ci) /* {{{ */
       cdbi_config_add_database (child);
     else
     {
-      WARNING ("snmp plugin: Ignoring unknown config option `%s'.", child->key);
+      WARNING ("dbi plugin: Ignoring unknown config option `%s'.", child->key);
     }
   } /* for (ci->children) */
 
@@ -436,7 +454,11 @@ static int cdbi_init (void) /* {{{ */
     return (-1);
   }
 
+#ifdef HAVE_LIBDBI_R
+  status = dbi_initialize_r (NULL, &inst);
+#else
   status = dbi_initialize (NULL);
+#endif
   if (status < 0)
   {
     ERROR ("dbi plugin: cdbi_init: dbi_initialize failed with status %i.",
@@ -564,7 +586,7 @@ static int cdbi_read_database_query (cdbi_database_t *db, /* {{{ */
     sstrncpy (column_names[i], column_name, DATA_MAX_NAME_LEN);
   } /* }}} for (i = 0; i < column_num; i++) */
 
-  udb_query_prepare_result (q, prep_area, hostname_g,
+  udb_query_prepare_result (q, prep_area, (db->host ? db->host : hostname_g),
       /* plugin = */ "dbi", db->name,
       column_names, column_num, /* interval = */ 0);
 
@@ -657,16 +679,26 @@ static int cdbi_connect_database (cdbi_database_t *db) /* {{{ */
     db->connection = NULL;
   }
 
+#ifdef HAVE_LIBDBI_R
+  driver = dbi_driver_open_r (db->driver, inst);
+#else
   driver = dbi_driver_open (db->driver);
+#endif
   if (driver == NULL)
   {
     ERROR ("dbi plugin: cdbi_connect_database: dbi_driver_open (%s) failed.",
         db->driver);
     INFO ("dbi plugin: Maybe the driver isn't installed? "
         "Known drivers are:");
+#ifdef HAVE_LIBDBI_R
+    for (driver = dbi_driver_list_r (NULL, inst);
+        driver != NULL;
+        driver = dbi_driver_list_r (driver, inst))
+#else
     for (driver = dbi_driver_list (NULL);
         driver != NULL;
         driver = dbi_driver_list (driver))
+#endif
     {
       INFO ("dbi plugin: * %s", dbi_driver_get_name (driver));
     }
@@ -688,24 +720,38 @@ static int cdbi_connect_database (cdbi_database_t *db) /* {{{ */
    * trouble finding out how to configure the plugin correctly.. */
   for (i = 0; i < db->driver_options_num; i++)
   {
-    DEBUG ("dbi plugin: cdbi_connect_database (%s): "
-        "key = %s; value = %s;",
-        db->name,
-        db->driver_options[i].key,
-        db->driver_options[i].value);
+    if (db->driver_options[i].is_numeric)
+    {
+      status = dbi_conn_set_option_numeric (connection,
+          db->driver_options[i].key, db->driver_options[i].value.numeric);
+      if (status != 0)
+      {
+        char errbuf[1024];
+        ERROR ("dbi plugin: cdbi_connect_database (%s): "
+            "dbi_conn_set_option_numeric (\"%s\", %i) failed: %s.",
+            db->name,
+            db->driver_options[i].key, db->driver_options[i].value.numeric,
+            cdbi_strerror (connection, errbuf, sizeof (errbuf)));
+      }
+    }
+    else
+    {
+      status = dbi_conn_set_option (connection,
+          db->driver_options[i].key, db->driver_options[i].value.string);
+      if (status != 0)
+      {
+        char errbuf[1024];
+        ERROR ("dbi plugin: cdbi_connect_database (%s): "
+            "dbi_conn_set_option (\"%s\", \"%s\") failed: %s.",
+            db->name,
+            db->driver_options[i].key, db->driver_options[i].value.string,
+            cdbi_strerror (connection, errbuf, sizeof (errbuf)));
+      }
+    }
 
-    status = dbi_conn_set_option (connection,
-        db->driver_options[i].key, db->driver_options[i].value);
     if (status != 0)
     {
-      char errbuf[1024];
-      const char *opt;
-
-      ERROR ("dbi plugin: cdbi_connect_database (%s): "
-          "dbi_conn_set_option (%s, %s) failed: %s.",
-          db->name,
-          db->driver_options[i].key, db->driver_options[i].value,
-          cdbi_strerror (connection, errbuf, sizeof (errbuf)));
+      char const *opt;
 
       INFO ("dbi plugin: This is a list of all options understood "
           "by the `%s' driver:", db->driver);
@@ -751,8 +797,9 @@ static int cdbi_connect_database (cdbi_database_t *db) /* {{{ */
   return (0);
 } /* }}} int cdbi_connect_database */
 
-static int cdbi_read_database (cdbi_database_t *db) /* {{{ */
+static int cdbi_read_database (user_data_t *ud) /* {{{ */
 {
+  cdbi_database_t *db = (cdbi_database_t *) ud->data;
   size_t i;
   int success;
   int status;
@@ -791,29 +838,6 @@ static int cdbi_read_database (cdbi_database_t *db) /* {{{ */
   return (0);
 } /* }}} int cdbi_read_database */
 
-static int cdbi_read (void) /* {{{ */
-{
-  size_t i;
-  int success = 0;
-  int status;
-
-  for (i = 0; i < databases_num; i++)
-  {
-    status = cdbi_read_database (databases[i]);
-    if (status == 0)
-      success++;
-  }
-
-  if (success == 0)
-  {
-    ERROR ("dbi plugin: No database could be read. Will return an error so "
-        "the plugin will be delayed.");
-    return (-1);
-  }
-
-  return (0);
-} /* }}} int cdbi_read */
-
 static int cdbi_shutdown (void) /* {{{ */
 {
   size_t i;
@@ -841,7 +865,6 @@ void module_register (void) /* {{{ */
 {
   plugin_register_complex_config ("dbi", cdbi_config);
   plugin_register_init ("dbi", cdbi_init);
-  plugin_register_read ("dbi", cdbi_read);
   plugin_register_shutdown ("dbi", cdbi_shutdown);
 } /* }}} void module_register */
 

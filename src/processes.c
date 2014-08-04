@@ -25,7 +25,7 @@
  *
  * Authors:
  *   Lyonel Vincent <lyonel at ezix.org>
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  *   Oleg King <king2 at kaluga.ru>
  *   Sebastian Harl <sh at tokkee.org>
  *   Andrés J. Díaz <ajdiaz at connectical.com>

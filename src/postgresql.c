@@ -2,34 +2,28 @@
  * collectd - src/postgresql.c
  * Copyright (C) 2008-2012  Sebastian Harl
  * Copyright (C) 2009       Florian Forster
- * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * - Redistributions of source code must retain the above copyright
- *   notice, this list of conditions and the following disclaimer.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * - Redistributions in binary form must reproduce the above copyright
- *   notice, this list of conditions and the following disclaimer in the
- *   documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
  *   Sebastian Harl <sh at tokkee.org>
- *   Florian Forster <octo at verplant.org>
+ *   Florian Forster <octo at collectd.org>
  **/
 
 /*
@@ -170,14 +164,14 @@ static char *def_queries[] = {
 };
 static int def_queries_num = STATIC_ARRAY_SIZE (def_queries);
 
-static c_psql_database_t *databases     = NULL;
-static size_t             databases_num = 0;
+static c_psql_database_t **databases     = NULL;
+static size_t              databases_num = 0;
 
-static udb_query_t      **queries       = NULL;
-static size_t             queries_num   = 0;
+static udb_query_t       **queries       = NULL;
+static size_t              queries_num   = 0;
 
-static c_psql_writer_t   *writers       = NULL;
-static size_t             writers_num   = 0;
+static c_psql_writer_t    *writers       = NULL;
+static size_t              writers_num   = 0;
 
 static int c_psql_begin (c_psql_database_t *db)
 {
@@ -220,17 +214,25 @@ static int c_psql_commit (c_psql_database_t *db)
 
 static c_psql_database_t *c_psql_database_new (const char *name)
 {
-	c_psql_database_t *db;
+	c_psql_database_t **tmp;
+	c_psql_database_t  *db;
 
-	db = (c_psql_database_t *)realloc (databases,
-			(databases_num + 1) * sizeof (*db));
+	db = (c_psql_database_t *)malloc (sizeof(*db));
 	if (NULL == db) {
 		log_err ("Out of memory.");
 		return NULL;
 	}
 
-	databases = db;
-	db = databases + databases_num;
+	tmp = (c_psql_database_t **)realloc (databases,
+			(databases_num + 1) * sizeof (*databases));
+	if (NULL == tmp) {
+		log_err ("Out of memory.");
+		sfree (db);
+		return NULL;
+	}
+
+	databases = tmp;
+	databases[databases_num] = db;
 	++databases_num;
 
 	db->conn = NULL;
@@ -324,7 +326,9 @@ static void c_psql_database_delete (void *data)
 	sfree (db->service);
 
 	/* don't care about freeing or reordering the 'databases' array
-	 * this is done in 'shutdown' */
+	 * this is done in 'shutdown'; also, don't free the database instance
+	 * object just to make sure that in case anybody accesses it before
+	 * shutdown won't segfault */
 	return;
 } /* c_psql_database_delete */
 
@@ -370,9 +374,6 @@ static int c_psql_check_connection (c_psql_database_t *db)
 
 		c_psql_connect (db);
 	}
-
-	/* "ping" */
-	PQclear (PQexec (db->conn, "SELECT 42;"));
 
 	if (CONNECTION_OK != PQstatus (db->conn)) {
 		PQreset (db->conn);
@@ -514,6 +515,12 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q,
 	if (PGRES_TUPLES_OK != PQresultStatus (res)) {
 		pthread_mutex_lock (&db->db_lock);
 
+		if ((CONNECTION_OK != PQstatus (db->conn))
+				&& (0 == c_psql_check_connection (db))) {
+			PQclear (res);
+			return c_psql_exec_query (db, q, prep_area);
+		}
+
 		log_err ("Failed to execute SQL query: %s",
 				PQerrorMessage (db->conn));
 		log_info ("SQL query was: %s",
@@ -558,6 +565,7 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q,
 	}
 
 	if (C_PSQL_IS_UNIX_DOMAIN_SOCKET (db->host)
+			|| (0 == strcmp (db->host, "127.0.0.1"))
 			|| (0 == strcmp (db->host, "localhost")))
 		host = hostname_g;
 	else
@@ -900,10 +908,10 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 
 		if ((PGRES_COMMAND_OK != PQresultStatus (res))
 				&& (PGRES_TUPLES_OK != PQresultStatus (res))) {
+			PQclear (res);
+
 			if ((CONNECTION_OK != PQstatus (db->conn))
 					&& (0 == c_psql_check_connection (db))) {
-				PQclear (res);
-
 				/* try again */
 				res = PQexecParams (db->conn, writer->statement,
 						STATIC_ARRAY_SIZE (params), NULL,
@@ -912,6 +920,7 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 
 				if ((PGRES_COMMAND_OK == PQresultStatus (res))
 						|| (PGRES_TUPLES_OK == PQresultStatus (res))) {
+					PQclear (res);
 					success = 1;
 					continue;
 				}
@@ -932,6 +941,8 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 			pthread_mutex_unlock (&db->db_lock);
 			return -1;
 		}
+
+		PQclear (res);
 		success = 1;
 	}
 
@@ -953,17 +964,17 @@ static int c_psql_flush (cdtime_t timeout,
 		__attribute__((unused)) const char *ident,
 		user_data_t *ud)
 {
-	c_psql_database_t *dbs = databases;
+	c_psql_database_t **dbs = databases;
 	size_t dbs_num = databases_num;
 	size_t i;
 
 	if ((ud != NULL) && (ud->data != NULL)) {
-		dbs = ud->data;
+		dbs = (void *)&ud->data;
 		dbs_num = 1;
 	}
 
 	for (i = 0; i < dbs_num; ++i) {
-		c_psql_database_t *db = dbs + i;
+		c_psql_database_t *db = dbs[i];
 
 		/* don't commit if the timeout is larger than the regular commit
 		 * interval as in that case all requested data has already been
@@ -983,7 +994,7 @@ static int c_psql_shutdown (void)
 	plugin_unregister_read_group ("postgresql");
 
 	for (i = 0; i < databases_num; ++i) {
-		c_psql_database_t *db = databases + i;
+		c_psql_database_t *db = databases[i];
 
 		if (db->writers_num > 0) {
 			char cb_name[DATA_MAX_NAME_LEN];
@@ -998,6 +1009,8 @@ static int c_psql_shutdown (void)
 			plugin_unregister_flush (cb_name);
 			plugin_unregister_write (cb_name);
 		}
+
+		sfree (db);
 	}
 
 	udb_query_free (queries, queries_num);
