@@ -18,7 +18,7 @@
  *
  * Author:
  *   Luke Heberling <lukeh at c-ware.com>
- *   Florian Forster <octo at verplant.org>
+ *   Florian Forster <octo at collectd.org>
  *
  * Description:
  *   Encapsulates useful code for plugins which must watch for appends to
@@ -239,6 +239,7 @@ int cu_tail_read (cu_tail_t *obj, char *buf, int buflen, tailfunc_t *callback,
 			if (buf[len - 1] != '\n')
 				break;
 			buf[len - 1] = '\0';
+			len--;
 		}
 
 		status = callback (data, buf, buflen);

@@ -2,7 +2,7 @@ ACLOCAL_AMFLAGS = -I libltdl/m4
 
 SUBDIRS = libltdl src bindings .
 
-INCLUDES = $(LTDLINCL)
+AM_CPPFLAGS = $(LTDLINCL)
 
 EXTRA_DIST = contrib version-gen.sh
 

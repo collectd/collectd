@@ -23,7 +23,7 @@
  *
  * Authors:
  *   Sebastien Pahl <sebastien.pahl at dotcloud.com>
- *   Florian Forster <octo at verplant.org>
+ *   Florian Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
@@ -74,10 +74,13 @@ struct camqp_config_s
     char    *prefix;
     char    *postfix;
     char    escape_char;
+    unsigned int graphite_flags;
 
     /* subscribe only */
     char   *exchange_type;
     char   *queue;
+    _Bool   queue_durable;
+    _Bool   queue_auto_delete;
 
     amqp_connection_state_t connection;
     pthread_mutex_t lock;
@@ -313,9 +316,9 @@ static int camqp_setup_queue (camqp_config_t *conf) /* {{{ */
             ? amqp_cstring_bytes (conf->queue)
             : AMQP_EMPTY_BYTES,
             /* passive     = */ 0,
-            /* durable     = */ 0,
+            /* durable     = */ conf->queue_durable,
             /* exclusive   = */ 0,
-            /* auto_delete = */ 1,
+            /* auto_delete = */ conf->queue_auto_delete,
             /* arguments   = */ AMQP_EMPTY_TABLE);
     if (qd_ret == NULL)
     {
@@ -740,7 +743,7 @@ static int camqp_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
 {
     camqp_config_t *conf = user_data->data;
     char routing_key[6 * DATA_MAX_NAME_LEN];
-    char buffer[4096];
+    char buffer[8192];
     int status;
 
     if ((ds == NULL) || (vl == NULL) || (conf == NULL))
@@ -794,7 +797,7 @@ static int camqp_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
     {
         status = format_graphite (buffer, sizeof (buffer), ds, vl,
                     conf->prefix, conf->postfix, conf->escape_char,
-                    conf->store_rates);
+                    conf->graphite_flags);
         if (status != 0)
         {
             ERROR ("amqp plugin: format_graphite failed with status %i.",
@@ -876,6 +879,7 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
     /* publish only */
     conf->delivery_mode = CAMQP_DM_VOLATILE;
     conf->store_rates = 0;
+    conf->graphite_flags = 0;
     /* publish & graphite only */
     conf->prefix = NULL;
     conf->postfix = NULL;
@@ -883,6 +887,8 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
     /* subscribe only */
     conf->exchange_type = NULL;
     conf->queue = NULL;
+    conf->queue_durable = 0;
+    conf->queue_auto_delete = 1;
     /* general */
     conf->connection = NULL;
     pthread_mutex_init (&conf->lock, /* attr = */ NULL);
@@ -922,6 +928,10 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
             status = cf_util_get_string (child, &conf->exchange_type);
         else if ((strcasecmp ("Queue", child->key) == 0) && !publish)
             status = cf_util_get_string (child, &conf->queue);
+        else if ((strcasecmp ("QueueDurable", child->key) == 0) && !publish)
+            status = cf_util_get_boolean (child, &conf->queue_durable);
+        else if ((strcasecmp ("QueueAutoDelete", child->key) == 0) && !publish)
+            status = cf_util_get_boolean (child, &conf->queue_auto_delete);
         else if (strcasecmp ("RoutingKey", child->key) == 0)
             status = cf_util_get_string (child, &conf->routing_key);
         else if ((strcasecmp ("Persistent", child->key) == 0) && publish)
@@ -934,9 +944,19 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
                 conf->delivery_mode = CAMQP_DM_VOLATILE;
         }
         else if ((strcasecmp ("StoreRates", child->key) == 0) && publish)
+        {
             status = cf_util_get_boolean (child, &conf->store_rates);
+            (void) cf_util_get_flag (child, &conf->graphite_flags,
+                    GRAPHITE_STORE_RATES);
+        }
         else if ((strcasecmp ("Format", child->key) == 0) && publish)
             status = camqp_config_set_format (child, conf);
+        else if ((strcasecmp ("GraphiteSeparateInstances", child->key) == 0) && publish)
+            status = cf_util_get_flag (child, &conf->graphite_flags,
+                    GRAPHITE_SEPARATE_INSTANCES);
+        else if ((strcasecmp ("GraphiteAlwaysAppendDS", child->key) == 0) && publish)
+            status = cf_util_get_flag (child, &conf->graphite_flags,
+                    GRAPHITE_ALWAYS_APPEND_DS);
         else if ((strcasecmp ("GraphitePrefix", child->key) == 0) && publish)
             status = cf_util_get_string (child, &conf->prefix);
         else if ((strcasecmp ("GraphitePostfix", child->key) == 0) && publish)

@@ -2,19 +2,23 @@
  * collectd - src/configfile.c
  * Copyright (C) 2005-2011  Florian octo Forster
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
@@ -34,6 +38,14 @@
 #if HAVE_WORDEXP_H
 # include <wordexp.h>
 #endif /* HAVE_WORDEXP_H */
+
+#if HAVE_FNMATCH_H
+# include <fnmatch.h>
+#endif /* HAVE_FNMATCH_H */
+
+#if HAVE_LIBGEN_H
+# include <libgen.h>
+#endif /* HAVE_LIBGEN_H */
 
 #define ESCAPE_NULL(str) ((str) == NULL ? "(null)" : (str))
 
@@ -90,7 +102,7 @@ static cf_value_map_t cf_value_map[] =
 	{"PluginDir",  dispatch_value_plugindir},
 	{"LoadPlugin", dispatch_loadplugin}
 };
-static int cf_value_map_num = STATIC_ARRAY_LEN (cf_value_map);
+static int cf_value_map_num = STATIC_ARRAY_SIZE (cf_value_map);
 
 static cf_global_option_t cf_global_options[] =
 {
@@ -100,11 +112,15 @@ static cf_global_option_t cf_global_options[] =
 	{"FQDNLookup",  NULL, "true"},
 	{"Interval",    NULL, NULL},
 	{"ReadThreads", NULL, "5"},
+	{"WriteThreads", NULL, "5"},
+	{"WriteQueueLimitHigh", NULL, NULL},
+	{"WriteQueueLimitLow", NULL, NULL},
 	{"Timeout",     NULL, "2"},
+	{"AutoLoadPlugin", NULL, "false"},
 	{"PreCacheChain",  NULL, "PreCache"},
 	{"PostCacheChain", NULL, "PostCache"}
 };
-static int cf_global_options_num = STATIC_ARRAY_LEN (cf_global_options);
+static int cf_global_options_num = STATIC_ARRAY_SIZE (cf_global_options);
 
 static int cf_default_typesdb = 1;
 
@@ -268,21 +284,6 @@ static int dispatch_loadplugin (const oconfig_item_t *ci)
 	memset (&ctx, 0, sizeof (ctx));
 	ctx.interval = cf_get_default_interval ();
 
-	/*
-	 * XXX: Magic at work:
-	 *
-	 * Some of the language bindings, for example the Python and Perl
-	 * plugins, need to be able to export symbols to the scripts they run.
-	 * For this to happen, the "Globals" flag needs to be set.
-	 * Unfortunately, this technical detail is hard to explain to the
-	 * average user and she shouldn't have to worry about this, ideally.
-	 * So in order to save everyone's sanity use a different default for a
-	 * handful of special plugins. --octo
-	 */
-	if ((strcasecmp ("Perl", name) == 0)
-			|| (strcasecmp ("Python", name) == 0))
-		flags |= PLUGIN_FLAGS_GLOBAL;
-
 	for (i = 0; i < ci->children_num; ++i) {
 		if (strcasecmp("Globals", ci->children[i].key) == 0)
 			cf_util_get_flag (ci->children + i, &flags, PLUGIN_FLAGS_GLOBAL);
@@ -384,6 +385,19 @@ static int dispatch_block_plugin (oconfig_item_t *ci)
 		return (-1);
 
 	name = ci->values[0].value.string;
+
+	if (IS_TRUE (global_option_get ("AutoLoadPlugin")))
+	{
+		int status;
+
+		status = plugin_load (name, /* flags = */ 0);
+		if (status != 0)
+		{
+			ERROR ("Automatically loading plugin \"%s\" failed "
+					"with status %i.", name, status);
+			return (status);
+		}
+	}
 
 	/* Check for a complex callback first */
 	for (cb = complex_callback_head; cb != NULL; cb = cb->next)
@@ -535,7 +549,8 @@ static int cf_ci_append_children (oconfig_item_t *dst, oconfig_item_t *src)
 } /* int cf_ci_append_children */
 
 #define CF_MAX_DEPTH 8
-static oconfig_item_t *cf_read_generic (const char *path, int depth);
+static oconfig_item_t *cf_read_generic (const char *path,
+		const char *pattern, int depth);
 
 static int cf_include_all (oconfig_item_t *root, int depth)
 {
@@ -546,9 +561,9 @@ static int cf_include_all (oconfig_item_t *root, int depth)
 		oconfig_item_t *new;
 		oconfig_item_t *old;
 
-		/* Ignore all blocks, including `Include' blocks. */
-		if (root->children[i].children_num != 0)
-			continue;
+		char *pattern = NULL;
+
+		int j;
 
 		if (strcasecmp (root->children[i].key, "Include") != 0)
 			continue;
@@ -562,9 +577,22 @@ static int cf_include_all (oconfig_item_t *root, int depth)
 			continue;
 		}
 
-		new = cf_read_generic (old->values[0].value.string, depth + 1);
+		for (j = 0; j < old->children_num; ++j)
+		{
+			oconfig_item_t *child = old->children + j;
+
+			if (strcasecmp (child->key, "Filter") == 0)
+				cf_util_get_string (child, &pattern);
+			else
+				ERROR ("configfile: Option `%s' not allowed in <Include> block.",
+						child->key);
+		}
+
+		new = cf_read_generic (old->values[0].value.string, pattern, depth + 1);
+		sfree (pattern);
+
 		if (new == NULL)
-			continue;
+			return (-1);
 
 		/* Now replace the i'th child in `root' with `new'. */
 		cf_ci_replace_child (root, new, i);
@@ -579,11 +607,34 @@ static int cf_include_all (oconfig_item_t *root, int depth)
 	return (0);
 } /* int cf_include_all */
 
-static oconfig_item_t *cf_read_file (const char *file, int depth)
+static oconfig_item_t *cf_read_file (const char *file,
+		const char *pattern, int depth)
 {
 	oconfig_item_t *root;
+	int status;
 
 	assert (depth < CF_MAX_DEPTH);
+
+	if (pattern != NULL) {
+#if HAVE_FNMATCH_H && HAVE_LIBGEN_H
+		char *tmp = sstrdup (file);
+		char *filename = basename (tmp);
+
+		if ((filename != NULL) && (fnmatch (pattern, filename, 0) != 0)) {
+			DEBUG ("configfile: Not including `%s' because it "
+					"does not match pattern `%s'.",
+					filename, pattern);
+			free (tmp);
+			return (NULL);
+		}
+
+		free (tmp);
+#else
+		ERROR ("configfile: Cannot apply pattern filter '%s' "
+				"to file '%s': functions basename() and / or "
+				"fnmatch() not available.", pattern, file);
+#endif /* HAVE_FNMATCH_H && HAVE_LIBGEN_H */
+	}
 
 	root = oconfig_parse_file (file);
 	if (root == NULL)
@@ -592,7 +643,12 @@ static oconfig_item_t *cf_read_file (const char *file, int depth)
 		return (NULL);
 	}
 
-	cf_include_all (root, depth);
+	status = cf_include_all (root, depth);
+	if (status != 0)
+	{
+		oconfig_free (root);
+		return (NULL);
+	}
 
 	return (root);
 } /* oconfig_item_t *cf_read_file */
@@ -602,7 +658,8 @@ static int cf_compare_string (const void *p1, const void *p2)
 	return strcmp (*(const char **) p1, *(const char **) p2);
 }
 
-static oconfig_item_t *cf_read_dir (const char *dir, int depth)
+static oconfig_item_t *cf_read_dir (const char *dir,
+		const char *pattern, int depth)
 {
 	oconfig_item_t *root = NULL;
 	DIR *dh;
@@ -677,7 +734,7 @@ static oconfig_item_t *cf_read_dir (const char *dir, int depth)
 		oconfig_item_t *temp;
 		char *name = filenames[i];
 
-		temp = cf_read_generic (name, depth);
+		temp = cf_read_generic (name, pattern, depth);
 		if (temp == NULL)
 		{
 			/* An error should already have been reported. */
@@ -708,7 +765,8 @@ static oconfig_item_t *cf_read_dir (const char *dir, int depth)
  * simpler function is used which does not do any such expansion.
  */
 #if HAVE_WORDEXP_H
-static oconfig_item_t *cf_read_generic (const char *path, int depth)
+static oconfig_item_t *cf_read_generic (const char *path,
+		const char *pattern, int depth)
 {
 	oconfig_item_t *root = NULL;
 	int status;
@@ -761,9 +819,9 @@ static oconfig_item_t *cf_read_generic (const char *path, int depth)
 		}
 
 		if (S_ISREG (statbuf.st_mode))
-			temp = cf_read_file (path_ptr, depth);
+			temp = cf_read_file (path_ptr, pattern, depth);
 		else if (S_ISDIR (statbuf.st_mode))
-			temp = cf_read_dir (path_ptr, depth);
+			temp = cf_read_dir (path_ptr, pattern, depth);
 		else
 		{
 			WARNING ("configfile: %s is neither a file nor a "
@@ -783,18 +841,13 @@ static oconfig_item_t *cf_read_generic (const char *path, int depth)
 
 	wordfree (&we);
 
-	if (root->children == NULL)
-	{
-		oconfig_free (root);
-		return (NULL);
-	}
-
 	return (root);
 } /* oconfig_item_t *cf_read_generic */
 /* #endif HAVE_WORDEXP_H */
 
 #else /* if !HAVE_WORDEXP_H */
-static oconfig_item_t *cf_read_generic (const char *path, int depth)
+static oconfig_item_t *cf_read_generic (const char *path,
+		const char *pattern, int depth)
 {
 	struct stat statbuf;
 	int status;
@@ -817,9 +870,9 @@ static oconfig_item_t *cf_read_generic (const char *path, int depth)
 	}
 
 	if (S_ISREG (statbuf.st_mode))
-		return (cf_read_file (path, depth));
+		return (cf_read_file (path, pattern, depth));
 	else if (S_ISDIR (statbuf.st_mode))
-		return (cf_read_dir (path, depth));
+		return (cf_read_dir (path, pattern, depth));
 
 	ERROR ("configfile: %s is neither a file nor a directory.", path);
 	return (NULL);
@@ -841,6 +894,13 @@ int global_option_set (const char *option, const char *value)
 
 	if (i >= cf_global_options_num)
 		return (-1);
+
+	if (strcasecmp (option, "PIDFile") == 0 && pidfile_from_cli == 1)
+	{
+		DEBUG ("Configfile: Ignoring `PIDFILE' option because "
+			"command-line option `-P' take precedence.");
+		return (0);
+	}
 
 	sfree (cf_global_options[i].value);
 
@@ -867,6 +927,23 @@ const char *global_option_get (const char *option)
 			? cf_global_options[i].value
 			: cf_global_options[i].def);
 } /* char *global_option_get */
+
+long global_option_get_long (const char *option, long default_value)
+{
+		const char *str;
+		long value;
+
+		str = global_option_get (option);
+		if (NULL == str)
+			return (default_value);
+
+		errno = 0;
+		value = strtol (str, /* endptr = */ NULL, /* base = */ 0);
+		if (errno != 0)
+			return (default_value);
+
+		return (value);
+} /* char *global_option_get_long */
 
 cdtime_t cf_get_default_interval (void)
 {
@@ -993,10 +1070,16 @@ int cf_read (char *filename)
 	oconfig_item_t *conf;
 	int i;
 
-	conf = cf_read_generic (filename, 0 /* depth */);
+	conf = cf_read_generic (filename, /* pattern = */ NULL, /* depth = */ 0);
 	if (conf == NULL)
 	{
 		ERROR ("Unable to read config file %s.", filename);
+		return (-1);
+	}
+	else if (conf->children_num == 0)
+	{
+		ERROR ("Configuration file %s is empty.", filename);
+		oconfig_free (conf);
 		return (-1);
 	}
 

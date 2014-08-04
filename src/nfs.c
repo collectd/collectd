@@ -1,6 +1,7 @@
 /**
  * collectd - src/nfs.c
  * Copyright (C) 2005,2006  Jason Pepas
+ * Copyright (C) 2012,2013  Florian Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,7 +18,7 @@
  *
  * Authors:
  *   Jason Pepas <cell at ices.utexas.edu>
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  *   Cosmin Ioiart <cioiart at gmail.com>
  **/
 
@@ -1298,7 +1299,6 @@ static void nfs_read_linux (FILE *fh, char *inst) /* {{{ */
 					nfs3_procedures_names_num);
 		}
 	} /* while (fgets) */
-
 } /* }}} void nfs_read_linux */
 #endif /* KERNEL_LINUX */
 
@@ -1318,8 +1318,14 @@ static int nfs_read_kstat (kstat_t *ksp, int nfs_version, char *inst, /* {{{ */
 
 	kstat_read(kc, ksp, NULL);
 	for (i = 0; i < proc_names_num; i++)
-		values[i].counter = (derive_t) get_kstat_value (ksp,
-				(char *)proc_names[i]);
+	{
+		/* The name passed to kstat_data_lookup() doesn't have the
+		 * "const" modifier, so we need to copy the name here. */
+		char name[32];
+		sstrncpy (name, proc_names[i], sizeof (name));
+
+		values[i].counter = (derive_t) get_kstat_value (ksp, name);
+	}
 
 	nfs_procedures_submit (plugin_instance, proc_names, values,
 			proc_names_num);

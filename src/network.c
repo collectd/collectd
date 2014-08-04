@@ -1,6 +1,6 @@
 /**
  * collectd - src/network.c
- * Copyright (C) 2005-2010  Florian octo Forster
+ * Copyright (C) 2005-2013  Florian octo Forster
  * Copyright (C) 2009       Aman Gupta
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -18,7 +18,7 @@
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  *   Aman Gupta <aman at tmm1.net>
  **/
 
@@ -66,6 +66,11 @@
  */
 #  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 # endif
+/* FreeBSD's copy of libgcrypt extends the existing GCRYPT_NO_DEPRECATED
+ * to properly hide all deprecated functionality.
+ * http://svnweb.freebsd.org/ports/head/security/libgcrypt/files/patch-src__gcrypt.h.in
+ */
+# define GCRYPT_NO_DEPRECATED
 # include <gcrypt.h>
 # if defined __APPLE__
 /* Re enable deprecation warnings */
@@ -455,7 +460,7 @@ static int network_dispatch_values (value_list_t *vl, /* {{{ */
     }
   }
 
-  plugin_dispatch_values_secure (vl);
+  plugin_dispatch_values (vl);
   stats_values_dispatched++;
 
   meta_data_destroy (vl->meta);
@@ -488,6 +493,20 @@ static int network_dispatch_notification (notification_t *n) /* {{{ */
 } /* }}} int network_dispatch_notification */
 
 #if HAVE_LIBGCRYPT
+static void network_init_gcrypt (void) /* {{{ */
+{
+  /* http://lists.gnupg.org/pipermail/gcrypt-devel/2003-August/000458.html
+   * Because you can't know in a library whether another library has
+   * already initialized the library */
+  if (gcry_control (GCRYCTL_ANY_INITIALIZATION_P))
+    return;
+
+  gcry_check_version (NULL); /* before calling any other functions */
+  gcry_control (GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
+  gcry_control (GCRYCTL_INIT_SECMEM, 32768);
+  gcry_control (GCRYCTL_INITIALIZATION_FINISHED);
+} /* }}} void network_init_gcrypt */
+
 static gcry_cipher_hd_t network_get_aes256_cypher (sockent_t *se, /* {{{ */
     const void *iv, size_t iv_size, const char *username)
 {
@@ -2024,6 +2043,8 @@ static int sockent_open (sockent_t *se) /* {{{ */
 	{
 		if (se->data.client.security_level > SECURITY_LEVEL_NONE)
 		{
+			network_init_gcrypt ();
+
 			if ((se->data.client.username == NULL)
 					|| (se->data.client.password == NULL))
 			{
@@ -2042,6 +2063,8 @@ static int sockent_open (sockent_t *se) /* {{{ */
 	{
 		if (se->data.server.security_level > SECURITY_LEVEL_NONE)
 		{
+			network_init_gcrypt ();
+
 			if (se->data.server.auth_file == NULL)
 			{
 				ERROR ("network plugin: Server socket with "
@@ -2874,6 +2897,10 @@ static int network_config_set_ttl (const oconfig_item_t *ci) /* {{{ */
   tmp = (int) ci->values[0].value.number;
   if ((tmp > 0) && (tmp <= 255))
     network_config_ttl = tmp;
+  else {
+    WARNING ("network plugin: The `TimeToLive' must be between 1 and 255.");
+    return (-1);    
+  }
 
   return (0);
 } /* }}} int network_config_set_ttl */
@@ -3136,6 +3163,14 @@ static int network_config (oconfig_item_t *ci) /* {{{ */
 {
   int i;
 
+  /* The options need to be applied first */
+  for (i = 0; i < ci->children_num; i++)
+  {
+    oconfig_item_t *child = ci->children + i;
+    if (strcasecmp ("TimeToLive", child->key) == 0)
+      network_config_set_ttl (child);
+  }
+
   for (i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
@@ -3144,8 +3179,9 @@ static int network_config (oconfig_item_t *ci) /* {{{ */
       network_config_add_listen (child);
     else if (strcasecmp ("Server", child->key) == 0)
       network_config_add_server (child);
-    else if (strcasecmp ("TimeToLive", child->key) == 0)
-      network_config_set_ttl (child);
+    else if (strcasecmp ("TimeToLive", child->key) == 0) {
+      /* Handled earlier */
+    }
     else if (strcasecmp ("MaxPacketSize", child->key) == 0)
       network_config_set_buffer_size (child);
     else if (strcasecmp ("Forward", child->key) == 0)
@@ -3313,13 +3349,13 @@ static int network_stats_read (void) /* {{{ */
 	vl.values[0].derive = (derive_t) copy_octets_rx;
 	vl.values[1].derive = (derive_t) copy_octets_tx;
 	sstrncpy (vl.type, "if_octets", sizeof (vl.type));
-	plugin_dispatch_values_secure (&vl);
+	plugin_dispatch_values (&vl);
 
 	/* Packets received / send */
 	vl.values[0].derive = (derive_t) copy_packets_rx;
 	vl.values[1].derive = (derive_t) copy_packets_tx;
 	sstrncpy (vl.type, "if_packets", sizeof (vl.type));
-	plugin_dispatch_values_secure (&vl);
+	plugin_dispatch_values (&vl);
 
 	/* Values (not) dispatched and (not) send */
 	sstrncpy (vl.type, "total_values", sizeof (vl.type));
@@ -3328,28 +3364,28 @@ static int network_stats_read (void) /* {{{ */
 	vl.values[0].derive = (derive_t) copy_values_dispatched;
 	sstrncpy (vl.type_instance, "dispatch-accepted",
 			sizeof (vl.type_instance));
-	plugin_dispatch_values_secure (&vl);
+	plugin_dispatch_values (&vl);
 
 	vl.values[0].derive = (derive_t) copy_values_not_dispatched;
 	sstrncpy (vl.type_instance, "dispatch-rejected",
 			sizeof (vl.type_instance));
-	plugin_dispatch_values_secure (&vl);
+	plugin_dispatch_values (&vl);
 
 	vl.values[0].derive = (derive_t) copy_values_sent;
 	sstrncpy (vl.type_instance, "send-accepted",
 			sizeof (vl.type_instance));
-	plugin_dispatch_values_secure (&vl);
+	plugin_dispatch_values (&vl);
 
 	vl.values[0].derive = (derive_t) copy_values_not_sent;
 	sstrncpy (vl.type_instance, "send-rejected",
 			sizeof (vl.type_instance));
-	plugin_dispatch_values_secure (&vl);
+	plugin_dispatch_values (&vl);
 
 	/* Receive queue length */
 	vl.values[0].gauge = (gauge_t) copy_receive_list_length;
 	sstrncpy (vl.type, "queue_length", sizeof (vl.type));
 	vl.type_instance[0] = 0;
-	plugin_dispatch_values_secure (&vl);
+	plugin_dispatch_values (&vl);
 
 	return (0);
 } /* }}} int network_stats_read */
@@ -3365,17 +3401,7 @@ static int network_init (void)
 	have_init = 1;
 
 #if HAVE_LIBGCRYPT
-    /* http://lists.gnupg.org/pipermail/gcrypt-devel/2003-August/000458.html
-     * Because you can't know in a library whether another library has
-     * already initialized the library
-     */
-    if (!gcry_control (GCRYCTL_ANY_INITIALIZATION_P))
-    {
-        gcry_check_version(NULL); /* before calling any other functions */
-        gcry_control (GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
-        gcry_control (GCRYCTL_INIT_SECMEM, 32768, 0);
-        gcry_control (GCRYCTL_INITIALIZATION_FINISHED, 0);
-    }
+	network_init_gcrypt ();
 #endif
 
 	if (network_config_stats != 0)

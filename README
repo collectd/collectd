@@ -26,8 +26,16 @@ Features
       Sensors in Macs running Mac OS X / Darwin: Temperature, fanspeed and
       voltage sensors.
 
+    - aquaero
+      Various sensors in the Aquaero 5 watercooling board made by Aquacomputer.
+
     - ascent
       Statistics about Ascent, a free server for the game `World of Warcraft'.
+
+    - barometer
+      Using digital barometer sensor MPL115A2 or MPL3115 from Freescale
+      provides absolute barometric pressure, air pressure reduced to sea level
+      and temperature.
 
     - battery
       Batterycharge, -current and voltage of ACPI and PMU based laptop
@@ -36,6 +44,9 @@ Features
     - bind
       Name server and resolver statistics from the `statistics-channel'
       interface of BIND 9.5, 9,6 and later.
+
+    - cgroups
+      CPU accounting information for process groups under Linux.
 
     - conntrack
       Number of nf_conntrack entries.
@@ -133,7 +144,11 @@ Features
       technique built into IBM's POWER processors.
 
     - libvirt
-      CPU, disk and network I/O statistics from virtual machines.
+      CPU, memory, disk and network I/O statistics from virtual machines.
+
+    - lvm
+      Size of “Logical Volumes” (LV) and “Volume Groups” (VG) of Linux'
+      “Logical Volume Manager” (LVM).
 
     - madwifi
       Queries very detailed usage statistics from wireless LAN adapters and
@@ -157,6 +172,10 @@ Features
     - memory
       Memory utilization: Memory occupied by running processes, page cache,
       buffer cache and free.
+
+    - mic
+      Collects CPU usage, memory usage, temperatures and power consumption from
+      Intel Many Integrated Core (MIC) CPUs.
 
     - modbus
       Reads values from Modbus/TCP enabled devices. Supports reading values
@@ -222,6 +241,9 @@ Features
       write your own plugins in Perl and return arbitrary values using this
       API. See collectd-perl(5).
 
+    - pf
+      Query statistics from BSD's packet filter "pf".
+
     - pinba
       Receive and dispatch timing values from Pinba, a profiling extension for
       PHP.
@@ -266,10 +288,19 @@ Features
     - serial
       RX and TX of serial interfaces. Linux only; needs root privileges.
 
+    - sigrok
+      Uses libsigrok as a backend, allowing any sigrok-supported device
+      to have its measurements fed to collectd. This includes multimeters,
+      sound level meters, thermometers, and much more.
+
     - snmp
       Read values from SNMP (Simple Network Management Protocol) enabled
       network devices such as switches, routers, thermometers, rack monitoring
       servers, etc. See collectd-snmp(5).
+
+    - statsd
+      Acts as a StatsD server, reading values sent over the network from StatsD
+      clients and calculating rates and other aggregates out of these values.
 
     - swap
       Pages swapped out onto harddisk or whatever is called `swap' by the OS..
@@ -280,6 +311,10 @@ Features
     - tail
       Follows (tails) logfiles, parses them by lines and submits matched
       values.
+
+    - tail_csv
+      Follows (tails) files in CSV format, parses each line and submits
+      extracted values.
 
     - tape
       Bytes and operations read and written on tape devices. Solaris only.
@@ -369,21 +404,32 @@ Features
       done.
 
     - write_graphite
-      Sends data to Carbon, the storage layer of Graphite.
+      Sends data to Carbon, the storage layer of Graphite using TCP or UDP. It
+      can be configured to avoid logging send errors (especially useful when
+      using UDP).
 
     - write_http
       Sends the values collected by collectd to a web-server using HTTP POST
       requests. The transmitted data is either in a form understood by the
       Exec plugin or formatted in JSON.
 
+    - write_kafka
+      Sends data to Apache Kafka, a distributed queue.
+
+    - write_mongodb
+      Sends data to MongoDB, a NoSQL database.
+
     - write_redis
       Sends the values to a Redis key-value database server.
+
+    - write_riemann
+      Sends data to Riemann, a stream processing and monitoring system.
 
   * Logging is, as everything in collectd, provided by plugins. The following
     plugins keep up informed about what's going on:
 
     - logfile
-      Writes logmessages to a file or STDOUT/STDERR.
+      Writes log messages to a file or STDOUT/STDERR.
 
     - perl
       Log messages are propagated to plugins written in Perl as well.
@@ -395,6 +441,9 @@ Features
 
     - syslog
       Logs to the standard UNIX logging mechanism, syslog.
+
+    - log_logstash
+      Writes log messages formatted as logstash JSON events.
 
   * Notifications can be handled by the following plugins:
 
@@ -457,6 +506,10 @@ Features
       Set (overwrite) entire parts of an identifier.
 
   * Miscellaneous plugins:
+
+    - aggregation
+      Selects multiple value lists based on patterns or regular expressions
+      and creates new aggregated values lists from those.
 
     - threshold
       Checks values against configured thresholds and creates notifications if
@@ -527,9 +580,17 @@ Prerequisites
 
   * A POSIX-threads (pthread) implementation.
     Since gathering some statistics is slow (network connections, slow devices,
-    etc) the collectd is parallelized. The POSIX threads interface is being
+    etc) collectd is parallelized. The POSIX threads interface is being
     used and should be found in various implementations for hopefully all
     platforms.
+
+  * aerotools-ng (optional)
+    Used by the `aquaero' plugin. Currently, the `libaquaero5' library, which
+    is used by the `aerotools-ng' toolkit, is not compiled as a shared object
+    nor does it feature an installation routine. Therefore, you need to point
+    collectd's configure script at the source directory of the `aerotools-ng'
+    project.
+    <https://github.com/lynix/aerotools-ng>
 
   * CoreFoundation.framework and IOKit.framework (optional)
     For compiling on Darwin in general and the `apple_sensors' plugin in
@@ -540,12 +601,12 @@ Prerequisites
     Used by the `oracle' plugin.
 
   * libcredis (optional)
-    Used by the redis plugin. Please note that you require a 0.2.2 version
+    Used by the `redis' plugin. Please note that you require a 0.2.2 version
     or higher. <http://code.google.com/p/credis/>
 
   * libcurl (optional)
-    If you want to use the `apache', `ascent', `curl', `nginx', or `write_http'
-    plugin.
+    If you want to use the `apache', `ascent', `bind', `curl', `curl_json',
+    `curl_xml', `nginx', or `write_http' plugin.
     <http://curl.haxx.se/>
 
   * libdbi (optional)
@@ -565,32 +626,38 @@ Prerequisites
     <http://www.gnupg.org/>
 
   * libhal (optional)
-    If present, the uuid plugin will check for UUID from HAL.
+    If present, the `uuid' plugin will check for UUID from HAL.
     <http://hal.freedesktop.org/>
+
+  * libi2c-dev (optional)
+    Used for the plugin `barometer', provides just the i2c-dev.h header file
+    for user space i2c development.
 
   * libiptc (optional)
     For querying iptables counters.
     <http://netfilter.org/>
 
-    If not found on the system, a version shipped with this distribution can
-    be used. It requires some Linux headers in /usr/include/linux. You can
-    force the build system to use the shipped version by specifying
-      --with-libiptc=shipped
-    when running the configure script.
-
   * libjvm (optional)
     Library that encapsulates the `Java Virtual Machine' (JVM). This library is
-    used by the Java plugin to execute Java bytecode. See “Configuring with
+    used by the `java' plugin to execute Java bytecode. See “Configuring with
     libjvm” below.
     <http://openjdk.java.net/> (and others)
+
+  * liblvm2 (optional)
+    Used by the `lvm' plugin.
+    <ftp://sources.redhat.com/pub/lvm2/>
 
   * libmemcached (optional)
     Used by the `memcachec' plugin to connect to a memcache daemon.
     <http://tangent.org/552/libmemcached.html>
 
+  * libmnl (optional)
+    Used by the `netlink' plugin.
+    <http://www.netfilter.org/projects/libmnl/>
+
   * libmodbus (optional)
-    Used by the “modbus” plugin to communicate with Modbus/TCP devices. The
-    “modbus” plugin works with version 2.0.3 of the library – due to frequent
+    Used by the `modbus' plugin to communicate with Modbus/TCP devices. The
+    `modbus' plugin works with version 2.0.3 of the library – due to frequent
     API changes other versions may or may not compile cleanly.
     <http://www.libmodbus.org/>
 
@@ -599,12 +666,8 @@ Prerequisites
     <http://dev.mysql.com/>
 
   * libnetapp (optional)
-    Required for the “netapp” plugin.
+    Required for the `netapp' plugin.
     This library is part of the “Manage ONTAP SDK” published by NetApp.
-
-  * libnetlink (optional)
-    Used, obviously, for the `netlink' plugin.
-    <http://www.linuxfoundation.org/en/Net:Iproute2>
 
   * libnetsnmp (optional)
     For the `snmp' plugin.
@@ -614,9 +677,13 @@ Prerequisites
     For the `notify_desktop' plugin.
     <http://www.galago-project.org/>
 
+  * libopenipmi (optional)
+    Used by the `ipmi' plugin to prove IPMI devices.
+    <http://openipmi.sourceforge.net/>
+
   * liboping (optional)
     Used by the `ping' plugin to send and receive ICMP packets.
-    <http://verplant.org/liboping/>
+    <http://octo.it/liboping/>
 
   * libowcapi (optional)
     Used by the `onewire' plugin to read values from onewire sensors (or the
@@ -641,7 +708,8 @@ Prerequisites
 
   * libprotobuf-c, protoc-c (optional)
     Used by the `pinba' plugin to generate a parser for the network packets
-    sent by the Pinba PHP extension.
+    sent by the Pinba PHP extension, and by the `write_riemann' plugin to
+    generate events to be sent to a Riemann server.
     <http://code.google.com/p/protobuf-c/>
 
   * libpython (optional)
@@ -650,12 +718,17 @@ Prerequisites
     <http://www.python.org/>
 
   * librabbitmq (optional; also called “rabbitmq-c”)
-    Used by the AMQP plugin for AMQP connections, for example to RabbitMQ.
+    Used by the `amqp' plugin for AMQP connections, for example to RabbitMQ.
     <http://hg.rabbitmq.com/rabbitmq-c/>
+
+  * librdkafka (optional; also called “rdkafka”)
+    Used by the `write_kafka' plugin for producing messages and sending them
+    to a Kafka broker.
+    <https://github.com/edenhill/librdkafka>
 
   * librouteros (optional)
     Used by the `routeros' plugin to connect to a device running `RouterOS'.
-    <http://verplant.org/librouteros/>
+    <http://octo.it/librouteros/>
 
   * librrd (optional)
     Used by the `rrdtool' and `rrdcached' plugins. The latter requires RRDtool
@@ -671,13 +744,18 @@ Prerequisites
     To read from `lm_sensors', see the `sensors' plugin.
     <http://www.lm-sensors.org/>
 
+  * libsigrok (optional)
+    Used by the `sigrok' plugin. In addition, libsigrok depends on glib,
+    libzip, and optionally (depending on which drivers are enabled) on
+    libusb, libftdi and libudev.
+
   * libstatgrab (optional)
     Used by various plugins to collect statistics on systems other than Linux
     and/or Solaris.
     <http://www.i-scream.org/libstatgrab/>
 
   * libtokyotyrant (optional)
-    Used by the tokyotyrant plugin.
+    Used by the `tokyotyrant' plugin.
     <http://1978th.net/tokyotyrant/>
 
   * libupsclient/nut (optional)
@@ -689,18 +767,21 @@ Prerequisites
     <http://libvirt.org/>
 
   * libxml2 (optional)
-    Parse XML data. This is needed for the `ascent' and `libvirt' plugins.
+    Parse XML data. This is needed for the `ascent', `bind', `curl_xml' and
+    `libvirt' plugins.
     <http://xmlsoft.org/>
 
   * libxmms (optional)
     <http://www.xmms.org/>
 
   * libyajl (optional)
-    Parse JSON data. This is needed for the `curl_json' plugin.
+    Parse JSON data. This is needed for the `curl_json' and `log_logstash'
+    plugins.
     <http://github.com/lloyd/yajl>
 
   * libvarnish (optional)
-     Fetches statistics from a Varnish instance. This is needed for the Varnish plugin
+     Fetches statistics from a Varnish instance. This is needed for the
+     `varnish' plugin.
      <http://varnish-cache.org>
 
 Configuring / Compiling / Installing
@@ -806,7 +887,7 @@ Contact
 
   For questions, bug reports, development information and basically all other
   concerns please send an email to collectd's mailing list at
-  <collectd at verplant.org>.
+  <list at collectd.org>.
 
   For live discussion and more personal contact visit us in IRC, we're in
   channel #collectd on freenode.
@@ -815,7 +896,7 @@ Contact
 Author
 ------
 
-  Florian octo Forster <octo at verplant.org>,
+  Florian octo Forster <octo at collectd.org>,
   Sebastian tokkee Harl <sh at tokkee.org>,
   and many contributors (see `AUTHORS').
 

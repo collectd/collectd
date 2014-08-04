@@ -1,3 +1,5 @@
+=encoding UTF-8
+
 =head1 NAME
 
 collectd-nagios - Nagios plugin for querying collectd
@@ -119,6 +121,6 @@ L<http://nagios.org/>
 
 =head1 AUTHOR
 
-Florian Forster E<lt>octoE<nbsp>atE<nbsp>verplant.orgE<gt>
+Florian Forster E<lt>octoE<nbsp>atE<nbsp>collectd.orgE<gt>
 
 =cut

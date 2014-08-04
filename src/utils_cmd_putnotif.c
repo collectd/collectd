@@ -1,22 +1,27 @@
 /**
- * collectd - src/utils_cms_putnotif.c
- * Copyright (C) 2008  Florian octo Forster
+ * collectd - src/utils_cmd_putnotif.c
+ * Copyright (C) 2008       Florian octo Forster
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; only version 2 of the License is applicable.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  *
- * Author:
- *   Florian octo Forster <octo at verplant.org>
+ * Authors:
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
@@ -49,13 +54,18 @@ static int set_option_severity (notification_t *n, const char *value)
 
 static int set_option_time (notification_t *n, const char *value)
 {
-  time_t tmp;
-  
-  tmp = (time_t) atoi (value);
-  if (tmp <= 0)
+  char *endptr = NULL;
+  double tmp;
+
+  errno = 0;
+  tmp = strtod (value, &endptr);
+  if ((errno != 0)         /* Overflow */
+      || (endptr == value) /* Invalid string */
+      || (endptr == NULL)  /* This should not happen */
+      || (*endptr != 0))   /* Trailing chars */
     return (-1);
 
-  n->time = tmp;
+  n->time = DOUBLE_TO_CDTIME_T (tmp);
 
   return (0);
 } /* int set_option_time */
@@ -67,6 +77,18 @@ static int set_option (notification_t *n, const char *option, const char *value)
 
   DEBUG ("utils_cmd_putnotif: set_option (option = %s, value = %s);",
       option, value);
+
+  /* Add a meta option in the form: <type>:<key> */
+  if (option[0] != '\0' && option[1] == ':') {
+    /* Refuse empty key */
+    if (option[2] == '\0')
+      return (1);
+
+    if (option[0] == 's')
+      return plugin_notification_meta_add_string (n, option + 2, value);
+    else
+      return (1);
+  }
 
   if (strcasecmp ("severity", option) == 0)
     return (set_option_severity (n, value));

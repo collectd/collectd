@@ -17,7 +17,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  *   
  *   Lubos Stanek <lubek at users.sourceforge.net> Wed Oct 27, 2006
  *   - config ExtendedSensorNaming option

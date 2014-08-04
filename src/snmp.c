@@ -2,18 +2,23 @@
  * collectd - src/snmp.c
  * Copyright (C) 2007-2012  Florian octo Forster
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; only version 2 of the License is applicable.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
@@ -28,6 +33,8 @@
 
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
+
+#include <fnmatch.h>
 
 /*
  * Private data structes
@@ -50,7 +57,7 @@ struct data_definition_s
 {
   char *name; /* used to reference this from the `Collect' option */
   char *type; /* used to find the data_set */
-  int is_table;
+  _Bool is_table;
   instance_t instance;
   char *instance_prefix;
   oid_t *values;
@@ -58,6 +65,9 @@ struct data_definition_s
   double scale;
   double shift;
   struct data_definition_s *next;
+  char **ignores;
+  size_t ignores_len;
+  int invert_match;
 };
 typedef struct data_definition_s data_definition_t;
 
@@ -65,8 +75,22 @@ struct host_definition_s
 {
   char *name;
   char *address;
-  char *community;
   int version;
+
+  /* snmpv1/2 options */
+  char *community;
+
+  /* snmpv3 security options */
+  char *username;
+  oid *auth_protocol;
+  size_t auth_protocol_len;
+  char *auth_passphrase;
+  oid *priv_protocol;
+  size_t priv_protocol_len;
+  char *priv_passphrase;
+  int security_level;
+  char *context;
+
   void *sess_handle;
   c_complain_t complaint;
   cdtime_t interval;
@@ -108,7 +132,7 @@ static int csnmp_read_host (user_data_t *ud);
  */
 static void csnmp_oid_init (oid_t *dst, oid const *src, size_t n)
 {
-  assert (n <= STATIC_ARRAY_LEN (dst->oid));
+  assert (n <= STATIC_ARRAY_SIZE (dst->oid));
   memcpy (dst->oid, src, sizeof (*src) * n);
   dst->oid_len = n;
 }
@@ -183,6 +207,10 @@ static void csnmp_host_definition_destroy (void *arg) /* {{{ */
   sfree (hd->name);
   sfree (hd->address);
   sfree (hd->community);
+  sfree (hd->username);
+  sfree (hd->auth_passphrase);
+  sfree (hd->priv_passphrase);
+  sfree (hd->context);
   sfree (hd->data_list);
 
   sfree (hd);
@@ -197,16 +225,15 @@ static void csnmp_host_definition_destroy (void *arg) /* {{{ */
  *  csnmp_config
  *  +-> call_snmp_init_once
  *  +-> csnmp_config_add_data
- *  !   +-> csnmp_config_add_data_type
- *  !   +-> csnmp_config_add_data_table
  *  !   +-> csnmp_config_add_data_instance
  *  !   +-> csnmp_config_add_data_instance_prefix
  *  !   +-> csnmp_config_add_data_values
  *  +-> csnmp_config_add_host
- *      +-> csnmp_config_add_host_address
- *      +-> csnmp_config_add_host_community
  *      +-> csnmp_config_add_host_version
  *      +-> csnmp_config_add_host_collect
+ *      +-> csnmp_config_add_host_auth_protocol
+ *      +-> csnmp_config_add_host_priv_protocol
+ *      +-> csnmp_config_add_host_security_level
  */
 static void call_snmp_init_once (void)
 {
@@ -217,60 +244,31 @@ static void call_snmp_init_once (void)
   have_init = 1;
 } /* void call_snmp_init_once */
 
-static int csnmp_config_add_data_type (data_definition_t *dd, oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("snmp plugin: `Type' needs exactly one string argument.");
-    return (-1);
-  }
-
-  sfree (dd->type);
-  dd->type = strdup (ci->values[0].value.string);
-  if (dd->type == NULL)
-    return (-1);
-
-  return (0);
-} /* int csnmp_config_add_data_type */
-
-static int csnmp_config_add_data_table (data_definition_t *dd, oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
-  {
-    WARNING ("snmp plugin: `Table' needs exactly one boolean argument.");
-    return (-1);
-  }
-
-  dd->is_table = ci->values[0].value.boolean ? 1 : 0;
-
-  return (0);
-} /* int csnmp_config_add_data_table */
-
 static int csnmp_config_add_data_instance (data_definition_t *dd, oconfig_item_t *ci)
 {
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("snmp plugin: `Instance' needs exactly one string argument.");
-    return (-1);
-  }
+  char buffer[DATA_MAX_NAME_LEN];
+  int status;
+
+  status = cf_util_get_string_buffer(ci, buffer, sizeof(buffer));
+  if (status != 0)
+    return status;
 
   if (dd->is_table)
   {
     /* Instance is an OID */
     dd->instance.oid.oid_len = MAX_OID_LEN;
 
-    if (!read_objid (ci->values[0].value.string,
+    if (!read_objid (buffer,
           dd->instance.oid.oid, &dd->instance.oid.oid_len))
     {
-      ERROR ("snmp plugin: read_objid (%s) failed.",
-          ci->values[0].value.string);
+      ERROR ("snmp plugin: read_objid (%s) failed.", buffer);
       return (-1);
     }
   }
   else
   {
     /* Instance is a simple string */
-    sstrncpy (dd->instance.string, ci->values[0].value.string,
+    sstrncpy (dd->instance.string, buffer,
         sizeof (dd->instance.string));
   }
 
@@ -280,11 +278,7 @@ static int csnmp_config_add_data_instance (data_definition_t *dd, oconfig_item_t
 static int csnmp_config_add_data_instance_prefix (data_definition_t *dd,
     oconfig_item_t *ci)
 {
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("snmp plugin: `InstancePrefix' needs exactly one string argument.");
-    return (-1);
-  }
+  int status;
 
   if (!dd->is_table)
   {
@@ -293,12 +287,8 @@ static int csnmp_config_add_data_instance_prefix (data_definition_t *dd,
     return (-1);
   }
 
-  sfree (dd->instance_prefix);
-  dd->instance_prefix = strdup (ci->values[0].value.string);
-  if (dd->instance_prefix == NULL)
-    return (-1);
-
-  return (0);
+  status = cf_util_get_string(ci, &dd->instance_prefix);
+  return status;
 } /* int csnmp_config_add_data_instance_prefix */
 
 static int csnmp_config_add_data_values (data_definition_t *dd, oconfig_item_t *ci)
@@ -344,33 +334,49 @@ static int csnmp_config_add_data_values (data_definition_t *dd, oconfig_item_t *
   return (0);
 } /* int csnmp_config_add_data_instance */
 
-static int csnmp_config_add_data_shift (data_definition_t *dd, oconfig_item_t *ci)
+static int csnmp_config_add_data_blacklist(data_definition_t *dd, oconfig_item_t *ci)
 {
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
+  int i;
+
+  if (ci->values_num < 1)
+    return (0);
+
+  for (i = 0; i < ci->values_num; i++)
   {
-    WARNING ("snmp plugin: The `Shift' config option needs exactly one number argument.");
+    if (ci->values[i].type != OCONFIG_TYPE_STRING)
+    {
+      WARNING ("snmp plugin: `Ignore' needs only string argument.");
+      return (-1);
+    }
+  }
+
+  dd->ignores_len = 0;
+  dd->ignores = NULL;
+
+  for (i = 0; i < ci->values_num; ++i)
+  {
+    if (strarray_add(&(dd->ignores), &(dd->ignores_len), ci->values[i].value.string) != 0)
+    {
+      ERROR("snmp plugin: Can't allocate memory");
+      strarray_free(dd->ignores, dd->ignores_len);
+      return (ENOMEM); 
+    }
+  }
+  return 0;
+} /* int csnmp_config_add_data_blacklist */
+
+static int csnmp_config_add_data_blacklist_match_inverted(data_definition_t *dd, oconfig_item_t *ci)
+{
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
+  {
+    WARNING ("snmp plugin: `InvertMatch' needs exactly one boolean argument.");
     return (-1);
   }
 
-  dd->shift = ci->values[0].value.number;
+  dd->invert_match = ci->values[0].value.boolean ? 1 : 0;
 
   return (0);
-} /* int csnmp_config_add_data_shift */
-
-static int csnmp_config_add_data_scale (data_definition_t *dd, oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
-  {
-    WARNING ("snmp plugin: The `Scale' config option needs exactly one number argument.");
-    return (-1);
-  }
-
-  dd->scale = ci->values[0].value.number;
-
-  return (0);
-} /* int csnmp_config_add_data_scale */
+} /* int csnmp_config_add_data_blacklist_match_inverted */
 
 static int csnmp_config_add_data (oconfig_item_t *ci)
 {
@@ -378,24 +384,18 @@ static int csnmp_config_add_data (oconfig_item_t *ci)
   int status = 0;
   int i;
 
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("snmp plugin: The `Data' config option needs exactly one string argument.");
-    return (-1);
-  }
-
   dd = (data_definition_t *) malloc (sizeof (data_definition_t));
   if (dd == NULL)
     return (-1);
   memset (dd, '\0', sizeof (data_definition_t));
 
-  dd->name = strdup (ci->values[0].value.string);
-  if (dd->name == NULL)
+  status = cf_util_get_string(ci, &dd->name);
+  if (status != 0)
   {
     free (dd);
     return (-1);
   }
+
   dd->scale = 1.0;
   dd->shift = 0.0;
 
@@ -405,9 +405,9 @@ static int csnmp_config_add_data (oconfig_item_t *ci)
     status = 0;
 
     if (strcasecmp ("Type", option->key) == 0)
-      status = csnmp_config_add_data_type (dd, option);
+      status = cf_util_get_string(option, &dd->type);
     else if (strcasecmp ("Table", option->key) == 0)
-      status = csnmp_config_add_data_table (dd, option);
+      status = cf_util_get_boolean(option, &dd->is_table);
     else if (strcasecmp ("Instance", option->key) == 0)
       status = csnmp_config_add_data_instance (dd, option);
     else if (strcasecmp ("InstancePrefix", option->key) == 0)
@@ -415,9 +415,13 @@ static int csnmp_config_add_data (oconfig_item_t *ci)
     else if (strcasecmp ("Values", option->key) == 0)
       status = csnmp_config_add_data_values (dd, option);
     else if (strcasecmp ("Shift", option->key) == 0)
-      status = csnmp_config_add_data_shift (dd, option);
+      status = cf_util_get_double(option, &dd->shift);
     else if (strcasecmp ("Scale", option->key) == 0)
-      status = csnmp_config_add_data_scale (dd, option);
+      status = cf_util_get_double(option, &dd->scale);
+    else if (strcasecmp ("Ignore", option->key) == 0)
+      status = csnmp_config_add_data_blacklist(dd, option);
+    else if (strcasecmp ("InvertMatch", option->key) == 0)
+      status = csnmp_config_add_data_blacklist_match_inverted(dd, option);
     else
     {
       WARNING ("snmp plugin: Option `%s' not allowed here.", option->key);
@@ -451,6 +455,7 @@ static int csnmp_config_add_data (oconfig_item_t *ci)
     sfree (dd->name);
     sfree (dd->instance_prefix);
     sfree (dd->values);
+    sfree (dd->ignores);
     sfree (dd);
     return (-1);
   }
@@ -472,50 +477,6 @@ static int csnmp_config_add_data (oconfig_item_t *ci)
   return (0);
 } /* int csnmp_config_add_data */
 
-static int csnmp_config_add_host_address (host_definition_t *hd, oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("snmp plugin: The `Address' config option needs exactly one string argument.");
-    return (-1);
-  }
-
-  if (hd->address == NULL)
-    free (hd->address);
-
-  hd->address = strdup (ci->values[0].value.string);
-  if (hd->address == NULL)
-    return (-1);
-
-  DEBUG ("snmp plugin: host = %s; host->address = %s;",
-      hd->name, hd->address);
-
-  return (0);
-} /* int csnmp_config_add_host_address */
-
-static int csnmp_config_add_host_community (host_definition_t *hd, oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("snmp plugin: The `Community' config option needs exactly one string argument.");
-    return (-1);
-  }
-
-  if (hd->community == NULL)
-    free (hd->community);
-
-  hd->community = strdup (ci->values[0].value.string);
-  if (hd->community == NULL)
-    return (-1);
-
-  DEBUG ("snmp plugin: host = %s; host->community = %s;",
-      hd->name, hd->community);
-
-  return (0);
-} /* int csnmp_config_add_host_community */
-
 static int csnmp_config_add_host_version (host_definition_t *hd, oconfig_item_t *ci)
 {
   int version;
@@ -528,9 +489,9 @@ static int csnmp_config_add_host_version (host_definition_t *hd, oconfig_item_t 
   }
 
   version = (int) ci->values[0].value.number;
-  if ((version != 1) && (version != 2))
+  if ((version < 1) || (version > 3))
   {
-    WARNING ("snmp plugin: `Version' must either be `1' or `2'.");
+    WARNING ("snmp plugin: `Version' must either be `1', `2', or `3'.");
     return (-1);
   }
 
@@ -590,6 +551,92 @@ static int csnmp_config_add_host_collect (host_definition_t *host,
   return (0);
 } /* int csnmp_config_add_host_collect */
 
+static int csnmp_config_add_host_auth_protocol (host_definition_t *hd, oconfig_item_t *ci)
+{
+  char buffer[4];
+  int status;
+
+  status = cf_util_get_string_buffer(ci, buffer, sizeof(buffer));
+  if (status != 0)
+    return status;
+
+  if (strcasecmp("MD5", buffer) == 0) {
+    hd->auth_protocol = usmHMACMD5AuthProtocol;
+    hd->auth_protocol_len = sizeof(usmHMACMD5AuthProtocol)/sizeof(oid);
+  }
+  else if (strcasecmp("SHA", buffer) == 0) {
+    hd->auth_protocol = usmHMACSHA1AuthProtocol;
+    hd->auth_protocol_len = sizeof(usmHMACSHA1AuthProtocol)/sizeof(oid);
+  }
+  else
+  {
+    WARNING ("snmp plugin: The `AuthProtocol' config option must be `MD5' or `SHA'.");
+    return (-1);
+  }
+
+  DEBUG ("snmp plugin: host = %s; host->auth_protocol = %s;",
+      hd->name, hd->auth_protocol == usmHMACMD5AuthProtocol ? "MD5" : "SHA");
+
+  return (0);
+} /* int csnmp_config_add_host_auth_protocol */
+
+static int csnmp_config_add_host_priv_protocol (host_definition_t *hd, oconfig_item_t *ci)
+{
+  char buffer[4];
+  int status;
+
+  status = cf_util_get_string_buffer(ci, buffer, sizeof(buffer));
+  if (status != 0)
+    return status;
+
+  if (strcasecmp("AES", buffer) == 0)
+  {
+    hd->priv_protocol = usmAESPrivProtocol;
+    hd->priv_protocol_len = sizeof(usmAESPrivProtocol)/sizeof(oid);
+  }
+  else if (strcasecmp("DES", buffer) == 0) {
+    hd->priv_protocol = usmDESPrivProtocol;
+    hd->priv_protocol_len = sizeof(usmDESPrivProtocol)/sizeof(oid);
+  }
+  else
+  {
+    WARNING ("snmp plugin: The `PrivProtocol' config option must be `AES' or `DES'.");
+    return (-1);
+  }
+
+  DEBUG ("snmp plugin: host = %s; host->priv_protocol = %s;",
+      hd->name, hd->priv_protocol == usmAESPrivProtocol ? "AES" : "DES");
+
+  return (0);
+} /* int csnmp_config_add_host_priv_protocol */
+
+static int csnmp_config_add_host_security_level (host_definition_t *hd, oconfig_item_t *ci)
+{
+  char buffer[16];
+  int status;
+
+  status = cf_util_get_string_buffer(ci, buffer, sizeof(buffer));
+  if (status != 0)
+    return status;
+
+  if (strcasecmp("noAuthNoPriv", buffer) == 0)
+    hd->security_level = SNMP_SEC_LEVEL_NOAUTH;
+  else if (strcasecmp("authNoPriv", buffer) == 0)
+    hd->security_level = SNMP_SEC_LEVEL_AUTHNOPRIV;
+  else if (strcasecmp("authPriv", buffer) == 0)
+    hd->security_level = SNMP_SEC_LEVEL_AUTHPRIV;
+  else
+  {
+    WARNING ("snmp plugin: The `SecurityLevel' config option must be `noAuthNoPriv', `authNoPriv', or `authPriv'.");
+    return (-1);
+  }
+
+  DEBUG ("snmp plugin: host = %s; host->security_level = %d;",
+      hd->name, hd->security_level);
+
+  return (0);
+} /* int csnmp_config_add_host_security_level */
+
 static int csnmp_config_add_host (oconfig_item_t *ci)
 {
   host_definition_t *hd;
@@ -601,12 +648,6 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
   user_data_t cb_data;
   struct timespec cb_interval;
 
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("snmp plugin: `Host' needs exactly one string argument.");
-    return (-1);
-  }
-
   hd = (host_definition_t *) malloc (sizeof (host_definition_t));
   if (hd == NULL)
     return (-1);
@@ -614,12 +655,9 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
   hd->version = 2;
   C_COMPLAIN_INIT (&hd->complaint);
 
-  hd->name = strdup (ci->values[0].value.string);
-  if (hd->name == NULL)
-  {
-    free (hd);
-    return (-1);
-  }
+  status = cf_util_get_string(ci, &hd->name);
+  if (status != 0)
+    return status;
 
   hd->sess_handle = NULL;
   hd->interval = 0;
@@ -630,15 +668,29 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
     status = 0;
 
     if (strcasecmp ("Address", option->key) == 0)
-      status = csnmp_config_add_host_address (hd, option);
+      status = cf_util_get_string(option, &hd->address);
     else if (strcasecmp ("Community", option->key) == 0)
-      status = csnmp_config_add_host_community (hd, option);
+      status = cf_util_get_string(option, &hd->community);
     else if (strcasecmp ("Version", option->key) == 0)
       status = csnmp_config_add_host_version (hd, option);
     else if (strcasecmp ("Collect", option->key) == 0)
       csnmp_config_add_host_collect (hd, option);
     else if (strcasecmp ("Interval", option->key) == 0)
       cf_util_get_cdtime (option, &hd->interval);
+    else if (strcasecmp ("Username", option->key) == 0)
+      status = cf_util_get_string(option, &hd->username);
+    else if (strcasecmp ("AuthProtocol", option->key) == 0)
+      status = csnmp_config_add_host_auth_protocol (hd, option);
+    else if (strcasecmp ("PrivacyProtocol", option->key) == 0)
+      status = csnmp_config_add_host_priv_protocol (hd, option);
+    else if (strcasecmp ("AuthPassphrase", option->key) == 0)
+      status = cf_util_get_string(option, &hd->auth_passphrase);
+    else if (strcasecmp ("PrivacyPassphrase", option->key) == 0)
+      status = cf_util_get_string(option, &hd->priv_passphrase);
+    else if (strcasecmp ("SecurityLevel", option->key) == 0)
+      status = csnmp_config_add_host_security_level (hd, option);
+    else if (strcasecmp ("Context", option->key) == 0)
+      status = cf_util_get_string(option, &hd->context);
     else
     {
       WARNING ("snmp plugin: csnmp_config_add_host: Option `%s' not allowed here.", option->key);
@@ -657,11 +709,56 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
       status = -1;
       break;
     }
-    if (hd->community == NULL)
+    if (hd->community == NULL && hd->version < 3)
     {
       WARNING ("snmp plugin: `Community' not given for host `%s'", hd->name);
       status = -1;
       break;
+    }
+    if (hd->version == 3)
+    {
+      if (hd->username == NULL)
+      {
+        WARNING ("snmp plugin: `Username' not given for host `%s'", hd->name);
+        status = -1;
+        break;
+      }
+      if (hd->security_level == 0)
+      {
+        WARNING ("snmp plugin: `SecurityLevel' not given for host `%s'", hd->name);
+        status = -1;
+        break;
+      }
+      if (hd->security_level == SNMP_SEC_LEVEL_AUTHNOPRIV || hd->security_level == SNMP_SEC_LEVEL_AUTHPRIV)
+      {
+	if (hd->auth_protocol == NULL)
+	{
+	  WARNING ("snmp plugin: `AuthProtocol' not given for host `%s'", hd->name);
+	  status = -1;
+	  break;
+	}
+	if (hd->auth_passphrase == NULL)
+	{
+	  WARNING ("snmp plugin: `AuthPassphrase' not given for host `%s'", hd->name);
+	  status = -1;
+	  break;
+	}
+      }
+      if (hd->security_level == SNMP_SEC_LEVEL_AUTHPRIV)
+      {
+	if (hd->priv_protocol == NULL)
+	{
+	  WARNING ("snmp plugin: `PrivacyProtocol' not given for host `%s'", hd->name);
+	  status = -1;
+	  break;
+	}
+	if (hd->priv_passphrase == NULL)
+	{
+	  WARNING ("snmp plugin: `PrivacyPassphrase' not given for host `%s'", hd->name);
+	  status = -1;
+	  break;
+	}
+      }
     }
 
     break;
@@ -724,15 +821,75 @@ static int csnmp_config (oconfig_item_t *ci)
 static void csnmp_host_open_session (host_definition_t *host)
 {
   struct snmp_session sess;
+  int error;
 
   if (host->sess_handle != NULL)
     csnmp_host_close_session (host);
 
   snmp_sess_init (&sess);
   sess.peername = host->address;
-  sess.community = (u_char *) host->community;
-  sess.community_len = strlen (host->community);
-  sess.version = (host->version == 1) ? SNMP_VERSION_1 : SNMP_VERSION_2c;
+  switch (host->version)
+  {
+    case 1:
+      sess.version = SNMP_VERSION_1;
+      break;
+    case 3:
+      sess.version = SNMP_VERSION_3;
+      break;
+    default:
+      sess.version = SNMP_VERSION_2c;
+      break;
+  }
+
+  if (host->version == 3)
+  {
+    sess.securityName = host->username;
+    sess.securityNameLen = strlen (host->username);
+    sess.securityLevel = host->security_level;
+
+    if (sess.securityLevel == SNMP_SEC_LEVEL_AUTHNOPRIV || sess.securityLevel == SNMP_SEC_LEVEL_AUTHPRIV)
+    {
+      sess.securityAuthProto = host->auth_protocol;
+      sess.securityAuthProtoLen = host->auth_protocol_len;
+      sess.securityAuthKeyLen = USM_AUTH_KU_LEN;
+      error = generate_Ku (sess.securityAuthProto,
+	    sess.securityAuthProtoLen,
+	    (u_char *) host->auth_passphrase,
+	    strlen(host->auth_passphrase),
+	    sess.securityAuthKey,
+	    &sess.securityAuthKeyLen);
+      if (error != SNMPERR_SUCCESS) {
+	ERROR ("snmp plugin: host %s: Error generating Ku from auth_passphrase. (Error %d)", host->name, error);
+      }
+    }
+
+    if (sess.securityLevel == SNMP_SEC_LEVEL_AUTHPRIV)
+    {
+      sess.securityPrivProto = host->priv_protocol;
+      sess.securityPrivProtoLen = host->priv_protocol_len;
+      sess.securityPrivKeyLen = USM_PRIV_KU_LEN;
+      error = generate_Ku (sess.securityAuthProto,
+	    sess.securityAuthProtoLen,
+	    (u_char *) host->priv_passphrase,
+	    strlen(host->priv_passphrase),
+	    sess.securityPrivKey,
+	    &sess.securityPrivKeyLen);
+      if (error != SNMPERR_SUCCESS) {
+	ERROR ("snmp plugin: host %s: Error generating Ku from priv_passphrase. (Error %d)", host->name, error);
+      }
+    }
+
+    if (host->context != NULL)
+    {
+      sess.contextName = host->context;
+      sess.contextNameLen = strlen (host->context);
+    }
+  }
+  else /* SNMPv1/2 "authenticates" with community string */
+  {
+    sess.community = (u_char *) host->community;
+    sess.community_len = strlen (host->community);
+  }
 
   /* snmp_sess_open will copy the `struct snmp_session *'. */
   host->sess_handle = snmp_sess_open (&sess);
@@ -896,71 +1053,6 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
   return (ret);
 } /* value_t csnmp_value_list_to_value */
 
-/* Returns true if all OIDs have left their subtree */
-static int csnmp_check_res_left_subtree (const host_definition_t *host,
-    const data_definition_t *data,
-    struct snmp_pdu *res)
-{
-  struct variable_list *vb;
-  int num_checked;
-  int num_left_subtree;
-  int i;
-
-  vb = res->variables;
-  if (vb == NULL)
-    return (-1);
-
-  num_checked = 0;
-  num_left_subtree = 0;
-
-  /* check all the variables and count how many have left their subtree */
-  for (vb = res->variables, i = 0;
-      (vb != NULL) && (i < data->values_len);
-      vb = vb->next_variable, i++)
-  {
-    num_checked++;
-
-    if ((vb->type == SNMP_ENDOFMIBVIEW)
-        || (snmp_oid_ncompare (data->values[i].oid,
-            data->values[i].oid_len,
-            vb->name, vb->name_length,
-            data->values[i].oid_len) != 0))
-      num_left_subtree++;
-  }
-
-  /* check if enough variables have been returned */
-  if (i < data->values_len)
-  {
-    ERROR ("snmp plugin: host %s: Expected %i variables, but got only %i",
-        host->name, data->values_len, i);
-    return (-1);
-  }
-
-  if (data->instance.oid.oid_len > 0)
-  {
-    if (vb == NULL)
-    {
-      ERROR ("snmp plugin: host %s: Expected one more variable for "
-          "the instance..", host->name);
-      return (-1);
-    }
-
-    num_checked++;
-    if (snmp_oid_ncompare (data->instance.oid.oid,
-          data->instance.oid.oid_len,
-          vb->name, vb->name_length,
-          data->instance.oid.oid_len) != 0)
-      num_left_subtree++;
-  }
-
-  DEBUG ("snmp plugin: csnmp_check_res_left_subtree: %i of %i variables have "
-      "left their subtree",
-      num_left_subtree, num_checked);
-  if (num_left_subtree >= num_checked)
-    return (1);
-  return (0);
-} /* int csnmp_check_res_left_subtree */
-
 static int csnmp_strvbcopy_hexstring (char *dst, /* {{{ */
     const struct variable_list *vb, size_t dst_size)
 {
@@ -1036,6 +1128,8 @@ static int csnmp_instance_list_add (csnmp_list_instances_t **head,
   struct variable_list *vb;
   oid_t vb_name;
   int status;
+  uint32_t i;
+  uint32_t is_matched;
 
   /* Set vb on the last variable */
   for (vb = res->variables;
@@ -1069,7 +1163,29 @@ static int csnmp_instance_list_add (csnmp_list_instances_t **head,
     char *ptr;
 
     csnmp_strvbcopy (il->instance, vb, sizeof (il->instance));
-
+    is_matched = 0;
+    for (i = 0; i < dd->ignores_len; i++)
+    {
+      status = fnmatch(dd->ignores[i], il->instance, 0);
+      if (status == 0)
+      {
+        if (dd->invert_match == 0)
+        {
+          sfree(il);
+          return 0;
+        }
+	else
+	{
+          is_matched = 1;
+	  break;
+	}
+      }
+    }
+    if (dd->invert_match != 0 && is_matched == 0)
+    {
+      sfree(il);
+      return 0;
+    }
     for (ptr = il->instance; *ptr != '\0'; ptr++)
     {
       if ((*ptr > 0) && (*ptr < 32))
@@ -1264,11 +1380,18 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
   struct variable_list *vb;
 
   const data_set_t *ds;
-  oid_t *oid_list;
-  uint32_t oid_list_len;
+
+  uint32_t oid_list_len = (uint32_t) (data->values_len + 1);
+  /* Holds the last OID returned by the device. We use this in the GETNEXT
+   * request to proceed. */
+  oid_t oid_list[oid_list_len];
+  /* Set to false when an OID has left its subtree so we don't re-request it
+   * again. */
+  _Bool oid_list_todo[oid_list_len];
 
   int status;
   int i;
+  uint32_t j;
 
   /* `value_list_head' and `value_list_tail' implement a linked list for each
    * value. `instance_list_head' and `instance_list_tail' implement a linked list of
@@ -1302,18 +1425,14 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
   }
 
   /* We need a copy of all the OIDs, because GETNEXT will destroy them. */
-  oid_list_len = data->values_len + 1;
-  oid_list = (oid_t *) malloc (sizeof (oid_t) * (oid_list_len));
-  if (oid_list == NULL)
-  {
-    ERROR ("snmp plugin: csnmp_read_table: malloc failed.");
-    return (-1);
-  }
   memcpy (oid_list, data->values, data->values_len * sizeof (oid_t));
   if (data->instance.oid.oid_len > 0)
     memcpy (oid_list + data->values_len, &data->instance.oid, sizeof (oid_t));
-  else
+  else /* no InstanceFrom option specified. */
     oid_list_len--;
+
+  for (j = 0; j < oid_list_len; j++)
+    oid_list_todo[j] = 1;
 
   /* We're going to construct n linked lists, one for each "value".
    * value_list_head will contain pointers to the heads of these linked lists,
@@ -1323,7 +1442,6 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
   if ((value_list_head == NULL) || (value_list_tail == NULL))
   {
     ERROR ("snmp plugin: csnmp_read_table: calloc failed.");
-    sfree (oid_list);
     sfree (value_list_head);
     sfree (value_list_tail);
     return (-1);
@@ -1335,6 +1453,8 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
   status = 0;
   while (status == 0)
   {
+    int oid_list_todo_num;
+
     req = snmp_pdu_create (SNMP_MSG_GETNEXT);
     if (req == NULL)
     {
@@ -1343,12 +1463,26 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
       break;
     }
 
-    for (i = 0; (uint32_t) i < oid_list_len; i++)
-      snmp_add_null_var (req, oid_list[i].oid, oid_list[i].oid_len);
+    oid_list_todo_num = 0;
+    for (j = 0; j < oid_list_len; j++)
+    {
+      /* Do not rerequest already finished OIDs */
+      if (!oid_list_todo[j])
+        continue;
+      oid_list_todo_num++;
+      snmp_add_null_var (req, oid_list[j].oid, oid_list[j].oid_len);
+    }
+
+    if (oid_list_todo_num == 0)
+    {
+      /* The request is still empty - so we are finished */
+      DEBUG ("snmp plugin: all variables have left their subtree");
+      status = 0;
+      break;
+    }
 
     res = NULL;
     status = snmp_sess_synch_response (host->sess_handle, req, &res);
-
     if ((status != STAT_SUCCESS) || (res == NULL))
     {
       char *errstr = NULL;
@@ -1369,6 +1503,7 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
       status = -1;
       break;
     }
+
     status = 0;
     assert (res != NULL);
     c_release (LOG_INFO, &host->complaint,
@@ -1382,103 +1517,97 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
       break;
     }
 
-    /* Check if all values (and possibly the instance) have left their
-     * subtree */
-    if (csnmp_check_res_left_subtree (host, data, res) != 0)
+    for (vb = res->variables, i = 0; (vb != NULL); vb = vb->next_variable, i++)
     {
-      status = 0;
-      break;
-    }
+      /* Calculate value index from todo list */
+      while (!oid_list_todo[i] && (i < oid_list_len))
+        i++;
 
-    /* Copy the OID of the value used as instance to oid_list, if an instance
-     * is configured. */
-    if (data->instance.oid.oid_len > 0)
-    {
-      /* Allocate a new `csnmp_list_instances_t', insert the instance name and
-       * add it to the list */
-      if (csnmp_instance_list_add (&instance_list_head, &instance_list_tail,
-	    res, host, data) != 0)
+      /* An instance is configured and the res variable we process is the
+       * instance value (last index) */
+      if ((data->instance.oid.oid_len > 0) && (i == data->values_len))
       {
-        ERROR ("snmp plugin: csnmp_instance_list_add failed.");
-        status = -1;
-        break;
+        if ((vb->type == SNMP_ENDOFMIBVIEW)
+            || (snmp_oid_ncompare (data->instance.oid.oid,
+                data->instance.oid.oid_len,
+                vb->name, vb->name_length,
+                data->instance.oid.oid_len) != 0))
+        {
+          DEBUG ("snmp plugin: host = %s; data = %s; Instance left its subtree.",
+              host->name, data->name);
+          oid_list_todo[i] = 0;
+          continue;
+        }
+
+        /* Allocate a new `csnmp_list_instances_t', insert the instance name and
+         * add it to the list */
+        if (csnmp_instance_list_add (&instance_list_head, &instance_list_tail,
+              res, host, data) != 0)
+        {
+          ERROR ("snmp plugin: csnmp_instance_list_add failed.");
+          status = -1;
+          break;
+        }
+      }
+      else /* The variable we are processing is a normal value */
+      {
+        csnmp_table_values_t *vt;
+        oid_t vb_name;
+        oid_t suffix;
+        int ret;
+
+        csnmp_oid_init (&vb_name, vb->name, vb->name_length);
+
+        /* Calculate the current suffix. This is later used to check that the
+         * suffix is increasing. This also checks if we left the subtree */
+        ret = csnmp_oid_suffix (&suffix, &vb_name, data->values + i);
+        if (ret != 0)
+        {
+          DEBUG ("snmp plugin: host = %s; data = %s; i = %i; "
+              "Value probably left its subtree.",
+              host->name, data->name, i);
+          oid_list_todo[i] = 0;
+          continue;
+        }
+
+        /* Make sure the OIDs returned by the agent are increasing. Otherwise our
+         * table matching algorithm will get confused. */
+        if ((value_list_tail[i] != NULL)
+            && (csnmp_oid_compare (&suffix, &value_list_tail[i]->suffix) <= 0))
+        {
+          DEBUG ("snmp plugin: host = %s; data = %s; i = %i; "
+              "Suffix is not increasing.",
+              host->name, data->name, i);
+          oid_list_todo[i] = 0;
+          continue;
+        }
+
+        vt = malloc (sizeof (*vt));
+        if (vt == NULL)
+        {
+          ERROR ("snmp plugin: malloc failed.");
+          status = -1;
+          break;
+        }
+        memset (vt, 0, sizeof (*vt));
+
+        vt->value = csnmp_value_list_to_value (vb, ds->ds[i].type,
+            data->scale, data->shift, host->name, data->name);
+        memcpy (&vt->suffix, &suffix, sizeof (vt->suffix));
+        vt->next = NULL;
+
+        if (value_list_tail[i] == NULL)
+          value_list_head[i] = vt;
+        else
+          value_list_tail[i]->next = vt;
+        value_list_tail[i] = vt;
       }
 
-      /* The instance OID is added to the list of OIDs to GET from the
-       * snmp agent last, so set vb on the last variable returned and copy
-       * that OID. */
-      for (vb = res->variables;
-          (vb != NULL) && (vb->next_variable != NULL);
-          vb = vb->next_variable)
-        /* do nothing */;
-      assert (vb != NULL);
-
-      /* Copy the OID of the instance value to oid_list[data->values_len].
-       * "oid_list" is used for the next GETNEXT request. */
-      memcpy (oid_list[data->values_len].oid, vb->name,
-          sizeof (oid) * vb->name_length);
-      oid_list[data->values_len].oid_len = vb->name_length;
-    }
-
-    /* Iterate over all the (non-instance) values returned by the agent. The
-     * (i < value_len) check will make sure we're not handling the instance OID
-     * twice. */
-    for (vb = res->variables, i = 0;
-        (vb != NULL) && (i < data->values_len);
-        vb = vb->next_variable, i++)
-    {
-      csnmp_table_values_t *vt;
-      oid_t vb_name;
-      oid_t suffix;
-
-      csnmp_oid_init (&vb_name, vb->name, vb->name_length);
-
-      /* Calculate the current suffix. This is later used to check that the
-       * suffix is increasing. This also checks if we left the subtree */
-      status = csnmp_oid_suffix (&suffix, &vb_name, data->values + i);
-      if (status != 0)
-      {
-        DEBUG ("snmp plugin: host = %s; data = %s; Value %i failed. "
-            "It probably left its subtree.",
-            host->name, data->name, i);
-        continue;
-      }
-
-      /* Make sure the OIDs returned by the agent are increasing. Otherwise our
-       * table matching algorithm will get confused. */
-      if ((value_list_tail[i] != NULL)
-          && (csnmp_oid_compare (&suffix, &value_list_tail[i]->suffix) <= 0))
-      {
-        DEBUG ("snmp plugin: host = %s; data = %s; i = %i; "
-            "Suffix is not increasing.",
-            host->name, data->name, i);
-        continue;
-      }
-
-      vt = malloc (sizeof (*vt));
-      if (vt == NULL)
-      {
-        ERROR ("snmp plugin: malloc failed.");
-        status = -1;
-        break;
-      }
-      memset (vt, 0, sizeof (*vt));
-
-      vt->value = csnmp_value_list_to_value (vb, ds->ds[i].type,
-          data->scale, data->shift, host->name, data->name);
-      memcpy (&vt->suffix, &suffix, sizeof (vt->suffix));
-      vt->next = NULL;
-
-      if (value_list_tail[i] == NULL)
-        value_list_head[i] = vt;
-      else
-        value_list_tail[i]->next = vt;
-      value_list_tail[i] = vt;
-
-      /* Copy OID to oid_list[i + 1] */
+      /* Copy OID to oid_list[i] */
       memcpy (oid_list[i].oid, vb->name, sizeof (oid) * vb->name_length);
       oid_list[i].oid_len = vb->name_length;
-    } /* for (i = data->values_len) */
+
+    } /* for (vb = res->variables ...) */
 
     if (res != NULL)
       snmp_free_pdu (res);
@@ -1512,7 +1641,6 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
 
   sfree (value_list_head);
   sfree (value_list_tail);
-  sfree (oid_list);
 
   return (0);
 } /* int csnmp_read_table */
@@ -1671,10 +1799,10 @@ static int csnmp_read_host (user_data_t *ud)
   if ((time_end - time_start) > host->interval)
   {
     WARNING ("snmp plugin: Host `%s' should be queried every %.3f "
-	"seconds, but reading all values takes %.3f seconds.",
-	host->name,
-	CDTIME_T_TO_DOUBLE (host->interval),
-	CDTIME_T_TO_DOUBLE (time_end - time_start));
+        "seconds, but reading all values takes %.3f seconds.",
+        host->name,
+        CDTIME_T_TO_DOUBLE (host->interval),
+        CDTIME_T_TO_DOUBLE (time_end - time_start));
   }
 
   if (success == 0)
@@ -1708,6 +1836,7 @@ static int csnmp_shutdown (void)
     sfree (data_this->name);
     sfree (data_this->type);
     sfree (data_this->values);
+    sfree (data_this->ignores);
     sfree (data_this);
 
     data_this = data_next;
