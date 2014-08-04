@@ -60,7 +60,7 @@ static int set_option_time (notification_t *n, const char *value)
       || (*endptr != 0))   /* Trailing chars */
     return (-1);
 
-  n->time = TIME_T_TO_CDTIME_T (tmp);
+  n->time = DOUBLE_TO_CDTIME_T (tmp);
 
   return (0);
 } /* int set_option_time */
