@@ -1,4 +1,25 @@
 #!/usr/bin/perl
+# Copyright (c) 2006-2010 Florian Forster <octo at collectd.org>
+# Copyright (c) 2006-2008 Sebastian Harl <sh at tokkee.org>
+# Copyright (c) 2008      Mirko Buffoni <briareos at eswat.org>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
 
 use strict;
 use warnings;
@@ -507,6 +528,7 @@ sub _custom_sort_arrayref
 {
   my $array_ref = shift;
   my $array_sort = shift;
+  my $unknown_first = shift || 0;
 
   my %elements = map { $_ => 1 } (@$array_ref);
   splice (@$array_ref, 0);
@@ -517,7 +539,12 @@ sub _custom_sort_arrayref
     push (@$array_ref, $_);
     delete ($elements{$_});
   }
-  push (@$array_ref, sort (keys %elements));
+  if ($unknown_first) {
+    unshift (@$array_ref, sort (keys %elements));
+  }
+  else {
+    push (@$array_ref, sort (keys %elements));
+  }
 } # _custom_sort_arrayref
 
 sub action_show_host
@@ -957,9 +984,9 @@ sub load_graph_definitions
 
   $GraphDefs =
   {
-    apache_bytes => ['DEF:min_raw={file}:count:MIN',
-    'DEF:avg_raw={file}:count:AVERAGE',
-    'DEF:max_raw={file}:count:MAX',
+    apache_bytes => ['DEF:min_raw={file}:value:MIN',
+    'DEF:avg_raw={file}:value:AVERAGE',
+    'DEF:max_raw={file}:value:MAX',
     'CDEF:min=min_raw,8,*',
     'CDEF:avg=avg_raw,8,*',
     'CDEF:max=max_raw,8,*',
@@ -976,9 +1003,9 @@ sub load_graph_definitions
     'GPRINT:avg:LAST:%5.1lf%s Last',
     'GPRINT:avg_sum:LAST:(ca. %5.1lf%sB Total)\l'
     ],
-   apache_connections => ['DEF:min={file}:count:MIN',
-    'DEF:avg={file}:count:AVERAGE',
-    'DEF:max={file}:count:MAX',
+   apache_connections => ['DEF:min={file}:value:MIN',
+    'DEF:avg={file}:value:AVERAGE',
+    'DEF:max={file}:value:MAX',
     "AREA:max#$HalfBlue",
     "AREA:min#$Canvas",
     "LINE1:avg#$FullBlue:Connections",
@@ -987,9 +1014,9 @@ sub load_graph_definitions
     'GPRINT:max:MAX:%6.2lf Max,',
     'GPRINT:avg:LAST:%6.2lf Last'
     ],
-    apache_idle_workers => ['DEF:min={file}:count:MIN',
-    'DEF:avg={file}:count:AVERAGE',
-    'DEF:max={file}:count:MAX',
+    apache_idle_workers => ['DEF:min={file}:value:MIN',
+    'DEF:avg={file}:value:AVERAGE',
+    'DEF:max={file}:value:MAX',
     "AREA:max#$HalfBlue",
     "AREA:min#$Canvas",
     "LINE1:avg#$FullBlue:Idle Workers",
@@ -998,9 +1025,9 @@ sub load_graph_definitions
     'GPRINT:max:MAX:%6.2lf Max,',
     'GPRINT:avg:LAST:%6.2lf Last'
     ],
-    apache_requests => ['DEF:min={file}:count:MIN',
-    'DEF:avg={file}:count:AVERAGE',
-    'DEF:max={file}:count:MAX',
+    apache_requests => ['DEF:min={file}:value:MIN',
+    'DEF:avg={file}:value:AVERAGE',
+    'DEF:max={file}:value:MAX',
     "AREA:max#$HalfBlue",
     "AREA:min#$Canvas",
     "LINE1:avg#$FullBlue:Requests/s",
@@ -1009,9 +1036,9 @@ sub load_graph_definitions
     'GPRINT:max:MAX:%6.2lf Max,',
     'GPRINT:avg:LAST:%6.2lf Last'
     ],
-    apache_scoreboard => ['DEF:min={file}:count:MIN',
-    'DEF:avg={file}:count:AVERAGE',
-    'DEF:max={file}:count:MAX',
+    apache_scoreboard => ['DEF:min={file}:value:MIN',
+    'DEF:avg={file}:value:AVERAGE',
+    'DEF:max={file}:value:MAX',
     "AREA:max#$HalfBlue",
     "AREA:min#$Canvas",
     "LINE1:avg#$FullBlue:Processes",
@@ -2676,6 +2703,7 @@ sub load_graph_definitions
   $GraphDefs->{'virt_cpu_total'} = $GraphDefs->{'virt_cpu_total'};
 
   $MetaGraphDefs->{'cpu'} = \&meta_graph_cpu;
+  $MetaGraphDefs->{'df_complex'} = \&meta_graph_df;
   $MetaGraphDefs->{'dns_qtype'} = \&meta_graph_dns;
   $MetaGraphDefs->{'dns_rcode'} = \&meta_graph_dns;
   $MetaGraphDefs->{'if_rx_errors'} = \&meta_graph_if_rx_errors;
@@ -2857,6 +2885,73 @@ sub meta_graph_cpu
 
   return (meta_graph_generic_stack ($opts, $sources));
 } # meta_graph_cpu
+
+sub meta_graph_df
+{
+  confess ("Wrong number of arguments") if (@_ != 5);
+
+  my $host = shift;
+  my $plugin = shift;
+  my $plugin_instance = shift;
+  my $type = shift;
+  my $type_instances = shift;
+
+  my $opts = {};
+  my $sources = [];
+
+  my $prefix = "$host/$plugin"
+  . (defined ($plugin_instance) ? "-$plugin_instance" : '') . "/$type";
+
+  $opts->{'title'} = "Disk usage $prefix";
+
+  $opts->{'number_format'} = '%5.1lf%s';
+  $opts->{'rrd_opts'} = ['-l', 0, '-b', '1024', '-v', 'Bytes'];
+
+  my @files = ();
+
+  $opts->{'colors'} =
+  {
+    'used'              => 'ff0000',
+    'snap_normal_used'  => 'c10640',
+    'snap_reserve_used' => '820c81',
+    'snap_reserved'     => 'f15aef',
+    'reserved'          => 'ffb000',
+    'free'              => '00ff00',
+    'sis_saved'         => '00e0e0',
+    'dedup_saved'       => '00c1c1',
+    'compression_saved' => '00a2a2'
+  };
+
+  # LVM uses LV names as type-instance; they should sort first
+  _custom_sort_arrayref ($type_instances,
+    [qw(compression_saved dedup_saved sis_saved free reserved snap_reserved
+      snap_reserve_used snap_normal_used used)], 1);
+
+  for (@$type_instances)
+  {
+    my $inst = $_;
+    my $file = '';
+
+    for (@DataDirs)
+    {
+      if (-e "$_/$prefix-$inst.rrd")
+      {
+	$file = "$_/$prefix-$inst.rrd";
+	last;
+      }
+    }
+    confess ("No file found for $prefix") if ($file eq '');
+
+    push (@$sources,
+      {
+	name => $inst,
+	file => $file
+      }
+    );
+  } # for (@$type_instances)
+
+  return (meta_graph_generic_stack ($opts, $sources));
+} # meta_graph_df
 
 sub meta_graph_dns
 {

@@ -18,7 +18,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  *   Doug MacEachern <dougm@hyperic.com>
  *   Paul Sadauskas <psadauskas@gmail.com>
  **/
@@ -46,10 +46,15 @@ struct wh_callback_s
         char *user;
         char *pass;
         char *credentials;
-        int   verify_peer;
-        int   verify_host;
+        _Bool verify_peer;
+        _Bool verify_host;
         char *cacert;
-        int   store_rates;
+        char *capath;
+        char *clientkey;
+        char *clientcert;
+        char *clientkeypass;
+        long sslversion;
+        _Bool store_rates;
 
 #define WH_FORMAT_COMMAND 0
 #define WH_FORMAT_JSON    1
@@ -112,7 +117,7 @@ static int wh_callback_init (wh_callback_t *cb) /* {{{ */
         }
 
         curl_easy_setopt (cb->curl, CURLOPT_NOSIGNAL, 1L);
-        curl_easy_setopt (cb->curl, CURLOPT_USERAGENT, PACKAGE_NAME"/"PACKAGE_VERSION);
+        curl_easy_setopt (cb->curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
 
         headers = NULL;
         headers = curl_slist_append (headers, "Accept:  */*");
@@ -150,8 +155,20 @@ static int wh_callback_init (wh_callback_t *cb) /* {{{ */
         curl_easy_setopt (cb->curl, CURLOPT_SSL_VERIFYPEER, (long) cb->verify_peer);
         curl_easy_setopt (cb->curl, CURLOPT_SSL_VERIFYHOST,
                         cb->verify_host ? 2L : 0L);
+        curl_easy_setopt (cb->curl, CURLOPT_SSLVERSION, cb->sslversion);
         if (cb->cacert != NULL)
                 curl_easy_setopt (cb->curl, CURLOPT_CAINFO, cb->cacert);
+        if (cb->capath != NULL)
+                curl_easy_setopt (cb->curl, CURLOPT_CAPATH, cb->capath);
+
+        if (cb->clientkey != NULL && cb->clientcert != NULL)
+        {
+            curl_easy_setopt (cb->curl, CURLOPT_SSLKEY, cb->clientkey);
+            curl_easy_setopt (cb->curl, CURLOPT_SSLCERT, cb->clientcert);
+
+            if (cb->clientkeypass != NULL)
+                curl_easy_setopt (cb->curl, CURLOPT_SSLKEYPASSWD, cb->clientkeypass);
+        }
 
         wh_reset_buffer (cb);
 
@@ -269,6 +286,10 @@ static void wh_callback_free (void *data) /* {{{ */
         sfree (cb->pass);
         sfree (cb->credentials);
         sfree (cb->cacert);
+        sfree (cb->capath);
+        sfree (cb->clientkey);
+        sfree (cb->clientcert);
+        sfree (cb->clientkeypass);
 
         sfree (cb);
 } /* }}} void wh_callback_free */
@@ -433,47 +454,6 @@ static int wh_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
         return (status);
 } /* }}} int wh_write */
 
-static int config_set_string (char **ret_string, /* {{{ */
-                oconfig_item_t *ci)
-{
-        char *string;
-
-        if ((ci->values_num != 1)
-                        || (ci->values[0].type != OCONFIG_TYPE_STRING))
-        {
-                WARNING ("write_http plugin: The `%s' config option "
-                                "needs exactly one string argument.", ci->key);
-                return (-1);
-        }
-
-        string = strdup (ci->values[0].value.string);
-        if (string == NULL)
-        {
-                ERROR ("write_http plugin: strdup failed.");
-                return (-1);
-        }
-
-        if (*ret_string != NULL)
-                free (*ret_string);
-        *ret_string = string;
-
-        return (0);
-} /* }}} int config_set_string */
-
-static int config_set_boolean (int *dest, oconfig_item_t *ci) /* {{{ */
-{
-        if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
-        {
-                WARNING ("write_http plugin: The `%s' config option "
-                                "needs exactly one boolean argument.", ci->key);
-                return (-1);
-        }
-
-        *dest = ci->values[0].value.boolean ? 1 : 0;
-
-        return (0);
-} /* }}} int config_set_boolean */
-
 static int config_set_format (wh_callback_t *cb, /* {{{ */
                 oconfig_item_t *ci)
 {
@@ -500,7 +480,7 @@ static int config_set_format (wh_callback_t *cb, /* {{{ */
         }
 
         return (0);
-} /* }}} int config_set_string */
+} /* }}} int config_set_format */
 
 static int wh_config_url (oconfig_item_t *ci) /* {{{ */
 {
@@ -515,19 +495,14 @@ static int wh_config_url (oconfig_item_t *ci) /* {{{ */
                 return (-1);
         }
         memset (cb, 0, sizeof (*cb));
-        cb->location = NULL;
-        cb->user = NULL;
-        cb->pass = NULL;
-        cb->credentials = NULL;
         cb->verify_peer = 1;
         cb->verify_host = 1;
-        cb->cacert = NULL;
         cb->format = WH_FORMAT_COMMAND;
-        cb->curl = NULL;
+        cb->sslversion = CURL_SSLVERSION_DEFAULT;
 
         pthread_mutex_init (&cb->send_lock, /* attr = */ NULL);
 
-        config_set_string (&cb->location, ci);
+        cf_util_get_string (ci, &cb->location);
         if (cb->location == NULL)
                 return (-1);
 
@@ -536,19 +511,55 @@ static int wh_config_url (oconfig_item_t *ci) /* {{{ */
                 oconfig_item_t *child = ci->children + i;
 
                 if (strcasecmp ("User", child->key) == 0)
-                        config_set_string (&cb->user, child);
+                        cf_util_get_string (child, &cb->user);
                 else if (strcasecmp ("Password", child->key) == 0)
-                        config_set_string (&cb->pass, child);
+                        cf_util_get_string (child, &cb->pass);
                 else if (strcasecmp ("VerifyPeer", child->key) == 0)
-                        config_set_boolean (&cb->verify_peer, child);
+                        cf_util_get_boolean (child, &cb->verify_peer);
                 else if (strcasecmp ("VerifyHost", child->key) == 0)
-                        config_set_boolean (&cb->verify_host, child);
+                        cf_util_get_boolean (child, &cb->verify_host);
                 else if (strcasecmp ("CACert", child->key) == 0)
-                        config_set_string (&cb->cacert, child);
+                        cf_util_get_string (child, &cb->cacert);
+                else if (strcasecmp ("CAPath", child->key) == 0)
+                        cf_util_get_string (child, &cb->capath);
+                else if (strcasecmp ("ClientKey", child->key) == 0)
+                        cf_util_get_string (child, &cb->clientkey);
+                else if (strcasecmp ("ClientCert", child->key) == 0)
+                        cf_util_get_string (child, &cb->clientcert);
+                else if (strcasecmp ("ClientKeyPass", child->key) == 0)
+                        cf_util_get_string (child, &cb->clientkeypass);
+                else if (strcasecmp ("SSLVersion", child->key) == 0)
+                {
+                        char *value = NULL;
+
+                        cf_util_get_string (child, &value);
+
+                        if (value == NULL || strcasecmp ("default", value) == 0)
+                                cb->sslversion = CURL_SSLVERSION_DEFAULT;
+                        else if (strcasecmp ("SSLv2", value) == 0)
+                                cb->sslversion = CURL_SSLVERSION_SSLv2;
+                        else if (strcasecmp ("SSLv3", value) == 0)
+                                cb->sslversion = CURL_SSLVERSION_SSLv3;
+                        else if (strcasecmp ("TLSv1", value) == 0)
+                                cb->sslversion = CURL_SSLVERSION_TLSv1;
+#if (LIBCURL_VERSION_MAJOR > 7) || (LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR >= 34)
+                        else if (strcasecmp ("TLSv1_0", value) == 0)
+                                cb->sslversion = CURL_SSLVERSION_TLSv1_0;
+                        else if (strcasecmp ("TLSv1_1", value) == 0)
+                                cb->sslversion = CURL_SSLVERSION_TLSv1_1;
+                        else if (strcasecmp ("TLSv1_2", value) == 0)
+                                cb->sslversion = CURL_SSLVERSION_TLSv1_2;
+#endif
+                        else
+                                ERROR ("write_http plugin: Invalid SSLVersion "
+                                                "option: %s.", value);
+
+                        sfree(value);
+                }
                 else if (strcasecmp ("Format", child->key) == 0)
                         config_set_format (cb, child);
                 else if (strcasecmp ("StoreRates", child->key) == 0)
-                        config_set_boolean (&cb->store_rates, child);
+                        cf_util_get_boolean (child, &cb->store_rates);
                 else
                 {
                         ERROR ("write_http plugin: Invalid configuration "

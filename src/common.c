@@ -1,19 +1,24 @@
 /**
  * collectd - src/common.c
- * Copyright (C) 2005-2010  Florian octo Forster
+ * Copyright (C) 2005-2014  Florian octo Forster
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; only version 2 of the License is applicable.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
@@ -377,8 +382,10 @@ int strunescape (char *buf, size_t buf_len)
 		if (buf[i] != '\\')
 			continue;
 
-		if ((i >= buf_len) || (buf[i + 1] == '\0')) {
+		if (((i + 1) >= buf_len) || (buf[i + 1] == 0)) {
 			ERROR ("string unescape: backslash found at end of string.");
+			/* Ensure null-byte at the end of the buffer. */
+			buf[i] = 0;
 			return (-1);
 		}
 
@@ -397,7 +404,10 @@ int strunescape (char *buf, size_t buf_len)
 				break;
 		}
 
+		/* Move everything after the position one position to the left.
+		 * Add a null-byte as last character in the buffer. */
 		memmove (buf + i + 1, buf + i + 2, buf_len - i - 2);
+		buf[buf_len - 1] = 0;
 	}
 	return (0);
 } /* int strunescape */
@@ -418,34 +428,36 @@ size_t strstripnewline (char *buffer)
 	return (buffer_len);
 } /* size_t strstripnewline */
 
-int escape_slashes (char *buf, int buf_len)
+int escape_slashes (char *buffer, size_t buffer_size)
 {
 	int i;
+	size_t buffer_len;
 
-	if (strcmp (buf, "/") == 0)
+	buffer_len = strlen (buffer);
+
+	if (buffer_len <= 1)
 	{
-		if (buf_len < 5)
-			return (-1);
-
-		strncpy (buf, "root", buf_len);
+		if (strcmp ("/", buffer) == 0)
+		{
+			if (buffer_size < 5)
+				return (-1);
+			sstrncpy (buffer, "root", buffer_size);
+		}
 		return (0);
 	}
-
-	if (buf_len <= 1)
-		return (0);
 
 	/* Move one to the left */
-	if (buf[0] == '/')
-		memmove (buf, buf + 1, buf_len - 1);
-
-	for (i = 0; i < buf_len - 1; i++)
+	if (buffer[0] == '/')
 	{
-		if (buf[i] == '\0')
-			break;
-		else if (buf[i] == '/')
-			buf[i] = '_';
+		memmove (buffer, buffer + 1, buffer_len);
+		buffer_len--;
 	}
-	buf[i] = '\0';
+
+	for (i = 0; i < buffer_len - 1; i++)
+	{
+		if (buffer[i] == '/')
+			buffer[i] = '_';
+	}
 
 	return (0);
 } /* int escape_slashes */
@@ -648,7 +660,7 @@ int get_kstat (kstat_t **ksp_ptr, char *module, int instance, char *name)
 	char ident[128];
 
 	*ksp_ptr = NULL;
-	
+
 	if (kc == NULL)
 		return (-1);
 
@@ -1234,7 +1246,7 @@ int walk_directory (const char *dir, dirwalk_callback_f callback,
 	while ((ent = readdir (dh)) != NULL)
 	{
 		int status;
-		
+
 		if (include_hidden)
 		{
 			if ((strcmp (".", ent->d_name) == 0)
@@ -1394,6 +1406,69 @@ int rate_to_value (value_t *ret_value, gauge_t rate, /* {{{ */
 
         state->last_time = t;
 	*ret_value = state->last_value;
+	return (0);
+} /* }}} value_t rate_to_value */
+
+int value_to_rate (value_t *ret_rate, derive_t value, /* {{{ */
+		value_to_rate_state_t *state,
+		int ds_type, cdtime_t t)
+{
+	double interval;
+
+	/* Another invalid state: The time is not increasing. */
+	if (t <= state->last_time)
+	{
+		memset (state, 0, sizeof (*state));
+		return (EINVAL);
+	}
+
+	interval = CDTIME_T_TO_DOUBLE(t - state->last_time);
+
+	/* Previous value is invalid. */
+	if (state->last_time == 0) /* {{{ */
+	{
+		if (ds_type == DS_TYPE_DERIVE)
+		{
+			state->last_value.derive = value;
+		}
+		else if (ds_type == DS_TYPE_COUNTER)
+		{
+			state->last_value.counter = (counter_t) value;
+		}
+		else if (ds_type == DS_TYPE_ABSOLUTE)
+		{
+			state->last_value.absolute = (absolute_t) value;
+		}
+		else
+		{
+			assert (23 == 42);
+		}
+
+		state->last_time = t;
+		return (EAGAIN);
+	} /* }}} */
+
+	if (ds_type == DS_TYPE_DERIVE)
+	{
+		ret_rate->gauge = (value - state->last_value.derive) / interval;
+		state->last_value.derive = value;
+	}
+	else if (ds_type == DS_TYPE_COUNTER)
+	{
+		ret_rate->gauge = (((counter_t)value) - state->last_value.counter) / interval;
+		state->last_value.counter = (counter_t) value;
+	}
+	else if (ds_type == DS_TYPE_ABSOLUTE)
+	{
+		ret_rate->gauge = (((absolute_t)value) - state->last_value.absolute) / interval;
+		state->last_value.absolute = (absolute_t) value;
+	}
+	else
+	{
+		assert (23 == 42);
+	}
+
+        state->last_time = t;
 	return (0);
 } /* }}} value_t rate_to_value */
 

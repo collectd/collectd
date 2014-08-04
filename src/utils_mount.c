@@ -752,9 +752,6 @@ cu_mount_getoptionvalue(char *line, char *keyword)
 		r += strlen(keyword);
 		p = strchr(r, ',');
 		if(p == NULL) {
-			if(strlen(r) == 0) {
-				return NULL;
-			}
 			return sstrdup(r);
 		} else {
 			char *m;

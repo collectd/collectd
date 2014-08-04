@@ -152,7 +152,7 @@ L<types.db(5)>
 
 =head1 AUTHOR
 
-collectd has been written by Florian Forster E<lt>octo at verplant.orgE<gt>
+collectd has been written by Florian Forster E<lt>octo at collectd.orgE<gt>
 and many contributors (see `AUTHORS').
 
 collectdctl has been written by

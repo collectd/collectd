@@ -18,7 +18,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  *   Florent EppO Monbillard <eppo at darox.net>
  *   - connections/lighttpd extension
  *   Amit Gupta <amit.gupta221 at gmail.com>
@@ -402,7 +402,7 @@ static int init_host (apache_t *st) /* {{{ */
 		curl_easy_setopt (st->curl, CURLOPT_WRITEHEADER, st);
 	}
 
-	curl_easy_setopt (st->curl, CURLOPT_USERAGENT, PACKAGE_NAME"/"PACKAGE_VERSION);
+	curl_easy_setopt (st->curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
 	curl_easy_setopt (st->curl, CURLOPT_ERRORBUFFER, st->apache_curl_error);
 
 	if (st->user != NULL)

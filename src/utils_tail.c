@@ -18,7 +18,7 @@
  *
  * Author:
  *   Luke Heberling <lukeh at c-ware.com>
- *   Florian Forster <octo at verplant.org>
+ *   Florian Forster <octo at collectd.org>
  *
  * Description:
  *   Encapsulates useful code for plugins which must watch for appends to

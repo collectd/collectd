@@ -2897,6 +2897,10 @@ static int network_config_set_ttl (const oconfig_item_t *ci) /* {{{ */
   tmp = (int) ci->values[0].value.number;
   if ((tmp > 0) && (tmp <= 255))
     network_config_ttl = tmp;
+  else {
+    WARNING ("network plugin: The `TimeToLive' must be between 1 and 255.");
+    return (-1);    
+  }
 
   return (0);
 } /* }}} int network_config_set_ttl */
@@ -3159,6 +3163,14 @@ static int network_config (oconfig_item_t *ci) /* {{{ */
 {
   int i;
 
+  /* The options need to be applied first */
+  for (i = 0; i < ci->children_num; i++)
+  {
+    oconfig_item_t *child = ci->children + i;
+    if (strcasecmp ("TimeToLive", child->key) == 0)
+      network_config_set_ttl (child);
+  }
+
   for (i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
@@ -3167,8 +3179,9 @@ static int network_config (oconfig_item_t *ci) /* {{{ */
       network_config_add_listen (child);
     else if (strcasecmp ("Server", child->key) == 0)
       network_config_add_server (child);
-    else if (strcasecmp ("TimeToLive", child->key) == 0)
-      network_config_set_ttl (child);
+    else if (strcasecmp ("TimeToLive", child->key) == 0) {
+      /* Handled earlier */
+    }
     else if (strcasecmp ("MaxPacketSize", child->key) == 0)
       network_config_set_buffer_size (child);
     else if (strcasecmp ("Forward", child->key) == 0)

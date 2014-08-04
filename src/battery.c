@@ -17,7 +17,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  *   Michał Mirosław <mirq-linux at rere.qmqm.pl>
  **/
 
@@ -71,7 +71,7 @@ static const char *battery_acpi_dir = "/proc/acpi/battery";
 static int battery_init (void)
 {
 #if HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H
-	/* No init neccessary */
+	/* No init necessary */
 /* #endif HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H */
 
 #elif KERNEL_LINUX

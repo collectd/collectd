@@ -2,19 +2,23 @@
  * collectd - src/configfile.c
  * Copyright (C) 2005-2011  Florian octo Forster
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
@@ -109,8 +113,8 @@ static cf_global_option_t cf_global_options[] =
 	{"Interval",    NULL, NULL},
 	{"ReadThreads", NULL, "5"},
 	{"WriteThreads", NULL, "5"},
-	{"WriteQueueLengthLimitHigh", NULL, NULL},
-	{"WriteQueueLengthLimitLow", NULL, NULL},
+	{"WriteQueueLimitHigh", NULL, NULL},
+	{"WriteQueueLimitLow", NULL, NULL},
 	{"Timeout",     NULL, "2"},
 	{"AutoLoadPlugin", NULL, "false"},
 	{"PreCacheChain",  NULL, "PreCache"},
@@ -891,6 +895,13 @@ int global_option_set (const char *option, const char *value)
 	if (i >= cf_global_options_num)
 		return (-1);
 
+	if (strcasecmp (option, "PIDFile") == 0 && pidfile_from_cli == 1)
+	{
+		DEBUG ("Configfile: Ignoring `PIDFILE' option because "
+			"command-line option `-P' take precedence.");
+		return (0);
+	}
+
 	sfree (cf_global_options[i].value);
 
 	if (value != NULL)
@@ -922,27 +933,17 @@ long global_option_get_long (const char *option, long default_value)
 		const char *str;
 		long value;
 
-		str = global_option_get(option);
-		if(NULL == str) return(default_value);
+		str = global_option_get (option);
+		if (NULL == str)
+			return (default_value);
 
 		errno = 0;
-		value = strtol(str, NULL, 10);
-		if (errno == ERANGE && (value == LONG_MAX || value == LONG_MIN)) return(default_value);
-		if (errno != 0 && value == 0) return(default_value);
-		return(value);
+		value = strtol (str, /* endptr = */ NULL, /* base = */ 0);
+		if (errno != 0)
+			return (default_value);
+
+		return (value);
 } /* char *global_option_get_long */
-
-long global_option_get_long_in_range (const char *option, long default_value, long min, long max)
-{
-		long value;
-
-		assert(min <= max);
-		value = global_option_get_long(option, default_value);
-		if(value < min) return(default_value);
-		if(value > max) return(default_value);
-		return(value);
-
-} /* char *global_option_get_long_in_range */
 
 cdtime_t cf_get_default_interval (void)
 {

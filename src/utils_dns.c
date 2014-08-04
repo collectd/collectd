@@ -1,7 +1,7 @@
 /*
  * collectd - src/utils_dns.c
- * Modifications Copyright (C) 2006  Florian octo Forster
- * Copyright (C) 2002  The Measurement Factory, Inc.
+ * Copyright (C) 2006       Florian octo Forster
+ * Copyright (C) 2002       The Measurement Factory, Inc.
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
  *
  * Authors:
  *   The Measurement Factory, Inc. <http://www.measurement-factory.com/>
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  */
 
 #define _BSD_SOURCE

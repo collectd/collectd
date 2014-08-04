@@ -100,14 +100,16 @@ static int my_read (void)
 	vl.time       = time (NULL);
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "myplugin", sizeof (vl.plugin));
+
+	/* it is strongly recommended to use a type defined in the types.db file
+	 * instead of a custom type */
+	sstrncpy (vl.type, "myplugin", sizeof (vl.plugin));
 	/* optionally set vl.plugin_instance and vl.type_instance to reasonable
 	 * values (default: "") */
 
 	/* dispatch the values to collectd which passes them on to all registered
-	 * write functions - the first argument is used to lookup the data set
-	 * definition (it is strongly recommended to use a type defined in the
-	 * types.db file) */
-	plugin_dispatch_values ("myplugin", &vl);
+	 * write functions */
+	plugin_dispatch_values (&vl);
 
 	/* A return value != 0 indicates an error and the plugin will be skipped
 	 * for an increasing amount of time. */
@@ -117,7 +119,8 @@ static int my_read (void)
 /*
  * This function is called after values have been dispatched to collectd.
  */
-static int my_write (const data_set_t *ds, const value_list_t *vl)
+static int my_write (const data_set_t *ds, const value_list_t *vl,
+		user_data_t *ud)
 {
 	char name[1024] = "";
 	int i = 0;
@@ -151,7 +154,7 @@ static int my_write (const data_set_t *ds, const value_list_t *vl)
 /*
  * This function is called when plugin_log () has been used.
  */
-static void my_log (int severity, const char *msg)
+static void my_log (int severity, const char *msg, user_data_t *ud)
 {
 	printf ("LOG: %i - %s\n", severity, msg);
 	return;
@@ -160,7 +163,7 @@ static void my_log (int severity, const char *msg)
 /*
  * This function is called when plugin_dispatch_notification () has been used.
  */
-static int my_notify (const notification_t *notif)
+static int my_notify (const notification_t *notif, user_data_t *ud)
 {
 	char time_str[32] = "";
 	struct tm *tm = NULL;
@@ -210,12 +213,13 @@ static int my_shutdown (void)
  */
 void module_register (void)
 {
-	plugin_register_log ("myplugin", my_log);
-	plugin_register_notification ("myplugin", my_notify);
+	plugin_register_log ("myplugin", my_log, /* user data */ NULL);
+	plugin_register_notification ("myplugin", my_notify,
+			/* user data */ NULL);
 	plugin_register_data_set (&ds);
 	plugin_register_read ("myplugin", my_read);
 	plugin_register_init ("myplugin", my_init);
-	plugin_register_write ("myplugin", my_write);
+	plugin_register_write ("myplugin", my_write, /* user data */ NULL);
 	plugin_register_shutdown ("myplugin", my_shutdown);
     return;
 } /* void module_register (void) */

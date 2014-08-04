@@ -1,26 +1,32 @@
-#ifndef PLUGIN_H
-#define PLUGIN_H
 /**
  * collectd - src/plugin.h
- * Copyright (C) 2005-2011  Florian octo Forster
+ * Copyright (C) 2005-2014  Florian octo Forster
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; only version 2 of the License is applicable.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
  *   Sebastian Harl <sh at tokkee.org>
  **/
+
+#ifndef PLUGIN_H
+#define PLUGIN_H
 
 #include "collectd.h"
 #include "configfile.h"
@@ -328,6 +334,35 @@ int plugin_unregister_notification (const char *name);
  *              function.
  */
 int plugin_dispatch_values (value_list_t const *vl);
+
+/*
+ * NAME
+ *  plugin_dispatch_multivalue
+ *
+ * SYNOPSIS
+ *  plugin_dispatch_multivalue (vl, 1,
+ *                              "free", 42.0,
+ *                              "used", 58.0,
+ *                              NULL);
+ *
+ * DESCRIPTION
+ *  Takes a list of type instances and values and dispatches that in a batch,
+ *  making sure that all values have the same time stamp. If "store_percentage"
+ *  is set to true, the "type" is set to "percent" and a percentage is
+ *  calculated and dispatched, rather than the absolute values. Values that are
+ *  NaN are dispatched as NaN and will not influence the total.
+ *
+ *  The variadic arguments is a list of type_instance / gauge pairs, that are
+ *  interpreted as type "char const *" and "gauge_t". The last argument must be
+ *  a NULL pointer to signal end-of-list.
+ *
+ * RETURNS
+ *  The number of values it failed to dispatch (zero on success).
+ */
+__attribute__((sentinel))
+int plugin_dispatch_multivalue (value_list_t const *vl,
+		_Bool store_percentage, ...);
+
 int plugin_dispatch_missing (const value_list_t *vl);
 
 int plugin_dispatch_notification (const notification_t *notif);

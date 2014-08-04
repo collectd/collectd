@@ -21,12 +21,18 @@ Akkarit Sangpetch <asangpet at andrew.cmu.edu>
 Alessandro Iurlano <alessandro.iurlano at gmail.com>
  - Initial filecount plugin.
 
+Alex Deymo <deymo at chromium.org>
+ - aquaero plugin.
+
 Alvaro Barcellos <alvaro.barcellos at gmail.com>
  - Don't-fork patch.
 
 Amit Gupta <amit.gupta221 at gmail.com>
  - Multiple servers in the apache plugin.
  - curl_xml plugin.
+
+Andreas Henriksson <andreas at fatal.se>
+ - libmnl support in the netlink plugin.
 
 Anthony Dewhurst <dewhurst at gmail.com>
  - zfs_arc plugin.
@@ -40,6 +46,9 @@ Antony Dovgal <tony at daylessday.org>
 Aurélien Reynaud <collectd at wattapower.net>
  - LPAR plugin.
  - Various fixes for AIX, HP-UX and Solaris.
+
+Bert Vermeulen <bert at biot.com>
+ - sigrok plugin
 
 Bruno Prémont <bonbons at linux-vserver.org>
  - BIND plugin.
@@ -125,6 +134,11 @@ Manuel Sanmartin
    + swap
  - Various AIX-related fixes and hacks.
 
+Marc Fournier <marc.fournier at camptocamp.com>
+ - Various fixes to the varnish plugin.
+ - RPM specfile update.
+ - libmnl support in the netlink plugin.
+
 Marco Chiappero <marco at absence.it>
  - uptime plugin.
  - ip6tables support in the iptables plugin.
@@ -181,6 +195,10 @@ Phoenix Kayo <kayo.k11.4 at gmail.com>
 Pierre-Yves Ritschard <pyr at spootnik.org>
  - Write-Riemann plugin.
  - Write-Graphite plugin: Notification support.
+ - Write-Kafka plugin.
+ - Log-Logstash plugin.
+ - Normalization in the CPU plugin.
+ - Relative values in the Load plugin.
 
 Piotr Hosowicz <the55 at wp.pl>
  - SMF manifest for collectd.

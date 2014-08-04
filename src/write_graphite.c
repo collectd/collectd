@@ -67,7 +67,7 @@
 #endif
 
 #ifndef WG_DEFAULT_PROTOCOL
-# define WG_DEFAULT_PROTOCOL "udp"
+# define WG_DEFAULT_PROTOCOL "tcp"
 #endif
 
 #ifndef WG_DEFAULT_LOG_SEND_ERRORS
@@ -128,13 +128,17 @@ static int wg_send_buffer (struct wg_callback *cb)
     ssize_t status = 0;
 
     status = swrite (cb->sock_fd, cb->send_buf, strlen (cb->send_buf));
-    if (cb->log_send_errors && status < 0)
+    if (status < 0)
     {
-        char errbuf[1024];
-        ERROR ("write_graphite plugin: send to %s:%s (%s) failed with status %zi (%s)",
-                cb->node, cb->service, cb->protocol,
-                status, sstrerror (errno, errbuf, sizeof (errbuf)));
+        const char *protocol = cb->protocol ? cb->protocol : WG_DEFAULT_PROTOCOL;
 
+        if (cb->log_send_errors)
+        {
+            char errbuf[1024];
+            ERROR ("write_graphite plugin: send to %s:%s (%s) failed with status %zi (%s)",
+                    cb->node, cb->service, protocol,
+                    status, sstrerror (errno, errbuf, sizeof (errbuf)));
+        }
 
         close (cb->sock_fd);
         cb->sock_fd = -1;
@@ -240,7 +244,6 @@ static int wg_callback_init (struct wg_callback *cb)
                 "write_graphite plugin: Connecting to %s:%s via %s failed. "
                 "The last error was: %s", node, service, protocol,
                 sstrerror (errno, errbuf, sizeof (errbuf)));
-        close (cb->sock_fd);
         return (-1);
     }
     else
@@ -268,8 +271,11 @@ static void wg_callback_free (void *data)
 
     wg_flush_nolock (/* timeout = */ 0, cb);
 
-    close(cb->sock_fd);
-    cb->sock_fd = -1;
+    if (cb->sock_fd >= 0)
+    {
+        close (cb->sock_fd);
+        cb->sock_fd = -1;
+    }
 
     sfree(cb->name);
     sfree(cb->node);
@@ -387,12 +393,9 @@ static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
         return (status);
 
     /* Send the message to graphite */
-    wg_send_message (buffer, cb);
-    if (status != 0)
-    {
-        /* An error message has already been printed. */
+    status = wg_send_message (buffer, cb);
+    if (status != 0) /* error message has been printed already. */
         return (status);
-    }
 
     return (0);
 } /* int wg_write_messages */

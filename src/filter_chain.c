@@ -1,22 +1,27 @@
 /**
- * collectd - src/filter_chain.h
+ * collectd - src/filter_chain.c
  * Copyright (C) 2008-2010  Florian octo Forster
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; only version 2 of the License is applicable.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
@@ -435,9 +440,10 @@ static int fc_config_add_rule (fc_chain_t *chain, /* {{{ */
 
 static int fc_config_add_chain (const oconfig_item_t *ci) /* {{{ */
 {
-  fc_chain_t *chain;
+  fc_chain_t *chain = NULL;
   int status = 0;
   int i;
+  int new_chain = 1;
 
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_STRING))
@@ -447,17 +453,26 @@ static int fc_config_add_chain (const oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  chain = (fc_chain_t *) malloc (sizeof (*chain));
+  if (chain_list_head != NULL)
+  {
+    if ((chain = fc_chain_get_by_name (ci->values[0].value.string)) != NULL)
+      new_chain = 0;
+  }
+
   if (chain == NULL)
   {
-    ERROR ("fc_config_add_chain: malloc failed.");
-    return (-1);
+    chain = (fc_chain_t *) malloc (sizeof (*chain));
+    if (chain == NULL)
+    {
+      ERROR ("fc_config_add_chain: malloc failed.");
+      return (-1);
+    }
+    memset (chain, 0, sizeof (*chain));
+    sstrncpy (chain->name, ci->values[0].value.string, sizeof (chain->name));
+    chain->rules = NULL;
+    chain->targets = NULL;
+    chain->next = NULL;
   }
-  memset (chain, 0, sizeof (*chain));
-  sstrncpy (chain->name, ci->values[0].value.string, sizeof (chain->name));
-  chain->rules = NULL;
-  chain->targets = NULL;
-  chain->next = NULL;
 
   for (i = 0; i < ci->children_num; i++)
   {
@@ -487,6 +502,9 @@ static int fc_config_add_chain (const oconfig_item_t *ci) /* {{{ */
 
   if (chain_list_head != NULL)
   {
+    if (!new_chain)
+      return (0);
+
     fc_chain_t *ptr;
 
     ptr = chain_list_head;

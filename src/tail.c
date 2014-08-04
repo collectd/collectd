@@ -1,22 +1,27 @@
 /**
  * collectd - src/tail.c
- * Copyright (C) 2008  Florian octo Forster
+ * Copyright (C) 2008       Florian octo Forster
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; only version 2 of the License is applicable.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
@@ -28,6 +33,7 @@
  *  <Plugin tail>
  *    <File "/var/log/exim4/mainlog">
  *	Instance "exim"
+ *      Interval 60
  *	<Match>
  *	  Regex "S=([1-9][0-9]*)"
  *	  ExcludeRegex "U=root.*S="
@@ -46,27 +52,13 @@ struct ctail_config_match_s
   int flags;
   char *type;
   char *type_instance;
+  cdtime_t interval;
 };
 typedef struct ctail_config_match_s ctail_config_match_t;
 
 cu_tail_match_t **tail_match_list = NULL;
 size_t tail_match_list_num = 0;
-
-static int ctail_config_add_string (const char *name, char **dest, oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("tail plugin: `%s' needs exactly one string argument.", name);
-    return (-1);
-  }
-
-  sfree (*dest);
-  *dest = strdup (ci->values[0].value.string);
-  if (*dest == NULL)
-    return (-1);
-
-  return (0);
-} /* int ctail_config_add_string */
+cdtime_t tail_match_list_intervals[255];
 
 static int ctail_config_add_match_dstype (ctail_config_match_t *cm,
     oconfig_item_t *ci)
@@ -88,6 +80,10 @@ static int ctail_config_add_match_dstype (ctail_config_match_t *cm,
       cm->flags |= UTILS_MATCH_CF_GAUGE_MAX;
     else if (strcasecmp ("GaugeLast", ci->values[0].value.string) == 0)
       cm->flags |= UTILS_MATCH_CF_GAUGE_LAST;
+    else if (strcasecmp ("GaugeInc", ci->values[0].value.string) == 0)
+      cm->flags |= UTILS_MATCH_CF_GAUGE_INC;
+    else if (strcasecmp ("GaugeAdd", ci->values[0].value.string) == 0)
+      cm->flags |= UTILS_MATCH_CF_GAUGE_ADD;
     else
       cm->flags = 0;
   }
@@ -139,7 +135,7 @@ static int ctail_config_add_match_dstype (ctail_config_match_t *cm,
 } /* int ctail_config_add_match_dstype */
 
 static int ctail_config_add_match (cu_tail_match_t *tm,
-    const char *plugin_instance, oconfig_item_t *ci)
+    const char *plugin_instance, oconfig_item_t *ci, cdtime_t interval)
 {
   ctail_config_match_t cm;
   int status;
@@ -158,16 +154,15 @@ static int ctail_config_add_match (cu_tail_match_t *tm,
     oconfig_item_t *option = ci->children + i;
 
     if (strcasecmp ("Regex", option->key) == 0)
-      status = ctail_config_add_string ("Regex", &cm.regex, option);
+      status = cf_util_get_string (option, &cm.regex);
     else if (strcasecmp ("ExcludeRegex", option->key) == 0)
-      status = ctail_config_add_string ("ExcludeRegex", &cm.excluderegex,
-					option);
+      status = cf_util_get_string (option, &cm.excluderegex);
     else if (strcasecmp ("DSType", option->key) == 0)
       status = ctail_config_add_match_dstype (&cm, option);
     else if (strcasecmp ("Type", option->key) == 0)
-      status = ctail_config_add_string ("Type", &cm.type, option);
+      status = cf_util_get_string (option, &cm.type);
     else if (strcasecmp ("Instance", option->key) == 0)
-      status = ctail_config_add_string ("Instance", &cm.type_instance, option);
+      status = cf_util_get_string (option, &cm.type_instance);
     else
     {
       WARNING ("tail plugin: Option `%s' not allowed here.", option->key);
@@ -207,7 +202,7 @@ static int ctail_config_add_match (cu_tail_match_t *tm,
   if (status == 0)
   {
     status = tail_match_add_match_simple (tm, cm.regex, cm.excluderegex,
-	cm.flags, "tail", plugin_instance, cm.type, cm.type_instance);
+	cm.flags, "tail", plugin_instance, cm.type, cm.type_instance, interval);
 
     if (status != 0)
     {
@@ -226,6 +221,7 @@ static int ctail_config_add_match (cu_tail_match_t *tm,
 static int ctail_config_add_file (oconfig_item_t *ci)
 {
   cu_tail_match_t *tm;
+  cdtime_t interval = 0;
   char *plugin_instance = NULL;
   int num_matches = 0;
   int status;
@@ -250,19 +246,20 @@ static int ctail_config_add_file (oconfig_item_t *ci)
   {
     oconfig_item_t *option = ci->children + i;
 
-    if (strcasecmp ("Match", option->key) == 0)
+    if (strcasecmp ("Instance", option->key) == 0)
+      status = cf_util_get_string (option, &plugin_instance);
+    else if (strcasecmp ("Interval", option->key) == 0)
+      cf_util_get_cdtime (option, &interval);
+    else if (strcasecmp ("Match", option->key) == 0)
     {
-      status = ctail_config_add_match (tm, plugin_instance, option);
+      status = ctail_config_add_match (tm, plugin_instance, option, interval);
       if (status == 0)
 	num_matches++;
       /* Be mild with failed matches.. */
       status = 0;
     }
-    else if (strcasecmp ("Instance", option->key) == 0)
-      status = ctail_config_add_string ("Instance", &plugin_instance, option);
     else
     {
-      WARNING ("tail plugin: Option `%s' not allowed here.", option->key);
       status = -1;
     }
 
@@ -292,6 +289,7 @@ static int ctail_config_add_file (oconfig_item_t *ci)
 
     tail_match_list = temp;
     tail_match_list[tail_match_list_num] = tm;
+    tail_match_list_intervals[tail_match_list_num] = interval;
     tail_match_list_num++;
   }
 
@@ -317,41 +315,43 @@ static int ctail_config (oconfig_item_t *ci)
   return (0);
 } /* int ctail_config */
 
+static int ctail_read (user_data_t *ud)
+{
+  int status;
+
+  status = tail_match_read ((cu_tail_match_t *)ud->data);
+  if (status != 0)
+  {
+    ERROR ("tail plugin: tail_match_read failed.");
+    return (-1);
+  }
+
+  return (0);
+} /* int ctail_read */
+
 static int ctail_init (void)
 {
+  struct timespec cb_interval;
+  char str[255];
+  user_data_t ud;
+  size_t i;
+
   if (tail_match_list_num == 0)
   {
     WARNING ("tail plugin: File list is empty. Returning an error.");
     return (-1);
   }
 
-  return (0);
-} /* int ctail_init */
-
-static int ctail_read (void)
-{
-  int success = 0;
-  size_t i;
-
   for (i = 0; i < tail_match_list_num; i++)
   {
-    int status;
-
-    status = tail_match_read (tail_match_list[i]);
-    if (status != 0)
-    {
-      ERROR ("tail plugin: tail_match_read[%zu] failed.", i);
-    }
-    else
-    {
-      success++;
-    }
+    ud.data = (void *)tail_match_list[i];
+    ssnprintf(str, sizeof(str), "tail-%zu", i);
+    CDTIME_T_TO_TIMESPEC (tail_match_list_intervals[i], &cb_interval);
+    plugin_register_complex_read (NULL, str, ctail_read, &cb_interval, &ud);
   }
 
-  if (success == 0)
-    return (-1);
   return (0);
-} /* int ctail_read */
+} /* int ctail_init */
 
 static int ctail_shutdown (void)
 {
@@ -372,7 +372,6 @@ void module_register (void)
 {
   plugin_register_complex_config ("tail", ctail_config);
   plugin_register_init ("tail", ctail_init);
-  plugin_register_read ("tail", ctail_read);
   plugin_register_shutdown ("tail", ctail_shutdown);
 } /* void module_register */
 

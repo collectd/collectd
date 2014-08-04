@@ -1,19 +1,24 @@
 /**
  * collectd - src/common.h
- * Copyright (C) 2005-2010  Florian octo Forster
+ * Copyright (C) 2005-2014  Florian octo Forster
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; only version 2 of the License is applicable.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
@@ -54,6 +59,13 @@ struct rate_to_value_state_s
   gauge_t residual;
 };
 typedef struct rate_to_value_state_s rate_to_value_state_t;
+
+struct value_to_rate_state_s
+{
+  value_t last_value;
+  cdtime_t last_time;
+};
+typedef struct value_to_rate_state_s value_to_rate_state_t;
 
 char *sstrncpy (char *dest, const char *src, size_t n);
 
@@ -158,19 +170,21 @@ int strjoin (char *dst, size_t dst_len, char **fields, size_t fields_num, const 
  *   escape_slashes
  *
  * DESCRIPTION
- *   Removes slashes from the string `buf' and substitutes them with something
- *   appropriate. This function should be used whenever a path is to be used as
- *   (part of) an instance.
+ *   Removes slashes ("/") from "buffer". If buffer contains a single slash,
+ *   the result will be "root". Leading slashes are removed. All other slashes
+ *   are replaced with underscores ("_").
+ *   This function is used by plugin_dispatch_values() to escape all parts of
+ *   the identifier.
  *
  * PARAMETERS
- *   `buf'         String to be escaped.
- *   `buf_len'     Length of the buffer. No more then this many bytes will be
- *   written to `buf', including the trailing null-byte.
+ *   `buffer'         String to be escaped.
+ *   `buffer_size'    Size of the buffer. No more then this many bytes will be
+ *                    written to `buffer', including the trailing null-byte.
  *
  * RETURN VALUE
  *   Returns zero upon success and a value smaller than zero upon failure.
  */
-int escape_slashes (char *buf, int buf_len);
+int escape_slashes (char *buffer, size_t buffer_size);
 
 /*
  * NAME
@@ -321,6 +335,9 @@ counter_t counter_diff (counter_t old_value, counter_t new_value);
  * return values indicate an error. */
 int rate_to_value (value_t *ret_value, gauge_t rate,
 		rate_to_value_state_t *state, int ds_type, cdtime_t t);
+
+int value_to_rate (value_t *ret_rate, derive_t value,
+		value_to_rate_state_t *state, int ds_type, cdtime_t t);
 
 /* Converts a service name (a string) to a port number
  * (in the range [1-65535]). Returns less than zero on error. */
