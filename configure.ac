@@ -404,7 +404,7 @@ AC_CHECK_HEADERS(linux/if.h, [], [],
 #  include <sys/socket.h>
 #endif
 ])
-AC_CHECK_HEADERS(linux/iinet_diag.h, [], [],
+AC_CHECK_HEADERS(linux/inet_diag.h, [], [],
 [
 #if HAVE_SYS_TYPES_H
 #  include <sys/types.h>
@@ -413,7 +413,7 @@ AC_CHECK_HEADERS(linux/iinet_diag.h, [], [],
 #  include <sys/socket.h>
 #endif
 #if HAVE_LINUX_INET_DIAG_H
-# include <linux/iinet_diag.h>
+# include <linux/inet_diag.h>
 #endif
 ])
 AC_CHECK_HEADERS(linux/netdevice.h, [], [],
@@ -1274,7 +1274,7 @@ AC_CHECK_MEMBERS([struct inet_diag_req.id, struct inet_diag_req.idiag_states],
 	[AC_DEFINE(HAVE_STRUCT_LINUX_INET_DIAG_REQ, 1, [Define if struct inet_diag_req exists and is usable.])],
 	[],
 	[
-	#include <linux/iinet_diag.h>
+	#include <linux/inet_diag.h>
 	])
 
 
