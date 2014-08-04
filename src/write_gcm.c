@@ -76,7 +76,6 @@
 #define MONITORING_SCOPE "https://www.googleapis.com/auth/monitoring"
 #define GCE_METADATA_FLAVOR "Metadata-Flavor: Google"
 #define METADATA_PREFIX "http://169.254.169.254/"
-//#define METADATA_PREFIX "http://127.0.0.1:4090/"
 #define METADATA_HEADER "X-Google-Metadata-Request: True"
 #define META_DATA_TOKEN_URL \
   METADATA_PREFIX "computeMetadata/v1/instance/service-accounts/default/token"
@@ -135,7 +134,7 @@ static const char header64[] = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9";
 static const char jwt_claim_fmt[] =
     "{\
 \"iss\":\"%s\",\
-\"scope\":\"https://www.googleapis.com/auth/monitoring.readonly\",\
+\"scope\":\"https://www.googleapis.com/auth/monitoring\",\
 \"aud\":\"https://accounts.google.com/o/oauth2/token\",\
 \"exp\":%ld,\"iat\":%ld\
 }";
@@ -1379,6 +1378,8 @@ static int wg_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
 
   /*flush under the following conditions
    * 1. more than 15 seconds passed since send_buffer_init_time
+   * since we are sending data every minute, 15 seconds is long enough
+   * for data staying in the buffer and should be sent anyway.
    * 2. stream_key can't be generated, it's safe to flush
    * 3. the stream_key_tree cache already have the same stream stored,
    * we must flush since monarch can not take more than 1 points from

@@ -37,11 +37,6 @@
 #ReadThreads  5
 #WriteThreads 5
 
-# Limit the size of the write queue. Default is no limit. Setting up a limit is
-# recommended for servers handling a high volume of traffic.
-#WriteQueueLimitHigh 1000000
-#WriteQueueLimitLow   800000
-
 ##############################################################################
 # Logging                                                                    #
 #----------------------------------------------------------------------------#
@@ -52,18 +47,12 @@
 
 @LOAD_PLUGIN_SYSLOG@LoadPlugin syslog
 @LOAD_PLUGIN_LOGFILE@LoadPlugin logfile
-@LOAD_PLUGIN_LOG_LOGSTASH@LoadPlugin log_logstash
 
 #<Plugin logfile>
 #	LogLevel @DEFAULT_LOG_LEVEL@
 #	File STDOUT
 #	Timestamp true
 #	PrintSeverity false
-#</Plugin>
-
-#<Plugin log_logstash>
-#	LogLevel @DEFAULT_LOG_LEVEL@
-#	File "@localstatedir@/log/@PACKAGE_NAME@.json.log"
 #</Plugin>
 
 #<Plugin syslog>
@@ -85,7 +74,6 @@
 #@BUILD_PLUGIN_APACHE_TRUE@LoadPlugin apache
 #@BUILD_PLUGIN_APCUPS_TRUE@LoadPlugin apcups
 #@BUILD_PLUGIN_APPLE_SENSORS_TRUE@LoadPlugin apple_sensors
-#@BUILD_PLUGIN_AQUAERO_TRUE@LoadPlugin aquaero
 #@BUILD_PLUGIN_ASCENT_TRUE@LoadPlugin ascent
 #@BUILD_PLUGIN_BATTERY_TRUE@LoadPlugin battery
 #@BUILD_PLUGIN_BIND_TRUE@LoadPlugin bind
@@ -161,9 +149,7 @@
 @LOAD_PLUGIN_RRDTOOL@LoadPlugin rrdtool
 #@BUILD_PLUGIN_SENSORS_TRUE@LoadPlugin sensors
 #@BUILD_PLUGIN_SERIAL_TRUE@LoadPlugin serial
-#@BUILD_PLUGIN_SIGROK_TRUE@LoadPlugin sigrok
 #@BUILD_PLUGIN_SNMP_TRUE@LoadPlugin snmp
-#@BUILD_PLUGIN_STATSD_TRUE@LoadPlugin statsd
 #@BUILD_PLUGIN_SWAP_TRUE@LoadPlugin swap
 #@BUILD_PLUGIN_TABLE_TRUE@LoadPlugin table
 #@BUILD_PLUGIN_TAIL_TRUE@LoadPlugin tail
@@ -199,7 +185,7 @@
 # ription of those options is available in the collectd.conf(5) manual page. #
 ##############################################################################
 
-#<Plugin aggregation>
+#<Plugin "aggregation">
 #  <Aggregation>
 #    #Host "unspecified"
 #    Plugin "cpu"
@@ -219,7 +205,7 @@
 #  </Aggregation>
 #</Plugin>
 
-#<Plugin amqp>
+#<Plugin "amqp">
 #  <Publish "name">
 #    Host "localhost"
 #    Port "5672"
@@ -248,10 +234,6 @@
 #	ReportSeconds true
 #</Plugin>
 
-#<Plugin aquaero>
-#	Device ""
-#</Plugin>
-
 #<Plugin ascent>
 #	URL "http://localhost/ascent/status/"
 #	User "www-user"
@@ -259,7 +241,7 @@
 #	CACert "/etc/ssl/ca.crt"
 #</Plugin>
 
-#<Plugin bind>
+#<Plugin "bind">
 #  URL "http://localhost:8053/"
 #  ParseTime       false
 #  OpCodes         true
@@ -279,17 +261,6 @@
 #  </View>
 #</Plugin>
 
-#<Plugin cgroup>
-#  CGroup "libvirt"
-#  IgnoreSelected false
-#</Plugin>
-
-#<Plugin cpu>
-#  ReportActive false
-#  ReportByCpu true
-#  ValuesPercentage false
-#</Plugin>
-#
 #<Plugin csv>
 #	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/csv"
 #	StoreRates false
@@ -341,7 +312,7 @@
 #  </URL>
 #</Plugin>
 
-#<Plugin curl_xml>
+#<Plugin "curl_xml">
 #  <URL "http://localhost/stats.xml">
 #    Host "my_host"
 #    Instance "some_instance"
@@ -391,15 +362,11 @@
 #	ReportByDevice false
 #	ReportReserved false
 #	ReportInodes false
-#	ValuesAbsolute true
-#	ValuesPercentage false
 #</Plugin>
 
 #<Plugin disk>
 #	Disk "/^[hs]d[a-f][0-9]?$/"
 #	IgnoreSelected false
-#	UseBSDName false
-#	UdevNameAttr "DEVNAME"
 #</Plugin>
 
 #<Plugin dns>
@@ -438,7 +405,7 @@
 #	</Directory>
 #</Plugin>
 
-#<Plugin gmond>
+#<Plugin "gmond">
 #  MCReceiveFrom "239.2.11.71" "8649"
 #  <Metric "swap_total">
 #    Type "swap"
@@ -482,7 +449,7 @@
 #	IgnoreSelected true
 #</Plugin>
 
-#<Plugin java>
+#<Plugin "java">
 #	JVMArg "-verbose:jni"
 #	JVMArg "-Djava.class.path=@prefix@/share/collectd/java/collectd-api.jar"
 #
@@ -501,10 +468,6 @@
 #	IgnoreSelected false
 #	HostnameFormat name
 #	InterfaceFormat name
-#</Plugin>
-
-#<Plugin load>
-#        ReportRelative true
 #</Plugin>
 
 #<Plugin lpar>
@@ -552,11 +515,6 @@
 #		Host "127.0.0.1"
 #		Port "11211"
 #	</Instance>
-#</Plugin>
-
-#<Plugin memory>
-#	ValuesAbsolute true
-#	ValuesPercentage false
 #</Plugin>
 
 #<Plugin modbus>
@@ -928,19 +886,6 @@
 #	IgnoreSelected false
 #</Plugin>
 
-#<Plugin sigrok>
-#  LogLevel 3
-#  <Device "AC Voltage">
-#    Driver "fluke-dmm"
-#    MinimumInterval 10
-#    Conn "/dev/ttyUSB2"
-#  </Device>
-#  <Device "Sound Level">
-#    Driver "cem-dt-885x"
-#    Conn "/dev/ttyUSB1"
-#  </Device>
-#</Plugin>
-
 #<Plugin snmp>
 #   <Data "powerplus_voltge_input">
 #       Type "voltage"
@@ -983,24 +928,12 @@
 #   </Host>
 #</Plugin>
 
-#<Plugin statsd>
-#  Host "::"
-#  Port "8125"
-#  DeleteCounters false
-#  DeleteTimers   false
-#  DeleteGauges   false
-#  DeleteSets     false
-#  TimerPercentile 90.0
-#</Plugin>
-
-#<Plugin swap>
+#<Plugin "swap">
 #	ReportByDevice false
 #	ReportBytes true
-#	ValuesAbsolute true
-#	ValuesPercentage false
 #</Plugin>
 
-#<Plugin table>
+#<Plugin "table">
 #	<Table "/proc/slabinfo">
 #		Instance "slabinfo"
 #		Separator " "
@@ -1019,10 +952,9 @@
 #	</Table>
 #</Plugin>
 
-#<Plugin tail>
+#<Plugin "tail">
 #  <File "/var/log/exim4/mainlog">
 #    Instance "exim"
-#    Interval 60
 #    <Match>
 #      Regex "S=([1-9][0-9]*)"
 #      DSType "CounterAdd"
@@ -1039,7 +971,7 @@
 #  </File>
 #</Plugin>
 
-#<Plugin tail_csv>
+#<Plugin "tail_csv">
 #   <Metric "dropped">
 #       Type "percent"
 #       Instance "dropped"
@@ -1171,7 +1103,7 @@
 #  <Node "example">
 #    Host "localhost"
 #    Port "2003"
-#    Protocol "tcp"
+#    Protocol "udp"
 #    LogSendErrors true
 #    Prefix "collectd"
 #    Postfix "collectd"
@@ -1220,10 +1152,8 @@
 #		Protocol UDP
 #		StoreRates true
 #		AlwaysAppendDS false
-#		TTLFactor 2.0
 #	</Node>
 #	Tag "foobar"
-#       Attribute "foo" "bar"
 #</Plugin>
 
 ##############################################################################
@@ -1266,7 +1196,7 @@
 ##############################################################################
 
 #@BUILD_PLUGIN_THRESHOLD_TRUE@LoadPlugin "threshold"
-#<Plugin threshold>
+#<Plugin "threshold">
 #  <Type "foo">
 #    WarningMin    0.00
 #    WarningMax 1000.00
@@ -1305,3 +1235,4 @@
 #    </Type>
 #  </Host>
 #</Plugin>
+

@@ -51,9 +51,6 @@ collectd_LDFLAGS = -export-dynamic
 collectd_LDADD = -lm
 collectd_DEPENDENCIES =
 
-collectd_hardened_CFLAGS = -O2 -D_FORTIFY_SOURCE=2 -fstack-protector -fPIC -Wformat -Wformat-security
-collectd_hardened_LDADD = -Wl,-z,relro,-z,now
-
 # Link to these libraries..
 if BUILD_WITH_LIBRT
 collectd_LDADD += -lrt

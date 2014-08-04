@@ -6290,6 +6290,71 @@ Defaults to C<compute.googleapis.com>.
 
 =back
 
+=head2 Plugin C<write_gcm>
+ 
+ The C<write_gcm> plugin writes metrics to the I<Google Cloud Monitoring> (GCM)
+ service.
+ 
+ This plugin supports two authentication methods: When running on
+ I<Google Compute Engine> (GCE), an I<OAuth> token is retrieved from the
+ I<metadata server> and used to authenticate to GCM.
+ Alternatively, you can specify the B<Email>, B<PrivateKeyFile> and
+ B<PrivateKeyPass> options which are then used to sign an authentication token.
+ 
+ Synopsis:
+ 
+  <Plugin write_gcm>
+    Project "123456789012"
+  </Plugin>
+ 
+ =over 4
+ 
+ =item B<Project> I<Project>
+ 
+ The I<Project ID> or the I<Project Number> of the GCE project. The I<Project
+ ID> is a string identifying the project, which you can chose freely when
+ creating a new project. The I<Project Number> is a 12-digit decimal number. You
+ can look up both on the I<Developer Console>.
+ When running on GCE, this information is automatically determined.
+ 
+ =item B<ResourceId> I<ResourceId>
+ 
+ A unique I<resource ID> used when sending metrics to GCM.
+ When running on GCE, the I<instance ID> is automatically determined and used as
+ resource ID.
+ 
+ =item B<TokenUrl> I<TokenUrl>
+ 
+ URL of the REST interface which will provide an OAuth token for authentication.
+ Defaults to
+ C<http://169.254.169.254/computeMetadata/v1/instance/service-accounts/default/token>.
+ 
+ =item B<Email> I<Email>
+ 
+ =item B<PrivateKeyFile> I<PrivateKeyFile>
+ 
+ =item B<PrivateKeyPass> I<PrivateKeyPass>
+ 
+ Email address of the I<Service Account>, path to a PKCS#12 file and a
+ passphrase for the file. This information can be used when the metadata server
+ is not available and therefore B<TokenUrl> cannot be used to obtain an
+ authentication token.
+ 
+ To create an appropriate PKCS#12 file, go to the I<Developer Console> and
+ follow the process on the I<Credentials> tab.
+ 
+ =item B<Url> I<Url>
+ 
+ URL of the I<Google Cloud Monitoring> API. Defaults to
+ C<https://www.googleapis.com/cloudmonitoring/v2beta2>.
+ 
+ =item B<Service> I<Service>
+ 
+ String identifying the monitoring service to call.
+ Defaults to C<compute.googleapis.com>.
+ 
+ =back
+ 
 =head2 Plugin C<write_graphite>
 
 The C<write_graphite> plugin writes data to I<Graphite>, an open-source metrics
