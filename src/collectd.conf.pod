@@ -222,6 +222,11 @@ on the I<Interval> information contained in each value list. This is used in
 the I<Threshold> configuration to dispatch notifications about missing values,
 see L<collectd-threshold(5)> for details.
 
+=item B<InternalStatistics> I<true|false>
+
+Some internal statistics can be recorded to monitor Collectd itself.
+Default value : false.
+
 =item B<ReadThreads> I<Num>
 
 Number of threads to start for reading plugins. The default value is B<5>, but

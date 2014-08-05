@@ -25,6 +25,12 @@
 #AutoLoadPlugin false
 
 #----------------------------------------------------------------------------#
+# When enabled, some internal statistics are recorded as values              #
+# Disabled by default.                                                       #
+#----------------------------------------------------------------------------#
+#InternalStatistics false
+
+#----------------------------------------------------------------------------#
 # Interval at which to query values. This may be overwritten on a per-plugin #
 # base by using the 'Interval' option of the LoadPlugin block:               #
 #   <LoadPlugin foo>                                                         #
