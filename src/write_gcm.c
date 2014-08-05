@@ -73,7 +73,7 @@
 
 #define MONITORING_URL \
   "https://www.googleapis.com/cloudmonitoring/v2beta2"
-#define MONITORING_SCOPE "https://www.googleapis.com/auth/monitoring"
+#define MONITORING_SCOPE "https://www.googleapis.com/auth/monitoring.readonly"
 #define GCE_METADATA_FLAVOR "Metadata-Flavor: Google"
 #define METADATA_PREFIX "http://169.254.169.254/"
 #define METADATA_HEADER "X-Google-Metadata-Request: True"
@@ -134,7 +134,7 @@ static const char header64[] = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9";
 static const char jwt_claim_fmt[] =
     "{\
 \"iss\":\"%s\",\
-\"scope\":\"https://www.googleapis.com/auth/monitoring\",\
+\"scope\":\"https://www.googleapis.com/auth/monitoring.readonly\",\
 \"aud\":\"https://accounts.google.com/o/oauth2/token\",\
 \"exp\":%ld,\"iat\":%ld\
 }";
