@@ -2468,6 +2468,11 @@ only has any effect, if B<Host> is set to B<localhost> (the default).
 Otherwise, use the B<Port> option above. See the documentation for the
 C<mysql_real_connect> function for details.
 
+=item B<InnodbStats> I<true|false>
+
+If enabled, metrics about the InnoDB storage engine are collected.
+Disabled by default.
+
 =item B<MasterStats> I<true|false>
 
 =item B<SlaveStats> I<true|false>

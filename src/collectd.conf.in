@@ -533,6 +533,7 @@
 #		Password "secret"
 #		Database "db_name"
 #		MasterStats true
+#		InnodbStats true
 #	</Database>
 #
 #	<Database db_name2>
