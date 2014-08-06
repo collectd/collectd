@@ -611,13 +611,9 @@ static int cj_init_curl (cj_t *db) /* {{{ */
     ssnprintf (db->credentials, credentials_size, "%s:%s",
                db->user, (db->pass == NULL) ? "" : db->pass);
     curl_easy_setopt (db->curl, CURLOPT_USERPWD, db->credentials);
-    
+
     if (db->digest)
-    {
       curl_easy_setopt (db->curl, CURLOPT_HTTPAUTH, CURLAUTH_DIGEST);
-      curl_easy_setopt (db->curl, CURLOPT_USERNAME, db->user);
-      curl_easy_setopt (db->curl, CURLOPT_PASSWORD, db->pass);
-    }
   }
 
   curl_easy_setopt (db->curl, CURLOPT_SSL_VERIFYPEER, (long) db->verify_peer);
