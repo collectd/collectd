@@ -311,7 +311,15 @@
 #    URL "http://finance.google.com/finance?q=NYSE%3AAMD"
 #    User "foo"
 #    Password "bar"
+#    Digest false
+#    VerifyPeer true
+#    VerifyHost true
+#    CACert "/path/to/ca.crt"
+#    Header "X-Custom-Header: foobar"
+#    Post "foo=bar"
+#
 #    MeasureResponseTime false
+#    MeasureResponseCode false
 #    <Match>
 #      Regex "<span +class=\"pr\"[^>]*> *([0-9]*\\.[0-9]+) *</span>"
 #      DSType "GaugeAverage"
@@ -358,9 +366,12 @@
 #    Instance "some_instance"
 #    User "collectd"
 #    Password "thaiNg0I"
+#    Digest false
 #    VerifyPeer true
 #    VerifyHost true
 #    CACert "/path/to/ca.crt"
+#    Header "X-Custom-Header: foobar"
+#    Post "foo=bar"
 #
 #    <XPath "table[@id=\"magic_level\"]/tr">
 #      Type "magic_level"

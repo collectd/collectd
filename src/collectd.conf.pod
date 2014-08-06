@@ -1194,6 +1194,16 @@ finance page and dispatch the value to collectd.
       URL "http://finance.google.com/finance?q=NYSE%3AAMD"
       User "foo"
       Password "bar"
+      Digest false
+      VerifyPeer true
+      VerifyHost true
+      CACert "/path/to/ca.crt"
+      Header "X-Custom-Header: foobar"
+      Post "foo=bar"
+
+      MeasureResponseTime false
+      MeasureResponseCode false
+
       <Match>
         Regex "<span +class=\"pr\"[^>]*> *([0-9]*\\.[0-9]+) *</span>"
         DSType "GaugeAverage"
@@ -1266,13 +1276,19 @@ C<application/x-www-form-urlencoded>).
 Measure response time for the request. If this setting is enabled, B<Match>
 blocks (see below) are optional. Disabled by default.
 
+=item B<MeasureResponseCode> B<true>|B<false>
+
+Measure response code for the request. If this setting is enabled, B<Match>
+blocks (see below) are optional. Disabled by default.
+
 =item B<E<lt>MatchE<gt>>
 
 One or more B<Match> blocks that define how to match information in the data
 returned by C<libcurl>. The C<curl> plugin uses the same infrastructure that's
 used by the C<tail> plugin, so please see the documentation of the C<tail>
-plugin below on how matches are defined. If the B<MeasureResponseTime> option
-is set to B<true>, B<Match> blocks are optional.
+plugin below on how matches are defined. If the B<MeasureResponseTime> or
+B<MeasureResponseCode> options are set to B<true>, B<Match> blocks are
+optional.
 
 =back
 
@@ -1395,6 +1411,8 @@ The B<curl_xml plugin> uses B<libcurl> (L<http://curl.haxx.se/>) and B<libxml2>
      VerifyPeer true
      VerifyHost true
      CACert "/path/to/ca.crt"
+     Header "X-Custom-Header: foobar"
+     Post "foo=bar"
 
      <XPath "table[@id=\"magic_level\"]/tr">
        Type "magic_level"
