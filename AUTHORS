@@ -235,6 +235,9 @@ Sven Trenkel <collectd at semidefinite.de>
  - netapp plugin.
  - python plugin.
 
+Tim Laszlo <tim.laszlo at gmail.com>
+ - drbd plugin
+
 Thomas Meson <zllak at hycik.org>
  - Graphite support for the AMQP plugin.
 

@@ -417,6 +417,15 @@ collectd_LDADD += "-dlopen" dns.la
 collectd_DEPENDENCIES += dns.la
 endif
 
+if BUILD_PLUGIN_DRBD
+pkglib_LTLIBRARIES += drbd.la
+drbd_la_SOURCES = drbd.c
+drbd_la_LDFLAGS = -module -avoid-version
+drbd_la_LIBADD = -lpthread
+collectd_LDADD += "-dlopen" drbd.la
+collectd_DEPENDENCIES += drbd.la
+endif
+
 if BUILD_PLUGIN_EMAIL
 pkglib_LTLIBRARIES += email.la
 email_la_SOURCES = email.c

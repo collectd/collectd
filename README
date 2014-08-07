@@ -87,6 +87,9 @@ Features
       DNS traffic: Query types, response codes, opcodes and traffic/octets
       transfered.
 
+    - drbd
+      Collect individual drbd resource statistics.
+
     - email
       Email statistics: Count, traffic, spam scores and checks.
       See collectd-email(5).
