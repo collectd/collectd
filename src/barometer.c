@@ -1409,10 +1409,6 @@ static double abs_to_mean_sea_level_pressure(double abs_pressure)
     double temp = 0.0;
     int result = 0;
 
-    DEBUG ("barometer: abs_to_mean_sea_level_pressure: absPressure = %lf, method = %d",
-           abs_pressure,
-           config_normalize);
-
     if (config_normalize >= MSLP_DEU_WETT)
     {
         result = get_reference_temperature(&temp);
@@ -1430,7 +1426,7 @@ static double abs_to_mean_sea_level_pressure(double abs_pressure)
         
     case MSLP_INTERNATIONAL:
         mean = abs_pressure / \
-            pow(1.0 - 0.0065*config_altitude/288.15, 0.0065*0.0289644/(8.31447*0.0065));
+            pow(1.0 - 0.0065*config_altitude/288.15, 9.80665*0.0289644/(8.31447*0.0065));
         break;
         
     case MSLP_DEU_WETT:
@@ -1452,6 +1448,11 @@ static double abs_to_mean_sea_level_pressure(double abs_pressure)
         mean = abs_pressure;
         break;
     }
+
+    DEBUG ("barometer: abs_to_mean_sea_level_pressure: absPressure = %lf hPa, method = %d, meanPressure = %lf hPa",
+           abs_pressure,
+           config_normalize,
+           mean);
 
     return mean; 
 }
