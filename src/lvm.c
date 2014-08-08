@@ -121,7 +121,7 @@ static void vg_read(vg_t vg, char const *vg_name)
     lvs = lvm_vg_list_lvs(vg);
     if (!lvs) {
         /* no VGs are defined, which is not an error per se */
-        return (0);
+        return;
     }
 
     dm_list_iterate_items(lvl, lvs) {
