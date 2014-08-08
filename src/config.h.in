@@ -24,7 +24,7 @@
 /* Define to 1 if you have the <amqp.h> header file. */
 #undef HAVE_AMQP_H
 
-/* Define to 1 if `library_errno' is member of `amqp_rpc_reply_t'. */
+/* Define to 1 if `library_errno' is a member of `amqp_rpc_reply_t'. */
 #undef HAVE_AMQP_RPC_REPLY_T_LIBRARY_ERRNO
 
 /* Define to 1 if you have the `argz_add' function. */
@@ -246,16 +246,16 @@
 /* Define to 1 if you have the <kstat.h> header file. */
 #undef HAVE_KSTAT_H
 
-/* Define to 1 if `nwrites' is member of `kstat_io_t'. */
+/* Define to 1 if `nwrites' is a member of `kstat_io_t'. */
 #undef HAVE_KSTAT_IO_T_NWRITES
 
-/* Define to 1 if `nwritten' is member of `kstat_io_t'. */
+/* Define to 1 if `nwritten' is a member of `kstat_io_t'. */
 #undef HAVE_KSTAT_IO_T_NWRITTEN
 
-/* Define to 1 if `writes' is member of `kstat_io_t'. */
+/* Define to 1 if `writes' is a member of `kstat_io_t'. */
 #undef HAVE_KSTAT_IO_T_WRITES
 
-/* Define to 1 if `wtime' is member of `kstat_io_t'. */
+/* Define to 1 if `wtime' is a member of `kstat_io_t'. */
 #undef HAVE_KSTAT_IO_T_WTIME
 
 /* Define to 1 if you have the <kvm.h> header file. */
@@ -338,6 +338,9 @@
 
 /* Define to 1 if you have the sensors library (-lsensors). */
 #undef HAVE_LIBSENSORS
+
+/* Define if libssl is present and usable. */
+#undef HAVE_LIBSSL
 
 /* Define to 1 if you have the 'statgrab' library (-lstatgrab) */
 #undef HAVE_LIBSTATGRAB
@@ -580,6 +583,15 @@
 
 /* Define to 1 if you have the `openlog' function. */
 #undef HAVE_OPENLOG
+
+/* Define to 1 if you have the <openssl/blowfish.h> header file. */
+#undef HAVE_OPENSSL_BLOWFISH_H
+
+/* Define to 1 if you have the <openssl/rand.h> header file. */
+#undef HAVE_OPENSSL_RAND_H
+
+/* Define to 1 if you have the <openssl/sha.h> header file. */
+#undef HAVE_OPENSSL_SHA_H
 
 /* Define to 1 if you have the <oping.h> header file. */
 #undef HAVE_OPING_H
@@ -932,6 +944,9 @@
 /* Define to 1 if the wireless plugin is enabled. */
 #undef HAVE_PLUGIN_WIRELESS
 
+/* Define to 1 if the write_gcm plugin is enabled. */
+#undef HAVE_PLUGIN_WRITE_GCM
+
 /* Define to 1 if the write_graphite plugin is enabled. */
 #undef HAVE_PLUGIN_WRITE_GRAPHITE
 
@@ -1097,34 +1112,34 @@
 /* Define if struct if_data exists and is usable. */
 #undef HAVE_STRUCT_IF_DATA
 
-/* Define to 1 if `ifi_ibytes' is member of `struct if_data'. */
+/* Define to 1 if `ifi_ibytes' is a member of `struct if_data'. */
 #undef HAVE_STRUCT_IF_DATA_IFI_IBYTES
 
-/* Define to 1 if `ifi_ierrors' is member of `struct if_data'. */
+/* Define to 1 if `ifi_ierrors' is a member of `struct if_data'. */
 #undef HAVE_STRUCT_IF_DATA_IFI_IERRORS
 
-/* Define to 1 if `ifi_opackets' is member of `struct if_data'. */
+/* Define to 1 if `ifi_opackets' is a member of `struct if_data'. */
 #undef HAVE_STRUCT_IF_DATA_IFI_OPACKETS
 
-/* Define to 1 if `imr_ifindex' is member of `struct ip_mreqn'. */
+/* Define to 1 if `imr_ifindex' is a member of `struct ip_mreqn'. */
 #undef HAVE_STRUCT_IP_MREQN_IMR_IFINDEX
 
 /* Define if struct kinfo_proc exists in the FreeBSD variant. */
 #undef HAVE_STRUCT_KINFO_PROC_FREEBSD
 
-/* Define to 1 if `ki_pid' is member of `struct kinfo_proc'. */
+/* Define to 1 if `ki_pid' is a member of `struct kinfo_proc'. */
 #undef HAVE_STRUCT_KINFO_PROC_KI_PID
 
-/* Define to 1 if `ki_rssize' is member of `struct kinfo_proc'. */
+/* Define to 1 if `ki_rssize' is a member of `struct kinfo_proc'. */
 #undef HAVE_STRUCT_KINFO_PROC_KI_RSSIZE
 
-/* Define to 1 if `ki_rusage' is member of `struct kinfo_proc'. */
+/* Define to 1 if `ki_rusage' is a member of `struct kinfo_proc'. */
 #undef HAVE_STRUCT_KINFO_PROC_KI_RUSAGE
 
-/* Define to 1 if `kp_eproc' is member of `struct kinfo_proc'. */
+/* Define to 1 if `kp_eproc' is a member of `struct kinfo_proc'. */
 #undef HAVE_STRUCT_KINFO_PROC_KP_EPROC
 
-/* Define to 1 if `kp_proc' is member of `struct kinfo_proc'. */
+/* Define to 1 if `kp_proc' is a member of `struct kinfo_proc'. */
 #undef HAVE_STRUCT_KINFO_PROC_KP_PROC
 
 /* Define if struct kinfo_proc exists in the OpenBSD variant. */
@@ -1133,25 +1148,25 @@
 /* Define if struct net_device_stats exists and is usable. */
 #undef HAVE_STRUCT_NET_DEVICE_STATS
 
-/* Define to 1 if `rx_bytes' is member of `struct net_device_stats'. */
+/* Define to 1 if `rx_bytes' is a member of `struct net_device_stats'. */
 #undef HAVE_STRUCT_NET_DEVICE_STATS_RX_BYTES
 
-/* Define to 1 if `rx_errors' is member of `struct net_device_stats'. */
+/* Define to 1 if `rx_errors' is a member of `struct net_device_stats'. */
 #undef HAVE_STRUCT_NET_DEVICE_STATS_RX_ERRORS
 
-/* Define to 1 if `tx_packets' is member of `struct net_device_stats'. */
+/* Define to 1 if `tx_packets' is a member of `struct net_device_stats'. */
 #undef HAVE_STRUCT_NET_DEVICE_STATS_TX_PACKETS
 
-/* Define to 1 if `dest' is member of `struct udphdr'. */
+/* Define to 1 if `dest' is a member of `struct udphdr'. */
 #undef HAVE_STRUCT_UDPHDR_DEST
 
-/* Define to 1 if `source' is member of `struct udphdr'. */
+/* Define to 1 if `source' is a member of `struct udphdr'. */
 #undef HAVE_STRUCT_UDPHDR_SOURCE
 
-/* Define to 1 if `uh_dport' is member of `struct udphdr'. */
+/* Define to 1 if `uh_dport' is a member of `struct udphdr'. */
 #undef HAVE_STRUCT_UDPHDR_UH_DPORT
 
-/* Define to 1 if `uh_sport' is member of `struct udphdr'. */
+/* Define to 1 if `uh_sport' is a member of `struct udphdr'. */
 #undef HAVE_STRUCT_UDPHDR_UH_SPORT
 
 /* Define if the function getmntent exists. It's the version from libsun. */
@@ -1390,9 +1405,6 @@
 /* Define if dlsym() requires a leading underscore in symbol names. */
 #undef NEED_USCORE
 
-/* Define to 1 if your C compiler doesn't accept -c and -o together. */
-#undef NO_MINUS_C_MINUS_O
-
 /* Define to 1 if we use the shipped iptc library. */
 #undef OWN_LIBIPTC
 
@@ -1413,6 +1425,9 @@
 
 /* Define to the one symbol short name of this package. */
 #undef PACKAGE_TARNAME
+
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
 
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
@@ -1444,6 +1459,11 @@
 /* Define to 1 if `lex' declares `yytext' as a `char *' by default, not a
    `char[]'. */
 #undef YYTEXT_POINTER
+
+/* Enable large inode numbers on Mac OS X 10.5.  */
+#ifndef _DARWIN_USE_64_BIT_INODE
+# define _DARWIN_USE_64_BIT_INODE 1
+#endif
 
 /* Number of bits in a file offset, on hosts where this is settable. */
 #undef _FILE_OFFSET_BITS

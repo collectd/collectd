@@ -1,13 +1,13 @@
 # ltdl.m4 - Configure ltdl for the target system. -*-Autoconf-*-
 #
-#   Copyright (C) 1999-2006, 2007, 2008 Free Software Foundation, Inc.
+#   Copyright (C) 1999-2006, 2007, 2008, 2011 Free Software Foundation, Inc.
 #   Written by Thomas Tanner, 1999
 #
 # This file is free software; the Free Software Foundation gives
 # unlimited permission to copy and/or distribute it, with or without
 # modifications, as long as this notice is preserved.
 
-# serial 17 LTDL_INIT
+# serial 18 LTDL_INIT
 
 # LT_CONFIG_LTDL_DIR(DIRECTORY, [LTDL-MODE])
 # ------------------------------------------
@@ -407,10 +407,16 @@ AC_CHECK_HEADERS([unistd.h dl.h sys/dl.h dld.h mach-o/dyld.h dirent.h],
 AC_CHECK_FUNCS([closedir opendir readdir], [], [AC_LIBOBJ([lt__dirent])])
 AC_CHECK_FUNCS([strlcat strlcpy], [], [AC_LIBOBJ([lt__strl])])
 
+m4_pattern_allow([LT_LIBEXT])dnl
 AC_DEFINE_UNQUOTED([LT_LIBEXT],["$libext"],[The archive extension])
 
+name=
+eval "lt_libprefix=\"$libname_spec\""
+m4_pattern_allow([LT_LIBPREFIX])dnl
+AC_DEFINE_UNQUOTED([LT_LIBPREFIX],["$lt_libprefix"],[The archive prefix])
+
 name=ltdl
-LTDLOPEN=`eval "\\$ECHO \"$libname_spec\""`
+eval "LTDLOPEN=\"$libname_spec\""
 AC_SUBST([LTDLOPEN])
 ])# _LTDL_SETUP
 
@@ -467,7 +473,7 @@ AC_CACHE_CHECK([whether deplibs are loaded by dlopen],
   freebsd* | dragonfly*)
     lt_cv_sys_dlopen_deplibs=yes
     ;;
-  gnu* | linux* | k*bsd*-gnu)
+  gnu* | linux* | k*bsd*-gnu | kopensolaris*-gnu)
     # GNU and its variants, using gnu ld.so (Glibc)
     lt_cv_sys_dlopen_deplibs=yes
     ;;
@@ -487,7 +493,7 @@ AC_CACHE_CHECK([whether deplibs are loaded by dlopen],
     # at 6.2 and later dlopen does load deplibs.
     lt_cv_sys_dlopen_deplibs=yes
     ;;
-  netbsd*)
+  netbsd* | netbsdelf*-gnu)
     lt_cv_sys_dlopen_deplibs=yes
     ;;
   openbsd*)
@@ -547,11 +553,18 @@ AC_CACHE_CHECK([which extension is used for runtime loadable modules],
 [
 module=yes
 eval libltdl_cv_shlibext=$shrext_cmds
+module=no
+eval libltdl_cv_shrext=$shrext_cmds
   ])
 if test -n "$libltdl_cv_shlibext"; then
   m4_pattern_allow([LT_MODULE_EXT])dnl
   AC_DEFINE_UNQUOTED([LT_MODULE_EXT], ["$libltdl_cv_shlibext"],
     [Define to the extension used for runtime loadable modules, say, ".so".])
+fi
+if test "$libltdl_cv_shrext" != "$libltdl_cv_shlibext"; then
+  m4_pattern_allow([LT_SHARED_EXT])dnl
+  AC_DEFINE_UNQUOTED([LT_SHARED_EXT], ["$libltdl_cv_shrext"],
+    [Define to the shared library suffix, say, ".dylib".])
 fi
 ])# LT_SYS_MODULE_EXT
 

@@ -40,7 +40,7 @@ AC_PREREQ(2.59)dnl We use AS_HELP_STRING
 ## ------------------------ ##
 ## Autoconf initialisation. ##
 ## ------------------------ ##
-AC_INIT([libltdl], [2.2.6b], [bug-libtool@gnu.org])
+AC_INIT([libltdl], [2.4.2], [bug-libtool@gnu.org])
 AC_CONFIG_HEADERS([config.h:config-h.in])
 AC_CONFIG_SRCDIR([ltdl.c])
 AC_CONFIG_AUX_DIR([config])
