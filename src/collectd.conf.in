@@ -600,6 +600,7 @@
 #		Database "db_name"
 #		MasterStats true
 #		ConnectTimeout 10
+#		InnodbStats true
 #	</Database>
 #
 #	<Database db_name2>

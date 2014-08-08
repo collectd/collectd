@@ -38,8 +38,6 @@
 #include <mysql/mysql.h>
 #endif
 
-/* TODO: Understand `Select_*' and possibly do that stuff as well.. */
-
 struct mysql_database_s /* {{{ */
 {
 	char *instance;
@@ -54,6 +52,7 @@ struct mysql_database_s /* {{{ */
 
 	_Bool master_stats;
 	_Bool slave_stats;
+	_Bool innodb_stats;
 
 	_Bool slave_notif;
 	_Bool slave_io_running;
@@ -181,6 +180,8 @@ static int mysql_config_database (oconfig_item_t *ci) /* {{{ */
 			status = cf_util_get_boolean (child, &db->slave_stats);
 		else if (strcasecmp ("SlaveNotifications", child->key) == 0)
 			status = cf_util_get_boolean (child, &db->slave_notif);
+		else if (strcasecmp ("InnodbStats", child->key) == 0)
+			status = cf_util_get_boolean (child, &db->innodb_stats);
 		else
 		{
 			WARNING ("mysql plugin: Option `%s' not allowed here.", child->key);
@@ -677,6 +678,72 @@ static int mysql_read (user_data_t *ud)
 		{
 			counter_submit ("mysql_locks",
 					key + strlen ("Table_locks_"),
+					val, db);
+		}
+		else if (db->innodb_stats && strncmp (key, "Innodb_", strlen ("Innodb_")) == 0)
+		{
+			/* buffer pool */
+			if (strcmp (key, "Innodb_buffer_pool_pages_data") == 0)
+				gauge_submit ("mysql_bpool_pages", "data", val, db);
+			else if (strcmp (key, "Innodb_buffer_pool_pages_dirty") == 0)
+				gauge_submit ("mysql_bpool_pages", "dirty", val, db);
+			else if (strcmp (key, "Innodb_buffer_pool_pages_flushed") == 0)
+				counter_submit ("mysql_bpool_counters", "flushed", val, db);
+			else if (strcmp (key, "Innodb_buffer_pool_pages_free") == 0)
+				gauge_submit ("mysql_bpool_pages", "free", val, db);
+			else if (strcmp (key, "Innodb_buffer_pool_pages_misc") == 0)
+				gauge_submit ("mysql_bpool_pages", "misc", val, db);
+			else if (strcmp (key, "Innodb_buffer_pool_pages_total") == 0)
+				gauge_submit ("mysql_bpool_pages", "total", val, db);
+			else if (strcmp (key, "Innodb_buffer_pool_read_ahead_rnd") == 0)
+				counter_submit ("mysql_bpool_counters", "read_ahead_rnd", val, db);
+			else if (strcmp (key, "Innodb_buffer_pool_read_ahead") == 0)
+				counter_submit ("mysql_bpool_counters", "read_ahead", val, db);
+			else if (strcmp (key, "Innodb_buffer_pool_read_ahead_evicted") == 0)
+				counter_submit ("mysql_bpool_counters", "read_ahead_evicted", val, db);
+			else if (strcmp (key, "Innodb_buffer_pool_read_requests") == 0)
+				counter_submit ("mysql_bpool_counters", "read_requests", val, db);
+			else if (strcmp (key, "Innodb_buffer_pool_reads") == 0)
+				counter_submit ("mysql_bpool_counters", "reads", val, db);
+			else if (strcmp (key, "Innodb_buffer_pool_write_requests") == 0)
+				counter_submit ("mysql_bpool_counters", "write_requests", val, db);
+
+			/* data */
+			if (strcmp (key, "Innodb_data_fsyncs") == 0)
+				counter_submit ("mysql_innodb_data", "fsyncs", val, db);
+			else if (strcmp (key, "Innodb_data_read") == 0)
+				counter_submit ("mysql_innodb_data", "read", val, db);
+			else if (strcmp (key, "Innodb_data_reads") == 0)
+				counter_submit ("mysql_innodb_data", "reads", val, db);
+			else if (strcmp (key, "Innodb_data_writes") == 0)
+				counter_submit ("mysql_bpool_counters", "writes", val, db);
+			else if (strcmp (key, "Innodb_data_written") == 0)
+				counter_submit ("mysql_innodb_data", "written", val, db);
+
+			/* double write */
+			else if (strcmp (key, "Innodb_dblwr_writes") == 0)
+				counter_submit ("mysql_innodb_dblwr", "writes", val, db);
+			else if (strcmp (key, "Innodb_dblwr_pages_written") == 0)
+				counter_submit ("mysql_innodb_dblwr", "written", val, db);
+
+			/* rows */
+			else if (strcmp (key, "Innodb_rows_deleted") == 0)
+				counter_submit ("mysql_innodb_rows", "deleted", val, db);
+			else if (strcmp (key, "Innodb_rows_inserted") == 0)
+				counter_submit ("mysql_innodb_rows", "inserted", val, db);
+			else if (strcmp (key, "Innodb_rows_read") == 0)
+				counter_submit ("mysql_innodb_rows", "read", val, db);
+			else if (strcmp (key, "Innodb_rows_updated") == 0)
+				counter_submit ("mysql_innodb_rows", "updated", val, db);
+		}
+		else if (strncmp (key, "Select_", strlen ("Select_")) == 0)
+		{
+			counter_submit ("mysql_select", key + strlen ("Select_"),
+					val, db);
+		}
+		else if (strncmp (key, "Sort_", strlen ("Sort_")) == 0)
+		{
+			counter_submit ("mysql_sort", key + strlen ("Sort_"),
 					val, db);
 		}
 	}
