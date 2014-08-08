@@ -327,7 +327,7 @@ static int memory_read_internal (value_list_t *vl)
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 	}
 
-	if (mem_total < (mem_free + mem_buffered + mem_cached))
+	if (mem_total < (mem_free + mem_buffered + mem_cached + mem_slab_unreclaimable + mem_slab_reclaimable))
 		return (-1);
 
 	mem_used = mem_total - (mem_free + mem_buffered + mem_cached + mem_slab_unreclaimable + mem_slab_reclaimable);
