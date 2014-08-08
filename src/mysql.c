@@ -38,8 +38,6 @@
 #include <mysql/mysql.h>
 #endif
 
-/* TODO: Understand `Select_*' and possibly do that stuff as well.. */
-
 struct mysql_database_s /* {{{ */
 {
 	char *instance;
@@ -721,18 +719,14 @@ static int mysql_read (user_data_t *ud)
 			else if (strcmp (key, "Innodb_rows_updated") == 0)
 				counter_submit ("mysql_innodb_rows", "updated", val, db);
 		}
-		else if (strncmp (key, "Select_",
-					strlen ("Select_")) == 0)
+		else if (strncmp (key, "Select_", strlen ("Select_")) == 0)
 		{
-			counter_submit ("mysql_select",
-					key + strlen ("Select_"),
+			counter_submit ("mysql_select", key + strlen ("Select_"),
 					val, db);
 		}
-		else if (strncmp (key, "Sort_",
-					strlen ("Sort_")) == 0)
+		else if (strncmp (key, "Sort_", strlen ("Sort_")) == 0)
 		{
-			counter_submit ("mysql_sort",
-					key + strlen ("Sort_"),
+			counter_submit ("mysql_sort", key + strlen ("Sort_"),
 					val, db);
 		}
 	}
