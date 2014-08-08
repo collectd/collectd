@@ -2241,7 +2241,7 @@ then
         CPPFLAGS="$CPPFLAGS $with_liblvm2app_cppflags"
         LDFLAGS="$LDFLAGS $with_liblvm2app_ldflags"
 
-        AC_CHECK_LIB(lvm2app, lvm_init, [with_liblvm2app="yes"], [with_liblvm2app="no (Symbol 'lvm_init' not found)"])
+        AC_CHECK_LIB(lvm2app, lvm_lv_get_property, [with_liblvm2app="yes"], [with_liblvm2app="no (Symbol 'lvm_lv_get_property' not found)"])
 
         CPPFLAGS="$SAVE_CPPFLAGS"
         LDFLAGS="$SAVE_LDFLAGS"
@@ -5551,6 +5551,7 @@ Configuration:
     libjvm  . . . . . . . $with_java
     libkstat  . . . . . . $with_kstat
     libkvm  . . . . . . . $with_libkvm
+    liblvm2app  . . . . . $with_liblvm2app
     libmemcached  . . . . $with_libmemcached
     libmnl  . . . . . . . $with_libmnl
     libmodbus . . . . . . $with_libmodbus
