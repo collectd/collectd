@@ -2429,7 +2429,7 @@ B<uuid> means use the guest's UUID.
 
 =back
 
-+=head2 Plugin C<load>
+=head2 Plugin C<load>
 
 The I<Load plugin> collects the system load. These numbers give a rough overview
 over the utilization of a machine. The system load is defined as the number of
