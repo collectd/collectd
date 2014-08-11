@@ -708,9 +708,9 @@ static int mysql_read (user_data_t *ud)
 			else if (strcmp (key, "Innodb_buffer_pool_write_requests") == 0)
 				counter_submit ("mysql_bpool_counters", "write_requests", val, db);
 			else if (strcmp (key, "Innodb_buffer_pool_bytes_data") == 0)
-				counter_submit ("mysql_bpool_bytes", "data", val, db);
+				gauge_submit ("mysql_bpool_bytes", "data", val, db);
 			else if (strcmp (key, "Innodb_buffer_pool_bytes_dirty") == 0)
-				counter_submit ("mysql_bpool_bytes", "dirty", val, db);
+				gauge_submit ("mysql_bpool_bytes", "dirty", val, db);
 
 			/* data */
 			if (strcmp (key, "Innodb_data_fsyncs") == 0)
