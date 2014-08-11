@@ -2027,7 +2027,7 @@ static long get_drop_probability (void) /* {{{ */
 	if (wql < write_limit_low)
 		return (0);
 	if (wql >= write_limit_high)
-		return (1);
+		return (DROP_PROBABILITY_MAX);
 
 	pos = 1 + wql - write_limit_low;
 	size = 1 + write_limit_high - write_limit_low;
