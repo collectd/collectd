@@ -5349,6 +5349,7 @@ AC_PLUGIN([vmem],        [$plugin_vmem],       [Virtual memory statistics])
 AC_PLUGIN([vserver],     [$plugin_vserver],    [Linux VServer statistics])
 AC_PLUGIN([wireless],    [$plugin_wireless],   [Wireless statistics])
 AC_PLUGIN([write_graphite], [yes],             [Graphite / Carbon output plugin])
+AC_PLUGIN([write_opentsdb], [yes],             [Opentsdb output plugin])
 AC_PLUGIN([write_http],  [$with_libcurl],      [HTTP output plugin])
 AC_PLUGIN([write_kafka],  [$with_librdkafka],  [Kafka output plugin])
 AC_PLUGIN([write_mongodb], [$with_libmongoc],  [MongoDB output plugin])
@@ -5712,6 +5713,7 @@ Configuration:
     vserver . . . . . . . $enable_vserver
     wireless  . . . . . . $enable_wireless
     write_graphite  . . . $enable_write_graphite
+    write_opentsdb  . . . $enable_write_opentsdb
     write_http  . . . . . $enable_write_http
     write_kafka . . . . . $enable_write_kafka
     write_mongodb . . . . $enable_write_mongodb
