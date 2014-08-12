@@ -132,7 +132,7 @@ static int drbd_read (void)
 	fh = fopen (drbd_stats, "r");
 	if (fh == NULL)
 	{
-		WARNING ("Unable to open%s", drbd_stats);
+		WARNING ("drbd plugin: Unable to open %s", drbd_stats);
 		return (EINVAL);
 	}
 
