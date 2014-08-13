@@ -160,33 +160,22 @@ static int opentsdb_format_tags (char *ret, int ret_len,
 
 static int opentsdb_format_name (char *ret, int ret_len,
 		value_list_t const *vl,
-		char const *ds_name,
 		char const *prefix,
-		char const *tags,
 		char const escape_char,
 		unsigned int flags)
 {
 	//char n_host[DATA_MAX_NAME_LEN];
 	char n_plugin[DATA_MAX_NAME_LEN];
-	char n_plugin_instance[DATA_MAX_NAME_LEN];
 	char n_type[DATA_MAX_NAME_LEN];
 	char n_type_instance[DATA_MAX_NAME_LEN];
 
 	char tmp_plugin[2 * DATA_MAX_NAME_LEN + 1];
+	char tmp_type_instance[2 * DATA_MAX_NAME_LEN + 1];
 	char tmp_type[2 * DATA_MAX_NAME_LEN + 1];
 
-	if (prefix == NULL)
-		prefix = "";
 
-	if (tags == NULL)
-		tags = "";
-
-	//opentsdb_copy_escape_part (n_host, vl->host,
-	//         sizeof (n_host), escape_char);
 	opentsdb_copy_escape_part (n_plugin, vl->plugin,
 			sizeof (n_plugin), escape_char);
-	opentsdb_copy_escape_part (n_plugin_instance, vl->plugin_instance,
-			sizeof (n_plugin_instance), escape_char);
 	opentsdb_copy_escape_part (n_type, vl->type,
 			sizeof (n_type), escape_char);
 	opentsdb_copy_escape_part (n_type_instance, vl->type_instance,
@@ -195,9 +184,47 @@ static int opentsdb_format_name (char *ret, int ret_len,
 	sstrncpy (tmp_plugin, n_plugin, sizeof (tmp_plugin));
 
 	sstrncpy (tmp_type, n_type, sizeof (tmp_type));
+	
+    sstrncpy (tmp_type_instance, n_type_instance, sizeof (tmp_type_instance));
 
-	ssnprintf (ret, ret_len, "%s.%s.%s",
-			prefix, tmp_plugin, tmp_type);
+    if(prefix == NULL){
+      if(tmp_type_instance[0] == '\0'){
+        if (strcasecmp (tmp_plugin, tmp_type) == 0){
+	      ssnprintf (ret, ret_len, "%s", tmp_plugin);
+        }
+        else{
+	      ssnprintf (ret, ret_len, "%s.%s", tmp_plugin, tmp_type); 
+        }
+      }   
+      else{
+        if (strcasecmp (tmp_plugin, tmp_type) == 0){
+	      ssnprintf (ret, ret_len, "%s.%s", tmp_plugin, tmp_type_instance);
+        }
+        else{
+	      ssnprintf (ret, ret_len, "%s.%s.%s", tmp_plugin, tmp_type, tmp_type_instance); 
+        }
+      }
+    }else{ 
+      if(tmp_type_instance[0] == '\0'){
+        if (strcasecmp (tmp_plugin, tmp_type) == 0){
+	      ssnprintf (ret, ret_len, "%s.%s", prefix, tmp_plugin);
+        }
+        else{
+	      ssnprintf (ret, ret_len, "%s.%s.%s", prefix, tmp_plugin, tmp_type); 
+        }
+      }   
+      else{
+        if (strcasecmp (tmp_plugin, tmp_type) == 0){
+	      ssnprintf (ret, ret_len, "%s.%s.%s",
+		    	prefix, tmp_plugin, tmp_type_instance);
+        }
+        else{
+	      ssnprintf (ret, ret_len, "%s.%s.%s.%s",
+		    	prefix, tmp_plugin, tmp_type, tmp_type_instance);
+        }
+      }
+    }
+
 
 	return (0);
 }
@@ -229,19 +256,16 @@ int format_opentsdb (char *buffer, size_t buffer_size,
 
 	for (i = 0; i < ds->ds_num; i++)
 	{
-		char const *ds_name = NULL;
 		char        key[10*DATA_MAX_NAME_LEN];
 		char        final_tags[512];
 		char        values[512];
 		size_t      message_len;
 		char        message[1024];
 
-		if ((ds->ds_num > 1))
-			ds_name = ds->ds[i].name;
 
 		/* Copy the identifier to `key' and escape it. */
-		status = opentsdb_format_name (key, sizeof (key), vl, ds_name,
-				prefix, tags, escape_char, flags);
+		status = opentsdb_format_name (key, sizeof (key), vl,
+				prefix, escape_char, flags);
 		if (status != 0)
 		{
 			ERROR ("format_opentsdb: error with opentsdb_format_name");
