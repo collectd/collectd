@@ -714,7 +714,7 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
   if (status == 0)
   {
     user_data_t ud;
-    char cb_name[DATA_MAX_NAME_LEN];
+    char *cb_name;
 
     if (db->instance == NULL)
       db->instance = strdup("default");
@@ -726,11 +726,12 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
     ud.data = (void *) db;
     ud.free_func = cj_free;
 
-    ssnprintf (cb_name, sizeof (cb_name), "curl_json-%s-%s",
+    cb_name = ssnprintf_alloc ("curl_json-%s-%s",
                db->instance, db->url ? db->url : db->sock);
 
-    plugin_register_complex_read (/* group = */ NULL, cb_name, cj_read,
+    plugin_register_complex_read (/* group = */ "curl_json", cb_name, cj_read,
                                   /* interval = */ NULL, &ud);
+    sfree (cb_name);
   }
   else
   {
