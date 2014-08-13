@@ -1249,6 +1249,8 @@
 #		Host "localhost"
 #		Port "4242"
 #		HostTags "status=production"
+#		StoreRates false
+#		AlwaysAppendDS false
 #	</Node>
 #</Plugin>
 
