@@ -685,9 +685,7 @@ static int wg_b64_encode(char const *s, /* {{{ */
   BIO_get_mem_ptr (b64, &bptr);
 
   if (buffer_size <= bptr->length) {
-    ERROR ("write_gcm plugin: wg_b64_encode: Buffer too small. "
-           "Have %zu bytes, need %d bytes.",
-           buffer_size, bptr->length + 1);
+    ERROR ("write_gcm plugin: wg_b64_encode: Buffer too small. ");
     BIO_free_all(b64);
     return (-1);
   }
