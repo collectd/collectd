@@ -80,10 +80,8 @@ struct wt_callback
     char     *node;
     char     *service;
     char     *host_tags;
-    char     escape_char;
 
     _Bool    store_rates;
-    _Bool    separate_instances;
     _Bool    always_append_ds;
 
     char     send_buf[WT_SEND_BUF_SIZE];
@@ -565,37 +563,6 @@ static int wt_write(const data_set_t *ds, const value_list_t *vl,
     return status;
 }
 
-static int config_set_char(char *dest,
-                           oconfig_item_t *ci)
-{
-    char buffer[4];
-    int status;
-
-    memset(buffer, 0, sizeof(buffer));
-
-    status = cf_util_get_string_buffer(ci, buffer, sizeof(buffer));
-    if (status != 0)
-        return (status);
-
-    if (buffer[0] == 0)
-    {
-        ERROR("write_tsdb plugin: Cannot use an empty string for the "
-              "\"EscapeCharacter\" option.");
-        return -1;
-    }
-
-    if (buffer[1] != 0)
-    {
-        WARNING("write_tsdb plugin: Only the first character of the "
-                "\"EscapeCharacter\" option ('%c') will be used.",
-                (int) buffer[0]);
-    }
-
-    *dest = buffer[0];
-
-    return 0;
-}
-
 static int wt_config_tsd(oconfig_item_t *ci)
 {
     struct wt_callback *cb;
@@ -614,8 +581,7 @@ static int wt_config_tsd(oconfig_item_t *ci)
     cb->node = NULL;
     cb->service = NULL;
     cb->host_tags = NULL;
-    cb->escape_char = WT_DEFAULT_ESCAPE;
-    cb->store_rates = 1;
+    cb->store_rates = 0;
 
     pthread_mutex_init (&cb->send_lock, NULL);
 
@@ -631,12 +597,8 @@ static int wt_config_tsd(oconfig_item_t *ci)
             cf_util_get_string(child, &cb->host_tags);
         else if (strcasecmp("StoreRates", child->key) == 0)
             cf_util_get_boolean(child, &cb->store_rates);
-        else if (strcasecmp("SeparateInstances", child->key) == 0)
-            cf_util_get_boolean(child, &cb->separate_instances);
         else if (strcasecmp("AlwaysAppendDS", child->key) == 0)
             cf_util_get_boolean(child, &cb->always_append_ds);
-        else if (strcasecmp("EscapeCharacter", child->key) == 0)
-            config_set_char(&cb->escape_char, child);
         else
         {
             ERROR("write_tsdb plugin: Invalid configuration "
