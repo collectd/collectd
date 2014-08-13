@@ -48,6 +48,7 @@ int write_riemann_threshold_check(const data_set_t *, const value_list_t *, int 
 
 struct riemann_host {
 	char			*name;
+	char			*prefix;
 #define F_CONNECT		 0x01
 	uint8_t			 flags;
 	pthread_mutex_t		 lock;
@@ -430,7 +431,7 @@ static Msg *riemann_notification_to_protobuf (struct riemann_host *host, /* {{{ 
 		riemann_event_add_tag (event, riemann_tags[i]);
 
 	format_name (service_buffer, sizeof (service_buffer),
-			/* host = */ "", n->plugin, n->plugin_instance,
+			/* host = */ host->prefix, n->plugin, n->plugin_instance,
 			n->type, n->type_instance);
 	event->service = strdup (&service_buffer[1]);
 
@@ -566,7 +567,7 @@ static Event *riemann_value_to_protobuf (struct riemann_host const *host, /* {{{
 	}
 
 	format_name (name_buffer, sizeof (name_buffer),
-			/* host = */ "", vl->plugin, vl->plugin_instance,
+			/* host = */ host->prefix, vl->plugin, vl->plugin_instance,
 			vl->type, vl->type_instance);
 	if (host->always_append_ds || (ds->ds_num > 1))
 		ssnprintf (service_buffer, sizeof (service_buffer),
@@ -754,6 +755,9 @@ static int riemann_config_node(oconfig_item_t *ci) /* {{{ */
         } else if (strcasecmp ("Notifications", child->key) == 0) {
             status = cf_util_get_boolean(child, &host->notifications);
             if (status != 0)
+                break;
+        } else if (strcasecmp ("Prefix", child->key) == 0) {
+            status = cf_util_get_string (child, &host->prefix);
                 break;
         } else if (strcasecmp ("CheckThresholds", child->key) == 0) {
             status = cf_util_get_boolean(child, &host->check_thresholds);
