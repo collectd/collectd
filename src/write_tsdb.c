@@ -406,7 +406,6 @@ static int wt_send_message (const char* key, const char* value,
     char *tags = "";
     char message[1024];
     char *host_tags = cb->host_tags ? cb->host_tags : "";
-    const char *message_fmt;
     const char *meta_tsdb = "tsdb_tags";
 
     /* skip if value is NaN */
@@ -427,16 +426,15 @@ static int wt_send_message (const char* key, const char* value,
         }
     }
 
-    message_fmt = "put %s %u %s fqdn=%s %s %s\r\n";
-    message_len = ssnprintf (message, sizeof(message),
-                                      message_fmt,
-                                      key,
-                                      (unsigned int)CDTIME_T_TO_TIME_T(
-                                          time),
-                                      value,
-                                      host,
-                                      tags,
-                                      host_tags);
+    message_len = ssnprintf (message,
+                             sizeof(message),
+                             "put %s %.0f %s fqdn=%s %s %s\r\n",
+                             key,
+                             CDTIME_T_TO_DOUBLE(time),
+                             value,
+                             host,
+                             tags,
+                             host_tags);
 
     sfree(temp);
 
