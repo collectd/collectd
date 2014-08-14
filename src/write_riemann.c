@@ -431,7 +431,7 @@ static Msg *riemann_notification_to_protobuf (struct riemann_host *host, /* {{{ 
 		riemann_event_add_tag (event, riemann_tags[i]);
 
 	format_name (service_buffer, sizeof (service_buffer),
-			/* host = */ host->prefix, n->plugin, n->plugin_instance,
+			/* host = */ "", n->plugin, n->plugin_instance,
 			n->type, n->type_instance);
 	event->service = strdup (&service_buffer[1]);
 
@@ -567,14 +567,14 @@ static Event *riemann_value_to_protobuf (struct riemann_host const *host, /* {{{
 	}
 
 	format_name (name_buffer, sizeof (name_buffer),
-			/* host = */ host->prefix, vl->plugin, vl->plugin_instance,
+			/* host = */ "", vl->plugin, vl->plugin_instance,
 			vl->type, vl->type_instance);
 	if (host->always_append_ds || (ds->ds_num > 1))
-		ssnprintf (service_buffer, sizeof (service_buffer),
-				"%s/%s", &name_buffer[1], ds->ds[index].name);
+    ssnprintf (service_buffer, sizeof (service_buffer),
+        "%s/%s/%s", host->prefix, &name_buffer[1], ds->ds[index].name);
 	else
-		sstrncpy (service_buffer, &name_buffer[1],
-				sizeof (service_buffer));
+    ssnprintf (service_buffer, sizeof (service_buffer),
+        "%s/%s", host->prefix, &name_buffer[1]);
 
 	event->service = strdup (service_buffer);
 
