@@ -569,12 +569,21 @@ static Event *riemann_value_to_protobuf (struct riemann_host const *host, /* {{{
 	format_name (name_buffer, sizeof (name_buffer),
 			/* host = */ "", vl->plugin, vl->plugin_instance,
 			vl->type, vl->type_instance);
-	if (host->always_append_ds || (ds->ds_num > 1))
+	if (host->always_append_ds || (ds->ds_num > 1)) {
+    if (host->prefix == NULL)
+    ssnprintf (service_buffer, sizeof (service_buffer),
+        "%s/%s", &name_buffer[1], ds->ds[index].name);
+    else
     ssnprintf (service_buffer, sizeof (service_buffer),
         "%s/%s/%s", host->prefix, &name_buffer[1], ds->ds[index].name);
-	else
+  } else {
+    if (host->prefix == NULL)
+      sstrncpy (service_buffer, &name_buffer[1],
+          sizeof (service_buffer));
+    else
     ssnprintf (service_buffer, sizeof (service_buffer),
         "%s/%s", host->prefix, &name_buffer[1]);
+  }
 
 	event->service = strdup (service_buffer);
 
