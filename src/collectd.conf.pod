@@ -6518,6 +6518,59 @@ more than one DS.
 
 =back
 
+=head2 Plugin C<write_tsdb>
+
+The C<write_tsdb> plugin writes data to I<OpenTSDB>, a scalable open-source
+time series database. The plugin connects to a I<TSD>, a masterless, no shared
+state daemon that ingests metrics and stores them in HBase. The plugin uses
+I<TCP> over the "line based" protocol with a default port 4242. The data will
+be sent in blocks of at most 1428 bytes to minimize the number of network
+packets.
+
+Synopsis:
+
+ <Plugin write_tsdb>
+   <Node "example">
+     Host "tsd-1.my.domain"
+     Port "4242"
+     HostTags "status=production"
+   </Node>
+ </Plugin>
+
+The configuration consists of one or more E<lt>B<Node>E<nbsp>I<Name>E<gt>
+blocks. Inside the B<Node> blocks, the following options are recognized:
+
+=over 4
+
+=item B<Host> I<Address>
+
+Hostname or address to connect to. Defaults to C<localhost>.
+
+=item B<Port> I<Service>
+
+Service name or port number to connect to. Defaults to C<4242>.
+
+
+=item B<HostTags> I<String>
+
+When set, I<HostTags> is added to the end of the metric. It is intended to be
+used for name=value pairs that the TSD will tag the metric with. Dots and
+whitespace are I<not> escaped in this string.
+
+=item B<StoreRates> B<false>|B<true>
+
+If set to B<true>, convert counter values to rates. If set to B<false>
+(the default) counter values are stored as is, as an increasing
+integer number.
+
+=item B<AlwaysAppendDS> B<false>|B<true>
+
+If set the B<true>, append the name of the I<Data Source> (DS) to the "metric"
+identifier. If set to B<false> (the default), this is only done when there is
+more than one DS.
+
+=back
+
 =head2 Plugin C<write_mongodb>
 
 The I<write_mongodb plugin> will send values to I<MongoDB>, a schema-less
