@@ -5384,7 +5384,7 @@ else
 	LOAD_PLUGIN_LOGFILE="##"
 fi
 
-if test "x$enable_logfile" = "xyes"
+if test "x$enable_log_logstash" = "xyes"
 then
   LOAD_PLUGIN_LOG_LOGSTASH="#"
 else
