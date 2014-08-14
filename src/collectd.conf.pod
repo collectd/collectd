@@ -7789,7 +7789,7 @@ Example:
 
 =item B<TSDBPrefix> I<String>
 
-=item B<TSDBTags> I<Strings>
+=item B<TSDBTags> I<String>
 
 These are used by the B<write_tsdb> plugin. The prefix is prepended to the
 metric name and should include the separator, i.e. "sys.". Tags are passed as
