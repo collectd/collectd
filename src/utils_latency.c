@@ -98,9 +98,11 @@ void latency_counter_reset (latency_counter_t *lc,
   if (lc == NULL)
     return;
 
-  memset (lc, 0, sizeof (*lc));
+  memset (lc, 0, sizeof (*lc) + no_buckets * sizeof(uint64_t));
   lc->start_time = cdtime ();
   lc->bucket_width = bucket_width;
+  lc->no_buckets = no_buckets;
+  
 } /* }}} void latency_counter_reset */
 
 cdtime_t latency_counter_get_min (latency_counter_t *lc) /* {{{ */
