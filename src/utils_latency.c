@@ -28,33 +28,31 @@
 #include "utils_latency.h"
 #include "common.h"
 
-#ifndef LATENCY_HISTOGRAM_SIZE
-# define LATENCY_HISTOGRAM_SIZE 1000
-#endif
-
 struct latency_counter_s
 {
   cdtime_t start_time;
 
   cdtime_t sum;
   size_t num;
-  int bucket_width;
 
   cdtime_t min;
   cdtime_t max;
 
-  uint64_t histogram[LATENCY_HISTOGRAM_SIZE];
+  int bucket_width;
+  int no_buckets;
+  uint64_t *histogram;
 };
 
-latency_counter_t *latency_counter_create (int bucket_width) /* {{{ */
+latency_counter_t *latency_counter_create (int bucket_width,
+					   int no_buckets) /* {{{ */
 {
   latency_counter_t *lc;
 
-  lc = malloc (sizeof (*lc));
+  lc = malloc (sizeof (*lc) + no_buckets * sizeof(uint64_t));
   if (lc == NULL)
     return (NULL);
 
-  latency_counter_reset (lc, bucket_width);
+  latency_counter_reset (lc, bucket_width, no_buckets);
   return (lc);
 } /* }}} latency_counter_t *latency_counter_create */
 
@@ -90,10 +88,12 @@ void latency_counter_add (latency_counter_t *lc, cdtime_t latency) /* {{{ */
   if (latency_ms < STATIC_ARRAY_SIZE (lc->histogram))
     lc->histogram[latency_ms]++;
   else
-    lc->histogram[LATENCY_HISTOGRAM_SIZE - 1]++;
+    lc->histogram[lc->no_buckets - 1]++;
 } /* }}} void latency_counter_add */
 
-void latency_counter_reset (latency_counter_t *lc, int bucket_width) /* {{{ */
+void latency_counter_reset (latency_counter_t *lc,
+			    int bucket_width,
+			    int no_buckets) /* {{{ */
 {
   if (lc == NULL)
     return;
@@ -160,7 +160,7 @@ cdtime_t latency_counter_get_percentile (latency_counter_t *lc,
   percent_upper = 0.0;
   percent_lower = 0.0;
   sum = 0;
-  for (i = 0; i < LATENCY_HISTOGRAM_SIZE; i++)
+  for (i = 0; i < lc->no_buckets; i++)
   {
     percent_lower = percent_upper;
     sum += lc->histogram[i];
@@ -173,7 +173,7 @@ cdtime_t latency_counter_get_percentile (latency_counter_t *lc,
       break;
   }
 
-  if (i >= LATENCY_HISTOGRAM_SIZE)
+  if (i >= lc->no_buckets)
     return (0);
 
   assert (percent_upper >= percent);
