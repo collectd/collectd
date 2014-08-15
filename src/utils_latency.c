@@ -52,7 +52,10 @@ latency_counter_t *latency_counter_create (int bucket_width,
   if (lc == NULL)
     return (NULL);
 
-  latency_counter_reset (lc, bucket_width, no_buckets);
+  lc->bucket_width = bucket_width;
+  lc->no_buckets = no_buckets;
+
+  latency_counter_reset (lc);
   return (lc);
 } /* }}} latency_counter_t *latency_counter_create */
 
@@ -91,12 +94,16 @@ void latency_counter_add (latency_counter_t *lc, cdtime_t latency) /* {{{ */
     lc->histogram[lc->no_buckets - 1]++;
 } /* }}} void latency_counter_add */
 
-void latency_counter_reset (latency_counter_t *lc,
-			    int bucket_width,
-			    int no_buckets) /* {{{ */
+void latency_counter_reset (latency_counter_t *lc) /* {{{ */
 {
+  int bucket_width;
+  int no_buckets;
+
   if (lc == NULL)
     return;
+
+  bucket_width = lc->bucket_width;
+  no_buckets = lc->no_buckets;
 
   memset (lc, 0, sizeof (*lc) + no_buckets * sizeof(uint64_t));
   lc->start_time = cdtime ();

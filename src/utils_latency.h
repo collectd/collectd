@@ -35,9 +35,7 @@ latency_counter_t *latency_counter_create (int bucket_width,
 void latency_counter_destroy (latency_counter_t *lc);
 
 void latency_counter_add (latency_counter_t *lc, cdtime_t latency);
-void latency_counter_reset (latency_counter_t *lc,
-			    int bucket_width,
-			    int no_buckets);
+void latency_counter_reset (latency_counter_t *lc);
 
 cdtime_t latency_counter_get_min (latency_counter_t *lc);
 cdtime_t latency_counter_get_max (latency_counter_t *lc);

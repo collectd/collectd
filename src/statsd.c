@@ -818,9 +818,7 @@ static int statsd_metric_submit_unsafe (char const *name, /* {{{ */
       plugin_dispatch_values (&vl);
     }
 
-    latency_counter_reset (metric->latency,
-			   conf_timer_percentile_bucket_width_ms,
-			   conf_timer_percentile_no_buckets);
+    latency_counter_reset (metric->latency);
     return (0);
   }
   else if (metric->type == STATSD_SET)
