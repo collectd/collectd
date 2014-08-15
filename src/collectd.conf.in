@@ -1238,7 +1238,7 @@
 #		StoreRates true
 #		AlwaysAppendDS false
 #		TTLFactor 2.0
-#		Prefix ServicePrefix
+#		EventServicePrefix ""
 #	</Node>
 #	Tag "foobar"
 #       Attribute "foo" "bar"
