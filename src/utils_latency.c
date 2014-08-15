@@ -38,7 +38,7 @@ struct latency_counter_s
 
   cdtime_t sum;
   size_t num;
-  int scale;
+  int bucket_width;
 
   cdtime_t min;
   cdtime_t max;
@@ -46,7 +46,7 @@ struct latency_counter_s
   uint64_t histogram[LATENCY_HISTOGRAM_SIZE];
 };
 
-latency_counter_t *latency_counter_create (int Resolution) /* {{{ */
+latency_counter_t *latency_counter_create (int bucket_width) /* {{{ */
 {
   latency_counter_t *lc;
 
@@ -54,7 +54,7 @@ latency_counter_t *latency_counter_create (int Resolution) /* {{{ */
   if (lc == NULL)
     return (NULL);
 
-  latency_counter_reset (lc, Resolution);
+  latency_counter_reset (lc, bucket_width);
   return (lc);
 } /* }}} latency_counter_t *latency_counter_create */
 
@@ -84,8 +84,8 @@ void latency_counter_add (latency_counter_t *lc, cdtime_t latency) /* {{{ */
    * subtract one from the cdtime_t value so that exactly 1.0 ms get sorted
    * accordingly. */
   latency_ms = (size_t) CDTIME_T_TO_MS (latency - 1);
-  if ((latency_ms > 0) && (lc->scale > 1))
-    latency_ms /= lc->scale;
+  if ((latency_ms > 0) && (lc->bucket_width > 1))
+    latency_ms /= lc->bucket_width;
 
   if (latency_ms < STATIC_ARRAY_SIZE (lc->histogram))
     lc->histogram[latency_ms]++;
@@ -93,14 +93,14 @@ void latency_counter_add (latency_counter_t *lc, cdtime_t latency) /* {{{ */
     lc->histogram[LATENCY_HISTOGRAM_SIZE - 1]++;
 } /* }}} void latency_counter_add */
 
-void latency_counter_reset (latency_counter_t *lc, int Resolution) /* {{{ */
+void latency_counter_reset (latency_counter_t *lc, int bucket_width) /* {{{ */
 {
   if (lc == NULL)
     return;
 
   memset (lc, 0, sizeof (*lc));
   lc->start_time = cdtime ();
-  lc->scale = Resolution;
+  lc->bucket_width = bucket_width;
 } /* }}} void latency_counter_reset */
 
 cdtime_t latency_counter_get_min (latency_counter_t *lc) /* {{{ */
@@ -179,8 +179,8 @@ cdtime_t latency_counter_get_percentile (latency_counter_t *lc,
   assert (percent_upper >= percent);
   assert (percent_lower < percent);
 
-  ms_upper = (double) (i * lc->scale + 1);
-  ms_lower = (double) i * lc->scale;
+  ms_upper = (double) (i * lc->bucket_width + 1);
+  ms_lower = (double) i * lc->bucket_width;
   if (i == 0)
     return (MS_TO_CDTIME_T (ms_upper));
 
