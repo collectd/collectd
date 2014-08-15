@@ -84,7 +84,7 @@ static _Bool conf_delete_sets     = 0;
 static double *conf_timer_percentile = NULL;
 static size_t  conf_timer_percentile_num = 0;
 
-static int conf_timer_percentile_resolution_ms = 20;
+static int conf_timer_percentile_bucket_width_ms = 20;
 
 static _Bool conf_timer_lower     = 0;
 static _Bool conf_timer_upper     = 0;
@@ -276,7 +276,7 @@ static int statsd_handle_timer (char const *name, /* {{{ */
   }
 
   if (metric->latency == NULL)
-    metric->latency = latency_counter_create (conf_timer_percentile_resolution_ms);
+    metric->latency = latency_counter_create (conf_timer_percentile_bucket_width_ms);
   if (metric->latency == NULL)
   {
     pthread_mutex_unlock (&metrics_lock);
@@ -617,16 +617,16 @@ static int statsd_config_timer_percentile (oconfig_item_t *ci) /* {{{ */
   return (0);
 } /* }}} int statsd_config_timer_percentile */
 
-static int statsd_config_timer_percentile_histogram_resolution (oconfig_item_t *ci) /* {{{ */
+static int statsd_config_timer_percentile_histogram_bucket_width (oconfig_item_t *ci) /* {{{ */
 {
   int status;
 
-  status = cf_util_get_int (ci, &conf_timer_percentile_resolution_ms);
+  status = cf_util_get_int (ci, &conf_timer_percentile_bucket_width_ms);
   if (status != 0)
     return (status);
 
   return (0);
-} /* }}} int statsd_config_timer_percentile_histogram_resolution */
+} /* }}} int statsd_config_timer_percentile_histogram_bucket_width */
 
 static int statsd_config (oconfig_item_t *ci) /* {{{ */
 {
@@ -658,8 +658,8 @@ static int statsd_config (oconfig_item_t *ci) /* {{{ */
       cf_util_get_boolean (child, &conf_timer_count);
     else if (strcasecmp ("TimerPercentile", child->key) == 0)
       statsd_config_timer_percentile (child);
-    else if (strcasecmp ("TimerPercentileHistogramResolutionMS", child->key) == 0)
-      statsd_config_timer_percentile_histogram_resolution (child);
+    else if (strcasecmp ("TimerPercentileHistogramBucketWidth", child->key) == 0)
+      statsd_config_timer_percentile_histogram_bucket_width (child);
     else
       ERROR ("statsd plugin: The \"%s\" config option is not valid.",
           child->key);
@@ -803,7 +803,7 @@ static int statsd_metric_submit_unsafe (char const *name, /* {{{ */
       plugin_dispatch_values (&vl);
     }
 
-    latency_counter_reset (metric->latency, conf_timer_percentile_resolution_ms);
+    latency_counter_reset (metric->latency, conf_timer_percentile_bucket_width_ms);
     return (0);
   }
   else if (metric->type == STATSD_SET)
