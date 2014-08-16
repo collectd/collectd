@@ -278,7 +278,8 @@ static int statsd_handle_timer (char const *name, /* {{{ */
 
   if (metric->latency == NULL)
     metric->latency = latency_counter_create (conf_timer_percentile_bucket_width_ms,
-					      conf_timer_percentile_no_buckets);
+					      conf_timer_percentile_no_buckets,
+					      name);
   if (metric->latency == NULL)
   {
     pthread_mutex_unlock (&metrics_lock);

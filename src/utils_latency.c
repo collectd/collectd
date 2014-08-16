@@ -38,13 +38,16 @@ struct latency_counter_s
   cdtime_t min;
   cdtime_t max;
 
+  const char *name;
+
   int bucket_width;
   int no_buckets;
   uint64_t *histogram;
 };
 
 latency_counter_t *latency_counter_create (int bucket_width,
-					   int no_buckets) /* {{{ */
+					   int no_buckets,
+					   const char *name) /* {{{ */
 {
   latency_counter_t *lc;
 
@@ -54,6 +57,8 @@ latency_counter_t *latency_counter_create (int bucket_width,
 
   lc->bucket_width = bucket_width;
   lc->no_buckets = no_buckets;
+  lc->name = name;
+  lc->num = 0;
 
   latency_counter_reset (lc);
   return (lc);
@@ -98,18 +103,23 @@ void latency_counter_reset (latency_counter_t *lc) /* {{{ */
 {
   int bucket_width;
   int no_buckets;
+  const char *name;
 
   if (lc == NULL)
     return;
 
   bucket_width = lc->bucket_width;
   no_buckets = lc->no_buckets;
+  name = lc->name;
 
   memset (lc, 0, sizeof (*lc) + no_buckets * sizeof(uint64_t));
   lc->start_time = cdtime ();
   lc->bucket_width = bucket_width;
   lc->no_buckets = no_buckets;
-  
+  lc->name = name;
+
+  /* the memory area of the histogram is right after the struct */
+  lc->histogram = (uint64_t *)(&lc->histogram) + 1;
 } /* }}} void latency_counter_reset */
 
 cdtime_t latency_counter_get_min (latency_counter_t *lc) /* {{{ */
