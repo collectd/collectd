@@ -570,14 +570,14 @@ static Event *riemann_value_to_protobuf (struct riemann_host const *host, /* {{{
 			/* host = */ "", vl->plugin, vl->plugin_instance,
 			vl->type, vl->type_instance);
 	if (host->always_append_ds || (ds->ds_num > 1))
-		if (host->prefix == NULL)
+		if (host->prefix == NULL || host->prefix[0] == '\0')
 			ssnprintf (service_buffer, sizeof (service_buffer),
 					"%s/%s", &name_buffer[1], ds->ds[index].name);
 		else
 			ssnprintf (service_buffer, sizeof (service_buffer),
 					"%s/%s/%s", host->prefix, &name_buffer[1], ds->ds[index].name);
 	else
-		if (host->prefix == NULL)
+		if (host->prefix == NULL || host->prefix[0] == '\0')
 			sstrncpy (service_buffer, &name_buffer[1],
 					sizeof (service_buffer));
 		else
