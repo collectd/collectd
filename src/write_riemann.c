@@ -766,6 +766,7 @@ static int riemann_config_node(oconfig_item_t *ci) /* {{{ */
                 break;
         } else if (strcasecmp ("EventServicePrefix", child->key) == 0) {
             status = cf_util_get_string (child, &host->prefix);
+            if (status != 0)
                 break;
         } else if (strcasecmp ("CheckThresholds", child->key) == 0) {
             status = cf_util_get_boolean(child, &host->check_thresholds);
