@@ -48,7 +48,7 @@ int write_riemann_threshold_check(const data_set_t *, const value_list_t *, int 
 
 struct riemann_host {
 	char			*name;
-	char			*prefix;
+	char			*eventServicePrefix;
 #define F_CONNECT		 0x01
 	uint8_t			 flags;
 	pthread_mutex_t		 lock;
@@ -570,19 +570,19 @@ static Event *riemann_value_to_protobuf (struct riemann_host const *host, /* {{{
 			/* host = */ "", vl->plugin, vl->plugin_instance,
 			vl->type, vl->type_instance);
 	if (host->always_append_ds || (ds->ds_num > 1))
-		if (host->prefix == NULL || host->prefix[0] == '\0')
+		if (host->eventServicePrefix == NULL || host->eventServicePrefix[0] == '\0')
 			ssnprintf (service_buffer, sizeof (service_buffer),
 					"%s/%s", &name_buffer[1], ds->ds[index].name);
 		else
 			ssnprintf (service_buffer, sizeof (service_buffer),
-					"%s/%s/%s", host->prefix, &name_buffer[1], ds->ds[index].name);
+					"%s/%s/%s", host->eventServicePrefix, &name_buffer[1], ds->ds[index].name);
 	else
-		if (host->prefix == NULL || host->prefix[0] == '\0')
+		if (host->eventServicePrefix == NULL || host->eventServicePrefix[0] == '\0')
 			sstrncpy (service_buffer, &name_buffer[1],
 					sizeof (service_buffer));
 		else
 			ssnprintf (service_buffer, sizeof (service_buffer),
-					"%s/%s", host->prefix, &name_buffer[1]);
+					"%s/%s", host->eventServicePrefix, &name_buffer[1]);
 
 	event->service = strdup (service_buffer);
 
@@ -765,7 +765,7 @@ static int riemann_config_node(oconfig_item_t *ci) /* {{{ */
             if (status != 0)
                 break;
         } else if (strcasecmp ("EventServicePrefix", child->key) == 0) {
-            status = cf_util_get_string (child, &host->prefix);
+            status = cf_util_get_string (child, &host->eventServicePrefix);
             if (status != 0)
                 break;
         } else if (strcasecmp ("CheckThresholds", child->key) == 0) {
