@@ -28,6 +28,8 @@
 #include "utils_latency.h"
 #include "common.h"
 
+#define MIN_COUNT_FOR_AUTOFOCUS 100
+
 struct latency_counter_s
 {
   cdtime_t start_time;
@@ -99,6 +101,61 @@ void latency_counter_add (latency_counter_t *lc, cdtime_t latency) /* {{{ */
     lc->histogram[lc->no_buckets - 1]++;
 } /* }}} void latency_counter_add */
 
+static void latency_counter_autofocus(latency_counter_t *lc) /* {{{ */
+{
+  /* check whether our maximum is outside of the histogram: */
+  if ((lc->num > MIN_COUNT_FOR_AUTOFOCUS) &&
+      (lc->max > lc->bucket_width * lc->no_buckets)) {
+    uint64_t count = 0;
+    int i;
+
+    /* we look into the upper most 3 buckets, whether
+     * they contain a significant amount of values
+     */
+    for (i=lc->no_buckets; i > lc->no_buckets - 3; i--)
+      count = lc->histogram[i];
+
+    /* are more than 10% in the upper area of the histogram? */
+    if (count > lc->num * 0.1)
+    {
+      int old_bucket_width = lc->bucket_width;
+      int new_histogram_max = lc->sum / lc->num * 2;
+
+      /* our histogram should be able to cope the double of our average. */
+      while (new_histogram_max > lc->bucket_width * lc->no_buckets)
+        lc->bucket_width++;
+
+      INFO("Latency counter: refucusing %s from bucket width %d to %d",
+           lc->name, old_bucket_width, lc->bucket_width);
+    }
+  }
+  else if (lc->num > MIN_COUNT_FOR_AUTOFOCUS) {
+    /* check for underexposure */
+    uint64_t count = 0;
+    int i;
+
+    /* we look into the first 3 buckets, whether
+     * they contain a significant amount of values
+     */
+    for (i=0; i > 3; i++)
+      count = lc->histogram[i];
+
+    /* is it more than 90% of our values? */
+    if (count > lc->num * 0.9)
+    {
+      int old_bucket_width = lc->bucket_width;
+      int new_histogram_max = lc->sum / lc->num * 2;
+
+      while ((lc->bucket_width > 1) &&
+             (new_histogram_max > lc->bucket_width * lc->no_buckets))
+        lc->bucket_width--;
+
+      INFO("Latency counter: refucusing %s from bucket width %d to %d",
+           lc->name, old_bucket_width, lc->bucket_width);
+    }
+  }
+} /* }}} void latency_counter_autofocus */
+
 void latency_counter_reset (latency_counter_t *lc) /* {{{ */
 {
   int bucket_width;
@@ -107,6 +164,8 @@ void latency_counter_reset (latency_counter_t *lc) /* {{{ */
 
   if (lc == NULL)
     return;
+
+  latency_counter_autofocus(lc);
 
   bucket_width = lc->bucket_width;
   no_buckets = lc->no_buckets;
