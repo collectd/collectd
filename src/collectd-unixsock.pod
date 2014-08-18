@@ -13,6 +13,7 @@ collectd-unixsock - Documentation of collectd's C<unixsock plugin>
     SocketFile "/path/to/socket"
     SocketGroup "collectd"
     SocketPerms "0770"
+    DeleteSocket false
   </Plugin>
 
 =head1 DESCRIPTION

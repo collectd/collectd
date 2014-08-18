@@ -404,6 +404,18 @@ AC_CHECK_HEADERS(linux/if.h, [], [],
 #  include <sys/socket.h>
 #endif
 ])
+AC_CHECK_HEADERS(linux/inet_diag.h, [], [],
+[
+#if HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
+#if HAVE_SYS_SOCKET_H
+#  include <sys/socket.h>
+#endif
+#if HAVE_LINUX_INET_DIAG_H
+# include <linux/inet_diag.h>
+#endif
+])
 AC_CHECK_HEADERS(linux/netdevice.h, [], [],
 [
 #if HAVE_SYS_TYPES_H
@@ -1248,6 +1260,13 @@ AC_CHECK_MEMBERS([struct net_device_stats.rx_bytes, struct net_device_stats.tx_p
 	#include <linux/if.h>
 	#include <linux/netdevice.h>
 	])
+AC_CHECK_MEMBERS([struct inet_diag_req.id, struct inet_diag_req.idiag_states],
+	[AC_DEFINE(HAVE_STRUCT_LINUX_INET_DIAG_REQ, 1, [Define if struct inet_diag_req exists and is usable.])],
+	[],
+	[
+	#include <linux/inet_diag.h>
+	])
+
 
 AC_CHECK_MEMBERS([struct ip_mreqn.imr_ifindex], [],
 	[],
@@ -1358,8 +1377,8 @@ AC_CHECK_LIB(hal,libhal_device_property_exists,
 	     [with_libhal="no"])
 if test "x$with_libhal" = "xyes"; then
 	if test "x$PKG_CONFIG" != "x"; then
-		BUILD_WITH_LIBHAL_CFLAGS="`pkg-config --cflags hal`"
-		BUILD_WITH_LIBHAL_LIBS="`pkg-config --libs hal`"
+		BUILD_WITH_LIBHAL_CFLAGS="`$PKG_CONFIG --cflags hal`"
+		BUILD_WITH_LIBHAL_LIBS="`$PKG_CONFIG --libs hal`"
 		AC_SUBST(BUILD_WITH_LIBHAL_CFLAGS)
 		AC_SUBST(BUILD_WITH_LIBHAL_LIBS)
 	fi
@@ -2963,14 +2982,14 @@ fi
 if test "x$with_oracle" = "xyes"
 then
 	SAVE_CPPFLAGS="$CPPFLAGS"
-	SAVE_LDFLAGS="$LDFLAGS"
+	SAVE_LIBS="$LIBS"
 	CPPFLAGS="$CPPFLAGS $with_oracle_cppflags"
-	LDFLAGS="$LDFLAGS $with_oracle_libs"
+	LIBS="$LIBS $with_oracle_libs"
 
 	AC_CHECK_FUNC(OCIEnvCreate, [with_oracle="yes"], [with_oracle="no (Symbol 'OCIEnvCreate' not found)"])
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
-	LDFLAGS="$SAVE_LDFLAGS"
+	LIBS="$SAVE_LIBS"
 fi
 if test "x$with_oracle" = "xyes"
 then
@@ -4023,8 +4042,8 @@ then
   if $PKG_CONFIG --exists tokyotyrant
   then
     with_libtokyotyrant_cppflags="$with_libtokyotyrant_cppflags `$PKG_CONFIG --cflags tokyotyrant`"
-    with_libtokyotyrant_ldflags="$with_libtokyotyrant_ldflags `pkg-config --libs-only-L tokyotyrant`"
-    with_libtokyotyrant_libs="$with_libtokyotyrant_libs `pkg-config --libs-only-l tokyotyrant`"
+    with_libtokyotyrant_ldflags="$with_libtokyotyrant_ldflags `$PKG_CONFIG --libs-only-L tokyotyrant`"
+    with_libtokyotyrant_libs="$with_libtokyotyrant_libs `$PKG_CONFIG --libs-only-l tokyotyrant`"
   fi
 fi
 
@@ -4480,7 +4499,7 @@ with_libvirt_cflags=""
 with_libvirt_ldflags=""
 if test "x$PKG_CONFIG" != "x"
 then
-	pkg-config --exists 'libxml-2.0' 2>/dev/null
+	$PKG_CONFIG --exists 'libxml-2.0' 2>/dev/null
 	if test "$?" = "0"
 	then
 		with_libxml2="yes"
@@ -4488,7 +4507,7 @@ then
 		with_libxml2="no (pkg-config doesn't know libxml-2.0)"
 	fi
 
-	pkg-config --exists libvirt 2>/dev/null
+	$PKG_CONFIG --exists libvirt 2>/dev/null
 	if test "$?" = "0"
 	then
 		with_libvirt="yes"
@@ -4498,12 +4517,12 @@ then
 fi
 if test "x$with_libxml2" = "xyes"
 then
-	with_libxml2_cflags="`pkg-config --cflags libxml-2.0`"
+	with_libxml2_cflags="`$PKG_CONFIG --cflags libxml-2.0`"
 	if test $? -ne 0
 	then
 		with_libxml2="no"
 	fi
-	with_libxml2_ldflags="`pkg-config --libs libxml-2.0`"
+	with_libxml2_ldflags="`$PKG_CONFIG --libs libxml-2.0`"
 	if test $? -ne 0
 	then
 		with_libxml2="no"
@@ -4543,12 +4562,12 @@ if test "x$with_libxml2" = "xyes"; then
 fi
 if test "x$with_libvirt" = "xyes"
 then
-	with_libvirt_cflags="`pkg-config --cflags libvirt`"
+	with_libvirt_cflags="`$PKG_CONFIG --cflags libvirt`"
 	if test $? -ne 0
 	then
 		with_libvirt="no"
 	fi
-	with_libvirt_ldflags="`pkg-config --libs libvirt`"
+	with_libvirt_ldflags="`$PKG_CONFIG --libs libvirt`"
 	if test $? -ne 0
 	then
 		with_libvirt="no"

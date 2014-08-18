@@ -495,8 +495,8 @@ if BUILD_PLUGIN_IPTABLES
 pkglib_LTLIBRARIES += iptables.la
 iptables_la_SOURCES = iptables.c
 iptables_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBIPTC_CPPFLAGS)
-iptables_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBIPTC_LDFLAGS)
-iptables_la_LIBADD = -liptc
+iptables_la_LDFLAGS = -module -avoid-version
+iptables_la_LIBADD = $(BUILD_WITH_LIBIPTC_LDFLAGS)
 collectd_LDADD += "-dlopen" iptables.la
 collectd_DEPENDENCIES += iptables.la
 endif
