@@ -292,7 +292,7 @@
 #  </View>
 #</Plugin>
 
-#<Plugin cgroup>
+#<Plugin cgroups>
 #  CGroup "libvirt"
 #  IgnoreSelected false
 #</Plugin>

@@ -386,7 +386,7 @@ static int cx_handle_instance_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */
   /* If the base xpath returns more than one block, the result is assumed to be
    * a table. The `Instance' option is not optional in this case. Check for the
    * condition and inform the user. */
-  if (is_table && (vl->type_instance == NULL))
+  if (is_table)
   {
     WARNING ("curl_xml plugin: "
         "Base-XPath %s is a table (more than one result was returned), "
@@ -1042,9 +1042,18 @@ static int cx_config (oconfig_item_t *ci) /* {{{ */
   return (0);
 } /* }}} int cx_config */
 
+static int cx_init (void) /* {{{ */
+{
+  /* Call this while collectd is still single-threaded to avoid
+   * initialization issues in libgcrypt. */
+  curl_global_init (CURL_GLOBAL_SSL);
+  return (0);
+} /* }}} int cx_init */
+
 void module_register (void)
 {
   plugin_register_complex_config ("curl_xml", cx_config);
+  plugin_register_init ("curl_xml", cx_init);
 } /* void module_register */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */

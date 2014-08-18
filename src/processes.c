@@ -223,7 +223,7 @@ static int pagesize;
 int     getprocs64 (void *procsinfo, int sizproc, void *fdsinfo, int sizfd, pid_t *index, int count);
 int     getthrds64( pid_t, void *, int, tid64_t *, int );
 #endif
-int getargs (struct procentry64 *processBuffer, int bufferLen, char *argsBuffer, int argsLen);
+int getargs (void *processBuffer, int bufferLen, char *argsBuffer, int argsLen);
 #endif /* HAVE_PROCINFO_H */
 
 /* put name of process from config to list_head_g tree

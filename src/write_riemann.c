@@ -51,8 +51,8 @@ struct riemann_host {
 #define F_CONNECT		 0x01
 	uint8_t			 flags;
 	pthread_mutex_t		 lock;
-    _Bool            notifications;
-    _Bool            check_thresholds;
+	_Bool                    notifications;
+	_Bool                    check_thresholds;
 	_Bool			 store_rates;
 	_Bool			 always_append_ds;
 	char			*node;
@@ -97,7 +97,7 @@ static void riemann_event_protobuf_free (Event *event) /* {{{ */
 	sfree (event);
 } /* }}} void riemann_event_protobuf_free */
 
-static void riemann_msg_protobuf_free (Msg *msg) /* {{{ */
+static void riemann_msg_protobuf_free(Msg *msg) /* {{{ */
 {
 	size_t i;
 
@@ -319,7 +319,7 @@ static int riemann_event_add_tag (Event *event, char const *tag) /* {{{ */
 	return (strarray_add (&event->tags, &event->n_tags, tag));
 } /* }}} int riemann_event_add_tag */
 
-static int riemann_event_add_attribute (Event *event, /* {{{ */
+static int riemann_event_add_attribute(Event *event, /* {{{ */
 		char const *key, char const *value)
 {
 	Attribute **new_attributes;
@@ -352,7 +352,7 @@ static int riemann_event_add_attribute (Event *event, /* {{{ */
 	return (0);
 } /* }}} int riemann_event_add_attribute */
 
-static Msg *riemann_notification_to_protobuf (struct riemann_host *host, /* {{{ */
+static Msg *riemann_notification_to_protobuf(struct riemann_host *host, /* {{{ */
 		notification_t const *n)
 {
 	Msg *msg;
@@ -459,7 +459,7 @@ static Msg *riemann_notification_to_protobuf (struct riemann_host *host, /* {{{ 
 	return (msg);
 } /* }}} Msg *riemann_notification_to_protobuf */
 
-static Event *riemann_value_to_protobuf (struct riemann_host const *host, /* {{{ */
+static Event *riemann_value_to_protobuf(struct riemann_host const *host, /* {{{ */
 		data_set_t const *ds,
 		value_list_t const *vl, size_t index,
 					 gauge_t const *rates,
@@ -484,22 +484,22 @@ static Event *riemann_value_to_protobuf (struct riemann_host const *host, /* {{{
 	event->time = CDTIME_T_TO_TIME_T (vl->time);
 	event->has_time = 1;
 
-    if (host->check_thresholds) {
-        switch (status) {
-        case STATE_OKAY:
-            event->state = strdup("ok");
-            break;
-        case STATE_ERROR:
-            event->state = strdup("critical");
-            break;
-        case STATE_WARNING:
-            event->state = strdup("warning");
-            break;
-        case STATE_MISSING:
-            event->state = strdup("unknown");
-            break;
-        }
-    }
+	if (host->check_thresholds) {
+		switch (status) {
+			case STATE_OKAY:
+				event->state = strdup("ok");
+				break;
+			case STATE_ERROR:
+				event->state = strdup("critical");
+				break;
+			case STATE_WARNING:
+				event->state = strdup("warning");
+				break;
+			case STATE_MISSING:
+				event->state = strdup("unknown");
+				break;
+		}
+	}
 
 	ttl = CDTIME_T_TO_DOUBLE (vl->interval) * host->ttl_factor;
 	event->ttl = (float) ttl;
@@ -645,8 +645,8 @@ static int riemann_notification(const notification_t *n, user_data_t *ud) /* {{{
 	struct riemann_host	*host = ud->data;
 	Msg			*msg;
 
-    if (!host->notifications)
-        return 0;
+	if (!host->notifications)
+		return 0;
 
 	msg = riemann_notification_to_protobuf (host, n);
 	if (msg == NULL)
@@ -670,8 +670,8 @@ static int riemann_write(const data_set_t *ds, /* {{{ */
 	struct riemann_host	*host = ud->data;
 	Msg			*msg;
 
-    if (host->check_thresholds)
-        write_riemann_threshold_check(ds, vl, statuses);
+	if (host->check_thresholds)
+		write_riemann_threshold_check(ds, vl, statuses);
 	msg = riemann_value_list_to_protobuf (host, ds, vl, statuses);
 	if (msg == NULL)
 		return (-1);
@@ -725,8 +725,8 @@ static int riemann_config_node(oconfig_item_t *ci) /* {{{ */
 	host->reference_count = 1;
 	host->node = NULL;
 	host->service = NULL;
-    host->notifications = 1;
-    host->check_thresholds = 0;
+	host->notifications = 1;
+	host->check_thresholds = 0;
 	host->store_rates = 1;
 	host->always_append_ds = 0;
 	host->use_tcp = 0;
@@ -751,14 +751,14 @@ static int riemann_config_node(oconfig_item_t *ci) /* {{{ */
 			status = cf_util_get_string (child, &host->node);
 			if (status != 0)
 				break;
-        } else if (strcasecmp ("Notifications", child->key) == 0) {
-            status = cf_util_get_boolean(child, &host->notifications);
-            if (status != 0)
-                break;
-        } else if (strcasecmp ("CheckThresholds", child->key) == 0) {
-            status = cf_util_get_boolean(child, &host->check_thresholds);
-            if (status != 0)
-                break;
+		} else if (strcasecmp ("Notifications", child->key) == 0) {
+			status = cf_util_get_boolean(child, &host->notifications);
+			if (status != 0)
+				break;
+		} else if (strcasecmp ("CheckThresholds", child->key) == 0) {
+			status = cf_util_get_boolean(child, &host->check_thresholds);
+			if (status != 0)
+				break;
 		} else if (strcasecmp ("Port", child->key) == 0) {
 			status = cf_util_get_service (child, &host->service);
 			if (status != 0) {
@@ -928,7 +928,7 @@ static int riemann_config(oconfig_item_t *ci) /* {{{ */
 				 child->key);
 		}
 	}
-    return 0;
+	return (0);
 } /* }}} int riemann_config */
 
 void module_register(void)

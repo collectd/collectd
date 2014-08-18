@@ -404,6 +404,18 @@ AC_CHECK_HEADERS(linux/if.h, [], [],
 #  include <sys/socket.h>
 #endif
 ])
+AC_CHECK_HEADERS(linux/inet_diag.h, [], [],
+[
+#if HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
+#if HAVE_SYS_SOCKET_H
+#  include <sys/socket.h>
+#endif
+#if HAVE_LINUX_INET_DIAG_H
+# include <linux/inet_diag.h>
+#endif
+])
 AC_CHECK_HEADERS(linux/netdevice.h, [], [],
 [
 #if HAVE_SYS_TYPES_H
@@ -1218,10 +1230,9 @@ if test "x$have_getmntent" = "xgen"; then
 fi
 
 # Check for htonll
-AC_MSG_CHECKING([if have htonll defined])
-
-    have_htonll="no"
-    AC_LINK_IFELSE([AC_LANG_PROGRAM(
+AC_CACHE_CHECK([if have htonll defined],
+                  [c_cv_have_htonll],
+                  AC_LINK_IFELSE([AC_LANG_PROGRAM(
 [[[
 #include <sys/types.h>
 #include <netinet/in.h>
@@ -1233,12 +1244,14 @@ AC_MSG_CHECKING([if have htonll defined])
           return htonll(0);
 ]]]
     )],
-    [
-      have_htonll="yes"
-      AC_DEFINE(HAVE_HTONLL, 1, [Define if the function htonll exists.])
-    ])
-
-AC_MSG_RESULT([$have_htonll])
+    [c_cv_have_htonll="yes"],
+    [c_cv_have_htonll="no"]
+  )
+)
+if test "x$c_cv_have_htonll" = "xyes"
+then
+    AC_DEFINE(HAVE_HTONLL, 1, [Define if the function htonll exists.])
+fi
 
 # Check for structures
 AC_CHECK_MEMBERS([struct if_data.ifi_ibytes, struct if_data.ifi_opackets, struct if_data.ifi_ierrors],
@@ -1258,6 +1271,13 @@ AC_CHECK_MEMBERS([struct net_device_stats.rx_bytes, struct net_device_stats.tx_p
 	#include <linux/if.h>
 	#include <linux/netdevice.h>
 	])
+AC_CHECK_MEMBERS([struct inet_diag_req.id, struct inet_diag_req.idiag_states],
+	[AC_DEFINE(HAVE_STRUCT_LINUX_INET_DIAG_REQ, 1, [Define if struct inet_diag_req exists and is usable.])],
+	[],
+	[
+	#include <linux/inet_diag.h>
+	])
+
 
 AC_CHECK_MEMBERS([struct ip_mreqn.imr_ifindex], [],
 	[],
@@ -1368,8 +1388,8 @@ AC_CHECK_LIB(hal,libhal_device_property_exists,
 	     [with_libhal="no"])
 if test "x$with_libhal" = "xyes"; then
 	if test "x$PKG_CONFIG" != "x"; then
-		BUILD_WITH_LIBHAL_CFLAGS="`pkg-config --cflags hal`"
-		BUILD_WITH_LIBHAL_LIBS="`pkg-config --libs hal`"
+		BUILD_WITH_LIBHAL_CFLAGS="`$PKG_CONFIG --cflags hal`"
+		BUILD_WITH_LIBHAL_LIBS="`$PKG_CONFIG --libs hal`"
 		AC_SUBST(BUILD_WITH_LIBHAL_CFLAGS)
 		AC_SUBST(BUILD_WITH_LIBHAL_LIBS)
 	fi
@@ -3576,6 +3596,41 @@ fi
 CPPFLAGS="$SAVE_CPPFLAGS"
 LDFLAGS="$SAVE_LDFLAGS"
 AM_CONDITIONAL(BUILD_WITH_LIBRABBITMQ, test "x$with_librabbitmq" = "xyes")
+
+with_amqp_tcp_socket="no"
+if test "x$with_librabbitmq" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+	SAVE_LIBS="$LIBS"
+	CPPFLAGS="$CPPFLAGS $with_librabbitmq_cppflags"
+	LDFLAGS="$LDFLAGS $with_librabbitmq_ldflags"
+	LIBS="-lrabbitmq"
+
+	AC_CHECK_HEADERS(amqp_tcp_socket.h amqp_socket.h)
+	AC_CHECK_FUNC(amqp_tcp_socket_new, [with_amqp_tcp_socket="yes"], [with_amqp_tcp_socket="no"])
+	if test "x$with_amqp_tcp_socket" = "xyes"
+	then
+		AC_DEFINE(HAVE_AMQP_TCP_SOCKET, 1,
+				[Define if librabbitmq provides the new TCP socket interface.])
+	fi
+
+	AC_CHECK_DECLS(amqp_socket_close,
+				[amqp_socket_close_decl="yes"], [amqp_socket_close_decl="no"],
+				[[
+#include <amqp.h>
+#ifdef HAVE_AMQP_TCP_SOCKET_H
+# include <amqp_tcp_socket.h>
+#endif
+#ifdef HAVE_AMQP_SOCKET_H
+# include <amqp_socket.h>
+#endif
+				]])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+	LIBS="$SAVE_LIBS"
+fi
 # }}}
 
 # --with-librdkafka {{{
@@ -3844,18 +3899,20 @@ AC_ARG_WITH(libsigrok, [AS_HELP_STRING([--with-libsigrok@<:@=PREFIX@:>@], [Path 
 			with_libsigrok_ldflags="-L$withval/lib"
 		fi
 	fi
-],[])
+],[with_libsigrok="yes"])
 
 # libsigrok has a glib dependency
 if test "x$with_libsigrok" = "xyes"
 then
-	if test -z "m4_ifdef([AM_PATH_GLIB_2_0], [yes], [])"
-	then
-		with_libsigrok="no (glib not available)"
-	else
-		AM_PATH_GLIB_2_0([2.28.0],
-			[with_libsigrok_cflags="$with_libsigrok_cflags $GLIB_CFLAGS"; with_libsigrok_ldflags="$with_libsigrok_ldflags $GLIB_LIBS"])
-	fi
+m4_ifdef([AM_PATH_GLIB_2_0],
+	[
+	 AM_PATH_GLIB_2_0([2.28.0],
+	 	[with_libsigrok_cflags="$with_libsigrok_cflags $GLIB_CFLAGS"; with_libsigrok_ldflags="$with_libsigrok_ldflags $GLIB_LIBS"])
+	],
+	[
+	 with_libsigrok="no (glib not available)"
+	]
+)
 fi
 
 # libsigrok headers
@@ -4039,8 +4096,8 @@ then
   if $PKG_CONFIG --exists tokyotyrant
   then
     with_libtokyotyrant_cppflags="$with_libtokyotyrant_cppflags `$PKG_CONFIG --cflags tokyotyrant`"
-    with_libtokyotyrant_ldflags="$with_libtokyotyrant_ldflags `pkg-config --libs-only-L tokyotyrant`"
-    with_libtokyotyrant_libs="$with_libtokyotyrant_libs `pkg-config --libs-only-l tokyotyrant`"
+    with_libtokyotyrant_ldflags="$with_libtokyotyrant_ldflags `$PKG_CONFIG --libs-only-L tokyotyrant`"
+    with_libtokyotyrant_libs="$with_libtokyotyrant_libs `$PKG_CONFIG --libs-only-l tokyotyrant`"
   fi
 fi
 
@@ -4557,7 +4614,7 @@ with_libvirt_cflags=""
 with_libvirt_ldflags=""
 if test "x$PKG_CONFIG" != "x"
 then
-	pkg-config --exists 'libxml-2.0' 2>/dev/null
+	$PKG_CONFIG --exists 'libxml-2.0' 2>/dev/null
 	if test "$?" = "0"
 	then
 		with_libxml2="yes"
@@ -4565,7 +4622,7 @@ then
 		with_libxml2="no (pkg-config doesn't know libxml-2.0)"
 	fi
 
-	pkg-config --exists libvirt 2>/dev/null
+	$PKG_CONFIG --exists libvirt 2>/dev/null
 	if test "$?" = "0"
 	then
 		with_libvirt="yes"
@@ -4575,12 +4632,12 @@ then
 fi
 if test "x$with_libxml2" = "xyes"
 then
-	with_libxml2_cflags="`pkg-config --cflags libxml-2.0`"
+	with_libxml2_cflags="`$PKG_CONFIG --cflags libxml-2.0`"
 	if test $? -ne 0
 	then
 		with_libxml2="no"
 	fi
-	with_libxml2_ldflags="`pkg-config --libs libxml-2.0`"
+	with_libxml2_ldflags="`$PKG_CONFIG --libs libxml-2.0`"
 	if test $? -ne 0
 	then
 		with_libxml2="no"
@@ -4620,12 +4677,12 @@ if test "x$with_libxml2" = "xyes"; then
 fi
 if test "x$with_libvirt" = "xyes"
 then
-	with_libvirt_cflags="`pkg-config --cflags libvirt`"
+	with_libvirt_cflags="`$PKG_CONFIG --cflags libvirt`"
 	if test $? -ne 0
 	then
 		with_libvirt="no"
 	fi
-	with_libvirt_ldflags="`pkg-config --libs libvirt`"
+	with_libvirt_ldflags="`$PKG_CONFIG --libs libvirt`"
 	if test $? -ne 0
 	then
 		with_libvirt="no"

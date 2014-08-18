@@ -26,6 +26,7 @@
 
 #include "collectd.h"
 
+#include <pthread.h>
 #include <regex.h>
 
 #include "common.h"
@@ -86,6 +87,7 @@ struct user_obj_s
 
 struct user_class_s
 {
+  pthread_mutex_t lock;
   void *user_class;
   identifier_match_t match;
   user_obj_t *user_obj_list; /* list of user_obj */
@@ -191,6 +193,7 @@ static int lu_copy_ident_to_match (identifier_match_t *match, /* {{{ */
   return (0);
 } /* }}} int lu_copy_ident_to_match */
 
+/* user_class->lock must be held when calling this function */
 static void *lu_create_user_obj (lookup_t *obj, /* {{{ */
     data_set_t const *ds, value_list_t const *vl,
     user_class_t *user_class)
@@ -245,6 +248,7 @@ static void *lu_create_user_obj (lookup_t *obj, /* {{{ */
   return (user_obj);
 } /* }}} void *lu_create_user_obj */
 
+/* user_class->lock must be held when calling this function */
 static user_obj_t *lu_find_user_obj (user_class_t *user_class, /* {{{ */
     value_list_t const *vl)
 {
@@ -294,14 +298,17 @@ static int lu_handle_user_class (lookup_t *obj, /* {{{ */
       || !lu_part_matches (&user_class->match.host, vl->host))
     return (1);
 
+  pthread_mutex_lock (&user_class->lock);
   user_obj = lu_find_user_obj (user_class, vl);
   if (user_obj == NULL)
   {
     /* call lookup_class_callback_t() and insert into the list of user objects. */
     user_obj = lu_create_user_obj (obj, ds, vl, user_class);
+    pthread_mutex_unlock (&user_class->lock);
     if (user_obj == NULL)
       return (-1);
   }
+  pthread_mutex_unlock (&user_class->lock);
 
   status = obj->cb_user_obj (ds, vl,
       user_class->user_class, user_obj->user_obj);
@@ -402,7 +409,7 @@ static int lu_add_by_plugin (by_type_entry_t *by_type, /* {{{ */
   identifier_match_t const *match = &user_class_list->entry.match;
 
   /* Lookup user_class_list from the per-plugin structure. If this is the first
-   * user_class to be added, the blocks return immediately. Otherwise they will
+   * user_class to be added, the block returns immediately. Otherwise they will
    * set "ptr" to non-NULL. */
   if (match->plugin.is_regex)
   {
@@ -487,6 +494,7 @@ static void lu_destroy_user_class_list (lookup_t *obj, /* {{{ */
 
     lu_destroy_user_obj (obj, user_class_list->entry.user_obj_list);
     user_class_list->entry.user_obj_list = NULL;
+    pthread_mutex_destroy (&user_class_list->entry.lock);
 
     sfree (user_class_list);
     user_class_list = next;
@@ -599,6 +607,7 @@ int lookup_add (lookup_t *obj, /* {{{ */
     return (ENOMEM);
   }
   memset (user_class_obj, 0, sizeof (*user_class_obj));
+  pthread_mutex_init (&user_class_obj->entry.lock, /* attr = */ NULL);
   user_class_obj->entry.user_class = user_class;
   lu_copy_ident_to_match (&user_class_obj->entry.match, ident, group_by);
   user_class_obj->entry.user_obj_list = NULL;

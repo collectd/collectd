@@ -1618,6 +1618,10 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
     snmp_free_pdu (res);
   res = NULL;
 
+  if (req != NULL)
+    snmp_free_pdu (req);
+  req = NULL;
+
   if (status == 0)
     csnmp_dispatch_table (host, data, instance_list_head, value_list_head);
 

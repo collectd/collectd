@@ -74,7 +74,9 @@
 /* sys/socket.h is necessary to compile when using netlink on older systems. */
 # include <sys/socket.h>
 # include <linux/netlink.h>
+#if HAVE_LINUX_INET_DIAG_H
 # include <linux/inet_diag.h>
+#endif
 # include <sys/socket.h>
 # include <arpa/inet.h>
 /* #endif KERNEL_LINUX */
@@ -137,10 +139,12 @@
 #endif /* KERNEL_AIX */
 
 #if KERNEL_LINUX
+#if HAVE_STRUCT_LINUX_INET_DIAG_REQ
 struct nlreq {
   struct nlmsghdr nlh;
   struct inet_diag_req r;
 };
+#endif
 
 static const char *tcp_state[] =
 {
@@ -276,7 +280,12 @@ static int port_collect_listening = 0;
 static port_entry_t *port_list_head = NULL;
 
 #if KERNEL_LINUX
+#if HAVE_STRUCT_LINUX_INET_DIAG_REQ
+/* This depends on linux inet_diag_req because if this structure is missing,
+ * sequence_number is useless and we get a compilation warning.
+ */
 static uint32_t sequence_number = 0;
+#endif
 
 enum
 {
@@ -446,6 +455,7 @@ static int conn_handle_ports (uint16_t port_local, uint16_t port_remote, uint8_t
  * zero on other errors. */
 static int conn_read_netlink (void)
 {
+#if HAVE_STRUCT_LINUX_INET_DIAG_REQ
   int fd;
   struct sockaddr_nl nladdr;
   struct nlreq req;
@@ -574,6 +584,9 @@ static int conn_read_netlink (void)
 
   /* Not reached because the while() loop above handles the exit condition. */
   return (0);
+#else
+  return (1);
+#endif /* HAVE_STRUCT_LINUX_INET_DIAG_REQ */
 } /* int conn_read_netlink */
 
 static int conn_handle_line (char *buffer)

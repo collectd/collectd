@@ -726,7 +726,7 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
   if (status == 0)
   {
     user_data_t ud;
-    char cb_name[DATA_MAX_NAME_LEN];
+    char *cb_name;
     struct timespec interval = { 0, 0 };
 
     CDTIME_T_TO_TIMESPEC (db->interval, &interval);
@@ -741,12 +741,13 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
     ud.data = (void *) db;
     ud.free_func = cj_free;
 
-    ssnprintf (cb_name, sizeof (cb_name), "curl_json-%s-%s",
+    cb_name = ssnprintf_alloc ("curl_json-%s-%s",
                db->instance, db->url ? db->url : db->sock);
 
     plugin_register_complex_read (/* group = */ NULL, cb_name, cj_read,
                                   /* interval = */ (db->interval > 0) ? &interval : NULL,
                                   &ud);
+    sfree (cb_name);
   }
   else
   {
@@ -975,9 +976,18 @@ static int cj_read (user_data_t *ud) /* {{{ */
   return cj_perform (db);
 } /* }}} int cj_read */
 
+static int cj_init (void) /* {{{ */
+{
+  /* Call this while collectd is still single-threaded to avoid
+   * initialization issues in libgcrypt. */
+  curl_global_init (CURL_GLOBAL_SSL);
+  return (0);
+} /* }}} int cj_init */
+
 void module_register (void)
 {
   plugin_register_complex_config ("curl_json", cj_config);
+  plugin_register_init ("curl_json", cj_init);
 } /* void module_register */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */
