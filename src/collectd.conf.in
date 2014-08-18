@@ -191,6 +191,7 @@
 #@BUILD_PLUGIN_WRITE_MONGODB_TRUE@LoadPlugin write_mongodb
 #@BUILD_PLUGIN_WRITE_REDIS_TRUE@LoadPlugin write_redis
 #@BUILD_PLUGIN_WRITE_RIEMANN_TRUE@LoadPlugin write_riemann
+#@BUILD_PLUGIN_WRITE_TSDB_TRUE@LoadPlugin write_tsdb
 #@BUILD_PLUGIN_XMMS_TRUE@LoadPlugin xmms
 #@BUILD_PLUGIN_ZFS_ARC_TRUE@LoadPlugin zfs_arc
 
@@ -291,7 +292,7 @@
 #  </View>
 #</Plugin>
 
-#<Plugin cgroup>
+#<Plugin cgroups>
 #  CGroup "libvirt"
 #  IgnoreSelected false
 #</Plugin>
@@ -1241,6 +1242,16 @@
 #	</Node>
 #	Tag "foobar"
 #       Attribute "foo" "bar"
+#</Plugin>
+
+#<Plugin write_tsdb>
+#	<Node>
+#		Host "localhost"
+#		Port "4242"
+#		HostTags "status=production"
+#		StoreRates false
+#		AlwaysAppendDS false
+#	</Node>
 #</Plugin>
 
 ##############################################################################

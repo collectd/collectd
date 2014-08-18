@@ -744,8 +744,8 @@ static void *exec_notification_one (void *arg) /* {{{ */
 
   fprintf (fh,
       "Severity: %s\n"
-      "Time: %.3f\n",
-      severity, CDTIME_T_TO_DOUBLE (n->time));
+      "Time: %u\n",
+      severity, (unsigned int)CDTIME_T_TO_TIME_T(n->time));
 
   /* Print the optional fields */
   if (strlen (n->host) > 0)

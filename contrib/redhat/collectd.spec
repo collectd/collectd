@@ -45,6 +45,7 @@
 %{?el6:%global _has_ip_vs_h 1}
 %{?el6:%global _has_lvm2app_h 1}
 %{?el6:%global _has_perl_extutils_embed 1}
+%{?el6:%global _has_libmodbus 1}
 
 # plugins enabled by default
 %define with_aggregation 0%{!?_without_aggregation:1}
@@ -92,6 +93,7 @@
 %define with_memcached 0%{!?_without_memcached:1}
 %define with_memory 0%{!?_without_memory:1}
 %define with_multimeter 0%{!?_without_multimeter:1}
+%define with_modbus 0%{!?_without_modbus:0%{?_has_libmodbus}}
 %define with_mysql 0%{!?_without_mysql:1}
 %define with_netlink 0%{!?_without_netlink:1}
 %define with_network 0%{!?_without_network:1}
@@ -420,6 +422,16 @@ Requires:	%{name}%{?_isa} = %{version}-%{release}
 %description mic
 The mic plugin collects CPU usage, memory usage, temperatures and power
 consumption from Intel Many Integrated Core (MIC) CPUs.
+%endif
+
+%if %{with_modbus}
+%package modbus
+Summary:       modbus plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	libmodbus-devel
+%description modbus
+The modbus plugin collects values from Modbus/TCP enabled devices
 %endif
 
 %if %{with_mysql}
@@ -995,6 +1007,12 @@ Development files for libcollectdclient
 %define _with_multimeter --enable-multimeter
 %else
 %define _with_multimeter --disable-multimeter
+%endif
+
+%if %{with_modbus}
+%define _with_modbus --enable-modbus
+%else
+%define _with_modbus --disable-modbus
 %endif
 
 %if %{with_mysql}
@@ -2012,6 +2030,9 @@ fi
 - Build netlink plugin by default
 - Enable cgroups, lvm and statsd plugins
 - Enable (but don't build by default) mic, aquaero and sigrok plugins
+
+* Wed Aug 06 2014 Marc Fournier <marc.fournier@camptocamp.com> 5.3.1-2
+- Enabled modbus plugin
 
 * Tue Aug 06 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.3.1-1
 - New upstream version

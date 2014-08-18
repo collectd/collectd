@@ -520,8 +520,8 @@ if BUILD_PLUGIN_IPTABLES
 pkglib_LTLIBRARIES += iptables.la
 iptables_la_SOURCES = iptables.c
 iptables_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBIPTC_CPPFLAGS)
-iptables_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBIPTC_LDFLAGS)
-iptables_la_LIBADD = -liptc
+iptables_la_LDFLAGS = -module -avoid-version
+iptables_la_LIBADD = $(BUILD_WITH_LIBIPTC_LDFLAGS)
 collectd_LDADD += "-dlopen" iptables.la
 collectd_DEPENDENCIES += iptables.la
 endif
@@ -1475,6 +1475,14 @@ write_riemann_la_LDFLAGS = -module -avoid-version
 write_riemann_la_LIBADD = -lprotobuf-c
 collectd_LDADD += "-dlopen" write_riemann.la
 collectd_DEPENDENCIES += write_riemann.la
+endif
+
+if BUILD_PLUGIN_WRITE_TSDB
+pkglib_LTLIBRARIES += write_tsdb.la
+write_tsdb_la_SOURCES = write_tsdb.c
+write_tsdb_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" write_tsdb.la
+collectd_DEPENDENCIES += write_tsdb.la
 endif
 
 if BUILD_PLUGIN_XMMS

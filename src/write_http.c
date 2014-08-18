@@ -601,9 +601,18 @@ static int wh_config (oconfig_item_t *ci) /* {{{ */
         return (0);
 } /* }}} int wh_config */
 
+static int wh_init (void) /* {{{ */
+{
+        /* Call this while collectd is still single-threaded to avoid
+         * initialization issues in libgcrypt. */
+        curl_global_init (CURL_GLOBAL_SSL);
+        return (0);
+} /* }}} int wh_init */
+
 void module_register (void) /* {{{ */
 {
         plugin_register_complex_config ("write_http", wh_config);
+        plugin_register_init ("write_http", wh_init);
 } /* }}} void module_register */
 
 /* vim: set fdm=marker sw=8 ts=8 tw=78 et : */

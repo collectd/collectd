@@ -411,6 +411,10 @@ Features
       can be configured to avoid logging send errors (especially useful when
       using UDP).
 
+    - write_tsdb
+      Sends data OpenTSDB, a scalable no master, no shared state time series
+      database.
+
     - write_http
       Sends the values collected by collectd to a web-server using HTTP POST
       requests. The transmitted data is either in a form understood by the

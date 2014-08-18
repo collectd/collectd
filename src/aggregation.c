@@ -440,8 +440,7 @@ static int agg_instance_read (agg_instance_t *inst, cdtime_t t) /* {{{ */
 
 /* lookup_class_callback_t for utils_vl_lookup */
 static void *agg_lookup_class_callback ( /* {{{ */
-    __attribute__((unused)) data_set_t const *ds,
-    value_list_t const *vl, void *user_class)
+    data_set_t const *ds, value_list_t const *vl, void *user_class)
 {
   return (agg_instance_create (ds, vl, (aggregation_t *) user_class));
 } /* }}} void *agg_class_callback */
