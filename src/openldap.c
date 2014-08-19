@@ -177,14 +177,15 @@ static int ldap_read_host (user_data_t *ud) /* {{{ */
 	int rc;
 	int status;
 
-	char *attrs[8] = { "monitorCounter",
+	char *attrs[9] = { "monitorCounter",
 				"monitorOpCompleted",
 				"monitorOpInitiated",
 				"monitoredInfo",
 				"olmBDBEntryCache",
 				"olmBDBDNCache",
 				"olmBDBIDLCache",
-				"namingContexts" };
+				"namingContexts",
+				NULL };
 
 	if ((ud == NULL) || (ud->data == NULL))
 	{
