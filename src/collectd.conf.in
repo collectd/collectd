@@ -143,6 +143,7 @@
 #@BUILD_PLUGIN_NUT_TRUE@LoadPlugin nut
 #@BUILD_PLUGIN_OLSRD_TRUE@LoadPlugin olsrd
 #@BUILD_PLUGIN_ONEWIRE_TRUE@LoadPlugin onewire
+#@BUILD_PLUGIN_OPENLDAP_TRUE@LoadPlugin openldap
 #@BUILD_PLUGIN_OPENVPN_TRUE@LoadPlugin openvpn
 #@BUILD_PLUGIN_ORACLE_TRUE@LoadPlugin oracle
 #@BUILD_PLUGIN_PERL_TRUE@<LoadPlugin perl>
@@ -752,6 +753,17 @@
 #	Device "-s localhost:4304"
 #	Sensor "F10FCA000800"
 #	IgnoreSelected false
+#</Plugin>
+
+#<Plugin openldap>
+#  <Instance "localhost">
+#    URL "ldap://localhost:389"
+#    StartTLS false
+#    VerifyHost true
+#    CACert "/path/to/ca.crt"
+#    Timeout -1
+#    Version 3
+#  </Instance>
 #</Plugin>
 
 #<Plugin openvpn>
