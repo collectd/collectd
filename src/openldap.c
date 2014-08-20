@@ -66,9 +66,8 @@ static int ldap_init_host (ldap_t *st) /* {{{ */
 	rc = ldap_initialize (&ld, st->url);
 	if (rc != LDAP_SUCCESS)
 	{
-		char errbuf[1024];
-		sstrerror (errno, errbuf, sizeof (errbuf));
-		ERROR ("ldap_initialize failed: %s", errbuf);
+		ERROR ("openldap plugin: ldap_initialize failed: %s",
+			ldap_err2string (rc));
 		st->state = 0;
 		return (-1);
 	}
