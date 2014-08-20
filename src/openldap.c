@@ -47,17 +47,18 @@ typedef struct ldap_s ldap_t; /* }}} */
 
 static void ldap_free (ldap_t *st) /* {{{ */
 {
-	if(st == NULL)
+	if (st == NULL)
 		return;
 
 	sfree (st->cacert);
 	sfree (st->host);
 	sfree (st->name);
 	sfree (st->url);
-	if(st->ld)
-		ldap_memfree(st->ld);
+	if (st->ld)
+		ldap_memfree (st->ld);
 	sfree (st);
 } /* }}} void ldap_free */
+
 /* initialize ldap for each host */
 static int ldap_init_host (ldap_t *st) /* {{{ */
 {
@@ -79,24 +80,24 @@ static int ldap_init_host (ldap_t *st) /* {{{ */
 	ldap_set_option (st->ld, LDAP_OPT_TIMEOUT,
 		&(const struct timeval){st->timeout, 0});
 
-	if(st->cacert != NULL)
+	if (st->cacert != NULL)
 		ldap_set_option (st->ld, LDAP_OPT_X_TLS_CACERTFILE, st->cacert);
 
-	if(st->verifyhost == 0)
+	if (st->verifyhost == 0)
 	{
 		int never = LDAP_OPT_X_TLS_NEVER;
 		ldap_set_option (st->ld, LDAP_OPT_X_TLS_REQUIRE_CERT, &never);
 	}
 
-	if(st->starttls != 0)
+	if (st->starttls != 0)
 	{
-		rc = ldap_start_tls_s(ld, NULL, NULL);
+		rc = ldap_start_tls_s (ld, NULL, NULL);
 		if (rc != LDAP_SUCCESS)
 		{
 			ERROR ("openldap plugin: Failed to start tls on %s: %s",
 					st->url, ldap_err2string (rc));
 			st->state = 0;
-			ldap_unbind_ext_s(st->ld, NULL, NULL);
+			ldap_unbind_ext_s (st->ld, NULL, NULL);
 			return (-1);
 		}
 	}
@@ -105,13 +106,13 @@ static int ldap_init_host (ldap_t *st) /* {{{ */
 	cred.bv_val = "";
 	cred.bv_len = 0;
 
-	rc = ldap_sasl_bind_s(st->ld, NULL, NULL, &cred, NULL, NULL, NULL);
+	rc = ldap_sasl_bind_s (st->ld, NULL, NULL, &cred, NULL, NULL, NULL);
 	if (rc != LDAP_SUCCESS)
 	{
 		ERROR ("openldap plugin: Failed to bind to %s: %s",
 				st->url, ldap_err2string (rc));
 		st->state = 0;
-		ldap_unbind_ext_s(st->ld, NULL, NULL);
+		ldap_unbind_ext_s (st->ld, NULL, NULL);
 		return (-1);
 	}
 	else
@@ -672,7 +673,7 @@ static int ldap_config_add (oconfig_item_t *ci) /* {{{ */
 		LDAPURLDesc *ludpp;
 		int rc;
 
-		if ((rc = ldap_url_parse( st->url, &ludpp)) != 0)
+		if ((rc = ldap_url_parse (st->url, &ludpp)) != 0)
 		{
 			ERROR ("openldap plugin: Instance `%s': "
 				"Invalid URL: `%s'",
@@ -684,7 +685,7 @@ static int ldap_config_add (oconfig_item_t *ci) /* {{{ */
 			st->host = strdup (ludpp->lud_host);
 		}
 
-		ldap_free_urldesc(ludpp);
+		ldap_free_urldesc (ludpp);
 	}
 
 	if (status == 0)
@@ -746,9 +747,8 @@ static int ldap_init (void) /* {{{ */
 	/* Initialize LDAP library while still single-threaded as recommended in
 	 * ldap_initialize(3) */
 	int debug_level;
-	ldap_get_option(NULL, LDAP_OPT_DEBUG_LEVEL, &debug_level);
+	ldap_get_option (NULL, LDAP_OPT_DEBUG_LEVEL, &debug_level);
 	return (0);
-
 } /* }}} int ldap_init */
 
 void module_register (void) /* {{{ */
