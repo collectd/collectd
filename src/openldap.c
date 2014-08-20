@@ -627,6 +627,7 @@ static int ldap_config_add (oconfig_item_t *ci) /* {{{ */
 		return (status);
 	}
 
+	st->starttls = 0;
 	st->timeout = -1;
 	st->verifyhost = 1;
 	st->version = LDAP_VERSION3;
