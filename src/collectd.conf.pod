@@ -4278,6 +4278,11 @@ File that holds one or more SSL certificates. If you want to use TLS/SSL you may
 possibly need this option. What CA certificates come bundled with C<libldap>
 and are checked by default depends on the distribution you use.
 
+=item B<Timeout> I<Seconds>
+
+Set the timeout value for ldap operations. Defaults to B<-1> which results in
+an infinite timeout.
+
 =back
 
 =head2 Plugin C<openvpn>

@@ -77,6 +77,9 @@ static int ldap_init_host (ldap_t *st) /* {{{ */
 
 	ldap_set_option (st->ld, LDAP_OPT_PROTOCOL_VERSION, &st->version);
 
+	ldap_set_option (st->ld, LDAP_OPT_TIMEOUT,
+		&(const struct timeval){st->timeout, 0});
+
 	if(st->cacert != NULL)
 		ldap_set_option (st->ld, LDAP_OPT_X_TLS_CACERTFILE, st->cacert);
 
@@ -624,6 +627,7 @@ static int ldap_config_add (oconfig_item_t *ci) /* {{{ */
 		return (status);
 	}
 
+	st->timeout = -1;
 	st->verifyhost = 1;
 	st->version = LDAP_VERSION3;
 
