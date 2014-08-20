@@ -738,7 +738,18 @@ static int ldap_config (oconfig_item_t *ci) /* {{{ */
 
 /* }}} End of configuration handling functions */
 
+static int ldap_init (void) /* {{{ */
+{
+	/* Initialize LDAP library while still single-threaded as recommended in
+	 * ldap_initialize(3) */
+	int debug_level;
+	ldap_get_option(NULL, LDAP_OPT_DEBUG_LEVEL, &debug_level);
+	return (0);
+
+} /* }}} int ldap_init */
+
 void module_register (void) /* {{{ */
 {
 	plugin_register_complex_config ("openldap", ldap_config);
+	plugin_register_init ("openldap", ldap_init);
 } /* }}} void module_register */
