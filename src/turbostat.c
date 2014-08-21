@@ -23,7 +23,7 @@
  */
 
 #define _GNU_SOURCE
-#include "msr-index.h"
+#include <asm/msr-index.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdbool.h>
