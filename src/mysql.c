@@ -52,6 +52,7 @@ struct mysql_database_s /* {{{ */
 
 	_Bool master_stats;
 	_Bool slave_stats;
+	_Bool wsrep_stats;
 
 	_Bool slave_notif;
 	_Bool slave_io_running;
@@ -169,6 +170,8 @@ static int mysql_config_database (oconfig_item_t *ci) /* {{{ */
 			status = cf_util_get_boolean (child, &db->slave_stats);
 		else if (strcasecmp ("SlaveNotifications", child->key) == 0)
 			status = cf_util_get_boolean (child, &db->slave_notif);
+		else if (strcasecmp ("WsrepStats", child->key) == 0)
+			status = cf_util_get_boolean (child, &db->wsrep_stats);
 		else
 		{
 			WARNING ("mysql plugin: Option `%s' not allowed here.", child->key);
@@ -548,6 +551,144 @@ static int mysql_read_slave_stats (mysql_database_t *db, MYSQL *con)
 	return (0);
 } /* mysql_read_slave_stats */
 
+static int mysql_read_wsrep_stats (mysql_database_t *db, MYSQL *con)
+{
+	MYSQL_RES *res;
+	MYSQL_ROW  row;
+
+	char *query;
+	int   field_num;
+
+	derive_t wsrep_apply_oooe         = 0;
+	derive_t wsrep_apply_oool         = 0;
+	derive_t wsrep_causal_reads       = 0;
+	derive_t wsrep_commit_oooe        = 0;
+	derive_t wsrep_commit_oool        = 0;
+	derive_t wsrep_flow_control_recv  = 0;
+	derive_t wsrep_flow_control_sent  = 0;
+	derive_t wsrep_local_bf_aborts    = 0;
+	derive_t wsrep_local_commits      = 0;
+	derive_t wsrep_local_replays      = 0;
+	derive_t wsrep_received           = 0;
+	derive_t wsrep_received_bytes     = 0;
+	derive_t wsrep_replicated         = 0;
+	derive_t wsrep_replicated_bytes   = 0;
+
+	gauge_t wsrep_apply_window        = NAN;
+	gauge_t wsrep_cert_deps_distance  = NAN;
+	gauge_t wsrep_commit_window       = NAN;
+	gauge_t wsrep_local_recv_queue          = NAN;
+	gauge_t wsrep_local_recv_queue_avg      = NAN;
+	gauge_t wsrep_local_send_queue          = NAN;
+	gauge_t wsrep_local_send_queue_avg      = NAN;
+
+	query = "SHOW GLOBAL STATUS LIKE 'wsrep_%'";
+
+	res = exec_query (con, query);
+	if (res == NULL)
+		return (-1);
+
+	row = mysql_fetch_row (res);
+	if (row == NULL)
+	{
+		ERROR ("mysql plugin: Failed to get wsrep statistics: "
+				"`%s' did not return any rows.", query);
+		mysql_free_result (res);
+		return (-1);
+	}
+
+	field_num = mysql_num_fields (res);
+	if (field_num < 2)
+	{
+		ERROR ("mysql plugin: Failed to get wsrep statistics: "
+				"`%s' returned less than two columns.", query);
+		mysql_free_result (res);
+		return (-1);
+	}
+
+	while ((row = mysql_fetch_row (res)))
+	{
+		char *key;
+		unsigned long long val;
+		size_t key_length;
+		key = row[0];
+		val = atoll (row[1]);
+		key_length = strlen(key);
+		if (strncmp (key, "wsrep_apply_oooe", key_length ) == 0 )
+			wsrep_apply_oooe = (derive_t) val;
+		else if (strncmp (key, "wsrep_apply_oool", key_length ) == 0 )
+			wsrep_apply_oool = (derive_t) val;
+		else if (strncmp (key, "wsrep_causal_reads", key_length ) == 0 )
+			wsrep_causal_reads = (derive_t) val;
+		else if (strncmp (key, "wsrep_commit_oooe", key_length ) == 0 )
+			wsrep_commit_oooe = (derive_t) val;
+		else if (strncmp (key, "wsrep_commit_oool", key_length ) == 0 )
+			wsrep_commit_oool = (derive_t) val;
+		else if (strncmp (key, "wsrep_flow_control_recv", key_length ) == 0 )
+			wsrep_flow_control_recv = (derive_t) val;
+		else if (strncmp (key, "wsrep_flow_control_sent", key_length ) == 0 )
+			wsrep_flow_control_sent = (derive_t) val;
+		else if (strncmp (key, "wsrep_local_bf_aborts", key_length ) == 0 )
+			wsrep_local_bf_aborts = (derive_t) val;
+		else if (strncmp (key, "wsrep_local_commits", key_length ) == 0 )
+			wsrep_local_commits = (derive_t) val;
+		else if (strncmp (key, "wsrep_local_replays", key_length ) == 0 )
+			wsrep_local_replays = (derive_t) val;
+		else if (strncmp (key, "wsrep_received", key_length ) == 0 )
+			wsrep_received = (derive_t) val;
+		else if (strncmp (key, "wsrep_received_bytes", key_length ) == 0 )
+			wsrep_received_bytes = (derive_t) val;
+		else if (strncmp (key, "wsrep_replicated", key_length ) == 0 )
+			wsrep_replicated = (derive_t) val;
+		else if (strncmp (key, "wsrep_replicated_bytes", key_length ) == 0 )
+			wsrep_replicated_bytes = (derive_t) val;
+
+		else if (strncmp (key, "wsrep_apply_window", key_length ) == 0 )
+			wsrep_apply_window = (gauge_t) val;
+		else if (strncmp (key, "wsrep_cert_deps_distance", key_length ) == 0 )
+			wsrep_cert_deps_distance = (gauge_t) val;
+		else if (strncmp (key, "wsrep_local_recv_queue", key_length ) == 0 )
+			wsrep_local_recv_queue = (gauge_t) val;
+		else if (strncmp (key, "wsrep_local_recv_queue_avg", key_length ) == 0 )
+			wsrep_local_recv_queue_avg = (gauge_t) val;
+		else if (strncmp (key, "wsrep_local_send_queue", key_length ) == 0 )
+			wsrep_local_send_queue = (gauge_t) val;
+		else if (strncmp (key, "wsrep_local_send_queue_avg", key_length ) == 0 )
+			wsrep_local_send_queue_avg = (gauge_t) val;
+		else if (strncmp (key, "wsrep_commit_window", key_length ) == 0 )
+			wsrep_commit_window = (gauge_t) val;
+	}
+
+	mysql_free_result (res);
+
+	counter_submit ("mysql_bytes",      "wsrep_received", wsrep_received_bytes, db);
+	counter_submit ("mysql_bytes",      "wsrep_replicated", wsrep_replicated_bytes, db);
+	counter_submit ("mysql_operations", "wsrep_apply_oooe", wsrep_apply_oooe, db);
+	counter_submit ("mysql_operations", "wsrep_apply_oool", wsrep_apply_oool, db);
+	counter_submit ("mysql_operations", "wsrep_causal_reads", wsrep_causal_reads, db);
+	counter_submit ("mysql_operations", "wsrep_commit_oooe", wsrep_commit_oooe, db);
+	counter_submit ("mysql_operations", "wsrep_commit_oool", wsrep_commit_oool, db);
+	counter_submit ("mysql_operations", "wsrep_flow_control_recv", wsrep_flow_control_recv, db);
+	counter_submit ("mysql_operations", "wsrep_flow_control_sent", wsrep_flow_control_sent, db);
+	counter_submit ("mysql_operations", "wsrep_local_bf_aborts", wsrep_local_bf_aborts, db);
+	counter_submit ("mysql_operations", "wsrep_local_commits", wsrep_local_commits, db);
+	counter_submit ("mysql_operations", "wsrep_local_replays", wsrep_local_replays, db);
+	counter_submit ("mysql_operations", "wsrep_received", wsrep_received, db);
+	counter_submit ("mysql_operations", "wsrep_replicated", wsrep_replicated, db);
+
+	gauge_submit   ("mysql_queue",      "wsrep_local_recv", wsrep_local_recv_queue, db);
+	gauge_submit   ("mysql_queue",      "wsrep_local_recv_avg", wsrep_local_recv_queue_avg, db);
+	gauge_submit   ("mysql_queue",      "wsrep_local_send", wsrep_local_send_queue, db);
+	gauge_submit   ("mysql_queue",      "wsrep_local_send_avg", wsrep_local_send_queue_avg, db);
+	gauge_submit   ("mysql_window",     "wsrep_apply", wsrep_apply_window, db);
+	gauge_submit   ("mysql_window",     "wsrep_cert_deps_distance", wsrep_cert_deps_distance, db);
+	gauge_submit   ("mysql_window",     "wsrep_commit" ,wsrep_commit_window, db);
+
+	return (0);
+} /* mysql_read_wsrep_stats */
+
+
+
 static int mysql_read (user_data_t *ud)
 {
 	mysql_database_t *db;
@@ -598,7 +739,7 @@ static int mysql_read (user_data_t *ud)
 		key = row[0];
 		val = atoll (row[1]);
 
-		if (strncmp (key, "Com_", 
+		if (strncmp (key, "Com_",
 			          strlen ("Com_")) == 0)
 		{
 			if (val == 0ULL)
@@ -606,18 +747,18 @@ static int mysql_read (user_data_t *ud)
 
 			/* Ignore `prepared statements' */
 			if (strncmp (key, "Com_stmt_", strlen ("Com_stmt_")) != 0)
-				counter_submit ("mysql_commands", 
-						key + strlen ("Com_"), 
+				counter_submit ("mysql_commands",
+						key + strlen ("Com_"),
 						val, db);
 		}
-		else if (strncmp (key, "Handler_", 
+		else if (strncmp (key, "Handler_",
 				        strlen ("Handler_")) == 0)
 		{
 			if (val == 0ULL)
 				continue;
 
-			counter_submit ("mysql_handler", 
-					key + strlen ("Handler_"), 
+			counter_submit ("mysql_handler",
+					key + strlen ("Handler_"),
 					val, db);
 		}
 		else if (strncmp (key, "Qcache_",
@@ -634,7 +775,7 @@ static int mysql_read (user_data_t *ud)
 			else if (strcmp (key, "Qcache_queries_in_cache") == 0)
 				qcache_queries_in_cache = (gauge_t) val;
 		}
-		else if (strncmp (key, "Bytes_", 
+		else if (strncmp (key, "Bytes_",
 				        strlen ("Bytes_")) == 0)
 		{
 			if (strcmp (key, "Bytes_received") == 0)
@@ -642,7 +783,7 @@ static int mysql_read (user_data_t *ud)
 			else if (strcmp (key, "Bytes_sent") == 0)
 				traffic_outgoing += val;
 		}
-		else if (strncmp (key, "Threads_", 
+		else if (strncmp (key, "Threads_",
        				        strlen ("Threads_")) == 0)
 		{
 			if (strcmp (key, "Threads_running") == 0)
@@ -702,6 +843,8 @@ static int mysql_read (user_data_t *ud)
 
 	if ((db->slave_stats) || (db->slave_notif))
 		mysql_read_slave_stats (db, con);
+	if (db->wsrep_stats)
+		mysql_read_wsrep_stats (db, con);
 
 	return (0);
 } /* int mysql_read */

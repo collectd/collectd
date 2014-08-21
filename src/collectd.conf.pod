@@ -9,14 +9,14 @@ collectd.conf - Configuration for the system statistics collection daemon B<coll
   BaseDir "/path/to/data/"
   PIDFile "/path/to/pidfile/collectd.pid"
   Server  "123.123.123.123" 12345
-  
+
   LoadPlugin cpu
   LoadPlugin load
-  
+
   <LoadPlugin df>
     Interval 3600
   </LoadPlugin>
-  
+
   LoadPlugin ping
   <Plugin ping>
     Host "example.org"
@@ -341,10 +341,10 @@ The full example configuration looks like this:
    <Aggregation>
      Plugin "cpu"
      Type "cpu"
-     
+
      GroupBy "Host"
      GroupBy "TypeInstance"
-     
+
      CalculateSum true
      CalculateAverage true
    </Aggregation>
@@ -420,13 +420,13 @@ The following example calculates the average usage of all "even" CPUs:
      Plugin "cpu"
      PluginInstance "/[0,2,4,6,8]$/"
      Type "cpu"
-     
+
      SetPlugin "cpu"
      SetPluginInstance "even-%{aggregation}"
-     
+
      GroupBy "Host"
      GroupBy "TypeInstance"
-     
+
      CalculateAverage true
    </Aggregation>
  </Plugin>
@@ -497,7 +497,7 @@ possibly filtering or messages.
  #   GraphiteSeparateInstances false
  #   GraphiteAlwaysAppendDS false
    </Publish>
-   
+
    # Receive values from an AMQP broker
    <Subscribe "some_name">
      Host "localhost"
@@ -837,17 +837,17 @@ Synopsis:
    ParseTime       false
    OpCodes         true
    QTypes          true
- 
+
    ServerStats     true
    ZoneMaintStats  true
    ResolverStats   false
    MemoryStats     true
- 
+
    <View "_default">
      QTypes        true
      ResolverStats true
      CacheRRSets   true
- 
+
      Zone "127.in-addr.arpa/IN"
    </View>
  </Plugin>
@@ -1618,7 +1618,7 @@ transfer agents and web caches.
 
 =item B<ValuesAbsolute> B<true>|B<false>
 
-Enables or disables reporting of free, used and used disk space in 1K-blocks. 
+Enables or disables reporting of free, used and used disk space in 1K-blocks.
 Defaults to true.
 
 =item B<ValuesPercentage> B<true>|B<false>
@@ -2421,7 +2421,7 @@ B<Synopsis:>
    ShowCPU true
    ShowCPUCores true
    ShowMemory true
-   
+
    ShowTemperatures true
    Temperature vddg
    Temperature vddq
@@ -2430,7 +2430,7 @@ B<Synopsis:>
    ShowPower true
    Power total0
    Power total1
-   IgnoreSelectedPower true   
+   IgnoreSelectedPower true
  </Plugin>
 
 The following options are valid inside the B<PluginE<nbsp>mic> block:
@@ -2487,7 +2487,7 @@ Fan In
 
 =item fout
 
-Fan Out 
+Fan Out
 
 =item vccp
 
@@ -2528,11 +2528,11 @@ Known power names are:
 
 =item total0
 
-Total power utilization averaged over Time Window 0 (uWatts). 
+Total power utilization averaged over Time Window 0 (uWatts).
 
 =item total1
 
-Total power utilization averaged over Time Window 0 (uWatts). 
+Total power utilization averaged over Time Window 0 (uWatts).
 
 =item inst
 
@@ -2540,31 +2540,31 @@ Instantaneous power (uWatts).
 
 =item imax
 
-Max instantaneous power (uWatts). 
+Max instantaneous power (uWatts).
 
 =item pcie
 
-PCI-E connector power (uWatts). 
+PCI-E connector power (uWatts).
 
 =item c2x3
 
-2x3 connector power (uWatts). 
+2x3 connector power (uWatts).
 
 =item c2x4
 
-2x4 connector power (uWatts). 
+2x4 connector power (uWatts).
 
 =item vccp
 
-Core rail (uVolts). 
+Core rail (uVolts).
 
 =item vddg
 
-Uncore rail (uVolts). 
+Uncore rail (uVolts).
 
 =item vddq
 
-Memory subsystem rail (uVolts). 
+Memory subsystem rail (uVolts).
 
 =back
 
@@ -2585,19 +2585,19 @@ B<Synopsis:>
    Type voltage
    Instance "input-1"
  </Data>
- 
+
  <Data "voltage-input-2">
    RegisterBase 2
    RegisterType float
    Type voltage
    Instance "input-2"
  </Data>
- 
+
  <Host "modbus.example.com">
    Address "192.168.0.42"
    Port    "502"
    Interval 60
-   
+
    <Slave 1>
      Instance "power-supply"
      Collect  "voltage-input-1"
@@ -2796,6 +2796,12 @@ privileges. See the B<User> documentation above.
 If enabled, the plugin sends a notification if the replication slave I/O and /
 or SQL threads are not running.
 
+=item B<WsrepStats> I<true|false>
+
+Enable the collection of wsrep plugin statistics, used in Master-Master
+replication setups like in MySQL Galera/Percona XtraDB Cluster.
+User needs only privileges to execute 'SHOW GLOBAL STATUS'
+
 =back
 
 =head2 Plugin C<netapp>
@@ -2830,7 +2836,7 @@ Required capabilities are documented below.
     User          "username"
     Password      "aef4Aebe"
     Interval      30
-    
+
     <WAFL>
       Interval 30
       GetNameCache   true
@@ -2838,12 +2844,12 @@ Required capabilities are documented below.
       GetBufferCache true
       GetInodeCache  true
     </WAFL>
-    
+
     <Disks>
       Interval 30
       GetBusy true
     </Disks>
-    
+
     <VolumePerf>
       Interval 30
       GetIO      "volume0"
@@ -2853,7 +2859,7 @@ Required capabilities are documented below.
       GetLatency "volume0"
       IgnoreSelectedLatency false
     </VolumePerf>
-    
+
     <VolumeUsage>
       Interval 30
       GetCapacity "vol0"
@@ -2863,15 +2869,15 @@ Required capabilities are documented below.
       GetSnapshot "vol3"
       IgnoreSelectedSnapshot false
     </VolumeUsage>
-    
+
     <Quota>
       Interval 60
     </Quota>
-    
+
     <Snapvault>
       Interval 30
     </Snapvault>
-    
+
     <System>
       Interval 30
       GetCPULoad     true
@@ -3432,7 +3438,7 @@ signature):
    # Export to an internal server
    # (demonstrates usage without additional options)
    Server "collectd.internal.tld"
-   
+
    # Export to an external server
    # (demonstrates usage with signature options)
    <Server "collectd.external.tld">
@@ -7034,7 +7040,7 @@ Example:
    Max 100
    Satisfy "All"
  </Match>
- 
+
  # Match if the value of any data source is outside the range of 0 - 100.
  <Match "value">
    Min   0
@@ -7216,7 +7222,7 @@ Example:
  <Target "replace">
    # Replace "example.net" with "example.com"
    Host "\\<example.net\\>" "example.com"
- 
+
    # Strip "www." from hostnames
    Host "\\<www\\." ""
  </Target>
