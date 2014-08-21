@@ -51,7 +51,6 @@
 #define PLUGIN_NAME "turbostat"
 
 static const char *proc_stat = "/proc/stat";
-static unsigned int interval_sec = 5;	/* set with -i interval_sec */
 static unsigned int skip_c0;
 static unsigned int skip_c1;
 static unsigned int do_nhm_cstates;
@@ -1480,7 +1479,6 @@ static int
 turbostat_init(void)
 {
 	int ret;
-	struct timespec ts;
 
 	DO_OR_GOTO_ERR(check_cpuid());
 	DO_OR_GOTO_ERR(check_dev_msr());
@@ -1488,10 +1486,7 @@ turbostat_init(void)
 	DO_OR_GOTO_ERR(setup_all_buffers());
 	DO_OR_GOTO_ERR(for_all_cpus(set_temperature_target, EVEN_COUNTERS));
 
-	ts.tv_sec = interval_sec;
-	ts.tv_nsec = 0;
-
-	plugin_register_complex_read(NULL, PLUGIN_NAME, turbostat_read, &ts, NULL);
+	plugin_register_complex_read(NULL, PLUGIN_NAME, turbostat_read, NULL, NULL);
 
 	return 0;
 err:
@@ -1499,25 +1494,8 @@ err:
 	return ret;
 }
 
-static const char *config_keys[] =
-{
-	"Interval",
-};
-static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
-
-static int
-turbostat_config(const char *key, const char *value)
-{
-	if (strcasecmp("Interval", key) == 0)
-		interval_sec = atoi(value);
-	else
-		return -1;
-	return 0;
-}
-
 void module_register(void);
 void module_register(void)
 {
 	plugin_register_init(PLUGIN_NAME, turbostat_init);
-	plugin_register_config(PLUGIN_NAME, turbostat_config, config_keys, config_keys_num);
 }
