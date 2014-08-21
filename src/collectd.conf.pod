@@ -6853,7 +6853,7 @@ in the B<Threshold> plugin. Defaults to B<false>.
 =item B<EventServicePrefix> I<String>
 
 Add the given string as a prefix to the event service name.
-if B<EventServicePrefix> not set or set to an empty string (""),
+If B<EventServicePrefix> not set or set to an empty string (""),
 no prefix will be used.
 
 =back
