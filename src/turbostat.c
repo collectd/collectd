@@ -575,7 +575,7 @@ free_all_buffers(void)
 /*
  * Parse a file containing a single int.
  */
-static int
+static int __attribute__ ((format(printf,1,2)))
 parse_int_file(const char *fmt, ...)
 {
 	va_list args;
