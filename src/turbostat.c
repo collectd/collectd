@@ -28,7 +28,6 @@
 #include <asm/msr-index.h>
 #include <stdarg.h>
 #include <stdio.h>
-#include <stdbool.h>
 #include <err.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -153,10 +152,10 @@ struct pkg_data {
 
 #define ODD_COUNTERS thread_odd, core_odd, package_odd
 #define EVEN_COUNTERS thread_even, core_even, package_even
-static bool is_even = true;
+static _Bool is_even = 1;
 
-static bool allocated = false;
-static bool initialized = false;
+static _Bool allocated = 0;
+static _Bool initialized = 0;
 
 #define GET_THREAD(thread_base, thread_no, core_no, pkg_no) \
 	(thread_base + (pkg_no) * topo.num_cores_per_pkg * \
@@ -547,8 +546,8 @@ get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 static void
 free_all_buffers(void)
 {
-	allocated = false;
-	initialized = false;
+	allocated = 0;
+	initialized = 0;
 
 	CPU_FREE(cpu_present_set);
 	cpu_present_set = NULL;
@@ -909,8 +908,8 @@ turbostat_read(user_data_t * not_used)
 		if ((ret = for_all_cpus(get_counters, EVEN_COUNTERS)) < 0)
 			return ret;
 		gettimeofday(&tv_even, (struct timezone *)NULL);
-		is_even = true;
-		initialized = true;
+		is_even = 1;
+		initialized = 1;
 		return 0;
 	}
 
@@ -918,7 +917,7 @@ turbostat_read(user_data_t * not_used)
 		if ((ret = for_all_cpus(get_counters, ODD_COUNTERS)) < 0)
 			return ret;
 		gettimeofday(&tv_odd, (struct timezone *)NULL);
-		is_even = false;
+		is_even = 0;
 		timersub(&tv_odd, &tv_even, &tv_delta);
 		if ((ret = for_all_cpus_2(delta_cpu, ODD_COUNTERS, EVEN_COUNTERS)) < 0)
 			return ret;
@@ -928,7 +927,7 @@ turbostat_read(user_data_t * not_used)
 		if ((ret = for_all_cpus(get_counters, EVEN_COUNTERS)) < 0)
 			return ret;
 		gettimeofday(&tv_even, (struct timezone *)NULL);
-		is_even = true;
+		is_even = 1;
 		timersub(&tv_even, &tv_odd, &tv_delta);
 		if ((ret = for_all_cpus_2(delta_cpu, EVEN_COUNTERS, ODD_COUNTERS)) < 0)
 			return ret;
@@ -1472,7 +1471,7 @@ static int setup_all_buffers(void)
 	DO_OR_GOTO_ERR(allocate_counters(&thread_odd, &core_odd, &package_odd));
 	DO_OR_GOTO_ERR(for_all_proc_cpus(initialize_counters));
 
-	allocated = true;
+	allocated = 1;
 	return 0;
 err:
 	free_all_buffers();
