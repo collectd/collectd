@@ -273,7 +273,7 @@ get_msr(int cpu, off_t offset, unsigned long long *msr)
 	char pathname[32];
 	int fd;
 
-	sprintf(pathname, "/dev/cpu/%d/msr", cpu);
+	ssnprintf(pathname, 32, "/dev/cpu/%d/msr", cpu);
 	fd = open(pathname, O_RDONLY);
 	if (fd < 0)
 		return -1;
@@ -640,7 +640,7 @@ get_num_ht_siblings(int cpu)
 	int matches;
 	char character;
 
-	sprintf(path, "/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", cpu);
+	ssnprintf(path, 80, "/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", cpu);
 	filep = fopen(path, "r");
         if (!filep) {
                 ERROR("%s: open failed", path);
