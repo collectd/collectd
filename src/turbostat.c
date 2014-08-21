@@ -2,7 +2,9 @@
  * turbostat -- Log CPU frequency and C-state residency
  * on modern Intel turbo-capable processors for collectd.
  *
- * Based on the kernel tools by:
+ * Based on the 'turbostat' tool of the Linux kernel, found at
+ * linux/tools/power/x86/turbostat/turbostat.c:
+ * ----
  * Copyright (c) 2013 Intel Corporation.
  * Len Brown <len.brown@intel.com>
  *
@@ -18,7 +20,7 @@
  * You should have received a copy of the GNU General Public License along with
  * this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
+ * ----
  * Ported to collectd by Vincent Brillault <git@lerya.net>
  */
 
