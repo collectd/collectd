@@ -212,8 +212,6 @@ enum return_values {
 	ERR_NOT_ROOT,
 };
 
-#define __must_check __attribute__((warn_unused_result))
-
 static int setup_all_buffers(void);
 
 static int
@@ -226,7 +224,7 @@ cpu_is_not_present(int cpu)
  * skip non-present cpus
  */
 
-static int __must_check
+static int __attribute__((warn_unused_result))
 for_all_cpus(int (func)(struct thread_data *, struct core_data *, struct pkg_data *),
 	struct thread_data *thread_base, struct core_data *core_base, struct pkg_data *pkg_base)
 {
@@ -257,7 +255,7 @@ for_all_cpus(int (func)(struct thread_data *, struct core_data *, struct pkg_dat
 	return 0;
 }
 
-static int __must_check
+static int __attribute__((warn_unused_result))
 cpu_migrate(int cpu)
 {
 	CPU_ZERO_S(cpu_affinity_setsize, cpu_affinity_set);
@@ -268,7 +266,7 @@ cpu_migrate(int cpu)
 		return 0;
 }
 
-static int __must_check
+static int __attribute__((warn_unused_result))
 get_msr(int cpu, off_t offset, unsigned long long *msr)
 {
 	ssize_t retval;
@@ -330,7 +328,7 @@ delta_core(struct core_data *new, struct core_data *old)
 /*
  * old = new - old
  */
-static int __must_check
+static int __attribute__((warn_unused_result))
 delta_thread(struct thread_data *new, struct thread_data *old,
 	struct core_data *core_delta)
 {
@@ -391,7 +389,7 @@ delta_thread(struct thread_data *new, struct thread_data *old,
 	return 0;
 }
 
-static int __must_check
+static int __attribute__((warn_unused_result))
 delta_cpu(struct thread_data *t, struct core_data *c,
 	struct pkg_data *p, struct thread_data *t2,
 	struct core_data *c2, struct pkg_data *p2)
@@ -430,7 +428,7 @@ rdtsc(void)
  * migrate to cpu
  * acquire and record local counters for that cpu
  */
-static int __must_check
+static int __attribute__((warn_unused_result))
 get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 {
 	int cpu = t->cpu_id;
@@ -669,7 +667,7 @@ get_num_ht_siblings(int cpu)
  */
 
 
-static int __must_check
+static int __attribute__((warn_unused_result))
 for_all_cpus_2(int (func)(struct thread_data *, struct core_data *,
 	struct pkg_data *, struct thread_data *, struct core_data *,
 	struct pkg_data *), struct thread_data *thread_base,
@@ -713,7 +711,7 @@ for_all_cpus_2(int (func)(struct thread_data *, struct core_data *,
  * run func(cpu) on every cpu in /proc/stat
  * return max_cpu number
  */
-static int __must_check
+static int __attribute__((warn_unused_result))
 for_all_proc_cpus(int (func)(int))
 {
 	FILE *fp;
@@ -937,7 +935,7 @@ turbostat_read(user_data_t * not_used)
 	return 0;
 }
 
-static int __must_check
+static int __attribute__((warn_unused_result))
 check_dev_msr()
 {
 	struct stat sb;
@@ -950,7 +948,7 @@ check_dev_msr()
 	return 0;
 }
 
-static int __must_check
+static int __attribute__((warn_unused_result))
 check_super_user()
 {
 	if (getuid() != 0) {
@@ -1108,7 +1106,7 @@ is_slm(unsigned int family, unsigned int model)
  * below this value, including the Digital Thermal Sensor (DTS),
  * Package Thermal Management Sensor (PTM), and thermal event thresholds.
  */
-static int __must_check
+static int __attribute__((warn_unused_result))
 set_temperature_target(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 {
 	unsigned long long msr;
@@ -1160,7 +1158,7 @@ guess:
 	return 0;
 }
 
-static int __must_check
+static int __attribute__((warn_unused_result))
 check_cpuid()
 {
 	unsigned int eax, ebx, ecx, edx, max_level;
@@ -1240,7 +1238,7 @@ check_cpuid()
 
 
 
-static int __must_check
+static int __attribute__((warn_unused_result))
 topology_probe()
 {
 	int i;
