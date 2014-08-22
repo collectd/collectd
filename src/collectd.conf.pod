@@ -6918,6 +6918,12 @@ useful to avoid getting notification events.
 If set to B<true>, attach state to events based on thresholds defined
 in the B<Threshold> plugin. Defaults to B<false>.
 
+=item B<EventServicePrefix> I<String>
+
+Add the given string as a prefix to the event service name.
+If B<EventServicePrefix> not set or set to an empty string (""),
+no prefix will be used.
+
 =back
 
 =item B<Tag> I<String>
