@@ -69,7 +69,6 @@ static unsigned int do_c8_c9_c10;
 static unsigned int do_slm_cstates;
 static unsigned int has_aperf;
 static unsigned int has_epb;
-static unsigned int units = 1000000000;	/* Ghz etc */
 static unsigned int genuine_intel;
 static unsigned int has_invariant_tsc;
 static unsigned int do_nehalem_platform_info;
@@ -831,7 +830,7 @@ submit_counters(struct thread_data *t, struct core_data *c,
 
 	/* GHz */
 	if (has_aperf && ((!aperf_mperf_unstable) || (!(t->aperf > t->tsc || t->mperf > t->tsc))))
-		turbostat_submit(NULL, "frequency", name, 1.0 * t->tsc / units * t->aperf / t->mperf / interval_float);
+		turbostat_submit(NULL, "frequency", name, 1.0 * t->tsc / 1000000000 * t->aperf / t->mperf / interval_float);
 
 	/* SMI */
 	if (do_smi)
