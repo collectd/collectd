@@ -63,20 +63,14 @@
 static const char *proc_stat = "/proc/stat";
 static unsigned int skip_c0;
 static unsigned int skip_c1;
-static unsigned int do_nhm_cstates;
-static unsigned int do_snb_cstates;
-static unsigned int do_c8_c9_c10;
-static unsigned int do_slm_cstates;
-static unsigned int genuine_intel;
-static unsigned int do_nehalem_platform_info;
-static int do_smi;
+static unsigned int do_core_cstate;
+static unsigned int do_pkg_cstate;
 static unsigned int do_rapl;
 static unsigned int do_dts;
 static unsigned int do_ptm;
 static unsigned int tcc_activation_temp;
 static unsigned int tcc_activation_temp_override;
-static double rapl_power_units, rapl_energy_units, rapl_time_units;
-static double rapl_joule_counter_range;
+static double rapl_energy_units;
 
 #define RAPL_PKG		(1 << 0)
 					/* 0x610 MSR_PKG_POWER_LIMIT */
@@ -196,6 +190,7 @@ enum return_values {
 	ERR_MSR_PKG_C9_RESIDENCY,
 	ERR_MSR_PKG_C10_RESIDENCY,
 	ERR_MSR_PKG_ENERGY_STATUS,
+	ERR_MSR_PKG_POWER_INFO,
 	ERR_MSR_PP0_ENERGY_STATUS,
 	ERR_MSR_DRAM_ENERGY_STATUS,
 	ERR_MSR_PP1_ENERGY_STATUS,
@@ -212,6 +207,7 @@ enum return_values {
 	ERR_CALLOC,
 	ERR_CPU_ALLOC,
 	ERR_NOT_ROOT,
+	UNSUPPORTED_CPU,
 };
 
 static int setup_all_buffers(void);
@@ -385,8 +381,7 @@ delta_thread(struct thread_data *new, struct thread_data *old,
 		old->mperf = 1;	/* divide by 0 protection */
 	}
 
-	if (do_smi)
-		old->smi_count = new->smi_count - old->smi_count;
+	old->smi_count = new->smi_count - old->smi_count;
 
 	return 0;
 }
@@ -448,29 +443,23 @@ get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	if (get_msr(cpu, MSR_IA32_MPERF, &t->mperf))
 		return -ERR_MSR_IA32_MPERF;
 
-	if (do_smi) {
-		if (get_msr(cpu, MSR_SMI_COUNT, &msr))
-			return -ERR_MSR_SMI_COUNT;
-		t->smi_count = msr & 0xFFFFFFFF;
-	}
+	if (get_msr(cpu, MSR_SMI_COUNT, &msr))
+		return -ERR_MSR_SMI_COUNT;
+	t->smi_count = msr & 0xFFFFFFFF;
 
 	/* collect core counters only for 1st thread in core */
 	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
 		return 0;
 
-	if (do_nhm_cstates && !do_slm_cstates) {
+	if (do_core_cstate & (1 << 3))
 		if (get_msr(cpu, MSR_CORE_C3_RESIDENCY, &c->c3))
-			return -ERR_MSR_CORE_C3_RESIDENCY;
-	}
-
-	if (do_nhm_cstates) {
+			return -ERR_MSR_CORE_C3_RESIDENCY
+	if (do_core_cstate & (1 << 6))
 		if (get_msr(cpu, MSR_CORE_C6_RESIDENCY, &c->c6))
-			return -ERR_MSR_CORE_C6_RESIDENCY;
-	}
-
-	if (do_snb_cstates)
+			return -ERR_MSR_CORE_C6_RESIDENCY
+	if (do_core_cstate & (1 << 7))
 		if (get_msr(cpu, MSR_CORE_C7_RESIDENCY, &c->c7))
-			return -ERR_MSR_CORE_C7_RESIDENCY;
+			return -ERR_MSR_CORE_C7_RESIDENCY
 
 	if (do_dts) {
 		if (get_msr(cpu, MSR_IA32_THERM_STATUS, &msr))
@@ -478,31 +467,32 @@ get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 		c->core_temp_c = tcc_activation_temp - ((msr >> 16) & 0x7F);
 	}
 
-
 	/* collect package counters only for 1st core in package */
 	if (!(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
 		return 0;
 
-	if (do_nhm_cstates && !do_slm_cstates) {
-		if (get_msr(cpu, MSR_PKG_C3_RESIDENCY, &p->pc3))
-			return -ERR_MSR_PKG_C3_RESIDENCY;
-		if (get_msr(cpu, MSR_PKG_C6_RESIDENCY, &p->pc6))
-			return -ERR_MSR_PKG_C6_RESIDENCY;
-	}
-	if (do_snb_cstates) {
-		if (get_msr(cpu, MSR_PKG_C2_RESIDENCY, &p->pc2))
-			return -ERR_MSR_PKG_C2_RESIDENCY;
-		if (get_msr(cpu, MSR_PKG_C7_RESIDENCY, &p->pc7))
-			return -ERR_MSR_PKG_C7_RESIDENCY;
-	}
-	if (do_c8_c9_c10) {
-		if (get_msr(cpu, MSR_PKG_C8_RESIDENCY, &p->pc8))
-			return -ERR_MSR_PKG_C8_RESIDENCY;
-		if (get_msr(cpu, MSR_PKG_C9_RESIDENCY, &p->pc9))
-			return -ERR_MSR_PKG_C9_RESIDENCY;
-		if (get_msr(cpu, MSR_PKG_C10_RESIDENCY, &p->pc10))
-			return -ERR_MSR_PKG_C10_RESIDENCY;
-	}
+        if (do_pkg_cstate & (1 << 2))
+                if (get_msr(cpu, MSR_PKG_C2_RESIDENCY, &p->pc2))
+                        return -ERR_MSR_PKG_C2_RESIDENCY
+        if (do_pkg_cstate & (1 << 3))
+                if (get_msr(cpu, MSR_PKG_C3_RESIDENCY, &p->pc3))
+                        return -ERR_MSR_PKG_C3_RESIDENCY
+        if (do_pkg_cstate & (1 << 6))
+                if (get_msr(cpu, MSR_PKG_C6_RESIDENCY, &p->pc6))
+                        return -ERR_MSR_PKG_C6_RESIDENCY
+        if (do_pkg_cstate & (1 << 7))
+                if (get_msr(cpu, MSR_PKG_C7_RESIDENCY, &p->pc7))
+                        return -ERR_MSR_PKG_C7_RESIDENCY
+        if (do_pkg_cstate & (1 << 8))
+                if (get_msr(cpu, MSR_PKG_C8_RESIDENCY, &p->pc8))
+                        return -ERR_MSR_PKG_C8_RESIDENCY
+        if (do_pkg_cstate & (1 << 9))
+                if (get_msr(cpu, MSR_PKG_C9_RESIDENCY, &p->pc9))
+                        return -ERR_MSR_PKG_C9_RESIDENCY
+        if (do_pkg_cstate & (1 << 10))
+                if (get_msr(cpu, MSR_PKG_C10_RESIDENCY, &p->pc10))
+                        return -ERR_MSR_PKG_C10_RESIDENCY
+
 	if (do_rapl & RAPL_PKG) {
 		if (get_msr(cpu, MSR_PKG_ENERGY_STATUS, &msr))
 			return -ERR_MSR_PKG_ENERGY_STATUS;
@@ -816,20 +806,17 @@ submit_counters(struct thread_data *t, struct core_data *c,
 
 	snprintf(name, NAME_LEN, "cpu%02d", t->cpu_id);
 
-	if (do_nhm_cstates) {
-		if (!skip_c0)
-			turbostat_submit(name, "percent", "c0", 100.0 * t->mperf/t->tsc);
-		if (!skip_c1)
-			turbostat_submit(name, "percent", "c1", 100.0 * t->c1/t->tsc);
-	}
+	if (!skip_c0)
+		turbostat_submit(name, "percent", "c0", 100.0 * t->mperf/t->tsc);
+	if (!skip_c1)
+		turbostat_submit(name, "percent", "c1", 100.0 * t->c1/t->tsc);
 
 	/* GHz */
 	if ((!aperf_mperf_unstable) || (!(t->aperf > t->tsc || t->mperf > t->tsc)))
 		turbostat_submit(NULL, "frequency", name, 1.0 * t->tsc / 1000000000 * t->aperf / t->mperf / interval_float);
 
 	/* SMI */
-	if (do_smi)
-		turbostat_submit(NULL, "current", name, t->smi_count);
+	turbostat_submit(NULL, "current", name, t->smi_count);
 
 	/* print per-core data only for 1st thread in core */
 	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
@@ -837,11 +824,11 @@ submit_counters(struct thread_data *t, struct core_data *c,
 
 	snprintf(name, NAME_LEN, "core%02d", c->core_id);
 
-	if (do_nhm_cstates && !do_slm_cstates)
+	if (do_core_cstate & (1 << 3))
 		turbostat_submit(name, "percent", "c3", 100.0 * c->c3/t->tsc);
-	if (do_nhm_cstates)
+	if (do_core_cstate & (1 << 6))
 		turbostat_submit(name, "percent", "c6", 100.0 * c->c6/t->tsc);
-	if (do_snb_cstates)
+	if (do_core_cstate & (1 << 7))
 		turbostat_submit(name, "percent", "c7", 100.0 * c->c7/t->tsc);
 
 	if (do_dts)
@@ -856,19 +843,20 @@ submit_counters(struct thread_data *t, struct core_data *c,
 	if (do_ptm)
 		turbostat_submit(NULL, "temperature", name, p->pkg_temp_c);
 
-	if (do_snb_cstates)
+	if (do_pkg_cstate & (1 << 2))
 		turbostat_submit(name, "percent", "pc2", 100.0 * p->pc2/t->tsc);
-	if (do_nhm_cstates && !do_slm_cstates)
+	if (do_pkg_cstate & (1 << 3))
 		turbostat_submit(name, "percent", "pc3", 100.0 * p->pc3/t->tsc);
-	if (do_nhm_cstates && !do_slm_cstates)
+	if (do_pkg_cstate & (1 << 6))
 		turbostat_submit(name, "percent", "pc6", 100.0 * p->pc6/t->tsc);
-	if (do_snb_cstates)
+	if (do_pkg_cstate & (1 << 7))
 		turbostat_submit(name, "percent", "pc7", 100.0 * p->pc7/t->tsc);
-	if (do_c8_c9_c10) {
+	if (do_pkg_cstate & (1 << 8))
 		turbostat_submit(name, "percent", "pc8", 100.0 * p->pc8/t->tsc);
+	if (do_pkg_cstate & (1 << 9))
 		turbostat_submit(name, "percent", "pc9", 100.0 * p->pc9/t->tsc);
+	if (do_pkg_cstate & (1 << 10))
 		turbostat_submit(name, "percent", "pc10", 100.0 * p->pc10/t->tsc);
-	}
 
 	if (do_rapl) {
 		if (do_rapl & RAPL_PKG)
@@ -958,142 +946,6 @@ check_super_user()
 	return 0;
 }
 
-
-#define	RAPL_POWER_GRANULARITY	0x7FFF	/* 15 bit power granularity */
-#define	RAPL_TIME_GRANULARITY	0x3F /* 6 bit time granularity */
-
-static double
-get_tdp(unsigned int model)
-{
-	unsigned long long msr;
-
-	if (do_rapl & RAPL_PKG_POWER_INFO)
-		if (!get_msr(0, MSR_PKG_POWER_INFO, &msr))
-			return ((msr >> 0) & RAPL_POWER_GRANULARITY) * rapl_power_units;
-
-	switch (model) {
-	case 0x37:
-	case 0x4D:
-		return 30.0;
-	default:
-		return 135.0;
-	}
-}
-
-
-/*
- * rapl_probe()
- *
- * sets do_rapl, rapl_power_units, rapl_energy_units, rapl_time_units
- */
-static void
-rapl_probe(unsigned int family, unsigned int model)
-{
-	unsigned long long msr;
-	unsigned int time_unit;
-	double tdp;
-
-	if (!genuine_intel)
-		return;
-
-	if (family != 6)
-		return;
-
-	switch (model) {
-	case 0x2A:
-	case 0x3A:
-	case 0x3C:	/* HSW */
-	case 0x45:	/* HSW */
-	case 0x46:	/* HSW */
-		do_rapl = RAPL_PKG | RAPL_CORES | RAPL_CORE_POLICY | RAPL_GFX | RAPL_PKG_POWER_INFO;
-		break;
-	case 0x3F:	/* HSX */
-		do_rapl = RAPL_PKG | RAPL_DRAM | RAPL_DRAM_PERF_STATUS | RAPL_PKG_PERF_STATUS | RAPL_PKG_POWER_INFO;
-		break;
-	case 0x2D:
-	case 0x3E:
-		do_rapl = RAPL_PKG | RAPL_CORES | RAPL_CORE_POLICY | RAPL_DRAM | RAPL_PKG_PERF_STATUS | RAPL_DRAM_PERF_STATUS | RAPL_PKG_POWER_INFO;
-		break;
-	case 0x37:	/* BYT */
-	case 0x4D:	/* AVN */
-		do_rapl = RAPL_PKG | RAPL_CORES ;
-		break;
-	default:
-		return;
-	}
-
-	/* units on package 0, verify later other packages match */
-	if (get_msr(0, MSR_RAPL_POWER_UNIT, &msr))
-		return;
-
-	rapl_power_units = 1.0 / (1 << (msr & 0xF));
-	if (model == 0x37)
-		rapl_energy_units = 1.0 * (1 << (msr >> 8 & 0x1F)) / 1000000;
-	else
-		rapl_energy_units = 1.0 / (1 << (msr >> 8 & 0x1F));
-
-	time_unit = msr >> 16 & 0xF;
-	if (time_unit == 0)
-		time_unit = 0xA;
-
-	rapl_time_units = 1.0 / (1 << (time_unit));
-
-	tdp = get_tdp(model);
-
-	rapl_joule_counter_range = 0xFFFFFFFF * rapl_energy_units / tdp;
-//	if (verbose)
-//		fprintf(stderr, "RAPL: %.0f sec. Joule Counter Range, at %.0f Watts\n", rapl_joule_counter_range, tdp);
-
-	return;
-}
-
-static int
-is_snb(unsigned int family, unsigned int model)
-{
-	if (!genuine_intel)
-		return 0;
-
-	switch (model) {
-	case 0x2A:
-	case 0x2D:
-	case 0x3A:	/* IVB */
-	case 0x3E:	/* IVB Xeon */
-	case 0x3C:	/* HSW */
-	case 0x3F:	/* HSW */
-	case 0x45:	/* HSW */
-	case 0x46:	/* HSW */
-		return 1;
-	}
-	return 0;
-}
-
-static int
-has_c8_c9_c10(unsigned int family, unsigned int model)
-{
-	if (!genuine_intel)
-		return 0;
-
-	switch (model) {
-	case 0x45:
-		return 1;
-	}
-	return 0;
-}
-
-
-static int
-is_slm(unsigned int family, unsigned int model)
-{
-	if (!genuine_intel)
-		return 0;
-	switch (model) {
-	case 0x37:	/* BYT */
-	case 0x4D:	/* AVN */
-		return 1;
-	}
-	return 0;
-}
-
 /*
  * MSR_IA32_TEMPERATURE_TARGET indicates the temperature where
  * the Thermal Control Circuit (TCC) activates.
@@ -1134,10 +986,6 @@ set_temperature_target(struct thread_data *t, struct core_data *c, struct pkg_da
 		return 0;
 	}
 
-	/* Temperature Target MSR is Nehalem and newer only */
-	if (!do_nehalem_platform_info)
-		goto guess;
-
 	if (get_msr(0, MSR_IA32_TEMPERATURE_TARGET, &msr))
 		goto guess;
 
@@ -1158,47 +1006,72 @@ guess:
 	return 0;
 }
 
+/*
+ * Identify the functionality of the CPU
+ */
 static int __attribute__((warn_unused_result))
-check_cpuid()
+probe_cpu()
 {
 	unsigned int eax, ebx, ecx, edx, max_level;
 	unsigned int fms, family, model;
 
-	eax = ebx = ecx = edx = 0;
-
+	/* CPUID(0):
+	 * - EAX: Maximum Input Value for Basic CPUID Information
+	 * - EBX: "Genu" (0x756e6547)
+	 * - EDX: "ineI" (0x49656e69)
+         * - ECX: "ntel" (0x6c65746e)
+         */
+	max_level = ebx = ecx = edx = 0;
 	__get_cpuid(0, &max_level, &ebx, &ecx, &edx);
+	if (ebx != 0x756e6547 && edx != 0x49656e69 && ecx != 0x6c65746e) {
+		ERROR("Unsupported CPU");
+		return -UNSUPPORTED_CPU;
+	}
 
-	if (ebx == 0x756e6547 && edx == 0x49656e69 && ecx == 0x6c65746e)
-		genuine_intel = 1;
-
-	fms = 0;
+	/* CPUID(1):
+	 * - EAX: Version Information: Type, Family, Model, and Stepping ID
+         *  + 4-7:   Model ID
+         *  + 8-11:  Family ID
+	 *  + 12-13: Processor type
+	 *  + 16-19: Extended Model ID
+	 *  + 20-27: Extended Family ID
+	 * - EDX: Feature Information:
+	 *  + 5: Support for MSR read/write operations
+         */
+	fms = ebx = ecx = edx = 0;
 	__get_cpuid(1, &fms, &ebx, &ecx, &edx);
 	family = (fms >> 8) & 0xf;
 	model = (fms >> 4) & 0xf;
+	if (family == 0xf)
+		family += (fms >> 20) & 0xf;
 	if (family == 6 || family == 0xf)
 		model += ((fms >> 16) & 0xf) << 4;
-
 	if (!(edx & (1 << 5))) {
 		ERROR("CPUID: no MSR");
 		return -ERR_NO_MSR;
 	}
 
 	/*
-	 * check max extended function levels of CPUID.
-	 * This is needed to check for invariant TSC.
+	 * CPUID(0x80000000):
+	 * - EAX: Maximum Input Value for Extended Function CPUID Information
+	 *
+	 * This allows us to verify if the CPUID(0x80000007) can be called
+	 *
 	 * This check is valid for both Intel and AMD.
 	 */
-	ebx = ecx = edx = 0;
+	max_level = ebx = ecx = edx = 0;
 	__get_cpuid(0x80000000, &max_level, &ebx, &ecx, &edx);
-
 	if (max_level < 0x80000007) {
 		ERROR("CPUID: no invariant TSC (max_level 0x%x)", max_level);
 		return -ERR_NO_INVARIANT_TSC;
 	}
 
 	/*
-	 * Non-Stop TSC is advertised by CPUID.EAX=0x80000007: EDX.bit8
-	 * this check is valid for both Intel and AMD
+	 * CPUID(0x80000007):
+	 * - EDX:
+	 *  + 8: Invariant TSC available if set
+	 *
+	 * This check is valid for both Intel and AMD
 	 */
 	__get_cpuid(0x80000007, &eax, &ebx, &ecx, &edx);
 	if (!(edx & (1 << 8))) {
@@ -1207,10 +1080,17 @@ check_cpuid()
 	}
 
 	/*
-	 * APERF/MPERF is advertised by CPUID.EAX=0x6: ECX.bit0
-	 * this check is valid for both Intel and AMD
+	 * CPUID(6):
+	 * - EAX:
+	 *  + 0: Digital temperature sensor is supported if set
+	 *  + 6: Package thermal management is supported if set
+	 * - ECX:
+	 *  + 0: Hardware Coordination Feedback Capability (Presence of IA32_MPERF and IA32_APERF).
+	 *  + 3: The processor supports performance-energy bias preference if set.
+	 *       It also implies the presence of a new architectural MSR called IA32_ENERGY_PERF_BIAS
+	 *
+	 * This check is valid for both Intel and AMD
 	 */
-
 	__get_cpuid(0x6, &eax, &ebx, &ecx, &edx);
 	do_dts = eax & (1 << 0);
 	do_ptm = eax & (1 << 6);
@@ -1219,14 +1099,113 @@ check_cpuid()
 		return -ERR_NO_APERF;
 	}
 
-   do_nehalem_platform_info = genuine_intel;
-	do_nhm_cstates = genuine_intel;	/* all Intel w/ non-stop TSC have NHM counters */
-	do_smi = do_nhm_cstates;
-	do_snb_cstates = is_snb(family, model);
-	do_c8_c9_c10 = has_c8_c9_c10(family, model);
-	do_slm_cstates = is_slm(family, model);
+	/*
+	 * Enable or disable C states depending on the model and family
+	 */
+	if (family == 6) {
+		switch (model) {
+		/* Atom (partial) */
+		case 0x27:
+			do_core_cstate = 0;
+			do_pkg_cstate = (1 << 2) | (1 << 4) | (1 << 6);
+			break;
+		/* Silvermont */
+		case 0x37: /* BYT */
+		case 0x4A:
+		case 0x4D: /* AVN */
+		case 0x5A:
+		case 0x5D:
+			do_core_cstate = (1 << 1) | (1 << 6);
+			do_pkg_cstate = (1 << 6);
+			break;
+		/* Nehalem */
+		case 0x1A: /* Core i7, Xeon 5500 series - Bloomfield, Gainstown NHM-EP */
+		case 0x1E: /* Core i7 and i5 Processor - Clarksfield, Lynnfield, Jasper Forest */
+		case 0x1F: /* Core i7 and i5 Processor - Nehalem */
+		case 0x2E: /* Nehalem-EX Xeon - Beckton */
+			do_core_cstate = (1 << 3) | (1 << 6);
+			do_pkg_cstate = (1 << 3) | (1 << 6) | (1 << 7);
+			break;
+		/* Westmere */
+		case 0x25: /* Westmere Client - Clarkdale, Arrandale */
+		case 0x2C: /* Westmere EP - Gulftown */
+		case 0x2F: /* Westmere-EX Xeon - Eagleton */
+			do_core_cstate = (1 << 3) | (1 << 6);
+			do_pkg_cstate = (1 << 3) | (1 << 6) | (1 << 7);
+			break;
+		/* Sandy Bridge */
+		case 0x2A: /* SNB */
+		case 0x2D: /* SNB Xeon */
+			do_core_cstate = (1 << 3) | (1 << 6) | (1 << 7);
+			do_pkg_cstate = (1 << 2) | (1 << 3) | (1 << 6) | (1 << 7);
+			break;
+		/* Ivy Bridge */
+		case 0x3A: /* IVB */
+		case 0x3E: /* IVB Xeon */
+			do_core_cstate = (1 << 3) | (1 << 6) | (1 << 7);
+			do_pkg_cstate = (1 << 3) | (1 << 6) | (1 << 7);
+			break;
+		/* Haswell Bridge */
+		case 0x3C: /* HSW */
+		case 0x3F: /* HSW */
+		case 0x46: /* HSW */
+			do_core_cstate = (1 << 3) | (1 << 6) | (1 << 7);
+			do_pkg_cstate = (1 << 3) | (1 << 6) | (1 << 7);
+			break;
+		case 0x45: /* HSW */
+			do_core_cstate = (1 << 3) | (1 << 6) | (1 << 7);
+			do_pkg_cstate = (1 << 3) | (1 << 6) | (1 << 7) | (1 << 8) | (1 << 9) | (1 << 10);
+			break;
+		/* Broadwel */
+		case 0x4F: /* BDW */
+		case 0x56: /* BDX-DE */
+			do_core_cstate = (1 << 3) | (1 << 6) | (1 << 7);
+			do_pkg_cstate = (1 << 3) | (1 << 6) | (1 << 7);
+			break;
+		case 0x3D: /* BDW */
+			do_core_cstate = (1 << 3) | (1 << 6) | (1 << 7);
+			do_pkg_cstate = (1 << 3) | (1 << 6) | (1 << 7) | (1 << 8) | (1 << 9) | (1 << 10);
+			break;
+		default:
+			ERROR("Unsupported CPU");
+		}
+		switch (model) {
+		case 0x2A:
+		case 0x3A:
+		case 0x3C:
+		case 0x45:
+		case 0x46:
+			do_rapl = RAPL_PKG | RAPL_CORES | RAPL_CORE_POLICY | RAPL_PKG_POWER_INFO | RAPL_GFX;
+			break;
+		case 0x3F:
+			do_rapl = RAPL_PKG | RAPL_PKG_POWER_INFO | RAPL_PKG_PERF_STATUS | RAPL_DRAM | RAPL_DRAM_PERF_STATUS;
+			break;
+		case 0x2D:
+		case 0x3E:
+			do_rapl = RAPL_PKG | RAPL_CORES | RAPL_CORE_POLICY | RAPL_PKG_POWER_INFO | RAPL_PKG_PERF_STATUS | RAPL_DRAM | RAPL_DRAM_PERF_STATUS;
+			break;
+		case 0x37:
+		case 0x4D:
+			do_rapl = RAPL_PKG | RAPL_CORES;
+			break;
+		default:
+			do_rapl = 0;
+		}
+	} else {
+		ERROR("Unsupported CPU");
+		return -UNSUPPORTED_CPU;
+	}
 
-	rapl_probe(family, model);
+	if (do_rapl) {
+		unsigned long msr;
+		if (get_msr(0, MSR_RAPL_POWER_UNIT, &msr))
+			return 0;
+
+		if (model == 0x37)
+			rapl_energy_units = 1.0 * (1 << (msr >> 8 & 0x1F)) / 1000000;
+		else
+			rapl_energy_units = 1.0 / (1 << (msr >> 8 & 0x1F));
+	}
 
 	return 0;
 }
@@ -1470,7 +1449,7 @@ turbostat_init(void)
 {
 	int ret;
 
-	DO_OR_GOTO_ERR(check_cpuid());
+	DO_OR_GOTO_ERR(probe_cpu());
 	DO_OR_GOTO_ERR(check_dev_msr());
 	DO_OR_GOTO_ERR(check_super_user());
 	DO_OR_GOTO_ERR(setup_all_buffers());
