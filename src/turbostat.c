@@ -24,7 +24,17 @@
  * Ported to collectd by Vincent Brillault <git@lerya.net>
  */
 
+/*
+ * _GNU_SOURCE is required because of the following functions:
+ * - CPU_ISSET_S
+ * - CPU_ZERO_S
+ * - CPU_SET_S
+ * - CPU_FREE
+ * - CPU_ALLOC
+ * - CPU_ALLOC_SIZE
+ */
 #define _GNU_SOURCE
+
 #include <asm/msr-index.h>
 #include <stdarg.h>
 #include <stdio.h>
