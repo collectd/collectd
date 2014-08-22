@@ -1449,9 +1449,9 @@ turbostat_init(void)
 {
 	int ret;
 
+	DO_OR_GOTO_ERR(check_super_user());
 	DO_OR_GOTO_ERR(probe_cpu());
 	DO_OR_GOTO_ERR(check_dev_msr());
-	DO_OR_GOTO_ERR(check_super_user());
 	DO_OR_GOTO_ERR(setup_all_buffers());
 	DO_OR_GOTO_ERR(for_all_cpus(set_temperature_target, EVEN_COUNTERS));
 
