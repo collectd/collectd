@@ -74,9 +74,6 @@ static unsigned int genuine_intel;
 static unsigned int has_invariant_tsc;
 static unsigned int do_nehalem_platform_info;
 static int do_smi;
-static unsigned int show_pkg;
-static unsigned int show_core;
-static unsigned int show_cpu;
 static unsigned int do_rapl;
 static unsigned int do_dts;
 static unsigned int do_ptm;
@@ -1266,8 +1263,6 @@ topology_probe()
 	ret = for_all_proc_cpus(count_cpus);
 	if (ret < 0)
 		return ret;
-	if (topo.num_cpus > 1)
-		show_cpu = 1;
 
 	DEBUG("num_cpus %d max_cpu_num %d\n", topo.num_cpus, topo.max_cpu_num);
 
@@ -1342,14 +1337,10 @@ topology_probe()
 	topo.num_cores_per_pkg = max_core_id + 1;
 	DEBUG("max_core_id %d, sizing for %d cores per package\n",
 		max_core_id, topo.num_cores_per_pkg);
-	if (topo.num_cores_per_pkg > 1)
-		show_core = 1;
 
 	topo.num_packages = max_package_id + 1;
 	DEBUG("max_package_id %d, sizing for %d packages\n",
 		max_package_id, topo.num_packages);
-	if (topo.num_packages > 1)
-		show_pkg = 1;
 
 	topo.num_threads_per_core = max_siblings;
 	DEBUG("max_siblings %d\n", max_siblings);
