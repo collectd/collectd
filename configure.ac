@@ -70,9 +70,11 @@ case $host_os in
 	ac_system="Solaris"
 	;;
 	*darwin*)
+	AC_DEFINE([KERNEL_DARWIN], 1, [True if program is to be compiled for a Darwin kernel])
 	ac_system="Darwin"
 	;;
 	*openbsd*)
+	AC_DEFINE([KERNEL_OPENBSD], 1, [True if program is to be compiled for an OpenBSD kernel])
 	ac_system="OpenBSD"
 	;;
 	*aix*)
@@ -87,6 +89,13 @@ case $host_os in
 	ac_system="unknown"
 esac
 AC_MSG_RESULT([$ac_system])
+
+AM_CONDITIONAL([BUILD_LINUX],[test "x$x$ac_system" = "xLinux"])
+AM_CONDITIONAL([BUILD_SOLARIS],[test "x$x$ac_system" = "xSolaris"])
+AM_CONDITIONAL([BUILD_DARWIN],[test "x$x$ac_system" = "xDarwin"])
+AM_CONDITIONAL([BUILD_OPENBSD],[test "x$x$ac_system" = "xOpenBSD"])
+AM_CONDITIONAL([BUILD_AIX],[test "x$x$ac_system" = "xAIX"])
+AM_CONDITIONAL([BUILD_FREEBSD],[test "x$x$ac_system" = "xFreeBSD"])
 
 if test "x$ac_system" = "xLinux"
 then
@@ -1397,10 +1406,6 @@ fi
 
 m4_divert_once([HELP_WITH], [
 collectd additional packages:])
-
-AM_CONDITIONAL([BUILD_FREEBSD],[test "x$x$ac_system" = "xFreeBSD"])
-
-AM_CONDITIONAL([BUILD_AIX],[test "x$x$ac_system" = "xAIX"])
 
 if test "x$ac_system" = "xAIX"
 then
@@ -5011,6 +5016,7 @@ then
 	plugin_vmem="yes"
 	plugin_vserver="yes"
 	plugin_wireless="yes"
+	plugin_zfs_arc="yes"
 
 	if test "x$have_linux_ip_vs_h" = "xyes" || test "x$have_net_ip_vs_h" = "xyes" || test "x$have_ip_vs_h" = "xyes"
 	then

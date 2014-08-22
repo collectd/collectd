@@ -147,6 +147,7 @@ Marc Fournier <marc.fournier at camptocamp.com>
  - Various fixes to the varnish plugin.
  - RPM specfile update.
  - libmnl support in the netlink plugin.
+ - linux support in the zfs_arc plugin.
 
 Marco Chiappero <marco at absence.it>
  - uptime plugin.
@@ -258,6 +259,9 @@ Tommie Gannert <d00-tga at d.kth.se>
 
 Vincent Stehlé <vincent.stehle at free.fr>
  - hddtemp plugin.
+
+Wilfried Goesgens <dothebart at citadel.org>
+ - linux support in the zfs_arc plugin.
 
 Xin Li <delphij at freebsd.org>
  - FreeBSD port of the ZFS-ARC plugin.

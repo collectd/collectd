@@ -1493,7 +1493,12 @@ zfs_arc_la_LDFLAGS = -module -avoid-version
 if BUILD_FREEBSD
 zfs_arc_la_LIBADD = -lm
 else
+if BUILD_LINUX
+# zfs_arc requires no library on linux
+else
+# solaris
 zfs_arc_la_LIBADD = -lkstat
+endif
 endif
 collectd_LDADD += "-dlopen" zfs_arc.la
 collectd_DEPENDENCIES += zfs_arc.la

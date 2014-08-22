@@ -140,6 +140,7 @@
 %define with_write_graphite 0%{!?_without_write_graphite:1}
 %define with_write_http 0%{!?_without_write_http:1}
 %define with_write_riemann 0%{!?_without_write_riemann:1}
+%define with_zfs_arc 0%{!?_without_zfs_arc:1}
 
 # Plugins not built by default because of dependencies on libraries not
 # available in RHEL or EPEL:
@@ -180,8 +181,6 @@
 %define with_write_redis 0%{!?_without_write_redis:0}
 # plugin xmms disabled, requires xmms
 %define with_xmms 0%{!?_without_xmms:0}
-# plugin zfs_arc disabled, requires FreeBSD/Solaris
-%define with_zfs_arc 0%{!?_without_zfs_arc:0}
 
 Summary:	Statistics collection daemon for filling RRD files
 Name:		collectd
