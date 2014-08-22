@@ -67,7 +67,6 @@ static unsigned int do_nhm_cstates;
 static unsigned int do_snb_cstates;
 static unsigned int do_c8_c9_c10;
 static unsigned int do_slm_cstates;
-static unsigned int has_epb;
 static unsigned int genuine_intel;
 static unsigned int do_nehalem_platform_info;
 static int do_smi;
@@ -1215,8 +1214,6 @@ check_cpuid()
 	__get_cpuid(0x6, &eax, &ebx, &ecx, &edx);
 	do_dts = eax & (1 << 0);
 	do_ptm = eax & (1 << 6);
-	has_epb = ecx & (1 << 3);
-
 	if (!(ecx & (1 << 0))) {
 		ERROR("No APERF");
 		return -ERR_NO_APERF;
