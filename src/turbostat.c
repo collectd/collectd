@@ -70,7 +70,6 @@ static unsigned int do_slm_cstates;
 static unsigned int has_aperf;
 static unsigned int has_epb;
 static unsigned int genuine_intel;
-static unsigned int has_invariant_tsc;
 static unsigned int do_nehalem_platform_info;
 static int do_smi;
 static unsigned int do_rapl;
@@ -1206,9 +1205,7 @@ check_cpuid()
 	 * this check is valid for both Intel and AMD
 	 */
 	__get_cpuid(0x80000007, &eax, &ebx, &ecx, &edx);
-	has_invariant_tsc = edx & (1 << 8);
-
-	if (!has_invariant_tsc) {
+	if (!(edx & (1 << 8))) {
 		ERROR("No invariant TSC");
 		return -ERR_NO_INVARIANT_TSC;
 	}
@@ -1229,7 +1226,7 @@ check_cpuid()
 		return -ERR_NO_APERF;
 	}
 
-	do_nehalem_platform_info = genuine_intel && has_invariant_tsc;
+   do_nehalem_platform_info = genuine_intel;
 	do_nhm_cstates = genuine_intel;	/* all Intel w/ non-stop TSC have NHM counters */
 	do_smi = do_nhm_cstates;
 	do_snb_cstates = is_snb(family, model);
