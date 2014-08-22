@@ -489,15 +489,12 @@ static int format_timeseries(char *buffer, /* {{{ */
   if (FORMAT_VL(stream_key, sizeof(stream_key), vl) != 0) {
       ERROR("value_to_timeseries: FORMAT_VL failed.");
       return -1;
-  } else if (cb->stream_key_tree &&
-             c_avl_get(cb->stream_key_tree, stream_key, NULL) == 0) {
-    return -1;
-  }
-
-  if (cb->stream_key_tree == NULL) {
+  } else if (cb->stream_key_tree == NULL) {
     cb->stream_key_tree =
         c_avl_create((int (*)(const void *, const void *))strcmp);
-  };
+  } else if (c_avl_get(cb->stream_key_tree, stream_key, NULL) == 0) {
+    return -1;
+  }
   c_avl_insert(cb->stream_key_tree, strdup(stream_key), NULL);
 
   return (format_timeseries_nocheck(buffer, ret_buffer_fill, ret_buffer_free,
