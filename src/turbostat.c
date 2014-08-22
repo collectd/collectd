@@ -67,7 +67,6 @@ static unsigned int do_nhm_cstates;
 static unsigned int do_snb_cstates;
 static unsigned int do_c8_c9_c10;
 static unsigned int do_slm_cstates;
-static unsigned int has_aperf;
 static unsigned int has_epb;
 static unsigned int genuine_intel;
 static unsigned int do_nehalem_platform_info;
@@ -445,12 +444,10 @@ get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 
 	t->tsc = rdtsc();	/* we are running on local CPU of interest */
 
-	if (has_aperf) {
-		if (get_msr(cpu, MSR_IA32_APERF, &t->aperf))
-			return -ERR_MSR_IA32_APERF;
-		if (get_msr(cpu, MSR_IA32_MPERF, &t->mperf))
-			return -ERR_MSR_IA32_MPERF;
-	}
+	if (get_msr(cpu, MSR_IA32_APERF, &t->aperf))
+		return -ERR_MSR_IA32_APERF;
+	if (get_msr(cpu, MSR_IA32_MPERF, &t->mperf))
+		return -ERR_MSR_IA32_MPERF;
 
 	if (do_smi) {
 		if (get_msr(cpu, MSR_SMI_COUNT, &msr))
@@ -828,7 +825,7 @@ submit_counters(struct thread_data *t, struct core_data *c,
 	}
 
 	/* GHz */
-	if (has_aperf && ((!aperf_mperf_unstable) || (!(t->aperf > t->tsc || t->mperf > t->tsc))))
+	if ((!aperf_mperf_unstable) || (!(t->aperf > t->tsc || t->mperf > t->tsc)))
 		turbostat_submit(NULL, "frequency", name, 1.0 * t->tsc / 1000000000 * t->aperf / t->mperf / interval_float);
 
 	/* SMI */
@@ -1216,12 +1213,11 @@ check_cpuid()
 	 */
 
 	__get_cpuid(0x6, &eax, &ebx, &ecx, &edx);
-	has_aperf = ecx & (1 << 0);
 	do_dts = eax & (1 << 0);
 	do_ptm = eax & (1 << 6);
 	has_epb = ecx & (1 << 3);
 
-	if (!has_aperf) {
+	if (!(ecx & (1 << 0))) {
 		ERROR("No APERF");
 		return -ERR_NO_APERF;
 	}
