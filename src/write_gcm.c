@@ -479,11 +479,26 @@ static int format_timeseries(char *buffer, /* {{{ */
                              size_t *ret_buffer_fill, size_t *ret_buffer_free,
                              const data_set_t *ds, const value_list_t *vl,
                              wg_callback_t *cb) {
+  char stream_key[256];
   if ((buffer == NULL) || (ret_buffer_fill == NULL) ||
       (ret_buffer_free == NULL) || (ds == NULL) || (vl == NULL))
     return (-EINVAL);
 
   if (*ret_buffer_free < 3) return (-ENOMEM);
+
+  if (FORMAT_VL(stream_key, sizeof(stream_key), vl) != 0) {
+      ERROR("value_to_timeseries: FORMAT_VL failed.");
+      return -1;
+  } else if (cb->stream_key_tree &&
+             c_avl_get(cb->stream_key_tree, stream_key, NULL) == 0) {
+    return -1;
+  }
+
+  if (cb->stream_key_tree == NULL) {
+    cb->stream_key_tree =
+        c_avl_create((int (*)(const void *, const void *))strcmp);
+  };
+  c_avl_insert(cb->stream_key_tree, strdup(stream_key), NULL);
 
   return (format_timeseries_nocheck(buffer, ret_buffer_fill, ret_buffer_free,
                                     ds, vl, cb));
@@ -685,7 +700,7 @@ static int wg_b64_encode(char const *s, /* {{{ */
   BIO_get_mem_ptr (b64, &bptr);
 
   if (buffer_size <= bptr->length) {
-    ERROR ("write_gcm plugin: wg_b64_encode: Buffer too small. ");
+    ERROR ("write_gcm plugin: wg_b64_encode: Buffer too small.");
     BIO_free_all(b64);
     return (-1);
   }
@@ -1357,7 +1372,6 @@ static int wg_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
   int status;
   int flush;
   cdtime_t now;
-  char stream_key[256];
 
   if (user_data == NULL) return (-EINVAL);
   flush = 0;
@@ -1378,34 +1392,24 @@ static int wg_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
    * 1. more than 15 seconds passed since send_buffer_init_time
    * since we are sending data every minute, 15 seconds is long enough
    * for data staying in the buffer and should be sent anyway.
-   * 2. stream_key can't be generated, it's safe to flush
-   * 3. the stream_key_tree cache already have the same stream stored,
+   * 2. out of memory while trying to add the current vl to the buffer
+   * in function format_timeseries
+   * Inside format_timeseries
+   * 3. stream_key can't be generated, it's safe to flush
+   * 4. the stream_key_tree cache already have the same stream stored,
    * we must flush since monarch can not take more than 1 points from
    * the same stream
-   * 4. out of memory while trying to add the current vl to the buffer
-   * in function format_timeseries
    */
 
   now = cdtime();
   if (now > cb->send_buffer_init_time + MS_TO_CDTIME_T(15000)) {
     flush = 1;
-  } else if (FORMAT_VL(stream_key, sizeof(stream_key), vl) != 0) {
-    ERROR("value_to_timeseries: FORMAT_VL failed.");
+  }
+
+  status = format_timeseries(cb->send_buffer, &cb->send_buffer_fill,
+                             &cb->send_buffer_free, ds, vl, cb);
+  if (status == (-ENOMEM) || status == -1) {
     flush = 1;
-  } else if (cb->stream_key_tree &&
-             c_avl_get(cb->stream_key_tree, stream_key, NULL) == 0) {
-    flush = 1;
-  } else {
-    if (cb->stream_key_tree == NULL) {
-      cb->stream_key_tree =
-          c_avl_create((int (*)(const void *, const void *))strcmp);
-    };
-    c_avl_insert(cb->stream_key_tree, strdup(stream_key), NULL);
-    status = format_timeseries(cb->send_buffer, &cb->send_buffer_fill,
-                               &cb->send_buffer_free, ds, vl, cb);
-    if (status == (-ENOMEM)) {
-      flush = 1;
-    }
   }
 
   if (flush) {
