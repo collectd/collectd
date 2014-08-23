@@ -69,7 +69,6 @@ static unsigned int do_rapl;
 static unsigned int do_dts;
 static unsigned int do_ptm;
 static unsigned int tcc_activation_temp;
-static unsigned int tcc_activation_temp_override;
 static double rapl_energy_units;
 
 #define RAPL_PKG		(1 << 0)
@@ -141,8 +140,8 @@ struct pkg_data {
 	unsigned int energy_gfx;	/* MSR_PP1_ENERGY_STATUS */
 	unsigned int rapl_pkg_perf_status;	/* MSR_PKG_PERF_STATUS */
 	unsigned int rapl_dram_perf_status;	/* MSR_DRAM_PERF_STATUS */
+	unsigned int tcc_activation_temp;
 	unsigned int pkg_temp_c;
-
 } *package_even, *package_odd;
 
 #define ODD_COUNTERS thread_odd, core_odd, package_odd
@@ -482,7 +481,7 @@ do {						\
 
 	if (do_dts) {
 		READ_MSR(MSR_IA32_THERM_STATUS, &msr);
-		c->core_temp_c = tcc_activation_temp - ((msr >> 16) & 0x7F);
+		c->core_temp_c = p->tcc_activation_temp - ((msr >> 16) & 0x7F);
 	}
 
 	/* collect package counters only for 1st core in package */
@@ -532,7 +531,7 @@ do {						\
 	}
 	if (do_ptm) {
 		READ_MSR(MSR_IA32_PACKAGE_THERM_STATUS, &msr);
-		p->pkg_temp_c = tcc_activation_temp - ((msr >> 16) & 0x7F);
+		p->pkg_temp_c = p->tcc_activation_temp - ((msr >> 16) & 0x7F);
 	}
 
 out:
@@ -980,10 +979,8 @@ set_temperature_target(struct thread_data *t, struct core_data *c, struct pkg_da
 	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE) || !(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
 		return 0;
 
-	if (tcc_activation_temp_override != 0) {
-		tcc_activation_temp = tcc_activation_temp_override;
-		ERROR("cpu%d: Using cmdline TCC Target (%d C)\n",
-			cpu, tcc_activation_temp);
+	if (tcc_activation_temp != 0) {
+		p->tcc_activation_temp = tcc_activation_temp;
 		return 0;
 	}
 
@@ -995,14 +992,14 @@ set_temperature_target(struct thread_data *t, struct core_data *c, struct pkg_da
 	if (target_c_local < 85 || target_c_local > 127)
 		goto guess;
 
-	tcc_activation_temp = target_c_local;
+	p->tcc_activation_temp = target_c_local;
 
 	return 0;
 
 guess:
-	tcc_activation_temp = TJMAX_DEFAULT;
-	WARNING("cpu%d: Guessing tjMax %d C, Please use -T to specify",
-		t->cpu_id, tcc_activation_temp);
+	p->tcc_activation_temp = TJMAX_DEFAULT;
+	WARNING("cpu%d: Guessing tjMax %d C, Please use TCCActivationTemp to specify",
+		t->cpu_id, p->tcc_activation_temp);
 
 	return 0;
 }
@@ -1454,6 +1451,7 @@ turbostat_init(void)
 	DO_OR_GOTO_ERR(check_dev_msr());
 	DO_OR_GOTO_ERR(setup_all_buffers());
 	DO_OR_GOTO_ERR(for_all_cpus(set_temperature_target, EVEN_COUNTERS));
+	DO_OR_GOTO_ERR(for_all_cpus(set_temperature_target, ODD_COUNTERS));
 
 	plugin_register_complex_read(NULL, PLUGIN_NAME, turbostat_read, NULL, NULL);
 
@@ -1463,8 +1461,32 @@ err:
 	return ret;
 }
 
+static const char *config_keys[] =
+{
+	"TCCActivationTemp",
+};
+static const int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
+
+static int
+turbostat_config(const char *key, const char *value)
+{
+	long unsigned int tmp_val;
+	char *end;
+
+	if (strcasecmp("TCCActivationTemp", key) == 0) {
+		tmp_val = strtoul(value, &end, 0);
+		if (*end != '\0' || tmp_val > UINT_MAX)
+			return -1;
+		tcc_activation_temp = (unsigned int) tmp_val;
+	} else {
+		return -1;
+	}
+	return 0;
+}
+
 void module_register(void);
 void module_register(void)
 {
 	plugin_register_init(PLUGIN_NAME, turbostat_init);
+	plugin_register_config(PLUGIN_NAME, turbostat_config, config_keys, config_keys_num);
 }
