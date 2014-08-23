@@ -270,6 +270,7 @@ static int __attribute__((warn_unused_result))
 open_msr(int cpu)
 {
 	char pathname[32];
+	int fd;
 
 	/* FIXME: Do we really need this, why? */
 	if (cpu_migrate(cpu)) {
@@ -277,8 +278,11 @@ open_msr(int cpu)
 		return -ERR_CPU_MIGRATE;
 	}
 
-	ssnprintf(pathname, 32, "/dev/cpu/%d/msr", cpu);
-	return open(pathname, O_RDONLY);
+	ssnprintf(pathname, STATIC_ARRAY_SIZE(pathname), "/dev/cpu/%d/msr", cpu);
+	fd = open(pathname, O_RDONLY);
+	if (fd < 0)
+		return -ERR_CANT_OPEN_MSR;
+	return fd;
 }
 
 static int __attribute__((warn_unused_result))
@@ -303,7 +307,7 @@ get_msr(int cpu, off_t offset, unsigned long long *msr)
 
 	fd = open_msr(cpu);
 	if (fd < 0)
-		return -1;
+		return fd;
 	retval = read_msr(fd, offset, msr);
 	close(fd);
 	return retval;
@@ -446,7 +450,7 @@ get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 
 	msr_fd = open_msr(cpu);
 	if (msr_fd < 0)
-		return -ERR_CANT_OPEN_MSR;
+		return msr_fd;
 
 #define READ_MSR(msr, dst)			\
 do {						\
