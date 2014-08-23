@@ -72,10 +72,11 @@ static _Bool aperf_mperf_unstable;
 
 static unsigned int do_core_cstate;
 static unsigned int do_pkg_cstate;
-static unsigned int do_rapl;
-static unsigned int do_dts;
-static unsigned int do_ptm;
+static _Bool do_dts;
+static _Bool do_ptm;
 static unsigned int tcc_activation_temp;
+
+static unsigned int do_rapl;
 static double rapl_energy_units;
 
 #define RAPL_PKG		(1 << 0)
