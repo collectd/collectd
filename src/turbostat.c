@@ -813,7 +813,7 @@ submit_counters(struct thread_data *t, struct core_data *c,
 
 	interval_float = tv_delta.tv_sec + tv_delta.tv_usec/1000000.0;
 
-	snprintf(name, sizeof(name), "cpu%02d", t->cpu_id);
+	ssnprintf(name, sizeof(name), "cpu%02d", t->cpu_id);
 
 	if (!skip_c0)
 		turbostat_submit(name, "percent", "c0", 100.0 * t->mperf/t->tsc);
@@ -831,7 +831,7 @@ submit_counters(struct thread_data *t, struct core_data *c,
 	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
 		goto done;
 
-	snprintf(name, sizeof(name), "core%02d", c->core_id);
+	ssnprintf(name, sizeof(name), "core%02d", c->core_id);
 
 	if (do_core_cstate & (1 << 3))
 		turbostat_submit(name, "percent", "c3", 100.0 * c->c3/t->tsc);
@@ -847,7 +847,7 @@ submit_counters(struct thread_data *t, struct core_data *c,
 	if (!(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
 		goto done;
 
-	snprintf(name, sizeof(name), "pkg%02d", p->package_id);
+	ssnprintf(name, sizeof(name), "pkg%02d", p->package_id);
 
 	if (do_ptm)
 		turbostat_submit(NULL, "temperature", name, p->pkg_temp_c);
