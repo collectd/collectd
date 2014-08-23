@@ -278,7 +278,7 @@ open_msr(int cpu)
 		return -ERR_CPU_MIGRATE;
 	}
 
-	ssnprintf(pathname, STATIC_ARRAY_SIZE(pathname), "/dev/cpu/%d/msr", cpu);
+	ssnprintf(pathname, sizeof(pathname), "/dev/cpu/%d/msr", cpu);
 	fd = open(pathname, O_RDONLY);
 	if (fd < 0)
 		return -ERR_CANT_OPEN_MSR;
@@ -640,7 +640,7 @@ get_num_ht_siblings(int cpu)
 	int matches;
 	char character;
 
-	ssnprintf(path, 80, "/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", cpu);
+	ssnprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", cpu);
 	filep = fopen(path, "r");
         if (!filep) {
                 ERROR("%s: open failed", path);
@@ -814,7 +814,7 @@ submit_counters(struct thread_data *t, struct core_data *c,
 
 	interval_float = tv_delta.tv_sec + tv_delta.tv_usec/1000000.0;
 
-	snprintf(name, NAME_LEN, "cpu%02d", t->cpu_id);
+	snprintf(name, sizeof(name), "cpu%02d", t->cpu_id);
 
 	if (!skip_c0)
 		turbostat_submit(name, "percent", "c0", 100.0 * t->mperf/t->tsc);
@@ -832,7 +832,7 @@ submit_counters(struct thread_data *t, struct core_data *c,
 	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
 		goto done;
 
-	snprintf(name, NAME_LEN, "core%02d", c->core_id);
+	snprintf(name, sizeof(name), "core%02d", c->core_id);
 
 	if (do_core_cstate & (1 << 3))
 		turbostat_submit(name, "percent", "c3", 100.0 * c->c3/t->tsc);
@@ -848,7 +848,7 @@ submit_counters(struct thread_data *t, struct core_data *c,
 	if (!(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
 		goto done;
 
-	snprintf(name, NAME_LEN, "pkg%02d", p->package_id);
+	snprintf(name, sizeof(name), "pkg%02d", p->package_id);
 
 	if (do_ptm)
 		turbostat_submit(NULL, "temperature", name, p->pkg_temp_c);
