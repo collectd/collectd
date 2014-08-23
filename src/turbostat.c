@@ -60,8 +60,6 @@
 
 #define PLUGIN_NAME "turbostat"
 
-static const char *proc_stat = "/proc/stat";
-
 /*
  * If set, aperf_mperf_unstable disables a/mperf based stats.
  * This includes: C0 & C1 states, frequency
@@ -106,8 +104,6 @@ static double rapl_energy_units;
 					/* 0x641 MSR_PP1_ENERGY_STATUS */
 					/* 0x642 MSR_PP1_POLICY */
 #define	TJMAX_DEFAULT	100
-
-int backwards_count;
 
 cpu_set_t *cpu_present_set, *cpu_affinity_set, *cpu_saved_affinity_set;
 size_t cpu_present_setsize, cpu_affinity_setsize, cpu_saved_affinity_setsize;
@@ -720,15 +716,15 @@ for_all_proc_cpus(int (func)(int))
 	int cpu_num;
 	int retval;
 
-	fp = fopen(proc_stat, "r");
+	fp = fopen("/proc/stat", "r");
         if (!fp) {
-                ERROR("%s: open failed", proc_stat);
+                ERROR("Failed to open /proc/stat");
                 return -ERR_CANT_OPEN_FILE;
         }
 
 	retval = fscanf(fp, "cpu %*d %*d %*d %*d %*d %*d %*d %*d %*d %*d\n");
 	if (retval != 0) {
-		ERROR("%s: failed to parse format", proc_stat);
+		ERROR("Failed to parse /proc/stat");
 		return -ERR_CANT_READ_PROC_STAT;
 	}
 
