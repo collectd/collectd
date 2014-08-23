@@ -102,7 +102,6 @@ static double rapl_energy_units;
 
 int aperf_mperf_unstable;
 int backwards_count;
-char *progname;
 
 cpu_set_t *cpu_present_set, *cpu_affinity_set;
 size_t cpu_present_setsize, cpu_affinity_setsize;
@@ -274,7 +273,7 @@ open_msr(int cpu)
 
 	/* FIXME: Do we really need this, why? */
 	if (cpu_migrate(cpu)) {
-		ERROR("Could not migrate to CPU %d\n", cpu);
+		ERROR("Could not migrate to CPU %d", cpu);
 		return -ERR_CPU_MIGRATE;
 	}
 
@@ -293,7 +292,7 @@ read_msr(int fd, off_t offset, unsigned long long *msr)
 	retval = pread(fd, msr, sizeof *msr, offset);
 
 	if (retval != sizeof *msr) {
-		ERROR ("MSR offset 0x%llx read failed", (unsigned long long)offset);
+		ERROR("MSR offset 0x%llx read failed", (unsigned long long)offset);
 		return -1;
 	}
 	return 0;
@@ -360,9 +359,9 @@ delta_thread(struct thread_data *new, struct thread_data *old,
 
 	/* check for TSC < 1 Mcycles over interval */
 	if (old->tsc < (1000 * 1000)) {
-		WARNING("Insanely slow TSC rate, TSC stops in idle?\n"
-			"You can disable all c-states by booting with \"idle=poll\"\n"
-			"or just the deep ones with \"processor.max_cstate=1\"");
+		WARNING("Insanely slow TSC rate, TSC stops in idle? ");
+		WARNING("You can disable all c-states by booting with \"idle=poll\" ");
+		WARNING("or just the deep ones with \"processor.max_cstate=1\"");
 		return -1;
 	}
 
@@ -374,9 +373,9 @@ delta_thread(struct thread_data *new, struct thread_data *old,
 	} else {
 
 		if (!aperf_mperf_unstable) {
-			WARNING("%s: APERF or MPERF went backwards *\n", progname);
-			WARNING("* Frequency results do not cover entire interval *\n");
-			WARNING("* fix this by running Linux-2.6.30 or later *\n");
+			WARNING(" APERF or MPERF went backwards * ");
+			WARNING("* Frequency results do not cover entire interval *");
+			WARNING("* fix this by running Linux-2.6.30 or later *");
 
 			aperf_mperf_unstable = 1;
 		}
@@ -403,7 +402,7 @@ delta_thread(struct thread_data *new, struct thread_data *old,
 	}
 
 	if (old->mperf == 0) {
-		WARNING("cpu%d MPERF 0!\n", old->cpu_id);
+		WARNING("cpu%d MPERF 0!", old->cpu_id);
 		old->mperf = 1;	/* divide by 0 protection */
 	}
 
@@ -939,8 +938,7 @@ check_dev_msr()
 	struct stat sb;
 
 	if (stat("/dev/cpu/0/msr", &sb)) {
-		ERROR("no /dev/cpu/0/msr\n"
-			"Try \"# modprobe msr\"");
+		ERROR("no /dev/cpu/0/msr, try \"# modprobe msr\"");
 		return -ERR_NO_MSR;
 	}
 	return 0;
@@ -1003,7 +1001,7 @@ set_temperature_target(struct thread_data *t, struct core_data *c, struct pkg_da
 
 guess:
 	tcc_activation_temp = TJMAX_DEFAULT;
-	WARNING("cpu%d: Guessing tjMax %d C, Please use -T to specify\n",
+	WARNING("cpu%d: Guessing tjMax %d C, Please use -T to specify",
 		t->cpu_id, tcc_activation_temp);
 
 	return 0;
@@ -1281,8 +1279,7 @@ topology_probe()
 		int siblings;
 
 		if (cpu_is_not_present(i)) {
-			//if (verbose > 1)
-				fprintf(stderr, "cpu%d NOT PRESENT\n", i);
+			WARNING("cpu%d NOT PRESENT", i);
 			continue;
 		}
 		cpus[i].core_id = get_core_id(i);
