@@ -1462,6 +1462,8 @@ static int setup_all_buffers(void)
 	DO_OR_GOTO_ERR(allocate_counters(&thread_odd, &core_odd, &package_odd));
 	DO_OR_GOTO_ERR(allocate_counters(&thread_delta, &core_delta, &package_delta));
 	DO_OR_GOTO_ERR(for_all_proc_cpus(initialize_counters));
+	DO_OR_GOTO_ERR(for_all_cpus(set_temperature_target, EVEN_COUNTERS));
+	DO_OR_GOTO_ERR(for_all_cpus(set_temperature_target, ODD_COUNTERS));
 
 	allocated = 1;
 	return 0;
@@ -1479,8 +1481,6 @@ turbostat_init(void)
 	DO_OR_GOTO_ERR(probe_cpu());
 	DO_OR_GOTO_ERR(check_dev_msr());
 	DO_OR_GOTO_ERR(setup_all_buffers());
-	DO_OR_GOTO_ERR(for_all_cpus(set_temperature_target, EVEN_COUNTERS));
-	DO_OR_GOTO_ERR(for_all_cpus(set_temperature_target, ODD_COUNTERS));
 
 	plugin_register_complex_read(NULL, PLUGIN_NAME, turbostat_read, NULL, NULL);
 
