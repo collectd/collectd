@@ -223,11 +223,7 @@ int handle_putval (FILE *fh, char *buffer)
 	} /* while (*buffer != 0) */
 	/* Done parsing the options. */
 
-	print_to_socket (fh, "0 Success: %i %s been dispatched.\n",
-			values_submitted,
-			(values_submitted == 1) ? "value has" : "values have");
-
-	sfree (vl.values); 
+	sfree (vl.values);
 
 	return (0);
 } /* int handle_putval */
