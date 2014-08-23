@@ -197,6 +197,7 @@ enum return_values {
 	ERR_MSR_PKG_PERF_STATUS,
 	ERR_MSR_DRAM_PERF_STATUS,
 	ERR_MSR_IA32_PACKAGE_THERM_STATUS,
+	ERR_MSR_IA32_TSC,
 	ERR_CPU_NOT_PRESENT,
 	ERR_NO_MSR,
 	ERR_CANT_OPEN_FILE,
@@ -409,17 +410,6 @@ delta_cpu(struct thread_data *t, struct core_data *c,
 	return 0;
 }
 
-static unsigned long long
-rdtsc(void)
-{
-	unsigned int low, high;
-
-	asm volatile("rdtsc" : "=a" (low), "=d" (high));
-
-	return low | ((unsigned long long)high) << 32;
-}
-
-
 /*
  * get_counters(...)
  * migrate to cpu
@@ -436,7 +426,8 @@ get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 		return -ERR_CPU_MIGRATE;
 	}
 
-	t->tsc = rdtsc();	/* we are running on local CPU of interest */
+	if (get_msr(cpu, MSR_IA32_TSC, &t->tsc))
+		return -MSR_IA32_TSC;
 
 	if (get_msr(cpu, MSR_IA32_APERF, &t->aperf))
 		return -ERR_MSR_IA32_APERF;
