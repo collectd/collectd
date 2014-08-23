@@ -200,6 +200,7 @@ enum return_values {
 	ERR_MSR_IA32_TSC,
 	ERR_CPU_NOT_PRESENT,
 	ERR_NO_MSR,
+	ERR_CANT_OPEN_MSR,
 	ERR_CANT_OPEN_FILE,
 	ERR_CANT_READ_NUMBER,
 	ERR_CANT_READ_PROC_STAT,
@@ -266,26 +267,40 @@ cpu_migrate(int cpu)
 }
 
 static int __attribute__((warn_unused_result))
+open_msr(int cpu)
+{
+	char pathname[32];
+
+	ssnprintf(pathname, 32, "/dev/cpu/%d/msr", cpu);
+	return open(pathname, O_RDONLY);
+}
+
+static int __attribute__((warn_unused_result))
+read_msr(int fd, off_t offset, unsigned long long *msr)
+{
+	ssize_t retval;
+
+	retval = pread(fd, msr, sizeof *msr, offset);
+
+	if (retval != sizeof *msr) {
+		ERROR ("MSR offset 0x%llx read failed", (unsigned long long)offset);
+		return -1;
+	}
+	return 0;
+}
+
+static int __attribute__((warn_unused_result))
 get_msr(int cpu, off_t offset, unsigned long long *msr)
 {
 	ssize_t retval;
-	char pathname[32];
 	int fd;
 
-	ssnprintf(pathname, 32, "/dev/cpu/%d/msr", cpu);
-	fd = open(pathname, O_RDONLY);
+	fd = open_msr(cpu);
 	if (fd < 0)
 		return -1;
-
-	retval = pread(fd, msr, sizeof *msr, offset);
+	retval = read_msr(fd, offset, msr);
 	close(fd);
-
-	if (retval != sizeof *msr) {
-		ERROR ("%s offset 0x%llx read failed\n", pathname, (unsigned long long)offset);
-		return -1;
-	}
-
-	return 0;
+	return retval;
 }
 
 #define DELTA_WRAP32(new, old)			\
@@ -420,106 +435,105 @@ get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 {
 	int cpu = t->cpu_id;
 	unsigned long long msr;
+	int msr_fd;
+	int retval = 0;
 
 	if (cpu_migrate(cpu)) {
 		WARNING("Could not migrate to CPU %d\n", cpu);
 		return -ERR_CPU_MIGRATE;
 	}
 
-	if (get_msr(cpu, MSR_IA32_TSC, &t->tsc))
-		return -MSR_IA32_TSC;
+	msr_fd = open_msr(cpu);
+	if (msr_fd < 0)
+		return -ERR_CANT_OPEN_MSR;
 
-	if (get_msr(cpu, MSR_IA32_APERF, &t->aperf))
-		return -ERR_MSR_IA32_APERF;
-	if (get_msr(cpu, MSR_IA32_MPERF, &t->mperf))
-		return -ERR_MSR_IA32_MPERF;
+#define READ_MSR(msr, dst)			\
+do {						\
+	if (read_msr(msr_fd, msr, dst)) {	\
+		retval = -ERR_##msr;		\
+		goto out;			\
+	}					\
+} while (0)
 
-	if (get_msr(cpu, MSR_SMI_COUNT, &msr))
-		return -ERR_MSR_SMI_COUNT;
+	READ_MSR(MSR_IA32_TSC, &t->tsc);
+
+	READ_MSR(MSR_IA32_APERF, &t->aperf);
+	READ_MSR(MSR_IA32_MPERF, &t->mperf);
+
+	READ_MSR(MSR_SMI_COUNT, &msr);
 	t->smi_count = msr & 0xFFFFFFFF;
 
 	/* collect core counters only for 1st thread in core */
-	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
-		return 0;
+	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE)) {
+		retval = 0;
+		goto out;
+	}
 
 	if (do_core_cstate & (1 << 3))
-		if (get_msr(cpu, MSR_CORE_C3_RESIDENCY, &c->c3))
-			return -ERR_MSR_CORE_C3_RESIDENCY
+		READ_MSR(MSR_CORE_C3_RESIDENCY, &c->c3);
 	if (do_core_cstate & (1 << 6))
-		if (get_msr(cpu, MSR_CORE_C6_RESIDENCY, &c->c6))
-			return -ERR_MSR_CORE_C6_RESIDENCY
+		READ_MSR(MSR_CORE_C6_RESIDENCY, &c->c6);
 	if (do_core_cstate & (1 << 7))
-		if (get_msr(cpu, MSR_CORE_C7_RESIDENCY, &c->c7))
-			return -ERR_MSR_CORE_C7_RESIDENCY
+		READ_MSR(MSR_CORE_C7_RESIDENCY, &c->c7);
 
 	if (do_dts) {
-		if (get_msr(cpu, MSR_IA32_THERM_STATUS, &msr))
-			return -ERR_MSR_IA32_THERM_STATUS;
+		READ_MSR(MSR_IA32_THERM_STATUS, &msr);
 		c->core_temp_c = tcc_activation_temp - ((msr >> 16) & 0x7F);
 	}
 
 	/* collect package counters only for 1st core in package */
-	if (!(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
-		return 0;
+	if (!(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE)) {
+		retval = 0;
+		goto out;
+	}
 
         if (do_pkg_cstate & (1 << 2))
-                if (get_msr(cpu, MSR_PKG_C2_RESIDENCY, &p->pc2))
-                        return -ERR_MSR_PKG_C2_RESIDENCY
+                READ_MSR(MSR_PKG_C2_RESIDENCY, &p->pc2);
         if (do_pkg_cstate & (1 << 3))
-                if (get_msr(cpu, MSR_PKG_C3_RESIDENCY, &p->pc3))
-                        return -ERR_MSR_PKG_C3_RESIDENCY
+                READ_MSR(MSR_PKG_C3_RESIDENCY, &p->pc3);
         if (do_pkg_cstate & (1 << 6))
-                if (get_msr(cpu, MSR_PKG_C6_RESIDENCY, &p->pc6))
-                        return -ERR_MSR_PKG_C6_RESIDENCY
+                READ_MSR(MSR_PKG_C6_RESIDENCY, &p->pc6);
         if (do_pkg_cstate & (1 << 7))
-                if (get_msr(cpu, MSR_PKG_C7_RESIDENCY, &p->pc7))
-                        return -ERR_MSR_PKG_C7_RESIDENCY
+                READ_MSR(MSR_PKG_C7_RESIDENCY, &p->pc7);
         if (do_pkg_cstate & (1 << 8))
-                if (get_msr(cpu, MSR_PKG_C8_RESIDENCY, &p->pc8))
-                        return -ERR_MSR_PKG_C8_RESIDENCY
+                READ_MSR(MSR_PKG_C8_RESIDENCY, &p->pc8);
         if (do_pkg_cstate & (1 << 9))
-                if (get_msr(cpu, MSR_PKG_C9_RESIDENCY, &p->pc9))
-                        return -ERR_MSR_PKG_C9_RESIDENCY
+                READ_MSR(MSR_PKG_C9_RESIDENCY, &p->pc9);
         if (do_pkg_cstate & (1 << 10))
-                if (get_msr(cpu, MSR_PKG_C10_RESIDENCY, &p->pc10))
-                        return -ERR_MSR_PKG_C10_RESIDENCY
+                READ_MSR(MSR_PKG_C10_RESIDENCY, &p->pc10);
 
 	if (do_rapl & RAPL_PKG) {
-		if (get_msr(cpu, MSR_PKG_ENERGY_STATUS, &msr))
-			return -ERR_MSR_PKG_ENERGY_STATUS;
+		READ_MSR(MSR_PKG_ENERGY_STATUS, &msr);
 		p->energy_pkg = msr & 0xFFFFFFFF;
 	}
 	if (do_rapl & RAPL_CORES) {
-		if (get_msr(cpu, MSR_PP0_ENERGY_STATUS, &msr))
-			return MSR_PP0_ENERGY_STATUS;
+		READ_MSR(MSR_PP0_ENERGY_STATUS, &msr);
 		p->energy_cores = msr & 0xFFFFFFFF;
 	}
 	if (do_rapl & RAPL_DRAM) {
-		if (get_msr(cpu, MSR_DRAM_ENERGY_STATUS, &msr))
-			return -ERR_MSR_DRAM_ENERGY_STATUS;
+		READ_MSR(MSR_DRAM_ENERGY_STATUS, &msr);
 		p->energy_dram = msr & 0xFFFFFFFF;
 	}
 	if (do_rapl & RAPL_GFX) {
-		if (get_msr(cpu, MSR_PP1_ENERGY_STATUS, &msr))
-			return -ERR_MSR_PP1_ENERGY_STATUS;
+		READ_MSR(MSR_PP1_ENERGY_STATUS, &msr);
 		p->energy_gfx = msr & 0xFFFFFFFF;
 	}
 	if (do_rapl & RAPL_PKG_PERF_STATUS) {
-		if (get_msr(cpu, MSR_PKG_PERF_STATUS, &msr))
-			return -ERR_MSR_PKG_PERF_STATUS;
+		READ_MSR(MSR_PKG_PERF_STATUS, &msr);
 		p->rapl_pkg_perf_status = msr & 0xFFFFFFFF;
 	}
 	if (do_rapl & RAPL_DRAM_PERF_STATUS) {
-		if (get_msr(cpu, MSR_DRAM_PERF_STATUS, &msr))
-			return -ERR_MSR_DRAM_PERF_STATUS;
+		READ_MSR(MSR_DRAM_PERF_STATUS, &msr);
 		p->rapl_dram_perf_status = msr & 0xFFFFFFFF;
 	}
 	if (do_ptm) {
-		if (get_msr(cpu, MSR_IA32_PACKAGE_THERM_STATUS, &msr))
-			return -ERR_MSR_IA32_PACKAGE_THERM_STATUS;
+		READ_MSR(MSR_IA32_PACKAGE_THERM_STATUS, &msr);
 		p->pkg_temp_c = tcc_activation_temp - ((msr >> 16) & 0x7F);
 	}
-	return 0;
+
+out:
+	close(msr_fd);
+	return retval;
 }
 
 static void
