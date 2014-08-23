@@ -991,7 +991,7 @@ set_temperature_target(struct thread_data *t, struct core_data *c, struct pkg_da
 		return 0;
 	}
 
-	if (get_msr(0, MSR_IA32_TEMPERATURE_TARGET, &msr))
+	if (get_msr(cpu, MSR_IA32_TEMPERATURE_TARGET, &msr))
 		goto guess;
 
 	target_c_local = (msr >> 16) & 0x7F;
