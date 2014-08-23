@@ -778,6 +778,7 @@ for_all_proc_cpus(int (func)(int))
 	retval = fscanf(fp, "cpu %*d %*d %*d %*d %*d %*d %*d %*d %*d %*d\n");
 	if (retval != 0) {
 		ERROR("Failed to parse /proc/stat");
+		fclose(fp);
 		return -ERR_CANT_READ_PROC_STAT;
 	}
 
