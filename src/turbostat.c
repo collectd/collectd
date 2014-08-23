@@ -61,17 +61,57 @@
 #define PLUGIN_NAME "turbostat"
 
 /*
+ * This tool uses the Model-Specific Registers (MSRs) present on Intel processors.
+ * The general description each of these registers, depending on the architecture,
+ * can be found in the Intel® 64 and IA-32 Architectures Software Developer Manual,
+ * Volume 3 Chapter 35.
+ */
+
+/*
  * If set, aperf_mperf_unstable disables a/mperf based stats.
  * This includes: C0 & C1 states, frequency
  *
- * This value is automatically set if mperf or aperf decreases
+ * This value is automatically set if mperf or aperf go backward
  */
 static _Bool aperf_mperf_unstable;
 
+/*
+ * Bitmask of the list of core C states supported by the processor.
+ * Currently supported C-states (by this plugin): 3, 6, 7
+ */
 static unsigned int do_core_cstate;
+
+/*
+ * Bitmask of the list of pacages C states supported by the processor.
+ * Currently supported C-states (by this plugin): 2, 3, 6, 7, 8, 9, 10
+ */
 static unsigned int do_pkg_cstate;
+
+/*
+ * Boolean indicating if the processor supports 'Digital temperature sensor'
+ * This feature enables the monitoring of the temperature of each core
+ *
+ * This feature has two limitations:
+ *  - if MSR_IA32_TEMPERATURE_TARGET is not supported, the absolute temperature might be wrong
+ *  - Temperatures above the tcc_activation_temp are not recorded
+ */
 static _Bool do_dts;
+
+/*
+ * Boolean indicating if the processor supports 'Package thermal management'
+ * This feature allows the monitoring of the temperature of each package
+ *
+ * This feature has two limitations:
+ *  - if MSR_IA32_TEMPERATURE_TARGET is not supported, the absolute temperature might be wrong
+ *  - Temperatures above the tcc_activation_temp are not recorded
+ */
 static _Bool do_ptm;
+
+/*
+ * Thermal Control Circuit Activation Temperature as configured by the user.
+ * This override the automated detection via MSR_IA32_TEMPERATURE_TARGET
+ * and should only be used if the automated detection fails.
+ */
 static unsigned int tcc_activation_temp;
 
 static unsigned int do_rapl;
@@ -258,6 +298,10 @@ for_all_cpus(int (func)(struct thread_data *, struct core_data *, struct pkg_dat
 	return 0;
 }
 
+/*
+ * Open a MSR device for reading
+ * Can change the scheduling affinity of the current process if multiple_read is 1
+ */
 static int __attribute__((warn_unused_result))
 open_msr(int cpu, _Bool multiple_read)
 {
@@ -287,6 +331,9 @@ open_msr(int cpu, _Bool multiple_read)
 	return fd;
 }
 
+/*
+ * Read a single MSR from an open file descriptor
+ */
 static int __attribute__((warn_unused_result))
 read_msr(int fd, off_t offset, unsigned long long *msr)
 {
@@ -301,6 +348,10 @@ read_msr(int fd, off_t offset, unsigned long long *msr)
 	return 0;
 }
 
+/*
+ * Open a MSR device for reading, read the value asked for and close it.
+ * This call will not affect the scheduling affinity of this thread.
+ */
 static int __attribute__((warn_unused_result))
 get_msr(int cpu, off_t offset, unsigned long long *msr)
 {
@@ -971,7 +1022,7 @@ check_super_user()
  * This is usually equal to tjMax.
  *
  * Older processors do not have this MSR, so there we guess,
- * but also allow cmdline over-ride with -T.
+ * but also allow conficuration over-ride with "TCCActivationTemp".
  *
  * Several MSR temperature values are in units of degrees-C
  * below this value, including the Digital Thermal Sensor (DTS),
