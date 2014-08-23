@@ -271,6 +271,12 @@ open_msr(int cpu)
 {
 	char pathname[32];
 
+	/* FIXME: Do we really need this, why? */
+	if (cpu_migrate(cpu)) {
+		ERROR("Could not migrate to CPU %d\n", cpu);
+		return -ERR_CPU_MIGRATE;
+	}
+
 	ssnprintf(pathname, 32, "/dev/cpu/%d/msr", cpu);
 	return open(pathname, O_RDONLY);
 }
@@ -437,11 +443,6 @@ get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	unsigned long long msr;
 	int msr_fd;
 	int retval = 0;
-
-	if (cpu_migrate(cpu)) {
-		WARNING("Could not migrate to CPU %d\n", cpu);
-		return -ERR_CPU_MIGRATE;
-	}
 
 	msr_fd = open_msr(cpu);
 	if (msr_fd < 0)
@@ -968,7 +969,6 @@ set_temperature_target(struct thread_data *t, struct core_data *c, struct pkg_da
 {
 	unsigned long long msr;
 	unsigned int target_c_local;
-	int cpu;
 
 	/* tcc_activation_temp is used only for dts or ptm */
 	if (!(do_dts || do_ptm))
@@ -978,12 +978,6 @@ set_temperature_target(struct thread_data *t, struct core_data *c, struct pkg_da
 	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE) || !(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
 		return 0;
 
-	cpu = t->cpu_id;
-	if (cpu_migrate(cpu)) {
-		ERROR("Could not migrate to CPU %d\n", cpu);
-		return -ERR_CPU_MIGRATE;
-	}
-
 	if (tcc_activation_temp_override != 0) {
 		tcc_activation_temp = tcc_activation_temp_override;
 		ERROR("cpu%d: Using cmdline TCC Target (%d C)\n",
@@ -991,7 +985,7 @@ set_temperature_target(struct thread_data *t, struct core_data *c, struct pkg_da
 		return 0;
 	}
 
-	if (get_msr(cpu, MSR_IA32_TEMPERATURE_TARGET, &msr))
+	if (get_msr(t->cpu_id, MSR_IA32_TEMPERATURE_TARGET, &msr))
 		goto guess;
 
 	target_c_local = (msr >> 16) & 0x7F;
@@ -1006,7 +1000,7 @@ set_temperature_target(struct thread_data *t, struct core_data *c, struct pkg_da
 guess:
 	tcc_activation_temp = TJMAX_DEFAULT;
 	WARNING("cpu%d: Guessing tjMax %d C, Please use -T to specify\n",
-		cpu, tcc_activation_temp);
+		t->cpu_id, tcc_activation_temp);
 
 	return 0;
 }
