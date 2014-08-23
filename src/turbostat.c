@@ -61,8 +61,15 @@
 #define PLUGIN_NAME "turbostat"
 
 static const char *proc_stat = "/proc/stat";
-static unsigned int skip_c0;
-static unsigned int skip_c1;
+
+/*
+ * If set, aperf_mperf_unstable disables a/mperf based stats.
+ * This includes: C0 & C1 states, frequency
+ *
+ * This value is automatically set if mperf or aperf decreases
+ */
+static _Bool aperf_mperf_unstable;
+
 static unsigned int do_core_cstate;
 static unsigned int do_pkg_cstate;
 static unsigned int do_rapl;
@@ -99,7 +106,6 @@ static double rapl_energy_units;
 					/* 0x642 MSR_PP1_POLICY */
 #define	TJMAX_DEFAULT	100
 
-int aperf_mperf_unstable;
 int backwards_count;
 
 cpu_set_t *cpu_present_set, *cpu_affinity_set, *cpu_saved_affinity_set;
@@ -370,7 +376,6 @@ delta_thread(struct thread_data *new, struct thread_data *old,
 		old->aperf = new->aperf - old->aperf;
 		old->mperf = new->mperf - old->mperf;
 	} else {
-
 		if (!aperf_mperf_unstable) {
 			WARNING(" APERF or MPERF went backwards * ");
 			WARNING("* Frequency results do not cover entire interval *");
@@ -378,12 +383,6 @@ delta_thread(struct thread_data *new, struct thread_data *old,
 
 			aperf_mperf_unstable = 1;
 		}
-		/*
-		 * mperf delta is likely a huge "positive" number
-		 * can not use it for calculating c0 time
-		 */
-		skip_c0 = 1;
-		skip_c1 = 1;
 	}
 
 
@@ -818,9 +817,9 @@ submit_counters(struct thread_data *t, struct core_data *c,
 
 	ssnprintf(name, sizeof(name), "cpu%02d", t->cpu_id);
 
-	if (!skip_c0)
+	if (!aperf_mperf_unstable)
 		turbostat_submit(name, "percent", "c0", 100.0 * t->mperf/t->tsc);
-	if (!skip_c1)
+	if (!aperf_mperf_unstable)
 		turbostat_submit(name, "percent", "c1", 100.0 * t->c1/t->tsc);
 
 	/* GHz */
