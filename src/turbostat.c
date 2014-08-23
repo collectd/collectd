@@ -102,8 +102,8 @@ static double rapl_energy_units;
 int aperf_mperf_unstable;
 int backwards_count;
 
-cpu_set_t *cpu_present_set, *cpu_affinity_set;
-size_t cpu_present_setsize, cpu_affinity_setsize;
+cpu_set_t *cpu_present_set, *cpu_affinity_set, *cpu_saved_affinity_set;
+size_t cpu_present_setsize, cpu_affinity_setsize, cpu_saved_affinity_setsize;
 
 struct thread_data {
 	unsigned long long tsc;
@@ -173,6 +173,7 @@ struct timeval tv_even, tv_odd, tv_delta;
 enum return_values {
 	OK = 0,
 	ERR_CPU_MIGRATE,
+	ERR_CPU_SAVE_SCHED_AFFINITY,
 	ERR_MSR_IA32_APERF,
 	ERR_MSR_IA32_MPERF,
 	ERR_MSR_SMI_COUNT,
@@ -254,26 +255,25 @@ for_all_cpus(int (func)(struct thread_data *, struct core_data *, struct pkg_dat
 }
 
 static int __attribute__((warn_unused_result))
-cpu_migrate(int cpu)
-{
-	CPU_ZERO_S(cpu_affinity_setsize, cpu_affinity_set);
-	CPU_SET_S(cpu, cpu_affinity_setsize, cpu_affinity_set);
-	if (sched_setaffinity(0, cpu_affinity_setsize, cpu_affinity_set) == -1)
-		return -ERR_CPU_MIGRATE;
-	else
-		return 0;
-}
-
-static int __attribute__((warn_unused_result))
-open_msr(int cpu)
+open_msr(int cpu, _Bool multiple_read)
 {
 	char pathname[32];
 	int fd;
 
-	/* FIXME: Do we really need this, why? */
-	if (cpu_migrate(cpu)) {
-		ERROR("Could not migrate to CPU %d", cpu);
-		return -ERR_CPU_MIGRATE;
+	/*
+	 * If we need to do multiple read, let's migrate to the CPU
+	 * Otherwise, we would lose time calling functions on another CPU
+	 *
+	 * If we are not yet initialized (cpu_affinity_setsize = 0),
+	 * we need to skip this optimisation.
+	 */
+	if (multiple_read && cpu_affinity_setsize) {
+		CPU_ZERO_S(cpu_affinity_setsize, cpu_affinity_set);
+		CPU_SET_S(cpu, cpu_affinity_setsize, cpu_affinity_set);
+		if (sched_setaffinity(0, cpu_affinity_setsize, cpu_affinity_set) == -1) {
+			ERROR("Could not migrate to CPU %d", cpu);
+			return -ERR_CPU_MIGRATE;
+		}
 	}
 
 	ssnprintf(pathname, sizeof(pathname), "/dev/cpu/%d/msr", cpu);
@@ -303,7 +303,7 @@ get_msr(int cpu, off_t offset, unsigned long long *msr)
 	ssize_t retval;
 	int fd;
 
-	fd = open_msr(cpu);
+	fd = open_msr(cpu, 0);
 	if (fd < 0)
 		return fd;
 	retval = read_msr(fd, offset, msr);
@@ -446,7 +446,7 @@ get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	int msr_fd;
 	int retval = 0;
 
-	msr_fd = open_msr(cpu);
+	msr_fd = open_msr(cpu, 1);
 	if (msr_fd < 0)
 		return msr_fd;
 
@@ -552,6 +552,10 @@ free_all_buffers(void)
 	CPU_FREE(cpu_affinity_set);
 	cpu_affinity_set = NULL;
 	cpu_affinity_setsize = 0;
+
+	CPU_FREE(cpu_saved_affinity_set);
+	cpu_saved_affinity_set = NULL;
+	cpu_saved_affinity_setsize = 0;
 
 	free(thread_even);
 	free(core_even);
@@ -898,37 +902,49 @@ turbostat_read(user_data_t * not_used)
 			return -ERR_CPU_NOT_PRESENT;
 	}
 
+	/* Saving the scheduling affinity, as it will be modified by get_counters */
+	if (sched_getaffinity(0, cpu_saved_affinity_setsize, cpu_saved_affinity_set) != 0)
+		return -ERR_CPU_SAVE_SCHED_AFFINITY;
+
 	if (!initialized) {
 		if ((ret = for_all_cpus(get_counters, EVEN_COUNTERS)) < 0)
-			return ret;
+			goto out;
 		gettimeofday(&tv_even, (struct timezone *)NULL);
 		is_even = 1;
 		initialized = 1;
-		return 0;
+		ret = 0;
+		goto out;
 	}
 
 	if (is_even) {
 		if ((ret = for_all_cpus(get_counters, ODD_COUNTERS)) < 0)
-			return ret;
+			goto out;
 		gettimeofday(&tv_odd, (struct timezone *)NULL);
 		is_even = 0;
 		timersub(&tv_odd, &tv_even, &tv_delta);
 		if ((ret = for_all_cpus_2(delta_cpu, ODD_COUNTERS, EVEN_COUNTERS)) < 0)
-			return ret;
+			goto out;
 		if ((ret = for_all_cpus(submit_counters, EVEN_COUNTERS)) < 0)
-			return ret;
+			goto out;
 	} else {
 		if ((ret = for_all_cpus(get_counters, EVEN_COUNTERS)) < 0)
-			return ret;
+			goto out;
 		gettimeofday(&tv_even, (struct timezone *)NULL);
 		is_even = 1;
 		timersub(&tv_even, &tv_odd, &tv_delta);
 		if ((ret = for_all_cpus_2(delta_cpu, EVEN_COUNTERS, ODD_COUNTERS)) < 0)
-			return ret;
+			goto out;
 		if ((ret = for_all_cpus(submit_counters, ODD_COUNTERS)) < 0)
-			return ret;
+			goto out;
 	}
-	return 0;
+	ret = 0;
+out:
+	/*
+	 * Let's restore the affinity
+	 * This might fail if the number of CPU changed, but we can't do anything in that case..
+	 */
+	(void)sched_setaffinity(0, cpu_saved_affinity_setsize, cpu_saved_affinity_set);
+	return ret;
 }
 
 static int __attribute__((warn_unused_result))
@@ -1266,6 +1282,19 @@ topology_probe()
 	}
 	cpu_affinity_setsize = CPU_ALLOC_SIZE((topo.max_cpu_num + 1));
 	CPU_ZERO_S(cpu_affinity_setsize, cpu_affinity_set);
+
+
+	/*
+	 * Allocate and initialize cpu_saved_affinity_set
+	 */
+	cpu_saved_affinity_set = CPU_ALLOC((topo.max_cpu_num + 1));
+	if (cpu_saved_affinity_set == NULL) {
+		free(cpus);
+		ERROR("CPU_ALLOC");
+		return -ERR_CPU_ALLOC;
+	}
+	cpu_saved_affinity_setsize = CPU_ALLOC_SIZE((topo.max_cpu_num + 1));
+	CPU_ZERO_S(cpu_saved_affinity_setsize, cpu_saved_affinity_set);
 
 
 	/*
