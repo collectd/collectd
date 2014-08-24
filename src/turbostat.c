@@ -1205,28 +1205,28 @@ probe_cpu()
 		case 0x3A: /* IVB */
 		case 0x3E: /* IVB Xeon */
 			do_core_cstate = (1 << 3) | (1 << 6) | (1 << 7);
-			do_pkg_cstate = (1 << 3) | (1 << 6) | (1 << 7);
+			do_pkg_cstate = (1 << 2) | (1 << 3) | (1 << 6) | (1 << 7);
 			break;
 		/* Haswell Bridge */
 		case 0x3C: /* HSW */
 		case 0x3F: /* HSW */
 		case 0x46: /* HSW */
 			do_core_cstate = (1 << 3) | (1 << 6) | (1 << 7);
-			do_pkg_cstate = (1 << 3) | (1 << 6) | (1 << 7);
+			do_pkg_cstate = (1 << 2) | (1 << 3) | (1 << 6) | (1 << 7);
 			break;
 		case 0x45: /* HSW */
 			do_core_cstate = (1 << 3) | (1 << 6) | (1 << 7);
-			do_pkg_cstate = (1 << 3) | (1 << 6) | (1 << 7) | (1 << 8) | (1 << 9) | (1 << 10);
+			do_pkg_cstate = (1 << 2) | (1 << 3) | (1 << 6) | (1 << 7) | (1 << 8) | (1 << 9) | (1 << 10);
 			break;
 		/* Broadwel */
 		case 0x4F: /* BDW */
 		case 0x56: /* BDX-DE */
 			do_core_cstate = (1 << 3) | (1 << 6) | (1 << 7);
-			do_pkg_cstate = (1 << 3) | (1 << 6) | (1 << 7);
+			do_pkg_cstate = (1 << 2) | (1 << 3) | (1 << 6) | (1 << 7);
 			break;
 		case 0x3D: /* BDW */
 			do_core_cstate = (1 << 3) | (1 << 6) | (1 << 7);
-			do_pkg_cstate = (1 << 3) | (1 << 6) | (1 << 7) | (1 << 8) | (1 << 9) | (1 << 10);
+			do_pkg_cstate = (1 << 2) | (1 << 3) | (1 << 6) | (1 << 7) | (1 << 8) | (1 << 9) | (1 << 10);
 			break;
 		default:
 			ERROR("Unsupported CPU");
