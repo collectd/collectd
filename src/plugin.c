@@ -482,7 +482,7 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 		 * intervals in which it will be called. */
 		if (status != 0)
 		{
-			const char *mei = global_option_get ("MaxEffectiveInterval");
+			const char *mei = global_option_get ("MaxReadInterval");
 			int max_effective_interval = atoi (mei);
 			if (max_effective_interval <= 0) {
 				max_effective_interval = 86400;
