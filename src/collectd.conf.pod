@@ -212,6 +212,14 @@ B<Warning:> You should set this once and then never touch it again. If you do,
 I<you will have to delete all your RRD files> or know some serious RRDtool
 magic! (Assuming you're using the I<RRDtool> or I<RRDCacheD> plugin.)
 
+=item B<MaxReadInterval> I<Seconds>
+
+Read plugin doubles interval between queries after each failed attempt
+to get data.
+
+This options limits the maximum value of the interval. The default value is
+B<86400>.
+
 =item B<Timeout> I<Iterations>
 
 Consider a value list "missing" when no update has been read or received for
