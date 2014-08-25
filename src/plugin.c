@@ -182,7 +182,7 @@ static void plugin_update_internal_statistics (void) { /* {{{ */
 
 	/* Cache : Nb entry in cache tree */
 	vl.values[0].gauge = (gauge_t) uc_get_size();
-	sstrncpy (vl.type, "nb_values", sizeof (vl.type));
+	sstrncpy (vl.type, "cache_size", sizeof (vl.type));
 	vl.type_instance[0] = 0;
 	plugin_dispatch_values (&vl);
 
