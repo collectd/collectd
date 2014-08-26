@@ -28,7 +28,7 @@
 # When enabled, some internal statistics are recorded as values              #
 # Disabled by default.                                                       #
 #----------------------------------------------------------------------------#
-#InternalStatistics false
+#CollectInternalStats false
 
 #----------------------------------------------------------------------------#
 # Interval at which to query values. This may be overwritten on a per-plugin #

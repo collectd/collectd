@@ -117,7 +117,7 @@ static cf_global_option_t cf_global_options[] =
 	{"WriteQueueLimitLow", NULL, NULL},
 	{"Timeout",     NULL, "2"},
 	{"AutoLoadPlugin", NULL, "false"},
-	{"InternalStatistics", NULL, "false"},
+	{"CollectInternalStats", NULL, "false"},
 	{"PreCacheChain",  NULL, "PreCache"},
 	{"PostCacheChain", NULL, "PostCache"}
 };

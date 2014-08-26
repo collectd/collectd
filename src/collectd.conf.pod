@@ -222,7 +222,7 @@ on the I<Interval> information contained in each value list. This is used in
 the I<Threshold> configuration to dispatch notifications about missing values,
 see L<collectd-threshold(5)> for details.
 
-=item B<InternalStatistics> I<true|false>
+=item B<CollectInternalStats> I<true|false>
 
 Some internal statistics can be recorded to monitor Collectd itself.
 Default value : false.

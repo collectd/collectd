@@ -155,7 +155,7 @@ static void plugin_update_internal_statistics (void) { /* {{{ */
 	vl.values_len = 2;
 	vl.time = 0;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-	sstrncpy (vl.plugin, "internal", sizeof (vl.plugin));
+	sstrncpy (vl.plugin, "collectd", sizeof (vl.plugin));
 
 	vl.type_instance[0] = 0;
 	vl.values_len = 1;
@@ -1517,7 +1517,7 @@ void plugin_init_all (void)
 	/* Init the value cache */
 	uc_init ();
 
-	if (IS_TRUE (global_option_get ("InternalStatistics")))
+	if (IS_TRUE (global_option_get ("CollectInternalStats")))
 		record_statistics = 1;
 
 	chain_name = global_option_get ("PreCacheChain");
@@ -2135,9 +2135,11 @@ int plugin_dispatch_values (value_list_t const *vl)
 	static pthread_mutex_t statistics_lock = PTHREAD_MUTEX_INITIALIZER;
 
 	if (check_drop_value ()) {
-		pthread_mutex_lock(&statistics_lock);
-		stats_values_dropped++;
-		pthread_mutex_unlock(&statistics_lock);
+		if(record_statistics) {
+			pthread_mutex_lock(&statistics_lock);
+			stats_values_dropped++;
+			pthread_mutex_unlock(&statistics_lock);
+		}
 		return (0);
 	}
 
