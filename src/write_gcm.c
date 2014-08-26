@@ -22,6 +22,7 @@
  *
  * Authors:
  *   Zhihua Wen <zhihuawen at google.com>
+ *   Florian Forster <octo at google.com>
  **/
 
 #include "collectd.h"
@@ -60,9 +61,8 @@
  * monitoring api supports up to 100K bytes in one request, 64K is reasonable
  */
 #define MAX_BUFFER_SIZE 65536
-#define MAX_TOKEN_REQUEST_SIZE 4096
 #define MAX_ENCODE_SIZE 2048
-#define MAX_TIMESTAMP_SIZE 128
+#define MAX_TIMESTAMP_SIZE 42
 
 #define PLUGIN_INSTANCE_LABEL "plugin_instance"
 #define TYPE_INSTANCE_LABEL "type_instance"
@@ -73,13 +73,15 @@
 
 #define MONITORING_URL \
   "https://www.googleapis.com/cloudmonitoring/v2beta2"
+/* TODO(zhihuawen) change the scope to monitoring when it's working */
 #define MONITORING_SCOPE "https://www.googleapis.com/auth/monitoring.readonly"
+//#define MONITORING_SCOPE "https://www.googleapis.com/auth/monitoring"
 #define GCE_METADATA_FLAVOR "Metadata-Flavor: Google"
 #define METADATA_PREFIX "http://169.254.169.254/"
 #define METADATA_HEADER "X-Google-Metadata-Request: True"
-#define META_DATA_TOKEN_URL \
+#define METADATA_TOKEN_URL \
   METADATA_PREFIX "computeMetadata/v1/instance/service-accounts/default/token"
-#define META_DATA_SCOPE_URL                                   \
+#define METADATA_SCOPE_URL                                    \
   METADATA_PREFIX                                             \
       "computeMetadata/v1/instance/service-accounts/default/" \
       "scopes"
@@ -89,14 +91,16 @@
   METADATA_PREFIX "computeMetadata/v1/instance/id"
 
 struct wg_metric_cache_s {
-  cdtime_t vl_time;
+  cdtime_t end_time;
+  char     end_time_str[MAX_TIMESTAMP_SIZE];
   cdtime_t start_time;
+  char     start_time_str[MAX_TIMESTAMP_SIZE];
 };
 typedef struct wg_metric_cache_s wg_metric_cache_t;
 
 struct wg_callback_s {
   int timeseries_count;
-  char *token;
+  char *authorization_header;
   char *project;
   char *resource_id;
   char *service;
@@ -112,7 +116,6 @@ struct wg_callback_s {
   c_avl_tree_t *metric_name_tree;
   c_avl_tree_t *metric_buffer_tree;
   c_avl_tree_t *stream_key_tree;
-  char str_init_time[MAX_TIMESTAMP_SIZE];
   cdtime_t token_expire_time;
   pthread_mutex_t send_lock;
 #if HAVE_LIBSSL
@@ -129,28 +132,43 @@ struct wg_memory_s {
 typedef struct wg_memory_s wg_memory_t;
 
 #if HAVE_LIBSSL
-/*base64 encoding of {"alg":"RS256","typ":"JWT"}  */
-static const char header64[] = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9";
-static const char jwt_claim_fmt[] =
-    "{\
-\"iss\":\"%s\",\
-\"scope\":\"https://www.googleapis.com/auth/monitoring.readonly\",\
-\"aud\":\"https://accounts.google.com/o/oauth2/token\",\
-\"exp\":%ld,\"iat\":%ld\
-}";
+#define OAUTH_EXPIRATION_TIME TIME_T_TO_CDTIME_T(3600)
+
+#define OAUTH_HEADER "{\"alg\":\"RS256\",\"typ\":\"JWT\"}"
+#define OAUTH_SCOPE MONITORING_SCOPE
+#define OAUTH_AUD "https://accounts.google.com/o/oauth2/token"
+static const char OAUTH_CLAIM_FORMAT[] =
+    "{"
+      "\"iss\":\"%s\","
+      "\"scope\":\"%s\","
+      "\"aud\":\"%s\","
+      "\"exp\":%lu,"
+      "\"iat\":%lu"
+    "}";
 #endif
 
-#define BUFFER_ADD(...)                                                     \
+#define BUFFER_ADDF(...)                                                    \
   do {                                                                      \
     int status;                                                             \
     status = ssnprintf(buffer + offset, buffer_size - offset, __VA_ARGS__); \
     if (status < 1) {                                                       \
       return (-1);                                                          \
     } else if (((size_t)status) >= (buffer_size - offset)) {                \
-      return (-ENOMEM);                                                     \
+      return (ENOMEM);                                                      \
     } else                                                                  \
       offset += ((size_t)status);                                           \
   } while (0)
+
+#define BUFFER_ADD(str)                                                     \
+  do {                                                                      \
+    size_t len = strlen (str);                                              \
+    if (len >= (buffer_size - offset))                                      \
+      return (ENOMEM);                                                      \
+    sstrncpy (buffer + offset, str, len + 1);                               \
+    offset += len;                                                          \
+  } while (0)
+
+static char *wg_get_authorization_header(wg_callback_t *cb);
 
 static size_t wg_write_memory_cb(void *contents, size_t size, size_t nmemb, /* {{{ */
                                  void *userp) {
@@ -183,17 +201,17 @@ static int wg_get_vl_value(char *buffer, size_t buffer_size, /* {{{ */
 
   if (ds->ds[i].type == DS_TYPE_GAUGE) {
     if (isfinite(vl->values[i].gauge))
-      BUFFER_ADD("%f", vl->values[i].gauge);
+      BUFFER_ADDF("%f", vl->values[i].gauge);
     else {
       ERROR("write_gcm: can not take infinite value");
       return (-1);
     }
   } else if (ds->ds[i].type == DS_TYPE_COUNTER)
-    BUFFER_ADD("%llu", vl->values[i].counter);
+    BUFFER_ADDF("%llu", vl->values[i].counter);
   else if (ds->ds[i].type == DS_TYPE_DERIVE)
-    BUFFER_ADD("%" PRIi64, vl->values[i].derive);
+    BUFFER_ADDF("%" PRIi64, vl->values[i].derive);
   else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
-    BUFFER_ADD("%" PRIu64, vl->values[i].absolute);
+    BUFFER_ADDF("%" PRIu64, vl->values[i].absolute);
   else {
     ERROR("write_gcm: Unknown data source type: %i", ds->ds[i].type);
     return (-1);
@@ -201,305 +219,326 @@ static int wg_get_vl_value(char *buffer, size_t buffer_size, /* {{{ */
   return (0);
 } /* }}} int get_vl_value */
 
-static int wg_post_url(const char *url, const char *header,
-                       const char *body) /* {{{ */
+static int wg_create_metric_format(char *buffer, size_t buffer_size, /* {{{ */
+    const char *metric_name,
+    const data_set_t *ds, int i)
 {
+  size_t offset = 0;
+
+  BUFFER_ADD ("{\"name\": \""); /* body begin */
+  BUFFER_ADD (metric_name);
+  BUFFER_ADD ("\",\"typeDescriptor\": {"); /* typeDescriptor begin */
+  if (ds->ds[i].type == DS_TYPE_GAUGE)
+    BUFFER_ADD ("\"metricType\": \"gauge\",");
+  else
+    BUFFER_ADD ("\"metricType\": \"cumulative\",");
+  BUFFER_ADD("\"valueType\" : \"double\"}," /* typeDescriptor end */
+      "\"labels\": [" /* labels begin */
+        "{\"key\": \"" SERVICE_LABEL "\"},"
+        "{\"key\": \"" RESOURCE_ID_LABEL "\"},"
+        "{\"key\": \"" METRIC_LABEL_PREFIX "/" TYPE_INSTANCE_LABEL "\"},"
+        "{\"key\": \"" METRIC_LABEL_PREFIX "/" PLUGIN_INSTANCE_LABEL "\"}"
+      "]"); /* labels end */
+  BUFFER_ADD("}"); /* body end */
+
+  DEBUG ("write_gcm plugin: wg_create_metric_format() = %s", buffer);
+
+  return (0);
+} /* }}} int wg_create_metric_format */
+
+static int wg_create_metric (const char *metric_name, /* {{{ */
+    const data_set_t *ds, int i, const value_list_t *vl,
+    wg_callback_t *cb) {
+  char final_url[256];
+  char buffer[2048];
+  char const *authorization_header;
+  struct curl_slist *headers = NULL;
   CURL *curl;
-  int status = 0;
-  long http_code = 0;
   char curl_errbuf[CURL_ERROR_SIZE];
-  struct curl_slist *curl_header = NULL;
+  wg_memory_t res;
+  long http_code = 0;
+  int status;
+
+  status = ssnprintf(final_url, sizeof(final_url),
+      "%s/projects/%s/metricDescriptors",
+      cb->url, cb->project);
+  if ((status < 1) || ((size_t) status >= sizeof (final_url)))
+    return (-1);
+
+  status = wg_create_metric_format (buffer, sizeof (buffer),
+      metric_name, ds, i);
+  if (status != 0)
+    return (status);
+
+  authorization_header = wg_get_authorization_header (cb);
+  if (authorization_header == NULL)
+    return (-1);
+
+  headers = curl_slist_append (headers, "Content-Type: application/json");
+  headers = curl_slist_append (headers, authorization_header);
 
   curl = curl_easy_init();
-  if (!curl) {
-    ERROR("wg_post_url: curl_easy_init failed.");
-    status = -1;
-    goto bailout;
+  if (!curl)
+  {
+    ERROR("write_gcm plugin: curl_easy_init failed.");
+    curl_slist_free_all (headers);
+    return (-1);
   }
 
   curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
   curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, curl_errbuf);
-  curl_easy_setopt(curl, CURLOPT_URL, url);
+  curl_easy_setopt(curl, CURLOPT_URL, final_url);
+  curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
   curl_easy_setopt(curl, CURLOPT_POST, 1L);
-  curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body);
+  curl_easy_setopt(curl, CURLOPT_POSTFIELDS, buffer);
 
-  /*set the header if it's not null*/
-  if (header) {
-    curl_header = curl_slist_append(curl_header, "Accept:  */*");
-    curl_header = curl_slist_append(curl_header, header);
-    curl_header = curl_slist_append(curl_header, "Expect:");
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, curl_header);
-  }
-
-#if defined(COLLECT_DEBUG) && COLLECT_DEBUG
-  wg_memory_t data;
-  data.size = 0;
-  data.memory = NULL;
+  res.size = 0;
+  res.memory = NULL;
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, wg_write_memory_cb);
-  curl_easy_setopt(curl, CURLOPT_WRITEDATA, &data);
-#endif
+  curl_easy_setopt(curl, CURLOPT_WRITEDATA, &res);
 
-  status = curl_easy_perform(curl);
+  status = curl_easy_perform (curl);
   if (status != CURLE_OK) {
-    ERROR("wg_post_url: curl_easy_perform failed with status %i: %s", status,
-          curl_errbuf);
-    status = -1;
-    goto bailout;
-  } else {
-    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
-    if (http_code != 200) {
-      ERROR("wg_post_url: http code: %ld", http_code);
-#if defined(COLLECT_DEBUG) && COLLECT_DEBUG
-      ERROR("wg_post_url: request:\n %s", body);
-      ERROR("wg_post_url: error_msg: %s", data.memory);
-#endif
-      status = -1;
-      goto bailout;
-    }
-    status = 0;
-  }
-
-bailout:
-#if defined(COLLECT_DEBUG) && COLLECT_DEBUG
-  sfree(data.memory);
-#endif
-  if (curl) {
+    ERROR("write_gcm plugin: curl_easy_perform failed with status %i: %s",
+        status, curl_errbuf);
+    sfree (res.memory);
     curl_easy_cleanup(curl);
-  }
-  if (curl_header) {
-    curl_slist_free_all(curl_header);
-  }
-  return status;
-} /* }}} int wg_read_url */
-
-static int wg_create_metric(const char *metric_name, /* {{{ */
-                            const data_set_t *ds, int i, const value_list_t *vl,
-                            wg_callback_t *cb) {
-  char buffer[2048];
-  char url[256];
-  size_t offset = 0;
-  int status;
-  int buffer_size = sizeof(buffer);
-  BUFFER_ADD("{\n");                              /* body */
-  BUFFER_ADD("\"name\": \"%s\",\n", metric_name); /* metric_name */
-  BUFFER_ADD("\"typeDescriptor\": {\n");          /* typeDescriptor */
-  BUFFER_ADD("\"metricType\": \"%s\",\n",
-             ds->ds[i].type == DS_TYPE_GAUGE ? "gauge" : "cumulative");
-  BUFFER_ADD("\"valueType\" : \"double\"\n");
-  BUFFER_ADD("},\n"); /* typeDescriptor */
-  BUFFER_ADD(
-      " \"labels\": [\n"
-      "  {\"key\": \"" SERVICE_LABEL
-      "\"},"
-      "  {\"key\": \"" RESOURCE_ID_LABEL
-      "\"},"
-      "  {\"key\": \"" METRIC_LABEL_PREFIX "/" TYPE_INSTANCE_LABEL
-      "\"},"
-      "  {\"key\": \"" METRIC_LABEL_PREFIX "/" PLUGIN_INSTANCE_LABEL
-      "\"}"
-      " ]\n");       // labels
-  BUFFER_ADD("}\n"); /* body */
-
-  status = ssnprintf(url, sizeof(url),
-                     "%s/projects/%s/metricDescriptors?access_token=%s",
-                     cb->url, cb->project, cb->token);
-  if (status < 1) {
-    return (-1);
-  } else if ((size_t)status >= sizeof(url)) {
-    return (-ENOMEM);
-  }
-  status = wg_post_url(url, "Content-Type: application/json", buffer);
-  if (status != 0) {
-    ERROR("wg_create_metric %s failed", metric_name);
-  } else {
-    DEBUG("wg_create_metric %s successful", metric_name);
-  }
-  return status;
-} /* }}} int create_metric */
-
-static int value_to_timeseries(char *buffer, size_t buffer_size, /* {{{ */
-                               const data_set_t *ds, const value_list_t *vl,
-                               wg_callback_t *cb, int i,
-                               wg_metric_cache_t *mb) {
-  char temp[512];
-  char init_time[512];
-  char metric_name[256];
-  size_t offset = 0;
-  int status;
-  int len;
-  memset(buffer, 0, buffer_size);
-
-  BUFFER_ADD("{\n");                     /* timeseries */
-  BUFFER_ADD("\"timeseriesDesc\": {\n"); /* timeseriesDesc */
-  /* project id */
-  BUFFER_ADD("\"project\":%s,\n", cb->project);
-
-  /* metric_name */
-  if (ds->ds[i].name && strcasecmp(ds->ds[i].name, "value") != 0) {
-    /* METRIC_LABEL_PREFIX/plugin/type_dsnames */
-    status = ssnprintf(metric_name, sizeof(metric_name),
-                       METRIC_LABEL_PREFIX "/%s/%s_%s", vl->plugin, vl->type,
-                       ds->ds[i].name);
-  } else {
-    /* METRIC_LABEL_PREFIX/plugin/type */
-    status = ssnprintf(metric_name, sizeof(metric_name),
-                       METRIC_LABEL_PREFIX "/%s/%s", vl->plugin, vl->type);
-  }
-  if ((status < 1) || (status >= sizeof(metric_name))) {
-    ERROR("value_to_timeseries: construct metric_name failed.");
+    curl_slist_free_all (headers);
     return (-1);
   }
-  BUFFER_ADD("\"metric\":\"%s\",\n", metric_name); /* metric_name */
+
+  curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+  if ((http_code < 200) || (http_code >= 300))
+  {
+    ERROR ("write_gcm plugin: POST request to %s failed: HTTP error %ld",
+        final_url, http_code);
+    INFO ("write_gcm plugin: Server replied: %s", res.memory);
+    sfree (res.memory);
+    curl_easy_cleanup(curl);
+    curl_slist_free_all (headers);
+    return (-1);
+  }
+
+  sfree (res.memory);
+  curl_easy_cleanup(curl);
+  curl_slist_free_all (headers);
+  return (0);
+} /* }}} int wg_create_metric */
+
+static int wg_format_metric_name (char *buffer, size_t buffer_size, /* {{{ */
+    data_set_t const *ds, value_list_t const *vl,
+    int ds_index)
+{
+  size_t offset = 0;
+
+  BUFFER_ADD (METRIC_LABEL_PREFIX "/");
+  BUFFER_ADD (vl->plugin);
+  BUFFER_ADD ("/");
+  BUFFER_ADD (vl->type);
+
+  if ((ds->ds_num > 1) || (strcasecmp(ds->ds[ds_index].name, "value") != 0))
+  {
+    BUFFER_ADD ("_");
+    BUFFER_ADD (ds->ds[ds_index].name);
+  }
+
+  return (0);
+} /* }}} int wg_format_metric_name */
+
+static int value_to_timeseries(char *buffer, /* {{{ */
+    size_t *ret_buffer_fill, size_t *ret_buffer_free,
+    const data_set_t *ds, const value_list_t *vl,
+    wg_callback_t *cb, int ds_index,
+    wg_metric_cache_t *mb)
+{
+  /* Variables used by BUFFER_ADD */
+  size_t buffer_size;
+  size_t offset;
+
+  char metric_name[6 * DATA_MAX_NAME_LEN];
+  char *start_time_str;
+  char *end_time_str;
+  char double_value_str[128];
+  int status;
+
+  buffer_size = *ret_buffer_free + *ret_buffer_fill;
+  offset = *ret_buffer_fill;
+
+  /* TODO(octo): This assumes that project (a char*) holds a numberic id. */
+  BUFFER_ADD("{"
+             "\"timeseriesDesc\":{"
+             "\"project\":");
+  BUFFER_ADD(cb->project);
+  BUFFER_ADD(",");
+
+  status = wg_format_metric_name (metric_name, sizeof (metric_name),
+      ds, vl, ds_index);
+  if (status != 0)
+    return (-1);
 
   /* if the metric name is not found in the cache, create this metric and add
    * the metric name to the cache */
   if (c_avl_get(cb->metric_name_tree, metric_name, NULL) != 0) {
-    c_avl_insert(cb->metric_name_tree, strdup(metric_name), NULL);
-    wg_create_metric(metric_name, ds, i, vl, cb);
+    char *key = strdup (metric_name);
+
+    status = wg_create_metric(metric_name, ds, ds_index, vl, cb);
+    if (status != 0)
+      return (-1);
+
+    status = c_avl_insert (cb->metric_name_tree, key, NULL);
+    if (status != 0)
+      NOTICE ("write_gcm plugin: Adding metric \"%s\" to the cache failed. "
+          "This will result in multiple metricDescriptors calls, but should "
+          "not break stuff.", key);
   }
 
-  BUFFER_ADD("\"labels\":{\n"); /* labels */
+  BUFFER_ADD ("\"metric\":\"");
+  BUFFER_ADD (metric_name);
+  BUFFER_ADD ("\",");
 
-  if (vl->type_instance && vl->type_instance[0] != '\0') {
-    BUFFER_ADD("\"" METRIC_LABEL_PREFIX "/" TYPE_INSTANCE_LABEL "\":\"%s\"",
-               vl->type_instance);
+  BUFFER_ADD ("\"labels\":{");
+  if (vl->type_instance[0] != 0)
+  {
+    BUFFER_ADD ("\"" METRIC_LABEL_PREFIX "/" TYPE_INSTANCE_LABEL "\":\"");
+    BUFFER_ADD (vl->type_instance);
+    BUFFER_ADD ("\"");
+  }
+  if ((vl->type_instance[0] != 0) && (vl->plugin_instance[0] != 0))
+  {
+    BUFFER_ADD (",");
+  }
+  if (vl->plugin_instance[0] != 0)
+  {
+    BUFFER_ADD ("\"" METRIC_LABEL_PREFIX "/" PLUGIN_INSTANCE_LABEL "\":\"");
+    BUFFER_ADD (vl->plugin_instance);
+    BUFFER_ADD ("\"");
   }
 
-  if (vl->plugin_instance && vl->plugin_instance[0] != '\0') {
-    if (vl->type_instance && vl->type_instance[0] != '\0') {
-      BUFFER_ADD(",");
-    }
-    BUFFER_ADD("\"" METRIC_LABEL_PREFIX "/" PLUGIN_INSTANCE_LABEL "\":\"%s\"",
-               vl->plugin_instance);
-  }
-  BUFFER_ADD("}\n");  /* labels */
-  BUFFER_ADD("},\n"); /* timeseriesDesc */
-
-  BUFFER_ADD("\"point\": [\n"); /* points */
-  BUFFER_ADD("{\n");
   /* start and end time, for gauge metric, start = end, otherwise it's
    * cumulative metric,  end the current time and start = call back init time
    * - interval */
-  len = cdtime_to_iso8601(temp, sizeof(temp), mb->vl_time);
-  if (len == 0) {
-    ERROR(
-        "write_gcm value_to_timeseries: Failed to convert time to ISO 8601 "
-        "format");
-    return -1;
-  }
-  if (ds->ds[i].type == DS_TYPE_GAUGE) {
-    BUFFER_ADD("\"start\":\"%s\",\n", temp);
-  } else {
-    if (mb->start_time == 0) {
-      mb->start_time = mb->vl_time;
-    }
-    len = cdtime_to_iso8601(init_time, sizeof(init_time), mb->start_time);
-    if (len == 0) {
-      ERROR(
-          "write_gcm value_to_timeseries: Failed to convert time to ISO 8601 "
-          "format");
-      return -1;
-    }
-    BUFFER_ADD("\"start\":\"%s\",\n", init_time);
-  };
-  BUFFER_ADD("\"end\":\"%s\",\n", temp);
+  if (ds->ds[ds_index].type == DS_TYPE_GAUGE)
+    start_time_str = mb->end_time_str;
+  else
+    start_time_str = mb->start_time_str;
+  end_time_str = mb->end_time_str;
 
   /* value in the point */
-  status = wg_get_vl_value(temp, sizeof(temp), ds, vl, i);
-  if (status != 0) return (status);
-  BUFFER_ADD("\"doubleValue\":%s", temp);
-  BUFFER_ADD("}\n");
-  BUFFER_ADD("]\n"); /* points */
-  BUFFER_ADD("},");  /* timeseries */
+  status = wg_get_vl_value (double_value_str, sizeof (double_value_str),
+      ds, vl, ds_index);
+  if (status != 0)
+    return (status);
+
+  BUFFER_ADD("}"  /* labels */
+             "}," /* timeseriesDesc */
+             "\"point\": [{" /* point */
+             "\"start\":\"");
+  BUFFER_ADD(start_time_str);
+  BUFFER_ADD("\",\"end\":\"");
+  BUFFER_ADD(end_time_str);
+  BUFFER_ADD("\",\"doubleValue\":");
+  BUFFER_ADD(double_value_str);
+  BUFFER_ADD("}]"   /* points */
+             "},"); /* timeseries */
+
+  *ret_buffer_fill = offset;
+  *ret_buffer_free = buffer_size - offset;
   return (0);
 } /* }}} int value_to_timeseries */
 
-static int value_list_to_timeseries(char *buffer, size_t buffer_size, /* {{{ */
-                                    const data_set_t *ds,
-                                    const value_list_t *vl, wg_callback_t *cb) {
-  char temp[2048];
-  char metric_key[256];
+/* the caller of this function must make sure *ret_buffer_free >= 3 */
+static int value_list_to_timeseries(char *buffer, /* {{{ */
+    size_t *ret_buffer_fill, size_t *ret_buffer_free,
+    const data_set_t *ds, const value_list_t *vl,
+    wg_callback_t *cb)
+{
+  char identifier[6 * DATA_MAX_NAME_LEN];
   wg_metric_cache_t *mb;
-  size_t offset = 0;
+
+  size_t buffer_fill;
+  size_t buffer_free;
+
   int status;
-  memset(buffer, 0, buffer_size);
   int i;
 
-  if (FORMAT_VL(metric_key, sizeof(metric_key), vl) != 0) {
-    ERROR("value_to_timeseries: FORMAT_VL failed.");
+  if ((buffer == NULL) || (ret_buffer_fill == NULL) || (ret_buffer_free == NULL)
+      || (ds == NULL) || (vl == NULL))
+    return (EINVAL);
+
+  buffer_fill = *ret_buffer_fill;
+  buffer_free = *ret_buffer_free;
+
+  if (buffer_free < 3)
+    return (ENOMEM);
+
+  status = FORMAT_VL (identifier, sizeof(identifier), vl);
+  if (status != 0)
+  {
+    ERROR("write_gcm plugin: FORMAT_VL() failed.");
     return (-1);
   }
 
-  if (c_avl_get(cb->metric_buffer_tree, metric_key, (void *)&mb) != 0) {
-    mb = (wg_metric_cache_t *)malloc(sizeof(wg_metric_cache_t));
-    mb->vl_time = 0;
-    mb->start_time = 0;
-    c_avl_insert(cb->metric_buffer_tree, strdup(metric_key), mb);
-  }
-  cdtime_t vl_time = vl->time - vl->time % vl->interval;
+  status = c_avl_get (cb->metric_buffer_tree, identifier, (void *) &mb);
+  if (status != 0)
+  {
+    char *key = strdup (identifier);
 
-  mb->vl_time = mb->vl_time < vl_time ? vl_time : mb->vl_time + vl->interval;
+    mb = malloc (sizeof (*mb));
+    memset (mb, 0, sizeof (*mb));
 
-  for (i = 0; i < ds->ds_num; i++) {
-    status = value_to_timeseries(temp, sizeof(temp), ds, vl, cb, i, mb);
-    if (status == 0) {
-      BUFFER_ADD("%s", temp);
-    } else {
-      return status;
+    status = c_avl_insert (cb->metric_buffer_tree, key, mb);
+    if (status != 0)
+    {
+      ERROR ("write_gcm plugin: Adding metric %s to the cache failed.",
+          identifier);
+      sfree (key);
+      sfree (mb);
+      return (-1);
     }
   }
-  DEBUG("write_gcm: value_list_to_timeseries: buffer = %s;", buffer);
+  assert (mb != NULL);
+
+  if (mb->start_time == 0) /* new metric */
+  {
+    size_t len;
+
+    len = cdtime_to_iso8601 (mb->start_time_str, sizeof (mb->start_time_str), vl->time);
+    if (len == 0)
+    {
+      ERROR ("write_gcm plugin: cdtime_to_iso8601 failed.");
+      return (-1);
+    }
+    sstrncpy (mb->end_time_str, mb->start_time_str, sizeof (mb->end_time_str));
+
+    mb->start_time = vl->time;
+    mb->end_time = vl->time;
+  }
+  else if (mb->end_time < vl->time) /* existing metric */
+  {
+    size_t len;
+
+    len = cdtime_to_iso8601 (mb->end_time_str, sizeof (mb->end_time_str), vl->time);
+    if (len == 0)
+    {
+      ERROR ("write_gcm plugin: cdtime_to_iso8601 failed.");
+      return (-1);
+    }
+
+    mb->end_time = vl->time;
+  }
+
+  for (i = 0; i < ds->ds_num; i++) {
+    status = value_to_timeseries(buffer, &buffer_fill, &buffer_free,
+        ds, vl, cb, i, mb);
+    if (status != 0)
+      return (status);
+  }
+
+  cb->timeseries_count++;
+  *ret_buffer_fill = buffer_fill;
+  *ret_buffer_free = buffer_free;
   return (0);
 } /* }}} int value_list_to_timeseries */
-
-/* the caller of this function must make sure *ret_buffer_free >= 3 */
-static int format_timeseries_nocheck(char *buffer, /* {{{ */
-                                     size_t *ret_buffer_fill,
-                                     size_t *ret_buffer_free,
-                                     const data_set_t *ds,
-                                     const value_list_t *vl,
-                                     wg_callback_t *cb) {
-  char temp[(*ret_buffer_free) > 2 ? (*ret_buffer_free) - 2 : 100];
-  size_t temp_size;
-  int status;
-
-  if (*ret_buffer_free < 3) return (-ENOMEM);
-  status = value_list_to_timeseries(temp, sizeof(temp), ds, vl, cb);
-  if (status != 0) return (status);
-  temp_size = strlen(temp);
-
-  memcpy(buffer + (*ret_buffer_fill), temp, temp_size + 1);
-  (*ret_buffer_fill) += temp_size;
-  (*ret_buffer_free) -= temp_size;
-  cb->timeseries_count++;
-  return (0);
-} /* }}} int format_timeseries_nocheck */
-
-static int format_timeseries(char *buffer, /* {{{ */
-                             size_t *ret_buffer_fill, size_t *ret_buffer_free,
-                             const data_set_t *ds, const value_list_t *vl,
-                             wg_callback_t *cb) {
-  char stream_key[256];
-  if ((buffer == NULL) || (ret_buffer_fill == NULL) ||
-      (ret_buffer_free == NULL) || (ds == NULL) || (vl == NULL))
-    return (-EINVAL);
-
-  if (*ret_buffer_free < 3) return (-ENOMEM);
-
-  if (FORMAT_VL(stream_key, sizeof(stream_key), vl) != 0) {
-      ERROR("value_to_timeseries: FORMAT_VL failed.");
-      return -1;
-  } else if (cb->stream_key_tree == NULL) {
-    cb->stream_key_tree =
-        c_avl_create((int (*)(const void *, const void *))strcmp);
-  } else if (c_avl_get(cb->stream_key_tree, stream_key, NULL) == 0) {
-    return -1;
-  }
-  c_avl_insert(cb->stream_key_tree, strdup(stream_key), NULL);
-
-  return (format_timeseries_nocheck(buffer, ret_buffer_fill, ret_buffer_free,
-                                    ds, vl, cb));
-} /* }}} int format_timeseries */
 
 static int format_timeseries_initialize(char *buffer, /* {{{ */
                                         size_t *ret_buffer_fill,
@@ -519,14 +558,11 @@ static int format_timeseries_initialize(char *buffer, /* {{{ */
   buffer_free = buffer_fill + buffer_free;
   buffer_fill = 0;
 
-  if (buffer_free < 3) return (-ENOMEM);
-
-  memset(buffer, 0, buffer_free);
+  if (buffer_free < 3)
+    return (-ENOMEM);
 
   /* add the initial bracket and the common labels and the begining of
-   * timeseries
-   */
-
+   * timeseries */
   ret = ssnprintf(buffer, buffer_free,
                   "{\"commonLabels\": {"
                   "\"" SERVICE_LABEL
@@ -582,9 +618,8 @@ static int format_timeseries_finalize(char *buffer, /* {{{ */
 
 static void wg_reset_buffer(wg_callback_t *cb) /* {{{ */
 {
-  memset(cb->send_buffer, 0, sizeof(cb->send_buffer));
   cb->timeseries_count = 0;
-  cb->send_buffer_free = sizeof(cb->send_buffer);
+  cb->send_buffer_free = sizeof (cb->send_buffer);
   cb->send_buffer_fill = 0;
   cb->send_buffer_init_time = cdtime();
 
@@ -593,8 +628,8 @@ static void wg_reset_buffer(wg_callback_t *cb) /* {{{ */
 } /* }}} wg_reset_buffer */
 
 #if HAVE_LIBSSL
-static EVP_PKEY *wg_load_pkey_internal(/* {{{ */
-    char const *pkcs12_key_path, char const *passphrase)
+static EVP_PKEY *wg_load_pkey(/* {{{ */
+    char const *p12_filename, char const *p12_passphrase)
 {
   FILE *fp;
   PKCS12 *p12;
@@ -604,12 +639,12 @@ static EVP_PKEY *wg_load_pkey_internal(/* {{{ */
 
   OpenSSL_add_all_algorithms();
 
-  fp = fopen(pkcs12_key_path, "rb");
+  fp = fopen(p12_filename, "rb");
   if (fp == NULL)
   {
     char errbuf[1024];
-    ERROR("write_gcm plugin: Opening private key %s failed: %s",
-          pkcs12_key_path, sstrerror (errno, errbuf, sizeof (errbuf)));
+    ERROR ("write_gcm plugin: Opening private key %s failed: %s",
+        p12_filename, sstrerror (errno, errbuf, sizeof (errbuf)));
     return (NULL);
   }
 
@@ -617,66 +652,40 @@ static EVP_PKEY *wg_load_pkey_internal(/* {{{ */
   fclose(fp);
   if (p12 == NULL)
   {
-    ERROR("write_gcm plugin: Reading private key %s failed: %lu",
-          pkcs12_key_path, ERR_get_error());
+    char errbuf[1024];
+    ERR_error_string_n (ERR_get_error (), errbuf, sizeof (errbuf));
+    ERROR ("write_gcm plugin: Reading private key %s failed: %s",
+        p12_filename, errbuf);
     return (NULL);
   }
 
-  if (PKCS12_parse(p12, passphrase, &pkey, &cert, &ca) == 0)
+  if (PKCS12_parse(p12, p12_passphrase, &pkey, &cert, &ca) == 0)
   {
     char errbuf[1024];
     ERR_error_string_n (ERR_get_error (), errbuf, sizeof (errbuf));
-    ERROR("write_gcm plugin: Parsing private key %s failed: %s",
-        pkcs12_key_path, errbuf);
+    ERROR ("write_gcm plugin: Parsing private key %s failed: %s",
+        p12_filename, errbuf);
 
-    if (p12)
-      PKCS12_free(p12);
     if (cert)
       X509_free(cert);
     if (ca)
       sk_X509_pop_free(ca, X509_free);
+    PKCS12_free(p12);
     return (NULL);
   }
 
-  return pkey;
-} /* }}} EVP_PKEY *wg_load_pkey_internal */
-
-static EVP_PKEY *wg_load_pkey(/* {{{ */
-                              const oconfig_item_t *label_pkey_config,
-                              const oconfig_item_t *label_pkey_pass_config) {
-  EVP_PKEY *pkey = NULL;
-  int status = 0;
-  char *pkcs12_key_path = NULL;
-  char *pass = NULL;
-
-  status = cf_util_get_string(label_pkey_config, &pkcs12_key_path);
-  if (status != 0) {
-    goto bailout;
-  }
-  status = cf_util_get_string(label_pkey_pass_config, &pass);
-  if (status != 0) {
-    goto bailout;
-  }
-  pkey = wg_load_pkey_internal(pkcs12_key_path, pass);
-
-bailout:
-  sfree(pkcs12_key_path);
-  sfree(pass);
   return pkey;
 } /* }}} EVP_PKEY *wg_load_pkey */
 
 /* Base64-encodes "s" and stores the result in buffer.
  * Returns zero on success, non-zero otherwise. */
-static int wg_b64_encode(char const *s, /* {{{ */
+static int wg_b64_encode_n(char const *s, size_t s_size, /* {{{ */
     char *buffer, size_t buffer_size)
 {
   BIO *b64;
   BUF_MEM *bptr;
-  size_t s_size;
   int status;
   size_t i;
-
-  s_size = strlen (s);
 
   /* Set up the memory-base64 chain */
   b64 = BIO_new(BIO_f_base64());
@@ -719,54 +728,70 @@ static int wg_b64_encode(char const *s, /* {{{ */
 
   BIO_free_all(b64);
   return (0);
-} /* }}} int wg_b64_encode */
+} /* }}} int wg_b64_encode_n */
 
-static int wg_get_claim(char const *email, /* {{{ */
+/* Base64-encodes "s" and stores the result in buffer.
+ * Returns zero on success, non-zero otherwise. */
+static int wg_b64_encode(char const *s, /* {{{ */
     char *buffer, size_t buffer_size)
 {
+  return (wg_b64_encode_n (s, strlen (s), buffer, buffer_size));
+} /* }}} int wg_b64_encode */
+
+static int wg_oauth_get_header(char *buffer, size_t buffer_size) /* {{{ */
+{
+  char header[] = OAUTH_HEADER;
+
+  return wg_b64_encode (header, buffer, buffer_size);
+} /* }}} int wg_oauth_get_header */
+
+static int wg_oauth_get_claim(char *buffer, size_t buffer_size, /* {{{ */
+    char const *iss,
+    char const *scope,
+    char const *aud,
+    cdtime_t exp, cdtime_t iat)
+{
   char claim[buffer_size];
-  cdtime_t now = cdtime ();
   int status;
 
   /* create the claim set */
-  status = ssnprintf(claim, sizeof(claim), jwt_claim_fmt, email,
-	CDTIME_T_TO_TIME_T (now) + 3600, CDTIME_T_TO_TIME_T (now));
+  status = ssnprintf(claim, sizeof(claim), OAUTH_CLAIM_FORMAT,
+      iss, scope, aud,
+      (unsigned long) CDTIME_T_TO_TIME_T (exp),
+      (unsigned long) CDTIME_T_TO_TIME_T (iat));
   if (status < 1)
     return (-1);
   else if ((size_t)status >= sizeof(claim))
     return (ENOMEM);
-  DEBUG("write_gcm plugin: wg_get_claim (\"%s\"): claim=\"%s\"", email, claim);
+
+  DEBUG("write_gcm plugin: wg_oauth_get_claim() = %s", claim);
 
   return wg_b64_encode (claim, buffer, buffer_size);
-} /* }}} int wg_get_claim */
+} /* }}} int wg_oauth_get_claim */
 
-static int wg_get_jwt(char const *claim64, EVP_PKEY *pkey, /* {{{ */
-    char *buffer, size_t buffer_size)
+static int wg_oauth_get_signature (char *buffer, size_t buffer_size, /* {{{ */
+    char const *header, char const *claim, EVP_PKEY *pkey)
 {
   EVP_MD_CTX ctx;
   char payload[buffer_size];
   size_t payload_len;
   char signature[buffer_size];
   unsigned int signature_size;
-  char signature64[buffer_size];
   int status;
 
   /* Make the string to sign */
-  memset(payload, 0, sizeof(payload));
-  payload_len = ssnprintf(payload, sizeof(payload), "%s.%s", header64, claim64);
+  payload_len = ssnprintf(payload, sizeof(payload), "%s.%s", header, claim);
   if (payload_len < 1) {
     return (-1);
   } else if (payload_len >= sizeof(payload)) {
-    return (-ENOMEM);
+    return (ENOMEM);
   }
-  DEBUG("write_gcm plugin: wg_get_jwt: payload = \"%s\"", payload);
 
   /* Create the signature */
   signature_size = EVP_PKEY_size(pkey);
   if (signature_size > sizeof (signature))
   {
     ERROR ("write_gcm plugin: Signature is too large (%u bytes).", signature_size);
-    EVP_MD_CTX_cleanup(&ctx);
     return (-1);
   }
 
@@ -798,36 +823,60 @@ static int wg_get_jwt(char const *claim64, EVP_PKEY *pkey, /* {{{ */
 
   EVP_MD_CTX_cleanup (&ctx);
 
-  /* base64 encode the signature */
-  status = wg_b64_encode(signature, signature64, sizeof (signature64));
+  return wg_b64_encode_n(signature, (size_t) signature_size, buffer, buffer_size);
+} /* }}} int wg_oauth_get_signature */
+
+static int wg_oauth_get_jwt (char *buffer, size_t buffer_size, /* {{{ */
+    char const *iss,
+    char const *scope,
+    char const *aud,
+    cdtime_t exp, cdtime_t iat,
+    EVP_PKEY *pkey)
+{
+  char header[buffer_size];
+  char claim[buffer_size];
+  char signature[buffer_size];
+  int status;
+
+  status = wg_oauth_get_header (header, sizeof (header));
   if (status != 0)
     return (-1);
 
-  status = ssnprintf(buffer, buffer_size, "%s.%s", payload, signature64);
+  status = wg_oauth_get_claim (claim, sizeof (claim),
+      iss, scope, aud, exp, iat);
+  if (status != 0)
+    return (-1);
+
+  status = wg_oauth_get_signature (signature, sizeof (signature),
+      header, claim, pkey);
+  if (status != 0)
+    return (-1);
+
+  status = ssnprintf (buffer, buffer_size, "%s.%s.%s",
+      header, claim, signature);
   if (status < 1)
     return (-1);
   else if (status >= buffer_size)
     return (ENOMEM);
 
   return (0);
-} /* }}} int wg_get_jwt */
+} /* }}} int wg_oauth_get_jwt */
 
 static int wg_get_token_request_body(wg_callback_t *cb, /* {{{ */
     char *buffer, size_t buffer_size)
 {
-  char claim64[MAX_ENCODE_SIZE];
   char jwt[MAX_ENCODE_SIZE];
+  cdtime_t exp;
+  cdtime_t iat;
   int status;
 
-  status = wg_get_claim(cb->email, claim64, sizeof(claim64));
-  if (status != 0) {
-    return (-1);
-  }
+  iat = cdtime ();
+  exp = iat + OAUTH_EXPIRATION_TIME;
 
-  status = wg_get_jwt(claim64, cb->pkey, jwt, sizeof(jwt));
-  if (status != 0) {
+  status = wg_oauth_get_jwt (jwt, sizeof (jwt),
+      cb->email, OAUTH_SCOPE, OAUTH_AUD, exp, iat, cb->pkey);
+  if (status != 0)
     return (-1);
-  }
 
   status = ssnprintf(buffer, buffer_size,
       "assertion=%s&grant_type=urn%%3Aietf%%3Aparams%%3Aoauth%%3Agrant-"
@@ -838,7 +887,7 @@ static int wg_get_token_request_body(wg_callback_t *cb, /* {{{ */
   } else if ((size_t)status >= buffer_size) {
     return (ENOMEM);
   }
-  DEBUG("wg_get_token_request_url: url=%s", buffer);
+
   return (0);
 } /* }}} int wg_get_token_request_body */
 #endif
@@ -870,7 +919,6 @@ static int wg_parse_token(const char *const input, char *buffer, /* {{{ */
     goto bailout;
   }
   sstrncpy(buffer, YAJL_GET_STRING(token_val), buffer_size);
-  DEBUG("wg_parse_token: access_token %s", buffer);
 
   expire_val = yajl_tree_get(root, expire_path, yajl_t_number);
   if (expire_val == NULL) {
@@ -1008,27 +1056,41 @@ static int wg_parse_token(char const *input, /* {{{ */
 } /* }}} int wg_parse_token */
 #endif
 
-static int wg_get_token(wg_callback_t *cb) { /* {{{ */
+static char *wg_get_authorization_header(wg_callback_t *cb) { /* {{{ */
   CURL *curl;
   char *temp;
-  char temp_buf[100];
   int status = 0;
   long http_code = 0;
   wg_memory_t data;
-  char access_token[100];
+  char access_token[256];
+  char authorization_header[256];
+  char const *url;
 #if HAVE_LIBSSL
-  char token_request_body[MAX_TOKEN_REQUEST_SIZE];
+  char token_request_body[1024];
 #endif
+  cdtime_t now;
   cdtime_t expire_time = 0;
   struct curl_slist *header = NULL;
+
   data.size = 0;
   data.memory = NULL;
+
+  now = cdtime ();
+
+  /* Check if we already have a token and if it is still valid. We will refresh
+   * this 60 seconds early to avoid problems due to clock skew. */
+  if ((cb->authorization_header != NULL) && (cb->token_expire_time > TIME_T_TO_CDTIME_T (60)))
+  {
+    expire_time = cb->token_expire_time - TIME_T_TO_CDTIME_T (60);
+    if (expire_time > now)
+      return (cb->authorization_header);
+  }
 
   curl = curl_easy_init();
   if (curl == NULL)
   {
-    ERROR("write_gcm plugin: wg_get_token: curl_easy_init failed.");
-    return (-1);
+    ERROR("write_gcm plugin: wg_get_authorization_header: curl_easy_init failed.");
+    return (NULL);
   }
 
   curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, cb->curl_errbuf);
@@ -1038,15 +1100,9 @@ static int wg_get_token(wg_callback_t *cb) { /* {{{ */
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, wg_write_memory_cb);
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, &data);
 
-  /* if token url is defined, try the token url first */
-  if (cb->token_url) {
-    curl_easy_setopt(curl, CURLOPT_URL, cb->token_url);
-    header = curl_slist_append(header, METADATA_HEADER);
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, header);
-  }
 #if HAVE_LIBSSL
-  else if (cb->email && cb->pkey) {
-
+  if (cb->email != NULL)
+  {
     status = wg_get_token_request_body(cb,
         token_request_body, sizeof(token_request_body));
     if (status != 0) {
@@ -1055,57 +1111,69 @@ static int wg_get_token(wg_callback_t *cb) { /* {{{ */
       status = -1;
       goto bailout;
     }
-    curl_easy_setopt(curl, CURLOPT_URL,
-                     "https://accounts.google.com/o/oauth2/token");
+    url = "https://accounts.google.com/o/oauth2/token";
     curl_easy_setopt(curl, CURLOPT_POST, 1L);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, token_request_body);
   }
+  else
 #endif
-  else {
-    ERROR("wg_get_token: neither token url or service account is defined");
-    status = -1;
-    goto bailout;
+  {
+    url = cb->token_url;
+    header = curl_slist_append(header, METADATA_HEADER);
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, header);
   }
+
+  assert (url != NULL);
+  curl_easy_setopt(curl, CURLOPT_URL, url);
 
   status = curl_easy_perform(curl);
   if (status != CURLE_OK) {
-    ERROR(
-        "wg_get_token: curl_easy_perform failed with "
-        "status %i: %s",
+    ERROR("write_gcm plugin: curl_easy_perform failed with status %i: %s",
         status, cb->curl_errbuf);
     status = -1;
     goto bailout;
   } else {
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
-    if (http_code != 200) {
-      ERROR("wg_get_token: http code: %ld", http_code);
+    if ((http_code < 200) || (http_code >= 300))
+    {
+      ERROR ("write_gcm plugin: POST request to %s failed: HTTP error %ld",
+          url, http_code);
+      if (data.memory != NULL)
+        INFO ("write_gcm plugin: Server replied: %s", data.memory);
       status = -1;
       goto bailout;
     }
   }
 
   status = wg_parse_token(data.memory, access_token, sizeof(access_token),
-                          &expire_time, cdtime());
-  if (status == 0) {
-    temp = strdup(access_token);
-    if (temp == NULL) {
-      ERROR("wg_get_token: strdup failed.");
-      status = -1;
-      goto bailout;
-    }
-    sfree(cb->token);
-    cb->token = temp;
-    /* refresh the token 1 minute before it really expires */
-    cb->token_expire_time = expire_time;
+                          &expire_time, now);
+  if (status != 0)
+    goto bailout;
 
-    if (cdtime_to_iso8601(temp_buf, sizeof(temp_buf), cb->token_expire_time) ==
-        0) {
-      ERROR("wg_get_token: Failed to convert time to ISO 8601 format");
-      status = -1;
-      goto bailout;
-    }
-    DEBUG("wg_get_token: expire_time: %s\n", temp_buf);
+  status = ssnprintf (authorization_header, sizeof (authorization_header),
+      "Authorization: Bearer %s", access_token);
+  if ((status < 1) || ((size_t) status >= sizeof (authorization_header)))
+    goto bailout;
+
+  temp = strdup(authorization_header);
+  if (temp == NULL) {
+    ERROR("write_gcm plugin: strdup failed.");
+    goto bailout;
   }
+  sfree(cb->authorization_header);
+  cb->authorization_header = temp;
+  cb->token_expire_time = expire_time;
+
+  INFO ("write_gcm plugin: OAuth2 access token is valid for %.3fs",
+      CDTIME_T_TO_DOUBLE (expire_time - now));
+
+  sfree(data.memory);
+  if (header != NULL)
+    curl_slist_free_all(header);
+  curl_easy_cleanup(curl);
+
+  return (cb->authorization_header);
+
 bailout:
   sfree(data.memory);
   if (curl) {
@@ -1114,73 +1182,82 @@ bailout:
   if (header) {
     curl_slist_free_all(header);
   }
-  return status;
-} /* }}} int wg_get_token */
+  return (NULL);
+} /* }}} char *wg_get_authorization_header */
+
+static void wg_expire_token (wg_callback_t *cb) /* {{{ */
+{
+  if ((cb == NULL) || (cb->authorization_header == NULL))
+    return;
+
+  INFO ("write_gcm plugin: Unconditionally expiring access token.");
+
+  sfree (cb->authorization_header);
+  cb->token_expire_time = 0;
+} /* }}} void wg_expire_token */
 
 static int wg_send_buffer(wg_callback_t *cb) /* {{{ */
 {
   int status = 0;
   long http_code = 0;
   char final_url[1024];
-  curl_easy_setopt(cb->curl, CURLOPT_POSTFIELDS, cb->send_buffer);
+  char const *authorization_header;
+  struct curl_slist *headers = NULL;
 
   status = ssnprintf(final_url, sizeof(final_url),
-                     "%s/projects/%s/timeseries:write?access_token=%s", cb->url,
-                     cb->project, cb->token);
-  if (status < 1) {
+      "%s/projects/%s/timeseries:write", cb->url, cb->project);
+  if ((status < 1) || ((size_t) status >= sizeof (final_url)))
     return (-1);
-  } else if ((size_t)status >= sizeof(final_url)) {
-    return (-ENOMEM);
-  }
-  curl_easy_setopt(cb->curl, CURLOPT_URL, final_url);
 
-#if defined(COLLECT_DEBUG) && COLLECT_DEBUG
-  wg_memory_t data;
-  data.size = 0;
-  data.memory = NULL;
-  curl_easy_setopt(cb->curl, CURLOPT_WRITEFUNCTION, wg_write_memory_cb);
-  curl_easy_setopt(cb->curl, CURLOPT_WRITEDATA, &data);
-#endif
+  authorization_header = wg_get_authorization_header (cb);
+  if (authorization_header == NULL)
+    return (-1);
+
+  headers = curl_slist_append (headers, authorization_header);
+  headers = curl_slist_append (headers, "Content-Type: application/json");
+
+  curl_easy_setopt(cb->curl, CURLOPT_URL, final_url);
+  curl_easy_setopt(cb->curl, CURLOPT_HTTPHEADER, headers);
+  curl_easy_setopt(cb->curl, CURLOPT_POST, 1L);
+  curl_easy_setopt(cb->curl, CURLOPT_POSTFIELDS, cb->send_buffer);
 
   status = curl_easy_perform(cb->curl);
   if (status != CURLE_OK) {
-    ERROR(
-        "write_gcm plugin: curl_easy_perform failed with "
-        "status %i: %s",
+    ERROR("write_gcm plugin: curl_easy_perform failed with status %i: %s",
         status, cb->curl_errbuf);
-  } else {
-    curl_easy_getinfo(cb->curl, CURLINFO_RESPONSE_CODE, &http_code);
-    if (http_code != 200) {
-      ERROR("write_gcm plugin: wg_send_buffer: http code: %ld", http_code);
-#if defined(COLLECT_DEBUG) && COLLECT_DEBUG
-      ERROR("write_gcm plugin: wg_send_buffer: error_msg: %s", data.memory);
-#endif
-      status = http_code;
-    }
+    curl_slist_free_all (headers);
+    return (-1);
   }
-#if defined(COLLECT_DEBUG) && COLLECT_DEBUG
-  sfree(data.memory);
-#endif
+
+  curl_easy_getinfo (cb->curl, CURLINFO_RESPONSE_CODE, &http_code);
+  if ((http_code < 200) || (http_code >= 300))
+  {
+    ERROR ("write_gcm plugin: POST request to %s failed: HTTP error %ld",
+        final_url, http_code);
+    curl_slist_free_all (headers);
+    return (-1);
+  }
+
+  curl_slist_free_all (headers);
   return (status);
 } /* }}} wg_send_buffer */
 
 static int wg_callback_init(wg_callback_t *cb) /* {{{ */
 {
-  int status;
-  if (cb->curl != NULL) return (0);
+  if (cb->curl != NULL)
+    return (0);
 
-  status = wg_get_token(cb);
-  if (status != CURLE_OK) {
-    ERROR(
-        "write_gcm plugin: failed to get the access token "
-        "status %i: %s",
-        status, cb->curl_errbuf);
-    return status;
+  cb->stream_key_tree = c_avl_create ((void *) strcmp);
+  if (cb->stream_key_tree == NULL)
+  {
+    ERROR("write_gcm plugin: c_avl_create failed.");
+    return (-1);
   }
 
   cb->curl = curl_easy_init();
-  if (cb->curl == NULL) {
-    ERROR("wg_callback_init: curl_easy_init failed.");
+  if (cb->curl == NULL)
+  {
+    ERROR("write_gcm plugin: curl_easy_init failed.");
     return (-1);
   }
 
@@ -1202,10 +1279,9 @@ static int wg_callback_init(wg_callback_t *cb) /* {{{ */
 
 static int wg_flush_nolock(cdtime_t timeout, wg_callback_t *cb) /* {{{ */
 {
-  int status;
-  cdtime_t now;
+  void *key;
   void *value;
-  char *name;
+  int status;
 
   DEBUG(
       "write_gcm plugin: wg_flush_nolock: timeout = %.3f; "
@@ -1214,63 +1290,63 @@ static int wg_flush_nolock(cdtime_t timeout, wg_callback_t *cb) /* {{{ */
 
   status = 0;
 
-  if (cb->stream_key_tree) {
-    while (c_avl_pick(cb->stream_key_tree, (void *)&name, &value) == 0) {
-      sfree(name);
-    }
-    c_avl_destroy(cb->stream_key_tree);
-    cb->stream_key_tree = NULL;
-  }
-  now = cdtime();
-  /* timeout == 0  => flush unconditionally */
-  if (timeout > 0) {
-    if ((cb->send_buffer_init_time + timeout) > now) {
-      goto bailout;
-    }
+  /* Clear the stream_key cache. */
+  while (c_avl_pick(cb->stream_key_tree, &key, &value) == 0) {
+    sfree (key);
+    assert (value == NULL);
   }
 
-  if (cb->send_buffer_fill <= 2 || cb->timeseries_count == 0) {
+  if (cb->timeseries_count == 0)
+  {
     cb->send_buffer_init_time = cdtime();
-    goto bailout;
+    return (0);
   }
 
-  if (cb->token_expire_time < now) {
-    status = wg_get_token(cb);
-    if (status != CURLE_OK) {
-      ERROR(
-          "write_gcm plugin: failed to get the access token "
-          "status %i: %s",
-          status, cb->curl_errbuf);
-      goto bailout;
-    }
+  /* timeout == 0  => flush unconditionally */
+  if (timeout > 0)
+  {
+    cdtime_t now = cdtime();
+
+    if ((cb->send_buffer_init_time + timeout) > now)
+      return (0);
   }
 
-  status = format_timeseries_finalize(cb->send_buffer, &cb->send_buffer_fill,
-                                      &cb->send_buffer_free);
-  if (status != 0) {
-    ERROR(
-        "write_gcm: wg_flush_nolock: "
-        "format_timeseries_finalize failed.");
-    goto bailout;
+  status = format_timeseries_finalize(cb->send_buffer,
+                                      &cb->send_buffer_fill, &cb->send_buffer_free);
+  if (status != 0)
+  {
+    ERROR("write_gcm: wg_flush_nolock: format_timeseries_finalize failed.");
+    wg_reset_buffer (cb);
+    return (status);
   }
 
   status = wg_send_buffer(cb);
-  /* get the access token again if wg_send_buffer failed because of the access
-   * token expiration */
-  if (status == 401) {
-    status = wg_get_token(cb);
-    if (status != CURLE_OK) {
-      ERROR(
-          "write_gcm plugin: failed to get the access token "
-          "status %i: %s",
-          status, cb->curl_errbuf);
-    } else {
-      status = wg_send_buffer(cb);
-    }
+  if (status == 0)
+  {
+    wg_reset_buffer (cb);
+    return (0);
   }
 
-bailout:
-  wg_reset_buffer(cb);
+  /* Special case for "not authorized" errors. */
+  if (status == 401)
+  {
+    WARNING ("write_gcm plugin: Sending buffer failed with \"Not Authorized\" "
+        "error. Retrying with fresh access token.");
+
+    /* Assume token expired. */
+    wg_expire_token (cb);
+
+    status = wg_send_buffer (cb);
+    if (status != 0)
+      ERROR ("write_gcm plugin: Sending buffer failed on retry with status %d. "
+          "Giving up.", status);
+  }
+  else
+  {
+    ERROR ("write_gcm plugin: Sending buffer failed with status %d.", status);
+  }
+
+  wg_reset_buffer (cb);
   return (status);
 } /* }}} wg_flush_nolock */
 
@@ -1348,7 +1424,7 @@ static void wg_callback_free(void *data) /* {{{ */
   sfree(cb->service);
   sfree(cb->url);
   sfree(cb->token_url);
-  sfree(cb->token);
+  sfree(cb->authorization_header);
   wg_cache_tree_free(cb->metric_buffer_tree);
 
   if (cb->metric_name_tree) {
@@ -1366,12 +1442,12 @@ static void wg_callback_free(void *data) /* {{{ */
 static int wg_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
                     user_data_t *user_data) {
   wg_callback_t *cb;
+  char identifier[6 * DATA_MAX_NAME_LEN];
+  char *key;
   int status;
-  int flush;
-  cdtime_t now;
 
-  if (user_data == NULL) return (-EINVAL);
-  flush = 0;
+  if (user_data == NULL)
+    return (EINVAL);
   cb = user_data->data;
 
   pthread_mutex_lock(&cb->send_lock);
@@ -1385,38 +1461,59 @@ static int wg_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
     }
   }
 
-  /*flush under the following conditions
-   * 1. more than 15 seconds passed since send_buffer_init_time
-   * since we are sending data every minute, 15 seconds is long enough
-   * for data staying in the buffer and should be sent anyway.
-   * 2. out of memory while trying to add the current vl to the buffer
-   * in function format_timeseries
-   * Inside format_timeseries
-   * 3. stream_key can't be generated, it's safe to flush
-   * 4. the stream_key_tree cache already have the same stream stored,
-   * we must flush since monarch can not take more than 1 points from
-   * the same stream
+  /*
+   * Flush when:
+   * - the stream_key_tree cache already contains the identifier. We must flush
+   *   since Cloud Monitoring can not take more than 1 points from the same
+   *   "stream" / metric in one request.
+   * - out of memory while trying to add the current vl to the buffer. This is
+   *   indicated by the buffer handling functions returning ENOMEM.
    */
 
-  now = cdtime();
-  if (now > cb->send_buffer_init_time + MS_TO_CDTIME_T(15000)) {
-    flush = 1;
+  status = FORMAT_VL (identifier, sizeof (identifier), vl);
+  if (status != 0)
+  {
+    pthread_mutex_unlock (&cb->send_lock);
+    ERROR ("write_gcm plugin: FORMAT_VL failed.");
+    return (-1);
   }
 
-  status = format_timeseries(cb->send_buffer, &cb->send_buffer_fill,
-                             &cb->send_buffer_free, ds, vl, cb);
-  if (status == (-ENOMEM) || status == -1) {
-    flush = 1;
+  assert (cb->stream_key_tree != NULL);
+  status = c_avl_get (cb->stream_key_tree, identifier, NULL);
+  if (status == 0)
+  {
+    DEBUG ("write_gcm plugin: Found %s in stream_key_tree.", identifier);
+    wg_flush_nolock (/* timeout = */ 0, cb);
   }
 
-  if (flush) {
-    status = wg_flush_nolock(/* timeout = */ 0, cb);
-    status = format_timeseries(cb->send_buffer, &cb->send_buffer_fill,
-                               &cb->send_buffer_free, ds, vl, cb);
+  key = strdup (identifier);
+  if (key == NULL)
+  {
+    pthread_mutex_unlock (&cb->send_lock);
+    ERROR ("write_gcm plugin: strdup failed.");
+    return (-1);
+  }
+
+  status = c_avl_insert (cb->stream_key_tree, key, NULL);
+  if (status != 0)
+  {
+    pthread_mutex_unlock (&cb->send_lock);
+    ERROR ("write_gcm plugin: c_avl_insert (\"%s\") failed.", key);
+    sfree (key);
+    return (-1);
+  }
+
+  status = value_list_to_timeseries(cb->send_buffer, &cb->send_buffer_fill,
+      &cb->send_buffer_free, ds, vl, cb);
+  if (status == ENOMEM)
+  {
+    wg_flush_nolock (/* timeout = */ 0, cb);
+    status = value_list_to_timeseries(cb->send_buffer, &cb->send_buffer_fill,
+        &cb->send_buffer_free, ds, vl, cb);
   }
 
   pthread_mutex_unlock(&cb->send_lock);
-  return (0);
+  return (status);
 } /* }}} int wg_write */
 
 static int wg_read_url(const char *url, const char *header, char **ret_body,
@@ -1430,13 +1527,12 @@ static int wg_read_url(const char *url, const char *header, char **ret_body,
   char *header_string;
   wg_memory_t output_body;
   wg_memory_t output_header;
-  struct curl_slist *curl_header = NULL;
+  struct curl_slist *headers = NULL;
 
   curl = curl_easy_init();
   if (!curl) {
     ERROR("wg_read_url: curl_easy_init failed.");
-    status = -1;
-    goto bailout;
+    return (-1);
   }
 
   curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, curl_errbuf);
@@ -1458,8 +1554,8 @@ static int wg_read_url(const char *url, const char *header, char **ret_body,
 
   /*set the header if it's not null*/
   if (header) {
-    curl_header = curl_slist_append(curl_header, METADATA_HEADER);
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, curl_header);
+    headers = curl_slist_append(headers, METADATA_HEADER);
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
   }
 
   curl_easy_setopt(curl, CURLOPT_URL, url);
@@ -1471,11 +1567,10 @@ static int wg_read_url(const char *url, const char *header, char **ret_body,
     goto bailout;
   } else {
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
-    if (http_code != 200) {
-      ERROR("wg_read_url: http code: %ld", http_code);
-#if defined(COLLECT_DEBUG) && COLLECT_DEBUG
-      ERROR("wg_read_url: error_msg: %s", output_body.memory);
-#endif
+    if ((http_code < 200) || (http_code >= 300))
+    {
+      ERROR ("write_gcm plugin: Reading %s failed: HTTP error %ld",
+          url, http_code);
       status = -1;
       goto bailout;
     }
@@ -1504,86 +1599,87 @@ static int wg_read_url(const char *url, const char *header, char **ret_body,
 bailout:
   sfree(output_body.memory);
   sfree(output_header.memory);
-  if (curl) {
-    curl_easy_cleanup(curl);
-  }
-  if (curl_header) {
-    curl_slist_free_all(curl_header);
-  }
+  curl_easy_cleanup(curl);
+  if (headers)
+    curl_slist_free_all(headers);
   return status;
 } /* }}} int wg_read_url */
 
-static int wg_read_gce_meta_data(wg_callback_t *cb) { /* {{{ */
-  int status = 0;
-  char *scope = NULL;
-  char *temp = NULL;
-
-  DEBUG("wg_read_gce_meta_data: url %s", cb->url);
-
-  if (wg_read_url(METADATA_PROJECT_URL, METADATA_HEADER,
-                  &cb->project, NULL)) {
-    DEBUG("wg_read_gce_meta_data: fail to read project id");
-    status = -1;
-    goto bailout;
-  }
-  DEBUG("wg_read_gce_meta_data: project %s", cb->project);
-
-  if (wg_read_url(METADATA_RESOURCE_ID_URL, METADATA_HEADER,
-                  &cb->resource_id, NULL)) {
-    DEBUG("wg_read_gce_meta_data: fail to read resource_id");
-    status = -1;
-    goto bailout;
-  }
-  DEBUG("wg_read_gce_meta_data: resource_id %s", cb->resource_id);
-
-  scope = NULL;
-  if (wg_read_url(META_DATA_SCOPE_URL, METADATA_HEADER, &scope,
-                  NULL)) {
-    DEBUG("wg_read_gce_meta_data: fail to read scope");
-    status = -1;
-    goto bailout;
-  } else {
-    if (strstr(scope, MONITORING_SCOPE)) {
-      sfree(cb->token_url);
-      cb->token_url = strdup(META_DATA_TOKEN_URL);
-      DEBUG("wg_read_gce_meta_data: token_url %s", cb->token_url);
-    } else {
-      ERROR("wg_read_meta_data: default scope doesn't contain monitoring");
-      status = -1;
-      goto bailout;
-    }
-  }
-bailout:
-  sfree(temp);
-  sfree(scope);
-  return status;
-} /* }}} int wg_read_gce_meta_data */
-
-static int wg_read_meta_data(wg_callback_t *cb) { /* {{{ */
+static char *wg_determine_project (void) /* {{{ */
+{
+  char *project = NULL;
   int status;
-  char *header = NULL;
 
-  if (wg_read_url(METADATA_PREFIX, NULL, NULL, &header) == 0 &&
-      strstr(header, GCE_METADATA_FLAVOR)) {
-    status = wg_read_gce_meta_data(cb);
-  } else {
-    // TODO(zhihuawen): add function for aws
+  status = wg_read_url (METADATA_PROJECT_URL, METADATA_HEADER,
+      /* body = */ &project, /* header = */ NULL);
+  if (status != 0)
+  {
+    WARNING ("write_gcm plugin: Unable to determine project number.");
+    return (NULL);
   }
-  sfree(header);
-  return status;
-} /* }}} int wg_read_meta_data */
+
+  return (project);
+} /* }}} char *wg_determine_project */
+
+static char *wg_determine_resource_id (void) /* {{{ */
+{
+  char *resource_id = NULL;
+  int status;
+
+  status = wg_read_url (METADATA_RESOURCE_ID_URL, METADATA_HEADER,
+      /* body = */ &resource_id, /* header = */ NULL);
+  if (status != 0)
+  {
+    WARNING ("write_gcm plugin: Unable to determine resource ID.");
+    return (NULL);
+  }
+
+  return (resource_id);
+} /* }}} char *wg_determine_resource_id */
+
+static void wg_check_scope (void) /* {{{ */
+{
+  char *scope = NULL;
+  int status;
+
+  status = wg_read_url (METADATA_SCOPE_URL, METADATA_HEADER,
+      /* body = */ &scope, /* header = */ NULL);
+  if (status != 0)
+  {
+    WARNING ("write_gcm plugin: Unable to determine scope of this instance.");
+    return;
+  }
+
+  if (strstr (scope, MONITORING_SCOPE) == NULL)
+  {
+    size_t scope_len;
+
+    /* Strip trailing newline characers for printing. */
+    scope_len = strlen (scope);
+    while ((scope_len > 0) && (iscntrl ((int) scope[scope_len - 1])))
+      scope[--scope_len] = 0;
+
+    WARNING ("write_gcm plugin: The determined scope of this instance "
+        "(\"%s\") does not contain the monitoring scope (\"%s\"). You need "
+        "to add this scope to the list of scopes passed to gcutil with "
+        "--service_account_scopes when creating the instance. "
+        "Alternatively, to use this plugin on an instance which does not "
+        "have this scope, use a Service Account.",
+        scope, MONITORING_SCOPE);
+  }
+
+  sfree (scope);
+} /* }}} void wg_check_scope */
 
 static int wg_config(oconfig_item_t *ci) /* {{{ */
 {
   wg_callback_t *cb;
   user_data_t user_data;
 #if HAVE_LIBSSL
-  oconfig_item_t *label_pkey_config = NULL;
-  oconfig_item_t *label_pkey_pass_config = NULL;
+  char *p12_filename = NULL;
+  char *p12_passphrase = NULL;
 #endif
-  cdtime_t now = cdtime();
   int i;
-  int len;
 
   if (ci == NULL) {
     return (-1);
@@ -1599,7 +1695,7 @@ static int wg_config(oconfig_item_t *ci) /* {{{ */
   cb->service = strdup(DEFAULT_SERVICE);
 
   cb->project = NULL;
-  cb->token = NULL;
+  cb->authorization_header = NULL;
   cb->token_url = NULL;
   cb->curl = NULL;
   cb->resource_id = NULL;
@@ -1613,19 +1709,8 @@ static int wg_config(oconfig_item_t *ci) /* {{{ */
       c_avl_create((int (*)(const void *, const void *))strcmp);
   cb->metric_name_tree =
       c_avl_create((int (*)(const void *, const void *))strcmp);
-  len = cdtime_to_iso8601(
-      cb->str_init_time, sizeof(cb->str_init_time),
-      now - now % cf_get_default_interval() - cf_get_default_interval());
-  if (len == 0) {
-    ERROR(
-        "write_gcm wg_config: Failed to convert time to ISO 8601 "
-        "format");
-    return -1;
-  }
 
   pthread_mutex_init(&cb->send_lock, /* attr = */ NULL);
-
-  wg_read_meta_data(cb);
 
   for (i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
@@ -1643,55 +1728,106 @@ static int wg_config(oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp("Email", child->key) == 0)
       cf_util_get_string(child, &cb->email);
     else if (strcasecmp("PrivateKeyFile", child->key) == 0)
-      label_pkey_config = child;
+      cf_util_get_string(child, &p12_filename);
     else if (strcasecmp("PrivateKeyPass", child->key) == 0)
-      label_pkey_pass_config = child;
+      cf_util_get_string(child, &p12_passphrase);
 #endif
     else {
-      ERROR(
-          "write_gcm plugin: Invalid configuration "
-          "option: %s.",
+      ERROR ("write_gcm plugin: Invalid configuration option: %s.",
           child->key);
-      return -1;
+      sfree (cb);
+      return (-1);
     }
   }
 
 #if HAVE_LIBSSL
-  /* load private key if the token url is not specified */
-  if (cb->token_url == NULL && cb->email && label_pkey_config &&
-      label_pkey_pass_config) {
-    if ((cb->pkey = wg_load_pkey(label_pkey_config, label_pkey_pass_config)) ==
-        NULL) {
-      ERROR("write_gcm plugin: fail to load private key from key file");
+  /* Check if user wants to use a service account. */
+  if ((cb->email != NULL)
+      || (p12_filename != NULL)
+      || (p12_passphrase != NULL))
+  {
+    /* Check that *all* required fields are set. */
+    if (cb->email == NULL)
+    {
+      ERROR ("write_gcm plugin: It appears you're trying to use a service "
+          "account, but the \"Email\" option is missing.");
+      sfree (cb);
+      return (-1);
+    }
+    else if (p12_filename == NULL)
+    {
+      ERROR ("write_gcm plugin: It appears you're trying to use a service "
+          "account, but the \"PrivateKeyFile\" option is missing.");
+      sfree (cb);
+      return (-1);
+    }
+
+    if (p12_passphrase == NULL)
+    {
+      WARNING ("write_gcm plugin: It appears you're trying to use a service "
+          "account, but the \"PrivateKeyPass\" option is missing. "
+          "Will assume \"notasecret\".");
+      p12_passphrase = strdup ("notasecret");
+    }
+
+    if (cb->token_url)
+    {
+      ERROR ("write_gcm plugin: Both, \"Email\" and \"TokenUrl\" were "
+          "specified. Now I don't know whether to use the service account "
+          "or the instance token. Please remove one of the two options.");
+      sfree (cb);
+      return (-1);
+    }
+
+    cb->pkey = wg_load_pkey (p12_filename, p12_passphrase);
+    if (cb->pkey == NULL)
+    {
+      ERROR ("write_gcm plugin: Loading private key from %s failed.", p12_filename);
+      sfree (cb);
+      return (-1);
+    }
+
+    sfree (p12_filename);
+    sfree (p12_passphrase);
+  }
+  else
+#endif /* HAVE_LIBSSL */
+  {
+    /* Not a service account, check the "scope" and warn the user if incorrect. */
+    wg_check_scope ();
+
+    if (cb->token_url == NULL)
+      cb->token_url = strdup (METADATA_TOKEN_URL);
+  }
+
+  if (cb->project == NULL)
+  {
+    cb->project = wg_determine_project ();
+    if (cb->project == NULL)
+    {
+      ERROR("write_gcm plugin: Unable to determine the project number. "
+          "Please specify the \"Project\" option manually.");
+      sfree (cb);
       return -1;
     }
   }
-#endif
 
-#if HAVE_LIBSSL
-  if ((cb->email == NULL || cb->pkey == NULL) && cb->token_url == NULL) {
-    ERROR(
-        "write_gcm plugin: Invalid configuration, either service account or "
-        "token url must be configured");
-    return -1;
-  }
-#else /* if !HAVE_LIBSSL */
-  if (cb->token_url == NULL) {
-    ERROR(
-        "write_gcm plugin: Invalid configuration,token url must be "
-        "configured");
-    return -1;
-  }
-#endif
-
-  if (cb->project == NULL || cb->url == NULL || cb->resource_id == NULL) {
-    ERROR(
-        "write_gcm plugin: Invalid configuration, some fields are "
-        "missing ");
-    return -1;
+  if (cb->resource_id == NULL)
+  {
+    cb->resource_id = wg_determine_resource_id ();
+    if (cb->resource_id == NULL)
+    {
+      ERROR("write_gcm plugin: Unable to determine the resource ID. "
+          "Please specify the \"ResourceId\" option manually.");
+      sfree (cb);
+      return -1;
+    }
   }
 
   DEBUG("write_gcm: Registering write callback with URL %s", cb->url);
+
+  /* email -> pkey == (!email || pkey) */
+  assert ((cb->email == NULL) || (cb->pkey != NULL));
 
   memset(&user_data, 0, sizeof(user_data));
   user_data.data = cb;
@@ -1719,10 +1855,6 @@ static int wg_init(void) /* {{{ */
 
 void module_register(void) /* {{{ */
 {
-#ifdef TEST_WRITE_GCM_ONLY
-  unit_test();
-#else
   plugin_register_complex_config("write_gcm", wg_config);
   plugin_register_init("write_gcm", wg_init);
-#endif
 } /* }}} void module_register */
