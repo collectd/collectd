@@ -6,9 +6,9 @@ collectd.conf - Configuration for the system statistics collection daemon B<coll
 
 =head1 SYNOPSIS
 
-  BaseDir "/path/to/data/"
-  PIDFile "/path/to/pidfile/collectd.pid"
-  Server  "123.123.123.123" 12345
+  BaseDir "/var/lib/collectd"
+  PIDFile "/run/collectd.pid"
+  Interval 10.0
   
   LoadPlugin cpu
   LoadPlugin load
@@ -16,6 +16,9 @@ collectd.conf - Configuration for the system statistics collection daemon B<coll
   <LoadPlugin df>
     Interval 3600
   </LoadPlugin>
+  <Plugin df>
+    ValuesPercentage true
+  </Plugin>
   
   LoadPlugin ping
   <Plugin ping>
@@ -28,7 +31,8 @@ collectd.conf - Configuration for the system statistics collection daemon B<coll
 This config file controls how the system statistics collection daemon
 B<collectd> behaves. The most significant option is B<LoadPlugin>, which
 controls which plugins to load. These plugins ultimately define collectd's
-behavior.
+behavior. If the B<AutoLoadPlugin> option has been enabled, the explicit
+B<LoadPlugin> lines may be omitted.
 
 The syntax of this config file is similar to the config file of the famous
 I<Apache> webserver. Each line contains either an option (a key and a list of
@@ -55,8 +59,9 @@ indenting the wrapped lines.
 The configuration is read and processed in order, i.e. from top to bottom. So
 the plugins are loaded in the order listed in this config file. It is a good
 idea to load any logging plugins first in order to catch messages from plugins
-during configuration. Also, the C<LoadPlugin> option B<must> occur B<before>
-the appropriate C<E<lt>Plugin ...E<gt>> block.
+during configuration. Also, unless B<AutoLoadPlugin> is enabled, the
+B<LoadPlugin> option I<must> occur I<before> the appropriate
+C<E<lt>B<Plugin> ...E<gt>> block.
 
 =head1 GLOBAL OPTIONS
 
