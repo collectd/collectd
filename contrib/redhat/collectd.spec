@@ -2024,7 +2024,7 @@ fi
 %doc contrib/
 
 %changelog
-* Mon Aug 19 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.4.0-1
+* Mon Aug 19 2014 Marc Fournier <marc.fournier@camptocamp.com> 5.4.0-1
 - New upstream version
 - Build netlink plugin by default
 - Enable cgroups, lvm and statsd plugins
