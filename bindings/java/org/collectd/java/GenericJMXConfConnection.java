@@ -30,8 +30,6 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 import javax.management.MBeanServerConnection;
-import javax.management.ObjectName;
-import javax.management.MalformedObjectNameException;
 
 import javax.management.remote.JMXServiceURL;
 import javax.management.remote.JMXConnector;
