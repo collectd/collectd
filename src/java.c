@@ -2115,7 +2115,7 @@ static int cjni_thread_detach (void) /* {{{ */
   cjni_env->jvm_env = NULL;
 
   return (0);
-} /* }}} JNIEnv *cjni_thread_attach */
+} /* }}} int cjni_thread_detach */
 
 static int cjni_config_add_jvm_arg (oconfig_item_t *ci) /* {{{ */
 {
@@ -2468,7 +2468,6 @@ static int cjni_read (user_data_t *ud) /* {{{ */
 {
   JNIEnv *jvm_env;
   cjni_callback_info_t *cbi;
-  int status;
   int ret_status;
 
   if (jvm == NULL)
@@ -2492,13 +2491,7 @@ static int cjni_read (user_data_t *ud) /* {{{ */
   ret_status = (*jvm_env)->CallIntMethod (jvm_env, cbi->object,
       cbi->method);
 
-  status = cjni_thread_detach ();
-  if (status != 0)
-  {
-    ERROR ("java plugin: cjni_read: cjni_thread_detach failed.");
-    return (-1);
-  }
-
+  cjni_thread_detach ();
   return (ret_status);
 } /* }}} int cjni_read */
 
@@ -2509,7 +2502,6 @@ static int cjni_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
   JNIEnv *jvm_env;
   cjni_callback_info_t *cbi;
   jobject vl_java;
-  int status;
   int ret_status;
 
   if (jvm == NULL)
@@ -2534,6 +2526,7 @@ static int cjni_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
   if (vl_java == NULL)
   {
     ERROR ("java plugin: cjni_write: ctoj_value_list failed.");
+    cjni_thread_detach ();
     return (-1);
   }
 
@@ -2542,13 +2535,7 @@ static int cjni_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
 
   (*jvm_env)->DeleteLocalRef (jvm_env, vl_java);
 
-  status = cjni_thread_detach ();
-  if (status != 0)
-  {
-    ERROR ("java plugin: cjni_write: cjni_thread_detach failed.");
-    return (-1);
-  }
-
+  cjni_thread_detach ();
   return (ret_status);
 } /* }}} int cjni_write */
 
@@ -2560,7 +2547,6 @@ static int cjni_flush (cdtime_t timeout, const char *identifier, /* {{{ */
   cjni_callback_info_t *cbi;
   jobject o_timeout;
   jobject o_identifier;
-  int status;
   int ret_status;
 
   if (jvm == NULL)
@@ -2587,6 +2573,7 @@ static int cjni_flush (cdtime_t timeout, const char *identifier, /* {{{ */
   {
     ERROR ("java plugin: cjni_flush: Converting double "
         "to Number object failed.");
+    cjni_thread_detach ();
     return (-1);
   }
 
@@ -2598,6 +2585,7 @@ static int cjni_flush (cdtime_t timeout, const char *identifier, /* {{{ */
     {
       (*jvm_env)->DeleteLocalRef (jvm_env, o_timeout);
       ERROR ("java plugin: cjni_flush: NewStringUTF failed.");
+      cjni_thread_detach ();
       return (-1);
     }
   }
@@ -2608,13 +2596,7 @@ static int cjni_flush (cdtime_t timeout, const char *identifier, /* {{{ */
   (*jvm_env)->DeleteLocalRef (jvm_env, o_identifier);
   (*jvm_env)->DeleteLocalRef (jvm_env, o_timeout);
 
-  status = cjni_thread_detach ();
-  if (status != 0)
-  {
-    ERROR ("java plugin: cjni_flush: cjni_thread_detach failed.");
-    return (-1);
-  }
-
+  cjni_thread_detach ();
   return (ret_status);
 } /* }}} int cjni_flush */
 
@@ -2640,7 +2622,10 @@ static void cjni_log (int severity, const char *message, /* {{{ */
 
   o_message = (*jvm_env)->NewStringUTF (jvm_env, message);
   if (o_message == NULL)
+  {
+    cjni_thread_detach ();
     return;
+  }
 
   (*jvm_env)->CallVoidMethod (jvm_env,
       cbi->object, cbi->method, (jint) severity, o_message);
@@ -2658,7 +2643,6 @@ static int cjni_notification (const notification_t *n, /* {{{ */
   JNIEnv *jvm_env;
   cjni_callback_info_t *cbi;
   jobject o_notification;
-  int status;
   int ret_status;
 
   if (jvm == NULL)
@@ -2683,6 +2667,7 @@ static int cjni_notification (const notification_t *n, /* {{{ */
   if (o_notification == NULL)
   {
     ERROR ("java plugin: cjni_notification: ctoj_notification failed.");
+    cjni_thread_detach ();
     return (-1);
   }
 
@@ -2691,13 +2676,7 @@ static int cjni_notification (const notification_t *n, /* {{{ */
 
   (*jvm_env)->DeleteLocalRef (jvm_env, o_notification);
 
-  status = cjni_thread_detach ();
-  if (status != 0)
-  {
-    ERROR ("java plugin: cjni_read: cjni_thread_detach failed.");
-    return (-1);
-  }
-
+  cjni_thread_detach ();
   return (ret_status);
 } /* }}} int cjni_notification */
 
@@ -2725,24 +2704,20 @@ static int cjni_match_target_create (const oconfig_item_t *ci, /* {{{ */
       (*jvm_env)->DeleteLocalRef (jvm_env, cbi_ret->object); \
   } \
   free (cbi_ret); \
-  if (jvm_env != NULL) { \
-    if (o_ci != NULL) \
-      (*jvm_env)->DeleteLocalRef (jvm_env, o_ci); \
-    cjni_thread_detach (); \
-  } \
+  if (o_ci != NULL) \
+    (*jvm_env)->DeleteLocalRef (jvm_env, o_ci); \
+  cjni_thread_detach (); \
   return (status)
 
   if (jvm == NULL)
   {
     ERROR ("java plugin: cjni_read: jvm == NULL");
-    BAIL_OUT (-1);
+    return (-1);
   }
 
   jvm_env = cjni_thread_attach ();
   if (jvm_env == NULL)
-  {
-    BAIL_OUT (-1);
-  }
+    return (-1);
 
   /* Find out whether to create a match or a target. */
   if (strcasecmp ("Match", ci->key) == 0)
@@ -2936,10 +2911,7 @@ static int cjni_match_target_invoke (const data_set_t *ds, /* {{{ */
     }
   } /* if (cbi->type == CB_TYPE_TARGET) */
 
-  status = cjni_thread_detach ();
-  if (status != 0)
-    ERROR ("java plugin: cjni_read: cjni_thread_detach failed.");
-
+  cjni_thread_detach ();
   return (ret_status);
 } /* }}} int cjni_match_target_invoke */
 
