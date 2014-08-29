@@ -25,7 +25,8 @@
 #AutoLoadPlugin false
 
 #----------------------------------------------------------------------------#
-# When enabled, some internal statistics are recorded as values              #
+# When enabled, internal statistics are collected, using "collectd" as the   #
+# plugin name.                                                               #
 # Disabled by default.                                                       #
 #----------------------------------------------------------------------------#
 #CollectInternalStats false

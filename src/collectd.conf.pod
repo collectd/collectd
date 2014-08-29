@@ -146,6 +146,18 @@ B<E<lt>PluginE<nbsp>...E<gt>> block acts as if it was immediately preceded by a
 B<LoadPlugin> statement. B<LoadPlugin> statements are still required for
 plugins that don't provide any configuration, e.g. the I<Load plugin>.
 
+=item B<CollectInternalStats> B<false>|B<true>
+
+When set to B<true>, various statistics about the I<collectd> daemon will be
+collected, with "collectd" as the I<plugin name>. Defaults to B<false>.
+
+The "write_queue" I<plugin instance> reports the number of elements currently
+queued and the number of elements dropped off the queue by the
+B<WriteQueueLimitLow>/B<WriteQueueLimitHigh> mechanism.
+
+The "cache" I<plugin instance> reports the number of elements in the value list
+cache (the cache you can interact with using L<collectd-unixsock(5)>).
+
 =item B<Include> I<Path> [I<pattern>]
 
 If I<Path> points to a file, includes that file. If I<Path> points to a
@@ -236,11 +248,6 @@ on the I<Interval> information contained in each value list. This is used in
 the I<Threshold> configuration to dispatch notifications about missing values,
 see L<collectd-threshold(5)> for details.
 
-=item B<CollectInternalStats> I<true|false>
-
-Some internal statistics can be recorded to monitor Collectd itself.
-Default value : false.
-
 =item B<ReadThreads> I<Num>
 
 Number of threads to start for reading plugins. The default value is B<5>, but
@@ -281,8 +288,11 @@ If B<WriteQueueLimitHigh> is set to non-zero and B<WriteQueueLimitLow> is
 unset, the latter will default to half of B<WriteQueueLimitHigh>.
 
 If you do not want to randomly drop values when the queue size is between
-I<LowNum> and I<HighNum>, set If B<WriteQueueLimitHigh> and
-B<WriteQueueLimitLow> to same value.
+I<LowNum> and I<HighNum>, set B<WriteQueueLimitHigh> and B<WriteQueueLimitLow>
+to the same value.
+
+Enabling the B<CollectInternalStats> option is of great help to figure out the
+values to set B<WriteQueueLimitHigh> and B<WriteQueueLimitLow> to.
 
 =item B<Hostname> I<Name>
 
