@@ -271,8 +271,16 @@ typedef int _Bool;
  # define COLLECTD_USERAGENT PACKAGE_NAME"/"PACKAGE_VERSION
  #endif
 
-/* Remove GNU specific __attribute__ settings when using another compiler */
-#if !__GNUC__
+/* Only enable __attribute__() for compilers known to support it. */
+#if defined(__clang__)
+# define clang_attr(x) __attribute__(x)
+# define gcc_attr(x) /**/
+#elif __GNUC__
+# define clang_attr(x) /**/
+# define gcc_attr(x) __attribute__(x)
+#else
+# define clang_attr(x) /**/
+# define gcc_attr(x) /**/
 # define __attribute__(x) /**/
 #endif
 
