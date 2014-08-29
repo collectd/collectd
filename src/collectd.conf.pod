@@ -32,7 +32,8 @@ This config file controls how the system statistics collection daemon
 B<collectd> behaves. The most significant option is B<LoadPlugin>, which
 controls which plugins to load. These plugins ultimately define collectd's
 behavior. If the B<AutoLoadPlugin> option has been enabled, the explicit
-B<LoadPlugin> lines may be omitted.
+B<LoadPlugin> lines may be omitted for all plugins with a configuration block,
+i.e. a C<E<lt>PluginE<nbsp>...E<gt>> block.
 
 The syntax of this config file is similar to the config file of the famous
 I<Apache> webserver. Each line contains either an option (a key and a list of
