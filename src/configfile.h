@@ -101,6 +101,12 @@ cdtime_t cf_get_default_interval (void);
  * success. */
 int cf_util_get_string (const oconfig_item_t *ci, char **ret_string);
 
+/* Assures that the config options are strings, duplicates them and returns the
+ * copies in the given string pointers. If necessary, the pointers are freed
+ * first. Returns zero upon success.
+ */
+int cf_util_get_strings (const oconfig_item_t *ci, int expected_strings, ...);
+
 /* Assures the config option is a string and copies it to the provided buffer.
  * Assures null-termination. */
 int cf_util_get_string_buffer (const oconfig_item_t *ci, char *buffer,

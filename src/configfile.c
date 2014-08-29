@@ -1112,25 +1112,46 @@ int cf_read (char *filename)
  * success. */
 int cf_util_get_string (const oconfig_item_t *ci, char **ret_string) /* {{{ */
 {
-	char *string;
-
-	if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
-	{
-		ERROR ("cf_util_get_string: The %s option requires "
-				"exactly one string argument.", ci->key);
-		return (-1);
-	}
-
-	string = strdup (ci->values[0].value.string);
-	if (string == NULL)
-		return (-1);
-
-	if (*ret_string != NULL)
-		sfree (*ret_string);
-	*ret_string = string;
-
-	return (0);
+    return cf_util_get_strings (ci, 1, ret_string);
 } /* }}} int cf_util_get_string */
+
+/* Assures that the config options are strings, duplicates them and returns the
+ * copies in the given string pointers. If necessary, the pointers are freed
+ * first. Returns zero upon success.
+ */
+int cf_util_get_strings (const oconfig_item_t *ci, int expected_strings, ...)
+{
+    int i;
+    va_list strings;
+
+    char *string;
+    char **ret_string;
+
+    va_start (strings, expected_strings);
+    for (i = 0; i < expected_strings; i++)
+    {
+        ret_string = va_arg (strings, char **);
+
+        if ((ci->values_num != expected_strings) || (ci->values[i].type != OCONFIG_TYPE_STRING))
+        {
+            ERROR ("cf_util_get_string(s): The %s option requires "
+                    "exactly %i string(s) argument(s).",
+                    ci->key, expected_strings);
+            return (-1);
+        }
+
+        string = strdup (ci->values[i].value.string);
+        if (string == NULL)
+            return (-1);
+
+        if (*ret_string != NULL)
+            sfree (*ret_string);
+        *ret_string = string;
+    }
+    va_end (strings);
+
+    return (0);
+}
 
 /* Assures the config option is a string and copies it to the provided buffer.
  * Assures null-termination. */
