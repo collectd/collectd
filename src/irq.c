@@ -37,11 +37,13 @@
 static const char *config_keys[] =
 {
 	"Irq",
-	"IgnoreSelected"
+	"IgnoreSelected",
+	"NamedIrq"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static ignorelist_t *ignorelist = NULL;
+static int named_irq;
 
 /*
  * Private functions
@@ -62,6 +64,17 @@ static int irq_config (const char *key, const char *value)
 			invert = 0;
 		ignorelist_set_invert (ignorelist, invert);
 	}
+	else if ( strcasecmp (key, "NamedIrq") == 0)
+        {
+	        if (IS_TRUE (value))
+                {
+                        named_irq = 1;
+                }
+                else
+                {
+                        named_irq = 0;
+                }
+        }
 	else
 	{
 		return (-1);
@@ -161,6 +174,13 @@ static int irq_read (void)
 
 		irq_name[irq_name_len - 1] = 0;
 		irq_name_len--;
+                /* Use the last column instead of the irq number */
+                if (named_irq == 1)
+                {
+                        /* Some first column names are already non digits */
+                        if ( isdigit(irq_name[0]) )
+                                irq_name = fields[4];
+                }
 
 		irq_value = 0;
 		for (i = 1; i <= irq_values_to_parse; i++)
