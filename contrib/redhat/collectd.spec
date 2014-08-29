@@ -1892,9 +1892,6 @@ fi
 %doc contrib/
 
 %changelog
-* Wed Aug 06 2014 Marc Fournier <marc.fournier@camptocamp.com> 5.3.1-2
-- Enabled modbus plugin
-
 * Tue Aug 06 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.3.1-1
 - New upstream version
 - Added RHEL5 support:
@@ -1904,6 +1901,8 @@ fi
 - Removed duplicate --enable-aggregation
 - Added some comments & usage examples
 - Replaced a couple of "Buildrequires" by "BuildRequires"
+- Enabled modbus plugin
+- Allow perl plugin to build on RHEL5
 
 * Wed Apr 10 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.3.0-1
 - New upstream version
