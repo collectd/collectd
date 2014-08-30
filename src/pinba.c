@@ -653,7 +653,7 @@ static int plugin_init (void) /* {{{ */
   status = plugin_thread_create (&collector_thread_id,
       /* attrs = */ NULL,
       collector_thread,
-      /* args = */ NULL);
+      /* args = */ NULL, "pinba collector");
   if (status != 0)
   {
     char errbuf[1024];

@@ -1218,7 +1218,7 @@ static int rrd_init (void)
 	pthread_mutex_unlock (&cache_lock);
 
 	status = plugin_thread_create (&queue_thread, /* attr = */ NULL,
-			rrd_queue_thread, /* args = */ NULL);
+			rrd_queue_thread, /* args = */ NULL, "rrdtool queue");
 	if (status != 0)
 	{
 		ERROR ("rrdtool plugin: Cannot create queue-thread.");

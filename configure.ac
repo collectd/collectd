@@ -1378,6 +1378,48 @@ AC_CHECK_MEMBERS([kstat_io_t.nwritten, kstat_io_t.writes, kstat_io_t.nwrites, ks
 #endif
 	])
 
+# check for pthread_setname_np
+SAVE_LDFLAGS=$LDFLAGS
+LDFLAGS="$LDFLAGS -lpthread"
+
+AC_MSG_CHECKING([if have pthread_setname_np])
+	have_pthread_setname_np="no"
+	AC_LINK_IFELSE([AC_LANG_PROGRAM(
+[[
+#if HAVE_PTHREAD_H
+#include <pthread.h>
+#endif
+]],
+[[
+        pthread_setname_np(pthread_self(), "conftest");
+]]
+	)], [
+		have_pthread_setname_np="yes"
+		AC_DEFINE(HAVE_PTHREAD_SETNAME_NP, 1, [ pthread_setname_np() is available.])
+	])
+
+AC_MSG_RESULT([$have_pthread_set_name_np])
+
+# check for pthread_set_name_np
+AC_MSG_CHECKING([if have pthread_set_name_np])
+	have_pthread_set_name_np="no"
+	AC_LINK_IFELSE([AC_LANG_PROGRAM(
+[[
+#if HAVE_PTHREAD_H
+#include <pthread.h>
+#endif
+]],
+[[
+        pthread_set_name_np(pthread_self(), "conftest");
+]]
+	)], [
+		have_pthread_set_name_np="yes"
+		AC_DEFINE(HAVE_PTHREAD_SET_NAME_NP, 1, [ pthread_set_name_np() is available.])
+	])
+AC_MSG_RESULT([$have_pthread_set_name_np])
+
+LDFLAGS=$SAVE_LDFLAGS
+
 #
 # Checks for libraries begin here
 #

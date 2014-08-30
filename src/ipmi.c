@@ -670,7 +670,7 @@ static int c_ipmi_init (void)
   c_ipmi_active = 1;
 
   status = plugin_thread_create (&thread_id, /* attr = */ NULL, thread_main,
-      /* user data = */ NULL);
+      /* user data = */ NULL, "ipmi");
   if (status != 0)
   {
     c_ipmi_active = 0;

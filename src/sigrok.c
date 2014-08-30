@@ -361,7 +361,7 @@ static int sigrok_init(void)
 	}
 
 	if ((status = plugin_thread_create(&sr_thread, NULL, sigrok_read_thread,
-			NULL)) != 0) {
+			NULL, "sigrok read")) != 0) {
 		ERROR("sigrok plugin: Failed to create thread: %s.",
 				strerror(status));
 		return -1;

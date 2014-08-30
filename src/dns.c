@@ -338,7 +338,7 @@ static int dns_init (void)
 		return (-1);
 
 	status = plugin_thread_create (&listen_thread, NULL, dns_child_loop,
-			(void *) 0);
+			(void *) 0, "dns listen");
 	if (status != 0)
 	{
 		char errbuf[1024];
