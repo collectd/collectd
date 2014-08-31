@@ -104,6 +104,7 @@ static c_avl_tree_t *data_sets;
 
 static char *plugindir = NULL;
 
+#define DEFAULT_MAX_READ_INTERVAL 86400
 static c_heap_t       *read_heap = NULL;
 static llist_t        *read_list;
 static int             read_loop = 1;
@@ -111,6 +112,7 @@ static pthread_mutex_t read_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  read_cond = PTHREAD_COND_INITIALIZER;
 static pthread_t      *read_threads = NULL;
 static int             read_threads_num = 0;
+static int             max_read_interval = DEFAULT_MAX_READ_INTERVAL;
 
 static write_queue_t  *write_queue_head;
 static write_queue_t  *write_queue_tail;
@@ -482,14 +484,9 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 		 * intervals in which it will be called. */
 		if (status != 0)
 		{
-			const char *mei = global_option_get ("MaxReadInterval");
-			int max_effective_interval = atoi (mei);
-			if (max_effective_interval <= 0) {
-				max_effective_interval = 86400;
-			}
 			rf->rf_effective_interval *= 2;
-			if (rf->rf_effective_interval > TIME_T_TO_CDTIME_T (max_effective_interval))
-				rf->rf_effective_interval = TIME_T_TO_CDTIME_T (max_effective_interval);
+			if (rf->rf_effective_interval > TIME_T_TO_CDTIME_T (max_read_interval))
+				rf->rf_effective_interval = TIME_T_TO_CDTIME_T (max_read_interval);
 
 			NOTICE ("read-function of plugin `%s' failed. "
 					"Will suspend it for %.3f seconds.",
@@ -1551,6 +1548,14 @@ void plugin_init_all (void)
 	{
 		const char *rt;
 		int num;
+
+		max_read_interval = global_option_get_long ("MaxReadInterval",
+				DEFAULT_MAX_READ_INTERVAL);
+		if (max_read_interval <= 0) {
+			ERROR ("MaxReadInterval must be positive");
+			max_read_interval = DEFAULT_MAX_READ_INTERVAL;
+		}
+
 		rt = global_option_get ("ReadThreads");
 		num = atoi (rt);
 		if (num != -1)
