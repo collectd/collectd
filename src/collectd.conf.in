@@ -579,10 +579,14 @@
 #</Plugin>
 
 #<Plugin irq>
-#	Irq 7
-#	Irq 8
-#	Irq 9
-#	IgnoreSelected true
+#	Irq "/eth/"
+#	Irq LOC
+#	Irq RES
+#	Irq CAL
+#	Irq TLB
+#	Irq TRM
+#	IgnoreSelected false
+#	NamedIrq true
 #</Plugin>
 
 #<Plugin java>
