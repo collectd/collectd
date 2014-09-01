@@ -2291,6 +2291,21 @@ few ones. This option enables you to do that: By setting B<IgnoreSelected> to
 I<true> the effect of B<Irq> is inverted: All selected interrupts are ignored
 and all other interrupts are collected.
 
+Setting B<NamedIrq> to I<true> will use the allocated name of the irq instead of the number.
+
+Synopsis:
+
+  <Plugin irq>
+    Irq "/eth/"
+    Irq LOC
+    Irq RES
+    Irq CAL
+    Irq TLB
+    Irq TRM
+    IgnoreSelected false
+    NamedIrq true
+  </Plugin>
+
 =back
 
 =head2 Plugin C<java>
