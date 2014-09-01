@@ -1689,6 +1689,10 @@ then
 		 [with_libcurl="yes"],
 		 [with_libcurl="no (symbol 'curl_easy_init' not found)"],
 		 [$with_curl_libs])
+		AC_CHECK_DECL(CURLOPT_USERNAME,
+		 [have_curlopt_username="yes"],
+		 [have_curlopt_username="no"],
+		 [[#include <curl/curl.h>]])
 	fi
 fi
 if test "x$with_libcurl" = "xyes"
@@ -1697,6 +1701,11 @@ then
 	BUILD_WITH_LIBCURL_LIBS="$with_curl_libs"
 	AC_SUBST(BUILD_WITH_LIBCURL_CFLAGS)
 	AC_SUBST(BUILD_WITH_LIBCURL_LIBS)
+
+	if test "x$have_curlopt_username" = "xyes"
+	then
+		AC_DEFINE(HAVE_CURLOPT_USERNAME, 1, [Define if libcurl supports CURLOPT_USERNAME option.])
+	fi
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBCURL, test "x$with_libcurl" = "xyes")
 # }}}

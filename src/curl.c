@@ -373,6 +373,11 @@ static int cc_page_init_curl (web_page_t *wp) /* {{{ */
 
   if (wp->user != NULL)
   {
+#ifdef HAVE_CURLOPT_USERNAME
+    curl_easy_setopt (wp->curl, CURLOPT_USERNAME, wp->user);
+    curl_easy_setopt (wp->curl, CURLOPT_PASSWORD,
+        (wp->pass == NULL) ? "" : wp->pass);
+#else
     size_t credentials_size;
 
     credentials_size = strlen (wp->user) + 2;
@@ -389,13 +394,10 @@ static int cc_page_init_curl (web_page_t *wp) /* {{{ */
     ssnprintf (wp->credentials, credentials_size, "%s:%s",
         wp->user, (wp->pass == NULL) ? "" : wp->pass);
     curl_easy_setopt (wp->curl, CURLOPT_USERPWD, wp->credentials);
-    
+#endif
+
     if (wp->digest)
-    {
       curl_easy_setopt (wp->curl, CURLOPT_HTTPAUTH, CURLAUTH_DIGEST);
-      curl_easy_setopt (wp->curl, CURLOPT_USERNAME, wp->user);
-      curl_easy_setopt (wp->curl, CURLOPT_PASSWORD, wp->pass);
-    }
   }
 
   curl_easy_setopt (wp->curl, CURLOPT_SSL_VERIFYPEER, (long) wp->verify_peer);
