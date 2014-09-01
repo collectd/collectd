@@ -41,7 +41,6 @@ struct ldap_s /* {{{ */
 	int   version;
 
 	LDAP *ld;
-	char *dn;
 };
 typedef struct ldap_s ldap_t; /* }}} */
 
