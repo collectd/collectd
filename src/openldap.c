@@ -69,6 +69,7 @@ static int ldap_init_host (ldap_t *st) /* {{{ */
 		ERROR ("openldap plugin: ldap_initialize failed: %s",
 			ldap_err2string (rc));
 		st->state = 0;
+		ldap_unbind_ext_s (ld, NULL, NULL);
 		return (-1);
 	}
 
@@ -210,6 +211,7 @@ static int ldap_read_host (user_data_t *ud) /* {{{ */
 		ERROR ("openldap plugin: Failed to execute search: %s",
 				ldap_err2string (rc));
 		ldap_msgfree (result);
+		ldap_unbind_ext_s (st->ld, NULL, NULL);
 		return (-1);
 	}
 
