@@ -34,10 +34,10 @@ struct ldap_s /* {{{ */
 	char *cacert;
 	char *host;
 	int   state;
-	int   starttls;
+	_Bool starttls;
 	int   timeout;
 	char *url;
-	int   verifyhost;
+	_Bool verifyhost;
 	int   version;
 
 	LDAP *ld;
@@ -521,98 +521,13 @@ static int ldap_read_host (user_data_t *ud) /* {{{ */
  * </Plugin>
  */
 
-static int ldap_config_set_string (char **ret_string, /* {{{ */
-				    oconfig_item_t *ci)
-{
-	char *string;
-
-	if ((ci->values_num != 1)
-	    || (ci->values[0].type != OCONFIG_TYPE_STRING))
-	{
-		WARNING ("openldap plugin: The `%s' config option "
-			 "needs exactly one string argument.", ci->key);
-		return (-1);
-	}
-
-	string = strdup (ci->values[0].value.string);
-	if (string == NULL)
-	{
-		ERROR ("openldap plugin: strdup failed.");
-		return (-1);
-	}
-
-	if (*ret_string != NULL)
-		free (*ret_string);
-	*ret_string = string;
-
-	return (0);
-} /* }}} int ldap_config_set_string */
-
-static int ldap_config_set_int (int *ret_int, /* {{{ */
-				 oconfig_item_t *ci)
-{
-	if ((ci->values_num != 1)
-	    || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
-	{
-		WARNING ("openldap plugin: The `%s' config option "
-			 "needs exactly one string argument.", ci->key);
-		return (-1);
-	}
-
-	*ret_int = ci->values[0].value.number;
-
-	return (0);
-} /* }}} int ldap_config_set_int */
-
-static int ldap_config_set_bool (int *ret_boolean, /* {{{ */
-				oconfig_item_t *ci)
-{
-	int status = 0;
-
-	if (ci->values_num != 1)
-		status = -1;
-
-	if (status == 0)
-	{
-		if (ci->values[0].type == OCONFIG_TYPE_BOOLEAN)
-			*ret_boolean = ci->values[0].value.boolean;
-		else if (ci->values[0].type == OCONFIG_TYPE_STRING)
-		{
-			if (IS_TRUE (ci->values[0].value.string))
-				*ret_boolean = 1;
-			else if (IS_FALSE (ci->values[0].value.string))
-				*ret_boolean = 0;
-			else
-				status = -1;
-		}
-		else
-			status = -1;
-	}
-
-	if (status != 0)
-	{
-		WARNING ("openldap plugin: The `%s' config option "
-			"needs exactly one boolean argument.", ci->key);
-		return (-1);
-	}
-	return (0);
-} /* }}} int ldap_config_set_bool */
-
 static int ldap_config_add (oconfig_item_t *ci) /* {{{ */
 {
 	ldap_t *st;
 	int i;
 	int status;
 
-	if ((ci->values_num != 1)
-	    || (ci->values[0].type != OCONFIG_TYPE_STRING))
-	{
-		WARNING ("openldap plugin: The `%s' config option "
-			 "needs exactly one string argument.", ci->key);
-		return (-1);
-	}
-
-	st = (ldap_t *) malloc (sizeof (*st));
+	st = malloc (sizeof (*st));
 	if (st == NULL)
 	{
 		ERROR ("openldap plugin: malloc failed.");
@@ -620,7 +535,7 @@ static int ldap_config_add (oconfig_item_t *ci) /* {{{ */
 	}
 	memset (st, 0, sizeof (*st));
 
-	status = ldap_config_set_string (&st->name, ci);
+	status = cf_util_get_string (ci, &st->name);
 	if (status != 0)
 	{
 		sfree (st);
@@ -637,17 +552,17 @@ static int ldap_config_add (oconfig_item_t *ci) /* {{{ */
 		oconfig_item_t *child = ci->children + i;
 
 		if (strcasecmp ("CACert", child->key) == 0)
-			status = ldap_config_set_string (&st->cacert, child);
+			status = cf_util_get_string (child, &st->cacert);
 		else if (strcasecmp ("StartTLS", child->key) == 0)
-			status = ldap_config_set_bool (&st->starttls, child);
+			status = cf_util_get_boolean (child, &st->starttls);
 		else if (strcasecmp ("Timeout", child->key) == 0)
-			status = ldap_config_set_int (&st->timeout, child);
+			status = cf_util_get_int (child, &st->timeout);
 		else if (strcasecmp ("URL", child->key) == 0)
-			status = ldap_config_set_string (&st->url, child);
+			status = cf_util_get_string (child, &st->url);
 		else if (strcasecmp ("VerifyHost", child->key) == 0)
-			status = ldap_config_set_bool (&st->verifyhost, child);
+			status = cf_util_get_boolean (child, &st->verifyhost);
 		else if (strcasecmp ("Version", child->key) == 0)
-			status = ldap_config_set_int (&st->version, child);
+			status = cf_util_get_int (child, &st->version);
 		else
 		{
 			WARNING ("openldap plugin: Option `%s' not allowed here.",
