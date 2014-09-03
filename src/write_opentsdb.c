@@ -88,7 +88,7 @@
 /*
  * Private variables
  */
-struct wg_callback
+struct wt_callback
 {
     int      sock_fd;
 
@@ -117,7 +117,7 @@ struct wg_callback
 /*
  * Functions
  */
-static void wg_reset_buffer (struct wg_callback *cb)
+static void wt_reset_buffer (struct wt_callback *cb)
 {
     memset (cb->send_buf, 0, sizeof (cb->send_buf));
     cb->send_buf_free = sizeof (cb->send_buf);
@@ -125,7 +125,7 @@ static void wg_reset_buffer (struct wg_callback *cb)
     cb->send_buf_init_time = cdtime ();
 }
 
-static int wg_send_buffer (struct wg_callback *cb)
+static int wt_send_buffer (struct wt_callback *cb)
 {
     ssize_t status = 0;
 
@@ -152,11 +152,11 @@ static int wg_send_buffer (struct wg_callback *cb)
 }
 
 /* NOTE: You must hold cb->send_lock when calling this function! */
-static int wg_flush_nolock (cdtime_t timeout, struct wg_callback *cb)
+static int wt_flush_nolock (cdtime_t timeout, struct wt_callback *cb)
 {
     int status;
 
-    DEBUG ("write_opentsdb plugin: wg_flush_nolock: timeout = %.3f; "
+    DEBUG ("write_opentsdb plugin: wt_flush_nolock: timeout = %.3f; "
             "send_buf_fill = %zu;",
             (double)timeout,
             cb->send_buf_fill);
@@ -177,13 +177,13 @@ static int wg_flush_nolock (cdtime_t timeout, struct wg_callback *cb)
         return (0);
     }
 
-    status = wg_send_buffer (cb);
-    wg_reset_buffer (cb);
+    status = wt_send_buffer (cb);
+    wt_reset_buffer (cb);
 
     return (status);
 }
 
-static int wg_callback_init (struct wg_callback *cb)
+static int wt_callback_init (struct wt_callback *cb)
 {
     struct addrinfo ai_hints;
     struct addrinfo *ai_list;
@@ -255,14 +255,14 @@ static int wg_callback_init (struct wg_callback *cb)
                 node, service, protocol);
     }
 
-    wg_reset_buffer (cb);
+    wt_reset_buffer (cb);
 
     return (0);
 }
 
-static void wg_callback_free (void *data)
+static void wt_callback_free (void *data)
 {
-    struct wg_callback *cb;
+    struct wt_callback *cb;
 
     if (data == NULL)
         return;
@@ -271,7 +271,7 @@ static void wg_callback_free (void *data)
 
     pthread_mutex_lock (&cb->send_lock);
 
-    wg_flush_nolock (/* timeout = */ 0, cb);
+    wt_flush_nolock (/* timeout = */ 0, cb);
 
     if (cb->sock_fd >= 0)
     {
@@ -291,11 +291,44 @@ static void wg_callback_free (void *data)
     sfree(cb);
 }
 
-static int wg_flush (cdtime_t timeout,
-        const char *identifier __attribute__((unused)),
+
+//WubbaLubbaDubDub
+//parses the identifier to see if it matches WubbaLubbaDubDub
+//recreates the sock by assigning node and service
+static int wt_flush_wubba_lubba_dub_dub(cdtime_t timeout, const char * identifier,
+			user_data_t *user_data)
+{
+    DEBUG("write_opentsdb plugin: In wubba with identifier %s",identifier );
+    struct wt_callback *cb;
+    int status;
+
+
+    cb = user_data->data;
+    char new_tsd_host[1024];
+    ssnprintf (new_tsd_host, sizeof (new_tsd_host), "%s", identifier + 29);
+    DEBUG("write_opentsdb plugin: In wubba with new tsd host %s",new_tsd_host );
+    sstrncpy(cb->node, new_tsd_host, 100);
+    pthread_mutex_lock(&cb->send_lock);
+
+        status = wt_callback_init(cb);
+        if (status != 0)
+        {
+            ERROR("write_opentsdb plugin: wt_callback_init failed.");
+            pthread_mutex_unlock(&cb->send_lock);
+            return -1;
+        }
+
+    pthread_mutex_unlock(&cb->send_lock);
+
+    return status;
+}
+
+
+static int wt_flush (cdtime_t timeout,
+        const char *identifier,
         user_data_t *user_data)
 {
-    struct wg_callback *cb;
+    struct wt_callback *cb;
     int status;
 
     if (user_data == NULL)
@@ -307,7 +340,7 @@ static int wg_flush (cdtime_t timeout,
 
     if (cb->sock_fd < 0)
     {
-        status = wg_callback_init (cb);
+        status = wt_callback_init (cb);
         if (status != 0)
         {
             /* An error message has already been printed. */
@@ -316,13 +349,22 @@ static int wg_flush (cdtime_t timeout,
         }
     }
 
-    status = wg_flush_nolock (timeout, cb);
+    status = wt_flush_nolock (timeout, cb);
     pthread_mutex_unlock (&cb->send_lock);
 
+    DEBUG("write_opentsdb plugin: got wt_flush with identifier %s",identifier );
+    char handle[30];
+    sstrncpy(handle, identifier, 29);
+    DEBUG("write_opentsdb plugin: in wt_flush with handle %s",handle );
+    if( 0 == strcmp("localhost/WubbaLubbaDubbDubb", handle) ){
+
+        DEBUG("write_opentsdb plugin: calling wubba with identifier %s",identifier );
+        wt_flush_wubba_lubba_dub_dub(timeout, identifier, user_data);
+    }
     return (status);
 }
 
-static int wg_send_message (char const *message, struct wg_callback *cb)
+static int wt_send_message (char const *message, struct wt_callback *cb)
 {
     int status;
     size_t message_len;
@@ -333,7 +375,7 @@ static int wg_send_message (char const *message, struct wg_callback *cb)
 
     if (cb->sock_fd < 0)
     {
-        status = wg_callback_init (cb);
+        status = wt_callback_init (cb);
         if (status != 0)
         {
             /* An error message has already been printed. */
@@ -344,7 +386,7 @@ static int wg_send_message (char const *message, struct wg_callback *cb)
 
     if (message_len >= cb->send_buf_free)
     {
-        status = wg_flush_nolock (/* timeout = */ 0, cb);
+        status = wt_flush_nolock (/* timeout = */ 0, cb);
         if (status != 0)
         {
             pthread_mutex_unlock (&cb->send_lock);
@@ -375,8 +417,8 @@ static int wg_send_message (char const *message, struct wg_callback *cb)
     return (0);
 }
 
-static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
-        struct wg_callback *cb)
+static int wt_write_messages (const data_set_t *ds, const value_list_t *vl,
+        struct wt_callback *cb)
 {
     char buffer[WG_SEND_BUF_SIZE];
     int status;
@@ -395,17 +437,17 @@ static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
         return (status);
 
     /* Send the message to opentsdb */
-    status = wg_send_message (buffer, cb);
+    status = wt_send_message (buffer, cb);
     if (status != 0) /* error message has been printed already. */
         return (status);
 
     return (0);
-} /* int wg_write_messages */
+} /* int wt_write_messages */
 
-static int wg_write (const data_set_t *ds, const value_list_t *vl,
+static int wt_write (const data_set_t *ds, const value_list_t *vl,
         user_data_t *user_data)
 {
-    struct wg_callback *cb;
+    struct wt_callback *cb;
     int status;
 
     if (user_data == NULL)
@@ -413,7 +455,7 @@ static int wg_write (const data_set_t *ds, const value_list_t *vl,
 
     cb = user_data->data;
 
-    status = wg_write_messages (ds, vl, cb);
+    status = wt_write_messages (ds, vl, cb);
 
     return (status);
 }
@@ -449,9 +491,9 @@ static int config_set_char (char *dest,
     return (0);
 }
 
-static int wg_config_node (oconfig_item_t *ci)
+static int wt_config_node (oconfig_item_t *ci)
 {
-    struct wg_callback *cb;
+    struct wt_callback *cb;
     user_data_t user_data;
     char callback_name[DATA_MAX_NAME_LEN];
     int i;
@@ -481,7 +523,7 @@ static int wg_config_node (oconfig_item_t *ci)
         status = cf_util_get_string (ci, &cb->name);
         if (status != 0)
         {
-            wg_callback_free (cb);
+            wt_callback_free (cb);
             return (status);
         }
     }
@@ -538,7 +580,7 @@ static int wg_config_node (oconfig_item_t *ci)
 
     if (status != 0)
     {
-        wg_callback_free (cb);
+        wt_callback_free (cb);
         return (status);
     }
 
@@ -554,16 +596,16 @@ static int wg_config_node (oconfig_item_t *ci)
 
     memset (&user_data, 0, sizeof (user_data));
     user_data.data = cb;
-    user_data.free_func = wg_callback_free;
-    plugin_register_write (callback_name, wg_write, &user_data);
+    user_data.free_func = wt_callback_free;
+    plugin_register_write (callback_name, wt_write, &user_data);
 
     user_data.free_func = NULL;
-    plugin_register_flush (callback_name, wg_flush, &user_data);
+    plugin_register_flush (callback_name, wt_flush, &user_data);
 
     return (0);
 }
 
-static int wg_config (oconfig_item_t *ci)
+static int wt_config (oconfig_item_t *ci)
 {
     int i;
 
@@ -572,10 +614,10 @@ static int wg_config (oconfig_item_t *ci)
         oconfig_item_t *child = ci->children + i;
 
         if (strcasecmp ("Node", child->key) == 0)
-            wg_config_node (child);
+            wt_config_node (child);
         /* FIXME: Remove this legacy mode in version 6. */
         else if (strcasecmp ("Carbon", child->key) == 0)
-            wg_config_node (child);
+            wt_config_node (child);
         else
         {
             ERROR ("write_opentsdb plugin: Invalid configuration "
@@ -588,7 +630,7 @@ static int wg_config (oconfig_item_t *ci)
 
 void module_register (void)
 {
-    plugin_register_complex_config ("write_opentsdb", wg_config);
+    plugin_register_complex_config ("write_opentsdb", wt_config);
 }
 
 /* vim: set sw=4 ts=4 sts=4 tw=78 et : */

@@ -1477,13 +1477,6 @@ collectd_LDADD += "-dlopen" write_riemann.la
 collectd_DEPENDENCIES += write_riemann.la
 endif
 
-if BUILD_PLUGIN_WRITE_TSDB
-pkglib_LTLIBRARIES += write_tsdb.la
-write_tsdb_la_SOURCES = write_tsdb.c
-write_tsdb_la_LDFLAGS = -module -avoid-version
-collectd_LDADD += "-dlopen" write_tsdb.la
-collectd_DEPENDENCIES += write_tsdb.la
-endif
 
 if BUILD_PLUGIN_XMMS
 pkglib_LTLIBRARIES += xmms.la
