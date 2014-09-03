@@ -1399,6 +1399,16 @@ collectd_LDADD += "-dlopen" wireless.la
 collectd_DEPENDENCIES += wireless.la
 endif
 
+if BUILD_PLUGIN_WRITE_OPENTSDB
+pkglib_LTLIBRARIES += write_opentsdb.la
+write_opentsdb_la_SOURCES = write_opentsdb.c \
+                        utils_format_opentsdb.c utils_format_opentsdb.h \
+                        utils_format_json.c utils_format_json.h
+write_opentsdb_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" write_opentsdb.la
+collectd_DEPENDENCIES += write_opentsdb.la
+endif
+
 if BUILD_PLUGIN_WRITE_GRAPHITE
 pkglib_LTLIBRARIES += write_graphite.la
 write_graphite_la_SOURCES = write_graphite.c \
@@ -1467,13 +1477,6 @@ collectd_LDADD += "-dlopen" write_riemann.la
 collectd_DEPENDENCIES += write_riemann.la
 endif
 
-if BUILD_PLUGIN_WRITE_TSDB
-pkglib_LTLIBRARIES += write_tsdb.la
-write_tsdb_la_SOURCES = write_tsdb.c
-write_tsdb_la_LDFLAGS = -module -avoid-version
-collectd_LDADD += "-dlopen" write_tsdb.la
-collectd_DEPENDENCIES += write_tsdb.la
-endif
 
 if BUILD_PLUGIN_XMMS
 pkglib_LTLIBRARIES += xmms.la
