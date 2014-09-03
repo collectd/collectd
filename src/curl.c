@@ -57,12 +57,12 @@ struct web_page_s /* {{{ */
   char *user;
   char *pass;
   char *credentials;
-  int   verify_peer;
-  int   verify_host;
+  _Bool verify_peer;
+  _Bool verify_host;
   char *cacert;
   struct curl_slist *headers;
   char *post_body;
-  int   response_time;
+  _Bool response_time;
 
   CURL *curl;
   char curl_errbuf[CURL_ERROR_SIZE];
@@ -160,23 +160,6 @@ static void cc_web_page_free (web_page_t *wp) /* {{{ */
   sfree (wp);
 } /* }}} void cc_web_page_free */
 
-static int cc_config_add_string (const char *name, char **dest, /* {{{ */
-    oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("curl plugin: `%s' needs exactly one string argument.", name);
-    return (-1);
-  }
-
-  sfree (*dest);
-  *dest = strdup (ci->values[0].value.string);
-  if (*dest == NULL)
-    return (-1);
-
-  return (0);
-} /* }}} int cc_config_add_string */
-
 static int cc_config_append_string (const char *name, struct curl_slist **dest, /* {{{ */
     oconfig_item_t *ci)
 {
@@ -192,21 +175,6 @@ static int cc_config_append_string (const char *name, struct curl_slist **dest, 
 
   return (0);
 } /* }}} int cc_config_append_string */
-
-
-static int cc_config_set_boolean (const char *name, int *dest, /* {{{ */
-    oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
-  {
-    WARNING ("curl plugin: `%s' needs exactly one boolean argument.", name);
-    return (-1);
-  }
-
-  *dest = ci->values[0].value.boolean ? 1 : 0;
-
-  return (0);
-} /* }}} int cc_config_set_boolean */
 
 static int cc_config_add_match_dstype (int *dstype_ret, /* {{{ */
     oconfig_item_t *ci)
@@ -312,15 +280,15 @@ static int cc_config_add_match (web_page_t *page, /* {{{ */
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp ("Regex", child->key) == 0)
-      status = cc_config_add_string ("Regex", &match->regex, child);
+      status = cf_util_get_string (child, &match->regex);
     else if (strcasecmp ("ExcludeRegex", child->key) == 0)
-      status = cc_config_add_string ("ExcludeRegex", &match->exclude_regex, child);
+      status = cf_util_get_string (child, &match->exclude_regex);
     else if (strcasecmp ("DSType", child->key) == 0)
       status = cc_config_add_match_dstype (&match->dstype, child);
     else if (strcasecmp ("Type", child->key) == 0)
-      status = cc_config_add_string ("Type", &match->type, child);
+      status = cf_util_get_string (child, &match->type);
     else if (strcasecmp ("Instance", child->key) == 0)
-      status = cc_config_add_string ("Instance", &match->instance, child);
+      status = cf_util_get_string (child, &match->instance);
     else
     {
       WARNING ("curl plugin: Option `%s' not allowed here.", child->key);
@@ -475,26 +443,26 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp ("URL", child->key) == 0)
-      status = cc_config_add_string ("URL", &page->url, child);
+      status = cf_util_get_string (child, &page->url);
     else if (strcasecmp ("User", child->key) == 0)
-      status = cc_config_add_string ("User", &page->user, child);
+      status = cf_util_get_string (child, &page->user);
     else if (strcasecmp ("Password", child->key) == 0)
-      status = cc_config_add_string ("Password", &page->pass, child);
+      status = cf_util_get_string (child, &page->pass);
     else if (strcasecmp ("VerifyPeer", child->key) == 0)
-      status = cc_config_set_boolean ("VerifyPeer", &page->verify_peer, child);
+      status = cf_util_get_boolean (child, &page->verify_peer);
     else if (strcasecmp ("VerifyHost", child->key) == 0)
-      status = cc_config_set_boolean ("VerifyHost", &page->verify_host, child);
+      status = cf_util_get_boolean (child, &page->verify_host);
     else if (strcasecmp ("MeasureResponseTime", child->key) == 0)
-      status = cc_config_set_boolean (child->key, &page->response_time, child);
+      status = cf_util_get_boolean (child, &page->response_time);
     else if (strcasecmp ("CACert", child->key) == 0)
-      status = cc_config_add_string ("CACert", &page->cacert, child);
+      status = cf_util_get_string (child, &page->cacert);
     else if (strcasecmp ("Match", child->key) == 0)
       /* Be liberal with failing matches => don't set `status'. */
       cc_config_add_match (page, child);
     else if (strcasecmp ("Header", child->key) == 0)
       status = cc_config_append_string ("Header", &page->headers, child);
     else if (strcasecmp ("Post", child->key) == 0)
-      status = cc_config_add_string ("Post", &page->post_body, child);
+      status = cf_util_get_string (child, &page->post_body);
     else
     {
       WARNING ("curl plugin: Option `%s' not allowed here.", child->key);
