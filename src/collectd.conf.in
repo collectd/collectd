@@ -1212,6 +1212,7 @@
 #		SSLVersion "TLSv1"
 #		Format "Command"
 #		StoreRates false
+#		BufferSize 4096
 #	</URL>
 #</Plugin>
 

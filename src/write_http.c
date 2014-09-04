@@ -2,7 +2,7 @@
  * collectd - src/write_http.c
  * Copyright (C) 2009       Paul Sadauskas
  * Copyright (C) 2009       Doug MacEachern
- * Copyright (C) 2007-2009  Florian octo Forster
+ * Copyright (C) 2007-2014  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -36,6 +36,10 @@
 
 #include <curl/curl.h>
 
+#ifndef WRITE_HTTP_DEFAULT_BUFFER_SIZE
+# define WRITE_HTTP_DEFAULT_BUFFER_SIZE 4096
+#endif
+
 /*
  * Private variables
  */
@@ -63,7 +67,8 @@ struct wh_callback_s
         CURL *curl;
         char curl_errbuf[CURL_ERROR_SIZE];
 
-        char   send_buffer[4096];
+        char  *send_buffer;
+        size_t send_buffer_size;
         size_t send_buffer_free;
         size_t send_buffer_fill;
         cdtime_t send_buffer_init_time;
@@ -74,8 +79,8 @@ typedef struct wh_callback_s wh_callback_t;
 
 static void wh_reset_buffer (wh_callback_t *cb)  /* {{{ */
 {
-        memset (cb->send_buffer, 0, sizeof (cb->send_buffer));
-        cb->send_buffer_free = sizeof (cb->send_buffer);
+        memset (cb->send_buffer, 0, cb->send_buffer_size);
+        cb->send_buffer_free = cb->send_buffer_size;
         cb->send_buffer_fill = 0;
         cb->send_buffer_init_time = cdtime ();
 
@@ -280,7 +285,11 @@ static void wh_callback_free (void *data) /* {{{ */
 
         wh_flush_nolock (/* timeout = */ 0, cb);
 
-        curl_easy_cleanup (cb->curl);
+        if (cb->curl != NULL)
+        {
+                curl_easy_cleanup (cb->curl);
+                cb->curl = NULL;
+        }
         sfree (cb->location);
         sfree (cb->user);
         sfree (cb->pass);
@@ -290,6 +299,7 @@ static void wh_callback_free (void *data) /* {{{ */
         sfree (cb->clientkey);
         sfree (cb->clientcert);
         sfree (cb->clientkeypass);
+        sfree (cb->send_buffer);
 
         sfree (cb);
 } /* }}} void wh_callback_free */
@@ -371,8 +381,8 @@ static int wh_write_command (const data_set_t *ds, const value_list_t *vl, /* {{
 
         DEBUG ("write_http plugin: <%s> buffer %zu/%zu (%g%%) \"%s\"",
                         cb->location,
-                        cb->send_buffer_fill, sizeof (cb->send_buffer),
-                        100.0 * ((double) cb->send_buffer_fill) / ((double) sizeof (cb->send_buffer)),
+                        cb->send_buffer_fill, cb->send_buffer_size,
+                        100.0 * ((double) cb->send_buffer_fill) / ((double) cb->send_buffer_size),
                         command);
 
         /* Check if we have enough space for this command. */
@@ -426,8 +436,8 @@ static int wh_write_json (const data_set_t *ds, const value_list_t *vl, /* {{{ *
 
         DEBUG ("write_http plugin: <%s> buffer %zu/%zu (%g%%)",
                         cb->location,
-                        cb->send_buffer_fill, sizeof (cb->send_buffer),
-                        100.0 * ((double) cb->send_buffer_fill) / ((double) sizeof (cb->send_buffer)));
+                        cb->send_buffer_fill, cb->send_buffer_size,
+                        100.0 * ((double) cb->send_buffer_fill) / ((double) cb->send_buffer_size));
 
         /* Check if we have enough space for this command. */
         pthread_mutex_unlock (&cb->send_lock);
@@ -485,6 +495,7 @@ static int config_set_format (wh_callback_t *cb, /* {{{ */
 static int wh_config_url (oconfig_item_t *ci) /* {{{ */
 {
         wh_callback_t *cb;
+        int buffer_size = 0;
         user_data_t user_data;
         int i;
 
@@ -560,12 +571,33 @@ static int wh_config_url (oconfig_item_t *ci) /* {{{ */
                         config_set_format (cb, child);
                 else if (strcasecmp ("StoreRates", child->key) == 0)
                         cf_util_get_boolean (child, &cb->store_rates);
+                else if (strcasecmp ("BufferSize", child->key) == 0)
+                        cf_util_get_int (child, &buffer_size);
                 else
                 {
                         ERROR ("write_http plugin: Invalid configuration "
                                         "option: %s.", child->key);
                 }
         }
+
+        /* Determine send_buffer_size. */
+        cb->send_buffer_size = WRITE_HTTP_DEFAULT_BUFFER_SIZE;
+        if (buffer_size >= 1024)
+                cb->send_buffer_size = (size_t) buffer_size;
+        else if (buffer_size != 0)
+                ERROR ("write_http plugin: Ignoring invalid BufferSize setting (%d).",
+                                buffer_size);
+
+        /* Allocate the buffer. */
+        cb->send_buffer = malloc (cb->send_buffer_size);
+        if (cb->send_buffer == 0)
+        {
+                ERROR ("write_http plugin: malloc(%zu) failed.", cb->send_buffer_size);
+                wh_callback_free (cb);
+                return (-1);
+        }
+        /* Nulls the buffer and sets ..._free and ..._fill. */
+        wh_reset_buffer (cb);
 
         DEBUG ("write_http: Registering write callback with URL %s",
                         cb->location);

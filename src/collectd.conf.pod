@@ -6659,8 +6659,9 @@ want to use authentication all three fields must be set.
 
 =head2 Plugin C<write_http>
 
-This output plugin submits values to an http server by POST them using the
-PUTVAL plain-text protocol. Each destination you want to post data to needs to
+This output plugin submits values to an HTTP server using POST requests and
+encoding metircs with JSON or using the C<PUTVAL> command described in
+L<collectd-unixsock(5)>. Each destination you want to post data to needs to
 have one B<URL> block, within which the destination can be configured further,
 for example by specifying authentication data.
 
@@ -6670,6 +6671,7 @@ Synopsis:
    <URL "http://example.com/post-collectd">
      User "collectd"
      Password "weCh3ik0"
+     Format JSON
    </URL>
  </Plugin>
 
@@ -6745,6 +6747,15 @@ Defaults to B<Command>.
 If set to B<true>, convert counter values to rates. If set to B<false> (the
 default) counter values are stored as is, i.E<nbsp>e. as an increasing integer
 number.
+
+=item B<BufferSize> I<Bytes>
+
+Sets the send buffer size to I<Bytes>. By increasing this buffer, less HTTP
+requests will be generated, but more metrics will be batched / metrics are
+cached for longer before being sent, introducing additional delay until they
+are available on the server side. I<Bytes> must be at least 1024 and cannot
+exceed the size of an C<int>, i.e. 2E<nbsp>GByte.
+Defaults to C<4096>.
 
 =back
 
