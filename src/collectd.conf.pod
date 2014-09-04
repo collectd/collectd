@@ -6808,7 +6808,7 @@ If set to B<JSON>, the values are encoded in the I<JavaScript Object Notation>,
 an easy and straight forward exchange format.
 
 If set to B<Graphite>, values are encoded in the I<Graphite> format, which is
-"<metric> <value> <timestamp>\n".
+C<E<lt>metricE<gt> E<lt>valueE<gt> E<lt>timestampE<gt>\n>.
 
 =item B<StoreRates> B<true>|B<false>
 
@@ -6822,22 +6822,24 @@ been set to B<JSON>.
 
 =item B<GraphitePrefix> (B<Format>=I<Graphite> only)
 
-A prefix can be added in the metric name when outputting in the I<Graphite> format.
-It's added before the I<Host> name.
-Metric name will be "<prefix><host><postfix><plugin><type><name>"
+A prefix can be added in the metric name when outputting in the I<Graphite>
+format. It's added before the I<Host> name.
+Metric name will be
+C<E<lt>prefixE<gt>E<lt>hostE<gt>E<lt>postfixE<gt>E<lt>pluginE<gt>E<lt>typeE<gt>E<lt>nameE<gt>>
 
 =item B<GraphitePostfix> (B<Format>=I<Graphite> only)
 
-A postfix can be added in the metric name when outputting in the I<Graphite> format.
-It's added after the I<Host> name.
-Metric name will be "<prefix><host><postfix><plugin><type><name>"
+A postfix can be added in the metric name when outputting in the I<Graphite>
+format. It's added after the I<Host> name.
+Metric name will be
+C<E<lt>prefixE<gt>E<lt>hostE<gt>E<lt>postfixE<gt>E<lt>pluginE<gt>E<lt>typeE<gt>E<lt>nameE<gt>>
 
 =item B<GraphiteEscapeChar> (B<Format>=I<Graphite> only)
 
 Specify a character to replace dots (.) in the host part of the metric name.
 In I<Graphite> metric name, dots are used as separators between different
 metric parts (host, plugin, type).
-Default is "_" (I<Underscore>).
+Default is C<_> (I<Underscore>).
 
 =item B<GraphiteSeparateInstances> B<false>|B<true>
 
