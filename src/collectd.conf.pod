@@ -6660,7 +6660,7 @@ want to use authentication all three fields must be set.
 =head2 Plugin C<write_http>
 
 This output plugin submits values to an HTTP server using POST requests and
-encoding metircs with JSON or using the C<PUTVAL> command described in
+encoding metrics with JSON or using the C<PUTVAL> command described in
 L<collectd-unixsock(5)>. Each destination you want to post data to needs to
 have one B<URL> block, within which the destination can be configured further,
 for example by specifying authentication data.
@@ -6745,8 +6745,7 @@ Defaults to B<Command>.
 =item B<StoreRates> B<true|false>
 
 If set to B<true>, convert counter values to rates. If set to B<false> (the
-default) counter values are stored as is, i.E<nbsp>e. as an increasing integer
-number.
+default) counter values are stored as is, i.e. as an increasing integer number.
 
 =item B<BufferSize> I<Bytes>
 
