@@ -590,7 +590,7 @@ static int wh_config_url (oconfig_item_t *ci) /* {{{ */
 
         /* Allocate the buffer. */
         cb->send_buffer = malloc (cb->send_buffer_size);
-        if (cb->send_buffer == 0)
+        if (cb->send_buffer == NULL)
         {
                 ERROR ("write_http plugin: malloc(%zu) failed.", cb->send_buffer_size);
                 wh_callback_free (cb);
