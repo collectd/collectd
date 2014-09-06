@@ -104,6 +104,7 @@ static void srrd_create_args_destroy (srrd_create_args_t *args)
       sfree (args->argv[i]);
     sfree (args->argv);
   }
+  sfree (args);
 } /* void srrd_create_args_destroy */
 
 static srrd_create_args_t *srrd_create_args_create (const char *filename,

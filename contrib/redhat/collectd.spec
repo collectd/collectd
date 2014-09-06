@@ -106,7 +106,7 @@
 %define with_nut 0%{!?_without_nut:1}
 %define with_olsrd 0%{!?_without_olsrd:1}
 %define with_openvpn 0%{!?_without_openvpn:1}
-%define with_perl 0%{!?_without_perl:0%{?_has_perl_extutils_embed}}
+%define with_perl 0%{!?_without_perl:1}
 %define with_pinba 0%{!?_without_pinba:1}
 %define with_ping 0%{!?_without_ping:1}
 %define with_postgresql 0%{!?_without_postgresql:1}
@@ -503,7 +503,11 @@ Summary:	Perl plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
 Requires:	perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $version))
+%if 0%{?rhel} >= 6
 BuildRequires:	perl-ExtUtils-Embed
+%else
+BuildRequires:	perl
+%endif
 %description perl
 The Perl plugin embeds a Perl interpreter into collectd and exposes the
 application programming interface (API) to Perl-scripts.
@@ -2030,9 +2034,6 @@ fi
 - Enable cgroups, lvm and statsd plugins
 - Enable (but don't build by default) mic, aquaero and sigrok plugins
 
-* Wed Aug 06 2014 Marc Fournier <marc.fournier@camptocamp.com> 5.3.1-2
-- Enabled modbus plugin
-
 * Tue Aug 06 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.3.1-1
 - New upstream version
 - Added RHEL5 support:
@@ -2042,6 +2043,8 @@ fi
 - Removed duplicate --enable-aggregation
 - Added some comments & usage examples
 - Replaced a couple of "Buildrequires" by "BuildRequires"
+- Enabled modbus plugin
+- Allow perl plugin to build on RHEL5
 
 * Wed Apr 10 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.3.0-1
 - New upstream version

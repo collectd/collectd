@@ -703,7 +703,7 @@
 #		AuthFile "/etc/collectd/passwd"
 #		Interface "eth0"
 #	</Listen>
-#	MaxPacketSize 1024
+#	MaxPacketSize 1452
 #
 #	# proxy setup (client and server as above):
 #	Forward true
