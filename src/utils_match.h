@@ -1,6 +1,6 @@
 /**
  * collectd - src/utils_match.h
- * Copyright (C) 2008  Florian octo Forster
+ * Copyright (C) 2008-2014  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -116,6 +116,17 @@ cu_match_t *match_create_callback (const char *regex, const char *excluderegex,
  */
 cu_match_t *match_create_simple (const char *regex,
 				 const char *excluderegex, int ds_type);
+
+/*
+ * NAME
+ *  match_value_reset
+ *
+ * DESCRIPTION
+ *   Resets the internal state, if applicable. This function must be called
+ *   after each iteration for "simple" matches, usually after dispatching the
+ *   metrics.
+ */
+void match_value_reset (cu_match_value_t *mv);
 
 /*
  * NAME

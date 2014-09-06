@@ -680,6 +680,7 @@ static int cc_read_page (web_page_t *wp) /* {{{ */
     }
 
     cc_submit (wp, wm, mv);
+    match_value_reset (mv);
   } /* for (wm = wp->matches; wm != NULL; wm = wm->next) */
 
   return (0);

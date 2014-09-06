@@ -313,7 +313,13 @@ int meta_data_toc (meta_data_t *md, char ***toc) /* {{{ */
   for (e = md->head; e != NULL; e = e->next)
     ++count;    
 
-  *toc = malloc(count * sizeof(**toc));
+  if (count == 0)
+  {
+    pthread_mutex_unlock (&md->lock);
+    return (count);
+  }
+
+  *toc = calloc(count, sizeof(**toc));
   for (e = md->head; e != NULL; e = e->next)
     (*toc)[i++] = strdup(e->key);
   

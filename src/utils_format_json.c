@@ -234,7 +234,10 @@ static int meta_data_to_json (char *buffer, size_t buffer_size, /* {{{ */
   int status;
   int i;
 
-  memset (buffer, 0, buffer_size);
+  buffer[0] = 0;
+
+  if (meta == NULL)
+    return (EINVAL);
 
 #define BUFFER_ADD(...) do { \
   status = ssnprintf (buffer + offset, buffer_size - offset, \
@@ -248,6 +251,12 @@ static int meta_data_to_json (char *buffer, size_t buffer_size, /* {{{ */
 } while (0)
 
   keys_num = meta_data_toc (meta, &keys);
+  if (keys_num == 0)
+  {
+    sfree (keys);
+    return (0);
+  }
+
   for (i = 0; i < keys_num; ++i)
   {
     int type;
@@ -303,7 +312,7 @@ static int meta_data_to_json (char *buffer, size_t buffer_size, /* {{{ */
 #undef BUFFER_ADD
 
   return (0);
-} /* int meta_data_to_json */
+} /* }}} int meta_data_to_json */
 
 static int value_list_to_json (char *buffer, size_t buffer_size, /* {{{ */
                 const data_set_t *ds, const value_list_t *vl, int store_rates)
