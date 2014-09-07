@@ -4954,6 +4954,7 @@ dependency_error="no"
 plugin_ascent="no"
 plugin_barometer="no"
 plugin_battery="no"
+plugin_sysfsbattery="no"
 plugin_bind="no"
 plugin_cgroups="no"
 plugin_conntrack="no"
@@ -4998,7 +4999,7 @@ plugin_zfs_arc="no"
 # Linux
 if test "x$ac_system" = "xLinux"
 then
-	plugin_battery="yes"
+	plugin_sysfsbattery="yes"
 	plugin_conntrack="yes"
 	plugin_contextswitch="yes"
 	plugin_cgroups="yes"
@@ -5312,6 +5313,7 @@ AC_PLUGIN([aquaero],     [$with_libaquaero5],  [Aquaero's hardware sensors])
 AC_PLUGIN([ascent],      [$plugin_ascent],     [AscentEmu player statistics])
 AC_PLUGIN([barometer],   [$plugin_barometer],  [Barometer sensor on I2C])
 AC_PLUGIN([battery],     [$plugin_battery],    [Battery statistics])
+AC_PLUGIN([sysfsbattery],[$plugin_sysfsbattery], [Battery statistics for newer Linux])
 AC_PLUGIN([bind],        [$plugin_bind],       [ISC Bind nameserver statistics])
 AC_PLUGIN([conntrack],   [$plugin_conntrack],  [nf_conntrack statistics])
 AC_PLUGIN([contextswitch], [$plugin_contextswitch], [context switch statistics])
@@ -5677,6 +5679,7 @@ Configuration:
     ascent  . . . . . . . $enable_ascent
     barometer . . . . . . $enable_barometer
     battery . . . . . . . $enable_battery
+    sysfsbattery  . . . . $enable_sysfsbattery
     bind  . . . . . . . . $enable_bind
     conntrack . . . . . . $enable_conntrack
     contextswitch . . . . $enable_contextswitch
