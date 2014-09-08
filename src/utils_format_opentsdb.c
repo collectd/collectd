@@ -148,8 +148,8 @@ static int opentsdb_format_tags (char *ret, int ret_len,
 				n_plugin,
 				'-',
 				n_plugin_instance); 
-    	ssnprintf (ret, ret_len, "host=%s plugin=%s %s",
-	    		vl->host, tmp_plugin, tags);
+    	ssnprintf (ret, ret_len, "host=%s %s=%s, %s",
+	    		vl->host, n_plugin, n_plugin_instance, tags);
     }
 	else
     	ssnprintf (ret, ret_len, "host=%s %s",
