@@ -925,12 +925,6 @@ Development files for libcollectdclient
 %define _with_multimeter --disable-multimeter
 %endif
 
-%if %{with_modbus}
-%define _with_modbus --enable-modbus
-%else
-%define _with_modbus --disable-modbus
-%endif
-
 %if %{with_mysql}
 %define _with_mysql --enable-mysql
 %else
