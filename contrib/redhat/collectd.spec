@@ -44,7 +44,6 @@
 %{?el6:%global _has_working_libiptc 1}
 %{?el6:%global _has_ip_vs_h 1}
 %{?el6:%global _has_lvm2app_h 1}
-%{?el6:%global _has_perl_extutils_embed 1}
 %{?el6:%global _has_libmodbus 1}
 
 # plugins enabled by default
