@@ -570,6 +570,16 @@ gauge_t *uc_get_rate (const data_set_t *ds, const value_list_t *vl)
   return (ret);
 } /* gauge_t *uc_get_rate */
 
+size_t uc_get_size() {
+  size_t size_arrays = 0;
+
+  pthread_mutex_lock (&cache_lock);
+  size_arrays = (size_t) c_avl_size (cache_tree);
+  pthread_mutex_unlock (&cache_lock);
+
+  return (size_arrays);
+}
+
 int uc_get_names (char ***ret_names, cdtime_t **ret_times, size_t *ret_number)
 {
   c_avl_iterator_t *iter;
