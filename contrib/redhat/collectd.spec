@@ -44,6 +44,7 @@
 %{?el6:%global _has_working_libiptc 1}
 %{?el6:%global _has_ip_vs_h 1}
 %{?el6:%global _has_libmodbus 1}
+%{?el6:%global _has_iproute 1}
 
 %{?el7:%global _has_libyajl 1}
 %{?el7:%global _has_recent_libpcap 1}
@@ -53,6 +54,7 @@
 %{?el7:%global _has_recent_librrd 1}
 %{?el7:%global _has_varnish4 1}
 %{?el7:%global _has_broken_libmemcached 1}
+%{?el7:%global _has_iproute 1}
 
 # plugins enabled by default
 %define with_aggregation 0%{!?_without_aggregation:1}
@@ -100,6 +102,7 @@
 %define with_multimeter 0%{!?_without_multimeter:1}
 %define with_modbus 0%{!?_without_modbus:0%{?_has_libmodbus}}
 %define with_mysql 0%{!?_without_mysql:1}
+%define with_netlink 0%{!?_without_netlink:0%{?_has_iproute}}
 %define with_network 0%{!?_without_network:1}
 %define with_nfs 0%{!?_without_nfs:1}
 %define with_nginx 0%{!?_without_nginx:1}
@@ -154,8 +157,6 @@
 %define with_lpar 0%{!?_without_lpar:0}
 # plugin netapp disabled, requires libnetapp
 %define with_netapp 0%{!?_without_netapp:0}
-# plugin netlink disabled, requires libnetlink.h
-%define with_netlink 0%{!?_without_netlink:0}
 # plugin onewire disabled, requires libowfs
 %define with_onewire 0%{!?_without_onewire:0}
 # plugin oracle disabled, requires Oracle
@@ -409,6 +410,16 @@ BuildRequires:	mysql-devel
 %description mysql
 MySQL querying plugin. This plugin provides data of issued commands, called
 handlers and database traffic.
+%endif
+
+%if %{with_netlink}
+%package netlink
+Summary:	netlink plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	iproute-devel
+%description netlink
+The netlink plugin collects detailed network interface and routing statistics.
 %endif
 
 %if %{with_nginx}
@@ -1789,6 +1800,11 @@ fi
 %{_libdir}/%{name}/mysql.so
 %endif
 
+%if %{with_netlink}
+%files netlink
+%{_libdir}/%{name}/netlink.so
+%endif
+
 %if %{with_nginx}
 %files nginx
 %{_libdir}/%{name}/nginx.so
@@ -1908,7 +1924,8 @@ fi
 - Removed duplicate --enable-aggregation
 - Added some comments & usage examples
 - Replaced a couple of "Buildrequires" by "BuildRequires"
-- Enabled modbus plugin
+- Enabled modbus plugin on RHEL6
+- Enabled netlink plugin on RHEL6 and RHEL7
 - Allow perl plugin to build on RHEL5
 - Add support for RHEL7
 
