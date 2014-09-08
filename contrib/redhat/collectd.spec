@@ -1918,7 +1918,7 @@ fi
 - Enabled tail_csv plugin
 - Installed collectd-tc manpage
 
-* Thu Jan 11 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.2.0-3
+* Fri Jan 11 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.2.0-3
 - remove dependency on libstatgrab, which isn't required on linux
 
 * Thu Jan 03 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.2.0-2
@@ -1966,11 +1966,11 @@ fi
   non-essential stuff.
 - Replaced BuildPrereq by BuildRequires
 
-* Tue Jan 03 2011 Monetate <jason.stelzer@monetate.com> 5.0.1
+* Mon Jan 03 2011 Monetate <jason.stelzer@monetate.com> 5.0.1
 - New upstream version
 - Changes to support 5.0.1
 
-* Tue Jan 04 2010 Rackspace <stu.hood@rackspace.com> 4.9.0
+* Mon Jan 04 2010 Rackspace <stu.hood@rackspace.com> 4.9.0
 - New upstream version
 - Changes to support 4.9.0
 - Added support for Java/GenericJMX plugin
@@ -1988,7 +1988,7 @@ fi
 - New major releas
 - Changes to support 4.0.5
 
-* Wed Jan 11 2007 Iain Lea <iain@bricbrac.de> 3.11.0-0
+* Thu Jan 11 2007 Iain Lea <iain@bricbrac.de> 3.11.0-0
 - fixed spec file to build correctly on fedora core
 - added improved init.d script to work with chkconfig
 - added %%post and %%postun to call chkconfig automatically
@@ -1996,10 +1996,10 @@ fi
 * Sun Jul 09 2006 Florian octo Forster <octo@verplant.org> 3.10.0-1
 - New upstream version
 
-* Tue Jun 25 2006 Florian octo Forster <octo@verplant.org> 3.9.4-1
+* Sun Jun 25 2006 Florian octo Forster <octo@verplant.org> 3.9.4-1
 - New upstream version
 
-* Tue Jun 01 2006 Florian octo Forster <octo@verplant.org> 3.9.3-1
+* Thu Jun 01 2006 Florian octo Forster <octo@verplant.org> 3.9.3-1
 - New upstream version
 
 * Tue May 09 2006 Florian octo Forster <octo@verplant.org> 3.9.2-1
@@ -2015,10 +2015,10 @@ fi
 - New upstream version
 - Added the `apache' package.
 
-* Thu Mar 14 2006 Florian octo Forster <octo@verplant.org> 3.8.2-1
+* Tue Mar 14 2006 Florian octo Forster <octo@verplant.org> 3.8.2-1
 - New upstream version
 
-* Thu Mar 13 2006 Florian octo Forster <octo@verplant.org> 3.8.1-1
+* Mon Mar 13 2006 Florian octo Forster <octo@verplant.org> 3.8.1-1
 - New upstream version
 
 * Thu Mar 09 2006 Florian octo Forster <octo@verplant.org> 3.8.0-1
@@ -2055,7 +2055,7 @@ fi
 * Sat Nov 05 2005 Florian octo Forster <octo@verplant.org> 3.3.0-1
 - New upstream version
 
-* Tue Oct 26 2005 Florian octo Forster <octo@verplant.org> 3.2.0-1
+* Wed Oct 26 2005 Florian octo Forster <octo@verplant.org> 3.2.0-1
 - New upstream version
 - Added statement to remove the `*.la' files. This fixes a problem when
   `Unpackaged files terminate build' is in effect.
@@ -2072,13 +2072,13 @@ fi
 * Fri Sep 16 2005 Florian octo Forster <octo@verplant.org> 2.1.0-1
 - New upstream version
 
-* Mon Sep 10 2005 Florian octo Forster <octo@verplant.org> 2.0.0-1
+* Sat Sep 10 2005 Florian octo Forster <octo@verplant.org> 2.0.0-1
 - New upstream version
 
 * Mon Aug 29 2005 Florian octo Forster <octo@verplant.org> 1.8.0-1
 - New upstream version
 
-* Sun Aug 25 2005 Florian octo Forster <octo@verplant.org> 1.7.0-1
+* Thu Aug 25 2005 Florian octo Forster <octo@verplant.org> 1.7.0-1
 - New upstream version
 
 * Sun Aug 21 2005 Florian octo Forster <octo@verplant.org> 1.6.0-1
