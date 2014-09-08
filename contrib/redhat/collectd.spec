@@ -1771,6 +1771,11 @@ fi
 %{_libdir}/%{name}/memcachec.so
 %endif
 
+%if %{with_modbus}
+%files modbus
+%{_libdir}/%{name}/modbus.so
+%endif
+
 %if %{with_mysql}
 %files mysql
 %{_libdir}/%{name}/mysql.so
