@@ -272,6 +272,26 @@ static void disk_submit (const char *plugin_instance,
 } /* void disk_submit */
 
 #if KERNEL_LINUX
+static void submit_in_progress (char const *disk_name, gauge_t in_progress)
+{
+	value_t v;
+	value_list_t vl = VALUE_LIST_INIT;
+
+	if (ignorelist_match (ignorelist, disk_name) != 0)
+	  return;
+
+	v.gauge = in_progress;
+
+	vl.values = &v;
+	vl.values_len = 1;
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "disk", sizeof (vl.plugin));
+	sstrncpy (vl.plugin_instance, disk_name, sizeof (vl.plugin_instance));
+	sstrncpy (vl.type, "pending_operations", sizeof (vl.type));
+
+	plugin_dispatch_values (&vl);
+}
+
 static counter_t disk_calc_time_incr (counter_t delta_time, counter_t delta_ops)
 {
 	double interval = CDTIME_T_TO_DOUBLE (plugin_get_interval ());
@@ -539,6 +559,7 @@ static int disk_read (void)
 	derive_t write_ops     = 0;
 	derive_t write_merged  = 0;
 	derive_t write_time    = 0;
+	gauge_t in_progress    = NAN;
 	int is_disk = 0;
 
 	diskstats_t *ds, *pre_ds;
@@ -620,6 +641,8 @@ static int disk_read (void)
 				read_time    = atoll (fields[6 + fieldshift]);
 				write_merged = atoll (fields[8 + fieldshift]);
 				write_time   = atoll (fields[10+ fieldshift]);
+
+				in_progress = atof (fields[11 + fieldshift]);
 			}
 		}
 		else
@@ -743,6 +766,7 @@ static int disk_read (void)
 		{
 			disk_submit (output_name, "disk_merged",
 					read_merged, write_merged);
+			submit_in_progress (output_name, in_progress);
 		} /* if (is_disk) */
 
 		/* release udev-based alternate name, if allocated */

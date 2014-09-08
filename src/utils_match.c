@@ -1,6 +1,6 @@
 /**
  * collectd - src/utils_match.c
- * Copyright (C) 2008       Florian octo Forster
+ * Copyright (C) 2008-2014  Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -293,6 +293,18 @@ cu_match_t *match_create_simple (const char *regex,
 
   return (obj);
 } /* cu_match_t *match_create_simple */
+
+void match_value_reset (cu_match_value_t *mv)
+{
+  if (mv == NULL)
+    return;
+
+  if (mv->ds_type & UTILS_MATCH_DS_TYPE_GAUGE)
+  {
+    mv->value.gauge = NAN;
+    mv->values_num = 0;
+  }
+} /* }}} void match_value_reset */
 
 void match_destroy (cu_match_t *obj)
 {

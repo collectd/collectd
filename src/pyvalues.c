@@ -419,7 +419,7 @@ static meta_data_t *cpy_build_meta(PyObject *meta) {
 	meta_data_t *m = NULL;
 	PyObject *l;
 	
-	if (!meta)
+	if ((meta == NULL) || (meta == Py_None))
 		return NULL;
 
 	l = PyDict_Items(meta); /* New reference. */
@@ -427,8 +427,12 @@ static meta_data_t *cpy_build_meta(PyObject *meta) {
 		cpy_log_exception("building meta data");
 		return NULL;
 	}
-	m = meta_data_create();
+
 	s = PyList_Size(l);
+	if (s < 0)
+		return NULL;
+
+	m = meta_data_create();
 	for (i = 0; i < s; ++i) {
 		const char *string, *keystring;
 		PyObject *key, *value, *item, *tmp;

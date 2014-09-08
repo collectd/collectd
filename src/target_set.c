@@ -38,57 +38,25 @@ struct ts_data_s
 };
 typedef struct ts_data_s ts_data_t;
 
-static char *ts_strdup (const char *orig) /* {{{ */
-{
-  size_t sz;
-  char *dest;
-
-  if (orig == NULL)
-    return (NULL);
-
-  sz = strlen (orig) + 1;
-  dest = (char *) malloc (sz);
-  if (dest == NULL)
-    return (NULL);
-
-  memcpy (dest, orig, sz);
-
-  return (dest);
-} /* }}} char *ts_strdup */
-
 static int ts_config_add_string (char **dest, /* {{{ */
     const oconfig_item_t *ci, int may_be_empty)
 {
-  char *temp;
+  char *tmp = NULL;
+  int status;
 
-  if (dest == NULL)
-    return (-EINVAL);
+  status = cf_util_get_string (ci, &tmp);
+  if (status != 0)
+    return (status);
 
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    ERROR ("Target `set': The `%s' option requires exactly one string "
-        "argument.", ci->key);
-    return (-1);
-  }
-
-  if ((!may_be_empty) && (ci->values[0].value.string[0] == 0))
+  if (!may_be_empty && (strlen (tmp) == 0))
   {
     ERROR ("Target `set': The `%s' option does not accept empty strings.",
         ci->key);
+    sfree (tmp);
     return (-1);
   }
 
-  temp = ts_strdup (ci->values[0].value.string);
-  if (temp == NULL)
-  {
-    ERROR ("ts_config_add_string: ts_strdup failed.");
-    return (-1);
-  }
-
-  free (*dest);
-  *dest = temp;
-
+  *dest = tmp;
   return (0);
 } /* }}} int ts_config_add_string */
 

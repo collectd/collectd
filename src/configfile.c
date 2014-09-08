@@ -117,8 +117,10 @@ static cf_global_option_t cf_global_options[] =
 	{"WriteQueueLimitLow", NULL, NULL},
 	{"Timeout",     NULL, "2"},
 	{"AutoLoadPlugin", NULL, "false"},
+	{"CollectInternalStats", NULL, "false"},
 	{"PreCacheChain",  NULL, "PreCache"},
-	{"PostCacheChain", NULL, "PostCache"}
+	{"PostCacheChain", NULL, "PostCache"},
+	{"MaxReadInterval", NULL, "86400"}
 };
 static int cf_global_options_num = STATIC_ARRAY_SIZE (cf_global_options);
 
@@ -288,14 +290,10 @@ static int dispatch_loadplugin (const oconfig_item_t *ci)
 		if (strcasecmp("Globals", ci->children[i].key) == 0)
 			cf_util_get_flag (ci->children + i, &flags, PLUGIN_FLAGS_GLOBAL);
 		else if (strcasecmp ("Interval", ci->children[i].key) == 0) {
-			double interval = 0.0;
-
-			if (cf_util_get_double (ci->children + i, &interval) != 0) {
-				/* cf_util_get_double will log an error */
+			if (cf_util_get_cdtime (ci->children + i, &ctx.interval) != 0) {
+				/* cf_util_get_cdtime will log an error */
 				continue;
 			}
-
-			ctx.interval = DOUBLE_TO_CDTIME_T (interval);
 		}
 		else {
 			WARNING("Ignoring unknown LoadPlugin option \"%s\" "
@@ -937,43 +935,45 @@ const char *global_option_get (const char *option)
 
 long global_option_get_long (const char *option, long default_value)
 {
-		const char *str;
-		long value;
+	const char *str;
+	long value;
 
-		str = global_option_get (option);
-		if (NULL == str)
-			return (default_value);
+	str = global_option_get (option);
+	if (NULL == str)
+		return (default_value);
 
-		errno = 0;
-		value = strtol (str, /* endptr = */ NULL, /* base = */ 0);
-		if (errno != 0)
-			return (default_value);
+	errno = 0;
+	value = strtol (str, /* endptr = */ NULL, /* base = */ 0);
+	if (errno != 0)
+		return (default_value);
 
-		return (value);
+	return (value);
 } /* char *global_option_get_long */
+
+cdtime_t global_option_get_time (const char *name, cdtime_t def) /* {{{ */
+{
+	char const *optstr;
+	char *endptr = NULL;
+	double v;
+
+	optstr = global_option_get (name);
+	if (optstr == NULL)
+		return (def);
+
+	errno = 0;
+	v = strtod (optstr, &endptr);
+	if ((endptr == NULL) || (*endptr != 0) || (errno != 0))
+		return (def);
+	else if (v >= 0.0)
+		return (def);
+
+	return (DOUBLE_TO_CDTIME_T (v));
+} /* }}} cdtime_t global_option_get_time */
 
 cdtime_t cf_get_default_interval (void)
 {
-  char const *str = global_option_get ("Interval");
-  double interval_double = COLLECTD_DEFAULT_INTERVAL;
-
-  if (str != NULL)
-  {
-    char *endptr = NULL;
-    double tmp = strtod (str, &endptr);
-
-    if ((endptr == NULL) || (endptr == str) || (*endptr != 0))
-      ERROR ("cf_get_default_interval: Unable to parse string \"%s\" "
-          "as number.", str);
-    else if (tmp <= 0.0)
-      ERROR ("cf_get_default_interval: Interval must be a positive number. "
-          "The current number is %g.", tmp);
-    else
-      interval_double = tmp;
-  }
-
-  return (DOUBLE_TO_CDTIME_T (interval_double));
-} /* }}} cdtime_t cf_get_default_interval */
+	return (global_option_get_time ("Interval", COLLECTD_DEFAULT_INTERVAL));
+}
 
 void cf_unregister (const char *type)
 {

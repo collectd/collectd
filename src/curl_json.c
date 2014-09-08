@@ -595,6 +595,11 @@ static int cj_init_curl (cj_t *db) /* {{{ */
 
   if (db->user != NULL)
   {
+#ifdef HAVE_CURLOPT_USERNAME
+    curl_easy_setopt (db->curl, CURLOPT_USERNAME, db->user);
+    curl_easy_setopt (db->curl, CURLOPT_PASSWORD,
+        (db->pass == NULL) ? "" : db->pass);
+#else
     size_t credentials_size;
 
     credentials_size = strlen (db->user) + 2;
@@ -611,13 +616,10 @@ static int cj_init_curl (cj_t *db) /* {{{ */
     ssnprintf (db->credentials, credentials_size, "%s:%s",
                db->user, (db->pass == NULL) ? "" : db->pass);
     curl_easy_setopt (db->curl, CURLOPT_USERPWD, db->credentials);
-    
+#endif
+
     if (db->digest)
-    {
       curl_easy_setopt (db->curl, CURLOPT_HTTPAUTH, CURLAUTH_DIGEST);
-      curl_easy_setopt (db->curl, CURLOPT_USERNAME, db->user);
-      curl_easy_setopt (db->curl, CURLOPT_PASSWORD, db->pass);
-    }
   }
 
   curl_easy_setopt (db->curl, CURLOPT_SSL_VERIFYPEER, (long) db->verify_peer);

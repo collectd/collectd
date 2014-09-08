@@ -255,19 +255,35 @@ static int statsd_handle_gauge (char const *name, /* {{{ */
 } /* }}} int statsd_handle_gauge */
 
 static int statsd_handle_timer (char const *name, /* {{{ */
-    char const *value_str)
+    char const *value_str,
+    char const *extra)
 {
   statsd_metric_t *metric;
   value_t value_ms;
+  value_t scale;
   cdtime_t value;
   int status;
+
+  if ((extra != NULL) && (extra[0] != '@'))
+    return (-1);
+
+  scale.gauge = 1.0;
+  if (extra != NULL)
+  {
+    status = statsd_parse_value (extra + 1, &scale);
+    if (status != 0)
+      return (status);
+
+    if (!isfinite (scale.gauge) || (scale.gauge <= 0.0) || (scale.gauge > 1.0))
+      return (-1);
+  }
 
   value_ms.derive = 0;
   status = statsd_parse_value (value_str, &value_ms);
   if (status != 0)
     return (status);
 
-  value = MS_TO_CDTIME_T (value_ms.gauge);
+  value = MS_TO_CDTIME_T (value_ms.gauge / scale.gauge);
 
   pthread_mutex_lock (&metrics_lock);
 
@@ -377,15 +393,15 @@ static int statsd_parse_line (char *buffer) /* {{{ */
 
   if (strcmp ("c", type) == 0)
     return (statsd_handle_counter (name, value, extra));
+  else if (strcmp ("ms", type) == 0)
+    return (statsd_handle_timer (name, value, extra));
 
-  /* extra is only valid for counters */
+  /* extra is only valid for counters and timers */
   if (extra != NULL)
     return (-1);
 
   if (strcmp ("g", type) == 0)
     return (statsd_handle_gauge (name, value));
-  else if (strcmp ("ms", type) == 0)
-    return (statsd_handle_timer (name, value));
   else if (strcmp ("s", type) == 0)
     return (statsd_handle_set (name, value));
   else
