@@ -45,8 +45,8 @@ struct apache_s
 	char *url;
 	char *user;
 	char *pass;
-	int   verify_peer;
-	int   verify_host;
+	_Bool verify_peer;
+	_Bool verify_host;
 	char *cacert;
 	char *server; /* user specific server type */
 	char *apache_buffer;
@@ -165,94 +165,21 @@ static size_t apache_header_callback (void *buf, size_t size, size_t nmemb,
  *   URL ...
  * </Plugin>
  */
-static int config_set_string (char **ret_string, /* {{{ */
-				    oconfig_item_t *ci)
-{
-	char *string;
-
-	if ((ci->values_num != 1)
-			|| (ci->values[0].type != OCONFIG_TYPE_STRING))
-	{
-		WARNING ("apache plugin: The `%s' config option "
-				"needs exactly one string argument.", ci->key);
-		return (-1);
-	}
-
-	string = strdup (ci->values[0].value.string);
-	if (string == NULL)
-	{
-		ERROR ("apache plugin: strdup failed.");
-		return (-1);
-	}
-
-	if (*ret_string != NULL)
-		free (*ret_string);
-	*ret_string = string;
-
-	return (0);
-} /* }}} int config_set_string */
-
-static int config_set_boolean (int *ret_boolean, /* {{{ */
-				    oconfig_item_t *ci)
-{
-	if ((ci->values_num != 1)
-			|| ((ci->values[0].type != OCONFIG_TYPE_BOOLEAN)
-				&& (ci->values[0].type != OCONFIG_TYPE_STRING)))
-	{
-		WARNING ("apache plugin: The `%s' config option "
-				"needs exactly one boolean argument.", ci->key);
-		return (-1);
-	}
-
-	if (ci->values[0].type == OCONFIG_TYPE_BOOLEAN)
-	{
-		if (ci->values[0].value.boolean)
-			*ret_boolean = 1;
-		else
-			*ret_boolean = 0;
-	}
-	else /* if (ci->values[0].type != OCONFIG_TYPE_STRING) */
-	{
-		char *string = ci->values[0].value.string;
-		if (IS_TRUE (string))
-			*ret_boolean = 1;
-		else if (IS_FALSE (string))
-			*ret_boolean = 0;
-		else
-		{
-			ERROR ("apache plugin: Cannot parse string "
-					"as boolean value: %s", string);
-			return (-1);
-		}
-	}
-
-	return (0);
-} /* }}} int config_set_boolean */
-
 static int config_add (oconfig_item_t *ci)
 {
 	apache_t *st;
 	int i;
 	int status;
 
-	if ((ci->values_num != 1)
-		|| (ci->values[0].type != OCONFIG_TYPE_STRING))
-	{
-		WARNING ("apache plugin: The `%s' config option "
-			"needs exactly one string argument.", ci->key);
-		return (-1);
-	}
-
-	st = (apache_t *) malloc (sizeof (*st));
+	st = malloc (sizeof (*st));
 	if (st == NULL)
 	{
 		ERROR ("apache plugin: malloc failed.");
 		return (-1);
 	}
-
 	memset (st, 0, sizeof (*st));
 
-	status = config_set_string (&st->name, ci);
+	status = cf_util_get_string (ci, &st->name);
 	if (status != 0)
 	{
 		sfree (st);
@@ -265,21 +192,21 @@ static int config_add (oconfig_item_t *ci)
 		oconfig_item_t *child = ci->children + i;
 
 		if (strcasecmp ("URL", child->key) == 0)
-			status = config_set_string (&st->url, child);
+			status = cf_util_get_string (child, &st->url);
 		else if (strcasecmp ("Host", child->key) == 0)
-			status = config_set_string (&st->host, child);
+			status = cf_util_get_string (child, &st->host);
 		else if (strcasecmp ("User", child->key) == 0)
-			status = config_set_string (&st->user, child);
+			status = cf_util_get_string (child, &st->user);
 		else if (strcasecmp ("Password", child->key) == 0)
-			status = config_set_string (&st->pass, child);
+			status = cf_util_get_string (child, &st->pass);
 		else if (strcasecmp ("VerifyPeer", child->key) == 0)
-			status = config_set_boolean (&st->verify_peer, child);
+			status = cf_util_get_boolean (child, &st->verify_peer);
 		else if (strcasecmp ("VerifyHost", child->key) == 0)
-			status = config_set_boolean (&st->verify_host, child);
+			status = cf_util_get_boolean (child, &st->verify_host);
 		else if (strcasecmp ("CACert", child->key) == 0)
-			status = config_set_string (&st->cacert, child);
+			status = cf_util_get_string (child, &st->cacert);
 		else if (strcasecmp ("Server", child->key) == 0)
-			status = config_set_string (&st->server, child);
+			status = cf_util_get_string (child, &st->server);
 		else
 		{
 			WARNING ("apache plugin: Option `%s' not allowed here.",
@@ -324,7 +251,7 @@ static int config_add (oconfig_item_t *ci)
 
 	if (status != 0)
 	{
-		apache_free(st);
+		apache_free (st);
 		return (-1);
 	}
 
@@ -428,28 +355,12 @@ static int init_host (apache_t *st) /* {{{ */
 	curl_easy_setopt (st->curl, CURLOPT_FOLLOWLOCATION, 1L);
 	curl_easy_setopt (st->curl, CURLOPT_MAXREDIRS, 50L);
 
-	if (st->verify_peer != 0)
-	{
-		curl_easy_setopt (st->curl, CURLOPT_SSL_VERIFYPEER, 1L);
-	}
-	else
-	{
-		curl_easy_setopt (st->curl, CURLOPT_SSL_VERIFYPEER, 0L);
-	}
-
-	if (st->verify_host != 0)
-	{
-		curl_easy_setopt (st->curl, CURLOPT_SSL_VERIFYHOST, 2L);
-	}
-	else
-	{
-		curl_easy_setopt (st->curl, CURLOPT_SSL_VERIFYHOST, 0L);
-	}
-
+	curl_easy_setopt (st->curl, CURLOPT_SSL_VERIFYPEER,
+			(long) st->verify_peer);
+	curl_easy_setopt (st->curl, CURLOPT_SSL_VERIFYHOST,
+			st->verify_host ? 2L : 0L);
 	if (st->cacert != NULL)
-	{
 		curl_easy_setopt (st->curl, CURLOPT_CAINFO, st->cacert);
-	}
 
 	return (0);
 } /* }}} int init_host */

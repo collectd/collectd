@@ -5,7 +5,7 @@ Florian "octo" Forster <octo at verplant.org>
  - Initial author.
 
 Sebastian "tokkee" Harl <sh at tokkee.org>
- - Bugfixes and enhancments in many places all around the project.
+ - Bugfixes and enhancements in many places all around the project.
  - perl plugin.
  - users plugin.
  - vserver plugin.
@@ -58,7 +58,7 @@ Brett Hawn <bhawn at llnw.com>
 
 Bruno Prémont <bonbons at linux-vserver.org>
  - BIND plugin.
- - Many bugreports and -fixes in various plugins,
+ - Many bug reports and -fixes in various plugins,
    especially a nasty bug in the network plugin.
  - Wireshark dissector.
 
@@ -147,6 +147,7 @@ Marc Fournier <marc.fournier at camptocamp.com>
  - Various fixes to the varnish plugin.
  - RPM specfile update.
  - libmnl support in the netlink plugin.
+ - linux support in the zfs_arc plugin.
 
 Marco Chiappero <marco at absence.it>
  - uptime plugin.
@@ -258,6 +259,9 @@ Tommie Gannert <d00-tga at d.kth.se>
 
 Vincent Stehlé <vincent.stehle at free.fr>
  - hddtemp plugin.
+
+Wilfried Goesgens <dothebart at citadel.org>
+ - linux support in the zfs_arc plugin.
 
 Xin Li <delphij at freebsd.org>
  - FreeBSD port of the ZFS-ARC plugin.

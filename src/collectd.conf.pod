@@ -6,17 +6,20 @@ collectd.conf - Configuration for the system statistics collection daemon B<coll
 
 =head1 SYNOPSIS
 
-  BaseDir "/path/to/data/"
-  PIDFile "/path/to/pidfile/collectd.pid"
-  Server  "123.123.123.123" 12345
-
+  BaseDir "/var/lib/collectd"
+  PIDFile "/run/collectd.pid"
+  Interval 10.0
+  
   LoadPlugin cpu
   LoadPlugin load
-
+  
   <LoadPlugin df>
     Interval 3600
   </LoadPlugin>
-
+  <Plugin df>
+    ValuesPercentage true
+  </Plugin>
+  
   LoadPlugin ping
   <Plugin ping>
     Host "example.org"
@@ -28,7 +31,9 @@ collectd.conf - Configuration for the system statistics collection daemon B<coll
 This config file controls how the system statistics collection daemon
 B<collectd> behaves. The most significant option is B<LoadPlugin>, which
 controls which plugins to load. These plugins ultimately define collectd's
-behavior.
+behavior. If the B<AutoLoadPlugin> option has been enabled, the explicit
+B<LoadPlugin> lines may be omitted for all plugins with a configuration block,
+i.e. a C<E<lt>PluginE<nbsp>...E<gt>> block.
 
 The syntax of this config file is similar to the config file of the famous
 I<Apache> webserver. Each line contains either an option (a key and a list of
@@ -55,8 +60,9 @@ indenting the wrapped lines.
 The configuration is read and processed in order, i.e. from top to bottom. So
 the plugins are loaded in the order listed in this config file. It is a good
 idea to load any logging plugins first in order to catch messages from plugins
-during configuration. Also, the C<LoadPlugin> option B<must> occur B<before>
-the appropriate C<E<lt>Plugin ...E<gt>> block.
+during configuration. Also, unless B<AutoLoadPlugin> is enabled, the
+B<LoadPlugin> option I<must> occur I<before> the appropriate
+C<E<lt>B<Plugin> ...E<gt>> block.
 
 =head1 GLOBAL OPTIONS
 
@@ -140,6 +146,18 @@ B<E<lt>PluginE<nbsp>...E<gt>> block acts as if it was immediately preceded by a
 B<LoadPlugin> statement. B<LoadPlugin> statements are still required for
 plugins that don't provide any configuration, e.g. the I<Load plugin>.
 
+=item B<CollectInternalStats> B<false>|B<true>
+
+When set to B<true>, various statistics about the I<collectd> daemon will be
+collected, with "collectd" as the I<plugin name>. Defaults to B<false>.
+
+The "write_queue" I<plugin instance> reports the number of elements currently
+queued and the number of elements dropped off the queue by the
+B<WriteQueueLimitLow>/B<WriteQueueLimitHigh> mechanism.
+
+The "cache" I<plugin instance> reports the number of elements in the value list
+cache (the cache you can interact with using L<collectd-unixsock(5)>).
+
 =item B<Include> I<Path> [I<pattern>]
 
 If I<Path> points to a file, includes that file. If I<Path> points to a
@@ -212,6 +230,14 @@ B<Warning:> You should set this once and then never touch it again. If you do,
 I<you will have to delete all your RRD files> or know some serious RRDtool
 magic! (Assuming you're using the I<RRDtool> or I<RRDCacheD> plugin.)
 
+=item B<MaxReadInterval> I<Seconds>
+
+Read plugin doubles interval between queries after each failed attempt
+to get data.
+
+This options limits the maximum value of the interval. The default value is
+B<86400>.
+
 =item B<Timeout> I<Iterations>
 
 Consider a value list "missing" when no update has been read or received for
@@ -262,8 +288,11 @@ If B<WriteQueueLimitHigh> is set to non-zero and B<WriteQueueLimitLow> is
 unset, the latter will default to half of B<WriteQueueLimitHigh>.
 
 If you do not want to randomly drop values when the queue size is between
-I<LowNum> and I<HighNum>, set If B<WriteQueueLimitHigh> and
-B<WriteQueueLimitLow> to same value.
+I<LowNum> and I<HighNum>, set B<WriteQueueLimitHigh> and B<WriteQueueLimitLow>
+to the same value.
+
+Enabling the B<CollectInternalStats> option is of great help to figure out the
+values to set B<WriteQueueLimitHigh> and B<WriteQueueLimitLow> to.
 
 =item B<Hostname> I<Name>
 
@@ -1209,6 +1238,16 @@ finance page and dispatch the value to collectd.
       URL "http://finance.google.com/finance?q=NYSE%3AAMD"
       User "foo"
       Password "bar"
+      Digest false
+      VerifyPeer true
+      VerifyHost true
+      CACert "/path/to/ca.crt"
+      Header "X-Custom-Header: foobar"
+      Post "foo=bar"
+
+      MeasureResponseTime false
+      MeasureResponseCode false
+
       <Match>
         Regex "<span +class=\"pr\"[^>]*> *([0-9]*\\.[0-9]+) *</span>"
         DSType "GaugeAverage"
@@ -1281,13 +1320,19 @@ C<application/x-www-form-urlencoded>).
 Measure response time for the request. If this setting is enabled, B<Match>
 blocks (see below) are optional. Disabled by default.
 
+=item B<MeasureResponseCode> B<true>|B<false>
+
+Measure response code for the request. If this setting is enabled, B<Match>
+blocks (see below) are optional. Disabled by default.
+
 =item B<E<lt>MatchE<gt>>
 
 One or more B<Match> blocks that define how to match information in the data
 returned by C<libcurl>. The C<curl> plugin uses the same infrastructure that's
 used by the C<tail> plugin, so please see the documentation of the C<tail>
-plugin below on how matches are defined. If the B<MeasureResponseTime> option
-is set to B<true>, B<Match> blocks are optional.
+plugin below on how matches are defined. If the B<MeasureResponseTime> or
+B<MeasureResponseCode> options are set to B<true>, B<Match> blocks are
+optional.
 
 =back
 
@@ -1410,6 +1455,8 @@ The B<curl_xml plugin> uses B<libcurl> (L<http://curl.haxx.se/>) and B<libxml2>
      VerifyPeer true
      VerifyHost true
      CACert "/path/to/ca.crt"
+     Header "X-Custom-Header: foobar"
+     Post "foo=bar"
 
      <XPath "table[@id=\"magic_level\"]/tr">
        Type "magic_level"
@@ -6641,8 +6688,9 @@ want to use authentication all three fields must be set.
 
 =head2 Plugin C<write_http>
 
-This output plugin submits values to an http server by POST them using the
-PUTVAL plain-text protocol. Each destination you want to post data to needs to
+This output plugin submits values to an HTTP server using POST requests and
+encoding metrics with JSON or using the C<PUTVAL> command described in
+L<collectd-unixsock(5)>. Each destination you want to post data to needs to
 have one B<URL> block, within which the destination can be configured further,
 for example by specifying authentication data.
 
@@ -6652,6 +6700,7 @@ Synopsis:
    <URL "http://example.com/post-collectd">
      User "collectd"
      Password "weCh3ik0"
+     Format JSON
    </URL>
  </Plugin>
 
@@ -6725,8 +6774,16 @@ Defaults to B<Command>.
 =item B<StoreRates> B<true|false>
 
 If set to B<true>, convert counter values to rates. If set to B<false> (the
-default) counter values are stored as is, i.E<nbsp>e. as an increasing integer
-number.
+default) counter values are stored as is, i.e. as an increasing integer number.
+
+=item B<BufferSize> I<Bytes>
+
+Sets the send buffer size to I<Bytes>. By increasing this buffer, less HTTP
+requests will be generated, but more metrics will be batched / metrics are
+cached for longer before being sent, introducing additional delay until they
+are available on the server side. I<Bytes> must be at least 1024 and cannot
+exceed the size of an C<int>, i.e. 2E<nbsp>GByte.
+Defaults to C<4096>.
 
 =back
 
@@ -6779,7 +6836,7 @@ If set to B<JSON>, the values are encoded in the I<JavaScript Object Notation>,
 an easy and straight forward exchange format.
 
 If set to B<Graphite>, values are encoded in the I<Graphite> format, which is
-"<metric> <value> <timestamp>\n".
+C<E<lt>metricE<gt> E<lt>valueE<gt> E<lt>timestampE<gt>\n>.
 
 =item B<StoreRates> B<true>|B<false>
 
@@ -6793,22 +6850,24 @@ been set to B<JSON>.
 
 =item B<GraphitePrefix> (B<Format>=I<Graphite> only)
 
-A prefix can be added in the metric name when outputting in the I<Graphite> format.
-It's added before the I<Host> name.
-Metric name will be "<prefix><host><postfix><plugin><type><name>"
+A prefix can be added in the metric name when outputting in the I<Graphite>
+format. It's added before the I<Host> name.
+Metric name will be
+C<E<lt>prefixE<gt>E<lt>hostE<gt>E<lt>postfixE<gt>E<lt>pluginE<gt>E<lt>typeE<gt>E<lt>nameE<gt>>
 
 =item B<GraphitePostfix> (B<Format>=I<Graphite> only)
 
-A postfix can be added in the metric name when outputting in the I<Graphite> format.
-It's added after the I<Host> name.
-Metric name will be "<prefix><host><postfix><plugin><type><name>"
+A postfix can be added in the metric name when outputting in the I<Graphite>
+format. It's added after the I<Host> name.
+Metric name will be
+C<E<lt>prefixE<gt>E<lt>hostE<gt>E<lt>postfixE<gt>E<lt>pluginE<gt>E<lt>typeE<gt>E<lt>nameE<gt>>
 
 =item B<GraphiteEscapeChar> (B<Format>=I<Graphite> only)
 
 Specify a character to replace dots (.) in the host part of the metric name.
 In I<Graphite> metric name, dots are used as separators between different
 metric parts (host, plugin, type).
-Default is "_" (I<Underscore>).
+Default is C<_> (I<Underscore>).
 
 =item B<GraphiteSeparateInstances> B<false>|B<true>
 
@@ -6917,6 +6976,12 @@ useful to avoid getting notification events.
 
 If set to B<true>, attach state to events based on thresholds defined
 in the B<Threshold> plugin. Defaults to B<false>.
+
+=item B<EventServicePrefix> I<String>
+
+Add the given string as a prefix to the event service name.
+If B<EventServicePrefix> not set or set to an empty string (""),
+no prefix will be used.
 
 =back
 

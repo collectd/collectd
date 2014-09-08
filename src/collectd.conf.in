@@ -25,6 +25,13 @@
 #AutoLoadPlugin false
 
 #----------------------------------------------------------------------------#
+# When enabled, internal statistics are collected, using "collectd" as the   #
+# plugin name.                                                               #
+# Disabled by default.                                                       #
+#----------------------------------------------------------------------------#
+#CollectInternalStats false
+
+#----------------------------------------------------------------------------#
 # Interval at which to query values. This may be overwritten on a per-plugin #
 # base by using the 'Interval' option of the LoadPlugin block:               #
 #   <LoadPlugin foo>                                                         #
@@ -33,9 +40,10 @@
 #----------------------------------------------------------------------------#
 #Interval     10
 
-#Timeout      2
-#ReadThreads  5
-#WriteThreads 5
+#MaxReadInterval 86400
+#Timeout         2
+#ReadThreads     5
+#WriteThreads    5
 
 # Limit the size of the write queue. Default is no limit. Setting up a limit is
 # recommended for servers handling a high volume of traffic.
@@ -313,7 +321,15 @@
 #    URL "http://finance.google.com/finance?q=NYSE%3AAMD"
 #    User "foo"
 #    Password "bar"
+#    Digest false
+#    VerifyPeer true
+#    VerifyHost true
+#    CACert "/path/to/ca.crt"
+#    Header "X-Custom-Header: foobar"
+#    Post "foo=bar"
+#
 #    MeasureResponseTime false
+#    MeasureResponseCode false
 #    <Match>
 #      Regex "<span +class=\"pr\"[^>]*> *([0-9]*\\.[0-9]+) *</span>"
 #      DSType "GaugeAverage"
@@ -360,9 +376,12 @@
 #    Instance "some_instance"
 #    User "collectd"
 #    Password "thaiNg0I"
+#    Digest false
 #    VerifyPeer true
 #    VerifyHost true
 #    CACert "/path/to/ca.crt"
+#    Header "X-Custom-Header: foobar"
+#    Post "foo=bar"
 #
 #    <XPath "table[@id=\"magic_level\"]/tr">
 #      Type "magic_level"
@@ -692,7 +711,7 @@
 #		AuthFile "/etc/collectd/passwd"
 #		Interface "eth0"
 #	</Listen>
-#	MaxPacketSize 1024
+#	MaxPacketSize 1452
 #
 #	# proxy setup (client and server as above):
 #	Forward true
@@ -1201,6 +1220,7 @@
 #		SSLVersion "TLSv1"
 #		Format "Command"
 #		StoreRates false
+#		BufferSize 4096
 #	</URL>
 #</Plugin>
 
@@ -1239,6 +1259,7 @@
 #		StoreRates true
 #		AlwaysAppendDS false
 #		TTLFactor 2.0
+#		EventServicePrefix ""
 #	</Node>
 #	Tag "foobar"
 #       Attribute "foo" "bar"
