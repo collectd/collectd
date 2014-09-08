@@ -1,7 +1,7 @@
 #
 # q: What is this ?
 # a: A specfile for building RPM packages of current collectd releases, for
-#    RHEL/CentOS versions 5 and 6. By default all the plugins which are
+#    RHEL/CentOS versions 5, 6 and 7. By default all the plugins which are
 #    buildable based on the libraries available in the distribution + the
 #    EPEL repository, will be built. Plugins depending on external libs will
 #    be packaged in separate RPMs.
@@ -45,6 +45,15 @@
 %{?el6:%global _has_ip_vs_h 1}
 %{?el6:%global _has_libmodbus 1}
 
+%{?el7:%global _has_libyajl 1}
+%{?el7:%global _has_recent_libpcap 1}
+%{?el7:%global _has_recent_sockios_h 1}
+%{?el7:%global _has_working_libiptc 1}
+%{?el7:%global _has_ip_vs_h 1}
+%{?el7:%global _has_recent_librrd 1}
+%{?el7:%global _has_varnish4 1}
+%{?el7:%global _has_broken_libmemcached 1}
+
 # plugins enabled by default
 %define with_aggregation 0%{!?_without_aggregation:1}
 %define with_amqp 0%{!?_without_amqp:1}
@@ -85,7 +94,7 @@
 %define with_madwifi 0%{!?_without_madwifi:1}
 %define with_mbmon 0%{!?_without_mbmon:1}
 %define with_md 0%{!?_without_md:1}
-%define with_memcachec 0%{!?_without_memcachec:1}
+%define with_memcachec 0%{!?_without_memcachec:0%{!?_has_broken_libmemcached:1}}
 %define with_memcached 0%{!?_without_memcached:1}
 %define with_memory 0%{!?_without_memory:1}
 %define with_multimeter 0%{!?_without_multimeter:1}
@@ -109,6 +118,7 @@
 %define with_processes 0%{!?_without_processes:1}
 %define with_protocols 0%{!?_without_protocols:1}
 %define with_python 0%{!?_without_python:1}
+%define with_rrdcached 0%{!?_without_rrdcached:0%{?_has_recent_librrd}}
 %define with_rrdtool 0%{!?_without_rrdtool:1}
 %define with_sensors 0%{!?_without_sensors:1}
 %define with_serial 0%{!?_without_serial:1}
@@ -127,7 +137,7 @@
 %define with_uptime 0%{!?_without_uptime:1}
 %define with_users 0%{!?_without_users:1}
 %define with_uuid 0%{!?_without_uuid:1}
-%define with_varnish 0%{!?_without_varnish:1}
+%define with_varnish 0%{!?_without_varnish:0%{!?_has_varnish4:1}}
 %define with_vmem 0%{!?_without_vmem:1}
 %define with_vserver 0%{!?_without_vserver:1}
 %define with_wireless 0%{!?_without_wireless:1}
@@ -156,8 +166,6 @@
 %define with_redis 0%{!?_without_redis:0}
 # plugin routeros disabled, requires librouteros
 %define with_routeros 0%{!?_without_routeros:0}
-# plugin rrdcached disabled, requires rrdtool >= 1.4
-%define with_rrdcached 0%{!?_without_rrdcached:0}
 # plugin tape disabled, requires libkstat
 %define with_tape 0%{!?_without_tape:0}
 # plugin tokyotyrant disabled, requires tcrdb.h
@@ -1902,6 +1910,7 @@ fi
 - Replaced a couple of "Buildrequires" by "BuildRequires"
 - Enabled modbus plugin
 - Allow perl plugin to build on RHEL5
+- Add support for RHEL7
 
 * Wed Apr 10 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.3.0-1
 - New upstream version
