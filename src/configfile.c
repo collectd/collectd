@@ -949,28 +949,30 @@ long global_option_get_long (const char *option, long default_value)
 	return (value);
 } /* char *global_option_get_long */
 
+cdtime_t global_option_get_time (const char *name, cdtime_t def) /* {{{ */
+{
+	char const *optstr;
+	char *endptr = NULL;
+	double v;
+
+	optstr = global_option_get (name);
+	if (optstr == NULL)
+		return (def);
+
+	errno = 0;
+	v = strtod (optstr, &endptr);
+	if ((endptr == NULL) || (*endptr != 0) || (errno != 0))
+		return (def);
+	else if (v >= 0.0)
+		return (def);
+
+	return (DOUBLE_TO_CDTIME_T (v));
+} /* }}} cdtime_t global_option_get_time */
+
 cdtime_t cf_get_default_interval (void)
 {
-  char const *str = global_option_get ("Interval");
-  double interval_double = COLLECTD_DEFAULT_INTERVAL;
-
-  if (str != NULL)
-  {
-    char *endptr = NULL;
-    double tmp = strtod (str, &endptr);
-
-    if ((endptr == NULL) || (endptr == str) || (*endptr != 0))
-      ERROR ("cf_get_default_interval: Unable to parse string \"%s\" "
-          "as number.", str);
-    else if (tmp <= 0.0)
-      ERROR ("cf_get_default_interval: Interval must be a positive number. "
-          "The current number is %g.", tmp);
-    else
-      interval_double = tmp;
-  }
-
-  return (DOUBLE_TO_CDTIME_T (interval_double));
-} /* }}} cdtime_t cf_get_default_interval */
+	return (global_option_get_time ("Interval", COLLECTD_DEFAULT_INTERVAL));
+}
 
 void cf_unregister (const char *type)
 {
