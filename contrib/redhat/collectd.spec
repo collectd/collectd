@@ -1,7 +1,7 @@
 #
 # q: What is this ?
 # a: A specfile for building RPM packages of current collectd releases, for
-#    RHEL/CentOS versions 5 and 6. By default all the plugins which are
+#    RHEL/CentOS versions 5, 6 and 7. By default all the plugins which are
 #    buildable based on the libraries available in the distribution + the
 #    EPEL repository, will be built. Plugins depending on external libs will
 #    be packaged in separate RPMs.
@@ -44,8 +44,19 @@
 %{?el6:%global _has_working_libiptc 1}
 %{?el6:%global _has_ip_vs_h 1}
 %{?el6:%global _has_lvm2app_h 1}
-%{?el6:%global _has_perl_extutils_embed 1}
 %{?el6:%global _has_libmodbus 1}
+%{?el6:%global _has_iproute 1}
+
+%{?el7:%global _has_libyajl 1}
+%{?el7:%global _has_recent_libpcap 1}
+%{?el7:%global _has_recent_sockios_h 1}
+%{?el7:%global _has_working_libiptc 1}
+%{?el7:%global _has_ip_vs_h 1}
+%{?el7:%global _has_lvm2app_h 1}
+%{?el7:%global _has_recent_librrd 1}
+%{?el7:%global _has_varnish4 1}
+%{?el7:%global _has_broken_libmemcached 1}
+%{?el7:%global _has_iproute 1}
 
 # plugins enabled by default
 %define with_aggregation 0%{!?_without_aggregation:1}
@@ -89,13 +100,13 @@
 %define with_madwifi 0%{!?_without_madwifi:1}
 %define with_mbmon 0%{!?_without_mbmon:1}
 %define with_md 0%{!?_without_md:1}
-%define with_memcachec 0%{!?_without_memcachec:1}
+%define with_memcachec 0%{!?_without_memcachec:0%{!?_has_broken_libmemcached:1}}
 %define with_memcached 0%{!?_without_memcached:1}
 %define with_memory 0%{!?_without_memory:1}
 %define with_multimeter 0%{!?_without_multimeter:1}
 %define with_modbus 0%{!?_without_modbus:0%{?_has_libmodbus}}
 %define with_mysql 0%{!?_without_mysql:1}
-%define with_netlink 0%{!?_without_netlink:1}
+%define with_netlink 0%{!?_without_netlink:0%{?_has_iproute}}
 %define with_network 0%{!?_without_network:1}
 %define with_nfs 0%{!?_without_nfs:1}
 %define with_nginx 0%{!?_without_nginx:1}
@@ -114,6 +125,7 @@
 %define with_processes 0%{!?_without_processes:1}
 %define with_protocols 0%{!?_without_protocols:1}
 %define with_python 0%{!?_without_python:1}
+%define with_rrdcached 0%{!?_without_rrdcached:0%{?_has_recent_librrd}}
 %define with_rrdtool 0%{!?_without_rrdtool:1}
 %define with_sensors 0%{!?_without_sensors:1}
 %define with_serial 0%{!?_without_serial:1}
@@ -133,7 +145,7 @@
 %define with_uptime 0%{!?_without_uptime:1}
 %define with_users 0%{!?_without_users:1}
 %define with_uuid 0%{!?_without_uuid:1}
-%define with_varnish 0%{!?_without_varnish:1}
+%define with_varnish 0%{!?_without_varnish:0%{!?_has_varnish4:1}}
 %define with_vmem 0%{!?_without_vmem:1}
 %define with_vserver 0%{!?_without_vserver:1}
 %define with_wireless 0%{!?_without_wireless:1}
@@ -153,8 +165,6 @@
 %define with_lpar 0%{!?_without_lpar:0}
 # plugin mic disabled, requires Mic
 %define with_mic 0%{!?_without_mic:0}
-# plugin modbus disabled, requires libmodbus
-%define with_modbus 0%{!?_without_modbus:0}
 # plugin netapp disabled, requires libnetapp
 %define with_netapp 0%{!?_without_netapp:0}
 # plugin onewire disabled, requires libowfs
@@ -167,8 +177,6 @@
 %define with_redis 0%{!?_without_redis:0}
 # plugin routeros disabled, requires librouteros
 %define with_routeros 0%{!?_without_routeros:0}
-# plugin rrdcached disabled, requires rrdtool >= 1.4
-%define with_rrdcached 0%{!?_without_rrdcached:0}
 # plugin sigrok disabled, requires libsigrok
 %define with_sigrok 0%{!?_without_sigrok:0}
 # plugin tape disabled, requires libkstat
@@ -449,10 +457,9 @@ handlers and database traffic.
 Summary:	netlink plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-BuildRequires:	libmnl-devel
+BuildRequires:	libmnl-devel, iproute-devel
 %description netlink
-This plugin collects very detailed Linux network interface and routing
-statistics.
+The netlink plugin collects detailed network interface and routing statistics.
 %endif
 
 %if %{with_nginx}
@@ -1010,12 +1017,6 @@ Development files for libcollectdclient
 %define _with_multimeter --enable-multimeter
 %else
 %define _with_multimeter --disable-multimeter
-%endif
-
-%if %{with_modbus}
-%define _with_modbus --enable-modbus
-%else
-%define _with_modbus --disable-modbus
 %endif
 
 %if %{with_mysql}
@@ -1903,6 +1904,11 @@ fi
 %{_libdir}/%{name}/mic.so
 %endif
 
+%if %{with_modbus}
+%files modbus
+%{_libdir}/%{name}/modbus.so
+%endif
+
 %if %{with_mysql}
 %files mysql
 %{_libdir}/%{name}/mysql.so
@@ -2043,8 +2049,10 @@ fi
 - Removed duplicate --enable-aggregation
 - Added some comments & usage examples
 - Replaced a couple of "Buildrequires" by "BuildRequires"
-- Enabled modbus plugin
+- Enabled modbus plugin on RHEL6
+- Enabled netlink plugin on RHEL6 and RHEL7
 - Allow perl plugin to build on RHEL5
+- Add support for RHEL7
 
 * Wed Apr 10 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.3.0-1
 - New upstream version
@@ -2052,7 +2060,7 @@ fi
 - Enabled tail_csv plugin
 - Installed collectd-tc manpage
 
-* Thu Jan 11 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.2.0-3
+* Fri Jan 11 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.2.0-3
 - remove dependency on libstatgrab, which isn't required on linux
 
 * Thu Jan 03 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.2.0-2
@@ -2100,11 +2108,11 @@ fi
   non-essential stuff.
 - Replaced BuildPrereq by BuildRequires
 
-* Tue Jan 03 2011 Monetate <jason.stelzer@monetate.com> 5.0.1
+* Mon Jan 03 2011 Monetate <jason.stelzer@monetate.com> 5.0.1
 - New upstream version
 - Changes to support 5.0.1
 
-* Tue Jan 04 2010 Rackspace <stu.hood@rackspace.com> 4.9.0
+* Mon Jan 04 2010 Rackspace <stu.hood@rackspace.com> 4.9.0
 - New upstream version
 - Changes to support 4.9.0
 - Added support for Java/GenericJMX plugin
@@ -2122,7 +2130,7 @@ fi
 - New major releas
 - Changes to support 4.0.5
 
-* Wed Jan 11 2007 Iain Lea <iain@bricbrac.de> 3.11.0-0
+* Thu Jan 11 2007 Iain Lea <iain@bricbrac.de> 3.11.0-0
 - fixed spec file to build correctly on fedora core
 - added improved init.d script to work with chkconfig
 - added %%post and %%postun to call chkconfig automatically
@@ -2130,10 +2138,10 @@ fi
 * Sun Jul 09 2006 Florian octo Forster <octo@verplant.org> 3.10.0-1
 - New upstream version
 
-* Tue Jun 25 2006 Florian octo Forster <octo@verplant.org> 3.9.4-1
+* Sun Jun 25 2006 Florian octo Forster <octo@verplant.org> 3.9.4-1
 - New upstream version
 
-* Tue Jun 01 2006 Florian octo Forster <octo@verplant.org> 3.9.3-1
+* Thu Jun 01 2006 Florian octo Forster <octo@verplant.org> 3.9.3-1
 - New upstream version
 
 * Tue May 09 2006 Florian octo Forster <octo@verplant.org> 3.9.2-1
@@ -2149,10 +2157,10 @@ fi
 - New upstream version
 - Added the `apache' package.
 
-* Thu Mar 14 2006 Florian octo Forster <octo@verplant.org> 3.8.2-1
+* Tue Mar 14 2006 Florian octo Forster <octo@verplant.org> 3.8.2-1
 - New upstream version
 
-* Thu Mar 13 2006 Florian octo Forster <octo@verplant.org> 3.8.1-1
+* Mon Mar 13 2006 Florian octo Forster <octo@verplant.org> 3.8.1-1
 - New upstream version
 
 * Thu Mar 09 2006 Florian octo Forster <octo@verplant.org> 3.8.0-1
@@ -2189,7 +2197,7 @@ fi
 * Sat Nov 05 2005 Florian octo Forster <octo@verplant.org> 3.3.0-1
 - New upstream version
 
-* Tue Oct 26 2005 Florian octo Forster <octo@verplant.org> 3.2.0-1
+* Wed Oct 26 2005 Florian octo Forster <octo@verplant.org> 3.2.0-1
 - New upstream version
 - Added statement to remove the `*.la' files. This fixes a problem when
   `Unpackaged files terminate build' is in effect.
@@ -2206,13 +2214,13 @@ fi
 * Fri Sep 16 2005 Florian octo Forster <octo@verplant.org> 2.1.0-1
 - New upstream version
 
-* Mon Sep 10 2005 Florian octo Forster <octo@verplant.org> 2.0.0-1
+* Sat Sep 10 2005 Florian octo Forster <octo@verplant.org> 2.0.0-1
 - New upstream version
 
 * Mon Aug 29 2005 Florian octo Forster <octo@verplant.org> 1.8.0-1
 - New upstream version
 
-* Sun Aug 25 2005 Florian octo Forster <octo@verplant.org> 1.7.0-1
+* Thu Aug 25 2005 Florian octo Forster <octo@verplant.org> 1.7.0-1
 - New upstream version
 
 * Sun Aug 21 2005 Florian octo Forster <octo@verplant.org> 1.6.0-1
