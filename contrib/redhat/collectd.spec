@@ -151,8 +151,6 @@
 %define with_lpar 0%{!?_without_lpar:0}
 # plugin mic disabled, requires Mic
 %define with_mic 0%{!?_without_mic:0}
-# plugin modbus disabled, requires libmodbus
-%define with_modbus 0%{!?_without_modbus:0}
 # plugin netapp disabled, requires libnetapp
 %define with_netapp 0%{!?_without_netapp:0}
 # plugin onewire disabled, requires libowfs
