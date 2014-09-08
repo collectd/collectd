@@ -45,6 +45,7 @@
 %{?el6:%global _has_ip_vs_h 1}
 %{?el6:%global _has_lvm2app_h 1}
 %{?el6:%global _has_libmodbus 1}
+%{?el6:%global _has_libudev 1}
 %{?el6:%global _has_iproute 1}
 
 %{?el7:%global _has_libyajl 1}
@@ -53,6 +54,7 @@
 %{?el7:%global _has_working_libiptc 1}
 %{?el7:%global _has_ip_vs_h 1}
 %{?el7:%global _has_lvm2app_h 1}
+%{?el7:%global _has_libudev 1}
 %{?el7:%global _has_recent_librrd 1}
 %{?el7:%global _has_varnish4 1}
 %{?el7:%global _has_broken_libmemcached 1}
@@ -79,6 +81,7 @@
 %define with_df 0%{!?_without_df:1}
 %define with_disk 0%{!?_without_disk:1}
 %define with_dns 0%{!?_without_dns:0%{?_has_recent_libpcap}}
+%define with_drbd 0%{!?_without_drbd:1}
 %define with_email 0%{!?_without_email:1}
 %define with_entropy 0%{!?_without_entropy:1}
 %define with_ethstat 0%{!?_without_ethstat:0%{?_has_recent_sockios_h}}
@@ -96,6 +99,7 @@
 %define with_libvirt 0%{!?_without_libvirt:1}
 %define with_load 0%{!?_without_load:1}
 %define with_logfile 0%{!?_without_logfile:1}
+%define with_log_logstash 0%{!?_without_log_logstash:0%{?_has_libyajl}}
 %define with_lvm 0%{!?_without_lvm:0%{?_has_lvm2app_h}}
 %define with_madwifi 0%{!?_without_madwifi:1}
 %define with_mbmon 0%{!?_without_mbmon:1}
@@ -152,6 +156,7 @@
 %define with_write_graphite 0%{!?_without_write_graphite:1}
 %define with_write_http 0%{!?_without_write_http:1}
 %define with_write_riemann 0%{!?_without_write_riemann:1}
+%define with_write_tsdb 0%{!?_without_write_tsdb:1}
 %define with_zfs_arc 0%{!?_without_zfs_arc:1}
 
 # Plugins not built by default because of dependencies on libraries not
@@ -161,6 +166,8 @@
 %define with_apple_sensors 0%{!?_without_apple_sensors:0}
 # plugin aquaero disabled, requires a libaquaero5
 %define with_aquaero 0%{!?_without_aquaero:0}
+# plugin barometer disabled, requires a libi2c
+%define with_barometer 0%{!?_without_barometer:0}
 # plugin lpar disabled, requires AIX
 %define with_lpar 0%{!?_without_lpar:0}
 # plugin mic disabled, requires Mic
@@ -183,6 +190,8 @@
 %define with_tape 0%{!?_without_tape:0}
 # plugin tokyotyrant disabled, requires tcrdb.h
 %define with_tokyotyrant 0%{!?_without_tokyotyrant:0}
+# plugin write_kafka disabled, requires librdkafka
+%define with_write_kafka 0%{!?_without_write_kafka:0}
 # plugin write_mongodb disabled, requires libmongoc
 %define with_write_mongodb 0%{!?_without_write_mongodb:0}
 # plugin write_redis disabled, requires credis
@@ -256,6 +265,15 @@ open-source server software for the game World of Warcraft by Blizzard
 Entertainment.
 %endif
 
+%if %{with_barometer}
+%package barometer
+Summary:       barometer plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+%description barometer
+Collects pressure and temperature from digital barometers.
+%endif
+
 %if %{with_bind}
 %package bind
 Summary:	Bind plugin for collectd
@@ -309,6 +327,17 @@ BuildRequires:	libdbi-devel
 %description dbi
 The DBI plugin uses libdbi, a database abstraction library, to execute SQL
 statements on a database and read back the result.
+%endif
+
+%if %{with_disk}
+%package disk
+Summary:	disk plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+%{?_has_libudev:BuildRequires:  libudev-devel}
+%description disk
+The "disk" plugin collects information about the usage of physical disks and
+logical disks (partitions).
 %endif
 
 %if %{with_dns}
@@ -396,6 +425,16 @@ Requires:	%{name}%{?_isa} = %{version}-%{release}
 BuildRequires:	libvirt-devel
 %description libvirt
 This plugin collects information from virtualized guests.
+%endif
+
+%if %{with_log_logstash}
+%package log_logstash
+Summary:       log_logstash plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+BuildRequires: yajl-devel
+%description log_logstash
+This plugin logs in logstash JSON format
 %endif
 
 %if %{with_lvm}
@@ -652,6 +691,16 @@ The Write-HTTP plugin sends the values collected by collectd to a web-server
 using HTTP POST requests.
 %endif
 
+%if %{with_write_kafka}
+%package write_kafka
+Summary:       Write-kafka plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+BuildRequires: rdkafka-devel
+%description write_kafka
+The write_kafka plugin sends values to kafka, a distributed messaging system.
+%endif
+
 %if %{with_write_redis}
 %package write_redis
 Summary:	Write-Redis plugin for collectd
@@ -761,6 +810,12 @@ Development files for libcollectdclient
 %define _with_ascent --disable-ascent
 %endif
 
+%if %{with_barometer}
+%define _with_barometer --enable-barometer
+%else
+%define _with_barometer --disable-barometer
+%endif
+
 %if %{with_battery}
 %define _with_battery --enable-battery
 %else
@@ -849,6 +904,12 @@ Development files for libcollectdclient
 %define _with_dns --enable-dns
 %else
 %define _with_dns --disable-dns
+%endif
+
+%if %{with_drbd}
+%define _with_drbd --enable-drbd
+%else
+%define _with_drbd --disable-drbd
 %endif
 
 %if %{with_email}
@@ -951,6 +1012,12 @@ Development files for libcollectdclient
 %define _with_logfile --enable-logfile
 %else
 %define _with_logfile --disable-logfile
+%endif
+
+%if %{with_log_logstash}
+%define _with_log_logstash --enable-log_logstash
+%else
+%define _with_log_logstash --disable-log_logstash
 %endif
 
 %if %{with_lpar}
@@ -1353,6 +1420,12 @@ Development files for libcollectdclient
 %define _with_write_http --disable-write_http
 %endif
 
+%if %{with_write_kafka}
+%define _with_write_kafka --enable-write_kafka
+%else
+%define _with_write_kafka --disable-write_kafka
+%endif
+
 %if %{with_write_mongodb}
 %define _with_write_mongodb --enable-write_mongodb
 %else
@@ -1369,6 +1442,12 @@ Development files for libcollectdclient
 %define _with_write_riemann --enable-write_riemann
 %else
 %define _with_write_riemann --disable-write_riemann
+%endif
+
+%if %{with_write_tsdb}
+%define _with_write_tsdb --enable-write_tsdb
+%else
+%define _with_write_tsdb --disable-write_tsdb
 %endif
 
 %if %{with_xmms}
@@ -1404,6 +1483,7 @@ Development files for libcollectdclient
 	%{?_with_apple_sensors} \
 	%{?_with_aquaero} \
 	%{?_with_ascent} \
+	%{?_with_barometer} \
 	%{?_with_battery} \
 	%{?_with_bind} \
 	%{?_with_cgroups} \
@@ -1419,6 +1499,7 @@ Development files for libcollectdclient
 	%{?_with_df} \
 	%{?_with_disk} \
 	%{?_with_dns} \
+	%{?_with_drbd} \
 	%{?_with_email} \
 	%{?_with_entropy} \
 	%{?_with_ethstat} \
@@ -1433,6 +1514,7 @@ Development files for libcollectdclient
 	%{?_with_ipvs} \
 	%{?_with_java} \
 	%{?_with_libvirt} \
+	%{?_with_log_logstash} \
 	%{?_with_lpar} \
 	%{?_with_lvm} \
 	%{?_with_memcachec} \
@@ -1465,6 +1547,7 @@ Development files for libcollectdclient
 	%{?_with_tokyotyrant} \
 	%{?_with_varnish} \
 	%{?_with_write_http} \
+	%{?_with_write_kafka} \
 	%{?_with_write_mongodb} \
 	%{?_with_write_redis} \
 	%{?_with_xmms} \
@@ -1507,7 +1590,8 @@ Development files for libcollectdclient
 	%{?_with_wireless}\
 	%{?_with_write_graphite} \
 	%{?_with_write_http} \
-	%{?_with_write_riemann}
+	%{?_with_write_riemann} \
+	%{?_with_write_tsdb}
 
 
 %{__make} %{?_smp_mflags}
@@ -1650,8 +1734,8 @@ fi
 %if %{with_df}
 %{_libdir}/%{name}/df.so
 %endif
-%if %{with_disk}
-%{_libdir}/%{name}/disk.so
+%if %{with_drbd}
+%{_libdir}/%{name}/drbd.so
 %endif
 %if %{with_ethstat}
 %{_libdir}/%{name}/ethstat.so
@@ -1788,7 +1872,12 @@ fi
 %if %{with_write_graphite}
 %{_libdir}/%{name}/write_graphite.so
 %endif
-
+%if %{with_write_tsdb}
+%{_libdir}/%{name}/write_tsdb.so
+%endif
+%if %{with_zfs_arc}
+%{_libdir}/%{name}/zfs_arc.so
+%endif
 
 %files -n libcollectdclient-devel
 %{_includedir}/collectd/client.h
@@ -1821,6 +1910,11 @@ fi
 %{_libdir}/%{name}/ascent.so
 %endif
 
+%if %{with_barometer}
+%files barometer
+%{_libdir}/%{name}/barometer.so
+%endif
+
 %if %{with_bind}
 %files bind
 %{_libdir}/%{name}/bind.so
@@ -1839,6 +1933,11 @@ fi
 %if %{with_curl_xml}
 %files curl_xml
 %{_libdir}/%{name}/curl_xml.so
+%endif
+
+%if %{with_disk}
+%files disk
+%{_libdir}/%{name}/disk.so
 %endif
 
 %if %{with_dns}
@@ -1887,6 +1986,11 @@ fi
 %if %{with_libvirt}
 %files libvirt
 %{_libdir}/%{name}/libvirt.so
+%endif
+
+%if %{with_log_logstash}
+%files log_logstash
+%{_libdir}/%{name}/log_logstash.so
 %endif
 
 %if %{with_lvm}
@@ -2012,6 +2116,11 @@ fi
 %{_libdir}/%{name}/write_http.so
 %endif
 
+%if %{with_write_kafka}
+%files write_kafka
+%{_libdir}/%{name}/write_kafka.so
+%endif
+
 %if %{with_write_redis}
 %files write_redis
 %{_libdir}/%{name}/write_redis.so
@@ -2034,6 +2143,13 @@ fi
 %doc contrib/
 
 %changelog
+# * TODO 5.5.0-1
+# - New upstream version
+# - New plugins enabled by default: drbd, log_logstash, write_tsdb
+# - New plugins disabled by default: barometer, write_kafka
+# - Enable zfs_arc, now supported on Linux
+# - Install disk plugin in an dedicated package, as it depends on libudev
+
 * Mon Aug 19 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.4.0-1
 - New upstream version
 - Build netlink plugin by default
