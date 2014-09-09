@@ -964,7 +964,7 @@ cdtime_t global_option_get_time (const char *name, cdtime_t def) /* {{{ */
 	v = strtod (optstr, &endptr);
 	if ((endptr == NULL) || (*endptr != 0) || (errno != 0))
 		return (def);
-	else if (v >= 0.0)
+	else if (v <= 0.0)
 		return (def);
 
 	return (DOUBLE_TO_CDTIME_T (v));
@@ -972,7 +972,8 @@ cdtime_t global_option_get_time (const char *name, cdtime_t def) /* {{{ */
 
 cdtime_t cf_get_default_interval (void)
 {
-	return (global_option_get_time ("Interval", COLLECTD_DEFAULT_INTERVAL));
+	return (global_option_get_time ("Interval",
+			       DOUBLE_TO_CDTIME_T (COLLECTD_DEFAULT_INTERVAL)));
 }
 
 void cf_unregister (const char *type)
