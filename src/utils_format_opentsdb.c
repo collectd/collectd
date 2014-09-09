@@ -251,7 +251,7 @@ static int opentsdb_format_name (char *ret, int ret_len,
 	char n_type[DATA_MAX_NAME_LEN];
 	char n_type_instance[DATA_MAX_NAME_LEN];
 
-	 if (0 != strcmp("GenericJMX", n_plugin)){
+	 if (0 == strcmp("GenericJMX", vl->plugin)){
 		return opentsdb_format_name_jmx(ret, ret_len, vl, prefix, escape_char, flags);
 	}
 

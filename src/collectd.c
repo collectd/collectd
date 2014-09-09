@@ -319,6 +319,8 @@ static int do_loop (void)
 	cdtime_t wait_until;
 
 	wait_until = cdtime () + interval;
+	WARNING ("wait until, cdtime and interval : %.3f, %.3f, %.3f",
+					CDTIME_T_TO_DOUBLE (wait_until), CDTIME_T_TO_DOUBLE (cdtime()),CDTIME_T_TO_DOUBLE (interval));
 
 	while (loop == 0)
 	{
@@ -333,6 +335,9 @@ static int do_loop (void)
 		plugin_read_all ();
 
 		now = cdtime ();
+		WARNING ("now basically is : %.3f",
+					CDTIME_T_TO_DOUBLE (now));
+
 		if (now >= wait_until)
 		{
 			WARNING ("Not sleeping because the next interval is "
