@@ -963,27 +963,19 @@ cdtime_t global_option_get_time (const char *name, cdtime_t def) /* {{{ */
 
 	errno = 0;
 	v = strtod (optstr, &endptr);
-WARNING ("parsing the interval returned : %.3f",
-                                        v);
 	if ((endptr == NULL) || (*endptr != 0) || (errno != 0))
 		return (def);
 	else if (v <= 0.0){
 		
-WARNING ("returning the default interval is : %.3f",
-                                        CDTIME_T_TO_DOUBLE (def));
 		return (def);
 }
 
-WARNING ("returning the global option get time : %.3f",
-                                        CDTIME_T_TO_DOUBLE (DOUBLE_TO_CDTIME_T(v)));
 	return (DOUBLE_TO_CDTIME_T (v));
 } /* }}} cdtime_t global_option_get_time */
 
 cdtime_t cf_get_default_interval (void)
 {
 
-WARNING ("default interval is : %.3f",
-                                        CDTIME_T_TO_DOUBLE (COLLECTD_DEFAULT_INTERVAL));
 	return (global_option_get_time ("Interval", COLLECTD_DEFAULT_INTERVAL));
 }
 
