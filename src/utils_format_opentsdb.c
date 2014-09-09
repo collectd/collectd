@@ -83,6 +83,33 @@ else if (ds->ds[ds_num].type == DS_TYPE_ABSOLUTE)
 
 return (0);
 }
+static void opentsdb_copy_escape_part_jmx (char *dst, const char *src, size_t dst_len,
+		char escape_char)
+{
+	size_t i, j;
+
+	memset (dst, 0, dst_len);
+
+	if (src == NULL)
+		return;
+
+	for (i = 0, j =0; i < dst_len;)
+	{
+		if (src[i] == 0)
+		{
+			dst[j] = 0;
+			break;
+		}
+
+		if ((src[i] == '"')
+				|| isspace ((int) src[i])
+				|| iscntrl ((int) src[i]))
+			i++;
+		else
+			dst[j] = src[i]; i++; j++;
+	}
+}
+
 
 static void opentsdb_copy_escape_part (char *dst, const char *src, size_t dst_len,
 		char escape_char)
@@ -143,20 +170,72 @@ static int opentsdb_format_tags (char *ret, int ret_len,
 	opentsdb_copy_escape_part (n_plugin_instance, vl->plugin_instance,
 			sizeof (n_plugin_instance), escape_char);
 
-	if (n_plugin_instance[0] != '\0'){
+	if (n_plugin_instance[0] != '\0' && (0 != strcmp("GenericJMX", n_plugin))){
 		ssnprintf (tmp_plugin, sizeof (tmp_plugin), "%s%c%s",
 				n_plugin,
 				'-',
 				n_plugin_instance); 
     	ssnprintf (ret, ret_len, "host=%s %s=%s, %s",
 	    		vl->host, n_plugin, n_plugin_instance, tags);
-    }
+    	}
 	else
     	ssnprintf (ret, ret_len, "host=%s %s",
 	    		vl->host, tags);
 
 	return (0);
 }
+
+static int opentsdb_format_name_jmx (char *ret, int ret_len,
+		value_list_t const *vl,
+		char const *prefix,
+		char const escape_char,
+		unsigned int flags)
+{
+	//char n_host[DATA_MAX_NAME_LEN];
+	char n_plugin[DATA_MAX_NAME_LEN];
+	char n_type[DATA_MAX_NAME_LEN];
+	char n_type_instance[DATA_MAX_NAME_LEN];
+	char n_plugin_instance[DATA_MAX_NAME_LEN];
+
+	char tmp_plugin[2 * DATA_MAX_NAME_LEN + 1];
+	char tmp_type_instance[2 * DATA_MAX_NAME_LEN + 1];
+	char tmp_type[2 * DATA_MAX_NAME_LEN + 1];
+	char tmp_plugin_instance[2 * DATA_MAX_NAME_LEN + 1];
+
+
+	opentsdb_copy_escape_part_jmx (n_plugin, vl->plugin,
+			sizeof (n_plugin), escape_char);
+	opentsdb_copy_escape_part_jmx (n_type, vl->type,
+			sizeof (n_type), escape_char);
+	opentsdb_copy_escape_part_jmx (n_type_instance, vl->type_instance,
+			sizeof (n_type_instance), escape_char);
+	opentsdb_copy_escape_part_jmx (n_plugin_instance, vl->plugin_instance,
+			sizeof (n_plugin_instance), escape_char);
+
+	sstrncpy (tmp_plugin, n_plugin, sizeof (tmp_plugin));
+	sstrncpy (tmp_plugin_instance, n_plugin_instance, sizeof (tmp_plugin_instance));
+	sstrncpy (tmp_type, n_type, sizeof (tmp_type));
+	sstrncpy (tmp_type_instance, n_type_instance, sizeof (tmp_type_instance));
+
+      if(tmp_type_instance[0] == '\0' && tmp_plugin_instance[0] == '\0'){
+	      ssnprintf (ret, ret_len, "%s.jmx.%s", prefix, tmp_type); 
+      }
+      if(tmp_type_instance[0] != '\0' && tmp_plugin_instance[0] == '\0'){
+	      ssnprintf (ret, ret_len, "%s.jmx.%s.%s",
+		    	prefix, tmp_type_instance, tmp_type);
+      }
+      if(tmp_type_instance[0] == '\0' && tmp_plugin_instance[0] != '\0'){
+	      ssnprintf (ret, ret_len, "%s.jmx.%s.%s",
+		    	prefix, tmp_plugin_instance, tmp_type);
+      }
+      else{
+	      ssnprintf (ret, ret_len, "%s.jmx.%s.%s.%s",
+		    	prefix, tmp_plugin_instance, tmp_type_instance, tmp_type);
+      }
+
+      return (0);
+}
+
 
 static int opentsdb_format_name (char *ret, int ret_len,
 		value_list_t const *vl,
@@ -168,6 +247,10 @@ static int opentsdb_format_name (char *ret, int ret_len,
 	char n_plugin[DATA_MAX_NAME_LEN];
 	char n_type[DATA_MAX_NAME_LEN];
 	char n_type_instance[DATA_MAX_NAME_LEN];
+
+	 if (0 != strcmp("GenericJMX", n_plugin)){
+		return opentsdb_format_name_jmx(ret, ret_len, vl, prefix, escape_char, flags);
+	}
 
 	char tmp_plugin[2 * DATA_MAX_NAME_LEN + 1];
 	char tmp_type_instance[2 * DATA_MAX_NAME_LEN + 1];
