@@ -105,8 +105,9 @@ static void opentsdb_copy_escape_part_jmx (char *dst, const char *src, size_t ds
 				|| isspace ((int) src[i])
 				|| iscntrl ((int) src[i]))
 			i++;
-		else
+		else{
 			dst[j] = src[i]; i++; j++;
+		}
 	}
 }
 
@@ -203,6 +204,7 @@ static int opentsdb_format_name_jmx (char *ret, int ret_len,
 	char tmp_plugin_instance[2 * DATA_MAX_NAME_LEN + 1];
 
 
+	DEBUG ("formatting jmx name with  with plugin : %s, type_instance : %s, type : %s, plugin_instance : %s",vl->plugin, vl->type_instance, vl->type, vl->plugin_instance);
 	opentsdb_copy_escape_part_jmx (n_plugin, vl->plugin,
 			sizeof (n_plugin), escape_char);
 	opentsdb_copy_escape_part_jmx (n_type, vl->type,
@@ -216,6 +218,7 @@ static int opentsdb_format_name_jmx (char *ret, int ret_len,
 	sstrncpy (tmp_plugin_instance, n_plugin_instance, sizeof (tmp_plugin_instance));
 	sstrncpy (tmp_type, n_type, sizeof (tmp_type));
 	sstrncpy (tmp_type_instance, n_type_instance, sizeof (tmp_type_instance));
+	DEBUG ("formatting jmx escape name with  with plugin : %s, type_instance : %s, type : %s, plugin_instance : %s",tmp_plugin, tmp_type_instance, tmp_type, tmp_plugin_instance);
 
       if(tmp_type_instance[0] == '\0' && tmp_plugin_instance[0] == '\0'){
 	      ssnprintf (ret, ret_len, "%s.jmx.%s", prefix, tmp_type); 
