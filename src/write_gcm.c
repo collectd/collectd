@@ -73,9 +73,7 @@
 
 #define MONITORING_URL \
   "https://www.googleapis.com/cloudmonitoring/v2beta2"
-/* TODO(zhihuawen) change the scope to monitoring when it's working */
-#define MONITORING_SCOPE "https://www.googleapis.com/auth/monitoring.readonly"
-//#define MONITORING_SCOPE "https://www.googleapis.com/auth/monitoring"
+#define MONITORING_SCOPE "https://www.googleapis.com/auth/monitoring"
 #define GCE_METADATA_FLAVOR "Metadata-Flavor: Google"
 #define METADATA_PREFIX "http://169.254.169.254/"
 #define METADATA_HEADER "X-Google-Metadata-Request: True"
