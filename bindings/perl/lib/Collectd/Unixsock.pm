@@ -343,6 +343,58 @@ sub putval
 	return;
 } # putval
 
+=item I<$res> = I<$self>-E<gt>B<listval_filter> ( C<%identifier> )
+
+Queries a list of values from the daemon while restricting the results to
+certain hosts, plugins etc. The argument may be anything that passes for an
+identifier (cf. L<VALUE IDENTIFIERS>), although all fields are optional.
+The returned data is in the same format as from C<listval>.
+
+=cut
+
+sub listval_filter
+{
+	my $self = shift;
+    my %args = @_;
+	my @ret;
+	my $nresults;
+	my $fh = $self->{sock} or confess;
+
+    my $pattern =
+    (exists $args{host}              ? "$args{host}"             : '[^/]+') .
+    (exists $args{plugin}            ? "/$args{plugin}"          : '/[^/-]+') .
+	(exists $args{plugin_instance}   ? "-$args{plugin_instance}" : '(?:-[^/]+)?') .
+	(exists $args{type}              ? "/$args{type}"            : '/[^/-]+') .
+	(exists $args{type_instance}     ? "-$args{type_instance}"   : '(?:-[^/]+)?');
+    $pattern = qr/^\d+ $pattern$/;
+
+    my $msg = $self->_socket_command('LISTVAL') or return;
+	($nresults, $msg) = split / /, $msg, 2;
+
+    # This could use _socket_chat() but doesn't for speed reasons
+	if ($nresults < 0)
+	{
+		$self->{error} = $msg;
+		return;
+	}
+
+	for (1 .. $nresults)
+	{
+		$msg = <$fh>;
+		chomp $msg;
+		_debug "<- $msg\n";
+		next unless $msg =~ $pattern;
+		my ($time, $ident) = split / /, $msg, 2;
+
+		$ident = _parse_identifier ($ident);
+		$ident->{time} = int $time;
+
+		push (@ret, $ident);
+	} # for (i = 0 .. $status)
+
+	return @ret;
+} # listval
+
 =item I<$res> = I<$self>-E<gt>B<listval> ()
 
 Queries a list of values from the daemon. The list is returned as an array of
