@@ -33,7 +33,7 @@ collectd's unixsock plugin.
 
 =head1 SYNOPSIS
 
-  use Collectd::Unixsock ();
+  use Collectd::Unixsock;
 
   my $sock = Collectd::Unixsock->new ($path);
 
@@ -56,23 +56,15 @@ programmers to interact with the daemon.
 use strict;
 use warnings;
 
-#use constant { NOTIF_FAILURE => 1, NOTIF_WARNING => 2, NOTIF_OKAY => 4 };
-
-use Carp (qw(cluck confess));
+use Carp qw(cluck confess carp croak);
 use IO::Socket::UNIX;
 use Scalar::Util qw( looks_like_number );
 
 our $Debug = 0;
 
-return (1);
-
 sub _debug
 {
-	if (!$Debug)
-	{
-		return;
-	}
-	print @_;
+	print @_ if $Debug;
 }
 
 sub _create_socket
@@ -89,88 +81,76 @@ sub _create_socket
 
 =head1 VALUE IDENTIFIERS
 
-The values in the collectd are identified using an five-tuple (host, plugin,
-plugin-instance, type, type-instance) where only plugin-instance and
-type-instance may be NULL (or undefined). Many functions expect an
-I<%identifier> hash that has at least the members B<host>, B<plugin>, and
-B<type>, possibly completed by B<plugin_instance> and B<type_instance>.
+The values in the collectd are identified using a five-tuple (host, plugin,
+plugin-instance, type, type-instance) where only plugin instance and type
+instance may be undef. Many functions expect an I<%identifier> hash that has at
+least the members B<host>, B<plugin>, and B<type>, possibly completed by
+B<plugin_instance> and B<type_instance>.
 
 Usually you can pass this hash as follows:
 
-  $obj->method (host => $host, plugin => $plugin, type => $type, %other_args);
+  $self->method (host => $host, plugin => $plugin, type => $type, %other_args);
 
 =cut
 
 sub _create_identifier
 {
 	my $args = shift;
-	my $host;
-	my $plugin;
-	my $type;
+	my ($host, $plugin, $type);
 
-	if (!$args->{'host'} || !$args->{'plugin'} || !$args->{'type'})
+	if (!$args->{host} || !$args->{plugin} || !$args->{type})
 	{
 		cluck ("Need `host', `plugin' and `type'");
 		return;
 	}
 
-	$host = $args->{'host'};
-	$plugin = $args->{'plugin'};
-	$plugin .= '-' . $args->{'plugin_instance'} if (defined ($args->{'plugin_instance'}));
-	$type = $args->{'type'};
-	$type .= '-' . $args->{'type_instance'} if (defined ($args->{'type_instance'}));
+	$host = $args->{host};
+	$plugin = $args->{plugin};
+	$plugin .= '-' . $args->{plugin_instance} if defined $args->{plugin_instance};
+	$type = $args->{type};
+	$type .= '-' . $args->{type_instance} if defined $args->{type_instance};
 
-	return ("$host/$plugin/$type");
+	return "$host/$plugin/$type";
 } # _create_identifier
 
 sub _parse_identifier
 {
 	my $string = shift;
-	my $host;
-	my $plugin;
-	my $plugin_instance;
-	my $type;
-	my $type_instance;
-	my $ident;
+	my ($plugin_instance, $type_instance);
 
-	($host, $plugin, $type) = split ('/', $string);
+	my ($host, $plugin, $type) = split /\//, $string;
 
-	($plugin, $plugin_instance) = split ('-', $plugin, 2);
-	($type, $type_instance) = split ('-', $type, 2);
+	($plugin, $plugin_instance) = split /-/, $plugin, 2;
+	($type, $type_instance) = split /-/, $type, 2;
 
-	$ident =
+	my $ident =
 	{
 		host => $host,
 		plugin => $plugin,
 		type => $type
 	};
-	$ident->{'plugin_instance'} = $plugin_instance if (defined ($plugin_instance));
-	$ident->{'type_instance'} = $type_instance if (defined ($type_instance));
+	$ident->{plugin_instance} = $plugin_instance if defined $plugin_instance;
+	$ident->{type_instance} = $type_instance if defined $type_instance;
 
-	return ($ident);
+	return $ident;
 } # _parse_identifier
 
 sub _escape_argument
 {
-	my $string = shift;
+	local $_ = shift;
 
-	if ($string =~ m/^\w+$/)
-	{
-		return ("$string");
-	}
+	return $_ if /^\w+$/;
 
-	$string =~ s#\\#\\\\#g;
-	$string =~ s#"#\\"#g;
-	$string = "\"$string\"";
-
-	return ($string);
+	s#\\#\\\\#g;
+	s#"#\\"#g;
+	return "\"$_\"";
 }
 
 =head1 PUBLIC METHODS
 
 =over 4
 
-=item I<$obj> = Collectd::Unixsock->B<new> ([I<$path>]);
+=item I<$self> = Collectd::Unixsock->B<new> ([I<$path>]);
 
 Creates a new connection to the daemon. The optional I<$path> argument gives
 the path to the UNIX socket of the C<unixsock plugin> and defaults to
@@ -181,19 +161,18 @@ false on error.
 
 sub new
 {
-	my $pkg = shift;
-	my $path = @_ ? shift : '/var/run/collectd-unixsock';
+	my $class = shift;
+	my $path = shift || '/var/run/collectd-unixsock';
 	my $sock = _create_socket ($path) or return;
-	my $obj = bless (
+	return bless
 		{
 			path => $path,
 			sock => $sock,
 			error => 'No error'
-		}, $pkg);
-	return ($obj);
+		}, $class;
 } # new
 
-=item I<$res> = I<$obj>-E<gt>B<getval> (I<%identifier>);
+=item I<$res> = I<$self>-E<gt>B<getval> (I<%identifier>);
 
 Requests a value-list from the daemon. On success a hash-ref is returned with
 the name of each data-source as the key and the according value as, well, the
@@ -203,15 +182,13 @@ value. On error false is returned.
 
 sub getval # {{{
 {
-	my $obj = shift;
+	my $self = shift;
 	my %args = @_;
 
-	my $status;
-	my $fh = $obj->{'sock'} or confess ('object has no filehandle');
-	my $msg;
-	my $identifier;
+	my ($status, $msg, $identifier, $ret);
+	my $fh = $self->{sock} or confess ('object has no filehandle');
 
-	my $ret = {};
+	$ret = {};
 
 	$identifier = _create_identifier (\%args) or return;
 
@@ -223,17 +200,17 @@ sub getval # {{{
 	chomp ($msg);
 	_debug "<- $msg\n";
 
-	($status, $msg) = split (' ', $msg, 2);
+	($status, $msg) = split / /, $msg, 2;
 	if ($status <= 0)
 	{
-		$obj->{'error'} = $msg;
+		$self->{error} = $msg;
 		return;
 	}
 
-	for (my $i = 0; $i < $status; $i++)
+	for (1 .. $status)
 	{
 		my $entry = <$fh>;
-		chomp ($entry);
+		chomp $entry;
 		_debug "<- $entry\n";
 
 		if ($entry =~ m/^(\w+)=NaN$/)
@@ -246,10 +223,10 @@ sub getval # {{{
 		}
 	}
 
-	return ($ret);
+	return $ret;
 } # }}} sub getval
 
-=item I<$res> = I<$obj>-E<gt>B<getthreshold> (I<%identifier>);
+=item I<$res> = I<$self>-E<gt>B<getthreshold> (I<%identifier>);
 
 Requests a threshold from the daemon. On success a hash-ref is returned with
 the threshold data. On error false is returned.
@@ -258,15 +235,13 @@ the threshold data. On error false is returned.
 
 sub getthreshold # {{{
 {
-	my $obj = shift;
+	my $self = shift;
 	my %args = @_;
 
-	my $status;
-	my $fh = $obj->{'sock'} or confess ('object has no filehandle');
-	my $msg;
-	my $identifier;
+	my ($status, $msg, $identifier, $ret);
+	my $fh = $self->{sock} or confess ('object has no filehandle');
 
-	my $ret = {};
+	$ret = {};
 
 	$identifier = _create_identifier (\%args) or return;
 
@@ -281,11 +256,11 @@ sub getthreshold # {{{
 	($status, $msg) = split (' ', $msg, 2);
 	if ($status <= 0)
 	{
-		$obj->{'error'} = $msg;
+		$self->{error} = $msg;
 		return;
 	}
 
-	for (my $i = 0; $i < $status; $i++)
+	for (1 .. $status)
 	{
 		my $entry = <$fh>;
 		chomp ($entry);
@@ -296,17 +271,15 @@ sub getthreshold # {{{
 			my $key = $1;
 			my $value = $2;
 
-			$key =~ s/^\s+//;
-			$key =~ s/\s+$//;
-
+			$key =~ s/(?:^\s+|\s$)//;
 			$ret->{$key} = $value;
 		}
 	}
 
-	return ($ret);
+	return $ret;
 } # }}} sub getthreshold
 
-=item I<$obj>-E<gt>B<putval> (I<%identifier>, B<time> =E<gt> I<$time>, B<values> =E<gt> [...]);
+=item I<$self>-E<gt>B<putval> (I<%identifier>, B<time> =E<gt> I<$time>, B<values> =E<gt> [...]);
 
 Submits a value-list to the daemon. If the B<time> argument is omitted
 C<time()> is used. The required argument B<values> is a reference to an array
@@ -320,51 +293,44 @@ otherwise.
 
 sub putval
 {
-	my $obj = shift;
+	my $self = shift;
 	my %args = @_;
 
-	my $status;
-	my $fh = $obj->{'sock'} or confess;
-	my $msg;
-	my $identifier;
-	my $values;
-	my $interval = "";
+	my ($status, $msg, $identifier, $values);
+	my $fh = $self->{sock} or confess;
 
-	if (defined $args{'interval'})
-	{
-		$interval = ' interval='
-		. _escape_argument ($args{'interval'});
-	}
+	my $interval = defined $args{interval} ?
+    ' interval=' . _escape_argument ($args{interval}) : '';
 
 	$identifier = _create_identifier (\%args) or return;
-	if (!$args{'values'})
+	if (!$args{values})
 	{
 		cluck ("Need argument `values'");
 		return;
 	}
 
-	if (!ref ($args{'values'}))
-	{
-		$values = $args{'values'};
-	}
-	else
+	if (ref ($args{values}))
 	{
 		my $time;
 
-		if ("ARRAY" ne ref ($args{'values'}))
+		if ("ARRAY" ne ref ($args{values}))
 		{
 			cluck ("Invalid `values' argument (expected an array ref)");
 			return;
 		}
 
-		if (! scalar @{$args{'values'}})
+		if (! scalar @{$args{values}})
 		{
 			cluck ("Empty `values' array");
 			return;
 		}
 
-		$time = $args{'time'} ? $args{'time'} : time ();
-		$values = join (':', $time, map { defined ($_) ? $_ : 'U' } (@{$args{'values'}}));
+		$time = $args{time} || time;
+		$values = join (':', $time, map { defined $_ ? $_ : 'U' } @{$args{values}});
+	}
+	else
+	{
+		$values = $args{values};
 	}
 
 	$msg = 'PUTVAL '
@@ -375,17 +341,17 @@ sub putval
 	print $fh $msg;
 
 	$msg = <$fh>;
-	chomp ($msg);
+	chomp $msg;
 	_debug "<- $msg\n";
 
-	($status, $msg) = split (' ', $msg, 2);
-	return (1) if ($status == 0);
+	($status, $msg) = split / /, $msg, 2;
+	return 1 if $status == 0;
 
-	$obj->{'error'} = $msg;
+	$self->{error} = $msg;
 	return;
 } # putval
 
-=item I<$res> = I<$obj>-E<gt>B<listval> ()
+=item I<$res> = I<$self>-E<gt>B<listval> ()
 
 Queries a list of values from the daemon. The list is returned as an array of
 hash references, where each hash reference is a valid identifier. The C<time>
@@ -395,11 +361,10 @@ member of each hash holds the epoch value of the last update of that value.
 
 sub listval
 {
-	my $obj = shift;
-	my $msg;
-	my @ret = ();
-	my $status;
-	my $fh = $obj->{'sock'} or confess;
+	my $self = shift;
+	my ($msg, $status);
+	my @ret;
+	my $fh = $self->{sock} or confess;
 
 	_debug "LISTVAL\n";
 	print $fh "LISTVAL\n";
@@ -407,14 +372,14 @@ sub listval
 	$msg = <$fh>;
 	chomp ($msg);
 	_debug "<- $msg\n";
-	($status, $msg) = split (' ', $msg, 2);
+	($status, $msg) = split / /, $msg, 2;
 	if ($status < 0)
 	{
-		$obj->{'error'} = $msg;
+		$self->{error} = $msg;
 		return;
 	}
 
-	for (my $i = 0; $i < $status; $i++)
+	for (1 .. $status)
 	{
 		my $time;
 		my $ident;
@@ -423,18 +388,18 @@ sub listval
 		chomp ($msg);
 		_debug "<- $msg\n";
 
-		($time, $ident) = split (' ', $msg, 2);
+		($time, $ident) = split / /, $msg, 2;
 
 		$ident = _parse_identifier ($ident);
-		$ident->{'time'} = int ($time);
+		$ident->{time} = int $time;
 
 		push (@ret, $ident);
 	} # for (i = 0 .. $status)
 
-	return (@ret);
+	return @ret;
 } # listval
 
-=item I<$res> = I<$obj>-E<gt>B<putnotif> (B<severity> =E<gt> I<$severity>, B<message> =E<gt> I<$message>, ...);
+=item I<$res> = I<$self>-E<gt>B<putnotif> (B<severity> =E<gt> I<$severity>, B<message> =E<gt> I<$message>, ...);
 
 Submits a notification to the daemon.
 
@@ -469,57 +434,48 @@ For more details, please see L<collectd-unixsock(5)>.
 
 sub putnotif
 {
-	my $obj = shift;
+	my $self = shift;
 	my %args = @_;
 
 	my $status;
-	my $fh = $obj->{'sock'} or confess;
+	my $fh = $self->{sock} or confess;
 
 	my $msg; # message sent to the socket
 	
-	if (!$args{'message'})
+    for my $arg (qw( message severity ))
+    {
+        cluck ("Need argument `$arg'"), return unless $args{$arg};
+    }
+	$args{severity} = lc $args{severity};
+	if (($args{severity} ne 'failure')
+		&& ($args{severity} ne 'warning')
+		&& ($args{severity} ne 'okay'))
 	{
-		cluck ("Need argument `message'");
-		return;
-	}
-	if (!$args{'severity'})
-	{
-		cluck ("Need argument `severity'");
-		return;
-	}
-	$args{'severity'} = lc ($args{'severity'});
-	if (($args{'severity'} ne 'failure')
-		&& ($args{'severity'} ne 'warning')
-		&& ($args{'severity'} ne 'okay'))
-	{
-		cluck ("Invalid `severity: " . $args{'severity'});
+		cluck ("Invalid `severity: " . $args{severity});
 		return;
 	}
 
-	if (!$args{'time'})
-	{
-		$args{'time'} = time ();
-	}
+	$args{time} ||= time;
 	
 	$msg = 'PUTNOTIF '
-	. join (' ', map { $_ . '=' . _escape_argument ($args{$_}) } (keys %args))
+	. join (' ', map { $_ . '=' . _escape_argument ($args{$_}) } keys %args)
 	. "\n";
 
 	_debug "-> $msg";
 	print $fh $msg;
 
 	$msg = <$fh>;
-	chomp ($msg);
+	chomp $msg;
 	_debug "<- $msg\n";
 
-	($status, $msg) = split (' ', $msg, 2);
-	return (1) if ($status == 0);
+	($status, $msg) = split / /, $msg, 2;
+	return 1 if $status == 0;
 
-	$obj->{'error'} = $msg;
+	$self->{error} = $msg;
 	return;
 } # putnotif
 
-=item I<$obj>-E<gt>B<flush> (B<timeout> =E<gt> I<$timeout>, B<plugins> =E<gt> [...], B<identifier>  =E<gt> [...]);
+=item I<$self>-E<gt>B<flush> (B<timeout> =E<gt> I<$timeout>, B<plugins> =E<gt> [...], B<identifier>  =E<gt> [...]);
 
 Flush cached data.
 
@@ -549,48 +505,38 @@ are hash references and have the members as outlined in L<VALUE IDENTIFIERS>.
 
 sub flush
 {
-	my $obj  = shift;
+	my $self  = shift;
 	my %args = @_;
 
-	my $fh = $obj->{'sock'} or confess;
+	my $fh = $self->{sock} or confess;
 
 	my $status = 0;
 	my $msg    = "FLUSH";
 
-	if (defined ($args{'timeout'}))
-	{
-		$msg .= " timeout=" . $args{'timeout'};
-	}
+    $msg .= " timeout=$args{timeout}" if defined $args{timeout};
 
-	if ($args{'plugins'})
+	if ($args{plugins})
 	{
-		foreach my $plugin (@{$args{'plugins'}})
+		foreach my $plugin (@{$args{plugins}})
 		{
 			$msg .= " plugin=" . $plugin;
 		}
 	}
 
-	if ($args{'identifier'})
+	if ($args{identifier})
 	{
-		for (@{$args{'identifier'}})
+		for my $identifier (@{$args{identifier}})
 		{
-			my $identifier = $_;
 			my $ident_str;
 
 			if (ref ($identifier) ne 'HASH')
 			{
 				cluck ("The argument of the `identifier' "
-					. "option must be an array reference "
-					. "of hash references.");
+					. "option must be an array of hashrefs.");
 				return;
 			}
 
-			$ident_str = _create_identifier ($identifier);
-			if (!$ident_str)
-			{
-				return;
-			}
-
+			$ident_str = _create_identifier ($identifier) or return;
 			$msg .= ' identifier=' . _escape_argument ($ident_str);
 		}
 	}
@@ -604,24 +550,19 @@ sub flush
 	chomp ($msg);
 	_debug "<- $msg\n";
 
-	($status, $msg) = split (' ', $msg, 2);
-	return (1) if ($status == 0);
+	($status, $msg) = split / /, $msg, 2;
+	return 1 if $status == 0;
 
-	$obj->{'error'} = $msg;
+	$self->{error} = $msg;
 	return;
 }
 
 sub error
 {
-	my $obj = shift;
-	if ($obj->{'error'})
-	{
-		return ($obj->{'error'});
-	}
-	return;
+	return shift->{error};
 }
 
-=item I<$obj>-E<gt>destroy ();
+=item I<$self>-E<gt>destroy ();
 
 Closes the socket before the object is destroyed. This function is also
 automatically called then the object goes out of scope.
@@ -632,18 +573,18 @@ automatically called then the object goes out of scope.
 
 sub destroy
 {
-	my $obj = shift;
-	if ($obj->{'sock'})
+	my $self = shift;
+	if ($self->{sock})
 	{
-		close ($obj->{'sock'});
-		delete ($obj->{'sock'});
+		close $self->{sock};
+		delete $self->{sock};
 	}
 }
 
 sub DESTROY
 {
-	my $obj = shift;
-	$obj->destroy ();
+	my $self = shift;
+	$self->destroy ();
 }
 
 =head1 SEE ALSO
@@ -657,5 +598,5 @@ L<collectd-unixsock(5)>
 Florian octo Forster E<lt>octo@collectd.orgE<gt>
 
 =cut
-
+1;
 # vim: set fdm=marker :
