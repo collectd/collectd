@@ -461,10 +461,11 @@ static int read_acpi_callback (char const *dir, /* {{{ */
 {
 	int *battery_index = user_data;
 
-	gauge_t current = NAN;
+	gauge_t power = NAN;
 	gauge_t voltage = NAN;
 	gauge_t charge  = NAN;
 	_Bool charging = 0;
+	_Bool is_current = 0;
 
 	char const *plugin_instance;
 	char filename[PATH_MAX];
@@ -510,14 +511,18 @@ static int read_acpi_callback (char const *dir, /* {{{ */
 			continue;
 		}
 
-		/* FIXME: The unit of "present rate" depends on the battery.
-		 * Modern batteries export watts, not amperes, i.e. it's not a
-		 * current anymore. We should check if the fourth column
-		 * contains "mA" and only use a current then. Otherwise, export
-		 * a power. */
+		/* The unit of "present rate" depends on the battery. Modern
+		 * batteries export power (watts), older batteries (used to)
+		 * export current (amperes). We check the fourth column and try
+		 * to find old batteries this way. */
 		if ((strcmp (fields[0], "present") == 0)
 				&& (strcmp (fields[1], "rate:") == 0))
-			strtogauge (fields[2], &current);
+		{
+			strtogauge (fields[2], &power);
+
+			if ((numfields >= 4) && (strcmp ("mA", fields[3]) == 0))
+				is_current = 1;
+		}
 		else if ((strcmp (fields[0], "remaining") == 0)
 				&& (strcmp (fields[1], "capacity:") == 0))
 			strtogauge (fields[2], &charge);
@@ -529,7 +534,7 @@ static int read_acpi_callback (char const *dir, /* {{{ */
 	fclose (fh);
 
 	if (!charging)
-		current *= -1.0;
+		power *= -1.0;
 
 	/* FIXME: This is a dirty hack for backwards compatibility: The battery
 	 * plugin, for a very long time, has had the plugin_instance
@@ -540,7 +545,9 @@ static int read_acpi_callback (char const *dir, /* {{{ */
 	(*battery_index)++;
 
 	battery_submit (plugin_instance, "charge", charge / 1000.0);
-	battery_submit (plugin_instance, "current", current / 1000.0);
+	battery_submit (plugin_instance,
+			is_current ? "current" : "power",
+			power / 1000.0);
 	battery_submit (plugin_instance, "voltage", voltage / 1000.0);
 
 	return 0;
