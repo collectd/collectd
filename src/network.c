@@ -2003,7 +2003,7 @@ static sockent_t *sockent_create (int type) /* {{{ */
 {
 	sockent_t *se;
 
-	if ((type != SOCKENT_TYPE_CLIENT) || (type != SOCKENT_TYPE_SERVER))
+	if ((type != SOCKENT_TYPE_CLIENT) && (type != SOCKENT_TYPE_SERVER))
 		return (NULL);
 
 	se = malloc (sizeof (*se));
