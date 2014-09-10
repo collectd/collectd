@@ -60,7 +60,7 @@ use warnings;
 
 use Carp (qw(cluck confess));
 use IO::Socket::UNIX;
-use Regexp::Common (qw(number));
+use Scalar::Util qw( looks_like_number );
 
 our $Debug = 0;
 
@@ -240,7 +240,7 @@ sub getval # {{{
 		{
 			$ret->{$1} = undef;
 		}
-		elsif ($entry =~ m/^(\w+)=($RE{num}{real})$/)
+		elsif ($entry =~ m/^(\w+)=(.*)$/ and looks_like_number($2))
 		{
 			$ret->{$1} = 0.0 + $2;
 		}
