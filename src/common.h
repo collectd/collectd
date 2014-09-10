@@ -347,6 +347,10 @@ int service_name_to_port_number (const char *service_name);
  * failure. If failure is returned, ret_value is not touched. */
 int strtoderive (const char *string, derive_t *ret_value);
 
+/** Parse a string to a gauge_t value. Returns zero on success or non-zero on
+ * failure. If failure is returned, ret_value is not touched. */
+int strtogauge (const char *string, gauge_t *ret_value);
+
 int strarray_add (char ***ret_array, size_t *ret_array_len, char const *str);
 void strarray_free (char **array, size_t array_len);
 
