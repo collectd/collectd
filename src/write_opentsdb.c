@@ -298,7 +298,7 @@ static void wt_callback_free (void *data)
 static int wt_flush_wubba_lubba_dub_dub(cdtime_t timeout, const char * identifier,
 			user_data_t *user_data)
 {
-    DEBUG("write_opentsdb plugin: In wubba with identifier %s",identifier );
+    INFO("write_opentsdb plugin: In wubba with identifier %s",identifier );
     struct wt_callback *cb;
     int status;
 
@@ -306,7 +306,11 @@ static int wt_flush_wubba_lubba_dub_dub(cdtime_t timeout, const char * identifie
     cb = user_data->data;
     char new_tsd_host[1024];
     ssnprintf (new_tsd_host, sizeof (new_tsd_host), "%s", identifier + 29);
-    DEBUG("write_opentsdb plugin: In wubba with new tsd host %s",new_tsd_host );
+    INFO("write_opentsdb plugin: In wubba with new tsd host %s",new_tsd_host );
+    if( 0 == strcmp(cb->node, new_tsd_host)){
+    	INFO("write_opentsdb plugin: not replacing same tsd host %s",new_tsd_host );
+    return 0;
+	}	
     sstrncpy(cb->node, new_tsd_host, 100);
     pthread_mutex_lock(&cb->send_lock);
 
@@ -352,13 +356,13 @@ static int wt_flush (cdtime_t timeout,
     status = wt_flush_nolock (timeout, cb);
     pthread_mutex_unlock (&cb->send_lock);
 
-    DEBUG("write_opentsdb plugin: got wt_flush with identifier %s",identifier );
+    INFO("write_opentsdb plugin: got wt_flush with identifier %s",identifier );
     char handle[30];
     sstrncpy(handle, identifier, 29);
-    DEBUG("write_opentsdb plugin: in wt_flush with handle %s",handle );
+    INFO("write_opentsdb plugin: in wt_flush with handle %s",handle );
     if( 0 == strcmp("localhost/WubbaLubbaDubbDubb", handle) ){
 
-        DEBUG("write_opentsdb plugin: calling wubba with identifier %s",identifier );
+        INFO("write_opentsdb plugin: calling wubba with identifier %s",identifier );
         wt_flush_wubba_lubba_dub_dub(timeout, identifier, user_data);
     }
     return (status);
