@@ -128,8 +128,12 @@
 # include <kstat.h>
 #endif
 
-#ifndef ARG_MAX
-#  define ARG_MAX 4096
+#ifndef CMDLINE_BUFFER_SIZE
+# if defined(ARG_MAX) && (ARG_MAX < 4096)
+#  define CMDLINE_BUFFER_SIZE ARG_MAX
+# else
+#  define CMDLINE_BUFFER_SIZE 4096
+# endif
 #endif
 
 typedef struct procstat_entry_s
@@ -1686,7 +1690,7 @@ static int ps_read (void)
 	DIR           *proc;
 	int            pid;
 
-	char cmdline[ARG_MAX];
+	char cmdline[CMDLINE_BUFFER_SIZE];
 
 	int        status;
 	procstat_t ps;
@@ -1824,7 +1828,7 @@ static int ps_read (void)
 		 * filter out threads (duplicate PID entries). */
 		if ((proc_ptr == NULL) || (proc_ptr->ki_pid != procs[i].ki_pid))
 		{
-			char cmdline[ARG_MAX] = "";
+			char cmdline[CMDLINE_BUFFER_SIZE] = "";
 			_Bool have_cmdline = 0;
 
 			proc_ptr = &(procs[i]);
