@@ -242,6 +242,15 @@ collectd_LDADD += "-dlopen" battery.la
 collectd_DEPENDENCIES += battery.la
 endif
 
+if BUILD_PLUGIN_SYSFSBATTERY
+pkglib_LTLIBRARIES += sysfsbattery.la
+sysfsbattery_la_SOURCES = sysfsbattery.c
+sysfsbattery_la_LDFLAGS = -module -avoid-version
+sysfsbattery_la_LIBADD =
+collectd_LDADD += "-dlopen" sysfsbattery.la
+collectd_DEPENDENCIES += sysfsbattery.la
+endif
+
 if BUILD_PLUGIN_BIND
 pkglib_LTLIBRARIES += bind.la
 bind_la_SOURCES = bind.c

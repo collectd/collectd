@@ -97,6 +97,7 @@
 #@BUILD_PLUGIN_ASCENT_TRUE@LoadPlugin ascent
 #@BUILD_PLUGIN_BAROMETER_TRUE@LoadPlugin barometer
 #@BUILD_PLUGIN_BATTERY_TRUE@LoadPlugin battery
+#@BUILD_PLUGIN_SYSFSBATTERY_TRUE@LoadPlugin sysfsbattery
 #@BUILD_PLUGIN_BIND_TRUE@LoadPlugin bind
 #@BUILD_PLUGIN_CONNTRACK_TRUE@LoadPlugin conntrack
 #@BUILD_PLUGIN_CONTEXTSWITCH_TRUE@LoadPlugin contextswitch
