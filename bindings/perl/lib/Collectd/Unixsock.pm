@@ -146,6 +146,54 @@ sub _escape_argument
 	return "\"$_\"";
 }
 
+# Send a command on a socket, including any required argument escaping.
+# Return a single line of result.
+sub _socket_command {
+	my ($self, $command, $args) = @_;
+
+	my $fh = $self->{sock} or confess ('object has no filehandle');
+
+    if($args) {
+        my $identifier = _create_identifier ($args) or return;
+	    $command .= ' ' . _escape_argument ($identifier) . "\n";
+    } else {
+        $command .= "\n";
+    }
+	_debug "-> $command";
+	$fh->print($command);
+
+	my $response = $fh->getline;
+	chomp $response;
+	_debug "<- $response\n";
+    return $response;
+}
+
+# Read any remaining results from a socket and pass them to
+# a callback for caller-defined mangling.
+sub _socket_chat
+{
+	my ($self, $msg, $callback, $cbdata) = @_;
+	my ($nresults, $ret);
+	my $fh = $self->{sock} or confess ('object has no filehandle');
+
+	($nresults, $msg) = split / /, $msg, 2;
+	if ($nresults <= 0)
+	{
+		$self->{error} = $msg;
+		return;
+	}
+
+	for (1 .. $nresults)
+	{
+		my $entry = $fh->getline;
+		chomp $entry;
+		_debug "<- $entry\n";
+        $callback->($entry, $cbdata);
+	}
+	return $cbdata;
+}
+
+
 =head1 PUBLIC METHODS
 
 =over 4
@@ -184,45 +232,16 @@ sub getval # {{{
 {
 	my $self = shift;
 	my %args = @_;
+	my $ret = {};
 
-	my ($status, $msg, $identifier, $ret);
-	my $fh = $self->{sock} or confess ('object has no filehandle');
-
-	$ret = {};
-
-	$identifier = _create_identifier (\%args) or return;
-
-	$msg = 'GETVAL ' . _escape_argument ($identifier) . "\n";
-	_debug "-> $msg";
-	print $fh $msg;
-
-	$msg = <$fh>;
-	chomp ($msg);
-	_debug "<- $msg\n";
-
-	($status, $msg) = split / /, $msg, 2;
-	if ($status <= 0)
-	{
-		$self->{error} = $msg;
-		return;
-	}
-
-	for (1 .. $status)
-	{
-		my $entry = <$fh>;
-		chomp $entry;
-		_debug "<- $entry\n";
-
-		if ($entry =~ m/^(\w+)=NaN$/)
-		{
-			$ret->{$1} = undef;
-		}
-		elsif ($entry =~ m/^(\w+)=(.*)$/ and looks_like_number($2))
-		{
-			$ret->{$1} = 0.0 + $2;
-		}
-	}
-
+    my $msg = $self->_socket_command('GETVAL', \%args) or return;
+    $self->_socket_chat($msg, sub {
+            local $_ = shift;
+            my $ret = shift;
+            /^(\w+)=NaN$/ and $ret->{$1} = undef, return;
+            /^(\w+)=(.*)$/ and looks_like_number($2) and $ret->{$1} = 0 + $2, return;
+        }, $ret
+    );
 	return $ret;
 } # }}} sub getval
 
@@ -237,45 +256,18 @@ sub getthreshold # {{{
 {
 	my $self = shift;
 	my %args = @_;
+	my $ret = {};
 
-	my ($status, $msg, $identifier, $ret);
-	my $fh = $self->{sock} or confess ('object has no filehandle');
-
-	$ret = {};
-
-	$identifier = _create_identifier (\%args) or return;
-
-	$msg = 'GETTHRESHOLD ' . _escape_argument ($identifier) . "\n";
-	_debug "-> $msg";
-	print $fh $msg;
-
-	$msg = <$fh>;
-	chomp ($msg);
-	_debug "<- $msg\n";
-
-	($status, $msg) = split (' ', $msg, 2);
-	if ($status <= 0)
-	{
-		$self->{error} = $msg;
-		return;
-	}
-
-	for (1 .. $status)
-	{
-		my $entry = <$fh>;
-		chomp ($entry);
-		_debug "<- $entry\n";
-
-		if ($entry =~ m/^([^:]+):\s*(\S.*)$/)
-		{
-			my $key = $1;
-			my $value = $2;
-
-			$key =~ s/(?:^\s+|\s$)//;
-			$ret->{$key} = $value;
-		}
-	}
-
+    my $msg = $self->_socket_command('GETTHRESHOLD', \%args) or return;
+    $self->_socket_chat($msg, sub {
+            local $_ = shift;
+            my $ret = shift;
+		    /^\s*([^:]+):\s*(.*)/ and do {
+			    $1 =~ s/\s*$//;
+			    $ret->{$1} = $2;
+		    };
+        }, $ret
+    );
 	return $ret;
 } # }}} sub getthreshold
 
@@ -338,7 +330,7 @@ sub putval
 	. $interval
 	. ' ' . _escape_argument ($values) . "\n";
 	_debug "-> $msg";
-	print $fh $msg;
+	$fh->print($msg);
 
 	$msg = <$fh>;
 	chomp $msg;
@@ -362,33 +354,27 @@ member of each hash holds the epoch value of the last update of that value.
 sub listval
 {
 	my $self = shift;
-	my ($msg, $status);
+	my $nresults;
 	my @ret;
 	my $fh = $self->{sock} or confess;
 
-	_debug "LISTVAL\n";
-	print $fh "LISTVAL\n";
+    my $msg = $self->_socket_command('LISTVAL') or return;
+	($nresults, $msg) = split / /, $msg, 2;
 
-	$msg = <$fh>;
-	chomp ($msg);
-	_debug "<- $msg\n";
-	($status, $msg) = split / /, $msg, 2;
-	if ($status < 0)
+    # This could use _socket_chat() but doesn't for speed reasons
+	if ($nresults < 0)
 	{
 		$self->{error} = $msg;
 		return;
 	}
 
-	for (1 .. $status)
+	for (1 .. $nresults)
 	{
-		my $time;
-		my $ident;
-
 		$msg = <$fh>;
-		chomp ($msg);
+		chomp $msg;
 		_debug "<- $msg\n";
 
-		($time, $ident) = split / /, $msg, 2;
+		my ($time, $ident) = split / /, $msg, 2;
 
 		$ident = _parse_identifier ($ident);
 		$ident->{time} = int $time;
@@ -462,7 +448,7 @@ sub putnotif
 	. "\n";
 
 	_debug "-> $msg";
-	print $fh $msg;
+	$fh->print($msg);
 
 	$msg = <$fh>;
 	chomp $msg;
@@ -544,7 +530,7 @@ sub flush
 	$msg .= "\n";
 
 	_debug "-> $msg";
-	print $fh $msg;
+	$fh->print($msg);
 
 	$msg = <$fh>;
 	chomp ($msg);
