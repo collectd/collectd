@@ -34,6 +34,9 @@ Amit Gupta <amit.gupta221 at gmail.com>
 Andreas Henriksson <andreas at fatal.se>
  - libmnl support in the netlink plugin.
 
+Andy Parkins <andyp at fussylogic.co.uk>
+ - battery plugin: sysfs code.
+
 Anthony Dewhurst <dewhurst at gmail.com>
  - zfs_arc plugin.
 
