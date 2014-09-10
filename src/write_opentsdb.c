@@ -130,6 +130,10 @@ static int wt_send_buffer (struct wt_callback *cb)
     ssize_t status = 0;
 
     status = swrite (cb->sock_fd, cb->send_buf, strlen (cb->send_buf));
+    DEBUG ("write_opentsdb plugin: wt_send_buffer %s"
+            "returned status %d", cb->send_buf,
+            (int)status);
+
     if (status < 0)
     {
         const char *protocol = cb->protocol ? cb->protocol : WG_DEFAULT_PROTOCOL;
