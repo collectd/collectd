@@ -981,6 +981,23 @@ Or you can figure it out from the path of the output data files.
 
 =back
 
+=head2 Plugin C<battery>
+
+The I<battery plugin> reports the remaining capacity, power and voltage of
+laptop batteries.
+
+=over 4
+
+=item ValuesPercentage B<false>|B<true>
+
+When enabled, charged capacity is reported as a percentage, e.g. "42% capacity
+remaining". Otherwise the capacity is stored as reported by the battery, most
+likely in "Wh". This option does not work with all input methods, in particular
+when only C</proc/pmu> is available on an old Linux system.
+Defaults to B<false>.
+
+=back
+
 =head2 Plugin C<bind>
 
 Starting with BIND 9.5.0, the most widely used DNS server software provides

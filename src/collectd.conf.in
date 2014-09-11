@@ -280,6 +280,10 @@
 #   TemperatureSensor "myserver/onewire-F10FCA000800/temperature"
 #</Plugin>
 
+#<Plugin "battery">
+#  ValuesPercentage false
+#</Plugin>
+
 #<Plugin "bind">
 #  URL "http://localhost:8053/"
 #  ParseTime       false

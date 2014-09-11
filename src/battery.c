@@ -70,8 +70,10 @@
 # define SYSFS_PATH "/sys/class/power_supply"
 #endif /* KERNEL_LINUX */
 
-static void battery_submit (char const *plugin_instance, /* {{{ */
-		const char *type, gauge_t value)
+static _Bool report_percent = 0;
+
+static void battery_submit2 (char const *plugin_instance, /* {{{ */
+		char const *type, char const *type_instance, gauge_t value)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
@@ -84,8 +86,16 @@ static void battery_submit (char const *plugin_instance, /* {{{ */
 	sstrncpy (vl.plugin, "battery", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, type, sizeof (vl.type));
+	if (type_instance != NULL)
+		sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
+} /* }}} void battery_submit2 */
+
+static void battery_submit (char const *plugin_instance, /* {{{ */
+		char const *type, gauge_t value)
+{
+	battery_submit2 (plugin_instance, type, NULL, value);
 } /* }}} void battery_submit */
 
 #if HAVE_IOKIT_PS_IOPOWERSOURCES_H || HAVE_IOKIT_IOKITLIB_H
@@ -262,6 +272,7 @@ static void get_via_generic_iokit (double *ret_charge, /* {{{ */
 		{
 			bat_info_dict = (CFDictionaryRef) CFArrayGetValueAtIndex (bat_info_arry, bat_info_arry_pos);
 
+			/* Design capacity available in "AbsoluteMaxCapacity" */
 			if (*ret_charge == INVALID_VALUE)
 			{
 				temp_double = dict_get_double (bat_info_dict,
@@ -296,10 +307,12 @@ static void get_via_generic_iokit (double *ret_charge, /* {{{ */
 
 static int battery_read (void) /* {{{ */
 {
-	double charge  = INVALID_VALUE; /* Current charge in Ah */
 	double current = INVALID_VALUE; /* Current in A */
 	double voltage = INVALID_VALUE; /* Voltage in V */
 
+	/* We only get the charged capacity as a percentage from
+	 * IOPowerSources. IOKit, on the other hand, only reports the full
+	 * capacity. We use the two to calculate the current charged capacity. */
 	double charge_rel = INVALID_VALUE; /* Current charge in percent */
 	double charge_abs = INVALID_VALUE; /* Total capacity */
 
@@ -310,11 +323,13 @@ static int battery_read (void) /* {{{ */
 	get_via_generic_iokit (&charge_abs, &current, &voltage);
 #endif
 
-	if ((charge_rel != INVALID_VALUE) && (charge_abs != INVALID_VALUE))
-		charge = charge_abs * charge_rel / 100.0;
-
-	if (charge != INVALID_VALUE)
-		battery_submit ("0", "charge", charge);
+	if (charge_rel != INVALID_VALUE)
+	{
+		if (report_percent)
+			battery_submit2 ("0", "percent", "charged", charge_rel);
+		else if (charge_abs != INVALID_VALUE)
+			battery_submit ("0", "charge", charge_abs * charge_rel / 100.0);
+	}
 	if (current != INVALID_VALUE)
 		battery_submit ("0", "current", current);
 	if (voltage != INVALID_VALUE)
@@ -418,15 +433,28 @@ static int read_sysfs_callback (char const *dir, /* {{{ */
 	plugin_instance = (*battery_index == 0) ? "0" : power_supply;
 	(*battery_index)++;
 
-	if (sysfs_file_to_gauge (dir, power_supply, "energy_now", &v) == 0)
+	if (report_percent)
+	{
+		gauge_t now = NAN;
+		gauge_t max = NAN;
+
+		if ((sysfs_file_to_gauge (dir, power_supply, "energy_now", &now) == 0)
+				&& (sysfs_file_to_gauge (dir, power_supply, "energy_full", &max) == 0))
+		{
+			v = 100.0 * now / max;
+			battery_submit2 (plugin_instance, "percent", "charged", v);
+		}
+	}
+	else if (sysfs_file_to_gauge (dir, power_supply, "energy_now", &v) == 0)
 		battery_submit (plugin_instance, "charge", v / 1000000.0);
+
 	if (sysfs_file_to_gauge (dir, power_supply, "power_now", &v) == 0)
 	{
 		if (discharging)
-			battery_submit (plugin_instance, "power", v / -1000000.0);
-		else
-			battery_submit (plugin_instance, "power", v / 1000000.0);
+			v *= -1.0;
+		battery_submit (plugin_instance, "power", v / 1000000.0);
 	}
+
 	if (sysfs_file_to_gauge (dir, power_supply, "voltage_now", &v) == 0)
 		battery_submit (plugin_instance, "voltage", v / 1000000.0);
 #if 0
@@ -454,6 +482,43 @@ static int read_sysfs (void) /* {{{ */
 			/* include hidden */ 0);
 	return (status);
 } /* }}} int read_sysfs */
+
+static int read_acpi_full_capacity (char const *dir, /* {{{ */
+		char const *power_supply,
+		gauge_t *ret_capacity)
+{
+	char filename[PATH_MAX];
+	char buffer[1024];
+
+	FILE *fh;
+
+	ssnprintf (filename, sizeof (filename), "%s/%s/info", dir, power_supply);
+	fh = fopen (filename, "r");
+	if ((fh = fopen (filename, "r")) == NULL)
+		return (errno);
+
+	/* last full capacity:      40090 mWh */
+	while (fgets (buffer, sizeof (buffer), fh) != NULL)
+	{
+		char *fields[8];
+		int numfields;
+		int status;
+
+		if (strncmp ("last full capacity:", buffer, strlen ("last full capacity:")) != 0)
+			continue;
+
+		numfields = strsplit (buffer, fields, STATIC_ARRAY_SIZE (fields));
+		if (numfields < 5)
+			continue;
+
+		status = strtogauge (fields[3], ret_capacity);
+		fclose (fh);
+		return (status);
+	}
+
+	fclose (fh);
+	return (ENOENT);
+} /* }}} int read_acpi_full_capacity */
 
 static int read_acpi_callback (char const *dir, /* {{{ */
 		char const *power_supply,
@@ -544,7 +609,21 @@ static int read_acpi_callback (char const *dir, /* {{{ */
 	plugin_instance = (*battery_index == 0) ? "0" : power_supply;
 	(*battery_index)++;
 
-	battery_submit (plugin_instance, "charge", charge / 1000.0);
+	if (report_percent)
+	{
+		gauge_t full_capacity;
+		int status;
+
+		status = read_acpi_full_capacity (dir, power_supply, &full_capacity);
+		if (status == 0)
+			battery_submit2 (plugin_instance, "percent", "charged",
+					100.0 * charge / full_capacity);
+	}
+	else
+	{
+		battery_submit (plugin_instance, "charge", charge / 1000.0);
+	}
+
 	battery_submit (plugin_instance,
 			is_current ? "current" : "power",
 			power / 1000.0);
@@ -656,7 +735,27 @@ static int battery_read (void) /* {{{ */
 } /* }}} int battery_read */
 #endif /* KERNEL_LINUX */
 
+static int battery_config (oconfig_item_t *ci)
+{
+	int i;
+
+	for (i = 0; i < ci->children_num; i++)
+	{
+		oconfig_item_t *child = ci->children + i;
+
+		if (strcasecmp ("ValuesPercentage", child->key) == 0)
+			cf_util_get_boolean (child, &report_percent);
+		else
+			WARNING ("battery plugin: Ignoring unknown "
+					"configuration option \"%s\".",
+					child->key);
+	}
+
+	return (0);
+} /* }}} int battery_config */
+
 void module_register (void)
 {
+	plugin_register_complex_config ("battery", battery_config);
 	plugin_register_read ("battery", battery_read);
 } /* void module_register */
