@@ -58,8 +58,6 @@
 # error "No applicable input method."
 #endif
 
-#define INVALID_VALUE 47841.29
-
 #if HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H
 	/* No global variables */
 /* #endif HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H */
@@ -67,10 +65,13 @@
 #elif KERNEL_LINUX
 # define PROC_PMU_PATH_FORMAT "/proc/pmu/battery_%i"
 # define PROC_ACPI_PATH "/proc/acpi/battery"
+# define PROC_ACPI_FACTOR 0.001
 # define SYSFS_PATH "/sys/class/power_supply"
+# define SYSFS_FACTOR 0.000001
 #endif /* KERNEL_LINUX */
 
 static _Bool report_percent = 0;
+static _Bool report_degraded = 0;
 
 static void battery_submit2 (char const *plugin_instance, /* {{{ */
 		char const *type, char const *type_instance, gauge_t value)
@@ -98,6 +99,49 @@ static void battery_submit (char const *plugin_instance, /* {{{ */
 	battery_submit2 (plugin_instance, type, NULL, value);
 } /* }}} void battery_submit */
 
+static void submit_capacity (char const *plugin_instance, /* {{{ */
+		gauge_t capacity_charged,
+		gauge_t capacity_full,
+		gauge_t capacity_design)
+{
+	if (report_percent && (capacity_charged > capacity_full))
+		return;
+	if (report_degraded && (capacity_full > capacity_design))
+		return;
+
+	if (report_percent)
+	{
+		gauge_t capacity_max;
+
+		if (report_degraded)
+			capacity_max = capacity_design;
+		else
+			capacity_max = capacity_full;
+
+		battery_submit2 (plugin_instance, "percent", "charged",
+				100.0 * capacity_charged / capacity_max);
+		battery_submit2 (plugin_instance, "percent", "discharged",
+				100.0 * (capacity_full - capacity_charged) / capacity_max);
+
+		if (report_degraded)
+			battery_submit2 (plugin_instance, "percent", "degraded",
+					100.0 * (capacity_design - capacity_full) / capacity_max);
+	}
+	else if (report_degraded) /* && !report_percent */
+	{
+		battery_submit2 (plugin_instance, "capacity", "charged",
+				capacity_charged);
+		battery_submit2 (plugin_instance, "capacity", "discharged",
+				(capacity_full - capacity_charged));
+		battery_submit2 (plugin_instance, "capacity", "degraded",
+				(capacity_design - capacity_full));
+	}
+	else /* !report_percent && !report_degraded */
+	{
+		battery_submit (plugin_instance, "capacity", capacity_charged);
+	}
+} /* }}} void submit_capacity */
+
 #if HAVE_IOKIT_PS_IOPOWERSOURCES_H || HAVE_IOKIT_IOKITLIB_H
 static double dict_get_double (CFDictionaryRef dict, char *key_string) /* {{{ */
 {
@@ -111,14 +155,14 @@ static double dict_get_double (CFDictionaryRef dict, char *key_string) /* {{{ */
 	if (key_obj == NULL)
 	{
 		DEBUG ("CFStringCreateWithCString (%s) failed.\n", key_string);
-		return (INVALID_VALUE);
+		return (NAN);
 	}
 
 	if ((val_obj = CFDictionaryGetValue (dict, key_obj)) == NULL)
 	{
 		DEBUG ("CFDictionaryGetValue (%s) failed.", key_string);
 		CFRelease (key_obj);
-		return (INVALID_VALUE);
+		return (NAN);
 	}
 	CFRelease (key_obj);
 
@@ -141,7 +185,7 @@ static double dict_get_double (CFDictionaryRef dict, char *key_string) /* {{{ */
 	else
 	{
 		DEBUG ("CFGetTypeID (val_obj) = %i", (int) CFGetTypeID (val_obj));
-		return (INVALID_VALUE);
+		return (NAN);
 	}
 
 	return (val_double);
@@ -186,30 +230,30 @@ static void get_via_io_power_sources (double *ret_charge, /* {{{ */
 
 		/* FIXME: Check if this is really an internal battery */
 
-		if (*ret_charge == INVALID_VALUE)
+		if (isnan (*ret_charge))
 		{
 			/* This is the charge in percent. */
 			temp_double = dict_get_double (ps_dict,
 					kIOPSCurrentCapacityKey);
-			if ((temp_double != INVALID_VALUE)
+			if (!isnan ((temp_double))
 					&& (temp_double >= 0.0)
 					&& (temp_double <= 100.0))
 				*ret_charge = temp_double;
 		}
 
-		if (*ret_current == INVALID_VALUE)
+		if (isnan (*ret_current))
 		{
 			temp_double = dict_get_double (ps_dict,
 					kIOPSCurrentKey);
-			if (temp_double != INVALID_VALUE)
+			if (!isnan (temp_double))
 				*ret_current = temp_double / 1000.0;
 		}
 
-		if (*ret_voltage == INVALID_VALUE)
+		if (isnan (*ret_voltage))
 		{
 			temp_double = dict_get_double (ps_dict,
 					kIOPSVoltageKey);
-			if (temp_double != INVALID_VALUE)
+			if (!isnan (temp_double))
 				*ret_voltage = temp_double / 1000.0;
 		}
 	}
@@ -220,7 +264,8 @@ static void get_via_io_power_sources (double *ret_charge, /* {{{ */
 # endif /* HAVE_IOKIT_PS_IOPOWERSOURCES_H */
 
 # if HAVE_IOKIT_IOKITLIB_H
-static void get_via_generic_iokit (double *ret_charge, /* {{{ */
+static void get_via_generic_iokit (double *ret_capacity_full, /* {{{ */
+		double *ret_capacity_design,
 		double *ret_current,
 		double *ret_voltage)
 {
@@ -272,29 +317,28 @@ static void get_via_generic_iokit (double *ret_charge, /* {{{ */
 		{
 			bat_info_dict = (CFDictionaryRef) CFArrayGetValueAtIndex (bat_info_arry, bat_info_arry_pos);
 
-			/* Design capacity available in "AbsoluteMaxCapacity" */
-			if (*ret_charge == INVALID_VALUE)
+			if (isnan (*ret_capacity_full))
 			{
-				temp_double = dict_get_double (bat_info_dict,
-						"Capacity");
-				if (temp_double != INVALID_VALUE)
-					*ret_charge = temp_double / 1000.0;
+				temp_double = dict_get_double (bat_info_dict, "Capacity");
+				*ret_capacity_full = temp_double / 1000.0;
 			}
 
-			if (*ret_current == INVALID_VALUE)
+			if (isnan (*ret_capacity_design))
 			{
-				temp_double = dict_get_double (bat_info_dict,
-						"Current");
-				if (temp_double != INVALID_VALUE)
-					*ret_current = temp_double / 1000.0;
+				temp_double = dict_get_double (bat_info_dict, "AbsoluteMaxCapacity");
+				*ret_capacity_design = temp_double / 1000.0;
 			}
 
-			if (*ret_voltage == INVALID_VALUE)
+			if (isnan (*ret_current))
 			{
-				temp_double = dict_get_double (bat_info_dict,
-						"Voltage");
-				if (temp_double != INVALID_VALUE)
-					*ret_voltage = temp_double / 1000.0;
+				temp_double = dict_get_double (bat_info_dict, "Current");
+				*ret_current = temp_double / 1000.0;
+			}
+
+			if (isnan (*ret_voltage))
+			{
+				temp_double = dict_get_double (bat_info_dict, "Voltage");
+				*ret_voltage = temp_double / 1000.0;
 			}
 		}
 		
@@ -307,32 +351,30 @@ static void get_via_generic_iokit (double *ret_charge, /* {{{ */
 
 static int battery_read (void) /* {{{ */
 {
-	double current = INVALID_VALUE; /* Current in A */
-	double voltage = INVALID_VALUE; /* Voltage in V */
+	gauge_t current = NAN; /* Current in A */
+	gauge_t voltage = NAN; /* Voltage in V */
 
 	/* We only get the charged capacity as a percentage from
 	 * IOPowerSources. IOKit, on the other hand, only reports the full
 	 * capacity. We use the two to calculate the current charged capacity. */
-	double charge_rel = INVALID_VALUE; /* Current charge in percent */
-	double charge_abs = INVALID_VALUE; /* Total capacity */
+	gauge_t charge_rel = NAN; /* Current charge in percent */
+	gauge_t capacity_charged = NAN; /* Charged capacity */
+	gauge_t capacity_full = NAN; /* Total capacity */
+	gauge_t capacity_design = NAN; /* Full design capacity */
 
 #if HAVE_IOKIT_PS_IOPOWERSOURCES_H
 	get_via_io_power_sources (&charge_rel, &current, &voltage);
 #endif
 #if HAVE_IOKIT_IOKITLIB_H
-	get_via_generic_iokit (&charge_abs, &current, &voltage);
+	get_via_generic_iokit (&capacity_full, &capacity_design, &current, &voltage);
 #endif
 
-	if (charge_rel != INVALID_VALUE)
-	{
-		if (report_percent)
-			battery_submit2 ("0", "percent", "charged", charge_rel);
-		else if (charge_abs != INVALID_VALUE)
-			battery_submit ("0", "charge", charge_abs * charge_rel / 100.0);
-	}
-	if (current != INVALID_VALUE)
+	capacity_charged = charge_rel * capacity_full / 100.0;
+	submit_capacity ("0", capacity_charged, capacity_full, capacity_design);
+
+	if (!isnan (current))
 		battery_submit ("0", "current", current);
-	if (voltage != INVALID_VALUE)
+	if (!isnan (voltage))
 		battery_submit ("0", "voltage", voltage);
 } /* }}} int battery_read */
 /* #endif HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H */
@@ -402,6 +444,34 @@ static int sysfs_file_to_gauge(char const *dir, /* {{{ */
 	return (strtogauge (buffer, ret_value));
 } /* }}} sysfs_file_to_gauge */
 
+static int read_sysfs_capacity (char const *dir, /* {{{ */
+		char const *power_supply,
+		char const *plugin_instance)
+{
+	gauge_t capacity_charged = NAN;
+	gauge_t capacity_full = NAN;
+	gauge_t capacity_design = NAN;
+	int status;
+
+	status = sysfs_file_to_gauge (dir, power_supply, "energy_now", &capacity_charged);
+	if (status != 0)
+		return (status);
+
+	status = sysfs_file_to_gauge (dir, power_supply, "energy_full", &capacity_full);
+	if (status != 0)
+		return (status);
+
+	status = sysfs_file_to_gauge (dir, power_supply, "energy_full_design", &capacity_design);
+	if (status != 0)
+		return (status);
+
+	submit_capacity (plugin_instance,
+			capacity_charged * SYSFS_FACTOR,
+			capacity_full * SYSFS_FACTOR,
+			capacity_design * SYSFS_FACTOR);
+	return (0);
+} /* }}} int read_sysfs_capacity */
+
 static int read_sysfs_callback (char const *dir, /* {{{ */
 		char const *power_supply,
 		void *user_data)
@@ -433,37 +503,20 @@ static int read_sysfs_callback (char const *dir, /* {{{ */
 	plugin_instance = (*battery_index == 0) ? "0" : power_supply;
 	(*battery_index)++;
 
-	if (report_percent)
-	{
-		gauge_t now = NAN;
-		gauge_t max = NAN;
-
-		if ((sysfs_file_to_gauge (dir, power_supply, "energy_now", &now) == 0)
-				&& (sysfs_file_to_gauge (dir, power_supply, "energy_full", &max) == 0))
-		{
-			v = 100.0 * now / max;
-			battery_submit2 (plugin_instance, "percent", "charged", v);
-		}
-	}
-	else if (sysfs_file_to_gauge (dir, power_supply, "energy_now", &v) == 0)
-		battery_submit (plugin_instance, "charge", v / 1000000.0);
+	read_sysfs_capacity (dir, power_supply, plugin_instance);
 
 	if (sysfs_file_to_gauge (dir, power_supply, "power_now", &v) == 0)
 	{
 		if (discharging)
 			v *= -1.0;
-		battery_submit (plugin_instance, "power", v / 1000000.0);
+		battery_submit (plugin_instance, "power", v * SYSFS_FACTOR);
 	}
 
 	if (sysfs_file_to_gauge (dir, power_supply, "voltage_now", &v) == 0)
-		battery_submit (plugin_instance, "voltage", v / 1000000.0);
+		battery_submit (plugin_instance, "voltage", v * SYSFS_FACTOR);
 #if 0
-	if (sysfs_file_to_gauge (dir, power_supply, "energy_full_design", &v) == 0)
-		battery_submit (plugin_instance, "charge", v / 1000000.0);
-	if (sysfs_file_to_gauge (dir, power_supply, "energy_full", &v) == 0)
-		battery_submit (plugin_instance, "charge", v / 1000000.0);
 	if (sysfs_file_to_gauge (dir, power_supply, "voltage_min_design", &v) == 0)
-		battery_submit (plugin_instance, "voltage", v / 1000000.0);
+		battery_submit (plugin_instance, "voltage", v * SYSFS_FACTOR);
 #endif
 
 	return (0);
@@ -485,7 +538,9 @@ static int read_sysfs (void) /* {{{ */
 
 static int read_acpi_full_capacity (char const *dir, /* {{{ */
 		char const *power_supply,
-		gauge_t *ret_capacity)
+		gauge_t *ret_capacity_full,
+		gauge_t *ret_capacity_design)
+
 {
 	char filename[PATH_MAX];
 	char buffer[1024];
@@ -500,24 +555,35 @@ static int read_acpi_full_capacity (char const *dir, /* {{{ */
 	/* last full capacity:      40090 mWh */
 	while (fgets (buffer, sizeof (buffer), fh) != NULL)
 	{
+		gauge_t *value_ptr;
+		int fields_num;
 		char *fields[8];
-		int numfields;
-		int status;
+		int index;
 
-		if (strncmp ("last full capacity:", buffer, strlen ("last full capacity:")) != 0)
+		if (strncmp ("last full capacity:", buffer, strlen ("last full capacity:")) == 0)
+		{
+			value_ptr = ret_capacity_full;
+			index = 3;
+		}
+		else if (strncmp ("design capacity:", buffer, strlen ("design capacity:")) == 0)
+		{
+			value_ptr = ret_capacity_design;
+			index = 2;
+		}
+		else
+		{
+			continue;
+		}
+
+		fields_num = strsplit (buffer, fields, STATIC_ARRAY_SIZE (fields));
+		if (fields_num <= index)
 			continue;
 
-		numfields = strsplit (buffer, fields, STATIC_ARRAY_SIZE (fields));
-		if (numfields < 5)
-			continue;
-
-		status = strtogauge (fields[3], ret_capacity);
-		fclose (fh);
-		return (status);
+		strtogauge (fields[index], value_ptr);
 	}
 
 	fclose (fh);
-	return (ENOENT);
+	return (0);
 } /* }}} int read_acpi_full_capacity */
 
 static int read_acpi_callback (char const *dir, /* {{{ */
@@ -528,7 +594,9 @@ static int read_acpi_callback (char const *dir, /* {{{ */
 
 	gauge_t power = NAN;
 	gauge_t voltage = NAN;
-	gauge_t charge  = NAN;
+	gauge_t capacity_charged = NAN;
+	gauge_t capacity_full = NAN;
+	gauge_t capacity_design = NAN;
 	_Bool charging = 0;
 	_Bool is_current = 0;
 
@@ -590,7 +658,7 @@ static int read_acpi_callback (char const *dir, /* {{{ */
 		}
 		else if ((strcmp (fields[0], "remaining") == 0)
 				&& (strcmp (fields[1], "capacity:") == 0))
-			strtogauge (fields[2], &charge);
+			strtogauge (fields[2], &capacity_charged);
 		else if ((strcmp (fields[0], "present") == 0)
 				&& (strcmp (fields[1], "voltage:") == 0))
 			strtogauge (fields[2], &voltage);
@@ -609,25 +677,17 @@ static int read_acpi_callback (char const *dir, /* {{{ */
 	plugin_instance = (*battery_index == 0) ? "0" : power_supply;
 	(*battery_index)++;
 
-	if (report_percent)
-	{
-		gauge_t full_capacity;
-		int status;
+	read_acpi_full_capacity (dir, power_supply, &capacity_full, &capacity_design);
 
-		status = read_acpi_full_capacity (dir, power_supply, &full_capacity);
-		if (status == 0)
-			battery_submit2 (plugin_instance, "percent", "charged",
-					100.0 * charge / full_capacity);
-	}
-	else
-	{
-		battery_submit (plugin_instance, "charge", charge / 1000.0);
-	}
+	submit_capacity (plugin_instance,
+			capacity_charged * PROC_ACPI_FACTOR,
+			capacity_full * PROC_ACPI_FACTOR,
+			capacity_design * PROC_ACPI_FACTOR);
 
 	battery_submit (plugin_instance,
 			is_current ? "current" : "power",
-			power / 1000.0);
-	battery_submit (plugin_instance, "voltage", voltage / 1000.0);
+			power * PROC_ACPI_FACTOR);
+	battery_submit (plugin_instance, "voltage", voltage * PROC_ACPI_FACTOR);
 
 	return 0;
 } /* }}} int read_acpi_callback */
@@ -745,6 +805,8 @@ static int battery_config (oconfig_item_t *ci)
 
 		if (strcasecmp ("ValuesPercentage", child->key) == 0)
 			cf_util_get_boolean (child, &report_percent);
+		else if (strcasecmp ("ReportDegraded", child->key) == 0)
+			cf_util_get_boolean (child, &report_degraded);
 		else
 			WARNING ("battery plugin: Ignoring unknown "
 					"configuration option \"%s\".",
