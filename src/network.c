@@ -2097,6 +2097,26 @@ static int sockent_init_crypto (sockent_t *se) /* {{{ */
 	return (0);
 } /* }}} int sockent_init_crypto */
 
+static int sockent_client_disconnect (sockent_t *se) /* {{{ */
+{
+	struct sockent_client *client;
+
+	if ((se == NULL) || (se->type != SOCKENT_TYPE_CLIENT))
+		return (EINVAL);
+
+	client = &se->data.client;
+	if (client->fd >= 0) /* connected */
+	{
+		close (client->fd);
+		client->fd = -1;
+	}
+
+	sfree (client->addr);
+	client->addrlen = 0;
+
+	return (0);
+} /* }}} int sockent_client_disconnect */
+
 static int sockent_client_connect (sockent_t *se) /* {{{ */
 {
 	static c_complain_t complaint = C_COMPLAIN_INIT_STATIC;
@@ -2181,26 +2201,6 @@ static int sockent_client_connect (sockent_t *se) /* {{{ */
 		return (-1);
 	return (0);
 } /* }}} int sockent_client_connect */
-
-static int sockent_client_disconnect (sockent_t *se) /* {{{ */
-{
-	struct sockent_client *client;
-
-	if ((se == NULL) || (se->type != SOCKENT_TYPE_CLIENT))
-		return (EINVAL);
-
-	client = &se->data.client;
-	if (client->fd >= 0) /* connected */
-	{
-		close (client->fd);
-		client->fd = -1;
-	}
-
-	sfree (client->addr);
-	client->addrlen = 0;
-
-	return (0);
-} /* }}} int sockent_client_disconnect */
 
 /* Open the file descriptors for a initialized sockent structure. */
 static int sockent_server_listen (sockent_t *se) /* {{{ */
