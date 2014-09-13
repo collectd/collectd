@@ -706,6 +706,7 @@
 #		Username "user"
 #		Password "secret"
 #		Interface "eth0"
+#		ResolveInterval 14400
 @LOAD_PLUGIN_NETWORK@	</Server>
 #	TimeToLive "128"
 #

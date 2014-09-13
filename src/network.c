@@ -117,6 +117,8 @@ struct sockent_client
 	gcry_cipher_hd_t cypher;
 	unsigned char password_hash[32];
 #endif
+	cdtime_t next_resolve_reconnect;
+	cdtime_t resolve_interval;
 };
 
 struct sockent_server
@@ -2031,6 +2033,8 @@ static sockent_t *sockent_create (int type) /* {{{ */
 	{
 		se->data.client.fd = -1;
 		se->data.client.addr = NULL;
+		se->data.client.resolve_interval = 0;
+		se->data.client.next_resolve_reconnect = 0;
 #if HAVE_LIBGCRYPT
 		se->data.client.security_level = SECURITY_LEVEL_NONE;
 		se->data.client.username = NULL;
@@ -2125,12 +2129,22 @@ static int sockent_client_connect (sockent_t *se) /* {{{ */
 	struct addrinfo  ai_hints;
 	struct addrinfo *ai_list = NULL, *ai_ptr;
 	int status;
+	_Bool reconnect = 0;
+	cdtime_t now;
 
 	if ((se == NULL) || (se->type != SOCKENT_TYPE_CLIENT))
 		return (EINVAL);
 
 	client = &se->data.client;
-	if (client->fd >= 0) /* already connected */
+
+	now = cdtime ();
+	if (client->resolve_interval != 0 && client->next_resolve_reconnect < now) {
+		DEBUG("network plugin: Reconnecting socket, resolve_interval = %lf, next_resolve_reconnect = %lf",
+			CDTIME_T_TO_DOUBLE(client->resolve_interval), CDTIME_T_TO_DOUBLE(client->next_resolve_reconnect));
+		reconnect = 1;
+	}
+
+	if (client->fd >= 0 && !reconnect) /* already connected and not stale*/
 		return (0);
 
 	memset (&ai_hints, 0, sizeof (ai_hints));
@@ -2162,6 +2176,9 @@ static int sockent_client_connect (sockent_t *se) /* {{{ */
 
 	for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
 	{
+		if (client->fd >= 0) /* when we reconnect */
+			sockent_client_disconnect(se);
+
 		client->fd = socket (ai_ptr->ai_family,
 				ai_ptr->ai_socktype,
 				ai_ptr->ai_protocol);
@@ -2199,6 +2216,9 @@ static int sockent_client_connect (sockent_t *se) /* {{{ */
 	freeaddrinfo (ai_list);
 	if (client->fd < 0)
 		return (-1);
+
+	if (client->resolve_interval > 0)
+		client->next_resolve_reconnect = now + client->resolve_interval;
 	return (0);
 } /* }}} int sockent_client_connect */
 
@@ -3209,6 +3229,8 @@ static int network_config_add_server (const oconfig_item_t *ci) /* {{{ */
     if (strcasecmp ("Interface", child->key) == 0)
       network_config_set_interface (child,
           &se->interface);
+		else if (strcasecmp ("ResolveInterval", child->key) == 0)
+			cf_util_get_cdtime(child, &se->data.client.resolve_interval);
     else
     {
       WARNING ("network plugin: Option `%s' is not allowed here.",

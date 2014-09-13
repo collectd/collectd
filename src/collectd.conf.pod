@@ -3890,6 +3890,12 @@ behavior is to let the kernel choose the appropriate interface. Be warned
 that the manual selection of an interface for unicast traffic is only
 necessary in rare cases.
 
+=item B<ResolveInterval> I<Seconds>
+
+Sets the interval at which to re-resolve the DNS for the I<Host>. This is
+useful to force a regular DNS lookup to support a high availability setup. If
+not specified, re-resolves are never attempted.
+
 =back
 
 =item B<E<lt>Listen> I<Host> [I<Port>]B<E<gt>>
