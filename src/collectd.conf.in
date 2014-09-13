@@ -282,6 +282,7 @@
 
 #<Plugin "battery">
 #  ValuesPercentage false
+#  ReportDegraded
 #</Plugin>
 
 #<Plugin "bind">
