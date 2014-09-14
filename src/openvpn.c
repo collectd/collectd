@@ -267,7 +267,7 @@ static int multi1_read (char *name, FILE *fh)
 {
 	char buffer[1024];
 	char *fields[10];
-	int  fields_num, read = 0, found_header = 0;
+	int  fields_num, found_header = 0;
 	long long sum_users = 0;
 
 	/* read the file until the "ROUTING TABLE" line is found (no more info after) */
@@ -314,17 +314,15 @@ static int multi1_read (char *name, FILE *fh)
 						atoll (fields[3])); /* "Bytes Sent" */
 			}
 		}
-
-		read = 1;
 	}
+
+	if (ferror (fh))
+		return (0);
 
 	if (collect_user_count)
-	{
 		numusers_submit(name, name, sum_users);
-		read = 1;
-	}
 
-	return (read);
+	return (1);
 } /* int multi1_read */
 
 /* for reading status version 2 */
