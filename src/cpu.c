@@ -642,7 +642,7 @@ static int cpu_read (void)
 		{
 			derives[CPU_SUBMIT_WAIT] = atoll(fields[5]);
 			derives[CPU_SUBMIT_INTERRUPT] = atoll(fields[6]);
-			derives[CPU_SUBMIT_SOFTIRQ] = atoll(fields[6]);
+			derives[CPU_SUBMIT_SOFTIRQ] = atoll(fields[7]);
 
 			if (numfields >= 9)
 				derives[CPU_SUBMIT_STEAL] = atoll(fields[8]);
