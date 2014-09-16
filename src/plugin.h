@@ -318,6 +318,7 @@ int plugin_unregister_data_set (const char *name);
 int plugin_unregister_log (const char *name);
 int plugin_unregister_notification (const char *name);
 
+void plugin_log_available_writers ();
 
 /*
  * NAME
