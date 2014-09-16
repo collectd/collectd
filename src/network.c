@@ -1827,14 +1827,17 @@ static int network_set_interface (const sockent_t *se, const struct addrinfo *ai
 /* #endif HAVE_IF_INDEXTONAME && SO_BINDTODEVICE */
 
 #else
-		WARNING ("network plugin: Cannot set the interface on a unicast "
-			"socket because "
-# if !defined(SO_BINDTODEVICE)
-			"the \"SO_BINDTODEVICE\" socket option "
-# else
-			"the \"if_indextoname\" function "
-# endif
-			"is not available on your system.");
+    # if !defined(SO_BINDTODEVICE)
+                WARNING ("network plugin: Cannot set the interface on a unicast "
+                        "socket because "
+                        "the \"SO_BINDTODEVICE\" socket option "
+                        "is not available on your system.");
+    # else
+                WARNING ("network plugin: Cannot set the interface on a unicast "
+                        "socket because "
+                        "the \"if_indextoname\" function "
+                        "is not available on your system.");
+    # endif
 #endif
 
 	}

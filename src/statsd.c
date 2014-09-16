@@ -440,6 +440,10 @@ static void statsd_network_read (int fd) /* {{{ */
   size_t buffer_size;
   ssize_t status;
 
+#if KERNEL_AIX
+  /* this define doesn't exist on IBM */
+  #define MSG_DONTWAIT MSG_NONBLOCK
+#endif
   status = recv (fd, buffer, sizeof (buffer), /* flags = */ MSG_DONTWAIT);
   if (status < 0)
   {
