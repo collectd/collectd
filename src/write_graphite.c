@@ -83,6 +83,10 @@
 # define WG_SEND_BUF_SIZE 1428
 #endif
 
+#ifndef WG_MIN_RECONNECT_INTERVAL
+# define WG_MIN_RECONNECT_INTERVAL TIME_T_TO_CDTIME_T (1)
+#endif
+
 /*
  * Private variables
  */
@@ -109,6 +113,7 @@ struct wg_callback
 
     pthread_mutex_t send_lock;
     c_complain_t init_complaint;
+    cdtime_t last_connect_time;
 };
 
 
@@ -186,6 +191,7 @@ static int wg_callback_init (struct wg_callback *cb)
     struct addrinfo ai_hints;
     struct addrinfo *ai_list;
     struct addrinfo *ai_ptr;
+    cdtime_t now;
     int status;
 
     const char *node = cb->node ? cb->node : WG_DEFAULT_NODE;
@@ -194,6 +200,13 @@ static int wg_callback_init (struct wg_callback *cb)
 
     if (cb->sock_fd > 0)
         return (0);
+
+    /* Don't try to reconnect too often. By default, one reconnection attempt
+     * is made per second. */
+    now = cdtime ();
+    if ((now - cb->last_connect_time) < WG_MIN_RECONNECT_INTERVAL)
+        return (EAGAIN);
+    cb->last_connect_time = now;
 
     memset (&ai_hints, 0, sizeof (ai_hints));
 #ifdef AI_ADDRCONFIG
