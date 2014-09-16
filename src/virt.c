@@ -1,5 +1,5 @@
 /**
- * collectd - src/libvirt.c
+ * collectd - src/virt.c
  * Copyright (C) 2006-2008  Red Hat Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -33,7 +33,7 @@
 #include <libxml/xpath.h>
 
 /* Plugin name */
-#define PLUGIN_NAME "libvirt"
+#define PLUGIN_NAME "virt"
 
 static const char *config_keys[] = {
     "Connection",
@@ -574,14 +574,14 @@ lv_read (void)
 
         minfo = malloc (VIR_DOMAIN_MEMORY_STAT_NR * sizeof (virDomainMemoryStatStruct));
         if (minfo == NULL) {
-            ERROR ("libvirt plugin: malloc failed.");
+            ERROR ("virt plugin: malloc failed.");
             continue;
         }
 
         status =  virDomainMemoryStats (domains[i], minfo, VIR_DOMAIN_MEMORY_STAT_NR, 0);
 
         if (status < 0) {
-            ERROR ("libvirt plugin: virDomainMemoryStats failed with status %i.",
+            ERROR ("virt plugin: virDomainMemoryStats failed with status %i.",
                     status);
             sfree (minfo);
             continue;

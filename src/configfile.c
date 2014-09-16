@@ -281,6 +281,8 @@ static int dispatch_loadplugin (const oconfig_item_t *ci)
 		return (-1);
 
 	name = ci->values[0].value.string;
+	if (strcmp ("libvirt", name) == 0)
+		name = "virt";
 
 	/* default to the global interval set before loading this plugin */
 	memset (&ctx, 0, sizeof (ctx));
@@ -383,6 +385,15 @@ static int dispatch_block_plugin (oconfig_item_t *ci)
 		return (-1);
 
 	name = ci->values[0].value.string;
+	if (strcmp ("libvirt", name) == 0)
+	{
+		/* TODO(octo): Remove this legacy. */
+		WARNING ("The \"libvirt\" plugin has been renamed to \"virt\" to avoid problems with the build system. "
+				"Your configuration is still using the old name. "
+				"Please change it to use \"virt\" as soon as possible. "
+				"This compatibility code will go away eventually.");
+		name = "virt";
+	}
 
 	if (IS_TRUE (global_option_get ("AutoLoadPlugin")))
 	{

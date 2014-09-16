@@ -860,7 +860,7 @@ and are checked by default depends on the distribution you use.
 
 This plugin reads absolute air pressure using digital barometer sensor MPL115A2
 or MPL3115 from Freescale (sensor attached to any I2C bus available in
-the computer, for HW details see 
+the computer, for HW details see
 I<http://www.freescale.com/webapp/sps/site/prod_summary.jsp?code=MPL115A> or
 I<http://www.freescale.com/webapp/sps/site/prod_summary.jsp?code=MPL3115A2>).
 The sensor type - one fo these two - is detected automatically by the plugin
@@ -973,7 +973,7 @@ Temperature sensor which should be used as a reference when normalizing the pres
 When specified more sensors a minumum is found and uses each time.
 The temperature reading directly from this pressure sensor/plugin
 is typically not suitable as the pressure sensor
-will be probably inside while we want outside temperature. 
+will be probably inside while we want outside temperature.
 The collectd reference name is something like
 <hostname>/<plugin_name>-<plugin_instance>/<type>-<type_instance>
 (<type_instance> is usually omitted when there is just single value type).
@@ -1786,7 +1786,7 @@ There must be at least one B<ValuesFrom> option inside each B<Result> block.
 =item B<MetadataFrom> [I<column0> I<column1> ...]
 
 Names the columns whose content is used as metadata for the data sets
-that are dispatched to the daemon. 
+that are dispatched to the daemon.
 
 The actual data type in the columns is not that important. The plugin will
 automatically cast the values to the right type if it know how to do that. So
@@ -2427,101 +2427,6 @@ see L<collectd-java(5)/"config callback">. This means, that the B<Plugin> block
 must appear after the appropriate B<LoadPlugin> block. Also note, that I<Name>
 depends on the (Java) plugin registering the callback and is completely
 independent from the I<JavaClass> argument passed to B<LoadPlugin>.
-
-=back
-
-=head2 Plugin C<libvirt>
-
-This plugin allows CPU, disk and network load to be collected for virtualized
-guests on the machine. This means that these characteristics can be collected
-for guest systems without installing any software on them - collectd only runs
-on the hosting system. The statistics are collected through libvirt
-(L<http://libvirt.org/>).
-
-Only I<Connection> is required.
-
-=over 4
-
-=item B<Connection> I<uri>
-
-Connect to the hypervisor given by I<uri>. For example if using Xen use:
-
- Connection "xen:///"
-
-Details which URIs allowed are given at L<http://libvirt.org/uri.html>.
-
-=item B<RefreshInterval> I<seconds>
-
-Refresh the list of domains and devices every I<seconds>. The default is 60
-seconds. Setting this to be the same or smaller than the I<Interval> will cause
-the list of domains and devices to be refreshed on every iteration.
-
-Refreshing the devices in particular is quite a costly operation, so if your
-virtualization setup is static you might consider increasing this. If this
-option is set to 0, refreshing is disabled completely.
-
-=item B<Domain> I<name>
-
-=item B<BlockDevice> I<name:dev>
-
-=item B<InterfaceDevice> I<name:dev>
-
-=item B<IgnoreSelected> I<true>|I<false>
-
-Select which domains and devices are collected.
-
-If I<IgnoreSelected> is not given or I<false> then only the listed domains and
-disk/network devices are collected.
-
-If I<IgnoreSelected> is I<true> then the test is reversed and the listed
-domains and disk/network devices are ignored, while the rest are collected.
-
-The domain name and device names may use a regular expression, if the name is
-surrounded by I</.../> and collectd was compiled with support for regexps.
-
-The default is to collect statistics for all domains and all their devices.
-
-Example:
-
- BlockDevice "/:hdb/"
- IgnoreSelected "true"
-
-Ignore all I<hdb> devices on any domain, but other block devices (eg. I<hda>)
-will be collected.
-
-=item B<HostnameFormat> B<name|uuid|hostname|...>
-
-When the libvirt plugin logs data, it sets the hostname of the collected data
-according to this setting. The default is to use the guest name as provided by
-the hypervisor, which is equal to setting B<name>.
-
-B<uuid> means use the guest's UUID. This is useful if you want to track the
-same guest across migrations.
-
-B<hostname> means to use the global B<Hostname> setting, which is probably not
-useful on its own because all guests will appear to have the same name.
-
-You can also specify combinations of these fields. For example B<name uuid>
-means to concatenate the guest name and UUID (with a literal colon character
-between, thus I<"foo:1234-1234-1234-1234">).
-
-=item B<InterfaceFormat> B<name>|B<address>
-
-When the libvirt plugin logs interface data, it sets the name of the collected
-data according to this setting. The default is to use the path as provided by
-the hypervisor (the "dev" property of the target node), which is equal to
-setting B<name>.
-
-B<address> means use the interface's mac address. This is useful since the
-interface path might change between reboots of a guest or across migrations.
-
-=item B<PluginInstanceFormat> B<name|uuid>
-
-When the libvirt plugin logs data, it sets the plugin_instance of the collected 
-data according to this setting. The default is to use the guest name as provided 
-by the hypervisor, which is equal to setting B<name>.
-
-B<uuid> means use the guest's UUID.
 
 =back
 
@@ -6501,6 +6406,101 @@ Number of total (available + discarded) VCL (config files). False by default.
 =item B<CollectWorkers> B<true>|B<false>
 
 Collect statistics about worker threads. False by default.
+
+=back
+
+=head2 Plugin C<virt>
+
+This plugin allows CPU, disk and network load to be collected for virtualized
+guests on the machine. This means that these metrics can be collected for guest
+systems without installing any software on them - I<collectd> only runs on the
+host system. The statistics are collected through libvirt
+(L<http://libvirt.org/>).
+
+Only I<Connection> is required.
+
+=over 4
+
+=item B<Connection> I<uri>
+
+Connect to the hypervisor given by I<uri>. For example if using Xen use:
+
+ Connection "xen:///"
+
+Details which URIs allowed are given at L<http://libvirt.org/uri.html>.
+
+=item B<RefreshInterval> I<seconds>
+
+Refresh the list of domains and devices every I<seconds>. The default is 60
+seconds. Setting this to be the same or smaller than the I<Interval> will cause
+the list of domains and devices to be refreshed on every iteration.
+
+Refreshing the devices in particular is quite a costly operation, so if your
+virtualization setup is static you might consider increasing this. If this
+option is set to 0, refreshing is disabled completely.
+
+=item B<Domain> I<name>
+
+=item B<BlockDevice> I<name:dev>
+
+=item B<InterfaceDevice> I<name:dev>
+
+=item B<IgnoreSelected> B<true>|B<false>
+
+Select which domains and devices are collected.
+
+If I<IgnoreSelected> is not given or B<false> then only the listed domains and
+disk/network devices are collected.
+
+If I<IgnoreSelected> is B<true> then the test is reversed and the listed
+domains and disk/network devices are ignored, while the rest are collected.
+
+The domain name and device names may use a regular expression, if the name is
+surrounded by I</.../> and collectd was compiled with support for regexps.
+
+The default is to collect statistics for all domains and all their devices.
+
+Example:
+
+ BlockDevice "/:hdb/"
+ IgnoreSelected "true"
+
+Ignore all I<hdb> devices on any domain, but other block devices (eg. I<hda>)
+will be collected.
+
+=item B<HostnameFormat> B<name|uuid|hostname|...>
+
+When the libvirt plugin logs data, it sets the hostname of the collected data
+according to this setting. The default is to use the guest name as provided by
+the hypervisor, which is equal to setting B<name>.
+
+B<uuid> means use the guest's UUID. This is useful if you want to track the
+same guest across migrations.
+
+B<hostname> means to use the global B<Hostname> setting, which is probably not
+useful on its own because all guests will appear to have the same name.
+
+You can also specify combinations of these fields. For example B<name uuid>
+means to concatenate the guest name and UUID (with a literal colon character
+between, thus I<"foo:1234-1234-1234-1234">).
+
+=item B<InterfaceFormat> B<name>|B<address>
+
+When the libvirt plugin logs interface data, it sets the name of the collected
+data according to this setting. The default is to use the path as provided by
+the hypervisor (the "dev" property of the target node), which is equal to
+setting B<name>.
+
+B<address> means use the interface's mac address. This is useful since the
+interface path might change between reboots of a guest or across migrations.
+
+=item B<PluginInstanceFormat> B<name|uuid>
+
+When the libvirt plugin logs data, it sets the plugin_instance of the collected
+data according to this setting. The default is to use the guest name as provided
+by the hypervisor, which is equal to setting B<name>.
+
+B<uuid> means use the guest's UUID.
 
 =back
 

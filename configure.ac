@@ -4972,7 +4972,6 @@ plugin_interface="no"
 plugin_ipmi="no"
 plugin_ipvs="no"
 plugin_irq="no"
-plugin_libvirt="no"
 plugin_load="no"
 plugin_log_logstash="no"
 plugin_memory="no"
@@ -4988,8 +4987,9 @@ plugin_tape="no"
 plugin_tcpconns="no"
 plugin_ted="no"
 plugin_thermal="no"
-plugin_users="no"
 plugin_uptime="no"
+plugin_users="no"
+plugin_virt="no"
 plugin_vmem="no"
 plugin_vserver="no"
 plugin_wireless="no"
@@ -5214,11 +5214,6 @@ then
 	plugin_interface="yes"
 fi
 
-if test "x$with_libxml2" = "xyes" && test "x$with_libvirt" = "xyes"
-then
-	plugin_libvirt="yes"
-fi
-
 if test "x$have_getloadavg" = "xyes"
 then
 	plugin_load="yes"
@@ -5283,6 +5278,12 @@ then
 	plugin_users="yes"
 fi
 
+if test "x$with_libxml2" = "xyes" && test "x$with_libvirt" = "xyes"
+then
+	plugin_virt="yes"
+fi
+
+
 m4_divert_once([HELP_ENABLE], [
 collectd plugins:])
 
@@ -5341,7 +5342,6 @@ AC_PLUGIN([iptables],    [$with_libiptc],      [IPTables rule counters])
 AC_PLUGIN([ipvs],        [$plugin_ipvs],       [IPVS connection statistics])
 AC_PLUGIN([irq],         [$plugin_irq],        [IRQ statistics])
 AC_PLUGIN([java],        [$with_java],         [Embed the Java Virtual Machine])
-AC_PLUGIN([libvirt],     [$plugin_libvirt],    [Virtual machine statistics])
 AC_PLUGIN([load],        [$plugin_load],       [System load])
 AC_PLUGIN([logfile],     [yes],                [File logging plugin])
 AC_PLUGIN([log_logstash], [$plugin_log_logstash], [Logstash json_event compatible logging])
@@ -5417,6 +5417,7 @@ AC_PLUGIN([uptime],      [$plugin_uptime],     [Uptime statistics])
 AC_PLUGIN([users],       [$plugin_users],      [User statistics])
 AC_PLUGIN([uuid],        [yes],                [UUID as hostname plugin])
 AC_PLUGIN([varnish],     [$with_libvarnish],   [Varnish cache statistics])
+AC_PLUGIN([virt],        [$plugin_virt],       [Virtual machine statistics])
 AC_PLUGIN([vmem],        [$plugin_vmem],       [Virtual memory statistics])
 AC_PLUGIN([vserver],     [$plugin_vserver],    [Linux VServer statistics])
 AC_PLUGIN([wireless],    [$plugin_wireless],   [Wireless statistics])
@@ -5706,7 +5707,6 @@ Configuration:
     ipvs  . . . . . . . . $enable_ipvs
     irq . . . . . . . . . $enable_irq
     java  . . . . . . . . $enable_java
-    libvirt . . . . . . . $enable_libvirt
     load  . . . . . . . . $enable_load
     logfile . . . . . . . $enable_logfile
     lpar  . . . . . . . . $enable_lpar
@@ -5781,6 +5781,7 @@ Configuration:
     users . . . . . . . . $enable_users
     uuid  . . . . . . . . $enable_uuid
     varnish . . . . . . . $enable_varnish
+    virt  . . . . . . . . $enable_virt
     vmem  . . . . . . . . $enable_vmem
     vserver . . . . . . . $enable_vserver
     wireless  . . . . . . $enable_wireless

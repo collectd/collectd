@@ -566,17 +566,6 @@ collectd_LDADD += "-dlopen" java.la
 collectd_DEPENDENCIES += java.la
 endif
 
-if BUILD_PLUGIN_LIBVIRT
-pkglib_LTLIBRARIES += libvirt.la
-libvirt_la_SOURCES = libvirt.c
-libvirt_la_CFLAGS = $(AM_CFLAGS) \
-		$(BUILD_WITH_LIBVIRT_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
-libvirt_la_LIBADD = $(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
-libvirt_la_LDFLAGS = -module -avoid-version
-collectd_LDADD += "-dlopen" libvirt.la
-collectd_DEPENDENCIES += libvirt.la
-endif
-
 if BUILD_PLUGIN_LOAD
 pkglib_LTLIBRARIES += load.la
 load_la_SOURCES = load.c
@@ -1373,6 +1362,17 @@ varnish_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBVARNISH_CFLAGS)
 varnish_la_LIBADD = $(BUILD_WITH_LIBVARNISH_LIBS)
 collectd_LDADD += "-dlopen" varnish.la
 collectd_DEPENDENCIES += varnish.la
+endif
+
+if BUILD_PLUGIN_VIRT
+pkglib_LTLIBRARIES += virt.la
+virt_la_SOURCES = virt.c
+virt_la_CFLAGS = $(AM_CFLAGS) \
+		$(BUILD_WITH_LIBVIRT_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
+virt_la_LIBADD = $(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
+virt_la_LDFLAGS = -module -avoid-version
+collectd_LDADD += "-dlopen" virt.la
+collectd_DEPENDENCIES += virt.la
 endif
 
 if BUILD_PLUGIN_VMEM
