@@ -28,17 +28,25 @@
 #include "collectd.h"
 #include "common.h"
 
+#include "plugin.h"
+#include "configfile.h"
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
 
 #include <pthread.h>
 
-#include "plugin.h"
-#include "configfile.h"
+#if HAVE_LOCALE_H
+# include <locale.h>
+#endif
 
 #if HAVE_STATGRAB_H
 # include <statgrab.h>
+#endif
+
+#ifndef COLLECTD_LOCALE
+# define COLLECTD_LOCALE "C"
 #endif
 
 /*
@@ -288,6 +296,11 @@ static void exit_usage (int status)
 
 static int do_init (void)
 {
+#if HAVE_SETLOCALE
+	if (setlocale (LC_NUMERIC, COLLECTD_LOCALE) == NULL)
+		WARNING ("setlocale (\"%s\") failed.", COLLECTD_LOCALE);
+#endif
+
 #if HAVE_LIBKSTAT
 	kc = NULL;
 	update_kstat ();
