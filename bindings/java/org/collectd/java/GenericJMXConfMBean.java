@@ -203,7 +203,11 @@ class GenericJMXConfMBean
         String propertyValue;
 
         propertyName = this._instance_from.get (i);
-        propertyValue = objName.getKeyProperty (propertyName);
+        if(propertyName.equalsIgnoreCase("domain")){
+        		propertyValue = objName.getDomain();
+        }else{
+        		propertyValue = objName.getKeyProperty (propertyName);
+        }
         if (propertyValue == null)
         {
           Collectd.logError ("GenericJMXConfMBean: "
@@ -224,7 +228,7 @@ class GenericJMXConfMBean
       for (int i = 0; i < instanceList.size (); i++)
       {
         if (i > 0)
-          instance.append ("-");
+          instance.append (".");
         instance.append (instanceList.get (i));
       }
 
