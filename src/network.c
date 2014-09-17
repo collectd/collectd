@@ -2107,6 +2107,7 @@ static int sockent_client_connect (sockent_t *se) /* {{{ */
 		return (0);
 
 	memset (&ai_hints, 0, sizeof (ai_hints));
+	ai_hints.ai_flags  = 0;
 #ifdef AI_ADDRCONFIG
 	ai_hints.ai_flags |= AI_ADDRCONFIG;
 #endif
