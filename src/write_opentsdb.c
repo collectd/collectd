@@ -130,12 +130,14 @@ static int wt_send_buffer (struct wt_callback *cb)
     ssize_t status = 0;
 
     status = swrite (cb->sock_fd, cb->send_buf, strlen (cb->send_buf));
+
     if (status < 0)
     {
-        const char *protocol = cb->protocol ? cb->protocol : WG_DEFAULT_PROTOCOL;
+    	ERROR ("write_opentsdb plugin: seding data to opentsdb failed send_buffer: %s", cb->send_buf);
 
         if (cb->log_send_errors)
         {
+            const char *protocol = cb->protocol ? cb->protocol : WG_DEFAULT_PROTOCOL;
             char errbuf[1024];
             ERROR ("write_opentsdb plugin: send to %s:%s (%s) failed with status %zi (%s)",
                     cb->node, cb->service, protocol,
@@ -298,7 +300,6 @@ static void wt_callback_free (void *data)
 static int wt_flush_wubba_lubba_dub_dub(cdtime_t timeout, const char * identifier,
 			user_data_t *user_data)
 {
-    INFO("write_opentsdb plugin: In wubba with identifier %s",identifier );
     struct wt_callback *cb;
     int status;
 
@@ -306,11 +307,11 @@ static int wt_flush_wubba_lubba_dub_dub(cdtime_t timeout, const char * identifie
     cb = user_data->data;
     char new_tsd_host[1024];
     ssnprintf (new_tsd_host, sizeof (new_tsd_host), "%s", identifier + 29);
-    INFO("write_opentsdb plugin: In wubba with new tsd host %s",new_tsd_host );
+    INFO("write_opentsdb plugin: Was told to change to new tsd host %s",new_tsd_host );
     if( 0 == strcmp(cb->node, new_tsd_host)){
-    	INFO("write_opentsdb plugin: not replacing same tsd host %s",new_tsd_host );
-    return 0;
-	}	
+    	INFO("write_opentsdb plugin: not replacing as I am already sending to same tsd host %s",new_tsd_host );
+    	return 0;
+    }	
     sstrncpy(cb->node, new_tsd_host, 100);
     pthread_mutex_lock(&cb->send_lock);
 
@@ -359,10 +360,7 @@ static int wt_flush (cdtime_t timeout,
     INFO("write_opentsdb plugin: got wt_flush with identifier %s",identifier );
     char handle[30];
     sstrncpy(handle, identifier, 29);
-    INFO("write_opentsdb plugin: in wt_flush with handle %s",handle );
     if( 0 == strcmp("localhost/WubbaLubbaDubbDubb", handle) ){
-
-        INFO("write_opentsdb plugin: calling wubba with identifier %s",identifier );
         wt_flush_wubba_lubba_dub_dub(timeout, identifier, user_data);
     }
     return (status);

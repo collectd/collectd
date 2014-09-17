@@ -154,7 +154,6 @@ static int opentsdb_format_tags (char *ret, int ret_len,
 	char n_plugin[DATA_MAX_NAME_LEN];
 	char n_plugin_instance[DATA_MAX_NAME_LEN];
 
-	char tmp_plugin[2 * DATA_MAX_NAME_LEN + 1];
 
     if (tags == NULL){
 	    if (flags & OPENTSDB_INFER_SERVICE_TAGS){ 
@@ -172,11 +171,7 @@ static int opentsdb_format_tags (char *ret, int ret_len,
 			sizeof (n_plugin_instance), escape_char);
 
 	if (n_plugin_instance[0] != '\0' && (0 != strcmp("GenericJMX", n_plugin))){
-		ssnprintf (tmp_plugin, sizeof (tmp_plugin), "%s%c%s",
-				n_plugin,
-				'-',
-				n_plugin_instance); 
-    	ssnprintf (ret, ret_len, "host=%s %s=%s, %s",
+    	ssnprintf (ret, ret_len, "host=%s %s=%s %s",
 	    		vl->host, n_plugin, n_plugin_instance, tags);
     	}
 	else
@@ -383,6 +378,13 @@ int format_opentsdb (char *buffer, size_t buffer_size,
 		/* Compute the opentsdb command */
 		message_len = (size_t) ssnprintf (message, sizeof (message),
 				"put %s %u %s %s\r\n",
+				key,
+				(unsigned int) CDTIME_T_TO_TIME_T (vl->time), 
+				values,
+				final_tags);
+
+		DEBUG(
+				"final tag format is : put %s %u %s %s\r\n",
 				key,
 				(unsigned int) CDTIME_T_TO_TIME_T (vl->time), 
 				values,
