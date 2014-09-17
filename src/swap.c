@@ -339,7 +339,7 @@ static int swap_read_combined (void) /* {{{ */
 
 	fclose (fh);
 
-	if (have_data != 0x07)
+	if ((have_data & 0x03) != 0x03)
 		return (ENOENT);
 
 	if (isnan (swap_total)
@@ -351,7 +351,8 @@ static int swap_read_combined (void) /* {{{ */
 
 	swap_submit_gauge (NULL, "used",   1024.0 * swap_used);
 	swap_submit_gauge (NULL, "free",   1024.0 * swap_free);
-	swap_submit_gauge (NULL, "cached", 1024.0 * swap_cached);
+	if (have_data & 0x04)
+		swap_submit_gauge (NULL, "cached", 1024.0 * swap_cached);
 
 	return (0);
 } /* }}} int swap_read_combined */
