@@ -26,28 +26,28 @@
 
 package org.collectd.java;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
-import java.util.Iterator;
-import java.util.ArrayList;
-
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
 
+import javax.management.MBeanAttributeInfo;
+import javax.management.MBeanInfo;
 import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
-import javax.management.openmbean.OpenType;
 import javax.management.openmbean.CompositeData;
 import javax.management.openmbean.InvalidKeyException;
+import javax.management.openmbean.OpenType;
 
 import org.collectd.api.Collectd;
 import org.collectd.api.DataSet;
 import org.collectd.api.DataSource;
-import org.collectd.api.ValueList;
-import org.collectd.api.PluginData;
-import org.collectd.api.OConfigValue;
 import org.collectd.api.OConfigItem;
+import org.collectd.api.OConfigValue;
+import org.collectd.api.PluginData;
+import org.collectd.api.ValueList;
 
 /**
  * Representation of a &lt;value&nbsp;/&gt; block and query functionality.
@@ -490,7 +490,7 @@ class GenericJMXConfValue
               + child.getKey ()));
     }
 
-    if (this._ds_name == null)
+    if ( !(this._attributes.get(0).equalsIgnoreCase("*")) || this._ds_name == null)
       throw (new IllegalArgumentException ("No data set was defined."));
     else if (this._attributes.size () == 0)
       throw (new IllegalArgumentException ("No attribute was defined."));
@@ -508,6 +508,58 @@ class GenericJMXConfValue
   public void query (MBeanServerConnection conn, ObjectName objName, /* {{{ */
       PluginData pd)
   {
+	  
+	if ( this._attributes.get(0).equalsIgnoreCase("*") ) {
+		MBeanInfo mBeanInfo = null;
+		try {
+			mBeanInfo = conn.getMBeanInfo(objName);
+		} catch (Exception e) {
+			Collectd.logError("GenericJmx Plugin: Object name not found: "+objName);
+			return;
+		} 
+		MBeanAttributeInfo[] mBeanAttributeInfos = mBeanInfo.getAttributes();
+		for(int i =0 ; i<  mBeanAttributeInfos.length; i++ ){
+			String attributeName = mBeanAttributeInfos[i].getName();
+			String attributeType =  mBeanAttributeInfos[i].getType();
+			if( attributeType.equalsIgnoreCase("double") ||
+					attributeType.equalsIgnoreCase("int") ||
+					attributeType.equalsIgnoreCase("long") ||
+					attributeType.equalsIgnoreCase("java.lang.AtomicInteger") ||
+					attributeType.equalsIgnoreCase("java.lang.AtomicLong") ||
+					attributeType.equalsIgnoreCase("java.lang.BigDecimal") ||
+					attributeType.equalsIgnoreCase("java.lang.BigInteger") ||
+					attributeType.equalsIgnoreCase("java.lang.Byte") ||
+					attributeType.equalsIgnoreCase("java.lang.Double") ||
+					attributeType.equalsIgnoreCase("java.lang.Float") ||
+					attributeType.equalsIgnoreCase("java.lang.Integer") ||
+					attributeType.equalsIgnoreCase("java.lang.Long") ||
+					attributeType.equalsIgnoreCase("java.lang.Short") ){
+				this._attributes.add(attributeName);
+				this._ds = DataSet.parseDataSet(attributeName+"			value:GAUGE:U:U");
+				this._ds_name = attributeName;
+				this._is_table = false;
+				query(conn, objName, pd);
+				this._attributes =new ArrayList<String>();
+				this._attributes.add("*");
+				//destroy
+			}
+			else if(attributeType.equalsIgnoreCase("javax.management.openmbean.CompositeData")){
+				this._attributes.add(attributeName);
+				this._ds = DataSet.parseDataSet(attributeName+"			value:GAUGE:U:U");
+				this._ds_name = attributeName;
+				this._is_table = true;
+				query(conn, objName, pd);
+				this._attributes =new ArrayList<String>();
+				this._attributes.add("*");
+				//destroy
+			}
+			else{
+				Collectd.logDebug("GenericJmx Plugin: Ignoring : "+objName+" with attribute : "+attributeName);
+			}
+			
+		}
+	}
+	  
     ValueList vl;
     List<DataSource> dsrc;
     List<Object> values;
@@ -564,9 +616,9 @@ class GenericJMXConfValue
 
     if (this._instance_prefix != null)
       instancePrefix = new String (this._instance_prefix
-          + join ("-", instanceList));
+          + join (".", instanceList));
     else
-      instancePrefix = join ("-", instanceList);
+      instancePrefix = join (".", instanceList);
 
     /*
      * Build a list of `Object's which is then passed to `submitTable' and
