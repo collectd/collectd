@@ -232,16 +232,16 @@ class GenericJMXConfValue
       values = genericCompositeToNumber (cdlist, key);
       if (values == null)
       {
-        Collectd.logError ("GenericJMXConfValue: Cannot build a list of "
+        Collectd.logDebug ("GenericJMXConfValue: Cannot build a list of "
             + "numbers for key " + key + ". Most likely not all attributes "
             + "have this key.");
         continue;
       }
 
-      if (instancePrefix == null)
+      if (instancePrefix == null || instancePrefix.equalsIgnoreCase(""))
         vl.setTypeInstance (key);
       else
-        vl.setTypeInstance (instancePrefix + key);
+        vl.setTypeInstance (instancePrefix +"."+ key);
       vl.setValues (values);
 
       Collectd.dispatchValues (vl);
@@ -328,8 +328,8 @@ class GenericJMXConfValue
     }
     catch (Exception e)
     {
-      Collectd.logError ("GenericJMXConfValue.query: getAttribute failed: "
-          + e);
+//      Collectd.logError ("GenericJMXConfValue.query: getAttribute failed: "
+//          + e);
       return (null);
     }
 
@@ -490,8 +490,12 @@ class GenericJMXConfValue
               + child.getKey ()));
     }
 
-    if ( !(this._attributes.get(0).equalsIgnoreCase("*")) || this._ds_name == null)
+      Collectd.logError("GenericJmx Plugin: Ignoring ds_name for attribute "+ this._attributes.get(0) );
+	
+    if ( !(this._attributes.get(0).equalsIgnoreCase("*") || this._ds_name == null)){
+
       throw (new IllegalArgumentException ("No data set was defined."));
+}
     else if (this._attributes.size () == 0)
       throw (new IllegalArgumentException ("No attribute was defined."));
   } /* }}} GenericJMXConfValue (OConfigItem ci) */
@@ -534,20 +538,24 @@ class GenericJMXConfValue
 					attributeType.equalsIgnoreCase("java.lang.Integer") ||
 					attributeType.equalsIgnoreCase("java.lang.Long") ||
 					attributeType.equalsIgnoreCase("java.lang.Short") ){
+				this._attributes =new ArrayList<String>();
 				this._attributes.add(attributeName);
-				this._ds = DataSet.parseDataSet(attributeName+"			value:GAUGE:U:U");
+				this._ds = DataSet.parseDataSet(attributeName+" value:GAUGE:U:U");
 				this._ds_name = attributeName;
 				this._is_table = false;
+				Collectd.logDebug("GenericJmx Plugin: Getting : "+objName+" with attribute : "+attributeName);
 				query(conn, objName, pd);
 				this._attributes =new ArrayList<String>();
 				this._attributes.add("*");
 				//destroy
 			}
 			else if(attributeType.equalsIgnoreCase("javax.management.openmbean.CompositeData")){
+				this._attributes =new ArrayList<String>();
 				this._attributes.add(attributeName);
-				this._ds = DataSet.parseDataSet(attributeName+"			value:GAUGE:U:U");
+				this._ds = DataSet.parseDataSet(attributeName+" value:GAUGE:U:U");
 				this._ds_name = attributeName;
 				this._is_table = true;
+			        Collectd.logDebug("GenericJmx Plugin: Getting : "+objName+" with attribute : "+attributeName);
 				query(conn, objName, pd);
 				this._attributes =new ArrayList<String>();
 				this._attributes.add("*");
@@ -558,7 +566,9 @@ class GenericJMXConfValue
 			}
 			
 		}
+	return ;
 	}
+    Collectd.logDebug("GenericJmx Plugin: Outside Getting : "+objName);
 	  
     ValueList vl;
     List<DataSource> dsrc;
@@ -605,7 +615,7 @@ class GenericJMXConfValue
       propertyValue = objName.getKeyProperty (propertyName);
       if (propertyValue == null)
       {
-        Collectd.logError ("GenericJMXConfMBean: "
+        Collectd.logDebug ("GenericJMXConfMBean: "
             + "No such property in object name: " + propertyName);
       }
       else
@@ -633,7 +643,7 @@ class GenericJMXConfValue
       v = queryAttribute (conn, objName, this._attributes.get (i));
       if (v == null)
       {
-        Collectd.logError ("GenericJMXConfValue.query: "
+        Collectd.logDebug ("GenericJMXConfValue.query: "
             + "Querying attribute " + this._attributes.get (i) + " failed.");
         return;
       }

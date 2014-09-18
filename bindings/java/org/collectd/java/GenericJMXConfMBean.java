@@ -208,9 +208,9 @@ class GenericJMXConfMBean
         }else{
         		propertyValue = objName.getKeyProperty (propertyName);
         }
-        if (propertyValue == null)
+        if (propertyValue == null || propertyValue.equalsIgnoreCase(""))
         {
-          Collectd.logError ("GenericJMXConfMBean: "
+          Collectd.logDebug ("GenericJMXConfMBean: "
               + "No such property in object name: " + propertyName);
         }
         else
