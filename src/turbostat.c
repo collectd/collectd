@@ -373,7 +373,11 @@ get_msr(int cpu, off_t offset, unsigned long long *msr)
 		delta = 0x100000000 + new - old;	\
 	}
 
-static void
+/*
+ * Extract the evolution old->new in delta at a package level
+ * (some are not new-delta, e.g. temperature)
+ */
+static inline void
 delta_package(struct pkg_data *delta, const struct pkg_data *new, const struct pkg_data *old)
 {
 	delta->pc2 = new->pc2 - old->pc2;
@@ -393,7 +397,11 @@ delta_package(struct pkg_data *delta, const struct pkg_data *new, const struct p
 	DELTA_WRAP32(delta->rapl_dram_perf_status, new->rapl_dram_perf_status, old->rapl_dram_perf_status);
 }
 
-static void
+/*
+ * Extract the evolution old->new in delta at a core level
+ * (some are not new-delta, e.g. temperature)
+ */
+static inline void
 delta_core(struct core_data *delta, const struct core_data *new, const struct core_data *old)
 {
 	delta->c3 = new->c3 - old->c3;
@@ -402,7 +410,11 @@ delta_core(struct core_data *delta, const struct core_data *new, const struct co
 	delta->core_temp_c = new->core_temp_c;
 }
 
-static int __attribute__((warn_unused_result))
+/*
+ * Extract the evolution old->new in delta at a package level
+ * core_delta is required for c1 estimation (tsc - c0 - all core cstates)
+ */
+static inline int __attribute__((warn_unused_result))
 delta_thread(struct thread_data *delta, const struct thread_data *new, const struct thread_data *old,
 	const struct core_data *core_delta)
 {
@@ -453,30 +465,6 @@ delta_thread(struct thread_data *delta, const struct thread_data *new, const str
 
 	return 0;
 }
-
-static int __attribute__((warn_unused_result))
-delta_cpu(struct thread_data *t_delta, struct core_data *c_delta, struct pkg_data *p_delta,
-	  const struct thread_data *t_new, const struct core_data *c_new, const struct pkg_data *p_new,
-	  const struct thread_data *t_old, const struct core_data *c_old, const struct pkg_data *p_old)
-{
-	int ret;
-
-	/* calculate core delta only for 1st thread in core */
-	if (t_new->flags & CPU_IS_FIRST_THREAD_IN_CORE)
-		delta_core(c_delta, c_new, c_old);
-
-	/* always calculate thread delta */
-	ret = delta_thread(t_delta, t_new, t_old, c_delta);
-	if (ret != 0)
-		return ret;
-
-	/* calculate package delta only for 1st core in package */
-	if (t_new->flags & CPU_IS_FIRST_CORE_IN_PACKAGE)
-		delta_package(p_delta, p_new, p_old);
-
-	return 0;
-}
-
 
 /*
  * get_counters(...)
@@ -716,6 +704,12 @@ get_num_ht_siblings(int cpu)
 		return 1;
 }
 
+/*
+ * Extract every data evolution for all CPU
+ *
+ * Core data is shared for all threads in one core: extracted only for the first thread
+ * Package data is shared for all core in one package: extracted only for the first thread of the first core
+ */
 static int __attribute__((warn_unused_result))
 for_all_cpus_delta(const struct thread_data *thread_new_base, const struct core_data *core_new_base, const struct pkg_data *pkg_new_base,
 		   const struct thread_data *thread_old_base, const struct core_data *core_old_base, const struct pkg_data *pkg_old_base)
@@ -729,29 +723,45 @@ for_all_cpus_delta(const struct thread_data *thread_new_base, const struct core_
 				struct thread_data *t_delta;
 				const struct thread_data *t_old, *t_new;
 				struct core_data *c_delta;
-				const struct core_data *c_old, *c_new;
-				struct pkg_data *p_delta;
-				const struct pkg_data *p_old, *p_new;
 
+				/* Get correct pointers for threads */
 				t_delta = GET_THREAD(thread_delta, thread_no, core_no, pkg_no);
 				t_new = GET_THREAD(thread_new_base, thread_no, core_no, pkg_no);
 				t_old = GET_THREAD(thread_old_base, thread_no, core_no, pkg_no);
+
+				/* Skip threads that disappeared */
 				if (cpu_is_not_present(t_delta->cpu_id))
 					continue;
 
+				/* c_delta is always required for delta_thread */
 				c_delta = GET_CORE(core_delta, core_no, pkg_no);
-				c_new = GET_CORE(core_new_base, core_no, pkg_no);
-				c_old = GET_CORE(core_old_base, core_no, pkg_no);
 
-				p_delta = GET_PKG(package_delta, pkg_no);
-				p_new = GET_PKG(pkg_new_base, pkg_no);
-				p_old = GET_PKG(pkg_old_base, pkg_no);
+				/* calculate core delta only for 1st thread in core */
+				if (t_new->flags & CPU_IS_FIRST_THREAD_IN_CORE) {
+					const struct core_data *c_old, *c_new;
 
-				retval = delta_cpu(t_delta, c_delta, p_delta,
-						   t_new, c_new, p_new,
-						   t_old, c_old, p_old);
+					c_new = GET_CORE(core_new_base, core_no, pkg_no);
+					c_old = GET_CORE(core_old_base, core_no, pkg_no);
+
+					delta_core(c_delta, c_new, c_old);
+				}
+
+				/* Always calculate thread delta */
+				retval = delta_thread(t_delta, t_new, t_old, c_delta);
 				if (retval)
 					return retval;
+
+				/* calculate package delta only for 1st core in package */
+				if (t_new->flags & CPU_IS_FIRST_CORE_IN_PACKAGE) {
+					struct pkg_data *p_delta;
+					const struct pkg_data *p_old, *p_new;
+
+					p_delta = GET_PKG(package_delta, pkg_no);
+					p_new = GET_PKG(pkg_new_base, pkg_no);
+					p_old = GET_PKG(pkg_old_base, pkg_no);
+
+					delta_package(p_delta, p_new, p_old);
+				}
 			}
 		}
 	}
