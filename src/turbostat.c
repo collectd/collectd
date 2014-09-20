@@ -1168,14 +1168,14 @@ mark_cpu_present(int cpu)
 }
 
 static int __attribute__((warn_unused_result))
-allocate_cpu_set(cpu_set_t * set, size_t * size) {
-	set = CPU_ALLOC(topology.max_cpu_id  + 1);
-	if (set == NULL) {
+allocate_cpu_set(cpu_set_t ** set, size_t * size) {
+	*set = CPU_ALLOC(topology.max_cpu_id  + 1);
+	if (*set == NULL) {
 		ERROR("Unable to allocate CPU state");
 		return -ERR_CPU_ALLOC;
 	}
 	*size = CPU_ALLOC_SIZE(topology.max_cpu_id  + 1);
-	CPU_ZERO_S(*size, set);
+	CPU_ZERO_S(*size, *set);
 	return 0;
 }
 
@@ -1204,13 +1204,13 @@ topology_probe()
 		return -ERR_CALLOC;
 	}
 
-	ret = allocate_cpu_set(cpu_present_set, &cpu_present_setsize);
+	ret = allocate_cpu_set(&cpu_present_set, &cpu_present_setsize);
 	if (ret != 0)
 		goto err;
-	ret = allocate_cpu_set(cpu_affinity_set, &cpu_affinity_setsize);
+	ret = allocate_cpu_set(&cpu_affinity_set, &cpu_affinity_setsize);
 	if (ret != 0)
 		goto err;
-	ret = allocate_cpu_set(cpu_saved_affinity_set, &cpu_saved_affinity_setsize);
+	ret = allocate_cpu_set(&cpu_saved_affinity_set, &cpu_saved_affinity_setsize);
 	if (ret != 0)
 		goto err;
 
