@@ -186,6 +186,27 @@ int strjoin (char *dst, size_t dst_len, char **fields, size_t fields_num, const 
  */
 int escape_slashes (char *buffer, size_t buffer_size);
 
+/**
+ * NAME
+ *   escape_string
+ *
+ * DESCRIPTION
+ *   escape_string quotes and escapes a string to be usable with collectd's
+ *   plain text protocol. "simple" strings are left as they are, for example if
+ *   buffer is 'simple' before the call, it will remain 'simple'. However, if
+ *   buffer contains 'more "complex"' before the call, the returned buffer will
+ *   contain '"more \"complex\""'.
+ *
+ *   If the buffer is too small to contain the escaped string, the string will
+ *   be truncated. However, leading and trailing double quotes, as well as an
+ *   ending null byte are guaranteed.
+ *
+ * RETURN VALUE
+ *   Returns zero on success, even if the string was truncated. Non-zero on
+ *   failure.
+ */
+int escape_string (char *buffer, size_t buffer_size);
+
 /*
  * NAME
  *   replace_special

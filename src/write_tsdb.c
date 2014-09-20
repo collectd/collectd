@@ -47,7 +47,6 @@
 #include "configfile.h"
 
 #include "utils_cache.h"
-#include "utils_parse_option.h"
 
 #include <pthread.h>
 #include <sys/socket.h>

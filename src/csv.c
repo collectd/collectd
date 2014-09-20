@@ -25,7 +25,6 @@
 #include "plugin.h"
 #include "common.h"
 #include "utils_cache.h"
-#include "utils_parse_option.h"
 
 /*
  * Private variables

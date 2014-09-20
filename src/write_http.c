@@ -27,7 +27,6 @@
 #include "plugin.h"
 #include "common.h"
 #include "utils_cache.h"
-#include "utils_parse_option.h"
 #include "utils_format_json.h"
 
 #if HAVE_PTHREAD_H

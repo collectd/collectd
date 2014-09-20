@@ -31,7 +31,7 @@
 #include "utils_cache.h"
 #include "utils_format_json.h"
 
-static int escape_string (char *buffer, size_t buffer_size, /* {{{ */
+static int json_escape_string (char *buffer, size_t buffer_size, /* {{{ */
     const char *string)
 {
   size_t src_pos;
@@ -75,7 +75,7 @@ static int escape_string (char *buffer, size_t buffer_size, /* {{{ */
 #undef BUFFER_ADD
 
   return (0);
-} /* }}} int escape_string */
+} /* }}} int json_escape_string */
 
 static int values_to_json (char *buffer, size_t buffer_size, /* {{{ */
                 const data_set_t *ds, const value_list_t *vl, int store_rates)
@@ -274,7 +274,7 @@ static int meta_data_to_json (char *buffer, size_t buffer_size, /* {{{ */
       if (meta_data_get_string (meta, key, &value) == 0)
       {
         char temp[512] = "";
-        escape_string (temp, sizeof (temp), value);
+        json_escape_string (temp, sizeof (temp), value);
         sfree (value);
         BUFFER_ADD (",\"%s\":%s", key, temp);
       }
@@ -362,7 +362,7 @@ static int value_list_to_json (char *buffer, size_t buffer_size, /* {{{ */
   BUFFER_ADD (",\"interval\":%.3f", CDTIME_T_TO_DOUBLE (vl->interval));
 
 #define BUFFER_ADD_KEYVAL(key, value) do { \
-  status = escape_string (temp, sizeof (temp), (value)); \
+  status = json_escape_string (temp, sizeof (temp), (value)); \
   if (status != 0) \
     return (status); \
   BUFFER_ADD (",\"%s\":%s", (key), temp); \
