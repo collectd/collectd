@@ -787,255 +787,9 @@ for_all_cpus_delta(const struct thread_data *thread_new_base, const struct core_
 }
 
 
-static void
-free_all_buffers(void)
-{
-	allocated = 0;
-	initialized = 0;
-
-	CPU_FREE(cpu_present_set);
-	cpu_present_set = NULL;
-	cpu_present_set = 0;
-
-	CPU_FREE(cpu_affinity_set);
-	cpu_affinity_set = NULL;
-	cpu_affinity_setsize = 0;
-
-	CPU_FREE(cpu_saved_affinity_set);
-	cpu_saved_affinity_set = NULL;
-	cpu_saved_affinity_setsize = 0;
-
-	free(thread_even);
-	free(core_even);
-	free(package_even);
-
-	thread_even = NULL;
-	core_even = NULL;
-	package_even = NULL;
-
-	free(thread_odd);
-	free(core_odd);
-	free(package_odd);
-
-	thread_odd = NULL;
-	core_odd = NULL;
-	package_odd = NULL;
-
-	free(thread_delta);
-	free(core_delta);
-	free(package_delta);
-
-	thread_delta = NULL;
-	core_delta = NULL;
-	package_delta = NULL;
-}
-
-
-/****************
- * File helpers *
- ****************/
-
-/*
- * Read a single int from a file.
- */
-static int __attribute__ ((format(printf,1,2)))
-parse_int_file(const char *fmt, ...)
-{
-	va_list args;
-	char path[PATH_MAX];
-	FILE *filep;
-	int value;
-
-	va_start(args, fmt);
-	vsnprintf(path, sizeof(path), fmt, args);
-	va_end(args);
-	filep = fopen(path, "r");
-	if (!filep) {
-		ERROR("%s: open failed", path);
-		return -ERR_CANT_OPEN_FILE;
-	}
-	if (fscanf(filep, "%d", &value) != 1) {
-		ERROR("%s: failed to parse number from file", path);
-		return -ERR_CANT_READ_NUMBER;
-	}
-	fclose(filep);
-	return value;
-}
-
-static int
-get_threads_on_core(int cpu)
-{
-	char path[80];
-	FILE *filep;
-	int sib1, sib2;
-	int matches;
-	char character;
-
-	ssnprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", cpu);
-	filep = fopen(path, "r");
-        if (!filep) {
-                ERROR("%s: open failed", path);
-                return -ERR_CANT_OPEN_FILE;
-        }
-	/*
-	 * file format:
-	 * if a pair of number with a character between: 2 siblings (eg. 1-2, or 1,4)
-	 * otherwinse 1 sibling (self).
-	 */
-	matches = fscanf(filep, "%d%c%d\n", &sib1, &character, &sib2);
-
-	fclose(filep);
-
-	if (matches == 3)
-		return 2;
-	else
-		return 1;
-}
-
-/*
- * run func(cpu) on every cpu in /proc/stat
- * return max_cpu number
- */
-static int __attribute__((warn_unused_result))
-for_all_proc_cpus(int (func)(int))
-{
-	FILE *fp;
-	int cpu_num;
-	int retval;
-
-	fp = fopen("/proc/stat", "r");
-        if (!fp) {
-                ERROR("Failed to open /proc/stat");
-                return -ERR_CANT_OPEN_FILE;
-        }
-
-	retval = fscanf(fp, "cpu %*d %*d %*d %*d %*d %*d %*d %*d %*d %*d\n");
-	if (retval != 0) {
-		ERROR("Failed to parse /proc/stat");
-		fclose(fp);
-		return -ERR_CANT_READ_PROC_STAT;
-	}
-
-	while (1) {
-		retval = fscanf(fp, "cpu%u %*d %*d %*d %*d %*d %*d %*d %*d %*d %*d\n", &cpu_num);
-		if (retval != 1)
-			break;
-
-		retval = func(cpu_num);
-		if (retval) {
-			fclose(fp);
-			return(retval);
-		}
-	}
-	fclose(fp);
-	return 0;
-}
-
-/*
- * Update the stored topology.max_cpu_id
- */
-static int
-update_max_cpu_id(int cpu)
-{
-	if (topology.max_cpu_id < cpu)
-		topology.max_cpu_id = cpu;
-	return 0;
-}
-
-static int
-mark_cpu_present(int cpu)
-{
-	CPU_SET_S(cpu, cpu_present_setsize, cpu_present_set);
-	return 0;
-}
-
-
-static int setup_all_buffers(void);
-
-static int
-turbostat_read(user_data_t * not_used)
-{
-	int ret;
-
-	if (!allocated) {
-		if ((ret = setup_all_buffers()) < 0)
-			return ret;
-	}
-
-	if (for_all_proc_cpus(cpu_is_not_present)) {
-		free_all_buffers();
-		if ((ret = setup_all_buffers()) < 0)
-			return ret;
-		if (for_all_proc_cpus(cpu_is_not_present))
-			return -ERR_CPU_NOT_PRESENT;
-	}
-
-	/* Saving the scheduling affinity, as it will be modified by get_counters */
-	if (sched_getaffinity(0, cpu_saved_affinity_setsize, cpu_saved_affinity_set) != 0)
-		return -ERR_CPU_SAVE_SCHED_AFFINITY;
-
-	if (!initialized) {
-		if ((ret = for_all_cpus(get_counters, EVEN_COUNTERS)) < 0)
-			goto out;
-		gettimeofday(&tv_even, (struct timezone *)NULL);
-		is_even = 1;
-		initialized = 1;
-		ret = 0;
-		goto out;
-	}
-
-	if (is_even) {
-		if ((ret = for_all_cpus(get_counters, ODD_COUNTERS)) < 0)
-			goto out;
-		gettimeofday(&tv_odd, (struct timezone *)NULL);
-		is_even = 0;
-		timersub(&tv_odd, &tv_even, &tv_delta);
-		if ((ret = for_all_cpus_delta(ODD_COUNTERS, EVEN_COUNTERS)) < 0)
-			goto out;
-		if ((ret = for_all_cpus(submit_counters, DELTA_COUNTERS)) < 0)
-			goto out;
-	} else {
-		if ((ret = for_all_cpus(get_counters, EVEN_COUNTERS)) < 0)
-			goto out;
-		gettimeofday(&tv_even, (struct timezone *)NULL);
-		is_even = 1;
-		timersub(&tv_even, &tv_odd, &tv_delta);
-		if ((ret = for_all_cpus_delta(EVEN_COUNTERS, ODD_COUNTERS)) < 0)
-			goto out;
-		if ((ret = for_all_cpus(submit_counters, DELTA_COUNTERS)) < 0)
-			goto out;
-	}
-	ret = 0;
-out:
-	/*
-	 * Let's restore the affinity
-	 * This might fail if the number of CPU changed, but we can't do anything in that case..
-	 */
-	(void)sched_setaffinity(0, cpu_saved_affinity_setsize, cpu_saved_affinity_set);
-	return ret;
-}
-
-static int __attribute__((warn_unused_result))
-check_dev_msr()
-{
-	struct stat sb;
-
-	if (stat("/dev/cpu/0/msr", &sb)) {
-		ERROR("no /dev/cpu/0/msr, try \"# modprobe msr\"");
-		return -ERR_NO_MSR;
-	}
-	return 0;
-}
-
-static int __attribute__((warn_unused_result))
-check_super_user()
-{
-	if (getuid() != 0) {
-		ERROR("must be root");
-		return -ERR_NOT_ROOT;
-	}
-	return 0;
-}
+/***************
+ * CPU Probing *
+ ***************/
 
 /*
  * MSR_IA32_TEMPERATURE_TARGET indicates the temperature where
@@ -1294,6 +1048,125 @@ probe_cpu()
 	return 0;
 }
 
+
+/********************
+ * Topology Probing *
+ ********************/
+
+/*
+ * Read a single int from a file.
+ */
+static int __attribute__ ((format(printf,1,2)))
+parse_int_file(const char *fmt, ...)
+{
+	va_list args;
+	char path[PATH_MAX];
+	FILE *filep;
+	int value;
+
+	va_start(args, fmt);
+	vsnprintf(path, sizeof(path), fmt, args);
+	va_end(args);
+	filep = fopen(path, "r");
+	if (!filep) {
+		ERROR("%s: open failed", path);
+		return -ERR_CANT_OPEN_FILE;
+	}
+	if (fscanf(filep, "%d", &value) != 1) {
+		ERROR("%s: failed to parse number from file", path);
+		return -ERR_CANT_READ_NUMBER;
+	}
+	fclose(filep);
+	return value;
+}
+
+static int
+get_threads_on_core(int cpu)
+{
+	char path[80];
+	FILE *filep;
+	int sib1, sib2;
+	int matches;
+	char character;
+
+	ssnprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", cpu);
+	filep = fopen(path, "r");
+        if (!filep) {
+                ERROR("%s: open failed", path);
+                return -ERR_CANT_OPEN_FILE;
+        }
+	/*
+	 * file format:
+	 * if a pair of number with a character between: 2 siblings (eg. 1-2, or 1,4)
+	 * otherwinse 1 sibling (self).
+	 */
+	matches = fscanf(filep, "%d%c%d\n", &sib1, &character, &sib2);
+
+	fclose(filep);
+
+	if (matches == 3)
+		return 2;
+	else
+		return 1;
+}
+
+/*
+ * run func(cpu) on every cpu in /proc/stat
+ * return max_cpu number
+ */
+static int __attribute__((warn_unused_result))
+for_all_proc_cpus(int (func)(int))
+{
+	FILE *fp;
+	int cpu_num;
+	int retval;
+
+	fp = fopen("/proc/stat", "r");
+        if (!fp) {
+                ERROR("Failed to open /proc/stat");
+                return -ERR_CANT_OPEN_FILE;
+        }
+
+	retval = fscanf(fp, "cpu %*d %*d %*d %*d %*d %*d %*d %*d %*d %*d\n");
+	if (retval != 0) {
+		ERROR("Failed to parse /proc/stat");
+		fclose(fp);
+		return -ERR_CANT_READ_PROC_STAT;
+	}
+
+	while (1) {
+		retval = fscanf(fp, "cpu%u %*d %*d %*d %*d %*d %*d %*d %*d %*d %*d\n", &cpu_num);
+		if (retval != 1)
+			break;
+
+		retval = func(cpu_num);
+		if (retval) {
+			fclose(fp);
+			return(retval);
+		}
+	}
+	fclose(fp);
+	return 0;
+}
+
+/*
+ * Update the stored topology.max_cpu_id
+ */
+static int
+update_max_cpu_id(int cpu)
+{
+	if (topology.max_cpu_id < cpu)
+		topology.max_cpu_id = cpu;
+	return 0;
+}
+
+static int
+mark_cpu_present(int cpu)
+{
+	CPU_SET_S(cpu, cpu_present_setsize, cpu_present_set);
+	return 0;
+}
+
 static int __attribute__((warn_unused_result))
 allocate_cpu_set(cpu_set_t * set, size_t * size) {
 	set = CPU_ALLOC(topology.max_cpu_id  + 1);
@@ -1405,6 +1278,11 @@ err:
 	return ret;
 }
 
+
+/************************
+ * Main alloc/init/free *
+ ************************/
+
 static int
 allocate_counters(struct thread_data **threads, struct core_data **cores, struct pkg_data **packages)
 {
@@ -1445,14 +1323,6 @@ err:
 	return -ERR_CALLOC;
 }
 
-/*
- * init_counter()
- *
- * set cpu_id, core_id, package_id
- * set FIRST_THREAD_IN_CORE and FIRST_CORE_IN_PACKAGE
- *
- * increment topo.num_cores when 1st core in pkg seen
- */
 static int
 init_counter(struct thread_data *thread_base, struct core_data *core_base,
 	struct pkg_data *pkg_base, int cpu_id)
@@ -1478,7 +1348,6 @@ init_counter(struct thread_data *thread_base, struct core_data *core_base,
 	return 0;
 }
 
-
 static int
 initialize_counters(void)
 {
@@ -1502,6 +1371,56 @@ initialize_counters(void)
 	}
 	return 0;
 }
+
+
+
+static void
+free_all_buffers(void)
+{
+	allocated = 0;
+	initialized = 0;
+
+	CPU_FREE(cpu_present_set);
+	cpu_present_set = NULL;
+	cpu_present_set = 0;
+
+	CPU_FREE(cpu_affinity_set);
+	cpu_affinity_set = NULL;
+	cpu_affinity_setsize = 0;
+
+	CPU_FREE(cpu_saved_affinity_set);
+	cpu_saved_affinity_set = NULL;
+	cpu_saved_affinity_setsize = 0;
+
+	free(thread_even);
+	free(core_even);
+	free(package_even);
+
+	thread_even = NULL;
+	core_even = NULL;
+	package_even = NULL;
+
+	free(thread_odd);
+	free(core_odd);
+	free(package_odd);
+
+	thread_odd = NULL;
+	core_odd = NULL;
+	package_odd = NULL;
+
+	free(thread_delta);
+	free(core_delta);
+	free(package_delta);
+
+	thread_delta = NULL;
+	core_delta = NULL;
+	package_delta = NULL;
+}
+
+
+/**********************
+ * Collectd functions *
+ **********************/
 
 #define DO_OR_GOTO_ERR(something) \
 do {                         \
@@ -1530,13 +1449,86 @@ err:
 }
 
 static int
-turbostat_init(void)
+turbostat_read(user_data_t * not_used)
 {
 	int ret;
 
-	DO_OR_GOTO_ERR(check_super_user());
+	if (!allocated) {
+		if ((ret = setup_all_buffers()) < 0)
+			return ret;
+	}
+
+	if (for_all_proc_cpus(cpu_is_not_present)) {
+		free_all_buffers();
+		if ((ret = setup_all_buffers()) < 0)
+			return ret;
+		if (for_all_proc_cpus(cpu_is_not_present))
+			return -ERR_CPU_NOT_PRESENT;
+	}
+
+	/* Saving the scheduling affinity, as it will be modified by get_counters */
+	if (sched_getaffinity(0, cpu_saved_affinity_setsize, cpu_saved_affinity_set) != 0)
+		return -ERR_CPU_SAVE_SCHED_AFFINITY;
+
+	if (!initialized) {
+		if ((ret = for_all_cpus(get_counters, EVEN_COUNTERS)) < 0)
+			goto out;
+		gettimeofday(&tv_even, (struct timezone *)NULL);
+		is_even = 1;
+		initialized = 1;
+		ret = 0;
+		goto out;
+	}
+
+	if (is_even) {
+		if ((ret = for_all_cpus(get_counters, ODD_COUNTERS)) < 0)
+			goto out;
+		gettimeofday(&tv_odd, (struct timezone *)NULL);
+		is_even = 0;
+		timersub(&tv_odd, &tv_even, &tv_delta);
+		if ((ret = for_all_cpus_delta(ODD_COUNTERS, EVEN_COUNTERS)) < 0)
+			goto out;
+		if ((ret = for_all_cpus(submit_counters, DELTA_COUNTERS)) < 0)
+			goto out;
+	} else {
+		if ((ret = for_all_cpus(get_counters, EVEN_COUNTERS)) < 0)
+			goto out;
+		gettimeofday(&tv_even, (struct timezone *)NULL);
+		is_even = 1;
+		timersub(&tv_even, &tv_odd, &tv_delta);
+		if ((ret = for_all_cpus_delta(EVEN_COUNTERS, ODD_COUNTERS)) < 0)
+			goto out;
+		if ((ret = for_all_cpus(submit_counters, DELTA_COUNTERS)) < 0)
+			goto out;
+	}
+	ret = 0;
+out:
+	/*
+	 * Let's restore the affinity
+	 * This might fail if the number of CPU changed, but we can't do anything in that case..
+	 */
+	(void)sched_setaffinity(0, cpu_saved_affinity_setsize, cpu_saved_affinity_set);
+	return ret;
+}
+
+static int
+turbostat_init(void)
+{
+	struct stat sb;
+	int ret;
+
+	if (getuid() != 0) {
+		ERROR("must be root");
+		return -ERR_NOT_ROOT;
+	}
+
 	DO_OR_GOTO_ERR(probe_cpu());
-	DO_OR_GOTO_ERR(check_dev_msr());
+
+	if (stat("/dev/cpu/0/msr", &sb)) {
+		ERROR("no /dev/cpu/0/msr, try \"# modprobe msr\"");
+		return -ERR_NO_MSR;
+	}
+
 	DO_OR_GOTO_ERR(setup_all_buffers());
 
 	plugin_register_complex_read(NULL, PLUGIN_NAME, turbostat_read, NULL, NULL);
