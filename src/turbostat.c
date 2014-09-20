@@ -196,21 +196,30 @@ static _Bool allocated = 0;
 static _Bool initialized = 0;
 
 #define GET_THREAD(thread_base, thread_no, core_no, pkg_no) \
-	(thread_base + (pkg_no) * topo.num_cores_per_pkg * \
-		topo.num_threads_per_core + \
-		(core_no) * topo.num_threads_per_core + (thread_no))
+	(thread_base + \
+		(pkg_no) * topology.num_cores * topology.num_threads + \
+		(core_no) * topology.num_threads + \
+		(thread_no))
 #define GET_CORE(core_base, core_no, pkg_no) \
-	(core_base + (pkg_no) * topo.num_cores_per_pkg + (core_no))
+	(core_base + \
+		(pkg_no) * topology.num_cores + \
+		(core_no))
 #define GET_PKG(pkg_base, pkg_no) (pkg_base + pkg_no)
 
-struct topo_params {
+struct cpu_topology {
+	int package_id;
+	int core_id;
+	_Bool first_core_in_package;
+	_Bool first_thread_in_core;
+};
+
+struct topology {
+	int max_cpu_id;
 	int num_packages;
-	int num_cpus;
 	int num_cores;
-	int max_cpu_num;
-	int num_cores_per_pkg;
-	int num_threads_per_core;
-} topo;
+	int num_threads;
+	struct cpu_topology *cpus;
+} topology;
 
 struct timeval tv_even, tv_odd, tv_delta;
 
@@ -661,14 +670,13 @@ done:
 	return 0;
 }
 
+
 /**********************************
  * Looping function over all CPUs *
  **********************************/
 
 /*
  * Check if a given cpu id is in our compiled list of existing CPUs
- *
- * CHECKME: Why do we need this?
  */
 static int
 cpu_is_not_present(int cpu)
@@ -679,7 +687,7 @@ cpu_is_not_present(int cpu)
 /*
  * Loop on all CPUs in topological order
  *
- * Skip 'non-present' cpus (CHECKME: Why do we need this?)
+ * Skip non-present cpus
  * Return the error code at the first error or 0
  */
 static int __attribute__((warn_unused_result))
@@ -688,10 +696,9 @@ for_all_cpus(int (func)(struct thread_data *, struct core_data *, struct pkg_dat
 {
 	int retval, pkg_no, core_no, thread_no;
 
-	for (pkg_no = 0; pkg_no < topo.num_packages; ++pkg_no) {
-		for (core_no = 0; core_no < topo.num_cores_per_pkg; ++core_no) {
-			for (thread_no = 0; thread_no <
-				topo.num_threads_per_core; ++thread_no) {
+	for (pkg_no = 0; pkg_no < topology.num_packages; ++pkg_no) {
+		for (core_no = 0; core_no < topology.num_cores; ++core_no) {
+			for (thread_no = 0; thread_no < topology.num_threads; ++thread_no) {
 				struct thread_data *t;
 				struct core_data *c;
 				struct pkg_data *p;
@@ -716,6 +723,9 @@ for_all_cpus(int (func)(struct thread_data *, struct core_data *, struct pkg_dat
 /*
  * Dedicated loop: Extract every data evolution for all CPU
  *
+ * Skip non-present cpus
+ * Return the error code at the first error or 0
+ *
  * Core data is shared for all threads in one core: extracted only for the first thread
  * Package data is shared for all core in one package: extracted only for the first thread of the first core
  */
@@ -725,10 +735,9 @@ for_all_cpus_delta(const struct thread_data *thread_new_base, const struct core_
 {
 	int retval, pkg_no, core_no, thread_no;
 
-	for (pkg_no = 0; pkg_no < topo.num_packages; ++pkg_no) {
-		for (core_no = 0; core_no < topo.num_cores_per_pkg; ++core_no) {
-			for (thread_no = 0; thread_no <
-				topo.num_threads_per_core; ++thread_no) {
+	for (pkg_no = 0; pkg_no < topology.num_packages; ++pkg_no) {
+		for (core_no = 0; core_no < topology.num_cores; ++core_no) {
+			for (thread_no = 0; thread_no < topology.num_threads; ++thread_no) {
 				struct thread_data *t_delta;
 				const struct thread_data *t_old, *t_new;
 				struct core_data *c_delta;
@@ -821,8 +830,13 @@ free_all_buffers(void)
 	package_delta = NULL;
 }
 
+
+/****************
+ * File helpers *
+ ****************/
+
 /*
- * Parse a file containing a single int.
+ * Read a single int from a file.
  */
 static int __attribute__ ((format(printf,1,2)))
 parse_int_file(const char *fmt, ...)
@@ -848,40 +862,8 @@ parse_int_file(const char *fmt, ...)
 	return value;
 }
 
-/*
- * cpu_is_first_sibling_in_core(cpu)
- * return 1 if given CPU is 1st HT sibling in the core
- */
 static int
-cpu_is_first_sibling_in_core(int cpu)
-{
-	return cpu == parse_int_file("/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", cpu);
-}
-
-/*
- * cpu_is_first_core_in_package(cpu)
- * return 1 if given CPU is 1st core in package
- */
-static int
-cpu_is_first_core_in_package(int cpu)
-{
-	return cpu == parse_int_file("/sys/devices/system/cpu/cpu%d/topology/core_siblings_list", cpu);
-}
-
-static int
-get_physical_package_id(int cpu)
-{
-	return parse_int_file("/sys/devices/system/cpu/cpu%d/topology/physical_package_id", cpu);
-}
-
-static int
-get_core_id(int cpu)
-{
-	return parse_int_file("/sys/devices/system/cpu/cpu%d/topology/core_id", cpu);
-}
-
-static int
-get_num_ht_siblings(int cpu)
+get_threads_on_core(int cpu)
 {
 	char path[80];
 	FILE *filep;
@@ -950,18 +932,16 @@ for_all_proc_cpus(int (func)(int))
 }
 
 /*
- * count_cpus()
- * remember the last one seen, it will be the max
+ * Update the stored topology.max_cpu_id
  */
 static int
-count_cpus(int cpu)
+update_max_cpu_id(int cpu)
 {
-	if (topo.max_cpu_num < cpu)
-		topo.max_cpu_num = cpu;
-
-	topo.num_cpus += 1;
+	if (topology.max_cpu_id < cpu)
+		topology.max_cpu_id = cpu;
 	return 0;
 }
+
 static int
 mark_cpu_present(int cpu)
 {
@@ -1314,229 +1294,212 @@ probe_cpu()
 	return 0;
 }
 
+static int __attribute__((warn_unused_result))
+allocate_cpu_set(cpu_set_t * set, size_t * size) {
+	set = CPU_ALLOC(topology.max_cpu_id  + 1);
+	if (set == NULL) {
+		ERROR("Unable to allocate CPU state");
+		return -ERR_CPU_ALLOC;
+	}
+	*size = CPU_ALLOC_SIZE(topology.max_cpu_id  + 1);
+	CPU_ZERO_S(*size, set);
+	return 0;
+}
 
-
+/*
+ * Build a local representation of the cpu distribution
+ */
 static int __attribute__((warn_unused_result))
 topology_probe()
 {
 	int i;
 	int ret;
-	int max_core_id = 0;
-	int max_package_id = 0;
-	int max_siblings = 0;
-	struct cpu_topology {
-		int core_id;
-		int physical_package_id;
-	} *cpus;
+	int max_package_id, max_core_id, max_thread_id;
+	max_package_id = max_core_id = max_thread_id = 0;
 
-	/* Initialize num_cpus, max_cpu_num */
-	topo.num_cpus = 0;
-	topo.max_cpu_num = 0;
-	ret = for_all_proc_cpus(count_cpus);
-	if (ret < 0)
-		return ret;
+	/* Clean topology */
+	free(topology.cpus);
+	memset(&topology, 0, sizeof(topology));
 
-	DEBUG("num_cpus %d max_cpu_num %d\n", topo.num_cpus, topo.max_cpu_num);
+	/* Can't fail (update_max_cpu_id always returns 0) */
+	assert(for_all_proc_cpus(update_max_cpu_id));
 
-	cpus = calloc(1, (topo.max_cpu_num  + 1) * sizeof(struct cpu_topology));
-	if (cpus == NULL) {
-		ERROR("calloc cpus");
+	topology.cpus = calloc(1, (topology.max_cpu_id  + 1) * sizeof(struct cpu_topology));
+	if (topology.cpus == NULL) {
+		ERROR("Unable to allocate memory for cpu topology");
 		return -ERR_CALLOC;
 	}
 
-	/*
-	 * Allocate and initialize cpu_present_set
-	 */
-	cpu_present_set = CPU_ALLOC((topo.max_cpu_num + 1));
-	if (cpu_present_set == NULL) {
-		free(cpus);
-		ERROR("CPU_ALLOC");
-		return -ERR_CPU_ALLOC;
-	}
-	cpu_present_setsize = CPU_ALLOC_SIZE((topo.max_cpu_num + 1));
-	CPU_ZERO_S(cpu_present_setsize, cpu_present_set);
-	ret = for_all_proc_cpus(mark_cpu_present);
-	if (ret < 0) {
-		free(cpus);
-		return ret;
-	}
+	ret = allocate_cpu_set(cpu_present_set, &cpu_present_setsize);
+	if (ret != 0)
+		goto err;
+	ret = allocate_cpu_set(cpu_affinity_set, &cpu_affinity_setsize);
+	if (ret != 0)
+		goto err;
+	ret = allocate_cpu_set(cpu_saved_affinity_set, &cpu_saved_affinity_setsize);
+	if (ret != 0)
+		goto err;
 
-	/*
-	 * Allocate and initialize cpu_affinity_set
-	 */
-	cpu_affinity_set = CPU_ALLOC((topo.max_cpu_num + 1));
-	if (cpu_affinity_set == NULL) {
-		free(cpus);
-		ERROR("CPU_ALLOC");
-		return -ERR_CPU_ALLOC;
-	}
-	cpu_affinity_setsize = CPU_ALLOC_SIZE((topo.max_cpu_num + 1));
-	CPU_ZERO_S(cpu_affinity_setsize, cpu_affinity_set);
-
-
-	/*
-	 * Allocate and initialize cpu_saved_affinity_set
-	 */
-	cpu_saved_affinity_set = CPU_ALLOC((topo.max_cpu_num + 1));
-	if (cpu_saved_affinity_set == NULL) {
-		free(cpus);
-		ERROR("CPU_ALLOC");
-		return -ERR_CPU_ALLOC;
-	}
-	cpu_saved_affinity_setsize = CPU_ALLOC_SIZE((topo.max_cpu_num + 1));
-	CPU_ZERO_S(cpu_saved_affinity_setsize, cpu_saved_affinity_set);
-
+	/* Can't fail (mark_cpu_present always returns 0) */
+	assert(for_all_proc_cpus(mark_cpu_present));
 
 	/*
 	 * For online cpus
 	 * find max_core_id, max_package_id
 	 */
-	for (i = 0; i <= topo.max_cpu_num; ++i) {
-		int siblings;
+	for (i = 0; i <= topology.max_cpu_id; ++i) {
+		int num_threads;
+		struct cpu_topology *cpu = &topology.cpus[i];
 
 		if (cpu_is_not_present(i)) {
 			WARNING("cpu%d NOT PRESENT", i);
 			continue;
 		}
-		cpus[i].core_id = get_core_id(i);
-		if (cpus[i].core_id < 0)
-			return cpus[i].core_id;
-		if (cpus[i].core_id > max_core_id)
-			max_core_id = cpus[i].core_id;
 
-		cpus[i].physical_package_id = get_physical_package_id(i);
-		if (cpus[i].physical_package_id < 0)
-			return cpus[i].physical_package_id;
-		if (cpus[i].physical_package_id > max_package_id)
-			max_package_id = cpus[i].physical_package_id;
+		ret = parse_int_file("/sys/devices/system/cpu/cpu%d/topology/physical_package_id", i);
+		if (ret < 0)
+			goto err;
+		else
+			cpu->package_id = ret;
+		if (cpu->package_id > max_package_id)
+			max_package_id = cpu->package_id;
 
-		siblings = get_num_ht_siblings(i);
-		if (siblings < 0)
-			return siblings;
-		if (siblings > max_siblings)
-			max_siblings = siblings;
+		ret = parse_int_file("/sys/devices/system/cpu/cpu%d/topology/core_id", i);
+		if (ret < 0)
+			goto err;
+		else
+			cpu->core_id = ret;
+		if (cpu->core_id > max_core_id)
+			max_core_id = cpu->core_id;
+		ret = parse_int_file("/sys/devices/system/cpu/cpu%d/topology/core_siblings_list", i);
+		if (ret < 0)
+			goto err;
+		else if (ret == cpu->core_id)
+			cpu->first_core_in_package = 1;
+
+		ret = get_threads_on_core(i);
+		if (ret < 0)
+			goto err;
+		else
+			num_threads = ret;
+		if (num_threads > max_thread_id)
+			max_thread_id = num_threads;
+		if (num_threads > 1) {
+			ret = parse_int_file("/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", i);
+			if (ret < 0)
+				goto err;
+			else if (ret == num_threads)
+				cpu->first_thread_in_core = 1;
+		}
 		DEBUG("cpu %d pkg %d core %d\n",
-			i, cpus[i].physical_package_id, cpus[i].core_id);
+			i, cpu->package_id, cpu->core_id);
 	}
-	topo.num_cores_per_pkg = max_core_id + 1;
-	DEBUG("max_core_id %d, sizing for %d cores per package\n",
-		max_core_id, topo.num_cores_per_pkg);
+	/* Num is max + 1 (need to count 0) */
+	topology.num_packages = max_package_id + 1;
+	topology.num_cores = max_core_id + 1;
+	topology.num_threads = max_thread_id + 1;
 
-	topo.num_packages = max_package_id + 1;
-	DEBUG("max_package_id %d, sizing for %d packages\n",
-		max_package_id, topo.num_packages);
-
-	topo.num_threads_per_core = max_siblings;
-	DEBUG("max_siblings %d\n", max_siblings);
-
-	free(cpus);
 	return 0;
+err:
+	free(topology.cpus);
+	return ret;
 }
 
 static int
-allocate_counters(struct thread_data **t, struct core_data **c, struct pkg_data **p)
+allocate_counters(struct thread_data **threads, struct core_data **cores, struct pkg_data **packages)
 {
 	int i;
+	int total_threads, total_cores;
 
-	*t = calloc(topo.num_threads_per_core * topo.num_cores_per_pkg *
-		topo.num_packages, sizeof(struct thread_data));
-	if (*t == NULL)
-		goto error;
+	total_threads = topology.num_threads * topology.num_cores * topology.num_packages;
+	*threads = calloc(total_threads, sizeof(struct thread_data));
+	if (*threads == NULL)
+		goto err;
 
-	for (i = 0; i < topo.num_threads_per_core *
-		topo.num_cores_per_pkg * topo.num_packages; i++)
-		(*t)[i].cpu_id = -1;
+	for (i = 0; i < total_threads; ++i)
+		(*threads)[i].cpu_id = -1;
 
-	*c = calloc(topo.num_cores_per_pkg * topo.num_packages,
-		sizeof(struct core_data));
-	if (*c == NULL)
-		goto error;
+	total_cores = topology.num_cores * topology.num_packages;
+	*cores = calloc(total_cores, sizeof(struct core_data));
+	if (*cores == NULL)
+		goto err_clean_threads;
 
-	for (i = 0; i < topo.num_cores_per_pkg * topo.num_packages; i++)
-		(*c)[i].core_id = -1;
+	for (i = 0; i < total_cores; ++i)
+		(*cores)[i].core_id = -1;
 
-	*p = calloc(topo.num_packages, sizeof(struct pkg_data));
-	if (*p == NULL)
-		goto error;
+	*packages = calloc(topology.num_packages, sizeof(struct pkg_data));
+	if (*packages == NULL)
+		goto err_clean_cores;
 
-	for (i = 0; i < topo.num_packages; i++)
-		(*p)[i].package_id = i;
+	for (i = 0; i < topology.num_packages; i++)
+		(*packages)[i].package_id = i;
 
 	return 0;
-error:
+
+err_clean_cores:
+	free(*cores);
+err_clean_threads:
+	free(*threads);
+err:
 	ERROR("calloc counters");
 	return -ERR_CALLOC;
 }
+
 /*
  * init_counter()
  *
- * set cpu_id, core_num, pkg_num
+ * set cpu_id, core_id, package_id
  * set FIRST_THREAD_IN_CORE and FIRST_CORE_IN_PACKAGE
  *
  * increment topo.num_cores when 1st core in pkg seen
  */
 static int
 init_counter(struct thread_data *thread_base, struct core_data *core_base,
-	struct pkg_data *pkg_base, int thread_num, int core_num,
-	int pkg_num, int cpu_id)
+	struct pkg_data *pkg_base, int cpu_id)
 {
-	int ret;
 	struct thread_data *t;
 	struct core_data *c;
 	struct pkg_data *p;
+	struct cpu_topology *cpu = &topology.cpus[cpu_id];
 
-	t = GET_THREAD(thread_base, thread_num, core_num, pkg_num);
-	c = GET_CORE(core_base, core_num, pkg_num);
-	p = GET_PKG(pkg_base, pkg_num);
+	t = GET_THREAD(thread_base, !(cpu->first_thread_in_core), cpu->core_id, cpu->package_id);
+	c = GET_CORE(core_base, cpu->core_id, cpu->package_id);
+	p = GET_PKG(pkg_base, cpu->package_id);
 
 	t->cpu_id = cpu_id;
-	if (thread_num == 0) {
+	if (cpu->first_thread_in_core)
 		t->flags |= CPU_IS_FIRST_THREAD_IN_CORE;
-		if ((ret = cpu_is_first_core_in_package(cpu_id)) < 0) {
-			return ret;
-		} else if (ret != 0) {
-			t->flags |= CPU_IS_FIRST_CORE_IN_PACKAGE;
-		}
-	}
+	if (cpu->first_core_in_package)
+		t->flags |= CPU_IS_FIRST_CORE_IN_PACKAGE;
 
-	c->core_id = core_num;
-	p->package_id = pkg_num;
+	c->core_id = cpu->core_id;
+	p->package_id = cpu->package_id;
 
 	return 0;
 }
 
 
 static int
-initialize_counters(int cpu_id)
+initialize_counters(void)
 {
-	int my_thread_id, my_core_id, my_package_id;
 	int ret;
+	int cpu_id;
 
-	my_package_id = get_physical_package_id(cpu_id);
-	if (my_package_id < 0)
-		return my_package_id;
-	my_core_id = get_core_id(cpu_id);
-	if (my_core_id < 0)
-		return my_core_id;
+	for (cpu_id = 0; cpu_id <= topology.max_cpu_id; ++cpu_id) {
+		if (cpu_is_not_present(cpu_id)) {
+			continue;
+		}
 
-	if ((ret = cpu_is_first_sibling_in_core(cpu_id)) < 0) {
-		return ret;
-	} else if (ret != 0) {
-		my_thread_id = 0;
-		topo.num_cores++;
-	} else {
-		my_thread_id = 1;
+		ret = init_counter(EVEN_COUNTERS, cpu_id);
+		if (ret < 0)
+			return ret;
+		ret = init_counter(ODD_COUNTERS, cpu_id);
+		if (ret < 0)
+			return ret;
+		ret = init_counter(DELTA_COUNTERS, cpu_id);
+		if (ret < 0)
+			return ret;
 	}
-
-	ret = init_counter(EVEN_COUNTERS, my_thread_id, my_core_id, my_package_id, cpu_id);
-	if (ret < 0)
-		return ret;
-	ret = init_counter(ODD_COUNTERS, my_thread_id, my_core_id, my_package_id, cpu_id);
-	if (ret < 0)
-		return ret;
-	ret = init_counter(DELTA_COUNTERS, my_thread_id, my_core_id, my_package_id, cpu_id);
-	if (ret < 0)
-		return ret;
 	return 0;
 }
 
@@ -1555,7 +1518,7 @@ static int setup_all_buffers(void)
 	DO_OR_GOTO_ERR(allocate_counters(&thread_even, &core_even, &package_even));
 	DO_OR_GOTO_ERR(allocate_counters(&thread_odd, &core_odd, &package_odd));
 	DO_OR_GOTO_ERR(allocate_counters(&thread_delta, &core_delta, &package_delta));
-	DO_OR_GOTO_ERR(for_all_proc_cpus(initialize_counters));
+	DO_OR_GOTO_ERR(initialize_counters());
 	DO_OR_GOTO_ERR(for_all_cpus(set_temperature_target, EVEN_COUNTERS));
 	DO_OR_GOTO_ERR(for_all_cpus(set_temperature_target, ODD_COUNTERS));
 
