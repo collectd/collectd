@@ -1194,8 +1194,9 @@ topology_probe()
 	free(topology.cpus);
 	memset(&topology, 0, sizeof(topology));
 
-	/* Can't fail (update_max_cpu_id always returns 0) */
-	assert(for_all_proc_cpus(update_max_cpu_id));
+	ret = for_all_proc_cpus(update_max_cpu_id);
+	if (ret != 0)
+		goto err;
 
 	topology.cpus = calloc(1, (topology.max_cpu_id  + 1) * sizeof(struct cpu_topology));
 	if (topology.cpus == NULL) {
@@ -1213,8 +1214,9 @@ topology_probe()
 	if (ret != 0)
 		goto err;
 
-	/* Can't fail (mark_cpu_present always returns 0) */
-	assert(for_all_proc_cpus(mark_cpu_present));
+	ret = for_all_proc_cpus(mark_cpu_present);
+	if (ret != 0)
+		goto err;
 
 	/*
 	 * For online cpus
