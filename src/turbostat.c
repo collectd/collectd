@@ -1249,7 +1249,7 @@ topology_probe()
 		ret = parse_int_file("/sys/devices/system/cpu/cpu%d/topology/core_siblings_list", i);
 		if (ret < 0)
 			goto err;
-		else if (ret == cpu->core_id)
+		else if (ret == i)
 			cpu->first_core_in_package = 1;
 
 		ret = get_threads_on_core(i);
@@ -1259,13 +1259,12 @@ topology_probe()
 			num_threads = ret;
 		if (num_threads > max_thread_id)
 			max_thread_id = num_threads;
-		if (num_threads > 1) {
-			ret = parse_int_file("/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", i);
-			if (ret < 0)
-				goto err;
-			else if (ret == num_threads)
-				cpu->first_thread_in_core = 1;
-		}
+		ret = parse_int_file("/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", i);
+		if (ret < 0)
+			goto err;
+		else if (ret == i)
+			cpu->first_thread_in_core = 1;
+
 		DEBUG("cpu %d pkg %d core %d\n",
 			i, cpu->package_id, cpu->core_id);
 	}
