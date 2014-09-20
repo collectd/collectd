@@ -255,48 +255,10 @@ enum return_values {
 	UNSUPPORTED_CPU,
 };
 
-static int setup_all_buffers(void);
 
-static int
-cpu_is_not_present(int cpu)
-{
-	return !CPU_ISSET_S(cpu, cpu_present_setsize, cpu_present_set);
-}
-/*
- * run func(thread, core, package) in topology order
- * skip non-present cpus
- */
-
-static int __attribute__((warn_unused_result))
-for_all_cpus(int (func)(struct thread_data *, struct core_data *, struct pkg_data *),
-	struct thread_data *thread_base, struct core_data *core_base, struct pkg_data *pkg_base)
-{
-	int retval, pkg_no, core_no, thread_no;
-
-	for (pkg_no = 0; pkg_no < topo.num_packages; ++pkg_no) {
-		for (core_no = 0; core_no < topo.num_cores_per_pkg; ++core_no) {
-			for (thread_no = 0; thread_no <
-				topo.num_threads_per_core; ++thread_no) {
-				struct thread_data *t;
-				struct core_data *c;
-				struct pkg_data *p;
-
-				t = GET_THREAD(thread_base, thread_no, core_no, pkg_no);
-
-				if (cpu_is_not_present(t->cpu_id))
-					continue;
-
-				c = GET_CORE(core_base, core_no, pkg_no);
-				p = GET_PKG(pkg_base, pkg_no);
-
-				retval = func(t, c, p);
-				if (retval)
-					return retval;
-			}
-		}
-	}
-	return 0;
-}
+/*****************************
+ *  MSR Manipulation helpers *
+ *****************************/
 
 /*
  * Open a MSR device for reading
@@ -366,110 +328,18 @@ get_msr(int cpu, off_t offset, unsigned long long *msr)
 	return retval;
 }
 
-#define DELTA_WRAP32(delta, new, old)			\
-	if (new > old) {				\
-		delta = new - old;			\
-	} else {					\
-		delta = 0x100000000 + new - old;	\
-	}
+
+/********************************
+ * Raw data acquisition (1 CPU) *
+ ********************************/
 
 /*
- * Extract the evolution old->new in delta at a package level
- * (some are not new-delta, e.g. temperature)
- */
-static inline void
-delta_package(struct pkg_data *delta, const struct pkg_data *new, const struct pkg_data *old)
-{
-	delta->pc2 = new->pc2 - old->pc2;
-	delta->pc3 = new->pc3 - old->pc3;
-	delta->pc6 = new->pc6 - old->pc6;
-	delta->pc7 = new->pc7 - old->pc7;
-	delta->pc8 = new->pc8 - old->pc8;
-	delta->pc9 = new->pc9 - old->pc9;
-	delta->pc10 = new->pc10 - old->pc10;
-	delta->pkg_temp_c = new->pkg_temp_c;
-
-	DELTA_WRAP32(delta->energy_pkg, new->energy_pkg, old->energy_pkg);
-	DELTA_WRAP32(delta->energy_cores, new->energy_cores, old->energy_cores);
-	DELTA_WRAP32(delta->energy_gfx, new->energy_gfx, old->energy_gfx);
-	DELTA_WRAP32(delta->energy_dram, new->energy_dram, old->energy_dram);
-	DELTA_WRAP32(delta->rapl_pkg_perf_status, new->rapl_pkg_perf_status, old->rapl_pkg_perf_status);
-	DELTA_WRAP32(delta->rapl_dram_perf_status, new->rapl_dram_perf_status, old->rapl_dram_perf_status);
-}
-
-/*
- * Extract the evolution old->new in delta at a core level
- * (some are not new-delta, e.g. temperature)
- */
-static inline void
-delta_core(struct core_data *delta, const struct core_data *new, const struct core_data *old)
-{
-	delta->c3 = new->c3 - old->c3;
-	delta->c6 = new->c6 - old->c6;
-	delta->c7 = new->c7 - old->c7;
-	delta->core_temp_c = new->core_temp_c;
-}
-
-/*
- * Extract the evolution old->new in delta at a package level
- * core_delta is required for c1 estimation (tsc - c0 - all core cstates)
- */
-static inline int __attribute__((warn_unused_result))
-delta_thread(struct thread_data *delta, const struct thread_data *new, const struct thread_data *old,
-	const struct core_data *core_delta)
-{
-	delta->tsc = new->tsc - old->tsc;
-
-	/* check for TSC < 1 Mcycles over interval */
-	if (delta->tsc < (1000 * 1000)) {
-		WARNING("Insanely slow TSC rate, TSC stops in idle? ");
-		WARNING("You can disable all c-states by booting with \"idle=poll\" ");
-		WARNING("or just the deep ones with \"processor.max_cstate=1\"");
-		return -1;
-	}
-
-	delta->c1 = new->c1 - old->c1;
-
-	if ((new->aperf > old->aperf) && (new->mperf > old->mperf)) {
-		delta->aperf = new->aperf - old->aperf;
-		delta->mperf = new->mperf - old->mperf;
-	} else {
-		if (!aperf_mperf_unstable) {
-			WARNING(" APERF or MPERF went backwards * ");
-			WARNING("* Frequency results do not cover entire interval *");
-			WARNING("* fix this by running Linux-2.6.30 or later *");
-
-			aperf_mperf_unstable = 1;
-		}
-	}
-
-	/*
-	 * As counter collection is not atomic,
-	 * it is possible for mperf's non-halted cycles + idle states
-	 * to exceed TSC's all cycles: show c1 = 0% in that case.
-	 */
-	if ((delta->mperf + core_delta->c3 + core_delta->c6 + core_delta->c7) > delta->tsc)
-		delta->c1 = 0;
-	else {
-		/* normal case, derive c1 */
-		delta->c1 = delta->tsc - delta->mperf - core_delta->c3
-			- core_delta->c6 - core_delta->c7;
-	}
-
-	if (delta->mperf == 0) {
-		WARNING("cpu%d MPERF 0!", old->cpu_id);
-		delta->mperf = 1;	/* divide by 0 protection */
-	}
-
-	delta->smi_count = new->smi_count - old->smi_count;
-
-	return 0;
-}
-
-/*
- * get_counters(...)
- * migrate to cpu
- * acquire and record local counters for that cpu
+ * Read every data avalaible for a single CPU
+ *
+ * Core data is shared for all threads in one core: extracted only for the first thread
+ * Package data is shared for all core in one package: extracted only for the first thread of the first core
+ *
+ * Side effect: migrates to the targeted CPU
  */
 static int __attribute__((warn_unused_result))
 get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
@@ -571,6 +441,342 @@ out:
 	close(msr_fd);
 	return retval;
 }
+
+
+/**********************************
+ * Evaluating the changes (1 CPU) *
+ **********************************/
+
+/*
+ * Do delta = new - old on 32bits cyclique intergers
+ */
+#define DELTA_WRAP32(delta, new, old)			\
+	if (new > old) {				\
+		delta = new - old;			\
+	} else {					\
+		delta = 0x100000000 + new - old;	\
+	}
+
+/*
+ * Extract the evolution old->new in delta at a package level
+ * (some are not new-delta, e.g. temperature)
+ */
+static inline void
+delta_package(struct pkg_data *delta, const struct pkg_data *new, const struct pkg_data *old)
+{
+	delta->pc2 = new->pc2 - old->pc2;
+	delta->pc3 = new->pc3 - old->pc3;
+	delta->pc6 = new->pc6 - old->pc6;
+	delta->pc7 = new->pc7 - old->pc7;
+	delta->pc8 = new->pc8 - old->pc8;
+	delta->pc9 = new->pc9 - old->pc9;
+	delta->pc10 = new->pc10 - old->pc10;
+	delta->pkg_temp_c = new->pkg_temp_c;
+
+	DELTA_WRAP32(delta->energy_pkg, new->energy_pkg, old->energy_pkg);
+	DELTA_WRAP32(delta->energy_cores, new->energy_cores, old->energy_cores);
+	DELTA_WRAP32(delta->energy_gfx, new->energy_gfx, old->energy_gfx);
+	DELTA_WRAP32(delta->energy_dram, new->energy_dram, old->energy_dram);
+	DELTA_WRAP32(delta->rapl_pkg_perf_status, new->rapl_pkg_perf_status, old->rapl_pkg_perf_status);
+	DELTA_WRAP32(delta->rapl_dram_perf_status, new->rapl_dram_perf_status, old->rapl_dram_perf_status);
+}
+
+/*
+ * Extract the evolution old->new in delta at a core level
+ * (some are not new-delta, e.g. temperature)
+ */
+static inline void
+delta_core(struct core_data *delta, const struct core_data *new, const struct core_data *old)
+{
+	delta->c3 = new->c3 - old->c3;
+	delta->c6 = new->c6 - old->c6;
+	delta->c7 = new->c7 - old->c7;
+	delta->core_temp_c = new->core_temp_c;
+}
+
+/*
+ * Extract the evolution old->new in delta at a package level
+ * core_delta is required for c1 estimation (tsc - c0 - all core cstates)
+ */
+static inline int __attribute__((warn_unused_result))
+delta_thread(struct thread_data *delta, const struct thread_data *new, const struct thread_data *old,
+	const struct core_data *core_delta)
+{
+	delta->tsc = new->tsc - old->tsc;
+
+	/* check for TSC < 1 Mcycles over interval */
+	if (delta->tsc < (1000 * 1000)) {
+		WARNING("Insanely slow TSC rate, TSC stops in idle? ");
+		WARNING("You can disable all c-states by booting with \"idle=poll\" ");
+		WARNING("or just the deep ones with \"processor.max_cstate=1\"");
+		return -1;
+	}
+
+	delta->c1 = new->c1 - old->c1;
+
+	if ((new->aperf > old->aperf) && (new->mperf > old->mperf)) {
+		delta->aperf = new->aperf - old->aperf;
+		delta->mperf = new->mperf - old->mperf;
+	} else {
+		if (!aperf_mperf_unstable) {
+			WARNING(" APERF or MPERF went backwards * ");
+			WARNING("* Frequency results do not cover entire interval *");
+			WARNING("* fix this by running Linux-2.6.30 or later *");
+
+			aperf_mperf_unstable = 1;
+		}
+	}
+
+	/*
+	 * As counter collection is not atomic,
+	 * it is possible for mperf's non-halted cycles + idle states
+	 * to exceed TSC's all cycles: show c1 = 0% in that case.
+	 */
+	if ((delta->mperf + core_delta->c3 + core_delta->c6 + core_delta->c7) > delta->tsc)
+		delta->c1 = 0;
+	else {
+		/* normal case, derive c1 */
+		delta->c1 = delta->tsc - delta->mperf - core_delta->c3
+			- core_delta->c6 - core_delta->c7;
+	}
+
+	if (delta->mperf == 0) {
+		WARNING("cpu%d MPERF 0!", old->cpu_id);
+		delta->mperf = 1;	/* divide by 0 protection */
+	}
+
+	delta->smi_count = new->smi_count - old->smi_count;
+
+	return 0;
+}
+
+/**********************************
+ * Submitting the results (1 CPU) *
+ **********************************/
+
+/*
+ * Submit one gauge value
+ */
+static void
+turbostat_submit (const char *plugin_instance,
+	const char *type, const char *type_instance,
+	gauge_t value)
+{
+	value_list_t vl = VALUE_LIST_INIT;
+	value_t v;
+
+	v.gauge = value;
+	vl.values = &v;
+	vl.values_len = 1;
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, PLUGIN_NAME, sizeof (vl.plugin));
+	if (plugin_instance != NULL)
+		sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
+	sstrncpy (vl.type, type, sizeof (vl.type));
+	if (type_instance != NULL)
+		sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
+
+	plugin_dispatch_values (&vl);
+}
+
+/*
+ * Submit every data for a single CPU
+ *
+ * Core data is shared for all threads in one core: submitted only for the first thread
+ * Package data is shared for all core in one package: submitted only for the first thread of the first core
+ */
+static int
+submit_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
+{
+	char name[12];
+	double interval_float;
+
+	interval_float = tv_delta.tv_sec + tv_delta.tv_usec/1000000.0;
+
+	ssnprintf(name, sizeof(name), "cpu%02d", t->cpu_id);
+
+	if (!aperf_mperf_unstable)
+		turbostat_submit(name, "percent", "c0", 100.0 * t->mperf/t->tsc);
+	if (!aperf_mperf_unstable)
+		turbostat_submit(name, "percent", "c1", 100.0 * t->c1/t->tsc);
+
+	/* GHz */
+	if ((!aperf_mperf_unstable) || (!(t->aperf > t->tsc || t->mperf > t->tsc)))
+		turbostat_submit(NULL, "frequency", name, 1.0 * t->tsc / 1000000000 * t->aperf / t->mperf / interval_float);
+
+	/* SMI */
+	turbostat_submit(NULL, "current", name, t->smi_count);
+
+	/* submit per-core data only for 1st thread in core */
+	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
+		goto done;
+
+	ssnprintf(name, sizeof(name), "core%02d", c->core_id);
+
+	if (do_core_cstate & (1 << 3))
+		turbostat_submit(name, "percent", "c3", 100.0 * c->c3/t->tsc);
+	if (do_core_cstate & (1 << 6))
+		turbostat_submit(name, "percent", "c6", 100.0 * c->c6/t->tsc);
+	if (do_core_cstate & (1 << 7))
+		turbostat_submit(name, "percent", "c7", 100.0 * c->c7/t->tsc);
+
+	if (do_dts)
+		turbostat_submit(NULL, "temperature", name, c->core_temp_c);
+
+	/* submit per-package data only for 1st core in package */
+	if (!(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
+		goto done;
+
+	ssnprintf(name, sizeof(name), "pkg%02d", p->package_id);
+
+	if (do_ptm)
+		turbostat_submit(NULL, "temperature", name, p->pkg_temp_c);
+
+	if (do_pkg_cstate & (1 << 2))
+		turbostat_submit(name, "percent", "pc2", 100.0 * p->pc2/t->tsc);
+	if (do_pkg_cstate & (1 << 3))
+		turbostat_submit(name, "percent", "pc3", 100.0 * p->pc3/t->tsc);
+	if (do_pkg_cstate & (1 << 6))
+		turbostat_submit(name, "percent", "pc6", 100.0 * p->pc6/t->tsc);
+	if (do_pkg_cstate & (1 << 7))
+		turbostat_submit(name, "percent", "pc7", 100.0 * p->pc7/t->tsc);
+	if (do_pkg_cstate & (1 << 8))
+		turbostat_submit(name, "percent", "pc8", 100.0 * p->pc8/t->tsc);
+	if (do_pkg_cstate & (1 << 9))
+		turbostat_submit(name, "percent", "pc9", 100.0 * p->pc9/t->tsc);
+	if (do_pkg_cstate & (1 << 10))
+		turbostat_submit(name, "percent", "pc10", 100.0 * p->pc10/t->tsc);
+
+	if (do_rapl) {
+		if (do_rapl & RAPL_PKG)
+			turbostat_submit(name, "power", "Pkg_W", p->energy_pkg * rapl_energy_units / interval_float);
+		if (do_rapl & RAPL_CORES)
+			turbostat_submit(name, "power", "Cor_W", p->energy_cores * rapl_energy_units / interval_float);
+		if (do_rapl & RAPL_GFX)
+			turbostat_submit(name, "power", "GFX_W", p->energy_gfx * rapl_energy_units / interval_float);
+		if (do_rapl & RAPL_DRAM)
+			turbostat_submit(name, "power", "RAM_W", p->energy_dram * rapl_energy_units / interval_float);
+	}
+done:
+	return 0;
+}
+
+/**********************************
+ * Looping function over all CPUs *
+ **********************************/
+
+/*
+ * Check if a given cpu id is in our compiled list of existing CPUs
+ *
+ * CHECKME: Why do we need this?
+ */
+static int
+cpu_is_not_present(int cpu)
+{
+	return !CPU_ISSET_S(cpu, cpu_present_setsize, cpu_present_set);
+}
+
+/*
+ * Loop on all CPUs in topological order
+ *
+ * Skip 'non-present' cpus (CHECKME: Why do we need this?)
+ * Return the error code at the first error or 0
+ */
+static int __attribute__((warn_unused_result))
+for_all_cpus(int (func)(struct thread_data *, struct core_data *, struct pkg_data *),
+	struct thread_data *thread_base, struct core_data *core_base, struct pkg_data *pkg_base)
+{
+	int retval, pkg_no, core_no, thread_no;
+
+	for (pkg_no = 0; pkg_no < topo.num_packages; ++pkg_no) {
+		for (core_no = 0; core_no < topo.num_cores_per_pkg; ++core_no) {
+			for (thread_no = 0; thread_no <
+				topo.num_threads_per_core; ++thread_no) {
+				struct thread_data *t;
+				struct core_data *c;
+				struct pkg_data *p;
+
+				t = GET_THREAD(thread_base, thread_no, core_no, pkg_no);
+
+				if (cpu_is_not_present(t->cpu_id))
+					continue;
+
+				c = GET_CORE(core_base, core_no, pkg_no);
+				p = GET_PKG(pkg_base, pkg_no);
+
+				retval = func(t, c, p);
+				if (retval)
+					return retval;
+			}
+		}
+	}
+	return 0;
+}
+
+/*
+ * Dedicated loop: Extract every data evolution for all CPU
+ *
+ * Core data is shared for all threads in one core: extracted only for the first thread
+ * Package data is shared for all core in one package: extracted only for the first thread of the first core
+ */
+static int __attribute__((warn_unused_result))
+for_all_cpus_delta(const struct thread_data *thread_new_base, const struct core_data *core_new_base, const struct pkg_data *pkg_new_base,
+		   const struct thread_data *thread_old_base, const struct core_data *core_old_base, const struct pkg_data *pkg_old_base)
+{
+	int retval, pkg_no, core_no, thread_no;
+
+	for (pkg_no = 0; pkg_no < topo.num_packages; ++pkg_no) {
+		for (core_no = 0; core_no < topo.num_cores_per_pkg; ++core_no) {
+			for (thread_no = 0; thread_no <
+				topo.num_threads_per_core; ++thread_no) {
+				struct thread_data *t_delta;
+				const struct thread_data *t_old, *t_new;
+				struct core_data *c_delta;
+
+				/* Get correct pointers for threads */
+				t_delta = GET_THREAD(thread_delta, thread_no, core_no, pkg_no);
+				t_new = GET_THREAD(thread_new_base, thread_no, core_no, pkg_no);
+				t_old = GET_THREAD(thread_old_base, thread_no, core_no, pkg_no);
+
+				/* Skip threads that disappeared */
+				if (cpu_is_not_present(t_delta->cpu_id))
+					continue;
+
+				/* c_delta is always required for delta_thread */
+				c_delta = GET_CORE(core_delta, core_no, pkg_no);
+
+				/* calculate core delta only for 1st thread in core */
+				if (t_new->flags & CPU_IS_FIRST_THREAD_IN_CORE) {
+					const struct core_data *c_old, *c_new;
+
+					c_new = GET_CORE(core_new_base, core_no, pkg_no);
+					c_old = GET_CORE(core_old_base, core_no, pkg_no);
+
+					delta_core(c_delta, c_new, c_old);
+				}
+
+				/* Always calculate thread delta */
+				retval = delta_thread(t_delta, t_new, t_old, c_delta);
+				if (retval)
+					return retval;
+
+				/* calculate package delta only for 1st core in package */
+				if (t_new->flags & CPU_IS_FIRST_CORE_IN_PACKAGE) {
+					struct pkg_data *p_delta;
+					const struct pkg_data *p_old, *p_new;
+
+					p_delta = GET_PKG(package_delta, pkg_no);
+					p_new = GET_PKG(pkg_new_base, pkg_no);
+					p_old = GET_PKG(pkg_old_base, pkg_no);
+
+					delta_package(p_delta, p_new, p_old);
+				}
+			}
+		}
+	}
+	return 0;
+}
+
 
 static void
 free_all_buffers(void)
@@ -705,70 +911,6 @@ get_num_ht_siblings(int cpu)
 }
 
 /*
- * Extract every data evolution for all CPU
- *
- * Core data is shared for all threads in one core: extracted only for the first thread
- * Package data is shared for all core in one package: extracted only for the first thread of the first core
- */
-static int __attribute__((warn_unused_result))
-for_all_cpus_delta(const struct thread_data *thread_new_base, const struct core_data *core_new_base, const struct pkg_data *pkg_new_base,
-		   const struct thread_data *thread_old_base, const struct core_data *core_old_base, const struct pkg_data *pkg_old_base)
-{
-	int retval, pkg_no, core_no, thread_no;
-
-	for (pkg_no = 0; pkg_no < topo.num_packages; ++pkg_no) {
-		for (core_no = 0; core_no < topo.num_cores_per_pkg; ++core_no) {
-			for (thread_no = 0; thread_no <
-				topo.num_threads_per_core; ++thread_no) {
-				struct thread_data *t_delta;
-				const struct thread_data *t_old, *t_new;
-				struct core_data *c_delta;
-
-				/* Get correct pointers for threads */
-				t_delta = GET_THREAD(thread_delta, thread_no, core_no, pkg_no);
-				t_new = GET_THREAD(thread_new_base, thread_no, core_no, pkg_no);
-				t_old = GET_THREAD(thread_old_base, thread_no, core_no, pkg_no);
-
-				/* Skip threads that disappeared */
-				if (cpu_is_not_present(t_delta->cpu_id))
-					continue;
-
-				/* c_delta is always required for delta_thread */
-				c_delta = GET_CORE(core_delta, core_no, pkg_no);
-
-				/* calculate core delta only for 1st thread in core */
-				if (t_new->flags & CPU_IS_FIRST_THREAD_IN_CORE) {
-					const struct core_data *c_old, *c_new;
-
-					c_new = GET_CORE(core_new_base, core_no, pkg_no);
-					c_old = GET_CORE(core_old_base, core_no, pkg_no);
-
-					delta_core(c_delta, c_new, c_old);
-				}
-
-				/* Always calculate thread delta */
-				retval = delta_thread(t_delta, t_new, t_old, c_delta);
-				if (retval)
-					return retval;
-
-				/* calculate package delta only for 1st core in package */
-				if (t_new->flags & CPU_IS_FIRST_CORE_IN_PACKAGE) {
-					struct pkg_data *p_delta;
-					const struct pkg_data *p_old, *p_new;
-
-					p_delta = GET_PKG(package_delta, pkg_no);
-					p_new = GET_PKG(pkg_new_base, pkg_no);
-					p_old = GET_PKG(pkg_old_base, pkg_no);
-
-					delta_package(p_delta, p_new, p_old);
-				}
-			}
-		}
-	}
-	return 0;
-}
-
-/*
  * run func(cpu) on every cpu in /proc/stat
  * return max_cpu number
  */
@@ -828,119 +970,7 @@ mark_cpu_present(int cpu)
 }
 
 
-static void
-turbostat_submit (const char *plugin_instance,
-	const char *type, const char *type_instance,
-	gauge_t value)
-{
-	value_list_t vl = VALUE_LIST_INIT;
-	value_t v;
-
-	v.gauge = value;
-	vl.values = &v;
-	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-	sstrncpy (vl.plugin, PLUGIN_NAME, sizeof (vl.plugin));
-	if (plugin_instance != NULL)
-		sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
-	sstrncpy (vl.type, type, sizeof (vl.type));
-	if (type_instance != NULL)
-		sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
-
-	plugin_dispatch_values (&vl);
-}
-
-/*
- * column formatting convention & formats
- * package: "pk" 2 columns %2d
- * core: "cor" 3 columns %3d
- * CPU: "CPU" 3 columns %3d
- * Pkg_W: %6.2
- * Cor_W: %6.2
- * GFX_W: %5.2
- * RAM_W: %5.2
- * GHz: "GHz" 3 columns %3.2
- * TSC: "TSC" 3 columns %3.2
- * SMI: "SMI" 4 columns %4d
- * percentage " %pc3" %6.2
- * Perf Status percentage: %5.2
- * "CTMP" 4 columns %4d
- */
-static int
-submit_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
-{
-	char name[12];
-	double interval_float;
-
-	interval_float = tv_delta.tv_sec + tv_delta.tv_usec/1000000.0;
-
-	ssnprintf(name, sizeof(name), "cpu%02d", t->cpu_id);
-
-	if (!aperf_mperf_unstable)
-		turbostat_submit(name, "percent", "c0", 100.0 * t->mperf/t->tsc);
-	if (!aperf_mperf_unstable)
-		turbostat_submit(name, "percent", "c1", 100.0 * t->c1/t->tsc);
-
-	/* GHz */
-	if ((!aperf_mperf_unstable) || (!(t->aperf > t->tsc || t->mperf > t->tsc)))
-		turbostat_submit(NULL, "frequency", name, 1.0 * t->tsc / 1000000000 * t->aperf / t->mperf / interval_float);
-
-	/* SMI */
-	turbostat_submit(NULL, "current", name, t->smi_count);
-
-	/* print per-core data only for 1st thread in core */
-	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
-		goto done;
-
-	ssnprintf(name, sizeof(name), "core%02d", c->core_id);
-
-	if (do_core_cstate & (1 << 3))
-		turbostat_submit(name, "percent", "c3", 100.0 * c->c3/t->tsc);
-	if (do_core_cstate & (1 << 6))
-		turbostat_submit(name, "percent", "c6", 100.0 * c->c6/t->tsc);
-	if (do_core_cstate & (1 << 7))
-		turbostat_submit(name, "percent", "c7", 100.0 * c->c7/t->tsc);
-
-	if (do_dts)
-		turbostat_submit(NULL, "temperature", name, c->core_temp_c);
-
-	/* print per-package data only for 1st core in package */
-	if (!(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
-		goto done;
-
-	ssnprintf(name, sizeof(name), "pkg%02d", p->package_id);
-
-	if (do_ptm)
-		turbostat_submit(NULL, "temperature", name, p->pkg_temp_c);
-
-	if (do_pkg_cstate & (1 << 2))
-		turbostat_submit(name, "percent", "pc2", 100.0 * p->pc2/t->tsc);
-	if (do_pkg_cstate & (1 << 3))
-		turbostat_submit(name, "percent", "pc3", 100.0 * p->pc3/t->tsc);
-	if (do_pkg_cstate & (1 << 6))
-		turbostat_submit(name, "percent", "pc6", 100.0 * p->pc6/t->tsc);
-	if (do_pkg_cstate & (1 << 7))
-		turbostat_submit(name, "percent", "pc7", 100.0 * p->pc7/t->tsc);
-	if (do_pkg_cstate & (1 << 8))
-		turbostat_submit(name, "percent", "pc8", 100.0 * p->pc8/t->tsc);
-	if (do_pkg_cstate & (1 << 9))
-		turbostat_submit(name, "percent", "pc9", 100.0 * p->pc9/t->tsc);
-	if (do_pkg_cstate & (1 << 10))
-		turbostat_submit(name, "percent", "pc10", 100.0 * p->pc10/t->tsc);
-
-	if (do_rapl) {
-		if (do_rapl & RAPL_PKG)
-			turbostat_submit(name, "power", "Pkg_W", p->energy_pkg * rapl_energy_units / interval_float);
-		if (do_rapl & RAPL_CORES)
-			turbostat_submit(name, "power", "Cor_W", p->energy_cores * rapl_energy_units / interval_float);
-		if (do_rapl & RAPL_GFX)
-			turbostat_submit(name, "power", "GFX_W", p->energy_gfx * rapl_energy_units / interval_float);
-		if (do_rapl & RAPL_DRAM)
-			turbostat_submit(name, "power", "RAM_W", p->energy_dram * rapl_energy_units / interval_float);
-	}
-done:
-	return 0;
-}
+static int setup_all_buffers(void);
 
 static int
 turbostat_read(user_data_t * not_used)
