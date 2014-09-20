@@ -627,6 +627,84 @@ static int bind_parse_generic_value_list (const char *xpath_expression, /* {{{ *
   return (0);
 } /* }}} int bind_parse_generic_value_list */
 
+/*
+ * bind_parse_generic_name_attr_value_list
+ *
+ * Reads statistics in the form:
+ * <foo>
+ *   <counter name="name0">123</counter>
+ *   <counter name="name1">234</counter>
+ *   <counter name="name2">345</counter>
+ *   :
+ * </foo>
+ */
+static int bind_parse_generic_name_attr_value_list (const char *xpath_expression, /* {{{ */
+    list_callback_t list_callback,
+    void *user_data,
+    xmlDoc *doc, xmlXPathContext *xpathCtx,
+    time_t current_time, int ds_type)
+{
+  xmlXPathObject *xpathObj = NULL;
+  int num_entries;
+  int i;
+
+  xpathObj = xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
+  if (xpathObj == NULL)
+  {
+    ERROR("bind plugin: Unable to evaluate XPath expression `%s'.",
+        xpath_expression);
+    return (-1);
+  }
+
+  num_entries = 0;
+  /* Iterate over all matching nodes. */
+  for (i = 0; xpathObj->nodesetval && (i < xpathObj->nodesetval->nodeNr); i++)
+  {
+    xmlNode *child;
+
+    /* Iterate over all child nodes. */
+    for (child = xpathObj->nodesetval->nodeTab[i]->xmlChildrenNode;
+        child != NULL;
+        child = child->next)
+    {
+      if (child->type != XML_ELEMENT_NODE)
+        continue;
+
+      if (strncmp ("counter", (char *) child->name, strlen ("counter")) == 0)
+      {
+        char *attr_name;
+        value_t value;
+        int status;
+
+        attr_name = (char *) xmlGetProp (child, BAD_CAST "name");
+        if (attr_name == NULL)
+        {
+          DEBUG ("bind plugin: found <counter> without name.");
+          continue;
+        }
+        if (ds_type == DS_TYPE_GAUGE)
+          status = bind_xml_read_gauge (doc, child, &value.gauge);
+        else
+          status = bind_xml_read_derive (doc, child, &value.derive);
+        if (status != 0)
+          continue;
+
+        status = (*list_callback) (attr_name, value, current_time, user_data);
+        if (status == 0)
+          num_entries++;
+      }
+    }
+  }
+
+  DEBUG ("bind plugin: Found %d %s for XPath expression `%s'",
+      num_entries, (num_entries == 1) ? "entry" : "entries",
+      xpath_expression);
+
+  xmlXPathFreeObject(xpathObj);
+
+  return (0);
+} /* }}} int bind_parse_generic_name_attr_value_list */
+
 static int bind_xml_stats_handle_zone (int version, xmlDoc *doc, /* {{{ */
     xmlXPathContext *path_ctx, xmlNode *node, cb_view_t *view,
     time_t current_time)
@@ -745,45 +823,68 @@ static int bind_xml_stats_search_zones (int version, xmlDoc *doc, /* {{{ */
 static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
     xmlXPathContext *path_ctx, xmlNode *node, time_t current_time)
 {
-  xmlXPathObject *path_obj;
   char *view_name = NULL;
   cb_view_t *view;
   int i;
   size_t j;
 
-  path_obj = xmlXPathEvalExpression (BAD_CAST "name", path_ctx);
-  if (path_obj == NULL)
+  if (version == 3)
   {
-    ERROR ("bind plugin: xmlXPathEvalExpression failed.");
-    return (-1);
-  }
+    view_name = (char*) xmlGetProp(node, BAD_CAST "name");
 
-  for (i = 0; path_obj->nodesetval && (i < path_obj->nodesetval->nodeNr); i++)
-  {
-    view_name = (char *) xmlNodeListGetString (doc,
-        path_obj->nodesetval->nodeTab[i]->xmlChildrenNode, 1);
-    if (view_name != NULL)
-      break;
-  }
+    if (view_name == NULL)
+    {
+      ERROR ("bind plugin: Could not determine view name.");
+      return (-1);
+    }
 
-  if (view_name == NULL)
+    for (j = 0; j < views_num; j++)
+    {
+      if (strcasecmp (view_name, views[j].name) == 0)
+        break;
+    }
+
+    xmlFree (view_name);
+    view_name = NULL;
+  }
+  else
   {
-    ERROR ("bind plugin: Could not determine view name.");
+    xmlXPathObject *path_obj;
+    path_obj = xmlXPathEvalExpression (BAD_CAST "name", path_ctx);
+    if (path_obj == NULL)
+    {
+      ERROR ("bind plugin: xmlXPathEvalExpression failed.");
+      return (-1);
+    }
+
+    for (i = 0; path_obj->nodesetval && (i < path_obj->nodesetval->nodeNr); i++)
+    {
+      view_name = (char *) xmlNodeListGetString (doc,
+          path_obj->nodesetval->nodeTab[i]->xmlChildrenNode, 1);
+      if (view_name != NULL)
+        break;
+    }
+
+    if (view_name == NULL)
+    {
+      ERROR ("bind plugin: Could not determine view name.");
+      xmlXPathFreeObject (path_obj);
+      return (-1);
+    }
+
+    for (j = 0; j < views_num; j++)
+    {
+      if (strcasecmp (view_name, views[j].name) == 0)
+        break;
+    }
+
+    xmlFree (view_name);
     xmlXPathFreeObject (path_obj);
-    return (-1);
+
+    view_name = NULL;
+    path_obj = NULL;
   }
 
-  for (j = 0; j < views_num; j++)
-  {
-    if (strcasecmp (view_name, views[j].name) == 0)
-      break;
-  }
-
-  xmlFree (view_name);
-  xmlXPathFreeObject (path_obj);
-
-  view_name = NULL;
-  path_obj = NULL;
 
   if (j >= views_num)
     return (0);
@@ -804,11 +905,20 @@ static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
 
     ssnprintf (plugin_instance, sizeof (plugin_instance), "%s-qtypes",
         view->name);
-
-    bind_parse_generic_name_value (/* xpath = */ "rdtype",
+    if (version == 3)
+    {
+      bind_parse_generic_name_attr_value_list (/* xpath = */ "counters[@type='resqtype']",
         /* callback = */ bind_xml_list_callback,
         /* user_data = */ &list_info,
         doc, path_ctx, current_time, DS_TYPE_COUNTER);
+    }
+    else
+    {
+      bind_parse_generic_name_value (/* xpath = */ "rdtype",
+        /* callback = */ bind_xml_list_callback,
+        /* user_data = */ &list_info,
+        doc, path_ctx, current_time, DS_TYPE_COUNTER);
+    }
   } /* }}} */
 
   if (view->resolver_stats != 0) /* {{{ */
@@ -823,11 +933,20 @@ static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
 
     ssnprintf (plugin_instance, sizeof (plugin_instance),
         "%s-resolver_stats", view->name);
-
-    bind_parse_generic_name_value ("resstat",
-        /* callback = */ bind_xml_table_callback,
-        /* user_data = */ &table_ptr,
-        doc, path_ctx, current_time, DS_TYPE_COUNTER);
+    if (version == 3)
+    {
+      bind_parse_generic_name_attr_value_list ("counters[@type='resstats']",
+          /* callback = */ bind_xml_table_callback,
+          /* user_data = */ &table_ptr,
+          doc, path_ctx, current_time, DS_TYPE_COUNTER);
+    }
+    else
+    {
+      bind_parse_generic_name_value ("resstat",
+          /* callback = */ bind_xml_table_callback,
+          /* user_data = */ &table_ptr,
+          doc, path_ctx, current_time, DS_TYPE_COUNTER);
+    }
   } /* }}} */
 
   /* Record types in the cache */
@@ -849,7 +968,8 @@ static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
         doc, path_ctx, current_time, DS_TYPE_GAUGE);
   } /* }}} */
 
-  if (view->zones_num > 0)
+  // v3 does not provide per-zone stats any more
+  if (version < 3 && view->zones_num > 0)
     bind_xml_stats_search_zones (version, doc, path_ctx, node, view,
         current_time);
 
@@ -914,15 +1034,20 @@ static int bind_xml_stats (int version, xmlDoc *doc, /* {{{ */
     return (-1);
   }
   DEBUG ("bind plugin: Current server time is %i.", (int) current_time);
-
-  /* XPath:     server/requests/opcode
+  /* XPath:     server/requests/opcode, server/counters[@type='opcode']
    * Variables: QUERY, IQUERY, NOTIFY, UPDATE, ...
-   * Layout:
+   * Layout V1 and V2:
    *   <opcode>
    *     <name>A</name>
    *     <counter>1</counter>
    *   </opcode>
    *   :
+   *
+   * Layout v3:
+   *   <counters type="opcode">
+   *     <counter name="A">1</counter>
+   *     :
+   *   </counters>
    */
   if (global_opcodes != 0)
   {
@@ -931,23 +1056,38 @@ static int bind_xml_stats (int version, xmlDoc *doc, /* {{{ */
       /* plugin instance = */ "global-opcodes",
       /* type = */ "dns_opcode"
     };
-
-    bind_parse_generic_name_value (/* xpath = */ "server/requests/opcode",
+    if (version == 3)
+    {
+      bind_parse_generic_name_attr_value_list (/* xpath = */ "server/counters[@type='opcode']",
         /* callback = */ bind_xml_list_callback,
         /* user_data = */ &list_info,
         doc, xpathCtx, current_time, DS_TYPE_COUNTER);
+    }
+    else
+    {
+      bind_parse_generic_name_value (/* xpath = */ "server/requests/opcode",
+          /* callback = */ bind_xml_list_callback,
+          /* user_data = */ &list_info,
+          doc, xpathCtx, current_time, DS_TYPE_COUNTER);
+    }
   }
 
-  /* XPath:     server/queries-in/rdtype
+  /* XPath:     server/queries-in/rdtype, server/counters[@type='qtype']
    * Variables: RESERVED0, A, NS, CNAME, SOA, MR, PTR, HINFO, MX, TXT, RP,
    *            X25, PX, AAAA, LOC, SRV, NAPTR, A6, DS, RRSIG, NSEC, DNSKEY,
    *            SPF, TKEY, IXFR, AXFR, ANY, ..., Others
-   * Layout:
+   * Layout v1 or v2:
    *   <rdtype>
    *     <name>A</name>
    *     <counter>1</counter>
    *   </rdtype>
    *   :
+   *
+   * Layout v3:
+   *   <counters type="opcode">
+   *     <counter name="A">1</counter>
+   *     :
+   *   </counters>
    */
   if (global_qtypes != 0)
   {
@@ -956,14 +1096,23 @@ static int bind_xml_stats (int version, xmlDoc *doc, /* {{{ */
       /* plugin instance = */ "global-qtypes",
       /* type = */ "dns_qtype"
     };
-
-    bind_parse_generic_name_value (/* xpath = */ "server/queries-in/rdtype",
-        /* callback = */ bind_xml_list_callback,
-        /* user_data = */ &list_info,
-        doc, xpathCtx, current_time, DS_TYPE_COUNTER);
+    if (version == 3)
+    {
+      bind_parse_generic_name_attr_value_list (/* xpath = */ "server/counters[@type='qtype']",
+          /* callback = */ bind_xml_list_callback,
+          /* user_data = */ &list_info,
+          doc, xpathCtx, current_time, DS_TYPE_COUNTER);
+    }
+    else
+    {
+      bind_parse_generic_name_value (/* xpath = */ "server/queries-in/rdtype",
+          /* callback = */ bind_xml_list_callback,
+          /* user_data = */ &list_info,
+          doc, xpathCtx, current_time, DS_TYPE_COUNTER);
+    }
   }
-  
-  /* XPath:     server/nsstats, server/nsstat
+
+  /* XPath:     server/nsstats, server/nsstat, server/counters[@type='nsstat']
    * Variables: Requestv4, Requestv6, ReqEdns0, ReqBadEDNSVer, ReqTSIG,
    *            ReqSIG0, ReqBadSIG, ReqTCP, AuthQryRej, RecQryRej, XfrRej,
    *            UpdateRej, Response, TruncatedResp, RespEDNS0, RespTSIG,
@@ -988,6 +1137,12 @@ static int bind_xml_stats (int version, xmlDoc *doc, /* {{{ */
    *     <counter>0</counter>
    *   </nsstat>
    *   :
+   * Layout v3:
+   *   <counters type="nsstat"
+   *     <counter name="Requestv4">1</counter>
+   *     <counter name="Requestv6">0</counter>
+   *     :
+   *   </counter>
    */
   if (global_server_stats)
   {
@@ -1005,16 +1160,23 @@ static int bind_xml_stats (int version, xmlDoc *doc, /* {{{ */
           /* user_data = */ &table_ptr,
           doc, xpathCtx, current_time, DS_TYPE_COUNTER);
     }
-    else
+    else if (version == 2)
     {
       bind_parse_generic_name_value ("server/nsstat",
           /* callback = */ bind_xml_table_callback,
           /* user_data = */ &table_ptr,
           doc, xpathCtx, current_time, DS_TYPE_COUNTER);
     }
+    else // version == 3
+    {
+      bind_parse_generic_name_attr_value_list ("server/counters[@type='nsstat']",
+          /* callback = */ bind_xml_table_callback,
+          /* user_data = */ &table_ptr,
+          doc, xpathCtx, current_time, DS_TYPE_COUNTER);
+    }
   }
 
-  /* XPath:     server/zonestats, server/zonestat
+  /* XPath:     server/zonestats, server/zonestat, server/counters[@type='zonestat']
    * Variables: NotifyOutv4, NotifyOutv6, NotifyInv4, NotifyInv6, NotifyRej,
    *            SOAOutv4, SOAOutv6, AXFRReqv4, AXFRReqv6, IXFRReqv4, IXFRReqv6,
    *            XfrSuccess, XfrFail
@@ -1034,6 +1196,12 @@ static int bind_xml_stats (int version, xmlDoc *doc, /* {{{ */
    *     <counter>0</counter>
    *   </zonestat>
    *   :
+   * Layout v3:
+   *   <counters type="zonestat"
+   *     <counter name="NotifyOutv4">0</counter>
+   *     <counter name="NotifyOutv6">0</counter>
+   *     :
+   *   </counter>
    */
   if (global_zone_maint_stats)
   {
@@ -1051,16 +1219,23 @@ static int bind_xml_stats (int version, xmlDoc *doc, /* {{{ */
           /* user_data = */ &table_ptr,
           doc, xpathCtx, current_time, DS_TYPE_COUNTER);
     }
-    else
+    else if (version == 2)
     {
       bind_parse_generic_name_value ("server/zonestat",
           /* callback = */ bind_xml_table_callback,
           /* user_data = */ &table_ptr,
           doc, xpathCtx, current_time, DS_TYPE_COUNTER);
     }
+    else // version == 3
+    {
+      bind_parse_generic_name_attr_value_list ("server/counters[@type='zonestat']",
+          /* callback = */ bind_xml_table_callback,
+          /* user_data = */ &table_ptr,
+          doc, xpathCtx, current_time, DS_TYPE_COUNTER);
+    }
   }
 
-  /* XPath:     server/resstats
+  /* XPath:     server/resstats, server/counters[@type='resstat']
    * Variables: Queryv4, Queryv6, Responsev4, Responsev6, NXDOMAIN, SERVFAIL,
    *            FORMERR, OtherError, EDNS0Fail, Mismatch, Truncated, Lame,
    *            Retry, GlueFetchv4, GlueFetchv6, GlueFetchv4Fail,
@@ -1081,6 +1256,12 @@ static int bind_xml_stats (int version, xmlDoc *doc, /* {{{ */
    *     <counter>0</counter>
    *   </resstat>
    *   :
+   * Layout v3:
+   *   <counters type="resstat"
+   *     <counter name="Queryv4">0</counter>
+   *     <counter name="Queryv6">0</counter>
+   *     :
+   *   </counter>
    */
   if (global_resolver_stats != 0)
   {
@@ -1098,9 +1279,16 @@ static int bind_xml_stats (int version, xmlDoc *doc, /* {{{ */
           /* user_data = */ &table_ptr,
           doc, xpathCtx, current_time, DS_TYPE_COUNTER);
     }
-    else
+    else if (version == 2)
     {
       bind_parse_generic_name_value ("server/resstat",
+          /* callback = */ bind_xml_table_callback,
+          /* user_data = */ &table_ptr,
+          doc, xpathCtx, current_time, DS_TYPE_COUNTER);
+    }
+    else
+    {
+      bind_parse_generic_name_attr_value_list ("server/counters[@type='resstat']",
           /* callback = */ bind_xml_table_callback,
           /* user_data = */ &table_ptr,
           doc, xpathCtx, current_time, DS_TYPE_COUNTER);
@@ -1109,7 +1297,7 @@ static int bind_xml_stats (int version, xmlDoc *doc, /* {{{ */
 
   /* XPath:  memory/summary
    * Variables: TotalUse, InUse, BlockSize, ContextSize, Lost
-   * Layout: v2:
+   * Layout: v2 and v3:
    *   <summary>
    *     <TotalUse>6587096</TotalUse>
    *     <InUse>1345424</InUse>
@@ -1162,6 +1350,64 @@ static int bind_xml (const char *data) /* {{{ */
     xmlFreeDoc (doc);
     return (-1);
   }
+
+  //
+  // version 3.* of statistics XML (since BIND9.9)
+  //
+
+  xpathObj = xmlXPathEvalExpression (BAD_CAST "/statistics", xpathCtx);
+  if (xpathObj == NULL || xpathObj->nodesetval == NULL || xpathObj->nodesetval->nodeNr == 0)
+  {
+    DEBUG ("bind plugin: Statistics appears not to be v3");
+    // we will fallback to v1 or v2 detection
+    if (xpathObj != NULL) { xmlXPathFreeObject (xpathObj); }
+  }
+  else
+  {
+    for (i = 0; i < xpathObj->nodesetval->nodeNr; i++)
+    {
+      xmlNode *node;
+      char *attr_version;
+
+      node = xpathObj->nodesetval->nodeTab[i];
+      assert (node != NULL);
+
+      attr_version = (char *) xmlGetProp (node, BAD_CAST "version");
+      if (attr_version == NULL)
+      {
+        NOTICE ("bind plugin: Found <statistics> tag doesn't have a "
+            "`version' attribute.");
+        continue;
+      }
+      DEBUG ("bind plugin: Found: <statistics version=\"%s\">", attr_version);
+
+      if (strncmp ("3.", attr_version, strlen ("3.")) != 0)
+      {
+        /* TODO: Use the complaint mechanism here. */
+        NOTICE ("bind plugin: Found <statistics> tag with version `%s'. "
+            "Unfortunately I have no clue how to parse that. "
+            "Please open a bug report for this.", attr_version);
+        xmlFree (attr_version);
+        continue;
+      }
+      ret = bind_xml_stats (3, doc, xpathCtx, node);
+
+      xmlFree (attr_version);
+      /* One <statistics> node ought to be enough. */
+      break;
+    }
+
+    // we are finished, early-return
+    xmlXPathFreeObject (xpathObj);
+    xmlXPathFreeContext (xpathCtx);
+    xmlFreeDoc (doc);
+
+    return (ret);
+  }
+
+  //
+  // versions 1.* or 2.* of statistics XML
+  //
 
   xpathObj = xmlXPathEvalExpression (BAD_CAST "/isc/bind/statistics", xpathCtx);
   if (xpathObj == NULL)
