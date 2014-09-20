@@ -1175,6 +1175,7 @@ probe_cpu()
 	 *
 	 * This check is valid for both Intel and AMD
 	 */
+	eax = ebx = ecx = edx = 0;
 	__get_cpuid(0x80000007, &eax, &ebx, &ecx, &edx);
 	if (!(edx & (1 << 8))) {
 		ERROR("No invariant TSC");
@@ -1193,6 +1194,7 @@ probe_cpu()
 	 *
 	 * This check is valid for both Intel and AMD
 	 */
+	eax = ebx = ecx = edx = 0;
 	__get_cpuid(0x6, &eax, &ebx, &ecx, &edx);
 	do_dts = eax & (1 << 0);
 	do_ptm = eax & (1 << 6);
@@ -1299,7 +1301,7 @@ probe_cpu()
 	}
 
 	if (do_rapl) {
-		unsigned long msr;
+		unsigned long long msr;
 		if (get_msr(0, MSR_RAPL_POWER_UNIT, &msr))
 			return 0;
 
