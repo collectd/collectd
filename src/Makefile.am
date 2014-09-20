@@ -333,7 +333,8 @@ if BUILD_PLUGIN_EXEC
 pkglib_LTLIBRARIES += exec.la
 exec_la_SOURCES = exec.c \
 		  utils_cmd_putnotif.c utils_cmd_putnotif.h \
-		  utils_cmd_putval.c utils_cmd_putval.h
+		  utils_cmd_putval.c utils_cmd_putval.h \
+		  utils_parse_option.h utils_parse_option.c
 exec_la_LDFLAGS = -module -avoid-version
 exec_la_LIBADD = -lpthread
 endif
@@ -1042,7 +1043,8 @@ unixsock_la_SOURCES = unixsock.c \
 		      utils_cmd_getthreshold.h utils_cmd_getthreshold.c \
 		      utils_cmd_listval.h utils_cmd_listval.c \
 		      utils_cmd_putval.h utils_cmd_putval.c \
-		      utils_cmd_putnotif.h utils_cmd_putnotif.c
+		      utils_cmd_putnotif.h utils_cmd_putnotif.c \
+		      utils_parse_option.h utils_parse_option.c
 unixsock_la_LDFLAGS = -module -avoid-version
 unixsock_la_LIBADD = -lpthread
 endif

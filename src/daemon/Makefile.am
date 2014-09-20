@@ -27,7 +27,6 @@ collectd_SOURCES = collectd.c collectd.h \
 		   utils_complain.c utils_complain.h \
 		   utils_heap.c utils_heap.h \
 		   utils_llist.c utils_llist.h \
-		   utils_parse_option.c utils_parse_option.h \
 		   utils_random.c utils_random.h \
 		   utils_tail_match.c utils_tail_match.h \
 		   utils_match.c utils_match.h \

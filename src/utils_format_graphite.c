@@ -27,7 +27,6 @@
 
 #include "utils_format_graphite.h"
 #include "utils_cache.h"
-#include "utils_parse_option.h"
 
 #define GRAPHITE_FORBIDDEN " \t\"\\:!/()\n\r"
 

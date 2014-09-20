@@ -49,7 +49,6 @@
 
 #include "utils_cache.h"
 #include "utils_complain.h"
-#include "utils_parse_option.h"
 #include "utils_format_graphite.h"
 
 /* Folks without pthread will need to disable this plugin. */
