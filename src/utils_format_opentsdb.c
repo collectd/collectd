@@ -170,13 +170,33 @@ static int opentsdb_format_tags (char *ret, int ret_len,
 	opentsdb_copy_escape_part (n_plugin_instance, vl->plugin_instance,
 			sizeof (n_plugin_instance), escape_char);
 
-	if (n_plugin_instance[0] != '\0' && (0 != strcmp("GenericJMX", n_plugin))){
-    	ssnprintf (ret, ret_len, "host=%s %s=%s %s",
-	    		vl->host, n_plugin, n_plugin_instance, tags);
-    	}
-	else
-    	ssnprintf (ret, ret_len, "host=%s %s",
-	    		vl->host, tags);
+	char *saveptr = NULL;
+	char *host;
+	char  *process;
+	
+	char tmp_host[2 * DATA_MAX_NAME_LEN + 1];
+	sstrncpy (tmp_host, vl->host, sizeof (tmp_host));
+	host = strtok_r (tmp_host, ":", &saveptr);
+   	process  = strtok_r (NULL, ":", &saveptr);
+
+	if( process == NULL){
+		if (n_plugin_instance[0] != '\0' && (0 != strcmp("GenericJMX", n_plugin))){
+	    	ssnprintf (ret, ret_len, "host=%s %s=%s %s",
+		    		vl->host, n_plugin, n_plugin_instance, tags);
+	    	}
+		else
+	    	ssnprintf (ret, ret_len, "host=%s %s",
+		    		vl->host, tags);	
+	}else{
+		if (n_plugin_instance[0] != '\0' && (0 != strcmp("GenericJMX", n_plugin))){
+	    	ssnprintf (ret, ret_len, "host=%s %s=%s process=%s %s",
+		    		vl->host, n_plugin, n_plugin_instance, process, tags);
+	    	}
+		else
+	    	ssnprintf (ret, ret_len, "host=%s process=%s %s",
+		    		vl->host, process, tags);	
+
+	}
 
 	return (0);
 }
