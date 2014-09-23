@@ -262,6 +262,7 @@ enum return_values {
 	ERR_CPU_ALLOC,
 	ERR_NOT_ROOT,
 	UNSUPPORTED_CPU,
+	ERR_PATH_TOO_LONG,
 };
 
 
@@ -1069,11 +1070,16 @@ parse_int_file(const char *fmt, ...)
 	va_list args;
 	char path[PATH_MAX];
 	FILE *filep;
-	int value;
+	int len, value;
 
 	va_start(args, fmt);
-	vsnprintf(path, sizeof(path), fmt, args);
+	len = vsnprintf(path, sizeof(path), fmt, args);
 	va_end(args);
+	if (len < 0 || len >= PATH_MAX) {
+		ERROR("Turbostat plugin: path truncated: '%s'", path);
+		return -ERR_PATH_TOO_LONG;
+	}
+
 	filep = fopen(path, "r");
 	if (!filep) {
 		ERROR("Turbostat plugin: Failed to open '%s'", path);
