@@ -1207,28 +1207,52 @@ F</proc/sys/net/ipv4/netfilter> instead of F</proc/sys/net/netfilter/>.
 
 =head2 Plugin C<cpu>
 
-The I<CPU plugin> collects CPU usage metrics.
+The I<CPU plugin> collects CPU usage metrics. By default, CPU usage is reported
+as Jiffies, using the C<cpu> type. Two aggregations are available:
+
+=over 4
+
+=item
+
+Sum, per-state, over all CPUs installed in the system; and
+
+=item
+
+Sum, per-CPU, over all non-idle states of a CPU, creating an "active" state.
+
+=back
+
+The two aggregations can be combined, leading to I<collectd> only emitting a
+single "active" metric for the entire system. As soon as one of these
+aggregations (or both) is enabled, the I<cpu plugin> will report a percentage,
+rather than Jiffies. In addition, you can request individual, per-state,
+per-CPU metrics to be reported as percentage.
 
 The following configuration options are available:
 
 =over 4
 
-=item B<ReportActive> B<false>|B<true>
+=item B<ReportByState> B<true>|B<false>
 
-Reports non-idle CPU usage as the "active" value. Defaults to false.
+When set to B<true>, the default, reports per-state metrics, e.g. "system",
+"user" and "idle".
+When set to B<false>, aggregates (sums) all I<non-idle> states into one
+"active" metric.
 
-=item B<ReportByCpu> B<false>|B<true>
+=item B<ReportByCpu> B<true>|B<false>
 
-When true reports usage for all cores. When false, reports cpu usage
-aggregated over all cores.
-Defaults to true.
+When set to B<true>, the default, reports per-CPU (per-core) metrics.
+When set to B<false>, instead of reporting metrics for individual CPUs, only a
+global sum of CPU states is emitted.
 
 =item B<ValuesPercentage> B<false>|B<true>
 
-When true report percentage usage instead of tick values. Defaults to false.
+This option is only considered when both, B<ReportByCpu> and B<ReportByState>
+are set to B<true>. In this case, by default, metrics will be reported as
+Jiffies. By setting this option to B<true>, you can request percentage values
+in the un-aggregated (per-CPU, per-state) mode as well.
 
 =back
-
 
 =head2 Plugin C<cpufreq>
 

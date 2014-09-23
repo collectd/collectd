@@ -311,8 +311,8 @@
 #</Plugin>
 
 #<Plugin cpu>
-#  ReportActive false
 #  ReportByCpu true
+#  ReportByState true
 #  ValuesPercentage false
 #</Plugin>
 #
