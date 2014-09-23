@@ -1450,7 +1450,7 @@ err:
 }
 
 static int
-turbostat_read(user_data_t * not_used)
+turbostat_read(void)
 {
 	int ret;
 
@@ -1532,7 +1532,7 @@ turbostat_init(void)
 
 	DO_OR_GOTO_ERR(setup_all_buffers());
 
-	plugin_register_complex_read(NULL, PLUGIN_NAME, turbostat_read, NULL, NULL);
+	plugin_register_read(PLUGIN_NAME, turbostat_read);
 
 	return 0;
 err:
