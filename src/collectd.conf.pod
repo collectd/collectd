@@ -6421,6 +6421,21 @@ Default: B<1978>
 
 =back
 
+=head2 Plugin C<Turbostat>
+
+The I<Turbostat plugin> reads CPU frequency and C-state residency on modern
+Intel processors by using the new Model Specific Registers.
+
+=over 4
+
+=item B<TCCActivationTemp> I<Temperature>
+
+Thermal Control Circuit Activation Temperature of the installed
+CPU. This option should only be used if the automated detection
+fails. Default value extracted from B<MSR_IA32_TEMPERATURE_TARGET>
+
+=back
+
 =head2 Plugin C<unixsock>
 
 =over 4
