@@ -290,7 +290,7 @@ open_msr(int cpu, _Bool multiple_read)
 		CPU_ZERO_S(cpu_affinity_setsize, cpu_affinity_set);
 		CPU_SET_S(cpu, cpu_affinity_setsize, cpu_affinity_set);
 		if (sched_setaffinity(0, cpu_affinity_setsize, cpu_affinity_set) == -1) {
-			ERROR("Could not migrate to CPU %d", cpu);
+			ERROR("Turbostat plugin: Could not migrate to CPU %d", cpu);
 			return -ERR_CPU_MIGRATE;
 		}
 	}
@@ -313,7 +313,8 @@ read_msr(int fd, off_t offset, unsigned long long *msr)
 	retval = pread(fd, msr, sizeof *msr, offset);
 
 	if (retval != sizeof *msr) {
-		ERROR("MSR offset 0x%llx read failed", (unsigned long long)offset);
+		ERROR("Turbostat plugin: MSR offset 0x%llx read failed",
+		      (unsigned long long)offset);
 		return -1;
 	}
 	return 0;
@@ -515,9 +516,10 @@ delta_thread(struct thread_data *delta, const struct thread_data *new, const str
 
 	/* check for TSC < 1 Mcycles over interval */
 	if (delta->tsc < (1000 * 1000)) {
-		WARNING("Insanely slow TSC rate, TSC stops in idle? ");
-		WARNING("You can disable all c-states by booting with \"idle=poll\" ");
-		WARNING("or just the deep ones with \"processor.max_cstate=1\"");
+		WARNING("Turbostat plugin: Insanely slow TSC rate, TSC stops "
+			"in idle? You can disable all c-states by booting with"
+			" 'idle=poll' or just the deep ones with"
+			" 'processor.max_cstate=1'");
 		return -1;
 	}
 
@@ -528,9 +530,10 @@ delta_thread(struct thread_data *delta, const struct thread_data *new, const str
 		delta->mperf = new->mperf - old->mperf;
 	} else {
 		if (!aperf_mperf_unstable) {
-			WARNING(" APERF or MPERF went backwards * ");
-			WARNING("* Frequency results do not cover entire interval *");
-			WARNING("* fix this by running Linux-2.6.30 or later *");
+			WARNING("Turbostat plugin: APERF or MPERF went "
+				"backwards. Frequency results do not cover "
+				"the entire interval. Fix this by running "
+				"Linux-2.6.30 or later.");
 
 			aperf_mperf_unstable = 1;
 		}
@@ -550,7 +553,7 @@ delta_thread(struct thread_data *delta, const struct thread_data *new, const str
 	}
 
 	if (delta->mperf == 0) {
-		WARNING("cpu%d MPERF 0!", old->cpu_id);
+		WARNING("Turbostat plugin: cpu%d MPERF 0!", old->cpu_id);
 		delta->mperf = 1;	/* divide by 0 protection */
 	}
 
@@ -836,7 +839,8 @@ set_temperature_target(struct thread_data *t, struct core_data *c, struct pkg_da
 
 guess:
 	p->tcc_activation_temp = TJMAX_DEFAULT;
-	WARNING("cpu%d: Guessing tjMax %d C, Please use TCCActivationTemp to specify",
+	WARNING("Turbostat plugin: cpu%d: Guessing tjMax %d C,"
+		" Please use TCCActivationTemp to specify it.",
 		t->cpu_id, p->tcc_activation_temp);
 
 	return 0;
@@ -860,7 +864,7 @@ probe_cpu()
 	max_level = ebx = ecx = edx = 0;
 	__get_cpuid(0, &max_level, &ebx, &ecx, &edx);
 	if (ebx != 0x756e6547 && edx != 0x49656e69 && ecx != 0x6c65746e) {
-		ERROR("Unsupported CPU");
+		ERROR("Turbostat plugin: Unsupported CPU (not Intel)");
 		return -UNSUPPORTED_CPU;
 	}
 
@@ -883,7 +887,7 @@ probe_cpu()
 	if (family == 6 || family == 0xf)
 		model += ((fms >> 16) & 0xf) << 4;
 	if (!(edx & (1 << 5))) {
-		ERROR("CPUID: no MSR");
+		ERROR("Turbostat plugin: Unsupported CPU (no MSR support)");
 		return -ERR_NO_MSR;
 	}
 
@@ -898,7 +902,8 @@ probe_cpu()
 	max_level = ebx = ecx = edx = 0;
 	__get_cpuid(0x80000000, &max_level, &ebx, &ecx, &edx);
 	if (max_level < 0x80000007) {
-		ERROR("CPUID: no invariant TSC (max_level 0x%x)", max_level);
+		ERROR("Turbostat plugin: Unsupported CPU (no invariant TSC, "
+		      " Maximum Extended Function: 0x%x)", max_level);
 		return -ERR_NO_INVARIANT_TSC;
 	}
 
@@ -912,7 +917,7 @@ probe_cpu()
 	eax = ebx = ecx = edx = 0;
 	__get_cpuid(0x80000007, &eax, &ebx, &ecx, &edx);
 	if (!(edx & (1 << 8))) {
-		ERROR("No invariant TSC");
+		ERROR("Turbostat plugin: Unsupported CPU (No invariant TSC)");
 		return -ERR_NO_INVARIANT_TSC;
 	}
 
@@ -933,7 +938,7 @@ probe_cpu()
 	do_dts = eax & (1 << 0);
 	do_ptm = eax & (1 << 6);
 	if (!(ecx & (1 << 0))) {
-		ERROR("No APERF");
+		ERROR("Turbostat plugin: Unsupported CPU (No APERF)");
 		return -ERR_NO_APERF;
 	}
 
@@ -1005,7 +1010,8 @@ probe_cpu()
 			do_pkg_cstate = (1 << 2) | (1 << 3) | (1 << 6) | (1 << 7) | (1 << 8) | (1 << 9) | (1 << 10);
 			break;
 		default:
-			ERROR("Unsupported CPU");
+			ERROR("Turbostat plugin: Unsupported CPU (family: %#x,"
+			      " model: %#x)", family, model);
 		}
 		switch (model) {
 		case 0x2A:
@@ -1030,7 +1036,8 @@ probe_cpu()
 			do_rapl = 0;
 		}
 	} else {
-		ERROR("Unsupported CPU");
+		ERROR("Turbostat plugin: Unsupported CPU (family: %#x, "
+		      "model: %#x)", family, model);
 		return -UNSUPPORTED_CPU;
 	}
 
@@ -1069,11 +1076,11 @@ parse_int_file(const char *fmt, ...)
 	va_end(args);
 	filep = fopen(path, "r");
 	if (!filep) {
-		ERROR("%s: open failed", path);
+		ERROR("Turbostat plugin: Failed to open '%s'", path);
 		return -ERR_CANT_OPEN_FILE;
 	}
 	if (fscanf(filep, "%d", &value) != 1) {
-		ERROR("%s: failed to parse number from file", path);
+		ERROR("Turbostat plugin: Failed to parse number from '%s'", path);
 		return -ERR_CANT_READ_NUMBER;
 	}
 	fclose(filep);
@@ -1092,7 +1099,7 @@ get_threads_on_core(int cpu)
 	ssnprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", cpu);
 	filep = fopen(path, "r");
         if (!filep) {
-                ERROR("%s: open failed", path);
+		ERROR("Turbostat plugin: Failed to open '%s'", path);
                 return -ERR_CANT_OPEN_FILE;
         }
 	/*
@@ -1123,13 +1130,13 @@ for_all_proc_cpus(int (func)(int))
 
 	fp = fopen("/proc/stat", "r");
         if (!fp) {
-                ERROR("Failed to open /proc/stat");
+		ERROR("Turbostat plugin: Failed to open /proc/stat");
                 return -ERR_CANT_OPEN_FILE;
         }
 
 	retval = fscanf(fp, "cpu %*d %*d %*d %*d %*d %*d %*d %*d %*d %*d\n");
 	if (retval != 0) {
-		ERROR("Failed to parse /proc/stat");
+		ERROR("Turbostat plugin: Failed to parse /proc/stat");
 		fclose(fp);
 		return -ERR_CANT_READ_PROC_STAT;
 	}
@@ -1171,7 +1178,7 @@ static int __attribute__((warn_unused_result))
 allocate_cpu_set(cpu_set_t ** set, size_t * size) {
 	*set = CPU_ALLOC(topology.max_cpu_id  + 1);
 	if (*set == NULL) {
-		ERROR("Unable to allocate CPU state");
+		ERROR("Turbostat plugin: Unable to allocate CPU state");
 		return -ERR_CPU_ALLOC;
 	}
 	*size = CPU_ALLOC_SIZE(topology.max_cpu_id  + 1);
@@ -1200,7 +1207,7 @@ topology_probe()
 
 	topology.cpus = calloc(1, (topology.max_cpu_id  + 1) * sizeof(struct cpu_topology));
 	if (topology.cpus == NULL) {
-		ERROR("Unable to allocate memory for cpu topology");
+		ERROR("Turbostat plugin: Unable to allocate memory for CPU topology");
 		return -ERR_CALLOC;
 	}
 
@@ -1227,7 +1234,7 @@ topology_probe()
 		struct cpu_topology *cpu = &topology.cpus[i];
 
 		if (cpu_is_not_present(i)) {
-			WARNING("cpu%d NOT PRESENT", i);
+			WARNING("Turbostat plugin: cpu%d NOT PRESENT", i);
 			continue;
 		}
 
@@ -1265,7 +1272,7 @@ topology_probe()
 		else if (ret == i)
 			cpu->first_thread_in_core = 1;
 
-		DEBUG("cpu %d pkg %d core %d\n",
+		DEBUG("Turbostat plugin: cpu %d pkg %d core %d\n",
 			i, cpu->package_id, cpu->core_id);
 	}
 	/* Num is max + 1 (need to count 0) */
@@ -1320,7 +1327,7 @@ err_clean_cores:
 err_clean_threads:
 	free(*threads);
 err:
-	ERROR("calloc counters");
+	ERROR("Turbostat plugin: Failled to allocate memory for counters");
 	return -ERR_CALLOC;
 }
 
@@ -1519,14 +1526,19 @@ turbostat_init(void)
 	int ret;
 
 	if (getuid() != 0) {
-		ERROR("must be root");
+		ERROR("Turbostat plugin: Initialization failed: this plugin "
+		      "requires collectd to run as root in order to read "
+		      "special CPU registers");
 		return -ERR_NOT_ROOT;
 	}
 
 	DO_OR_GOTO_ERR(probe_cpu());
 
 	if (stat("/dev/cpu/0/msr", &sb)) {
-		ERROR("no /dev/cpu/0/msr, try \"# modprobe msr\"");
+		ERROR("Turbostat plugin: Initialization failed: /dev/cpu/0/msr"
+		      " does not exist while the CPU supports MSR. You may be "
+		      "missing the corresponding kernel module, please try '# "
+		      "modprobe msr'");
 		return -ERR_NO_MSR;
 	}
 
