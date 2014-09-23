@@ -403,20 +403,20 @@ do {						\
 		goto out;
 	}
 
-        if (do_pkg_cstate & (1 << 2))
-                READ_MSR(MSR_PKG_C2_RESIDENCY, &p->pc2);
-        if (do_pkg_cstate & (1 << 3))
-                READ_MSR(MSR_PKG_C3_RESIDENCY, &p->pc3);
-        if (do_pkg_cstate & (1 << 6))
-                READ_MSR(MSR_PKG_C6_RESIDENCY, &p->pc6);
-        if (do_pkg_cstate & (1 << 7))
-                READ_MSR(MSR_PKG_C7_RESIDENCY, &p->pc7);
-        if (do_pkg_cstate & (1 << 8))
-                READ_MSR(MSR_PKG_C8_RESIDENCY, &p->pc8);
-        if (do_pkg_cstate & (1 << 9))
-                READ_MSR(MSR_PKG_C9_RESIDENCY, &p->pc9);
-        if (do_pkg_cstate & (1 << 10))
-                READ_MSR(MSR_PKG_C10_RESIDENCY, &p->pc10);
+	if (do_pkg_cstate & (1 << 2))
+		READ_MSR(MSR_PKG_C2_RESIDENCY, &p->pc2);
+	if (do_pkg_cstate & (1 << 3))
+		READ_MSR(MSR_PKG_C3_RESIDENCY, &p->pc3);
+	if (do_pkg_cstate & (1 << 6))
+		READ_MSR(MSR_PKG_C6_RESIDENCY, &p->pc6);
+	if (do_pkg_cstate & (1 << 7))
+		READ_MSR(MSR_PKG_C7_RESIDENCY, &p->pc7);
+	if (do_pkg_cstate & (1 << 8))
+		READ_MSR(MSR_PKG_C8_RESIDENCY, &p->pc8);
+	if (do_pkg_cstate & (1 << 9))
+		READ_MSR(MSR_PKG_C9_RESIDENCY, &p->pc9);
+	if (do_pkg_cstate & (1 << 10))
+		READ_MSR(MSR_PKG_C10_RESIDENCY, &p->pc10);
 
 	if (do_rapl & RAPL_PKG) {
 		READ_MSR(MSR_PKG_ENERGY_STATUS, &msr);
@@ -859,8 +859,8 @@ probe_cpu()
 	 * - EAX: Maximum Input Value for Basic CPUID Information
 	 * - EBX: "Genu" (0x756e6547)
 	 * - EDX: "ineI" (0x49656e69)
-         * - ECX: "ntel" (0x6c65746e)
-         */
+	 * - ECX: "ntel" (0x6c65746e)
+	 */
 	max_level = ebx = ecx = edx = 0;
 	__get_cpuid(0, &max_level, &ebx, &ecx, &edx);
 	if (ebx != 0x756e6547 && edx != 0x49656e69 && ecx != 0x6c65746e) {
@@ -870,14 +870,14 @@ probe_cpu()
 
 	/* CPUID(1):
 	 * - EAX: Version Information: Type, Family, Model, and Stepping ID
-         *  + 4-7:   Model ID
-         *  + 8-11:  Family ID
+	 *  + 4-7:   Model ID
+	 *  + 8-11:  Family ID
 	 *  + 12-13: Processor type
 	 *  + 16-19: Extended Model ID
 	 *  + 20-27: Extended Family ID
 	 * - EDX: Feature Information:
 	 *  + 5: Support for MSR read/write operations
-         */
+	 */
 	fms = ebx = ecx = edx = 0;
 	__get_cpuid(1, &fms, &ebx, &ecx, &edx);
 	family = (fms >> 8) & 0xf;
@@ -1098,10 +1098,10 @@ get_threads_on_core(int cpu)
 
 	ssnprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", cpu);
 	filep = fopen(path, "r");
-        if (!filep) {
+	if (!filep) {
 		ERROR("Turbostat plugin: Failed to open '%s'", path);
-                return -ERR_CANT_OPEN_FILE;
-        }
+		return -ERR_CANT_OPEN_FILE;
+	}
 	/*
 	 * file format:
 	 * if a pair of number with a character between: 2 siblings (eg. 1-2, or 1,4)
@@ -1129,10 +1129,10 @@ for_all_proc_cpus(int (func)(int))
 	int retval;
 
 	fp = fopen("/proc/stat", "r");
-        if (!fp) {
+	if (!fp) {
 		ERROR("Turbostat plugin: Failed to open /proc/stat");
-                return -ERR_CANT_OPEN_FILE;
-        }
+		return -ERR_CANT_OPEN_FILE;
+	}
 
 	retval = fscanf(fp, "cpu %*d %*d %*d %*d %*d %*d %*d %*d %*d %*d\n");
 	if (retval != 0) {
@@ -1431,10 +1431,10 @@ free_all_buffers(void)
  **********************/
 
 #define DO_OR_GOTO_ERR(something) \
-do {                         \
-	ret = (something);     \
-	if (ret < 0)         \
-		goto err;    \
+do {				  \
+	ret = (something);	  \
+	if (ret < 0)		  \
+		goto err;	  \
 } while (0)
 
 static int setup_all_buffers(void)
