@@ -76,58 +76,58 @@ class GenericJMXConfValue
    * Returns null if a conversion is not possible or not implemented.
    */
   private Number genericObjectToNumber (Object obj, int ds_type) /* {{{ */
-  {
-    if (obj instanceof String)
     {
-      String str = (String) obj;
-      
-      try
+      if (obj instanceof String)
       {
-        if (ds_type == DataSource.TYPE_GAUGE)
-          return (new Double (str));
-        else
-          return (new Long (str));
-      }
-      catch (NumberFormatException e)
-      {
-        return (null);
-      }
-    }
-    else if (obj instanceof Byte)
-    {
-      return (new Byte ((Byte) obj));
-    }
-    else if (obj instanceof Short)
-    {
-      return (new Short ((Short) obj));
-    }
-    else if (obj instanceof Integer)
-    {
-      return (new Integer ((Integer) obj));
-    }
-    else if (obj instanceof Long)
-    {
-      return (new Long ((Long) obj));
-    }
-    else if (obj instanceof Float)
-    {
-      return (new Float ((Float) obj));
-    }
-    else if (obj instanceof Double)
-    {
-      return (new Double ((Double) obj));
-    }
-    else if (obj instanceof BigDecimal)
-    {
-      return (BigDecimal.ZERO.add ((BigDecimal) obj));
-    }
-    else if (obj instanceof BigInteger)
-    {
-      return (BigInteger.ZERO.add ((BigInteger) obj));
-    }
+        String str = (String) obj;
 
-    return (null);
-  } /* }}} Number genericObjectToNumber */
+        try
+        {
+          if (ds_type == DataSource.TYPE_GAUGE)
+            return (new Double (str));
+          else
+            return (new Long (str));
+        }
+        catch (NumberFormatException e)
+        {
+          return (null);
+        }
+      }
+      else if (obj instanceof Byte)
+      {
+        return (new Byte ((Byte) obj));
+      }
+      else if (obj instanceof Short)
+      {
+        return (new Short ((Short) obj));
+      }
+      else if (obj instanceof Integer)
+      {
+        return (new Integer ((Integer) obj));
+      }
+      else if (obj instanceof Long)
+      {
+        return (new Long ((Long) obj));
+      }
+      else if (obj instanceof Float)
+      {
+        return (new Float ((Float) obj));
+      }
+      else if (obj instanceof Double)
+      {
+        return (new Double ((Double) obj));
+      }
+      else if (obj instanceof BigDecimal)
+      {
+        return (BigDecimal.ZERO.add ((BigDecimal) obj));
+      }
+      else if (obj instanceof BigInteger)
+      {
+        return (BigInteger.ZERO.add ((BigInteger) obj));
+      }
+
+      return (null);
+    } /* }}} Number genericObjectToNumber */
 
   /**
    * Converts a generic list to a list of numbers.
@@ -135,24 +135,24 @@ class GenericJMXConfValue
    * Returns null if one or more objects could not be converted.
    */
   private List<Number> genericListToNumber (List<Object> objects) /* {{{ */
-  {
-    List<Number> ret = new ArrayList<Number> ();
-    List<DataSource> dsrc = this._ds.getDataSources ();
-
-    assert (objects.size () == dsrc.size ());
-
-    for (int i = 0; i < objects.size (); i++)
     {
-      Number n;
+      List<Number> ret = new ArrayList<Number> ();
+      List<DataSource> dsrc = this._ds.getDataSources ();
 
-      n = genericObjectToNumber (objects.get (i), dsrc.get (i).getType ());
-      if (n == null)
-        return (null);
-      ret.add (n);
-    }
+      assert (objects.size () == dsrc.size ());
 
-    return (ret);
-  } /* }}} List<Number> genericListToNumber */
+      for (int i = 0; i < objects.size (); i++)
+      {
+        Number n;
+
+        n = genericObjectToNumber (objects.get (i), dsrc.get (i).getType ());
+        if (n == null)
+          return (null);
+        ret.add (n);
+      }
+
+      return (ret);
+    } /* }}} List<Number> genericListToNumber */
 
   /**
    * Converts a list of CompositeData to a list of numbers.
@@ -163,7 +163,7 @@ class GenericJMXConfValue
    * object cannot converted to a number then the function will return null.
    */
   private List<Number> genericCompositeToNumber (List<CompositeData> cdlist, /* {{{ */
-      String key)
+    String key)
   {
     List<Object> objects = new ArrayList<Object> ();
 
@@ -188,7 +188,7 @@ class GenericJMXConfValue
   } /* }}} List<Number> genericCompositeToNumber */
 
   private void submitTable (List<Object> objects, ValueList vl, /* {{{ */
-      String instancePrefix)
+    String instancePrefix)
   {
     List<CompositeData> cdlist;
     Set<String> keySet = null;
@@ -214,8 +214,8 @@ class GenericJMXConfValue
       else
       {
         Collectd.logError ("GenericJMXConfValue: At least one of the "
-            + "attributes was not of type `CompositeData', as required "
-            + "when table is set to `true'.");
+          + "attributes was not of type `CompositeData', as required "
+          + "when table is set to `true'.");
         return;
       }
     }
@@ -233,8 +233,8 @@ class GenericJMXConfValue
       if (values == null)
       {
         Collectd.logDebug ("GenericJMXConfValue: Cannot build a list of "
-            + "numbers for key " + key + ". Most likely not all attributes "
-            + "have this key.");
+          + "numbers for key " + key + ". Most likely not all attributes "
+          + "have this key.");
         continue;
       }
 
@@ -249,7 +249,7 @@ class GenericJMXConfValue
   } /* }}} void submitTable */
 
   private void submitScalar (List<Object> objects, ValueList vl, /* {{{ */
-      String instancePrefix)
+    String instancePrefix)
   {
     List<Number> values;
 
@@ -257,7 +257,7 @@ class GenericJMXConfValue
     if (values == null)
     {
       Collectd.logError ("GenericJMXConfValue: Cannot convert list of "
-          + "objects to numbers.");
+        + "objects to numbers.");
       return;
     }
 
@@ -271,7 +271,7 @@ class GenericJMXConfValue
   } /* }}} void submitScalar */
 
   private Object queryAttributeRecursive (CompositeData parent, /* {{{ */
-      List<String> attrName)
+    List<String> attrName)
   {
     String key;
     Object value;
@@ -301,7 +301,7 @@ class GenericJMXConfValue
   } /* }}} queryAttributeRecursive */
 
   private Object queryAttribute (MBeanServerConnection conn, /* {{{ */
-      ObjectName objName, String attrName)
+    ObjectName objName, String attrName)
   {
     List<String> attrNameList;
     String key;
@@ -345,98 +345,98 @@ class GenericJMXConfValue
       {
         OpenType ot = (OpenType) value;
         Collectd.logNotice ("GenericJMXConfValue: Handling of OpenType \""
-            + ot.getTypeName () + "\" is not yet implemented.");
+          + ot.getTypeName () + "\" is not yet implemented.");
         return (null);
       }
       else
       {
         Collectd.logError ("GenericJMXConfValue: Received object of "
-            + "unknown class.");
+          + "unknown class.");
         return (null);
       }
     }
   } /* }}} Object queryAttribute */
 
   private String join (String separator, List<String> list) /* {{{ */
-  {
-    StringBuffer sb;
-
-    sb = new StringBuffer ();
-
-    for (int i = 0; i < list.size (); i++)
     {
-      if (i > 0)
-        sb.append ("-");
-      sb.append (list.get (i));
-    }
+      StringBuffer sb;
 
-    return (sb.toString ());
-  } /* }}} String join */
+      sb = new StringBuffer ();
 
-  private String getConfigString (OConfigItem ci) /* {{{ */
-  {
-    List<OConfigValue> values;
-    OConfigValue v;
+      for (int i = 0; i < list.size (); i++)
+      {
+        if (i > 0)
+          sb.append ("-");
+        sb.append (list.get (i));
+      }
 
-    values = ci.getValues ();
-    if (values.size () != 1)
-    {
-      Collectd.logError ("GenericJMXConfValue: The " + ci.getKey ()
-          + " configuration option needs exactly one string argument.");
-      return (null);
-    }
+      return (sb.toString ());
+    } /* }}} String join */
 
-    v = values.get (0);
-    if (v.getType () != OConfigValue.OCONFIG_TYPE_STRING)
-    {
-      Collectd.logError ("GenericJMXConfValue: The " + ci.getKey ()
-          + " configuration option needs exactly one string argument.");
-      return (null);
-    }
+    private String getConfigString (OConfigItem ci) /* {{{ */
+      {
+        List<OConfigValue> values;
+        OConfigValue v;
 
-    return (v.getString ());
-  } /* }}} String getConfigString */
+        values = ci.getValues ();
+        if (values.size () != 1)
+        {
+          Collectd.logError ("GenericJMXConfValue: The " + ci.getKey ()
+            + " configuration option needs exactly one string argument.");
+          return (null);
+        }
 
-  private Boolean getConfigBoolean (OConfigItem ci) /* {{{ */
-  {
-    List<OConfigValue> values;
-    OConfigValue v;
-    Boolean b;
+        v = values.get (0);
+        if (v.getType () != OConfigValue.OCONFIG_TYPE_STRING)
+        {
+          Collectd.logError ("GenericJMXConfValue: The " + ci.getKey ()
+            + " configuration option needs exactly one string argument.");
+          return (null);
+        }
 
-    values = ci.getValues ();
-    if (values.size () != 1)
-    {
-      Collectd.logError ("GenericJMXConfValue: The " + ci.getKey ()
-          + " configuration option needs exactly one boolean argument.");
-      return (null);
-    }
+        return (v.getString ());
+      } /* }}} String getConfigString */
 
-    v = values.get (0);
-    if (v.getType () != OConfigValue.OCONFIG_TYPE_BOOLEAN)
-    {
-      Collectd.logError ("GenericJMXConfValue: The " + ci.getKey ()
-          + " configuration option needs exactly one boolean argument.");
-      return (null);
-    }
+      private Boolean getConfigBoolean (OConfigItem ci) /* {{{ */
+        {
+          List<OConfigValue> values;
+          OConfigValue v;
+          Boolean b;
 
-    return (new Boolean (v.getBoolean ()));
-  } /* }}} String getConfigBoolean */
+          values = ci.getValues ();
+          if (values.size () != 1)
+          {
+            Collectd.logError ("GenericJMXConfValue: The " + ci.getKey ()
+              + " configuration option needs exactly one boolean argument.");
+            return (null);
+          }
+
+          v = values.get (0);
+          if (v.getType () != OConfigValue.OCONFIG_TYPE_BOOLEAN)
+          {
+            Collectd.logError ("GenericJMXConfValue: The " + ci.getKey ()
+              + " configuration option needs exactly one boolean argument.");
+            return (null);
+          }
+
+          return (new Boolean (v.getBoolean ()));
+        } /* }}} String getConfigBoolean */
 
   /**
    * Constructs a new value with the configured properties.
    */
   public GenericJMXConfValue (OConfigItem ci) /* {{{ */
     throws IllegalArgumentException
-  {
-    List<OConfigItem> children;
-    Iterator<OConfigItem> iter;
+    {
+      List<OConfigItem> children;
+      Iterator<OConfigItem> iter;
 
-    this._ds_name = null;
-    this._ds = null;
-    this._attributes = new ArrayList<String> ();
-    this._instance_prefix = null;
-    this._instance_from = new ArrayList<String> ();
-    this._is_table = false;
+      this._ds_name = null;
+      this._ds = null;
+      this._attributes = new ArrayList<String> ();
+      this._instance_prefix = null;
+      this._instance_from = new ArrayList<String> ();
+      this._is_table = false;
 
     /*
      * <Value>
@@ -487,15 +487,12 @@ class GenericJMXConfValue
       }
       else
         throw (new IllegalArgumentException ("Unknown option: "
-              + child.getKey ()));
+          + child.getKey ()));
     }
 
-      Collectd.logError("GenericJmx Plugin: Ignoring ds_name for attribute "+ this._attributes.get(0) );
-	
-    if ( !(this._attributes.get(0).equalsIgnoreCase("*") || this._ds_name == null)){
-
+    if ( !this._attributes.get(0).equalsIgnoreCase("*") && this._ds_name == null){
       throw (new IllegalArgumentException ("No data set was defined."));
-}
+    }
     else if (this._attributes.size () == 0)
       throw (new IllegalArgumentException ("No attribute was defined."));
   } /* }}} GenericJMXConfValue (OConfigItem ci) */
@@ -510,96 +507,96 @@ class GenericJMXConfValue
    *                plugin instance will be used.
    */
   public void query (MBeanServerConnection conn, ObjectName objName, /* {{{ */
-      PluginData pd)
+    PluginData pd)
   {
-	  
-	if ( this._attributes.get(0).equalsIgnoreCase("*") ) {
-		MBeanInfo mBeanInfo = null;
-		try {
-			mBeanInfo = conn.getMBeanInfo(objName);
-		} catch (Exception e) {
-			Collectd.logError("GenericJmx Plugin: Object name not found: "+objName);
-			return;
-		} 
-		MBeanAttributeInfo[] mBeanAttributeInfos = mBeanInfo.getAttributes();
-		for(int i =0 ; i<  mBeanAttributeInfos.length; i++ ){
-			String attributeName = mBeanAttributeInfos[i].getName();
-			String attributeType =  mBeanAttributeInfos[i].getType();
-			if( attributeType.equalsIgnoreCase("double") ||
-					attributeType.equalsIgnoreCase("int") ||
-					attributeType.equalsIgnoreCase("long") ||
-					attributeType.equalsIgnoreCase("java.lang.AtomicInteger") ||
-					attributeType.equalsIgnoreCase("java.lang.AtomicLong") ||
-					attributeType.equalsIgnoreCase("java.lang.BigDecimal") ||
-					attributeType.equalsIgnoreCase("java.lang.BigInteger") ||
-					attributeType.equalsIgnoreCase("java.lang.Byte") ||
-					attributeType.equalsIgnoreCase("java.lang.Double") ||
-					attributeType.equalsIgnoreCase("java.lang.Float") ||
-					attributeType.equalsIgnoreCase("java.lang.Integer") ||
-					attributeType.equalsIgnoreCase("java.lang.Long") ||
-					attributeType.equalsIgnoreCase("java.lang.Short") ){
-				this._attributes =new ArrayList<String>();
-				this._attributes.add(attributeName);
-				this._ds = DataSet.parseDataSet(attributeName+" value:GAUGE:U:U");
-				this._ds_name = attributeName;
-				this._is_table = false;
-				Collectd.logDebug("GenericJmx Plugin: Getting : "+objName+" with attribute : "+attributeName);
-				query(conn, objName, pd);
-				this._attributes =new ArrayList<String>();
-				this._attributes.add("*");
+
+   if ( this._attributes.get(0).equalsIgnoreCase("*") ) {
+    MBeanInfo mBeanInfo = null;
+    try {
+     mBeanInfo = conn.getMBeanInfo(objName);
+   } catch (Exception e) {
+     Collectd.logError("GenericJmx Plugin: Object name not found: "+objName);
+     return;
+   } 
+   MBeanAttributeInfo[] mBeanAttributeInfos = mBeanInfo.getAttributes();
+   for(int i =0 ; i<  mBeanAttributeInfos.length; i++ ){
+     String attributeName = mBeanAttributeInfos[i].getName();
+     String attributeType =  mBeanAttributeInfos[i].getType();
+     if( attributeType.equalsIgnoreCase("double") ||
+       attributeType.equalsIgnoreCase("int") ||
+       attributeType.equalsIgnoreCase("long") ||
+       attributeType.equalsIgnoreCase("java.lang.AtomicInteger") ||
+       attributeType.equalsIgnoreCase("java.lang.AtomicLong") ||
+       attributeType.equalsIgnoreCase("java.lang.BigDecimal") ||
+       attributeType.equalsIgnoreCase("java.lang.BigInteger") ||
+       attributeType.equalsIgnoreCase("java.lang.Byte") ||
+       attributeType.equalsIgnoreCase("java.lang.Double") ||
+       attributeType.equalsIgnoreCase("java.lang.Float") ||
+       attributeType.equalsIgnoreCase("java.lang.Integer") ||
+       attributeType.equalsIgnoreCase("java.lang.Long") ||
+       attributeType.equalsIgnoreCase("java.lang.Short") ){
+      this._attributes =new ArrayList<String>();
+    this._attributes.add(attributeName);
+    this._ds = DataSet.parseDataSet(attributeName+" value:GAUGE:U:U");
+    this._ds_name = attributeName;
+    this._is_table = false;
+    Collectd.logDebug("GenericJmx Plugin: Getting : "+objName+" with attribute : "+attributeName);
+    query(conn, objName, pd);
+    this._attributes =new ArrayList<String>();
+    this._attributes.add("*");
 				//destroy
-			}
-			else if(attributeType.equalsIgnoreCase("javax.management.openmbean.CompositeData")){
-				this._attributes =new ArrayList<String>();
-				this._attributes.add(attributeName);
-				this._ds = DataSet.parseDataSet(attributeName+" value:GAUGE:U:U");
-				this._ds_name = attributeName;
-				this._is_table = true;
-			        Collectd.logDebug("GenericJmx Plugin: Getting : "+objName+" with attribute : "+attributeName);
-				query(conn, objName, pd);
-				this._attributes =new ArrayList<String>();
-				this._attributes.add("*");
+  }
+  else if(attributeType.equalsIgnoreCase("javax.management.openmbean.CompositeData")){
+    this._attributes =new ArrayList<String>();
+    this._attributes.add(attributeName);
+    this._ds = DataSet.parseDataSet(attributeName+" value:GAUGE:U:U");
+    this._ds_name = attributeName;
+    this._is_table = true;
+    Collectd.logDebug("GenericJmx Plugin: Getting : "+objName+" with attribute : "+attributeName);
+    query(conn, objName, pd);
+    this._attributes =new ArrayList<String>();
+    this._attributes.add("*");
 				//destroy
-			}
-			else{
-				Collectd.logDebug("GenericJmx Plugin: Ignoring : "+objName+" with attribute : "+attributeName);
-			}
-			
-		}
-	return ;
-	}
-    Collectd.logDebug("GenericJmx Plugin: Outside Getting : "+objName);
-	  
-    ValueList vl;
-    List<DataSource> dsrc;
-    List<Object> values;
-    List<String> instanceList;
-    String instancePrefix;
+  }
+  else{
+    Collectd.logDebug("GenericJmx Plugin: Ignoring : "+objName+" with attribute : "+attributeName);
+  }
 
-    if (this._ds == null)
-    {
-      this._ds = Collectd.getDS (this._ds_name);
-      if (this._ds == null)
-      {
-        Collectd.logError ("GenericJMXConfValue: Unknown type: "
-            + this._ds_name);
-        return;
-      }
-    }
+}
+return ;
+}
+Collectd.logDebug("GenericJmx Plugin: Outside Getting : "+objName);
 
-    dsrc = this._ds.getDataSources ();
-    if (dsrc.size () != this._attributes.size ())
-    {
-      Collectd.logError ("GenericJMXConfValue.query: The data set "
-          + this._ds_name + " has " + this._ds.getDataSources ().size ()
-          + " data sources, but there were " + this._attributes.size ()
-          + " attributes configured. This doesn't match!");
-      this._ds = null;
-      return;
-    }
+ValueList vl;
+List<DataSource> dsrc;
+List<Object> values;
+List<String> instanceList;
+String instancePrefix;
 
-    vl = new ValueList (pd);
-    vl.setType (this._ds_name);
+if (this._ds == null)
+{
+  this._ds = Collectd.getDS (this._ds_name);
+  if (this._ds == null)
+  {
+    Collectd.logError ("GenericJMXConfValue: Unknown type: "
+      + this._ds_name);
+    return;
+  }
+}
+
+dsrc = this._ds.getDataSources ();
+if (dsrc.size () != this._attributes.size ())
+{
+  Collectd.logError ("GenericJMXConfValue.query: The data set "
+    + this._ds_name + " has " + this._ds.getDataSources ().size ()
+    + " data sources, but there were " + this._attributes.size ()
+    + " attributes configured. This doesn't match!");
+  this._ds = null;
+  return;
+}
+
+vl = new ValueList (pd);
+vl.setType (this._ds_name);
 
     /*
      * Build the instnace prefix from the fixed string prefix and the
@@ -616,7 +613,7 @@ class GenericJMXConfValue
       if (propertyValue == null)
       {
         Collectd.logDebug ("GenericJMXConfMBean: "
-            + "No such property in object name: " + propertyName);
+          + "No such property in object name: " + propertyName);
       }
       else
       {
@@ -626,7 +623,7 @@ class GenericJMXConfValue
 
     if (this._instance_prefix != null)
       instancePrefix = new String (this._instance_prefix
-          + join (".", instanceList));
+        + join (".", instanceList));
     else
       instancePrefix = join (".", instanceList);
 
@@ -644,7 +641,7 @@ class GenericJMXConfValue
       if (v == null)
       {
         Collectd.logDebug ("GenericJMXConfValue.query: "
-            + "Querying attribute " + this._attributes.get (i) + " failed.");
+          + "Querying attribute " + this._attributes.get (i) + " failed.");
         return;
       }
 
