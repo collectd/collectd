@@ -1188,6 +1188,11 @@
 #	Port "1978"
 #</Plugin>
 
+#<Plugin turbostat>
+##	The following option should not be used if MSR_IA32_TEMPERATURE_TARGET is supported
+#	TCCActivationTemp 100
+#</Plugin>
+
 #<Plugin unixsock>
 #	SocketFile "@prefix@/var/run/@PACKAGE_NAME@-unixsock"
 #	SocketGroup "collectd"
