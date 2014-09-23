@@ -601,7 +601,7 @@ turbostat_submit (const char *plugin_instance,
 static int
 submit_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 {
-	char name[12];
+	char name[DATA_MAX_NAME_LEN];
 	double interval_float;
 
 	interval_float = tv_delta.tv_sec + tv_delta.tv_usec/1000000.0;
