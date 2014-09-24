@@ -257,6 +257,7 @@ static int opentsdb_format_name_jmx (char *ret, int ret_len,
 
 static int opentsdb_format_name (char *ret, int ret_len,
 		value_list_t const *vl,
+		char const *ds_name,
 		char const *prefix,
 		char const escape_char,
 		unsigned int flags)
@@ -325,7 +326,8 @@ static int opentsdb_format_name (char *ret, int ret_len,
         }
       }
     }
-
+    if (ds_name != NULL && (0 != strcmp("value", ds_name)))
+    ssnprintf(ret, ret_len, "%s.%s", ret, ds_name);
 
 	return (0);
 }
@@ -357,15 +359,18 @@ int format_opentsdb (char *buffer, size_t buffer_size,
 
 	for (i = 0; i < ds->ds_num; i++)
 	{
+		char const *ds_name = NULL;
 		char        key[10*DATA_MAX_NAME_LEN];
 		char        final_tags[512];
 		char        values[512];
 		size_t      message_len;
 		char        message[1024];
 
+        ds_name = ds->ds[i].name;
+
 
 		/* Copy the identifier to `key' and escape it. */
-		status = opentsdb_format_name (key, sizeof (key), vl,
+		status = opentsdb_format_name (key, sizeof (key), vl, ds_name
 				prefix, escape_char, flags);
 		if (status != 0)
 		{
