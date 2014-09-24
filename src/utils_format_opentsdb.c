@@ -289,6 +289,48 @@ static int opentsdb_format_name (char *ret, int ret_len,
 	
     sstrncpy (tmp_type_instance, n_type_instance, sizeof (tmp_type_instance));
 
+    if (ds_name != NULL && (0 != strcmp("value", ds_name))){
+    if(prefix == NULL){
+      if(tmp_type_instance[0] == '\0'){
+        if (strcasecmp (tmp_plugin, tmp_type) == 0){
+	      ssnprintf (ret, ret_len, "%s.%s", tmp_plugin, ds_name);
+        }
+        else{
+	      ssnprintf (ret, ret_len, "%s.%s.%s", tmp_plugin, tmp_type,ds_name); 
+        }
+      }   
+      else{
+        if (strcasecmp (tmp_plugin, tmp_type) == 0){
+	      ssnprintf (ret, ret_len, "%s.%s.%s", tmp_plugin, tmp_type_instance, ds_name);
+        }
+        else{
+	      ssnprintf (ret, ret_len, "%s.%s.%s.%s", tmp_plugin, tmp_type, tmp_type_instance,ds_name); 
+        }
+      }
+    }else{ 
+      if(tmp_type_instance[0] == '\0'){
+        if (strcasecmp (tmp_plugin, tmp_type) == 0){
+	      ssnprintf (ret, ret_len, "%s.%s.%s", prefix, tmp_plugin,ds_name);
+        }
+        else{
+	      ssnprintf (ret, ret_len, "%s.%s.%s.%s", prefix, tmp_plugin, tmp_type, ds_name); 
+        }
+      }   
+      else{
+        if (strcasecmp (tmp_plugin, tmp_type) == 0){
+	      ssnprintf (ret, ret_len, "%s.%s.%s.%s",
+		    	prefix, tmp_plugin, tmp_type_instance, ds_name);
+        }
+        else{
+	      ssnprintf (ret, ret_len, "%s.%s.%s.%s.%s",
+		    	prefix, tmp_plugin, tmp_type, tmp_type_instance, ds_name);
+        }
+      }
+    }
+
+
+}
+else{
     if(prefix == NULL){
       if(tmp_type_instance[0] == '\0'){
         if (strcasecmp (tmp_plugin, tmp_type) == 0){
@@ -326,8 +368,8 @@ static int opentsdb_format_name (char *ret, int ret_len,
         }
       }
     }
-    if (ds_name != NULL && (0 != strcmp("value", ds_name)))
-    ssnprintf(ret, ret_len, "%s.%s", ret, ds_name);
+
+}
 
 	return (0);
 }
