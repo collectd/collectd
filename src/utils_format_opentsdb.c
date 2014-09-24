@@ -190,11 +190,11 @@ static int opentsdb_format_tags (char *ret, int ret_len,
 	}else{
 		if (n_plugin_instance[0] != '\0' && (0 != strcmp("GenericJMX", n_plugin))){
 	    	ssnprintf (ret, ret_len, "host=%s %s=%s process=%s %s",
-		    		vl->host, n_plugin, n_plugin_instance, process, tags);
+		    		host, n_plugin, n_plugin_instance, process, tags);
 	    	}
 		else
 	    	ssnprintf (ret, ret_len, "host=%s process=%s %s",
-		    		vl->host, process, tags);	
+		    		host, process, tags);	
 
 	}
 
