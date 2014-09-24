@@ -370,7 +370,7 @@ int format_opentsdb (char *buffer, size_t buffer_size,
 
 
 		/* Copy the identifier to `key' and escape it. */
-		status = opentsdb_format_name (key, sizeof (key), vl, ds_name
+		status = opentsdb_format_name (key, sizeof (key), vl, ds_name,
 				prefix, escape_char, flags);
 		if (status != 0)
 		{
