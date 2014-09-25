@@ -967,6 +967,8 @@
 #  DeleteGauges   false
 #  DeleteSets     false
 #  TimerPercentile 90.0
+#  TimerPercentile 95.0
+#  TimerPercentile 99.0
 #  TimerLower     false
 #  TimerUpper     false
 #  TimerSum       false

@@ -5332,31 +5332,20 @@ that I<Percent> of all reported timers are smaller than or equal to the
 computed latency. This is useful for cutting off the long tail latency, as it's
 often done in I<Service Level Agreements> (SLAs).
 
-If not specified, no percentile is calculated / dispatched.
+Different percentiles can be calculated by setting this option several times.
+If none are specified, no percentiles are calculated / dispatched.
 
 =item B<TimerLower> B<false>|B<true>
 
-Calculates and dispatch the lowest value for the metric in an inteval.
-
-If set to B<False>, no lowest value is calculated / dispatched.
-
 =item B<TimerUpper> B<false>|B<true>
-
-Calculates and dispatch the highest value for the metric in an inteval.
-
-If set to B<False>, no highest value is calculated / dispatched.
 
 =item B<TimerSum> B<false>|B<true>
 
-Calculates and dispatch a sum for all the values for the metric in an inteval.
-
-If set to B<False>, no sum value is calculated / dispatched.
-
 =item B<TimerCount> B<false>|B<true>
 
-Calculates and dispatch a count of all the values for the metric been sent in an inteval.
-
-If set to B<False>, no count value is calculated / dispatched.
+Calculate and dispatch various values out of I<Timer> metrics received during
+an interval. If set to B<False>, the default, these values aren't calculated /
+dispatched.
 
 =back
 
