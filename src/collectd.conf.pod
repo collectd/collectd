@@ -6629,12 +6629,125 @@ If set to B<true> (the default), convert counter values to rates. If set to
 B<false> counter values are stored as is, i.E<nbsp>e. as an increasing integer
 number.
 
+=item B<SeparatePluginInstances> B<false>|B<true>
+
+If set to B<true>, the plugin instance will be in their own path component (tree level). 
+If set to B<false>,the plugin and plugin instance, are put into one component (tree level).
+
+This is: the collectd-naming schema:
+
+    host "/" plugin ["-" plugin instance] "/" type ["-" type instance]
+
+If set to B<true> the path will become ( once sent to graphite)
+
+    host.plugin.plugin_instance.type-type_instance ( 4 levels separated by dots )
+
+If set to B<false> the path will become ( once sent to graphite)
+ 
+    host.plugin-plugin_instance.type-type_instance ( 3 levels separated by dots ) 
+
+=item B<SeparateTypeInstances> B<false>|B<true>
+
+Does the same than previous parameter but in the type part of the collectd-naming schema.
+
+If set to B<true>, the type instance will be in their own path component (tree level). 
+If set to B<false>, the type and type  instance, are put into one component (tree level)
+
+This is: the collectd-naming schema:
+
+     host "/" plugin ["-" plugin instance] "/" type ["-" type instance]
+
+If set to B<true> the path will become ( once sent to graphite)
+
+     host.plugin-plugin_instance.type.type_instance ( 4 levels separated by dots )
+
+If set to B<false> the path will become ( once sent to graphite)
+
+     host.plugin-plugin_instance.type-type_instance ( 3 levels separated by dots )
+
+
 =item B<SeparateInstances> B<false>|B<true>
 
-If set to B<true>, the plugin instance and type instance will be in their own
-path component, for example C<host.cpu.0.cpu.idle>. If set to B<false> (the
-default), the plugin and plugin instance (and likewise the type and type
-instance) are put into one component, for example C<host.cpu-0.cpu-idle>.
+This parameter does both separations B<SeparateTypeInstances> and 
+B<SeparatePluginInstances> at once.
+If present this parameter overrides the two previous  
+
+If set to B<true> will become ( once sent to graphite)
+
+     host.plugin.plugin_instance.type.type_instance ( 5 levels separated by dots ) 
+
+If set to B<false> will become ( once sent to graphite)
+
+     host.plugin-plugin_instance.type-type_instance ( 3 levels separated by dots ) 
+
+=item B<SeparateLevelCharacter> I<Char>
+
+Graphite lets us to have as many levels as we want in the metric tree  but collectd has a limited 
+number of levels in its standar schema.( as much as 4 after hostname).
+
+This is: the collectd-naming schema:
+
+     host "/" plugin ["-" plugin instance] "/" type ["-" type instance]
+
+You can add additional levels by adding a special B<SeparateLevelCharacter> wherever 
+you want in the plugin name,plugin instances, type names or type instances names.
+
+by example, you can put bellow a "system" level all system plugins by only adding 
+
+
+ <Plugin write_graphite>
+   <Node "example">
+     ...
+     SeparateLevelCharacter "@"
+     ...
+   </Node>
+ </Plugin>
+
+And after by adding replace rules for all your SO metric plugins.
+
+   <Rule "rename_cpu">
+     <Target "replace">
+        Plugin  "\\<cpu\\>" "system@cpu"
+     </Target>
+   </Rule>
+   <Rule "rename_interface">
+     <Target "replace">
+        Plugin  "\\<interface\\>" "system@interface"
+     </Target>
+   </Rule>
+   <Rule "rename_df">
+     <Target "replace">
+        Plugin  "\\<df\\>" "system@fs"
+     </Target>
+   </Rule>
+   <Rule "rename_memory">
+     <Target "replace">
+        Plugin  "\\<memory\\>" "system@memory"
+     </Target>
+   </Rule>
+   <Rule "rename_ping">
+     <Target "replace">
+        Plugin  "\\<ping\\>" "system@ping"
+     </Target>
+   </Rule>
+
+After that you will have the following metrics:
+
+   host.system.cpu.plugin_instance.XXXX.XXXX ( >= 6 levels ) 
+   host.system.interface.plugin_instance.XXXX.XXXX ( >= 6 levels )
+   host.system.fs.plugin_instance.XXXX.XXXX ( >= 6 levels )
+   host.system.memory.plugin_instance.XXXX.XXXX ( >= 6 levels )
+   host.system.ping.plugin_instance.XXXX.XXXX  ( >= 6 levels )
+
+You can add the special character in the beginning or ending of Prefixes/Suffixes Parameters
+existing on some plugins.If done sometimes  happens that you can join two level separators at once,
+if so the white_graphite plugin will fix it by you
+
+By example if SeparateLevelCharacter = @
+
+   level.@level  => will become  "level.level"
+   level.@.level => will become  "level.level"
+   level@.level  => will become  "level.level"
 
 =item B<AlwaysAppendDS> B<false>|B<true>
 
