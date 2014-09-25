@@ -1337,7 +1337,7 @@ err:
 	return -ERR_CALLOC;
 }
 
-static int
+static void
 init_counter(struct thread_data *thread_base, struct core_data *core_base,
 	struct pkg_data *pkg_base, int cpu_id)
 {
@@ -1358,32 +1358,20 @@ init_counter(struct thread_data *thread_base, struct core_data *core_base,
 
 	c->core_id = cpu->core_id;
 	p->package_id = cpu->package_id;
-
-	return 0;
 }
 
-static int
+static void
 initialize_counters(void)
 {
-	int ret;
 	int cpu_id;
 
 	for (cpu_id = 0; cpu_id <= topology.max_cpu_id; ++cpu_id) {
-		if (cpu_is_not_present(cpu_id)) {
+		if (cpu_is_not_present(cpu_id))
 			continue;
-		}
-
-		ret = init_counter(EVEN_COUNTERS, cpu_id);
-		if (ret < 0)
-			return ret;
-		ret = init_counter(ODD_COUNTERS, cpu_id);
-		if (ret < 0)
-			return ret;
-		ret = init_counter(DELTA_COUNTERS, cpu_id);
-		if (ret < 0)
-			return ret;
+		init_counter(EVEN_COUNTERS, cpu_id);
+		init_counter(ODD_COUNTERS, cpu_id);
+		init_counter(DELTA_COUNTERS, cpu_id);
 	}
-	return 0;
 }
 
 
@@ -1451,7 +1439,7 @@ static int setup_all_buffers(void)
 	DO_OR_GOTO_ERR(allocate_counters(&thread_even, &core_even, &package_even));
 	DO_OR_GOTO_ERR(allocate_counters(&thread_odd, &core_odd, &package_odd));
 	DO_OR_GOTO_ERR(allocate_counters(&thread_delta, &core_delta, &package_delta));
-	DO_OR_GOTO_ERR(initialize_counters());
+	initialize_counters();
 	DO_OR_GOTO_ERR(for_all_cpus(set_temperature_target, EVEN_COUNTERS));
 	DO_OR_GOTO_ERR(for_all_cpus(set_temperature_target, ODD_COUNTERS));
 
