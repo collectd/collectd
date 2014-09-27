@@ -530,13 +530,21 @@ static int wg_config_node (oconfig_item_t *ci)
         else if (strcasecmp ("StoreRates", child->key) == 0)
             cf_util_get_flag (child, &cb->format_flags,
                     GRAPHITE_STORE_RATES);
+	//SeparatePluginInstances : maintained for backwards compatibility
         else if (strcasecmp ("SeparatePluginInstances", child->key) == 0)
             cf_util_get_flag (child, &cb->format_flags,
                     GRAPHITE_SEPARATE_PLUGIN_INSTANCES);
+        else if (strcasecmp ("SeparatePluginInstance", child->key) == 0)
+            cf_util_get_flag (child, &cb->format_flags,
+                    GRAPHITE_SEPARATE_PLUGIN_INSTANCES);
+	//SeparateTypeInstances : maintained for backwards compatibility
         else if (strcasecmp ("SeparateTypeInstances", child->key) == 0)
             cf_util_get_flag (child, &cb->format_flags,
                     GRAPHITE_SEPARATE_TYPE_INSTANCES);
-         else if (strcasecmp ("SeparateInstances", child->key) == 0)
+        else if (strcasecmp ("SeparateTypeInstance", child->key) == 0)
+            cf_util_get_flag (child, &cb->format_flags,
+                    GRAPHITE_SEPARATE_TYPE_INSTANCES);
+        else if (strcasecmp ("SeparateInstances", child->key) == 0)
             cf_util_get_flag (child, &cb->format_flags,
                     GRAPHITE_SEPARATE_INSTANCES);
         else if (strcasecmp ("AlwaysAppendDS", child->key) == 0)
@@ -544,9 +552,11 @@ static int wg_config_node (oconfig_item_t *ci)
                     GRAPHITE_ALWAYS_APPEND_DS);
         else if (strcasecmp ("EscapeCharacter", child->key) == 0)
             config_set_char (&cb->escape_char, child);
+	//SeparateLevelCharacter : maintained for backwards compatibility
         else if (strcasecmp ("SeparateLevelCharacter", child->key) == 0)
             config_set_char (&cb->separate_char, child);
-
+        else if (strcasecmp ("AddPathSeparator", child->key) == 0)
+            config_set_char (&cb->separate_char, child);
         else
         {
             ERROR ("write_graphite plugin: Invalid configuration "
