@@ -247,8 +247,8 @@ static int opentsdb_format_name_jmx (char *ret, int ret_len,
 		    	prefix, tmp_plugin_instance, tmp_type);
       }
       else{
-	      ssnprintf (ret, ret_len, "%s.jmx.%s.%s.%s",
-		    	prefix, tmp_plugin_instance, tmp_type_instance, tmp_type);
+	      ssnprintf (ret, ret_len, "%s.jmx.%s.%s",
+		    	prefix, tmp_type_instance, tmp_type);
       }
 
       return (0);
