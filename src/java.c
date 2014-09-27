@@ -74,6 +74,78 @@ struct cjni_callback_info_s /* {{{ */
 typedef struct cjni_callback_info_s cjni_callback_info_t;
 /* }}} */
 
+struct cjni_base_md_s /* {{{ */
+{
+  jclass    class;
+  jmethodID constructor;
+};
+typedef struct cjni_base_md_s cjni_base_md_t;
+/* }}} */
+
+struct cjni_list_md_s /* {{{ */
+{
+  jclass    class;
+  jmethodID toArray;
+};
+typedef struct cjni_list_md_s cjni_list_md_t;
+/* }}} */
+
+struct cjni_dataset_md_s /* {{{ */
+{
+  jclass    class;
+  jmethodID constructor;
+  jmethodID addDataSource;
+};
+typedef struct cjni_dataset_md_s cjni_dataset_md_t;
+/* }}} */
+
+struct cjni_datasource_md_s /* {{{ */
+{
+  jclass    class;
+  jmethodID constructor;
+  jmethodID setName;
+  jmethodID setType;
+  jmethodID setMax;
+  jmethodID setMin;
+};
+typedef struct cjni_datasource_md_s cjni_datasource_md_t;
+/* }}} */
+
+struct cjni_valuelist_md_s /* {{{ */
+{
+  jclass    class;
+  jmethodID constructor;
+  jmethodID setDataSet;
+  jmethodID setHost;
+  jmethodID getHost;
+  jmethodID setPlugin;
+  jmethodID getPlugin;
+  jmethodID setPluginInstance;
+  jmethodID getPluginInstance;
+  jmethodID setType;
+  jmethodID getType;
+  jmethodID setTypeInstance;
+  jmethodID getTypeInstance;
+  jmethodID addValue;
+  jmethodID getValues;
+  jmethodID setTime;
+  jmethodID getTime;
+  jmethodID setInterval;
+  jmethodID getInterval;
+};
+typedef struct cjni_valuelist_md_s cjni_valuelist_md_t;
+/* }}} */
+
+#define SET_JCLASS(gDest_ptr, lSrc) do { \
+  jclass _tclass = (*jvm_env)->NewGlobalRef(jvm_env, lSrc->class); \
+  if (_tclass == NULL) { \
+    ERROR ("java plugin: Global class reference create failed."); \
+    return; \
+  } \
+  (*jvm_env)->DeleteLocalRef (jvm_env, lSrc->class); \
+  lSrc->class = _tclass; \
+  *gDest_ptr = lSrc; } while (0)
+
 /*
  * Global variables
  */
@@ -94,6 +166,14 @@ static size_t                java_callbacks_num  = 0;
 static pthread_mutex_t       java_callbacks_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static oconfig_item_t       *config_block = NULL;
+
+/* Cached methods and fields */
+static cjni_list_md_t *g_list_md = NULL;
+static cjni_base_md_t *g_long_md = NULL;
+static cjni_base_md_t *g_double_md = NULL;
+static cjni_dataset_md_t *g_dset_md = NULL;
+static cjni_datasource_md_t *g_dsource_md = NULL;
+static cjni_valuelist_md_t *g_vlist_md = NULL;
 
 /*
  * Prototypes
@@ -120,15 +200,432 @@ static int cjni_match_target_destroy (void **user_data);
 static int cjni_match_target_invoke (const data_set_t *ds, value_list_t *vl,
     notification_meta_t **meta, void **user_data);
 
+/* Some forward references */
+static jmethodID jtoc_string_method_md (JNIEnv *jvm_env, jclass class_ptr, const char *method_name);
+static jmethodID jtoc_long_md (JNIEnv *jvm_env, jclass class_ptr, const char *method_name);
+
 /*
- * C to Java conversion functions
+ * Metadata retrieval methods
  */
-static int ctoj_string (JNIEnv *jvm_env, /* {{{ */
-    const char *string,
-    jclass class_ptr, jobject object_ptr, const char *method_name)
+static jmethodID ctoj_string_method_md (JNIEnv *jvm_env, /* {{{ */
+    jclass class_ptr, const char *method_name)
 {
   jmethodID m_set;
+
+  /* Search for the `void setFoo (String s)' method. */
+  m_set = (*jvm_env)->GetMethodID (jvm_env, class_ptr,
+      method_name, "(Ljava/lang/String;)V");
+  if (m_set == NULL)
+  {
+    ERROR ("java plugin: ctoj_string_method_md: Cannot find method `void %s (String)'.",
+        method_name);
+    return (NULL);
+  }
+
+  return (m_set);
+} /* }}} jmethodID ctoj_string_method_md */
+
+static jmethodID ctoj_int_method_md (JNIEnv *jvm_env, /* {{{ */
+    jclass class_ptr, const char *method_name)
+{
+  jmethodID m_set;
+
+  /* Search for the `void setFoo (int i)' method. */
+  m_set = (*jvm_env)->GetMethodID (jvm_env, class_ptr,
+      method_name, "(I)V");
+  if (m_set == NULL)
+  {
+    ERROR ("java plugin: ctoj_int_method_md: Cannot find method `void %s (int)'.",
+        method_name);
+    return (NULL);
+  }
+
+  return (m_set);
+} /* }}} jmethodID ctoj_int_method_md */
+
+static jmethodID ctoj_long_method_md (JNIEnv *jvm_env, /* {{{ */
+    jclass class_ptr, const char *method_name)
+{
+  jmethodID m_set;
+
+  /* Search for the `void setFoo (long l)' method. */
+  m_set = (*jvm_env)->GetMethodID (jvm_env, class_ptr,
+      method_name, "(J)V");
+  if (m_set == NULL)
+  {
+    ERROR ("java plugin: ctoj_long_method_md: Cannot find method `void %s (long)'.",
+        method_name);
+    return (NULL);
+  }
+
+  return (m_set);
+} /* }}} jmethodID ctoj_long_method_md */
+
+static jmethodID ctoj_double_method_md (JNIEnv *jvm_env, /* {{{ */
+    jclass class_ptr, const char *method_name)
+{
+  jmethodID m_set;
+
+  /* Search for the `void setFoo (double d)' method. */
+  m_set = (*jvm_env)->GetMethodID (jvm_env, class_ptr,
+      method_name, "(D)V");
+  if (m_set == NULL)
+  {
+    ERROR ("java plugin: ctoj_double_method_md: Cannot find method `void %s (double)'.",
+        method_name);
+    return (NULL);
+  }
+
+  return (m_set);
+} /* }}} jmethodID ctoj_double_method_md */
+
+/*
+ * Metadata caching functions
+ */
+static void cjni_cache_list_md (JNIEnv *jvm_env) /* {{{ */
+{
+  cjni_list_md_t *md;
+  if (g_list_md != NULL) return;
+  md  = (cjni_list_md_t *) malloc (sizeof (cjni_list_md_t));
+  if (md == NULL)
+  {
+    ERROR ("java plugin: cjni_cache_list_md: malloc failed.");
+    return;
+  }
+  memset (md, 0, sizeof (*md));
+
+  /* Look up the java.util.List class */
+  md->class = (*jvm_env)->FindClass (jvm_env, "java/util/List");
+  if (md->class == NULL)
+  {
+    ERROR ("java plugin: cjni_cache_list_md: Looking up the "
+        "java.util.List class failed.");
+    return;
+  }
+
+  md->toArray = (*jvm_env)->GetMethodID (jvm_env,
+      md->class, "toArray", "()[Ljava/lang/Object;");
+  if (md->toArray == NULL)
+  {
+    ERROR ("java plugin: cjni_cache_list_md: Looking up the "
+        "`Object[] toArray ()' method failed.");
+    return;
+  }
+
+  /* If all is well initialize global pointer */
+  SET_JCLASS(&g_list_md, md);
+} /* }}} void cjni_cache_list_md */
+
+static void cjni_cache_long_md (JNIEnv *jvm_env) /* {{{ */
+{
+  cjni_base_md_t *md; 
+  if (g_long_md != NULL) return;
+  md  = (cjni_base_md_t *) malloc (sizeof (cjni_base_md_t));
+  if (md == NULL)
+  {
+    ERROR ("java plugin: cjni_cache_long_md: malloc failed.");
+    return;
+  }
+  memset (md, 0, sizeof (*md));
+ 
+  /* Look up the java.lang.Long class */
+  md->class = (*jvm_env)->FindClass (jvm_env, "java/lang/Long");
+  if (md->class == NULL)
+  {
+    ERROR ("java plugin: cjni_cache_long_md: Looking up the "
+        "java.lang.Long class failed.");
+    return;
+  }
+
+  md->constructor = (*jvm_env)->GetMethodID (jvm_env,
+      md->class, "<init>", "(J)V");
+  if (md->constructor == NULL)
+  {
+    ERROR ("java plugin: cjni_cache_long_md: Looking up the "
+        "`Long (long)' constructor failed.");
+    return;
+  }
+
+  /* If all is well initialize global pointer */
+  SET_JCLASS(&g_long_md, md);
+} /* }}} void cjni_cache_long_md */
+
+static void cjni_cache_double_md (JNIEnv *jvm_env) /* {{{ */
+{
+  cjni_base_md_t *md;       
+  if (g_double_md != NULL) return;
+  md  = (cjni_base_md_t *) malloc (sizeof (cjni_base_md_t));
+  if (md == NULL)
+  {
+    ERROR ("java plugin: cjni_cache_double_md: malloc failed.");
+    return;
+  }
+  memset (md, 0, sizeof (*md));
+
+  /* Look up the java.lang.Double class */
+  md->class = (*jvm_env)->FindClass (jvm_env, "java/lang/Double");
+  if (md->class == NULL)
+  {
+    ERROR ("java plugin: cjni_cache_double_md: Looking up the "
+        "java.lang.Double class failed.");
+    return;
+  }
+
+  md->constructor = (*jvm_env)->GetMethodID (jvm_env,
+      md->class, "<init>", "(D)V");
+  if (md->constructor == NULL)
+  {
+    ERROR ("java plugin: cjni_cache_double_md: Looking up the "
+        "`Double (double)' constructor failed.");
+    return;
+  }
+
+  /* If all is well initialize global pointer */
+  SET_JCLASS(&g_double_md, md);
+} /* }}} void cjni_cache_double_md */
+
+static void cjni_cache_dataset_md (JNIEnv *jvm_env) /* {{{ */
+{
+  cjni_dataset_md_t *md;
+  if (g_dset_md != NULL) return;
+  md  = (cjni_dataset_md_t *) malloc (sizeof (cjni_dataset_md_t));
+  if (md == NULL)
+  {
+    ERROR ("java plugin: cjni_cache_dataset_md: malloc failed.");
+    return;
+  }
+  memset (md, 0, sizeof (*md));
+ 
+  /* Initialize all class */
+  md->class = (*jvm_env)->FindClass (jvm_env,
+      "org/collectd/api/DataSet");
+  if (md->class == NULL)
+  {
+    ERROR ("java plugin: cjni_cache_dataset_md: "
+        "FindClass (org/collectd/api/DataSet) failed.");
+    return;
+  }
+
+  /* Lookup the `DataSet (String type)' constructor. */
+  md->constructor = (*jvm_env)->GetMethodID (jvm_env,
+      md->class, "<init>", "(Ljava/lang/String;)V");
+  if (md->constructor == NULL)
+  {
+    ERROR ("java plugin: cjni_cache_dataset_md: Cannot find the "
+        "'DataSet (String)' constructor.");
+    return;
+  }
+
+  /* Search for the `void addDataSource (DataSource)' method. */
+  md->addDataSource = (*jvm_env)->GetMethodID (jvm_env,
+      md->class, "addDataSource", "(Lorg/collectd/api/DataSource;)V");
+  if (md->addDataSource == NULL)
+  {
+    ERROR ("java plugin: cjni_cache_dataset_md: Looking up the "
+        "`addDataSource (DataSource)' method failed.");
+    return;
+  }
+
+  /* If all is well initialize global pointer */
+  SET_JCLASS(&g_dset_md, md);
+} /* }}} void cjni_cache_dataset_md */
+
+static void cjni_cache_datasource_md (JNIEnv *jvm_env) /* {{{ */
+{
+  cjni_datasource_md_t *md;
+  if (g_dsource_md != NULL) return;
+  md  = (cjni_datasource_md_t *) malloc (sizeof (cjni_datasource_md_t));
+  if (md == NULL)
+  {
+    ERROR ("java plugin: cjni_cache_datasource_md: malloc failed.");
+    return;
+  }
+  memset (md, 0, sizeof (*md));
+  
+  /* Initialize all class */
+  md->class = (*jvm_env)->FindClass (jvm_env,
+      "org/collectd/api/DataSource");
+  if (md->class == NULL)
+  {
+    ERROR ("java plugin: cjni_cache_common_md: "
+        "FindClass (org/collectd/api/DataSource) failed.");
+    return;
+  }
+
+  /* Lookup the `ValueList ()' constructor. */
+  md->constructor = (*jvm_env)->GetMethodID (jvm_env, md->class,
+      "<init>", "()V");
+  if (md->constructor == NULL)
+  {
+    ERROR ("java plugin: cjni_cache_common_md: Cannot find the "
+        "`DataSource ()' constructor.");
+    return;
+  }
+
+  /* Lookup setName method */  
+  md->setName = ctoj_string_method_md (jvm_env, md->class, "setName");
+  if (md->setName == NULL) return;
+
+  /* Lookup setType method. */
+  md->setType = ctoj_int_method_md (jvm_env, md->class, "setType");
+  if (md->setType == NULL) return;
+
+  /* Lookup setMax method */
+  md->setMax = ctoj_double_method_md (jvm_env, md->class, "setMax");
+  if (md->setMax == NULL) return;
+
+  /* Lookup setMin method */
+  md->setMin = ctoj_double_method_md (jvm_env, md->class, "setMin");
+  if (md->setMin == NULL) return;
+
+  /* If all is well initialize global pointer */
+  SET_JCLASS(&g_dsource_md, md);
+} /* }}} void cjni_cache_datasource_md */
+
+static void cjni_cache_valuelist_md (JNIEnv *jvm_env) /* {{{ */
+{
+  cjni_valuelist_md_t *md;
+  if (g_vlist_md != NULL) return;
+  md  = (cjni_valuelist_md_t *) malloc (sizeof (cjni_valuelist_md_t));
+  if (md == NULL)
+  {
+    ERROR ("java plugin: cjni_cache_valuelist_md: malloc failed.");
+    return;
+  }
+  memset (md, 0, sizeof (*md));
+ 
+  /* Initialize all class */
+  md->class = (*jvm_env)->FindClass (jvm_env,
+      "org/collectd/api/ValueList");
+  if (md->class == NULL)
+  {
+    ERROR ("java plugin: cjni_cache_valuelist_md: "
+        "FindClass (org/collectd/api/ValueList) failed.");
+    return;
+  }
+
+  /* Lookup the `ValueList ()' constructor. */
+  md->constructor = (*jvm_env)->GetMethodID (jvm_env, md->class,
+      "<init>", "()V");
+  if (md->constructor == NULL)
+  {
+    ERROR ("java plugin: cjni_cache_valuelist_md: Cannot find the "
+        "'ValueList ()' constructor.");
+    return;
+  }
+
+  /* Look for the `void setDataSource (List<DataSource> ds)' method. */
+  md->setDataSet = (*jvm_env)->GetMethodID (jvm_env, md->class,
+      "setDataSet", "(Lorg/collectd/api/DataSet;)V");
+  if (md->setDataSet == NULL)
+  {
+    ERROR ("java plugin: cjni_cache_valuelist_md: "
+        "Cannot find the `void setDataSet (DataSet)' method.");
+    return;
+  }
+
+#define SET_STRING_MD(method_ptr_ptr, method_name) do { \
+  *method_ptr_ptr = ctoj_string_method_md (jvm_env, md->class, method_name); \
+  if (*method_ptr_ptr == NULL) { \
+    ERROR ("java plugin: cjni_cache_valuelist_md: ctoj_string_method_md (%s) failed.", \
+        method_name); \
+    return; \
+  } } while (0)
+
+  SET_STRING_MD (&md->setHost,           "setHost");
+  SET_STRING_MD (&md->setPlugin,         "setPlugin");
+  SET_STRING_MD (&md->setPluginInstance, "setPluginInstance");
+  SET_STRING_MD (&md->setType,           "setType");
+  SET_STRING_MD (&md->setTypeInstance,   "setTypeInstance");
+
+#undef SET_STRING_MD
+
+  md->addValue = (*jvm_env)->GetMethodID (jvm_env, md->class,
+      "addValue", "(Ljava/lang/Number;)V");
+  if (md->addValue == NULL)
+  {
+    ERROR ("java plugin: cjni_cache_valuelist_md: "
+        "Cannot find method `void addValue (Number)'.");
+    return;
+  }
+
+  /* Set the `time' member. Java stores time in milliseconds. */
+  md->setTime = ctoj_long_method_md (jvm_env, md->class, "setTime");
+  if (md->setTime == NULL)
+  {
+    ERROR ("java plugin: cjni_cache_valuelist_md: ctoj_long_method_md (setTime) failed.");
+    return;
+  }
+
+  /* Set the `interval' member.. */
+  md->setInterval = ctoj_long_method_md (jvm_env, md->class, "setInterval");
+  if (md->setInterval == NULL)
+  {
+    ERROR ("java plugin: cjni_cache_valuelist_md: ctoj_long_method_md (setInterval) failed.");
+    return;
+  }
+
+#define SET_GET_STRING_MD(method_ptr_ptr, method_name) do { \
+  *method_ptr_ptr = jtoc_string_method_md (jvm_env, md->class, method_name); \
+  if (*method_ptr_ptr == NULL) { \
+    ERROR ("java plugin: cjni_cache_valuelist_md: jtoc_string_method_md (%s) failed.", \
+        method_name); \
+    return; \
+  } } while (0)
+
+  SET_GET_STRING_MD (&md->getHost,           "getHost");
+  SET_GET_STRING_MD (&md->getPlugin,         "getPlugin");
+  SET_GET_STRING_MD (&md->getPluginInstance, "getPluginInstance");
+  SET_GET_STRING_MD (&md->getType,           "getType");
+  SET_GET_STRING_MD (&md->getTypeInstance,   "getTypeInstance");
+
+#undef SET_GET_STRING_MD
+
+  md->getTime = jtoc_long_md (jvm_env, md->class, "getTime");
+  if (md->getTime == NULL)
+  {
+    return;
+  }
+  md->getInterval = jtoc_long_md (jvm_env, md->class, "getInterval");
+  if (md->getInterval == NULL)
+  {
+    return;
+  }
+  /* Call: List<Number> ValueList.getValues () */
+  md->getValues = (*jvm_env)->GetMethodID (jvm_env, md->class,
+      "getValues", "()Ljava/util/List;");
+  if (md->getValues == NULL)
+  {
+    return;
+  }
+
+  /* If all is well initialize global pointer */
+  g_vlist_md = md;
+} /* }}} void cjni_cache_valuelist_md */
+
+static void cjni_cache_common_md (JNIEnv *jvm_env) /* {{{ */
+{
+  cjni_cache_list_md (jvm_env);
+  cjni_cache_long_md (jvm_env);
+  cjni_cache_double_md (jvm_env);
+  cjni_cache_dataset_md (jvm_env);
+  cjni_cache_datasource_md (jvm_env);
+  cjni_cache_valuelist_md (jvm_env);
+} /* }}} void cjni_cache_common_md */
+
+/* 
+ * C to Java conversion functions
+ */
+static int ctoj_string_from_md (JNIEnv *jvm_env, /* {{{ */
+    const char *string,
+    jobject object_ptr, jmethodID method_ptr)
+{
   jstring o_string;
+
+  if (method_ptr == NULL)
+  {
+    return (-1);
+  }
 
   /* Create a java.lang.String */
   o_string = (*jvm_env)->NewStringUTF (jvm_env,
@@ -138,25 +635,26 @@ static int ctoj_string (JNIEnv *jvm_env, /* {{{ */
     ERROR ("java plugin: ctoj_string: NewStringUTF failed.");
     return (-1);
   }
-
-  /* Search for the `void setFoo (String s)' method. */
-  m_set = (*jvm_env)->GetMethodID (jvm_env, class_ptr,
-      method_name, "(Ljava/lang/String;)V");
-  if (m_set == NULL)
-  {
-    ERROR ("java plugin: ctoj_string: Cannot find method `void %s (String)'.",
-        method_name);
-    (*jvm_env)->DeleteLocalRef (jvm_env, o_string);
-    return (-1);
-  }
-
+  
   /* Call the method. */
-  (*jvm_env)->CallVoidMethod (jvm_env, object_ptr, m_set, o_string);
+  (*jvm_env)->CallVoidMethod (jvm_env, object_ptr, method_ptr, o_string);
 
   /* Decrease reference counter on the java.lang.String object. */
   (*jvm_env)->DeleteLocalRef (jvm_env, o_string);
 
   return (0);
+} /* }}} int ctoj_string_from_md */
+
+static int ctoj_string (JNIEnv *jvm_env, /* {{{ */
+    const char *string,
+    jclass class_ptr, jobject object_ptr, const char *method_name)
+{
+  jmethodID m_set;
+
+  /* Search for the `void setFoo (String s)' method. */
+  m_set = ctoj_string_method_md(jvm_env, class_ptr, method_name);
+
+  return ctoj_string_from_md (jvm_env, string, object_ptr, m_set);
 } /* }}} int ctoj_string */
 
 static jstring ctoj_output_string (JNIEnv *jvm_env, /* {{{ */
@@ -176,6 +674,21 @@ static jstring ctoj_output_string (JNIEnv *jvm_env, /* {{{ */
   return (o_string);
 } /* }}} int ctoj_output_string */
 
+static int ctoj_int_from_md (JNIEnv *jvm_env, /* {{{ */
+    jint value,
+    jobject object_ptr, jmethodID method_ptr)
+{
+  if (method_ptr == NULL)
+  {
+    return (-1);
+  }
+  else
+  {
+    (*jvm_env)->CallVoidMethod (jvm_env, object_ptr, method_ptr, value);
+    return (0);
+  }
+} /* }}} int ctoj_int_from_md */
+
 static int ctoj_int (JNIEnv *jvm_env, /* {{{ */
     jint value,
     jclass class_ptr, jobject object_ptr, const char *method_name)
@@ -183,19 +696,25 @@ static int ctoj_int (JNIEnv *jvm_env, /* {{{ */
   jmethodID m_set;
 
   /* Search for the `void setFoo (int i)' method. */
-  m_set = (*jvm_env)->GetMethodID (jvm_env, class_ptr,
-      method_name, "(I)V");
-  if (m_set == NULL)
+  m_set = ctoj_int_method_md(jvm_env, class_ptr, method_name);
+
+  return ctoj_int_from_md (jvm_env, value, object_ptr, m_set);
+} /* }}} int ctoj_int */
+
+static int ctoj_long_from_md (JNIEnv *jvm_env, /* {{{ */
+    jlong value,
+    jobject object_ptr, jmethodID method_ptr)
+{
+  if (method_ptr == NULL)
   {
-    ERROR ("java plugin: ctoj_int: Cannot find method `void %s (int)'.",
-        method_name);
     return (-1);
   }
-
-  (*jvm_env)->CallVoidMethod (jvm_env, object_ptr, m_set, value);
-
-  return (0);
-} /* }}} int ctoj_int */
+  else
+  {
+    (*jvm_env)->CallVoidMethod (jvm_env, object_ptr, method_ptr, value);
+    return (0);
+  }
+} /* }}} int ctoj_long_from_md */
 
 static int ctoj_long (JNIEnv *jvm_env, /* {{{ */
     jlong value,
@@ -204,95 +723,42 @@ static int ctoj_long (JNIEnv *jvm_env, /* {{{ */
   jmethodID m_set;
 
   /* Search for the `void setFoo (long l)' method. */
-  m_set = (*jvm_env)->GetMethodID (jvm_env, class_ptr,
-      method_name, "(J)V");
-  if (m_set == NULL)
-  {
-    ERROR ("java plugin: ctoj_long: Cannot find method `void %s (long)'.",
-        method_name);
-    return (-1);
-  }
+  m_set = ctoj_long_method_md(jvm_env, class_ptr, method_name);
 
-  (*jvm_env)->CallVoidMethod (jvm_env, object_ptr, m_set, value);
-
-  return (0);
+  return ctoj_long_from_md (jvm_env, value, object_ptr, m_set);
 } /* }}} int ctoj_long */
 
-static int ctoj_double (JNIEnv *jvm_env, /* {{{ */
+static int ctoj_double_from_md (JNIEnv *jvm_env, /* {{{ */
     jdouble value,
-    jclass class_ptr, jobject object_ptr, const char *method_name)
+    jobject object_ptr, jmethodID method_ptr)
 {
-  jmethodID m_set;
-
-  /* Search for the `void setFoo (double d)' method. */
-  m_set = (*jvm_env)->GetMethodID (jvm_env, class_ptr,
-      method_name, "(D)V");
-  if (m_set == NULL)
+  if (method_ptr == NULL)
   {
-    ERROR ("java plugin: ctoj_double: Cannot find method `void %s (double)'.",
-        method_name);
     return (-1);
   }
-
-  (*jvm_env)->CallVoidMethod (jvm_env, object_ptr, m_set, value);
-
-  return (0);
-} /* }}} int ctoj_double */
+  else
+  {
+    (*jvm_env)->CallVoidMethod (jvm_env, object_ptr, method_ptr, value);
+    return (0);
+  }
+} /* }}} int ctoj_double_with_md */
 
 /* Convert a jlong to a java.lang.Number */
 static jobject ctoj_jlong_to_number (JNIEnv *jvm_env, jlong value) /* {{{ */
 {
-  jclass c_long;
-  jmethodID m_long_constructor;
-
-  /* Look up the java.lang.Long class */
-  c_long = (*jvm_env)->FindClass (jvm_env, "java/lang/Long");
-  if (c_long == NULL)
-  {
-    ERROR ("java plugin: ctoj_jlong_to_number: Looking up the "
-        "java.lang.Long class failed.");
-    return (NULL);
-  }
-
-  m_long_constructor = (*jvm_env)->GetMethodID (jvm_env,
-      c_long, "<init>", "(J)V");
-  if (m_long_constructor == NULL)
-  {
-    ERROR ("java plugin: ctoj_jlong_to_number: Looking up the "
-        "`Long (long)' constructor failed.");
-    return (NULL);
-  }
+  if (g_long_md == NULL) return (NULL);
 
   return ((*jvm_env)->NewObject (jvm_env,
-        c_long, m_long_constructor, value));
+        g_long_md->class, g_long_md->constructor, value));
 } /* }}} jobject ctoj_jlong_to_number */
 
 /* Convert a jdouble to a java.lang.Number */
 static jobject ctoj_jdouble_to_number (JNIEnv *jvm_env, jdouble value) /* {{{ */
 {
-  jclass c_double;
-  jmethodID m_double_constructor;
-
-  /* Look up the java.lang.Long class */
-  c_double = (*jvm_env)->FindClass (jvm_env, "java/lang/Double");
-  if (c_double == NULL)
-  {
-    ERROR ("java plugin: ctoj_jdouble_to_number: Looking up the "
-        "java.lang.Double class failed.");
-    return (NULL);
-  }
-
-  m_double_constructor = (*jvm_env)->GetMethodID (jvm_env,
-      c_double, "<init>", "(D)V");
-  if (m_double_constructor == NULL)
-  {
-    ERROR ("java plugin: ctoj_jdouble_to_number: Looking up the "
-        "`Double (double)' constructor failed.");
-    return (NULL);
-  }
+  if (g_double_md == NULL) return (NULL);
 
   return ((*jvm_env)->NewObject (jvm_env,
-        c_double, m_double_constructor, value));
+        g_double_md->class, g_double_md->constructor, value));
 } /* }}} jobject ctoj_jdouble_to_number */
 
 /* Convert a value_t to a java.lang.Number */
@@ -315,34 +781,19 @@ static jobject ctoj_value_to_number (JNIEnv *jvm_env, /* {{{ */
 static jobject ctoj_data_source (JNIEnv *jvm_env, /* {{{ */
     const data_source_t *dsrc)
 {
-  jclass c_datasource;
-  jmethodID m_datasource_constructor;
   jobject o_datasource;
   int status;
 
-  /* Look up the DataSource class */
-  c_datasource = (*jvm_env)->FindClass (jvm_env,
-      "org/collectd/api/DataSource");
-  if (c_datasource == NULL)
+  if (g_dsource_md == NULL)
   {
     ERROR ("java plugin: ctoj_data_source: "
-        "FindClass (org/collectd/api/DataSource) failed.");
+        "DataSource metadata is null");
     return (NULL);
-  }
-
-  /* Lookup the `ValueList ()' constructor. */
-  m_datasource_constructor = (*jvm_env)->GetMethodID (jvm_env, c_datasource,
-      "<init>", "()V");
-  if (m_datasource_constructor == NULL)
-  {
-    ERROR ("java plugin: ctoj_data_source: Cannot find the "
-        "`DataSource ()' constructor.");
-    return (NULL);
-  }
+  } 
 
   /* Create a new instance. */
-  o_datasource = (*jvm_env)->NewObject (jvm_env, c_datasource,
-      m_datasource_constructor);
+  o_datasource = (*jvm_env)->NewObject (jvm_env, g_dsource_md->class,
+      g_dsource_md->constructor);
   if (o_datasource == NULL)
   {
     ERROR ("java plugin: ctoj_data_source: "
@@ -351,45 +802,45 @@ static jobject ctoj_data_source (JNIEnv *jvm_env, /* {{{ */
   }
 
   /* Set name via `void setName (String name)' */
-  status = ctoj_string (jvm_env, dsrc->name,
-      c_datasource, o_datasource, "setName");
+  status = ctoj_string_from_md (jvm_env, dsrc->name,
+      o_datasource, g_dsource_md->setName);
   if (status != 0)
   {
     ERROR ("java plugin: ctoj_data_source: "
-        "ctoj_string (setName) failed.");
+        "ctoj_string_from_md (setName) failed.");
     (*jvm_env)->DeleteLocalRef (jvm_env, o_datasource);
     return (NULL);
   }
 
   /* Set type via `void setType (int type)' */
-  status = ctoj_int (jvm_env, dsrc->type,
-      c_datasource, o_datasource, "setType");
+  status = ctoj_int_from_md (jvm_env, dsrc->type,
+      o_datasource, g_dsource_md->setType);
   if (status != 0)
   {
     ERROR ("java plugin: ctoj_data_source: "
-        "ctoj_int (setType) failed.");
+        "ctoj_int_from_md (setType) failed.");
     (*jvm_env)->DeleteLocalRef (jvm_env, o_datasource);
     return (NULL);
   }
 
   /* Set min via `void setMin (double min)' */
-  status = ctoj_double (jvm_env, dsrc->min,
-      c_datasource, o_datasource, "setMin");
+  status = ctoj_double_from_md (jvm_env, dsrc->min,
+      o_datasource, g_dsource_md->setMin);
   if (status != 0)
   {
     ERROR ("java plugin: ctoj_data_source: "
-        "ctoj_double (setMin) failed.");
+        "ctoj_double_from_md (setMin) failed.");
     (*jvm_env)->DeleteLocalRef (jvm_env, o_datasource);
     return (NULL);
   }
 
   /* Set max via `void setMax (double max)' */
-  status = ctoj_double (jvm_env, dsrc->max,
-      c_datasource, o_datasource, "setMax");
+  status = ctoj_double_from_md (jvm_env, dsrc->max,
+      o_datasource, g_dsource_md->setMax);
   if (status != 0)
   {
     ERROR ("java plugin: ctoj_data_source: "
-        "ctoj_double (setMax) failed.");
+        "ctoj_double_from_md (setMax) failed.");
     (*jvm_env)->DeleteLocalRef (jvm_env, o_datasource);
     return (NULL);
   }
@@ -613,41 +1064,11 @@ static jobject ctoj_oconfig_item (JNIEnv *jvm_env, /* {{{ */
 /* Convert a data_set_t to a org/collectd/api/DataSet */
 static jobject ctoj_data_set (JNIEnv *jvm_env, const data_set_t *ds) /* {{{ */
 {
-  jclass c_dataset;
-  jmethodID m_constructor;
-  jmethodID m_add;
   jobject o_type;
   jobject o_dataset;
   int i;
 
-  /* Look up the org/collectd/api/DataSet class */
-  c_dataset = (*jvm_env)->FindClass (jvm_env, "org/collectd/api/DataSet");
-  if (c_dataset == NULL)
-  {
-    ERROR ("java plugin: ctoj_data_set: Looking up the "
-        "org/collectd/api/DataSet class failed.");
-    return (NULL);
-  }
-
-  /* Search for the `DataSet (String type)' constructor. */
-  m_constructor = (*jvm_env)->GetMethodID (jvm_env,
-      c_dataset, "<init>", "(Ljava/lang/String;)V");
-  if (m_constructor == NULL)
-  {
-    ERROR ("java plugin: ctoj_data_set: Looking up the "
-        "`DataSet (String)' constructor failed.");
-    return (NULL);
-  }
-
-  /* Search for the `void addDataSource (DataSource)' method. */
-  m_add = (*jvm_env)->GetMethodID (jvm_env,
-      c_dataset, "addDataSource", "(Lorg/collectd/api/DataSource;)V");
-  if (m_add == NULL)
-  {
-    ERROR ("java plugin: ctoj_data_set: Looking up the "
-        "`addDataSource (DataSource)' method failed.");
-    return (NULL);
-  }
+  if (g_dset_md == NULL) return (NULL);
 
   o_type = (*jvm_env)->NewStringUTF (jvm_env, ds->type);
   if (o_type == NULL)
@@ -657,7 +1078,7 @@ static jobject ctoj_data_set (JNIEnv *jvm_env, const data_set_t *ds) /* {{{ */
   }
 
   o_dataset = (*jvm_env)->NewObject (jvm_env,
-      c_dataset, m_constructor, o_type);
+      g_dset_md->class, g_dset_md->constructor, o_type);
   if (o_dataset == NULL)
   {
     ERROR ("java plugin: ctoj_data_set: Creating a DataSet object failed.");
@@ -681,7 +1102,7 @@ static jobject ctoj_data_set (JNIEnv *jvm_env, const data_set_t *ds) /* {{{ */
       return (NULL);
     }
 
-    (*jvm_env)->CallVoidMethod (jvm_env, o_dataset, m_add, o_datasource);
+    (*jvm_env)->CallVoidMethod (jvm_env, o_dataset, g_dset_md->addDataSource, o_datasource);
 
     (*jvm_env)->DeleteLocalRef (jvm_env, o_datasource);
   } /* for (i = 0; i < ds->ds_num; i++) */
@@ -691,19 +1112,9 @@ static jobject ctoj_data_set (JNIEnv *jvm_env, const data_set_t *ds) /* {{{ */
 
 static int ctoj_value_list_add_value (JNIEnv *jvm_env, /* {{{ */
     value_t value, int ds_type,
-    jclass class_ptr, jobject object_ptr)
+    jmethodID addValue_ptr, jobject object_ptr)
 {
-  jmethodID m_addvalue;
   jobject o_number;
-
-  m_addvalue = (*jvm_env)->GetMethodID (jvm_env, class_ptr,
-      "addValue", "(Ljava/lang/Number;)V");
-  if (m_addvalue == NULL)
-  {
-    ERROR ("java plugin: ctoj_value_list_add_value: "
-        "Cannot find method `void addValue (Number)'.");
-    return (-1);
-  }
 
   o_number = ctoj_value_to_number (jvm_env, value, ds_type);
   if (o_number == NULL)
@@ -713,7 +1124,7 @@ static int ctoj_value_list_add_value (JNIEnv *jvm_env, /* {{{ */
     return (-1);
   }
 
-  (*jvm_env)->CallVoidMethod (jvm_env, object_ptr, m_addvalue, o_number);
+  (*jvm_env)->CallVoidMethod (jvm_env, object_ptr, addValue_ptr, o_number);
 
   (*jvm_env)->DeleteLocalRef (jvm_env, o_number);
 
@@ -723,18 +1134,9 @@ static int ctoj_value_list_add_value (JNIEnv *jvm_env, /* {{{ */
 static int ctoj_value_list_add_data_set (JNIEnv *jvm_env, /* {{{ */
     jclass c_valuelist, jobject o_valuelist, const data_set_t *ds)
 {
-  jmethodID m_setdataset;
   jobject o_dataset;
 
-  /* Look for the `void setDataSource (List<DataSource> ds)' method. */
-  m_setdataset = (*jvm_env)->GetMethodID (jvm_env, c_valuelist,
-      "setDataSet", "(Lorg/collectd/api/DataSet;)V");
-  if (m_setdataset == NULL)
-  {
-    ERROR ("java plugin: ctoj_value_list_add_data_set: "
-        "Cannot find the `void setDataSet (DataSet)' method.");
-    return (-1);
-  }
+  if (g_vlist_md == NULL) return (-1);
 
   /* Create a DataSet object. */
   o_dataset = ctoj_data_set (jvm_env, ds);
@@ -747,7 +1149,7 @@ static int ctoj_value_list_add_data_set (JNIEnv *jvm_env, /* {{{ */
 
   /* Actually call the method. */
   (*jvm_env)->CallVoidMethod (jvm_env,
-      o_valuelist, m_setdataset, o_dataset);
+      o_valuelist, g_vlist_md->setDataSet, o_dataset);
 
   /* Decrease reference counter on the List<DataSource> object. */
   (*jvm_env)->DeleteLocalRef (jvm_env, o_dataset);
@@ -759,36 +1161,15 @@ static int ctoj_value_list_add_data_set (JNIEnv *jvm_env, /* {{{ */
 static jobject ctoj_value_list (JNIEnv *jvm_env, /* {{{ */
     const data_set_t *ds, const value_list_t *vl)
 {
-  jclass c_valuelist;
-  jmethodID m_valuelist_constructor;
   jobject o_valuelist;
   int status;
   int i;
 
-  /* First, create a new ValueList instance..
-   * Look up the class.. */
-  c_valuelist = (*jvm_env)->FindClass (jvm_env,
-      "org/collectd/api/ValueList");
-  if (c_valuelist == NULL)
-  {
-    ERROR ("java plugin: ctoj_value_list: "
-        "FindClass (org/collectd/api/ValueList) failed.");
-    return (NULL);
-  }
-
-  /* Lookup the `ValueList ()' constructor. */
-  m_valuelist_constructor = (*jvm_env)->GetMethodID (jvm_env, c_valuelist,
-      "<init>", "()V");
-  if (m_valuelist_constructor == NULL)
-  {
-    ERROR ("java plugin: ctoj_value_list: Cannot find the "
-        "`ValueList ()' constructor.");
-    return (NULL);
-  }
+  if (g_vlist_md == NULL) return (NULL);
 
   /* Create a new instance. */
-  o_valuelist = (*jvm_env)->NewObject (jvm_env, c_valuelist,
-      m_valuelist_constructor);
+  o_valuelist = (*jvm_env)->NewObject (jvm_env, g_vlist_md->class,
+      g_vlist_md->constructor);
   if (o_valuelist == NULL)
   {
     ERROR ("java plugin: ctoj_value_list: Creating a new ValueList instance "
@@ -797,7 +1178,7 @@ static jobject ctoj_value_list (JNIEnv *jvm_env, /* {{{ */
   }
 
   status = ctoj_value_list_add_data_set (jvm_env,
-      c_valuelist, o_valuelist, ds);
+      g_vlist_md->class, o_valuelist, ds);
   if (status != 0)
   {
     ERROR ("java plugin: ctoj_value_list: "
@@ -807,41 +1188,40 @@ static jobject ctoj_value_list (JNIEnv *jvm_env, /* {{{ */
   }
 
   /* Set the strings.. */
-#define SET_STRING(str,method_name) do { \
-  status = ctoj_string (jvm_env, str, \
-      c_valuelist, o_valuelist, method_name); \
+#define SET_STRING_FROM_MD(str, method_ptr) do { \
+  status = ctoj_string_from_md (jvm_env, str, \
+      o_valuelist, method_ptr); \
   if (status != 0) { \
-    ERROR ("java plugin: ctoj_value_list: ctoj_string (%s) failed.", \
-        method_name); \
+    ERROR ("java plugin: ctoj_value_list: ctoj_string_from_md (%s) failed.", \
+        str); \
     (*jvm_env)->DeleteLocalRef (jvm_env, o_valuelist); \
     return (NULL); \
   } } while (0)
 
-  SET_STRING (vl->host,            "setHost");
-  SET_STRING (vl->plugin,          "setPlugin");
-  SET_STRING (vl->plugin_instance, "setPluginInstance");
-  SET_STRING (vl->type,            "setType");
-  SET_STRING (vl->type_instance,   "setTypeInstance");
+  SET_STRING_FROM_MD (vl->host,            g_vlist_md->setHost);
+  SET_STRING_FROM_MD (vl->plugin,          g_vlist_md->setPlugin);
+  SET_STRING_FROM_MD (vl->plugin_instance, g_vlist_md->setPluginInstance);
+  SET_STRING_FROM_MD (vl->type,            g_vlist_md->setType);
+  SET_STRING_FROM_MD (vl->type_instance,   g_vlist_md->setTypeInstance);
 
-#undef SET_STRING
+#undef SET_STRING_FROM_MD
 
   /* Set the `time' member. Java stores time in milliseconds. */
-  status = ctoj_long (jvm_env, (jlong) CDTIME_T_TO_MS (vl->time),
-      c_valuelist, o_valuelist, "setTime");
+  status = ctoj_long_from_md (jvm_env, (jlong) CDTIME_T_TO_MS (vl->time),
+      o_valuelist, g_vlist_md->setTime);
   if (status != 0)
   {
-    ERROR ("java plugin: ctoj_value_list: ctoj_long (setTime) failed.");
+    ERROR ("java plugin: ctoj_value_list: ctoj_long_from_md (setTime) failed.");
     (*jvm_env)->DeleteLocalRef (jvm_env, o_valuelist);
     return (NULL);
   }
 
   /* Set the `interval' member.. */
-  status = ctoj_long (jvm_env,
-      (jlong) CDTIME_T_TO_MS (vl->interval),
-      c_valuelist, o_valuelist, "setInterval");
+  status = ctoj_long_from_md (jvm_env, (jlong) CDTIME_T_TO_MS (vl->interval),
+      o_valuelist, g_vlist_md->setInterval);
   if (status != 0)
   {
-    ERROR ("java plugin: ctoj_value_list: ctoj_long (setInterval) failed.");
+    ERROR ("java plugin: ctoj_value_list: ctoj_long_from_md (setInterval) failed.");
     (*jvm_env)->DeleteLocalRef (jvm_env, o_valuelist);
     return (NULL);
   }
@@ -849,7 +1229,7 @@ static jobject ctoj_value_list (JNIEnv *jvm_env, /* {{{ */
   for (i = 0; i < vl->values_len; i++)
   {
     status = ctoj_value_list_add_value (jvm_env, vl->values[i], ds->ds[i].type,
-        c_valuelist, o_valuelist);
+        g_vlist_md->addValue, o_valuelist);
     if (status != 0)
     {
       ERROR ("java plugin: ctoj_value_list: "
@@ -948,29 +1328,36 @@ static jobject ctoj_notification (JNIEnv *jvm_env, /* {{{ */
 /*
  * Java to C conversion functions
  */
-/* Call a `String <method> ()' method. */
-static int jtoc_string (JNIEnv *jvm_env, /* {{{ */
-    char *buffer, size_t buffer_size, int empty_okay,
-    jclass class_ptr, jobject object_ptr, const char *method_name)
+/* Return a `String <method> ()' method metadata. */
+static jmethodID jtoc_string_method_md (JNIEnv *jvm_env, /* {{{ */
+    jclass class_ptr, const char *method_name)
 {
   jmethodID method_id;
-  jobject string_obj;
-  const char *c_str;
 
   method_id = (*jvm_env)->GetMethodID (jvm_env, class_ptr,
       method_name, "()Ljava/lang/String;");
   if (method_id == NULL)
   {
-    ERROR ("java plugin: jtoc_string: Cannot find method `String %s ()'.",
+    ERROR ("java plugin: jtoc_string_method_md: Cannot find method `String %s ()'.",
         method_name);
-    return (-1);
+    return (NULL);
   }
+  return method_id;
+} /* }}} jmethodID jtoc_string_method_md */
 
-  string_obj = (*jvm_env)->CallObjectMethod (jvm_env, object_ptr, method_id);
+static int jtoc_string_from_md (JNIEnv *jvm_env, /* {{{ */
+    char *buffer, size_t buffer_size, int empty_okay,
+    jobject object_ptr, jmethodID method_ptr)
+{
+  jobject string_obj;
+  const char *c_str;
+
+  if (method_ptr == NULL) return (-1);
+
+  string_obj = (*jvm_env)->CallObjectMethod (jvm_env, object_ptr, method_ptr);
   if ((string_obj == NULL) && (empty_okay == 0))
   {
-    ERROR ("java plugin: jtoc_string: CallObjectMethod (%s) failed.",
-        method_name);
+    ERROR ("java plugin: jtoc_string: CallObjectMethod failed.");
     return (-1);
   }
   else if ((string_obj == NULL) && (empty_okay != 0))
@@ -993,6 +1380,18 @@ static int jtoc_string (JNIEnv *jvm_env, /* {{{ */
   (*jvm_env)->DeleteLocalRef (jvm_env, string_obj);
 
   return (0);
+} /* }}} int jtoc_string_from_md */
+
+/* Call a `String <method> ()' method. */
+static int jtoc_string (JNIEnv *jvm_env, /* {{{ */
+    char *buffer, size_t buffer_size, int empty_okay,
+    jclass class_ptr, jobject object_ptr, const char *method_name)
+{
+  jmethodID method_id;
+
+  method_id = jtoc_string_method_md (jvm_env, class_ptr, method_name);
+
+  return jtoc_string_from_md (jvm_env, buffer, buffer_size, empty_okay, object_ptr, method_id);
 } /* }}} int jtoc_string */
 
 /* Call an `int <method> ()' method. */
@@ -1017,9 +1416,8 @@ static int jtoc_int (JNIEnv *jvm_env, /* {{{ */
 } /* }}} int jtoc_int */
 
 /* Call a `long <method> ()' method. */
-static int jtoc_long (JNIEnv *jvm_env, /* {{{ */
-    jlong *ret_value,
-    jclass class_ptr, jobject object_ptr, const char *method_name)
+static jmethodID jtoc_long_md (JNIEnv *jvm_env, /* {{{ */
+    jclass class_ptr, const char *method_name)
 {
   jmethodID method_id;
 
@@ -1027,14 +1425,37 @@ static int jtoc_long (JNIEnv *jvm_env, /* {{{ */
       method_name, "()J");
   if (method_id == NULL)
   {
-    ERROR ("java plugin: jtoc_long: Cannot find method `long %s ()'.",
+    ERROR ("java plugin: jtoc_long_md: Cannot find method `long %s ()'.",
         method_name);
+    return (NULL);
+  }
+
+  return (method_id);
+} /* }}} jmethodID jtoc_long_md */
+
+static int jtoc_long_from_md (JNIEnv *jvm_env, /* {{{ */
+    jlong *ret_value,
+    jobject object_ptr, jmethodID method_ptr)
+{
+  if (method_ptr == NULL)
+  {
     return (-1);
   }
 
-  *ret_value = (*jvm_env)->CallLongMethod (jvm_env, object_ptr, method_id);
+  *ret_value = (*jvm_env)->CallLongMethod (jvm_env, object_ptr, method_ptr);
 
   return (0);
+} /* }}} int jtoc_long_md */
+
+static int jtoc_long (JNIEnv *jvm_env, /* {{{ */
+    jlong *ret_value,
+    jclass class_ptr, jobject object_ptr, const char *method_name)
+{
+  jmethodID method_id;
+
+  method_id = jtoc_long_md(jvm_env, class_ptr, method_name);
+
+  return (jtoc_long_from_md (jvm_env, ret_value, object_ptr, method_id));
 } /* }}} int jtoc_long */
 
 /* Call a `double <method> ()' method. */
@@ -1069,7 +1490,6 @@ static int jtoc_value (JNIEnv *jvm_env, /* {{{ */
   if (ds_type == DS_TYPE_GAUGE)
   {
     jdouble tmp_double;
-
     status = jtoc_double (jvm_env, &tmp_double,
         class_ptr, object_ptr, "doubleValue");
     if (status != 0)
@@ -1083,7 +1503,6 @@ static int jtoc_value (JNIEnv *jvm_env, /* {{{ */
   else
   {
     jlong tmp_long;
-
     status = jtoc_long (jvm_env, &tmp_long,
         class_ptr, object_ptr, "longValue");
     if (status != 0)
@@ -1100,18 +1519,17 @@ static int jtoc_value (JNIEnv *jvm_env, /* {{{ */
     else
       (*ret_value).counter = (counter_t) tmp_long;
   }
+  (*jvm_env)->DeleteLocalRef (jvm_env, class_ptr);
 
   return (0);
 } /* }}} int jtoc_value */
 
 /* Read a List<Number>, convert it to `value_t' and add it to the given
  * `value_list_t'. */
-static int jtoc_values_array (JNIEnv *jvm_env, /* {{{ */
+static int jtoc_values_array_from_md (JNIEnv *jvm_env, /* {{{ */
     const data_set_t *ds, value_list_t *vl,
     jclass class_ptr, jobject object_ptr)
 {
-  jmethodID m_getvalues;
-  jmethodID m_toarray;
   jobject o_list;
   jobjectArray o_number_array;
 
@@ -1125,6 +1543,9 @@ static int jtoc_values_array (JNIEnv *jvm_env, /* {{{ */
   o_number_array = NULL;
   o_list = NULL;
 
+  if (g_vlist_md == NULL) return (-1);
+  if (g_list_md == NULL) return (-1);
+
 #define BAIL_OUT(status) \
   free (values); \
   if (o_number_array != NULL) \
@@ -1134,38 +1555,19 @@ static int jtoc_values_array (JNIEnv *jvm_env, /* {{{ */
   return (status);
 
   /* Call: List<Number> ValueList.getValues () */
-  m_getvalues = (*jvm_env)->GetMethodID (jvm_env, class_ptr,
-      "getValues", "()Ljava/util/List;");
-  if (m_getvalues == NULL)
-  {
-    ERROR ("java plugin: jtoc_values_array: "
-        "Cannot find method `List getValues ()'.");
-    BAIL_OUT (-1);
-  }
-
-  o_list = (*jvm_env)->CallObjectMethod (jvm_env, object_ptr, m_getvalues);
+  o_list = (*jvm_env)->CallObjectMethod (jvm_env, object_ptr, g_vlist_md->getValues);
   if (o_list == NULL)
   {
-    ERROR ("java plugin: jtoc_values_array: "
+    ERROR ("java plugin: jtoc_values_array_from_md: "
         "CallObjectMethod (getValues) failed.");
     BAIL_OUT (-1);
   }
 
   /* Call: Number[] List.toArray () */
-  m_toarray = (*jvm_env)->GetMethodID (jvm_env,
-      (*jvm_env)->GetObjectClass (jvm_env, o_list),
-      "toArray", "()[Ljava/lang/Object;");
-  if (m_toarray == NULL)
-  {
-    ERROR ("java plugin: jtoc_values_array: "
-        "Cannot find method `Object[] toArray ()'.");
-    BAIL_OUT (-1);
-  }
-
-  o_number_array = (*jvm_env)->CallObjectMethod (jvm_env, o_list, m_toarray);
+  o_number_array = (*jvm_env)->CallObjectMethod (jvm_env, o_list, g_list_md->toArray);
   if (o_number_array == NULL)
   {
-    ERROR ("java plugin: jtoc_values_array: "
+    ERROR ("java plugin: jtoc_values_array_from_md: "
         "CallObjectMethod (toArray) failed.");
     BAIL_OUT (-1);
   }
@@ -1173,7 +1575,7 @@ static int jtoc_values_array (JNIEnv *jvm_env, /* {{{ */
   values = (value_t *) calloc (values_num, sizeof (value_t));
   if (values == NULL)
   {
-    ERROR ("java plugin: jtoc_values_array: calloc failed.");
+    ERROR ("java plugin: jtoc_values_array_from_md: calloc failed.");
     BAIL_OUT (-1);
   }
 
@@ -1186,7 +1588,7 @@ static int jtoc_values_array (JNIEnv *jvm_env, /* {{{ */
         o_number_array, (jsize) i);
     if (o_number == NULL)
     {
-      ERROR ("java plugin: jtoc_values_array: "
+      ERROR ("java plugin: jtoc_values_array_from_md: "
           "GetObjectArrayElement (%i) failed.", i);
       BAIL_OUT (-1);
     }
@@ -1194,10 +1596,11 @@ static int jtoc_values_array (JNIEnv *jvm_env, /* {{{ */
     status = jtoc_value (jvm_env, values + i, ds->ds[i].type, o_number);
     if (status != 0)
     {
-      ERROR ("java plugin: jtoc_values_array: "
+      ERROR ("java plugin: jtoc_values_array_from_md: "
           "jtoc_value (%i) failed.", i);
       BAIL_OUT (-1);
     }
+    (*jvm_env)->DeleteLocalRef (jvm_env, o_number);
   } /* for (i = 0; i < values_num; i++) */
 
   vl->values = values;
@@ -1207,35 +1610,28 @@ static int jtoc_values_array (JNIEnv *jvm_env, /* {{{ */
   (*jvm_env)->DeleteLocalRef (jvm_env, o_number_array);
   (*jvm_env)->DeleteLocalRef (jvm_env, o_list);
   return (0);
-} /* }}} int jtoc_values_array */
+} /* }}} int jtoc_values_array_from_md */
 
 /* Convert a org/collectd/api/ValueList to a value_list_t. */
 static int jtoc_value_list (JNIEnv *jvm_env, value_list_t *vl, /* {{{ */
     jobject object_ptr)
 {
-  jclass class_ptr;
   int status;
   jlong tmp_long;
   const data_set_t *ds;
 
-  class_ptr = (*jvm_env)->GetObjectClass (jvm_env, object_ptr);
-  if (class_ptr == NULL)
-  {
-    ERROR ("java plugin: jtoc_value_list: GetObjectClass failed.");
-    return (-1);
-  }
+  if (g_vlist_md == NULL) return (-1);
 
   /* eo == empty okay */
 #define SET_STRING(buffer,method, eo) do { \
-  status = jtoc_string (jvm_env, buffer, sizeof (buffer), eo, \
-      class_ptr, object_ptr, method); \
+  status = jtoc_string_from_md (jvm_env, buffer, sizeof (buffer), eo, \
+      object_ptr, method); \
   if (status != 0) { \
-    ERROR ("java plugin: jtoc_value_list: jtoc_string (%s) failed.", \
-        method); \
+    ERROR ("java plugin: jtoc_value_list: jtoc_string failed."); \
     return (-1); \
   } } while (0)
 
-  SET_STRING(vl->type, "getType", /* empty = */ 0);
+  SET_STRING(vl->type, g_vlist_md->getType, /* empty = */ 0);
 
   ds = plugin_get_ds (vl->type);
   if (ds == NULL)
@@ -1246,35 +1642,35 @@ static int jtoc_value_list (JNIEnv *jvm_env, value_list_t *vl, /* {{{ */
     return (-1);
   }
 
-  SET_STRING(vl->host,            "getHost",           /* empty = */ 0);
-  SET_STRING(vl->plugin,          "getPlugin",         /* empty = */ 0);
-  SET_STRING(vl->plugin_instance, "getPluginInstance", /* empty = */ 1);
-  SET_STRING(vl->type_instance,   "getTypeInstance",   /* empty = */ 1);
+  SET_STRING(vl->host,            g_vlist_md->getHost,           /* empty = */ 0);
+  SET_STRING(vl->plugin,          g_vlist_md->getPlugin,         /* empty = */ 0);
+  SET_STRING(vl->plugin_instance, g_vlist_md->getPluginInstance, /* empty = */ 1);
+  SET_STRING(vl->type_instance,   g_vlist_md->getTypeInstance,   /* empty = */ 1);
 
 #undef SET_STRING
 
-  status = jtoc_long (jvm_env, &tmp_long, class_ptr, object_ptr, "getTime");
+  status = jtoc_long_from_md (jvm_env, &tmp_long, object_ptr, g_vlist_md->getTime);
   if (status != 0)
   {
-    ERROR ("java plugin: jtoc_value_list: jtoc_long (getTime) failed.");
+    ERROR ("java plugin: jtoc_value_list: jtoc_long_from_md (getTime) failed.");
     return (-1);
   }
   /* Java measures time in milliseconds. */
   vl->time = MS_TO_CDTIME_T (tmp_long);
 
-  status = jtoc_long (jvm_env, &tmp_long,
-      class_ptr, object_ptr, "getInterval");
+  status = jtoc_long_from_md (jvm_env, &tmp_long,
+      object_ptr, g_vlist_md->getInterval);
   if (status != 0)
   {
-    ERROR ("java plugin: jtoc_value_list: jtoc_long (getInterval) failed.");
+    ERROR ("java plugin: jtoc_value_list: jtoc_long_from_md (getInterval) failed.");
     return (-1);
   }
   vl->interval = MS_TO_CDTIME_T (tmp_long);
 
-  status = jtoc_values_array (jvm_env, ds, vl, class_ptr, object_ptr);
+  status = jtoc_values_array_from_md (jvm_env, ds, vl, g_vlist_md->class, object_ptr);
   if (status != 0)
   {
-    ERROR ("java plugin: jtoc_value_list: jtoc_values_array failed.");
+    ERROR ("java plugin: jtoc_value_list: jtoc_values_array_from_md failed.");
     return (-1);
   }
 
@@ -1333,10 +1729,11 @@ static int jtoc_notification (JNIEnv *jvm_env, notification_t *n, /* {{{ */
     return (-1);
   }
   n->severity = (int) tmp_int;
+  (*jvm_env)->DeleteLocalRef (jvm_env, class_ptr);
 
   return (0);
 } /* }}} int jtoc_notification */
-/*
+/* 
  * Functions accessible from Java
  */
 static jint JNICALL cjni_api_dispatch_values (JNIEnv *jvm_env, /* {{{ */
@@ -1360,6 +1757,11 @@ static jint JNICALL cjni_api_dispatch_values (JNIEnv *jvm_env, /* {{{ */
 
   return (status);
 } /* }}} jint cjni_api_dispatch_values */
+
+static jstring JNICALL cjni_api_get_hostname (JNIEnv *jvm_env, jobject this)
+{
+    return ctoj_output_string(jvm_env, hostname_g);
+}
 
 static jint JNICALL cjni_api_dispatch_notification (JNIEnv *jvm_env, /* {{{ */
     jobject this, jobject o_notification)
@@ -1645,11 +2047,6 @@ static void JNICALL cjni_api_log (JNIEnv *jvm_env, /* {{{ */
 
   (*jvm_env)->ReleaseStringUTFChars (jvm_env, o_message, c_str);
 } /* }}} void cjni_api_log */
-
-static jstring JNICALL cjni_api_get_hostname (JNIEnv *jvm_env, jobject this)
-{
-    return ctoj_output_string(jvm_env, hostname_g);
-}
 
 /* List of ``native'' functions, i. e. C-functions that can be called from
  * Java. */
@@ -2037,7 +2434,7 @@ static int cjni_create_jvm (void) /* {{{ */
 
 /* Increase the reference counter to the JVM for this thread. If it was zero,
  * attach the JVM first. */
-static JNIEnv *cjni_thread_attach (void) /* {{{ */
+static JNIEnv *_cjni_thread_attach (jboolean once) /* {{{ */
 {
   cjni_jvm_env_t *cjni_env;
   JNIEnv *jvm_env;
@@ -2076,7 +2473,9 @@ static JNIEnv *cjni_thread_attach (void) /* {{{ */
 
   if (cjni_env->reference_counter > 0)
   {
-    cjni_env->reference_counter++;
+    if (once == JNI_FALSE) {
+      cjni_env->reference_counter++;
+    }
     jvm_env = cjni_env->jvm_env;
   }
   else
@@ -2105,6 +2504,11 @@ static JNIEnv *cjni_thread_attach (void) /* {{{ */
       cjni_env->reference_counter);
   assert (jvm_env != NULL);
   return (jvm_env);
+} /* }}} JNIEnv *_cjni_thread_attach */
+
+static JNIEnv *cjni_thread_attach (void) /* {{{ */
+{
+  return _cjni_thread_attach(JNI_FALSE);
 } /* }}} JNIEnv *cjni_thread_attach */
 
 /* Decrease the reference counter of this thread. If it reaches zero, detach
@@ -2509,7 +2913,7 @@ static int cjni_read (user_data_t *ud) /* {{{ */
     return (-1);
   }
 
-  jvm_env = cjni_thread_attach ();
+  jvm_env = _cjni_thread_attach (JNI_TRUE);
   if (jvm_env == NULL)
     return (-1);
 
@@ -2518,7 +2922,7 @@ static int cjni_read (user_data_t *ud) /* {{{ */
   ret_status = (*jvm_env)->CallIntMethod (jvm_env, cbi->object,
       cbi->method);
 
-  cjni_thread_detach ();
+  //cjni_thread_detach ();
   return (ret_status);
 } /* }}} int cjni_read */
 
@@ -2543,7 +2947,7 @@ static int cjni_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
     return (-1);
   }
 
-  jvm_env = cjni_thread_attach ();
+  jvm_env = _cjni_thread_attach (JNI_TRUE);
   if (jvm_env == NULL)
     return (-1);
 
@@ -2553,7 +2957,7 @@ static int cjni_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
   if (vl_java == NULL)
   {
     ERROR ("java plugin: cjni_write: ctoj_value_list failed.");
-    cjni_thread_detach ();
+    //cjni_thread_detach ();
     return (-1);
   }
 
@@ -2562,7 +2966,7 @@ static int cjni_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
 
   (*jvm_env)->DeleteLocalRef (jvm_env, vl_java);
 
-  cjni_thread_detach ();
+  //cjni_thread_detach ();
   return (ret_status);
 } /* }}} int cjni_write */
 
@@ -3096,7 +3500,13 @@ static int cjni_init (void) /* {{{ */
 
   cjni_init_plugins (jvm_env);
 
-  cjni_thread_detach ();
+  cjni_cache_common_md (jvm_env);
+
+  /*
+   * Since we have loaded classes and methods with this thread. It has to remain attached
+   */
+  //cjni_thread_detach ();
+
   return (0);
 } /* }}} int cjni_init */
 
