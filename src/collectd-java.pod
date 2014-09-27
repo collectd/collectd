@@ -682,6 +682,13 @@ to it.
 Configures which of the I<MBean> blocks to use with this connection. May be
 repeated to collect multiple I<MBeans> from this server. 
 
+=item B<RenamePluginAs>
+
+Changes the default plugin name  "GenericJVM" by any other string. It lets us to reorganize
+metric tree by an arbitrary category as you need (by example product or technology)  better than by the origin JMX of the data.
+You can change it on each Connection block, so you can use this parameter to put "GenericJMX"  metrics under different products.
+
+
 =back
 
 =head1 SEE ALSO

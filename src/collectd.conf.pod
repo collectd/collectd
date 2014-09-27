@@ -1294,6 +1294,7 @@ finance page and dispatch the value to collectd.
   <Plugin curl>
     <Page "stock_quotes">
       URL "http://finance.google.com/finance?q=NYSE%3AAMD"
+      RenamePluginAs "finances"
       User "foo"
       Password "bar"
       Digest false
@@ -1383,6 +1384,12 @@ blocks (see below) are optional. Disabled by default.
 Measure response code for the request. If this setting is enabled, B<Match>
 blocks (see below) are optional. Disabled by default.
 
+=item B<RenamePluginAs>
+
+Changes the default plugin name  "curl" by any other string. It lets us to reorganize
+metric tree by an arbitrary category as you need (by example product or technology)  better than by the origin of the data.
+You can change it on each Page block, so you can use this parameter to put "curl"  metrics under different products.
+
 =item B<E<lt>MatchE<gt>>
 
 One or more B<Match> blocks that define how to match information in the data
@@ -1409,6 +1416,7 @@ C<_stats> runtime statistics module of I<CouchDB>
 
   <Plugin curl_json>
     <URL "http://localhost:5984/_stats">
+      RenamePluginAs "couchdb"
       Instance "httpd"
       <Key "httpd/requests/count">
         Type "http_requests"
@@ -1428,6 +1436,7 @@ This example will collect data directly from a I<uWSGI> "Stats Server" socket.
 
   <Plugin curl_json>
     <Sock "/var/run/uwsgi.stats.sock">
+      RenamePluginAs "Services"
       Instance "uwsgi"
       <Key "workers/*/requests">
         Type "http_requests"
@@ -1481,6 +1490,14 @@ URL. By default the global B<Interval> setting will be used.
 These options behave exactly equivalent to the appropriate options of the
 I<cURL> plugin. Please see there for a detailed description.
 
+=item B<RenamePluginAs>
+
+Changes the default plugin name  "curl_json" by any other string. It lets us 
+to reorganize metric tree by an arbitrary category as you need (by example 
+product or technology)  better than by the origin of the data.
+You can change it on each URL or Sock Block, so you can use this parameter to 
+put "curl_json"  metrics under different products.
+
 =back
 
 The following options are valid within B<Key> blocks:
@@ -1507,6 +1524,7 @@ The B<curl_xml plugin> uses B<libcurl> (L<http://curl.haxx.se/>) and B<libxml2>
  <Plugin "curl_xml">
    <URL "http://localhost/stats.xml">
      Host "my_host"
+     RenamePluginAs "some_product"
      Instance "some_instance"
      User "collectd"
      Password "thaiNg0I"
@@ -1581,6 +1599,16 @@ Examples:
 These options behave exactly equivalent to the appropriate options of the
 I<cURL plugin>. Please see there for a detailed description.
 
+=item B<RenamePluginAs>
+
+Changes the default plugin name "curl_xml" by any other string. It lets us to 
+reorganize metric tree by an arbitrary category as you need (by example product 
+or technology)  better than by the origin of the data.
+You can change it on each URL Block, so you can use this parameter to put 
+"curl_xml"  metrics under different products.
+
+
+
 =item E<lt>B<XPath> I<XPath-expression>E<gt>
 
 Within each B<URL> block, there must be one or more B<XPath> blocks. Each
@@ -1622,6 +1650,8 @@ number of XPath expressions must match the number of data sources in the
 I<type> specified with B<Type> (see above). Each XPath expression must return
 exactly one element. The element's value is then parsed as a number and used as
 value for the appropriate value in the value list dispatched to the daemon.
+
+
 
 =back
 
@@ -5863,6 +5893,7 @@ user using (extended) regular expressions, as described in L<regex(7)>.
 
   <Plugin "tail">
     <File "/var/log/exim4/mainlog">
+      RenamePluginAs "mail"
       Instance "exim"
       Interval 60
       <Match>
@@ -5893,6 +5924,11 @@ one logfile, handy when parsing syslog and the like.
 
 The B<Interval> option allows you to define the length of time between reads. If
 this is not set, the default Interval will be used.
+
+The B<RenamePluginAs> option Changes the default plugin name "tail" by any other string. It lets us to reorganize metric tree by an arbitrary category as you need (by example product or technology)  better than by the origin of the data.
+You can change it on each File Block, so you can use this parameter to put "tail"  metrics under different products.
+
+
 
 Each B<Match> block has the following options to describe how the match should
 be performed:
@@ -5999,6 +6035,7 @@ B<Synopsis:>
        Index 1
    </Metric>
    <File "/var/log/snort/snort.stats">
+       RenamePluginAs "security"
        Instance "snort-eth0"
        Interval 600
        Collect "snort-dropped"
@@ -6071,6 +6108,13 @@ Defaults to the plugin's default interval.
 Rather than using the local time when dispatching a value, read the timestamp
 from the field with the zero-based index I<Index>. The value is interpreted as
 seconds since epoch. The value is parsed as a double and may be factional.
+
+=item B<RenamePluginAs>
+
+Changes the default plugin name "tail_csv" by any other string. It lets us to 
+reorganize metric tree by an arbitrary category as you need (by example product 
+or technology)  better than by the origin of the data.
+You can change it on each File Block, so you can use this parameter to put "tail_csv"  metrics under different products.
 
 =back
 
