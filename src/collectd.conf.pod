@@ -768,6 +768,145 @@ and are checked by default depends on the distribution you use.
 
 =back
 
+=head2 Plugin C<apachelog>
+
+=over 4
+
+A plugin for collectd which efficiently parses apache log files to get global and 
+extended ( per HTTP CODE) metrics. It defines a http_perf ( performance ) new type, 
+which defines the new metrics.
+
+=over 4
+
+=item *B<hit_rate> ( hits /second)
+
+=item *B<hit_x_interval> ( #hits in the collectd interval time=> will be used to count hits across time )
+
+=item *B<rt_avg> ( average response time in the elapsed interval time in "ms" )
+
+=item *B<rt_max> ( max response time in the elapsed interval time in "ms")
+
+=item *B<rt_min> ( min response time in the elapsed interval time in "ms")
+
+=back
+
+by default it gather "global" ( all request) metrics, in extended mode 
+gathers performance statiscs for
+
+=over 4
+
+=item *B<global> : all requests
+
+=item *B<1XX> : all HTTP 1XX code request
+
+=item *B<2XX> : all HTTP 2XX code request
+
+=item *B<3XX> : all HTTP 3XX code request
+
+=item *B<4XX>: all HTTP 4XX code request
+
+=item *B<5XX>: all HTTP 5XX code request
+
+=back
+
+Synopsis:
+
+ <Plugin apachelog>
+
+    <File "/var/log/apache2/rotated_access.log*">  
+      Instance "www_rotated_site_com"
+      RenamePluginAs "apache"
+      UseApacheRotatedLogs "true"
+      ExtendedMetrics "true"
+      SetRespTimeField 0 
+      SetHTTPCodeField  9  
+    </File>
+
+    <File "/var/log/apache2/not_rotated_access.log">  
+      Instance "www_not_rotated_site_com"
+      RenamePluginAs "apache"
+      UseApacheRotatedLogs "false"
+    </File>
+
+  </Plugin>
+
+The config consists of one or more B<File> blocks, each of which configures one 
+apache logfile to parse. On each File Block could have the following patameters. 
+
+=over 4
+
+=item B<Instance>
+
+Apache instance Name, this parameter is mandatory
+
+=item B<RenamePluginAs>
+
+Changes the default plugin name  "apachelog" by any other string. It lets us to 
+reorganize metric tree by an arbitrary category as you need (by example apache, 
+ihs or technology)  better than by the origin of the data. You can change it on each 
+File block, so you can use this parameter to put "apachelog"  metrics under different  
+products.
+
+ApacheLog is considered as any other general purpose plugin (curl,tail,..) becaouse of
+there is lots of products that shares original apache log format like (IBM HTTP Server,
+WebSphere Application Server or WebLogic).
+
+=item B<UseApacheRotatedLogs> I<true|false>
+
+False by default, When B<true> apachelog plugin tracks always the 
+last modified file with pattern in section File 
+See: L<http://httpd.apache.org/docs/2.2/programs/rotatelogs.html>
+This parameter is only usefull with rotatelogs Piped logging program to rotate Apache logs.
+
+When B<UseApacheRotatedLogs> is true the File section should containt a wildcard pattern 
+to search for the last modified file on each iteration ( valid for fnmatch() matching)
+
+	"/var/log/apache2/access*"
+
+Note that wildcard patterns are not regular expressions. And this plugin doen't handle 
+rotation and retention of files externaly rotated by rotatelog:
+
+=item B<ExtendedMetrics> I<true|false>
+
+Default:false, when B<true> , apachelog plugin collect global and per http code 
+( 1XX, 2XX, 3XX, 4XX, 5XX ) performance data.
+
+=item B<SetRespTimeField>
+
+Defines which field ( with blanks as field separators) has the response. 
+time (%D) apache log parameter.
+By default : the last field is taken ( 0 = last ) taken as LogFormat 
+the combined format.
+
+=item B<SetHTTPCodeField>
+
+Defines which field ( with blanks as field separators) has the HTTP Response 
+Code (%>s) apache log parameter.
+By default : 9  taken as LogFormat the  combined format.
+
+	LogFormat "%h %l %u %t \"%r\" %>s %O \"%{Referer}i\" \"%{User-Agent}i\" %D" combined
+
+=over 4
+
+B<Positioning fields parameters>
+
+This plugin takes as field separators "blanks", avoiding complexes regexps to accelerate process rate. 
+As Request time should be in the last field and field numbers could vary on each instalation the plugin takes number 0 as the last field. 
+So if we have N fixed fields separated as blacks in the log these will be the positioning numbers.
+
+	* 0 = last field
+	* 1 = first field
+	* 2 = second field.
+	.
+	.
+	* N-1=last field ( also )
+
+=back
+
+=back
+
+=back
+
 =head2 Plugin C<apcups>
 
 =over 4

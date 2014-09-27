@@ -115,8 +115,6 @@ apachelog_la_SOURCES = apache-log.c
 apachelog_la_LDFLAGS = -module -avoid-version
 apachelog_la_CFLAGS = $(AM_CFLAGS)
 apachelog_la_LIBADD =
-collectd_LDADD += "-dlopen" apachelog.la
-collectd_DEPENDENCIES += apachelog.la
 endif
 
 
