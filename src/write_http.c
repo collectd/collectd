@@ -50,6 +50,10 @@ struct wh_callback_s
         int   verify_host;
         char *cacert;
         int   store_rates;
+        _Bool store_rates;
+	int   abort_on_slow;
+        time_t interval;
+>>>>>>> 9552451... Update write_http.c
 
 #define WH_FORMAT_COMMAND 0
 #define WH_FORMAT_JSON    1
@@ -111,6 +115,12 @@ static int wh_callback_init (wh_callback_t *cb) /* {{{ */
         {
                 ERROR ("curl plugin: curl_easy_init failed.");
                 return (-1);
+        }
+
+        if(cb->abort_on_slow && cb->interval > 0)
+        {
+            curl_easy_setopt(cb->curl, CURLOPT_LOW_SPEED_LIMIT, 100);
+            curl_easy_setopt(cb->curl, CURLOPT_LOW_SPEED_TIME, cb->interval);
         }
 
         curl_easy_setopt (cb->curl, CURLOPT_NOSIGNAL, 1L);
@@ -319,6 +329,8 @@ static int wh_write_command (const data_set_t *ds, const value_list_t *vl, /* {{
                 return (-1);
         }
 
+		cb->interval = CDTIME_T_TO_TIME_T(vl->interval);
+		
         pthread_mutex_lock (&cb->send_lock);
 
         if (cb->curl == NULL)
@@ -366,6 +378,8 @@ static int wh_write_json (const data_set_t *ds, const value_list_t *vl, /* {{{ *
                 wh_callback_t *cb)
 {
         int status;
+		
+		cb->interval = CDTIME_T_TO_TIME_T(vl->interval);
 
         pthread_mutex_lock (&cb->send_lock);
 
@@ -564,6 +578,8 @@ static int wh_config_url (oconfig_item_t *ci) /* {{{ */
                         config_set_format (cb, child);
                 else if (strcasecmp ("StoreRates", child->key) == 0)
                         config_set_boolean (&cb->store_rates, child);
+	            else if (strcasecmp ("LowSpeedLimit", child->key) == 0)
+                        config_set_boolean (&cb->abort_on_slow, child);
                 else
                 {
                         ERROR ("write_http plugin: Invalid configuration "
@@ -571,6 +587,10 @@ static int wh_config_url (oconfig_item_t *ci) /* {{{ */
                 }
         }
 
+        if(cb->abort_on_slow)
+        {
+        	cb->interval = CDTIME_T_TO_TIME_T(cf_get_default_interval ());
+        }
         DEBUG ("write_http: Registering write callback with URL %s",
                         cb->location);
 
