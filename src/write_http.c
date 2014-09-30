@@ -39,6 +39,7 @@
 # define WRITE_HTTP_DEFAULT_BUFFER_SIZE 4096
 #endif
 
+#define WH_DEFAULT_LOW_LIMIT_BYTES_PER_SEC 100
 /*
  * Private variables
  */
@@ -58,7 +59,8 @@ struct wh_callback_s
         char *clientkeypass;
         long sslversion;
         _Bool store_rates;
-	int   abort_on_slow;
+		_Bool abort_on_slow;
+		int   low_limit_bytes;
         time_t interval;
 
 #define WH_FORMAT_COMMAND 0
@@ -124,7 +126,7 @@ static int wh_callback_init (wh_callback_t *cb) /* {{{ */
 
         if(cb->abort_on_slow && cb->interval > 0)
         {
-            curl_easy_setopt(cb->curl, CURLOPT_LOW_SPEED_LIMIT, 100);
+            curl_easy_setopt(cb->curl, CURLOPT_LOW_SPEED_LIMIT, (cb->low_limit_bytes?cb->low_limit_bytes:WH_DEFAULT_LOW_LIMIT_BYTES_PER_SEC));
             curl_easy_setopt(cb->curl, CURLOPT_LOW_SPEED_TIME, cb->interval);
         }
 
@@ -521,6 +523,7 @@ static int wh_config_url (oconfig_item_t *ci) /* {{{ */
         cb->verify_host = 1;
         cb->format = WH_FORMAT_COMMAND;
         cb->sslversion = CURL_SSLVERSION_DEFAULT;
+		cb->low_limit_bytes = WH_DEFAULT_LOW_LIMIT_BYTES_PER_SEC;
 
         pthread_mutex_init (&cb->send_lock, /* attr = */ NULL);
 
@@ -585,7 +588,9 @@ static int wh_config_url (oconfig_item_t *ci) /* {{{ */
                 else if (strcasecmp ("BufferSize", child->key) == 0)
                         cf_util_get_int (child, &buffer_size);
 	            else if (strcasecmp ("LowSpeedLimit", child->key) == 0)
-                        config_set_boolean (&cb->abort_on_slow, child);
+                        cf_util_get_boolean (child,&cb->abort_on_slow);
+                else if (strcasecmp ("LowLimitBytesPerSec", child->key) == 0)
+                        cf_util_get_int (child, &cb->low_limit_bytes);
                 else
                 {
                         ERROR ("write_http plugin: Invalid configuration "
