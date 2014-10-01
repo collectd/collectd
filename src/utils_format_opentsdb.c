@@ -304,7 +304,7 @@ static int opentsdb_format_name (char *ret, int ret_len,
 	      ssnprintf (ret, ret_len, "%s.%s.%s", tmp_plugin, tmp_type_instance, ds_name);
         }
         else{
-	      ssnprintf (ret, ret_len, "%s.%s.%s.%s", tmp_plugin, tmp_type, tmp_type_instance,ds_name); 
+	      ssnprintf (ret, ret_len, "%s.%s.%s.%s", tmp_plugin, tmp_type_instance, tmp_type,ds_name); 
         }
       }
     }else{ 
@@ -323,7 +323,7 @@ static int opentsdb_format_name (char *ret, int ret_len,
         }
         else{
 	      ssnprintf (ret, ret_len, "%s.%s.%s.%s.%s",
-		    	prefix, tmp_plugin, tmp_type, tmp_type_instance, ds_name);
+		    	prefix, tmp_plugin, tmp_type_instance, tmp_type, ds_name);
         }
       }
     }
