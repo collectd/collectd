@@ -6849,6 +6849,17 @@ are available on the server side. I<Bytes> must be at least 1024 and cannot
 exceed the size of an C<int>, i.e. 2E<nbsp>GByte.
 Defaults to C<4096>.
 
+=item B<LowSpeedLimit> B<true|false>
+
+If set to B<true>, average transfer speed in bytes per second will be checked. 
+In case it is below B<LowLimitBytesPerSec> connection will be considered slow 
+and aborted.
+
+=item B<LowLimitBytesPerSec> I<Bytes>
+
+Sets bytes per second value for B<LowSpeedLimit> to make a decission if 
+connection is too slow. Default value is C<100>.
+
 =back
 
 =head2 Plugin C<write_kafka>
