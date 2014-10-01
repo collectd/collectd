@@ -5882,8 +5882,18 @@ Defaults to B<Command>.
 =item B<StoreRates> B<true|false>
 
 If set to B<true>, convert counter values to rates. If set to B<false> (the
-default) counter values are stored as is, i.E<nbsp>e. as an increasing integer
-number.
+default) counter values are stored as is, i.e. as an increasing integer number.
+
+=item B<LowSpeedLimit> B<true|false>
+
+If set to B<true>, average transfer speed in bytes per second will be checked. 
+In case it is below B<LowLimitBytesPerSec> connection will be considered slow 
+and aborted.
+
+=item B<LowLimitBytesPerSec> I<Bytes>
+
+Sets bytes per second value for B<LowSpeedLimit> to make a decission if 
+connection is too slow. Default value is C<100>.
 
 =back
 
