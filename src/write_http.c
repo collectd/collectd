@@ -330,8 +330,6 @@ static int wh_write_command (const data_set_t *ds, const value_list_t *vl, /* {{
                 return (-1);
         }
 
-	cb->interval = CDTIME_T_TO_TIME_T(vl->interval);
-		
         pthread_mutex_lock (&cb->send_lock);
 
         if (cb->curl == NULL)
