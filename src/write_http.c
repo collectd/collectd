@@ -58,9 +58,9 @@ struct wh_callback_s
         char *clientcert;
         char *clientkeypass;
         long sslversion;
-        _Bool store_rates;
-	_Bool abort_on_slow;
-	int   low_limit_bytes;
+        _Bool store_rates; 
+        _Bool abort_on_slow;
+        int   low_limit_bytes;
         time_t interval;
 
 #define WH_FORMAT_COMMAND 0
@@ -361,7 +361,7 @@ static int wh_write_command (const data_set_t *ds, const value_list_t *vl, /* {{
 
         if (cb->curl == NULL)
         {
-        	cb->interval = CDTIME_T_TO_TIME_T(vl->interval);
+                cb->interval = CDTIME_T_TO_TIME_T(vl->interval);
                 status = wh_callback_init (cb);
                 if (status != 0)
                 {
@@ -410,7 +410,7 @@ static int wh_write_json (const data_set_t *ds, const value_list_t *vl, /* {{{ *
 
         if (cb->curl == NULL)
         {
-       		cb->interval = CDTIME_T_TO_TIME_T(vl->interval);
+                cb->interval = CDTIME_T_TO_TIME_T(vl->interval);
 
                 status = wh_callback_init (cb);
                 if (status != 0)
@@ -522,7 +522,7 @@ static int wh_config_url (oconfig_item_t *ci) /* {{{ */
         cb->verify_host = 1;
         cb->format = WH_FORMAT_COMMAND;
         cb->sslversion = CURL_SSLVERSION_DEFAULT;
-	cb->low_limit_bytes = WH_DEFAULT_LOW_LIMIT_BYTES_PER_SEC;
+        cb->low_limit_bytes = WH_DEFAULT_LOW_LIMIT_BYTES_PER_SEC;
 
         pthread_mutex_init (&cb->send_lock, /* attr = */ NULL);
 
@@ -586,7 +586,7 @@ static int wh_config_url (oconfig_item_t *ci) /* {{{ */
                         cf_util_get_boolean (child, &cb->store_rates);
                 else if (strcasecmp ("BufferSize", child->key) == 0)
                         cf_util_get_int (child, &buffer_size);
-	        else if (strcasecmp ("LowSpeedLimit", child->key) == 0)
+                else if (strcasecmp ("LowSpeedLimit", child->key) == 0)
                         cf_util_get_boolean (child,&cb->abort_on_slow);
                 else if (strcasecmp ("LowLimitBytesPerSec", child->key) == 0)
                         cf_util_get_int (child, &cb->low_limit_bytes);
