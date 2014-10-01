@@ -35,7 +35,7 @@
 
 #define PLUGIN_FLAGS_GLOBAL 0x0001
 
-#define DATA_MAX_NAME_LEN 64
+#define DATA_MAX_NAME_LEN 256
 
 #define DS_TYPE_COUNTER  0
 #define DS_TYPE_GAUGE    1
