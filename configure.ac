@@ -2057,125 +2057,6 @@ then
 fi
 # }}}
 
-# --with-libjson-c {{{
-with_json_c_cppflags=""
-with_json_c_ldflags=""
-with_json_c_libs=""
-AC_ARG_WITH(libjson-c, [AS_HELP_STRING([--with-libjson-c@<:@=PREFIX@:>@], [Path to libjson-c.])],
-[
-        if test "x$withval" = "xno"
-        then
-                with_libjson_c="no"
-        else if test "x$withval" = "xyes"
-        then
-                with_libjson_c="pkgconfig"
-        else
-                with_libjson_c="yes"
-                with_json_c_cppflags="-I$withval/include"
-                with_json_c_ldflags="-L$withval/lib -Wl,-rpath -Wl,$withval/lib"
-                with_json_c_libs="-ljson-c"
-        fi; fi
-],
-[
-        if test "x$ac_system" = "xLinux"
-        then
-                with_libjson_c="pkgconfig"
-        else
-                with_libjson_c="no (Linux only)"
-        fi
-])
-
-if test "x$with_libjson_c" = "xpkgconfig" && test "x$PKG_CONFIG" = "x"
-then
-        with_libjson_c="no (Don't have pkg-config)"
-fi
-
-if test "x$with_libjson_c" = "xpkgconfig"
-then
-        $PKG_CONFIG --exists --print-errors 'json-c' 2>/dev/null
-        if test $? -ne 0
-        then
-                with_libjson_c="no (pkg-config doesn't know json-c)"
-        fi
-fi
-
-if test "x$with_libjson_c" = "xpkgconfig"
-then
-        with_json_c_cppflags="`$PKG_CONFIG --cflags 'json-c'`"
-        if test $? -ne 0
-        then
-                with_libjson_c="no ($PKG_CONFIG failed)"
-        fi
-        with_json_c_ldflags="`$PKG_CONFIG --libs-only-L 'json-c'`"
-        if test $? -ne 0
-        then
-                with_libjson_c="no ($PKG_CONFIG failed)"
-        fi
-        if test "x${with_json_c_ldflags:0:2}" = "x-L"
-        then
-                json_lib_path=`echo "${with_json_c_ldflags:2}" | sed 's/ *$//'`
-                json_lib_path=`find "$json_lib_path" -name libjson-c.so -exec 'dirname' '{}' ';' | head -n 1`
-                if test "x$json_lib_path" != "x"
-                then
-                        with_json_c_ldflags="-L$json_lib_path -Wl,-rpath -Wl,$json_lib_path"
-                else
-                        with_libjson_c="no (coudn't find libjson-c.so)"
-                fi
-        fi
-        with_json_c_libs="`$PKG_CONFIG --libs-only-l 'json-c'`"
-        if test $? -ne 0
-        then
-                with_libjson_c="no ($PKG_CONFIG failed)"
-        fi
-fi
-
-if test "x$with_libjson_c" = "xpkgconfig"
-then
-        with_libjson_c="yes"
-fi
-
-SAVE_CPPFLAGS="$CPPFLAGS"
-CPPFLAGS="$CPPFLAGS $with_json_c_cppflags"
-
-# check for json headers
-if test "x$with_libjson_c" = "xyes"
-then
-        AC_CHECK_HEADERS(json-c/json.h json-c/json_c_version.h json-c/json_inttypes.h,
-          [with_libjson_c="yes"],
-          [with_libjson_c="no (Json-c headers not found)"])
-fi
-
-if test "x$with_libjson_c" = "xyes"
-then
-        SAVE_LDFLAGS="$LDFLAGS"
-        LDFLAGS="$LDFLAGS $with_json_c_ldflags"
-
-        SAVE_LIBS="$LIBS"
-        LIBS="$LIBS $with_json_c_libs"
-
-        AC_CHECK_LIB(json-c,
-          [json_c_version],
-          [with_libjson_c="yes"],
-          [with_libjson_c="no (libjson-c library not found)"])
-
-        LDFLAGS="$SAVE_LDFLAGS"
-        LIBS="$SAVE_LIBS"
-fi
-
-CPPFLAGS="$SAVE_CPPFLAGS"
-
-if test "x$with_libjson_c" = "xyes"
-then
-        BUILD_WITH_LIBJSON_C_CPPFLAGS="$with_json_c_cppflags"
-        BUILD_WITH_LIBJSON_C_LDFLAGS="$with_json_c_ldflags"
-        BUILD_WITH_LIBJSON_C_LIBS="$with_json_c_libs"
-        AC_SUBST(BUILD_WITH_LIBJSON_C_CPPFLAGS)
-        AC_SUBST(BUILD_WITH_LIBJSON_C_LDFLAGS)
-        AC_SUBST(BUILD_WITH_LIBJSON_C_LIBS)
-fi
-AM_CONDITIONAL(BUILD_WITH_LIBJSON_C, test "x$with_libjson_c" = "xyes")
-# }}}
-
 # --with-java {{{
 with_java_home="$JAVA_HOME"
 with_java_vmtype="client"
@@ -5079,7 +4960,7 @@ then
 	plugin_curl_xml="yes"
 fi
 
-if test "x$with_libjson_c" = "xyes"
+if test "x$with_libyajl" = "xyes"
 then
 	plugin_ceph="yes"
 fi
@@ -5241,7 +5122,7 @@ AC_PLUGIN([aquaero],     [$with_libaquaero5],  [Aquaero's hardware sensors])
 AC_PLUGIN([ascent],      [$plugin_ascent],     [AscentEmu player statistics])
 AC_PLUGIN([battery],     [$plugin_battery],    [Battery statistics])
 AC_PLUGIN([bind],        [$plugin_bind],       [ISC Bind nameserver statistics])
-AC_PLUGIN([ceph],        [$with_libjson_c],    [Ceph daemon statistics])
+AC_PLUGIN([ceph],        [plugin_ceph],        [Ceph daemon statistics])
 AC_PLUGIN([conntrack],   [$plugin_conntrack],  [nf_conntrack statistics])
 AC_PLUGIN([contextswitch], [$plugin_contextswitch], [context switch statistics])
 AC_PLUGIN([cpufreq],     [$plugin_cpufreq],    [CPU frequency statistics])
@@ -5520,11 +5401,6 @@ then
 	with_perl_bindings="yes ($PERL_BINDINGS_OPTIONS)"
 fi
 
-if test "x$with_libjson_c" != "xyes"
-then
-        enable_ceph="no (needs libjson-c)"
-fi
-
 cat <<EOF;
 
 Configuration:
@@ -5539,7 +5415,6 @@ Configuration:
     libgcrypt . . . . . . $with_libgcrypt
     libiokit  . . . . . . $with_libiokit
     libiptc . . . . . . . $with_libiptc
-    libjson-c . . . . . . $with_libjson_c
     libjvm  . . . . . . . $with_java
     libkstat  . . . . . . $with_kstat
     libkvm  . . . . . . . $with_libkvm
