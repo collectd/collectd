@@ -274,6 +274,8 @@
 #</Plugin>
 
 #<Plugin ceph>
+#  LongRunAvgLatency false
+#  ConvertSpecialMetrics true
 #  <Daemon "osd.0">
 #    SocketPath "/var/run/ceph/ceph-osd.0.asok"
 #  </Daemon>
