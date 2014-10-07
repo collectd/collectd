@@ -978,9 +978,9 @@ separate ceph daemons running on the same device (two OSDs, one MON, one MDS) :
 
 The ceph plugin accepts the following configuration options:
 
-= over 4
+=over 4
 
-= item B<LongRunAvgLatency> B<true>|B<false>
+=item B<LongRunAvgLatency> B<true>|B<false>
 
 If enabled, latency values(sum,count pairs) are calculated as the long run 
 average - average since the ceph daemon was started = (sum / count).
@@ -1001,10 +1001,12 @@ When disabled, all metrics are treated as the types received from the ceph schem
 
 Default: Enabled
 
+=back
+
 Each B<Daemon> block must have a string argument for the plugin instance name.
 A B<SocketPath> is also required for each B<Daemon> block:
 
-=item B<Daemon> I<Name>
+=item B<Daemon> I<DaemonName>
 
 Name to be used as the instance name for this daemon.
 
