@@ -275,9 +275,12 @@
 
 #<Plugin ceph>
 #  LongRunAvgLatency false
-#  ConvertSpecialMetrics true
+#  ConvertSpecialMetricTypes true
 #  <Daemon "osd.0">
 #    SocketPath "/var/run/ceph/ceph-osd.0.asok"
+#  </Daemon>
+#  <Daemon "osd.1">
+#    SocketPath "/var/run/ceph/ceph-osd.1.asok"
 #  </Daemon>
 #  <Daemon "mon.a">
 #    SocketPath "/var/run/ceph/ceph-mon.ceph1.asok"
