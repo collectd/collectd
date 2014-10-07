@@ -78,6 +78,12 @@
 #define CEPH_CB_CONTINUE 1
 #define CEPH_CB_ABORT 0
 
+#if HAVE_YAJL_V2
+typedef size_t yajl_len_t;
+#else
+typedef unsigned int yajl_len_t;
+#endif
+
 /******* ceph_daemon *******/
 struct ceph_daemon
 {
@@ -233,7 +239,8 @@ static int ceph_cb_boolean(void *ctx, int bool_val)
     return CEPH_CB_CONTINUE;
 }
 
-static int ceph_cb_number(void *ctx, const char *number_val, size_t number_len)
+static int 
+ceph_cb_number(void *ctx, const char *number_val, yajl_len_t number_len)
 {
     yajl_struct *yajl = (yajl_struct*)ctx;
     char buffer[number_len+1];
@@ -297,8 +304,8 @@ static int ceph_cb_number(void *ctx, const char *number_val, size_t number_len)
     return CEPH_CB_CONTINUE;
 }
 
-static int
-ceph_cb_string(void *ctx, const unsigned char *string_val, size_t string_len)
+static int ceph_cb_string(void *ctx, const unsigned char *string_val, 
+        yajl_len_t string_len)
 {
     return CEPH_CB_CONTINUE;
 }
@@ -309,7 +316,7 @@ static int ceph_cb_start_map(void *ctx)
 }
 
 static int
-ceph_cb_map_key(void *ctx, const unsigned char *key, size_t string_len)
+ceph_cb_map_key(void *ctx, const unsigned char *key, yajl_len_t string_len)
 {
     yajl_struct *yajl = (yajl_struct*)ctx;
 
@@ -793,16 +800,14 @@ static int ceph_config(oconfig_item_t *ci)
             ret = cc_handle_bool(child, &long_run_latency_avg);
             if(ret)
             {
-                ERROR("GOT %d handling bool", ret);
                 return ret;
             }
         }
-        else if(strcasecmp("ConvertSpecialMetrics", child->key) == 0)
+        else if(strcasecmp("ConvertSpecialMetricTypes", child->key) == 0)
         {
             ret = cc_handle_bool(child, &convert_special_metrics);
             if(ret)
             {
-                ERROR("GOT %d handling bool", ret);
                 return ret;
             }
         }
@@ -1141,7 +1146,13 @@ static int cconn_process_json(struct cconn *io)
     yajl_handle hand;
     yajl_status status;
 
-    hand = yajl_alloc(&callbacks, NULL, (void *) (&io->yajl));
+    hand = yajl_alloc(&callbacks,
+#if HAVE_YAJL_V2
+      /* alloc funcs = */ NULL,
+#else
+      /* alloc funcs = */ NULL, NULL,
+#endif
+      /* context = */ (void *)(&io->yajl));
 
     if(!hand)
     {
