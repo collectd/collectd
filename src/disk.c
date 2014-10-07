@@ -794,7 +794,7 @@ static int disk_read (void)
 			disk_submit (output_name, "disk_merged",
 					read_merged, write_merged);
 			submit_in_progress (output_name, in_progress);
-			submit_io_time (io_time, weighted_time);
+			submit_io_time (output_name, io_time, weighted_time);
 		} /* if (is_disk) */
 
 		/* release udev-based alternate name, if allocated */
