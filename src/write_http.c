@@ -55,6 +55,7 @@ struct wh_callback_s
 	_Bool abort_on_slow;
 	int   low_limit_bytes;
         time_t interval;
+        int post_timeout;
 
 #define WH_FORMAT_COMMAND 0
 #define WH_FORMAT_JSON    1
@@ -122,6 +123,10 @@ static int wh_callback_init (wh_callback_t *cb) /* {{{ */
         {
             curl_easy_setopt(cb->curl, CURLOPT_LOW_SPEED_LIMIT, (cb->low_limit_bytes?cb->low_limit_bytes:WH_DEFAULT_LOW_LIMIT_BYTES_PER_SEC));
             curl_easy_setopt(cb->curl, CURLOPT_LOW_SPEED_TIME, cb->interval);
+        }
+        if(cb->post_timeout >0)
+        {
+           curl_easy_setopt(cb->curl, CURLOPT_TIMEOUT, cb->post_timeout);
         }
 
         curl_easy_setopt (cb->curl, CURLOPT_NOSIGNAL, 1L);
@@ -553,6 +558,7 @@ static int wh_config_url (oconfig_item_t *ci) /* {{{ */
         cb->cacert = NULL;
         cb->format = WH_FORMAT_COMMAND;
         cb->low_limit_bytes = WH_DEFAULT_LOW_LIMIT_BYTES_PER_SEC;
+        cb->post_timeout = 0;
 
         pthread_mutex_init (&cb->send_lock, /* attr = */ NULL);
 
@@ -586,6 +592,8 @@ static int wh_config_url (oconfig_item_t *ci) /* {{{ */
                         cf_util_get_boolean (child,&cb->abort_on_slow);
                 else if (strcasecmp ("LowLimitBytesPerSec", child->key) == 0)
                         cf_util_get_int (child, &cb->low_limit_bytes);
+                else if (strcasecmp ("PostTimeoutSec", child->key) == 0)
+                        cf_util_get_int (child, &cb->post_timeout);
                 else
                 {
                         ERROR ("write_http plugin: Invalid configuration "
