@@ -271,20 +271,22 @@
  			return opentsdb_format_name_jmx(ret, ret_len, vl, prefix, escape_char, flags);
  		}
 
+ 		char plugin_to_process[2 * DATA_MAX_NAME_LEN + 1];
  		char tmp_plugin[2 * DATA_MAX_NAME_LEN + 1];
  		char tmp_type_instance[2 * DATA_MAX_NAME_LEN + 1];
  		char tmp_type[2 * DATA_MAX_NAME_LEN + 1];
  		char tmp_prefix[2 * DATA_MAX_NAME_LEN + 1];
 
+ 		sstrncpy (plugin_to_process, n_plugin, sizeof (plugin_to_process));
  		char *saveptr = NULL;
  		char *prefix_from_plugin;
  		char  *plugin_from_plugin;
 
- 		prefix_from_plugin = strtok_r (vl->plugin, ".", &saveptr);
+ 		prefix_from_plugin = strtok_r (plugin_to_process, ".", &saveptr);
  		plugin_from_plugin  = strtok_r (NULL, ".", &saveptr);
 
  		if (plugin_from_plugin == NULL){
- 			sstrncpy(tmp_prefix, prefix, sizeof(tmp_prefix))
+ 			sstrncpy(tmp_prefix, prefix, sizeof(tmp_prefix));
  			opentsdb_copy_escape_part (n_plugin, vl->plugin,
  				sizeof (n_plugin), escape_char);			
  			sstrncpy (tmp_plugin, n_plugin, sizeof (tmp_plugin));
