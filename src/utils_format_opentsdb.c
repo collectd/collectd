@@ -162,7 +162,7 @@
  			else{ 
  				tags = "";
  			}
- 			
+
  		}
 
  		opentsdb_copy_escape_part (n_plugin, vl->plugin,
@@ -173,7 +173,7 @@
  		char *saveptr = NULL;
  		char *host;
  		char  *process;
- 		
+
  		char tmp_host[2 * DATA_MAX_NAME_LEN + 1];
  		sstrncpy (tmp_host, vl->host, sizeof (tmp_host));
  		host = strtok_r (tmp_host, ":", &saveptr);
@@ -274,23 +274,40 @@
  		char tmp_plugin[2 * DATA_MAX_NAME_LEN + 1];
  		char tmp_type_instance[2 * DATA_MAX_NAME_LEN + 1];
  		char tmp_type[2 * DATA_MAX_NAME_LEN + 1];
+ 		char tmp_prefix[2 * DATA_MAX_NAME_LEN + 1];
 
+ 		char *saveptr = NULL;
+ 		char *prefix_from_plugin;
+ 		char  *plugin_from_plugin;
 
- 		opentsdb_copy_escape_part (n_plugin, vl->plugin,
- 			sizeof (n_plugin), escape_char);
+ 		prefix_from_plugin = strtok_r (vl->plugin, ".", &saveptr);
+ 		plugin_from_plugin  = strtok_r (NULL, ".", &saveptr);
+
+ 		if (plugin_from_plugin == NULL){
+ 			sstrncpy(tmp_prefix, prefix, sizeof(tmp_prefix))
+ 			opentsdb_copy_escape_part (n_plugin, vl->plugin,
+ 				sizeof (n_plugin), escape_char);			
+ 			sstrncpy (tmp_plugin, n_plugin, sizeof (tmp_plugin));
+ 		}
+ 		else{
+ 			sstrncpy(tmp_prefix, prefix_from_plugin, sizeof(tmp_prefix));
+ 			opentsdb_copy_escape_part (n_plugin, plugin_from_plugin,
+ 				sizeof (n_plugin), escape_char);			
+ 			sstrncpy (tmp_plugin, n_plugin, sizeof (tmp_plugin));
+
+ 		}
+
  		opentsdb_copy_escape_part (n_type, vl->type,
  			sizeof (n_type), escape_char);
  		opentsdb_copy_escape_part (n_type_instance, vl->type_instance,
  			sizeof (n_type_instance), escape_char);
-
- 		sstrncpy (tmp_plugin, n_plugin, sizeof (tmp_plugin));
-
  		sstrncpy (tmp_type, n_type, sizeof (tmp_type));
- 		
+
  		sstrncpy (tmp_type_instance, n_type_instance, sizeof (tmp_type_instance));
 
+
  		if (ds_name != NULL && (0 != strcmp("value", ds_name))){
- 			if(prefix == NULL){
+ 			if(tmp_prefix == NULL){
  				if(tmp_type_instance[0] == '\0'){
  					if (strcasecmp (tmp_plugin, tmp_type) == 0){
  						ssnprintf (ret, ret_len, "%s.%s", tmp_plugin, ds_name);
@@ -310,20 +327,20 @@
  			}else{ 
  				if(tmp_type_instance[0] == '\0'){
  					if (strcasecmp (tmp_plugin, tmp_type) == 0){
- 						ssnprintf (ret, ret_len, "%s.%s.%s", prefix, tmp_plugin,ds_name);
+ 						ssnprintf (ret, ret_len, "%s.%s.%s", tmp_prefix, tmp_plugin,ds_name);
  					}
  					else{
- 						ssnprintf (ret, ret_len, "%s.%s.%s.%s", prefix, tmp_plugin, tmp_type, ds_name); 
+ 						ssnprintf (ret, ret_len, "%s.%s.%s.%s", tmp_prefix, tmp_plugin, tmp_type, ds_name); 
  					}
  				}   
  				else{
  					if (strcasecmp (tmp_plugin, tmp_type) == 0){
  						ssnprintf (ret, ret_len, "%s.%s.%s.%s",
- 							prefix, tmp_plugin, tmp_type_instance, ds_name);
+ 							tmp_prefix, tmp_plugin, tmp_type_instance, ds_name);
  					}
  					else{
  						ssnprintf (ret, ret_len, "%s.%s.%s.%s.%s",
- 							prefix, tmp_plugin, tmp_type_instance, tmp_type, ds_name);
+ 							tmp_prefix, tmp_plugin, tmp_type_instance, tmp_type, ds_name);
  					}
  				}
  			}
@@ -331,7 +348,7 @@
 
  		}
  		else{
- 			if(prefix == NULL){
+ 			if(tmp_prefix == NULL){
  				if(tmp_type_instance[0] == '\0'){
  					if (strcasecmp (tmp_plugin, tmp_type) == 0){
  						ssnprintf (ret, ret_len, "%s", tmp_plugin);
@@ -351,20 +368,20 @@
  			}else{ 
  				if(tmp_type_instance[0] == '\0'){
  					if (strcasecmp (tmp_plugin, tmp_type) == 0){
- 						ssnprintf (ret, ret_len, "%s.%s", prefix, tmp_plugin);
+ 						ssnprintf (ret, ret_len, "%s.%s", tmp_prefix, tmp_plugin);
  					}
  					else{
- 						ssnprintf (ret, ret_len, "%s.%s.%s", prefix, tmp_plugin, tmp_type); 
+ 						ssnprintf (ret, ret_len, "%s.%s.%s", tmp_prefix, tmp_plugin, tmp_type); 
  					}
  				}   
  				else{
  					if (strcasecmp (tmp_plugin, tmp_type) == 0){
  						ssnprintf (ret, ret_len, "%s.%s.%s",
- 							prefix, tmp_plugin, tmp_type_instance);
+ 							tmp_prefix, tmp_plugin, tmp_type_instance);
  					}
  					else{
  						ssnprintf (ret, ret_len, "%s.%s.%s.%s",
- 							prefix, tmp_plugin, tmp_type, tmp_type_instance);
+ 							tmp_prefix, tmp_plugin, tmp_type, tmp_type_instance);
  					}
  				}
  			}
