@@ -153,6 +153,7 @@
  		DEBUG ("formatting tags with %s",tags);
  		char n_plugin[DATA_MAX_NAME_LEN];
  		char n_plugin_instance[DATA_MAX_NAME_LEN];
+ 		char plugin_instance_to_process[DATA_MAX_NAME_LEN];
 
 
  		if (tags == NULL){
@@ -287,11 +288,9 @@
  		char n_plugin[DATA_MAX_NAME_LEN];
  		char n_type[DATA_MAX_NAME_LEN];
  		char n_type_instance[DATA_MAX_NAME_LEN];
- 		char n_plugin_instance[DATA_MAX_NAME_LEN];
 
  		char plugin_instance_to_process[2 * DATA_MAX_NAME_LEN + 1];
  		char tmp_plugin[2 * DATA_MAX_NAME_LEN + 1];
- 		char tmp_plugin_instance[2 * DATA_MAX_NAME_LEN + 1];
  		char tmp_type_instance[2 * DATA_MAX_NAME_LEN + 1];
  		char tmp_type[2 * DATA_MAX_NAME_LEN + 1];
  		char tmp_prefix[2 * DATA_MAX_NAME_LEN + 1];
