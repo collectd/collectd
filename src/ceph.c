@@ -950,7 +950,8 @@ static int node_handler_fetch_data(void *arg, const char *val, const char *key)
     memset(ds_name, 0, sizeof(ds_name));
     if(parse_keys(key, dset_name, ds_name))
     {
-        return 1;DEBUG("enter node_handler_fetch_data");
+        DEBUG("enter node_handler_fetch_data");
+        return 1;
     }
     dset_idx = get_matching_dset(vtmp->d, dset_name);
     if(dset_idx == -1)
@@ -961,8 +962,9 @@ static int node_handler_fetch_data(void *arg, const char *val, const char *key)
             vtmp->d->dset[dset_idx].ds_num);
     if(ds_idx == -1)
     {
-        return RETRY_AVGCOUNT;DEBUG("DSet:%s, DS:%s, DSet idx:%d, DS idx:%d",
+        DEBUG("DSet:%s, DS:%s, DSet idx:%d, DS idx:%d",
             dset_name,ds_name,dset_idx,ds_idx);
+        return RETRY_AVGCOUNT;
     }
     uv = &(vtmp->vh[dset_idx].values[ds_idx]);
 
