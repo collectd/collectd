@@ -362,7 +362,7 @@
  						ssnprintf (ret, ret_len, "%s.%s", tmp_plugin, tmp_type_instance);
  					}
  					else{
- 						ssnprintf (ret, ret_len, "%s.%s.%s", tmp_plugin, tmp_type, tmp_type_instance); 
+ 						ssnprintf (ret, ret_len, "%s.%s.%s", tmp_plugin, tmp_type_instance, tmp_type); 
  					}
  				}
  			}else{ 
@@ -381,7 +381,7 @@
  					}
  					else{
  						ssnprintf (ret, ret_len, "%s.%s.%s.%s",
- 							tmp_prefix, tmp_plugin, tmp_type, tmp_type_instance);
+ 							tmp_prefix, tmp_plugin, tmp_type_instance, tmp_type);
  					}
  				}
  			}
