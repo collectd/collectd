@@ -164,6 +164,23 @@
  			}
 
  		}
+ 		
+        sstrncpy (plugin_instance_to_process, vl->plugin_instance, sizeof (plugin_instance_to_process));
+ 		char *saveptr1 = NULL;
+ 		char *prefix_from_plugin_instance;
+ 		char  *plugin_instance_from_plugin_instance;
+
+ 		prefix_from_plugin_instance = strtok_r (plugin_instance_to_process, ".", &saveptr1);
+ 		plugin_instance_from_plugin_instance  = strtok_r (NULL, ".", &saveptr1);
+
+ 		if (plugin_instance_from_plugin_instance == NULL){
+ 		    opentsdb_copy_escape_part (n_plugin_instance, vl->plugin_instance,
+ 			    sizeof (n_plugin_instance), escape_char);
+ 		}
+ 		else{
+ 		    opentsdb_copy_escape_part (n_plugin_instance, plugin_instance_from_plugin_instance,
+ 			    sizeof (n_plugin_instance), escape_char);
+ 		}
 
  		opentsdb_copy_escape_part (n_plugin, vl->plugin,
  			sizeof (n_plugin), escape_char);
@@ -263,42 +280,39 @@
  		unsigned int flags)
  	{
 	//char n_host[DATA_MAX_NAME_LEN];
- 		char n_plugin[DATA_MAX_NAME_LEN];
- 		char n_type[DATA_MAX_NAME_LEN];
- 		char n_type_instance[DATA_MAX_NAME_LEN];
-
  		if (0 == strcmp("GenericJMX", vl->plugin)){
  			return opentsdb_format_name_jmx(ret, ret_len, vl, prefix, escape_char, flags);
  		}
 
- 		char plugin_to_process[2 * DATA_MAX_NAME_LEN + 1];
+ 		char n_plugin[DATA_MAX_NAME_LEN];
+ 		char n_type[DATA_MAX_NAME_LEN];
+ 		char n_type_instance[DATA_MAX_NAME_LEN];
+ 		char n_plugin_instance[DATA_MAX_NAME_LEN];
+
+ 		char plugin_instance_to_process[2 * DATA_MAX_NAME_LEN + 1];
  		char tmp_plugin[2 * DATA_MAX_NAME_LEN + 1];
+ 		char tmp_plugin_instance[2 * DATA_MAX_NAME_LEN + 1];
  		char tmp_type_instance[2 * DATA_MAX_NAME_LEN + 1];
  		char tmp_type[2 * DATA_MAX_NAME_LEN + 1];
  		char tmp_prefix[2 * DATA_MAX_NAME_LEN + 1];
 
- 		sstrncpy (plugin_to_process, n_plugin, sizeof (plugin_to_process));
+ 		sstrncpy (plugin_instance_to_process, vl->plugin_instance, sizeof (plugin_instance_to_process));
  		char *saveptr = NULL;
- 		char *prefix_from_plugin;
- 		char  *plugin_from_plugin;
+ 		char *prefix_from_plugin_instance;
+ 		char  *plugin_instance_from_plugin_instance;
 
- 		prefix_from_plugin = strtok_r (plugin_to_process, ".", &saveptr);
- 		plugin_from_plugin  = strtok_r (NULL, ".", &saveptr);
+ 		prefix_from_plugin_instance = strtok_r (plugin_instance_to_process, ".", &saveptr);
+ 		plugin_instance_from_plugin_instance  = strtok_r (NULL, ".", &saveptr);
 
- 		if (plugin_from_plugin == NULL){
- 			sstrncpy(tmp_prefix, prefix, sizeof(tmp_prefix));
- 			opentsdb_copy_escape_part (n_plugin, vl->plugin,
- 				sizeof (n_plugin), escape_char);			
- 			sstrncpy (tmp_plugin, n_plugin, sizeof (tmp_plugin));
+ 		if (plugin_instance_from_plugin_instance == NULL){
+            sstrncpy(tmp_prefix, prefix, sizeof(tmp_prefix));
  		}
  		else{
- 			sstrncpy(tmp_prefix, prefix_from_plugin, sizeof(tmp_prefix));
- 			opentsdb_copy_escape_part (n_plugin, plugin_from_plugin,
- 				sizeof (n_plugin), escape_char);			
- 			sstrncpy (tmp_plugin, n_plugin, sizeof (tmp_plugin));
-
+ 			sstrncpy(tmp_prefix, prefix_from_plugin_instance, sizeof(tmp_prefix));
  		}
 
+ 		opentsdb_copy_escape_part (n_plugin, vl->plugin,
+ 				sizeof (n_plugin), escape_char);			
  		opentsdb_copy_escape_part (n_type, vl->type,
  			sizeof (n_type), escape_char);
  		opentsdb_copy_escape_part (n_type_instance, vl->type_instance,
@@ -306,7 +320,8 @@
  		sstrncpy (tmp_type, n_type, sizeof (tmp_type));
 
  		sstrncpy (tmp_type_instance, n_type_instance, sizeof (tmp_type_instance));
-
+ 		
+        sstrncpy (tmp_plugin, n_plugin, sizeof (tmp_plugin));
 
  		if (ds_name != NULL && (0 != strcmp("value", ds_name))){
  			if(tmp_prefix == NULL){
