@@ -688,7 +688,7 @@ static int mysql_read (user_data_t *ud)
 			else if (strcmp (key, "Innodb_buffer_pool_pages_dirty") == 0)
 				gauge_submit ("mysql_bpool_pages", "dirty", val, db);
 			else if (strcmp (key, "Innodb_buffer_pool_pages_flushed") == 0)
-				counter_submit ("mysql_bpool_counters", "flushed", val, db);
+				counter_submit ("mysql_bpool_pages", "flushed", val, db);
 			else if (strcmp (key, "Innodb_buffer_pool_pages_free") == 0)
 				gauge_submit ("mysql_bpool_pages", "free", val, db);
 			else if (strcmp (key, "Innodb_buffer_pool_pages_misc") == 0)
@@ -716,7 +716,7 @@ static int mysql_read (user_data_t *ud)
 			else if (strcmp (key, "Innodb_data_reads") == 0)
 				counter_submit ("mysql_innodb_data", "reads", val, db);
 			else if (strcmp (key, "Innodb_data_writes") == 0)
-				counter_submit ("mysql_bpool_counters", "writes", val, db);
+				counter_submit ("mysql_innodb_data", "writes", val, db);
 			else if (strcmp (key, "Innodb_data_written") == 0)
 				counter_submit ("mysql_innodb_data", "written", val, db);
 
