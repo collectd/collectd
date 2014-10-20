@@ -1242,16 +1242,16 @@ fi
 AC_CACHE_CHECK([if have htonll defined],
                   [c_cv_have_htonll],
                   AC_LINK_IFELSE([AC_LANG_PROGRAM(
-[[[
+[[
 #include <sys/types.h>
 #include <netinet/in.h>
 #if HAVE_INTTYPES_H
 # include <inttypes.h>
 #endif
-]]],
-[[[
+]],
+[[
           return htonll(0);
-]]]
+]]
     )],
     [c_cv_have_htonll="yes"],
     [c_cv_have_htonll="no"]
