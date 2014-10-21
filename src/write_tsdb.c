@@ -387,8 +387,8 @@ static int wt_format_name(char *ret, int ret_len,
         ssnprintf(ret, ret_len, "%s%s.%s.%s",
                   prefix, vl->plugin, vl->plugin_instance, vl->type);
     } else {
-        ssnprintf(ret, ret_len, "%s%s.%s.%s",
-                  prefix, vl->plugin, vl->plugin_instance, vl->type_instance);
+        ssnprintf(ret, ret_len, "%s%s.%s.%s.%s",
+                  prefix, vl->plugin, vl->plugin_instance, vl->type, vl->type_instance);
     }
 
     sfree(temp);
