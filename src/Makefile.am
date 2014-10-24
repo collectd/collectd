@@ -552,6 +552,15 @@ memcached_la_LIBADD += -lsocket
 endif
 endif
 
+if BUILD_PLUGIN_WRITE_MEMCACHE
+pkglib_LTLIBRARIES += write_memcache.la
+write_memcache_la_SOURCES = write_memcache.c \
+                            utils_format_json.c utils_format_json.h
+write_memcache_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBMEMCACHED_LDFLAGS)
+write_memcache_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBMEMCACHED_CPPFLAGS)
+write_memcache_la_LIBADD = $(BUILD_WITH_LIBMEMCACHED_LIBS)
+endif
+
 if BUILD_PLUGIN_MEMORY
 pkglib_LTLIBRARIES += memory.la
 memory_la_SOURCES = memory.c
