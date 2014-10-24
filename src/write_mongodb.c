@@ -255,7 +255,7 @@ static void wm_check_collection (wm_node_t *node, /* {{{ */
 
       bson_init (&query);
       bson_append_start_object (&query, "$query");
-        bson_append_string (&query, "name", collection_ns);
+      bson_append_string (&query, "name", collection_ns);
       bson_append_finish_object (&query);
       bson_finish ( &query );
 
@@ -412,6 +412,7 @@ static int wm_write_notification (const notification_t *notification, /*{{{*/
   status = wm_write_mongo (node, notification->plugin, bson_record);
 
   /* free our resource as not to leak memory */
+  bson_destroy (bson_record);
   bson_dealloc (bson_record);
 
   return (status);
@@ -433,6 +434,7 @@ static int wm_write_data_set (const data_set_t *ds, /* {{{ */
   status = wm_write_mongo (node, vl->plugin, bson_record);
 
   /* free our resource as not to leak memory */
+  bson_destroy (bson_record);
   bson_dealloc (bson_record);
 
   return (status);
