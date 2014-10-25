@@ -562,7 +562,7 @@ receive blocks where your callback identifier matches B<python.>I<blockname>.
 
 The callback will be called without arguments.
 
-=item register_read(callback[, interval][, data][, name]) -> identifier
+=item register_read(callback[, interval][, data][, name]) -> I<identifier>
 
 This function takes an additional parameter: I<interval>. It specifies the
 time between calls to the callback function.
@@ -616,7 +616,33 @@ I<identifier> is either the string that was returned by the register function
 or a callback function. The identifier will be constructed in the same way as
 for the register functions.
 
-=item B<flush>(I<plugin[, I<timeout>][, I<identifier>]) -> None
+=item B<get_dataset>(I<name>) -> I<definition>
+
+Returns the definition of a dataset specified by I<name>. I<definition> is a list
+of tuples, each representing one data source. Each tuple has 4 values:
+
+=over 4
+
+=item name
+
+A string, the name of the data source.
+
+=item type
+
+A string that is equal to either of the variables B<DS_TYPE_COUNTER>,
+B<DS_TYPE_GAUGE>, B<DS_TYPE_DERIVE> or B<DS_TYPE_ABSOLUTE>.
+
+=item min
+
+A float or None, the minimum value.
+
+=item max
+
+A float or None, the maximum value.
+
+=back
+
+=item B<flush>(I<plugin>[, I<timeout>][, I<identifier>]) -> None
 
 Flush one or all plugins. I<timeout> and the specified I<identifiers> are
 passed on to the registered flush-callbacks. If omitted, the timeout defaults
