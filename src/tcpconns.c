@@ -272,12 +272,15 @@ static const char *config_keys[] =
 {
   "ListeningPorts",
   "LocalPort",
-  "RemotePort"
+  "RemotePort",
+  "AllPortsSummary"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static int port_collect_listening = 0;
+static int port_collect_total = 0;
 static port_entry_t *port_list_head = NULL;
+static uint32_t count_total[TCP_STATE_MAX + 1];
 
 #if KERNEL_LINUX
 #if HAVE_STRUCT_LINUX_INET_DIAG_REQ
@@ -295,17 +298,22 @@ enum
 } linux_source = SRC_DUNNO;
 #endif
 
+static void conn_prepare_vl (value_list_t *vl, value_t *values)
+{
+  vl->values = values;
+  vl->values_len = 1;
+  sstrncpy (vl->host, hostname_g, sizeof (vl->host));
+  sstrncpy (vl->plugin, "tcpconns", sizeof (vl->plugin));
+  sstrncpy (vl->type, "tcp_connections", sizeof (vl->type));
+}
+
 static void conn_submit_port_entry (port_entry_t *pe)
 {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
   int i;
 
-  vl.values = values;
-  vl.values_len = 1;
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-  sstrncpy (vl.plugin, "tcpconns", sizeof (vl.plugin));
-  sstrncpy (vl.type, "tcp_connections", sizeof (vl.type));
+  conn_prepare_vl (&vl, values);
 
   if (((port_collect_listening != 0) && (pe->flags & PORT_IS_LISTENING))
       || (pe->flags & PORT_COLLECT_LOCAL))
@@ -339,9 +347,32 @@ static void conn_submit_port_entry (port_entry_t *pe)
   }
 } /* void conn_submit */
 
+static void conn_submit_port_total (void)
+{
+  value_t values[1];
+  value_list_t vl = VALUE_LIST_INIT;
+  int i;
+
+  conn_prepare_vl (&vl, values);
+
+  sstrncpy (vl.plugin_instance, "all", sizeof (vl.plugin_instance));
+
+  for (i = 1; i <= TCP_STATE_MAX; i++)
+  {
+    vl.values[0].gauge = count_total[i];
+
+    sstrncpy (vl.type_instance, tcp_state[i], sizeof (vl.type_instance));
+
+    plugin_dispatch_values (&vl);
+  }
+}
+
 static void conn_submit_all (void)
 {
   port_entry_t *pe;
+
+  if (port_collect_total)
+    conn_submit_port_total ();
 
   for (pe = port_list_head; pe != NULL; pe = pe->next)
     conn_submit_port_entry (pe);
@@ -380,6 +411,8 @@ static void conn_reset_port_entry (void)
 {
   port_entry_t *prev = NULL;
   port_entry_t *pe = port_list_head;
+
+  memset (&count_total, '\0', sizeof(count_total));
 
   while (pe != NULL)
   {
@@ -427,6 +460,8 @@ static int conn_handle_ports (uint16_t port_local, uint16_t port_remote, uint8_t
 	"unknown state 0x%02"PRIx8".", state);
     return (-1);
   }
+
+  count_total[state]++;
 
   /* Listening sockets */
   if ((state == TCP_STATE_LISTEN) && (port_collect_listening != 0))
@@ -704,6 +739,13 @@ static int conn_config (const char *key, const char *value)
       else
 	pe->flags |= PORT_COLLECT_REMOTE;
   }
+  else if (strcasecmp (key, "AllPortsSummary") == 0)
+  {
+    if (IS_TRUE (value))
+      port_collect_total = 1;
+    else
+      port_collect_total = 0;
+  }
   else
   {
     return (-1);
@@ -715,7 +757,7 @@ static int conn_config (const char *key, const char *value)
 #if KERNEL_LINUX
 static int conn_init (void)
 {
-  if (port_list_head == NULL)
+  if (port_collect_total == 0 && port_list_head == NULL)
     port_collect_listening = 1;
 
   return (0);
