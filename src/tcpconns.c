@@ -951,7 +951,9 @@ static int conn_init (void)
 static int conn_read (void)
 {
   struct inpcbtable table;
+#ifndef __OpenBSD__
   struct inpcb *head;
+#endif
   struct inpcb *next;
   struct inpcb inpcb;
   struct tcpcb tcpcb;
@@ -964,18 +966,30 @@ static int conn_read (void)
   if (status != 0)
     return (-1);
 
+#ifdef __OpenBSD__
+  /* inpt_queue is a TAILQ on OpenBSD */
+  /* Get the first pcb */
+  next = (struct inpcb *)TAILQ_FIRST (&table.inpt_queue);
+  while (next)
+#else
   /* Get the `head' pcb */
   head = (struct inpcb *) &(inpcbtable_ptr->inpt_queue);
   /* Get the first pcb */
   next = (struct inpcb *)CIRCLEQ_FIRST (&table.inpt_queue);
 
   while (next != head)
+#endif
   {
     /* Read the pcb pointed to by `next' into `inpcb' */
     kread ((u_long) next, &inpcb, sizeof (inpcb));
 
     /* Advance `next' */
+#ifdef __OpenBSD__
+    /* inpt_queue is a TAILQ on OpenBSD */
+    next = (struct inpcb *)TAILQ_NEXT (&inpcb, inp_queue);
+#else
     next = (struct inpcb *)CIRCLEQ_NEXT (&inpcb, inp_queue);
+#endif
 
     /* Ignore sockets, that are not connected. */
 #ifdef __NetBSD__
