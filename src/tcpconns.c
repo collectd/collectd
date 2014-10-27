@@ -951,7 +951,7 @@ static int conn_init (void)
 static int conn_read (void)
 {
   struct inpcbtable table;
-#ifndef __OpenBSD__
+#ifdef __OpenBSD__ || __NetBSD_Version__ > 699002700
   struct inpcb *head;
 #endif
   struct inpcb *next;
@@ -966,7 +966,7 @@ static int conn_read (void)
   if (status != 0)
     return (-1);
 
-#ifdef __OpenBSD__
+#ifdef __OpenBSD__ || __NetBSD_Version__ > 699002700
   /* inpt_queue is a TAILQ on OpenBSD */
   /* Get the first pcb */
   next = (struct inpcb *)TAILQ_FIRST (&table.inpt_queue);
@@ -984,7 +984,7 @@ static int conn_read (void)
     kread ((u_long) next, &inpcb, sizeof (inpcb));
 
     /* Advance `next' */
-#ifdef __OpenBSD__
+#ifdef __OpenBSD__ || __NetBSD_Version__ > 699002700
     /* inpt_queue is a TAILQ on OpenBSD */
     next = (struct inpcb *)TAILQ_NEXT (&inpcb, inp_queue);
 #else
