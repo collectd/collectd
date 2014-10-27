@@ -583,7 +583,7 @@ static int wh_config_url (oconfig_item_t *ci) /* {{{ */
                 else if (strcasecmp ("Format", child->key) == 0)
                         config_set_format (cb, child);
                 else if (strcasecmp ("StoreRates", child->key) == 0)
-                        config_set_boolean (&cb->store_rates, child);
+                        cf_util_get_boolean (&cb->store_rates, child);
                 else if (strcasecmp ("LowSpeedLimit", child->key) == 0)
                         cf_util_get_boolean (child,&cb->abort_on_slow);
                 else if (strcasecmp ("LowLimitBytesPerSec", child->key) == 0)
