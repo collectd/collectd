@@ -607,7 +607,12 @@ static int wh_config_url (oconfig_item_t *ci) /* {{{ */
 
         if(cb->abort_on_slow)
         {
-        	cb->interval = CDTIME_T_TO_TIME_T(cf_get_default_interval ());
+        	cb->interval = CDTIME_T_TO_TIME_T(plugin_get_interval());
+        }
+        if(cb->post_timeout == 0)
+        {
+        	//setting default timeout to plugin interval.
+        	cb->post_timeout = CDTIME_T_TO_TIME_T(plugin_get_interval());
         }
 
         /* Determine send_buffer_size. */
