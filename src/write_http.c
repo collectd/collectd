@@ -50,7 +50,6 @@ struct wh_callback_s
         int   verify_peer;
         int   verify_host;
         char *cacert;
-        int   store_rates;
         _Bool store_rates;
 	_Bool abort_on_slow;
 	int   low_limit_bytes;
