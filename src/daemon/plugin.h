@@ -33,6 +33,10 @@
 #include "meta_data.h"
 #include "utils_time.h"
 
+#if HAVE_PTHREAD_H
+# include <pthread.h>
+#endif
+
 #define PLUGIN_FLAGS_GLOBAL 0x0001
 
 #define DATA_MAX_NAME_LEN 64

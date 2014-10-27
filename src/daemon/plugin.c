@@ -38,10 +38,6 @@
 #include "utils_time.h"
 #include "utils_random.h"
 
-#if HAVE_PTHREAD_H
-# include <pthread.h>
-#endif
-
 #include <ltdl.h>
 
 /*
