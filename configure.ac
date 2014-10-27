@@ -809,7 +809,9 @@ if test "x$have_swapctl" = "xyes"; then
 #  undef _LARGEFILE64_SOURCE
 #endif
 #include <sys/stat.h>
+#include <sys/param.h>
 #include <sys/swap.h>
+#include <unistd.h>
 ]]],
 [[[
 int num = swapctl(0, NULL);
@@ -829,7 +831,9 @@ int num = swapctl(0, NULL);
 #  undef _LARGEFILE64_SOURCE
 #endif
 #include <sys/stat.h>
+#include <sys/param.h>
 #include <sys/swap.h>
+#include <unistd.h>
 ]]],
 [[[
 int num = swapctl(0, NULL, 0);
