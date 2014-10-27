@@ -68,6 +68,9 @@ endif
 if BUILD_AIX
 collectd_tg_LDADD += -lm
 endif
+if BUILD_WITH_LIBPTHREAD
+collectd_tg_LDADD += -lpthread
+endif
 collectd_tg_LDADD += libcollectdclient/libcollectdclient.la
 collectd_tg_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 
