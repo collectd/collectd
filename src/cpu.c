@@ -772,11 +772,11 @@ static int cpu_read (void)
 	}
 
 	for (i = 0; i < numcpu; i++) {
-		cpu_state (i, CPU_STATE_USER,      (derive_t) cpuinfo[i][CP_USER]);
-		cpu_state (i, CPU_STATE_NICE,      (derive_t) cpuinfo[i][CP_NICE]);
-		cpu_state (i, CPU_STATE_SYSTEM,    (derive_t) cpuinfo[i][CP_SYS]);
-		cpu_state (i, CPU_STATE_IDLE,      (derive_t) cpuinfo[i][CP_IDLE]);
-		cpu_state (i, CPU_STATE_INTERRUPT, (derive_t) cpuinfo[i][CP_INTR]);
+		cpu_stage (i, CPU_STATE_USER,      (derive_t) cpuinfo[i][CP_USER], now);
+		cpu_stage (i, CPU_STATE_NICE,      (derive_t) cpuinfo[i][CP_NICE], now);
+		cpu_stage (i, CPU_STATE_SYSTEM,    (derive_t) cpuinfo[i][CP_SYS], now);
+		cpu_stage (i, CPU_STATE_IDLE,      (derive_t) cpuinfo[i][CP_IDLE], now);
+		cpu_stage (i, CPU_STATE_INTERRUPT, (derive_t) cpuinfo[i][CP_INTR], now);
 	}
 /* }}} #endif CAN_USE_SYSCTL */
 
@@ -797,11 +797,11 @@ static int cpu_read (void)
 	}
 
 	for (i = 0; i < numcpu; i++) {
-		cpu_state (i, CPU_STATE_USER,      (derive_t) cpuinfo[i][CP_USER]);
-		cpu_state (i, CPU_STATE_NICE,      (derive_t) cpuinfo[i][CP_NICE]);
-		cpu_state (i, CPU_STATE_SYSTEM,    (derive_t) cpuinfo[i][CP_SYS]);
-		cpu_state (i, CPU_STATE_IDLE,      (derive_t) cpuinfo[i][CP_IDLE]);
-		cpu_state (i, CPU_STATE_INTERRUPT, (derive_t) cpuinfo[i][CP_INTR]);
+		cpu_stage (i, CPU_STATE_USER,      (derive_t) cpuinfo[i][CP_USER], now);
+		cpu_stage (i, CPU_STATE_NICE,      (derive_t) cpuinfo[i][CP_NICE], now);
+		cpu_stage (i, CPU_STATE_SYSTEM,    (derive_t) cpuinfo[i][CP_SYS], now);
+		cpu_stage (i, CPU_STATE_IDLE,      (derive_t) cpuinfo[i][CP_IDLE], now);
+		cpu_stage (i, CPU_STATE_INTERRUPT, (derive_t) cpuinfo[i][CP_INTR], now);
 	}
 /* }}} #endif HAVE_SYSCTL_KERN_CP_TIMES */
 
@@ -819,11 +819,11 @@ static int cpu_read (void)
 		return (-1);
 	}
 
-	cpu_state (0, CPU_STATE_USER,      (derive_t) cpuinfo[CP_USER]);
-	cpu_state (0, CPU_STATE_NICE,      (derive_t) cpuinfo[CP_NICE]);
-	cpu_state (0, CPU_STATE_SYSTEM,    (derive_t) cpuinfo[CP_SYS]);
-	cpu_state (0, CPU_STATE_IDLE,      (derive_t) cpuinfo[CP_IDLE]);
-	cpu_state (0, CPU_STATE_INTERRUPT, (derive_t) cpuinfo[CP_INTR]);
+	cpu_stage (0, CPU_STATE_USER,      (derive_t) cpuinfo[CP_USER], now);
+	cpu_stage (0, CPU_STATE_NICE,      (derive_t) cpuinfo[CP_NICE], now);
+	cpu_stage (0, CPU_STATE_SYSTEM,    (derive_t) cpuinfo[CP_SYS], now);
+	cpu_stage (0, CPU_STATE_IDLE,      (derive_t) cpuinfo[CP_IDLE], now);
+	cpu_stage (0, CPU_STATE_INTERRUPT, (derive_t) cpuinfo[CP_INTR], now);
 /* }}} #endif HAVE_SYSCTLBYNAME */
 
 #elif defined(HAVE_LIBSTATGRAB) /* {{{ */
