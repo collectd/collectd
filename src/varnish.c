@@ -550,7 +550,7 @@ static void varnish_monitor (const user_config_t *conf, /* {{{ */
 		/* worker threads limited */
 		varnish_submit_derive (conf->instance, "workers", "total_threads", "limited",     stats->n_wrk_max);
 		/* dropped work requests */
-		varnish_submit_derive (conf->instance, "workers", "total_requests", "dropped",    stats->n_wrk_drop);
+		varnish_submit_derive (conf->instance, "workers", "total_threads", "dropped",     stats->n_wrk_drop);
 #ifdef HAVE_VARNISH_V2
 		/* queued work requests */
 		varnish_submit_derive (conf->instance, "workers", "total_requests", "queued",     stats->n_wrk_queue);
