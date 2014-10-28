@@ -271,7 +271,10 @@ static void varnish_monitor (const user_config_t *conf, /* {{{ */
 #endif
 		/* HTTP header overflows         */
 		varnish_submit_derive (conf->instance, "objects", "total_objects", "header_overflow",    stats->losthdr);
-#if !HAVE_VARNISH_V4
+#if HAVE_VARNISH_V4
+		/* N purged objects              */
+		varnish_submit_derive (conf->instance, "objects", "total_objects", "purged",             stats->n_obj_purged);
+#else
 		/* Objects sent with sendfile    */
 		varnish_submit_derive (conf->instance, "objects", "total_objects", "sent_sendfile",      stats->n_objsendfile);
 		/* Objects sent with write       */
@@ -481,6 +484,8 @@ static void varnish_monitor (const user_config_t *conf, /* {{{ */
 		varnish_submit_derive (conf->instance, "totals", "total_bytes", "pipe_in",     stats->s_pipe_in);
 		/* Piped bytes to client */
 		varnish_submit_derive (conf->instance, "totals", "total_bytes", "pipe_out",    stats->s_pipe_out);
+		/* Number of purge operations */
+		varnish_submit_derive (conf->instance, "totals", "total_operations", "purges", stats->n_purges);
 #else
 		/* Total header bytes */
 		varnish_submit_derive (conf->instance, "totals", "total_bytes", "header-bytes", stats->s_hdrbytes);
