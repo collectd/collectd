@@ -28,14 +28,20 @@
 #include "plugin.h"
 #include "configfile.h"
 
-#include <varnish/varnishapi.h>
+#if HAVE_VARNISH_V4
+#include <varnish/vapi/vsm.h>
+#include <varnish/vapi/vsc.h>
+typedef struct VSC_C_main c_varnish_stats_t;
+#endif
 
 #if HAVE_VARNISH_V3
-# include <varnish/vsc.h>
+#include <varnish/varnishapi.h>
+#include <varnish/vsc.h>
 typedef struct VSC_C_main c_varnish_stats_t;
 #endif
 
 #if HAVE_VARNISH_V2
+#include <varnish/varnishapi.h>
 typedef struct varnish_stats c_varnish_stats_t;
 #endif
 
@@ -465,7 +471,7 @@ static void varnish_monitor (const user_config_t *conf, /* {{{ */
 	}
 } /* }}} void varnish_monitor */
 
-#if HAVE_VARNISH_V3
+#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
 static int varnish_read (user_data_t *ud) /* {{{ */
 {
 	struct VSM_data *vd;
@@ -479,7 +485,9 @@ static int varnish_read (user_data_t *ud) /* {{{ */
 	conf = ud->data;
 
 	vd = VSM_New();
+#if HAVE_VARNISH_V3
 	VSC_Setup(vd);
+#endif
 
 	if (conf->instance != NULL)
 	{
@@ -495,14 +503,22 @@ static int varnish_read (user_data_t *ud) /* {{{ */
 		}
 	}
 
+#if HAVE_VARNISH_V3
 	if (VSC_Open (vd, /* diag = */ 1))
+#else /* if HAVE_VARNISH_V4 */
+	if (VSM_Open (vd))
+#endif
 	{
 		ERROR ("varnish plugin: Unable to load statistics.");
 
 		return (-1);
 	}
 
+#if HAVE_VARNISH_V3
 	stats = VSC_Main(vd);
+#else /* if HAVE_VARNISH_V4 */
+	stats = VSC_Main(vd, NULL);
+#endif
 
 	varnish_monitor (conf, stats);
 	VSM_Close (vd);
