@@ -435,6 +435,8 @@ static void varnish_monitor (const user_config_t *conf, /* {{{ */
 		varnish_submit_gauge (conf->instance, "struct", "objects", "vampireobject",      stats->n_vampireobject);
 		/* N struct objectcore     */
 		varnish_submit_gauge (conf->instance, "struct", "objects", "objectcore",         stats->n_objectcore);
+		/* N struct waitinglist    */
+		varnish_submit_gauge (conf->instance, "struct", "objects", "waitinglist",        stats->n_waitinglist);
 #endif
 		/* N struct objecthead     */
 		varnish_submit_gauge (conf->instance, "struct", "objects", "objecthead",         stats->n_objecthead);
@@ -485,6 +487,12 @@ static void varnish_monitor (const user_config_t *conf, /* {{{ */
 		/* Total body byte */
 		varnish_submit_derive (conf->instance, "totals", "total_bytes", "body-bytes",   stats->s_bodybytes);
 #endif
+#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
+		/* Gzip operations */
+		varnish_submit_derive (conf->instance, "totals", "total_operations", "gzip",    stats->n_gzip);
+		/* Gunzip operations */
+		varnish_submit_derive (conf->instance, "totals", "total_operations", "gunzip",  stats->n_gunzip);
+#endif
 	}
 
 #if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
@@ -503,6 +511,10 @@ static void varnish_monitor (const user_config_t *conf, /* {{{ */
 		varnish_submit_gauge (conf->instance, "vcl", "vcl", "avail_vcl",     stats->n_vcl_avail);
 		/* N vcl discarded */
 		varnish_submit_gauge (conf->instance, "vcl", "vcl", "discarded_vcl", stats->n_vcl_discard);
+#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
+		/* Loaded VMODs */
+		varnish_submit_gauge (conf->instance, "vcl", "objects", "vmod",      stats->vmods);
+#endif
 	}
 
 	if (conf->collect_workers)
