@@ -4590,25 +4590,18 @@ fi
 if test "x$with_libvarnish" = "xyes"
 then
 	SAVE_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$CPPFLAGS $with_libvarnish_cflags"
-	AC_CHECK_HEADERS(varnish/varnishapi.h, [], [with_libvarnish="no (varnish/varnishapi.h not found)"])
-
-	CPPFLAGS="$SAVE_CPPFLAGS"
-fi
-if test "x$with_libvarnish" = "xyes"
-then
-	SAVE_CPPFLAGS="$CPPFLAGS"
-	#SAVE_LDFLAGS="$LDFLAGS"
 
 	CPPFLAGS="$CPPFLAGS $with_libvarnish_cflags"
-	#LDFLAGS="$LDFLAGS $with_libvarnish_libs"
 
-    AC_CHECK_HEADERS(varnish/vsc.h,
-        [AC_DEFINE([HAVE_VARNISH_V3], [1], [Varnish 3 API support])],
-        [AC_DEFINE([HAVE_VARNISH_V2], [1], [Varnish 2 API support])])
+	AC_CHECK_HEADERS(varnish/vapi/vsc.h,
+		[AC_DEFINE([HAVE_VARNISH_V4], [1], [Varnish 4 API support])],
+		[AC_CHECK_HEADERS(varnish/vsc.h,
+			[AC_DEFINE([HAVE_VARNISH_V3], [1], [Varnish 3 API support])],
+			[AC_CHECK_HEADERS(varnish/varnishapi.h,
+				[AC_DEFINE([HAVE_VARNISH_V2], [1], [Varnish 2 API support])],
+				[with_libvarnish="no (found none of the varnish header files)"])])])
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
-	#LDFLAGS="$SAVE_LDFLAGS"
 fi
 if test "x$with_libvarnish" = "xyes"
 then
