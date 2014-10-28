@@ -1159,27 +1159,27 @@
 #   If you prefer defining another instance you can do
 #   so by using <Instance "myinstance">
 #   <Instance>
-#      CollectCache true
 #      CollectBackend true
-#      CollectBan false           # Varnish 3 only
+#      CollectBan false           # Varnish 3 and above
+#      CollectCache true
 #      CollectConnections true
 #      CollectDirectorDNS false   # Varnish 3 only
-#      CollectSHM true
 #      CollectESI false
 #      CollectFetch false
 #      CollectHCB false
 #      CollectObjects false
 #      CollectPurge false         # Varnish 2 only
 #      CollectSession false
+#      CollectSHM true
 #      CollectSMA false           # Varnish 2 only
 #      CollectSMS false
 #      CollectSM false            # Varnish 2 only
 #      CollectStruct false
 #      CollectTotals false
-#      CollectUptime false
+#      CollectUptime false        # Varnish 3 and above
 #      CollectVCL false
-#      CollectWorkers false
 #      CollectVSM false           # Varnish 4 only
+#      CollectWorkers false
 #   </Instance>
 #</Plugin>
 
