@@ -78,6 +78,9 @@ struct user_config_s {
 #endif
 	_Bool collect_vcl;
 	_Bool collect_workers;
+#if HAVE_VARNISH_V4
+	_Bool collect_vsm;
+#endif
 };
 typedef struct user_config_s user_config_t; /* }}} */
 
@@ -561,6 +564,23 @@ static void varnish_monitor (const user_config_t *conf, /* {{{ */
 #endif
 #endif
 	}
+
+#if HAVE_VARNISH_V4
+	if (conf->collect_vsm)
+	{
+		/* Free VSM space */
+		varnish_submit_gauge (conf->instance, "vsm", "bytes", "free",              stats->vsm_free);
+		/* Used VSM space */
+		varnish_submit_gauge (conf->instance, "vsm", "bytes", "used",              stats->vsm_used);
+		/* Cooling VSM space */
+		varnish_submit_gauge (conf->instance, "vsm", "bytes", "cooling",           stats->vsm_cooling);
+		/* Overflow VSM space */
+		varnish_submit_gauge (conf->instance, "vsm", "bytes", "overflow",          stats->vsm_overflow);
+		/* Total overflowed VSM space */
+		varnish_submit_derive (conf->instance, "vsm", "total_bytes", "overflowed", stats->vsm_overflowed);
+	}
+#endif
+
 } /* }}} void varnish_monitor */
 
 #if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
@@ -688,6 +708,9 @@ static int varnish_config_apply_default (user_config_t *conf) /* {{{ */
 #endif
 	conf->collect_vcl         = 0;
 	conf->collect_workers     = 0;
+#if HAVE_VARNISH_V4
+	conf->collect_vsm         = 0;
+#endif
 
 	return (0);
 } /* }}} int varnish_config_apply_default */
@@ -815,6 +838,10 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 			cf_util_get_boolean (child, &conf->collect_vcl);
 		else if (strcasecmp ("CollectWorkers", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_workers);
+#if HAVE_VARNISH_V4
+		else if (strcasecmp ("CollectVSM", child->key) == 0)
+			cf_util_get_boolean (child, &conf->collect_vsm);
+#endif
 		else
 		{
 			WARNING ("Varnish plugin: Ignoring unknown "
@@ -853,7 +880,11 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 			&& !conf->collect_uptime
 #endif
 			&& !conf->collect_vcl
-			&& !conf->collect_workers)
+			&& !conf->collect_workers
+#if HAVE_VARNISH_V4
+			&& !conf->collect_vsm
+#endif
+	)
 	{
 		WARNING ("Varnish plugin: No metric has been configured for "
 				"instance \"%s\". Disabling this instance.",

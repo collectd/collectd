@@ -1179,6 +1179,7 @@
 #      CollectUptime false
 #      CollectVCL false
 #      CollectWorkers false
+#      CollectVSM false           # Varnish 4 only
 #   </Instance>
 #</Plugin>
 

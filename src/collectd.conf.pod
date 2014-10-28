@@ -6322,6 +6322,7 @@ Synopsis:
      CollectSM          false
      CollectTotals      false
      CollectWorkers     false
+     CollectVSM         false
    </Instance>
  </Plugin>
 
@@ -6430,6 +6431,11 @@ Number of total (available + discarded) VCL (config files). False by default.
 =item B<CollectWorkers> B<true>|B<false>
 
 Collect statistics about worker threads. False by default.
+
+=item B<CollectVSM> B<true>|B<false>
+
+Collect statistics about Varnish's shared memory usage (used by the logging and
+statisticss subsystems). False by default.
 
 =back
 
