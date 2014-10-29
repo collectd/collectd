@@ -6305,6 +6305,10 @@ Take the UUID from the given file (default I</etc/uuid>).
 =head2 Plugin C<varnish>
 
 The I<varnish plugin> collects information about Varnish, an HTTP accelerator.
+It collects a subset of the values displayed by L<varnishstat(1)>, and
+organizes them in categories which can be enabled or disabled. Currently only
+metrics shown in L<varnishstat(1)>'s I<MAIN> section are collected. The exact
+meaning of each metric can be found in L<varnish-counters(7)>.
 
 Synopsis:
 
