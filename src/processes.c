@@ -94,13 +94,13 @@
 #  endif
 /* #endif KERNEL_LINUX */
 
-#elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD
+#elif HAVE_LIBKVM_GETPROCS && (HAVE_STRUCT_KINFO_PROC_FREEBSD || HAVE_STRUCT_KINFO_PROC_OPENBSD)
 #  include <kvm.h>
 #  include <sys/param.h>
 #  include <sys/sysctl.h>
 #  include <sys/user.h>
 #  include <sys/proc.h>
-/* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD */
+/* #endif HAVE_LIBKVM_GETPROCS && (HAVE_STRUCT_KINFO_PROC_FREEBSD || HAVE_STRUCT_KINFO_PROC_OPENBSD) */
 
 #elif HAVE_PROCINFO_H
 #  include <procinfo.h>
@@ -214,9 +214,9 @@ static mach_msg_type_number_t     pset_list_len;
 static long pagesize_g;
 /* #endif KERNEL_LINUX */
 
-#elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD
+#elif HAVE_LIBKVM_GETPROCS && (HAVE_STRUCT_KINFO_PROC_FREEBSD || HAVE_STRUCT_KINFO_PROC_OPENBSD)
 static int pagesize;
-/* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD */
+/* #endif HAVE_LIBKVM_GETPROCS && (HAVE_STRUCT_KINFO_PROC_FREEBSD || HAVE_STRUCT_KINFO_PROC_OPENBSD) */
 
 #elif HAVE_PROCINFO_H
 static  struct procentry64 procentry[MAXPROCENTRY];
@@ -623,9 +623,9 @@ static int ps_init (void)
 			pagesize_g, CONFIG_HZ);
 /* #endif KERNEL_LINUX */
 
-#elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD
+#elif HAVE_LIBKVM_GETPROCS && (HAVE_STRUCT_KINFO_PROC_FREEBSD || HAVE_STRUCT_KINFO_PROC_OPENBSD)
 	pagesize = getpagesize();
-/* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD */
+/* #endif HAVE_LIBKVM_GETPROCS && (HAVE_STRUCT_KINFO_PROC_FREEBSD || HAVE_STRUCT_KINFO_PROC_OPENBSD) */
 
 #elif HAVE_PROCINFO_H
 	pagesize = getpagesize();
@@ -1924,6 +1924,138 @@ static int ps_read (void)
 	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
 		ps_submit_proc_list (ps_ptr);
 /* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD */
+
+#elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_OPENBSD
+	int running  = 0;
+	int sleeping = 0;
+	int zombies  = 0;
+	int stopped  = 0;
+	int onproc   = 0;
+	int idle     = 0;
+	int dead     = 0;
+
+	kvm_t *kd;
+	char errbuf[1024];
+	struct kinfo_proc *procs;          /* array of processes */
+	struct kinfo_proc *proc_ptr = NULL;
+	int count;                         /* returns number of processes */
+	int i;
+
+	procstat_t *ps_ptr;
+	procstat_entry_t pse;
+
+	ps_list_reset ();
+
+	/* Open the kvm interface, get a descriptor */
+	kd = kvm_open (NULL, NULL, NULL, 0, errbuf);
+	if (kd == NULL)
+	{
+		ERROR ("processes plugin: Cannot open kvm interface: %s",
+				errbuf);
+		return (0);
+	}
+
+	/* Get the list of processes. */
+	procs = kvm_getprocs(kd, KERN_PROC_ALL, 0, sizeof(struct kinfo_proc), &count);
+	if (procs == NULL)
+	{
+		ERROR ("processes plugin: Cannot get kvm processes list: %s",
+				kvm_geterr(kd));
+		kvm_close (kd);
+		return (0);
+	}
+
+	/* Iterate through the processes in kinfo_proc */
+	for (i = 0; i < count; i++)
+	{
+		/* Create only one process list entry per _process_, i.e.
+		 * filter out threads (duplicate PID entries). */
+		if ((proc_ptr == NULL) || (proc_ptr->p_pid != procs[i].p_pid))
+		{
+			char cmdline[CMDLINE_BUFFER_SIZE] = "";
+			_Bool have_cmdline = 0;
+
+			proc_ptr = &(procs[i]);
+			/* Don't probe zombie processes  */
+			if (!P_ZOMBIE(proc_ptr))
+			{
+				char **argv;
+				int argc;
+				int status;
+
+				/* retrieve the arguments */
+				argv = kvm_getargv (kd, proc_ptr, /* nchr = */ 0);
+				argc = 0;
+				if ((argv != NULL) && (argv[0] != NULL))
+				{
+					while (argv[argc] != NULL)
+						argc++;
+
+					status = strjoin (cmdline, sizeof (cmdline), argv, argc, " ");
+					if (status < 0)
+						WARNING ("processes plugin: Command line did not fit into buffer.");
+					else
+						have_cmdline = 1;
+				}
+			} /* if (process has argument list) */
+
+			pse.id       = procs[i].p_pid;
+			pse.age      = 0;
+
+			pse.num_proc = 1;
+			pse.num_lwp  = 1; /* XXX: accumulate p_tid values for a single p_pid ? */
+
+			pse.vmem_rss = procs[i].p_vm_rssize * pagesize;
+			pse.vmem_data = procs[i].p_vm_dsize * pagesize;
+			pse.vmem_code = procs[i].p_vm_tsize * pagesize;
+			pse.stack_size = procs[i].p_vm_ssize * pagesize;
+			pse.vmem_size = pse.stack_size + pse.vmem_code + pse.vmem_data;
+			pse.vmem_minflt = 0;
+			pse.vmem_minflt_counter = procs[i].p_uru_minflt;
+			pse.vmem_majflt = 0;
+			pse.vmem_majflt_counter = procs[i].p_uru_majflt;
+
+			pse.cpu_user = 0;
+			pse.cpu_system = 0;
+			pse.cpu_user_counter = procs[i].p_uutime_usec +
+						(1000000lu * procs[i].p_uutime_sec);
+			pse.cpu_system_counter = procs[i].p_ustime_usec +
+						(1000000lu * procs[i].p_ustime_sec);
+
+			/* no I/O data */
+			pse.io_rchar = -1;
+			pse.io_wchar = -1;
+			pse.io_syscr = -1;
+			pse.io_syscw = -1;
+
+			ps_list_add (procs[i].p_comm, have_cmdline ? cmdline : NULL, &pse);
+		} /* if ((proc_ptr == NULL) || (proc_ptr->p_pid != procs[i].p_pid)) */
+
+		switch (procs[i].p_stat)
+		{
+			case SSTOP: 	stopped++;	break;
+			case SSLEEP:	sleeping++;	break;
+			case SRUN:	running++;	break;
+			case SIDL:	idle++;		break;
+			case SONPROC:	onproc++;	break;
+			case SDEAD:	dead++;		break;
+			case SZOMB:	zombies++;	break;
+		}
+	}
+
+	kvm_close(kd);
+
+	ps_submit_state ("running",  running);
+	ps_submit_state ("sleeping", sleeping);
+	ps_submit_state ("zombies",  zombies);
+	ps_submit_state ("stopped",  stopped);
+	ps_submit_state ("onproc",   onproc);
+	ps_submit_state ("idle",     idle);
+	ps_submit_state ("dead",     dead);
+
+	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
+		ps_submit_proc_list (ps_ptr);
+/* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_OPENBSD */
 
 #elif HAVE_PROCINFO_H
 	/* AIX */

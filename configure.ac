@@ -1315,7 +1315,7 @@ AC_CHECK_MEMBERS([struct kinfo_proc.ki_pid, struct kinfo_proc.ki_rssize, struct 
 #include <sys/user.h>
 	])
 
-AC_CHECK_MEMBERS([struct kinfo_proc.kp_proc, struct kinfo_proc.kp_eproc],
+AC_CHECK_MEMBERS([struct kinfo_proc.p_pid, struct kinfo_proc.p_vm_rssize],
 	[
 		AC_DEFINE(HAVE_STRUCT_KINFO_PROC_OPENBSD, 1,
 			[Define if struct kinfo_proc exists in the OpenBSD variant.])
@@ -5254,6 +5254,11 @@ then
 fi
 
 if test "x$with_kvm_getprocs" = "xyes" && test "x$have_struct_kinfo_proc_freebsd" = "xyes"
+then
+	plugin_processes="yes"
+fi
+
+if test "x$with_kvm_getprocs" = "xyes" && test "x$have_struct_kinfo_proc_openbsd" = "xyes"
 then
 	plugin_processes="yes"
 fi
