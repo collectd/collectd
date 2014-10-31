@@ -923,8 +923,6 @@ openldap_la_SOURCES = openldap.c
 openldap_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBLDAP_LDFLAGS)
 openldap_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBLDAP_CPPFLAGS)
 openldap_la_LIBADD = -lldap
-collectd_LDADD += "-dlopen" openldap.la
-collectd_DEPENDENCIES += openldap.la
 endif
 
 if BUILD_PLUGIN_OPENVPN
