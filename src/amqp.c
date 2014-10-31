@@ -80,6 +80,9 @@ struct camqp_config_s
     char   *exchange;
     char   *routing_key;
 
+    /* Number of seconds to wait before connection is retried */
+    int     connection_retry_delay;
+
     /* publish only */
     uint8_t delivery_mode;
     _Bool   store_rates;
@@ -405,6 +408,8 @@ static int camqp_setup_queue (camqp_config_t *conf) /* {{{ */
 
 static int camqp_connect (camqp_config_t *conf) /* {{{ */
 {
+    static time_t lastConnectTime = 0;
+
     amqp_rpc_reply_t reply;
     int status;
 #ifdef HAVE_AMQP_TCP_SOCKET
@@ -415,6 +420,19 @@ static int camqp_connect (camqp_config_t *conf) /* {{{ */
 
     if (conf->connection != NULL)
         return (0);
+
+    time_t now = time(NULL);
+    if (now < (lastConnectTime + conf->connection_retry_delay))
+    {
+        DEBUG("amqp plugin: skipping connection retry, ConnectionRetryDelay: %d"
+                , conf->connection_retry_delay);
+        return(1);
+    }
+    else
+    {
+        DEBUG ("amqp plugin: retrying connection");
+        lastConnectTime = now;
+    }
 
     conf->connection = amqp_new_connection ();
     if (conf->connection == NULL)
@@ -922,6 +940,8 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
     conf->password = NULL;
     conf->exchange = NULL;
     conf->routing_key = NULL;
+    conf->connection_retry_delay = 60;
+
     /* publish only */
     conf->delivery_mode = CAMQP_DM_VOLATILE;
     conf->store_rates = 0;
@@ -1017,6 +1037,8 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
             conf->escape_char = tmp_buff[0];
             sfree (tmp_buff);
         }
+        else if (strcasecmp ("ConnectionRetryDelay", child->key) == 0)
+            status = cf_util_get_int (child, &conf->connection_retry_delay);
         else
             WARNING ("amqp plugin: Ignoring unknown "
                     "configuration option \"%s\".", child->key);
