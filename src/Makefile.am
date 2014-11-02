@@ -1180,6 +1180,13 @@ write_riemann_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 write_riemann_la_LIBADD = -lprotobuf-c
 endif
 
+if BUILD_PLUGIN_WRITE_STATSD
+pkglib_LTLIBRARIES += write_statsd.la
+write_statsd_la_SOURCES = write_statsd.c
+write_statsd_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+write_statsd_la_CFLAGS = $(AM_CFLAGS)
+endif
+
 if BUILD_PLUGIN_WRITE_TSDB
 pkglib_LTLIBRARIES += write_tsdb.la
 write_tsdb_la_SOURCES = write_tsdb.c
