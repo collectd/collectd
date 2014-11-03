@@ -405,6 +405,7 @@ static void compact_ds_name(char *source, char *dest)
     char *keys[16];
     char len_str[3];
     char tmp[DATA_MAX_NAME_LEN];
+    size_t key_chars_remaining = (DATA_MAX_NAME_LEN-1);
     int reserved = 0;
     int offset = 0;
     memset(tmp, 0, sizeof(tmp));
@@ -431,9 +432,9 @@ static void compact_ds_name(char *source, char *dest)
     /** concatenate each part of source string **/
     for(i = 0; i < keys_num; i++)
     {
-        strcat(tmp, keys[i]);
+        strncat(tmp, keys[i], key_chars_remaining);
+        key_chars_remaining -= strlen(keys[i]);
     }
-    tmp[DATA_MAX_NAME_LEN - 1] = '\0';
     /** to coordinate limitation of length of ds name from RRD
      *  we will truncate ds_name
      *  when the its length is more than
