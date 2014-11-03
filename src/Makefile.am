@@ -1308,7 +1308,7 @@ uninstall-hook:
 check_PROGRAMS = test_common test_utils_avltree test_utils_heap test_utils_mount test_utils_vl_lookup
 
 test_common_SOURCES = tests/test_common.c \
-                      common.h common.c \
+                      daemon/common.h daemon/common.c \
                       tests/mock/plugin.c \
                       tests/mock/utils_cache.c \
                       tests/mock/utils_time.c
@@ -1317,20 +1317,20 @@ test_common_LDFLAGS = -export-dynamic
 test_common_LDADD =
 
 test_utils_avltree_SOURCES = tests/test_utils_avltree.c \
-                             utils_avltree.c utils_avltree.h
+                             daemon/utils_avltree.c daemon/utils_avltree.h
 test_utils_avltree_CPPFLAGS = $(AM_CPPFLAGS) $(LTDLINCL)
 test_utils_avltree_LDFLAGS = -export-dynamic
 test_utils_avltree_LDADD =
 
 test_utils_heap_SOURCES = tests/test_utils_heap.c \
-                          utils_heap.c utils_heap.h
+                          daemon/utils_heap.c daemon/utils_heap.h
 test_utils_heap_CPPFLAGS = $(AM_CPPFLAGS) $(LTDLINCL)
 test_utils_heap_LDFLAGS = -export-dynamic
 test_utils_heap_LDADD =
 
 test_utils_mount_SOURCES = tests/test_utils_mount.c \
                            utils_mount.c utils_mount.h \
-                           common.c common.h \
+                           daemon/common.c daemon/common.h \
                            tests/mock/plugin.c \
                            tests/mock/utils_cache.c \
                            tests/mock/utils_time.c
@@ -1340,8 +1340,8 @@ test_utils_mount_LDADD =
 
 test_utils_vl_lookup_SOURCES = tests/test_utils_vl_lookup.c \
                                utils_vl_lookup.h utils_vl_lookup.c \
-                               utils_avltree.c utils_avltree.h \
-                               common.c common.h \
+                               daemon/utils_avltree.c daemon/utils_avltree.h \
+                               daemon/common.c daemon/common.h \
                                tests/mock/plugin.c \
                                tests/mock/utils_cache.c \
                                tests/mock/utils_time.c
