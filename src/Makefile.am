@@ -877,6 +877,16 @@ serial_la_SOURCES = serial.c
 serial_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_SERVE_HTTP
+pkglib_LTLIBRARIES += serve_http.la
+serve_http_la_SOURCES = serve_http.c \
+		        utils_cmd_listjson.h utils_cmd_listjson.c \
+		        utils_parse_option.h utils_parse_option.c
+serve_http_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+serve_http_la_CFLAGS = $(AM_CFLAGS)
+serve_http_la_LIBADD =
+endif
+
 if BUILD_PLUGIN_SIGROK
 pkglib_LTLIBRARIES += sigrok.la
 sigrok_la_SOURCES = sigrok.c

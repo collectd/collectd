@@ -401,6 +401,9 @@ Features
       updates to the files and write a bunch of updates at once, which lessens
       system load a lot.
 
+    - serve_http
+      This serves collectd values in a JSON format out to HTTP clients.
+
     - unixsock
       One can query the values from the unixsock plugin whenever they're
       needed. Please read collectd-unixsock(5) for a description on how that's
