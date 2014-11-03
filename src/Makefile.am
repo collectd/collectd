@@ -244,11 +244,9 @@ if BUILD_PLUGIN_CEPH
 pkglib_LTLIBRARIES += ceph.la
 ceph_la_SOURCES = ceph.c
 ceph_la_CFLAGS = $(AM_CFLAGS)
-ceph_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBYAJL_LDFLAGS)
-ceph_la_CPPFLAGS = $(BUILD_WITH_LIBYAJL_CPPFLAGS)
+ceph_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
+ceph_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
 ceph_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
-collectd_LDADD += "-dlopen" ceph.la
-collectd_DEPENDENCIES += ceph.la
 endif
 
 if BUILD_PLUGIN_CGROUPS
