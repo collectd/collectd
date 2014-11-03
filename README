@@ -146,9 +146,6 @@ Features
       Detailed CPU statistics of the “Logical Partitions” virtualization
       technique built into IBM's POWER processors.
 
-    - libvirt
-      CPU, memory, disk and network I/O statistics from virtual machines.
-
     - lvm
       Size of “Logical Volumes” (LV) and “Volume Groups” (VG) of Linux'
       “Logical Volume Manager” (LVM).
@@ -346,6 +343,9 @@ Features
 
     - varnish
       Various statistics from Varnish, an HTTP accelerator.
+
+    - virt
+      CPU, memory, disk and network I/O statistics from virtual machines.
 
     - vmem
       Virtual memory statistics, e. g. the number of page-ins/-outs or the
@@ -775,7 +775,7 @@ Prerequisites
 
   * libxml2 (optional)
     Parse XML data. This is needed for the `ascent', `bind', `curl_xml' and
-    `libvirt' plugins.
+    `virt' plugins.
     <http://xmlsoft.org/>
 
   * libxmms (optional)

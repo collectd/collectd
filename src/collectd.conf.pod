@@ -6499,7 +6499,7 @@ will be collected.
 
 =item B<HostnameFormat> B<name|uuid|hostname|...>
 
-When the libvirt plugin logs data, it sets the hostname of the collected data
+When the virt plugin logs data, it sets the hostname of the collected data
 according to this setting. The default is to use the guest name as provided by
 the hypervisor, which is equal to setting B<name>.
 
@@ -6515,7 +6515,7 @@ between, thus I<"foo:1234-1234-1234-1234">).
 
 =item B<InterfaceFormat> B<name>|B<address>
 
-When the libvirt plugin logs interface data, it sets the name of the collected
+When the virt plugin logs interface data, it sets the name of the collected
 data according to this setting. The default is to use the path as provided by
 the hypervisor (the "dev" property of the target node), which is equal to
 setting B<name>.
@@ -6525,7 +6525,7 @@ interface path might change between reboots of a guest or across migrations.
 
 =item B<PluginInstanceFormat> B<name|uuid>
 
-When the libvirt plugin logs data, it sets the plugin_instance of the collected
+When the virt plugin logs data, it sets the plugin_instance of the collected
 data according to this setting. The default is to use the guest name as provided
 by the hypervisor, which is equal to setting B<name>.
 

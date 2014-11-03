@@ -217,7 +217,7 @@ Piotr Hosowicz <the55 at wp.pl>
  - SMF manifest for collectd.
 
 Richard W. M. Jones <rjones at redhat.com>
- - libvirt plugin.
+ - virt plugin.
  - uuid plugin.
 
 Roman Klesel <roman.klesel at noris.de>

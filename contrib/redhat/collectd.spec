@@ -96,7 +96,7 @@
 %define with_ipvs 0%{!?_without_ipvs:0%{?_has_ip_vs_h}}
 %define with_irq 0%{!?_without_irq:1}
 %define with_java 0%{!?_without_java:1}
-%define with_libvirt 0%{!?_without_libvirt:1}
+%define with_virt 0%{!?_without_virt:1}
 %define with_load 0%{!?_without_load:1}
 %define with_logfile 0%{!?_without_logfile:1}
 %define with_log_logstash 0%{!?_without_log_logstash:0%{?_has_libyajl}}
@@ -417,16 +417,6 @@ This plugin for collectd allows plugins to be written in Java and executed
 in an embedded JVM.
 %endif
 
-%if %{with_libvirt}
-%package libvirt
-Summary:	Libvirt plugin for collectd
-Group:		System Environment/Daemons
-Requires:	%{name}%{?_isa} = %{version}-%{release}
-BuildRequires:	libvirt-devel
-%description libvirt
-This plugin collects information from virtualized guests.
-%endif
-
 %if %{with_log_logstash}
 %package log_logstash
 Summary:       log_logstash plugin for collectd
@@ -678,6 +668,16 @@ Requires:	%{name}%{?_isa} = %{version}-%{release}
 BuildRequires:	varnish-libs-devel
 %description varnish
 The Varnish plugin collects information about Varnish, an HTTP accelerator.
+%endif
+
+%if %{with_virt}
+%package virt
+Summary:	Virt plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	libvirt-devel
+%description virt
+This plugin collects information from virtualized guests.
 %endif
 
 %if %{with_write_http}
@@ -996,10 +996,10 @@ Development files for libcollectdclient
 %define _with_java --disable-java
 %endif
 
-%if %{with_libvirt}
-%define _with_libvirt --enable-libvirt
+%if %{with_virt}
+%define _with_virt --enable-virt
 %else
-%define _with_libvirt --disable-libvirt
+%define _with_virt --disable-virt
 %endif
 
 %if %{with_load}
@@ -1513,7 +1513,7 @@ Development files for libcollectdclient
 	%{?_with_iptables} \
 	%{?_with_ipvs} \
 	%{?_with_java} \
-	%{?_with_libvirt} \
+	%{?_with_virt} \
 	%{?_with_log_logstash} \
 	%{?_with_lpar} \
 	%{?_with_lvm} \
@@ -1983,9 +1983,9 @@ fi
 %{_mandir}/man5/collectd-java.5*
 %endif
 
-%if %{with_libvirt}
-%files libvirt
-%{_libdir}/%{name}/libvirt.so
+%if %{with_virt}
+%files virt
+%{_libdir}/%{name}/virt.so
 %endif
 
 %if %{with_log_logstash}
