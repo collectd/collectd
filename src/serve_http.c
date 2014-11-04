@@ -64,7 +64,7 @@ static const char *config_keys[] =
     "StripHostnames"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
-static _Bool strip_hostnames = 0;
+static _Bool strip_hostnames = 1;
 
 static int loop = 0;
 
