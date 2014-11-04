@@ -183,9 +183,10 @@ int handle_getjson (FILE *fh, char *buffer)
 } /* int handle_getjson */
 
 
-int handle_listjson (FILE *fh)
+int handle_listjson (FILE *fh,_Bool strip_hostnames)
 {
   char **names = NULL;
+  char *name = NULL;
   cdtime_t *times = NULL;
   size_t number = 0;
   size_t i;
@@ -202,14 +203,21 @@ int handle_listjson (FILE *fh)
   }
 
   print_to_socket (fh, "{\n");
-  //print_to_socket (fh, "%i Value%s found\n", (int) number, (number == 1) ? "" : "s");
   for (i = 0; i < number; i++)
   {
     if (i > 0)
     {
       print_to_socket (fh, ",\n");
     }
-    print_to_socket (fh, "\"%s\"", names[i]);
+    name = names[i]
+    if (strip_hostnames)
+    {
+      char *s;
+      s = strchr(names[i],'/');
+      if (s != NULL)
+        name = s + 1;
+    }
+    print_to_socket (fh, "\"%s\"", name);
     handle_getjson (fh, names[i]);
   }
   print_to_socket (fh, "\n}\n");

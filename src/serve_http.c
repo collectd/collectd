@@ -60,9 +60,11 @@
 /* valid configuration file keys */
 static const char *config_keys[] =
 {
-    "Port"
+    "Port",
+    "StripHostnames"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
+static _Bool strip_hostnames = 0;
 
 static int loop = 0;
 
@@ -135,7 +137,7 @@ static void *sh_handle_client (void *arg)
 	}
 
 	DEBUG ("serve_http plugin: sh_handle_client: Handle listjson");
-    handle_listjson(fhout);
+    handle_listjson(fhout,strip_hostnames);
 
 	DEBUG ("serve_http plugin: sh_handle_client: Exiting..");
 	fclose (fhin);
@@ -232,6 +234,13 @@ static int sh_config (const char *key, const char *val)
 	if (strcasecmp (key, "Port") == 0)
 	{
       sh_port = atoi(val);
+	}
+	else if (strcasecmp (key, "StripHostnames") == 0)
+	{
+        if (IS_FALSE(val))
+            strip_hostnames = 0;
+        else
+            strip_hostnames = 1;
 	}
 	else
 	{
