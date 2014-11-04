@@ -29,7 +29,7 @@
 
 #include <stdio.h>
 
-int handle_listjson (FILE *fh);
+int handle_listjson (FILE *fh, _Bool strip_hostnames);
 int handle_getjson (FILE *fh, char *buffer);
 
 #endif /* UTILS_CMD_LISTJSON_H */

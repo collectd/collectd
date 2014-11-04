@@ -213,7 +213,7 @@ int handle_listjson (FILE *fh,_Bool strip_hostnames)
     if (strip_hostnames)
     {
       char *s;
-      s = strchr(names[i],'/');
+      s = strchr(name,'/');
       if (s != NULL)
         name = s + 1;
     }
