@@ -209,7 +209,7 @@ int handle_listjson (FILE *fh,_Bool strip_hostnames)
     {
       print_to_socket (fh, ",\n");
     }
-    name = names[i]
+    name = names[i];
     if (strip_hostnames)
     {
       char *s;
