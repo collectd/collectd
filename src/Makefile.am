@@ -933,6 +933,12 @@ endif
 
 endif
 
+if BUILD_PLUGIN_SYSCTL
+pkglib_LTLIBRARIES += sysctl.la
+sysctl_la_SOURCES = sysctl.c
+sysctl_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_SYSLOG
 pkglib_LTLIBRARIES += syslog.la
 syslog_la_SOURCES = syslog.c

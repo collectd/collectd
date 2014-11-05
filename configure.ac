@@ -5405,6 +5405,7 @@ AC_PLUGIN([sigrok],      [$with_libsigrok],    [sigrok acquisition sources])
 AC_PLUGIN([snmp],        [$with_libnetsnmp],   [SNMP querying plugin])
 AC_PLUGIN([statsd],      [yes],                [StatsD plugin])
 AC_PLUGIN([swap],        [$plugin_swap],       [Swap usage statistics])
+AC_PLUGIN([sysctl],      [$have_sysctl],       [Sysctl plugin])
 AC_PLUGIN([syslog],      [$have_syslog],       [Syslog logging plugin])
 AC_PLUGIN([table],       [yes],                [Parsing of tabular data])
 AC_PLUGIN([tail],        [yes],                [Parsing of logfiles])
@@ -5769,6 +5770,7 @@ Configuration:
     snmp  . . . . . . . . $enable_snmp
     statsd  . . . . . . . $enable_statsd
     swap  . . . . . . . . $enable_swap
+    sysctl  . . . . . . . $enable_sysctl
     syslog  . . . . . . . $enable_syslog
     table . . . . . . . . $enable_table
     tail  . . . . . . . . $enable_tail
