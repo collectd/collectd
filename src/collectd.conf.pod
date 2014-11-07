@@ -5639,6 +5639,40 @@ measurements are discarded.
 
 =back
 
+=head2 Plugin C<smart>
+
+The C<smart> plugin collects SMART information from physical
+disks. Values collectd include temperature, power cycle count, poweron
+time and bad sectors. Also, all SMART attributes are collected along
+with the normalized current value, the worst value, the threshold and
+a human readable value.
+
+Using the following two options you can ignore some disks or configure the
+collection only of specific disks.
+
+=over 4
+
+=item B<Disk> I<Name>
+
+Select the disk I<Name>. Whether it is collected or ignored depends on the
+B<IgnoreSelected> setting, see below. As with other plugins that use the
+daemon's ignorelist functionality, a string that starts and ends with a slash
+is interpreted as a regular expression. Examples:
+
+  Disk "sdd"
+  Disk "/hda[34]/"
+
+=item B<IgnoreSelected> B<true>|B<false>
+
+Sets whether selected disks, i.E<nbsp>e. the ones matches by any of the B<Disk>
+statements, are ignored or if all other disks are ignored. The behavior
+(hopefully) is intuitive: If no B<Disk> option is configured, all disks are
+collected. If at least one B<Disk> option is given and no B<IgnoreSelected> or
+set to B<false>, B<only> matching disks will be collected. If B<IgnoreSelected>
+is set to B<true>, all disks are collected B<except> the ones matched.
+
+=back
+
 =head2 Plugin C<snmp>
 
 Since the configuration of the C<snmp plugin> is a little more complicated than
