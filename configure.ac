@@ -4077,6 +4077,34 @@ then
   LDFLAGS="$SAVE_LDFLAGS"
 fi
 
+if test "x$with_libstatgrab" = "xyes"
+then
+  SAVE_CFLAGS="$CFLAGS"
+  SAVE_LDFLAGS="$LDFLAGS"
+
+  CFLAGS="$CFLAGS $with_libstatgrab_cflags"
+  LDFLAGS="$LDFLAGS $with_libstatgrab_ldflags"
+
+  AC_CACHE_CHECK([if sg_init() requires an argument],
+          [c_cv_have_libstatgrab_init_arg],
+          AC_LINK_IFELSE([AC_LANG_PROGRAM(
+[[[
+#include <stdio.h>
+#include <statgrab.h>
+]]],
+[[[
+      if (sg_init()) return 0;
+]]]
+    )],
+    [c_cv_have_libstatgrab_init_arg="no"],
+    [c_cv_have_libstatgrab_init_arg="yes"]
+          )
+  )
+
+  CFLAGS="$SAVE_CFLAGS"
+  LDFLAGS="$SAVE_LDFLAGS"
+fi
+
 AM_CONDITIONAL(BUILD_WITH_LIBSTATGRAB, test "x$with_libstatgrab" = "xyes")
 if test "x$with_libstatgrab" = "xyes"
 then
@@ -4085,6 +4113,10 @@ then
   BUILD_WITH_LIBSTATGRAB_LDFLAGS="$with_libstatgrab_ldflags"
   AC_SUBST(BUILD_WITH_LIBSTATGRAB_CFLAGS)
   AC_SUBST(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
+  if test "x$c_cv_have_libstatgrab_init_arg" = "xyes"
+  then
+        AC_DEFINE(HAVE_LIBSTATGRAB_INIT_ARG, 1, [Define to 1 if sg_init does require an argument])
+  fi
 fi
 # }}}
 
