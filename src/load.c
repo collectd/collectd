@@ -21,6 +21,7 @@
  *   Manuel Sanmartin
  **/
 
+#define _DEFAULT_SOURCE
 #define _BSD_SOURCE
 
 #include "collectd.h"

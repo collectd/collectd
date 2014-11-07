@@ -22,6 +22,7 @@
  *   Aman Gupta <aman at tmm1.net>
  **/
 
+#define _DEFAULT_SOURCE
 #define _BSD_SOURCE /* For struct ip_mreq */
 
 #include "collectd.h"
@@ -2985,7 +2986,7 @@ static int network_config_set_ttl (const oconfig_item_t *ci) /* {{{ */
     network_config_ttl = tmp;
   else {
     WARNING ("network plugin: The `TimeToLive' must be between 1 and 255.");
-    return (-1);    
+    return (-1);
   }
 
   return (0);

@@ -1398,6 +1398,7 @@ AC_CHECK_MEMBERS([struct kinfo_proc.kp_proc, struct kinfo_proc.kp_eproc],
 
 AC_CHECK_MEMBERS([struct udphdr.uh_dport, struct udphdr.uh_sport], [], [],
 [#define _BSD_SOURCE
+#define _DEFAULT_SOURCE
 #if HAVE_STDINT_H
 # include <stdint.h>
 #endif
@@ -1419,6 +1420,7 @@ AC_CHECK_MEMBERS([struct udphdr.uh_dport, struct udphdr.uh_sport], [], [],
 ])
 AC_CHECK_MEMBERS([struct udphdr.dest, struct udphdr.source], [], [],
 [#define _BSD_SOURCE
+#define _DEFAULT_SOURCE
 #if HAVE_STDINT_H
 # include <stdint.h>
 #endif

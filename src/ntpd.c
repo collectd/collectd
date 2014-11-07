@@ -19,6 +19,7 @@
  *   Florian octo Forster <octo at collectd.org>
  **/
 
+#define _DEFAULT_SOURCE
 #define _BSD_SOURCE /* For NI_MAXHOST */
 
 #include "collectd.h"
@@ -481,7 +482,7 @@ static int ntpd_receive_response (int *res_items, int *res_size,
 		poll_s.fd      = sd;
 		poll_s.events  = POLLIN | POLLPRI;
 		poll_s.revents = 0;
-		
+
 		DEBUG ("Polling for %ims", timeout);
 		status = poll (&poll_s, 1, timeout);
 
@@ -521,7 +522,7 @@ static int ntpd_receive_response (int *res_items, int *res_size,
 
 		DEBUG ("recv'd %i bytes", status);
 
-		/* 
+		/*
 		 * Do some sanity checks first
 		 */
 		if (status < RESP_HEADER_SIZE)
@@ -730,7 +731,7 @@ static int ntpd_send_request (int req_code, int req_items, int req_size, char *r
 
 	req.err_nitems   = ERR_NITEMS (0, req_items);
 	req.mbz_itemsize = MBZ_ITEMSIZE (req_size);
-	
+
 	if (req_data != NULL)
 		memcpy ((void *) req.data, (const void *) req_data, req_data_len);
 
