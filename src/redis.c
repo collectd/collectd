@@ -39,6 +39,7 @@
 #define REDIS_DEF_TIMEOUT 2000
 #define MAX_REDIS_NODE_NAME 64
 #define MAX_REDIS_PASSWD_LENGTH 512
+#define MAX_REDIS_VAL_SIZE 256
 
 /* Redis plugin configuration example:
  *
