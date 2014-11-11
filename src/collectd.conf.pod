@@ -9,17 +9,17 @@ collectd.conf - Configuration for the system statistics collection daemon B<coll
   BaseDir "/var/lib/collectd"
   PIDFile "/run/collectd.pid"
   Interval 10.0
-  
+
   LoadPlugin cpu
   LoadPlugin load
-  
+
   <LoadPlugin df>
     Interval 3600
   </LoadPlugin>
   <Plugin df>
     ValuesPercentage true
   </Plugin>
-  
+
   LoadPlugin ping
   <Plugin ping>
     Host "example.org"
@@ -7009,6 +7009,20 @@ Service name or port number to connect to. Defaults to C<5555>.
 
 Specify the protocol to use when communicating with I<Riemann>. Defaults to
 B<UDP>.
+
+=item B<Batch> B<true>|B<false>
+
+If set to B<true> and B<Protocol> is set to B<TCP>,
+events will be batched in memory and flushed at
+regular intervals or when B<BatchMaxSize> is exceeded.
+
+Notifications are not batched and sent as soon as possible.
+
+Defaults to false
+
+=item B<BatchMaxSize> I<size>
+
+Maximum payload size for a riemann packet. Defaults to 8192
 
 =item B<StoreRates> B<true>|B<false>
 
