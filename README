@@ -232,6 +232,9 @@ Features
       Read onewire sensors using the owcapu library of the owfs project.
       Please read in collectd.conf(5) why this plugin is experimental.
 
+    - openldap
+      Read monitoring information from OpenLDAP's cn=Monitor subtree.
+
     - openvpn
       RX and TX of each client in openvpn-status.log (status-version 2).
       <http://openvpn.net/index.php/documentation/howto.html>
@@ -649,6 +652,10 @@ Prerequisites
     used by the `java' plugin to execute Java bytecode. See “Configuring with
     libjvm” below.
     <http://openjdk.java.net/> (and others)
+
+  * libldap (optional)
+    Used by the `openldap' plugin.
+    <http://www.openldap.org/>
 
   * liblvm2 (optional)
     Used by the `lvm' plugin.
