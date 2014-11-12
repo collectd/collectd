@@ -478,28 +478,28 @@ static void cpu_commit_without_aggregation (void) /* {{{ */
 	{
 		size_t cpu_num;
 		if (report_by_cpu) {
-		for (cpu_num = 0; cpu_num < global_cpu_num; cpu_num++)
-		{
-			cpu_state_t *s = get_cpu_state (cpu_num, state);
+			for (cpu_num = 0; cpu_num < global_cpu_num; cpu_num++)
+			{
+				cpu_state_t *s = get_cpu_state (cpu_num, state);
 
-			if (!s->has_value)
-				continue;
+				if (!s->has_value)
+					continue;
 
-			submit_derive ((int) cpu_num, (int) state, s->conv.last_value.derive);
-		}
+				submit_derive ((int) cpu_num, (int) state, s->conv.last_value.derive);
+			}
 		} else {
-		derive_t derive_total = 0;
-		for (cpu_num = 0; cpu_num < global_cpu_num; cpu_num++)
-		{
-			cpu_state_t *s = get_cpu_state (cpu_num, state);
+			derive_t derive_total = 0;
+			for (cpu_num = 0; cpu_num < global_cpu_num; cpu_num++)
+				{
+					cpu_state_t *s = get_cpu_state (cpu_num, state);
 
-			if (!s->has_value)
-				continue;
+					if (!s->has_value)
+						continue;
 
-			derive_total += s->conv.last_value.derive;
+					derive_total += s->conv.last_value.derive;
 			
-		}
-		submit_derive (-1, (int) state, derive_total);
+				}
+			submit_derive (-1, (int) state, derive_total);
 		}
 	}
 } /* }}} void cpu_commit_without_aggregation */
