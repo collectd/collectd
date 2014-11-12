@@ -4101,6 +4101,22 @@ then
           )
   )
 
+  AC_CACHE_CHECK([if sg_get_user_stats() requires an argument],
+          [c_cv_have_libstatgrab_get_user_stats_arg],
+          AC_LINK_IFELSE([AC_LANG_PROGRAM(
+[[[
+#include <stdio.h>
+#include <statgrab.h>
+]]],
+[[[
+      if (sg_get_user_stats()) return 0;
+]]]
+    )],
+    [c_cv_have_libstatgrab_get_user_stats_arg="no"],
+    [c_cv_have_libstatgrab_get_user_stats_arg="yes"]
+          )
+  )
+
   CFLAGS="$SAVE_CFLAGS"
   LDFLAGS="$SAVE_LDFLAGS"
 fi
@@ -4116,6 +4132,10 @@ then
   if test "x$c_cv_have_libstatgrab_init_arg" = "xyes"
   then
         AC_DEFINE(HAVE_LIBSTATGRAB_INIT_ARG, 1, [Define to 1 if sg_init does require an argument])
+  fi
+  if test "x$c_cv_have_libstatgrab_get_user_stats_arg" = "xyes"
+  then
+        AC_DEFINE(HAVE_LIBSTATGRAB_GET_USER_STATS_ARG, 1, [Define to 1 if sg_get_user_stats does require an argument])
   fi
 fi
 # }}}
