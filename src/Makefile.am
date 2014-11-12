@@ -85,7 +85,7 @@ pkglib_LTLIBRARIES += aggregation.la
 aggregation_la_SOURCES = aggregation.c \
                          utils_vl_lookup.c utils_vl_lookup.h
 aggregation_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-aggregation_la_LIBADD =
+aggregation_la_LIBADD = -lm
 endif
 
 if BUILD_PLUGIN_AMQP
