@@ -32,7 +32,8 @@
 		WARNING ("handle_flush: failed to write to socket #%i: %s", \
 				fileno (fh), sstrerror (errno, errbuf, sizeof (errbuf))); \
 		return -1; \
-	}
+	} \
+	fflush(fh);
 
 static int add_to_array (char ***array, int *array_num, char *value)
 {

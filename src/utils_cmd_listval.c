@@ -44,7 +44,8 @@
     WARNING ("handle_listval: failed to write to socket #%i: %s", \
 	fileno (fh), sstrerror (errno, errbuf, sizeof (errbuf))); \
     free_everything_and_return (-1); \
-  }
+  } \
+  fflush(fh);
 
 int handle_listval (FILE *fh, char *buffer)
 {

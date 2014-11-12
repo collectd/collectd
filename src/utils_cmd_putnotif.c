@@ -31,7 +31,8 @@
     WARNING ("handle_putnotif: failed to write to socket #%i: %s", \
 	fileno (fh), sstrerror (errno, errbuf, sizeof (errbuf))); \
     return -1; \
-  }
+  } \
+  fflush(fh);
 
 static int set_option_severity (notification_t *n, const char *value)
 {
