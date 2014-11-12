@@ -109,7 +109,7 @@ static void smart_handle_disk_attribute(SkDisk *d, const SkSmartAttributeParsedD
 
   plugin_dispatch_values (&vl);
 
-  if (a->threshold_valid && a->current_value < a->threshold)
+  if (a->threshold_valid && a->current_value <= a->threshold)
   {
     notification_t notif = { NOTIF_WARNING,
                              cdtime (),
