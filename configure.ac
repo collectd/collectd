@@ -4117,6 +4117,24 @@ then
           )
   )
 
+  AC_CACHE_CHECK([if sg_disk_io_stats() uses size_t],
+          [c_cv_have_libstatgrab_get_disk_io_stats_sizet],
+          AC_LINK_IFELSE([AC_LANG_PROGRAM(
+[[[
+#include <stdio.h>
+#include <statgrab.h>
+]]],
+[[[
+      sg_disk_io_stats *(*ptr) (size_t *);
+      ptr = sg_get_disk_io_stats;
+      if (ptr != NULL) return 0;
+]]]
+    )],
+    [c_cv_have_libstatgrab_get_disk_io_stats_sizet="yes"],
+    [c_cv_have_libstatgrab_get_disk_io_stats_sizet="no"]
+          )
+  )
+
   CFLAGS="$SAVE_CFLAGS"
   LDFLAGS="$SAVE_LDFLAGS"
 fi
@@ -4136,6 +4154,10 @@ then
   if test "x$c_cv_have_libstatgrab_get_user_stats_arg" = "xyes"
   then
         AC_DEFINE(HAVE_LIBSTATGRAB_GET_USER_STATS_ARG, 1, [Define to 1 if sg_get_user_stats does require an argument])
+  fi
+  if test "x$c_cv_have_libstatgrab_get_disk_io_stats_sizet" = "xyes"
+  then
+        AC_DEFINE(HAVE_LIBSTATGRAB_GET_DISK_IO_STATS_SIZET, 1, [Define to 1 if sg_get_disk_io_stats does require pointer to size_t as an argument])
   fi
 fi
 # }}}
