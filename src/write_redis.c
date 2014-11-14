@@ -57,6 +57,7 @@ static int wr_write (const data_set_t *ds, /* {{{ */
   char ident[512];
   char key[512];
   char value[512];
+  char time[24];
   size_t value_size;
   char *value_ptr;
   int status;
@@ -67,6 +68,7 @@ static int wr_write (const data_set_t *ds, /* {{{ */
   if (status != 0)
     return (status);
   ssnprintf (key, sizeof (key), "collectd/%s", ident);
+  ssnprintf (time, sizeof (time), "%.9f", CDTIME_T_TO_DOUBLE(vl->time));
 
   memset (value, 0, sizeof (value));
   value_size = sizeof (value);
@@ -86,7 +88,9 @@ static int wr_write (const data_set_t *ds, /* {{{ */
   }                                                                  \
 } while (0)
 
-  APPEND ("%.9f:", CDTIME_T_TO_DOUBLE(vl->time));
+  APPEND (time);
+  APPEND (":");
+
   for (i = 0; i < ds->ds_num; i++)
   {
     if (ds->ds[i].type == DS_TYPE_COUNTER)
@@ -119,8 +123,7 @@ static int wr_write (const data_set_t *ds, /* {{{ */
   }
 
   assert (node->conn != NULL);
-  rr = redisCommand (node->conn, "ZADD %s %.9f %s", key,
-    CDTIME_T_TO_DOUBLE(vl->time), value);
+  rr = redisCommand (node->conn, "ZADD %s %s %s", key, time, value);
   if (rr==NULL)
     WARNING("ZADD command error. key:%s", key);
 
