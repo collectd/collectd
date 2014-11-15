@@ -714,25 +714,40 @@ static int bind_xml_stats_handle_zone (int version, xmlDoc *doc, /* {{{ */
   int i;
   size_t j;
 
-  path_obj = xmlXPathEvalExpression (BAD_CAST "name", path_ctx);
-  if (path_obj == NULL)
+  if (version >= 3)
   {
-    ERROR ("bind plugin: xmlXPathEvalExpression failed.");
-    return (-1);
+    char *n = (char *) xmlGetProp (node, BAD_CAST "name");
+    char *c = (char *) xmlGetProp (node, BAD_CAST "rdataclass");
+    if (n && c)
+    {
+      zone_name = (char *) xmlMalloc(strlen(n) + strlen(c) + 2);
+      snprintf(zone_name, strlen(n) + strlen(c) + 2, "%s/%s", n, c);
+    }
+    xmlFree(n);
+    xmlFree(c);
   }
-
-  for (i = 0; path_obj->nodesetval && (i < path_obj->nodesetval->nodeNr); i++)
+  else
   {
-    zone_name = (char *) xmlNodeListGetString (doc,
-        path_obj->nodesetval->nodeTab[i]->xmlChildrenNode, 1);
-    if (zone_name != NULL)
-      break;
+    path_obj = xmlXPathEvalExpression (BAD_CAST "name", path_ctx);
+    if (path_obj == NULL)
+    {
+      ERROR ("bind plugin: xmlXPathEvalExpression failed.");
+      return (-1);
+    }
+
+    for (i = 0; path_obj->nodesetval && (i < path_obj->nodesetval->nodeNr); i++)
+    {
+      zone_name = (char *) xmlNodeListGetString (doc,
+          path_obj->nodesetval->nodeTab[i]->xmlChildrenNode, 1);
+      if (zone_name != NULL)
+        break;
+    }
+    xmlXPathFreeObject (path_obj);
   }
 
   if (zone_name == NULL)
   {
     ERROR ("bind plugin: Could not determine zone name.");
-    xmlXPathFreeObject (path_obj);
     return (-1);
   }
 
@@ -746,10 +761,7 @@ static int bind_xml_stats_handle_zone (int version, xmlDoc *doc, /* {{{ */
   zone_name = NULL;
 
   if (j >= views->zones_num)
-  {
-    xmlXPathFreeObject (path_obj);
     return (0);
-  }
 
   zone_name = view->zones[j];
 
@@ -768,13 +780,30 @@ static int bind_xml_stats_handle_zone (int version, xmlDoc *doc, /* {{{ */
     ssnprintf (plugin_instance, sizeof (plugin_instance), "%s-zone-%s",
         view->name, zone_name);
 
-    bind_parse_generic_value_list (/* xpath = */ "counters",
+    if (version == 3)
+    {
+      list_info_ptr_t list_info =
+      {
+        plugin_instance,
+        /* type = */ "dns_qtype"
+      };
+      bind_parse_generic_name_attr_value_list (/* xpath = */ "counters[@type='rcode']",
         /* callback = */ bind_xml_table_callback,
         /* user_data = */ &table_ptr,
         doc, path_ctx, current_time, DS_TYPE_COUNTER);
+      bind_parse_generic_name_attr_value_list (/* xpath = */ "counters[@type='qtype']",
+        /* callback = */ bind_xml_list_callback,
+        /* user_data = */ &list_info,
+        doc, path_ctx, current_time, DS_TYPE_COUNTER);
+    }
+    else
+    {
+      bind_parse_generic_value_list (/* xpath = */ "counters",
+          /* callback = */ bind_xml_table_callback,
+          /* user_data = */ &table_ptr,
+          doc, path_ctx, current_time, DS_TYPE_COUNTER);
+    }
   } /* }}} */
-
-  xmlXPathFreeObject (path_obj);
 
   return (0);
 } /* }}} int bind_xml_stats_handle_zone */
@@ -968,8 +997,7 @@ static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
         doc, path_ctx, current_time, DS_TYPE_GAUGE);
   } /* }}} */
 
-  // v3 does not provide per-zone stats any more
-  if (version < 3 && view->zones_num > 0)
+  if (view->zones_num > 0)
     bind_xml_stats_search_zones (version, doc, path_ctx, node, view,
         current_time);
 
