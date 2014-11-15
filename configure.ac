@@ -4077,6 +4077,68 @@ then
   LDFLAGS="$SAVE_LDFLAGS"
 fi
 
+if test "x$with_libstatgrab" = "xyes"
+then
+  SAVE_CFLAGS="$CFLAGS"
+  SAVE_LDFLAGS="$LDFLAGS"
+
+  CFLAGS="$CFLAGS $with_libstatgrab_cflags"
+  LDFLAGS="$LDFLAGS $with_libstatgrab_ldflags"
+
+  AC_CACHE_CHECK([if sg_init() requires an argument],
+          [c_cv_have_libstatgrab_init_arg],
+          AC_LINK_IFELSE([AC_LANG_PROGRAM(
+[[[
+#include <stdio.h>
+#include <statgrab.h>
+]]],
+[[[
+      if (sg_init()) return 0;
+]]]
+    )],
+    [c_cv_have_libstatgrab_init_arg="no"],
+    [c_cv_have_libstatgrab_init_arg="yes"]
+          )
+  )
+
+  AC_CACHE_CHECK([if sg_get_user_stats() requires an argument],
+          [c_cv_have_libstatgrab_get_user_stats_arg],
+          AC_LINK_IFELSE([AC_LANG_PROGRAM(
+[[[
+#include <stdio.h>
+#include <statgrab.h>
+]]],
+[[[
+      if (sg_get_user_stats()) return 0;
+]]]
+    )],
+    [c_cv_have_libstatgrab_get_user_stats_arg="no"],
+    [c_cv_have_libstatgrab_get_user_stats_arg="yes"]
+          )
+  )
+
+  AC_CACHE_CHECK([if sg_disk_io_stats() uses size_t],
+          [c_cv_have_libstatgrab_get_disk_io_stats_sizet],
+          AC_LINK_IFELSE([AC_LANG_PROGRAM(
+[[[
+#include <stdio.h>
+#include <statgrab.h>
+]]],
+[[[
+      sg_disk_io_stats *(*ptr) (size_t *);
+      ptr = sg_get_disk_io_stats;
+      if (ptr != NULL) return 0;
+]]]
+    )],
+    [c_cv_have_libstatgrab_get_disk_io_stats_sizet="yes"],
+    [c_cv_have_libstatgrab_get_disk_io_stats_sizet="no"]
+          )
+  )
+
+  CFLAGS="$SAVE_CFLAGS"
+  LDFLAGS="$SAVE_LDFLAGS"
+fi
+
 AM_CONDITIONAL(BUILD_WITH_LIBSTATGRAB, test "x$with_libstatgrab" = "xyes")
 if test "x$with_libstatgrab" = "xyes"
 then
@@ -4085,6 +4147,18 @@ then
   BUILD_WITH_LIBSTATGRAB_LDFLAGS="$with_libstatgrab_ldflags"
   AC_SUBST(BUILD_WITH_LIBSTATGRAB_CFLAGS)
   AC_SUBST(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
+  if test "x$c_cv_have_libstatgrab_init_arg" = "xyes"
+  then
+        AC_DEFINE(HAVE_LIBSTATGRAB_INIT_ARG, 1, [Define to 1 if sg_init does require an argument])
+  fi
+  if test "x$c_cv_have_libstatgrab_get_user_stats_arg" = "xyes"
+  then
+        AC_DEFINE(HAVE_LIBSTATGRAB_GET_USER_STATS_ARG, 1, [Define to 1 if sg_get_user_stats does require an argument])
+  fi
+  if test "x$c_cv_have_libstatgrab_get_disk_io_stats_sizet" = "xyes"
+  then
+        AC_DEFINE(HAVE_LIBSTATGRAB_GET_DISK_IO_STATS_SIZET, 1, [Define to 1 if sg_get_disk_io_stats does require pointer to size_t as an argument])
+  fi
 fi
 # }}}
 

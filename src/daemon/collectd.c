@@ -308,7 +308,11 @@ static int do_init (void)
 #endif
 
 #if HAVE_LIBSTATGRAB
-	if (sg_init ())
+	if (sg_init (
+# if HAVE_LIBSTATGRAB_INIT_ARG
+		    0
+# endif
+		    ))
 	{
 		ERROR ("sg_init: %s", sg_str_error (sg_get_error ()));
 		return (-1);
