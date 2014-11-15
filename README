@@ -293,6 +293,10 @@ Features
       to have its measurements fed to collectd. This includes multimeters,
       sound level meters, thermometers, and much more.
 
+    - smart
+      Collect SMART statistics, notably load cycle count, temperature
+      and bad sectors.
+
     - snmp
       Read values from SNMP (Simple Network Management Protocol) enabled
       network devices such as switches, routers, thermometers, rack monitoring
