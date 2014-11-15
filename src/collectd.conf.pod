@@ -4245,6 +4245,70 @@ short: If it works for you: Great! But keep in mind that the config I<might>
 change, though this is unlikely. Oh, and if you want to help improving this
 plugin, just send a short notice to the mailing list. ThanksE<nbsp>:)
 
+=head2 Plugin C<openldap>
+
+To use the C<openldap> plugin you first need to configure the I<OpenLDAP>
+server correctly. The backend database C<monitor> needs to be loaded and
+working. See slapd-monitor(5) for the details.
+
+The configuration of the C<openldap> plugin consists of one or more B<Instance>
+blocks. Each block requires one string argument as the instance name. For
+example:
+
+ <Plugin "openldap">
+   <Instance "foo">
+     URL "ldap://localhost/"
+   </Instance>
+   <Instance "bar">
+     URL "ldaps://localhost/"
+   </Instance>
+ </Plugin>
+
+The instance name will be used as the I<plugin instance>. To emulate the old
+(versionE<nbsp>4) behavior, you can use an empty string (""). In order for the
+plugin to work correctly, each instance name must be unique. This is not
+enforced by the plugin and it is your responsibility to ensure it is.
+
+The following options are accepted within each B<Instance> block:
+
+=over 4
+
+=item B<URL> I<ldap://host/binddn>
+
+Sets the URL to use to connect to the I<OpenLDAP> server. This option is
+I<mandatory>.
+
+=item B<StartTLS> B<true|false>
+
+Defines whether TLS must be used when connecting to the I<OpenLDAP> server.
+Disabled by default.
+
+=item B<VerifyHost> B<true|false>
+
+Enables or disables peer host name verification. If enabled, the plugin checks
+if the C<Common Name> or a C<Subject Alternate Name> field of the SSL
+certificate matches the host name provided by the B<URL> option. If this
+identity check fails, the connection is aborted. Enabled by default.
+
+=item B<CACert> I<File>
+
+File that holds one or more SSL certificates. If you want to use TLS/SSL you
+may possibly need this option. What CA certificates are checked by default
+depends on the distribution you use and can be changed with the usual ldap
+client configuration mechanisms. See ldap.conf(5) for the details.
+
+=item B<Timeout> I<Seconds>
+
+Sets the timeout value for ldap operations. Defaults to B<-1> which results in
+an infinite timeout.
+
+=item B<Version> I<Version>
+
+An integer which sets the LDAP protocol version number to use when connecting
+to the I<OpenLDAP> server. Defaults to B<3> for using I<LDAPv3>.
+
+=back
+
 =head2 Plugin C<openvpn>
 
 The OpenVPN plugin reads a status file maintained by OpenVPN and gathers
