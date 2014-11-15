@@ -43,26 +43,30 @@
 #define RIEMANN_HOST		"localhost"
 #define RIEMANN_PORT		"5555"
 #define RIEMANN_TTL_FACTOR      2.0
+#define RIEMANN_BATCH_MAX      8192
 
 int write_riemann_threshold_check(const data_set_t *, const value_list_t *, int *);
 
 struct riemann_host {
 	char			*name;
 	char			*event_service_prefix;
-#define F_CONNECT		 0x01
+#define F_CONNECT	 0x01
 	uint8_t			 flags;
-	pthread_mutex_t		 lock;
-	_Bool                    notifications;
-	_Bool                    check_thresholds;
+	pthread_mutex_t	 lock;
+    _Bool            batch_mode;
+	_Bool            notifications;
+	_Bool            check_thresholds;
 	_Bool			 store_rates;
 	_Bool			 always_append_ds;
 	char			*node;
 	char			*service;
 	_Bool			 use_tcp;
-	int			 s;
+	int			     s;
 	double			 ttl_factor;
-
-	int			 reference_count;
+    Msg             *batch_msg;
+    cdtime_t         batch_init;
+    int              batch_max;
+	int			     reference_count;
 };
 
 static char	**riemann_tags;
@@ -651,6 +655,103 @@ static Msg *riemann_value_list_to_protobuf (struct riemann_host const *host, /* 
 	return (msg);
 } /* }}} Msg *riemann_value_list_to_protobuf */
 
+
+/*
+ * Always call while holding host->lock !
+ */
+static int riemann_batch_flush_nolock (cdtime_t timeout,
+                                       struct riemann_host *host)
+{
+    cdtime_t    now;
+    int         status = 0;
+
+    if (timeout > 0) {
+        now = cdtime ();
+        if ((host->batch_init + timeout) > now)
+            return status;
+    }
+    riemann_send_msg(host, host->batch_msg);
+    riemann_msg_protobuf_free(host->batch_msg);
+
+	if (host->use_tcp && ((status = riemann_recv_ack(host)) != 0))
+        riemann_disconnect (host);
+
+    host->batch_init = cdtime();
+    host->batch_msg = NULL;
+    return status;
+}
+
+static int riemann_batch_flush (cdtime_t timeout,
+        const char *identifier __attribute__((unused)),
+        user_data_t *user_data)
+{
+    struct riemann_host *host;
+    int status;
+
+    if (user_data == NULL)
+        return (-EINVAL);
+
+    host = user_data->data;
+    pthread_mutex_lock (&host->lock);
+    status = riemann_batch_flush_nolock (timeout, host);
+    if (status != 0)
+        ERROR ("write_riemann plugin: riemann_send failed with status %i",
+               status);
+
+    pthread_mutex_unlock(&host->lock);
+    return status;
+}
+
+static int riemann_batch_add_value_list (struct riemann_host *host, /* {{{ */
+                                         data_set_t const *ds,
+                                         value_list_t const *vl,
+                                         int *statuses)
+{
+	size_t i;
+    Event **events;
+    Msg *msg;
+    size_t len;
+    int ret;
+
+    msg = riemann_value_list_to_protobuf (host, ds, vl, statuses);
+    if (msg == NULL)
+        return -1;
+
+    pthread_mutex_lock(&host->lock);
+
+    if (host->batch_msg == NULL) {
+        host->batch_msg = msg;
+    } else {
+        len = msg->n_events + host->batch_msg->n_events;
+        events = realloc(host->batch_msg->events,
+                         (len * sizeof(*host->batch_msg->events)));
+        if (events == NULL) {
+            pthread_mutex_unlock(&host->lock);
+            ERROR ("write_riemann plugin: out of memory");
+            riemann_msg_protobuf_free (msg);
+            return -1;
+        }
+        host->batch_msg->events = events;
+
+        for (i = host->batch_msg->n_events; i < len; i++)
+            host->batch_msg->events[i] = msg->events[i - host->batch_msg->n_events];
+
+        host->batch_msg->n_events = len;
+        sfree (msg->events);
+        msg->n_events = 0;
+        sfree (msg);
+    }
+
+	len = msg__get_packed_size(host->batch_msg);
+    ret = 0;
+    if (len >= host->batch_max) {
+        ret = riemann_batch_flush_nolock(0, host);
+    }
+
+    pthread_mutex_unlock(&host->lock);
+    return ret;
+} /* }}} Msg *riemann_batch_add_value_list */
+
 static int riemann_notification(const notification_t *n, user_data_t *ud) /* {{{ */
 {
 	int			 status;
@@ -660,6 +761,9 @@ static int riemann_notification(const notification_t *n, user_data_t *ud) /* {{{
 	if (!host->notifications)
 		return 0;
 
+    /*
+     * Never batch for notifications, send them ASAP
+     */
 	msg = riemann_notification_to_protobuf (host, n);
 	if (msg == NULL)
 		return (-1);
@@ -677,23 +781,32 @@ static int riemann_write(const data_set_t *ds, /* {{{ */
 	      const value_list_t *vl,
 	      user_data_t *ud)
 {
-	int			 status;
+	int			 status = 0;
 	int			 statuses[vl->values_len];
 	struct riemann_host	*host = ud->data;
 	Msg			*msg;
 
 	if (host->check_thresholds)
 		write_riemann_threshold_check(ds, vl, statuses);
-	msg = riemann_value_list_to_protobuf (host, ds, vl, statuses);
-	if (msg == NULL)
-		return (-1);
 
-	status = riemann_send (host, msg);
-	if (status != 0)
-		ERROR ("write_riemann plugin: riemann_send failed with status %i",
-				status);
+    if (host->use_tcp == 1 && host->batch_mode) {
 
-	riemann_msg_protobuf_free (msg);
+        riemann_batch_add_value_list (host, ds, vl, statuses);
+
+
+    } else {
+
+        msg = riemann_value_list_to_protobuf (host, ds, vl, statuses);
+        if (msg == NULL)
+            return (-1);
+
+        status = riemann_send (host, msg);
+        if (status != 0)
+            ERROR ("write_riemann plugin: riemann_send failed with status %i",
+                   status);
+
+        riemann_msg_protobuf_free (msg);
+    }
 	return status;
 } /* }}} int riemann_write */
 
@@ -742,6 +855,9 @@ static int riemann_config_node(oconfig_item_t *ci) /* {{{ */
 	host->store_rates = 1;
 	host->always_append_ds = 0;
 	host->use_tcp = 0;
+    host->batch_mode = 0;
+    host->batch_max = RIEMANN_BATCH_MAX; /* typical MSS */
+    host->batch_init = cdtime();
 	host->ttl_factor = RIEMANN_TTL_FACTOR;
 
 	status = cf_util_get_string (ci, &host->name);
@@ -775,6 +891,14 @@ static int riemann_config_node(oconfig_item_t *ci) /* {{{ */
 			status = cf_util_get_boolean(child, &host->check_thresholds);
 			if (status != 0)
 				break;
+        } else if (strcasecmp ("Batch", child->key) == 0) {
+            status = cf_util_get_boolean(child, &host->batch_mode);
+            if (status != 0)
+                break;
+        } else if (strcasecmp("BatchMaxSize", child->key) == 0) {
+            status = cf_util_get_int(child, &host->batch_max);
+            if (status != 0)
+                break;
 		} else if (strcasecmp ("Port", child->key) == 0) {
 			status = cf_util_get_service (child, &host->service);
 			if (status != 0) {
@@ -859,6 +983,11 @@ static int riemann_config_node(oconfig_item_t *ci) /* {{{ */
 	pthread_mutex_lock (&host->lock);
 
 	status = plugin_register_write (callback_name, riemann_write, &ud);
+
+    if (host->use_tcp == 1 && host->batch_mode) {
+        ud.free_func = NULL;
+        plugin_register_flush(callback_name, riemann_batch_flush, &ud);
+    }
 	if (status != 0)
 		WARNING ("write_riemann plugin: plugin_register_write (\"%s\") "
 				"failed with status %i.",
