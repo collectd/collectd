@@ -831,7 +831,7 @@ static int disk_read (void)
 
 #elif defined(HAVE_LIBSTATGRAB)
 	sg_disk_io_stats *ds;
-# if HAVE_LIBSTATGRAB_GET_DISK_IO_STATS_SIZET
+# if HAVE_LIBSTATGRAB_0_90
 	size_t disks;
 # else
 	int disks;

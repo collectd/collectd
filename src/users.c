@@ -102,7 +102,7 @@ static int users_read (void)
 #elif HAVE_LIBSTATGRAB
 	sg_user_stats *us;
 
-# if HAVE_LIBSTATGRAB_GET_USER_STATS_ARG
+# if HAVE_LIBSTATGRAB_0_90
 	size_t num_entries;
 	us = sg_get_user_stats (&num_entries);
 # else
@@ -112,7 +112,7 @@ static int users_read (void)
 		return (-1);   
 
 	users_submit ((gauge_t)
-# if HAVE_LIBSTATGRAB_GET_USER_STATS_ARG
+# if HAVE_LIBSTATGRAB_0_90
 		      num_entries);
 # else
 		      us->num_entries);
