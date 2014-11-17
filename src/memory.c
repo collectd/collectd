@@ -30,6 +30,9 @@
 #ifdef HAVE_SYS_SYSCTL_H
 # include <sys/sysctl.h>
 #endif
+#ifdef HAVE_SYS_VMMETER_H
+# include <sys/vmmeter.h>
+#endif
 
 #ifdef HAVE_MACH_KERN_RETURN_H
 # include <mach/kern_return.h>
