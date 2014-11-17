@@ -121,6 +121,9 @@ Jérôme Renard <jerome.renard at gmail.com>
 Kevin Bowling <kbowling at llnw.com>
  - write_tsdb plugin for http://opentsdb.net/
 
+Kimo Rosenbaum <kimor79 at yahoo.com>
+ - openldap plugin.
+
 Kris Nielander <nielander at fox-it.com>
  - tail_csv plugin.
 
@@ -151,6 +154,7 @@ Marc Fournier <marc.fournier at camptocamp.com>
  - RPM specfile update.
  - libmnl support in the netlink plugin.
  - linux support in the zfs_arc plugin.
+ - openldap plugin.
 
 Marco Chiappero <marco at absence.it>
  - uptime plugin.
@@ -249,7 +253,7 @@ Sven Trenkel <collectd at semidefinite.de>
  - python plugin.
 
 Tim Laszlo <tim.laszlo at gmail.com>
- - drbd plugin
+ - drbd plugin.
 
 Thomas Meson <zllak at hycik.org>
  - Graphite support for the AMQP plugin.
@@ -259,6 +263,9 @@ Tomasz Pala <gotar at pld-linux.org>
 
 Tommie Gannert <d00-tga at d.kth.se>
  - PID-file patch.
+
+Vincent Bernat <vincent at bernat.im>
+ - smart plugin.
 
 Vincent Stehlé <vincent.stehle at free.fr>
  - hddtemp plugin.
