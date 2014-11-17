@@ -47,6 +47,7 @@
 %{?el6:%global _has_libmodbus 1}
 %{?el6:%global _has_libudev 1}
 %{?el6:%global _has_iproute 1}
+%{?el6:%global _has_atasmart 1}
 
 %{?el7:%global _has_libyajl 1}
 %{?el7:%global _has_recent_libpcap 1}
@@ -59,6 +60,7 @@
 %{?el7:%global _has_varnish4 1}
 %{?el7:%global _has_broken_libmemcached 1}
 %{?el7:%global _has_iproute 1}
+%{?el7:%global _has_atasmart 1}
 
 # plugins enabled by default
 %define with_aggregation 0%{!?_without_aggregation:1}
@@ -120,6 +122,7 @@
 %define with_numa 0%{!?_without_numa:1}
 %define with_nut 0%{!?_without_nut:1}
 %define with_olsrd 0%{!?_without_olsrd:1}
+%define with_openldap 0%{!?_without_openldap:1}
 %define with_openvpn 0%{!?_without_openvpn:1}
 %define with_perl 0%{!?_without_perl:1}
 %define with_pinba 0%{!?_without_pinba:1}
@@ -133,6 +136,7 @@
 %define with_rrdtool 0%{!?_without_rrdtool:1}
 %define with_sensors 0%{!?_without_sensors:1}
 %define with_serial 0%{!?_without_serial:1}
+%define with_smart 0%{!?_without_smart:0%{?_has_atasmart}}
 %define with_snmp 0%{!?_without_snmp:1}
 %define with_statsd 0%{!?_without_statsd:1}
 %define with_swap 0%{!?_without_swap:1}
@@ -533,6 +537,16 @@ BuildRequires:	nut-devel
 This plugin for collectd provides Network UPS Tools support.
 %endif
 
+%if %{with_openldap}
+%package openldap
+Summary:       Openldap plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+BuildRequires: openldap-devel
+%description openldap
+This plugin reads monitoring information from OpenLDAP's cn=Monitor subtree.
+%endif
+
 %if %{with_perl}
 %package perl
 Summary:	Perl plugin for collectd
@@ -648,6 +662,17 @@ Requires:	%{name}%{?_isa} = %{version}-%{release}
 Uses libsigrok as a backend, allowing any sigrok-supported device to have its
 measurements fed to collectd. This includes multimeters, sound level meters,
 thermometers, and much more.
+%endif
+
+%if %{with_smart}
+%package smart
+Summary:       SMART plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+BuildRequires: libatasmart-devel
+%description smart
+Collect SMART statistics, notably load cycle count, temperature and bad
+sectors.
 %endif
 
 %if %{with_snmp}
@@ -1164,6 +1189,12 @@ Development files for libcollectdclient
 %define _with_onewire --disable-onewire
 %endif
 
+%if %{with_openldap}
+%define _with_openldap --enable-openldap
+%else
+%define _with_openldap --disable-openldap
+%endif
+
 %if %{with_openvpn}
 %define _with_openvpn --enable-openvpn
 %else
@@ -1274,6 +1305,12 @@ Development files for libcollectdclient
 %define _with_sigrok --enable-sigrok
 %else
 %define _with_sigrok --disable-sigrok
+%endif
+
+%if %{with_smart}
+%define _with_smart --enable-smart
+%else
+%define _with_smart --disable-smart
 %endif
 
 %if %{with_snmp}
@@ -1529,6 +1566,7 @@ Development files for libcollectdclient
 	%{?_with_notify_email} \
 	%{?_with_nut} \
 	%{?_with_onewire} \
+	%{?_with_openldap} \
 	%{?_with_oracle} \
 	%{?_with_perl} \
 	%{?_with_pf} \
@@ -1542,6 +1580,7 @@ Development files for libcollectdclient
 	%{?_with_rrdtool} \
 	%{?_with_sensors} \
 	%{?_with_sigrok} \
+	%{?_with_smart} \
 	%{?_with_snmp} \
 	%{?_with_tape} \
 	%{?_with_tokyotyrant} \
@@ -2043,6 +2082,11 @@ fi
 %{_libdir}/%{name}/nut.so
 %endif
 
+%if %{with_openldap}
+%files openldap
+%{_libdir}/%{name}/openldap.so
+%endif
+
 %if %{with_perl}
 %files perl
 %doc perl-examples/*
@@ -2100,6 +2144,11 @@ fi
 %{_libdir}/%{name}/sigrok.so
 %endif
 
+%if %{with_smart}
+%files smart
+%{_libdir}/%{name}/smart.so
+%endif
+
 %if %{with_snmp}
 %files snmp
 %{_mandir}/man5/collectd-snmp.5*
@@ -2145,7 +2194,7 @@ fi
 %changelog
 # * TODO 5.5.0-1
 # - New upstream version
-# - New plugins enabled by default: drbd, log_logstash, write_tsdb
+# - New plugins enabled by default: drbd, log_logstash, write_tsdb, smart, openldap
 # - New plugins disabled by default: barometer, write_kafka
 # - Enable zfs_arc, now supported on Linux
 # - Install disk plugin in an dedicated package, as it depends on libudev
