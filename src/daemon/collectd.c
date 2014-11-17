@@ -309,7 +309,7 @@ static int do_init (void)
 
 #if HAVE_LIBSTATGRAB
 	if (sg_init (
-# if HAVE_LIBSTATGRAB_INIT_ARG
+# if HAVE_LIBSTATGRAB_0_90
 		    0
 # endif
 		    ))
