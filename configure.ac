@@ -4175,6 +4175,7 @@ then
           )
   )
 
+  CFLAGS="$CFLAGS -Werror"
   AC_CACHE_CHECK([if sg_disk_io_stats() uses size_t],
           [c_cv_have_libstatgrab_get_disk_io_stats_sizet],
           AC_LINK_IFELSE([AC_LANG_PROGRAM(
