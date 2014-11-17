@@ -611,6 +611,10 @@ Prerequisites
     particular.
     <http://developer.apple.com/corefoundation/>
 
+  * libatasmart (optional)
+    Used by the `smart' plugin.
+    <http://git.0pointer.de/?p=libatasmart.git>
+
   * libclntsh (optional)
     Used by the `oracle' plugin.
 
