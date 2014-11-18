@@ -414,6 +414,7 @@ static int pidfile_remove (void)
 } /* static int pidfile_remove (const char *file) */
 #endif /* COLLECT_DAEMON */
 
+#ifdef KERNEL_LINUX
 int notify_upstart (void)
 {
     const char  *upstart_job = getenv("UPSTART_JOB");
@@ -479,6 +480,7 @@ int notify_systemd (void)
     close(fd);
     return 1;
 }
+#endif /* KERNEL_LINUX */
 
 int main (int argc, char **argv)
 {
@@ -598,9 +600,13 @@ int main (int argc, char **argv)
 
     /*
      * Only daemonize if we're not being supervised
-     * by upstart or systemd.
+     * by upstart or systemd (when using Linux).
      */
-	if (daemonize && notify_upstart() == 0 && notify_systemd() == 0)
+	if (daemonize
+#ifdef KERNEL_LINUX
+	    && notify_upstart() == 0 && notify_systemd() == 0
+#endif
+	)
 	{
 		if ((pid = fork ()) == -1)
 		{
