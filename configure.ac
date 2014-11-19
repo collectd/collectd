@@ -1637,6 +1637,64 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LIBCREDIS, test "x$with_libcredis" = "xyes")
 # }}}
 
+# --with-libhiredis {{{
+AC_ARG_WITH(libhiredis, [AS_HELP_STRING([--with-libhiredis@<:@=PREFIX@:>@], [Path to libhiredis.])],
+[
+ if test "x$withval" = "xyes"
+ then
+	 with_libhiredis="yes"
+ else if test "x$withval" = "xno"
+ then
+	 with_libhiredis="no"
+ else
+	 with_libhiredis="yes"
+	 LIBHIREDIS_CPPFLAGS="$LIBHIREDIS_CPPFLAGS -I$withval/include"
+	 LIBHIREDIS_LDFLAGS="$LIBHIREDIS_LDFLAGS -L$withval/lib"
+ fi; fi
+],
+[with_libhiredis="yes"])
+
+SAVE_CPPFLAGS="$CPPFLAGS"
+SAVE_LDFLAGS="$LDFLAGS"
+
+CPPFLAGS="$CPPFLAGS $LIBHIREDIS_CPPFLAGS"
+LDFLAGS="$LDFLAGS $LIBHIREDIS_LDFLAGS"
+
+if test "x$with_libhiredis" = "xyes"
+then
+	if test "x$LIBHIREDIS_CPPFLAGS" != "x"
+	then
+		AC_MSG_NOTICE([libhiredis CPPFLAGS: $LIBHIREDIS_CPPFLAGS])
+	fi
+	AC_CHECK_HEADERS(hiredis/hiredis.h,
+	[with_libhiredis="yes"],
+	[with_libhiredis="no (hiredis.h not found)"])
+fi
+if test "x$with_libhiredis" = "xyes"
+then
+	if test "x$LIBHIREDIS_LDFLAGS" != "x"
+	then
+		AC_MSG_NOTICE([libhiredis LDFLAGS: $LIBHIREDIS_LDFLAGS])
+	fi
+	AC_CHECK_LIB(hiredis, redisConnect,
+	[with_libhiredis="yes"],
+	[with_libhiredis="no (symbol 'redisConnect' not found)"])
+
+fi
+
+CPPFLAGS="$SAVE_CPPFLAGS"
+LDFLAGS="$SAVE_LDFLAGS"
+
+if test "x$with_libhiredis" = "xyes"
+then
+	BUILD_WITH_LIBHIREDIS_CPPFLAGS="$LIBHIREDIS_CPPFLAGS"
+	BUILD_WITH_LIBHIREDIS_LDFLAGS="$LIBHIREDIS_LDFLAGS"
+	AC_SUBST(BUILD_WITH_LIBHIREDIS_CPPFLAGS)
+	AC_SUBST(BUILD_WITH_LIBHIREDIS_LDFLAGS)
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBHIREDIS, test "x$with_libhiredis" = "xyes")
+# }}}
+
 # --with-libcurl {{{
 with_curl_config="curl-config"
 with_curl_cflags=""
@@ -5585,6 +5643,7 @@ AC_PLUGIN([write_http],  [$with_libcurl],      [HTTP output plugin])
 AC_PLUGIN([write_kafka],  [$with_librdkafka],  [Kafka output plugin])
 AC_PLUGIN([write_mongodb], [$with_libmongoc],  [MongoDB output plugin])
 AC_PLUGIN([write_redis], [$with_libcredis],    [Redis output plugin])
+AC_PLUGIN([write_redis_pubsub], [$with_libhiredis], [Redis pubsub output plugin])
 AC_PLUGIN([write_riemann], [$have_protoc_c],   [Riemann output plugin])
 AC_PLUGIN([write_tsdb],  [yes],                [TSDB output plugin])
 AC_PLUGIN([xmms],        [$with_libxmms],      [XMMS statistics])
@@ -5776,6 +5835,7 @@ Configuration:
     libcurl . . . . . . . $with_libcurl
     libdbi  . . . . . . . $with_libdbi
     libcredis . . . . . . $with_libcredis
+    libhiredis. . . . . . $with_libhiredis
     libesmtp  . . . . . . $with_libesmtp
     libganglia  . . . . . $with_libganglia
     libgcrypt . . . . . . $with_libgcrypt
@@ -5953,6 +6013,7 @@ Configuration:
     write_kafka . . . . . $enable_write_kafka
     write_mongodb . . . . $enable_write_mongodb
     write_redis . . . . . $enable_write_redis
+    write_redis_pubsub. . $enable_write_redis_pubsub
     write_riemann . . . . $enable_write_riemann
     write_tsdb  . . . . . $enable_write_tsdb
     xmms  . . . . . . . . $enable_xmms
