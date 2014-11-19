@@ -1437,9 +1437,8 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
     snmp_free_pdu (res);
   res = NULL;
 
-  /*
-   * memory is handled by snmp_synch_response
-   */
+  if (req != NULL)
+    snmp_free_pdu (req);
   req = NULL;
 
   if (status == 0)
