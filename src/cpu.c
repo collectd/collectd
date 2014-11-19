@@ -472,20 +472,34 @@ static void cpu_reset (void) /* {{{ */
 /* Legacy behavior: Dispatches the raw derive values without any aggregation. */
 static void cpu_commit_without_aggregation (void) /* {{{ */
 {
-	size_t cpu_num;
+	int state;
 
-	for (cpu_num = 0; cpu_num < global_cpu_num; cpu_num++)
+	for (state = 0; state < CPU_STATE_ACTIVE; state++)
 	{
-		int state;
+		size_t cpu_num;
+		if (report_by_cpu) {
+			for (cpu_num = 0; cpu_num < global_cpu_num; cpu_num++)
+			{
+				cpu_state_t *s = get_cpu_state (cpu_num, state);
 
-		for (state = 0; state < CPU_STATE_ACTIVE; state++)
-		{
-			cpu_state_t *s = get_cpu_state (cpu_num, state);
+				if (!s->has_value)
+					continue;
 
-			if (!s->has_value)
-				continue;
+				submit_derive ((int) cpu_num, (int) state, s->conv.last_value.derive);
+			}
+		} else {
+			derive_t derive_total = 0;
+			for (cpu_num = 0; cpu_num < global_cpu_num; cpu_num++)
+				{
+					cpu_state_t *s = get_cpu_state (cpu_num, state);
 
-			submit_derive ((int) cpu_num, (int) state, s->conv.last_value.derive);
+					if (!s->has_value)
+						continue;
+
+					derive_total += s->conv.last_value.derive;
+			
+				}
+			submit_derive (-1, (int) state, derive_total);
 		}
 	}
 } /* }}} void cpu_commit_without_aggregation */
@@ -498,7 +512,7 @@ static void cpu_commit (void) /* {{{ */
 	};
 	size_t cpu_num;
 
-	if (report_by_cpu && report_by_state && !report_percent)
+	if (report_by_state && !report_percent)
 	{
 		cpu_commit_without_aggregation ();
 		return;
