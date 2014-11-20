@@ -212,11 +212,20 @@ static int mqtt_write (const data_set_t *ds, const value_list_t *vl,
     return (status);
 } /* mqtt_write */
 
+/*
+ * <Plugin mqtt>
+ *   Host "example.com"
+ *   Port 1883
+ *   Prefix "collectd"
+ *   ClientId "collectd"
+ * </Plugin>
+ */
 static int mqtt_config (oconfig_item_t *ci)
 {
     mqtt_client_conf_t *conf;
     user_data_t user_data;
     int status;
+    int i;
 
     conf = calloc (1, sizeof (*conf));
     if (conf == NULL)
@@ -226,11 +235,34 @@ static int mqtt_config (oconfig_item_t *ci)
     }
 
     conf->connected = false;
-    conf->host = MQTT_DEFAULT_HOST;
+    conf->host = strdup (MQTT_DEFAULT_HOST);
     conf->port = MQTT_DEFAULT_PORT;
-    conf->client_id = MQTT_DEFAULT_CLIENT_ID;
-    conf->topic_prefix = MQTT_DEFAULT_TOPIC_PREFIX;
+    conf->client_id = strdup (MQTT_DEFAULT_CLIENT_ID);
+    conf->topic_prefix = strdup (MQTT_DEFAULT_TOPIC_PREFIX);
     C_COMPLAIN_INIT (&conf->complaint_cantpublish);
+
+    for (i = 0; i < ci->children_num; i++)
+    {
+        oconfig_item_t *child = ci->children + i;
+        if (strcasecmp ("Host", child->key) == 0)
+            cf_util_get_string (child, &conf->host);
+        else if (strcasecmp ("Port", child->key) == 0)
+        {
+            int tmp = cf_util_get_port_number (child);
+            if (tmp < 0)
+            {
+                ERROR ("mqtt plugin: Invalid port number.");
+                continue;
+            }
+            conf->port = tmp;
+        }
+        else if (strcasecmp ("Prefix", child->key) == 0)
+            cf_util_get_string (child, &conf->topic_prefix);
+        else if (strcasecmp ("ClientId", child->key) == 0)
+            cf_util_get_string (child, &conf->client_id);
+        else
+            ERROR ("mqtt plugin: Unknown config option: %s", child->key);
+    }
 
     memset (&user_data, 0, sizeof (user_data));
     user_data.data = conf;
