@@ -6408,22 +6408,35 @@ Take the UUID from the given file (default I</etc/uuid>).
 =head2 Plugin C<varnish>
 
 The I<varnish plugin> collects information about Varnish, an HTTP accelerator.
+It collects a subset of the values displayed by L<varnishstat(1)>, and
+organizes them in categories which can be enabled or disabled. Currently only
+metrics shown in L<varnishstat(1)>'s I<MAIN> section are collected. The exact
+meaning of each metric can be found in L<varnish-counters(7)>.
 
 Synopsis:
 
  <Plugin "varnish">
    <Instance "example">
+     CollectBackend     true
+     CollectBan         false
      CollectCache       true
      CollectConnections true
-     CollectBackend     true
-     CollectSHM         true
+     CollectDirectorDNS false
      CollectESI         false
      CollectFetch       false
      CollectHCB         false
+     CollectObjects     false
+     CollectPurge       false
+     CollectSession     false
+     CollectSHM         true
      CollectSMA         false
      CollectSMS         false
      CollectSM          false
+     CollectStruct      false
      CollectTotals      false
+     CollectUptime      false
+     CollectVCL         false
+     CollectVSM         false
      CollectWorkers     false
    </Instance>
  </Plugin>
@@ -6437,6 +6450,17 @@ Inside each E<lt>B<Instance>E<gt> blocks, the following options are recognized:
 
 =over 4
 
+=item B<CollectBackend> B<true>|B<false>
+
+Back-end connection statistics, such as successful, reused,
+and closed connections. True by default.
+
+=item B<CollectBan> B<true>|B<false>
+
+Statistics about ban operations, such as number of bans added, retired, and
+number of objects tested against ban operations. Only available with Varnish
+3.x and above. False by default.
+
 =item B<CollectCache> B<true>|B<false>
 
 Cache hits and misses. True by default.
@@ -6444,22 +6468,6 @@ Cache hits and misses. True by default.
 =item B<CollectConnections> B<true>|B<false>
 
 Number of client connections received, accepted and dropped. True by default.
-
-=item B<CollectBackend> B<true>|B<false>
-
-Back-end connection statistics, such as successful, reused,
-and closed connections. True by default.
-
-=item B<CollectSHM> B<true>|B<false>
-
-Statistics about the shared memory log, a memory region to store
-log messages which is flushed to disk when full. True by default.
-
-=item B<CollectBan> B<true>|B<false>
-
-Statistics about ban operations, such as number of bans added, retired, and
-number of objects tested against ban operations. Only available with Varnish
-3.x. False by default.
 
 =item B<CollectDirectorDNS> B<true>|B<false>
 
@@ -6493,7 +6501,14 @@ number of objects tested against purge operations. Only available with Varnish
 =item B<CollectSession> B<true>|B<false>
 
 Client session statistics. Number of past and current sessions, session herd and
-linger counters, etc. False by default.
+linger counters, etc. False by default. Note that if using Varnish 4.x, some
+metrics found in the Connections and Threads sections with previous versions of
+Varnish have been moved here.
+
+=item B<CollectSHM> B<true>|B<false>
+
+Statistics about the shared memory log, a memory region to store
+log messages which is flushed to disk when full. True by default.
 
 =item B<CollectSMA> B<true>|B<false>
 
@@ -6524,11 +6539,16 @@ the number of requests and bytes transferred. False by default.
 
 =item B<CollectUptime> B<true>|B<false>
 
-Varnish uptime. False by default.
+Varnish uptime. Only available with Varnish 3.x and above. False by default.
 
 =item B<CollectVCL> B<true>|B<false>
 
 Number of total (available + discarded) VCL (config files). False by default.
+
+=item B<CollectVSM> B<true>|B<false>
+
+Collect statistics about Varnish's shared memory usage (used by the logging and
+statistics subsystems). Only available with Varnish 4.x. False by default.
 
 =item B<CollectWorkers> B<true>|B<false>
 
