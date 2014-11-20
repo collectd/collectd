@@ -707,6 +707,10 @@ static int mysql_read (user_data_t *ud)
 				counter_submit ("mysql_bpool_counters", "reads", val, db);
 			else if (strcmp (key, "Innodb_buffer_pool_write_requests") == 0)
 				counter_submit ("mysql_bpool_counters", "write_requests", val, db);
+			else if (strcmp (key, "Innodb_buffer_pool_bytes_data") == 0)
+				gauge_submit ("mysql_bpool_bytes", "data", val, db);
+			else if (strcmp (key, "Innodb_buffer_pool_bytes_dirty") == 0)
+				gauge_submit ("mysql_bpool_bytes", "dirty", val, db);
 
 			/* data */
 			if (strcmp (key, "Innodb_data_fsyncs") == 0)
@@ -725,6 +729,32 @@ static int mysql_read (user_data_t *ud)
 				counter_submit ("mysql_innodb_dblwr", "writes", val, db);
 			else if (strcmp (key, "Innodb_dblwr_pages_written") == 0)
 				counter_submit ("mysql_innodb_dblwr", "written", val, db);
+
+			/* log */
+			else if (strcmp (key, "Innodb_log_waits") == 0)
+				counter_submit ("mysql_innodb_log", "waits", val, db);
+			else if (strcmp (key, "Innodb_log_write_requests") == 0)
+				counter_submit ("mysql_innodb_log", "write_requests", val, db);
+			else if (strcmp (key, "Innodb_log_writes") == 0)
+				counter_submit ("mysql_innodb_log", "writes", val, db);
+			else if (strcmp (key, "Innodb_os_log_fsyncs") == 0)
+				counter_submit ("mysql_innodb_log", "fsyncs", val, db);
+			else if (strcmp (key, "Innodb_os_log_written") == 0)
+				counter_submit ("mysql_innodb_log", "written", val, db);
+
+			/* pages */
+			else if (strcmp (key, "Innodb_pages_created") == 0)
+				counter_submit ("mysql_innodb_pages", "created", val, db);
+			else if (strcmp (key, "Innodb_pages_read") == 0)
+				counter_submit ("mysql_innodb_pages", "read", val, db);
+			else if (strcmp (key, "Innodb_pages_written") == 0)
+				counter_submit ("mysql_innodb_pages", "written", val, db);
+
+			/* row lock */
+			else if (strcmp (key, "Innodb_row_lock_time") == 0)
+				counter_submit ("mysql_innodb_row_lock", "time", val, db);
+			else if (strcmp (key, "Innodb_row_lock_waits") == 0)
+				counter_submit ("mysql_innodb_row_lock", "waits", val, db);
 
 			/* rows */
 			else if (strcmp (key, "Innodb_rows_deleted") == 0)
