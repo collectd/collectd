@@ -5333,6 +5333,10 @@ which configures the connection parameters for this node.
         Host "localhost"
         Port "6379"
         Timeout 2000
+        <Query "LLEN myqueue">
+          Type "queue_length"
+          Instance "myqueue"
+        <Query>
     </Node>
   </Plugin>
 
@@ -5369,6 +5373,22 @@ The B<Timeout> option set the socket timeout for node response. Since the Redis
 read function is blocking, you should keep this value as low as possible. Keep
 in mind that the sum of all B<Timeout> values for all B<Nodes> should be lower
 than B<Interval> defined globally.
+
+=item B<Query> I<Querystring>
+
+The B<Query> block identifies a query to execute against the redis server.
+There may be an arbitrary number of queries to execute.
+
+=item B<Type> I<Collectd type>
+
+Within a query definition, a valid collectd type to use as when submitting
+the result of the query. When not supplied, will default to B<gauge>.
+
+=item B<Instance> I<Type instance>
+
+Within a query definition, an optional type instance to use when submitting
+the result of the query. When not supplied will default to the escaped
+command, up to 64 chars.
 
 =back
 
