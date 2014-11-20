@@ -111,10 +111,10 @@ static int mqtt_reconnect_broker (mqtt_client_conf_t *conf)
     return (0);
 } /* mqtt_reconnect_broker */
 
-static int mqtt_publish_message (mqtt_client_conf_t *conf, char *topic,
+static int publish (mqtt_client_conf_t *conf, char const *topic,
     void const *payload, size_t payload_len)
 {
-    char errbuf[1024];
+    int const qos = 0; /* TODO: Config option */
     int status;
 
     pthread_mutex_lock (&conf->lock);
@@ -127,24 +127,23 @@ static int mqtt_publish_message (mqtt_client_conf_t *conf, char *topic,
     }
 
     status = mosquitto_publish(conf->mosq,
-        /* message id */ NULL,
-        topic,
-        (int) payload_len,
-        payload,
-        /* qos */ 0,
-        /* retain */ false);
+            /* message id */ NULL,
+            topic,
+            (uint32_t) payload_len, payload,
+            /* qos */ qos,
+            /* retain */ false);
     if (status != MOSQ_ERR_SUCCESS)
     {
+        char errbuf[1024];
         c_complain (LOG_ERR,
-            &conf->complaint_cantpublish,
-            "plugin mqtt: mosquitto_publish failed: %s",
-            status == MOSQ_ERR_ERRNO ?
-            sstrerror(errno, errbuf, sizeof (errbuf)) :
+                &conf->complaint_cantpublish,
+                "plugin mqtt: mosquitto_publish failed: %s",
+                status == MOSQ_ERR_ERRNO ?
+                sstrerror(errno, errbuf, sizeof (errbuf)) :
                 mosquitto_strerror(status));
-        /*
-        Mark our connection "down" regardless of the error as a safety measure;
-        we will try to reconnect the next time we have to publish a message
-        */
+        /* Mark our connection "down" regardless of the error as a safety
+         * measure; we will try to reconnect the next time we have to publish a
+         * message */
         conf->connected = false;
 
         pthread_mutex_unlock (&conf->lock);
@@ -153,7 +152,7 @@ static int mqtt_publish_message (mqtt_client_conf_t *conf, char *topic,
 
     pthread_mutex_unlock (&conf->lock);
     return (0);
-} /* mqtt_publish_message */
+} /* int publish */
 
 static int format_topic (char *buf, size_t buf_len,
     data_set_t const *ds, value_list_t const *vl,
