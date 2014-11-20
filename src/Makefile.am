@@ -111,6 +111,17 @@ apache_la_LIBADD += $(BUILD_WITH_LIBCURL_LIBS)
 endif
 endif
 
+
+if BUILD_PLUGIN_APACHELOG
+pkglib_LTLIBRARIES += apachelog.la
+apachelog_la_SOURCES = apache-log.c
+apachelog_la_LDFLAGS = -module -avoid-version
+apachelog_la_CFLAGS = $(AM_CFLAGS)
+apachelog_la_LIBADD =
+endif
+
+
+
 if BUILD_PLUGIN_APCUPS
 pkglib_LTLIBRARIES += apcups.la
 apcups_la_SOURCES = apcups.c

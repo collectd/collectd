@@ -39,6 +39,7 @@ struct cu_tail_s
 	char  *file;
 	FILE  *fh;
 	struct stat stat;
+	int  disable_seek_end_on_new;
 };
 
 static int cu_tail_reopen (cu_tail_t *obj)
@@ -84,6 +85,8 @@ static int cu_tail_reopen (cu_tail_t *obj)
    * is the first at all or the first after an error */
   if ((obj->stat.st_ino == 0) || (obj->stat.st_ino == stat_buf.st_ino))
     seek_end = 1;
+  /*needed when rotated log switch by example with apache rotatelogs tool*/
+  if (obj->disable_seek_end_on_new) seek_end=0;
 
   fh = fopen (obj->file, "r");
   if (fh == NULL)
@@ -130,11 +133,17 @@ cu_tail_t *cu_tail_create (const char *file)
 		free (obj);
 		return (NULL);
 	}
-
+	obj->disable_seek_end_on_new=0;
 	obj->fh = NULL;
 
 	return (obj);
 } /* cu_tail_t *cu_tail_create */
+
+void cu_tail_disable_seek_end_on_newfile (cu_tail_t *obj)
+{
+	obj->disable_seek_end_on_new=1;
+}
+
 
 int cu_tail_destroy (cu_tail_t *obj)
 {
