@@ -4962,6 +4962,10 @@ Specify the username to be used when connecting to the server.
 
 Specify the password to be used when connecting to the server.
 
+=item B<ExpireDelay> I<delay>
+
+Skip expired values in query output.
+
 =item B<SSLMode> I<disable>|I<allow>|I<prefer>|I<require>
 
 Specify whether to use an SSL connection when contacting the server. The
