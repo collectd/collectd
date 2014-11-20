@@ -1579,62 +1579,63 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LIBAQUAERO5, test "x$with_libaquaero5" = "xyes")
 # }}}
 
-# --with-libcredis {{{
-AC_ARG_WITH(libcredis, [AS_HELP_STRING([--with-libcredis@<:@=PREFIX@:>@], [Path to libcredis.])],
+# --with-libhiredis {{{
+AC_ARG_WITH(libhiredis, [AS_HELP_STRING([--with-libhiredis@<:@=PREFIX@:>@],
+      [Path to libhiredis.])],
 [
  if test "x$withval" = "xyes"
  then
-	 with_libcredis="yes"
+	 with_libhiredis="yes"
  else if test "x$withval" = "xno"
  then
-	 with_libcredis="no"
+	 with_libhiredis="no"
  else
-	 with_libcredis="yes"
-	 LIBCREDIS_CPPFLAGS="$LIBCREDIS_CPPFLAGS -I$withval/include"
-	 LIBCREDIS_LDFLAGS="$LIBCREDIS_LDFLAGS -L$withval/lib"
+	 with_libhiredis="yes"
+	 LIBHIREDIS_CPPFLAGS="$LIBHIREDIS_CPPFLAGS -I$withval/include"
+	 LIBHIREDIS_LDFLAGS="$LIBHIREDIS_LDFLAGS -L$withval/lib"
  fi; fi
 ],
-[with_libcredis="yes"])
+[with_libhiredis="yes"])
 
 SAVE_CPPFLAGS="$CPPFLAGS"
 SAVE_LDFLAGS="$LDFLAGS"
 
-CPPFLAGS="$CPPFLAGS $LIBCREDIS_CPPFLAGS"
-LDFLAGS="$LDFLAGS $LIBCREDIS_LDFLAGS"
+CPPFLAGS="$CPPFLAGS $LIBHIREDIS_CPPFLAGS"
+LDFLAGS="$LDFLAGS $LIBHIREDIS_LDFLAGS"
 
-if test "x$with_libcredis" = "xyes"
+if test "x$with_libhiredis" = "xyes"
 then
-	if test "x$LIBCREDIS_CPPFLAGS" != "x"
+	if test "x$LIBHIREDIS_CPPFLAGS" != "x"
 	then
-		AC_MSG_NOTICE([libcredis CPPFLAGS: $LIBCREDIS_CPPFLAGS])
+		AC_MSG_NOTICE([libhiredis CPPFLAGS: $LIBHIREDIS_CPPFLAGS])
 	fi
-	AC_CHECK_HEADERS(credis.h,
-	[with_libcredis="yes"],
-	[with_libcredis="no (credis.h not found)"])
+	AC_CHECK_HEADERS(hiredis/hiredis.h,
+	[with_libhiredis="yes"],
+	[with_libhiredis="no (hiredis.h not found)"])
 fi
-if test "x$with_libcredis" = "xyes"
+if test "x$with_libhiredis" = "xyes"
 then
-	if test "x$LIBCREDIS_LDFLAGS" != "x"
+	if test "x$LIBHIREDIS_LDFLAGS" != "x"
 	then
-		AC_MSG_NOTICE([libcredis LDFLAGS: $LIBCREDIS_LDFLAGS])
+		AC_MSG_NOTICE([libhiredis LDFLAGS: $LIBHIREDIS_LDFLAGS])
 	fi
-	AC_CHECK_LIB(credis, credis_info,
-	[with_libcredis="yes"],
-	[with_libcredis="no (symbol 'credis_info' not found)"])
+	AC_CHECK_LIB(hiredis, redisCommand,
+	[with_libhiredis="yes"],
+	[with_libhiredis="no (symbol 'redisCommand' not found)"])
 
 fi
 
 CPPFLAGS="$SAVE_CPPFLAGS"
 LDFLAGS="$SAVE_LDFLAGS"
 
-if test "x$with_libcredis" = "xyes"
+if test "x$with_libhiredis" = "xyes"
 then
-	BUILD_WITH_LIBCREDIS_CPPFLAGS="$LIBCREDIS_CPPFLAGS"
-	BUILD_WITH_LIBCREDIS_LDFLAGS="$LIBCREDIS_LDFLAGS"
-	AC_SUBST(BUILD_WITH_LIBCREDIS_CPPFLAGS)
-	AC_SUBST(BUILD_WITH_LIBCREDIS_LDFLAGS)
+	BUILD_WITH_LIBHIREDIS_CPPFLAGS="$LIBHIREDIS_CPPFLAGS"
+	BUILD_WITH_LIBHIREDIS_LDFLAGS="$LIBHIREDIS_LDFLAGS"
+	AC_SUBST(BUILD_WITH_LIBHIREDIS_CPPFLAGS)
+	AC_SUBST(BUILD_WITH_LIBHIREDIS_LDFLAGS)
 fi
-AM_CONDITIONAL(BUILD_WITH_LIBCREDIS, test "x$with_libcredis" = "xyes")
+AM_CONDITIONAL(BUILD_WITH_LIBHIREDIS, test "x$with_libhiredis" = "xyes")
 # }}}
 
 # --with-libcurl {{{
@@ -5544,7 +5545,7 @@ AC_PLUGIN([powerdns],    [yes],                [PowerDNS statistics])
 AC_PLUGIN([processes],   [$plugin_processes],  [Process statistics])
 AC_PLUGIN([protocols],   [$plugin_protocols],  [Protocol (IP, TCP, ...) statistics])
 AC_PLUGIN([python],      [$with_python],       [Embed a Python interpreter])
-AC_PLUGIN([redis],       [$with_libcredis],    [Redis plugin])
+AC_PLUGIN([redis],       [$with_libhiredis],    [Redis plugin])
 AC_PLUGIN([routeros],    [$with_librouteros],  [RouterOS plugin])
 AC_PLUGIN([rrdcached],   [$librrd_rrdc_update], [RRDTool output plugin])
 AC_PLUGIN([rrdtool],     [$with_librrd],       [RRDTool output plugin])
@@ -5584,7 +5585,7 @@ AC_PLUGIN([write_graphite], [yes],             [Graphite / Carbon output plugin]
 AC_PLUGIN([write_http],  [$with_libcurl],      [HTTP output plugin])
 AC_PLUGIN([write_kafka],  [$with_librdkafka],  [Kafka output plugin])
 AC_PLUGIN([write_mongodb], [$with_libmongoc],  [MongoDB output plugin])
-AC_PLUGIN([write_redis], [$with_libcredis],    [Redis output plugin])
+AC_PLUGIN([write_redis], [$with_libhiredis],    [Redis output plugin])
 AC_PLUGIN([write_riemann], [$have_protoc_c],   [Riemann output plugin])
 AC_PLUGIN([write_tsdb],  [yes],                [TSDB output plugin])
 AC_PLUGIN([xmms],        [$with_libxmms],      [XMMS statistics])
@@ -5775,7 +5776,7 @@ Configuration:
     libatasmart . . . . . $with_libatasmart
     libcurl . . . . . . . $with_libcurl
     libdbi  . . . . . . . $with_libdbi
-    libcredis . . . . . . $with_libcredis
+    libhiredis  . . . . . $with_libhiredis
     libesmtp  . . . . . . $with_libesmtp
     libganglia  . . . . . $with_libganglia
     libgcrypt . . . . . . $with_libgcrypt
