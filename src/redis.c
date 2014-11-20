@@ -40,7 +40,7 @@
 #define MAX_REDIS_NODE_NAME 64
 #define MAX_REDIS_PASSWD_LENGTH 512
 #define MAX_REDIS_VAL_SIZE 256
-#define MAX_REDIS_COMMAND 2048
+#define MAX_REDIS_QUERY 2048
 
 /* Redis plugin configuration example:
  *
@@ -54,14 +54,14 @@
  * </Plugin>
  */
 
-struct redis_command_s;
-typedef struct redis_command_s redis_command_t;
-struct redis_command_s
+struct redis_query_s;
+typedef struct redis_query_s redis_query_t;
+struct redis_query_s
 {
-    char command[MAX_REDIS_COMMAND];
+    char query[MAX_REDIS_QUERY];
     char type[DATA_MAX_NAME_LEN];
     char instance[DATA_MAX_NAME_LEN];
-    redis_command_t *next;
+    redis_query_t *next;
 };
 
 struct redis_node_s;
@@ -73,7 +73,7 @@ struct redis_node_s
   char passwd[MAX_REDIS_PASSWD_LENGTH];
   int port;
   struct timeval timeout;
-  redis_command_t *commands;
+  redis_query_t *queries;
 
   redis_node_t *next;
 };
@@ -122,15 +122,15 @@ static int redis_node_add (const redis_node_t *rn) /* {{{ */
   return (0);
 } /* }}} */
 
-static redis_command_t *redis_config_command (oconfig_item_t *ci) /* {{{ */
+static redis_query_t *redis_config_query (oconfig_item_t *ci) /* {{{ */
 {
-    redis_command_t *rc;
+    redis_query_t *rc;
     int status;
     int i;
 
     rc = calloc(1, sizeof(*rc));
     if (rc == NULL) {
-        ERROR("redis plugin: calloca failed adding redis_command.");
+        ERROR("redis plugin: calloca failed adding redis_query.");
         return NULL;
     }
     status = cf_util_get_string_buffer(ci, rc->type, sizeof(rc->type));
@@ -141,15 +141,15 @@ static redis_command_t *redis_config_command (oconfig_item_t *ci) /* {{{ */
         oconfig_item_t *option = ci->children + i;
 
         if (strcasecmp("Exec", option->key) == 0) {
-            status = cf_util_get_string_buffer(option, rc->command, sizeof(rc->command));
+            status = cf_util_get_string_buffer(option, rc->query, sizeof(rc->query));
         } else if (strcasecmp("Instance", option->key) == 0) {
             status = cf_util_get_string_buffer(option, rc->instance, sizeof(rc->instance));
         }
         if (status != 0)
             goto err;
     }
-    if (strlen(rc->command) == 0) {
-        WARNING("redis plugin: invalid command definition for: %s", rc->type);
+    if (strlen(rc->query) == 0) {
+        WARNING("redis plugin: invalid query definition for: %s", rc->type);
         goto err;
     }
     return rc;
@@ -161,7 +161,7 @@ static redis_command_t *redis_config_command (oconfig_item_t *ci) /* {{{ */
 static int redis_config_node (oconfig_item_t *ci) /* {{{ */
 {
   redis_node_t rn;
-  redis_command_t *rc;
+  redis_query_t *rc;
   int i;
   int status;
   int timeout;
@@ -170,7 +170,7 @@ static int redis_config_node (oconfig_item_t *ci) /* {{{ */
   sstrncpy (rn.host, REDIS_DEF_HOST, sizeof (rn.host));
   rn.port = REDIS_DEF_PORT;
   rn.timeout.tv_usec = REDIS_DEF_TIMEOUT;
-  rn.commands = NULL;
+  rn.queries = NULL;
 
   status = cf_util_get_string_buffer (ci, rn.name, sizeof (rn.name));
   if (status != 0)
@@ -191,14 +191,14 @@ static int redis_config_node (oconfig_item_t *ci) /* {{{ */
         status = 0;
       }
     }
-    else if (strcasecmp ("Command", option->key) == 0)
+    else if (strcasecmp ("Query", option->key) == 0)
     {
-      rc = redis_config_command(option);
+      rc = redis_config_query(option);
       if (rc == NULL) {
           status =1;
       } else {
-          rc->next = rn.commands;
-          rn.commands = rc;
+          rc->next = rn.queries;
+          rn.queries = rc;
       }
     }
     else if (strcasecmp ("Timeout", option->key) == 0)
@@ -315,7 +315,7 @@ int redis_handle_info (char *node, char const *info_line, char const *type, char
 
 } /* }}} int redis_handle_info */
 
-int redis_handle_command (redisContext *rh, redis_node_t *rn, redis_command_t *rc) /* {{{ */
+int redis_handle_query (redisContext *rh, redis_node_t *rn, redis_query_t *rc) /* {{{ */
 {
     redisReply *rr;
     const data_set_t *ds;
@@ -332,8 +332,8 @@ int redis_handle_command (redisContext *rh, redis_node_t *rn, redis_command_t *r
         return (-1);
     }
 
-    if ((rr = redisCommand(rh, rc->command)) == NULL) {
-        WARNING("redis plugin: unable to carry out command `%s'.", rc->command);
+    if ((rr = redisCommand(rh, rc->query)) == NULL) {
+        WARNING("redis plugin: unable to carry out query `%s'.", rc->query);
         return (-1);
     }
 
@@ -375,7 +375,7 @@ int redis_handle_command (redisContext *rh, redis_node_t *rn, redis_command_t *r
 static int redis_read (void) /* {{{ */
 {
   redis_node_t *rn;
-  redis_command_t *rc;
+  redis_query_t *rc;
 
   for (rn = nodes_head; rn != NULL; rn = rn->next)
   {
@@ -430,8 +430,8 @@ static int redis_read (void) /* {{{ */
 
     freeReplyObject (rr);
 
-    for (rc = rn->commands; rc != NULL; rc = rc->next)
-        redis_handle_command(rh, rn, rc);
+    for (rc = rn->queries; rc != NULL; rc = rc->next)
+        redis_handle_query(rh, rn, rc);
 
     redisFree (rh);
   }
