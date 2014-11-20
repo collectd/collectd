@@ -135,6 +135,7 @@ typedef struct {
 	/* writer "caching" settings */
 	cdtime_t commit_interval;
 	cdtime_t next_commit;
+	cdtime_t expire_delay;
 
 	char *host;
 	char *port;
@@ -257,6 +258,7 @@ static c_psql_database_t *c_psql_database_new (const char *name)
 
 	db->commit_interval = 0;
 	db->next_commit     = 0;
+	db->expire_delay    = 0;
 
 	db->database   = sstrdup (name);
 	db->host       = NULL;
@@ -867,6 +869,12 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 
 #undef VALUE_OR_NULL
 
+	if( db->expire_delay > 0 && vl->time < (cdtime() - vl->interval - db->expire_delay) ) {
+		log_info ("c_psql_write: Skipped expired value @ %s - %s/%s-%s/%s-%s/%s", 
+			params[0], params[1], params[2], params[3], params[4], params[5], params[6] );
+		return 0;
+        }
+
 	pthread_mutex_lock (&db->db_lock);
 
 	if (0 != c_psql_check_connection (db)) {
@@ -1236,6 +1244,8 @@ static int c_psql_config_database (oconfig_item_t *ci)
 			cf_util_get_cdtime (c, &db->interval);
 		else if (strcasecmp ("CommitInterval", c->key) == 0)
 			cf_util_get_cdtime (c, &db->commit_interval);
+		else if (strcasecmp ("ExpireDelay", c->key) == 0)
+			cf_util_get_cdtime (c, &db->expire_delay);
 		else
 			log_warn ("Ignoring unknown config key \"%s\".", c->key);
 	}
