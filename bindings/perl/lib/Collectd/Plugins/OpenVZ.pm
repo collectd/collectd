@@ -48,7 +48,7 @@ sub interface_read {
     my @tx_fields = qw(if_octets if_packets if_errors drop fifo frame compressed);
     my %v = _build_report_hash($name);
 
-    my @lines = `$vzctl exec $veid cat /proc/net/dev`;
+    my @lines = `$vzctl exec $veid cat /host_proc/net/dev`;
 
     for my $line (@lines) {
         # skip explanatory text
@@ -58,7 +58,7 @@ sub interface_read {
 
         my ($iface, %rx, %tx);
 
-        # read /proc/net/dev fields
+        # read /host_proc/net/dev fields
         ($iface, @rx{@rx_fields}, @tx{@tx_fields}) = split /[: ]+/, $line;
 
         # Skip this interface if it is in the ignored list
@@ -88,7 +88,7 @@ sub cpu_read {
     $v{'type'} = 'cpu';
 
     $i = 0;
-    @lines = split(/\n/, `$vzctl exec $veid cat /proc/stat`);
+    @lines = split(/\n/, `$vzctl exec $veid cat /host_proc/stat`);
     foreach (@lines) {
         next if (!/^cpu[0-9]/);
 
@@ -124,7 +124,7 @@ sub df_read {
     delete $v{'plugin_instance'};
     $v{'type'} = 'df';
 
-    $val = join(' ', map { (split)[1] } split(/\n/, `$vzctl exec $veid cat /proc/mounts`));
+    $val = join(' ', map { (split)[1] } split(/\n/, `$vzctl exec $veid cat /host_proc/mounts`));
     @lines = split(/\n/, `$vzctl exec $veid stat -tf $val`);
     foreach (@lines) {
         @parts = split(/ /);
@@ -151,7 +151,7 @@ sub load_read {
     $v{'type'} = 'load';
     delete $v{'type_instance'};
 
-    @parts = split(/ +/, `$vzctl exec $veid cat /proc/loadavg`);
+    @parts = split(/ +/, `$vzctl exec $veid cat /host_proc/loadavg`);
     $v{'values'} = [ $parts[0], $parts[1], $parts[2] ];
     plugin_dispatch_values(\%v);
 }
@@ -171,7 +171,7 @@ sub processes_read {
     delete $v{'plugin_instance'};
     $v{'type'} = 'ps_state';
 
-    @lines = map { (split)[2] } split(/\n/, `$vzctl exec $veid cat '/proc/[0-9]*/stat'`);
+    @lines = map { (split)[2] } split(/\n/, `$vzctl exec $veid cat '/host_proc/[0-9]*/stat'`);
     foreach $key (@lines) {
         ++$ps_states->{$state_map->{$key}};
     }

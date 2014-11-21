@@ -29,10 +29,10 @@
 # error "No applicable input method."
 #endif
 
-#define CONNTRACK_FILE "/proc/sys/net/netfilter/nf_conntrack_count"
-#define CONNTRACK_MAX_FILE "/proc/sys/net/netfilter/nf_conntrack_max"
-#define CONNTRACK_FILE_OLD "/proc/sys/net/ipv4/netfilter/ip_conntrack_count"
-#define CONNTRACK_MAX_FILE_OLD "/proc/sys/net/ipv4/netfilter/ip_conntrack_max"
+#define CONNTRACK_FILE "/host_proc/sys/net/netfilter/nf_conntrack_count"
+#define CONNTRACK_MAX_FILE "/host_proc/sys/net/netfilter/nf_conntrack_max"
+#define CONNTRACK_FILE_OLD "/host_proc/sys/net/ipv4/netfilter/ip_conntrack_count"
+#define CONNTRACK_MAX_FILE_OLD "/host_proc/sys/net/ipv4/netfilter/ip_conntrack_max"
 
 static const char *config_keys[] =
 {

@@ -38,7 +38,7 @@
 #include "common.h"
 #include "plugin.h"
 
-static const char *drbd_stats = "/proc/drbd";
+static const char *drbd_stats = "/host_proc/drbd";
 static const char *drbd_names[] =
 {
 	"network_send",	 /* ns (network send) */

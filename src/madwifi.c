@@ -891,9 +891,9 @@ procfs_iterate(int sk)
 	int num_success;
 	int num_fail;
 	
-	if ((fh = fopen ("/proc/net/dev", "r")) == NULL)
+	if ((fh = fopen ("/host_proc/net/dev", "r")) == NULL)
 	{
-		WARNING ("madwifi plugin: opening /proc/net/dev failed");
+		WARNING ("madwifi plugin: opening /host_proc/net/dev failed");
 		return (-1);
 	}
 

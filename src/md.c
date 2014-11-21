@@ -29,7 +29,7 @@
 #include <linux/major.h>
 #include <linux/raid/md_u.h>
 
-#define PROC_DISKSTATS "/proc/diskstats"
+#define PROC_DISKSTATS "/host_proc/diskstats"
 #define DEV_DIR "/dev"
 
 static const char *config_keys[] =

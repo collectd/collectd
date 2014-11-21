@@ -777,9 +777,9 @@ static int conn_read (void)
   {
     int errors_num = 0;
 
-    if (conn_read_file ("/proc/net/tcp") != 0)
+    if (conn_read_file ("/host_proc/net/tcp") != 0)
       errors_num++;
-    if (conn_read_file ("/proc/net/tcp6") != 0)
+    if (conn_read_file ("/host_proc/net/tcp6") != 0)
       errors_num++;
 
     if (errors_num < 2)

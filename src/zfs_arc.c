@@ -37,7 +37,7 @@
 
 #if defined(KERNEL_LINUX)
 #include "utils_llist.h"
-#define ZOL_ARCSTATS_FILE "/proc/spl/kstat/zfs/arcstats"
+#define ZOL_ARCSTATS_FILE "/host_proc/spl/kstat/zfs/arcstats"
 
 typedef	llist_t kstat_t;
 

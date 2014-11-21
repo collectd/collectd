@@ -113,11 +113,11 @@ static int vmem_read (void)
   FILE *fh;
   char buffer[1024];
 
-  fh = fopen ("/proc/vmstat", "r");
+  fh = fopen ("/host_proc/vmstat", "r");
   if (fh == NULL)
   {
     char errbuf[1024];
-    ERROR ("vmem plugin: fopen (/proc/vmstat) failed: %s",
+    ERROR ("vmem plugin: fopen (/host_proc/vmstat) failed: %s",
 	sstrerror (errno, errbuf, sizeof (errbuf)));
     return (-1);
   }

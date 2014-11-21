@@ -32,7 +32,7 @@
 # error "No applicable input method."
 #endif
 
-#define ENTROPY_FILE "/proc/sys/kernel/random/entropy_avail"
+#define ENTROPY_FILE "/host_proc/sys/kernel/random/entropy_avail"
 
 static void entropy_submit (double entropy)
 {
