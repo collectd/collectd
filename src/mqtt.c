@@ -47,7 +47,7 @@
 struct mqtt_client_conf
 {
     struct mosquitto    *mosq;
-    bool                connected;
+    _Bool               connected;
     char                *host;
     int                 port;
     char                *client_id;
@@ -101,7 +101,7 @@ static int mqtt_reconnect_broker (mqtt_client_conf_t *conf)
         return (-1);
     }
 
-    conf->connected = true;
+    conf->connected = 1;
 
     c_release (LOG_INFO,
         &conf->complaint_cantpublish,
@@ -144,7 +144,7 @@ static int publish (mqtt_client_conf_t *conf, char const *topic,
         /* Mark our connection "down" regardless of the error as a safety
          * measure; we will try to reconnect the next time we have to publish a
          * message */
-        conf->connected = false;
+        conf->connected = 0;
 
         pthread_mutex_unlock (&conf->lock);
         return (-1);
@@ -234,7 +234,7 @@ static int mqtt_config (oconfig_item_t *ci)
         return (-1);
     }
 
-    conf->connected = false;
+    conf->connected = 0;
     conf->host = strdup (MQTT_DEFAULT_HOST);
     conf->port = MQTT_DEFAULT_PORT;
     conf->client_id = strdup (MQTT_DEFAULT_CLIENT_ID);
@@ -291,7 +291,7 @@ static int mqtt_config (oconfig_item_t *ci)
     DEBUG ("mqtt plugin: successfully connected to broker \"%s:%d\"",
         conf->host, conf->port);
 
-    conf->connected = true;
+    conf->connected = 1;
 
     plugin_register_write ("mqtt", mqtt_write, &user_data);
 
