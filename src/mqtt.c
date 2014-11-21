@@ -191,6 +191,7 @@ static int mqtt_write (const data_set_t *ds, const value_list_t *vl,
     conf = user_data->data;
 
     status = format_topic (topic, sizeof (topic), ds, vl, conf);
+    if (status != 0)
     {
         ERROR ("mqtt plugin: format_topic failed with status %d.", status);
         return (status);
