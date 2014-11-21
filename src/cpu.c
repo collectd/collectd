@@ -672,10 +672,10 @@ static int cpu_read (void)
 	char *fields[9];
 	int numfields;
 
-	if ((fh = fopen ("/proc/stat", "r")) == NULL)
+	if ((fh = fopen ("/host_proc/stat", "r")) == NULL)
 	{
 		char errbuf[1024];
-		ERROR ("cpu plugin: fopen (/proc/stat) failed: %s",
+		ERROR ("cpu plugin: fopen (/host_proc/stat) failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}

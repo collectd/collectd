@@ -241,11 +241,11 @@ static int swap_read_separate (void) /* {{{ */
 	FILE *fh;
 	char buffer[1024];
 
-	fh = fopen ("/proc/swaps", "r");
+	fh = fopen ("/host_proc/swaps", "r");
 	if (fh == NULL)
 	{
 		char errbuf[1024];
-		WARNING ("swap plugin: fopen (/proc/swaps) failed: %s",
+		WARNING ("swap plugin: fopen (/host_proc/swaps) failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -300,11 +300,11 @@ static int swap_read_combined (void) /* {{{ */
 	gauge_t swap_free   = NAN;
 	gauge_t swap_total  = NAN;
 
-	fh = fopen ("/proc/meminfo", "r");
+	fh = fopen ("/host_proc/meminfo", "r");
 	if (fh == NULL)
 	{
 		char errbuf[1024];
-		WARNING ("swap plugin: fopen (/proc/meminfo) failed: %s",
+		WARNING ("swap plugin: fopen (/host_proc/meminfo) failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -357,11 +357,11 @@ static int swap_read_io (void) /* {{{ */
 	derive_t swap_in  = 0;
 	derive_t swap_out = 0;
 
-	fh = fopen ("/proc/vmstat", "r");
+	fh = fopen ("/host_proc/vmstat", "r");
 	if (fh == NULL)
 	{
-		/* /proc/vmstat does not exist in kernels <2.6 */
-		fh = fopen ("/proc/stat", "r");
+		/* /host_proc/vmstat does not exist in kernels <2.6 */
+		fh = fopen ("/host_proc/stat", "r");
 		if (fh == NULL)
 		{
 			char errbuf[1024];

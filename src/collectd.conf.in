@@ -1049,7 +1049,7 @@
 #</Plugin>
 
 #<Plugin table>
-#	<Table "/proc/slabinfo">
+#	<Table "/host_proc/slabinfo">
 #		Instance "slabinfo"
 #		Separator " "
 #		<Result>

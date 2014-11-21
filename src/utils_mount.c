@@ -91,7 +91,7 @@
 
 /* stolen from quota-3.13 (quota-tools) */
 
-#define PROC_PARTITIONS "/proc/partitions"
+#define PROC_PARTITIONS "/host_proc/partitions"
 #define DEVLABELDIR     "/dev"
 #define UUID   1
 #define VOL    2

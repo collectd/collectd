@@ -63,8 +63,8 @@
 /* #endif HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H */
 
 #elif KERNEL_LINUX
-# define PROC_PMU_PATH_FORMAT "/proc/pmu/battery_%i"
-# define PROC_ACPI_PATH "/proc/acpi/battery"
+# define PROC_PMU_PATH_FORMAT "/host_proc/pmu/battery_%i"
+# define PROC_ACPI_PATH "/host_proc/acpi/battery"
 # define PROC_ACPI_FACTOR 0.001
 # define SYSFS_PATH "/sys/class/power_supply"
 # define SYSFS_FACTOR 0.000001
@@ -619,7 +619,7 @@ static int read_acpi_callback (char const *dir, /* {{{ */
 	}
 
 	/*
-	 * [11:00] <@tokkee> $ cat /proc/acpi/battery/BAT1/state
+	 * [11:00] <@tokkee> $ cat /host_proc/acpi/battery/BAT1/state
 	 * [11:00] <@tokkee> present:                 yes
 	 * [11:00] <@tokkee> capacity state:          ok
 	 * [11:00] <@tokkee> charging state:          charging

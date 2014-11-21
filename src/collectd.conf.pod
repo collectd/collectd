@@ -993,7 +993,7 @@ laptop batteries.
 When enabled, remaining capacity is reported as a percentage, e.g. "42%
 capacity remaining". Otherwise the capacity is stored as reported by the
 battery, most likely in "Wh". This option does not work with all input methods,
-in particular when only C</proc/pmu> is available on an old Linux system.
+in particular when only C</host_proc/pmu> is available on an old Linux system.
 Defaults to B<false>.
 
 =item B<ReportDegraded> B<false>|B<true>
@@ -1201,7 +1201,7 @@ This plugin collects IP conntrack statistics.
 =item B<OldFiles>
 
 Assume the B<conntrack_count> and B<conntrack_max> files to be found in
-F</proc/sys/net/ipv4/netfilter> instead of F</proc/sys/net/netfilter/>.
+F</host_proc/sys/net/ipv4/netfilter> instead of F</host_proc/sys/net/netfilter/>.
 
 =back
 
@@ -5806,7 +5806,7 @@ default), the summary over all swap devices is reported only, i.e. the globally
 used and available space over all devices. If B<true> is configured, the used
 and available space of each device will be reported separately.
 
-This option is only available if the I<Swap plugin> can read C</proc/swaps>
+This option is only available if the I<Swap plugin> can read C</host_proc/swaps>
 (under Linux) or use the L<swapctl(2)> mechanism (under I<Solaris>).
 
 =item B<ReportBytes> B<false>|B<true>
@@ -5861,7 +5861,7 @@ example, this plugin may be used to get values from the Linux L<proc(5)>
 filesystem or CSV (comma separated values) files.
 
   <Plugin table>
-    <Table "/proc/slabinfo">
+    <Table "/host_proc/slabinfo">
       Instance "slabinfo"
       Separator " "
       <Result>
@@ -6655,7 +6655,7 @@ This plugin doesn't have any options. B<VServer> support is only available for
 Linux. It cannot yet be found in a vanilla kernel, though. To make use of this
 plugin you need a kernel that has B<VServer> support built in, i.E<nbsp>e. you
 need to apply the patches and compile your own kernel, which will then provide
-the F</proc/virtual> filesystem that is required by this plugin.
+the F</host_proc/virtual> filesystem that is required by this plugin.
 
 The B<VServer> homepage can be found at L<http://linux-vserver.org/>.
 

@@ -24,7 +24,7 @@
 #include "plugin.h"
 
 #if KERNEL_LINUX
-# define STAT_FILE "/proc/stat"
+# define STAT_FILE "/host_proc/stat"
 /* Using /proc filesystem to retrieve the boot time, Linux only. */
 /* #endif KERNEL_LINUX */
 

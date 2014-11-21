@@ -770,7 +770,7 @@ static int ps_read_tasks (int pid)
 	struct dirent *ent;
 	int count = 0;
 
-	ssnprintf (dirname, sizeof (dirname), "/proc/%i/task", pid);
+	ssnprintf (dirname, sizeof (dirname), "/host_proc/%i/task", pid);
 
 	if ((dh = opendir (dirname)) == NULL)
 	{
@@ -790,7 +790,7 @@ static int ps_read_tasks (int pid)
 	return ((count >= 1) ? count : 1);
 } /* int *ps_read_tasks */
 
-/* Read advanced virtual memory data from /proc/pid/status */
+/* Read advanced virtual memory data from /host_proc/pid/status */
 static procstat_t *ps_read_vmem (int pid, procstat_t *ps)
 {
 	FILE *fh;
@@ -802,7 +802,7 @@ static procstat_t *ps_read_vmem (int pid, procstat_t *ps)
 	char *fields[8];
 	int numfields;
 
-	ssnprintf (filename, sizeof (filename), "/proc/%i/status", pid);
+	ssnprintf (filename, sizeof (filename), "/host_proc/%i/status", pid);
 	if ((fh = fopen (filename, "r")) == NULL)
 		return (NULL);
 
@@ -862,7 +862,7 @@ static procstat_t *ps_read_io (int pid, procstat_t *ps)
 	char *fields[8];
 	int numfields;
 
-	ssnprintf (filename, sizeof (filename), "/proc/%i/io", pid);
+	ssnprintf (filename, sizeof (filename), "/host_proc/%i/io", pid);
 	if ((fh = fopen (filename, "r")) == NULL)
 		return (NULL);
 
@@ -931,7 +931,7 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 
 	memset (ps, 0, sizeof (procstat_t));
 
-	ssnprintf (filename, sizeof (filename), "/proc/%i/stat", pid);
+	ssnprintf (filename, sizeof (filename), "/host_proc/%i/stat", pid);
 
 	buffer_len = read_file_contents (filename,
 			buffer, sizeof(buffer) - 1);
@@ -1070,7 +1070,7 @@ static char *ps_get_cmdline (pid_t pid, char *name, char *buf, size_t buf_len)
 	if ((pid < 1) || (NULL == buf) || (buf_len < 2))
 		return NULL;
 
-	ssnprintf (file, sizeof (file), "/proc/%u/cmdline",
+	ssnprintf (file, sizeof (file), "/host_proc/%u/cmdline",
 		       	(unsigned int) pid);
 
 	errno = 0;
@@ -1143,7 +1143,7 @@ static char *ps_get_cmdline (pid_t pid, char *name, char *buf, size_t buf_len)
 		--n;
 	}
 
-	/* arguments are separated by '\0' in /proc/<pid>/cmdline */
+	/* arguments are separated by '\0' in /host_proc/<pid>/cmdline */
 	while (n > 0) {
 		if ('\0' == buf[n])
 			buf[n] = ' ';
@@ -1159,11 +1159,11 @@ static int read_fork_rate ()
 	value_t value;
 	_Bool value_valid = 0;
 
-	proc_stat = fopen ("/proc/stat", "r");
+	proc_stat = fopen ("/host_proc/stat", "r");
 	if (proc_stat == NULL)
 	{
 		char errbuf[1024];
-		ERROR ("processes plugin: fopen (/proc/stat) failed: %s",
+		ERROR ("processes plugin: fopen (/host_proc/stat) failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -1206,7 +1206,7 @@ static const char *ps_get_cmdline (pid_t pid, /* {{{ */
 	psinfo_t info;
 	int status;
 
-	snprintf(path, sizeof (path), "/proc/%i/psinfo", pid);
+	snprintf(path, sizeof (path), "/host_proc/%i/psinfo", pid);
 
 	status = read_file_contents (path, (void *) &info, sizeof (info));
 	if (status != ((int) buffer_size))
@@ -1226,7 +1226,7 @@ static const char *ps_get_cmdline (pid_t pid, /* {{{ */
 
 /*
  * Reads process information on the Solaris OS. The information comes mainly from
- * /proc/PID/status, /proc/PID/psinfo and /proc/PID/usage
+ * /host_proc/PID/status, /host_proc/PID/psinfo and /host_proc/PID/usage
  * The values for input and ouput chars are calculated "by hand"
  * Added a few "solaris" specific process states as well
  */
@@ -1240,9 +1240,9 @@ static int ps_read_process(int pid, procstat_t *ps, char *state)
 	psinfo_t *myInfo;
 	prusage_t *myUsage;
 
-	snprintf(filename, sizeof (filename), "/proc/%i/status", pid);
-	snprintf(f_psinfo, sizeof (f_psinfo), "/proc/%i/psinfo", pid);
-	snprintf(f_usage, sizeof (f_usage), "/proc/%i/usage", pid);
+	snprintf(filename, sizeof (filename), "/host_proc/%i/status", pid);
+	snprintf(f_psinfo, sizeof (f_psinfo), "/host_proc/%i/psinfo", pid);
+	snprintf(f_usage, sizeof (f_usage), "/host_proc/%i/usage", pid);
 
 
 	buffer = malloc(sizeof (pstatus_t));

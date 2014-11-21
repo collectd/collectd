@@ -104,11 +104,11 @@ static int irq_read (void)
 	 * 1:     102553     158669     218062      70587   IO-APIC-edge      i8042
 	 * 8:          0          0          0          1   IO-APIC-edge      rtc0
 	 */
-	fh = fopen ("/proc/interrupts", "r");
+	fh = fopen ("/host_proc/interrupts", "r");
 	if (fh == NULL)
 	{
 		char errbuf[1024];
-		ERROR ("irq plugin: fopen (/proc/interrupts): %s",
+		ERROR ("irq plugin: fopen (/host_proc/interrupts): %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -119,7 +119,7 @@ static int irq_read (void)
 				STATIC_ARRAY_SIZE (fields));
 	} else {
 		ERROR ("irq plugin: unable to get CPU count from first line "
-				"of /proc/interrupts");
+				"of /host_proc/interrupts");
 		return (-1);
 	}
 

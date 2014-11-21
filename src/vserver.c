@@ -35,7 +35,7 @@
 
 #define BUFSIZE 512
 
-#define PROCDIR "/proc/virtual"
+#define PROCDIR "/host_proc/virtual"
 
 #if !KERNEL_LINUX
 # error "No applicable input method."

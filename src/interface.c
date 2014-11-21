@@ -241,7 +241,7 @@ static int interface_read (void)
 	char *fields[16];
 	int numfields;
 
-	if ((fh = fopen ("/proc/net/dev", "r")) == NULL)
+	if ((fh = fopen ("/host_proc/net/dev", "r")) == NULL)
 	{
 		char errbuf[1024];
 		WARNING ("interface plugin: fopen: %s",

@@ -564,12 +564,12 @@ static int disk_read (void)
 
 	diskstats_t *ds, *pre_ds;
 
-	if ((fh = fopen ("/proc/diskstats", "r")) == NULL)
+	if ((fh = fopen ("/host_proc/diskstats", "r")) == NULL)
 	{
-		fh = fopen ("/proc/partitions", "r");
+		fh = fopen ("/host_proc/partitions", "r");
 		if (fh == NULL)
 		{
-			ERROR ("disk plugin: fopen (/proc/{diskstats,partitions}) failed.");
+			ERROR ("disk plugin: fopen (/host_proc/{diskstats,partitions}) failed.");
 			return (-1);
 		}
 

@@ -138,7 +138,7 @@ static int load_read (void)
 	char *fields[8];
 	int numfields;
 
-	if ((loadavg = fopen ("/proc/loadavg", "r")) == NULL)
+	if ((loadavg = fopen ("/host_proc/loadavg", "r")) == NULL)
 	{
 		char errbuf[1024];
 		WARNING ("load: fopen: %s",

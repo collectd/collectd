@@ -36,7 +36,7 @@ static const char *config_keys[] = {
 };
 
 const char *const dirname_sysfs = "/sys/class/thermal";
-const char *const dirname_procfs = "/proc/acpi/thermal_zone";
+const char *const dirname_procfs = "/host_proc/acpi/thermal_zone";
 
 static _Bool force_procfs = 0;
 static ignorelist_t *device_list;
@@ -135,7 +135,7 @@ static int thermal_procfs_device_read (const char __attribute__((unused)) *dir,
 		return -1;
 
 	/**
-	 * rechot ~ # cat /proc/acpi/thermal_zone/THRM/temperature
+	 * rechot ~ # cat /host_proc/acpi/thermal_zone/THRM/temperature
 	 * temperature:             55 C
 	 */
 	

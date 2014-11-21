@@ -34,7 +34,7 @@
 #define BUFSIZE 1024
 
 /*
-see /proc/fs/fscache/stats
+see /host_proc/fs/fscache/stats
 see Documentation/filesystems/caching/fscache.txt in linux kernel >= 2.6.30
 
 This shows counts of a number of events that can happen in FS-Cache:
@@ -131,7 +131,7 @@ static void fscache_read_stats_file (FILE *fh)
     char linebuffer[BUFSIZE];
 
 /*
- *  cat /proc/fs/fscache/stats
+ *  cat /host_proc/fs/fscache/stats
  *      FS-Cache statistics
  *      Cookies: idx=2 dat=0 spc=0
  *      Objects: alc=0 nal=0 avl=0 ded=0
@@ -210,7 +210,7 @@ static void fscache_read_stats_file (FILE *fh)
 
 static int fscache_read (void){
     FILE *fh;
-    fh = fopen("/proc/fs/fscache/stats", "r");
+    fh = fopen("/host_proc/fs/fscache/stats", "r");
     if (fh != NULL){
         fscache_read_stats_file(fh);
         fclose(fh);

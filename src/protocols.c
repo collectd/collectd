@@ -33,8 +33,8 @@
 # error "No applicable input method."
 #endif
 
-#define SNMP_FILE "/proc/net/snmp"
-#define NETSTAT_FILE "/proc/net/netstat"
+#define SNMP_FILE "/host_proc/net/snmp"
+#define NETSTAT_FILE "/host_proc/net/netstat"
 
 /*
  * Global variables

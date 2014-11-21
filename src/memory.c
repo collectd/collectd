@@ -292,7 +292,7 @@ static int memory_read_internal (value_list_t *vl)
 	gauge_t mem_slab_reclaimable = 0;
 	gauge_t mem_slab_unreclaimable = 0;
 
-	if ((fh = fopen ("/proc/meminfo", "r")) == NULL)
+	if ((fh = fopen ("/host_proc/meminfo", "r")) == NULL)
 	{
 		char errbuf[1024];
 		WARNING ("memory: fopen: %s",

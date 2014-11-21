@@ -31,7 +31,7 @@
 #endif
 
 /*
-see /proc/net/rpc/nfs
+see /host_proc/net/rpc/nfs
 see http://www.missioncriticallinux.com/orph/NFS-Statistics
 
 net x x x x
@@ -353,13 +353,13 @@ static int nfs_read (void)
 {
 	FILE *fh;
 
-	if ((fh = fopen ("/proc/net/rpc/nfs", "r")) != NULL)
+	if ((fh = fopen ("/host_proc/net/rpc/nfs", "r")) != NULL)
 	{
 		nfs_read_linux (fh, "client");
 		fclose (fh);
 	}
 
-	if ((fh = fopen ("/proc/net/rpc/nfsd", "r")) != NULL)
+	if ((fh = fopen ("/host_proc/net/rpc/nfsd", "r")) != NULL)
 	{
 		nfs_read_linux (fh, "server");
 		fclose (fh);

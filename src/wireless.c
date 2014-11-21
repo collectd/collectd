@@ -32,7 +32,7 @@
 # error "No applicable input method."
 #endif
 
-#define WIRELESS_PROC_FILE "/proc/net/wireless"
+#define WIRELESS_PROC_FILE "/host_proc/net/wireless"
 
 #if 0
 static double wireless_dbm_to_watt (double dbm)

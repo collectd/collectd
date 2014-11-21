@@ -321,7 +321,7 @@ sub _special_disk_instance
 	if (!defined ($cache))
 	{
 		my $fh;
-		open ($fh, "< /proc/diskstats") or die ("open (/proc/diststats): $!");
+		open ($fh, "< /host_proc/diskstats") or die ("open (/host_proc/diststats): $!");
 
 		$cache = {};
 		while (my $line = <$fh>)
