@@ -873,6 +873,23 @@ Configuring with libjvm
   Adding "-ljvm" to the JAVA_LDFLAGS is done automatically, you don't have to
   do that.
 
+Generating the configure script
+-------------------------------
+
+Collectd ships with a `build.sh' script to generate the `configure'
+script shipped with releases.
+
+To generate the `configure` script, you'll need the following dependencies:
+
+- autoconf
+- automke
+- flex
+- bison
+- libtool
+- libtool-ltdl
+
+The `build.sh' script takes no arguments.
+
 Crosscompiling
 --------------
 
