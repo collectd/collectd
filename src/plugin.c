@@ -332,7 +332,7 @@ static int plugin_load_file (char *file, uint32_t flags)
 
 		ssnprintf (errbuf, sizeof (errbuf),
 				"lt_dlopen (\"%s\") failed: %s. "
-				"The most common cause for this problem are "
+				"The most common cause for this problem is "
 				"missing dependencies. Use ldd(1) to check "
 				"the dependencies of the plugin "
 				"/ shared object.",
