@@ -78,6 +78,15 @@ struct fc_chain_s /* {{{ */
   fc_chain_t  *next;
 }; /* }}} */
 
+/* Writer configuration. */
+struct fc_writer_s;
+typedef struct fc_writer_s fc_writer_t; /* {{{ */
+struct fc_writer_s
+{
+  char *plugin;
+  c_complain_t complaint;
+}; /* }}} */
+
 /*
  * Global variables
  */
@@ -627,16 +636,13 @@ static int fc_bit_write_create (const oconfig_item_t *ci, /* {{{ */
 {
   int i;
 
-  char **plugin_list;
-  size_t plugin_list_len;
-
-  plugin_list = NULL;
-  plugin_list_len = 0;
+  fc_writer_t *plugin_list = NULL;
+  size_t plugin_list_len = 0;
 
   for (i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
-    char **temp;
+    fc_writer_t *temp;
     int j;
 
     if (strcasecmp ("Plugin", child->key) != 0)
@@ -649,14 +655,17 @@ static int fc_bit_write_create (const oconfig_item_t *ci, /* {{{ */
 
     for (j = 0; j < child->values_num; j++)
     {
+      char *plugin;
+
       if (child->values[j].type != OCONFIG_TYPE_STRING)
       {
         ERROR ("Filter subsystem: Built-in target `write': "
             "The `Plugin' option accepts only string arguments.");
         continue;
       }
+      plugin = child->values[j].value.string;
 
-      temp = (char **) realloc (plugin_list, (plugin_list_len + 2)
+      temp = (fc_writer_t *) realloc (plugin_list, (plugin_list_len + 2)
           * (sizeof (*plugin_list)));
       if (temp == NULL)
       {
@@ -665,14 +674,15 @@ static int fc_bit_write_create (const oconfig_item_t *ci, /* {{{ */
       }
       plugin_list = temp;
 
-      plugin_list[plugin_list_len] = fc_strdup (child->values[j].value.string);
-      if (plugin_list[plugin_list_len] == NULL)
+      plugin_list[plugin_list_len].plugin = fc_strdup (plugin);
+      if (plugin_list[plugin_list_len].plugin == NULL)
       {
         ERROR ("fc_bit_write_create: fc_strdup failed.");
         continue;
       }
+      C_COMPLAIN_INIT (&plugin_list[plugin_list_len].complaint);
       plugin_list_len++;
-      plugin_list[plugin_list_len] = NULL;
+      plugin_list[plugin_list_len].plugin = NULL;
     } /* for (j = 0; j < child->values_num; j++) */
   } /* for (i = 0; i < ci->children_num; i++) */
 
@@ -683,7 +693,7 @@ static int fc_bit_write_create (const oconfig_item_t *ci, /* {{{ */
 
 static int fc_bit_write_destroy (void **user_data) /* {{{ */
 {
-  char **plugin_list;
+  fc_writer_t *plugin_list;
   size_t i;
 
   if ((user_data == NULL) || (*user_data == NULL))
@@ -691,8 +701,8 @@ static int fc_bit_write_destroy (void **user_data) /* {{{ */
 
   plugin_list = *user_data;
 
-  for (i = 0; plugin_list[i] != NULL; i++)
-    free (plugin_list[i]);
+  for (i = 0; plugin_list[i].plugin != NULL; i++)
+    free (plugin_list[i].plugin);
   free (plugin_list);
 
   return (0);
@@ -702,23 +712,23 @@ static int fc_bit_write_invoke (const data_set_t *ds, /* {{{ */
     value_list_t *vl, notification_meta_t __attribute__((unused)) **meta,
     void **user_data)
 {
-  char **plugin_list;
+  fc_writer_t *plugin_list;
   int status;
 
   plugin_list = NULL;
   if (user_data != NULL)
     plugin_list = *user_data;
 
-  if ((plugin_list == NULL) || (plugin_list[0] == NULL))
+  if ((plugin_list == NULL) || (plugin_list[0].plugin == NULL))
   {
-    static c_complain_t enoent_complaint = C_COMPLAIN_INIT_STATIC;
+    static c_complain_t write_complaint = C_COMPLAIN_INIT_STATIC;
 
     status = plugin_write (/* plugin = */ NULL, ds, vl);
     if (status == ENOENT)
     {
       /* in most cases this is a permanent error, so use the complain
        * mechanism rather than spamming the logs */
-      c_complain (LOG_INFO, &enoent_complaint,
+      c_complain (LOG_INFO, &write_complaint,
           "Filter subsystem: Built-in target `write': Dispatching value to "
           "all write plugins failed with status %i (ENOENT). "
           "Most likely this means you didn't load any write plugins.",
@@ -726,13 +736,16 @@ static int fc_bit_write_invoke (const data_set_t *ds, /* {{{ */
     }
     else if (status != 0)
     {
-      INFO ("Filter subsystem: Built-in target `write': Dispatching value to "
+      /* often, this is a permanent error (e.g. target system unavailable),
+       * so use the complain mechanism rather than spamming the logs */
+      c_complain (LOG_INFO, &write_complaint,
+          "Filter subsystem: Built-in target `write': Dispatching value to "
           "all write plugins failed with status %i.", status);
     }
     else
     {
       assert (status == 0);
-      c_release (LOG_INFO, &enoent_complaint, "Filter subsystem: "
+      c_release (LOG_INFO, &write_complaint, "Filter subsystem: "
           "Built-in target `write': Some write plugin is back to normal "
           "operation. `write' succeeded.");
     }
@@ -741,13 +754,21 @@ static int fc_bit_write_invoke (const data_set_t *ds, /* {{{ */
   {
     size_t i;
 
-    for (i = 0; plugin_list[i] != NULL; i++)
+    for (i = 0; plugin_list[i].plugin != NULL; i++)
     {
-      status = plugin_write (plugin_list[i], ds, vl);
+      status = plugin_write (plugin_list[i].plugin, ds, vl);
       if (status != 0)
       {
-        INFO ("Filter subsystem: Built-in target `write': Dispatching value to "
-            "the `%s' plugin failed with status %i.", plugin_list[i], status);
+        c_complain (LOG_INFO, &plugin_list[i].complaint,
+            "Filter subsystem: Built-in target `write': Dispatching value to "
+            "the `%s' plugin failed with status %i.",
+            plugin_list[i].plugin, status);
+      }
+      else
+      {
+        c_release (LOG_INFO, &plugin_list[i].complaint,
+            "Filter subsystem: Built-in target `write': Plugin `%s' is back "
+            "to normal operation. `write' succeeded.", plugin_list[i].plugin);
       }
     } /* for (i = 0; plugin_list[i] != NULL; i++) */
   }
