@@ -75,6 +75,7 @@
 %define with_ascent 0%{!?_without_ascent:1}
 %define with_battery 0%{!?_without_battery:1}
 %define with_bind 0%{!?_without_bind:1}
+%define with_ceph 0%{!?_without_ceph:0%{?_has_libyajl}}
 %define with_cgroups 0%{!?_without_cgroups:1}
 %define with_conntrack 0%{!?_without_conntrack:1}
 %define with_contextswitch 0%{!?_without_contextswitch:1}
@@ -299,6 +300,16 @@ BuildRequires:	libxml2-devel, curl-devel
 %description bind
 The BIND plugin retrieves this information that's encoded in XML and provided
 via HTTP and submits the values to collectd.
+%endif
+
+%if %{with_ceph}
+%package ceph
+Summary:       Ceph plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+BuildRequires: yajl-devel
+%description ceph
+Ceph plugin for collectd
 %endif
 
 %if %{with_curl}
@@ -906,6 +917,12 @@ Collectd utilities
 %define _with_csv --enable-csv
 %else
 %define _with_csv --disable-csv
+%endif
+
+%if %{with_ceph}
+%define _with_ceph --enable-ceph
+%else
+%define _with_ceph --disable-ceph
 %endif
 
 %if %{with_curl}
@@ -1554,6 +1571,7 @@ Collectd utilities
 	%{?_with_barometer} \
 	%{?_with_battery} \
 	%{?_with_bind} \
+	%{?_with_ceph} \
 	%{?_with_cgroups} \
 	%{?_with_conntrack} \
 	%{?_with_contextswitch} \
@@ -2034,6 +2052,11 @@ fi
 %{_libdir}/%{name}/bind.so
 %endif
 
+%if %{with_ceph}
+%files ceph
+%{_libdir}/%{name}/ceph.so
+%endif
+
 %if %{with_curl}
 %files curl
 %{_libdir}/%{name}/curl.so
@@ -2268,7 +2291,7 @@ fi
 %changelog
 # * TODO 5.5.0-1
 # - New upstream version
-# - New plugins enabled by default: drbd, log_logstash, write_tsdb, smart, openldap, redis, write_redis, zookeeper, write_log
+# - New plugins enabled by default: ceph, drbd, log_logstash, write_tsdb, smart, openldap, redis, write_redis, zookeeper, write_log
 # - New plugins disabled by default: barometer, write_kafka
 # - Enable zfs_arc, now supported on Linux
 # - Install disk plugin in a dedicated package, as it depends on libudev
