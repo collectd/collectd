@@ -88,8 +88,7 @@ static int wr_write (const data_set_t *ds, /* {{{ */
   }                                                                  \
 } while (0)
 
-  APPEND (time);
-  APPEND (":");
+  APPEND ("%s:", time);
 
   for (i = 0; i < ds->ds_num; i++)
   {
