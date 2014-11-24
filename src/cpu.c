@@ -97,8 +97,8 @@
 #define CPU_STATE_SOFTIRQ 6
 #define CPU_STATE_STEAL 7
 #define CPU_STATE_IDLE 8
-#define CPU_STATE_ACTIVE 9 /* sum of (!idle) */
-#define CPU_STATE_MAX 10 /* #states */
+#define CPU_STATE_COLLECTD_ACTIVE 9 /* sum of (!idle) */
+#define CPU_STATE_COLLECTD_MAX 10 /* #states */
 
 #if HAVE_STATGRAB_H
 # include <statgrab.h>
@@ -362,7 +362,7 @@ static int cpu_states_alloc (size_t cpu_num) /* {{{ */
 	cpu_state_t *tmp;
 	size_t sz;
 
-	sz = (((size_t) cpu_num) + 1) * CPU_STATE_MAX;
+	sz = (((size_t) cpu_num) + 1) * CPU_STATE_COLLECTD_MAX;
 	assert (sz > 0);
 
 	/* We already have enough space. */
@@ -385,7 +385,7 @@ static int cpu_states_alloc (size_t cpu_num) /* {{{ */
 
 static cpu_state_t *get_cpu_state (size_t cpu_num, size_t state) /* {{{ */
 {
-	size_t index = ((cpu_num * CPU_STATE_MAX) + state);
+	size_t index = ((cpu_num * CPU_STATE_COLLECTD_MAX) + state);
 
 	if (index >= cpu_states_num)
 		return (NULL);
@@ -393,58 +393,58 @@ static cpu_state_t *get_cpu_state (size_t cpu_num, size_t state) /* {{{ */
 	return (&cpu_states[index]);
 } /* }}} cpu_state_t *get_cpu_state */
 
-/* Populates the per-CPU CPU_STATE_ACTIVE rate and the global rate_by_state
+/* Populates the per-CPU CPU_STATE_COLLECTD_ACTIVE rate and the global rate_by_state
  * array. */
 static void aggregate (gauge_t *sum_by_state) /* {{{ */
 {
 	size_t cpu_num;
 	size_t state;
 
-	for (state = 0; state < CPU_STATE_MAX; state++)
+	for (state = 0; state < CPU_STATE_COLLECTD_MAX; state++)
 		sum_by_state[state] = NAN;
 
 	for (cpu_num = 0; cpu_num < global_cpu_num; cpu_num++)
 	{
 		cpu_state_t *this_cpu_states = get_cpu_state (cpu_num, 0);
 
-		this_cpu_states[CPU_STATE_ACTIVE].rate = NAN;
+		this_cpu_states[CPU_STATE_COLLECTD_ACTIVE].rate = NAN;
 
-		for (state = 0; state < CPU_STATE_ACTIVE; state++)
+		for (state = 0; state < CPU_STATE_COLLECTD_ACTIVE; state++)
 		{
 			if (!this_cpu_states[state].has_value)
 				continue;
 
 			RATE_ADD (sum_by_state[state], this_cpu_states[state].rate);
 			if (state != CPU_STATE_IDLE)
-				RATE_ADD (this_cpu_states[CPU_STATE_ACTIVE].rate, this_cpu_states[state].rate);
+				RATE_ADD (this_cpu_states[CPU_STATE_COLLECTD_ACTIVE].rate, this_cpu_states[state].rate);
 		}
 
-		RATE_ADD (sum_by_state[CPU_STATE_ACTIVE], this_cpu_states[CPU_STATE_ACTIVE].rate);
+		RATE_ADD (sum_by_state[CPU_STATE_COLLECTD_ACTIVE], this_cpu_states[CPU_STATE_COLLECTD_ACTIVE].rate);
 	}
 } /* }}} void aggregate */
 
 /* Commits (dispatches) the values for one CPU or the global aggregation.
  * cpu_num is the index of the CPU to be committed or -1 in case of the global
- * aggregation. rates is a pointer to CPU_STATE_MAX gauge_t values holding the
+ * aggregation. rates is a pointer to CPU_STATE_COLLECTD_MAX gauge_t values holding the
  * current rate; each rate may be NAN. Calculates the percentage of each state
  * and dispatches the metric. */
 static void cpu_commit_one (int cpu_num, /* {{{ */
-		gauge_t rates[static CPU_STATE_MAX])
+		gauge_t rates[static CPU_STATE_COLLECTD_MAX])
 {
 	size_t state;
 	gauge_t sum;
 
-	sum = rates[CPU_STATE_ACTIVE];
+	sum = rates[CPU_STATE_COLLECTD_ACTIVE];
 	RATE_ADD (sum, rates[CPU_STATE_IDLE]);
 
 	if (!report_by_state)
 	{
-		gauge_t percent = 100.0 * rates[CPU_STATE_ACTIVE] / sum;
-		submit_percent (cpu_num, CPU_STATE_ACTIVE, percent);
+		gauge_t percent = 100.0 * rates[CPU_STATE_COLLECTD_ACTIVE] / sum;
+		submit_percent (cpu_num, CPU_STATE_COLLECTD_ACTIVE, percent);
 		return;
 	}
 
-	for (state = 0; state < CPU_STATE_ACTIVE; state++)
+	for (state = 0; state < CPU_STATE_COLLECTD_ACTIVE; state++)
 	{
 		gauge_t percent = 100.0 * rates[state] / sum;
 		submit_percent (cpu_num, state, percent);
@@ -468,7 +468,7 @@ static void cpu_commit_without_aggregation (void) /* {{{ */
 {
 	int state;
 
-	for (state = 0; state < CPU_STATE_ACTIVE; state++)
+	for (state = 0; state < CPU_STATE_COLLECTD_ACTIVE; state++)
 	{
 		size_t cpu_num;
 		if (report_by_cpu) {
@@ -491,7 +491,7 @@ static void cpu_commit_without_aggregation (void) /* {{{ */
 						continue;
 
 					derive_total += s->conv.last_value.derive;
-			
+
 				}
 			submit_derive (-1, (int) state, derive_total);
 		}
@@ -501,7 +501,7 @@ static void cpu_commit_without_aggregation (void) /* {{{ */
 /* Aggregates the internal state and dispatches the metrics. */
 static void cpu_commit (void) /* {{{ */
 {
-	gauge_t global_rates[CPU_STATE_MAX] = {
+	gauge_t global_rates[CPU_STATE_COLLECTD_MAX] = {
 		NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN
 	};
 	size_t cpu_num;
@@ -523,12 +523,12 @@ static void cpu_commit (void) /* {{{ */
 	for (cpu_num = 0; cpu_num < global_cpu_num; cpu_num++)
 	{
 		cpu_state_t *this_cpu_states = get_cpu_state (cpu_num, 0);
-		gauge_t local_rates[CPU_STATE_MAX] = {
+		gauge_t local_rates[CPU_STATE_COLLECTD_MAX] = {
 			NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN
 		};
 		size_t state;
 
-		for (state = 0; state < CPU_STATE_ACTIVE; state++)
+		for (state = 0; state < CPU_STATE_COLLECTD_ACTIVE; state++)
 			if (this_cpu_states[state].has_value)
 				local_rates[state] = this_cpu_states[state].rate;
 
@@ -545,7 +545,7 @@ static int cpu_stage (size_t cpu_num, size_t state, derive_t value, cdtime_t now
 	cpu_state_t *s;
 	value_t v;
 
-	if (state >= CPU_STATE_ACTIVE)
+	if (state >= CPU_STATE_COLLECTD_ACTIVE)
 		return (EINVAL);
 
 	status = cpu_states_alloc (cpu_num);
@@ -595,7 +595,7 @@ static int cpu_read (void)
 			continue;
 		}
 
-		if (cpu_info_len < CPU_STATE_MAX)
+		if (cpu_info_len < CPU_STATE_COLLECTD_MAX)
 		{
 			ERROR ("cpu plugin: processor_info returned only %i elements..", cpu_info_len);
 			continue;
