@@ -3127,6 +3127,50 @@ then
 fi
 # }}}
 
+# --with-libpaho_mqtt3c {{{
+with_libpaho_mqtt3c_cppflags=""
+with_libpaho_mqtt3c_ldflags=""
+AC_ARG_WITH(libpaho_mqtt3c, [AS_HELP_STRING([--with-libpaho_mqtt3c@<:@=PREFIX@:>@], [Path to libpaho_mqtt3c.])],
+[
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	then
+		with_libpaho_mqtt3c_cppflags="-I$withval/include"
+		with_libpaho_mqtt3c_ldflags="-L$withval/lib"
+		with_libpaho_mqtt3c="yes"
+	else
+		with_libpaho_mqtt3c="$withval"
+	fi
+],
+[
+	with_libpaho_mqtt3c="yes"
+])
+SAVE_CPPFLAGS="$CPPFLAGS"
+SAVE_LDFLAGS="$LDFLAGS"
+CPPFLAGS="$CPPFLAGS $with_libpaho_mqtt3c_cppflags"
+LDFLAGS="$LDFLAGS $with_libpaho_mqtt3c_ldflags"
+if test "x$with_libpaho_mqtt3c" = "xyes"
+then
+	AC_CHECK_HEADERS(MQTTClient.h, [with_libpaho_mqtt3c="yes"], [with_libpaho_mqtt3c="no (MQTTClient.h not found)"])
+fi
+if test "x$with_libpaho_mqtt3c" = "xyes"
+then
+	AC_CHECK_LIB(paho-mqtt3c, MQTTClient_create, [with_libpaho_mqtt3c="yes"], [with_libpaho_mqtt3c="no (Symbol 'MQTTClient_create' not found)"])
+fi
+if test "x$with_libpaho_mqtt3c" = "xyes"
+then
+	BUILD_WITH_LIBPAHOMQTTC_CPPFLAGS="$with_libpaho_mqtt3c_cppflags"
+	BUILD_WITH_LIBPAHOMQTTC_LDFLAGS="$with_libpaho_mqtt3c_ldflags"
+	BUILD_WITH_LIBPAHOMQTTC_LIBS="-lpaho-mqtt3c"
+	AC_SUBST(BUILD_WITH_LIBPAHOMQTTC_CPPFLAGS)
+	AC_SUBST(BUILD_WITH_LIBPAHOMQTTC_LDFLAGS)
+	AC_SUBST(BUILD_WITH_LIBPAHOMQTTC_LIBS)
+	AC_DEFINE(HAVE_LIBPAHOMQTTC, 1, [Define if libpaho_mqtt3c is present and usable.])
+fi
+CPPFLAGS="$SAVE_CPPFLAGS"
+LDFLAGS="$SAVE_LDFLAGS"
+AM_CONDITIONAL(BUILD_WITH_LIBPAHOMQTTC, test "x$with_libpaho_mqtt3c" = "xyes")
+# }}}
+
 # --with-libpcap {{{
 AC_ARG_WITH(libpcap, [AS_HELP_STRING([--with-libpcap@<:@=PREFIX@:>@], [Path to libpcap.])],
 [
@@ -5511,6 +5555,7 @@ AC_PLUGIN([memcached],   [yes],                [memcached statistics])
 AC_PLUGIN([memory],      [$plugin_memory],     [Memory usage])
 AC_PLUGIN([mic],         [$with_mic],          [Intel Many Integrated Core stats])
 AC_PLUGIN([modbus],      [$with_libmodbus],    [Modbus plugin])
+AC_PLUGIN([mqtt],        [$with_libpaho_mqtt3c], [MQTT output plugin])
 AC_PLUGIN([multimeter],  [$plugin_multimeter], [Read multimeter values])
 AC_PLUGIN([mysql],       [$with_libmysql],     [MySQL statistics])
 AC_PLUGIN([netapp],      [$with_libnetapp],    [NetApp plugin])
@@ -5791,6 +5836,7 @@ Configuration:
     liboconfig  . . . . . $with_liboconfig
     libopenipmi . . . . . $with_libopenipmipthread
     liboping  . . . . . . $with_liboping
+    libpaho_mqtt3c  . . . $with_libpaho_mqtt3c
     libpcap . . . . . . . $with_libpcap
     libperfstat . . . . . $with_perfstat
     libperl . . . . . . . $with_libperl
@@ -5880,6 +5926,7 @@ Configuration:
     memory  . . . . . . . $enable_memory
     mic . . . . . . . . . $enable_mic
     modbus  . . . . . . . $enable_modbus
+    mqtt    . . . . . . . $enable_mqtt
     multimeter  . . . . . $enable_multimeter
     mysql . . . . . . . . $enable_mysql
     netapp  . . . . . . . $enable_netapp

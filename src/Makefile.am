@@ -593,6 +593,17 @@ modbus_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMODBUS_CFLAGS)
 modbus_la_LIBADD = $(BUILD_WITH_LIBMODBUS_LIBS)
 endif
 
+if BUILD_PLUGIN_MQTT
+pkglib_LTLIBRARIES += mqtt.la
+mqtt_la_SOURCES = mqtt.c \
+		  utils_cmd_putval.c utils_cmd_putval.h \
+		  utils_format_graphite.c utils_format_graphite.h \
+		  utils_format_json.c utils_format_json.h
+mqtt_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBPAHOMQTTC_LDFLAGS)
+mqtt_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBPAHOMQTTC_CPPFLAGS)
+mqtt_la_LIBADD = $(BUILD_WITH_LIBPAHOMQTTC_LIBS)
+endif
+
 if BUILD_PLUGIN_MULTIMETER
 pkglib_LTLIBRARIES += multimeter.la
 multimeter_la_SOURCES = multimeter.c
