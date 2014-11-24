@@ -104,12 +104,6 @@
 static mach_port_t port_host;
 static processor_port_array_t cpu_list;
 static mach_msg_type_number_t cpu_list_len;
-
-#if PROCESSOR_TEMPERATURE
-static int cpu_temp_retry_counter = 0;
-static int cpu_temp_retry_step    = 1;
-static int cpu_temp_retry_max     = 1;
-#endif /* PROCESSOR_TEMPERATURE */
 /* #endif PROCESSOR_CPU_LOAD_INFO */
 
 #elif defined(KERNEL_LINUX)
@@ -147,7 +141,7 @@ static int pnumcpu;
 
 static int init (void)
 {
-#if PROCESSOR_CPU_LOAD_INFO || PROCESSOR_TEMPERATURE
+#if PROCESSOR_CPU_LOAD_INFO
 	kern_return_t status;
 
 	port_host = mach_host_self ();
@@ -262,33 +256,27 @@ static void submit (int cpu_num, const char *type_instance, derive_t value)
 
 static int cpu_read (void)
 {
-#if PROCESSOR_CPU_LOAD_INFO || PROCESSOR_TEMPERATURE
+#if PROCESSOR_CPU_LOAD_INFO
 	int cpu;
 
 	kern_return_t status;
 	
-#if PROCESSOR_CPU_LOAD_INFO
 	processor_cpu_load_info_data_t cpu_info;
 	mach_msg_type_number_t         cpu_info_len;
-#endif
-#if PROCESSOR_TEMPERATURE
-	processor_info_data_t          cpu_temp;
-	mach_msg_type_number_t         cpu_temp_len;
-#endif
 
 	host_t cpu_host;
 
 	for (cpu = 0; cpu < cpu_list_len; cpu++)
 	{
-#if PROCESSOR_CPU_LOAD_INFO
 		cpu_host = 0;
 		cpu_info_len = PROCESSOR_BASIC_INFO_COUNT;
 
-		if ((status = processor_info (cpu_list[cpu],
-						PROCESSOR_CPU_LOAD_INFO, &cpu_host,
-						(processor_info_t) &cpu_info, &cpu_info_len)) != KERN_SUCCESS)
+		status = processor_info (cpu_list[cpu], PROCESSOR_CPU_LOAD_INFO, &cpu_host,
+				(processor_info_t) &cpu_info, &cpu_info_len);
+		if (status != KERN_SUCCESS)
 		{
-			ERROR ("cpu plugin: processor_info failed with status %i", (int) status);
+			ERROR ("cpu plugin: processor_info (PROCESSOR_CPU_LOAD_INFO) failed: %s",
+					mach_error_string (status));
 			continue;
 		}
 
@@ -302,49 +290,6 @@ static int cpu_read (void)
 		submit (cpu, "nice", (derive_t) cpu_info.cpu_ticks[CPU_STATE_NICE]);
 		submit (cpu, "system", (derive_t) cpu_info.cpu_ticks[CPU_STATE_SYSTEM]);
 		submit (cpu, "idle", (derive_t) cpu_info.cpu_ticks[CPU_STATE_IDLE]);
-#endif /* PROCESSOR_CPU_LOAD_INFO */
-#if PROCESSOR_TEMPERATURE
-		/*
-		 * Not all Apple computers do have this ability. To minimize
-		 * the messages sent to the syslog we do an exponential
-		 * stepback if `processor_info' fails. We still try ~once a day
-		 * though..
-		 */
-		if (cpu_temp_retry_counter > 0)
-		{
-			cpu_temp_retry_counter--;
-			continue;
-		}
-
-		cpu_temp_len = PROCESSOR_INFO_MAX;
-
-		status = processor_info (cpu_list[cpu],
-				PROCESSOR_TEMPERATURE,
-				&cpu_host,
-				cpu_temp, &cpu_temp_len);
-		if (status != KERN_SUCCESS)
-		{
-			ERROR ("cpu plugin: processor_info failed: %s",
-					mach_error_string (status));
-
-			cpu_temp_retry_counter = cpu_temp_retry_step;
-			cpu_temp_retry_step *= 2;
-			if (cpu_temp_retry_step > cpu_temp_retry_max)
-				cpu_temp_retry_step = cpu_temp_retry_max;
-
-			continue;
-		}
-
-		if (cpu_temp_len != 1)
-		{
-			DEBUG ("processor_info (PROCESSOR_TEMPERATURE) returned %i elements..?",
-				       	(int) cpu_temp_len);
-			continue;
-		}
-
-		cpu_temp_retry_counter = 0;
-		cpu_temp_retry_step    = 1;
-#endif /* PROCESSOR_TEMPERATURE */
 	}
 /* #endif PROCESSOR_CPU_LOAD_INFO */
 
