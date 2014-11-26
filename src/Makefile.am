@@ -228,6 +228,16 @@ csv_la_SOURCES = csv.c
 csv_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_CUPS
+pkglib_LTLIBRARIES += cups.la
+cups_la_SOURCES = cups.c
+cups_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBCUPS_CPPFLAGS)
+cups_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBCUPS_LDFLAGS)
+cups_la_LIBADD = $(BUILD_WITH_LIBCUPS_LIBS)
+collectd_LDADD += "-dlopen" cups.la
+collectd_DEPENDENCIES += cups.la
+endif
+
 if BUILD_PLUGIN_CURL
 pkglib_LTLIBRARIES += curl.la
 curl_la_SOURCES = curl.c

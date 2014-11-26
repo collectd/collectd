@@ -131,6 +131,7 @@ node_stat		value:DERIVE:0:U
 node_tx_rate		value:GAUGE:0:127
 objects			value:GAUGE:0:U
 operations		value:DERIVE:0:U
+cups_printed		value:COUNTER:0:U
 pending_operations	value:GAUGE:0:U
 percent			value:GAUGE:0:100.1
 percent_bytes		value:GAUGE:0:100.1
