@@ -272,27 +272,27 @@ static int zookeeper_read (void) {
 		}
 		else if (FIELD_CHECK (fields[0], "zk_znode_count"))
 		{
-			zookeeper_submit_gauge ("count", "znode", atol(fields[1]));
+			zookeeper_submit_gauge ("gauge", "znode", atol(fields[1]));
 		}
 		else if (FIELD_CHECK (fields[0], "zk_watch_count"))
 		{
-			zookeeper_submit_gauge ("count", "watch", atol(fields[1]));
+			zookeeper_submit_gauge ("gauge", "watch", atol(fields[1]));
 		}
 		else if (FIELD_CHECK (fields[0], "zk_ephemerals_count"))
 		{
-			zookeeper_submit_gauge ("count", "ephemerals", atol(fields[1]));
+			zookeeper_submit_gauge ("gauge", "ephemerals", atol(fields[1]));
 		}
 		else if (FIELD_CHECK (fields[0], "zk_ephemerals_count"))
 		{
-			zookeeper_submit_gauge ("count", "ephemerals", atol(fields[1]));
+			zookeeper_submit_gauge ("gauge", "ephemerals", atol(fields[1]));
 		}
 		else if (FIELD_CHECK (fields[0], "zk_ephemerals_count"))
 		{
-			zookeeper_submit_gauge ("count", "ephemerals", atol(fields[1]));
+			zookeeper_submit_gauge ("gauge", "ephemerals", atol(fields[1]));
 		}
 		else if (FIELD_CHECK (fields[0], "zk_approximate_data_size"))
 		{
-			zookeeper_submit_gauge ("zk_approximate_data_size", NULL, atol(fields[1]));
+			zookeeper_submit_gauge ("bytes", "approximate_data_size", atol(fields[1]));
 		}
 		else if (FIELD_CHECK (fields[0], "zk_followers"))
 		{

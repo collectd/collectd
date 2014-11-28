@@ -23,7 +23,6 @@ connections		value:DERIVE:0:U
 conntrack		value:GAUGE:0:4294967295
 contextswitch		value:DERIVE:0:U
 count			value:GAUGE:0:U
-counter			value:COUNTER:U:U
 cpufreq			value:GAUGE:0:U
 cpu			value:DERIVE:0:U
 current_connections	value:GAUGE:0:U
@@ -222,7 +221,6 @@ voltage			value:GAUGE:U:U
 vs_memory		value:GAUGE:0:9223372036854775807
 vs_processes		value:GAUGE:0:65535
 vs_threads		value:GAUGE:0:65535
-zk_approximate_data_size	value:GAUGE:0:U
 
 #
 # Legacy types
