@@ -1773,6 +1773,56 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LIBDBI, test "x$with_libdbi" = "xyes")
 # }}}
 
+# --with-libcups {{{
+with_libcups_cppflags=""
+with_libcups_ldflags=""
+AC_ARG_WITH(libcups, [AS_HELP_STRING([--with-libcups@<:@=PREFIX@:>@], [Path to libcups.])],
+[
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	then
+		with_libcups_cppflags="-I$withval/include"
+		with_libcups_ldflags="-L$withval/lib"
+		with_libcups="yes"
+	else
+		with_libcups="$withval"
+	fi
+],
+[
+	with_libcups="yes"
+])
+if test "x$with_libcups" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libcups_cppflags"
+
+	AC_CHECK_HEADERS(cups/cups.h, [with_libcups="yes"], [with_libcups="no (cups/cups.h not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_libcups" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libcups_cppflags"
+	LDFLAGS="$LDFLAGS $with_libcups_ldflags"
+
+	AC_CHECK_LIB(cups, cupsGetJobs, [with_libcups="yes"], [with_libcups="no (Symbol 'cupsGetJobs' not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+if test "x$with_libcups" = "xyes"
+then
+	BUILD_WITH_LIBCUPS_CPPFLAGS="$with_libcups_cppflags"
+	BUILD_WITH_LIBCUPS_LDFLAGS="$with_libcups_ldflags"
+	BUILD_WITH_LIBCUPS_LIBS="-lcups"
+	AC_SUBST(BUILD_WITH_LIBCUPS_CPPFLAGS)
+	AC_SUBST(BUILD_WITH_LIBCUPS_LDFLAGS)
+	AC_SUBST(BUILD_WITH_LIBCUPS_LIBS)
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBCUPS, test "x$with_libcups" = "xyes")
+# }}}
+
 # --with-libesmtp {{{
 AC_ARG_WITH(libesmtp, [AS_HELP_STRING([--with-libesmtp@<:@=PREFIX@:>@], [Path to libesmtp.])],
 [
@@ -5470,6 +5520,7 @@ AC_PLUGIN([contextswitch], [$plugin_contextswitch], [context switch statistics])
 AC_PLUGIN([cpufreq],     [$plugin_cpufreq],    [CPU frequency statistics])
 AC_PLUGIN([cpu],         [$plugin_cpu],        [CPU usage statistics])
 AC_PLUGIN([csv],         [yes],                [CSV output plugin])
+AC_PLUGIN([cups],        [$with_libcups],      [Query printer server for statistics])
 AC_PLUGIN([curl],        [$with_libcurl],      [CURL generic web statistics])
 AC_PLUGIN([curl_json],   [$plugin_curl_json],    [CouchDB statistics])
 AC_PLUGIN([curl_xml],   [$plugin_curl_xml],    [CURL generic xml statistics])
@@ -5767,6 +5818,7 @@ Configuration:
     intel mic . . . . . . $with_mic
     libaquaero5 . . . . . $with_libaquaero5
     libatasmart . . . . . $with_libatasmart
+    libcups . . . . . . . $with_libcups
     libcurl . . . . . . . $with_libcurl
     libdbi  . . . . . . . $with_libdbi
     libhiredis  . . . . . $with_libhiredis
@@ -5840,6 +5892,7 @@ Configuration:
     cpu . . . . . . . . . $enable_cpu
     cpufreq . . . . . . . $enable_cpufreq
     csv . . . . . . . . . $enable_csv
+    cups  . . . . . . . . $enable_cups
     curl  . . . . . . . . $enable_curl
     curl_json . . . . . . $enable_curl_json
     curl_xml  . . . . . . $enable_curl_xml
