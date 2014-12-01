@@ -216,9 +216,22 @@ BuildRoot:	%{_tmppath}/%{name}-%{version}-root
 BuildRequires:	libgcrypt-devel, kernel-headers
 Vendor:		collectd development team <collectd@verplant.org>
 
+%if 0%{?el7:1}
+Requires(pre):		initscripts
+Requires(post):		systemd
+Requires(preun):	systemd
+Requires(postun):	systemd
+%else
+%if 0%{?el6:1}
+Requires(pre):		initscripts
+Requires(preun):	upstart
+Requires(postun):	upstart
+%else
 Requires(post):		chkconfig
 Requires(preun):	chkconfig, initscripts
 Requires(postun):	initscripts
+%endif
+%endif
 
 %description
 collectd is a small daemon which collects system information periodically and
@@ -1647,7 +1660,15 @@ Development files for libcollectdclient
 %install
 rm -rf %{buildroot}
 %{__make} install DESTDIR=%{buildroot}
-%{__install} -Dp -m 0755 contrib/redhat/init.d-collectd %{buildroot}%{_initrddir}/collectd
+%if 0%{?el7:1}
+%{__install} -Dp -m0644 contrib/systemd.collectd.service %{buildroot}%{_unitdir}/collectd.service
+%else
+%if 0%{?el6:1}
+%{__install} -Dp -m0644 contrib/upstart.collectd.conf %{buildroot}%{_sysconfdir}/init/collectd.conf
+%else
+%{__install} -Dp -m0755 contrib/redhat/init.d-collectd %{buildroot}%{_initrddir}/collectd
+%endif
+%endif
 %{__install} -Dp -m0644 src/collectd.conf %{buildroot}%{_sysconfdir}/collectd.conf
 %{__install} -d %{buildroot}%{_sharedstatedir}/collectd/
 %{__install} -d %{buildroot}%{_sysconfdir}/collectd.d/
@@ -1698,19 +1719,62 @@ rm -f %{buildroot}%{_mandir}/man5/collectd-snmp.5*
 %clean
 rm -rf %{buildroot}
 
+%pre
+%if 0%{?el7:1}%{?el6:1}
+# stop sysv-based instance before upgrading to upstart/systemd
+if [ $1 -eq 2 ] && [ -f /var/lock/subsys/collectd ]; then
+	SYSTEMCTL_SKIP_REDIRECT=1 /etc/rc.d/init.d/collectd stop >/dev/null 2>&1 || :
+fi
+%else
+/bin/true
+%endif
+
 %post
-/sbin/chkconfig --add collectd
+%if 0%{?el7:1}
+if [ $1 -eq 2 ]; then
+	/usr/bin/systemctl daemon-reload >/dev/null 2>&1 || :
+fi
+%systemd_post collectd.service
+%else
+%if 0%{?el6:1}
+/bin/true
+%else
+/sbin/chkconfig --add collectd || :
+%endif
+%endif
 
 %preun
+%if 0%{?el7:1}
+%systemd_preun collectd.service
+%else
+# stop collectd only when uninstalling
 if [ $1 -eq 0 ]; then
-	/sbin/service collectd stop &>/dev/null
-	/sbin/chkconfig --del collectd
+%if 0%{?el6:1}
+	/sbin/initctl stop collectd >/dev/null 2>&1 || :
+%else
+	/sbin/service collectd stop >/dev/null 2>&1 || :
+	/sbin/chkconfig --del collectd || :
+%endif
 fi
+%endif
 
 %postun
-if [ $1 -ge 1 ]; then
-	/sbin/service collectd condrestart &>/dev/null || :
+%if 0%{?el7:1}
+%systemd_postun_with_restart collectd.service
+%else
+# restart collectd only when upgrading
+if [ $1 -eq 1 ]; then
+%if 0%{?el6:1}
+	if /sbin/initctl status collectd 2>/dev/null | grep -q 'running'; then
+		/sbin/initctl restart collectd >/dev/null 2>&1 || :
+	else
+		/sbin/initctl start collectd >/dev/null 2>&1 || :
+	fi
+%else
+	/sbin/service collectd condrestart >/dev/null 2>&1 || :
+%endif
 fi
+%endif
 
 %post -n libcollectdclient -p /sbin/ldconfig
 %postun -n libcollectdclient -p /sbin/ldconfig
@@ -1719,7 +1783,15 @@ fi
 %files
 %doc AUTHORS COPYING ChangeLog README
 %config(noreplace) %{_sysconfdir}/collectd.conf
+%if 0%{?el7:1}
+%{_unitdir}/collectd.service
+%else
+%if 0%{?el6:1}
+%{_sysconfdir}/init/collectd.conf
+%else
 %{_initrddir}/collectd
+%endif
+%endif
 %{_sbindir}/collectd
 %{_bindir}/collectd-nagios
 %{_bindir}/collectd-tg
