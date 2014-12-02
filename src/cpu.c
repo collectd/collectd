@@ -419,6 +419,9 @@ static void aggregate (gauge_t *sum_by_state) /* {{{ */
 				RATE_ADD (this_cpu_states[COLLECTD_CPU_STATE_ACTIVE].rate, this_cpu_states[state].rate);
 		}
 
+		if (!isnan (this_cpu_states[COLLECTD_CPU_STATE_ACTIVE].rate))
+			this_cpu_states[COLLECTD_CPU_STATE_ACTIVE].has_value = 1;
+
 		RATE_ADD (sum_by_state[COLLECTD_CPU_STATE_ACTIVE], this_cpu_states[COLLECTD_CPU_STATE_ACTIVE].rate);
 	}
 } /* }}} void aggregate */
@@ -514,7 +517,7 @@ static void cpu_commit (void) /* {{{ */
 		};
 		size_t state;
 
-		for (state = 0; state < COLLECTD_CPU_STATE_ACTIVE; state++)
+		for (state = 0; state < COLLECTD_CPU_STATE_MAX; state++)
 			if (this_cpu_states[state].has_value)
 				local_rates[state] = this_cpu_states[state].rate;
 
