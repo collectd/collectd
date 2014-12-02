@@ -5140,6 +5140,7 @@ plugin_vmem="no"
 plugin_vserver="no"
 plugin_wireless="no"
 plugin_zfs_arc="no"
+plugin_zookeeper="no"
 
 # Linux
 if test "x$ac_system" = "xLinux"
@@ -5583,6 +5584,7 @@ AC_PLUGIN([write_riemann], [$have_protoc_c],   [Riemann output plugin])
 AC_PLUGIN([write_tsdb],  [yes],                [TSDB output plugin])
 AC_PLUGIN([xmms],        [$with_libxmms],      [XMMS statistics])
 AC_PLUGIN([zfs_arc],     [$plugin_zfs_arc],    [ZFS ARC statistics])
+AC_PLUGIN([zookeeper],   [yes],  	       [Zookeeper statistics])
 
 dnl Default configuration file
 # Load either syslog or logfile
@@ -5951,6 +5953,7 @@ Configuration:
     write_tsdb  . . . . . $enable_write_tsdb
     xmms  . . . . . . . . $enable_xmms
     zfs_arc . . . . . . . $enable_zfs_arc
+    zookeeper . . . . . . $enable_zookeeper
 
 EOF
 

@@ -7290,6 +7290,31 @@ attribute for each metric being sent out to I<Riemann>.
 
 =back
 
+=head2 Plugin C<zookeeper>
+
+The I<zookeeper plugin> will collect statistics from a I<Zookeeper> server
+using the mntr command.  It requires Zookeeper 3.4.0+ and access to the
+client port.
+
+B<Synopsis:>
+
+ <Plugin "zookeeper">
+   Host "127.0.0.1"
+   Port "2181"
+ </Plugin>
+
+=over 4
+
+=item B<Host> I<Address>
+
+Hostname or address to connect to. Defaults to C<localhost>.
+
+=item B<Port> I<Service>
+
+Service name or port number to connect to. Defaults to C<2181>.
+
+=back
+
 =head1 THRESHOLD CONFIGURATION
 
 Starting with version C<4.3.0> collectd has support for B<monitoring>. By that
