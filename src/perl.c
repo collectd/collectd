@@ -46,6 +46,7 @@
 #include <perl.h>
 
 #if defined(COLLECT_DEBUG) && COLLECT_DEBUG && defined(__GNUC__) && __GNUC__
+# undef sprintf
 # pragma GCC poison sprintf
 #endif
 
