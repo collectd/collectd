@@ -86,9 +86,9 @@ static const char *def_host       = "localhost";
 //static const char *def_user       = "guest";
 //static const char *def_password   = "guest";
 
-//static pthread_t  *subscriber_threads     = NULL;
-//static size_t      subscriber_threads_num = 0;
-//static _Bool       subscriber_threads_running = 1;
+static pthread_t  *subscriber_threads     = NULL;
+static size_t      subscriber_threads_num = 0;
+static _Bool       subscriber_threads_running = 1;
 
 #define CONF(c,f) (((c)->f != NULL) ? (c)->f : def_##f)
 
@@ -163,6 +163,17 @@ static int cmqtt_connect (cmqtt_config_t *conf) /* {{{ */
         return (status);
     }
 
+    if (!conf->publish)
+    {
+        status = MQTTClient_subscribe(conf->connection, conf->topic, conf->qos);
+        if (status != MQTTCLIENT_SUCCESS)
+        {
+            ERROR ("mqtt plugin: MQTTClient_subscribe failed.");
+            conf->connection = NULL;
+            return (status);
+        }
+    }
+
     INFO ("mqtt plugin: Successfully opened connection to client \"%s\" "
             "on %s:%i.", conf->client_id, CONF(conf, host), conf->port);
 
@@ -174,8 +185,95 @@ static int cmqtt_shutdown (void) /* {{{ */
     return (0);
 } /* }}} int cmqtt_shutdown */
 
+static void *cmqtt_subscribe_thread (void *user_data) /* {{{ */
+{
+    cmqtt_config_t *conf = user_data;
+    int status;
+
+    cdtime_t interval = plugin_get_interval ();
+
+    while (subscriber_threads_running)
+    {
+        char *topicName = NULL;
+        int topicLen;
+        MQTTClient_message *message = NULL;
+
+        status = cmqtt_connect (conf);
+        if (status != 0)
+        {
+            struct timespec ts_interval;
+            ERROR ("mqtt plugin: cmqtt_connect failed. "
+                    "Will sleep for %.3f seconds.",
+                    CDTIME_T_TO_DOUBLE (interval));
+            CDTIME_T_TO_TIMESPEC (interval, &ts_interval);
+            nanosleep (&ts_interval, /* remaining = */ NULL);
+            continue;
+        }
+
+        status = MQTTClient_receive(conf->connection, &topicName, &topicLen, &message, conf->wait_timeout);
+        if (message)
+        {
+            int rc = handle_putval (stderr, (char*)message->payload);
+            if (rc != 0)
+            {
+                ERROR ("mqtt plugin: handle_putval failed with status %i.",
+                       rc);
+            }
+            MQTTClient_freeMessage(&message);
+            message = NULL;
+        }
+        if (topicName) {
+            MQTTClient_free(topicName);
+            topicName = NULL;
+        }
+        if (status != MQTTCLIENT_SUCCESS && status != MQTTCLIENT_TOPICNAME_TRUNCATED)
+        {
+            struct timespec ts_interval;
+            ERROR ("mqtt plugin: MQTTClient_receive failed. "
+                    "Will sleep for %.3f seconds.",
+                    CDTIME_T_TO_DOUBLE (interval));
+            cmqtt_close_connection (conf);
+            CDTIME_T_TO_TIMESPEC (interval, &ts_interval);
+            nanosleep (&ts_interval, /* remaining = */ NULL);
+            continue;
+        }
+    } /* while (subscriber_threads_running) */
+
+    cmqtt_config_free (conf);
+    pthread_exit (NULL);
+    return (NULL);
+} /* }}} void *cmqtt_subscribe_thread */
+
 static int cmqtt_subscribe_init (cmqtt_config_t *conf) /* {{{ */
 {
+    int status;
+    pthread_t *tmp;
+
+    tmp = realloc (subscriber_threads,
+            sizeof (*subscriber_threads) * (subscriber_threads_num + 1));
+    if (tmp == NULL)
+    {
+        ERROR ("mqtt plugin: realloc failed.");
+        cmqtt_config_free (conf);
+        return (ENOMEM);
+    }
+    subscriber_threads = tmp;
+    tmp = subscriber_threads + subscriber_threads_num;
+    memset (tmp, 0, sizeof (*tmp));
+
+    status = plugin_thread_create (tmp, /* attr = */ NULL,
+                                   cmqtt_subscribe_thread, conf);
+    if (status != 0)
+    {
+        char errbuf[1024];
+        ERROR ("mqtt plugin: pthread_create failed: %s",
+               sstrerror (status, errbuf, sizeof (errbuf)));
+        cmqtt_config_free (conf);
+        return (status);
+    }
+
+    subscriber_threads_num++;
+
     return (0);
 } /* }}} int cmqtt_subscribe_init */
 

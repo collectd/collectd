@@ -648,7 +648,7 @@
 #  <Publish "name">
 #    Host "localhost"
 #    Port "1883"
-#    ClientID "collectd"
+#    ClientID "collectd-pub"
 #    PersistenceType "None"
 #    KeepAliveInterval 20
 #    Topic "collectd"
@@ -666,6 +666,19 @@
 #    GraphitePostfix ""
 #    GraphiteEscapeChar "_"
 #  </Publish>
+#  <Subscribe "name">
+#    Host "localhost"
+#    Port "1883"
+#    ClientID "collectd-sub"
+#    PersistenceType "None"
+#    KeepAliveInterval 20
+#    Topic "collectd"
+#    QoS 1
+#    WaitTimeout 10000
+#    DisconnectDelay 10000
+#    User "collectd"
+#    Password "collectd"
+#  </Subscribe>
 #</Plugin>
 
 #<Plugin mysql>

@@ -597,6 +597,7 @@ if BUILD_PLUGIN_MQTT
 pkglib_LTLIBRARIES += mqtt.la
 mqtt_la_SOURCES = mqtt.c \
 		  utils_cmd_putval.c utils_cmd_putval.h \
+		  utils_parse_option.c utils_parse_option.h \
 		  utils_format_graphite.c utils_format_graphite.h \
 		  utils_format_json.c utils_format_json.h
 mqtt_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBPAHOMQTTC_LDFLAGS)
