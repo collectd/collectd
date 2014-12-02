@@ -166,6 +166,7 @@
 %define with_write_riemann 0%{!?_without_write_riemann:1}
 %define with_write_tsdb 0%{!?_without_write_tsdb:1}
 %define with_zfs_arc 0%{!?_without_zfs_arc:1}
+%define with_zookeeper 0%{!?_without_zookeeper:1}
 
 # Plugins not built by default because of dependencies on libraries not
 # available in RHEL or EPEL:
@@ -1499,6 +1500,12 @@ Development files for libcollectdclient
 %define _with_zfs_arc --disable-zfs_arc
 %endif
 
+%if %{with_zookeeper}
+%define _with_zookeeper --enable-zookeeper
+%else
+%define _with_zookeeper --disable-zookeeper
+%endif
+
 %configure CFLAGS="%{optflags} -DLT_LAZY_OR_NOW=\"RTLD_LAZY|RTLD_GLOBAL\"" \
 	--disable-static \
 	--without-included-ltdl \
@@ -1591,6 +1598,7 @@ Development files for libcollectdclient
 	%{?_with_write_redis} \
 	%{?_with_xmms} \
 	%{?_with_zfs_arc} \
+	%{?_with_zookeeper} \
 	%{?_with_irq} \
 	%{?_with_load} \
 	%{?_with_logfile} \
@@ -1917,6 +1925,9 @@ fi
 %if %{with_zfs_arc}
 %{_libdir}/%{name}/zfs_arc.so
 %endif
+%if %{with_zookeeper}
+%{_libdir}/%{name}/zookeeper.so
+%endif
 
 %files -n libcollectdclient-devel
 %{_includedir}/collectd/client.h
@@ -2194,7 +2205,7 @@ fi
 %changelog
 # * TODO 5.5.0-1
 # - New upstream version
-# - New plugins enabled by default: drbd, log_logstash, write_tsdb, smart, openldap, redis, write_redis
+# - New plugins enabled by default: drbd, log_logstash, write_tsdb, smart, openldap, redis, write_redis, zookeeper
 # - New plugins disabled by default: barometer, write_kafka
 # - Enable zfs_arc, now supported on Linux
 # - Install disk plugin in an dedicated package, as it depends on libudev
