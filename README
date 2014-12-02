@@ -371,6 +371,9 @@ Features
     - zfs_arc
       Statistics for ZFS' “Adaptive Replacement Cache” (ARC).
 
+    - zookeeper
+      Read data from Zookeeper's MNTR command.
+
   * Output can be written or sent to various destinations by the following
     plugins:
 
