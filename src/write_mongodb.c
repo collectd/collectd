@@ -58,6 +58,14 @@ struct wm_node_s
 
   _Bool store_rates;
 
+  int max_size;
+  int max_doc;
+  char *db_name;
+  char *collection_name;
+
+  _Bool write_data_set;
+  _Bool write_notification;
+
   mongo conn[1];
   pthread_mutex_t lock;
 };
@@ -66,7 +74,69 @@ typedef struct wm_node_s wm_node_t;
 /*
  * Functions
  */
-static bson *wm_create_bson (const data_set_t *ds, /* {{{ */
+static bson *wm_create_bson_notification (const notification_t *notification) /* {{{ */
+{
+  bson *ret;
+  notification_meta_t * meta = NULL;
+
+  ret = bson_alloc ();
+  if (ret == NULL)
+  {
+    ERROR ("write_mongodb plugin: bson_alloc failed.");
+    return (NULL);
+  }
+
+  /* Prepare bson doc */
+  bson_init (ret);
+  /* Add header */
+  bson_append_date (ret, "time", (bson_date_t) CDTIME_T_TO_MS (notification->time));
+  bson_append_string (ret, "host", notification->host);
+  bson_append_string (ret, "plugin", notification->plugin);
+  bson_append_string (ret, "plugin_instance", notification->plugin_instance);
+  bson_append_string (ret, "type", notification->type);
+  bson_append_string (ret, "type_instance", notification->type_instance);
+  bson_append_int (ret, "severity", notification->severity);
+  bson_append_string (ret, "message", notification->message);
+
+  /* Add meta */
+  bson_append_start_object (ret, "meta"); /* {{{ */
+  meta = notification->meta;
+
+  while (meta)
+  {
+    switch (meta->type)
+    {
+      case NM_TYPE_STRING:
+        bson_append_string (ret, meta->name, meta->nm_value.nm_string);
+        break;
+      case NM_TYPE_SIGNED_INT:
+        bson_append_long (ret, meta->name, (int64_t)meta->nm_value.nm_signed_int);
+        break;
+      case NM_TYPE_UNSIGNED_INT:
+        bson_append_long (ret, meta->name, (int64_t)meta->nm_value.nm_signed_int);
+        break;
+      case NM_TYPE_DOUBLE:
+        bson_append_double (ret, meta->name, meta->nm_value.nm_double);
+        break;
+      case NM_TYPE_BOOLEAN:
+        bson_append_bool (ret, meta->name, meta->nm_value.nm_boolean);
+        break;
+      default:
+        WARNING ("write_mongodb plugin: Ignoring unknown notification meta type %s(%i).",
+            meta->name, meta->type);
+        break;
+    }
+    meta = meta->next;
+  };
+
+  bson_append_finish_object (ret); /* }}} meta */
+
+  bson_finish (ret);
+
+  return (ret);
+} /* }}} */
+
+static bson *wm_create_bson_data_set (const data_set_t *ds, /* {{{ */
     const value_list_t *vl,
     _Bool store_rates)
 {
@@ -74,10 +144,10 @@ static bson *wm_create_bson (const data_set_t *ds, /* {{{ */
   gauge_t *rates;
   int i;
 
-  ret = bson_create ();
+  ret = bson_alloc ();
   if (ret == NULL)
   {
-    ERROR ("write_mongodb plugin: bson_create failed.");
+    ERROR ("write_mongodb plugin: bson_alloc failed.");
     return (NULL);
   }
 
@@ -155,21 +225,100 @@ static bson *wm_create_bson (const data_set_t *ds, /* {{{ */
   return (ret);
 } /* }}} bson *wm_create_bson */
 
-static int wm_write (const data_set_t *ds, /* {{{ */
-    const value_list_t *vl,
-    user_data_t *ud)
+static void wm_check_collection (wm_node_t *node, /* {{{ */
+    const char *coll_name)
 {
-  wm_node_t *node = ud->data;
+    /* If max_size is set then create a capped collection */
+    if (node->max_size) {
+      /* Check if collection exists:
+       * db['system.namespaces'].find({'name':'nsc.collectd'})
+       * {
+       *     "name" : "nsc.collectd",
+       *     "options" : {
+       *                 "capped" : true,
+       *                  "size" : 100096
+       *                }
+       *      }
+       *
+       * */
+      int status;
+      bson query;
+      bson response;
+      char ns[512];
+      char collection_ns[512];
+
+      strcpy (ns, node->db_name);
+      strcat (ns, ".system.namespaces");
+      strcpy (collection_ns, node->db_name);
+      strcat (collection_ns, ".");
+      strcat (collection_ns, coll_name);
+
+      bson_init (&query);
+      bson_append_start_object (&query, "$query");
+      bson_append_string (&query, "name", collection_ns);
+      bson_append_finish_object (&query);
+      bson_finish ( &query );
+
+      status = mongo_find_one (node->conn, ns, &query, NULL, &response);
+      bson_destroy (&query);
+
+      if (status == MONGO_OK) {
+        /* Collection already exists */
+        bson_iterator i, item;
+        bson_bool_t is_capped = 0;
+
+        /* get "options.capped" value */
+        if (bson_find (&i, &response, "options")) {
+          bson options;
+          bson_iterator_subobject_init (&i, &options, 0);
+          if(bson_find (&item, &options, "capped")) {
+            is_capped = bson_iterator_bool (&item);
+          }
+
+          /* cleanup */
+          bson_destroy (&options);
+        }
+
+        if (!is_capped) {
+          // TODO: Need to convert to capped
+          ERROR ("write_mongodb plugin: Collection %s exists but is not capped.",
+              collection_ns);
+        }else{
+          DEBUG ("write_mongodb plugin: Collection %s exists and is capped.",
+              collection_ns);
+        }
+      }else{
+        // Collection does not exists, create
+        status = mongo_create_capped_collection (node->conn, node->db_name, coll_name, node->max_size, node->max_doc, NULL);
+        if (status != MONGO_OK)
+        {
+          ERROR ("write_mongodb plugin: Create capped collection %s.%s(%i/%i) failed %i.", 
+              node->db_name, coll_name, node->max_size, node->max_doc, status);
+        }else{
+          INFO ("write_mongodb plugin: Create capped collection %s.%s(%i/%i) succeed.",
+              node->db_name, coll_name, node->max_size, node->max_doc);
+        }
+      }
+      bson_destroy (&response);
+    }
+} /* }}} void wm_check_collection */
+
+static int wm_write_mongo (wm_node_t *node, const char *plugin, bson *bson_record)
+{/*{{{*/
   char collection_name[512];
-  bson *bson_record;
+  const char * coll_name = NULL;
   int status;
 
-  ssnprintf (collection_name, sizeof (collection_name), "collectd.%s",
-      vl->plugin);
-
-  bson_record = wm_create_bson (ds, vl, node->store_rates);
-  if (bson_record == NULL)
-    return (ENOMEM);
+  /* build collection name */
+  strcpy (collection_name, node->db_name);
+  strcat (collection_name, ".");
+  if (node->collection_name) {
+    strcat (collection_name, node->collection_name);
+    coll_name = node->collection_name;
+  }else{
+    strcat (collection_name, plugin);
+    coll_name = plugin;
+  }
 
   pthread_mutex_lock (&node->lock);
 
@@ -217,6 +366,9 @@ static int wm_write (const data_set_t *ds, /* {{{ */
   /* Assert if the connection has been established */
   assert (mongo_is_connected (node->conn));
 
+  /* Check collection */
+  wm_check_collection (node, coll_name);
+
   #if MONGO_MINOR >= 6
     /* There was an API change in 0.6.0 as linked below */
     /* https://github.com/mongodb/mongo-c-driver/blob/master/HISTORY.md */
@@ -242,10 +394,50 @@ static int wm_write (const data_set_t *ds, /* {{{ */
 
   pthread_mutex_unlock (&node->lock);
 
-  /* free our resource as not to leak memory */
-  bson_dispose (bson_record);
-
   return (0);
+
+}/*}}}*/
+
+static int wm_write_notification (const notification_t *notification, /*{{{*/
+		user_data_t *ud)
+{
+  wm_node_t *node = ud->data;
+  bson *bson_record;
+  int status;
+
+  bson_record = wm_create_bson_notification (notification);
+  if (bson_record == NULL)
+    return (ENOMEM);
+
+  status = wm_write_mongo (node, notification->plugin, bson_record);
+
+  /* free our resource as not to leak memory */
+  bson_destroy (bson_record);
+  bson_dealloc (bson_record);
+
+  return (status);
+
+} /*}}}*/
+
+static int wm_write_data_set (const data_set_t *ds, /* {{{ */
+    const value_list_t *vl,
+    user_data_t *ud)
+{
+  wm_node_t *node = ud->data;
+  bson *bson_record;
+  int status;
+
+  bson_record = wm_create_bson_data_set (ds, vl, node->store_rates);
+  if (bson_record == NULL)
+    return (ENOMEM);
+
+  status = wm_write_mongo (node, vl->plugin, bson_record);
+
+  /* free our resource as not to leak memory */
+  bson_destroy (bson_record);
+  bson_dealloc (bson_record);
+
+  return (status);
 } /* }}} int wm_write */
 
 static void wm_config_free (void *ptr) /* {{{ */
@@ -259,6 +451,8 @@ static void wm_config_free (void *ptr) /* {{{ */
     mongo_destroy (node->conn);
 
   sfree (node->host);
+  sfree (node->db_name);
+  sfree (node->collection_name);
   sfree (node);
 } /* }}} void wm_config_free */
 
@@ -275,6 +469,7 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
   mongo_init (node->conn);
   node->host = NULL;
   node->store_rates = 1;
+  node->write_data_set = 1;
   pthread_mutex_init (&node->lock, /* attr = */ NULL);
 
   status = cf_util_get_string_buffer (ci, node->name, sizeof (node->name));
@@ -310,6 +505,18 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string (child, &node->user);
     else if (strcasecmp ("Password", child->key) == 0)
       status = cf_util_get_string (child, &node->passwd);
+    else if (strcasecmp ("DbName", child->key) == 0)
+      status = cf_util_get_string (child, &node->db_name);
+    else if (strcasecmp ("CollectionName", child->key) == 0)
+      status = cf_util_get_string (child, &node->collection_name);
+    else if (strcasecmp ("MaxSize", child->key) == 0)
+      status = cf_util_get_int (child, &node->max_size);
+    else if (strcasecmp ("MaxDoc", child->key) == 0)
+      status = cf_util_get_int (child, &node->max_doc);
+    else if (strcasecmp ("WriteDataSet", child->key) == 0)
+      status = cf_util_get_boolean (child, &node->write_data_set);
+    else if (strcasecmp ("WriteNotification", child->key) == 0)
+      status = cf_util_get_boolean (child, &node->write_notification);
     else
       WARNING ("write_mongodb plugin: Ignoring unknown config option \"%s\".",
           child->key);
@@ -331,6 +538,11 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
       sfree (node->passwd);
     }
   }
+  /* Set db_name if not specified */
+  if (NULL == node->db_name) {
+    node->db_name = malloc (strlen("collectd") + 1);
+    strcpy (node->db_name, "collectd");
+  }
 
   if (status == 0)
   {
@@ -342,8 +554,18 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
     ud.data = node;
     ud.free_func = wm_config_free;
 
-    status = plugin_register_write (cb_name, wm_write, &ud);
-    INFO ("write_mongodb plugin: registered write plugin %s %d",cb_name,status);
+    /* Write data set ? */
+    if (status == 0 && node->write_data_set)
+    {
+      status = plugin_register_write (cb_name, wm_write_data_set, &ud);
+      INFO ("write_mongodb plugin: registered write plugin %s %d",cb_name,status);
+    }
+    /* Write notification ? */
+    if (status == 0 && node->write_notification)
+    {
+      status = plugin_register_notification (cb_name, wm_write_notification, &ud);
+      INFO ("write_mongodb plugin: registered notification plugin %s %d",cb_name,status);
+    }
   }
 
   if (status != 0)
