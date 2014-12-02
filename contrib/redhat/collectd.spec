@@ -189,7 +189,7 @@ Source:		http://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
 Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
-BuildRequires:	libgcrypt-devel, kernel-headers
+BuildRequires:	libgcrypt-devel, kernel-headers, libtool-ltdl-devel
 Vendor:		collectd development team <collectd@verplant.org>
 
 Requires(post):		chkconfig
