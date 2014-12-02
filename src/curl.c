@@ -73,6 +73,8 @@ struct web_page_s /* {{{ */
   size_t buffer_size;
   size_t buffer_fill;
 
+  char *rename_plugin_as;
+
   web_match_t *matches;
 
   web_page_t *next;
@@ -154,6 +156,8 @@ static void cc_web_page_free (web_page_t *wp) /* {{{ */
   sfree (wp->credentials);
   sfree (wp->cacert);
   sfree (wp->post_body);
+  sfree (wp->rename_plugin_as);
+
   curl_slist_free_all (wp->headers);
 
   sfree (wp->buffer);
@@ -440,6 +444,7 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
   page->verify_host = 1;
   page->response_time = 0;
   page->response_code = 0;
+  page->rename_plugin_as = NULL;
 
   page->instance = strdup (ci->values[0].value.string);
   if (page->instance == NULL)
@@ -480,6 +485,8 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
       status = cc_config_append_string ("Header", &page->headers, child);
     else if (strcasecmp ("Post", child->key) == 0)
       status = cf_util_get_string (child, &page->post_body);
+    else if (strcasecmp ("RenamePluginAs", child->key) == 0)
+      status = cf_util_get_string (child, &page->rename_plugin_as);
     else
     {
       WARNING ("curl plugin: Option `%s' not allowed here.", child->key);
@@ -596,7 +603,10 @@ static void cc_submit (const web_page_t *wp, const web_match_t *wm, /* {{{ */
   vl.values = values;
   vl.values_len = 1;
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-  sstrncpy (vl.plugin, "curl", sizeof (vl.plugin));
+  if(wp->rename_plugin_as != NULL)
+    sstrncpy (vl.plugin, wp->rename_plugin_as, sizeof (vl.plugin));
+  else 
+    sstrncpy (vl.plugin, "curl", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, wp->instance, sizeof (vl.plugin_instance));
   sstrncpy (vl.type, wm->type, sizeof (vl.type));
   if (wm->instance != NULL)
@@ -615,7 +625,10 @@ static void cc_submit_response_code (const web_page_t *wp, long code) /* {{{ */
   vl.values = values;
   vl.values_len = 1;
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-  sstrncpy (vl.plugin, "curl", sizeof (vl.plugin));
+  if(wp->rename_plugin_as != NULL)
+    sstrncpy (vl.plugin, wp->rename_plugin_as, sizeof (vl.plugin));
+  else 
+    sstrncpy (vl.plugin, "curl", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, wp->instance, sizeof (vl.plugin_instance));
   sstrncpy (vl.type, "response_code", sizeof (vl.type));
 
@@ -633,7 +646,10 @@ static void cc_submit_response_time (const web_page_t *wp, /* {{{ */
   vl.values = values;
   vl.values_len = 1;
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-  sstrncpy (vl.plugin, "curl", sizeof (vl.plugin));
+  if(wp->rename_plugin_as != NULL)
+    sstrncpy (vl.plugin, wp->rename_plugin_as, sizeof (vl.plugin));
+  else 
+    sstrncpy (vl.plugin, "curl", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, wp->instance, sizeof (vl.plugin_instance));
   sstrncpy (vl.type, "response_time", sizeof (vl.type));
 

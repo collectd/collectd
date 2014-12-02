@@ -52,6 +52,7 @@ class GenericJMXConfConnection
   private String _host = null;
   private String _instance_prefix = null;
   private String _service_url = null;
+  private String _rename_plugin_as = null;
   private MBeanServerConnection _jmx_connection = null;
   private List<GenericJMXConfMBean> _mbeans = null;
 
@@ -113,7 +114,6 @@ private void connect () /* {{{ */
 
     environment = new HashMap ();
     environment.put (JMXConnector.CREDENTIALS, credentials);
-    environment.put(JMXConnectorFactory.PROTOCOL_PROVIDER_CLASS_LOADER, this.getClass().getClassLoader());
   }
 
   try
@@ -185,6 +185,13 @@ private void connect () /* {{{ */
         if (tmp != null)
           this._instance_prefix = tmp;
       }
+      else if (child.getKey ().equalsIgnoreCase ("RenamePluginAs"))
+      {
+        String tmp = getConfigString (child);
+        if (tmp != null)
+          this._rename_plugin_as = tmp;
+      }
+
       else if (child.getKey ().equalsIgnoreCase ("Collect"))
       {
         String tmp = getConfigString (child);
@@ -228,7 +235,8 @@ private void connect () /* {{{ */
 
     pd = new PluginData ();
     pd.setHost (this.getHost ());
-    pd.setPlugin ("GenericJMX");
+    if (this._rename_plugin_as != null ) pd.setPlugin(this._rename_plugin_as);
+    else     pd.setPlugin ("GenericJMX");
 
     for (int i = 0; i < this._mbeans.size (); i++)
     {

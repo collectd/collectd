@@ -51,6 +51,7 @@ struct instance_definition_s {
     cdtime_t interval;
     int time_from;
     struct instance_definition_s *next;
+    char *rename_plugin_as;
 };
 typedef struct instance_definition_s instance_definition_t;
 
@@ -69,7 +70,10 @@ static int tcsv_submit (instance_definition_t *id,
     vl.values = &v;
 
     sstrncpy(vl.host, hostname_g, sizeof (vl.host));
-    sstrncpy(vl.plugin, "tail_csv", sizeof(vl.plugin));
+     if( id->rename_plugin_as != NULL )
+	sstrncpy(vl.plugin,id->rename_plugin_as, sizeof(vl.plugin));
+     else
+    	sstrncpy(vl.plugin, "tail_csv", sizeof(vl.plugin));
     if (id->instance != NULL)
         sstrncpy(vl.plugin_instance, id->instance, sizeof(vl.plugin_instance));
     sstrncpy(vl.type, md->type, sizeof(vl.type));
@@ -106,16 +110,20 @@ static int tcsv_read_metric (instance_definition_t *id,
     if (md->data_source_type == -1)
         return (EINVAL);
 
-    if ((md->value_from >= fields_num) || (id->time_from >= fields_num))
+    if ((md->value_from >= (int)fields_num) || (id->time_from >= (int)fields_num)) {
+	WARNING("tail_csv plugin: value index o time index not in fiels Time/Value/MAX (%d/%d/%d) ",id->time_from,md->value_from,(int)fields_num);
         return (EINVAL);
+    }
 
     t = 0;
     if (id->time_from >= 0)
         t = parse_time (fields[id->time_from]);
 
     status = parse_value (fields[md->value_from], &v, md->data_source_type);
-    if (status != 0)
+    if (status != 0){
+	WARNING("tail_csv plugin: parse value status %d",status);
         return (status);
+    }
 
     return (tcsv_submit (id, md, v, t));
 }
@@ -164,6 +172,8 @@ static int tcsv_read_buffer (instance_definition_t *id,
             metrics_num++;
     }
 
+    DEBUG("tail_csv plugin: number of columns count %d",(int)metrics_num);
+
     if (metrics_num == 1) {
         ERROR("tail_csv plugin: last line of `%s' does not contain "
                 "enough values.", id->path);
@@ -191,13 +201,13 @@ static int tcsv_read_buffer (instance_definition_t *id,
     assert (i == metrics_num);
 
     /* Register values */
-    for (i = 0; i < id->metric_list_len; ++i){
+    DEBUG("tail_csv plugin: number of metrics count %d",(int)id->metric_list_len);
+    for (i = 0; i < id->metric_list_len; i++){
         metric_definition_t *md = id->metric_list[i];
-
+	DEBUG("tail_csv plugin:: %d :check metric %s on index %d",(int)i,md->name,md->value_from);
         if (!tcsv_check_index (md->value_from, metrics_num, md->name)
                 || !tcsv_check_index (id->time_from, metrics_num, md->name))
             continue;
-
         tcsv_read_metric (id, md, metrics, metrics_num);
     }
 
@@ -353,6 +363,7 @@ static int tcsv_config_add_metric(oconfig_item_t *ci){
             last = last->next;
         last->next = md;
     }
+    DEBUG("tail_csv plugin: registered metric(%s/%s/%s/%d) : ",md->type,md->name,md->instance,(int)md->value_from);
 
     return (0);
 }
@@ -368,10 +379,24 @@ static void tcsv_instance_definition_destroy(void *arg){
         cu_tail_destroy (id->tail);
     id->tail = NULL;
 
+    sfree(id->rename_plugin_as);
     sfree(id->instance);
     sfree(id->path);
     sfree(id->metric_list);
     sfree(id);
+}
+
+static metric_definition_t** tcsv_relocate_metric_list(metric_definition_t** current_list,size_t current_length,metric_definition_t* new){
+	metric_definition_t** final_list;
+	int i;
+	if(current_length == 0 ) return NULL; 
+
+	final_list=(metric_definition_t **)malloc(sizeof(metric_definition_t *)*current_length);
+	for(i=0;i<current_length-1;i++) final_list[i]=current_list[i];
+	final_list[current_length-1]=new;
+	sfree(current_list);
+
+	return final_list;
 }
 
 static int tcsv_config_add_instance_collect(instance_definition_t *id, oconfig_item_t *ci){
@@ -390,10 +415,6 @@ static int tcsv_config_add_instance_collect(instance_definition_t *id, oconfig_i
             return (-1);
         }
 
-    id->metric_list = (metric_definition_t **)malloc(sizeof(metric_definition_t *) * ci->values_num);
-    if (id->metric_list == NULL)
-        return (-1);
-
     for (i = 0; i < ci->values_num; ++i){
         for (metric = metric_head; metric != NULL; metric = metric->next)
             if (strcasecmp(ci->values[i].value.string, metric->name) == 0)
@@ -403,9 +424,10 @@ static int tcsv_config_add_instance_collect(instance_definition_t *id, oconfig_i
             WARNING("tail_csv plugin: `Collect' argument not found `%s'.", ci->values[i].value.string);
             return (-1);
         }
-
-        id->metric_list[i] = metric;
+	DEBUG("tail_csv plugin: registering collector to [%d]%s[%d]: (%s/%s/%s/%d) : ",(int)i,id->instance,(int)id->metric_list_len,metric->type,metric->name,metric->instance,(int)metric->value_from);	
+	
         id->metric_list_len++;
+	id->metric_list=tcsv_relocate_metric_list(id->metric_list,id->metric_list_len,metric);
     }
 
     return (0);
@@ -432,6 +454,7 @@ static int tcsv_config_add_file(oconfig_item_t *ci)
     id->metric_list = NULL;
     id->time_from = -1;
     id->next = NULL;
+    id->rename_plugin_as = NULL;
 
     status = cf_util_get_string (ci, &id->path);
     if (status != 0) {
@@ -454,6 +477,8 @@ static int tcsv_config_add_file(oconfig_item_t *ci)
             cf_util_get_cdtime(option, &id->interval);
         else if (strcasecmp("TimeFrom", option->key) == 0)
             status = tcsv_config_get_index (option, &id->time_from);
+        else if (strcasecmp("RenamePluginAs", option->key) == 0)
+            status = cf_util_get_string(option, &id->rename_plugin_as);
         else {
             WARNING("tail_csv plugin: Option `%s' not allowed here.", option->key);
             status = -1;

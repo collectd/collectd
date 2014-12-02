@@ -93,6 +93,8 @@ struct cx_s /* {{{ */
   size_t buffer_fill;
 
   llist_t *list; /* list of xpath blocks */
+
+ char *rename_plugin_as;
 };
 typedef struct cx_s cx_t; /* }}} */
 
@@ -209,6 +211,8 @@ static void cx_free (void *arg) /* {{{ */
     sfree (db->namespaces[i].url);
   }
   sfree (db->namespaces);
+
+  sfree (db->rename_plugin_as);
 
   sfree (db);
 } /* }}} void cx_free */
@@ -464,7 +468,7 @@ static int cx_handle_instance_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */
 static int  cx_handle_base_xpath (char const *plugin_instance, /* {{{ */
     char const *host,
     xmlXPathContextPtr xpath_ctx, const data_set_t *ds, 
-    char *base_xpath, cx_xpath_t *xpath)
+    char *base_xpath, cx_xpath_t *xpath,char const *rename_plugin_as)
 {
   int total_nodes;
   int i;
@@ -503,7 +507,10 @@ static int  cx_handle_base_xpath (char const *plugin_instance, /* {{{ */
   /* set the values for the value_list */
   vl.values_len = ds->ds_num;
   sstrncpy (vl.type, xpath->type, sizeof (vl.type));
-  sstrncpy (vl.plugin, "curl_xml", sizeof (vl.plugin));
+  if (rename_plugin_as !=  NULL)
+    sstrncpy (vl.plugin,rename_plugin_as, sizeof (vl.plugin));
+  else 
+    sstrncpy (vl.plugin, "curl_xml", sizeof (vl.plugin));
   sstrncpy (vl.host, (host != NULL) ? host : hostname_g, sizeof (vl.host));
   if (plugin_instance != NULL)
     sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance)); 
@@ -548,7 +555,7 @@ static int cx_handle_parsed_xml(xmlDocPtr doc, /* {{{ */
 
     if ( (cx_check_type(ds, xpath) == 0) &&
          (cx_handle_base_xpath(db->instance, db->host,
-                               xpath_ctx, ds, le->key, xpath) == 0) )
+                               xpath_ctx, ds, le->key, xpath,db->rename_plugin_as) == 0) )
       status = 0; /* we got atleast one success */
 
     le = le->next;
@@ -952,6 +959,8 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string (child, &db->post_body);
     else if (strcasecmp ("Namespace", child->key) == 0)
       status = cx_config_add_namespace (db, child);
+    else if (strcasecmp ("RenamePluginAs", child->key) == 0)
+      status = cf_util_get_string (child, &db->rename_plugin_as);
     else
     {
       WARNING ("curl_xml plugin: Option `%s' not allowed here.", child->key);

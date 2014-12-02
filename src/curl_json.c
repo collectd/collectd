@@ -95,6 +95,8 @@ struct cj_s /* {{{ */
     int index;
     char name[DATA_MAX_NAME_LEN];
   } state[YAJL_MAX_DEPTH];
+
+  char *rename_plugin_as;
 };
 typedef struct cj_s cj_t; /* }}} */
 
@@ -438,7 +440,7 @@ static void cj_free (void *arg) /* {{{ */
   sfree (db->cacert);
   sfree (db->post_body);
   curl_slist_free_all (db->headers);
-
+  sfree (db->rename_plugin_as);
   sfree (db);
 } /* }}} void cj_free */
 
@@ -718,6 +720,8 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
       status = cj_config_add_key (db, child);
     else if (strcasecmp ("Interval", child->key) == 0)
       status = cf_util_get_cdtime(child, &db->interval);
+    else if (strcasecmp ("RenamePluginAs", child->key) == 0)
+      status = cf_util_get_string (child, &db->rename_plugin_as);
     else
     {
       WARNING ("curl_json plugin: Option `%s' not allowed here.", child->key);
@@ -844,7 +848,10 @@ static void cj_submit (cj_t *db, cj_key_t *key, value_t *value) /* {{{ */
     sstrncpy (vl.type_instance, key->instance, sizeof (vl.type_instance));
 
   sstrncpy (vl.host, host, sizeof (vl.host));
-  sstrncpy (vl.plugin, "curl_json", sizeof (vl.plugin));
+  if(db->rename_plugin_as != NULL)
+    sstrncpy (vl.plugin, db->rename_plugin_as, sizeof (vl.plugin));
+  else 
+    sstrncpy (vl.plugin, "curl_json", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, db->instance, sizeof (vl.plugin_instance));
   sstrncpy (vl.type, key->type, sizeof (vl.type));
 
