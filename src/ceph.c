@@ -985,7 +985,7 @@ static int node_handler_fetch_data(void *arg, const char *val, const char *key)
         {
             double sum, result;
             sscanf(val, "%lf", &sum);
-            DEBUG("avgcount:%ld",vtmp->avgcount);
+            DEBUG("avgcount:%" PRIu64 "",vtmp->avgcount);
             DEBUG("sum:%lf",sum);
 
             if(vtmp->avgcount == 0)
