@@ -886,10 +886,10 @@ int plugin_load (const char *type, uint32_t flags)
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			continue;
 		}
-		else if (!S_ISREG (statbuf.st_mode))
+		else if ((!S_ISREG (statbuf.st_mode)) 
+				&& (!S_ISLNK(statbuf.st_mode)))
 		{
-			/* don't follow symlinks */
-			WARNING ("plugin_load: %s is not a regular file.",
+			WARNING ("plugin_load: %s is not a link or regular file.",
 				       	filename);
 			continue;
 		}
