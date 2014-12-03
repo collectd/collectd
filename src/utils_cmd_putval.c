@@ -34,7 +34,7 @@
             return -1; \
         } \
         fflush(fh); \
-    } while (0);
+    } while (0)
 
 static int dispatch_values (const data_set_t *ds, value_list_t *vl,
 	       	FILE *fh, char *buffer)

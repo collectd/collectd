@@ -35,7 +35,7 @@
 			return -1; \
 		} \
 		fflush(fh); \
-	} while (0);
+	} while (0)
 
 static int add_to_array (char ***array, int *array_num, char *value)
 {

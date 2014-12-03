@@ -47,7 +47,7 @@
       free_everything_and_return (-1); \
     } \
     fflush(fh); \
-  } while (0);
+  } while (0)
 
 int handle_listval (FILE *fh, char *buffer)
 {

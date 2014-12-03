@@ -34,7 +34,7 @@
       return -1; \
     } \
     fflush(fh); \
-  } while (0);
+  } while (0)
 
 static int set_option_severity (notification_t *n, const char *value)
 {

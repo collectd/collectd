@@ -35,7 +35,7 @@
       return -1; \
     } \
     fflush(fh); \
-  } while (0);
+  } while (0)
 
 int handle_getval (FILE *fh, char *buffer)
 {
