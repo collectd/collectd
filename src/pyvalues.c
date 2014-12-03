@@ -428,8 +428,10 @@ static meta_data_t *cpy_build_meta(PyObject *meta) {
 		return NULL;
 	}
 	s = PyList_Size(l);
-    if (s <= 0)
-        return NULL;
+	if (s <= 0) {
+		Py_XDECREF(l);
+		return NULL;
+	}
 
 	m = meta_data_create();
 	for (i = 0; i < s; ++i) {
