@@ -222,15 +222,15 @@ Requires(post):		systemd
 Requires(preun):	systemd
 Requires(postun):	systemd
 %else
-%if 0%{?el6:1}
+	%if 0%{?el6:1}
 Requires(pre):		initscripts
 Requires(preun):	upstart
 Requires(postun):	upstart
-%else
+	%else
 Requires(post):		chkconfig
 Requires(preun):	chkconfig, initscripts
 Requires(postun):	initscripts
-%endif
+	%endif
 %endif
 
 %description
@@ -567,11 +567,11 @@ Summary:	Perl plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
 Requires:	perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $version))
-%if 0%{?rhel} >= 6
+	%if 0%{?rhel} >= 6
 BuildRequires:	perl-ExtUtils-Embed
-%else
+	%else
 BuildRequires:	perl
-%endif
+	%endif
 %description perl
 The Perl plugin embeds a Perl interpreter into collectd and exposes the
 application programming interface (API) to Perl-scripts.
@@ -615,11 +615,11 @@ database.
 Summary:	Python plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-%if 0%{?rhel} >= 6
+	%if 0%{?rhel} >= 6
 BuildRequires: python-devel
-%else
+	%else
 BuildRequires: python26-devel
-%endif
+	%endif
 %description python
 The Python plugin embeds a Python interpreter into collectd and exposes the
 application programming interface (API) to Python-scripts.
@@ -1270,11 +1270,11 @@ Development files for libcollectdclient
 %endif
 
 %if %{with_python}
-%if 0%{?rhel} >= 6
+	%if 0%{?rhel} >= 6
 %define _with_python --enable-python
-%else
+	%else
 %define _with_python --enable-python --with-python=%{_bindir}/python2.6
-%endif
+	%endif
 %else
 %define _with_python --disable-python
 %endif
@@ -1663,11 +1663,11 @@ rm -rf %{buildroot}
 %if 0%{?el7:1}
 %{__install} -Dp -m0644 contrib/systemd.collectd.service %{buildroot}%{_unitdir}/collectd.service
 %else
-%if 0%{?el6:1}
+	%if 0%{?el6:1}
 %{__install} -Dp -m0644 contrib/upstart.collectd.conf %{buildroot}%{_sysconfdir}/init/collectd.conf
-%else
+	%else
 %{__install} -Dp -m0755 contrib/redhat/init.d-collectd %{buildroot}%{_initrddir}/collectd
-%endif
+	%endif
 %endif
 %{__install} -Dp -m0644 src/collectd.conf %{buildroot}%{_sysconfdir}/collectd.conf
 %{__install} -d %{buildroot}%{_sharedstatedir}/collectd/
@@ -1723,10 +1723,8 @@ rm -rf %{buildroot}
 %if 0%{?el7:1}%{?el6:1}
 # stop sysv-based instance before upgrading to upstart/systemd
 if [ $1 -eq 2 ] && [ -f /var/lock/subsys/collectd ]; then
-	SYSTEMCTL_SKIP_REDIRECT=1 /etc/rc.d/init.d/collectd stop >/dev/null 2>&1 || :
+	SYSTEMCTL_SKIP_REDIRECT=1 %{_initddir}/collectd stop >/dev/null 2>&1 || :
 fi
-%else
-/bin/true
 %endif
 
 %post
@@ -1736,11 +1734,9 @@ if [ $1 -eq 2 ]; then
 fi
 %systemd_post collectd.service
 %else
-%if 0%{?el6:1}
-/bin/true
-%else
+	%if 0%{!?el6:1}
 /sbin/chkconfig --add collectd || :
-%endif
+	%endif
 %endif
 
 %preun
@@ -1749,12 +1745,12 @@ fi
 %else
 # stop collectd only when uninstalling
 if [ $1 -eq 0 ]; then
-%if 0%{?el6:1}
+	%if 0%{?el6:1}
 	/sbin/initctl stop collectd >/dev/null 2>&1 || :
-%else
+	%else
 	/sbin/service collectd stop >/dev/null 2>&1 || :
 	/sbin/chkconfig --del collectd || :
-%endif
+	%endif
 fi
 %endif
 
@@ -1764,15 +1760,15 @@ fi
 %else
 # restart collectd only when upgrading
 if [ $1 -eq 1 ]; then
-%if 0%{?el6:1}
+	%if 0%{?el6:1}
 	if /sbin/initctl status collectd 2>/dev/null | grep -q 'running'; then
 		/sbin/initctl restart collectd >/dev/null 2>&1 || :
 	else
 		/sbin/initctl start collectd >/dev/null 2>&1 || :
 	fi
-%else
+	%else
 	/sbin/service collectd condrestart >/dev/null 2>&1 || :
-%endif
+	%endif
 fi
 %endif
 
@@ -1786,11 +1782,11 @@ fi
 %if 0%{?el7:1}
 %{_unitdir}/collectd.service
 %else
-%if 0%{?el6:1}
+	%if 0%{?el6:1}
 %{_sysconfdir}/init/collectd.conf
-%else
+	%else
 %{_initrddir}/collectd
-%endif
+	%endif
 %endif
 %{_sbindir}/collectd
 %{_bindir}/collectd-nagios
