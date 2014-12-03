@@ -62,7 +62,7 @@ static int zookeeper_config(const char *key, const char *value)
 	else
 	{
 		return -1;
-	}	
+	}
 	return 0;
 }
 
@@ -104,7 +104,7 @@ static void zookeeper_submit_derive (const char * type, const char * type_inst, 
 
 static int zookeeper_connect (void)
 {
-	int sk;
+	int sk = -1;
 	int status;
 	struct addrinfo ai_hints;
 	struct addrinfo *ai;
@@ -115,7 +115,7 @@ static int zookeeper_connect (void)
 	memset ((void *) &ai_hints, '\0', sizeof (ai_hints));
 	ai_hints.ai_family   = AF_UNSPEC;
 	ai_hints.ai_socktype = SOCK_STREAM;
-	
+
 	host = (zk_host != NULL) ? zk_host : ZOOKEEPER_DEF_HOST;
 	port = (zk_port != NULL) ? zk_port : ZOOKEEPER_DEF_PORT;
 	status = getaddrinfo (host, port, &ai_hints, &ai_list);
@@ -131,7 +131,7 @@ static int zookeeper_connect (void)
 
 	for (ai = ai_list; ai != NULL; ai = ai->ai_next)
 	{
-		sk = socket (ai->ai_family, SOCK_STREAM, 0);			
+		sk = socket (ai->ai_family, SOCK_STREAM, 0);
 		if (sk < 0)
 		{
 			char errbuf[1024];
@@ -147,9 +147,9 @@ static int zookeeper_connect (void)
 			sk = -1;
 			WARNING ("zookeeper: connect(2) failed: %s",
 					 sstrerror (errno, errbuf, sizeof(errbuf)));
-			continue;					
+			continue;
 		}
-		
+
 		/* connected */
 		break;
 	}
@@ -157,7 +157,7 @@ static int zookeeper_connect (void)
 	freeaddrinfo(ai_list);
 	return (sk);
 } /* int zookeeper_connect */
-	
+
 static int zookeeper_query (char *buffer, size_t buffer_size)
 {
 	int sk = -1;
@@ -170,7 +170,7 @@ static int zookeeper_query (char *buffer, size_t buffer_size)
 		ERROR ("zookeeper: Could not connect to daemon");
 		return (-1);
 	}
-	
+
 	status = (int) swrite (sk, "mntr\r\n", strlen("mntr\r\n"));
 	if (status != 0)
 	{
@@ -197,7 +197,7 @@ static int zookeeper_query (char *buffer, size_t buffer_size)
 			close (sk);
 			return (-1);
 		}
-			
+
 		buffer_fill += (size_t) status;
 		if (status == 0)
 		{
@@ -218,7 +218,7 @@ static int zookeeper_query (char *buffer, size_t buffer_size)
 } /* int zookeeper_query */
 
 
-static int zookeeper_read (void) {	
+static int zookeeper_read (void) {
 	char buf[4096];
 	char *ptr;
 	char *save_ptr;
@@ -311,7 +311,7 @@ static int zookeeper_read (void) {
 			DEBUG("Uncollected zookeeper MNTR field %s", fields[0]);
 		}
 	}
-	
+
 	return (0);
 } /* zookeeper_read */
 
