@@ -115,6 +115,10 @@ Jason Pepas <cell at ices.utexas.edu>
 J. Javier Maestro <jjmaestro at ieee.org>
  - Write-Graphite plugin: UDP support and LogSendErrors flag.
 
+Jeremy Katz <jeremy at katzbox.net>
+ - percentage reporting in memory and swap plugins.
+ - zookeeper plugin.
+
 Jérôme Renard <jerome.renard at gmail.com>
  - varnish plugin.
 
