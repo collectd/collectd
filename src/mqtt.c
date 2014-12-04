@@ -73,6 +73,8 @@ struct cmqtt_config_s
     unsigned int graphite_flags;
 
     /* subscribe only */
+    pthread_t subscriber_thread;
+    _Bool     subscriber_thread_running;
 
     MQTTClient connection;
     pthread_mutex_t lock;
@@ -86,9 +88,8 @@ static const char *def_host       = "localhost";
 //static const char *def_user       = "guest";
 //static const char *def_password   = "guest";
 
-static pthread_t  *subscriber_threads     = NULL;
-static size_t      subscriber_threads_num = 0;
-static _Bool       subscriber_threads_running = 1;
+static cmqtt_config_t **subscribers_conf = NULL;
+static size_t subscribers_num = 0;
 
 #define CONF(c,f) (((c)->f != NULL) ? (c)->f : def_##f)
 
@@ -190,9 +191,11 @@ static void *cmqtt_subscribe_thread (void *user_data) /* {{{ */
     cmqtt_config_t *conf = user_data;
     int status;
 
+    conf->subscriber_thread_running = 1;
+
     cdtime_t interval = plugin_get_interval ();
 
-    while (subscriber_threads_running)
+    while (conf->subscriber_thread_running)
     {
         char *topicName = NULL;
         int topicLen;
@@ -237,7 +240,7 @@ static void *cmqtt_subscribe_thread (void *user_data) /* {{{ */
             nanosleep (&ts_interval, /* remaining = */ NULL);
             continue;
         }
-    } /* while (subscriber_threads_running) */
+    } /* while (conf->subscriber_thread_running) */
 
     cmqtt_config_free (conf);
     pthread_exit (NULL);
@@ -246,36 +249,49 @@ static void *cmqtt_subscribe_thread (void *user_data) /* {{{ */
 
 static int cmqtt_subscribe_init (cmqtt_config_t *conf) /* {{{ */
 {
-    int status;
-    pthread_t *tmp;
+    cmqtt_config_t **tmp;
 
-    tmp = realloc (subscriber_threads,
-            sizeof (*subscriber_threads) * (subscriber_threads_num + 1));
+    tmp = realloc (subscribers_conf,
+            sizeof (*subscribers_conf) * (subscribers_num + 1));
     if (tmp == NULL)
     {
         ERROR ("mqtt plugin: realloc failed.");
         cmqtt_config_free (conf);
         return (ENOMEM);
     }
-    subscriber_threads = tmp;
-    tmp = subscriber_threads + subscriber_threads_num;
-    memset (tmp, 0, sizeof (*tmp));
-
-    status = plugin_thread_create (tmp, /* attr = */ NULL,
-                                   cmqtt_subscribe_thread, conf);
-    if (status != 0)
-    {
-        char errbuf[1024];
-        ERROR ("mqtt plugin: pthread_create failed: %s",
-               sstrerror (status, errbuf, sizeof (errbuf)));
-        cmqtt_config_free (conf);
-        return (status);
-    }
-
-    subscriber_threads_num++;
+    subscribers_conf = tmp;
+    subscribers_conf[subscribers_num] = conf;
+    subscribers_num++;
 
     return (0);
 } /* }}} int cmqtt_subscribe_init */
+
+static int cmqtt_init (void) /* {{{ */
+{
+    size_t i;
+
+    for (i = 0; i < subscribers_num; i++)
+    {
+        int status;
+
+        if (subscribers_conf[i]->subscriber_thread_running)
+            continue;
+
+        status = plugin_thread_create (&subscribers_conf[i]->subscriber_thread,
+                                       /* attr = */ NULL,
+                                       /* func = */ cmqtt_subscribe_thread,
+                                       /* args = */ subscribers_conf[i]);
+        if (status != 0)
+        {
+            char errbuf[1024];
+            ERROR ("mqtt plugin: pthread_create failed: %s",
+                   sstrerror (status, errbuf, sizeof (errbuf)));
+            continue;
+        }
+    }
+
+    return (0);
+} /* }}} int cmqtt_init */
 
 /*
  * Publishing code
@@ -625,6 +641,7 @@ static int cmqtt_config (oconfig_item_t *ci) /* {{{ */
 void module_register (void)
 {
     plugin_register_complex_config ("mqtt", cmqtt_config);
+    plugin_register_init ("mqtt", cmqtt_init);
     plugin_register_shutdown ("mqtt", cmqtt_shutdown);
 } /* void module_register */
 
