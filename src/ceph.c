@@ -791,9 +791,15 @@ static int ceph_config(oconfig_item_t *ci)
         if(strcasecmp("Daemon", child->key) == 0)
         {
             ret = cc_add_daemon_config(child);
-            if(ret)
+            if(ret == ENOMEM)
             {
+                ERROR("ceph plugin: Couldn't allocate memory");
                 return ret;
+            }
+            else if(ret)
+            {
+                //process other daemons and ignore this one
+                continue;
             }
         }
         else if(strcasecmp("LongRunAvgLatency", child->key) == 0)
