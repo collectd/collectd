@@ -34,11 +34,14 @@
 static const char *config_keys[] =
 {
 	"Ports",
-	"IgnoreSelectedPorts"
+	"IgnoreSelectedPorts",
+	"DisableCounterReset"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static ignorelist_t *ports_ignore = NULL;
+
+static _Bool disableCounterReset = 0;
 
 static int infiniband_config (const char *key, const char *value) {
 	if (ports_ignore == NULL)
@@ -56,6 +59,10 @@ static int infiniband_config (const char *key, const char *value) {
 		if (IS_TRUE(value))
 			invert = 1;
 		ignorelist_set_invert(ports_ignore,invert);
+	}
+	else if (strcasecmp("DisableCounterReset",key) == 0)
+	{
+		disableCounterReset = IS_TRUE(value);
 	}
 	else
 	{
@@ -150,7 +157,7 @@ static int ib_walk_counters(const char *dir, const char *counter, void *typesLis
 	strtok(counterValue, "\n");
 
 	value = (value_t *)malloc(sizeof(value_t));
-	if(parse_value(counterValue, value, DS_TYPE_COUNTER) == -1) {
+	if(parse_value(counterValue, value, DS_TYPE_ABSOLUTE) == -1) {
 		free(value);
 		return 2;
 	}
@@ -163,6 +170,10 @@ static int ib_walk_counters(const char *dir, const char *counter, void *typesLis
 			} else {
 				typeInstanceList = (llist_t *)cur->value;
 			}
+			// Infiniband transmitting and receiving counters are
+			// stored as octets/4.
+			if(! strcmp(counterMap[i][1], "ib_data"))
+				value->absolute <<= 2;
 			cur = llentry_create(counterMap[i][2], (void *)value);
 			llist_append(typeInstanceList, cur);
 			break;
@@ -211,7 +222,9 @@ static int ib_walk_ports(const char *dir, const char *port, void *adapter)
 		}
 		plugin_dispatch_values(&vl);
 	}
-	reset_counters((char *)adapter, strtol(port, NULL, 10));
+	if(! disableCounterReset) {
+		reset_counters((char *)adapter, strtol(port, NULL, 10));
+	}
 	return 0;
 }
 
