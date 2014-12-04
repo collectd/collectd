@@ -71,7 +71,9 @@
 #  undef COLLECTD_MNTTAB
 #endif
 
-#if defined(_PATH_MOUNTED) /* glibc */
+#if defined(CUSTOM_MNTTAB)
+#  define COLLECTD_MNTTAB CUSTOM_MNTTAB
+#elif defined(_PATH_MOUNTED) /* glibc */
 #  define COLLECTD_MNTTAB _PATH_MOUNTED
 #elif defined(MNTTAB) /* Solaris */
 #  define COLLECTD_MNTTAB MNTTAB

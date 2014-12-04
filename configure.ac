@@ -856,6 +856,26 @@ if test "x$have_swapctl" = "xyes"; then
         fi
 fi
 
+# use an alternative path for mount table (eg. /proc/mounts)
+AC_ARG_WITH([mnttab], AS_HELP_STRING([--with-mnttab], [path to table of mounts.]))
+
+AS_IF([test -f "$with_mnttab" ],
+      [AC_DEFINE_UNQUOTED([CUSTOM_MNTTAB], ["$with_mnttab"], [Define if overwrite mnttab path])],
+      [AS_IF([test -n "$with_mnttab" ],
+             [AC_MSG_ERROR([specified mntab does not exist!])
+      ])
+])
+
+# use an alternative path for mount table (eg. /proc/mounts)
+AC_ARG_WITH([mnttab], AS_HELP_STRING([--with-mnttab], [path to table of mounts.]))
+
+AS_IF([test -f "$with_mnttab" ],
+      [AC_DEFINE_UNQUOTED([CUSTOM_MNTTAB], ["$with_mnttab"], [Define if overwrite mnttab path])],
+      [AS_IF([test -n "$with_mnttab" ],
+             [AC_MSG_ERROR([specified mntab does not exist!])
+      ])
+])
+
 # Check for NAN
 AC_ARG_WITH(nan-emulation, [AS_HELP_STRING([--with-nan-emulation], [use emulated NAN. For crosscompiling only.])],
 [
