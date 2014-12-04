@@ -24,6 +24,10 @@
 #include "common.h"
 #include "utils_llist.h"
 #include "utils_ignorelist.h"
+#define ntohll
+#define htonll
+#include <infiniband/mad.h>
+#include <infiniband/umad.h>
 
 #define SYSFSDIR "/sys/class/infiniband/"
 
@@ -79,6 +83,56 @@ static char *counterMap[][3] = {
 	{ "symbol_error", "ib_symbol_errors", "value"},
 	{ "VL15_dropped", "ib_VL15_dropped", "value"},
 };
+
+static int resolve_self(char *ca_name, uint8_t ca_port, ib_portid_t *portid, int *portnum)
+{
+	umad_port_t port;
+	int rc;
+
+	if (!(portid || portnum))
+		return (-1);
+
+	if ((rc = umad_get_port(ca_name, ca_port, &port)) < 0)
+		return rc;
+
+	if (portid) {
+		memset(portid, 0, sizeof(*portid));
+		portid->lid = port.base_lid;
+		portid->sl = port.sm_sl;
+	}
+	if (portnum)
+		*portnum = port.portnum;
+
+	umad_release_port(&port);
+
+	return 0;
+}
+
+static void reset_counters(char *ibd_ca, int ibd_ca_port)
+{
+	uint8_t pc[1024];
+	ib_portid_t portid;
+	int mgmt_classes[] = { IB_SMI_CLASS, IB_SA_CLASS, IB_PERFORMANCE_CLASS };
+	int mask = 0xffff;
+	int timeout = 1000;
+	int port;
+	struct ibmad_port *srcport;
+
+	memset(&portid, 0, sizeof(portid));
+	srcport = mad_rpc_open_port(ibd_ca, ibd_ca_port, mgmt_classes, sizeof(mgmt_classes)/sizeof(int));
+
+	if(resolve_self(ibd_ca, ibd_ca_port, &portid, &port) < 0)
+		ERROR("can't resolve self port %s:%d", ibd_ca, ibd_ca_port);
+
+	memset(pc, 0, sizeof(pc));
+	if(!performance_reset_via(pc, &portid, port, mask, timeout, IB_GSI_PORT_COUNTERS, srcport))
+		ERROR("error doing infiniband performance counter reset");
+	memset(pc, 0, sizeof(pc));
+	if(!performance_reset_via(pc, &portid, port, mask, timeout, IB_GSI_PORT_COUNTERS_EXT, srcport))
+		ERROR("error doing infiniband extended performance counter reset");
+
+	mad_rpc_close_port(srcport);
+}
 
 static int ib_walk_counters(const char *dir, const char *counter, void *typesList)
 {
@@ -157,6 +211,7 @@ static int ib_walk_ports(const char *dir, const char *port, void *adapter)
 		}
 		plugin_dispatch_values(&vl);
 	}
+	reset_counters((char *)adapter, strtol(port, NULL, 10));
 	return 0;
 }
 

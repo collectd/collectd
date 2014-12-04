@@ -472,7 +472,7 @@ pkglib_LTLIBRARIES += infiniband.la
 infiniband_la_SOURCES = infiniband.c
 infiniband_la_CFLAGS  = $(AM_CFLAGS) $(BUILD_WITH_LIBHAL_CFLAGS)
 infiniband_la_LIBADD  = $(BUILD_WITH_LIBHAL_LIBS)
-infiniband_la_LDFLAGS = -module -avoid-version
+infiniband_la_LDFLAGS = -module -avoid-version -libmad
 collectd_LDADD += "-dlopen" infiniband.la
 collectd_DEPENDENCIES += infiniband.la
 endif
