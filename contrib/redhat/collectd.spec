@@ -76,6 +76,7 @@
 %define with_gmond 0%{!?_without_gmond:0%{?_has_recent_libganglia}}
 %define with_hddtemp 0%{!?_without_hddtemp:1}
 %define with_interface 0%{!?_without_interface:1}
+%define with_infiniband 0%{!?_without_infiniband:1}
 %define with_ipmi 0%{!?_without_ipmi:1}
 %define with_iptables 0%{!?_without_iptables:0%{?_has_working_libiptc}}
 %define with_ipvs 0%{!?_without_ipvs:0%{?_has_ip_vs_h}}
@@ -342,6 +343,17 @@ Requires:	%{name}%{?_isa} = %{version}-%{release}, hddtemp
 %description hddtemp
 The HDDTemp plugin collects the temperature of hard disks. The temperatures are
 provided via SMART and queried by the external hddtemp daemon.
+%endif
+
+%if %{with_infiniband}
+%package infiniband
+Summary:	Infiniband plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	libibmad-devel
+%description infiniband
+The Infiniband plugin reads the hardware counters from the local Infiniband
+Hardware Channel Adapters
 %endif
 
 %if %{with_ipmi}
@@ -883,6 +895,12 @@ Development files for libcollectdclient
 %define _with_interface --disable-interface
 %endif
 
+%if %{with_infiniband}
+%define _with_infiniband --enable-infiniband
+%else
+%define _with_infiniband --disable-infiniband
+%endif
+
 %if %{with_ipmi}
 %define _with_ipmi --enable-ipmi
 %else
@@ -1406,6 +1424,7 @@ Development files for libcollectdclient
 	%{?_with_gmond} \
 	%{?_with_hddtemp} \
 	%{?_with_interface} \
+	%{?_with_infiniband} \
 	%{?_with_ipmi} \
 	%{?_with_iptables} \
 	%{?_with_ipvs} \
@@ -1842,6 +1861,11 @@ fi
 %if %{with_hddtemp}
 %files hddtemp
 %{_libdir}/%{name}/hddtemp.so
+%endif
+
+%if %{with_infiniband}
+%files infiniband
+%{_libdir}/%{name}/infiniband.so
 %endif
 
 %if %{with_ipmi}
