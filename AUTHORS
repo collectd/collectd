@@ -168,6 +168,9 @@ Marco Chiappero <marco at absence.it>
 Michael Hanselmann <public at hansmi.ch>
  - md plugin.
 
+Michael Schenck <mschenck at digitalocean.com>
+ - IO time support to disk plugin.
+
 Michael Stapelberg <michael+git at stapelberg.de>
  - OpenBSD port of the tcpconns plugin.
  - cgroups plugin.
