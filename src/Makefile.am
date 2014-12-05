@@ -467,16 +467,6 @@ collectd_LDADD += "-dlopen" hddtemp.la
 collectd_DEPENDENCIES += hddtemp.la
 endif
 
-if BUILD_PLUGIN_INFINIBAND
-pkglib_LTLIBRARIES += infiniband.la
-infiniband_la_SOURCES = infiniband.c
-infiniband_la_CFLAGS  = $(AM_CFLAGS) $(BUILD_WITH_LIBHAL_CFLAGS)
-infiniband_la_LIBADD  = $(BUILD_WITH_LIBHAL_LIBS)
-infiniband_la_LDFLAGS = -module -avoid-version -libmad
-collectd_LDADD += "-dlopen" infiniband.la
-collectd_DEPENDENCIES += infiniband.la
-endif
-
 if BUILD_PLUGIN_INTERFACE
 pkglib_LTLIBRARIES += interface.la
 interface_la_SOURCES = interface.c
@@ -519,6 +509,16 @@ ipmi_la_LDFLAGS = -module -avoid-version
 ipmi_la_LIBADD = $(BUILD_WITH_OPENIPMI_LIBS)
 collectd_LDADD += "-dlopen" ipmi.la
 collectd_DEPENDENCIES += ipmi.la
+endif
+
+if BUILD_PLUGIN_INFINIBAND
+pkglib_LTLIBRARIES += infiniband.la
+infiniband_la_SOURCES = infiniband.c
+infiniband_la_CFLAGS  = $(AM_CFLAGS) $(BUILD_WITH_INFINIBAND_CPPFLAGS)
+infiniband_la_LIBADD  = $(BUILD_WITH_INFINIBAND_LDADD)
+infiniband_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_INFINIBAND_LIBPATH)
+collectd_LDADD += "-dlopen" infiniband.la
+collectd_DEPENDENCIES += infiniband.la
 endif
 
 if BUILD_PLUGIN_IPVS
