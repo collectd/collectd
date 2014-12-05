@@ -18,7 +18,7 @@
  *
  * Author:
  *   Luke Heberling <lukeh at c-ware.com>
- *   Florian Forster <octo at verplant.org>
+ *   Florian Forster <octo at collectd.org>
  *
  * DESCRIPTION
  *   Queries a PowerDNS control socket for statistics

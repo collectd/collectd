@@ -71,11 +71,13 @@ struct cj_s /* {{{ */
   char *user;
   char *pass;
   char *credentials;
+  _Bool digest;
   _Bool verify_peer;
   _Bool verify_host;
   char *cacert;
   struct curl_slist *headers;
   char *post_body;
+  cdtime_t interval;
 
   CURL *curl;
   char curl_errbuf[CURL_ERROR_SIZE];
@@ -229,12 +231,17 @@ static int cj_cb_number (void *ctx,
   buffer[sizeof (buffer) - 1] = 0;
 
   if ((key == NULL) || !CJ_IS_KEY (key)) {
-    if (key != NULL)
+    if (key != NULL && !db->state[db->depth].in_array/*can be inhomogeneous*/)
       NOTICE ("curl_json plugin: Found \"%s\", but the configuration expects"
               " a map.", buffer);
-    cj_cb_inc_array_index (ctx, /* update_key = */ 0);
-    return (CJ_CB_CONTINUE);
-  } else {
+    cj_cb_inc_array_index (ctx, /* update_key = */ 1);
+    key = db->state[db->depth].key;
+    if (key == NULL) {
+      return (CJ_CB_CONTINUE);
+    }
+  }
+  else
+  {
     cj_cb_inc_array_index (ctx, /* update_key = */ 1);
   }
 
@@ -274,10 +281,21 @@ static int cj_cb_map_key (void *ctx,
     memcpy (name, in_name, name_len);
     name[name_len] = 0;
 
-    if (c_avl_get (tree, name, (void *) &value) == 0)
-      db->state[db->depth].key = value;
+    if (c_avl_get (tree, name, (void *) &value) == 0) {
+      if (CJ_IS_KEY((cj_key_t*)value)) {
+        db->state[db->depth].key = value;
+      }
+      else {
+        db->state[db->depth].tree = (c_avl_tree_t*) value;
+      }
+    }
     else if (c_avl_get (tree, CJ_ANY, (void *) &value) == 0)
-      db->state[db->depth].key = value;
+      if (CJ_IS_KEY((cj_key_t*)value)) {
+        db->state[db->depth].key = value;
+      }
+      else {
+        db->state[db->depth].tree = (c_avl_tree_t*) value;
+      }
     else
       db->state[db->depth].key = NULL;
   }
@@ -593,6 +611,11 @@ static int cj_init_curl (cj_t *db) /* {{{ */
 
   if (db->user != NULL)
   {
+#ifdef HAVE_CURLOPT_USERNAME
+    curl_easy_setopt (db->curl, CURLOPT_USERNAME, db->user);
+    curl_easy_setopt (db->curl, CURLOPT_PASSWORD,
+        (db->pass == NULL) ? "" : db->pass);
+#else
     size_t credentials_size;
 
     credentials_size = strlen (db->user) + 2;
@@ -609,6 +632,10 @@ static int cj_init_curl (cj_t *db) /* {{{ */
     ssnprintf (db->credentials, credentials_size, "%s:%s",
                db->user, (db->pass == NULL) ? "" : db->pass);
     curl_easy_setopt (db->curl, CURLOPT_USERPWD, db->credentials);
+#endif
+
+    if (db->digest)
+      curl_easy_setopt (db->curl, CURLOPT_HTTPAUTH, CURLAUTH_DIGEST);
   }
 
   curl_easy_setopt (db->curl, CURLOPT_SSL_VERIFYPEER, (long) db->verify_peer);
@@ -675,6 +702,8 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string (child, &db->user);
     else if (db->url && strcasecmp ("Password", child->key) == 0)
       status = cf_util_get_string (child, &db->pass);
+    else if (strcasecmp ("Digest", child->key) == 0)
+      status = cf_util_get_boolean (child, &db->digest);
     else if (db->url && strcasecmp ("VerifyPeer", child->key) == 0)
       status = cf_util_get_boolean (child, &db->verify_peer);
     else if (db->url && strcasecmp ("VerifyHost", child->key) == 0)
@@ -687,6 +716,8 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string (child, &db->post_body);
     else if (strcasecmp ("Key", child->key) == 0)
       status = cj_config_add_key (db, child);
+    else if (strcasecmp ("Interval", child->key) == 0)
+      status = cf_util_get_cdtime(child, &db->interval);
     else
     {
       WARNING ("curl_json plugin: Option `%s' not allowed here.", child->key);
@@ -713,7 +744,10 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
   if (status == 0)
   {
     user_data_t ud;
-    char cb_name[DATA_MAX_NAME_LEN];
+    char *cb_name;
+    struct timespec interval = { 0, 0 };
+
+    CDTIME_T_TO_TIMESPEC (db->interval, &interval);
 
     if (db->instance == NULL)
       db->instance = strdup("default");
@@ -725,11 +759,13 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
     ud.data = (void *) db;
     ud.free_func = cj_free;
 
-    ssnprintf (cb_name, sizeof (cb_name), "curl_json-%s-%s",
+    cb_name = ssnprintf_alloc ("curl_json-%s-%s",
                db->instance, db->url ? db->url : db->sock);
 
     plugin_register_complex_read (/* group = */ NULL, cb_name, cj_read,
-                                  /* interval = */ NULL, &ud);
+                                  /* interval = */ (db->interval > 0) ? &interval : NULL,
+                                  &ud);
+    sfree (cb_name);
   }
   else
   {
@@ -799,11 +835,10 @@ static void cj_submit (cj_t *db, cj_key_t *key, value_t *value) /* {{{ */
 
   if (key->instance == NULL)
   {
-    if ((db->depth == 0) || (strcmp ("", db->state[db->depth-1].name) == 0))
-      sstrncpy (vl.type_instance, db->state[db->depth].name, sizeof (vl.type_instance));
-    else
-      ssnprintf (vl.type_instance, sizeof (vl.type_instance), "%s-%s",
-          db->state[db->depth-1].name, db->state[db->depth].name);
+    int i, len = 0;
+    for (i = 0; i < db->depth; i++)
+      len += ssnprintf(vl.type_instance+len, sizeof(vl.type_instance)-len,
+                       i ? "-%s" : "%s", db->state[i+1].name);
   }
   else
     sstrncpy (vl.type_instance, key->instance, sizeof (vl.type_instance));
@@ -812,6 +847,9 @@ static void cj_submit (cj_t *db, cj_key_t *key, value_t *value) /* {{{ */
   sstrncpy (vl.plugin, "curl_json", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, db->instance, sizeof (vl.plugin_instance));
   sstrncpy (vl.type, key->type, sizeof (vl.type));
+
+  if (db->interval > 0)
+    vl.interval = db->interval;
 
   plugin_dispatch_values (&vl);
 } /* }}} int cj_submit */
@@ -956,9 +994,18 @@ static int cj_read (user_data_t *ud) /* {{{ */
   return cj_perform (db);
 } /* }}} int cj_read */
 
+static int cj_init (void) /* {{{ */
+{
+  /* Call this while collectd is still single-threaded to avoid
+   * initialization issues in libgcrypt. */
+  curl_global_init (CURL_GLOBAL_SSL);
+  return (0);
+} /* }}} int cj_init */
+
 void module_register (void)
 {
   plugin_register_complex_config ("curl_json", cj_config);
+  plugin_register_init ("curl_json", cj_init);
 } /* void module_register */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */

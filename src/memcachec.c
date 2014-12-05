@@ -18,7 +18,7 @@
  *
  * Authors:
  *   Doug MacEachern <Doug.MacEachern at hyperic.com>
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
@@ -500,6 +500,7 @@ static int cmc_read_page (web_page_t *wp) /* {{{ */
     }
 
     cmc_submit (wp, wm, mv);
+    match_value_reset (mv);
   } /* for (wm = wp->matches; wm != NULL; wm = wm->next) */
 
   sfree (wp->buffer);

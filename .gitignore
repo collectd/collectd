@@ -79,3 +79,11 @@ src/tags
 
 # backup stuff
 *~
+# tests stuff
+src/tests/.deps/
+src/tests/mock/.deps/
+
+# new daemon repo
+src/daemon/.deps/
+src/daemon/.dirstamp
+src/daemon/collectd

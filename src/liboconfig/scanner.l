@@ -1,20 +1,29 @@
 /**
- * oconfig - src/scanner.l
- * Copyright (C) 2007  Florian octo Forster <octo at verplant.org>
- * Copyright (C) 2008  Sebastian tokkee Harl <sh at tokkee.org>
+ * collectd - src/liboconfig/scanner.l
+ * Copyright (C) 2007  Florian Forster
+ * Copyright (C) 2008  Sebastian Harl
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; only version 2 of the License is applicable.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ *
+ * Authors:
+ *   Florian Forster <octo at collectd.org>
+ *   Sebastian Harl <sh at tokkee.org>
  */
 
 %{
@@ -56,8 +65,19 @@ BOOL_TRUE (true|yes|on)
 BOOL_FALSE (false|no|off)
 COMMENT #.*
 PORT (6(5(5(3[0-5]|[0-2][0-9])|[0-4][0-9][0-9])|[0-4][0-9][0-9][0-9])|[1-5][0-9][0-9][0-9][0-9]|[1-9][0-9]?[0-9]?[0-9]?)
+
 IP_BYTE (2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])
 IPV4_ADDR {IP_BYTE}\.{IP_BYTE}\.{IP_BYTE}\.{IP_BYTE}(:{PORT})?
+
+/* IPv6 address according to http://www.ietf.org/rfc/rfc2373.txt
+ * This supports embedded IPv4 addresses as well but does not strictly check
+ * for the right prefix (::0:<v4> or ::FFFF:<v4>) because there are too many
+ * ways to correctly represent the zero bytes. It's up to the user to check
+ * for valid addresses. */
+HEX16 ([0-9A-Fa-f]{1,4})
+V6_PART ({HEX16}:{HEX16}|{IPV4_ADDR})
+IPV6_BASE ({HEX16}:){6}{V6_PART}|::({HEX16}:){5}{V6_PART}|({HEX16})?::({HEX16}:){4}{V6_PART}|(({HEX16}:){0,1}{HEX16})?::({HEX16}:){3}{V6_PART}|(({HEX16}:){0,2}{HEX16})?::({HEX16}:){2}{V6_PART}|(({HEX16}:){0,3}{HEX16})?::{HEX16}:{V6_PART}|(({HEX16}:){0,4}{HEX16})?::{V6_PART}|(({HEX16}:){0,5}{HEX16})?::{HEX16}|(({HEX16}:){0,6}{HEX16})?::
+IPV6_ADDR ({IPV6_BASE})|(\[{IPV6_BASE}\](:{PORT})?)
 
 %%
 {WHITE_SPACE}		|
@@ -73,6 +93,7 @@ IPV4_ADDR {IP_BYTE}\.{IP_BYTE}\.{IP_BYTE}\.{IP_BYTE}(:{PORT})?
 {BOOL_FALSE}		{yylval.boolean = 0; return (BFALSE);}
 
 {IPV4_ADDR}		{yylval.string = yytext; return (UNQUOTED_STRING);}
+{IPV6_ADDR}		{yylval.string = yytext; return (UNQUOTED_STRING);}
 
 {NUMBER}		{yylval.number = strtod (yytext, NULL); return (NUMBER);}
 

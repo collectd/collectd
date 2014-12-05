@@ -693,5 +693,5 @@ L<types.db(5)>
 
 =head1 AUTHOR
 
-Florian Forster E<lt>octoE<nbsp>atE<nbsp>verplant.orgE<gt>
+Florian Forster E<lt>octoE<nbsp>atE<nbsp>collectd.orgE<gt>
 

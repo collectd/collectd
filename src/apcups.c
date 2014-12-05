@@ -21,7 +21,7 @@
  *
  * Authors:
  *   Anthony Gialluca <tonyabg at charter.net>
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"

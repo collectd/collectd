@@ -442,7 +442,7 @@ sub execute_script
 
   close ($fh);
   # Save the exit status of the check in $state
-  $state = $?;
+  $state = $? >> 8;
 
   if ($state == 0)
   {

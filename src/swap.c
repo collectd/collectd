@@ -295,11 +295,10 @@ static int swap_read_combined (void) /* {{{ */
 	FILE *fh;
 	char buffer[1024];
 
-	uint8_t have_data = 0;
-	gauge_t swap_used   = 0.0;
-	gauge_t swap_cached = 0.0;
-	gauge_t swap_free   = 0.0;
-	gauge_t swap_total  = 0.0;
+	gauge_t swap_used   = NAN;
+	gauge_t swap_cached = NAN;
+	gauge_t swap_free   = NAN;
+	gauge_t swap_total  = NAN;
 
 	fh = fopen ("/proc/meminfo", "r");
 	if (fh == NULL)
@@ -320,35 +319,30 @@ static int swap_read_combined (void) /* {{{ */
 			continue;
 
 		if (strcasecmp (fields[0], "SwapTotal:") == 0)
-		{
-			swap_total = strtod (fields[1], /* endptr = */ NULL);
-			have_data |= 0x01;
-		}
+			strtogauge (fields[1], &swap_total);
 		else if (strcasecmp (fields[0], "SwapFree:") == 0)
-		{
-			swap_free = strtod (fields[1], /* endptr = */ NULL);
-			have_data |= 0x02;
-		}
+			strtogauge (fields[1], &swap_free);
 		else if (strcasecmp (fields[0], "SwapCached:") == 0)
-		{
-			swap_cached = strtod (fields[1], /* endptr = */ NULL);
-			have_data |= 0x04;
-		}
+			strtogauge (fields[1], &swap_cached);
 	}
 
 	fclose (fh);
 
-	if (have_data != 0x07)
+	if (isnan (swap_total) || isnan (swap_free))
 		return (ENOENT);
 
-	if (isnan (swap_total)
-			|| (swap_total <= 0.0)
-			|| ((swap_free + swap_cached) > swap_total))
+	/* Some systems, OpenVZ for example, don't provide SwapCached. */
+	if (isnan (swap_cached))
+		swap_used = swap_total - swap_free;
+	else
+		swap_used = swap_total - (swap_free + swap_cached);
+	assert (!isnan (swap_used));
+
+	if (swap_used < 0.0)
 		return (EINVAL);
 
-	swap_used = swap_total - (swap_free + swap_cached);
-
-	swap_submit_usage (NULL, swap_used, swap_free, "cached", swap_cached);
+	swap_submit_usage (NULL, swap_used, swap_free,
+			isnan (swap_cached) ? NULL : "cached", swap_cached);
 	return (0);
 } /* }}} int swap_read_combined */
 

@@ -2,23 +2,29 @@
  * collectd - src/ntpd.c
  * Copyright (C) 2006-2012  Florian octo Forster
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; only version 2 of the License is applicable.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
  **/
 
+#define _DEFAULT_SOURCE
 #define _BSD_SOURCE /* For NI_MAXHOST */
 
 #include "collectd.h"
@@ -481,7 +487,7 @@ static int ntpd_receive_response (int *res_items, int *res_size,
 		poll_s.fd      = sd;
 		poll_s.events  = POLLIN | POLLPRI;
 		poll_s.revents = 0;
-		
+
 		DEBUG ("Polling for %ims", timeout);
 		status = poll (&poll_s, 1, timeout);
 
@@ -521,7 +527,7 @@ static int ntpd_receive_response (int *res_items, int *res_size,
 
 		DEBUG ("recv'd %i bytes", status);
 
-		/* 
+		/*
 		 * Do some sanity checks first
 		 */
 		if (status < RESP_HEADER_SIZE)
@@ -731,7 +737,7 @@ static int ntpd_send_request (int req_code, int req_items, int req_size, char *r
 
 	req.err_nitems   = ERR_NITEMS (0, req_items);
 	req.mbz_itemsize = MBZ_ITEMSIZE (req_size);
-	
+
 	if (req_data != NULL)
 		memcpy ((void *) req.data, (const void *) req_data, req_data_len);
 

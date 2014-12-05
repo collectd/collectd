@@ -1,22 +1,27 @@
 /**
  * collectd - src/target_set.c
- * Copyright (C) 2008  Florian Forster
+ * Copyright (C) 2008       Florian Forster
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; only version 2 of the License is applicable.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
- *   Florian Forster <octo at verplant.org>
+ *   Florian Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
@@ -33,57 +38,25 @@ struct ts_data_s
 };
 typedef struct ts_data_s ts_data_t;
 
-static char *ts_strdup (const char *orig) /* {{{ */
-{
-  size_t sz;
-  char *dest;
-
-  if (orig == NULL)
-    return (NULL);
-
-  sz = strlen (orig) + 1;
-  dest = (char *) malloc (sz);
-  if (dest == NULL)
-    return (NULL);
-
-  memcpy (dest, orig, sz);
-
-  return (dest);
-} /* }}} char *ts_strdup */
-
 static int ts_config_add_string (char **dest, /* {{{ */
     const oconfig_item_t *ci, int may_be_empty)
 {
-  char *temp;
+  char *tmp = NULL;
+  int status;
 
-  if (dest == NULL)
-    return (-EINVAL);
+  status = cf_util_get_string (ci, &tmp);
+  if (status != 0)
+    return (status);
 
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    ERROR ("Target `set': The `%s' option requires exactly one string "
-        "argument.", ci->key);
-    return (-1);
-  }
-
-  if ((!may_be_empty) && (ci->values[0].value.string[0] == 0))
+  if (!may_be_empty && (strlen (tmp) == 0))
   {
     ERROR ("Target `set': The `%s' option does not accept empty strings.",
         ci->key);
+    sfree (tmp);
     return (-1);
   }
 
-  temp = ts_strdup (ci->values[0].value.string);
-  if (temp == NULL)
-  {
-    ERROR ("ts_config_add_string: ts_strdup failed.");
-    return (-1);
-  }
-
-  free (*dest);
-  *dest = temp;
-
+  *dest = tmp;
   return (0);
 } /* }}} int ts_config_add_string */
 

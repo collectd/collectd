@@ -28,43 +28,10 @@
 #include "plugin.h"
 #include "utils_avltree.h"
 #include "utils_cache.h"
+#include "utils_threshold.h"
 
 #include <assert.h>
 #include <pthread.h>
-
-/*
- * Private data structures
- * {{{ */
-#define UT_FLAG_INVERT  0x01
-#define UT_FLAG_PERSIST 0x02
-#define UT_FLAG_PERCENTAGE 0x04
-#define UT_FLAG_INTERESTING 0x08
-#define UT_FLAG_PERSIST_OK 0x10
-typedef struct threshold_s
-{
-  char host[DATA_MAX_NAME_LEN];
-  char plugin[DATA_MAX_NAME_LEN];
-  char plugin_instance[DATA_MAX_NAME_LEN];
-  char type[DATA_MAX_NAME_LEN];
-  char type_instance[DATA_MAX_NAME_LEN];
-  char data_source[DATA_MAX_NAME_LEN];
-  gauge_t warning_min;
-  gauge_t warning_max;
-  gauge_t failure_min;
-  gauge_t failure_max;
-  gauge_t hysteresis;
-  unsigned int flags;
-  int hits;
-  struct threshold_s *next;
-} threshold_t;
-/* }}} */
-
-/*
- * Private (static) variables
- * {{{ */
-static c_avl_tree_t   *threshold_tree = NULL;
-static pthread_mutex_t threshold_lock = PTHREAD_MUTEX_INITIALIZER;
-/* }}} */
 
 /*
  * Threshold management
@@ -72,31 +39,6 @@ static pthread_mutex_t threshold_lock = PTHREAD_MUTEX_INITIALIZER;
  * The following functions add, delete, search, etc. configured thresholds to
  * the underlying AVL trees.
  */
-/*
- * threshold_t *threshold_get
- *
- * Retrieve one specific threshold configuration. For looking up a threshold
- * matching a value_list_t, see "threshold_search" below. Returns NULL if the
- * specified threshold doesn't exist.
- */
-static threshold_t *threshold_get (const char *hostname,
-    const char *plugin, const char *plugin_instance,
-    const char *type, const char *type_instance)
-{ /* {{{ */
-  char name[6 * DATA_MAX_NAME_LEN];
-  threshold_t *th = NULL;
-
-  format_name (name, sizeof (name),
-      (hostname == NULL) ? "" : hostname,
-      (plugin == NULL) ? "" : plugin, plugin_instance,
-      (type == NULL) ? "" : type, type_instance);
-  name[sizeof (name) - 1] = '\0';
-
-  if (c_avl_get (threshold_tree, name, (void *) &th) == 0)
-    return (th);
-  else
-    return (NULL);
-} /* }}} threshold_t *threshold_get */
 
 /*
  * int ut_threshold_add
@@ -170,58 +112,6 @@ static int ut_threshold_add (const threshold_t *th)
 
   return (status);
 } /* }}} int ut_threshold_add */
-
-/* 
- * threshold_t *threshold_search
- *
- * Searches for a threshold configuration using all the possible variations of
- * "Host", "Plugin" and "Type" blocks. Returns NULL if no threshold could be
- * found.
- * XXX: This is likely the least efficient function in collectd.
- */
-static threshold_t *threshold_search (const value_list_t *vl)
-{ /* {{{ */
-  threshold_t *th;
-
-  if ((th = threshold_get (vl->host, vl->plugin, vl->plugin_instance,
-	  vl->type, vl->type_instance)) != NULL)
-    return (th);
-  else if ((th = threshold_get (vl->host, vl->plugin, vl->plugin_instance,
-	  vl->type, NULL)) != NULL)
-    return (th);
-  else if ((th = threshold_get (vl->host, vl->plugin, NULL,
-	  vl->type, vl->type_instance)) != NULL)
-    return (th);
-  else if ((th = threshold_get (vl->host, vl->plugin, NULL,
-	  vl->type, NULL)) != NULL)
-    return (th);
-  else if ((th = threshold_get (vl->host, "", NULL,
-	  vl->type, vl->type_instance)) != NULL)
-    return (th);
-  else if ((th = threshold_get (vl->host, "", NULL,
-	  vl->type, NULL)) != NULL)
-    return (th);
-  else if ((th = threshold_get ("", vl->plugin, vl->plugin_instance,
-	  vl->type, vl->type_instance)) != NULL)
-    return (th);
-  else if ((th = threshold_get ("", vl->plugin, vl->plugin_instance,
-	  vl->type, NULL)) != NULL)
-    return (th);
-  else if ((th = threshold_get ("", vl->plugin, NULL,
-	  vl->type, vl->type_instance)) != NULL)
-    return (th);
-  else if ((th = threshold_get ("", vl->plugin, NULL,
-	  vl->type, NULL)) != NULL)
-    return (th);
-  else if ((th = threshold_get ("", "", NULL,
-	  vl->type, vl->type_instance)) != NULL)
-    return (th);
-  else if ((th = threshold_get ("", "", NULL,
-	  vl->type, NULL)) != NULL)
-    return (th);
-
-  return (NULL);
-} /* }}} threshold_t *threshold_search */
 
 /*
  * Configuration
@@ -629,7 +519,9 @@ static int ut_report_state (const data_set_t *ds,
           ": Value is no longer missing.");
     else
       status = ssnprintf (buf, bufsize,
-          ": All data sources are within range again.");
+          ": All data sources are within range again. "
+          "Current value of \"%s\" is %f.",
+          ds->ds[ds_index].name, values[ds_index]);
     buf += status;
     bufsize -= status;
   }
@@ -747,23 +639,40 @@ static int ut_check_one_data_source (const data_set_t *ds,
 
   /* XXX: This is an experimental code, not optimized, not fast, not reliable,
    * and probably, do not work as you expect. Enjoy! :D */
-  if ( (th->hysteresis > 0) && ((prev_state = uc_get_state(ds,vl)) != STATE_OKAY) )
+  if (th->hysteresis > 0)
   {
-    switch(prev_state)
+    prev_state = uc_get_state(ds,vl);
+    /* The purpose of hysteresis is elliminating flapping state when the value
+     * oscilates around the thresholds. In other words, what is important is
+     * the previous state; if the new value would trigger a transition, make
+     * sure that we artificially widen the range which is considered to apply
+     * for the previous state, and only trigger the notification if the value
+     * is outside of this expanded range.
+     *
+     * There is no hysteresis for the OKAY state.
+     * */
+    gauge_t hysteresis_for_warning = 0, hysteresis_for_failure = 0;
+    switch (prev_state)
     {
       case STATE_ERROR:
-	if ( (!isnan (th->failure_min) && ((th->failure_min + th->hysteresis) < values[ds_index])) ||
-	     (!isnan (th->failure_max) && ((th->failure_max - th->hysteresis) > values[ds_index])) )
-	  return (STATE_OKAY);
-	else
-	  is_failure++;
+        hysteresis_for_failure = th->hysteresis;
+        break;
       case STATE_WARNING:
-	if ( (!isnan (th->warning_min) && ((th->warning_min + th->hysteresis) < values[ds_index])) ||
-	     (!isnan (th->warning_max) && ((th->warning_max - th->hysteresis) > values[ds_index])) )
-	  return (STATE_OKAY);
-	else
-	  is_warning++;
-     }
+        hysteresis_for_warning = th->hysteresis;
+        break;
+      case STATE_OKAY:
+        /* do nothing -- the hysteresis only applies to the non-normal states */
+        break;
+    }
+
+    if ((!isnan (th->failure_min) && (th->failure_min + hysteresis_for_failure > values[ds_index]))
+	|| (!isnan (th->failure_max) && (th->failure_max - hysteresis_for_failure < values[ds_index])))
+      is_failure++;
+
+    if ((!isnan (th->warning_min) && (th->warning_min + hysteresis_for_warning > values[ds_index]))
+	|| (!isnan (th->warning_max) && (th->warning_max - hysteresis_for_warning < values[ds_index])))
+      is_warning++;
+
   }
   else { /* no hysteresis */
     if ((!isnan (th->failure_min) && (th->failure_min > values[ds_index]))
@@ -773,7 +682,7 @@ static int ut_check_one_data_source (const data_set_t *ds,
     if ((!isnan (th->warning_min) && (th->warning_min > values[ds_index]))
 	|| (!isnan (th->warning_max) && (th->warning_max < values[ds_index])))
       is_warning++;
- }
+  }
 
   if (is_failure != 0)
     return (STATE_ERROR);
@@ -862,7 +771,7 @@ static int ut_check_one_threshold (const data_set_t *ds,
  *
  * Gets a list of matching thresholds and searches for the worst status by one
  * of the thresholds. Then reports that status using the ut_report_state
- * function above. 
+ * function above.
  * Returns zero on success and if no threshold has been configured. Returns
  * less than zero on failure.
  */
@@ -942,6 +851,7 @@ static int ut_missing (const value_list_t *vl,
   cdtime_t missing_time;
   char identifier[6 * DATA_MAX_NAME_LEN];
   notification_t n;
+  cdtime_t now;
 
   if (threshold_tree == NULL)
     return (0);
@@ -951,13 +861,15 @@ static int ut_missing (const value_list_t *vl,
   if ((th == NULL) || ((th->flags & UT_FLAG_INTERESTING) == 0))
     return (0);
 
-  missing_time = cdtime () - vl->time;
+  now = cdtime ();
+  missing_time = now - vl->time;
   FORMAT_VL (identifier, sizeof (identifier), vl);
 
   NOTIFICATION_INIT_VL (&n, vl);
   ssnprintf (n.message, sizeof (n.message),
       "%s has not been updated for %.3f seconds.",
       identifier, CDTIME_T_TO_DOUBLE (missing_time));
+  n.time = now;
 
   plugin_dispatch_notification (&n);
 
@@ -990,7 +902,7 @@ int ut_config (oconfig_item_t *ci)
   th.hits = 0;
   th.hysteresis = 0;
   th.flags = UT_FLAG_INTERESTING; /* interesting by default */
-    
+
   for (i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;

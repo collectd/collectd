@@ -18,7 +18,7 @@
  *
  * Authors:
  *   Stefan Hacker <d0t at dbclan dot de>
- *   Florian Forster <octo at verplant.org>
+ *   Florian Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
@@ -439,7 +439,7 @@ static int tss2_vserver_gapl (FILE *read_fh, FILE *write_fh,
 		status = tss2_receive_line (read_fh, buffer, sizeof (buffer));
 		if (status != 0)
 		{
-			/* Set to NULL just to make sure noone uses these FHs anymore. */
+			/* Set to NULL just to make sure no one uses these FHs anymore. */
 			read_fh = NULL;
 			write_fh = NULL;
 			ERROR ("teamspeak2 plugin: tss2_receive_line failed.");
@@ -564,7 +564,7 @@ static int tss2_read_vserver (vserver_list_t *vserver)
 		status = tss2_receive_line (read_fh, buffer, sizeof (buffer));
 		if (status != 0)
 		{
-			/* Set to NULL just to make sure noone uses these FHs anymore. */
+			/* Set to NULL just to make sure no one uses these FHs anymore. */
 			read_fh = NULL;
 			write_fh = NULL;
 			ERROR ("teamspeak2 plugin: tss2_receive_line failed.");

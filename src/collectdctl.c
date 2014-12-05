@@ -99,7 +99,7 @@ static void exit_usage (const char *name, int status) {
       "No error is returned if the specified identifier does not exist.\n"
 
       "\n"PACKAGE" "VERSION", http://collectd.org/\n"
-      "by Florian octo Forster <octo@verplant.org>\n"
+      "by Florian octo Forster <octo@collectd.org>\n"
       "for contributions see `AUTHORS'\n"
       , name);
   exit (status);

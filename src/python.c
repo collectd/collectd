@@ -46,6 +46,19 @@ typedef struct cpy_callback_s {
 
 static char log_doc[] = "This function sends a string to all logging plugins.";
 
+static char get_ds_doc[] = "get_dataset(name) -> definition\n"
+		"\n"
+		"Returns the definition of a dataset specified by name.\n"
+		"\n"
+		"'name' is a string specifying the dataset to query.\n"
+		"'definition' is a list of 4-tuples. Every tuple represents a \n"
+		"    data source within the data set and its 4 values are the \n"
+		"    name, type, min and max value.\n"
+		"    'name' is a string.\n"
+		"    'type' is a string that is equal to either DS_TYPE_COUNTER,\n"
+		"        DS_TYPE_GAUGE, DS_TYPE_DERIVE or DS_TYPE_ABSOLUTE.\n"
+		"    'min' and 'max' are either a float or None.";
+
 static char flush_doc[] = "flush([plugin][, timeout][, identifier]) -> None\n"
 		"\n"
 		"Flushes the cache of another plugin.";
@@ -548,7 +561,39 @@ static PyObject *cpy_register_generic(cpy_callback_t **list_head, PyObject *args
 	return cpy_string_to_unicode_or_bytes(buf);
 }
 
-static PyObject *cpy_flush(cpy_callback_t **list_head, PyObject *args, PyObject *kwds) {
+static PyObject *float_or_none(float number) {
+	if (isnan(number)) {
+		Py_RETURN_NONE;
+	}
+	return PyFloat_FromDouble(number);
+}
+
+static PyObject *cpy_get_dataset(PyObject *self, PyObject *args) {
+	int i;
+	char *name;
+	const data_set_t *ds;
+	PyObject *list, *tuple;
+
+	if (PyArg_ParseTuple(args, "et", NULL, &name) == 0) return NULL;
+	ds = plugin_get_ds(name);
+	PyMem_Free(name);
+	if (ds == NULL) {
+		PyErr_Format(PyExc_TypeError, "Dataset %s not found", name);
+		return NULL;
+	}
+	list = PyList_New(ds->ds_num); /* New reference. */
+	for (i = 0; i < ds->ds_num; ++i) {
+		tuple = PyTuple_New(4);
+		PyTuple_SET_ITEM(tuple, 0, cpy_string_to_unicode_or_bytes(ds->ds[i].name));
+		PyTuple_SET_ITEM(tuple, 1, cpy_string_to_unicode_or_bytes(DS_TYPE_TO_STRING(ds->ds[i].type)));
+		PyTuple_SET_ITEM(tuple, 2, float_or_none(ds->ds[i].min));
+		PyTuple_SET_ITEM(tuple, 3, float_or_none(ds->ds[i].max));
+		PyList_SET_ITEM(list, i, tuple);
+	}
+	return list;
+}
+
+static PyObject *cpy_flush(PyObject *self, PyObject *args, PyObject *kwds) {
 	int timeout = -1;
 	char *plugin = NULL, *identifier = NULL;
 	static char *kwlist[] = {"plugin", "timeout", "identifier", NULL};
@@ -817,6 +862,7 @@ static PyMethodDef cpy_methods[] = {
 	{"notice", cpy_notice, METH_VARARGS, log_doc},
 	{"warning", cpy_warning, METH_VARARGS, log_doc},
 	{"error", cpy_error, METH_VARARGS, log_doc},
+	{"get_dataset", (PyCFunction) cpy_get_dataset, METH_VARARGS, get_ds_doc},
 	{"flush", (PyCFunction) cpy_flush, METH_VARARGS | METH_KEYWORDS, flush_doc},
 	{"register_log", (PyCFunction) cpy_register_log, METH_VARARGS | METH_KEYWORDS, reg_log_doc},
 	{"register_init", (PyCFunction) cpy_register_init, METH_VARARGS | METH_KEYWORDS, reg_init_doc},
@@ -1041,6 +1087,10 @@ static int cpy_init_python() {
 	PyModule_AddIntConstant(module, "NOTIF_FAILURE", NOTIF_FAILURE);
 	PyModule_AddIntConstant(module, "NOTIF_WARNING", NOTIF_WARNING);
 	PyModule_AddIntConstant(module, "NOTIF_OKAY", NOTIF_OKAY);
+	PyModule_AddStringConstant(module, "DS_TYPE_COUNTER", DS_TYPE_TO_STRING(DS_TYPE_COUNTER));
+	PyModule_AddStringConstant(module, "DS_TYPE_GAUGE", DS_TYPE_TO_STRING(DS_TYPE_GAUGE));
+	PyModule_AddStringConstant(module, "DS_TYPE_DERIVE", DS_TYPE_TO_STRING(DS_TYPE_DERIVE));
+	PyModule_AddStringConstant(module, "DS_TYPE_ABSOLUTE", DS_TYPE_TO_STRING(DS_TYPE_ABSOLUTE));
 	return 0;
 }
 
@@ -1103,8 +1153,8 @@ static int cpy_config(oconfig_item_t *ci) {
 				cpy_log_exception("python initialization");
 				continue;
 			}
-			if (PyList_Append(sys_path, dir_object) != 0) {
-				ERROR("python plugin: Unable to append \"%s\" to "
+			if (PyList_Insert(sys_path, 0, dir_object) != 0) {
+				ERROR("python plugin: Unable to prepend \"%s\" to "
 				      "python module path.", dir);
 				cpy_log_exception("python initialization");
 			}

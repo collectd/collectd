@@ -186,7 +186,7 @@ traffic.
 =item B<Scale> I<Value>
 
 The gauge-values returned by the SNMP-agent are multiplied by I<Value>.  This
-is useful when values are transfered as a fixed point real number. For example,
+is useful when values are transferred as a fixed point real number. For example,
 thermometers may transfer B<243> but actually mean B<24.3>, so you can specify
 a scale value of B<0.1> to correct this. The default value is, of course,
 B<1.0>.
@@ -293,7 +293,7 @@ L<unix(7)>
 
 =head1 AUTHORS
 
-Florian Forster E<lt>octo@verplant.orgE<gt>
+Florian Forster E<lt>octo@collectd.orgE<gt>
 Michael Pilat E<lt>mike@mikepilat.comE<gt>
 
 =cut
