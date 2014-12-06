@@ -2,18 +2,23 @@
  * collectd - src/snmp.c
  * Copyright (C) 2007-2012  Florian octo Forster
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; only version 2 of the License is applicable.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
@@ -354,7 +359,7 @@ static int csnmp_config_add_data_blacklist(data_definition_t *dd, oconfig_item_t
     {
       ERROR("snmp plugin: Can't allocate memory");
       strarray_free(dd->ignores, dd->ignores_len);
-      return (ENOMEM); 
+      return (ENOMEM);
     }
   }
   return 0;
@@ -1492,6 +1497,8 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
         snmp_free_pdu (res);
       res = NULL;
 
+      /* snmp_synch_response already freed our PDU */
+      req = NULL;
       sfree (errstr);
       csnmp_host_close_session (host);
 
@@ -1612,6 +1619,10 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
   if (res != NULL)
     snmp_free_pdu (res);
   res = NULL;
+
+  if (req != NULL)
+    snmp_free_pdu (req);
+  req = NULL;
 
   if (status == 0)
     csnmp_dispatch_table (host, data, instance_list_head, value_list_head);

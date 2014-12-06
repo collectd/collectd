@@ -2,34 +2,28 @@
  * collectd - src/postgresql.c
  * Copyright (C) 2008-2012  Sebastian Harl
  * Copyright (C) 2009       Florian Forster
- * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * - Redistributions of source code must retain the above copyright
- *   notice, this list of conditions and the following disclaimer.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * - Redistributions in binary form must reproduce the above copyright
- *   notice, this list of conditions and the following disclaimer in the
- *   documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
  *   Sebastian Harl <sh at tokkee.org>
- *   Florian Forster <octo at verplant.org>
+ *   Florian Forster <octo at collectd.org>
  **/
 
 /*
@@ -141,6 +135,7 @@ typedef struct {
 	/* writer "caching" settings */
 	cdtime_t commit_interval;
 	cdtime_t next_commit;
+	cdtime_t expire_delay;
 
 	char *host;
 	char *port;
@@ -263,6 +258,7 @@ static c_psql_database_t *c_psql_database_new (const char *name)
 
 	db->commit_interval = 0;
 	db->next_commit     = 0;
+	db->expire_delay    = 0;
 
 	db->database   = sstrdup (name);
 	db->host       = NULL;
@@ -873,6 +869,12 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 
 #undef VALUE_OR_NULL
 
+	if( db->expire_delay > 0 && vl->time < (cdtime() - vl->interval - db->expire_delay) ) {
+		log_info ("c_psql_write: Skipped expired value @ %s - %s/%s-%s/%s-%s/%s", 
+			params[0], params[1], params[2], params[3], params[4], params[5], params[6] );
+		return 0;
+        }
+
 	pthread_mutex_lock (&db->db_lock);
 
 	if (0 != c_psql_check_connection (db)) {
@@ -1242,6 +1244,8 @@ static int c_psql_config_database (oconfig_item_t *ci)
 			cf_util_get_cdtime (c, &db->interval);
 		else if (strcasecmp ("CommitInterval", c->key) == 0)
 			cf_util_get_cdtime (c, &db->commit_interval);
+		else if (strcasecmp ("ExpireDelay", c->key) == 0)
+			cf_util_get_cdtime (c, &db->expire_delay);
 		else
 			log_warn ("Ignoring unknown config key \"%s\".", c->key);
 	}

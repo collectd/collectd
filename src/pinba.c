@@ -20,7 +20,7 @@
  * Authors:
  *   Antony Dovgal <tony at daylessday.org>
  *   Phoenix Kayo <kayo.k11.4 at gmail.com>
- *   Florian Forster <octo at verplant.org>
+ *   Florian Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
@@ -34,6 +34,11 @@
 #include <poll.h>
 
 #include "pinba.pb-c.h"
+
+/* AIX doesn't have MSG_DONTWAIT */
+#ifndef MSG_DONTWAIT
+#  define MSG_DONTWAIT MSG_NONBLOCK
+#endif
 
 /*
  * Defines

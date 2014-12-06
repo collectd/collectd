@@ -1,6 +1,6 @@
 /**
  * collectd - src/utils_latency.c
- * Copyright (C) 2013  Florian Forster
+ * Copyright (C) 2013       Florian Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -128,7 +128,7 @@ cdtime_t latency_counter_get_average (latency_counter_t *lc) /* {{{ */
 {
   double average;
 
-  if (lc == NULL)
+  if ((lc == NULL) || (lc->num == 0))
     return (0);
 
   average = CDTIME_T_TO_DOUBLE (lc->sum) / ((double) lc->num);
@@ -146,7 +146,7 @@ cdtime_t latency_counter_get_percentile (latency_counter_t *lc,
   int sum;
   size_t i;
 
-  if ((lc == NULL) || !((percent > 0.0) && (percent < 100.0)))
+  if ((lc == NULL) || (lc->num == 0) || !((percent > 0.0) && (percent < 100.0)))
     return (0);
 
   /* Find index i so that at least "percent" events are within i+1 ms. */

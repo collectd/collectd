@@ -169,6 +169,19 @@ table. All the options are optional, but B<plugin_instance> without B<plugin>
 or B<type_instance> without B<type> doesn't make much sense and should be
 avoided.
 
+=item B<type:key=>I<value>
+
+Sets user defined meta information. The B<type> key is a single character
+defining the type of the meta information.
+
+The current supported types are:
+
+=over 8
+
+=item B<s> A string passed as-is.
+
+=back
+
 =back
 
 =back
@@ -291,6 +304,6 @@ L<fork(2)>, L<exec(3)>
 
 =head1 AUTHOR
 
-Florian Forster E<lt>octo@verplant.orgE<gt>
+Florian Forster E<lt>octo@collectd.orgE<gt>
 
 =cut

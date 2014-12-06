@@ -1,19 +1,24 @@
 /**
  * collectd - src/statsd.c
- *
  * Copyright (C) 2013       Florian octo Forster
  *
- * Permission to use, copy, modify, and distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF MIND, USE, DATA OR PROFITS, WHETHER
- * IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING
- * OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
@@ -33,6 +38,11 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <poll.h>
+
+/* AIX doesn't have MSG_DONTWAIT */
+#ifndef MSG_DONTWAIT
+#  define MSG_DONTWAIT MSG_NONBLOCK
+#endif
 
 #ifndef STATSD_DEFAULT_NODE
 # define STATSD_DEFAULT_NODE NULL
@@ -245,19 +255,35 @@ static int statsd_handle_gauge (char const *name, /* {{{ */
 } /* }}} int statsd_handle_gauge */
 
 static int statsd_handle_timer (char const *name, /* {{{ */
-    char const *value_str)
+    char const *value_str,
+    char const *extra)
 {
   statsd_metric_t *metric;
   value_t value_ms;
+  value_t scale;
   cdtime_t value;
   int status;
+
+  if ((extra != NULL) && (extra[0] != '@'))
+    return (-1);
+
+  scale.gauge = 1.0;
+  if (extra != NULL)
+  {
+    status = statsd_parse_value (extra + 1, &scale);
+    if (status != 0)
+      return (status);
+
+    if (!isfinite (scale.gauge) || (scale.gauge <= 0.0) || (scale.gauge > 1.0))
+      return (-1);
+  }
 
   value_ms.derive = 0;
   status = statsd_parse_value (value_str, &value_ms);
   if (status != 0)
     return (status);
 
-  value = MS_TO_CDTIME_T (value_ms.gauge);
+  value = MS_TO_CDTIME_T (value_ms.gauge / scale.gauge);
 
   pthread_mutex_lock (&metrics_lock);
 
@@ -367,15 +393,15 @@ static int statsd_parse_line (char *buffer) /* {{{ */
 
   if (strcmp ("c", type) == 0)
     return (statsd_handle_counter (name, value, extra));
+  else if (strcmp ("ms", type) == 0)
+    return (statsd_handle_timer (name, value, extra));
 
-  /* extra is only valid for counters */
+  /* extra is only valid for counters and timers */
   if (extra != NULL)
     return (-1);
 
   if (strcmp ("g", type) == 0)
     return (statsd_handle_gauge (name, value));
-  else if (strcmp ("ms", type) == 0)
-    return (statsd_handle_timer (name, value));
   else if (strcmp ("s", type) == 0)
     return (statsd_handle_set (name, value));
   else

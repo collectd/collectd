@@ -18,11 +18,12 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  *   Manuel Sanmartin
  *   Vedran Bartonicek <vbartoni at gmail.com>
  **/
 
+#define _DEFAULT_SOURCE
 #define _BSD_SOURCE
 
 #include "collectd.h"

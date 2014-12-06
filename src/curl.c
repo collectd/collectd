@@ -17,7 +17,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  *   Aman Gupta <aman at tmm1.net>
  **/
 
@@ -58,6 +58,7 @@ struct web_page_s /* {{{ */
   char *user;
   char *pass;
   char *credentials;
+  _Bool digest;
   _Bool verify_peer;
   _Bool verify_host;
   char *cacert;
@@ -372,6 +373,11 @@ static int cc_page_init_curl (web_page_t *wp) /* {{{ */
 
   if (wp->user != NULL)
   {
+#ifdef HAVE_CURLOPT_USERNAME
+    curl_easy_setopt (wp->curl, CURLOPT_USERNAME, wp->user);
+    curl_easy_setopt (wp->curl, CURLOPT_PASSWORD,
+        (wp->pass == NULL) ? "" : wp->pass);
+#else
     size_t credentials_size;
 
     credentials_size = strlen (wp->user) + 2;
@@ -388,6 +394,10 @@ static int cc_page_init_curl (web_page_t *wp) /* {{{ */
     ssnprintf (wp->credentials, credentials_size, "%s:%s",
         wp->user, (wp->pass == NULL) ? "" : wp->pass);
     curl_easy_setopt (wp->curl, CURLOPT_USERPWD, wp->credentials);
+#endif
+
+    if (wp->digest)
+      curl_easy_setopt (wp->curl, CURLOPT_HTTPAUTH, CURLAUTH_DIGEST);
   }
 
   curl_easy_setopt (wp->curl, CURLOPT_SSL_VERIFYPEER, (long) wp->verify_peer);
@@ -425,6 +435,7 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
   page->url = NULL;
   page->user = NULL;
   page->pass = NULL;
+  page->digest = 0;
   page->verify_peer = 1;
   page->verify_host = 1;
   page->response_time = 0;
@@ -450,6 +461,8 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string (child, &page->user);
     else if (strcasecmp ("Password", child->key) == 0)
       status = cf_util_get_string (child, &page->pass);
+    else if (strcasecmp ("Digest", child->key) == 0)
+      status = cf_util_get_boolean (child, &page->digest);
     else if (strcasecmp ("VerifyPeer", child->key) == 0)
       status = cf_util_get_boolean (child, &page->verify_peer);
     else if (strcasecmp ("VerifyHost", child->key) == 0)
@@ -568,6 +581,7 @@ static int cc_init (void) /* {{{ */
     INFO ("curl plugin: No pages have been defined.");
     return (-1);
   }
+  curl_global_init (CURL_GLOBAL_SSL);
   return (0);
 } /* }}} int cc_init */
 
@@ -678,6 +692,7 @@ static int cc_read_page (web_page_t *wp) /* {{{ */
     }
 
     cc_submit (wp, wm, mv);
+    match_value_reset (mv);
   } /* for (wm = wp->matches; wm != NULL; wm = wm->next) */
 
   return (0);

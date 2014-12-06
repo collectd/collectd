@@ -18,7 +18,7 @@
  * Authors:
  *   Tomasz Pala <gotar at pld-linux.org>
  * based on entropy.c by:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
@@ -31,6 +31,27 @@
 
 #define CONNTRACK_FILE "/proc/sys/net/netfilter/nf_conntrack_count"
 #define CONNTRACK_MAX_FILE "/proc/sys/net/netfilter/nf_conntrack_max"
+#define CONNTRACK_FILE_OLD "/proc/sys/net/ipv4/netfilter/ip_conntrack_count"
+#define CONNTRACK_MAX_FILE_OLD "/proc/sys/net/ipv4/netfilter/ip_conntrack_max"
+
+static const char *config_keys[] =
+{
+	"OldFiles"
+};
+static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
+/*
+    Each table/chain combo that will be queried goes into this list
+*/
+
+static int old_files = 0;
+
+static int conntrack_config(const char *key, const char *value)
+{
+    if (strcmp(key, "OldFiles") == 0)
+        old_files = 1;
+
+    return 0;
+}
 
 static void conntrack_submit (const char *type, const char *type_instance,
 			      value_t conntrack)
@@ -56,7 +77,7 @@ static int conntrack_read (void)
 	char buffer[64];
 	size_t buffer_len;
 
-	fh = fopen (CONNTRACK_FILE, "r");
+	fh = fopen (old_files?CONNTRACK_FILE_OLD:CONNTRACK_FILE, "r");
 	if (fh == NULL)
 		return (-1);
 
@@ -81,7 +102,7 @@ static int conntrack_read (void)
 
 	conntrack_submit ("conntrack", NULL, conntrack);
 
-	fh = fopen (CONNTRACK_MAX_FILE, "r");
+	fh = fopen (old_files?CONNTRACK_MAX_FILE_OLD:CONNTRACK_MAX_FILE, "r");
 	if (fh == NULL)
 		return (-1);
 
@@ -114,5 +135,7 @@ static int conntrack_read (void)
 
 void module_register (void)
 {
+    plugin_register_config ("conntrack", conntrack_config,
+                            config_keys, config_keys_num);
 	plugin_register_read ("conntrack", conntrack_read);
 } /* void module_register */

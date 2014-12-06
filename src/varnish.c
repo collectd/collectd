@@ -28,14 +28,20 @@
 #include "plugin.h"
 #include "configfile.h"
 
-#include <varnish/varnishapi.h>
+#if HAVE_VARNISH_V4
+#include <varnish/vapi/vsm.h>
+#include <varnish/vapi/vsc.h>
+typedef struct VSC_C_main c_varnish_stats_t;
+#endif
 
 #if HAVE_VARNISH_V3
-# include <varnish/vsc.h>
+#include <varnish/varnishapi.h>
+#include <varnish/vsc.h>
 typedef struct VSC_C_main c_varnish_stats_t;
 #endif
 
 #if HAVE_VARNISH_V2
+#include <varnish/varnishapi.h>
 typedef struct varnish_stats c_varnish_stats_t;
 #endif
 
@@ -67,11 +73,14 @@ struct user_config_s {
 #endif
 	_Bool collect_struct;
 	_Bool collect_totals;
-#ifdef HAVE_VARNISH_V3
+#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
 	_Bool collect_uptime;
 #endif
 	_Bool collect_vcl;
 	_Bool collect_workers;
+#if HAVE_VARNISH_V4
+	_Bool collect_vsm;
+#endif
 };
 typedef struct user_config_s user_config_t; /* }}} */
 
@@ -141,10 +150,12 @@ static void varnish_monitor (const user_config_t *conf, /* {{{ */
 
 	if (conf->collect_connections)
 	{
+#ifndef HAVE_VARNISH_V4
 		/* Client connections accepted */
 		varnish_submit_derive (conf->instance, "connections", "connections", "accepted", stats->client_conn);
 		/* Connection dropped, no sess */
 		varnish_submit_derive (conf->instance, "connections", "connections", "dropped" , stats->client_drop);
+#endif
 		/* Client requests received    */
 		varnish_submit_derive (conf->instance, "connections", "connections", "received", stats->client_req);
 	}
@@ -225,7 +236,7 @@ static void varnish_monitor (const user_config_t *conf, /* {{{ */
 		varnish_submit_derive (conf->instance, "fetch", "http_requests", "zero"       , stats->fetch_zero);
 		/* Fetch failed              */
 		varnish_submit_derive (conf->instance, "fetch", "http_requests", "failed"     , stats->fetch_failed);
-#if HAVE_VARNISH_V3
+#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
 		/* Fetch no body (1xx)       */
 		varnish_submit_derive (conf->instance, "fetch", "http_requests", "no_body_1xx", stats->fetch_1xx);
 		/* Fetch no body (204)       */
@@ -263,12 +274,17 @@ static void varnish_monitor (const user_config_t *conf, /* {{{ */
 #endif
 		/* HTTP header overflows         */
 		varnish_submit_derive (conf->instance, "objects", "total_objects", "header_overflow",    stats->losthdr);
+#if HAVE_VARNISH_V4
+		/* N purged objects              */
+		varnish_submit_derive (conf->instance, "objects", "total_objects", "purged",             stats->n_obj_purged);
+#else
 		/* Objects sent with sendfile    */
 		varnish_submit_derive (conf->instance, "objects", "total_objects", "sent_sendfile",      stats->n_objsendfile);
 		/* Objects sent with write       */
 		varnish_submit_derive (conf->instance, "objects", "total_objects", "sent_write",         stats->n_objwrite);
 		/* Objects overflowing workspace */
 		varnish_submit_derive (conf->instance, "objects", "total_objects", "workspace_overflow", stats->n_objoverflow);
+#endif
 	}
 
 #if HAVE_VARNISH_V2
@@ -287,7 +303,8 @@ static void varnish_monitor (const user_config_t *conf, /* {{{ */
 		/* N duplicate purges removed */
 		varnish_submit_derive (conf->instance, "purge", "total_operations", "duplicate",        stats->n_purge_dups);
 	}
-#else
+#endif
+#if HAVE_VARNISH_V3
 	if (conf->collect_ban)
 	{
 		/* N total active bans      */
@@ -304,6 +321,27 @@ static void varnish_monitor (const user_config_t *conf, /* {{{ */
 		varnish_submit_derive (conf->instance, "ban", "total_operations", "duplicate",      stats->n_ban_dups);
 	}
 #endif
+#if HAVE_VARNISH_V4
+	if (conf->collect_ban)
+	{
+		/* N total active bans      */
+		varnish_submit_derive (conf->instance, "ban", "total_operations", "total",          stats->bans);
+		/* N new bans added         */
+		varnish_submit_derive (conf->instance, "ban", "total_operations", "added",          stats->bans_added);
+		/* N bans using obj */
+		varnish_submit_derive (conf->instance, "ban", "total_operations", "obj",            stats->bans_obj);
+		/* N bans using req */
+		varnish_submit_derive (conf->instance, "ban", "total_operations", "req",            stats->bans_req);
+		/* N new bans completed     */
+		varnish_submit_derive (conf->instance, "ban", "total_operations", "completed",      stats->bans_completed);
+		/* N old bans deleted       */
+		varnish_submit_derive (conf->instance, "ban", "total_operations", "deleted",        stats->bans_deleted);
+		/* N objects tested         */
+		varnish_submit_derive (conf->instance, "ban", "total_operations", "tested",         stats->bans_tested);
+		/* N duplicate bans removed */
+		varnish_submit_derive (conf->instance, "ban", "total_operations", "duplicate",      stats->bans_dups);
+	}
+#endif
 
 	if (conf->collect_session)
 	{
@@ -313,8 +351,21 @@ static void varnish_monitor (const user_config_t *conf, /* {{{ */
 		varnish_submit_derive (conf->instance, "session", "total_operations", "pipeline",  stats->sess_pipeline);
 		/* Session Read Ahead */
 		varnish_submit_derive (conf->instance, "session", "total_operations", "readahead", stats->sess_readahead);
+#if HAVE_VARNISH_V4
+		/* Sessions accepted */
+		varnish_submit_derive (conf->instance, "session", "total_operations", "accepted",  stats->sess_conn);
+		/* Sessions dropped for thread */
+		varnish_submit_derive (conf->instance, "session", "total_operations", "dropped",   stats->sess_drop);
+		/* Sessions accept failure */
+		varnish_submit_derive (conf->instance, "session", "total_operations", "failed",    stats->sess_fail);
+		/* Sessions pipe overflow */
+		varnish_submit_derive (conf->instance, "session", "total_operations", "overflow",  stats->sess_pipe_overflow);
+		/* Sessions queued for thread */
+		varnish_submit_derive (conf->instance, "session", "total_operations", "queued",    stats->sess_queued);
+#else
 		/* Session Linger     */
 		varnish_submit_derive (conf->instance, "session", "total_operations", "linger",    stats->sess_linger);
+#endif
 		/* Session herd       */
 		varnish_submit_derive (conf->instance, "session", "total_operations", "herd",      stats->sess_herd);
 	}
@@ -377,17 +428,21 @@ static void varnish_monitor (const user_config_t *conf, /* {{{ */
 
 	if (conf->collect_struct)
 	{
+#if !HAVE_VARNISH_V4
 		/* N struct sess_mem       */
 		varnish_submit_gauge (conf->instance, "struct", "current_sessions", "sess_mem",  stats->n_sess_mem);
 		/* N struct sess           */
 		varnish_submit_gauge (conf->instance, "struct", "current_sessions", "sess",      stats->n_sess);
+#endif
 		/* N struct object         */
 		varnish_submit_gauge (conf->instance, "struct", "objects", "object",             stats->n_object);
-#ifdef HAVE_VARNISH_V3
+#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
 		/* N unresurrected objects */
 		varnish_submit_gauge (conf->instance, "struct", "objects", "vampireobject",      stats->n_vampireobject);
 		/* N struct objectcore     */
 		varnish_submit_gauge (conf->instance, "struct", "objects", "objectcore",         stats->n_objectcore);
+		/* N struct waitinglist    */
+		varnish_submit_gauge (conf->instance, "struct", "objects", "waitinglist",        stats->n_waitinglist);
 #endif
 		/* N struct objecthead     */
 		varnish_submit_gauge (conf->instance, "struct", "objects", "objecthead",         stats->n_objecthead);
@@ -415,13 +470,40 @@ static void varnish_monitor (const user_config_t *conf, /* {{{ */
 		varnish_submit_derive (conf->instance, "totals", "total_operations", "pass",    stats->s_pass);
 		/* Total fetch */
 		varnish_submit_derive (conf->instance, "totals", "total_operations", "fetches", stats->s_fetch);
+#if HAVE_VARNISH_V4
+		/* Total synth */
+		varnish_submit_derive (conf->instance, "totals", "total_bytes", "synth",       stats->s_synth);
+		/* Request header bytes */
+		varnish_submit_derive (conf->instance, "totals", "total_bytes", "req_header",  stats->s_req_hdrbytes);
+		/* Request body byte */
+		varnish_submit_derive (conf->instance, "totals", "total_bytes", "req_body",    stats->s_req_bodybytes);
+		/* Response header bytes */
+		varnish_submit_derive (conf->instance, "totals", "total_bytes", "resp_header", stats->s_resp_hdrbytes);
+		/* Response body byte */
+		varnish_submit_derive (conf->instance, "totals", "total_bytes", "resp_body",   stats->s_resp_bodybytes);
+		/* Pipe request header bytes */
+		varnish_submit_derive (conf->instance, "totals", "total_bytes", "pipe_header", stats->s_pipe_hdrbytes);
+		/* Piped bytes from client */
+		varnish_submit_derive (conf->instance, "totals", "total_bytes", "pipe_in",     stats->s_pipe_in);
+		/* Piped bytes to client */
+		varnish_submit_derive (conf->instance, "totals", "total_bytes", "pipe_out",    stats->s_pipe_out);
+		/* Number of purge operations */
+		varnish_submit_derive (conf->instance, "totals", "total_operations", "purges", stats->n_purges);
+#else
 		/* Total header bytes */
 		varnish_submit_derive (conf->instance, "totals", "total_bytes", "header-bytes", stats->s_hdrbytes);
 		/* Total body byte */
 		varnish_submit_derive (conf->instance, "totals", "total_bytes", "body-bytes",   stats->s_bodybytes);
+#endif
+#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
+		/* Gzip operations */
+		varnish_submit_derive (conf->instance, "totals", "total_operations", "gzip",    stats->n_gzip);
+		/* Gunzip operations */
+		varnish_submit_derive (conf->instance, "totals", "total_operations", "gunzip",  stats->n_gunzip);
+#endif
 	}
 
-#ifdef HAVE_VARNISH_V3
+#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
 	if (conf->collect_uptime)
 	{
 		/* Client uptime */
@@ -437,10 +519,28 @@ static void varnish_monitor (const user_config_t *conf, /* {{{ */
 		varnish_submit_gauge (conf->instance, "vcl", "vcl", "avail_vcl",     stats->n_vcl_avail);
 		/* N vcl discarded */
 		varnish_submit_gauge (conf->instance, "vcl", "vcl", "discarded_vcl", stats->n_vcl_discard);
+#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
+		/* Loaded VMODs */
+		varnish_submit_gauge (conf->instance, "vcl", "objects", "vmod",      stats->vmods);
+#endif
 	}
 
 	if (conf->collect_workers)
 	{
+#ifdef HAVE_VARNISH_V4
+		/* total number of threads */
+		varnish_submit_gauge (conf->instance, "workers", "threads", "worker",             stats->threads);
+		/* threads created */
+		varnish_submit_derive (conf->instance, "workers", "total_threads", "created",     stats->threads_created);
+		/* thread creation failed */
+		varnish_submit_derive (conf->instance, "workers", "total_threads", "failed",      stats->threads_failed);
+		/* threads hit max */
+		varnish_submit_derive (conf->instance, "workers", "total_threads", "limited",     stats->threads_limited);
+		/* threads destroyed */
+		varnish_submit_derive (conf->instance, "workers", "total_threads", "dropped",     stats->threads_destroyed);
+		/* length of session queue */
+		varnish_submit_derive (conf->instance, "workers", "queue_length",  "threads",     stats->thread_queue_len);
+#else
 		/* worker threads */
 		varnish_submit_gauge (conf->instance, "workers", "threads", "worker",             stats->n_wrk);
 		/* worker threads created */
@@ -450,22 +550,40 @@ static void varnish_monitor (const user_config_t *conf, /* {{{ */
 		/* worker threads limited */
 		varnish_submit_derive (conf->instance, "workers", "total_threads", "limited",     stats->n_wrk_max);
 		/* dropped work requests */
-		varnish_submit_derive (conf->instance, "workers", "total_requests", "dropped",    stats->n_wrk_drop);
+		varnish_submit_derive (conf->instance, "workers", "total_threads", "dropped",     stats->n_wrk_drop);
 #ifdef HAVE_VARNISH_V2
 		/* queued work requests */
 		varnish_submit_derive (conf->instance, "workers", "total_requests", "queued",     stats->n_wrk_queue);
 		/* overflowed work requests */
 		varnish_submit_derive (conf->instance, "workers", "total_requests", "overflowed", stats->n_wrk_overflow);
-#else
+#else /* HAVE_VARNISH_V3 */
 		/* queued work requests */
 		varnish_submit_derive (conf->instance, "workers", "total_requests", "queued",       stats->n_wrk_queued);
 		/* work request queue length */
 		varnish_submit_derive (conf->instance, "workers", "total_requests", "queue_length", stats->n_wrk_lqueue);
 #endif
+#endif
 	}
+
+#if HAVE_VARNISH_V4
+	if (conf->collect_vsm)
+	{
+		/* Free VSM space */
+		varnish_submit_gauge (conf->instance, "vsm", "bytes", "free",              stats->vsm_free);
+		/* Used VSM space */
+		varnish_submit_gauge (conf->instance, "vsm", "bytes", "used",              stats->vsm_used);
+		/* Cooling VSM space */
+		varnish_submit_gauge (conf->instance, "vsm", "bytes", "cooling",           stats->vsm_cooling);
+		/* Overflow VSM space */
+		varnish_submit_gauge (conf->instance, "vsm", "bytes", "overflow",          stats->vsm_overflow);
+		/* Total overflowed VSM space */
+		varnish_submit_derive (conf->instance, "vsm", "total_bytes", "overflowed", stats->vsm_overflowed);
+	}
+#endif
+
 } /* }}} void varnish_monitor */
 
-#if HAVE_VARNISH_V3
+#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
 static int varnish_read (user_data_t *ud) /* {{{ */
 {
 	struct VSM_data *vd;
@@ -479,7 +597,9 @@ static int varnish_read (user_data_t *ud) /* {{{ */
 	conf = ud->data;
 
 	vd = VSM_New();
+#if HAVE_VARNISH_V3
 	VSC_Setup(vd);
+#endif
 
 	if (conf->instance != NULL)
 	{
@@ -495,14 +615,22 @@ static int varnish_read (user_data_t *ud) /* {{{ */
 		}
 	}
 
+#if HAVE_VARNISH_V3
 	if (VSC_Open (vd, /* diag = */ 1))
+#else /* if HAVE_VARNISH_V4 */
+	if (VSM_Open (vd))
+#endif
 	{
 		ERROR ("varnish plugin: Unable to load statistics.");
 
 		return (-1);
 	}
 
+#if HAVE_VARNISH_V3
 	stats = VSC_Main(vd);
+#else /* if HAVE_VARNISH_V4 */
+	stats = VSC_Main(vd, NULL);
+#endif
 
 	varnish_monitor (conf, stats);
 	VSM_Close (vd);
@@ -575,11 +703,14 @@ static int varnish_config_apply_default (user_config_t *conf) /* {{{ */
 	conf->collect_sms         = 0;
 	conf->collect_struct      = 0;
 	conf->collect_totals      = 0;
-#ifdef HAVE_VARNISH_V3
+#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
 	conf->collect_uptime      = 0;
 #endif
 	conf->collect_vcl         = 0;
 	conf->collect_workers     = 0;
+#if HAVE_VARNISH_V4
+	conf->collect_vsm         = 0;
+#endif
 
 	return (0);
 } /* }}} int varnish_config_apply_default */
@@ -699,7 +830,7 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 			cf_util_get_boolean (child, &conf->collect_struct);
 		else if (strcasecmp ("CollectTotals", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_totals);
-#ifdef HAVE_VARNISH_V3
+#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
 		else if (strcasecmp ("CollectUptime", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_uptime);
 #endif
@@ -707,6 +838,10 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 			cf_util_get_boolean (child, &conf->collect_vcl);
 		else if (strcasecmp ("CollectWorkers", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_workers);
+#if HAVE_VARNISH_V4
+		else if (strcasecmp ("CollectVSM", child->key) == 0)
+			cf_util_get_boolean (child, &conf->collect_vsm);
+#endif
 		else
 		{
 			WARNING ("Varnish plugin: Ignoring unknown "
@@ -741,11 +876,15 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 #endif
 			&& !conf->collect_struct
 			&& !conf->collect_totals
-#ifdef HAVE_VARNISH_V3
+#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
 			&& !conf->collect_uptime
 #endif
 			&& !conf->collect_vcl
-			&& !conf->collect_workers)
+			&& !conf->collect_workers
+#if HAVE_VARNISH_V4
+			&& !conf->collect_vsm
+#endif
+	)
 	{
 		WARNING ("Varnish plugin: No metric has been configured for "
 				"instance \"%s\". Disabling this instance.",

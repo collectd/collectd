@@ -1,8 +1,7 @@
-#ifndef COLLECTD_UTILS_DNS_H
-#define COLLECTD_UTILS_DNS_H 1
 /*
  * collectd - src/utils_dns.h
- * Copyright (C) 2006  Florian octo Forster
+ * Copyright (C) 2006       Florian octo Forster
+ * Copyright (C) 2002       The Measurement Factory, Inc.
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -30,8 +29,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   The Measurement Factory, Inc. <http://www.measurement-factory.com/>
+ *   Florian octo Forster <octo at collectd.org>
  */
+
+#ifndef COLLECTD_UTILS_DNS_H
+#define COLLECTD_UTILS_DNS_H 1
 
 #include "config.h"
 

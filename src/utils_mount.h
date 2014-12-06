@@ -119,7 +119,7 @@ char *cu_mount_checkoption(char *line, char *keyword, int full);
   DESCRIPTION
 	The cu_mount_checkoption() function is a replacement of
 	char *hasmntopt(const struct mntent *mnt, const char *opt).
-	In fact hasmntopt() just looks for the first occurence of the
+	In fact hasmntopt() just looks for the first occurrence of the
 	characters at opt in mnt->mnt_opts. cu_mount_checkoption()
 	checks for the *option* keyword in line, starting at the
 	first character of line or after a ','.

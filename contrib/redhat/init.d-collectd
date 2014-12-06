@@ -21,6 +21,8 @@ COLLECTD=/usr/sbin/collectd
 COLLECTDMONPIDDIR="/var/run"
 COLLECTDMONPID="$COLLECTDMONPIDDIR/collectdmon.pid"
 
+MAXWAIT=30
+
 if [ -r /etc/sysconfig/$service ]; then
 	. /etc/sysconfig/$service
 fi
@@ -58,7 +60,7 @@ start () {
 }
 stop () {
 	echo -n $"Stopping collectd: "
-	killproc -p $COLLECTDMONPID $prog
+	killproc -p $COLLECTDMONPID -d $MAXWAIT $prog
 	RETVAL=$?
 	echo
 	[ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/$service

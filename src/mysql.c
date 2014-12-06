@@ -38,20 +38,21 @@
 #include <mysql/mysql.h>
 #endif
 
-/* TODO: Understand `Select_*' and possibly do that stuff as well.. */
-
 struct mysql_database_s /* {{{ */
 {
 	char *instance;
+	char *alias;
 	char *host;
 	char *user;
 	char *pass;
 	char *database;
 	char *socket;
 	int   port;
+	int   timeout;
 
 	_Bool master_stats;
 	_Bool slave_stats;
+	_Bool innodb_stats;
 
 	_Bool slave_notif;
 	_Bool slave_io_running;
@@ -63,6 +64,9 @@ struct mysql_database_s /* {{{ */
 typedef struct mysql_database_s mysql_database_t; /* }}} */
 
 static int mysql_read (user_data_t *ud);
+
+void mysql_read_default_options(struct st_mysql_options *options,
+		const char *filename,const char *group);
 
 static void mysql_database_free (void *arg) /* {{{ */
 {
@@ -78,6 +82,7 @@ static void mysql_database_free (void *arg) /* {{{ */
 	if (db->con != NULL)
 		mysql_close (db->con);
 
+	sfree (db->alias);
 	sfree (db->host);
 	sfree (db->user);
 	sfree (db->pass);
@@ -120,12 +125,14 @@ static int mysql_config_database (oconfig_item_t *ci) /* {{{ */
 	memset (db, 0, sizeof (*db));
 
 	/* initialize all the pointers */
+	db->alias    = NULL;
 	db->host     = NULL;
 	db->user     = NULL;
 	db->pass     = NULL;
 	db->database = NULL;
 	db->socket   = NULL;
 	db->con      = NULL;
+	db->timeout  = 0;
 
 	/* trigger a notification, if it's not running */
 	db->slave_io_running  = 1;
@@ -144,7 +151,9 @@ static int mysql_config_database (oconfig_item_t *ci) /* {{{ */
 	{
 		oconfig_item_t *child = ci->children + i;
 
-		if (strcasecmp ("Host", child->key) == 0)
+		if (strcasecmp ("Alias", child->key) == 0)
+			status = cf_util_get_string (child, &db->alias);
+		else if (strcasecmp ("Host", child->key) == 0)
 			status = cf_util_get_string (child, &db->host);
 		else if (strcasecmp ("User", child->key) == 0)
 			status = cf_util_get_string (child, &db->user);
@@ -163,12 +172,16 @@ static int mysql_config_database (oconfig_item_t *ci) /* {{{ */
 			status = cf_util_get_string (child, &db->socket);
 		else if (strcasecmp ("Database", child->key) == 0)
 			status = cf_util_get_string (child, &db->database);
+		else if (strcasecmp ("ConnectTimeout", child->key) == 0)
+			status = cf_util_get_int (child, &db->timeout);
 		else if (strcasecmp ("MasterStats", child->key) == 0)
 			status = cf_util_get_boolean (child, &db->master_stats);
 		else if (strcasecmp ("SlaveStats", child->key) == 0)
 			status = cf_util_get_boolean (child, &db->slave_stats);
 		else if (strcasecmp ("SlaveNotifications", child->key) == 0)
 			status = cf_util_get_boolean (child, &db->slave_notif);
+		else if (strcasecmp ("InnodbStats", child->key) == 0)
+			status = cf_util_get_boolean (child, &db->innodb_stats);
 		else
 		{
 			WARNING ("mysql plugin: Option `%s' not allowed here.", child->key);
@@ -261,6 +274,9 @@ static MYSQL *getconnection (mysql_database_t *db)
 		}
 	}
 
+	/* Configure TCP connect timeout (default: 0) */
+	db->con->options.connect_timeout = db->timeout;
+
 	if (mysql_real_connect (db->con, db->host, db->user, db->pass,
 				db->database, db->port, db->socket, 0) == NULL)
 	{
@@ -285,7 +301,9 @@ static MYSQL *getconnection (mysql_database_t *db)
 
 static void set_host (mysql_database_t *db, char *buf, size_t buflen)
 {
-	if ((db->host == NULL)
+	if (db->alias)
+		sstrncpy (buf, db->alias, buflen);
+	else if ((db->host == NULL)
 			|| (strcmp ("", db->host) == 0)
 			|| (strcmp ("127.0.0.1", db->host) == 0)
 			|| (strcmp ("localhost", db->host) == 0))
@@ -549,6 +567,130 @@ static int mysql_read_slave_stats (mysql_database_t *db, MYSQL *con)
 	return (0);
 } /* mysql_read_slave_stats */
 
+static int mysql_read_innodb_stats (mysql_database_t *db, MYSQL *con)
+{
+	MYSQL_RES *res;
+	MYSQL_ROW  row;
+
+	char *query;
+    struct {
+        char *key;
+        char *type;
+        int ds_type;
+    } metrics[] = {
+        { "metadata_mem_pool_size",         "bytes",        DS_TYPE_GAUGE },
+        { "lock_deadlocks",                 "mysql_locks",  DS_TYPE_DERIVE },
+        { "lock_timeouts",                  "mysql_locks",  DS_TYPE_DERIVE },
+        { "lock_row_lock_current_waits",    "mysql_locks",  DS_TYPE_DERIVE },
+        { "buffer_pool_size",               "bytes",        DS_TYPE_GAUGE },
+
+        { "buffer_pool_reads",              "operations",   DS_TYPE_DERIVE },
+        { "buffer_pool_read_requests",      "operations",   DS_TYPE_DERIVE },
+        { "buffer_pool_write_requests",     "operations",   DS_TYPE_DERIVE },
+        { "buffer_pool_wait_free",          "operations",   DS_TYPE_DERIVE },
+        { "buffer_pool_read_ahead",         "operations",   DS_TYPE_DERIVE },
+        { "buffer_pool_read_ahead_evicted", "operations",   DS_TYPE_DERIVE },
+
+        { "buffer_pool_pages_total",        "gauge",        DS_TYPE_GAUGE },
+        { "buffer_pool_pages_misc",         "gauge",        DS_TYPE_GAUGE },
+        { "buffer_pool_pages_data",         "gauge",        DS_TYPE_GAUGE },
+        { "buffer_pool_bytes_data",         "gauge",        DS_TYPE_GAUGE },
+        { "buffer_pool_pages_dirty",        "gauge",        DS_TYPE_GAUGE },
+        { "buffer_pool_bytes_dirty",        "gauge",        DS_TYPE_GAUGE },
+        { "buffer_pool_pages_free",         "gauge",        DS_TYPE_GAUGE },
+
+        { "buffer_pages_created",           "operations",   DS_TYPE_DERIVE },
+        { "buffer_pages_written",           "operations",   DS_TYPE_DERIVE },
+        { "buffer_pages_read",              "operations",   DS_TYPE_DERIVE },
+        { "buffer_data_reads",              "operations",   DS_TYPE_DERIVE },
+        { "buffer_data_written",            "operations",   DS_TYPE_DERIVE },
+
+        { "os_data_reads",                  "operations",   DS_TYPE_DERIVE },
+        { "os_data_writes",                 "operations",   DS_TYPE_DERIVE },
+        { "os_data_fsyncs",                 "operations",   DS_TYPE_DERIVE },
+        { "os_log_bytes_written",           "operations",   DS_TYPE_DERIVE },
+        { "os_log_fsyncs",                  "operations",   DS_TYPE_DERIVE },
+        { "os_log_pending_fsyncs",          "operations",   DS_TYPE_DERIVE },
+        { "os_log_pending_writes",          "operations",   DS_TYPE_DERIVE },
+
+        { "trx_rseg_history_len",           "gauge",        DS_TYPE_GAUGE },
+
+        { "log_waits",                      "operations",   DS_TYPE_DERIVE },
+        { "log_write_requests",             "operations",   DS_TYPE_DERIVE },
+        { "log_writes",                     "operations",   DS_TYPE_DERIVE },
+        { "adaptive_hash_searches",         "operations",   DS_TYPE_DERIVE },
+
+        { "file_num_open_files",            "gauge",        DS_TYPE_GAUGE },
+
+        { "ibuf_merges_insert",             "operations",   DS_TYPE_DERIVE },
+        { "ibuf_merges_delete_mark",        "operations",   DS_TYPE_DERIVE },
+        { "ibuf_merges_delete",             "operations",   DS_TYPE_DERIVE },
+        { "ibuf_merges_discard_insert",     "operations",   DS_TYPE_DERIVE },
+        { "ibuf_merges_discard_delete_mark","operations",   DS_TYPE_DERIVE },
+        { "ibuf_merges_discard_delete",     "operations",   DS_TYPE_DERIVE },
+        { "ibuf_merges_discard_merges",     "operations",   DS_TYPE_DERIVE },
+        { "ibuf_size",                      "bytes",        DS_TYPE_GAUGE },
+
+        { "innodb_activity_count",          "gauge",        DS_TYPE_GAUGE },
+        { "innodb_dblwr_writes",            "operations",   DS_TYPE_DERIVE },
+        { "innodb_dblwr_pages_written",     "operations",   DS_TYPE_DERIVE },
+        { "innodb_dblwr_page_size",         "gauge",        DS_TYPE_GAUGE },
+
+        { "innodb_rwlock_s_spin_waits",     "operations",   DS_TYPE_DERIVE },
+        { "innodb_rwlock_x_spin_waits",     "operations",   DS_TYPE_DERIVE },
+        { "innodb_rwlock_s_spin_rounds",    "operations",   DS_TYPE_DERIVE },
+        { "innodb_rwlock_x_spin_rounds",    "operations",   DS_TYPE_DERIVE },
+        { "innodb_rwlock_s_os_waits",       "operations",   DS_TYPE_DERIVE },
+        { "innodb_rwlock_x_os_waits",       "operations",   DS_TYPE_DERIVE },
+
+        { "dml_reads",                      "operations",   DS_TYPE_DERIVE },
+        { "dml_inserts",                    "operations",   DS_TYPE_DERIVE },
+        { "dml_deletes",                    "operations",   DS_TYPE_DERIVE },
+        { "dml_updates",                    "operations",   DS_TYPE_DERIVE },
+
+        { NULL,                     NULL,           0}
+    };
+
+	query = "SELECT name, count, type FROM information_schema.innodb_metrics WHERE status = 'enabled'";
+
+	res = exec_query (con, query);
+	if (res == NULL)
+		return (-1);
+
+	while ((row = mysql_fetch_row (res)))
+	{
+        int i;
+		char *key;
+		unsigned long long val;
+
+		key = row[0];
+		val = atoll (row[1]);
+
+        for (i = 0;
+             metrics[i].key != NULL && strcmp(metrics[i].key, key) != 0;
+             i++)
+            ;
+
+        if (metrics[i].key == NULL)
+            continue;
+
+        switch (metrics[i].ds_type) {
+        case DS_TYPE_COUNTER:
+            counter_submit(metrics[i].type, key, (counter_t)val, db);
+            break;
+        case DS_TYPE_GAUGE:
+            gauge_submit(metrics[i].type, key, (gauge_t)val, db);
+            break;
+        case DS_TYPE_DERIVE:
+            derive_submit(metrics[i].type, key, (derive_t)val, db);
+            break;
+        }
+    }
+
+    mysql_free_result(res);
+    return (0);
+}
+
 static int mysql_read (user_data_t *ud)
 {
 	mysql_database_t *db;
@@ -570,6 +712,7 @@ static int mysql_read (user_data_t *ud)
 
 	unsigned long long traffic_incoming = 0ULL;
 	unsigned long long traffic_outgoing = 0ULL;
+    unsigned long mysql_version = 0ULL;
 
 	if ((ud == NULL) || (ud->data == NULL))
 	{
@@ -583,8 +726,10 @@ static int mysql_read (user_data_t *ud)
 	if ((con = getconnection (db)) == NULL)
 		return (-1);
 
+  mysql_version = mysql_get_server_version(con);
+
 	query = "SHOW STATUS";
-	if (mysql_get_server_version (con) >= 50002)
+	if (mysql_version >= 50002)
 		query = "SHOW GLOBAL STATUS";
 
 	res = exec_query (con, query);
@@ -662,6 +807,102 @@ static int mysql_read (user_data_t *ud)
 					key + strlen ("Table_locks_"),
 					val, db);
 		}
+		else if (db->innodb_stats && strncmp (key, "Innodb_", strlen ("Innodb_")) == 0)
+		{
+			/* buffer pool */
+			if (strcmp (key, "Innodb_buffer_pool_pages_data") == 0)
+				gauge_submit ("mysql_bpool_pages", "data", val, db);
+			else if (strcmp (key, "Innodb_buffer_pool_pages_dirty") == 0)
+				gauge_submit ("mysql_bpool_pages", "dirty", val, db);
+			else if (strcmp (key, "Innodb_buffer_pool_pages_flushed") == 0)
+				counter_submit ("mysql_bpool_pages", "flushed", val, db);
+			else if (strcmp (key, "Innodb_buffer_pool_pages_free") == 0)
+				gauge_submit ("mysql_bpool_pages", "free", val, db);
+			else if (strcmp (key, "Innodb_buffer_pool_pages_misc") == 0)
+				gauge_submit ("mysql_bpool_pages", "misc", val, db);
+			else if (strcmp (key, "Innodb_buffer_pool_pages_total") == 0)
+				gauge_submit ("mysql_bpool_pages", "total", val, db);
+			else if (strcmp (key, "Innodb_buffer_pool_read_ahead_rnd") == 0)
+				counter_submit ("mysql_bpool_counters", "read_ahead_rnd", val, db);
+			else if (strcmp (key, "Innodb_buffer_pool_read_ahead") == 0)
+				counter_submit ("mysql_bpool_counters", "read_ahead", val, db);
+			else if (strcmp (key, "Innodb_buffer_pool_read_ahead_evicted") == 0)
+				counter_submit ("mysql_bpool_counters", "read_ahead_evicted", val, db);
+			else if (strcmp (key, "Innodb_buffer_pool_read_requests") == 0)
+				counter_submit ("mysql_bpool_counters", "read_requests", val, db);
+			else if (strcmp (key, "Innodb_buffer_pool_reads") == 0)
+				counter_submit ("mysql_bpool_counters", "reads", val, db);
+			else if (strcmp (key, "Innodb_buffer_pool_write_requests") == 0)
+				counter_submit ("mysql_bpool_counters", "write_requests", val, db);
+			else if (strcmp (key, "Innodb_buffer_pool_bytes_data") == 0)
+				gauge_submit ("mysql_bpool_bytes", "data", val, db);
+			else if (strcmp (key, "Innodb_buffer_pool_bytes_dirty") == 0)
+				gauge_submit ("mysql_bpool_bytes", "dirty", val, db);
+
+			/* data */
+			if (strcmp (key, "Innodb_data_fsyncs") == 0)
+				counter_submit ("mysql_innodb_data", "fsyncs", val, db);
+			else if (strcmp (key, "Innodb_data_read") == 0)
+				counter_submit ("mysql_innodb_data", "read", val, db);
+			else if (strcmp (key, "Innodb_data_reads") == 0)
+				counter_submit ("mysql_innodb_data", "reads", val, db);
+			else if (strcmp (key, "Innodb_data_writes") == 0)
+				counter_submit ("mysql_innodb_data", "writes", val, db);
+			else if (strcmp (key, "Innodb_data_written") == 0)
+				counter_submit ("mysql_innodb_data", "written", val, db);
+
+			/* double write */
+			else if (strcmp (key, "Innodb_dblwr_writes") == 0)
+				counter_submit ("mysql_innodb_dblwr", "writes", val, db);
+			else if (strcmp (key, "Innodb_dblwr_pages_written") == 0)
+				counter_submit ("mysql_innodb_dblwr", "written", val, db);
+
+			/* log */
+			else if (strcmp (key, "Innodb_log_waits") == 0)
+				counter_submit ("mysql_innodb_log", "waits", val, db);
+			else if (strcmp (key, "Innodb_log_write_requests") == 0)
+				counter_submit ("mysql_innodb_log", "write_requests", val, db);
+			else if (strcmp (key, "Innodb_log_writes") == 0)
+				counter_submit ("mysql_innodb_log", "writes", val, db);
+			else if (strcmp (key, "Innodb_os_log_fsyncs") == 0)
+				counter_submit ("mysql_innodb_log", "fsyncs", val, db);
+			else if (strcmp (key, "Innodb_os_log_written") == 0)
+				counter_submit ("mysql_innodb_log", "written", val, db);
+
+			/* pages */
+			else if (strcmp (key, "Innodb_pages_created") == 0)
+				counter_submit ("mysql_innodb_pages", "created", val, db);
+			else if (strcmp (key, "Innodb_pages_read") == 0)
+				counter_submit ("mysql_innodb_pages", "read", val, db);
+			else if (strcmp (key, "Innodb_pages_written") == 0)
+				counter_submit ("mysql_innodb_pages", "written", val, db);
+
+			/* row lock */
+			else if (strcmp (key, "Innodb_row_lock_time") == 0)
+				counter_submit ("mysql_innodb_row_lock", "time", val, db);
+			else if (strcmp (key, "Innodb_row_lock_waits") == 0)
+				counter_submit ("mysql_innodb_row_lock", "waits", val, db);
+
+			/* rows */
+			else if (strcmp (key, "Innodb_rows_deleted") == 0)
+				counter_submit ("mysql_innodb_rows", "deleted", val, db);
+			else if (strcmp (key, "Innodb_rows_inserted") == 0)
+				counter_submit ("mysql_innodb_rows", "inserted", val, db);
+			else if (strcmp (key, "Innodb_rows_read") == 0)
+				counter_submit ("mysql_innodb_rows", "read", val, db);
+			else if (strcmp (key, "Innodb_rows_updated") == 0)
+				counter_submit ("mysql_innodb_rows", "updated", val, db);
+		}
+		else if (strncmp (key, "Select_", strlen ("Select_")) == 0)
+		{
+			counter_submit ("mysql_select", key + strlen ("Select_"),
+					val, db);
+		}
+		else if (strncmp (key, "Sort_", strlen ("Sort_")) == 0)
+		{
+			counter_submit ("mysql_sort", key + strlen ("Sort_"),
+					val, db);
+		}
 	}
 	mysql_free_result (res); res = NULL;
 
@@ -697,6 +938,9 @@ static int mysql_read (user_data_t *ud)
 	}
 
 	traffic_submit  (traffic_incoming, traffic_outgoing, db);
+
+	if (mysql_version >= 50600 && db->innodb_stats)
+        mysql_read_innodb_stats (db, con);
 
 	if (db->master_stats)
 		mysql_read_master_stats (db, con);

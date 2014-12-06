@@ -1,22 +1,27 @@
 /**
  * collectd - src/utils_format_json.c
- * Copyright (C) 2009  Florian octo Forster
+ * Copyright (C) 2009       Florian octo Forster
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; only version 2 of the License is applicable.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
@@ -26,7 +31,7 @@
 #include "utils_cache.h"
 #include "utils_format_json.h"
 
-static int escape_string (char *buffer, size_t buffer_size, /* {{{ */
+static int json_escape_string (char *buffer, size_t buffer_size, /* {{{ */
     const char *string)
 {
   size_t src_pos;
@@ -70,7 +75,7 @@ static int escape_string (char *buffer, size_t buffer_size, /* {{{ */
 #undef BUFFER_ADD
 
   return (0);
-} /* }}} int escape_string */
+} /* }}} int json_escape_string */
 
 static int values_to_json (char *buffer, size_t buffer_size, /* {{{ */
                 const data_set_t *ds, const value_list_t *vl, int store_rates)
@@ -234,7 +239,10 @@ static int meta_data_to_json (char *buffer, size_t buffer_size, /* {{{ */
   int status;
   int i;
 
-  memset (buffer, 0, buffer_size);
+  buffer[0] = 0;
+
+  if (meta == NULL)
+    return (EINVAL);
 
 #define BUFFER_ADD(...) do { \
   status = ssnprintf (buffer + offset, buffer_size - offset, \
@@ -248,6 +256,12 @@ static int meta_data_to_json (char *buffer, size_t buffer_size, /* {{{ */
 } while (0)
 
   keys_num = meta_data_toc (meta, &keys);
+  if (keys_num == 0)
+  {
+    sfree (keys);
+    return (0);
+  }
+
   for (i = 0; i < keys_num; ++i)
   {
     int type;
@@ -260,7 +274,7 @@ static int meta_data_to_json (char *buffer, size_t buffer_size, /* {{{ */
       if (meta_data_get_string (meta, key, &value) == 0)
       {
         char temp[512] = "";
-        escape_string (temp, sizeof (temp), value);
+        json_escape_string (temp, sizeof (temp), value);
         sfree (value);
         BUFFER_ADD (",\"%s\":%s", key, temp);
       }
@@ -303,7 +317,7 @@ static int meta_data_to_json (char *buffer, size_t buffer_size, /* {{{ */
 #undef BUFFER_ADD
 
   return (0);
-} /* int meta_data_to_json */
+} /* }}} int meta_data_to_json */
 
 static int value_list_to_json (char *buffer, size_t buffer_size, /* {{{ */
                 const data_set_t *ds, const value_list_t *vl, int store_rates)
@@ -348,7 +362,7 @@ static int value_list_to_json (char *buffer, size_t buffer_size, /* {{{ */
   BUFFER_ADD (",\"interval\":%.3f", CDTIME_T_TO_DOUBLE (vl->interval));
 
 #define BUFFER_ADD_KEYVAL(key, value) do { \
-  status = escape_string (temp, sizeof (temp), (value)); \
+  status = json_escape_string (temp, sizeof (temp), (value)); \
   if (status != 0) \
     return (status); \
   BUFFER_ADD (",\"%s\":%s", (key), temp); \
