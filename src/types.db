@@ -78,20 +78,20 @@ http_request_methods	value:DERIVE:0:U
 http_requests		value:DERIVE:0:U
 http_response_codes	value:DERIVE:0:U
 humidity		value:GAUGE:0:100
-ib_buffer_overruns	value:COUNTER:0:15
-ib_constraint_errors	rx:COUNTER:0:255 tx:COUNTER:0:255
-ib_data			rx:COUNTER:0:4294967295 tx:COUNTER:0:4294967295
-ib_discards		tx:COUNTER:0:65535
-ib_errors		rx:COUNTER:0:65535
-ib_link_downed		value:COUNTER:0:255
-ib_link_error_recovery	value:COUNTER:0:255
-ib_link_integrity_errors	value:COUNTER:0:255
-ib_packets		tx:COUNTER:0:4294967295 rx:COUNTER:0:4294967295
-ib_remote_phys_errors	rx:COUNTER:0:65535
-ib_switch_relay_errors	rx:COUNTER:0:65535
-ib_wait			tx:COUNTER:0:4294967295
-ib_symbol_errors	value:COUNTER:0:4294967295
-ib_VL15_dropped		value:COUNTER:0:65535
+ib_buffer_overruns	value:ABSOLUTE:0:U
+ib_constraint_errors	rx:ABSOLUTE:0:U tx:ABSOLUTE:0:U
+ib_data			rx:ABSOLUTE:0:U tx:ABSOLUTE:0:U
+ib_discards		tx:ABSOLUTE:0:U
+ib_errors		rx:ABSOLUTE:0:U
+ib_link_downed		value:ABSOLUTE:0:U
+ib_link_error_recovery	value:ABSOLUTE:0:U
+ib_link_integrity_errors	value:ABSOLUTE:0:U
+ib_packets		tx:ABSOLUTE:0:U rx:ABSOLUTE:0:U
+ib_remote_phys_errors	rx:ABSOLUTE:0:U
+ib_switch_relay_errors	rx:ABSOLUTE:0:U
+ib_wait			tx:ABSOLUTE:0:U
+ib_symbol_errors	value:ABSOLUTE:0:U
+ib_VL15_dropped		value:ABSOLUTE:0:U
 if_collisions		value:DERIVE:0:U
 if_dropped		rx:DERIVE:0:U, tx:DERIVE:0:U
 if_errors		rx:DERIVE:0:U, tx:DERIVE:0:U
