@@ -4568,6 +4568,69 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LIBYAJL, test "x$with_libyajl" = "xyes")
 # }}}
 
+# --with-infiniband {{{
+with_infiniband_cflags=""
+with_infiniband_ldpath=""
+with_infiniband_libs=""
+AC_ARG_WITH(infiniband,[AS_HELP_STRING([--with-infiniband@<:@=PREFIX@:>@], [Path to Infiniband mad libraries.])],
+[
+	if test "x$withval" = "xno"
+	then
+		with_infiniband="no"
+	else if test "x$withval" = "xyes"
+	then
+		with_infiniband="yes"
+	else if test -d "$with_infiniband/lib"
+	then
+		AC_MSG_NOTICE([Not checking for infiniband mad libraries: Manually configured])
+		with_infiniband_cflags="-I$withval/include"
+		with_infiniband_ldpath="-L$withval/lib/Linux"
+		with_infiniband_libs="-libmad -libumad"
+		with_infiniband="yes"
+	fi; fi; fi
+],
+[with_infiniband="yes"])
+if test "x$with_infiniband" = "xinfiniband"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_infiniband_cflags"
+	AC_CHECK_HEADER(mad.h,[],[with_infiniband="no (mad.h not found)"])
+	AC_CHECK_HEADER(umad.h,[],[with_infiniband="no (umad.h not found)"])
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_infiniband" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+
+	CPPFLAGS="$CPPFLAGS $with_infiniband_cflags"
+	LDFLAGS="$LDFLAGS $with_infiniband_ldpath"
+
+	AC_CHECK_LIB(ibmad, mad_rpc_open_port,
+			[with_infiniband_ldpath="$with_infiniband_ldpath"
+			with_infiniband_libs="-libmad"],
+			[with_infiniband="no (symbol mad_rpc_open_port not found)"])
+
+	AC_CHECK_LIB(ibumad, umad_get_port,
+			[with_infiniband_ldpath="$with_infiniband_ldpath"
+			with_infiniband_libs+=" -libumad"],
+			[with_infiniband="no (symbol umad_get_port not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+
+if test "x$with_infiniband" = "xyes"
+then
+	BUILD_WITH_INFINIBAND_CPPFLAGS="$with_infiniband_cflags"
+	BUILD_WITH_INFINIBAND_LIBPATH="$with_infiniband_ldpath"
+	BUILD_WITH_INFINIBAND_LDADD="$with_infiniband_libs"
+	AC_SUBST(BUILD_WITH_INFINIBAND_CPPFLAGS)
+	AC_SUBST(BUILD_WITH_INFINIBAND_LIBPATH)
+	AC_SUBST(BUILD_WITH_INFINIBAND_LDADD)
+fi
+#}}}
+
 # --with-mic {{{
 with_mic_cflags="-I/opt/intel/mic/sysmgmt/sdk/include"
 with_mic_ldpath="-L/opt/intel/mic/sysmgmt/sdk/lib/Linux"
@@ -5488,6 +5551,7 @@ AC_PLUGIN([filecount],   [yes],                [Count files in directories])
 AC_PLUGIN([fscache],     [$plugin_fscache],    [fscache statistics])
 AC_PLUGIN([gmond],       [$with_libganglia],   [Ganglia plugin])
 AC_PLUGIN([hddtemp],     [yes],                [Query hddtempd])
+AC_PLUGIN([infiniband],  [yes],                [infiniband plugin])
 AC_PLUGIN([interface],   [$plugin_interface],  [Interface traffic statistics])
 AC_PLUGIN([ipmi],        [$plugin_ipmi],       [IPMI sensor statistics])
 AC_PLUGIN([iptables],    [$with_libiptc],      [IPTables rule counters])
@@ -5817,6 +5881,7 @@ Configuration:
     protobuf-c  . . . . . $have_protoc_c
     oracle  . . . . . . . $with_oracle
     python  . . . . . . . $with_python
+    infiniband  . . . . . $with_infiniband
 
   Features:
     daemon mode . . . . . $enable_daemon
@@ -5858,6 +5923,7 @@ Configuration:
     fscache . . . . . . . $enable_fscache
     gmond . . . . . . . . $enable_gmond
     hddtemp . . . . . . . $enable_hddtemp
+    infiniband  . . . . . $enable_infiniband
     interface . . . . . . $enable_interface
     ipmi  . . . . . . . . $enable_ipmi
     iptables  . . . . . . $enable_iptables

@@ -414,6 +414,15 @@ ipmi_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 ipmi_la_LIBADD = $(BUILD_WITH_OPENIPMI_LIBS)
 endif
 
+if BUILD_PLUGIN_INFINIBAND
+pkglib_LTLIBRARIES += infiniband.la
+infiniband_la_SOURCES = infiniband.c \
+		 utils_ignorelist.c utils_ignorelist.h
+infiniband_la_CFLAGS  = $(AM_CFLAGS) $(BUILD_WITH_INFINIBAND_CPPFLAGS)
+infiniband_la_LIBADD  = $(BUILD_WITH_INFINIBAND_LDADD)
+infiniband_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_INFINIBAND_LIBPATH)
+endif
+
 if BUILD_PLUGIN_IPVS
 pkglib_LTLIBRARIES += ipvs.la
 ipvs_la_SOURCES = ipvs.c

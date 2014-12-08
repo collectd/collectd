@@ -78,6 +78,20 @@ http_request_methods	value:DERIVE:0:U
 http_requests		value:DERIVE:0:U
 http_response_codes	value:DERIVE:0:U
 humidity		value:GAUGE:0:100
+ib_buffer_overruns	value:ABSOLUTE:0:U
+ib_constraint_errors	rx:ABSOLUTE:0:U tx:ABSOLUTE:0:U
+ib_data			rx:ABSOLUTE:0:U tx:ABSOLUTE:0:U
+ib_discards		tx:ABSOLUTE:0:U
+ib_errors		rx:ABSOLUTE:0:U
+ib_link_downed		value:ABSOLUTE:0:U
+ib_link_error_recovery	value:ABSOLUTE:0:U
+ib_link_integrity_errors	value:ABSOLUTE:0:U
+ib_packets		tx:ABSOLUTE:0:U rx:ABSOLUTE:0:U
+ib_remote_phys_errors	rx:ABSOLUTE:0:U
+ib_switch_relay_errors	rx:ABSOLUTE:0:U
+ib_wait			tx:ABSOLUTE:0:U
+ib_symbol_errors	value:ABSOLUTE:0:U
+ib_VL15_dropped		value:ABSOLUTE:0:U
 if_collisions		value:DERIVE:0:U
 if_dropped		rx:DERIVE:0:U, tx:DERIVE:0:U
 if_errors		rx:DERIVE:0:U, tx:DERIVE:0:U
