@@ -113,7 +113,33 @@ struct wg_callback
     pthread_mutex_t send_lock;
     c_complain_t init_complaint;
     cdtime_t last_connect_time;
+
+    /*Force reconnect useful for load balanced environments*/
+    cdtime_t last_force_reconnect_time;
+    int force_reconnect_timeout;
 };
+
+/*
+* Force Reconnect functions
+*/
+
+static void wg_force_reconnect_check(struct wg_callback *cb)
+{
+    cdtime_t now;
+    if(!cb->force_reconnect_timeout) return;
+    //check if address changes if addr_timeout
+    now = cdtime ();
+    DEBUG("wg_force_reconnect_check: now %ld last: %ld ",CDTIME_T_TO_TIME_T(now),CDTIME_T_TO_TIME_T(cb->last_force_reconnect_time));
+    if ((now - cb->last_force_reconnect_time) < TIME_T_TO_CDTIME_T(cb->force_reconnect_timeout)){
+       return;
+    }
+    //here we should close connection on next
+    close (cb->sock_fd);
+    cb->sock_fd = -1;
+    INFO("Connection Forced closed after %ld seconds ",CDTIME_T_TO_TIME_T(now - cb->last_force_reconnect_time));
+    cb->last_force_reconnect_time = now;
+}
+
 
 
 /*
@@ -351,6 +377,8 @@ static int wg_send_message (char const *message, struct wg_callback *cb)
 
     pthread_mutex_lock (&cb->send_lock);
 
+    wg_force_reconnect_check(cb);
+
     if (cb->sock_fd < 0)
     {
         status = wg_callback_init (cb);
@@ -489,6 +517,8 @@ static int wg_config_node (oconfig_item_t *ci)
     cb->node = NULL;
     cb->service = NULL;
     cb->protocol = NULL;
+    cb->last_force_reconnect_time=cdtime();
+    cb->force_reconnect_timeout=0;
     cb->log_send_errors = WG_DEFAULT_LOG_SEND_ERRORS;
     cb->prefix = NULL;
     cb->postfix = NULL;
@@ -529,6 +559,8 @@ static int wg_config_node (oconfig_item_t *ci)
                 status = -1;
             }
         }
+        else if (strcasecmp ("ForceReconnectTimeout", child->key) == 0)
+            cf_util_get_int (child,&cb->force_reconnect_timeout);
         else if (strcasecmp ("LogSendErrors", child->key) == 0)
             cf_util_get_boolean (child, &cb->log_send_errors);
         else if (strcasecmp ("Prefix", child->key) == 0)
