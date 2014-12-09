@@ -306,6 +306,12 @@ lv_read (void)
             continue;
         }
 
+        if (info.state != VIR_DOMAIN_RUNNING)
+        {
+            /* only gather stats for running domains */
+            continue;
+        }
+
         cpu_submit (info.cpuTime, t, domains[i], "virt_cpu_total");
 
         vinfo = malloc (info.nrVirtCpu * sizeof (vinfo[0]));
