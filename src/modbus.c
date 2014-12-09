@@ -487,8 +487,9 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
   }
   if (status != values_num)
   {
-    ERROR ("Modbus plugin: modbus_read_registers (%s/%s) failed. status = %i, values_num = %i "
-        "Giving up.", host->host, host->node, status, values_num);
+    ERROR ("Modbus plugin: modbus read function (%s/%s) failed. "
+           " status = %i, values_num = %i. Giving up.",
+           host->host, host->node, status, values_num);
 #if LEGACY_LIBMODBUS
     modbus_close (&host->connection);
 #else
@@ -725,23 +726,25 @@ static int mb_config_add_data (oconfig_item_t *ci) /* {{{ */
     }
     else if (strcasecmp ("ModbusRegisterType", child->key) == 0)
     {
-      #if LEGACY_LIBMODBUS
-        ERROR("Modbus plugin: ModbusRegisterType parameter can not be used with your libmodbus version");
-      #else
-        char tmp[16];
-        status = cf_util_get_string_buffer (child, tmp, sizeof (tmp));
-        if (status != 0)
-          /* do nothing */;
-        else if (strcasecmp ("holding", tmp) == 0)
-          data.modbus_register_type = MREG_HOLDING;
-        else if (strcasecmp ("input", tmp) == 0)
-          data.modbus_register_type = MREG_INPUT;
-        else
-        {
-          ERROR ("Modbus plugin: The modbus_register_type \"%s\" is unknown.", tmp);
-          status = -1;
-        }
-      #endif
+#if LEGACY_LIBMODBUS
+      ERROR("Modbus plugin: ModbusRegisterType parameter can not be used "
+            "with your libmodbus version");
+#else
+      char tmp[16];
+      status = cf_util_get_string_buffer (child, tmp, sizeof (tmp));
+      if (status != 0)
+        /* do nothing */;
+      else if (strcasecmp ("holding", tmp) == 0)
+        data.modbus_register_type = MREG_HOLDING;
+      else if (strcasecmp ("input", tmp) == 0)
+        data.modbus_register_type = MREG_INPUT;
+      else
+      {
+        ERROR ("Modbus plugin: The modbus_register_type \"%s\" is unknown.",
+               tmp);
+        status = -1;
+      }
+#endif
     }
     else
     {
