@@ -547,6 +547,12 @@ lv_read (void)
             continue;
         }
 
+        if (info.state != VIR_DOMAIN_RUNNING)
+        {
+            /* only gather stats for running domains */
+            continue;
+        }
+
         cpu_submit (info.cpuTime, domains[i], "virt_cpu_total");
         memory_submit ((gauge_t) info.memory * 1024, domains[i]);
 
