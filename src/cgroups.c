@@ -58,44 +58,21 @@ static void cgroups_submit_one (char const *plugin_instance,
 } /* void cgroups_submit_one */
 
 /*
- * This callback reads the user/system CPU time for each cgroup.
+ * This function reads the given file and submits the metrics
  */
-static int read_cpuacct_procs (const char *dirname, char const *cgroup_name,
-    void *user_data)
+static int process_cgroup_file(const char *cgroup_name, const char* type_value, const char *abs_path)
 {
-	char abs_path[PATH_MAX];
-	struct stat statbuf;
+	FILE *fh = NULL;
 	char buf[1024];
 	int status;
 
-	FILE *fh;
-
-	if (ignorelist_match (il_cgroup, cgroup_name))
-		return (0);
-
-	ssnprintf (abs_path, sizeof (abs_path), "%s/%s", dirname, cgroup_name);
-
-	status = lstat (abs_path, &statbuf);
-	if (status != 0)
-	{
-		ERROR ("cgroups plugin: stat (\"%s\") failed.",
-				abs_path);
-		return (-1);
-	}
-
-	/* We are only interested in directories, so skip everything else. */
-	if (!S_ISDIR (statbuf.st_mode))
-		return (0);
-
-	ssnprintf (abs_path, sizeof (abs_path), "%s/%s/cpuacct.stat",
-			dirname, cgroup_name);
 	fh = fopen (abs_path, "r");
 	if (fh == NULL)
 	{
 		char errbuf[1024];
 		ERROR ("cgroups plugin: fopen (\"%s\") failed: %s",
-				abs_path,
-				sstrerror (errno, errbuf, sizeof (errbuf)));
+			   abs_path,
+			   sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 
@@ -106,16 +83,9 @@ static int read_cpuacct_procs (const char *dirname, char const *cgroup_name,
 		char *key;
 		size_t key_len;
 		value_t value;
-
 		/* Expected format:
 		 *
-		 *   user: 12345
-		 *   system: 23456
-		 *
-		 * Or:
-		 *
-		 *   user 12345
-		 *   system 23456
+		 * (\w+):{0,1}\s+(\d+)
 		 */
 		strstripnewline (buf);
 		numfields = strsplit (buf, fields, STATIC_ARRAY_SIZE (fields));
@@ -135,11 +105,44 @@ static int read_cpuacct_procs (const char *dirname, char const *cgroup_name,
 		if (status != 0)
 			continue;
 
-		cgroups_submit_one (cgroup_name, key, value);
+		cgroups_submit_one (cgroup_name, type_value, key, value);
 	}
 
 	fclose (fh);
 	return (0);
+}
+
+/*
+ * This callback reads the user/system CPU time for each cgroup.
+ */
+static int read_cpuacct_procs (const char *dirname, char const *cgroup_name,
+    void *user_data)
+{
+	char abs_path[PATH_MAX];
+	struct stat statbuf;
+	int status;
+
+	if (ignorelist_match (il_cgroup, cgroup_name))
+		return (0);
+
+	ssnprintf (abs_path, sizeof (abs_path), "%s/%s", dirname, cgroup_name);
+
+	status = lstat (abs_path, &statbuf);
+	if (status != 0)
+	{
+		ERROR ("cgroups plugin: stat (\"%s\") failed.",
+			   abs_path);
+		return (-1);
+	}
+
+	/* We are only interested in directories, so skip everything else. */
+	if (!S_ISDIR (statbuf.st_mode))
+		return (0);
+
+	ssnprintf (abs_path, sizeof (abs_path), "%s/%s/cpuacct.stat",
+			   dirname, cgroup_name);
+
+	return process_cgroup_file(cgroup_name, "cpu", abs_path);
 } /* int read_cpuacct_procs */
 
 /*
