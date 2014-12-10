@@ -660,7 +660,7 @@ static int ceph_daemon_add_ds_entry(struct ceph_daemon *d, const char *name,
     ds = &ds_array[dset->ds_num++];
     snprintf(ds->name, MAX_RRD_DS_NAME_LEN, "%s", ds_name);
     ds->type = (pc_type & PERFCOUNTER_DERIVE) ? DS_TYPE_DERIVE : DS_TYPE_GAUGE;
-            
+
     /**
      * Use min of 0 for DERIVE types so we don't get negative values on Ceph
      * service restart
@@ -1037,15 +1037,15 @@ static int cconn_connect(struct cconn *io)
     int flags, fd, err;
     if(io->state != CSTATE_UNCONNECTED)
     {
-        ERROR("cconn_connect: io->state != CSTATE_UNCONNECTED");
+        ERROR("ceph plugin: cconn_connect: io->state != CSTATE_UNCONNECTED");
         return -EDOM;
     }
     fd = socket(PF_UNIX, SOCK_STREAM, 0);
     if(fd < 0)
     {
         int err = -errno;
-        ERROR("cconn_connect: socket(PF_UNIX, SOCK_STREAM, 0) failed: "
-        "error %d", err);
+        ERROR("ceph plugin: cconn_connect: socket(PF_UNIX, SOCK_STREAM, 0) "
+            "failed: error %d", err);
         return err;
     }
     memset(&address, 0, sizeof(struct sockaddr_un));
@@ -1056,7 +1056,8 @@ static int cconn_connect(struct cconn *io)
         connect(fd, (struct sockaddr *) &address, sizeof(struct sockaddr_un)));
     if(err < 0)
     {
-        ERROR("cconn_connect: connect(%d) failed: error %d", fd, err);
+        ERROR("ceph plugin: cconn_connect: connect(%d) failed: error %d",
+            fd, err);
         return err;
     }
 
@@ -1064,7 +1065,8 @@ static int cconn_connect(struct cconn *io)
     if(fcntl(fd, F_SETFL, flags | O_NONBLOCK) != 0)
     {
         err = -errno;
-        ERROR("cconn_connect: fcntl(%d, O_NONBLOCK) error %d", fd, err);
+        ERROR("ceph plugin: cconn_connect: fcntl(%d, O_NONBLOCK) error %d",
+            fd, err);
         return err;
     }
     io->asok = fd;
@@ -1215,7 +1217,8 @@ static int cconn_validate_revents(struct cconn *io, int revents)
 {
     if(revents & POLLERR)
     {
-        ERROR("cconn_validate_revents(name=%s): got POLLERR", io->d->name);
+        ERROR("ceph plugin: cconn_validate_revents(name=%s): got POLLERR",
+            io->d->name);
         return -EIO;
     }
     switch (io->state)
@@ -1228,8 +1231,8 @@ static int cconn_validate_revents(struct cconn *io, int revents)
             return (revents & POLLIN) ? 0 : -EINVAL;
             return (revents & POLLIN) ? 0 : -EINVAL;
         default:
-            ERROR("cconn_validate_revents(name=%s) got to illegal state on "
-                    "line %d", io->d->name, __LINE__);
+            ERROR("ceph plugin: cconn_validate_revents(name=%s) got to "
+                "illegal state on line %d", io->d->name, __LINE__);
             return -EDOM;
     }
 }
@@ -1241,8 +1244,8 @@ static int cconn_handle_event(struct cconn *io)
     switch (io->state)
     {
         case CSTATE_UNCONNECTED:
-            ERROR("cconn_handle_event(name=%s) got to illegal state on line "
-                    "%d", io->d->name, __LINE__);
+            ERROR("ceph plugin: cconn_handle_event(name=%s) got to illegal "
+                "state on line %d", io->d->name, __LINE__);
 
             return -EDOM;
         case CSTATE_WRITE_REQUEST:
@@ -1292,10 +1295,11 @@ static int cconn_handle_event(struct cconn *io)
                 io->d->version = ntohl(io->d->version);
                 if(io->d->version != 1)
                 {
-                    ERROR("cconn_handle_event(name=%s) not "
-                    "expecting version %d!", io->d->name, io->d->version);
+                    ERROR("ceph plugin: cconn_handle_event(name=%s) not "
+                        "expecting version %d!", io->d->name, io->d->version);
                     return -ENOTSUP;
-                }DEBUG("cconn_handle_event(name=%s): identified as "
+                }
+                DEBUG("cconn_handle_event(name=%s): identified as "
                         "version %d", io->d->name, io->d->version);
                 io->amt = 0;
                 cconn_close(io);
@@ -1323,7 +1327,7 @@ static int cconn_handle_event(struct cconn *io)
                 io->json = calloc(1, io->json_len + 1);
                 if(!io->json)
                 {
-                    ERROR("ERR CALLOCING IO->JSON");
+                    ERROR("ceph plugin: error callocing io->json");
                     return -ENOMEM;
                 }
             }
@@ -1353,8 +1357,8 @@ static int cconn_handle_event(struct cconn *io)
             return 0;
         }
         default:
-            ERROR("cconn_handle_event(name=%s) got to illegal state on "
-            "line %d", io->d->name, __LINE__);
+            ERROR("ceph plugin: cconn_handle_event(name=%s) got to illegal "
+                "state on line %d", io->d->name, __LINE__);
             return -EDOM;
     }
 }
@@ -1400,8 +1404,8 @@ static int cconn_prepare(struct cconn *io, struct pollfd* fds)
             fds->events = POLLIN;
             return 1;
         default:
-            ERROR("cconn_prepare(name=%s) got to illegal state on line %d",
-                    io->d->name, __LINE__);
+            ERROR("ceph plugin: cconn_prepare(name=%s) got to illegal state "
+                "on line %d", io->d->name, __LINE__);
             return -EDOM;
     }
 }
@@ -1456,7 +1460,7 @@ static int cconn_main_loop(uint32_t request_type)
             ret = cconn_prepare(io, fds + nfds);
             if(ret < 0)
             {
-                WARNING("ERROR: cconn_prepare(name=%s,i=%d,st=%d)=%d",
+                WARNING("ceph plugin: cconn_prepare(name=%s,i=%d,st=%d)=%d",
                         io->d->name, i, io->state, ret);
                 cconn_close(io);
                 io->request_type = ASOK_REQ_NONE;
@@ -1482,13 +1486,13 @@ static int cconn_main_loop(uint32_t request_type)
         {
             /* Timed out */
             ret = -ETIMEDOUT;
-            WARNING("ERROR: cconn_main_loop: timed out.\n");
+            WARNING("ceph plugin: cconn_main_loop: timed out.");
             goto done;
         }
         RETRY_ON_EINTR(ret, poll(fds, nfds, diff));
         if(ret < 0)
         {
-            ERROR("poll(2) error: %d", ret);
+            ERROR("ceph plugin: poll(2) error: %d", ret);
             goto done;
         }
         for(i = 0; i < nfds; ++i)
@@ -1501,7 +1505,7 @@ static int cconn_main_loop(uint32_t request_type)
             }
             else if(cconn_validate_revents(io, revents))
             {
-                WARNING("ERROR: cconn(name=%s,i=%d,st=%d): "
+                WARNING("ceph plugin: cconn(name=%s,i=%d,st=%d): "
                 "revents validation error: "
                 "revents=0x%08x", io->d->name, i, io->state, revents);
                 cconn_close(io);
@@ -1513,7 +1517,7 @@ static int cconn_main_loop(uint32_t request_type)
                 int ret = cconn_handle_event(io);
                 if(ret)
                 {
-                    WARNING("ERROR: cconn_handle_event(name=%s,"
+                    WARNING("ceph plugin: cconn_handle_event(name=%s,"
                     "i=%d,st=%d): error %d", io->d->name, i, io->state, ret);
                     cconn_close(io);
                     io->request_type = ASOK_REQ_NONE;
@@ -1562,7 +1566,8 @@ static int ceph_init(void)
             ret = plugin_register_data_set(d->dset + j);
             if(ret)
             {
-                ERROR("plugin_register_data_set(%s) failed!", d->name);
+                ERROR("ceph plugin: plugin_register_data_set(%s) failed!",
+                    d->name);
             }
             else
             {
