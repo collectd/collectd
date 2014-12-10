@@ -2855,6 +2855,12 @@ Memory subsystem rail (uVolts).
 
 =back
 
+=item B<WsrepStats> I<true|false>
+
+Enable the collection of wsrep plugin statistics, used in Master-Master
+replication setups like in MySQL Galera/Percona XtraDB Cluster.
+User needs only privileges to execute 'SHOW GLOBAL STATUS'
+
 =back
 
 =head2 Plugin C<memory>
