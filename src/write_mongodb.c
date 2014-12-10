@@ -38,32 +38,23 @@
 
 #include <pthread.h>
 
-#if HAVE_STDINT_H
-# define MONGO_HAVE_STDINT 1
-#else
-# define MONGO_USE_LONG_LONG_INT 1
-#endif
-
+#include <bson.h>
 #include <mongoc.h>
 
 struct wm_node_s
 {
   char name[DATA_MAX_NAME_LEN];
-
-  char *host;
-  int port;
   int timeout;
 
   /* Authentication information */
   char *db;
-  char *user;
-  char *passwd;
-  
-  char *uristr;
+  char *col;
+  char *uri;
+
+  mongoc_client_t *client;
 
   _Bool store_rates;
 
-  mongoc_client_t *client;
   pthread_mutex_t lock;
 };
 typedef struct wm_node_s wm_node_t;
@@ -71,21 +62,22 @@ typedef struct wm_node_s wm_node_t;
 /*
  * Functions
  */
-/* static bson_t *wm_create_bson (const data_set_t *ds, /1* {{{ *1/ */
-/*     const value_list_t *vl, */
-/*     _Bool store_rates) */
-/* { */
-/*   gauge_t *rates; */
-/*   bson_t *doc; */
-/*   bson_oid_t oid; */
-/*   int i; */
+static bson_t *wm_create_bson (const data_set_t *ds, /* {{{ */
+    const value_list_t *vl,
+    _Bool store_rates)
+{
+  //gauge_t *rates;
+  bson_t *doc;
+  bson_oid_t oid;
+  //int i;
 
-/*   doc = bson_new (); */
-/*   if (doc == NULL) */
-/*   { */
-/*     ERROR ("write_mongodb plugin: bson_new failed."); */
-/*     return (NULL); */
-/*   } */
+  doc = bson_new ();
+  printf("DOC\n");
+  if (doc == NULL)
+  {
+    ERROR ("write_mongodb plugin: bson_new failed.");
+    return (NULL);
+  }
 
   /* if (store_rates) */
   /* { */
@@ -101,11 +93,11 @@ typedef struct wm_node_s wm_node_t;
   /*   rates = NULL; */
   /* } */
 
+  bson_oid_init (&oid, NULL);
+  BSON_APPEND_OID (doc, "_id", &oid);
 
-  //bson_oid_init (&oid, NULL);
-  //BSON_APPEND_OID(doc, "_id", &oid);
-  /* bson_append_date_time (doc, "time", (bson_date_t) CDTIME_T_TO_MS (vl->time)); */
-  /* bson_append_utf8 (doc, "host", vl->host); */
+  //bson_append_date_time (doc, "time", (bson_date_t) CDTIME_T_TO_MS (vl->time));
+  BSON_APPEND_UTF8 (doc, "host", vl->host);
   /* bson_append_utf8 (doc, "plugin", vl->plugin); */
   /* bson_append_utf8 (doc, "plugin_instance", vl->plugin_instance); */
   /* bson_append_utf8 (doc, "type", vl->type); */
@@ -157,24 +149,27 @@ typedef struct wm_node_s wm_node_t;
   /* } */
   /* bson_append_finish_array (ret); /1* }}} dsnames *1/ */
 
-  /* bson_finish (ret); */
+  //bson_finish (ret);
 
-  /* sfree (rates); */
-  /* return (ret); */
-/* } /1* }}} bson *wm_create_bson *1/ */
+  //sfree (rates);
+  return (doc);
+} /* }}} bson *wm_create_bson */
 
 static int wm_write (const data_set_t *ds, /* {{{ */
     const value_list_t *vl,
     user_data_t *ud)
 {
   wm_node_t *node = ud->data;
-  //bson_t *bson_record;
-  char collection_name[512];
 
-  ssnprintf (collection_name, sizeof (collection_name), "collectd.%s",
-      vl->plugin);
+  bson_t *bson_record;
+  mongoc_collection_t *collection;
+  bson_error_t error;
 
-  //bson_record = wm_create_bson (ds, vl, node->store_rates);
+  /* ssnprintf (collection_name, sizeof (collection_name), "%s.%s", */
+  /*     node->db, vl->plugin); */
+
+  printf("%s.%s\n", node->db, vl->plugin);
+  bson_record = wm_create_bson (ds, vl, node->store_rates);
   //if (bson_record == NULL)
   //  return (ENOMEM);
 
@@ -183,60 +178,37 @@ static int wm_write (const data_set_t *ds, /* {{{ */
   /* if (!mongo_is_connected (node->conn)) */
   /* { */
 
-  INFO ("write_mongodb plugin: Connecting to [%s]", node->uristr);
+  printf("Mutex lock \n");
+  ///INFO ("write_mongodb plugin: Connecting to [%s]", node->uri);
 
-  node->client = mongoc_client_new (node->uristr);
+  /* if (!node->client) { */
+  /*   ERROR ("write_mongodb plugin: Connecting to [%s] failed.", node->uri); */
+  /*   mongoc_client_destroy (node->client); */
+  /*   pthread_mutex_unlock (&node->lock); */
+  /*   return (-1); */
+  /* } */
 
-  if (!node->client) {
-    ERROR ("write_mongodb plugin: Connecting to [%s] failed.", node->uristr);
-    mongoc_client_destroy (node->client);
-    pthread_mutex_unlock (&node->lock);
-    return (-1);
+  printf("Client here\n");
+  node->client = mongoc_client_new (node->uri);
+  printf("%s\n", node->uri);
+  collection = mongoc_client_get_collection (node->client, node->db, node->col);
+  printf("%s\n", node->db);
+  printf("%s\n", node->col);
+  printf("Inserting on MongDB");
+  printf("%s %s %s\n", node->uri, node->db, node->col);
+  
+  if (!mongoc_collection_insert (collection, MONGOC_INSERT_NONE, bson_record, NULL, &error)) {
+    ERROR ( "write_mongodb plugin: error inserting record:" );
+    printf("%s\n", error.message);
   }
-
-    /* if ((node->db != NULL) && (node->user != NULL) && (node->passwd != NULL)) */
-    /* { */
-    /*   status = mongo_cmd_authenticate (node->conn, */
-    /*       node->db, node->user, node->passwd); */
-    /*   if (status != MONGO_OK) */
-    /*   { */
-    /*     ERROR ("write_mongodb plugin: Authenticating to [%s]%i for database " */
-    /*         "\"%s\" as user \"%s\" failed.", */
-    /*       (node->host != NULL) ? node->host : "localhost", */
-    /*       (node->port != 0) ? node->port : MONGO_DEFAULT_PORT, */
-    /*       node->db, node->user); */
-    /*     mongo_destroy (node->conn); */
-    /*     pthread_mutex_unlock (&node->lock); */
-    /*     return (-1); */
-    /*   } */
-    /* } */
-
-    /* if (node->timeout > 0) { */
-    /*   status = mongo_set_op_timeout (node->conn, node->timeout); */
-    /*   if (status != MONGO_OK) { */
-    /*     WARNING ("write_mongodb plugin: mongo_set_op_timeout(%i) failed: %s", */
-    /*         node->timeout, node->conn->errstr); */
-    /*   } */
-    /* } */
-  }
-
-  /* Assert if the connection has been established */
-  //assert (mongo_is_connected (node->conn));
-
-  bson_error_t error;
-  mongoc_collection_t *collection;
-
-  collection = mongoc_client_get_collection ((mongoc_client_t *) node->client, "teste", "teste");
-  status = mongoc_collection_insert (node->client, MONGOC_INSERT_NONE, doc, NULL, &error);
 
   /* if (status != MONGO_OK) */
   /* { */
   /*   ERROR ( "write_mongodb plugin: error inserting record: %d", node->conn->err); */
   /*   if (node->conn->err != MONGO_BSON_INVALID) */
   /*     ERROR ("write_mongodb plugin: %s", node->conn->errstr); */
-  /*   /1* else *1/ */
-    /*   ERROR ("write_mongodb plugin: Invalid BSON structure, error = %#x", */
-    /*       (unsigned int) bson_record->err); */
+  /*   else */
+  /*     ERROR ("write_mongodb plugin: Invalid BSON structure, error = %#x", (unsigned int) bson_record->err); */ 
 
     /* Disconnect except on data errors. */
     /* if ((node->conn->err != MONGO_BSON_INVALID) */
@@ -259,10 +231,10 @@ static void wm_config_free (void *ptr) /* {{{ */
   if (node == NULL)
     return;
 
-  if (mongo_is_connected (node->conn))
-    mongo_destroy (node->conn);
+  if (node->client != NULL)
+    mongoc_client_destroy(node->client);
 
-  sfree (node->host);
+  sfree (node->uri);
   sfree (node);
 } /* }}} void wm_config_free */
 
@@ -277,7 +249,7 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
     return (ENOMEM);
   memset (node, 0, sizeof (*node));
   mongoc_init ();
-  node->host = NULL;
+  node->uri= NULL;
   node->store_rates = 1;
   pthread_mutex_init (&node->lock, /* attr = */ NULL);
 
@@ -293,27 +265,14 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
   {
     oconfig_item_t *child = ci->children + i;
 
-    if (strcasecmp ("Host", child->key) == 0)
-      status = cf_util_get_string (child, &node->host);
-    else if (strcasecmp ("Port", child->key) == 0)
-    {
-      status = cf_util_get_port_number (child);
-      if (status > 0)
-      {
-        node->port = status;
-        status = 0;
-      }
-    }
+    if (strcasecmp ("URI", child->key) == 0)
+      status = cf_util_get_string (child, &node->uri);
     else if (strcasecmp ("Timeout", child->key) == 0)
       status = cf_util_get_int (child, &node->timeout);
-    else if (strcasecmp ("StoreRates", child->key) == 0)
-      status = cf_util_get_boolean (child, &node->store_rates);
-    else if (strcasecmp ("Database", child->key) == 0)
+   else if (strcasecmp ("Database", child->key) == 0)
       status = cf_util_get_string (child, &node->db);
-    else if (strcasecmp ("User", child->key) == 0)
-      status = cf_util_get_string (child, &node->user);
-    else if (strcasecmp ("Password", child->key) == 0)
-      status = cf_util_get_string (child, &node->passwd);
+   else if (strcasecmp ("Collection", child->key) == 0)
+      status = cf_util_get_string (child, &node->col);
     else
       WARNING ("write_mongodb plugin: Ignoring unknown config option \"%s\".",
           child->key);
@@ -322,19 +281,20 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
       break;
   } /* for (i = 0; i < ci->children_num; i++) */
 
-  if ((node->db != NULL) || (node->user != NULL) || (node->passwd != NULL))
-  {
-    if ((node->db == NULL) || (node->user == NULL) || (node->passwd == NULL))
-    {
-      WARNING ("write_mongodb plugin: Authentication requires the "
-          "\"Database\", \"User\" and \"Password\" options to be specified, "
-          "but at last one of them is missing. Authentication will NOT be "
-          "used.");
-      sfree (node->db);
-      sfree (node->user);
-      sfree (node->passwd);
-    }
-  }
+  // TODO - Password/user testing
+  /* if ((node->db != NULL) || (node->user != NULL) || (node->passwd != NULL)) */
+  /* { */
+  /*   if ((node->db == NULL) || (node->user == NULL) || (node->passwd == NULL)) */
+  /*   { */
+  /*     WARNING ("write_mongodb plugin: Authentication requires the " */
+  /*         "\"Database\", \"User\" and \"Password\" options to be specified, " */
+  /*         "but at last one of them is missing. Authentication will NOT be " */
+  /*         "used."); */
+  /*     sfree (node->db); */
+  /*     sfree (node->col); */
+  /*     sfree (node->uri); */
+  /*   } */
+  /* } */
 
   if (status == 0)
   {
@@ -347,6 +307,7 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
     ud.free_func = wm_config_free;
 
     status = plugin_register_write (cb_name, wm_write, &ud);
+    printf("Registering write\n");
     INFO ("write_mongodb plugin: registered write plugin %s %d",cb_name,status);
   }
 
