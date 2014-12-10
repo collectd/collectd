@@ -2530,9 +2530,9 @@ then
 	then
 		AC_MSG_NOTICE([libmongoc CPPFLAGS: $LIBMONGOC_CPPFLAGS])
 	fi
-	AC_CHECK_HEADERS(mongo.h,
+	AC_CHECK_HEADERS(mongoc.h,
 	[with_libmongoc="yes"],
-	[with_libmongoc="no ('mongo.h' not found)"],
+	[with_libmongoc="no ('mongoc.h' not found)"],
 [#if HAVE_STDINT_H
 # define MONGO_HAVE_STDINT 1
 #else

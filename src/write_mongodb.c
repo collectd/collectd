@@ -3,6 +3,7 @@
  * Copyright (C) 2010-2013  Florian Forster
  * Copyright (C) 2010       Akkarit Sangpetch
  * Copyright (C) 2012       Chris Lundquist
+ * Copyright (C) 2014       Amim Knabben
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,6 +27,7 @@
  *   Florian Forster <octo at collectd.org>
  *   Akkarit Sangpetch <asangpet at andrew.cmu.edu>
  *   Chris Lundquist <clundquist at bluebox.net>
+ *   Amim Knabben <amim.knabben at gmail.com>
  **/
 
 #include "collectd.h"
@@ -41,7 +43,8 @@
 #else
 # define MONGO_USE_LONG_LONG_INT 1
 #endif
-#include <mongo.h>
+
+#include <mongoc.h>
 
 struct wm_node_s
 {
@@ -72,36 +75,40 @@ static bson *wm_create_bson (const data_set_t *ds, /* {{{ */
 {
   bson *ret;
   gauge_t *rates;
+  bson_t *doc;
   int i;
 
-  ret = bson_create ();
-  if (ret == NULL)
+  doc = bson_new ();
+  if (doc == NULL)
   {
-    ERROR ("write_mongodb plugin: bson_create failed.");
+    ERROR ("write_mongodb plugin: bson_new failed.");
     return (NULL);
   }
 
-  if (store_rates)
-  {
-    rates = uc_get_rate (ds, vl);
-    if (rates == NULL)
-    {
-      ERROR ("write_mongodb plugin: uc_get_rate() failed.");
-      return (NULL);
-    }
-  }
-  else
-  {
-    rates = NULL;
-  }
+  /* if (store_rates) */
+  /* { */
+  /*   rates = uc_get_rate (ds, vl); */
+  /*   if (rates == NULL) */
+  /*   { */
+  /*     ERROR ("write_mongodb plugin: uc_get_rate() failed."); */
+  /*     return (NULL); */
+  /*   } */
+  /* } */
+  /* else */
+  /* { */
+  /*   rates = NULL; */
+  /* } */
 
-  bson_init (ret);
-  bson_append_date (ret, "time", (bson_date_t) CDTIME_T_TO_MS (vl->time));
-  bson_append_string (ret, "host", vl->host);
-  bson_append_string (ret, "plugin", vl->plugin);
-  bson_append_string (ret, "plugin_instance", vl->plugin_instance);
-  bson_append_string (ret, "type", vl->type);
-  bson_append_string (ret, "type_instance", vl->type_instance);
+  bson_oid_t oid;
+
+  bson_oid_init (&oid, NULL);
+  BSON_APPEND_OID(doc, "_id", &oid);
+  bson_append_date_time (doc, "time", (bson_date_t) CDTIME_T_TO_MS (vl->time));
+  BSON_APPEND_UTF8 (doc, "host", vl->host);
+  BSON_APPEND_UTF8 (doc, "plugin", vl->plugin);
+  BSON_APPEND_UTF8 (doc, "plugin_instance", vl->plugin_instance);
+  BSON_APPEND_UTF8 (doc, "type", vl->type);
+  BSON_APPEND_UTF8 (doc, "type_instance", vl->type_instance);
 
   bson_append_start_array (ret, "values"); /* {{{ */
   for (i = 0; i < ds->ds_num; i++)
@@ -160,8 +167,9 @@ static int wm_write (const data_set_t *ds, /* {{{ */
     user_data_t *ud)
 {
   wm_node_t *node = ud->data;
+  montoc_client_t *client;
+  bson_t *bson_record;
   char collection_name[512];
-  bson *bson_record;
   int status;
 
   ssnprintf (collection_name, sizeof (collection_name), "collectd.%s",
@@ -175,55 +183,48 @@ static int wm_write (const data_set_t *ds, /* {{{ */
 
   if (!mongo_is_connected (node->conn))
   {
-    INFO ("write_mongodb plugin: Connecting to [%s]:%i",
-        (node->host != NULL) ? node->host : "localhost",
-        (node->port != 0) ? node->port : MONGO_DEFAULT_PORT);
-    status = mongo_connect (node->conn, node->host, node->port);
-    if (status != MONGO_OK) {
-      ERROR ("write_mongodb plugin: Connecting to [%s]:%i failed.",
-          (node->host != NULL) ? node->host : "localhost",
-          (node->port != 0) ? node->port : MONGO_DEFAULT_PORT);
+
+    INFO ("write_mongodb plugin: Connecting to [%s]", node->uristr);
+
+    client = mongoc_client_new (node->uristr);
+
+    if (!client) {
+      ERROR ("write_mongodb plugin: Connecting to [%s] failed.", node->uristr);
       mongo_destroy (node->conn);
       pthread_mutex_unlock (&node->lock);
       return (-1);
     }
 
-    if ((node->db != NULL) && (node->user != NULL) && (node->passwd != NULL))
-    {
-      status = mongo_cmd_authenticate (node->conn,
-          node->db, node->user, node->passwd);
-      if (status != MONGO_OK)
-      {
-        ERROR ("write_mongodb plugin: Authenticating to [%s]%i for database "
-            "\"%s\" as user \"%s\" failed.",
-          (node->host != NULL) ? node->host : "localhost",
-          (node->port != 0) ? node->port : MONGO_DEFAULT_PORT,
-          node->db, node->user);
-        mongo_destroy (node->conn);
-        pthread_mutex_unlock (&node->lock);
-        return (-1);
-      }
-    }
+    /* if ((node->db != NULL) && (node->user != NULL) && (node->passwd != NULL)) */
+    /* { */
+    /*   status = mongo_cmd_authenticate (node->conn, */
+    /*       node->db, node->user, node->passwd); */
+    /*   if (status != MONGO_OK) */
+    /*   { */
+    /*     ERROR ("write_mongodb plugin: Authenticating to [%s]%i for database " */
+    /*         "\"%s\" as user \"%s\" failed.", */
+    /*       (node->host != NULL) ? node->host : "localhost", */
+    /*       (node->port != 0) ? node->port : MONGO_DEFAULT_PORT, */
+    /*       node->db, node->user); */
+    /*     mongo_destroy (node->conn); */
+    /*     pthread_mutex_unlock (&node->lock); */
+    /*     return (-1); */
+    /*   } */
+    /* } */
 
-    if (node->timeout > 0) {
-      status = mongo_set_op_timeout (node->conn, node->timeout);
-      if (status != MONGO_OK) {
-        WARNING ("write_mongodb plugin: mongo_set_op_timeout(%i) failed: %s",
-            node->timeout, node->conn->errstr);
-      }
-    }
+    /* if (node->timeout > 0) { */
+    /*   status = mongo_set_op_timeout (node->conn, node->timeout); */
+    /*   if (status != MONGO_OK) { */
+    /*     WARNING ("write_mongodb plugin: mongo_set_op_timeout(%i) failed: %s", */
+    /*         node->timeout, node->conn->errstr); */
+    /*   } */
+    /* } */
   }
 
   /* Assert if the connection has been established */
   assert (mongo_is_connected (node->conn));
 
-  #if MONGO_MINOR >= 6
-    /* There was an API change in 0.6.0 as linked below */
-    /* https://github.com/mongodb/mongo-c-driver/blob/master/HISTORY.md */
-    status = mongo_insert (node->conn, collection_name, bson_record, NULL);
-  #else
-    status = mongo_insert (node->conn, collection_name, bson_record);
-  #endif
+  status = mongoc_collection_insert (node->conn, collection_name, bson_record);
 
   if (status != MONGO_OK)
   {
@@ -272,7 +273,7 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
   if (node == NULL)
     return (ENOMEM);
   memset (node, 0, sizeof (*node));
-  mongo_init (node->conn);
+  mongoc_init ();
   node->host = NULL;
   node->store_rates = 1;
   pthread_mutex_init (&node->lock, /* attr = */ NULL);
