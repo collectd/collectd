@@ -1006,17 +1006,15 @@ Default: Enabled
 Each B<Daemon> block must have a string argument for the plugin instance name.
 A B<SocketPath> is also required for each B<Daemon> block:
 
+=over 4
+
 =item B<Daemon> I<DaemonName>
 
 Name to be used as the instance name for this daemon.
 
-=over 4
-
 =item B<SocketPath> I<SocketPath>
 
 Specifies the path to the UNIX admin socket of the ceph daemon.
-
-=back
 
 =back
 
