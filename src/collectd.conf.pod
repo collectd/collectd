@@ -2880,8 +2880,8 @@ which the sizes of physical memory vary.
 
 =head2 Plugin C<modbus>
 
-The B<modbus plugin> connects to a Modbus "slave" via Modbus/TCP and reads
-register values. It supports reading single registers (unsigned 16E<nbsp>bit
+The B<modbus plugin> connects to a Modbus "slave" via Modbus/TCP or Modbus/RTU and
+reads register values. It supports reading single registers (unsigned 16E<nbsp>bit
 values), large integer values (unsigned 32E<nbsp>bit values) and floating point
 values (two registers interpreted as IEEE floats in big endian notation).
 
@@ -2903,6 +2903,14 @@ B<Synopsis:>
    Instance "input-2"
  </Data>
 
+ <Data "supply-temperature-1">
+   RegisterBase 0
+   RegisterType Int16
+   ModbusRegisterType holding
+   Type temperature
+   Instance "temp-1"
+ </Data>
+
  <Host "modbus.example.com">
    Address "192.168.0.42"
    Port    "502"
@@ -2912,6 +2920,17 @@ B<Synopsis:>
      Instance "power-supply"
      Collect  "voltage-input-1"
      Collect  "voltage-input-2"
+   </Slave>
+ </Host>
+
+ <Host "localhost">
+   Device "/dev/ttyUSB0"
+   Baudrate 38400
+   Interval 20
+
+   <Slave 1>
+     Instance "temperature"
+     Collect  "supply-temperature-1"
    </Slave>
  </Host>
 
@@ -2968,15 +2987,25 @@ Within E<lt>HostE<nbsp>/E<gt> blocks, the following options are allowed:
 
 =item B<Address> I<Hostname>
 
-Specifies the node name (the actual network address) used to connect to the
-host. This may be an IP address or a hostname. Please note that the used
-I<libmodbus> library only supports IPv4 at the moment.
+For Modbus/TCP, specifies the node name (the actual network address) used to
+connect to the host. This may be an IP address or a hostname. Please note that
+the used I<libmodbus> library only supports IPv4 at the moment.
 
 =item B<Port> I<Service>
 
-Specifies the port used to connect to the host. The port can either be given as
-a number or as a service name. Please note that the I<Service> argument must be
-a string, even if ports are given in their numerical form. Defaults to "502".
+for Modbus/TCP, specifies the port used to connect to the host. The port can
+either be given as a number or as a service name. Please note that the
+I<Service> argument must be a string, even if ports are given in their numerical
+form. Defaults to "502".
+
+=item B<Device> I<Devicenode>
+
+For Modbus/RTU, specifies the path to the serial device being used.
+
+=item B<Baudrate> I<Baudrate>
+
+For Modbus/RTU, specifies the baud rate of the serial device.
+Note, connections currently support only 8/N/1.
 
 =item B<Interval> I<Interval>
 
@@ -2985,7 +3014,7 @@ host. By default the global B<Interval> setting will be used.
 
 =item E<lt>B<Slave> I<ID>E<gt>
 
-Over each TCP connection, multiple Modbus devices may be reached. The slave ID
+Over each connection, multiple Modbus devices may be reached. The slave ID
 is used to specify which device should be addressed. For each device you want
 to query, one B<Slave> block must be given.
 

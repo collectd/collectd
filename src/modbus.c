@@ -56,6 +56,10 @@
  * <Host "name">
  *   Address "addr"
  *   Port "1234"
+ *   # Or:
+ *   # Device "/dev/ttyUSB0"
+ *   # Baudrate 38400
+ *   # (Assumes 8N1)
  *   Interval 60
  *
  *   <Slave 1>
@@ -84,6 +88,14 @@ enum mb_mreg_type_e /* {{{ */
 typedef enum mb_register_type_e mb_register_type_t;
 typedef enum mb_mreg_type_e mb_mreg_type_t;
 
+/* TCP or RTU depending on what is specified in host config block */
+enum mb_conntype_e /* {{{ */
+{
+  MBCONN_TCP,
+  MBCONN_RTU
+}; /* }}} */
+typedef enum mb_conntype_e mb_conntype_t;
+
 struct mb_data_s;
 typedef struct mb_data_s mb_data_t;
 struct mb_data_s /* {{{ */
@@ -109,9 +121,11 @@ typedef struct mb_slave_s mb_slave_t;
 struct mb_host_s /* {{{ */
 {
   char host[DATA_MAX_NAME_LEN];
-  char node[NI_MAXHOST];
+  char node[NI_MAXHOST];	/* TCP hostname or RTU serial device */
   /* char service[NI_MAXSERV]; */
-  int port;
+  int port;			/* for Modbus/TCP */
+  int baudrate;			/* for Modbus/RTU */
+  mb_conntype_t conntype;
   cdtime_t interval;
 
   mb_slave_t *slaves;
@@ -301,21 +315,33 @@ static int mb_init_connection (mb_host_t *host) /* {{{ */
   /* We'll do the error handling ourselves. */
   modbus_set_error_handling (&host->connection, NOP_ON_ERROR);
 
-  if ((host->port < 1) || (host->port > 65535))
-    host->port = MODBUS_TCP_DEFAULT_PORT;
+  if (host->conntype == MBCONN_TCP)
+  {
+    if ((host->port < 1) || (host->port > 65535))
+      host->port = MODBUS_TCP_DEFAULT_PORT;
 
-  DEBUG ("Modbus plugin: Trying to connect to \"%s\", port %i.",
-      host->node, host->port);
+    DEBUG ("Modbus plugin: Trying to connect to \"%s\", port %i.",
+        host->node, host->port);
 
-  modbus_init_tcp (&host->connection,
-      /* host = */ host->node,
-      /* port = */ host->port);
+    modbus_init_tcp (&host->connection,
+        /* host = */ host->node,
+        /* port = */ host->port);
+  }
+  else	/* MBCONN_RTU */
+  {
+    DEBUG ("Modbus plugin: Trying to connect to \"%s\".", host->node);
+
+    modbus_init_rtu (&host->connection,
+       /* device = */ host->node,
+     /* baudrate = */ host->baudrate,
+                      'N', 8, 1, 0);
+  }
 
   status = modbus_connect (&host->connection);
   if (status != 0)
   {
     ERROR ("Modbus plugin: modbus_connect (%s, %i) failed with status %i.",
-        host->node, host->port, status);
+        host->node, host->port ? host->port : host->baudrate, status);
     return (status);
   }
 
@@ -336,17 +362,32 @@ static int mb_init_connection (mb_host_t *host) /* {{{ */
   if (host->connection != NULL)
     return (0);
 
-  if ((host->port < 1) || (host->port > 65535))
-    host->port = MODBUS_TCP_DEFAULT_PORT;
-
-  DEBUG ("Modbus plugin: Trying to connect to \"%s\", port %i.",
-      host->node, host->port);
-
-  host->connection = modbus_new_tcp (host->node, host->port);
-  if (host->connection == NULL)
+  if (host->conntype == MBCONN_TCP)
   {
-    ERROR ("Modbus plugin: Creating new Modbus/TCP object failed.");
-    return (-1);
+    if ((host->port < 1) || (host->port > 65535))
+      host->port = MODBUS_TCP_DEFAULT_PORT;
+
+    DEBUG ("Modbus plugin: Trying to connect to \"%s\", port %i.",
+        host->node, host->port);
+
+    host->connection = modbus_new_tcp (host->node, host->port);
+    if (host->connection == NULL)
+    {
+      ERROR ("Modbus plugin: Creating new Modbus/TCP object failed.");
+      return (-1);
+    }
+  }
+  else
+  {
+    DEBUG ("Modbus plugin: Trying to connect to \"%s\", baudrate %i.",
+        host->node, host->baudrate);
+
+    host->connection = modbus_new_rtu (host->node, host->baudrate, 'N', 8, 1);
+    if (host->connection == NULL)
+    {
+      ERROR ("Modbus plugin: Creating new Modbus/RTU object failed.");
+      return (-1);
+    }
   }
 
   modbus_set_debug (host->connection, 1);
@@ -358,7 +399,7 @@ static int mb_init_connection (mb_host_t *host) /* {{{ */
   if (status != 0)
   {
     ERROR ("Modbus plugin: modbus_connect (%s, %i) failed with status %i.",
-        host->node, host->port, status);
+        host->node, host->port ? host->port : host->baudrate, status);
     modbus_free (host->connection);
     host->connection = NULL;
     return (status);
@@ -427,7 +468,7 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
   {
     status = EBADF;
   }
-  else
+  else if (host->conntype == MBCONN_TCP)
   {
     struct sockaddr sockaddr;
     socklen_t saddrlen = sizeof (sockaddr);
@@ -919,6 +960,8 @@ static int mb_config_add_host (oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string_buffer (child, buffer, sizeof (buffer));
       if (status == 0)
         status = mb_config_set_host_address (host, buffer);
+      if (status == 0)
+        host->conntype = MBCONN_TCP;
     }
     else if (strcasecmp ("Port", child->key) == 0)
     {
@@ -926,6 +969,14 @@ static int mb_config_add_host (oconfig_item_t *ci) /* {{{ */
       if (host->port <= 0)
         status = -1;
     }
+    else if (strcasecmp ("Device", child->key) == 0)
+    {
+      status = cf_util_get_string_buffer (child, host->node, sizeof (host->node));
+      if (status == 0)
+        host->conntype = MBCONN_RTU;
+    }
+    else if (strcasecmp ("Baudrate", child->key) == 0)
+      status = cf_util_get_int(child, &host->baudrate);
     else if (strcasecmp ("Interval", child->key) == 0)
       status = cf_util_get_cdtime (child, &host->interval);
     else if (strcasecmp ("Slave", child->key) == 0)
@@ -942,9 +993,22 @@ static int mb_config_add_host (oconfig_item_t *ci) /* {{{ */
   } /* for (i = 0; i < ci->children_num; i++) */
 
   assert (host->host[0] != 0);
-  if (host->host[0] == 0)
+  if (host->node[0] == 0)
   {
-    ERROR ("Modbus plugin: Data block \"%s\": No type has been specified.",
+    ERROR ("Modbus plugin: Data block \"%s\": No address or device has been specified.",
+        host->host);
+    status = -1;
+  }
+  if (host->conntype == MBCONN_RTU && !host->baudrate)
+  {
+    ERROR ("Modbus plugin: Data block \"%s\": No serial baudrate has been specified.",
+        host->host);
+    status = -1;
+  }
+  if ((host->conntype == MBCONN_TCP && host->baudrate) ||
+      (host->conntype == MBCONN_RTU && host->port))
+  {
+    ERROR ("Modbus plugin: Data block \"%s\": You've mixed up RTU and TCP options.",
         host->host);
     status = -1;
   }
