@@ -588,7 +588,7 @@ lv_read (void)
         }
 
         for (j = 0; j < status; j++) {
-            memory_stats_submit ((gauge_t) minfo[j].val, domains[i], minfo[j].tag);
+            memory_stats_submit ((gauge_t) minfo[j].val * 1024, domains[i], minfo[j].tag);
         }
 
         sfree (minfo);
