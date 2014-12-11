@@ -110,7 +110,7 @@ static int process_cgroup_file(const char *cgroup_name, const char* type_value, 
 
 	fclose (fh);
 	return (0);
-}
+} /* process_cgroup_file */
 
 /*
  * This callback reads the user/system CPU time for each cgroup.
