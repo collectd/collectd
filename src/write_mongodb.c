@@ -66,93 +66,74 @@ static bson_t *wm_create_bson (const data_set_t *ds, /* {{{ */
     const value_list_t *vl,
     _Bool store_rates)
 {
-  //gauge_t *rates;
-  bson_t *doc;
-  bson_oid_t oid;
-  //int i;
+  bson_t *doc, values, dstypes, dsnames;
+  int i;
 
   doc = bson_new ();
-  printf("DOC\n");
-  if (doc == NULL)
-  {
-    ERROR ("write_mongodb plugin: bson_new failed.");
-    return (NULL);
-  }
 
-  /* if (store_rates) */
-  /* { */
-  /*   rates = uc_get_rate (ds, vl); */
-  /*   if (rates == NULL) */
-  /*   { */
-  /*     ERROR ("write_mongodb plugin: uc_get_rate() failed."); */
-  /*     return (NULL); */
-  /*   } */
-  /* } */
-  /* else */
-  /* { */
-  /*   rates = NULL; */
-  /* } */
+  /* bson_oid_init (&oid, NULL); */
+  /* BSON_APPEND_OID (doc, "_id", &oid); */
 
-  bson_oid_init (&oid, NULL);
-  BSON_APPEND_OID (doc, "_id", &oid);
-
-  //bson_append_date_time (doc, "time", (bson_date_t) CDTIME_T_TO_MS (vl->time));
+  BSON_APPEND_DATE_TIME (doc, "time",  CDTIME_T_TO_DOUBLE (vl->time));
   BSON_APPEND_UTF8 (doc, "host", vl->host);
-  /* bson_append_utf8 (doc, "plugin", vl->plugin); */
-  /* bson_append_utf8 (doc, "plugin_instance", vl->plugin_instance); */
-  /* bson_append_utf8 (doc, "type", vl->type); */
-  /* bson_append_utf8 (doc, "type_instance", vl->type_instance); */
+  BSON_APPEND_UTF8 (doc, "plugin", vl->plugin);
+  BSON_APPEND_UTF8 (doc, "plugin_instance", vl->plugin_instance);
+  BSON_APPEND_UTF8 (doc, "type", vl->type);
+  BSON_APPEND_UTF8 (doc, "type_instance", vl->type_instance);
 
-  /* bson_append_start_array (ret, "values"); /1* {{{ *1/ */
-  /* for (i = 0; i < ds->ds_num; i++) */
-  /* { */
-  /*   char key[16]; */
 
-  /*   ssnprintf (key, sizeof (key), "%i", i); */
+  bson_append_array_begin (doc, "values", -1, &values); 
+  for (i = 0; i < ds->ds_num; i++)
+  {
+    char key[16];
+    ssnprintf (key, sizeof (key), "%i", i);
 
-  /*   if (ds->ds[i].type == DS_TYPE_GAUGE) */
-  /*     bson_append_double(ret, key, vl->values[i].gauge); */
-  /*   else if (store_rates) */
-  /*     bson_append_double(ret, key, (double) rates[i]); */
-  /*   else if (ds->ds[i].type == DS_TYPE_COUNTER) */
-  /*     bson_append_long(ret, key, vl->values[i].counter); */
-  /*   else if (ds->ds[i].type == DS_TYPE_DERIVE) */
-  /*     bson_append_long(ret, key, vl->values[i].derive); */
-  /*   else if (ds->ds[i].type == DS_TYPE_ABSOLUTE) */
-  /*     bson_append_long(ret, key, vl->values[i].absolute); */
-  /*   else */
-  /*     assert (23 == 42); */
-  /* } */
-  /* bson_append_finish_array (ret); /1* }}} values *1/ */
+    if (ds->ds[i].type == DS_TYPE_GAUGE)
+      bson_append_double(&values, key, -1, vl->values[i].gauge);
 
-  /* bson_append_start_array (ret, "dstypes"); /1* {{{ *1/ */
-  /* for (i = 0; i < ds->ds_num; i++) */
-  /* { */
-  /*   char key[16]; */
+    else if (ds->ds[i].type == DS_TYPE_COUNTER)
+      bson_append_double(&values, key, -1, vl->values[i].counter);
 
-  /*   ssnprintf (key, sizeof (key), "%i", i); */
+    else if (ds->ds[i].type == DS_TYPE_DERIVE) 
+      bson_append_double(&values, key, -1, vl->values[i].derive);
 
-  /*   if (store_rates) */
-  /*     bson_append_string (ret, key, "gauge"); */
-  /*   else */
-  /*     bson_append_string (ret, key, DS_TYPE_TO_STRING (ds->ds[i].type)); */
-  /* } */
-  /* bson_append_finish_array (ret); /1* }}} dstypes *1/ */
+    else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
+      bson_append_double(&values, key, -1, vl->values[i].absolute);
 
-  /* bson_append_start_array (ret, "dsnames"); /1* {{{ *1/ */
-  /* for (i = 0; i < ds->ds_num; i++) */
-  /* { */
-  /*   char key[16]; */
+    else
+      assert (23 == 42);
+  }
+  bson_append_array_end (doc, &values);
 
-  /*   ssnprintf (key, sizeof (key), "%i", i); */
-  /*   bson_append_string (ret, key, ds->ds[i].name); */
-  /* } */
-  /* bson_append_finish_array (ret); /1* }}} dsnames *1/ */
 
-  //bson_finish (ret);
+  bson_append_array_begin (doc, "dstypes", -1, &dstypes);
+  for (i = 0; i < ds->ds_num; i++)
+  {
+    char key[16];
+    ssnprintf (key, sizeof (key), "%i", i);
+    //if (store_rates)
+    //bson_append_string (&dstypes, key, "gauge");
+    //else 
+    bson_append_utf8 (&dstypes, key, -1, DS_TYPE_TO_STRING (ds->ds[i].type), -1);
+  }
+  bson_append_array_end (doc, &dstypes);
 
-  //sfree (rates);
-  return (doc);
+
+  bson_append_array_begin (doc, "dsnames", -1, &dsnames);
+  for (i = 0; i < ds->ds_num; i++)
+  {
+    char key[16];
+
+    ssnprintf (key, sizeof (key), "%i", i);
+    bson_append_utf8 (&dsnames, key, -1, ds->ds[i].name, -1);
+  }
+  bson_append_array_end (doc, &dsnames);
+
+  /* bson_free(&values); */
+  /* bson_free(&dsnames); */
+  /* bson_free(&dstypes); */
+
+  return doc;
 } /* }}} bson *wm_create_bson */
 
 static int wm_write (const data_set_t *ds, /* {{{ */
@@ -168,7 +149,6 @@ static int wm_write (const data_set_t *ds, /* {{{ */
   /* ssnprintf (collection_name, sizeof (collection_name), "%s.%s", */
   /*     node->db, vl->plugin); */
 
-  printf("%s.%s\n", node->db, vl->plugin);
   bson_record = wm_create_bson (ds, vl, node->store_rates);
   //if (bson_record == NULL)
   //  return (ENOMEM);
@@ -178,7 +158,6 @@ static int wm_write (const data_set_t *ds, /* {{{ */
   /* if (!mongo_is_connected (node->conn)) */
   /* { */
 
-  printf("Mutex lock \n");
   ///INFO ("write_mongodb plugin: Connecting to [%s]", node->uri);
 
   /* if (!node->client) { */
@@ -188,14 +167,8 @@ static int wm_write (const data_set_t *ds, /* {{{ */
   /*   return (-1); */
   /* } */
 
-  printf("Client here\n");
   node->client = mongoc_client_new (node->uri);
-  printf("%s\n", node->uri);
   collection = mongoc_client_get_collection (node->client, node->db, node->col);
-  printf("%s\n", node->db);
-  printf("%s\n", node->col);
-  printf("Inserting on MongDB");
-  printf("%s %s %s\n", node->uri, node->db, node->col);
   
   if (!mongoc_collection_insert (collection, MONGOC_INSERT_NONE, bson_record, NULL, &error)) {
     ERROR ( "write_mongodb plugin: error inserting record:" );
