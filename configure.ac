@@ -2512,8 +2512,8 @@ AC_ARG_WITH(libmongoc, [AS_HELP_STRING([--with-libmongoc@<:@=PREFIX@:>@], [Path 
 	 with_libmongoc="no"
  else
 	 with_libmongoc="yes"
-	 LIBMONGOC_CPPFLAGS="$LIBMONGOC_CPPFLAGS -I$withval/include"
-	 LIBMONGOC_LDFLAGS="$LIBMONGOC_LDFLAGS -L$withval/lib"
+	 LIBMONGOC_CPPFLAGS=$(pkg-config --cflags libmongoc-1.0)
+	 LIBMONGOC_LDFLAGS=$(pkg-config --libs libmongoc-1.0)
  fi; fi
 ],
 [with_libmongoc="yes"])
@@ -5583,6 +5583,7 @@ AC_PLUGIN([write_riemann], [$have_protoc_c],   [Riemann output plugin])
 AC_PLUGIN([write_tsdb],  [yes],                [TSDB output plugin])
 AC_PLUGIN([xmms],        [$with_libxmms],      [XMMS statistics])
 AC_PLUGIN([zfs_arc],     [$plugin_zfs_arc],    [ZFS ARC statistics])
+AC_PLUGIN([zmq],         [yes],       		   [ZMQ REQ plugin])
 
 dnl Default configuration file
 # Load either syslog or logfile
@@ -5784,6 +5785,7 @@ Configuration:
     libmemcached  . . . . $with_libmemcached
     libmnl  . . . . . . . $with_libmnl
     libmodbus . . . . . . $with_libmodbus
+    libmongoc . . . . . . $with_libmongoc
     libmysql  . . . . . . $with_libmysql
     libnetapp . . . . . . $with_libnetapp
     libnetsnmp  . . . . . $with_libnetsnmp
@@ -5951,6 +5953,7 @@ Configuration:
     write_tsdb  . . . . . $enable_write_tsdb
     xmms  . . . . . . . . $enable_xmms
     zfs_arc . . . . . . . $enable_zfs_arc
+    zmq . . . . . . . . . $enable_zmq
 
 EOF
 

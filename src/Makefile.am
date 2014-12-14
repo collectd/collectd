@@ -1210,7 +1210,6 @@ pkglib_LTLIBRARIES += xmms.la
 xmms_la_SOURCES = xmms.c
 xmms_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBXMMS_CFLAGS)
 xmms_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-xmms_la_LIBADD = $(BUILD_WITH_LIBXMMS_LIBS)
 endif
 
 if BUILD_PLUGIN_ZFS_ARC
@@ -1218,6 +1217,15 @@ pkglib_LTLIBRARIES += zfs_arc.la
 zfs_arc_la_SOURCES = zfs_arc.c
 zfs_arc_la_CFLAGS = $(AM_CFLAGS)
 zfs_arc_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+
+if BUILD_PLUGIN_ZMQ
+pkglib_LTLIBRARIES += zmq.la
+zmq_la_SOURCES = zmq.c
+zmq_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+zmq_la_LIBADD = $(BUILD_WITH_LIBXMMS_LIBS)
+endif
+
+
 if BUILD_FREEBSD
 zfs_arc_la_LIBADD = -lm
 else

@@ -71,9 +71,6 @@ static bson_t *wm_create_bson (const data_set_t *ds, /* {{{ */
 
   doc = bson_new ();
 
-  /* bson_oid_init (&oid, NULL); */
-  /* BSON_APPEND_OID (doc, "_id", &oid); */
-
   BSON_APPEND_DATE_TIME (doc, "time",  CDTIME_T_TO_DOUBLE (vl->time));
   BSON_APPEND_UTF8 (doc, "host", vl->host);
   BSON_APPEND_UTF8 (doc, "plugin", vl->plugin);
@@ -105,7 +102,7 @@ static bson_t *wm_create_bson (const data_set_t *ds, /* {{{ */
   }
   bson_append_array_end (doc, &values);
 
-
+  /* DSTypes */
   bson_append_array_begin (doc, "dstypes", -1, &dstypes);
   for (i = 0; i < ds->ds_num; i++)
   {
@@ -119,6 +116,7 @@ static bson_t *wm_create_bson (const data_set_t *ds, /* {{{ */
   bson_append_array_end (doc, &dstypes);
 
 
+  /* */
   bson_append_array_begin (doc, "dsnames", -1, &dsnames);
   for (i = 0; i < ds->ds_num; i++)
   {
@@ -204,6 +202,7 @@ static void wm_config_free (void *ptr) /* {{{ */
   if (node == NULL)
     return;
 
+  printf("config free\n");
   if (node->client != NULL)
     mongoc_client_destroy(node->client);
 
