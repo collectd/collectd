@@ -1300,13 +1300,11 @@
 
 #<Plugin write_mongodb>
 #	<Node "example">
-#		Host "localhost"
-#		Port "27017"
+#		URI "mongodb://127.0.0.1:27017/"
 #		Timeout 1000
 #		StoreRates false
-#		Database "auth_db"
-#		User "auth_user"
-#		Password "auth_passwd"
+#		Database "collectd"
+#		Collection "metrics"
 #	</Node>
 #</Plugin>
 
