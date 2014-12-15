@@ -1210,6 +1210,7 @@ pkglib_LTLIBRARIES += xmms.la
 xmms_la_SOURCES = xmms.c
 xmms_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBXMMS_CFLAGS)
 xmms_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+xmms_la_LIBADD = $(BUILD_WITH_LIBXMMS_LIBS)
 endif
 
 if BUILD_PLUGIN_ZFS_ARC
