@@ -168,6 +168,8 @@ static int wm_write (const data_set_t *ds, /* {{{ */
   if (!mongoc_collection_insert (collection, MONGOC_INSERT_NONE, bson_record, NULL, &error)) {
     ERROR ( "write_mongodb plugin: error inserting record: %s", error.message );
     mongoc_client_destroy(node->client);
+    pthread_mutex_unlock (&node->lock);
+    return (-1);
   }
 
   pthread_mutex_unlock (&node->lock);
