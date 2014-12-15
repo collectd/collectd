@@ -6091,6 +6091,8 @@ Use the last number found.
 The matched number is a counter. Simply I<sets> the internal counter to this
 value. Variants exist for C<COUNTER>, C<DERIVE>, and C<ABSOLUTE> data sources.
 
+=item B<GaugeAdd>
+
 =item B<CounterAdd>
 
 =item B<DeriveAdd>
@@ -6098,6 +6100,8 @@ value. Variants exist for C<COUNTER>, C<DERIVE>, and C<ABSOLUTE> data sources.
 Add the matched value to the internal counter. In case of B<DeriveAdd>, the
 matched number may be negative, which will effectively subtract from the
 internal counter.
+
+=item B<GaugeInc>
 
 =item B<CounterInc>
 
