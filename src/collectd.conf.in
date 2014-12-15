@@ -1325,13 +1325,17 @@
 #		Host "localhost"
 #		Port 5555
 #		Protocol UDP
+#		Batch false
+#		BatchMaxSize 8192
 #		StoreRates true
 #		AlwaysAppendDS false
 #		TTLFactor 2.0
+#		Notifications true
+#		CheckThresholds false
 #		EventServicePrefix ""
 #	</Node>
 #	Tag "foobar"
-#       Attribute "foo" "bar"
+#	Attribute "foo" "bar"
 #</Plugin>
 
 #<Plugin write_tsdb>
