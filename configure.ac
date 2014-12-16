@@ -5471,11 +5471,7 @@ AC_SUBST(LOAD_PLUGIN_SYSLOG)
 AC_SUBST(LOAD_PLUGIN_LOGFILE)
 AC_SUBST(LOAD_PLUGIN_LOG_LOGSTASH)
 
-DEFAULT_LOG_LEVEL="info"
-if test "x$enable_debug" = "xyes"
-then
-	DEFAULT_LOG_LEVEL="debug"
-fi
+DEFAULT_LOG_LEVEL="debug"
 AC_SUBST(DEFAULT_LOG_LEVEL)
 
 # Load only one of rrdtool, network, csv in the default config.

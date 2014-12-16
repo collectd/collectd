@@ -304,10 +304,10 @@
  		plugin_instance_from_plugin_instance  = strtok_r (NULL, ".", &saveptr);
 
  		if (plugin_instance_from_plugin_instance == NULL){
-            sstrncpy(tmp_prefix, prefix, sizeof(tmp_prefix));
+	            sstrncpy(tmp_prefix, prefix, sizeof(tmp_prefix));
  		}
  		else{
- 			sstrncpy(tmp_prefix, prefix_from_plugin_instance, sizeof(tmp_prefix));
+ 		    sstrncpy(tmp_prefix, prefix_from_plugin_instance, sizeof(tmp_prefix));
  		}
 
  		opentsdb_copy_escape_part (n_plugin, vl->plugin,
