@@ -558,20 +558,22 @@ static void value_list_batch_release(value_list_batch_t *batch)
 #if HAVE_STRUCT_LINUX_INET_DIAG_REQ
 /* Update entries for specified connections.  May call conn_buffer_flush. */
 static void conn_handle_tcpi(
-    value_list_batch_t *batch,
+    value_list_batch_t *batch, uint8_t state,
     const char src[], uint16_t sport, const char dst[], uint16_t dport,
     const struct tcp_info* tcpi)
 {
     value_list_t *vl = value_list_batch_get(batch);
-    DEBUG ("%s:%hu -> %s:%hu   :  %u", src, sport, dst, dport, tcpi->tcpi_rtt);
+    const char *state_name = TCP_STATE_MIN <= state && state <= TCP_STATE_MAX ?
+        tcp_state[state] : "UNKNOWN";
+    DEBUG ("%s:%hu -> %s:%hu  %s   :  %u",
+           src, sport, dst, dport, state_name, tcpi->tcpi_rtt);
 
     vl->values = calloc(1, sizeof(value_t));
     vl->values_len = 1;
     sstrncpy (vl->host, hostname_g, sizeof (vl->host));
     sstrncpy (vl->plugin, "tcpconns", sizeof (vl->plugin));
-    /* TODO(arielshaqed): Report connection side 'S' / 'C' not 'X' */
     snprintf(vl->plugin_instance, sizeof(vl->plugin_instance),
-	"%s:%u_%s:%u_O%c", src, sport, dst, dport, 'C');
+	"%s:%u_%s:%u_%s", src, sport, dst, dport, state_name);
     sstrncpy (vl->type, "tcp_connections_perf", sizeof (vl->type));
     /* Types must match definition in types.db */
     vl->values[0].gauge = tcpi->tcpi_rtt;
@@ -715,11 +717,12 @@ static int conn_read_netlink (void)
       r = NLMSG_DATA(h);
       {
 	struct tcp_info *tcpi = get_tcp_info(h);
+        u_int8_t state = r->idiag_state;
 	unsigned short sport = ntohs(r->id.idiag_sport);
 	unsigned short dport = ntohs(r->id.idiag_dport);
 
 	/* This code does not (need to) distinguish between IPv4 and IPv6. */
-	conn_handle_ports (sport, dport, r->idiag_state);
+	conn_handle_ports (sport, dport, state);
 
 	if (r->idiag_state != TCP_STATE_LISTEN && tcpi) {
 	    char src[INET6_ADDRSTRLEN];
@@ -728,7 +731,8 @@ static int conn_read_netlink (void)
                 strncpy(src, "<UNKNOWN>", sizeof(src));
 	    if (!inet_ntop(r->idiag_family, r->id.idiag_dst, dst, sizeof(dst)))
                 strncpy(dst, "<UNKNOWN>", sizeof(dst));
-	    conn_handle_tcpi (batch, src, sport, dst, dport, tcpi);
+	    conn_handle_tcpi (
+                batch, r->idiag_state, src, sport, dst, dport, tcpi);
 	}
       }
 
