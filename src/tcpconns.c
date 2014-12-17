@@ -275,12 +275,16 @@ static const char *config_keys[] =
   "ListeningPorts",
   "LocalPort",
   "RemotePort",
-  "AllPortsSummary"
+  "AllPortsSummary",
+  "ReportByPorts",
+  "ReportByConnections",
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static int port_collect_listening = 0;
 static int port_collect_total = 0;
+static int report_by_connections = 0;
+static int report_by_ports = 1;
 static port_entry_t *port_list_head = NULL;
 static uint32_t count_total[TCP_STATE_MAX + 1];
 
@@ -722,17 +726,20 @@ static int conn_read_netlink (void)
 	unsigned short dport = ntohs(r->id.idiag_dport);
 
 	/* This code does not (need to) distinguish between IPv4 and IPv6. */
-	conn_handle_ports (sport, dport, state);
+        if (report_by_ports)
+          conn_handle_ports (sport, dport, state);
 
-	if (r->idiag_state != TCP_STATE_LISTEN && tcpi) {
+        if (report_by_connections) {
+          if (r->idiag_state != TCP_STATE_LISTEN && tcpi) {
 	    char src[INET6_ADDRSTRLEN];
 	    char dst[INET6_ADDRSTRLEN];
 	    if (!inet_ntop(r->idiag_family, r->id.idiag_src, src, sizeof(src)))
-                strncpy(src, "<UNKNOWN>", sizeof(src));
+              strncpy(src, "<UNKNOWN>", sizeof(src));
 	    if (!inet_ntop(r->idiag_family, r->id.idiag_dst, dst, sizeof(dst)))
-                strncpy(dst, "<UNKNOWN>", sizeof(dst));
+              strncpy(dst, "<UNKNOWN>", sizeof(dst));
 	    conn_handle_tcpi (
                 batch, r->idiag_state, src, sport, dst, dport, tcpi);
+          }
 	}
       }
 
@@ -870,6 +877,24 @@ static int conn_config (const char *key, const char *value)
     else
       port_collect_total = 0;
   }
+  else if (strcasecmp (key, "ReportByConnections") == 0)
+  {
+    if (IS_TRUE (value)) {
+      report_by_connections = 1;
+#if !(KERNEL_LINUX && HAVE_STRUCT_LINUX_INET_DIAG_REQ)
+      ERROR ("tcpconns plugin: Platform does not support ReportByConnections.");
+#endif
+    }
+    else
+      report_by_connections = 0;
+  }
+  else if (strcasecmp (key, "ReportByPorts") == 0)
+  {
+    if (IS_TRUE (value))
+      report_by_ports = 1;
+    else
+      report_by_ports = 0;
+  }
   else
   {
     return (-1);
@@ -927,6 +952,9 @@ static int conn_read (void)
       INFO ("tcpconns plugin: Reading from netlink failed. "
 	  "Will read from /proc from now on.");
       linux_source = SRC_PROC;
+      if (report_by_connections)
+        ERROR ("tcpconns plugin: "
+               "Ignore ReportByConnections (not reading Netlink inet_diag)");
 
       /* return success here to avoid the "plugin failed" message. */
       return (0);
