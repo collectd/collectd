@@ -344,7 +344,7 @@ int plugin_dispatch_values (value_list_t const *vl);
  *  plugin_dispatch_multivalue
  *
  * SYNOPSIS
- *  plugin_dispatch_multivalue (vl, 1,
+ *  plugin_dispatch_multivalue (vl, 1, DS_TYPE_GAUGE,
  *                              "free", 42.0,
  *                              "used", 58.0,
  *                              NULL);
@@ -356,8 +356,16 @@ int plugin_dispatch_values (value_list_t const *vl);
  *  calculated and dispatched, rather than the absolute values. Values that are
  *  NaN are dispatched as NaN and will not influence the total.
  *
- *  The variadic arguments is a list of type_instance / gauge pairs, that are
- *  interpreted as type "char const *" and "gauge_t". The last argument must be
+ *  The variadic arguments is a list of type_instance / type pairs, that are
+ *  interpreted as type "char const *" and type, encoded by their corresponding
+ *  "store_type":
+ *
+ *     - "gauge_t"    when "DS_TYPE_GAUGE"
+ *     - "absolute_t" when "DS_TYPE_ABSOLUTE"
+ *     - "derive_t"   when "DS_TYPE_DERIVE"
+ *     - "counter_t"  when "DS_TYPE_COUNTER"
+ *
+ *  The last argument must be
  *  a NULL pointer to signal end-of-list.
  *
  * RETURNS
@@ -365,7 +373,7 @@ int plugin_dispatch_values (value_list_t const *vl);
  */
 __attribute__((sentinel))
 int plugin_dispatch_multivalue (value_list_t const *vl,
-		_Bool store_percentage, ...);
+		_Bool store_percentage, int store_type, ...);
 
 int plugin_dispatch_missing (const value_list_t *vl);
 
