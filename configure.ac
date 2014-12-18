@@ -4944,7 +4944,7 @@ AC_DEFUN(
 m4_divert_once([HELP_ENABLE], [
 collectd features:])
 # FIXME: Remove these calls to `AC_COLLECTD' and then remove that macro.
-AC_COLLECTD([debug],     [enable],  [feature], [debugging])
+AC_COLLECTD([debug],     [disable],  [feature], [debugging])
 AC_COLLECTD([daemon],    [disable], [feature], [daemon mode])
 AC_COLLECTD([getifaddrs],[enable],  [feature], [getifaddrs under Linux])
 
@@ -5472,6 +5472,10 @@ AC_SUBST(LOAD_PLUGIN_LOGFILE)
 AC_SUBST(LOAD_PLUGIN_LOG_LOGSTASH)
 
 DEFAULT_LOG_LEVEL="debug"
+if test "x$enable_debug" = "xno"
+then
+DEFAULT_LOG_LEVEL="info"
+fi
 AC_SUBST(DEFAULT_LOG_LEVEL)
 
 # Load only one of rrdtool, network, csv in the default config.
