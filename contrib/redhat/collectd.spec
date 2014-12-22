@@ -222,15 +222,9 @@ Requires(post):		systemd
 Requires(preun):	systemd
 Requires(postun):	systemd
 %else
-	%if 0%{?el6:1}
-Requires(pre):		initscripts
-Requires(preun):	upstart
-Requires(postun):	upstart
-	%else
 Requires(post):		chkconfig
 Requires(preun):	chkconfig, initscripts
 Requires(postun):	initscripts
-	%endif
 %endif
 
 %description
@@ -1663,11 +1657,7 @@ rm -rf %{buildroot}
 %if 0%{?el7:1}
 %{__install} -Dp -m0644 contrib/systemd.collectd.service %{buildroot}%{_unitdir}/collectd.service
 %else
-	%if 0%{?el6:1}
-%{__install} -Dp -m0644 contrib/upstart.collectd.conf %{buildroot}%{_sysconfdir}/init/collectd.conf
-	%else
 %{__install} -Dp -m0755 contrib/redhat/init.d-collectd %{buildroot}%{_initrddir}/collectd
-	%endif
 %endif
 %{__install} -Dp -m0644 src/collectd.conf %{buildroot}%{_sysconfdir}/collectd.conf
 %{__install} -d %{buildroot}%{_sharedstatedir}/collectd/
@@ -1720,8 +1710,8 @@ rm -f %{buildroot}%{_mandir}/man5/collectd-snmp.5*
 rm -rf %{buildroot}
 
 %pre
-%if 0%{?el7:1}%{?el6:1}
-# stop sysv-based instance before upgrading to upstart/systemd
+%if 0%{?el7:1}
+# stop sysv-based instance before upgrading to systemd
 if [ $1 -eq 2 ] && [ -f /var/lock/subsys/collectd ]; then
 	SYSTEMCTL_SKIP_REDIRECT=1 %{_initddir}/collectd stop >/dev/null 2>&1 || :
 fi
@@ -1734,9 +1724,7 @@ if [ $1 -eq 2 ]; then
 fi
 %systemd_post collectd.service
 %else
-	%if 0%{!?el6:1}
 /sbin/chkconfig --add collectd || :
-	%endif
 %endif
 
 %preun
@@ -1745,12 +1733,8 @@ fi
 %else
 # stop collectd only when uninstalling
 if [ $1 -eq 0 ]; then
-	%if 0%{?el6:1}
-	/sbin/initctl stop collectd >/dev/null 2>&1 || :
-	%else
 	/sbin/service collectd stop >/dev/null 2>&1 || :
 	/sbin/chkconfig --del collectd || :
-	%endif
 fi
 %endif
 
@@ -1760,15 +1744,7 @@ fi
 %else
 # restart collectd only when upgrading
 if [ $1 -eq 1 ]; then
-	%if 0%{?el6:1}
-	if /sbin/initctl status collectd 2>/dev/null | grep -q 'running'; then
-		/sbin/initctl restart collectd >/dev/null 2>&1 || :
-	else
-		/sbin/initctl start collectd >/dev/null 2>&1 || :
-	fi
-	%else
 	/sbin/service collectd condrestart >/dev/null 2>&1 || :
-	%endif
 fi
 %endif
 
@@ -1782,11 +1758,7 @@ fi
 %if 0%{?el7:1}
 %{_unitdir}/collectd.service
 %else
-	%if 0%{?el6:1}
-%{_sysconfdir}/init/collectd.conf
-	%else
 %{_initrddir}/collectd
-	%endif
 %endif
 %{_sbindir}/collectd
 %{_bindir}/collectd-nagios
@@ -2277,6 +2249,7 @@ fi
 # - New plugins disabled by default: barometer, write_kafka
 # - Enable zfs_arc, now supported on Linux
 # - Install disk plugin in an dedicated package, as it depends on libudev
+# - use systemd on EL7, sysvinit on EL6 & EL5
 
 * Mon Aug 19 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.4.0-1
 - New upstream version
