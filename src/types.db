@@ -8,18 +8,21 @@ ath_nodes		value:GAUGE:0:65535
 ath_stat		value:DERIVE:0:U
 backends		value:GAUGE:0:65535
 bitrate			value:GAUGE:0:4294967295
+blocked_clients value:GAUGE:0:U
 bytes			value:GAUGE:0:U
 cache_eviction		value:DERIVE:0:U
 cache_operation		value:DERIVE:0:U
 cache_ratio		value:GAUGE:0:100
 cache_result		value:DERIVE:0:U
 cache_size		value:GAUGE:0:U
+changes_since_last_save   value:GAUGE:0:U
 charge			value:GAUGE:0:U
 compression_ratio	value:GAUGE:0:2
 compression		uncompressed:DERIVE:0:U, compressed:DERIVE:0:U
 connections		value:DERIVE:0:U
 conntrack		value:GAUGE:0:4294967295
 contextswitch		value:DERIVE:0:U
+count			value:GAUGE:0:U
 counter			value:COUNTER:U:U
 cpufreq			value:GAUGE:0:U
 cpu			value:DERIVE:0:U
@@ -37,6 +40,7 @@ disk_octets		read:DERIVE:0:U, write:DERIVE:0:U
 disk_ops_complex	value:DERIVE:0:U
 disk_ops		read:DERIVE:0:U, write:DERIVE:0:U
 disk_time		read:DERIVE:0:U, write:DERIVE:0:U
+disk_io_time		io_time:DERIVE:0:U, weighted_io_time:DERIVE:0:U
 dns_answer		value:DERIVE:0:U
 dns_notify		value:DERIVE:0:U
 dns_octets		queries:DERIVE:0:U, responses:DERIVE:0:U
@@ -59,6 +63,7 @@ email_check		value:GAUGE:0:U
 email_count		value:GAUGE:0:U
 email_size		value:GAUGE:0:U
 entropy			value:GAUGE:0:4294967295
+expired_keys    value:GAUGE:0:U
 fanspeed		value:GAUGE:0:U
 file_size		value:GAUGE:0:U
 files			value:GAUGE:0:U
@@ -99,6 +104,7 @@ memcached_items		value:GAUGE:0:U
 memcached_octets	rx:DERIVE:0:U, tx:DERIVE:0:U
 memcached_ops		value:DERIVE:0:U
 memory			value:GAUGE:0:281474976710656
+memory_lua		value:GAUGE:0:281474976710656
 multimeter		value:GAUGE:U:U
 mutex_operations	value:DERIVE:0:U
 mysql_commands		value:DERIVE:0:U
@@ -107,9 +113,13 @@ mysql_locks		value:DERIVE:0:U
 mysql_log_position	value:DERIVE:0:U
 mysql_octets		rx:DERIVE:0:U, tx:DERIVE:0:U
 mysql_bpool_pages	value:GAUGE:0:U
+mysql_bpool_bytes	value:GAUGE:0:U
 mysql_bpool_counters	value:DERIVE:0:U
 mysql_innodb_data	value:DERIVE:0:U
 mysql_innodb_dblwr	value:DERIVE:0:U
+mysql_innodb_log	value:DERIVE:0:U
+mysql_innodb_pages	value:DERIVE:0:U
+mysql_innodb_row_lock	value:DERIVE:0:U
 mysql_innodb_rows	value:DERIVE:0:U
 mysql_select		value:DERIVE:0:U
 mysql_sort		value:DERIVE:0:U
@@ -122,6 +132,7 @@ node_stat		value:DERIVE:0:U
 node_tx_rate		value:GAUGE:0:127
 objects			value:GAUGE:0:U
 operations		value:DERIVE:0:U
+packets			value:DERIVE:0:U
 pending_operations	value:GAUGE:0:U
 percent			value:GAUGE:0:100.1
 percent_bytes		value:GAUGE:0:100.1
@@ -156,6 +167,7 @@ ps_rss			value:GAUGE:0:9223372036854775807
 ps_stacksize		value:GAUGE:0:9223372036854775807
 ps_state		value:GAUGE:0:65535
 ps_vm			value:GAUGE:0:9223372036854775807
+pubsub        value:GAUGE:0:U
 queue_length		value:GAUGE:0:U
 records			value:GAUGE:0:U
 requests		value:GAUGE:0:U
@@ -168,6 +180,11 @@ serial_octets		rx:DERIVE:0:U, tx:DERIVE:0:U
 signal_noise		value:GAUGE:U:0
 signal_power		value:GAUGE:U:0
 signal_quality		value:GAUGE:0:U
+smart_poweron		value:GAUGE:0:U
+smart_powercycles	value:GAUGE:0:U
+smart_badsectors	value:GAUGE:0:U
+smart_temperature	value:GAUGE:-300:300
+smart_attribute         current:GAUGE:0:255, worst:GAUGE:0:255, threshold:GAUGE:0:255, pretty:GAUGE:0:U
 snr			value:GAUGE:0:U
 spam_check		value:GAUGE:0:U
 spam_score		value:GAUGE:U:U

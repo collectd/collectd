@@ -292,6 +292,28 @@ static void submit_in_progress (char const *disk_name, gauge_t in_progress)
 	plugin_dispatch_values (&vl);
 }
 
+static void submit_io_time (char const *plugin_instance, derive_t io_time, derive_t weighted_time)
+{
+	value_t values[2];
+	value_list_t vl = VALUE_LIST_INIT;
+
+	if (ignorelist_match (ignorelist, plugin_instance) != 0)
+	  return;
+
+	values[0].derive = io_time;
+	values[1].derive = weighted_time;
+
+	vl.values = values;
+	vl.values_len = 2;
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "disk", sizeof (vl.plugin));
+	sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
+	sstrncpy (vl.type, "disk_io_time", sizeof (vl.type));
+
+	plugin_dispatch_values (&vl);
+}
+
+
 static counter_t disk_calc_time_incr (counter_t delta_time, counter_t delta_ops)
 {
 	double interval = CDTIME_T_TO_DOUBLE (plugin_get_interval ());
@@ -560,6 +582,8 @@ static int disk_read (void)
 	derive_t write_merged  = 0;
 	derive_t write_time    = 0;
 	gauge_t in_progress    = NAN;
+	derive_t io_time       = 0;
+	derive_t weighted_time = 0;
 	int is_disk = 0;
 
 	diskstats_t *ds, *pre_ds;
@@ -643,6 +667,9 @@ static int disk_read (void)
 				write_time   = atoll (fields[10+ fieldshift]);
 
 				in_progress = atof (fields[11 + fieldshift]);
+
+				io_time       = atof (fields[12 + fieldshift]);
+				weighted_time = atof (fields[13 + fieldshift]);
 			}
 		}
 		else
@@ -767,6 +794,7 @@ static int disk_read (void)
 			disk_submit (output_name, "disk_merged",
 					read_merged, write_merged);
 			submit_in_progress (output_name, in_progress);
+			submit_io_time (output_name, io_time, weighted_time);
 		} /* if (is_disk) */
 
 		/* release udev-based alternate name, if allocated */
@@ -831,7 +859,12 @@ static int disk_read (void)
 
 #elif defined(HAVE_LIBSTATGRAB)
 	sg_disk_io_stats *ds;
-	int disks, counter;
+# if HAVE_LIBSTATGRAB_0_90
+	size_t disks;
+# else
+	int disks;
+#endif
+	int counter;
 	char name[DATA_MAX_NAME_LEN];
 	
 	if ((ds = sg_get_disk_io_stats(&disks)) == NULL)

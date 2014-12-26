@@ -22,6 +22,7 @@
  *   Aman Gupta <aman at tmm1.net>
  **/
 
+#define _DEFAULT_SOURCE
 #define _BSD_SOURCE /* For struct ip_mreq */
 
 #include "collectd.h"
@@ -76,7 +77,9 @@
 /* Re enable deprecation warnings */
 #  pragma GCC diagnostic warning "-Wdeprecated-declarations"
 # endif
+# if GCRYPT_VERSION_NUMBER < 0x010600
 GCRY_THREAD_OPTION_PTHREAD_IMPL;
+# endif
 #endif
 
 #ifndef IPV6_ADD_MEMBERSHIP
@@ -510,7 +513,9 @@ static void network_init_gcrypt (void) /* {{{ */
   * above doesn't count, as it doesn't implicitly initalize Libgcrypt.
   *
   * tl;dr: keep all these gry_* statements in this exact order please. */
+# if GCRYPT_VERSION_NUMBER < 0x010600
   gcry_control (GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
+# endif
   gcry_check_version (NULL);
   gcry_control (GCRYCTL_INIT_SECMEM, 32768);
   gcry_control (GCRYCTL_INITIALIZATION_FINISHED);
@@ -3002,7 +3007,7 @@ static int network_config_set_ttl (const oconfig_item_t *ci) /* {{{ */
     network_config_ttl = tmp;
   else {
     WARNING ("network plugin: The `TimeToLive' must be between 1 and 255.");
-    return (-1);    
+    return (-1);
   }
 
   return (0);

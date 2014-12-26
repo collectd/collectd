@@ -376,6 +376,8 @@ static int battery_read (void) /* {{{ */
 		battery_submit ("0", "current", current);
 	if (!isnan (voltage))
 		battery_submit ("0", "voltage", voltage);
+
+	return (0);
 } /* }}} int battery_read */
 /* #endif HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H */
 

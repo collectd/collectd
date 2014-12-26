@@ -527,7 +527,7 @@ AC_CHECK_HEADERS(linux/un.h, [], [],
 #endif
 ])
 
-AC_CHECK_HEADERS(pwd.h grp.h sys/un.h ctype.h limits.h xfs/xqm.h fs_info.h fshelp.h paths.h mntent.h mnttab.h sys/fstyp.h sys/fs_types.h sys/mntent.h sys/mnttab.h sys/statfs.h sys/statvfs.h sys/vfs.h sys/vfstab.h kvm.h wordexp.h locale.h)
+AC_CHECK_HEADERS(pwd.h grp.h sys/un.h ctype.h limits.h xfs/xqm.h fs_info.h fshelp.h paths.h mntent.h mnttab.h sys/fstyp.h sys/fs_types.h sys/mntent.h sys/mnttab.h sys/statfs.h sys/statvfs.h sys/vfs.h sys/vfstab.h sys/vmmeter.h kvm.h wordexp.h locale.h)
 
 # For the dns plugin
 AC_CHECK_HEADERS(arpa/nameser.h)
@@ -1332,6 +1332,7 @@ AC_CHECK_MEMBERS([struct kinfo_proc.p_pid, struct kinfo_proc.p_vm_rssize],
 
 AC_CHECK_MEMBERS([struct udphdr.uh_dport, struct udphdr.uh_sport], [], [],
 [#define _BSD_SOURCE
+#define _DEFAULT_SOURCE
 #if HAVE_STDINT_H
 # include <stdint.h>
 #endif
@@ -1353,6 +1354,7 @@ AC_CHECK_MEMBERS([struct udphdr.uh_dport, struct udphdr.uh_sport], [], [],
 ])
 AC_CHECK_MEMBERS([struct udphdr.dest, struct udphdr.source], [], [],
 [#define _BSD_SOURCE
+#define _DEFAULT_SOURCE
 #if HAVE_STDINT_H
 # include <stdint.h>
 #endif
@@ -1577,62 +1579,63 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LIBAQUAERO5, test "x$with_libaquaero5" = "xyes")
 # }}}
 
-# --with-libcredis {{{
-AC_ARG_WITH(libcredis, [AS_HELP_STRING([--with-libcredis@<:@=PREFIX@:>@], [Path to libcredis.])],
+# --with-libhiredis {{{
+AC_ARG_WITH(libhiredis, [AS_HELP_STRING([--with-libhiredis@<:@=PREFIX@:>@],
+      [Path to libhiredis.])],
 [
  if test "x$withval" = "xyes"
  then
-	 with_libcredis="yes"
+	 with_libhiredis="yes"
  else if test "x$withval" = "xno"
  then
-	 with_libcredis="no"
+	 with_libhiredis="no"
  else
-	 with_libcredis="yes"
-	 LIBCREDIS_CPPFLAGS="$LIBCREDIS_CPPFLAGS -I$withval/include"
-	 LIBCREDIS_LDFLAGS="$LIBCREDIS_LDFLAGS -L$withval/lib"
+	 with_libhiredis="yes"
+	 LIBHIREDIS_CPPFLAGS="$LIBHIREDIS_CPPFLAGS -I$withval/include"
+	 LIBHIREDIS_LDFLAGS="$LIBHIREDIS_LDFLAGS -L$withval/lib"
  fi; fi
 ],
-[with_libcredis="yes"])
+[with_libhiredis="yes"])
 
 SAVE_CPPFLAGS="$CPPFLAGS"
 SAVE_LDFLAGS="$LDFLAGS"
 
-CPPFLAGS="$CPPFLAGS $LIBCREDIS_CPPFLAGS"
-LDFLAGS="$LDFLAGS $LIBCREDIS_LDFLAGS"
+CPPFLAGS="$CPPFLAGS $LIBHIREDIS_CPPFLAGS"
+LDFLAGS="$LDFLAGS $LIBHIREDIS_LDFLAGS"
 
-if test "x$with_libcredis" = "xyes"
+if test "x$with_libhiredis" = "xyes"
 then
-	if test "x$LIBCREDIS_CPPFLAGS" != "x"
+	if test "x$LIBHIREDIS_CPPFLAGS" != "x"
 	then
-		AC_MSG_NOTICE([libcredis CPPFLAGS: $LIBCREDIS_CPPFLAGS])
+		AC_MSG_NOTICE([libhiredis CPPFLAGS: $LIBHIREDIS_CPPFLAGS])
 	fi
-	AC_CHECK_HEADERS(credis.h,
-	[with_libcredis="yes"],
-	[with_libcredis="no (credis.h not found)"])
+	AC_CHECK_HEADERS(hiredis/hiredis.h,
+	[with_libhiredis="yes"],
+	[with_libhiredis="no (hiredis.h not found)"])
 fi
-if test "x$with_libcredis" = "xyes"
+if test "x$with_libhiredis" = "xyes"
 then
-	if test "x$LIBCREDIS_LDFLAGS" != "x"
+	if test "x$LIBHIREDIS_LDFLAGS" != "x"
 	then
-		AC_MSG_NOTICE([libcredis LDFLAGS: $LIBCREDIS_LDFLAGS])
+		AC_MSG_NOTICE([libhiredis LDFLAGS: $LIBHIREDIS_LDFLAGS])
 	fi
-	AC_CHECK_LIB(credis, credis_info,
-	[with_libcredis="yes"],
-	[with_libcredis="no (symbol 'credis_info' not found)"])
+	AC_CHECK_LIB(hiredis, redisCommand,
+	[with_libhiredis="yes"],
+	[with_libhiredis="no (symbol 'redisCommand' not found)"])
 
 fi
 
 CPPFLAGS="$SAVE_CPPFLAGS"
 LDFLAGS="$SAVE_LDFLAGS"
 
-if test "x$with_libcredis" = "xyes"
+if test "x$with_libhiredis" = "xyes"
 then
-	BUILD_WITH_LIBCREDIS_CPPFLAGS="$LIBCREDIS_CPPFLAGS"
-	BUILD_WITH_LIBCREDIS_LDFLAGS="$LIBCREDIS_LDFLAGS"
-	AC_SUBST(BUILD_WITH_LIBCREDIS_CPPFLAGS)
-	AC_SUBST(BUILD_WITH_LIBCREDIS_LDFLAGS)
+	BUILD_WITH_LIBHIREDIS_CPPFLAGS="$LIBHIREDIS_CPPFLAGS"
+	BUILD_WITH_LIBHIREDIS_LDFLAGS="$LIBHIREDIS_LDFLAGS"
+	AC_SUBST(BUILD_WITH_LIBHIREDIS_CPPFLAGS)
+	AC_SUBST(BUILD_WITH_LIBHIREDIS_LDFLAGS)
 fi
-AM_CONDITIONAL(BUILD_WITH_LIBCREDIS, test "x$with_libcredis" = "xyes")
+AM_CONDITIONAL(BUILD_WITH_LIBHIREDIS, test "x$with_libhiredis" = "xyes")
 # }}}
 
 # --with-libcurl {{{
@@ -2243,6 +2246,64 @@ AC_SUBST(JAVA_CFLAGS)
 AC_SUBST(JAVA_LDFLAGS)
 AC_SUBST(JAVA_LIBS)
 AM_CONDITIONAL(BUILD_WITH_JAVA, test "x$with_java" = "xyes")
+# }}}
+
+# --with-libldap {{{
+AC_ARG_WITH(libldap, [AS_HELP_STRING([--with-libldap@<:@=PREFIX@:>@], [Path to libldap.])],
+[
+ if test "x$withval" = "xyes"
+ then
+	 with_libldap="yes"
+ else if test "x$withval" = "xno"
+ then
+	 with_libldap="no"
+ else
+	 with_libldap="yes"
+	 LIBLDAP_CPPFLAGS="$LIBLDAP_CPPFLAGS -I$withval/include"
+	 LIBLDAP_LDFLAGS="$LIBLDAP_LDFLAGS -L$withval/lib"
+ fi; fi
+],
+[with_libldap="yes"])
+
+SAVE_CPPFLAGS="$CPPFLAGS"
+SAVE_LDFLAGS="$LDFLAGS"
+
+CPPFLAGS="$CPPFLAGS $LIBLDAP_CPPFLAGS"
+LDFLAGS="$LDFLAGS $LIBLDAP_LDFLAGS"
+
+if test "x$with_libldap" = "xyes"
+then
+	if test "x$LIBLDAP_CPPFLAGS" != "x"
+	then
+		AC_MSG_NOTICE([libldap CPPFLAGS: $LIBLDAP_CPPFLAGS])
+	fi
+	AC_CHECK_HEADERS(ldap.h,
+	[with_libldap="yes"],
+	[with_libldap="no ('ldap.h' not found)"])
+fi
+if test "x$with_libldap" = "xyes"
+then
+	if test "x$LIBLDAP_LDFLAGS" != "x"
+	then
+		AC_MSG_NOTICE([libldap LDFLAGS: $LIBLDAP_LDFLAGS])
+	fi
+	AC_CHECK_LIB(ldap, ldap_initialize,
+	[with_libldap="yes"],
+	[with_libldap="no (symbol 'ldap_initialize' not found)"])
+
+fi
+
+CPPFLAGS="$SAVE_CPPFLAGS"
+LDFLAGS="$SAVE_LDFLAGS"
+
+if test "x$with_libldap" = "xyes"
+then
+	BUILD_WITH_LIBLDAP_CPPFLAGS="$LIBLDAP_CPPFLAGS"
+	BUILD_WITH_LIBLDAP_LDFLAGS="$LIBLDAP_LDFLAGS"
+	AC_SUBST(BUILD_WITH_LIBLDAP_CPPFLAGS)
+	AC_SUBST(BUILD_WITH_LIBLDAP_LDFLAGS)
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBLDAP, test "x$with_libldap" = "xyes")
 # }}}
 
 # --with-liblvm2app {{{
@@ -4075,6 +4136,34 @@ then
   LDFLAGS="$SAVE_LDFLAGS"
 fi
 
+if test "x$with_libstatgrab" = "xyes"
+then
+  SAVE_CFLAGS="$CFLAGS"
+  SAVE_LDFLAGS="$LDFLAGS"
+
+  CFLAGS="$CFLAGS $with_libstatgrab_cflags"
+  LDFLAGS="$LDFLAGS $with_libstatgrab_ldflags"
+
+  AC_CACHE_CHECK([if libstatgrab >= 0.90],
+          [c_cv_have_libstatgrab_0_90],
+          AC_LINK_IFELSE([AC_LANG_PROGRAM(
+[[[
+#include <stdio.h>
+#include <statgrab.h>
+]]],
+[[[
+      if (sg_init()) return 0;
+]]]
+    )],
+    [c_cv_have_libstatgrab_0_90="no"],
+    [c_cv_have_libstatgrab_0_90="yes"]
+          )
+  )
+
+  CFLAGS="$SAVE_CFLAGS"
+  LDFLAGS="$SAVE_LDFLAGS"
+fi
+
 AM_CONDITIONAL(BUILD_WITH_LIBSTATGRAB, test "x$with_libstatgrab" = "xyes")
 if test "x$with_libstatgrab" = "xyes"
 then
@@ -4083,6 +4172,10 @@ then
   BUILD_WITH_LIBSTATGRAB_LDFLAGS="$with_libstatgrab_ldflags"
   AC_SUBST(BUILD_WITH_LIBSTATGRAB_CFLAGS)
   AC_SUBST(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
+  if test "x$c_cv_have_libstatgrab_0_90" = "xyes"
+  then
+        AC_DEFINE(HAVE_LIBSTATGRAB_0_90, 1, [Define to 1 if libstatgrab version >= 0.90])
+  fi
 fi
 # }}}
 
@@ -4594,25 +4687,18 @@ fi
 if test "x$with_libvarnish" = "xyes"
 then
 	SAVE_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$CPPFLAGS $with_libvarnish_cflags"
-	AC_CHECK_HEADERS(varnish/varnishapi.h, [], [with_libvarnish="no (varnish/varnishapi.h not found)"])
-
-	CPPFLAGS="$SAVE_CPPFLAGS"
-fi
-if test "x$with_libvarnish" = "xyes"
-then
-	SAVE_CPPFLAGS="$CPPFLAGS"
-	#SAVE_LDFLAGS="$LDFLAGS"
 
 	CPPFLAGS="$CPPFLAGS $with_libvarnish_cflags"
-	#LDFLAGS="$LDFLAGS $with_libvarnish_libs"
 
-    AC_CHECK_HEADERS(varnish/vsc.h,
-        [AC_DEFINE([HAVE_VARNISH_V3], [1], [Varnish 3 API support])],
-        [AC_DEFINE([HAVE_VARNISH_V2], [1], [Varnish 2 API support])])
+	AC_CHECK_HEADERS(varnish/vapi/vsc.h,
+		[AC_DEFINE([HAVE_VARNISH_V4], [1], [Varnish 4 API support])],
+		[AC_CHECK_HEADERS(varnish/vsc.h,
+			[AC_DEFINE([HAVE_VARNISH_V3], [1], [Varnish 3 API support])],
+			[AC_CHECK_HEADERS(varnish/varnishapi.h,
+				[AC_DEFINE([HAVE_VARNISH_V2], [1], [Varnish 2 API support])],
+				[with_libvarnish="no (found none of the varnish header files)"])])])
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
-	#LDFLAGS="$SAVE_LDFLAGS"
 fi
 if test "x$with_libvarnish" = "xyes"
 then
@@ -4821,6 +4907,62 @@ then
 fi
 # }}}
 
+# --with-libatasmart {{{
+with_libatasmart_cppflags=""
+with_libatasmart_ldflags=""
+AC_ARG_WITH(libatasmart, [AS_HELP_STRING([--with-libatasmart@<:@=PREFIX@:>@], [Path to libatasmart.])],
+[
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	then
+		with_libatasmart_cppflags="-I$withval/include"
+		with_libatasmart_ldflags="-L$withval/lib"
+		with_libatasmart="yes"
+	else
+		with_libatasmart="$withval"
+	fi
+],
+[
+	if test "x$ac_system" = "xLinux"
+	then
+		with_libatasmart="yes"
+	else
+		with_libatasmart="no (Linux only library)"
+	fi
+])
+if test "x$with_libatasmart" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libatasmart_cppflags"
+
+	AC_CHECK_HEADERS(atasmart.h, [with_libatasmart="yes"], [with_libatasmart="no (atasmart.h not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_libatasmart" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libatasmart_cppflags"
+	LDFLAGS="$LDFLAGS $with_libatasmart_ldflags"
+
+	AC_CHECK_LIB(atasmart, sk_disk_open, [with_libatasmart="yes"], [with_libatasmart="no (Symbol 'sk_disk_open' not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+if test "x$with_libatasmart" = "xyes"
+then
+	BUILD_WITH_LIBATASMART_CPPFLAGS="$with_libatasmart_cppflags"
+	BUILD_WITH_LIBATASMART_LDFLAGS="$with_libatasmart_ldflags"
+	BUILD_WITH_LIBATASMART_LIBS="-latasmart"
+	AC_SUBST(BUILD_WITH_LIBATASMART_CPPFLAGS)
+	AC_SUBST(BUILD_WITH_LIBATASMART_LDFLAGS)
+	AC_SUBST(BUILD_WITH_LIBATASMART_LIBS)
+	AC_DEFINE(HAVE_LIBATASMART, 1, [Define if libatasmart is present and usable.])
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBATASMART, test "x$with_libatasmart" = "xyes")
+# }}}
+
 PKG_CHECK_MODULES([LIBNOTIFY], [libnotify],
 		[with_libnotify="yes"],
 		[if test "x$LIBNOTIFY_PKG_ERRORS" = "x"; then
@@ -4998,6 +5140,7 @@ plugin_vmem="no"
 plugin_vserver="no"
 plugin_wireless="no"
 plugin_zfs_arc="no"
+plugin_zookeeper="no"
 
 # Linux
 if test "x$ac_system" = "xLinux"
@@ -5383,6 +5526,7 @@ AC_PLUGIN([numa],        [$plugin_numa],       [NUMA virtual memory statistics])
 AC_PLUGIN([nut],         [$with_libupsclient], [Network UPS tools statistics])
 AC_PLUGIN([olsrd],       [yes],                [olsrd statistics])
 AC_PLUGIN([onewire],     [$with_libowcapi],    [OneWire sensor statistics])
+AC_PLUGIN([openldap],    [$with_libldap],      [OpenLDAP statistics])
 AC_PLUGIN([openvpn],     [yes],                [OpenVPN client statistics])
 AC_PLUGIN([oracle],      [$with_oracle],       [Oracle plugin])
 AC_PLUGIN([perl],        [$plugin_perl],       [Embed a Perl interpreter])
@@ -5395,13 +5539,14 @@ AC_PLUGIN([powerdns],    [yes],                [PowerDNS statistics])
 AC_PLUGIN([processes],   [$plugin_processes],  [Process statistics])
 AC_PLUGIN([protocols],   [$plugin_protocols],  [Protocol (IP, TCP, ...) statistics])
 AC_PLUGIN([python],      [$with_python],       [Embed a Python interpreter])
-AC_PLUGIN([redis],       [$with_libcredis],    [Redis plugin])
+AC_PLUGIN([redis],       [$with_libhiredis],    [Redis plugin])
 AC_PLUGIN([routeros],    [$with_librouteros],  [RouterOS plugin])
 AC_PLUGIN([rrdcached],   [$librrd_rrdc_update], [RRDTool output plugin])
 AC_PLUGIN([rrdtool],     [$with_librrd],       [RRDTool output plugin])
 AC_PLUGIN([sensors],     [$with_libsensors],   [lm_sensors statistics])
 AC_PLUGIN([serial],      [$plugin_serial],     [serial port traffic])
 AC_PLUGIN([sigrok],      [$with_libsigrok],    [sigrok acquisition sources])
+AC_PLUGIN([smart],       [$with_libatasmart],  [SMART statistics])
 AC_PLUGIN([snmp],        [$with_libnetsnmp],   [SNMP querying plugin])
 AC_PLUGIN([statsd],      [yes],                [StatsD plugin])
 AC_PLUGIN([swap],        [$plugin_swap],       [Swap usage statistics])
@@ -5434,12 +5579,13 @@ AC_PLUGIN([write_graphite], [yes],             [Graphite / Carbon output plugin]
 AC_PLUGIN([write_http],  [$with_libcurl],      [HTTP output plugin])
 AC_PLUGIN([write_kafka],  [$with_librdkafka],  [Kafka output plugin])
 AC_PLUGIN([write_mongodb], [$with_libmongoc],  [MongoDB output plugin])
-AC_PLUGIN([write_redis], [$with_libcredis],    [Redis output plugin])
+AC_PLUGIN([write_redis], [$with_libhiredis],    [Redis output plugin])
 AC_PLUGIN([write_riemann], [$have_protoc_c],   [Riemann output plugin])
 AC_PLUGIN([write_statsd],  [yes],              [StatsD output plugin])
 AC_PLUGIN([write_tsdb],  [yes],                [TSDB output plugin])
 AC_PLUGIN([xmms],        [$with_libxmms],      [XMMS statistics])
 AC_PLUGIN([zfs_arc],     [$plugin_zfs_arc],    [ZFS ARC statistics])
+AC_PLUGIN([zookeeper],   [yes],  	       [Zookeeper statistics])
 
 dnl Default configuration file
 # Load either syslog or logfile
@@ -5623,9 +5769,10 @@ Configuration:
   Libraries:
     intel mic . . . . . . $with_mic
     libaquaero5 . . . . . $with_libaquaero5
+    libatasmart . . . . . $with_libatasmart
     libcurl . . . . . . . $with_libcurl
     libdbi  . . . . . . . $with_libdbi
-    libcredis . . . . . . $with_libcredis
+    libhiredis  . . . . . $with_libhiredis
     libesmtp  . . . . . . $with_libesmtp
     libganglia  . . . . . $with_libganglia
     libgcrypt . . . . . . $with_libgcrypt
@@ -5635,6 +5782,7 @@ Configuration:
     libjvm  . . . . . . . $with_java
     libkstat  . . . . . . $with_kstat
     libkvm  . . . . . . . $with_libkvm
+    libldap . . . . . . . $with_libldap
     liblvm2app  . . . . . $with_liblvm2app
     libmemcached  . . . . $with_libmemcached
     libmnl  . . . . . . . $with_libmnl
@@ -5749,6 +5897,7 @@ Configuration:
     nut . . . . . . . . . $enable_nut
     olsrd . . . . . . . . $enable_olsrd
     onewire . . . . . . . $enable_onewire
+    openldap  . . . . . . $enable_openldap
     openvpn . . . . . . . $enable_openvpn
     oracle  . . . . . . . $enable_oracle
     perl  . . . . . . . . $enable_perl
@@ -5767,6 +5916,7 @@ Configuration:
     sensors . . . . . . . $enable_sensors
     serial  . . . . . . . $enable_serial
     sigrok  . . . . . . . $enable_sigrok
+    smart . . . . . . . . $enable_smart
     snmp  . . . . . . . . $enable_snmp
     statsd  . . . . . . . $enable_statsd
     swap  . . . . . . . . $enable_swap
@@ -5805,6 +5955,7 @@ Configuration:
     write_tsdb  . . . . . $enable_write_tsdb
     xmms  . . . . . . . . $enable_xmms
     zfs_arc . . . . . . . $enable_zfs_arc
+    zookeeper . . . . . . $enable_zookeeper
 
 EOF
 

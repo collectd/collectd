@@ -231,12 +231,17 @@ static int cj_cb_number (void *ctx,
   buffer[sizeof (buffer) - 1] = 0;
 
   if ((key == NULL) || !CJ_IS_KEY (key)) {
-    if (key != NULL)
+    if (key != NULL && !db->state[db->depth].in_array/*can be inhomogeneous*/)
       NOTICE ("curl_json plugin: Found \"%s\", but the configuration expects"
               " a map.", buffer);
-    cj_cb_inc_array_index (ctx, /* update_key = */ 0);
-    return (CJ_CB_CONTINUE);
-  } else {
+    cj_cb_inc_array_index (ctx, /* update_key = */ 1);
+    key = db->state[db->depth].key;
+    if (key == NULL) {
+      return (CJ_CB_CONTINUE);
+    }
+  }
+  else
+  {
     cj_cb_inc_array_index (ctx, /* update_key = */ 1);
   }
 
@@ -276,10 +281,21 @@ static int cj_cb_map_key (void *ctx,
     memcpy (name, in_name, name_len);
     name[name_len] = 0;
 
-    if (c_avl_get (tree, name, (void *) &value) == 0)
-      db->state[db->depth].key = value;
+    if (c_avl_get (tree, name, (void *) &value) == 0) {
+      if (CJ_IS_KEY((cj_key_t*)value)) {
+        db->state[db->depth].key = value;
+      }
+      else {
+        db->state[db->depth].tree = (c_avl_tree_t*) value;
+      }
+    }
     else if (c_avl_get (tree, CJ_ANY, (void *) &value) == 0)
-      db->state[db->depth].key = value;
+      if (CJ_IS_KEY((cj_key_t*)value)) {
+        db->state[db->depth].key = value;
+      }
+      else {
+        db->state[db->depth].tree = (c_avl_tree_t*) value;
+      }
     else
       db->state[db->depth].key = NULL;
   }

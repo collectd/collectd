@@ -47,6 +47,8 @@
 %{?el6:%global _has_libmodbus 1}
 %{?el6:%global _has_libudev 1}
 %{?el6:%global _has_iproute 1}
+%{?el6:%global _has_atasmart 1}
+%{?el6:%global _has_hiredis 1}
 
 %{?el7:%global _has_libyajl 1}
 %{?el7:%global _has_recent_libpcap 1}
@@ -59,6 +61,8 @@
 %{?el7:%global _has_varnish4 1}
 %{?el7:%global _has_broken_libmemcached 1}
 %{?el7:%global _has_iproute 1}
+%{?el7:%global _has_atasmart 1}
+%{?el7:%global _has_hiredis 1}
 
 # plugins enabled by default
 %define with_aggregation 0%{!?_without_aggregation:1}
@@ -96,7 +100,7 @@
 %define with_ipvs 0%{!?_without_ipvs:0%{?_has_ip_vs_h}}
 %define with_irq 0%{!?_without_irq:1}
 %define with_java 0%{!?_without_java:1}
-%define with_libvirt 0%{!?_without_libvirt:1}
+%define with_virt 0%{!?_without_virt:1}
 %define with_load 0%{!?_without_load:1}
 %define with_logfile 0%{!?_without_logfile:1}
 %define with_log_logstash 0%{!?_without_log_logstash:0%{?_has_libyajl}}
@@ -120,6 +124,7 @@
 %define with_numa 0%{!?_without_numa:1}
 %define with_nut 0%{!?_without_nut:1}
 %define with_olsrd 0%{!?_without_olsrd:1}
+%define with_openldap 0%{!?_without_openldap:1}
 %define with_openvpn 0%{!?_without_openvpn:1}
 %define with_perl 0%{!?_without_perl:1}
 %define with_pinba 0%{!?_without_pinba:1}
@@ -129,10 +134,12 @@
 %define with_processes 0%{!?_without_processes:1}
 %define with_protocols 0%{!?_without_protocols:1}
 %define with_python 0%{!?_without_python:1}
+%define with_redis 0%{!?_without_redis:0%{?_has_hiredis}}
 %define with_rrdcached 0%{!?_without_rrdcached:0%{?_has_recent_librrd}}
 %define with_rrdtool 0%{!?_without_rrdtool:1}
 %define with_sensors 0%{!?_without_sensors:1}
 %define with_serial 0%{!?_without_serial:1}
+%define with_smart 0%{!?_without_smart:0%{?_has_atasmart}}
 %define with_snmp 0%{!?_without_snmp:1}
 %define with_statsd 0%{!?_without_statsd:1}
 %define with_swap 0%{!?_without_swap:1}
@@ -155,9 +162,11 @@
 %define with_wireless 0%{!?_without_wireless:1}
 %define with_write_graphite 0%{!?_without_write_graphite:1}
 %define with_write_http 0%{!?_without_write_http:1}
+%define with_write_redis 0%{!?_without_write_redis:0%{?_has_hiredis}}
 %define with_write_riemann 0%{!?_without_write_riemann:1}
 %define with_write_tsdb 0%{!?_without_write_tsdb:1}
 %define with_zfs_arc 0%{!?_without_zfs_arc:1}
+%define with_zookeeper 0%{!?_without_zookeeper:1}
 
 # Plugins not built by default because of dependencies on libraries not
 # available in RHEL or EPEL:
@@ -180,8 +189,6 @@
 %define with_oracle 0%{!?_without_oracle:0}
 # plugin oracle disabled, requires BSD
 %define with_pf 0%{!?_without_pf:0}
-# plugin redis disabled, requires credis
-%define with_redis 0%{!?_without_redis:0}
 # plugin routeros disabled, requires librouteros
 %define with_routeros 0%{!?_without_routeros:0}
 # plugin sigrok disabled, requires libsigrok
@@ -194,8 +201,6 @@
 %define with_write_kafka 0%{!?_without_write_kafka:0}
 # plugin write_mongodb disabled, requires libmongoc
 %define with_write_mongodb 0%{!?_without_write_mongodb:0}
-# plugin write_redis disabled, requires credis
-%define with_write_redis 0%{!?_without_write_redis:0}
 # plugin xmms disabled, requires xmms
 %define with_xmms 0%{!?_without_xmms:0}
 
@@ -417,16 +422,6 @@ This plugin for collectd allows plugins to be written in Java and executed
 in an embedded JVM.
 %endif
 
-%if %{with_libvirt}
-%package libvirt
-Summary:	Libvirt plugin for collectd
-Group:		System Environment/Daemons
-Requires:	%{name}%{?_isa} = %{version}-%{release}
-BuildRequires:	libvirt-devel
-%description libvirt
-This plugin collects information from virtualized guests.
-%endif
-
 %if %{with_log_logstash}
 %package log_logstash
 Summary:       log_logstash plugin for collectd
@@ -543,6 +538,16 @@ BuildRequires:	nut-devel
 This plugin for collectd provides Network UPS Tools support.
 %endif
 
+%if %{with_openldap}
+%package openldap
+Summary:       Openldap plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+BuildRequires: openldap-devel
+%description openldap
+This plugin reads monitoring information from OpenLDAP's cn=Monitor subtree.
+%endif
+
 %if %{with_perl}
 %package perl
 Summary:	Perl plugin for collectd
@@ -612,10 +617,10 @@ application programming interface (API) to Python-scripts.
 Summary:	Redis plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-BuildRequires:	credis-devel
+BuildRequires:	hiredis-devel
 %description redis
 The Redis plugin connects to one or more instances of Redis, a key-value store,
-and collects usage information using the credis library.
+and collects usage information using the hiredis library.
 %endif
 
 %if %{with_rrdcached}
@@ -660,6 +665,17 @@ measurements fed to collectd. This includes multimeters, sound level meters,
 thermometers, and much more.
 %endif
 
+%if %{with_smart}
+%package smart
+Summary:       SMART plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+BuildRequires: libatasmart-devel
+%description smart
+Collect SMART statistics, notably load cycle count, temperature and bad
+sectors.
+%endif
+
 %if %{with_snmp}
 %package snmp
 Summary:	SNMP plugin for collectd
@@ -678,6 +694,16 @@ Requires:	%{name}%{?_isa} = %{version}-%{release}
 BuildRequires:	varnish-libs-devel
 %description varnish
 The Varnish plugin collects information about Varnish, an HTTP accelerator.
+%endif
+
+%if %{with_virt}
+%package virt
+Summary:	Virt plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	libvirt-devel
+%description virt
+This plugin collects information from virtualized guests.
 %endif
 
 %if %{with_write_http}
@@ -706,7 +732,7 @@ The write_kafka plugin sends values to kafka, a distributed messaging system.
 Summary:	Write-Redis plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-BuildRequires:	credis-devel
+BuildRequires:	hiredis-devel
 %description write_redis
 The Write Redis plugin stores values in Redis, a “data structures server”.
 %endif
@@ -996,10 +1022,10 @@ Development files for libcollectdclient
 %define _with_java --disable-java
 %endif
 
-%if %{with_libvirt}
-%define _with_libvirt --enable-libvirt
+%if %{with_virt}
+%define _with_virt --enable-virt
 %else
-%define _with_libvirt --disable-libvirt
+%define _with_virt --disable-virt
 %endif
 
 %if %{with_load}
@@ -1164,6 +1190,12 @@ Development files for libcollectdclient
 %define _with_onewire --disable-onewire
 %endif
 
+%if %{with_openldap}
+%define _with_openldap --enable-openldap
+%else
+%define _with_openldap --disable-openldap
+%endif
+
 %if %{with_openvpn}
 %define _with_openvpn --enable-openvpn
 %else
@@ -1274,6 +1306,12 @@ Development files for libcollectdclient
 %define _with_sigrok --enable-sigrok
 %else
 %define _with_sigrok --disable-sigrok
+%endif
+
+%if %{with_smart}
+%define _with_smart --enable-smart
+%else
+%define _with_smart --disable-smart
 %endif
 
 %if %{with_snmp}
@@ -1435,7 +1473,7 @@ Development files for libcollectdclient
 %if %{with_write_redis}
 %define _with_write_redis --enable-write_redis
 %else
-%define _with_write_redis --disable-write_redis --without-libcredis
+%define _with_write_redis --disable-write_redis
 %endif
 
 %if %{with_write_riemann}
@@ -1460,6 +1498,12 @@ Development files for libcollectdclient
 %define _with_zfs_arc --enable-zfs_arc
 %else
 %define _with_zfs_arc --disable-zfs_arc
+%endif
+
+%if %{with_zookeeper}
+%define _with_zookeeper --enable-zookeeper
+%else
+%define _with_zookeeper --disable-zookeeper
 %endif
 
 %configure CFLAGS="%{optflags} -DLT_LAZY_OR_NOW=\"RTLD_LAZY|RTLD_GLOBAL\"" \
@@ -1513,7 +1557,7 @@ Development files for libcollectdclient
 	%{?_with_iptables} \
 	%{?_with_ipvs} \
 	%{?_with_java} \
-	%{?_with_libvirt} \
+	%{?_with_virt} \
 	%{?_with_log_logstash} \
 	%{?_with_lpar} \
 	%{?_with_lvm} \
@@ -1529,6 +1573,7 @@ Development files for libcollectdclient
 	%{?_with_notify_email} \
 	%{?_with_nut} \
 	%{?_with_onewire} \
+	%{?_with_openldap} \
 	%{?_with_oracle} \
 	%{?_with_perl} \
 	%{?_with_pf} \
@@ -1542,6 +1587,7 @@ Development files for libcollectdclient
 	%{?_with_rrdtool} \
 	%{?_with_sensors} \
 	%{?_with_sigrok} \
+	%{?_with_smart} \
 	%{?_with_snmp} \
 	%{?_with_tape} \
 	%{?_with_tokyotyrant} \
@@ -1552,6 +1598,7 @@ Development files for libcollectdclient
 	%{?_with_write_redis} \
 	%{?_with_xmms} \
 	%{?_with_zfs_arc} \
+	%{?_with_zookeeper} \
 	%{?_with_irq} \
 	%{?_with_load} \
 	%{?_with_logfile} \
@@ -1878,6 +1925,9 @@ fi
 %if %{with_zfs_arc}
 %{_libdir}/%{name}/zfs_arc.so
 %endif
+%if %{with_zookeeper}
+%{_libdir}/%{name}/zookeeper.so
+%endif
 
 %files -n libcollectdclient-devel
 %{_includedir}/collectd/client.h
@@ -1983,9 +2033,9 @@ fi
 %{_mandir}/man5/collectd-java.5*
 %endif
 
-%if %{with_libvirt}
-%files libvirt
-%{_libdir}/%{name}/libvirt.so
+%if %{with_virt}
+%files virt
+%{_libdir}/%{name}/virt.so
 %endif
 
 %if %{with_log_logstash}
@@ -2041,6 +2091,11 @@ fi
 %if %{with_nut}
 %files nut
 %{_libdir}/%{name}/nut.so
+%endif
+
+%if %{with_openldap}
+%files openldap
+%{_libdir}/%{name}/openldap.so
 %endif
 
 %if %{with_perl}
@@ -2100,6 +2155,11 @@ fi
 %{_libdir}/%{name}/sigrok.so
 %endif
 
+%if %{with_smart}
+%files smart
+%{_libdir}/%{name}/smart.so
+%endif
+
 %if %{with_snmp}
 %files snmp
 %{_mandir}/man5/collectd-snmp.5*
@@ -2145,7 +2205,7 @@ fi
 %changelog
 # * TODO 5.5.0-1
 # - New upstream version
-# - New plugins enabled by default: drbd, log_logstash, write_tsdb
+# - New plugins enabled by default: drbd, log_logstash, write_tsdb, smart, openldap, redis, write_redis, zookeeper
 # - New plugins disabled by default: barometer, write_kafka
 # - Enable zfs_arc, now supported on Linux
 # - Install disk plugin in an dedicated package, as it depends on libudev

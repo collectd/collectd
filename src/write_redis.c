@@ -30,7 +30,8 @@
 #include "configfile.h"
 
 #include <pthread.h>
-#include <credis.h>
+#include <sys/time.h>
+#include <hiredis/hiredis.h>
 
 struct wr_node_s
 {
@@ -38,9 +39,9 @@ struct wr_node_s
 
   char *host;
   int port;
-  int timeout;
+  struct timeval timeout;
 
-  REDIS conn;
+  redisContext *conn;
   pthread_mutex_t lock;
 };
 typedef struct wr_node_s wr_node_t;
@@ -56,15 +57,18 @@ static int wr_write (const data_set_t *ds, /* {{{ */
   char ident[512];
   char key[512];
   char value[512];
+  char time[24];
   size_t value_size;
   char *value_ptr;
   int status;
+  redisReply   *rr;
   int i;
 
   status = FORMAT_VL (ident, sizeof (ident), vl);
   if (status != 0)
     return (status);
   ssnprintf (key, sizeof (key), "collectd/%s", ident);
+  ssnprintf (time, sizeof (time), "%.9f", CDTIME_T_TO_DOUBLE(vl->time));
 
   memset (value, 0, sizeof (value));
   value_size = sizeof (value);
@@ -84,7 +88,8 @@ static int wr_write (const data_set_t *ds, /* {{{ */
   }                                                                  \
 } while (0)
 
-  APPEND ("%lu", (unsigned long) vl->time);
+  APPEND ("%s:", time);
+
   for (i = 0; i < ds->ds_num; i++)
   {
     if (ds->ds[i].type == DS_TYPE_COUNTER)
@@ -105,7 +110,7 @@ static int wr_write (const data_set_t *ds, /* {{{ */
 
   if (node->conn == NULL)
   {
-    node->conn = credis_connect (node->host, node->port, node->timeout);
+    node->conn = redisConnectWithTimeout ((char *)node->host, node->port, node->timeout);
     if (node->conn == NULL)
     {
       ERROR ("write_redis plugin: Connecting to host \"%s\" (port %i) failed.",
@@ -116,12 +121,14 @@ static int wr_write (const data_set_t *ds, /* {{{ */
     }
   }
 
-  /* "credis_zadd" doesn't handle a NULL pointer gracefully, so I'd rather
-   * have a meaningful assertion message than a normal segmentation fault. */
   assert (node->conn != NULL);
-  status = credis_zadd (node->conn, key, (double) vl->time, value);
+  rr = redisCommand (node->conn, "ZADD %s %s %s", key, time, value);
+  if (rr==NULL)
+    WARNING("ZADD command error. key:%s", key);
 
-  credis_sadd (node->conn, "collectd/values", ident);
+  rr = redisCommand (node->conn, "SADD collectd/values %s", ident);
+  if (rr==NULL)
+    WARNING("SADD command error. ident:%s", ident);
 
   pthread_mutex_unlock (&node->lock);
 
@@ -137,7 +144,7 @@ static void wr_config_free (void *ptr) /* {{{ */
 
   if (node->conn != NULL)
   {
-    credis_close (node->conn);
+    redisFree (node->conn);
     node->conn = NULL;
   }
 
@@ -148,6 +155,7 @@ static void wr_config_free (void *ptr) /* {{{ */
 static int wr_config_node (oconfig_item_t *ci) /* {{{ */
 {
   wr_node_t *node;
+  int timeout;
   int status;
   int i;
 
@@ -157,7 +165,8 @@ static int wr_config_node (oconfig_item_t *ci) /* {{{ */
   memset (node, 0, sizeof (*node));
   node->host = NULL;
   node->port = 0;
-  node->timeout = 1000;
+  node->timeout.tv_sec = 0;
+  node->timeout.tv_usec = 1000;
   node->conn = NULL;
   pthread_mutex_init (&node->lock, /* attr = */ NULL);
 
@@ -183,8 +192,10 @@ static int wr_config_node (oconfig_item_t *ci) /* {{{ */
         status = 0;
       }
     }
-    else if (strcasecmp ("Timeout", child->key) == 0)
-      status = cf_util_get_int (child, &node->timeout);
+    else if (strcasecmp ("Timeout", child->key) == 0) {
+      status = cf_util_get_int (child, &timeout);
+      if (status == 0) node->timeout.tv_usec = timeout;
+    }
     else
       WARNING ("write_redis plugin: Ignoring unknown config option \"%s\".",
           child->key);

@@ -146,9 +146,6 @@ Features
       Detailed CPU statistics of the “Logical Partitions” virtualization
       technique built into IBM's POWER processors.
 
-    - libvirt
-      CPU, memory, disk and network I/O statistics from virtual machines.
-
     - lvm
       Size of “Logical Volumes” (LV) and “Volume Groups” (VG) of Linux'
       “Logical Volume Manager” (LVM).
@@ -232,6 +229,9 @@ Features
       Read onewire sensors using the owcapu library of the owfs project.
       Please read in collectd.conf(5) why this plugin is experimental.
 
+    - openldap
+      Read monitoring information from OpenLDAP's cn=Monitor subtree.
+
     - openvpn
       RX and TX of each client in openvpn-status.log (status-version 2).
       <http://openvpn.net/index.php/documentation/howto.html>
@@ -296,6 +296,10 @@ Features
       to have its measurements fed to collectd. This includes multimeters,
       sound level meters, thermometers, and much more.
 
+    - smart
+      Collect SMART statistics, notably load cycle count, temperature
+      and bad sectors.
+
     - snmp
       Read values from SNMP (Simple Network Management Protocol) enabled
       network devices such as switches, routers, thermometers, rack monitoring
@@ -347,6 +351,9 @@ Features
     - varnish
       Various statistics from Varnish, an HTTP accelerator.
 
+    - virt
+      CPU, memory, disk and network I/O statistics from virtual machines.
+
     - vmem
       Virtual memory statistics, e. g. the number of page-ins/-outs or the
       number of pagefaults.
@@ -363,6 +370,9 @@ Features
 
     - zfs_arc
       Statistics for ZFS' “Adaptive Replacement Cache” (ARC).
+
+    - zookeeper
+      Read data from Zookeeper's MNTR command.
 
   * Output can be written or sent to various destinations by the following
     plugins:
@@ -604,12 +614,16 @@ Prerequisites
     particular.
     <http://developer.apple.com/corefoundation/>
 
+  * libatasmart (optional)
+    Used by the `smart' plugin.
+    <http://git.0pointer.de/?p=libatasmart.git>
+
   * libclntsh (optional)
     Used by the `oracle' plugin.
 
-  * libcredis (optional)
-    Used by the `redis' plugin. Please note that you require a 0.2.2 version
-    or higher. <http://code.google.com/p/credis/>
+  * libhiredis (optional)
+    Used by the redis plugin. Please note that you require a 0.10.0 version
+    or higher. <https://github.com/redis/hiredis>
 
   * libcurl (optional)
     If you want to use the `apache', `ascent', `bind', `curl', `curl_json',
@@ -649,6 +663,10 @@ Prerequisites
     used by the `java' plugin to execute Java bytecode. See “Configuring with
     libjvm” below.
     <http://openjdk.java.net/> (and others)
+
+  * libldap (optional)
+    Used by the `openldap' plugin.
+    <http://www.openldap.org/>
 
   * liblvm2 (optional)
     Used by the `lvm' plugin.
@@ -775,7 +793,7 @@ Prerequisites
 
   * libxml2 (optional)
     Parse XML data. This is needed for the `ascent', `bind', `curl_xml' and
-    `libvirt' plugins.
+    `virt' plugins.
     <http://xmlsoft.org/>
 
   * libxmms (optional)
@@ -857,6 +875,23 @@ Configuring with libjvm
 
   Adding "-ljvm" to the JAVA_LDFLAGS is done automatically, you don't have to
   do that.
+
+Generating the configure script
+-------------------------------
+
+Collectd ships with a `build.sh' script to generate the `configure'
+script shipped with releases.
+
+To generate the `configure` script, you'll need the following dependencies:
+
+- autoconf
+- automke
+- flex
+- bison
+- libtool
+- libtool-ltdl
+
+The `build.sh' script takes no arguments.
 
 Crosscompiling
 --------------

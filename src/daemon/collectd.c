@@ -33,6 +33,7 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <netdb.h>
 
 #include <pthread.h>
@@ -191,7 +192,7 @@ static int change_basedir (const char *orig_dir)
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
-	
+
 	dirlen = strlen (dir);
 	while ((dirlen > 0) && (dir[dirlen - 1] == '/'))
 		dir[--dirlen] = '\0';
@@ -270,7 +271,7 @@ static void update_kstat (void)
 static void exit_usage (int status)
 {
 	printf ("Usage: "PACKAGE" [OPTIONS]\n\n"
-			
+
 			"Available options:\n"
 			"  General:\n"
 			"    -C <file>       Configuration file.\n"
@@ -307,7 +308,11 @@ static int do_init (void)
 #endif
 
 #if HAVE_LIBSTATGRAB
-	if (sg_init ())
+	if (sg_init (
+# if HAVE_LIBSTATGRAB_0_90
+		    0
+# endif
+		    ))
 	{
 		ERROR ("sg_init: %s", sg_str_error (sg_get_error ()));
 		return (-1);
@@ -408,6 +413,74 @@ static int pidfile_remove (void)
 	return (unlink (file));
 } /* static int pidfile_remove (const char *file) */
 #endif /* COLLECT_DAEMON */
+
+#ifdef KERNEL_LINUX
+int notify_upstart (void)
+{
+    const char  *upstart_job = getenv("UPSTART_JOB");
+
+    if (upstart_job == NULL)
+        return 0;
+
+    if (strcmp(upstart_job, "collectd") != 0)
+        return 0;
+
+    WARNING ("supervised by upstart, will stop to signal readyness");
+    raise(SIGSTOP);
+    unsetenv("UPSTART_JOB");
+
+    return 1;
+}
+
+int notify_systemd (void)
+{
+    int                  fd = -1;
+    const char          *notifysocket = getenv("NOTIFY_SOCKET");
+    struct sockaddr_un   su;
+    struct iovec         iov;
+    struct msghdr        hdr;
+
+    if (notifysocket == NULL)
+        return 0;
+
+    if ((strchr("@/", notifysocket[0])) == NULL ||
+        strlen(notifysocket) < 2)
+        return 0;
+
+    WARNING ("supervised by systemd, will signal readyness");
+    if ((fd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
+        WARNING ("cannot contact systemd socket %s", notifysocket);
+        return 0;
+    }
+
+    bzero(&su, sizeof(su));
+    su.sun_family = AF_UNIX;
+    sstrncpy (su.sun_path, notifysocket, sizeof(su.sun_path));
+
+    if (notifysocket[0] == '@')
+        su.sun_path[0] = 0;
+
+    bzero(&iov, sizeof(iov));
+    iov.iov_base = "READY=1";
+    iov.iov_len = strlen("READY=1");
+
+    bzero(&hdr, sizeof(hdr));
+    hdr.msg_name = &su;
+    hdr.msg_namelen = offsetof(struct sockaddr_un, sun_path) +
+        strlen(notifysocket);
+    hdr.msg_iov = &iov;
+    hdr.msg_iovlen = 1;
+
+    unsetenv("NOTIFY_SOCKET");
+    if (sendmsg(fd, &hdr, MSG_NOSIGNAL) < 0) {
+        WARNING ("cannot send notification to systemd");
+        close(fd);
+        return 0;
+    }
+    close(fd);
+    return 1;
+}
+#endif /* KERNEL_LINUX */
 
 int main (int argc, char **argv)
 {
@@ -525,7 +598,15 @@ int main (int argc, char **argv)
 	sig_chld_action.sa_handler = SIG_IGN;
 	sigaction (SIGCHLD, &sig_chld_action, NULL);
 
-	if (daemonize)
+    /*
+     * Only daemonize if we're not being supervised
+     * by upstart or systemd (when using Linux).
+     */
+	if (daemonize
+#ifdef KERNEL_LINUX
+	    && notify_upstart() == 0 && notify_systemd() == 0
+#endif
+	)
 	{
 		if ((pid = fork ()) == -1)
 		{

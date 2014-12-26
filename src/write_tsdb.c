@@ -367,7 +367,7 @@ static int wt_format_name(char *ret, int ret_len,
         if (vl->plugin_instance[0] == '\0') {
             ssnprintf(ret, ret_len, "%s%s.%s",
                       prefix, vl->plugin, ds_name);
-        } else if (vl->type_instance == '\0') {
+        } else if (vl->type_instance[0] == '\0') {
             ssnprintf(ret, ret_len, "%s%s.%s.%s.%s",
                       prefix, vl->plugin, vl->plugin_instance,
                       vl->type_instance, ds_name);

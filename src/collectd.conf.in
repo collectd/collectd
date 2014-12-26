@@ -150,6 +150,7 @@
 #@BUILD_PLUGIN_NUT_TRUE@LoadPlugin nut
 #@BUILD_PLUGIN_OLSRD_TRUE@LoadPlugin olsrd
 #@BUILD_PLUGIN_ONEWIRE_TRUE@LoadPlugin onewire
+#@BUILD_PLUGIN_OPENLDAP_TRUE@LoadPlugin openldap
 #@BUILD_PLUGIN_OPENVPN_TRUE@LoadPlugin openvpn
 #@BUILD_PLUGIN_ORACLE_TRUE@LoadPlugin oracle
 #@BUILD_PLUGIN_PERL_TRUE@<LoadPlugin perl>
@@ -171,6 +172,7 @@
 #@BUILD_PLUGIN_SENSORS_TRUE@LoadPlugin sensors
 #@BUILD_PLUGIN_SERIAL_TRUE@LoadPlugin serial
 #@BUILD_PLUGIN_SIGROK_TRUE@LoadPlugin sigrok
+#@BUILD_PLUGIN_SMART_TRUE@LoadPlugin smart
 #@BUILD_PLUGIN_SNMP_TRUE@LoadPlugin snmp
 #@BUILD_PLUGIN_STATSD_TRUE@LoadPlugin statsd
 #@BUILD_PLUGIN_SWAP_TRUE@LoadPlugin swap
@@ -202,6 +204,7 @@
 #@BUILD_PLUGIN_WRITE_TSDB_TRUE@LoadPlugin write_tsdb
 #@BUILD_PLUGIN_XMMS_TRUE@LoadPlugin xmms
 #@BUILD_PLUGIN_ZFS_ARC_TRUE@LoadPlugin zfs_arc
+#@BUILD_PLUGIN_ZOOKEEPER_TRUE@LoadPlugin zookeeper
 
 ##############################################################################
 # Plugin configuration                                                       #
@@ -345,6 +348,41 @@
 #</Plugin>
 
 #<Plugin curl_json>
+#  <URL "http://localhost:80/test.json">
+#    Instance "test_http_json"
+#    <Key "testArray/0">
+#      Type "gauge"
+#      # Expect: 1
+#    </Key>
+#    <Key "testArray/1">
+#      Type "gauge"
+#      # Expect: 2
+#    </Key>
+#    <Key "testArrayInbetween/0/blarg">
+#      Type "gauge"
+#      # Expect: 3
+#    </Key>
+#    <Key "testArrayInbetween/1/blub">
+#      Type "gauge"
+#      # Expect: 4
+#    </Key>
+#    <Key "testDirectHit">
+#      Type "gauge"
+#      # Expect: 5
+#    </Key>
+#    <Key "testSubLevelHit/oneMoreLevel">
+#      Type "gauge"
+#      # Expect: 6
+#    </Key>
+#  </URL>
+# put this as test.json on your webserver, the above config demonstraces
+# how to match them.
+# {
+#  "testArray":[1,2],
+#  "testArrayInbetween":[{"blarg":3},{"blub":4}],
+#  "testDirectHit":5,
+#  "testSubLevelHit":{"oneMoreLevel":6}
+# }
 ## See: http://wiki.apache.org/couchdb/Runtime_Statistics
 #  <URL "http://localhost:5984/_stats">
 #    Instance "httpd"
@@ -589,6 +627,7 @@
 #	<Data "data_name">
 #		RegisterBase 1234
 #		RegisterType float
+#		ModbusRegisterType holding
 #		Type gauge
 #		Instance "..."
 #	</Data>
@@ -765,6 +804,17 @@
 #	Device "-s localhost:4304"
 #	Sensor "F10FCA000800"
 #	IgnoreSelected false
+#</Plugin>
+
+#<Plugin openldap>
+#  <Instance "localhost">
+#    URL "ldap://localhost:389"
+#    StartTLS false
+#    VerifyHost true
+#    CACert "/path/to/ca.crt"
+#    Timeout -1
+#    Version 3
+#  </Instance>
 #</Plugin>
 
 #<Plugin openvpn>
@@ -971,6 +1021,11 @@
 #  </Device>
 #</Plugin>
 
+#<Plugin smart>
+#  Disk "/^[hs]d[a-f][0-9]?$/"
+#  IgnoreSelected false
+#</Plugin>
+
 #<Plugin snmp>
 #   <Data "powerplus_voltge_input">
 #       Type "voltage"
@@ -1021,6 +1076,12 @@
 #  DeleteGauges   false
 #  DeleteSets     false
 #  TimerPercentile 90.0
+#  TimerPercentile 95.0
+#  TimerPercentile 99.0
+#  TimerLower     false
+#  TimerUpper     false
+#  TimerSum       false
+#  TimerCount     false
 #</Plugin>
 
 #<Plugin swap>
@@ -1160,25 +1221,26 @@
 #   If you prefer defining another instance you can do
 #   so by using <Instance "myinstance">
 #   <Instance>
-#      CollectCache true
 #      CollectBackend true
-#      CollectBan false           # Varnish 3 only
+#      CollectBan false           # Varnish 3 and above
+#      CollectCache true
 #      CollectConnections true
 #      CollectDirectorDNS false   # Varnish 3 only
-#      CollectSHM true
 #      CollectESI false
 #      CollectFetch false
 #      CollectHCB false
 #      CollectObjects false
 #      CollectPurge false         # Varnish 2 only
 #      CollectSession false
+#      CollectSHM true
 #      CollectSMA false           # Varnish 2 only
 #      CollectSMS false
 #      CollectSM false            # Varnish 2 only
 #      CollectStruct false
 #      CollectTotals false
-#      CollectUptime false
+#      CollectUptime false        # Varnish 3 and above
 #      CollectVCL false
+#      CollectVSM false           # Varnish 4 only
 #      CollectWorkers false
 #   </Instance>
 #</Plugin>
@@ -1263,13 +1325,17 @@
 #		Host "localhost"
 #		Port 5555
 #		Protocol UDP
+#		Batch false
+#		BatchMaxSize 8192
 #		StoreRates true
 #		AlwaysAppendDS false
 #		TTLFactor 2.0
+#		Notifications true
+#		CheckThresholds false
 #		EventServicePrefix ""
 #	</Node>
 #	Tag "foobar"
-#       Attribute "foo" "bar"
+#	Attribute "foo" "bar"
 #</Plugin>
 
 #<Plugin write_tsdb>
@@ -1280,6 +1346,11 @@
 #		StoreRates false
 #		AlwaysAppendDS false
 #	</Node>
+#</Plugin>
+
+#<Plugin zookeeper>
+#    Host "localhost"
+#    Port "2181"
 #</Plugin>
 
 ##############################################################################

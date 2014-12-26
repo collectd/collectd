@@ -359,7 +359,7 @@ static int csnmp_config_add_data_blacklist(data_definition_t *dd, oconfig_item_t
     {
       ERROR("snmp plugin: Can't allocate memory");
       strarray_free(dd->ignores, dd->ignores_len);
-      return (ENOMEM); 
+      return (ENOMEM);
     }
   }
   return 0;
@@ -1497,6 +1497,8 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
         snmp_free_pdu (res);
       res = NULL;
 
+      /* snmp_synch_response already freed our PDU */
+      req = NULL;
       sfree (errstr);
       csnmp_host_close_session (host);
 

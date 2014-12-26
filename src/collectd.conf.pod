@@ -9,17 +9,17 @@ collectd.conf - Configuration for the system statistics collection daemon B<coll
   BaseDir "/var/lib/collectd"
   PIDFile "/run/collectd.pid"
   Interval 10.0
-  
+
   LoadPlugin cpu
   LoadPlugin load
-  
+
   <LoadPlugin df>
     Interval 3600
   </LoadPlugin>
   <Plugin df>
     ValuesPercentage true
   </Plugin>
-  
+
   LoadPlugin ping
   <Plugin ping>
     Host "example.org"
@@ -2890,6 +2890,7 @@ B<Synopsis:>
  <Data "voltage-input-1">
    RegisterBase 0
    RegisterType float
+   ModbusRegisterType holding
    Type voltage
    Instance "input-1"
  </Data>
@@ -2897,6 +2898,7 @@ B<Synopsis:>
  <Data "voltage-input-2">
    RegisterBase 2
    RegisterType float
+   ModbusRegisterType holding
    Type voltage
    Instance "input-2"
  </Data>
@@ -2935,6 +2937,11 @@ register will be read (the register number is increased by one).
 Specifies what kind of data is returned by the device. If the type is B<Int32>,
 B<Uint32> or B<Float>, two 16E<nbsp>bit registers will be read and the data is
 combined into one value. Defaults to B<Uint16>.
+
+=item B<ModbusRegisterType> B<holding>|B<input>
+
+Specifies register type to be collected from device. Works only with libmodbus
+2.9.2 or higher. Defaults to B<holding>.
 
 =item B<Type> I<Type>
 
@@ -4245,6 +4252,70 @@ short: If it works for you: Great! But keep in mind that the config I<might>
 change, though this is unlikely. Oh, and if you want to help improving this
 plugin, just send a short notice to the mailing list. ThanksE<nbsp>:)
 
+=head2 Plugin C<openldap>
+
+To use the C<openldap> plugin you first need to configure the I<OpenLDAP>
+server correctly. The backend database C<monitor> needs to be loaded and
+working. See slapd-monitor(5) for the details.
+
+The configuration of the C<openldap> plugin consists of one or more B<Instance>
+blocks. Each block requires one string argument as the instance name. For
+example:
+
+ <Plugin "openldap">
+   <Instance "foo">
+     URL "ldap://localhost/"
+   </Instance>
+   <Instance "bar">
+     URL "ldaps://localhost/"
+   </Instance>
+ </Plugin>
+
+The instance name will be used as the I<plugin instance>. To emulate the old
+(versionE<nbsp>4) behavior, you can use an empty string (""). In order for the
+plugin to work correctly, each instance name must be unique. This is not
+enforced by the plugin and it is your responsibility to ensure it is.
+
+The following options are accepted within each B<Instance> block:
+
+=over 4
+
+=item B<URL> I<ldap://host/binddn>
+
+Sets the URL to use to connect to the I<OpenLDAP> server. This option is
+I<mandatory>.
+
+=item B<StartTLS> B<true|false>
+
+Defines whether TLS must be used when connecting to the I<OpenLDAP> server.
+Disabled by default.
+
+=item B<VerifyHost> B<true|false>
+
+Enables or disables peer host name verification. If enabled, the plugin checks
+if the C<Common Name> or a C<Subject Alternate Name> field of the SSL
+certificate matches the host name provided by the B<URL> option. If this
+identity check fails, the connection is aborted. Enabled by default.
+
+=item B<CACert> I<File>
+
+File that holds one or more SSL certificates. If you want to use TLS/SSL you
+may possibly need this option. What CA certificates are checked by default
+depends on the distribution you use and can be changed with the usual ldap
+client configuration mechanisms. See ldap.conf(5) for the details.
+
+=item B<Timeout> I<Seconds>
+
+Sets the timeout value for ldap operations. Defaults to B<-1> which results in
+an infinite timeout.
+
+=item B<Version> I<Version>
+
+An integer which sets the LDAP protocol version number to use when connecting
+to the I<OpenLDAP> server. Defaults to B<3> for using I<LDAPv3>.
+
+=back
+
 =head2 Plugin C<openvpn>
 
 The OpenVPN plugin reads a status file maintained by OpenVPN and gathers
@@ -4898,6 +4969,10 @@ Specify the username to be used when connecting to the server.
 
 Specify the password to be used when connecting to the server.
 
+=item B<ExpireDelay> I<delay>
+
+Skip expired values in query output.
+
 =item B<SSLMode> I<disable>|I<allow>|I<prefer>|I<require>
 
 Specify whether to use an SSL connection when contacting the server. The
@@ -5269,6 +5344,10 @@ which configures the connection parameters for this node.
         Host "localhost"
         Port "6379"
         Timeout 2000
+        <Query "LLEN myqueue">
+          Type "queue_length"
+          Instance "myqueue"
+        <Query>
     </Node>
   </Plugin>
 
@@ -5305,6 +5384,22 @@ The B<Timeout> option set the socket timeout for node response. Since the Redis
 read function is blocking, you should keep this value as low as possible. Keep
 in mind that the sum of all B<Timeout> values for all B<Nodes> should be lower
 than B<Interval> defined globally.
+
+=item B<Query> I<Querystring>
+
+The B<Query> block identifies a query to execute against the redis server.
+There may be an arbitrary number of queries to execute.
+
+=item B<Type> I<Collectd type>
+
+Within a query definition, a valid collectd type to use as when submitting
+the result of the query. When not supplied, will default to B<gauge>.
+
+=item B<Instance> I<Type instance>
+
+Within a query definition, an optional type instance to use when submitting
+the result of the query. When not supplied will default to the escaped
+command, up to 64 chars.
 
 =back
 
@@ -5639,6 +5734,40 @@ measurements are discarded.
 
 =back
 
+=head2 Plugin C<smart>
+
+The C<smart> plugin collects SMART information from physical
+disks. Values collectd include temperature, power cycle count, poweron
+time and bad sectors. Also, all SMART attributes are collected along
+with the normalized current value, the worst value, the threshold and
+a human readable value.
+
+Using the following two options you can ignore some disks or configure the
+collection only of specific disks.
+
+=over 4
+
+=item B<Disk> I<Name>
+
+Select the disk I<Name>. Whether it is collected or ignored depends on the
+B<IgnoreSelected> setting, see below. As with other plugins that use the
+daemon's ignorelist functionality, a string that starts and ends with a slash
+is interpreted as a regular expression. Examples:
+
+  Disk "sdd"
+  Disk "/hda[34]/"
+
+=item B<IgnoreSelected> B<true>|B<false>
+
+Sets whether selected disks, i.E<nbsp>e. the ones matches by any of the B<Disk>
+statements, are ignored or if all other disks are ignored. The behavior
+(hopefully) is intuitive: If no B<Disk> option is configured, all disks are
+collected. If at least one B<Disk> option is given and no B<IgnoreSelected> or
+set to B<false>, B<only> matching disks will be collected. If B<IgnoreSelected>
+is set to B<true>, all disks are collected B<except> the ones matched.
+
+=back
+
 =head2 Plugin C<snmp>
 
 Since the configuration of the C<snmp plugin> is a little more complicated than
@@ -5690,7 +5819,20 @@ that I<Percent> of all reported timers are smaller than or equal to the
 computed latency. This is useful for cutting off the long tail latency, as it's
 often done in I<Service Level Agreements> (SLAs).
 
-If not specified, no percentile is calculated / dispatched.
+Different percentiles can be calculated by setting this option several times.
+If none are specified, no percentiles are calculated / dispatched.
+
+=item B<TimerLower> B<false>|B<true>
+
+=item B<TimerUpper> B<false>|B<true>
+
+=item B<TimerSum> B<false>|B<true>
+
+=item B<TimerCount> B<false>|B<true>
+
+Calculate and dispatch various values out of I<Timer> metrics received during
+an interval. If set to B<False>, the default, these values aren't calculated /
+dispatched.
 
 =back
 
@@ -5949,6 +6091,8 @@ Use the last number found.
 The matched number is a counter. Simply I<sets> the internal counter to this
 value. Variants exist for C<COUNTER>, C<DERIVE>, and C<ABSOLUTE> data sources.
 
+=item B<GaugeAdd>
+
 =item B<CounterAdd>
 
 =item B<DeriveAdd>
@@ -5956,6 +6100,8 @@ value. Variants exist for C<COUNTER>, C<DERIVE>, and C<ABSOLUTE> data sources.
 Add the matched value to the internal counter. In case of B<DeriveAdd>, the
 matched number may be negative, which will effectively subtract from the
 internal counter.
+
+=item B<GaugeInc>
 
 =item B<CounterInc>
 
@@ -6310,22 +6456,35 @@ Take the UUID from the given file (default I</etc/uuid>).
 =head2 Plugin C<varnish>
 
 The I<varnish plugin> collects information about Varnish, an HTTP accelerator.
+It collects a subset of the values displayed by L<varnishstat(1)>, and
+organizes them in categories which can be enabled or disabled. Currently only
+metrics shown in L<varnishstat(1)>'s I<MAIN> section are collected. The exact
+meaning of each metric can be found in L<varnish-counters(7)>.
 
 Synopsis:
 
  <Plugin "varnish">
    <Instance "example">
+     CollectBackend     true
+     CollectBan         false
      CollectCache       true
      CollectConnections true
-     CollectBackend     true
-     CollectSHM         true
+     CollectDirectorDNS false
      CollectESI         false
      CollectFetch       false
      CollectHCB         false
+     CollectObjects     false
+     CollectPurge       false
+     CollectSession     false
+     CollectSHM         true
      CollectSMA         false
      CollectSMS         false
      CollectSM          false
+     CollectStruct      false
      CollectTotals      false
+     CollectUptime      false
+     CollectVCL         false
+     CollectVSM         false
      CollectWorkers     false
    </Instance>
  </Plugin>
@@ -6339,6 +6498,17 @@ Inside each E<lt>B<Instance>E<gt> blocks, the following options are recognized:
 
 =over 4
 
+=item B<CollectBackend> B<true>|B<false>
+
+Back-end connection statistics, such as successful, reused,
+and closed connections. True by default.
+
+=item B<CollectBan> B<true>|B<false>
+
+Statistics about ban operations, such as number of bans added, retired, and
+number of objects tested against ban operations. Only available with Varnish
+3.x and above. False by default.
+
 =item B<CollectCache> B<true>|B<false>
 
 Cache hits and misses. True by default.
@@ -6346,22 +6516,6 @@ Cache hits and misses. True by default.
 =item B<CollectConnections> B<true>|B<false>
 
 Number of client connections received, accepted and dropped. True by default.
-
-=item B<CollectBackend> B<true>|B<false>
-
-Back-end connection statistics, such as successful, reused,
-and closed connections. True by default.
-
-=item B<CollectSHM> B<true>|B<false>
-
-Statistics about the shared memory log, a memory region to store
-log messages which is flushed to disk when full. True by default.
-
-=item B<CollectBan> B<true>|B<false>
-
-Statistics about ban operations, such as number of bans added, retired, and
-number of objects tested against ban operations. Only available with Varnish
-3.x. False by default.
 
 =item B<CollectDirectorDNS> B<true>|B<false>
 
@@ -6395,7 +6549,14 @@ number of objects tested against purge operations. Only available with Varnish
 =item B<CollectSession> B<true>|B<false>
 
 Client session statistics. Number of past and current sessions, session herd and
-linger counters, etc. False by default.
+linger counters, etc. False by default. Note that if using Varnish 4.x, some
+metrics found in the Connections and Threads sections with previous versions of
+Varnish have been moved here.
+
+=item B<CollectSHM> B<true>|B<false>
+
+Statistics about the shared memory log, a memory region to store
+log messages which is flushed to disk when full. True by default.
 
 =item B<CollectSMA> B<true>|B<false>
 
@@ -6426,11 +6587,16 @@ the number of requests and bytes transferred. False by default.
 
 =item B<CollectUptime> B<true>|B<false>
 
-Varnish uptime. False by default.
+Varnish uptime. Only available with Varnish 3.x and above. False by default.
 
 =item B<CollectVCL> B<true>|B<false>
 
 Number of total (available + discarded) VCL (config files). False by default.
+
+=item B<CollectVSM> B<true>|B<false>
+
+Collect statistics about Varnish's shared memory usage (used by the logging and
+statistics subsystems). Only available with Varnish 4.x. False by default.
 
 =item B<CollectWorkers> B<true>|B<false>
 
@@ -6499,7 +6665,7 @@ will be collected.
 
 =item B<HostnameFormat> B<name|uuid|hostname|...>
 
-When the libvirt plugin logs data, it sets the hostname of the collected data
+When the virt plugin logs data, it sets the hostname of the collected data
 according to this setting. The default is to use the guest name as provided by
 the hypervisor, which is equal to setting B<name>.
 
@@ -6515,7 +6681,7 @@ between, thus I<"foo:1234-1234-1234-1234">).
 
 =item B<InterfaceFormat> B<name>|B<address>
 
-When the libvirt plugin logs interface data, it sets the name of the collected
+When the virt plugin logs interface data, it sets the name of the collected
 data according to this setting. The default is to use the path as provided by
 the hypervisor (the "dev" property of the target node), which is equal to
 setting B<name>.
@@ -6525,7 +6691,7 @@ interface path might change between reboots of a guest or across migrations.
 
 =item B<PluginInstanceFormat> B<name|uuid>
 
-When the libvirt plugin logs data, it sets the plugin_instance of the collected
+When the virt plugin logs data, it sets the plugin_instance of the collected
 data according to this setting. The default is to use the guest name as provided
 by the hypervisor, which is equal to setting B<name>.
 
@@ -6963,6 +7129,61 @@ want to set B<metadata.broker.list> to your Kafka broker list.
 
 =back
 
+=head2 Plugin C<write_redis>
+
+The I<write_redis plugin> submits values to I<Redis>, a data structure server.
+
+Synopsis:
+
+  <Plugin "write_redis">
+    <Node "example">
+        Host "localhost"
+        Port "6379"
+        Timeout 1000
+    </Node>
+  </Plugin>
+
+Values are submitted to I<Sorted Sets>, using the metric name as the key, and
+the timestamp as the score. Retrieving a date range can then be done using the
+C<ZRANGEBYSCORE> I<Redis> command. Additionnally, all the identifiers of these
+I<Sorted Sets> are kept in a I<Set> called C<collectd/values> and can be
+retrieved using the C<SMEMBERS> I<Redis> command. See
+L<http://redis.io/commands#sorted_set> and L<http://redis.io/commands#set> for
+details.
+
+The information shown in the synopsis above is the I<default configuration>
+which is used by the plugin if no configuration is present.
+
+The plugin can send values to multiple instances of I<Redis> by specifying
+one B<Node> block for each instance. Within the B<Node> blocks, the following
+options are available:
+
+=over 4
+
+=item B<Node> I<Nodename>
+
+The B<Node> block identifies a new I<Redis> node, that is a new I<Redis>
+instance running in an specified host and port. The name for node is a
+canonical identifier which is used as I<plugin instance>. It is limited to
+64E<nbsp>characters in length.
+
+=item B<Host> I<Hostname>
+
+The B<Host> option is the hostname or IP-address where the I<Redis> instance is
+running on.
+
+=item B<Port> I<Port>
+
+The B<Port> option is the TCP port on which the Redis instance accepts
+connections. Either a service name of a port number may be given. Please note
+that numerical port numbers must be given as a string, too.
+
+=item B<Timeout> I<Timeout in miliseconds>
+
+The B<Timeout> option sets the socket connection timeout, in milliseconds.
+
+=back
+
 =head2 Plugin C<write_riemann>
 
 The I<write_riemann plugin> will send values to I<Riemann>, a powerful stream
@@ -7009,6 +7230,20 @@ Service name or port number to connect to. Defaults to C<5555>.
 
 Specify the protocol to use when communicating with I<Riemann>. Defaults to
 B<UDP>.
+
+=item B<Batch> B<true>|B<false>
+
+If set to B<true> and B<Protocol> is set to B<TCP>,
+events will be batched in memory and flushed at
+regular intervals or when B<BatchMaxSize> is exceeded.
+
+Notifications are not batched and sent as soon as possible.
+
+Defaults to false
+
+=item B<BatchMaxSize> I<size>
+
+Maximum payload size for a riemann packet. Defaults to 8192
 
 =item B<StoreRates> B<true>|B<false>
 
@@ -7063,6 +7298,31 @@ I<Riemann>.
 
 Consider the two given strings to be the key and value of an additional
 attribute for each metric being sent out to I<Riemann>.
+
+=back
+
+=head2 Plugin C<zookeeper>
+
+The I<zookeeper plugin> will collect statistics from a I<Zookeeper> server
+using the mntr command.  It requires Zookeeper 3.4.0+ and access to the
+client port.
+
+B<Synopsis:>
+
+ <Plugin "zookeeper">
+   Host "127.0.0.1"
+   Port "2181"
+ </Plugin>
+
+=over 4
+
+=item B<Host> I<Address>
+
+Hostname or address to connect to. Defaults to C<localhost>.
+
+=item B<Port> I<Service>
+
+Service name or port number to connect to. Defaults to C<2181>.
 
 =back
 
