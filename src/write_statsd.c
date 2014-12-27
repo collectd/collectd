@@ -62,8 +62,8 @@ struct write_statsd_config_s {
   int   silence_type_warnings;
 
   // Internally derved options.
-  char* base_key_format;
-  size_t base_key_len;
+  char* event_line_format;
+  size_t event_line_base_len;
 };
 typedef struct write_statsd_config_s write_statsd_config_t;
 
@@ -229,8 +229,8 @@ int write_statsd_free(void)
   FREE_NOT_NULL(configuration.postfix)
   FREE_NOT_NULL(configuration.prefix)
 
-  configuration.base_key_len = 0;
-  FREE_NOT_NULL(configuration.base_key_format)
+  configuration.event_line_base_len = 0;
+  FREE_NOT_NULL(configuration.event_line_format)
   return 0;
 }
 
@@ -243,43 +243,49 @@ int write_statsd_init(void)
     return -1;
   }
 
-  // Derive internal options.
+  // Generate format for event lines to pass to sprintf.
+  // A line full event line would be:
+  // <prefix>.<metric-name>.<value-name>.<postfix>:<value>|<type>
+  // The length of the format must exclude the placeholders.
   size_t len = 0;
   if (configuration.prefix == NULL && configuration.postfix == NULL) {
-    configuration.base_key_format = strdup("%s");
-    len = 2;
+    // %s.%s:%s|%s
+    configuration.event_line_format = strdup("%s.%s:%s|%s");
+    len = 3;
 
   } else if (configuration.prefix == NULL) {
-    // %s.<postfix>
-    len = 2 + 1 + strlen(configuration.postfix);
-    configuration.base_key_format = allocate(len + 1);
-    if (configuration.base_key_format == NULL) {
+    // %s.%s.<postfix>:%s|%s
+    len = 4 + strlen(configuration.postfix);
+    configuration.event_line_format = allocate(len + 1 + 8);
+    if (configuration.event_line_format == NULL) {
       return -2;
     }
-    sprintf(configuration.base_key_format, "%%s.%s", configuration.postfix);
+    sprintf(configuration.event_line_format, "%%s.%%s.%s:%%s|%%s",
+            configuration.postfix);
 
   } else if (configuration.postfix == NULL) {
-    // <prefix>.%s
-    len = strlen(configuration.prefix) + 1 + 2;
-    configuration.base_key_format = allocate(len + 1);
-    if (configuration.base_key_format == NULL) {
+    // <prefix>.%s.%s:%s|%s
+    len = strlen(configuration.prefix) + 4;
+    configuration.event_line_format = allocate(len + 1 + 8);
+    if (configuration.event_line_format == NULL) {
       return -2;
     }
-    sprintf(configuration.base_key_format, "%s.%%s", configuration.prefix);
+    sprintf(configuration.event_line_format, "%s.%%s.%%s:%%s|%%s",
+            configuration.prefix);
 
   } else {
-    // <prefix>.%s.<potfix>
-    len =  strlen(configuration.prefix) + 1 + 2;
+    // <prefix>.%s.%s.<potfix>:%s|%s
+    len =  strlen(configuration.prefix) + 5;
     len += 1 + strlen(configuration.postfix);
-    configuration.base_key_format = allocate(len + 1);
-    if (configuration.base_key_format == NULL) {
+    configuration.event_line_format = allocate(len + 1 + 8);
+    if (configuration.event_line_format == NULL) {
       return -2;
     }
-    sprintf(configuration.base_key_format, "%s.%%s.%s",
+    sprintf(configuration.event_line_format, "%s.%%s.%%s.%s:%%s|%%s",
             configuration.prefix, configuration.postfix);
 
   }
-  configuration.base_key_len = len;
+  configuration.event_line_base_len = len;
 
   return 0;
 }
@@ -310,56 +316,40 @@ int write_statsd_write(
   int idx;
 
   for (idx = 0; idx < ds->ds_num; idx++) {
-    char*  key_name;
-    size_t key_name_len;
-    char*  value_name;
-    size_t value_name_len;
-
-    value_name_len =  strlen(ds->type) + 1 + strlen(ds->ds[idx].name);
-    key_name_len = value_name_len + configuration.base_key_len;
-    key_name = allocate(key_name_len + 1);
-    if (key_name == NULL) {
-      return -3;
-    }
-    value_name = allocate(value_name_len + 1);
-    if (value_name == NULL) {
-      free(key_name);
-      return -4;
-    }
-
-    // Format the key name.
-    sprintf(value_name, "%s.%s", ds->type, ds->ds[idx].name);
-    sprintf(key_name, configuration.base_key_format, value_name);
-    free(value_name);
-
     char* type = DS_TYPE_TO_STATSD[ds->ds[idx].type];
     if (type == NULL) {
       if (!configuration.silence_type_warnings) {
         WARNING("write_statsd plugin: unsupported StatsD type '%s' "
-                "for key '%s'.",
-                DS_TYPE_TO_STRING(ds->ds[idx].type), key_name);
+                "for value with name '%s'.",
+                DS_TYPE_TO_STRING(ds->ds[idx].type), ds->ds[idx].name);
       }
-
-      free(key_name);
       return 0;
     }
+
     char* value = ds_value_to_string(ds->ds[idx].type, vl->values[idx]);
     if (value == NULL) {
       return -5;
     }
 
-    // Compute length of StatsD message and allocate buffer.
-    //   Format <key>:<value>|<type>@<rate>
-    size_t message_len = key_name_len + strlen(value) + strlen(type) + 2;
-    char*  message     = allocate(message_len + 1);
+    // The full message will have prefix, postfix and separators plus
+    // the type name, the value name, value and type identifier.
+    char* message;
+    size_t message_len;
+
+    message_len = configuration.event_line_base_len;
+    message_len += strlen(ds->type);
+    message_len += strlen(ds->ds[idx].name);
+    message_len += strlen(value);
+    message_len += strlen(type);
+
+    message = allocate(message_len + 1);
     if (message == NULL) {
-      free(key_name);
       free(value);
       return -6;
     }
 
-    sprintf(message, "%s:%s|%s", key_name, value, type);
-    free(key_name);
+    sprintf(message, configuration.event_line_format,
+            ds->type, ds->ds[idx].name, value, type);
     free(value);
 
     int ret = write_statsd_send_message(message);
