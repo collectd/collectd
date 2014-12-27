@@ -32,6 +32,8 @@
 #include "common.h"
 #include "plugin.h"
 
+
+// *** Compile-time constants. ***
 #define WS_DOUBLE_FORMAT  "%f"
 #define VALUE_STR_LEN     20
 #define WRITE_STATSD_NAME "write_statsd"
@@ -89,27 +91,7 @@ static write_statsd_config_t configuration = {
 };
 
 
-// *** Function declarations. ***
-// Utility.
-static void* allocate(size_t size);
-static char* ds_value_to_string(int type, value_t value);
-
-// StatsD communication.
-static write_statsd_link_t open_socket(void);
-
-// Module.
-void module_register(void);
-static int write_statsd_config(const char*, const char*);
-static int write_statsd_free(void);
-static int write_statsd_init(void);
-
-// Write.
-static int write_statsd_send_message(const char*);
-static int write_statsd_write(
-    const data_set_t*, const value_list_t*, user_data_t*);
-
-
-// *** Function definitions. *** 
+// *** Module functions. *** 
 void* allocate(size_t size)
 {
   void* mem = (char*)malloc(size);
@@ -129,15 +111,15 @@ char* ds_value_to_string(int type, value_t value)
 
   switch(type) {
     case DS_TYPE_COUNTER:
-      sprintf(result, "%lld", value.counter);
+      snprintf(result, VALUE_STR_LEN, "%lld", value.counter);
       break;
 
     case DS_TYPE_GAUGE:
-      sprintf(result, WS_DOUBLE_FORMAT, value.gauge);
+      snprintf(result, VALUE_STR_LEN, WS_DOUBLE_FORMAT, value.gauge);
       break;
 
     case DS_TYPE_DERIVE:
-      sprintf(result, "%"PRId64, value.derive);
+      snprintf(result, VALUE_STR_LEN, "%"PRId64, value.derive);
       break;
 
     default:
@@ -185,15 +167,6 @@ write_statsd_link_t open_socket(void)
 }
 
 
-void module_register(void)
-{
-  plugin_register_config(
-      WRITE_STATSD_NAME, write_statsd_config, config_keys, config_keys_num);
-  plugin_register_init(WRITE_STATSD_NAME, write_statsd_init);
-  plugin_register_shutdown(WRITE_STATSD_NAME, write_statsd_free);
-  plugin_register_write(WRITE_STATSD_NAME, write_statsd_write, NULL);
-}
-
 int write_statsd_config(const char *key, const char *value)
 {
   if (strcasecmp(key, "Host") == 0) {
@@ -225,12 +198,14 @@ int write_statsd_config(const char *key, const char *value)
 
 int write_statsd_free(void)
 {
-  FREE_NOT_NULL(configuration.host)
-  FREE_NOT_NULL(configuration.postfix)
-  FREE_NOT_NULL(configuration.prefix)
+  FREE_NOT_NULL(configuration.host);
+  FREE_NOT_NULL(configuration.postfix);
+  FREE_NOT_NULL(configuration.prefix);
 
   configuration.event_line_base_len = 0;
-  FREE_NOT_NULL(configuration.event_line_format)
+  FREE_NOT_NULL(configuration.event_line_format);
+
+  DEBUG("Freed %s module.", WRITE_STATSD_NAME);
   return 0;
 }
 
@@ -243,10 +218,11 @@ int write_statsd_init(void)
     return -1;
   }
 
-  // Generate format for event lines to pass to sprintf.
+  // Generate format for event lines to pass to snprintf.
   // A line full event line would be:
   // <prefix>.<metric-name>.<value-name>.<postfix>:<value>|<type>
   // The length of the format must exclude the placeholders.
+  size_t buffer_len = 0;
   size_t len = 0;
   if (configuration.prefix == NULL && configuration.postfix == NULL) {
     // %s.%s:%s|%s
@@ -256,37 +232,47 @@ int write_statsd_init(void)
   } else if (configuration.prefix == NULL) {
     // %s.%s.<postfix>:%s|%s
     len = 4 + strlen(configuration.postfix);
-    configuration.event_line_format = allocate(len + 1 + 8);
+    buffer_len = len + 8 + 1;
+    configuration.event_line_format = allocate(buffer_len);
     if (configuration.event_line_format == NULL) {
       return -2;
     }
-    sprintf(configuration.event_line_format, "%%s.%%s.%s:%%s|%%s",
-            configuration.postfix);
+    snprintf(configuration.event_line_format, buffer_len,
+             "%%s.%%s.%s:%%s|%%s", configuration.postfix);
 
   } else if (configuration.postfix == NULL) {
     // <prefix>.%s.%s:%s|%s
     len = strlen(configuration.prefix) + 4;
-    configuration.event_line_format = allocate(len + 1 + 8);
+    buffer_len = len + 8 + 1;
+    configuration.event_line_format = allocate(buffer_len);
     if (configuration.event_line_format == NULL) {
       return -2;
     }
-    sprintf(configuration.event_line_format, "%s.%%s.%%s:%%s|%%s",
-            configuration.prefix);
+    snprintf(configuration.event_line_format, buffer_len,
+             "%s.%%s.%%s:%%s|%%s", configuration.prefix);
 
   } else {
     // <prefix>.%s.%s.<potfix>:%s|%s
-    len =  strlen(configuration.prefix) + 5;
-    len += 1 + strlen(configuration.postfix);
-    configuration.event_line_format = allocate(len + 1 + 8);
+    len = 5 + strlen(configuration.prefix) + strlen(configuration.postfix);
+    buffer_len = len + 8 + 1;
+    configuration.event_line_format = allocate(buffer_len);
     if (configuration.event_line_format == NULL) {
       return -2;
     }
-    sprintf(configuration.event_line_format, "%s.%%s.%%s.%s:%%s|%%s",
-            configuration.prefix, configuration.postfix);
+    snprintf(configuration.event_line_format, buffer_len,
+             "%s.%%s.%%s.%s:%%s|%%s", configuration.prefix,
+             configuration.postfix);
 
   }
   configuration.event_line_base_len = len;
 
+  DEBUG("%s configuration completed.", WRITE_STATSD_NAME);
+  DEBUG("%s Host: %s", WRITE_STATSD_NAME, configuration.host);
+  DEBUG("%s Port: %i", WRITE_STATSD_NAME, configuration.port);
+  DEBUG("%s SilenceTypeWarnings: %i", WRITE_STATSD_NAME,
+        configuration.silence_type_warnings);
+  DEBUG("%s FormatString: %s", WRITE_STATSD_NAME,
+        configuration.event_line_format);
   return 0;
 }
 
@@ -348,8 +334,8 @@ int write_statsd_write(
       return -6;
     }
 
-    sprintf(message, configuration.event_line_format,
-            ds->type, ds->ds[idx].name, value, type);
+    snprintf(message, message_len + 1, configuration.event_line_format,
+             ds->type, ds->ds[idx].name, value, type);
     free(value);
 
     int ret = write_statsd_send_message(message);
@@ -360,5 +346,16 @@ int write_statsd_write(
   }
 
   return 0;
+}
+
+
+void module_register(void)
+{
+  plugin_register_config(
+      WRITE_STATSD_NAME, write_statsd_config, config_keys, config_keys_num);
+  plugin_register_init(WRITE_STATSD_NAME, write_statsd_init);
+  plugin_register_shutdown(WRITE_STATSD_NAME, write_statsd_free);
+  plugin_register_write(WRITE_STATSD_NAME, write_statsd_write, NULL);
+  DEBUG("Registered %s module.", WRITE_STATSD_NAME);
 }
 
