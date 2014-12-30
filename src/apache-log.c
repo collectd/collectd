@@ -154,7 +154,6 @@ char* str_concat(char *s1, char *s2,char *s3)
     if(result == NULL )
      return (NULL);
     memset (result, '\0',total_length);
-    //in real code you would check for errors in malloc here
     strncpy(result, s1,l1);
     strncat(result, s2,l2);
     strncat(result, s3,l3);
@@ -162,7 +161,7 @@ char* str_concat(char *s1, char *s2,char *s3)
 }
 
 
-char *apachelog_name_filter;
+ __thread char *apachelog_name_filter;
 
 int qs_mtime_pivot(char* dirname,struct dirent **namelist, int izq, int der)
 {
@@ -373,8 +372,7 @@ void apachelog_destroy (cu_apachelog_t *obj)
   if (obj == NULL)
     return;
 
-   for(i=0;i<6;i++) free(obj->httpxxx_suffix[i]);
-
+  for(i=0;i<6;i++) free(obj->httpxxx_suffix[i]);
 
   sfree(obj->filename);
   sfree(obj->filename_pattern);
@@ -502,7 +500,7 @@ int  apachelog_split_line(char *buf,char **array)
   i = 0;
   ptrptr=calloc(APACHELOG_MAX_FIELDS,sizeof(char*));
   p = strtok_r (buf," ",ptrptr);  
-  while (p != NULL)
+  while (p != NULL && i<APACHELOG_MAX_FIELDS)
   {
     array[i++] = p;
     p = strtok_r (NULL," ",ptrptr);
@@ -526,8 +524,19 @@ static int apachelog_basic_split_callback (void *data, char *buf, int __attribut
   int n;
   int response_time_microsecs;
 
-  
+  if(!strlen(buf)) {
+	WARNING("APACHELOG at log line length =0 in apachelog_extended_split_callback !!!!");
+	return 0;
+  }
+
   n=apachelog_split_line(buf,obj->logline_ptr);
+
+  if( n<1 || n>=APACHELOG_MAX_FIELDS ) {
+	 WARNING("APACHELOG:apachelog_extended_split_callback at FIELD split error: got %d  FIELDS in file %s",n,obj->filename);
+	return 0;
+  }
+
+
 
   if(obj->response_time_position == 0) {
 	//last position
@@ -572,8 +581,17 @@ static int apachelog_extended_split_callback (void *data, char *buf, int __attri
   int stat_code;
   int stat_pos;
 
+  if(!strlen(buf)) {
+	WARNING("APACHELOG at log line length =0 in apachelog_extended_split_callback");
+        return 0;
+  }
   
   n=apachelog_split_line(buf,obj->logline_ptr);
+
+  if(n<1 || n>= APACHELOG_MAX_FIELDS) {
+	 WARNING("APACHELOG:apachelog_extended_split_callback at FIELD split error: got %d  FIELDS in file %s",n,obj->filename);
+	return 0;
+  }
 
   if(obj->response_time_position == 0) {
 	//last position
