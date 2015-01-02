@@ -282,12 +282,14 @@ static int memory_read_internal (value_list_t *vl)
 	int numfields;
 
 	_Bool detailed_slab_info = 0;
+	_Bool mem_available_info = 0;
 
 	gauge_t mem_total = 0;
 	gauge_t mem_used = 0;
 	gauge_t mem_buffered = 0;
 	gauge_t mem_cached = 0;
 	gauge_t mem_free = 0;
+	gauge_t mem_available = 0;
 	gauge_t mem_slab_total = 0;
 	gauge_t mem_slab_reclaimable = 0;
 	gauge_t mem_slab_unreclaimable = 0;
@@ -322,6 +324,10 @@ static int memory_read_internal (value_list_t *vl)
 			val = &mem_slab_unreclaimable;
 			detailed_slab_info = 1;
 		}
+		else if (strncasecmp (buffer, "MemAvailable:", 13) == 0) {
+			val = &mem_available;
+			mem_available_info = 1;
+		}
 		else
 			continue;
 
@@ -348,19 +354,32 @@ static int memory_read_internal (value_list_t *vl)
 	 * They sum up to the value of Slab, which is available on older & newer
 	 * kernels. So SReclaimable/SUnreclaim are submitted if available, and Slab
 	 * if not. */
-	if (detailed_slab_info)
-		MEMORY_SUBMIT ("used",        mem_used,
-		               "buffered",    mem_buffered,
-		               "cached",      mem_cached,
-		               "free",        mem_free,
-		               "slab_unrecl", mem_slab_unreclaimable,
-		               "slab_recl",   mem_slab_reclaimable);
-	else
+	if (detailed_slab_info) {
+		/* The only condition under which there will be a MemAvailable line is
+		 * on a kernel which also supports detailed slab information. */
+		if (mem_available_info) {
+			MEMORY_SUBMIT ("used",          mem_used,
+			               "buffered",      mem_buffered,
+			               "cached",        mem_cached,
+			               "free",          mem_free,
+			               "available",     mem_available,
+			               "slab_unrecl",   mem_slab_unreclaimable,
+			               "slab_recl",     mem_slab_reclaimable);
+		} else {
+			MEMORY_SUBMIT ("used",        mem_used,
+			               "buffered",    mem_buffered,
+			               "cached",      mem_cached,
+			               "free",        mem_free,
+			               "slab_unrecl", mem_slab_unreclaimable,
+			               "slab_recl",   mem_slab_reclaimable);
+		}
+	} else {
 		MEMORY_SUBMIT ("used",     mem_used,
 		               "buffered", mem_buffered,
 		               "cached",   mem_cached,
 		               "free",     mem_free,
 		               "slab",     mem_slab_total);
+	}
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
