@@ -90,6 +90,7 @@
 
 #@BUILD_PLUGIN_AGGREGATION_TRUE@LoadPlugin aggregation
 #@BUILD_PLUGIN_AMQP_TRUE@LoadPlugin amqp
+#@BUILD_PLUGIN_AOE_STATS_TRUE@LoadPlugin aoe_stats
 #@BUILD_PLUGIN_APACHE_TRUE@LoadPlugin apache
 #@BUILD_PLUGIN_APCUPS_TRUE@LoadPlugin apcups
 #@BUILD_PLUGIN_APPLE_SENSORS_TRUE@LoadPlugin apple_sensors
@@ -103,6 +104,7 @@
 #@BUILD_PLUGIN_CGROUPS_TRUE@LoadPlugin cgroups
 @BUILD_PLUGIN_CPU_TRUE@@BUILD_PLUGIN_CPU_TRUE@LoadPlugin cpu
 #@BUILD_PLUGIN_CPUFREQ_TRUE@LoadPlugin cpufreq
+#@BUILD_PLUGIN_CPU_STATS_TRUE@LoadPlugin cpu_stats
 @LOAD_PLUGIN_CSV@LoadPlugin csv
 #@BUILD_PLUGIN_CURL_TRUE@LoadPlugin curl
 #@BUILD_PLUGIN_CURL_JSON_TRUE@LoadPlugin curl_json
@@ -110,6 +112,7 @@
 #@BUILD_PLUGIN_DBI_TRUE@LoadPlugin dbi
 #@BUILD_PLUGIN_DF_TRUE@LoadPlugin df
 #@BUILD_PLUGIN_DISK_TRUE@LoadPlugin disk
+#@BUILD_PLUGIN_DISK_ERRORS_TRUE@LoadPlugin disk_errors
 #@BUILD_PLUGIN_DNS_TRUE@LoadPlugin dns
 #@BUILD_PLUGIN_DRBD_TRUE@LoadPlugin drbd
 #@BUILD_PLUGIN_EMAIL_TRUE@LoadPlugin email
@@ -126,6 +129,7 @@
 #@BUILD_PLUGIN_IPVS_TRUE@LoadPlugin ipvs
 #@BUILD_PLUGIN_IRQ_TRUE@LoadPlugin irq
 #@BUILD_PLUGIN_JAVA_TRUE@LoadPlugin java
+#@BUILD_PLUGIN_LINK_STATS_TRUE@LoadPlugin link_stats
 @BUILD_PLUGIN_LOAD_TRUE@@BUILD_PLUGIN_LOAD_TRUE@LoadPlugin load
 #@BUILD_PLUGIN_LPAR_TRUE@LoadPlugin lpar
 #@BUILD_PLUGIN_LVM_TRUE@LoadPlugin lvm
@@ -142,6 +146,7 @@
 #@BUILD_PLUGIN_NETLINK_TRUE@LoadPlugin netlink
 @LOAD_PLUGIN_NETWORK@LoadPlugin network
 #@BUILD_PLUGIN_NFS_TRUE@LoadPlugin nfs
+#@BUILD_PLUGIN_NFSSVR_STATS_TRUE@LoadPlugin nfssvr_stats
 #@BUILD_PLUGIN_NGINX_TRUE@LoadPlugin nginx
 #@BUILD_PLUGIN_NOTIFY_DESKTOP_TRUE@LoadPlugin notify_desktop
 #@BUILD_PLUGIN_NOTIFY_EMAIL_TRUE@LoadPlugin notify_email
@@ -167,6 +172,7 @@
 #@BUILD_PLUGIN_PYTHON_TRUE@</LoadPlugin>
 #@BUILD_PLUGIN_REDIS_TRUE@LoadPlugin redis
 #@BUILD_PLUGIN_ROUTEROS_TRUE@LoadPlugin routeros
+#@BUILD_PLUGIN_RPC_STATS_TRUE@LoadPlugin rpc_stats
 #@BUILD_PLUGIN_RRDCACHED_TRUE@LoadPlugin rrdcached
 @LOAD_PLUGIN_RRDTOOL@LoadPlugin rrdtool
 #@BUILD_PLUGIN_SENSORS_TRUE@LoadPlugin sensors
@@ -204,6 +210,7 @@
 #@BUILD_PLUGIN_WRITE_TSDB_TRUE@LoadPlugin write_tsdb
 #@BUILD_PLUGIN_XMMS_TRUE@LoadPlugin xmms
 #@BUILD_PLUGIN_ZFS_ARC_TRUE@LoadPlugin zfs_arc
+#@BUILD_PLUGIN_ZFS_STATS_TRUE@LoadPlugin zfs_stats
 #@BUILD_PLUGIN_ZOOKEEPER_TRUE@LoadPlugin zookeeper
 
 ##############################################################################
@@ -475,6 +482,7 @@
 #	IgnoreSelected false
 #	UseBSDName false
 #	UdevNameAttr "DEVNAME"
+#	IgnorePartitions true
 #</Plugin>
 
 #<Plugin dns>
@@ -754,6 +762,15 @@
 #	# "garbage collection"
 #	CacheFlush 1800
 @LOAD_PLUGIN_NETWORK@</Plugin>
+
+#<Plugin nfssvr_stats>
+#   # Reduce clutter by disabling unused NFS versions or features
+#    IgnoreNFSv2 false
+#    IgnoreNFSv3 false
+#    IgnoreNFSv4 false
+#    IgnoreReferrals false
+#    IgnoreACLs false
+#</Plugin>
 
 #<Plugin nginx>
 #	URL "http://localhost/status?auto"

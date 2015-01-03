@@ -99,6 +99,13 @@ amqp_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBRABBITMQ_CPPFLAGS)
 amqp_la_LIBADD = $(BUILD_WITH_LIBRABBITMQ_LIBS)
 endif
 
+if BUILD_PLUGIN_AOE_STATS
+pkglib_LTLIBRARIES += aoe_stats.la
+aoe_stats_la_SOURCES = aoe_stats.c
+aoe_stats_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+aoe_stats_la_LIBADD = -lkstat -lnvpair
+endif
+
 if BUILD_PLUGIN_APACHE
 pkglib_LTLIBRARIES += apache.la
 apache_la_SOURCES = apache.c
@@ -222,6 +229,13 @@ cpufreq_la_SOURCES = cpufreq.c
 cpufreq_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_CPU_STATS
+pkglib_LTLIBRARIES += cpu_stats.la
+cpu_stats_la_SOURCES = cpu_stats.c
+cpu_stats_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+cpu_stats_la_LIBADD = -lkstat
+endif
+
 if BUILD_PLUGIN_CSV
 pkglib_LTLIBRARIES += csv.la
 csv_la_SOURCES = csv.c
@@ -305,6 +319,13 @@ endif
 if BUILD_WITH_PERFSTAT
 disk_la_LIBADD += -lperfstat
 endif
+endif
+
+if BUILD_PLUGIN_DISK_ERRORS
+pkglib_LTLIBRARIES += disk_errors.la
+disk_errors_la_SOURCES = disk_errors.c
+disk_errors_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+disk_errors_la_LIBADD = -lkstat
 endif
 
 if BUILD_PLUGIN_DNS
@@ -437,6 +458,13 @@ java_la_CPPFLAGS = $(AM_CPPFLAGS) $(JAVA_CPPFLAGS)
 java_la_CFLAGS = $(AM_CFLAGS) $(JAVA_CFLAGS)
 java_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(JAVA_LDFLAGS)
 java_la_LIBADD = $(JAVA_LIBS)
+endif
+
+if BUILD_PLUGIN_LINK_STATS
+pkglib_LTLIBRARIES += link_stats.la
+link_stats_la_SOURCES = link_stats.c
+link_stats_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+link_stats_la_LIBADD = -lkstat
 endif
 
 if BUILD_PLUGIN_LOAD
@@ -651,6 +679,13 @@ nfs_la_SOURCES = nfs.c
 nfs_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_NFSSVR_STATS
+pkglib_LTLIBRARIES += nfssvr_stats.la
+nfssvr_stats_la_SOURCES = nfssvr_stats.c
+nfssvr_stats_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+nfssvr_stats_la_LIBADD = -lkstat
+endif
+
 if BUILD_PLUGIN_FSCACHE
 pkglib_LTLIBRARIES += fscache.la
 fscache_la_SOURCES = fscache.c
@@ -852,6 +887,13 @@ routeros_la_SOURCES = routeros.c
 routeros_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBROUTEROS_CPPFLAGS)
 routeros_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBROUTEROS_LDFLAGS)
 routeros_la_LIBADD = -lrouteros
+endif
+
+if BUILD_PLUGIN_RPC_STATS
+pkglib_LTLIBRARIES += rpc_stats.la
+rpc_stats_la_SOURCES = rpc_stats.c
+rpc_stats_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+rpc_stats_la_LIBADD = -lkstat
 endif
 
 if BUILD_PLUGIN_RRDCACHED
@@ -1228,6 +1270,13 @@ else
 zfs_arc_la_LIBADD = -lkstat
 endif
 endif
+endif
+
+if BUILD_PLUGIN_ZFS_STATS
+pkglib_LTLIBRARIES += zfs_stats.la
+zfs_stats_la_SOURCES = zfs_stats.c
+zfs_stats_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+zfs_stats_la_LIBADD = -lkstat
 endif
 
 if BUILD_PLUGIN_ZOOKEEPER

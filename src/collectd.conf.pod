@@ -693,6 +693,13 @@ more than one DS.
 
 =back
 
+=head2 Plugin C<aoe_stats>
+
+The ATA over Ethernet (AoE) statistics are collected for AoE initiators and
+targets.
+
+There are no additional configuration options for the aoe_stats plugin.
+
 =head2 Plugin C<apache>
 
 To configure the C<apache>-plugin you first need to configure the Apache
@@ -1253,6 +1260,12 @@ Jiffies. By setting this option to B<true>, you can request percentage values
 in the un-aggregated (per-CPU, per-state) mode as well.
 
 =back
+
+=head2 Plugin C<cpu_stats>
+
+The C<cpu_stats> plugin collects detailed CPU usage data for CorOS, illumos,
+and Solaris-derived OSes. In general, this is information that is available via
+the mpstat(1m) command.
 
 =head2 Plugin C<cpufreq>
 
@@ -1977,6 +1990,15 @@ collected. If at least one B<Disk> option is given and no B<IgnoreSelected> or
 set to B<false>, B<only> matching disks will be collected. If B<IgnoreSelected>
 is set to B<true>, all disks are collected B<except> the ones matched.
 
+=item B<IgnorePartitions> B<true>|B<false>
+
+By default, kstat-based disk collector does not ignore partition statistics.
+However, there is a compile-time limit to the total number of disks collected
+for systems that use kstats. If B<IgnoredPartitions> is B<false> then a modest
+number of disks and active partitions can approach this limit. In some cases,
+only one partition per disk is active. Setting B<IgnoredPartitions> to B<true>
+disables collection of per-partition statistics.
+
 =item B<UseBSDName> B<true>|B<false>
 
 Whether to use the device's "BSD Name", on MacE<nbsp>OSE<nbsp>X, instead of the
@@ -1992,6 +2014,14 @@ given device, the default name is used. Example:
   UdevNameAttr "DM_NAME"
 
 =back
+
+=head2 Plugin C<disk_errors>
+
+The disk_errors plugin collects error counters reported by the sd driver on 
+Solaris systems. The errors collected are equivalent to the B<iostat -E> command.
+
+There are no additional configuration options for the disk_errors plugin.
+
 
 =head2 Plugin C<dns>
 
@@ -2453,6 +2483,13 @@ depends on the (Java) plugin registering the callback and is completely
 independent from the I<JavaClass> argument passed to B<LoadPlugin>.
 
 =back
+
+=head2 Plugin C<link_stats>
+
+The link statistics are collected for network links on Solaris systems. The data
+collected is similar to the B<dlstat> command.
+
+There are no additional configuration options for the link_stats plugin.
 
 =head2 Plugin C<load>
 
@@ -3925,6 +3962,16 @@ statistics available. Defaults to B<false>.
 
 =back
 
+=head2 Plugin C<nfssvr_stats>
+
+The C<nfssvr_stats> plugin collects NFS procedure counters and Sun RPC
+information for NFS servers.
+
+As of August 2014, this plugin supports contemporary Solaris and CorOS releases.
+
+The plugin can be configured to only collect data for NFS servers versions of
+interest. By default, all NFS versions and referrals are collected.
+
 =head2 Plugin C<nginx>
 
 This plugin collects the number of connections and requests handled by the
@@ -5395,6 +5442,13 @@ the result of the query. When not supplied will default to the escaped
 command, up to 64 chars.
 
 =back
+
+=head2 Plugin C<rpc_stats>
+
+The C<rpc_stats> plugin collects Sun RPC queue and processing information. The
+most typical uses are for NFS and related Sun RPC services.
+
+As of August 2014, this plugin supports contemporary Solaris and CorOS releases.
 
 =head2 Plugin C<rrdcached>
 
@@ -7289,6 +7343,12 @@ Consider the two given strings to be the key and value of an additional
 attribute for each metric being sent out to I<Riemann>.
 
 =back
+
+=head2 Plugin C<zfs_stats>
+
+The C<zfs_stats> plugin collects ZFS file system and related statistics.
+
+As of August 2014, this plugin supports contemporary Solaris and CorOS releases.
 
 =head2 Plugin C<zookeeper>
 

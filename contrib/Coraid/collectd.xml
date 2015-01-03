@@ -1,0 +1,41 @@
+<?xml version='1.0'?>
+<!DOCTYPE service_bundle SYSTEM '/usr/share/lib/xml/dtd/service_bundle.dtd.1'>
+<!--
+  Copyright 2014 Coraid, Inc.
+-->
+<service_bundle type='manifest' name='export'>
+  <service name='system/collectd' type='service' version='0'>
+    <create_default_instance enabled='true'/>
+    <single_instance/>
+    <dependency name='network' grouping='require_all' restart_on='error' type='service'>
+      <service_fmri value='svc:/milestone/network:default'/>
+    </dependency>
+    <dependency name='filesystem' grouping='require_all' restart_on='error' type='service'>
+      <service_fmri value='svc:/system/filesystem/local'/>
+    </dependency>
+    <exec_method name='start' type='method' exec='/opt/collectd/sbin/collectd' timeout_seconds='360'>
+      <method_context>
+        <method_credential user='root' group='staff'/>
+        <method_environment>
+          <envvar name='PATH' value='/usr/bin:/usr/sbin'/>
+        </method_environment>
+      </method_context>
+    </exec_method>
+    <exec_method name='stop' type='method' exec=':kill' timeout_seconds='60'>
+      <method_context>
+        <method_credential user='root' group='staff'/>
+      </method_context>
+    </exec_method>
+    <property_group name='startd' type='framework'>
+      <propval name='ignore_error' type='astring' value='core,signal'/>
+    </property_group>
+    <property_group name='application' type='application'/>
+    <stability value='Evolving'/>
+    <template>
+      <common_name>
+        <loctext xml:lang='C'>Run collectd</loctext>
+      </common_name>
+    </template>
+  </service>
+</service_bundle>
+

@@ -392,11 +392,12 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
   if (ce->last_time >= vl->time)
   {
     pthread_mutex_unlock (&cache_lock);
-    NOTICE ("uc_update: Value too old: name = %s; value time = %.3f; "
-	"last cache update = %.3f;",
+    NOTICE ("uc_update: Value too old: name = %s;"
+      "value time = %.3f (%lld); "
+	    "last cache update = %.3f (%lld);",
 	name,
-	CDTIME_T_TO_DOUBLE (vl->time),
-	CDTIME_T_TO_DOUBLE (ce->last_time));
+    	CDTIME_T_TO_DOUBLE (vl->time), vl->time,
+    	CDTIME_T_TO_DOUBLE (ce->last_time), ce->last_time);
     return (-1);
   }
 
