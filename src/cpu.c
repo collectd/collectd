@@ -218,6 +218,7 @@ static int init (void)
 {
 #if PROCESSOR_CPU_LOAD_INFO
 	kern_return_t status;
+	static time_t cpu_temp_retry_max;
 
 	port_host = mach_host_self ();
 
