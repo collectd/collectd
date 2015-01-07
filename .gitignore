@@ -75,3 +75,6 @@ src/tags
 
 # backup stuff
 *~
+
+# netbeans project stuff
+nbproject
