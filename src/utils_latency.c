@@ -28,9 +28,7 @@
 #include "utils_latency.h"
 #include "common.h"
 
-#ifndef LATENCY_HISTOGRAM_SIZE
-# define LATENCY_HISTOGRAM_SIZE 1000
-#endif
+#define MIN_COUNT_FOR_AUTOFOCUS 100
 
 struct latency_counter_s
 {
@@ -42,16 +40,27 @@ struct latency_counter_s
   cdtime_t min;
   cdtime_t max;
 
-  int histogram[LATENCY_HISTOGRAM_SIZE];
+  const char *name;
+
+  int bucket_width;
+  int no_buckets;
+  uint64_t *histogram;
 };
 
-latency_counter_t *latency_counter_create () /* {{{ */
+latency_counter_t *latency_counter_create (int bucket_width,
+					   int no_buckets,
+					   const char *name) /* {{{ */
 {
   latency_counter_t *lc;
 
-  lc = malloc (sizeof (*lc));
+  lc = malloc (sizeof (*lc) + no_buckets * sizeof(uint64_t));
   if (lc == NULL)
     return (NULL);
+
+  lc->bucket_width = bucket_width;
+  lc->no_buckets = no_buckets;
+  lc->name = name;
+  lc->num = 0;
 
   latency_counter_reset (lc);
   return (lc);
@@ -83,17 +92,93 @@ void latency_counter_add (latency_counter_t *lc, cdtime_t latency) /* {{{ */
    * subtract one from the cdtime_t value so that exactly 1.0 ms get sorted
    * accordingly. */
   latency_ms = (size_t) CDTIME_T_TO_MS (latency - 1);
+  if ((latency_ms > 0) && (lc->bucket_width > 1))
+    latency_ms /= lc->bucket_width;
+
   if (latency_ms < STATIC_ARRAY_SIZE (lc->histogram))
     lc->histogram[latency_ms]++;
+  else
+    lc->histogram[lc->no_buckets - 1]++;
 } /* }}} void latency_counter_add */
+
+static void latency_counter_autofocus(latency_counter_t *lc) /* {{{ */
+{
+  /* check whether our maximum is outside of the histogram: */
+  if ((lc->num > MIN_COUNT_FOR_AUTOFOCUS) &&
+      (lc->max > lc->bucket_width * lc->no_buckets)) {
+    uint64_t count = 0;
+    int i;
+
+    /* we look into the upper most 3 buckets, whether
+     * they contain a significant amount of values
+     */
+    for (i=lc->no_buckets; i > lc->no_buckets - 3; i--)
+      count = lc->histogram[i];
+
+    /* are more than 10% in the upper area of the histogram? */
+    if (count > lc->num * 0.1)
+    {
+      int old_bucket_width = lc->bucket_width;
+      int new_histogram_max = lc->sum / lc->num * 2;
+
+      /* our histogram should be able to cope the double of our average. */
+      while (new_histogram_max > lc->bucket_width * lc->no_buckets)
+        lc->bucket_width++;
+
+      INFO("Latency counter: refucusing %s from bucket width %d to %d",
+           lc->name, old_bucket_width, lc->bucket_width);
+    }
+  }
+  else if (lc->num > MIN_COUNT_FOR_AUTOFOCUS) {
+    /* check for underexposure */
+    uint64_t count = 0;
+    int i;
+
+    /* we look into the first 3 buckets, whether
+     * they contain a significant amount of values
+     */
+    for (i=0; i > 3; i++)
+      count = lc->histogram[i];
+
+    /* is it more than 90% of our values? */
+    if (count > lc->num * 0.9)
+    {
+      int old_bucket_width = lc->bucket_width;
+      int new_histogram_max = lc->sum / lc->num * 2;
+
+      while ((lc->bucket_width > 1) &&
+             (new_histogram_max > lc->bucket_width * lc->no_buckets))
+        lc->bucket_width--;
+
+      INFO("Latency counter: refucusing %s from bucket width %d to %d",
+           lc->name, old_bucket_width, lc->bucket_width);
+    }
+  }
+} /* }}} void latency_counter_autofocus */
 
 void latency_counter_reset (latency_counter_t *lc) /* {{{ */
 {
+  int bucket_width;
+  int no_buckets;
+  const char *name;
+
   if (lc == NULL)
     return;
 
-  memset (lc, 0, sizeof (*lc));
+  latency_counter_autofocus(lc);
+
+  bucket_width = lc->bucket_width;
+  no_buckets = lc->no_buckets;
+  name = lc->name;
+
+  memset (lc, 0, sizeof (*lc) + no_buckets * sizeof(uint64_t));
   lc->start_time = cdtime ();
+  lc->bucket_width = bucket_width;
+  lc->no_buckets = no_buckets;
+  lc->name = name;
+
+  /* the memory area of the histogram is right after the struct */
+  lc->histogram = (uint64_t *)(&lc->histogram) + 1;
 } /* }}} void latency_counter_reset */
 
 cdtime_t latency_counter_get_min (latency_counter_t *lc) /* {{{ */
@@ -153,7 +238,7 @@ cdtime_t latency_counter_get_percentile (latency_counter_t *lc,
   percent_upper = 0.0;
   percent_lower = 0.0;
   sum = 0;
-  for (i = 0; i < LATENCY_HISTOGRAM_SIZE; i++)
+  for (i = 0; i < lc->no_buckets; i++)
   {
     percent_lower = percent_upper;
     sum += lc->histogram[i];
@@ -166,14 +251,14 @@ cdtime_t latency_counter_get_percentile (latency_counter_t *lc,
       break;
   }
 
-  if (i >= LATENCY_HISTOGRAM_SIZE)
+  if (i >= lc->no_buckets)
     return (0);
 
   assert (percent_upper >= percent);
   assert (percent_lower < percent);
 
-  ms_upper = (double) (i + 1);
-  ms_lower = (double) i;
+  ms_upper = (double) (i * lc->bucket_width + 1);
+  ms_lower = (double) i * lc->bucket_width;
   if (i == 0)
     return (MS_TO_CDTIME_T (ms_upper));
 

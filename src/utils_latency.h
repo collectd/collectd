@@ -30,7 +30,9 @@
 struct latency_counter_s;
 typedef struct latency_counter_s latency_counter_t;
 
-latency_counter_t *latency_counter_create ();
+latency_counter_t *latency_counter_create (int bucket_width,
+					   int no_buckets,
+					   const char *name);
 void latency_counter_destroy (latency_counter_t *lc);
 
 void latency_counter_add (latency_counter_t *lc, cdtime_t latency);
