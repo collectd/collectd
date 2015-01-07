@@ -164,7 +164,7 @@ static void parse_file (FILE *fh)
       continue;
 
     while ((buf_len > 0) && ((buf[buf_len - 1] == '\n')
-	  || (buf[buf_len - 1] == '\n')))
+	  || (buf[buf_len - 1] == '\r')))
       buf[--buf_len] = '\0';
 
     if (buf_len == 0)

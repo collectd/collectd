@@ -735,7 +735,7 @@
 #		Interface "eth0"
 #		ResolveInterval 14400
 @LOAD_PLUGIN_NETWORK@	</Server>
-#	TimeToLive "128"
+#	TimeToLive 128
 #
 #	# server setup:
 #	Listen "ff18::efc0:4a42" "25826"
