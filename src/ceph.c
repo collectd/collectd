@@ -114,6 +114,14 @@ struct ceph_daemon
     uint32_t *ds_types;
     /** Track ds names to match with types */
     char **ds_names;
+    
+    /**
+     * Keep track of last data for latency values so we can calculate rate
+     * since last poll.
+     */
+    struct last_data **last_poll_data;
+    /** index of last poll data */
+    int last_idx;
 };
 
 /******* JSON parsing *******/
@@ -131,14 +139,6 @@ struct yajl_struct
     int depth;
 };
 typedef struct yajl_struct yajl_struct;
-
-/**
- * Keep track of last data for latency values so we can calculate rate
- * since last poll.
- */
-struct last_data **last_poll_data = NULL;
-/** index of last poll data */
-int last_idx = 0;
 
 enum perfcounter_type_d
 {
@@ -199,7 +199,6 @@ struct last_data
     double last_sum;
     uint64_t last_count;
 };
-
 
 /******* network I/O *******/
 enum cstate_t
@@ -404,7 +403,14 @@ static void ceph_daemons_print(void)
 static void ceph_daemon_free(struct ceph_daemon *d)
 {
     int i = 0;
-    for(; i < d->ds_num; i++)
+    for(; i < d->last_idx; i++)
+    {
+        sfree(d->last_poll_data[i]);
+    }
+    sfree(d->last_poll_data);
+    d->last_poll_data = NULL;
+    d->last_idx = 0;
+    for(i = 0; i < d->ds_num; i++)
     {
         sfree(d->ds_names[i]);
     }
@@ -533,6 +539,7 @@ static int parse_keys(const char *key_str, char *ds_name)
         memcpy(tmp_ds_name, key_str, max_str_len - 1);
         goto compact;
     }
+    
     ds_name_len = (rptr - ptr) > max_str_len ? max_str_len : (rptr - ptr);
     if((ds_name_len == 0) || strncmp(rptr + 1, "type", 4))
     { /** copy whole key **/
@@ -700,6 +707,7 @@ static int cc_add_daemon_config(oconfig_item_t *ci)
                 "with '/' or './' Can't parse: '%s'\n", cd.name, cd.asok_path);
         return -EINVAL;
     }
+    
     array = realloc(g_daemons,
                     sizeof(struct ceph_daemon *) * (g_num_daemons + 1));
     if(array == NULL)
@@ -806,78 +814,112 @@ node_handler_define_schema(void *arg, const char *val, const char *key)
 /**
  * Latency counter does not yet have an entry in last poll data - add it.
  */
-static int add_last(const char *ds_n, double cur_sum, uint64_t cur_count)
+static int add_last(struct ceph_daemon *d, const char *ds_n, double cur_sum, 
+        uint64_t cur_count)
 {
-    last_poll_data[last_idx] = malloc(1 * sizeof(struct last_data));
-    if(!last_poll_data[last_idx])
+    d->last_poll_data[d->last_idx] = malloc(1 * sizeof(struct last_data));
+    if(!d->last_poll_data[d->last_idx])
     {
         return -ENOMEM;
     }
-    sstrncpy(last_poll_data[last_idx]->ds_name,ds_n,
-            sizeof(last_poll_data[last_idx]->ds_name));
-    last_poll_data[last_idx]->last_sum = cur_sum;
-    last_poll_data[last_idx]->last_count = cur_count;
-    last_idx++;
+    sstrncpy(d->last_poll_data[d->last_idx]->ds_name,ds_n,
+            sizeof(d->last_poll_data[d->last_idx]->ds_name));
+    d->last_poll_data[d->last_idx]->last_sum = cur_sum;
+    d->last_poll_data[d->last_idx]->last_count = cur_count;
+    d->last_idx = (d->last_idx + 1);
     return 0;
 }
 
 /**
  * Update latency counter or add new entry if it doesn't exist
  */
-static int update_last(const char *ds_n, int index, double cur_sum,
-        uint64_t cur_count)
+static int update_last(struct ceph_daemon *d, const char *ds_n, int index,
+        double cur_sum, uint64_t cur_count)
 {
-    if((last_idx > index) && (strcmp(last_poll_data[index]->ds_name, ds_n) == 0))
+    if((d->last_idx > index) && (strcmp(d->last_poll_data[index]->ds_name, ds_n) == 0))
     {
-        last_poll_data[index]->last_sum = cur_sum;
-        last_poll_data[index]->last_count = cur_count;
+        d->last_poll_data[index]->last_sum = cur_sum;
+        d->last_poll_data[index]->last_count = cur_count;
         return 0;
     }
 
-    if(!last_poll_data)
+    if(!d->last_poll_data)
     {
-        last_poll_data = malloc(1 * sizeof(struct last_data *));
-        if(!last_poll_data)
+        d->last_poll_data = malloc(1 * sizeof(struct last_data *));
+        if(!d->last_poll_data)
         {
             return -ENOMEM;
         }
     }
     else
     {
-        struct last_data **tmp_last = realloc(last_poll_data,
-                ((last_idx+1) * sizeof(struct last_data *)));
+        struct last_data **tmp_last = realloc(d->last_poll_data,
+                ((d->last_idx+1) * sizeof(struct last_data *)));
         if(!tmp_last)
         {
             return -ENOMEM;
         }
-        last_poll_data = tmp_last;
+        d->last_poll_data = tmp_last;
     }
-    return add_last(ds_n, cur_sum, cur_count);
+    return add_last(d, ds_n, cur_sum, cur_count);
+}
+
+/**
+ * If using index guess failed (shouldn't happen, but possible if counters
+ * get rearranged), resort to searching for counter name
+ */
+static int backup_search_for_last_avg(struct ceph_daemon *d, const char *ds_n)
+{
+    int i = 0;
+    for(; i < d->last_idx; i++)
+    {
+        if(strcmp(d->last_poll_data[i]->ds_name, ds_n) == 0)
+        {
+            return i;
+        }
+    }
+    return -1;
 }
 
 /**
  * Calculate average b/t current data and last poll data
  * if last poll data exists
  */
-static double get_last_avg(const char *ds_n, int index,
+static double get_last_avg(struct ceph_daemon *d, const char *ds_n, int index,
         double cur_sum, uint64_t cur_count)
 {
     double result = -1.1, sum_delt = 0.0;
     uint64_t count_delt = 0;
-    if((last_idx > index) &&
-            (strcmp(last_poll_data[index]->ds_name, ds_n) == 0) &&
-            (cur_count > last_poll_data[index]->last_count))
+    int tmp_index = 0;
+    if(d->last_idx > index)
     {
-        sum_delt = (cur_sum - last_poll_data[index]->last_sum);
-        count_delt = (cur_count - last_poll_data[index]->last_count);
-        result = (sum_delt / count_delt);
+        if(strcmp(d->last_poll_data[index]->ds_name, ds_n) == 0)
+        {
+            tmp_index = index;
+        }
+        //test previous index
+        else if((index > 0) && (strcmp(d->last_poll_data[index-1]->ds_name, ds_n) == 0))
+        {
+            tmp_index = (index - 1);
+        }
+        else
+        {
+            tmp_index = backup_search_for_last_avg(d, ds_n);
+        }
+
+        if((tmp_index > -1) && (cur_count > d->last_poll_data[tmp_index]->last_count))
+        {
+            sum_delt = (cur_sum - d->last_poll_data[tmp_index]->last_sum);
+            count_delt = (cur_count - d->last_poll_data[tmp_index]->last_count);
+            result = (sum_delt / count_delt);
+        }
     }
 
     if(result == -1.1)
     {
         result = NAN;
     }
-    if(update_last(ds_n, index, cur_sum, cur_count) == -ENOMEM)
+    if(update_last(d, ds_n, tmp_index, cur_sum, cur_count) == -ENOMEM)
     {
         return -ENOMEM;
     }
@@ -980,7 +1022,7 @@ static int node_handler_fetch_data(void *arg, const char *val, const char *key)
                 }
                 else
                 {
-                    result = get_last_avg(ds_name, vtmp->latency_index, sum, vtmp->avgcount);
+                    result = get_last_avg(vtmp->d, ds_name, vtmp->latency_index, sum, vtmp->avgcount);
                     if(result == -ENOMEM)
                     {
                         return -ENOMEM;
@@ -1147,6 +1189,10 @@ static int cconn_process_json(struct cconn *io)
             result = cconn_process_data(io, &io->yajl, hand);
             break;
         case ASOK_REQ_SCHEMA:
+            //init daemon specific variables
+            io->d->ds_num = 0;
+            io->d->last_idx = 0;
+            io->d->last_poll_data = NULL;
             io->yajl.handler = node_handler_define_schema;
             io->yajl.handler_arg = io->d;
             result = traverse_json(io->json, io->json_len, hand);
@@ -1195,7 +1241,6 @@ static int cconn_validate_revents(struct cconn *io, int revents)
         case CSTATE_READ_VERSION:
         case CSTATE_READ_AMT:
         case CSTATE_READ_JSON:
-            return (revents & POLLIN) ? 0 : -EINVAL;
             return (revents & POLLIN) ? 0 : -EINVAL;
         default:
             ERROR("ceph plugin: cconn_validate_revents(name=%s) got to "
@@ -1535,13 +1580,6 @@ static int ceph_shutdown(void)
     sfree(g_daemons);
     g_daemons = NULL;
     g_num_daemons = 0;
-    for(i = 0; i < last_idx; i++)
-    {
-        sfree(last_poll_data[i]);
-    }
-    sfree(last_poll_data);
-    last_poll_data = NULL;
-    last_idx = 0;
     DEBUG("ceph plugin: finished ceph_shutdown");
     return 0;
 }
