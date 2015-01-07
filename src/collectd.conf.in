@@ -677,7 +677,7 @@
 #		Password "secret"
 #		Interface "eth0"
 @LOAD_PLUGIN_NETWORK@	</Server>
-#	TimeToLive "128"
+#	TimeToLive 128
 #
 #	# server setup:
 #	Listen "ff18::efc0:4a42" "25826"
