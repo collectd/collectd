@@ -7129,6 +7129,12 @@ want to set B<metadata.broker.list> to your Kafka broker list.
 
 =back
 
+=head2 Plugin C<write_log>
+
+The I<write_log plugin> will send values to the configured log destination.
+It is meant to be used for testing purposes, to ensure that values
+are correctly reported. Values will be formatted in the I<graphite> format.
+
 =head2 Plugin C<write_redis>
 
 The I<write_redis plugin> submits values to I<Redis>, a data structure server.
