@@ -205,11 +205,11 @@ static void swap_submit_usage (char const *plugin_instance, /* {{{ */
 	sstrncpy (vl.type, "swap", sizeof (vl.type));
 
 	if (values_absolute)
-		plugin_dispatch_multivalue (&vl, 0,
+		plugin_dispatch_multivalue (&vl, 0, DS_TYPE_GAUGE,
 				"used", used, "free", free,
 				other_name, other_value, NULL);
 	if (values_percentage)
-		plugin_dispatch_multivalue (&vl, 1,
+		plugin_dispatch_multivalue (&vl, 1, DS_TYPE_GAUGE,
 				"used", used, "free", free,
 				other_name, other_value, NULL);
 } /* }}} void swap_submit_usage */

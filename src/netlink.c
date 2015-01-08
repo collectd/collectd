@@ -780,7 +780,7 @@ static int ir_read (void)
         continue;
       }
 
-      DEBUG ("netlink plugin: ir_read: querying %s from %s (%lu).",
+      DEBUG ("netlink plugin: ir_read: querying %s from %s (%zu).",
           type_name[type_index], iflist[ifindex], ifindex);
 
       nlh = mnl_nlmsg_put_header (buf);

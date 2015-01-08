@@ -213,7 +213,7 @@ Source:		http://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
 Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
-BuildRequires:	libgcrypt-devel, kernel-headers
+BuildRequires:	libgcrypt-devel, kernel-headers, libtool-ltdl-devel
 Vendor:		collectd development team <collectd@verplant.org>
 
 Requires(post):		chkconfig
@@ -1676,6 +1676,8 @@ find %{buildroot} -type f -name .packlist -delete
 find %{buildroot} -type f -name perllocal.pod -delete
 
 %if ! %{with_java}
+rm -f %{buildroot}%{_datadir}/collectd/java/collectd-api.jar
+rm -f %{buildroot}%{_datadir}/collectd/java/generic-jmx.jar
 rm -f %{buildroot}%{_mandir}/man5/collectd-java.5*
 %endif
 
@@ -1684,6 +1686,10 @@ rm -f %{buildroot}%{_mandir}/man5/collectd-perl.5*
 rm -f %{buildroot}%{_mandir}/man3/Collectd::Unixsock.3pm*
 rm -fr perl-examples/
 rm -fr %{buildroot}/usr/lib/perl5/
+%endif
+
+%if ! %{with_postgresql}
+rm -f %{buildroot}%{_datadir}/collectd/postgresql_default.conf
 %endif
 
 %if ! %{with_python}
@@ -1725,7 +1731,7 @@ fi
 %{_bindir}/collectd-tg
 %{_bindir}/collectdctl
 %{_sbindir}/collectdmon
-%{_datadir}/collectd/
+%{_datadir}/collectd/types.db
 %{_sharedstatedir}/collectd
 %{_mandir}/man1/collectd-nagios.1*
 %{_mandir}/man1/collectd.1*
@@ -2027,8 +2033,8 @@ fi
 
 %if %{with_java}
 %files java
-%{_prefix}/share/collectd/java/collectd-api.jar
-%{_prefix}/share/collectd/java/generic-jmx.jar
+%{_datadir}/collectd/java/collectd-api.jar
+%{_datadir}/collectd/java/generic-jmx.jar
 %{_libdir}/%{name}/java.so
 %{_mandir}/man5/collectd-java.5*
 %endif
@@ -2120,7 +2126,7 @@ fi
 
 %if %{with_postgresql}
 %files postgresql
-%{_prefix}/share/collectd/postgresql_default.conf
+%{_datadir}/collectd/postgresql_default.conf
 %{_libdir}/%{name}/postgresql.so
 %endif
 

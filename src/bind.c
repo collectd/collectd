@@ -745,7 +745,7 @@ static int bind_xml_stats_handle_zone (int version, xmlDoc *doc, /* {{{ */
   xmlFree (zone_name);
   zone_name = NULL;
 
-  if (j >= views_num)
+  if (j >= views->zones_num)
   {
     xmlXPathFreeObject (path_obj);
     return (0);
