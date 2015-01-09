@@ -57,9 +57,11 @@ modules, e.g. "time".
 =item B<Encoding> I<Name>
 
 The default encoding for Unicode objects you pass to collectd. If you omit this
-option it will default to B<ascii> on I<Python 2> and B<utf-8> on I<Python 3>.
-This is hardcoded in Python and will ignore everything else, including your
-locale.
+option it will default to B<ascii> on I<Python 2>. On I<Python 3> it will
+always be B<utf-8>, as this function was removed, so this will be silently
+ignored.
+These defaults are hardcoded in Python and will ignore everything else,
+including your locale.
 
 =item B<ModulePath> I<Name>
 
