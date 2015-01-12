@@ -1038,7 +1038,7 @@ static int cpy_init_python() {
 	PyObject *module;
 
 #ifdef IS_PY3K
-	wchar_t *argv = {0};
+	wchar_t *argv = L"";
 	/* Add a builtin module, before Py_Initialize */
 	PyImport_AppendInittab("collectd", PyInit_collectd);
 #else
