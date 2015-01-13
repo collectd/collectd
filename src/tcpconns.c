@@ -565,9 +565,10 @@ static void value_list_batch_release(value_list_batch_t *batch)
 /* Return 1 if tcpi should be reported */
 static int filter_tcpi(const struct tcp_info* tcpi)
 {
+  /* Skip last ACK sent, it's documented "Not remembered, sorry." */
   return connections_age_limit_msecs < 0 ||
       tcpi->tcpi_last_data_sent < connections_age_limit_msecs ||
-      tcpi->tcpi_last_ack_sent < connections_age_limit_msecs ||
+        /* tcpi->tcpi_last_ack_sent < connections_age_limit_msecs || */
       tcpi->tcpi_last_data_recv < connections_age_limit_msecs ||
       tcpi->tcpi_last_ack_recv < connections_age_limit_msecs;
 }
