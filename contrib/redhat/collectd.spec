@@ -797,6 +797,13 @@ Requires:	libcollectdclient%{?_isa} = %{version}-%{release}
 %description -n libcollectdclient-devel
 Development files for libcollectdclient
 
+%package -n collectd-utils
+Summary:	Collectd utilities
+Group:		System Environment/Daemons
+Requires:	libcollectdclient%{?_isa} = %{version}-%{release}
+Requires:	collectd%{?_isa} = %{version}-%{release}
+%description -n collectd-utils
+Collectd utilities
 
 %prep
 %setup -q
@@ -1775,17 +1782,11 @@ fi
 %{_initrddir}/collectd
 %endif
 %{_sbindir}/collectd
-%{_bindir}/collectd-nagios
-%{_bindir}/collectd-tg
-%{_bindir}/collectdctl
 %{_sbindir}/collectdmon
 %{_datadir}/collectd/types.db
 %{_sharedstatedir}/collectd
-%{_mandir}/man1/collectd-nagios.1*
 %{_mandir}/man1/collectd.1*
-%{_mandir}/man1/collectdctl.1*
 %{_mandir}/man1/collectdmon.1*
-%{_mandir}/man1/collectd-tg.1*
 %{_mandir}/man5/collectd-email.5*
 %{_mandir}/man5/collectd-exec.5*
 %{_mandir}/man5/collectd-threshold.5*
@@ -1996,6 +1997,14 @@ fi
 %files -n libcollectdclient
 %{_libdir}/libcollectdclient.so
 %{_libdir}/libcollectdclient.so.*
+
+%files -n collectd-utils
+%{_bindir}/collectd-nagios
+%{_bindir}/collectd-tg
+%{_bindir}/collectdctl
+%{_mandir}/man1/collectdctl.1*
+%{_mandir}/man1/collectd-nagios.1*
+%{_mandir}/man1/collectd-tg.1*
 
 %if %{with_amqp}
 %files amqp
@@ -2265,8 +2274,9 @@ fi
 # - New plugins enabled by default: drbd, log_logstash, write_tsdb, smart, openldap, redis, write_redis, zookeeper, write_log
 # - New plugins disabled by default: barometer, write_kafka
 # - Enable zfs_arc, now supported on Linux
-# - Install disk plugin in an dedicated package, as it depends on libudev
+# - Install disk plugin in a dedicated package, as it depends on libudev
 # - use systemd on EL7, sysvinit on EL6 & EL5
+# - Install collectdctl, collectd-tg and collectd-nagios in collectd-utils.rpm
 
 * Mon Aug 19 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.4.0-1
 - New upstream version
