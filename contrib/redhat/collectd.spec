@@ -162,6 +162,7 @@
 %define with_wireless 0%{!?_without_wireless:1}
 %define with_write_graphite 0%{!?_without_write_graphite:1}
 %define with_write_http 0%{!?_without_write_http:1}
+%define with_write_log 0%{!?_without_write_log:1}
 %define with_write_redis 0%{!?_without_write_redis:0%{?_has_hiredis}}
 %define with_write_riemann 0%{!?_without_write_riemann:1}
 %define with_write_tsdb 0%{!?_without_write_tsdb:1}
@@ -1471,6 +1472,12 @@ Development files for libcollectdclient
 %define _with_write_kafka --disable-write_kafka
 %endif
 
+%if %{with_write_log}
+%define _with_write_log --enable-write_log
+%else
+%define _with_write_log --disable-write_log
+%endif
+
 %if %{with_write_mongodb}
 %define _with_write_mongodb --enable-write_mongodb
 %else
@@ -1644,6 +1651,7 @@ Development files for libcollectdclient
 	%{?_with_wireless}\
 	%{?_with_write_graphite} \
 	%{?_with_write_http} \
+	%{?_with_write_log} \
 	%{?_with_write_riemann} \
 	%{?_with_write_tsdb}
 
@@ -1965,6 +1973,9 @@ fi
 %if %{with_write_graphite}
 %{_libdir}/%{name}/write_graphite.so
 %endif
+%if %{with_write_log}
+%{_libdir}/%{name}/write_log.so
+%endif
 %if %{with_write_tsdb}
 %{_libdir}/%{name}/write_tsdb.so
 %endif
@@ -2251,7 +2262,7 @@ fi
 %changelog
 # * TODO 5.5.0-1
 # - New upstream version
-# - New plugins enabled by default: drbd, log_logstash, write_tsdb, smart, openldap, redis, write_redis, zookeeper
+# - New plugins enabled by default: drbd, log_logstash, write_tsdb, smart, openldap, redis, write_redis, zookeeper, write_log
 # - New plugins disabled by default: barometer, write_kafka
 # - Enable zfs_arc, now supported on Linux
 # - Install disk plugin in an dedicated package, as it depends on libudev
