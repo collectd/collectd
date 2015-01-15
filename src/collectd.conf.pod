@@ -7229,7 +7229,7 @@ Service name or port number to connect to. Defaults to C<5555>.
 =item B<Protocol> B<UDP>|B<TCP>
 
 Specify the protocol to use when communicating with I<Riemann>. Defaults to
-B<UDP>.
+B<TCP>.
 
 =item B<Batch> B<true>|B<false>
 
@@ -7239,7 +7239,12 @@ regular intervals or when B<BatchMaxSize> is exceeded.
 
 Notifications are not batched and sent as soon as possible.
 
-Defaults to false
+When enabled, it can occur that events get processed by the Riemann server
+close to or after their expiration time. Tune the B<TTLFactor> and
+B<BatchMaxSize> settings according to the amount of values collected, if this
+is an issue.
+
+Defaults to true
 
 =item B<BatchMaxSize> I<size>
 

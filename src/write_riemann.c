@@ -854,10 +854,10 @@ static int riemann_config_node(oconfig_item_t *ci) /* {{{ */
 	host->check_thresholds = 0;
 	host->store_rates = 1;
 	host->always_append_ds = 0;
-	host->use_tcp = 0;
-    host->batch_mode = 0;
-    host->batch_max = RIEMANN_BATCH_MAX; /* typical MSS */
-    host->batch_init = cdtime();
+	host->use_tcp = 1;
+	host->batch_mode = 1;
+	host->batch_max = RIEMANN_BATCH_MAX; /* typical MSS */
+	host->batch_init = cdtime();
 	host->ttl_factor = RIEMANN_TTL_FACTOR;
 
 	status = cf_util_get_string (ci, &host->name);

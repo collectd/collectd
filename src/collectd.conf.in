@@ -1325,8 +1325,8 @@
 #	<Node "example">
 #		Host "localhost"
 #		Port 5555
-#		Protocol UDP
-#		Batch false
+#		Protocol TCP
+#		Batch true
 #		BatchMaxSize 8192
 #		StoreRates true
 #		AlwaysAppendDS false
