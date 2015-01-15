@@ -2257,7 +2257,9 @@ following options are allowed:
 
 =item B<Host> I<Hostname>
 
-Hostname to connect to. Defaults to B<127.0.0.1>.
+Hostname to connect to. Defaults to B<127.0.0.1>. Also sets the B<host> field
+of I<value lists> when dispatching values. Defaults to the global hostname
+setting.
 
 =item B<Port> I<Port>
 
