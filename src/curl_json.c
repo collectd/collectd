@@ -608,6 +608,8 @@ static int cj_init_curl (cj_t *db) /* {{{ */
   curl_easy_setopt (db->curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
   curl_easy_setopt (db->curl, CURLOPT_ERRORBUFFER, db->curl_errbuf);
   curl_easy_setopt (db->curl, CURLOPT_URL, db->url);
+  curl_easy_setopt (db->curl, CURLOPT_FOLLOWLOCATION, 1L);
+  curl_easy_setopt (db->curl, CURLOPT_MAXREDIRS, 50L);
 
   if (db->user != NULL)
   {

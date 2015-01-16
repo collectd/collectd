@@ -134,6 +134,8 @@ static int wh_callback_init (wh_callback_t *cb) /* {{{ */
 
         curl_easy_setopt (cb->curl, CURLOPT_ERRORBUFFER, cb->curl_errbuf);
         curl_easy_setopt (cb->curl, CURLOPT_URL, cb->location);
+        curl_easy_setopt (cb->curl, CURLOPT_FOLLOWLOCATION, 1L);
+        curl_easy_setopt (cb->curl, CURLOPT_MAXREDIRS, 50L);
 
         if (cb->user != NULL)
         {
