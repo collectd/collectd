@@ -208,7 +208,7 @@
 Summary:	Statistics collection daemon for filling RRD files
 Name:		collectd
 Version:	5.4.0
-Release:	1%{?dist}
+Release:	2%{?dist}
 URL:		http://collectd.org
 Source:		http://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
@@ -557,6 +557,7 @@ This plugin reads monitoring information from OpenLDAP's cn=Monitor subtree.
 %endif
 
 %if %{with_perl}
+%{?perl_default_filter}
 %package perl
 Summary:	Perl plugin for collectd
 Group:		System Environment/Daemons
@@ -1694,7 +1695,7 @@ rm -f %{buildroot}/%{_libdir}/{collectd/,}*.la
 
 # Move the Perl examples to a separate directory.
 mkdir perl-examples
-find contrib -name '*.p[lm]' -exec mv {} perl-examples/ \;
+find contrib -name '*.p[lm]' -not -path '*/collection3/*' -exec cp --parents {} perl-examples/ \; -exec rm {} \;
 
 # Remove Perl hidden .packlist files.
 find %{buildroot} -type f -name .packlist -delete
@@ -2277,6 +2278,11 @@ fi
 # - Install disk plugin in a dedicated package, as it depends on libudev
 # - use systemd on EL7, sysvinit on EL6 & EL5
 # - Install collectdctl, collectd-tg and collectd-nagios in collectd-utils.rpm
+
+* Fri Jan 16 2015 Fabien Wernli <faxmodem@collectd.org> 5.4.0-2
+- perl: preserve full path of perl examples
+- move collection3 perl from perl subpackage to contrib
+- filter unwanted dependencies from perl scripts
 
 * Mon Aug 19 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.4.0-1
 - New upstream version
