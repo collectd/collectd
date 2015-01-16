@@ -34,6 +34,7 @@
 #
 
 %global _hardened_build 1
+%{?perl_default_filter}
 
 # plugins only buildable on RHEL6
 # (NB: %{elN} macro is not available on RHEL < 6)
@@ -1431,20 +1432,16 @@ rm -rf %{buildroot}
 %{__mkdir} -p %{buildroot}%{_localstatedir}/www
 %{__mkdir} -p %{buildroot}/%{_sysconfdir}/httpd/conf.d
 
-%{__cp} -a contrib/collection3 %{buildroot}%{_localstatedir}/www
-%{__cp} -a contrib/redhat/collection3.conf %{buildroot}/%{_sysconfdir}/httpd/conf.d/
+%{__mv} contrib/collection3 %{buildroot}%{_localstatedir}/www
+%{__mv} contrib/redhat/collection3.conf %{buildroot}/%{_sysconfdir}/httpd/conf.d/
 
-%{__cp} -a contrib/php-collection %{buildroot}%{_localstatedir}/www
-%{__cp} -a contrib/redhat/php-collection.conf %{buildroot}/%{_sysconfdir}/httpd/conf.d/
+%{__mv} contrib/php-collection %{buildroot}%{_localstatedir}/www
+%{__mv} contrib/redhat/php-collection.conf %{buildroot}/%{_sysconfdir}/httpd/conf.d/
 
 ### Clean up docs
 find contrib/ -type f -exec %{__chmod} a-x {} \;
 # *.la files shouldn't be distributed.
 rm -f %{buildroot}/%{_libdir}/{collectd/,}*.la
-
-# Move the Perl examples to a separate directory.
-mkdir perl-examples
-find contrib -name '*.p[lm]' -exec mv {} perl-examples/ \;
 
 # Remove Perl hidden .packlist files.
 find %{buildroot} -type f -name .packlist -delete
@@ -1460,7 +1457,6 @@ rm -f %{buildroot}%{_mandir}/man5/collectd-java.5*
 %if ! %{with_perl}
 rm -f %{buildroot}%{_mandir}/man5/collectd-perl.5*
 rm -f %{buildroot}%{_mandir}/man3/Collectd::Unixsock.3pm*
-rm -fr perl-examples/
 rm -fr %{buildroot}/usr/lib/perl5/
 %endif
 
@@ -1833,7 +1829,6 @@ fi
 
 %if %{with_perl}
 %files perl
-%doc perl-examples/*
 %{perl_vendorlib}/Collectd.pm
 %{perl_vendorlib}/Collectd/
 %{_mandir}/man3/Collectd::Unixsock.3pm*
@@ -1934,6 +1929,10 @@ fi
 - Enabled netlink plugin on RHEL6 and RHEL7
 - Allow perl plugin to build on RHEL5
 - Add support for RHEL7
+- Misc perl-related improvements:
+  * prevent rpmbuild from extracting dependencies from files in /usr/share/doc
+  * don't package collection3 and php-collection twice
+  * keep perl scripts from contrib/ in collectd-contrib
 
 * Wed Apr 10 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.3.0-1
 - New upstream version
