@@ -129,6 +129,7 @@ static long            write_limit_low = 0;
 
 static derive_t        stats_values_dropped = 0;
 static _Bool           record_statistics = 0;
+static pthread_mutex_t statistics_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /*
  * Static functions
@@ -1527,7 +1528,7 @@ void plugin_init_all (void)
 	post_cache_chain = fc_chain_get_by_name (chain_name);
 
 	write_limit_high = global_option_get_long ("WriteQueueLimitHigh",
-			/* default = */ 0);
+			/* default = */ 100000);
 	if (write_limit_high < 0)
 	{
 		ERROR ("WriteQueueLimitHigh must be positive or zero.");
@@ -2094,6 +2095,7 @@ static double get_drop_probability (void) /* {{{ */
 static _Bool check_drop_value (void) /* {{{ */
 {
 	static cdtime_t last_message_time = 0;
+	static double last_p = 0.0;
 	static pthread_mutex_t last_message_lock = PTHREAD_MUTEX_INITIALIZER;
 
 	double p;
@@ -2105,7 +2107,10 @@ static _Bool check_drop_value (void) /* {{{ */
 
 	p = get_drop_probability ();
 	if (p == 0.0)
+	{
+		last_message_time = 0;	/* race with code just below but doesn't matter and not worth locking every datum */
 		return (0);
+	}
 
 	status = pthread_mutex_trylock (&last_message_lock);
 	if (status == 0)
@@ -2113,9 +2118,10 @@ static _Bool check_drop_value (void) /* {{{ */
 		cdtime_t now;
 
 		now = cdtime ();
-		if ((now - last_message_time) > TIME_T_TO_CDTIME_T (1))
+		if ((now - last_message_time) > TIME_T_TO_CDTIME_T (60) || p != last_p)
 		{
 			last_message_time = now;
+			last_p = p;
 			ERROR ("plugin_dispatch_values: Low water mark "
 					"reached. Dropping %.0f%% of metrics.",
 					100.0 * p);
@@ -2136,7 +2142,6 @@ static _Bool check_drop_value (void) /* {{{ */
 int plugin_dispatch_values (value_list_t const *vl)
 {
 	int status;
-	static pthread_mutex_t statistics_lock = PTHREAD_MUTEX_INITIALIZER;
 
 	if (check_drop_value ()) {
 		if(record_statistics) {
@@ -2168,6 +2173,15 @@ int plugin_dispatch_multivalue (value_list_t const *template, /* {{{ */
 	int failed = 0;
 	gauge_t sum = 0.0;
 	va_list ap;
+
+	if (check_drop_value ()) {
+		if(record_statistics) {
+			pthread_mutex_lock(&statistics_lock);
+			stats_values_dropped++;
+			pthread_mutex_unlock(&statistics_lock);
+		}
+		return (0);
+	}
 
 	assert (template->values_len == 1);
 
