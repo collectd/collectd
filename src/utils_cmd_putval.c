@@ -193,7 +193,7 @@ int handle_putval (FILE *fh, char *buffer)
 			/* parse_option failed, buffer has been modified.
 			 * => we need to abort */
 			print_to_socket (fh, "-1 Misformatted option.\n");
-			return (-1);
+			goto error;
 		}
 		else if (status == 0)
 		{
@@ -209,7 +209,7 @@ int handle_putval (FILE *fh, char *buffer)
 		if (status != 0)
 		{
 			print_to_socket (fh, "-1 Misformatted value.\n");
-			return (-1);
+			goto error;
 		}
 		assert (string != NULL);
 
@@ -217,7 +217,7 @@ int handle_putval (FILE *fh, char *buffer)
 		if (status != 0)
 		{
 			/* An error has already been printed. */
-			return (-1);
+			goto error;
 		}
 		values_submitted++;
 	} /* while (*buffer != 0) */
@@ -230,6 +230,10 @@ int handle_putval (FILE *fh, char *buffer)
 	sfree (vl.values); 
 
 	return (0);
+
+error:
+	sfree (vl.values);
+	return (-1);
 } /* int handle_putval */
 
 int create_putval (char *ret, size_t ret_len, /* {{{ */
