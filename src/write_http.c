@@ -506,6 +506,7 @@ static int wh_config_url (oconfig_item_t *ci) /* {{{ */
 {
         wh_callback_t *cb;
         user_data_t user_data;
+        char callback_name[DATA_MAX_NAME_LEN];
         int i;
 
         cb = malloc (sizeof (*cb));
@@ -556,16 +557,18 @@ static int wh_config_url (oconfig_item_t *ci) /* {{{ */
                 }
         }
 
-        DEBUG ("write_http: Registering write callback with URL %s",
+        ssnprintf (callback_name, sizeof (callback_name), "write_http/%s",
                         cb->location);
+        DEBUG ("write_http: Registering write callback '%s' with URL '%s'",
+                        callback_name, cb->location);
 
         memset (&user_data, 0, sizeof (user_data));
         user_data.data = cb;
         user_data.free_func = NULL;
-        plugin_register_flush ("write_http", wh_flush, &user_data);
+        plugin_register_flush (callback_name, wh_flush, &user_data);
 
         user_data.free_func = wh_callback_free;
-        plugin_register_write ("write_http", wh_write, &user_data);
+        plugin_register_write (callback_name, wh_write, &user_data);
 
         return (0);
 } /* }}} int wh_config_url */
