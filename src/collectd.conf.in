@@ -1277,7 +1277,8 @@
 #</Plugin>
 
 #<Plugin write_http>
-#	<URL "http://example.com/collectd-post">
+#	<Node "example">
+#		URL "http://example.com/collectd-post"
 #		User "collectd"
 #		Password "weCh3ik0"
 #		VerifyPeer true
@@ -1291,7 +1292,7 @@
 #		Format "Command"
 #		StoreRates false
 #		BufferSize 4096
-#	</URL>
+#	</Node>
 #</Plugin>
 
 #<Plugin write_kafka>

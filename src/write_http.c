@@ -44,8 +44,9 @@
  */
 struct wh_callback_s
 {
-        char *location;
+        char *name;
 
+        char *location;
         char *user;
         char *pass;
         char *credentials;
@@ -291,6 +292,7 @@ static void wh_callback_free (void *data) /* {{{ */
                 curl_easy_cleanup (cb->curl);
                 cb->curl = NULL;
         }
+        sfree (cb->name);
         sfree (cb->location);
         sfree (cb->user);
         sfree (cb->pass);
@@ -493,7 +495,7 @@ static int config_set_format (wh_callback_t *cb, /* {{{ */
         return (0);
 } /* }}} int config_set_format */
 
-static int wh_config_url (oconfig_item_t *ci) /* {{{ */
+static int wh_config_node (oconfig_item_t *ci) /* {{{ */
 {
         wh_callback_t *cb;
         int buffer_size = 0;
@@ -515,15 +517,19 @@ static int wh_config_url (oconfig_item_t *ci) /* {{{ */
 
         pthread_mutex_init (&cb->send_lock, /* attr = */ NULL);
 
-        cf_util_get_string (ci, &cb->location);
-        if (cb->location == NULL)
-                return (-1);
+        cf_util_get_string (ci, &cb->name);
+
+        /* FIXME: Remove this legacy mode in version 6. */
+        if (strcasecmp ("URL", ci->key) == 0)
+                cf_util_get_string (ci, &cb->location);
 
         for (i = 0; i < ci->children_num; i++)
         {
                 oconfig_item_t *child = ci->children + i;
 
-                if (strcasecmp ("User", child->key) == 0)
+                if (strcasecmp ("URL", child->key) == 0)
+                        cf_util_get_string (child, &cb->location);
+                else if (strcasecmp ("User", child->key) == 0)
                         cf_util_get_string (child, &cb->user);
                 else if (strcasecmp ("Password", child->key) == 0)
                         cf_util_get_string (child, &cb->pass);
@@ -582,6 +588,14 @@ static int wh_config_url (oconfig_item_t *ci) /* {{{ */
                 }
         }
 
+        if (cb->location == NULL)
+        {
+                ERROR ("write_http plugin: no URL defined for instance '%s'",
+                        cb->name);
+                wh_callback_free (cb);
+                return (-1);
+        }
+
         /* Determine send_buffer_size. */
         cb->send_buffer_size = WRITE_HTTP_DEFAULT_BUFFER_SIZE;
         if (buffer_size >= 1024)
@@ -602,7 +616,7 @@ static int wh_config_url (oconfig_item_t *ci) /* {{{ */
         wh_reset_buffer (cb);
 
         ssnprintf (callback_name, sizeof (callback_name), "write_http/%s",
-                        cb->location);
+                        cb->name);
         DEBUG ("write_http: Registering write callback '%s' with URL '%s'",
                         callback_name, cb->location);
 
@@ -615,7 +629,7 @@ static int wh_config_url (oconfig_item_t *ci) /* {{{ */
         plugin_register_write (callback_name, wh_write, &user_data);
 
         return (0);
-} /* }}} int wh_config_url */
+} /* }}} int wh_config_node */
 
 static int wh_config (oconfig_item_t *ci) /* {{{ */
 {
@@ -625,8 +639,14 @@ static int wh_config (oconfig_item_t *ci) /* {{{ */
         {
                 oconfig_item_t *child = ci->children + i;
 
-                if (strcasecmp ("URL", child->key) == 0)
-                        wh_config_url (child);
+                if (strcasecmp ("Node", child->key) == 0)
+                        wh_config_node (child);
+                /* FIXME: Remove this legacy mode in version 6. */
+                else if (strcasecmp ("URL", child->key) == 0) {
+                        WARNING ("write_http plugin: Legacy <URL> block found. "
+                                "Please use <Node> instead.");
+                        wh_config_node (child);
+                }
                 else
                 {
                         ERROR ("write_http plugin: Invalid configuration "
