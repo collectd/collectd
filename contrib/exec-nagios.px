@@ -28,6 +28,9 @@ our $Scripts = [];
 our $Interval = defined ($ENV{'COLLECTD_INTERVAL'}) ? (0 + $ENV{'COLLECTD_INTERVAL'}) : 300;
 our $Hostname = defined ($ENV{'COLLECTD_HOSTNAME'}) ? $ENV{'COLLECTD_HOSTNAME'} : '';
 
+# Enable auto flush
+ $| = 1;
+
 main ();
 exit (0);
 
