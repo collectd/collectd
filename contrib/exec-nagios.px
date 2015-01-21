@@ -52,6 +52,11 @@ Here's a short sample config:
     Arguments -H alice
     Type delay
   </Script>
+  <Script /usr/lib/nagios/check_ping>
+    Arguments -H alice -w 100.0,10% -c 200.0,20%
+    Type delay
+    EnableState true
+  </Script>
 
 The options have the following semantic (i.E<nbsp>e. meaning):
 
@@ -101,6 +106,11 @@ note that this is limited to types that take exactly one value, such as the
 type C<delay> in the example above. If you need more complex performance data,
 rewrite the plugin as a collectd plugin (or at least port it do run directly
 with the C<exec-plugin>).
+
+=item B<EnableState> I<Boolean>
+
+Enables state data. It uses the B<current> type to dispatch the check's exit
+code. (0 for success, 1 for critical, and 2 for failure). Defaults to false.
 
 =back
 
@@ -347,13 +357,12 @@ sub sanitize_instance
 sub handle_performance_data
 {
   my $host = shift;
-  my $plugin = shift;
   my $pinst = shift;
   my $type = shift;
   my $time = shift;
   my $line = shift;
-  my $ident = "$host/$plugin-$pinst/$type-$tinst";
 
+  my $ident;
   my $tinst;
   my $value;
   my $unit;
@@ -368,6 +377,7 @@ sub handle_performance_data
     return;
   }
 
+  $ident = "$host/nagios-$pinst/$type-$tinst";
   $ident =~ s/"/\\"/g;
 
   print qq(PUTVAL "$ident" interval=$Interval ${time}:$value\n);
@@ -383,6 +393,7 @@ sub execute_script
   my $host = $Hostname || hostname () || 'localhost';
 
   my $state = 0;
+  my $exit_code;
   my $serviceoutput;
   my @serviceperfdata;
   my @longserviceoutput;
@@ -442,13 +453,13 @@ sub execute_script
 
   close ($fh);
   # Save the exit status of the check in $state
-  $state = $? >> 8;
+  $exit_code = $? >> 8;
 
-  if ($state == 0)
+  if ($exit_code == 0)
   {
     $state = 'okay';
   }
-  elsif ($state == 1)
+  elsif ($exit_code == 1)
   {
     $state = 'warning';
   }
@@ -464,11 +475,16 @@ sub execute_script
     . "plugin_instance=$pinst type=$type message=$serviceoutput\n";
   }
 
+  if ($script->{'enablestate'})
+  {
+    print qq(PUTVAL "$host/nagios-$pinst/current-state" interval=$Interval ${time}:$exit_code\n);
+  }
+
   if ($script->{'type'})
   {
     for (@serviceperfdata)
     {
-      handle_performance_data ($host, 'nagios', $pinst, $script->{'type'},
+      handle_performance_data ($host, $pinst, $script->{'type'},
         $time, $_);
     }
   }
