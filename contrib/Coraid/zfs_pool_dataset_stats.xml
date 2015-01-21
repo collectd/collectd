@@ -1,0 +1,33 @@
+<?xml version='1.0'?>
+<!DOCTYPE service_bundle SYSTEM '/usr/share/lib/xml/dtd/service_bundle.dtd.1'>
+<!--
+  Copyright 2014 Coraid, Inc.
+-->
+<service_bundle type='manifest' name='export'>
+  <service name='system/collectd/dtrace/zfs_pool_dataset' type='service' version='0'>
+    <create_default_instance enabled='true'/>
+    <single_instance/>
+    <dependency name='collectd' grouping='require_all' restart_on='error' type='service'>
+      <service_fmri value='svc:/system/collectd:default'/>
+    </dependency>
+    <exec_method name='start' type='method' exec='/opt/collectd/bin/zfs_pool_dataset_stats &amp;' timeout_seconds='60'>
+      <method_context>
+        <method_credential user='root' group='root'/>
+        <method_environment>
+          <envvar name='PATH' value='/usr/sbin:/usr/bin'/>
+        </method_environment>
+      </method_context>
+    </exec_method>
+    <exec_method name='stop' type='method' exec=':kill' timeout_seconds='60'>
+      <method_context>
+        <method_credential user='root' group='root'/>
+      </method_context>
+    </exec_method>
+    <template>
+      <common_name>
+        <loctext xml:lang='C'>Coraid collectd ZFS pool and dataset performance collector</loctext>
+      </common_name>
+    </template>
+  </service>
+</service_bundle>
+

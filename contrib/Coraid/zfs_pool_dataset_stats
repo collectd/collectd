@@ -1,0 +1,210 @@
+#!/usr/bin/env bash
+#
+# Publish pool and dataset latency, bandwidth, and IOPS to collectd.
+# Suitable for illumos, OpenSolaris, and Solaris 11 derivatives.
+#
+# Data is collected per-pool and per-pool+dataset. The pool and datasets
+# are referenced by their guid (zpool get guid poolname) with the binary
+# 64-bit int guid value transformed to base64. This avoids ambiguity and
+# character-delimiter collisions in the metrics namespace. Cross-reference
+# between poolname and its base64 guid is left as an exercise for the consumer.
+#
+# General output format:
+#    $(uname -n)/ZFS-VOps-POOLGUID/gauge-([rw]lat|[rw]iops|[rw]bw)
+#    $(uname -n)/ZFS-VOps-POOLGUID-DATASETGUID/gauge-([rw]lat|[rw]iops|[rw]bw)
+#
+# All metrics are normalized to per-second, independent of the sample interval.
+#  [rw]lat = [read|write] average latency in microseconds
+#  [rw]iops = [read|write] IOPS
+#  [rw]bw = [read|write] bandwidth in KiB/sec
+#
+# Note: it is expected that the dtrace can fail, in which case this script will
+# automatically try to restart the dtrace collector.
+#
+# Copyright 2014 Coraid, Inc.
+#
+# MIT License
+# ===========
+# Permission is hereby granted, free of charge, to any person obtaining a copy of
+# this software and associated documentation files (the "Software"), to deal in
+# the Software without restriction, including without limitation the rights to
+# use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+# of the Software, and to permit persons to whom the Software is furnished to do
+# so, subject to the following conditions:
+# 
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+COLLECTD_CMD="nc -U /opt/collectd/var/run/collectd-unixsock"
+#COLLECTD_CMD=cat
+
+NODENAME=$(uname -n)
+INTERVAL=60  # sampling interval in seconds
+
+while true
+do
+/usr/sbin/dtrace -Cn '
+/*
+ * trace read/write requests on a per-pool and per-dataset basis
+ */
+#pragma D option quiet
+#pragma D option switchrate=10hz
+#pragma D option dynvarsize=12m
+
+BEGIN
+{
+    /* 
+     * Note: his is not conventional base64, yet. collectd's unixsock agent
+     * will need to be updated to allow '/' characters. The actual
+     * characters used aren't as important as both ends being in agreement.
+     */
+    b64[0]  = "A"; b64[1]  = "B"; b64[2]  = "C"; b64[3]  = "D";
+    b64[4]  = "E"; b64[5]  = "F"; b64[6]  = "G"; b64[7]  = "H";
+    b64[8]  = "I"; b64[9]  = "J"; b64[10] = "K"; b64[11] = "L";
+    b64[12] = "M"; b64[13] = "N"; b64[14] = "O"; b64[15] = "P";
+    b64[16] = "Q"; b64[17] = "R"; b64[18] = "S"; b64[19] = "T";
+    b64[20] = "U"; b64[21] = "V"; b64[22] = "W"; b64[23] = "X";
+    b64[24] = "Y"; b64[25] = "Z"; b64[26] = "a"; b64[27] = "b";
+    b64[28] = "c"; b64[29] = "d"; b64[30] = "e"; b64[31] = "f";
+    b64[32] = "g"; b64[33] = "h"; b64[34] = "i"; b64[35] = "j";
+    b64[36] = "k"; b64[37] = "l"; b64[38] = "m"; b64[39] = "n";
+    b64[40] = "o"; b64[41] = "p"; b64[42] = "q"; b64[43] = "r";
+    b64[44] = "s"; b64[45] = "t"; b64[46] = "u"; b64[47] = "v";
+    b64[48] = "w"; b64[49] = "x"; b64[50] = "y"; b64[51] = "z";
+    b64[52] = "0"; b64[53] = "1"; b64[54] = "2"; b64[55] = "3";
+    b64[56] = "4"; b64[57] = "5"; b64[58] = "6"; b64[59] = "7";
+    b64[60] = "8"; b64[61] = "9"; b64[62] = "+"; b64[63] = "#";
+    pool_id[0] = "====";
+    dataset_id[0] = "====";
+    self->interval_start = timestamp;
+    self->c = 0;
+}
+
+fbt::zfs_read:entry,
+fbt::zfs_write:entry
+{
+    self->path = args[0]->v_path;
+    self->pool_guid = ((znode_t *)args[0]->v_data)->z_zfsvfs->z_os->os_spa->spa_load_guid;
+    self->dataset_guid = ((znode_t *)args[0]->v_data)->z_zfsvfs->z_os->os_dsl_dataset->ds_phys->ds_guid;
+    self->bytes = args[1]->uio_resid;
+    self->ts = timestamp;
+}
+
+fbt::zfs_read:entry,
+fbt::zfs_write:entry
+/pool_id[self->pool_guid] == NULL/
+{
+    self->s = strjoin(b64[(self->pool_guid >> 58) & 0x3f], b64[(self->pool_guid >> 52) & 0x3f]);
+    self->s = strjoin(self->s, b64[(self->pool_guid >> 46) & 0x3f]);
+    self->s = strjoin(self->s, b64[(self->pool_guid >> 40) & 0x3f]);
+    self->s = strjoin(self->s, b64[(self->pool_guid >> 34) & 0x3f]);
+    self->s = strjoin(self->s, b64[(self->pool_guid >> 28) & 0x3f]);
+    self->s = strjoin(self->s, b64[(self->pool_guid >> 22) & 0x3f]);
+    self->s = strjoin(self->s, b64[(self->pool_guid >> 16) & 0x3f]);
+    self->s = strjoin(self->s, b64[(self->pool_guid >> 10) & 0x3f]);
+    self->s = strjoin(self->s, b64[(self->pool_guid >> 4) & 0x3f]);
+    self->s = strjoin(self->s, b64[(self->pool_guid << 2) & 0x3f]);
+    self->s = strjoin(self->s, "=");
+    pool_id[self->pool_guid] = self->s;
+}
+
+fbt::zfs_read:entry,
+fbt::zfs_write:entry
+/dataset_id[self->dataset_guid] == NULL/
+{
+    self->s = strjoin(b64[(self->dataset_guid >> 58) & 0x3f], b64[(self->dataset_guid >> 52) & 0x3f]);
+    self->s = strjoin(self->s, b64[(self->dataset_guid >> 46) & 0x3f]);
+    self->s = strjoin(self->s, b64[(self->dataset_guid >> 40) & 0x3f]);
+    self->s = strjoin(self->s, b64[(self->dataset_guid >> 34) & 0x3f]);
+    self->s = strjoin(self->s, b64[(self->dataset_guid >> 28) & 0x3f]);
+    self->s = strjoin(self->s, b64[(self->dataset_guid >> 22) & 0x3f]);
+    self->s = strjoin(self->s, b64[(self->dataset_guid >> 16) & 0x3f]);
+    self->s = strjoin(self->s, b64[(self->dataset_guid >> 10) & 0x3f]);
+    self->s = strjoin(self->s, b64[(self->dataset_guid >> 4) & 0x3f]);
+    self->s = strjoin(self->s, b64[(self->dataset_guid << 2) & 0x3f]);
+    self->s = strjoin(self->s, "=");
+    dataset_id[self->dataset_guid] = self->s;
+}
+
+fbt::zfs_read:return,
+fbt::zfs_write:return
+/self->ts/
+{
+    self->deltat = timestamp - self->ts;
+
+    @pool_avg_lat[pool_id[self->pool_guid], "lat"] = avg(self->deltat);
+    @dataset_avg_lat[pool_id[self->pool_guid], dataset_id[self->dataset_guid], "lat"] = 
+        avg(self->deltat);
+    self->op = probefunc == "zfs_read" ? "rlat" : "wlat";
+    @pool_avg_lat[pool_id[self->pool_guid], self->op] = avg(self->deltat);
+    @dataset_avg_lat[pool_id[self->pool_guid], dataset_id[self->dataset_guid], self->op] = 
+        avg(self->deltat);
+
+    @pool_bw[pool_id[self->pool_guid], "bw"] = sum(self->bytes);
+    @dataset_bw[pool_id[self->pool_guid], dataset_id[self->dataset_guid], "bw"] = 
+        sum(self->bytes);
+    self->op = probefunc == "zfs_read" ? "rbw" : "wbw";
+    @pool_bw[pool_id[self->pool_guid], self->op] = sum(self->bytes);
+    @dataset_bw[pool_id[self->pool_guid], dataset_id[self->dataset_guid], self->op] = 
+        sum(self->bytes);
+
+    @pool_iops[pool_id[self->pool_guid], "iops"] = count();
+    @dataset_iops[pool_id[self->pool_guid], dataset_id[self->dataset_guid], "iops"] = count();
+    self->op = probefunc == "zfs_read" ? "riops" : "wiops";
+    @pool_iops[pool_id[self->pool_guid], self->op] = count();
+    @dataset_iops[pool_id[self->pool_guid], dataset_id[self->dataset_guid], self->op] = count();
+    self->ts = 0;
+}
+
+tick-'$INTERVAL'sec
+{
+    /* convert average latency to microseconds */
+    normalize(@pool_avg_lat, 1000);
+    normalize(@dataset_avg_lat, 1000);
+
+    /* normalize bandwidth from bytes to KB/sec: 976562 ~ 1e9/1024 */
+    self->t = timestamp - self->interval_start;
+    normalize(@pool_bw, 976562/self->t);
+    normalize(@dataset_bw, 976562/self->t);
+
+    /* normalize counts to per-second (IOPS) */
+    normalize(@pool_iops, 1000000000/self->t);
+    normalize(@dataset_iops, 1000000000/self->t);
+
+    printa("ZFS-VOps-%s/gauge-%s %@d\n", @pool_avg_lat);
+    printa("ZFS-VOps-%s/gauge-%s %@d\n", @pool_bw);
+    printa("ZFS-VOps-%s/gauge-%s %@d\n", @pool_iops);
+
+    printa("ZFS-VOps-%s-%s/gauge-%s %@d\n", @dataset_avg_lat);
+    printa("ZFS-VOps-%s-%s/gauge-%s %@d\n", @dataset_bw);
+    printa("ZFS-VOps-%s-%s/gauge-%s %@d\n", @dataset_iops);
+    
+    trunc(@pool_avg_lat); trunc(@dataset_avg_lat);
+    trunc(@pool_bw); trunc(@dataset_bw); trunc(@pool_iops); trunc(@dataset_iops);
+    self->interval_start = timestamp;
+    self->c++;
+}
+
+tick-'$INTERVAL'sec
+/self->c > 59/
+{
+    exit(0);
+}
+
+END
+{
+    trunc(@pool_avg_lat); trunc(@dataset_avg_lat);
+    trunc(@pool_bw); trunc(@dataset_bw); trunc(@pool_iops); trunc(@dataset_iops);
+}' | while read metric value
+    do
+        printf "PUTVAL %s/%s interval=%s %s:%s\n" $NODENAME $metric $INTERVAL $(date +%s) $value
+    done | $COLLECTD_CMD >/dev/null
+done

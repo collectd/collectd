@@ -113,6 +113,12 @@ static diskstats_t *disklist;
 extern kstat_ctl_t *kc;
 static kstat_t *ksp[MAX_NUMDISK];
 static int numdisk = 0;
+/*
+ * If partition kstats are collected, then you can quickly exceed
+ * MAX_NUMDISK values. In many cases, only one partition is in active
+ * use, so allow the per-partition kstats to be ignored.
+ */
+static _Bool ignore_partitions = 0;
 /* #endif HAVE_LIBKSTAT */
 
 #elif defined(HAVE_LIBSTATGRAB)
@@ -140,6 +146,7 @@ static const char *config_keys[] =
 	"Disk",
 	"UseBSDName",
 	"IgnoreSelected",
+	"IgnorePartitions",
 	"UdevNameAttr"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
@@ -153,24 +160,32 @@ static int disk_config (const char *key, const char *value)
   if (ignorelist == NULL)
     return (1);
 
-  if (strcasecmp ("Disk", key) == 0)
+  if (strncasecmp ("Disk", key, 4) == 0)
   {
     ignorelist_add (ignorelist, value);
   }
-  else if (strcasecmp ("IgnoreSelected", key) == 0)
+  else if (strncasecmp ("IgnoreSelected", key, 14) == 0)
   {
     int invert = 1;
     if (IS_TRUE (value))
       invert = 0;
     ignorelist_set_invert (ignorelist, invert);
   }
-  else if (strcasecmp ("UseBSDName", key) == 0)
+  else if (strncasecmp ("UseBSDName", key, 10) == 0)
   {
 #if HAVE_IOKIT_IOKITLIB_H
     use_bsd_name = IS_TRUE (value) ? 1 : 0;
 #else
     WARNING ("disk plugin: The \"UseBSDName\" option is only supported "
         "on Mach / Mac OS X and will be ignored.");
+#endif
+  }
+  else if (strncasecmp ("IgnorePartitions", key, 16) == 0) {
+#ifdef HAVE_LIBKSTAT
+  	ignore_partitions = IS_TRUE (value) ? 1 : 0;
+#else
+  	WARNING ("disk plugin: The \"IgnorePartitions\" option is only "
+  		"supported on systems with kstats and will be ignored.");
 #endif
   }
   else if (strcasecmp ("UdevNameAttr", key) == 0)
@@ -234,8 +249,8 @@ static int disk_init (void)
 			(numdisk < MAX_NUMDISK) && (ksp_chain != NULL);
 			ksp_chain = ksp_chain->ks_next)
 	{
-		if (strncmp (ksp_chain->ks_class, "disk", 4)
-				&& strncmp (ksp_chain->ks_class, "partition", 9))
+		if (strncmp (ksp_chain->ks_class, "disk", 4) &&
+			(ignore_partitions || strncmp (ksp_chain->ks_class, "partition", 9)))
 			continue;
 		if (ksp_chain->ks_type != KSTAT_TYPE_IO)
 			continue;
@@ -847,7 +862,7 @@ static int disk_read (void)
 			disk_submit (ksp[i]->ks_name, "disk_time",
 					kio.KIO_RTIME, kio.KIO_WTIME);
 		}
-		else if (strncmp (ksp[i]->ks_class, "partition", 9) == 0)
+		else if ((ignore_partitions == 0) && (strncmp (ksp[i]->ks_class, "partition", 9) == 0))
 		{
 			disk_submit (ksp[i]->ks_name, "disk_octets",
 					kio.KIO_ROCTETS, kio.KIO_WOCTETS);

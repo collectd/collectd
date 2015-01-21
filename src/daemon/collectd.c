@@ -253,7 +253,7 @@ static void update_kstat (void)
 		kid = kstat_chain_update (kc);
 		if (kid > 0)
 		{
-			INFO ("kstat chain has been updated");
+			DEBUG ("kstat chain has been updated");
 			plugin_init_all ();
 		}
 		else if (kid < 0)

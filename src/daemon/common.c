@@ -727,27 +727,18 @@ int get_kstat (kstat_t **ksp_ptr, char *module, int instance, char *name)
 		return (-1);
 	}
 
-	if ((*ksp_ptr)->ks_type != KSTAT_TYPE_NAMED)
+	if (((*ksp_ptr)->ks_type != KSTAT_TYPE_NAMED) &&
+		((*ksp_ptr)->ks_type != KSTAT_TYPE_IO))
 	{
-		ERROR ("get_kstat: kstat %s has wrong type", ident);
+		ERROR ("get_kstat: kstat %s has wrong type (%#x)", ident, 
+			(*ksp_ptr)->ks_type);
 		*ksp_ptr = NULL;
 		return (-1);
 	}
 
-#ifdef assert
-	assert (*ksp_ptr != NULL);
-	assert ((*ksp_ptr)->ks_type == KSTAT_TYPE_NAMED);
-#endif
-
 	if (kstat_read (kc, *ksp_ptr, NULL) == -1)
 	{
 		ERROR ("get_kstat: kstat %s could not be read", ident);
-		return (-1);
-	}
-
-	if ((*ksp_ptr)->ks_type != KSTAT_TYPE_NAMED)
-	{
-		ERROR ("get_kstat: kstat %s has wrong type", ident);
 		return (-1);
 	}
 
@@ -764,13 +755,15 @@ long long get_kstat_value (kstat_t *ksp, char *name)
 		ERROR ("get_kstat_value (\"%s\"): ksp is NULL.", name);
 		return (-1LL);
 	}
-	else if (ksp->ks_type != KSTAT_TYPE_NAMED)
+	else if ((ksp->ks_type != KSTAT_TYPE_NAMED) && 
+		(ksp->ks_type != KSTAT_TYPE_IO))
 	{
 		ERROR ("get_kstat_value (\"%s\"): ksp->ks_type (%#x) "
-				"is not KSTAT_TYPE_NAMED (%#x).",
+				"is neither KSTAT_TYPE_NAMED (%#x) nor KSTAT_TYPE_IO (%#x).",
 				name,
 				(unsigned int) ksp->ks_type,
-				(unsigned int) KSTAT_TYPE_NAMED);
+				(unsigned int) KSTAT_TYPE_NAMED,
+				(unsigned int) KSTAT_TYPE_IO);
 		return (-1LL);
 	}
 

@@ -5097,6 +5097,7 @@ AC_COLLECTD([getifaddrs],[enable],  [feature], [getifaddrs under Linux])
 dependency_warning="no"
 dependency_error="no"
 
+plugin_aoe_stats="no"
 plugin_ascent="no"
 plugin_barometer="no"
 plugin_battery="no"
@@ -5110,6 +5111,7 @@ plugin_curl_json="no"
 plugin_curl_xml="no"
 plugin_df="no"
 plugin_disk="no"
+plugin_disk_errors="no"
 plugin_drbd="no"
 plugin_entropy="no"
 plugin_ethstat="no"
@@ -5118,15 +5120,18 @@ plugin_interface="no"
 plugin_ipmi="no"
 plugin_ipvs="no"
 plugin_irq="no"
+plugin_link_stats="no"
 plugin_load="no"
 plugin_log_logstash="no"
 plugin_memory="no"
 plugin_multimeter="no"
 plugin_nfs="no"
+plugin_nfssvr_stats="no"
 plugin_numa="no"
 plugin_perl="no"
 plugin_processes="no"
 plugin_protocols="no"
+plugin_rpc_stats="no"
 plugin_serial="no"
 plugin_swap="no"
 plugin_tape="no"
@@ -5140,6 +5145,7 @@ plugin_vmem="no"
 plugin_vserver="no"
 plugin_wireless="no"
 plugin_zfs_arc="no"
+plugin_zfs_stats="no"
 plugin_zookeeper="no"
 
 # Linux
@@ -5227,9 +5233,16 @@ fi
 # Solaris
 if test "x$with_kstat" = "xyes"
 then
+    plugin_aoe_stats="yes"
+    plugin_cpu_stats="yes"
+    plugin_disk_errors="yes"
+    plugin_link_stats="yes"
 	plugin_nfs="yes"
-	plugin_uptime="yes"
+    plugin_nfssvr_stats="yes"
+    plugin_rpc_stats="yes"
+    plugin_uptime="yes"
 	plugin_zfs_arc="yes"
+	plugin_zfs_stats="yes"
 fi
 
 if test "x$with_devinfo$with_kstat" = "xyesyes"
@@ -5458,6 +5471,7 @@ m4_divert_once([HELP_ENABLE], [])
 
 AC_PLUGIN([aggregation], [yes],                [Aggregation plugin])
 AC_PLUGIN([amqp],        [$with_librabbitmq],  [AMQP output plugin])
+AC_PLUGIN([aoe_stats],   [$plugin_aoe_stats],  [AoE plugin])
 AC_PLUGIN([apache],      [$with_libcurl],      [Apache httpd statistics])
 AC_PLUGIN([apcups],      [yes],                [Statistics of UPSes by APC])
 AC_PLUGIN([apple_sensors], [$with_libiokit],   [Apple's hardware sensors])
@@ -5469,6 +5483,7 @@ AC_PLUGIN([bind],        [$plugin_bind],       [ISC Bind nameserver statistics])
 AC_PLUGIN([conntrack],   [$plugin_conntrack],  [nf_conntrack statistics])
 AC_PLUGIN([contextswitch], [$plugin_contextswitch], [context switch statistics])
 AC_PLUGIN([cpufreq],     [$plugin_cpufreq],    [CPU frequency statistics])
+AC_PLUGIN([cpu_stats],   [$plugin_cpu_stats],  [CPU detailed statistics])
 AC_PLUGIN([cpu],         [$plugin_cpu],        [CPU usage statistics])
 AC_PLUGIN([csv],         [yes],                [CSV output plugin])
 AC_PLUGIN([curl],        [$with_libcurl],      [CURL generic web statistics])
@@ -5478,6 +5493,7 @@ AC_PLUGIN([cgroups],     [$plugin_cgroups],    [CGroups CPU usage accounting])
 AC_PLUGIN([dbi],         [$with_libdbi],       [General database statistics])
 AC_PLUGIN([df],          [$plugin_df],         [Filesystem usage statistics])
 AC_PLUGIN([disk],        [$plugin_disk],       [Disk usage statistics])
+AC_PLUGIN([disk_errors], [$plugin_disk_errors],[Disk error counters])
 AC_PLUGIN([drbd],        [$plugin_drbd],       [DRBD statistics])
 AC_PLUGIN([dns],         [$with_libpcap],      [DNS traffic analysis])
 AC_PLUGIN([email],       [yes],                [EMail statistics])
@@ -5494,6 +5510,7 @@ AC_PLUGIN([iptables],    [$with_libiptc],      [IPTables rule counters])
 AC_PLUGIN([ipvs],        [$plugin_ipvs],       [IPVS connection statistics])
 AC_PLUGIN([irq],         [$plugin_irq],        [IRQ statistics])
 AC_PLUGIN([java],        [$with_java],         [Embed the Java Virtual Machine])
+AC_PLUGIN([link_stats],  [$plugin_link_stats], [Network link statistics])
 AC_PLUGIN([load],        [$plugin_load],       [System load])
 AC_PLUGIN([logfile],     [yes],                [File logging plugin])
 AC_PLUGIN([log_logstash], [$plugin_log_logstash], [Logstash json_event compatible logging])
@@ -5518,6 +5535,7 @@ AC_PLUGIN([netapp],      [$with_libnetapp],    [NetApp plugin])
 AC_PLUGIN([netlink],     [$with_libmnl],       [Enhanced Linux network statistics])
 AC_PLUGIN([network],     [yes],                [Network communication plugin])
 AC_PLUGIN([nfs],         [$plugin_nfs],        [NFS statistics])
+AC_PLUGIN([nfssvr_stats],   [$plugin_nfs],     [NFS extended statistics])
 AC_PLUGIN([nginx],       [$with_libcurl],      [nginx statistics])
 AC_PLUGIN([notify_desktop], [$with_libnotify], [Desktop notifications])
 AC_PLUGIN([notify_email], [$with_libesmtp],    [Email notifier])
@@ -5541,6 +5559,7 @@ AC_PLUGIN([protocols],   [$plugin_protocols],  [Protocol (IP, TCP, ...) statisti
 AC_PLUGIN([python],      [$with_python],       [Embed a Python interpreter])
 AC_PLUGIN([redis],       [$with_libhiredis],    [Redis plugin])
 AC_PLUGIN([routeros],    [$with_librouteros],  [RouterOS plugin])
+AC_PLUGIN([rpc_stats],   [$plugin_rpc_stats],  [RPC stats plugin])
 AC_PLUGIN([rrdcached],   [$librrd_rrdc_update], [RRDTool output plugin])
 AC_PLUGIN([rrdtool],     [$with_librrd],       [RRDTool output plugin])
 AC_PLUGIN([sensors],     [$with_libsensors],   [lm_sensors statistics])
@@ -5585,6 +5604,7 @@ AC_PLUGIN([write_riemann], [$have_protoc_c],   [Riemann output plugin])
 AC_PLUGIN([write_tsdb],  [yes],                [TSDB output plugin])
 AC_PLUGIN([xmms],        [$with_libxmms],      [XMMS statistics])
 AC_PLUGIN([zfs_arc],     [$plugin_zfs_arc],    [ZFS ARC statistics])
+AC_PLUGIN([zfs_stats],   [$plugin_zfs_stats],  [ZFS statistics])
 AC_PLUGIN([zookeeper],   [yes],  	       [Zookeeper statistics])
 
 dnl Default configuration file
@@ -5829,6 +5849,7 @@ Configuration:
   Modules:
     aggregation . . . . . $enable_aggregation
     amqp    . . . . . . . $enable_amqp
+    aoe . . . . . . . . . $enable_aoe_stats
     apache  . . . . . . . $enable_apache
     apcups  . . . . . . . $enable_apcups
     aquaero . . . . . . . $enable_aquaero
@@ -5842,6 +5863,7 @@ Configuration:
     cgroups . . . . . . . $enable_cgroups
     cpu . . . . . . . . . $enable_cpu
     cpufreq . . . . . . . $enable_cpufreq
+    cpu_stats . . . . . . $enable_cpu_stats
     csv . . . . . . . . . $enable_csv
     curl  . . . . . . . . $enable_curl
     curl_json . . . . . . $enable_curl_json
@@ -5849,6 +5871,7 @@ Configuration:
     dbi . . . . . . . . . $enable_dbi
     df  . . . . . . . . . $enable_df
     disk  . . . . . . . . $enable_disk
+    disk_errors . . . . . $enable_disk_errors
     dns . . . . . . . . . $enable_dns
     drbd  . . . . . . . . $enable_drbd
     email . . . . . . . . $enable_email
@@ -5865,6 +5888,7 @@ Configuration:
     ipvs  . . . . . . . . $enable_ipvs
     irq . . . . . . . . . $enable_irq
     java  . . . . . . . . $enable_java
+    link_stats  . . . . . $enable_link_stats
     load  . . . . . . . . $enable_load
     logfile . . . . . . . $enable_logfile
     lpar  . . . . . . . . $enable_lpar
@@ -5889,6 +5913,7 @@ Configuration:
     netlink . . . . . . . $enable_netlink
     network . . . . . . . $enable_network
     nfs . . . . . . . . . $enable_nfs
+    nfssvr_stats  . . . . $enable_nfssvr_stats
     nginx . . . . . . . . $enable_nginx
     notify_desktop  . . . $enable_notify_desktop
     notify_email  . . . . $enable_notify_email
@@ -5911,6 +5936,7 @@ Configuration:
     python  . . . . . . . $enable_python
     redis . . . . . . . . $enable_redis
     routeros  . . . . . . $enable_routeros
+    rpc_stats . . . . . . $enable_rpc_stats
     rrdcached . . . . . . $enable_rrdcached
     rrdtool . . . . . . . $enable_rrdtool
     sensors . . . . . . . $enable_sensors
@@ -5955,6 +5981,7 @@ Configuration:
     write_tsdb  . . . . . $enable_write_tsdb
     xmms  . . . . . . . . $enable_xmms
     zfs_arc . . . . . . . $enable_zfs_arc
+    zfs_stats . . . . . . $enable_zfs_stats
     zookeeper . . . . . . $enable_zookeeper
 
 EOF
