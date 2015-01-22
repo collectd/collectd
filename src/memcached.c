@@ -260,7 +260,7 @@ static void memcached_init_vl (value_list_t *vl, memcached_t const *st)
     {
       if (st->alias != NULL)
       {
-         sstrncpy(vl->host, st->alias, sizeof(st->alias));
+         sstrncpy (vl->host, st->alias, sizeof (vl->host));
       }
       else
       {
@@ -609,6 +609,7 @@ static int config_add_instance(oconfig_item_t *ci)
   st->socket = NULL;
   st->host = NULL;
   st->port = NULL;
+  st->alias = NULL;
 
   if (strcasecmp (ci->key, "Plugin") == 0) /* default instance */
     st->name = sstrdup ("__legacy__");
