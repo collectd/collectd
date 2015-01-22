@@ -340,6 +340,16 @@ static int wt_flush (cdtime_t timeout,
         return (-EINVAL);
 
     cb = user_data->data;
+    
+	if(NULL != identifier){
+        INFO("write_opentsdb plugin: got wt_flush with identifier %s",identifier );
+        char handle[30];
+        sstrncpy(handle, identifier, 29);
+        if( 0 == strcmp("localhost/WubbaLubbaDubbDubb", handle) ){
+            wt_flush_wubba_lubba_dub_dub(timeout, identifier, user_data);
+            return 0;
+        }
+    }
 
     pthread_mutex_lock (&cb->send_lock);
 
@@ -357,14 +367,6 @@ static int wt_flush (cdtime_t timeout,
     status = wt_flush_nolock (timeout, cb);
     pthread_mutex_unlock (&cb->send_lock);
 
-    if(NULL != identifier){
-        INFO("write_opentsdb plugin: got wt_flush with identifier %s",identifier );
-        char handle[30];
-        sstrncpy(handle, identifier, 29);
-        if( 0 == strcmp("localhost/WubbaLubbaDubbDubb", handle) ){
-            wt_flush_wubba_lubba_dub_dub(timeout, identifier, user_data);
-        }
-    }
     return (status);
 }
 
