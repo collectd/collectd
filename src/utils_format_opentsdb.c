@@ -168,10 +168,9 @@
  		
         sstrncpy (plugin_instance_to_process, vl->plugin_instance, sizeof (plugin_instance_to_process));
  		char *saveptr1 = NULL;
- 		char *prefix_from_plugin_instance;
  		char  *plugin_instance_from_plugin_instance;
 
- 		prefix_from_plugin_instance = strtok_r (plugin_instance_to_process, ".", &saveptr1);
+ 		strtok_r (plugin_instance_to_process, ".", &saveptr1);
  		plugin_instance_from_plugin_instance  = strtok_r (NULL, ".", &saveptr1);
 
  		if (plugin_instance_from_plugin_instance == NULL){
