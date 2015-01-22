@@ -255,21 +255,21 @@ static void memcached_init_vl (value_list_t *vl, memcached_t const *st)
   else
   {
     if (st->socket != NULL)
-        sstrncpy (vl->host, hostname_g, sizeof (vl->host));
+      sstrncpy (vl->host, hostname_g, sizeof (vl->host));
     else
     {
-        if (st->alias != NULL)
-        {
-            sstrncpy(vl->host, st->alias, sizeof(st->alias));
-        }
-        else
-        {
-            sstrncpy (vl->host,
-                (st->host != NULL) ? st->host : MEMCACHED_DEF_HOST,
-                sizeof (vl->host));
-        }
-        sstrncpy (vl->plugin_instance, st->name, sizeof (vl->plugin_instance));
-    }
+      if (st->alias != NULL)
+      {
+         sstrncpy(vl->host, st->alias, sizeof(st->alias));
+      }
+      else
+      {
+        sstrncpy (vl->host,
+          (st->host != NULL) ? st->host : MEMCACHED_DEF_HOST,
+          sizeof (vl->host));
+      }
+      sstrncpy (vl->plugin_instance, st->name, sizeof (vl->plugin_instance));
+  }
 }
 
 static void submit_derive (const char *type, const char *type_inst,
@@ -653,7 +653,7 @@ static int config_add_instance(oconfig_item_t *ci)
     return (-1);
   }
 
-	return (0);
+  return (0);
 }
 
 static int memcached_config (oconfig_item_t *ci)
