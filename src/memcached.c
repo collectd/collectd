@@ -269,6 +269,7 @@ static void memcached_init_vl (value_list_t *vl, memcached_t const *st)
           sizeof (vl->host));
       }
       sstrncpy (vl->plugin_instance, st->name, sizeof (vl->plugin_instance));
+    }
   }
 }
 
