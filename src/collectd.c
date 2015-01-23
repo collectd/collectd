@@ -44,6 +44,171 @@ cdtime_t interval_g;
 int  timeout_g;
 #if HAVE_LIBKSTAT
 kstat_ctl_t *kc;
+
+
+/* FNV-1a hash algorithm (32-bit) */
+typedef uint32_t hash_t;
+static const hash_t hash_init = 2166136261UL;
+static const hash_t hash_mult = 16777619UL;
+
+/* for 64-bit hash use:
+typedef uint64_t hash_t;
+static const hash_t hash_init = 14695981039346656037ULL;
+static const hash_t hash_mult = 1099511628211ULL;
+*/
+
+static inline hash_t
+hash_update (hash_t h, unsigned char input)
+{
+	return (h ^ input) * hash_mult;
+}
+
+static inline hash_t
+hash_update_str (hash_t h, const char *str)
+{
+	for (; *str != 0; str++)
+		h = hash_update (h, (unsigned char) *str);
+	return h;
+}
+
+static inline hash_t
+hash_update_mem (hash_t h, const void *data, unsigned len)
+{
+	const unsigned char *c = data;
+	unsigned i;
+	for (i = 0; i < len; i++)
+		h = hash_update (h, c[i]);
+	return h;
+}
+
+
+struct kstat_entry {
+	struct kstat_entry *next;
+	unsigned generation;
+	kstat_info_t info;
+};
+
+
+struct kstat_table {
+	unsigned generation;
+	unsigned buckets;
+	unsigned entries;
+	struct kstat_entry **bucket;
+};
+
+
+static void
+kst_init (struct kstat_table *table, kstat_t *chain)
+{
+	unsigned size = 0;
+	kstat_t *k;
+	/* Count the kstat entries and use this to size the hash table. */
+	for (k = chain; k != NULL; k = k->ks_next)
+		size++;
+	if (size < 32)
+		size = 32;
+
+	table->generation = 0;
+	table->buckets = size;
+	table->entries = 0;
+	table->bucket = malloc (table->buckets * sizeof (*table->bucket));
+	if (table->bucket == NULL)
+	{
+		ERROR ("Failed to initialize kstat hash table: out of memory.");
+		return;
+	}
+	memset (table->bucket, 0, table->buckets * sizeof (*table->bucket));
+}
+
+
+static void
+kst_update (struct kstat_table *table, kstat_t *chain)
+{
+	unsigned bucket;
+
+	if (table->bucket == NULL)
+	{
+		ERROR ("kstat hash table is not initialized.");
+		return;
+	}
+
+	table->generation++;
+
+	/* Insert any newly-appeared kstats into the hash table, and mark those
+	 * that already exist by updating their generation field. */
+	for (; chain != NULL; chain = chain->ks_next)
+	{
+		hash_t h = hash_update_mem (hash_init, &chain->ks_kid, sizeof (chain->ks_kid));
+		bucket = h % table->buckets;
+
+		struct kstat_entry *ksi = table->bucket[bucket];
+		while (ksi != NULL && ksi->info.id != chain->ks_kid)
+			ksi = ksi->next;
+
+		if (ksi == NULL) {
+			/* new kstat */
+			ksi = malloc (sizeof (*ksi));
+			if (ksi == NULL)
+			{
+				ERROR ("Cannot insert entry to kstat hash table: out of memory.");
+				continue;
+			}
+
+			table->entries++;
+
+			ksi->next = table->bucket[bucket];
+			table->bucket[bucket] = ksi;
+
+			ksi->info.kstat = chain;
+			ksi->info.id = chain->ks_kid;
+			sstrncpy (ksi->info.module, chain->ks_module,
+					sizeof (ksi->info.module));
+			ksi->info.instance = chain->ks_instance;
+			sstrncpy (ksi->info.name, chain->ks_name,
+					sizeof (ksi->info.name));
+			sstrncpy (ksi->info.class, chain->ks_class,
+					sizeof (ksi->info.class));
+			ksi->info.type = chain->ks_type;
+
+			DEBUG ("new kstat item %s:%d:%s:%s", chain->ks_module,
+					chain->ks_instance, chain->ks_name, chain->ks_class);
+
+			plugin_dispatch_kstat (KSTAT_ADDED, &ksi->info);
+		}
+
+		ksi->generation = table->generation;
+	}
+
+	/* Now, find any entries in the table which haven't had their
+	 * generation field updated in the previous step. Those
+	 * correspond to kstats that have disappeared from the chain. */
+	for (bucket = 0; bucket < table->buckets; bucket++)
+	{
+		struct kstat_entry **ksi = &table->bucket[bucket];
+		while (*ksi != NULL) {
+			if ((*ksi)->generation == table->generation)
+			{
+				ksi = &(*ksi)->next;
+			}
+			else
+			{
+				/* removed kstat */
+				DEBUG ("removed kstat item %s:%d:%s:%s", (*ksi)->info.module,
+						(*ksi)->info.instance, (*ksi)->info.name, (*ksi)->info.class);
+
+				(*ksi)->info.kstat = NULL;
+				plugin_dispatch_kstat (KSTAT_REMOVED, &(*ksi)->info);
+
+				table->entries--;
+				struct kstat_entry *next = (*ksi)->next;
+				free (*ksi);
+				*ksi = next;
+			}
+		}
+	}
+}
+
+struct kstat_table kstat_table;
 #endif /* HAVE_LIBKSTAT */
 
 static int loop = 0;
@@ -225,12 +390,14 @@ static int change_basedir (const char *orig_dir)
 } /* static int change_basedir (char *dir) */
 
 #if HAVE_LIBKSTAT
-static void update_kstat (void)
+static void update_kstat (int update_table)
 {
 	if (kc == NULL)
 	{
 		if ((kc = kstat_open ()) == NULL)
 			ERROR ("Unable to open kstat control structure");
+		else
+			kst_init (&kstat_table, kc->kc_chain);
 	}
 	else
 	{
@@ -239,15 +406,21 @@ static void update_kstat (void)
 		if (kid > 0)
 		{
 			INFO ("kstat chain has been updated");
-			plugin_init_all ();
 		}
-		else if (kid < 0)
-			ERROR ("kstat chain update failed");
+		else
+		{
+			update_table = 0;
+			if (kid < 0)
+				ERROR ("kstat chain update failed");
+		}
 		/* else: everything works as expected */
 	}
 
+	if (update_table && kc != NULL)
+		kst_update (&kstat_table, kc->kc_chain);
+
 	return;
-} /* static void update_kstat (void) */
+} /* static void update_kstat (int) */
 #endif /* HAVE_LIBKSTAT */
 
 /* TODO
@@ -284,9 +457,12 @@ static int do_init (void)
 {
 #if HAVE_LIBKSTAT
 	kc = NULL;
-	update_kstat ();
+	/* Ensure kstat is open for plugins that query it from
+	 * within their init callback, but don't build the
+	 * hash table just yet -- this must be done after
+	 * module_init_all(). */
+	update_kstat (0);
 #endif
-
 #if HAVE_LIBSTATGRAB
 	if (sg_init ())
 	{
@@ -302,6 +478,13 @@ static int do_init (void)
 #endif
 
 	plugin_init_all ();
+
+#if HAVE_LIBKSTAT
+	/* Perform initial hash table update, so plugins with a kstat
+	 * callback get their values. */
+	if (kc != NULL)
+		kst_update (&kstat_table, kc->kc_chain);
+#endif
 
 	return (0);
 } /* int do_init () */
@@ -320,7 +503,7 @@ static int do_loop (void)
 		cdtime_t now;
 
 #if HAVE_LIBKSTAT
-		update_kstat ();
+		update_kstat (1);
 #endif
 
 		/* Issue all plugins */
