@@ -888,7 +888,7 @@ script shipped with releases.
 To generate the `configure` script, you'll need the following dependencies:
 
 - autoconf
-- automke
+- automake
 - flex
 - bison
 - libtool
