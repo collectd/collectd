@@ -3881,6 +3881,14 @@ Enables or disables the creation of RRD files. If the daemon is not running
 locally, or B<DataDir> is set to a relative path, this will not work as
 expected. Default is B<true>.
 
+=item B<CollectStatistics> B<false>|B<true>
+
+When set to B<true>, various statistics about the I<rrdcached> daemon will be
+collected, with "rrdcached" as the I<plugin name>. Defaults to B<false>.
+
+Statistics are read via I<rrdcached>s socket using the STATS command.
+See L<rrdcached(1)> for details.
+
 =back
 
 =head2 Plugin C<rrdtool>
