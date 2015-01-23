@@ -1958,12 +1958,12 @@ C<mysql_real_connect> function for details.
 
 Enable the collection of master / slave statistics in a replication setup. In
 order to be able to get access to these statistics, the user needs special
-privileges. See the B<User> documentation above.
+privileges. See the B<User> documentation above. Defaults to B<false>.
 
 =item B<SlaveNotifications> I<true|false>
 
 If enabled, the plugin sends a notification if the replication slave I/O and /
-or SQL threads are not running.
+or SQL threads are not running. Defaults to B<false>.
 
 =back
 
