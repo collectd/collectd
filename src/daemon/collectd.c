@@ -31,6 +31,8 @@
 #include "plugin.h"
 #include "configfile.h"
 
+#include "utils_hashtable.h"
+
 #include <sys/types.h>
 #include <sys/un.h>
 #include <netdb.h>
@@ -58,6 +60,111 @@ int  pidfile_from_cli = 0;
 int  timeout_g;
 #if HAVE_LIBKSTAT
 kstat_ctl_t *kc;
+
+
+struct kstat_entry {
+	unsigned generation;
+	kstat_info_t info;
+};
+
+
+struct kstat_table {
+	hashtable_t table;
+	unsigned generation;
+};
+
+
+static void
+kst_init (struct kstat_table *table, kstat_t *chain)
+{
+	table->generation = 0;
+
+	int rc = hashtable_init (&table->table, sizeof (struct kstat_entry), 0, 8);
+	if (rc != 0)
+	{
+		ERROR ("Failed to initialize kstat hash table: %s", strerror (rc));
+		return;
+	}
+}
+
+
+static bool
+kid_compare (void *_ksi, void *_kid)
+{
+	struct kstat_entry *const ksi = _ksi;
+	return ksi->info.id == * (kid_t *) _kid;
+}
+
+
+static bool
+kstat_sweep (void *_ksi, void *_table)
+{
+	struct kstat_entry *const ksi = _ksi;
+	struct kstat_table *const table = _table;
+
+	if (ksi->generation != table->generation)
+	{
+		DEBUG ("removed kstat item %s:%d:%s:%s", ksi->info.module,
+				ksi->info.instance, ksi->info.name, ksi->info.class);
+
+		/* The pointer is already invalid, set it to NULL to
+		 * ensure plugins don't mess with it. */
+		ksi->info.kstat = NULL;
+		plugin_dispatch_kstat (KSTAT_REMOVED, &ksi->info);
+
+		hashtable_delete (&table->table, ksi);
+	}
+
+	return false;
+}
+
+
+static void
+kst_update (struct kstat_table *table, kstat_t *chain)
+{
+	table->generation++;
+
+	/* Insert any newly-appeared kstats into the hash table, and mark those
+	 * that already exist by updating their generation field. */
+	for (; chain != NULL; chain = chain->ks_next)
+	{
+		struct kstat_entry *ksi = NULL;
+		int rc = hashtable_lookup (&table->table, chain->ks_kid, kid_compare, &chain->ks_kid, (void **) &ksi);
+
+		ksi->generation = table->generation;
+
+		if (rc != 0)
+		{
+			/* new kstat */
+			ksi->info.kstat = chain;
+			ksi->info.id = chain->ks_kid;
+			sstrncpy (ksi->info.module, chain->ks_module,
+					sizeof (ksi->info.module));
+			ksi->info.instance = chain->ks_instance;
+			sstrncpy (ksi->info.name, chain->ks_name,
+					sizeof (ksi->info.name));
+			sstrncpy (ksi->info.class, chain->ks_class,
+					sizeof (ksi->info.class));
+			ksi->info.type = chain->ks_type;
+
+			DEBUG ("new kstat item %s:%d:%s:%s", chain->ks_module,
+					chain->ks_instance, chain->ks_name, chain->ks_class);
+
+			plugin_dispatch_kstat (KSTAT_ADDED, &ksi->info);
+
+			hashtable_insert (&table->table, ksi);
+		}
+	}
+
+	/* Now, find any entries in the table which haven't had their
+	 * generation field updated in the previous step. Those
+	 * correspond to kstats that have disappeared from the chain. */
+	hashtable_start_bulk_update (&table->table);
+	hashtable_traverse (&table->table, kstat_sweep, table);
+	hashtable_end_bulk_update (&table->table);
+}
+
+struct kstat_table kstat_table;
 #endif /* HAVE_LIBKSTAT */
 
 static int loop = 0;
@@ -241,12 +348,14 @@ static int change_basedir (const char *orig_dir)
 } /* static int change_basedir (char *dir) */
 
 #if HAVE_LIBKSTAT
-static void update_kstat (void)
+static void update_kstat (int update_table)
 {
 	if (kc == NULL)
 	{
 		if ((kc = kstat_open ()) == NULL)
 			ERROR ("Unable to open kstat control structure");
+		else
+			kst_init (&kstat_table, kc->kc_chain);
 	}
 	else
 	{
@@ -255,15 +364,21 @@ static void update_kstat (void)
 		if (kid > 0)
 		{
 			INFO ("kstat chain has been updated");
-			plugin_init_all ();
 		}
-		else if (kid < 0)
-			ERROR ("kstat chain update failed");
+		else
+		{
+			update_table = 0;
+			if (kid < 0)
+				ERROR ("kstat chain update failed");
+		}
 		/* else: everything works as expected */
 	}
 
+	if (update_table && kc != NULL)
+		kst_update (&kstat_table, kc->kc_chain);
+
 	return;
-} /* static void update_kstat (void) */
+} /* static void update_kstat (int) */
 #endif /* HAVE_LIBKSTAT */
 
 /* TODO
@@ -305,9 +420,12 @@ static int do_init (void)
 
 #if HAVE_LIBKSTAT
 	kc = NULL;
-	update_kstat ();
+	/* Ensure kstat is open for plugins that query it from
+	 * within their init callback, but don't build the
+	 * hash table just yet -- this must be done after
+	 * module_init_all(). */
+	update_kstat (0);
 #endif
-
 #if HAVE_LIBSTATGRAB
 	if (sg_init (
 # if HAVE_LIBSTATGRAB_0_90
@@ -328,6 +446,13 @@ static int do_init (void)
 
 	plugin_init_all ();
 
+#if HAVE_LIBKSTAT
+	/* Perform initial hash table update, so plugins with a kstat
+	 * callback get their values. */
+	if (kc != NULL)
+		kst_update (&kstat_table, kc->kc_chain);
+#endif
+
 	return (0);
 } /* int do_init () */
 
@@ -345,7 +470,7 @@ static int do_loop (void)
 		cdtime_t now;
 
 #if HAVE_LIBKSTAT
-		update_kstat ();
+		update_kstat (1);
 #endif
 
 		/* Issue all plugins */
