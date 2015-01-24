@@ -109,10 +109,8 @@ static diskstats_t *disklist;
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
-#define MAX_NUMDISK 1024
 extern kstat_ctl_t *kc;
-static kstat_t *ksp[MAX_NUMDISK];
-static int numdisk = 0;
+static kstat_set_t kstats;
 /* #endif HAVE_LIBKSTAT */
 
 #elif defined(HAVE_LIBSTATGRAB)
@@ -200,24 +198,18 @@ static int disk_init (void)
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
-	kstat_t *ksp_chain;
-
-	numdisk = 0;
-
-	if (kc == NULL)
+	if (kstat_set_init (&kstats) != 0)
 		return (-1);
 
-	for (numdisk = 0, ksp_chain = kc->kc_chain;
-			(numdisk < MAX_NUMDISK) && (ksp_chain != NULL);
-			ksp_chain = ksp_chain->ks_next)
-	{
-		if (strncmp (ksp_chain->ks_class, "disk", 4)
-				&& strncmp (ksp_chain->ks_class, "partition", 9))
-			continue;
-		if (ksp_chain->ks_type != KSTAT_TYPE_IO)
-			continue;
-		ksp[numdisk++] = ksp_chain;
-	}
+	static kstat_filter_t filter_disk = KSTAT_FILTER_INIT;
+	filter_disk.class = "disk";
+	filter_disk.type = KSTAT_TYPE_IO;
+	plugin_register_kstat_set ("disk", &kstats, &filter_disk);
+
+	static kstat_filter_t filter_part = KSTAT_FILTER_INIT;
+	filter_part.class = "partition";
+	filter_part.type = KSTAT_TYPE_IO;
+	plugin_register_kstat_set ("disk-partition", &kstats, &filter_part);
 #endif /* HAVE_LIBKSTAT */
 
 	return (0);
@@ -705,26 +697,27 @@ static int disk_read (void)
 	if (kc == NULL)
 		return (-1);
 
-	for (i = 0; i < numdisk; i++)
+	for (i = 0; i < kstats.len; i++)
 	{
-		if (kstat_read (kc, ksp[i], &kio) == -1)
+		kstat_t *ks = kstats.items[i].kstat;
+		if (kstat_read (kc, ks, &kio) == -1)
 			continue;
 
-		if (strncmp (ksp[i]->ks_class, "disk", 4) == 0)
+		if (strncmp (ks->ks_class, "disk", 4) == 0)
 		{
-			disk_submit (ksp[i]->ks_name, "disk_octets",
+			disk_submit (ks->ks_name, "disk_octets",
 					kio.KIO_ROCTETS, kio.KIO_WOCTETS);
-			disk_submit (ksp[i]->ks_name, "disk_ops",
+			disk_submit (ks->ks_name, "disk_ops",
 					kio.KIO_ROPS, kio.KIO_WOPS);
 			/* FIXME: Convert this to microseconds if necessary */
-			disk_submit (ksp[i]->ks_name, "disk_time",
+			disk_submit (ks->ks_name, "disk_time",
 					kio.KIO_RTIME, kio.KIO_WTIME);
 		}
-		else if (strncmp (ksp[i]->ks_class, "partition", 9) == 0)
+		else if (strncmp (ks->ks_class, "partition", 9) == 0)
 		{
-			disk_submit (ksp[i]->ks_name, "disk_octets",
+			disk_submit (ks->ks_name, "disk_octets",
 					kio.KIO_ROCTETS, kio.KIO_WOCTETS);
-			disk_submit (ksp[i]->ks_name, "disk_ops",
+			disk_submit (ks->ks_name, "disk_ops",
 					kio.KIO_ROPS, kio.KIO_WOPS);
 		}
 	}
