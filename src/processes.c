@@ -132,6 +132,10 @@
 #  define ARG_MAX 4096
 #endif
 
+#if HAVE_LIBKSTAT
+static kstat_set_t kstats;
+#endif
+
 typedef struct procstat_entry_s
 {
 	unsigned long id;
@@ -626,6 +630,16 @@ static int ps_init (void)
 #elif HAVE_PROCINFO_H
 	pagesize = getpagesize();
 #endif /* HAVE_PROCINFO_H */
+
+#if HAVE_LIBKSTAT
+	if (kstat_set_init (&kstats) != 0)
+		return (-1);
+	static kstat_filter_t filter = KSTAT_FILTER_INIT;
+	filter.module = "cpu";
+	filter.name = "sys";
+	filter.class = "misc";
+	plugin_register_kstat_set ("ps", &kstats, &filter);
+#endif
 
 	return (0);
 } /* int ps_init */
@@ -1340,28 +1354,22 @@ static int ps_read_process(int pid, procstat_t *ps, char *state)
 static int read_fork_rate()
 {
 	extern kstat_ctl_t *kc;
-	kstat_t *ksp_chain = NULL;
+	int i;
 	derive_t result = 0;
 
 	if (kc == NULL)
 		return (-1);
 
-	for (ksp_chain = kc->kc_chain;
-			ksp_chain != NULL;
-			ksp_chain = ksp_chain->ks_next)
+	for (i = 0; i < kstats.len; i++)
 	{
-		if ((strcmp (ksp_chain->ks_module, "cpu") == 0)
-				&& (strcmp (ksp_chain->ks_name, "sys") == 0)
-				&& (strcmp (ksp_chain->ks_class, "misc") == 0))
-		{
-			long long tmp;
+		long long tmp;
+		kstat_t *ks = kstats.items[i].kstat;
 
-			kstat_read (kc, ksp_chain, NULL);
+		kstat_read (kc, ks, NULL);
 
-			tmp = get_kstat_value(ksp_chain, "nthreads");
-			if (tmp != -1LL)
-				result += tmp;
-		}
+		tmp = get_kstat_value(ks, "nthreads");
+		if (tmp != -1LL)
+			result += tmp;
 	}
 
 	ps_submit_fork_rate (result);
