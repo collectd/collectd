@@ -255,6 +255,23 @@ int check_create_dir (const char *file_orig);
 #ifdef HAVE_LIBKSTAT
 int get_kstat (kstat_t **ksp_ptr, char *module, int instance, char *name);
 long long get_kstat_value (kstat_t *ksp, char *name);
+
+struct kstat_set_s {
+	unsigned len, alloc;
+	struct {
+		kstat_t *kstat;
+		kid_t id;
+		/* id is duplicated here as when a kstat gets removed, the
+		 * pointer will already be invalid and we can no more access
+		 * ks_id from the kstat pointer. */
+	} *items;
+};
+
+typedef struct kstat_set_s kstat_set_t;
+
+int kstat_set_init (kstat_set_t *set);
+int kstat_set_add (kstat_set_t *set, kstat_t *kstat);
+void kstat_set_remove (kstat_set_t *set, kid_t id);
 #endif
 
 #ifndef HAVE_HTONLL
