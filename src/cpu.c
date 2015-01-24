@@ -111,11 +111,8 @@ static mach_msg_type_number_t cpu_list_len;
 /* #endif KERNEL_LINUX */
 
 #elif defined(HAVE_LIBKSTAT)
-/* colleague tells me that Sun doesn't sell systems with more than 100 or so CPUs.. */
-# define MAX_NUMCPU 256
 extern kstat_ctl_t *kc;
-static kstat_t *ksp[MAX_NUMCPU];
-static int numcpu;
+static kstat_set_t kstats;
 /* #endif HAVE_LIBKSTAT */
 
 #elif CAN_USE_SYSCTL
@@ -159,19 +156,11 @@ static int init (void)
 /* #endif PROCESSOR_CPU_LOAD_INFO */
 
 #elif defined(HAVE_LIBKSTAT)
-	kstat_t *ksp_chain;
-
-	numcpu = 0;
-
-	if (kc == NULL)
+	if (kstat_set_init (&kstats) != 0)
 		return (-1);
-
-	/* Solaris doesn't count linear.. *sigh* */
-	for (numcpu = 0, ksp_chain = kc->kc_chain;
-			(numcpu < MAX_NUMCPU) && (ksp_chain != NULL);
-			ksp_chain = ksp_chain->ks_next)
-		if (strncmp (ksp_chain->ks_module, "cpu_stat", 8) == 0)
-			ksp[numcpu++] = ksp_chain;
+	static kstat_filter_t filter = KSTAT_FILTER_INIT;
+	filter.module = "cpu_stat";
+	plugin_register_kstat_set ("cpu", &kstats, &filter);
 /* #endif HAVE_LIBKSTAT */
 
 #elif CAN_USE_SYSCTL
@@ -357,9 +346,10 @@ static int cpu_read (void)
 	if (kc == NULL)
 		return (-1);
 
-	for (cpu = 0; cpu < numcpu; cpu++)
+	for (cpu = 0; cpu < kstats.len; cpu++)
 	{
-		if (kstat_read (kc, ksp[cpu], &cs) == -1)
+		kstat_t *ks = kstats.items[cpu].kstat;
+		if (kstat_read (kc, ks, &cs) == -1)
 			continue; /* error message? */
 
 		idle = (derive_t) cs.cpu_sysinfo.cpu[CPU_IDLE];
@@ -367,10 +357,10 @@ static int cpu_read (void)
 		syst = (derive_t) cs.cpu_sysinfo.cpu[CPU_KERNEL];
 		wait = (derive_t) cs.cpu_sysinfo.cpu[CPU_WAIT];
 
-		submit (ksp[cpu]->ks_instance, "user", user);
-		submit (ksp[cpu]->ks_instance, "system", syst);
-		submit (ksp[cpu]->ks_instance, "idle", idle);
-		submit (ksp[cpu]->ks_instance, "wait", wait);
+		submit (ks->ks_instance, "user", user);
+		submit (ks->ks_instance, "system", syst);
+		submit (ks->ks_instance, "idle", idle);
+		submit (ks->ks_instance, "wait", wait);
 	}
 /* #endif defined(HAVE_LIBKSTAT) */
 
