@@ -94,10 +94,8 @@ static int config_keys_num = 2;
 static ignorelist_t *ignorelist = NULL;
 
 #ifdef HAVE_LIBKSTAT
-#define MAX_NUMIF 256
 extern kstat_ctl_t *kc;
-static kstat_t *ksp[MAX_NUMIF];
-static int numif = 0;
+static kstat_set_t kstats;
 #endif /* HAVE_LIBKSTAT */
 
 static int interface_config (const char *key, const char *value)
@@ -125,30 +123,32 @@ static int interface_config (const char *key, const char *value)
 }
 
 #if HAVE_LIBKSTAT
-static int interface_init (void)
+static int kstat_filter (const kstat_info_t *info)
 {
-	kstat_t *ksp_chain;
 	derive_t val;
 
-	numif = 0;
+	if (info->kstat == NULL)
+		/* removed kstat - cannot check, return match */
+		return (0);
 
-	if (kc == NULL)
+	if (kstat_read (kc, info->kstat, NULL) == -1)
+		return (-1);
+	if ((val = get_kstat_value (info->kstat, "obytes")) == -1LL)
 		return (-1);
 
-	for (numif = 0, ksp_chain = kc->kc_chain;
-			(numif < MAX_NUMIF) && (ksp_chain != NULL);
-			ksp_chain = ksp_chain->ks_next)
-	{
-		if (strncmp (ksp_chain->ks_class, "net", 3))
-			continue;
-		if (ksp_chain->ks_type != KSTAT_TYPE_NAMED)
-			continue;
-		if (kstat_read (kc, ksp_chain, NULL) == -1)
-			continue;
-		if ((val = get_kstat_value (ksp_chain, "obytes")) == -1LL)
-			continue;
-		ksp[numif++] = ksp_chain;
-	}
+	return (0);
+}
+
+
+static int interface_init (void)
+{
+	if (kstat_set_init (&kstats) != 0)
+		return (-1);
+
+	static kstat_filter_t filter = KSTAT_FILTER_INIT;
+	filter.class = "net";
+	filter.filter_func = kstat_filter;
+	plugin_register_kstat_set ("interface", &kstats, &filter);
 
 	return (0);
 } /* int interface_init */
@@ -292,38 +292,40 @@ static int interface_read (void)
 	if (kc == NULL)
 		return (-1);
 
-	for (i = 0; i < numif; i++)
+	for (i = 0; i < kstats.len; i++)
 	{
-		if (kstat_read (kc, ksp[i], NULL) == -1)
+		kstat_t *ks = kstats.items[i].kstat;
+
+		if (kstat_read (kc, ks, NULL) == -1)
 			continue;
 
 		/* try to get 64bit counters */
-		rx = get_kstat_value (ksp[i], "rbytes64");
-		tx = get_kstat_value (ksp[i], "obytes64");
+		rx = get_kstat_value (ks, "rbytes64");
+		tx = get_kstat_value (ks, "obytes64");
 		/* or fallback to 32bit */
 		if (rx == -1LL)
-			rx = get_kstat_value (ksp[i], "rbytes");
+			rx = get_kstat_value (ks, "rbytes");
 		if (tx == -1LL)
-			tx = get_kstat_value (ksp[i], "obytes");
+			tx = get_kstat_value (ks, "obytes");
 		if ((rx != -1LL) || (tx != -1LL))
-			if_submit (ksp[i]->ks_name, "if_octets", rx, tx);
+			if_submit (ks->ks_name, "if_octets", rx, tx);
 
 		/* try to get 64bit counters */
-		rx = get_kstat_value (ksp[i], "ipackets64");
-		tx = get_kstat_value (ksp[i], "opackets64");
+		rx = get_kstat_value (ks, "ipackets64");
+		tx = get_kstat_value (ks, "opackets64");
 		/* or fallback to 32bit */
 		if (rx == -1LL)
-			rx = get_kstat_value (ksp[i], "ipackets");
+			rx = get_kstat_value (ks, "ipackets");
 		if (tx == -1LL)
-			tx = get_kstat_value (ksp[i], "opackets");
+			tx = get_kstat_value (ks, "opackets");
 		if ((rx != -1LL) || (tx != -1LL))
-			if_submit (ksp[i]->ks_name, "if_packets", rx, tx);
+			if_submit (ks->ks_name, "if_packets", rx, tx);
 
 		/* no 64bit error counters yet */
-		rx = get_kstat_value (ksp[i], "ierrors");
-		tx = get_kstat_value (ksp[i], "oerrors");
+		rx = get_kstat_value (ks, "ierrors");
+		tx = get_kstat_value (ks, "oerrors");
 		if ((rx != -1LL) || (tx != -1LL))
-			if_submit (ksp[i]->ks_name, "if_errors", rx, tx);
+			if_submit (ks->ks_name, "if_errors", rx, tx);
 	}
 /* #endif HAVE_LIBKSTAT */
 
