@@ -200,6 +200,29 @@ typedef void (*plugin_log_cb) (int severity, const char *message,
 typedef int (*plugin_shutdown_cb) (void);
 typedef int (*plugin_notification_cb) (const notification_t *,
 		user_data_t *);
+#if HAVE_LIBKSTAT
+enum kstat_action_e {
+	KSTAT_ADDED,
+	KSTAT_REMOVED
+};
+typedef enum kstat_action_e kstat_action_t;
+
+/* This structure copies some of the information in
+ * a kstat_t, to ensure we still have it available
+ * when a kstat has been removed from the chain. */
+struct kstat_info_s {
+	kstat_t *kstat; /* will be NULL on removal */
+	kid_t id;
+	char module[KSTAT_STRLEN];
+	int instance;
+	char name[KSTAT_STRLEN];
+	char class[KSTAT_STRLEN];
+	int type;
+};
+typedef struct kstat_info_s kstat_info_t;
+
+typedef void (*plugin_kstat_cb) (kstat_action_t, const kstat_info_t *, user_data_t *);
+#endif
 
 /*
  * NAME
@@ -310,6 +333,34 @@ int plugin_register_log (const char *name,
 		plugin_log_cb callback, user_data_t *user_data);
 int plugin_register_notification (const char *name,
 		plugin_notification_cb callback, user_data_t *user_data);
+#if HAVE_LIBKSTAT
+struct kstat_filter_s {
+	const char *module;
+	int instance;
+	const char *name;
+	const char *class;
+	int type;
+	/* If non-NULL, this function is called if everything else
+	 * matches. It can implement additional checks. It shall
+	 * return zero in case of a match, non-zero otherwise. */
+	int (*filter_func) (const kstat_info_t *);
+};
+typedef struct kstat_filter_s kstat_filter_t;
+
+#define KSTAT_FILTER_INIT \
+	{ \
+		.instance = -1, \
+		.type = -1 \
+	}
+
+int plugin_register_kstat (const char *name,
+		plugin_kstat_cb callback, user_data_t *user_data,
+		const kstat_filter_t *filter);
+struct kstat_set_s;
+int plugin_register_kstat_set (const char *name,
+		struct kstat_set_s *set,
+		const kstat_filter_t *filter);
+#endif
 
 int plugin_unregister_config (const char *name);
 int plugin_unregister_complex_config (const char *name);
@@ -323,6 +374,9 @@ int plugin_unregister_shutdown (const char *name);
 int plugin_unregister_data_set (const char *name);
 int plugin_unregister_log (const char *name);
 int plugin_unregister_notification (const char *name);
+#if HAVE_LIBKSTAT
+int plugin_unregister_kstat (const char *name);
+#endif
 
 /*
  * NAME
@@ -391,6 +445,10 @@ int plugin_dispatch_multivalue (value_list_t const *vl,
 int plugin_dispatch_missing (const value_list_t *vl);
 
 int plugin_dispatch_notification (const notification_t *notif);
+
+#if HAVE_LIBKSTAT
+void plugin_dispatch_kstat (kstat_action_t action, const kstat_info_t *info);
+#endif
 
 void plugin_log (int level, const char *format, ...)
 	__attribute__ ((format(printf,2,3)));
