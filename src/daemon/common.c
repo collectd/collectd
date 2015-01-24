@@ -796,6 +796,55 @@ long long get_kstat_value (kstat_t *ksp, char *name)
 
 	return (retval);
 }
+
+
+int kstat_set_init (kstat_set_t *set)
+{
+	memset (set, 0, sizeof (*set));
+	set->alloc = 32;
+	set->items = malloc (set->alloc * sizeof (*set->items));
+	if (set->items == NULL)
+	{
+		ERROR ("kstat_set_init: out of memory");
+		return -1;
+	}
+	return 0;
+}
+
+
+int kstat_set_add (kstat_set_t *set, kstat_t *kstat)
+{
+	if (set->len == set->alloc)
+	{
+		unsigned new_alloc = set->alloc << 1;
+		void *new_items = realloc (set->items, new_alloc * sizeof (*set->items));
+		if (new_items == NULL)
+		{
+			ERROR ("kstat_set_add: out of memory");
+			return (-1);
+		}
+		set->items = new_items;
+		set->alloc = new_alloc;
+	}
+
+	set->items[set->len].kstat = kstat;
+	set->items[set->len].id = kstat->ks_kid;
+	set->len++;
+
+	return (0);
+}
+
+
+void kstat_set_remove (kstat_set_t *set, kid_t id)
+{
+	unsigned i;
+	for (i = 0; i < set->len; i++)
+		if (set->items[i].id == id)
+		{
+			set->len--;
+			set->items[i] = set->items[set->len];
+		}
+}
 #endif /* HAVE_LIBKSTAT */
 
 #ifndef HAVE_HTONLL
