@@ -98,6 +98,7 @@ struct wg_callback
     /*Force reconnect useful for load balanced environments*/
     cdtime_t last_force_reconnect_time;
     int force_reconnect_timeout;
+    int conn_forced_closed;
 };
 
 /*
@@ -119,6 +120,7 @@ static void wg_force_reconnect_check(struct wg_callback *cb)
     cb->sock_fd = -1;
     INFO("Connection Forced closed after %ld seconds ",CDTIME_T_TO_TIME_T(now - cb->last_force_reconnect_time));
     cb->last_force_reconnect_time = now;
+    cb->conn_forced_closed=1;
 }
 
 
@@ -275,9 +277,16 @@ static int wg_callback_init (struct wg_callback *cb)
                 "write_graphite plugin: Successfully connected to %s:%s via %s.",
                 cb->node, cb->service, cb->protocol);
     }
-
-    wg_reset_buffer (cb);
-
+    if(!cb->conn_forced_closed || cb->send_buf_free== 0)
+    {
+        /*when not forced connection*/
+        /*or buffer not initialized -- happens if forceReconnect happens before first connection*/
+        wg_reset_buffer (cb);
+    }
+    else {
+         /*if forced connection don't reset buffer with valid metrics when reconnect*/
+         cb->conn_forced_closed=0;
+    }
     return (0);
 }
 
@@ -492,6 +501,7 @@ static int wg_config_node (oconfig_item_t *ci)
     cb->protocol = strdup (WG_DEFAULT_PROTOCOL);
     cb->last_force_reconnect_time=cdtime();
     cb->force_reconnect_timeout=0;
+    cb->conn_forced_closed=0;
     cb->log_send_errors = WG_DEFAULT_LOG_SEND_ERRORS;
     cb->prefix = NULL;
     cb->postfix = NULL;
