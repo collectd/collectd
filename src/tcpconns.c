@@ -77,6 +77,8 @@
 #if HAVE_LINUX_INET_DIAG_H
 # include <linux/inet_diag.h>
 #endif
+#include <linux/rtnetlink.h>
+# include <netinet/tcp.h>
 # include <sys/socket.h>
 # include <arpa/inet.h>
 /* #endif KERNEL_LINUX */
@@ -273,12 +275,18 @@ static const char *config_keys[] =
   "ListeningPorts",
   "LocalPort",
   "RemotePort",
-  "AllPortsSummary"
+  "AllPortsSummary",
+  "ReportByPorts",
+  "ReportByConnections",
+  "ConnectionsAgeLimitSecs",
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static int port_collect_listening = 0;
 static int port_collect_total = 0;
+static int report_by_connections = 0;
+static int report_by_ports = 1;
+static int connections_age_limit_msecs = -1;
 static port_entry_t *port_list_head = NULL;
 static uint32_t count_total[TCP_STATE_MAX + 1];
 
@@ -486,6 +494,132 @@ static int conn_handle_ports (uint16_t port_local, uint16_t port_remote, uint8_t
 } /* int conn_handle_ports */
 
 #if KERNEL_LINUX
+/* Batched reporting of value_list_t  */
+typedef struct value_list_batch_s {
+    size_t size;
+    size_t cur;
+    value_list_t buffer[1];       /* Allocated to have size entries */
+} value_list_batch_t;
+
+static value_list_batch_t *value_list_batch_create(size_t size)
+{
+    value_list_batch_t *ret =
+        malloc(sizeof(value_list_batch_t) + (size - 1) * sizeof(value_list_t));
+    size_t i;
+    const value_list_t vl_init = VALUE_LIST_INIT;
+    if (size < 4) {
+        ERROR("Buffer size %zu < 4; using 4", size);
+        size = 4;
+    }
+    ret->size = size;
+    for (i = 0; i < size; i++)
+        ret->buffer[i] = vl_init;
+    ret->cur = 0;
+    return ret;
+}
+
+static void value_list_batch_flush(value_list_batch_t *batch)
+{
+    size_t i;
+    /* TODO(arielshaqed): Use new batched reporting API! */
+    for (i = 0; i < batch->cur; i++) {
+        plugin_dispatch_values (&batch->buffer[i]);
+    }
+    for (i = 0; i < batch->cur; i++) {
+        free(batch->buffer[i].values);
+        /* Also free meta? */
+    }
+    batch->cur = 0;
+}
+
+static void value_list_batch_free(value_list_batch_t *batch)
+{
+    value_list_batch_flush(batch);
+    free(batch);
+}
+
+static int value_list_batch_maybe_flush(value_list_batch_t *batch)
+{
+    if (batch->cur >= batch->size) {
+        value_list_batch_flush(batch);
+        return 1;
+    }
+    return 0;
+}
+
+/* Returns a value_list to populate with values; must call
+ * value_list_batch_release before calling again. */
+static value_list_t *value_list_batch_get(value_list_batch_t *batch)
+{
+    value_list_batch_maybe_flush(batch);
+    return &batch->buffer[batch->cur];
+}
+
+static void value_list_batch_release(value_list_batch_t *batch)
+{
+  batch->cur++;
+  value_list_batch_maybe_flush(batch);
+}
+
+#if HAVE_STRUCT_LINUX_INET_DIAG_REQ
+/* Return 1 if tcpi should be reported */
+static int filter_tcpi(const struct tcp_info* tcpi)
+{
+  /* Skip last ACK sent, it's documented "Not remembered, sorry." */
+  return connections_age_limit_msecs < 0 ||
+      tcpi->tcpi_last_data_sent < connections_age_limit_msecs ||
+        /* tcpi->tcpi_last_ack_sent < connections_age_limit_msecs || */
+      tcpi->tcpi_last_data_recv < connections_age_limit_msecs ||
+      tcpi->tcpi_last_ack_recv < connections_age_limit_msecs;
+}
+
+/* Update entries for specified connections.  May call conn_buffer_flush. */
+static void conn_handle_tcpi(
+    value_list_batch_t *batch, uint8_t state,
+    const char src[], uint16_t sport, const char dst[], uint16_t dport,
+    const struct tcp_info* tcpi)
+{
+    value_list_t *vl = value_list_batch_get(batch);
+    const char *state_name = TCP_STATE_MIN <= state && state <= TCP_STATE_MAX ?
+        tcp_state[state] : "UNKNOWN";
+    DEBUG ("%s:%hu -> %s:%hu  %s   :  %u",
+           src, sport, dst, dport, state_name, tcpi->tcpi_rtt);
+
+    vl->values = calloc(1, sizeof(value_t));
+    vl->values_len = 1;
+    sstrncpy (vl->host, hostname_g, sizeof (vl->host));
+    sstrncpy (vl->plugin, "tcpconns", sizeof (vl->plugin));
+    snprintf(vl->plugin_instance, sizeof(vl->plugin_instance),
+	"%s:%u_%s:%u_%s", src, sport, dst, dport, state_name);
+    sstrncpy (vl->type, "tcp_connections_perf", sizeof (vl->type));
+    /* Types must match definition in types.db */
+    vl->values[0].gauge = tcpi->tcpi_rtt;
+
+    value_list_batch_release(batch);
+} /* conn_handle_tcpi */
+
+/* Returns tcp_info in an rtattr in h. Returns NULL if all
+ * rtattr's scanned and no tcp_info found. h is assumed to hold at least
+ * enough bytes to hold INET_DIAG_INFO.*/
+static struct tcp_info *get_tcp_info(struct nlmsghdr *h)
+{
+  struct inet_diag_msg *r = NLMSG_DATA(h);
+  ssize_t remaining_len = h->nlmsg_len - NLMSG_LENGTH(sizeof(*r));
+  struct rtattr *attr = (struct rtattr*) (r + 1);
+  for (;
+       remaining_len > 0 && RTA_OK(attr, remaining_len);
+       attr = RTA_NEXT(attr, remaining_len)) {
+      DEBUG ("Type = %d ; %zd bytes remaining", attr->rta_type, remaining_len);
+    if (attr->rta_type == INET_DIAG_INFO) {
+      return RTA_DATA(attr);
+      break;
+    }
+  }
+  return NULL;
+} /* get_tcp_info */
+
+#endif  /* HAVE_STRUCT_LINUX_INET_DIAG_REQ */
+
 /* Returns zero on success, less than zero on socket error and greater than
  * zero on other errors. */
 static int conn_read_netlink (void)
@@ -494,10 +628,9 @@ static int conn_read_netlink (void)
   int fd;
   struct sockaddr_nl nladdr;
   struct nlreq req;
-  struct msghdr msg;
-  struct iovec iov;
   struct inet_diag_msg *r;
-  char buf[8192];
+  value_list_batch_t *batch = value_list_batch_create(2048);
+  char buf[32768];
 
   /* If this fails, it's likely a permission problem. We'll fall back to
    * reading this information from files below. */
@@ -526,50 +659,33 @@ static int conn_read_netlink (void)
    * message in case the system is/was out of memory. */
   req.nlh.nlmsg_seq = ++sequence_number;
   req.r.idiag_family = AF_INET;
-  req.r.idiag_states = 0xfff;
-  req.r.idiag_ext = 0;
+  req.r.idiag_states = 0xffff;
+  req.r.idiag_ext = 1 << (INET_DIAG_INFO - 1);
 
-  memset(&iov, 0, sizeof(iov));
-  iov.iov_base = &req;
-  iov.iov_len = sizeof(req);
-
-  memset(&msg, 0, sizeof(msg));
-  msg.msg_name = (void*)&nladdr;
-  msg.msg_namelen = sizeof(nladdr);
-  msg.msg_iov = &iov;
-  msg.msg_iovlen = 1;
-
-  if (sendmsg (fd, &msg, 0) < 0)
+  if (send (fd, &req, sizeof(req), /* flags = */ 0) < 0)
   {
-    ERROR ("tcpconns plugin: conn_read_netlink: sendmsg(2) failed: %s",
+    ERROR ("tcpconns plugin: conn_read_netlink: send(2) failed: %s",
 	sstrerror (errno, buf, sizeof (buf)));
     close (fd);
+    value_list_batch_free(batch);
     return (-1);
   }
-
-  iov.iov_base = buf;
-  iov.iov_len = sizeof(buf);
 
   while (1)
   {
     int status;
     struct nlmsghdr *h;
 
-    memset(&msg, 0, sizeof(msg));
-    msg.msg_name = (void*)&nladdr;
-    msg.msg_namelen = sizeof(nladdr);
-    msg.msg_iov = &iov;
-    msg.msg_iovlen = 1;
-
-    status = recvmsg(fd, (void *) &msg, /* flags = */ 0);
+    status = recv(fd, buf, sizeof(buf), /* flags = */ 0);
     if (status < 0)
     {
       if ((errno == EINTR) || (errno == EAGAIN))
         continue;
 
-      ERROR ("tcpconns plugin: conn_read_netlink: recvmsg(2) failed: %s",
+      ERROR ("tcpconns plugin: conn_read_netlink: recv(2) failed: %s",
 	  sstrerror (errno, buf, sizeof (buf)));
       close (fd);
+      value_list_batch_free(batch);
       return (-1);
     }
     else if (status == 0)
@@ -577,6 +693,8 @@ static int conn_read_netlink (void)
       close (fd);
       DEBUG ("tcpconns plugin: conn_read_netlink: Unexpected zero-sized "
 	  "reply from netlink socket.");
+      close (fd);
+      value_list_batch_free(batch);
       return (0);
     }
 
@@ -585,13 +703,18 @@ static int conn_read_netlink (void)
     {
       if (h->nlmsg_seq != sequence_number)
       {
+        INFO ("tcpconns plugin: conn_read_netlink: sequence numbers mismatch "
+            "received %u != expected %u",
+            h->nlmsg_seq, sequence_number);
 	h = NLMSG_NEXT(h, status);
 	continue;
       }
 
       if (h->nlmsg_type == NLMSG_DONE)
       {
+        DEBUG ("tcpconns plugin: conn_read_netlink: done!");
 	close (fd);
+	value_list_batch_free(batch);
 	return (0);
       }
       else if (h->nlmsg_type == NLMSG_ERROR)
@@ -603,26 +726,47 @@ static int conn_read_netlink (void)
 	    msg_error->error);
 
 	close (fd);
+	value_list_batch_free(batch);
 	return (1);
       }
 
+      /* TODO(arielshaqed): Fix: Check data length around NLMSG_DATA()! */
       r = NLMSG_DATA(h);
+      {
+	struct tcp_info *tcpi = get_tcp_info(h);
+        u_int8_t state = r->idiag_state;
+	unsigned short sport = ntohs(r->id.idiag_sport);
+	unsigned short dport = ntohs(r->id.idiag_dport);
 
-      /* This code does not (need to) distinguish between IPv4 and IPv6. */
-      conn_handle_ports (ntohs(r->id.idiag_sport),
-	  ntohs(r->id.idiag_dport),
-	  r->idiag_state);
+	/* This code does not (need to) distinguish between IPv4 and IPv6. */
+        if (report_by_ports)
+          conn_handle_ports (sport, dport, state);
+
+        if (report_by_connections) {
+          if (r->idiag_state != TCP_STATE_LISTEN && tcpi && filter_tcpi(tcpi)) {
+	    char src[INET6_ADDRSTRLEN];
+	    char dst[INET6_ADDRSTRLEN];
+	    if (!inet_ntop(r->idiag_family, r->id.idiag_src, src, sizeof(src)))
+              strncpy(src, "<UNKNOWN>", sizeof(src));
+	    if (!inet_ntop(r->idiag_family, r->id.idiag_dst, dst, sizeof(dst)))
+              strncpy(dst, "<UNKNOWN>", sizeof(dst));
+	    conn_handle_tcpi (
+                batch, r->idiag_state, src, sport, dst, dport, tcpi);
+          }
+	}
+      }
 
       h = NLMSG_NEXT(h, status);
     } /* while (NLMSG_OK) */
   } /* while (1) */
 
   /* Not reached because the while() loop above handles the exit condition. */
+  close(fd);
+  value_list_batch_free(batch);
   return (0);
-#else
-  return (1);
-#endif /* HAVE_STRUCT_LINUX_INET_DIAG_REQ */
 } /* int conn_read_netlink */
+
+#endif  /* KERNEL_LINUX */
 
 static int conn_handle_line (char *buffer)
 {
@@ -746,6 +890,27 @@ static int conn_config (const char *key, const char *value)
     else
       port_collect_total = 0;
   }
+  else if (strcasecmp (key, "ReportByConnections") == 0)
+  {
+    if (IS_TRUE (value)) {
+      report_by_connections = 1;
+#if !(KERNEL_LINUX && HAVE_STRUCT_LINUX_INET_DIAG_REQ)
+      ERROR ("tcpconns plugin: Platform does not support ReportByConnections.");
+#endif
+    }
+    else
+      report_by_connections = 0;
+  }
+  else if (strcasecmp (key, "ReportByPorts") == 0)
+  {
+    if (IS_TRUE (value))
+      report_by_ports = 1;
+    else
+      report_by_ports = 0;
+  }
+  else if (strcasecmp (key, "ConnectionsAgeLimitSecs") == 0) {
+    connections_age_limit_msecs = atof(value) * 1000;
+  }
   else
   {
     return (-1);
@@ -803,6 +968,9 @@ static int conn_read (void)
       INFO ("tcpconns plugin: Reading from netlink failed. "
 	  "Will read from /proc from now on.");
       linux_source = SRC_PROC;
+      if (report_by_connections)
+        ERROR ("tcpconns plugin: "
+               "Ignore ReportByConnections (not reading Netlink inet_diag)");
 
       /* return success here to avoid the "plugin failed" message. */
       return (0);
