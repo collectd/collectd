@@ -1216,6 +1216,12 @@ write_riemann_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 write_riemann_la_LIBADD = -lprotobuf-c
 endif
 
+if BUILD_PLUGIN_WRITE_SENSU
+pkglib_LTLIBRARIES += write_sensu.la
+write_sensu_la_SOURCES = write_sensu.c
+write_sensu_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_WRITE_TSDB
 pkglib_LTLIBRARIES += write_tsdb.la
 write_tsdb_la_SOURCES = write_tsdb.c
