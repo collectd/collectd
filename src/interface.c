@@ -55,6 +55,10 @@
 # include <libperfstat.h>
 #endif
 
+#if HAVE_ZONE_H
+# include <zone.h>
+#endif
+
 /*
  * Various people have reported problems with `getifaddrs' and varying versions
  * of `glibc'. That's why it's disabled by default. Since more statistics are
@@ -120,20 +124,55 @@ static int interface_config (const char *key, const char *value)
 }
 
 #if HAVE_LIBKSTAT
-static int kstat_filter (const kstat_info_t *info)
+static void resolve_zonename (int id, char *buf, int bufsize)
 {
-	derive_t val;
+#if HAVE_ZONE_H
+	if (getzonenamebyid (id, buf, bufsize) >= 0)
+	{
+		/* null-terminate for safety */
+		buf[bufsize - 1] = 0;
+		return;
+	}
+	else
+	{
+		WARNING ("Failed to resolve zoneid %d: %s", id, strerror (errno));
+	}
+#endif
 
-	if (info->kstat == NULL)
-		/* removed kstat - cannot check, return match */
+	ssnprintf (buf, bufsize, "zone%d", id);
+}
+
+static int kstat_sol11_module (const char *module)
+{
+	/* On Solaris 11, we're interested in kstats from two modules.
+	 * The "link" module covers physical and virtual datalink
+	 * interfaces, i.e. everything that can be seen via the
+	 * "dladm" command.
+	 * The "ipmp" module covers IPMP interfaces.
+	 */
+	if (strcmp (module, "link") == 0)
+		return (0);
+	if (strcmp (module, "ipmp") == 0)
 		return (0);
 
-	if (kstat_read (kc, info->kstat, NULL) == -1)
-		return (-1);
-	if ((val = get_kstat_value (info->kstat, "obytes")) == -1LL)
-		return (-1);
+	return (-1);
+}
 
-	return (0);
+static int kstat_filter (const kstat_info_t *info)
+{
+	if (kstat_sol11_module (info->module) == 0)
+		return (0);
+
+	/* Solaris 10 and older: Interesting kstats have an interface name
+	 * in the name field, which consists of the module name plus an
+	 * instance number. These are not found on Solaris 11. */
+	int modlen = strlen (info->module);
+	if (strncmp (info->module, info->name, modlen) == 0
+			&& isdigit (info->name[modlen]))
+		return (0);
+
+	/* Anything else can be thrown away. */
+	return (-1);
 }
 
 
@@ -296,6 +335,38 @@ static int interface_read (void)
 		if (kstat_read (kc, ks, NULL) == -1)
 			continue;
 
+		char *ifname = NULL;
+		char ifname_buf[128];
+		if (kstat_sol11_module (ks->ks_module) != 0)
+		{
+			/* We're on Solaris 10 or older. Interface name in ks_name. */
+			ifname = ks->ks_name;
+		}
+		else
+		{
+			/* Solaris 11. Instance number contains the zone id.
+			 * Interface name is in ks_name, but need not be unique
+			 * across zones. For the global zone (id 0), we use the
+			 * interface name as-is. For non-global zones, prepend
+			 * the zone name to the interface name with a '/' as
+			 * separator, consistent with the output of "dladm". */
+			if (ks->ks_instance == 0)
+			{
+				ifname = ks->ks_name;
+			}
+			else
+			{
+				/* Would be better to use ZONENAME_MAX for the buffer
+				 * size, but we might be on an ancient solaris release
+				 * that doesn't have zones. */
+				char zonename[128];
+				resolve_zonename (ks->ks_instance, zonename, sizeof (zonename));
+				ssnprintf (ifname_buf, sizeof (ifname_buf),
+						"%s/%s", zonename, ks->ks_name);
+				ifname = ifname_buf;
+			}
+		}
+
 		/* try to get 64bit counters */
 		rx = get_kstat_value (ks, "rbytes64");
 		tx = get_kstat_value (ks, "obytes64");
@@ -305,7 +376,7 @@ static int interface_read (void)
 		if (tx == -1LL)
 			tx = get_kstat_value (ks, "obytes");
 		if ((rx != -1LL) || (tx != -1LL))
-			if_submit (ks->ks_name, "if_octets", rx, tx);
+			if_submit (ifname, "if_octets", rx, tx);
 
 		/* try to get 64bit counters */
 		rx = get_kstat_value (ks, "ipackets64");
@@ -316,13 +387,13 @@ static int interface_read (void)
 		if (tx == -1LL)
 			tx = get_kstat_value (ks, "opackets");
 		if ((rx != -1LL) || (tx != -1LL))
-			if_submit (ks->ks_name, "if_packets", rx, tx);
+			if_submit (ifname, "if_packets", rx, tx);
 
 		/* no 64bit error counters yet */
 		rx = get_kstat_value (ks, "ierrors");
 		tx = get_kstat_value (ks, "oerrors");
 		if ((rx != -1LL) || (tx != -1LL))
-			if_submit (ks->ks_name, "if_errors", rx, tx);
+			if_submit (ifname, "if_errors", rx, tx);
 	}
 /* #endif HAVE_LIBKSTAT */
 
