@@ -245,7 +245,7 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
                 goto errout;
 			}
             key = child->values[0].value.string;
-            val = child->values[0].value.string;
+            val = child->values[1].value.string;
             ret = rd_kafka_topic_conf_set(tctx->conf,key, val,
                                           errbuf, sizeof(errbuf));
             if (ret != RD_KAFKA_CONF_OK) {
