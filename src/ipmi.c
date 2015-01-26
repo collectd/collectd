@@ -557,7 +557,7 @@ static int thread_init (os_handler_t **ret_os_handler)
   ipmi_domain_id_t domain_id;
   int status;
 
-  os_handler = ipmi_posix_thread_setup_os_handler (SIGUSR2);
+  os_handler = ipmi_posix_thread_setup_os_handler (SIGIO);
   if (os_handler == NULL)
   {
     ERROR ("ipmi plugin: ipmi_posix_thread_setup_os_handler failed.");
