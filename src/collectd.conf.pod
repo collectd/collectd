@@ -6317,11 +6317,32 @@ Default: B<0>
 
 =head2 Plugin C<tcpconns>
 
-The C<tcpconns plugin> counts the number of currently established TCP
-connections based on the local port and/or the remote port. Since there may be
-a lot of connections the default if to count all connections with a local port,
-for which a listening socket is opened. You can use the following options to
-fine-tune the ports you are interested in:
+The C<tcpconns> plugin summarizes TCP connections on the machine by counting
+the number of currently established TCP connections based on the local port
+and/or the remote port. On Linux with the C<tcp_diag> kernel module, it can
+also report fine-grained statistics -- the TCP stack smoothed round-trip-time
+estimate -- for each connection.
+
+You can select which mode(s) to use:
+
+=over 4
+
+=item B<ReportByPorts> I<true>|I<false>
+
+If set to I<true> (the default), summarize the number of TCP connections by
+port.
+
+=item B<ReportByConnections> I<true>|I<false>
+
+If set to I<true> (default I<false>), report fine-grained smoothed RTT
+statistic per connection.
+
+=back
+
+B<When summarizing>, since there may be a lot of connections the default if to
+count all connections with a local port, for which a listening socket is
+opened. You can use the following options to fine-tune the ports you are
+interested in:
 
 =over 4
 
@@ -6355,6 +6376,19 @@ port in numeric form.
 
 If this option is set to I<true> a summary of statistics from all connections
 are collectd. This option defaults to I<false>.
+
+=back
+
+B<When reporting fine-grained statistics>, you can tune for which connections
+to report statistics:
+
+=over 4
+
+=item B<ConnectionsAgeLimitSecs> I<seconds>
+
+If positive, only report connections that were active in the past I<seconds>.
+Otherwise the last RTT value discovered by the TCP stack for every connection
+will continue to be reported.
 
 =back
 

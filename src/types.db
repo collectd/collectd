@@ -192,6 +192,7 @@ spl			value:GAUGE:U:U
 swap_io			value:DERIVE:0:U
 swap			value:GAUGE:0:1099511627776
 tcp_connections		value:GAUGE:0:4294967295
+tcp_connections_perf	perf_smoothed_rtt:GAUGE:0:4294967295
 temperature		value:GAUGE:U:U
 threads			value:GAUGE:0:U
 time_dispersion		value:GAUGE:-1000000:1000000
