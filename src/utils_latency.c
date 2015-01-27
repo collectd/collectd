@@ -102,7 +102,7 @@ void change_bin_width (latency_counter_t *lc, size_t val) /* {{{ */
       DEBUG("utils_latency: change_bin_width: fixed all bins");
   }
 
-  DEBUG("utils_latency: change_bin_width: val-[%ld], oldBinWidth-[%d], "
+  DEBUG("utils_latency: change_bin_width: val-[%zu], oldBinWidth-[%d], "
           "newBinWidth-[%d], required_bin_width-[%f], "
           "required_bin_width_logbase2-[%f]",
           val, old_bin_width, new_bin_width, required_bin_width,
