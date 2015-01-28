@@ -14,10 +14,12 @@
 # - enable the EPEL repository (http://dl.fedoraproject.org/pub/epel/) in the
 #   configuration files for your target systems (/etc/mock/*.cfg).
 #
-# - copy this file in your ~/rpmbuild/SPECS/ directory
-#
 # - fetch the desired collectd release file from https://collectd.org/files/
-#   and save it in your ~/rpmbuild/SOURCES/ directory
+#   and save it in your ~/rpmbuild/SOURCES/ directory (or build your own out of
+#   the git repository: ./build.sh && ./configure && make-dist-bz2)
+#
+# - copy this file in your ~/rpmbuild/SPECS/ directory. Make sure the
+#   "Version:" tag matches the version from the tarball.
 #
 # - build the SRPM first:
 #   mock -r centos-6-x86_64 --buildsrpm --spec ~/rpmbuild/SPECS/collectd.spec \
