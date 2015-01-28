@@ -47,9 +47,9 @@
 /*
  * <Data "data_name">
  *   RegisterBase 1234
+ *   RegisterCmd ReadHolding
  *   RegisterType float
  *   Type gauge
- *   ModbusRegisterType holding
  *   Instance "..."
  * </Data>
  *
@@ -765,19 +765,19 @@ static int mb_config_add_data (oconfig_item_t *ci) /* {{{ */
         status = -1;
       }
     }
-    else if (strcasecmp ("ModbusRegisterType", child->key) == 0)
+    else if (strcasecmp ("RegisterCmd", child->key) == 0)
     {
 #if LEGACY_LIBMODBUS
-      ERROR("Modbus plugin: ModbusRegisterType parameter can not be used "
+      ERROR("Modbus plugin: RegisterCmd parameter can not be used "
             "with your libmodbus version");
 #else
       char tmp[16];
       status = cf_util_get_string_buffer (child, tmp, sizeof (tmp));
       if (status != 0)
         /* do nothing */;
-      else if (strcasecmp ("holding", tmp) == 0)
+      else if (strcasecmp ("ReadHolding", tmp) == 0)
         data.modbus_register_type = MREG_HOLDING;
-      else if (strcasecmp ("input", tmp) == 0)
+      else if (strcasecmp ("ReadInput", tmp) == 0)
         data.modbus_register_type = MREG_INPUT;
       else
       {

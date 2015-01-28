@@ -2890,7 +2890,7 @@ B<Synopsis:>
  <Data "voltage-input-1">
    RegisterBase 0
    RegisterType float
-   ModbusRegisterType holding
+   RegisterCmd ReadHolding
    Type voltage
    Instance "input-1"
  </Data>
@@ -2898,7 +2898,7 @@ B<Synopsis:>
  <Data "voltage-input-2">
    RegisterBase 2
    RegisterType float
-   ModbusRegisterType holding
+   RegisterCmd ReadHolding
    Type voltage
    Instance "input-2"
  </Data>
@@ -2906,7 +2906,7 @@ B<Synopsis:>
  <Data "supply-temperature-1">
    RegisterBase 0
    RegisterType Int16
-   ModbusRegisterType holding
+   RegisterCmd ReadHolding
    Type temperature
    Instance "temp-1"
  </Data>
@@ -2957,10 +2957,10 @@ Specifies what kind of data is returned by the device. If the type is B<Int32>,
 B<Uint32> or B<Float>, two 16E<nbsp>bit registers will be read and the data is
 combined into one value. Defaults to B<Uint16>.
 
-=item B<ModbusRegisterType> B<holding>|B<input>
+=item B<RegisterCmd> B<ReadHolding>|B<ReadInput>
 
 Specifies register type to be collected from device. Works only with libmodbus
-2.9.2 or higher. Defaults to B<holding>.
+2.9.2 or higher. Defaults to B<ReadHolding>.
 
 =item B<Type> I<Type>
 
