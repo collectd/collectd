@@ -1209,7 +1209,7 @@ static const char *ps_get_cmdline (pid_t pid, /* {{{ */
 	snprintf(path, sizeof (path), "/proc/%i/psinfo", pid);
 
 	status = read_file_contents (path, (void *) &info, sizeof (info));
-	if (status != ((int) buffer_size))
+	if (status != sizeof (info))
 	{
 		ERROR ("processes plugin: Unexpected return value "
 				"while reading \"%s\": "
