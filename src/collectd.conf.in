@@ -1267,6 +1267,7 @@
 #    Host "localhost"
 #    Port "2003"
 #    Protocol "tcp"
+#    SendTimeout 60
 #    LogSendErrors true
 #    Prefix "collectd"
 #    Postfix "collectd"

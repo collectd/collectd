@@ -6777,6 +6777,7 @@ Synopsis:
      Host "localhost"
      Port "2003"
      Protocol "tcp"
+     SendTimeout 60
      LogSendErrors true
      Prefix "collectd"
    </Node>
@@ -6798,6 +6799,12 @@ Service name or port number to connect to. Defaults to C<2003>.
 =item B<Protocol> I<String>
 
 Protocol to use when connecting to I<Graphite>. Defaults to C<tcp>.
+
+=item B<SendTimeout> I<Seconds>
+
+Timeout to use when sending data to I<Graphite>. Defaults to C<infinite>.
+If the timeout is reached, data will be lost and an error will be logged.
+Useful for when your I<Graphite> instance is on a remote network.
 
 =item B<LogSendErrors> B<false>|B<true>
 
