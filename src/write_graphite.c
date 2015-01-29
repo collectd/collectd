@@ -98,6 +98,7 @@ struct wg_callback
     char    *node;
     char    *service;
     char    *protocol;
+    int      send_timeout;
     _Bool   log_send_errors;
     char    *prefix;
     char    *postfix;
@@ -251,6 +252,25 @@ static int wg_callback_init (struct wg_callback *cb)
             close (cb->sock_fd);
             cb->sock_fd = -1;
             continue;
+        }
+
+        if (cb->send_timeout > 0)
+        {
+            struct timeval timeout;
+            timeout.tv_sec = cb->send_timeout;
+            timeout.tv_usec = 0;
+
+            status = setsockopt (cb->sock_fd, SOL_SOCKET, SO_SNDTIMEO,
+                    (char *)&timeout, sizeof (timeout));
+            if (status != 0)
+            {
+                char errbuf[1024];
+                snprintf (connerr, sizeof (connerr), "failed to set send timeout: %s",
+                        sstrerror (errno, errbuf, sizeof (errbuf)));
+                close (cb->sock_fd);
+                cb->sock_fd = -1;
+                continue;
+            }
         }
 
         break;
@@ -489,6 +509,7 @@ static int wg_config_node (oconfig_item_t *ci)
     cb->node = NULL;
     cb->service = NULL;
     cb->protocol = NULL;
+    cb->send_timeout = -1;
     cb->log_send_errors = WG_DEFAULT_LOG_SEND_ERRORS;
     cb->prefix = NULL;
     cb->postfix = NULL;
@@ -529,6 +550,8 @@ static int wg_config_node (oconfig_item_t *ci)
                 status = -1;
             }
         }
+        else if (strcasecmp ("SendTimeout", child->key) == 0)
+            cf_util_get_int (child, &cb->send_timeout);
         else if (strcasecmp ("LogSendErrors", child->key) == 0)
             cf_util_get_boolean (child, &cb->log_send_errors);
         else if (strcasecmp ("Prefix", child->key) == 0)
