@@ -1210,14 +1210,14 @@ static int read_fork_rate ()
 #endif /*KERNEL_LINUX */
 
 #if KERNEL_SOLARIS
-static const char *ps_get_cmdline (pid_t pid, /* {{{ */
+static const char *ps_get_cmdline (long pid, /* {{{ */
 		char *buffer, size_t buffer_size)
 {
 	char path[PATH_MAX];
 	psinfo_t info;
 	int status;
 
-	snprintf(path, sizeof (path), "/proc/%i/psinfo", pid);
+	snprintf(path, sizeof (path), "/proc/%li/psinfo", pid);
 
 	status = read_file_contents (path, (void *) &info, sizeof (info));
 	if (status != sizeof (info))
@@ -1241,7 +1241,7 @@ static const char *ps_get_cmdline (pid_t pid, /* {{{ */
  * The values for input and ouput chars are calculated "by hand"
  * Added a few "solaris" specific process states as well
  */
-static int ps_read_process(int pid, procstat_t *ps, char *state)
+static int ps_read_process(long pid, procstat_t *ps, char *state)
 {
 	char filename[64];
 	char f_psinfo[64], f_usage[64];
@@ -1251,9 +1251,9 @@ static int ps_read_process(int pid, procstat_t *ps, char *state)
 	psinfo_t *myInfo;
 	prusage_t *myUsage;
 
-	snprintf(filename, sizeof (filename), "/proc/%i/status", pid);
-	snprintf(f_psinfo, sizeof (f_psinfo), "/proc/%i/psinfo", pid);
-	snprintf(f_usage, sizeof (f_usage), "/proc/%i/usage", pid);
+	snprintf(filename, sizeof (filename), "/proc/%li/status", pid);
+	snprintf(f_psinfo, sizeof (f_psinfo), "/proc/%li/psinfo", pid);
+	snprintf(f_usage, sizeof (f_usage), "/proc/%li/usage", pid);
 
 
 	buffer = malloc(sizeof (pstatus_t));
@@ -2103,14 +2103,16 @@ static int ps_read (void)
 
 	while ((ent = readdir(proc)) != NULL)
 	{
-		int pid;
+		long pid;
 		struct procstat ps;
 		procstat_entry_t pse;
+		char *endptr;
 
 		if (!isdigit ((int) ent->d_name[0]))
 			continue;
 
-		if ((pid = atoi (ent->d_name)) < 1)
+		pid = strtol (ent->d_name, &endptr, 10);
+		if (*endptr != 0) /* value didn't completely parse as a number */
 			continue;
 
 		status = ps_read_process (pid, &ps, &state);
@@ -2160,8 +2162,7 @@ static int ps_read (void)
 
 
 		ps_list_add (ps.name,
-				ps_get_cmdline ((pid_t) pid,
-					cmdline, sizeof (cmdline)),
+				ps_get_cmdline (pid, cmdline, sizeof (cmdline)),
 				&pse);
 	} /* while(readdir) */
 	closedir (proc);
