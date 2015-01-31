@@ -112,7 +112,22 @@
 /* #endif HAVE_PROCINFO_H */
 
 #elif KERNEL_SOLARIS
+/* Hack: Avoid #error when building a 32-bit binary with
+ * _FILE_OFFSET_BITS=64. There is a reason for this #error, as one
+ * of the structures in <sys/procfs.h> uses an off_t, but that
+ * isn't relevant to our usage of procfs. */
+#if !defined(_LP64) && _FILE_OFFSET_BITS == 64
+#  define SAVE_FOB_64
+#  undef _FILE_OFFSET_BITS
+#endif
+
 # include <procfs.h>
+
+#ifdef SAVE_FOB_64
+#  define _FILE_OFFSET_BITS 64
+#  undef SAVE_FOB_64
+#endif
+
 # include <dirent.h>
 /* #endif KERNEL_SOLARIS */
 
