@@ -4139,10 +4139,11 @@ fi
 if test "x$with_libstatgrab" = "xyes"
 then
   SAVE_CFLAGS="$CFLAGS"
-  SAVE_LDFLAGS="$LDFLAGS"
+  SAVE_LIBS="$LIBS"
 
   CFLAGS="$CFLAGS $with_libstatgrab_cflags"
   LDFLAGS="$LDFLAGS $with_libstatgrab_ldflags"
+  LIBS="-lstatgrab $LIBS"
 
   AC_CACHE_CHECK([if libstatgrab >= 0.90],
           [c_cv_have_libstatgrab_0_90],
@@ -4162,6 +4163,7 @@ then
 
   CFLAGS="$SAVE_CFLAGS"
   LDFLAGS="$SAVE_LDFLAGS"
+  LIBS="$SAVE_LIBS"
 fi
 
 AM_CONDITIONAL(BUILD_WITH_LIBSTATGRAB, test "x$with_libstatgrab" = "xyes")
