@@ -6954,24 +6954,28 @@ want to use authentication all three fields must be set.
 
 This output plugin submits values to an HTTP server using POST requests and
 encoding metrics with JSON or using the C<PUTVAL> command described in
-L<collectd-unixsock(5)>. Each destination you want to post data to needs to
-have one B<URL> block, within which the destination can be configured further,
-for example by specifying authentication data.
+L<collectd-unixsock(5)>.
 
 Synopsis:
 
  <Plugin "write_http">
-   <URL "http://example.com/post-collectd">
+   <Node "example">
+     URL "http://example.com/post-collectd"
      User "collectd"
      Password "weCh3ik0"
      Format JSON
-   </URL>
+   </Node>
  </Plugin>
 
-B<URL> blocks need one string argument which is used as the URL to which data
-is posted. The following options are understood within B<URL> blocks.
+The plugin can send values to multiple HTTP servers by specifying one
+E<lt>B<Node>E<nbsp>I<Name>E<gt> block for each server. Within each B<Node>
+block, the following options are available:
 
 =over 4
+
+=item B<URL> I<URL>
+
+URL to which the values are submitted to. Mandatory.
 
 =item B<User> I<Username>
 
