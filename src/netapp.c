@@ -1000,12 +1000,22 @@ static int cna_setup_wafl (cfg_wafl_t *cw) /* {{{ */
 	}
 	na_child_add_string(e, "counter", "name_cache_hit");
 	na_child_add_string(e, "counter", "name_cache_miss");
-	na_child_add_string(e, "counter", "find_dir_hit");
-	na_child_add_string(e, "counter", "find_dir_miss");
-	na_child_add_string(e, "counter", "buf_hash_hit");
-	na_child_add_string(e, "counter", "buf_hash_miss");
-	na_child_add_string(e, "counter", "inode_cache_hit");
-	na_child_add_string(e, "counter", "inode_cache_miss");
+        na_child_add_string(e, "counter", "find_dir_hit");
+        na_child_add_string(e, "counter", "find_dir_miss");
+        na_child_add_string(e, "counter", "buf_hash_hit");
+        na_child_add_string(e, "counter", "buf_hash_miss");
+        na_child_add_string(e, "counter", "inode_cache_hit");
+        na_child_add_string(e, "counter", "inode_cache_miss");
+
+	e = na_elem_new("instances");
+        if (e == NULL)
+        {
+                na_elem_free (cw->query);
+                cw->query = NULL;
+                ERROR ("netapp plugin: na_elem_new failed.");
+                return (-1);
+        }
+        na_child_add_string(e, "instance", "wafl");
 
 	na_child_add(cw->query, e);
 
@@ -1174,9 +1184,13 @@ static int cna_handle_disk_data (const char *hostname, /* {{{ */
 	return (0);
 } /* }}} int cna_handle_disk_data */
 
-static int cna_setup_disk (cfg_disk_t *cd) /* {{{ */
+static int cna_setup_disk (cfg_disk_t *cd, host_config_t *host) /* {{{ */
 {
 	na_elem_t *e;
+	na_elem_t       *out,*in;
+	na_elem_t*	nextElem = NULL;
+	na_elem_t*	iterList = NULL;
+	na_elem_iter_t	iter;
 
 	if (cd == NULL)
 		return (EINVAL);
@@ -1184,24 +1198,65 @@ static int cna_setup_disk (cfg_disk_t *cd) /* {{{ */
 	if (cd->query != NULL)
 		return (0);
 
-	cd->query = na_elem_new ("perf-object-get-instances");
-	if (cd->query == NULL)
-	{
-		ERROR ("netapp plugin: na_elem_new failed.");
-		return (-1);
-	}
-	na_child_add_string (cd->query, "objectname", "disk");
+        cd->query = na_elem_new ("perf-object-get-instances");
+        if (cd->query == NULL)
+        {
+                ERROR ("netapp plugin: na_elem_new failed.");
+                return (-1);
+        }
+        na_child_add_string (cd->query, "objectname", "disk");
 
-	e = na_elem_new("counters");
+        e = na_elem_new("counters");
+        if (e == NULL)
+        {
+                na_elem_free (cd->query);
+                cd->query = NULL;
+                ERROR ("netapp plugin: na_elem_new failed.");
+                return (-1);
+        }
+        na_child_add_string(e, "counter", "disk_busy");
+        na_child_add_string(e, "counter", "base_for_disk_busy");
+
+	e = na_elem_new("instances");
 	if (e == NULL)
-	{
-		na_elem_free (cd->query);
-		cd->query = NULL;
-		ERROR ("netapp plugin: na_elem_new failed.");
+        {
+                na_elem_free (cd->query);
+                cd->query = NULL;
+                ERROR ("netapp plugin: na_elem_new failed.");
+                return (-1);
+        }
+
+	in = na_elem_new("perf-object-instance-list-info");
+	if (in == NULL)
+        {
+                ERROR ("netapp plugin: na_elem_new failed.");
+                return (-1);
+        }
+	na_child_add_string(in,"objectname","disk");
+
+	out = na_server_invoke_elem(host->srv,in);
+	if (na_results_status(out) != NA_OK) {
+		ERROR ("netapp plugin: cna_setup_disk: na_server_invoke_elem failed for host %s: %s",
+                                host->name, na_results_reason (out)); 
+		na_elem_free(in);
+		na_elem_free(out);
 		return (-1);
 	}
-	na_child_add_string(e, "counter", "disk_busy");
-	na_child_add_string(e, "counter", "base_for_disk_busy");
+
+	iterList = na_elem_child(out, "instances");
+	if(iterList == NULL) {
+		ERROR ("netapp plugin: cna_setup_disk: "
+			"na_elem_child (\"instances\") failed "
+                        "for host %s.", host->name);
+		na_elem_free(in);
+		na_elem_free(out);
+		return (-1);
+	}
+
+	for (iter=na_child_iterator(iterList); (nextElem =na_iterator_next(&iter)) != NULL;  ) {
+		na_child_add_string(e, "instance", na_child_get_string(nextElem, "name"));
+	}
+
 	na_child_add(cd->query, e);
 
 	return (0);
@@ -1225,7 +1280,7 @@ static int cna_query_disk (host_config_t *host) /* {{{ */
 	if ((host->cfg_disk->interval.interval + host->cfg_disk->interval.last_read) > now)
 		return (0);
 
-	status = cna_setup_disk (host->cfg_disk);
+	status = cna_setup_disk (host->cfg_disk,host);
 	if (status != 0)
 		return (status);
 	assert (host->cfg_disk->query != NULL);
@@ -1374,6 +1429,7 @@ static int cna_setup_volume_perf (cfg_volume_perf_t *cd) /* {{{ */
 	na_child_add_string(e, "counter", "write_data");
 	na_child_add_string(e, "counter", "read_latency");
 	na_child_add_string(e, "counter", "write_latency");
+
 	na_child_add(cd->query, e);
 
 	return (0);
