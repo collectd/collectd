@@ -145,10 +145,10 @@ static double rapl_energy_units;
 					/* 0x642 MSR_PP1_POLICY */
 #define	TJMAX_DEFAULT	100
 
-cpu_set_t *cpu_present_set, *cpu_affinity_set, *cpu_saved_affinity_set;
-size_t cpu_present_setsize, cpu_affinity_setsize, cpu_saved_affinity_setsize;
+static cpu_set_t *cpu_present_set, *cpu_affinity_set, *cpu_saved_affinity_set;
+static size_t cpu_present_setsize, cpu_affinity_setsize, cpu_saved_affinity_setsize;
 
-struct thread_data {
+static struct thread_data {
 	unsigned long long tsc;
 	unsigned long long aperf;
 	unsigned long long mperf;
@@ -160,7 +160,7 @@ struct thread_data {
 #define CPU_IS_FIRST_CORE_IN_PACKAGE	0x4
 } *thread_delta, *thread_even, *thread_odd;
 
-struct core_data {
+static struct core_data {
 	unsigned long long c3;
 	unsigned long long c6;
 	unsigned long long c7;
@@ -168,7 +168,7 @@ struct core_data {
 	unsigned int core_id;
 } *core_delta, *core_even, *core_odd;
 
-struct pkg_data {
+static struct pkg_data {
 	unsigned long long pc2;
 	unsigned long long pc3;
 	unsigned long long pc6;
@@ -213,7 +213,7 @@ struct cpu_topology {
 	_Bool first_thread_in_core;
 };
 
-struct topology {
+static struct topology {
 	int max_cpu_id;
 	int num_packages;
 	int num_cores;
@@ -221,7 +221,7 @@ struct topology {
 	struct cpu_topology *cpus;
 } topology;
 
-cdtime_t time_even, time_odd, time_delta;
+static cdtime_t time_even, time_odd, time_delta;
 
 static const char *config_keys[] =
 {
