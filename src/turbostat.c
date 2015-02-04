@@ -35,6 +35,11 @@
  */
 #define _GNU_SOURCE
 
+#include "collectd.h"
+#include "common.h"
+#include "plugin.h"
+#include "utils_time.h"
+
 #include <asm/msr-index.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -52,11 +57,6 @@
 #include <ctype.h>
 #include <sched.h>
 #include <cpuid.h>
-
-#include "collectd.h"
-#include "common.h"
-#include "plugin.h"
-#include "utils_time.h"
 
 #define PLUGIN_NAME "turbostat"
 
@@ -222,6 +222,12 @@ struct topology {
 } topology;
 
 cdtime_t time_even, time_odd, time_delta;
+
+static const char *config_keys[] =
+{
+	"TCCActivationTemp",
+};
+static const int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 /*****************************
  *  MSR Manipulation helpers *
@@ -1510,12 +1516,6 @@ err:
 	free_all_buffers();
 	return ret;
 }
-
-static const char *config_keys[] =
-{
-	"TCCActivationTemp",
-};
-static const int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static int
 turbostat_config(const char *key, const char *value)
