@@ -46,7 +46,6 @@
 #include <sys/resource.h>
 #include <fcntl.h>
 #include <signal.h>
-#include <sys/time.h>
 #include <stdlib.h>
 #include <dirent.h>
 #include <string.h>
@@ -57,6 +56,7 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+#include "utils_time.h"
 
 #define PLUGIN_NAME "turbostat"
 
@@ -221,7 +221,7 @@ struct topology {
 	struct cpu_topology *cpus;
 } topology;
 
-struct timeval tv_even, tv_odd, tv_delta;
+cdtime_t time_even, time_odd, time_delta;
 
 /*****************************
  *  MSR Manipulation helpers *
@@ -564,7 +564,7 @@ submit_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	char name[DATA_MAX_NAME_LEN];
 	double interval_float;
 
-	interval_float = tv_delta.tv_sec + tv_delta.tv_usec/1000000.0;
+	interval_float = CDTIME_T_TO_DOUBLE(time_delta);
 
 	ssnprintf(name, sizeof(name), "cpu%02d", t->cpu_id);
 
@@ -1440,7 +1440,7 @@ turbostat_read(void)
 	if (!initialized) {
 		if ((ret = for_all_cpus(get_counters, EVEN_COUNTERS)) < 0)
 			goto out;
-		gettimeofday(&tv_even, (struct timezone *)NULL);
+		time_even = cdtime();
 		is_even = 1;
 		initialized = 1;
 		ret = 0;
@@ -1450,9 +1450,9 @@ turbostat_read(void)
 	if (is_even) {
 		if ((ret = for_all_cpus(get_counters, ODD_COUNTERS)) < 0)
 			goto out;
-		gettimeofday(&tv_odd, (struct timezone *)NULL);
+		time_odd = cdtime();
 		is_even = 0;
-		timersub(&tv_odd, &tv_even, &tv_delta);
+		time_delta = time_odd - time_even;
 		if ((ret = for_all_cpus_delta(ODD_COUNTERS, EVEN_COUNTERS)) < 0)
 			goto out;
 		if ((ret = for_all_cpus(submit_counters, DELTA_COUNTERS)) < 0)
@@ -1460,9 +1460,9 @@ turbostat_read(void)
 	} else {
 		if ((ret = for_all_cpus(get_counters, EVEN_COUNTERS)) < 0)
 			goto out;
-		gettimeofday(&tv_even, (struct timezone *)NULL);
+		time_even = cdtime();
 		is_even = 1;
-		timersub(&tv_even, &tv_odd, &tv_delta);
+		time_delta = time_even - time_odd;
 		if ((ret = for_all_cpus_delta(EVEN_COUNTERS, ODD_COUNTERS)) < 0)
 			goto out;
 		if ((ret = for_all_cpus(submit_counters, DELTA_COUNTERS)) < 0)
