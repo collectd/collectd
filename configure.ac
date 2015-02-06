@@ -577,6 +577,11 @@ AC_TYPE_SIZE_T
 AC_TYPE_UID_T
 AC_HEADER_TIME
 
+
+AH_TEMPLATE(HAVE_DD_FD, [Define to 1 if your `DIR' contains dd_fd.])
+AH_TEMPLATE(HAVE_DIRFD, [Define to 1 if you have the `dirfd' function or macro.])
+AH_TEMPLATE(HAVE_FCNTL_CLOSEM, [Define to 1 if your system has the F_CLOSEM fcntl.])
+
 #
 # Checks for library functions.
 #
@@ -1128,6 +1133,29 @@ have_getvfsstat="no"
 AC_CHECK_FUNCS(getvfsstat, [have_getvfsstat="yes"])
 have_listmntent="no"
 AC_CHECK_FUNCS(listmntent, [have_listmntent="yes"])
+
+AC_CHECK_FUNCS(closefrom, [], [AC_LIBOBJ(closefrom)
+    AC_CHECK_DECL(F_CLOSEM, AC_DEFINE(HAVE_FCNTL_CLOSEM), [],
+  [ #include <limits.h>
+    #include <fcntl.h> ])
+])
+
+dnl
+dnl Check for the dirfd function/macro.  If not found, look for dd_fd in DIR.
+dnl
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <sys/types.h>
+#include <$ac_header_dirent>]], [[DIR *d; (void)dirfd(d);]])], [AC_DEFINE(HAVE_DIRFD)], [AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <sys/types.h>
+#include <$ac_header_dirent>]], [[DIR d; memset(&d, 0, sizeof(d)); return(d.dd_fd);]])], [AC_DEFINE(HAVE_DD_FD)], [])])
+AC_CHECK_MEMBERS([struct dirent.d_type], [], [], [
+AC_INCLUDES_DEFAULT
+#include <$ac_header_dirent>
+])
+
+AC_CHECK_FUNCS(closefrom, [], [AC_LIBOBJ(closefrom)
+    AC_CHECK_DECL(F_CLOSEM, AC_DEFINE(HAVE_FCNTL_CLOSEM), [],
+  [ #include <limits.h>
+    #include <fcntl.h> ])
+])
 
 have_getmntent="no"
 AC_CHECK_FUNCS(getmntent, [have_getmntent="c"])

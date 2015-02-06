@@ -50,6 +50,8 @@
 
 #include <unistd.h>
 
+#include "compat/missing.h"
+
 #ifndef COLLECTDMON_PIDFILE
 # define COLLECTDMON_PIDFILE LOCALSTATEDIR"/run/collectdmon.pid"
 #endif /* ! COLLECTDMON_PIDFILE */
@@ -116,7 +118,6 @@ static int daemonize (void)
 	struct rlimit rl;
 
 	pid_t pid = 0;
-	int   i   = 0;
 
 	if (0 != chdir ("/")) {
 		fprintf (stderr, "Error: chdir() failed: %s\n", strerror (errno));
@@ -141,11 +142,8 @@ static int daemonize (void)
 
 	setsid ();
 
-	if (RLIM_INFINITY == rl.rlim_max)
-		rl.rlim_max = 1024;
-
-	for (i = 0; i < (int)rl.rlim_max; ++i)
-		close (i);
+	/* Close all file descriptors in optimized way */
+	closefrom(0);
 
 	errno = 0;
 	if (open ("/dev/null", O_RDWR) != 0) {

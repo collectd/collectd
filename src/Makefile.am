@@ -22,6 +22,7 @@ bin_PROGRAMS = collectd-nagios collectdctl collectd-tg
 
 collectd_SOURCES = collectd.c collectd.h \
 		   common.c common.h \
+		   compat/closefrom.c \
 		   configfile.c configfile.h \
 		   filter_chain.c filter_chain.h \
 		   meta_data.c meta_data.h \
@@ -87,7 +88,7 @@ else
 collectd_LDADD += -loconfig
 endif
 
-collectdmon_SOURCES = collectdmon.c
+collectdmon_SOURCES = collectdmon.c compat/closefrom.c
 collectdmon_CPPFLAGS = $(AM_CPPFLAGS)
 
 collectd_nagios_SOURCES = collectd-nagios.c
