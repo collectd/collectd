@@ -308,9 +308,9 @@ static void read_cmdline(int argc, char **argv, struct cmdline_config *config) {
   /* read options */
   while (1) {
     int c = getopt(argc, argv,
-                   "BhtTC:"
+                   "BhtTfC:"
 #if COLLECT_DAEMON
-                   "fP:"
+                   "P:"
 #endif
     );
 
@@ -340,6 +340,9 @@ static void read_cmdline(int argc, char **argv, struct cmdline_config *config) {
       break;
     case 'f':
       config->daemonize = false;
+      break;
+#else
+    case 'f':
       break;
 #endif /* COLLECT_DAEMON */
     case 'h':
