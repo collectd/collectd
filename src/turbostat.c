@@ -585,6 +585,9 @@ submit_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	if ((!aperf_mperf_unstable) || (!(t->aperf > t->tsc || t->mperf > t->tsc)))
 		turbostat_submit("Buzy", "frequency", name, 1.0 * t->tsc / 1000000 * t->aperf / t->mperf / interval_float);
 
+	/* Sanity check (should stay stable) */
+	turbostat_submit("TSC", "gauge", name, 1.0 * t->tsc / 1000000 / interval_float);
+
 	/* SMI */
 	turbostat_submit(NULL, "current", name, t->smi_count);
 
