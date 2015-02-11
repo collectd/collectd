@@ -57,6 +57,7 @@
 #include <ctype.h>
 #include <sched.h>
 #include <cpuid.h>
+#include <sys/capability.h>
 
 #define PLUGIN_NAME "turbostat"
 
@@ -1485,6 +1486,52 @@ out:
 }
 
 static int
+check_permissions(void)
+{
+	struct __user_cap_header_struct cap_header_data;
+	cap_user_header_t cap_header = &cap_header_data;
+	struct __user_cap_data_struct cap_data_data;
+	cap_user_data_t cap_data = &cap_data_data;
+	int ret = 0;
+
+	if (getuid() == 0) {
+		/* We have everything we need */
+		return 0;
+	}
+
+	/* check for CAP_SYS_RAWIO */
+	cap_header->pid = getpid();
+	cap_header->version = _LINUX_CAPABILITY_VERSION;
+	if (capget(cap_header, cap_data) < 0) {
+		ERROR("Turbostat plugin: capget failed");
+		return -1;
+	}
+
+	if ((cap_data->effective & (1 << CAP_SYS_RAWIO)) == 0) {
+		WARNING("Turbostat plugin: Collectd doesn't have the "
+			"CAP_SYS_RAWIO capability. If you don't want to run "
+			"collectd as root, try running \"setcap "
+			"cap_sys_rawio=ep\" on collectd binary");
+		ret = -1;
+	}
+
+	if (euidaccess("/dev/cpu/0/msr", R_OK)) {
+		WARNING("Turbostat plugin: Collectd cannot open"
+			"/dev/cpu/0/msr. If you don't want to run collectd as "
+			"root, you need to change the ownership (chown) and "
+			"permissions on /dev/cpu/*/msr to allow such access");
+		ret = -1;
+	}
+
+	if (ret != 0)
+		ERROR("Turbostat plugin: Initialization failed: this plugin "
+		      "requires collectd to either to run as root or give "
+		      "collectd a special capability (CAP_SYS_RAWIO) and read "
+                      "access to /dev/cpu/*/msr (see previous warnings)");
+	return ret;
+}
+
+static int
 turbostat_init(void)
 {
 	struct stat sb;
@@ -1498,12 +1545,7 @@ turbostat_init(void)
 		return -1;
 	}
 
-	if (getuid() != 0) {
-		ERROR("Turbostat plugin: Initialization failed: this plugin "
-		      "requires collectd to run as root in order to read "
-		      "special CPU registers");
-		return -1;
-	}
+	DO_OR_GOTO_ERR(check_permissions());
 
 	DO_OR_GOTO_ERR(probe_cpu());
 
