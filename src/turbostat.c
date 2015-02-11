@@ -1490,6 +1490,14 @@ turbostat_init(void)
 	struct stat sb;
 	int ret;
 
+	if (stat("/dev/cpu/0/msr", &sb)) {
+		ERROR("Turbostat plugin: Initialization failed: /dev/cpu/0/msr"
+		      " does not exist while the CPU supports MSR. You may be "
+		      "missing the corresponding kernel module, please try '# "
+		      "modprobe msr'");
+		return -1;
+	}
+
 	if (getuid() != 0) {
 		ERROR("Turbostat plugin: Initialization failed: this plugin "
 		      "requires collectd to run as root in order to read "
@@ -1498,14 +1506,6 @@ turbostat_init(void)
 	}
 
 	DO_OR_GOTO_ERR(probe_cpu());
-
-	if (stat("/dev/cpu/0/msr", &sb)) {
-		ERROR("Turbostat plugin: Initialization failed: /dev/cpu/0/msr"
-		      " does not exist while the CPU supports MSR. You may be "
-		      "missing the corresponding kernel module, please try '# "
-		      "modprobe msr'");
-		return -1;
-	}
 
 	DO_OR_GOTO_ERR(setup_all_buffers());
 
