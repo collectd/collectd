@@ -632,34 +632,114 @@ static int tail_apachelog_config (oconfig_item_t *ci)
 
 
 
-// parse line
-// go per-report to make_report
 
 
-// make_report:
-// 
+// add a file to fm->tail if not allready present
+static int tail_apachelog_addfile(tail_apachelog_config_filemask_t *fm,char * file)
+{
+  int i;
+  if(!fm->tail)
+  {
+    return tail_apachelog_file_create(fm,file);
+  }
+
+  for(i=0;i<fm->tail_num;i++)
+    if( strcmp(fm->tail[i].file,file) == 0 )
+      return 0;
+
+  return tail_apachelog_file_create(fm,file);
+}
+
+
+// really create a new cu_tail_t entry
+static int tail_apachelog_file_create(tail_apachelog_config_filemask_t *fm,char * file)
+{
+  cu_tail_t **temp;
+  cu_tail_t*tm;
+  tm = cu_tail_create (file);
+
+  if (tm == NULL)
+  {
+    ERROR ("tail_apachelog plugin: cu_tail_create (\"%s\") failed.",
+                    file);
+    return (-1);
+  }
+
+  temp = (cu_tail_t **) realloc (fm->tail,
+	sizeof (cu_tail_t *) * (fm->tail_num + 1));
+  if (temp == NULL)
+  {
+    ERROR ("tail_apachelog plugin: realloc failed.");
+    return (-1);
+  }
+
+  fm->tail = temp;
+  fm->tail[fm->tail_num] = tm;
+  fm->tail_num++;
+  return 0;
+}
+
+
+static int tail_apachelog_glob(tail_apachelog_config_filemask_t *fm){
+  glob_t res;
+  int i,ret;
+  int flags = GLOB_BRACE|GLOB_TILDE_CHECK|GLOB_ERR;
+
+  ret = glob(fm->filemask,flags,null, &res);
+  if(!ret)return ret;
+
+
+    
+  for(i=0;i<res.gl_pathc;i++)
+      tail_apachelog_addfile(fm,res.gl_pathv[i]);
+
+  globfree(&res);
+  return 0;
+}
+
+static int tail_apachelog_read_callback (void *data, char *buf,
+    int __attribute__((unused)) buflen)
+{
+  tail_apachelog_config_filemask_t *fm;
+  fm=(tail_apachelog_config_filemask_t *)data;
+
+// todo: parse buf
+
+// todo: make buf to send
+
+// todo: send
+
+
+}
 
 
 
 static int tail_apachelog_read (user_data_t *ud)
 {
   int status;
+  char buffer[4090];
 
   tail_apachelog_config_filemask_t *fm;
   fm=(tail_apachelog_config_filemask_t *)ud->data;
 
-// glob
-// parse globbed, find neu, delete old
-
-// read list
-
-
-
-  status = tail_apachelog_read ((tail_apachelog_config_filemask_t *)ud->data);
-  if (status != 0)
-  {
-    ERROR ("tail_apachelog plugin: tail_apachelog_read failed.");
+  status = tail_apachelog_glob(fm);
+  if(!fm->tail){
+    ERROR ("tail_apachelog plugin: no files to tail for %s",fm->filemask);
     return (-1);
+  }
+
+  for(i=0;i<fm->tail_num;i++)
+  {
+    status = cu_tail_read(fm->tail[i], buffer, (int) sizeof (buffer), tail_apachelog_read_callback, (void*)fm);
+    if (status != 0)
+    {
+      INFO ("tail_apachelog plugin: tail_apachelog_read failed for %s",fm->tail[i].file);
+      cu_tail_destroy(fm->tail[i]);
+      for(j=i+1;j<fm->tail_num;j++)
+        fm->tail[j-1] = fm->tail[j];
+      fm->tail_num--;
+      i--;
+    }
   }
 
   return (0);
@@ -695,7 +775,7 @@ static int tail_apachelog_shutdown (void)
 
   for (i = 0; i < tail_apachelog_list_num; i++)
   {
-    tail_apachelog_destroy (tail_apachelog_list[i]);
+    tail_apachelog_destroy_filelist (tail_apachelog_list[i]);
     tail_apachelog_list[i] = NULL;
   }
   sfree (tail_apachelog_list);

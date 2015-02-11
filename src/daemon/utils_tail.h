@@ -76,7 +76,7 @@ int cu_tail_destroy (cu_tail_t *obj);
 int cu_tail_readline (cu_tail_t *obj, char *buf, int buflen);
 
 /*
- * cu_tail_readline
+ * cu_tail_read
  *
  * Reads from the file until eof condition or an error is encountered.
  *
