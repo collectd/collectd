@@ -89,6 +89,11 @@ static unsigned int do_core_cstate;
 static unsigned int do_pkg_cstate;
 
 /*
+ * Boolean indicating if the processor supports 'I/O System-Management Interrupt counter'
+ */
+static _Bool do_smi;
+
+/*
  * Boolean indicating if the processor supports 'Digital temperature sensor'
  * This feature enables the monitoring of the temperature of each core
  *
@@ -344,8 +349,10 @@ do {									\
 	READ_MSR(MSR_IA32_APERF, &t->aperf);
 	READ_MSR(MSR_IA32_MPERF, &t->mperf);
 
-	READ_MSR(MSR_SMI_COUNT, &msr);
-	t->smi_count = msr & 0xFFFFFFFF;
+	if (do_smi) {
+		READ_MSR(MSR_SMI_COUNT, &msr);
+		t->smi_count = msr & 0xFFFFFFFF;
+	}
 
 	/* collect core counters only for 1st thread in core */
 	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE)) {
@@ -525,7 +532,8 @@ delta_thread(struct thread_data *delta, const struct thread_data *new, const str
 		delta->mperf = 1;	/* divide by 0 protection */
 	}
 
-	delta->smi_count = new->smi_count - old->smi_count;
+	if (do_smi)
+		delta->smi_count = new->smi_count - old->smi_count;
 
 	return 0;
 }
@@ -589,7 +597,8 @@ submit_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	turbostat_submit("TSC", "gauge", name, 1.0 * t->tsc / 1000000 / interval_float);
 
 	/* SMI */
-	turbostat_submit(NULL, "current", name, t->smi_count);
+	if (do_smi)
+		turbostat_submit(NULL, "current", name, t->smi_count);
 
 	/* submit per-core data only for 1st thread in core */
 	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
@@ -864,36 +873,6 @@ probe_cpu()
 	}
 
 	/*
-	 * CPUID(0x80000000):
-	 * - EAX: Maximum Input Value for Extended Function CPUID Information
-	 *
-	 * This allows us to verify if the CPUID(0x80000007) can be called
-	 *
-	 * This check is valid for both Intel and AMD.
-	 */
-	max_level = ebx = ecx = edx = 0;
-	__get_cpuid(0x80000000, &max_level, &ebx, &ecx, &edx);
-	if (max_level < 0x80000007) {
-		ERROR("Turbostat plugin: Unsupported CPU (no invariant TSC, "
-		      " Maximum Extended Function: 0x%x)", max_level);
-		return -1;
-	}
-
-	/*
-	 * CPUID(0x80000007):
-	 * - EDX:
-	 *  + 8: Invariant TSC available if set
-	 *
-	 * This check is valid for both Intel and AMD
-	 */
-	eax = ebx = ecx = edx = 0;
-	__get_cpuid(0x80000007, &eax, &ebx, &ecx, &edx);
-	if (!(edx & (1 << 8))) {
-		ERROR("Turbostat plugin: Unsupported CPU (No invariant TSC)");
-		return -1;
-	}
-
-	/*
 	 * CPUID(6):
 	 * - EAX:
 	 *  + 0: Digital temperature sensor is supported if set
@@ -921,12 +900,14 @@ probe_cpu()
 		switch (model) {
 		/* Atom (partial) */
 		case 0x27:
+			do_smi = 0;
 			do_core_cstate = 0;
 			do_pkg_cstate = (1 << 2) | (1 << 4) | (1 << 6);
 			break;
 		/* Silvermont */
 		case 0x37: /* BYT */
 		case 0x4D: /* AVN */
+			do_smi = 1;
 			do_core_cstate = (1 << 1) | (1 << 6);
 			do_pkg_cstate = (1 << 6);
 			break;
@@ -935,6 +916,7 @@ probe_cpu()
 		case 0x1E: /* Core i7 and i5 Processor - Clarksfield, Lynnfield, Jasper Forest */
 		case 0x1F: /* Core i7 and i5 Processor - Nehalem */
 		case 0x2E: /* Nehalem-EX Xeon - Beckton */
+			do_smi = 1;
 			do_core_cstate = (1 << 3) | (1 << 6);
 			do_pkg_cstate = (1 << 3) | (1 << 6) | (1 << 7);
 			break;
@@ -942,18 +924,21 @@ probe_cpu()
 		case 0x25: /* Westmere Client - Clarkdale, Arrandale */
 		case 0x2C: /* Westmere EP - Gulftown */
 		case 0x2F: /* Westmere-EX Xeon - Eagleton */
+			do_smi = 1;
 			do_core_cstate = (1 << 3) | (1 << 6);
 			do_pkg_cstate = (1 << 3) | (1 << 6) | (1 << 7);
 			break;
 		/* Sandy Bridge */
 		case 0x2A: /* SNB */
 		case 0x2D: /* SNB Xeon */
+			do_smi = 1;
 			do_core_cstate = (1 << 3) | (1 << 6) | (1 << 7);
 			do_pkg_cstate = (1 << 2) | (1 << 3) | (1 << 6) | (1 << 7);
 			break;
 		/* Ivy Bridge */
 		case 0x3A: /* IVB */
 		case 0x3E: /* IVB Xeon */
+			do_smi = 1;
 			do_core_cstate = (1 << 3) | (1 << 6) | (1 << 7);
 			do_pkg_cstate = (1 << 2) | (1 << 3) | (1 << 6) | (1 << 7);
 			break;
@@ -961,26 +946,32 @@ probe_cpu()
 		case 0x3C: /* HSW */
 		case 0x3F: /* HSW */
 		case 0x46: /* HSW */
+			do_smi = 1;
 			do_core_cstate = (1 << 3) | (1 << 6) | (1 << 7);
 			do_pkg_cstate = (1 << 2) | (1 << 3) | (1 << 6) | (1 << 7);
 			break;
 		case 0x45: /* HSW */
+			do_smi = 1;
 			do_core_cstate = (1 << 3) | (1 << 6) | (1 << 7);
 			do_pkg_cstate = (1 << 2) | (1 << 3) | (1 << 6) | (1 << 7) | (1 << 8) | (1 << 9) | (1 << 10);
 			break;
 		/* Broadwel */
 		case 0x4F: /* BDW */
 		case 0x56: /* BDX-DE */
+			do_smi = 1;
 			do_core_cstate = (1 << 3) | (1 << 6) | (1 << 7);
 			do_pkg_cstate = (1 << 2) | (1 << 3) | (1 << 6) | (1 << 7);
 			break;
 		case 0x3D: /* BDW */
+			do_smi = 1;
 			do_core_cstate = (1 << 3) | (1 << 6) | (1 << 7);
 			do_pkg_cstate = (1 << 2) | (1 << 3) | (1 << 6) | (1 << 7) | (1 << 8) | (1 << 9) | (1 << 10);
 			break;
 		default:
-			ERROR("Turbostat plugin: Unsupported CPU (family: %#x,"
-			      " model: %#x)", family, model);
+			do_smi = 0;
+			do_core_cstate = 0;
+			do_pkg_cstate = 0;
+			break;
 		}
 		switch (model) {
 		case 0x2A: /* SNB */
