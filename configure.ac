@@ -3075,14 +3075,14 @@ fi
 if test "x$with_oracle" = "xyes"
 then
 	SAVE_CPPFLAGS="$CPPFLAGS"
-	SAVE_LDFLAGS="$LDFLAGS"
+	SAVE_LIBS="$LIBS"
 	CPPFLAGS="$CPPFLAGS $with_oracle_cppflags"
-	LDFLAGS="$LDFLAGS $with_oracle_libs"
+	LIBS="$LIBS $with_oracle_libs"
 
 	AC_CHECK_FUNC(OCIEnvCreate, [with_oracle="yes"], [with_oracle="no (Symbol 'OCIEnvCreate' not found)"])
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
-	LDFLAGS="$SAVE_LDFLAGS"
+	LIBS="$SAVE_LIBS"
 fi
 if test "x$with_oracle" = "xyes"
 then
@@ -3716,6 +3716,7 @@ fi
 if test "x$with_librdkafka" = "xyes"
 then
 	AC_CHECK_LIB(rdkafka, rd_kafka_new, [with_librdkafka="yes"], [with_librdkafka="no (Symbol 'rd_kafka_new' not found)"])
+  AC_CHECK_LIB(rdkafka, rd_kafka_conf_set_log_cb, [with_librdkafka_log="yes"], [with_librdkafka_log="no (Symbol 'rd_kafka_conf_set_log_cb not found)"])
 fi
 if test "x$with_librdkafka" = "xyes"
 then
@@ -3726,6 +3727,10 @@ then
 	AC_SUBST(BUILD_WITH_LIBRDKAFKA_LDFLAGS)
 	AC_SUBST(BUILD_WITH_LIBRDKAFKA_LIBS)
 	AC_DEFINE(HAVE_LIBRDKAFKA, 1, [Define if librdkafka is present and usable.])
+  if test "x$with_librdkafka_log" = "xyes"
+  then
+        AC_DEFINE(HAVE_LIBRDKAFKA_LOG, 1, [Define if librdkafka log facility is present and usable.])
+  fi
 fi
 CPPFLAGS="$SAVE_CPPFLAGS"
 LDFLAGS="$SAVE_LDFLAGS"
@@ -5126,9 +5131,9 @@ fi
 with_libi2c="no"
 if test "x$ac_system" = "xLinux"
 then
-AC_CHECK_DECL(i2c_smbus_read_i2c_block_data, 
-	[with_libi2c="yes"], 
-	[with_libi2c="no (symbol i2c_smbus_read_i2c_block_data not found - have you installed libi2c-dev ?)"], 
+AC_CHECK_DECL(i2c_smbus_read_i2c_block_data,
+	[with_libi2c="yes"],
+	[with_libi2c="no (symbol i2c_smbus_read_i2c_block_data not found - have you installed libi2c-dev ?)"],
 	[[#include <stdlib.h>
 	#include <linux/i2c-dev.h>]])
 fi
@@ -5461,6 +5466,7 @@ dnl Default configuration file
 # Load either syslog or logfile
 LOAD_PLUGIN_SYSLOG=""
 LOAD_PLUGIN_LOGFILE=""
+LOAD_PLUGIN_LOG_LOGSTASH=""
 
 AC_MSG_CHECKING([which default log plugin to load])
 default_log_plugin="none"
@@ -5482,10 +5488,20 @@ then
 else
 	LOAD_PLUGIN_LOGFILE="##"
 fi
+
+if test "x$enable_logfile" = "xyes"
+then
+  LOAD_PLUGIN_LOG_LOGSTASH="#"
+else
+  LOAD_PLUGIN_LOG_LOGSTASH="##"
+fi
+
+
 AC_MSG_RESULT([$default_log_plugin])
 
 AC_SUBST(LOAD_PLUGIN_SYSLOG)
 AC_SUBST(LOAD_PLUGIN_LOGFILE)
+AC_SUBST(LOAD_PLUGIN_LOG_LOGSTASH)
 
 DEFAULT_LOG_LEVEL="info"
 if test "x$enable_debug" = "xyes"

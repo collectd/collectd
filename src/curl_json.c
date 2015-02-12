@@ -77,6 +77,7 @@ struct cj_s /* {{{ */
   char *cacert;
   struct curl_slist *headers;
   char *post_body;
+  cdtime_t interval;
 
   CURL *curl;
   char curl_errbuf[CURL_ERROR_SIZE];
@@ -697,6 +698,8 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string (child, &db->post_body);
     else if (strcasecmp ("Key", child->key) == 0)
       status = cj_config_add_key (db, child);
+    else if (strcasecmp ("Interval", child->key) == 0)
+      status = cf_util_get_cdtime(child, &db->interval);
     else
     {
       WARNING ("curl_json plugin: Option `%s' not allowed here.", child->key);
@@ -724,6 +727,9 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
   {
     user_data_t ud;
     char cb_name[DATA_MAX_NAME_LEN];
+    struct timespec interval = { 0, 0 };
+
+    CDTIME_T_TO_TIMESPEC (db->interval, &interval);
 
     if (db->instance == NULL)
       db->instance = strdup("default");
@@ -739,7 +745,8 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
                db->instance, db->url ? db->url : db->sock);
 
     plugin_register_complex_read (/* group = */ NULL, cb_name, cj_read,
-                                  /* interval = */ NULL, &ud);
+                                  /* interval = */ (db->interval > 0) ? &interval : NULL,
+                                  &ud);
   }
   else
   {
@@ -821,6 +828,9 @@ static void cj_submit (cj_t *db, cj_key_t *key, value_t *value) /* {{{ */
   sstrncpy (vl.plugin, "curl_json", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, db->instance, sizeof (vl.plugin_instance));
   sstrncpy (vl.type, key->type, sizeof (vl.type));
+
+  if (db->interval > 0)
+    vl.interval = db->interval;
 
   plugin_dispatch_values (&vl);
 } /* }}} int cj_submit */
