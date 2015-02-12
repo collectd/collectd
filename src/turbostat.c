@@ -983,22 +983,25 @@ probe_cpu()
 			      " model: %#x)", family, model);
 		}
 		switch (model) {
-		case 0x2A:
-		case 0x3A:
-		case 0x3C:
-		case 0x45:
-		case 0x46:
+		case 0x2A: /* SNB */
+		case 0x3A: /* IVB */
+		case 0x3C: /* HSW */
+		case 0x45: /* HSW */
+		case 0x46: /* HSW */
+		case 0x3D: /* BDW */
 			do_rapl = RAPL_PKG | RAPL_CORES | RAPL_CORE_POLICY | RAPL_PKG_POWER_INFO | RAPL_GFX;
 			break;
-		case 0x3F:
+		case 0x3F: /* HSX */
+		case 0x4F: /* BDX */
+		case 0x56: /* BDX-DE */
 			do_rapl = RAPL_PKG | RAPL_PKG_POWER_INFO | RAPL_PKG_PERF_STATUS | RAPL_DRAM | RAPL_DRAM_PERF_STATUS;
 			break;
-		case 0x2D:
-		case 0x3E:
+		case 0x2D: /* SNB Xeon */
+		case 0x3E: /* IVB Xeon */
 			do_rapl = RAPL_PKG | RAPL_CORES | RAPL_CORE_POLICY | RAPL_PKG_POWER_INFO | RAPL_PKG_PERF_STATUS | RAPL_DRAM | RAPL_DRAM_PERF_STATUS;
 			break;
-		case 0x37:
-		case 0x4D:
+		case 0x37: /* BYT */
+		case 0x4D: /* AVN */
 			do_rapl = RAPL_PKG | RAPL_CORES;
 			break;
 		default:
