@@ -580,9 +580,10 @@ submit_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	if (!aperf_mperf_unstable)
 		turbostat_submit(name, "percent", "c1", 100.0 * t->c1/t->tsc);
 
-	/* GHz */
+	turbostat_submit("Average", "frequency", name, 1.0 / 1000000 * t->aperf / interval_float);
+
 	if ((!aperf_mperf_unstable) || (!(t->aperf > t->tsc || t->mperf > t->tsc)))
-		turbostat_submit(NULL, "frequency", name, 1.0 * t->tsc / 1000000000 * t->aperf / t->mperf / interval_float);
+		turbostat_submit("Buzy", "frequency", name, 1.0 * t->tsc / 1000000 * t->aperf / t->mperf / interval_float);
 
 	/* SMI */
 	turbostat_submit(NULL, "current", name, t->smi_count);
