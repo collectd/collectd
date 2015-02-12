@@ -926,10 +926,7 @@ probe_cpu()
 			break;
 		/* Silvermont */
 		case 0x37: /* BYT */
-		case 0x4A:
 		case 0x4D: /* AVN */
-		case 0x5A:
-		case 0x5D:
 			do_core_cstate = (1 << 1) | (1 << 6);
 			do_pkg_cstate = (1 << 6);
 			break;
