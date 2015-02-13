@@ -126,26 +126,15 @@ static double rapl_energy_units;
 #define RAPL_PKG		(1 << 0)
 					/* 0x610 MSR_PKG_POWER_LIMIT */
 					/* 0x611 MSR_PKG_ENERGY_STATUS */
-#define RAPL_PKG_PERF_STATUS	(1 << 1)
-					/* 0x613 MSR_PKG_PERF_STATUS */
-#define RAPL_PKG_POWER_INFO	(1 << 2)
-					/* 0x614 MSR_PKG_POWER_INFO */
-
-#define RAPL_DRAM		(1 << 3)
+#define RAPL_DRAM		(1 << 1)
 					/* 0x618 MSR_DRAM_POWER_LIMIT */
 					/* 0x619 MSR_DRAM_ENERGY_STATUS */
 					/* 0x61c MSR_DRAM_POWER_INFO */
-#define RAPL_DRAM_PERF_STATUS	(1 << 4)
-					/* 0x61b MSR_DRAM_PERF_STATUS */
-
-#define RAPL_CORES		(1 << 5)
+#define RAPL_CORES		(1 << 2)
 					/* 0x638 MSR_PP0_POWER_LIMIT */
 					/* 0x639 MSR_PP0_ENERGY_STATUS */
-#define RAPL_CORE_POLICY	(1 << 6)
-					/* 0x63a MSR_PP0_POLICY */
 
-
-#define RAPL_GFX		(1 << 7)
+#define RAPL_GFX		(1 << 3)
 					/* 0x640 MSR_PP1_POWER_LIMIT */
 					/* 0x641 MSR_PP1_ENERGY_STATUS */
 					/* 0x642 MSR_PP1_POLICY */
@@ -187,8 +176,6 @@ static struct pkg_data {
 	unsigned int energy_dram;	/* MSR_DRAM_ENERGY_STATUS */
 	unsigned int energy_cores;	/* MSR_PP0_ENERGY_STATUS */
 	unsigned int energy_gfx;	/* MSR_PP1_ENERGY_STATUS */
-	unsigned int rapl_pkg_perf_status;	/* MSR_PKG_PERF_STATUS */
-	unsigned int rapl_dram_perf_status;	/* MSR_DRAM_PERF_STATUS */
 	unsigned int tcc_activation_temp;
 	unsigned int pkg_temp_c;
 } *package_delta, *package_even, *package_odd;
@@ -409,14 +396,6 @@ do {									\
 		READ_MSR(MSR_PP1_ENERGY_STATUS, &msr);
 		p->energy_gfx = msr & 0xFFFFFFFF;
 	}
-	if (do_rapl & RAPL_PKG_PERF_STATUS) {
-		READ_MSR(MSR_PKG_PERF_STATUS, &msr);
-		p->rapl_pkg_perf_status = msr & 0xFFFFFFFF;
-	}
-	if (do_rapl & RAPL_DRAM_PERF_STATUS) {
-		READ_MSR(MSR_DRAM_PERF_STATUS, &msr);
-		p->rapl_dram_perf_status = msr & 0xFFFFFFFF;
-	}
 	if (do_ptm) {
 		READ_MSR(MSR_IA32_PACKAGE_THERM_STATUS, &msr);
 		p->pkg_temp_c = p->tcc_activation_temp - ((msr >> 16) & 0x7F);
@@ -462,8 +441,6 @@ delta_package(struct pkg_data *delta, const struct pkg_data *new, const struct p
 	DELTA_WRAP32(delta->energy_cores, new->energy_cores, old->energy_cores);
 	DELTA_WRAP32(delta->energy_gfx, new->energy_gfx, old->energy_gfx);
 	DELTA_WRAP32(delta->energy_dram, new->energy_dram, old->energy_dram);
-	DELTA_WRAP32(delta->rapl_pkg_perf_status, new->rapl_pkg_perf_status, old->rapl_pkg_perf_status);
-	DELTA_WRAP32(delta->rapl_dram_perf_status, new->rapl_dram_perf_status, old->rapl_dram_perf_status);
 }
 
 /*
@@ -980,16 +957,16 @@ probe_cpu()
 		case 0x45: /* HSW */
 		case 0x46: /* HSW */
 		case 0x3D: /* BDW */
-			do_rapl = RAPL_PKG | RAPL_CORES | RAPL_CORE_POLICY | RAPL_PKG_POWER_INFO | RAPL_GFX;
+			do_rapl = RAPL_PKG | RAPL_CORES | RAPL_GFX;
 			break;
 		case 0x3F: /* HSX */
 		case 0x4F: /* BDX */
 		case 0x56: /* BDX-DE */
-			do_rapl = RAPL_PKG | RAPL_PKG_POWER_INFO | RAPL_PKG_PERF_STATUS | RAPL_DRAM | RAPL_DRAM_PERF_STATUS;
+			do_rapl = RAPL_PKG | RAPL_DRAM ;
 			break;
 		case 0x2D: /* SNB Xeon */
 		case 0x3E: /* IVB Xeon */
-			do_rapl = RAPL_PKG | RAPL_CORES | RAPL_CORE_POLICY | RAPL_PKG_POWER_INFO | RAPL_PKG_PERF_STATUS | RAPL_DRAM | RAPL_DRAM_PERF_STATUS;
+			do_rapl = RAPL_PKG | RAPL_CORES | RAPL_DRAM;
 			break;
 		case 0x37: /* BYT */
 		case 0x4D: /* AVN */
