@@ -5556,6 +5556,7 @@ AC_PLUGIN([syslog],      [$have_syslog],       [Syslog logging plugin])
 AC_PLUGIN([table],       [yes],                [Parsing of tabular data])
 AC_PLUGIN([tail],        [yes],                [Parsing of logfiles])
 AC_PLUGIN([tail_csv],    [yes],                [Parsing of CSV files])
+AC_PLUGIN([tail_apache], [yes],                [Parsing of apache log files])
 AC_PLUGIN([tape],        [$plugin_tape],       [Tape drive statistics])
 AC_PLUGIN([target_notification], [yes],        [The notification target])
 AC_PLUGIN([target_replace], [yes],             [The replace target])
@@ -5926,6 +5927,7 @@ Configuration:
     table . . . . . . . . $enable_table
     tail  . . . . . . . . $enable_tail
     tail_csv  . . . . . . $enable_tail_csv
+    tail_apache . . . . . $enable_tail_apache
     tape  . . . . . . . . $enable_tape
     target_notification . $enable_target_notification
     target_replace  . . . $enable_target_replace

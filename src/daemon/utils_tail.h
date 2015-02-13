@@ -32,7 +32,12 @@
 #ifndef UTILS_TAIL_H
 #define UTILS_TAIL_H 1
 
-struct cu_tail_s;
+struct cu_tail_s
+{
+        char  *file;
+        FILE  *fh;
+        struct stat stat;
+};
 typedef struct cu_tail_s cu_tail_t;
 
 typedef int tailfunc_t(void *data, char *buf, int buflen);

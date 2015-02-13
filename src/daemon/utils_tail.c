@@ -34,12 +34,6 @@
 #include "common.h"
 #include "utils_tail.h"
 
-struct cu_tail_s
-{
-	char  *file;
-	FILE  *fh;
-	struct stat stat;
-};
 
 static int cu_tail_reopen (cu_tail_t *obj)
 {

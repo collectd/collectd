@@ -977,6 +977,12 @@ tail_csv_la_SOURCES = tail_csv.c
 tail_csv_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_TAIL_APACHE
+pkglib_LTLIBRARIES += tail_apache.la
+tail_apache_la_SOURCES = tail_apache.c
+tail_apache_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_TAPE
 pkglib_LTLIBRARIES += tape.la
 tape_la_SOURCES = tape.c
