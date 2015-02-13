@@ -31,6 +31,7 @@
 #include "plugin.h"
 #include "utils_tail.h"
 #include <glob.h>
+#include <float.h>
 
 /*
    <Plugin tail_apache>
@@ -260,7 +261,7 @@ static int tail_apachelog_config_add_report_threshold (tail_apachelog_config_rep
     oconfig_item_t *ci)
 {
   int i;
-  double prev=0;
+  double prev=-DBL_MAX;
   if (ci->values_num < 1)
   {
     ERROR ("tail_apachelog plugin: `Threshold' needs one or more float arguments.");
@@ -390,10 +391,14 @@ static int tail_apachelog_config_add_report (tail_apachelog_config_match_t *cm,
 
   if ( rm->type == TA_R_COUNT_CODE || rm->type == TA_R_COUNT_SIZE || rm->type == TA_R_COUNT_TIME ){
      rm->data = malloc(sizeof(size_t)*rm->threshold_num);
+     if(rm->data)   memset(rm->data, 0, sizeof(size_t)*rm->threshold_num);
+     ERROR ("tail_apachelog plugin: report_threshold: created array of size %zu, %p",rm->threshold_num,rm->data);
   }else if(rm->type == TA_R_AVG_SIZE || rm->type ==  TA_R_AVG_TIME){
      rm->data = malloc(sizeof(size_t)*2);
+     if(rm->data)   memset(rm->data, 0, sizeof(size_t)*2);
   }else{
      rm->data = malloc(sizeof(size_t));
+     if(rm->data)   memset(rm->data, 0, sizeof(size_t));
   }
 
   if (rm->data == NULL)
@@ -987,7 +992,6 @@ static int tail_apachelog_threshold_getindex(tail_apachelog_config_report_t*rm,d
 
 static int tail_apachelog_report(tail_apachelog_config_report_t*rm,tail_apachelog_current_data_t *data){
   size_t *cnt  = (size_t*)rm->data;
-  size_t **cntarr = (size_t**)rm->data;
   int i;
 
   switch(rm->type){
@@ -997,32 +1001,32 @@ static int tail_apachelog_report(tail_apachelog_config_report_t*rm,tail_apachelo
       break;
    case TA_R_COUNT_CODE:
       i = tail_apachelog_threshold_getindex(rm,data->code);
-      (*(cntarr[i]))++;
-      ERROR ("tail_apachelog plugin: report COUNT_CODE %zu,%d = %zu",data->code,i,*(cntarr[i]));
+      cnt[i]++;
+      ERROR ("tail_apachelog plugin: report COUNT_CODE %zu,%d = %zu",data->code,i,cnt[i]);
       break;
    case TA_R_COUNT_TIME:
       i = tail_apachelog_threshold_getindex(rm,data->time);
-      (*(cntarr[i]))++;
-      ERROR ("tail_apachelog plugin: report COUNT_TIME %zu,%d = %zu",data->time,i,*(cntarr[i]));
+      cnt[i]++;
+      ERROR ("tail_apachelog plugin: report COUNT_TIME %zu,%d = %zu",data->time,i,cnt[i]);
       break;
    case TA_R_COUNT_SIZE:
       i = tail_apachelog_threshold_getindex(rm,data->size);
-      (*(cntarr[i]))++;
-      ERROR ("tail_apachelog plugin: report COUNT_SIZE %zu,%d = %zu",data->size,i,*(cntarr[i]));
+      cnt[i]++;
+      ERROR ("tail_apachelog plugin: report COUNT_SIZE %zu,%d = %zu",data->size,i,cnt[i]);
       break;
    case TA_R_SUM_SIZE:
       (*cnt)+=data->size;
       ERROR ("tail_apachelog plugin: report SUM %zu",*cnt);
       break;
    case TA_R_AVG_SIZE:
-      (*(cntarr[0]))++;
-      (*(cntarr[1]))+=data->size;
-      ERROR ("tail_apachelog plugin: report AVG_SIZE %f",1.0* (*(cntarr[1])) / (*(cntarr[0])));
+      cnt[0]++;
+      cnt[1]+=data->size;
+      ERROR ("tail_apachelog plugin: report AVG_SIZE %f",1.0* cnt[1] / cnt[0]);
       break;
    case TA_R_AVG_TIME:
-      (*(cntarr[0]))++;
-      (*(cntarr[1]))+=data->time;
-      ERROR ("tail_apachelog plugin: report AVG_TIME %f",1.0* (*(cntarr[1])) / (*(cntarr[0])));
+      cnt[0]++;
+      cnt[1]+=data->time;
+      ERROR ("tail_apachelog plugin: report AVG_TIME %f",1.0* cnt[1] / cnt[0]);
       break; 
   }
   return 0;
