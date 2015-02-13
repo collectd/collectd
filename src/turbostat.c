@@ -81,17 +81,23 @@ static _Bool aperf_mperf_unstable;
  * Currently supported C-states (by this plugin): 3, 6, 7
  */
 static unsigned int do_core_cstate;
+static unsigned int config_core_cstate;
+static _Bool apply_config_core_cstate;
 
 /*
  * Bitmask of the list of pacages C states supported by the processor.
  * Currently supported C-states (by this plugin): 2, 3, 6, 7, 8, 9, 10
  */
 static unsigned int do_pkg_cstate;
+static unsigned int config_pkg_cstate;
+static _Bool apply_config_pkg_cstate;
 
 /*
  * Boolean indicating if the processor supports 'I/O System-Management Interrupt counter'
  */
 static _Bool do_smi;
+static _Bool config_smi;
+static _Bool apply_config_smi;
 
 /*
  * Boolean indicating if the processor supports 'Digital temperature sensor'
@@ -102,6 +108,8 @@ static _Bool do_smi;
  *  - Temperatures above the tcc_activation_temp are not recorded
  */
 static _Bool do_dts;
+static _Bool config_dts;
+static _Bool apply_config_dts;
 
 /*
  * Boolean indicating if the processor supports 'Package thermal management'
@@ -112,6 +120,8 @@ static _Bool do_dts;
  *  - Temperatures above the tcc_activation_temp are not recorded
  */
 static _Bool do_ptm;
+static _Bool config_ptm;
+static _Bool apply_config_ptm;
 
 /*
  * Thermal Control Circuit Activation Temperature as configured by the user.
@@ -121,6 +131,8 @@ static _Bool do_ptm;
 static unsigned int tcc_activation_temp;
 
 static unsigned int do_rapl;
+static unsigned int config_rapl;
+static _Bool apply_config_rapl;
 static double rapl_energy_units;
 
 #define RAPL_PKG		(1 << 0)
@@ -218,7 +230,13 @@ static cdtime_t time_even, time_odd, time_delta;
 
 static const char *config_keys[] =
 {
+	"CoreCstates",
+	"PackageCstates",
+	"SystemManagementInterrupt",
+	"DigitalTemperatureSensor",
+	"PackageThermalManagement",
 	"TCCActivationTemp",
+	"RunningAveragePowerLimit",
 };
 static const int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -981,6 +999,20 @@ probe_cpu()
 		return -1;
 	}
 
+	/* Override detected values with configuration */
+	if (apply_config_core_cstate)
+		do_core_cstate = config_core_cstate;
+	if (apply_config_pkg_cstate)
+		do_pkg_cstate = config_pkg_cstate;
+	if (apply_config_smi)
+		do_smi = config_smi;
+	if (apply_config_dts)
+		do_dts = config_dts;
+	if (apply_config_ptm)
+		do_ptm = config_ptm;
+	if (apply_config_rapl)
+		do_rapl = config_rapl;
+
 	if (do_rapl) {
 		unsigned long long msr;
 		if (get_msr(0, MSR_RAPL_POWER_UNIT, &msr))
@@ -1537,7 +1569,43 @@ turbostat_config(const char *key, const char *value)
 	long unsigned int tmp_val;
 	char *end;
 
-	if (strcasecmp("TCCActivationTemp", key) == 0) {
+	if (strcasecmp("CoreCstates", key) == 0) {
+		tmp_val = strtoul(value, &end, 0);
+		if (*end != '\0' || tmp_val > UINT_MAX) {
+			ERROR("Turbostat plugin: Invalid CoreCstates '%s'",
+			      value);
+			return -1;
+		}
+		config_core_cstate = (unsigned int) tmp_val;
+		apply_config_core_cstate = 1;
+	} else if (strcasecmp("PackageCstates", key) == 0) {
+		tmp_val = strtoul(value, &end, 0);
+		if (*end != '\0' || tmp_val > UINT_MAX) {
+			ERROR("Turbostat plugin: Invalid PackageCstates '%s'",
+			      value);
+			return -1;
+		}
+		config_pkg_cstate = (unsigned int) tmp_val;
+		apply_config_pkg_cstate = 1;
+	} else if (strcasecmp("SystemManagementInterrupt", key) == 0) {
+		config_smi = IS_TRUE(value);
+		apply_config_smi = 1;
+	} else if (strcasecmp("DigitalTemperatureSensor", key) == 0) {
+		config_dts = IS_TRUE(value);
+		apply_config_dts = 1;
+	} else if (strcasecmp("PackageThermalManagement", key) == 0) {
+		config_ptm = IS_TRUE(value);
+		apply_config_ptm = 1;
+	} else if (strcasecmp("RunningAveragePowerLimit", key) == 0) {
+		tmp_val = strtoul(value, &end, 0);
+		if (*end != '\0' || tmp_val > UINT_MAX) {
+			ERROR("Turbostat plugin: Invalid RunningAveragePowerLimit '%s'",
+			      value);
+			return -1;
+		}
+		config_rapl = (unsigned int) tmp_val;
+		apply_config_rapl = 1;
+	} else if (strcasecmp("TCCActivationTemp", key) == 0) {
 		tmp_val = strtoul(value, &end, 0);
 		if (*end != '\0' || tmp_val > UINT_MAX) {
 			ERROR("Turbostat plugin: Invalid TCCActivationTemp '%s'",

@@ -1189,8 +1189,22 @@
 #</Plugin>
 
 #<Plugin turbostat>
-##	The following option should not be used if MSR_IA32_TEMPERATURE_TARGET is supported
-#	TCCActivationTemp 100
+##	None of the following option should be set manually
+##	This plugin automatically detect most optimal options
+##	Only set values here if:
+##	- The module ask you to
+##	- You want to disable the collection of some data
+##	- Your (intel) CPU is not supported (yet) by the module
+##	- The module generate a lot of errors 'MSR offset 0x... read failed'
+##	In the last two cases, please open a bug request
+#
+#	TCCActivationTemp "100"
+#	CoreCstates "392"
+# 	PackageCstates "396"
+#	SystemManagementInterrupt true
+#	DigitalTemperatureSensor true
+#	PackageThermalManagement true
+#	RunningAveragePowerLimit "7"	
 #</Plugin>
 
 #<Plugin unixsock>
