@@ -1063,9 +1063,7 @@ endif
 if BUILD_PLUGIN_TURBOSTAT
 pkglib_LTLIBRARIES += turbostat.la
 turbostat_la_SOURCES = turbostat.c
-turbostat_la_LDFLAGS = -module -avoid-version
-collectd_LDADD += "-dlopen" turbostat.la
-collectd_DEPENDENCIES += turbostat.la
+turbostat_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
 if BUILD_PLUGIN_UNIXSOCK
