@@ -233,6 +233,27 @@ int file_select(const struct dirent *entry)
 * return a filename in a new allocated array or null if any filename found
 */
 
+int check_dir_exist(char *dirname)
+{
+	DIR* dir = opendir(dirname);
+	if (dir)
+	{
+    	/* Directory exists. */
+    		closedir(dir);
+		return 1;
+	}
+	else if (ENOENT == errno)
+	{
+    		/* Directory does not exist. */
+		return 0;
+	}
+	else
+	{
+		return 0;
+   		 /* opendir() failed for some other reason. */
+	}
+}
+
 char *get_last_apache_modified_file_from_pattern(char *filename_pattern)
 {
 	struct dirent **namelist;
@@ -243,6 +264,12 @@ char *get_last_apache_modified_file_from_pattern(char *filename_pattern)
 	char *dirc=strdup(filename_pattern);
 	char *basec=strdup(filename_pattern);
 	dir_name=dirname(dirc);
+	if(!check_dir_exist(dir_name)) {
+		WARNING("APACHELOG no directory exist on %s",dir_name);
+		sfree(dirc);
+		sfree(basec);
+		return NULL;		
+	}
 	
 	DEBUG("APACHELOG SCANDIR %s ",dir_name);
 	apachelog_name_filter=basename(basec);
