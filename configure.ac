@@ -5063,6 +5063,57 @@ then
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBATASMART, test "x$with_libatasmart" = "xyes")
 # }}}
+# --with-openssl {{{
+with_openssl_cppflags=""
+with_openssl_ldflags=""
+AC_ARG_WITH(openssl, [AS_HELP_STRING([--with-openssl@<:@=PREFIX@:>@], [Path to openssl.])],
+[
+        if test "x$withval" != "xno" && test "x$withval" != "xyes"
+        then
+                with_openssl_cppflags="-I$withval/include"
+                with_openssl_ldflags="-L$withval/lib"
+                with_openssl="yes"
+        else
+                with_openssl="$withval"
+        fi
+],
+[
+        with_openssl="yes"
+])
+if test "x$with_openssl" = "xyes"
+then
+        SAVE_CPPFLAGS="$CPPFLAGS"
+        CPPFLAGS="$CPPFLAGS $with_openssl_cppflags"
+
+        AC_CHECK_HEADERS(openssl/crypto.h openssl/err.h, [with_openssl="yes"], [with_openssl="no (openssl/crypto.h and openssl/err.sh not found not found)"])
+
+        CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_openssl" = "xyes"
+then
+        SAVE_CPPFLAGS="$CPPFLAGS"
+        SAVE_LDFLAGS="$LDFLAGS"
+        CPPFLAGS="$CPPFLAGS $with_openssl_cppflags"
+        LDFLAGS="$LDFLAGS $with_openssl_ldflags"
+
+        AC_CHECK_LIB(crypto, CRYPTO_set_id_callback, [with_openssl="yes"], [with_openssl="no (Symbol 'CRYPTO_set_id_callback' not found)"])
+
+        CPPFLAGS="$SAVE_CPPFLAGS"
+        LDFLAGS="$SAVE_LDFLAGS"
+fi
+if test "x$with_openssl" = "xyes"
+then
+        BUILD_WITH_OPENSSL_CPPFLAGS="$with_openssl_cppflags"
+        BUILD_WITH_OPENSSL_LDFLAGS="$with_openssl_ldflags"
+        BUILD_WITH_OPENSSL_LIBS="-lssl -lcrypto"
+        AC_SUBST(BUILD_WITH_OPENSSL_CPPFLAGS)
+        AC_SUBST(BUILD_WITH_OPENSSL_LDFLAGS)
+        AC_SUBST(BUILD_WITH_OPENSSL_LIBS)
+        AC_DEFINE(HAVE_OPENSSL, 1, [Define if openssl is present and usable.])
+fi
+AM_CONDITIONAL(BUILD_WITH_OPENSSL, test "x$with_openssl" = "xyes")
+# }}}
+
 
 PKG_CHECK_MODULES([LIBNOTIFY], [libnotify],
 		[with_libnotify="yes"],
@@ -5943,6 +5994,7 @@ Configuration:
     oracle  . . . . . . . $with_oracle
     protobuf-c  . . . . . $have_protoc_c
     python  . . . . . . . $with_python
+    openssl . . . . . . . $with_openssl
 
   Features:
     daemon mode . . . . . $enable_daemon
