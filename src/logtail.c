@@ -73,34 +73,34 @@ Config example:
 
           <Report>
 	      Type "count"
-#	      Instance "count"
+#	      Instance "total"  # will be counter-total
           </Report>
           <Report>
 	      Type "count_code"
               Threshold 200 300 400 404 405 500 501 505
-#	       Instance "count_code"
+#	       Instance "code" # will be counter-code-%d
           </Report>
           <Report>
 	      Type "count_time"
               Threshold 1000 10000 100000 1000000
-#	      Instance "count_time"
+#	      Instance "time" # will be counter-time-%d 
           </Report>
           <Report>
 	      Type "count_size"
               Threshold 1000 10000 100000 1000000
-#	      Instance "count_size"
+#	      Instance "size" # will be counter-size-%d
           </Report>
           <Report>
 	      Type "sum_size"
-#	      Instance "sum_size"
+#	      Instance "sum_size" # will be counter-sum_size
           </Report>
           <Report>
 	      Type "avg_size"
-#	      Instance "avg_size"
+#	      Instance "size"  # will be avg-size
           </Report>
           <Report>
 	      Type "avg_time"
-#	      Instance "avg_time"
+#	      Instance "time" # will be avg-time
           </Report>
 	</Match>
 	<Match>
@@ -409,13 +409,13 @@ static int logtail_config_add_report (logtail_config_match_t *cm,
   if(!rm->instance){
      char * instanceName[] = {
             "(null)",
-            "count",
-            "count_code",
-            "count_time",
-            "count_size",
+            "total",
+            "code",
+            "time",
+            "size",
             "sum_size",
-            "avg_size",
-            "avg_time" };
+            "size",
+            "time" };
         
      rm->instance=strdup(instanceName[rm->type]);
 
@@ -679,7 +679,7 @@ static int logtail_config_add_filemask (oconfig_item_t *ci,const char*filemask)
     return (-1);
   }
 
-  fm->format = strdup("%? %? %? %? %? \"%? %r %? %s %b \"%?\" \"%?\" %D");
+  fm->format = strdup("%? %? %? %? %? \"%? %r %?\" %s %b \"%?\" \"%?\" %D");
   if(!fm->format){
       ERROR ("logtail plugin: alloc failed.%d",__LINE__);
     logtail_destroy_filemask(fm);
@@ -855,6 +855,8 @@ static int logtail_glob(logtail_config_filemask_t *fm){
   int i,ret;
   int flags = GLOB_BRACE|GLOB_TILDE_CHECK|GLOB_ERR;
 
+  DEBUG ("logtail plugin: globbing fm = %p",(void *)fm);
+  DEBUG ("logtail plugin: globbing filemask %p = %s",(void *)fm->filemask,fm->filemask);
   ret = glob(fm->filemask,flags, 0, &res);
   if(ret){
     ERROR ("logtail plugin: glob failed %d for %s",ret,fm->filemask);
@@ -884,7 +886,7 @@ static int logtail_read_parse(logtail_config_filemask_t *fm,char *buf,logtail_cu
        case TA_F_SPACES:
           i=strspn(buf+x," \t\n\r\f\v");
           if(i == 0){
-            WARNING ("logtail plugin: parse %s failed at %d. expected space/tab/cr/ln, found '%c'",buf,x,buf[x]);
+            INFO ("logtail plugin: parse %s failed at %d. expected space/tab/cr/ln, found '%c'",buf,x,buf[x]);
             return(-1);
           }
           x+=i;
@@ -894,7 +896,7 @@ static int logtail_read_parse(logtail_config_filemask_t *fm,char *buf,logtail_cu
           if(!quote)quote=' ';
           next=strchr(buf+x,quote);
           if(next == 0){
-            WARNING ("logtail plugin: parse %s failed at %d. expected non-space, found '%c'",buf,x,buf[x]);
+            INFO ("logtail plugin: parse %s failed at %d. expected non-space, found '%c'",buf,x,buf[x]);
             return(-1);
           }
           x=next-buf;
@@ -903,7 +905,7 @@ static int logtail_read_parse(logtail_config_filemask_t *fm,char *buf,logtail_cu
 
           i=strspn(&buf[x],"\"'");
           if(i == 0){
-            WARNING ("logtail plugin: parse %s failed at %d. expected quote, found '%c'",buf,x,buf[x]);
+            INFO ("logtail plugin: parse %s failed at %d. expected quote, found '%c'",buf,x,buf[x]);
             return(-1);
           }
           quote=buf[x];
@@ -924,7 +926,7 @@ static int logtail_read_parse(logtail_config_filemask_t *fm,char *buf,logtail_cu
           break;
        case TA_F_CODE:
          if(!isdigit(buf[x])){
-            WARNING ("logtail plugin: parse failed at %d. expected code(digit), found '%c'\n%s\n%s\n",x,buf[x],buf,fm->format);
+            INFO ("logtail plugin: parse failed at %d. expected code(digit), found '%c'\n%s\n%s\n",x,buf[x],buf,fm->format);
             return(-1);
          }
          cur_data->code=strtoul(&buf[x],&next,0);
@@ -932,7 +934,7 @@ static int logtail_read_parse(logtail_config_filemask_t *fm,char *buf,logtail_cu
          break;
        case TA_F_SIZE:
          if(!isdigit(buf[x])){
-            WARNING ("logtail plugin: parse failed at %d. expected size(digit), found '%c'\n%s\n%s\n",x,buf[x],buf,fm->format);
+            INFO ("logtail plugin: parse failed at %d. expected size(digit), found '%c'\n%s\n%s\n",x,buf[x],buf,fm->format);
             return(-1);
          }
          cur_data->size=strtoul(&buf[x],&next,0);
@@ -941,7 +943,7 @@ static int logtail_read_parse(logtail_config_filemask_t *fm,char *buf,logtail_cu
 
        case TA_F_TIME:
          if(!isdigit(buf[x])){
-            WARNING ("logtail plugin: parse failed at %d. expected duration time(digit), found '%c'\n%s\n%s\n",x,buf[x],buf,fm->format);
+            INFO ("logtail plugin: parse failed at %d. expected duration time(digit), found '%c'\n%s\n%s\n",x,buf[x],buf,fm->format);
             return(-1);
          }
          cur_data->time=strtoul(&buf[x],&next,0);
@@ -950,13 +952,13 @@ static int logtail_read_parse(logtail_config_filemask_t *fm,char *buf,logtail_cu
 
        case TA_F_PATH:
          if(isspace(buf[x])){
-            WARNING ("logtail plugin: parse failed at %d. expected path(not space), found '%c'\n%s\n%s\n",x,buf[x],buf,fm->format);
+            INFO ("logtail plugin: parse failed at %d. expected path(not space), found '%c'\n%s\n%s\n",x,buf[x],buf,fm->format);
             return(-1);
          }
 
          i=strcspn(buf+x," \t\n\r\f\v");
          if(i == 0){
-            WARNING ("logtail plugin: parse %s failed at %d. expected non-space, found '%c'",buf,x,buf[x]);
+            INFO ("logtail plugin: parse %s failed at %d. expected non-space, found '%c'",buf,x,buf[x]);
             return(-1);
          }
          cur_data->path=strndup(buf+x,i);
@@ -969,14 +971,14 @@ static int logtail_read_parse(logtail_config_filemask_t *fm,char *buf,logtail_cu
 
        default:
          if(fm->format_parsed[y] != buf[x] ){
-           WARNING ("logtail plugin: parse failed  at %d. expected '%c', found '%c'\n%s\n%s\n",x,fm->format_parsed[y],buf[x],buf,fm->format);
+           INFO ("logtail plugin: parse failed  at %d. expected '%c', found '%c'\n%s\n%s\n",x,fm->format_parsed[y],buf[x],buf,fm->format);
            return (-1);
          }
          x++;
      }
   }
   if(!buf[x]&&fm->format_parsed[y]){
-    WARNING ("logtail plugin: parse failed at %d. expected '%c', found EOL",x,fm->format_parsed[y]);
+    INFO ("logtail plugin: parse failed at %d. expected '%c', found EOL",x,fm->format_parsed[y]);
     return (-1);
   }
 //  DEBUG("logtail plugin: parse: size=%ld time=%ld code=%ld path=%s",cur_data->size,cur_data->time,cur_data->code,cur_data->path);
@@ -1033,27 +1035,28 @@ static int logtail_threshold_getindex(logtail_config_report_t*rm,double val){
 }
 
 static int logtail_update_report(logtail_config_report_t*rm,logtail_current_data_t *data){
-  size_t *cnt  = (size_t*)rm->data;
+  counter_t *cnt  = (counter_t*)rm->data;
   int i;
 
   switch(rm->type){
    case TA_R_COUNT:
-      (*cnt)++;
+      cnt[0]++;
+      DEBUG("logtail plugin: count=%lld",cnt[0]);
       break;
    case TA_R_COUNT_CODE:
       i = logtail_threshold_getindex(rm,data->code);
-      (counter_t)cnt[i]++;
+      cnt[i]++;
       break;
    case TA_R_COUNT_TIME:
       i = logtail_threshold_getindex(rm,data->time);
-      (counter_t)cnt[i]++;
+      cnt[i]++;
       break;
    case TA_R_COUNT_SIZE:
       i = logtail_threshold_getindex(rm,data->size);
-      (counter_t)cnt[i]++;
+      cnt[i]++;
       break;
    case TA_R_SUM_SIZE:
-      (*cnt)+=data->size;
+      cnt[0]+=data->size;
       break;
    case TA_R_AVG_SIZE:
       cnt[0]++;
@@ -1079,7 +1082,7 @@ static int logtail_read_callback (void *data, char *buf,
   fm=(logtail_config_filemask_t *)data;
 
   status = logtail_read_parse(fm,buf,&cur_data);
-  if(status) return status;
+  if(status) return 0;
 
   for(i=0;i<fm->match_num;i++)
     if(logtail_match(fm->match[i],&cur_data))
@@ -1098,7 +1101,7 @@ static int logtail_read_callback (void *data, char *buf,
   return 0;
 }
 
-static void submit_value (const char *type, const char *name,
+static void submit_value (const char *name, const char *type, const char * typename,
                 value_t value)
 {
   value_list_t vl = VALUE_LIST_INIT;
@@ -1109,64 +1112,74 @@ static void submit_value (const char *type, const char *name,
   sstrncpy(vl.host, hostname_g, sizeof (vl.host));
   sstrncpy(vl.plugin, "logtail", sizeof(vl.plugin));
       
-  sstrncpy (vl.plugin_instance, name, sizeof (vl.plugin_instance));
+  if (name != NULL)
+    sstrncpy (vl.plugin_instance, name, sizeof (vl.plugin_instance));
 
-  sstrncpy (vl.type, type, sizeof (vl.type));
-//  if (type_instance != NULL)
-//    sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
+  if (typename != NULL)
+    sstrncpy (vl.type_instance, typename, sizeof (vl.type_instance));
+
+  if (type != NULL)
+    sstrncpy (vl.type, type, sizeof (vl.type));
 
   plugin_dispatch_values (&vl);
 } /* void submit_value */
 
 
-static void submit_gauge (const char *type, const char *type_instance,
+static void submit_gauge (const char *name, const char *typename,
                 gauge_t g)
 {
         value_t v;
         v.gauge = g;
-        submit_value (type, type_instance, v);
+        submit_value (name,"avg", typename, v);
 } /* void submit_gauge */
 
-static void submit_counter (const char *type, const char *type_instance,
+static void submit_counter (const char *name, const char *typename,
                 counter_t c)
 {
         value_t v;
         v.counter = c;
-        submit_value (type, type_instance, v);
+        submit_value (name, "counter", typename, v);
 } /* void submit_gauge */
 
 static void logtail_send(logtail_config_filemask_t *fm)
 {
   int i,j,k;
-  char name1[1024],name2[1024];
+  char name[1024],type[1024];
+//  char*nameptr;
   gauge_t g;
   counter_t *data;
 
   for(i=0;i<fm->match_num;i++){
     for(j=0;j<fm->match[i]->report_num;j++){
-      snprintf(name1, sizeof (name1),"%s.%s",fm->match[i]->instance,fm->match[i]->report[j]->instance);
+      snprintf(name, sizeof (name),"%s.%s",fm->instance,fm->match[i]->instance);
+//      snprintf(name2, sizeof (name2),"%s.%s.%s",fm->instance,fm->match[i]->instance,fm->match[i]->report[j]->instance);
       data=(counter_t*) fm->match[i]->report[j]->data;
 
       switch(fm->match[i]->report[j]->type){
         case TA_R_COUNT:
         case TA_R_SUM_SIZE:
-          submit_counter( (fm->match[i]->report[j]->type == TA_R_COUNT ? "objects" : "bytes") , name1, *data );
+          DEBUG("logtail plugin:send count %s=%lld",name,data[0]);
+
+//          nameptr = (fm->match[i]->report[j]->type == TA_R_COUNT ? "counter" : "bytes");
+          submit_counter( name , fm->match[i]->report[j]->instance, data[0] );
           break;
 
         case TA_R_COUNT_CODE:
         case TA_R_COUNT_TIME:
         case TA_R_COUNT_SIZE:
+//          name = "counter";
           for(k=0;k<fm->match[i]->report[j]->threshold_num;k++){
-            snprintf(name2,sizeof(name2),"%s.%zu",name1,fm->match[i]->report[j]->threshold[k]);
-            submit_gauge("objects", name2, data[k] ); 
+            snprintf(type,sizeof(type),"%s-%zu",fm->match[i]->report[j]->instance,fm->match[i]->report[j]->threshold[k]);
+            submit_counter(name, type, data[k] ); 
           }
-          memset(data,0,sizeof(counter_t) * fm->match[i]->report[j]->threshold_num);
+//          memset(data,0,sizeof(counter_t) * fm->match[i]->report[j]->threshold_num);
           break;
 
         case TA_R_AVG_SIZE:
         case TA_R_AVG_TIME:
+//          type = fm->match[i]->report[j]->type == TA_R_AVG_SIZE ? "bytes" : "duration";
           g= data[0] ? 1.0 * data[1] / data[0] : 0.0;
-          submit_gauge(fm->match[i]->report[j]->type == TA_R_AVG_SIZE ? "bytes" : "duration", name1, g );
+          submit_gauge(name, fm->match[i]->report[j]->instance, g );
           memset(data,0,sizeof(counter_t)*2);
           break;
       }
@@ -1225,7 +1238,7 @@ static int logtail_init (void)
   for (i = 0; i < logtail_list_num; i++)
   {
     ud.data = (void *)logtail_list[i];
-    ssnprintf(str, sizeof(str), "tail-%zu", i);
+    ssnprintf(str, sizeof(str), "logtail-%zu", i);
     CDTIME_T_TO_TIMESPEC (logtail_list[i]->interval, &cb_interval);
     plugin_register_complex_read (NULL, str, logtail_read, &cb_interval, &ud);
   }
