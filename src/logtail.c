@@ -1,7 +1,10 @@
 /**
- * collectd - src/tail_apache.c
- * Copyright (C) 2008       Florian octo Forster
+ * collectd - src/logtail.c 
+ *
+ * Very fast logtail analyzer. 
+ *
  * Copyright (C) 2015       Andrei Darashenka
+ * 
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,8 +25,9 @@
  * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
- *   Florian octo Forster <octo at collectd.org>
  *   Andrei Darashenka
+ *   used parts of tail.c and tail_csv.c (c) Florian octo Forster <octo at collectd.org>
+ *
  **/
 
 #include "collectd.h"
@@ -34,37 +38,56 @@
 #include <float.h>
 
 /*
-   <Plugin tail_apache>
-     <Files "/var/log/apache/website1_access.log*">
+It works like "tail -f" for your logs. It honours newly created/moved/truncated files. 
+It can count all lines, summarize bytes, count lines per code/size/time thresholds, calculate avg of time/size
+
+It handles 100k lines or 25MB without Writers in collectd and Regexps in plugin-config) within 4s on 1-core VIRT with E5-2670 0 @ 2.60GHz
+
+
+
+Config example:
+
+
+   <Plugin logtail>
+# many files/filemas can be specified
+     <Files "/var/log/apache/website1_access.log*" "/var/log/apache/website1alias_access.log*">
  	Instance "website1"
-        Interval 60
-# %r - request
-# %s - size
-# %b - bytes
-# %D - (micro)seconds
-# %? - any word (w/o spaces)
-# "%?" - any line in quotes
-        Format "%? %? %? %? %? \"%? %r %?\" %s %b \"%?\" \"%?\" %D %? %?"
- 
+
+#        Interval 60
+
+## text or symbols - what should match
+## %? - any word(to next separator)
+## "%?" - any line in quotes (single or double)
+## %r - special keyword: request URI
+## %s - size
+## %b - bytes
+## %D - (micro)seconds
+#        Format "%? %? %? %? %? \"%? %r %?\" %s %b \"%?\" \"%?\" %D %? %?"
+## todo: Exclude "%? localhost "
+
+# what to match for URI
 	<Match>
 	  Suffix .jpg .png .css .js
+          Prefix "/static/"
+          Instance "static"
+
           <Report>
 	      Type "count"
 #	      Instance "count"
           </Report>
           <Report>
 	      Type "count_code"
-#              Thresholds 200 300 400 404 405 500 501 505
+              Threshold 200 300 400 404 405 500 501 505
 #	       Instance "count_code"
           </Report>
           <Report>
 	      Type "count_time"
-              Thresholds 1000 10000 100000 1000000
+              Threshold 1000 10000 100000 1000000
 #	      Instance "count_time"
           </Report>
           <Report>
 	      Type "count_size"
-              Thresholds 1000 10000 100000 1000000
+              Threshold 1000 10000 100000 1000000
 #	      Instance "count_size"
           </Report>
           <Report>
@@ -85,7 +108,7 @@
 #         ..
 	</Match>
 	<Match>
-	  Regex ^/user/
+#todo:	  Regex ^/user/
 #         ..
 	</Match>
 	<Match>
@@ -100,56 +123,56 @@
 
  */
 
-struct tail_apachelog_config_report_s
+struct logtail_config_report_s
 {
   char *instance;
   int type;
-  double *threshold;
+  size_t *threshold;
   size_t threshold_num;
   void *data;
 };
-typedef struct tail_apachelog_config_report_s tail_apachelog_config_report_t;
+typedef struct logtail_config_report_s logtail_config_report_t;
 
-struct tail_apachelog_config_matchset_s
+struct logtail_config_matchset_s
 {
   char *mask;
   int type;
 };
-typedef struct tail_apachelog_config_matchset_s tail_apachelog_config_matchset_t;
+typedef struct logtail_config_matchset_s logtail_config_matchset_t;
 
-struct tail_apachelog_config_match_s
+struct logtail_config_match_s
 {
-  tail_apachelog_config_matchset_t **matchset;
+  logtail_config_matchset_t **matchset;
   size_t matchset_num;
-  tail_apachelog_config_report_t** report;
+  logtail_config_report_t** report;
   size_t report_num;
   char *instance;
 };
-typedef struct tail_apachelog_config_match_s tail_apachelog_config_match_t;
+typedef struct logtail_config_match_s logtail_config_match_t;
 
 
-struct tail_apachelog_current_data_s 
+struct logtail_current_data_s 
 {
   long code;
   size_t size;
   size_t time;
   char * path;
 };
-typedef struct tail_apachelog_current_data_s tail_apachelog_current_data_t;
+typedef struct logtail_current_data_s logtail_current_data_t;
 
-struct tail_apachelog_config_filemask_s
+struct logtail_config_filemask_s
 {
   char *filemask;
   cu_tail_t **tail;
   size_t tail_num;
-  tail_apachelog_config_match_t** match;
+  logtail_config_match_t** match;
   size_t match_num;
   char *instance;
   cdtime_t interval;
   char *format;
   char *format_parsed;
 };
-typedef struct tail_apachelog_config_filemask_s tail_apachelog_config_filemask_t;
+typedef struct logtail_config_filemask_s logtail_config_filemask_t;
 
 #define TA_R_COUNT         1
 #define TA_R_COUNT_CODE    2
@@ -179,10 +202,10 @@ typedef struct tail_apachelog_config_filemask_s tail_apachelog_config_filemask_t
 #define TA_M_REGEXP        5
 
 
-tail_apachelog_config_filemask_t **tail_apachelog_list = NULL;
-size_t tail_apachelog_list_num = 0;
+logtail_config_filemask_t **logtail_list = NULL;
+size_t logtail_list_num = 0;
 
-static void tail_apachelog_destroy_report(tail_apachelog_config_report_t*rm)
+static void logtail_destroy_report(logtail_config_report_t*rm)
 {
     if(rm->instance)sfree(rm->instance);
     rm->instance = 0;
@@ -198,7 +221,7 @@ static void tail_apachelog_destroy_report(tail_apachelog_config_report_t*rm)
     sfree(rm);
 }
 
-static void tail_apachelog_destroy_match(tail_apachelog_config_match_t*cm)
+static void logtail_destroy_match(logtail_config_match_t*cm)
 {
     int i;
 
@@ -213,7 +236,7 @@ static void tail_apachelog_destroy_match(tail_apachelog_config_match_t*cm)
     cm->matchset_num=0;
 
     for(i=0;i<cm->report_num;i++)
-        tail_apachelog_destroy_report(cm->report[i]);
+        logtail_destroy_report(cm->report[i]);
     if(cm->report)
         sfree(cm->report);
     cm->report = 0;
@@ -222,7 +245,7 @@ static void tail_apachelog_destroy_match(tail_apachelog_config_match_t*cm)
     sfree(cm);
 }
 
-static void tail_apachelog_destroy_filemask(tail_apachelog_config_filemask_t*fm)
+static void logtail_destroy_filemask(logtail_config_filemask_t*fm)
 {
     int i;
 
@@ -246,7 +269,7 @@ static void tail_apachelog_destroy_filemask(tail_apachelog_config_filemask_t*fm)
     fm->tail_num=0;
 
     for(i=0;i<fm->match_num;i++)
-        tail_apachelog_destroy_match(fm->match[i]);
+        logtail_destroy_match(fm->match[i]);
     if(fm->match)sfree(fm->match);
     fm->match=0;
     fm->match_num=0;
@@ -257,30 +280,30 @@ static void tail_apachelog_destroy_filemask(tail_apachelog_config_filemask_t*fm)
 
 
 
-static int tail_apachelog_config_add_report_threshold (tail_apachelog_config_report_t *rm,
+static int logtail_config_add_report_threshold (logtail_config_report_t *rm,
     oconfig_item_t *ci)
 {
   int i;
   double prev=-DBL_MAX;
   if (ci->values_num < 1)
   {
-    ERROR ("tail_apachelog plugin: `Threshold' needs one or more float arguments.");
+    ERROR ("logtail plugin: `Threshold' needs one or more uint arguments.");
     return (-1);
   }
   for( i = 0; i < ci->values_num; i++)
   {
     if( ci->values[i].type != OCONFIG_TYPE_NUMBER)
     {
-      ERROR ("tail_apachelog plugin: `Threshold' needs float arguments.");
+      ERROR ("logtail plugin: `Threshold' needs uint arguments.");
       return (-1);
     }
   }
 
-  double * thr;
+  size_t * thr;
   thr = malloc(sizeof(*thr) * ci->values_num);
   if (thr == NULL)
   {
-    ERROR ("tail_apachelog plugin: malloc  failed.%d",__LINE__);
+    ERROR ("logtail plugin: malloc  failed.%d",__LINE__);
     return (-1);
   }
   memset(thr, 0, sizeof(*rm));
@@ -288,8 +311,8 @@ static int tail_apachelog_config_add_report_threshold (tail_apachelog_config_rep
   for( i = 0; i < ci->values_num; i++)
   { 
     thr[i] = ci->values[i].value.number;
-    if(thr[i] <= prev){
-      ERROR ("tail_apachelog plugin: `Threshold' list should be incremental.");
+    if( i>0 && thr[i] <= prev ){
+      ERROR ("logtail plugin: `Threshold' list should be incremental.");
       return (-1);
     }
     prev = thr[i];
@@ -299,17 +322,17 @@ static int tail_apachelog_config_add_report_threshold (tail_apachelog_config_rep
   rm->threshold_num = ci->values_num;
 
   return 0;
-} /* int tail_apachelog_config_add_report_threshold */
+} /* int logtail_config_add_report_threshold */
 
 
 
 
-static int tail_apachelog_config_add_report_type (tail_apachelog_config_report_t *rm,
+static int logtail_config_add_report_type (logtail_config_report_t *rm,
     oconfig_item_t *ci)
 {
   if (ci->values_num != 1 || ci->values[0].type != OCONFIG_TYPE_STRING)
   {
-    WARNING ("tail_apachelog plugin: `Type' needs only one string arguments.");
+    WARNING ("logtail plugin: `Type' needs only one string arguments.");
     return (-1);
   }
 
@@ -333,30 +356,30 @@ static int tail_apachelog_config_add_report_type (tail_apachelog_config_report_t
      return (-2);
   }
   return 0;
-} /* int tail_apachelog_config_add_report_type */
+} /* int logtail_config_add_report_type */
 
 
 
 
 
-static int tail_apachelog_config_add_report (tail_apachelog_config_match_t *cm,
+static int logtail_config_add_report (logtail_config_match_t *cm,
     oconfig_item_t *ci)
 {
-  tail_apachelog_config_report_t *rm;
+  logtail_config_report_t *rm;
   int status;
   int i;
 
   rm = malloc(sizeof(*rm));
   if (rm == NULL)
   {
-    ERROR ("tail_apachelog plugin: malloc  failed.%d",__LINE__);
+    ERROR ("logtail plugin: malloc  failed.%d",__LINE__);
     return (-1);
   }
   memset(rm, 0, sizeof(*rm));
 
   if (ci->values_num != 0)
   {
-    WARNING ("tail_apachelog plugin: Ignoring arguments for the `Report' block.");
+    WARNING ("logtail plugin: Ignoring arguments for the `Report' block.");
   }
 
   status = 0;
@@ -367,55 +390,69 @@ static int tail_apachelog_config_add_report (tail_apachelog_config_match_t *cm,
     if (strcasecmp ("Instance", option->key) == 0)
       status = cf_util_get_string (option, &rm->instance);
     else if (strcasecmp ("Type", option->key) == 0)
-      status = tail_apachelog_config_add_report_type (rm, option);
+      status = logtail_config_add_report_type (rm, option);
     else if (strcasecmp ("Threshold", option->key) == 0)
-      status = tail_apachelog_config_add_report_threshold (rm, option);
+      status = logtail_config_add_report_threshold (rm, option);
     else
     {
-      WARNING ("tail_apachelog plugin: Option `%s' not allowed here.", option->key);
+      WARNING ("logtail plugin: Option `%s' not allowed here.", option->key);
       status = -1;
     }
 
     if (status != 0)
     {
-      tail_apachelog_destroy_report(rm);
+      logtail_destroy_report(rm);
       return (-2);
     }
   } /* for (i = 0; i < ci->children_num; i++) */
 
+  if(!rm->instance){
+     char * instanceName[] = {
+            "(null)",
+            "count",
+            "count_code",
+            "count_time",
+            "count_size",
+            "sum_size",
+            "avg_size",
+            "avg_time" };
+        
+     rm->instance=strdup(instanceName[rm->type]);
+
+  }
   if( (rm->type == TA_R_COUNT_CODE || rm->type == TA_R_COUNT_SIZE || rm->type == TA_R_COUNT_TIME) && rm->threshold_num < 2 ){
-      ERROR ("tail_apachelog plugin: report_threshold: COUNT_CODE, COUNT_SIZE, COUNT_TIME should have at leat 2 thresholds");
-      tail_apachelog_destroy_report(rm);
+      ERROR ("logtail plugin: report_threshold: COUNT_CODE, COUNT_SIZE, COUNT_TIME should have at leat 2 thresholds");
+      logtail_destroy_report(rm);
       return (-2);
   }
 
   if ( rm->type == TA_R_COUNT_CODE || rm->type == TA_R_COUNT_SIZE || rm->type == TA_R_COUNT_TIME ){
-     rm->data = malloc(sizeof(size_t)*rm->threshold_num);
-     if(rm->data)   memset(rm->data, 0, sizeof(size_t)*rm->threshold_num);
-     ERROR ("tail_apachelog plugin: report_threshold: created array of size %zu, %p",rm->threshold_num,rm->data);
+     rm->data = malloc(sizeof(counter_t)*rm->threshold_num);
+     if(rm->data)   memset(rm->data, 0, sizeof(counter_t)*rm->threshold_num);
+     ERROR ("logtail plugin: report_threshold: created array of size %zu, %p",rm->threshold_num,rm->data);
   }else if(rm->type == TA_R_AVG_SIZE || rm->type ==  TA_R_AVG_TIME){
-     rm->data = malloc(sizeof(size_t)*2);
-     if(rm->data)   memset(rm->data, 0, sizeof(size_t)*2);
+     rm->data = malloc(sizeof(counter_t)*2);
+     if(rm->data)   memset(rm->data, 0, sizeof(counter_t)*2);
   }else{
-     rm->data = malloc(sizeof(size_t));
-     if(rm->data)   memset(rm->data, 0, sizeof(size_t));
+     rm->data = malloc(sizeof(counter_t));
+     if(rm->data)   memset(rm->data, 0, sizeof(counter_t));
   }
 
   if (rm->data == NULL)
   {
-    ERROR ("tail_apachelog plugin: malloc  failed.%d",__LINE__);
-    tail_apachelog_destroy_report(rm);
+    ERROR ("logtail plugin: malloc  failed.%d",__LINE__);
+    logtail_destroy_report(rm);
     return (-1);
   }
 
-  tail_apachelog_config_report_t **temp;
+  logtail_config_report_t **temp;
 
-  temp = (tail_apachelog_config_report_t **) realloc (cm->report,
-	sizeof (tail_apachelog_config_report_t *) * (cm->report_num + 1));
+  temp = (logtail_config_report_t **) realloc (cm->report,
+	sizeof (logtail_config_report_t *) * (cm->report_num + 1));
   if (temp == NULL)
   {
-    ERROR ("tail_apachelog plugin: realloc failed.%d",__LINE__);
-    tail_apachelog_destroy_report(rm);
+    ERROR ("logtail plugin: realloc failed.%d",__LINE__);
+    logtail_destroy_report(rm);
     return (-1);
   }
 
@@ -425,26 +462,26 @@ static int tail_apachelog_config_add_report (tail_apachelog_config_match_t *cm,
 
   return (0);
 
-} /* int tail_apachelog_config_add_report */
+} /* int logtail_config_add_report */
 
 
 
-static int tail_apachelog_config_add_match_type(tail_apachelog_config_match_t *cm,oconfig_item_t *option)
+static int logtail_config_add_match_type(logtail_config_match_t *cm,oconfig_item_t *option)
 {
   int type;
   int i;
 
-  tail_apachelog_config_matchset_t *ms;
+  logtail_config_matchset_t *ms;
   if (option->values_num < 1)
   {
-    WARNING ("tail_apachelog plugin: '%s' needs one or more string arguments.",option->key);
+    WARNING ("logtail plugin: '%s' needs one or more string arguments.",option->key);
     return (-1);
   }
   for( i = 0; i < option->values_num; i++)
   {
     if( option->values[i].type != OCONFIG_TYPE_STRING)
     {
-      WARNING ("tail_apachelog plugin: '%s' needs string arguments.",option->key);
+      WARNING ("logtail plugin: '%s' needs string arguments.",option->key);
       return (-1);
     }
   }
@@ -465,13 +502,13 @@ static int tail_apachelog_config_add_match_type(tail_apachelog_config_match_t *c
      return (-2);
   }
 
-  tail_apachelog_config_matchset_t **temp;
+  logtail_config_matchset_t **temp;
 
-  temp = (tail_apachelog_config_matchset_t **) realloc (cm->matchset,
-        sizeof (tail_apachelog_config_matchset_t *) * (cm->matchset_num + option->values_num));
+  temp = (logtail_config_matchset_t **) realloc (cm->matchset,
+        sizeof (logtail_config_matchset_t *) * (cm->matchset_num + option->values_num));
   if (temp == NULL)
   {
-    ERROR ("tail_apachelog plugin: realloc failed.%d",__LINE__);
+    ERROR ("logtail plugin: realloc failed.%d",__LINE__);
     return (-1);
   }
   cm->matchset = temp;
@@ -481,14 +518,14 @@ static int tail_apachelog_config_add_match_type(tail_apachelog_config_match_t *c
     ms = malloc(sizeof(*ms));
     if (ms == NULL)
     {
-      ERROR ("tail_apachelog plugin: malloc  failed.%d",__LINE__);
+      ERROR ("logtail plugin: malloc  failed.%d",__LINE__);
       return (-1);
     }
     memset(ms, 0, sizeof(*ms));
     ms->type = type;
     ms->mask = strdup(option->values[i].value.string);
     if(!ms->mask){
-      ERROR ("tail_apachelog plugin: realloc failed.%d",__LINE__);
+      ERROR ("logtail plugin: realloc failed.%d",__LINE__);
       return (-1);
     }
 
@@ -499,25 +536,25 @@ static int tail_apachelog_config_add_match_type(tail_apachelog_config_match_t *c
 
   return 0;
 }
-static int tail_apachelog_config_add_match (tail_apachelog_config_filemask_t *fm,
+static int logtail_config_add_match (logtail_config_filemask_t *fm,
     oconfig_item_t *ci)
 {
 
-  tail_apachelog_config_match_t *cm;
+  logtail_config_match_t *cm;
   int status;
   int i;
 
   cm = malloc(sizeof(*cm));
   if (cm == NULL)
   {
-    ERROR ("tail_apachelog plugin: malloc  failed.%d",__LINE__);
+    ERROR ("logtail plugin: malloc  failed.%d",__LINE__);
     return (-1);
   }
   memset(cm, 0, sizeof(*cm));
 
   if (ci->values_num != 0)
   {
-    WARNING ("tail_apachelog plugin: Ignoring arguments for the `Match' block.");
+    WARNING ("logtail plugin: Ignoring arguments for the `Match' block.");
   }
 
   status = 0;
@@ -534,31 +571,36 @@ static int tail_apachelog_config_add_match (tail_apachelog_config_filemask_t *fm
               strcasecmp ("ExactNQ", option->key) == 0 ||
               strcasecmp ("Regex", option->key) == 0 
             ) 
-      status = tail_apachelog_config_add_match_type (cm, option);
+      status = logtail_config_add_match_type (cm, option);
     else if (strcasecmp ("Report", option->key) == 0)
-      status = tail_apachelog_config_add_report (cm, option);
+      status = logtail_config_add_report (cm, option);
     else
     {
-      WARNING ("tail_apachelog plugin: Option `%s' not allowed here.", option->key);
+      WARNING ("logtail plugin: Option `%s' not allowed here.", option->key);
       status = -1;
     }
 
     if (status != 0)
     {
-      tail_apachelog_destroy_match(cm);
+      logtail_destroy_match(cm);
       return (-2);
     }
   } /* for (i = 0; i < ci->children_num; i++) */
 
+  if(!cm->instance){
+    ERROR("logtail plugin: 'Match' block has no Instance key");
+    logtail_destroy_match(cm);
+    return (-2);
+  }
 
-  tail_apachelog_config_match_t **temp;
+  logtail_config_match_t **temp;
 
-  temp = (tail_apachelog_config_match_t **) realloc (fm->match,
-	sizeof (tail_apachelog_config_match_t *) * (fm->match_num + 1));
+  temp = (logtail_config_match_t **) realloc (fm->match,
+	sizeof (logtail_config_match_t *) * (fm->match_num + 1));
   if (temp == NULL)
   {
-    ERROR ("tail_apachelog plugin: realloc failed.%d",__LINE__);
-    tail_apachelog_destroy_match(cm);
+    ERROR ("logtail plugin: realloc failed.%d",__LINE__);
+    logtail_destroy_match(cm);
     return (-1);
   }
 
@@ -567,15 +609,15 @@ static int tail_apachelog_config_add_match (tail_apachelog_config_filemask_t *fm
   fm->match_num++;
 
   return (0);
-} /* int tail_apachelog_config_add_match */
+} /* int logtail_config_add_match */
 
-static char* tail_apachelog_config_parse_format(const char*format)
+static char* logtail_config_parse_format(const char*format)
 {
   char*ret;
   int i;
   ret=strdup(format);
   if ( !ret ){
-    ERROR ("tail_apachelog plugin: strdup failed.%d",__LINE__);
+    ERROR ("logtail plugin: strdup failed.%d",__LINE__);
     return (0);
   }
 
@@ -602,20 +644,20 @@ static char* tail_apachelog_config_parse_format(const char*format)
        ret[i]=TA_F_TIME;
        memmove(&ret[i+1],&ret[i+2],strlen(&ret[i+2])+1);
      }else if(!ret[i] && ret[i] < TA_F_MAXVALUE){
-       ERROR ("tail_apachelog plugin: in format are bad character with code %i", ret[i]);
+       ERROR ("logtail plugin: in format are bad character with code %i", ret[i]);
        return (0);
      }
-//    DEBUG ("tail_apachelog plugin: %d\n%s",i, ret);
+//    DEBUG ("logtail plugin: %d\n%s",i, ret);
 
   }
   return ret;
 
 }
 
-static int tail_apachelog_config_add_filemask (oconfig_item_t *ci,const char*filemask)
+static int logtail_config_add_filemask (oconfig_item_t *ci,const char*filemask)
 {
 
-  tail_apachelog_config_filemask_t *fm;
+  logtail_config_filemask_t *fm;
   int num_matches = 0;
   int status;
   int i;
@@ -625,22 +667,22 @@ static int tail_apachelog_config_add_filemask (oconfig_item_t *ci,const char*fil
   fm = malloc(sizeof(*fm));
   if (fm == NULL)
   {
-    ERROR ("tail_apachelog plugin: tail_apachelog_create (%s) failed.",
+    ERROR ("logtail plugin: logtail_create (%s) failed.",
 	filemask);
     return (-1);
   }
   memset(fm, 0, sizeof(*fm));
   fm->filemask = strdup(filemask);
   if ( !fm->filemask ){
-    ERROR ("tail_apachelog plugin: alloc failed.%d",__LINE__);
-    tail_apachelog_destroy_filemask(fm);
+    ERROR ("logtail plugin: alloc failed.%d",__LINE__);
+    logtail_destroy_filemask(fm);
     return (-1);
   }
 
   fm->format = strdup("%? %? %? %? %? \"%? %r %? %s %b \"%?\" \"%?\" %D");
   if(!fm->format){
-      ERROR ("tail_apachelog plugin: alloc failed.%d",__LINE__);
-    tail_apachelog_destroy_filemask(fm);
+      ERROR ("logtail plugin: alloc failed.%d",__LINE__);
+    logtail_destroy_filemask(fm);
     return (-1);
   }
 
@@ -658,7 +700,7 @@ static int tail_apachelog_config_add_filemask (oconfig_item_t *ci,const char*fil
       cf_util_get_cdtime (option, &fm->interval);
     else if (strcasecmp ("Match", option->key) == 0)
     {
-      status = tail_apachelog_config_add_match (fm, option);
+      status = logtail_config_add_match (fm, option);
       if (status == 0)
 	num_matches++;
       /* Be mild with failed matches.. */
@@ -673,48 +715,48 @@ static int tail_apachelog_config_add_filemask (oconfig_item_t *ci,const char*fil
       break;
   } /* for (i = 0; i < ci->children_num; i++) */
 
-  fm->format_parsed=tail_apachelog_config_parse_format(fm->format);
+  fm->format_parsed=logtail_config_parse_format(fm->format);
 
   if ( ! fm->instance ) {
-    ERROR ("tail_apachelog plugin: No instance keyword for file `%s'.",
+    ERROR ("logtail plugin: No instance keyword for file `%s'.",
 	filemask);
-    tail_apachelog_destroy_filemask(fm);
+    logtail_destroy_filemask(fm);
     return (-1);
   }
   if (num_matches == 0 )
   {
-    ERROR ("tail_apachelog plugin: No (valid) matches found for file `%s'.",
+    ERROR ("logtail plugin: No (valid) matches found for file `%s'.",
 	filemask);
-    tail_apachelog_destroy_filemask(fm);
+    logtail_destroy_filemask(fm);
     return (-1);
   }
 
-  tail_apachelog_config_filemask_t **temp;
+  logtail_config_filemask_t **temp;
 
-  temp = (tail_apachelog_config_filemask_t **) realloc (tail_apachelog_list,
-	sizeof (tail_apachelog_config_filemask_t *) * (tail_apachelog_list_num + 1));
+  temp = (logtail_config_filemask_t **) realloc (logtail_list,
+	sizeof (logtail_config_filemask_t *) * (logtail_list_num + 1));
   if (temp == NULL)
   {
-    ERROR ("tail_apachelog plugin: realloc failed.%d",__LINE__);
-    tail_apachelog_destroy_filemask(fm);
+    ERROR ("logtail plugin: realloc failed.%d",__LINE__);
+    logtail_destroy_filemask(fm);
     return (-1);
   }
 
-  tail_apachelog_list = temp;
-  tail_apachelog_list[tail_apachelog_list_num] = fm;
-  tail_apachelog_list_num++;
+  logtail_list = temp;
+  logtail_list[logtail_list_num] = fm;
+  logtail_list_num++;
 
   return (0);
-} /* int tail_apachelog_config_add_filemask */
+} /* int logtail_config_add_filemask */
 
 
-static int tail_apachelog_config_add_files (oconfig_item_t *ci)
+static int logtail_config_add_files (oconfig_item_t *ci)
 {
   int i;
 
   if (ci->values_num < 1)
   {
-    WARNING ("tail_apachelog plugin: `Files' needs one or more string arguments.");
+    WARNING ("logtail plugin: `Files' needs one or more string arguments.");
     return (-1);
   }
 
@@ -722,19 +764,19 @@ static int tail_apachelog_config_add_files (oconfig_item_t *ci)
   {
     if( ci->values[i].type != OCONFIG_TYPE_STRING)
     {
-      WARNING ("tail_apachelog plugin: `Files' needs string arguments.");
+      WARNING ("logtail plugin: `Files' needs string arguments.");
       return (-1);
     }
   }
 
   for( i=0; i<ci->values_num; i++)
   {
-    tail_apachelog_config_add_filemask(ci,ci->values[i].value.string);
+    logtail_config_add_filemask(ci,ci->values[i].value.string);
   }
   return 0;
 }
 
-static int tail_apachelog_config (oconfig_item_t *ci)
+static int logtail_config (oconfig_item_t *ci)
 {
   int i;
 
@@ -743,20 +785,20 @@ static int tail_apachelog_config (oconfig_item_t *ci)
     oconfig_item_t *option = ci->children + i;
 
     if (strcasecmp ("Files", option->key) == 0)
-      tail_apachelog_config_add_files (option);
+      logtail_config_add_files (option);
     else
     {
-      WARNING ("tail_apachelog plugin: Option `%s' not allowed here.", option->key);
+      WARNING ("logtail plugin: Option `%s' not allowed here.", option->key);
     }
   } /* for (i = 0; i < ci->children_num; i++) */
 
   return (0);
-} /* int tail_apachelog_config */
+} /* int logtail_config */
 
 
 
 // really create a new cu_tail_t entry
-static int tail_apachelog_file_create(tail_apachelog_config_filemask_t *fm,char * file)
+static int logtail_file_create(logtail_config_filemask_t *fm,char * file)
 {
   cu_tail_t **temp;
   cu_tail_t *tm;
@@ -764,7 +806,7 @@ static int tail_apachelog_file_create(tail_apachelog_config_filemask_t *fm,char 
 
   if (tm == NULL)
   {
-    ERROR ("tail_apachelog plugin: cu_tail_create (\"%s\") failed.",
+    ERROR ("logtail plugin: cu_tail_create (\"%s\") failed.",
                     file);
     return (-1);
   }
@@ -773,14 +815,14 @@ static int tail_apachelog_file_create(tail_apachelog_config_filemask_t *fm,char 
 	sizeof (cu_tail_t *) * (fm->tail_num + 1));
   if (temp == NULL)
   {
-    ERROR ("tail_apachelog plugin: realloc failed.%d",__LINE__);
+    ERROR ("logtail plugin: realloc failed.%d",__LINE__);
     return (-1);
   }
 
   fm->tail = temp;
   fm->tail[fm->tail_num] = tm;
   fm->tail_num++;
-  INFO ("tail_apachelog plugin: Adding new file %s", file);
+  INFO ("logtail plugin: Adding new file %s", file);
   return 0;
 }
 
@@ -788,12 +830,12 @@ static int tail_apachelog_file_create(tail_apachelog_config_filemask_t *fm,char 
 
 
 // add a file to fm->tail if not allready present
-static int tail_apachelog_addfile(tail_apachelog_config_filemask_t *fm,char * file)
+static int logtail_addfile(logtail_config_filemask_t *fm,char * file)
 {
   int i,status;
   if(!fm->tail)
   {
-    return tail_apachelog_file_create(fm,file);
+    return logtail_file_create(fm,file);
   }
 
   for(i=0;i<fm->tail_num;i++){
@@ -804,45 +846,45 @@ static int tail_apachelog_addfile(tail_apachelog_config_filemask_t *fm,char * fi
       return 0;
   }
 
-  return tail_apachelog_file_create(fm,file);
+  return logtail_file_create(fm,file);
 }
 
 
-static int tail_apachelog_glob(tail_apachelog_config_filemask_t *fm){
+static int logtail_glob(logtail_config_filemask_t *fm){
   glob_t res;
   int i,ret;
   int flags = GLOB_BRACE|GLOB_TILDE_CHECK|GLOB_ERR;
 
   ret = glob(fm->filemask,flags, 0, &res);
   if(ret){
-    ERROR ("tail_apachelog plugin: glob failed %d for %s",ret,fm->filemask);
+    ERROR ("logtail plugin: glob failed %d for %s",ret,fm->filemask);
     return ret;
   }
 
 
     
   for(i=0;i<res.gl_pathc;i++)
-      tail_apachelog_addfile(fm,res.gl_pathv[i]);
+      logtail_addfile(fm,res.gl_pathv[i]);
 
   globfree(&res);
   return 0;
 }
 
 
-static int tail_apachelog_read_parse(tail_apachelog_config_filemask_t *fm,char *buf,tail_apachelog_current_data_t *cur_data){
+static int logtail_read_parse(logtail_config_filemask_t *fm,char *buf,logtail_current_data_t *cur_data){
   int x,y,i;
   char quote;
   char *next;
   int escaped=0;
-  DEBUG ("tail_apachelog plugin: parse\n%s",buf);
+  DEBUG ("logtail plugin: parse\n%s",buf);
 
   for(x=0,y=0;buf[x]&&fm->format_parsed[y];y++){
-//     DEBUG ("tail_apachelog plugin: parse at %d %c to %c\n%s",x,buf[x],fm->format_parsed[y],&buf[x]);
+//     DEBUG ("logtail plugin: parse at %d %c to %c\n%s",x,buf[x],fm->format_parsed[y],&buf[x]);
      switch(fm->format_parsed[y]){
        case TA_F_SPACES:
           i=strspn(buf+x," \t\n\r\f\v");
           if(i == 0){
-            WARNING ("tail_apachelog plugin: parse %s failed at %d. expected space/tab/cr/ln, found '%c'",buf,x,buf[x]);
+            WARNING ("logtail plugin: parse %s failed at %d. expected space/tab/cr/ln, found '%c'",buf,x,buf[x]);
             return(-1);
           }
           x+=i;
@@ -852,7 +894,7 @@ static int tail_apachelog_read_parse(tail_apachelog_config_filemask_t *fm,char *
           if(!quote)quote=' ';
           next=strchr(buf+x,quote);
           if(next == 0){
-            WARNING ("tail_apachelog plugin: parse %s failed at %d. expected non-space, found '%c'",buf,x,buf[x]);
+            WARNING ("logtail plugin: parse %s failed at %d. expected non-space, found '%c'",buf,x,buf[x]);
             return(-1);
           }
           x=next-buf;
@@ -861,7 +903,7 @@ static int tail_apachelog_read_parse(tail_apachelog_config_filemask_t *fm,char *
 
           i=strspn(&buf[x],"\"'");
           if(i == 0){
-            WARNING ("tail_apachelog plugin: parse %s failed at %d. expected quote, found '%c'",buf,x,buf[x]);
+            WARNING ("logtail plugin: parse %s failed at %d. expected quote, found '%c'",buf,x,buf[x]);
             return(-1);
           }
           quote=buf[x];
@@ -882,7 +924,7 @@ static int tail_apachelog_read_parse(tail_apachelog_config_filemask_t *fm,char *
           break;
        case TA_F_CODE:
          if(!isdigit(buf[x])){
-            WARNING ("tail_apachelog plugin: parse failed at %d. expected code(digit), found '%c'\n%s\n%s\n",x,buf[x],buf,fm->format);
+            WARNING ("logtail plugin: parse failed at %d. expected code(digit), found '%c'\n%s\n%s\n",x,buf[x],buf,fm->format);
             return(-1);
          }
          cur_data->code=strtoul(&buf[x],&next,0);
@@ -890,7 +932,7 @@ static int tail_apachelog_read_parse(tail_apachelog_config_filemask_t *fm,char *
          break;
        case TA_F_SIZE:
          if(!isdigit(buf[x])){
-            WARNING ("tail_apachelog plugin: parse failed at %d. expected size(digit), found '%c'\n%s\n%s\n",x,buf[x],buf,fm->format);
+            WARNING ("logtail plugin: parse failed at %d. expected size(digit), found '%c'\n%s\n%s\n",x,buf[x],buf,fm->format);
             return(-1);
          }
          cur_data->size=strtoul(&buf[x],&next,0);
@@ -899,7 +941,7 @@ static int tail_apachelog_read_parse(tail_apachelog_config_filemask_t *fm,char *
 
        case TA_F_TIME:
          if(!isdigit(buf[x])){
-            WARNING ("tail_apachelog plugin: parse failed at %d. expected duration time(digit), found '%c'\n%s\n%s\n",x,buf[x],buf,fm->format);
+            WARNING ("logtail plugin: parse failed at %d. expected duration time(digit), found '%c'\n%s\n%s\n",x,buf[x],buf,fm->format);
             return(-1);
          }
          cur_data->time=strtoul(&buf[x],&next,0);
@@ -908,18 +950,18 @@ static int tail_apachelog_read_parse(tail_apachelog_config_filemask_t *fm,char *
 
        case TA_F_PATH:
          if(isspace(buf[x])){
-            WARNING ("tail_apachelog plugin: parse failed at %d. expected path(not space), found '%c'\n%s\n%s\n",x,buf[x],buf,fm->format);
+            WARNING ("logtail plugin: parse failed at %d. expected path(not space), found '%c'\n%s\n%s\n",x,buf[x],buf,fm->format);
             return(-1);
          }
 
          i=strcspn(buf+x," \t\n\r\f\v");
          if(i == 0){
-            WARNING ("tail_apachelog plugin: parse %s failed at %d. expected non-space, found '%c'",buf,x,buf[x]);
+            WARNING ("logtail plugin: parse %s failed at %d. expected non-space, found '%c'",buf,x,buf[x]);
             return(-1);
          }
          cur_data->path=strndup(buf+x,i);
          if(!cur_data->path){
-            ERROR ("tail_apachelog plugin: strndup%d",__LINE__);
+            ERROR ("logtail plugin: strndup%d",__LINE__);
             return(-1);
          }
          x+=i;
@@ -927,20 +969,20 @@ static int tail_apachelog_read_parse(tail_apachelog_config_filemask_t *fm,char *
 
        default:
          if(fm->format_parsed[y] != buf[x] ){
-           WARNING ("tail_apachelog plugin: parse failed  at %d. expected '%c', found '%c'\n%s\n%s\n",x,fm->format_parsed[y],buf[x],buf,fm->format);
+           WARNING ("logtail plugin: parse failed  at %d. expected '%c', found '%c'\n%s\n%s\n",x,fm->format_parsed[y],buf[x],buf,fm->format);
            return (-1);
          }
          x++;
      }
   }
   if(!buf[x]&&fm->format_parsed[y]){
-    WARNING ("tail_apachelog plugin: parse failed at %d. expected '%c', found EOL",x,fm->format_parsed[y]);
+    WARNING ("logtail plugin: parse failed at %d. expected '%c', found EOL",x,fm->format_parsed[y]);
     return (-1);
   }
-  INFO("tail_apachelog plugin: parse: size=%ld time=%ld code=%ld path=%s",cur_data->size,cur_data->time,cur_data->code,cur_data->path);
+//  DEBUG("logtail plugin: parse: size=%ld time=%ld code=%ld path=%s",cur_data->size,cur_data->time,cur_data->code,cur_data->path);
   return 0;
 }
-static int tail_apachelog_match_one(tail_apachelog_config_matchset_t *ms,tail_apachelog_current_data_t *data){
+static int logtail_match_one(logtail_config_matchset_t *ms,logtail_current_data_t *data){
   int i,j;
   switch(ms->type){
     case TA_M_EQUAL:
@@ -954,33 +996,33 @@ static int tail_apachelog_match_one(tail_apachelog_config_matchset_t *ms,tail_ap
       return( !strcmp(data->path+j-i,ms->mask));
       break;
     case TA_M_SUFFIXNQ:
-      ERROR ("tail_apachelog plugin: todo: suffixnq ");
+      ERROR ("logtail plugin: todo: suffixnq ");
       i=strlen(ms->mask);
       j=strlen(data->path);
       if(j<i)return 0;
       return(!strcmp(data->path+j-i,ms->mask));
 
     case TA_M_REGEXP:
-      ERROR ("tail_apachelog plugin: todo: regexp ");
+      ERROR ("logtail plugin: todo: regexp ");
       return 0;
     default:
-      ERROR ("tail_apachelog plugin: match: unknown type %d ",ms->type);
+      ERROR ("logtail plugin: match: unknown type %d ",ms->type);
       return 0;
   }
   return 0;
 }
 
-static int tail_apachelog_match(tail_apachelog_config_match_t*cm,tail_apachelog_current_data_t *data){
+static int logtail_match(logtail_config_match_t*cm,logtail_current_data_t *data){
   int x;
   for(x=0;x<cm->matchset_num;x++)
-    if(tail_apachelog_match_one(cm->matchset[x],data))
+    if(logtail_match_one(cm->matchset[x],data))
       return 1;
 
   return 0;
 }
 
 // select position in threshold array
-static int tail_apachelog_threshold_getindex(tail_apachelog_config_report_t*rm,double val){
+static int logtail_threshold_getindex(logtail_config_report_t*rm,double val){
   int i;
 
 // todo: make fast dihotomie
@@ -990,101 +1032,170 @@ static int tail_apachelog_threshold_getindex(tail_apachelog_config_report_t*rm,d
   return rm->threshold_num-1;
 }
 
-static int tail_apachelog_report(tail_apachelog_config_report_t*rm,tail_apachelog_current_data_t *data){
+static int logtail_update_report(logtail_config_report_t*rm,logtail_current_data_t *data){
   size_t *cnt  = (size_t*)rm->data;
   int i;
 
   switch(rm->type){
    case TA_R_COUNT:
       (*cnt)++;
-      ERROR ("tail_apachelog plugin: report COUNT %zu",*cnt);
       break;
    case TA_R_COUNT_CODE:
-      i = tail_apachelog_threshold_getindex(rm,data->code);
-      cnt[i]++;
-      ERROR ("tail_apachelog plugin: report COUNT_CODE %zu,%d = %zu",data->code,i,cnt[i]);
+      i = logtail_threshold_getindex(rm,data->code);
+      (counter_t)cnt[i]++;
       break;
    case TA_R_COUNT_TIME:
-      i = tail_apachelog_threshold_getindex(rm,data->time);
-      cnt[i]++;
-      ERROR ("tail_apachelog plugin: report COUNT_TIME %zu,%d = %zu",data->time,i,cnt[i]);
+      i = logtail_threshold_getindex(rm,data->time);
+      (counter_t)cnt[i]++;
       break;
    case TA_R_COUNT_SIZE:
-      i = tail_apachelog_threshold_getindex(rm,data->size);
-      cnt[i]++;
-      ERROR ("tail_apachelog plugin: report COUNT_SIZE %zu,%d = %zu",data->size,i,cnt[i]);
+      i = logtail_threshold_getindex(rm,data->size);
+      (counter_t)cnt[i]++;
       break;
    case TA_R_SUM_SIZE:
       (*cnt)+=data->size;
-      ERROR ("tail_apachelog plugin: report SUM %zu",*cnt);
       break;
    case TA_R_AVG_SIZE:
       cnt[0]++;
       cnt[1]+=data->size;
-      ERROR ("tail_apachelog plugin: report AVG_SIZE %f",1.0* cnt[1] / cnt[0]);
       break;
    case TA_R_AVG_TIME:
       cnt[0]++;
       cnt[1]+=data->time;
-      ERROR ("tail_apachelog plugin: report AVG_TIME %f",1.0* cnt[1] / cnt[0]);
       break; 
   }
   return 0;
 }
 
-static int tail_apachelog_read_callback (void *data, char *buf,
+static int logtail_read_callback (void *data, char *buf,
     int __attribute__((unused)) buflen)
 {
-  tail_apachelog_config_filemask_t *fm;
-  tail_apachelog_current_data_t cur_data; // current parsed line
+  logtail_config_filemask_t *fm;
+  logtail_current_data_t cur_data; // current parsed line
   
   int status,i,match;
 
   memset(&cur_data,0,sizeof(cur_data));
-  fm=(tail_apachelog_config_filemask_t *)data;
+  fm=(logtail_config_filemask_t *)data;
 
-  status = tail_apachelog_read_parse(fm,buf,&cur_data);
+  status = logtail_read_parse(fm,buf,&cur_data);
   if(status) return status;
 
   for(i=0;i<fm->match_num;i++)
-    if(tail_apachelog_match(fm->match[i],&cur_data))
+    if(logtail_match(fm->match[i],&cur_data))
       break;
   if(i>= fm->match_num) // nothing matched
     return 0;
   match=i;
 
-  DEBUG("tail_apachelog plugin: matched: %d",match);
+  DEBUG("logtail plugin: matched: %d",match);
 
   for(i=0;i<fm->match[match]->report_num;i++)
-     tail_apachelog_report(fm->match[match]->report[i],&cur_data);
+     logtail_update_report(fm->match[match]->report[i],&cur_data);
 
   if(cur_data.path) sfree(cur_data.path);
   
   return 0;
 }
 
+static void submit_value (const char *type, const char *name,
+                value_t value)
+{
+  value_list_t vl = VALUE_LIST_INIT;
+
+  vl.values = &value;
+  vl.values_len = 1;
+
+  sstrncpy(vl.host, hostname_g, sizeof (vl.host));
+  sstrncpy(vl.plugin, "logtail", sizeof(vl.plugin));
+      
+  sstrncpy (vl.plugin_instance, name, sizeof (vl.plugin_instance));
+
+  sstrncpy (vl.type, type, sizeof (vl.type));
+//  if (type_instance != NULL)
+//    sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
+
+  plugin_dispatch_values (&vl);
+} /* void submit_value */
 
 
-static int tail_apachelog_read (user_data_t *ud)
+static void submit_gauge (const char *type, const char *type_instance,
+                gauge_t g)
+{
+        value_t v;
+        v.gauge = g;
+        submit_value (type, type_instance, v);
+} /* void submit_gauge */
+
+static void submit_counter (const char *type, const char *type_instance,
+                counter_t c)
+{
+        value_t v;
+        v.counter = c;
+        submit_value (type, type_instance, v);
+} /* void submit_gauge */
+
+static void logtail_send(logtail_config_filemask_t *fm)
+{
+  int i,j,k;
+  char name1[1024],name2[1024];
+  gauge_t g;
+  counter_t *data;
+
+  for(i=0;i<fm->match_num;i++){
+    for(j=0;j<fm->match[i]->report_num;j++){
+      snprintf(name1, sizeof (name1),"%s.%s",fm->match[i]->instance,fm->match[i]->report[j]->instance);
+      data=(counter_t*) fm->match[i]->report[j]->data;
+
+      switch(fm->match[i]->report[j]->type){
+        case TA_R_COUNT:
+        case TA_R_SUM_SIZE:
+          submit_counter( (fm->match[i]->report[j]->type == TA_R_COUNT ? "objects" : "bytes") , name1, *data );
+          break;
+
+        case TA_R_COUNT_CODE:
+        case TA_R_COUNT_TIME:
+        case TA_R_COUNT_SIZE:
+          for(k=0;k<fm->match[i]->report[j]->threshold_num;k++){
+            snprintf(name2,sizeof(name2),"%s.%zu",name1,fm->match[i]->report[j]->threshold[k]);
+            submit_gauge("objects", name2, data[k] ); 
+          }
+          memset(data,0,sizeof(counter_t) * fm->match[i]->report[j]->threshold_num);
+          break;
+
+        case TA_R_AVG_SIZE:
+        case TA_R_AVG_TIME:
+          g= data[0] ? 1.0 * data[1] / data[0] : 0.0;
+          submit_gauge(fm->match[i]->report[j]->type == TA_R_AVG_SIZE ? "bytes" : "duration", name1, g );
+          memset(data,0,sizeof(counter_t)*2);
+          break;
+      }
+    }
+  }
+
+
+}
+
+static int logtail_read (user_data_t *ud)
 {
   int status,i,j;
-  char buffer[4090];
+  char buffer[66000];
 
-  tail_apachelog_config_filemask_t *fm;
-  fm=(tail_apachelog_config_filemask_t *)ud->data;
+  logtail_config_filemask_t *fm;
+  fm=(logtail_config_filemask_t *)ud->data;
 
-  status = tail_apachelog_glob(fm);
+  status = logtail_glob(fm);
   if(!fm->tail){
-    ERROR ("tail_apachelog plugin: no files to tail for %s",fm->filemask);
+    ERROR ("logtail plugin: no files to tail for %s",fm->filemask);
     return (-1);
   }
 
   for(i=0;i<fm->tail_num;i++)
   {
-    status = cu_tail_read(fm->tail[i], buffer, (int) sizeof (buffer), tail_apachelog_read_callback, (void*)fm);
+    status = cu_tail_read(fm->tail[i], buffer, (int) sizeof (buffer), logtail_read_callback, (void*)fm);
     if (status != 0)
     {
-      INFO ("tail_apachelog plugin: tail_apachelog_read failed for %s",fm->tail[i]->file);
+      INFO ("logtail plugin: logtail_read failed for %s",fm->tail[i]->file);
       cu_tail_destroy(fm->tail[i]);
       for(j=i+1;j<fm->tail_num;j++)
         fm->tail[j-1] = fm->tail[j];
@@ -1092,57 +1203,56 @@ static int tail_apachelog_read (user_data_t *ud)
       i--;
     }
   }
-// todo: make buf to send
 
-// todo: send
+  logtail_send(fm);
 
   return (0);
-} /* int tail_apachelog_read */
+} /* int logtail_read */
 
-static int tail_apachelog_init (void)
+static int logtail_init (void)
 {
   struct timespec cb_interval;
   char str[255];
   user_data_t ud;
   size_t i;
 
-  if (tail_apachelog_list_num == 0)
+  if (logtail_list_num == 0)
   {
-    WARNING ("tail_apachelog plugin: File list is empty. Returning an error.");
+    WARNING ("logtail plugin: File list is empty. Returning an error.");
     return (-1);
   }
 
-  for (i = 0; i < tail_apachelog_list_num; i++)
+  for (i = 0; i < logtail_list_num; i++)
   {
-    ud.data = (void *)tail_apachelog_list[i];
+    ud.data = (void *)logtail_list[i];
     ssnprintf(str, sizeof(str), "tail-%zu", i);
-    CDTIME_T_TO_TIMESPEC (tail_apachelog_list[i]->interval, &cb_interval);
-    plugin_register_complex_read (NULL, str, tail_apachelog_read, &cb_interval, &ud);
+    CDTIME_T_TO_TIMESPEC (logtail_list[i]->interval, &cb_interval);
+    plugin_register_complex_read (NULL, str, logtail_read, &cb_interval, &ud);
   }
 
   return (0);
-} /* int tail_apachelog_init */
+} /* int logtail_init */
 
-static int tail_apachelog_shutdown (void)
+static int logtail_shutdown (void)
 {
   size_t i;
 
-  for (i = 0; i < tail_apachelog_list_num; i++)
+  for (i = 0; i < logtail_list_num; i++)
   {
-    tail_apachelog_destroy_filemask (tail_apachelog_list[i]);
-    tail_apachelog_list[i] = NULL;
+    logtail_destroy_filemask (logtail_list[i]);
+    logtail_list[i] = NULL;
   }
-  sfree (tail_apachelog_list);
-  tail_apachelog_list_num = 0;
+  sfree (logtail_list);
+  logtail_list_num = 0;
 
   return (0);
-} /* int tail_apachelog_shutdown */
+} /* int logtail_shutdown */
 
 void module_register (void)
 {
-  plugin_register_complex_config ("tail_apache", tail_apachelog_config);
-  plugin_register_init ("tail_apache", tail_apachelog_init);
-  plugin_register_shutdown ("tail_apache", tail_apachelog_shutdown);
+  plugin_register_complex_config ("logtail", logtail_config);
+  plugin_register_init ("logtail", logtail_init);
+  plugin_register_shutdown ("logtail", logtail_shutdown);
 } /* void module_register */
 
 /* vim: set sw=2 sts=2 ts=8 : */

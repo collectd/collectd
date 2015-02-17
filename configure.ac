@@ -5497,6 +5497,7 @@ AC_PLUGIN([ipvs],        [$plugin_ipvs],       [IPVS connection statistics])
 AC_PLUGIN([irq],         [$plugin_irq],        [IRQ statistics])
 AC_PLUGIN([java],        [$with_java],         [Embed the Java Virtual Machine])
 AC_PLUGIN([load],        [$plugin_load],       [System load])
+AC_PLUGIN([logtail],     [yes],                [Continous and efficient parsing of log files])
 AC_PLUGIN([logfile],     [yes],                [File logging plugin])
 AC_PLUGIN([log_logstash], [$plugin_log_logstash], [Logstash json_event compatible logging])
 AC_PLUGIN([lpar],        [$with_perfstat],     [AIX logical partitions statistics])
@@ -5556,7 +5557,6 @@ AC_PLUGIN([syslog],      [$have_syslog],       [Syslog logging plugin])
 AC_PLUGIN([table],       [yes],                [Parsing of tabular data])
 AC_PLUGIN([tail],        [yes],                [Parsing of logfiles])
 AC_PLUGIN([tail_csv],    [yes],                [Parsing of CSV files])
-AC_PLUGIN([tail_apache], [yes],                [Parsing of apache log files])
 AC_PLUGIN([tape],        [$plugin_tape],       [Tape drive statistics])
 AC_PLUGIN([target_notification], [yes],        [The notification target])
 AC_PLUGIN([target_replace], [yes],             [The replace target])
@@ -5870,6 +5870,7 @@ Configuration:
     java  . . . . . . . . $enable_java
     load  . . . . . . . . $enable_load
     logfile . . . . . . . $enable_logfile
+    logtail . . . . . . . $enable_logtail
     lpar  . . . . . . . . $enable_lpar
     log_logstash  . . . . $enable_log_logstash
     lvm . . . . . . . . . $enable_lvm
@@ -5927,7 +5928,6 @@ Configuration:
     table . . . . . . . . $enable_table
     tail  . . . . . . . . $enable_tail
     tail_csv  . . . . . . $enable_tail_csv
-    tail_apache . . . . . $enable_tail_apache
     tape  . . . . . . . . $enable_tape
     target_notification . $enable_target_notification
     target_replace  . . . $enable_target_replace
