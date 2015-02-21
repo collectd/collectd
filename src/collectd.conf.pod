@@ -1111,6 +1111,13 @@ used by the C<tail> plugin, so please see the documentation of the C<tail>
 plugin below on how matches are defined. If the B<MeasureResponseTime> option
 is set to B<true>, B<Match> blocks are optional.
 
+=item B<Timeout> I<Timeout in miliseconds>
+
+The B<Timeout> option sets the overall timeout for each request. Make sure that
+collectd is configured with enough C<ReadThreads>, otherwise an overly long
+timeout could block other plugins. By default, no timeout is configured (B<0>)
+and requests might hang indefinitely.
+
 =back
 
 =head2 Plugin C<curl_json>
