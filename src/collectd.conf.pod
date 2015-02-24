@@ -3145,12 +3145,12 @@ Disabled by default.
 
 Enable the collection of master / slave statistics in a replication setup. In
 order to be able to get access to these statistics, the user needs special
-privileges. See the B<User> documentation above.
+privileges. See the B<User> documentation above. Defaults to B<false>.
 
 =item B<SlaveNotifications> I<true|false>
 
 If enabled, the plugin sends a notification if the replication slave I/O and /
-or SQL threads are not running.
+or SQL threads are not running. Defaults to B<false>.
 
 =item B<ConnectTimeout> I<Seconds>
 
@@ -5533,6 +5533,14 @@ For more information on how RRA-sizes are calculated see B<RRARows> above.
 Set the "XFiles Factor". The default is 0.1. If unsure, don't set this option.
 I<Factor> must be in the range C<[0.0-1.0)>, i.e. between zero (inclusive) and
 one (exclusive).
+
+=item B<CollectStatistics> B<false>|B<true>
+
+When set to B<true>, various statistics about the I<rrdcached> daemon will be
+collected, with "rrdcached" as the I<plugin name>. Defaults to B<false>.
+
+Statistics are read via I<rrdcached>s socket using the STATS command.
+See L<rrdcached(1)> for details.
 
 =back
 
