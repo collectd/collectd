@@ -105,9 +105,6 @@ memcached_octets	rx:DERIVE:0:U, tx:DERIVE:0:U
 memcached_ops		value:DERIVE:0:U
 memory			value:GAUGE:0:281474976710656
 memory_lua		value:GAUGE:0:281474976710656
-msg_alloc_queues  value:GAUGE:0:65535
-msg_used_headers  value:GAUGE:0:65535
-msg_used_space    value:GAUGE:0:65535
 multimeter		value:GAUGE:U:U
 mutex_operations	value:DERIVE:0:U
 mysql_commands		value:DERIVE:0:U
@@ -179,13 +176,8 @@ response_code		value:GAUGE:0:U
 route_etx		value:GAUGE:0:U
 route_metric		value:GAUGE:0:U
 routes			value:GAUGE:0:U
-sem_used_arrays    value:GAUGE:0:65535
-sem_used    value:GAUGE:0:65535
+segments 		value:GAUGE:0:65535
 serial_octets		rx:DERIVE:0:U, tx:DERIVE:0:U
-shm_bytes_rss    value:GAUGE:0:65535
-shm_bytes_swapped  value:GAUGE:0:65535
-shm_bytes_total    value:GAUGE:0:65535
-shm_segments    value:GAUGE:0:65535
 signal_noise		value:GAUGE:U:0
 signal_power		value:GAUGE:U:0
 signal_quality		value:GAUGE:0:U

@@ -89,7 +89,10 @@ static long pagesize_g;
 #endif
 
 __attribute__ ((nonnull(1)))
-static void ipc_submit_g (const char *type, gauge_t value) /* {{{ */
+static void ipc_submit_g (const char *plugin_instance,
+                          const char *type,
+                          const char *type_instance,
+                          gauge_t value) /* {{{ */
 {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
@@ -100,7 +103,10 @@ static void ipc_submit_g (const char *type, gauge_t value) /* {{{ */
   vl.values_len = 1;
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "ipc", sizeof (vl.plugin));
+  sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
   sstrncpy (vl.type, type, sizeof (vl.type));
+  if (type_instance != NULL)
+    sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
   plugin_dispatch_values (&vl);
 } /* }}} */
@@ -164,8 +170,8 @@ static int ipc_read_sem (void) /* {{{ */
     return (-1);
   }
 
-  ipc_submit_g("sem_used_arrays", seminfo.semusz);
-  ipc_submit_g("sem_used", seminfo.semaem);
+  ipc_submit_g("sem", "count", "arrays", seminfo.semusz);
+  ipc_submit_g("sem", "count", "total", seminfo.semaem);
 
 /* #endif KERNEL_LINUX */
 #elif KERNEL_AIX
@@ -185,8 +191,8 @@ static int ipc_read_sem (void) /* {{{ */
   }
   free(ipcinfo_sem);
 
-  ipc_submit_g("sem_used_arrays", sem_nsems);
-  ipc_submit_g("sem_used", sems);
+  ipc_submit_g("sem", "count", "arrays", sem_nsems);
+  ipc_submit_g("sem", "count", "total", sems);
 #endif /* KERNEL_AIX */
 
   return (0);
@@ -204,10 +210,10 @@ static int ipc_read_shm (void) /* {{{ */
     ERROR("Kernel is not configured for shared memory");
     return (-1);
   }
-  ipc_submit_g("shm_segments", shm_info.used_ids);
-  ipc_submit_g("shm_bytes_total", shm_info.shm_tot * pagesize_g);
-  ipc_submit_g("shm_bytes_rss", shm_info.shm_rss * pagesize_g);
-  ipc_submit_g("shm_bytes_swapped", shm_info.shm_swp * pagesize_g);
+  ipc_submit_g("shm", "segments", NULL, shm_info.used_ids);
+  ipc_submit_g("shm", "bytes", "total", shm_info.shm_tot * pagesize_g);
+  ipc_submit_g("shm", "bytes", "rss", shm_info.shm_rss * pagesize_g);
+  ipc_submit_g("shm", "bytes", "swapped", shm_info.shm_swp * pagesize_g);
 /* #endif KERNEL_LINUX */
 #elif KERNEL_AIX
   ipcinfo_shm_t *ipcinfo_shm;
@@ -227,8 +233,8 @@ static int ipc_read_shm (void) /* {{{ */
   }
   free(ipcinfo_shm);
 
-  ipc_submit_g("shm_segments", shm_segments);
-  ipc_submit_g("shm_bytes_total", shm_bytes);
+  ipc_submit_g("shm", "segments", NULL, shm_segments);
+  ipc_submit_g("shm", "bytes", "total", shm_bytes);
 
 #endif /* KERNEL_AIX */
   return (0);
@@ -245,9 +251,9 @@ static int ipc_read_msg (void) /* {{{ */
     ERROR("Kernel is not configured for message queues");
     return (-1);
   }
-  ipc_submit_g("msg_alloc_queues", msginfo.msgmni);
-  ipc_submit_g("msg_used_headers", msginfo.msgmap);
-  ipc_submit_g("msg_used_space", msginfo.msgtql);
+  ipc_submit_g("msg", "count", "queues", msginfo.msgmni);
+  ipc_submit_g("msg", "count", "headers", msginfo.msgmap);
+  ipc_submit_g("msg", "count", "space", msginfo.msgtql);
 /* #endif KERNEL_LINUX */
 #elif KERNEL_AIX
   ipcinfo_msg_t *ipcinfo_msg;
@@ -268,9 +274,9 @@ static int ipc_read_msg (void) /* {{{ */
   }
   free(ipcinfo_msg);
 
-  ipc_submit_g("msg_alloc_queues", msg_alloc_queues);
-  ipc_submit_g("msg_used_headers", msg_qnum);
-  ipc_submit_g("msg_used_space", msg_used_space);
+  ipc_submit_g("msg", "count", "queues", msg_alloc_queues);
+  ipc_submit_g("msg", "count", "headers", msg_qnum);
+  ipc_submit_g("msg", "count", "space", msg_used_space);
 #endif /* KERNEL_AIX */
   return (0);
 }

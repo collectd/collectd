@@ -400,9 +400,8 @@ endif # BUILD_PLUGIN_INTERFACE
 if BUILD_PLUGIN_IPC
 pkglib_LTLIBRARIES += ipc.la
 ipc_la_SOURCES = ipc.c
-ipc_la_LDFLAGS = -module -avoid-version
-collectd_LDADD += "-dlopen" ipc.la
-collectd_DEPENDENCIES += ipc.la
+ipc_la_CFLAGS = $(AM_CFLAGS)
+ipc_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
 if BUILD_PLUGIN_IPTABLES
