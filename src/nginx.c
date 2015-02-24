@@ -113,8 +113,6 @@ static int config (const char *key, const char *value)
 
 static int init (void)
 {
-  static char credentials[1024];
-
   if (curl != NULL)
     curl_easy_cleanup (curl);
 
@@ -131,6 +129,11 @@ static int init (void)
 
   if (user != NULL)
   {
+#ifdef HAVE_CURLOPT_USERNAME
+    curl_easy_setopt (curl, CURLOPT_USERNAME, user);
+    curl_easy_setopt (curl, CURLOPT_PASSWORD, (pass == NULL) ? "" : pass);
+#else
+    static char credentials[1024];
     int status = ssnprintf (credentials, sizeof (credentials),
 	"%s:%s", user, pass == NULL ? "" : pass);
     if ((status < 0) || ((size_t) status >= sizeof (credentials)))
@@ -140,6 +143,7 @@ static int init (void)
     }
 
     curl_easy_setopt (curl, CURLOPT_USERPWD, credentials);
+#endif
   }
 
   if (url != NULL)

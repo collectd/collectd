@@ -283,8 +283,6 @@ static int config (oconfig_item_t *ci)
 /* initialize curl for each host */
 static int init_host (apache_t *st) /* {{{ */
 {
-	static char credentials[1024];
-
 	assert (st->url != NULL);
 	/* (Assured by `config_add') */
 
@@ -334,6 +332,12 @@ static int init_host (apache_t *st) /* {{{ */
 
 	if (st->user != NULL)
 	{
+#ifdef HAVE_CURLOPT_USERNAME
+		curl_easy_setopt (st->curl, CURLOPT_USERNAME, st->user);
+		curl_easy_setopt (st->curl, CURLOPT_PASSWORD,
+				(st->pass == NULL) ? "" : st->pass);
+#else
+		static char credentials[1024];
 		int status;
 
 		status = ssnprintf (credentials, sizeof (credentials), "%s:%s",
@@ -349,6 +353,7 @@ static int init_host (apache_t *st) /* {{{ */
 		}
 
 		curl_easy_setopt (st->curl, CURLOPT_USERPWD, credentials);
+#endif
 	}
 
 	curl_easy_setopt (st->curl, CURLOPT_URL, st->url);

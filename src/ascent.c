@@ -524,8 +524,6 @@ static int ascent_config (const char *key, const char *value) /* {{{ */
 
 static int ascent_init (void) /* {{{ */
 {
-  static char credentials[1024];
-
   if (url == NULL)
   {
     WARNING ("ascent plugin: ascent_init: No URL configured, "
@@ -551,6 +549,11 @@ static int ascent_init (void) /* {{{ */
 
   if (user != NULL)
   {
+#ifdef HAVE_CURLOPT_USERNAME
+    curl_easy_setopt (curl, CURLOPT_USERNAME, user);
+    curl_easy_setopt (curl, CURLOPT_PASSWORD, (pass == NULL) ? "" : pass);
+#else
+    static char credentials[1024];
     int status;
 
     status = ssnprintf (credentials, sizeof (credentials), "%s:%s",
@@ -563,6 +566,7 @@ static int ascent_init (void) /* {{{ */
     }
 
     curl_easy_setopt (curl, CURLOPT_USERPWD, credentials);
+#endif
   }
 
   curl_easy_setopt (curl, CURLOPT_URL, url);
