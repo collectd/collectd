@@ -48,6 +48,7 @@ struct apache_s
 	_Bool verify_peer;
 	_Bool verify_host;
 	char *cacert;
+	char *ssl_ciphers;
 	char *server; /* user specific server type */
 	char *apache_buffer;
 	char apache_curl_error[CURL_ERROR_SIZE];
@@ -72,6 +73,7 @@ static void apache_free (apache_t *st)
 	sfree (st->user);
 	sfree (st->pass);
 	sfree (st->cacert);
+	sfree (st->ssl_ciphers);
 	sfree (st->server);
 	sfree (st->apache_buffer);
 	if (st->curl) {
@@ -205,6 +207,8 @@ static int config_add (oconfig_item_t *ci)
 			status = cf_util_get_boolean (child, &st->verify_host);
 		else if (strcasecmp ("CACert", child->key) == 0)
 			status = cf_util_get_string (child, &st->cacert);
+		else if (strcasecmp ("SSLCiphers", child->key) == 0)
+			status = cf_util_get_string (child, &st->ssl_ciphers);
 		else if (strcasecmp ("Server", child->key) == 0)
 			status = cf_util_get_string (child, &st->server);
 		else
@@ -361,6 +365,8 @@ static int init_host (apache_t *st) /* {{{ */
 			st->verify_host ? 2L : 0L);
 	if (st->cacert != NULL)
 		curl_easy_setopt (st->curl, CURLOPT_CAINFO, st->cacert);
+	if (st->ssl_ciphers != NULL)
+		curl_easy_setopt (st->curl, CURLOPT_SSL_CIPHER_LIST,st->ssl_ciphers);
 
 	return (0);
 } /* }}} int init_host */
