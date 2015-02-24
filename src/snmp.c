@@ -1546,7 +1546,8 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
         if (csnmp_instance_list_add (&instance_list_head, &instance_list_tail,
               res, host, data) != 0)
         {
-          ERROR ("snmp plugin: csnmp_instance_list_add failed.");
+          ERROR ("snmp plugin: host %s: csnmp_instance_list_add failed.",
+              host->name);
           status = -1;
           break;
         }
