@@ -6255,6 +6255,22 @@ Rather than using the local time when dispatching a value, read the timestamp
 from the field with the zero-based index I<Index>. The value is interpreted as
 seconds since epoch. The value is parsed as a double and may be factional.
 
+=item B<FieldSeparator> I<string>
+
+Any character of string is interpreted as a delimiter between the different fields 
+of the line. A sequence of two or more contiguous delimiters in the line is considered 
+to be a single delimiter,i. e. there cannot be any empty fields. 
+The plugin uses the  L<strtok_r(3)> function to parse the lines. 
+If not defined "," will be the default Separator.
+
+=item B<MaxFields> I<number>
+
+This parameter helps plugin parser to speed up the processing time by processing 
+only MaxFields it also helps to limit memory usage. If not defined a maximum of 100 fields 
+per line will be processed. This parameter considers also that number of fields per line
+are usually the same per processed File, but should  work also with different number 
+of fields per line.
+
 =back
 
 =back

@@ -32,6 +32,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+
+#define TAILCSV_MAX_FIELDS    100
+
 struct metric_definition_s {
     char *name;
     char *type;
@@ -51,6 +54,9 @@ struct instance_definition_s {
     cdtime_t interval;
     int time_from;
     struct instance_definition_s *next;
+    char *field_delimiters;
+    int max_fields;
+    char **metrics_ptr;
 };
 typedef struct instance_definition_s instance_definition_t;
 
@@ -136,60 +142,24 @@ static _Bool tcsv_check_index (int index, size_t fields_num, char const *name)
 static int tcsv_read_buffer (instance_definition_t *id,
         char *buffer, size_t buffer_size)
 {
-    char **metrics;
     size_t metrics_num;
 
+    char *saveptr;
     char *ptr;
     size_t i;
-
-    /* Remove newlines at the end of line. */
-    while (buffer_size > 0) {
-        if ((buffer[buffer_size - 1] == '\n')
-                || (buffer[buffer_size - 1] == '\r')) {
-            buffer[buffer_size - 1] = 0;
-            buffer_size--;
-        } else {
-            break;
-        }
-    }
 
     /* Ignore empty lines. */
     if ((buffer_size == 0) || (buffer[0] == '#'))
         return (0);
 
-    /* Count the number of fields. */
-    metrics_num = 1;
-    for (i = 0; i < buffer_size; i++) {
-        if (buffer[i] == ',')
-            metrics_num++;
+    assert( id->metrics_ptr != NULL );
+    i=0;
+    ptr = strtok_r(buffer,id->field_delimiters,&saveptr);
+    while (ptr != NULL && i < id->max_fields ) {
+        id->metrics_ptr[i++]=ptr;
+        ptr = strtok_r(NULL,id->field_delimiters,&saveptr);
     }
-
-    if (metrics_num == 1) {
-        ERROR("tail_csv plugin: last line of `%s' does not contain "
-                "enough values.", id->path);
-        return (-1);
-    }
-
-    /* Create a list of all values */
-    metrics = calloc (metrics_num, sizeof (*metrics));
-    if (metrics == NULL) {
-        ERROR ("tail_csv plugin: calloc failed.");
-        return (ENOMEM);
-    }
-
-    ptr = buffer;
-    metrics[0] = ptr;
-    i = 1;
-    for (ptr = buffer; *ptr != 0; ptr++) {
-        if (*ptr != ',')
-            continue;
-
-        *ptr = 0;
-        metrics[i] = ptr + 1;
-        i++;
-    }
-    assert (i == metrics_num);
-
+    metrics_num=i;
     /* Register values */
     for (i = 0; i < id->metric_list_len; ++i){
         metric_definition_t *md = id->metric_list[i];
@@ -198,11 +168,9 @@ static int tcsv_read_buffer (instance_definition_t *id,
                 || !tcsv_check_index (id->time_from, metrics_num, md->name))
             continue;
 
-        tcsv_read_metric (id, md, metrics, metrics_num);
+        tcsv_read_metric (id, md, id->metrics_ptr, metrics_num);
     }
 
-    /* Free up resources */
-    sfree (metrics);
     return (0);
 }
 
@@ -368,6 +336,8 @@ static void tcsv_instance_definition_destroy(void *arg){
         cu_tail_destroy (id->tail);
     id->tail = NULL;
 
+    sfree(id->field_delimiters);
+    sfree(id->metrics_ptr);
     sfree(id->instance);
     sfree(id->path);
     sfree(id->metric_list);
@@ -433,6 +403,10 @@ static int tcsv_config_add_file(oconfig_item_t *ci)
     id->time_from = -1;
     id->next = NULL;
 
+    id->field_delimiters = NULL;
+    id->max_fields = TAILCSV_MAX_FIELDS;
+    id->metrics_ptr = NULL;
+
     status = cf_util_get_string (ci, &id->path);
     if (status != 0) {
         sfree (id);
@@ -454,6 +428,10 @@ static int tcsv_config_add_file(oconfig_item_t *ci)
             cf_util_get_cdtime(option, &id->interval);
         else if (strcasecmp("TimeFrom", option->key) == 0)
             status = tcsv_config_get_index (option, &id->time_from);
+	else if (strcasecmp("FieldSeparators", option->key) == 0)
+	    status = cf_util_get_string(option, &id->field_delimiters);
+        else if (strcasecmp("MaxFields", option->key) == 0)
+            status = cf_util_get_int(option, &id->max_fields);
         else {
             WARNING("tail_csv plugin: Option `%s' not allowed here.", option->key);
             status = -1;
@@ -476,6 +454,16 @@ static int tcsv_config_add_file(oconfig_item_t *ci)
         WARNING("tail_csv plugin: Option `Collect' must be set.");
         status = -1;
    }
+    /*verify if delimiters have been initialized else default delimiter should be ',' and should be dinamic memory*/
+    if(id->field_delimiters == NULL){
+        id->field_delimiters=strdup(",");
+    }
+    /*initialize metrics_ptr to TAILCSV_MAX_FIELDS if no MaxFields defined on the File Section*/
+    id->metrics_ptr = calloc (id->max_fields, sizeof (char*));
+    if (id->metrics_ptr == NULL) {
+        ERROR ("tail_csv plugin: calloc failed.");
+        return (ENOMEM);
+    }
 
     if (status != 0){
         tcsv_instance_definition_destroy(id);
