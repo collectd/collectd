@@ -329,6 +329,8 @@ static derive_t stats_values_sent = 0;
 static derive_t stats_values_not_sent = 0;
 static pthread_mutex_t stats_lock = PTHREAD_MUTEX_INITIALIZER;
 
+static int store_rates = 0;
+
 /*
  * Private functions
  */
@@ -608,9 +610,11 @@ static int write_part_values (char **ret_buffer, int *ret_buffer_len,
 	uint16_t      pkg_num_values;
 	uint8_t      *pkg_values_types;
 	value_t      *pkg_values;
+	gauge_t      *rates = NULL;
 
 	int offset;
 	int i;
+	
 
 	num_values = vl->values_len;
 	packet_len = sizeof (part_header_t) + sizeof (uint16_t)
@@ -643,32 +647,47 @@ static int write_part_values (char **ret_buffer, int *ret_buffer_len,
 	for (i = 0; i < num_values; i++)
 	{
 		pkg_values_types[i] = (uint8_t) ds->ds[i].type;
-		switch (ds->ds[i].type)
+
+		if (ds->ds[i].type == DS_TYPE_GAUGE)
 		{
-			case DS_TYPE_COUNTER:
-				pkg_values[i].counter = htonll (vl->values[i].counter);
-				break;
-
-			case DS_TYPE_GAUGE:
-				pkg_values[i].gauge = htond (vl->values[i].gauge);
-				break;
-
-			case DS_TYPE_DERIVE:
-				pkg_values[i].derive = htonll (vl->values[i].derive);
-				break;
-
-			case DS_TYPE_ABSOLUTE:
-				pkg_values[i].absolute = htonll (vl->values[i].absolute);
-				break;
-
-			default:
-				free (pkg_values_types);
-				free (pkg_values);
-				ERROR ("network plugin: write_part_values: "
-						"Unknown data source type: %i",
-						ds->ds[i].type);
+			pkg_values[i].gauge = htond (vl->values[i].gauge);
+		}
+		else if (store_rates == 1)
+		{
+			if (rates == NULL)
+				rates = uc_get_rate (ds, vl);
+			if (rates == NULL)
+			{
+				WARNING ("csv plugin: "
+					"uc_get_rate failed.");
 				return (-1);
-		} /* switch (ds->ds[i].type) */
+			}
+			else
+			{
+				pkg_values[i].gauge = htond (rates[i]);
+				pkg_values_types[i] = DS_TYPE_GAUGE;
+			}
+		}
+		else if (ds->ds[i].type == DS_TYPE_COUNTER)
+		{
+			pkg_values[i].counter = htonll (vl->values[i].counter);
+		}
+		else if (ds->ds[i].type == DS_TYPE_DERIVE)
+		{
+			pkg_values[i].derive = htonll (vl->values[i].derive);
+		}
+		else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
+		{
+			pkg_values[i].absolute = htonll (vl->values[i].absolute);
+		}
+		else {
+			free (pkg_values_types);
+			free (pkg_values);
+			ERROR ("network plugin: write_part_values: "
+					"Unknown data source type: %i",
+					ds->ds[i].type);
+			return (-1);
+		}
 	} /* for (num_values) */
 
 	/*
@@ -694,6 +713,7 @@ static int write_part_values (char **ret_buffer, int *ret_buffer_len,
 
 	free (pkg_values_types);
 	free (pkg_values);
+	free (rates);
 
 	return (0);
 } /* int write_part_values */
@@ -3307,6 +3327,10 @@ static int network_config (oconfig_item_t *ci) /* {{{ */
       network_config_set_boolean (child, &network_config_forward);
     else if (strcasecmp ("ReportStats", child->key) == 0)
       network_config_set_boolean (child, &network_config_stats);
+    else if (strcasecmp ("StoreRates", child->key) == 0)
+    {
+      network_config_set_boolean (child, &store_rates);
+    }
     else
     {
       WARNING ("network plugin: Option `%s' is not allowed here.",
