@@ -41,6 +41,8 @@
 	  minimum and maximum. Previously, they were calculated from the start
 	  of the daemon, which is not the documented behavior. Thanks to
 	  Florian Forster. #663
+	* dbi plugin: Compatibility with new versions of libdbi has been
+	  restored. Thanks to Florian Forster. #950
 	* exec, unixsock plugins: Fix parsing of the "time" option of the
 	  "PUTNOTIF" command. Thanks to Adrian Miron. #477
 	* java: Conversion from Java's time representation to collectd's
