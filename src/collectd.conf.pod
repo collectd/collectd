@@ -2535,6 +2535,100 @@ B<Note>: There is no need to notify the daemon after moving or removing the
 log file (e.E<nbsp>g. when rotating the logs). The plugin reopens the file
 for each line it writes.
 
+=head2 Plugin C<logtail>
+
+The I<logtail> plugin works like C<tail -f> with analyze of URI, statuscode, time or size.
+It can count,summarize,avg,percentile of these values. 
+
+Every C<Plugin> can have 1 or more C<Files> sections, each of them specifies 1 or more files or filemasks.
+Every C<Files> have 1 or more C<Match> sections, Every new line of file will be parsed and URL will be matched with first C<Prefix>, C<Suffix> or C<Exact> Keyword. 
+For every matched C<Match> can be 0 or more C<Report> sections.
+
+Synopsis:
+
+## optional parameters with default values have one comment symbol
+ <Plugin "logtail">
+            ## many files or glob-filemasks can be specified
+     <Files "/var/log/apache/website1_access.log*" "/var/log/apache/website1alias_access.log*">
+        Instance "website1"
+ 
+#        Interval 60
+
+## text or symbols - what should match
+## %? - any word(to next separator)
+## "%?" - any line in quotes (single or double)
+## %r - special keyword: request URI
+## %s - size
+## %b - bytes
+## %D - (micro)seconds
+#        Format "%? %? %? %? %? \"%? %r %?\" %s %b \"%?\" \"%?\" %D %? %?"
+ 
+# what to match for URI
+        <Match>
+          Suffix .jpg .png .css .js
+          Prefix "/static/"
+          Instance "static"
+          
+          <Report>
+              Type "count"
+#             Instance "total"  # will be counter-total
+          </Report>
+          <Report>
+              Type "count_code"
+              Threshold 200 300 400 404 405 500 501 505
+#              Instance "code" # will be counter-code-%d
+          </Report>
+          <Report>
+              Type "count_time"
+              Threshold 1000 10000 100000 1000000
+#             Instance "time" # will be counter-time-%d
+          </Report>
+          <Report>
+              Type "count_size"
+              Threshold 1000 10000 100000 1000000
+#             Instance "size" # will be counter-size-%d
+          </Report>
+          <Report>
+              Type "sum_size"
+#             Instance "sum_size" # will be counter-sum_size
+          </Report>
+          <Report>
+              Type "avg_size"
+#             Instance "size"  # will be avg-size
+          </Report>
+          <Report>
+              Type "avg_time"
+#             Instance "time" # will be avg-time
+          </Report>
+          <Report>
+              Type "pct_time" # percentile
+#             Instance "pct_time" # will be pct-time
+              Threshold 50 90 99
+          </Report>
+          <Report>
+              Type "pct_size"   # percentile
+#             Instance "pct_size"
+              Threshold 50 90 99
+          </Report>
+        </Match>
+        <Match>
+          Exact /server-status /status
+#         ..
+        </Match>
+        <Match>
+#todo:    Regex ^/user/
+#         ..
+        </Match>
+        <Match>
+          Prefix /
+#         ..
+        </Match>
+
+    </Files>
+
+ </Plugin>
+
+
 =head2 Plugin C<lpar>
 
 The I<LPAR plugin> reads CPU statistics of I<Logical Partitions>, a

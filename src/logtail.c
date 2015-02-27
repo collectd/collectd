@@ -102,6 +102,16 @@ Config example:
 	      Type "avg_time"
 #	      Instance "time" # will be avg-time
           </Report>
+          <Report>
+	      Type "pct_time" # percentile 
+#	      Instance "pct_time" # will be pct-time
+              Threshold 50 90 99
+          </Report>
+          <Report>
+	      Type "pct_size"   # percentile
+#	      Instance "pct_size"
+              Threshold 50 90 99
+          </Report>
 	</Match>
 	<Match>
 	  Exact /server-status /status
@@ -130,6 +140,8 @@ struct logtail_config_report_s
   size_t *threshold;
   size_t threshold_num;
   void *data;
+  size_t data_num;
+  size_t data_cur;
 };
 typedef struct logtail_config_report_s logtail_config_report_t;
 
@@ -181,6 +193,8 @@ typedef struct logtail_config_filemask_s logtail_config_filemask_t;
 #define TA_R_SUM_SIZE      5
 #define TA_R_AVG_SIZE      6
 #define TA_R_AVG_TIME      7
+#define TA_R_PCT_SIZE      8
+#define TA_R_PCT_TIME      9
 
 // for filemask_t->format_parsed. 
 #define TA_F_STOP          0
@@ -277,7 +291,17 @@ static void logtail_destroy_filemask(logtail_config_filemask_t*fm)
     sfree(fm);
 }
 
+static void logtail_report_incr_pct_buffer(logtail_config_report_t *rm){
+    size_t incr = rm->data_num * 2;
+    if(incr < 1024) incr = 1024;
+    if(incr > 1024*512) incr = 1024*512;
+    rm->data = realloc(rm->data, sizeof(counter_t)*(rm->data_num + incr));
+    if(rm->data)
+      memset( rm->data_num + (counter_t*)rm->data, 0, sizeof(counter_t)*incr );
 
+    rm->data_num+=incr;
+    INFO("increasing buffer for %s to %zu",rm->instance,rm->data_num);
+}
 
 
 static int logtail_config_add_report_threshold (logtail_config_report_t *rm,
@@ -306,7 +330,7 @@ static int logtail_config_add_report_threshold (logtail_config_report_t *rm,
     ERROR ("logtail plugin: malloc  failed.%d",__LINE__);
     return (-1);
   }
-  memset(thr, 0, sizeof(*rm));
+  memset(thr, 0, sizeof(*thr)* ci->values_num);
   
   for( i = 0; i < ci->values_num; i++)
   { 
@@ -350,6 +374,10 @@ static int logtail_config_add_report_type (logtail_config_report_t *rm,
     rm->type = TA_R_AVG_SIZE;
   else if (strcasecmp ("Avg_time", ci->values[0].value.string) == 0)
     rm->type = TA_R_AVG_TIME;
+  else if (strcasecmp ("pct_size", ci->values[0].value.string) == 0)
+    rm->type = TA_R_PCT_SIZE;
+  else if (strcasecmp ("pct_time", ci->values[0].value.string) == 0)
+    rm->type = TA_R_PCT_TIME;
   else
   {
      ERROR ("Type %s is unknown",ci->values[0].value.string);
@@ -414,22 +442,49 @@ static int logtail_config_add_report (logtail_config_match_t *cm,
             "time",
             "size",
             "sum_size",
-            "size",
-            "time" };
-        
-     rm->instance=strdup(instanceName[rm->type]);
+            "avg_size", // AVG
+            "avg_time",
+            "pct_size", // PCT
+            "pct_time", 
 
+       };
+         
+     rm->instance=strdup(instanceName[rm->type]);
   }
+  if (rm->instance == NULL)
+  {
+    ERROR ("logtail plugin: strdup/malloc failed.%d",__LINE__);
+    logtail_destroy_report(rm);
+    return (-1);
+  }
+  DEBUG ("logtail plugin: add_report: name %s type %d threshold_num %zu",rm->instance,rm->type,rm->threshold_num);
+  if( (rm->type == TA_R_PCT_SIZE || rm->type == TA_R_PCT_TIME ) && rm->threshold_num < 1 ){
+      ERROR ("logtail plugin: report_threshold: PCT_SIZE, PCT_TIME should have at least 1 threshold");
+      logtail_destroy_report(rm);
+      return (-2);
+  }
+  if( rm->type == TA_R_PCT_SIZE || rm->type == TA_R_PCT_TIME ){
+      for(i=0;i<rm->threshold_num;i++)
+        if(rm->threshold[i]>100 || rm->threshold[i]<0){
+          ERROR ("logtail plugin: report_threshold: PCT_SIZE, PCT_TIME should have thresholds between 0 and 100, got %zu",rm->threshold[i]);
+          logtail_destroy_report(rm);
+          return (-2);
+        }
+  }
+  
   if( (rm->type == TA_R_COUNT_CODE || rm->type == TA_R_COUNT_SIZE || rm->type == TA_R_COUNT_TIME) && rm->threshold_num < 2 ){
-      ERROR ("logtail plugin: report_threshold: COUNT_CODE, COUNT_SIZE, COUNT_TIME should have at leat 2 thresholds");
+      ERROR ("logtail plugin: report_threshold: COUNT_CODE, COUNT_SIZE, COUNT_TIME should have at least 2 thresholds");
       logtail_destroy_report(rm);
       return (-2);
   }
 
-  if ( rm->type == TA_R_COUNT_CODE || rm->type == TA_R_COUNT_SIZE || rm->type == TA_R_COUNT_TIME ){
+  if( rm->type == TA_R_PCT_SIZE || rm->type == TA_R_PCT_TIME ){
+     logtail_report_incr_pct_buffer(rm);
+  }else if ( rm->type == TA_R_COUNT_CODE || rm->type == TA_R_COUNT_SIZE || rm->type == TA_R_COUNT_TIME ){
+     DEBUG("malloc: %zu",sizeof(counter_t)*rm->threshold_num);
      rm->data = malloc(sizeof(counter_t)*rm->threshold_num);
      if(rm->data)   memset(rm->data, 0, sizeof(counter_t)*rm->threshold_num);
-     ERROR ("logtail plugin: report_threshold: created array of size %zu, %p",rm->threshold_num,rm->data);
+//     ERROR ("logtail plugin: report_threshold: created array of size %zu, %p",rm->threshold_num,rm->data);
   }else if(rm->type == TA_R_AVG_SIZE || rm->type ==  TA_R_AVG_TIME){
      rm->data = malloc(sizeof(counter_t)*2);
      if(rm->data)   memset(rm->data, 0, sizeof(counter_t)*2);
@@ -1066,6 +1121,20 @@ static int logtail_update_report(logtail_config_report_t*rm,logtail_current_data
       cnt[0]++;
       cnt[1]+=data->time;
       break; 
+   case TA_R_PCT_SIZE:
+   case TA_R_PCT_TIME:
+      if(rm->data_cur >= rm->data_num){
+        logtail_report_incr_pct_buffer(rm);
+        cnt  = (counter_t*)rm->data;
+      }
+      if (rm->data == NULL) {
+        ERROR ("logtail plugin: malloc  failed.%d",__LINE__);
+        return (-1);
+      }
+      cnt[rm->data_cur] = rm->type == TA_R_PCT_SIZE ? data->size : data->time;
+      DEBUG("data %s %zu %lld",rm->instance,rm->data_cur,cnt[rm->data_cur]);
+      rm->data_cur++;
+      break; 
   }
   return 0;
 }
@@ -1125,13 +1194,20 @@ static void submit_value (const char *name, const char *type, const char * typen
 } /* void submit_value */
 
 
-static void submit_gauge (const char *name, const char *typename,
+static void submit_avg (const char *name, const char *typename,
                 gauge_t g)
 {
         value_t v;
         v.gauge = g;
         submit_value (name,"avg", typename, v);
-} /* void submit_gauge */
+} /* void submit_avg */
+static void submit_percentile (const char *name, const char *typename,
+                gauge_t g)
+{
+        value_t v;
+        v.gauge = g;
+        submit_value (name,"percentile", typename, v);
+} /* void submit_percentile */
 
 static void submit_counter (const char *name, const char *typename,
                 counter_t c)
@@ -1141,46 +1217,74 @@ static void submit_counter (const char *name, const char *typename,
         submit_value (name, "counter", typename, v);
 } /* void submit_gauge */
 
+static int logtail_cmp_counters(const void * a, const void *b){
+  if ((a == NULL) && (b == NULL))
+    return (0);
+  else if (a == NULL)
+    return (-1);
+  else if (b == NULL)
+    return (1);
+  else if( *(counter_t*)a ==  *(counter_t*)b )
+    return (0);
+  else if( *(counter_t*)a <  *(counter_t*)b )
+    return (-1);
+  else 
+    return 1;
+
+
+}
+
 static void logtail_send(logtail_config_filemask_t *fm)
 {
   int i,j,k;
+  size_t t;
   char name[1024],type[1024];
-//  char*nameptr;
   gauge_t g;
   counter_t *data;
 
   for(i=0;i<fm->match_num;i++){
     for(j=0;j<fm->match[i]->report_num;j++){
       snprintf(name, sizeof (name),"%s.%s",fm->instance,fm->match[i]->instance);
-//      snprintf(name2, sizeof (name2),"%s.%s.%s",fm->instance,fm->match[i]->instance,fm->match[i]->report[j]->instance);
       data=(counter_t*) fm->match[i]->report[j]->data;
 
       switch(fm->match[i]->report[j]->type){
         case TA_R_COUNT:
         case TA_R_SUM_SIZE:
-          DEBUG("logtail plugin:send count %s=%lld",name,data[0]);
-
-//          nameptr = (fm->match[i]->report[j]->type == TA_R_COUNT ? "counter" : "bytes");
           submit_counter( name , fm->match[i]->report[j]->instance, data[0] );
           break;
 
         case TA_R_COUNT_CODE:
         case TA_R_COUNT_TIME:
         case TA_R_COUNT_SIZE:
-//          name = "counter";
           for(k=0;k<fm->match[i]->report[j]->threshold_num;k++){
             snprintf(type,sizeof(type),"%s-%zu",fm->match[i]->report[j]->instance,fm->match[i]->report[j]->threshold[k]);
             submit_counter(name, type, data[k] ); 
           }
-//          memset(data,0,sizeof(counter_t) * fm->match[i]->report[j]->threshold_num);
           break;
 
         case TA_R_AVG_SIZE:
         case TA_R_AVG_TIME:
-//          type = fm->match[i]->report[j]->type == TA_R_AVG_SIZE ? "bytes" : "duration";
           g= data[0] ? 1.0 * data[1] / data[0] : 0.0;
-          submit_gauge(name, fm->match[i]->report[j]->instance, g );
+          submit_avg(name, fm->match[i]->report[j]->instance, g );
           memset(data,0,sizeof(counter_t)*2);
+          break;
+
+
+        case TA_R_PCT_SIZE:
+        case TA_R_PCT_TIME:
+//          for(k=0;k<fm->match[i]->report[j]->data_cur;k++)
+//            DEBUG("data1 %s %d %lld",name,k,data[k]);
+          qsort(data,fm->match[i]->report[j]->data_cur,sizeof(counter_t*),logtail_cmp_counters);
+//          for(k=0;k<fm->match[i]->report[j]->data_cur;k++)
+//            DEBUG("data2 %s %d %lld",name,k,data[k]);
+          for(k=0;k<fm->match[i]->report[j]->threshold_num;k++){
+            snprintf(type,sizeof(type),"%s-%zu",fm->match[i]->report[j]->instance,fm->match[i]->report[j]->threshold[k]);
+            t = fm->match[i]->report[j]->data_cur * fm->match[i]->report[j]->threshold[k] / 100;
+            DEBUG("logtail pct out %s total %zu data[%zu]=%llu",type,fm->match[i]->report[j]->data_cur,t,data[t]);
+            submit_percentile(name, type, data[t] );
+          }
+          memset(data,0,sizeof(counter_t)*fm->match[i]->report[j]->data_cur);
+          fm->match[i]->report[j]->data_cur=0;
           break;
       }
     }

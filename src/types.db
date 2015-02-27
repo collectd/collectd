@@ -135,6 +135,7 @@ objects			value:GAUGE:0:U
 operations		value:DERIVE:0:U
 packets			value:DERIVE:0:U
 pending_operations	value:GAUGE:0:U
+percentile		value:GAUGE:U:U
 percent			value:GAUGE:0:100.1
 percent_bytes		value:GAUGE:0:100.1
 percent_inodes		value:GAUGE:0:100.1
