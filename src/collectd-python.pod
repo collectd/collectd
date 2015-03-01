@@ -16,9 +16,7 @@ collectd-python - Documentation of collectd's C<python plugin>
 
 =head1 SYNOPSIS
 
-  <LoadPlugin python>
-    Globals true
-  </LoadPlugin>
+  LoadPlugin python
   # ...
   <Plugin python>
     ModulePath "/path/to/your/python/modules"
@@ -47,12 +45,7 @@ The minimum required Python version is I<2.3>.
 
 =item B<LoadPlugin> I<Plugin>
 
-Loads the Python plugin I<Plugin>. Unlike most other LoadPlugin lines, this one
-should be a block containing the line "Globals true". This will cause collectd
-to export the name of all objects in the Python interpreter for all plugins to
-see. If you don't do this or your platform does not support it, the embedded
-interpreter will start anyway but you won't be able to load certain Python
-modules, e.g. "time".
+Loads the Python plugin I<Plugin>.
 
 =item B<Encoding> I<Name>
 

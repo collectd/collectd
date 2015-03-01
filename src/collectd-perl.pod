@@ -6,9 +6,7 @@ collectd-perl - Documentation of collectd's C<perl plugin>
 
 =head1 SYNOPSIS
 
-  <LoadPlugin perl>
-    Globals true
-  </LoadPlugin>
+  LoadPlugin perl
   # ...
   <Plugin perl>
     IncludeDir "/path/to/perl/plugins"
