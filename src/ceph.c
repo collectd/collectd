@@ -806,8 +806,6 @@ node_handler_define_schema(void *arg, const char *val, const char *key)
     struct ceph_daemon *d = (struct ceph_daemon *) arg;
     int pc_type;
     pc_type = atoi(val);
-    DEBUG("ceph plugin: ceph_daemon_add_ds_entry(d=%s,key=%s,pc_type=%04x)",
-            d->name, key, pc_type);
     return ceph_daemon_add_ds_entry(d, key, pc_type);
 }
 
@@ -1006,8 +1004,6 @@ static int node_handler_fetch_data(void *arg, const char *val, const char *key)
             {
                 double sum, result;
                 sscanf(val, "%lf", &sum);
-                DEBUG("ceph plugin: avgcount:%" PRIu64,vtmp->avgcount);
-                DEBUG("ceph plugin: sum:%lf",sum);
 
                 if(vtmp->avgcount == 0)
                 {
@@ -1018,7 +1014,6 @@ static int node_handler_fetch_data(void *arg, const char *val, const char *key)
                 if(long_run_latency_avg)
                 {
                     result = (sum / vtmp->avgcount);
-                    DEBUG("ceph plugin: uv->gauge = sumd / avgcounti = :%lf", result);
                 }
                 else
                 {
@@ -1027,8 +1022,6 @@ static int node_handler_fetch_data(void *arg, const char *val, const char *key)
                     {
                         return -ENOMEM;
                     }
-                    DEBUG("ceph plugin: uv->gauge = (sumd_now - sumd_last) / "
-                            "(avgcounti_now - avgcounti_last) = :%lf", result);
                 }
 
                 uv.gauge = result;
@@ -1039,12 +1032,10 @@ static int node_handler_fetch_data(void *arg, const char *val, const char *key)
         case DSET_BYTES:
             sscanf(val, "%lf", &tmp_d);
             uv.gauge = tmp_d;
-            DEBUG("ceph plugin: uv->gauge = %lf",uv.gauge);
             break;
         case DSET_RATE:
             sscanf(val, "%" PRIu64, &tmp_u);
             uv.derive = tmp_u;
-            DEBUG("ceph plugin: uv->derive = %" PRIu64 "",(uint64_t)uv.derive);
             break;
         case DSET_TYPE_UNFOUND:
         default:
@@ -1057,7 +1048,6 @@ static int node_handler_fetch_data(void *arg, const char *val, const char *key)
     vtmp->vlist.values = &uv;
     vtmp->vlist.values_len = 1;
 
-    DEBUG("ceph plugin: dispatching %s\n", ds_name);
     vtmp->index = (vtmp->index + 1);
     plugin_dispatch_values(&vtmp->vlist);
 
@@ -1480,8 +1470,6 @@ static int cconn_main_loop(uint32_t request_type)
             }
             else if(ret == 1)
             {
-                DEBUG("ceph plugin: did cconn_prepare(name=%s,i=%d,st=%d)",
-                        io->d->name, i, io->state);
                 polled_io_array[nfds++] = io_array + i;
             }
         }
@@ -1489,7 +1477,6 @@ static int cconn_main_loop(uint32_t request_type)
         {
             /* finished */
             ret = 0;
-            DEBUG("ceph plugin: cconn_main_loop: no more cconn to manage.");
             goto done;
         }
         gettimeofday(&tv, NULL);
@@ -1562,7 +1549,6 @@ static int ceph_read(void)
 static int ceph_init(void)
 {
     int ret;
-    DEBUG("ceph plugin: ceph_init");
     ceph_daemons_print();
 
     ret = cconn_main_loop(ASOK_REQ_VERSION);
