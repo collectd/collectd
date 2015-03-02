@@ -521,18 +521,16 @@ static int capachelog_init (void)
 
 int  apachelog_split_line(char *buf,char **array)
 {
-  char **ptrptr;
+  char *saveptr;
   int i;
   char *p;
   i = 0;
-  ptrptr=calloc(APACHELOG_MAX_FIELDS,sizeof(char*));
-  p = strtok_r (buf," ",ptrptr);  
+  p = strtok_r (buf," ",&saveptr);  
   while (p != NULL && i<APACHELOG_MAX_FIELDS)
   {
     array[i++] = p;
-    p = strtok_r (NULL," ",ptrptr);
+    p = strtok_r (NULL," ",&saveptr);
   }
-  free(ptrptr);
   return i;
 }
 
