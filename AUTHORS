@@ -81,6 +81,9 @@ Cyril Feraudet <cyril at feraudet.com>
 Dan Berrange <berrange at redhat.com>
  - uuid plugin.
 
+Dan Ryder <daryder at cisco.com>
+ - ceph plugin.
+
 David Bacher <drbacher at gmail.com>
  - serial plugin.
 
