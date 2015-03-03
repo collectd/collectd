@@ -2431,6 +2431,7 @@ fi
 # }}}
 
 # --with-libmongoc {{{
+AM_CONDITIONAL(BUILD_WITH_OWN_LIBMONGOC, test "x$with_libmongoc" = "xown")
 AC_ARG_WITH(libmongoc, [AS_HELP_STRING([--with-libmongoc@<:@=PREFIX@:>@], [Path to libmongoc.])],
 [
  if test "x$withval" = "xyes"
@@ -2440,9 +2441,15 @@ AC_ARG_WITH(libmongoc, [AS_HELP_STRING([--with-libmongoc@<:@=PREFIX@:>@], [Path 
  then
 	 with_libmongoc="no"
  else
-	 with_libmongoc="yes"
-	 LIBMONGOC_CPPFLAGS="$LIBMONGOC_CPPFLAGS -I$withval/include"
-	 LIBMONGOC_LDFLAGS="$LIBMONGOC_LDFLAGS -L$withval/lib"
+     if test "x$withval" = "xown"
+     then
+	     with_libmongoc="yes"
+	     with_own_libmongoc="yes"
+	     AC_DEFINE(OWN_LIBMONGOC, 1, [Define to 1 if we use the shipped mongoc lib.])
+	 else
+	     LIBMONGOC_CPPFLAGS="$LIBMONGOC_CPPFLAGS -I$withval/include"
+	     LIBMONGOC_LDFLAGS="$LIBMONGOC_LDFLAGS -L$withval/lib"
+	 fi
  fi; fi
 ],
 [with_libmongoc="yes"])
@@ -2459,17 +2466,20 @@ then
 	then
 		AC_MSG_NOTICE([libmongoc CPPFLAGS: $LIBMONGOC_CPPFLAGS])
 	fi
-	AC_CHECK_HEADERS(mongo.h,
-	[with_libmongoc="yes"],
-	[with_libmongoc="no ('mongo.h' not found)"],
+	if test "x$with_own_libmongoc" != "xyes"
+	then
+	    AC_CHECK_HEADERS(mongo.h,
+	    [with_libmongoc="yes"],
+	    [with_libmongoc="no ('mongo.h' not found)"],
 [#if HAVE_STDINT_H
 # define MONGO_HAVE_STDINT 1
 #else
 # define MONGO_USE_LONG_LONG_INT 1
 #endif
 ])
+    fi
 fi
-if test "x$with_libmongoc" = "xyes"
+if test "x$with_libmongoc" = "xyes" -a "x$with_own_libmongoc" != "xyes"
 then
 	if test "x$LIBMONGOC_LDFLAGS" != "x"
 	then
@@ -5198,6 +5208,7 @@ AC_PLUGIN([memcached],   [yes],                [memcached statistics])
 AC_PLUGIN([memory],      [$plugin_memory],     [Memory usage])
 AC_PLUGIN([mic],         [$with_mic],          [Intel Many Integrated Core stats])
 AC_PLUGIN([modbus],      [$with_libmodbus],    [Modbus plugin])
+AC_PLUGIN([mongodb],     [$with_libmongoc],    [MongoDB statistics])
 AC_PLUGIN([multimeter],  [$plugin_multimeter], [Read multimeter values])
 AC_PLUGIN([mysql],       [$with_libmysql],     [MySQL statistics])
 AC_PLUGIN([netapp],      [$with_libnetapp],    [NetApp plugin])
@@ -5546,6 +5557,7 @@ Configuration:
     memory  . . . . . . . $enable_memory
     mic . . . . . . . . . $enable_mic
     modbus  . . . . . . . $enable_modbus
+    mongodb  . . . . .  . $enable_mongodb
     multimeter  . . . . . $enable_multimeter
     mysql . . . . . . . . $enable_mysql
     netapp  . . . . . . . $enable_netapp
