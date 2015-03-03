@@ -1,22 +1,8 @@
-# build.sh stuff:
-Makefile.in
-/INSTALL
-/aclocal.m4
-/autom4te.cache
-/autom4te.cache
-/compile
-/config.guess
-/config.sub
-/configure
-/depcomp
-/install-sh
-/libltdl/
-/ltmain.sh
-/missing
-src/config.h.in
-
 # configure stuff:
 Makefile
+!stackdriver/Makefile
+# allow the libmongoc Makefile until we have time to integrate it further
+!src/libmongoc/Makefile
 config.log
 config.status
 libtool
@@ -43,18 +29,6 @@ src/libcollectdclient/collectd/lcc_features.h
 # patch stuff
 *.rej
 *.orig
-
-# lex / yacc stuff:
-ylwrap
-src/liboconfig/parser.c
-src/liboconfig/parser.h
-src/liboconfig/scanner.c
-
-# protobuf stuff:
-src/*.pb-c.[ch]
-src/*.grpc.pb.cc
-src/*.pb.cc
-src/*.pb.h
 
 # make dist stuff:
 /collectd-*.tar.gz
