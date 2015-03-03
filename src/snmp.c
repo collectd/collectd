@@ -993,7 +993,8 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
       status = parse_value (string, &ret, type);
       if (status != 0)
       {
-        ERROR ("snmp plugin: csnmp_value_list_to_value: Parsing string as %s failed: %s",
+        ERROR ("snmp plugin: host %s: csnmp_value_list_to_value: Parsing string as %s failed: %s",
+            (host_name != NULL) ? host_name : "UNKNOWN",
             DS_TYPE_TO_STRING (type), string);
       }
     }
