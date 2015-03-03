@@ -837,7 +837,6 @@ int plugin_load (const char *type, uint32_t flags)
 	const char *dir;
 	char  filename[BUFSIZE] = "";
 	char  typename[BUFSIZE];
-	int   typename_len;
 	int   ret;
 	struct stat    statbuf;
 	struct dirent *de;
@@ -854,7 +853,6 @@ int plugin_load (const char *type, uint32_t flags)
 		WARNING ("plugin_load: Filename too long: \"%s.so\"", type);
 		return (-1);
 	}
-	typename_len = strlen (typename);
 
 	if ((dh = opendir (dir)) == NULL)
 	{
@@ -866,7 +864,7 @@ int plugin_load (const char *type, uint32_t flags)
 
 	while ((de = readdir (dh)) != NULL)
 	{
-		if (strncasecmp (de->d_name, typename, typename_len))
+		if (strcasecmp (de->d_name, typename))
 			continue;
 
 		status = ssnprintf (filename, sizeof (filename),
