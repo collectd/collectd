@@ -259,15 +259,15 @@ static void submit (const char *plugin_instance, /* {{{ */
     if (strcmp (lookup_table[i].name, pdns_type) == 0)
       break;
 
-  if (lookup_table[i].type == NULL)
-    return;
-
   if (i >= lookup_table_length)
   {
     INFO ("powerdns plugin: submit: Not found in lookup table: %s = %s;",
         pdns_type, value);
     return;
   }
+
+  if (lookup_table[i].type == NULL)
+    return;
 
   type = lookup_table[i].type;
   type_instance = lookup_table[i].type_instance;

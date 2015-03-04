@@ -993,7 +993,8 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
       status = parse_value (string, &ret, type);
       if (status != 0)
       {
-        ERROR ("snmp plugin: csnmp_value_list_to_value: Parsing string as %s failed: %s",
+        ERROR ("snmp plugin: host %s: csnmp_value_list_to_value: Parsing string as %s failed: %s",
+            (host_name != NULL) ? host_name : "UNKNOWN",
             DS_TYPE_TO_STRING (type), string);
       }
     }
@@ -1546,7 +1547,8 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
         if (csnmp_instance_list_add (&instance_list_head, &instance_list_tail,
               res, host, data) != 0)
         {
-          ERROR ("snmp plugin: csnmp_instance_list_add failed.");
+          ERROR ("snmp plugin: host %s: csnmp_instance_list_add failed.",
+              host->name);
           status = -1;
           break;
         }

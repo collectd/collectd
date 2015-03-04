@@ -98,6 +98,7 @@
 #@BUILD_PLUGIN_BAROMETER_TRUE@LoadPlugin barometer
 #@BUILD_PLUGIN_BATTERY_TRUE@LoadPlugin battery
 #@BUILD_PLUGIN_BIND_TRUE@LoadPlugin bind
+#@BUILD_PLUGIN_CEPH_TRUE@LoadPlugin ceph
 #@BUILD_PLUGIN_CONNTRACK_TRUE@LoadPlugin conntrack
 #@BUILD_PLUGIN_CONTEXTSWITCH_TRUE@LoadPlugin contextswitch
 #@BUILD_PLUGIN_CGROUPS_TRUE@LoadPlugin cgroups
@@ -307,6 +308,23 @@
 #
 #    Zone "127.in-addr.arpa/IN"
 #  </View>
+#</Plugin>
+
+#<Plugin ceph>
+#  LongRunAvgLatency false
+#  ConvertSpecialMetricTypes true
+#  <Daemon "osd.0">
+#    SocketPath "/var/run/ceph/ceph-osd.0.asok"
+#  </Daemon>
+#  <Daemon "osd.1">
+#    SocketPath "/var/run/ceph/ceph-osd.1.asok"
+#  </Daemon>
+#  <Daemon "mon.a">
+#    SocketPath "/var/run/ceph/ceph-mon.ceph1.asok"
+#  </Daemon>
+#  <Daemon "mds.a">
+#    SocketPath "/var/run/ceph/ceph-mds.ceph1.asok"
+#  </Daemon>
 #</Plugin>
 
 #<Plugin cgroups>

@@ -45,6 +45,9 @@ Features
       Name server and resolver statistics from the `statistics-channel'
       interface of BIND 9.5, 9,6 and later.
 
+    - ceph
+      Statistics from the Ceph distributed storage system.
+
     - cgroups
       CPU accounting information for process groups under Linux.
 
@@ -803,8 +806,8 @@ Prerequisites
     <http://www.xmms.org/>
 
   * libyajl (optional)
-    Parse JSON data. This is needed for the `curl_json' and `log_logstash'
-    plugins.
+    Parse JSON data. This is needed for the `ceph', `curl_json' and
+    `log_logstash' plugins.
     <http://github.com/lloyd/yajl>
 
   * libvarnish (optional)

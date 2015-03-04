@@ -5103,6 +5103,7 @@ plugin_ascent="no"
 plugin_barometer="no"
 plugin_battery="no"
 plugin_bind="no"
+plugin_ceph="no"
 plugin_cgroups="no"
 plugin_conntrack="no"
 plugin_contextswitch="no"
@@ -5296,6 +5297,11 @@ then
 	plugin_curl_xml="yes"
 fi
 
+if test "x$with_libyajl" = "xyes"
+then
+	plugin_ceph="yes"
+fi
+
 if test "x$have_processor_info" = "xyes"
 then
 	plugin_cpu="yes"
@@ -5468,6 +5474,7 @@ AC_PLUGIN([ascent],      [$plugin_ascent],     [AscentEmu player statistics])
 AC_PLUGIN([barometer],   [$plugin_barometer],  [Barometer sensor on I2C])
 AC_PLUGIN([battery],     [$plugin_battery],    [Battery statistics])
 AC_PLUGIN([bind],        [$plugin_bind],       [ISC Bind nameserver statistics])
+AC_PLUGIN([ceph],        [$plugin_ceph],       [Ceph daemon statistics])
 AC_PLUGIN([conntrack],   [$plugin_conntrack],  [nf_conntrack statistics])
 AC_PLUGIN([contextswitch], [$plugin_contextswitch], [context switch statistics])
 AC_PLUGIN([cpufreq],     [$plugin_cpufreq],    [CPU frequency statistics])
@@ -5840,6 +5847,7 @@ Configuration:
     barometer . . . . . . $enable_barometer
     battery . . . . . . . $enable_battery
     bind  . . . . . . . . $enable_bind
+    ceph  . . . . . . . . $enable_ceph
     conntrack . . . . . . $enable_conntrack
     contextswitch . . . . $enable_contextswitch
     cgroups . . . . . . . $enable_cgroups
