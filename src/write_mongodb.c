@@ -243,7 +243,7 @@ static int wm_write (const data_set_t *ds, /* {{{ */
   pthread_mutex_unlock (&node->lock);
 
   /* free our resource as not to leak memory */
-  bson_dispose (bson_record);
+  bson_destroy (bson_record);
 
   return (0);
 } /* }}} int wm_write */
