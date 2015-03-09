@@ -1266,6 +1266,25 @@ zookeeper_la_SOURCES = zookeeper.c
 zookeeper_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+EXTRA_DIST = types.db
+
+# Collectd.conf generation
+EXTRA_DIST += collectd.conf.in.in
+BUILT_SOURCES += collectd.conf
+CLEANFILES += collectd.conf collectd.conf.in
+
+do_subst_conf = sed -e 's,[@]datadir[@],$(datadir),g' \
+	-e 's,[@]libdir[@],$(libdir),g' \
+	-e 's,[@]localstatedir[@],$(localstatedir),g' \
+	-e 's,[@]prefix[@],$(prefix),g' \
+	-e 's,[@]exec_prefix[@],$(exec_prefix),g'
+
+collectd.conf.in: collectd.conf.in.in Makefile
+	$(do_subst_conf) < $(srcdir)/collectd.conf.in.in > collectd.conf.in
+
+collectd.conf: collectd.conf.in Makefile
+	$(top_srcdir)/config.status --file=collectd.conf
+
 BUILT_SOURCES += $(dist_man_MANS)
 
 dist_man_MANS = collectd.1 \
@@ -1285,8 +1304,6 @@ dist_man_MANS = collectd.1 \
 		types.db.5
 
 #collectd_1_SOURCES = collectd.pod
-
-EXTRA_DIST = types.db
 
 EXTRA_DIST +=   collectd.conf.pod \
 		collectd-email.pod \

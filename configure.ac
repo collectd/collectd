@@ -5752,7 +5752,7 @@ AC_SUBST(LCC_VERSION_STRING)
 
 AC_CONFIG_FILES(src/libcollectdclient/collectd/lcc_features.h)
 
-AC_CONFIG_FILES([Makefile src/Makefile src/daemon/Makefile src/collectd.conf src/libcollectdclient/Makefile src/libcollectdclient/libcollectdclient.pc src/liboconfig/Makefile bindings/Makefile bindings/java/Makefile])
+AC_CONFIG_FILES([Makefile src/Makefile src/daemon/Makefile src/libcollectdclient/Makefile src/libcollectdclient/libcollectdclient.pc src/liboconfig/Makefile bindings/Makefile bindings/java/Makefile])
 AC_OUTPUT
 
 if test "x$with_librrd" = "xyes" \
