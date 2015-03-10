@@ -366,37 +366,40 @@ static int wt_format_name(char *ret, int ret_len,
     if (ds_name != NULL) {
         if (vl->plugin_instance[0] == '\0') {
             if (vl->type_instance[0] == '\0') {
-                ssnprintf(ret, ret_len, "%s%s.%s.%s",
-                          prefix, vl->plugin, vl->type,
-                          ds_name);
+                ssnprintf(ret, ret_len, "%s%s.%s.%s", prefix, vl->plugin,
+                        vl->type, ds_name);
             } else {
-                ssnprintf(ret, ret_len, "%s%s.%s.%s",
-                          prefix, vl->plugin, vl->type_instance,
-                          ds_name);
+                ssnprintf(ret, ret_len, "%s%s.%s.%s.%s", prefix, vl->plugin,
+                        vl->type, vl->type_instance, ds_name);
             }
-        } else if (vl->type_instance[0] == '\0') {
-            ssnprintf(ret, ret_len, "%s%s.%s.%s.%s",
-                      prefix, vl->plugin, vl->plugin_instance, vl->type,
-                      ds_name);
-        } else {
-            ssnprintf(ret, ret_len, "%s%s.%s.%s.%s.%s",
-                      prefix, vl->plugin, vl->plugin_instance, vl->type,
-                      vl->type_instance, ds_name);
+        } else { /* vl->plugin_instance != "" */
+            if (vl->type_instance[0] == '\0') {
+                ssnprintf(ret, ret_len, "%s%s.%s.%s.%s", prefix, vl->plugin,
+                        vl->plugin_instance, vl->type, ds_name);
+            } else {
+                ssnprintf(ret, ret_len, "%s%s.%s.%s.%s.%s", prefix,
+                        vl->plugin, vl->plugin_instance, vl->type,
+                        vl->type_instance, ds_name);
+            }
         }
-    } else if (vl->plugin_instance[0] == '\0') {
-        if (vl->type_instance[0] == '\0') {
-            ssnprintf(ret, ret_len, "%s%s.%s",
-                      prefix, vl->plugin, vl->type);
-        } else {
-            ssnprintf(ret, ret_len, "%s%s.%s",
-                      prefix, vl->plugin, vl->type_instance);
+    } else { /* ds_name == NULL */
+        if (vl->plugin_instance[0] == '\0') {
+            if (vl->type_instance[0] == '\0') {
+                ssnprintf(ret, ret_len, "%s%s.%s", prefix, vl->plugin,
+                        vl->type);
+            } else {
+                ssnprintf(ret, ret_len, "%s%s.%s.%s", prefix, vl->plugin,
+                        vl->type_instance, vl->type);
+            }
+        } else { /* vl->plugin_instance != "" */
+            if (vl->type_instance[0] == '\0') {
+                ssnprintf(ret, ret_len, "%s%s.%s.%s", prefix, vl->plugin,
+                        vl->plugin_instance, vl->type);
+            } else {
+                ssnprintf(ret, ret_len, "%s%s.%s.%s.%s", prefix, vl->plugin,
+                        vl->plugin_instance, vl->type, vl->type_instance);
+            }
         }
-    } else if (vl->type_instance[0] == '\0') {
-        ssnprintf(ret, ret_len, "%s%s.%s.%s",
-                  prefix, vl->plugin, vl->plugin_instance, vl->type);
-    } else {
-        ssnprintf(ret, ret_len, "%s%s.%s.%s.%s",
-                  prefix, vl->plugin, vl->plugin_instance, vl->type, vl->type_instance);
     }
 
     sfree(temp);
