@@ -147,21 +147,33 @@ statname_lookup_t lookup_table[] = /* {{{ */
   {"recursing-questions",    "dns_question", "recurse"},
   {"tcp-queries",            "dns_question", "tcp"},
   {"udp-queries",            "dns_question", "udp"},
+  {"rd-queries",             "dns_question", "rd"},
 
   /* Answers */
   {"recursing-answers",      "dns_answer",   "recurse"},
   {"tcp-answers",            "dns_answer",   "tcp"},
   {"udp-answers",            "dns_answer",   "udp"},
+  {"recursion-unanswered",   "dns_answer",   "recursion-unanswered"},
+  {"udp-answers-bytes",      "total_bytes",  "udp-answers-bytes"},
 
   /* Cache stuff */
   {"packetcache-hit",        "cache_result", "packet-hit"},
   {"packetcache-miss",       "cache_result", "packet-miss"},
   {"packetcache-size",       "cache_size",   "packet"},
+  {"key-cache-size",         "cache_size",   "key"},
+  {"meta-cache-size",        "cache_size",   "meta"},
+  {"signature-cache-size",   "cache_size",   "signature"},
   {"query-cache-hit",        "cache_result", "query-hit"},
   {"query-cache-miss",       "cache_result", "query-miss"},
 
   /* Latency */
   {"latency",                "latency",      NULL},
+
+  /* DNS updates */
+  {"dnsupdate-answers",      "dns_answer",   "dnsupdate-answer"},
+  {"dnsupdate-changes",      "dns_question", "dnsupdate-changes"},
+  {"dnsupdate-queries",      "dns_question", "dnsupdate-queries"},
+  {"dnsupdate-refused",      "dns_answer",   "dnsupdate-refused"},
 
   /* Other stuff.. */
   {"corrupt-packets",        "ipt_packets",  "corrupt"},
@@ -175,6 +187,9 @@ statname_lookup_t lookup_table[] = /* {{{ */
   {"udp4-queries",           "dns_question", "queries-udp4"},
   {"udp6-answers",           "dns_answer",   "udp6"},
   {"udp6-queries",           "dns_question", "queries-udp6"},
+  {"security-status",        "dns_question", "security-status"},
+  {"udp-do-queries",         "dns_question", "udp-do_queries"},
+  {"signatures",             "counter",      "signatures"},
 
   /***********************
    * Recursor statistics *
@@ -224,8 +239,8 @@ statname_lookup_t lookup_table[] = /* {{{ */
   {"throttle-entries",    "gauge",        "entries-throttle"},
   {"unauthorized-tcp",    "counter",      "denied-unauthorized_tcp"},
   {"unauthorized-udp",    "counter",      "denied-unauthorized_udp"},
-  {"unexpected-packets",  "dns_answer",   "unexpected"}
-  /* {"uptime", "", ""} */
+  {"unexpected-packets",  "dns_answer",   "unexpected"},
+  {"uptime",              "uptime",       NULL}
 }; /* }}} */
 int lookup_table_length = STATIC_ARRAY_SIZE (lookup_table);
 
