@@ -408,7 +408,7 @@ static int camqp_setup_queue (camqp_config_t *conf) /* {{{ */
 
 static int camqp_connect (camqp_config_t *conf) /* {{{ */
 {
-    static time_t lastConnectTime = 0;
+    static time_t last_connect_time = 0;
 
     amqp_rpc_reply_t reply;
     int status;
@@ -422,16 +422,16 @@ static int camqp_connect (camqp_config_t *conf) /* {{{ */
         return (0);
 
     time_t now = time(NULL);
-    if (now < (lastConnectTime + conf->connection_retry_delay))
+    if (now < (last_connect_time + conf->connection_retry_delay))
     {
-        DEBUG("amqp plugin: skipping connection retry, ConnectionRetryDelay: %d"
-                , conf->connection_retry_delay);
+        DEBUG("amqp plugin: skipping connection retry, "
+            "ConnectionRetryDelay: %d", conf->connection_retry_delay);
         return(1);
     }
     else
     {
         DEBUG ("amqp plugin: retrying connection");
-        lastConnectTime = now;
+        last_connect_time = now;
     }
 
     conf->connection = amqp_new_connection ();
