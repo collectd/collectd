@@ -137,6 +137,7 @@
 #@BUILD_PLUGIN_MEMCACHED_TRUE@LoadPlugin memcached
 @BUILD_PLUGIN_MEMORY_TRUE@@BUILD_PLUGIN_MEMORY_TRUE@LoadPlugin memory
 #@BUILD_PLUGIN_MODBUS_TRUE@LoadPlugin modbus
+#@BUILD_PLUGIN_MQTT_TRUE@LoadPlugin mqtt
 #@BUILD_PLUGIN_MULTIMETER_TRUE@LoadPlugin multimeter
 #@BUILD_PLUGIN_MYSQL_TRUE@LoadPlugin mysql
 #@BUILD_PLUGIN_NETAPP_TRUE@LoadPlugin netapp
@@ -661,6 +662,43 @@
 #			Collect "data_name"
 #		</Slave>
 #	</Host>
+#</Plugin>
+
+#<Plugin mqtt>
+#  <Publish "name">
+#    Host "localhost"
+#    Port "1883"
+#    ClientID "collectd-pub"
+#    PersistenceType "None"
+#    KeepAliveInterval 20
+#    Topic "collectd"
+#    QoS 1
+#    Retained false
+#    WaitTimeout 10000
+#    DisconnectDelay 10000
+#    User "collectd"
+#    Password "collectd"
+#    StoreRates false
+#    Format "command"
+#    GraphiteSeparateInstances false
+#    GraphiteAlwaysAppendDS false
+#    GraphitePrefix ""
+#    GraphitePostfix ""
+#    GraphiteEscapeChar "_"
+#  </Publish>
+#  <Subscribe "name">
+#    Host "localhost"
+#    Port "1883"
+#    ClientID "collectd-sub"
+#    PersistenceType "None"
+#    KeepAliveInterval 20
+#    Topic "collectd"
+#    QoS 1
+#    WaitTimeout 10000
+#    DisconnectDelay 10000
+#    User "collectd"
+#    Password "collectd"
+#  </Subscribe>
 #</Plugin>
 
 #<Plugin mysql>
