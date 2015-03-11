@@ -940,7 +940,7 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
     conf->password = NULL;
     conf->exchange = NULL;
     conf->routing_key = NULL;
-    conf->connection_retry_delay = 60;
+    conf->connection_retry_delay = 0;
 
     /* publish only */
     conf->delivery_mode = CAMQP_DM_VOLATILE;
