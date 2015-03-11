@@ -171,7 +171,7 @@ static char *hddtemp_query_daemon (void)
 	buffer_fill = 0;
 	while (1)
 	{
-		if (buffer_fill >= buffer_size - 1)
+		if ((buffer_size == 0) || (buffer_fill >= buffer_size - 1))
 		{
 			if (buffer_size == 0)
 				buffer_size = 1024;
