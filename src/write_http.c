@@ -140,6 +140,11 @@ static int wh_callback_init (wh_callback_t *cb) /* {{{ */
 
         if (cb->user != NULL)
         {
+#ifdef HAVE_CURLOPT_USERNAME
+                curl_easy_setopt (cb->curl, CURLOPT_USERNAME, cb->user);
+                curl_easy_setopt (cb->curl, CURLOPT_PASSWORD,
+                        (cb->pass == NULL) ? "" : cb->pass);
+#else
                 size_t credentials_size;
 
                 credentials_size = strlen (cb->user) + 2;
@@ -156,6 +161,7 @@ static int wh_callback_init (wh_callback_t *cb) /* {{{ */
                 ssnprintf (cb->credentials, credentials_size, "%s:%s",
                                 cb->user, (cb->pass == NULL) ? "" : cb->pass);
                 curl_easy_setopt (cb->curl, CURLOPT_USERPWD, cb->credentials);
+#endif
                 curl_easy_setopt (cb->curl, CURLOPT_HTTPAUTH, CURLAUTH_ANY);
         }
 
