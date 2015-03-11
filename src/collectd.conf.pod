@@ -519,6 +519,7 @@ possibly filtering or messages.
  #   ExchangeType "fanout"
  #   RoutingKey "collectd"
  #   Persistent false
+ #   ConnectionRetryDelay 0
  #   Format "command"
  #   StoreRates false
  #   GraphitePrefix "collectd."
@@ -540,6 +541,7 @@ possibly filtering or messages.
  #   QueueDurable false
  #   QueueAutoDelete true
  #   RoutingKey "collectd.#"
+ #   ConnectionRetryDelay 0
    </Subscribe>
  </Plugin>
 
@@ -629,6 +631,13 @@ Selects the I<delivery method> to use. If set to B<true>, the I<persistent>
 mode will be used, i.e. delivery is guaranteed. If set to B<false> (the
 default), the I<transient> delivery mode will be used, i.e. messages may be
 lost due to high load, overflowing queues or similar issues.
+
+=item B<ConnectionRetryDelay> I<Delay>
+
+When the connection to the AMQP broker is lost, defines the time in seconds to
+wait before attempting to reconnect. Defaults to 0, which implies collectd will
+attempt to reconnect at each read interval (in Subscribe mode) or each time
+values are ready for submission (in Publish mode).
 
 =item B<Format> B<Command>|B<JSON>|B<Graphite> (Publish only)
 

@@ -246,6 +246,7 @@
 #    RoutingKey "collectd"
 #    Persistent false
 #    StoreRates false
+#    ConnectionRetryDelay 0
 #  </Publish>
 #</Plugin>
 
