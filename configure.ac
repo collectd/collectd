@@ -1751,7 +1751,6 @@ then
 	LDFLAGS="$LDFLAGS $with_libdbi_ldflags"
 
 	AC_CHECK_LIB(dbi, dbi_initialize, [with_libdbi="yes"], [with_libdbi="no (Symbol 'dbi_initialize' not found)"])
-	AC_CHECK_LIB(dbi, dbi_driver_open_r, [with_libdbi_r="yes"], [with_libdbi_r="no"])
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
 	LDFLAGS="$SAVE_LDFLAGS"
@@ -1764,11 +1763,6 @@ then
 	AC_SUBST(BUILD_WITH_LIBDBI_CPPFLAGS)
 	AC_SUBST(BUILD_WITH_LIBDBI_LDFLAGS)
 	AC_SUBST(BUILD_WITH_LIBDBI_LIBS)
-
-  if test "x$with_libdbi_r" = "xyes"
-  then
-		AC_DEFINE(HAVE_LIBDBI_R, 1, [Define if reentrant dbi facility is present and usable.])
-  fi
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBDBI, test "x$with_libdbi" = "xyes")
 # }}}

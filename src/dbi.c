@@ -32,9 +32,6 @@
 
 #include <dbi/dbi.h>
 
-#ifdef HAVE_LIBDBI_R
-  dbi_inst inst = NULL;
-#endif
 /*
  * Data types
  */
@@ -134,7 +131,7 @@ static int cdbi_result_get_field (dbi_result res, /* {{{ */
   else if (src_type == DBI_TYPE_STRING)
   {
     const char *value;
-
+    
     value = dbi_result_get_string_idx (res, index);
     if (value == NULL)
       sstrncpy (buffer, "", buffer_size);
@@ -200,7 +197,7 @@ static void cdbi_database_free (cdbi_database_t *db) /* {{{ */
  *     </Result>
  *     ...
  *   </Query>
- *
+ *     
  *   <Database "plugin_instance1">
  *     Driver "mysql"
  *     DriverOption "hostname" "localhost"
@@ -454,11 +451,7 @@ static int cdbi_init (void) /* {{{ */
     return (-1);
   }
 
-#ifdef HAVE_LIBDBI_R
-  status = dbi_initialize_r (NULL, &inst);
-#else
   status = dbi_initialize (NULL);
-#endif
   if (status < 0)
   {
     ERROR ("dbi plugin: cdbi_init: dbi_initialize failed with status %i.",
@@ -679,26 +672,16 @@ static int cdbi_connect_database (cdbi_database_t *db) /* {{{ */
     db->connection = NULL;
   }
 
-#ifdef HAVE_LIBDBI_R
-  driver = dbi_driver_open_r (db->driver, inst);
-#else
   driver = dbi_driver_open (db->driver);
-#endif
   if (driver == NULL)
   {
     ERROR ("dbi plugin: cdbi_connect_database: dbi_driver_open (%s) failed.",
         db->driver);
     INFO ("dbi plugin: Maybe the driver isn't installed? "
         "Known drivers are:");
-#ifdef HAVE_LIBDBI_R
-    for (driver = dbi_driver_list_r (NULL, inst);
-        driver != NULL;
-        driver = dbi_driver_list_r (driver, inst))
-#else
     for (driver = dbi_driver_list (NULL);
         driver != NULL;
         driver = dbi_driver_list (driver))
-#endif
     {
       INFO ("dbi plugin: * %s", dbi_driver_get_name (driver));
     }
