@@ -5084,6 +5084,10 @@ Skip expired values in query output.
 Specify whether to use an SSL connection when contacting the server. The
 following modes are supported:
 
+=item B<AppName> I<application name>
+
+Specify the name of application that is connected to postgresql.
+
 =over 4
 
 =item I<disable>
