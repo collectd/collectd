@@ -78,7 +78,6 @@ affecting the behavior of B<LoadPlugin> may be specified. The following
 options are allowed inside a B<LoadPlugin> block:
 
   <LoadPlugin perl>
-    Globals true
     Interval 10
   </LoadPlugin>
 
