@@ -5775,10 +5775,11 @@ Configuration:
     libatasmart . . . . . $with_libatasmart
     libcurl . . . . . . . $with_libcurl
     libdbi  . . . . . . . $with_libdbi
-    libhiredis  . . . . . $with_libhiredis
     libesmtp  . . . . . . $with_libesmtp
     libganglia  . . . . . $with_libganglia
     libgcrypt . . . . . . $with_libgcrypt
+    libhal  . . . . . . . $with_libhal
+    libhiredis  . . . . . $with_libhiredis
     libi2c-dev  . . . . . $with_libi2c
     libiokit  . . . . . . $with_libiokit
     libiptc . . . . . . . $with_libiptc
@@ -5790,6 +5791,7 @@ Configuration:
     libmemcached  . . . . $with_libmemcached
     libmnl  . . . . . . . $with_libmnl
     libmodbus . . . . . . $with_libmodbus
+    libmongoc . . . . . . $with_libmongoc
     libmysql  . . . . . . $with_libmysql
     libnetapp . . . . . . $with_libnetapp
     libnetsnmp  . . . . . $with_libnetsnmp
@@ -5797,6 +5799,7 @@ Configuration:
     liboconfig  . . . . . $with_liboconfig
     libopenipmi . . . . . $with_libopenipmipthread
     liboping  . . . . . . $with_liboping
+    libowcapi . . . . . . $with_libowcapi
     libpcap . . . . . . . $with_libpcap
     libperfstat . . . . . $with_perfstat
     libperl . . . . . . . $with_libperl
@@ -5817,9 +5820,8 @@ Configuration:
     libxml2 . . . . . . . $with_libxml2
     libxmms . . . . . . . $with_libxmms
     libyajl . . . . . . . $with_libyajl
-    libevent  . . . . . . $with_libevent
-    protobuf-c  . . . . . $have_protoc_c
     oracle  . . . . . . . $with_oracle
+    protobuf-c  . . . . . $have_protoc_c
     python  . . . . . . . $with_python
 
   Features:
@@ -5834,16 +5836,16 @@ Configuration:
     amqp    . . . . . . . $enable_amqp
     apache  . . . . . . . $enable_apache
     apcups  . . . . . . . $enable_apcups
-    aquaero . . . . . . . $enable_aquaero
     apple_sensors . . . . $enable_apple_sensors
+    aquaero . . . . . . . $enable_aquaero
     ascent  . . . . . . . $enable_ascent
     barometer . . . . . . $enable_barometer
     battery . . . . . . . $enable_battery
     bind  . . . . . . . . $enable_bind
     ceph  . . . . . . . . $enable_ceph
+    cgroups . . . . . . . $enable_cgroups
     conntrack . . . . . . $enable_conntrack
     contextswitch . . . . $enable_contextswitch
-    cgroups . . . . . . . $enable_cgroups
     cpu . . . . . . . . . $enable_cpu
     cpufreq . . . . . . . $enable_cpufreq
     csv . . . . . . . . . $enable_csv
@@ -5871,8 +5873,8 @@ Configuration:
     java  . . . . . . . . $enable_java
     load  . . . . . . . . $enable_load
     logfile . . . . . . . $enable_logfile
-    lpar  . . . . . . . . $enable_lpar
     log_logstash  . . . . $enable_log_logstash
+    lpar  . . . . . . . . $enable_lpar
     lvm . . . . . . . . . $enable_lvm
     madwifi . . . . . . . $enable_madwifi
     match_empty_counter . $enable_match_empty_counter
@@ -5926,8 +5928,8 @@ Configuration:
     swap  . . . . . . . . $enable_swap
     syslog  . . . . . . . $enable_syslog
     table . . . . . . . . $enable_table
-    tail  . . . . . . . . $enable_tail
     tail_csv  . . . . . . $enable_tail_csv
+    tail  . . . . . . . . $enable_tail
     tape  . . . . . . . . $enable_tape
     target_notification . $enable_target_notification
     target_replace  . . . $enable_target_replace

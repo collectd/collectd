@@ -1,6 +1,6 @@
 /**
  * collectd - src/dbi.c
- * Copyright (C) 2008-2013  Florian octo Forster
+ * Copyright (C) 2008-2015  Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -31,6 +31,18 @@
 #include "utils_db_query.h"
 
 #include <dbi/dbi.h>
+
+/* libdbi 0.9.0 introduced a new thread-safe interface and marked the old
+ * functions "deprecated". These macros convert the new functions to their old
+ * counterparts for backwards compatibility. */
+#if !defined(LIBDBI_VERSION) || (LIBDBI_VERSION < 900)
+# define HAVE_LEGACY_LIBDBI 1
+# define dbi_initialize_r(a,inst) dbi_initialize(a)
+# define dbi_shutdown_r(inst) dbi_shutdown()
+# define dbi_set_verbosity_r(a,inst) dbi_set_verbosity(a)
+# define dbi_driver_list_r(a,inst) dbi_driver_list(a)
+# define dbi_driver_open_r(a,inst) dbi_driver_open(a)
+#endif
 
 /*
  * Data types
@@ -68,6 +80,9 @@ typedef struct cdbi_database_s cdbi_database_t; /* }}} */
 /*
  * Global variables
  */
+#if !defined(HAVE_LEGACY_LIBDBI) || !HAVE_LEGACY_LIBDBI
+static dbi_inst          dbi_instance  = 0;
+#endif
 static udb_query_t     **queries       = NULL;
 static size_t            queries_num   = 0;
 static cdbi_database_t **databases     = NULL;
@@ -451,20 +466,20 @@ static int cdbi_init (void) /* {{{ */
     return (-1);
   }
 
-  status = dbi_initialize (NULL);
+  status = dbi_initialize_r (/* driverdir = */ NULL, &dbi_instance);
   if (status < 0)
   {
-    ERROR ("dbi plugin: cdbi_init: dbi_initialize failed with status %i.",
+    ERROR ("dbi plugin: cdbi_init: dbi_initialize_r failed with status %i.",
         status);
     return (-1);
   }
   else if (status == 0)
   {
-    ERROR ("dbi plugin: `dbi_initialize' could not load any drivers. Please "
+    ERROR ("dbi plugin: `dbi_initialize_r' could not load any drivers. Please "
         "install at least one `DBD' or check your installation.");
     return (-1);
   }
-  DEBUG ("dbi plugin: cdbi_init: dbi_initialize reports %i driver%s.",
+  DEBUG ("dbi plugin: cdbi_init: dbi_initialize_r reports %i driver%s.",
       status, (status == 1) ? "" : "s");
 
   return (0);
@@ -672,16 +687,16 @@ static int cdbi_connect_database (cdbi_database_t *db) /* {{{ */
     db->connection = NULL;
   }
 
-  driver = dbi_driver_open (db->driver);
+  driver = dbi_driver_open_r (db->driver, dbi_instance);
   if (driver == NULL)
   {
-    ERROR ("dbi plugin: cdbi_connect_database: dbi_driver_open (%s) failed.",
+    ERROR ("dbi plugin: cdbi_connect_database: dbi_driver_open_r (%s) failed.",
         db->driver);
     INFO ("dbi plugin: Maybe the driver isn't installed? "
         "Known drivers are:");
-    for (driver = dbi_driver_list (NULL);
+    for (driver = dbi_driver_list_r (NULL, dbi_instance);
         driver != NULL;
-        driver = dbi_driver_list (driver))
+        driver = dbi_driver_list_r (driver, dbi_instance))
     {
       INFO ("dbi plugin: * %s", dbi_driver_get_name (driver));
     }

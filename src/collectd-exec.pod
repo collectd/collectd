@@ -201,13 +201,13 @@ The data is passed to the executables over C<STDIN> in a format very similar to
 HTTP: At first there is a "header" with one line per field. Every line consists
 of a field name, ended by a colon, and the associated value until end-of-line.
 The "header" is ended by two newlines immediately following another,
-i.E<nbsp>e. an empty line. The rest, basically the "body", is the message of
-the notification.
+i.e. an empty line. The rest, basically the "body", is the message of the
+notification.
 
 The following is an example notification passed to a program:
 
   Severity: FAILURE
-  Time: 1200928930
+  Time: 1200928930.515
   Host: myhost.mydomain.org
   \n
   This is a test notification to demonstrate the format
@@ -223,7 +223,9 @@ Severity of the notification. May either be B<FAILURE>, B<WARNING>, or B<OKAY>.
 
 =item B<Time>
 
-The time in epoch, i.E<nbsp>e. as seconds since 1970-01-01 00:00:00 UTC.
+The time in epoch, i.e. as seconds since 1970-01-01 00:00:00 UTC. The value
+currently has millisecond precision (i.e. three decimal places), but scripts
+should accept arbitrary numbers of decimal places, including no decimal places.
 
 =item B<Host>
 
