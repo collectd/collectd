@@ -142,6 +142,7 @@ typedef struct {
 	char *database;
 	char *user;
 	char *password;
+	char *application_name;
 
 	char *instance;
 
@@ -265,6 +266,7 @@ static c_psql_database_t *c_psql_database_new (const char *name)
 	db->port       = NULL;
 	db->user       = NULL;
 	db->password   = NULL;
+	db->application_name = NULL;
 
 	db->instance   = sstrdup (name);
 
@@ -318,6 +320,7 @@ static void c_psql_database_delete (void *data)
 	sfree (db->port);
 	sfree (db->user);
 	sfree (db->password);
+	sfree (db->application_name);
 
 	sfree (db->instance);
 
@@ -357,6 +360,7 @@ static int c_psql_connect (c_psql_database_t *db)
 	C_PSQL_PAR_APPEND (buf, buf_len, "sslmode",    db->sslmode);
 	C_PSQL_PAR_APPEND (buf, buf_len, "krbsrvname", db->krbsrvname);
 	C_PSQL_PAR_APPEND (buf, buf_len, "service",    db->service);
+	C_PSQL_PAR_APPEND (buf, buf_len, "application_name",	db->application_name);
 
 	db->conn = PQconnectdb (conninfo);
 	db->proto_version = PQprotocolVersion (db->conn);
@@ -1232,6 +1236,8 @@ static int c_psql_config_database (oconfig_item_t *ci)
 			cf_util_get_string (c, &db->sslmode);
 		else if (0 == strcasecmp (c->key, "KRBSrvName"))
 			cf_util_get_string (c, &db->krbsrvname);
+		else if (0 == strcasecmp (c->key, "AppName"))
+			cf_util_get_string (c, &db->application_name);
 		else if (0 == strcasecmp (c->key, "Service"))
 			cf_util_get_string (c, &db->service);
 		else if (0 == strcasecmp (c->key, "Query"))
