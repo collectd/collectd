@@ -937,6 +937,18 @@ statsd_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 statsd_la_LIBADD = -lpthread
 endif
 
+if BUILD_PLUGIN_STENOGRAPHER
+pkglib_LTLIBRARIES += stenographer.la
+stenographer_la_SOURCES = stenographer.c
+stenographer_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+stenographer_la_CFLAGS = $(AM_CFLAGS)
+stenographer_la_LIBADD =
+if BUILD_WITH_LIBCURL
+stenographer_la_CFLAGS += $(BUILD_WITH_LIBCURL_CFLAGS)
+stenographer_la_LIBADD += $(BUILD_WITH_LIBCURL_LIBS)
+endif
+endif
+
 if BUILD_PLUGIN_SWAP
 pkglib_LTLIBRARIES += swap.la
 swap_la_SOURCES = swap.c

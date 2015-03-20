@@ -5552,6 +5552,7 @@ AC_PLUGIN([sigrok],      [$with_libsigrok],    [sigrok acquisition sources])
 AC_PLUGIN([smart],       [$with_libatasmart],  [SMART statistics])
 AC_PLUGIN([snmp],        [$with_libnetsnmp],   [SNMP querying plugin])
 AC_PLUGIN([statsd],      [yes],                [StatsD plugin])
+AC_PLUGIN([stenographer], [$with_libcurl],     [Stenographer capture statistics])
 AC_PLUGIN([swap],        [$plugin_swap],       [Swap usage statistics])
 AC_PLUGIN([syslog],      [$have_syslog],       [Syslog logging plugin])
 AC_PLUGIN([table],       [yes],                [Parsing of tabular data])
@@ -5925,6 +5926,7 @@ Configuration:
     smart . . . . . . . . $enable_smart
     snmp  . . . . . . . . $enable_snmp
     statsd  . . . . . . . $enable_statsd
+    stenographer  . . . . $enable_stenographer
     swap  . . . . . . . . $enable_swap
     syslog  . . . . . . . $enable_syslog
     table . . . . . . . . $enable_table

@@ -176,6 +176,7 @@
 #@BUILD_PLUGIN_SMART_TRUE@LoadPlugin smart
 #@BUILD_PLUGIN_SNMP_TRUE@LoadPlugin snmp
 #@BUILD_PLUGIN_STATSD_TRUE@LoadPlugin statsd
+#@BUILD_PLUGIN_STENOGRAPHER_TRUE@LoadPlugin stenographer
 #@BUILD_PLUGIN_SWAP_TRUE@LoadPlugin swap
 #@BUILD_PLUGIN_TABLE_TRUE@LoadPlugin table
 #@BUILD_PLUGIN_TAIL_TRUE@LoadPlugin tail
@@ -1102,6 +1103,15 @@
 #  TimerUpper     false
 #  TimerSum       false
 #  TimerCount     false
+#</Plugin>
+
+#<Plugin stenographer>
+#  <Instance "local">
+#    URL "https://localhost:1234/debug/stats"
+#    Cert "/etc/stenographer/certs/client_cert.pem"
+#    Key "/etc/stenographer/certs/client_key.pem"
+#    CACert "/etc/stenographer/certs/server_cert.pem"
+#  </Instance>
 #</Plugin>
 
 #<Plugin swap>
