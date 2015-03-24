@@ -7428,7 +7428,10 @@ attribute for each metric being sent out to I<Riemann>.
 
 The I<write_sensu plugin> will send values to I<Sensu>, a powerful stream
 aggregation and monitoring system. The plugin sends I<JSON> encoded data to
-a local I<sensu> client using a TCP socket.
+a local I<sensu> client using a TCP socket. At the moment, write_sensu plugin
+does not send over a collectd_host parameter so it not possible to use
+one collectd instance as a gateway for other collectd: each collectd host
+must write to its own sensu client.
 
 Synopsis:
 
