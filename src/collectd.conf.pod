@@ -98,7 +98,6 @@ Options inside a B<LoadPlugin> block can override default settings and
 influence the way plugins are loaded, e.g.:
 
  <LoadPlugin perl>
-   Globals true
    Interval 60
  </LoadPlugin>
 
@@ -4515,6 +4514,13 @@ activating this option. The draw-back is, that data covering the specified
 amount of time will be lost, for example, if a single statement within the
 transaction fails or if the database server crashes.
 
+=item B<Instance> I<name>
+
+Specify the plugin instance name that should be used instead of the database
+name (which is the default, if this option has not been specified). This
+allows to query multiple databases of the same name on the same host (e.g.
+when running multiple database server versions in parallel).
+
 =item B<Host> I<hostname>
 
 Specify the hostname or IP of the PostgreSQL server to connect to. If the
@@ -4544,13 +4550,6 @@ Specify the password to be used when connecting to the server.
 
 Specify whether to use an SSL connection when contacting the server. The
 following modes are supported:
-
-=item B<Instance> I<name>
-
-Specify the plugin instance name that should be used instead of the database
-name (which is the default, if this option has not been specified). This
-allows to query multiple databases of the same name on the same host (e.g.
-when running multiple database server versions in parallel).
 
 =over 4
 
