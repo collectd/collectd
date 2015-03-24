@@ -48,39 +48,39 @@
 #include <stdarg.h>
 
 int vasprintf(char **str, const char *fmt, va_list args) {
-  int size = 0;
-  va_list tmpa;
-  // copy
-  va_copy(tmpa, args);
-  // apply variadic arguments to
-  // sprintf with format to get size
-  size = vsnprintf(NULL, size, fmt, tmpa);
-  // toss args
-  va_end(tmpa);
-  // return -1 to be compliant if
-  // size is less than 0
-  if (size < 0) { return -1; }
-  // alloc with size plus 1 for `\0'
-  *str = (char *) malloc(size + 1);
-  // return -1 to be compliant
-  // if pointer is `NULL'
-  if (NULL == *str) { return -1; }
-  // format string with original
-  // variadic arguments and set new size
-  size = vsprintf(*str, fmt, args);
-  return size;
+	int size = 0;
+	va_list tmpa;
+	// copy
+	va_copy(tmpa, args);
+	// apply variadic arguments to
+	// sprintf with format to get size
+	size = vsnprintf(NULL, size, fmt, tmpa);
+	// toss args
+	va_end(tmpa);
+	// return -1 to be compliant if
+	// size is less than 0
+	if (size < 0) { return -1; }
+	// alloc with size plus 1 for `\0'
+	*str = (char *) malloc(size + 1);
+	// return -1 to be compliant
+	// if pointer is `NULL'
+	if (NULL == *str) { return -1; }
+	// format string with original
+	// variadic arguments and set new size
+	size = vsprintf(*str, fmt, args);
+	return size;
 }
 
 int asprintf(char **str, const char *fmt, ...) {
-  int size = 0;
-  va_list args;
-  // init variadic argumens
-  va_start(args, fmt);
-  // format and get size
-  size = vasprintf(str, fmt, args);
-  // toss args
-  va_end(args);
-  return size;
+	int size = 0;
+	va_list args;
+	// init variadic argumens
+	va_start(args, fmt);
+	// format and get size
+	size = vasprintf(str, fmt, args);
+	// toss args
+	va_end(args);
+	return size;
 }
 
 #endif
@@ -260,50 +260,50 @@ static char *build_json_str_list(const char *tag, struct str_list const *list) /
 	return ret_str;
 } /* }}} char *build_json_str_list*/
 
-int format_name2(char *ret, int ret_len,
-                const char *hostname,
-                const char *plugin, const char *plugin_instance,
-                const char *type, const char *type_instance,
-                const char *separator)
+int sensu_format_name2(char *ret, int ret_len,
+		const char *hostname,
+		const char *plugin, const char *plugin_instance,
+		const char *type, const char *type_instance,
+		const char *separator)
 {
-  char *buffer;
-  size_t buffer_size;
+	char *buffer;
+	size_t buffer_size;
 
-  buffer = ret;
-  buffer_size = (size_t) ret_len;
+	buffer = ret;
+	buffer_size = (size_t) ret_len;
 
 #define APPEND(str) do {          \
-  size_t l = strlen (str);        \
-  if (l >= buffer_size)           \
-    return (ENOBUFS);             \
-  memcpy (buffer, (str), l);      \
-  buffer += l; buffer_size -= l;  \
+	size_t l = strlen (str);        \
+	if (l >= buffer_size)           \
+		return (ENOBUFS);             \
+	memcpy (buffer, (str), l);      \
+	buffer += l; buffer_size -= l;  \
 } while (0)
 
-  assert (plugin != NULL);
-  assert (type != NULL);
+	assert (plugin != NULL);
+	assert (type != NULL);
 
-  APPEND (hostname);
-  APPEND (separator);
-  APPEND (plugin);
-  if ((plugin_instance != NULL) && (plugin_instance[0] != 0))
-  {
-    APPEND ("-");
-    APPEND (plugin_instance);
-  }
-  APPEND (separator);
-  APPEND (type);
-  if ((type_instance != NULL) && (type_instance[0] != 0))
-  {
-    APPEND ("-");
-    APPEND (type_instance);
-  }
-  assert (buffer_size > 0);
-  buffer[0] = 0;
+	APPEND (hostname);
+	APPEND (separator);
+	APPEND (plugin);
+	if ((plugin_instance != NULL) && (plugin_instance[0] != 0))
+	{
+		APPEND ("-");
+		APPEND (plugin_instance);
+	}
+	APPEND (separator);
+	APPEND (type);
+	if ((type_instance != NULL) && (type_instance[0] != 0))
+	{
+		APPEND ("-");
+		APPEND (type_instance);
+	}
+	assert (buffer_size > 0);
+	buffer[0] = 0;
 
 #undef APPEND
-  return (0);
-} /* int format_name2 */
+	return (0);
+} /* int sensu_format_name2 */
 
 static void in_place_replace_sensu_name_reserved(char *orig_name) /* {{{ */
 {
@@ -501,7 +501,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 	}
 
 	// Generate the full service name
-	format_name2(name_buffer, sizeof(name_buffer),
+	sensu_format_name2(name_buffer, sizeof(name_buffer),
 		vl->host, vl->plugin, vl->plugin_instance,
 		vl->type, vl->type_instance, host->separator);
 	if (host->always_append_ds || (ds->ds_num > 1)) {
@@ -755,7 +755,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 	}
 
 	// incorporate the service name
-	format_name2(service_buffer, sizeof(service_buffer),
+	sensu_format_name2(service_buffer, sizeof(service_buffer),
 				/* host */ "", n->plugin, n->plugin_instance,
 				n->type, n->type_instance, host->separator);
 	// replace sensu event name chars that are considered illegal
@@ -879,6 +879,7 @@ static int sensu_write(const data_set_t *ds, /* {{{ */
 	char *msg;
 
 	pthread_mutex_lock(&host->lock);
+	memset(statuses, 0, vl->values_len * sizeof(*statuses));
 
 	if (host->store_rates) {
 		rates = uc_get_rate(ds, vl);
@@ -1185,6 +1186,7 @@ static int sensu_config(oconfig_item_t *ci) /* {{{ */
 			}
 			if ((val = strdup(child->values[1].value.string)) == NULL) {
 				free(sensu_tags);
+				free(key);
 				ERROR(alloc_err);
 				return -1;
 			}
