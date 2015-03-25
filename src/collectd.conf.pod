@@ -1562,6 +1562,7 @@ URL. By default the global B<Interval> setting will be used.
 =item B<Header> I<Header>
 
 =item B<Post> I<Body>
+=item B<Timeout> I<Timeout in miliseconds>
 
 These options behave exactly equivalent to the appropriate options of the
 I<cURL> plugin. Please see there for a detailed description.
