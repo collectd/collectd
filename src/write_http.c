@@ -63,7 +63,7 @@ struct wh_callback_s
         _Bool abort_on_slow;
         int   low_limit_bytes;
         time_t interval;
-        int post_timeout;
+        int timeout;
 
 #define WH_FORMAT_COMMAND 0
 #define WH_FORMAT_JSON    1
@@ -133,8 +133,8 @@ static int wh_callback_init (wh_callback_t *cb) /* {{{ */
                 curl_easy_setopt (cb->curl, CURLOPT_LOW_SPEED_TIME, cb->interval);
         }
 
-        if (cb->post_timeout > 0)
-                curl_easy_setopt (cb->curl, CURLOPT_TIMEOUT, cb->post_timeout);
+        if (cb->timeout > 0)
+                curl_easy_setopt (cb->curl, CURLOPT_TIMEOUT_MS, cb->timeout);
 
         curl_easy_setopt (cb->curl, CURLOPT_NOSIGNAL, 1L);
         curl_easy_setopt (cb->curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
@@ -539,7 +539,7 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
         cb->format = WH_FORMAT_COMMAND;
         cb->sslversion = CURL_SSLVERSION_DEFAULT;
         cb->low_limit_bytes = WH_DEFAULT_LOW_LIMIT_BYTES_PER_SEC;
-        cb->post_timeout = 0;
+        cb->timeout = 0;
 
         pthread_mutex_init (&cb->send_lock, /* attr = */ NULL);
 
@@ -611,8 +611,8 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
                         cf_util_get_boolean (child,&cb->abort_on_slow);
                 else if (strcasecmp ("LowLimitBytesPerSec", child->key) == 0)
                         cf_util_get_int (child, &cb->low_limit_bytes);
-                else if (strcasecmp ("PostTimeoutSec", child->key) == 0)
-                        cf_util_get_int (child, &cb->post_timeout);
+                else if (strcasecmp ("Timeout", child->key) == 0)
+                        cf_util_get_int (child, &cb->timeout);
                 else
                 {
                         ERROR ("write_http plugin: Invalid configuration "
@@ -630,10 +630,6 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
 
         if (cb->abort_on_slow)
                 cb->interval = CDTIME_T_TO_TIME_T(plugin_get_interval());
-
-        if (cb->post_timeout == 0)
-                //setting default timeout to plugin interval.
-                cb->post_timeout = CDTIME_T_TO_TIME_T(plugin_get_interval());
 
         /* Determine send_buffer_size. */
         cb->send_buffer_size = WRITE_HTTP_DEFAULT_BUFFER_SIZE;

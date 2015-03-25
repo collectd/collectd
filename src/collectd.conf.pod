@@ -7149,10 +7149,18 @@ and aborted.
 Sets bytes per second value for B<LowSpeedLimit> to make a decission if
 connection is too slow. Default value is C<100>.
 
-=item B<PostTimeoutSec> I<Seconds>
+=item B<Timeout> I<Timeout>
 
-If defined, provided positive integer value will be used to set maximum time
-in seconds that you allow for transfer(http post) operation to take.
+Sets the maximum time in milliseconds given for HTTP POST operations to
+complete. When this limit is reached, the POST operation will be aborted, and
+all the data in the current send buffer will probably be lost. Defaults to 0,
+which means the connection never times out.
+
+The C<write_http> plugin regularly submits the collected values to the HTTP
+server. How frequently this happens depends on how much data you are collecting
+and the size of B<BufferSize>. The optimal value to set B<Timeout> to is
+slightly below this interval, which you can estimate by monitoring the network
+traffic between collectd and the HTTP server.
 
 =back
 
