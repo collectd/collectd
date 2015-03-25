@@ -76,6 +76,7 @@ struct cj_s /* {{{ */
   char *cacert;
   struct curl_slist *headers;
   char *post_body;
+  int timeout;
 
   CURL *curl;
   char curl_errbuf[CURL_ERROR_SIZE];
@@ -637,6 +638,7 @@ static int cj_init_curl (cj_t *db) /* {{{ */
     curl_easy_setopt (db->curl, CURLOPT_HTTPHEADER, db->headers);
   if (db->post_body != NULL)
     curl_easy_setopt (db->curl, CURLOPT_POSTFIELDS, db->post_body);
+  curl_easy_setopt (db->curl, CURLOPT_TIMEOUT_MS, db->timeout);
 
   return (0);
 } /* }}} int cj_init_curl */
@@ -704,6 +706,8 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string (child, &db->post_body);
     else if (strcasecmp ("Key", child->key) == 0)
       status = cj_config_add_key (db, child);
+    else if (db->url && strcasecmp ("Timeout", child->key) == 0)
+      status = cf_util_get_int (child, &db->timeout);
     else
     {
       WARNING ("curl_json plugin: Option `%s' not allowed here.", child->key);

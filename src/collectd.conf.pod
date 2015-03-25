@@ -1190,6 +1190,7 @@ Sets the plugin instance to I<Instance>.
 =item B<CACert> I<file>
 =item B<Header> I<Header>
 =item B<Post> I<Body>
+=item B<Timeout> I<Timeout in miliseconds>
 
 These options behave exactly equivalent to the appropriate options of the
 I<cURL> plugin. Please see there for a detailed description.
