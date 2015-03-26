@@ -7138,16 +7138,12 @@ are available on the server side. I<Bytes> must be at least 1024 and cannot
 exceed the size of an C<int>, i.e. 2E<nbsp>GByte.
 Defaults to C<4096>.
 
-=item B<LowSpeedLimit> B<true|false>
+=item B<LowSpeedLimit> I<Bytes per Second>
 
-If set to B<true>, average transfer speed in bytes per second will be checked.
-In case it is below B<LowLimitBytesPerSec> connection will be considered slow
-and aborted.
-
-=item B<LowLimitBytesPerSec> I<Bytes>
-
-Sets bytes per second value for B<LowSpeedLimit> to make a decission if
-connection is too slow. Default value is C<100>.
+Sets the minimal transfer rate in I<Bytes per Second> below which the
+connection with the HTTP server will be considered too slow and aborted. All
+the data submitted over this connection will probably be lost. Defaults to 0,
+which means no minimum transfer rate is enforced.
 
 =item B<Timeout> I<Timeout>
 
