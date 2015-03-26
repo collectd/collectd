@@ -1311,6 +1311,8 @@
 #		Format "Command"
 #		StoreRates false
 #		BufferSize 4096
+#		LowSpeedLimit 0
+#		Timeout 0
 #	</Node>
 #</Plugin>
 
