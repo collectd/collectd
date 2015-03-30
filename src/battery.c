@@ -513,13 +513,15 @@ static int read_sysfs_callback (char const *dir, /* {{{ */
 			v *= -1.0;
 		battery_submit (plugin_instance, "power", v * SYSFS_FACTOR);
 	}
+	if (sysfs_file_to_gauge (dir, power_supply, "current_now", &v) == 0)
+	{
+		if (discharging)
+			v *= -1.0;
+		battery_submit (plugin_instance, "current", v * SYSFS_FACTOR);
+	}
 
 	if (sysfs_file_to_gauge (dir, power_supply, "voltage_now", &v) == 0)
 		battery_submit (plugin_instance, "voltage", v * SYSFS_FACTOR);
-#if 0
-	if (sysfs_file_to_gauge (dir, power_supply, "voltage_min_design", &v) == 0)
-		battery_submit (plugin_instance, "voltage", v * SYSFS_FACTOR);
-#endif
 
 	return (0);
 } /* }}} int read_sysfs_callback */
