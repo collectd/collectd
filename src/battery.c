@@ -416,10 +416,13 @@ static int sysfs_file_to_buffer(char const *dir, /* {{{ */
 
 	if (fgets (buffer, buffer_size, fp) == NULL)
 	{
-		char errbuf[1024];
 		status = errno;
-		WARNING ("battery plugin: fgets failed: %s",
-				sstrerror (status, errbuf, sizeof (errbuf)));
+		if (status != ENODEV)
+		{
+			char errbuf[1024];
+			WARNING ("battery plugin: fgets (%s) failed: %s", filename,
+					sstrerror (status, errbuf, sizeof (errbuf)));
+		}
 		fclose (fp);
 		return status;
 	}
