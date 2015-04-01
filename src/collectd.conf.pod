@@ -1469,6 +1469,14 @@ plugin below on how matches are defined. If the B<MeasureResponseTime> or
 B<MeasureResponseCode> options are set to B<true>, B<Match> blocks are
 optional.
 
+=item B<Timeout> I<Timeout in miliseconds>
+
+The B<Timeout> option sets the overall timeout for each request. Make sure that
+collectd is configured with enough C<ReadThreads>, otherwise an overly long
+timeout could block other plugins. By default or when set to B<0>, a timeout
+equal to the B<Interval> is used. Prior to version 5.5.0, there was no timeout
+and requests might hang indefinitely.
+
 =back
 
 =head2 Plugin C<curl_json>
@@ -1554,6 +1562,7 @@ URL. By default the global B<Interval> setting will be used.
 =item B<Header> I<Header>
 
 =item B<Post> I<Body>
+=item B<Timeout> I<Timeout in miliseconds>
 
 These options behave exactly equivalent to the appropriate options of the
 I<cURL> plugin. Please see there for a detailed description.
