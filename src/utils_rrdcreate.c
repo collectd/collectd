@@ -70,6 +70,12 @@ static char *rra_types[] =
 };
 static int rra_types_num = STATIC_ARRAY_SIZE (rra_types);
 
+static char *single_rra_type[] =
+{
+  "AVERAGE"
+};
+static int single_rra_type_num = STATIC_ARRAY_SIZE ( single_rra_type );
+
 #if !defined(HAVE_THREADSAFE_LIBRRD) || !HAVE_THREADSAFE_LIBRRD
 static pthread_mutex_t librrd_lock = PTHREAD_MUTEX_INITIALIZER;
 #endif
@@ -169,6 +175,9 @@ static int rra_get (char ***ret, const value_list_t *vl, /* {{{ */
   int *rts;
   int  rts_num;
 
+  char *rra_types_list;
+  int rra_types_list_num;
+
   int rra_max;
 
   int span;
@@ -241,7 +250,20 @@ static int rra_get (char ***ret, const value_list_t *vl, /* {{{ */
     cdp_num = (int) ceil (((double) span)
         / ((double) (cdp_len * ss)));
 
-    for (j = 0; j < rra_types_num; j++)
+    /* optimize for size, if the cdp_len == 1, 
+     * we only need a single rra, with the average (of one value..) */
+    if ( cpd_len == 1 )
+    {
+      rra_types_list = single_rra_type;
+      rra_types_list_num = single_rra_type_num;
+    } 
+    else
+    {
+      rra_types_list = rra_types;
+      rra_types_list_num = rra_types_num;
+    }
+
+    for (j = 0; j < rra_types_list_num; j++)
     {
       int status;
 
@@ -249,7 +271,7 @@ static int rra_get (char ***ret, const value_list_t *vl, /* {{{ */
         break;
 
       status = ssnprintf (buffer, sizeof (buffer), "RRA:%s:%.10f:%u:%u",
-          rra_types[j], cfg->xff, cdp_len, cdp_num);
+          rra_types_list[j], cfg->xff, cdp_len, cdp_num);
 
       if ((status < 0) || ((size_t) status >= sizeof (buffer)))
       {
