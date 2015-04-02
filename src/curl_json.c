@@ -650,10 +650,15 @@ static int cj_init_curl (cj_t *db) /* {{{ */
     curl_easy_setopt (db->curl, CURLOPT_HTTPHEADER, db->headers);
   if (db->post_body != NULL)
     curl_easy_setopt (db->curl, CURLOPT_POSTFIELDS, db->post_body);
-  curl_easy_setopt (db->curl, CURLOPT_TIMEOUT_MS,
-      db->timeout > 0 ?
-      db->timeout :
-      ( db->interval > 0 ? db->interval : cf_get_default_interval () ));
+
+  if (db->timeout >= 0)
+    curl_easy_setopt (db->curl, CURLOPT_TIMEOUT_MS, db->timeout);
+  else if (db->interval > 0)
+    curl_easy_setopt (db->curl, CURLOPT_TIMEOUT_MS,
+        CDTIME_T_TO_MS(db->timeout));
+  else
+    curl_easy_setopt (db->curl, CURLOPT_TIMEOUT_MS,
+        CDTIME_T_TO_MS(plugin_get_interval()));
 
   return (0);
 } /* }}} int cj_init_curl */
@@ -679,6 +684,8 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
   memset (db, 0, sizeof (*db));
+
+  db->timeout = -1;
 
   if (strcasecmp ("URL", ci->key) == 0)
     status = cf_util_get_string (ci, &db->url);
