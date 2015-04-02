@@ -410,7 +410,12 @@ static int cc_page_init_curl (web_page_t *wp) /* {{{ */
     curl_easy_setopt (wp->curl, CURLOPT_HTTPHEADER, wp->headers);
   if (wp->post_body != NULL)
     curl_easy_setopt (wp->curl, CURLOPT_POSTFIELDS, wp->post_body);
-  curl_easy_setopt (wp->curl, CURLOPT_TIMEOUT_MS, wp->timeout > 0 ? wp->timeout : cf_get_default_interval ());
+
+  if (wp->timeout >= 0)
+    curl_easy_setopt (wp->curl, CURLOPT_TIMEOUT_MS, wp->timeout);
+  else
+    curl_easy_setopt (wp->curl, CURLOPT_TIMEOUT_MS,
+       CDTIME_T_TO_MS(plugin_get_interval()));
 
   return (0);
 } /* }}} int cc_page_init_curl */
@@ -442,7 +447,7 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
   page->verify_host = 1;
   page->response_time = 0;
   page->response_code = 0;
-  page->timeout = 0;
+  page->timeout = -1;
 
   page->instance = strdup (ci->values[0].value.string);
   if (page->instance == NULL)
