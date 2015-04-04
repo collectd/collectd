@@ -127,13 +127,13 @@ static int wh_callback_init (wh_callback_t *cb) /* {{{ */
         if (cb->low_speed_limit > 0 && cb->low_speed_time > 0)
         {
                 curl_easy_setopt (cb->curl, CURLOPT_LOW_SPEED_LIMIT,
-                                  (cb->low_speed_limit * cb->low_speed_time));
+                                  (long) (cb->low_speed_limit * cb->low_speed_time));
                 curl_easy_setopt (cb->curl, CURLOPT_LOW_SPEED_TIME,
-                                  cb->low_speed_time);
+                                  (long) cb->low_speed_time);
         }
 
         if (cb->timeout > 0)
-                curl_easy_setopt (cb->curl, CURLOPT_TIMEOUT_MS, cb->timeout);
+                curl_easy_setopt (cb->curl, CURLOPT_TIMEOUT_MS, (long) cb->timeout);
 
         curl_easy_setopt (cb->curl, CURLOPT_NOSIGNAL, 1L);
         curl_easy_setopt (cb->curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
