@@ -591,7 +591,7 @@ static int ascent_init (void) /* {{{ */
     curl_easy_setopt (curl, CURLOPT_CAINFO, cacert);
 
   if (timeout != NULL)
-    curl_easy_setopt (curl, CURLOPT_TIMEOUT_MS, atoi(timeout));
+    curl_easy_setopt (curl, CURLOPT_TIMEOUT_MS, atol(timeout));
   else
     curl_easy_setopt (curl, CURLOPT_TIMEOUT_MS,
        CDTIME_T_TO_MS(plugin_get_interval()));

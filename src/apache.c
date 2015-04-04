@@ -373,7 +373,7 @@ static int init_host (apache_t *st) /* {{{ */
 		curl_easy_setopt (st->curl, CURLOPT_CAINFO, st->cacert);
 
 	if (st->timeout >= 0)
-		curl_easy_setopt (st->curl, CURLOPT_TIMEOUT_MS, st->timeout);
+		curl_easy_setopt (st->curl, CURLOPT_TIMEOUT_MS, (long) st->timeout);
 	else
 		curl_easy_setopt (st->curl, CURLOPT_TIMEOUT_MS,
 				CDTIME_T_TO_MS(plugin_get_interval()));

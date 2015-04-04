@@ -1728,7 +1728,7 @@ static int bind_init (void) /* {{{ */
   curl_easy_setopt (curl, CURLOPT_FOLLOWLOCATION, 1L);
   curl_easy_setopt (curl, CURLOPT_MAXREDIRS, 50L);
   curl_easy_setopt (curl, CURLOPT_TIMEOUT_MS, (timeout >= 0) ?
-      timeout : CDTIME_T_TO_MS(plugin_get_interval()));
+      (long) timeout : CDTIME_T_TO_MS(plugin_get_interval()));
 
 
   return (0);

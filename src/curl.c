@@ -412,7 +412,7 @@ static int cc_page_init_curl (web_page_t *wp) /* {{{ */
     curl_easy_setopt (wp->curl, CURLOPT_POSTFIELDS, wp->post_body);
 
   if (wp->timeout >= 0)
-    curl_easy_setopt (wp->curl, CURLOPT_TIMEOUT_MS, wp->timeout);
+    curl_easy_setopt (wp->curl, CURLOPT_TIMEOUT_MS, (long) wp->timeout);
   else
     curl_easy_setopt (wp->curl, CURLOPT_TIMEOUT_MS,
        CDTIME_T_TO_MS(plugin_get_interval()));

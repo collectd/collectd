@@ -183,7 +183,7 @@ static int init (void)
 
   if (timeout != NULL)
   {
-    curl_easy_setopt (curl, CURLOPT_TIMEOUT_MS, atoi(timeout));
+    curl_easy_setopt (curl, CURLOPT_TIMEOUT_MS, atol(timeout));
   }
   else
   {
