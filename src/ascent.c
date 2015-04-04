@@ -102,6 +102,7 @@ static char *pass        = NULL;
 static char *verify_peer = NULL;
 static char *verify_host = NULL;
 static char *cacert      = NULL;
+static char *timeout     = NULL;
 
 static CURL *curl = NULL;
 
@@ -117,7 +118,8 @@ static const char *config_keys[] =
   "Password",
   "VerifyPeer",
   "VerifyHost",
-  "CACert"
+  "CACert",
+  "Timeout",
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -518,6 +520,8 @@ static int ascent_config (const char *key, const char *value) /* {{{ */
     return (config_set (&verify_host, value));
   else if (strcasecmp (key, "CACert") == 0)
     return (config_set (&cacert, value));
+  else if (strcasecmp (key, "Timeout") == 0)
+    return (config_set (&timeout, value));
   else
     return (-1);
 } /* }}} int ascent_config */
@@ -585,6 +589,12 @@ static int ascent_init (void) /* {{{ */
 
   if (cacert != NULL)
     curl_easy_setopt (curl, CURLOPT_CAINFO, cacert);
+
+  if (timeout != NULL)
+    curl_easy_setopt (curl, CURLOPT_TIMEOUT_MS, atoi(timeout));
+  else
+    curl_easy_setopt (curl, CURLOPT_TIMEOUT_MS,
+       CDTIME_T_TO_MS(plugin_get_interval()));
 
   return (0);
 } /* }}} int ascent_init */
