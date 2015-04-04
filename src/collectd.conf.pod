@@ -1133,6 +1133,12 @@ Collect global memory statistics.
 
 Default: Enabled.
 
+=item B<Timeout> I<Milliseconds>
+
+The B<Timeout> option sets the overall timeout for HTTP requests, in
+milliseconds. By default, the configured B<Interval> is used to set the
+timeout.
+
 =item B<View> I<Name>
 
 Collect statistics about a specific I<"view">. BIND can behave different,
