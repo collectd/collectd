@@ -369,9 +369,11 @@ static int bind_xml_read_derive (xmlDoc *doc, xmlNode *node, /* {{{ */
   {
     ERROR ("bind plugin: Parsing string \"%s\" to derive value failed.",
         str_ptr);
+    xmlFree(str_ptr);
     return (-1);
   }
 
+  xmlFree(str_ptr);
   *ret_value = value.derive;
   return (0);
 } /* }}} int bind_xml_read_derive */
