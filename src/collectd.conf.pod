@@ -1673,6 +1673,8 @@ Examples:
 
 =item B<Post> I<Body>
 
+=item B<Timeout> I<Milliseconds>
+
 These options behave exactly equivalent to the appropriate options of the
 I<cURL plugin>. Please see there for a detailed description.
 

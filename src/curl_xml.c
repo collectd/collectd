@@ -81,6 +81,7 @@ struct cx_s /* {{{ */
   _Bool verify_host;
   char *cacert;
   char *post_body;
+  int timeout;
   struct curl_slist *headers;
 
   cx_namespace_t *namespaces;
@@ -884,6 +885,12 @@ static int cx_init_curl (cx_t *db) /* {{{ */
   if (db->post_body != NULL)
     curl_easy_setopt (db->curl, CURLOPT_POSTFIELDS, db->post_body);
 
+  if (db->timeout >= 0)
+    curl_easy_setopt (db->curl, CURLOPT_TIMEOUT_MS, db->timeout);
+  else
+    curl_easy_setopt (db->curl, CURLOPT_TIMEOUT_MS,
+       CDTIME_T_TO_MS(plugin_get_interval()));
+
   return (0);
 } /* }}} int cx_init_curl */
 
@@ -908,6 +915,8 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
   memset (db, 0, sizeof (*db));
+
+  db->timeout = -1;
 
   if (strcasecmp ("URL", ci->key) == 0)
   {
@@ -954,6 +963,8 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string (child, &db->post_body);
     else if (strcasecmp ("Namespace", child->key) == 0)
       status = cx_config_add_namespace (db, child);
+    else if (strcasecmp ("Timeout", child->key) == 0)
+      status = cf_util_get_int (child, &db->timeout);
     else
     {
       WARNING ("curl_xml plugin: Option `%s' not allowed here.", child->key);
