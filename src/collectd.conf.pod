@@ -777,7 +777,7 @@ and are checked by default depends on the distribution you use.
 
 =item B<Timeout> I<Milliseconds>
 
-The B<Timeout> option sets the overall timeout for HTTP requests, in
+The B<Timeout> option sets the overall timeout for HTTP requests to B<URL>, in
 milliseconds. By default, the configured B<Interval> is used to set the
 timeout.
 
@@ -871,7 +871,7 @@ and are checked by default depends on the distribution you use.
 
 =item B<Timeout> I<Milliseconds>
 
-The B<Timeout> option sets the overall timeout for HTTP requests, in
+The B<Timeout> option sets the overall timeout for HTTP requests to B<URL>, in
 milliseconds. By default, the configured B<Interval> is used to set the
 timeout.
 
@@ -1141,7 +1141,7 @@ Default: Enabled.
 
 =item B<Timeout> I<Milliseconds>
 
-The B<Timeout> option sets the overall timeout for HTTP requests, in
+The B<Timeout> option sets the overall timeout for HTTP requests to B<URL>, in
 milliseconds. By default, the configured B<Interval> is used to set the
 timeout.
 
@@ -1493,7 +1493,7 @@ optional.
 
 =item B<Timeout> I<Milliseconds>
 
-The B<Timeout> option sets the overall timeout for HTTP requests, in
+The B<Timeout> option sets the overall timeout for HTTP requests to B<URL>, in
 milliseconds. By default, the configured B<Interval> is used to set the
 timeout. Prior to version 5.5.0, there was no timeout and requests could hang
 indefinitely. This legacy behaviour can be achieved by setting the value of
@@ -4122,7 +4122,7 @@ and are checked by default depends on the distribution you use.
 
 =item B<Timeout> I<Milliseconds>
 
-The B<Timeout> option sets the overall timeout for HTTP requests, in
+The B<Timeout> option sets the overall timeout for HTTP requests to B<URL>, in
 milliseconds. By default, the configured B<Interval> is used to set the
 timeout.
 
