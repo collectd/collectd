@@ -7273,7 +7273,7 @@ Protocol to use when connecting to I<Graphite>. Defaults to C<tcp>.
 
 =item B<ForceReconnectTimeout> I<Timeout Seconds>
 
-This parameter enables a forced close and reopen established connection with graphite backend after the specified Timeout seconds. This behaviour is desired in environments where the connection to the backend of graphite is done through load balancers. Default to 0 seconds ( 0 seconds = disabled ).
+This parameter enables a forced close and re-open of the established connection with the Graphite backend after the specified timeout in seconds. This behavior is desirable in environments where the connection to the Graphite backend is done through load balancers. Default to 0 seconds (0 seconds = disabled).
 
 =item B<LogSendErrors> B<false>|B<true>
 
