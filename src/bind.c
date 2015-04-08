@@ -267,7 +267,7 @@ static void submit (time_t ts, const char *plugin_instance, /* {{{ */
   if (type_instance) {
     sstrncpy(vl.type_instance, type_instance,
         sizeof(vl.type_instance));
-    replace_special (vl.plugin_instance, sizeof (vl.plugin_instance));
+    replace_special (vl.type_instance, sizeof (vl.type_instance));
   }
   plugin_dispatch_values(&vl);
 } /* }}} void submit */

@@ -84,10 +84,10 @@ typedef struct statname_lookup_s statname_lookup_t;
 
 /* Description of statistics returned by the recursor: {{{
 all-outqueries      counts the number of outgoing UDP queries since starting
-answers0-1          counts the number of queries answered within 1 milisecond
+answers0-1          counts the number of queries answered within 1 millisecond
 answers100-1000     counts the number of queries answered within 1 second
-answers10-100       counts the number of queries answered within 100 miliseconds
-answers1-10         counts the number of queries answered within 10 miliseconds
+answers10-100       counts the number of queries answered within 100 milliseconds
+answers1-10         counts the number of queries answered within 10 milliseconds
 answers-slow        counts the number of queries answered after 1 second
 cache-entries       shows the number of entries in the cache
 cache-hits          counts the number of cache hits since starting
