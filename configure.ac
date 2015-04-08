@@ -5204,6 +5204,7 @@ fi
 if test "x$ac_system" = "xAIX"
 then
         plugin_tcpconns="yes"
+        plugin_ipc="yes"
 fi
 
 # FreeBSD
