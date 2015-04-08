@@ -99,6 +99,7 @@
 %define with_gmond 0%{!?_without_gmond:0%{?_has_recent_libganglia}}
 %define with_hddtemp 0%{!?_without_hddtemp:1}
 %define with_interface 0%{!?_without_interface:1}
+%define with_ipc 0%{!?_without_ipc:1}
 %define with_ipmi 0%{!?_without_ipmi:1}
 %define with_iptables 0%{!?_without_iptables:0%{?_has_working_libiptc}}
 %define with_ipvs 0%{!?_without_ipvs:0%{?_has_ip_vs_h}}
@@ -169,6 +170,7 @@
 %define with_write_log 0%{!?_without_write_log:1}
 %define with_write_redis 0%{!?_without_write_redis:0%{?_has_hiredis}}
 %define with_write_riemann 0%{!?_without_write_riemann:1}
+%define with_write_sensu 0%{!?_without_write_sensu:1}
 %define with_write_tsdb 0%{!?_without_write_tsdb:1}
 %define with_zfs_arc 0%{!?_without_zfs_arc:1}
 %define with_zookeeper 0%{!?_without_zookeeper:1}
@@ -1027,6 +1029,12 @@ Collectd utilities
 %define _with_interface --disable-interface
 %endif
 
+%if %{with_ipc}
+%define _with_ipc --enable-ipc
+%else
+%define _with_ipc --disable-ipc
+%endif
+
 %if %{with_ipmi}
 %define _with_ipmi --enable-ipmi
 %else
@@ -1523,6 +1531,12 @@ Collectd utilities
 %define _with_write_riemann --disable-write_riemann
 %endif
 
+%if %{with_write_sensu}
+%define _with_write_sensu --enable-write_sensu
+%else
+%define _with_write_sensu --disable-write_sensu
+%endif
+
 %if %{with_write_tsdb}
 %define _with_write_tsdb --enable-write_tsdb
 %else
@@ -1595,6 +1609,7 @@ Collectd utilities
 	%{?_with_gmond} \
 	%{?_with_hddtemp} \
 	%{?_with_interface} \
+	%{?_with_ipc} \
 	%{?_with_ipmi} \
 	%{?_with_iptables} \
 	%{?_with_ipvs} \
@@ -1681,6 +1696,7 @@ Collectd utilities
 	%{?_with_write_http} \
 	%{?_with_write_log} \
 	%{?_with_write_riemann} \
+	%{?_with_write_sensu} \
 	%{?_with_write_tsdb}
 
 
@@ -1873,6 +1889,9 @@ fi
 %if %{with_interface}
 %{_libdir}/%{name}/interface.so
 %endif
+%if %{with_ipc}
+%{_libdir}/%{name}/ipc.so
+%endif
 %if %{with_ipvs}
 %{_libdir}/%{name}/ipvs.so
 %endif
@@ -1992,6 +2011,9 @@ fi
 %endif
 %if %{with_write_log}
 %{_libdir}/%{name}/write_log.so
+%endif
+%if %{with_write_sensu}
+%{_libdir}/%{name}/write_sensu.so
 %endif
 %if %{with_write_tsdb}
 %{_libdir}/%{name}/write_tsdb.so
@@ -2291,7 +2313,7 @@ fi
 %changelog
 # * TODO 5.5.0-1
 # - New upstream version
-# - New plugins enabled by default: ceph, drbd, log_logstash, write_tsdb, smart, openldap, redis, write_redis, zookeeper, write_log
+# - New plugins enabled by default: ceph, drbd, log_logstash, write_tsdb, smart, openldap, redis, write_redis, zookeeper, write_log, write_sensu, ipc
 # - New plugins disabled by default: barometer, write_kafka
 # - Enable zfs_arc, now supported on Linux
 # - Install disk plugin in a dedicated package, as it depends on libudev
