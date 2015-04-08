@@ -411,11 +411,13 @@ static int cc_page_init_curl (web_page_t *wp) /* {{{ */
   if (wp->post_body != NULL)
     curl_easy_setopt (wp->curl, CURLOPT_POSTFIELDS, wp->post_body);
 
+#ifdef HAVE_CURLOPT_TIMEOUT_MS
   if (wp->timeout >= 0)
     curl_easy_setopt (wp->curl, CURLOPT_TIMEOUT_MS, (long) wp->timeout);
   else
     curl_easy_setopt (wp->curl, CURLOPT_TIMEOUT_MS,
        CDTIME_T_TO_MS(plugin_get_interval()));
+#endif
 
   return (0);
 } /* }}} int cc_page_init_curl */

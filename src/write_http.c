@@ -132,8 +132,10 @@ static int wh_callback_init (wh_callback_t *cb) /* {{{ */
                                   (long) cb->low_speed_time);
         }
 
+#ifdef HAVE_CURLOPT_TIMEOUT_MS
         if (cb->timeout > 0)
                 curl_easy_setopt (cb->curl, CURLOPT_TIMEOUT_MS, (long) cb->timeout);
+#endif
 
         curl_easy_setopt (cb->curl, CURLOPT_NOSIGNAL, 1L);
         curl_easy_setopt (cb->curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);

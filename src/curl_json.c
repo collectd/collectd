@@ -651,6 +651,7 @@ static int cj_init_curl (cj_t *db) /* {{{ */
   if (db->post_body != NULL)
     curl_easy_setopt (db->curl, CURLOPT_POSTFIELDS, db->post_body);
 
+#ifdef HAVE_CURLOPT_TIMEOUT_MS
   if (db->timeout >= 0)
     curl_easy_setopt (db->curl, CURLOPT_TIMEOUT_MS, (long) db->timeout);
   else if (db->interval > 0)
@@ -659,6 +660,7 @@ static int cj_init_curl (cj_t *db) /* {{{ */
   else
     curl_easy_setopt (db->curl, CURLOPT_TIMEOUT_MS,
         CDTIME_T_TO_MS(plugin_get_interval()));
+#endif
 
   return (0);
 } /* }}} int cj_init_curl */

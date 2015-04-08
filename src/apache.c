@@ -372,11 +372,13 @@ static int init_host (apache_t *st) /* {{{ */
 	if (st->cacert != NULL)
 		curl_easy_setopt (st->curl, CURLOPT_CAINFO, st->cacert);
 
+#ifdef HAVE_CURLOPT_TIMEOUT_MS
 	if (st->timeout >= 0)
 		curl_easy_setopt (st->curl, CURLOPT_TIMEOUT_MS, (long) st->timeout);
 	else
 		curl_easy_setopt (st->curl, CURLOPT_TIMEOUT_MS,
 				CDTIME_T_TO_MS(plugin_get_interval()));
+#endif
 
 	return (0);
 } /* }}} int init_host */

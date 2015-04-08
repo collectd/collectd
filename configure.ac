@@ -1700,6 +1700,10 @@ then
 		 [have_curlopt_username="yes"],
 		 [have_curlopt_username="no"],
 		 [[#include <curl/curl.h>]])
+		AC_CHECK_DECL(CURLOPT_TIMEOUT_MS,
+		 [have_curlopt_timeout="yes"],
+		 [have_curlopt_timeout="no"],
+		 [[#include <curl/curl.h>]])
 	fi
 fi
 if test "x$with_libcurl" = "xyes"
@@ -1712,6 +1716,11 @@ then
 	if test "x$have_curlopt_username" = "xyes"
 	then
 		AC_DEFINE(HAVE_CURLOPT_USERNAME, 1, [Define if libcurl supports CURLOPT_USERNAME option.])
+	fi
+
+	if test "x$have_curlopt_timeout" = "xyes"
+	then
+		AC_DEFINE(HAVE_CURLOPT_TIMEOUT_MS, 1, [Define if libcurl supports CURLOPT_TIMEOUT_MS option.])
 	fi
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBCURL, test "x$with_libcurl" = "xyes")

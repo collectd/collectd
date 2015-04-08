@@ -590,11 +590,13 @@ static int ascent_init (void) /* {{{ */
   if (cacert != NULL)
     curl_easy_setopt (curl, CURLOPT_CAINFO, cacert);
 
+#ifdef HAVE_CURLOPT_TIMEOUT_MS
   if (timeout != NULL)
     curl_easy_setopt (curl, CURLOPT_TIMEOUT_MS, atol(timeout));
   else
     curl_easy_setopt (curl, CURLOPT_TIMEOUT_MS,
        CDTIME_T_TO_MS(plugin_get_interval()));
+#endif
 
   return (0);
 } /* }}} int ascent_init */
