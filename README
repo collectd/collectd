@@ -127,12 +127,12 @@ Features
       IPC counters: semaphores used, number of allocated segments in shared
       memory and more.
 
+    - ipmi
+      IPMI (Intelligent Platform Management Interface) sensors information.
+
     - iptables
       Iptables' counters: Number of bytes that were matched by a certain
       iptables rule.
-
-    - ipmi
-      IPMI (Intelligent Platform Management Interface) sensors information.
 
     - ipvs
       IPVS connection statistics (number of connections, octets and packets
@@ -221,12 +221,12 @@ Features
     - ntpd
       NTP daemon statistics: Local clock drift, offset to peers, etc.
 
+    - numa
+      Information about Non-Uniform Memory Access (NUMA).
+
     - nut
       Network UPS tools: UPS current, voltage, power, charge, utilisation,
       temperature, etc. See upsd(8).
-
-    - numa
-      Information about Non-Uniform Memory Access (NUMA).
 
     - olsrd
       Queries routing information from the “Optimized Link State Routing”
@@ -428,10 +428,6 @@ Features
       can be configured to avoid logging send errors (especially useful when
       using UDP).
 
-    - write_tsdb
-      Sends data OpenTSDB, a scalable no master, no shared state time series
-      database.
-
     - write_http
       Sends the values collected by collectd to a web-server using HTTP POST
       requests. The transmitted data is either in a form understood by the
@@ -455,6 +451,10 @@ Features
     - write_sensu
       Sends data to Sensu, a stream processing and monitoring system, via the
       Sensu client local TCP socket.
+
+    - write_tsdb
+      Sends data OpenTSDB, a scalable no master, no shared state time series
+      database.
 
   * Logging is, as everything in collectd, provided by plugins. The following
     plugins keep up informed about what's going on:
