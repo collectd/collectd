@@ -7531,10 +7531,11 @@ attribute for each metric being sent out to I<Riemann>.
 
 The I<write_sensu plugin> will send values to I<Sensu>, a powerful stream
 aggregation and monitoring system. The plugin sends I<JSON> encoded data to
-a local I<sensu> client using a TCP socket. At the moment, write_sensu plugin
-does not send over a collectd_host parameter so it not possible to use
-one collectd instance as a gateway for other collectd: each collectd host
-must write to its own sensu client.
+a local I<Sensu> client using a TCP socket.
+
+At the moment, the I<write_sensu plugin> does not send over a collectd_host
+parameter so it is not possible to use one collectd instance as a gateway for
+others. Each collectd host must pair with one I<Sensu> client.
 
 Synopsis:
 
@@ -7562,7 +7563,7 @@ The following options are understood by the I<write_sensu plugin>:
 
 The plugin's configuration consists of one or more B<Node> blocks. Each block
 is given a unique I<Name> and specifies one connection to an instance of
-I<Sensu>. Indise the B<Node> block, the following per-connection options are
+I<Sensu>. Inside the B<Node> block, the following per-connection options are
 understood:
 
 =over 4
@@ -7580,9 +7581,9 @@ Service name or port number to connect to. Defaults to C<3030>.
 If set to B<true> (the default), convert counter values to rates. If set to
 B<false> counter values are stored as is, i.e. as an increasing integer number.
 
-This will be reflected in the C<collectd_data_source_type> tag: If B<StoreRates> is enabled,
-converted values will have "rate" appended to the data source type, e.g.
-C<collectd_data_source_type:derive:rate>.
+This will be reflected in the C<collectd_data_source_type> tag: If
+B<StoreRates> is enabled, converted values will have "rate" appended to the
+data source type, e.g.  C<collectd_data_source_type:derive:rate>.
 
 =item B<AlwaysAppendDS> B<false>|B<true>
 
@@ -7593,12 +7594,12 @@ only done when there is more than one DS.
 
 =item B<Notifications> B<false>|B<true>
 
-If set to B<true>, create sensu events for notifications. This is B<false>
+If set to B<true>, create I<Sensu> events for notifications. This is B<false>
 by default. At least one of B<Notifications> or B<Metrics> should be enabled.
 
 =item B<Metrics> B<false>|B<true>
 
-If set to B<true>, create sensu events for metrics. This is B<false>
+If set to B<true>, create I<Sensu> events for metrics. This is B<false>
 by default. At least one of B<Notifications> or B<Metrics> should be enabled.
 
 
@@ -7613,8 +7614,8 @@ several of them, one per line. Defaults to no handler.
 
 =item B<NotificationHandler> I<String>
 
-Add a handler that will be set when notifications are sent to I<Sensu>. You can add
-several of them, one per line. Defaults to no handler.
+Add a handler that will be set when notifications are sent to I<Sensu>. You can
+add several of them, one per line. Defaults to no handler.
 
 =item B<EventServicePrefix> I<String>
 

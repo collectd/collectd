@@ -449,7 +449,8 @@ Features
       Sends data to Riemann, a stream processing and monitoring system.
 
     - write_sensu
-      Sends data to Sensu a stream processing and monitoring system, via sensu client local TCP socket.
+      Sends data to Sensu, a stream processing and monitoring system, via the
+      Sensu client local TCP socket.
 
   * Logging is, as everything in collectd, provided by plugins. The following
     plugins keep up informed about what's going on:
