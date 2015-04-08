@@ -66,6 +66,7 @@ struct web_page_s /* {{{ */
   char *post_body;
   _Bool response_time;
   _Bool response_code;
+  int timeout;
 
   CURL *curl;
   char curl_errbuf[CURL_ERROR_SIZE];
@@ -410,6 +411,12 @@ static int cc_page_init_curl (web_page_t *wp) /* {{{ */
   if (wp->post_body != NULL)
     curl_easy_setopt (wp->curl, CURLOPT_POSTFIELDS, wp->post_body);
 
+  if (wp->timeout >= 0)
+    curl_easy_setopt (wp->curl, CURLOPT_TIMEOUT_MS, (long) wp->timeout);
+  else
+    curl_easy_setopt (wp->curl, CURLOPT_TIMEOUT_MS,
+       CDTIME_T_TO_MS(plugin_get_interval()));
+
   return (0);
 } /* }}} int cc_page_init_curl */
 
@@ -440,6 +447,7 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
   page->verify_host = 1;
   page->response_time = 0;
   page->response_code = 0;
+  page->timeout = -1;
 
   page->instance = strdup (ci->values[0].value.string);
   if (page->instance == NULL)
@@ -480,6 +488,8 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
       status = cc_config_append_string ("Header", &page->headers, child);
     else if (strcasecmp ("Post", child->key) == 0)
       status = cf_util_get_string (child, &page->post_body);
+    else if (strcasecmp ("Timeout", child->key) == 0)
+      status = cf_util_get_int (child, &page->timeout);
     else
     {
       WARNING ("curl plugin: Option `%s' not allowed here.", child->key);

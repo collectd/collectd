@@ -109,6 +109,7 @@ static int global_server_stats     = 1;
 static int global_zone_maint_stats = 1;
 static int global_resolver_stats   = 0;
 static int global_memory_stats     = 1;
+static int timeout                 = -1;
 
 static cb_view_t *views = NULL;
 static size_t     views_num = 0;
@@ -1725,6 +1726,8 @@ static int bind_config (oconfig_item_t *ci) /* {{{ */
       bind_config_add_view (child);
     else if (strcasecmp ("ParseTime", child->key) == 0)
       cf_util_get_boolean (child, &config_parse_time);
+    else if (strcasecmp ("Timeout", child->key) == 0)
+      cf_util_get_int (child, &timeout);
     else
     {
       WARNING ("bind plugin: Unknown configuration option "
@@ -1754,6 +1757,9 @@ static int bind_init (void) /* {{{ */
   curl_easy_setopt (curl, CURLOPT_URL, (url != NULL) ? url : BIND_DEFAULT_URL);
   curl_easy_setopt (curl, CURLOPT_FOLLOWLOCATION, 1L);
   curl_easy_setopt (curl, CURLOPT_MAXREDIRS, 50L);
+  curl_easy_setopt (curl, CURLOPT_TIMEOUT_MS, (timeout >= 0) ?
+      (long) timeout : CDTIME_T_TO_MS(plugin_get_interval()));
+
 
   return (0);
 } /* }}} int bind_init */

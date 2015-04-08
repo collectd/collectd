@@ -53,6 +53,7 @@ struct apache_s
 	char apache_curl_error[CURL_ERROR_SIZE];
 	size_t apache_buffer_size;
 	size_t apache_buffer_fill;
+	int timeout;
 	CURL *curl;
 }; /* apache_s */
 
@@ -179,6 +180,8 @@ static int config_add (oconfig_item_t *ci)
 	}
 	memset (st, 0, sizeof (*st));
 
+	st->timeout = -1;
+
 	status = cf_util_get_string (ci, &st->name);
 	if (status != 0)
 	{
@@ -207,6 +210,8 @@ static int config_add (oconfig_item_t *ci)
 			status = cf_util_get_string (child, &st->cacert);
 		else if (strcasecmp ("Server", child->key) == 0)
 			status = cf_util_get_string (child, &st->server);
+		else if (strcasecmp ("Timeout", child->key) == 0)
+			status = cf_util_get_int (child, &st->timeout);
 		else
 		{
 			WARNING ("apache plugin: Option `%s' not allowed here.",
@@ -366,6 +371,12 @@ static int init_host (apache_t *st) /* {{{ */
 			st->verify_host ? 2L : 0L);
 	if (st->cacert != NULL)
 		curl_easy_setopt (st->curl, CURLOPT_CAINFO, st->cacert);
+
+	if (st->timeout >= 0)
+		curl_easy_setopt (st->curl, CURLOPT_TIMEOUT_MS, (long) st->timeout);
+	else
+		curl_easy_setopt (st->curl, CURLOPT_TIMEOUT_MS,
+				CDTIME_T_TO_MS(plugin_get_interval()));
 
 	return (0);
 } /* }}} int init_host */

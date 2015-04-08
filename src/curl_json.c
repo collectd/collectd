@@ -78,6 +78,7 @@ struct cj_s /* {{{ */
   struct curl_slist *headers;
   char *post_body;
   cdtime_t interval;
+  int timeout;
 
   CURL *curl;
   char curl_errbuf[CURL_ERROR_SIZE];
@@ -650,6 +651,15 @@ static int cj_init_curl (cj_t *db) /* {{{ */
   if (db->post_body != NULL)
     curl_easy_setopt (db->curl, CURLOPT_POSTFIELDS, db->post_body);
 
+  if (db->timeout >= 0)
+    curl_easy_setopt (db->curl, CURLOPT_TIMEOUT_MS, (long) db->timeout);
+  else if (db->interval > 0)
+    curl_easy_setopt (db->curl, CURLOPT_TIMEOUT_MS,
+        CDTIME_T_TO_MS(db->timeout));
+  else
+    curl_easy_setopt (db->curl, CURLOPT_TIMEOUT_MS,
+        CDTIME_T_TO_MS(plugin_get_interval()));
+
   return (0);
 } /* }}} int cj_init_curl */
 
@@ -674,6 +684,8 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
   memset (db, 0, sizeof (*db));
+
+  db->timeout = -1;
 
   if (strcasecmp ("URL", ci->key) == 0)
     status = cf_util_get_string (ci, &db->url);
@@ -720,6 +732,8 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
       status = cj_config_add_key (db, child);
     else if (strcasecmp ("Interval", child->key) == 0)
       status = cf_util_get_cdtime(child, &db->interval);
+    else if (strcasecmp ("Timeout", child->key) == 0)
+      status = cf_util_get_int (child, &db->timeout);
     else
     {
       WARNING ("curl_json plugin: Option `%s' not allowed here.", child->key);
