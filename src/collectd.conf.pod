@@ -7527,6 +7527,115 @@ attribute for each metric being sent out to I<Riemann>.
 
 =back
 
+=head2 Plugin C<write_sensu>
+
+The I<write_sensu plugin> will send values to I<Sensu>, a powerful stream
+aggregation and monitoring system. The plugin sends I<JSON> encoded data to
+a local I<sensu> client using a TCP socket. At the moment, write_sensu plugin
+does not send over a collectd_host parameter so it not possible to use
+one collectd instance as a gateway for other collectd: each collectd host
+must write to its own sensu client.
+
+Synopsis:
+
+ <Plugin "write_sensu">
+   <Node "example">
+     Host "localhost"
+     Port "3030"
+     StoreRates true
+     AlwaysAppendDS false
+     MetricHandler "influx"
+     MetricHandler "default"
+     NotificationHandler "flapjack"
+     NotificationHandler "howling_monkey"
+     Notifications true
+   </Node>
+   Tag "foobar"
+   Attribute "foo" "bar"
+ </Plugin>
+
+The following options are understood by the I<write_sensu plugin>:
+
+=over 4
+
+=item E<lt>B<Node> I<Name>E<gt>
+
+The plugin's configuration consists of one or more B<Node> blocks. Each block
+is given a unique I<Name> and specifies one connection to an instance of
+I<Sensu>. Indise the B<Node> block, the following per-connection options are
+understood:
+
+=over 4
+
+=item B<Host> I<Address>
+
+Hostname or address to connect to. Defaults to C<localhost>.
+
+=item B<Port> I<Service>
+
+Service name or port number to connect to. Defaults to C<3030>.
+
+=item B<StoreRates> B<true>|B<false>
+
+If set to B<true> (the default), convert counter values to rates. If set to
+B<false> counter values are stored as is, i.e. as an increasing integer number.
+
+This will be reflected in the C<collectd_data_source_type> tag: If B<StoreRates> is enabled,
+converted values will have "rate" appended to the data source type, e.g.
+C<collectd_data_source_type:derive:rate>.
+
+=item B<AlwaysAppendDS> B<false>|B<true>
+
+If set the B<true>, append the name of the I<Data Source> (DS) to the
+"service", i.e. the field that, together with the "host" field, uniquely
+identifies a metric in I<Sensu>. If set to B<false> (the default), this is
+only done when there is more than one DS.
+
+=item B<Notifications> B<false>|B<true>
+
+If set to B<true>, create sensu events for notifications. This is B<false>
+by default. At least one of B<Notifications> or B<Metrics> should be enabled.
+
+=item B<Metrics> B<false>|B<true>
+
+If set to B<true>, create sensu events for metrics. This is B<false>
+by default. At least one of B<Notifications> or B<Metrics> should be enabled.
+
+
+=item B<Separator> I<String>
+
+Sets the separator for I<Sensu> metrics name or checks. Defaults to "/".
+
+=item B<MetricHandler> I<String>
+
+Add a handler that will be set when metrics are sent to I<Sensu>. You can add
+several of them, one per line. Defaults to no handler.
+
+=item B<NotificationHandler> I<String>
+
+Add a handler that will be set when notifications are sent to I<Sensu>. You can add
+several of them, one per line. Defaults to no handler.
+
+=item B<EventServicePrefix> I<String>
+
+Add the given string as a prefix to the event service name.
+If B<EventServicePrefix> not set or set to an empty string (""),
+no prefix will be used.
+
+=back
+
+=item B<Tag> I<String>
+
+Add the given string as an additional tag to the metric being sent to
+I<Sensu>.
+
+=item B<Attribute> I<String> I<String>
+
+Consider the two given strings to be the key and value of an additional
+attribute for each metric being sent out to I<Sensu>.
+
+=back
+
 =head2 Plugin C<zookeeper>
 
 The I<zookeeper plugin> will collect statistics from a I<Zookeeper> server

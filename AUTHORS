@@ -106,6 +106,9 @@ Fabian Linzberger <e at lefant.net>
 Fabien Wernli <cpan at faxm0dem.org>
  - Solaris improvements in the memory and interfaces plugin.
 
+Fabrice A. Marie <fabrice at kibinlabs.com>
+ - write_sensu plugin.
+
 Flavio Stanchina <flavio at stanchina.net>
  - mbmon plugin.
 
