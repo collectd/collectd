@@ -203,7 +203,6 @@ static int ipc_read_shm (void) /* {{{ */
 {
 #if KERNEL_LINUX
   struct shm_info shm_info;
-  pagesize_g = sysconf(_SC_PAGESIZE);
 
   if ( shmctl(0, SHM_INFO, (struct shmid_ds *) (void *) &shm_info) < 0 )
   {
