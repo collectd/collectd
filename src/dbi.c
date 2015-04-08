@@ -413,7 +413,7 @@ static int cdbi_config (oconfig_item_t *ci) /* {{{ */
       cdbi_config_add_database (child);
     else
     {
-      WARNING ("snmp plugin: Ignoring unknown config option `%s'.", child->key);
+      WARNING ("dbi plugin: Ignoring unknown config option `%s'.", child->key);
     }
   } /* for (ci->children) */
 
