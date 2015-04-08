@@ -2480,12 +2480,6 @@ other interfaces are collected.
 
 =back
 
-=head2 Plugin C<ipc>
-
-The I<IPC plugin> allows to B<collectd> to gather information about
-process IPC mechanims, like used semaphores, size of shared memory
-segments and others.
-
 =head2 Plugin C<ipmi>
 
 =over 4
