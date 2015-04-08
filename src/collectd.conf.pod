@@ -867,14 +867,28 @@ and are checked by default depends on the distribution you use.
 
 =head2 Plugin C<barometer>
 
-This plugin reads absolute air pressure using digital barometer sensor MPL115A2
-or MPL3115 from Freescale (sensor attached to any I2C bus available in
-the computer, for HW details see
-I<http://www.freescale.com/webapp/sps/site/prod_summary.jsp?code=MPL115A> or
-I<http://www.freescale.com/webapp/sps/site/prod_summary.jsp?code=MPL3115A2>).
-The sensor type - one fo these two - is detected automatically by the plugin
-and indicated in the plugin_instance (typically you will see subdirectory
-"barometer-mpl115" or "barometer-mpl3115").
+This plugin reads absolute air pressure using digital barometer sensor on a I2C
+bus. Supported sensors are:
+
+=over 5
+
+=item I<MPL115A2> from Freescale,
+see L<http://www.freescale.com/webapp/sps/site/prod_summary.jsp?code=MPL115A>.
+
+
+=item I<MPL3115> from Freescale
+see L<http://www.freescale.com/webapp/sps/site/prod_summary.jsp?code=MPL3115A2>.
+
+
+=item I<BMP085> from Bosch Sensortec
+
+=back
+
+The sensor type - one of the above - is detected automatically by the plugin
+and indicated in the plugin_instance (you will see subdirectory
+"barometer-mpl115" or "barometer-mpl3115", or "barometer-bmp085"). The order of
+detection is BMP085 -> MPL3115 -> MPL115A2, the first one found will be used
+(only one sensor can be used by the plugin).
 
 The plugin provides absolute barometric pressure, air pressure reduced to sea
 level (several possible approximations) and as an auxiliary value also internal
@@ -885,11 +899,11 @@ It was developed and tested under Linux only. The only platform dependency is
 the standard Linux i2c-dev interface (the particular bus driver has to
 support the SM Bus command subset).
 
-The reduction or normalization to mean sea level pressure requires (depedning on
-selected method/approximation) also altitude and reference to temperature sensor(s).
-When multiple temperature sensors are configured the minumum of their values is
-always used (expecting that the warmer ones are affected by e.g. direct sun light
-at that moment).
+The reduction or normalization to mean sea level pressure requires (depending
+on selected method/approximation) also altitude and reference to temperature
+sensor(s).  When multiple temperature sensors are configured the minumum of
+their values is always used (expecting that the warmer ones are affected by
+e.g. direct sun light at that moment).
 
 Synopsis:
 
@@ -907,8 +921,10 @@ Synopsis:
 
 =item B<Device> I<device>
 
-Device name of the I2C bus to which the sensor is connected. Note that typically
-you need to have loaded the i2c-dev module.
+The only mandatory configuration parameter.
+
+Device name of the I2C bus to which the sensor is connected. Note that
+typically you need to have loaded the i2c-dev module.
 Using i2c-tools you can check/list i2c buses available on your system by:
 
   i2cdetect -l
@@ -922,52 +938,69 @@ connected and detected on address 0x60.
 
 =item B<Oversampling> I<value>
 
-For MPL115 this is the size of the averaging window. To filter out sensor noise
-a simple averaging using floating window of configurable size is used. The plugin
-will use average of the last C<value> measurements (value of 1 means no averaging).
-Minimal size is 1, maximal 1024.
+Optional parameter controlling the oversampling/accuracy. Default value
+is 1 providing fastest and least accurate reading.
 
-For MPL3115 this is the oversampling value. The actual oversampling is performed
-by the sensor and the higher value the higher accuracy and longer conversion time
-(although nothing to worry about in the collectd context). Supported values are:
-1, 2, 4, 8, 16, 32, 64 and 128. Any other value is adjusted by the plugin to
-the closest supported one. Default is 128.
+For I<MPL115> this is the size of the averaging window. To filter out sensor
+noise a simple averaging using floating window of this configurable size is
+used. The plugin will use average of the last C<value> measurements (value of 1
+means no averaging).  Minimal size is 1, maximal 1024.
+
+For I<MPL3115> this is the oversampling value. The actual oversampling is
+performed by the sensor and the higher value the higher accuracy and longer
+conversion time (although nothing to worry about in the collectd context).
+Supported values are: 1, 2, 4, 8, 16, 32, 64 and 128. Any other value is
+adjusted by the plugin to the closest supported one.
+
+For I<BMP085> this is the oversampling value. The actual oversampling is
+performed by the sensor and the higher value the higher accuracy and longer
+conversion time (although nothing to worry about in the collectd context).
+Supported values are: 1, 2, 4, 8. Any other value is adjusted by the plugin to
+the closest supported one.
 
 =item B<PressureOffset> I<offset>
 
-You can further calibrate the sensor by supplying pressure and/or temperature offsets.
-This is added to the measured/caclulated value (i.e. if the measured value is too high
-then use negative offset).
+Optional parameter for MPL3115 only.
+
+You can further calibrate the sensor by supplying pressure and/or temperature
+offsets.  This is added to the measured/caclulated value (i.e. if the measured
+value is too high then use negative offset).
 In hPa, default is 0.0.
 
 =item B<TemperatureOffset> I<offset>
 
-You can further calibrate the sensor by supplying pressure and/or temperature offsets.
-This is added to the measured/caclulated value (i.e. if the measured value is too high
-then use negative offset).
+Optional parameter for MPL3115 only.
+
+You can further calibrate the sensor by supplying pressure and/or temperature
+offsets.  This is added to the measured/caclulated value (i.e. if the measured
+value is too high then use negative offset).
 In C, default is 0.0.
 
 =item B<Normalization> I<method>
 
-Normalization method - what approximation/model is used to compute mean sea
+Optional parameter, default value is 0.
+
+Normalization method - what approximation/model is used to compute the mean sea
 level pressure from the air absolute pressure.
 
 Supported values of the C<method> (integer between from 0 to 2) are:
 
 =over 5
 
-=item B<0> - no conversion, absolute pressrure is simply copied over. For this method you
+=item B<0> - no conversion, absolute pressure is simply copied over. For this method you
        do not need to configure C<Altitude> or C<TemperatureSensor>.
 
 =item B<1> - international formula for conversion ,
-See I<http://en.wikipedia.org/wiki/Atmospheric_pressure#Altitude_atmospheric_pressure_variation>.
-For this method you have to configure C<Altitude> but do not need C<TemperatureSensor>
-(uses fixed global temperature average instead).
+See
+L<http://en.wikipedia.org/wiki/Atmospheric_pressure#Altitude_atmospheric_pressure_variation>.
+For this method you have to configure C<Altitude> but do not need
+C<TemperatureSensor> (uses fixed global temperature average instead).
 
 =item B<2> - formula as recommended by the Deutsche Wetterdienst (German
 Meteorological Service).
-See I<http://de.wikipedia.org/wiki/Barometrische_H%C3%B6henformel#Theorie>
-For this method you have to configure both  C<Altitude> and C<TemperatureSensor>.
+See L<http://de.wikipedia.org/wiki/Barometrische_H%C3%B6henformel#Theorie>
+For this method you have to configure both  C<Altitude> and
+C<TemperatureSensor>.
 
 =back
 
@@ -978,15 +1011,15 @@ The altitude (in meters) of the location where you meassure the pressure.
 
 =item B<TemperatureSensor> I<reference>
 
-Temperature sensor which should be used as a reference when normalizing the pressure.
-When specified more sensors a minumum is found and uses each time.
-The temperature reading directly from this pressure sensor/plugin
-is typically not suitable as the pressure sensor
-will be probably inside while we want outside temperature.
-The collectd reference name is something like
+Temperature sensor(s) which should be used as a reference when normalizing the
+pressure using C<Normalization> method 2.
+When specified more sensors a minumum is found and used each time.  The
+temperature reading directly from this pressure sensor/plugin is typically not
+suitable as the pressure sensor will be probably inside while we want outside
+temperature.  The collectd reference name is something like
 <hostname>/<plugin_name>-<plugin_instance>/<type>-<type_instance>
-(<type_instance> is usually omitted when there is just single value type).
-Or you can figure it out from the path of the output data files.
+(<type_instance> is usually omitted when there is just single value type). Or
+you can figure it out from the path of the output data files.
 
 =back
 
