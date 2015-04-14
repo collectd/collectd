@@ -200,7 +200,7 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
         return;
     }
 #ifdef HAVE_LIBRDKAFKA_LOGGER
-    rd_kafka_conf_set_logger(tctx->kafka, kafka_log);
+    rd_kafka_set_logger(tctx->kafka, kafka_log);
 #endif
     conf = NULL;
 
