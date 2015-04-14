@@ -796,7 +796,7 @@ if BUILD_PLUGIN_NOTIFY_EMAIL
 pkglib_LTLIBRARIES += notify_email.la
 notify_email_la_SOURCES = notify_email.c
 notify_email_la_LDFLAGS = -module -avoid-version
-notify_email_la_LIBADD = -lesmtp -lssl -lcrypto -lpthread -ldl
+notify_email_la_LIBADD = -lesmtp -lssl -lcrypto -lpthread
 collectd_LDADD += "-dlopen" notify_email.la
 collectd_DEPENDENCIES += notify_email.la
 endif
