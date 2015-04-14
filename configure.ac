@@ -3718,7 +3718,7 @@ fi
 # --with-librdkafka {{{
 AC_ARG_WITH(librdkafka, [AS_HELP_STRING([--with-librdkafka@<:@=PREFIX@:>@], [Path to librdkafka.])],
 [
-  if test "x$withval" = "xno" && test "x$withval" != "xyes"
+  if test "x$withval" != "xno" && test "x$withval" != "xyes"
   then
     with_librdkafka_cppflags="-I$withval/include"
     with_librdkafka_ldflags="-L$withval/lib"
