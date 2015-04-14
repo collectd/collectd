@@ -469,7 +469,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 	// calculate the value and set to a string
 	if (ds->ds[index].type == DS_TYPE_GAUGE) {
 		double tmp_v = (double) vl->values[index].gauge;
-		res = asprintf(&value_str, "%.8f", tmp_v, sensu_tags);
+		res = asprintf(&value_str, "%.8f", tmp_v);
 		if (res == -1) {
 			free(ret_str);
 			ERROR("write_sensu plugin: Unable to alloc memory");
@@ -477,7 +477,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 		}
 	} else if (rates != NULL) {
 		double tmp_v = (double) rates[index];
-		res = asprintf(&value_str, "%.8f", tmp_v, sensu_tags);
+		res = asprintf(&value_str, "%.8f", tmp_v);
 		if (res == -1) {
 			free(ret_str);
 			ERROR("write_sensu plugin: Unable to alloc memory");
@@ -491,7 +491,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 			tmp_v = (int64_t) vl->values[index].absolute;
 		else
 			tmp_v = (int64_t) vl->values[index].counter;
-		res = asprintf(&value_str, "%lld", tmp_v, sensu_tags);
+		res = asprintf(&value_str, "%ld", tmp_v);
 		if (res == -1) {
 			free(ret_str);
 			ERROR("write_sensu plugin: Unable to alloc memory");
