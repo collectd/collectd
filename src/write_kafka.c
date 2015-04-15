@@ -111,6 +111,8 @@ static int kafka_handle(struct kafka_topic_context *ctx) /* {{{ */
         }
 
     	rd_kafka_conf_destroy(ctx->kafka_conf);
+    	ctx->kafka_conf = NULL;
+
     	INFO ("write_kafka plugin: created KAFKA handle : %s", rd_kafka_name(ctx->kafka));
 
 #ifdef HAVE_LIBRDKAFKA_LOGGER
@@ -132,6 +134,8 @@ static int kafka_handle(struct kafka_topic_context *ctx) /* {{{ */
 	}
 
     	rd_kafka_topic_conf_destroy(ctx->conf);
+	ctx->conf = NULL;
+
     	INFO ("write_kafka plugin: handle created for topic : %s", rd_kafka_topic_name(ctx->topic));
     }
 
