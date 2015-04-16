@@ -184,10 +184,10 @@ static struct pkg_data {
 	unsigned long long pc9;
 	unsigned long long pc10;
 	unsigned int package_id;
-	unsigned int energy_pkg;	/* MSR_PKG_ENERGY_STATUS */
-	unsigned int energy_dram;	/* MSR_DRAM_ENERGY_STATUS */
-	unsigned int energy_cores;	/* MSR_PP0_ENERGY_STATUS */
-	unsigned int energy_gfx;	/* MSR_PP1_ENERGY_STATUS */
+	uint32_t energy_pkg;	/* MSR_PKG_ENERGY_STATUS */
+	uint32_t energy_dram;	/* MSR_DRAM_ENERGY_STATUS */
+	uint32_t energy_cores;	/* MSR_PP0_ENERGY_STATUS */
+	uint32_t energy_gfx;	/* MSR_PP1_ENERGY_STATUS */
 	unsigned int tcc_activation_temp;
 	unsigned int pkg_temp_c;
 } *package_delta, *package_even, *package_odd;
@@ -430,16 +430,6 @@ out:
  **********************************/
 
 /*
- * Do delta = new - old on 32bits cyclique intergers
- */
-#define DELTA_WRAP32(delta, new, old)			\
-	if (new > old) {				\
-		delta = new - old;			\
-	} else {					\
-		delta = 0x100000000 + new - old;	\
-	}
-
-/*
  * Extract the evolution old->new in delta at a package level
  * (some are not new-delta, e.g. temperature)
  */
@@ -455,10 +445,10 @@ delta_package(struct pkg_data *delta, const struct pkg_data *new, const struct p
 	delta->pc10 = new->pc10 - old->pc10;
 	delta->pkg_temp_c = new->pkg_temp_c;
 
-	DELTA_WRAP32(delta->energy_pkg, new->energy_pkg, old->energy_pkg);
-	DELTA_WRAP32(delta->energy_cores, new->energy_cores, old->energy_cores);
-	DELTA_WRAP32(delta->energy_gfx, new->energy_gfx, old->energy_gfx);
-	DELTA_WRAP32(delta->energy_dram, new->energy_dram, old->energy_dram);
+	delta->energy_pkg = new->energy_pkg - old->energy_pkg;
+	delta->energy_cores = new->energy_cores - old->energy_cores;
+	delta->energy_gfx = new->energy_gfx - old->energy_gfx;
+	delta->energy_dram = new->energy_dram - old->energy_dram;
 }
 
 /*
