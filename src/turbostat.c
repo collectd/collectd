@@ -301,7 +301,7 @@ read_msr(int fd, off_t offset, unsigned long long *msr)
  * Open a MSR device for reading, read the value asked for and close it.
  * This call will not affect the scheduling affinity of this thread.
  */
-static int __attribute__((warn_unused_result))
+static ssize_t __attribute__((warn_unused_result))
 get_msr(unsigned int cpu, off_t offset, unsigned long long *msr)
 {
 	ssize_t retval;
