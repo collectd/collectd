@@ -212,17 +212,17 @@ static _Bool initialized = 0;
 #define GET_PKG(pkg_base, pkg_no) (pkg_base + pkg_no)
 
 struct cpu_topology {
-	int package_id;
-	int core_id;
+	unsigned int package_id;
+	unsigned int core_id;
 	_Bool first_core_in_package;
 	_Bool first_thread_in_core;
 };
 
 static struct topology {
-	int max_cpu_id;
-	int num_packages;
-	int num_cores;
-	int num_threads;
+	unsigned int max_cpu_id;
+	unsigned int num_packages;
+	unsigned int num_cores;
+	unsigned int num_threads;
 	struct cpu_topology *cpus;
 } topology;
 
@@ -249,7 +249,7 @@ static const int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
  * Can change the scheduling affinity of the current process if multiple_read is 1
  */
 static int __attribute__((warn_unused_result))
-open_msr(int cpu, _Bool multiple_read)
+open_msr(unsigned int cpu, _Bool multiple_read)
 {
 	char pathname[32];
 	int fd;
@@ -302,7 +302,7 @@ read_msr(int fd, off_t offset, unsigned long long *msr)
  * This call will not affect the scheduling affinity of this thread.
  */
 static int __attribute__((warn_unused_result))
-get_msr(int cpu, off_t offset, unsigned long long *msr)
+get_msr(unsigned int cpu, off_t offset, unsigned long long *msr)
 {
 	ssize_t retval;
 	int fd;
@@ -331,7 +331,7 @@ get_msr(int cpu, off_t offset, unsigned long long *msr)
 static int __attribute__((warn_unused_result))
 get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 {
-	int cpu = t->cpu_id;
+	unsigned int cpu = t->cpu_id;
 	unsigned long long msr;
 	int msr_fd;
 	int retval = 0;
@@ -648,7 +648,7 @@ done:
  * Check if a given cpu id is in our compiled list of existing CPUs
  */
 static int
-cpu_is_not_present(int cpu)
+cpu_is_not_present(unsigned int cpu)
 {
 	return !CPU_ISSET_S(cpu, cpu_present_setsize, cpu_present_set);
 }
@@ -663,7 +663,8 @@ static int __attribute__((warn_unused_result))
 for_all_cpus(int (func)(struct thread_data *, struct core_data *, struct pkg_data *),
 	struct thread_data *thread_base, struct core_data *core_base, struct pkg_data *pkg_base)
 {
-	int retval, pkg_no, core_no, thread_no;
+	int retval;
+	unsigned int pkg_no, core_no, thread_no;
 
 	for (pkg_no = 0; pkg_no < topology.num_packages; ++pkg_no) {
 		for (core_no = 0; core_no < topology.num_cores; ++core_no) {
@@ -702,7 +703,8 @@ static int __attribute__((warn_unused_result))
 for_all_cpus_delta(const struct thread_data *thread_new_base, const struct core_data *core_new_base, const struct pkg_data *pkg_new_base,
 		   const struct thread_data *thread_old_base, const struct core_data *core_old_base, const struct pkg_data *pkg_old_base)
 {
-	int retval, pkg_no, core_no, thread_no;
+	int retval;
+	unsigned int pkg_no, core_no, thread_no;
 
 	for (pkg_no = 0; pkg_no < topology.num_packages; ++pkg_no) {
 		for (core_no = 0; core_no < topology.num_cores; ++core_no) {
@@ -1055,7 +1057,7 @@ parse_int_file(const char *fmt, ...)
 }
 
 static int
-get_threads_on_core(int cpu)
+get_threads_on_core(unsigned int cpu)
 {
 	char path[80];
 	FILE *filep;
@@ -1089,10 +1091,10 @@ get_threads_on_core(int cpu)
  * return max_cpu number
  */
 static int __attribute__((warn_unused_result))
-for_all_proc_cpus(int (func)(int))
+for_all_proc_cpus(int (func)(unsigned int))
 {
 	FILE *fp;
-	int cpu_num;
+	unsigned int cpu_num;
 	int retval;
 
 	fp = fopen("/proc/stat", "r");
@@ -1127,7 +1129,7 @@ for_all_proc_cpus(int (func)(int))
  * Update the stored topology.max_cpu_id
  */
 static int
-update_max_cpu_id(int cpu)
+update_max_cpu_id(unsigned int cpu)
 {
 	if (topology.max_cpu_id < cpu)
 		topology.max_cpu_id = cpu;
@@ -1135,7 +1137,7 @@ update_max_cpu_id(int cpu)
 }
 
 static int
-mark_cpu_present(int cpu)
+mark_cpu_present(unsigned int cpu)
 {
 	CPU_SET_S(cpu, cpu_present_setsize, cpu_present_set);
 	return 0;
@@ -1159,9 +1161,9 @@ allocate_cpu_set(cpu_set_t ** set, size_t * size) {
 static int __attribute__((warn_unused_result))
 topology_probe()
 {
-	int i;
+	unsigned int i;
 	int ret;
-	int max_package_id, max_core_id, max_thread_id;
+	unsigned int max_package_id, max_core_id, max_thread_id;
 	max_package_id = max_core_id = max_thread_id = 0;
 
 	/* Clean topology */
@@ -1197,7 +1199,7 @@ topology_probe()
 	 * find max_core_id, max_package_id
 	 */
 	for (i = 0; i <= topology.max_cpu_id; ++i) {
-		int num_threads;
+		unsigned int num_threads;
 		struct cpu_topology *cpu = &topology.cpus[i];
 
 		if (cpu_is_not_present(i)) {
@@ -1209,7 +1211,7 @@ topology_probe()
 		if (ret < 0)
 			goto err;
 		else
-			cpu->package_id = ret;
+			cpu->package_id = (unsigned int) ret;
 		if (cpu->package_id > max_package_id)
 			max_package_id = cpu->package_id;
 
@@ -1217,26 +1219,26 @@ topology_probe()
 		if (ret < 0)
 			goto err;
 		else
-			cpu->core_id = ret;
+			cpu->core_id = (unsigned int) ret;
 		if (cpu->core_id > max_core_id)
 			max_core_id = cpu->core_id;
 		ret = parse_int_file("/sys/devices/system/cpu/cpu%d/topology/core_siblings_list", i);
 		if (ret < 0)
 			goto err;
-		else if (ret == i)
+		else if ((unsigned int) ret == i)
 			cpu->first_core_in_package = 1;
 
 		ret = get_threads_on_core(i);
 		if (ret < 0)
 			goto err;
 		else
-			num_threads = ret;
+			num_threads = (unsigned int) ret;
 		if (num_threads > max_thread_id)
 			max_thread_id = num_threads;
 		ret = parse_int_file("/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", i);
 		if (ret < 0)
 			goto err;
-		else if (ret == i)
+		else if ((unsigned int) ret == i)
 			cpu->first_thread_in_core = 1;
 
 		DEBUG("Turbostat plugin: cpu %d pkg %d core %d\n",
@@ -1261,24 +1263,18 @@ err:
 static int
 allocate_counters(struct thread_data **threads, struct core_data **cores, struct pkg_data **packages)
 {
-	int i;
-	int total_threads, total_cores;
+	unsigned int i;
+	unsigned int total_threads, total_cores;
 
 	total_threads = topology.num_threads * topology.num_cores * topology.num_packages;
 	*threads = calloc(total_threads, sizeof(struct thread_data));
 	if (*threads == NULL)
 		goto err;
 
-	for (i = 0; i < total_threads; ++i)
-		(*threads)[i].cpu_id = -1;
-
 	total_cores = topology.num_cores * topology.num_packages;
 	*cores = calloc(total_cores, sizeof(struct core_data));
 	if (*cores == NULL)
 		goto err_clean_threads;
-
-	for (i = 0; i < total_cores; ++i)
-		(*cores)[i].core_id = -1;
 
 	*packages = calloc(topology.num_packages, sizeof(struct pkg_data));
 	if (*packages == NULL)
@@ -1300,7 +1296,7 @@ err:
 
 static void
 init_counter(struct thread_data *thread_base, struct core_data *core_base,
-	struct pkg_data *pkg_base, int cpu_id)
+	struct pkg_data *pkg_base, unsigned int cpu_id)
 {
 	struct thread_data *t;
 	struct core_data *c;
@@ -1324,7 +1320,7 @@ init_counter(struct thread_data *thread_base, struct core_data *core_base,
 static void
 initialize_counters(void)
 {
-	int cpu_id;
+	unsigned int cpu_id;
 
 	for (cpu_id = 0; cpu_id <= topology.max_cpu_id; ++cpu_id) {
 		if (cpu_is_not_present(cpu_id))
