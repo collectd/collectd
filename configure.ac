@@ -590,6 +590,12 @@ have_termios_h="no"
 AC_CHECK_HEADERS(termios.h, [have_termios_h="yes"])
 
 # For the turbostat plugin
+have_asm_msrindex_h="no"
+AC_CHECK_HEADERS(asm/msr-index.h, [have_asm_msrindex_h="yes"])
+
+have_cpuid_h="no"
+AC_CHECK_HEADERS(cpuid.h, [have_cpuid_h="yes"])
+
 AC_CHECK_HEADERS(sys/capability.h)
 #
 # Checks for typedefs, structures, and compiler characteristics.
@@ -5177,7 +5183,6 @@ then
 	plugin_swap="yes"
 	plugin_tcpconns="yes"
 	plugin_thermal="yes"
-	plugin_turbostat="yes"
 	plugin_uptime="yes"
 	plugin_vmem="yes"
 	plugin_vserver="yes"
@@ -5187,6 +5192,10 @@ then
 	if test "x$have_linux_ip_vs_h" = "xyes" || test "x$have_net_ip_vs_h" = "xyes" || test "x$have_ip_vs_h" = "xyes"
 	then
 		plugin_ipvs="yes"
+	fi
+	if test "x$have_asm_msrindex_h" = "xyes" && test "x$have_cpuid_h" = "xyes"
+	then
+		plugin_turbostat="yes"
 	fi
 fi
 
