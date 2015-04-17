@@ -28,6 +28,7 @@
 #include "common.h"
 #include "utils_cache.h"
 #include "utils_format_json.h"
+#include "utils_subst.h"
 
 #if HAVE_PTHREAD_H
 # include <pthread.h>
@@ -65,6 +66,7 @@ struct wh_callback_s
 
 #define WH_FORMAT_COMMAND 0
 #define WH_FORMAT_JSON    1
+#define WH_FORMAT_JSONTSDB 2
         int format;
 
         CURL *curl;
@@ -98,6 +100,9 @@ static void wh_reset_buffer (wh_callback_t *cb)  /* {{{ */
 static int wh_send_buffer (wh_callback_t *cb) /* {{{ */
 {
         int status = 0;
+        long return_code = 0;
+
+        DEBUG ("write_http: send buffer with %i bytes", cb->send_buffer_fill);
 
         curl_easy_setopt (cb->curl, CURLOPT_POSTFIELDS, cb->send_buffer);
         status = curl_easy_perform (cb->curl);
@@ -106,6 +111,11 @@ static int wh_send_buffer (wh_callback_t *cb) /* {{{ */
                 ERROR ("write_http plugin: curl_easy_perform failed with "
                                 "status %i: %s",
                                 status, cb->curl_errbuf);
+        }
+        else
+        {
+                curl_easy_getinfo(cb->curl, CURLINFO_RESPONSE_CODE, &return_code);
+                DEBUG ("http return code : %ld", return_code);
         }
         return (status);
 } /* }}} wh_send_buffer */
@@ -142,7 +152,7 @@ static int wh_callback_init (wh_callback_t *cb) /* {{{ */
 
         headers = NULL;
         headers = curl_slist_append (headers, "Accept:  */*");
-        if (cb->format == WH_FORMAT_JSON)
+        if (cb->format == WH_FORMAT_JSON || cb->format == WH_FORMAT_JSONTSDB)
                 headers = curl_slist_append (headers, "Content-Type: application/json");
         else
                 headers = curl_slist_append (headers, "Content-Type: text/plain");
@@ -234,7 +244,7 @@ static int wh_flush_nolock (cdtime_t timeout, wh_callback_t *cb) /* {{{ */
                 status = wh_send_buffer (cb);
                 wh_reset_buffer (cb);
         }
-        else if (cb->format == WH_FORMAT_JSON)
+        else if (cb->format == WH_FORMAT_JSON || cb->format == WH_FORMAT_JSONTSDB)
         {
                 if (cb->send_buffer_fill <= 2)
                 {
@@ -248,7 +258,7 @@ static int wh_flush_nolock (cdtime_t timeout, wh_callback_t *cb) /* {{{ */
                 if (status != 0)
                 {
                         ERROR ("write_http: wh_flush_nolock: "
-                                        "format_json_finalize failed.");
+                                        "format_json_finalize failed. status %i. buffer fill %zu / buffer free %zu", status, cb->send_buffer_fill, cb->send_buffer_free);
                         wh_reset_buffer (cb);
                         return (status);
                 }
@@ -389,6 +399,9 @@ static int wh_write_command (const data_set_t *ds, const value_list_t *vl, /* {{
         if (command_len >= cb->send_buffer_free)
         {
                 status = wh_flush_nolock (/* timeout = */ 0, cb);
+
+                DEBUG ("write_http: wh_write_command: too big, will flush, status %i", status);
+
                 if (status != 0)
                 {
                         pthread_mutex_unlock (&cb->send_lock);
@@ -470,6 +483,169 @@ static int wh_write_json (const data_set_t *ds, const value_list_t *vl, /* {{{ *
         return (0);
 } /* }}} int wh_write_json */
 
+static int wh_write_json_tsdb(const data_set_t *ds, const value_list_t *vl, /* {{{ */
+                wh_callback_t *cb)
+{
+        char key[10*DATA_MAX_NAME_LEN];
+        char values[512];
+        char tags[512];
+        char command[1024];
+        size_t command_len = 0;
+        int i ;
+        gauge_t *rates = NULL;
+
+        // local vars
+        char hostname_t[DATA_MAX_NAME_LEN];
+        char plugin_t[DATA_MAX_NAME_LEN];
+        char type_t[DATA_MAX_NAME_LEN];
+        char command_t[1024];
+        char temp[DATA_MAX_NAME_LEN];
+
+        int status;
+        int tags_len = sizeof(tags);
+
+	command[0] = '\0' ;
+
+        if (0 != strcmp (ds->type, vl->type)) {
+                ERROR ("write_http plugin: DS type does not match "
+                                "value list type");
+                return -1;
+        }
+
+        // TSDB tags dont support spaces
+        if (subst_string (temp, sizeof (temp), (vl)->host, " ", "_") != NULL)
+                sstrncpy (hostname_t, temp, sizeof (hostname_t));
+        if (subst_string (temp, sizeof (temp), (vl)->plugin_instance, " ", "_") != NULL)
+                sstrncpy (plugin_t, temp, sizeof (plugin_t));
+        if (subst_string (temp, sizeof (temp), (vl)->type_instance, " ", "_") != NULL)
+                sstrncpy (type_t, temp, sizeof (type_t));
+
+
+        // tag list
+          if ((plugin_t == NULL) || (strlen (plugin_t) == 0))
+	        {
+           if ((type_t == NULL) || (strlen (type_t) == 0))
+	         {
+            status = ssnprintf (tags, tags_len, "\"tags\": {\"host\": \"%s\"}", hostname_t) ;
+           } else {
+            status = ssnprintf (tags, tags_len, "\"tags\": {\"host\": \"%s\", \"type\": \"%s\"}", hostname_t, type_t) ;
+           }
+          } else {
+           if ((type_t == NULL) || (strlen (type_t) == 0))
+	         {
+            status = ssnprintf (tags, tags_len, "\"tags\": {\"host\": \"%s\", \"plugin\": \"%s\"}", hostname_t, plugin_t) ;
+           } else {
+            status = ssnprintf (tags, tags_len, "\"tags\": {\"host\": \"%s\", \"plugin\": \"%s\", \"type\": \"%s\"}", hostname_t, plugin_t, type_t) ;
+           }
+          }
+	if (status < 1) {
+            WARNING ("write_http_jsontsdb plugin: unable to build tag list");
+	    return (-1);
+        }
+
+        // value list loop
+        for (i = 0; i < ds->ds_num; i++)
+        {
+                ssnprintf(key, sizeof(key), "%s.%s", (vl)->type, ds->ds[i].name);
+
+                // TSDB doesnt like NaN value
+                if (isnan(vl->values[i].gauge))
+                {
+                        DEBUG("nan value, skipping %s", key) ;
+                        return (-1);
+                }
+
+                if (ds->ds[i].type == DS_TYPE_GAUGE)
+                        ssnprintf (values, sizeof(values), "\"value\": %f", vl->values[i].gauge);
+                else if (cb->store_rates)
+                {
+                        if (rates == NULL)
+                                rates = uc_get_rate (ds, vl);
+                        if (rates == NULL)
+                        {
+                                WARNING ("format_values: "
+						"uc_get_rate failed.");
+                                return (-1);
+                        }
+                        ssnprintf (values, sizeof(values), "\"value\": %g", rates[i]);
+                }
+                else if (ds->ds[i].type == DS_TYPE_COUNTER)
+                        ssnprintf (values, sizeof(values), "\"value\": %llu", vl->values[i].counter);
+                else if (ds->ds[i].type == DS_TYPE_DERIVE)
+                        ssnprintf (values, sizeof(values), "\"value\": %"PRIi64, vl->values[i].derive);
+                else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
+                        ssnprintf (values, sizeof(values), "\"value\": %"PRIu64, vl->values[i].absolute);
+                else
+                {
+                        ERROR ("format_values plugin: Unknown data source type: %i",
+                                        ds->ds[i].type);
+                        sfree (rates);
+                        return (-1);
+                }
+                        ssnprintf (command_t, sizeof(command_t),
+                                ",{ \"metric\": \"%s\", \"timestamp\": \"%.0f\", %s, %s}\r\n",
+                                key,
+                                CDTIME_T_TO_DOUBLE (vl->time),
+                                values,
+                                tags
+                        );
+                        strncat(command, command_t, strlen(command_t)) ;
+
+                if (command_len >= sizeof (command)) {
+                        ERROR ("write_http plugin: Command buffer too small: "
+                                        "Need %zu bytes.", command_len + 1);
+                        return (-1);
+                }
+        }
+
+        command_len = (size_t) strlen(command);
+
+        pthread_mutex_lock (&cb->send_lock);
+
+        if (cb->curl == NULL)
+        {
+                status = wh_callback_init (cb);
+                if (status != 0)
+                {
+                        ERROR ("write_http plugin: wh_callback_init failed.");
+                        pthread_mutex_unlock (&cb->send_lock);
+                        return (-1);
+                }
+        }
+
+        DEBUG ("write_http: wh_write_json: "
+                    "--> will add command of %i bytes. buffer fill %i / buffer free %i", command_len, cb->send_buffer_fill, cb->send_buffer_free);
+
+        if (command_len >= (cb->send_buffer_free-1)) // PL always keep 1 free byte to finalize json
+        {
+                status = wh_flush_nolock (/* timeout = */ 0, cb);
+                if (status != 0)
+                {
+                        pthread_mutex_unlock (&cb->send_lock);
+                        return (status);
+                }
+        }
+        assert (command_len < cb->send_buffer_free);
+
+        /* `command_len + 1' because `command_len' does not include the
+         * trailing null byte. Neither does `send_buffer_fill'. */
+        memcpy (cb->send_buffer + cb->send_buffer_fill,
+                        command, command_len + 1);
+        cb->send_buffer_fill += command_len;
+        cb->send_buffer_free -= command_len;
+
+        DEBUG ("write_http plugin: <%s> buffer %zu/%g (%g%%) \"%s\"",
+                        cb->location,
+                        cb->send_buffer_fill, cb->buffer_size,
+                        100.0 * ((double) cb->send_buffer_fill) / ((double) cb->buffer_size),
+                        command);
+
+        /* Check if we have enough space for this command. */
+        pthread_mutex_unlock (&cb->send_lock);
+
+        return (0);
+} /* }}} int wh_write_json_tsdb */
+
 static int wh_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
                 user_data_t *user_data)
 {
@@ -483,6 +659,8 @@ static int wh_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
 
         if (cb->format == WH_FORMAT_JSON)
                 status = wh_write_json (ds, vl, cb);
+        else if (cb->format == WH_FORMAT_JSONTSDB)
+                status = wh_write_json_tsdb (ds, vl, cb);
         else
                 status = wh_write_command (ds, vl, cb);
 
@@ -507,6 +685,8 @@ static int config_set_format (wh_callback_t *cb, /* {{{ */
                 cb->format = WH_FORMAT_COMMAND;
         else if (strcasecmp ("JSON", string) == 0)
                 cb->format = WH_FORMAT_JSON;
+        else if (strcasecmp ("JSONTSDB", string) == 0)
+                cb->format = WH_FORMAT_JSONTSDB;
         else
         {
                 ERROR ("write_http plugin: Invalid format string: %s",
@@ -648,6 +828,7 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
 
         ssnprintf (callback_name, sizeof (callback_name), "write_http/%s",
                         cb->name);
+        DEBUG("write_http plugin: set send buffer to %g", cb->buffer_size);
         DEBUG ("write_http: Registering write callback '%s' with URL '%s'",
                         callback_name, cb->location);
 
