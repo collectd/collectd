@@ -41,21 +41,6 @@
 #include "utils_time.h"
 
 #include <asm/msr-index.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <err.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <sys/stat.h>
-#include <sys/resource.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <stdlib.h>
-#include <dirent.h>
-#include <string.h>
-#include <ctype.h>
-#include <sched.h>
 #include <cpuid.h>
 #include <sys/capability.h>
 
