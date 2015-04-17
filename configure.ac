@@ -595,9 +595,13 @@ AC_CHECK_HEADERS(sys/capability.h)
 # Checks for typedefs, structures, and compiler characteristics.
 #
 AC_C_CONST
+AC_C_INLINE
+AC_TYPE_OFF_T
 AC_TYPE_PID_T
 AC_TYPE_SIZE_T
+AC_TYPE_SSIZE_T
 AC_TYPE_UID_T
+AC_TYPE_UINT32_T
 AC_HEADER_TIME
 
 #
