@@ -589,6 +589,8 @@ AC_CHECK_HEADERS(net/pfvar.h,
 have_termios_h="no"
 AC_CHECK_HEADERS(termios.h, [have_termios_h="yes"])
 
+# For the turbostat plugin
+AC_CHECK_HEADERS(sys/capability.h)
 #
 # Checks for typedefs, structures, and compiler characteristics.
 #

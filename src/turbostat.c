@@ -42,7 +42,9 @@
 
 #include <asm/msr-index.h>
 #include <cpuid.h>
+#ifdef HAVE_SYS_CAPABILITY_H
 #include <sys/capability.h>
+#endif /* HAVE_SYS_CAPABILITY_H */
 
 #define PLUGIN_NAME "turbostat"
 
@@ -1463,15 +1465,24 @@ out:
 static int
 check_permissions(void)
 {
+#ifdef HAVE_SYS_CAPABILITY_H
 	struct __user_cap_header_struct cap_header_data;
 	cap_user_header_t cap_header = &cap_header_data;
 	struct __user_cap_data_struct cap_data_data;
 	cap_user_data_t cap_data = &cap_data_data;
 	int ret = 0;
+#endif /* HAVE_SYS_CAPABILITY_H */
 
 	if (getuid() == 0) {
 		/* We have everything we need */
 		return 0;
+#ifndef HAVE_SYS_CAPABILITY_H
+	} else {
+		ERROR("Turbostat plugin: Initialization failed: this plugin "
+		      "requires collectd to run as root");
+		return -1;
+	}
+#else /* HAVE_SYS_CAPABILITY_H */
 	}
 
 	/* check for CAP_SYS_RAWIO */
@@ -1504,6 +1515,7 @@ check_permissions(void)
 		      "collectd a special capability (CAP_SYS_RAWIO) and read "
                       "access to /dev/cpu/*/msr (see previous warnings)");
 	return ret;
+#endif /* HAVE_SYS_CAPABILITY_H */
 }
 
 static int
