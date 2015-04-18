@@ -1150,8 +1150,8 @@ topology_probe()
 {
 	unsigned int i;
 	int ret;
-	unsigned int max_package_id, max_core_id, max_thread_id;
-	max_package_id = max_core_id = max_thread_id = 0;
+	unsigned int max_package_id, max_core_id, max_threads;
+	max_package_id = max_core_id = max_threads = 0;
 
 	/* Clean topology */
 	free(topology.cpus);
@@ -1220,8 +1220,8 @@ topology_probe()
 			goto err;
 		else
 			num_threads = (unsigned int) ret;
-		if (num_threads > max_thread_id)
-			max_thread_id = num_threads;
+		if (num_threads > max_threads)
+			max_threads = num_threads;
 		ret = parse_int_file("/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", i);
 		if (ret < 0)
 			goto err;
@@ -1234,7 +1234,7 @@ topology_probe()
 	/* Num is max + 1 (need to count 0) */
 	topology.num_packages = max_package_id + 1;
 	topology.num_cores = max_core_id + 1;
-	topology.num_threads = max_thread_id + 1;
+	topology.num_threads = max_threads;
 
 	return 0;
 err:
