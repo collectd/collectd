@@ -1451,6 +1451,92 @@ number.
 
 =back
 
+=head2 cURL Statistics
+
+All cURL-based plugins support collection of generic, request-based
+statistics. These are disabled by default and can be enabled selectively for
+each page or URL queried from the curl, curl_json, or curl_xml plugins. See
+the documentation of those plugins for specific information. This section
+describes the available metrics that can be configured with each plugin. All
+options are disabled by default.
+
+See L<http://curl.haxx.se/libcurl/c/curl_easy_getinfo.html> for more details.
+
+=over 4
+
+=item B<total_time> B<true|false>
+
+Total time of the transfer, including name resolving, TCP connect, etc.
+
+=item B<namelookup_time> B<true|false>
+
+Time it took from the start until name resolving was completed.
+
+=item B<connect_time> B<true|false>
+
+Time it took from the start until the connect to the remote host (or proxy)
+was completed.
+
+=item B<appconnect_time> B<true|false>
+
+Time it took from the start until the SSL/SSH connect/handshake to the remote
+host was completed.
+
+=item B<pretransfer_time> B<true|false>
+
+Time it took from the start until the file transfer is just about to begin.
+
+=item B<starttransfer_time> B<true|false>
+
+Time it took from the start until the first byte was received.
+
+=item B<redirect_time> B<true|false>
+
+Time it took for all redirection steps include name lookup, connect,
+pre-transfer and transfer before final transaction was started.
+
+=item B<redirect_count> B<true|false>
+
+The total number of redirections that were actually followed.
+
+=item B<size_upload> B<true|false>
+
+The total amount of bytes that were uploaded.
+
+=item B<size_download> B<true|false>
+
+The total amount of bytes that were downloaded.
+
+=item B<speed_download> B<true|false>
+
+The average download speed that curl measured for the complete download.
+
+=item B<speed_upload> B<true|false>
+
+The average upload speed that curl measured for the complete upload.
+
+=item B<header_size> B<true|false>
+
+The total size of all the headers received.
+
+=item B<request_size> B<true|false>
+
+The total size of the issued requests.
+
+=item B<content_length_download> B<true|false>
+
+The content-length of the download.
+
+=item B<content_length_upload> B<true|false>
+
+The specified size of the upload.
+
+=item B<num_connects> B<true|false>
+
+The number of new connections that were created to achieve the transfer.
+
+=back
+
 =head2 Plugin C<curl>
 
 The curl plugin uses the B<libcurl> (L<http://curl.haxx.se/>) to read web pages
@@ -1555,6 +1641,13 @@ requests.
 
 Measure response code for the request. If this setting is enabled, B<Match>
 blocks (see below) are optional. Disabled by default.
+
+=item B<E<lt>StatisticsE<gt>>
+
+One B<Statistics> block can be used to specify cURL statistics to be collected
+for each request to the remote web site. See the section "cURL Statistics"
+above for details. If this setting is enabled, B<Match> blocks (see below) are
+optional.
 
 =item B<E<lt>MatchE<gt>>
 
@@ -1668,6 +1761,12 @@ URL. By default the global B<Interval> setting will be used.
 These options behave exactly equivalent to the appropriate options of the
 I<cURL> plugin. Please see there for a detailed description.
 
+=item B<E<lt>StatisticsE<gt>>
+
+One B<Statistics> block can be used to specify cURL statistics to be collected
+for each request to the remote URL. See the section "cURL Statistics" above
+for details.
+
 =back
 
 The following options are valid within B<Key> blocks:
@@ -1769,6 +1868,12 @@ Examples:
 
 These options behave exactly equivalent to the appropriate options of the
 I<cURL plugin>. Please see there for a detailed description.
+
+=item B<E<lt>StatisticsE<gt>>
+
+One B<Statistics> block can be used to specify cURL statistics to be collected
+for each request to the remote URL. See the section "cURL Statistics" above
+for details.
 
 =item E<lt>B<XPath> I<XPath-expression>E<gt>
 

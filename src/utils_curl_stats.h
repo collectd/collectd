@@ -36,9 +36,9 @@ struct curl_stats_s;
 typedef struct curl_stats_s curl_stats_t;
 
 /*
- * curl_stats_from_config allocates and constructs a CURL statistics object
+ * curl_stats_from_config allocates and constructs a cURL statistics object
  * from the specified configuration which is expected to be a single block of
- * boolean options named after CURL information fields. The boolean value
+ * boolean options named after cURL information fields. The boolean value
  * indicates whether to collect the respective information.
  *
  * See http://curl.haxx.se/libcurl/c/curl_easy_getinfo.html
@@ -50,7 +50,7 @@ void curl_stats_destroy (curl_stats_t *s);
 
 /*
  * curl_stats_dispatch dispatches performance values from the the specified
- * CURL session to the daemon.
+ * cURL session to the daemon.
  */
 int curl_stats_dispatch (curl_stats_t *s, CURL *curl,
 		const char *hostname, const char *plugin, const char *plugin_instance,
