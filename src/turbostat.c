@@ -1258,6 +1258,9 @@ allocate_counters(struct thread_data **threads, struct core_data **cores, struct
 	if (*threads == NULL)
 		goto err;
 
+	for (i = 0; i < total_threads; ++i)
+		(*threads)[i].cpu_id = topology.max_cpu_id + 1;
+
 	total_cores = topology.num_cores * topology.num_packages;
 	*cores = calloc(total_cores, sizeof(struct core_data));
 	if (*cores == NULL)
