@@ -1267,9 +1267,6 @@ allocate_counters(struct thread_data **threads, struct core_data **cores, struct
 	if (*packages == NULL)
 		goto err_clean_cores;
 
-	for (i = 0; i < topology.num_packages; i++)
-		(*packages)[i].package_id = i;
-
 	return 0;
 
 err_clean_cores:
