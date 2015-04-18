@@ -23,6 +23,7 @@
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
+#include "utils_curl_stats.h"
 #include "utils_llist.h"
 
 #include <libxml/parser.h>
@@ -83,6 +84,7 @@ struct cx_s /* {{{ */
   char *post_body;
   int timeout;
   struct curl_slist *headers;
+  curl_stats_t *stats;
 
   cx_namespace_t *namespaces;
   size_t namespaces_num;
@@ -202,6 +204,7 @@ static void cx_free (void *arg) /* {{{ */
   sfree (db->cacert);
   sfree (db->post_body);
   curl_slist_free_all (db->headers);
+  curl_stats_destroy (db->stats);
 
   for (i = 0; i < db->namespaces_num; i++)
   {
@@ -212,6 +215,13 @@ static void cx_free (void *arg) /* {{{ */
 
   sfree (db);
 } /* }}} void cx_free */
+
+static const char *cx_host (cx_t *db) /* {{{ */
+{
+  if (db->host == NULL)
+    return hostname_g;
+  return db->host;
+} /* }}} cx_host */
 
 static int cx_config_append_string (const char *name, struct curl_slist **dest, /* {{{ */
     oconfig_item_t *ci)
@@ -515,7 +525,7 @@ static int  cx_handle_base_xpath (char const *plugin_instance, /* {{{ */
   vl.values_len = ds->ds_num;
   sstrncpy (vl.type, xpath->type, sizeof (vl.type));
   sstrncpy (vl.plugin, "curl_xml", sizeof (vl.plugin));
-  sstrncpy (vl.host, (host != NULL) ? host : hostname_g, sizeof (vl.host));
+  sstrncpy (vl.host, host, sizeof (vl.host));
   if (plugin_instance != NULL)
     sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
 
@@ -558,7 +568,7 @@ static int cx_handle_parsed_xml(xmlDocPtr doc, /* {{{ */
     ds = plugin_get_ds (xpath->type);
 
     if ( (cx_check_type(ds, xpath) == 0) &&
-         (cx_handle_base_xpath(db->instance, db->host,
+         (cx_handle_base_xpath(db->instance, cx_host (db),
                                xpath_ctx, ds, le->key, xpath) == 0) )
       status = 0; /* we got atleast one success */
 
@@ -630,6 +640,8 @@ static int cx_curl_perform (cx_t *db, CURL *curl) /* {{{ */
            status, db->curl_errbuf, url);
     return (-1);
   }
+  if (db->stats != NULL)
+    curl_stats_dispatch (db->stats, db->curl, cx_host (db), "curl_xml", db->instance, NULL);
 
   curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &url);
   curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &rc);
@@ -981,6 +993,12 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
       status = cx_config_add_namespace (db, child);
     else if (strcasecmp ("Timeout", child->key) == 0)
       status = cf_util_get_int (child, &db->timeout);
+    else if (strcasecmp ("Statistics", child->key) == 0)
+    {
+      db->stats = curl_stats_from_config (child);
+      if (db->stats == NULL)
+        status = -1;
+    }
     else
     {
       WARNING ("curl_xml plugin: Option `%s' not allowed here.", child->key);

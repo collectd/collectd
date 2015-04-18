@@ -27,6 +27,7 @@
 #include "configfile.h"
 #include "utils_avltree.h"
 #include "utils_complain.h"
+#include "utils_curl_stats.h"
 
 #include <sys/types.h>
 #include <sys/un.h>
@@ -78,6 +79,7 @@ struct cj_s /* {{{ */
   char *post_body;
   cdtime_t interval;
   int timeout;
+  curl_stats_t *stats;
 
   CURL *curl;
   char curl_errbuf[CURL_ERROR_SIZE];
@@ -432,6 +434,7 @@ static void cj_free (void *arg) /* {{{ */
   sfree (db->cacert);
   sfree (db->post_body);
   curl_slist_free_all (db->headers);
+  curl_stats_destroy (db->stats);
 
   sfree (db);
 } /* }}} void cj_free */
@@ -726,6 +729,12 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_cdtime(child, &db->interval);
     else if (strcasecmp ("Timeout", child->key) == 0)
       status = cf_util_get_int (child, &db->timeout);
+    else if (strcasecmp ("Statistics", child->key) == 0)
+    {
+      db->stats = curl_stats_from_config (child);
+      if (db->stats == NULL)
+        status = -1;
+    }
     else
     {
       WARNING ("curl_json plugin: Option `%s' not allowed here.", child->key);
@@ -823,20 +832,21 @@ static int cj_config (oconfig_item_t *ci) /* {{{ */
 
 /* }}} End of configuration handling functions */
 
-static void cj_submit (cj_t *db, cj_key_t *key, value_t *value) /* {{{ */
+static const char *cj_host (cj_t *db) /* {{{ */
 {
-  value_list_t vl = VALUE_LIST_INIT;
-  char *host;
-
-  vl.values     = value;
-  vl.values_len = 1;
-
   if ((db->host == NULL)
       || (strcmp ("", db->host) == 0)
       || (strcmp (CJ_DEFAULT_HOST, db->host) == 0))
-    host = hostname_g;
-  else
-    host = db->host;
+    return hostname_g;
+  return db->host;
+} /* }}} cj_host */
+
+static void cj_submit (cj_t *db, cj_key_t *key, value_t *value) /* {{{ */
+{
+  value_list_t vl = VALUE_LIST_INIT;
+
+  vl.values     = value;
+  vl.values_len = 1;
 
   if (key->instance == NULL)
   {
@@ -848,7 +858,7 @@ static void cj_submit (cj_t *db, cj_key_t *key, value_t *value) /* {{{ */
   else
     sstrncpy (vl.type_instance, key->instance, sizeof (vl.type_instance));
 
-  sstrncpy (vl.host, host, sizeof (vl.host));
+  sstrncpy (vl.host, cj_host (db), sizeof (vl.host));
   sstrncpy (vl.plugin, "curl_json", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, db->instance, sizeof (vl.plugin_instance));
   sstrncpy (vl.type, key->type, sizeof (vl.type));
@@ -911,6 +921,8 @@ static int cj_curl_perform(cj_t *db) /* {{{ */
            status, db->curl_errbuf, url);
     return (-1);
   }
+  if (db->stats != NULL)
+    curl_stats_dispatch (db->stats, db->curl, cj_host (db), "curl_json", db->instance, NULL);
 
   curl_easy_getinfo(db->curl, CURLINFO_EFFECTIVE_URL, &url);
   curl_easy_getinfo(db->curl, CURLINFO_RESPONSE_CODE, &rc);
