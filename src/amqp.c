@@ -299,6 +299,10 @@ static int camqp_create_exchange (camqp_config_t *conf) /* {{{ */
             /* type        = */ amqp_cstring_bytes (conf->exchange_type),
             /* passive     = */ 0,
             /* durable     = */ 0,
+#if AMQP_VERSION >= 0x00060000
+            /* auto delete = */ 0,
+            /* internal    = */ 0,
+#endif
             /* arguments   = */ argument_table);
     if ((ed_ret == NULL) && camqp_is_error (conf))
     {
