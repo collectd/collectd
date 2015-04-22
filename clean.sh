@@ -43,6 +43,13 @@ true \
 && rm -f src/*.pb-c.c \
 && rm -f src/*.pb-c.h \
 && rm -f src/Makefile.in \
+&& rm -f src/test-suite.log \
+&& rm -f src/test_common* \
+&& rm -f src/test_utils* \
+&& rm -f -r src/tests/.deps \
+&& rm -f -r src/tests/mock/.deps \
+&& rm -f src/tests/*.o \
+&& rm -f src/tests/mock/*.o \
 && rm -f -r src/daemon/.deps \
 && rm -f -r src/daemon/.libs \
 && rm -f src/daemon/*.o \
