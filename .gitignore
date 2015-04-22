@@ -40,7 +40,6 @@ src/*.1
 src/*.5
 src/.pod2man.tmp.*
 src/libcollectdclient/collectd/lcc_features.h
-src/utils_vl_lookup_test
 
 # patch stuff
 *.rej
@@ -82,6 +81,8 @@ src/tags
 # tests stuff
 src/tests/.deps/
 src/tests/mock/.deps/
+src/tests/.dirstamp
+src/tests/mock/.dirstamp
 
 # new daemon repo
 src/daemon/.deps/
