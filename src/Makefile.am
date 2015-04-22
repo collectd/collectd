@@ -1364,6 +1364,7 @@ check_PROGRAMS = test_common test_utils_avltree test_utils_heap test_utils_mount
 
 test_common_SOURCES = tests/test_common.c \
                       daemon/common.h daemon/common.c \
+                      tests/macros.h \
                       tests/mock/plugin.c \
                       tests/mock/utils_cache.c \
                       tests/mock/utils_time.c
