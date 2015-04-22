@@ -593,6 +593,12 @@ AC_CHECK_HEADERS(termios.h, [have_termios_h="yes"])
 have_asm_msrindex_h="no"
 AC_CHECK_HEADERS(asm/msr-index.h, [have_asm_msrindex_h="yes"])
 
+have_usable_asm_msrindex_h="no"
+if test "x$have_asm_msrindex_h" = "xyes"
+then
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include<asm/msr-index.h>]],[[int y = MSR_CORE_C3_RESIDENCY;]])], [have_usable_asm_msrindex_h="yes"])
+fi
+
 have_cpuid_h="no"
 AC_CHECK_HEADERS(cpuid.h, [have_cpuid_h="yes"])
 
@@ -5193,7 +5199,7 @@ then
 	then
 		plugin_ipvs="yes"
 	fi
-	if test "x$have_asm_msrindex_h" = "xyes" && test "x$have_cpuid_h" = "xyes"
+	if test "x$have_usable_asm_msrindex_h" = "xyes" && test "x$have_cpuid_h" = "xyes"
 	then
 		plugin_turbostat="yes"
 	fi
