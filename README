@@ -107,6 +107,9 @@ Features
       Values gathered by a custom program or script.
       See collectd-exec(5).
 
+    - fhcount
+      File handles statistics.
+
     - filecount
       Count the number of files in directories.
 

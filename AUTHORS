@@ -128,6 +128,9 @@ Jeremy Katz <jeremy at katzbox.net>
 Jérôme Renard <jerome.renard at gmail.com>
  - varnish plugin.
 
+Jiri Tyr <jiri.tyr at gmail.com>
+ - fhcount plugin.
+
 Kevin Bowling <kbowling at llnw.com>
  - write_tsdb plugin for http://opentsdb.net/
 
