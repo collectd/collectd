@@ -386,7 +386,7 @@ static int cx_handle_instance_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */
   /* If the base xpath returns more than one block, the result is assumed to be
    * a table. The `Instance' option is not optional in this case. Check for the
    * condition and inform the user. */
-  if (is_table && (vl->type_instance == NULL))
+  if (is_table && (xpath->instance == NULL))
   {
     WARNING ("curl_xml plugin: "
         "Base-XPath %s is a table (more than one result was returned), "
