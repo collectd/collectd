@@ -52,6 +52,7 @@
 %{?el6:%global _has_iproute 1}
 %{?el6:%global _has_atasmart 1}
 %{?el6:%global _has_hiredis 1}
+%{?el6:%global _has_asm_msr_index 1}
 
 %{?el7:%global _has_libyajl 1}
 %{?el7:%global _has_recent_libpcap 1}
@@ -66,6 +67,7 @@
 %{?el7:%global _has_iproute 1}
 %{?el7:%global _has_atasmart 1}
 %{?el7:%global _has_hiredis 1}
+%{?el7:%global _has_asm_msr_index 1}
 
 # plugins enabled by default
 %define with_aggregation 0%{!?_without_aggregation:1}
@@ -155,6 +157,7 @@
 %define with_ted 0%{!?_without_ted:1}
 %define with_thermal 0%{!?_without_thermal:1}
 %define with_threshold 0%{!?_without_threshold:1}
+%define with_turbostat 0%{!?_without_turbostat:0%{?_has_asm_msr_index}}
 %define with_unixsock 0%{!?_without_unixsock:1}
 %define with_uptime 0%{!?_without_uptime:1}
 %define with_users 0%{!?_without_users:1}
@@ -217,7 +220,7 @@ Source:		http://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
 Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
-BuildRequires:	libgcrypt-devel, kernel-headers, libtool-ltdl-devel
+BuildRequires:	libgcrypt-devel, kernel-headers, libtool-ltdl-devel, libcap-devel
 Vendor:		collectd development team <collectd@verplant.org>
 
 %if 0%{?el7:1}
@@ -1416,6 +1419,12 @@ Collectd utilities
 %define _with_tokyotyrant --disable-tokyotyrant
 %endif
 
+%if %{with_turbostat}
+%define _with_turbostat --enable-turbostat
+%else
+%define _with_turbostat --disable-turbostat
+%endif
+
 %if %{with_unixsock}
 %define _with_unixsock --enable-unixsock
 %else
@@ -1652,6 +1661,7 @@ Collectd utilities
 	%{?_with_ted} \
 	%{?_with_thermal} \
 	%{?_with_threshold} \
+	%{?_with_turbostat} \
 	%{?_with_unixsock} \
 	%{?_with_uptime} \
 	%{?_with_users} \
@@ -1947,6 +1957,9 @@ fi
 %endif
 %if %{with_load}
 %{_libdir}/%{name}/threshold.so
+%endif
+%if %{with_turbostat}
+%{_libdir}/%{name}/turbostat.so
 %endif
 %if %{with_unixsock}
 %{_libdir}/%{name}/unixsock.so
@@ -2268,12 +2281,13 @@ fi
 %changelog
 # * TODO 5.5.0-1
 # - New upstream version
-# - New plugins enabled by default: drbd, log_logstash, write_tsdb, smart, openldap, redis, write_redis, zookeeper, write_log
+# - New plugins enabled by default: drbd, log_logstash, write_tsdb, smart, openldap, redis, write_redis, zookeeper, write_log, turbostat
 # - New plugins disabled by default: barometer, write_kafka
 # - Enable zfs_arc, now supported on Linux
 # - Install disk plugin in a dedicated package, as it depends on libudev
 # - use systemd on EL7, sysvinit on EL6 & EL5
 # - Install collectdctl, collectd-tg and collectd-nagios in collectd-utils.rpm
+# - Add build-dependency on libcap-devel
 
 * Mon Aug 19 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.4.0-1
 - New upstream version
