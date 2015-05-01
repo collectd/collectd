@@ -1339,8 +1339,8 @@ ssize_t read_file_contents (const char *filename, char *buf, size_t bufsize)
 	ret = (ssize_t) fread (buf, 1, bufsize, fh);
 	if ((ret == 0) && (ferror (fh) != 0))
 	{
-		ERROR ("read_file_contents: Reading file \"%s\" failed.",
-				filename);
+		DEBUG ("read_file_contents: Reading file \"%s\" failed: %s",
+				filename, strerror (errno));
 		ret = -1;
 	}
 
