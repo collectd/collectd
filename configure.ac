@@ -593,10 +593,23 @@ AC_CHECK_HEADERS(termios.h, [have_termios_h="yes"])
 have_asm_msrindex_h="no"
 AC_CHECK_HEADERS(asm/msr-index.h, [have_asm_msrindex_h="yes"])
 
-have_usable_asm_msrindex_h="no"
 if test "x$have_asm_msrindex_h" = "xyes"
 then
-	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include<asm/msr-index.h>]],[[int y = MSR_CORE_C3_RESIDENCY;]])], [have_usable_asm_msrindex_h="yes"])
+  AC_CACHE_CHECK([whether asm/msr-index.h has MSR_CORE_C3_RESIDENCY],
+                 [c_cv_have_usable_asm_msrindex_h],
+                 AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+[[[
+#include<asm/msr-index.h>
+]]],
+[[[
+int y = MSR_CORE_C3_RESIDENCY;
+return(y);
+]]]
+  )],
+                 [c_cv_have_usable_asm_msrindex_h="yes"],
+                 [c_cv_have_usable_asm_msrindex_h="no"],
+                                  )
+                 )
 fi
 
 have_cpuid_h="no"
@@ -5199,7 +5212,7 @@ then
 	then
 		plugin_ipvs="yes"
 	fi
-	if test "x$have_usable_asm_msrindex_h" = "xyes" && test "x$have_cpuid_h" = "xyes"
+	if test "x$c_cv_have_usable_asm_msrindex_h" = "xyes" && test "x$have_cpuid_h" = "xyes"
 	then
 		plugin_turbostat="yes"
 	fi
