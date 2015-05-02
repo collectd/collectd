@@ -1161,6 +1161,7 @@ FILE *fh;
 struct mntent *me;
 fh = setmntent ("/etc/mtab", "r");
 me = getmntent (fh);
+return(me->mnt_passno);
 ]]]
 			)],
 			[c_cv_have_one_getmntent="yes"],
@@ -1180,6 +1181,7 @@ me = getmntent (fh);
 				 int status;
 				 fh = fopen ("/etc/mnttab", "r");
 				 status = getmntent (fh, &mt);
+				 return(status);
 ]]]
 			)],
 			[c_cv_have_two_getmntent="yes"],
@@ -3042,6 +3044,7 @@ then
 ]]],
 [[[
   int val = PCAP_ERROR_IFACE_NOT_UP;
+  return(val);
 ]]]
 		       )],
 		       [c_cv_libpcap_have_pcap_error_iface_not_up="yes"],
