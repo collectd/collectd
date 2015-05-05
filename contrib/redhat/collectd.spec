@@ -183,7 +183,7 @@
 # plugin zfs_arc disabled, requires FreeBSD/Solaris
 %define with_zfs_arc 0%{!?_without_zfs_arc:0}
 
-Summary:	Statistics collection daemon for filling RRD files
+Summary:	statistics collection and monitoring daemon
 Name:		collectd
 Version:	5.3.2
 Release:	1%{?dist}
