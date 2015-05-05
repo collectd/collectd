@@ -560,17 +560,17 @@ submit_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	if (!aperf_mperf_unstable)
 		turbostat_submit(name, "percent", "c1", 100.0 * t->c1/t->tsc);
 
-	turbostat_submit("Average", "frequency", name, 1.0 / 1000000 * t->aperf / interval_float);
+	turbostat_submit(name, "frequency", "average", 1.0 / 1000000 * t->aperf / interval_float);
 
 	if ((!aperf_mperf_unstable) || (!(t->aperf > t->tsc || t->mperf > t->tsc)))
-		turbostat_submit("Buzy", "frequency", name, 1.0 * t->tsc / 1000000 * t->aperf / t->mperf / interval_float);
+		turbostat_submit(name, "frequency", "busy", 1.0 * t->tsc / 1000000 * t->aperf / t->mperf / interval_float);
 
 	/* Sanity check (should stay stable) */
-	turbostat_submit("TSC", "gauge", name, 1.0 * t->tsc / 1000000 / interval_float);
+	turbostat_submit(name, "gauge", "TSC", 1.0 * t->tsc / 1000000 / interval_float);
 
 	/* SMI */
 	if (do_smi)
-		turbostat_submit(NULL, "current", name, t->smi_count);
+		turbostat_submit(name, "current", NULL, t->smi_count);
 
 	/* submit per-core data only for 1st thread in core */
 	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
@@ -586,7 +586,7 @@ submit_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 		turbostat_submit(name, "percent", "c7", 100.0 * c->c7/t->tsc);
 
 	if (do_dts)
-		turbostat_submit(NULL, "temperature", name, c->core_temp_c);
+		turbostat_submit(name, "temperature", NULL, c->core_temp_c);
 
 	/* submit per-package data only for 1st core in package */
 	if (!(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
@@ -595,7 +595,7 @@ submit_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	ssnprintf(name, sizeof(name), "pkg%02d", p->package_id);
 
 	if (do_ptm)
-		turbostat_submit(NULL, "temperature", name, p->pkg_temp_c);
+		turbostat_submit(name, "temperature", NULL, p->pkg_temp_c);
 
 	if (do_pkg_cstate & (1 << 2))
 		turbostat_submit(name, "percent", "pc2", 100.0 * p->pc2/t->tsc);
@@ -614,13 +614,13 @@ submit_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 
 	if (do_rapl) {
 		if (do_rapl & RAPL_PKG)
-			turbostat_submit(name, "power", "Pkg_W", p->energy_pkg * rapl_energy_units / interval_float);
+			turbostat_submit(name, "power", "pkg", p->energy_pkg * rapl_energy_units / interval_float);
 		if (do_rapl & RAPL_CORES)
-			turbostat_submit(name, "power", "Cor_W", p->energy_cores * rapl_energy_units / interval_float);
+			turbostat_submit(name, "power", "cores", p->energy_cores * rapl_energy_units / interval_float);
 		if (do_rapl & RAPL_GFX)
-			turbostat_submit(name, "power", "GFX_W", p->energy_gfx * rapl_energy_units / interval_float);
+			turbostat_submit(name, "power", "GFX", p->energy_gfx * rapl_energy_units / interval_float);
 		if (do_rapl & RAPL_DRAM)
-			turbostat_submit(name, "power", "RAM_W", p->energy_dram * rapl_energy_units / interval_float);
+			turbostat_submit(name, "power", "DRAM", p->energy_dram * rapl_energy_units / interval_float);
 	}
 done:
 	return 0;
