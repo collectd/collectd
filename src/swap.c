@@ -157,7 +157,7 @@ static int swap_init (void) /* {{{ */
 /* #endif defined(VM_SWAPUSAGE) */
 
 #elif HAVE_LIBKVM_GETSWAPINFO
-	char errbuf[1024];
+	char errbuf[_POSIX2_LINE_MAX];
 
 	if (kvm_obj != NULL)
 	{
@@ -171,7 +171,7 @@ static int swap_init (void) /* {{{ */
 
 	if (kvm_obj == NULL)
 	{
-		ERROR ("swap plugin: kvm_open failed, %s", errbuf);
+		ERROR ("swap plugin: kvm_openfiles failed, %s", errbuf);
 		return (-1);
 	}
 /* #endif HAVE_LIBKVM_GETSWAPINFO */
