@@ -1787,7 +1787,7 @@ static int ps_read (void)
 	int wait     = 0;
 
 	kvm_t *kd;
-	char errbuf[1024];
+	char errbuf[_POSIX2_LINE_MAX];
 	struct kinfo_proc *procs;          /* array of processes */
 	struct kinfo_proc *proc_ptr = NULL;
 	int count;                         /* returns number of processes */
