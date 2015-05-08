@@ -3722,6 +3722,7 @@ AC_ARG_WITH(librdkafka, [AS_HELP_STRING([--with-librdkafka@<:@=PREFIX@:>@], [Pat
   then
     with_librdkafka_cppflags="-I$withval/include"
     with_librdkafka_ldflags="-L$withval/lib"
+    with_librdkafka_rpath="$withval/lib"
     with_librdkafka="yes"
   else
     with_librdkafka="$withval"
@@ -3732,6 +3733,9 @@ AC_ARG_WITH(librdkafka, [AS_HELP_STRING([--with-librdkafka@<:@=PREFIX@:>@], [Pat
 ])
 SAVE_CPPFLAGS="$CPPFLAGS"
 SAVE_LDFLAGS="$LDFLAGS"
+
+CPPFLAGS="$CPPFLAGS $with_librdkafka_cppflags"
+LDFLAGS="$LDFLAGS $with_librdkafka_ldflags"
 
 if test "x$with_librdkafka" = "xyes"
 then
@@ -3748,7 +3752,12 @@ if test "x$with_librdkafka" = "xyes"
 then
 	BUILD_WITH_LIBRDKAFKA_CPPFLAGS="$with_librdkafka_cppflags"
 	BUILD_WITH_LIBRDKAFKA_LDFLAGS="$with_librdkafka_ldflags"
-	BUILD_WITH_LIBRDKAFKA_LIBS="-lrdkafka"
+	if test "x$with_librdkafka_rpath" != "x"
+	then
+		BUILD_WITH_LIBRDKAFKA_LIBS="-Wl,-rpath,$with_librdkafka_rpath -lrdkafka"
+	else
+		BUILD_WITH_LIBRDKAFKA_LIBS="-lrdkafka"
+	fi
 	AC_SUBST(BUILD_WITH_LIBRDKAFKA_CPPFLAGS)
 	AC_SUBST(BUILD_WITH_LIBRDKAFKA_LDFLAGS)
 	AC_SUBST(BUILD_WITH_LIBRDKAFKA_LIBS)
