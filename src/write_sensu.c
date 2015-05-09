@@ -484,18 +484,29 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 			return NULL;
 		}
 	} else {
-		int64_t tmp_v;
-		if (ds->ds[index].type == DS_TYPE_DERIVE)
-			tmp_v = (int64_t) vl->values[index].derive;
-		else if (ds->ds[index].type == DS_TYPE_ABSOLUTE)
-			tmp_v = (int64_t) vl->values[index].absolute;
-		else
-			tmp_v = (int64_t) vl->values[index].counter;
-		res = asprintf(&value_str, "%ld", tmp_v);
-		if (res == -1) {
-			free(ret_str);
-			ERROR("write_sensu plugin: Unable to alloc memory");
-			return NULL;
+		if (ds->ds[index].type == DS_TYPE_DERIVE) {
+			res = asprintf(&value_str, "%"PRIi64, vl->values[index].derive);
+			if (res == -1) {
+				free(ret_str);
+				ERROR("write_sensu plugin: Unable to alloc memory");
+				return NULL;
+			}
+		}
+		else if (ds->ds[index].type == DS_TYPE_ABSOLUTE) {
+			res = asprintf(&value_str, "%"PRIu64, vl->values[index].absolute);
+			if (res == -1) {
+				free(ret_str);
+				ERROR("write_sensu plugin: Unable to alloc memory");
+				return NULL;
+			}
+		}
+		else {
+			res = asprintf(&value_str, "%llu", vl->values[index].counter);
+			if (res == -1) {
+				free(ret_str);
+				ERROR("write_sensu plugin: Unable to alloc memory");
+				return NULL;
+			}
 		}
 	}
 
