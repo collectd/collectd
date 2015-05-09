@@ -10,4 +10,4 @@ fi
 
 VERSION="`echo \"$VERSION\" | sed -e 's/-/./g'`"
 
-echo -n "$VERSION"
+printf "%s" "$VERSION"
