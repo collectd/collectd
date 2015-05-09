@@ -1791,7 +1791,7 @@ static int ps_read (void)
 	int wait     = 0;
 
 	kvm_t *kd;
-	char errbuf[1024];
+	char errbuf[_POSIX2_LINE_MAX];
 	struct kinfo_proc *procs;          /* array of processes */
 	struct kinfo_proc *proc_ptr = NULL;
 	int count;                         /* returns number of processes */
@@ -1803,7 +1803,7 @@ static int ps_read (void)
 	ps_list_reset ();
 
 	/* Open the kvm interface, get a descriptor */
-	kd = kvm_open (NULL, NULL, NULL, 0, errbuf);
+	kd = kvm_openfiles (NULL, "/dev/null", NULL, 0, errbuf);
 	if (kd == NULL)
 	{
 		ERROR ("processes plugin: Cannot open kvm interface: %s",
