@@ -1111,6 +1111,7 @@ int cf_read (char *filename)
 	}
 
 	oconfig_free (conf);
+	free (conf);
 
 	/* Read the default types.db if no `TypesDB' option was given. */
 	if (cf_default_typesdb)
