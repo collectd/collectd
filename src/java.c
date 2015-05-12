@@ -3078,10 +3078,8 @@ static int cjni_init (void) /* {{{ */
 
   if (config_block != NULL)
   {
-
     cjni_config_perform (config_block);
     oconfig_free (config_block);
-    config_block = NULL;
   }
 
   if (jvm == NULL)
