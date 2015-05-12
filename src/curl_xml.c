@@ -300,6 +300,7 @@ static int cx_handle_single_value_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */
 
   /* free up object */
   xmlXPathFreeObject (values_node_obj);
+  sfree (node_value);
 
   /* We have reached here which means that
    * we have got something to work */
@@ -397,8 +398,12 @@ static int cx_handle_instance_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */
   if (xpath->instance_prefix != NULL)
   {
     if (instance_node != NULL)
+    {
+      char *node_value = (char *) xmlNodeGetContent(instance_node->nodeTab[0]);
       ssnprintf (vl->type_instance, sizeof (vl->type_instance),"%s%s",
-          xpath->instance_prefix, (char *) xmlNodeGetContent(instance_node->nodeTab[0]));
+          xpath->instance_prefix, node_value);
+      sfree (node_value);
+    }
     else
       sstrncpy (vl->type_instance, xpath->instance_prefix,
           sizeof (vl->type_instance));
@@ -408,8 +413,11 @@ static int cx_handle_instance_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */
     /* If instance_prefix and instance_node are NULL, then
      * don't set the type_instance */
     if (instance_node != NULL)
-      sstrncpy (vl->type_instance, (char *) xmlNodeGetContent(instance_node->nodeTab[0]),
-          sizeof (vl->type_instance));
+    {
+      char *node_value = (char *) xmlNodeGetContent(instance_node->nodeTab[0]);
+      sstrncpy (vl->type_instance, node_value, sizeof (vl->type_instance));
+      sfree (node_value);
+    }
   }
 
   /* Free `instance_node_obj' this late, because `instance_node' points to
