@@ -29,6 +29,7 @@ true \
 && rm -f src/*.lo \
 && rm -f src/collectd.1 \
 && rm -f src/collectd.conf \
+&& rm -f src/collectd.conf.in \
 && rm -f src/collectdctl \
 && rm -f src/collectd-tg \
 && rm -f src/collectd-nagios \
