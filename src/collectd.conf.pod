@@ -6587,6 +6587,79 @@ Default: B<1978>
 
 =back
 
+=head2 Plugin C<turbostat>
+
+The I<Turbostat plugin> reads CPU frequency and C-state residency on modern
+Intel processors by using the new Model Specific Registers.
+
+=over 4
+
+=item B<CoreCstates> I<Bitmask(Integer)>
+
+Bitmask of the list of core C states supported by the processor.
+This option should only be used if the automated detection fails.
+Default value extracted from the cpu model and family.
+
+Currently supported C-states (by this plugin): 3, 6, 7
+
+Example: (1<<3)+(1<<6)+(1<<7) = 392 for all states
+
+=item B<PackageCstates> I<Bitmask(Integer)>
+
+Bitmask of the list of pacages C states supported by the processor.
+This option should only be used if the automated detection fails.
+Default value extracted from the cpu model and family.
+
+Currently supported C-states (by this plugin): 2, 3, 6, 7, 8, 9, 10
+
+Example: (1<<2)+(1<<3)+(1<<6)+(1<<7) = 396 for states 2, 3, 6 and 7
+
+=item B<SystemManagementInterrupt> I<true>|I<false>
+
+Boolean enabling the collection of the I/O System-Management Interrupt
+counter'. This option should only be used if the automated detection
+fails or if you want to disable this feature.
+
+=item B<DigitalTemperatureSensor> I<true>|I<false>
+
+Boolean enabling the collection of the temperature of each core.
+This option should only be used if the automated detectionfails or 
+if you want to disable this feature.
+
+=item B<DigitalTemperatureSensor> I<true>|I<false>
+
+Boolean enabling the collection of the temperature of each package.
+This option should only be used if the automated detectionfails or 
+if you want to disable this feature.
+
+=item B<TCCActivationTemp> I<Temperature>
+
+Thermal Control Circuit Activation Temperature of the installed
+CPU. This temperature is used when collecting the temperature of
+cores or packages. This option should only be used if the automated
+detection fails. Default value extracted from B<MSR_IA32_TEMPERATURE_TARGET>
+
+=item B<RunningAveragePowerLimit> I<Bitmask(Integer)>
+
+Bitmask of the list of elements to be thermally monitored. This option
+should only be used if the automated detection fails or if you want to
+disable some collections. The different bits of this bitmask accepted
+by this plugin are:
+
+=over 4
+
+=item 0 ('1'): Package
+
+=item 1 ('2'): DRAM
+
+=item 2 ('4'): Cores
+
+=item 3 ('8'): Embedded graphic device
+
+=back
+
+=back
+
 =head2 Plugin C<unixsock>
 
 =over 4

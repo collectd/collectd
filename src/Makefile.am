@@ -1076,6 +1076,12 @@ tokyotyrant_la_LIBADD += -lsocket
 endif
 endif
 
+if BUILD_PLUGIN_TURBOSTAT
+pkglib_LTLIBRARIES += turbostat.la
+turbostat_la_SOURCES = turbostat.c
+turbostat_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_UNIXSOCK
 pkglib_LTLIBRARIES += unixsock.la
 unixsock_la_SOURCES = unixsock.c \

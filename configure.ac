@@ -589,13 +589,44 @@ AC_CHECK_HEADERS(net/pfvar.h,
 have_termios_h="no"
 AC_CHECK_HEADERS(termios.h, [have_termios_h="yes"])
 
+# For the turbostat plugin
+have_asm_msrindex_h="no"
+AC_CHECK_HEADERS(asm/msr-index.h, [have_asm_msrindex_h="yes"])
+
+if test "x$have_asm_msrindex_h" = "xyes"
+then
+  AC_CACHE_CHECK([whether asm/msr-index.h has MSR_CORE_C3_RESIDENCY],
+                 [c_cv_have_usable_asm_msrindex_h],
+                 AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+[[[
+#include<asm/msr-index.h>
+]]],
+[[[
+int y = MSR_CORE_C3_RESIDENCY;
+return(y);
+]]]
+  )],
+                 [c_cv_have_usable_asm_msrindex_h="yes"],
+                 [c_cv_have_usable_asm_msrindex_h="no"],
+                                  )
+                 )
+fi
+
+have_cpuid_h="no"
+AC_CHECK_HEADERS(cpuid.h, [have_cpuid_h="yes"])
+
+AC_CHECK_HEADERS(sys/capability.h)
 #
 # Checks for typedefs, structures, and compiler characteristics.
 #
 AC_C_CONST
+AC_C_INLINE
+AC_TYPE_OFF_T
 AC_TYPE_PID_T
 AC_TYPE_SIZE_T
+AC_TYPE_SSIZE_T
 AC_TYPE_UID_T
+AC_TYPE_UINT32_T
 AC_HEADER_TIME
 
 #
@@ -5155,6 +5186,7 @@ plugin_tape="no"
 plugin_tcpconns="no"
 plugin_ted="no"
 plugin_thermal="no"
+plugin_turbostat="no"
 plugin_uptime="no"
 plugin_users="no"
 plugin_virt="no"
@@ -5200,6 +5232,10 @@ then
 	if test "x$have_linux_ip_vs_h" = "xyes" || test "x$have_net_ip_vs_h" = "xyes" || test "x$have_ip_vs_h" = "xyes"
 	then
 		plugin_ipvs="yes"
+	fi
+	if test "x$c_cv_have_usable_asm_msrindex_h" = "xyes" && test "x$have_cpuid_h" = "xyes"
+	then
+		plugin_turbostat="yes"
 	fi
 fi
 
@@ -5598,6 +5634,7 @@ AC_PLUGIN([ted],         [$plugin_ted],        [Read The Energy Detective values
 AC_PLUGIN([thermal],     [$plugin_thermal],    [Linux ACPI thermal zone statistics])
 AC_PLUGIN([threshold],   [yes],                [Threshold checking plugin])
 AC_PLUGIN([tokyotyrant], [$with_libtokyotyrant],  [TokyoTyrant database statistics])
+AC_PLUGIN([turbostat],   [$plugin_turbostat],  [Advanced statistic on Intel cpu states])
 AC_PLUGIN([unixsock],    [yes],                [Unixsock communication plugin])
 AC_PLUGIN([uptime],      [$plugin_uptime],     [Uptime statistics])
 AC_PLUGIN([users],       [$plugin_users],      [User statistics])
@@ -5973,6 +6010,7 @@ Configuration:
     thermal . . . . . . . $enable_thermal
     threshold . . . . . . $enable_threshold
     tokyotyrant . . . . . $enable_tokyotyrant
+    turbostat . . . . . . $enable_turbostat
     unixsock  . . . . . . $enable_unixsock
     uptime  . . . . . . . $enable_uptime
     users . . . . . . . . $enable_users

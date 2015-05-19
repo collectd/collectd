@@ -280,6 +280,9 @@ Tommie Gannert <d00-tga at d.kth.se>
 Vincent Bernat <vincent at bernat.im>
  - smart plugin.
 
+Vincent Brillault <git at lerya.net>
+ - turbostat plugin, based on Len Brown <len.brown at intel.com> kernel tool
+
 Vincent Stehlé <vincent.stehle at free.fr>
  - hddtemp plugin.
 
