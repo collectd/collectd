@@ -570,7 +570,7 @@ submit_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 
 	/* SMI */
 	if (do_smi)
-		turbostat_submit(name, "current", NULL, t->smi_count);
+		turbostat_submit(name, "count", NULL, t->smi_count);
 
 	/* submit per-core data only for 1st thread in core */
 	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
