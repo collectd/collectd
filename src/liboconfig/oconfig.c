@@ -195,7 +195,7 @@ oconfig_item_t *oconfig_clone (const oconfig_item_t *ci_orig)
   return (ci_copy);
 } /* oconfig_item_t *oconfig_clone */
 
-void oconfig_free (oconfig_item_t *ci)
+void oconfig_free_all (oconfig_item_t *ci)
 {
   int i;
 
@@ -214,10 +214,17 @@ void oconfig_free (oconfig_item_t *ci)
     free (ci->values);
 
   for (i = 0; i < ci->children_num; i++)
-    oconfig_free (ci->children + i);
+    oconfig_free_all (ci->children + i);
 
   if (ci->children != NULL)
     free (ci->children);
+}
+
+void oconfig_free (oconfig_item_t *ci)
+{
+  oconfig_free_all (ci);
+  free (ci);
+  ci = NULL;
 }
 
 /*
