@@ -359,6 +359,12 @@ ethstat_la_SOURCES = ethstat.c
 ethstat_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_FHCOUNT
+pkglib_LTLIBRARIES += fhcount.la
+fhcount_la_SOURCES = fhcount.c
+fhcount_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_FILECOUNT
 pkglib_LTLIBRARIES += filecount.la
 filecount_la_SOURCES = filecount.c

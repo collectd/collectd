@@ -96,6 +96,7 @@
 %define with_entropy 0%{!?_without_entropy:1}
 %define with_ethstat 0%{!?_without_ethstat:0%{?_has_recent_sockios_h}}
 %define with_exec 0%{!?_without_exec:1}
+%define with_fhcount 0%{!?_without_fhcount:1}
 %define with_filecount 0%{!?_without_filecount:1}
 %define with_fscache 0%{!?_without_fscache:1}
 %define with_gmond 0%{!?_without_gmond:0%{?_has_recent_libganglia}}
@@ -1002,6 +1003,12 @@ Collectd utilities
 %define _with_exec --disable-exec
 %endif
 
+%if %{with_fhcount}
+%define _with_fhcount --enable-fhcount
+%else
+%define _with_fhcount --disable-fhcount
+%endif
+
 %if %{with_filecount}
 %define _with_filecount --enable-filecount
 %else
@@ -1613,6 +1620,7 @@ Collectd utilities
 	%{?_with_entropy} \
 	%{?_with_ethstat} \
 	%{?_with_exec} \
+	%{?_with_fhcount} \
 	%{?_with_filecount} \
 	%{?_with_fscache} \
 	%{?_with_gmond} \
@@ -1889,6 +1897,9 @@ fi
 %endif
 %if %{with_exec}
 %{_libdir}/%{name}/exec.so
+%endif
+%if %{with_fhcount}
+%{_libdir}/%{name}/fhcount.so
 %endif
 %if %{with_filecount}
 %{_libdir}/%{name}/filecount.so

@@ -5551,6 +5551,7 @@ AC_PLUGIN([email],       [yes],                [EMail statistics])
 AC_PLUGIN([entropy],     [$plugin_entropy],    [Entropy statistics])
 AC_PLUGIN([ethstat],     [$plugin_ethstat],    [Stats from NIC driver])
 AC_PLUGIN([exec],        [yes],                [Execution of external programs])
+AC_PLUGIN([fhcount],     [yes],                [File handles statistics])
 AC_PLUGIN([filecount],   [yes],                [Count files in directories])
 AC_PLUGIN([fscache],     [$plugin_fscache],    [fscache statistics])
 AC_PLUGIN([gmond],       [$with_libganglia],   [Ganglia plugin])
@@ -5928,6 +5929,7 @@ Configuration:
     entropy . . . . . . . $enable_entropy
     ethstat . . . . . . . $enable_ethstat
     exec  . . . . . . . . $enable_exec
+    fhcount . . . . . . . $enable_fhcount
     filecount . . . . . . $enable_filecount
     fscache . . . . . . . $enable_fscache
     gmond . . . . . . . . $enable_gmond
