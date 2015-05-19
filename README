@@ -636,6 +636,12 @@ Prerequisites
     Used by the `smart' plugin.
     <http://git.0pointer.de/?p=libatasmart.git>
 
+  * libcap (optional)
+    The `turbostat' plugin can optionally build Linux Capabilities support,
+    which avoids full privileges requirement (aka. running as root) to read
+    values.
+    <http://sites.google.com/site/fullycapable/>
+
   * libclntsh (optional)
     Used by the `oracle' plugin.
 
