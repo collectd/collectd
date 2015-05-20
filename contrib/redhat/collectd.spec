@@ -2335,9 +2335,11 @@ fi
 %doc contrib/
 
 %changelog
-* Wed May 20 2015 5.5.0-1
+* Wed May 20 2015 Marc Fournier <marc.fournier@camptocamp.com> 5.5.0-1
 - New upstream version
-- New plugins enabled by default: ceph, drbd, log_logstash, write_tsdb, smart, openldap, redis, write_redis, zookeeper, write_log, write_sensu, ipc, turbostat, fhcount
+- New plugins enabled by default: ceph, drbd, log_logstash, write_tsdb, smart,
+  openldap, redis, write_redis, zookeeper, write_log, write_sensu, ipc,
+  turbostat, fhcount
 - New plugins disabled by default: barometer, write_kafka
 - Enable zfs_arc, now supported on Linux
 - Install disk plugin in a dedicated package, as it depends on libudev
