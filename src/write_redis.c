@@ -111,11 +111,12 @@ static int wr_write (const data_set_t *ds, /* {{{ */
   if (node->conn == NULL)
   {
     node->conn = redisConnectWithTimeout ((char *)node->host, node->port, node->timeout);
-    if (node->conn == NULL)
+    if (node->conn != NULL && node->conn->err)
     {
-      ERROR ("write_redis plugin: Connecting to host \"%s\" (port %i) failed.",
+      ERROR ("write_redis plugin: Connecting to host \"%s\" (port %i) failed: %s",
           (node->host != NULL) ? node->host : "localhost",
-          (node->port != 0) ? node->port : 6379);
+          (node->port != 0) ? node->port : 6379,
+          node->conn->errstr);
       pthread_mutex_unlock (&node->lock);
       return (-1);
     }
