@@ -111,7 +111,15 @@ static int wr_write (const data_set_t *ds, /* {{{ */
   if (node->conn == NULL)
   {
     node->conn = redisConnectWithTimeout ((char *)node->host, node->port, node->timeout);
-    if (node->conn != NULL && node->conn->err)
+    if (node->conn == NULL)
+    {
+      ERROR ("write_redis plugin: Connecting to host \"%s\" (port %i) failed: Unkown reason",
+          (node->host != NULL) ? node->host : "localhost",
+          (node->port != 0) ? node->port : 6379);
+      pthread_mutex_unlock (&node->lock);
+      return (-1);
+    }
+    else if (node->conn->err)
     {
       ERROR ("write_redis plugin: Connecting to host \"%s\" (port %i) failed: %s",
           (node->host != NULL) ? node->host : "localhost",
@@ -122,7 +130,6 @@ static int wr_write (const data_set_t *ds, /* {{{ */
     }
   }
 
-  assert (node->conn != NULL);
   rr = redisCommand (node->conn, "ZADD %s %s %s", key, time, value);
   if (rr==NULL)
     WARNING("ZADD command error. key:%s message:%s", key, node->conn->errstr);
