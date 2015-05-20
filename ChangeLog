@@ -1,31 +1,30 @@
 2015-05-20, Version 5.5.0
 	* Build system: Ability to make out-of-tree builds has been fixed.
 	  Thanks to Vincent Bernat. #792
-	* Build system, Disk and Users plugins: Detection and use of
-	  libstatgrab ≧ 0.90 has been added. Thanks to Vincent Bernat. #445,
-	  #795, #806, #807, #908
+	* Build system, Disk and Users plugins: Detection and use of libstatgrab
+	  ≧ 0.90 has been added. Thanks to Vincent Bernat. #445, #795, #806,
+	  #807, #908
 	* Build system, Memory, CPU, TCPConns and Processes plugins: Numerous
 	  fixes related to OpenBSD support have been added. Thanks to Landry
 	  Breuil. #777, #778, #779, #808
 	* Build system: Plugins now only export "module_register()". Thanks to
 	  Florian Forster.
-	* Build system: Various cleanups and improvements have been done.
-	  Thanks to Marc Fournier.
-	* collectd: Numerous internal changes and improvements to the daemon
-	  and the plugin API have been make. Thanks to Florian Forster,
-	  Pierre-Yves Ritschard and Alex Petrov. #512, #727
+	* Build system: Various cleanups and improvements have been done. Thanks
+	  to Marc Fournier.
+	* collectd: Numerous internal changes and improvements to the daemon and
+	  the plugin API have been make. Thanks to Florian Forster, Pierre-Yves
+	  Ritschard and Alex Petrov. #512, #727
 	* collectd: Numerous spelling mistakes have been corrected in comments
 	  and documentation and several error messages have been improved.
-	  Thanks to Ruben Kerkhof, Abhinav Upadhyay, Olivier Bazoud,
-	  Pierre-Yves Ritschard, Tim Smith, Moshe Zada, Katelyn Perry and Marc
-	  Fournier.
-	* collectd: Rules/Targets can now be appended to existing Filter
-	  Chains. Thanks to Marc Falzon. #444
-	* collectd: Support for process signaling and management by upstart
-	  and systemd has been implemented for the Linux platform. Thanks to
+	  Thanks to Ruben Kerkhof, Abhinav Upadhyay, Olivier Bazoud, Pierre-Yves
+	  Ritschard, Tim Smith, Moshe Zada, Katelyn Perry and Marc Fournier.
+	* collectd: Rules/Targets can now be appended to existing Filter Chains.
+	  Thanks to Marc Falzon. #444
+	* collectd: Support for process signaling and management by upstart and
+	  systemd has been implemented for the Linux platform. Thanks to
 	  Pierre-Yves Ritschard and Marc Fournier. #798, #811, #814
-	* collectd: The "CollectInternalStats" option has been added. Thanks
-	  to Yves Mettier. #691
+	* collectd: The "CollectInternalStats" option has been added. Thanks to
+	  Yves Mettier. #691
 	* collectd: The daemon source code and dependencies have moved to the
 	  "src/daemon/" directory. Thanks to Florian Forster.
 	* collectd: The new "MaxReadInterval" option allows to cap the
@@ -39,19 +38,18 @@
 	  network packets. Thanks to Florian Forster.
 	* Configuration: Support for unquoted IPv6 addresses has been added.
 	  Thanks to Sebastian Harl. #489
-	* Documentation: Various improvements have been done. Thanks to
-	  Florian Forster and Marc Fournier.
+	* Documentation: Various improvements have been done. Thanks to Florian
+	  Forster and Marc Fournier.
 	* Examples: the sample C plugin has been updated to the current plugin
 	  API. Thanks to Sebastian Harl.
 	* Licensing: The following components have been relicensed to the MIT
-	  license: the Apple_Sensors, Ascent, DBI, E-Mail, Entropy,
-	  GenericJMX, gmond, Java, LogFile, nginx, Notify_Desktop, NTPd, NUT,
-	  olsrd, Perl, Ping, PostgreSQL, Protocols, RouterOS, RRDCacheD, SNMP,
-	  StatsD, SysLog, Table, Tail, UnixSock, vmem, VServer, Wireless,
-	  Write_Riemann and XMMS plugins, the core collectd daemon, the
-	  collectdmon, collectd-nagios and collectd-tg utilities, all the
-	  Targets and Matches, liboconfig, most of the "utils_*" files and the
-	  plugin API.
+	  license: the Apple_Sensors, Ascent, DBI, E-Mail, Entropy, GenericJMX,
+	  gmond, Java, LogFile, nginx, Notify_Desktop, NTPd, NUT, olsrd, Perl,
+	  Ping, PostgreSQL, Protocols, RouterOS, RRDCacheD, SNMP, StatsD,
+	  SysLog, Table, Tail, UnixSock, vmem, VServer, Wireless, Write_Riemann
+	  and XMMS plugins, the core collectd daemon, the collectdmon,
+	  collectd-nagios and collectd-tg utilities, all the Targets and
+	  Matches, liboconfig, most of the "utils_*" files and the plugin API.
 	* Tests: A test suite has been added. Thanks to Florian Forster.
 	* Threshold: The hysteresis calculation has been made more reliable.
 	  Thanks to Jan Kundrát. #581
@@ -61,60 +59,58 @@
 	  allowing to delay reconnection. Thanks to Yoga Ramalingam and Marc
 	  Fournier. #833
 	* AMQP plugin: The "QueueDurable" and "QueueAutoDelete" options have
-	  been added, giving control over queue creation and deletion. Thanks
-	  to David Blundell and Marc Fournier. #623
-	* Apache, Ascent, BIND, cURL, cURL-JSON, cURL-XML, nginx and Write
-	  HTTP plugins: Customizing the "User-Agent" field is now possible at
+	  been added, giving control over queue creation and deletion. Thanks to
+	  David Blundell and Marc Fournier. #623
+	* Apache, Ascent, BIND, cURL, cURL-JSON, cURL-XML, nginx and Write HTTP
+	  plugins: Customizing the "User-Agent" field is now possible at
 	  compile-time. Thanks to Jeremy Katz. #440
 	* Apache, Ascent, BIND, cURL, cURL-JSON, cURL-XML, nginx plugins: The
-	  connection will be reset if it hasn't completed within the
-	  configured "Interval". The new "Timeout" option gives control over
-	  this behavior. Thanks to Jan Kundrát and Marc Fournier. #982, #983,
-	  #993
-	* Apache, Ascent, cURL, cURL-JSON, cURL-XML, nginx, Write_HTTP
-	  plugins: Allow usernames and passwords to contain colons if built
-	  against libcurl ≧ 7.19.1. Thanks to Marc Fournier. #695, #947
+	  connection will be reset if it hasn't completed within the configured
+	  "Interval". The new "Timeout" option gives control over this behavior.
+	  Thanks to Jan Kundrát and Marc Fournier. #982, #983, #993
+	* Apache, Ascent, cURL, cURL-JSON, cURL-XML, nginx, Write_HTTP plugins:
+	  Allow usernames and passwords to contain colons if built against
+	  libcurl ≧ 7.19.1. Thanks to Marc Fournier. #695, #947
 	* Apache plugin: The "SSLCiphers" option gives control over the
 	  encryption algorithms to use with TLS connections. Thanks to Toni
 	  Moreno. #946
 	* Barometer plugin: This new plugin reads sensor data from various
 	  Freescale and Bosch digital barometers. Thanks to Tomas Menzl. #69,
 	  #693
-	* Battery plugin: Reporting values as percentages and reporting
-	  degraded batteries has been added. Thanks to Florian Forster.
+	* Battery plugin: Reporting values as percentages and reporting degraded
+	  batteries has been added. Thanks to Florian Forster.
 	* Battery plugin: Support for reading values from sysfs on Linux has
 	  been added. Thanks to Andy Parkins, Nicholas Humfrey, Peter Wu and
 	  Florian Forster. #725, #810, #998
-	* Battery plugin: The value for current is no longer supplied unless
-	  the battery provides this information. Thanks to Florian Forster.
+	* Battery plugin: The value for current is no longer supplied unless the
+	  battery provides this information. Thanks to Florian Forster.
 	* BIND plugin: Bind's XML v3 API is now supported; Thanks to Victor
 	  Berger, Bruno Prémont and Michal Humpula. #742, #847
 	* Ceph plugin: This new plugin collects statistics from the Ceph
 	  distributed storage system. Thanks to Dan Ryder, Dennis Zou, Colin
 	  McCabe, Sage Weil. #522, #598
-	* ConnTrack plugin: Support for reporting values as percentages as
-	  well as legacy conntrack files in "/proc" has been added. Thanks to
+	* ConnTrack plugin: Support for reporting values as percentages as well
+	  as legacy conntrack files in "/proc" has been added. Thanks to
 	  Pierre-Yves Ritschard. #497, #680
-	* CPU plugin: The plugin is now able to report values as percentages
-	  and aggregate values per-state and per-CPU. Thanks to Pierre-Yves
+	* CPU plugin: The plugin is now able to report values as percentages and
+	  aggregate values per-state and per-CPU. Thanks to Pierre-Yves
 	  Ritschard, Florian Forster, Fabien Wernli, Nicholas Humfrey and
 	  Wilfried Goesgens. #499, #516, #639 #734, #812, #802
 	* cURL-JSON plugin: Extracting values from complex JSON structures has
 	  been enhanced. Thanks to Jim Radford. #408, #411
-	* cURL-JSON plugin: Intervals can now be configured on a per-URL
-	  basis. Thanks to Stan Sawa. #685
-	* cURL-JSON, cURL-XML, Write_HTTP plugins: These plugins now also
-	  follow HTTP redirects. Thanks to Marc Fournier.
-	* cURL, cURL-JSON, cURL-XML plugins: HTTP Digest authentication has
-	  been implemented. Thanks to Frank Cornelis. #482
+	* cURL-JSON plugin: Intervals can now be configured on a per-URL basis.
+	  Thanks to Stan Sawa. #685
+	* cURL-JSON, cURL-XML, Write_HTTP plugins: These plugins now also follow
+	  HTTP redirects. Thanks to Marc Fournier.
+	* cURL, cURL-JSON, cURL-XML plugins: HTTP Digest authentication has been
+	  implemented. Thanks to Frank Cornelis. #482
 	* DBI, Oracle, PostgreSQL plugins: A "MetadataFrom" parameter has been
 	  added which allows to set metadata from database columns. Thanks to
 	  Mark Wong. #317, #321
 	* DBI plugin: Querying several databases in parallel is now possible.
 	  Thanks to Vincent Bernat. #453
 	* Disk plugin: On the Linux platform, disk names can now get looked up
-	  in udev with the "UdevNameAttr" option. Thanks to Patrick Mooney.
-	  #537
+	  in udev with the "UdevNameAttr" option. Thanks to Patrick Mooney. #537
 	* Disk plugin: This plugin now collects several additional I/O-related
 	  metrics on the Linux platform. Thanks to Florian Forster and Michael
 	  Schenck. #705, #759
@@ -125,12 +121,12 @@
 	* fhcount plugin: This new plugin reports the number of used file
 	  handles. Thanks to Jiri Tyr. #1009
 	* GenericJMX plugin: A Class Loader for "JMXConnectorFactory" has been
-	  added, allowing the plugin to work with JBOSS > 7. Thanks to
-	  Alexandre Moutot. #452
+	  added, allowing the plugin to work with JBOSS > 7. Thanks to Alexandre
+	  Moutot. #452
 	* IPC plugin: This new plugin collects information related to shared
 	  memory. Thanks to Andrés J. Díaz. #925
-	* Java plugin: Now uses the hostname defined in the configuration
-	  file. Thanks to Pierre-Yves Ritschard. #530, #681
+	* Java plugin: Now uses the hostname defined in the configuration file.
+	  Thanks to Pierre-Yves Ritschard. #530, #681
 	* Load plugin: The plugin is now able to report values as percentages.
 	  Thanks to Vedran Bartonicek and Pierre-Yves Ritschard. #344, #498
 	* Log Logstash plugin: This new plugin writes collectd logs and events
@@ -138,69 +134,68 @@
 	  #360
 	* LVM plugin: The plugin collects thin pool data volumes size, and no
 	  longer reports virtual volumes. Thanks to Benjamin Gilbert. #603
-	* memcached plugin: "listen_disabled_num" are now also reported.
-	  Thanks to Matt Cottingham. #622
+	* memcached plugin: "listen_disabled_num" are now also reported. Thanks
+	  to Matt Cottingham. #622
 	* Memory plugin: Slab memory reporting on the Linux platform has been
 	  added. Thanks to Manuel CISSÉ and Marc Fournier. #560, #697
-	* Memory plugin: The plugin is now able to report values as
-	  percentages. Thanks to Jeremy Katz, Florian Forster and Manuel
-	  CISSÉ. #501, #511, #559
+	* Memory plugin: The plugin is now able to report values as percentages.
+	  Thanks to Jeremy Katz, Florian Forster and Manuel CISSÉ. #501, #511,
+	  #559
 	* Modbus plugin: Selecting between holding and input registers is now
 	  possible. Thanks to Jan Vitek. #338
-	* Modbus plugin: Support for accessing devices through an RS-485
-	  serial port has been added. Thanks to Eric Sandeen.
+	* Modbus plugin: Support for accessing devices through an RS-485 serial
+	  port has been added. Thanks to Eric Sandeen.
 	* Multimeter plugin: This plugin isn't built by default on the AIX
 	  platform anymore. Thanks to Manuel Luis Sanmartin Rozada. #549, #684
 	* MySQL and PostgreSQL plugins: Passing "127.0.0.1" as a host will now
 	  result in the global Hostname being used in metric names. Thanks to
 	  Jeremy Katz. #441
 	* MySQL plugin: InnoDB, Select and Sort statistics collection has been
-	  added. Thanks to Wilson Felipe, Marek Becka and Pierre-Yves
-	  Ritschard. #248, #621, #699, #824
+	  added. Thanks to Wilson Felipe, Marek Becka and Pierre-Yves Ritschard.
+	  #248, #621, #699, #824
 	* MySQL plugin: The "Alias" and "ConnectTimeout" options have been
 	  added. Thanks to William Tisäter.
 	* Netlink plugin: Support for 64bit netlink counters has been added.
 	  Thanks to Marek Becka. #435
-	* Network plugin: The "ReconnectInterval" configuration option has
-	  been added. Thanks to John Ferlito. #732
-	* NFS plugin: Support for NFSv4.0 has been implemented. Thanks to
-	  Marek Becka. #550
-	* OneWire plugin: Support for more temperature-providing sensor
-	  families has been added. Thanks to Tomasz Torcz. #672
+	* Network plugin: The "ReconnectInterval" configuration option has been
+	  added. Thanks to John Ferlito. #732
+	* NFS plugin: Support for NFSv4.0 has been implemented. Thanks to Marek
+	  Becka. #550
+	* OneWire plugin: Support for more temperature-providing sensor families
+	  has been added. Thanks to Tomasz Torcz. #672
 	* OneWire plugin: Support for full OWFS path and more device families
 	  has been implemented. Thanks to Tomas Menzl. #68
 	* OpenLDAP plugin: This new plugin reads monitoring information from
 	  OpenLDAP's "cn=Monitor" subtree. Thanks to Kimo Rosenbaum, Marc
 	  Fournier and Nicholas Humfrey. #719
-	* OpenVPN plugin: Support for OpenVPN 2.3.0 has been implemented.
-	  Thanks to Ed Okerson. #252
-	* OpenVZ plugin: Various improvements have been made, making the
-	  plugin report values like the other collectd plugins do. Thanks to
-	  Chris Lundquist. #264
+	* OpenVPN plugin: Support for OpenVPN 2.3.0 has been implemented. Thanks
+	  to Ed Okerson. #252
+	* OpenVZ plugin: Various improvements have been made, making the plugin
+	  report values like the other collectd plugins do. Thanks to Chris
+	  Lundquist. #264
 	* Perl plugin: A new "listval_filter" method has been added, various
-	  internal cleanups and improvements have been made and a test suite
-	  has been added. Thanks to Matthias Bethke. #728
-	* PostgreSQL plugin: The new "ExpireDelay" option allows skipping
-	  older values pending write when the database slows down. Thanks to
-	  Stephen O'Dor. #593
+	  internal cleanups and improvements have been made and a test suite has
+	  been added. Thanks to Matthias Bethke. #728
+	* PostgreSQL plugin: The new "ExpireDelay" option allows skipping older
+	  values pending write when the database slows down. Thanks to Stephen
+	  O'Dor. #593
 	* PowerDNS plugin: The plugin was updated for stats from pdns 3.4.3.
 	  Thanks to Ruben Kerkhof. #965
-	* Processes plugin: A memory-usage related optimization for
-	  low-profile systems has been added. Thanks to Florian Forster. #652
-	* Python plugin: Support for Python3 has been improved, "ModulePath"
-	  is now prepended to "sys.path", and the "get_dataset()" function has
-	  been added to the Python API. Thanks to Sven Trenkel and Patrick
-	  Browne. #890, #751, #771
+	* Processes plugin: A memory-usage related optimization for low-profile
+	  systems has been added. Thanks to Florian Forster. #652
+	* Python plugin: Support for Python3 has been improved, "ModulePath" is
+	  now prepended to "sys.path", and the "get_dataset()" function has been
+	  added to the Python API. Thanks to Sven Trenkel and Patrick Browne.
+	  #890, #751, #771
 	* Redis and Write_Redis plugins: The support library has been switched
-	  from credis to hiredis. Thanks to Andrés J. Díaz, Victor Seva,
-	  Marc Fournier, Johan Bergström and Michael Spiegle. #296, #464,
-	  #475, #799
+	  from credis to hiredis. Thanks to Andrés J. Díaz, Victor Seva, Marc
+	  Fournier, Johan Bergström and Michael Spiegle. #296, #464, #475, #799
 	* Redis plugin: Custom commands can now be used to fetch values stored
 	  in Redis. Thanks to Pierre-Yves Ritschard. #816
-	* Redis plugin: Support for passwords up to 512 characters long has
-	  been added. Thanks to Jeremy Katz. #532
-	* Sensors plugin: Support for lm_sensors' power sensors has been
-	  added. Thanks to Jan Kundrát. #571
+	* Redis plugin: Support for passwords up to 512 characters long has been
+	  added. Thanks to Jeremy Katz. #532
+	* Sensors plugin: Support for lm_sensors' power sensors has been added.
+	  Thanks to Jan Kundrát. #571
 	* SMART plugin: This new plugin collects SMART statistics from disk
 	  drives. Thanks to Vincent Bernat. #797
 	* SNMP plugin: A blacklist/whitelist feature can now be used to filter
@@ -214,27 +209,26 @@
 	* Swap plugin: The plugin no longer fails on Linux systems where
 	  "SwapCached" isn't exposed by the kernel. Thanks to Florian Forster.
 	  #733
-	* Tail plugin: "GaugeInc" and "GaugeAdd" options have been
-	  implemented. Thanks to Andre Ferraz. #673
+	* Tail plugin: "GaugeInc" and "GaugeAdd" options have been implemented.
+	  Thanks to Andre Ferraz. #673
 	* Tail plugin: Intervals can now be configured on a per-File basis.
 	  Thanks to Tom Leaman. #446
 	* TCPConns plugin: The "AllPortsSummary" option, allowing to summarize
 	  all connections, has been added. Thanks to Marek Becka. #488
 	* TCPConns plugin: Three metrics were renamed on the AIX platform, for
-	  the sake of consistency. Thanks to Manuel Luis Sanmartín Rozada.
-	  #546
+	  the sake of consistency. Thanks to Manuel Luis Sanmartín Rozada. #546
 	* Turbostat plugin: This new plugin reads CPU frequency and C-state
-	  residency on modern Intel turbo-capable processors. Thanks to
-	  Vincent Brillault, Jean Delvare and Nicolas Iooss. #651
-	* UnixSock plugin: The "GETTHRESHOLD" command has been re-added.
-	  Thanks to Manuel Luis Sanmartín Rozada. #674
+	  residency on modern Intel turbo-capable processors. Thanks to Vincent
+	  Brillault, Jean Delvare and Nicolas Iooss. #651
+	* UnixSock plugin: The "GETTHRESHOLD" command has been re-added. Thanks
+	  to Manuel Luis Sanmartín Rozada. #674
 	* Varnish plugin: Varnish 4 support has been added, as well as as
 	  monitoring metrics only available in Varnish 4. Thanks to Marc
 	  Fournier. #618, #783
 	* Virt plugin: Guests memory usage is now also collected. Thanks to
 	  Tiago Carvalho, jazzmes and Zollner Robert.
-	* Virt plugin: It is now possible to chose between using guests' name
-	  or UUID as plugin_instance. Thanks to Remi Ferrand. #385
+	* Virt plugin: It is now possible to chose between using guests' name or
+	  UUID as plugin_instance. Thanks to Remi Ferrand. #385
 	* Virt plugin: The libvirt plugin has been renamed to virt. Thanks to
 	  Florian Forster.
 	* Write Graphite plugin: When the connection to graphite fails,
@@ -243,46 +237,42 @@
 	* Write HTTP plugin: Multi-instance support of this plugin has been
 	  improved. The "<URL "url">" block has been deprecated in favor of
 	  "<Node "identifier">". Thanks to Marc Fournier. #902
-	* Write HTTP plugin: Several TLS-related configuration options have
-	  been added. Thanks to Ingmar Runge. #666
-	* Write HTTP plugin: The "LowSpeedLimit" and "Timeout" options allow
-	  to reset slow/stalled network connections. Thanks to loginator17 and
-	  Marc Fournier. #752, #985
+	* Write HTTP plugin: Several TLS-related configuration options have been
+	  added. Thanks to Ingmar Runge. #666
+	* Write HTTP plugin: The "LowSpeedLimit" and "Timeout" options allow to
+	  reset slow/stalled network connections. Thanks to loginator17 and Marc
+	  Fournier. #752, #985
 	* Write HTTP plugin: The size of the payload posted to the HTTP server
-	  can now be controlled with the "BufferSize" option. Thanks to
-	  Florian Forster. #722
+	  can now be controlled with the "BufferSize" option. Thanks to Florian
+	  Forster. #722
 	* Write Kafka plugin: This new plugin sends data to Apache Kafka, a
 	  distributed messaging queue. Thanks to Pierre-Yves Ritschard,
-	  ciomaire, Vincent Bernat, Marc Fournier. #670, #694, #794, #853,
-	  #014
+	  ciomaire, Vincent Bernat, Marc Fournier. #670, #694, #794, #853, #014
 	* Write Log plugin: This new plugin dispatches collected values to the
 	  configured log destination(s). Thanks to Pierre-Yves Ritschard. #886
 	* Write Riemann plugin: Extra meta strings are now added as attributes
 	  in notifications. Thanks to John-John Tedro. #417
-	* Write Riemann plugin: Notification message are now sent to the
-	  Riemann server via the description field. Thanks to Adrian Miron.
-	  #575
+	* Write Riemann plugin: Notification message are now sent to the Riemann
+	  server via the description field. Thanks to Adrian Miron. #575
 	* Write Riemann plugin: Support for custom attributes has been added.
 	  Thanks to Pierre-Yves Ritschard. #459
-	* Write Riemann plugin: Support had been implemented for sending
-	  events to Riemann in batches (when using TCP), and is enabled by
-	  default. Thanks to Pierre-Yves Ritschard. #800
-	* Write Riemann plugin: The "EventServicePrefix" option has been
-	  added, which adds a prefix to event service names. Thanks to Moshe
-	  Zada. #706
+	* Write Riemann plugin: Support had been implemented for sending events
+	  to Riemann in batches (when using TCP), and is enabled by default.
+	  Thanks to Pierre-Yves Ritschard. #800
+	* Write Riemann plugin: The "EventServicePrefix" option has been added,
+	  which adds a prefix to event service names. Thanks to Moshe Zada. #706
 	* Write Riemann plugin: Threshold checks can now be passed down to the
 	  Riemann server. Thanks to Pierre-Yves Ritschard. #518
-	* Write Sensu plugin: This new plugin submits values to Sensu, a
-	  stream processing and monitoring system. Thanks to Fabrice A. Marie
-	  and Marc Fournier. #912, #1001, #1016
-	* Write TSDB plugin: This new plugin sends data to OpenTSDB, a
-	  scalable time series database. Thanks to Kevin Bowling, Florian
-	  Forster, Dallin Young, Michael Schenck and Pierre-Yves Ritschard.
-	  #703, #772, #945
+	* Write Sensu plugin: This new plugin submits values to Sensu, a stream
+	  processing and monitoring system. Thanks to Fabrice A. Marie and Marc
+	  Fournier. #912, #1001, #1016
+	* Write TSDB plugin: This new plugin sends data to OpenTSDB, a scalable
+	  time series database. Thanks to Kevin Bowling, Florian Forster, Dallin
+	  Young, Michael Schenck and Pierre-Yves Ritschard. #703, #772, #945
 	* ZFS ARC plugin: Support for ZFS-on-Linux has been added. Thanks to
 	  Marc Fournier and Wilfried Goesgens. #552
-	* Zookeeper plugin: This new plugin reads data from the Apache
-	  Zookeeper "MNTR" command. Thanks to Jeremy Katz. #826
+	* Zookeeper plugin: This new plugin reads data from the Apache Zookeeper
+	  "MNTR" command. Thanks to Jeremy Katz. #826
 
 2015-02-26, Version 5.4.2
 	* Build system: Numerous fixes. Thanks to Bjørn Nordbø, Jim Radford,
