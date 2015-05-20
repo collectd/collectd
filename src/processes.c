@@ -805,8 +805,8 @@ static int ps_read_tasks (int pid)
 	return ((count >= 1) ? count : 1);
 } /* int *ps_read_tasks */
 
-/* Read advanced virtual memory data from /proc/pid/status */
-static procstat_t *ps_read_vmem (int pid, procstat_t *ps)
+/* Read data from /proc/pid/status */
+static procstat_t *ps_read_status (int pid, procstat_t *ps)
 {
 	FILE *fh;
 	char buffer[1024];
@@ -814,6 +814,7 @@ static procstat_t *ps_read_vmem (int pid, procstat_t *ps)
 	unsigned long long lib = 0;
 	unsigned long long exe = 0;
 	unsigned long long data = 0;
+	unsigned long long threads = 0;
 	char *fields[8];
 	int numfields;
 
@@ -826,7 +827,8 @@ static procstat_t *ps_read_vmem (int pid, procstat_t *ps)
 		long long tmp;
 		char *endptr;
 
-		if (strncmp (buffer, "Vm", 2) != 0)
+		if (strncmp (buffer, "Vm", 2) != 0
+				|| strncmp (buffer, "Threads", 7) != 0)
 			continue;
 
 		numfields = strsplit (buffer, fields,
@@ -852,6 +854,10 @@ static procstat_t *ps_read_vmem (int pid, procstat_t *ps)
 			{
 				exe = tmp;
 			}
+			else if  (strncmp(buffer, "Threads", 7) == 0)
+			{
+				threads = tmp;
+			}
 		}
 	} /* while (fgets) */
 
@@ -864,6 +870,7 @@ static procstat_t *ps_read_vmem (int pid, procstat_t *ps)
 
 	ps->vmem_data = data * 1024;
 	ps->vmem_code = (exe + lib) * 1024;
+	ps->num_lwp = threads;
 
 	return (ps);
 } /* procstat_t *ps_read_vmem */
@@ -1006,10 +1013,21 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 	}
 	else
 	{
-		if ( (ps->num_lwp = ps_read_tasks (pid)) == -1 )
+		if ( (ps_read_status(pid, ps)) == NULL)
 		{
-			/* returns -1 => kernel 2.4 */
-			ps->num_lwp = 1;
+			/* No VMem data */
+			ps->vmem_data = -1;
+			ps->vmem_code = -1;
+			ps->num_lwp  = 0;
+			DEBUG("ps_read_process: did not get vmem data for pid %i",pid);
+		}
+		if ( ps->num_lwp <= 0)
+		{
+			if ( (ps->num_lwp = ps_read_tasks (pid)) == -1 )
+			{
+				/* returns -1 => kernel 2.4 */
+				ps->num_lwp = 1;
+			}
 		}
 		ps->num_proc = 1;
 	}
@@ -1042,14 +1060,6 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 	cpu_user_counter   = cpu_user_counter   * 1000000 / CONFIG_HZ;
 	cpu_system_counter = cpu_system_counter * 1000000 / CONFIG_HZ;
 	vmem_rss = vmem_rss * pagesize_g;
-
-	if ( (ps_read_vmem(pid, ps)) == NULL)
-	{
-		/* No VMem data */
-		ps->vmem_data = -1;
-		ps->vmem_code = -1;
-		DEBUG("ps_read_process: did not get vmem data for pid %i",pid);
-	}
 
 	ps->cpu_user_counter = cpu_user_counter;
 	ps->cpu_system_counter = cpu_system_counter;
