@@ -2335,15 +2335,15 @@ fi
 %doc contrib/
 
 %changelog
-# * TODO 5.5.0-1
-# - New upstream version
-# - New plugins enabled by default: ceph, drbd, log_logstash, write_tsdb, smart, openldap, redis, write_redis, zookeeper, write_log, write_sensu, ipc, turbostat
-# - New plugins disabled by default: barometer, write_kafka
-# - Enable zfs_arc, now supported on Linux
-# - Install disk plugin in a dedicated package, as it depends on libudev
-# - use systemd on EL7, sysvinit on EL6 & EL5
-# - Install collectdctl, collectd-tg and collectd-nagios in collectd-utils.rpm
-# - Add build-dependency on libcap-devel
+* Wed May 20 2015 5.5.0-1
+- New upstream version
+- New plugins enabled by default: ceph, drbd, log_logstash, write_tsdb, smart, openldap, redis, write_redis, zookeeper, write_log, write_sensu, ipc, turbostat, fhcount
+- New plugins disabled by default: barometer, write_kafka
+- Enable zfs_arc, now supported on Linux
+- Install disk plugin in a dedicated package, as it depends on libudev
+- use systemd on EL7, sysvinit on EL6 & EL5
+- Install collectdctl, collectd-tg and collectd-nagios in collectd-utils.rpm
+- Add build-dependency on libcap-devel
 
 * Mon Aug 19 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.4.0-1
 - New upstream version
