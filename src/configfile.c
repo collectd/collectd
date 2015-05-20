@@ -69,7 +69,7 @@ typedef struct cf_complex_callback_s
 typedef struct cf_value_map_s
 {
 	char *key;
-	int (*func) (const oconfig_item_t *);
+	int (*func) (oconfig_item_t *);
 } cf_value_map_t;
 
 typedef struct cf_global_option_s
@@ -82,9 +82,10 @@ typedef struct cf_global_option_s
 /*
  * Prototypes of callback functions
  */
-static int dispatch_value_typesdb (const oconfig_item_t *ci);
-static int dispatch_value_plugindir (const oconfig_item_t *ci);
-static int dispatch_loadplugin (const oconfig_item_t *ci);
+static int dispatch_value_typesdb (oconfig_item_t *ci);
+static int dispatch_value_plugindir (oconfig_item_t *ci);
+static int dispatch_loadplugin (oconfig_item_t *ci);
+static int dispatch_block_plugin (oconfig_item_t *ci);
 
 /*
  * Private variables
@@ -96,7 +97,8 @@ static cf_value_map_t cf_value_map[] =
 {
 	{"TypesDB",    dispatch_value_typesdb},
 	{"PluginDir",  dispatch_value_plugindir},
-	{"LoadPlugin", dispatch_loadplugin}
+	{"LoadPlugin", dispatch_loadplugin},
+	{"Plugin",     dispatch_block_plugin}
 };
 static int cf_value_map_num = STATIC_ARRAY_SIZE (cf_value_map);
 
@@ -219,7 +221,7 @@ static int dispatch_global_option (const oconfig_item_t *ci)
 	return (-1);
 } /* int dispatch_global_option */
 
-static int dispatch_value_typesdb (const oconfig_item_t *ci)
+static int dispatch_value_typesdb (oconfig_item_t *ci)
 {
 	int i = 0;
 
@@ -245,7 +247,7 @@ static int dispatch_value_typesdb (const oconfig_item_t *ci)
 	return (0);
 } /* int dispatch_value_typesdb */
 
-static int dispatch_value_plugindir (const oconfig_item_t *ci)
+static int dispatch_value_plugindir (oconfig_item_t *ci)
 {
 	assert (strcasecmp (ci->key, "PluginDir") == 0);
 	
@@ -258,7 +260,7 @@ static int dispatch_value_plugindir (const oconfig_item_t *ci)
 	return (0);
 }
 
-static int dispatch_loadplugin (const oconfig_item_t *ci)
+static int dispatch_loadplugin (oconfig_item_t *ci)
 {
 	int i;
 	const char *name;
@@ -344,7 +346,7 @@ static int dispatch_value_plugin (const char *plugin, oconfig_item_t *ci)
 	return (cf_dispatch (plugin, ci->key, buffer_ptr));
 } /* int dispatch_value_plugin */
 
-static int dispatch_value (const oconfig_item_t *ci)
+static int dispatch_value (oconfig_item_t *ci)
 {
 	int ret = -2;
 	int i;
