@@ -769,6 +769,8 @@
 #		AuthFile "/etc/collectd/passwd"
 #		Interface "eth0"
 #	</Listen>
+#	ReapTime 0
+#	MaxAge 0
 #	MaxPacketSize 1452
 #
 #	# proxy setup (client and server as above):

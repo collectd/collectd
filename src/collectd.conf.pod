@@ -4100,6 +4100,18 @@ multicast, and IPv4 and IPv6 packets. The default is to not change this value.
 That means that multicast packets will be sent with a TTL of C<1> (one) on most
 operating systems.
 
+=item B<ReapTime> I<Milliseconds>
+
+Specifies the the interval, in milliseconds, between runs of the thread to
+check if data in send buffer is older than B<MaxAge>. Set to zero to disable
+time based flushing (this is the default).
+
+=item B<MaxAge> I<Milliseconds>
+
+Flush the data in send buffer when the oldest data in the buffer is older
+than B<MaxAge>. Set to zero to disable time based flushing
+(this is the default).
+
 =item B<MaxPacketSize> I<1024-65535>
 
 Set the maximum size for datagrams received over the network. Packets larger
