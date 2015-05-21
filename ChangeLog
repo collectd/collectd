@@ -1,4 +1,4 @@
-2015-05-20, Version 5.5.0
+2015-05-21, Version 5.5.0
 	* Build system: Ability to make out-of-tree builds has been fixed.
 	  Thanks to Vincent Bernat. #792
 	* Build system, Disk and Users plugins: Detection and use of libstatgrab
@@ -43,13 +43,13 @@
 	* Examples: the sample C plugin has been updated to the current plugin
 	  API. Thanks to Sebastian Harl.
 	* Licensing: The following components have been relicensed to the MIT
-	  license: the Apple_Sensors, Ascent, DBI, E-Mail, Entropy, GenericJMX,
-	  gmond, Java, LogFile, nginx, Notify_Desktop, NTPd, NUT, olsrd, Perl,
-	  Ping, PostgreSQL, Protocols, RouterOS, RRDCacheD, SNMP, StatsD,
-	  SysLog, Table, Tail, UnixSock, vmem, VServer, Wireless, Write_Riemann
-	  and XMMS plugins, the core collectd daemon, the collectdmon,
-	  collectd-nagios and collectd-tg utilities, all the Targets and
-	  Matches, liboconfig, most of the "utils_*" files and the plugin API.
+	  license: the Apple Sensors, Ascent, DBI, E-Mail, Entropy, GenericJMX,
+	  gmond, LogFile, nginx, Notify Desktop, NTPd, NUT, olsrd, Perl, Ping,
+	  PostgreSQL, Protocols, RouterOS, RRDCacheD, SNMP, StatsD, SysLog,
+	  Table, Tail, UnixSock, vmem, VServer, Wireless, Write Riemann and XMMS
+	  plugins, the core collectd daemon, the collectdmon, collectd-nagios
+	  and collectd-tg utilities, all the Targets and Matches, liboconfig,
+	  most of the "utils_*" files and the plugin API.
 	* Tests: A test suite has been added. Thanks to Florian Forster.
 	* Threshold: The hysteresis calculation has been made more reliable.
 	  Thanks to Jan Kundrát. #581
@@ -68,7 +68,7 @@
 	  connection will be reset if it hasn't completed within the configured
 	  "Interval". The new "Timeout" option gives control over this behavior.
 	  Thanks to Jan Kundrát and Marc Fournier. #982, #983, #993
-	* Apache, Ascent, cURL, cURL-JSON, cURL-XML, nginx, Write_HTTP plugins:
+	* Apache, Ascent, cURL, cURL-JSON, cURL-XML, nginx, Write HTTP plugins:
 	  Allow usernames and passwords to contain colons if built against
 	  libcurl ≧ 7.19.1. Thanks to Marc Fournier. #695, #947
 	* Apache plugin: The "SSLCiphers" option gives control over the
@@ -100,7 +100,7 @@
 	  been enhanced. Thanks to Jim Radford. #408, #411
 	* cURL-JSON plugin: Intervals can now be configured on a per-URL basis.
 	  Thanks to Stan Sawa. #685
-	* cURL-JSON, cURL-XML, Write_HTTP plugins: These plugins now also follow
+	* cURL-JSON, cURL-XML, Write HTTP plugins: These plugins now also follow
 	  HTTP redirects. Thanks to Marc Fournier.
 	* cURL, cURL-JSON, cURL-XML plugins: HTTP Digest authentication has been
 	  implemented. Thanks to Frank Cornelis. #482
@@ -225,11 +225,11 @@
 	* Varnish plugin: Varnish 4 support has been added, as well as as
 	  monitoring metrics only available in Varnish 4. Thanks to Marc
 	  Fournier. #618, #783
-	* Virt plugin: Guests memory usage is now also collected. Thanks to
+	* virt plugin: Guests memory usage is now also collected. Thanks to
 	  Tiago Carvalho, jazzmes and Zollner Robert.
-	* Virt plugin: It is now possible to chose between using guests' name or
+	* virt plugin: It is now possible to chose between using guests' name or
 	  UUID as plugin_instance. Thanks to Remi Ferrand. #385
-	* Virt plugin: The libvirt plugin has been renamed to virt. Thanks to
+	* virt plugin: The libvirt plugin has been renamed to virt. Thanks to
 	  Florian Forster.
 	* Write Graphite plugin: When the connection to graphite fails,
 	  reconnection attempts are now limited to once per second. Thanks to

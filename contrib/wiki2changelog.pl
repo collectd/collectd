@@ -71,5 +71,5 @@ while (<>)
 	$line =~ s#''(.*?)''#$1#g;
 	$line =~ s#<code>(.*?)</code>#"$1"#gi;
 
-	print format_line($line);
+	print format_entry($line);
 }
