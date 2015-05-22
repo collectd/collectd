@@ -468,16 +468,14 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 
 	// calculate the value and set to a string
 	if (ds->ds[index].type == DS_TYPE_GAUGE) {
-		double tmp_v = (double) vl->values[index].gauge;
-		res = asprintf(&value_str, "%.8f", tmp_v);
+		res = asprintf(&value_str, GAUGE_FORMAT, vl->values[index].gauge);
 		if (res == -1) {
 			free(ret_str);
 			ERROR("write_sensu plugin: Unable to alloc memory");
 			return NULL;
 		}
 	} else if (rates != NULL) {
-		double tmp_v = (double) rates[index];
-		res = asprintf(&value_str, "%.8f", tmp_v);
+		res = asprintf(&value_str, GAUGE_FORMAT, rates[index]);
 		if (res == -1) {
 			free(ret_str);
 			ERROR("write_sensu plugin: Unable to alloc memory");
