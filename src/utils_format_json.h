@@ -26,7 +26,7 @@
 #include "plugin.h"
 
 #ifndef JSON_GAUGE_FORMAT
-# define JSON_GAUGE_FORMAT "%.15g"
+# define JSON_GAUGE_FORMAT GAUGE_FORMAT
 #endif
 
 int format_json_initialize (char *buffer,
