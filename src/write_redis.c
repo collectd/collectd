@@ -84,7 +84,7 @@ static int wr_write (const data_set_t *ds, /* {{{ */
   }                                                                  \
 } while (0)
 
-  APPEND ("%lu:", (unsigned long) vl->time);
+  APPEND ("%.3f:", CDTIME_T_TO_DOUBLE (vl->time));
   for (i = 0; i < ds->ds_num; i++)
   {
     if (ds->ds[i].type == DS_TYPE_COUNTER)
