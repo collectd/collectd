@@ -180,6 +180,8 @@ typedef struct procstat_entry_s
 	derive_t io_syscr;
 	derive_t io_syscw;
 
+	unsigned long nfd;
+
 	struct procstat_entry_s *next;
 } procstat_entry_t;
 
@@ -211,11 +213,15 @@ typedef struct procstat
 	derive_t io_syscr;
 	derive_t io_syscw;
 
+	unsigned long nfd;
+
 	struct procstat   *next;
 	struct procstat_entry_s *instances;
 } procstat_t;
 
 static procstat_t *list_head_g = NULL;
+
+static _Bool ps_fd = 0;
 
 #if HAVE_THREAD_INFO
 static mach_port_t port_host_self;
@@ -398,6 +404,7 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 		pse->io_wchar   = entry->io_wchar;
 		pse->io_syscr   = entry->io_syscr;
 		pse->io_syscw   = entry->io_syscw;
+		pse->nfd        = entry->nfd;
 
 		ps->num_proc   += pse->num_proc;
 		ps->num_lwp    += pse->num_lwp;
@@ -411,6 +418,8 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 		ps->io_wchar   += ((pse->io_wchar == -1)?0:pse->io_wchar);
 		ps->io_syscr   += ((pse->io_syscr == -1)?0:pse->io_syscr);
 		ps->io_syscw   += ((pse->io_syscw == -1)?0:pse->io_syscw);
+
+		ps->nfd += ((pse->nfd == -1)?0:pse->nfd);
 
 		if ((entry->vmem_minflt_counter == 0)
 				&& (entry->vmem_majflt_counter == 0))
@@ -508,6 +517,7 @@ static void ps_list_reset (void)
 		ps->io_wchar = -1;
 		ps->io_syscr = -1;
 		ps->io_syscw = -1;
+		ps->nfd = 0;
 
 		pse_prev = NULL;
 		pse = ps->instances;
@@ -591,6 +601,18 @@ static int ps_config (oconfig_item_t *ci)
 
 			ps_list_register (c->values[0].value.string,
 					c->values[1].value.string);
+		}
+		else if (strcasecmp (c->key, "CollectFileDescriptor") == 0)
+		{
+
+			if ((c->values_num != 1)
+				|| (c->values[0].type != OCONFIG_TYPE_BOOLEAN))
+			{
+				ERROR ("processes plugin: `CollectFileDescriptor' needs exactly "
+					"one boolean argument.");
+				continue;
+			}
+			ps_fd = c->values[0].value.boolean ? 1 : 0;
 		}
 		else
 		{
@@ -741,19 +763,29 @@ static void ps_submit_proc_list (procstat_t *ps)
 		plugin_dispatch_values (&vl);
 	}
 
+	if ( ps_fd )
+	{
+		sstrncpy (vl.type, "ps_fd", sizeof (vl.type));
+		vl.values[0].gauge = ps->nfd;
+		vl.values_len = 1;
+		plugin_dispatch_values (&vl);
+	}
+
 	DEBUG ("name = %s; num_proc = %lu; num_lwp = %lu; "
 			"vmem_size = %lu; vmem_rss = %lu; vmem_data = %lu; "
 			"vmem_code = %lu; "
 			"vmem_minflt_counter = %"PRIi64"; vmem_majflt_counter = %"PRIi64"; "
 			"cpu_user_counter = %"PRIi64"; cpu_system_counter = %"PRIi64"; "
 			"io_rchar = %"PRIi64"; io_wchar = %"PRIi64"; "
-			"io_syscr = %"PRIi64"; io_syscw = %"PRIi64";",
+			"io_syscr = %"PRIi64"; io_syscw = %"PRIi64";"
+			"fds = %"PRIi64";",
 			ps->name, ps->num_proc, ps->num_lwp,
 			ps->vmem_size, ps->vmem_rss,
 			ps->vmem_data, ps->vmem_code,
 			ps->vmem_minflt_counter, ps->vmem_majflt_counter,
 			ps->cpu_user_counter, ps->cpu_system_counter,
-			ps->io_rchar, ps->io_wchar, ps->io_syscr, ps->io_syscw);
+			ps->io_rchar, ps->io_wchar, ps->io_syscr, ps->io_syscw,
+			ps->nfd);
 } /* void ps_submit_proc_list */
 
 #if KERNEL_LINUX || KERNEL_SOLARIS
@@ -778,6 +810,34 @@ static void ps_submit_fork_rate (derive_t value)
 
 /* ------- additional functions for KERNEL_LINUX/HAVE_THREAD_INFO ------- */
 #if KERNEL_LINUX
+static int ps_read_fds (int pid)
+{
+	char           dirname[64];
+	DIR           *dh;
+	struct dirent *ent;
+	int count = 0;
+
+	ssnprintf (dirname, sizeof (dirname), "/proc/%i/fd", pid);
+
+	if ((dh = opendir (dirname)) == NULL)
+	{
+		DEBUG ("Failed to open directory `%s'", dirname);
+		return (-1);
+	}
+
+	while ((ent = readdir (dh)) != NULL)
+	{
+		if (!isdigit ((int) ent->d_name[0]))
+			continue;
+		else
+			count++;
+	}
+
+	closedir (dh);
+
+	return count;
+} /* int *ps_read_fds */
+
 static int ps_read_tasks (int pid)
 {
 	char           dirname[64];
@@ -1066,6 +1126,15 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 		ps->io_syscw = -1;
 
 		DEBUG("ps_read_process: not get io data for pid %i",pid);
+	}
+
+	if ( ps_fd )
+	{
+		if ( (ps->nfd = ps_read_fds(pid)) < 0)
+		{
+			DEBUG("ps_read_fds: not get file descriptors "
+				"for pid %i",pid);
+		}
 	}
 
 	/* success */
@@ -1765,6 +1834,8 @@ static int ps_read (void)
 		pse.io_wchar = ps.io_wchar;
 		pse.io_syscr = ps.io_syscr;
 		pse.io_syscw = ps.io_syscw;
+
+		pse.nfd = ps.nfd;
 
 		switch (state)
 		{
