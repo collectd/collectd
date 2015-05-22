@@ -115,7 +115,8 @@ static cf_global_option_t cf_global_options[] = {
     {"CollectInternalStats", NULL, 0, "false"},
     {"PreCacheChain", NULL, 0, "PreCache"},
     {"PostCacheChain", NULL, 0, "PostCache"},
-    {"MaxReadInterval", NULL, 0, "86400"}};
+    {"MaxReadInterval", NULL, 0, "86400"}
+	{"NormalizeInterval", NULL, "false"}};
 static int cf_global_options_num = STATIC_ARRAY_SIZE(cf_global_options);
 
 static int cf_default_typesdb = 1;

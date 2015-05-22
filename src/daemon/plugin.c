@@ -406,6 +406,21 @@ static int plugin_unregister(llist_t *list, const char *name) /* {{{ */
   return 0;
 } /* }}} int plugin_unregister */
 
+static cdtime_t plugin_normalize_interval (cdtime_t cdtime, cdtime_t cdinterval)
+{
+  cdtime_t rest;
+
+  if (IS_TRUE (global_option_get ("NormalizeInterval"))) {
+    rest = cdtime % cdinterval;
+    if (rest == 0) {
+      return cdtime;
+    }
+    return (cdtime - rest + cdinterval);
+  }
+
+  return cdtime;
+}
+
 /* plugin_load_file loads the shared object "file" and calls its
  * "module_register" function. Returns zero on success, non-zero otherwise. */
 static int plugin_load_file(char const *file, bool global) {
@@ -478,7 +493,7 @@ static void *plugin_read_thread(void __attribute__((unused)) * args) {
       rf->rf_interval = plugin_get_interval();
       rf->rf_effective_interval = rf->rf_interval;
 
-      rf->rf_next_read = cdtime();
+      rf->rf_next_read = plugin_normalize_interval(cdtime (), rf->rf_interval);
     }
 
     /* sleep until this entry is due,
@@ -588,7 +603,7 @@ static void *plugin_read_thread(void __attribute__((unused)) * args) {
       /* `rf_next_read' is in the past. Insert `now'
        * so this value doesn't trail off into the
        * past too much. */
-      rf->rf_next_read = now;
+      rf->rf_next_read = plugin_normalize_interval(now, rf->rf_effective_interval);
     }
 
     DEBUG("plugin_read_thread: Next read of the `%s' plugin at %.3f.",
@@ -1092,7 +1107,7 @@ static int plugin_insert_read(read_func_t *rf) {
   int status;
   llentry_t *le;
 
-  rf->rf_next_read = cdtime();
+  rf->rf_next_read = plugin_normalize_interval(cdtime (), rf->rf_interval);
   rf->rf_effective_interval = rf->rf_interval;
 
   pthread_mutex_lock(&read_lock);
