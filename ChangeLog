@@ -1,4 +1,4 @@
-2015-05-21, Version 5.5.0
+2015-05-22, Version 5.5.0
 	* Build system: Ability to make out-of-tree builds has been fixed.
 	  Thanks to Vincent Bernat. #792
 	* Build system, Disk and Users plugins: Detection and use of libstatgrab
