@@ -968,18 +968,17 @@ int format_values (char *ret, size_t ret_len, /* {{{ */
         for (i = 0; i < ds->ds_num; i++)
         {
                 if (ds->ds[i].type == DS_TYPE_GAUGE)
-                        BUFFER_ADD (":%f", vl->values[i].gauge);
+                        BUFFER_ADD (":"GAUGE_FORMAT, vl->values[i].gauge);
                 else if (store_rates)
                 {
                         if (rates == NULL)
                                 rates = uc_get_rate (ds, vl);
                         if (rates == NULL)
                         {
-                                WARNING ("format_values: "
-						"uc_get_rate failed.");
+                                WARNING ("format_values: uc_get_rate failed.");
                                 return (-1);
                         }
-                        BUFFER_ADD (":%g", rates[i]);
+                        BUFFER_ADD (":"GAUGE_FORMAT, rates[i]);
                 }
                 else if (ds->ds[i].type == DS_TYPE_COUNTER)
                         BUFFER_ADD (":%llu", vl->values[i].counter);
@@ -989,7 +988,7 @@ int format_values (char *ret, size_t ret_len, /* {{{ */
                         BUFFER_ADD (":%"PRIu64, vl->values[i].absolute);
                 else
                 {
-                        ERROR ("format_values plugin: Unknown data source type: %i",
+                        ERROR ("format_values: Unknown data source type: %i",
                                         ds->ds[i].type);
                         sfree (rates);
                         return (-1);

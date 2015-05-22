@@ -256,12 +256,12 @@ static int tn_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
     /* If this is a gauge value, use the current value. */
     if (ds->ds[i].type == DS_TYPE_GAUGE)
       ssnprintf (value_str, sizeof (value_str),
-          "%g", (double) vl->values[i].gauge);
+          GAUGE_FORMAT, (double) vl->values[i].gauge);
     /* If it's a counter, try to use the current rate. This may fail, if the
      * value has been renamed. */
     else if (rates != NULL)
       ssnprintf (value_str, sizeof (value_str),
-          "%g", (double) rates[i]);
+          GAUGE_FORMAT, (double) rates[i]);
     /* Since we don't know any better, use the string `unknown'. */
     else
       sstrncpy (value_str, "unknown", sizeof (value_str));

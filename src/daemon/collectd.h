@@ -304,6 +304,10 @@ typedef int _Bool;
 # endif
 #endif
 
+#ifndef GAUGE_FORMAT
+# define GAUGE_FORMAT "%.15g"
+#endif
+
 /* Type for time as used by "utils_time.h" */
 typedef uint64_t cdtime_t;
 

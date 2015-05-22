@@ -227,7 +227,7 @@ static int value_list_to_string_multiple (char *buffer, int buffer_len,
 					":%llu", vl->values[i].counter);
 		else if (ds->ds[i].type == DS_TYPE_GAUGE)
 			status = ssnprintf (buffer + offset, buffer_len - offset,
-					":%lf", vl->values[i].gauge);
+					":"GAUGE_FORMAT, vl->values[i].gauge);
 		else if (ds->ds[i].type == DS_TYPE_DERIVE)
 			status = ssnprintf (buffer + offset, buffer_len - offset,
 					":%"PRIi64, vl->values[i].derive);
@@ -262,7 +262,7 @@ static int value_list_to_string (char *buffer, int buffer_len,
 				(unsigned) tt, vl->values[0].derive);
 			break;
 		case DS_TYPE_GAUGE:
-			status = ssnprintf (buffer, buffer_len, "%u:%lf",
+			status = ssnprintf (buffer, buffer_len, "%u:"GAUGE_FORMAT,
 				(unsigned) tt, vl->values[0].gauge);
 			break;
 		case DS_TYPE_COUNTER:
