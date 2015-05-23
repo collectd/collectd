@@ -177,6 +177,8 @@ typedef struct user_data_s user_data_t;
 struct plugin_ctx_s
 {
 	cdtime_t interval;
+	cdtime_t flush_interval;
+	cdtime_t flush_timeout;
 };
 typedef struct plugin_ctx_s plugin_ctx_t;
 
