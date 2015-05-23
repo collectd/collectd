@@ -322,6 +322,17 @@ int plugin_unregister_data_set (const char *name);
 int plugin_unregister_log (const char *name);
 int plugin_unregister_notification (const char *name);
 
+/*
+ * NAME
+ *  plugin_log_available_writers
+ *
+ * DESCRIPTION
+ *  This function can be called to output a list of _all_ registered
+ *  writers to the logfacility.
+ *  Since some writers dynamically build their name it can be hard for
+ *  the configuring person to know it. This function will fill this gap. 
+ */
+void plugin_log_available_writers ();
 
 /*
  * NAME
