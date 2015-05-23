@@ -733,6 +733,8 @@ static int fc_bit_write_invoke (const data_set_t *ds, /* {{{ */
           "all write plugins failed with status %i (ENOENT). "
           "Most likely this means you didn't load any write plugins.",
           status);
+
+      plugin_log_available_writers ();
     }
     else if (status != 0)
     {
@@ -763,6 +765,8 @@ static int fc_bit_write_invoke (const data_set_t *ds, /* {{{ */
             "Filter subsystem: Built-in target `write': Dispatching value to "
             "the `%s' plugin failed with status %i.",
             plugin_list[i].plugin, status);
+
+	plugin_log_available_writers ();
       }
       else
       {

@@ -307,6 +307,56 @@ static int register_callback (llist_t **list, /* {{{ */
 	return (0);
 } /* }}} int register_callback */
 
+static void log_list_callbacks (llist_t **list, /* {{{ */
+				const char *comment)
+{
+	char *str;
+	int len;
+	llentry_t *le;
+	int i;
+	int n;
+	char **keys;
+
+	n = llist_size(*list);
+	if (n == 0)
+	{
+		INFO("%s [none]", comment);
+		return;
+	}
+
+	keys = calloc(n, sizeof(char*));
+
+	if (keys == NULL)
+	{
+		ERROR("%s: failed to allocate memory for list of callbacks",
+		      comment);
+
+		return;
+	}
+
+	for (le = llist_head (*list), i = 0, len = 0;
+	     le != NULL;
+	     le = le->next, i++)
+	{
+		keys[i] = le->key;
+		len += strlen(le->key) + 6;
+	}
+	str = malloc(len + 10);
+	if (str == NULL)
+	{
+		ERROR("%s: failed to allocate memory for list of callbacks",
+		      comment);
+	}
+	else
+	{
+		*str = '\0';
+		strjoin(str, len, keys, n, "', '");
+		INFO("%s ['%s']", comment, str);
+		free(str);
+	}
+	free(keys);
+} /* }}} void log_list_callbacks */
+
 static int create_register_callback (llist_t **list, /* {{{ */
 		const char *name, void *callback, user_data_t *ud)
 {
@@ -1397,6 +1447,11 @@ int plugin_unregister_read (const char *name) /* {{{ */
 
 	return (0);
 } /* }}} int plugin_unregister_read */
+
+void plugin_log_available_writers ()
+{
+	log_list_callbacks (&list_write, "Available writers:");
+}
 
 static int compare_read_func_group (llentry_t *e, void *ud) /* {{{ */
 {
