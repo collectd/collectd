@@ -754,9 +754,6 @@ static int statsd_metric_submit_unsafe (char const *name, /* {{{ */
   {
     size_t i;
 
-    if (metric->updates_num == 0)
-      return (0);
-
     vl.time = cdtime ();
 
     ssnprintf (vl.type_instance, sizeof (vl.type_instance),
