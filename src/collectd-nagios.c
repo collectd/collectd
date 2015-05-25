@@ -94,6 +94,7 @@ typedef struct range_s range_t;
 extern char *optarg;
 extern int optind, opterr, optopt;
 
+static int   use_tcp_g = 0;
 static char *socket_file_g = NULL;
 static char *value_string_g = NULL;
 static char *hostname_g = NULL;
@@ -251,6 +252,7 @@ static void usage (const char *name)
 			"\n"
 			"Valid options are:\n"
 			"  -s <socket>    Path to collectd's UNIX-socket.\n"
+			"  -t             Connect to a listening TCP socket instead of a UNIX socket\n"
 			"  -n <v_spec>    Value specification to get from collectd.\n"
 			"                 Format: `plugin-instance/type-instance'\n"
 			"  -d <ds>        Select the DS to examine. May be repeated to examine multiple\n"
@@ -652,7 +654,7 @@ int main (int argc, char **argv)
 	{
 		int c;
 
-		c = getopt (argc, argv, "w:c:s:n:H:g:d:hm");
+		c = getopt (argc, argv, "w:c:s:n:H:g:d:hmt");
 		if (c < 0)
 			break;
 
@@ -667,6 +669,8 @@ int main (int argc, char **argv)
 			case 's':
 				socket_file_g = optarg;
 				break;
+			case 't':
+				use_tcp_g = 1;
 			case 'n':
 				value_string_g = optarg;
 				break;
@@ -727,7 +731,12 @@ int main (int argc, char **argv)
 		usage (argv[0]);
 	}
 
-	snprintf (address, sizeof (address), "unix:%s", socket_file_g);
+	if (use_tcp_g)
+	{
+		snprintf (address, sizeof (address), "%s", socket_file_g);
+	} else {
+		snprintf (address, sizeof (address), "unix:%s", socket_file_g);
+	}
 	address[sizeof (address) - 1] = 0;
 
 	connection = NULL;

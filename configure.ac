@@ -5630,6 +5630,7 @@ AC_PLUGIN([target_scale],[yes],                [The scale target])
 AC_PLUGIN([target_set],  [yes],                [The set target])
 AC_PLUGIN([target_v5upgrade], [yes],           [The v5upgrade target])
 AC_PLUGIN([tcpconns],    [$plugin_tcpconns],   [TCP connection statistics])
+AC_PLUGIN([tcpsock],     [yes],                [Tcpsock communication plugin])
 AC_PLUGIN([teamspeak2],  [yes],                [TeamSpeak2 server statistics])
 AC_PLUGIN([ted],         [$plugin_ted],        [Read The Energy Detective values])
 AC_PLUGIN([thermal],     [$plugin_thermal],    [Linux ACPI thermal zone statistics])
@@ -6007,6 +6008,7 @@ Configuration:
     target_set  . . . . . $enable_target_set
     target_v5upgrade  . . $enable_target_v5upgrade
     tcpconns  . . . . . . $enable_tcpconns
+    tcpsock   . . . . . . $enable_tcpsock
     teamspeak2  . . . . . $enable_teamspeak2
     ted . . . . . . . . . $enable_ted
     thermal . . . . . . . $enable_thermal

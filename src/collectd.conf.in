@@ -180,6 +180,7 @@
 #@BUILD_PLUGIN_TAIL_CSV_TRUE@LoadPlugin tail_csv
 #@BUILD_PLUGIN_TAPE_TRUE@LoadPlugin tape
 #@BUILD_PLUGIN_TCPCONNS_TRUE@LoadPlugin tcpconns
+#@BUILD_PLUGIN_TCPSOCK_TRUE@LoadPlugin tcpsock
 #@BUILD_PLUGIN_TEAMSPEAK2_TRUE@LoadPlugin teamspeak2
 #@BUILD_PLUGIN_TED_TRUE@LoadPlugin ted
 #@BUILD_PLUGIN_THERMAL_TRUE@LoadPlugin thermal
@@ -1187,6 +1188,11 @@
 #	AllPortsSummary false
 #	LocalPort "25"
 #	RemotePort "25"
+#</Plugin>
+
+#<Plugin tcpsock>
+#	Listen "127.0.0.1"
+#	Port "5576"
 #</Plugin>
 
 #<Plugin teamspeak2>
