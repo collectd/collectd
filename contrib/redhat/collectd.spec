@@ -52,6 +52,7 @@
 %{?el6:%global _has_iproute 1}
 %{?el6:%global _has_atasmart 1}
 %{?el6:%global _has_hiredis 1}
+%{?el6:%global _has_asm_msr_index 1}
 
 %{?el7:%global _has_libyajl 1}
 %{?el7:%global _has_recent_libpcap 1}
@@ -66,6 +67,7 @@
 %{?el7:%global _has_iproute 1}
 %{?el7:%global _has_atasmart 1}
 %{?el7:%global _has_hiredis 1}
+%{?el7:%global _has_asm_msr_index 1}
 
 # plugins enabled by default
 %define with_aggregation 0%{!?_without_aggregation:1}
@@ -94,6 +96,7 @@
 %define with_entropy 0%{!?_without_entropy:1}
 %define with_ethstat 0%{!?_without_ethstat:0%{?_has_recent_sockios_h}}
 %define with_exec 0%{!?_without_exec:1}
+%define with_fhcount 0%{!?_without_fhcount:1}
 %define with_filecount 0%{!?_without_filecount:1}
 %define with_fscache 0%{!?_without_fscache:1}
 %define with_gmond 0%{!?_without_gmond:0%{?_has_recent_libganglia}}
@@ -157,6 +160,7 @@
 %define with_ted 0%{!?_without_ted:1}
 %define with_thermal 0%{!?_without_thermal:1}
 %define with_threshold 0%{!?_without_threshold:1}
+%define with_turbostat 0%{!?_without_turbostat:0%{?_has_asm_msr_index}}
 %define with_unixsock 0%{!?_without_unixsock:1}
 %define with_uptime 0%{!?_without_uptime:1}
 %define with_users 0%{!?_without_users:1}
@@ -211,16 +215,16 @@
 # plugin xmms disabled, requires xmms
 %define with_xmms 0%{!?_without_xmms:0}
 
-Summary:	Statistics collection daemon for filling RRD files
+Summary:	statistics collection and monitoring daemon
 Name:		collectd
-Version:	5.4.2
+Version:	5.5.0
 Release:	1%{?dist}
 URL:		http://collectd.org
 Source:		http://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
 Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
-BuildRequires:	libgcrypt-devel, kernel-headers, libtool-ltdl-devel
+BuildRequires:	libgcrypt-devel, kernel-headers, libtool-ltdl-devel, libcap-devel
 Vendor:		collectd development team <collectd@verplant.org>
 
 %if 0%{?el7:1}
@@ -948,7 +952,7 @@ Collectd utilities
 %if %{with_dbi}
 %define _with_dbi --enable-dbi
 %else
-%define _with_dbi --disable-dbi --without-libdbi
+%define _with_dbi --disable-dbi
 %endif
 
 %if %{with_df}
@@ -997,6 +1001,12 @@ Collectd utilities
 %define _with_exec --enable-exec
 %else
 %define _with_exec --disable-exec
+%endif
+
+%if %{with_fhcount}
+%define _with_fhcount --enable-fhcount
+%else
+%define _with_fhcount --disable-fhcount
 %endif
 
 %if %{with_filecount}
@@ -1200,7 +1210,7 @@ Collectd utilities
 %if %{with_notify_email}
 %define _with_notify_email --enable-notify_email
 %else
-%define _with_notify_email --disable-notify_email --without-libesmpt
+%define _with_notify_email --disable-notify_email
 %endif
 
 %if %{with_ntpd}
@@ -1254,7 +1264,7 @@ Collectd utilities
 %if %{with_perl}
 %define _with_perl --enable-perl --with-perl-bindings="INSTALLDIRS=vendor"
 %else
-%define _with_perl --disable-perl --without-libperl
+%define _with_perl --disable-perl
 %endif
 
 %if %{with_pf}
@@ -1441,6 +1451,12 @@ Collectd utilities
 %define _with_tokyotyrant --disable-tokyotyrant
 %endif
 
+%if %{with_turbostat}
+%define _with_turbostat --enable-turbostat
+%else
+%define _with_turbostat --disable-turbostat
+%endif
+
 %if %{with_unixsock}
 %define _with_unixsock --enable-unixsock
 %else
@@ -1516,7 +1532,7 @@ Collectd utilities
 %if %{with_write_mongodb}
 %define _with_write_mongodb --enable-write_mongodb
 %else
-%define _with_write_mongodb --disable-write_mongodb --without-libmongoc
+%define _with_write_mongodb --disable-write_mongodb
 %endif
 
 %if %{with_write_redis}
@@ -1604,6 +1620,7 @@ Collectd utilities
 	%{?_with_entropy} \
 	%{?_with_ethstat} \
 	%{?_with_exec} \
+	%{?_with_fhcount} \
 	%{?_with_filecount} \
 	%{?_with_fscache} \
 	%{?_with_gmond} \
@@ -1685,6 +1702,7 @@ Collectd utilities
 	%{?_with_ted} \
 	%{?_with_thermal} \
 	%{?_with_threshold} \
+	%{?_with_turbostat} \
 	%{?_with_unixsock} \
 	%{?_with_uptime} \
 	%{?_with_users} \
@@ -1880,6 +1898,9 @@ fi
 %if %{with_exec}
 %{_libdir}/%{name}/exec.so
 %endif
+%if %{with_fhcount}
+%{_libdir}/%{name}/fhcount.so
+%endif
 %if %{with_filecount}
 %{_libdir}/%{name}/filecount.so
 %endif
@@ -1982,8 +2003,11 @@ fi
 %if %{with_thermal}
 %{_libdir}/%{name}/thermal.so
 %endif
-%if %{with_load}
+%if %{with_threshold}
 %{_libdir}/%{name}/threshold.so
+%endif
+%if %{with_turbostat}
+%{_libdir}/%{name}/turbostat.so
 %endif
 %if %{with_unixsock}
 %{_libdir}/%{name}/unixsock.so
@@ -2311,14 +2335,17 @@ fi
 %doc contrib/
 
 %changelog
-# * TODO 5.5.0-1
-# - New upstream version
-# - New plugins enabled by default: ceph, drbd, log_logstash, write_tsdb, smart, openldap, redis, write_redis, zookeeper, write_log, write_sensu, ipc
-# - New plugins disabled by default: barometer, write_kafka
-# - Enable zfs_arc, now supported on Linux
-# - Install disk plugin in a dedicated package, as it depends on libudev
-# - use systemd on EL7, sysvinit on EL6 & EL5
-# - Install collectdctl, collectd-tg and collectd-nagios in collectd-utils.rpm
+* Wed May 20 2015 Marc Fournier <marc.fournier@camptocamp.com> 5.5.0-1
+- New upstream version
+- New plugins enabled by default: ceph, drbd, log_logstash, write_tsdb, smart,
+  openldap, redis, write_redis, zookeeper, write_log, write_sensu, ipc,
+  turbostat, fhcount
+- New plugins disabled by default: barometer, write_kafka
+- Enable zfs_arc, now supported on Linux
+- Install disk plugin in a dedicated package, as it depends on libudev
+- use systemd on EL7, sysvinit on EL6 & EL5
+- Install collectdctl, collectd-tg and collectd-nagios in collectd-utils.rpm
+- Add build-dependency on libcap-devel
 
 * Mon Aug 19 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.4.0-1
 - New upstream version

@@ -112,7 +112,22 @@
 /* #endif HAVE_PROCINFO_H */
 
 #elif KERNEL_SOLARIS
+/* Hack: Avoid #error when building a 32-bit binary with
+ * _FILE_OFFSET_BITS=64. There is a reason for this #error, as one
+ * of the structures in <sys/procfs.h> uses an off_t, but that
+ * isn't relevant to our usage of procfs. */
+#if !defined(_LP64) && _FILE_OFFSET_BITS == 64
+#  define SAVE_FOB_64
+#  undef _FILE_OFFSET_BITS
+#endif
+
 # include <procfs.h>
+
+#ifdef SAVE_FOB_64
+#  define _FILE_OFFSET_BITS 64
+#  undef SAVE_FOB_64
+#endif
+
 # include <dirent.h>
 /* #endif KERNEL_SOLARIS */
 
@@ -1199,17 +1214,17 @@ static int read_fork_rate ()
 #endif /*KERNEL_LINUX */
 
 #if KERNEL_SOLARIS
-static const char *ps_get_cmdline (pid_t pid, /* {{{ */
+static const char *ps_get_cmdline (long pid, /* {{{ */
 		char *buffer, size_t buffer_size)
 {
 	char path[PATH_MAX];
 	psinfo_t info;
 	int status;
 
-	snprintf(path, sizeof (path), "/proc/%i/psinfo", pid);
+	snprintf(path, sizeof (path), "/proc/%li/psinfo", pid);
 
 	status = read_file_contents (path, (void *) &info, sizeof (info));
-	if (status != ((int) buffer_size))
+	if (status != sizeof (info))
 	{
 		ERROR ("processes plugin: Unexpected return value "
 				"while reading \"%s\": "
@@ -1230,7 +1245,7 @@ static const char *ps_get_cmdline (pid_t pid, /* {{{ */
  * The values for input and ouput chars are calculated "by hand"
  * Added a few "solaris" specific process states as well
  */
-static int ps_read_process(int pid, procstat_t *ps, char *state)
+static int ps_read_process(long pid, procstat_t *ps, char *state)
 {
 	char filename[64];
 	char f_psinfo[64], f_usage[64];
@@ -1240,9 +1255,9 @@ static int ps_read_process(int pid, procstat_t *ps, char *state)
 	psinfo_t *myInfo;
 	prusage_t *myUsage;
 
-	snprintf(filename, sizeof (filename), "/proc/%i/status", pid);
-	snprintf(f_psinfo, sizeof (f_psinfo), "/proc/%i/psinfo", pid);
-	snprintf(f_usage, sizeof (f_usage), "/proc/%i/usage", pid);
+	snprintf(filename, sizeof (filename), "/proc/%li/status", pid);
+	snprintf(f_psinfo, sizeof (f_psinfo), "/proc/%li/psinfo", pid);
+	snprintf(f_usage, sizeof (f_usage), "/proc/%li/usage", pid);
 
 
 	buffer = malloc(sizeof (pstatus_t));
@@ -1791,7 +1806,7 @@ static int ps_read (void)
 	int wait     = 0;
 
 	kvm_t *kd;
-	char errbuf[1024];
+	char errbuf[_POSIX2_LINE_MAX];
 	struct kinfo_proc *procs;          /* array of processes */
 	struct kinfo_proc *proc_ptr = NULL;
 	int count;                         /* returns number of processes */
@@ -1803,7 +1818,7 @@ static int ps_read (void)
 	ps_list_reset ();
 
 	/* Open the kvm interface, get a descriptor */
-	kd = kvm_open (NULL, NULL, NULL, 0, errbuf);
+	kd = kvm_openfiles (NULL, "/dev/null", NULL, 0, errbuf);
 	if (kd == NULL)
 	{
 		ERROR ("processes plugin: Cannot open kvm interface: %s",
@@ -2224,14 +2239,16 @@ static int ps_read (void)
 
 	while ((ent = readdir(proc)) != NULL)
 	{
-		int pid;
+		long pid;
 		struct procstat ps;
 		procstat_entry_t pse;
+		char *endptr;
 
 		if (!isdigit ((int) ent->d_name[0]))
 			continue;
 
-		if ((pid = atoi (ent->d_name)) < 1)
+		pid = strtol (ent->d_name, &endptr, 10);
+		if (*endptr != 0) /* value didn't completely parse as a number */
 			continue;
 
 		status = ps_read_process (pid, &ps, &state);
@@ -2281,8 +2298,7 @@ static int ps_read (void)
 
 
 		ps_list_add (ps.name,
-				ps_get_cmdline ((pid_t) pid,
-					cmdline, sizeof (cmdline)),
+				ps_get_cmdline (pid, cmdline, sizeof (cmdline)),
 				&pse);
 	} /* while(readdir) */
 	closedir (proc);

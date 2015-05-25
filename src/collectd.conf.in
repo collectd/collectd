@@ -117,6 +117,7 @@
 #@BUILD_PLUGIN_ENTROPY_TRUE@LoadPlugin entropy
 #@BUILD_PLUGIN_ETHSTAT_TRUE@LoadPlugin ethstat
 #@BUILD_PLUGIN_EXEC_TRUE@LoadPlugin exec
+#@BUILD_PLUGIN_FHCOUNT_TRUE@LoadPlugin fhcount
 #@BUILD_PLUGIN_FILECOUNT_TRUE@LoadPlugin filecount
 #@BUILD_PLUGIN_FSCACHE_TRUE@LoadPlugin fscache
 #@BUILD_PLUGIN_GMOND_TRUE@LoadPlugin gmond
@@ -183,6 +184,7 @@
 #@BUILD_PLUGIN_TED_TRUE@LoadPlugin ted
 #@BUILD_PLUGIN_THERMAL_TRUE@LoadPlugin thermal
 #@BUILD_PLUGIN_TOKYOTYRANT_TRUE@LoadPlugin tokyotyrant
+#@BUILD_PLUGIN_TURBOSTAT_TRUE@LoadPlugin turbostat
 #@BUILD_PLUGIN_UNIXSOCK_TRUE@LoadPlugin unixsock
 #@BUILD_PLUGIN_UPTIME_TRUE@LoadPlugin uptime
 #@BUILD_PLUGIN_USERS_TRUE@LoadPlugin users
@@ -518,6 +520,11 @@
 #<Plugin exec>
 #	Exec "user:group" "/path/to/exec"
 #	NotificationExec "user:group" "/path/to/exec"
+#</Plugin>
+
+#<Plugin fhcount>
+#	ValuesAbsolute true
+#	ValuesPercentage false
 #</Plugin>
 
 #<Plugin filecount>
@@ -1202,6 +1209,25 @@
 #<Plugin tokyotyrant>
 #	Host "localhost"
 #	Port "1978"
+#</Plugin>
+
+#<Plugin turbostat>
+##	None of the following option should be set manually
+##	This plugin automatically detect most optimal options
+##	Only set values here if:
+##	- The module ask you to
+##	- You want to disable the collection of some data
+##	- Your (intel) CPU is not supported (yet) by the module
+##	- The module generate a lot of errors 'MSR offset 0x... read failed'
+##	In the last two cases, please open a bug request
+#
+#	TCCActivationTemp "100"
+#	CoreCstates "392"
+# 	PackageCstates "396"
+#	SystemManagementInterrupt true
+#	DigitalTemperatureSensor true
+#	PackageThermalManagement true
+#	RunningAveragePowerLimit "7"	
 #</Plugin>
 
 #<Plugin unixsock>

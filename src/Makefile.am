@@ -359,6 +359,12 @@ ethstat_la_SOURCES = ethstat.c
 ethstat_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_FHCOUNT
+pkglib_LTLIBRARIES += fhcount.la
+fhcount_la_SOURCES = fhcount.c
+fhcount_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_FILECOUNT
 pkglib_LTLIBRARIES += filecount.la
 filecount_la_SOURCES = filecount.c
@@ -1076,6 +1082,12 @@ tokyotyrant_la_LIBADD += -lsocket
 endif
 endif
 
+if BUILD_PLUGIN_TURBOSTAT
+pkglib_LTLIBRARIES += turbostat.la
+turbostat_la_SOURCES = turbostat.c
+turbostat_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_UNIXSOCK
 pkglib_LTLIBRARIES += unixsock.la
 unixsock_la_SOURCES = unixsock.c \
@@ -1188,6 +1200,7 @@ write_kafka_la_SOURCES = write_kafka.c \
                         utils_format_json.c utils_format_json.h \
                         utils_cmd_putval.c utils_cmd_putval.h \
                         utils_crc32.c utils_crc32.h
+write_kafka_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBRDKAFKA_CPPFLAGS)
 write_kafka_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBRDKAFKA_LDFLAGS)
 write_kafka_la_LIBADD = $(BUILD_WITH_LIBRDKAFKA_LIBS)
 endif

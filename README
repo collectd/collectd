@@ -107,6 +107,9 @@ Features
       Values gathered by a custom program or script.
       See collectd-exec(5).
 
+    - fhcount
+      File handles statistics.
+
     - filecount
       Count the number of files in directories.
 
@@ -348,6 +351,10 @@ Features
     - tokyotyrant
       Reads the number of records and file size from a running Tokyo Tyrant
       server.
+
+    - turbostat
+      Reads CPU frequency and C-state residency on modern Intel
+      turbo-capable processors.
 
     - uptime
       System uptime statistics.
@@ -631,6 +638,12 @@ Prerequisites
   * libatasmart (optional)
     Used by the `smart' plugin.
     <http://git.0pointer.de/?p=libatasmart.git>
+
+  * libcap (optional)
+    The `turbostat' plugin can optionally build Linux Capabilities support,
+    which avoids full privileges requirement (aka. running as root) to read
+    values.
+    <http://sites.google.com/site/fullycapable/>
 
   * libclntsh (optional)
     Used by the `oracle' plugin.

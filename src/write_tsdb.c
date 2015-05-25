@@ -308,7 +308,7 @@ static int wt_format_values(char *ret, size_t ret_len,
 } while (0)
 
     if (ds->ds[ds_num].type == DS_TYPE_GAUGE)
-        BUFFER_ADD("%f", vl->values[ds_num].gauge);
+        BUFFER_ADD(GAUGE_FORMAT, vl->values[ds_num].gauge);
     else if (store_rates)
     {
         if (rates == NULL)
@@ -319,7 +319,7 @@ static int wt_format_values(char *ret, size_t ret_len,
                     "uc_get_rate failed.");
             return -1;
         }
-        BUFFER_ADD("%f", rates[ds_num]);
+        BUFFER_ADD(GAUGE_FORMAT, rates[ds_num]);
     }
     else if (ds->ds[ds_num].type == DS_TYPE_COUNTER)
         BUFFER_ADD("%llu", vl->values[ds_num].counter);

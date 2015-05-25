@@ -589,13 +589,44 @@ AC_CHECK_HEADERS(net/pfvar.h,
 have_termios_h="no"
 AC_CHECK_HEADERS(termios.h, [have_termios_h="yes"])
 
+# For the turbostat plugin
+have_asm_msrindex_h="no"
+AC_CHECK_HEADERS(asm/msr-index.h, [have_asm_msrindex_h="yes"])
+
+if test "x$have_asm_msrindex_h" = "xyes"
+then
+  AC_CACHE_CHECK([whether asm/msr-index.h has MSR_CORE_C3_RESIDENCY],
+                 [c_cv_have_usable_asm_msrindex_h],
+                 AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+[[[
+#include<asm/msr-index.h>
+]]],
+[[[
+int y = MSR_CORE_C3_RESIDENCY;
+return(y);
+]]]
+  )],
+                 [c_cv_have_usable_asm_msrindex_h="yes"],
+                 [c_cv_have_usable_asm_msrindex_h="no"],
+                                  )
+                 )
+fi
+
+have_cpuid_h="no"
+AC_CHECK_HEADERS(cpuid.h, [have_cpuid_h="yes"])
+
+AC_CHECK_HEADERS(sys/capability.h)
 #
 # Checks for typedefs, structures, and compiler characteristics.
 #
 AC_C_CONST
+AC_C_INLINE
+AC_TYPE_OFF_T
 AC_TYPE_PID_T
 AC_TYPE_SIZE_T
+AC_TYPE_SSIZE_T
 AC_TYPE_UID_T
+AC_TYPE_UINT32_T
 AC_HEADER_TIME
 
 #
@@ -1190,6 +1221,7 @@ FILE *fh;
 struct mntent *me;
 fh = setmntent ("/etc/mtab", "r");
 me = getmntent (fh);
+return(me->mnt_passno);
 ]]]
 			)],
 			[c_cv_have_one_getmntent="yes"],
@@ -1209,6 +1241,7 @@ me = getmntent (fh);
 				 int status;
 				 fh = fopen ("/etc/mnttab", "r");
 				 status = getmntent (fh, &mt);
+				 return(status);
 ]]]
 			)],
 			[c_cv_have_two_getmntent="yes"],
@@ -2084,6 +2117,10 @@ fi
 
 # --with-java {{{
 with_java_home="$JAVA_HOME"
+if test "x$with_java_home" = "x"
+then
+	with_java_home="/usr/lib/jvm"
+fi
 with_java_vmtype="client"
 with_java_cflags=""
 with_java_libs=""
@@ -2108,7 +2145,7 @@ then
 	if test -d "$with_java_home"
 	then
 		AC_MSG_CHECKING([for jni.h])
-		TMPVAR=`find "$with_java_home" -name jni.h -type f -exec 'dirname' '{}' ';' 2>/dev/null | head -n 1`
+		TMPVAR=`find -L "$with_java_home" -name jni.h -type f -exec 'dirname' '{}' ';' 2>/dev/null | head -n 1`
 		if test "x$TMPVAR" != "x"
 		then
 			AC_MSG_RESULT([found in $TMPVAR])
@@ -2118,7 +2155,7 @@ then
 		fi
 
 		AC_MSG_CHECKING([for jni_md.h])
-		TMPVAR=`find "$with_java_home" -name jni_md.h -type f -exec 'dirname' '{}' ';' 2>/dev/null | head -n 1`
+		TMPVAR=`find -L "$with_java_home" -name jni_md.h -type f -exec 'dirname' '{}' ';' 2>/dev/null | head -n 1`
 		if test "x$TMPVAR" != "x"
 		then
 			AC_MSG_RESULT([found in $TMPVAR])
@@ -2128,7 +2165,7 @@ then
 		fi
 
 		AC_MSG_CHECKING([for libjvm.so])
-		TMPVAR=`find "$with_java_home" -name libjvm.so -type f -exec 'dirname' '{}' ';' 2>/dev/null | head -n 1`
+		TMPVAR=`find -L "$with_java_home" -name libjvm.so -type f -exec 'dirname' '{}' ';' 2>/dev/null | head -n 1`
 		if test "x$TMPVAR" != "x"
 		then
 			AC_MSG_RESULT([found in $TMPVAR])
@@ -2140,7 +2177,7 @@ then
 		if test "x$JAVAC" = "x"
 		then
 			AC_MSG_CHECKING([for javac])
-			TMPVAR=`find "$with_java_home" -name javac -type f 2>/dev/null | head -n 1`
+			TMPVAR=`find -L "$with_java_home" -name javac -type f 2>/dev/null | head -n 1`
 			if test "x$TMPVAR" != "x"
 			then
 				JAVAC="$TMPVAR"
@@ -2152,7 +2189,7 @@ then
 		if test "x$JAR" = "x"
 		then
 			AC_MSG_CHECKING([for jar])
-			TMPVAR=`find "$with_java_home" -name jar -type f 2>/dev/null | head -n 1`
+			TMPVAR=`find -L "$with_java_home" -name jar -type f 2>/dev/null | head -n 1`
 			if test "x$TMPVAR" != "x"
 			then
 				JAR="$TMPVAR"
@@ -3172,6 +3209,7 @@ then
 ]]],
 [[[
   int val = PCAP_ERROR_IFACE_NOT_UP;
+  return(val);
 ]]]
 		       )],
 		       [c_cv_libpcap_have_pcap_error_iface_not_up="yes"],
@@ -3722,6 +3760,7 @@ AC_ARG_WITH(librdkafka, [AS_HELP_STRING([--with-librdkafka@<:@=PREFIX@:>@], [Pat
   then
     with_librdkafka_cppflags="-I$withval/include"
     with_librdkafka_ldflags="-L$withval/lib"
+    with_librdkafka_rpath="$withval/lib"
     with_librdkafka="yes"
   else
     with_librdkafka="$withval"
@@ -3732,6 +3771,9 @@ AC_ARG_WITH(librdkafka, [AS_HELP_STRING([--with-librdkafka@<:@=PREFIX@:>@], [Pat
 ])
 SAVE_CPPFLAGS="$CPPFLAGS"
 SAVE_LDFLAGS="$LDFLAGS"
+
+CPPFLAGS="$CPPFLAGS $with_librdkafka_cppflags"
+LDFLAGS="$LDFLAGS $with_librdkafka_ldflags"
 
 if test "x$with_librdkafka" = "xyes"
 then
@@ -3748,7 +3790,12 @@ if test "x$with_librdkafka" = "xyes"
 then
 	BUILD_WITH_LIBRDKAFKA_CPPFLAGS="$with_librdkafka_cppflags"
 	BUILD_WITH_LIBRDKAFKA_LDFLAGS="$with_librdkafka_ldflags"
-	BUILD_WITH_LIBRDKAFKA_LIBS="-lrdkafka"
+	if test "x$with_librdkafka_rpath" != "x"
+	then
+		BUILD_WITH_LIBRDKAFKA_LIBS="-Wl,-rpath,$with_librdkafka_rpath -lrdkafka"
+	else
+		BUILD_WITH_LIBRDKAFKA_LIBS="-lrdkafka"
+	fi
 	AC_SUBST(BUILD_WITH_LIBRDKAFKA_CPPFLAGS)
 	AC_SUBST(BUILD_WITH_LIBRDKAFKA_LDFLAGS)
 	AC_SUBST(BUILD_WITH_LIBRDKAFKA_LIBS)
@@ -5139,6 +5186,7 @@ plugin_tape="no"
 plugin_tcpconns="no"
 plugin_ted="no"
 plugin_thermal="no"
+plugin_turbostat="no"
 plugin_uptime="no"
 plugin_users="no"
 plugin_virt="no"
@@ -5184,6 +5232,10 @@ then
 	if test "x$have_linux_ip_vs_h" = "xyes" || test "x$have_net_ip_vs_h" = "xyes" || test "x$have_ip_vs_h" = "xyes"
 	then
 		plugin_ipvs="yes"
+	fi
+	if test "x$c_cv_have_usable_asm_msrindex_h" = "xyes" && test "x$have_cpuid_h" = "xyes"
+	then
+		plugin_turbostat="yes"
 	fi
 fi
 
@@ -5236,6 +5288,7 @@ fi
 if test "x$with_kstat" = "xyes"
 then
 	plugin_nfs="yes"
+	plugin_processes="yes"
 	plugin_uptime="yes"
 	plugin_zfs_arc="yes"
 fi
@@ -5498,6 +5551,7 @@ AC_PLUGIN([email],       [yes],                [EMail statistics])
 AC_PLUGIN([entropy],     [$plugin_entropy],    [Entropy statistics])
 AC_PLUGIN([ethstat],     [$plugin_ethstat],    [Stats from NIC driver])
 AC_PLUGIN([exec],        [yes],                [Execution of external programs])
+AC_PLUGIN([fhcount],     [yes],                [File handles statistics])
 AC_PLUGIN([filecount],   [yes],                [Count files in directories])
 AC_PLUGIN([fscache],     [$plugin_fscache],    [fscache statistics])
 AC_PLUGIN([gmond],       [$with_libganglia],   [Ganglia plugin])
@@ -5581,6 +5635,7 @@ AC_PLUGIN([ted],         [$plugin_ted],        [Read The Energy Detective values
 AC_PLUGIN([thermal],     [$plugin_thermal],    [Linux ACPI thermal zone statistics])
 AC_PLUGIN([threshold],   [yes],                [Threshold checking plugin])
 AC_PLUGIN([tokyotyrant], [$with_libtokyotyrant],  [TokyoTyrant database statistics])
+AC_PLUGIN([turbostat],   [$plugin_turbostat],  [Advanced statistic on Intel cpu states])
 AC_PLUGIN([unixsock],    [yes],                [Unixsock communication plugin])
 AC_PLUGIN([uptime],      [$plugin_uptime],     [Uptime statistics])
 AC_PLUGIN([users],       [$plugin_users],      [User statistics])
@@ -5874,6 +5929,7 @@ Configuration:
     entropy . . . . . . . $enable_entropy
     ethstat . . . . . . . $enable_ethstat
     exec  . . . . . . . . $enable_exec
+    fhcount . . . . . . . $enable_fhcount
     filecount . . . . . . $enable_filecount
     fscache . . . . . . . $enable_fscache
     gmond . . . . . . . . $enable_gmond
@@ -5956,6 +6012,7 @@ Configuration:
     thermal . . . . . . . $enable_thermal
     threshold . . . . . . $enable_threshold
     tokyotyrant . . . . . $enable_tokyotyrant
+    turbostat . . . . . . $enable_turbostat
     unixsock  . . . . . . $enable_unixsock
     uptime  . . . . . . . $enable_uptime
     users . . . . . . . . $enable_users
