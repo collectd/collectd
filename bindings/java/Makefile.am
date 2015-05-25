@@ -41,6 +41,10 @@ install-exec-local: java-build-stamp
 	$(INSTALL) -m 644 .libs/generic-jmx.jar \
 		"$(DESTDIR)$(pkgdatadir)/java"
 
+uninstall-local:
+	rm -f "$(DESTDIR)$(pkgdatadir)/java/collectd-api.jar"
+	rm -f "$(DESTDIR)$(pkgdatadir)/java/generic-jmx.jar"
+
 clean-local:
 	rm -f "org/collectd/api"/*.class
 	rm -f "org/collectd/java"/*.class
