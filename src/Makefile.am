@@ -65,7 +65,7 @@ collectdctl_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 
 collectd_tg_SOURCES = collectd-tg.c
 collectd_tg_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/src/libcollectdclient/collectd -I$(top_builddir)/src/libcollectdclient/collectd
-collectd_tg_LDADD = daemon/libheap.a
+collectd_tg_LDADD = daemon/libheap.la
 if BUILD_WITH_LIBSOCKET
 collectd_tg_LDADD += -lsocket
 endif
@@ -1382,10 +1382,10 @@ uninstall-hook:
 
 check_PROGRAMS = test_utils_mount test_utils_vl_lookup
 
-test_utils_mount_SOURCES = utils_mount_test.c
+test_utils_mount_SOURCES = utils_mount_test.c testing.h
 test_utils_mount_LDADD = libmount.la daemon/libplugin_mock.la
 
-test_utils_vl_lookup_SOURCES = utils_vl_lookup_test.c
+test_utils_vl_lookup_SOURCES = utils_vl_lookup_test.c testing.h
 test_utils_vl_lookup_LDADD = liblookup.la daemon/libplugin_mock.la
 
 TESTS = test_utils_mount test_utils_vl_lookup
