@@ -766,7 +766,7 @@ static int fc_bit_write_invoke (const data_set_t *ds, /* {{{ */
             "the `%s' plugin failed with status %i.",
             plugin_list[i].plugin, status);
 
-	plugin_log_available_writers ();
+        plugin_log_available_writers ();
       }
       else
       {

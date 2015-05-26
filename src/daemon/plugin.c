@@ -1448,9 +1448,9 @@ int plugin_unregister_read (const char *name) /* {{{ */
 	return (0);
 } /* }}} int plugin_unregister_read */
 
-void plugin_log_available_writers ()
+void plugin_log_available_writers (void)
 {
-	log_list_callbacks (&list_write, "Available writers:");
+	log_list_callbacks (&list_write, "Available write targets:");
 }
 
 static int compare_read_func_group (llentry_t *e, void *ud) /* {{{ */
