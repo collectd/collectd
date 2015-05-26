@@ -1,0 +1,50 @@
+=encoding UTF-8
+
+=head1 NAME
+
+collectd-tcpsock - Documentation of collectd's C<tcpsock plugin>
+
+=head1 SYNOPSIS
+
+  # See collectd.conf(5)
+  LoadPlugin tcpsock
+  <Plugin tcpsock>
+    Listen "127.0.0.1"
+    Port   "5576"
+  </Plugin>
+
+=head1 DESCRIPTION
+
+The C<tcpsock plugin> opens an TCP socket over which one can interact with
+the daemon. This can be used to use the values collected by collectd in other
+applications, such as monitoring solutions, or submit externally collected
+values to collectd.
+
+Functionallity is very similar to L<collectd-unixsock(5)>, but using
+TCP sockets instead of UNIX sockets eases tunneling data between hosts.
+
+For further information, see the manual of the L<collectd-unixsock(5)> plugin.
+
+=head1 EXAMPLES
+Setup two hosts: collectd.example.com (collecting push data from agents) and icinga.example.com (Monitoring system)
+On collectd.example.com: Enable plugin as shown above, enable ssh and make sure GatewayPorts (L<sshd_config(5)>) is not disabled.
+On icinga.example.com
+  make tunnel via SSH: ssh -nNTR 5576:localhost:5576 collectd.example.com
+  Test connection: collectd-nagios -s 127.0.0.1:5576 -t -H <SOME-MACHINE> -n df-var/percent_bytes-free -w 20: -c 10:
+Integrate collectd-nagios into Icinga/Nagios/Naemon/... as documented.
+
+
+=head1 SEE ALSO
+
+L<collectd(1)>,
+L<collectd.conf(5)>,
+L<collectd-unixsock(5)>,
+L<collectd-nagios(1)>,
+
+=head1 AUTHOR
+
+Written by Claudius Zingerli E<lt>czingerl@gmail.comE<gt> based on Florian Forster's E<lt>octo@collectd.orgE<gt>
+C<unixsock plugin>
+
+=head1 
+=cut
