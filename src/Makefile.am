@@ -1309,6 +1309,7 @@ dist_man_MANS = collectd.1 \
 		collectd-tg.1 \
 		collectd-threshold.5 \
 		collectd-unixsock.5 \
+		collectd-tcpsock.5 \
 		types.db.5
 
 #collectd_1_SOURCES = collectd.pod
@@ -1329,6 +1330,7 @@ EXTRA_DIST +=   collectd.conf.pod \
 		collectd-tg.pod \
 		collectd-threshold.pod \
 		collectd-unixsock.pod \
+		collectd-tcpsock.pod \
 		postgresql_default.conf \
 		types.db.pod
 

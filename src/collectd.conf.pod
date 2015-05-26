@@ -6553,6 +6553,24 @@ are collectd. This option defaults to I<false>.
 
 =back
 
+=head2 Plugin C<tcpsock>
+
+The I<tcpsock> plugin creates a listening socket on I<Address>:I<Name> for incoming connections,
+similar to the L<unixsock> plugin.
+
+=over 4
+
+=item B<Listen> I<Address>
+
+Sets the listening address. Nummeric IPv4/IPv6 addresses or names are permitted
+
+=item B<Port> I<Name>
+
+Sets the listening port. Instead of a nummeric value, names from /etc/services
+can be used, too.
+
+=back
+
 =head2 Plugin C<thermal>
 
 =over 4
