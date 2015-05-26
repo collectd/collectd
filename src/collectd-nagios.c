@@ -671,6 +671,7 @@ int main (int argc, char **argv)
 				break;
 			case 't':
 				use_tcp_g = 1;
+				break;
 			case 'n':
 				value_string_g = optarg;
 				break;
