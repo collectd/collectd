@@ -23,6 +23,14 @@ AM_CPPFLAGS += -DPKGDATADIR='"${pkgdatadir}"'
 
 AUTOMAKE_OPTIONS = subdir-objects
 
+noinst_LTLIBRARIES = libmount.la liblookup.la
+
+libmount_la_SOURCES = utils_mount.c utils_mount.h
+libmount_la_LIBADD = daemon/libcommon.la
+
+liblookup_la_SOURCES = utils_vl_lookup.c utils_vl_lookup.h
+liblookup_la_LIBADD = daemon/libavltree.la daemon/libcommon.la
+
 sbin_PROGRAMS = collectdmon
 bin_PROGRAMS = collectd-nagios collectdctl collectd-tg
 
@@ -55,10 +63,9 @@ endif
 collectdctl_LDADD += libcollectdclient/libcollectdclient.la
 collectdctl_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 
-collectd_tg_SOURCES = collectd-tg.c \
-		      daemon/utils_heap.c daemon/utils_heap.h
+collectd_tg_SOURCES = collectd-tg.c
 collectd_tg_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/src/libcollectdclient/collectd -I$(top_builddir)/src/libcollectdclient/collectd
-collectd_tg_LDADD =
+collectd_tg_LDADD = daemon/libheap.a
 if BUILD_WITH_LIBSOCKET
 collectd_tg_LDADD += -lsocket
 endif
@@ -183,9 +190,9 @@ endif
 if BUILD_PLUGIN_CGROUPS
 pkglib_LTLIBRARIES += cgroups.la
 cgroups_la_SOURCES = cgroups.c \
-		     utils_ignorelist.c utils_ignorelist.h \
-		     utils_mount.c utils_mount.h
+		     utils_ignorelist.c utils_ignorelist.h
 cgroups_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+cgroups_la_LIBADD = libmount.la
 endif
 
 if BUILD_PLUGIN_CONNTRACK
@@ -283,9 +290,9 @@ endif
 if BUILD_PLUGIN_DF
 pkglib_LTLIBRARIES += df.la
 df_la_SOURCES = df.c \
-		utils_ignorelist.c utils_ignorelist.h \
-		utils_mount.c utils_mount.h
+		utils_ignorelist.c utils_ignorelist.h
 df_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+df_la_LIBADD = libmount.la
 endif
 
 if BUILD_PLUGIN_DISK
@@ -1373,49 +1380,12 @@ uninstall-hook:
 	rm -f $(DESTDIR)$(sysconfdir)/collectd.conf
 	rm -f $(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
 
-check_PROGRAMS = test_common test_utils_avltree test_utils_heap test_utils_mount test_utils_vl_lookup
+check_PROGRAMS = test_utils_mount test_utils_vl_lookup
 
-test_common_SOURCES = tests/test_common.c \
-                      daemon/common.h daemon/common.c \
-                      tests/macros.h \
-                      tests/mock/plugin.c \
-                      tests/mock/utils_cache.c \
-                      tests/mock/utils_time.c
-test_common_CPPFLAGS = $(AM_CPPFLAGS) $(LTDLINCL)
-test_common_LDFLAGS = -export-dynamic
-test_common_LDADD =
+test_utils_mount_SOURCES = utils_mount_test.c
+test_utils_mount_LDADD = libmount.la daemon/libplugin_mock.la
 
-test_utils_avltree_SOURCES = tests/test_utils_avltree.c \
-                             daemon/utils_avltree.c daemon/utils_avltree.h
-test_utils_avltree_CPPFLAGS = $(AM_CPPFLAGS) $(LTDLINCL)
-test_utils_avltree_LDFLAGS = -export-dynamic
-test_utils_avltree_LDADD =
+test_utils_vl_lookup_SOURCES = utils_vl_lookup_test.c
+test_utils_vl_lookup_LDADD = liblookup.la daemon/libplugin_mock.la
 
-test_utils_heap_SOURCES = tests/test_utils_heap.c \
-                          daemon/utils_heap.c daemon/utils_heap.h
-test_utils_heap_CPPFLAGS = $(AM_CPPFLAGS) $(LTDLINCL)
-test_utils_heap_LDFLAGS = -export-dynamic
-test_utils_heap_LDADD =
-
-test_utils_mount_SOURCES = tests/test_utils_mount.c \
-                           utils_mount.c utils_mount.h \
-                           daemon/common.c daemon/common.h \
-                           tests/mock/plugin.c \
-                           tests/mock/utils_cache.c \
-                           tests/mock/utils_time.c
-test_utils_mount_CPPFLAGS = $(AM_CPPFLAGS) $(LTDLINCL)
-test_utils_mount_LDFLAGS = -export-dynamic
-test_utils_mount_LDADD =
-
-test_utils_vl_lookup_SOURCES = tests/test_utils_vl_lookup.c \
-                               utils_vl_lookup.h utils_vl_lookup.c \
-                               daemon/utils_avltree.c daemon/utils_avltree.h \
-                               daemon/common.c daemon/common.h \
-                               tests/mock/plugin.c \
-                               tests/mock/utils_cache.c \
-                               tests/mock/utils_time.c
-test_utils_vl_lookup_CPPFLAGS = $(AM_CPPFLAGS) $(LTDLINCL)
-test_utils_vl_lookup_LDFLAGS = -export-dynamic
-test_utils_vl_lookup_LDADD =
-
-TESTS = test_common test_utils_avltree test_utils_heap test_utils_mount test_utils_vl_lookup
+TESTS = test_utils_mount test_utils_vl_lookup

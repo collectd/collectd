@@ -24,7 +24,7 @@
  *   Florian Forster <octo at collectd.org>
  **/
 
-#include "tests/macros.h"
+#include "testing.h"
 #include "collectd.h"
 #include "utils_vl_lookup.h"
 

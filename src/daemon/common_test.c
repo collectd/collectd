@@ -24,7 +24,7 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
-#include "tests/macros.h"
+#include "testing.h"
 #include "common.h"
 
 DEF_TEST(sstrncpy)

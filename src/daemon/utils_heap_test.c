@@ -24,8 +24,8 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
+#include "testing.h"
 #include "collectd.h"
-#include "tests/macros.h"
 #include "utils_heap.h"
 
 static int compare (void const *v0, void const *v1)

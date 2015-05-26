@@ -24,7 +24,7 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
-#include "tests/macros.h"
+#include "testing.h"
 #include "collectd.h"
 #include "utils_avltree.h"
 
