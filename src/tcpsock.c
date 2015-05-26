@@ -64,16 +64,16 @@ static const char *config_keys[] =
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
-static int loop = 0;
+static int g_loop_active = 0;
 
 /* socket configuration */
-static int   sock_fd    = -1;
-static char *sock_addr  = NULL;
-static char *sock_port  = NULL;
-static int   sock_backlog = 10;
-static int   sock_type  = SOCK_STREAM;
+static int   g_sock_fd    = -1;
+static char *g_listen_addr  = NULL;
+static char *g_listen_port  = NULL;
+static int   g_sock_backlog = 10;
+static int   g_sock_type  = SOCK_STREAM;
 
-static pthread_t listen_thread = (pthread_t) 0;
+static pthread_t g_listen_thread = (pthread_t) 0;
 
 /*
  * Functions
@@ -84,10 +84,10 @@ static int tcps_open_socket (void)
 	memset(&hints, 0, sizeof(struct addrinfo));
 
 	hints.ai_flags    = 0;
-	hints.ai_socktype = sock_type;
+	hints.ai_socktype = g_sock_type;
 	hints.ai_family   = AF_UNSPEC;
 
-	int rc = getaddrinfo(sock_addr, sock_port, &hints, &result);
+	int rc = getaddrinfo(g_listen_addr, g_listen_port, &hints, &result);
 	if (rc != 0)
 	{
 		ERROR ("getaddrinfo(p_host, p_service, &hints, &result);");
@@ -97,8 +97,8 @@ static int tcps_open_socket (void)
 	struct addrinfo *now_result = result;
 	while (now_result)
 	{
-		sock_fd = socket(now_result->ai_family, now_result->ai_socktype, now_result->ai_protocol);
-		if (sock_fd == -1)
+		g_sock_fd = socket(now_result->ai_family, now_result->ai_socktype, now_result->ai_protocol);
+		if (g_sock_fd == -1)
 		{
 			now_result = now_result->ai_next;
 			continue;
@@ -106,7 +106,7 @@ static int tcps_open_socket (void)
 
 #if HAVE_DECL_SO_REUSEPORT
 		int one = 1;
-		if (setsockopt(sock_fd, SOL_SOCKET, SO_REUSEPORT, &one, sizeof(one)) != 0)
+		if (setsockopt(g_sock_fd, SOL_SOCKET, SO_REUSEPORT, &one, sizeof(one)) != 0)
 		{
 			ERROR("setsockopt(f_socket, SOL_SOCKET, SO_REUSEPORT, &one, sizeof(one): %s", strerror(errno));
 			return -1;
@@ -116,7 +116,7 @@ static int tcps_open_socket (void)
 		{
 			//Allow listening on IPv4 and IPv6
 			int zero = 0;
-			if (setsockopt(sock_fd, IPPROTO_IPV6, IPV6_V6ONLY, (void *)&zero, sizeof(zero)))
+			if (setsockopt(g_sock_fd, IPPROTO_IPV6, IPV6_V6ONLY, (void *)&zero, sizeof(zero)))
 			{
 				ERROR("setsockopt(f_socket, IPPROTO_IPV6, IPV6_V6ONLY, (void *)&zero, sizeof(zero)): %s", strerror(errno));
 				return -1;
@@ -124,23 +124,23 @@ static int tcps_open_socket (void)
 		}
 
 
-		if (bind(sock_fd, now_result->ai_addr, now_result->ai_addrlen) == 0)
+		if (bind(g_sock_fd, now_result->ai_addr, now_result->ai_addrlen) == 0)
 		{
 			break;
 		}
 
-		close(sock_fd);
-		sock_fd = -1;
+		close(g_sock_fd);
+		g_sock_fd = -1;
 		now_result = now_result->ai_next;
 	}
-	if (sock_fd == -1)
+	if (g_sock_fd == -1)
 	{
 		freeaddrinfo(result);
 		ERROR("binding socket");
 		return -1;
 	}
 
-	if (listen(sock_fd, sock_backlog) == -1)
+	if (listen(g_sock_fd, g_sock_backlog) == -1)
 	{
 		ERROR("listen(f_socket, p_backlog): %s", strerror(errno));
 		return -1;
@@ -151,8 +151,8 @@ static int tcps_open_socket (void)
 		char errbuf[1024];
 		sstrerror (errno, errbuf, sizeof (errbuf));
 		ERROR ("tcpsock plugin: bind failed: %s", errbuf);
-		close (sock_fd);
-		sock_fd = -1;
+		close (g_sock_fd);
+		g_sock_fd = -1;
 		return (-1);
 	}
 #endif
@@ -160,15 +160,15 @@ static int tcps_open_socket (void)
 	return 0;
 } /* int tcps_open_socket */
 
-static void *tcps_handle_client (void *arg)
+static void *tcps_handle_client (void *p_arg)
 {
 	int fdin;
 	int fdout;
 	FILE *fhin, *fhout;
 
-	fdin = *((int *) arg);
-	free (arg);
-	arg = NULL;
+	fdin = *((int *) p_arg);
+	free (p_arg);
+	p_arg = NULL;
 
 	DEBUG ("tcpsock plugin: tcps_handle_client: Reading from fd #%i", fdin);
 
@@ -218,7 +218,7 @@ static void *tcps_handle_client (void *arg)
 		return ((void *) 0);
 	}
 
-	while (42)
+	while (88)
 	{
 		char buffer[1024];
 		char buffer_copy[1024];
@@ -230,7 +230,9 @@ static void *tcps_handle_client (void *arg)
 		if (fgets (buffer, sizeof (buffer), fhin) == NULL)
 		{
 			if ((errno == EINTR) || (errno == EAGAIN))
+			{
 				continue;
+			}
 
 			if (errno != 0)
 			{
@@ -245,15 +247,19 @@ static void *tcps_handle_client (void *arg)
 		len = strlen (buffer);
 		while ((len > 0)
 				&& ((buffer[len - 1] == '\n') || (buffer[len - 1] == '\r')))
+		{
 			buffer[--len] = '\0';
+		}
 
 		if (len == 0)
+		{
 			continue;
+		}
 
 		sstrncpy (buffer_copy, buffer, sizeof (buffer_copy));
 
 		fields_num = strsplit (buffer_copy, fields,
-				sizeof (fields) / sizeof (fields[0]));
+								sizeof (fields) / sizeof (fields[0]));
 		if (fields_num < 1)
 		{
 			fprintf (fhout, "-1 Internal error\n");
@@ -266,29 +272,22 @@ static void *tcps_handle_client (void *arg)
 		if (strcasecmp (fields[0], "getval") == 0)
 		{
 			handle_getval (fhout, buffer);
-		}
-		else if (strcasecmp (fields[0], "getthreshold") == 0)
+		} else if (strcasecmp (fields[0], "getthreshold") == 0)
 		{
 			handle_getthreshold (fhout, buffer);
-		}
-		else if (strcasecmp (fields[0], "putval") == 0)
+		} else if (strcasecmp (fields[0], "putval") == 0)
 		{
 			handle_putval (fhout, buffer);
-		}
-		else if (strcasecmp (fields[0], "listval") == 0)
+		} else if (strcasecmp (fields[0], "listval") == 0)
 		{
 			handle_listval (fhout, buffer);
-		}
-		else if (strcasecmp (fields[0], "putnotif") == 0)
+		} else if (strcasecmp (fields[0], "putnotif") == 0)
 		{
 			handle_putnotif (fhout, buffer);
-		}
-		else if (strcasecmp (fields[0], "flush") == 0)
+		} else if (strcasecmp (fields[0], "flush") == 0)
 		{
 			handle_flush (fhout, buffer);
-		}
-		else
-		{
+		} else {
 			if (fprintf (fhout, "-1 Unknown command: %s\n", fields[0]) < 0)
 			{
 				char errbuf[1024];
@@ -306,9 +305,10 @@ static void *tcps_handle_client (void *arg)
 
 	pthread_exit ((void *) 0);
 	return ((void *) 0);
+
 } /* void *tcps_handle_client */
 
-static void *tcps_server_thread (void __attribute__((unused)) *arg)
+static void *tcps_server_thread (void __attribute__((unused)) *p_arg)
 {
 	int  status;
 	int *remote_fd;
@@ -319,23 +319,27 @@ static void *tcps_server_thread (void __attribute__((unused)) *arg)
 	pthread_attr_setdetachstate (&th_attr, PTHREAD_CREATE_DETACHED);
 
 	if (tcps_open_socket () != 0)
+	{
 		pthread_exit ((void *) 1);
+	}
 
-	while (loop != 0)
+	while (g_loop_active != 0)
 	{
 		DEBUG ("tcpsock plugin: Calling accept..");
-		status = accept (sock_fd, NULL, NULL);
+		status = accept (g_sock_fd, NULL, NULL);
 		if (status < 0)
 		{
 			char errbuf[1024];
 
 			if (errno == EINTR)
+			{
 				continue;
+			}
 
 			ERROR ("tcpsock plugin: accept failed: %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
-			close (sock_fd);
-			sock_fd = -1;
+			close (g_sock_fd);
+			g_sock_fd = -1;
 			pthread_attr_destroy (&th_attr);
 			pthread_exit ((void *) 1);
 		}
@@ -364,52 +368,42 @@ static void *tcps_server_thread (void __attribute__((unused)) *arg)
 			free (remote_fd);
 			continue;
 		}
-	} /* while (loop) */
+	} /* while (g_loop_active) */
 
-	close (sock_fd);
-	sock_fd = -1;
+	close (g_sock_fd);
+	g_sock_fd = -1;
 	pthread_attr_destroy (&th_attr);
 
-#if 0
-	status = unlink ((sock_file != NULL) ? sock_file : US_DEFAULT_PATH);
-	if (status != 0)
-	{
-		char errbuf[1024];
-		NOTICE ("tcpsock plugin: unlink (%s) failed: %s",
-				(sock_file != NULL) ? sock_file : US_DEFAULT_PATH,
-				sstrerror (errno, errbuf, sizeof (errbuf)));
-	}
-#endif
 	return ((void *) 0);
 } /* void *tcps_server_thread */
 
-static int tcps_config (const char *key, const char *val)
+static int tcps_config (const char *p_key, const char *p_val)
 {
-	if (strcasecmp (key, "Listen") == 0)
+	if (strcasecmp (p_key, "Listen") == 0)
 	{
-		char *new_sock_addr = strdup (val);
-		if (new_sock_addr == NULL)
+		char *new_listen_addr = strdup (p_val);
+		if (new_listen_addr == NULL)
 		{
 			return 1;
 		}
-		sfree (sock_addr);
-		sock_addr = new_sock_addr;
-	} else if (strcasecmp (key, "Port") == 0)
+		sfree (g_listen_addr);
+		g_listen_addr = new_listen_addr;
+	} else if (strcasecmp (p_key, "Port") == 0)
 	{
-		char *new_sock_port= strdup (val);
-		if (new_sock_port == NULL)
+		char *new_listen_port= strdup (p_val);
+		if (new_listen_port == NULL)
 		{
 			return 1;
 		}
-		sfree (sock_port);
-		sock_port = new_sock_port;
+		sfree (g_listen_port);
+		g_listen_port = new_listen_port;
 	}
 	else
 	{
-		return (-1);
+		return -1;
 	}
 
-	return (0);
+	return 0;
 } /* int tcps_config */
 
 static int tcps_init (void)
@@ -420,12 +414,14 @@ static int tcps_init (void)
 
 	/* Initialize only once. */
 	if (have_init != 0)
-		return (0);
+	{
+		return 0;
+	}
 	have_init = 1;
 
-	loop = 1;
+	g_loop_active = 1;
 
-	status = plugin_thread_create (&listen_thread, NULL,
+	status = plugin_thread_create (&g_listen_thread, NULL,
 			tcps_server_thread, NULL);
 	if (status != 0)
 	{
@@ -435,34 +431,34 @@ static int tcps_init (void)
 		return (-1);
 	}
 
-	return (0);
+	return 0;
 } /* int tcps_init */
 
 static int tcps_shutdown (void)
 {
 	void *ret;
 
-	loop = 0;
+	g_loop_active = 0;
 
-	if (listen_thread != (pthread_t) 0)
+	if (g_listen_thread != (pthread_t) 0)
 	{
-		pthread_kill (listen_thread, SIGTERM);
-		pthread_join (listen_thread, &ret);
-		listen_thread = (pthread_t) 0;
+		pthread_kill(g_listen_thread, SIGTERM);
+		pthread_join(g_listen_thread, &ret);
+		g_listen_thread = (pthread_t) 0;
 	}
 
-	plugin_unregister_init ("tcpsock");
-	plugin_unregister_shutdown ("tcpsock");
+	plugin_unregister_init(    "tcpsock");
+	plugin_unregister_shutdown("tcpsock");
 
 	return (0);
 } /* int tcps_shutdown */
 
 void module_register (void)
 {
-	plugin_register_config ("tcpsock", tcps_config,
+	plugin_register_config(  "tcpsock", tcps_config,
 			config_keys, config_keys_num);
-	plugin_register_init ("tcpsock", tcps_init);
-	plugin_register_shutdown ("tcpsock", tcps_shutdown);
+	plugin_register_init(    "tcpsock", tcps_init);
+	plugin_register_shutdown("tcpsock", tcps_shutdown);
 } /* void module_register (void) */
 
 /* vim: set sw=4 ts=4 sts=4 tw=78 : */
