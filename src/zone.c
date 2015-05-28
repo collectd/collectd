@@ -188,6 +188,9 @@ static int zone_read (void)
 
 	tree=zone_scandir(procdir);
 	closedir(procdir);
+	if (tree == NULL) {
+		return (-1);
+	}
 	zone_submit_values(tree); /* this also frees tree */
 	return (0);
 }
