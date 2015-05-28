@@ -33,7 +33,6 @@
 #include "utils_avltree.h"
 
 #define	MAX_PROCFS_PATH	40
-#define MAX_ZONE_NAME 20
 #define FRC2PCT(pp)(((float)(pp))/0x8000*100)
 
 typedef struct zone_stats {
@@ -119,14 +118,17 @@ zone_find_stats(c_avl_tree_t *tree, zoneid_t zoneid)
 static void
 zone_submit_values(c_avl_tree_t *tree)
 {
-	char          zonename[MAX_ZONE_NAME];
+	char          zonename[ZONENAME_MAX];
 	zoneid_t     *zoneid = NULL;
 	zone_stats_t *stats  = NULL;
 
 	while (c_avl_pick (tree, (void **)&zoneid, (void **)&stats) == 0)
 	{
-		getzonenamebyid(*zoneid, zonename, MAX_ZONE_NAME-1);
-		zone_submit_value(zonename, (gauge_t)FRC2PCT(stats->pctcpu));
+		if (getzonenamebyid(*zoneid, zonename, sizeof( zonename )) == -1) {
+			WARNING("zone plugin: error retreiving zonename");
+		} else {
+			zone_submit_value(zonename, (gauge_t)FRC2PCT(stats->pctcpu));
+		}
 		free(stats);
 		free(zoneid);
 	}
