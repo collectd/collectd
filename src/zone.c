@@ -155,7 +155,8 @@ zone_scandir(DIR *procdir)
 		return(NULL);
 	}
 
-	for (rewinddir(procdir); (direntp = readdir(procdir)); ) {
+	rewinddir(procdir);
+	while ((direntp = readdir(procdir))) {
 		pidstr = direntp->d_name;
 		if (pidstr[0] == '.')	/* skip "." and ".."  */
 			continue;
