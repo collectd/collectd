@@ -183,7 +183,7 @@ static int zone_read (void)
 
 	if ((procdir = opendir("/proc")) == NULL) {
 		ERROR("zone plugin: cannot open /proc directory\n");
-		exit(1);
+		return (-1);
 	}
 
 	tree=zone_scandir(procdir);
