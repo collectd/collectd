@@ -162,8 +162,10 @@ zone_scandir(DIR *procdir)
 				  sizeof(psinfo_t)) != 0)
 			continue;
 		stats = zone_find_stats(tree, psinfo.pr_zoneid);
-		stats->pctcpu += psinfo.pr_pctcpu;
-		stats->pctmem += psinfo.pr_pctmem;
+		if( stats ) {
+			stats->pctcpu += psinfo.pr_pctcpu;
+			stats->pctmem += psinfo.pr_pctmem;
+		}
 	}
 	return(tree);
 }
