@@ -214,6 +214,8 @@
 %define with_write_mongodb 0%{!?_without_write_mongodb:0}
 # plugin xmms disabled, requires xmms
 %define with_xmms 0%{!?_without_xmms:0}
+# plugin zone disabled, requires Solaris
+%define with_zone 0%{!?_without_zone:0}
 
 Summary:	statistics collection and monitoring daemon
 Name:		collectd
@@ -1571,6 +1573,12 @@ Collectd utilities
 %define _with_zfs_arc --disable-zfs_arc
 %endif
 
+%if %{with_zone}
+%define _with_zone --enable-zone
+%else
+%define _with_zone --disable-zone
+%endif
+
 %if %{with_zookeeper}
 %define _with_zookeeper --enable-zookeeper
 %else
@@ -1672,6 +1680,7 @@ Collectd utilities
 	%{?_with_write_redis} \
 	%{?_with_xmms} \
 	%{?_with_zfs_arc} \
+	%{?_with_zone} \
 	%{?_with_zookeeper} \
 	%{?_with_irq} \
 	%{?_with_load} \
@@ -2335,6 +2344,10 @@ fi
 %doc contrib/
 
 %changelog
+#* TODO: next feature release changelog
+#- New upstream version
+#- New plugins disabled by default: zone
+#
 * Wed May 27 2015 Marc Fournier <marc.fournier@camptocamp.com> 5.5.0-1
 - New upstream version
 - New plugins enabled by default: ceph, drbd, log_logstash, write_tsdb, smart,
