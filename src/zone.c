@@ -42,6 +42,12 @@ typedef struct zone_stats {
 
 static long pagesize;
 
+static int zone_init (void)
+{
+	pagesize = sysconf(_SC_PAGESIZE);
+	return (0);
+}
+
 static int
 zone_compare(const zoneid_t *a, const zoneid_t *b)
 {
@@ -144,7 +150,6 @@ zone_scandir(DIR *procdir)
 	psinfo_t      psinfo;
 	c_avl_tree_t *tree;
 	zone_stats_t *stats;
-/*	size_t    physmem = sysconf(_SC_PHYS_PAGES) * pagesize;*/
 
 	if (!(tree=c_avl_create((void *) zone_compare))) {
 		WARNING("zone plugin: Failed to create tree");
@@ -176,7 +181,6 @@ static int zone_read (void)
 	DIR          *procdir;
 	c_avl_tree_t *tree;
 
-	pagesize = sysconf(_SC_PAGESIZE);
 	if ((procdir = opendir("/proc")) == NULL) {
 		ERROR("zone plugin: cannot open /proc directory\n");
 		exit(1);
@@ -190,5 +194,6 @@ static int zone_read (void)
 
 void module_register (void)
 {
+	plugin_register_init ("zone", zone_init);
 	plugin_register_read ("zone", zone_read);
 } /* void module_register */
