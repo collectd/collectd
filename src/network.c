@@ -280,6 +280,8 @@ typedef struct receive_list_entry_s receive_list_entry_t;
 /*
  * Private variables
  */
+static cdtime_t network_config_max_age = 0;
+static cdtime_t network_config_reap_time = 0;
 static int network_config_ttl = 0;
 /* Ethernet - (IPv6 + UDP) = 1500 - (40 + 8) = 1452 */
 static size_t network_config_packet_size = 1452;
@@ -305,11 +307,15 @@ static int       receive_thread_running = 0;
 static pthread_t receive_thread_id;
 static int       dispatch_thread_running = 0;
 static pthread_t dispatch_thread_id;
+static int       flush_loop = 0;
+static int       flush_thread_running = 0;
+static pthread_t flush_thread_id;
 
 /* Buffer in which to-be-sent network packets are constructed. */
 static char            *send_buffer;
 static char            *send_buffer_ptr;
 static int              send_buffer_fill;
+static cdtime_t         send_buffer_expiry;
 static value_list_t     send_buffer_vl = VALUE_LIST_STATIC;
 static pthread_mutex_t  send_buffer_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -2577,6 +2583,7 @@ static void network_init_buffer (void)
 	memset (send_buffer, 0, network_config_packet_size);
 	send_buffer_ptr = send_buffer;
 	send_buffer_fill = 0;
+	send_buffer_expiry = 0;
 
 	memset (&send_buffer_vl, 0, sizeof (send_buffer_vl));
 } /* int network_init_buffer */
@@ -2917,6 +2924,9 @@ static int network_write (const data_set_t *ds, const value_list_t *vl,
 		send_buffer_fill += status;
 		send_buffer_ptr  += status;
 
+		if (network_config_max_age != 0 && send_buffer_expiry == 0)
+			send_buffer_expiry = cdtime() + network_config_max_age;
+
 		stats_values_sent++;
 	}
 	else
@@ -2932,6 +2942,9 @@ static int network_write (const data_set_t *ds, const value_list_t *vl,
 		{
 			send_buffer_fill += status;
 			send_buffer_ptr  += status;
+
+			if (network_config_max_age != 0 && send_buffer_expiry == 0)
+				send_buffer_expiry = cdtime() + network_config_max_age;
 
 			stats_values_sent++;
 		}
@@ -2951,6 +2964,25 @@ static int network_write (const data_set_t *ds, const value_list_t *vl,
 
 	return ((status < 0) ? -1 : 0);
 } /* int network_write */
+
+static void *flush_thread (void __attribute__((unused)) *arg) /* {{{ */
+{
+	struct timespec ts_interval;
+
+	CDTIME_T_TO_TIMESPEC(network_config_reap_time, &ts_interval);
+	while (flush_loop == 0)
+	{
+		nanosleep (&ts_interval, /* remaining = */ NULL);
+		if (cdtime() > send_buffer_expiry)
+		{
+			pthread_mutex_lock (&send_buffer_lock);
+			if (send_buffer_fill > 0)
+				flush_buffer ();
+			pthread_mutex_unlock (&send_buffer_lock);
+		}
+	}
+	return (NULL);
+} /* }}} void *flush_thread */
 
 static int network_config_set_boolean (const oconfig_item_t *ci, /* {{{ */
     int *retval)
@@ -2990,6 +3022,42 @@ static int network_config_set_boolean (const oconfig_item_t *ci, /* {{{ */
 
   return (0);
 } /* }}} int network_config_set_boolean */
+
+static int network_config_set_max_age (const oconfig_item_t *ci) /* {{{ */
+{
+  double tmp;
+  if ((ci->values_num != 1)
+      || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
+  {
+    WARNING ("network plugin: The `MaxAge' config option needs exactly "
+        "one numeric argument.");
+    return (-1);
+  }
+
+  tmp = (int) ci->values[0].value.number;
+  if (tmp >= 0)
+    network_config_max_age = MS_TO_CDTIME_T(tmp);
+
+  return (0);
+} /* }}} int network_config_set_max_age */
+
+static int network_config_set_reap_time (const oconfig_item_t *ci) /* {{{ */
+{
+  double tmp;
+  if ((ci->values_num != 1)
+      || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
+  {
+    WARNING ("network plugin: The `ReapTime' config option needs exactly "
+        "one numeric argument.");
+    return (-1);
+  }
+
+  tmp = (int) ci->values[0].value.number;
+  if (tmp >= 0)
+    network_config_reap_time = MS_TO_CDTIME_T(tmp);
+
+  return (0);
+} /* }}} int network_config_set_reap_time */
 
 static int network_config_set_ttl (const oconfig_item_t *ci) /* {{{ */
 {
@@ -3298,6 +3366,10 @@ static int network_config (oconfig_item_t *ci) /* {{{ */
       network_config_add_listen (child);
     else if (strcasecmp ("Server", child->key) == 0)
       network_config_add_server (child);
+    else if (strcasecmp("MaxAge", child->key) == 0)
+      network_config_set_max_age (child);
+    else if (strcasecmp("ReapTime", child->key) == 0)
+      network_config_set_reap_time (child);
     else if (strcasecmp ("TimeToLive", child->key) == 0) {
       /* Handled earlier */
     }
@@ -3396,6 +3468,7 @@ static int network_shutdown (void)
 	sockent_t *se;
 
 	listen_loop++;
+	flush_loop++;
 
 	/* Kill the listening thread */
 	if (receive_thread_running != 0)
@@ -3416,6 +3489,14 @@ static int network_shutdown (void)
 		pthread_mutex_unlock (&receive_list_lock);
 		pthread_join (dispatch_thread_id, /* ret = */ NULL);
 		dispatch_thread_running = 0;
+	}
+
+	/* Shutdown the flush thread */
+	if (flush_thread_running != 0)
+	{
+		INFO ("network plugin: Stopping flush thread.");
+		pthread_join (flush_thread_id, /* ret = */ NULL);
+		flush_thread_running = 0;
 	}
 
 	sockent_destroy (listen_sockets);
@@ -3547,6 +3628,28 @@ static int network_init (void)
 				/* user_data = */ NULL);
 		plugin_register_notification ("network", network_notification,
 				/* user_data = */ NULL);
+
+		if ((flush_thread_running == 0)
+			&& (network_config_reap_time != 0)
+			&& (network_config_max_age != 0))
+		{
+			int status;
+			status = plugin_thread_create (&flush_thread_id,
+					NULL /* no attributes */,
+					flush_thread,
+					NULL /* no argument */);
+			if (status != 0)
+			{
+				char errbuf[1024];
+				ERROR ("network: pthread_create failed: %s",
+						sstrerror (errno, errbuf,
+							sizeof (errbuf)));
+			}
+			else
+			{
+				flush_thread_running = 1;
+			}
+		}
 	}
 
 	/* If no threads need to be started, return here. */
