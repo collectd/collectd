@@ -17,6 +17,7 @@
  *
  * Authors:
  *   Mathijs Mohlmann
+ *   Dagobert Michelsen (forward-porting)
  **/
 
 #define _BSD_SOURCE
