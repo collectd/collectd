@@ -100,16 +100,16 @@ zone_find_stats(c_avl_tree_t *tree, zoneid_t zoneid)
 
 	if (c_avl_get(tree, (void **)&zoneid, (void **)&ret)) {
 		if (!(ret = malloc(sizeof(zone_stats_t)))) {
-			WARNING("no memory");
+			WARNING("zone plugin: no memory");
 			return(NULL);
 		}
 		if (!(key = malloc(sizeof(zoneid_t)))) {
-			WARNING("no memory");
+			WARNING("zone plugin: no memory");
 			return(NULL);
 		}
 		*key = zoneid;
 		if (c_avl_insert(tree, key, ret)) {
-			WARNING("error inserting into tree");
+			WARNING("zone plugin: error inserting into tree");
 			return(NULL);
 		}
 	}
@@ -145,7 +145,7 @@ zone_scandir(DIR *procdir)
 /*	size_t    physmem = sysconf(_SC_PHYS_PAGES) * pagesize;*/
 
 	if (!(tree=c_avl_create((void *) zone_compare))) {
-		WARNING("Failed to create tree");
+		WARNING("zone plugin: Failed to create tree");
 		return(NULL);
 	}
 
@@ -174,7 +174,7 @@ static int zone_read (void)
 
 	pagesize = sysconf(_SC_PAGESIZE);
 	if ((procdir = opendir("/proc")) == NULL) {
-		ERROR("cannot open /proc directory\n");
+		ERROR("zone plugin: cannot open /proc directory\n");
 		exit(1);
 	}
 
