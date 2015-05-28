@@ -144,8 +144,7 @@ zone_scandir(DIR *procdir)
 	zone_stats_t *stats;
 /*	size_t    physmem = sysconf(_SC_PHYS_PAGES) * pagesize;*/
 
-	if (!(tree=c_avl_create((int (*)
-				 (const void *, const void *))zone_compare))) {
+	if (!(tree=c_avl_create((void *) zone_compare))) {
 		WARNING("Failed to create tree");
 		return(NULL);
 	}
