@@ -65,10 +65,8 @@ zone_read_procfile(char *pidstr, char *file, void *buf, size_t bufsize)
 
 	char procfile[MAX_PROCFS_PATH];
 	(void)snprintf(procfile, sizeof(procfile), "/proc/%s/%s", pidstr, file);
-	while ((fd = open(procfile, O_RDONLY)) == -1) {
-		if ((errno != EMFILE) || (errno != ENFILE)) {
-			return(1);
-		}
+	if ((fd = open(procfile, O_RDONLY)) == -1) {
+		return (1);
 	}
 
 	if (pread(fd, buf, bufsize, 0) != bufsize) {
