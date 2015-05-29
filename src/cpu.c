@@ -582,16 +582,16 @@ static int cpu_read (void)
 			continue;
 		}
 
-		if (cpu_info_len < COLLECTD_CPU_STATE_MAX)
+		if (cpu_info_len < CPU_STATE_MAX)
 		{
 			ERROR ("cpu plugin: processor_info returned only %i elements..", cpu_info_len);
 			continue;
 		}
 
-		cpu_stage (cpu, COLLECTD_CPU_STATE_USER,   (derive_t) cpu_info.cpu_ticks[COLLECTD_CPU_STATE_USER],   now);
-		cpu_stage (cpu, COLLECTD_CPU_STATE_NICE,   (derive_t) cpu_info.cpu_ticks[COLLECTD_CPU_STATE_NICE],   now);
-		cpu_stage (cpu, COLLECTD_CPU_STATE_SYSTEM, (derive_t) cpu_info.cpu_ticks[COLLECTD_CPU_STATE_SYSTEM], now);
-		cpu_stage (cpu, COLLECTD_CPU_STATE_IDLE,   (derive_t) cpu_info.cpu_ticks[COLLECTD_CPU_STATE_IDLE],   now);
+		cpu_stage (cpu, COLLECTD_CPU_STATE_USER,   (derive_t) cpu_info.cpu_ticks[CPU_STATE_USER],   now);
+		cpu_stage (cpu, COLLECTD_CPU_STATE_NICE,   (derive_t) cpu_info.cpu_ticks[CPU_STATE_NICE],   now);
+		cpu_stage (cpu, COLLECTD_CPU_STATE_SYSTEM, (derive_t) cpu_info.cpu_ticks[CPU_STATE_SYSTEM], now);
+		cpu_stage (cpu, COLLECTD_CPU_STATE_IDLE,   (derive_t) cpu_info.cpu_ticks[CPU_STATE_IDLE],   now);
 	}
 /* }}} #endif PROCESSOR_CPU_LOAD_INFO */
 
