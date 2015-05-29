@@ -84,7 +84,7 @@ static bson_t *wm_create_bson (const data_set_t *ds, /* {{{ */
 
   bson_t *doc = bson_new ();
 
-  BSON_APPEND_DATE_TIME (doc, "time",  CDTIME_T_TO_DOUBLE (vl->time));
+  BSON_APPEND_DATE_TIME (doc, "time", CDTIME_T_TO_MS(vl->time));
   BSON_APPEND_UTF8 (doc, "host", vl->host);
   BSON_APPEND_UTF8 (doc, "plugin", vl->plugin);
   BSON_APPEND_UTF8 (doc, "plugin_instance", vl->plugin_instance);
