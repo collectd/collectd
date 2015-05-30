@@ -828,7 +828,7 @@ static procstat_t *ps_read_status (int pid, procstat_t *ps)
 		char *endptr;
 
 		if (strncmp (buffer, "Vm", 2) != 0
-				|| strncmp (buffer, "Threads", 7) != 0)
+				&& strncmp (buffer, "Threads", 7) != 0)
 			continue;
 
 		numfields = strsplit (buffer, fields,
