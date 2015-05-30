@@ -216,7 +216,6 @@ static void statsd_metric_free (statsd_metric_t *metric) /* {{{ */
     metric->set = NULL;
   }
 
-  sfree (name);
   sfree (metric);
 } /* }}} void statsd_metric_free */
 
