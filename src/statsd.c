@@ -190,6 +190,36 @@ static int statsd_metric_add (char const *name, double delta, /* {{{ */
   return (0);
 } /* }}} int statsd_metric_add */
 
+static void statsd_metric_free (statsd_metric_t *metric) /* {{{ */
+{
+  if (metric == NULL)
+    return;
+
+  if (metric->latency != NULL)
+  {
+    latency_counter_destroy (metric->latency);
+    metric->latency = NULL;
+  }
+
+  if (metric->set != NULL)
+  {
+    void *key;
+    void *value;
+
+    while (c_avl_pick (metric->set, &key, &value) == 0)
+    {
+      sfree (key);
+      assert (value == NULL);
+    }
+
+    c_avl_destroy (metric->set);
+    metric->set = NULL;
+  }
+
+  sfree (name);
+  sfree (metric);
+} /* }}} void statsd_metric_free */
+
 static int statsd_parse_value (char const *str, value_t *ret_value) /* {{{ */
 {
   char *endptr = NULL;
@@ -877,7 +907,7 @@ static int statsd_read (void) /* {{{ */
     }
 
     sfree (name);
-    sfree (metric);
+    statsd_metric_free (metric);
   }
 
   pthread_mutex_unlock (&metrics_lock);
