@@ -811,10 +811,10 @@ static procstat_t *ps_read_status (int pid, procstat_t *ps)
 	FILE *fh;
 	char buffer[1024];
 	char filename[64];
-	unsigned long long lib = 0;
-	unsigned long long exe = 0;
-	unsigned long long data = 0;
-	unsigned long long threads = 0;
+	unsigned long lib = 0;
+	unsigned long exe = 0;
+	unsigned long data = 0;
+	unsigned long threads = 0;
 	char *fields[8];
 	int numfields;
 
@@ -824,7 +824,7 @@ static procstat_t *ps_read_status (int pid, procstat_t *ps)
 
 	while (fgets (buffer, sizeof(buffer), fh) != NULL)
 	{
-		long long tmp;
+		unsigned long tmp;
 		char *endptr;
 
 		if (strncmp (buffer, "Vm", 2) != 0
@@ -839,7 +839,7 @@ static procstat_t *ps_read_status (int pid, procstat_t *ps)
 
 		errno = 0;
 		endptr = NULL;
-		tmp = strtoll (fields[1], &endptr, /* base = */ 10);
+		tmp = strtoul (fields[1], &endptr, /* base = */ 10);
 		if ((errno == 0) && (endptr != fields[1]))
 		{
 			if (strncmp (buffer, "VmData", 6) == 0)
