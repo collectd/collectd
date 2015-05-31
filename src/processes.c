@@ -609,14 +609,7 @@ static int ps_config (oconfig_item_t *ci)
 		}
 		else if (strcasecmp (c->key, "CollectContextSwitch") == 0)
 		{
-			if ((c->values_num != 1) 
-					|| (c->values[0].type != OCONFIG_TYPE_BOOLEAN))
-			{
-				ERROR ("processes plugin: `CollectContextSwitch' needs exactly "
-						"one boolean argument.");
-				continue;
-			}
-			report_ctx_switch = c->values[0].value.boolean ? 1 : 0;
+			cf_util_get_boolean (c, &report_ctx_switch);
 		}
 		else
 		{
