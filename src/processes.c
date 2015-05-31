@@ -762,12 +762,14 @@ static void ps_submit_proc_list (procstat_t *ps)
 
 	if ( report_ctx_switch )
 	{
-		sstrncpy (vl.type, "ps_cswitch_vol", sizeof (vl.type));
+		sstrncpy (vl.type, "contextswitch", sizeof (vl.type));
+		sstrncpy (vl.type_instance, "voluntary", sizeof (vl.type_instance));
 		vl.values[0].derive = ps->cswitch_vol;
 		vl.values_len = 1;
 		plugin_dispatch_values (&vl);
 
-		sstrncpy (vl.type, "ps_cswitch_invol", sizeof (vl.type));
+		sstrncpy (vl.type, "contextswitch", sizeof (vl.type));
+		sstrncpy (vl.type_instance, "involuntary", sizeof (vl.type_instance));
 		vl.values[0].derive = ps->cswitch_invol;
 		vl.values_len = 1;
 		plugin_dispatch_values (&vl);
@@ -819,8 +821,8 @@ static procstat_t *ps_read_tasks_status (int pid, procstat_t *ps)
 	char           filename[64];
 	FILE          *fh;
 	struct dirent *ent;
-	unsigned long long cswitch_vol = 0;
-	unsigned long long cswitch_invol = 0;
+	derive_t cswitch_vol = 0;
+	derive_t cswitch_invol = 0;
 	char buffer[1024];
 	char *fields[8];
 	int numfields;
@@ -851,7 +853,7 @@ static procstat_t *ps_read_tasks_status (int pid, procstat_t *ps)
 
 		while (fgets (buffer, sizeof(buffer), fh) != NULL)
 		{
-			long long tmp;
+			derive_t tmp;
 			char *endptr;
 
 			if (strncmp (buffer, "voluntary_ctxt_switches", 23) != 0
@@ -866,7 +868,7 @@ static procstat_t *ps_read_tasks_status (int pid, procstat_t *ps)
 
 			errno = 0;
 			endptr = NULL;
-			tmp = strtoll (fields[1], &endptr, /* base = */ 10);
+			tmp = (derive_t) strtoll (fields[1], &endptr, /* base = */ 10);
 			if ((errno == 0) && (endptr != fields[1]))
 			{
 				if (strncmp (buffer, "voluntary_ctxt_switches", 23) == 0)
