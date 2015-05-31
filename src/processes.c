@@ -223,7 +223,7 @@ typedef struct procstat
 
 static procstat_t *list_head_g = NULL;
 
-static _Bool ps_ctx_switch = 0;
+static _Bool report_ctx_switch = 0;
 
 #if HAVE_THREAD_INFO
 static mach_port_t port_host_self;
@@ -617,7 +617,7 @@ static int ps_config (oconfig_item_t *ci)
 						"one boolean argument.");
 				continue;
 			}
-			ps_ctx_switch = c->values[0].value.boolean ? 1 : 0;
+			report_ctx_switch = c->values[0].value.boolean ? 1 : 0;
 		}
 		else
 		{
@@ -768,7 +768,7 @@ static void ps_submit_proc_list (procstat_t *ps)
 		plugin_dispatch_values (&vl);
 	}
 
-	if ( ps_ctx_switch )
+	if ( report_ctx_switch )
 	{
 		sstrncpy (vl.type, "ps_cswitch_vol", sizeof (vl.type));
 		vl.values[0].derive = ps->cswitch_vol;
@@ -1193,7 +1193,7 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 		DEBUG("ps_read_process: not get io data for pid %i",pid);
 	}
 
-	if ( ps_ctx_switch )
+	if ( report_ctx_switch )
 	{
 		if ( (ps_read_tasks_status(pid, ps)) == NULL)
 		{
