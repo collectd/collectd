@@ -106,7 +106,10 @@ static int tcsv_read_metric (instance_definition_t *id,
     if (md->data_source_type == -1)
         return (EINVAL);
 
-    if ((md->value_from >= fields_num) || (id->time_from >= fields_num))
+    if (md->value_from >= fields_num)
+        return (EINVAL);
+
+    if (id->time_from >= 0 && (id->time_from >= fields_num))
         return (EINVAL);
 
     t = 0;
@@ -376,7 +379,8 @@ static void tcsv_instance_definition_destroy(void *arg){
 
 static int tcsv_config_add_instance_collect(instance_definition_t *id, oconfig_item_t *ci){
     metric_definition_t *metric;
-    int i;
+    metric_definition_t **metric_list;
+    int i,j,n;
 
     if (ci->values_num < 1){
         WARNING("tail_csv plugin: The `Collect' config option needs at least one argument.");
@@ -390,17 +394,20 @@ static int tcsv_config_add_instance_collect(instance_definition_t *id, oconfig_i
             return (-1);
         }
 
-    id->metric_list = (metric_definition_t **)malloc(sizeof(metric_definition_t *) * ci->values_num);
-    if (id->metric_list == NULL)
+    n = id->metric_list_len + ci->values_num;
+    metric_list = (metric_definition_t **)realloc(id->metric_list, sizeof(metric_definition_t *) * n);
+    if (metric_list == NULL)
         return (-1);
 
-    for (i = 0; i < ci->values_num; ++i){
+    id->metric_list = metric_list;
+
+    for (i = id->metric_list_len, j=0; i < n; ++i, ++j){
         for (metric = metric_head; metric != NULL; metric = metric->next)
-            if (strcasecmp(ci->values[i].value.string, metric->name) == 0)
+            if (strcasecmp(ci->values[j].value.string, metric->name) == 0)
                 break;
 
         if (metric == NULL){
-            WARNING("tail_csv plugin: `Collect' argument not found `%s'.", ci->values[i].value.string);
+            WARNING("tail_csv plugin: `Collect' argument not found `%s'.", ci->values[j].value.string);
             return (-1);
         }
 
