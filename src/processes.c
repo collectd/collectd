@@ -362,7 +362,7 @@ static int ps_list_match (const char *name, const char *cmdline, procstat_t *ps)
 static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t *entry)
 {
 	procstat_t *ps;
-	 procstat_entry_t *pse;
+	procstat_entry_t *pse;
 
 	if (entry->id == 0)
 		return;
@@ -498,7 +498,6 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 
 		ps->cpu_user_counter   += pse->cpu_user;
 		ps->cpu_system_counter += pse->cpu_system;
-
 	}
 }
 
