@@ -310,6 +310,7 @@ static pthread_t dispatch_thread_id;
 static char            *send_buffer;
 static char            *send_buffer_ptr;
 static int              send_buffer_fill;
+static cdtime_t         send_buffer_last_update;
 static value_list_t     send_buffer_vl = VALUE_LIST_STATIC;
 static pthread_mutex_t  send_buffer_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -2577,6 +2578,7 @@ static void network_init_buffer (void)
 	memset (send_buffer, 0, network_config_packet_size);
 	send_buffer_ptr = send_buffer;
 	send_buffer_fill = 0;
+	send_buffer_last_update = 0;
 
 	memset (&send_buffer_vl, 0, sizeof (send_buffer_vl));
 } /* int network_init_buffer */
@@ -2916,6 +2918,7 @@ static int network_write (const data_set_t *ds, const value_list_t *vl,
 		/* status == bytes added to the buffer */
 		send_buffer_fill += status;
 		send_buffer_ptr  += status;
+		send_buffer_last_update = cdtime();
 
 		stats_values_sent++;
 	}
@@ -3605,15 +3608,25 @@ static int network_init (void)
  * just send the buffer if `flush'  is called - if the requested value was in
  * there, good. If not, well, then there is nothing to flush.. -octo
  */
-static int network_flush (__attribute__((unused)) cdtime_t timeout,
+static int network_flush (cdtime_t timeout,
 		__attribute__((unused)) const char *identifier,
 		__attribute__((unused)) user_data_t *user_data)
 {
 	pthread_mutex_lock (&send_buffer_lock);
 
 	if (send_buffer_fill > 0)
-	  flush_buffer ();
-
+	{
+		if (timeout > 0)
+		{
+			cdtime_t now = cdtime ();
+			if ((send_buffer_last_update + timeout) > now)
+			{
+				pthread_mutex_unlock (&send_buffer_lock);
+				return (0);
+			}
+		}
+		flush_buffer ();
+	}
 	pthread_mutex_unlock (&send_buffer_lock);
 
 	return (0);
