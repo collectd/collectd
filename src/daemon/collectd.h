@@ -267,7 +267,7 @@ typedef int _Bool;
 #endif
 
 #ifndef COLLECTD_DEFAULT_INTERVAL
-# define COLLECTD_DEFAULT_INTERVAL 10.0
+# define COLLECTD_DEFAULT_INTERVAL 60.0
 #endif
 
 #ifndef COLLECTD_USERAGENT
