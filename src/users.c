@@ -40,9 +40,6 @@
 #elif HAVE_UTMP_H
 # include <utmp.h>
 /* #endif HAVE_UTMP_H */
-
-#else
-# error "No applicable input method."
 #endif
 
 static void users_submit (gauge_t value)
