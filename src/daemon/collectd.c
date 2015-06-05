@@ -270,7 +270,7 @@ static void update_kstat (void)
  */
 static void exit_usage (int status)
 {
-	printf ("Usage: "PACKAGE" [OPTIONS]\n\n"
+	printf ("Usage: "PACKAGE_NAME" [OPTIONS]\n\n"
 
 			"Available options:\n"
 			"  General:\n"
@@ -289,7 +289,7 @@ static void exit_usage (int status)
 			"  PID file          "PIDFILE"\n"
 			"  Plugin directory  "PLUGINDIR"\n"
 			"  Data directory    "PKGLOCALSTATEDIR"\n"
-			"\n"PACKAGE" "VERSION", http://collectd.org/\n"
+			"\n"PACKAGE_NAME" "PACKAGE_VERSION", http://collectd.org/\n"
 			"by Florian octo Forster <octo@collectd.org>\n"
 			"for contributions see `AUTHORS'\n");
 	exit (status);
