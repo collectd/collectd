@@ -748,16 +748,13 @@ static int statsd_metric_submit_unsafe (char const *name, /* {{{ */
 
   sstrncpy (vl.type_instance, name, sizeof (vl.type_instance));
 
+  vl.time = cdtime () / plugin_get_interval() * plugin_get_interval();
+
   if (metric->type == STATSD_GAUGE)
     values[0].gauge = (gauge_t) metric->value;
   else if (metric->type == STATSD_TIMER)
   {
     size_t i;
-
-    if (metric->updates_num == 0)
-      return (0);
-
-    vl.time = cdtime ();
 
     ssnprintf (vl.type_instance, sizeof (vl.type_instance),
         "%s-average", name);
