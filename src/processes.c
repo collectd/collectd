@@ -180,6 +180,9 @@ typedef struct procstat_entry_s
 	derive_t io_syscr;
 	derive_t io_syscw;
 
+	derive_t cswitch_vol;
+	derive_t cswitch_invol;
+
 	struct procstat_entry_s *next;
 } procstat_entry_t;
 
@@ -211,11 +214,16 @@ typedef struct procstat
 	derive_t io_syscr;
 	derive_t io_syscw;
 
+	derive_t cswitch_vol;
+	derive_t cswitch_invol;
+
 	struct procstat   *next;
 	struct procstat_entry_s *instances;
 } procstat_t;
 
 static procstat_t *list_head_g = NULL;
+
+static _Bool report_ctx_switch = 0;
 
 #if HAVE_THREAD_INFO
 static mach_port_t port_host_self;
@@ -398,6 +406,8 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 		pse->io_wchar   = entry->io_wchar;
 		pse->io_syscr   = entry->io_syscr;
 		pse->io_syscw   = entry->io_syscw;
+		pse->cswitch_vol   = entry->cswitch_vol;
+		pse->cswitch_invol = entry->cswitch_invol;
 
 		ps->num_proc   += pse->num_proc;
 		ps->num_lwp    += pse->num_lwp;
@@ -411,6 +421,9 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 		ps->io_wchar   += ((pse->io_wchar == -1)?0:pse->io_wchar);
 		ps->io_syscr   += ((pse->io_syscr == -1)?0:pse->io_syscr);
 		ps->io_syscw   += ((pse->io_syscw == -1)?0:pse->io_syscw);
+
+		ps->cswitch_vol   += ((pse->cswitch_vol == -1)?0:pse->cswitch_vol);
+		ps->cswitch_invol += ((pse->cswitch_invol == -1)?0:pse->cswitch_invol);
 
 		if ((entry->vmem_minflt_counter == 0)
 				&& (entry->vmem_majflt_counter == 0))
@@ -508,6 +521,8 @@ static void ps_list_reset (void)
 		ps->io_wchar = -1;
 		ps->io_syscr = -1;
 		ps->io_syscw = -1;
+		ps->cswitch_vol   = -1;
+		ps->cswitch_invol = -1;
 
 		pse_prev = NULL;
 		pse = ps->instances;
@@ -591,6 +606,10 @@ static int ps_config (oconfig_item_t *ci)
 
 			ps_list_register (c->values[0].value.string,
 					c->values[1].value.string);
+		}
+		else if (strcasecmp (c->key, "CollectContextSwitch") == 0)
+		{
+			cf_util_get_boolean (c, &report_ctx_switch);
 		}
 		else
 		{
@@ -741,19 +760,36 @@ static void ps_submit_proc_list (procstat_t *ps)
 		plugin_dispatch_values (&vl);
 	}
 
+	if ( report_ctx_switch )
+	{
+		sstrncpy (vl.type, "contextswitch", sizeof (vl.type));
+		sstrncpy (vl.type_instance, "voluntary", sizeof (vl.type_instance));
+		vl.values[0].derive = ps->cswitch_vol;
+		vl.values_len = 1;
+		plugin_dispatch_values (&vl);
+
+		sstrncpy (vl.type, "contextswitch", sizeof (vl.type));
+		sstrncpy (vl.type_instance, "involuntary", sizeof (vl.type_instance));
+		vl.values[0].derive = ps->cswitch_invol;
+		vl.values_len = 1;
+		plugin_dispatch_values (&vl);
+	}
+
 	DEBUG ("name = %s; num_proc = %lu; num_lwp = %lu; "
 			"vmem_size = %lu; vmem_rss = %lu; vmem_data = %lu; "
 			"vmem_code = %lu; "
 			"vmem_minflt_counter = %"PRIi64"; vmem_majflt_counter = %"PRIi64"; "
 			"cpu_user_counter = %"PRIi64"; cpu_system_counter = %"PRIi64"; "
 			"io_rchar = %"PRIi64"; io_wchar = %"PRIi64"; "
-			"io_syscr = %"PRIi64"; io_syscw = %"PRIi64";",
+			"io_syscr = %"PRIi64"; io_syscw = %"PRIi64"; "
+			"cswitch_vol = %"PRIi64"; cswitch_invol = %"PRIi64";",
 			ps->name, ps->num_proc, ps->num_lwp,
 			ps->vmem_size, ps->vmem_rss,
 			ps->vmem_data, ps->vmem_code,
 			ps->vmem_minflt_counter, ps->vmem_majflt_counter,
 			ps->cpu_user_counter, ps->cpu_system_counter,
-			ps->io_rchar, ps->io_wchar, ps->io_syscr, ps->io_syscw);
+			ps->io_rchar, ps->io_wchar, ps->io_syscr, ps->io_syscw,
+			ps->cswitch_vol, ps->cswitch_invol);
 } /* void ps_submit_proc_list */
 
 #if KERNEL_LINUX || KERNEL_SOLARIS
@@ -778,6 +814,116 @@ static void ps_submit_fork_rate (derive_t value)
 
 /* ------- additional functions for KERNEL_LINUX/HAVE_THREAD_INFO ------- */
 #if KERNEL_LINUX
+static procstat_t *ps_read_tasks_status (int pid, procstat_t *ps)
+{
+	char           dirname[64];
+	DIR           *dh;
+	char           filename[64];
+	FILE          *fh;
+	struct dirent *ent;
+	derive_t cswitch_vol = 0;
+	derive_t cswitch_invol = 0;
+	char buffer[1024];
+	char *fields[8];
+	int numfields;
+
+	ssnprintf (dirname, sizeof (dirname), "/proc/%i/task", pid);
+
+	if ((dh = opendir (dirname)) == NULL)
+	{
+		DEBUG ("Failed to open directory `%s'", dirname);
+		return (NULL);
+	}
+
+	while ((ent = readdir (dh)) != NULL)
+	{
+		char *tpid;
+
+		if (!isdigit ((int) ent->d_name[0]))
+			continue;
+
+		tpid = ent->d_name;
+
+		ssnprintf (filename, sizeof (filename), "/proc/%i/task/%s/status", pid, tpid);
+		if ((fh = fopen (filename, "r")) == NULL)
+		{
+			DEBUG ("Failed to open file `%s'", filename);
+			continue;
+		}
+
+		while (fgets (buffer, sizeof(buffer), fh) != NULL)
+		{
+			derive_t tmp;
+			char *endptr;
+
+			if (strncmp (buffer, "voluntary_ctxt_switches", 23) != 0
+				&& strncmp (buffer, "nonvoluntary_ctxt_switches", 26) != 0)
+				continue;
+
+			numfields = strsplit (buffer, fields,
+				STATIC_ARRAY_SIZE (fields));
+
+			if (numfields < 2)
+				continue;
+
+			errno = 0;
+			endptr = NULL;
+			tmp = (derive_t) strtoll (fields[1], &endptr, /* base = */ 10);
+			if ((errno == 0) && (endptr != fields[1]))
+			{
+				if (strncmp (buffer, "voluntary_ctxt_switches", 23) == 0)
+				{
+					cswitch_vol += tmp;
+				}
+				else if (strncmp (buffer, "nonvoluntary_ctxt_switches", 26) == 0)
+				{
+					cswitch_invol += tmp;
+				}
+			}
+		} /* while (fgets) */
+
+		if (fclose (fh))
+		{
+			char errbuf[1024];
+				WARNING ("processes: fclose: %s",
+					sstrerror (errno, errbuf, sizeof (errbuf)));
+		}
+	}
+	closedir (dh);
+
+	ps->cswitch_vol = cswitch_vol;
+	ps->cswitch_invol = cswitch_invol;
+
+	return (ps);
+} /* int *ps_read_tasks_status */
+
+static int ps_read_tasks (int pid)
+{
+	char           dirname[64];
+	DIR           *dh;
+	struct dirent *ent;
+	int count = 0;
+
+	ssnprintf (dirname, sizeof (dirname), "/proc/%i/task", pid);
+
+	if ((dh = opendir (dirname)) == NULL)
+	{
+		DEBUG ("Failed to open directory `%s'", dirname);
+		return (-1);
+	}
+
+	while ((ent = readdir (dh)) != NULL)
+	{
+		if (!isdigit ((int) ent->d_name[0]))
+			continue;
+		else
+			count++;
+	}
+	closedir (dh);
+
+	return ((count >= 1) ? count : 1);
+} /* int *ps_read_tasks */
+
 /* Read data from /proc/pid/status */
 static procstat_t *ps_read_status (int pid, procstat_t *ps)
 {
@@ -1044,6 +1190,18 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 		ps->io_syscw = -1;
 
 		DEBUG("ps_read_process: not get io data for pid %i",pid);
+	}
+
+	if ( report_ctx_switch )
+	{
+		if ( (ps_read_tasks_status(pid, ps)) == NULL)
+		{
+			ps->cswitch_vol = -1;
+			ps->cswitch_invol = -1;
+
+			DEBUG("ps_read_tasks_status: not get context "
+					"switch data for pid %i",pid);
+		}
 	}
 
 	/* success */
@@ -1743,6 +1901,9 @@ static int ps_read (void)
 		pse.io_wchar = ps.io_wchar;
 		pse.io_syscr = ps.io_syscr;
 		pse.io_syscw = ps.io_syscw;
+
+		pse.cswitch_vol = ps.cswitch_vol;
+		pse.cswitch_invol = ps.cswitch_invol;
 
 		switch (state)
 		{

@@ -5422,6 +5422,10 @@ dispatched to the daemon using the specified I<name> as an identifier. This
 allows to "group" several processes together. I<name> must not contain
 slashes.
 
+=item B<CollectContextSwitch> I<Boolean>
+
+Collect context switch of the process.
+
 =back
 
 =head2 Plugin C<protocols>
