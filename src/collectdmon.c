@@ -65,6 +65,8 @@
 
 static int loop    = 0;
 static int restart = 0;
+static int maxDelayToRestart = 3600;
+static int minUpTime         = 900;
 
 static char  *pidfile      = NULL;
 static pid_t  collectd_pid = 0;
@@ -73,16 +75,22 @@ static void exit_usage (char *name)
 {
 	printf ("Usage: %s <options> [-- <collectd options>]\n"
 
-			"\nAvailable options:\n"
-			"  -h         Display this help and exit.\n"
-			"  -c <path>  Path to the collectd binary.\n"
-			"  -P <file>  PID-file.\n"
+        "\nAvailable options:\n"
 
-			"\nFor <collectd options> see collectd.conf(5).\n"
+        "  -h                     Display this help and exit.               \n"
+        "  -c <path>              Path to the collectd binary.              \n"
+        "  -P <file>              PID-file.                                 \n"
+        "  -d <maxDelayToRestart> Maximum number of seconds to sleep/delay  \n"
+        "                         before restarting collectd (default:3600).\n"
+        "  -u <minUpTime>         Minimum number of seconds collectd server \n"
+        "                         should be up to reset exponential back-off\n"
+        "                         restart policy (default:900)              \n"
 
-			"\n"PACKAGE" "VERSION", http://collectd.org/\n"
-			"by Florian octo Forster <octo@collectd.org>\n"
-			"for contributions see `AUTHORS'\n", name);
+        "\nFor <collectd options> see collectd.conf(5).\n"
+
+        "\n"PACKAGE" "VERSION", http://collectd.org/\n"
+        "by Florian octo Forster <octo@collectd.org>\n"
+        "for contributions see `AUTHORS'\n", name);
 	exit (0);
 } /* exit_usage */
 
@@ -236,28 +244,46 @@ static void log_status (int status)
 	return;
 } /* log_status */
 
+/**
+ * check_respawn function uses exponential back-off restart policy and resets
+ * itself if collectd is stable. This policy can be customized by setting
+ * following tunables:
+ *
+ * maxDelayToRestart - Maximum number of seconds to sleep/delay before
+ *                     restarting collectd (eg: 3600 - 1 hour)
+ * minUpTime         - Minimum number of seconds collectd server should be up
+ *                     to reset exponential back-off restart policy
+ *                     (eg: 900 - 15 mins)
+ */
 static void check_respawn (void)
 {
 	time_t t = time (NULL);
 
 	static time_t timestamp = 0;
-	static int    counter   = 0;
+	static int    delay   = 0;
 
-	if ((t - 120) < timestamp)
-		++counter;
-	else {
+	if ((t - minUpTime) > timestamp) {
+		// collectd was stabe, so reset delay
+		delay = 0;
 		timestamp = t;
-		counter   = 0;
+		return;
 	}
 
-	if (10 < counter) {
-		unsigned int time_left = 300;
+	// increase delay (exponential back-off)
+	delay = (delay == 0) ? 1 : (2 * delay);
 
-		syslog (LOG_ERR, "Error: collectd is respawning too fast - "
-				"disabled for %i seconds", time_left);
+	// make sure delay is not more than maxDelayToRestart
+	delay = (delay < maxDelayToRestart) ? delay : maxDelayToRestart;
 
-		while ((0 < (time_left = sleep (time_left))) && (0 == loop));
-	}
+	unsigned int time_left = delay;
+
+	syslog (LOG_ERR, "Error: collectd is respawning too fast - "
+			"disabled for %i seconds", time_left);
+
+	while ((0 < (time_left = sleep (time_left))) && (0 == loop));
+
+	timestamp = time (NULL);
+
 	return;
 } /* check_respawn */
 
@@ -270,10 +296,11 @@ int main (int argc, char **argv)
 	struct sigaction sa;
 
 	int i = 0;
+	int tmpVal = 0;
 
 	/* parse command line options */
 	while (42) {
-		int c = getopt (argc, argv, "hc:P:");
+		int c = getopt (argc, argv, "hc:P:d:u:");
 
 		if (-1 == c)
 			break;
@@ -284,6 +311,22 @@ int main (int argc, char **argv)
 				break;
 			case 'P':
 				pidfile = optarg;
+				break;
+			case 'd':
+				tmpVal = atoi(optarg);
+				if (tmpVal <= 0) {
+					fprintf(stderr, "Error: Invalid -d value[%s]\n", optarg);
+					exit_usage (argv[0]);
+				}
+			maxDelayToRestart = tmpVal;
+			break;
+			case 'u':
+				tmpVal = atoi(optarg);
+				if (tmpVal <= 0) {
+					fprintf(stderr,  "Error: Invalid -u value[%s]\n", optarg);
+					exit_usage (argv[0]);
+				}
+				minUpTime = tmpVal;
 				break;
 			case 'h':
 			default:
@@ -315,6 +358,9 @@ int main (int argc, char **argv)
 	collectd_argv[collectd_argc] = NULL;
 
 	openlog ("collectdmon", LOG_CONS | LOG_PID, LOG_DAEMON);
+	syslog (LOG_INFO, "Info: collectdmon started: maxDelayToRestart[%d]"
+		", minUpTime[%d], pidfile[%s] collectd[%s]",
+		maxDelayToRestart, minUpTime, pidfile, collectd);
 
 	if (-1 == daemonize ())
 		return 1;
