@@ -843,7 +843,8 @@ static procstat_t *ps_read_status (int pid, procstat_t *ps)
 
 	ps->vmem_data = data * 1024;
 	ps->vmem_code = (exe + lib) * 1024;
-	ps->num_lwp = threads;
+	if (threads != 0)
+		ps->num_lwp = threads;
 
 	return (ps);
 } /* procstat_t *ps_read_vmem */
@@ -986,18 +987,16 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 	}
 	else
 	{
-		if ( (ps_read_status(pid, ps)) == NULL)
+		ps->num_lwp = strtoul (fields[17], /* endptr = */ NULL, /* base = */ 10);
+		if ((ps_read_status(pid, ps)) == NULL)
 		{
 			/* No VMem data */
 			ps->vmem_data = -1;
 			ps->vmem_code = -1;
-			ps->num_lwp  = 0;
 			DEBUG("ps_read_process: did not get vmem data for pid %i",pid);
 		}
-		if ( ps->num_lwp <= 0)
-		{
+		if (ps->num_lwp <= 0)
 			ps->num_lwp = 1;
-		}
 		ps->num_proc = 1;
 	}
 
