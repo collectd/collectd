@@ -421,7 +421,6 @@ static int tcsv_config_add_file(oconfig_item_t *ci)
     /* Registration variables */
     char cb_name[DATA_MAX_NAME_LEN];
     user_data_t cb_data;
-    struct timespec cb_interval;
 
     id = malloc(sizeof(*id));
     if (id == NULL)
@@ -486,8 +485,7 @@ static int tcsv_config_add_file(oconfig_item_t *ci)
     memset(&cb_data, 0, sizeof(cb_data));
     cb_data.data = id;
     cb_data.free_func = tcsv_instance_definition_destroy;
-    CDTIME_T_TO_TIMESPEC(id->interval, &cb_interval);
-    status = plugin_register_complex_read(NULL, cb_name, tcsv_read, &cb_interval, &cb_data);
+    status = plugin_register_complex_read(NULL, cb_name, tcsv_read, id->interval, &cb_data);
 
     if (status != 0){
         ERROR("tail_csv plugin: Registering complex read function failed.");

@@ -739,7 +739,7 @@ static int varnish_init (void) /* {{{ */
 	plugin_register_complex_read (/* group = */ "varnish",
 			/* name      = */ "varnish/localhost",
 			/* callback  = */ varnish_read,
-			/* interval  = */ NULL,
+			/* interval  = */ 0,
 			/* user data = */ &ud);
 
 	return (0);

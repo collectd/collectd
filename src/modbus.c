@@ -1017,18 +1017,15 @@ static int mb_config_add_host (oconfig_item_t *ci) /* {{{ */
   {
     user_data_t ud;
     char name[1024];
-    struct timespec interval = { 0, 0 };
 
     ud.data = host;
     ud.free_func = host_free;
 
     ssnprintf (name, sizeof (name), "modbus-%s", host->host);
 
-    CDTIME_T_TO_TIMESPEC (host->interval, &interval);
-
     plugin_register_complex_read (/* group = */ NULL, name,
         /* callback = */ mb_read,
-        /* interval = */ (host->interval > 0) ? &interval : NULL,
+        /* interval = */ host->interval,
         &ud);
   }
   else

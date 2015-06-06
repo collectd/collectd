@@ -1015,7 +1015,7 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
 
     cb_name = ssnprintf_alloc ("curl_xml-%s-%s", db->instance, db->url);
     plugin_register_complex_read (/* group = */ "curl_xml", cb_name, cx_read,
-                                  /* interval = */ NULL, &ud);
+                                  /* interval = */ 0, &ud);
     sfree (cb_name);
   }
   else

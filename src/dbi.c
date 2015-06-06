@@ -406,7 +406,7 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
       plugin_register_complex_read (/* group = */ NULL,
           /* name = */ name ? name : db->name,
           /* callback = */ cdbi_read_database,
-          /* interval = */ NULL,
+          /* interval = */ 0,
           /* user_data = */ &ud);
       free (name);
     }

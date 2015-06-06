@@ -656,7 +656,6 @@ static PyObject *cpy_register_read(PyObject *self, PyObject *args, PyObject *kwd
 	double interval = 0;
 	char *name = NULL;
 	PyObject *callback = NULL, *data = NULL;
-	struct timespec ts;
 	static char *kwlist[] = {"callback", "interval", "data", "name", NULL};
 	
 	if (PyArg_ParseTupleAndKeywords(args, kwds, "O|dOet", kwlist, &callback, &interval, &data, NULL, &name) == 0) return NULL;
@@ -678,10 +677,8 @@ static PyObject *cpy_register_read(PyObject *self, PyObject *args, PyObject *kwd
 	user_data = malloc(sizeof(*user_data));
 	user_data->free_func = cpy_destroy_user_data;
 	user_data->data = c;
-	ts.tv_sec = interval;
-	ts.tv_nsec = (interval - ts.tv_sec) * 1000000000;
 	plugin_register_complex_read(/* group = */ NULL, buf,
-			cpy_read_callback, &ts, user_data);
+			cpy_read_callback, DOUBLE_TO_CDTIME_T (interval), user_data);
 	return cpy_string_to_unicode_or_bytes(buf);
 }
 

@@ -1438,7 +1438,7 @@ static jint JNICALL cjni_api_register_read (JNIEnv *jvm_env, /* {{{ */
   ud.free_func = cjni_callback_info_destroy;
 
   plugin_register_complex_read (/* group = */ NULL, cbi->name, cjni_read,
-      /* interval = */ NULL, &ud);
+      /* interval = */ 0, &ud);
 
   (*jvm_env)->DeleteLocalRef (jvm_env, o_read);
 

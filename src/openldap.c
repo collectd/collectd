@@ -629,7 +629,7 @@ static int cldap_config_add (oconfig_item_t *ci) /* {{{ */
 		status = plugin_register_complex_read (/* group = */ NULL,
 				/* name      = */ callback_name,
 				/* callback  = */ cldap_read_host,
-				/* interval  = */ NULL,
+				/* interval  = */ 0,
 				/* user_data = */ &ud);
 	}
 

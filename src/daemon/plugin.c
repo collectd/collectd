@@ -1245,7 +1245,7 @@ int plugin_register_read (const char *name,
 
 int plugin_register_complex_read (const char *group, const char *name,
 		plugin_read_cb callback,
-		const struct timespec *interval,
+		cdtime_t interval,
 		user_data_t *user_data)
 {
 	read_func_t *rf;
@@ -1266,10 +1266,7 @@ int plugin_register_complex_read (const char *group, const char *name,
 		rf->rf_group[0] = '\0';
 	rf->rf_name = strdup (name);
 	rf->rf_type = RF_COMPLEX;
-	if (interval != NULL)
-		rf->rf_interval = TIMESPEC_TO_CDTIME_T (interval);
-	else
-		rf->rf_interval = plugin_get_interval ();
+	rf->rf_interval = (interval != 0) ? interval : plugin_get_interval ();
 
 	/* Set user data */
 	if (user_data == NULL)

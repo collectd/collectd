@@ -1196,7 +1196,6 @@ static int c_psql_config_database (oconfig_item_t *ci)
 	c_psql_database_t *db;
 
 	char cb_name[DATA_MAX_NAME_LEN];
-	struct timespec cb_interval = { 0, 0 };
 	user_data_t ud;
 
 	static _Bool have_flush = 0;
@@ -1291,12 +1290,9 @@ static int c_psql_config_database (oconfig_item_t *ci)
 	ssnprintf (cb_name, sizeof (cb_name), "postgresql-%s", db->instance);
 
 	if (db->queries_num > 0) {
-		CDTIME_T_TO_TIMESPEC (db->interval, &cb_interval);
-
 		++db->ref_cnt;
 		plugin_register_complex_read ("postgresql", cb_name, c_psql_read,
-				/* interval = */ (db->interval > 0) ? &cb_interval : NULL,
-				&ud);
+				/* interval = */ db->interval, &ud);
 	}
 	if (db->writers_num > 0) {
 		++db->ref_cnt;
