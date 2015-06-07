@@ -965,8 +965,12 @@ static int ntpd_read (void)
 
 		char peername[NI_MAXHOST];
 		uint32_t refclock_id;
+		int is_refclock;
 
 		ptr = ps + i;
+
+		is_refclock = !ptr->v6_flag &&
+		  ((ntohl(ptr->srcadr) & REFCLOCK_MASK) == REFCLOCK_ADDR);
 
 		status = ntpd_get_name (peername, sizeof (peername), ptr);
 		if (status != 0)
@@ -999,12 +1003,12 @@ static int ntpd_read (void)
 				offset,
 				ntpd_read_fp (ptr->dispersion));
 
-		if (refclock_id != 1) /* not the system clock (offset will always be zero.. */
+		if (!(is_refclock && refclock_id == 1)) /* not the system clock (offset will always be zero.. */
 			ntpd_submit_reach ("time_offset", peername, ptr->reach,
 					offset);
 		ntpd_submit_reach ("time_dispersion", peername, ptr->reach,
 				ntpd_read_fp (ptr->dispersion));
-		if (refclock_id == 0) /* not a reference clock */
+		if (!is_refclock) /* not a reference clock */
 			ntpd_submit_reach ("delay", peername, ptr->reach,
 					ntpd_read_fp (ptr->delay));
 	}
