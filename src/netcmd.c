@@ -47,9 +47,13 @@
 #include <grp.h>
 
 #include <gnutls/gnutls.h>
+#include <gnutls/x509.h>
 
 #define NC_DEFAULT_SERVICE "25826"
-#define NC_TLS_DH_BITS 1024
+
+#ifndef NC_DEFAULT_DH_BITS
+# define NC_DEFAULT_DH_BITS 2048
+#endif
 
 /*
  * Private data structures
@@ -66,6 +70,7 @@ struct nc_peer_s /* {{{ */
   char *tls_ca_file;
   char *tls_crl_file;
   _Bool tls_verify_peer;
+  unsigned int tls_dh_bits;
 
   gnutls_certificate_credentials_t tls_credentials;
   gnutls_dh_params_t tls_dh_params;
@@ -125,7 +130,7 @@ static pthread_t listen_thread;
 /*
  * Functions
  */
-static const char *nc_verify_status_to_string (gnutls_certificate_status_t status)
+static const char *nc_verify_status_to_string (gnutls_certificate_status_t status) /* {{{ */
 {
   if (status == 0)
     return ("Valid");
@@ -456,6 +461,82 @@ static int nc_register_fd (nc_peer_t *peer, int fd) /* {{{ */
   return (0);
 } /* }}} int nc_register_fd */
 
+static gnutls_datum_t nc_read_file (char const *file) /* {{{ */
+{
+  void *data = NULL;
+  size_t sz = 0;
+  gnutls_datum_t blob = { 0 };
+
+  if (read_file (file, &data, &sz) != 0)
+    return (blob);
+
+  blob.data = data;
+  blob.size = (unsigned int) sz;
+  return (blob);
+} /* }}} gnutls_datum_t nc_read_file */
+
+static int nc_x509_crt_import_file (gnutls_x509_crt_t *cert, char const *file) /* {{{ */
+{
+  gnutls_datum_t blob = nc_read_file (file);
+  if (blob.size == 0)
+  {
+    char errbuf[1024];
+    ERROR ("netcmd plugin: reading \"%s\" failed: %s", file,
+        sstrerror (errno, errbuf, sizeof (errbuf)));
+    return (-1);
+  }
+
+  int status = gnutls_x509_crt_init (cert);
+  if (status != GNUTLS_E_SUCCESS)
+  {
+    ERROR ("netcmd plugin: gnutls_x509_crt_init failed: %s",
+        gnutls_strerror (status));
+    sfree (blob.data);
+    return (status);
+  }
+
+  status = gnutls_x509_crt_import (*cert, &blob, GNUTLS_X509_FMT_PEM);
+  if (status != GNUTLS_E_SUCCESS)
+  {
+    ERROR ("netcmd plugin: gnutls_x509_crt_import failed: %s",
+        gnutls_strerror (status));
+  }
+
+  sfree (blob.data);
+  return status;
+} /* }}} int nc_x509_crt_import_file */
+
+static int nc_x509_privkey_import_file (gnutls_x509_privkey_t *key, char const *file) /* {{{ */
+{
+  gnutls_datum_t blob = nc_read_file (file);
+  if (blob.size == 0)
+  {
+    char errbuf[1024];
+    ERROR ("netcmd plugin: reading \"%s\" failed: %s", file,
+        sstrerror (errno, errbuf, sizeof (errbuf)));
+    return (-1);
+  }
+
+  int status = gnutls_x509_privkey_init (key);
+  if (status != GNUTLS_E_SUCCESS)
+  {
+    ERROR ("netcmd plugin: gnutls_x509_privkey_init failed: %s",
+        gnutls_strerror (status));
+    sfree (blob.data);
+    return (status);
+  }
+
+  status = gnutls_x509_privkey_import (*key, &blob, GNUTLS_X509_FMT_PEM);
+  if (status != GNUTLS_E_SUCCESS)
+  {
+    ERROR ("netcmd plugin: gnutls_x509_privkey_import failed: %s",
+        gnutls_strerror (status));
+  }
+
+  sfree (blob.data);
+  return status;
+} /* }}} int nc_x509_privkey_import_file */
+
 static int nc_tls_init (nc_peer_t *peer) /* {{{ */
 {
   int status;
@@ -515,23 +596,57 @@ static int nc_tls_init (nc_peer_t *peer) /* {{{ */
     }
   }
 
-  status = gnutls_certificate_set_x509_key_file (peer->tls_credentials,
-      peer->tls_cert_file, peer->tls_key_file, GNUTLS_X509_FMT_PEM);
+  gnutls_x509_crt_t cert;
+  status = nc_x509_crt_import_file (&cert, peer->tls_cert_file);
   if (status != GNUTLS_E_SUCCESS)
   {
-    ERROR ("netcmd plugin: gnutls_certificate_set_x509_key_file failed: %s",
+    ERROR ("netcmd plugin: failed to load certificate from \"%s\"",
+        peer->tls_cert_file);
+    return (status);
+  }
+
+  gnutls_x509_privkey_t key;
+  status = nc_x509_privkey_import_file (&key, peer->tls_key_file);
+  if (status != GNUTLS_E_SUCCESS)
+  {
+    ERROR ("netcmd plugin: failed to load private key from \"%s\"",
+        peer->tls_key_file);
+    return (status);
+  }
+
+  status = gnutls_certificate_set_x509_key (peer->tls_credentials,
+      /* cert_list = */ &cert, /* cert_list_size = */ 1, key);
+  if (status != GNUTLS_E_SUCCESS)
+  {
+    ERROR ("netcmd plugin: gnutls_certificate_set_x509_key failed: %s",
         gnutls_strerror (status));
     return (status);
   }
 
+  if (peer->tls_dh_bits == 0)
+  {
+    status = gnutls_x509_crt_get_pk_algorithm (cert, &peer->tls_dh_bits);
+    if (status != GNUTLS_E_SUCCESS)
+    {
+      ERROR ("netcmd plugin: Failed to determine size of the public key: %s. "
+          "Falling back to using DH with %d bits.",
+          gnutls_strerror (status), NC_DEFAULT_DH_BITS);
+      peer->tls_dh_bits = NC_DEFAULT_DH_BITS;
+    }
+    else
+    {
+      DEBUG ("netcmd plugin: Public key has %u bits", peer->tls_dh_bits);
+    }
+  }
+
   /* Initialize Diffie-Hellman parameters. */
   gnutls_dh_params_init (&peer->tls_dh_params);
-  gnutls_dh_params_generate2 (peer->tls_dh_params, NC_TLS_DH_BITS);
-  gnutls_certificate_set_dh_params (peer->tls_credentials,
-      peer->tls_dh_params);
+  gnutls_dh_params_generate2 (peer->tls_dh_params, peer->tls_dh_bits);
+  gnutls_certificate_set_dh_params (peer->tls_credentials, peer->tls_dh_params);
 
   /* Initialize a "priority cache". This will tell GNUTLS which algorithms to
    * use and which to avoid. We use the "NORMAL" method for now. */
+  /* TODO(octo): Add CipherList option. */
   gnutls_priority_init (&peer->tls_priority,
      /* priority = */ "NORMAL", /* errpos = */ NULL);
 
@@ -821,6 +936,9 @@ static int nc_connection_init (nc_connection_t *conn) /* {{{ */
   return (0);
 } /* }}} int nc_connection_init */
 
+/* nc_connection_gets reads one more block from the connection, looks for a
+ * newline and copies everything up until and including the first newline into
+ * buffer end returns buffer itself. */
 static char *nc_connection_gets (nc_connection_t *conn, /* {{{ */
     char *buffer, size_t buffer_size)
 {
@@ -1229,6 +1347,17 @@ static int nc_config_peer (const oconfig_item_t *ci) /* {{{ */
       cf_util_get_string (child, &p->tls_crl_file);
     else if (strcasecmp ("TLSVerifyPeer", child->key) == 0)
       cf_util_get_boolean (child, &p->tls_verify_peer);
+    else if (strcasecmp ("TLSDHBits", child->key) == 0)
+    {
+      int tmp = 0;
+      if (cf_util_get_int (child, &tmp) == 0)
+      {
+        if (tmp > 0)
+          p->tls_dh_bits = (unsigned int) tmp;
+        else
+          ERROR ("netcmd plugin: The \"TLSDHBits\" option was set to %d, but expects a positive integer.", tmp);
+      }
+    }
     else
       WARNING ("netcmd plugin: The option \"%s\" is not recognized within "
           "a \"%s\" block.", child->key, ci->key);

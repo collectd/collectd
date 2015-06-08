@@ -3944,6 +3944,14 @@ B<false>.
 If set to B<true>, the options B<TLSCertFile>, B<TLSKeyFile> and B<TLSCAFile>
 are I<required>.
 
+=item B<TLSDHBits> I<Num>
+
+Sets the number of bits used for I<Diffie-Hellman> (DH) key generation. By
+default, the number of bits of the server's I<public key> is used, i.e. if
+you're using a certificate with a 4096E<nbsp>bit RSA key, then 4096E<nbsp>bit
+will be used for DH as well. Don't change this setting unless you know what
+you're doing.
+
 =back
 
 =head2 Plugin C<netlink>
