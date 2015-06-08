@@ -1318,6 +1318,29 @@ static void plugin_flush_timeout_callback_free (void *data)
 	sfree(cb);
 } /* static void plugin_flush_callback_free */
 
+static char *plugin_flush_callback_name (const char *name)
+{
+	char *flush_prefix = "flush/";
+	size_t prefix_size;
+	char *flush_name;
+	size_t name_size;
+
+	prefix_size = strlen(flush_prefix);
+	name_size = strlen(name);
+
+	flush_name = malloc (sizeof(char) * (name_size + prefix_size + 1));
+	if (flush_name == NULL)
+	{
+		ERROR ("plugin_flush_callback_name: malloc failed.");
+		return (NULL);
+	}
+
+	sstrncpy (flush_name, flush_prefix, prefix_size + 1);
+	sstrncpy (flush_name + prefix_size, name, name_size + 1);
+
+	return flush_name;
+} /* static char *plugin_flush_callback_name */
+
 int plugin_register_flush (const char *name,
 		plugin_flush_cb callback, user_data_t *ud)
 {
@@ -1331,27 +1354,13 @@ int plugin_register_flush (const char *name,
 
 	if (ctx.flush_interval != 0)
 	{
-		char *flush_prefix = "flush/";
-		size_t prefix_size;
 		char *flush_name;
-		size_t name_size;
 		user_data_t ud;
 		flush_callback_t *cb;
 
-		prefix_size = strlen(flush_prefix);
-		name_size = strlen(name);
-
-		flush_name = (char *) malloc (sizeof (char) *
-			(name_size + prefix_size + 1));
+		flush_name = plugin_flush_callback_name (name);
 		if (flush_name == NULL)
-		{
-			ERROR ("plugin_register_flush: malloc failed.");
-			plugin_unregister (list_flush, name);
 			return (-1);
-		}
-
-		sstrncpy (flush_name, flush_prefix, prefix_size + 1);
-		sstrncpy (flush_name + prefix_size, name, name_size + 1);
 
 		cb = (flush_callback_t *)malloc(sizeof(flush_callback_t));
 		if (cb == NULL)
@@ -1616,24 +1625,11 @@ int plugin_unregister_flush (const char *name)
 
 	if (ctx.flush_interval != 0)
         {
-		char *flush_prefix = "flush/";
-		size_t prefix_size;
 		char *flush_name;
-		size_t name_size;
 
-		prefix_size = strlen(flush_prefix);
-		name_size = strlen(name);
-
-		flush_name = (char *) malloc (sizeof (char) *
-			(name_size + prefix_size + 1));
+		flush_name = plugin_flush_callback_name (name);
 		if (flush_name == NULL)
-		{
-			ERROR ("plugin_unregister_flush: malloc failed.");
 			return (-1);
-		}
-
-		sstrncpy (flush_name, flush_prefix, prefix_size + 1);
-		sstrncpy (flush_name + prefix_size, name, name_size + 1);
 
 		plugin_unregister_read(flush_name);
 		sfree(flush_name);
