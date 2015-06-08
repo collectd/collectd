@@ -1367,7 +1367,6 @@ int plugin_register_flush (const char *name,
 		{
 			ERROR ("plugin_register_flush: malloc failed.");
 			sfree(flush_name);
-			plugin_unregister (list_flush, name);
 			return (-1);
 		}
 
@@ -1377,7 +1376,6 @@ int plugin_register_flush (const char *name,
 			ERROR ("plugin_register_flush: strdup failed.");
 			sfree(cb);
 			sfree(flush_name);
-			plugin_unregister (list_flush, name);
 			return (-1);
 		}
 		cb->timeout = ctx.flush_timeout;
@@ -1397,7 +1395,6 @@ int plugin_register_flush (const char *name,
 		{
 			sfree(cb->name);
 			sfree(cb);
-			plugin_unregister (list_flush, name);
 			return status;
 		}
 	}
