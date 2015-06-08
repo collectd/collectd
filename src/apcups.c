@@ -325,6 +325,9 @@ static int apc_query_server (char const *node, char const *service,
 		printf ("net_recv = `%s';\n", recvline);
 #endif /* if APCMAIN */
 
+		if (strncmp ("END APC", recvline, strlen ("END APC")) == 0)
+			break;
+
 		toksaveptr = NULL;
 		tokptr = strtok_r (recvline, " :\t", &toksaveptr);
 		while (tokptr != NULL)
