@@ -80,6 +80,23 @@ struct write_queue_s
 	write_queue_t *next;
 };
 
+#define FF_SIMPLE  0
+#define FF_REMOVE  65535
+struct flush_func_s
+{
+	/* `flush_func_t' "inherits" from `callback_func_t'.
+	 * The `ff_super' member MUST be the first one in this structure! */
+#define ff_callback ff_super.cf_callback
+#define ff_udata ff_super.cf_udata
+#define ff_ctx ff_super.cf_ctx
+	callback_func_t ff_super;
+	char *ff_name;
+	int ff_type;
+	cdtime_t ff_flush_interval;
+	cdtime_t ff_next_flush;
+};
+typedef struct flush_func_s flush_func_t;
+
 /*
  * Private variables
  */
@@ -87,7 +104,6 @@ static c_avl_tree_t *plugins_loaded = NULL;
 
 static llist_t *list_init;
 static llist_t *list_write;
-static llist_t *list_flush;
 static llist_t *list_missing;
 static llist_t *list_shutdown;
 static llist_t *list_log;
@@ -120,6 +136,13 @@ static pthread_mutex_t write_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  write_cond = PTHREAD_COND_INITIALIZER;
 static pthread_t      *write_threads = NULL;
 static size_t          write_threads_num = 0;
+
+static c_heap_t       *flush_heap = NULL;
+static llist_t        *flush_list;
+static int             flush_loop = 1;
+static pthread_mutex_t flush_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t  flush_cond = PTHREAD_COND_INITIALIZER;
+static pthread_t      *flush_thread = NULL;
 
 static pthread_key_t   plugin_ctx_key;
 static _Bool           plugin_ctx_key_initialized = 0;
@@ -685,6 +708,167 @@ static void stop_read_threads (void)
 	sfree (read_threads);
 	read_threads_num = 0;
 } /* void stop_read_threads */
+
+static void *plugin_flush_thread (void __attribute__((unused)) *args)
+{
+	while (flush_loop != 0)
+	{
+		flush_func_t *ff;
+		plugin_ctx_t old_ctx;
+		cdtime_t now;
+		cdtime_t flush_timeout;
+		plugin_flush_cb callback;
+		int ff_type;
+		int rc;
+
+		/* Get the flush function that needs to be flushed next.
+		 * We don't need to hold "flush_lock" for the heap, but we need
+		 * to call c_heap_get_root() and pthread_cond_wait() in the
+		 * same protected block. */
+		pthread_mutex_lock (&flush_lock);
+		ff = c_heap_get_root (flush_heap);
+		if (ff == NULL)
+		{
+			pthread_cond_wait (&flush_cond, &flush_lock);
+                        pthread_mutex_unlock (&flush_lock);
+			continue;
+		}
+		pthread_mutex_unlock (&flush_lock);
+
+		if (ff->ff_flush_interval == 0)
+		{
+			/* this should not happen, because the interval is set
+			 * for each plugin when loading it
+			 * XXX: issue a warning? */
+			c_heap_insert (flush_heap, ff);
+			DEBUG ("plugin_flush_thread: the `%s' plugin"
+					"has the flush_interval to 0.", ff->ff_name);
+			break;
+		}
+
+		/* sleep until this entry is due,
+		 * using pthread_cond_timedwait */
+		pthread_mutex_lock (&flush_lock);
+		/* In pthread_cond_timedwait, spurious wakeups are possible
+		 * (and really happen, at least on NetBSD with > 1 CPU), thus
+		 * we need to re-evaluate the condition every time
+		 * pthread_cond_timedwait returns. */
+		rc = 0;
+		while ((flush_loop != 0)
+				&& (cdtime () < ff->ff_next_flush)
+				&& rc == 0)
+		{
+			struct timespec ts = { 0 };
+
+			CDTIME_T_TO_TIMESPEC (ff->ff_next_flush, &ts);
+
+			rc = pthread_cond_timedwait (&flush_cond, &flush_lock,
+				&ts);
+		}
+
+		/* Must hold `read_lock' when accessing `rf->rf_type'. */
+		ff_type = ff->ff_type;
+		pthread_mutex_unlock (&flush_lock);
+
+		/* Check if we're supposed to stop.. This may have interrupted
+		 * the sleep, too. */
+		if (flush_loop == 0)
+		{
+			/* Insert `rf' again, so it can be free'd correctly */
+			c_heap_insert (flush_heap, ff);
+			break;
+		}
+
+		/* The entry has been marked for deletion. The linked list
+		 * entry has already been removed by `plugin_unregister_flush'.
+		 * All we have to do here is free the `flush_func_t' and
+		 * continue. */
+		if (ff_type == FF_REMOVE)
+		{
+			DEBUG ("plugin_flush_thread: Destroying the `%s' "
+					"callback.", ff->ff_name);
+			sfree (ff->ff_name);
+			destroy_callback ((callback_func_t *) ff);
+			ff = NULL;
+			continue;
+		}
+
+		DEBUG ("plugin_flush_thread: Handling `%s'.", ff->ff_name);
+
+		old_ctx = plugin_set_ctx (ff->ff_ctx);
+
+		flush_timeout = plugin_get_ctx().flush_timeout;
+		callback = ff->ff_callback;
+		(*callback) (flush_timeout, NULL, &ff->ff_udata);
+
+		plugin_set_ctx (old_ctx);
+
+
+		/* Calculate the next (absolute) time at which this function
+		 * should be called. */
+		ff->ff_next_flush += ff->ff_flush_interval;
+
+		/* Check, if `ff_next_flush' is in the past. */
+		now = cdtime ();
+		if (ff->ff_next_flush < now)
+		{
+			/* `ff_next_flush' is in the past. Insert `now'
+			 * so this value doesn't trail off into the
+			 * past too much. */
+			ff->ff_next_flush = now;
+		}
+
+		DEBUG ("plugin_flush_thread: Next flush of the %s plugin at %.3f.",
+				ff->ff_name,
+				CDTIME_T_TO_DOUBLE (ff->ff_next_flush));
+
+		/* Re-insert this flush function into the heap again. */
+		c_heap_insert (flush_heap, ff);
+	} /* while (read_loop) */
+
+	pthread_exit (NULL);
+	return ((void *) 0);
+} /* void *plugin_flush_thread */
+
+static void start_flush_thread (void)
+{
+	if (flush_thread != NULL)
+		return;
+
+	flush_thread = (pthread_t *) calloc (1, sizeof (pthread_t));
+	if (flush_thread == NULL)
+	{
+		ERROR ("plugin: start_flush_thread: calloc failed.");
+		return;
+	}
+
+	if (pthread_create (flush_thread, NULL,
+				plugin_flush_thread, NULL) != 0)
+	{
+		ERROR ("plugin: start_flush_thread: pthread_create failed.");
+		return;
+	}
+} /* void start_flush_thread */
+
+static void stop_flush_thread (void)
+{
+	if (flush_thread == NULL)
+		return;
+
+	INFO ("collectd: Stopping flush thread.");
+	pthread_mutex_lock (&flush_lock);
+	flush_loop = 0;
+	DEBUG ("plugin: stop_flush_threads: Signalling `flush_cond'");
+	pthread_cond_broadcast (&flush_cond);
+	pthread_mutex_unlock (&flush_lock);
+
+	if (pthread_join (*flush_thread, NULL) != 0)
+	{
+			ERROR ("plugin: stop_flush_thread: pthread_join failed.");
+	}
+	sfree (flush_thread);
+	flush_thread = (pthread_t) 0;
+} /* void stop_flush_thread */
 
 static void plugin_value_list_free (value_list_t *vl) /* {{{ */
 {
@@ -1295,11 +1479,117 @@ int plugin_register_write (const char *name,
 				(void *) callback, ud));
 } /* int plugin_register_write */
 
+static int plugin_compare_flush_func (const void *arg0, const void *arg1)
+{
+	const flush_func_t *ff0;
+	const flush_func_t *ff1;
+
+	ff0 = arg0;
+	ff1 = arg1;
+
+	if (ff0->ff_next_flush < ff1->ff_next_flush)
+		return (-1);
+	else if (ff0->ff_next_flush > ff1->ff_next_flush)
+		return (1);
+	else
+		return (0);
+} /* int plugin_compare_flush_func */
+
 int plugin_register_flush (const char *name,
 		plugin_flush_cb callback, user_data_t *ud)
 {
-	return (create_register_callback (&list_flush, name,
-				(void *) callback, ud));
+	flush_func_t *ff;
+	llentry_t *le;
+	int status;
+
+	ff = malloc (sizeof (*ff));
+	if (ff == NULL)
+	{
+		ERROR ("plugin_register_flush: malloc failed.");
+		return (ENOMEM);
+	}
+
+	memset (ff, 0, sizeof (flush_func_t));
+	ff->ff_callback = (void *) callback;
+        if (ud == NULL)
+        {
+		ff->ff_udata.data = NULL;
+		ff->ff_udata.free_func = NULL;
+        }
+        else
+        {
+		ff->ff_udata = *ud;
+        }
+	ff->ff_ctx = plugin_get_ctx ();
+	ff->ff_name = strdup (name);
+	ff->ff_type = FF_SIMPLE;
+	ff->ff_flush_interval = plugin_get_ctx().flush_interval;
+
+	ff->ff_next_flush = cdtime ();
+
+	pthread_mutex_lock (&flush_lock);
+
+	if (flush_list == NULL)
+	{
+		flush_list = llist_create ();
+		if (flush_list == NULL)
+		{
+			pthread_mutex_unlock (&flush_lock);
+			ERROR ("plugin_register_flush: flush_list failed.");
+			return (-1);
+		}
+	}
+
+	le = llist_search (flush_list, ff->ff_name);
+	if (le != NULL)
+	{
+		pthread_mutex_unlock (&flush_lock);
+		WARNING ("The flush function \"%s\" is already registered. "
+				"Check for duplicate \"LoadPlugin\" lines "
+				"in your configuration!",
+				ff->ff_name);
+		return (EINVAL);
+	}
+
+	le = llentry_create (ff->ff_name, ff);
+	if (le == NULL)
+	{
+		pthread_mutex_unlock (&flush_lock);
+		ERROR ("plugin_insert_flush: llentry_create failed.");
+		return (-1);
+	}
+
+	/* only insert in the heap if FlushInterval is set */
+	if (ff->ff_flush_interval > 0)
+	{
+		if (flush_heap == NULL)
+		{
+			flush_heap = c_heap_create (plugin_compare_flush_func);
+			if (flush_heap == NULL)
+			{
+				pthread_mutex_unlock (&read_lock);
+				ERROR ("plugin_insert_flush: c_heap_create failed.");
+				return (-1);
+			}
+		}
+
+		status = c_heap_insert (flush_heap, ff);
+		if (status != 0)
+		{
+			pthread_mutex_unlock (&flush_lock);
+			ERROR ("plugin_insert_flush: c_heap_insert failed.");
+			llentry_destroy (le);
+			return (-1);
+		}
+	}
+
+	/* This does not fail. */
+	llist_append (flush_list, le);
+
+	/* Wake up all the read threads. */
+	pthread_cond_broadcast (&flush_cond);
+	pthread_mutex_unlock (&flush_lock);
+	return (0);
 } /* int plugin_register_flush */
 
 int plugin_register_missing (const char *name,
@@ -1518,7 +1808,52 @@ int plugin_unregister_write (const char *name)
 
 int plugin_unregister_flush (const char *name)
 {
-	return (plugin_unregister (list_flush, name));
+	llentry_t *le;
+	flush_func_t *ff;
+
+	if (name == NULL)
+		return (-ENOENT);
+
+	pthread_mutex_lock (&flush_lock);
+
+	if (read_list == NULL)
+	{
+		pthread_mutex_unlock (&flush_lock);
+		return (-ENOENT);
+	}
+
+	le = llist_search (flush_list, name);
+	if (le == NULL)
+	{
+		pthread_mutex_unlock (&flush_lock);
+		WARNING ("plugin_unregister_flush: No such flush function: %s",
+				name);
+		return (-ENOENT);
+	}
+
+	llist_remove (flush_list, le);
+
+	ff = le->value;
+	assert (ff != NULL);
+	/* flush_func it's only in heap if FlushInterval is set */
+	if (ff->ff_flush_interval > 0)
+	{
+		ff->ff_type = FF_REMOVE;
+		DEBUG ("plugin_unregister_flush: Marked `%s' for removal.", name);
+	}
+	else
+	{
+		sfree (ff->ff_name);
+		destroy_callback ((callback_func_t *) ff);
+		ff = NULL;
+		DEBUG ("plugin_unregister_flush: `%s' removed.", name);
+	}
+
+	pthread_mutex_unlock (&flush_lock);
+
+	llentry_destroy (le);
+
+	return (0);
 }
 
 int plugin_unregister_missing (const char *name)
@@ -1657,6 +1992,13 @@ void plugin_init_all (void)
 		if (num != -1)
 			start_read_threads ((num > 0) ? num : 5);
 	}
+
+	/* Start flush-thread */
+	if (flush_heap != NULL)
+	{
+		start_flush_thread ();
+	}
+
 } /* void plugin_init_all */
 
 /* TODO: Rename this function. */
@@ -1809,10 +2151,12 @@ int plugin_flush (const char *plugin, cdtime_t timeout, const char *identifier)
 {
   llentry_t *le;
 
-  if (list_flush == NULL)
+  if (flush_list == NULL)
     return (0);
 
-  le = llist_head (list_flush);
+  pthread_mutex_lock (&flush_lock);
+
+  le = llist_head (flush_list);
   while (le != NULL)
   {
     callback_func_t *cf;
@@ -1836,6 +2180,7 @@ int plugin_flush (const char *plugin, cdtime_t timeout, const char *identifier)
 
     le = le->next;
   }
+  pthread_mutex_unlock (&flush_lock);
   return (0);
 } /* int plugin_flush */
 
@@ -1844,6 +2189,8 @@ void plugin_shutdown_all (void)
 	llentry_t *le;
 
 	stop_read_threads ();
+
+	stop_flush_thread ();
 
 	destroy_all_callbacks (&list_init);
 
@@ -1890,7 +2237,20 @@ void plugin_shutdown_all (void)
 	 * the free_function to NULL when registering the flush callback and to
 	 * the real free function when registering the write callback. This way
 	 * the data isn't freed twice. */
-	destroy_all_callbacks (&list_flush);
+
+	/* flush_heap only have the flush callbacks with FlushTimeout defined
+	 * so destroy the callbaks in the list */
+	pthread_mutex_lock (&flush_lock);
+	destroy_all_callbacks (&flush_list);
+	flush_list = NULL;
+	pthread_mutex_unlock (&flush_lock);
+
+	if (flush_heap != NULL)
+	{
+		c_heap_destroy (flush_heap);
+		flush_heap = NULL;
+	}
+
 	destroy_all_callbacks (&list_missing);
 	destroy_all_callbacks (&list_write);
 

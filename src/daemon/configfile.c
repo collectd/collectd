@@ -287,12 +287,26 @@ static int dispatch_loadplugin (const oconfig_item_t *ci)
 	/* default to the global interval set before loading this plugin */
 	memset (&ctx, 0, sizeof (ctx));
 	ctx.interval = cf_get_default_interval ();
+	ctx.flush_interval = 0;
+	ctx.flush_timeout = 0;
 
 	for (i = 0; i < ci->children_num; ++i) {
 		if (strcasecmp("Globals", ci->children[i].key) == 0)
 			cf_util_get_flag (ci->children + i, &flags, PLUGIN_FLAGS_GLOBAL);
 		else if (strcasecmp ("Interval", ci->children[i].key) == 0) {
 			if (cf_util_get_cdtime (ci->children + i, &ctx.interval) != 0) {
+				/* cf_util_get_cdtime will log an error */
+				continue;
+			}
+		}
+		else if (strcasecmp ("FlushInterval", ci->children[i].key) == 0) {
+			if (cf_util_get_cdtime (ci->children + i, &ctx.flush_interval) != 0) {
+				/* cf_util_get_cdtime will log an error */
+				continue;
+			}
+		}
+		else if (strcasecmp ("FlushTimeout", ci->children[i].key) == 0) {
+			if (cf_util_get_cdtime (ci->children + i, &ctx.flush_timeout) != 0) {
 				/* cf_util_get_cdtime will log an error */
 				continue;
 			}
