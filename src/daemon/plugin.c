@@ -1362,7 +1362,7 @@ int plugin_register_flush (const char *name,
 		if (flush_name == NULL)
 			return (-1);
 
-		cb = (flush_callback_t *)malloc(sizeof(flush_callback_t));
+		cb = malloc(sizeof(flush_callback_t));
 		if (cb == NULL)
 		{
 			ERROR ("plugin_register_flush: malloc failed.");
