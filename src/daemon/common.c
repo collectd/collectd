@@ -1,6 +1,6 @@
 /**
  * collectd - src/common.c
- * Copyright (C) 2005-2014  Florian octo Forster
+ * Copyright (C) 2005-2015  Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -264,6 +264,39 @@ ssize_t sread (int fd, void *buf, size_t count)
 	return (0);
 }
 
+int read_file (char const *file, void **ret_data, size_t *ret_data_size)
+{
+	int fd = open (file, O_RDONLY);
+	if (fd == -1)
+		return (-1);
+
+	struct stat statbuf = { 0 };
+	if (fstat (fd, &statbuf) == -1)
+	{
+		close (fd);
+		return (-1);
+	}
+
+	size_t data_size = (size_t) statbuf.st_size;
+	void *data = malloc (data_size);
+	if (data == NULL)
+	{
+		close (fd);
+		return (-1);
+	}
+
+	if (sread (fd, data, data_size) != 0)
+	{
+		close (fd);
+		sfree (data);
+		return (-1);
+	}
+
+	close (fd);
+	*ret_data = data;
+	*ret_data_size = data_size;
+	return (0);
+} /* }}} int read_file */
 
 ssize_t swrite (int fd, const void *buf, size_t count)
 {

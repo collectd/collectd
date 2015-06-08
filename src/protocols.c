@@ -77,7 +77,7 @@ static void submit (const char *protocol_name,
   plugin_dispatch_values (&vl);
 } /* void submit */
 
-static int read_file (const char *path)
+static int protocols_read_file (const char *path)
 {
   FILE *fh;
   char key_buffer[4096];
@@ -126,7 +126,7 @@ static int read_file (const char *path)
     value_ptr = fgets (value_buffer, sizeof (value_buffer), fh);
     if (value_ptr == NULL)
     {
-      ERROR ("protocols plugin: read_file (%s): Could not read values line.",
+      ERROR ("protocols plugin: protocols_read_file (%s): Could not read values line.",
           path);
       break;
     }
@@ -192,18 +192,18 @@ static int read_file (const char *path)
   fclose (fh);
 
   return (status);
-} /* int read_file */
+} /* int protocols_read_file */
 
 static int protocols_read (void)
 {
   int status;
   int success = 0;
 
-  status = read_file (SNMP_FILE);
+  status = protocols_read_file (SNMP_FILE);
   if (status == 0)
     success++;
 
-  status = read_file (NETSTAT_FILE);
+  status = protocols_read_file (NETSTAT_FILE);
   if (status == 0)
     success++;
 
