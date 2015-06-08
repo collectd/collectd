@@ -1624,7 +1624,7 @@ int plugin_unregister_flush (const char *name)
 	plugin_ctx_t ctx = plugin_get_ctx ();
 
 	if (ctx.flush_interval != 0)
-        {
+	{
 		char *flush_name;
 
 		flush_name = plugin_flush_callback_name (name);
