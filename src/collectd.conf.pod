@@ -802,11 +802,21 @@ B<apcupsd> can handle it.
 
 TCP-Port to connect to. Defaults to B<3551>.
 
-=item B<ReportSeconds> B<true|false>
+=item B<ReportSeconds> B<true>|B<false>
 
 If set to B<true>, the time reported in the C<timeleft> metric will be
 converted to seconds. This is the recommended setting. If set to B<false>, the
 default for backwards compatibility, the time will be reported in minutes.
+
+=item B<PersistentConnection> B<true>|B<false>
+
+By default, the plugin will try to keep the connection to UPS open between
+reads. Since this appears to be somewhat brittle (I<apcupsd> appears to close
+the connection due to inactivity quite quickly), the plugin will try to detect
+this problem and switch to an open-read-close mode in such cases.
+
+You can instruct the plugin to close the connection after each read by setting
+this option to B<false>.
 
 =back
 

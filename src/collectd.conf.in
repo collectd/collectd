@@ -264,6 +264,7 @@
 #	Host "localhost"
 #	Port "3551"
 #	ReportSeconds true
+#	PersistentConnection true
 #</Plugin>
 
 #<Plugin aquaero>

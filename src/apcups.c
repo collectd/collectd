@@ -74,12 +74,12 @@ static char *conf_node = NULL;
 static char *conf_service = NULL;
 /* Defaults to false for backwards compatibility. */
 static _Bool conf_report_seconds = 0;
+static _Bool conf_persistent_conn = 1;
 
 static int global_sockfd = -1;
 
 static int count_retries = 0;
 static int count_iterations = 0;
-static _Bool close_socket = 0;
 
 static int net_shutdown (int *fd)
 {
@@ -314,7 +314,7 @@ static int apc_query_server (char const *node, char const *service,
 				"first %i iterations. Will close the socket "
 				"in future iterations.",
 				count_retries, count_iterations);
-		close_socket = 1;
+		conf_persistent_conn = 0;
 	}
 
 	while ((n = net_recv (&global_sockfd, recvline, sizeof (recvline) - 1)) > 0)
@@ -367,7 +367,7 @@ static int apc_query_server (char const *node, char const *service,
 	}
 	status = errno; /* save errno, net_shutdown() may re-set it. */
 
-	if (close_socket)
+	if (!conf_persistent_conn)
 		net_shutdown (&global_sockfd);
 
 	if (n < 0)
@@ -395,6 +395,8 @@ static int apcups_config (oconfig_item_t *ci)
 			cf_util_get_service (child, &conf_service);
 		else if (strcasecmp (child->key, "ReportSeconds") == 0)
 			cf_util_get_boolean (child, &conf_report_seconds);
+		else if (strcasecmp (child->key, "PersistentConnection") == 0)
+			cf_util_get_boolean (child, &conf_persistent_conn);
 		else
 			ERROR ("apcups plugin: Unknown config option \"%s\".", child->key);
 	}
