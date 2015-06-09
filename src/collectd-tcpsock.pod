@@ -29,7 +29,7 @@ For further information, see the manual of the L<collectd-unixsock(5)> plugin.
 Setup two hosts: collectd.example.com (collecting push data from agents) and icinga.example.com (Monitoring system)
 On collectd.example.com: Enable plugin as shown above, enable ssh and make sure GatewayPorts (L<sshd_config(5)>) is not disabled.
 On icinga.example.com
-  make tunnel via SSH: ssh -nNTR 5576:localhost:5576 collectd.example.com
+  make tunnel via SSH: ssh -nNTL 5576:localhost:5576 collectd.example.com
   Test connection: collectd-nagios -s 127.0.0.1:5576 -t -H <SOME-MACHINE> -n df-var/percent_bytes-free -w 20: -c 10:
 Integrate collectd-nagios into Icinga/Nagios/Naemon/... as documented.
 
