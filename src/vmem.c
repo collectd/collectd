@@ -150,8 +150,16 @@ static int vmem_read (void)
     if (strncmp ("nr_", key, strlen ("nr_")) == 0)
     {
       char *inst = key + strlen ("nr_");
-      value_t value = { .gauge = gauge };
-      submit_one (NULL, "vmpage_number", inst, value);
+      if (strcmp(inst, "dirtied") == 0 || strcmp(inst, "written") == 0)
+      {
+        value_t value = { .derive = counter };
+        submit_one (NULL, "vmpage_action", inst, value);
+      }
+      else
+      {
+        value_t value = { .gauge = gauge };
+        submit_one (NULL, "vmpage_number", inst, value);
+      }
     }
 
     /* 
