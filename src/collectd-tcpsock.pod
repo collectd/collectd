@@ -25,14 +25,50 @@ TCP sockets instead of UNIX sockets eases tunneling data between hosts.
 
 For further information, see the manual of the L<collectd-unixsock(5)> plugin.
 
-=head1 EXAMPLES
+=head1 EXAMPLE
+
 Setup two hosts: collectd.example.com (collecting push data from agents) and icinga.example.com (Monitoring system)
-On collectd.example.com: Enable plugin as shown above, enable ssh and make sure GatewayPorts (L<sshd_config(5)>) is not disabled.
-On icinga.example.com
-  make tunnel via SSH: ssh -nNTL 5576:localhost:5576 collectd.example.com
-  Test connection: collectd-nagios -s 127.0.0.1:5576 -t -H <SOME-MACHINE> -n df-var/percent_bytes-free -w 20: -c 10:
+
+On collectd.example.com:
+
+=over 4
+
+=item
+
+Enable plugin as shown above, enable ssh and make sure GatewayPorts (L<sshd_config(5)>) is not disabled.
+
+=back
+
+On icinga.example.com:
+
+=over 4
+
+=item
+
+make tunnel via SSH: ssh -nNTL 5576:localhost:5576 collectd.example.com
+
+=item
+
+Test connection: collectd-nagios -s 127.0.0.1:5576 -t -H <SOME-MACHINE> -n df-var/percent_bytes-free -w 20: -c 10:
+
+=item
+
 Integrate collectd-nagios into Icinga/Nagios/Naemon/... as documented.
 
+=back
+
+=head1 SECURITY
+
+Currently no authentication is done on tcpsock side. Preferrably only listen to localhost to limit exposure to local
+users/processes. If local users cannot be trusted, limit access to the socket to processes belonging to C<collectd-reader-group> group using iptables:
+
+=over 4
+
+  iptables -A OUTPUT -o lo -p tcp       -d 127.0.0.1 --dport 5576 -m state --state ESTABLISHED,RELATED -j ACCEPT
+  iptables -A OUTPUT -o lo -p tcp --syn -d 127.0.0.1 --dport 5576 -m owner --gid-owner collectd-reader-group -j ACCEPT
+  iptables -A OUTPUT -o lo -p tcp --syn -d 127.0.0.1 --dport 5576 -j DROP
+
+=back
 
 =head1 SEE ALSO
 
