@@ -87,6 +87,10 @@ static int wr_write (const data_set_t *ds, /* {{{ */
   APPEND ("%.3f:", CDTIME_T_TO_DOUBLE (vl->time));
   for (i = 0; i < ds->ds_num; i++)
   {
+    // Increase parsability by delimiting the individual values
+    if (ds->ds_num > 1 && i > 0)
+      APPEND ("%s", "|");
+
     if (ds->ds[i].type == DS_TYPE_COUNTER)
       APPEND ("%llu", vl->values[i].counter);
     else if (ds->ds[i].type == DS_TYPE_GAUGE)
