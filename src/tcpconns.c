@@ -386,18 +386,18 @@ static void conn_reset_port_entry (void)
     /* If this entry was created while reading the files (ant not when handling
      * the configuration) remove it now. */
     if ((pe->flags & (PORT_COLLECT_LOCAL
-	    | PORT_COLLECT_REMOTE
-	    | PORT_IS_LISTENING)) == 0)
+            | PORT_COLLECT_REMOTE
+            | PORT_IS_LISTENING)) == 0)
     {
       port_entry_t *next = pe->next;
 
       DEBUG ("tcpconns plugin: Removing temporary entry "
-	  "for listening port %"PRIu16, pe->port);
+          "for listening port %"PRIu16, pe->port);
 
       if (prev == NULL)
-	port_list_head = next;
+        port_list_head = next;
       else
-	prev->next = next;
+        prev->next = next;
 
       sfree (pe);
       pe = next;
@@ -409,6 +409,7 @@ static void conn_reset_port_entry (void)
     memset (pe->count_remote, '\0', sizeof (pe->count_remote));
     pe->flags &= ~PORT_IS_LISTENING;
 
+    prev = pe;
     pe = pe->next;
   }
 } /* void conn_reset_port_entry */
