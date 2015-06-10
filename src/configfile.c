@@ -384,9 +384,19 @@ static int dispatch_block_plugin (oconfig_item_t *ci)
 
 	if (IS_TRUE (global_option_get ("AutoLoadPlugin")))
 	{
+		plugin_ctx_t ctx;
+		plugin_ctx_t old_ctx;
 		int status;
 
+		/* default to the global interval set before loading this plugin */
+		memset (&ctx, 0, sizeof (ctx));
+		ctx.interval = cf_get_default_interval ();
+
+		old_ctx = plugin_set_ctx (ctx);
 		status = plugin_load (name, /* flags = */ 0);
+		/* reset to the "global" context */
+		plugin_set_ctx (old_ctx);
+
 		if (status != 0)
 		{
 			ERROR ("Automatically loading plugin \"%s\" failed "
