@@ -342,6 +342,8 @@ static int ctail_init (void)
     return (-1);
   }
 
+  memset(&ud, '\0', sizeof(ud));
+
   for (i = 0; i < tail_match_list_num; i++)
   {
     ud.data = (void *)tail_match_list[i];
