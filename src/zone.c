@@ -20,7 +20,15 @@
  *   Dagobert Michelsen (forward-porting)
  **/
 
-#define _BSD_SOURCE
+#if HAVE_CONFIG_H
+# include "config.h"
+# undef HAVE_CONFIG_H
+#endif
+/* avoid procfs.h error "Cannot use procfs in the large file compilation environment" */
+#if !defined(_LP64) && _FILE_OFFSET_BITS == 64
+#  undef _FILE_OFFSET_BITS
+#  undef _LARGEFILE64_SOURCE
+#endif
 
 #include "collectd.h"
 #include "common.h"
