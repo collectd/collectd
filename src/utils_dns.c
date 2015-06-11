@@ -130,6 +130,10 @@
 # error "`struct udphdr' is unusable."
 #endif
 
+#if HAVE_NETINET_IP6_H && HAVE_STRUCT_IP6_EXT
+# define HAVE_IPV6 1
+#endif
+
 #include "utils_dns.h"
 
 /*
@@ -445,7 +449,7 @@ handle_udp(const struct udphdr *udp, int len)
     return 1;
 }
 
-#if HAVE_NETINET_IP6_H
+#if HAVE_IPV6
 static int
 handle_ipv6 (struct ip6_hdr *ipv6, int len)
 {
@@ -514,16 +518,16 @@ handle_ipv6 (struct ip6_hdr *ipv6, int len)
 
     return (1); /* Success */
 } /* int handle_ipv6 */
-/* #endif HAVE_NETINET_IP6_H */
+/* #endif HAVE_IPV6 */
 
-#else /* if !HAVE_NETINET_IP6_H */
+#else /* if !HAVE_IPV6 */
 static int
 handle_ipv6 (__attribute__((unused)) void *pkg,
 	__attribute__((unused)) int len)
 {
     return (0);
 }
-#endif /* !HAVE_NETINET_IP6_H */
+#endif /* !HAVE_IPV6 */
 
 static int
 handle_ip(const struct ip *ip, int len)
