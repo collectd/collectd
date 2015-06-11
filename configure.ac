@@ -588,6 +588,34 @@ AC_CHECK_HEADERS(netinet/if_ether.h, [], [],
 
 AC_CHECK_HEADERS(netinet/ip_compat.h)
 
+AC_CHECK_MEMBER([struct ip6_ext.ip6e_len], [],
+[
+# Solaris needs special definition to have ip6_ext defined
+	# Invalidate cache so we can retest
+	AS_UNSET([ac_cv_member_struct_ip6_ext_ip6e_len])
+
+	SAVE_CFLAGS="$CFLAGS"
+	CFLAGS="$CFLAGS -DSOLARIS2=8"
+	AC_CHECK_MEMBER([struct ip6_ext.ip6e_len],[c_cv_ip6_ext_needs_d_solaris2_8=yes], [],
+[[#if HAVE_NETINET_IP_COMPAT_H
+# include <netinet/ip_compat.h>
+#endif
+]])
+	CFLAGS="$SAVE_CFLAGS"
+],[[#if HAVE_NETINET_IP_COMPAT_H
+# include <netinet/ip_compat.h>
+#endif
+]])
+
+AC_MSG_CHECKING([if struct ip6_ext.ip6e_len reauired -DSOLARIS2=8])
+if test "x$c_cv_ip6_ext_needs_d_solaris2_8" = "xyes"
+then
+	AC_MSG_RESULT([yes])
+	CFLAGS="$CFLAGS -DSOLARIS2=8"
+else
+	AC_MSG_RESULT([no])
+fi
+
 have_net_pfvar_h="no"
 AC_CHECK_HEADERS(net/pfvar.h,
                [have_net_pfvar_h="yes"],
