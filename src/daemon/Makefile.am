@@ -13,6 +13,30 @@ endif
 AM_CPPFLAGS += -DPLUGINDIR='"${pkglibdir}"'
 AM_CPPFLAGS += -DPKGDATADIR='"${pkgdatadir}"'
 
+# Link to these libraries..
+COMMON_LIBS =
+if BUILD_WITH_LIBRT
+COMMON_LIBS += -lrt
+endif
+if BUILD_WITH_LIBPOSIX4
+COMMON_LIBS += -lposix4
+endif
+if BUILD_WITH_LIBSOCKET
+COMMON_LIBS += -lsocket
+endif
+if BUILD_WITH_LIBRESOLV
+COMMON_LIBS += -lresolv
+endif
+if BUILD_WITH_LIBPTHREAD
+COMMON_LIBS += -lpthread
+endif
+if BUILD_WITH_LIBKSTAT
+COMMON_LIBS += -lkstat
+endif
+if BUILD_WITH_LIBDEVINFO
+COMMON_LIBS += -ldevinfo
+endif
+
 AUTOMAKE_OPTIONS = subdir-objects
 
 sbin_PROGRAMS = collectd
@@ -48,34 +72,8 @@ collectd_SOURCES = collectd.c collectd.h \
 collectd_CPPFLAGS =  $(AM_CPPFLAGS) $(LTDLINCL)
 collectd_CFLAGS = $(AM_CFLAGS)
 collectd_LDFLAGS = -export-dynamic
-collectd_LDADD = libavltree.la libcommon.la libheap.la -lm
+collectd_LDADD = libavltree.la libcommon.la libheap.la -lm $(COMMON_LIBS)
 collectd_DEPENDENCIES =
-
-# Link to these libraries..
-if BUILD_WITH_LIBRT
-collectd_LDADD += -lrt
-endif
-if BUILD_WITH_LIBPOSIX4
-collectd_LDADD += -lposix4
-endif
-if BUILD_WITH_LIBSOCKET
-collectd_LDADD += -lsocket
-endif
-if BUILD_WITH_LIBRESOLV
-collectd_LDADD += -lresolv
-endif
-if BUILD_WITH_LIBPTHREAD
-collectd_LDADD += -lpthread
-endif
-if BUILD_WITH_LIBKSTAT
-collectd_LDADD += -lkstat
-endif
-if BUILD_WITH_LIBDEVINFO
-collectd_LDADD += -ldevinfo
-endif
-if BUILD_AIX
-collectd_LDFLAGS += -Wl,-bexpall,-brtllib
-endif
 
 # The daemon needs to call sg_init, so we need to link it against libstatgrab,
 # too. -octo
@@ -95,10 +93,10 @@ check_PROGRAMS = test_common test_utils_avltree test_utils_heap
 TESTS = test_common test_utils_avltree test_utils_heap
 
 test_common_SOURCES = common_test.c ../testing.h
-test_common_LDADD = libcommon.la libplugin_mock.la
+test_common_LDADD = libcommon.la libplugin_mock.la $(COMMON_LIBS)
 
 test_utils_avltree_SOURCES = utils_avltree_test.c ../testing.h
-test_utils_avltree_LDADD = libavltree.la
+test_utils_avltree_LDADD = libavltree.la $(COMMON_LIBS)
 
 test_utils_heap_SOURCES = utils_heap_test.c ../testing.h
-test_utils_heap_LDADD = libheap.la
+test_utils_heap_LDADD = libheap.la $(COMMON_LIBS)
