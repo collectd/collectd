@@ -62,7 +62,6 @@ static int wr_write (const data_set_t *ds, /* {{{ */
   char *value_ptr;
   int status;
   redisReply   *rr;
-  int i;
 
   status = FORMAT_VL (ident, sizeof (ident), vl);
   if (status != 0)
@@ -73,43 +72,8 @@ static int wr_write (const data_set_t *ds, /* {{{ */
   memset (value, 0, sizeof (value));
   value_size = sizeof (value);
   value_ptr = &value[0];
-
-#define APPEND(...) do {                                             \
-  status = snprintf (value_ptr, value_size, __VA_ARGS__);            \
-  if (((size_t) status) > value_size)                                \
-  {                                                                  \
-    value_ptr += value_size;                                         \
-    value_size = 0;                                                  \
-  }                                                                  \
-  else                                                               \
-  {                                                                  \
-    value_ptr += status;                                             \
-    value_size -= status;                                            \
-  }                                                                  \
-} while (0)
-
-  APPEND ("%s:", time);
-
-  for (i = 0; i < ds->ds_num; i++)
-  {
-    // Increase parsability by delimiting the individual values
-    if (ds->ds_num > 1 && i > 0)
-      APPEND ("%s", "|");
-
-    if (ds->ds[i].type == DS_TYPE_COUNTER)
-      APPEND ("%llu", vl->values[i].counter);
-    else if (ds->ds[i].type == DS_TYPE_GAUGE)
-      APPEND (GAUGE_FORMAT, vl->values[i].gauge);
-    else if (ds->ds[i].type == DS_TYPE_DERIVE)
-      APPEND ("%"PRIi64, vl->values[i].derive);
-    else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
-      APPEND ("%"PRIu64, vl->values[i].absolute);
-    else
-      assert (23 == 42);
-  }
-
-#undef APPEND
-
+  format_values(value_ptr, value_size, ds, vl, 0);
+  
   pthread_mutex_lock (&node->lock);
 
   if (node->conn == NULL)
