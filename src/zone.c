@@ -68,20 +68,24 @@ zone_compare(const zoneid_t *a, const zoneid_t *b)
 }
 
 static int
-zone_read_procfile(char *pidstr, char *file, void *buf, size_t bufsize)
+zone_read_procfile(char const *pidstr, char const *name, void *buf, size_t bufsize)
 {
 	int fd;
 
 	char procfile[MAX_PROCFS_PATH];
-	(void)snprintf(procfile, sizeof(procfile), "/proc/%s/%s", pidstr, file);
+	(void)snprintf(procfile, sizeof(procfile), "/proc/%s/%s", pidstr, name);
 	if ((fd = open(procfile, O_RDONLY)) == -1) {
 		return (1);
 	}
 
-	if (pread(fd, buf, bufsize, 0) != bufsize) {
+	if (sread(fd, buf, bufsize) != 0) {
+		char errbuf[1024];
+		ERROR ("zone plugin: Reading \"%s\" failed: %s", procfile,
+				strerror (errno, errbuf, sizeof (errbuf)));
 		close(fd);
 		return (1);
 	}
+
 	close(fd);
 	return (0);
 }
@@ -151,7 +155,6 @@ zone_submit_values(c_avl_tree_t *tree)
 static c_avl_tree_t *
 zone_scandir(DIR *procdir)
 {
-	char         *pidstr;
 	pid_t         pid;
 	dirent_t     *direntp;
 	psinfo_t      psinfo;
@@ -165,15 +168,17 @@ zone_scandir(DIR *procdir)
 
 	rewinddir(procdir);
 	while ((direntp = readdir(procdir))) {
-		pidstr = direntp->d_name;
+		char const *pidstr = direntp->d_name;
 		if (pidstr[0] == '.')	/* skip "." and ".."  */
 			continue;
+
 		pid = atoi(pidstr);
 		if (pid == 0 || pid == 2 || pid == 3)
 			continue;	/* skip sched, pageout and fsflush */
-		if (zone_read_procfile(pidstr, "psinfo", &psinfo, 
-				  sizeof(psinfo_t)) != 0)
+
+		if (zone_read_procfile(pidstr, "psinfo", &psinfo, sizeof(psinfo_t)) != 0)
 			continue;
+
 		stats = zone_find_stats(tree, psinfo.pr_zoneid);
 		if( stats ) {
 			stats->pctcpu += psinfo.pr_pctcpu;
@@ -182,7 +187,6 @@ zone_scandir(DIR *procdir)
 	}
 	return(tree);
 }
-
 
 static int zone_read (void)
 {
