@@ -1740,6 +1740,7 @@ static int ps_read (void)
 			continue;
 		}
 
+		memset (&pse, 0, sizeof (pse));
 		pse.id       = pid;
 		pse.age      = 0;
 
@@ -2014,6 +2015,7 @@ static int ps_read (void)
 				}
 			} /* if (process has argument list) */
 
+			memset (&pse, 0, sizeof (pse));
 			pse.id       = procs[i].p_pid;
 			pse.age      = 0;
 
@@ -2042,6 +2044,9 @@ static int ps_read (void)
 			pse.io_wchar = -1;
 			pse.io_syscr = -1;
 			pse.io_syscw = -1;
+
+			pse.cswitch_vol = -1;
+			pse.cswitch_invol = -1;
 
 			ps_list_add (procs[i].p_comm, have_cmdline ? cmdline : NULL, &pse);
 		} /* if ((proc_ptr == NULL) || (proc_ptr->p_pid != procs[i].p_pid)) */
@@ -2258,6 +2263,7 @@ static int ps_read (void)
 			continue;
 		}
 
+		memset (&pse, 0, sizeof (pse));
 		pse.id = pid;
 		pse.age = 0;
 
@@ -2283,6 +2289,9 @@ static int ps_read (void)
 		pse.io_wchar = ps.io_wchar;
 		pse.io_syscr = ps.io_syscr;
 		pse.io_syscw = ps.io_syscw;
+
+		pse.cswitch_vol = -1;
+		pse.cswitch_invol = -1;
 
 		switch (state)
 		{
