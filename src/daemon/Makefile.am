@@ -96,7 +96,7 @@ check_PROGRAMS = test_common test_utils_avltree test_utils_heap
 TESTS = test_common test_utils_avltree test_utils_heap
 
 test_common_SOURCES = common_test.c ../testing.h
-test_common_LDADD = libcommon.la libplugin_mock.la
+test_common_LDADD = libcommon.la libplugin_mock.la $(COMMON_LIBS)
 
 test_utils_avltree_SOURCES = utils_avltree_test.c ../testing.h
 test_utils_avltree_LDADD = libavltree.la $(COMMON_LIBS)
