@@ -276,7 +276,8 @@ AC_CHECK_HEADERS(netinet/udp.h, [], [],
 #endif
 ])
 
-AC_CHECK_TYPES([struct ip6_ext], [], [],
+have_ip6_ext="no"
+AC_CHECK_TYPES([struct ip6_ext], [have_ip6_ext="yes"], [have_ip6_ext="no"],
 [#if HAVE_STDINT_H
 # include <stdint.h>
 #endif
@@ -293,6 +294,35 @@ AC_CHECK_TYPES([struct ip6_ext], [], [],
 # include <netinet/ip6.h>
 #endif
 ])
+
+if test "x$have_ip6_ext" = "xno"; then
+	SAVE_CFLAGS="$CFLAGS"
+	CFLAGS="$CFLAGS -DSOLARIS2=8"
+
+	AC_CHECK_TYPES([struct ip6_ext],
+		       [have_ip6_ext="yes, with -DSOLARIS2=8"],
+		       [have_ip6_ext="no"],
+[#if HAVE_STDINT_H
+# include <stdint.h>
+#endif
+#if HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+#if HAVE_NETINET_IN_SYSTM_H
+# include <netinet/in_systm.h>
+#endif
+#if HAVE_NETINET_IN_H
+# include <netinet/in.h>
+#endif
+#if HAVE_NETINET_IP6_H
+# include <netinet/ip6.h>
+#endif
+])
+
+	if test "x$have_ip6_ext" = "xno"; then
+		CFLAGS="$SAVE_CFLAGS"
+	fi
+fi
 
 # For cpu modules
 AC_CHECK_HEADERS(sys/dkstat.h)
@@ -577,34 +607,6 @@ AC_CHECK_HEADERS(netinet/if_ether.h, [], [],
 ])
 
 AC_CHECK_HEADERS(netinet/ip_compat.h)
-
-AC_CHECK_MEMBER([struct ip6_ext.ip6e_len], [],
-[
-# Solaris needs special definition to have ip6_ext defined
-	# Invalidate cache so we can retest
-	AS_UNSET([ac_cv_member_struct_ip6_ext_ip6e_len])
-
-	SAVE_CFLAGS="$CFLAGS"
-	CFLAGS="$CFLAGS -DSOLARIS2=8"
-	AC_CHECK_MEMBER([struct ip6_ext.ip6e_len],[c_cv_ip6_ext_needs_d_solaris2_8=yes], [],
-[[#if HAVE_NETINET_IP_COMPAT_H
-# include <netinet/ip_compat.h>
-#endif
-]])
-	CFLAGS="$SAVE_CFLAGS"
-],[[#if HAVE_NETINET_IP_COMPAT_H
-# include <netinet/ip_compat.h>
-#endif
-]])
-
-AC_MSG_CHECKING([if struct ip6_ext.ip6e_len reauired -DSOLARIS2=8])
-if test "x$c_cv_ip6_ext_needs_d_solaris2_8" = "xyes"
-then
-	AC_MSG_RESULT([yes])
-	CFLAGS="$CFLAGS -DSOLARIS2=8"
-else
-	AC_MSG_RESULT([no])
-fi
 
 have_net_pfvar_h="no"
 AC_CHECK_HEADERS(net/pfvar.h,
