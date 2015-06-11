@@ -69,9 +69,11 @@ static int wr_write (const data_set_t *ds, /* {{{ */
   memset (value, 0, sizeof (value));
   value_size = sizeof (value);
   value_ptr = &value[0];
-  format_values(value_ptr, value_size, ds, vl, 0);
 
+  status = format_values (value_ptr, value_size, ds, vl, /* store rates = */ 0);
   pthread_mutex_lock (&node->lock);
+  if (status != 0)
+    return (status);
 
   if (node->conn == NULL)
   {
