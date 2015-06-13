@@ -256,7 +256,7 @@ static void memcached_init_vl (value_list_t *vl, memcached_t const *st)
       sstrncpy (vl->host, hostname_g, sizeof (vl->host));
     else
       sstrncpy (vl->host,
-          (st->host != NULL) ? st->host : MEMCACHED_DEF_HOST,
+          (st->host != NULL) ? st->host : hostname_g,
           sizeof (vl->host));
     sstrncpy (vl->plugin_instance, st->name, sizeof (vl->plugin_instance));
   }
