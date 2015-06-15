@@ -614,14 +614,14 @@ AC_CHECK_HEADERS(asm/msr-index.h, [have_asm_msrindex_h="yes"])
 
 if test "x$have_asm_msrindex_h" = "xyes"
 then
-  AC_CACHE_CHECK([whether asm/msr-index.h has MSR_CORE_C3_RESIDENCY],
+  AC_CACHE_CHECK([whether asm/msr-index.h has MSR_PKG_C10_RESIDENCY],
                  [c_cv_have_usable_asm_msrindex_h],
                  AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
 [[[
 #include<asm/msr-index.h>
 ]]],
 [[[
-int y = MSR_CORE_C3_RESIDENCY;
+int y = MSR_PKG_C10_RESIDENCY;
 return(y);
 ]]]
   )],
