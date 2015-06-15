@@ -72,7 +72,7 @@ static int wr_write (const data_set_t *ds, /* {{{ */
     ssnprintf (key, sizeof (key), "collectd/%s", ident);
   }
   else {
-    ssnprintf (key, sizeof (key), "%s/collectd/%s", node->prefix, ident);
+    ssnprintf (key, sizeof (key), "%s/%s", node->prefix, ident);
   }
   ssnprintf (time, sizeof (time), "%.9f", CDTIME_T_TO_DOUBLE(vl->time));
 
