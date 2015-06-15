@@ -224,7 +224,7 @@ Source:		http://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
 Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
-BuildRequires:	libgcrypt-devel, kernel-headers, libtool-ltdl-devel, libcap-devel, flex, bison
+BuildRequires:	libgcrypt-devel, kernel-headers, libtool-ltdl-devel, libcap-devel
 Vendor:		collectd development team <collectd@verplant.org>
 
 %if 0%{?el7:1}
@@ -1576,9 +1576,6 @@ Collectd utilities
 %else
 %define _with_zookeeper --disable-zookeeper
 %endif
-
-export YACC=bison
-export YFLAGS=-y
 
 %configure CFLAGS="%{optflags} -DLT_LAZY_OR_NOW=\"RTLD_LAZY|RTLD_GLOBAL\"" \
 	--disable-static \
