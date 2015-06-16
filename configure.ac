@@ -115,7 +115,7 @@ then
 	AC_DEFINE(_REENTRANT,               1, [Define to enable reentrancy interfaces.])
 
 	AC_MSG_CHECKING([whether compiler builds 64bit binaries])
-	AC_PREPROC_IFELSE([AC_LANG_PROGRAM([
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([
 			   #ifndef _LP64
 			   # error "Compiler not in 64bit mode."
 			   #endif
