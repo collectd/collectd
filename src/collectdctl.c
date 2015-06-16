@@ -98,7 +98,7 @@ static void exit_usage (const char *name, int status) {
       "Hostname defaults to the local hostname if omitted (e.g., uptime/uptime).\n"
       "No error is returned if the specified identifier does not exist.\n"
 
-      "\n"PACKAGE" "VERSION", http://collectd.org/\n"
+      "\n"PACKAGE_NAME" "PACKAGE_VERSION", http://collectd.org/\n"
       "by Florian octo Forster <octo@collectd.org>\n"
       "for contributions see `AUTHORS'\n"
       , name);

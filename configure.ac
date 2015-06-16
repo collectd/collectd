@@ -113,7 +113,20 @@ if test "x$ac_system" = "xSolaris"
 then
 	AC_DEFINE(_POSIX_PTHREAD_SEMANTICS, 1, [Define to enforce POSIX thread semantics under Solaris.])
 	AC_DEFINE(_REENTRANT,               1, [Define to enable reentrancy interfaces.])
+
+	AC_MSG_CHECKING([whether compiler builds 64bit binaries])
+	AC_PREPROC_IFELSE([AC_LANG_PROGRAM([
+			   #ifndef _LP64
+			   # error "Compiler not in 64bit mode."
+			   #endif
+			   ])],
+			   [AC_MSG_RESULT([yes])],
+			   [
+			    AC_MSG_RESULT([no])
+			    AC_MSG_NOTICE([Solaris detected. Please consider building a 64-bit binary.])
+			   ])
 fi
+
 if test "x$ac_system" = "xAIX"
 then
 	AC_DEFINE(_THREAD_SAFE_ERRNO, 1, [Define to use the thread-safe version of errno under AIX.])
@@ -285,6 +298,54 @@ AC_CHECK_HEADERS(netinet/udp.h, [], [],
 #endif
 ])
 
+have_ip6_ext="no"
+AC_CHECK_TYPES([struct ip6_ext], [have_ip6_ext="yes"], [have_ip6_ext="no"],
+[#if HAVE_STDINT_H
+# include <stdint.h>
+#endif
+#if HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+#if HAVE_NETINET_IN_SYSTM_H
+# include <netinet/in_systm.h>
+#endif
+#if HAVE_NETINET_IN_H
+# include <netinet/in.h>
+#endif
+#if HAVE_NETINET_IP6_H
+# include <netinet/ip6.h>
+#endif
+])
+
+if test "x$have_ip6_ext" = "xno"; then
+	SAVE_CFLAGS="$CFLAGS"
+	CFLAGS="$CFLAGS -DSOLARIS2=8"
+
+	AC_CHECK_TYPES([struct ip6_ext],
+		       [have_ip6_ext="yes, with -DSOLARIS2=8"],
+		       [have_ip6_ext="no"],
+[#if HAVE_STDINT_H
+# include <stdint.h>
+#endif
+#if HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+#if HAVE_NETINET_IN_SYSTM_H
+# include <netinet/in_systm.h>
+#endif
+#if HAVE_NETINET_IN_H
+# include <netinet/in.h>
+#endif
+#if HAVE_NETINET_IP6_H
+# include <netinet/ip6.h>
+#endif
+])
+
+	if test "x$have_ip6_ext" = "xno"; then
+		CFLAGS="$SAVE_CFLAGS"
+	fi
+fi
+
 # For cpu modules
 AC_CHECK_HEADERS(sys/dkstat.h)
 if test "x$ac_system" = "xDarwin"
@@ -375,18 +436,6 @@ AC_CHECK_HEADERS(sys/swap.h vm/anon.h, [], [have_sys_swap_h="no"],
 # include <sys/param.h>
 #endif
 ])
-
-if test "x$have_sys_swap_h$ac_system" = "xnoSolaris"
-then
-	hint_64=""
-	if test "x$GCC" = "xyes"
-	then
-		hint_64="CFLAGS='-m64'"
-	else
-		hint_64="CFLAGS='-xarch=v9'"
-	fi
-	AC_MSG_NOTICE([Solaris detected and sys/swap.h not usable. Try building a 64-bit binary ($hint_64 ./configure).])
-fi
 
 # For load module
 # For the processes plugin
@@ -595,14 +644,14 @@ AC_CHECK_HEADERS(asm/msr-index.h, [have_asm_msrindex_h="yes"])
 
 if test "x$have_asm_msrindex_h" = "xyes"
 then
-  AC_CACHE_CHECK([whether asm/msr-index.h has MSR_CORE_C3_RESIDENCY],
+  AC_CACHE_CHECK([whether asm/msr-index.h has MSR_PKG_C10_RESIDENCY],
                  [c_cv_have_usable_asm_msrindex_h],
                  AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
 [[[
 #include<asm/msr-index.h>
 ]]],
 [[[
-int y = MSR_CORE_C3_RESIDENCY;
+int y = MSR_PKG_C10_RESIDENCY;
 return(y);
 ]]]
   )],
