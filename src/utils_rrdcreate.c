@@ -709,18 +709,32 @@ int cu_rrd_create_file (const char *filename, /* {{{ */
   }
   else /* synchronous */
   {
-    status = srrd_create (filename, stepsize, last_up,
-        argc, (const char **) argv);
-
+    status = lock_file (filename);
     if (status != 0)
     {
-      WARNING ("cu_rrd_create_file: srrd_create (%s) returned status %i.",
-          filename, status);
+      if (status == EEXIST)
+        NOTICE ("cu_rrd_create_file: File \"%s\" is already being created.",
+            filename);
+      else
+        ERROR ("cu_rrd_create_file: Unable to lock file \"%s\".",
+            filename);
     }
     else
     {
-      DEBUG ("cu_rrd_create_file: Successfully created RRD file \"%s\".",
-          filename);
+      status = srrd_create (filename, stepsize, last_up,
+          argc, (const char **) argv);
+
+      if (status != 0)
+      {
+        WARNING ("cu_rrd_create_file: srrd_create (%s) returned status %i.",
+            filename, status);
+      }
+      else
+      {
+        DEBUG ("cu_rrd_create_file: Successfully created RRD file \"%s\".",
+            filename);
+      }
+      unlock_file (filename);
     }
   }
 
