@@ -4513,6 +4513,16 @@ The following options are accepted within each B<Instance> block:
 Sets the URL to use to connect to the I<OpenLDAP> server. This option is
 I<mandatory>.
 
+=item B<BindDN> I<BindDN>
+
+Name in the form of an LDAP distinguished name intended to be used for 
+authentication. Defaults to empty string to establish an anonymous authorization.
+
+=item B<Password> I<Password>
+
+Password for simple bind authentication. If this option is not set, 
+unauthenticated bind operation is used.
+
 =item B<StartTLS> B<true|false>
 
 Defines whether TLS must be used when connecting to the I<OpenLDAP> server.
