@@ -815,7 +815,7 @@ static int mysql_read (user_data_t *ud)
 			else if (strcmp (key, "Innodb_buffer_pool_pages_dirty") == 0)
 				gauge_submit ("mysql_bpool_pages", "dirty", val, db);
 			else if (strcmp (key, "Innodb_buffer_pool_pages_flushed") == 0)
-				counter_submit ("mysql_bpool_pages", "flushed", val, db);
+				counter_submit ("mysql_bpool_counters", "pages_flushed", val, db);
 			else if (strcmp (key, "Innodb_buffer_pool_pages_free") == 0)
 				gauge_submit ("mysql_bpool_pages", "free", val, db);
 			else if (strcmp (key, "Innodb_buffer_pool_pages_misc") == 0)
