@@ -395,169 +395,112 @@ static int disk_read (void)
 	io_registry_entry_t	disk;
 	io_registry_entry_t	disk_child;
 	io_iterator_t		disk_list;
-	CFDictionaryRef		props_dict;
+	CFMutableDictionaryRef	props_dict, child_dict;
 	CFDictionaryRef		stats_dict;
-	CFDictionaryRef		child_dict;
 	CFStringRef		tmp_cf_string_ref;
 	kern_return_t		status;
 
-	signed long long read_ops;
-	signed long long read_byt;
-	signed long long read_tme;
-	signed long long write_ops;
-	signed long long write_byt;
-	signed long long write_tme;
+	signed long long read_ops, read_byt, read_tme;
+	signed long long write_ops, write_byt, write_tme;
 
-	int  disk_major;
-	int  disk_minor;
+	int  disk_major, disk_minor;
 	char disk_name[DATA_MAX_NAME_LEN];
-	char disk_name_bsd[DATA_MAX_NAME_LEN];
+	char child_disk_name_bsd[DATA_MAX_NAME_LEN], props_disk_name_bsd[DATA_MAX_NAME_LEN];
 
 	/* Get the list of all disk objects. */
-	if (IOServiceGetMatchingServices (io_master_port,
-				IOServiceMatching (kIOBlockStorageDriverClass),
-				&disk_list) != kIOReturnSuccess)
-	{
+	if (IOServiceGetMatchingServices (io_master_port, IOServiceMatching (kIOBlockStorageDriverClass), &disk_list) != kIOReturnSuccess) {
 		ERROR ("disk plugin: IOServiceGetMatchingServices failed.");
 		return (-1);
 	}
 
-	while ((disk = IOIteratorNext (disk_list)) != 0)
-	{
+	while ((disk = IOIteratorNext (disk_list)) != 0) {
 		props_dict = NULL;
 		stats_dict = NULL;
 		child_dict = NULL;
 
-		/* `disk_child' must be released */
-		if ((status = IORegistryEntryGetChildEntry (disk, kIOServicePlane, &disk_child))
-			       	!= kIOReturnSuccess)
-		{
-			/* This fails for example for DVD/CD drives.. */
+		/* get child of disk entry and corresponding property dictionary */
+		if ((status = IORegistryEntryGetChildEntry (disk, kIOServicePlane, &disk_child)) != kIOReturnSuccess) {
+			/* This fails for example for DVD/CD drives, which we want to ignore anyway */
 			DEBUG ("IORegistryEntryGetChildEntry (disk) failed: 0x%08x", status);
 			IOObjectRelease (disk);
 			continue;
 		}
+		if (IORegistryEntryCreateCFProperties (disk_child, (CFMutableDictionaryRef *) &child_dict, kCFAllocatorDefault, kNilOptions) != kIOReturnSuccess || child_dict == NULL) {
+			ERROR ("disk plugin: IORegistryEntryCreateCFProperties (disk_child) failed.");
+			IOObjectRelease (disk_child);
+			IOObjectRelease (disk);
+			continue;
+		}
 
-		/* We create `props_dict' => we need to release it later */
-		if (IORegistryEntryCreateCFProperties (disk,
-					(CFMutableDictionaryRef *) &props_dict,
-					kCFAllocatorDefault,
-					kNilOptions)
-				!= kIOReturnSuccess)
-		{
+		/* extract name and major/minor numbers */
+		memset (child_disk_name_bsd, 0, sizeof (child_disk_name_bsd));
+		tmp_cf_string_ref = (CFStringRef) CFDictionaryGetValue (child_dict, CFSTR(kIOBSDNameKey));
+		if (tmp_cf_string_ref) {
+			assert (CFGetTypeID (tmp_cf_string_ref) == CFStringGetTypeID ());
+			CFStringGetCString (tmp_cf_string_ref, child_disk_name_bsd, sizeof (child_disk_name_bsd), kCFStringEncodingUTF8);
+		}
+		disk_major = (int) dict_get_value (child_dict, kIOBSDMajorKey);
+		disk_minor = (int) dict_get_value (child_dict, kIOBSDMinorKey);
+		DEBUG ("disk plugin: child_disk_name_bsd=\"%s\" major=%d minor=%d", child_disk_name_bsd, disk_major, disk_minor);
+		CFRelease (child_dict);
+		IOObjectRelease (disk_child);
+
+		/* get property dictionary of the disk entry itself */
+		if (IORegistryEntryCreateCFProperties (disk, (CFMutableDictionaryRef *) &props_dict, kCFAllocatorDefault, kNilOptions) != kIOReturnSuccess || props_dict == NULL) {
 			ERROR ("disk-plugin: IORegistryEntryCreateCFProperties failed.");
-			IOObjectRelease (disk_child);
 			IOObjectRelease (disk);
 			continue;
 		}
 
-		if (props_dict == NULL)
-		{
-			DEBUG ("IORegistryEntryCreateCFProperties (disk) failed.");
-			IOObjectRelease (disk_child);
-			IOObjectRelease (disk);
-			continue;
+		/* extract name and stats dictionary */
+		memset (props_disk_name_bsd, 0, sizeof (props_disk_name_bsd));
+		tmp_cf_string_ref = (CFStringRef) CFDictionaryGetValue (props_dict, CFSTR(kIOBSDNameKey));
+		if (tmp_cf_string_ref) {
+			assert (CFGetTypeID (tmp_cf_string_ref) == CFStringGetTypeID ());
+			CFStringGetCString (tmp_cf_string_ref, props_disk_name_bsd, sizeof (props_disk_name_bsd), kCFStringEncodingUTF8);
 		}
-
-		/* tmp_cf_string_ref doesn't need to be released. */
-		tmp_cf_string_ref = (CFStringRef) CFDictionaryGetValue (props_dict,
-				CFSTR(kIOBSDNameKey));
-		if (!tmp_cf_string_ref)
-		{
-			DEBUG ("disk plugin: CFDictionaryGetValue("
-					"kIOBSDNameKey) failed.");
-			CFRelease (props_dict);
-			IOObjectRelease (disk_child);
-			IOObjectRelease (disk);
-			continue;
-		}
-		assert (CFGetTypeID (tmp_cf_string_ref) == CFStringGetTypeID ());
-
-		memset (disk_name_bsd, 0, sizeof (disk_name_bsd));
-		CFStringGetCString (tmp_cf_string_ref,
-				disk_name_bsd, sizeof (disk_name_bsd),
-				kCFStringEncodingUTF8);
-		if (disk_name_bsd[0] == 0)
-		{
-			ERROR ("disk plugin: CFStringGetCString() failed.");
-			CFRelease (props_dict);
-			IOObjectRelease (disk_child);
-			IOObjectRelease (disk);
-			continue;
-		}
-		DEBUG ("disk plugin: disk_name_bsd = \"%s\"", disk_name_bsd);
-
-		stats_dict = (CFDictionaryRef) CFDictionaryGetValue (props_dict,
-				CFSTR (kIOBlockStorageDriverStatisticsKey));
-
-		if (stats_dict == NULL)
-		{
-			DEBUG ("disk plugin: CFDictionaryGetValue ("
-					"%s) failed.",
-				       	kIOBlockStorageDriverStatisticsKey);
-			CFRelease (props_dict);
-			IOObjectRelease (disk_child);
-			IOObjectRelease (disk);
-			continue;
-		}
-
-		if (IORegistryEntryCreateCFProperties (disk_child,
-					(CFMutableDictionaryRef *) &child_dict,
-					kCFAllocatorDefault,
-					kNilOptions)
-				!= kIOReturnSuccess)
-		{
-			DEBUG ("disk plugin: IORegistryEntryCreateCFProperties ("
-					"disk_child) failed.");
-			IOObjectRelease (disk_child);
+		stats_dict = (CFDictionaryRef) CFDictionaryGetValue (props_dict, CFSTR (kIOBlockStorageDriverStatisticsKey));
+		if (stats_dict == NULL) {
+			ERROR ("disk plugin: CFDictionaryGetValue (%s) failed.", kIOBlockStorageDriverStatisticsKey);
 			CFRelease (props_dict);
 			IOObjectRelease (disk);
 			continue;
 		}
+		DEBUG ("disk plugin: props_disk_name_bsd=\"%s\"", props_disk_name_bsd);
 
-		/* kIOBSDNameKey */
-		disk_major = (int) dict_get_value (child_dict,
-			       	kIOBSDMajorKey);
-		disk_minor = (int) dict_get_value (child_dict,
-			       	kIOBSDMinorKey);
-		read_ops  = dict_get_value (stats_dict,
-				kIOBlockStorageDriverStatisticsReadsKey);
-		read_byt  = dict_get_value (stats_dict,
-				kIOBlockStorageDriverStatisticsBytesReadKey);
-		read_tme  = dict_get_value (stats_dict,
-				kIOBlockStorageDriverStatisticsTotalReadTimeKey);
-		write_ops = dict_get_value (stats_dict,
-				kIOBlockStorageDriverStatisticsWritesKey);
-		write_byt = dict_get_value (stats_dict,
-				kIOBlockStorageDriverStatisticsBytesWrittenKey);
-		/* This property describes the number of nanoseconds spent
-		 * performing writes since the block storage driver was
-		 * instantiated. It is one of the statistic entries listed
-		 * under the top-level kIOBlockStorageDriverStatisticsKey
-		 * property table. It has an OSNumber value. */
-		write_tme = dict_get_value (stats_dict,
-				kIOBlockStorageDriverStatisticsTotalWriteTimeKey);
-
-		if (use_bsd_name)
-			sstrncpy (disk_name, disk_name_bsd, sizeof (disk_name));
+		/* choose name */
+		if (use_bsd_name) {
+			if (child_disk_name_bsd[0] != 0)
+				sstrncpy (disk_name, child_disk_name_bsd, sizeof (disk_name));
+			else if (props_disk_name_bsd[0] != 0)
+				sstrncpy (disk_name, props_disk_name_bsd, sizeof (disk_name));
+			else {
+				ERROR ("disk plugin: can't find bsd disk name.");
+				ssnprintf (disk_name, sizeof (disk_name), "%i-%i", disk_major, disk_minor);
+			}
+		}
 		else
-			ssnprintf (disk_name, sizeof (disk_name), "%i-%i",
-					disk_major, disk_minor);
-		DEBUG ("disk plugin: disk_name = \"%s\"", disk_name);
+			ssnprintf (disk_name, sizeof (disk_name), "%i-%i", disk_major, disk_minor);
 
+		/* extract the stats */
+		read_ops  = dict_get_value (stats_dict, kIOBlockStorageDriverStatisticsReadsKey);
+		read_byt  = dict_get_value (stats_dict, kIOBlockStorageDriverStatisticsBytesReadKey);
+		read_tme  = dict_get_value (stats_dict, kIOBlockStorageDriverStatisticsTotalReadTimeKey);
+		write_ops = dict_get_value (stats_dict, kIOBlockStorageDriverStatisticsWritesKey);
+		write_byt = dict_get_value (stats_dict, kIOBlockStorageDriverStatisticsBytesWrittenKey);
+		write_tme = dict_get_value (stats_dict, kIOBlockStorageDriverStatisticsTotalWriteTimeKey);
+		CFRelease (props_dict);
+		IOObjectRelease (disk);
+
+		/* and submit */
+		DEBUG ("disk plugin: disk_name = \"%s\"", disk_name);
 		if ((read_byt != -1LL) || (write_byt != -1LL))
 			disk_submit (disk_name, "disk_octets", read_byt, write_byt);
 		if ((read_ops != -1LL) || (write_ops != -1LL))
 			disk_submit (disk_name, "disk_ops", read_ops, write_ops);
 		if ((read_tme != -1LL) || (write_tme != -1LL))
-			disk_submit (disk_name, "disk_time",
-					read_tme / 1000,
-					write_tme / 1000);
+			disk_submit (disk_name, "disk_time", read_tme / 1000, write_tme / 1000);
 
-		CFRelease (child_dict);
-		IOObjectRelease (disk_child);
-		CFRelease (props_dict);
-		IOObjectRelease (disk);
 	}
 	IOObjectRelease (disk_list);
 /* #endif HAVE_IOKIT_IOKITLIB_H */

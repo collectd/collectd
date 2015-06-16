@@ -298,7 +298,8 @@ AC_CHECK_HEADERS(netinet/udp.h, [], [],
 #endif
 ])
 
-AC_CHECK_TYPES([struct ip6_ext], [], [],
+have_ip6_ext="no"
+AC_CHECK_TYPES([struct ip6_ext], [have_ip6_ext="yes"], [have_ip6_ext="no"],
 [#if HAVE_STDINT_H
 # include <stdint.h>
 #endif
@@ -315,6 +316,35 @@ AC_CHECK_TYPES([struct ip6_ext], [], [],
 # include <netinet/ip6.h>
 #endif
 ])
+
+if test "x$have_ip6_ext" = "xno"; then
+	SAVE_CFLAGS="$CFLAGS"
+	CFLAGS="$CFLAGS -DSOLARIS2=8"
+
+	AC_CHECK_TYPES([struct ip6_ext],
+		       [have_ip6_ext="yes, with -DSOLARIS2=8"],
+		       [have_ip6_ext="no"],
+[#if HAVE_STDINT_H
+# include <stdint.h>
+#endif
+#if HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+#if HAVE_NETINET_IN_SYSTM_H
+# include <netinet/in_systm.h>
+#endif
+#if HAVE_NETINET_IN_H
+# include <netinet/in.h>
+#endif
+#if HAVE_NETINET_IP6_H
+# include <netinet/ip6.h>
+#endif
+])
+
+	if test "x$have_ip6_ext" = "xno"; then
+		CFLAGS="$SAVE_CFLAGS"
+	fi
+fi
 
 # For cpu modules
 AC_CHECK_HEADERS(sys/dkstat.h)
@@ -614,14 +644,14 @@ AC_CHECK_HEADERS(asm/msr-index.h, [have_asm_msrindex_h="yes"])
 
 if test "x$have_asm_msrindex_h" = "xyes"
 then
-  AC_CACHE_CHECK([whether asm/msr-index.h has MSR_CORE_C3_RESIDENCY],
+  AC_CACHE_CHECK([whether asm/msr-index.h has MSR_PKG_C10_RESIDENCY],
                  [c_cv_have_usable_asm_msrindex_h],
                  AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
 [[[
 #include<asm/msr-index.h>
 ]]],
 [[[
-int y = MSR_CORE_C3_RESIDENCY;
+int y = MSR_PKG_C10_RESIDENCY;
 return(y);
 ]]]
   )],
