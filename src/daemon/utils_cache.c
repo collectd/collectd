@@ -322,7 +322,6 @@ int uc_check_timeout (void)
     if (status != 0)
     {
       ERROR ("uc_check_timeout: parse_identifier_vl (\"%s\") failed.", keys[i]);
-      cache_free (ce);
       continue;
     }
 

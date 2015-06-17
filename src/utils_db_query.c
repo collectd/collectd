@@ -1071,10 +1071,9 @@ udb_query_allocate_preparation_area (udb_query_t *q) /* {{{ */
   udb_result_preparation_area_t **next_r_area;
   udb_result_t *r;
 
-  q_area = (udb_query_preparation_area_t *)malloc (sizeof (*q_area));
+  q_area = malloc (sizeof (*q_area));
   if (q_area == NULL)
     return NULL;
-
   memset (q_area, 0, sizeof (*q_area));
 
   next_r_area = &q_area->result_prep_areas;
@@ -1082,14 +1081,18 @@ udb_query_allocate_preparation_area (udb_query_t *q) /* {{{ */
   {
     udb_result_preparation_area_t *r_area;
 
-    r_area = (udb_result_preparation_area_t *)malloc (sizeof (*r_area));
+    r_area = malloc (sizeof (*r_area));
     if (r_area == NULL)
     {
-      for (r_area = q_area->result_prep_areas;
-          r_area != NULL; r_area = r_area->next)
+      udb_result_preparation_area_t *a = q_area->result_prep_areas;
+
+      while (a != NULL)
       {
-        free (r_area);
+        udb_result_preparation_area_t *next = a->next;
+        sfree (a);
+        a = next;
       }
+
       free (q_area);
       return NULL;
     }
