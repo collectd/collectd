@@ -142,6 +142,9 @@ static c_avl_node_t *rotate_right (c_avl_tree_t *t, c_avl_node_t *x)
 	c_avl_node_t *y;
 	c_avl_node_t *b;
 
+	assert (x != NULL);
+	assert (x->left != NULL);
+
 	p = x->parent;
 	y = x->left;
 	b = y->right;
@@ -166,7 +169,7 @@ static c_avl_node_t *rotate_right (c_avl_tree_t *t, c_avl_node_t *x)
 	y->height = calc_height (y);
 
 	return (y);
-} /* void rotate_left */
+} /* void rotate_right */
 
 /*
  *    (x)                   (y)
@@ -182,6 +185,9 @@ static c_avl_node_t *rotate_left (c_avl_tree_t *t, c_avl_node_t *x)
 	c_avl_node_t *p;
 	c_avl_node_t *y;
 	c_avl_node_t *b;
+
+	assert (x != NULL);
+	assert (x->right != NULL);
 
 	p = x->parent;
 	y = x->right;
