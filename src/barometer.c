@@ -581,7 +581,7 @@ static int MPL115_detect(void)
     return 0;
 }
 
-/** 
+/**
  * Read the MPL115 sensor conversion coefficients.
  *
  * These are (device specific) constants so we can read them just once.
@@ -590,18 +590,18 @@ static int MPL115_detect(void)
  */
 static int MPL115_read_coeffs(void)
 {
-    uint8_t mpl115_coeffs[MPL115_NUM_COEFFS]; 
+    uint8_t mpl115_coeffs[MPL115_NUM_COEFFS] = { 0 };
     int32_t res;
 
     int8_t  sia0MSB, sia0LSB, sib1MSB, sib1LSB, sib2MSB, sib2LSB;
     int8_t  sic12MSB, sic12LSB, sic11MSB, sic11LSB, sic22MSB, sic22LSB;
     int16_t sia0, sib1, sib2, sic12, sic11, sic22;
-      
+
     char errbuf[1024];
 
-    res = i2c_smbus_read_i2c_block_data(i2c_bus_fd, 
-                                        MPL115_ADDR_COEFFS, 
-                                        MPL115_NUM_COEFFS, 
+    res = i2c_smbus_read_i2c_block_data(i2c_bus_fd,
+                                        MPL115_ADDR_COEFFS,
+                                        STATIC_ARRAY_SIZE (mpl115_coeffs),
                                         mpl115_coeffs);
     if (res < 0)
     {
@@ -609,7 +609,7 @@ static int MPL115_read_coeffs(void)
                sstrerror (errno, errbuf, sizeof (errbuf)));
         return -1;
     }
-   
+
     /* Using perhaps less elegant/efficient code, but more readable. */
     /* a0: 16total 1sign 12int 4fract 0pad */
     sia0MSB = mpl115_coeffs[0];
@@ -618,7 +618,7 @@ static int MPL115_read_coeffs(void)
     sia0 += (int16_t) sia0LSB & 0x00FF;    /* Add LSB to 16bit number */
     mpl115_coeffA0 = (double) (sia0);
     mpl115_coeffA0 /= 8.0;                 /* 3 fract bits */
-    
+
     /* b1: 16total 1sign 2int 13fract 0pad */
     sib1MSB= mpl115_coeffs[2];
     sib1LSB= mpl115_coeffs[3];
@@ -626,7 +626,7 @@ static int MPL115_read_coeffs(void)
     sib1 += sib1LSB & 0x00FF;              /* Add LSB to 16bit number */
     mpl115_coeffB1 = (double) (sib1);
     mpl115_coeffB1 /= 8192.0;              /* 13 fract */
-    
+
     /* b2: 16total 1sign 1int 14fract 0pad */
     sib2MSB= mpl115_coeffs[4];
     sib2LSB= mpl115_coeffs[5];
@@ -663,11 +663,11 @@ static int MPL115_read_coeffs(void)
     mpl115_coeffC22 /= 33554432.0;          /* 10+15=25 fract */
 
     DEBUG("barometer: MPL115_read_coeffs: a0=%lf, b1=%lf, b2=%lf, c12=%lf, c11=%lf, c22=%lf",
-          mpl115_coeffA0, 
-          mpl115_coeffB1, 
-          mpl115_coeffB2, 
-          mpl115_coeffC12, 
-          mpl115_coeffC11, 
+          mpl115_coeffA0,
+          mpl115_coeffB1,
+          mpl115_coeffB2,
+          mpl115_coeffC12,
+          mpl115_coeffC11,
           mpl115_coeffC22);
     return 0;
 }
@@ -699,7 +699,7 @@ static void MPL115_convert_adc_to_real(double   adc_pressure,
 }
 
 
-/** 
+/**
  * Read sensor averegaed measurements
  *
  * @param pressure    averaged measured pressure
@@ -709,7 +709,7 @@ static void MPL115_convert_adc_to_real(double   adc_pressure,
  */
 static int MPL115_read_averaged(double * pressure, double * temperature)
 {
-    uint8_t mpl115_conv[MPL115_NUM_CONV]; 
+    uint8_t mpl115_conv[MPL115_NUM_CONV] = { 0 };
     int8_t  res;
     int     retries;
     int     conv_pressure;
@@ -720,7 +720,7 @@ static int MPL115_read_averaged(double * pressure, double * temperature)
 
     *pressure    = 0.0;
     *temperature = 0.0;
-   
+
     /* start conversion of both temp and presure */
     retries = MPL115_CONVERSION_RETRIES;
     while (retries>0)
@@ -756,8 +756,8 @@ static int MPL115_read_averaged(double * pressure, double * temperature)
     {
         res = i2c_smbus_read_i2c_block_data(i2c_bus_fd,
                                             MPL115_ADDR_CONV,
-                                            MPL115_NUM_CONV,
-                                            mpl115_conv); 
+                                            STATIC_ARRAY_SIZE (mpl115_conv),
+                                            mpl115_conv);
         if (res >= 0)
             break;
 
@@ -777,7 +777,7 @@ static int MPL115_read_averaged(double * pressure, double * temperature)
             return -1;
         }
     }
-    
+
     conv_pressure    = ((mpl115_conv[0] << 8) | mpl115_conv[1]) >> 6;
     conv_temperature = ((mpl115_conv[2] << 8) | mpl115_conv[3]) >> 6;
     DEBUG ("barometer: MPL115_read_averaged, raw pressure ADC value = %d, " \
@@ -796,7 +796,7 @@ static int MPL115_read_averaged(double * pressure, double * temperature)
            adc_temperature,
            *pressure,
            *temperature);
-    
+
     return 0;
 }
 
