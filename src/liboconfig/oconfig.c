@@ -33,6 +33,7 @@
 #include "oconfig.h"
 
 extern FILE *yyin;
+extern int yyparse (void);
 
 oconfig_item_t *ci_root;
 const char     *c_file;
