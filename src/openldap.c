@@ -621,7 +621,8 @@ static int cldap_config_add (oconfig_item_t *ci) /* {{{ */
 				st->name, st->url);
 			status = -1;
 		}
-		else
+
+		if ((status == 0) && (ludpp->lud_host != NULL))
 		{
 			st->host = strdup (ludpp->lud_host);
 		}
