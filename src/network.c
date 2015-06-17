@@ -2415,7 +2415,7 @@ static int network_receive (void) /* {{{ */
 	int  buffer_len;
 
 	int i;
-	int status;
+	int status = 0;
 
 	receive_list_entry_t *private_list_head;
 	receive_list_entry_t *private_list_tail;
