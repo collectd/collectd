@@ -176,7 +176,7 @@ static int tn_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 
   if (status != 0)
   {
-    tn_destroy ((void *) data);
+    tn_destroy ((void *) &data);
     return (status);
   }
 
