@@ -2017,6 +2017,7 @@ static sockent_t *sockent_create (int type) /* {{{ */
 	if (type == SOCKENT_TYPE_SERVER)
 	{
 		se->data.server.fd = NULL;
+		se->data.server.fd_num = 0;
 #if HAVE_LIBGCRYPT
 		se->data.server.security_level = SECURITY_LEVEL_NONE;
 		se->data.server.auth_file = NULL;
@@ -2211,6 +2212,9 @@ static int sockent_server_listen (sockent_t *se) /* {{{ */
 
 	if (se == NULL)
 		return (-1);
+
+	assert (se->data.server.fd == NULL);
+	assert (se->data.server.fd_num == 0);
 
         node = se->node;
         service = se->service;
