@@ -617,10 +617,18 @@ int c_avl_pick (c_avl_tree_t *t, void **key, void **value)
 	n = t->root;
 	while ((n->left != NULL) || (n->right != NULL))
 	{
-		int height_left  = (n->left  == NULL) ? 0 : n->left->height;
-		int height_right = (n->right == NULL) ? 0 : n->right->height;
+		if (n->left == NULL)
+		{
+			n = n->right;
+			continue;
+		}
+		else if (n->right == NULL)
+		{
+			n = n->left;
+			continue;
+		}
 
-		if (height_left > height_right)
+		if (n->left->height > n->right->height)
 			n = n->left;
 		else
 			n = n->right;

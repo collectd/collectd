@@ -27,6 +27,12 @@
  */
 
 %{
+/* lex and yacc do some weird stuff, so turn off some warnings. */
+#if defined(__clang__)
+# pragma clang diagnostic ignored "-Wunused-function"
+# pragma clang diagnostic ignored "-Wunneeded-internal-declaration"
+#endif
+
 #include <stdlib.h>
 #include "oconfig.h"
 #include "aux_types.h"
