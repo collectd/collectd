@@ -33,7 +33,7 @@
 #include <curl/curl.h>
 
 #ifndef WRITE_HTTP_DEFAULT_BUFFER_SIZE
-# define WRITE_HTTP_DEFAULT_BUFFER_SIZE 4096
+# define WRITE_HTTP_DEFAULT_BUFFER_SIZE (1024 * 1024)
 #endif
 
 /*
@@ -77,8 +77,10 @@ struct wh_callback_s
         size_t send_buffer_free;
         size_t send_buffer_fill;
         cdtime_t send_buffer_init_time;
+        cdtime_t buffer_flush_last;
 
         pthread_mutex_t send_lock;
+        pthread_mutex_t flush_lock;
 };
 typedef struct wh_callback_s wh_callback_t;
 
@@ -546,12 +548,24 @@ static int wh_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
 {
         wh_callback_t *cb;
         int status;
+        cdtime_t now;
 
         if (user_data == NULL)
                 return (-EINVAL);
 
         cb = user_data->data;
         assert (cb->send_metrics);
+
+        /* we want a large buffer so we get all the measurements for a time at once
+        but we also want to force flushing it every minute. this will do. longer term,
+        this could be a configurable part of a stackdriver specific write plugin */
+        pthread_mutex_lock (&cb->flush_lock);
+        now = cdtime ();
+        if (now > cb->send_buffer_init_time + MS_TO_CDTIME_T(15000)) {
+            wh_flush(0, NULL, user_data);
+            cb->buffer_flush_last = now;
+        }
+        pthread_mutex_unlock (&cb->flush_lock);
 
         switch(cb->format) {
             case WH_FORMAT_JSON:
