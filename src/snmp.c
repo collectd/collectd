@@ -402,7 +402,6 @@ static int csnmp_config_add_data (oconfig_item_t *ci)
   for (i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
-    status = 0;
 
     if (strcasecmp ("Type", option->key) == 0)
       status = cf_util_get_string(option, &dd->type);
@@ -1519,7 +1518,7 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
     for (vb = res->variables, i = 0; (vb != NULL); vb = vb->next_variable, i++)
     {
       /* Calculate value index from todo list */
-      while (!oid_list_todo[i] && (i < oid_list_len))
+      while ((i < oid_list_len) && !oid_list_todo[i])
         i++;
 
       /* An instance is configured and the res variable we process is the

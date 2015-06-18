@@ -2567,10 +2567,6 @@ static int network_receive (void) /* {{{ */
 		receive_list_tail = private_list_tail;
 		receive_list_length += private_list_length;
 
-		private_list_head = NULL;
-		private_list_tail = NULL;
-		private_list_length = 0;
-
 		pthread_cond_signal (&receive_list_cond);
 		pthread_mutex_unlock (&receive_list_lock);
 	}

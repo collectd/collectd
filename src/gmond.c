@@ -665,7 +665,7 @@ static int mc_handle_value_msg (Ganglia_value_msg *msg) /* {{{ */
     if ((map->ds_type == DS_TYPE_COUNTER)
         || (map->ds_type == DS_TYPE_ABSOLUTE))
       val_copy = value_counter;
-    if (map->ds_type == DS_TYPE_GAUGE)
+    else if (map->ds_type == DS_TYPE_GAUGE)
       val_copy = value_gauge;
     else if (map->ds_type == DS_TYPE_DERIVE)
       val_copy = value_derive;

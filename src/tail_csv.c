@@ -312,7 +312,6 @@ static int tcsv_config_add_metric(oconfig_item_t *ci){
 
     for (i = 0; i < ci->children_num; ++i){
         oconfig_item_t *option = ci->children + i;
-        status = 0;
 
         if (strcasecmp("Type", option->key) == 0)
             status = cf_util_get_string(option, &md->type);
