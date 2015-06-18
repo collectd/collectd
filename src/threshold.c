@@ -627,8 +627,6 @@ static int ut_report_state (const data_set_t *ds,
     else
       status = ssnprintf (buf, bufsize,
           ": All data sources are within range again.");
-    buf += status;
-    bufsize -= status;
   }
   else
   {
@@ -696,8 +694,6 @@ static int ut_report_state (const data_set_t *ds,
 	  (state == STATE_ERROR) ? "failure" : "warning",
 	  (values[ds_index] < min) ? min : max);
     }
-    buf += status;
-    bufsize -= status;
   }
 
   plugin_dispatch_notification (&n);
