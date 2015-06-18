@@ -447,6 +447,12 @@ static int powerdns_get_data_stream (list_item_t *item, /* {{{ */
   timeout.tv_sec=5;
   timeout.tv_usec=0;
   status = setsockopt (sd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof (timeout));
+  if (status != 0)
+  {
+    FUNC_ERROR ("setsockopt");
+    close (sd);
+    return (-1);
+  }
 
   status = connect (sd, (struct sockaddr *) &item->sockaddr,
       sizeof (item->sockaddr));
@@ -494,7 +500,6 @@ static int powerdns_get_data_stream (list_item_t *item, /* {{{ */
     buffer[buffer_size] = 0;
   } /* while (42) */
   close (sd);
-  sd = -1;
 
   if (status < 0)
   {
