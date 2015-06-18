@@ -696,7 +696,7 @@ static void *camqp_subscribe_thread (void *user_data) /* {{{ */
             continue;
         }
 
-        status = camqp_read_header (conf);
+        camqp_read_header (conf);
 
         amqp_maybe_release_buffers (conf->connection);
     } /* while (subscriber_threads_running) */
