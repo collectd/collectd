@@ -1053,16 +1053,17 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
     return (-1);
   }
   assert (ds->ds_num == data->values_len);
+  assert (data->values_len > 0);
 
   instance_list_ptr = instance_list;
 
-  value_table_ptr = malloc (sizeof (*value_table_ptr) * data->values_len);
+  value_table_ptr = calloc ((size_t) data->values_len, sizeof (*value_table_ptr));
   if (value_table_ptr == NULL)
     return (-1);
   for (i = 0; i < data->values_len; i++)
     value_table_ptr[i] = value_table[i];
 
-  vl.values_len = ds->ds_num;
+  vl.values_len = data->values_len;
   vl.values = malloc (sizeof (*vl.values) * vl.values_len);
   if (vl.values == NULL)
   {
