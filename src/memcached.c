@@ -513,7 +513,7 @@ static int memcached_read (user_data_t *user_data)
 
   // Additional derived(computed) metrics memory free percentage and miss ratio added
   if (!isnan (bytes_used) && !isnan (bytes_total) && bytes_used <= bytes_total && bytes_total != 0.0)
-    submit_gauge ("percent", "freememory", 100*(bytes_total - bytes_used)/bytes_total, st);
+    submit_gauge ("percent", "cache_free", 100*(bytes_total - bytes_used)/bytes_total, st);
 
   if (!isnan (gets) && !isnan (misses))
   {
