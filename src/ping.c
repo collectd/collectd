@@ -354,7 +354,7 @@ static void *ping_thread (void *arg) /* {{{ */
      * `ts_wait'. */
     time_calc (&ts_wait, &ts_int, &tv_begin, &tv_end);
 
-    status = pthread_cond_timedwait (&ping_cond, &ping_lock, &ts_wait);
+    pthread_cond_timedwait (&ping_cond, &ping_lock, &ts_wait);
     if (ping_thread_loop <= 0)
       break;
   } /* while (ping_thread_loop > 0) */
