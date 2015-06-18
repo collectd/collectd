@@ -192,8 +192,9 @@ static int udb_result_submit (udb_result_t *r, /* {{{ */
   assert (r != NULL);
   assert (r_area->ds != NULL);
   assert (((size_t) r_area->ds->ds_num) == r->values_num);
+  assert (r->values_num > 0);
 
-  vl.values = (value_t *) calloc (r_area->ds->ds_num, sizeof (value_t));
+  vl.values = (value_t *) calloc (r->values_num, sizeof (value_t));
   if (vl.values == NULL)
   {
     ERROR ("db query utils: malloc failed.");
