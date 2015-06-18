@@ -230,7 +230,7 @@ static int ctail_config_add_file (oconfig_item_t *ci)
   for (i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
-    int status;
+    int status = 0;
 
     if (strcasecmp ("Match", option->key) == 0)
     {
