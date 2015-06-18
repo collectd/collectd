@@ -556,7 +556,7 @@ static int read_acpi_full_capacity (char const *dir, /* {{{ */
 
 	ssnprintf (filename, sizeof (filename), "%s/%s/info", dir, power_supply);
 	fh = fopen (filename, "r");
-	if ((fh = fopen (filename, "r")) == NULL)
+	if (fh == NULL)
 		return (errno);
 
 	/* last full capacity:      40090 mWh */
@@ -615,7 +615,7 @@ static int read_acpi_callback (char const *dir, /* {{{ */
 
 	ssnprintf (filename, sizeof (filename), "%s/%s/state", dir, power_supply);
 	fh = fopen (filename, "r");
-	if ((fh = fopen (filename, "r")) == NULL)
+	if (fh == NULL)
 	{
 		if ((errno == EAGAIN) || (errno == EINTR) || (errno == ENOENT))
 			return (0);
