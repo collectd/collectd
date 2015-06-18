@@ -664,7 +664,6 @@ static int ntpd_receive_response (int *res_items, int *res_size,
 				(items_num + pkt_item_num) * res_item_size);
 		if (items == NULL)
 		{
-			items = *res_data;
 			ERROR ("ntpd plugin: realloc failed.");
 			continue;
 		}
