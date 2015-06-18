@@ -1423,6 +1423,7 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
         data->type, ds->ds_num, data->values_len);
     return (-1);
   }
+  assert (data->values_len > 0);
 
   /* We need a copy of all the OIDs, because GETNEXT will destroy them. */
   memcpy (oid_list, data->values, data->values_len * sizeof (oid_t));
