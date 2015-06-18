@@ -251,8 +251,6 @@ static void *collect (void *arg)
 	collector_t *this = (collector_t *)arg;
 
 	while (1) {
-		int loop = 1;
-
 		conn_t *connection;
 
 		pthread_mutex_lock (&conns_mutex);
@@ -277,15 +275,13 @@ static void *collect (void *arg)
 		log_debug ("collect: handling connection on fd #%i",
 				fileno (this->socket));
 
-		while (loop) {
+		while (42) {
 			/* 256 bytes ought to be enough for anybody ;-) */
 			char line[256 + 1]; /* line + '\0' */
 			int  len = 0;
 
 			errno = 0;
 			if (NULL == fgets (line, sizeof (line), this->socket)) {
-				loop = 0;
-
 				if (0 != errno) {
 					char errbuf[1024];
 					log_err ("collect: reading from socket (fd #%i) "
@@ -358,7 +354,7 @@ static void *collect (void *arg)
 			else {
 				log_err ("collect: unknown type '%c'", line[0]);
 			}
-		} /* while (loop) */
+		} /* while (42) */
 
 		log_debug ("Shutting down connection on fd #%i",
 				fileno (this->socket));
