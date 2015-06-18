@@ -171,7 +171,6 @@ static int cow_read_values (const char *path, const char *name,
     if (endptr == NULL)
     {
       ERROR ("onewire plugin: Buffer is not a number: %s", buffer);
-      status = -1;
       continue;
     }
 
