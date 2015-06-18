@@ -377,7 +377,7 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
   uint16_t values[2];
   int values_num;
   const data_set_t *ds;
-  int status;
+  int status = 0;
 
   if ((host == NULL) || (slave == NULL) || (data == NULL))
     return (EINVAL);
