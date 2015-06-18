@@ -77,7 +77,6 @@ collectdctl_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 
 collectd_tg_SOURCES = collectd-tg.c
 collectd_tg_CPPFLAGS = $(AM_CPPFLAGS) \
-		       -D_ISOC99_SOURCE -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700 \
 		       -I$(top_srcdir)/src/libcollectdclient/collectd -I$(top_builddir)/src/libcollectdclient/collectd
 collectd_tg_LDADD = daemon/libheap.la
 if BUILD_WITH_LIBSOCKET
