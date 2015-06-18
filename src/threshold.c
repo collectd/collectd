@@ -519,8 +519,6 @@ static int ut_report_state (const data_set_t *ds,
           ": All data sources are within range again. "
           "Current value of \"%s\" is %f.",
           ds->ds[ds_index].name, values[ds_index]);
-    buf += status;
-    bufsize -= status;
   }
   else
   {
@@ -588,8 +586,6 @@ static int ut_report_state (const data_set_t *ds,
 	  (state == STATE_ERROR) ? "failure" : "warning",
 	  (values[ds_index] < min) ? min : max);
     }
-    buf += status;
-    bufsize -= status;
   }
 
   plugin_dispatch_notification (&n);

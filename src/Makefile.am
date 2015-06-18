@@ -954,7 +954,7 @@ pkglib_LTLIBRARIES += statsd.la
 statsd_la_SOURCES = statsd.c \
                     utils_latency.h utils_latency.c
 statsd_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-statsd_la_LIBADD = -lpthread
+statsd_la_LIBADD = -lpthread -lm
 endif
 
 if BUILD_PLUGIN_SWAP

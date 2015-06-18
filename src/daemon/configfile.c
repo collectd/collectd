@@ -156,9 +156,12 @@ static int cf_dispatch (const char *type, const char *orig_key,
 	int ret;
 	int i;
 
+	if (orig_key == NULL)
+		return (EINVAL);
+
 	DEBUG ("type = %s, key = %s, value = %s",
 			ESCAPE_NULL(type),
-			ESCAPE_NULL(orig_key),
+			orig_key,
 			ESCAPE_NULL(orig_value));
 
 	if ((cf_cb = cf_search (type)) == NULL)
@@ -198,8 +201,6 @@ static int cf_dispatch (const char *type, const char *orig_key,
 
 	free (key);
 	free (value);
-
-	DEBUG ("cf_dispatch: return (%i)", ret);
 
 	return (ret);
 } /* int cf_dispatch */
@@ -758,6 +759,9 @@ static oconfig_item_t *cf_read_dir (const char *dir,
 
 		filenames[filenames_num - 1] = sstrdup (name);
 	}
+
+	if (filenames == NULL)
+		return (root);
 
 	qsort ((void *) filenames, filenames_num, sizeof (*filenames),
 			cf_compare_string);
