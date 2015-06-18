@@ -414,7 +414,6 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
   else
     values_num = 1;
 
-  status = 0;
   if (host->connection == NULL)
   {
     status = EBADF;
@@ -677,7 +676,6 @@ static int mb_config_add_data (oconfig_item_t *ci) /* {{{ */
   for (i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
-    status = 0;
 
     if (strcasecmp ("Type", child->key) == 0)
       status = cf_util_get_string_buffer (child,
@@ -816,7 +814,6 @@ static int mb_config_add_slave (mb_host_t *host, oconfig_item_t *ci) /* {{{ */
   for (i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
-    status = 0;
 
     if (strcasecmp ("Instance", child->key) == 0)
       status = cf_util_get_string_buffer (child,
