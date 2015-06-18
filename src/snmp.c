@@ -402,7 +402,6 @@ static int csnmp_config_add_data (oconfig_item_t *ci)
   for (i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
-    status = 0;
 
     if (strcasecmp ("Type", option->key) == 0)
       status = csnmp_config_add_data_type (dd, option);
