@@ -361,7 +361,6 @@ static int ut_config_type (const threshold_t *th_orig, oconfig_item_t *ci)
   for (i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
-    status = 0;
 
     if (strcasecmp ("Instance", option->key) == 0)
       status = ut_config_type_instance (&th, option);
@@ -449,7 +448,6 @@ static int ut_config_plugin (const threshold_t *th_orig, oconfig_item_t *ci)
   for (i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
-    status = 0;
 
     if (strcasecmp ("Type", option->key) == 0)
       status = ut_config_type (&th, option);
@@ -496,7 +494,6 @@ static int ut_config_host (const threshold_t *th_orig, oconfig_item_t *ci)
   for (i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
-    status = 0;
 
     if (strcasecmp ("Type", option->key) == 0)
       status = ut_config_type (&th, option);
@@ -997,7 +994,6 @@ int ut_config (oconfig_item_t *ci)
   for (i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
-    status = 0;
 
     if (strcasecmp ("Type", option->key) == 0)
       status = ut_config_type (&th, option);
