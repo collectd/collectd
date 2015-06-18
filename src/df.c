@@ -208,10 +208,11 @@ static int df_read (void)
 		uint64_t blk_reserved;
 		uint64_t blk_used;
 
-		if (ignorelist_match (il_device,
-					(mnt_ptr->spec_device != NULL)
-					? mnt_ptr->spec_device
-					: mnt_ptr->device))
+		char const *dev = (mnt_ptr->spec_device != NULL)
+			? mnt_ptr->spec_device
+			: mnt_ptr->device;
+
+		if (ignorelist_match (il_device, dev))
 			continue;
 		if (ignorelist_match (il_mountpoint, mnt_ptr->dir))
 			continue;
@@ -234,10 +235,10 @@ static int df_read (void)
 		if (by_device)
 		{
 			/* eg, /dev/hda1  -- strip off the "/dev/" */
-			if (strncmp (mnt_ptr->spec_device, "/dev/", strlen ("/dev/")) == 0)
-				sstrncpy (disk_name, mnt_ptr->spec_device + strlen ("/dev/"), sizeof (disk_name));
+			if (strncmp (dev, "/dev/", strlen ("/dev/")) == 0)
+				sstrncpy (disk_name, dev + strlen ("/dev/"), sizeof (disk_name));
 			else
-				sstrncpy (disk_name, mnt_ptr->spec_device, sizeof (disk_name));
+				sstrncpy (disk_name, dev, sizeof (disk_name));
 
 			if (strlen(disk_name) < 1)
 			{
