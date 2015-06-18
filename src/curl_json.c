@@ -549,7 +549,6 @@ static int cj_config_add_key (cj_t *db, /* {{{ */
       db->tree = cj_avl_create();
 
     tree = db->tree;
-    name = key->path;
     ptr = key->path;
     if (*ptr == '/')
       ++ptr;
