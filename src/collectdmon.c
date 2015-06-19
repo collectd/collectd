@@ -312,7 +312,10 @@ int main (int argc, char **argv)
 	openlog ("collectdmon", LOG_CONS | LOG_PID, LOG_DAEMON);
 
 	if (-1 == daemonize ())
+	{
+		free (collectd_argv);
 		return 1;
+	}
 
 	sa.sa_handler = sig_int_term_handler;
 	sa.sa_flags   = 0;
@@ -320,11 +323,13 @@ int main (int argc, char **argv)
 
 	if (0 != sigaction (SIGINT, &sa, NULL)) {
 		syslog (LOG_ERR, "Error: sigaction() failed: %s", strerror (errno));
+		free (collectd_argv);
 		return 1;
 	}
 
 	if (0 != sigaction (SIGTERM, &sa, NULL)) {
 		syslog (LOG_ERR, "Error: sigaction() failed: %s", strerror (errno));
+		free (collectd_argv);
 		return 1;
 	}
 
@@ -332,6 +337,7 @@ int main (int argc, char **argv)
 
 	if (0 != sigaction (SIGHUP, &sa, NULL)) {
 		syslog (LOG_ERR, "Error: sigaction() failed: %s", strerror (errno));
+		free (collectd_argv);
 		return 1;
 	}
 
