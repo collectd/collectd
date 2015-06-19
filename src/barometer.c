@@ -255,7 +255,7 @@ static averaging_t temperature_averaging = { NULL, 0, 0L, 0 };
  */
 static int averaging_create(averaging_t *avg, int size)
 {
-    avg->ring_buffer = calloc ((size_t) size, sizeof (*avg));
+    avg->ring_buffer = calloc ((size_t) size, sizeof (*avg->ring_buffer));
     if (avg->ring_buffer == NULL)
     {
         ERROR ("barometer: averaging_create - ring buffer allocation of size %d failed",
