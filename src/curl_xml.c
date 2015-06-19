@@ -919,6 +919,7 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
   {
     ERROR ("curl_xml plugin: cx_config: "
            "Invalid key: %s", ci->key);
+    cx_free (db);
     return (-1);
   }
 
