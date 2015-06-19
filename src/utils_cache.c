@@ -636,12 +636,13 @@ int uc_get_names (char ***ret_names, cdtime_t **ret_times, size_t *ret_number)
   if (status != 0)
   {
     size_t i;
-    
+
     for (i = 0; i < number; i++)
     {
       sfree (names[i]);
     }
     sfree (names);
+    sfree (times);
 
     return (-1);
   }
