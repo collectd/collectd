@@ -295,7 +295,10 @@ static void cipvs_submit_service (struct ip_vs_service_entry *se)
 	int i = 0;
 
 	if (0 != get_pi (se, pi, sizeof (pi)))
+	{
+		free (dests);
 		return;
+	}
 
 	cipvs_submit_connections (pi, NULL, stats.conns);
 	cipvs_submit_if (pi, "if_packets", NULL, stats.inpkts, stats.outpkts);

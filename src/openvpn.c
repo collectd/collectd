@@ -518,13 +518,15 @@ static int multi4_read (char *name, FILE *fh)
 static int openvpn_read (void)
 {
 	FILE *fh;
-	int  i, vpn_read, read;
+	int  i, read;
 
-	vpn_read = read = 0;
+	read = 0;
 
 	/* call the right read function for every status entry in the list */
 	for (i = 0; i < vpn_num; i++)
 	{
+		int vpn_read = 0;
+
 		fh = fopen (vpn_list[i]->file, "r");
 		if (fh == NULL)
 		{

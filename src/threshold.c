@@ -512,10 +512,9 @@ static int ut_report_state (const data_set_t *ds,
   if (state == STATE_OKAY)
   {
     if (state_old == STATE_MISSING)
-      status = ssnprintf (buf, bufsize,
-          ": Value is no longer missing.");
+      ssnprintf (buf, bufsize, ": Value is no longer missing.");
     else
-      status = ssnprintf (buf, bufsize,
+      ssnprintf (buf, bufsize,
           ": All data sources are within range again. "
           "Current value of \"%s\" is %f.",
           ds->ds[ds_index].name, values[ds_index]);
@@ -532,7 +531,7 @@ static int ut_report_state (const data_set_t *ds,
     {
       if (!isnan (min) && !isnan (max))
       {
-        status = ssnprintf (buf, bufsize, ": Data source \"%s\" is currently "
+        ssnprintf (buf, bufsize, ": Data source \"%s\" is currently "
             "%f. That is within the %s region of %f%s and %f%s.",
             ds->ds[ds_index].name, values[ds_index],
             (state == STATE_ERROR) ? "failure" : "warning",
@@ -541,13 +540,13 @@ static int ut_report_state (const data_set_t *ds,
       }
       else
       {
-	status = ssnprintf (buf, bufsize, ": Data source \"%s\" is currently "
-	    "%f. That is %s the %s threshold of %f%s.",
-	    ds->ds[ds_index].name, values[ds_index],
-	    isnan (min) ? "below" : "above",
-	    (state == STATE_ERROR) ? "failure" : "warning",
-	    isnan (min) ? max : min,
-	    ((th->flags & UT_FLAG_PERCENTAGE) != 0) ? "%" : "");
+        ssnprintf (buf, bufsize, ": Data source \"%s\" is currently "
+            "%f. That is %s the %s threshold of %f%s.",
+            ds->ds[ds_index].name, values[ds_index],
+            isnan (min) ? "below" : "above",
+            (state == STATE_ERROR) ? "failure" : "warning",
+            isnan (min) ? max : min,
+            ((th->flags & UT_FLAG_PERCENTAGE) != 0) ? "%" : "");
       }
     }
     else if (th->flags & UT_FLAG_PERCENTAGE)
@@ -570,7 +569,7 @@ static int ut_report_state (const data_set_t *ds,
       else
         value = 100.0 * values[ds_index] / sum;
 
-      status = ssnprintf (buf, bufsize, ": Data source \"%s\" is currently "
+      ssnprintf (buf, bufsize, ": Data source \"%s\" is currently "
           "%g (%.2f%%). That is %s the %s threshold of %.2f%%.",
           ds->ds[ds_index].name, values[ds_index], value,
           (value < min) ? "below" : "above",
@@ -579,12 +578,12 @@ static int ut_report_state (const data_set_t *ds,
     }
     else /* is not inverted */
     {
-      status = ssnprintf (buf, bufsize, ": Data source \"%s\" is currently "
-	  "%f. That is %s the %s threshold of %f.",
-	  ds->ds[ds_index].name, values[ds_index],
-	  (values[ds_index] < min) ? "below" : "above",
-	  (state == STATE_ERROR) ? "failure" : "warning",
-	  (values[ds_index] < min) ? min : max);
+      ssnprintf (buf, bufsize, ": Data source \"%s\" is currently "
+          "%f. That is %s the %s threshold of %f.",
+          ds->ds[ds_index].name, values[ds_index],
+          (values[ds_index] < min) ? "below" : "above",
+          (state == STATE_ERROR) ? "failure" : "warning",
+          (values[ds_index] < min) ? min : max);
     }
   }
 

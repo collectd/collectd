@@ -303,7 +303,13 @@ int uc_check_timeout (void)
   pthread_mutex_unlock (&cache_lock);
 
   if (keys_len == 0)
+  {
+    /* realloc() may have been called for these. */
+    sfree (keys);
+    sfree (keys_time);
+    sfree (keys_interval);
     return (0);
+  }
 
   /* Call the "missing" callback for each value. Do this before removing the
    * value from the cache, so that callbacks can still access the data stored,
@@ -647,12 +653,13 @@ int uc_get_names (char ***ret_names, cdtime_t **ret_times, size_t *ret_number)
   if (status != 0)
   {
     size_t i;
-    
+
     for (i = 0; i < number; i++)
     {
       sfree (names[i]);
     }
     sfree (names);
+    sfree (times);
 
     return (-1);
   }
@@ -660,6 +667,8 @@ int uc_get_names (char ***ret_names, cdtime_t **ret_times, size_t *ret_number)
   *ret_names = names;
   if (ret_times != NULL)
     *ret_times = times;
+  else
+    sfree (times);
   *ret_number = number;
 
   return (0);
