@@ -356,15 +356,12 @@ static int memory_read_internal (value_list_t *vl)
 		MEMORY_SUBMIT ("used",        mem_used,
 		               "buffered",    mem_buffered,
 		               "cached",      mem_cached,
-		               "free",        mem_free,
-		               "slab_unrecl", mem_slab_unreclaimable,
-		               "slab_recl",   mem_slab_reclaimable);
+		               "free",        mem_free);
 	else
 		MEMORY_SUBMIT ("used",     mem_used,
 		               "buffered", mem_buffered,
 		               "cached",   mem_cached,
-		               "free",     mem_free,
-		               "slab",     mem_slab_total);
+		               "free",     mem_free);
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
