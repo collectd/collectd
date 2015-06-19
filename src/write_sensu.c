@@ -1172,7 +1172,7 @@ static int sensu_config(oconfig_item_t *ci) /* {{{ */
 				continue;
 			}
 			if (child->values[0].type != OCONFIG_TYPE_STRING ||
-			    child->values[1].type != OCONFIG_TYPE_STRING) {
+					child->values[1].type != OCONFIG_TYPE_STRING) {
 				WARNING("sensu attribute needs string arguments.");
 				continue;
 			}
@@ -1180,7 +1180,9 @@ static int sensu_config(oconfig_item_t *ci) /* {{{ */
 			strarray_add(&sensu_attrs, &sensu_attrs_num, child->values[0].value.string);
 			strarray_add(&sensu_attrs, &sensu_attrs_num, child->values[1].value.string);
 
-			DEBUG("write_sensu: got attr: %s => %s", key, val);
+			DEBUG("write_sensu plugin: New attribute: %s => %s",
+					child->values[0].value.string,
+					child->values[1].value.string);
 		} else if (strcasecmp(child->key, "tag") == 0) {
 			char *tmp = NULL;
 			status = cf_util_get_string(child, &tmp);
