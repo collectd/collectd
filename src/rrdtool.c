@@ -743,6 +743,7 @@ static int rrd_cache_insert (const char *filename,
 		new_rc = 1;
 	}
 
+	assert (value_time > 0); /* plugin_dispatch() ensures this. */
 	if (rc->last_value >= value_time)
 	{
 		pthread_mutex_unlock (&cache_lock);
