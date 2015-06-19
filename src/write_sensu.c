@@ -113,8 +113,8 @@ struct sensu_host {
 	int			     reference_count;
 };
 
-static char	*sensu_tags;
-static char	**sensu_attrs;
+static char	*sensu_tags = NULL;
+static char	**sensu_attrs = NULL;
 static size_t sensu_attrs_num;
 
 static int add_str_to_list(struct str_list *strs,
@@ -558,7 +558,7 @@ char *replace_str(const char *str, const char *old, /* {{{ */
 	const char *p, *q;
 	size_t oldlen = strlen(old);
 	size_t count = strlen(new);
-	size_t retlen = count;
+	size_t retlen;
 	size_t newlen = count;
 	int samesize = (oldlen == newlen);
 
@@ -1160,12 +1160,6 @@ static int sensu_config(oconfig_item_t *ci) /* {{{ */
 
 	sensu_tags_arr.nb_strs = 0;
 	sensu_tags_arr.strs = NULL;
-	sensu_tags = malloc(sizeof(char));
-	if (sensu_tags == NULL) {
-		ERROR("write_sensu plugin: Unable to alloc memory");
-		return -1;
-	}
-	sensu_tags[0] = '\0';
 
 	for (i = 0; i < ci->children_num; i++)  {
 		child = &ci->children[i];
@@ -1173,36 +1167,20 @@ static int sensu_config(oconfig_item_t *ci) /* {{{ */
 		if (strcasecmp("Node", child->key) == 0) {
 			sensu_config_node(child);
 		} else if (strcasecmp(child->key, "attribute") == 0) {
-			char *key = NULL;
-			char *val = NULL;
-
 			if (child->values_num != 2) {
 				WARNING("sensu attributes need both a key and a value.");
-				free(sensu_tags);
-				return -1;
+				continue;
 			}
 			if (child->values[0].type != OCONFIG_TYPE_STRING ||
 			    child->values[1].type != OCONFIG_TYPE_STRING) {
 				WARNING("sensu attribute needs string arguments.");
-				free(sensu_tags);
-				return -1;
+				continue;
 			}
-			if ((key = strdup(child->values[0].value.string)) == NULL) {
-				ERROR("write_sensu plugin: Unable to alloc memory");
-				free(sensu_tags);
-				return -1;
-			}
-			if ((val = strdup(child->values[1].value.string)) == NULL) {
-				free(sensu_tags);
-				free(key);
-				ERROR("write_sensu plugin: Unable to alloc memory");
-				return -1;
-			}
-			strarray_add(&sensu_attrs, &sensu_attrs_num, key);
-			strarray_add(&sensu_attrs, &sensu_attrs_num, val);
+
+			strarray_add(&sensu_attrs, &sensu_attrs_num, child->values[0].value.string);
+			strarray_add(&sensu_attrs, &sensu_attrs_num, child->values[1].value.string);
+
 			DEBUG("write_sensu: got attr: %s => %s", key, val);
-			sfree(key);
-			sfree(val);
 		} else if (strcasecmp(child->key, "tag") == 0) {
 			char *tmp = NULL;
 			status = cf_util_get_string(child, &tmp);
@@ -1221,7 +1199,7 @@ static int sensu_config(oconfig_item_t *ci) /* {{{ */
 		}
 	}
 	if (sensu_tags_arr.nb_strs > 0) {
-		free(sensu_tags);
+		sfree (sensu_tags);
 		sensu_tags = build_json_str_list("tags", &sensu_tags_arr);
 		free_str_list(&sensu_tags_arr);
 		if (sensu_tags == NULL) {
