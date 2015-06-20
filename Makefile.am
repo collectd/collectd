@@ -611,6 +611,29 @@ libgce_la_LIBADD = \
 	$(BUILD_WITH_LIBCURL_LIBS)
 endif
 
+if BUILD_WITH_LIBYAJL
+noinst_LTLIBRARIES += libformat_gcm.la
+libformat_gcm_la_SOURCES = \
+	src/utils_format_gcm.c \
+	src/utils_format_gcm.h
+libformat_gcm_la_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(BUILD_WITH_LIBYAJL_CPPFLAGS)
+libformat_gcm_la_LIBADD = \
+	libavltree.la \
+	$(BUILD_WITH_LIBSSL_LIBS) \
+	$(BUILD_WITH_LIBYAJL_LIBS)
+
+check_PROGRAMS += test_format_gcm
+TESTS += test_format_gcm
+test_format_gcm_SOURCES = \
+	utils_format_gcm_test.c \
+	testing.h
+test_format_gcm_LDADD = \
+	libformat_gcm.la \
+	daemon/libplugin_mock.la \
+	-lm
+endif
 
 if BUILD_PLUGIN_AGGREGATION
 pkglib_LTLIBRARIES += aggregation.la
