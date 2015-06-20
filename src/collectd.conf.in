@@ -1676,13 +1676,13 @@
 #</Plugin>
 
 #<Plugin write_gcm>
-#  Project "gcp-project-id"
+#  Project "stackdriver-account"
 #  CredentialFile "/path/to/gcp-project-id-12345.json"
 #  Email "123456789012@developer.gserviceaccount.com"
 #  <Resource "global">
 #    project_id "gcp-project-id"
 #  </Resource>
-#  Url "https://www.googleapis.com/cloudmonitoring/v2beta2"
+#  Url "https://monitoring.googleapis.com/v3"
 #</Plugin>
 
 #<Plugin write_graphite>

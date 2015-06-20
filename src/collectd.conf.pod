@@ -9351,7 +9351,10 @@ I<metadata server> and used to authenticate to GCM.
 B<Synopsis:>
 
  <Plugin write_gcm>
-   Project "123456789012"
+   CredentialFile "/path/to/service_account.json"
+   <Resource "global">
+     project_id "monitored_project"
+   </Resource>
  </Plugin>
 
 =over 4
