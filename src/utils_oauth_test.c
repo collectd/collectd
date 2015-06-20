@@ -117,20 +117,25 @@ DEF_TEST(oauth_create_google_json) {
       "\"client_x509_cert_url\":\"https://www.googleapis.com/robot/v1/"
       "metadata/x509/example-sacct%40ssc-serv-dev.iam.gserviceaccount.com\"}";
 
-  oauth_t *ret =
+  oauth_google_t ret =
       oauth_create_google_json(in, "https://collectd.org/example.scope");
-  CHECK_NOT_NULL(ret);
 
+  EXPECT_EQ_STR("collectd.org:unit-test", ret.project_id);
+
+  CHECK_NOT_NULL(ret.oauth);
   struct {
     char *url;
     char *iss;
     char *aud;
     char *scope;
-  } *obj = (void *)ret;
+  } *obj = (void *)ret.oauth;
 
   EXPECT_EQ_STR("https://accounts.google.com/o/oauth2/token", obj->url);
   EXPECT_EQ_STR("example-sacct@unit-test.iam.gserviceaccount.com", obj->iss);
   EXPECT_EQ_STR("https://collectd.org/example.scope", obj->scope);
+
+  free(ret.project_id);
+  oauth_destroy(ret.oauth);
 
   return 0;
 }
