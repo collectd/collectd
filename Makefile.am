@@ -593,8 +593,12 @@ liboauth_la_LIBADD = \
 
 check_PROGRAMS += test_utils_oauth
 TESTS += test_utils_oauth
-test_utils_oauth_SOURCES = utils_oauth_test.c
-test_utils_oauth_LDADD = liboauth.la daemon/libcommon.la daemon/libplugin_mock.la
+test_utils_oauth_SOURCES = \
+	src/utils_oauth_test.c
+test_utils_oauth_LDADD = \
+	liboauth.la \
+	libcommon.la \
+	libplugin_mock.la
 endif
 endif
 endif
@@ -627,11 +631,11 @@ libformat_gcm_la_LIBADD = \
 check_PROGRAMS += test_format_gcm
 TESTS += test_format_gcm
 test_format_gcm_SOURCES = \
-	utils_format_gcm_test.c \
-	testing.h
+	src/utils_format_gcm_test.c \
+	src/testing.h
 test_format_gcm_LDADD = \
 	libformat_gcm.la \
-	daemon/libplugin_mock.la \
+	libplugin_mock.la \
 	-lm
 endif
 
