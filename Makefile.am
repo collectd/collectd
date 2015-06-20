@@ -599,6 +599,18 @@ endif
 endif
 endif
 
+if BUILD_WITH_LIBCURL
+noinst_LTLIBRARIES += libgce.la
+libgce_la_SOURCES = \
+	src/utils_gce.c \
+	src/utils_gce.h
+libgce_la_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(BUILD_WITH_LIBCURL_CFLAGS)
+libgce_la_LIBADD = \
+	$(BUILD_WITH_LIBCURL_LIBS)
+endif
+
 
 if BUILD_PLUGIN_AGGREGATION
 pkglib_LTLIBRARIES += aggregation.la
