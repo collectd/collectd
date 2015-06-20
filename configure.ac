@@ -2304,6 +2304,8 @@ fi
 
 AC_SUBST(BUILD_WITH_LIBCURL_CFLAGS)
 AC_SUBST(BUILD_WITH_LIBCURL_LIBS)
+
+AM_CONDITIONAL([BUILD_WITH_LIBCURL], [test "x$with_libcurl" = "xyes"])
 # }}}
 
 # --with-libdbi {{{
@@ -5234,6 +5236,59 @@ PKG_CHECK_MODULES([LIBSIGROK], [libsigrok < 0.4],
 )
 # }}}
 
+# --with-libssl {{{
+with_libssl_cflags=""
+with_libssl_ldflags=""
+AC_ARG_WITH(libssl, [AS_HELP_STRING([--with-libssl@<:@=PREFIX@:>@], [Path to libssl.])],
+[
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	then
+		with_libssl_cppflags="-I$withval/include"
+		with_libssl_ldflags="-L$withval/lib"
+		with_libssl="yes"
+	else
+		with_libssl="$withval"
+	fi
+],
+[
+	with_libssl="yes"
+])
+if test "x$with_libssl" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libssl_cppflags"
+
+  AC_CHECK_HEADERS(openssl/sha.h openssl/blowfish.h openssl/rand.h,
+    [with_libssl="yes"],
+    [with_libssl="no (ssl header not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_libssl" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libssl_cppflags"
+	LDFLAGS="$LDFLAGS $with_libssl_ldflags"
+
+	AC_CHECK_LIB(ssl, OPENSSL_init_ssl, [with_libssl="yes"], [with_libssl="no (Symbol 'SSL_library_init' not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+if test "x$with_libssl" = "xyes"
+then
+	BUILD_WITH_LIBSSL_CFLAGS="$with_libssl_cflags"
+	BUILD_WITH_LIBSSL_LDFLAGS="$with_libssl_ldflags"
+	BUILD_WITH_LIBSSL_LIBS="-lssl -lcrypto"
+	AC_SUBST(BUILD_WITH_LIBSSL_CFLAGS)
+	AC_SUBST(BUILD_WITH_LIBSSL_LDFLAGS)
+	AC_SUBST(BUILD_WITH_LIBSSL_LIBS)
+	AC_DEFINE(HAVE_LIBSSL, 1, [Define if libssl is present and usable.])
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBSSL, test "x$with_libssl" = "xyes")
+# }}}
+
 # --with-libstatgrab {{{
 AC_ARG_WITH([libstatgrab],
   [AS_HELP_STRING([--with-libstatgrab@<:@=PREFIX@:>@], [Path to libstatgrab.])],
@@ -7096,6 +7151,7 @@ AC_MSG_RESULT([    librouteros . . . . . $with_librouteros])
 AC_MSG_RESULT([    librrd  . . . . . . . $with_librrd])
 AC_MSG_RESULT([    libsensors  . . . . . $with_libsensors])
 AC_MSG_RESULT([    libsigrok   . . . . . $with_libsigrok])
+AC_MSG_RESULT([    libssl  . . . . . . . $with_libssl])
 AC_MSG_RESULT([    libstatgrab . . . . . $with_libstatgrab])
 AC_MSG_RESULT([    libtokyotyrant  . . . $with_libtokyotyrant])
 AC_MSG_RESULT([    libudev . . . . . . . $with_libudev])

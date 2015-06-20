@@ -574,6 +574,31 @@ liboconfig_la_SOURCES = \
 liboconfig_la_CPPFLAGS = -I$(srcdir)/src/liboconfig $(AM_CPPFLAGS)
 liboconfig_la_LDFLAGS = -avoid-version $(LEXLIB)
 
+if BUILD_WITH_LIBCURL
+if BUILD_WITH_LIBSSL
+if BUILD_WITH_LIBYAJL
+noinst_LTLIBRARIES += liboauth.la
+liboauth_la_SOURCES = \
+	src/utils_oauth.c \
+	src/utils_oauth.h
+liboauth_la_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(BUILD_WITH_LIBCURL_CFLAGS) \
+	$(BUILD_WITH_LIBSSL_CFLAGS) \
+	$(BUILD_WITH_LIBYAJL_CPPFLAGS)
+liboauth_la_LIBADD = \
+	$(BUILD_WITH_LIBCURL_LIBS) \
+	$(BUILD_WITH_LIBSSL_LIBS) \
+	$(BUILD_WITH_LIBYAJL_LIBS)
+
+check_PROGRAMS += test_utils_oauth
+TESTS += test_utils_oauth
+test_utils_oauth_SOURCES = utils_oauth_test.c
+test_utils_oauth_LDADD = liboauth.la daemon/libcommon.la daemon/libplugin_mock.la
+endif
+endif
+endif
+
 
 if BUILD_PLUGIN_AGGREGATION
 pkglib_LTLIBRARIES += aggregation.la
