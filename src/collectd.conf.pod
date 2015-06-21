@@ -9337,6 +9337,83 @@ traffic (e.E<nbsp>g. due to headers and retransmission). If you want to
 collect on-wire traffic you could, for example, use the logging facilities of
 iptables to feed data for the guest IPs into the iptables plugin.
 
+=head2 Plugin C<write_gcm>
+
+The C<write_gcm> plugin writes metrics to the I<Google Cloud Monitoring> (GCM)
+service.
+
+This plugin supports two authentication methods: When configured, credentials
+are read from the JSON credentials file specified with B<CredentialFile>.
+Alternatively, when running on
+I<Google Compute Engine> (GCE), an I<OAuth> token is retrieved from the
+I<metadata server> and used to authenticate to GCM.
+
+B<Synopsis:>
+
+ <Plugin write_gcm>
+   Project "123456789012"
+ </Plugin>
+
+=over 4
+
+=item B<CredentialFile> I<file>
+
+Path to a JSON credentials file holding the credentials for a GCP service
+account.
+
+If not specified, I<Application Default Credentials>. If running on GCE,
+B<Email> may be set to chose a different service account associated with the
+instance.
+
+=item B<Project> I<Project>
+
+The I<Project ID> or the I<Project Number> of the I<Stackdriver Account>. The
+I<Project ID> is a string identifying the GCP project, which you can chose
+freely when creating a new project. The I<Project Number> is a 12-digit decimal
+number. You can look up both on the I<Developer Console>.
+
+This setting is optional. If not set, the project ID is read from the
+credentials file or determined from the GCE's metadata service.
+
+=item B<Email> I<Email>
+
+Email address of an GCE I<Service Account>. This setting is only effective when
+running on GCE and using I<Application Default Credentials> (see
+B<CredentialFile> above).
+
+=item B<Resource> I<ResourceType>
+
+Configures the I<Monitored Resource> to use when storing metrics. This option
+takes a I<ResourceType> and arbitrary string options which are used as labels.
+
+On GCE, defaults to the equivalent of this config:
+
+  <Resource "gce_instance">
+    project_id "${meta/project/project-id}"
+    instance_id "${meta/instance/id}"
+    zone "${meta/instance/zone}"
+  </Resource>
+
+Where C<${meta/...}> are values read from the meta data service.
+
+When not running on GCE, defaults to the equivalent of this config:
+
+  <Resource "global">
+    project_id "${Project}"
+  </Resource>
+
+Where C<${Project}> refers to the B<Project> option.
+
+See L<https://cloud.google.com/monitoring/api/resources> for more information
+on I<Monitored Resource Types>.
+
+=item B<Url> I<Url>
+
+URL of the I<Google Cloud Monitoring> API. Defaults to
+C<https://monitoring.googleapis.com/v3>.
+
+=back
+
 =head2 Plugin C<write_graphite>
 
 The C<write_graphite> plugin writes data to I<Graphite>, an open-source metrics

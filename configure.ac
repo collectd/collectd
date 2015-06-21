@@ -6561,6 +6561,7 @@ fi
 
 if test "x$with_libcurl" = "xyes" && test "x$with_libyajl" = "xyes"; then
   plugin_curl_json="yes"
+  plugin_write_gcm="yes"
 fi
 
 if test "x$with_libcurl" = "xyes" && test "x$with_libxml2" = "xyes"; then
@@ -6895,6 +6896,7 @@ AC_PLUGIN([vserver],             [$plugin_vserver],         [Linux VServer stati
 AC_PLUGIN([wireless],            [$plugin_wireless],        [Wireless statistics])
 AC_PLUGIN([write_graphite],      [yes],                     [Graphite / Carbon output plugin])
 AC_PLUGIN([write_http],          [$with_libcurl],           [HTTP output plugin])
+AC_PLUGIN([write_gcm],           [$plugin_write_gcm],  [Google cloud monitoring output plugin])
 AC_PLUGIN([write_kafka],         [$with_librdkafka],        [Kafka output plugin])
 AC_PLUGIN([write_log],           [yes],                     [Log output plugin])
 AC_PLUGIN([write_mongodb],       [$with_libmongoc],         [MongoDB output plugin])
@@ -7317,6 +7319,7 @@ AC_MSG_RESULT([    vserver . . . . . . . $enable_vserver])
 AC_MSG_RESULT([    wireless  . . . . . . $enable_wireless])
 AC_MSG_RESULT([    write_graphite  . . . $enable_write_graphite])
 AC_MSG_RESULT([    write_http  . . . . . $enable_write_http])
+AC_MSG_RESULT([    write_gcm . . . . . . $enable_write_gcm])
 AC_MSG_RESULT([    write_kafka . . . . . $enable_write_kafka])
 AC_MSG_RESULT([    write_log . . . . . . $enable_write_log])
 AC_MSG_RESULT([    write_mongodb . . . . $enable_write_mongodb])
