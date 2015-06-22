@@ -134,23 +134,6 @@ static int memory_init (void)
 	return (0);
 } /* int memory_init */
 
-static void memory_submit_percent (const char *type_instance, gauge_t value)
-{
-	value_t values[1];
-	value_list_t vl = VALUE_LIST_INIT;
-
-	values[0].gauge = value;
-
-	vl.values = values;
-	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-	sstrncpy (vl.plugin, "memory", sizeof (vl.plugin));
-	sstrncpy (vl.type, "percent", sizeof (vl.type));
-	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
-
-	plugin_dispatch_values (&vl);
-}
-
 static void memory_submit (const char *type_instance, gauge_t value)
 {
 	value_t values[1];
@@ -284,7 +267,6 @@ static int memory_read (void)
 	char *fields[8];
 	int numfields;
 
-	long long mem_total = 0;
 	long long mem_used = 0;
 	long long mem_buffered = 0;
 	long long mem_cached = 0;
@@ -303,7 +285,7 @@ static int memory_read (void)
 		long long *val = NULL;
 
 		if (strncasecmp (buffer, "MemTotal:", 9) == 0)
-			val = &mem_total;
+			val = &mem_used;
 		else if (strncasecmp (buffer, "MemFree:", 8) == 0)
 			val = &mem_free;
 		else if (strncasecmp (buffer, "Buffers:", 8) == 0)
@@ -328,8 +310,6 @@ static int memory_read (void)
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 	}
 
-        mem_used = mem_total;
-
 	if (mem_used >= (mem_free + mem_buffered + mem_cached))
 	{
 		mem_used -= mem_free + mem_buffered + mem_cached;
@@ -337,10 +317,6 @@ static int memory_read (void)
 		memory_submit ("buffered", mem_buffered);
 		memory_submit ("cached",   mem_cached);
 		memory_submit ("free",     mem_free);
-		memory_submit ("total",     mem_total);
-                if (mem_total) { 
-		    memory_submit_percent ("used",   (mem_used * 100) /mem_total);
-                } 
 	}
 /* #endif KERNEL_LINUX */
 
