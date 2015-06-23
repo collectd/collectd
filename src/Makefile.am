@@ -23,13 +23,25 @@ AM_CPPFLAGS += -DPKGDATADIR='"${pkgdatadir}"'
 
 AUTOMAKE_OPTIONS = subdir-objects
 
-noinst_LTLIBRARIES = libmount.la liblookup.la
+noinst_LTLIBRARIES =
+check_PROGRAMS =
+TESTS =
 
-libmount_la_SOURCES = utils_mount.c utils_mount.h
-libmount_la_LIBADD = daemon/libcommon.la
-
+noinst_LTLIBRARIES += liblookup.la
 liblookup_la_SOURCES = utils_vl_lookup.c utils_vl_lookup.h
-liblookup_la_LIBADD = daemon/libavltree.la daemon/libcommon.la
+liblookup_la_LIBADD = daemon/libavltree.la
+check_PROGRAMS += test_utils_vl_lookup
+TESTS += test_utils_vl_lookup
+test_utils_vl_lookup_SOURCES = utils_vl_lookup_test.c testing.h
+test_utils_vl_lookup_LDADD = liblookup.la daemon/libcommon.la daemon/libplugin_mock.la
+
+noinst_LTLIBRARIES += libmount.la
+libmount_la_SOURCES = utils_mount.c utils_mount.h
+check_PROGRAMS += test_utils_mount
+TESTS += test_utils_mount
+test_utils_mount_SOURCES = utils_mount_test.c testing.h
+test_utils_mount_LDADD = libmount.la daemon/libcommon.la daemon/libplugin_mock.la
+
 
 sbin_PROGRAMS = collectdmon
 bin_PROGRAMS = collectd-nagios collectdctl collectd-tg
@@ -1387,12 +1399,4 @@ uninstall-hook:
 	rm -f $(DESTDIR)$(sysconfdir)/collectd.conf
 	rm -f $(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
 
-check_PROGRAMS = test_utils_mount test_utils_vl_lookup
 
-test_utils_mount_SOURCES = utils_mount_test.c testing.h
-test_utils_mount_LDADD = libmount.la daemon/libplugin_mock.la
-
-test_utils_vl_lookup_SOURCES = utils_vl_lookup_test.c testing.h
-test_utils_vl_lookup_LDADD = liblookup.la daemon/libplugin_mock.la
-
-TESTS = test_utils_mount test_utils_vl_lookup
