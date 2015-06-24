@@ -41,5 +41,10 @@ int format_json_value_list (char *buffer,
     const data_set_t *ds, const value_list_t *vl, int store_rates);
 int format_json_finalize (char *buffer,
     size_t *ret_buffer_fill, size_t *ret_buffer_free);
+int json_escape_string (char *buffer, size_t buffer_size,
+    const char *string);
+int format_json_notification (char *buffer,
+    size_t *ret_buffer_fill, size_t *ret_buffer_free,
+    const notification_t *n, int store_rates);
 
 #endif /* UTILS_FORMAT_JSON_H */
