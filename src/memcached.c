@@ -348,6 +348,7 @@ static int memcached_read (user_data_t *user_data)
   gauge_t bytes_used = NAN;
   gauge_t bytes_total = NAN;
   gauge_t hits = NAN;
+  gauge_t misses = NAN;
   gauge_t gets = NAN;
   gauge_t incr_hits = NAN;
   derive_t incr = 0;
@@ -490,6 +491,7 @@ static int memcached_read (user_data_t *user_data)
     else if (FIELD_IS ("get_misses"))
     {
       submit_derive ("memcached_ops", "misses", atoll (fields[2]), st);
+      misses = atof (fields[2]);
     }
     else if (FIELD_IS ("evictions"))
     {
@@ -509,6 +511,22 @@ static int memcached_read (user_data_t *user_data)
     }
   } /* while ((line = strtok_r (ptr, "\n\r", &saveptr)) != NULL) */
 
+  // Additional derived(computed) metrics memory free percentage and miss ratio added
+  // if (!isnan (bytes_used) && !isnan (bytes_total) && bytes_used <= bytes_total && bytes_total != 0.0)
+  if (bytes_used <= bytes_total && bytes_total > 0.0 ) 
+    submit_gauge ("percent", "cache_free", 100*(bytes_total - bytes_used)/bytes_total, st);
+
+  if (!isnan (gets) && !isnan (misses))
+  {
+    gauge_t rate = NAN;
+
+    if (gets != 0.0)
+      rate = 100.0 * misses / gets;
+
+    submit_gauge ("percent", "missratio", rate, st);
+  }
+
+  // Older metrics
   if (!isnan (bytes_used) && !isnan (bytes_total) && (bytes_used <= bytes_total))
     submit_gauge2 ("df", "cache", bytes_used, bytes_total - bytes_used, st);
 

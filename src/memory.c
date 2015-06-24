@@ -134,7 +134,7 @@ static int memory_init (void)
 	return (0);
 } /* int memory_init */
 
-static void memory_submit (const char *type_instance, gauge_t value)
+static void memory_submit (const char *type, const char *type_instance, gauge_t value)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
@@ -145,7 +145,7 @@ static void memory_submit (const char *type_instance, gauge_t value)
 	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "memory", sizeof (vl.plugin));
-	sstrncpy (vl.type, "memory", sizeof (vl.type));
+	sstrncpy (vl.type, type, sizeof(vl.type));
 	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
@@ -200,10 +200,10 @@ static int memory_read (void)
 	inactive = (gauge_t) (((uint64_t) vm_data.inactive_count) * ((uint64_t) pagesize));
 	free     = (gauge_t) (((uint64_t) vm_data.free_count)     * ((uint64_t) pagesize));
 
-	memory_submit ("wired",    wired);
-	memory_submit ("active",   active);
-	memory_submit ("inactive", inactive);
-	memory_submit ("free",     free);
+	moemory_submit ("memory", "wired",    wired);
+	memory_submit ("memory", "active",   active);
+	memory_submit ("memory", "inactive", inactive);
+	memory_submit ("memory", "free",     free);
 /* #endif HAVE_HOST_STATISTICS */
 
 #elif HAVE_SYSCTLBYNAME
@@ -253,11 +253,11 @@ static int memory_read (void)
 		if (!isnan (sysctl_vals[i]))
 			sysctl_vals[i] *= sysctl_vals[0];
 
-	memory_submit ("free",     sysctl_vals[2]);
-	memory_submit ("wired",    sysctl_vals[3]);
-	memory_submit ("active",   sysctl_vals[4]);
-	memory_submit ("inactive", sysctl_vals[5]);
-	memory_submit ("cache",    sysctl_vals[6]);
+	memory_submit ("memory", "free",     sysctl_vals[2]);
+	memory_submit ("memory", "wired",    sysctl_vals[3]);
+	memory_submit ("memory", "active",   sysctl_vals[4]);
+	memory_submit ("memory", "inactive", sysctl_vals[5]);
+	memory_submit ("memory", "cache",    sysctl_vals[6]);
 /* #endif HAVE_SYSCTLBYNAME */
 
 #elif KERNEL_LINUX
@@ -268,6 +268,7 @@ static int memory_read (void)
 	int numfields;
 
 	long long mem_used = 0;
+	long long mem_total = 0;
 	long long mem_buffered = 0;
 	long long mem_cached = 0;
 	long long mem_free = 0;
@@ -285,7 +286,7 @@ static int memory_read (void)
 		long long *val = NULL;
 
 		if (strncasecmp (buffer, "MemTotal:", 9) == 0)
-			val = &mem_used;
+			val = &mem_total;
 		else if (strncasecmp (buffer, "MemFree:", 8) == 0)
 			val = &mem_free;
 		else if (strncasecmp (buffer, "Buffers:", 8) == 0)
@@ -310,13 +311,18 @@ static int memory_read (void)
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 	}
 
+        mem_used = mem_total;
+
 	if (mem_used >= (mem_free + mem_buffered + mem_cached))
 	{
 		mem_used -= mem_free + mem_buffered + mem_cached;
-		memory_submit ("used",     mem_used);
-		memory_submit ("buffered", mem_buffered);
-		memory_submit ("cached",   mem_cached);
-		memory_submit ("free",     mem_free);
+		memory_submit ("memory", "used",     mem_used);
+		memory_submit ("memory", "buffered", mem_buffered);
+		memory_submit ("memory", "cached",   mem_cached);
+		memory_submit ("memory", "free",     mem_free);
+		if (mem_total) 
+			memory_submit ("percent", "used",   (100 * mem_used)/mem_total );
+
 	}
 /* #endif KERNEL_LINUX */
 
@@ -389,11 +395,11 @@ static int memory_read (void)
 	mem_kern *= pagesize; /* it's 2011 RAM is cheap */
 	mem_unus *= pagesize;
 
-	memory_submit ("used",   mem_used);
-	memory_submit ("free",   mem_free);
-	memory_submit ("locked", mem_lock);
-	memory_submit ("kernel", mem_kern);
-	memory_submit ("unusable", mem_unus);
+	memory_submit ("memory", "used",   mem_used);
+	memory_submit ("memory", "free",   mem_free);
+	memory_submit ("memory", "locked", mem_lock);
+	memory_submit ("memory", "kernel", mem_kern);
+	memory_submit ("memory", "unusable", mem_unus);
 /* #endif HAVE_LIBKSTAT */
 
 #elif HAVE_SYSCTL
@@ -412,9 +418,9 @@ static int memory_read (void)
 	}
 
 	assert (pagesize > 0);
-	memory_submit ("active",   vmtotal.t_arm * pagesize);
-	memory_submit ("inactive", (vmtotal.t_rm - vmtotal.t_arm) * pagesize);
-	memory_submit ("free",     vmtotal.t_free * pagesize);
+	memory_submit ("memory", "active",   vmtotal.t_arm * pagesize);
+	memory_submit ("memory", "inactive", (vmtotal.t_rm - vmtotal.t_arm) * pagesize);
+	memory_submit ("memory", "free",     vmtotal.t_free * pagesize);
 /* #endif HAVE_SYSCTL */
 
 #elif HAVE_LIBSTATGRAB
@@ -422,9 +428,9 @@ static int memory_read (void)
 
 	if ((ios = sg_get_mem_stats ()) != NULL)
 	{
-		memory_submit ("used",   ios->used);
-		memory_submit ("cached", ios->cache);
-		memory_submit ("free",   ios->free);
+		memory_submit ("memory", "used",   ios->used);
+		memory_submit ("memory", "cached", ios->cache);
+		memory_submit ("memory", "free",   ios->free);
 	}
 /* #endif HAVE_LIBSTATGRAB */
 
@@ -436,11 +442,11 @@ static int memory_read (void)
 			sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
-	memory_submit ("used",   pmemory.real_inuse * pagesize);
-	memory_submit ("free",   pmemory.real_free * pagesize);
-	memory_submit ("cached", pmemory.numperm * pagesize);
-	memory_submit ("system", pmemory.real_system * pagesize);
-	memory_submit ("user",   pmemory.real_process * pagesize);
+	memory_submit ("memory", "used",   pmemory.real_inuse * pagesize);
+	memory_submit ("memory", "free",   pmemory.real_free * pagesize);
+	memory_submit ("memory", "cached", pmemory.numperm * pagesize);
+	memory_submit ("memory", "system", pmemory.real_system * pagesize);
+	memory_submit ("memory", "user",   pmemory.real_process * pagesize);
 #endif /* HAVE_PERFSTAT */
 
 	return (0);
