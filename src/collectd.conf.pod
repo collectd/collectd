@@ -7502,6 +7502,17 @@ and the size of B<BufferSize>. The optimal value to set B<Timeout> to is
 slightly below this interval, which you can estimate by monitoring the network
 traffic between collectd and the HTTP server.
 
+=item B<NotifyLevel> B<OKAY>|B<WARNING>|B<FAILURE>
+
+Controls if this Node should send notifications instead of metrics to the HTTP 
+server. The default behaviour is to send metrics. Less severe notifications 
+always imply sending more severe notifications: Setting this to B<OKAY> means 
+all notifications will be sent to the HTTP server, setting this to B<WARNING> 
+will send B<WARNING> and B<FAILURE> notifications but will dismiss B<OKAY> 
+notifications. Setting this option to B<FAILURE> will only send failures to 
+the HTTP server. Note that Notifications are not buffered but sent every 
+interval.
+
 =back
 
 =head2 Plugin C<write_kafka>

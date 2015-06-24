@@ -63,6 +63,7 @@ struct wh_callback_s
         int   low_speed_limit;
         time_t low_speed_time;
         int timeout;
+        int notif_severity;
 
 #define WH_FORMAT_COMMAND 0
 #define WH_FORMAT_JSON    1
@@ -506,6 +507,224 @@ static int wh_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
         return (status);
 } /* }}} int wh_write */
 
+static int wh_notification_command(const notification_t *n, /* {{{ */
+                                   wh_callback_t *cb) {
+        char buffer[20 * DATA_MAX_NAME_LEN];
+        char command[2048];
+        char *severity_string;
+        char temp[512];
+        size_t command_len;
+        size_t offset = 0;
+        int status;
+        notification_meta_t *curr = n->meta;
+
+        size_t buffer_size = sizeof(buffer);
+
+#define BUFFER_ADD(...) do { \
+  status = ssnprintf (buffer + offset, buffer_size - offset, \
+      __VA_ARGS__); \
+  if (status < 1) \
+    return (-1); \
+  else if (((size_t) status) >= (buffer_size - offset)) \
+    return (-ENOMEM); \
+  else \
+    offset += ((size_t) status); \
+} while (0)
+
+#define BUFFER_ADD_KEYVAL(key, value) do { \
+  sstrncpy(temp, value, strlen(value)+1); \
+  status = escape_string (temp, sizeof (temp)); \
+  if (status != 0) \
+    return (status); \
+  BUFFER_ADD (" %s=\"%s\"", key, value); \
+} while (0)
+
+        switch (n->severity) {
+                case NOTIF_FAILURE:
+                        severity_string = "FAILURE";
+                break;
+                case NOTIF_WARNING:
+                        severity_string = "WARNING";
+                break;
+                case NOTIF_OKAY:
+                        severity_string = "OKAY";
+                break;
+                default:
+                        severity_string = "UNKNOWN";
+        }
+        BUFFER_ADD_KEYVAL ("host", n->host);
+        BUFFER_ADD_KEYVAL ("plugin", n->plugin);
+        BUFFER_ADD_KEYVAL ("plugin_instance", n->plugin_instance);
+        BUFFER_ADD_KEYVAL ("type", n->type);
+        BUFFER_ADD_KEYVAL ("type_instance", n->type_instance);
+        BUFFER_ADD_KEYVAL ("message", n->message);
+
+
+        // just a guess here for these types... i think only string exists now
+#define BUFFER_ADD_KEYVAL_META(meta) do { \
+  if (meta->type == NM_TYPE_STRING) { \
+  sstrncpy(temp, meta->nm_value.nm_string, strlen(meta->nm_value.nm_string)+1); \
+  status = escape_string (temp, sizeof (temp)); \
+  if (status != 0) \
+    return (status); \
+  BUFFER_ADD (" s:%s=\"%s\"", meta->name, temp); \
+ } else if (meta->type == NM_TYPE_SIGNED_INT) { \
+   BUFFER_ADD ( "d:%s=%"PRIi64, meta->name, meta->nm_value.nm_signed_int); \
+ } else if (meta->type == NM_TYPE_UNSIGNED_INT) { \
+   BUFFER_ADD ( "u:%s=%"PRIu64, meta->name, meta->nm_value.nm_unsigned_int); \
+ } else if (meta->type == NM_TYPE_DOUBLE) { \
+   BUFFER_ADD ( "f:%s=%e", meta->name, meta->nm_value.nm_double); \
+ } else if (meta->type == NM_TYPE_BOOLEAN) { \
+   BUFFER_ADD ( "b:%s=%s", meta->name, meta->nm_value.nm_boolean?"true":"false"); \
+  } \
+} while (0)
+
+        for (; curr != NULL; curr = curr->next) {
+                BUFFER_ADD_KEYVAL_META (curr);
+        }
+
+#undef BUFFER_ADD_KEYVAL_META
+#undef BUFFER_ADD_KEYVAL
+#undef BUFFER_ADD
+
+        command_len = (size_t) ssnprintf(command, sizeof(command),
+                                         "PUTNOTIF severity=%s time=%.3f %s\n",
+                                         severity_string,
+                                         CDTIME_T_TO_DOUBLE (n->time),
+                                         buffer);
+        INFO ("write_http plugin: command %s", command);
+
+        if (command_len >= sizeof(command)) {
+                ERROR ("write_http plugin: Command buffer too small: "
+                               "Need %zu bytes.", command_len + 1);
+                return (-1);
+        }
+
+        pthread_mutex_lock(&cb->send_lock);
+
+        if (cb->curl == NULL) {
+                status = wh_callback_init(cb);
+                if (status != 0) {
+                        ERROR ("write_http plugin: wh_callback_init failed.");
+                        pthread_mutex_unlock(&cb->send_lock);
+                        return (-1);
+                }
+        }
+
+        if (command_len >= cb->send_buffer_free) {
+                status = wh_flush_nolock(/* timeout = */ 0, cb);
+                if (status != 0) {
+                        pthread_mutex_unlock(&cb->send_lock);
+                        return (status);
+                }
+        }
+        assert (command_len < cb->send_buffer_free);
+
+        /* `command_len + 1' because `command_len' does not include the
+         * trailing null byte. Neither does `send_buffer_fill'. */
+        memcpy(cb->send_buffer + cb->send_buffer_fill,
+               command, command_len + 1);
+        cb->send_buffer_fill += command_len;
+        cb->send_buffer_free -= command_len;
+
+        DEBUG ("write_http plugin: <%s> buffer %zu/%zu (%g%%) \"%s\"",
+               cb->location,
+               cb->send_buffer_fill, cb->send_buffer_size,
+               100.0 * ((double) cb->send_buffer_fill) / ((double) cb->send_buffer_size),
+               command);
+
+        /* Check if we have enough space for this command. */
+        pthread_mutex_unlock(&cb->send_lock);
+
+        return (0);
+}
+
+/* }}} int wh_notification_command */
+
+static int wh_notification_json(const notification_t *n,
+                                wh_callback_t *cb) {
+        int status;
+
+        pthread_mutex_lock(&cb->send_lock);
+
+        if (cb->curl == NULL) {
+                status = wh_callback_init(cb);
+                if (status != 0) {
+                        ERROR ("write_http plugin: wh_callback_init failed.");
+                        pthread_mutex_unlock(&cb->send_lock);
+                        return (-1);
+                }
+        }
+
+        status = format_json_notification(cb->send_buffer,
+                                          &cb->send_buffer_fill,
+                                          &cb->send_buffer_free,
+                                          n, cb->store_rates);
+        if (status == (-ENOMEM)) {
+                status = wh_flush_nolock(/* timeout = */ 0, cb);
+                if (status != 0) {
+                        wh_reset_buffer(cb);
+                        pthread_mutex_unlock(&cb->send_lock);
+                        return (status);
+                }
+
+                status = format_json_notification(cb->send_buffer,
+                                                  &cb->send_buffer_fill,
+                                                  &cb->send_buffer_free,
+                                                  n, cb->store_rates);
+        }
+        if (status != 0) {
+                pthread_mutex_unlock(&cb->send_lock);
+                return (status);
+        }
+
+        DEBUG ("write_http plugin: <%s> buffer %zu/%zu (%g%%)",
+              cb->location,
+              cb->send_buffer_fill, cb->send_buffer_size,
+              100.0 * ((double) cb->send_buffer_fill) / ((double) cb->send_buffer_size));
+
+        /* Check if we have enough space for this command. */
+        pthread_mutex_unlock(&cb->send_lock);
+
+        return (0);
+}
+
+/* }}} int wh_notification_json */
+
+static int wh_notification(const notification_t *n,
+                           user_data_t __attribute__((unused)) *user_data) {
+        wh_callback_t *cb;
+        int status;
+
+        if (user_data == NULL)
+                return (-EINVAL);
+        cb = user_data->data;
+        if (n->severity > cb->notif_severity)
+                return 0;
+
+        if (cb->format == WH_FORMAT_JSON)
+                status = wh_notification_json(n, cb);
+        else
+                status = wh_notification_command(n, cb);
+
+        if (status != 0) {
+                return status;
+        }
+
+        // don't buffer notifications
+        status = wh_flush_nolock (/* timeout = */ 0, cb);
+        if (status != 0)
+        {
+                wh_reset_buffer (cb);
+                pthread_mutex_unlock (&cb->send_lock);
+                return (status);
+        }
+
+        return (status);
+}
+
+/* }}} int wh_notification */
+
 static int config_set_format (wh_callback_t *cb, /* {{{ */
                 oconfig_item_t *ci)
 {
@@ -556,6 +775,7 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
         cb->low_speed_limit = 0;
         cb->timeout = 0;
         cb->log_http_error = 0;
+        cb->notif_severity = -1;
 
         pthread_mutex_init (&cb->send_lock, /* attr = */ NULL);
 
@@ -629,6 +849,19 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
                         cf_util_get_int (child, &cb->timeout);
                 else if (strcasecmp ("LogHttpError", child->key) == 0)
                         cf_util_get_boolean (child, &cb->log_http_error);
+                else if (strcasecmp ("NotifyLevel", child->key) == 0) {
+                    int notif_severity = -1;
+                    char *severity = NULL;
+                    cf_util_get_string (child, &severity);
+                    if (strcasecmp (severity, "FAILURE") == 0)
+                        notif_severity = NOTIF_FAILURE;
+                    else if (strcmp (severity, "OKAY") == 0)
+                        notif_severity = NOTIF_OKAY;
+                    else if ((strcmp (severity, "WARNING") == 0)
+                             || (strcmp (severity, "WARN") == 0))
+                        notif_severity = NOTIF_WARNING;
+                    cb->notif_severity = notif_severity;
+                }
                 else
                 {
                         ERROR ("write_http plugin: Invalid configuration "
@@ -677,7 +910,11 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
         plugin_register_flush (callback_name, wh_flush, &user_data);
 
         user_data.free_func = wh_callback_free;
-        plugin_register_write (callback_name, wh_write, &user_data);
+        if (cb->notif_severity > 0) {
+                plugin_register_notification(callback_name, wh_notification, &user_data);
+        } else {
+                plugin_register_write(callback_name, wh_write, &user_data);
+        } // Either the node outputs notifications or datapoints, not both
 
         return (0);
 } /* }}} int wh_config_node */

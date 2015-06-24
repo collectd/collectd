@@ -31,7 +31,7 @@
 #include "utils_cache.h"
 #include "utils_format_json.h"
 
-static int json_escape_string (char *buffer, size_t buffer_size, /* {{{ */
+int json_escape_string (char *buffer, size_t buffer_size, /* {{{ */
     const char *string)
 {
   size_t src_pos;
@@ -483,5 +483,170 @@ int format_json_value_list (char *buffer, /* {{{ */
         ret_buffer_fill, ret_buffer_free, ds, vl,
         store_rates, (*ret_buffer_free) - 2));
 } /* }}} int format_json_value_list */
+
+static int notification_meta_data_to_json(char *buffer, size_t buffer_size, /* {{{ */
+                                          const notification_meta_t *meta) {
+  char temp[512];
+  size_t offset = 0;
+  int status;
+
+#define BUFFER_ADD(...) do { \
+  status = ssnprintf (buffer + offset, buffer_size - offset, \
+      __VA_ARGS__); \
+  if (status < 1) \
+    return (-1); \
+  else if (((size_t) status) >= (buffer_size - offset)) \
+    return (-ENOMEM); \
+  else \
+    offset += ((size_t) status); \
+} while (0)
+
+#define BUFFER_ADD_KEYVAL(meta) do { \
+  BUFFER_ADD (",\"%s\":", (meta->name)); \
+  if (meta->type == NM_TYPE_STRING) { \
+  status = json_escape_string (temp, sizeof (temp), (meta->nm_value.nm_string)); \
+  if (status != 0) \
+    return (status); \
+  BUFFER_ADD ("%s", temp); \
+ } else if (meta->type == NM_TYPE_SIGNED_INT) { \
+   BUFFER_ADD ( "%"PRIi64, meta->nm_value.nm_signed_int); \
+ } else if (meta->type == NM_TYPE_UNSIGNED_INT) { \
+   BUFFER_ADD ( "%"PRIu64, meta->nm_value.nm_unsigned_int); \
+ } else if (meta->type == NM_TYPE_DOUBLE) { \
+   BUFFER_ADD ( "%e", meta->nm_value.nm_double); \
+ } else if (meta->type == NM_TYPE_BOOLEAN) { \
+   BUFFER_ADD ( "%s", meta->nm_value.nm_boolean?"true":"false"); \
+  } \
+} while (0)
+
+  for (; meta != NULL; meta = meta->next) {
+    BUFFER_ADD_KEYVAL (meta);
+  }
+
+  buffer[0] = '{'; /* replace leading ',' */
+  BUFFER_ADD ("}");
+
+#undef BUFFER_ADD_KEYVAL
+#undef BUFFER_ADD
+
+  return (0);
+}
+
+/* }}} int notification_meta_data_to_json */
+
+static int notification_to_json(char *buffer, size_t buffer_size, /* {{{ */
+                                const notification_t *n, int store_rates) {
+  char temp[512];
+  size_t offset = 0;
+  int status;
+  char *severity_string;
+
+  memset(buffer, 0, buffer_size);
+
+#define BUFFER_ADD(...) do { \
+  status = ssnprintf (buffer + offset, buffer_size - offset, \
+      __VA_ARGS__); \
+  if (status < 1) \
+    return (-1); \
+  else if (((size_t) status) >= (buffer_size - offset)) \
+    return (-ENOMEM); \
+  else \
+    offset += ((size_t) status); \
+} while (0)
+
+  /* All value lists have a leading comma. The first one will be replaced with
+   * a square bracket in `format_json_finalize'. */
+  BUFFER_ADD (",{");
+
+  BUFFER_ADD ("\"time\":%.3f", CDTIME_T_TO_DOUBLE(n->time));
+
+#define BUFFER_ADD_KEYVAL(key, value) do { \
+  status = json_escape_string (temp, sizeof (temp), (value)); \
+  if (status != 0) \
+    return (status); \
+  BUFFER_ADD (",\"%s\":%s", (key), temp); \
+} while (0)
+
+  switch (n->severity) {
+    case NOTIF_FAILURE:
+      severity_string = "FAILURE";
+          break;
+    case NOTIF_WARNING:
+      severity_string = "WARNING";
+          break;
+    case NOTIF_OKAY:
+      severity_string = "OKAY";
+          break;
+    default:
+      severity_string = "UNKNOWN";
+  }
+
+  BUFFER_ADD_KEYVAL ("severity", severity_string);
+  BUFFER_ADD_KEYVAL ("host", n->host);
+  BUFFER_ADD_KEYVAL ("plugin", n->plugin);
+  BUFFER_ADD_KEYVAL ("plugin_instance", n->plugin_instance);
+  BUFFER_ADD_KEYVAL ("type", n->type);
+  BUFFER_ADD_KEYVAL ("type_instance", n->type_instance);
+  BUFFER_ADD_KEYVAL ("message", n->message);
+
+  if (n->meta != NULL) {
+    char meta_buffer[buffer_size];
+    memset(meta_buffer, 0, sizeof(meta_buffer));
+    status = notification_meta_data_to_json(meta_buffer, sizeof(meta_buffer), n->meta);
+    if (status != 0)
+      return (status);
+
+    BUFFER_ADD (",\"meta\":%s", meta_buffer);
+  } /* if (n->meta != NULL) */
+
+  BUFFER_ADD ("}");
+
+#undef BUFFER_ADD_KEYVAL
+#undef BUFFER_ADD
+
+  DEBUG ("format_json: notification_to_json: buffer = %s;", buffer);
+
+  return (0);
+}
+
+/* }}} int notification_to_json */
+
+static int format_json_notification_nocheck(char *buffer, /* {{{ */
+                                            size_t *ret_buffer_fill, size_t *ret_buffer_free,
+                                            const notification_t *n, int store_rates, size_t temp_size) {
+  char temp[temp_size];
+  int status;
+
+  status = notification_to_json(temp, sizeof(temp), n, store_rates);
+  if (status != 0)
+    return (status);
+  temp_size = strlen(temp);
+
+  memcpy(buffer + (*ret_buffer_fill), temp, temp_size + 1);
+  (*ret_buffer_fill) += temp_size;
+  (*ret_buffer_free) -= temp_size;
+
+  return (0);
+}
+
+/* }}} int format_json_notification_nocheck */
+
+int format_json_notification(char *buffer, /* {{{ */
+                             size_t *ret_buffer_fill, size_t *ret_buffer_free,
+                             const notification_t *n, int store_rates) {
+  if ((buffer == NULL)
+      || (ret_buffer_fill == NULL) || (ret_buffer_free == NULL)
+      || (n == NULL))
+    return (-EINVAL);
+
+  if (*ret_buffer_free < 3)
+    return (-ENOMEM);
+
+  return (format_json_notification_nocheck(buffer,
+                                           ret_buffer_fill, ret_buffer_free, n,
+                                           store_rates, (*ret_buffer_free) - 2));
+}
+
+/* }}} int format_json_notification */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */
