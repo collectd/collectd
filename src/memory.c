@@ -148,8 +148,6 @@ static void memory_submit (const char *type, const char *type_instance, gauge_t 
 	sstrncpy (vl.type, type, sizeof(vl.type));
 	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
-        fprintf(stdout, "%s.%s.%s %f", vl.plugin, vl.type, vl.type_instance, value);
-
 	plugin_dispatch_values (&vl);
 }
 
