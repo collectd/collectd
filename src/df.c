@@ -320,7 +320,7 @@ static int df_read (void)
 		}
 
 		/* inode handling */
-		if (report_inodes)
+		if (report_inodes && statbuf.f_files != 0 && statbuf.f_ffree != 0)
 		{
 			uint64_t inode_free;
 			uint64_t inode_reserved;
