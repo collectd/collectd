@@ -931,7 +931,9 @@ static int conn_read (void)
   while (next != head)
   {
     /* Read the pcb pointed to by `next' into `inpcb' */
-    kread ((u_long) next, &inpcb, sizeof (inpcb));
+    status = kread ((u_long) next, &inpcb, sizeof (inpcb));
+    if (status != 0)
+      return (-1);
 
     /* Advance `next' */
     next = (struct inpcb *)CIRCLEQ_NEXT (&inpcb, inp_queue);
@@ -949,7 +951,9 @@ static int conn_read (void)
       continue;
 #endif
 
-    kread ((u_long) inpcb.inp_ppcb, &tcpcb, sizeof (tcpcb));
+    status = kread ((u_long) inpcb.inp_ppcb, &tcpcb, sizeof (tcpcb));
+    if (status != 0)
+      return (-1);
     conn_handle_ports (ntohs(inpcb.inp_lport), ntohs(inpcb.inp_fport), tcpcb.t_state);
   } /* while (next != head) */
 
