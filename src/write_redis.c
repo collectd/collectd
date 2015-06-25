@@ -40,6 +40,7 @@ struct wr_node_s
   char *host;
   int port;
   struct timeval timeout;
+  char *prefix;
 
   redisContext *conn;
   pthread_mutex_t lock;
@@ -67,7 +68,12 @@ static int wr_write (const data_set_t *ds, /* {{{ */
   status = FORMAT_VL (ident, sizeof (ident), vl);
   if (status != 0)
     return (status);
-  ssnprintf (key, sizeof (key), "collectd/%s", ident);
+  if (node->prefix == NULL) {
+    ssnprintf (key, sizeof (key), "collectd/%s", ident);
+  }
+  else {
+    ssnprintf (key, sizeof (key), "%s/%s", node->prefix, ident);
+  }
   ssnprintf (time, sizeof (time), "%.9f", CDTIME_T_TO_DOUBLE(vl->time));
 
   memset (value, 0, sizeof (value));
@@ -179,6 +185,7 @@ static int wr_config_node (oconfig_item_t *ci) /* {{{ */
   node->timeout.tv_sec = 0;
   node->timeout.tv_usec = 1000;
   node->conn = NULL;
+  node->prefix = NULL;
   pthread_mutex_init (&node->lock, /* attr = */ NULL);
 
   status = cf_util_get_string_buffer (ci, node->name, sizeof (node->name));
@@ -206,6 +213,9 @@ static int wr_config_node (oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp ("Timeout", child->key) == 0) {
       status = cf_util_get_int (child, &timeout);
       if (status == 0) node->timeout.tv_usec = timeout;
+    }
+    else if (strcasecmp ("Prefix", child->key) == 0) {
+      status = cf_util_get_string (child, &node->prefix);
     }
     else
       WARNING ("write_redis plugin: Ignoring unknown config option \"%s\".",

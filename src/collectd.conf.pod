@@ -7494,13 +7494,14 @@ Synopsis:
         Host "localhost"
         Port "6379"
         Timeout 1000
+        Prefix "examplePrefix"
     </Node>
   </Plugin>
 
 Values are submitted to I<Sorted Sets>, using the metric name as the key, and
 the timestamp as the score. Retrieving a date range can then be done using the
 C<ZRANGEBYSCORE> I<Redis> command. Additionnally, all the identifiers of these
-I<Sorted Sets> are kept in a I<Set> called C<collectd/values> and can be
+I<Sorted Sets> are kept in a I<Set> called C<collectd/values> or C<Prefix/values> if a Prefix was specified and can be
 retrieved using the C<SMEMBERS> I<Redis> command. See
 L<http://redis.io/commands#sorted_set> and L<http://redis.io/commands#set> for
 details.
