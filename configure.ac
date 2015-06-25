@@ -2717,15 +2717,15 @@ then
 	then
 		with_libmysql="no ($with_mysql_config failed)"
 	else
-		AC_CHECK_LIB(mysqlclient, mysql_init,
+		AC_CHECK_LIB(c, mysql_init, # Hack to allow percona
 		 [with_libmysql="yes"],
 		 [with_libmysql="no (symbol 'mysql_init' not found)"],
-		 [$with_mysql_libs])
+		 [$with_mysql_libs]) # The appropriate percona or mysql libs are here
 
-		AC_CHECK_LIB(mysqlclient, mysql_get_server_version,
+		AC_CHECK_LIB(c, mysql_get_server_version, # Hack to allow percona
 		 [with_libmysql="yes"],
 		 [with_libmysql="no (symbol 'mysql_get_server_version' not found)"],
-		 [$with_mysql_libs])
+		 [$with_mysql_libs]) # The appropriate percona or mysql libs are here
 	fi
 fi
 if test "x$with_libmysql" = "xyes"
