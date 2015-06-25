@@ -128,7 +128,7 @@ static void cache_free (cache_entry_t *ce)
 
 static void uc_check_range (const data_set_t *ds, cache_entry_t *ce)
 {
-  int i;
+  size_t i;
 
   for (i = 0; i < ds->ds_num; i++)
   {
@@ -144,9 +144,9 @@ static void uc_check_range (const data_set_t *ds, cache_entry_t *ce)
 static int uc_insert (const data_set_t *ds, const value_list_t *vl,
     const char *key)
 {
-  int i;
   char *key_copy;
   cache_entry_t *ce;
+  size_t i;
 
   /* `cache_lock' has been locked by `uc_update' */
 
@@ -373,7 +373,7 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
   char name[6 * DATA_MAX_NAME_LEN];
   cache_entry_t *ce = NULL;
   int status;
-  int i;
+  size_t i;
 
   if (FORMAT_VL (name, sizeof (name), vl) != 0)
   {
@@ -465,7 +465,7 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
 	return (-1);
     } /* switch (ds->ds[i].type) */
 
-    DEBUG ("uc_update: %s: ds[%i] = %lf", name, i, ce->values_gauge[i]);
+    DEBUG ("uc_update: %s: ds[%zu] = %lf", name, i, ce->values_gauge[i]);
   } /* for (i) */
 
   /* Update the history if it exists. */

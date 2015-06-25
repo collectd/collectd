@@ -491,8 +491,8 @@ size_t strstripnewline (char *buffer)
 
 int escape_slashes (char *buffer, size_t buffer_size)
 {
-	int i;
 	size_t buffer_len;
+	size_t i;
 
 	buffer_len = strlen (buffer);
 
@@ -946,7 +946,7 @@ int format_values (char *ret, size_t ret_len, /* {{{ */
 {
         size_t offset = 0;
         int status;
-        int i;
+        size_t i;
         gauge_t *rates = NULL;
 
         assert (0 == strcmp (ds->type, vl->type));

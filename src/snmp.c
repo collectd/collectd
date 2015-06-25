@@ -1049,12 +1049,18 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
   return (ret);
 } /* value_t csnmp_value_list_to_value */
 
+/* csnmp_strvbcopy_hexstring converts the bit string contained in "vb" to a hex
+ * representation and writes it to dst. Returns zero on success and ENOMEM if
+ * dst is not large enough to hold the string. dst is guaranteed to be
+ * nul-terminated. */
 static int csnmp_strvbcopy_hexstring (char *dst, /* {{{ */
     const struct variable_list *vb, size_t dst_size)
 {
   char *buffer_ptr;
   size_t buffer_free;
   size_t i;
+
+  dst[0] = 0;
 
   buffer_ptr = dst;
   buffer_free = dst_size;
@@ -1065,23 +1071,28 @@ static int csnmp_strvbcopy_hexstring (char *dst, /* {{{ */
 
     status = snprintf (buffer_ptr, buffer_free,
         (i == 0) ? "%02x" : ":%02x", (unsigned int) vb->val.bitstring[i]);
+    assert (status >= 0);
 
-    if (status >= buffer_free)
+    if (((size_t) status) >= buffer_free) /* truncated */
     {
-      buffer_ptr += (buffer_free - 1);
-      *buffer_ptr = 0;
-      return (dst_size + (buffer_free - status));
+      dst[dst_size - 1] = 0;
+      return ENOMEM;
     }
     else /* if (status < buffer_free) */
     {
-      buffer_ptr += status;
-      buffer_free -= status;
+      buffer_ptr  += (size_t) status;
+      buffer_free -= (size_t) status;
     }
   }
 
-  return ((int) (dst_size - buffer_free));
+  return 0;
 } /* }}} int csnmp_strvbcopy_hexstring */
 
+/* csnmp_strvbcopy copies the octet string or bit string contained in vb to
+ * dst. If non-printable characters are detected, it will switch to a hex
+ * representation of the string. Returns zero on success, EINVAL if vb does not
+ * contain a string and ENOMEM if dst is not large enough to contain the
+ * string. */
 static int csnmp_strvbcopy (char *dst, /* {{{ */
     const struct variable_list *vb, size_t dst_size)
 {
@@ -1111,8 +1122,12 @@ static int csnmp_strvbcopy (char *dst, /* {{{ */
     dst[i] = src[i];
   }
   dst[num_chars] = 0;
+  dst[dst_size - 1] = 0;
 
-  return ((int) vb->val_len);
+  if (dst_size <= vb->val_len)
+    return ENOMEM;
+
+  return 0;
 } /* }}} int csnmp_strvbcopy */
 
 static int csnmp_instance_list_add (csnmp_list_instances_t **head,
@@ -1378,7 +1393,7 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
 
   const data_set_t *ds;
 
-  uint32_t oid_list_len = (uint32_t) (data->values_len + 1);
+  size_t oid_list_len = data->values_len + 1;
   /* Holds the last OID returned by the device. We use this in the GETNEXT
    * request to proceed. */
   oid_t oid_list[oid_list_len];
@@ -1387,8 +1402,7 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
   _Bool oid_list_todo[oid_list_len];
 
   int status;
-  int i;
-  uint32_t j;
+  size_t i;
 
   /* `value_list_head' and `value_list_tail' implement a linked list for each
    * value. `instance_list_head' and `instance_list_tail' implement a linked list of
@@ -1429,8 +1443,8 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
   else /* no InstanceFrom option specified. */
     oid_list_len--;
 
-  for (j = 0; j < oid_list_len; j++)
-    oid_list_todo[j] = 1;
+  for (i = 0; i < oid_list_len; i++)
+    oid_list_todo[i] = 1;
 
   /* We're going to construct n linked lists, one for each "value".
    * value_list_head will contain pointers to the heads of these linked lists,
@@ -1462,13 +1476,13 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
     }
 
     oid_list_todo_num = 0;
-    for (j = 0; j < oid_list_len; j++)
+    for (i = 0; i < oid_list_len; i++)
     {
       /* Do not rerequest already finished OIDs */
-      if (!oid_list_todo[j])
+      if (!oid_list_todo[i])
         continue;
       oid_list_todo_num++;
-      snmp_add_null_var (req, oid_list[j].oid, oid_list[j].oid_len);
+      snmp_add_null_var (req, oid_list[i].oid, oid_list[i].oid_len);
     }
 
     if (oid_list_todo_num == 0)
@@ -1564,7 +1578,7 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
         ret = csnmp_oid_suffix (&suffix, &vb_name, data->values + i);
         if (ret != 0)
         {
-          DEBUG ("snmp plugin: host = %s; data = %s; i = %i; "
+          DEBUG ("snmp plugin: host = %s; data = %s; i = %zu; "
               "Value probably left its subtree.",
               host->name, data->name, i);
           oid_list_todo[i] = 0;
@@ -1576,7 +1590,7 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
         if ((value_list_tail[i] != NULL)
             && (csnmp_oid_compare (&suffix, &value_list_tail[i]->suffix) <= 0))
         {
-          DEBUG ("snmp plugin: host = %s; data = %s; i = %i; "
+          DEBUG ("snmp plugin: host = %s; data = %s; i = %zu; "
               "Suffix is not increasing.",
               host->name, data->name, i);
           oid_list_todo[i] = 0;
@@ -1660,7 +1674,7 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
   value_list_t vl = VALUE_LIST_INIT;
 
   int status;
-  int i;
+  size_t i;
 
   DEBUG ("snmp plugin: csnmp_read_value (host = %s, data = %s)",
       host->name, data->name);

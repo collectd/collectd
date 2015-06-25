@@ -199,7 +199,7 @@ static int tn_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
   gauge_t *rates;
   int rates_failed;
 
-  int i;
+  size_t i;
 
   if ((ds == NULL) || (vl == NULL) || (user_data == NULL))
     return (-EINVAL);

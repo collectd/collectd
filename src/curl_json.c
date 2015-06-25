@@ -563,7 +563,7 @@ static int cj_config_add_key (cj_t *db, /* {{{ */
       if (*ptr == '/')
       {
         c_avl_tree_t *value;
-        int len;
+        size_t len;
 
         len = ptr-name;
         if (len == 0)

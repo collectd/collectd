@@ -365,7 +365,7 @@ static Msg *riemann_notification_to_protobuf(struct riemann_host *host, /* {{{ *
 	char service_buffer[6 * DATA_MAX_NAME_LEN];
 	char const *severity;
 	notification_meta_t *meta;
-	int i;
+	size_t i;
 
 	msg = malloc (sizeof (*msg));
 	if (msg == NULL)
@@ -474,7 +474,7 @@ static Event *riemann_value_to_protobuf(struct riemann_host const *host, /* {{{ 
 	char name_buffer[5 * DATA_MAX_NAME_LEN];
 	char service_buffer[6 * DATA_MAX_NAME_LEN];
 	double ttl;
-	int i;
+	size_t i;
 
 	event = malloc (sizeof (*event));
 	if (event == NULL)
@@ -744,8 +744,8 @@ static int riemann_batch_add_value_list (struct riemann_host *host, /* {{{ */
 
 	len = msg__get_packed_size(host->batch_msg);
     ret = 0;
-    if (len >= host->batch_max) {
-        ret = riemann_batch_flush_nolock(0, host);
+    if ((host->batch_max < 0) || (((size_t) host->batch_max) <= len)) {
+	    ret = riemann_batch_flush_nolock(0, host);
     }
 
     pthread_mutex_unlock(&host->lock);

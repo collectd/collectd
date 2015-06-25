@@ -133,7 +133,7 @@ static int ut_check_one_threshold (const data_set_t *ds,
     int *statuses)
 { /* {{{ */
   int ret = -1;
-  int i;
+  size_t i;
   int status;
   gauge_t values_copy[ds->ds_num];
 

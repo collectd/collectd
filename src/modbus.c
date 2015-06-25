@@ -440,7 +440,7 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
 
   if (ds->ds_num != 1)
   {
-    ERROR ("Modbus plugin: The type \"%s\" has %i data sources. "
+    ERROR ("Modbus plugin: The type \"%s\" has %zu data sources. "
         "I can only handle data sets with only one data source.",
         data->type, ds->ds_num);
     return (-1);

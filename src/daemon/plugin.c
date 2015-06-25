@@ -889,7 +889,7 @@ static void start_write_threads (size_t num) /* {{{ */
 static void stop_write_threads (void) /* {{{ */
 {
 	write_queue_t *q;
-	int i;
+	size_t i;
 
 	if (write_threads == NULL)
 		return;
@@ -930,7 +930,7 @@ static void stop_write_threads (void) /* {{{ */
 
 	if (i > 0)
 	{
-		WARNING ("plugin: %i value list%s left after shutting down "
+		WARNING ("plugin: %zu value list%s left after shutting down "
 				"the write threads.",
 				i, (i == 1) ? " was" : "s were");
 	}
@@ -1440,7 +1440,7 @@ static void plugin_free_data_sets (void)
 int plugin_register_data_set (const data_set_t *ds)
 {
 	data_set_t *ds_copy;
-	int i;
+	size_t i;
 
 	if ((data_sets != NULL)
 			&& (c_avl_get (data_sets, ds->type, NULL) == 0))

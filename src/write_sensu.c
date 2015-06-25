@@ -329,7 +329,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 {
 	char name_buffer[5 * DATA_MAX_NAME_LEN];
 	char service_buffer[6 * DATA_MAX_NAME_LEN];
-	int i;
+	size_t i;
 	char *ret_str;
 	char *temp_str;
 	char *value_str;
@@ -641,7 +641,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 	char *ret_str;
 	char *temp_str;
 	int status;
-	int i;
+	size_t i;
 	int res;
 	// add the severity/status
 	switch (n->severity) {
@@ -883,7 +883,7 @@ static int sensu_write(const data_set_t *ds, /* {{{ */
 	int statuses[vl->values_len];
 	struct sensu_host	*host = ud->data;
 	gauge_t *rates = NULL;
-	int i;
+	size_t i;
 	char *msg;
 
 	pthread_mutex_lock(&host->lock);
@@ -897,7 +897,7 @@ static int sensu_write(const data_set_t *ds, /* {{{ */
 			return -1;
 		}
 	}
-	for (i = 0; i < (size_t) vl->values_len; i++) {
+	for (i = 0; i < vl->values_len; i++) {
 		msg = sensu_value_to_json(host, ds, vl, (int) i, rates, statuses[i]);
 		if (msg == NULL) {
 			sfree(rates);

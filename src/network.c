@@ -2443,7 +2443,7 @@ static int network_receive (void) /* {{{ */
 	char buffer[network_config_packet_size];
 	int  buffer_len;
 
-	int i;
+	size_t i;
 	int status = 0;
 
 	receive_list_entry_t *private_list_head;

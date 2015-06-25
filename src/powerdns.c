@@ -650,12 +650,12 @@ static int powerdns_update_recursor_command (list_item_t *li) /* {{{ */
       return (-1);
     }
     buffer[sizeof (buffer) - 1] = 0;
-    int i = strlen (buffer);
-    if (i < sizeof (buffer) - 2)
+    size_t len = strlen (buffer);
+    if (len < sizeof (buffer) - 2)
     {
-      buffer[i++] = ' ';
-      buffer[i++] = '\n';
-      buffer[i++] = '\0';
+      buffer[len++] = ' ';
+      buffer[len++] = '\n';
+      buffer[len++] = '\0';
     }
   }
 
