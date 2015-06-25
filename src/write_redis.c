@@ -134,12 +134,19 @@ static int wr_write (const data_set_t *ds, /* {{{ */
   }
 
   rr = redisCommand (node->conn, "ZADD %s %s %s", key, time, value);
-  if (rr==NULL)
+  if (rr == NULL)
     WARNING("ZADD command error. key:%s message:%s", key, node->conn->errstr);
+  else
+    freeReplyObject (rr);
 
+  /* TODO(octo): This is more overhead than necessary. Use the cache and
+   * metadata to determine if it is a new metric and call SADD only once for
+   * each metric. */
   rr = redisCommand (node->conn, "SADD collectd/values %s", ident);
   if (rr==NULL)
     WARNING("SADD command error. ident:%s message:%s", ident, node->conn->errstr);
+  else
+    freeReplyObject (rr);
 
   pthread_mutex_unlock (&node->lock);
 
