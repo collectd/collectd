@@ -1,6 +1,6 @@
 /**
  * collectd - src/write_redis.c
- * Copyright (C) 2010       Florian Forster
+ * Copyright (C) 2010-2015  Florian Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,6 +32,10 @@
 #include <pthread.h>
 #include <sys/time.h>
 #include <hiredis/hiredis.h>
+
+#ifndef REDIS_DEFAULT_PREFIX
+# define REDIS_DEFAULT_PREFIX "collectd/"
+#endif
 
 struct wr_node_s
 {
@@ -68,12 +72,9 @@ static int wr_write (const data_set_t *ds, /* {{{ */
   status = FORMAT_VL (ident, sizeof (ident), vl);
   if (status != 0)
     return (status);
-  if (node->prefix == NULL) {
-    ssnprintf (key, sizeof (key), "collectd/%s", ident);
-  }
-  else {
-    ssnprintf (key, sizeof (key), "%s/%s", node->prefix, ident);
-  }
+  ssnprintf (key, sizeof (key), "%s%s",
+      (node->prefix != NULL) ? node->prefix : REDIS_DEFAULT_PREFIX,
+      ident);
   ssnprintf (time, sizeof (time), "%.9f", CDTIME_T_TO_DOUBLE(vl->time));
 
   memset (value, 0, sizeof (value));
@@ -143,7 +144,9 @@ static int wr_write (const data_set_t *ds, /* {{{ */
   if (rr==NULL)
     WARNING("ZADD command error. key:%s message:%s", key, node->conn->errstr);
 
-  rr = redisCommand (node->conn, "SADD collectd/values %s", ident);
+  rr = redisCommand (node->conn, "SADD %svalues %s",
+      (node->prefix != NULL) ? node->prefix : REDIS_DEFAULT_PREFIX,
+      ident);
   if (rr==NULL)
     WARNING("SADD command error. ident:%s message:%s", ident, node->conn->errstr);
 
