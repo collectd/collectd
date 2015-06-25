@@ -772,7 +772,7 @@ static int write_part_string (char **ret_buffer, int *ret_buffer_len,
 } /* int write_part_string */
 
 static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
-		value_t **ret_values, int *ret_num_values)
+		value_t **ret_values, size_t *ret_num_values)
 {
 	char *buffer = *ret_buffer;
 	size_t buffer_len = *ret_buffer_len;
@@ -876,7 +876,7 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
 
 	*ret_buffer     = buffer;
 	*ret_buffer_len = buffer_len - pkg_length;
-	*ret_num_values = pkg_numval;
+	*ret_num_values = (size_t) pkg_numval;
 	*ret_values     = pkg_values;
 
 	sfree (pkg_types);
@@ -2443,7 +2443,7 @@ static int network_receive (void) /* {{{ */
 	char buffer[network_config_packet_size];
 	int  buffer_len;
 
-	int i;
+	size_t i;
 	int status = 0;
 
 	receive_list_entry_t *private_list_head;

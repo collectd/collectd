@@ -69,7 +69,7 @@ static int value_list_to_string (char *buffer, int buffer_len,
 {
   int offset;
   int status;
-  int i;
+  size_t i;
   time_t t;
 
   assert (0 == strcmp (ds->type, vl->type));

@@ -58,7 +58,7 @@ struct mv_match_s
  */
 static void mv_free_match (mv_match_t *m) /* {{{ */
 {
-  int i;
+  size_t i;
   
   if (m == NULL)
     return;
@@ -277,7 +277,7 @@ static int mv_match (const data_set_t *ds, const value_list_t *vl, /* {{{ */
   mv_match_t *m;
   gauge_t *values;
   int status;
-  int i;
+  size_t i;
 
   if ((user_data == NULL) || (*user_data == NULL))
     return (-1);

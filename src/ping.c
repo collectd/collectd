@@ -210,7 +210,8 @@ static int ping_dispatch_all (pingobj_t *pingobj) /* {{{ */
       hl->pkg_missed++;
 
     /* if the host did not answer our last N packages, trigger a resolv. */
-    if (ping_max_missed >= 0 && hl->pkg_missed >= ping_max_missed)
+    if ((ping_max_missed >= 0)
+        && (hl->pkg_missed >= ((uint32_t) ping_max_missed)))
     { /* {{{ */
       /* we reset the missed package counter here, since we only want to
        * trigger a resolv every N packages and not every package _AFTER_ N

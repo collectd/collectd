@@ -33,23 +33,23 @@
 #include <string.h>
 
 struct metric_definition_s {
-    char *name;
-    char *type;
-    char *instance;
-    int data_source_type;
-    int value_from;
+    char   *name;
+    char   *type;
+    char   *instance;
+    int     data_source_type;
+    ssize_t value_from;
     struct metric_definition_s *next;
 };
 typedef struct metric_definition_s metric_definition_t;
 
 struct instance_definition_s {
-    char *instance;
-    char *path;
-    cu_tail_t *tail;
+    char                 *instance;
+    char                 *path;
+    cu_tail_t            *tail;
     metric_definition_t **metric_list;
-    size_t metric_list_len;
-    cdtime_t interval;
-    int time_from;
+    size_t                metric_list_len;
+    cdtime_t              interval;
+    ssize_t               time_from;
     struct instance_definition_s *next;
 };
 typedef struct instance_definition_s instance_definition_t;
@@ -100,37 +100,37 @@ static int tcsv_read_metric (instance_definition_t *id,
         char **fields, size_t fields_num)
 {
     value_t v;
-    cdtime_t t;
+    cdtime_t t = 0;
     int status;
 
     if (md->data_source_type == -1)
         return (EINVAL);
 
-    if (md->value_from >= fields_num)
+    assert (md->value_from >= 0);
+    if (((size_t) md->value_from) >= fields_num)
         return (EINVAL);
-
-    if (id->time_from >= 0 && (id->time_from >= fields_num))
-        return (EINVAL);
-
-    t = 0;
-    if (id->time_from >= 0)
-        t = parse_time (fields[id->time_from]);
 
     status = parse_value (fields[md->value_from], &v, md->data_source_type);
     if (status != 0)
         return (status);
 
+    if (id->time_from >= 0) {
+        if (((size_t) id->time_from) >= fields_num)
+            return (EINVAL);
+        t = parse_time (fields[id->time_from]);
+    }
+
     return (tcsv_submit (id, md, v, t));
 }
 
-static _Bool tcsv_check_index (int index, size_t fields_num, char const *name)
+static _Bool tcsv_check_index (ssize_t index, size_t fields_num, char const *name)
 {
     if (index < 0)
         return 1;
     else if (((size_t) index) < fields_num)
         return 1;
 
-    ERROR ("tail_csv plugin: Metric \"%s\": Request for index %i when "
+    ERROR ("tail_csv plugin: Metric \"%s\": Request for index %zd when "
             "only %zu fields are available.",
             name, index, fields_num);
     return (0);
@@ -267,30 +267,27 @@ static void tcsv_metric_definition_destroy(void *arg){
     tcsv_metric_definition_destroy (next);
 }
 
-static int tcsv_config_get_index(oconfig_item_t *ci, int *ret_index) {
-    int index;
-
+static int tcsv_config_get_index(oconfig_item_t *ci, ssize_t *ret_index) {
     if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER)){
         WARNING("tail_csv plugin: The \"%s\" config option needs exactly one "
                 "integer argument.", ci->key);
         return (-1);
     }
 
-    index = (int) ci->values[0].value.number;
-    if (index < 0) {
+    if (ci->values[0].value.number < 0) {
         WARNING("tail_csv plugin: The \"%s\" config option must be positive "
                 "(or zero).", ci->key);
         return (-1);
     }
 
-    *ret_index = index;
+    *ret_index = (ssize_t) ci->values[0].value.number;
     return (0);
 }
 
 /* Parse metric  */
 static int tcsv_config_add_metric(oconfig_item_t *ci){
     metric_definition_t *md;
-    int status = 0;
+    int status;
     int i;
 
     md = (metric_definition_t *)malloc(sizeof(*md));
@@ -542,7 +539,7 @@ static int tcsv_init(void) { /* {{{ */
         }
         else if (ds->ds_num != 1)
         {
-            ERROR ("tail_csv plugin: The type \"%s\" has %i data sources. "
+            ERROR ("tail_csv plugin: The type \"%s\" has %zu data sources. "
                     "Only types with a single data soure are supported.",
                     ds->type, ds->ds_num);
             continue;

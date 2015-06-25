@@ -618,7 +618,7 @@ static jobject ctoj_data_set (JNIEnv *jvm_env, const data_set_t *ds) /* {{{ */
   jmethodID m_add;
   jobject o_type;
   jobject o_dataset;
-  int i;
+  size_t i;
 
   /* Look up the org/collectd/api/DataSet class */
   c_dataset = (*jvm_env)->FindClass (jvm_env, "org/collectd/api/DataSet");
@@ -763,7 +763,7 @@ static jobject ctoj_value_list (JNIEnv *jvm_env, /* {{{ */
   jmethodID m_valuelist_constructor;
   jobject o_valuelist;
   int status;
-  int i;
+  size_t i;
 
   /* First, create a new ValueList instance..
    * Look up the class.. */

@@ -615,7 +615,7 @@ static int c_psql_read (user_data_t *ud)
 	c_psql_database_t *db;
 
 	int success = 0;
-	int i;
+	size_t i;
 
 	if ((ud == NULL) || (ud->data == NULL)) {
 		log_err ("c_psql_read: Invalid user data.");
@@ -663,8 +663,7 @@ static char *values_name_to_sqlarray (const data_set_t *ds,
 {
 	char  *str_ptr;
 	size_t str_len;
-
-	int i;
+	size_t i;
 
 	str_ptr = string;
 	str_len = string_len;
@@ -702,8 +701,7 @@ static char *values_type_to_sqlarray (const data_set_t *ds,
 {
 	char  *str_ptr;
 	size_t str_len;
-
-	int i;
+	size_t i;
 
 	str_ptr = string;
 	str_len = string_len;
@@ -751,8 +749,7 @@ static char *values_to_sqlarray (const data_set_t *ds, const value_list_t *vl,
 	size_t str_len;
 
 	gauge_t *rates = NULL;
-
-	int i;
+	size_t i;
 
 	str_ptr = string;
 	str_len = string_len;
@@ -837,7 +834,7 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 	const char *params[9];
 
 	int success = 0;
-	int i;
+	size_t i;
 
 	if ((ud == NULL) || (ud->data == NULL)) {
 		log_err ("c_psql_write: Invalid user data.");

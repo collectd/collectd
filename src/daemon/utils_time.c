@@ -89,11 +89,13 @@ size_t cdtime_to_iso8601 (char *s, size_t max, cdtime_t t) /* {{{ */
 
   if (max - len > 2) {
     int n = snprintf (s + len, max - len, ".%09i", (int)t_spec.tv_nsec);
-    len += (n < max - len) ? n : max - len;
+    len += (n < 0) ? 0
+      : (((size_t) n) < (max - len)) ? ((size_t) n)
+      : (max - len);
   }
 
   if (max - len > 3) {
-    int n = strftime (s + len, max - len, "%z", &t_tm);
+    size_t n = strftime (s + len, max - len, "%z", &t_tm);
     len += (n < max - len) ? n : max - len;
   }
 
