@@ -2137,8 +2137,8 @@ static int plugin_dispatch_values_internal (value_list_t *vl)
 	if (ds->ds_num != vl->values_len)
 	{
 		ERROR ("plugin_dispatch_values: ds->type = %s: "
-				"(ds->ds_num = %i) != "
-				"(vl->values_len = %i)",
+				"(ds->ds_num = %zu) != "
+				"(vl->values_len = %zu)",
 				ds->type, ds->ds_num, vl->values_len);
 		return (-1);
 	}

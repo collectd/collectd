@@ -202,7 +202,9 @@ int write_riemann_threshold_check (const data_set_t *ds, const value_list_t *vl,
   gauge_t *values;
   int status;
 
+  assert (vl->values_len > 0);
   memset(statuses, 0, vl->values_len * sizeof(*statuses));
+
   if (threshold_tree == NULL)
 	  return 0;
 

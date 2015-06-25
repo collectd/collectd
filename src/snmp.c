@@ -61,7 +61,7 @@ struct data_definition_s
   instance_t instance;
   char *instance_prefix;
   oid_t *values;
-  int values_len;
+  size_t values_len;
   double scale;
   double shift;
   struct data_definition_s *next;
@@ -313,7 +313,7 @@ static int csnmp_config_add_data_values (data_definition_t *dd, oconfig_item_t *
   dd->values = (oid_t *) malloc (sizeof (oid_t) * ci->values_num);
   if (dd->values == NULL)
     return (-1);
-  dd->values_len = ci->values_num;
+  dd->values_len = (size_t) ci->values_num;
 
   for (i = 0; i < ci->values_num; i++)
   {
@@ -459,7 +459,7 @@ static int csnmp_config_add_data (oconfig_item_t *ci)
     return (-1);
   }
 
-  DEBUG ("snmp plugin: dd = { name = %s, type = %s, is_table = %s, values_len = %i }",
+  DEBUG ("snmp plugin: dd = { name = %s, type = %s, is_table = %s, values_len = %zu }",
       dd->name, dd->type, (dd->is_table != 0) ? "true" : "false", dd->values_len);
 
   if (data_head == NULL)
@@ -1220,7 +1220,7 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
   csnmp_list_instances_t *instance_list_ptr;
   csnmp_table_values_t **value_table_ptr;
 
-  int i;
+  size_t i;
   _Bool have_more;
   oid_t current_suffix;
 
@@ -1235,7 +1235,7 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
 
   instance_list_ptr = instance_list;
 
-  value_table_ptr = calloc ((size_t) data->values_len, sizeof (*value_table_ptr));
+  value_table_ptr = calloc (data->values_len, sizeof (*value_table_ptr));
   if (value_table_ptr == NULL)
     return (-1);
   for (i = 0; i < data->values_len; i++)
@@ -1416,7 +1416,7 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
 
   if (ds->ds_num != data->values_len)
   {
-    ERROR ("snmp plugin: DataSet `%s' requires %i values, but config talks about %i",
+    ERROR ("snmp plugin: DataSet `%s' requires %zu values, but config talks about %zu",
         data->type, ds->ds_num, data->values_len);
     return (-1);
   }
@@ -1680,7 +1680,7 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
 
   if (ds->ds_num != data->values_len)
   {
-    ERROR ("snmp plugin: DataSet `%s' requires %i values, but config talks about %i",
+    ERROR ("snmp plugin: DataSet `%s' requires %zu values, but config talks about %zu",
         data->type, ds->ds_num, data->values_len);
     return (-1);
   }

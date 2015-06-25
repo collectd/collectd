@@ -37,7 +37,7 @@
 typedef struct cache_entry_s
 {
 	char name[6 * DATA_MAX_NAME_LEN];
-	int        values_num;
+	size_t     values_num;
 	gauge_t   *values_gauge;
 	value_t   *values_raw;
 	/* Time contained in the package
@@ -79,7 +79,7 @@ static int cache_compare (const cache_entry_t *a, const cache_entry_t *b)
   return (strcmp (a->name, b->name));
 } /* int cache_compare */
 
-static cache_entry_t *cache_alloc (int values_num)
+static cache_entry_t *cache_alloc (size_t values_num)
 {
   cache_entry_t *ce;
 
@@ -161,7 +161,7 @@ static int uc_insert (const data_set_t *ds, const value_list_t *vl,
   if (ce == NULL)
   {
     sfree (key_copy);
-    ERROR ("uc_insert: cache_alloc (%i) failed.", ds->ds_num);
+    ERROR ("uc_insert: cache_alloc (%zu) failed.", ds->ds_num);
     return (-1);
   }
 
@@ -565,7 +565,7 @@ gauge_t *uc_get_rate (const data_set_t *ds, const value_list_t *vl)
    * values are returned. */
   if (ret_num != (size_t) ds->ds_num)
   {
-    ERROR ("utils_cache: uc_get_rate: ds[%s] has %i values, "
+    ERROR ("utils_cache: uc_get_rate: ds[%s] has %zu values, "
 	"but uc_get_rate_by_name returned %zu.",
 	ds->type, ds->ds_num, ret_num);
     sfree (ret);

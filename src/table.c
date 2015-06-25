@@ -352,9 +352,9 @@ static int tbl_prepare (tbl_t *tbl)
 			return -1;
 		}
 
-		if (res->values_num != (size_t)res->ds->ds_num) {
+		if (res->values_num != res->ds->ds_num) {
 			log_err ("Invalid type \"%s\". Expected %zu data source%s, "
-					"got %i.", res->type, res->values_num,
+					"got %zu.", res->type, res->values_num,
 					(1 == res->values_num) ? "" : "s",
 					res->ds->ds_num);
 			return -1;

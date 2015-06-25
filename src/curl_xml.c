@@ -50,7 +50,7 @@ struct cx_xpath_s /* {{{ */
   char *path;
   char *type;
   cx_values_t *values;
-  int values_len;
+  size_t values_len;
   char *instance_prefix;
   char *instance;
   int is_table;
@@ -240,7 +240,7 @@ static int cx_check_type (const data_set_t *ds, cx_xpath_t *xpath) /* {{{ */
 
   if (ds->ds_num != xpath->values_len)
   {
-    WARNING ("curl_xml plugin: DataSet `%s' requires %i values, but config talks about %i",
+    WARNING ("curl_xml plugin: DataSet `%s' requires %zu values, but config talks about %zu",
         xpath->type, ds->ds_num, xpath->values_len);
     return (-1);
   }
@@ -356,7 +356,7 @@ static int cx_handle_all_value_xpaths (xmlXPathContextPtr xpath_ctx, /* {{{ */
 {
   value_t values[xpath->values_len];
   int status;
-  int i;
+  size_t i;
 
   assert (xpath->values_len > 0);
   assert (xpath->values_len == vl->values_len);
@@ -689,7 +689,7 @@ static int cx_config_add_values (const char *name, cx_xpath_t *xpath, /* {{{ */
   xpath->values = (cx_values_t *) malloc (sizeof (cx_values_t) * ci->values_num);
   if (xpath->values == NULL)
     return (-1);
-  xpath->values_len = ci->values_num;
+  xpath->values_len = (size_t) ci->values_num;
 
   /* populate cx_values_t structure */
   for (i = 0; i < ci->values_num; i++)

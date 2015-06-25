@@ -371,10 +371,10 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
     BAIL_OUT (-1);
   }
 
-  if (((size_t) prep_area->ds->ds_num) != r->values_num)
+  if (prep_area->ds->ds_num != r->values_num)
   {
     ERROR ("db query utils: udb_result_prepare_result: The type `%s' "
-        "requires exactly %i value%s, but the configuration specifies %zu.",
+        "requires exactly %zu value%s, but the configuration specifies %zu.",
         r->type,
         prep_area->ds->ds_num, (prep_area->ds->ds_num == 1) ? "" : "s",
         r->values_num);
