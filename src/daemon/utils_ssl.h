@@ -1,6 +1,7 @@
 /**
  * collectd - src/utils_ssl.h
- * Copyright (C) 2015  Florian octo Forster
+ * Copyright (C) 2015  Toni Moreno
+ * Copyright (C) 1998 - 2011, Daniel Stenberg, <daniel@haxx.se>, et al.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,7 +17,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Author:
- *   Florian octo Forster <octo at verplant.org>
+ *   Toni Moreno <toni.moreno at gmail.com>
  **/
 
 #ifndef UTILS_SSL_H

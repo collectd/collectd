@@ -1,6 +1,7 @@
 /**
  * collectd - src/utils_ssl.c
  * Copyright (C) 2015  Toni Moreno
+ * Copyright (C) 1998 - 2011, Daniel Stenberg, <daniel@haxx.se>, et al.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -23,11 +24,8 @@
  * http://curl.haxx.se/libcurl/c/opensslthreadlock.html
  **/
 
-#if HAVE_CONFIG_H
-# include "config.h"
-#endif
+#include "collectd.h"
 
-# include "plugin.h"
 # include "utils_ssl.h"
 
 #ifndef HAVE_OPENSSL

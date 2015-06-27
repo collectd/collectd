@@ -612,14 +612,7 @@ static int apache_init (void) /* {{{ */
 {
 	/* Call this while collectd is still single-threaded to avoid
 	 * initialization issues in libgcrypt. */
-	if(cd_ssl_multithread_setup() == SSL_MT_OK){
-		/*multithread ssl properly set*/
-		INFO(" Apache SSL multithread support successfully initialized");
-	} else {
-		/*multithread ssl not properly set 
-		if not complied with ssl/crypto libs or malloc() error*/
-		WARNING("SSL multithread support ERROR ( have been compiled with ssl libraries?)");
-	}
+	cd_ssl_multithread_setup();
 	curl_global_init (CURL_GLOBAL_SSL);
 	return 0;
 } /* }}} int apache_init */
