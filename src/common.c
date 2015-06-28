@@ -445,7 +445,7 @@ int escape_slashes (char *buf, int buf_len)
 	if (buf[0] == '/')
 		memmove (buf, buf + 1, buf_len - 1);
 
-	for (i = 0; i < buf_len - 1; i++)
+	for (i = 0; i < buf_len; i++)
 	{
 		if (buf[i] == '\0')
 			break;
