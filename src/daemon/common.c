@@ -1362,10 +1362,9 @@ counter_t counter_diff (counter_t old_value, counter_t new_value)
 	if (old_value > new_value)
 	{
 		if (old_value <= 4294967295U)
-			diff = (4294967295U - old_value) + new_value;
+			diff = (4294967295U - old_value) + new_value + 1;
 		else
-			diff = (18446744073709551615ULL - old_value)
-				+ new_value;
+			diff = (18446744073709551615ULL - old_value) + new_value + 1;
 	}
 	else
 	{
@@ -1516,7 +1515,8 @@ int value_to_rate (value_t *ret_rate, derive_t value, /* {{{ */
 	}
 	else if (ds_type == DS_TYPE_COUNTER)
 	{
-		ret_rate->gauge = (((counter_t)value) - state->last_value.counter) / interval;
+		counter_t diff = counter_diff (state->last_value.counter, (counter_t) value);
+		ret_rate->gauge = ((gauge_t) diff) / ((gauge_t) interval);
 		state->last_value.counter = (counter_t) value;
 	}
 	else if (ds_type == DS_TYPE_ABSOLUTE)

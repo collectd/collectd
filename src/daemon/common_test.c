@@ -338,6 +338,43 @@ DEF_TEST(parse_values)
   return (0);
 }
 
+DEF_TEST(value_to_rate)
+{
+  struct {
+    time_t t0;
+    time_t t1;
+    int ds_type;
+    value_t v0;
+    value_t v1;
+    gauge_t want;
+  } cases[] = {
+    { 0, 10, DS_TYPE_DERIVE,  {.derive  =    0}, {.derive = 1000},   NAN},
+    {10, 20, DS_TYPE_DERIVE,  {.derive  = 1000}, {.derive = 2000}, 100.0},
+    {20, 30, DS_TYPE_DERIVE,  {.derive  = 2000}, {.derive = 1800}, -20.0},
+    { 0, 10, DS_TYPE_COUNTER, {.counter =    0}, {.counter = 1000},   NAN},
+    {10, 20, DS_TYPE_COUNTER, {.counter = 1000}, {.counter = 5000}, 400.0},
+    /* 32bit wrap-around. */
+    {20, 30, DS_TYPE_COUNTER, {.counter = 4294967238}, {.counter =   42}, 10.0},
+    {30, 40, DS_TYPE_COUNTER, {.counter = 18446744073709551558ULL}, {.counter =   42}, 10.0},
+  };
+  size_t i;
+
+  for (i = 0; i < STATIC_ARRAY_SIZE (cases); i++) {
+    value_to_rate_state_t state = { cases[i].v0, TIME_T_TO_CDTIME_T (cases[i].t0) };
+    value_t got;
+
+    if (cases[i].t0 == 0) {
+      OK(value_to_rate (&got, cases[i].v1.derive, &state, cases[i].ds_type, TIME_T_TO_CDTIME_T (cases[i].t1)) == EAGAIN);
+      continue;
+    }
+
+    OK(value_to_rate (&got, cases[i].v1.derive, &state, cases[i].ds_type, TIME_T_TO_CDTIME_T (cases[i].t1)) == 0);
+    DBLEQ(cases[i].want, got.gauge);
+  }
+
+  return 0;
+}
+
 int main (void)
 {
   RUN_TEST(sstrncpy);
@@ -349,6 +386,7 @@ int main (void)
   RUN_TEST(escape_string);
   RUN_TEST(strunescape);
   RUN_TEST(parse_values);
+  RUN_TEST(value_to_rate);
 
   END_TEST;
 }
