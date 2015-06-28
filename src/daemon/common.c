@@ -514,7 +514,7 @@ int escape_slashes (char *buffer, size_t buffer_size)
 		buffer_len--;
 	}
 
-	for (i = 0; i < buffer_len - 1; i++)
+	for (i = 0; i < buffer_len; i++)
 	{
 		if (buffer[i] == '/')
 			buffer[i] = '_';
