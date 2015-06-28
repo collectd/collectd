@@ -213,6 +213,33 @@ DEF_TEST(escape_slashes)
   return 0;
 }
 
+DEF_TEST(escape_string)
+{
+  struct {
+    char *str;
+    char *want;
+  } cases[] = {
+    {"foobar", "foobar"},
+    {"f00bar", "f00bar"},
+    {"foo bar", "\"foo bar\""},
+    {"foo \"bar\"", "\"foo \\\"bar\\\"\""},
+    {"012345678901234", "012345678901234"},
+    {"012345 78901234", "\"012345 789012\""},
+    {"012345 78901\"34", "\"012345 78901\""},
+  };
+  size_t i;
+
+  for (i = 0; i < STATIC_ARRAY_SIZE (cases); i++) {
+    char buffer[16];
+
+    strncpy (buffer, cases[i].str, sizeof (buffer));
+    OK(escape_string (buffer, sizeof (buffer)) == 0);
+    STREQ(cases[i].want, buffer);
+  }
+
+  return 0;
+}
+
 DEF_TEST(strunescape)
 {
   char buffer[16];
@@ -319,6 +346,7 @@ int main (void)
   RUN_TEST(strsplit);
   RUN_TEST(strjoin);
   RUN_TEST(escape_slashes);
+  RUN_TEST(escape_string);
   RUN_TEST(strunescape);
   RUN_TEST(parse_values);
 
