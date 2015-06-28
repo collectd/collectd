@@ -189,6 +189,30 @@ DEF_TEST(strjoin)
   return (0);
 }
 
+DEF_TEST(escape_slashes)
+{
+  struct {
+    char *str;
+    char *want;
+  } cases[] = {
+    {"foo/bar/baz", "foo_bar_baz"},
+    {"/like/a/path", "like_a_path"},
+    {"trailing/slash/", "trailing_slash_"},
+    {"foo//bar", "foo__bar"},
+  };
+  size_t i;
+
+  for (i = 0; i < STATIC_ARRAY_SIZE (cases); i++) {
+    char buffer[32];
+
+    strncpy (buffer, cases[i].str, sizeof (buffer));
+    OK(escape_slashes (buffer, sizeof (buffer)) == 0);
+    STREQ(cases[i].want, buffer);
+  }
+
+  return 0;
+}
+
 DEF_TEST(strunescape)
 {
   char buffer[16];
@@ -294,6 +318,7 @@ int main (void)
   RUN_TEST(sstrdup);
   RUN_TEST(strsplit);
   RUN_TEST(strjoin);
+  RUN_TEST(escape_slashes);
   RUN_TEST(strunescape);
   RUN_TEST(parse_values);
 
