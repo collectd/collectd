@@ -1469,11 +1469,10 @@ int rate_to_value (value_t *ret_value, gauge_t rate, /* {{{ */
 	return (0);
 } /* }}} value_t rate_to_value */
 
-int value_to_rate (value_t *ret_rate, derive_t value, /* {{{ */
-		value_to_rate_state_t *state,
-		int ds_type, cdtime_t t)
+int value_to_rate (gauge_t *ret_rate, /* {{{ */
+		value_t value, int ds_type, cdtime_t t, value_to_rate_state_t *state)
 {
-	double interval;
+	gauge_t interval;
 
 	/* Another invalid state: The time is not increasing. */
 	if (t <= state->last_time)
@@ -1485,51 +1484,39 @@ int value_to_rate (value_t *ret_rate, derive_t value, /* {{{ */
 	interval = CDTIME_T_TO_DOUBLE(t - state->last_time);
 
 	/* Previous value is invalid. */
-	if (state->last_time == 0) /* {{{ */
+	if (state->last_time == 0)
 	{
-		if (ds_type == DS_TYPE_DERIVE)
-		{
-			state->last_value.derive = value;
-		}
-		else if (ds_type == DS_TYPE_COUNTER)
-		{
-			state->last_value.counter = (counter_t) value;
-		}
-		else if (ds_type == DS_TYPE_ABSOLUTE)
-		{
-			state->last_value.absolute = (absolute_t) value;
-		}
-		else
-		{
-			assert (23 == 42);
-		}
-
+		state->last_value = value;
 		state->last_time = t;
 		return (EAGAIN);
-	} /* }}} */
-
-	if (ds_type == DS_TYPE_DERIVE)
-	{
-		ret_rate->gauge = (value - state->last_value.derive) / interval;
-		state->last_value.derive = value;
-	}
-	else if (ds_type == DS_TYPE_COUNTER)
-	{
-		counter_t diff = counter_diff (state->last_value.counter, (counter_t) value);
-		ret_rate->gauge = ((gauge_t) diff) / ((gauge_t) interval);
-		state->last_value.counter = (counter_t) value;
-	}
-	else if (ds_type == DS_TYPE_ABSOLUTE)
-	{
-		ret_rate->gauge = (((absolute_t)value) - state->last_value.absolute) / interval;
-		state->last_value.absolute = (absolute_t) value;
-	}
-	else
-	{
-		assert (23 == 42);
 	}
 
-        state->last_time = t;
+	switch (ds_type) {
+	case DS_TYPE_DERIVE: {
+		derive_t diff = value.derive - state->last_value.derive;
+		*ret_rate = ((gauge_t) diff) / ((gauge_t) interval);
+		break;
+	}
+	case DS_TYPE_GAUGE: {
+		*ret_rate = value.gauge;
+		break;
+	}
+	case DS_TYPE_COUNTER: {
+		counter_t diff = counter_diff (state->last_value.counter, value.counter);
+		*ret_rate = ((gauge_t) diff) / ((gauge_t) interval);
+		break;
+	}
+	case DS_TYPE_ABSOLUTE: {
+		absolute_t diff = value.absolute;
+		*ret_rate = ((gauge_t) diff) / ((gauge_t) interval);
+		break;
+	}
+	default:
+		return EINVAL;
+	}
+
+	state->last_value = value;
+	state->last_time = t;
 	return (0);
 } /* }}} value_t rate_to_value */
 

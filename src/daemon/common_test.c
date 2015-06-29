@@ -362,15 +362,15 @@ DEF_TEST(value_to_rate)
 
   for (i = 0; i < STATIC_ARRAY_SIZE (cases); i++) {
     value_to_rate_state_t state = { cases[i].v0, TIME_T_TO_CDTIME_T (cases[i].t0) };
-    value_t got;
+    gauge_t got;
 
     if (cases[i].t0 == 0) {
-      OK(value_to_rate (&got, cases[i].v1.derive, &state, cases[i].ds_type, TIME_T_TO_CDTIME_T (cases[i].t1)) == EAGAIN);
+      OK(value_to_rate (&got, cases[i].v1, cases[i].ds_type, TIME_T_TO_CDTIME_T(cases[i].t1), &state) == EAGAIN);
       continue;
     }
 
-    OK(value_to_rate (&got, cases[i].v1.derive, &state, cases[i].ds_type, TIME_T_TO_CDTIME_T (cases[i].t1)) == 0);
-    DBLEQ(cases[i].want, got.gauge);
+    OK(value_to_rate (&got, cases[i].v1, cases[i].ds_type, TIME_T_TO_CDTIME_T(cases[i].t1), &state) == 0);
+    DBLEQ(cases[i].want, got);
   }
 
   return 0;
