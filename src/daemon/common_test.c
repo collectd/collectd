@@ -354,7 +354,8 @@ DEF_TEST(value_to_rate)
     { 0, 10, DS_TYPE_COUNTER, {.counter =    0}, {.counter = 1000},   NAN},
     {10, 20, DS_TYPE_COUNTER, {.counter = 1000}, {.counter = 5000}, 400.0},
     /* 32bit wrap-around. */
-    {20, 30, DS_TYPE_COUNTER, {.counter = 4294967238}, {.counter =   42}, 10.0},
+    {20, 30, DS_TYPE_COUNTER, {.counter = 4294967238ULL}, {.counter =   42}, 10.0},
+    /* 64bit wrap-around. */
     {30, 40, DS_TYPE_COUNTER, {.counter = 18446744073709551558ULL}, {.counter =   42}, 10.0},
   };
   size_t i;
