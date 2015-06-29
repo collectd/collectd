@@ -619,7 +619,7 @@ static Msg *riemann_value_list_to_protobuf (struct riemann_host const *host, /* 
 	msg__init (msg);
 
 	/* Set up events. First, the list of pointers. */
-	msg->n_events = (size_t) vl->values_len;
+	msg->n_events = vl->values_len;
 	msg->events = calloc (msg->n_events, sizeof (*msg->events));
 	if (msg->events == NULL)
 	{
@@ -789,6 +789,8 @@ static int riemann_write(const data_set_t *ds, /* {{{ */
 		status = write_riemann_threshold_check(ds, vl, statuses);
 		if (status != 0)
 			return status;
+	} else {
+		memset (statuses, 0, sizeof (statuses));
 	}
 
 	if (host->use_tcp == 1 && host->batch_mode) {
