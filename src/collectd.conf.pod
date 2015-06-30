@@ -7027,6 +7027,10 @@ by the hypervisor, which is equal to setting B<name>.
 
 B<uuid> means use the guest's UUID.
 
+You can also specify combinations of these fields. For example B<name uuid>
+means to concatenate the guest name and UUID (with a literal colon character
+between, thus I<"foo:1234-1234-1234-1234">).
+
 =back
 
 =head2 Plugin C<vmem>
