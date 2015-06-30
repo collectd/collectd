@@ -128,7 +128,7 @@ enum plginst_field {
 };
 
 static enum plginst_field plugin_instance_format[PLGINST_MAX_FIELDS] =
-    { plginst_name };
+    { plginst_none };
 
 /* InterfaceFormat. */
 enum if_field {
@@ -449,7 +449,10 @@ lv_config (const char *key, const char *value)
         }
 
         for (i = 0; i < n; ++i) {
-            if (strcasecmp (fields[i], "name") == 0)
+            if (strcasecmp (fields[i], "none") == 0) {
+                plugin_instance_format[i] = plginst_none;
+                break;
+            } else if (strcasecmp (fields[i], "name") == 0)
                 plugin_instance_format[i] = plginst_name;
             else if (strcasecmp (fields[i], "uuid") == 0)
                 plugin_instance_format[i] = plginst_uuid;
