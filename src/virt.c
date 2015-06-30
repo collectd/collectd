@@ -455,7 +455,7 @@ lv_config (const char *key, const char *value)
                 plugin_instance_format[i] = plginst_uuid;
             else {
                 sfree (value_copy);
-                ERROR (PLUGIN_NAME " plugin: unknown HostnameFormat field: %s", fields[i]);
+                ERROR (PLUGIN_NAME " plugin: unknown PluginInstanceFormat field: %s", fields[i]);
                 return -1;
             }
         }
