@@ -8676,6 +8676,8 @@ Available options:
 
 =item B<TypeInstance> I<String>
 
+=item B<MetaDataSet> I<String> I<String>
+
 Set the appropriate field to the given string. The strings for plugin instance
 and type instance may be empty, the strings for host and plugin may not be
 empty. It's currently not possible to set the type of a value this way.
