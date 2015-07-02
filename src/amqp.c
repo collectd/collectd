@@ -40,6 +40,7 @@
 
 #ifdef HAVE_AMQP_TCP_SOCKET_H
 # include <amqp_tcp_socket.h>
+# include <amqp_ssl_socket.h>
 #endif
 #ifdef HAVE_AMQP_SOCKET_H
 # include <amqp_socket.h>
@@ -63,6 +64,8 @@ int amqp_socket_close(amqp_socket_t *);
 
 #define CAMQP_CHANNEL 1
 
+#define CAMQP_ENABLE_SSL 1
+
 /*
  * Data types
  */
@@ -76,6 +79,11 @@ struct camqp_config_s
     char   *vhost;
     char   *user;
     char   *password;
+
+    _Bool  ssl_enabled;
+    char   *ssl_ca_cert;
+    char   *ssl_client_key;
+    char   *ssl_client_cert;
 
     char   *exchange;
     char   *routing_key;
@@ -157,6 +165,9 @@ static void camqp_config_free (void *ptr) /* {{{ */
     sfree (conf->routing_key);
     sfree (conf->prefix);
     sfree (conf->postfix);
+    sfree (conf->ssl_ca_cert);
+    sfree (conf->ssl_client_key);
+    sfree (conf->ssl_client_cert);
 
 
     sfree (conf);
@@ -449,14 +460,45 @@ static int camqp_connect (camqp_config_t *conf) /* {{{ */
 # define CLOSE_SOCKET() /* amqp_destroy_connection() closes the socket for us */
     /* TODO: add support for SSL using amqp_ssl_socket_new
      *       and related functions */
-    socket = amqp_tcp_socket_new (conf->connection);
-    if (! socket)
+    if (conf->ssl_enabled)
     {
-        ERROR ("amqp plugin: amqp_tcp_socket_new failed.");
-        amqp_destroy_connection (conf->connection);
-        conf->connection = NULL;
-        return (ENOMEM);
+        socket = amqp_ssl_socket_new (conf->connection);
+        if (! socket)
+        {
+            ERROR ("amqp plugin: amqp_ssl_socket_new failed.");
+            amqp_destroy_connection (conf->connection);
+            conf->connection = NULL;
+            return (ENOMEM);
+        }
+        status = amqp_ssl_socket_set_cacert(socket, conf->ssl_ca_cert);
+        if (status)
+        {
+            ERROR ("amqp plugin: amqp_ssl_socket_set_cacert failed.");
+            amqp_destroy_connection (conf->connection);
+            conf->connection = NULL;
+            return (ENOMEM);
+        }
+        status = amqp_ssl_socket_set_key(socket, conf->ssl_client_cert, conf->ssl_client_key);
+        if (status)
+        {
+            ERROR ("amqp plugin: amqp_ssl_socket_set_key failed. key: %s cert: %s",conf->ssl_client_key,conf->ssl_client_cert);
+            amqp_destroy_connection (conf->connection);
+            conf->connection = NULL;
+            return (ENOMEM);
+        }
     }
+    else
+    {
+        socket = amqp_tcp_socket_new (conf->connection);
+        if (! socket)
+        {
+            ERROR ("amqp plugin: amqp_tcp_socket_new failed.");
+            amqp_destroy_connection (conf->connection);
+            conf->connection = NULL;
+            return (ENOMEM);
+        }
+    }
+
 
     status = amqp_socket_open (socket, CONF(conf, host), conf->port);
     if (status < 0)
@@ -959,6 +1001,13 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
     conf->queue = NULL;
     conf->queue_durable = 0;
     conf->queue_auto_delete = 1;
+
+    /* ssl */
+    conf->ssl_enabled = NULL;
+    conf->ssl_ca_cert = NULL;
+    conf->ssl_client_key = NULL;
+    conf->ssl_client_cert = NULL;
+
     /* general */
     conf->connection = NULL;
     pthread_mutex_init (&conf->lock, /* attr = */ NULL);
@@ -1043,6 +1092,14 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
         }
         else if (strcasecmp ("ConnectionRetryDelay", child->key) == 0)
             status = cf_util_get_int (child, &conf->connection_retry_delay);
+        else if (strcasecmp ("SSLEnabled", child->key) == 0)
+            status = cf_util_get_boolean (child, &conf->ssl_enabled);
+        else if (strcasecmp ("SSLCACert", child->key) == 0)
+            status = cf_util_get_string (child, &conf->ssl_ca_cert);
+        else if (strcasecmp ("SSLClientCert", child->key) == 0)
+            status = cf_util_get_string (child, &conf->ssl_client_cert);
+        else if (strcasecmp ("SSLClientKey", child->key) == 0)
+            status = cf_util_get_string (child, &conf->ssl_client_key);
         else
             WARNING ("amqp plugin: Ignoring unknown "
                     "configuration option \"%s\".", child->key);
