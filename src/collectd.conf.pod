@@ -7198,6 +7198,75 @@ more than one DS.
 
 =back
 
+=head3 Note about rules and metadata
+
+The C<write_tsdb> plugin recognizes metadata :
+
+=over 4
+
+=item B<tsdb_prefix> B<Prefix>
+
+If set, metric name will be prefixed with B<Prefix>.
+
+Note : B<tsdb_prefix> also applies when you define B<tsdb_id>.
+
+=item B<tsdb_id> B<Id>
+
+When you define B<tsdb_id>, the metric name is not calculated but is B<Id> (with prefix if you defined B<tsdb_prefix>).
+
+=item B<tsdb_tag_plugin> B<tag_key>
+
+=item B<tsdb_tag_pluginInstance> B<tag_key>
+
+=item B<tsdb_tag_type> B<tag_key>
+
+=item B<tsdb_tag_typeInstance> B<tag_key>
+
+=item B<tsdb_tag_dsname> B<tag_key>
+
+If a B<tsdb_tag_*> is defined, the related item is removed from the metric name. If B<tag_key> is not empty,
+a tag will be added with key B<tag_key> and value the item.
+
+=back
+
+Example without B<tsdb_tag_*> :
+
+  cpu.1.cpu.user
+
+Same example with  :
+  tsdb_tag_pluginInstance = "cpu"
+  tsdb_tag_type = ""
+
+We get :
+  cpu.user cpu=1
+
+In this example, pluginInstance (named "1") is removed from the metric name and is set as a tag named "cpu".
+The type (named "cpu") is removed because B<tsdb_tag_type> is defined but is empty.
+
+You can define tags with filter rules and target_set :
+
+  <Chain "PreCache">
+    <Rule "opentsdb_cpu">
+      <Match "regex">
+        Plugin "^cpu$"
+      </Match>
+      <Target "set">
+        MetaDataSet "tsdb_tag_pluginInstance" "cpu"
+        MetaDataSet "tsdb_tag_type" ""
+      </Target>
+    </Rule>
+    <Rule "opentsdb_prefix">
+      <Match "regex">
+        Host "^"
+      </Match>
+      <Target "set">
+        MetaDataSet "tsdb_prefix" "sys."
+      </Target>
+    </Rule>
+  </Chain>
+
+This example will replace (for example) "cpu.1.cpu.user" with "sys.cpu.user cpu=1"
+
 =head2 Plugin C<write_mongodb>
 
 The I<write_mongodb plugin> will send values to I<MongoDB>, a schema-less
