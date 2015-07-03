@@ -513,7 +513,9 @@ are disabled by default.
 The I<AMQMP plugin> can be used to communicate with other instances of
 I<collectd> or third party applications using an AMQP message broker. Values
 are sent to or received from the broker, which handles routing, queueing and
-possibly filtering or messages.
+possibly filtering out messages.
+
+B<Synopsis:>
 
  <Plugin "amqp">
    # Send values to an AMQP broker
@@ -3230,6 +3232,114 @@ B<Collect> option is mandatory.
 =back
 
 =back
+
+=back
+
+=head2 Plugin C<mqtt>
+
+The I<MQTT plugin> can send metrics to MQTT (B<Publish> blocks) and receive
+values from MQTT (B<Subscribe> blocks).
+
+B<Synopsis:>
+
+ <Plugin mqtt>
+   <Publish "name">
+     Host "mqtt.example.com"
+     Prefix "collectd"
+   </Publish>
+   <Subscribe "name">
+     Host "mqtt.example.com"
+     Topic "collectd/#"
+   </Subscribe>
+ </Plugin>
+
+The plugin's configuration is in B<Publish> and/or B<Subscribe> blocks,
+configuring the sending and receiving direction respectively. The plugin will
+register a write callback named C<mqtt/I<name>> where I<name> is the string
+argument given to the B<Publish> block. Both types of blocks share many but not
+all of the following options. If an option is valid in only one of the blocks,
+it will be mentioned explicitly.
+
+B<Options:>
+
+=over 4
+
+=item B<Host> I<Hostname>
+
+Hostname of the MQTT broker to connect to.
+
+=item B<Port> I<Service>
+
+Port number or service name of the MQTT broker to connect to.
+
+=item B<User> I<UserName>
+
+Username used when authenticating to the MQTT broker.
+
+=item B<Password> I<Password>
+
+Password used when authenticating to the MQTT broker.
+
+=item B<ClientId> I<ClientId>
+
+MQTT client ID to use. Defaults to the hostname used by I<collectd>.
+
+=item B<QoS> [B<0>-B<2>]
+
+Sets the I<Quality of Service>, with the values C<0>, C<1> and C<2> meaning:
+
+=over 4
+
+=item B<0>
+
+At most once
+
+=item B<1>
+
+At least once
+
+=item B<2>
+
+Exactly once
+
+=back
+
+In B<Publish> blocks, this option determines the QoS flag set on outgoing
+messages and defaults to B<0>. In B<Subscribe> blocks, determines the maximum
+QoS setting the client is going to accept and defaults to B<2>. If the QoS flag
+on a message is larger than the maximum accepted QoS of a subscriber, the
+message's QoS will be downgraded.
+
+=item B<Prefix> I<Prefix> (Publish only)
+
+This plugin will use one topic per I<value list> which will looks like a path.
+I<Prefix> is used as the first path element and defaults to B<collectd>.
+
+An example topic name would be:
+
+ collectd/cpu-0/cpu-user
+
+=item B<Retain> B<false>|B<true> (Publish only)
+
+Controls whether the MQTT broker will retain (keep a copy of) the last message
+sent to each topic and deliver it to new subscribers. Defaults to B<false>.
+
+=item B<StoreRates> B<true>|B<false> (Publish only)
+
+Controls whether C<DERIVE> and C<COUNTER> metrics are converted to a I<rate>
+before sending. Defaults to B<true>.
+
+=item B<CleanSession> B<true>|B<false> (Subscribe only)
+
+Controls whether the MQTT "cleans" the session up after the subscriber
+disconnects or if it maintains the subscriber's subscriptions and all messages
+that arrive while the subscriber is disconnected. Defaults to B<true>.
+
+=item B<Topic> I<TopicName> (Subscribe only)
+
+Configures the topic(s) to subscribe to. You can use the single level C<+> and
+multi level C<#> wildcards. Defaults to B<collectd/#>, i.e. all topics beneath
+the B<collectd> branch.
 
 =back
 

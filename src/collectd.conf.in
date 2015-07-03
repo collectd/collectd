@@ -139,6 +139,7 @@
 #@BUILD_PLUGIN_MEMCACHED_TRUE@LoadPlugin memcached
 @BUILD_PLUGIN_MEMORY_TRUE@@BUILD_PLUGIN_MEMORY_TRUE@LoadPlugin memory
 #@BUILD_PLUGIN_MODBUS_TRUE@LoadPlugin modbus
+#@BUILD_PLUGIN_MQTT_TRUE@LoadPlugin mqtt
 #@BUILD_PLUGIN_MULTIMETER_TRUE@LoadPlugin multimeter
 #@BUILD_PLUGIN_MYSQL_TRUE@LoadPlugin mysql
 #@BUILD_PLUGIN_NETAPP_TRUE@LoadPlugin netapp
@@ -669,6 +670,30 @@
 #			Collect "data_name"
 #		</Slave>
 #	</Host>
+#</Plugin>
+
+#<Plugin mqtt>
+#	<Publish "name">
+#		Host "localhost"
+#		Port 1883
+#		ClientId "localhost"
+#		User "user"
+#		Password "secret"
+#		QoS 0
+#		Prefix "collectd"
+#		StoreRates true
+#		Retain false
+#	</Publish>
+#	<Subscribe "name">
+#		Host "localhost"
+#		Port 1883
+#		ClientId "localhost"
+#		User "user"
+#		Password "secret"
+#		QoS 2
+#		Topic "collectd/#"
+#		CleanSession true
+#	</Subscribe>
 #</Plugin>
 
 #<Plugin mysql>
