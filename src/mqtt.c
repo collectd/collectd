@@ -45,6 +45,10 @@
 #define MQTT_DEFAULT_PORT           1883
 #define MQTT_DEFAULT_TOPIC_PREFIX   "collectd"
 #define MQTT_DEFAULT_TOPIC          "collectd/#"
+#ifndef MQTT_KEEPALIVE
+# define MQTT_KEEPALIVE 60
+#endif
+
 
 /*
  * Data types
@@ -277,7 +281,7 @@ static int mqtt_connect (mqtt_client_conf_t *conf)
     }
 
     status = mosquitto_connect (conf->mosq, conf->host, conf->port,
-            /* keepalive = */ 10, /* clean session = */ conf->clean_session);
+            /* keepalive = */ MQTT_KEEPALIVE, /* clean session = */ conf->clean_session);
     if (status != MOSQ_ERR_SUCCESS)
     {
         char errbuf[1024];
