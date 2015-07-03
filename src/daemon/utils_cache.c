@@ -411,23 +411,7 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
     {
       case DS_TYPE_COUNTER:
 	{
-	  counter_t diff;
-
-	  /* check if the counter has wrapped around */
-	  if (vl->values[i].counter < ce->values_raw[i].counter)
-	  {
-	    if (ce->values_raw[i].counter <= 4294967295U)
-	      diff = (4294967295U - ce->values_raw[i].counter)
-		+ vl->values[i].counter;
-	    else
-	      diff = (18446744073709551615ULL - ce->values_raw[i].counter)
-		+ vl->values[i].counter;
-	  }
-	  else /* counter has NOT wrapped around */
-	  {
-	    diff = vl->values[i].counter - ce->values_raw[i].counter;
-	  }
-
+	  counter_t diff = counter_diff (ce->values_raw[i].counter, vl->values[i].counter);
 	  ce->values_gauge[i] = ((double) diff)
 	    / (CDTIME_T_TO_DOUBLE (vl->time - ce->last_time));
 	  ce->values_raw[i].counter = vl->values[i].counter;
@@ -441,9 +425,7 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
 
       case DS_TYPE_DERIVE:
 	{
-	  derive_t diff;
-
-	  diff = vl->values[i].derive - ce->values_raw[i].derive;
+	  derive_t diff = vl->values[i].derive - ce->values_raw[i].derive;
 
 	  ce->values_gauge[i] = ((double) diff)
 	    / (CDTIME_T_TO_DOUBLE (vl->time - ce->last_time));
