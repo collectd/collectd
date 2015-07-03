@@ -34,6 +34,7 @@
 struct srrd_create_args_s
 {
   char *filename;
+  int async_limit;
   unsigned long pdp_step;
   time_t last_up;
   int argc;
@@ -75,6 +76,7 @@ static pthread_mutex_t librrd_lock = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
 static async_create_file_t *async_creation_list = NULL;
+static size_t async_creation_list_size = 0;
 static pthread_mutex_t async_creation_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /*
@@ -108,6 +110,7 @@ static void srrd_create_args_destroy (srrd_create_args_t *args)
 } /* void srrd_create_args_destroy */
 
 static srrd_create_args_t *srrd_create_args_create (const char *filename,
+    int async_limit,
     unsigned long pdp_step, time_t last_up,
     int argc, const char **argv)
 {
@@ -121,6 +124,7 @@ static srrd_create_args_t *srrd_create_args_create (const char *filename,
   }
   memset (args, 0, sizeof (*args));
   args->filename = NULL;
+  args->async_limit = async_limit;
   args->pdp_step = pdp_step;
   args->last_up = last_up;
   args->argv = NULL;
@@ -129,7 +133,7 @@ static srrd_create_args_t *srrd_create_args_create (const char *filename,
   if (args->filename == NULL)
   {
     ERROR ("srrd_create_args_create: strdup failed.");
-    srrd_create_args_destroy (args);
+    srrd_create_args_destroy (args); free(args); args = NULL;
     return (NULL);
   }
 
@@ -137,7 +141,7 @@ static srrd_create_args_t *srrd_create_args_create (const char *filename,
   if (args->argv == NULL)
   {
     ERROR ("srrd_create_args_create: calloc failed.");
-    srrd_create_args_destroy (args);
+    srrd_create_args_destroy (args); free(args); args = NULL;
     return (NULL);
   }
 
@@ -147,7 +151,7 @@ static srrd_create_args_t *srrd_create_args_create (const char *filename,
     if (args->argv[args->argc] == NULL)
     {
       ERROR ("srrd_create_args_create: strdup failed.");
-      srrd_create_args_destroy (args);
+      srrd_create_args_destroy (args); free(args); args = NULL;
       return (NULL);
     }
   }
@@ -463,13 +467,31 @@ static int srrd_create (const char *filename, /* {{{ */
 } /* }}} int srrd_create */
 #endif /* !HAVE_THREADSAFE_LIBRRD */
 
-static int lock_file (char const *filename) /* {{{ */
+static void update_async_creation_list_size() { /* {{{ */
+  async_create_file_t *ptr;
+  /* WARNING : you have to lock &async_creation_lock
+   * before calling this function !!!
+   * (and unlock afer).
+   */
+  async_creation_list_size = 0;
+  for (ptr = async_creation_list; ptr != NULL; ptr = ptr->next)
+    async_creation_list_size++;
+
+  return;
+} /* }}} */
+
+static int lock_file (char const *filename, int async_limit) /* {{{ */
 {
   async_create_file_t *ptr;
   struct stat sb;
   int status;
 
   pthread_mutex_lock (&async_creation_lock);
+
+  if((async_limit > 0) && (async_creation_list_size >= async_limit)) {
+    pthread_mutex_unlock (&async_creation_lock);
+    return (EBUSY);
+  }
 
   for (ptr = async_creation_list; ptr != NULL; ptr = ptr->next)
     if (strcmp (filename, ptr->filename) == 0)
@@ -505,6 +527,7 @@ static int lock_file (char const *filename) /* {{{ */
 
   ptr->next = async_creation_list;
   async_creation_list = ptr;
+  async_creation_list_size += 1;
 
   pthread_mutex_unlock (&async_creation_lock);
 
@@ -529,6 +552,10 @@ static int unlock_file (char const *filename) /* {{{ */
 
   if (this == NULL)
   {
+    /* We should have found the file name, but have not.
+     * Maybe the count is bad ? Let's update it here.
+     */
+    update_async_creation_list_size();
     pthread_mutex_unlock (&async_creation_lock);
     return (ENOENT);
   }
@@ -545,6 +572,8 @@ static int unlock_file (char const *filename) /* {{{ */
   }
   this->next = NULL;
 
+  async_creation_list_size -= 1;
+
   pthread_mutex_unlock (&async_creation_lock);
 
   sfree (this->filename);
@@ -559,16 +588,19 @@ static void *srrd_create_thread (void *targs) /* {{{ */
   char tmpfile[PATH_MAX];
   int status;
 
-  status = lock_file (args->filename);
+  status = lock_file (args->filename, args->async_limit);
   if (status != 0)
   {
     if (status == EEXIST)
       NOTICE ("srrd_create_thread: File \"%s\" is already being created.",
           args->filename);
+    else if (status == EBUSY)
+      NOTICE ("srrd_create_thread: Too many files being created at the same time. File \"%s\" will be created later",
+          args->filename);
     else
       ERROR ("srrd_create_thread: Unable to lock file \"%s\".",
           args->filename);
-    srrd_create_args_destroy (args);
+    srrd_create_args_destroy (args); free(args); args = NULL;
     return (0);
   }
 
@@ -582,7 +614,7 @@ static void *srrd_create_thread (void *targs) /* {{{ */
         args->filename, status);
     unlink (tmpfile);
     unlock_file (args->filename);
-    srrd_create_args_destroy (args);
+    srrd_create_args_destroy (args); free(args); args = NULL;
     return (0);
   }
 
@@ -595,7 +627,7 @@ static void *srrd_create_thread (void *targs) /* {{{ */
         sstrerror (errno, errbuf, sizeof (errbuf)));
     unlink (tmpfile);
     unlock_file (args->filename);
-    srrd_create_args_destroy (args);
+    srrd_create_args_destroy (args); free(args); args = NULL;
     return (0);
   }
 
@@ -603,12 +635,13 @@ static void *srrd_create_thread (void *targs) /* {{{ */
       args->filename);
 
   unlock_file (args->filename);
-  srrd_create_args_destroy (args);
+  srrd_create_args_destroy (args); free(args); args = NULL;
 
   return (0);
 } /* }}} void *srrd_create_thread */
 
 static int srrd_create_async (const char *filename, /* {{{ */
+    int async_limit,
     unsigned long pdp_step, time_t last_up,
     int argc, const char **argv)
 {
@@ -617,16 +650,33 @@ static int srrd_create_async (const char *filename, /* {{{ */
   pthread_attr_t attr;
   int status;
 
+  if((async_limit > 0) && (async_creation_list_size >= async_limit)) {
+    /* NOTE : async_creation_list_size is a shared var. However, we only read it
+     * so there should not be any conflict.
+     *
+     * If the limit is reached here, no need to create a thread. We leave.
+     * If the limit is not reached here, it will be checked again in the thread
+     * so we have a reliable number of files being created at the same time.
+     *
+     * The number of threads is harder to control than the number of files being
+     * created at the same time because threads are in detached state while files are
+     * locked and unlocked and we keep the count of locked files.
+     */
+    NOTICE ("srrd_create_async: Too many files being created at the same time. File \"%s\" will be created later",
+        filename);
+    return (-1);
+  }
+
   DEBUG ("srrd_create_async: Creating \"%s\" in the background.", filename);
 
-  args = srrd_create_args_create (filename, pdp_step, last_up, argc, argv);
+  args = srrd_create_args_create (filename, async_limit, pdp_step, last_up, argc, argv);
   if (args == NULL)
     return (-1);
 
   status = pthread_attr_init (&attr);
   if (status != 0)
   {
-    srrd_create_args_destroy (args);
+    srrd_create_args_destroy (args); free(args); args = NULL;
     return (-1);
   }
 
@@ -634,7 +684,7 @@ static int srrd_create_async (const char *filename, /* {{{ */
   if (status != 0)
   {
     pthread_attr_destroy (&attr);
-    srrd_create_args_destroy (args);
+    srrd_create_args_destroy (args); free(args); args = NULL;
     return (-1);
   }
 
@@ -645,7 +695,7 @@ static int srrd_create_async (const char *filename, /* {{{ */
     ERROR ("srrd_create_async: pthread_create failed: %s",
         sstrerror (status, errbuf, sizeof (errbuf)));
     pthread_attr_destroy (&attr);
-    srrd_create_args_destroy (args);
+    srrd_create_args_destroy (args); free(args); args = NULL;
     return (status);
   }
 
@@ -715,7 +765,7 @@ int cu_rrd_create_file (const char *filename, /* {{{ */
 
   if (cfg->async)
   {
-    status = srrd_create_async (filename, stepsize, last_up,
+    status = srrd_create_async (filename, cfg->async_limit, stepsize, last_up,
         argc, (const char **) argv);
     if (status != 0)
       WARNING ("cu_rrd_create_file: srrd_create_async (%s) "
