@@ -127,6 +127,15 @@ mysql_innodb_row_lock	value:DERIVE:0:U
 mysql_innodb_rows	value:DERIVE:0:U
 mysql_select		value:DERIVE:0:U
 mysql_sort		value:DERIVE:0:U
+nfsclient_sends		value:DERIVE:0:U
+nfsclient_backlog	value:DERIVE:0:U
+nfsclient_ops		read:DERIVE:0:U, write:DERIVE:0:U
+nfsclient_kilobytes	read:DERIVE:0:U, write:DERIVE:0:U
+nfsclient_kbperop	read:GAUGE:0:U, write:GAUGE:0:U
+nfsclient_retrans	read:GAUGE:0:U, write:GAUGE:0:U
+nfsclient_retrans_percent	read:GAUGE:0:U, write:GAUGE:0:U
+nfsclient_rtt	read:GAUGE:0:U, write:GAUGE:0:U
+nfsclient_exe	read:GAUGE:0:U, write:GAUGE:0:U
 nfs_procedure		value:DERIVE:0:U
 nginx_connections	value:GAUGE:0:U
 nginx_requests		value:DERIVE:0:U
