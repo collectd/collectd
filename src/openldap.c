@@ -38,6 +38,8 @@ struct cldap_s /* {{{ */
 {
 	char *name;
 
+	char *binddn;
+	char *password;
 	char *cacert;
 	char *host;
 	int   state;
@@ -56,6 +58,8 @@ static void cldap_free (cldap_t *st) /* {{{ */
 	if (st == NULL)
 		return;
 
+	sfree (st->binddn);
+	sfree (st->password);
 	sfree (st->cacert);
 	sfree (st->host);
 	sfree (st->name);
@@ -110,10 +114,19 @@ static int cldap_init_host (cldap_t *st) /* {{{ */
 	}
 
 	struct berval cred;
-	cred.bv_val = "";
-	cred.bv_len = 0;
+	if (st->password != NULL)
+	{
+		cred.bv_val = st->password;
+		cred.bv_len = strlen (st->password);
+	}
+	else
+	{
+		cred.bv_val = "";
+		cred.bv_len = 0;
+	}
 
-	rc = ldap_sasl_bind_s (st->ld, NULL, NULL, &cred, NULL, NULL, NULL);
+	rc = ldap_sasl_bind_s (st->ld, st->binddn, LDAP_SASL_SIMPLE, &cred, 
+			NULL, NULL, NULL);
 	if (rc != LDAP_SUCCESS)
 	{
 		ERROR ("openldap plugin: Failed to bind to %s: %s",
@@ -559,7 +572,11 @@ static int cldap_config_add (oconfig_item_t *ci) /* {{{ */
 	{
 		oconfig_item_t *child = ci->children + i;
 
-		if (strcasecmp ("CACert", child->key) == 0)
+		if (strcasecmp ("BindDN", child->key) == 0)
+			status = cf_util_get_string (child, &st->binddn);
+		else if (strcasecmp ("Password", child->key) == 0)
+			status = cf_util_get_string (child, &st->password);
+		else if (strcasecmp ("CACert", child->key) == 0)
 			status = cf_util_get_string (child, &st->cacert);
 		else if (strcasecmp ("StartTLS", child->key) == 0)
 			status = cf_util_get_boolean (child, &st->starttls);
@@ -604,7 +621,8 @@ static int cldap_config_add (oconfig_item_t *ci) /* {{{ */
 				st->name, st->url);
 			status = -1;
 		}
-		else
+
+		if ((status == 0) && (ludpp->lud_host != NULL))
 		{
 			st->host = strdup (ludpp->lud_host);
 		}

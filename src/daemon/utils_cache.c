@@ -37,7 +37,7 @@
 typedef struct cache_entry_s
 {
 	char name[6 * DATA_MAX_NAME_LEN];
-	int        values_num;
+	size_t     values_num;
 	gauge_t   *values_gauge;
 	value_t   *values_raw;
 	/* Time contained in the package
@@ -79,7 +79,7 @@ static int cache_compare (const cache_entry_t *a, const cache_entry_t *b)
   return (strcmp (a->name, b->name));
 } /* int cache_compare */
 
-static cache_entry_t *cache_alloc (int values_num)
+static cache_entry_t *cache_alloc (size_t values_num)
 {
   cache_entry_t *ce;
 
@@ -128,7 +128,7 @@ static void cache_free (cache_entry_t *ce)
 
 static void uc_check_range (const data_set_t *ds, cache_entry_t *ce)
 {
-  int i;
+  size_t i;
 
   for (i = 0; i < ds->ds_num; i++)
   {
@@ -144,9 +144,9 @@ static void uc_check_range (const data_set_t *ds, cache_entry_t *ce)
 static int uc_insert (const data_set_t *ds, const value_list_t *vl,
     const char *key)
 {
-  int i;
   char *key_copy;
   cache_entry_t *ce;
+  size_t i;
 
   /* `cache_lock' has been locked by `uc_update' */
 
@@ -161,7 +161,7 @@ static int uc_insert (const data_set_t *ds, const value_list_t *vl,
   if (ce == NULL)
   {
     sfree (key_copy);
-    ERROR ("uc_insert: cache_alloc (%i) failed.", ds->ds_num);
+    ERROR ("uc_insert: cache_alloc (%zu) failed.", ds->ds_num);
     return (-1);
   }
 
@@ -303,7 +303,13 @@ int uc_check_timeout (void)
   pthread_mutex_unlock (&cache_lock);
 
   if (keys_len == 0)
+  {
+    /* realloc() may have been called for these. */
+    sfree (keys);
+    sfree (keys_time);
+    sfree (keys_interval);
     return (0);
+  }
 
   /* Call the "missing" callback for each value. Do this before removing the
    * value from the cache, so that callbacks can still access the data stored,
@@ -322,7 +328,6 @@ int uc_check_timeout (void)
     if (status != 0)
     {
       ERROR ("uc_check_timeout: parse_identifier_vl (\"%s\") failed.", keys[i]);
-      cache_free (ce);
       continue;
     }
 
@@ -368,7 +373,7 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
   char name[6 * DATA_MAX_NAME_LEN];
   cache_entry_t *ce = NULL;
   int status;
-  int i;
+  size_t i;
 
   if (FORMAT_VL (name, sizeof (name), vl) != 0)
   {
@@ -406,23 +411,7 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
     {
       case DS_TYPE_COUNTER:
 	{
-	  counter_t diff;
-
-	  /* check if the counter has wrapped around */
-	  if (vl->values[i].counter < ce->values_raw[i].counter)
-	  {
-	    if (ce->values_raw[i].counter <= 4294967295U)
-	      diff = (4294967295U - ce->values_raw[i].counter)
-		+ vl->values[i].counter;
-	    else
-	      diff = (18446744073709551615ULL - ce->values_raw[i].counter)
-		+ vl->values[i].counter;
-	  }
-	  else /* counter has NOT wrapped around */
-	  {
-	    diff = vl->values[i].counter - ce->values_raw[i].counter;
-	  }
-
+	  counter_t diff = counter_diff (ce->values_raw[i].counter, vl->values[i].counter);
 	  ce->values_gauge[i] = ((double) diff)
 	    / (CDTIME_T_TO_DOUBLE (vl->time - ce->last_time));
 	  ce->values_raw[i].counter = vl->values[i].counter;
@@ -436,9 +425,7 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
 
       case DS_TYPE_DERIVE:
 	{
-	  derive_t diff;
-
-	  diff = vl->values[i].derive - ce->values_raw[i].derive;
+	  derive_t diff = vl->values[i].derive - ce->values_raw[i].derive;
 
 	  ce->values_gauge[i] = ((double) diff)
 	    / (CDTIME_T_TO_DOUBLE (vl->time - ce->last_time));
@@ -460,7 +447,7 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
 	return (-1);
     } /* switch (ds->ds[i].type) */
 
-    DEBUG ("uc_update: %s: ds[%i] = %lf", name, i, ce->values_gauge[i]);
+    DEBUG ("uc_update: %s: ds[%zu] = %lf", name, i, ce->values_gauge[i]);
   } /* for (i) */
 
   /* Update the history if it exists. */
@@ -560,7 +547,7 @@ gauge_t *uc_get_rate (const data_set_t *ds, const value_list_t *vl)
    * values are returned. */
   if (ret_num != (size_t) ds->ds_num)
   {
-    ERROR ("utils_cache: uc_get_rate: ds[%s] has %i values, "
+    ERROR ("utils_cache: uc_get_rate: ds[%s] has %zu values, "
 	"but uc_get_rate_by_name returned %zu.",
 	ds->type, ds->ds_num, ret_num);
     sfree (ret);
@@ -648,12 +635,13 @@ int uc_get_names (char ***ret_names, cdtime_t **ret_times, size_t *ret_number)
   if (status != 0)
   {
     size_t i;
-    
+
     for (i = 0; i < number; i++)
     {
       sfree (names[i]);
     }
     sfree (names);
+    sfree (times);
 
     return (-1);
   }
@@ -661,6 +649,8 @@ int uc_get_names (char ***ret_names, cdtime_t **ret_times, size_t *ret_number)
   *ret_names = names;
   if (ret_times != NULL)
     *ret_times = times;
+  else
+    sfree (times);
   *ret_number = number;
 
   return (0);

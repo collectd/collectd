@@ -1366,6 +1366,7 @@
 #		Host "localhost"
 #		Port "6379"
 #		Timeout 1000
+#		Prefix "collectd/"
 #	</Node>
 #</Plugin>
 

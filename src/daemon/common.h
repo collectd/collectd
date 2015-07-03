@@ -357,8 +357,8 @@ counter_t counter_diff (counter_t old_value, counter_t new_value);
 int rate_to_value (value_t *ret_value, gauge_t rate,
 		rate_to_value_state_t *state, int ds_type, cdtime_t t);
 
-int value_to_rate (value_t *ret_rate, derive_t value,
-		value_to_rate_state_t *state, int ds_type, cdtime_t t);
+int value_to_rate (gauge_t *ret_rate, value_t value, int ds_type, cdtime_t t,
+		value_to_rate_state_t *state);
 
 /* Converts a service name (a string) to a port number
  * (in the range [1-65535]). Returns less than zero on error. */

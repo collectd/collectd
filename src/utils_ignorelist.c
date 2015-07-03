@@ -131,6 +131,7 @@ static int ignorelist_append_regex(ignorelist_t *il, const char *entry)
 		if (errsize)
 			sfree (regerr);
 		regfree (regtemp);
+		sfree (regtemp);
 		return (1);
 	}
 	DEBUG("regex compiled: %s - %i", entry, rcompile);
@@ -140,6 +141,7 @@ static int ignorelist_append_regex(ignorelist_t *il, const char *entry)
 	{
 		ERROR ("cannot allocate new config entry");
 		regfree (regtemp);
+		sfree (regtemp);
 		return (1);
 	}
 	memset (new, '\0', sizeof(ignorelist_item_t));
@@ -248,6 +250,7 @@ void ignorelist_free (ignorelist_t *il)
 		if (this->rmatch != NULL)
 		{
 			regfree (this->rmatch);
+			sfree (this->rmatch);
 			this->rmatch = NULL;
 		}
 #endif

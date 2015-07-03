@@ -45,7 +45,7 @@ static int value_list_to_string (char *buffer, int buffer_len,
 {
 	int offset;
 	int status;
-	int i;
+	size_t i;
 	gauge_t *rates = NULL;
 
 	assert (0 == strcmp (ds->type, vl->type));
@@ -184,7 +184,7 @@ static int value_list_to_filename (char *buffer, size_t buffer_size,
 static int csv_create_file (const char *filename, const data_set_t *ds)
 {
 	FILE *csv;
-	int i;
+	size_t i;
 
 	if (check_create_dir (filename))
 		return (-1);

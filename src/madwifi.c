@@ -368,14 +368,14 @@ static int init_state = 0;
 static inline int item_watched(int i)
 {
 	assert (i >= 0);
-	assert (i < ((STATIC_ARRAY_SIZE (watch_items) + 1) * 32));
+	assert (((size_t) i) < ((STATIC_ARRAY_SIZE (watch_items) + 1) * 32));
 	return watch_items[i / 32] & FLAG (i);
 }
 
 static inline int item_summed(int i)
 {
 	assert (i >= 0);
-	assert (i < ((STATIC_ARRAY_SIZE (misc_items) + 1) * 32));
+	assert (((size_t) i) < ((STATIC_ARRAY_SIZE (misc_items) + 1) * 32));
 	return misc_items[i / 32] & FLAG (i);
 }
 
@@ -420,8 +420,8 @@ static int watchitem_find (const char *name)
 
 static int madwifi_real_init (void)
 {
-	int max = STATIC_ARRAY_SIZE (specs);
-	int i;
+	size_t max = STATIC_ARRAY_SIZE (specs);
+	size_t i;
 
 	for (i = 0; i < STATIC_ARRAY_SIZE (bounds); i++)
 		bounds[i] = 0;
@@ -618,7 +618,7 @@ process_stat_struct (int which, const void *ptr, const char *dev, const char *ma
 	int i;
 
 	assert (which >= 1);
-	assert (which < STATIC_ARRAY_SIZE (bounds));
+	assert (((size_t) which) < STATIC_ARRAY_SIZE (bounds));
 
 	for (i = bounds[which - 1]; i < bounds[which]; i++)
 	{
@@ -754,7 +754,8 @@ process_stations (int sk, const char *dev)
 	uint8_t buf[24*1024];
 	struct iwreq iwr;
 	uint8_t *cp;
-	int len, nodes;
+	int nodes;
+	size_t len;
 	int status;
 
 	memset (&iwr, 0, sizeof (iwr));

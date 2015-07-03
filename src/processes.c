@@ -1031,9 +1031,9 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 	char *fields[64];
 	char  fields_len;
 
-	int   buffer_len;
+	size_t buffer_len;
 
-	char *buffer_ptr;
+	char  *buffer_ptr;
 	size_t name_start_pos;
 	size_t name_end_pos;
 	size_t name_len;
@@ -1044,14 +1044,16 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 	long long unsigned vmem_rss;
 	long long unsigned stack_size;
 
+	ssize_t status;
+
 	memset (ps, 0, sizeof (procstat_t));
 
 	ssnprintf (filename, sizeof (filename), "/proc/%i/stat", pid);
 
-	buffer_len = read_file_contents (filename,
-			buffer, sizeof(buffer) - 1);
-	if (buffer_len <= 0)
+	status = read_file_contents (filename, buffer, sizeof(buffer) - 1);
+	if (status <= 0)
 		return (-1);
+	buffer_len = (size_t) status;
 	buffer[buffer_len] = 0;
 
 	/* The name of the process is enclosed in parens. Since the name can
@@ -1328,16 +1330,16 @@ static const char *ps_get_cmdline (long pid, /* {{{ */
 {
 	char path[PATH_MAX];
 	psinfo_t info;
-	int status;
+	ssize_t status;
 
 	snprintf(path, sizeof (path), "/proc/%li/psinfo", pid);
 
 	status = read_file_contents (path, (void *) &info, sizeof (info));
-	if (status != sizeof (info))
+	if ((status < 0) || (((size_t) status) != sizeof (info)))
 	{
 		ERROR ("processes plugin: Unexpected return value "
 				"while reading \"%s\": "
-				"Returned %i but expected %zu.",
+				"Returned %zd but expected %zu.",
 				path, status, buffer_size);
 		return (NULL);
 	}

@@ -224,7 +224,6 @@ static int ctail_config_add_file (oconfig_item_t *ci)
   cdtime_t interval = 0;
   char *plugin_instance = NULL;
   int num_matches = 0;
-  int status;
   int i;
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
@@ -241,10 +240,10 @@ static int ctail_config_add_file (oconfig_item_t *ci)
     return (-1);
   }
 
-  status = 0;
   for (i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
+    int status = 0;
 
     if (strcasecmp ("Instance", option->key) == 0)
       status = cf_util_get_string (option, &plugin_instance);

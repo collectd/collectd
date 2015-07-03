@@ -618,7 +618,7 @@ static jobject ctoj_data_set (JNIEnv *jvm_env, const data_set_t *ds) /* {{{ */
   jmethodID m_add;
   jobject o_type;
   jobject o_dataset;
-  int i;
+  size_t i;
 
   /* Look up the org/collectd/api/DataSet class */
   c_dataset = (*jvm_env)->FindClass (jvm_env, "org/collectd/api/DataSet");
@@ -763,7 +763,7 @@ static jobject ctoj_value_list (JNIEnv *jvm_env, /* {{{ */
   jmethodID m_valuelist_constructor;
   jobject o_valuelist;
   int status;
-  int i;
+  size_t i;
 
   /* First, create a new ValueList instance..
    * Look up the class.. */
@@ -1817,6 +1817,7 @@ static cjni_callback_info_t *cjni_callback_info_create (JNIEnv *jvm_env, /* {{{ 
     pthread_mutex_unlock (&java_callbacks_lock);
     ERROR ("java plugin: cjni_callback_info_create: strdup failed.");
     (*jvm_env)->ReleaseStringUTFChars (jvm_env, o_name, c_name);
+    sfree (cbi);
     return (NULL);
   }
 
@@ -1826,7 +1827,8 @@ static cjni_callback_info_t *cjni_callback_info_create (JNIEnv *jvm_env, /* {{{ 
   if (cbi->object == NULL)
   {
     ERROR ("java plugin: cjni_callback_info_create: NewGlobalRef failed.");
-    free (cbi);
+    sfree (cbi->name);
+    sfree (cbi);
     return (NULL);
   }
 
@@ -1834,7 +1836,9 @@ static cjni_callback_info_t *cjni_callback_info_create (JNIEnv *jvm_env, /* {{{ 
   if (cbi->class == NULL)
   {
     ERROR ("java plugin: cjni_callback_info_create: GetObjectClass failed.");
-    free (cbi);
+    (*jvm_env)->DeleteGlobalRef (jvm_env, cbi->object);
+    sfree (cbi->name);
+    sfree (cbi);
     return (NULL);
   }
 
@@ -1845,7 +1849,9 @@ static cjni_callback_info_t *cjni_callback_info_create (JNIEnv *jvm_env, /* {{{ 
     ERROR ("java plugin: cjni_callback_info_create: "
         "Cannot find the `%s' method with signature `%s'.",
         method_name, method_signature);
-    free (cbi);
+    (*jvm_env)->DeleteGlobalRef (jvm_env, cbi->object);
+    sfree (cbi->name);
+    sfree (cbi);
     return (NULL);
   }
 
