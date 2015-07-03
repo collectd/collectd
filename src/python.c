@@ -46,6 +46,19 @@ typedef struct cpy_callback_s {
 
 static char log_doc[] = "This function sends a string to all logging plugins.";
 
+static char get_ds_doc[] = "get_dataset(name) -> definition\n"
+		"\n"
+		"Returns the definition of a dataset specified by name.\n"
+		"\n"
+		"'name' is a string specifying the dataset to query.\n"
+		"'definition' is a list of 4-tuples. Every tuple represents a \n"
+		"    data source within the data set and its 4 values are the \n"
+		"    name, type, min and max value.\n"
+		"    'name' is a string.\n"
+		"    'type' is a string that is equal to either DS_TYPE_COUNTER,\n"
+		"        DS_TYPE_GAUGE, DS_TYPE_DERIVE or DS_TYPE_ABSOLUTE.\n"
+		"    'min' and 'max' are either a float or None.";
+
 static char flush_doc[] = "flush([plugin][, timeout][, identifier]) -> None\n"
 		"\n"
 		"Flushes the cache of another plugin.";
@@ -332,7 +345,7 @@ static int cpy_read_callback(user_data_t *data) {
 }
 
 static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_list, user_data_t *data) {
-	int i;
+	size_t i;
 	cpy_callback_t *c = data->data;
 	PyObject *ret, *list, *temp, *dict = NULL;
 	Values *v;
@@ -345,22 +358,13 @@ static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_li
 		}
 		for (i = 0; i < value_list->values_len; ++i) {
 			if (ds->ds[i].type == DS_TYPE_COUNTER) {
-				if ((long) value_list->values[i].counter == value_list->values[i].counter)
-					PyList_SetItem(list, i, PyInt_FromLong(value_list->values[i].counter));
-				else
-					PyList_SetItem(list, i, PyLong_FromUnsignedLongLong(value_list->values[i].counter));
+				PyList_SetItem(list, i, PyLong_FromUnsignedLongLong(value_list->values[i].counter));
 			} else if (ds->ds[i].type == DS_TYPE_GAUGE) {
 				PyList_SetItem(list, i, PyFloat_FromDouble(value_list->values[i].gauge));
 			} else if (ds->ds[i].type == DS_TYPE_DERIVE) {
-				if ((long) value_list->values[i].derive == value_list->values[i].derive)
-					PyList_SetItem(list, i, PyInt_FromLong(value_list->values[i].derive));
-				else
-					PyList_SetItem(list, i, PyLong_FromLongLong(value_list->values[i].derive));
+				PyList_SetItem(list, i, PyLong_FromLongLong(value_list->values[i].derive));
 			} else if (ds->ds[i].type == DS_TYPE_ABSOLUTE) {
-				if ((long) value_list->values[i].absolute == value_list->values[i].absolute)
-					PyList_SetItem(list, i, PyInt_FromLong(value_list->values[i].absolute));
-				else
-					PyList_SetItem(list, i, PyLong_FromUnsignedLongLong(value_list->values[i].absolute));
+				PyList_SetItem(list, i, PyLong_FromUnsignedLongLong(value_list->values[i].absolute));
 			} else {
 				Py_BEGIN_ALLOW_THREADS
 				ERROR("cpy_write_callback: Unknown value type %d.", ds->ds[i].type);
@@ -548,7 +552,39 @@ static PyObject *cpy_register_generic(cpy_callback_t **list_head, PyObject *args
 	return cpy_string_to_unicode_or_bytes(buf);
 }
 
-static PyObject *cpy_flush(cpy_callback_t **list_head, PyObject *args, PyObject *kwds) {
+static PyObject *float_or_none(float number) {
+	if (isnan(number)) {
+		Py_RETURN_NONE;
+	}
+	return PyFloat_FromDouble(number);
+}
+
+static PyObject *cpy_get_dataset(PyObject *self, PyObject *args) {
+	size_t i;
+	char *name;
+	const data_set_t *ds;
+	PyObject *list, *tuple;
+
+	if (PyArg_ParseTuple(args, "et", NULL, &name) == 0) return NULL;
+	ds = plugin_get_ds(name);
+	PyMem_Free(name);
+	if (ds == NULL) {
+		PyErr_Format(PyExc_TypeError, "Dataset %s not found", name);
+		return NULL;
+	}
+	list = PyList_New(ds->ds_num); /* New reference. */
+	for (i = 0; i < ds->ds_num; ++i) {
+		tuple = PyTuple_New(4);
+		PyTuple_SET_ITEM(tuple, 0, cpy_string_to_unicode_or_bytes(ds->ds[i].name));
+		PyTuple_SET_ITEM(tuple, 1, cpy_string_to_unicode_or_bytes(DS_TYPE_TO_STRING(ds->ds[i].type)));
+		PyTuple_SET_ITEM(tuple, 2, float_or_none(ds->ds[i].min));
+		PyTuple_SET_ITEM(tuple, 3, float_or_none(ds->ds[i].max));
+		PyList_SET_ITEM(list, i, tuple);
+	}
+	return list;
+}
+
+static PyObject *cpy_flush(PyObject *self, PyObject *args, PyObject *kwds) {
 	int timeout = -1;
 	char *plugin = NULL, *identifier = NULL;
 	static char *kwlist[] = {"plugin", "timeout", "identifier", NULL};
@@ -611,7 +647,6 @@ static PyObject *cpy_register_read(PyObject *self, PyObject *args, PyObject *kwd
 	double interval = 0;
 	char *name = NULL;
 	PyObject *callback = NULL, *data = NULL;
-	struct timespec ts;
 	static char *kwlist[] = {"callback", "interval", "data", "name", NULL};
 	
 	if (PyArg_ParseTupleAndKeywords(args, kwds, "O|dOet", kwlist, &callback, &interval, &data, NULL, &name) == 0) return NULL;
@@ -633,10 +668,8 @@ static PyObject *cpy_register_read(PyObject *self, PyObject *args, PyObject *kwd
 	user_data = malloc(sizeof(*user_data));
 	user_data->free_func = cpy_destroy_user_data;
 	user_data->data = c;
-	ts.tv_sec = interval;
-	ts.tv_nsec = (interval - ts.tv_sec) * 1000000000;
 	plugin_register_complex_read(/* group = */ NULL, buf,
-			cpy_read_callback, &ts, user_data);
+			cpy_read_callback, DOUBLE_TO_CDTIME_T (interval), user_data);
 	return cpy_string_to_unicode_or_bytes(buf);
 }
 
@@ -817,6 +850,7 @@ static PyMethodDef cpy_methods[] = {
 	{"notice", cpy_notice, METH_VARARGS, log_doc},
 	{"warning", cpy_warning, METH_VARARGS, log_doc},
 	{"error", cpy_error, METH_VARARGS, log_doc},
+	{"get_dataset", (PyCFunction) cpy_get_dataset, METH_VARARGS, get_ds_doc},
 	{"flush", (PyCFunction) cpy_flush, METH_VARARGS | METH_KEYWORDS, flush_doc},
 	{"register_log", (PyCFunction) cpy_register_log, METH_VARARGS | METH_KEYWORDS, reg_log_doc},
 	{"register_init", (PyCFunction) cpy_register_init, METH_VARARGS | METH_KEYWORDS, reg_init_doc},
@@ -988,13 +1022,15 @@ PyMODINIT_FUNC PyInit_collectd(void) {
 #endif
 
 static int cpy_init_python() {
-	char *argv = "";
 	PyObject *sys;
 	PyObject *module;
 
 #ifdef IS_PY3K
+	wchar_t *argv = L"";
 	/* Add a builtin module, before Py_Initialize */
 	PyImport_AppendInittab("collectd", PyInit_collectd);
+#else
+	char *argv = "";
 #endif
 	
 	Py_Initialize();
@@ -1041,6 +1077,10 @@ static int cpy_init_python() {
 	PyModule_AddIntConstant(module, "NOTIF_FAILURE", NOTIF_FAILURE);
 	PyModule_AddIntConstant(module, "NOTIF_WARNING", NOTIF_WARNING);
 	PyModule_AddIntConstant(module, "NOTIF_OKAY", NOTIF_OKAY);
+	PyModule_AddStringConstant(module, "DS_TYPE_COUNTER", DS_TYPE_TO_STRING(DS_TYPE_COUNTER));
+	PyModule_AddStringConstant(module, "DS_TYPE_GAUGE", DS_TYPE_TO_STRING(DS_TYPE_GAUGE));
+	PyModule_AddStringConstant(module, "DS_TYPE_DERIVE", DS_TYPE_TO_STRING(DS_TYPE_DERIVE));
+	PyModule_AddStringConstant(module, "DS_TYPE_ABSOLUTE", DS_TYPE_TO_STRING(DS_TYPE_ABSOLUTE));
 	return 0;
 }
 
@@ -1067,9 +1107,13 @@ static int cpy_config(oconfig_item_t *ci) {
 		} else if (strcasecmp(item->key, "Encoding") == 0) {
 			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_STRING)
 				continue;
+#ifdef IS_PY3K
+			NOTICE("python: \"Encoding\" was used in the config file but Python3 was used, which does not support changing encodings. Ignoring this.");
+#else
 			/* Why is this even necessary? And undocumented? */
 			if (PyUnicode_SetDefaultEncoding(item->values[0].value.string))
 				cpy_log_exception("setting default encoding");
+#endif
 		} else if (strcasecmp(item->key, "LogTraces") == 0) {
 			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_BOOLEAN)
 				continue;
@@ -1103,8 +1147,8 @@ static int cpy_config(oconfig_item_t *ci) {
 				cpy_log_exception("python initialization");
 				continue;
 			}
-			if (PyList_Append(sys_path, dir_object) != 0) {
-				ERROR("python plugin: Unable to append \"%s\" to "
+			if (PyList_Insert(sys_path, 0, dir_object) != 0) {
+				ERROR("python plugin: Unable to prepend \"%s\" to "
 				      "python module path.", dir);
 				cpy_log_exception("python initialization");
 			}

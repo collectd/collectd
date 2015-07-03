@@ -458,7 +458,7 @@ static int ts_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
 		notification_meta_t __attribute__((unused)) **meta, void **user_data)
 {
 	ts_data_t *data;
-	int i;
+	size_t i;
 
 	if ((ds == NULL) || (vl == NULL) || (user_data == NULL))
 		return (-EINVAL);

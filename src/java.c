@@ -618,7 +618,7 @@ static jobject ctoj_data_set (JNIEnv *jvm_env, const data_set_t *ds) /* {{{ */
   jmethodID m_add;
   jobject o_type;
   jobject o_dataset;
-  int i;
+  size_t i;
 
   /* Look up the org/collectd/api/DataSet class */
   c_dataset = (*jvm_env)->FindClass (jvm_env, "org/collectd/api/DataSet");
@@ -763,7 +763,7 @@ static jobject ctoj_value_list (JNIEnv *jvm_env, /* {{{ */
   jmethodID m_valuelist_constructor;
   jobject o_valuelist;
   int status;
-  int i;
+  size_t i;
 
   /* First, create a new ValueList instance..
    * Look up the class.. */
@@ -1438,7 +1438,7 @@ static jint JNICALL cjni_api_register_read (JNIEnv *jvm_env, /* {{{ */
   ud.free_func = cjni_callback_info_destroy;
 
   plugin_register_complex_read (/* group = */ NULL, cbi->name, cjni_read,
-      /* interval = */ NULL, &ud);
+      /* interval = */ 0, &ud);
 
   (*jvm_env)->DeleteLocalRef (jvm_env, o_read);
 
@@ -1817,6 +1817,7 @@ static cjni_callback_info_t *cjni_callback_info_create (JNIEnv *jvm_env, /* {{{ 
     pthread_mutex_unlock (&java_callbacks_lock);
     ERROR ("java plugin: cjni_callback_info_create: strdup failed.");
     (*jvm_env)->ReleaseStringUTFChars (jvm_env, o_name, c_name);
+    sfree (cbi);
     return (NULL);
   }
 
@@ -1826,7 +1827,8 @@ static cjni_callback_info_t *cjni_callback_info_create (JNIEnv *jvm_env, /* {{{ 
   if (cbi->object == NULL)
   {
     ERROR ("java plugin: cjni_callback_info_create: NewGlobalRef failed.");
-    free (cbi);
+    sfree (cbi->name);
+    sfree (cbi);
     return (NULL);
   }
 
@@ -1834,7 +1836,9 @@ static cjni_callback_info_t *cjni_callback_info_create (JNIEnv *jvm_env, /* {{{ 
   if (cbi->class == NULL)
   {
     ERROR ("java plugin: cjni_callback_info_create: GetObjectClass failed.");
-    free (cbi);
+    (*jvm_env)->DeleteGlobalRef (jvm_env, cbi->object);
+    sfree (cbi->name);
+    sfree (cbi);
     return (NULL);
   }
 
@@ -1845,7 +1849,9 @@ static cjni_callback_info_t *cjni_callback_info_create (JNIEnv *jvm_env, /* {{{ 
     ERROR ("java plugin: cjni_callback_info_create: "
         "Cannot find the `%s' method with signature `%s'.",
         method_name, method_signature);
-    free (cbi);
+    (*jvm_env)->DeleteGlobalRef (jvm_env, cbi->object);
+    sfree (cbi->name);
+    sfree (cbi);
     return (NULL);
   }
 
@@ -2142,7 +2148,7 @@ static int cjni_thread_detach (void) /* {{{ */
   cjni_env->jvm_env = NULL;
 
   return (0);
-} /* }}} JNIEnv *cjni_thread_attach */
+} /* }}} int cjni_thread_detach */
 
 static int cjni_config_add_jvm_arg (oconfig_item_t *ci) /* {{{ */
 {
@@ -2495,7 +2501,6 @@ static int cjni_read (user_data_t *ud) /* {{{ */
 {
   JNIEnv *jvm_env;
   cjni_callback_info_t *cbi;
-  int status;
   int ret_status;
 
   if (jvm == NULL)
@@ -2519,13 +2524,7 @@ static int cjni_read (user_data_t *ud) /* {{{ */
   ret_status = (*jvm_env)->CallIntMethod (jvm_env, cbi->object,
       cbi->method);
 
-  status = cjni_thread_detach ();
-  if (status != 0)
-  {
-    ERROR ("java plugin: cjni_read: cjni_thread_detach failed.");
-    return (-1);
-  }
-
+  cjni_thread_detach ();
   return (ret_status);
 } /* }}} int cjni_read */
 
@@ -2536,7 +2535,6 @@ static int cjni_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
   JNIEnv *jvm_env;
   cjni_callback_info_t *cbi;
   jobject vl_java;
-  int status;
   int ret_status;
 
   if (jvm == NULL)
@@ -2561,6 +2559,7 @@ static int cjni_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
   if (vl_java == NULL)
   {
     ERROR ("java plugin: cjni_write: ctoj_value_list failed.");
+    cjni_thread_detach ();
     return (-1);
   }
 
@@ -2569,13 +2568,7 @@ static int cjni_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
 
   (*jvm_env)->DeleteLocalRef (jvm_env, vl_java);
 
-  status = cjni_thread_detach ();
-  if (status != 0)
-  {
-    ERROR ("java plugin: cjni_write: cjni_thread_detach failed.");
-    return (-1);
-  }
-
+  cjni_thread_detach ();
   return (ret_status);
 } /* }}} int cjni_write */
 
@@ -2587,7 +2580,6 @@ static int cjni_flush (cdtime_t timeout, const char *identifier, /* {{{ */
   cjni_callback_info_t *cbi;
   jobject o_timeout;
   jobject o_identifier;
-  int status;
   int ret_status;
 
   if (jvm == NULL)
@@ -2614,6 +2606,7 @@ static int cjni_flush (cdtime_t timeout, const char *identifier, /* {{{ */
   {
     ERROR ("java plugin: cjni_flush: Converting double "
         "to Number object failed.");
+    cjni_thread_detach ();
     return (-1);
   }
 
@@ -2625,6 +2618,7 @@ static int cjni_flush (cdtime_t timeout, const char *identifier, /* {{{ */
     {
       (*jvm_env)->DeleteLocalRef (jvm_env, o_timeout);
       ERROR ("java plugin: cjni_flush: NewStringUTF failed.");
+      cjni_thread_detach ();
       return (-1);
     }
   }
@@ -2635,13 +2629,7 @@ static int cjni_flush (cdtime_t timeout, const char *identifier, /* {{{ */
   (*jvm_env)->DeleteLocalRef (jvm_env, o_identifier);
   (*jvm_env)->DeleteLocalRef (jvm_env, o_timeout);
 
-  status = cjni_thread_detach ();
-  if (status != 0)
-  {
-    ERROR ("java plugin: cjni_flush: cjni_thread_detach failed.");
-    return (-1);
-  }
-
+  cjni_thread_detach ();
   return (ret_status);
 } /* }}} int cjni_flush */
 
@@ -2667,7 +2655,10 @@ static void cjni_log (int severity, const char *message, /* {{{ */
 
   o_message = (*jvm_env)->NewStringUTF (jvm_env, message);
   if (o_message == NULL)
+  {
+    cjni_thread_detach ();
     return;
+  }
 
   (*jvm_env)->CallVoidMethod (jvm_env,
       cbi->object, cbi->method, (jint) severity, o_message);
@@ -2685,7 +2676,6 @@ static int cjni_notification (const notification_t *n, /* {{{ */
   JNIEnv *jvm_env;
   cjni_callback_info_t *cbi;
   jobject o_notification;
-  int status;
   int ret_status;
 
   if (jvm == NULL)
@@ -2710,6 +2700,7 @@ static int cjni_notification (const notification_t *n, /* {{{ */
   if (o_notification == NULL)
   {
     ERROR ("java plugin: cjni_notification: ctoj_notification failed.");
+    cjni_thread_detach ();
     return (-1);
   }
 
@@ -2718,13 +2709,7 @@ static int cjni_notification (const notification_t *n, /* {{{ */
 
   (*jvm_env)->DeleteLocalRef (jvm_env, o_notification);
 
-  status = cjni_thread_detach ();
-  if (status != 0)
-  {
-    ERROR ("java plugin: cjni_read: cjni_thread_detach failed.");
-    return (-1);
-  }
-
+  cjni_thread_detach ();
   return (ret_status);
 } /* }}} int cjni_notification */
 
@@ -2752,24 +2737,20 @@ static int cjni_match_target_create (const oconfig_item_t *ci, /* {{{ */
       (*jvm_env)->DeleteLocalRef (jvm_env, cbi_ret->object); \
   } \
   free (cbi_ret); \
-  if (jvm_env != NULL) { \
-    if (o_ci != NULL) \
-      (*jvm_env)->DeleteLocalRef (jvm_env, o_ci); \
-    cjni_thread_detach (); \
-  } \
+  if (o_ci != NULL) \
+    (*jvm_env)->DeleteLocalRef (jvm_env, o_ci); \
+  cjni_thread_detach (); \
   return (status)
 
   if (jvm == NULL)
   {
     ERROR ("java plugin: cjni_read: jvm == NULL");
-    BAIL_OUT (-1);
+    return (-1);
   }
 
   jvm_env = cjni_thread_attach ();
   if (jvm_env == NULL)
-  {
-    BAIL_OUT (-1);
-  }
+    return (-1);
 
   /* Find out whether to create a match or a target. */
   if (strcasecmp ("Match", ci->key) == 0)
@@ -2963,10 +2944,7 @@ static int cjni_match_target_invoke (const data_set_t *ds, /* {{{ */
     }
   } /* if (cbi->type == CB_TYPE_TARGET) */
 
-  status = cjni_thread_detach ();
-  if (status != 0)
-    ERROR ("java plugin: cjni_read: cjni_thread_detach failed.");
-
+  cjni_thread_detach ();
   return (ret_status);
 } /* }}} int cjni_match_target_invoke */
 
@@ -3106,10 +3084,8 @@ static int cjni_init (void) /* {{{ */
 
   if (config_block != NULL)
   {
-
     cjni_config_perform (config_block);
     oconfig_free (config_block);
-    config_block = NULL;
   }
 
   if (jvm == NULL)

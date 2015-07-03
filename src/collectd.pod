@@ -49,7 +49,11 @@ config-option.
 
 Don't fork to the background. I<collectd> will also B<not> close standard file
 descriptors, detach from the session nor write a pid file. This is mainly
-thought for 'supervising' init replacements such as I<runit>.
+thought for 'supervising' init replacements such as I<runit>. If using
+I<upstart> or I<systemd> though, starting with version 5.5.0 I<collectd> is
+able to notify these two init replacements, and B<does> require forking to the
+background for process supervision. The F<contrib/> directory has sample
+I<upstart> and I<systemd> configuration files.
 
 =item B<-h>
 

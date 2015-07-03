@@ -419,7 +419,7 @@ static meta_data_t *cpy_build_meta(PyObject *meta) {
 	meta_data_t *m = NULL;
 	PyObject *l;
 	
-	if (!meta)
+	if ((meta == NULL) || (meta == Py_None))
 		return NULL;
 
 	l = PyDict_Items(meta); /* New reference. */
@@ -427,8 +427,13 @@ static meta_data_t *cpy_build_meta(PyObject *meta) {
 		cpy_log_exception("building meta data");
 		return NULL;
 	}
-	m = meta_data_create();
 	s = PyList_Size(l);
+	if (s <= 0) {
+		Py_XDECREF(l);
+		return NULL;
+	}
+
+	m = meta_data_create();
 	for (i = 0; i < s; ++i) {
 		const char *string, *keystring;
 		PyObject *key, *value, *item, *tmp;
@@ -497,9 +502,9 @@ static meta_data_t *cpy_build_meta(PyObject *meta) {
 }
 
 static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
-	int i, ret;
+	int ret;
 	const data_set_t *ds;
-	int size;
+	size_t size, i;
 	value_t *value;
 	value_list_t value_list = VALUE_LIST_INIT;
 	PyObject *values = self->values, *meta = self->meta;
@@ -537,15 +542,15 @@ static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 		PyErr_Format(PyExc_TypeError, "meta must be a dict");
 		return NULL;
 	}
-	size = (int) PySequence_Length(values);
+	size = (size_t) PySequence_Length(values);
 	if (size != ds->ds_num) {
-		PyErr_Format(PyExc_RuntimeError, "type %s needs %d values, got %i", value_list.type, ds->ds_num, size);
+		PyErr_Format(PyExc_RuntimeError, "type %s needs %zu values, got %zu", value_list.type, ds->ds_num, size);
 		return NULL;
 	}
-	value = malloc(size * sizeof(*value));
+	value = calloc(size, sizeof(*value));
 	for (i = 0; i < size; ++i) {
 		PyObject *item, *num;
-		item = PySequence_Fast_GET_ITEM(values, i); /* Borrowed reference. */
+		item = PySequence_Fast_GET_ITEM(values, (int) i); /* Borrowed reference. */
 		if (ds->ds->type == DS_TYPE_COUNTER) {
 			num = PyNumber_Long(item); /* New reference. */
 			if (num != NULL) {
@@ -606,9 +611,9 @@ static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 }
 
 static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
-	int i, ret;
+	int ret;
 	const data_set_t *ds;
-	int size;
+	size_t size, i;
 	value_t *value;
 	value_list_t value_list = VALUE_LIST_INIT;
 	PyObject *values = self->values, *meta = self->meta;
@@ -641,12 +646,12 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
 		PyErr_Format(PyExc_TypeError, "values must be list or tuple");
 		return NULL;
 	}
-	size = (int) PySequence_Length(values);
+	size = (size_t) PySequence_Length(values);
 	if (size != ds->ds_num) {
-		PyErr_Format(PyExc_RuntimeError, "type %s needs %d values, got %i", value_list.type, ds->ds_num, size);
+		PyErr_Format(PyExc_RuntimeError, "type %s needs %zu values, got %zu", value_list.type, ds->ds_num, size);
 		return NULL;
 	}
-	value = malloc(size * sizeof(*value));
+	value = calloc(size, sizeof(*value));
 	for (i = 0; i < size; ++i) {
 		PyObject *item, *num;
 		item = PySequence_Fast_GET_ITEM(values, i); /* Borrowed reference. */
@@ -767,7 +772,7 @@ static void Values_dealloc(PyObject *self) {
 }
 
 static PyMemberDef Values_members[] = {
-	{"interval", T_INT, offsetof(Values, interval), 0, interval_doc},
+	{"interval", T_DOUBLE, offsetof(Values, interval), 0, interval_doc},
 	{"values", T_OBJECT_EX, offsetof(Values, values), 0, values_doc},
 	{"meta", T_OBJECT_EX, offsetof(Values, meta), 0, meta_doc},
 	{NULL}

@@ -102,6 +102,7 @@ static char *pass        = NULL;
 static char *verify_peer = NULL;
 static char *verify_host = NULL;
 static char *cacert      = NULL;
+static char *timeout     = NULL;
 
 static CURL *curl = NULL;
 
@@ -117,7 +118,8 @@ static const char *config_keys[] =
   "Password",
   "VerifyPeer",
   "VerifyHost",
-  "CACert"
+  "CACert",
+  "Timeout",
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -518,14 +520,14 @@ static int ascent_config (const char *key, const char *value) /* {{{ */
     return (config_set (&verify_host, value));
   else if (strcasecmp (key, "CACert") == 0)
     return (config_set (&cacert, value));
+  else if (strcasecmp (key, "Timeout") == 0)
+    return (config_set (&timeout, value));
   else
     return (-1);
 } /* }}} int ascent_config */
 
 static int ascent_init (void) /* {{{ */
 {
-  static char credentials[1024];
-
   if (url == NULL)
   {
     WARNING ("ascent plugin: ascent_init: No URL configured, "
@@ -551,6 +553,11 @@ static int ascent_init (void) /* {{{ */
 
   if (user != NULL)
   {
+#ifdef HAVE_CURLOPT_USERNAME
+    curl_easy_setopt (curl, CURLOPT_USERNAME, user);
+    curl_easy_setopt (curl, CURLOPT_PASSWORD, (pass == NULL) ? "" : pass);
+#else
+    static char credentials[1024];
     int status;
 
     status = ssnprintf (credentials, sizeof (credentials), "%s:%s",
@@ -563,6 +570,7 @@ static int ascent_init (void) /* {{{ */
     }
 
     curl_easy_setopt (curl, CURLOPT_USERPWD, credentials);
+#endif
   }
 
   curl_easy_setopt (curl, CURLOPT_URL, url);
@@ -581,6 +589,14 @@ static int ascent_init (void) /* {{{ */
 
   if (cacert != NULL)
     curl_easy_setopt (curl, CURLOPT_CAINFO, cacert);
+
+#ifdef HAVE_CURLOPT_TIMEOUT_MS
+  if (timeout != NULL)
+    curl_easy_setopt (curl, CURLOPT_TIMEOUT_MS, atol(timeout));
+  else
+    curl_easy_setopt (curl, CURLOPT_TIMEOUT_MS,
+       CDTIME_T_TO_MS(plugin_get_interval()));
+#endif
 
   return (0);
 } /* }}} int ascent_init */

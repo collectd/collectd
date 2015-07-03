@@ -3,10 +3,10 @@
  * Copyright (C) 2006       Florian octo Forster
  * Copyright (C) 2002       The Measurement Factory, Inc.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright notice,
@@ -33,6 +33,7 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
+#define _DEFAULT_SOURCE
 #define _BSD_SOURCE
 
 #include "collectd.h"
@@ -127,6 +128,10 @@
 # define UDP_SRC  source
 #else
 # error "`struct udphdr' is unusable."
+#endif
+
+#if HAVE_NETINET_IP6_H && HAVE_STRUCT_IP6_EXT
+# define HAVE_IPV6 1
 #endif
 
 #include "utils_dns.h"
@@ -300,7 +305,7 @@ rfc1035NameUnpack(const char *buf, size_t sz, off_t * off, char *name, size_t ns
     if (ns <= 0)
 	return 4;		/* probably compression loop */
     do {
-	if ((*off) >= sz)
+	if ((*off) >= ((off_t) sz))
 	    break;
 	c = *(buf + (*off));
 	if (c > 191) {
@@ -312,11 +317,11 @@ rfc1035NameUnpack(const char *buf, size_t sz, off_t * off, char *name, size_t ns
 	    s = ntohs(s);
 	    (*off) += sizeof(s);
 	    /* Sanity check */
-	    if ((*off) >= sz)
+	    if ((*off) >= ((off_t) sz))
 		return 1;	/* message too short */
 	    ptr = s & 0x3FFF;
 	    /* Make sure the pointer is inside this message */
-	    if (ptr >= sz)
+	    if (ptr >= ((off_t) sz))
 		return 2;	/* bad compression ptr */
 	    if (ptr < DNS_MSG_HDR_SZ)
 		return 2;	/* bad compression ptr */
@@ -350,7 +355,7 @@ rfc1035NameUnpack(const char *buf, size_t sz, off_t * off, char *name, size_t ns
     if (no > 0)
 	*(name + no - 1) = '\0';
     /* make sure we didn't allow someone to overflow the name buffer */
-    assert(no <= ns);
+    assert(no <= ((off_t) ns));
     return 0;
 }
 
@@ -444,7 +449,7 @@ handle_udp(const struct udphdr *udp, int len)
     return 1;
 }
 
-#if HAVE_NETINET_IP6_H
+#if HAVE_IPV6
 static int
 handle_ipv6 (struct ip6_hdr *ipv6, int len)
 {
@@ -513,16 +518,16 @@ handle_ipv6 (struct ip6_hdr *ipv6, int len)
 
     return (1); /* Success */
 } /* int handle_ipv6 */
-/* #endif HAVE_NETINET_IP6_H */
+/* #endif HAVE_IPV6 */
 
-#else /* if !HAVE_NETINET_IP6_H */
+#else /* if !HAVE_IPV6 */
 static int
 handle_ipv6 (__attribute__((unused)) void *pkg,
 	__attribute__((unused)) int len)
 {
     return (0);
 }
-#endif /* !HAVE_NETINET_IP6_H */
+#endif /* !HAVE_IPV6 */
 
 static int
 handle_ip(const struct ip *ip, int len)

@@ -24,6 +24,7 @@
  *   Florian octo Forster <octo at collectd.org>
  **/
 
+#define _DEFAULT_SOURCE
 #define _BSD_SOURCE /* For NI_MAXHOST */
 
 #include "collectd.h"
@@ -264,7 +265,7 @@ static char *refclock_names[] =
 	"JJY",        "TT_IRIG",      "GPS_ZYFER",  "GPS_RIPENCC", /* 40-43 */
 	"NEOCLK4X"                                                 /* 44    */
 };
-static int refclock_names_num = STATIC_ARRAY_SIZE (refclock_names);
+static size_t refclock_names_num = STATIC_ARRAY_SIZE (refclock_names);
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  * End of the copied stuff..                                         *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -486,7 +487,7 @@ static int ntpd_receive_response (int *res_items, int *res_size,
 		poll_s.fd      = sd;
 		poll_s.events  = POLLIN | POLLPRI;
 		poll_s.revents = 0;
-		
+
 		DEBUG ("Polling for %ims", timeout);
 		status = poll (&poll_s, 1, timeout);
 
@@ -526,7 +527,7 @@ static int ntpd_receive_response (int *res_items, int *res_size,
 
 		DEBUG ("recv'd %i bytes", status);
 
-		/* 
+		/*
 		 * Do some sanity checks first
 		 */
 		if (status < RESP_HEADER_SIZE)
@@ -669,7 +670,6 @@ static int ntpd_receive_response (int *res_items, int *res_size,
 				(items_num + pkt_item_num) * res_item_size);
 		if (items == NULL)
 		{
-			items = *res_data;
 			ERROR ("ntpd plugin: realloc failed.");
 			continue;
 		}
@@ -736,7 +736,7 @@ static int ntpd_send_request (int req_code, int req_items, int req_size, char *r
 
 	req.err_nitems   = ERR_NITEMS (0, req_items);
 	req.mbz_itemsize = MBZ_ITEMSIZE (req_size);
-	
+
 	if (req_data != NULL)
 		memcpy ((void *) req.data, (const void *) req_data, req_data_len);
 
@@ -868,7 +868,7 @@ static int ntpd_get_name_refclock (char *buffer, size_t buffer_size,
 	uint32_t refclock_id = ntpd_get_refclock_id (peer_info);
 	uint32_t unit_id = ntohl (peer_info->srcadr) & 0x00FF;
 
-	if (refclock_id >= refclock_names_num)
+	if (((size_t) refclock_id) >= refclock_names_num)
 		return (ntpd_get_name_from_address (buffer, buffer_size,
 					peer_info,
 					/* do_reverse_lookup = */ 0));

@@ -40,9 +40,6 @@
 #elif HAVE_UTMP_H
 # include <utmp.h>
 /* #endif HAVE_UTMP_H */
-
-#else
-# error "No applicable input method."
 #endif
 
 static void users_submit (gauge_t value)
@@ -102,11 +99,21 @@ static int users_read (void)
 #elif HAVE_LIBSTATGRAB
 	sg_user_stats *us;
 
+# if HAVE_LIBSTATGRAB_0_90
+	size_t num_entries;
+	us = sg_get_user_stats (&num_entries);
+# else
 	us = sg_get_user_stats ();
+# endif
 	if (us == NULL)
 		return (-1);   
 
-	users_submit ((gauge_t) us->num_entries);
+	users_submit ((gauge_t)
+# if HAVE_LIBSTATGRAB_0_90
+		      num_entries);
+# else
+		      us->num_entries);
+# endif
 /* #endif HAVE_LIBSTATGRAB */
 
 #else

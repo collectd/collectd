@@ -30,8 +30,6 @@
 int parse_string (char **ret_buffer, char **ret_string);
 int parse_option (char **ret_buffer, char **ret_key, char **ret_value);
 
-int escape_string (char *buffer, size_t buffer_size);
-
 #endif /* UTILS_PARSE_OPTION */
 
 /* vim: set sw=2 ts=8 tw=78 et : */

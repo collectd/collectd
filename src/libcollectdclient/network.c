@@ -1,6 +1,6 @@
 /**
  * collectd - src/libcollectdclient/network.c
- * Copyright (C) 2005-2013  Florian Forster
+ * Copyright (C) 2005-2015  Florian Forster
  * Copyright (C) 2010       Max Henkel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -219,7 +219,13 @@ static int server_send_buffer (lcc_server_t *srv) /* {{{ */
   memset (buffer, 0, sizeof (buffer));
   buffer_size = sizeof (buffer);
 
-  lcc_network_buffer_finalize (srv->buffer);
+  status = lcc_network_buffer_finalize (srv->buffer);
+  if (status != 0)
+  {
+    lcc_network_buffer_initialize (srv->buffer);
+    return (status);
+  }
+
   status = lcc_network_buffer_get (srv->buffer, buffer, &buffer_size);
   lcc_network_buffer_initialize (srv->buffer);
 

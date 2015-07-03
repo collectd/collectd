@@ -1,9 +1,10 @@
 /**
  * collectd - src/cpu.c
- * Copyright (C) 2005-2010  Florian octo Forster
- * Copyright (C) 2008	    Oleg King
- * Copyright (C) 2009	    Simon Kuhnle
- * Copyright (C) 2009	    Manuel Sanmartin
+ * Copyright (C) 2005-2014  Florian octo Forster
+ * Copyright (C) 2008       Oleg King
+ * Copyright (C) 2009       Simon Kuhnle
+ * Copyright (C) 2009       Manuel Sanmartin
+ * Copyright (C) 2013-2014  Pierre-Yves Ritschard
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -11,7 +12,7 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the GNU
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -23,6 +24,7 @@
  *   Oleg King <king2 at kaluga.ru>
  *   Simon Kuhnle <simon at blarzwurst.de>
  *   Manuel Sanmartin
+ *   Pierre-Yves Ritschard <pyr at spootnik.org>
  **/
 
 #include "collectd.h"
@@ -86,17 +88,17 @@
 # define CAN_USE_SYSCTL 0
 #endif
 
-#define CPU_SUBMIT_USER 0
-#define CPU_SUBMIT_SYSTEM 1
-#define CPU_SUBMIT_WAIT 2
-#define CPU_SUBMIT_NICE 3
-#define CPU_SUBMIT_SWAP 4
-#define CPU_SUBMIT_INTERRUPT 5
-#define CPU_SUBMIT_SOFTIRQ 6
-#define CPU_SUBMIT_STEAL 7
-#define CPU_SUBMIT_IDLE 8
-#define CPU_SUBMIT_ACTIVE 9
-#define CPU_SUBMIT_MAX 10
+#define COLLECTD_CPU_STATE_USER 0
+#define COLLECTD_CPU_STATE_SYSTEM 1
+#define COLLECTD_CPU_STATE_WAIT 2
+#define COLLECTD_CPU_STATE_NICE 3
+#define COLLECTD_CPU_STATE_SWAP 4
+#define COLLECTD_CPU_STATE_INTERRUPT 5
+#define COLLECTD_CPU_STATE_SOFTIRQ 6
+#define COLLECTD_CPU_STATE_STEAL 7
+#define COLLECTD_CPU_STATE_IDLE 8
+#define COLLECTD_CPU_STATE_ACTIVE 9 /* sum of (!idle) */
+#define COLLECTD_CPU_STATE_MAX 10 /* #states */
 
 #if HAVE_STATGRAB_H
 # include <statgrab.h>
@@ -129,12 +131,6 @@ static const char *cpu_state_names[] = {
 static mach_port_t port_host;
 static processor_port_array_t cpu_list;
 static mach_msg_type_number_t cpu_list_len;
-
-#if PROCESSOR_TEMPERATURE
-static int cpu_temp_retry_counter = 0;
-static int cpu_temp_retry_step	  = 1;
-static int cpu_temp_retry_max	  = 1;
-#endif /* PROCESSOR_TEMPERATURE */
 /* #endif PROCESSOR_CPU_LOAD_INFO */
 
 #elif defined(KERNEL_LINUX)
@@ -170,86 +166,57 @@ static int numcpu;
 static int pnumcpu;
 #endif /* HAVE_PERFSTAT */
 
-static value_to_rate_state_t *values = NULL;
-static gauge_t agg_values[CPU_SUBMIT_MAX] = {
-	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+#define RATE_ADD(sum, val) do { \
+	if (isnan (sum))        \
+	(sum) = (val);          \
+	else if (!isnan (val))  \
+	(sum) += (val);         \
+} while (0)
 
+struct cpu_state_s
+{
+	value_to_rate_state_t conv;
+	gauge_t rate;
+	_Bool has_value;
 };
-static int cpu_cells = 0;
-static int cpu_count = 0;
+typedef struct cpu_state_s cpu_state_t;
 
+static cpu_state_t *cpu_states = NULL;
+static size_t cpu_states_num = 0; /* #cpu_states allocated */
+
+/* Highest CPU number in the current iteration. Used by the dispatch logic to
+ * determine how many CPUs there were. Reset to 0 by cpu_reset(). */
+static size_t global_cpu_num = 0;
 
 static _Bool report_by_cpu = 1;
+static _Bool report_by_state = 1;
 static _Bool report_percent = 0;
-static _Bool report_active = 0;
 
 static const char *config_keys[] =
 {
 	"ReportByCpu",
-	"ReportActive",
+	"ReportByState",
 	"ValuesPercentage"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
-
-static int cpu_config (const char *key, const char *value)
+static int cpu_config (char const *key, char const *value) /* {{{ */
 {
-	if (strcasecmp (key, "ReportByCpu") == 0) {
+	if (strcasecmp (key, "ReportByCpu") == 0)
 		report_by_cpu = IS_TRUE (value) ? 1 : 0;
-	}
-	if (strcasecmp (key, "ValuesPercentage") == 0) {
+	else if (strcasecmp (key, "ValuesPercentage") == 0)
 		report_percent = IS_TRUE (value) ? 1 : 0;
-	}
-	if (strcasecmp (key, "ReportActive") == 0)
-		report_active = IS_TRUE (value) ? 1 : 0;
-	return (-1);
-}
+	else if (strcasecmp (key, "ReportByState") == 0)
+		report_by_state = IS_TRUE (value) ? 1 : 0;
+	else
+		return (-1);
 
-static int cpu_states_grow (void)
-{
-  void *tmp;
-  int size;
-  int i;
-
-  size = cpu_count * CPU_SUBMIT_MAX; /* always alloc for all states */
-
-  if (size <= 0)
-	  return 0;
-
-  if (cpu_cells >= size)
-	  return 0;
-
-  if (values == NULL) {
-	  values = malloc(size * sizeof(*values));
-	  if (values == NULL)
-		  return -1;
-	  for (i = 0; i < size; i++)
-		  memset(&values[i], 0, sizeof(*values));
-	  cpu_cells = size;
-	  return 0;
-  }
-
-  tmp = realloc(values, size * sizeof(*values));
-
-  if (tmp == NULL) {
-	  ERROR ("cpu plugin: could not reserve enough space to hold states");
-	  values = NULL;
-	  return -1;
-  }
-
-  values = tmp;
-
-  for (i = cpu_cells ; i < size; i++)
-	  memset(&values[i], 0, sizeof(*values));
-
-  cpu_cells = size;
-  return 0;
-} /* cpu_states_grow */
-
+	return (0);
+} /* }}} int cpu_config */
 
 static int init (void)
 {
-#if PROCESSOR_CPU_LOAD_INFO || PROCESSOR_TEMPERATURE
+#if PROCESSOR_CPU_LOAD_INFO
 	kern_return_t status;
 
 	port_host = mach_host_self ();
@@ -264,8 +231,6 @@ static int init (void)
 
 	DEBUG ("host_processors returned %i %s", (int) cpu_list_len, cpu_list_len == 1 ? "processor" : "processors");
 	INFO ("cpu plugin: Found %i processor%s.", (int) cpu_list_len, cpu_list_len == 1 ? "" : "s");
-
-	cpu_temp_retry_max = 86400 / CDTIME_T_TO_TIME_T (plugin_get_interval ());
 /* #endif PROCESSOR_CPU_LOAD_INFO */
 
 #elif defined(HAVE_LIBKSTAT)
@@ -357,11 +322,11 @@ static void submit_value (int cpu_num, int cpu_state, const char *type, value_t 
 	sstrncpy (vl.plugin, "cpu", sizeof (vl.plugin));
 	sstrncpy (vl.type, type, sizeof (vl.type));
 	sstrncpy (vl.type_instance, cpu_state_names[cpu_state],
-		  sizeof (vl.type_instance));
+			sizeof (vl.type_instance));
 
 	if (cpu_num >= 0) {
 		ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
-			   "%i", cpu_num);
+				"%i", cpu_num);
 	}
 	plugin_dispatch_values (&vl);
 }
@@ -369,6 +334,12 @@ static void submit_value (int cpu_num, int cpu_state, const char *type, value_t 
 static void submit_percent(int cpu_num, int cpu_state, gauge_t percent)
 {
 	value_t value;
+
+	/* This function is called for all known CPU states, but each read
+	 * method will only report a subset. The remaining states are left as
+	 * NAN and we ignore them here. */
+	if (isnan (percent))
+		return;
 
 	value.gauge = percent;
 	submit_value (cpu_num, cpu_state, "percent", value);
@@ -382,163 +353,232 @@ static void submit_derive(int cpu_num, int cpu_state, derive_t derive)
 	submit_value (cpu_num, cpu_state, "cpu", value);
 }
 
-static void submit_flush (void)
+/* Takes the zero-index number of a CPU and makes sure that the module-global
+ * cpu_states buffer is large enough. Returne ENOMEM on erorr. */
+static int cpu_states_alloc (size_t cpu_num) /* {{{ */
 {
-	int i = 0;
-	int cpu_submit_max = CPU_SUBMIT_MAX;
+	cpu_state_t *tmp;
+	size_t sz;
 
-	if (report_by_cpu) {
-		cpu_count = 0;
+	sz = (((size_t) cpu_num) + 1) * COLLECTD_CPU_STATE_MAX;
+	assert (sz > 0);
+
+	/* We already have enough space. */
+	if (cpu_states_num >= sz)
+		return 0;
+
+	tmp = realloc (cpu_states, sz * sizeof (*cpu_states));
+	if (tmp == NULL)
+	{
+		ERROR ("cpu plugin: realloc failed.");
+		return (ENOMEM);
+	}
+	cpu_states = tmp;
+	tmp = cpu_states + cpu_states_num;
+
+	memset (tmp, 0, (sz - cpu_states_num) * sizeof (*cpu_states));
+	cpu_states_num = sz;
+	return 0;
+} /* }}} cpu_states_alloc */
+
+static cpu_state_t *get_cpu_state (size_t cpu_num, size_t state) /* {{{ */
+{
+	size_t index = ((cpu_num * COLLECTD_CPU_STATE_MAX) + state);
+
+	if (index >= cpu_states_num)
+		return (NULL);
+
+	return (&cpu_states[index]);
+} /* }}} cpu_state_t *get_cpu_state */
+
+/* Populates the per-CPU COLLECTD_CPU_STATE_ACTIVE rate and the global rate_by_state
+ * array. */
+static void aggregate (gauge_t *sum_by_state) /* {{{ */
+{
+	size_t cpu_num;
+	size_t state;
+
+	for (state = 0; state < COLLECTD_CPU_STATE_MAX; state++)
+		sum_by_state[state] = NAN;
+
+	for (cpu_num = 0; cpu_num < global_cpu_num; cpu_num++)
+	{
+		cpu_state_t *this_cpu_states = get_cpu_state (cpu_num, 0);
+
+		this_cpu_states[COLLECTD_CPU_STATE_ACTIVE].rate = NAN;
+
+		for (state = 0; state < COLLECTD_CPU_STATE_ACTIVE; state++)
+		{
+			if (!this_cpu_states[state].has_value)
+				continue;
+
+			RATE_ADD (sum_by_state[state], this_cpu_states[state].rate);
+			if (state != COLLECTD_CPU_STATE_IDLE)
+				RATE_ADD (this_cpu_states[COLLECTD_CPU_STATE_ACTIVE].rate, this_cpu_states[state].rate);
+		}
+
+		if (!isnan (this_cpu_states[COLLECTD_CPU_STATE_ACTIVE].rate))
+			this_cpu_states[COLLECTD_CPU_STATE_ACTIVE].has_value = 1;
+
+		RATE_ADD (sum_by_state[COLLECTD_CPU_STATE_ACTIVE], this_cpu_states[COLLECTD_CPU_STATE_ACTIVE].rate);
+	}
+} /* }}} void aggregate */
+
+/* Commits (dispatches) the values for one CPU or the global aggregation.
+ * cpu_num is the index of the CPU to be committed or -1 in case of the global
+ * aggregation. rates is a pointer to COLLECTD_CPU_STATE_MAX gauge_t values holding the
+ * current rate; each rate may be NAN. Calculates the percentage of each state
+ * and dispatches the metric. */
+static void cpu_commit_one (int cpu_num, /* {{{ */
+		gauge_t rates[static COLLECTD_CPU_STATE_MAX])
+{
+	size_t state;
+	gauge_t sum;
+
+	sum = rates[COLLECTD_CPU_STATE_ACTIVE];
+	RATE_ADD (sum, rates[COLLECTD_CPU_STATE_IDLE]);
+
+	if (!report_by_state)
+	{
+		gauge_t percent = 100.0 * rates[COLLECTD_CPU_STATE_ACTIVE] / sum;
+		submit_percent (cpu_num, COLLECTD_CPU_STATE_ACTIVE, percent);
 		return;
 	}
 
-	if (report_active)
-		cpu_submit_max = CPU_SUBMIT_MAX;
-	else
-		cpu_submit_max = CPU_SUBMIT_ACTIVE;
-	for (i = 0; i < cpu_submit_max; i++) {
-		if (agg_values[i] == -1)
-			continue;
-
-		if (report_percent)
-			submit_percent(-1, i, agg_values[i] / cpu_count);
-		else
-			submit_derive(-1, i, agg_values[i]);
-		agg_values[i] = -1;
+	for (state = 0; state < COLLECTD_CPU_STATE_ACTIVE; state++)
+	{
+		gauge_t percent = 100.0 * rates[state] / sum;
+		submit_percent (cpu_num, state, percent);
 	}
-	cpu_count = 0;
-}
+} /* }}} void cpu_commit_one */
 
-static void submit (int cpu_num, derive_t *derives)
+/* Resets the internal aggregation. This is called by the read callback after
+ * each iteration / after each call to cpu_commit(). */
+static void cpu_reset (void) /* {{{ */
 {
+	size_t i;
 
-	int i = 0;
-	int cpu_submit_max = CPU_SUBMIT_MAX;
+	for (i = 0; i < cpu_states_num; i++)
+		cpu_states[i].has_value = 0;
 
-	if (report_active)
-		cpu_submit_max = CPU_SUBMIT_MAX;
-	else
-		cpu_submit_max = CPU_SUBMIT_ACTIVE;
+	global_cpu_num = 0;
+} /* }}} void cpu_reset */
 
-	if (!report_percent && report_by_cpu) {
-		derive_t cpu_active = 0;
-		for (i = 0; i < CPU_SUBMIT_ACTIVE; i++)
+/* Legacy behavior: Dispatches the raw derive values without any aggregation. */
+static void cpu_commit_without_aggregation (void) /* {{{ */
+{
+	int state;
+
+	for (state = 0; state < COLLECTD_CPU_STATE_ACTIVE; state++)
+	{
+		size_t cpu_num;
+
+		for (cpu_num = 0; cpu_num < global_cpu_num; cpu_num++)
 		{
-			if (derives[i] == -1)
+			cpu_state_t *s = get_cpu_state (cpu_num, state);
+
+			if (!s->has_value)
 				continue;
 
-			if (i != CPU_SUBMIT_IDLE)
-				cpu_active += derives[i];
-
-			submit_derive(cpu_num, i, derives[i]);
-		}
-		if (report_active)
-			submit_derive(cpu_num, CPU_SUBMIT_ACTIVE, cpu_active);
-	}
-	else {
-		cdtime_t cdt;
-		gauge_t value;
-		gauge_t cpu_total = 0;
-		gauge_t cpu_active = 0;
-		gauge_t local_rates[CPU_SUBMIT_MAX];
-
-		cpu_count++;
-		if (cpu_states_grow())
-			return;
-
-		memset(local_rates, 0, sizeof(local_rates));
-
-		cdt = cdtime();
-		for (i = 0; i < CPU_SUBMIT_ACTIVE; i++) {
-			if (report_percent) {
-				value_t rate;
-				int index;
-
-				if (derives[i] == -1)
-					continue;
-
-				index = (cpu_num * CPU_SUBMIT_MAX) + i;
-				if (value_to_rate(&rate, derives[i], &values[index],
-							DS_TYPE_DERIVE, cdt) != 0) {
-					local_rates[i] = -1;
-					continue;
-				}
-
-				local_rates[i] = rate.gauge;
-				cpu_total += rate.gauge;
-				if (i != CPU_SUBMIT_IDLE)
-					cpu_active += rate.gauge;
-			}
-			else {
-				cpu_total += derives[i];
-				if (i != CPU_SUBMIT_IDLE)
-					cpu_active += derives[i];
-			}
-		}
-		if (cpu_total == 0.0)
-			return;
-
-		if (report_active)
-			local_rates[CPU_SUBMIT_ACTIVE] = cpu_active;
-
-		for (i = 0; i < cpu_submit_max; i++) {
-			if (local_rates[i] == -1)
-				continue;
-
-			if (report_percent)
-				value = (local_rates[i] / cpu_total) * 100;
-			else
-				value = derives[i];
-			if (report_by_cpu) {
-				if (report_percent) {
-					submit_percent (cpu_num, i, value);
-				} else {
-					submit_derive(cpu_num, i, value);
-				}
-			}
-			else {
-				if (agg_values[i] == -1)
-					agg_values[i] = value;
-				else
-					agg_values[i] += value;
-			}
+			submit_derive ((int) cpu_num, (int) state, s->conv.last_value.derive);
 		}
 	}
-}
+} /* }}} void cpu_commit_without_aggregation */
+
+/* Aggregates the internal state and dispatches the metrics. */
+static void cpu_commit (void) /* {{{ */
+{
+	gauge_t global_rates[COLLECTD_CPU_STATE_MAX] = {
+		NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN /* Batman! */
+	};
+	size_t cpu_num;
+
+	if (report_by_state && report_by_cpu && !report_percent)
+	{
+		cpu_commit_without_aggregation ();
+		return;
+	}
+
+	aggregate (global_rates);
+
+	if (!report_by_cpu)
+	{
+		cpu_commit_one (-1, global_rates);
+		return;
+	}
+
+	for (cpu_num = 0; cpu_num < global_cpu_num; cpu_num++)
+	{
+		cpu_state_t *this_cpu_states = get_cpu_state (cpu_num, 0);
+		gauge_t local_rates[COLLECTD_CPU_STATE_MAX] = {
+			NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN
+		};
+		size_t state;
+
+		for (state = 0; state < COLLECTD_CPU_STATE_MAX; state++)
+			if (this_cpu_states[state].has_value)
+				local_rates[state] = this_cpu_states[state].rate;
+
+		cpu_commit_one ((int) cpu_num, local_rates);
+	}
+} /* }}} void cpu_commit */
+
+/* Adds a derive value to the internal state. This should be used by each read
+ * function for each state. At the end of the iteration, the read function
+ * should call cpu_commit(). */
+static int cpu_stage (size_t cpu_num, size_t state, derive_t d, cdtime_t now) /* {{{ */
+{
+	int status;
+	cpu_state_t *s;
+	gauge_t rate = NAN;
+	value_t val = {.derive = d};
+
+	if (state >= COLLECTD_CPU_STATE_ACTIVE)
+		return (EINVAL);
+
+	status = cpu_states_alloc (cpu_num);
+	if (status != 0)
+		return (status);
+
+	if (global_cpu_num <= cpu_num)
+		global_cpu_num = cpu_num + 1;
+
+	s = get_cpu_state (cpu_num, state);
+
+	status = value_to_rate (&rate, val, DS_TYPE_DERIVE, now, &s->conv);
+	if (status != 0)
+		return (status);
+
+	s->rate = rate;
+	s->has_value = 1;
+	return (0);
+} /* }}} int cpu_stage */
 
 static int cpu_read (void)
 {
-#if PROCESSOR_CPU_LOAD_INFO || PROCESSOR_TEMPERATURE
+	cdtime_t now = cdtime ();
+
+#if PROCESSOR_CPU_LOAD_INFO /* {{{ */
 	int cpu;
 
 	kern_return_t status;
 
-#if PROCESSOR_CPU_LOAD_INFO
 	processor_cpu_load_info_data_t cpu_info;
-	mach_msg_type_number_t	       cpu_info_len;
-#endif
-#if PROCESSOR_TEMPERATURE
-	processor_info_data_t	       cpu_temp;
-	mach_msg_type_number_t	       cpu_temp_len;
-#endif
+	mach_msg_type_number_t         cpu_info_len;
 
 	host_t cpu_host;
 
 	for (cpu = 0; cpu < cpu_list_len; cpu++)
 	{
-#if PROCESSOR_CPU_LOAD_INFO
-		derive_t derives[CPU_SUBMIT_MAX] = {
-			-1, -1, -1, -1, -1, -1, -1, -1, -1, -1
-		};
-		memset(derives, -1, sizeof(derives));
 		cpu_host = 0;
 		cpu_info_len = PROCESSOR_BASIC_INFO_COUNT;
 
-		if ((status = processor_info (cpu_list[cpu],
-						PROCESSOR_CPU_LOAD_INFO, &cpu_host,
-						(processor_info_t) &cpu_info, &cpu_info_len)) != KERN_SUCCESS)
+		status = processor_info (cpu_list[cpu], PROCESSOR_CPU_LOAD_INFO, &cpu_host,
+				(processor_info_t) &cpu_info, &cpu_info_len);
+		if (status != KERN_SUCCESS)
 		{
-			ERROR ("cpu plugin: processor_info failed with status %i", (int) status);
+			ERROR ("cpu plugin: processor_info (PROCESSOR_CPU_LOAD_INFO) failed: %s",
+					mach_error_string (status));
 			continue;
 		}
 
@@ -548,60 +588,14 @@ static int cpu_read (void)
 			continue;
 		}
 
-		derives[CPU_SUBMIT_USER] = (derive_t) cpu_info.cpu_ticks[CPU_STATE_USER];
-		derives[CPU_SUBMIT_NICE] = (derive_t) cpu_info.cpu_ticks[CPU_STATE_NICE];
-		derives[CPU_SUBMIT_SYSTEM] = (derive_t) cpu_info.cpu_ticks[CPU_STATE_SYSTEM];
-		derives[CPU_SUBMIT_IDLE] = (derive_t) cpu_info.cpu_ticks[CPU_STATE_IDLE];
-		submit (cpu, derives);
-
-#endif /* PROCESSOR_CPU_LOAD_INFO */
-#if PROCESSOR_TEMPERATURE
-		/*
-		 * Not all Apple computers do have this ability. To minimize
-		 * the messages sent to the syslog we do an exponential
-		 * stepback if `processor_info' fails. We still try ~once a day
-		 * though..
-		 */
-		if (cpu_temp_retry_counter > 0)
-		{
-			cpu_temp_retry_counter--;
-			continue;
-		}
-
-		cpu_temp_len = PROCESSOR_INFO_MAX;
-
-		status = processor_info (cpu_list[cpu],
-				PROCESSOR_TEMPERATURE,
-				&cpu_host,
-				cpu_temp, &cpu_temp_len);
-		if (status != KERN_SUCCESS)
-		{
-			ERROR ("cpu plugin: processor_info failed: %s",
-					mach_error_string (status));
-
-			cpu_temp_retry_counter = cpu_temp_retry_step;
-			cpu_temp_retry_step *= 2;
-			if (cpu_temp_retry_step > cpu_temp_retry_max)
-				cpu_temp_retry_step = cpu_temp_retry_max;
-
-			continue;
-		}
-
-		if (cpu_temp_len != 1)
-		{
-			DEBUG ("processor_info (PROCESSOR_TEMPERATURE) returned %i elements..?",
-					(int) cpu_temp_len);
-			continue;
-		}
-
-		cpu_temp_retry_counter = 0;
-		cpu_temp_retry_step    = 1;
-#endif /* PROCESSOR_TEMPERATURE */
+		cpu_stage (cpu, COLLECTD_CPU_STATE_USER,   (derive_t) cpu_info.cpu_ticks[CPU_STATE_USER],   now);
+		cpu_stage (cpu, COLLECTD_CPU_STATE_NICE,   (derive_t) cpu_info.cpu_ticks[CPU_STATE_NICE],   now);
+		cpu_stage (cpu, COLLECTD_CPU_STATE_SYSTEM, (derive_t) cpu_info.cpu_ticks[CPU_STATE_SYSTEM], now);
+		cpu_stage (cpu, COLLECTD_CPU_STATE_IDLE,   (derive_t) cpu_info.cpu_ticks[CPU_STATE_IDLE],   now);
 	}
-	submit_flush ();
-/* #endif PROCESSOR_CPU_LOAD_INFO */
+/* }}} #endif PROCESSOR_CPU_LOAD_INFO */
 
-#elif defined(KERNEL_LINUX)
+#elif defined(KERNEL_LINUX) /* {{{ */
 	int cpu;
 	FILE *fh;
 	char buf[1024];
@@ -619,10 +613,6 @@ static int cpu_read (void)
 
 	while (fgets (buf, 1024, fh) != NULL)
 	{
-		derive_t derives[CPU_SUBMIT_MAX] = {
-			-1, -1, -1, -1, -1, -1, -1, -1, -1, -1
-		};
-
 		if (strncmp (buf, "cpu", 3))
 			continue;
 		if ((buf[3] < '0') || (buf[3] > '9'))
@@ -633,28 +623,26 @@ static int cpu_read (void)
 			continue;
 
 		cpu = atoi (fields[0] + 3);
-		derives[CPU_SUBMIT_USER] = atoll(fields[1]);
-		derives[CPU_SUBMIT_NICE] = atoll(fields[2]);
-		derives[CPU_SUBMIT_SYSTEM] = atoll(fields[3]);
-		derives[CPU_SUBMIT_IDLE] = atoll(fields[4]);
+
+		cpu_stage (cpu, COLLECTD_CPU_STATE_USER,   (derive_t) atoll(fields[1]), now);
+		cpu_stage (cpu, COLLECTD_CPU_STATE_NICE,   (derive_t) atoll(fields[2]), now);
+		cpu_stage (cpu, COLLECTD_CPU_STATE_SYSTEM, (derive_t) atoll(fields[3]), now);
+		cpu_stage (cpu, COLLECTD_CPU_STATE_IDLE,   (derive_t) atoll(fields[4]), now);
 
 		if (numfields >= 8)
 		{
-			derives[CPU_SUBMIT_WAIT] = atoll(fields[5]);
-			derives[CPU_SUBMIT_INTERRUPT] = atoll(fields[6]);
-			derives[CPU_SUBMIT_SOFTIRQ] = atoll(fields[6]);
+			cpu_stage (cpu, COLLECTD_CPU_STATE_WAIT,      (derive_t) atoll(fields[5]), now);
+			cpu_stage (cpu, COLLECTD_CPU_STATE_INTERRUPT, (derive_t) atoll(fields[6]), now);
+			cpu_stage (cpu, COLLECTD_CPU_STATE_SOFTIRQ,   (derive_t) atoll(fields[7]), now);
 
 			if (numfields >= 9)
-				derives[CPU_SUBMIT_STEAL] = atoll(fields[8]);
+				cpu_stage (cpu, COLLECTD_CPU_STATE_STEAL, (derive_t) atoll(fields[8]), now);
 		}
-		submit(cpu, derives);
 	}
-	submit_flush();
-
 	fclose (fh);
-/* #endif defined(KERNEL_LINUX) */
+/* }}} #endif defined(KERNEL_LINUX) */
 
-#elif defined(HAVE_LIBKSTAT)
+#elif defined(HAVE_LIBKSTAT) /* {{{ */
 	int cpu;
 	static cpu_stat_t cs;
 
@@ -663,24 +651,17 @@ static int cpu_read (void)
 
 	for (cpu = 0; cpu < numcpu; cpu++)
 	{
-		derive_t derives[CPU_SUBMIT_MAX] = {
-			-1, -1, -1, -1, -1, -1, -1, -1, -1, -1
-		};
-
 		if (kstat_read (kc, ksp[cpu], &cs) == -1)
 			continue; /* error message? */
 
-		memset(derives, -1, sizeof(derives));
-		derives[CPU_SUBMIT_IDLE] = cs.cpu_sysinfo.cpu[CPU_IDLE];
-		derives[CPU_SUBMIT_USER] = cs.cpu_sysinfo.cpu[CPU_USER];
-		derives[CPU_SUBMIT_SYSTEM] = cs.cpu_sysinfo.cpu[CPU_KERNEL];
-		derives[CPU_SUBMIT_WAIT] = cs.cpu_sysinfo.cpu[CPU_WAIT];
-		submit (ksp[cpu]->ks_instance, derives);
+		cpu_stage (ksp[cpu]->ks_instance, COLLECTD_CPU_STATE_IDLE,   (derive_t) cs.cpu_sysinfo.cpu[CPU_IDLE],   now);
+		cpu_stage (ksp[cpu]->ks_instance, COLLECTD_CPU_STATE_USER,   (derive_t) cs.cpu_sysinfo.cpu[CPU_USER],   now);
+		cpu_stage (ksp[cpu]->ks_instance, COLLECTD_CPU_STATE_SYSTEM, (derive_t) cs.cpu_sysinfo.cpu[CPU_KERNEL], now);
+		cpu_stage (ksp[cpu]->ks_instance, COLLECTD_CPU_STATE_WAIT,   (derive_t) cs.cpu_sysinfo.cpu[CPU_WAIT],   now);
 	}
-	submit_flush ();
-/* #endif defined(HAVE_LIBKSTAT) */
+/* }}} #endif defined(HAVE_LIBKSTAT) */
 
-#elif CAN_USE_SYSCTL
+#elif CAN_USE_SYSCTL /* {{{ */
 	uint64_t cpuinfo[numcpu][CPUSTATES];
 	size_t cpuinfo_size;
 	int status;
@@ -736,20 +717,15 @@ static int cpu_read (void)
 	}
 
 	for (i = 0; i < numcpu; i++) {
-		derive_t derives[CPU_SUBMIT_MAX] = {
-			-1, -1, -1, -1, -1, -1, -1, -1, -1, -1
-		};
-
-		derives[CPU_SUBMIT_USER] = cpuinfo[i][CP_USER];
-		derives[CPU_SUBMIT_NICE] = cpuinfo[i][CP_NICE];
-		derives[CPU_SUBMIT_SYSTEM] = cpuinfo[i][CP_SYS];
-		derives[CPU_SUBMIT_IDLE] = cpuinfo[i][CP_IDLE];
-		derives[CPU_SUBMIT_INTERRUPT] = cpuinfo[i][CP_INTR];
-		submit(i, derives);
+		cpu_stage (i, COLLECTD_CPU_STATE_USER,      (derive_t) cpuinfo[i][CP_USER], now);
+		cpu_stage (i, COLLECTD_CPU_STATE_NICE,      (derive_t) cpuinfo[i][CP_NICE], now);
+		cpu_stage (i, COLLECTD_CPU_STATE_SYSTEM,    (derive_t) cpuinfo[i][CP_SYS], now);
+		cpu_stage (i, COLLECTD_CPU_STATE_IDLE,      (derive_t) cpuinfo[i][CP_IDLE], now);
+		cpu_stage (i, COLLECTD_CPU_STATE_INTERRUPT, (derive_t) cpuinfo[i][CP_INTR], now);
 	}
-	submit_flush();
-/* #endif CAN_USE_SYSCTL */
-#elif defined(HAVE_SYSCTLBYNAME) && defined(HAVE_SYSCTL_KERN_CP_TIMES)
+/* }}} #endif CAN_USE_SYSCTL */
+
+#elif defined(HAVE_SYSCTLBYNAME) && defined(HAVE_SYSCTL_KERN_CP_TIMES) /* {{{ */
 	long cpuinfo[maxcpu][CPUSTATES];
 	size_t cpuinfo_size;
 	int i;
@@ -766,26 +742,17 @@ static int cpu_read (void)
 	}
 
 	for (i = 0; i < numcpu; i++) {
-		derive_t derives[CPU_SUBMIT_MAX] = {
-			-1, -1, -1, -1, -1, -1, -1, -1, -1, -1
-		};
-
-		derives[CPU_SUBMIT_USER] = cpuinfo[i][CP_USER];
-		derives[CPU_SUBMIT_NICE] = cpuinfo[i][CP_NICE];
-		derives[CPU_SUBMIT_SYSTEM] = cpuinfo[i][CP_SYS];
-		derives[CPU_SUBMIT_IDLE] = cpuinfo[i][CP_IDLE];
-		derives[CPU_SUBMIT_INTERRUPT] = cpuinfo[i][CP_INTR];
-		submit(i, derives);
+		cpu_stage (i, COLLECTD_CPU_STATE_USER,      (derive_t) cpuinfo[i][CP_USER], now);
+		cpu_stage (i, COLLECTD_CPU_STATE_NICE,      (derive_t) cpuinfo[i][CP_NICE], now);
+		cpu_stage (i, COLLECTD_CPU_STATE_SYSTEM,    (derive_t) cpuinfo[i][CP_SYS], now);
+		cpu_stage (i, COLLECTD_CPU_STATE_IDLE,      (derive_t) cpuinfo[i][CP_IDLE], now);
+		cpu_stage (i, COLLECTD_CPU_STATE_INTERRUPT, (derive_t) cpuinfo[i][CP_INTR], now);
 	}
-	submit_flush();
+/* }}} #endif HAVE_SYSCTL_KERN_CP_TIMES */
 
-/* #endif HAVE_SYSCTL_KERN_CP_TIMES */
-#elif defined(HAVE_SYSCTLBYNAME)
+#elif defined(HAVE_SYSCTLBYNAME) /* {{{ */
 	long cpuinfo[CPUSTATES];
 	size_t cpuinfo_size;
-	derive_t derives[CPU_SUBMIT_MAX] = {
-		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1
-	};
 
 	cpuinfo_size = sizeof (cpuinfo);
 
@@ -797,21 +764,15 @@ static int cpu_read (void)
 		return (-1);
 	}
 
-	derives[CPU_SUBMIT_USER] = cpuinfo[CP_USER];
-	derives[CPU_SUBMIT_SYSTEM] = cpuinfo[CP_SYS];
-	derives[CPU_SUBMIT_NICE] = cpuinfo[CP_NICE];
-	derives[CPU_SUBMIT_IDLE] = cpuinfo[CP_IDLE];
-	derives[CPU_SUBMIT_INTERRUPT] = cpuinfo[CP_INTR];
-	submit(0, derives);
-	submit_flush();
+	cpu_stage (0, COLLECTD_CPU_STATE_USER,      (derive_t) cpuinfo[CP_USER], now);
+	cpu_stage (0, COLLECTD_CPU_STATE_NICE,      (derive_t) cpuinfo[CP_NICE], now);
+	cpu_stage (0, COLLECTD_CPU_STATE_SYSTEM,    (derive_t) cpuinfo[CP_SYS], now);
+	cpu_stage (0, COLLECTD_CPU_STATE_IDLE,      (derive_t) cpuinfo[CP_IDLE], now);
+	cpu_stage (0, COLLECTD_CPU_STATE_INTERRUPT, (derive_t) cpuinfo[CP_INTR], now);
+/* }}} #endif HAVE_SYSCTLBYNAME */
 
-/* #endif HAVE_SYSCTLBYNAME */
-
-#elif defined(HAVE_LIBSTATGRAB)
+#elif defined(HAVE_LIBSTATGRAB) /* {{{ */
 	sg_cpu_stats *cs;
-	derive_t derives[CPU_SUBMIT_MAX] = {
-		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1
-	};
 	cs = sg_get_cpu_stats ();
 
 	if (cs == NULL)
@@ -820,17 +781,15 @@ static int cpu_read (void)
 		return (-1);
 	}
 
-	derives[CPU_SUBMIT_IDLE] = (derive_t) cs->idle;
-	derives[CPU_SUBMIT_NICE] = (derive_t) cs->nice;
-	derives[CPU_SUBMIT_SWAP] = (derive_t) cs->swap;
-	derives[CPU_SUBMIT_SYSTEM] = (derive_t) cs->kernel;
-	derives[CPU_SUBMIT_USER] = (derive_t) cs->user;
-	derives[CPU_SUBMIT_WAIT] = (derive_t) cs->iowait;
-	submit(0, derives);
-	submit_flush();
-/* #endif HAVE_LIBSTATGRAB */
+	cpu_state (0, COLLECTD_CPU_STATE_IDLE,   (derive_t) cs->idle);
+	cpu_state (0, COLLECTD_CPU_STATE_NICE,   (derive_t) cs->nice);
+	cpu_state (0, COLLECTD_CPU_STATE_SWAP,   (derive_t) cs->swap);
+	cpu_state (0, COLLECTD_CPU_STATE_SYSTEM, (derive_t) cs->kernel);
+	cpu_state (0, COLLECTD_CPU_STATE_USER,   (derive_t) cs->user);
+	cpu_state (0, COLLECTD_CPU_STATE_WAIT,   (derive_t) cs->iowait);
+/* }}} #endif HAVE_LIBSTATGRAB */
 
-#elif defined(HAVE_PERFSTAT)
+#elif defined(HAVE_PERFSTAT) /* {{{ */
 	perfstat_id_t id;
 	int i, cpus;
 
@@ -862,18 +821,15 @@ static int cpu_read (void)
 
 	for (i = 0; i < cpus; i++)
 	{
-		derive_t derives[CPU_SUBMIT_MAX] = {
-			-1, -1, -1, -1, -1, -1, -1, -1, -1, -1
-		};
-		derives[CPU_SUBMIT_IDLE] = perfcpu[i].idle;
-		derives[CPU_SUBMIT_SYSTEM] = perfcpu[i].sys;
-		derives[CPU_SUBMIT_USER] = perfcpu[i].user;
-		derives[CPU_SUBMIT_WAIT] = perfcpu[i].wait;
-		submit(i, derives);
+		cpu_stage (i, COLLECTD_CPU_STATE_IDLE,   (derive_t) perfcpu[i].idle, now);
+		cpu_stage (i, COLLECTD_CPU_STATE_SYSTEM, (derive_t) perfcpu[i].sys,  now);
+		cpu_stage (i, COLLECTD_CPU_STATE_USER,   (derive_t) perfcpu[i].user, now);
+		cpu_stage (i, COLLECTD_CPU_STATE_WAIT,   (derive_t) perfcpu[i].wait, now);
 	}
-	submit_flush();
-#endif /* HAVE_PERFSTAT */
+#endif /* }}} HAVE_PERFSTAT */
 
+	cpu_commit ();
+	cpu_reset ();
 	return (0);
 }
 
@@ -883,3 +839,5 @@ void module_register (void)
 	plugin_register_config ("cpu", cpu_config, config_keys, config_keys_num);
 	plugin_register_read ("cpu", cpu_read);
 } /* void module_register */
+
+/* vim: set sw=8 sts=8 noet fdm=marker : */

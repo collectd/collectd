@@ -37,11 +37,11 @@
 
 /* Config defs */
 static c_avl_tree_t *config_mountpoints = NULL;
-static short enable_client_stats_per_mountpoint = 0;
+static _Bool enable_client_stats_per_mountpoint = 0;
 
 typedef struct {
 	time_t min_age;
-	short enable;
+	_Bool  enable;
 } nfs_mountpoints_config_t;
 
 /*
@@ -185,6 +185,160 @@ static const char *nfs4_procedures_names[] =
 static size_t nfs4_procedures_names_num = STATIC_ARRAY_SIZE (nfs4_procedures_names);
 #endif
 
+#if KERNEL_LINUX
+static const char *nfs4_server40_procedures_names[] =
+{
+	"null",
+	"compound",
+	"reserved",
+	"access",
+	"close",
+	"commit",
+	"create",
+	"delegpurge",
+	"delegreturn",
+	"getattr",
+	"getfh",
+	"link",
+	"lock",
+	"lockt",
+	"locku",
+	"lookup",
+	"lookupp",
+	"nverify",
+	"open",
+	"openattr",
+	"open_confirm",
+	"open_downgrade",
+	"putfh",
+	"putpubfh",
+	"putrootfh",
+	"read",
+	"readdir",
+	"readlink",
+	"remove",
+	"rename",
+	"renew",
+	"restorefh",
+	"savefh",
+	"secinfo",
+	"setattr",
+	"setclientid",
+	"setcltid_confirm",
+	"verify",
+	"write",
+	"release_lockowner"
+};
+
+static size_t nfs4_server40_procedures_names_num = STATIC_ARRAY_SIZE (nfs4_server40_procedures_names);
+
+static const char *nfs4_server41_procedures_names[] =
+{
+	"backchannel_ctl",
+	"bind_conn_to_session",	
+	"exchange_id",
+	"create_session",
+	"destroy_session",
+	"free_stateid",
+	"get_dir_delegation",
+	"getdeviceinfo",
+	"getdevicelist",
+	"layoutcommit",
+	"layoutget",
+	"layoutreturn",
+	"secinfo_no_name",
+	"sequence",
+	"set_ssv",
+	"test_stateid",
+	"want_delegation",
+	"destroy_clientid",
+	"reclaim_complete",
+};
+
+static size_t nfs4_server41_procedures_names_num = STATIC_ARRAY_SIZE (nfs4_server41_procedures_names);
+
+#define NFS4_SERVER40_NUM_PROC ( \
+	STATIC_ARRAY_SIZE (nfs4_server40_procedures_names) )
+
+#define NFS4_SERVER41_NUM_PROC ( \
+	STATIC_ARRAY_SIZE (nfs4_server40_procedures_names) + \
+	STATIC_ARRAY_SIZE (nfs4_server41_procedures_names) )
+
+#define NFS4_SERVER_MAX_PROC (NFS4_SERVER41_NUM_PROC)
+
+static const char *nfs4_client40_procedures_names[] =
+{
+	"null",
+	"read",
+	"write",
+	"commit",
+	"open",
+	"open_confirm",
+	"open_noattr",
+	"open_downgrade",
+	"close",
+	"setattr",
+	"fsinfo",
+	"renew",
+	"setclientid",
+	"setclientid_confirm",
+	"lock",
+	"lockt",
+	"locku",
+	"access",
+	"getattr",
+	"lookup",
+	"lookupp",
+	"remove",
+	"rename",
+	"link",
+	"symlink",
+	"create",
+	"pathconf",
+	"statfs",
+	"readlink",
+	"readdir",
+	"server_caps",
+	"delegreturn",
+	"getacl",
+	"setacl",
+	"fs_locations",		/* |35| 2.6.18 */
+	"release_lockowner",	/* |42| 2.6.36 */
+	"secinfo",		/* |46| 2.6.39 */
+	"fsid_present"		/* |54| 3.13 */
+};
+
+static const char *nfs4_client41_procedures_names[] =
+{
+	"exchange_id",		/* |40| 2.6.30 */
+	"create_session",	/* |40| 2.6.30 */
+	"destroy_session",	/* |40| 2.6.30 */
+	"sequence",		/* |40| 2.6.30 */
+	"get_lease_time",	/* |40| 2.6.30 */
+	"reclaim_complete",	/* |41| 2.6.33 */
+	"layoutget",		/* |44| 2.6.37 */
+	"getdeviceinfo",	/* |44| 2.6.37 */
+	"layoutcommit",		/* |46| 2.6.39 */
+	"layoutreturn",		/* |47| 3.0 */
+	"secinfo_no_name",	/* |51| 3.1 */
+	"test_stateid",		/* |51| 3.1 */
+	"free_stateid",		/* |51| 3.1 */
+	"getdevicelist",	/* |51| 3.1 */
+	"bind_conn_to_session",	/* |53| 3.5 */
+	"destroy_clientid"	/* |53| 3.5 */
+};
+
+#define NFS4_CLIENT40_NUM_PROC ( \
+	STATIC_ARRAY_SIZE (nfs4_client40_procedures_names) )
+
+#define NFS4_CLIENT41_NUM_PROC ( \
+	STATIC_ARRAY_SIZE (nfs4_client40_procedures_names) + \
+	STATIC_ARRAY_SIZE (nfs4_client41_procedures_names) )
+
+#define NFS4_CLIENT_MAX_PROC (NFS4_CLIENT41_NUM_PROC)
+
+#endif
+
 #if HAVE_LIBKSTAT
 extern kstat_ctl_t *kc;
 static kstat_t *nfs2_ksp_client;
@@ -194,8 +348,6 @@ static kstat_t *nfs3_ksp_server;
 static kstat_t *nfs4_ksp_client;
 static kstat_t *nfs4_ksp_server;
 #endif
-
-/* Possibly TODO: NFSv4 statistics */
 
 char *nfs_event_counters[] = {
 	"inoderevalidates",
@@ -394,21 +546,11 @@ static int config_nfs_mountpoint_add(oconfig_item_t *ci) /* {{{ */
 	{
 		oconfig_item_t *child = ci->children + i;
 		if (strcasecmp ("MinAge", child->key) == 0) {
-			if (child->values[0].type != OCONFIG_TYPE_NUMBER) {
-				WARNING ("nfs plugin:  'MinAge' needs exactly one int (time) argument.");
-				status = -1;
-				break;
-			} else {
-				item->min_age = child->values[0].value.number;
-			}
+			int x = 0;
+			cf_util_get_int(child, &x);
+			item->min_age = x;
 		} else if (strcasecmp ("Enable", child->key) == 0) {
-			if (child->values[0].type != OCONFIG_TYPE_BOOLEAN) {
-				WARNING ("nfs plugin:  'Enable' needs exactly one boolean argument.");
-				status = -1;
-				break;
-			} else {
-				item->enable = child->values[0].value.boolean;
-			}
+			cf_util_get_boolean(child, &item->enable);
 		} else {
 			WARNING ("nfs plugin: Ignoring unknown config option `%s'.", child->key);
 		}
@@ -441,13 +583,7 @@ static int nfs_config_cb (oconfig_item_t *ci) /* {{{ */
 				return(-1);
 			}
 		} else if (strcasecmp ("EnableClientStatsPerMountpoint", child->key) == 0) {
-			if (child->values[0].type != OCONFIG_TYPE_BOOLEAN) {
-				WARNING ("nfs plugin:  'EnableClientStatsPerMountpoint' needs exactly one boolean argument.");
-				nfs_deconfig_cb();
-				return(-1);
-			} else {
-				enable_client_stats_per_mountpoint = child->values[0].value.boolean;
-			}
+			cf_util_get_boolean(child, &enable_client_stats_per_mountpoint);
 		}
 		else
 		{
@@ -553,7 +689,6 @@ static int is_proc_self_mountstats_available (void) /* {{{ */
 		item->min_age = 3600;                 /* default : do not record before 1 hour */
 		c_avl_insert(config_mountpoints, str, item);
 	}
-
 	return (0);
 } /* }}} is_proc_self_mountstats_available */
 
@@ -642,6 +777,7 @@ static void mountstats_initialize_value_list(value_list_t *vl, mountstats_t *m, 
 	}
 	vl->type_instance[0] = '\0';
 } /* }}} mountstats_initialize_value_list */
+
 
 static void mountstats_compute_and_submit (mountstats_t *m, mountstats_t *oldm) /* {{{ */
 {
@@ -1237,14 +1373,27 @@ static void nfs_procedures_submit (const char *plugin_instance, /* {{{ */
 } /* }}} void nfs_procedures_submit */
 
 #if KERNEL_LINUX
-static int nfs_submit_fields (int nfs_version, const char *instance, /* {{{ */
-		char **fields, size_t fields_num,
-		const char **proc_names, size_t proc_names_num)
+static void nfs_submit_fields (int nfs_version, const char *instance,  /* {{{ */
+		char **fields, size_t fields_num, const char **proc_names)
 {
 	char plugin_instance[DATA_MAX_NAME_LEN];
 	value_t values[fields_num];
 	size_t i;
 
+	ssnprintf (plugin_instance, sizeof (plugin_instance), "v%i%s",
+			nfs_version, instance);
+
+	for (i = 0; i < fields_num; i++)
+		(void) parse_value (fields[i], &values[i], DS_TYPE_DERIVE);
+
+	nfs_procedures_submit (plugin_instance, proc_names, values,
+			fields_num);
+} /* }}} nfs_submit_fields */
+
+static int nfs_submit_fields_safe (int nfs_version, const char *instance, /* {{{ */
+		char **fields, size_t fields_num,
+		const char **proc_names, size_t proc_names_num)
+{
 	if (fields_num != proc_names_num)
 	{
 		WARNING ("nfs plugin: Wrong number of fields for "
@@ -1254,23 +1403,131 @@ static int nfs_submit_fields (int nfs_version, const char *instance, /* {{{ */
 		return (EINVAL);
 	}
 
-	ssnprintf (plugin_instance, sizeof (plugin_instance), "v%i%s",
-			nfs_version, instance);
-
-	for (i = 0; i < proc_names_num; i++)
-		(void) parse_value (fields[i], &values[i], DS_TYPE_DERIVE);
-
-	nfs_procedures_submit (plugin_instance, proc_names, values,
-			proc_names_num);
+	nfs_submit_fields (nfs_version, instance, fields, fields_num, 
+			proc_names);
 
 	return (0);
-} /* }}} nfs_submit_fields */
+} /* }}} int nfs_submit_fields_safe */
 
-static void nfs_read_linux (FILE *fh, char *inst) /* {{{ */
+static int nfs_submit_nfs4_server (const char *instance, char **fields, 
+		size_t fields_num)
+{
+	static int suppress_warning = 0;
+
+	if (fields_num != NFS4_SERVER40_NUM_PROC &&
+		fields_num != NFS4_SERVER41_NUM_PROC) 
+	{
+		if (!suppress_warning)
+		{
+			WARNING ("nfs plugin: Unexpected number of fields for "
+					"NFSv4 %s statistics: %zu. ",
+					instance, fields_num);
+		}
+
+		if (fields_num > NFS4_SERVER_MAX_PROC)
+		{
+			fields_num = NFS4_SERVER_MAX_PROC;
+			suppress_warning = 1;
+		}
+		else
+		{
+			return (EINVAL);
+		}
+	}
+
+        nfs_submit_fields (4, instance, fields, 
+			nfs4_server40_procedures_names_num,
+			nfs4_server40_procedures_names);
+
+	if (fields_num >= NFS4_SERVER41_NUM_PROC)
+	{
+		fields += nfs4_server40_procedures_names_num;
+
+	        nfs_submit_fields (4, instance, fields, 
+				nfs4_server41_procedures_names_num, 
+				nfs4_server41_procedures_names);
+	}
+
+	return (0);
+}
+
+static int nfs_submit_nfs4_client (const char *instance, char **fields, 
+		size_t fields_num)
+{
+	size_t proc40_names_num, proc41_names_num;
+
+	static int suppress_warning = 0;
+
+	switch (fields_num)
+	{
+		case 34:
+		case 35:
+		case 36:
+		case 37:
+		case 38:
+			/* 4.0-only configuration */
+			proc40_names_num = fields_num;
+			break;
+		case 40:
+		case 41:
+			proc40_names_num = 35;
+			break;
+		case 42:
+		case 44:
+			proc40_names_num = 36;
+			break;
+		case 46:
+		case 47:
+		case 51:
+		case 53:
+			proc40_names_num = 37;
+			break;
+		case 54:
+			proc40_names_num = 38;
+			break;
+		default:
+			if (!suppress_warning)
+			{
+				WARNING ("nfs plugin: Unexpected number of "
+						"fields for NFSv4 %s "
+						"statistics: %zu. ",
+						instance, fields_num);
+			}
+
+			if (fields_num > 34)
+			{
+				/* safe fallback to basic nfs40 procedures */
+				fields_num = 34;
+				proc40_names_num = 34;
+
+				suppress_warning = 1;
+			}
+			else
+			{
+				return (EINVAL);
+			}
+	}
+
+	nfs_submit_fields (4, instance, fields, proc40_names_num,
+			nfs4_client40_procedures_names);
+
+	if (fields_num > proc40_names_num)
+	{
+		proc41_names_num = fields_num - proc40_names_num;
+		fields += proc40_names_num;
+
+		nfs_submit_fields (4, instance, fields,proc41_names_num,
+				 nfs4_client41_procedures_names);
+	}
+
+	return (0);
+}
+
+static void nfs_read_linux (FILE *fh, char *inst)
 {
 	char buffer[1024];
 
-	char *fields[48];
+	char *fields[64];
 	int fields_num = 0;
 
 	if (fh == NULL)
@@ -1286,25 +1543,37 @@ static void nfs_read_linux (FILE *fh, char *inst) /* {{{ */
 
 		if (strcmp (fields[0], "proc2") == 0)
 		{
-			nfs_submit_fields (/* version = */ 2, inst,
+			nfs_submit_fields_safe (/* version = */ 2, inst,
 					fields + 2, (size_t) (fields_num - 2),
 					nfs2_procedures_names,
 					nfs2_procedures_names_num);
 		}
 		else if (strncmp (fields[0], "proc3", 5) == 0)
 		{
-			nfs_submit_fields (/* version = */ 3, inst,
+			nfs_submit_fields_safe (/* version = */ 3, inst,
 					fields + 2, (size_t) (fields_num - 2),
 					nfs3_procedures_names,
 					nfs3_procedures_names_num);
 		}
+		else if (strcmp (fields[0], "proc4ops") == 0)
+		{
+			if (inst[0] == 's')
+				nfs_submit_nfs4_server (inst, fields + 2, 
+						(size_t) (fields_num - 2));
+		}
+		else if (strcmp (fields[0], "proc4") == 0)
+		{
+			if (inst[0] == 'c')
+				nfs_submit_nfs4_client (inst, fields + 2,
+						(size_t) (fields_num - 2));			
+		}
 	} /* while (fgets) */
-} /* }}} void nfs_read_linux */
+} /* void nfs_read_linux */
 #endif /* KERNEL_LINUX */
 
 #if HAVE_LIBKSTAT
-static int nfs_read_kstat (kstat_t *ksp, int nfs_version, char *inst, /* {{{ */
-		const char **proc_names, size_t proc_names_num)
+static int nfs_read_kstat (kstat_t *ksp, int nfs_version, char *inst,
+		char const **proc_names, size_t proc_names_num)
 {
 	char plugin_instance[DATA_MAX_NAME_LEN];
 	value_t values[proc_names_num];
@@ -1330,7 +1599,7 @@ static int nfs_read_kstat (kstat_t *ksp, int nfs_version, char *inst, /* {{{ */
 	nfs_procedures_submit (plugin_instance, proc_names, values,
 			proc_names_num);
 	return (0);
-} /* }}} nfs_read_kstat */
+}
 #endif
 
 #if KERNEL_LINUX
@@ -1349,7 +1618,6 @@ static int nfs_read (void) /* {{{ */
 		nfs_read_linux (fh, "server");
 		fclose (fh);
 	}
-
 	if(proc_self_mountstats_is_available && config_mountpoints) parse_proc_self_mountstats();
 	return (0);
 } /* }}} nfs_read */
@@ -1375,11 +1643,9 @@ static int nfs_read (void) /* {{{ */
 } /* }}} nfs_read */
 #endif /* HAVE_LIBKSTAT */
 
-
 void module_register (void)
 {
 	plugin_register_init ("nfs", nfs_init);
 	plugin_register_complex_config ("nfs", nfs_config_cb);
 	plugin_register_read ("nfs", nfs_read);
 } /* void module_register */
-/* vim: set sw=4 ts=4 tw=78 noexpandtab fdm=marker : */

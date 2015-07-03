@@ -30,6 +30,9 @@
 #ifdef HAVE_SYS_SYSCTL_H
 # include <sys/sysctl.h>
 #endif
+#ifdef HAVE_SYS_VMMETER_H
+# include <sys/vmmeter.h>
+#endif
 
 #ifdef HAVE_MACH_KERN_RETURN_H
 # include <mach/kern_return.h>
@@ -157,9 +160,9 @@ static int memory_init (void)
 
 #define MEMORY_SUBMIT(...) do { \
 	if (values_absolute) \
-		plugin_dispatch_multivalue (vl, 0, __VA_ARGS__, NULL); \
+		plugin_dispatch_multivalue (vl, 0, DS_TYPE_GAUGE, __VA_ARGS__, NULL); \
 	if (values_percentage) \
-		plugin_dispatch_multivalue (vl, 1, __VA_ARGS__, NULL); \
+		plugin_dispatch_multivalue (vl, 1, DS_TYPE_GAUGE, __VA_ARGS__, NULL); \
 } while (0)
 
 static int memory_read_internal (value_list_t *vl)
@@ -278,11 +281,16 @@ static int memory_read_internal (value_list_t *vl)
 	char *fields[8];
 	int numfields;
 
+	_Bool detailed_slab_info = 0;
+
 	gauge_t mem_total = 0;
 	gauge_t mem_used = 0;
 	gauge_t mem_buffered = 0;
 	gauge_t mem_cached = 0;
 	gauge_t mem_free = 0;
+	gauge_t mem_slab_total = 0;
+	gauge_t mem_slab_reclaimable = 0;
+	gauge_t mem_slab_unreclaimable = 0;
 
 	if ((fh = fopen ("/proc/meminfo", "r")) == NULL)
 	{
@@ -304,6 +312,16 @@ static int memory_read_internal (value_list_t *vl)
 			val = &mem_buffered;
 		else if (strncasecmp (buffer, "Cached:", 7) == 0)
 			val = &mem_cached;
+		else if (strncasecmp (buffer, "Slab:", 5) == 0)
+			val = &mem_slab_total;
+		else if (strncasecmp (buffer, "SReclaimable:", 13) == 0) {
+			val = &mem_slab_reclaimable;
+			detailed_slab_info = 1;
+		}
+		else if (strncasecmp (buffer, "SUnreclaim:", 11) == 0) {
+			val = &mem_slab_unreclaimable;
+			detailed_slab_info = 1;
+		}
 		else
 			continue;
 
@@ -321,14 +339,28 @@ static int memory_read_internal (value_list_t *vl)
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 	}
 
-	if (mem_total < (mem_free + mem_buffered + mem_cached))
+	if (mem_total < (mem_free + mem_buffered + mem_cached + mem_slab_total))
 		return (-1);
 
-	mem_used = mem_total - (mem_free + mem_buffered + mem_cached);
-	MEMORY_SUBMIT ("used",     mem_used,
-	               "buffered", mem_buffered,
-	               "cached",   mem_cached,
-	               "free",     mem_free);
+	mem_used = mem_total - (mem_free + mem_buffered + mem_cached + mem_slab_total);
+
+	/* SReclaimable and SUnreclaim were introduced in kernel 2.6.19
+	 * They sum up to the value of Slab, which is available on older & newer
+	 * kernels. So SReclaimable/SUnreclaim are submitted if available, and Slab
+	 * if not. */
+	if (detailed_slab_info)
+		MEMORY_SUBMIT ("used",        mem_used,
+		               "buffered",    mem_buffered,
+		               "cached",      mem_cached,
+		               "free",        mem_free,
+		               "slab_unrecl", mem_slab_unreclaimable,
+		               "slab_recl",   mem_slab_reclaimable);
+	else
+		MEMORY_SUBMIT ("used",     mem_used,
+		               "buffered", mem_buffered,
+		               "cached",   mem_cached,
+		               "free",     mem_free,
+		               "slab",     mem_slab_total);
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT

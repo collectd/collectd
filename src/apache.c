@@ -45,14 +45,16 @@ struct apache_s
 	char *url;
 	char *user;
 	char *pass;
-	int   verify_peer;
-	int   verify_host;
+	_Bool verify_peer;
+	_Bool verify_host;
 	char *cacert;
+	char *ssl_ciphers;
 	char *server; /* user specific server type */
 	char *apache_buffer;
 	char apache_curl_error[CURL_ERROR_SIZE];
 	size_t apache_buffer_size;
 	size_t apache_buffer_fill;
+	int timeout;
 	CURL *curl;
 }; /* apache_s */
 
@@ -72,12 +74,14 @@ static void apache_free (apache_t *st)
 	sfree (st->user);
 	sfree (st->pass);
 	sfree (st->cacert);
+	sfree (st->ssl_ciphers);
 	sfree (st->server);
 	sfree (st->apache_buffer);
 	if (st->curl) {
 		curl_easy_cleanup(st->curl);
 		st->curl = NULL;
 	}
+	sfree (st);
 } /* apache_free */
 
 static size_t apache_curl_callback (void *buf, size_t size, size_t nmemb,
@@ -165,94 +169,23 @@ static size_t apache_header_callback (void *buf, size_t size, size_t nmemb,
  *   URL ...
  * </Plugin>
  */
-static int config_set_string (char **ret_string, /* {{{ */
-				    oconfig_item_t *ci)
-{
-	char *string;
-
-	if ((ci->values_num != 1)
-			|| (ci->values[0].type != OCONFIG_TYPE_STRING))
-	{
-		WARNING ("apache plugin: The `%s' config option "
-				"needs exactly one string argument.", ci->key);
-		return (-1);
-	}
-
-	string = strdup (ci->values[0].value.string);
-	if (string == NULL)
-	{
-		ERROR ("apache plugin: strdup failed.");
-		return (-1);
-	}
-
-	if (*ret_string != NULL)
-		free (*ret_string);
-	*ret_string = string;
-
-	return (0);
-} /* }}} int config_set_string */
-
-static int config_set_boolean (int *ret_boolean, /* {{{ */
-				    oconfig_item_t *ci)
-{
-	if ((ci->values_num != 1)
-			|| ((ci->values[0].type != OCONFIG_TYPE_BOOLEAN)
-				&& (ci->values[0].type != OCONFIG_TYPE_STRING)))
-	{
-		WARNING ("apache plugin: The `%s' config option "
-				"needs exactly one boolean argument.", ci->key);
-		return (-1);
-	}
-
-	if (ci->values[0].type == OCONFIG_TYPE_BOOLEAN)
-	{
-		if (ci->values[0].value.boolean)
-			*ret_boolean = 1;
-		else
-			*ret_boolean = 0;
-	}
-	else /* if (ci->values[0].type != OCONFIG_TYPE_STRING) */
-	{
-		char *string = ci->values[0].value.string;
-		if (IS_TRUE (string))
-			*ret_boolean = 1;
-		else if (IS_FALSE (string))
-			*ret_boolean = 0;
-		else
-		{
-			ERROR ("apache plugin: Cannot parse string "
-					"as boolean value: %s", string);
-			return (-1);
-		}
-	}
-
-	return (0);
-} /* }}} int config_set_boolean */
-
 static int config_add (oconfig_item_t *ci)
 {
 	apache_t *st;
 	int i;
 	int status;
 
-	if ((ci->values_num != 1)
-		|| (ci->values[0].type != OCONFIG_TYPE_STRING))
-	{
-		WARNING ("apache plugin: The `%s' config option "
-			"needs exactly one string argument.", ci->key);
-		return (-1);
-	}
-
-	st = (apache_t *) malloc (sizeof (*st));
+	st = malloc (sizeof (*st));
 	if (st == NULL)
 	{
 		ERROR ("apache plugin: malloc failed.");
 		return (-1);
 	}
-
 	memset (st, 0, sizeof (*st));
 
-	status = config_set_string (&st->name, ci);
+	st->timeout = -1;
+
+	status = cf_util_get_string (ci, &st->name);
 	if (status != 0)
 	{
 		sfree (st);
@@ -265,21 +198,25 @@ static int config_add (oconfig_item_t *ci)
 		oconfig_item_t *child = ci->children + i;
 
 		if (strcasecmp ("URL", child->key) == 0)
-			status = config_set_string (&st->url, child);
+			status = cf_util_get_string (child, &st->url);
 		else if (strcasecmp ("Host", child->key) == 0)
-			status = config_set_string (&st->host, child);
+			status = cf_util_get_string (child, &st->host);
 		else if (strcasecmp ("User", child->key) == 0)
-			status = config_set_string (&st->user, child);
+			status = cf_util_get_string (child, &st->user);
 		else if (strcasecmp ("Password", child->key) == 0)
-			status = config_set_string (&st->pass, child);
+			status = cf_util_get_string (child, &st->pass);
 		else if (strcasecmp ("VerifyPeer", child->key) == 0)
-			status = config_set_boolean (&st->verify_peer, child);
+			status = cf_util_get_boolean (child, &st->verify_peer);
 		else if (strcasecmp ("VerifyHost", child->key) == 0)
-			status = config_set_boolean (&st->verify_host, child);
+			status = cf_util_get_boolean (child, &st->verify_host);
 		else if (strcasecmp ("CACert", child->key) == 0)
-			status = config_set_string (&st->cacert, child);
+			status = cf_util_get_string (child, &st->cacert);
+		else if (strcasecmp ("SSLCiphers", child->key) == 0)
+			status = cf_util_get_string (child, &st->ssl_ciphers);
 		else if (strcasecmp ("Server", child->key) == 0)
-			status = config_set_string (&st->server, child);
+			status = cf_util_get_string (child, &st->server);
+		else if (strcasecmp ("Timeout", child->key) == 0)
+			status = cf_util_get_int (child, &st->timeout);
 		else
 		{
 			WARNING ("apache plugin: Option `%s' not allowed here.",
@@ -318,13 +255,13 @@ static int config_add (oconfig_item_t *ci)
 		status = plugin_register_complex_read (/* group = */ NULL,
 				/* name      = */ callback_name,
 				/* callback  = */ apache_read_host,
-				/* interval  = */ NULL,
+				/* interval  = */ 0,
 				/* user_data = */ &ud);
 	}
 
 	if (status != 0)
 	{
-		apache_free(st);
+		apache_free (st);
 		return (-1);
 	}
 
@@ -356,8 +293,6 @@ static int config (oconfig_item_t *ci)
 /* initialize curl for each host */
 static int init_host (apache_t *st) /* {{{ */
 {
-	static char credentials[1024];
-
 	assert (st->url != NULL);
 	/* (Assured by `config_add') */
 
@@ -407,6 +342,12 @@ static int init_host (apache_t *st) /* {{{ */
 
 	if (st->user != NULL)
 	{
+#ifdef HAVE_CURLOPT_USERNAME
+		curl_easy_setopt (st->curl, CURLOPT_USERNAME, st->user);
+		curl_easy_setopt (st->curl, CURLOPT_PASSWORD,
+				(st->pass == NULL) ? "" : st->pass);
+#else
+		static char credentials[1024];
 		int status;
 
 		status = ssnprintf (credentials, sizeof (credentials), "%s:%s",
@@ -422,34 +363,29 @@ static int init_host (apache_t *st) /* {{{ */
 		}
 
 		curl_easy_setopt (st->curl, CURLOPT_USERPWD, credentials);
+#endif
 	}
 
 	curl_easy_setopt (st->curl, CURLOPT_URL, st->url);
 	curl_easy_setopt (st->curl, CURLOPT_FOLLOWLOCATION, 1L);
 	curl_easy_setopt (st->curl, CURLOPT_MAXREDIRS, 50L);
 
-	if (st->verify_peer != 0)
-	{
-		curl_easy_setopt (st->curl, CURLOPT_SSL_VERIFYPEER, 1L);
-	}
-	else
-	{
-		curl_easy_setopt (st->curl, CURLOPT_SSL_VERIFYPEER, 0L);
-	}
-
-	if (st->verify_host != 0)
-	{
-		curl_easy_setopt (st->curl, CURLOPT_SSL_VERIFYHOST, 2L);
-	}
-	else
-	{
-		curl_easy_setopt (st->curl, CURLOPT_SSL_VERIFYHOST, 0L);
-	}
-
+	curl_easy_setopt (st->curl, CURLOPT_SSL_VERIFYPEER,
+			(long) st->verify_peer);
+	curl_easy_setopt (st->curl, CURLOPT_SSL_VERIFYHOST,
+			st->verify_host ? 2L : 0L);
 	if (st->cacert != NULL)
-	{
 		curl_easy_setopt (st->curl, CURLOPT_CAINFO, st->cacert);
-	}
+	if (st->ssl_ciphers != NULL)
+		curl_easy_setopt (st->curl, CURLOPT_SSL_CIPHER_LIST,st->ssl_ciphers);
+
+#ifdef HAVE_CURLOPT_TIMEOUT_MS
+	if (st->timeout >= 0)
+		curl_easy_setopt (st->curl, CURLOPT_TIMEOUT_MS, (long) st->timeout);
+	else
+		curl_easy_setopt (st->curl, CURLOPT_TIMEOUT_MS,
+				CDTIME_T_TO_MS(plugin_get_interval()));
+#endif
 
 	return (0);
 } /* }}} int init_host */
@@ -671,9 +607,18 @@ static int apache_read_host (user_data_t *user_data) /* {{{ */
 	return (0);
 } /* }}} int apache_read_host */
 
+static int apache_init (void) /* {{{ */
+{
+	/* Call this while collectd is still single-threaded to avoid
+	 * initialization issues in libgcrypt. */
+	curl_global_init (CURL_GLOBAL_SSL);
+	return (0);
+} /* }}} int apache_init */
+
 void module_register (void)
 {
 	plugin_register_complex_config ("apache", config);
+	plugin_register_init ("apache", apache_init);
 } /* void module_register */
 
 /* vim: set sw=8 noet fdm=marker : */

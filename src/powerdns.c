@@ -84,10 +84,10 @@ typedef struct statname_lookup_s statname_lookup_t;
 
 /* Description of statistics returned by the recursor: {{{
 all-outqueries      counts the number of outgoing UDP queries since starting
-answers0-1          counts the number of queries answered within 1 milisecond
+answers0-1          counts the number of queries answered within 1 millisecond
 answers100-1000     counts the number of queries answered within 1 second
-answers10-100       counts the number of queries answered within 100 miliseconds
-answers1-10         counts the number of queries answered within 10 miliseconds
+answers10-100       counts the number of queries answered within 100 milliseconds
+answers1-10         counts the number of queries answered within 10 milliseconds
 answers-slow        counts the number of queries answered after 1 second
 cache-entries       shows the number of entries in the cache
 cache-hits          counts the number of cache hits since starting
@@ -147,21 +147,33 @@ statname_lookup_t lookup_table[] = /* {{{ */
   {"recursing-questions",    "dns_question", "recurse"},
   {"tcp-queries",            "dns_question", "tcp"},
   {"udp-queries",            "dns_question", "udp"},
+  {"rd-queries",             "dns_question", "rd"},
 
   /* Answers */
   {"recursing-answers",      "dns_answer",   "recurse"},
   {"tcp-answers",            "dns_answer",   "tcp"},
   {"udp-answers",            "dns_answer",   "udp"},
+  {"recursion-unanswered",   "dns_answer",   "recursion-unanswered"},
+  {"udp-answers-bytes",      "total_bytes",  "udp-answers-bytes"},
 
   /* Cache stuff */
   {"packetcache-hit",        "cache_result", "packet-hit"},
   {"packetcache-miss",       "cache_result", "packet-miss"},
   {"packetcache-size",       "cache_size",   "packet"},
+  {"key-cache-size",         "cache_size",   "key"},
+  {"meta-cache-size",        "cache_size",   "meta"},
+  {"signature-cache-size",   "cache_size",   "signature"},
   {"query-cache-hit",        "cache_result", "query-hit"},
   {"query-cache-miss",       "cache_result", "query-miss"},
 
   /* Latency */
   {"latency",                "latency",      NULL},
+
+  /* DNS updates */
+  {"dnsupdate-answers",      "dns_answer",   "dnsupdate-answer"},
+  {"dnsupdate-changes",      "dns_question", "dnsupdate-changes"},
+  {"dnsupdate-queries",      "dns_question", "dnsupdate-queries"},
+  {"dnsupdate-refused",      "dns_answer",   "dnsupdate-refused"},
 
   /* Other stuff.. */
   {"corrupt-packets",        "ipt_packets",  "corrupt"},
@@ -175,6 +187,9 @@ statname_lookup_t lookup_table[] = /* {{{ */
   {"udp4-queries",           "dns_question", "queries-udp4"},
   {"udp6-answers",           "dns_answer",   "udp6"},
   {"udp6-queries",           "dns_question", "queries-udp6"},
+  {"security-status",        "dns_question", "security-status"},
+  {"udp-do-queries",         "dns_question", "udp-do_queries"},
+  {"signatures",             "counter",      "signatures"},
 
   /***********************
    * Recursor statistics *
@@ -224,8 +239,8 @@ statname_lookup_t lookup_table[] = /* {{{ */
   {"throttle-entries",    "gauge",        "entries-throttle"},
   {"unauthorized-tcp",    "counter",      "denied-unauthorized_tcp"},
   {"unauthorized-udp",    "counter",      "denied-unauthorized_udp"},
-  {"unexpected-packets",  "dns_answer",   "unexpected"}
-  /* {"uptime", "", ""} */
+  {"unexpected-packets",  "dns_answer",   "unexpected"},
+  {"uptime",              "uptime",       NULL}
 }; /* }}} */
 int lookup_table_length = STATIC_ARRAY_SIZE (lookup_table);
 
@@ -259,15 +274,15 @@ static void submit (const char *plugin_instance, /* {{{ */
     if (strcmp (lookup_table[i].name, pdns_type) == 0)
       break;
 
-  if (lookup_table[i].type == NULL)
-    return;
-
   if (i >= lookup_table_length)
   {
     INFO ("powerdns plugin: submit: Not found in lookup table: %s = %s;",
         pdns_type, value);
     return;
   }
+
+  if (lookup_table[i].type == NULL)
+    return;
 
   type = lookup_table[i].type;
   type_instance = lookup_table[i].type_instance;
@@ -283,7 +298,7 @@ static void submit (const char *plugin_instance, /* {{{ */
 
   if (ds->ds_num != 1)
   {
-    ERROR ("powerdns plugin: type `%s' has %i data sources, "
+    ERROR ("powerdns plugin: type `%s' has %zu data sources, "
         "but I can only handle one.",
         type, ds->ds_num);
     return;
@@ -447,6 +462,12 @@ static int powerdns_get_data_stream (list_item_t *item, /* {{{ */
   timeout.tv_sec=5;
   timeout.tv_usec=0;
   status = setsockopt (sd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof (timeout));
+  if (status != 0)
+  {
+    FUNC_ERROR ("setsockopt");
+    close (sd);
+    return (-1);
+  }
 
   status = connect (sd, (struct sockaddr *) &item->sockaddr,
       sizeof (item->sockaddr));
@@ -494,7 +515,6 @@ static int powerdns_get_data_stream (list_item_t *item, /* {{{ */
     buffer[buffer_size] = 0;
   } /* while (42) */
   close (sd);
-  sd = -1;
 
   if (status < 0)
   {
@@ -630,12 +650,12 @@ static int powerdns_update_recursor_command (list_item_t *li) /* {{{ */
       return (-1);
     }
     buffer[sizeof (buffer) - 1] = 0;
-    int i = strlen (buffer);
-    if (i < sizeof (buffer) - 2)
+    size_t len = strlen (buffer);
+    if (len < sizeof (buffer) - 2)
     {
-      buffer[i++] = ' ';
-      buffer[i++] = '\n';
-      buffer[i++] = '\0';
+      buffer[len++] = ' ';
+      buffer[len++] = '\n';
+      buffer[len++] = '\0';
     }
   }
 
@@ -716,25 +736,6 @@ static int powerdns_read_recursor (list_item_t *item) /* {{{ */
 
   return (0);
 } /* }}} int powerdns_read_recursor */
-
-static int powerdns_config_add_string (const char *name, /* {{{ */
-    char **dest,
-    oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("powerdns plugin: `%s' needs exactly one string argument.",
-	name);
-    return (-1);
-  }
-
-  sfree (*dest);
-  *dest = strdup (ci->values[0].value.string);
-  if (*dest == NULL)
-    return (-1);
-
-  return (0);
-} /* }}} int powerdns_config_add_string */
 
 static int powerdns_config_add_collect (list_item_t *li, /* {{{ */
     oconfig_item_t *ci)
@@ -846,7 +847,7 @@ static int powerdns_config_add_server (oconfig_item_t *ci) /* {{{ */
     if (strcasecmp ("Collect", option->key) == 0)
       status = powerdns_config_add_collect (item, option);
     else if (strcasecmp ("Socket", option->key) == 0)
-      status = powerdns_config_add_string ("Socket", &socket_temp, option);
+      status = cf_util_get_string (option, &socket_temp);
     else
     {
       ERROR ("powerdns plugin: Option `%s' not allowed here.", option->key);
@@ -886,12 +887,14 @@ static int powerdns_config_add_server (oconfig_item_t *ci) /* {{{ */
 
   if (status != 0)
   {
+    sfree (socket_temp);
     sfree (item);
     return (-1);
   }
 
   DEBUG ("powerdns plugin: Add server: instance = %s;", item->instance);
 
+  sfree (socket_temp);
   return (0);
 } /* }}} int powerdns_config_add_server */
 

@@ -31,7 +31,7 @@
 #include "utils_cache.h"
 #include "utils_format_json.h"
 
-static int escape_string (char *buffer, size_t buffer_size, /* {{{ */
+static int json_escape_string (char *buffer, size_t buffer_size, /* {{{ */
     const char *string)
 {
   size_t src_pos;
@@ -75,13 +75,13 @@ static int escape_string (char *buffer, size_t buffer_size, /* {{{ */
 #undef BUFFER_ADD
 
   return (0);
-} /* }}} int escape_string */
+} /* }}} int json_escape_string */
 
 static int values_to_json (char *buffer, size_t buffer_size, /* {{{ */
                 const data_set_t *ds, const value_list_t *vl, int store_rates)
 {
   size_t offset = 0;
-  int i;
+  size_t i;
   gauge_t *rates = NULL;
 
   memset (buffer, 0, buffer_size);
@@ -113,7 +113,7 @@ static int values_to_json (char *buffer, size_t buffer_size, /* {{{ */
     if (ds->ds[i].type == DS_TYPE_GAUGE)
     {
       if(isfinite (vl->values[i].gauge))
-        BUFFER_ADD ("%g", vl->values[i].gauge);
+        BUFFER_ADD (JSON_GAUGE_FORMAT, vl->values[i].gauge);
       else
         BUFFER_ADD ("null");
     }
@@ -129,7 +129,7 @@ static int values_to_json (char *buffer, size_t buffer_size, /* {{{ */
       }
 
       if(isfinite (rates[i]))
-        BUFFER_ADD ("%g", rates[i]);
+        BUFFER_ADD (JSON_GAUGE_FORMAT, rates[i]);
       else
         BUFFER_ADD ("null");
     }
@@ -160,7 +160,7 @@ static int dstypes_to_json (char *buffer, size_t buffer_size, /* {{{ */
                 const data_set_t *ds)
 {
   size_t offset = 0;
-  int i;
+  size_t i;
 
   memset (buffer, 0, buffer_size);
 
@@ -197,7 +197,7 @@ static int dsnames_to_json (char *buffer, size_t buffer_size, /* {{{ */
                 const data_set_t *ds)
 {
   size_t offset = 0;
-  int i;
+  size_t i;
 
   memset (buffer, 0, buffer_size);
 
@@ -239,7 +239,10 @@ static int meta_data_to_json (char *buffer, size_t buffer_size, /* {{{ */
   int status;
   int i;
 
-  memset (buffer, 0, buffer_size);
+  buffer[0] = 0;
+
+  if (meta == NULL)
+    return (EINVAL);
 
 #define BUFFER_ADD(...) do { \
   status = ssnprintf (buffer + offset, buffer_size - offset, \
@@ -253,6 +256,12 @@ static int meta_data_to_json (char *buffer, size_t buffer_size, /* {{{ */
 } while (0)
 
   keys_num = meta_data_toc (meta, &keys);
+  if (keys_num == 0)
+  {
+    sfree (keys);
+    return (0);
+  }
+
   for (i = 0; i < keys_num; ++i)
   {
     int type;
@@ -265,7 +274,7 @@ static int meta_data_to_json (char *buffer, size_t buffer_size, /* {{{ */
       if (meta_data_get_string (meta, key, &value) == 0)
       {
         char temp[512] = "";
-        escape_string (temp, sizeof (temp), value);
+        json_escape_string (temp, sizeof (temp), value);
         sfree (value);
         BUFFER_ADD (",\"%s\":%s", key, temp);
       }
@@ -308,7 +317,7 @@ static int meta_data_to_json (char *buffer, size_t buffer_size, /* {{{ */
 #undef BUFFER_ADD
 
   return (0);
-} /* int meta_data_to_json */
+} /* }}} int meta_data_to_json */
 
 static int value_list_to_json (char *buffer, size_t buffer_size, /* {{{ */
                 const data_set_t *ds, const value_list_t *vl, int store_rates)
@@ -353,7 +362,7 @@ static int value_list_to_json (char *buffer, size_t buffer_size, /* {{{ */
   BUFFER_ADD (",\"interval\":%.3f", CDTIME_T_TO_DOUBLE (vl->interval));
 
 #define BUFFER_ADD_KEYVAL(key, value) do { \
-  status = escape_string (temp, sizeof (temp), (value)); \
+  status = json_escape_string (temp, sizeof (temp), (value)); \
   if (status != 0) \
     return (status); \
   BUFFER_ADD (",\"%s\":%s", (key), temp); \

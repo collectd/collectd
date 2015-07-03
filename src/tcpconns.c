@@ -74,7 +74,9 @@
 /* sys/socket.h is necessary to compile when using netlink on older systems. */
 # include <sys/socket.h>
 # include <linux/netlink.h>
+#if HAVE_LINUX_INET_DIAG_H
 # include <linux/inet_diag.h>
+#endif
 # include <sys/socket.h>
 # include <arpa/inet.h>
 /* #endif KERNEL_LINUX */
@@ -137,10 +139,12 @@
 #endif /* KERNEL_AIX */
 
 #if KERNEL_LINUX
+#if HAVE_STRUCT_LINUX_INET_DIAG_REQ
 struct nlreq {
   struct nlmsghdr nlh;
   struct inet_diag_req r;
 };
+#endif
 
 static const char *tcp_state[] =
 {
@@ -268,15 +272,23 @@ static const char *config_keys[] =
 {
   "ListeningPorts",
   "LocalPort",
-  "RemotePort"
+  "RemotePort",
+  "AllPortsSummary"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static int port_collect_listening = 0;
+static int port_collect_total = 0;
 static port_entry_t *port_list_head = NULL;
+static uint32_t count_total[TCP_STATE_MAX + 1];
 
 #if KERNEL_LINUX
+#if HAVE_STRUCT_LINUX_INET_DIAG_REQ
+/* This depends on linux inet_diag_req because if this structure is missing,
+ * sequence_number is useless and we get a compilation warning.
+ */
 static uint32_t sequence_number = 0;
+#endif
 
 enum
 {
@@ -286,17 +298,22 @@ enum
 } linux_source = SRC_DUNNO;
 #endif
 
+static void conn_prepare_vl (value_list_t *vl, value_t *values)
+{
+  vl->values = values;
+  vl->values_len = 1;
+  sstrncpy (vl->host, hostname_g, sizeof (vl->host));
+  sstrncpy (vl->plugin, "tcpconns", sizeof (vl->plugin));
+  sstrncpy (vl->type, "tcp_connections", sizeof (vl->type));
+}
+
 static void conn_submit_port_entry (port_entry_t *pe)
 {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
   int i;
 
-  vl.values = values;
-  vl.values_len = 1;
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-  sstrncpy (vl.plugin, "tcpconns", sizeof (vl.plugin));
-  sstrncpy (vl.type, "tcp_connections", sizeof (vl.type));
+  conn_prepare_vl (&vl, values);
 
   if (((port_collect_listening != 0) && (pe->flags & PORT_IS_LISTENING))
       || (pe->flags & PORT_COLLECT_LOCAL))
@@ -330,9 +347,32 @@ static void conn_submit_port_entry (port_entry_t *pe)
   }
 } /* void conn_submit */
 
+static void conn_submit_port_total (void)
+{
+  value_t values[1];
+  value_list_t vl = VALUE_LIST_INIT;
+  int i;
+
+  conn_prepare_vl (&vl, values);
+
+  sstrncpy (vl.plugin_instance, "all", sizeof (vl.plugin_instance));
+
+  for (i = 1; i <= TCP_STATE_MAX; i++)
+  {
+    vl.values[0].gauge = count_total[i];
+
+    sstrncpy (vl.type_instance, tcp_state[i], sizeof (vl.type_instance));
+
+    plugin_dispatch_values (&vl);
+  }
+}
+
 static void conn_submit_all (void)
 {
   port_entry_t *pe;
+
+  if (port_collect_total)
+    conn_submit_port_total ();
 
   for (pe = port_list_head; pe != NULL; pe = pe->next)
     conn_submit_port_entry (pe);
@@ -372,23 +412,25 @@ static void conn_reset_port_entry (void)
   port_entry_t *prev = NULL;
   port_entry_t *pe = port_list_head;
 
+  memset (&count_total, '\0', sizeof(count_total));
+
   while (pe != NULL)
   {
     /* If this entry was created while reading the files (ant not when handling
      * the configuration) remove it now. */
     if ((pe->flags & (PORT_COLLECT_LOCAL
-	    | PORT_COLLECT_REMOTE
-	    | PORT_IS_LISTENING)) == 0)
+            | PORT_COLLECT_REMOTE
+            | PORT_IS_LISTENING)) == 0)
     {
       port_entry_t *next = pe->next;
 
       DEBUG ("tcpconns plugin: Removing temporary entry "
-	  "for listening port %"PRIu16, pe->port);
+          "for listening port %"PRIu16, pe->port);
 
       if (prev == NULL)
-	port_list_head = next;
+        port_list_head = next;
       else
-	prev->next = next;
+        prev->next = next;
 
       sfree (pe);
       pe = next;
@@ -400,6 +442,7 @@ static void conn_reset_port_entry (void)
     memset (pe->count_remote, '\0', sizeof (pe->count_remote));
     pe->flags &= ~PORT_IS_LISTENING;
 
+    prev = pe;
     pe = pe->next;
   }
 } /* void conn_reset_port_entry */
@@ -418,6 +461,8 @@ static int conn_handle_ports (uint16_t port_local, uint16_t port_remote, uint8_t
 	"unknown state 0x%02"PRIx8".", state);
     return (-1);
   }
+
+  count_total[state]++;
 
   /* Listening sockets */
   if ((state == TCP_STATE_LISTEN) && (port_collect_listening != 0))
@@ -446,6 +491,7 @@ static int conn_handle_ports (uint16_t port_local, uint16_t port_remote, uint8_t
  * zero on other errors. */
 static int conn_read_netlink (void)
 {
+#if HAVE_STRUCT_LINUX_INET_DIAG_REQ
   int fd;
   struct sockaddr_nl nladdr;
   struct nlreq req;
@@ -574,6 +620,9 @@ static int conn_read_netlink (void)
 
   /* Not reached because the while() loop above handles the exit condition. */
   return (0);
+#else
+  return (1);
+#endif /* HAVE_STRUCT_LINUX_INET_DIAG_REQ */
 } /* int conn_read_netlink */
 
 static int conn_handle_line (char *buffer)
@@ -691,6 +740,13 @@ static int conn_config (const char *key, const char *value)
       else
 	pe->flags |= PORT_COLLECT_REMOTE;
   }
+  else if (strcasecmp (key, "AllPortsSummary") == 0)
+  {
+    if (IS_TRUE (value))
+      port_collect_total = 1;
+    else
+      port_collect_total = 0;
+  }
   else
   {
     return (-1);
@@ -702,7 +758,7 @@ static int conn_config (const char *key, const char *value)
 #if KERNEL_LINUX
 static int conn_init (void)
 {
-  if (port_list_head == NULL)
+  if (port_collect_total == 0 && port_list_head == NULL)
     port_collect_listening = 1;
 
   return (0);
@@ -896,7 +952,9 @@ static int conn_init (void)
 static int conn_read (void)
 {
   struct inpcbtable table;
+#if !defined(__OpenBSD__) && (defined(__NetBSD_Version__) && __NetBSD_Version__ <= 699002700)
   struct inpcb *head;
+#endif
   struct inpcb *next;
   struct inpcb inpcb;
   struct tcpcb tcpcb;
@@ -909,18 +967,32 @@ static int conn_read (void)
   if (status != 0)
     return (-1);
 
+#if defined(__OpenBSD__) || (defined(__NetBSD_Version__) && __NetBSD_Version__ > 699002700)
+  /* inpt_queue is a TAILQ on OpenBSD */
+  /* Get the first pcb */
+  next = (struct inpcb *)TAILQ_FIRST (&table.inpt_queue);
+  while (next)
+#else
   /* Get the `head' pcb */
   head = (struct inpcb *) &(inpcbtable_ptr->inpt_queue);
   /* Get the first pcb */
   next = (struct inpcb *)CIRCLEQ_FIRST (&table.inpt_queue);
 
   while (next != head)
+#endif
   {
     /* Read the pcb pointed to by `next' into `inpcb' */
-    kread ((u_long) next, &inpcb, sizeof (inpcb));
+    status = kread ((u_long) next, &inpcb, sizeof (inpcb));
+    if (status != 0)
+      return (-1);
 
     /* Advance `next' */
+#if defined(__OpenBSD__) || (defined(__NetBSD_Version__) && __NetBSD_Version__ > 699002700)
+    /* inpt_queue is a TAILQ on OpenBSD */
+    next = (struct inpcb *)TAILQ_NEXT (&inpcb, inp_queue);
+#else
     next = (struct inpcb *)CIRCLEQ_NEXT (&inpcb, inp_queue);
+#endif
 
     /* Ignore sockets, that are not connected. */
 #ifdef __NetBSD__
@@ -935,7 +1007,9 @@ static int conn_read (void)
       continue;
 #endif
 
-    kread ((u_long) inpcb.inp_ppcb, &tcpcb, sizeof (tcpcb));
+    status = kread ((u_long) inpcb.inp_ppcb, &tcpcb, sizeof (tcpcb));
+    if (status != 0)
+      return (-1);
     conn_handle_ports (ntohs(inpcb.inp_lport), ntohs(inpcb.inp_fport), tcpcb.t_state);
   } /* while (next != head) */
 

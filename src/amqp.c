@@ -38,6 +38,20 @@
 #include <amqp.h>
 #include <amqp_framing.h>
 
+#ifdef HAVE_AMQP_TCP_SOCKET_H
+# include <amqp_tcp_socket.h>
+#endif
+#ifdef HAVE_AMQP_SOCKET_H
+# include <amqp_socket.h>
+#endif
+#ifdef HAVE_AMQP_TCP_SOCKET
+#if defined HAVE_DECL_AMQP_SOCKET_CLOSE && !HAVE_DECL_AMQP_SOCKET_CLOSE
+/* rabbitmq-c does not currently ship amqp_socket.h
+ * and, thus, does not define this function. */
+int amqp_socket_close(amqp_socket_t *);
+#endif
+#endif
+
 /* Defines for the delivery mode. I have no idea why they're not defined by the
  * library.. */
 #define CAMQP_DM_VOLATILE   1
@@ -65,6 +79,9 @@ struct camqp_config_s
 
     char   *exchange;
     char   *routing_key;
+
+    /* Number of seconds to wait before connection is retried */
+    int     connection_retry_delay;
 
     /* publish only */
     uint8_t delivery_mode;
@@ -287,6 +304,10 @@ static int camqp_create_exchange (camqp_config_t *conf) /* {{{ */
             /* type        = */ amqp_cstring_bytes (conf->exchange_type),
             /* passive     = */ 0,
             /* durable     = */ 0,
+#if defined(AMQP_VERSION) && AMQP_VERSION >= 0x00060000
+            /* auto delete = */ 0,
+            /* internal    = */ 0,
+#endif
             /* arguments   = */ argument_table);
     if ((ed_ret == NULL) && camqp_is_error (conf))
     {
@@ -391,12 +412,31 @@ static int camqp_setup_queue (camqp_config_t *conf) /* {{{ */
 
 static int camqp_connect (camqp_config_t *conf) /* {{{ */
 {
+    static time_t last_connect_time = 0;
+
     amqp_rpc_reply_t reply;
-    int sockfd;
     int status;
+#ifdef HAVE_AMQP_TCP_SOCKET
+    amqp_socket_t *socket;
+#else
+    int sockfd;
+#endif
 
     if (conf->connection != NULL)
         return (0);
+
+    time_t now = time(NULL);
+    if (now < (last_connect_time + conf->connection_retry_delay))
+    {
+        DEBUG("amqp plugin: skipping connection retry, "
+            "ConnectionRetryDelay: %d", conf->connection_retry_delay);
+        return(1);
+    }
+    else
+    {
+        DEBUG ("amqp plugin: retrying connection");
+        last_connect_time = now;
+    }
 
     conf->connection = amqp_new_connection ();
     if (conf->connection == NULL)
@@ -405,6 +445,33 @@ static int camqp_connect (camqp_config_t *conf) /* {{{ */
         return (ENOMEM);
     }
 
+#ifdef HAVE_AMQP_TCP_SOCKET
+# define CLOSE_SOCKET() /* amqp_destroy_connection() closes the socket for us */
+    /* TODO: add support for SSL using amqp_ssl_socket_new
+     *       and related functions */
+    socket = amqp_tcp_socket_new (conf->connection);
+    if (! socket)
+    {
+        ERROR ("amqp plugin: amqp_tcp_socket_new failed.");
+        amqp_destroy_connection (conf->connection);
+        conf->connection = NULL;
+        return (ENOMEM);
+    }
+
+    status = amqp_socket_open (socket, CONF(conf, host), conf->port);
+    if (status < 0)
+    {
+        char errbuf[1024];
+        status *= -1;
+        ERROR ("amqp plugin: amqp_socket_open failed: %s",
+                sstrerror (status, errbuf, sizeof (errbuf)));
+        amqp_destroy_connection (conf->connection);
+        conf->connection = NULL;
+        return (status);
+    }
+#else /* HAVE_AMQP_TCP_SOCKET */
+# define CLOSE_SOCKET() close(sockfd)
+    /* this interface is deprecated as of rabbitmq-c 0.4 */
     sockfd = amqp_open_socket (CONF(conf, host), conf->port);
     if (sockfd < 0)
     {
@@ -417,6 +484,7 @@ static int camqp_connect (camqp_config_t *conf) /* {{{ */
         return (status);
     }
     amqp_set_sockfd (conf->connection, sockfd);
+#endif
 
     reply = amqp_login (conf->connection, CONF(conf, vhost),
             /* channel max = */      0,
@@ -429,7 +497,7 @@ static int camqp_connect (camqp_config_t *conf) /* {{{ */
         ERROR ("amqp plugin: amqp_login (vhost = %s, user = %s) failed.",
                 CONF(conf, vhost), CONF(conf, user));
         amqp_destroy_connection (conf->connection);
-        close (sockfd);
+        CLOSE_SOCKET ();
         conf->connection = NULL;
         return (1);
     }
@@ -442,7 +510,7 @@ static int camqp_connect (camqp_config_t *conf) /* {{{ */
         ERROR ("amqp plugin: amqp_channel_open failed.");
         amqp_connection_close (conf->connection, AMQP_REPLY_SUCCESS);
         amqp_destroy_connection (conf->connection);
-        close(sockfd);
+        CLOSE_SOCKET ();
         conf->connection = NULL;
         return (1);
     }
@@ -648,7 +716,7 @@ static void *camqp_subscribe_thread (void *user_data) /* {{{ */
             continue;
         }
 
-        status = camqp_read_header (conf);
+        camqp_read_header (conf);
 
         amqp_maybe_release_buffers (conf->connection);
     } /* while (subscriber_threads_running) */
@@ -876,6 +944,8 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
     conf->password = NULL;
     conf->exchange = NULL;
     conf->routing_key = NULL;
+    conf->connection_retry_delay = 0;
+
     /* publish only */
     conf->delivery_mode = CAMQP_DM_VOLATILE;
     conf->store_rates = 0;
@@ -971,6 +1041,8 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
             conf->escape_char = tmp_buff[0];
             sfree (tmp_buff);
         }
+        else if (strcasecmp ("ConnectionRetryDelay", child->key) == 0)
+            status = cf_util_get_int (child, &conf->connection_retry_delay);
         else
             WARNING ("amqp plugin: Ignoring unknown "
                     "configuration option \"%s\".", child->key);

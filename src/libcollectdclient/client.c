@@ -258,6 +258,7 @@ static int lcc_send (lcc_connection_t *c, const char *command) /* {{{ */
     lcc_set_errno (c, errno);
     return (-1);
   }
+  fflush(c->fh);
 
   return (0);
 } /* }}} int lcc_send */
@@ -499,7 +500,6 @@ static int lcc_open_netsocket (lcc_connection_t *c, /* {{{ */
     if (fd < 0)
     {
       status = errno;
-      fd = -1;
       continue;
     }
 
@@ -508,7 +508,6 @@ static int lcc_open_netsocket (lcc_connection_t *c, /* {{{ */
     {
       status = errno;
       close (fd);
-      fd = -1;
       continue;
     }
 
@@ -517,7 +516,6 @@ static int lcc_open_netsocket (lcc_connection_t *c, /* {{{ */
     {
       status = errno;
       close (fd);
-      fd = -1;
       continue;
     }
 

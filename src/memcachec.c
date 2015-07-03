@@ -263,7 +263,10 @@ static int cmc_config_add_match (web_page_t *page, /* {{{ */
   } /* while (status == 0) */
 
   if (status != 0)
+  {
+    cmc_web_match_free (match);
     return (status);
+  }
 
   match->match = match_create_simple (match->regex, match->exclude_regex,
       match->dstype);
@@ -500,6 +503,7 @@ static int cmc_read_page (web_page_t *wp) /* {{{ */
     }
 
     cmc_submit (wp, wm, mv);
+    match_value_reset (mv);
   } /* for (wm = wp->matches; wm != NULL; wm = wm->next) */
 
   sfree (wp->buffer);

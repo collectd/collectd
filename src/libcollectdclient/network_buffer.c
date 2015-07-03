@@ -1,6 +1,6 @@
 /**
  * collectd - src/libcollectdclient/network_buffer.c
- * Copyright (C) 2010-2012  Florian octo Forster
+ * Copyright (C) 2010-2015  Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -54,7 +54,9 @@
 /* Re enable deprecation warnings */
 #  pragma GCC diagnostic warning "-Wdeprecated-declarations"
 # endif
+# if GCRYPT_VERSION_NUMBER < 0x010600
 GCRY_THREAD_OPTION_PTHREAD_IMPL;
+# endif
 #endif
 
 #include "collectd/network_buffer.h"
@@ -131,7 +133,9 @@ static _Bool have_gcrypt (void) /* {{{ */
   need_init = 0;
 
 #if HAVE_LIBGCRYPT
+# if GCRYPT_VERSION_NUMBER < 0x010600
   gcry_control (GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
+# endif
 
   if (!gcry_check_version (GCRYPT_VERSION))
     return (0);
@@ -788,9 +792,9 @@ int lcc_network_buffer_finalize (lcc_network_buffer_t *nb) /* {{{ */
 
 #if HAVE_LIBGCRYPT
   if (nb->seclevel == SIGN)
-    nb_add_signature (nb);
+    return nb_add_signature (nb);
   else if (nb->seclevel == ENCRYPT)
-    nb_add_encryption (nb);
+    return nb_add_encryption (nb);
 #endif
 
   return (0);
