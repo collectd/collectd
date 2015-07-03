@@ -473,6 +473,7 @@ static int mqtt_write (const data_set_t *ds, const value_list_t *vl,
 static int mqtt_config_publisher (oconfig_item_t *ci)
 {
     mqtt_client_conf_t *conf;
+    char cb_name[1024];
     user_data_t user_data;
     int status;
     int i;
@@ -538,10 +539,11 @@ static int mqtt_config_publisher (oconfig_item_t *ci)
             ERROR ("mqtt plugin: Unknown config option: %s", child->key);
     }
 
+    ssnprintf (cb_name, sizeof (cb_name), "mqtt/%s", conf->name);
     memset (&user_data, 0, sizeof (user_data));
     user_data.data = conf;
 
-    plugin_register_write ("mqtt", mqtt_write, &user_data);
+    plugin_register_write (cb_name, mqtt_write, &user_data);
     return (0);
 } /* mqtt_config_publisher */
 
