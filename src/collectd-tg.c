@@ -51,6 +51,7 @@
 #include <time.h>
 #include <signal.h>
 #include <errno.h>
+#include <math.h>
 
 #include "utils_heap.h"
 
@@ -110,6 +111,16 @@ static void signal_handler (int signal) /* {{{ */
 {
   loop = 0;
 } /* }}} void signal_handler */
+
+static double dtime (void) /* {{{ */
+{
+  struct timespec ts = { 0 };
+
+  if (clock_gettime (CLOCK_MONOTONIC, &ts) != 0)
+    return NAN;
+
+  return ((double) ts.tv_sec) + (((double) ts.tv_nsec) / 1e9);
+} /* }}} double dtime */
 
 static int compare_time (const void *v0, const void *v1) /* {{{ */
 {
@@ -173,7 +184,7 @@ static lcc_value_list_t *create_value_list (void) /* {{{ */
   host_num = get_boundet_random (0, conf_num_hosts);
 
   vl->interval = conf_interval;
-  vl->time = 1.0 + time (NULL)
+  vl->time = 1.0 + dtime ()
     + (host_num % (1 + (int) vl->interval));
 
   if (get_boundet_random (0, 2) == 0)
@@ -211,7 +222,7 @@ static int send_value (lcc_value_list_t *vl) /* {{{ */
   if (vl->values_types[0] == LCC_TYPE_GAUGE)
     vl->values[0].gauge = 100.0 * ((gauge_t) random ()) / (((gauge_t) RAND_MAX) + 1.0);
   else
-    vl->values[0].derive += get_boundet_random (0, 100);
+    vl->values[0].derive += (derive_t) get_boundet_random (0, 100);
 
   status = lcc_network_values_send (net, vl);
   if (status != 0)
@@ -326,7 +337,7 @@ static int read_options (int argc, char **argv) /* {{{ */
 int main (int argc, char **argv) /* {{{ */
 {
   int i;
-  time_t last_time;
+  double last_time;
   int values_sent = 0;
 
   read_options (argc, argv);
@@ -399,14 +410,18 @@ int main (int argc, char **argv) /* {{{ */
       printf ("%i values have been sent.\n", values_sent);
 
       /* Check if we need to sleep */
-      time_t now = time (NULL);
+      double now = dtime ();
 
       while (now < vl->time)
       {
         /* 1 / 100 second */
         struct timespec ts = { 0, 10000000 };
+
+        ts.tv_sec = (time_t) now;
+        ts.tv_nsec = (long) ((now - ((double) ts.tv_sec)) * 1e9);
+
         nanosleep (&ts, /* remaining = */ NULL);
-        now = time (NULL);
+        now = dtime ();
 
         if (!loop)
           break;
