@@ -28,18 +28,6 @@
 # include "config.h"
 #endif
 
-#ifndef _ISOC99_SOURCE
-# define _ISOC99_SOURCE
-#endif
-
-#ifndef _POSIX_C_SOURCE
-# define _POSIX_C_SOURCE 200809L
-#endif
-
-#ifndef _XOPEN_SOURCE
-# define _XOPEN_SOURCE 700
-#endif
-
 #if !__GNUC__
 # define __attribute__(x) /**/
 #endif
