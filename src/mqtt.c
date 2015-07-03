@@ -497,7 +497,9 @@ static int mqtt_config_publisher (oconfig_item_t *ci)
     conf->host = strdup (MQTT_DEFAULT_HOST);
     conf->port = MQTT_DEFAULT_PORT;
     conf->client_id = NULL;
+    conf->qos = 0;
     conf->topic_prefix = strdup (MQTT_DEFAULT_TOPIC_PREFIX);
+    conf->store_rates = 1;
 
     C_COMPLAIN_INIT (&conf->complaint_cantpublish);
 
@@ -583,7 +585,9 @@ static int mqtt_config_subscriber (oconfig_item_t *ci)
     conf->host = strdup (MQTT_DEFAULT_HOST);
     conf->port = MQTT_DEFAULT_PORT;
     conf->client_id = NULL;
+    conf->qos = 2;
     conf->topic = strdup (MQTT_DEFAULT_TOPIC);
+    conf->clean_session = 1;
 
     C_COMPLAIN_INIT (&conf->complaint_cantpublish);
 
