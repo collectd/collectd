@@ -584,8 +584,6 @@ static int mysql_read_innodb_stats (mysql_database_t *db, MYSQL *con)
         { "lock_row_lock_current_waits",    "mysql_locks",  DS_TYPE_DERIVE },
         { "buffer_pool_size",               "bytes",        DS_TYPE_GAUGE },
 
-        { "buffer_pool_wait_free",          "operations",   DS_TYPE_DERIVE },
-
         { "os_log_bytes_written",           "operations",   DS_TYPE_DERIVE },
         { "os_log_pending_fsyncs",          "operations",   DS_TYPE_DERIVE },
         { "os_log_pending_writes",          "operations",   DS_TYPE_DERIVE },
@@ -606,7 +604,6 @@ static int mysql_read_innodb_stats (mysql_database_t *db, MYSQL *con)
         { "ibuf_size",                      "bytes",        DS_TYPE_GAUGE },
 
         { "innodb_activity_count",          "gauge",        DS_TYPE_GAUGE },
-        { "innodb_dblwr_page_size",         "gauge",        DS_TYPE_GAUGE },
 
         { "innodb_rwlock_s_spin_waits",     "operations",   DS_TYPE_DERIVE },
         { "innodb_rwlock_x_spin_waits",     "operations",   DS_TYPE_DERIVE },
@@ -804,6 +801,8 @@ static int mysql_read (user_data_t *ud)
 				counter_submit ("mysql_bpool_counters", "read_requests", val, db);
 			else if (strcmp (key, "Innodb_buffer_pool_reads") == 0)
 				counter_submit ("mysql_bpool_counters", "reads", val, db);
+			else if (strcmp (key, "Innodb_buffer_pool_wait_free") == 0)
+				counter_submit ("mysql_bpool_counters", "wait_free", val, db);
 			else if (strcmp (key, "Innodb_buffer_pool_write_requests") == 0)
 				counter_submit ("mysql_bpool_counters", "write_requests", val, db);
 			else if (strcmp (key, "Innodb_buffer_pool_bytes_data") == 0)
@@ -828,6 +827,8 @@ static int mysql_read (user_data_t *ud)
 				counter_submit ("mysql_innodb_dblwr", "writes", val, db);
 			else if (strcmp (key, "Innodb_dblwr_pages_written") == 0)
 				counter_submit ("mysql_innodb_dblwr", "written", val, db);
+			else if (strcmp (key, "Innodb_dblwr_page_size") == 0)
+				gauge_submit ("mysql_innodb_dblwr", "page_size", val, db);
 
 			/* log */
 			else if (strcmp (key, "Innodb_log_waits") == 0)
