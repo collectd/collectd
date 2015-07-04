@@ -608,6 +608,7 @@ static int varnish_read (user_data_t *ud) /* {{{ */
 		status = VSM_n_Arg (vd, conf->instance);
 		if (status < 0)
 		{
+			VSM_Delete (vd);
 			ERROR ("varnish plugin: VSM_n_Arg (\"%s\") failed "
 					"with status %i.",
 					conf->instance, status);
@@ -621,7 +622,8 @@ static int varnish_read (user_data_t *ud) /* {{{ */
 	if (VSM_Open (vd))
 #endif
 	{
-		ERROR ("varnish plugin: Unable to load statistics.");
+		VSM_Delete (vd);
+		ERROR ("varnish plugin: Unable to open connection.");
 
 		return (-1);
 	}
@@ -631,6 +633,14 @@ static int varnish_read (user_data_t *ud) /* {{{ */
 #else /* if HAVE_VARNISH_V4 */
 	stats = VSC_Main(vd, NULL);
 #endif
+	if (!stats)
+	{
+		VSM_Delete (vd);
+		ERROR ("varnish plugin: Unable to get statistics.");
+
+		return (-1);
+	}
+
 
 	varnish_monitor (conf, stats);
 	VSM_Delete (vd);
