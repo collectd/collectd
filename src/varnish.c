@@ -633,7 +633,7 @@ static int varnish_read (user_data_t *ud) /* {{{ */
 #endif
 
 	varnish_monitor (conf, stats);
-	VSM_Close (vd);
+	VSM_Delete (vd);
 
 	return (0);
 } /* }}} */
