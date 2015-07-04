@@ -584,40 +584,14 @@ static int mysql_read_innodb_stats (mysql_database_t *db, MYSQL *con)
         { "lock_row_lock_current_waits",    "mysql_locks",  DS_TYPE_DERIVE },
         { "buffer_pool_size",               "bytes",        DS_TYPE_GAUGE },
 
-        { "buffer_pool_reads",              "operations",   DS_TYPE_DERIVE },
-        { "buffer_pool_read_requests",      "operations",   DS_TYPE_DERIVE },
-        { "buffer_pool_write_requests",     "operations",   DS_TYPE_DERIVE },
         { "buffer_pool_wait_free",          "operations",   DS_TYPE_DERIVE },
-        { "buffer_pool_read_ahead",         "operations",   DS_TYPE_DERIVE },
-        { "buffer_pool_read_ahead_evicted", "operations",   DS_TYPE_DERIVE },
 
-        { "buffer_pool_pages_total",        "gauge",        DS_TYPE_GAUGE },
-        { "buffer_pool_pages_misc",         "gauge",        DS_TYPE_GAUGE },
-        { "buffer_pool_pages_data",         "gauge",        DS_TYPE_GAUGE },
-        { "buffer_pool_bytes_data",         "gauge",        DS_TYPE_GAUGE },
-        { "buffer_pool_pages_dirty",        "gauge",        DS_TYPE_GAUGE },
-        { "buffer_pool_bytes_dirty",        "gauge",        DS_TYPE_GAUGE },
-        { "buffer_pool_pages_free",         "gauge",        DS_TYPE_GAUGE },
-
-        { "buffer_pages_created",           "operations",   DS_TYPE_DERIVE },
-        { "buffer_pages_written",           "operations",   DS_TYPE_DERIVE },
-        { "buffer_pages_read",              "operations",   DS_TYPE_DERIVE },
-        { "buffer_data_reads",              "operations",   DS_TYPE_DERIVE },
-        { "buffer_data_written",            "operations",   DS_TYPE_DERIVE },
-
-        { "os_data_reads",                  "operations",   DS_TYPE_DERIVE },
-        { "os_data_writes",                 "operations",   DS_TYPE_DERIVE },
-        { "os_data_fsyncs",                 "operations",   DS_TYPE_DERIVE },
         { "os_log_bytes_written",           "operations",   DS_TYPE_DERIVE },
-        { "os_log_fsyncs",                  "operations",   DS_TYPE_DERIVE },
         { "os_log_pending_fsyncs",          "operations",   DS_TYPE_DERIVE },
         { "os_log_pending_writes",          "operations",   DS_TYPE_DERIVE },
 
         { "trx_rseg_history_len",           "gauge",        DS_TYPE_GAUGE },
 
-        { "log_waits",                      "operations",   DS_TYPE_DERIVE },
-        { "log_write_requests",             "operations",   DS_TYPE_DERIVE },
-        { "log_writes",                     "operations",   DS_TYPE_DERIVE },
         { "adaptive_hash_searches",         "operations",   DS_TYPE_DERIVE },
 
         { "file_num_open_files",            "gauge",        DS_TYPE_GAUGE },
@@ -632,8 +606,6 @@ static int mysql_read_innodb_stats (mysql_database_t *db, MYSQL *con)
         { "ibuf_size",                      "bytes",        DS_TYPE_GAUGE },
 
         { "innodb_activity_count",          "gauge",        DS_TYPE_GAUGE },
-        { "innodb_dblwr_writes",            "operations",   DS_TYPE_DERIVE },
-        { "innodb_dblwr_pages_written",     "operations",   DS_TYPE_DERIVE },
         { "innodb_dblwr_page_size",         "gauge",        DS_TYPE_GAUGE },
 
         { "innodb_rwlock_s_spin_waits",     "operations",   DS_TYPE_DERIVE },
