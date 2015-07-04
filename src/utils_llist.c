@@ -88,6 +88,7 @@ llentry_t *llentry_create (char *key, void *value)
 
 void llentry_destroy (llentry_t *e)
 {
+	free (e->key);
 	free (e);
 }
 
