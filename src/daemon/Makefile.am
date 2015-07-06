@@ -73,7 +73,7 @@ collectd_CPPFLAGS =  $(AM_CPPFLAGS) $(LTDLINCL)
 collectd_CFLAGS = $(AM_CFLAGS)
 collectd_LDFLAGS = -export-dynamic
 collectd_LDADD = libavltree.la libcommon.la libheap.la -lm $(COMMON_LIBS)
-collectd_DEPENDENCIES =
+collectd_DEPENDENCIES = libavltree.la libcommon.la libheap.la
 
 # The daemon needs to call sg_init, so we need to link it against libstatgrab,
 # too. -octo
