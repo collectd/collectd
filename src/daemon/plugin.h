@@ -39,7 +39,7 @@
 #define PLUGIN_FLAGS_GLOBAL 0x0001
 
 #ifndef DATA_MAX_NAME_LEN
-# define DATA_MAX_NAME_LEN 64
+# define DATA_MAX_NAME_LEN 128
 #endif
 
 #define DS_TYPE_COUNTER  0
