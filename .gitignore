@@ -83,6 +83,7 @@ src/tests/.deps/
 src/tests/mock/.deps/
 src/tests/.dirstamp
 src/tests/mock/.dirstamp
+test*.log
 
 # new daemon repo
 src/daemon/.deps/

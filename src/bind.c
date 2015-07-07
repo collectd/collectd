@@ -763,7 +763,7 @@ static int bind_xml_stats_handle_zone (int version, xmlDoc *doc, /* {{{ */
   xmlFree (zone_name);
   zone_name = NULL;
 
-  if (j >= views->zones_num)
+  if (j >= view->zones_num)
     return (0);
 
   zone_name = view->zones[j];
