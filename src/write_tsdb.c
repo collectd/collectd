@@ -53,6 +53,8 @@
  *  - tsdb_tag_typeInstance   : opentsdb tag (the value is the item itself)
  *  - tsdb_tag_dsname         : If it is empty, no tag is defined.
  *
+ *  - tsdb_tag                : Should contain "tagk=tagv". Il will add a tag.
+ *
  * write_tsdb plugin filter rules example
  * --------------------------------------
  *
@@ -156,7 +158,7 @@
 #define TSDB_TAG_TYPE 2
 #define TSDB_TAG_TYPEINSTANCE 3
 #define TSDB_TAG_DSNAME 4
-static const char *meta_tag[] = {
+static const char *meta_tag_metric_id[] = {
     "tsdb_tag_plugin",
     "tsdb_tag_pluginInstance",
     "tsdb_tag_type",
@@ -445,6 +447,7 @@ static int wt_format_tags(char *ret, int ret_len,
     char *temp = NULL;
     char *ptr = ret;
     size_t remaining_len = ret_len;
+    const char *meta_tag = "tsdb_tag";
 
 #define TSDB_META_DATA_GET_STRING(tag) do { \
         temp = NULL; \
@@ -475,37 +478,60 @@ static int wt_format_tags(char *ret, int ret_len,
     } while(0)
 
     if (vl->meta) {
-        TSDB_META_DATA_GET_STRING(meta_tag[TSDB_TAG_PLUGIN]);
+        TSDB_META_DATA_GET_STRING(meta_tag_metric_id[TSDB_TAG_PLUGIN]);
         if(temp) {
             TSDB_STRING_APPEND_SPRINTF(temp, vl->plugin);
             sfree(temp);
         }
 
-        TSDB_META_DATA_GET_STRING(meta_tag[TSDB_TAG_PLUGININSTANCE]);
+        TSDB_META_DATA_GET_STRING(meta_tag_metric_id[TSDB_TAG_PLUGININSTANCE]);
         if(temp) {
             TSDB_STRING_APPEND_SPRINTF(temp, vl->plugin_instance);
             sfree(temp);
         }
 
-        TSDB_META_DATA_GET_STRING(meta_tag[TSDB_TAG_TYPE]);
+        TSDB_META_DATA_GET_STRING(meta_tag_metric_id[TSDB_TAG_TYPE]);
         if(temp) {
             TSDB_STRING_APPEND_SPRINTF(temp, vl->type);
             sfree(temp);
         }
 
-        TSDB_META_DATA_GET_STRING(meta_tag[TSDB_TAG_TYPEINSTANCE]);
+        TSDB_META_DATA_GET_STRING(meta_tag_metric_id[TSDB_TAG_TYPEINSTANCE]);
         if(temp) {
             TSDB_STRING_APPEND_SPRINTF(temp, vl->type_instance);
             sfree(temp);
         }
 
         if(ds_name) {
-            TSDB_META_DATA_GET_STRING(meta_tag[TSDB_TAG_DSNAME]);
+            TSDB_META_DATA_GET_STRING(meta_tag_metric_id[TSDB_TAG_DSNAME]);
             if(temp) {
                 TSDB_STRING_APPEND_SPRINTF(temp, ds_name);
                 sfree(temp);
             }
         }
+
+        TSDB_META_DATA_GET_STRING(meta_tag);
+        if(temp) {
+            int n;
+            if(NULL == strchr(temp, '=')) {
+                ERROR("write_tsdb plugin: meta_data tag '%s' does not contain a '=' char (host=%s, plugin=%s, type=%s)",
+                        temp, vl->host, vl->plugin, vl->type);
+                sfree(temp);
+            }
+            if(temp[0] != '\0') {
+                n = ssnprintf(ptr, remaining_len, " %s", temp);
+                if(n >= remaining_len) {
+                    ptr[0] = '\0';
+                } else {
+                    char *ptr2 = ptr+1;
+                    while(NULL != (ptr2 = strchr(ptr2, ' '))) ptr2[0] = '_'; 
+                    ptr += n;
+                    remaining_len -= n;
+                }
+            }
+            sfree(temp);
+        }
+
     } else {
         ret[0] = '\0';
     }
@@ -558,8 +584,8 @@ static int wt_format_name(char *ret, int ret_len,
             tsdb_id = temp;
         }
 
-        for(i=0; i < (sizeof(meta_tag)/sizeof(*meta_tag)); i++) {
-            if(0 == meta_data_exists(vl->meta, meta_tag[i])) {
+        for(i=0; i < (sizeof(meta_tag_metric_id)/sizeof(*meta_tag_metric_id)); i++) {
+            if(0 == meta_data_exists(vl->meta, meta_tag_metric_id[i])) {
                 /* defaults to already initialized format */
             } else {
                 include_in_id[i] = 0;
