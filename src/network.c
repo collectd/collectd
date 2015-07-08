@@ -3105,7 +3105,7 @@ static int network_config_add_listen (const oconfig_item_t *ci) /* {{{ */
   status = sockent_server_listen (se);
   if (status != 0)
   {
-    ERROR ("network plugin: network_config_add_server: sockent_server_listen failed.");
+    ERROR ("network plugin: network_config_add_listen: sockent_server_listen failed.");
     sockent_destroy (se);
     return (-1);
   }
