@@ -478,7 +478,7 @@ are disabled by default.
 
 =head2 Plugin C<amqp>
 
-The I<AMQMP plugin> can be used to communicate with other instances of
+The I<AMQP plugin> can be used to communicate with other instances of
 I<collectd> or third party applications using an AMQP message broker. Values
 are sent to or received from the broker, which handles routing, queueing and
 possibly filtering or messages.
@@ -502,7 +502,7 @@ possibly filtering or messages.
  #   GraphiteSeparateInstances false
  #   GraphiteAlwaysAppendDS false
    </Publish>
-   
+
    # Receive values from an AMQP broker
    <Subscribe "some_name">
      Host "localhost"
