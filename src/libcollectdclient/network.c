@@ -457,8 +457,8 @@ int lcc_server_set_interface (lcc_server_t *srv, char const *interface) /* {{{ *
 
   /* else: Not a multicast interface. */
 #if defined(SO_BINDTODEVICE)
-  status = setsockopt (srv->fd, SOL_SOCKET, SO_BINDTODEVICE,
-      interface, strlen (interface) + 1);
+  status = setsockopt (srv->fd, SOL_SOCKET, SO_BINDTODEVICE, interface,
+      (socklen_t) (strlen (interface) + 1));
   if (status != 0)
     return (-1);
 #endif

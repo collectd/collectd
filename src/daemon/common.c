@@ -356,7 +356,7 @@ int strjoin (char *buffer, size_t buffer_size,
 	}
 
 	assert (buffer[buffer_size - 1] == 0);
-	return (strlen (buffer));
+	return ((int) strlen (buffer));
 }
 
 int strsubstitute (char *str, char c_from, char c_to)
