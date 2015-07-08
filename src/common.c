@@ -274,7 +274,7 @@ ssize_t swrite (int fd, const void *buf, size_t count)
 	
 	/* checking for closed peer connection */
 	pfd.fd = fd;
-	pfd.events = POLLIN | POLLHUP | POLLRDNORM;
+	pfd.events = POLLIN | POLLHUP;
 	pfd.revents = 0;
 	if (poll(&pfd, 1, 0) > 0) {
 		char buffer[32];
