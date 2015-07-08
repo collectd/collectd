@@ -510,7 +510,6 @@ static int av2notification_meta (pTHX_ AV *array, notification_meta_t **meta)
 		if (NULL == (tmp = hv_fetch (hash, "value", 5, 0))) {
 			log_warn ("av2notification_meta: Skipping invalid "
 					"meta information.");
-			free ((*m)->name);
 			free (*m);
 			continue;
 		}

@@ -1790,6 +1790,7 @@ static cjni_callback_info_t *cjni_callback_info_create (JNIEnv *jvm_env, /* {{{ 
     pthread_mutex_unlock (&java_callbacks_lock);
     ERROR ("java plugin: cjni_callback_info_create: strdup failed.");
     (*jvm_env)->ReleaseStringUTFChars (jvm_env, o_name, c_name);
+    sfree (cbi);
     return (NULL);
   }
 
@@ -1799,7 +1800,8 @@ static cjni_callback_info_t *cjni_callback_info_create (JNIEnv *jvm_env, /* {{{ 
   if (cbi->object == NULL)
   {
     ERROR ("java plugin: cjni_callback_info_create: NewGlobalRef failed.");
-    free (cbi);
+    sfree (cbi->name);
+    sfree (cbi);
     return (NULL);
   }
 
@@ -1807,7 +1809,9 @@ static cjni_callback_info_t *cjni_callback_info_create (JNIEnv *jvm_env, /* {{{ 
   if (cbi->class == NULL)
   {
     ERROR ("java plugin: cjni_callback_info_create: GetObjectClass failed.");
-    free (cbi);
+    (*jvm_env)->DeleteGlobalRef (jvm_env, cbi->object);
+    sfree (cbi->name);
+    sfree (cbi);
     return (NULL);
   }
 
@@ -1818,7 +1822,9 @@ static cjni_callback_info_t *cjni_callback_info_create (JNIEnv *jvm_env, /* {{{ 
     ERROR ("java plugin: cjni_callback_info_create: "
         "Cannot find the `%s' method with signature `%s'.",
         method_name, method_signature);
-    free (cbi);
+    (*jvm_env)->DeleteGlobalRef (jvm_env, cbi->object);
+    sfree (cbi->name);
+    sfree (cbi);
     return (NULL);
   }
 
@@ -3051,10 +3057,8 @@ static int cjni_init (void) /* {{{ */
 
   if (config_block != NULL)
   {
-
     cjni_config_perform (config_block);
     oconfig_free (config_block);
-    config_block = NULL;
   }
 
   if (jvm == NULL)

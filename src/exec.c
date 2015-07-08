@@ -338,7 +338,7 @@ static void exec_child (program_list_t *pl, int uid, int gid, int egid) /* {{{ *
     exit (-1);
   }
 
-  status = execvp (pl->exec, pl->argv);
+  execvp (pl->exec, pl->argv);
 
   ERROR ("exec plugin: Failed to execute ``%s'': %s",
       pl->exec, sstrerror (errno, errbuf, sizeof (errbuf)));

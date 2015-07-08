@@ -1095,7 +1095,7 @@ pkglib_LTLIBRARIES += statsd.la
 statsd_la_SOURCES = statsd.c \
                     utils_latency.h utils_latency.c
 statsd_la_LDFLAGS = -module -avoid-version
-statsd_la_LIBADD = -lpthread
+statsd_la_LIBADD = -lpthread -lm
 collectd_LDADD += "-dlopen" statsd.la
 collectd_DEPENDENCIES += statsd.la
 endif

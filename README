@@ -414,7 +414,7 @@ Features
       Sends data to Riemann, a stream processing and monitoring system.
 
   * Logging is, as everything in collectd, provided by plugins. The following
-    plugins keep up informed about what's going on:
+    plugins keep us informed about what's going on:
 
     - logfile
       Writes logmessages to a file or STDOUT/STDERR.

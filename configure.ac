@@ -276,6 +276,54 @@ AC_CHECK_HEADERS(netinet/udp.h, [], [],
 #endif
 ])
 
+have_ip6_ext="no"
+AC_CHECK_TYPES([struct ip6_ext], [have_ip6_ext="yes"], [have_ip6_ext="no"],
+[#if HAVE_STDINT_H
+# include <stdint.h>
+#endif
+#if HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+#if HAVE_NETINET_IN_SYSTM_H
+# include <netinet/in_systm.h>
+#endif
+#if HAVE_NETINET_IN_H
+# include <netinet/in.h>
+#endif
+#if HAVE_NETINET_IP6_H
+# include <netinet/ip6.h>
+#endif
+])
+
+if test "x$have_ip6_ext" = "xno"; then
+	SAVE_CFLAGS="$CFLAGS"
+	CFLAGS="$CFLAGS -DSOLARIS2=8"
+
+	AC_CHECK_TYPES([struct ip6_ext],
+		       [have_ip6_ext="yes, with -DSOLARIS2=8"],
+		       [have_ip6_ext="no"],
+[#if HAVE_STDINT_H
+# include <stdint.h>
+#endif
+#if HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+#if HAVE_NETINET_IN_SYSTM_H
+# include <netinet/in_systm.h>
+#endif
+#if HAVE_NETINET_IN_H
+# include <netinet/in.h>
+#endif
+#if HAVE_NETINET_IP6_H
+# include <netinet/ip6.h>
+#endif
+])
+
+	if test "x$have_ip6_ext" = "xno"; then
+		CFLAGS="$SAVE_CFLAGS"
+	fi
+fi
+
 # For cpu modules
 AC_CHECK_HEADERS(sys/dkstat.h)
 if test "x$ac_system" = "xDarwin"
@@ -1166,6 +1214,7 @@ FILE *fh;
 struct mntent *me;
 fh = setmntent ("/etc/mtab", "r");
 me = getmntent (fh);
+return(me->mnt_passno);
 ]]]
 			)],
 			[c_cv_have_one_getmntent="yes"],
@@ -1185,6 +1234,7 @@ me = getmntent (fh);
 				 int status;
 				 fh = fopen ("/etc/mnttab", "r");
 				 status = getmntent (fh, &mt);
+				 return(status);
 ]]]
 			)],
 			[c_cv_have_two_getmntent="yes"],
@@ -2068,6 +2118,10 @@ fi
 
 # --with-java {{{
 with_java_home="$JAVA_HOME"
+if test "x$with_java_home" = "x"
+then
+	with_java_home="/usr/lib/jvm"
+fi
 with_java_vmtype="client"
 with_java_cflags=""
 with_java_libs=""
@@ -2092,7 +2146,7 @@ then
 	if test -d "$with_java_home"
 	then
 		AC_MSG_CHECKING([for jni.h])
-		TMPVAR=`find "$with_java_home" -name jni.h -type f -exec 'dirname' '{}' ';' 2>/dev/null | head -n 1`
+		TMPVAR=`find -L "$with_java_home" -name jni.h -type f -exec 'dirname' '{}' ';' 2>/dev/null | head -n 1`
 		if test "x$TMPVAR" != "x"
 		then
 			AC_MSG_RESULT([found in $TMPVAR])
@@ -2102,7 +2156,7 @@ then
 		fi
 
 		AC_MSG_CHECKING([for jni_md.h])
-		TMPVAR=`find "$with_java_home" -name jni_md.h -type f -exec 'dirname' '{}' ';' 2>/dev/null | head -n 1`
+		TMPVAR=`find -L "$with_java_home" -name jni_md.h -type f -exec 'dirname' '{}' ';' 2>/dev/null | head -n 1`
 		if test "x$TMPVAR" != "x"
 		then
 			AC_MSG_RESULT([found in $TMPVAR])
@@ -2112,7 +2166,7 @@ then
 		fi
 
 		AC_MSG_CHECKING([for libjvm.so])
-		TMPVAR=`find "$with_java_home" -name libjvm.so -type f -exec 'dirname' '{}' ';' 2>/dev/null | head -n 1`
+		TMPVAR=`find -L "$with_java_home" -name libjvm.so -type f -exec 'dirname' '{}' ';' 2>/dev/null | head -n 1`
 		if test "x$TMPVAR" != "x"
 		then
 			AC_MSG_RESULT([found in $TMPVAR])
@@ -2124,7 +2178,7 @@ then
 		if test "x$JAVAC" = "x"
 		then
 			AC_MSG_CHECKING([for javac])
-			TMPVAR=`find "$with_java_home" -name javac -type f 2>/dev/null | head -n 1`
+			TMPVAR=`find -L "$with_java_home" -name javac -type f 2>/dev/null | head -n 1`
 			if test "x$TMPVAR" != "x"
 			then
 				JAVAC="$TMPVAR"
@@ -2136,7 +2190,7 @@ then
 		if test "x$JAR" = "x"
 		then
 			AC_MSG_CHECKING([for jar])
-			TMPVAR=`find "$with_java_home" -name jar -type f 2>/dev/null | head -n 1`
+			TMPVAR=`find -L "$with_java_home" -name jar -type f 2>/dev/null | head -n 1`
 			if test "x$TMPVAR" != "x"
 			then
 				JAR="$TMPVAR"
@@ -3089,6 +3143,7 @@ then
 ]]],
 [[[
   int val = PCAP_ERROR_IFACE_NOT_UP;
+  return(val);
 ]]]
 		       )],
 		       [c_cv_libpcap_have_pcap_error_iface_not_up="yes"],
@@ -4947,6 +5002,7 @@ fi
 if test "x$with_kstat" = "xyes"
 then
 	plugin_nfs="yes"
+	plugin_processes="yes"
 	plugin_uptime="yes"
 	plugin_zfs_arc="yes"
 fi

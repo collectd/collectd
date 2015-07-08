@@ -387,7 +387,6 @@ static int fc_config_add_rule (fc_chain_t *chain, /* {{{ */
   for (i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
-    status = 0;
 
     if (strcasecmp ("Match", option->key) == 0)
       status = fc_config_add_match (&rule->matches, option);
@@ -471,7 +470,6 @@ static int fc_config_add_chain (const oconfig_item_t *ci) /* {{{ */
   for (i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
-    status = 0;
 
     if (strcasecmp ("Rule", option->key) == 0)
       status = fc_config_add_rule (chain, option);

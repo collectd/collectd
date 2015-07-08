@@ -263,7 +263,10 @@ static int cmc_config_add_match (web_page_t *page, /* {{{ */
   } /* while (status == 0) */
 
   if (status != 0)
+  {
+    cmc_web_match_free (match);
     return (status);
+  }
 
   match->match = match_create_simple (match->regex, match->exclude_regex,
       match->dstype);

@@ -142,6 +142,9 @@ static c_avl_node_t *rotate_right (c_avl_tree_t *t, c_avl_node_t *x)
 	c_avl_node_t *y;
 	c_avl_node_t *b;
 
+	assert (x != NULL);
+	assert (x->left != NULL);
+
 	p = x->parent;
 	y = x->left;
 	b = y->right;
@@ -166,7 +169,7 @@ static c_avl_node_t *rotate_right (c_avl_tree_t *t, c_avl_node_t *x)
 	y->height = calc_height (y);
 
 	return (y);
-} /* void rotate_left */
+} /* void rotate_right */
 
 /*
  *    (x)                   (y)
@@ -182,6 +185,9 @@ static c_avl_node_t *rotate_left (c_avl_tree_t *t, c_avl_node_t *x)
 	c_avl_node_t *p;
 	c_avl_node_t *y;
 	c_avl_node_t *b;
+
+	assert (x != NULL);
+	assert (x->right != NULL);
 
 	p = x->parent;
 	y = x->right;
@@ -613,10 +619,18 @@ int c_avl_pick (c_avl_tree_t *t, void **key, void **value)
 	n = t->root;
 	while ((n->left != NULL) || (n->right != NULL))
 	{
-		int height_left  = (n->left  == NULL) ? 0 : n->left->height;
-		int height_right = (n->right == NULL) ? 0 : n->right->height;
+		if (n->left == NULL)
+		{
+			n = n->right;
+			continue;
+		}
+		else if (n->right == NULL)
+		{
+			n = n->left;
+			continue;
+		}
 
-		if (height_left > height_right)
+		if (n->left->height > n->right->height)
 			n = n->left;
 		else
 			n = n->right;

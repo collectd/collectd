@@ -190,6 +190,35 @@ static int statsd_metric_add (char const *name, double delta, /* {{{ */
   return (0);
 } /* }}} int statsd_metric_add */
 
+static void statsd_metric_free (statsd_metric_t *metric) /* {{{ */
+{
+  if (metric == NULL)
+    return;
+
+  if (metric->latency != NULL)
+  {
+    latency_counter_destroy (metric->latency);
+    metric->latency = NULL;
+  }
+
+  if (metric->set != NULL)
+  {
+    void *key;
+    void *value;
+
+    while (c_avl_pick (metric->set, &key, &value) == 0)
+    {
+      sfree (key);
+      assert (value == NULL);
+    }
+
+    c_avl_destroy (metric->set);
+    metric->set = NULL;
+  }
+
+  sfree (metric);
+} /* }}} void statsd_metric_free */
+
 static int statsd_parse_value (char const *str, value_t *ret_value) /* {{{ */
 {
   char *endptr = NULL;
@@ -748,39 +777,42 @@ static int statsd_metric_submit_unsafe (char const *name, /* {{{ */
   else if (metric->type == STATSD_TIMER)
   {
     size_t i;
+    _Bool have_events = (metric->updates_num > 0);
 
-    if (metric->updates_num == 0)
-      return (0);
-
+    /* Make sure all timer metrics share the *same* timestamp. */
     vl.time = cdtime ();
 
     ssnprintf (vl.type_instance, sizeof (vl.type_instance),
         "%s-average", name);
-    values[0].gauge = CDTIME_T_TO_DOUBLE (
-        latency_counter_get_average (metric->latency));
+    values[0].gauge = have_events
+      ? CDTIME_T_TO_DOUBLE (latency_counter_get_average (metric->latency))
+      : NAN;
     plugin_dispatch_values (&vl);
 
     if (conf_timer_lower) {
       ssnprintf (vl.type_instance, sizeof (vl.type_instance),
           "%s-lower", name);
-      values[0].gauge = CDTIME_T_TO_DOUBLE (
-          latency_counter_get_min (metric->latency));
+      values[0].gauge = have_events
+        ? CDTIME_T_TO_DOUBLE (latency_counter_get_min (metric->latency))
+        : NAN;
       plugin_dispatch_values (&vl);
     }
 
     if (conf_timer_upper) {
       ssnprintf (vl.type_instance, sizeof (vl.type_instance),
           "%s-upper", name);
-      values[0].gauge = CDTIME_T_TO_DOUBLE (
-          latency_counter_get_max (metric->latency));
+      values[0].gauge = have_events
+        ? CDTIME_T_TO_DOUBLE (latency_counter_get_max (metric->latency))
+        : NAN;
       plugin_dispatch_values (&vl);
     }
 
     if (conf_timer_sum) {
       ssnprintf (vl.type_instance, sizeof (vl.type_instance),
           "%s-sum", name);
-      values[0].gauge = CDTIME_T_TO_DOUBLE (
-          latency_counter_get_sum (metric->latency));
+      values[0].gauge = have_events
+        ? CDTIME_T_TO_DOUBLE (latency_counter_get_sum (metric->latency))
+        : NAN;
       plugin_dispatch_values (&vl);
     }
 
@@ -788,9 +820,9 @@ static int statsd_metric_submit_unsafe (char const *name, /* {{{ */
     {
       ssnprintf (vl.type_instance, sizeof (vl.type_instance),
           "%s-percentile-%.0f", name, conf_timer_percentile[i]);
-      values[0].gauge = CDTIME_T_TO_DOUBLE (
-          latency_counter_get_percentile (
-            metric->latency, conf_timer_percentile[i]));
+      values[0].gauge = have_events
+        ? CDTIME_T_TO_DOUBLE (latency_counter_get_percentile (metric->latency, conf_timer_percentile[i]))
+        : NAN;
       plugin_dispatch_values (&vl);
     }
 
@@ -877,7 +909,7 @@ static int statsd_read (void) /* {{{ */
     }
 
     sfree (name);
-    sfree (metric);
+    statsd_metric_free (metric);
   }
 
   pthread_mutex_unlock (&metrics_lock);

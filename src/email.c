@@ -251,8 +251,6 @@ static void *collect (void *arg)
 	collector_t *this = (collector_t *)arg;
 
 	while (1) {
-		int loop = 1;
-
 		conn_t *connection;
 
 		pthread_mutex_lock (&conns_mutex);
@@ -277,15 +275,13 @@ static void *collect (void *arg)
 		log_debug ("collect: handling connection on fd #%i",
 				fileno (this->socket));
 
-		while (loop) {
+		while (42) {
 			/* 256 bytes ought to be enough for anybody ;-) */
 			char line[256 + 1]; /* line + '\0' */
 			int  len = 0;
 
 			errno = 0;
 			if (NULL == fgets (line, sizeof (line), this->socket)) {
-				loop = 0;
-
 				if (0 != errno) {
 					char errbuf[1024];
 					log_err ("collect: reading from socket (fd #%i) "
@@ -358,7 +354,7 @@ static void *collect (void *arg)
 			else {
 				log_err ("collect: unknown type '%c'", line[0]);
 			}
-		} /* while (loop) */
+		} /* while (42) */
 
 		log_debug ("Shutting down connection on fd #%i",
 				fileno (this->socket));
@@ -570,10 +566,27 @@ static int email_init (void)
 	return (0);
 } /* int email_init */
 
+static void type_list_free (type_list_t *t)
+{
+	type_t *this;
+
+	this = t->head;
+	while (this != NULL)
+	{
+		type_t *next = this->next;
+
+		sfree (this->name);
+		sfree (this);
+
+		this = next;
+	}
+
+	t->head = NULL;
+	t->tail = NULL;
+}
+
 static int email_shutdown (void)
 {
-	type_t *ptr = NULL;
-
 	int i = 0;
 
 	if (connector != ((pthread_t) 0)) {
@@ -613,35 +626,12 @@ static int email_shutdown (void)
 
 	pthread_mutex_unlock (&conns_mutex);
 
-	for (ptr = list_count.head; NULL != ptr; ptr = ptr->next) {
-		free (ptr->name);
-		free (ptr);
-	}
-
-	for (ptr = list_count_copy.head; NULL != ptr; ptr = ptr->next) {
-		free (ptr->name);
-		free (ptr);
-	}
-
-	for (ptr = list_size.head; NULL != ptr; ptr = ptr->next) {
-		free (ptr->name);
-		free (ptr);
-	}
-
-	for (ptr = list_size_copy.head; NULL != ptr; ptr = ptr->next) {
-		free (ptr->name);
-		free (ptr);
-	}
-
-	for (ptr = list_check.head; NULL != ptr; ptr = ptr->next) {
-		free (ptr->name);
-		free (ptr);
-	}
-
-	for (ptr = list_check_copy.head; NULL != ptr; ptr = ptr->next) {
-		free (ptr->name);
-		free (ptr);
-	}
+	type_list_free (&list_count);
+	type_list_free (&list_count_copy);
+	type_list_free (&list_size);
+	type_list_free (&list_size_copy);
+	type_list_free (&list_check);
+	type_list_free (&list_check_copy);
 
 	unlink ((NULL == sock_file) ? SOCK_PATH : sock_file);
 

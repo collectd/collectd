@@ -31,26 +31,11 @@
             char errbuf[1024]; \
             WARNING ("handle_putval: failed to write to socket #%i: %s", \
                     fileno (fh), sstrerror (errno, errbuf, sizeof (errbuf))); \
+            sfree (vl.values); \
             return -1; \
         } \
         fflush(fh); \
     } while (0)
-
-static int dispatch_values (const data_set_t *ds, value_list_t *vl,
-	       	FILE *fh, char *buffer)
-{
-	int status;
-
-	status = parse_values (buffer, vl, ds);
-	if (status != 0)
-	{
-		print_to_socket (fh, "-1 Parsing the values string failed.\n");
-		return (-1);
-	}
-
-	plugin_dispatch_values (vl);
-	return (0);
-} /* int dispatch_values */
 
 static int set_option (value_list_t *vl, const char *key, const char *value)
 {
@@ -92,6 +77,7 @@ int handle_putval (FILE *fh, char *buffer)
 
 	const data_set_t *ds;
 	value_list_t vl = VALUE_LIST_INIT;
+	vl.values = NULL;
 
 	DEBUG ("utils_cmd_putval: handle_putval (fh = %p, buffer = %s);",
 			(void *) fh, buffer);
@@ -191,6 +177,7 @@ int handle_putval (FILE *fh, char *buffer)
 			/* parse_option failed, buffer has been modified.
 			 * => we need to abort */
 			print_to_socket (fh, "-1 Misformatted option.\n");
+			sfree (vl.values);
 			return (-1);
 		}
 		else if (status == 0)
@@ -207,16 +194,20 @@ int handle_putval (FILE *fh, char *buffer)
 		if (status != 0)
 		{
 			print_to_socket (fh, "-1 Misformatted value.\n");
+			sfree (vl.values);
 			return (-1);
 		}
 		assert (string != NULL);
 
-		status = dispatch_values (ds, &vl, fh, string);
+		status = parse_values (string, &vl, ds);
 		if (status != 0)
 		{
-			/* An error has already been printed. */
+			print_to_socket (fh, "-1 Parsing the values string failed.\n");
+			sfree (vl.values);
 			return (-1);
 		}
+
+		plugin_dispatch_values (&vl);
 		values_submitted++;
 	} /* while (*buffer != 0) */
 	/* Done parsing the options. */
@@ -225,8 +216,7 @@ int handle_putval (FILE *fh, char *buffer)
 			values_submitted,
 			(values_submitted == 1) ? "value has" : "values have");
 
-	sfree (vl.values); 
-
+	sfree (vl.values);
 	return (0);
 } /* int handle_putval */
 

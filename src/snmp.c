@@ -402,7 +402,6 @@ static int csnmp_config_add_data (oconfig_item_t *ci)
   for (i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
-    status = 0;
 
     if (strcasecmp ("Type", option->key) == 0)
       status = csnmp_config_add_data_type (dd, option);
@@ -1054,16 +1053,17 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
     return (-1);
   }
   assert (ds->ds_num == data->values_len);
+  assert (data->values_len > 0);
 
   instance_list_ptr = instance_list;
 
-  value_table_ptr = malloc (sizeof (*value_table_ptr) * data->values_len);
+  value_table_ptr = calloc ((size_t) data->values_len, sizeof (*value_table_ptr));
   if (value_table_ptr == NULL)
     return (-1);
   for (i = 0; i < data->values_len; i++)
     value_table_ptr[i] = value_table[i];
 
-  vl.values_len = ds->ds_num;
+  vl.values_len = data->values_len;
   vl.values = malloc (sizeof (*vl.values) * vl.values_len);
   if (vl.values == NULL)
   {
@@ -1242,6 +1242,7 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
         data->type, ds->ds_num, data->values_len);
     return (-1);
   }
+  assert (data->values_len > 0);
 
   /* We need a copy of all the OIDs, because GETNEXT will destroy them. */
   memcpy (oid_list, data->values, data->values_len * sizeof (oid_t));
@@ -1341,7 +1342,7 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
     for (vb = res->variables, i = 0; (vb != NULL); vb = vb->next_variable, i++)
     {
       /* Calculate value index from todo list */
-      while (!oid_list_todo[i] && (i < oid_list_len))
+      while ((i < oid_list_len) && !oid_list_todo[i])
         i++;
 
       /* An instance is configured and the res variable we process is the

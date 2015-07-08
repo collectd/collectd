@@ -447,6 +447,12 @@ static int powerdns_get_data_stream (list_item_t *item, /* {{{ */
   timeout.tv_sec=5;
   timeout.tv_usec=0;
   status = setsockopt (sd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof (timeout));
+  if (status != 0)
+  {
+    FUNC_ERROR ("setsockopt");
+    close (sd);
+    return (-1);
+  }
 
   status = connect (sd, (struct sockaddr *) &item->sockaddr,
       sizeof (item->sockaddr));
@@ -494,7 +500,6 @@ static int powerdns_get_data_stream (list_item_t *item, /* {{{ */
     buffer[buffer_size] = 0;
   } /* while (42) */
   close (sd);
-  sd = -1;
 
   if (status < 0)
   {
@@ -717,25 +722,6 @@ static int powerdns_read_recursor (list_item_t *item) /* {{{ */
   return (0);
 } /* }}} int powerdns_read_recursor */
 
-static int powerdns_config_add_string (const char *name, /* {{{ */
-    char **dest,
-    oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("powerdns plugin: `%s' needs exactly one string argument.",
-	name);
-    return (-1);
-  }
-
-  sfree (*dest);
-  *dest = strdup (ci->values[0].value.string);
-  if (*dest == NULL)
-    return (-1);
-
-  return (0);
-} /* }}} int powerdns_config_add_string */
-
 static int powerdns_config_add_collect (list_item_t *li, /* {{{ */
     oconfig_item_t *ci)
 {
@@ -846,7 +832,7 @@ static int powerdns_config_add_server (oconfig_item_t *ci) /* {{{ */
     if (strcasecmp ("Collect", option->key) == 0)
       status = powerdns_config_add_collect (item, option);
     else if (strcasecmp ("Socket", option->key) == 0)
-      status = powerdns_config_add_string ("Socket", &socket_temp, option);
+      status = cf_util_get_string (option, &socket_temp);
     else
     {
       ERROR ("powerdns plugin: Option `%s' not allowed here.", option->key);
@@ -886,12 +872,14 @@ static int powerdns_config_add_server (oconfig_item_t *ci) /* {{{ */
 
   if (status != 0)
   {
+    sfree (socket_temp);
     sfree (item);
     return (-1);
   }
 
   DEBUG ("powerdns plugin: Add server: instance = %s;", item->instance);
 
+  sfree (socket_temp);
   return (0);
 } /* }}} int powerdns_config_add_server */
 

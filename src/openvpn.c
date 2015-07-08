@@ -187,8 +187,6 @@ static int single_read (char *name, FILE *fh)
 	post_compress = 0;
 	pre_decompress = 0;
 	post_decompress = 0;
-	overhead_rx = 0;
-	overhead_tx = 0;
 
 	while (fgets (buffer, sizeof (buffer), fh) != NULL)
 	{

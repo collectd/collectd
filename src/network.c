@@ -2017,6 +2017,7 @@ static sockent_t *sockent_create (int type) /* {{{ */
 	if (type == SOCKENT_TYPE_SERVER)
 	{
 		se->data.server.fd = NULL;
+		se->data.server.fd_num = 0;
 #if HAVE_LIBGCRYPT
 		se->data.server.security_level = SECURITY_LEVEL_NONE;
 		se->data.server.auth_file = NULL;
@@ -2211,6 +2212,9 @@ static int sockent_server_listen (sockent_t *se) /* {{{ */
 
 	if (se == NULL)
 		return (-1);
+
+	assert (se->data.server.fd == NULL);
+	assert (se->data.server.fd_num == 0);
 
         node = se->node;
         service = se->service;
@@ -2411,13 +2415,13 @@ static int network_receive (void) /* {{{ */
 	int  buffer_len;
 
 	int i;
-	int status;
+	int status = 0;
 
 	receive_list_entry_t *private_list_head;
 	receive_list_entry_t *private_list_tail;
 	uint64_t              private_list_length;
 
-        assert (listen_sockets_num > 0);
+	assert (listen_sockets_num > 0);
 
 	private_list_head = NULL;
 	private_list_tail = NULL;
@@ -2426,15 +2430,14 @@ static int network_receive (void) /* {{{ */
 	while (listen_loop == 0)
 	{
 		status = poll (listen_sockets_pollfd, listen_sockets_num, -1);
-
 		if (status <= 0)
 		{
 			char errbuf[1024];
 			if (errno == EINTR)
 				continue;
-			ERROR ("poll failed: %s",
+			ERROR ("network plugin: poll(2) failed: %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
-			return (-1);
+			break;
 		}
 
 		for (i = 0; (i < listen_sockets_num) && (status > 0); i++)
@@ -2452,10 +2455,10 @@ static int network_receive (void) /* {{{ */
 			if (buffer_len < 0)
 			{
 				char errbuf[1024];
-				ERROR ("recv failed: %s",
-						sstrerror (errno, errbuf,
-							sizeof (errbuf)));
-				return (-1);
+				status = (errno != 0) ? errno : -1;
+				ERROR ("network plugin: recv(2) failed: %s",
+						sstrerror (errno, errbuf, sizeof (errbuf)));
+				break;
 			}
 
 			stats_octets_rx += ((uint64_t) buffer_len);
@@ -2469,7 +2472,8 @@ static int network_receive (void) /* {{{ */
 			if (ent == NULL)
 			{
 				ERROR ("network plugin: malloc failed.");
-				return (-1);
+				status = ENOMEM;
+				break;
 			}
 			memset (ent, 0, sizeof (receive_list_entry_t));
 			ent->data = malloc (network_config_packet_size);
@@ -2477,7 +2481,8 @@ static int network_receive (void) /* {{{ */
 			{
 				sfree (ent);
 				ERROR ("network plugin: malloc failed.");
-				return (-1);
+				status = ENOMEM;
+				break;
 			}
 			ent->fd = listen_sockets_pollfd[i].fd;
 			ent->next = NULL;
@@ -2513,7 +2518,12 @@ static int network_receive (void) /* {{{ */
 				private_list_tail = NULL;
 				private_list_length = 0;
 			}
+
+			status = 0;
 		} /* for (listen_sockets_pollfd) */
+
+		if (status != 0)
+			break;
 	} /* while (listen_loop == 0) */
 
 	/* Make sure everything is dispatched before exiting. */
@@ -2528,15 +2538,11 @@ static int network_receive (void) /* {{{ */
 		receive_list_tail = private_list_tail;
 		receive_list_length += private_list_length;
 
-		private_list_head = NULL;
-		private_list_tail = NULL;
-		private_list_length = 0;
-
 		pthread_cond_signal (&receive_list_cond);
 		pthread_mutex_unlock (&receive_list_lock);
 	}
 
-	return (0);
+	return (status);
 } /* }}} int network_receive */
 
 static void *receive_thread (void __attribute__((unused)) *arg)

@@ -70,38 +70,10 @@ static int wr_write (const data_set_t *ds, /* {{{ */
   value_size = sizeof (value);
   value_ptr = &value[0];
 
-#define APPEND(...) do {                                             \
-  status = snprintf (value_ptr, value_size, __VA_ARGS__);            \
-  if (((size_t) status) > value_size)                                \
-  {                                                                  \
-    value_ptr += value_size;                                         \
-    value_size = 0;                                                  \
-  }                                                                  \
-  else                                                               \
-  {                                                                  \
-    value_ptr += status;                                             \
-    value_size -= status;                                            \
-  }                                                                  \
-} while (0)
-
-  APPEND ("%lu:", (unsigned long) vl->time);
-  for (i = 0; i < ds->ds_num; i++)
-  {
-    if (ds->ds[i].type == DS_TYPE_COUNTER)
-      APPEND ("%llu", vl->values[i].counter);
-    else if (ds->ds[i].type == DS_TYPE_GAUGE)
-      APPEND ("%g", vl->values[i].gauge);
-    else if (ds->ds[i].type == DS_TYPE_DERIVE)
-      APPEND ("%"PRIi64, vl->values[i].derive);
-    else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
-      APPEND ("%"PRIu64, vl->values[i].absolute);
-    else
-      assert (23 == 42);
-  }
-
-#undef APPEND
-
+  status = format_values (value_ptr, value_size, ds, vl, /* store rates = */ 0);
   pthread_mutex_lock (&node->lock);
+  if (status != 0)
+    return (status);
 
   if (node->conn == NULL)
   {

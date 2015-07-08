@@ -384,8 +384,9 @@ static int pidfile_create (void)
 static int pidfile_remove (void)
 {
 	const char *file = global_option_get ("PIDFile");
+	if (file == NULL)
+		return 0;
 
-	DEBUG ("unlink (%s)", (file != NULL) ? file : "<null>");
 	return (unlink (file));
 } /* static int pidfile_remove (const char *file) */
 #endif /* COLLECT_DAEMON */
