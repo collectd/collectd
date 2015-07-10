@@ -42,6 +42,7 @@ static int check_count__ = 0;
 #define OK1(cond, text) do { \
   _Bool result = (cond); \
   printf ("%s %i - %s\n", result ? "ok" : "not ok", ++check_count__, text); \
+  if (!result) { return -1; } \
 } while (0)
 #define OK(cond) OK1(cond, #cond)
 
@@ -64,12 +65,17 @@ static int check_count__ = 0;
 } while (0)
 
 #define DBLEQ(expect, actual) do { \
-  if ((isnan (expect) && !isnan (actual)) || ((expect) != (actual))) {\
+  double e = (expect); double a = (actual); \
+  if (isnan (e) && !isnan (a)) { \
     printf ("not ok %i - %s incorrect: expected %.15g, got %.15g\n", \
-        ++check_count__, #actual, expect, actual); \
+        ++check_count__, #actual, e, a); \
+    return (-1); \
+  } else if (!isnan (e) && (((e-a) < -1e-12) || ((e-a) > 1e-12))) { \
+    printf ("not ok %i - %s incorrect: expected %.15g, got %.15g\n", \
+        ++check_count__, #actual, e, a); \
     return (-1); \
   } \
-  printf ("ok %i - %s evaluates to %.15g\n", ++check_count__, #actual, expect); \
+  printf ("ok %i - %s evaluates to %.15g\n", ++check_count__, #actual, e); \
 } while (0)
 
 #define CHECK_NOT_NULL(expr) do { \

@@ -87,19 +87,23 @@ DEF_TEST(base)
   OK1 (b, "b evaluates to true");
 
   /* retrieving the wrong type always fails */
-  OK (meta_data_get_boolean (m, "string", &b) != 0);
-  OK (meta_data_get_string (m, "signed_int", &s) != 0);
-  OK (meta_data_get_string (m, "unsigned_int", &s) != 0);
-  OK (meta_data_get_string (m, "double", &s) != 0);
-  OK (meta_data_get_string (m, "boolean", &s) != 0);
+  EXPECT_INTEQ (-2, meta_data_get_boolean (m, "string", &b));
+  EXPECT_INTEQ (-2, meta_data_get_string (m, "signed_int", &s));
+  EXPECT_INTEQ (-2, meta_data_get_string (m, "unsigned_int", &s));
+  EXPECT_INTEQ (-2, meta_data_get_string (m, "double", &s));
+  EXPECT_INTEQ (-2, meta_data_get_string (m, "boolean", &s));
 
-  /* adding existing keys fails */
-  OK (meta_data_add_signed_int (m, "string", 666) != 0);
-  OK (meta_data_add_signed_int (m, "signed_int", 666) != 0);
+  /* replace existing keys */
+  CHECK_ZERO (meta_data_add_signed_int (m, "string", 666));
+  OK(meta_data_type (m, "string") == MD_TYPE_SIGNED_INT);
 
-  /* deleting, then adding a key works */
+  CHECK_ZERO (meta_data_add_signed_int (m, "signed_int", 666));
+  CHECK_ZERO (meta_data_get_signed_int (m, "signed_int", &si));
+  EXPECT_INTEQ (666, (int) si);
+
+  /* deleting keys */
   CHECK_ZERO (meta_data_delete (m, "signed_int"));
-  CHECK_ZERO (meta_data_add_signed_int (m, "signed_int", 42));
+  EXPECT_INTEQ (-2, meta_data_delete (m, "doesnt exist"));
 
   meta_data_destroy (m);
   return 0;

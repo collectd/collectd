@@ -328,11 +328,11 @@ DEF_TEST(parse_values)
     };
 
     int status = parse_values (cases[i].buffer, &vl, &ds);
-    OK(status == cases[i].status);
+    EXPECT_INTEQ (cases[i].status, status);
     if (status != 0)
       continue;
 
-    OK(cases[i].value == vl.values[0].gauge);
+    DBLEQ (cases[i].value, vl.values[0].gauge);
   }
 
   return (0);
