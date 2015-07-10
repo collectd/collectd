@@ -1,6 +1,6 @@
 /**
  * collectd - src/tests/macros.h
- * Copyright (C) 2013       Florian octo Forster
+ * Copyright (C) 2013-2015  Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -52,6 +52,15 @@ static int check_count__ = 0;
     return (-1); \
   } \
   printf ("ok %i - %s evaluates to \"%s\"\n", ++check_count__, #actual, expect); \
+} while (0)
+
+#define EXPECT_INTEQ(expect, actual) do { \
+  if ((expect) != (actual)) {\
+    printf ("not ok %i - %s incorrect: expected %d, got %d\n", \
+        ++check_count__, #actual, expect, actual); \
+    return (-1); \
+  } \
+  printf ("ok %i - %s evaluates to %d\n", ++check_count__, #actual, expect); \
 } while (0)
 
 #define DBLEQ(expect, actual) do { \
