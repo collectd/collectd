@@ -79,6 +79,7 @@ static int default_callback (const char __attribute__((unused)) *str,
 {
   cu_match_value_t *data = (cu_match_value_t *) user_data;
 
+  data->ds_type |= UTILS_MATCH_FOUND;
   if (data->ds_type & UTILS_MATCH_DS_TYPE_GAUGE)
   {
     gauge_t value;

@@ -6386,6 +6386,12 @@ their configuration can be found in L<types.db(5)>.
 
 This optional setting sets the type instance to use.
 
+=item B<NotifyLevel> B<OKAY>|B<WARNING>|B<FAILURE>
+
+Controls whether the matching line sends a notification at this level instead of 
+a datapoint, which is the default. The behavior of notifications differs from 
+datapoints in that it will only emit an event if the there's a new value.
+
 =back
 
 =head2 Plugin C<tail_csv>

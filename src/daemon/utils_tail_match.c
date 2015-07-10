@@ -42,6 +42,7 @@ struct cu_tail_match_simple_s
   char plugin_instance[DATA_MAX_NAME_LEN];
   char type[DATA_MAX_NAME_LEN];
   char type_instance[DATA_MAX_NAME_LEN];
+  int severity;
   cdtime_t interval;
 };
 typedef struct cu_tail_match_simple_s cu_tail_match_simple_t;
@@ -107,9 +108,59 @@ static int simple_submit_match (cu_match_t *match, void *user_data)
   return (0);
 } /* int simple_submit_match */
 
+static int simple_submit_notification_match (cu_match_t *match, void *user_data) {
+  cu_tail_match_simple_t *data = (cu_tail_match_simple_t *) user_data;
+  cu_match_value_t *match_value;
+  notification_t n = {data->severity, cdtime(), "", "", "tail", "", "", "", NULL};
+
+  match_value = (cu_match_value_t *) match_get_user_data(match);
+  if (match_value == NULL)
+    return (-1);
+
+  sstrncpy(n.host, hostname_g, sizeof(n.host));
+  sstrncpy(n.plugin, data->plugin, sizeof(n.plugin));
+  sstrncpy(n.plugin_instance, data->plugin_instance,
+           sizeof(n.plugin_instance));
+  sstrncpy(n.type, data->type, sizeof(n.type));
+  sstrncpy(n.type_instance, data->type_instance,
+           sizeof(n.type_instance));
+
+  char *message = NULL;
+
+  if (match_value->values_num != 0 && match_value->ds_type & UTILS_MATCH_FOUND) {
+    if (match_value->ds_type & UTILS_MATCH_DS_TYPE_GAUGE) {
+      message = ssnprintf_alloc( "the value found was %f", match_value->value.gauge);
+    } else if (match_value->ds_type & UTILS_MATCH_DS_TYPE_COUNTER) {
+      message = ssnprintf_alloc ( "the counter is now %llu", match_value->value.counter);
+    } else if (match_value->ds_type & UTILS_MATCH_DS_TYPE_ABSOLUTE) {
+      message = ssnprintf_alloc ( "the absolute value is now %"PRIu64, match_value->value.absolute);
+    } else if (match_value->ds_type & UTILS_MATCH_DS_TYPE_DERIVE) {
+      message = ssnprintf_alloc ( "the derived value is now %"PRIi64, match_value->value.absolute);
+    }
+  }
+
+  // do not send notification
+  if (message == NULL) {
+    return (0);
+  }
+
+  sstrncpy( n.message , message, sizeof(n.message));
+
+  if (match_value->ds_type & UTILS_MATCH_DS_TYPE_GAUGE)
+  {
+    match_value->value.gauge = NAN;
+    match_value->values_num = 0;
+  }
+
+  plugin_dispatch_notification (&n);
+
+  return (0);
+} /* int simple_submit_notification_match */
+
 static int tail_callback (void *data, char *buf,
     int __attribute__((unused)) buflen)
 {
+
   cu_tail_match_t *obj = (cu_tail_match_t *) data;
   size_t i;
 
@@ -207,6 +258,7 @@ int tail_match_add_match_simple (cu_tail_match_t *obj,
   cu_match_t *match;
   cu_tail_match_simple_t *user_data;
   int status;
+  void* submit_func;
 
   match = match_create_simple (regex, excluderegex, ds_type);
   if (match == NULL)
@@ -232,7 +284,20 @@ int tail_match_add_match_simple (cu_tail_match_t *obj,
 
   user_data->interval = interval;
 
-  status = tail_match_add_match (obj, match, simple_submit_match,
+  submit_func = simple_submit_match;
+  if (ds_type & UTILS_MATCH_NOTIF) {
+    submit_func = simple_submit_notification_match;
+    user_data->severity = -1;
+    if (ds_type & UTILS_MATCH_NOTIF_OKAY) {
+      user_data->severity = NOTIF_OKAY;
+    } else if (ds_type & UTILS_MATCH_NOTIF_WARNING) {
+      user_data->severity = NOTIF_WARNING;
+    } else if (ds_type & UTILS_MATCH_NOTIF_FAILURE) {
+      user_data->severity = NOTIF_FAILURE;
+    }
+  }
+
+  status = tail_match_add_match (obj, match, submit_func,
       user_data, free);
 
   if (status != 0)
@@ -249,6 +314,7 @@ int tail_match_read (cu_tail_match_t *obj)
   char buffer[4096];
   int status;
   size_t i;
+  cu_match_value_t *match_value;
 
   status = cu_tail_read (obj->tail, buffer, sizeof (buffer), tail_callback,
       (void *) obj);
@@ -266,6 +332,8 @@ int tail_match_read (cu_tail_match_t *obj)
       continue;
 
     (*lt_match->submit) (lt_match->match, lt_match->user_data);
+    match_value = (cu_match_value_t *) match_get_user_data(lt_match->match);
+    match_value->ds_type &= ~UTILS_MATCH_FOUND;
   }
 
   return (0);

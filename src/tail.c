@@ -152,7 +152,6 @@ static int ctail_config_add_match (cu_tail_match_t *tm,
   for (i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
-
     if (strcasecmp ("Regex", option->key) == 0)
       status = cf_util_get_string (option, &cm.regex);
     else if (strcasecmp ("ExcludeRegex", option->key) == 0)
@@ -163,7 +162,18 @@ static int ctail_config_add_match (cu_tail_match_t *tm,
       status = cf_util_get_string (option, &cm.type);
     else if (strcasecmp ("Instance", option->key) == 0)
       status = cf_util_get_string (option, &cm.type_instance);
-    else
+    else if (strcasecmp ("NotifyLevel", option->key) == 0) {
+      cm.flags |= UTILS_MATCH_NOTIF;
+      char *severity = NULL;
+      status = cf_util_get_string (option, &severity);
+      if (strcasecmp (severity, "FAILURE") == 0)
+        cm.flags |= UTILS_MATCH_NOTIF_FAILURE;
+      else if (strcmp (severity, "OKAY") == 0)
+        cm.flags |= UTILS_MATCH_NOTIF_OKAY;
+      else if ((strcmp (severity, "WARNING") == 0)
+               || (strcmp (severity, "WARN") == 0))
+        cm.flags |= UTILS_MATCH_NOTIF_WARNING;
+    } else
     {
       WARNING ("tail plugin: Option `%s' not allowed here.", option->key);
       status = -1;

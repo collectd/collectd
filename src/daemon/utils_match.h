@@ -35,6 +35,12 @@
  *          ^             <- Type bit
  *           ^^^^^^^^^^^^ <- Subtype bits
  */
+#define UTILS_MATCH_NOTIF         0x010000
+#define UTILS_MATCH_NOTIF_OKAY    0x020000
+#define UTILS_MATCH_NOTIF_FAILURE 0x040000
+#define UTILS_MATCH_NOTIF_WARNING 0x080000
+#define UTILS_MATCH_FOUND         0x100000
+
 #define UTILS_MATCH_DS_TYPE_GAUGE    0x1000
 #define UTILS_MATCH_DS_TYPE_COUNTER  0x2000
 #define UTILS_MATCH_DS_TYPE_DERIVE   0x4000
