@@ -67,11 +67,9 @@ struct latency_counter_s
 *
 * So, if the required bin width is 300, then new bin width will be 512 as it is
 * the next nearest power of 2.
-*
 */
 void change_bin_width (latency_counter_t *lc, size_t val) /* {{{ */
 {
-  int i=0;
   /* This function is called because the new value is above histogram's range.
    * First find the required bin width:
    *           requiredBinWidth = (value + 1) / numBins
@@ -82,6 +80,7 @@ void change_bin_width (latency_counter_t *lc, size_t val) /* {{{ */
   double required_bin_width_logbase2 = log(required_bin_width) / log(2.0);
   int new_bin_width = (int)(pow(2.0, ceil( required_bin_width_logbase2)));
   int old_bin_width = lc->bin_width;
+
   lc->bin_width = new_bin_width;
 
   /*
@@ -90,16 +89,22 @@ void change_bin_width (latency_counter_t *lc, size_t val) /* {{{ */
    */
   if (lc->num > 0) // if the histogram has data then iterate else skip
   {
-      double width_change_ratio = old_bin_width / new_bin_width;
-      for (i=0; i<HISTOGRAM_NUM_BINS; i++)
+      double width_change_ratio = ((double) old_bin_width) / ((double) new_bin_width);
+      size_t i;
+
+      for (i = 0; i < HISTOGRAM_NUM_BINS; i++)
       {
-         int new_bin = (int)(i * width_change_ratio);
+         size_t new_bin = (size_t) (((double) i) * width_change_ratio);
          if (i == new_bin)
              continue;
+         assert (new_bin < i);
+
+         if (lc->histogram[i] != 0) {
+           DEBUG ("utils_latency: moving %d from %zu to %zu.", lc->histogram[i], i, new_bin);
+         }
          lc->histogram[new_bin] += lc->histogram[i];
          lc->histogram[i] = 0;
       }
-      DEBUG("utils_latency: change_bin_width: fixed all bins");
   }
 
   DEBUG("utils_latency: change_bin_width: val-[%zu], oldBinWidth-[%d], "
@@ -107,7 +112,6 @@ void change_bin_width (latency_counter_t *lc, size_t val) /* {{{ */
           "required_bin_width_logbase2-[%f]",
           val, old_bin_width, new_bin_width, required_bin_width,
           required_bin_width_logbase2);
-
 } /* }}} void change_bin_width */
 
 latency_counter_t *latency_counter_create () /* {{{ */
