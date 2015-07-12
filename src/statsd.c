@@ -540,7 +540,7 @@ static int statsd_network_init (struct pollfd **ret_fds, /* {{{ */
       continue;
     }
 
-#ifdef COLLECTD_DEBUG
+#ifdef COLLECT_DEBUG
     char dbg_node[NI_MAXHOST];
     char dbg_service[NI_MAXSERV];
 
