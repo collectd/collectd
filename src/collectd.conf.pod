@@ -7495,6 +7495,7 @@ Synopsis:
         Port "6379"
         Timeout 1000
         Prefix "collectd/"
+        Database 1
     </Node>
   </Plugin>
 
@@ -7503,7 +7504,8 @@ the timestamp as the score. Retrieving a date range can then be done using the
 C<ZRANGEBYSCORE> I<Redis> command. Additionnally, all the identifiers of these
 I<Sorted Sets> are kept in a I<Set> called C<collectd/values> (or
 C<${prefix}/values> if the B<Prefix> option was specified) and can be retrieved
-using the C<SMEMBERS> I<Redis> command. See
+using the C<SMEMBERS> I<Redis> command. You can specify the database to use 
+with the B<Database> parameter (default is C<0>). See
 L<http://redis.io/commands#sorted_set> and L<http://redis.io/commands#set> for
 details.
 
@@ -7544,6 +7546,10 @@ Prefix used when constructing the name of the I<Sorted Sets> and the I<Set>
 containing all metrics. Defaults to C<collectd/>, so metrics will have names
 like C<collectd/cpu-0/cpu-user>. When setting this to something different, it
 is recommended but not required to include a trailing slash in I<Prefix>.
+
+=item B<Database> I<Index>
+
+This index selects the redis database to use for writing operations. Defaults to C<0>.
 
 =back
 

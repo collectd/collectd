@@ -45,6 +45,7 @@ struct wr_node_s
   int port;
   struct timeval timeout;
   char *prefix;
+  int database;
 
   redisContext *conn;
   pthread_mutex_t lock;
@@ -138,6 +139,12 @@ static int wr_write (const data_set_t *ds, /* {{{ */
       pthread_mutex_unlock (&node->lock);
       return (-1);
     }
+   
+    rr = redisCommand(node->conn, "SELECT %d", node->database);
+    if (rr == NULL)
+      WARNING("SELECT command error. database:%d message:%s", node->database, node->conn->errstr);
+    else
+      freeReplyObject (rr);
   }
 
   rr = redisCommand (node->conn, "ZADD %s %s %s", key, time, value);
@@ -196,6 +203,7 @@ static int wr_config_node (oconfig_item_t *ci) /* {{{ */
   node->timeout.tv_usec = 1000;
   node->conn = NULL;
   node->prefix = NULL;
+  node->database = 0;
   pthread_mutex_init (&node->lock, /* attr = */ NULL);
 
   status = cf_util_get_string_buffer (ci, node->name, sizeof (node->name));
@@ -226,6 +234,9 @@ static int wr_config_node (oconfig_item_t *ci) /* {{{ */
     }
     else if (strcasecmp ("Prefix", child->key) == 0) {
       status = cf_util_get_string (child, &node->prefix);
+    }
+    else if (strcasecmp ("Database", child->key) == 0) {
+      status = cf_util_get_int (child, &node->database);
     }
     else
       WARNING ("write_redis plugin: Ignoring unknown config option \"%s\".",
