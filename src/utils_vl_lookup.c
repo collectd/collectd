@@ -33,6 +33,10 @@
 #include "utils_vl_lookup.h"
 #include "utils_avltree.h"
 
+#if HAVE_LIBKSTAT
+kstat_ctl_t *kc;
+#endif /* HAVE_LIBKSTAT */
+
 #if BUILD_TEST
 # define sstrncpy strncpy
 # define plugin_log(s, ...) do { \

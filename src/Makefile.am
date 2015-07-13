@@ -1375,6 +1375,9 @@ check_PROGRAMS = test_utils_mount test_utils_vl_lookup
 
 test_utils_mount_SOURCES = utils_mount_test.c testing.h
 test_utils_mount_LDADD = libmount.la daemon/libplugin_mock.la
+if BUILD_WITH_LIBKSTAT
+test_utils_mount_LDADD += -lkstat
+endif
 
 test_utils_vl_lookup_SOURCES = utils_vl_lookup_test.c testing.h
 test_utils_vl_lookup_LDADD = liblookup.la daemon/libplugin_mock.la
