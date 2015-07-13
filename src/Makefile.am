@@ -44,7 +44,9 @@ check_PROGRAMS += test_utils_mount
 TESTS += test_utils_mount
 test_utils_mount_SOURCES = utils_mount_test.c testing.h
 test_utils_mount_LDADD = libmount.la daemon/libcommon.la daemon/libplugin_mock.la
-
+if BUILD_WITH_LIBKSTAT
+test_utils_mount_LDADD += -lkstat
+endif
 
 sbin_PROGRAMS = collectdmon
 bin_PROGRAMS = collectd-nagios collectdctl collectd-tg

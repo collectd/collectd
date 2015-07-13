@@ -28,6 +28,10 @@
 #include "collectd.h"
 #include "utils_mount.h"
 
+#if HAVE_LIBKSTAT
+kstat_ctl_t *kc;
+#endif /* HAVE_LIBKSTAT */
+
 DEF_TEST(cu_mount_checkoption)
 {
   char line_opts[] = "foo=one,bar=two,qux=three";
