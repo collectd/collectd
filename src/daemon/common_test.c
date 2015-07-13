@@ -27,6 +27,10 @@
 #include "testing.h"
 #include "common.h"
 
+#if HAVE_LIBKSTAT
+kstat_ctl_t *kc;
+#endif /* HAVE_LIBKSTAT */
+
 DEF_TEST(sstrncpy)
 {
   char buffer[16] = "";

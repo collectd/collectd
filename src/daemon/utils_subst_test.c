@@ -29,6 +29,10 @@
 #include "common.h" /* for STATIC_ARRAY_SIZE */
 #include "utils_subst.h"
 
+#if HAVE_LIBKSTAT
+kstat_ctl_t *kc;
+#endif /* HAVE_LIBKSTAT */
+
 DEF_TEST(subst)
 {
   struct {
