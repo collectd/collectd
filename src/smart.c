@@ -35,12 +35,14 @@
 static const char *config_keys[] =
 {
   "Disk",
-  "IgnoreSelected"
+  "IgnoreSelected",
+  "QuerySleeping"
 };
 
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static ignorelist_t *ignorelist = NULL;
+static int querysleeping = 0;
 
 static int smart_config (const char *key, const char *value)
 {
@@ -59,6 +61,11 @@ static int smart_config (const char *key, const char *value)
     if (IS_TRUE (value))
       invert = 0;
     ignorelist_set_invert (ignorelist, invert);
+  }
+  else if (strcasecmp ("QuerySleeping", key) == 0)
+  {
+    if (IS_TRUE (value))
+      querysleeping = 1;
   }
   else
   {
@@ -164,7 +171,7 @@ static void smart_handle_disk (const char *dev)
     DEBUG ("smart plugin: disk %s has no SMART support.", dev);
     goto end;
   }
-  if (sk_disk_check_sleep_mode (d, &awake) < 0 || !awake)
+  if (!querysleeping && (sk_disk_check_sleep_mode (d, &awake) < 0 || !awake))
   {
     DEBUG ("smart plugin: disk %s is sleeping.", dev);
     goto end;

@@ -1051,6 +1051,7 @@
 #<Plugin smart>
 #  Disk "/^[hs]d[a-f][0-9]?$/"
 #  IgnoreSelected false
+#  QuerySleeping false
 #</Plugin>
 
 #<Plugin snmp>
