@@ -27,6 +27,13 @@ noinst_LTLIBRARIES =
 check_PROGRAMS =
 TESTS =
 
+noinst_LTLIBRARIES += liblatency.la
+liblatency_la_SOURCES = utils_latency.c utils_latency.h
+check_PROGRAMS += test_utils_latency
+TESTS += test_utils_latency
+test_utils_latency_SOURCES = utils_latency_test.c testing.h
+test_utils_latency_LDADD = liblatency.la daemon/libcommon.la daemon/libplugin_mock.la -lm
+
 noinst_LTLIBRARIES += liblookup.la
 liblookup_la_SOURCES = utils_vl_lookup.c utils_vl_lookup.h
 liblookup_la_LIBADD = daemon/libavltree.la
@@ -966,10 +973,9 @@ endif
 
 if BUILD_PLUGIN_STATSD
 pkglib_LTLIBRARIES += statsd.la
-statsd_la_SOURCES = statsd.c \
-                    utils_latency.h utils_latency.c
+statsd_la_SOURCES = statsd.c
 statsd_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-statsd_la_LIBADD = -lpthread -lm
+statsd_la_LIBADD = liblatency.la -lpthread -lm
 endif
 
 if BUILD_PLUGIN_SWAP

@@ -27,6 +27,10 @@
 static int fail_count__ = 0;
 static int check_count__ = 0;
 
+#ifndef DBL_PRECISION
+# define DBL_PRECISION 1e-12
+#endif
+
 #define DEF_TEST(func) static int test_##func ()
 
 #define RUN_TEST(func) do { \
@@ -70,7 +74,7 @@ static int check_count__ = 0;
     printf ("not ok %i - %s incorrect: expected %.15g, got %.15g\n", \
         ++check_count__, #actual, e, a); \
     return (-1); \
-  } else if (!isnan (e) && (((e-a) < -1e-12) || ((e-a) > 1e-12))) { \
+  } else if (!isnan (e) && (((e-a) < -DBL_PRECISION) || ((e-a) > DBL_PRECISION))) { \
     printf ("not ok %i - %s incorrect: expected %.15g, got %.15g\n", \
         ++check_count__, #actual, e, a); \
     return (-1); \
