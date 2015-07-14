@@ -46,12 +46,14 @@ noinst_LTLIBRARIES = libavltree.la libcommon.la libheap.la libmetadata.la libplu
 libavltree_la_SOURCES = utils_avltree.c utils_avltree.h
 
 libcommon_la_SOURCES = common.c common.h
+libcommon_la_LIBADD = $(COMMON_LIBS)
 
 libheap_la_SOURCES = utils_heap.c utils_heap.h
 
 libmetadata_la_SOURCES = meta_data.c meta_data.h
 
 libplugin_mock_la_SOURCES = plugin_mock.c utils_cache_mock.c utils_time_mock.c
+libplugin_mock_la_LIBADD = $(COMMON_LIBS)
 
 collectd_SOURCES = collectd.c collectd.h \
 		   configfile.c configfile.h \
@@ -95,10 +97,10 @@ check_PROGRAMS = test_common test_meta_data test_utils_avltree test_utils_heap t
 TESTS          = test_common test_meta_data test_utils_avltree test_utils_heap test_utils_subst
 
 test_common_SOURCES = common_test.c ../testing.h
-test_common_LDADD = libcommon.la libplugin_mock.la $(COMMON_LIBS)
+test_common_LDADD = libcommon.la libplugin_mock.la
 
 test_meta_data_SOURCES = meta_data_test.c ../testing.h
-test_meta_data_LDADD = libmetadata.la libplugin_mock.la $(COMMON_LIBS)
+test_meta_data_LDADD = libmetadata.la libplugin_mock.la
 
 test_utils_avltree_SOURCES = utils_avltree_test.c ../testing.h
 test_utils_avltree_LDADD = libavltree.la $(COMMON_LIBS)
@@ -108,4 +110,4 @@ test_utils_heap_LDADD = libheap.la $(COMMON_LIBS)
 
 test_utils_subst_SOURCES = utils_subst_test.c ../testing.h \
 			   utils_subst.c utils_subst.h
-test_utils_subst_LDADD = libcommon.la libplugin_mock.la $(COMMON_LIBS)
+test_utils_subst_LDADD = libcommon.la libplugin_mock.la
