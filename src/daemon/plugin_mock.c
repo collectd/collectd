@@ -26,6 +26,10 @@
 
 #include "plugin.h"
 
+#if HAVE_LIBKSTAT
+kstat_ctl_t *kc = NULL;
+#endif /* HAVE_LIBKSTAT */
+
 char hostname_g[] = "example.com";
 
 int plugin_register_complex_config (const char *type, int (*callback) (oconfig_item_t *))
