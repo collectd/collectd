@@ -32,6 +32,10 @@
 #include <math.h>
 #include <limits.h>
 
+#ifndef LLONG_MAX
+# define LLONG_MAX 9223372036854775807LL
+#endif
+
 #ifndef HISTOGRAM_NUM_BINS
 # define HISTOGRAM_NUM_BINS 1000
 #endif
