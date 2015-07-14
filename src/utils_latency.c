@@ -163,7 +163,7 @@ void latency_counter_add (latency_counter_t *lc, cdtime_t latency) /* {{{ */
       bin = (latency - 1) / lc->bin_width;
       if (bin >= HISTOGRAM_NUM_BINS)
       {
-          ERROR ("utils_latency: latency_counter_add: Invalid bin %lu", bin);
+          ERROR ("utils_latency: latency_counter_add: Invalid bin: %"PRIu64, bin);
           return;
       }
   }
