@@ -644,6 +644,14 @@ modbus_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMODBUS_CFLAGS)
 modbus_la_LIBADD = $(BUILD_WITH_LIBMODBUS_LIBS)
 endif
 
+if BUILD_PLUGIN_MQTT
+pkglib_LTLIBRARIES += mqtt.la
+mqtt_la_SOURCES = mqtt.c
+mqtt_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+mqtt_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBMOSQUITTO_CPPFLAGS)
+mqtt_la_LIBADD = $(BUILD_WITH_LIBMOSQUITTO_LIBS)
+endif
+
 if BUILD_PLUGIN_MULTIMETER
 pkglib_LTLIBRARIES += multimeter.la
 multimeter_la_SOURCES = multimeter.c

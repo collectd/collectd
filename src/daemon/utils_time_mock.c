@@ -28,6 +28,6 @@
 
 cdtime_t cdtime (void)
 {
-  return (1542455354518929408);
+  return ((cdtime_t) 1542455354518929408ULL);
 }
 
