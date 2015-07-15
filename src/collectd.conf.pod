@@ -7611,7 +7611,7 @@ Synopsis:
 
 Values are submitted to I<Sorted Sets>, using the metric name as the key, and
 the timestamp as the score. Retrieving a date range can then be done using the
-C<ZRANGEBYSCORE> I<Redis> command. Additionnally, all the identifiers of these
+C<ZRANGEBYSCORE> I<Redis> command. Additionally, all the identifiers of these
 I<Sorted Sets> are kept in a I<Set> called C<collectd/values> (or
 C<${prefix}/values> if the B<Prefix> option was specified) and can be retrieved
 using the C<SMEMBERS> I<Redis> command. You can specify the database to use 
