@@ -41,12 +41,13 @@ DEF_TEST(simple)
     double sum;
     double avg;
   } cases[] = {
-  /* val  min  max  sum  avg */
-    {0.5, 0.5, 0.5, 0.5, 0.5},
-    {0.3, 0.3, 0.5, 0.8, 0.4},
-    {0.7, 0.3, 0.7, 1.5, 0.5},
-    {2.5, 0.3, 2.5, 4.0, 1.0},
-    { -1, 0.3, 2.5, 4.0, 1.0},
+  /* val  min  max  sum   avg */
+    {0.5, 0.5, 0.5, 0.5,  0.5},
+    {0.3, 0.3, 0.5, 0.8,  0.4},
+    {0.7, 0.3, 0.7, 1.5,  0.5},
+    {2.5, 0.3, 2.5, 4.0,  1.0},
+    { 99, 0.3,  99, 103, 20.6},
+    { -1, 0.3,  99, 103, 20.6},
   };
   size_t i;
   latency_counter_t *l;
@@ -54,6 +55,8 @@ DEF_TEST(simple)
   CHECK_NOT_NULL (l = latency_counter_create ());
 
   for (i = 0; i < STATIC_ARRAY_SIZE (cases); i++) {
+    printf ("# case %zu: DOUBLE_TO_CDTIME_T(%g) = %"PRIu64"\n",
+        i, cases[i].val, DOUBLE_TO_CDTIME_T (cases[i].val));
     latency_counter_add (l, DOUBLE_TO_CDTIME_T (cases[i].val));
 
     DBLEQ (cases[i].min, CDTIME_T_TO_DOUBLE (latency_counter_get_min (l)));
