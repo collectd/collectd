@@ -7661,6 +7661,10 @@ is recommended but not required to include a trailing slash in I<Prefix>.
 
 This index selects the redis database to use for writing operations. Defaults to C<0>.
 
+=item B<MaxSetSize> I<Items>
+
+The B<MaxSetSize> option limits the number of items that the I<Sorted Sets> can hold to I<Items>. Negative values for I<Items> set no limit, which is the default behavior.
+
 =back
 
 =head2 Plugin C<write_riemann>
@@ -8857,3 +8861,4 @@ L<sensors(1)>
 Florian Forster E<lt>octo@collectd.orgE<gt>
 
 =cut
+
