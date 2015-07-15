@@ -7632,7 +7632,7 @@ the timestamp as the score. Retrieving a date range can then be done using the
 C<ZRANGEBYSCORE> I<Redis> command. Additionally, all the identifiers of these
 I<Sorted Sets> are kept in a I<Set> called C<collectd/values> (or
 C<${prefix}/values> if the B<Prefix> option was specified) and can be retrieved
-using the C<SMEMBERS> I<Redis> command. You can specify the database to use 
+using the C<SMEMBERS> I<Redis> command. You can specify the database to use
 with the B<Database> parameter (default is C<0>). See
 L<http://redis.io/commands#sorted_set> and L<http://redis.io/commands#set> for
 details.
@@ -7677,7 +7677,13 @@ is recommended but not required to include a trailing slash in I<Prefix>.
 
 =item B<Database> I<Index>
 
-This index selects the redis database to use for writing operations. Defaults to C<0>.
+This index selects the redis database to use for writing operations. Defaults
+to C<0>.
+
+=item B<MaxSetSize> I<Items>
+
+The B<MaxSetSize> option limits the number of items that the I<Sorted Sets> can
+hold. Negative values for I<Items> sets no limit, which is the default behavior.
 
 =back
 

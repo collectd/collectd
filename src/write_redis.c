@@ -46,6 +46,7 @@ struct wr_node_s
   struct timeval timeout;
   char *prefix;
   int database;
+  int max_set_size;
 
   redisContext *conn;
   pthread_mutex_t lock;
@@ -105,7 +106,7 @@ static int wr_write (const data_set_t *ds, /* {{{ */
       pthread_mutex_unlock (&node->lock);
       return (-1);
     }
-   
+
     rr = redisCommand(node->conn, "SELECT %d", node->database);
     if (rr == NULL)
       WARNING("SELECT command error. database:%d message:%s", node->database, node->conn->errstr);
@@ -118,6 +119,15 @@ static int wr_write (const data_set_t *ds, /* {{{ */
     WARNING("ZADD command error. key:%s message:%s", key, node->conn->errstr);
   else
     freeReplyObject (rr);
+
+  if (node->max_set_size >= 0)
+  {
+    rr = redisCommand (node->conn, "ZREMRANGEBYRANK %s %d %d", key, 0, (-1 * node->max_set_size) - 1);
+    if (rr == NULL)
+      WARNING("SELECT command error. database:%d message:%s", node->database, node->conn->errstr);
+    else
+      freeReplyObject (rr);
+  }
 
   /* TODO(octo): This is more overhead than necessary. Use the cache and
    * metadata to determine if it is a new metric and call SADD only once for
@@ -170,6 +180,7 @@ static int wr_config_node (oconfig_item_t *ci) /* {{{ */
   node->conn = NULL;
   node->prefix = NULL;
   node->database = 0;
+  node->max_set_size = -1;
   pthread_mutex_init (&node->lock, /* attr = */ NULL);
 
   status = cf_util_get_string_buffer (ci, node->name, sizeof (node->name));
@@ -203,6 +214,9 @@ static int wr_config_node (oconfig_item_t *ci) /* {{{ */
     }
     else if (strcasecmp ("Database", child->key) == 0) {
       status = cf_util_get_int (child, &node->database);
+    }
+    else if (strcasecmp ("MaxSetSize", child->key) == 0) {
+      status = cf_util_get_int (child, &node->max_set_size);
     }
     else
       WARNING ("write_redis plugin: Ignoring unknown config option \"%s\".",
