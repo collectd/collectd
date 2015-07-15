@@ -190,12 +190,14 @@ static size_t global_cpu_num = 0;
 
 static _Bool report_by_cpu = 1;
 static _Bool report_by_state = 1;
+static _Bool report_state_active = 0;
 static _Bool report_percent = 0;
 
 static const char *config_keys[] =
 {
 	"ReportByCpu",
 	"ReportByState",
+	"ReportStateActive",
 	"ValuesPercentage"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
@@ -208,6 +210,8 @@ static int cpu_config (char const *key, char const *value) /* {{{ */
 		report_percent = IS_TRUE (value) ? 1 : 0;
 	else if (strcasecmp (key, "ReportByState") == 0)
 		report_by_state = IS_TRUE (value) ? 1 : 0;
+	else if (strcasecmp (key, "ReportStateActive") == 0)
+		report_state_active = IS_TRUE (value) ? 1 : 0;
 	else
 		return (-1);
 
@@ -438,11 +442,11 @@ static void cpu_commit_one (int cpu_num, /* {{{ */
 	sum = rates[COLLECTD_CPU_STATE_ACTIVE];
 	RATE_ADD (sum, rates[COLLECTD_CPU_STATE_IDLE]);
 
-	if (!report_by_state)
+	if (report_state_active || (!report_by_state))
 	{
 		gauge_t percent = 100.0 * rates[COLLECTD_CPU_STATE_ACTIVE] / sum;
 		submit_percent (cpu_num, COLLECTD_CPU_STATE_ACTIVE, percent);
-		return;
+		if (!report_by_state) return;
 	}
 
 	for (state = 0; state < COLLECTD_CPU_STATE_ACTIVE; state++)

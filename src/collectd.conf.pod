@@ -1393,6 +1393,17 @@ When set to B<true>, the default, reports per-state metrics, e.g. "system",
 When set to B<false>, aggregates (sums) all I<non-idle> states into one
 "active" metric.
 
+=item B<ReportStateActive> B<false>|B<true>
+
+When set to B<true>, aggregates (sums) all I<non-idle> states into one
+"active" metric.
+
+When B<ReportByState> is set to B<false>, it is already the case and
+this option is ignored (redundant with B<ReportByState>).
+
+When B<ReportByState> is set to B<true>, "active" metric is not reported
+by default. You need to enable it explicitely with B<ReportStateActive>.
+
 =item B<ReportByCpu> B<true>|B<false>
 
 When set to B<true>, the default, reports per-CPU (per-core) metrics.
