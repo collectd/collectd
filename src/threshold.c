@@ -872,6 +872,7 @@ int ut_config (oconfig_item_t *ci)
 { /* {{{ */
   int i;
   int status = 0;
+  int old_size = c_avl_size (threshold_tree);
 
   threshold_t th;
 
@@ -915,7 +916,8 @@ int ut_config (oconfig_item_t *ci)
       break;
   }
 
-  if (c_avl_size (threshold_tree) > 0) {
+  /* register callbacks if this is the first time we see a valid config */
+  if (old_size == 0 && c_avl_size (threshold_tree) > 0) {
     plugin_register_missing ("threshold", ut_missing,
         /* user data = */ NULL);
     plugin_register_write ("threshold", ut_check_threshold,
