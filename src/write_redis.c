@@ -124,7 +124,7 @@ static int wr_write (const data_set_t *ds, /* {{{ */
   {
     rr = redisCommand (node->conn, "ZREMRANGEBYRANK %s %d %d", key, 0, (-1 * node->max_set_size) - 1);
     if (rr == NULL)
-      WARNING("ZREMRANGEBYRANK command error. database:%d message:%s", node->database, node->conn->errstr);
+      WARNING("ZREMRANGEBYRANK command error. key:%s message:%s", key, node->conn->errstr);
     else
       freeReplyObject (rr);
   }
