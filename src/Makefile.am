@@ -152,6 +152,7 @@ if BUILD_PLUGIN_AMQP
 pkglib_LTLIBRARIES += amqp.la
 amqp_la_SOURCES = amqp.c \
 		  utils_cmd_putval.c utils_cmd_putval.h \
+  	          utils_parse_option.c utils_parse_option.h \
 		  utils_format_graphite.c utils_format_graphite.h \
 		  utils_format_json.c utils_format_json.h
 amqp_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBRABBITMQ_LDFLAGS)
