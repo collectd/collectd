@@ -1,5 +1,5 @@
 /**
- * collectd - src/tests/mock/utils_time.c
+ * collectd - src/tests/mock/utils_cache.c
  * Copyright (C) 2013       Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -24,10 +24,10 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
-#include "utils_time.h"
+#include "utils_cache.h"
 
-cdtime_t cdtime (void)
+gauge_t *uc_get_rate (__attribute((unused)) data_set_t const *ds,
+                      __attribute((unused)) value_list_t const *vl)
 {
-  return (0);
+  return (NULL);
 }
-

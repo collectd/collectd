@@ -113,7 +113,20 @@ if test "x$ac_system" = "xSolaris"
 then
 	AC_DEFINE(_POSIX_PTHREAD_SEMANTICS, 1, [Define to enforce POSIX thread semantics under Solaris.])
 	AC_DEFINE(_REENTRANT,               1, [Define to enable reentrancy interfaces.])
+
+	AC_MSG_CHECKING([whether compiler builds 64bit binaries])
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([
+			   #ifndef _LP64
+			   # error "Compiler not in 64bit mode."
+			   #endif
+			   ])],
+			   [AC_MSG_RESULT([yes])],
+			   [
+			    AC_MSG_RESULT([no])
+			    AC_MSG_NOTICE([Solaris detected. Please consider building a 64-bit binary.])
+			   ])
 fi
+
 if test "x$ac_system" = "xAIX"
 then
 	AC_DEFINE(_THREAD_SAFE_ERRNO, 1, [Define to use the thread-safe version of errno under AIX.])
@@ -285,6 +298,54 @@ AC_CHECK_HEADERS(netinet/udp.h, [], [],
 #endif
 ])
 
+have_ip6_ext="no"
+AC_CHECK_TYPES([struct ip6_ext], [have_ip6_ext="yes"], [have_ip6_ext="no"],
+[#if HAVE_STDINT_H
+# include <stdint.h>
+#endif
+#if HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+#if HAVE_NETINET_IN_SYSTM_H
+# include <netinet/in_systm.h>
+#endif
+#if HAVE_NETINET_IN_H
+# include <netinet/in.h>
+#endif
+#if HAVE_NETINET_IP6_H
+# include <netinet/ip6.h>
+#endif
+])
+
+if test "x$have_ip6_ext" = "xno"; then
+	SAVE_CFLAGS="$CFLAGS"
+	CFLAGS="$CFLAGS -DSOLARIS2=8"
+
+	AC_CHECK_TYPES([struct ip6_ext],
+		       [have_ip6_ext="yes, with -DSOLARIS2=8"],
+		       [have_ip6_ext="no"],
+[#if HAVE_STDINT_H
+# include <stdint.h>
+#endif
+#if HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+#if HAVE_NETINET_IN_SYSTM_H
+# include <netinet/in_systm.h>
+#endif
+#if HAVE_NETINET_IN_H
+# include <netinet/in.h>
+#endif
+#if HAVE_NETINET_IP6_H
+# include <netinet/ip6.h>
+#endif
+])
+
+	if test "x$have_ip6_ext" = "xno"; then
+		CFLAGS="$SAVE_CFLAGS"
+	fi
+fi
+
 # For cpu modules
 AC_CHECK_HEADERS(sys/dkstat.h)
 if test "x$ac_system" = "xDarwin"
@@ -375,18 +436,6 @@ AC_CHECK_HEADERS(sys/swap.h vm/anon.h, [], [have_sys_swap_h="no"],
 # include <sys/param.h>
 #endif
 ])
-
-if test "x$have_sys_swap_h$ac_system" = "xnoSolaris"
-then
-	hint_64=""
-	if test "x$GCC" = "xyes"
-	then
-		hint_64="CFLAGS='-m64'"
-	else
-		hint_64="CFLAGS='-xarch=v9'"
-	fi
-	AC_MSG_NOTICE([Solaris detected and sys/swap.h not usable. Try building a 64-bit binary ($hint_64 ./configure).])
-fi
 
 # For load module
 # For the processes plugin
@@ -595,14 +644,14 @@ AC_CHECK_HEADERS(asm/msr-index.h, [have_asm_msrindex_h="yes"])
 
 if test "x$have_asm_msrindex_h" = "xyes"
 then
-  AC_CACHE_CHECK([whether asm/msr-index.h has MSR_CORE_C3_RESIDENCY],
+  AC_CACHE_CHECK([whether asm/msr-index.h has MSR_PKG_C10_RESIDENCY],
                  [c_cv_have_usable_asm_msrindex_h],
                  AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
 [[[
 #include<asm/msr-index.h>
 ]]],
 [[[
-int y = MSR_CORE_C3_RESIDENCY;
+int y = MSR_PKG_C10_RESIDENCY;
 return(y);
 ]]]
   )],
@@ -2602,6 +2651,53 @@ then
 	AC_SUBST(BUILD_WITH_LIBMONGOC_LDFLAGS)
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBMONGOC, test "x$with_libmongoc" = "xyes")
+# }}}
+
+# --with-libmosquitto {{{
+with_libmosquitto_cppflags=""
+with_libmosquitto_libs="-lmosquitto"
+AC_ARG_WITH(libmosquitto, [AS_HELP_STRING([--with-libmosquitto@<:@=PREFIX@:>@], [Path to libmosquitto.])],
+[
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	then
+		with_libmosquitto_cppflags="-I$withval/include"
+		with_libmosquitto_libs="-L$withval/lib -lmosquitto"
+		with_libmosquitto="yes"
+	else
+		with_libmosquitto="$withval"
+	fi
+],
+[
+	with_libmosquitto="yes"
+])
+if test "x$with_libmosquitto" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$with_libmosquitto_cppflags"
+
+	AC_CHECK_HEADERS(mosquitto.h, [with_libmosquitto="yes"], [with_libmosquitto="no (mosquitto.h not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_libmosquitto" = "xyes"
+then
+	SAVE_LDFLAGS="$LDFLAGS"
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	LDFLAGS="$with_libmosquitto_libs"
+	CPPFLAGS="$with_libmosquitto_cppflags"
+
+	AC_CHECK_LIB(mosquitto, mosquitto_connect, [with_libmosquitto="yes"], [with_libmosquitto="no (libmosquitto not found)"])
+
+	LDFLAGS="$SAVE_LDFLAGS"
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_libmosquitto" = "xyes"
+then
+	BUILD_WITH_LIBMOSQUITTO_CPPFLAGS="$with_libmosquitto_cppflags"
+	BUILD_WITH_LIBMOSQUITTO_LIBS="$with_libmosquitto_libs"
+	AC_SUBST(BUILD_WITH_LIBMOSQUITTO_CPPFLAGS)
+	AC_SUBST(BUILD_WITH_LIBMOSQUITTO_LIBS)
+fi
 # }}}
 
 # --with-libmysql {{{
@@ -5194,6 +5290,7 @@ plugin_vmem="no"
 plugin_vserver="no"
 plugin_wireless="no"
 plugin_zfs_arc="no"
+plugin_zone="no"
 plugin_zookeeper="no"
 
 # Linux
@@ -5291,6 +5388,7 @@ then
 	plugin_processes="yes"
 	plugin_uptime="yes"
 	plugin_zfs_arc="yes"
+	plugin_zone="yes"
 fi
 
 if test "x$with_devinfo$with_kstat" = "xyesyes"
@@ -5581,6 +5679,7 @@ AC_PLUGIN([memcached],   [yes],                [memcached statistics])
 AC_PLUGIN([memory],      [$plugin_memory],     [Memory usage])
 AC_PLUGIN([mic],         [$with_mic],          [Intel Many Integrated Core stats])
 AC_PLUGIN([modbus],      [$with_libmodbus],    [Modbus plugin])
+AC_PLUGIN([mqtt],        [$with_libmosquitto], [MQTT output plugin])
 AC_PLUGIN([multimeter],  [$plugin_multimeter], [Read multimeter values])
 AC_PLUGIN([mysql],       [$with_libmysql],     [MySQL statistics])
 AC_PLUGIN([netapp],      [$with_libnetapp],    [NetApp plugin])
@@ -5656,6 +5755,7 @@ AC_PLUGIN([write_sensu], [yes],                [Sensu output plugin])
 AC_PLUGIN([write_tsdb],  [yes],                [TSDB output plugin])
 AC_PLUGIN([xmms],        [$with_libxmms],      [XMMS statistics])
 AC_PLUGIN([zfs_arc],     [$plugin_zfs_arc],    [ZFS ARC statistics])
+AC_PLUGIN([zone],        [$plugin_zone],       [Solaris container statistics])
 AC_PLUGIN([zookeeper],   [yes],  	       [Zookeeper statistics])
 
 dnl Default configuration file
@@ -5860,6 +5960,7 @@ Configuration:
     libmnl  . . . . . . . $with_libmnl
     libmodbus . . . . . . $with_libmodbus
     libmongoc . . . . . . $with_libmongoc
+    libmosquitto  . . . . $with_libmosquitto
     libmysql  . . . . . . $with_libmysql
     libnetapp . . . . . . $with_libnetapp
     libnetsnmp  . . . . . $with_libnetsnmp
@@ -5959,6 +6060,7 @@ Configuration:
     memory  . . . . . . . $enable_memory
     mic . . . . . . . . . $enable_mic
     modbus  . . . . . . . $enable_modbus
+    mqtt  . . . . . . . . $enable_mqtt
     multimeter  . . . . . $enable_multimeter
     mysql . . . . . . . . $enable_mysql
     netapp  . . . . . . . $enable_netapp
@@ -6033,6 +6135,7 @@ Configuration:
     write_tsdb  . . . . . $enable_write_tsdb
     xmms  . . . . . . . . $enable_xmms
     zfs_arc . . . . . . . $enable_zfs_arc
+    zone  . . . . . . . . $enable_zone
     zookeeper . . . . . . $enable_zookeeper
 
 EOF

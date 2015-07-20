@@ -81,6 +81,7 @@ static void apache_free (apache_t *st)
 		curl_easy_cleanup(st->curl);
 		st->curl = NULL;
 	}
+	sfree (st);
 } /* apache_free */
 
 static size_t apache_curl_callback (void *buf, size_t size, size_t nmemb,
@@ -254,7 +255,7 @@ static int config_add (oconfig_item_t *ci)
 		status = plugin_register_complex_read (/* group = */ NULL,
 				/* name      = */ callback_name,
 				/* callback  = */ apache_read_host,
-				/* interval  = */ NULL,
+				/* interval  = */ 0,
 				/* user_data = */ &ud);
 	}
 

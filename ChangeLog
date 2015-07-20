@@ -1,4 +1,4 @@
-2015-05-22, Version 5.5.0
+2015-05-27, Version 5.5.0
 	* Build system: Ability to make out-of-tree builds has been fixed.
 	  Thanks to Vincent Bernat. #792
 	* Build system, Disk and Users plugins: Detection and use of libstatgrab
@@ -20,6 +20,8 @@
 	  Ritschard, Tim Smith, Moshe Zada, Katelyn Perry and Marc Fournier.
 	* collectd: Rules/Targets can now be appended to existing Filter Chains.
 	  Thanks to Marc Falzon. #444
+	* collectd: Failing Filter Chains destinations will now log the list of
+	  available write targets. Thanks to Wilfried Goesgens. #650, #1043
 	* collectd: Support for process signaling and management by upstart and
 	  systemd has been implemented for the Linux platform. Thanks to
 	  Pierre-Yves Ritschard and Marc Fournier. #798, #811, #814
@@ -189,7 +191,8 @@
 	  #890, #751, #771
 	* Redis and Write_Redis plugins: The support library has been switched
 	  from credis to hiredis. Thanks to Andrés J. Díaz, Victor Seva, Marc
-	  Fournier, Johan Bergström and Michael Spiegle. #296, #464, #475, #799
+	  Fournier, Johan Bergström, Michael Spiegle and brianpkelly. #296,
+	  #464, #475, #799, #1030
 	* Redis plugin: Custom commands can now be used to fetch values stored
 	  in Redis. Thanks to Pierre-Yves Ritschard. #816
 	* Redis plugin: Support for passwords up to 512 characters long has been

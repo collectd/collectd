@@ -191,6 +191,9 @@ Features
       Reads values from Modbus/TCP enabled devices. Supports reading values
       from multiple "slaves" so gateway devices can be used.
 
+    - mqtt
+      Publishes and subscribes to MQTT topics.
+
     - multimeter
       Information provided by serial multimeters, such as the `Metex
       M-4650CR'.
@@ -385,6 +388,10 @@ Features
     - zfs_arc
       Statistics for ZFS' “Adaptive Replacement Cache” (ARC).
 
+    - zone
+      Measures the percentage of cpu load per container (zone) under Solaris 10
+      and higher
+
     - zookeeper
       Read data from Zookeeper's MNTR command.
 
@@ -464,7 +471,7 @@ Features
       database.
 
   * Logging is, as everything in collectd, provided by plugins. The following
-    plugins keep up informed about what's going on:
+    plugins keep us informed about what's going on:
 
     - logfile
       Writes log messages to a file or STDOUT/STDERR.

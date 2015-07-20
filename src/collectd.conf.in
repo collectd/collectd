@@ -99,9 +99,9 @@
 #@BUILD_PLUGIN_BATTERY_TRUE@LoadPlugin battery
 #@BUILD_PLUGIN_BIND_TRUE@LoadPlugin bind
 #@BUILD_PLUGIN_CEPH_TRUE@LoadPlugin ceph
+#@BUILD_PLUGIN_CGROUPS_TRUE@LoadPlugin cgroups
 #@BUILD_PLUGIN_CONNTRACK_TRUE@LoadPlugin conntrack
 #@BUILD_PLUGIN_CONTEXTSWITCH_TRUE@LoadPlugin contextswitch
-#@BUILD_PLUGIN_CGROUPS_TRUE@LoadPlugin cgroups
 @BUILD_PLUGIN_CPU_TRUE@@BUILD_PLUGIN_CPU_TRUE@LoadPlugin cpu
 #@BUILD_PLUGIN_CPUFREQ_TRUE@LoadPlugin cpufreq
 @LOAD_PLUGIN_CSV@LoadPlugin csv
@@ -124,8 +124,8 @@
 #@BUILD_PLUGIN_HDDTEMP_TRUE@LoadPlugin hddtemp
 @BUILD_PLUGIN_INTERFACE_TRUE@@BUILD_PLUGIN_INTERFACE_TRUE@LoadPlugin interface
 #@BUILD_PLUGIN_IPC_TRUE@@BUILD_PLUGIN_IPC_TRUE@LoadPlugin ipc
-#@BUILD_PLUGIN_IPTABLES_TRUE@LoadPlugin iptables
 #@BUILD_PLUGIN_IPMI_TRUE@LoadPlugin ipmi
+#@BUILD_PLUGIN_IPTABLES_TRUE@LoadPlugin iptables
 #@BUILD_PLUGIN_IPVS_TRUE@LoadPlugin ipvs
 #@BUILD_PLUGIN_IRQ_TRUE@LoadPlugin irq
 #@BUILD_PLUGIN_JAVA_TRUE@LoadPlugin java
@@ -138,7 +138,9 @@
 #@BUILD_PLUGIN_MEMCACHEC_TRUE@LoadPlugin memcachec
 #@BUILD_PLUGIN_MEMCACHED_TRUE@LoadPlugin memcached
 @BUILD_PLUGIN_MEMORY_TRUE@@BUILD_PLUGIN_MEMORY_TRUE@LoadPlugin memory
+#@BUILD_PLUGIN_MIC_TRUE@LoadPlugin mic
 #@BUILD_PLUGIN_MODBUS_TRUE@LoadPlugin modbus
+#@BUILD_PLUGIN_MQTT_TRUE@LoadPlugin mqtt
 #@BUILD_PLUGIN_MULTIMETER_TRUE@LoadPlugin multimeter
 #@BUILD_PLUGIN_MYSQL_TRUE@LoadPlugin mysql
 #@BUILD_PLUGIN_NETAPP_TRUE@LoadPlugin netapp
@@ -190,7 +192,6 @@
 #@BUILD_PLUGIN_USERS_TRUE@LoadPlugin users
 #@BUILD_PLUGIN_UUID_TRUE@LoadPlugin uuid
 #@BUILD_PLUGIN_VARNISH_TRUE@LoadPlugin varnish
-#@BUILD_PLUGIN_MIC_TRUE@LoadPlugin mic
 #@BUILD_PLUGIN_VIRT_TRUE@LoadPlugin virt
 #@BUILD_PLUGIN_VMEM_TRUE@LoadPlugin vmem
 #@BUILD_PLUGIN_VSERVER_TRUE@LoadPlugin vserver
@@ -206,6 +207,7 @@
 #@BUILD_PLUGIN_WRITE_TSDB_TRUE@LoadPlugin write_tsdb
 #@BUILD_PLUGIN_XMMS_TRUE@LoadPlugin xmms
 #@BUILD_PLUGIN_ZFS_ARC_TRUE@LoadPlugin zfs_arc
+#@BUILD_PLUGIN_ZONE_TRUE@LoadPlugin zone
 #@BUILD_PLUGIN_ZOOKEEPER_TRUE@LoadPlugin zookeeper
 
 ##############################################################################
@@ -263,6 +265,7 @@
 #	Host "localhost"
 #	Port "3551"
 #	ReportSeconds true
+#	PersistentConnection true
 #</Plugin>
 
 #<Plugin aquaero>
@@ -667,6 +670,30 @@
 #			Collect "data_name"
 #		</Slave>
 #	</Host>
+#</Plugin>
+
+#<Plugin mqtt>
+#	<Publish "name">
+#		Host "localhost"
+#		Port 1883
+#		ClientId "localhost"
+#		User "user"
+#		Password "secret"
+#		QoS 0
+#		Prefix "collectd"
+#		StoreRates true
+#		Retain false
+#	</Publish>
+#	<Subscribe "name">
+#		Host "localhost"
+#		Port 1883
+#		ClientId "localhost"
+#		User "user"
+#		Password "secret"
+#		QoS 2
+#		Topic "collectd/#"
+#		CleanSession true
+#	</Subscribe>
 #</Plugin>
 
 #<Plugin mysql>
@@ -1364,6 +1391,7 @@
 #		Host "localhost"
 #		Port "6379"
 #		Timeout 1000
+#		Prefix "collectd/"
 #	</Node>
 #</Plugin>
 

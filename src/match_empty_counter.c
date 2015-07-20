@@ -80,7 +80,7 @@ static int mec_match (const data_set_t __attribute__((unused)) *ds, /* {{{ */
 {
   int num_counters;
   int num_empty;
-  int i;
+  size_t i;
 
   if ((user_data == NULL) || (*user_data == NULL))
     return (-1);

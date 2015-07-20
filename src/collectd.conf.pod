@@ -130,6 +130,15 @@ Sets a plugin-specific interval for collecting metrics. This overrides the
 global B<Interval> setting. If a plugin provides own support for specifying an
 interval, that setting will take precedence.
 
+=item B<FlushInterval> I<Seconds>
+
+Specifies the the interval, in seconds, to call the flush callback if it's
+defined in this plugin. By default, this is disabled
+
+=item B<FlushTimeout> I<Seconds>
+
+Specifies the value of the timeout argument of the flush callback.
+
 =back
 
 =item B<AutoLoadPlugin> B<false>|B<true>
@@ -504,7 +513,9 @@ are disabled by default.
 The I<AMQMP plugin> can be used to communicate with other instances of
 I<collectd> or third party applications using an AMQP message broker. Values
 are sent to or received from the broker, which handles routing, queueing and
-possibly filtering or messages.
+possibly filtering out messages.
+
+B<Synopsis:>
 
  <Plugin "amqp">
    # Send values to an AMQP broker
@@ -802,11 +813,21 @@ B<apcupsd> can handle it.
 
 TCP-Port to connect to. Defaults to B<3551>.
 
-=item B<ReportSeconds> B<true|false>
+=item B<ReportSeconds> B<true>|B<false>
 
 If set to B<true>, the time reported in the C<timeleft> metric will be
 converted to seconds. This is the recommended setting. If set to B<false>, the
 default for backwards compatibility, the time will be reported in minutes.
+
+=item B<PersistentConnection> B<true>|B<false>
+
+By default, the plugin will try to keep the connection to UPS open between
+reads. Since this appears to be somewhat brittle (I<apcupsd> appears to close
+the connection due to inactivity quite quickly), the plugin will try to detect
+this problem and switch to an open-read-close mode in such cases.
+
+You can instruct the plugin to close the connection after each read by setting
+this option to B<false>.
 
 =back
 
@@ -1546,7 +1567,7 @@ setting accordingly to prevent this from blocking other plugins.
 =head2 Plugin C<curl_json>
 
 The B<curl_json plugin> collects values from JSON data to be parsed by
-B<libyajl> (L<http://www.lloydforge.org/projects/yajl/>) retrieved via
+B<libyajl> (L<https://lloyd.github.io/yajl/>) retrieved via
 either B<libcurl> (L<http://curl.haxx.se/>) or read directly from a
 unix socket. The former can be used, for example, to collect values
 from CouchDB documents (which are stored JSON notation), and the
@@ -3214,6 +3235,114 @@ B<Collect> option is mandatory.
 
 =back
 
+=head2 Plugin C<mqtt>
+
+The I<MQTT plugin> can send metrics to MQTT (B<Publish> blocks) and receive
+values from MQTT (B<Subscribe> blocks).
+
+B<Synopsis:>
+
+ <Plugin mqtt>
+   <Publish "name">
+     Host "mqtt.example.com"
+     Prefix "collectd"
+   </Publish>
+   <Subscribe "name">
+     Host "mqtt.example.com"
+     Topic "collectd/#"
+   </Subscribe>
+ </Plugin>
+
+The plugin's configuration is in B<Publish> and/or B<Subscribe> blocks,
+configuring the sending and receiving direction respectively. The plugin will
+register a write callback named C<mqtt/I<name>> where I<name> is the string
+argument given to the B<Publish> block. Both types of blocks share many but not
+all of the following options. If an option is valid in only one of the blocks,
+it will be mentioned explicitly.
+
+B<Options:>
+
+=over 4
+
+=item B<Host> I<Hostname>
+
+Hostname of the MQTT broker to connect to.
+
+=item B<Port> I<Service>
+
+Port number or service name of the MQTT broker to connect to.
+
+=item B<User> I<UserName>
+
+Username used when authenticating to the MQTT broker.
+
+=item B<Password> I<Password>
+
+Password used when authenticating to the MQTT broker.
+
+=item B<ClientId> I<ClientId>
+
+MQTT client ID to use. Defaults to the hostname used by I<collectd>.
+
+=item B<QoS> [B<0>-B<2>]
+
+Sets the I<Quality of Service>, with the values C<0>, C<1> and C<2> meaning:
+
+=over 4
+
+=item B<0>
+
+At most once
+
+=item B<1>
+
+At least once
+
+=item B<2>
+
+Exactly once
+
+=back
+
+In B<Publish> blocks, this option determines the QoS flag set on outgoing
+messages and defaults to B<0>. In B<Subscribe> blocks, determines the maximum
+QoS setting the client is going to accept and defaults to B<2>. If the QoS flag
+on a message is larger than the maximum accepted QoS of a subscriber, the
+message's QoS will be downgraded.
+
+=item B<Prefix> I<Prefix> (Publish only)
+
+This plugin will use one topic per I<value list> which will looks like a path.
+I<Prefix> is used as the first path element and defaults to B<collectd>.
+
+An example topic name would be:
+
+ collectd/cpu-0/cpu-user
+
+=item B<Retain> B<false>|B<true> (Publish only)
+
+Controls whether the MQTT broker will retain (keep a copy of) the last message
+sent to each topic and deliver it to new subscribers. Defaults to B<false>.
+
+=item B<StoreRates> B<true>|B<false> (Publish only)
+
+Controls whether C<DERIVE> and C<COUNTER> metrics are converted to a I<rate>
+before sending. Defaults to B<true>.
+
+=item B<CleanSession> B<true>|B<false> (Subscribe only)
+
+Controls whether the MQTT "cleans" the session up after the subscriber
+disconnects or if it maintains the subscriber's subscriptions and all messages
+that arrive while the subscriber is disconnected. Defaults to B<true>.
+
+=item B<Topic> I<TopicName> (Subscribe only)
+
+Configures the topic(s) to subscribe to. You can use the single level C<+> and
+multi level C<#> wildcards. Defaults to B<collectd/#>, i.e. all topics beneath
+the B<collectd> branch.
+
+=back
+
 =head2 Plugin C<mysql>
 
 The C<mysql plugin> requires B<mysqlclient> to be installed. It connects to
@@ -4494,6 +4623,16 @@ The following options are accepted within each B<Instance> block:
 Sets the URL to use to connect to the I<OpenLDAP> server. This option is
 I<mandatory>.
 
+=item B<BindDN> I<BindDN>
+
+Name in the form of an LDAP distinguished name intended to be used for 
+authentication. Defaults to empty string to establish an anonymous authorization.
+
+=item B<Password> I<Password>
+
+Password for simple bind authentication. If this option is not set, 
+unauthenticated bind operation is used.
+
 =item B<StartTLS> B<true|false>
 
 Defines whether TLS must be used when connecting to the I<OpenLDAP> server.
@@ -5421,6 +5560,10 @@ details). The statistics of all matching processes are summed up and
 dispatched to the daemon using the specified I<name> as an identifier. This
 allows to "group" several processes together. I<name> must not contain
 slashes.
+
+=item B<CollectContextSwitch> I<Boolean>
+
+Collect context switch of the process.
 
 =back
 
@@ -7461,14 +7604,18 @@ Synopsis:
         Host "localhost"
         Port "6379"
         Timeout 1000
+        Prefix "collectd/"
+        Database 1
     </Node>
   </Plugin>
 
 Values are submitted to I<Sorted Sets>, using the metric name as the key, and
 the timestamp as the score. Retrieving a date range can then be done using the
 C<ZRANGEBYSCORE> I<Redis> command. Additionnally, all the identifiers of these
-I<Sorted Sets> are kept in a I<Set> called C<collectd/values> and can be
-retrieved using the C<SMEMBERS> I<Redis> command. See
+I<Sorted Sets> are kept in a I<Set> called C<collectd/values> (or
+C<${prefix}/values> if the B<Prefix> option was specified) and can be retrieved
+using the C<SMEMBERS> I<Redis> command. You can specify the database to use 
+with the B<Database> parameter (default is C<0>). See
 L<http://redis.io/commands#sorted_set> and L<http://redis.io/commands#set> for
 details.
 
@@ -7502,6 +7649,17 @@ that numerical port numbers must be given as a string, too.
 =item B<Timeout> I<Milliseconds>
 
 The B<Timeout> option sets the socket connection timeout, in milliseconds.
+
+=item B<Prefix> I<Prefix>
+
+Prefix used when constructing the name of the I<Sorted Sets> and the I<Set>
+containing all metrics. Defaults to C<collectd/>, so metrics will have names
+like C<collectd/cpu-0/cpu-user>. When setting this to something different, it
+is recommended but not required to include a trailing slash in I<Prefix>.
+
+=item B<Database> I<Index>
+
+This index selects the redis database to use for writing operations. Defaults to C<0>.
 
 =back
 

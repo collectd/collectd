@@ -104,7 +104,7 @@ static int consolitation_g = CON_NONE;
 static _Bool nan_is_error_g = 0;
 
 static char **match_ds_g = NULL;
-static int    match_ds_num_g = 0;
+static size_t match_ds_num_g = 0;
 
 /* `strdup' is an XSI extension. I don't want to pull in all of XSI just for
  * that, so here's an own implementation.. It's easy enough. The GCC attributes
@@ -148,7 +148,7 @@ static int filter_ds (size_t *values_num,
 		return (RET_UNKNOWN);
 	}
 
-	for (i = 0; i < (size_t) match_ds_num_g; i++)
+	for (i = 0; i < match_ds_num_g; i++)
 	{
 		size_t j;
 

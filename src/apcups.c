@@ -1,6 +1,6 @@
 /*
  * collectd - src/apcups.c
- * Copyright (C) 2006-2012  Florian octo Forster
+ * Copyright (C) 2006-2015  Florian octo Forster
  * Copyright (C) 2006       Anthony Gialluca <tonyabg at charter.net>
  * Copyright (C) 2000-2004  Kern Sibbald
  * Copyright (C) 1996-1999  Andre M. Hedrick <andre at suse.com>
@@ -43,11 +43,13 @@
 # include <netinet/in.h>
 #endif
 
-#define NISPORT 3551
-#define MAXSTRING               256
-#define MODULE_NAME "apcups"
+#ifndef APCUPS_DEFAULT_NODE
+# define APCUPS_DEFAULT_NODE "localhost"
+#endif
 
-#define APCUPS_DEFAULT_HOST "localhost"
+#ifndef APCUPS_DEFAULT_SERVICE
+# define APCUPS_DEFAULT_SERVICE "3551"
+#endif
 
 /*
  * Private data types
@@ -68,24 +70,16 @@ struct apc_detail_s
  * Private variables
  */
 /* Default values for contacting daemon */
-static char *conf_host = NULL;
-static int   conf_port = NISPORT;
+static char *conf_node = NULL;
+static char *conf_service = NULL;
 /* Defaults to false for backwards compatibility. */
 static _Bool conf_report_seconds = 0;
+static _Bool conf_persistent_conn = 1;
 
 static int global_sockfd = -1;
 
 static int count_retries = 0;
 static int count_iterations = 0;
-static _Bool close_socket = 0;
-
-static const char *config_keys[] =
-{
-	"Host",
-	"Port",
-	"ReportSeconds"
-};
-static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static int net_shutdown (int *fd)
 {
@@ -116,26 +110,21 @@ static int apcups_shutdown (void)
  * Returns -1 on error
  * Returns socket file descriptor otherwise
  */
-static int net_open (char *host, int port)
+static int net_open (char const *node, char const *service)
 {
 	int              sd;
 	int              status;
-	char             port_str[8];
 	struct addrinfo  ai_hints;
 	struct addrinfo *ai_return;
 	struct addrinfo *ai_list;
 
-	assert ((port > 0x00000000) && (port <= 0x0000FFFF));
-
-	/* Convert the port to a string */
-	ssnprintf (port_str, sizeof (port_str), "%i", port);
-
 	/* Resolve name */
-	memset ((void *) &ai_hints, '\0', sizeof (ai_hints));
-	ai_hints.ai_family   = AF_INET; /* XXX: Change this to `AF_UNSPEC' if apcupsd can handle IPv6 */
+	memset (&ai_hints, 0, sizeof (ai_hints));
+	/* TODO: Change this to `AF_UNSPEC' if apcupsd can handle IPv6 */
+	ai_hints.ai_family   = AF_INET;
 	ai_hints.ai_socktype = SOCK_STREAM;
 
-	status = getaddrinfo (host, port_str, &ai_hints, &ai_return);
+	status = getaddrinfo (node, service, &ai_hints, &ai_return);
 	if (status != 0)
 	{
 		char errbuf[1024];
@@ -179,7 +168,7 @@ static int net_open (char *host, int port)
 	DEBUG ("Done opening a socket %i", sd);
 
 	return (sd);
-} /* int net_open (char *host, char *service, int port) */
+} /* int net_open */
 
 /*
  * Receive a message from the other end. Each message consists of
@@ -263,7 +252,7 @@ static int net_send (int *sockfd, char *buff, int len)
 }
 
 /* Get and print status from apcupsd NIS server */
-static int apc_query_server (char *host, int port,
+static int apc_query_server (char const *node, char const *service,
 		struct apc_detail_s *apcups_detail)
 {
 	int     n;
@@ -285,7 +274,7 @@ static int apc_query_server (char *host, int port,
 	{
 		if (global_sockfd < 0)
 		{
-			global_sockfd = net_open (host, port);
+			global_sockfd = net_open (node, service);
 			if (global_sockfd < 0)
 			{
 				ERROR ("apcups plugin: Connecting to the "
@@ -325,16 +314,19 @@ static int apc_query_server (char *host, int port,
 				"first %i iterations. Will close the socket "
 				"in future iterations.",
 				count_retries, count_iterations);
-		close_socket = 1;
+		conf_persistent_conn = 0;
 	}
 
 	while ((n = net_recv (&global_sockfd, recvline, sizeof (recvline) - 1)) > 0)
 	{
-		assert ((unsigned int)n < sizeof (recvline));
-		recvline[n] = '\0';
+		assert ((size_t)n < sizeof (recvline));
+		recvline[n] = 0;
 #if APCMAIN
 		printf ("net_recv = `%s';\n", recvline);
 #endif /* if APCMAIN */
+
+		if (strncmp ("END APC", recvline, strlen ("END APC")) == 0)
+			break;
 
 		toksaveptr = NULL;
 		tokptr = strtok_r (recvline, " :\t", &toksaveptr);
@@ -375,7 +367,7 @@ static int apc_query_server (char *host, int port,
 	}
 	status = errno; /* save errno, net_shutdown() may re-set it. */
 
-	if (close_socket)
+	if (!conf_persistent_conn)
 		net_shutdown (&global_sockfd);
 
 	if (n < 0)
@@ -389,41 +381,28 @@ static int apc_query_server (char *host, int port,
 	return (0);
 }
 
-static int apcups_config (const char *key, const char *value)
+static int apcups_config (oconfig_item_t *ci)
 {
-	if (strcasecmp (key, "host") == 0)
+	int i;
+
+	for (i = 0; i < ci->children_num; i++)
 	{
-		if (conf_host != NULL)
-		{
-			free (conf_host);
-			conf_host = NULL;
-		}
-		if ((conf_host = strdup (value)) == NULL)
-			return (1);
-	}
-	else if (strcasecmp (key, "Port") == 0)
-	{
-		int port_tmp = atoi (value);
-		if (port_tmp < 1 || port_tmp > 65535)
-		{
-			WARNING ("apcups plugin: Invalid port: %i", port_tmp);
-			return (1);
-		}
-		conf_port = port_tmp;
-	}
-	else if (strcasecmp (key, "ReportSeconds") == 0)
-	{
-		if (IS_TRUE (value))
-			conf_report_seconds = 1;
+		oconfig_item_t *child = ci->children + i;
+
+		if (strcasecmp (child->key, "Host") == 0)
+			cf_util_get_string (child, &conf_node);
+		else if (strcasecmp (child->key, "Port") == 0)
+			cf_util_get_service (child, &conf_service);
+		else if (strcasecmp (child->key, "ReportSeconds") == 0)
+			cf_util_get_boolean (child, &conf_report_seconds);
+		else if (strcasecmp (child->key, "PersistentConnection") == 0)
+			cf_util_get_boolean (child, &conf_persistent_conn);
 		else
-			conf_report_seconds = 0;
+			ERROR ("apcups plugin: Unknown config option \"%s\".", child->key);
 	}
-	else
-	{
-		return (-1);
-	}
+
 	return (0);
-}
+} /* int apcups_config */
 
 static void apc_submit_generic (char *type, char *type_inst, double value)
 {
@@ -469,10 +448,9 @@ static int apcups_read (void)
 	apcups_detail.itemp    = -300.0;
 	apcups_detail.linefreq =   -1.0;
 
-	status = apc_query_server (conf_host == NULL
-			? APCUPS_DEFAULT_HOST
-			: conf_host,
-			conf_port, &apcups_detail);
+	status = apc_query_server ((conf_node == NULL) ? APCUPS_DEFAULT_NODE : conf_node,
+			(conf_service == NULL) ? APCUPS_DEFAULT_SERVICE : conf_service,
+			&apcups_detail);
 
 	/*
 	 * if we did not connect then do not bother submitting
@@ -480,11 +458,10 @@ static int apcups_read (void)
 	 */
 	if (status != 0)
 	{
-		DEBUG ("apc_query_server (%s, %i) = %i",
-				conf_host == NULL
-				? APCUPS_DEFAULT_HOST
-				: conf_host,
-				conf_port, status);
+		DEBUG ("apc_query_server (%s, %s) = %i",
+				(conf_node == NULL) ? APCUPS_DEFAULT_NODE : conf_node,
+				(conf_service == NULL) ? APCUPS_DEFAULT_SERVICE : conf_service,
+				status);
 		return (-1);
 	}
 
@@ -495,8 +472,7 @@ static int apcups_read (void)
 
 void module_register (void)
 {
-	plugin_register_config ("apcups", apcups_config, config_keys,
-			config_keys_num);
+	plugin_register_complex_config ("apcups", apcups_config);
 	plugin_register_read ("apcups", apcups_read);
 	plugin_register_shutdown ("apcups", apcups_shutdown);
 } /* void module_register */

@@ -78,6 +78,9 @@ Christophe Kalt <collectd at klb.taranis.org>
 Cyril Feraudet <cyril at feraudet.com>
  - ethstat plugin.
 
+Dagobert Michelsen <dam at opencsw.org>
+ - zone plugin.
+
 Dan Berrange <berrange at redhat.com>
  - uuid plugin.
 
@@ -173,6 +176,9 @@ Marco Chiappero <marco at absence.it>
  - uptime plugin.
  - ip6tables support in the iptables plugin.
  - openvpn plugin (support for more status file formats)
+
+Mathijs Möhlmann <collectd at mmrc.nl>
+ - zone plugin.
 
 Michael Hanselmann <public at hansmi.ch>
  - md plugin.

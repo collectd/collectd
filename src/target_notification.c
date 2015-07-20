@@ -181,7 +181,7 @@ static int tn_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 
   if (status != 0)
   {
-    tn_destroy ((void *) data);
+    tn_destroy ((void *) &data);
     return (status);
   }
 
@@ -199,7 +199,7 @@ static int tn_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
   gauge_t *rates;
   int rates_failed;
 
-  int i;
+  size_t i;
 
   if ((ds == NULL) || (vl == NULL) || (user_data == NULL))
     return (-EINVAL);
