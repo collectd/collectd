@@ -41,7 +41,6 @@ struct apache_s
 {
 	int server_type;
 	char *name;
-	char *host;
 	char *url;
 	char *user;
 	char *pass;
@@ -69,7 +68,6 @@ static void apache_free (apache_t *st)
 		return;
 
 	sfree (st->name);
-	sfree (st->host);
 	sfree (st->url);
 	sfree (st->user);
 	sfree (st->pass);
@@ -199,8 +197,6 @@ static int config_add (oconfig_item_t *ci)
 
 		if (strcasecmp ("URL", child->key) == 0)
 			status = cf_util_get_string (child, &st->url);
-		else if (strcasecmp ("Host", child->key) == 0)
-			status = cf_util_get_string (child, &st->host);
 		else if (strcasecmp ("User", child->key) == 0)
 			status = cf_util_get_string (child, &st->user);
 		else if (strcasecmp ("Password", child->key) == 0)
@@ -248,8 +244,7 @@ static int config_add (oconfig_item_t *ci)
 
 		memset (callback_name, 0, sizeof (callback_name));
 		ssnprintf (callback_name, sizeof (callback_name),
-				"apache/%s/%s",
-				(st->host != NULL) ? st->host : hostname_g,
+				"apache/%s",
 				(st->name != NULL) ? st->name : "default"),
 
 		status = plugin_register_complex_read (/* group = */ NULL,
@@ -398,8 +393,7 @@ static void submit_value (const char *type, const char *type_instance,
 	vl.values = &value;
 	vl.values_len = 1;
 
-	sstrncpy (vl.host, (st->host != NULL) ? st->host : hostname_g,
-			sizeof (vl.host));
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 
 	sstrncpy (vl.plugin, "apache", sizeof (vl.plugin));
 	if (st->name != NULL)
