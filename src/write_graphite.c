@@ -175,7 +175,6 @@ static int wg_callback_init (struct wg_callback *cb)
     cdtime_t now;
     int status;
 
-    const char *service = cb->service ? cb->service : WG_DEFAULT_SERVICE;
     const char *protocol = cb->protocol ? cb->protocol : WG_DEFAULT_PROTOCOL;
 
     char connerr[1024] = "";
@@ -203,11 +202,11 @@ static int wg_callback_init (struct wg_callback *cb)
 
     ai_list = NULL;
 
-    status = getaddrinfo (cb->node, service, &ai_hints, &ai_list);
+    status = getaddrinfo (cb->node, cb->service, &ai_hints, &ai_list);
     if (status != 0)
     {
         ERROR ("write_graphite plugin: getaddrinfo (%s, %s, %s) failed: %s",
-                cb->node, service, protocol, gai_strerror (status));
+                cb->node, cb->service, protocol, gai_strerror (status));
         return (-1);
     }
 
@@ -246,14 +245,14 @@ static int wg_callback_init (struct wg_callback *cb)
             sstrerror (errno, connerr, sizeof (connerr));
         c_complain (LOG_ERR, &cb->init_complaint,
                   "write_graphite plugin: Connecting to %s:%s via %s failed. "
-                  "The last error was: %s", cb->node, service, protocol, connerr);
+                  "The last error was: %s", cb->node, cb->service, protocol, connerr);
         return (-1);
     }
     else
     {
         c_release (LOG_INFO, &cb->init_complaint,
                 "write_graphite plugin: Successfully connected to %s:%s via %s.",
-                cb->node, service, protocol);
+                cb->node, cb->service, protocol);
     }
 
     wg_reset_buffer (cb);
@@ -468,7 +467,7 @@ static int wg_config_node (oconfig_item_t *ci)
     cb->sock_fd = -1;
     cb->name = NULL;
     cb->node = strdup (WG_DEFAULT_NODE);
-    cb->service = NULL;
+    cb->service = strdup (WG_DEFAULT_SERVICE);
     cb->protocol = NULL;
     cb->log_send_errors = WG_DEFAULT_LOG_SEND_ERRORS;
     cb->prefix = NULL;
@@ -548,7 +547,7 @@ static int wg_config_node (oconfig_item_t *ci)
     if (cb->name == NULL)
         ssnprintf (callback_name, sizeof (callback_name), "write_graphite/%s/%s/%s",
                 cb->node,
-                cb->service != NULL ? cb->service : WG_DEFAULT_SERVICE,
+                cb->service,
                 cb->protocol != NULL ? cb->protocol : WG_DEFAULT_PROTOCOL);
     else
         ssnprintf (callback_name, sizeof (callback_name), "write_graphite/%s",
