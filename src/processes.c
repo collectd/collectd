@@ -86,6 +86,7 @@
 /* #endif HAVE_THREAD_INFO */
 
 #elif KERNEL_LINUX
+#include <sys/sysinfo.h>
 #  if HAVE_LINUX_CONFIG_H
 #    include <linux/config.h>
 #  endif
@@ -174,6 +175,9 @@ typedef struct procstat_entry_s
 	derive_t      cpu_user_counter;
 	derive_t      cpu_system_counter;
 
+	unsigned long cpu_percent;
+	unsigned long mem_percent;
+
 	/* io data */
 	derive_t io_rchar;
 	derive_t io_wchar;
@@ -194,6 +198,11 @@ typedef struct procstat
 	regex_t *re;
 #endif
 
+	unsigned long pid;
+	unsigned long ppid;
+	unsigned long starttime_secs;
+	unsigned long runtime_secs;
+
 	unsigned long num_proc;
 	unsigned long num_lwp;
 	unsigned long vmem_size;
@@ -208,6 +217,9 @@ typedef struct procstat
 	derive_t cpu_user_counter;
 	derive_t cpu_system_counter;
 
+	unsigned long cpu_percent;
+	unsigned long mem_percent;
+
 	/* io data */
 	derive_t io_rchar;
 	derive_t io_wchar;
@@ -218,10 +230,28 @@ typedef struct procstat
 	derive_t cswitch_invol;
 
 	struct procstat   *next;
+	struct procstat   *proc_next;
 	struct procstat_entry_s *instances;
 } procstat_t;
 
+typedef struct sysstat {
+	unsigned long sys_cpu_user_counter;	/* /proc/stat */
+	unsigned long sys_cpu_system_counter;	/* /proc/stat */
+	unsigned long sys_cpu_tot_time_counter;	/* /proc/stat */
+	unsigned long long sys_tot_phys_mem;	/* /proc/meminfo */
+	unsigned long sys_boot_time_secs;	/* /proc/stat */
+} sysstat_t;
+
 static procstat_t *list_head_g = NULL;
+#if KERNEL_LINUX
+static procstat_t *proc_list_head_g = NULL;
+static procstat_t *prev_proc_list_head_g = NULL;
+#endif
+
+/* configuration globals */
+static _Bool ps_individual_process_metrics_g = 0;
+static int filter_mincpupct_g = 0;
+static int filter_minmempct_g = 0;
 
 static _Bool report_ctx_switch = 0;
 
@@ -358,6 +388,48 @@ static int ps_list_match (const char *name, const char *cmdline, procstat_t *ps)
 	return (0);
 } /* int ps_list_match */
 
+#if KERNEL_LINUX
+static void ps_proc_list_prepend(procstat_t *ps)
+{
+	if (proc_list_head_g == NULL) {
+		proc_list_head_g = (procstat_t *)malloc(sizeof(procstat_t));
+		if (proc_list_head_g == NULL) {
+			ERROR ("processes plugin: error allocating memory");
+			return;
+		}
+		ps->proc_next = NULL;
+		memcpy(proc_list_head_g, ps, sizeof(procstat_t));
+	}
+	else {
+		procstat_t *new;
+
+		new = (procstat_t *)malloc(sizeof(procstat_t));
+		if (new == NULL) {
+			ERROR ("processes plugin: error allocating memory");
+			return;
+		}
+		memcpy(new, ps, sizeof(procstat_t));
+		new->proc_next = proc_list_head_g;
+		proc_list_head_g = new;
+	}
+}
+
+static void ps_proc_list_reset (procstat_t **head)
+{
+	procstat_t *ps;
+
+	ps = *head;
+	while (ps) {
+		procstat_t *nps;
+
+		nps = ps->proc_next;
+		free(ps);
+		ps = nps;
+	}
+	*head = NULL;
+}
+#endif /* KERNEL_LINUX */
+
 /* add process entry to 'instances' of process 'name' (or refresh it) */
 static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t *entry)
 {
@@ -408,6 +480,9 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 		pse->io_syscw   = entry->io_syscw;
 		pse->cswitch_vol   = entry->cswitch_vol;
 		pse->cswitch_invol = entry->cswitch_invol;
+
+		pse->cpu_percent = entry->cpu_percent;
+		pse->mem_percent = entry->mem_percent;
 
 		ps->num_proc   += pse->num_proc;
 		ps->num_lwp    += pse->num_lwp;
@@ -498,6 +573,8 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 
 		ps->cpu_user_counter   += pse->cpu_user;
 		ps->cpu_system_counter += pse->cpu_system;
+		ps->cpu_percent += pse->cpu_percent;
+		ps->mem_percent += pse->mem_percent;
 	}
 }
 
@@ -517,6 +594,8 @@ static void ps_list_reset (void)
 		ps->vmem_data   = 0;
 		ps->vmem_code   = 0;
 		ps->stack_size  = 0;
+		ps->cpu_percent = 0;
+		ps->mem_percent = 0;
 		ps->io_rchar = -1;
 		ps->io_wchar = -1;
 		ps->io_syscr = -1;
@@ -565,7 +644,27 @@ static int ps_config (oconfig_item_t *ci)
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *c = ci->children + i;
 
-		if (strcasecmp (c->key, "Process") == 0)
+		if (strcasecmp (c->key, "IndividualProcessMetrics") == 0)
+		{
+			ps_individual_process_metrics_g = c->values[0].value.boolean;
+		}
+		else if (strcasecmp (c->key, "MinCPUPercent") == 0)
+		{
+			filter_mincpupct_g = c->values[0].value.number;
+			if (filter_mincpupct_g < 0 || filter_mincpupct_g > 100) {
+				ERROR ("processes plugin: MinCPUPercent out of [0,100] range");
+				continue;
+			}
+		}
+		else if (strcasecmp (c->key, "MinMemoryPercent") == 0)
+		{
+			filter_minmempct_g = c->values[0].value.number;
+			if (filter_minmempct_g < 0 || filter_minmempct_g > 100) {
+				ERROR ("processes plugin: MinMemoryPercent out of [0,100] range");
+				continue;
+			}
+		}
+		else if (strcasecmp (c->key, "Process") == 0)
 		{
 			if ((c->values_num != 1)
 					|| (OCONFIG_TYPE_STRING != c->values[0].type)) {
@@ -697,7 +796,11 @@ static void ps_submit_proc_list (procstat_t *ps)
 	vl.values_len = 2;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "processes", sizeof (vl.plugin));
-	sstrncpy (vl.plugin_instance, ps->name, sizeof (vl.plugin_instance));
+	if (ps->pid)
+		ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s[pid=%lu,ppid=%lu]",
+			ps->name, ps->pid, ps->ppid);
+	else
+		sstrncpy (vl.plugin_instance, ps->name, sizeof (vl.plugin_instance));
 
 	sstrncpy (vl.type, "ps_vm", sizeof (vl.type));
 	vl.values[0].gauge = ps->vmem_size;
@@ -728,6 +831,21 @@ static void ps_submit_proc_list (procstat_t *ps)
 	vl.values[0].derive = ps->cpu_user_counter;
 	vl.values[1].derive = ps->cpu_system_counter;
 	vl.values_len = 2;
+	plugin_dispatch_values (&vl);
+
+	sstrncpy (vl.type, "ps_runtime", sizeof (vl.type));
+	vl.values[0].counter = ps->runtime_secs;
+	vl.values_len = 1;
+	plugin_dispatch_values (&vl);
+
+	sstrncpy (vl.type, "ps_cpupercent", sizeof (vl.type));
+	vl.values[0].gauge = ps->cpu_percent;
+	vl.values_len = 1;
+	plugin_dispatch_values (&vl);
+
+	sstrncpy (vl.type, "ps_mempercent", sizeof (vl.type));
+	vl.values[0].gauge = ps->mem_percent;
+	vl.values_len = 1;
 	plugin_dispatch_values (&vl);
 
 	sstrncpy (vl.type, "ps_count", sizeof (vl.type));
@@ -782,14 +900,17 @@ static void ps_submit_proc_list (procstat_t *ps)
 			"cpu_user_counter = %"PRIi64"; cpu_system_counter = %"PRIi64"; "
 			"io_rchar = %"PRIi64"; io_wchar = %"PRIi64"; "
 			"io_syscr = %"PRIi64"; io_syscw = %"PRIi64"; "
-			"cswitch_vol = %"PRIi64"; cswitch_invol = %"PRIi64";",
+			"cswitch_vol = %"PRIi64"; cswitch_invol = %"PRIi64"; "
+			"cpu_percent = %lu; mem_percent = %lu; pid = %lu; ppid = %lu; "
+			"runtime = %lu secs",
 			ps->name, ps->num_proc, ps->num_lwp,
 			ps->vmem_size, ps->vmem_rss,
 			ps->vmem_data, ps->vmem_code,
 			ps->vmem_minflt_counter, ps->vmem_majflt_counter,
 			ps->cpu_user_counter, ps->cpu_system_counter,
 			ps->io_rchar, ps->io_wchar, ps->io_syscr, ps->io_syscw,
-			ps->cswitch_vol, ps->cswitch_invol);
+			ps->cswitch_vol, ps->cswitch_invol, ps->cpu_percent,
+			ps->mem_percent, ps->pid, ps->ppid, ps->runtime_secs);
 } /* void ps_submit_proc_list */
 
 #if KERNEL_LINUX || KERNEL_SOLARIS
@@ -1023,6 +1144,57 @@ static procstat_t *ps_read_io (int pid, procstat_t *ps)
 	return (ps);
 } /* procstat_t *ps_read_io */
 
+static sysstat_t *ps_read_sys_stat(void)
+{
+	char buffer[1024];
+	char name[32];
+	unsigned long long sys_cpu_user_counter;
+	unsigned long long sys_cpu_user_nice_counter;
+	unsigned long long sys_cpu_system_counter;
+	unsigned long long sys_cpu_idle_counter;
+	unsigned long long sys_tot_phys_mem;
+	unsigned long sys_boot_time_secs;
+	struct sysinfo si;
+	sysstat_t *ss;
+
+	read_file_contents("/proc/stat", buffer, sizeof(buffer));
+	sscanf(buffer, "%s %llu %llu %llu %llu", name,
+		&sys_cpu_user_counter, &sys_cpu_user_nice_counter,
+		&sys_cpu_system_counter, &sys_cpu_idle_counter);
+	if (strcmp(name, "cpu") != 0) {
+		ERROR ("processes plugin: unexpected string in /proc/stat");
+		return NULL;
+	}
+	sys_cpu_user_counter = sys_cpu_user_counter * 1000000 / CONFIG_HZ;
+	sys_cpu_user_nice_counter = sys_cpu_user_nice_counter * 1000000 / CONFIG_HZ;
+	sys_cpu_system_counter = sys_cpu_system_counter * 1000000 / CONFIG_HZ;
+	sys_cpu_idle_counter = sys_cpu_idle_counter * 1000000 / CONFIG_HZ;
+	if (sysinfo(&si) < 0) {
+		ERROR ("processes plugin: cannot obtain system info via sysinfo()");
+		return NULL;
+	}
+	sys_boot_time_secs = si.uptime;
+	sys_tot_phys_mem = si.totalram * si.mem_unit;
+
+	ss = (sysstat_t *)malloc(sizeof(sysstat_t));
+	if (ss == NULL) {
+		ERROR ("processes plugin: error allocating memory");
+		return NULL;
+	}
+	ss->sys_cpu_user_counter = sys_cpu_user_counter;
+	ss->sys_cpu_system_counter = sys_cpu_system_counter;
+	ss->sys_cpu_tot_time_counter = sys_cpu_user_counter +
+		sys_cpu_user_nice_counter + sys_cpu_system_counter +
+		sys_cpu_idle_counter;
+	ss->sys_tot_phys_mem = sys_tot_phys_mem;
+	ss->sys_boot_time_secs = time(NULL) - sys_boot_time_secs;
+	DEBUG ("%s sys u:%llu n:%llu s:%llu i:%llu physmem: %llu, boottime: %lu\n",
+		name, sys_cpu_user_counter, sys_cpu_user_nice_counter,
+		sys_cpu_system_counter, sys_cpu_idle_counter, sys_tot_phys_mem,
+		sys_boot_time_secs);
+	return ss;
+}
+
 int ps_read_process (int pid, procstat_t *ps, char *state)
 {
 	char  filename[64];
@@ -1135,6 +1307,9 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 	vmem_rss           = atoll (fields[21]);
 	ps->vmem_minflt_counter = atol (fields[7]);
 	ps->vmem_majflt_counter = atol (fields[9]);
+	ps->pid		= pid;
+	ps->ppid	= atol (fields[1]);
+	ps->starttime_secs	= atoll (fields[19]) / CONFIG_HZ;
 
 	{
 		unsigned long long stack_start = atoll (fields[25]);
@@ -1536,6 +1711,66 @@ static int mach_get_task_name (task_t t, int *pid, char *name, size_t name_max_l
 #endif /* HAVE_THREAD_INFO */
 /* ------- end of additional functions for KERNEL_LINUX/HAVE_THREAD_INFO ------- */
 
+#if KERNEL_LINUX
+static _Bool config_threshold_exceeded(procstat_t *ps)
+{
+	if (ps->mem_percent >= filter_minmempct_g)
+		return 1;
+	if (ps->cpu_percent >= filter_mincpupct_g)
+		return 1;
+	return 0;
+}
+
+static void ps_find_cpu_delta(procstat_t *ps, unsigned long *out_userd, unsigned long *out_sysd)
+{
+	procstat_t *ps_ptr;
+
+	for (ps_ptr=prev_proc_list_head_g; ps_ptr!=NULL; ps_ptr=ps_ptr->proc_next) {
+		if (strcmp(ps_ptr->name, ps->name) == 0 && ps_ptr->pid == ps->pid)
+			break;
+	}
+	if (ps_ptr) {
+		*out_userd = ps->cpu_user_counter - ps_ptr->cpu_user_counter;
+		*out_sysd = ps->cpu_system_counter - ps_ptr->cpu_system_counter;
+	}
+	else
+		*out_userd = *out_sysd = 0ULL;
+}
+
+static void ps_calc_mem_percent(sysstat_t *ss, procstat_t *ps)
+{
+	/* +0.5 to round off to nearest int */
+	ps->mem_percent = (int)((ps->vmem_rss*100.0 / ss->sys_tot_phys_mem) + 0.5);
+}
+
+static void ps_calc_runtime(sysstat_t *ss, procstat_t *ps)
+{
+	ps->runtime_secs = time(NULL) - (ps->starttime_secs + ss->sys_boot_time_secs);
+}
+
+static void ps_calc_cpu_percent(sysstat_t *ss, sysstat_t *prev_ss, procstat_t *ps)
+{
+	if (ss && prev_ss) {
+		unsigned long ps_cpu_user_delta, ps_cpu_system_delta;
+		unsigned long ss_cpu_tot_time_delta;
+		double cpu_percent;
+
+		ps_find_cpu_delta(ps, &ps_cpu_user_delta, &ps_cpu_system_delta);
+		/* XXX: take care of wraparound */
+		ss_cpu_tot_time_delta = ss->sys_cpu_tot_time_counter -
+			prev_ss->sys_cpu_tot_time_counter;
+		if (ps_cpu_user_delta || ps_cpu_system_delta) {
+			DEBUG ("%s proc delta: u: %lu, s: %lu, tot: %lu\n", ps->name,
+				ps_cpu_user_delta, ps_cpu_system_delta, ss_cpu_tot_time_delta);
+		}
+		cpu_percent = (ps_cpu_user_delta + ps_cpu_system_delta) * 100.0 /
+			(ss_cpu_tot_time_delta);
+		/* +0.5 to round it off to nearest int */
+		ps->cpu_percent = (int)(cpu_percent + 0.5);
+	}
+}
+#endif /* KERNEL_LINUX */
+
 /* do actual readings from kernel */
 static int ps_read (void)
 {
@@ -1824,10 +2059,13 @@ static int ps_read (void)
 	char       state;
 
 	procstat_t *ps_ptr;
+	sysstat_t *ss;
+	static sysstat_t *prev_ss;
 
 	running = sleeping = zombies = stopped = paging = blocked = 0;
 	ps_list_reset ();
 
+	ss = ps_read_sys_stat();
 	if ((proc = opendir ("/proc")) == NULL)
 	{
 		char errbuf[1024];
@@ -1873,6 +2111,12 @@ static int ps_read (void)
 		pse.cpu_system = 0;
 		pse.cpu_system_counter = ps.cpu_system_counter;
 
+		ps_calc_runtime(ss, &ps);
+		ps_calc_mem_percent(ss, &ps);
+		ps_calc_cpu_percent(ss, prev_ss, &ps);
+		pse.cpu_percent = ps.cpu_percent;
+		pse.mem_percent = ps.mem_percent;
+
 		pse.io_rchar = ps.io_rchar;
 		pse.io_wchar = ps.io_wchar;
 		pse.io_syscr = ps.io_syscr;
@@ -1891,6 +2135,8 @@ static int ps_read (void)
 			case 'W': paging++;   break;
 		}
 
+		if (ps_individual_process_metrics_g)
+			ps_proc_list_prepend(&ps);
 		ps_list_add (ps.name,
 				ps_get_cmdline (pid, ps.name, cmdline, sizeof (cmdline)),
 				&pse);
@@ -1905,8 +2151,20 @@ static int ps_read (void)
 	ps_submit_state ("paging",   paging);
 	ps_submit_state ("blocked",  blocked);
 
+	if (ps_individual_process_metrics_g) {
+		for (ps_ptr = proc_list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->proc_next) {
+			if (config_threshold_exceeded(ps_ptr))
+				ps_submit_proc_list (ps_ptr);
+		}
+	}
 	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
 		ps_submit_proc_list (ps_ptr);
+	ps_proc_list_reset(&prev_proc_list_head_g);
+	prev_proc_list_head_g = proc_list_head_g;
+	if (prev_ss)
+		free(prev_ss);
+	prev_ss = ss;
+	proc_list_head_g = NULL;
 
 	read_fork_rate();
 /* #endif KERNEL_LINUX */
