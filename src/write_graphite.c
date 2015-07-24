@@ -116,13 +116,11 @@ static int wg_send_buffer (struct wg_callback *cb)
     status = swrite (cb->sock_fd, cb->send_buf, strlen (cb->send_buf));
     if (status < 0)
     {
-        const char *protocol = cb->protocol ? cb->protocol : WG_DEFAULT_PROTOCOL;
-
         if (cb->log_send_errors)
         {
             char errbuf[1024];
             ERROR ("write_graphite plugin: send to %s:%s (%s) failed with status %zi (%s)",
-                    cb->node, cb->service, protocol,
+                    cb->node, cb->service, cb->protocol,
                     status, sstrerror (errno, errbuf, sizeof (errbuf)));
         }
 
@@ -175,8 +173,6 @@ static int wg_callback_init (struct wg_callback *cb)
     cdtime_t now;
     int status;
 
-    const char *protocol = cb->protocol ? cb->protocol : WG_DEFAULT_PROTOCOL;
-
     char connerr[1024] = "";
 
     if (cb->sock_fd > 0)
@@ -195,7 +191,7 @@ static int wg_callback_init (struct wg_callback *cb)
 #endif
     ai_hints.ai_family = AF_UNSPEC;
 
-    if (0 == strcasecmp ("tcp", protocol))
+    if (0 == strcasecmp ("tcp", cb->protocol))
         ai_hints.ai_socktype = SOCK_STREAM;
     else
         ai_hints.ai_socktype = SOCK_DGRAM;
@@ -206,7 +202,7 @@ static int wg_callback_init (struct wg_callback *cb)
     if (status != 0)
     {
         ERROR ("write_graphite plugin: getaddrinfo (%s, %s, %s) failed: %s",
-                cb->node, cb->service, protocol, gai_strerror (status));
+                cb->node, cb->service, cb->protocol, gai_strerror (status));
         return (-1);
     }
 
@@ -245,14 +241,14 @@ static int wg_callback_init (struct wg_callback *cb)
             sstrerror (errno, connerr, sizeof (connerr));
         c_complain (LOG_ERR, &cb->init_complaint,
                   "write_graphite plugin: Connecting to %s:%s via %s failed. "
-                  "The last error was: %s", cb->node, cb->service, protocol, connerr);
+                  "The last error was: %s", cb->node, cb->service, cb->protocol, connerr);
         return (-1);
     }
     else
     {
         c_release (LOG_INFO, &cb->init_complaint,
                 "write_graphite plugin: Successfully connected to %s:%s via %s.",
-                cb->node, cb->service, protocol);
+                cb->node, cb->service, cb->protocol);
     }
 
     wg_reset_buffer (cb);
@@ -363,9 +359,7 @@ static int wg_send_message (char const *message, struct wg_callback *cb)
     cb->send_buf_free -= message_len;
 
     DEBUG ("write_graphite plugin: [%s]:%s (%s) buf %zu/%zu (%.1f %%) \"%s\"",
-            cb->node,
-            cb->service,
-            cb->protocol,
+            cb->node, cb->service, cb->protocol,
             cb->send_buf_fill, sizeof (cb->send_buf),
             100.0 * ((double) cb->send_buf_fill) / ((double) sizeof (cb->send_buf)),
             message);
@@ -468,7 +462,7 @@ static int wg_config_node (oconfig_item_t *ci)
     cb->name = NULL;
     cb->node = strdup (WG_DEFAULT_NODE);
     cb->service = strdup (WG_DEFAULT_SERVICE);
-    cb->protocol = NULL;
+    cb->protocol = strdup (WG_DEFAULT_PROTOCOL);
     cb->log_send_errors = WG_DEFAULT_LOG_SEND_ERRORS;
     cb->prefix = NULL;
     cb->postfix = NULL;
@@ -546,9 +540,7 @@ static int wg_config_node (oconfig_item_t *ci)
     /* FIXME: Legacy configuration syntax. */
     if (cb->name == NULL)
         ssnprintf (callback_name, sizeof (callback_name), "write_graphite/%s/%s/%s",
-                cb->node,
-                cb->service,
-                cb->protocol != NULL ? cb->protocol : WG_DEFAULT_PROTOCOL);
+                cb->node, cb->service, cb->protocol);
     else
         ssnprintf (callback_name, sizeof (callback_name), "write_graphite/%s",
                 cb->name);
