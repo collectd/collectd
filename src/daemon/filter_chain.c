@@ -392,7 +392,6 @@ static int fc_config_add_rule (fc_chain_t *chain, /* {{{ */
   for (i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
-    status = 0;
 
     if (strcasecmp ("Match", option->key) == 0)
       status = fc_config_add_match (&rule->matches, option);
@@ -486,7 +485,6 @@ static int fc_config_add_chain (const oconfig_item_t *ci) /* {{{ */
   for (i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
-    status = 0;
 
     if (strcasecmp ("Rule", option->key) == 0)
       status = fc_config_add_rule (chain, option);
@@ -733,6 +731,8 @@ static int fc_bit_write_invoke (const data_set_t *ds, /* {{{ */
           "all write plugins failed with status %i (ENOENT). "
           "Most likely this means you didn't load any write plugins.",
           status);
+
+      plugin_log_available_writers ();
     }
     else if (status != 0)
     {
@@ -763,6 +763,8 @@ static int fc_bit_write_invoke (const data_set_t *ds, /* {{{ */
             "Filter subsystem: Built-in target `write': Dispatching value to "
             "the `%s' plugin failed with status %i.",
             plugin_list[i].plugin, status);
+
+        plugin_log_available_writers ();
       }
       else
       {

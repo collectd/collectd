@@ -339,7 +339,7 @@ static void exec_child (program_list_t *pl, int uid, int gid, int egid) /* {{{ *
     exit (-1);
   }
 
-  status = execvp (pl->exec, pl->argv);
+  execvp (pl->exec, pl->argv);
 
   ERROR ("exec plugin: Failed to execute ``%s'': %s",
       pl->exec, sstrerror (errno, errbuf, sizeof (errbuf)));
@@ -745,8 +745,8 @@ static void *exec_notification_one (void *arg) /* {{{ */
 
   fprintf (fh,
       "Severity: %s\n"
-      "Time: %u\n",
-      severity, (unsigned int)CDTIME_T_TO_TIME_T(n->time));
+      "Time: %.3f\n",
+      severity, CDTIME_T_TO_DOUBLE (n->time));
 
   /* Print the optional fields */
   if (strlen (n->host) > 0)

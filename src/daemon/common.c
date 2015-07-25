@@ -257,8 +257,8 @@ ssize_t sread (int fd, void *buf, size_t count)
 
 		assert ((0 > status) || (nleft >= (size_t)status));
 
-		nleft = nleft - status;
-		ptr   = ptr   + status;
+		nleft = nleft - ((size_t) status);
+		ptr   = ptr   + ((size_t) status);
 	}
 
 	return (0);
@@ -284,8 +284,8 @@ ssize_t swrite (int fd, const void *buf, size_t count)
 		if (status < 0)
 			return (status);
 
-		nleft = nleft - status;
-		ptr   = ptr   + status;
+		nleft = nleft - ((size_t) status);
+		ptr   = ptr   + ((size_t) status);
 	}
 
 	return (0);
@@ -312,44 +312,51 @@ int strsplit (char *string, char **fields, size_t size)
 	return ((int) i);
 }
 
-int strjoin (char *dst, size_t dst_len,
+int strjoin (char *buffer, size_t buffer_size,
 		char **fields, size_t fields_num,
 		const char *sep)
 {
-	size_t field_len;
+	size_t avail;
+	char *ptr;
 	size_t sep_len;
-	int i;
+	size_t i;
 
-	memset (dst, '\0', dst_len);
-
-	if (fields_num <= 0)
+	if ((buffer_size < 1) || (fields_num <= 0))
 		return (-1);
+
+	memset (buffer, 0, buffer_size);
+	ptr = buffer;
+	avail = buffer_size - 1;
 
 	sep_len = 0;
 	if (sep != NULL)
 		sep_len = strlen (sep);
 
-	for (i = 0; i < (int)fields_num; i++)
+	for (i = 0; i < fields_num; i++)
 	{
+		size_t field_len;
+
 		if ((i > 0) && (sep_len > 0))
 		{
-			if (dst_len <= sep_len)
+			if (avail < sep_len)
 				return (-1);
 
-			strncat (dst, sep, dst_len);
-			dst_len -= sep_len;
+			memcpy (ptr, sep, sep_len);
+			ptr += sep_len;
+			avail -= sep_len;
 		}
 
 		field_len = strlen (fields[i]);
-
-		if (dst_len <= field_len)
+		if (avail < field_len)
 			return (-1);
 
-		strncat (dst, fields[i], dst_len);
-		dst_len -= field_len;
+		memcpy (ptr, fields[i], field_len);
+		ptr += field_len;
+		avail -= field_len;
 	}
 
-	return (strlen (dst));
+	assert (buffer[buffer_size - 1] == 0);
+	return ((int) strlen (buffer));
 }
 
 int strsubstitute (char *str, char c_from, char c_to)
@@ -484,8 +491,8 @@ size_t strstripnewline (char *buffer)
 
 int escape_slashes (char *buffer, size_t buffer_size)
 {
-	int i;
 	size_t buffer_len;
+	size_t i;
 
 	buffer_len = strlen (buffer);
 
@@ -507,7 +514,7 @@ int escape_slashes (char *buffer, size_t buffer_size)
 		buffer_len--;
 	}
 
-	for (i = 0; i < buffer_len - 1; i++)
+	for (i = 0; i < buffer_len; i++)
 	{
 		if (buffer[i] == '/')
 			buffer[i] = '_';
@@ -658,8 +665,8 @@ int check_create_dir (const char *file_orig)
 		 * Join the components together again
 		 */
 		dir[0] = '/';
-		if (strjoin (dir + path_is_absolute, dir_len - path_is_absolute,
-					fields, i + 1, "/") < 0)
+		if (strjoin (dir + path_is_absolute, (size_t) (dir_len - path_is_absolute),
+					fields, (size_t) (i + 1), "/") < 0)
 		{
 			ERROR ("strjoin failed: `%s', component #%i", file_orig, i);
 			return (-1);
@@ -939,7 +946,7 @@ int format_values (char *ret, size_t ret_len, /* {{{ */
 {
         size_t offset = 0;
         int status;
-        int i;
+        size_t i;
         gauge_t *rates = NULL;
 
         assert (0 == strcmp (ds->type, vl->type));
@@ -968,18 +975,17 @@ int format_values (char *ret, size_t ret_len, /* {{{ */
         for (i = 0; i < ds->ds_num; i++)
         {
                 if (ds->ds[i].type == DS_TYPE_GAUGE)
-                        BUFFER_ADD (":%f", vl->values[i].gauge);
+                        BUFFER_ADD (":"GAUGE_FORMAT, vl->values[i].gauge);
                 else if (store_rates)
                 {
                         if (rates == NULL)
                                 rates = uc_get_rate (ds, vl);
                         if (rates == NULL)
                         {
-                                WARNING ("format_values: "
-						"uc_get_rate failed.");
+                                WARNING ("format_values: uc_get_rate failed.");
                                 return (-1);
                         }
-                        BUFFER_ADD (":%g", rates[i]);
+                        BUFFER_ADD (":"GAUGE_FORMAT, rates[i]);
                 }
                 else if (ds->ds[i].type == DS_TYPE_COUNTER)
                         BUFFER_ADD (":%llu", vl->values[i].counter);
@@ -989,7 +995,7 @@ int format_values (char *ret, size_t ret_len, /* {{{ */
                         BUFFER_ADD (":%"PRIu64, vl->values[i].absolute);
                 else
                 {
-                        ERROR ("format_values plugin: Unknown data source type: %i",
+                        ERROR ("format_values: Unknown data source type: %i",
                                         ds->ds[i].type);
                         sfree (rates);
                         return (-1);
@@ -1143,14 +1149,15 @@ int parse_value (const char *value_orig, value_t *ret_value, int ds_type)
 
 int parse_values (char *buffer, value_list_t *vl, const data_set_t *ds)
 {
-	int i;
+	size_t i;
 	char *dummy;
 	char *ptr;
 	char *saveptr;
 
-	i = -1;
+	i = 0;
 	dummy = buffer;
 	saveptr = NULL;
+	vl->time = 0;
 	while ((ptr = strtok_r (dummy, ":", &saveptr)) != NULL)
 	{
 		dummy = NULL;
@@ -1158,11 +1165,11 @@ int parse_values (char *buffer, value_list_t *vl, const data_set_t *ds)
 		if (i >= vl->values_len)
 		{
 			/* Make sure i is invalid. */
-			i = vl->values_len + 1;
+			i = 0;
 			break;
 		}
 
-		if (i == -1)
+		if (vl->time == 0)
 		{
 			if (strcmp ("N", ptr) == 0)
 				vl->time = cdtime ();
@@ -1181,19 +1188,19 @@ int parse_values (char *buffer, value_list_t *vl, const data_set_t *ds)
 
 				vl->time = DOUBLE_TO_CDTIME_T (tmp);
 			}
+
+			continue;
 		}
-		else
-		{
-			if ((strcmp ("U", ptr) == 0) && (ds->ds[i].type == DS_TYPE_GAUGE))
-				vl->values[i].gauge = NAN;
-			else if (0 != parse_value (ptr, &vl->values[i], ds->ds[i].type))
-				return -1;
-		}
+
+		if ((strcmp ("U", ptr) == 0) && (ds->ds[i].type == DS_TYPE_GAUGE))
+			vl->values[i].gauge = NAN;
+		else if (0 != parse_value (ptr, &vl->values[i], ds->ds[i].type))
+			return -1;
 
 		i++;
 	} /* while (strtok_r) */
 
-	if ((ptr != NULL) || (i != vl->values_len))
+	if ((ptr != NULL) || (i == 0))
 		return (-1);
 	return (0);
 } /* int parse_values */
@@ -1355,10 +1362,9 @@ counter_t counter_diff (counter_t old_value, counter_t new_value)
 	if (old_value > new_value)
 	{
 		if (old_value <= 4294967295U)
-			diff = (4294967295U - old_value) + new_value;
+			diff = (4294967295U - old_value) + new_value + 1;
 		else
-			diff = (18446744073709551615ULL - old_value)
-				+ new_value;
+			diff = (18446744073709551615ULL - old_value) + new_value + 1;
 	}
 	else
 	{
@@ -1463,11 +1469,10 @@ int rate_to_value (value_t *ret_value, gauge_t rate, /* {{{ */
 	return (0);
 } /* }}} value_t rate_to_value */
 
-int value_to_rate (value_t *ret_rate, derive_t value, /* {{{ */
-		value_to_rate_state_t *state,
-		int ds_type, cdtime_t t)
+int value_to_rate (gauge_t *ret_rate, /* {{{ */
+		value_t value, int ds_type, cdtime_t t, value_to_rate_state_t *state)
 {
-	double interval;
+	gauge_t interval;
 
 	/* Another invalid state: The time is not increasing. */
 	if (t <= state->last_time)
@@ -1479,50 +1484,39 @@ int value_to_rate (value_t *ret_rate, derive_t value, /* {{{ */
 	interval = CDTIME_T_TO_DOUBLE(t - state->last_time);
 
 	/* Previous value is invalid. */
-	if (state->last_time == 0) /* {{{ */
+	if (state->last_time == 0)
 	{
-		if (ds_type == DS_TYPE_DERIVE)
-		{
-			state->last_value.derive = value;
-		}
-		else if (ds_type == DS_TYPE_COUNTER)
-		{
-			state->last_value.counter = (counter_t) value;
-		}
-		else if (ds_type == DS_TYPE_ABSOLUTE)
-		{
-			state->last_value.absolute = (absolute_t) value;
-		}
-		else
-		{
-			assert (23 == 42);
-		}
-
+		state->last_value = value;
 		state->last_time = t;
 		return (EAGAIN);
-	} /* }}} */
-
-	if (ds_type == DS_TYPE_DERIVE)
-	{
-		ret_rate->gauge = (value - state->last_value.derive) / interval;
-		state->last_value.derive = value;
-	}
-	else if (ds_type == DS_TYPE_COUNTER)
-	{
-		ret_rate->gauge = (((counter_t)value) - state->last_value.counter) / interval;
-		state->last_value.counter = (counter_t) value;
-	}
-	else if (ds_type == DS_TYPE_ABSOLUTE)
-	{
-		ret_rate->gauge = (((absolute_t)value) - state->last_value.absolute) / interval;
-		state->last_value.absolute = (absolute_t) value;
-	}
-	else
-	{
-		assert (23 == 42);
 	}
 
-        state->last_time = t;
+	switch (ds_type) {
+	case DS_TYPE_DERIVE: {
+		derive_t diff = value.derive - state->last_value.derive;
+		*ret_rate = ((gauge_t) diff) / ((gauge_t) interval);
+		break;
+	}
+	case DS_TYPE_GAUGE: {
+		*ret_rate = value.gauge;
+		break;
+	}
+	case DS_TYPE_COUNTER: {
+		counter_t diff = counter_diff (state->last_value.counter, value.counter);
+		*ret_rate = ((gauge_t) diff) / ((gauge_t) interval);
+		break;
+	}
+	case DS_TYPE_ABSOLUTE: {
+		absolute_t diff = value.absolute;
+		*ret_rate = ((gauge_t) diff) / ((gauge_t) interval);
+		break;
+	}
+	default:
+		return EINVAL;
+	}
+
+	state->last_value = value;
+	state->last_time = t;
 	return (0);
 } /* }}} value_t rate_to_value */
 

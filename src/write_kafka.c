@@ -38,6 +38,7 @@
 #include <librdkafka/rdkafka.h>
 #include <pthread.h>
 #include <zlib.h>
+#include <errno.h>
 
 struct kafka_topic_context {
 #define KAFKA_FORMAT_JSON        0
@@ -48,6 +49,7 @@ struct kafka_topic_context {
     _Bool                        store_rates;
     rd_kafka_topic_conf_t       *conf;
     rd_kafka_topic_t            *topic;
+    rd_kafka_conf_t             *kafka_conf;
     rd_kafka_t                  *kafka;
     int                          has_key;
     u_int32_t                    key;
@@ -55,8 +57,10 @@ struct kafka_topic_context {
     char                        *postfix;
     char                         escape_char;
     char                        *topic_name;
+    pthread_mutex_t 		lock;
 };
 
+static int kafka_handle(struct kafka_topic_context *);
 static int kafka_write(const data_set_t *, const value_list_t *, user_data_t *);
 static int32_t kafka_partition(const rd_kafka_topic_t *, const void *, size_t,
                                int32_t, void *, void *);
@@ -85,6 +89,60 @@ static int32_t kafka_partition(const rd_kafka_topic_t *rkt,
     return target;
 }
 
+static int kafka_handle(struct kafka_topic_context *ctx) /* {{{ */
+{
+    char                         errbuf[1024];
+    rd_kafka_conf_t             *conf;
+    rd_kafka_topic_conf_t       *topic_conf;
+
+    if (ctx->kafka != NULL && ctx->topic != NULL)
+        return(0);
+
+    if (ctx->kafka == NULL) {
+        if ((conf = rd_kafka_conf_dup(ctx->kafka_conf)) == NULL) {
+            ERROR("write_kafka plugin: cannot duplicate kafka config");
+            return(1);
+        }
+
+        if ((ctx->kafka = rd_kafka_new(RD_KAFKA_PRODUCER, conf,
+                                    errbuf, sizeof(errbuf))) == NULL) {
+        	ERROR("write_kafka plugin: cannot create kafka handle.");
+        	return 1;
+        }
+
+    	rd_kafka_conf_destroy(ctx->kafka_conf);
+    	ctx->kafka_conf = NULL;
+
+    	INFO ("write_kafka plugin: created KAFKA handle : %s", rd_kafka_name(ctx->kafka));
+
+#ifdef HAVE_LIBRDKAFKA_LOGGER
+    	rd_kafka_set_logger(ctx->kafka, kafka_log);
+#endif
+    }
+
+    if (ctx->topic == NULL ) {
+    	if ((topic_conf = rd_kafka_topic_conf_dup(ctx->conf)) == NULL) {
+            ERROR("write_kafka plugin: cannot duplicate kafka topic config");
+            return 1;
+	}
+
+    	if ((ctx->topic = rd_kafka_topic_new(ctx->kafka, ctx->topic_name,
+                                       		topic_conf)) == NULL) {
+        	ERROR("write_kafka plugin: cannot create topic : %s\n", 
+			rd_kafka_err2str(rd_kafka_errno2err(errno)));
+        	return errno;
+	}
+
+    	rd_kafka_topic_conf_destroy(ctx->conf);
+	ctx->conf = NULL;
+
+    	INFO ("write_kafka plugin: handle created for topic : %s", rd_kafka_topic_name(ctx->topic));
+    }
+
+    return(0);
+
+} /* }}} int kafka_handle */
+
 static int kafka_write(const data_set_t *ds, /* {{{ */
 	      const value_list_t *vl,
 	      user_data_t *ud)
@@ -99,6 +157,12 @@ static int kafka_write(const data_set_t *ds, /* {{{ */
 
     if ((ds == NULL) || (vl == NULL) || (ctx == NULL))
         return EINVAL;
+
+    pthread_mutex_lock (&ctx->lock);
+    status = kafka_handle(ctx);
+    pthread_mutex_unlock (&ctx->lock);
+    if( status != 0 )
+        return status;
 
     bzero(buffer, sizeof(buffer));
 
@@ -164,6 +228,10 @@ static void kafka_topic_context_free(void *p) /* {{{ */
         rd_kafka_topic_destroy(ctx->topic);
     if (ctx->conf != NULL)
         rd_kafka_topic_conf_destroy(ctx->conf);
+    if (ctx->kafka_conf != NULL)
+        rd_kafka_conf_destroy(ctx->kafka_conf);
+    if (ctx->kafka != NULL)
+        rd_kafka_destroy(ctx->kafka);
 
     sfree(ctx);
 } /* }}} void kafka_topic_context_free */
@@ -190,22 +258,18 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
     tctx->store_rates = 1;
     tctx->format = KAFKA_FORMAT_JSON;
 
-#ifdef HAVE_LIBRDKAFKA_LOG_CB
-    rd_kafka_conf_set_log_cb(conf, kafka_log);
-#endif
-    if ((tctx->kafka = rd_kafka_new(RD_KAFKA_PRODUCER, conf,
-                                    errbuf, sizeof(errbuf))) == NULL) {
+    if ((tctx->kafka_conf = rd_kafka_conf_dup(conf)) == NULL) {
         sfree(tctx);
-        ERROR("write_kafka plugin: cannot create kafka handle.");
+        ERROR("write_kafka plugin: cannot allocate memory for kafka config");
         return;
     }
-#ifdef HAVE_LIBRDKAFKA_LOGGER
-    rd_kafka_conf_set_logger(tctx->kafka, kafka_log);
+
+#ifdef HAVE_LIBRDKAFKA_LOG_CB
+    rd_kafka_conf_set_log_cb(tctx->kafka_conf, kafka_log);
 #endif
-    conf = NULL;
 
     if ((tctx->conf = rd_kafka_topic_conf_new()) == NULL) {
-        rd_kafka_destroy(tctx->kafka);
+        rd_kafka_conf_destroy(tctx->kafka_conf);
         sfree(tctx);
         ERROR ("write_kafka plugin: cannot create topic configuration.");
         return;
@@ -245,7 +309,7 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
                 goto errout;
 			}
             key = child->values[0].value.string;
-            val = child->values[0].value.string;
+            val = child->values[1].value.string;
             ret = rd_kafka_topic_conf_set(tctx->conf,key, val,
                                           errbuf, sizeof(errbuf));
             if (ret != RD_KAFKA_CONF_OK) {
@@ -327,13 +391,6 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
     rd_kafka_topic_conf_set_partitioner_cb(tctx->conf, kafka_partition);
     rd_kafka_topic_conf_set_opaque(tctx->conf, tctx);
 
-    if ((tctx->topic = rd_kafka_topic_new(tctx->kafka, tctx->topic_name,
-                                       tctx->conf)) == NULL) {
-        ERROR("write_kafka plugin: cannot create topic.");
-        goto errout;
-    }
-    tctx->conf = NULL;
-
     ssnprintf(callback_name, sizeof(callback_name),
               "write_kafka/%s", tctx->topic_name);
 
@@ -347,18 +404,17 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
 				callback_name, status);
         goto errout;
     }
+
+    pthread_mutex_init (&tctx->lock, /* attr = */ NULL);
+
     return;
  errout:
-    if (conf != NULL)
-        rd_kafka_conf_destroy(conf);
-    if (tctx->kafka != NULL)
-        rd_kafka_destroy(tctx->kafka);
-    if (tctx->topic != NULL)
-        rd_kafka_topic_destroy(tctx->topic);
     if (tctx->topic_name != NULL)
         free(tctx->topic_name);
     if (tctx->conf != NULL)
         rd_kafka_topic_conf_destroy(tctx->conf);
+    if (tctx->kafka_conf != NULL)
+		rd_kafka_conf_destroy(tctx->kafka_conf);
     sfree(tctx);
 } /* }}} int kafka_config_topic */
 
@@ -367,7 +423,6 @@ static int kafka_config(oconfig_item_t *ci) /* {{{ */
 	int                          i;
 	oconfig_item_t              *child;
     rd_kafka_conf_t             *conf;
-    rd_kafka_conf_t             *cloned;
     rd_kafka_conf_res_t          ret;
     char                         errbuf[1024];
 
@@ -375,16 +430,11 @@ static int kafka_config(oconfig_item_t *ci) /* {{{ */
         WARNING("cannot allocate kafka configuration.");
         return -1;
     }
-
 	for (i = 0; i < ci->children_num; i++)  {
 		child = &ci->children[i];
 
 		if (strcasecmp("Topic", child->key) == 0) {
-            if ((cloned = rd_kafka_conf_dup(conf)) == NULL) {
-                WARNING("write_kafka plugin: cannot allocate memory for kafka config");
-                goto errout;
-            }
-			kafka_config_topic (cloned, child);
+			kafka_config_topic (conf, child);
 		} else if (strcasecmp(child->key, "Property") == 0) {
 			char *key = NULL;
 			char *val = NULL;

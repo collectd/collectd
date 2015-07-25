@@ -190,7 +190,7 @@ static int tr_action_invoke (tr_action_t *act_head, /* {{{ */
     }
 
     subst_status = subst (temp, sizeof (temp), buffer,
-        matches[0].rm_so, matches[0].rm_eo, act->replacement);
+        (size_t) matches[0].rm_so, (size_t) matches[0].rm_eo, act->replacement);
     if (subst_status == NULL)
     {
       ERROR ("Target `replace': subst (buffer = %s, start = %zu, end = %zu, "

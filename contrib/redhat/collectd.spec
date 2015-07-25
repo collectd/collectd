@@ -14,10 +14,12 @@
 # - enable the EPEL repository (http://dl.fedoraproject.org/pub/epel/) in the
 #   configuration files for your target systems (/etc/mock/*.cfg).
 #
-# - copy this file in your ~/rpmbuild/SPECS/ directory
-#
 # - fetch the desired collectd release file from https://collectd.org/files/
-#   and save it in your ~/rpmbuild/SOURCES/ directory
+#   and save it in your ~/rpmbuild/SOURCES/ directory (or build your own out of
+#   the git repository: ./build.sh && ./configure && make-dist-bz2)
+#
+# - copy this file in your ~/rpmbuild/SPECS/ directory. Make sure the
+#   "Version:" tag matches the version from the tarball.
 #
 # - build the SRPM first:
 #   mock -r centos-6-x86_64 --buildsrpm --spec ~/rpmbuild/SPECS/collectd.spec \
@@ -34,6 +36,7 @@
 #
 
 %global _hardened_build 1
+%{?perl_default_filter}
 
 # plugins only buildable on RHEL6
 # (NB: %{elN} macro is not available on RHEL < 6)
@@ -49,6 +52,7 @@
 %{?el6:%global _has_iproute 1}
 %{?el6:%global _has_atasmart 1}
 %{?el6:%global _has_hiredis 1}
+%{?el6:%global _has_asm_msr_index 1}
 
 %{?el7:%global _has_libyajl 1}
 %{?el7:%global _has_recent_libpcap 1}
@@ -63,6 +67,7 @@
 %{?el7:%global _has_iproute 1}
 %{?el7:%global _has_atasmart 1}
 %{?el7:%global _has_hiredis 1}
+%{?el7:%global _has_asm_msr_index 1}
 
 # plugins enabled by default
 %define with_aggregation 0%{!?_without_aggregation:1}
@@ -72,6 +77,7 @@
 %define with_ascent 0%{!?_without_ascent:1}
 %define with_battery 0%{!?_without_battery:1}
 %define with_bind 0%{!?_without_bind:1}
+%define with_ceph 0%{!?_without_ceph:0%{?_has_libyajl}}
 %define with_cgroups 0%{!?_without_cgroups:1}
 %define with_conntrack 0%{!?_without_conntrack:1}
 %define with_contextswitch 0%{!?_without_contextswitch:1}
@@ -90,11 +96,13 @@
 %define with_entropy 0%{!?_without_entropy:1}
 %define with_ethstat 0%{!?_without_ethstat:0%{?_has_recent_sockios_h}}
 %define with_exec 0%{!?_without_exec:1}
+%define with_fhcount 0%{!?_without_fhcount:1}
 %define with_filecount 0%{!?_without_filecount:1}
 %define with_fscache 0%{!?_without_fscache:1}
 %define with_gmond 0%{!?_without_gmond:0%{?_has_recent_libganglia}}
 %define with_hddtemp 0%{!?_without_hddtemp:1}
 %define with_interface 0%{!?_without_interface:1}
+%define with_ipc 0%{!?_without_ipc:1}
 %define with_ipmi 0%{!?_without_ipmi:1}
 %define with_iptables 0%{!?_without_iptables:0%{?_has_working_libiptc}}
 %define with_ipvs 0%{!?_without_ipvs:0%{?_has_ip_vs_h}}
@@ -152,6 +160,7 @@
 %define with_ted 0%{!?_without_ted:1}
 %define with_thermal 0%{!?_without_thermal:1}
 %define with_threshold 0%{!?_without_threshold:1}
+%define with_turbostat 0%{!?_without_turbostat:0%{?_has_asm_msr_index}}
 %define with_unixsock 0%{!?_without_unixsock:1}
 %define with_uptime 0%{!?_without_uptime:1}
 %define with_users 0%{!?_without_users:1}
@@ -162,8 +171,10 @@
 %define with_wireless 0%{!?_without_wireless:1}
 %define with_write_graphite 0%{!?_without_write_graphite:1}
 %define with_write_http 0%{!?_without_write_http:1}
+%define with_write_log 0%{!?_without_write_log:1}
 %define with_write_redis 0%{!?_without_write_redis:0%{?_has_hiredis}}
 %define with_write_riemann 0%{!?_without_write_riemann:1}
+%define with_write_sensu 0%{!?_without_write_sensu:1}
 %define with_write_tsdb 0%{!?_without_write_tsdb:1}
 %define with_zfs_arc 0%{!?_without_zfs_arc:1}
 %define with_zookeeper 0%{!?_without_zookeeper:1}
@@ -203,22 +214,31 @@
 %define with_write_mongodb 0%{!?_without_write_mongodb:0}
 # plugin xmms disabled, requires xmms
 %define with_xmms 0%{!?_without_xmms:0}
+# plugin zone disabled, requires Solaris
+%define with_zone 0%{!?_without_zone:0}
 
-Summary:	Statistics collection daemon for filling RRD files
+Summary:	statistics collection and monitoring daemon
 Name:		collectd
-Version:	5.4.0
+Version:	5.5.0
 Release:	1%{?dist}
 URL:		http://collectd.org
 Source:		http://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
 Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
-BuildRequires:	libgcrypt-devel, kernel-headers
+BuildRequires:	libgcrypt-devel, kernel-headers, libtool-ltdl-devel, libcap-devel
 Vendor:		collectd development team <collectd@verplant.org>
 
+%if 0%{?el7:1}
+Requires(pre):		initscripts
+Requires(post):		systemd
+Requires(preun):	systemd
+Requires(postun):	systemd
+%else
 Requires(post):		chkconfig
 Requires(preun):	chkconfig, initscripts
 Requires(postun):	initscripts
+%endif
 
 %description
 collectd is a small daemon which collects system information periodically and
@@ -288,6 +308,16 @@ BuildRequires:	libxml2-devel, curl-devel
 %description bind
 The BIND plugin retrieves this information that's encoded in XML and provided
 via HTTP and submits the values to collectd.
+%endif
+
+%if %{with_ceph}
+%package ceph
+Summary:       Ceph plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+BuildRequires: yajl-devel
+%description ceph
+Ceph plugin for collectd
 %endif
 
 %if %{with_curl}
@@ -554,11 +584,11 @@ Summary:	Perl plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
 Requires:	perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $version))
-%if 0%{?rhel} >= 6
+	%if 0%{?rhel} >= 6
 BuildRequires:	perl-ExtUtils-Embed
-%else
+	%else
 BuildRequires:	perl
-%endif
+	%endif
 %description perl
 The Perl plugin embeds a Perl interpreter into collectd and exposes the
 application programming interface (API) to Perl-scripts.
@@ -602,11 +632,11 @@ database.
 Summary:	Python plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-%if 0%{?rhel} >= 6
+	%if 0%{?rhel} >= 6
 BuildRequires: python-devel
-%else
+	%else
 BuildRequires: python26-devel
-%endif
+	%endif
 %description python
 The Python plugin embeds a Python interpreter into collectd and exposes the
 application programming interface (API) to Python-scripts.
@@ -789,6 +819,13 @@ Requires:	libcollectdclient%{?_isa} = %{version}-%{release}
 %description -n libcollectdclient-devel
 Development files for libcollectdclient
 
+%package -n collectd-utils
+Summary:	Collectd utilities
+Group:		System Environment/Daemons
+Requires:	libcollectdclient%{?_isa} = %{version}-%{release}
+Requires:	collectd%{?_isa} = %{version}-%{release}
+%description -n collectd-utils
+Collectd utilities
 
 %prep
 %setup -q
@@ -890,6 +927,12 @@ Development files for libcollectdclient
 %define _with_csv --disable-csv
 %endif
 
+%if %{with_ceph}
+%define _with_ceph --enable-ceph
+%else
+%define _with_ceph --disable-ceph
+%endif
+
 %if %{with_curl}
 %define _with_curl --enable-curl
 %else
@@ -911,7 +954,7 @@ Development files for libcollectdclient
 %if %{with_dbi}
 %define _with_dbi --enable-dbi
 %else
-%define _with_dbi --disable-dbi --without-libdbi
+%define _with_dbi --disable-dbi
 %endif
 
 %if %{with_df}
@@ -962,6 +1005,12 @@ Development files for libcollectdclient
 %define _with_exec --disable-exec
 %endif
 
+%if %{with_fhcount}
+%define _with_fhcount --enable-fhcount
+%else
+%define _with_fhcount --disable-fhcount
+%endif
+
 %if %{with_filecount}
 %define _with_filecount --enable-filecount
 %else
@@ -990,6 +1039,12 @@ Development files for libcollectdclient
 %define _with_interface --enable-interface
 %else
 %define _with_interface --disable-interface
+%endif
+
+%if %{with_ipc}
+%define _with_ipc --enable-ipc
+%else
+%define _with_ipc --disable-ipc
 %endif
 
 %if %{with_ipmi}
@@ -1157,7 +1212,7 @@ Development files for libcollectdclient
 %if %{with_notify_email}
 %define _with_notify_email --enable-notify_email
 %else
-%define _with_notify_email --disable-notify_email --without-libesmpt
+%define _with_notify_email --disable-notify_email
 %endif
 
 %if %{with_ntpd}
@@ -1211,7 +1266,7 @@ Development files for libcollectdclient
 %if %{with_perl}
 %define _with_perl --enable-perl --with-perl-bindings="INSTALLDIRS=vendor"
 %else
-%define _with_perl --disable-perl --without-libperl
+%define _with_perl --disable-perl
 %endif
 
 %if %{with_pf}
@@ -1257,11 +1312,11 @@ Development files for libcollectdclient
 %endif
 
 %if %{with_python}
-%if 0%{?rhel} >= 6
+	%if 0%{?rhel} >= 6
 %define _with_python --enable-python
-%else
+	%else
 %define _with_python --enable-python --with-python=%{_bindir}/python2.6
-%endif
+	%endif
 %else
 %define _with_python --disable-python
 %endif
@@ -1398,6 +1453,12 @@ Development files for libcollectdclient
 %define _with_tokyotyrant --disable-tokyotyrant
 %endif
 
+%if %{with_turbostat}
+%define _with_turbostat --enable-turbostat
+%else
+%define _with_turbostat --disable-turbostat
+%endif
+
 %if %{with_unixsock}
 %define _with_unixsock --enable-unixsock
 %else
@@ -1464,10 +1525,16 @@ Development files for libcollectdclient
 %define _with_write_kafka --disable-write_kafka
 %endif
 
+%if %{with_write_log}
+%define _with_write_log --enable-write_log
+%else
+%define _with_write_log --disable-write_log
+%endif
+
 %if %{with_write_mongodb}
 %define _with_write_mongodb --enable-write_mongodb
 %else
-%define _with_write_mongodb --disable-write_mongodb --without-libmongoc
+%define _with_write_mongodb --disable-write_mongodb
 %endif
 
 %if %{with_write_redis}
@@ -1480,6 +1547,12 @@ Development files for libcollectdclient
 %define _with_write_riemann --enable-write_riemann
 %else
 %define _with_write_riemann --disable-write_riemann
+%endif
+
+%if %{with_write_sensu}
+%define _with_write_sensu --enable-write_sensu
+%else
+%define _with_write_sensu --disable-write_sensu
 %endif
 
 %if %{with_write_tsdb}
@@ -1498,6 +1571,12 @@ Development files for libcollectdclient
 %define _with_zfs_arc --enable-zfs_arc
 %else
 %define _with_zfs_arc --disable-zfs_arc
+%endif
+
+%if %{with_zone}
+%define _with_zone --enable-zone
+%else
+%define _with_zone --disable-zone
 %endif
 
 %if %{with_zookeeper}
@@ -1530,6 +1609,7 @@ Development files for libcollectdclient
 	%{?_with_barometer} \
 	%{?_with_battery} \
 	%{?_with_bind} \
+	%{?_with_ceph} \
 	%{?_with_cgroups} \
 	%{?_with_conntrack} \
 	%{?_with_contextswitch} \
@@ -1548,11 +1628,13 @@ Development files for libcollectdclient
 	%{?_with_entropy} \
 	%{?_with_ethstat} \
 	%{?_with_exec} \
+	%{?_with_fhcount} \
 	%{?_with_filecount} \
 	%{?_with_fscache} \
 	%{?_with_gmond} \
 	%{?_with_hddtemp} \
 	%{?_with_interface} \
+	%{?_with_ipc} \
 	%{?_with_ipmi} \
 	%{?_with_iptables} \
 	%{?_with_ipvs} \
@@ -1598,6 +1680,7 @@ Development files for libcollectdclient
 	%{?_with_write_redis} \
 	%{?_with_xmms} \
 	%{?_with_zfs_arc} \
+	%{?_with_zone} \
 	%{?_with_zookeeper} \
 	%{?_with_irq} \
 	%{?_with_load} \
@@ -1628,6 +1711,7 @@ Development files for libcollectdclient
 	%{?_with_ted} \
 	%{?_with_thermal} \
 	%{?_with_threshold} \
+	%{?_with_turbostat} \
 	%{?_with_unixsock} \
 	%{?_with_uptime} \
 	%{?_with_users} \
@@ -1637,7 +1721,9 @@ Development files for libcollectdclient
 	%{?_with_wireless}\
 	%{?_with_write_graphite} \
 	%{?_with_write_http} \
+	%{?_with_write_log} \
 	%{?_with_write_riemann} \
+	%{?_with_write_sensu} \
 	%{?_with_write_tsdb}
 
 
@@ -1647,7 +1733,11 @@ Development files for libcollectdclient
 %install
 rm -rf %{buildroot}
 %{__make} install DESTDIR=%{buildroot}
-%{__install} -Dp -m 0755 contrib/redhat/init.d-collectd %{buildroot}%{_initrddir}/collectd
+%if 0%{?el7:1}
+%{__install} -Dp -m0644 contrib/systemd.collectd.service %{buildroot}%{_unitdir}/collectd.service
+%else
+%{__install} -Dp -m0755 contrib/redhat/init.d-collectd %{buildroot}%{_initrddir}/collectd
+%endif
 %{__install} -Dp -m0644 src/collectd.conf %{buildroot}%{_sysconfdir}/collectd.conf
 %{__install} -d %{buildroot}%{_sharedstatedir}/collectd/
 %{__install} -d %{buildroot}%{_sysconfdir}/collectd.d/
@@ -1655,20 +1745,16 @@ rm -rf %{buildroot}
 %{__mkdir} -p %{buildroot}%{_localstatedir}/www
 %{__mkdir} -p %{buildroot}/%{_sysconfdir}/httpd/conf.d
 
-%{__cp} -a contrib/collection3 %{buildroot}%{_localstatedir}/www
-%{__cp} -a contrib/redhat/collection3.conf %{buildroot}/%{_sysconfdir}/httpd/conf.d/
+%{__mv} contrib/collection3 %{buildroot}%{_localstatedir}/www
+%{__mv} contrib/redhat/collection3.conf %{buildroot}/%{_sysconfdir}/httpd/conf.d/
 
-%{__cp} -a contrib/php-collection %{buildroot}%{_localstatedir}/www
-%{__cp} -a contrib/redhat/php-collection.conf %{buildroot}/%{_sysconfdir}/httpd/conf.d/
+%{__mv} contrib/php-collection %{buildroot}%{_localstatedir}/www
+%{__mv} contrib/redhat/php-collection.conf %{buildroot}/%{_sysconfdir}/httpd/conf.d/
 
 ### Clean up docs
 find contrib/ -type f -exec %{__chmod} a-x {} \;
 # *.la files shouldn't be distributed.
 rm -f %{buildroot}/%{_libdir}/{collectd/,}*.la
-
-# Move the Perl examples to a separate directory.
-mkdir perl-examples
-find contrib -name '*.p[lm]' -exec mv {} perl-examples/ \;
 
 # Remove Perl hidden .packlist files.
 find %{buildroot} -type f -name .packlist -delete
@@ -1676,14 +1762,19 @@ find %{buildroot} -type f -name .packlist -delete
 find %{buildroot} -type f -name perllocal.pod -delete
 
 %if ! %{with_java}
+rm -f %{buildroot}%{_datadir}/collectd/java/collectd-api.jar
+rm -f %{buildroot}%{_datadir}/collectd/java/generic-jmx.jar
 rm -f %{buildroot}%{_mandir}/man5/collectd-java.5*
 %endif
 
 %if ! %{with_perl}
 rm -f %{buildroot}%{_mandir}/man5/collectd-perl.5*
 rm -f %{buildroot}%{_mandir}/man3/Collectd::Unixsock.3pm*
-rm -fr perl-examples/
 rm -fr %{buildroot}/usr/lib/perl5/
+%endif
+
+%if ! %{with_postgresql}
+rm -f %{buildroot}%{_datadir}/collectd/postgresql_default.conf
 %endif
 
 %if ! %{with_python}
@@ -1698,19 +1789,44 @@ rm -f %{buildroot}%{_mandir}/man5/collectd-snmp.5*
 %clean
 rm -rf %{buildroot}
 
+%pre
+%if 0%{?el7:1}
+# stop sysv-based instance before upgrading to systemd
+if [ $1 -eq 2 ] && [ -f /var/lock/subsys/collectd ]; then
+	SYSTEMCTL_SKIP_REDIRECT=1 %{_initddir}/collectd stop >/dev/null 2>&1 || :
+fi
+%endif
+
 %post
-/sbin/chkconfig --add collectd
+%if 0%{?el7:1}
+if [ $1 -eq 2 ]; then
+	/usr/bin/systemctl daemon-reload >/dev/null 2>&1 || :
+fi
+%systemd_post collectd.service
+%else
+/sbin/chkconfig --add collectd || :
+%endif
 
 %preun
+%if 0%{?el7:1}
+%systemd_preun collectd.service
+%else
+# stop collectd only when uninstalling
 if [ $1 -eq 0 ]; then
-	/sbin/service collectd stop &>/dev/null
-	/sbin/chkconfig --del collectd
+	/sbin/service collectd stop >/dev/null 2>&1 || :
+	/sbin/chkconfig --del collectd || :
 fi
+%endif
 
 %postun
-if [ $1 -ge 1 ]; then
-	/sbin/service collectd condrestart &>/dev/null || :
+%if 0%{?el7:1}
+%systemd_postun_with_restart collectd.service
+%else
+# restart collectd only when upgrading
+if [ $1 -eq 1 ]; then
+	/sbin/service collectd condrestart >/dev/null 2>&1 || :
 fi
+%endif
 
 %post -n libcollectdclient -p /sbin/ldconfig
 %postun -n libcollectdclient -p /sbin/ldconfig
@@ -1719,19 +1835,17 @@ fi
 %files
 %doc AUTHORS COPYING ChangeLog README
 %config(noreplace) %{_sysconfdir}/collectd.conf
+%if 0%{?el7:1}
+%{_unitdir}/collectd.service
+%else
 %{_initrddir}/collectd
+%endif
 %{_sbindir}/collectd
-%{_bindir}/collectd-nagios
-%{_bindir}/collectd-tg
-%{_bindir}/collectdctl
 %{_sbindir}/collectdmon
-%{_datadir}/collectd/
+%{_datadir}/collectd/types.db
 %{_sharedstatedir}/collectd
-%{_mandir}/man1/collectd-nagios.1*
 %{_mandir}/man1/collectd.1*
-%{_mandir}/man1/collectdctl.1*
 %{_mandir}/man1/collectdmon.1*
-%{_mandir}/man1/collectd-tg.1*
 %{_mandir}/man5/collectd-email.5*
 %{_mandir}/man5/collectd-exec.5*
 %{_mandir}/man5/collectd-threshold.5*
@@ -1793,6 +1907,9 @@ fi
 %if %{with_exec}
 %{_libdir}/%{name}/exec.so
 %endif
+%if %{with_fhcount}
+%{_libdir}/%{name}/fhcount.so
+%endif
 %if %{with_filecount}
 %{_libdir}/%{name}/filecount.so
 %endif
@@ -1801,6 +1918,9 @@ fi
 %endif
 %if %{with_interface}
 %{_libdir}/%{name}/interface.so
+%endif
+%if %{with_ipc}
+%{_libdir}/%{name}/ipc.so
 %endif
 %if %{with_ipvs}
 %{_libdir}/%{name}/ipvs.so
@@ -1892,8 +2012,11 @@ fi
 %if %{with_thermal}
 %{_libdir}/%{name}/thermal.so
 %endif
-%if %{with_load}
+%if %{with_threshold}
 %{_libdir}/%{name}/threshold.so
+%endif
+%if %{with_turbostat}
+%{_libdir}/%{name}/turbostat.so
 %endif
 %if %{with_unixsock}
 %{_libdir}/%{name}/unixsock.so
@@ -1919,6 +2042,12 @@ fi
 %if %{with_write_graphite}
 %{_libdir}/%{name}/write_graphite.so
 %endif
+%if %{with_write_log}
+%{_libdir}/%{name}/write_log.so
+%endif
+%if %{with_write_sensu}
+%{_libdir}/%{name}/write_sensu.so
+%endif
 %if %{with_write_tsdb}
 %{_libdir}/%{name}/write_tsdb.so
 %endif
@@ -1939,6 +2068,14 @@ fi
 %files -n libcollectdclient
 %{_libdir}/libcollectdclient.so
 %{_libdir}/libcollectdclient.so.*
+
+%files -n collectd-utils
+%{_bindir}/collectd-nagios
+%{_bindir}/collectd-tg
+%{_bindir}/collectdctl
+%{_mandir}/man1/collectdctl.1*
+%{_mandir}/man1/collectd-nagios.1*
+%{_mandir}/man1/collectd-tg.1*
 
 %if %{with_amqp}
 %files amqp
@@ -1968,6 +2105,11 @@ fi
 %if %{with_bind}
 %files bind
 %{_libdir}/%{name}/bind.so
+%endif
+
+%if %{with_ceph}
+%files ceph
+%{_libdir}/%{name}/ceph.so
 %endif
 
 %if %{with_curl}
@@ -2027,8 +2169,8 @@ fi
 
 %if %{with_java}
 %files java
-%{_prefix}/share/collectd/java/collectd-api.jar
-%{_prefix}/share/collectd/java/generic-jmx.jar
+%{_datadir}/collectd/java/collectd-api.jar
+%{_datadir}/collectd/java/generic-jmx.jar
 %{_libdir}/%{name}/java.so
 %{_mandir}/man5/collectd-java.5*
 %endif
@@ -2100,7 +2242,6 @@ fi
 
 %if %{with_perl}
 %files perl
-%doc perl-examples/*
 %{perl_vendorlib}/Collectd.pm
 %{perl_vendorlib}/Collectd/
 %{_mandir}/man3/Collectd::Unixsock.3pm*
@@ -2120,7 +2261,7 @@ fi
 
 %if %{with_postgresql}
 %files postgresql
-%{_prefix}/share/collectd/postgresql_default.conf
+%{_datadir}/collectd/postgresql_default.conf
 %{_libdir}/%{name}/postgresql.so
 %endif
 
@@ -2203,12 +2344,21 @@ fi
 %doc contrib/
 
 %changelog
-# * TODO 5.5.0-1
-# - New upstream version
-# - New plugins enabled by default: drbd, log_logstash, write_tsdb, smart, openldap, redis, write_redis, zookeeper
-# - New plugins disabled by default: barometer, write_kafka
-# - Enable zfs_arc, now supported on Linux
-# - Install disk plugin in an dedicated package, as it depends on libudev
+#* TODO: next feature release changelog
+#- New upstream version
+#- New plugins disabled by default: zone
+#
+* Wed May 27 2015 Marc Fournier <marc.fournier@camptocamp.com> 5.5.0-1
+- New upstream version
+- New plugins enabled by default: ceph, drbd, log_logstash, write_tsdb, smart,
+  openldap, redis, write_redis, zookeeper, write_log, write_sensu, ipc,
+  turbostat, fhcount
+- New plugins disabled by default: barometer, write_kafka
+- Enable zfs_arc, now supported on Linux
+- Install disk plugin in a dedicated package, as it depends on libudev
+- use systemd on EL7, sysvinit on EL6 & EL5
+- Install collectdctl, collectd-tg and collectd-nagios in collectd-utils.rpm
+- Add build-dependency on libcap-devel
 
 * Mon Aug 19 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.4.0-1
 - New upstream version
@@ -2229,6 +2379,10 @@ fi
 - Enabled netlink plugin on RHEL6 and RHEL7
 - Allow perl plugin to build on RHEL5
 - Add support for RHEL7
+- Misc perl-related improvements:
+  * prevent rpmbuild from extracting dependencies from files in /usr/share/doc
+  * don't package collection3 and php-collection twice
+  * keep perl scripts from contrib/ in collectd-contrib
 
 * Wed Apr 10 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.3.0-1
 - New upstream version

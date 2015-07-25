@@ -494,7 +494,7 @@ int meta_data_get_string (meta_data_t *md, /* {{{ */
 
   if (e->type != MD_TYPE_STRING)
   {
-    ERROR ("meta_data_get_signed_int: Type mismatch for key `%s'", e->key);
+    ERROR ("meta_data_get_string: Type mismatch for key `%s'", e->key);
     pthread_mutex_unlock (&md->lock);
     return (-ENOENT);
   }

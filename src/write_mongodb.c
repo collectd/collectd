@@ -43,6 +43,11 @@
 #endif
 #include <mongo.h>
 
+#if (MONGO_MAJOR == 0) && (MONGO_MINOR < 8)
+# define bson_alloc()    bson_create()
+# define bson_dealloc(b) bson_dispose(b)
+#endif
+
 struct wm_node_s
 {
   char name[DATA_MAX_NAME_LEN];
@@ -74,7 +79,7 @@ static bson *wm_create_bson (const data_set_t *ds, /* {{{ */
   gauge_t *rates;
   int i;
 
-  ret = bson_create ();
+  ret = bson_alloc (); /* matched by bson_dealloc() */
   if (ret == NULL)
   {
     ERROR ("write_mongodb plugin: bson_create failed.");
@@ -95,7 +100,7 @@ static bson *wm_create_bson (const data_set_t *ds, /* {{{ */
     rates = NULL;
   }
 
-  bson_init (ret);
+  bson_init (ret); /* matched by bson_destroy() */
   bson_append_date (ret, "time", (bson_date_t) CDTIME_T_TO_MS (vl->time));
   bson_append_string (ret, "host", vl->host);
   bson_append_string (ret, "plugin", vl->plugin);
@@ -243,7 +248,8 @@ static int wm_write (const data_set_t *ds, /* {{{ */
   pthread_mutex_unlock (&node->lock);
 
   /* free our resource as not to leak memory */
-  bson_dispose (bson_record);
+  bson_destroy (bson_record); /* matches bson_init() */
+  bson_dealloc (bson_record); /* matches bson_alloc() */
 
   return (0);
 } /* }}} int wm_write */

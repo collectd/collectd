@@ -384,7 +384,6 @@ static int cow_read_values (const char *path, const char *name,
     if (endptr == NULL)
     {
       ERROR ("onewire plugin: Buffer is not a number: %s", buffer);
-      status = -1;
       continue;
     }
 
@@ -528,7 +527,6 @@ static int cow_simple_read (void)
       if (endptr == NULL)
       {
           ERROR ("onewire plugin: Buffer is not a number: %s", buffer);
-          status = -1;
           continue;
       }
 
@@ -592,7 +590,6 @@ static int cow_shutdown (void)
 static int cow_init (void)
 {
   int status;
-  struct timespec cb_interval;
 
   if (device_g == NULL)
   {
@@ -608,11 +605,8 @@ static int cow_init (void)
     return (1);
   }
 
-  CDTIME_T_TO_TIMESPEC (ow_interval, &cb_interval);
-
   plugin_register_complex_read (/* group = */ NULL, "onewire", cow_read,
-      (ow_interval != 0) ? &cb_interval : NULL,
-      /* user data = */ NULL);
+      ow_interval, /* user data = */ NULL);
   plugin_register_shutdown ("onewire", cow_shutdown);
 
   return (0);

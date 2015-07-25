@@ -308,7 +308,7 @@ static int wt_format_values(char *ret, size_t ret_len,
 } while (0)
 
     if (ds->ds[ds_num].type == DS_TYPE_GAUGE)
-        BUFFER_ADD("%f", vl->values[ds_num].gauge);
+        BUFFER_ADD(GAUGE_FORMAT, vl->values[ds_num].gauge);
     else if (store_rates)
     {
         if (rates == NULL)
@@ -319,7 +319,7 @@ static int wt_format_values(char *ret, size_t ret_len,
                     "uc_get_rate failed.");
             return -1;
         }
-        BUFFER_ADD("%f", rates[ds_num]);
+        BUFFER_ADD(GAUGE_FORMAT, rates[ds_num]);
     }
     else if (ds->ds[ds_num].type == DS_TYPE_COUNTER)
         BUFFER_ADD("%llu", vl->values[ds_num].counter);
@@ -365,30 +365,41 @@ static int wt_format_name(char *ret, int ret_len,
 
     if (ds_name != NULL) {
         if (vl->plugin_instance[0] == '\0') {
-            ssnprintf(ret, ret_len, "%s%s.%s",
-                      prefix, vl->plugin, ds_name);
-        } else if (vl->type_instance[0] == '\0') {
-            ssnprintf(ret, ret_len, "%s%s.%s.%s.%s",
-                      prefix, vl->plugin, vl->plugin_instance,
-                      vl->type_instance, ds_name);
-        } else {
-            ssnprintf(ret, ret_len, "%s%s.%s.%s.%s",
-                      prefix, vl->plugin, vl->plugin_instance, vl->type,
-                      ds_name);
+            if (vl->type_instance[0] == '\0') {
+                ssnprintf(ret, ret_len, "%s%s.%s.%s", prefix, vl->plugin,
+                        vl->type, ds_name);
+            } else {
+                ssnprintf(ret, ret_len, "%s%s.%s.%s.%s", prefix, vl->plugin,
+                        vl->type, vl->type_instance, ds_name);
+            }
+        } else { /* vl->plugin_instance != "" */
+            if (vl->type_instance[0] == '\0') {
+                ssnprintf(ret, ret_len, "%s%s.%s.%s.%s", prefix, vl->plugin,
+                        vl->plugin_instance, vl->type, ds_name);
+            } else {
+                ssnprintf(ret, ret_len, "%s%s.%s.%s.%s.%s", prefix,
+                        vl->plugin, vl->plugin_instance, vl->type,
+                        vl->type_instance, ds_name);
+            }
         }
-    } else if (vl->plugin_instance[0] == '\0') {
-        if (vl->type_instance[0] == '\0')
-            ssnprintf(ret, ret_len, "%s%s.%s",
-                      prefix, vl->plugin, vl->type);
-        else
-            ssnprintf(ret, ret_len, "%s%s.%s",
-                      prefix, vl->plugin, vl->type_instance);
-    } else if (vl->type_instance[0] == '\0') {
-        ssnprintf(ret, ret_len, "%s%s.%s.%s",
-                  prefix, vl->plugin, vl->plugin_instance, vl->type);
-    } else {
-        ssnprintf(ret, ret_len, "%s%s.%s.%s.%s",
-                  prefix, vl->plugin, vl->plugin_instance, vl->type, vl->type_instance);
+    } else { /* ds_name == NULL */
+        if (vl->plugin_instance[0] == '\0') {
+            if (vl->type_instance[0] == '\0') {
+                ssnprintf(ret, ret_len, "%s%s.%s", prefix, vl->plugin,
+                        vl->type);
+            } else {
+                ssnprintf(ret, ret_len, "%s%s.%s.%s", prefix, vl->plugin,
+                        vl->type_instance, vl->type);
+            }
+        } else { /* vl->plugin_instance != "" */
+            if (vl->type_instance[0] == '\0') {
+                ssnprintf(ret, ret_len, "%s%s.%s.%s", prefix, vl->plugin,
+                        vl->plugin_instance, vl->type);
+            } else {
+                ssnprintf(ret, ret_len, "%s%s.%s.%s.%s", prefix, vl->plugin,
+                        vl->plugin_instance, vl->type, vl->type_instance);
+            }
+        }
     }
 
     sfree(temp);
@@ -400,7 +411,7 @@ static int wt_send_message (const char* key, const char* value,
                             const char* host, meta_data_t *md)
 {
     int status;
-    int message_len;
+    size_t message_len;
     char *temp = NULL;
     char *tags = "";
     char message[1024];
@@ -425,7 +436,7 @@ static int wt_send_message (const char* key, const char* value,
         }
     }
 
-    message_len = ssnprintf (message,
+    status = ssnprintf (message,
                              sizeof(message),
                              "put %s %.0f %s fqdn=%s %s %s\r\n",
                              key,
@@ -434,12 +445,14 @@ static int wt_send_message (const char* key, const char* value,
                              host,
                              tags,
                              host_tags);
-
     sfree(temp);
+    if (status < 0)
+        return -1;
+    message_len = (size_t) status;
 
     if (message_len >= sizeof(message)) {
         ERROR("write_tsdb plugin: message buffer too small: "
-              "Need %d bytes.", message_len + 1);
+              "Need %zu bytes.", message_len + 1);
         return -1;
     }
 
@@ -495,7 +508,8 @@ static int wt_write_messages(const data_set_t *ds, const value_list_t *vl,
     char key[10*DATA_MAX_NAME_LEN];
     char values[512];
 
-    int status, i;
+    int status;
+    size_t i;
 
     if (0 != strcmp(ds->type, vl->type))
     {

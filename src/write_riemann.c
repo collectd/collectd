@@ -365,7 +365,7 @@ static Msg *riemann_notification_to_protobuf(struct riemann_host *host, /* {{{ *
 	char service_buffer[6 * DATA_MAX_NAME_LEN];
 	char const *severity;
 	notification_meta_t *meta;
-	int i;
+	size_t i;
 
 	msg = malloc (sizeof (*msg));
 	if (msg == NULL)
@@ -474,7 +474,7 @@ static Event *riemann_value_to_protobuf(struct riemann_host const *host, /* {{{ 
 	char name_buffer[5 * DATA_MAX_NAME_LEN];
 	char service_buffer[6 * DATA_MAX_NAME_LEN];
 	double ttl;
-	int i;
+	size_t i;
 
 	event = malloc (sizeof (*event));
 	if (event == NULL)
@@ -619,7 +619,7 @@ static Msg *riemann_value_list_to_protobuf (struct riemann_host const *host, /* 
 	msg__init (msg);
 
 	/* Set up events. First, the list of pointers. */
-	msg->n_events = (size_t) vl->values_len;
+	msg->n_events = vl->values_len;
 	msg->events = calloc (msg->n_events, sizeof (*msg->events));
 	if (msg->events == NULL)
 	{
@@ -744,8 +744,8 @@ static int riemann_batch_add_value_list (struct riemann_host *host, /* {{{ */
 
 	len = msg__get_packed_size(host->batch_msg);
     ret = 0;
-    if (len >= host->batch_max) {
-        ret = riemann_batch_flush_nolock(0, host);
+    if ((host->batch_max < 0) || (((size_t) host->batch_max) <= len)) {
+	    ret = riemann_batch_flush_nolock(0, host);
     }
 
     pthread_mutex_unlock(&host->lock);
@@ -778,35 +778,35 @@ static int riemann_notification(const notification_t *n, user_data_t *ud) /* {{{
 } /* }}} int riemann_notification */
 
 static int riemann_write(const data_set_t *ds, /* {{{ */
-	      const value_list_t *vl,
-	      user_data_t *ud)
+		const value_list_t *vl,
+		user_data_t *ud)
 {
 	int			 status = 0;
 	int			 statuses[vl->values_len];
 	struct riemann_host	*host = ud->data;
-	Msg			*msg;
 
-	if (host->check_thresholds)
-		write_riemann_threshold_check(ds, vl, statuses);
+	if (host->check_thresholds) {
+		status = write_riemann_threshold_check(ds, vl, statuses);
+		if (status != 0)
+			return status;
+	} else {
+		memset (statuses, 0, sizeof (statuses));
+	}
 
-    if (host->use_tcp == 1 && host->batch_mode) {
+	if (host->use_tcp == 1 && host->batch_mode) {
+		riemann_batch_add_value_list (host, ds, vl, statuses);
+	} else {
+		Msg *msg = riemann_value_list_to_protobuf (host, ds, vl, statuses);
+		if (msg == NULL)
+			return (-1);
 
-        riemann_batch_add_value_list (host, ds, vl, statuses);
+		status = riemann_send (host, msg);
+		if (status != 0)
+			ERROR ("write_riemann plugin: riemann_send failed with status %i", status);
 
+		riemann_msg_protobuf_free (msg);
+	}
 
-    } else {
-
-        msg = riemann_value_list_to_protobuf (host, ds, vl, statuses);
-        if (msg == NULL)
-            return (-1);
-
-        status = riemann_send (host, msg);
-        if (status != 0)
-            ERROR ("write_riemann plugin: riemann_send failed with status %i",
-                   status);
-
-        riemann_msg_protobuf_free (msg);
-    }
 	return status;
 } /* }}} int riemann_write */
 
@@ -854,10 +854,10 @@ static int riemann_config_node(oconfig_item_t *ci) /* {{{ */
 	host->check_thresholds = 0;
 	host->store_rates = 1;
 	host->always_append_ds = 0;
-	host->use_tcp = 0;
-    host->batch_mode = 0;
-    host->batch_max = RIEMANN_BATCH_MAX; /* typical MSS */
-    host->batch_init = cdtime();
+	host->use_tcp = 1;
+	host->batch_mode = 1;
+	host->batch_max = RIEMANN_BATCH_MAX; /* typical MSS */
+	host->batch_init = cdtime();
 	host->ttl_factor = RIEMANN_TTL_FACTOR;
 
 	status = cf_util_get_string (ci, &host->name);

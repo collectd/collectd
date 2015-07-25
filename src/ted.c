@@ -104,7 +104,6 @@ static int ted_read_value(double *ret_power, double *ret_voltage)
 
     /* Loop until we find the end of the package */
     end_flag = 0;
-    escape_flag = 0;
     package_buffer_pos = 0;
     while (end_flag == 0)
     {
@@ -148,7 +147,7 @@ static int ted_read_value(double *ret_power, double *ret_voltage)
             WARNING ("ted plugin: Received EOF from file descriptor.");
             return (-1);
         }
-        else if (receive_buffer_length > sizeof (receive_buffer))
+        else if (((size_t) receive_buffer_length) > sizeof (receive_buffer))
         {
             ERROR ("ted plugin: read(2) returned invalid value %zi.",
                     receive_buffer_length);

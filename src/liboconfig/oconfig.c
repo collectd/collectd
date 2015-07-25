@@ -33,6 +33,7 @@
 #include "oconfig.h"
 
 extern FILE *yyin;
+extern int yyparse (void);
 
 oconfig_item_t *ci_root;
 const char     *c_file;
@@ -52,11 +53,9 @@ oconfig_item_t *oconfig_parse_fh (FILE *fh)
   yyset_in (fh);
 
   if (NULL == c_file) {
-    int status;
-
     status = snprintf (file, sizeof (file), "<fd#%d>", fileno (fh));
 
-    if ((status < 0) || (status >= sizeof (file))) {
+    if ((status < 0) || (((size_t) status) >= sizeof (file))) {
       c_file = "<unknown>";
     }
     else {
@@ -130,8 +129,8 @@ oconfig_item_t *oconfig_clone (const oconfig_item_t *ci_orig)
   {
     int i;
 
-    ci_copy->values = (oconfig_value_t *) calloc (ci_orig->values_num,
-	sizeof (*ci_copy->values));
+    ci_copy->values = (oconfig_value_t *) calloc ((size_t) ci_orig->values_num,
+        sizeof (*ci_copy->values));
     if (ci_copy->values == NULL)
     {
       fprintf (stderr, "calloc failed.\n");
@@ -146,18 +145,17 @@ oconfig_item_t *oconfig_clone (const oconfig_item_t *ci_orig)
        ci_copy->values[i].type = ci_orig->values[i].type;
        if (ci_copy->values[i].type == OCONFIG_TYPE_STRING)
        {
-	 ci_copy->values[i].value.string
-	   = strdup (ci_orig->values[i].value.string);
-	 if (ci_copy->values[i].value.string == NULL)
-	 {
-	   fprintf (stderr, "strdup failed.\n");
-	   oconfig_free (ci_copy);
-	   return (NULL);
-	 }
+         ci_copy->values[i].value.string = strdup (ci_orig->values[i].value.string);
+         if (ci_copy->values[i].value.string == NULL)
+         {
+           fprintf (stderr, "strdup failed.\n");
+           oconfig_free (ci_copy);
+           return (NULL);
+         }
        }
        else /* ci_copy->values[i].type != OCONFIG_TYPE_STRING) */
        {
-	 ci_copy->values[i].value = ci_orig->values[i].value;
+         ci_copy->values[i].value = ci_orig->values[i].value;
        }
     }
   } /* }}} if (ci_orig->values_num > 0) */
@@ -166,8 +164,8 @@ oconfig_item_t *oconfig_clone (const oconfig_item_t *ci_orig)
   {
     int i;
 
-    ci_copy->children = (oconfig_item_t *) calloc (ci_orig->children_num,
-	sizeof (*ci_copy->children));
+    ci_copy->children = (oconfig_item_t *) calloc ((size_t) ci_orig->children_num,
+        sizeof (*ci_copy->children));
     if (ci_copy->children == NULL)
     {
       fprintf (stderr, "calloc failed.\n");
@@ -195,7 +193,7 @@ oconfig_item_t *oconfig_clone (const oconfig_item_t *ci_orig)
   return (ci_copy);
 } /* oconfig_item_t *oconfig_clone */
 
-void oconfig_free (oconfig_item_t *ci)
+void oconfig_free_all (oconfig_item_t *ci)
 {
   int i;
 
@@ -214,10 +212,17 @@ void oconfig_free (oconfig_item_t *ci)
     free (ci->values);
 
   for (i = 0; i < ci->children_num; i++)
-    oconfig_free (ci->children + i);
+    oconfig_free_all (ci->children + i);
 
   if (ci->children != NULL)
     free (ci->children);
+}
+
+void oconfig_free (oconfig_item_t *ci)
+{
+  oconfig_free_all (ci);
+  free (ci);
+  ci = NULL;
 }
 
 /*

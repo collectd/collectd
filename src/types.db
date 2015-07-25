@@ -15,6 +15,9 @@ cache_operation		value:DERIVE:0:U
 cache_ratio		value:GAUGE:0:100
 cache_result		value:DERIVE:0:U
 cache_size		value:GAUGE:0:U
+ceph_bytes		value:GAUGE:U:U
+ceph_latency	value:GAUGE:U:U
+ceph_rate			value:DERIVE:0:U
 changes_since_last_save   value:GAUGE:0:U
 charge			value:GAUGE:0:U
 compression_ratio	value:GAUGE:0:2
@@ -65,6 +68,7 @@ email_size		value:GAUGE:0:U
 entropy			value:GAUGE:0:4294967295
 expired_keys    value:GAUGE:0:U
 fanspeed		value:GAUGE:0:U
+file_handles		value:GAUGE:0:U
 file_size		value:GAUGE:0:U
 files			value:GAUGE:0:U
 flow			value:GAUGE:0:U
@@ -176,6 +180,7 @@ response_code		value:GAUGE:0:U
 route_etx		value:GAUGE:0:U
 route_metric		value:GAUGE:0:U
 routes			value:GAUGE:0:U
+segments 		value:GAUGE:0:65535
 serial_octets		rx:DERIVE:0:U, tx:DERIVE:0:U
 signal_noise		value:GAUGE:U:0
 signal_power		value:GAUGE:U:0
