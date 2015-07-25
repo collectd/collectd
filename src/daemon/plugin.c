@@ -1831,6 +1831,7 @@ int plugin_read_all_once (void)
 			return_status = -1;
 		}
 
+		sfree (rf->rf_name);
 		destroy_callback ((void *) rf);
 	}
 
