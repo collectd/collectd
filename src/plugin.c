@@ -181,13 +181,13 @@ static void destroy_read_heap (void) /* {{{ */
 
 	while (42)
 	{
-		callback_func_t *cf;
+		read_func_t *rf;
 
-		cf = c_heap_get_root (read_heap);
-		if (cf == NULL)
+		rf = c_heap_get_root (read_heap);
+		if (rf == NULL)
 			break;
-
-		destroy_callback (cf);
+		sfree (rf->rf_name);
+		destroy_callback ((callback_func_t *) rf);
 	}
 
 	c_heap_destroy (read_heap);
