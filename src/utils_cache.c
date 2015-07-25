@@ -191,6 +191,7 @@ static int uc_insert (const data_set_t *ds, const value_list_t *vl,
 	/* This shouldn't happen. */
 	ERROR ("uc_insert: Don't know how to handle data source type %i.",
 	    ds->ds[i].type);
+	sfree (key_copy);
 	return (-1);
     } /* switch (ds->ds[i].type) */
   } /* for (i) */
