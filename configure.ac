@@ -1254,6 +1254,8 @@ have_getvfsstat="no"
 AC_CHECK_FUNCS(getvfsstat, [have_getvfsstat="yes"])
 have_listmntent="no"
 AC_CHECK_FUNCS(listmntent, [have_listmntent="yes"])
+have_getmntent_r="no"
+AC_CHECK_FUNCS(getmntent_r, [have_getmntent_r="yes"])
 
 have_getmntent="no"
 AC_CHECK_FUNCS(getmntent, [have_getmntent="c"])
@@ -5460,6 +5462,11 @@ fi
 #	plugin_df="yes"
 #fi
 if test "x$c_cv_have_one_getmntent" = "xyes"
+then
+	plugin_df="yes"
+fi
+
+if test "x$c_cv_have_getmntent_r" = "xyes"
 then
 	plugin_df="yes"
 fi
