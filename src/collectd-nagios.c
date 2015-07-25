@@ -308,8 +308,7 @@ static int do_listval (lcc_connection_t *connection)
 
 		if ((hostname == NULL) || strcasecmp (hostname, ret_ident[i].host))
 		{
-			if (hostname != NULL)
-				free (hostname);
+			free (hostname);
 			hostname = strdup (ret_ident[i].host);
 			printf ("Host: %s\n", hostname);
 		}
@@ -323,6 +322,8 @@ static int do_listval (lcc_connection_t *connection)
 			printf ("ERROR: listval: Failed to convert returned "
 					"identifier to a string: %s\n",
 					lcc_strerror (connection));
+			free (hostname);
+			hostname = NULL;
 			continue;
 		}
 
@@ -330,8 +331,8 @@ static int do_listval (lcc_connection_t *connection)
 		printf ("\t%s\n", id + 1);
 	}
 
-	if (ret_ident != NULL)
-		free (ret_ident);
+	free (ret_ident);
+	free (hostname);
 	return (RET_OKAY);
 } /* int do_listval */
 
