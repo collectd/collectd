@@ -7119,6 +7119,10 @@ You can also specify combinations of these fields. For example B<name uuid>
 means to concatenate the guest name and UUID (with a literal colon character
 between, thus I<"foo:1234-1234-1234-1234">).
 
+At the moment of writing (collectd-5.5), hostname string is limited to 62
+characters. In case when combination of fields exceeds 62 characters,
+hostname will be truncated without a warning.
+
 =item B<InterfaceFormat> B<name>|B<address>
 
 When the virt plugin logs interface data, it sets the name of the collected
