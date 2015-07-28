@@ -7474,7 +7474,7 @@ Synopsis:
 
 Values are submitted to I<Sorted Sets>, using the metric name as the key, and
 the timestamp as the score. Retrieving a date range can then be done using the
-C<ZRANGEBYSCORE> I<Redis> command. Additionnally, all the identifiers of these
+C<ZRANGEBYSCORE> I<Redis> command. Additionally, all the identifiers of these
 I<Sorted Sets> are kept in a I<Set> called C<collectd/values> and can be
 retrieved using the C<SMEMBERS> I<Redis> command. See
 L<http://redis.io/commands#sorted_set> and L<http://redis.io/commands#set> for
@@ -7492,9 +7492,9 @@ options are available:
 =item B<Node> I<Nodename>
 
 The B<Node> block identifies a new I<Redis> node, that is a new I<Redis>
-instance running in an specified host and port. The name for node is a
+instance running on a specified host and port. The node name is a
 canonical identifier which is used as I<plugin instance>. It is limited to
-64E<nbsp>characters in length.
+51E<nbsp>characters in length.
 
 =item B<Host> I<Hostname>
 
