@@ -37,9 +37,10 @@
  *      polynomial $edb88320
  */
 
-#include <sys/types.h>
+#include <stdint.h>
+#include <stddef.h>
 
-u_int32_t               crc32_buffer(const u_char *, size_t);
+uint32_t               crc32_buffer(const unsigned char *, size_t);
 static unsigned int     crc32_tab[] = {
 	0x00000000L, 0x77073096L, 0xee0e612cL, 0x990951baL, 0x076dc419L,
 	0x706af48fL, 0xe963a535L, 0x9e6495a3L, 0x0edb8832L, 0x79dcb8a4L,
@@ -97,11 +98,11 @@ static unsigned int     crc32_tab[] = {
 
 /* Return a 32-bit CRC of the contents of the buffer. */
 
-u_int32_t
-crc32_buffer(const u_char *s, size_t len)
+uint32_t
+crc32_buffer(const unsigned char *s, size_t len)
 {
     size_t      i;
-    u_int32_t   ret;
+    uint32_t   ret;
 
     ret = 0;
     for (i = 0;  i < len;  i++)
