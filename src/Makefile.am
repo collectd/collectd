@@ -957,6 +957,12 @@ sigrok_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBSIGROK_LDFLAGS)
 sigrok_la_LIBADD = -lsigrok
 endif
 
+if BUILD_PLUGIN_SLURMD
+pkglib_LTLIBRARIES += slurmd.la
+slurmd_la_SOURCES = slurmd.c
+slurmd_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_SMART
 if BUILD_WITH_LIBUDEV
 pkglib_LTLIBRARIES += smart.la

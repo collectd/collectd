@@ -6101,6 +6101,39 @@ measurements are discarded.
 
 =back
 
+=head2 Plugin C<slurmd>
+
+The I<slurmd plugin> collects Slurm HPC workload manager jobs ressource usage
+information (CPU time, memory consumption) on compute nodes.
+
+B<Synopsis:>
+
+  <Plugin slurmd>
+      CgroupMountPoint "/cgroup"
+      IgnoreAbsentCpuset false
+  </Plugin>
+
+=over 4
+
+=item B<CgroupMountPoint> I<MountPoint>
+
+Browse the I<MountPoint> directory to find Cgroup resource controllers
+filesystems. These Cgroup filesystems are then used to find running PIDs inside
+Slurm jobs and discover which CPU are allocated to jobs.
+
+=item B<IgnoreAbsentCpuset> B<true>|B<false>
+
+When set to B<false>, the plugin returns an error if the cpuset Cgroup
+hierarchy maintained by Slurm is not found. When set to B<true>, the plugin
+ignores the problem, it just does not submit any metric without error.
+
+The Slurm Cgroup hierarchies are created on first job execution only.
+Therefore, it is recommanded to set this parameter to B<true> to avoid the
+plugin returning errors and then being increasingly delayed on compute node
+boot.
+
+=back
+
 =head2 Plugin C<smart>
 
 The C<smart> plugin collects SMART information from physical

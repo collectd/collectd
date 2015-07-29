@@ -5722,6 +5722,7 @@ AC_PLUGIN([rrdtool],     [$with_librrd],       [RRDTool output plugin])
 AC_PLUGIN([sensors],     [$with_libsensors],   [lm_sensors statistics])
 AC_PLUGIN([serial],      [$plugin_serial],     [serial port traffic])
 AC_PLUGIN([sigrok],      [$with_libsigrok],    [sigrok acquisition sources])
+AC_PLUGIN([slurmd],      [yes],                [Slurmd jobs statistics])
 AC_PLUGIN([smart],       [$with_libatasmart],  [SMART statistics])
 AC_PLUGIN([snmp],        [$with_libnetsnmp],   [SNMP querying plugin])
 AC_PLUGIN([statsd],      [yes],                [StatsD plugin])
@@ -6102,6 +6103,7 @@ Configuration:
     sensors . . . . . . . $enable_sensors
     serial  . . . . . . . $enable_serial
     sigrok  . . . . . . . $enable_sigrok
+    slurmd  . . . . . . . $enable_slurmd
     smart . . . . . . . . $enable_smart
     snmp  . . . . . . . . $enable_snmp
     statsd  . . . . . . . $enable_statsd
