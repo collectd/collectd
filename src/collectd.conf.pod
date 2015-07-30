@@ -7624,6 +7624,8 @@ Synopsis:
         Timeout 1000
         Prefix "collectd/"
         Database 1
+        MaxSetSize -1
+        StoreRates true
     </Node>
   </Plugin>
 
@@ -7684,6 +7686,11 @@ to C<0>.
 
 The B<MaxSetSize> option limits the number of items that the I<Sorted Sets> can
 hold. Negative values for I<Items> sets no limit, which is the default behavior.
+
+=item B<StoreRates> B<true>|B<false>
+
+If set to B<true> (the default), convert counter values to rates. If set to
+B<false> counter values are stored as is, i.e. as an increasing integer number.
 
 =back
 
