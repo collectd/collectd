@@ -7606,6 +7606,8 @@ Synopsis:
         Timeout 1000
         Prefix "collectd/"
         Database 1
+        MaxSetSize -1
+        StoreRates true
     </Node>
   </Plugin>
 
@@ -7664,6 +7666,15 @@ This index selects the redis database to use for writing operations. Defaults to
 =item B<MaxSetSize> I<Items>
 
 The B<MaxSetSize> option limits the number of items that the I<Sorted Sets> can hold to I<Items>. Negative values for I<Items> set no limit, which is the default behavior.
+
+=item B<StoreRates> B<true>|B<false>
+
+If set to B<true> (the default), convert counter values to rates. If set to
+B<false> counter values are stored as is, i.e. as an increasing integer number.
+
+This will be reflected in the C<collectd_data_source_type> tag: If
+B<StoreRates> is enabled, converted values will have "rate" appended to the
+data source type, e.g.  C<collectd_data_source_type:derive:rate>.
 
 =back
 

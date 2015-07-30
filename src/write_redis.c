@@ -47,6 +47,7 @@ struct wr_node_s
   char *prefix;
   int database;
   int max_set_size;
+  _Bool store_rates;
 
   redisContext *conn;
   pthread_mutex_t lock;
@@ -81,7 +82,7 @@ static int wr_write (const data_set_t *ds, /* {{{ */
   memset (value, 0, sizeof (value));
   value_size = sizeof (value);
   value_ptr = &value[0];
-  status = format_values (value_ptr, value_size, ds, vl, /* store rates = */ 0);
+  status = format_values (value_ptr, value_size, ds, vl, node->store_rates);
   pthread_mutex_lock (&node->lock);
   if (status != 0)
     return (status);
@@ -181,6 +182,7 @@ static int wr_config_node (oconfig_item_t *ci) /* {{{ */
   node->prefix = NULL;
   node->database = 0;
   node->max_set_size = -1;
+  node->store_rates = 1;
   pthread_mutex_init (&node->lock, /* attr = */ NULL);
 
   status = cf_util_get_string_buffer (ci, node->name, sizeof (node->name));
@@ -217,6 +219,9 @@ static int wr_config_node (oconfig_item_t *ci) /* {{{ */
     }
     else if (strcasecmp ("MaxSetSize", child->key) == 0) {
       status = cf_util_get_int (child, &node->max_set_size);
+    }
+    else if (strcasecmp ("StoreRates", child->key) == 0) {
+      status = cf_util_get_boolean (child, &node->store_rates);
     }
     else
       WARNING ("write_redis plugin: Ignoring unknown config option \"%s\".",
