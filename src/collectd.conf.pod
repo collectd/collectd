@@ -6134,6 +6134,21 @@ boot.
 
 =back
 
+=head2 Plugin C<slurmctld>
+
+The I<slurmctld plugin> uses I<libslurm> to retrieve information from slurmctld
+daemon of Slurm HPC workload manager. It collectd the number of nodes and CPU
+allocated to jobs.
+
+This plugin must be loaded with B<Globals> parameter sets to B<true> since the
+slurm library also loads various plugins with C<dlopen()>.
+
+B<Synopsis:>
+
+  <LoadPlugin slurmctld>
+      Globals true
+  </LoadPlugin>
+
 =head2 Plugin C<smart>
 
 The C<smart> plugin collects SMART information from physical
