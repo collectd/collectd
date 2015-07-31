@@ -1,2 +1,2 @@
 language: c
-script: ./configure && make
+script: sh build.sh && ./configure && make
