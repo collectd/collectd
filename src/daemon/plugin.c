@@ -1154,8 +1154,45 @@ static int plugin_insert_read (read_func_t *rf)
 {
 	int status;
 	llentry_t *le;
+	cdtime_t now = cdtime();
+	cdtime_t next_read = 0;
 
-	rf->rf_next_read = cdtime ();
+	if (IS_TRUE (global_option_get ("SyncNodesReads")))
+	{
+		/*
+		 * In order to kind of "synchronize" all collectd plugin reads
+		 * among various nodes, wait for the current interval to be
+		 * over. This way, if all nodes clocks are properly
+		 * synchronized (by NTP or so) and the read interval is the
+		 * same on all nodes, the read callbacks will hopefully happen
+		 * at (almost) the same time.
+		 *
+		 * To help understand the interval maths, here is an example
+		 * timeline:
+		 *
+		 *                                      interval
+		 *                            |------------------------->|
+		 * -+-------------------------+--------------------------+->
+		 *             ^              ^
+		 *             |---- wait --->|
+		 *            now           start
+		 *
+		 *  |--------->|------------->|
+		 *       i1            i2
+		 *
+		 * i1 = now % interval
+		 * i2 = interval - (now % interval)
+		 *
+		 * First read must be schedule at now + i2
+		 */
+		next_read = now + (rf->rf_interval - (now % rf->rf_interval));
+		DEBUG ("plugin %s first read is delayed to %f to sync with "
+                		"other nodes",
+                		rf->rf_name,
+				CDTIME_T_TO_DOUBLE(next_read));
+	} else
+		next_read = now;
+	rf->rf_next_read = next_read;
 	rf->rf_effective_interval = rf->rf_interval;
 
 	pthread_mutex_lock (&read_lock);

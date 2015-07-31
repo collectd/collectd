@@ -322,6 +322,17 @@ Configure the name of the "pre-cache chain" and the "post-cache chain". Please
 see L<FILTER CONFIGURATION> below on information on chains and how these
 setting change the daemon's behavior.
 
+=item B<SyncNodesReads> B<true|false>
+
+This parameter can be used to synchronize the plugin reads among multiple nodes
+on a cluster setup. When set to B<true>, the first plugin reads are delayed to
+the beginning of the next read interval. This way, if the system clocks of the
+nodes are synchronized (using NTP or similar) and the read intervals are
+equal, the plugin reads are also naturally synchronized among these nodes.
+
+The default value is B<false>. The first plugin reads are scheduled as soon as
+possible on collectd start.
+
 =back
 
 =head1 PLUGIN OPTIONS
