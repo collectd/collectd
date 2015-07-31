@@ -464,8 +464,9 @@ static int wt_format_tags(char *ret, int ret_len,
 #define TSDB_STRING_APPEND_SPRINTF(key, value) do { \
         int n; \
         const char *k = (key); \
-        if(k[0] != '\0') { \
-            n = ssnprintf(ptr, remaining_len, " %s=%s", k, value); \
+        const char *v = (value); \
+        if(k[0] != '\0' && v[0] != '\0') { \
+            n = ssnprintf(ptr, remaining_len, " %s=%s", k, v); \
             if(n >= remaining_len) { \
                 ptr[0] = '\0'; \
             } else { \
