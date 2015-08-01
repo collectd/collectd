@@ -4838,11 +4838,11 @@ then
 
 	CPPFLAGS="$CPPFLAGS $with_libvarnish_cflags"
 
-	AC_CHECK_HEADERS(varnish/vapi/vsc.h,
+	AC_CHECK_HEADERS(vapi/vsc.h,
 		[AC_DEFINE([HAVE_VARNISH_V4], [1], [Varnish 4 API support])],
-		[AC_CHECK_HEADERS(varnish/vsc.h,
+		[AC_CHECK_HEADERS(vsc.h,
 			[AC_DEFINE([HAVE_VARNISH_V3], [1], [Varnish 3 API support])],
-			[AC_CHECK_HEADERS(varnish/varnishapi.h,
+			[AC_CHECK_HEADERS(varnishapi.h,
 				[AC_DEFINE([HAVE_VARNISH_V2], [1], [Varnish 2 API support])],
 				[with_libvarnish="no (found none of the varnish header files)"])])])
 
