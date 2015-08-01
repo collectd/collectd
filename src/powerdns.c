@@ -37,7 +37,6 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <sys/un.h>
 
 #ifndef UNIX_PATH_MAX

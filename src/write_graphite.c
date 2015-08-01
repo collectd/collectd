@@ -54,7 +54,6 @@
 /* Folks without pthread will need to disable this plugin. */
 #include <pthread.h>
 
-#include <sys/socket.h>
 #include <netdb.h>
 
 #ifndef WG_DEFAULT_NODE
