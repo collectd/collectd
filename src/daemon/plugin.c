@@ -1243,8 +1243,10 @@ int plugin_register_read (const char *name,
 	rf->rf_interval = plugin_get_interval ();
 
 	status = plugin_insert_read (rf);
-	if (status != 0)
+	if (status != 0) {
+		sfree (rf->rf_name);
 		sfree (rf);
+	}
 
 	return (status);
 } /* int plugin_register_read */
@@ -1288,8 +1290,10 @@ int plugin_register_complex_read (const char *group, const char *name,
 	rf->rf_ctx = plugin_get_ctx ();
 
 	status = plugin_insert_read (rf);
-	if (status != 0)
+	if (status != 0) {
+		sfree (rf->rf_name);
 		sfree (rf);
+	}
 
 	return (status);
 } /* int plugin_register_complex_read */
@@ -1831,6 +1835,7 @@ int plugin_read_all_once (void)
 			return_status = -1;
 		}
 
+		sfree (rf->rf_name);
 		destroy_callback ((void *) rf);
 	}
 

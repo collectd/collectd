@@ -510,7 +510,7 @@ are disabled by default.
 
 =head2 Plugin C<amqp>
 
-The I<AMQMP plugin> can be used to communicate with other instances of
+The I<AMQP plugin> can be used to communicate with other instances of
 I<collectd> or third party applications using an AMQP message broker. Values
 are sent to or received from the broker, which handles routing, queueing and
 possibly filtering out messages.
@@ -7118,6 +7118,10 @@ useful on its own because all guests will appear to have the same name.
 You can also specify combinations of these fields. For example B<name uuid>
 means to concatenate the guest name and UUID (with a literal colon character
 between, thus I<"foo:1234-1234-1234-1234">).
+
+At the moment of writing (collectd-5.5), hostname string is limited to 62
+characters. In case when combination of fields exceeds 62 characters,
+hostname will be truncated without a warning.
 
 =item B<InterfaceFormat> B<name>|B<address>
 
