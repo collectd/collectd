@@ -30,7 +30,6 @@
 #include "common.h"
 
 #include <asm/types.h>
-#include <sys/socket.h>
 
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>

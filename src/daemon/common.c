@@ -46,7 +46,6 @@
 
 /* for getaddrinfo */
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <netdb.h>
 
 #if HAVE_NETINET_IN_H
