@@ -2592,7 +2592,7 @@ AC_ARG_WITH(libmysql, [AS_HELP_STRING([--with-libmysql@<:@=PREFIX@:>@], [Path to
 ])
 if test "x$with_libmysql" = "xyes"
 then
-	with_mysql_cflags=`$with_mysql_config --cflags 2>/dev/null`
+	with_mysql_cflags=`$with_mysql_config --include 2>/dev/null`
 	mysql_config_status=$?
 
 	if test $mysql_config_status -ne 0
