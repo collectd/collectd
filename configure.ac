@@ -5352,15 +5352,15 @@ fi
 
 if test "x$ac_system" = "xAIX"
 then
-        plugin_tcpconns="yes"
-        plugin_ipc="yes"
+	plugin_tcpconns="yes"
+	plugin_ipc="yes"
 fi
 
 # FreeBSD
 
 if test "x$ac_system" = "xFreeBSD"
 then
-        plugin_zfs_arc="yes"
+	plugin_zfs_arc="yes"
 fi
 
 
