@@ -3587,8 +3587,8 @@ fi
 # }}} --with-python
 
 # --with-librabbitmq {{{
-with_librabbitmq_cppflags=""
-with_librabbitmq_ldflags=""
+with_librabbitmq_cppflags="-I/usr/local/include"
+with_librabbitmq_ldflags="-L/usr/local/lib"
 AC_ARG_WITH(librabbitmq, [AS_HELP_STRING([--with-librabbitmq@<:@=PREFIX@:>@], [Path to librabbitmq.])],
 [
 	if test "x$withval" != "xno" && test "x$withval" != "xyes"
