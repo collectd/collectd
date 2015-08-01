@@ -27,7 +27,7 @@
 
 #include <netdb.h>
 
-#include <modbus/modbus.h>
+#include <modbus.h>
 
 #ifndef LIBMODBUS_VERSION_CHECK
 /* Assume version 2.0.3 */
