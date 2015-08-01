@@ -1,6 +1,6 @@
 /**
  * collectd - src/tests/macros.h
- * Copyright (C) 2013       Florian octo Forster
+ * Copyright (C) 2013-2015  Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -42,6 +42,7 @@ static int check_count__ = 0;
 #define OK1(cond, text) do { \
   _Bool result = (cond); \
   printf ("%s %i - %s\n", result ? "ok" : "not ok", ++check_count__, text); \
+  if (!result) { return -1; } \
 } while (0)
 #define OK(cond) OK1(cond, #cond)
 
@@ -52,6 +53,29 @@ static int check_count__ = 0;
     return (-1); \
   } \
   printf ("ok %i - %s evaluates to \"%s\"\n", ++check_count__, #actual, expect); \
+} while (0)
+
+#define EXPECT_INTEQ(expect, actual) do { \
+  if ((expect) != (actual)) {\
+    printf ("not ok %i - %s incorrect: expected %d, got %d\n", \
+        ++check_count__, #actual, expect, actual); \
+    return (-1); \
+  } \
+  printf ("ok %i - %s evaluates to %d\n", ++check_count__, #actual, expect); \
+} while (0)
+
+#define DBLEQ(expect, actual) do { \
+  double e = (expect); double a = (actual); \
+  if (isnan (e) && !isnan (a)) { \
+    printf ("not ok %i - %s incorrect: expected %.15g, got %.15g\n", \
+        ++check_count__, #actual, e, a); \
+    return (-1); \
+  } else if (!isnan (e) && (((e-a) < -1e-12) || ((e-a) > 1e-12))) { \
+    printf ("not ok %i - %s incorrect: expected %.15g, got %.15g\n", \
+        ++check_count__, #actual, e, a); \
+    return (-1); \
+  } \
+  printf ("ok %i - %s evaluates to %.15g\n", ++check_count__, #actual, e); \
 } while (0)
 
 #define CHECK_NOT_NULL(expr) do { \

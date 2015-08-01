@@ -284,7 +284,7 @@ static int ds_get (char ***ret, /* {{{ */
     const rrdcreate_config_t *cfg)
 {
   char **ds_def;
-  int ds_num;
+  size_t ds_num;
 
   char min[32];
   char max[32];

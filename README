@@ -385,6 +385,10 @@ Features
     - zfs_arc
       Statistics for ZFS' “Adaptive Replacement Cache” (ARC).
 
+    - zone
+      Measures the percentage of cpu load per container (zone) under Solaris 10
+      and higher
+
     - zookeeper
       Read data from Zookeeper's MNTR command.
 

@@ -23,13 +23,25 @@ AM_CPPFLAGS += -DPKGDATADIR='"${pkgdatadir}"'
 
 AUTOMAKE_OPTIONS = subdir-objects
 
-noinst_LTLIBRARIES = libmount.la liblookup.la
+noinst_LTLIBRARIES =
+check_PROGRAMS =
+TESTS =
 
-libmount_la_SOURCES = utils_mount.c utils_mount.h
-libmount_la_LIBADD = daemon/libcommon.la
-
+noinst_LTLIBRARIES += liblookup.la
 liblookup_la_SOURCES = utils_vl_lookup.c utils_vl_lookup.h
-liblookup_la_LIBADD = daemon/libavltree.la daemon/libcommon.la
+liblookup_la_LIBADD = daemon/libavltree.la
+check_PROGRAMS += test_utils_vl_lookup
+TESTS += test_utils_vl_lookup
+test_utils_vl_lookup_SOURCES = utils_vl_lookup_test.c testing.h
+test_utils_vl_lookup_LDADD = liblookup.la daemon/libcommon.la daemon/libplugin_mock.la
+
+noinst_LTLIBRARIES += libmount.la
+libmount_la_SOURCES = utils_mount.c utils_mount.h
+check_PROGRAMS += test_utils_mount
+TESTS += test_utils_mount
+test_utils_mount_SOURCES = utils_mount_test.c testing.h
+test_utils_mount_LDADD = libmount.la daemon/libcommon.la daemon/libplugin_mock.la
+
 
 sbin_PROGRAMS = collectdmon
 bin_PROGRAMS = collectd-nagios collectdctl collectd-tg
@@ -64,7 +76,8 @@ collectdctl_LDADD += libcollectdclient/libcollectdclient.la
 collectdctl_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 
 collectd_tg_SOURCES = collectd-tg.c
-collectd_tg_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/src/libcollectdclient/collectd -I$(top_builddir)/src/libcollectdclient/collectd
+collectd_tg_CPPFLAGS = $(AM_CPPFLAGS) \
+		       -I$(top_srcdir)/src/libcollectdclient/collectd -I$(top_builddir)/src/libcollectdclient/collectd
 collectd_tg_LDADD = daemon/libheap.la
 if BUILD_WITH_LIBSOCKET
 collectd_tg_LDADD += -lsocket
@@ -449,6 +462,8 @@ pkglib_LTLIBRARIES += ipvs.la
 ipvs_la_SOURCES = ipvs.c
 if IP_VS_H_NEEDS_KERNEL_CFLAGS
 ipvs_la_CFLAGS = $(AM_CFLAGS) $(KERNEL_CFLAGS)
+else
+ipvs_la_CFLAGS = $(AM_CFLAGS)
 endif
 ipvs_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
@@ -1289,6 +1304,13 @@ endif
 
 BUILT_SOURCES += $(dist_man_MANS)
 
+if BUILD_PLUGIN_ZONE
+pkglib_LTLIBRARIES += zone.la
+zone_la_SOURCES = zone.c
+zone_la_CFLAGS = $(AM_CFLAGS)
+zone_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 dist_man_MANS = collectd.1 \
 		collectd.conf.5 \
 		collectd-email.5 \
@@ -1381,12 +1403,4 @@ uninstall-hook:
 	rm -f $(DESTDIR)$(sysconfdir)/collectd.conf
 	rm -f $(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
 
-check_PROGRAMS = test_utils_mount test_utils_vl_lookup
 
-test_utils_mount_SOURCES = utils_mount_test.c testing.h
-test_utils_mount_LDADD = libmount.la daemon/libplugin_mock.la
-
-test_utils_vl_lookup_SOURCES = utils_vl_lookup_test.c testing.h
-test_utils_vl_lookup_LDADD = liblookup.la daemon/libplugin_mock.la
-
-TESTS = test_utils_mount test_utils_vl_lookup

@@ -213,7 +213,7 @@ static int mysql_config_database (oconfig_item_t *ci) /* {{{ */
 
 		plugin_register_complex_read (/* group = */ NULL, cb_name,
 					      mysql_read,
-					      /* interval = */ NULL, &ud);
+					      /* interval = */ 0, &ud);
 	}
 	else
 	{

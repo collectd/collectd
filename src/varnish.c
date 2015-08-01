@@ -749,7 +749,7 @@ static int varnish_init (void) /* {{{ */
 	plugin_register_complex_read (/* group = */ "varnish",
 			/* name      = */ "varnish/localhost",
 			/* callback  = */ varnish_read,
-			/* interval  = */ NULL,
+			/* interval  = */ 0,
 			/* user data = */ &ud);
 
 	return (0);
@@ -911,7 +911,7 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 	plugin_register_complex_read (/* group = */ "varnish",
 			/* name      = */ callback_name,
 			/* callback  = */ varnish_read,
-			/* interval  = */ NULL,
+			/* interval  = */ 0,
 			/* user data = */ &ud);
 
 	have_instance = 1;

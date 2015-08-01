@@ -305,7 +305,7 @@ rfc1035NameUnpack(const char *buf, size_t sz, off_t * off, char *name, size_t ns
     if (ns <= 0)
 	return 4;		/* probably compression loop */
     do {
-	if ((*off) >= sz)
+	if ((*off) >= ((off_t) sz))
 	    break;
 	c = *(buf + (*off));
 	if (c > 191) {
@@ -317,11 +317,11 @@ rfc1035NameUnpack(const char *buf, size_t sz, off_t * off, char *name, size_t ns
 	    s = ntohs(s);
 	    (*off) += sizeof(s);
 	    /* Sanity check */
-	    if ((*off) >= sz)
+	    if ((*off) >= ((off_t) sz))
 		return 1;	/* message too short */
 	    ptr = s & 0x3FFF;
 	    /* Make sure the pointer is inside this message */
-	    if (ptr >= sz)
+	    if (ptr >= ((off_t) sz))
 		return 2;	/* bad compression ptr */
 	    if (ptr < DNS_MSG_HDR_SZ)
 		return 2;	/* bad compression ptr */
@@ -355,7 +355,7 @@ rfc1035NameUnpack(const char *buf, size_t sz, off_t * off, char *name, size_t ns
     if (no > 0)
 	*(name + no - 1) = '\0';
     /* make sure we didn't allow someone to overflow the name buffer */
-    assert(no <= ns);
+    assert(no <= ((off_t) ns));
     return 0;
 }
 

@@ -42,12 +42,12 @@
  */
 
 typedef struct {
-	char  *type;
-	char  *instance_prefix;
-	int   *instances;
-	size_t instances_num;
-	int   *values;
-	size_t values_num;
+	char   *type;
+	char   *instance_prefix;
+	size_t *instances;
+	size_t  instances_num;
+	size_t *values;
+	size_t  values_num;
 
 	const data_set_t *ds;
 } tbl_result_t;
@@ -139,11 +139,11 @@ static int tbl_config_set_s (char *name, char **var, oconfig_item_t *ci)
 	return 0;
 } /* tbl_config_set_separator */
 
-static int tbl_config_append_array_i (char *name, int **var, size_t *len,
+static int tbl_config_append_array_i (char *name, size_t **var, size_t *len,
 		oconfig_item_t *ci)
 {
-	int *tmp;
-
+	size_t *tmp;
+	size_t num;
 	size_t i;
 
 	if (1 > ci->values_num) {
@@ -151,26 +151,28 @@ static int tbl_config_append_array_i (char *name, int **var, size_t *len,
 		return 1;
 	}
 
-	for (i = 0; i < ci->values_num; ++i) {
+	num = (size_t) ci->values_num;
+	for (i = 0; i < num; ++i) {
 		if (OCONFIG_TYPE_NUMBER != ci->values[i].type) {
 			log_err ("\"%s\" expects numerical arguments only.", name);
 			return 1;
 		}
 	}
 
-	*len += ci->values_num;
-	tmp = (int *)realloc (*var, *len * sizeof (**var));
+	tmp = realloc (*var, ((*len) + num) * sizeof (**var));
 	if (NULL == tmp) {
 		char errbuf[1024];
 		log_err ("realloc failed: %s.",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return -1;
 	}
-
 	*var = tmp;
 
-	for (i = *len - ci->values_num; i < *len; ++i)
-		(*var)[i] = (int)ci->values[i].value.number;
+	for (i = 0; i < num; ++i) {
+		(*var)[*len] = (size_t) ci->values[i].value.number;
+		(*len)++;
+	}
+
 	return 0;
 } /* tbl_config_append_array_s */
 
@@ -179,7 +181,7 @@ static int tbl_config_result (tbl_t *tbl, oconfig_item_t *ci)
 	tbl_result_t *res;
 
 	int status = 0;
-	size_t i;
+	int i;
 
 	if (0 != ci->values_num) {
 		log_err ("<Result> does not expect any arguments.");
@@ -266,7 +268,7 @@ static int tbl_config_table (oconfig_item_t *ci)
 	tbl = tables + tables_num - 1;
 	tbl_setup (tbl, ci->values[0].value.string);
 
-	for (i = 0; i < ci->children_num; ++i) {
+	for (i = 0; i < ((size_t) ci->children_num); ++i) {
 		oconfig_item_t *c = ci->children + i;
 
 		if (0 == strcasecmp (c->key, "Separator"))
@@ -321,7 +323,7 @@ static int tbl_config_table (oconfig_item_t *ci)
 
 static int tbl_config (oconfig_item_t *ci)
 {
-	size_t i;
+	int i;
 
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *c = ci->children + i;
@@ -352,9 +354,9 @@ static int tbl_prepare (tbl_t *tbl)
 			return -1;
 		}
 
-		if (res->values_num != (size_t)res->ds->ds_num) {
+		if (res->values_num != res->ds->ds_num) {
 			log_err ("Invalid type \"%s\". Expected %zu data source%s, "
-					"got %i.", res->type, res->values_num,
+					"got %zu.", res->type, res->values_num,
 					(1 == res->values_num) ? "" : "s",
 					res->ds->ds_num);
 			return -1;

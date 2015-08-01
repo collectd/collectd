@@ -563,7 +563,7 @@ static int cj_config_add_key (cj_t *db, /* {{{ */
       if (*ptr == '/')
       {
         c_avl_tree_t *value;
-        int len;
+        size_t len;
 
         len = ptr-name;
         if (len == 0)
@@ -764,9 +764,6 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
   {
     user_data_t ud;
     char *cb_name;
-    struct timespec interval = { 0, 0 };
-
-    CDTIME_T_TO_TIMESPEC (db->interval, &interval);
 
     if (db->instance == NULL)
       db->instance = strdup("default");
@@ -782,7 +779,7 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
                db->instance, db->url ? db->url : db->sock);
 
     plugin_register_complex_read (/* group = */ NULL, cb_name, cj_read,
-                                  /* interval = */ (db->interval > 0) ? &interval : NULL,
+                                  /* interval = */ db->interval,
                                   &ud);
     sfree (cb_name);
   }

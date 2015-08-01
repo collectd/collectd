@@ -265,7 +265,7 @@ static char *refclock_names[] =
 	"JJY",        "TT_IRIG",      "GPS_ZYFER",  "GPS_RIPENCC", /* 40-43 */
 	"NEOCLK4X"                                                 /* 44    */
 };
-static int refclock_names_num = STATIC_ARRAY_SIZE (refclock_names);
+static size_t refclock_names_num = STATIC_ARRAY_SIZE (refclock_names);
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  * End of the copied stuff..                                         *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -868,7 +868,7 @@ static int ntpd_get_name_refclock (char *buffer, size_t buffer_size,
 	uint32_t refclock_id = ntpd_get_refclock_id (peer_info);
 	uint32_t unit_id = ntohl (peer_info->srcadr) & 0x00FF;
 
-	if (refclock_id >= refclock_names_num)
+	if (((size_t) refclock_id) >= refclock_names_num)
 		return (ntpd_get_name_from_address (buffer, buffer_size,
 					peer_info,
 					/* do_reverse_lookup = */ 0));

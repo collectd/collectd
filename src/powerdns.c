@@ -298,7 +298,7 @@ static void submit (const char *plugin_instance, /* {{{ */
 
   if (ds->ds_num != 1)
   {
-    ERROR ("powerdns plugin: type `%s' has %i data sources, "
+    ERROR ("powerdns plugin: type `%s' has %zu data sources, "
         "but I can only handle one.",
         type, ds->ds_num);
     return;
@@ -650,12 +650,12 @@ static int powerdns_update_recursor_command (list_item_t *li) /* {{{ */
       return (-1);
     }
     buffer[sizeof (buffer) - 1] = 0;
-    int i = strlen (buffer);
-    if (i < sizeof (buffer) - 2)
+    size_t len = strlen (buffer);
+    if (len < sizeof (buffer) - 2)
     {
-      buffer[i++] = ' ';
-      buffer[i++] = '\n';
-      buffer[i++] = '\0';
+      buffer[len++] = ' ';
+      buffer[len++] = '\n';
+      buffer[len++] = '\0';
     }
   }
 

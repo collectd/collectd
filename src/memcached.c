@@ -566,7 +566,7 @@ static int memcached_add_read_callback (memcached_t *st)
   status = plugin_register_complex_read (/* group = */ "memcached",
       /* name      = */ callback_name,
       /* callback  = */ memcached_read,
-      /* interval  = */ NULL,
+      /* interval  = */ 0,
       /* user_data = */ &ud);
   return (status);
 } /* int memcached_add_read_callback */

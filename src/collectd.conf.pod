@@ -130,6 +130,15 @@ Sets a plugin-specific interval for collecting metrics. This overrides the
 global B<Interval> setting. If a plugin provides own support for specifying an
 interval, that setting will take precedence.
 
+=item B<FlushInterval> I<Seconds>
+
+Specifies the the interval, in seconds, to call the flush callback if it's
+defined in this plugin. By default, this is disabled
+
+=item B<FlushTimeout> I<Seconds>
+
+Specifies the value of the timeout argument of the flush callback.
+
 =back
 
 =item B<AutoLoadPlugin> B<false>|B<true>
@@ -802,11 +811,21 @@ B<apcupsd> can handle it.
 
 TCP-Port to connect to. Defaults to B<3551>.
 
-=item B<ReportSeconds> B<true|false>
+=item B<ReportSeconds> B<true>|B<false>
 
 If set to B<true>, the time reported in the C<timeleft> metric will be
 converted to seconds. This is the recommended setting. If set to B<false>, the
 default for backwards compatibility, the time will be reported in minutes.
+
+=item B<PersistentConnection> B<true>|B<false>
+
+By default, the plugin will try to keep the connection to UPS open between
+reads. Since this appears to be somewhat brittle (I<apcupsd> appears to close
+the connection due to inactivity quite quickly), the plugin will try to detect
+this problem and switch to an open-read-close mode in such cases.
+
+You can instruct the plugin to close the connection after each read by setting
+this option to B<false>.
 
 =back
 
@@ -4494,6 +4513,16 @@ The following options are accepted within each B<Instance> block:
 Sets the URL to use to connect to the I<OpenLDAP> server. This option is
 I<mandatory>.
 
+=item B<BindDN> I<BindDN>
+
+Name in the form of an LDAP distinguished name intended to be used for 
+authentication. Defaults to empty string to establish an anonymous authorization.
+
+=item B<Password> I<Password>
+
+Password for simple bind authentication. If this option is not set, 
+unauthenticated bind operation is used.
+
 =item B<StartTLS> B<true|false>
 
 Defines whether TLS must be used when connecting to the I<OpenLDAP> server.
@@ -5421,6 +5450,10 @@ details). The statistics of all matching processes are summed up and
 dispatched to the daemon using the specified I<name> as an identifier. This
 allows to "group" several processes together. I<name> must not contain
 slashes.
+
+=item B<CollectContextSwitch> I<Boolean>
+
+Collect context switch of the process.
 
 =back
 
@@ -7465,14 +7498,16 @@ Synopsis:
         Host "localhost"
         Port "6379"
         Timeout 1000
+        Prefix "collectd/"
     </Node>
   </Plugin>
 
 Values are submitted to I<Sorted Sets>, using the metric name as the key, and
 the timestamp as the score. Retrieving a date range can then be done using the
 C<ZRANGEBYSCORE> I<Redis> command. Additionnally, all the identifiers of these
-I<Sorted Sets> are kept in a I<Set> called C<collectd/values> and can be
-retrieved using the C<SMEMBERS> I<Redis> command. See
+I<Sorted Sets> are kept in a I<Set> called C<collectd/values> (or
+C<${prefix}/values> if the B<Prefix> option was specified) and can be retrieved
+using the C<SMEMBERS> I<Redis> command. See
 L<http://redis.io/commands#sorted_set> and L<http://redis.io/commands#set> for
 details.
 
@@ -7506,6 +7541,13 @@ that numerical port numbers must be given as a string, too.
 =item B<Timeout> I<Milliseconds>
 
 The B<Timeout> option sets the socket connection timeout, in milliseconds.
+
+=item B<Prefix> I<Prefix>
+
+Prefix used when constructing the name of the I<Sorted Sets> and the I<Set>
+containing all metrics. Defaults to C<collectd/>, so metrics will have names
+like C<collectd/cpu-0/cpu-user>. When setting this to something different, it
+is recommended but not required to include a trailing slash in I<Prefix>.
 
 =back
 
