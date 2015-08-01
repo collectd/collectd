@@ -623,8 +623,11 @@ static int cf_include_all (oconfig_item_t *root, int depth)
 			return (-1);
 
 		/* Now replace the i'th child in `root' with `new'. */
-		if (cf_ci_replace_child (root, new, i) < 0)
+		if (cf_ci_replace_child (root, new, i) < 0) {
+			sfree (new->values);
+			sfree (new);
 			return (-1);
+		}
 
 		/* ... and go back to the new i'th child. */
 		--i;

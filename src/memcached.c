@@ -62,6 +62,7 @@ static void memcached_free (memcached_t *st)
   sfree (st->socket);
   sfree (st->host);
   sfree (st->port);
+  sfree (st);
 }
 
 static int memcached_connect_unix (memcached_t *st)
