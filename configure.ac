@@ -2632,12 +2632,6 @@ then
 		CPPFLAGS="$CPPFLAGS $with_mysql_cflags"
 		SAVE_LIBS="$LIBS"
 		LIBS="$with_mysql_libs"
-		AC_SEARCH_LIBS([mysql_init],
-		 [],
-		 [with_libmysql="yes"],
-		 [with_libmysql="no (symbol 'mysql_init' not found)"],
-		 [])
-
 		AC_SEARCH_LIBS([mysql_get_server_version],
 		 [],
 		 [with_libmysql="yes"],
