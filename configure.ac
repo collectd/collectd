@@ -2562,7 +2562,7 @@ then
 	SAVE_CPPFLAGS="$CPPFLAGS"
 	CPPFLAGS="$CPPFLAGS $with_libmodbus_cflags"
 
-	AC_CHECK_HEADERS(modbus/modbus.h, [], [with_libmodbus="no (modbus/modbus.h not found)"])
+	AC_CHECK_HEADERS(modbus.h, [], [with_libmodbus="no (modbus.h not found)"])
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
 fi
