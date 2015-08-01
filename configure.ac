@@ -2628,15 +2628,23 @@ then
 	then
 		with_libmysql="no ($with_mysql_config failed)"
 	else
-		AC_CHECK_LIB(mysqlclient, mysql_init,
+		SAVE_CPPFLAGS="$CPPFLAGS"
+		CPPFLAGS="$CPPFLAGS $with_mysql_cflags"
+		SAVE_LIBS="$LIBS"
+		LIBS="$with_mysql_libs"
+		AC_SEARCH_LIBS([mysql_init],
+		 [],
 		 [with_libmysql="yes"],
 		 [with_libmysql="no (symbol 'mysql_init' not found)"],
-		 [$with_mysql_libs])
+		 [])
 
-		AC_CHECK_LIB(mysqlclient, mysql_get_server_version,
+		AC_SEARCH_LIBS([mysql_get_server_version],
+		 [],
 		 [with_libmysql="yes"],
 		 [with_libmysql="no (symbol 'mysql_get_server_version' not found)"],
-		 [$with_mysql_libs])
+		 [])
+		CPPFLAGS="$SAVE_CPPFLAGS"
+		LIBS="$SAVE_LIBS"
 	fi
 fi
 if test "x$with_libmysql" = "xyes"
