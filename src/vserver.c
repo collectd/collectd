@@ -31,7 +31,6 @@
 #include "plugin.h"
 
 #include <dirent.h>
-#include <sys/types.h>
 
 #define BUFSIZE 512
 

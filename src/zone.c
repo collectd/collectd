@@ -34,7 +34,6 @@
 #include "common.h"
 #include "plugin.h"
 
-#include <sys/types.h>
 #include <sys/vm_usage.h>
 #include <procfs.h>
 #include <zone.h>

@@ -34,9 +34,6 @@
 #endif
 
 #if HAVE_GETVFSSTAT
-#  if HAVE_SYS_TYPES_H
-#    include <sys/types.h>
-#  endif
 #  if HAVE_SYS_STATVFS_H
 #    include <sys/statvfs.h>
 #  endif

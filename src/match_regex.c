@@ -34,7 +34,6 @@
 #include "collectd.h"
 #include "filter_chain.h"
 
-#include <sys/types.h>
 #include <regex.h>
 
 #define log_err(...) ERROR ("`regex' match: " __VA_ARGS__)

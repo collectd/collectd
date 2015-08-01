@@ -30,7 +30,6 @@
 #include "common.h"
 #include "plugin.h"
 
-#include <sys/types.h>
 #include <pthread.h>
 #include <yajl/yajl_common.h>
 #include <yajl/yajl_gen.h>

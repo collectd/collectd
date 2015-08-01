@@ -33,7 +33,6 @@
 #include "utils_cmd_putval.h"
 #include "utils_cmd_putnotif.h"
 
-#include <sys/types.h>
 #include <pwd.h>
 #include <grp.h>
 #include <signal.h>

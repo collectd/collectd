@@ -28,7 +28,6 @@
 #include "common.h"
 #include "plugin.h"
 
-#include <sys/types.h>
 #include <netdb.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
