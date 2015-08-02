@@ -508,7 +508,7 @@ static int statsd_network_init (struct pollfd **ret_fds, /* {{{ */
   memset (&ai_hints, 0, sizeof (ai_hints));
   ai_hints.ai_flags = AI_PASSIVE;
 #ifdef AI_ADDRCONFIG
-  ai_hints.ai_flags |= AI_ADDRCONFIG;
+  if (node != NULL) ai_hints.ai_flags |= AI_ADDRCONFIG;
 #endif
   ai_hints.ai_family = AF_UNSPEC;
   ai_hints.ai_socktype = SOCK_DGRAM;
@@ -526,9 +526,6 @@ static int statsd_network_init (struct pollfd **ret_fds, /* {{{ */
     int fd;
     struct pollfd *tmp;
 
-    char dbg_node[NI_MAXHOST];
-    char dbg_service[NI_MAXSERV];
-
     fd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
     if (fd < 0)
     {
@@ -538,17 +535,31 @@ static int statsd_network_init (struct pollfd **ret_fds, /* {{{ */
       continue;
     }
 
+#ifdef COLLECT_DEBUG
+    char dbg_node[NI_MAXHOST];
+    char dbg_service[NI_MAXSERV];
+
     getnameinfo (ai_ptr->ai_addr, ai_ptr->ai_addrlen,
         dbg_node, sizeof (dbg_node), dbg_service, sizeof (dbg_service),
         NI_DGRAM | NI_NUMERICHOST | NI_NUMERICSERV);
     DEBUG ("statsd plugin: Trying to bind to [%s]:%s ...", dbg_node, dbg_service);
+#endif
 
     status = bind (fd, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
     if (status != 0)
     {
       char errbuf[1024];
-      ERROR ("statsd plugin: bind(2) failed: %s",
+      /* only an error if we have never bound to an adress */
+      if (fds_num == 0)
+      {
+        ERROR ("statsd plugin: bind(2) failed: %s",
           sstrerror (errno, errbuf, sizeof (errbuf)));
+      }
+      else
+      {
+        INFO ("statsd plugin: bind(2) failed: %s",
+          sstrerror (errno, errbuf, sizeof (errbuf)));
+      }
       close (fd);
       continue;
     }
