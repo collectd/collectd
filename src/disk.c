@@ -530,8 +530,8 @@ static int disk_read (void)
 #elif KERNEL_FREEBSD
 	int retry, dirty;
 
-	void *snap_present = NULL;
-	struct devstat *snap_present_iter;
+	void *snap = NULL;
+	struct devstat *snap_iter;
 
 	struct gident *geom_id;
 
@@ -541,33 +541,33 @@ static int disk_read (void)
 	long double read_time, write_time;
 
 	for (retry = 0, dirty = 1; retry < 5 && dirty == 1; retry++) {
-		if (snap_present != NULL)
-			geom_stats_snapshot_free(snap_present);
+		if (snap != NULL)
+			geom_stats_snapshot_free(snap);
 
 		/* Get a fresh copy of stats snapshot */
-		snap_present = geom_stats_snapshot_get();
-		if (snap_present == NULL) {
+		snap = geom_stats_snapshot_get();
+		if (snap == NULL) {
 			ERROR("disk plugin: geom_stats_snapshot_get() failed.");
 			return (-1);
 		}
 
 		/* Check if we have dirty read from this snapshot */
 		dirty = 0;
-		geom_stats_snapshot_reset(snap_present);
-		while ((snap_present_iter = geom_stats_snapshot_next(snap_present)) != NULL) {
-			if (snap_present_iter->id == NULL)
+		geom_stats_snapshot_reset(snap);
+		while ((snap_iter = geom_stats_snapshot_next(snap)) != NULL) {
+			if (snap_iter->id == NULL)
 				continue;
-			geom_id = geom_lookupid(&geom_tree, snap_present_iter->id);
+			geom_id = geom_lookupid(&geom_tree, snap_iter->id);
 
 			/* New device? refresh GEOM tree */
 			if (geom_id == NULL) {
 				geom_deletetree(&geom_tree);
 				if (geom_gettree(&geom_tree) != 0) {
 					ERROR("disk plugin: geom_gettree() failed");
-					geom_stats_snapshot_free(snap_present);
+					geom_stats_snapshot_free(snap);
 					return (-1);
 				}
-				geom_id = geom_lookupid(&geom_tree, snap_present_iter->id);
+				geom_id = geom_lookupid(&geom_tree, snap_iter->id);
 			}
 			/*
 			 * This should be rare: the device come right before we take the
@@ -586,23 +586,23 @@ static int disk_read (void)
 				continue;
 
 			/* Check if this is a dirty read quit for another try */
-			if (snap_present_iter->sequence0 != snap_present_iter->sequence1) {
+			if (snap_iter->sequence0 != snap_iter->sequence1) {
 				dirty = 1;
 				break;
 			}
 		}
 	}
 
-	/* Reset iterators for both snapshots */
-	geom_stats_snapshot_reset(snap_present);
+	/* Reset iterator */
+	geom_stats_snapshot_reset(snap);
 	for (;;) {
-		snap_present_iter = geom_stats_snapshot_next(snap_present);
-		if (snap_present_iter == NULL)
+		snap_iter = geom_stats_snapshot_next(snap);
+		if (snap_iter == NULL)
 			break;
 
-		if (snap_present_iter->id == NULL)
+		if (snap_iter->id == NULL)
 			continue;
-		geom_id = geom_lookupid(&geom_tree, snap_present_iter->id);
+		geom_id = geom_lookupid(&geom_tree, snap_iter->id);
 		if (geom_id == NULL)
 			continue;
 		if (geom_id->lg_what != ISPROVIDER)
@@ -610,10 +610,10 @@ static int disk_read (void)
 		if (((struct gprovider *)(geom_id->lg_ptr))->lg_geom->lg_rank != 1)
 			continue;
 		/* Skip dirty reads, if present */
-		if (dirty && (snap_present_iter->sequence0 != snap_present_iter->sequence1))
+		if (dirty && (snap_iter->sequence0 != snap_iter->sequence1))
 			continue;
 
-		devstat_compute_statistics(snap_present_iter, NULL, 10.0,
+		devstat_compute_statistics(snap_iter, NULL, 10.0,
 		    DSM_TOTAL_TRANSFERS_READ, &read_ops,
 		    DSM_TOTAL_BYTES_READ, &read_bytes,
 		    DSM_TOTAL_DURATION_READ, &read_time,
@@ -639,7 +639,7 @@ static int disk_read (void)
 					(derive_t)(read_time*1000), (derive_t)(write_time*1000));
 		}
 	}
-	geom_stats_snapshot_free(snap_present);
+	geom_stats_snapshot_free(snap);
 
 #elif KERNEL_LINUX
 	FILE *fh;
