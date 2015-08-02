@@ -340,7 +340,7 @@ if BUILD_WITH_LIBUDEV
 disk_la_LIBADD += -ludev
 endif
 if BUILD_FREEBSD
-disk_la_LIBADD += -ldevstat -lkvm -lgeom -lbsdxml -lsbuf
+disk_la_LIBADD += -ldevstat -lgeom
 endif
 if BUILD_WITH_PERFSTAT
 disk_la_LIBADD += -lperfstat
