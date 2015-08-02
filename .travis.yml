@@ -1,3 +1,3 @@
 sudo: false
 language: c
-script: sh build.sh && ./configure && make
+script: sh build.sh && ./configure && make && make check
