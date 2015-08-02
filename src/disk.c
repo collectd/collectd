@@ -112,8 +112,6 @@ typedef struct diskstats
 static diskstats_t *disklist;
 /* #endif KERNEL_LINUX */
 #elif KERNEL_FREEBSD
-static void *snap_previous;
-static struct timespec tsnap_previous;
 static struct gmesh geom_tree;
 /* #endif KERNEL_FREEBSD */
 
@@ -244,12 +242,6 @@ static int disk_init (void)
 		ERROR ("geom_stats_open() failed, returned %d", rv);
 		return (-1);
 	}
-	snap_previous = geom_stats_snapshot_get();
-	if (snap_previous == NULL) {
-		ERROR ("geom_stats_snapshot_get() failed");
-		return (-1);
-	}
-	geom_stats_snapshot_timestamp(snap_previous, &tsnap_previous);
 /* #endif KERNEL_FREEBSD */
 
 #elif HAVE_LIBKSTAT
@@ -539,17 +531,14 @@ static int disk_read (void)
 	int retry, dirty;
 
 	void *snap_present = NULL;
-	struct devstat *snap_present_iter, *snap_previous_iter;
-	struct timespec tsnap_present;
+	struct devstat *snap_present_iter;
 
 	struct gident *geom_id;
-	double timedelta;
-	long double ld[11];
 
 	const char *disk_name;
-	derive_t read_bytes, write_bytes;
-	derive_t read_ops, write_ops;
-	derive_t read_time, write_time;
+	uint64_t read_bytes, write_bytes;
+	uint64_t read_ops, write_ops;
+	long double read_time, write_time;
 
 	for (retry = 0, dirty = 1; retry < 5 && dirty == 1; retry++) {
 		if (snap_present != NULL)
@@ -604,22 +593,11 @@ static int disk_read (void)
 		}
 	}
 
-	/*
-	 * Now we have a snapshot that is either clean, or still dirty after 5
-	 * reads.
-	 */
-	geom_stats_snapshot_timestamp(snap_present, &tsnap_present);
-	timedelta = tsnap_present.tv_sec - tsnap_previous.tv_sec;
-	timedelta += (tsnap_present.tv_nsec - tsnap_previous.tv_nsec) * 1e-9;
-	tsnap_previous = tsnap_present;
-
 	/* Reset iterators for both snapshots */
 	geom_stats_snapshot_reset(snap_present);
-	geom_stats_snapshot_reset(snap_previous);
 	for (;;) {
 		snap_present_iter = geom_stats_snapshot_next(snap_present);
-		snap_previous_iter = geom_stats_snapshot_next(snap_previous);
-		if (snap_present_iter == NULL || snap_previous_iter == NULL)
+		if (snap_present_iter == NULL)
 			break;
 
 		if (snap_present_iter->id == NULL)
@@ -635,48 +613,31 @@ static int disk_read (void)
 		if (dirty && (snap_present_iter->sequence0 != snap_present_iter->sequence1))
 			continue;
 
-		devstat_compute_statistics(snap_present_iter, snap_previous_iter, timedelta,
-		    DSM_TRANSFERS_PER_SECOND, &ld[0],
+		devstat_compute_statistics(snap_present_iter, NULL, 10.0,
+		    DSM_TOTAL_TRANSFERS_READ, &read_ops,
+		    DSM_TOTAL_BYTES_READ, &read_bytes,
+		    DSM_TOTAL_DURATION_READ, &read_time,
 
-		    DSM_TRANSFERS_PER_SECOND_READ, &ld[1],
-		    DSM_MB_PER_SECOND_READ, &ld[2],
-		    DSM_MS_PER_TRANSACTION_READ, &ld[3],
+		    DSM_TOTAL_TRANSFERS_WRITE, &write_ops,
+		    DSM_TOTAL_BYTES_WRITE, &write_bytes,
+		    DSM_TOTAL_DURATION_WRITE, &write_time,
 
-		    DSM_TRANSFERS_PER_SECOND_WRITE, &ld[4],
-		    DSM_MB_PER_SECOND_WRITE, &ld[5],
-		    DSM_MS_PER_TRANSACTION_WRITE, &ld[6],
-
-		    DSM_BUSY_PCT, &ld[7],
-
-		    DSM_TRANSFERS_PER_SECOND_FREE, &ld[8],
-		    DSM_MB_PER_SECOND_FREE, &ld[9],
-		    DSM_MS_PER_TRANSACTION_FREE, &ld[10],
 		    DSM_NONE);
-		*snap_previous_iter = *snap_present_iter;
-
-		/* Derive data to be submitted */
-		read_ops = (derive_t)ld[1];
-		write_ops = (derive_t)ld[4];
-		read_bytes = (derive_t)(ld[2] * 1048576LL);
-		write_bytes = (derive_t)(ld[5] * 1048576LL);
-		read_time = (derive_t)ld[3];
-		write_time = (derive_t)ld[6];
 
 		disk_name = ((struct gprovider *)geom_id->lg_ptr)->lg_name;
 
 		if ((read_bytes != 0) || (write_bytes != 0))
 			disk_submit(disk_name, "disk_octets",
-					read_bytes, write_bytes);
+					(derive_t)read_bytes, (derive_t)write_bytes);
 
 		if ((read_ops != 0) || (write_ops != 0))
 			disk_submit(disk_name, "disk_ops",
-					read_ops, write_ops);
+					(derive_t)read_ops, (derive_t)write_ops);
 
-		if ((read_time != 0) || (write_time != 0))
+		if ((read_time != 0) || (write_time != 0)) {
 			disk_submit (disk_name, "disk_time",
-					read_time, write_time);
-
-		/* TODO: TRIM statistics collected but not reported. */
+					(derive_t)(read_time*1000), (derive_t)(write_time*1000));
+		}
 	}
 	geom_stats_snapshot_free(snap_present);
 
