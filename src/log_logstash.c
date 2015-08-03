@@ -208,7 +208,7 @@ static void log_logstash_log (int severity, const char *msg,
 {
 	yajl_gen g;
 #if !defined(HAVE_YAJL_V2)
-	yajl_gen_config conf;
+	yajl_gen_config conf = {};
 
 	conf.beautify = 0;
 #endif
@@ -252,7 +252,7 @@ static int log_logstash_notification (const notification_t *n,
 #if HAVE_YAJL_V2
 	g = yajl_gen_alloc(NULL);
 #else
-	yajl_gen_config conf;
+	yajl_gen_config conf = {};
 
 	conf.beautify = 0;
 	g = yajl_gen_alloc(&conf, NULL);
