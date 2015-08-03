@@ -90,12 +90,12 @@ case $host_os in
 esac
 AC_MSG_RESULT([$ac_system])
 
-AM_CONDITIONAL([BUILD_LINUX],[test "x$x$ac_system" = "xLinux"])
-AM_CONDITIONAL([BUILD_SOLARIS],[test "x$x$ac_system" = "xSolaris"])
-AM_CONDITIONAL([BUILD_DARWIN],[test "x$x$ac_system" = "xDarwin"])
-AM_CONDITIONAL([BUILD_OPENBSD],[test "x$x$ac_system" = "xOpenBSD"])
-AM_CONDITIONAL([BUILD_AIX],[test "x$x$ac_system" = "xAIX"])
-AM_CONDITIONAL([BUILD_FREEBSD],[test "x$x$ac_system" = "xFreeBSD"])
+AM_CONDITIONAL([BUILD_LINUX],[test "x$ac_system" = "xLinux"])
+AM_CONDITIONAL([BUILD_SOLARIS],[test "x$ac_system" = "xSolaris"])
+AM_CONDITIONAL([BUILD_DARWIN],[test "x$ac_system" = "xDarwin"])
+AM_CONDITIONAL([BUILD_OPENBSD],[test "x$ac_system" = "xOpenBSD"])
+AM_CONDITIONAL([BUILD_AIX],[test "x$ac_system" = "xAIX"])
+AM_CONDITIONAL([BUILD_FREEBSD],[test "x$ac_system" = "xFreeBSD"])
 
 if test "x$ac_system" = "xLinux"
 then
@@ -2562,7 +2562,7 @@ then
 	SAVE_CPPFLAGS="$CPPFLAGS"
 	CPPFLAGS="$CPPFLAGS $with_libmodbus_cflags"
 
-	AC_CHECK_HEADERS(modbus/modbus.h, [], [with_libmodbus="no (modbus/modbus.h not found)"])
+	AC_CHECK_HEADERS(modbus.h, [], [with_libmodbus="no (modbus.h not found)"])
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
 fi
@@ -3749,8 +3749,8 @@ fi
 # }}} --with-python
 
 # --with-librabbitmq {{{
-with_librabbitmq_cppflags=""
-with_librabbitmq_ldflags=""
+with_librabbitmq_cppflags="-I/usr/local/include"
+with_librabbitmq_ldflags="-L/usr/local/lib"
 AC_ARG_WITH(librabbitmq, [AS_HELP_STRING([--with-librabbitmq@<:@=PREFIX@:>@], [Path to librabbitmq.])],
 [
 	if test "x$withval" != "xno" && test "x$withval" != "xyes"
@@ -4838,11 +4838,11 @@ then
 
 	CPPFLAGS="$CPPFLAGS $with_libvarnish_cflags"
 
-	AC_CHECK_HEADERS(varnish/vapi/vsc.h,
+	AC_CHECK_HEADERS(vapi/vsc.h,
 		[AC_DEFINE([HAVE_VARNISH_V4], [1], [Varnish 4 API support])],
-		[AC_CHECK_HEADERS(varnish/vsc.h,
+		[AC_CHECK_HEADERS(vsc.h,
 			[AC_DEFINE([HAVE_VARNISH_V3], [1], [Varnish 3 API support])],
-			[AC_CHECK_HEADERS(varnish/varnishapi.h,
+			[AC_CHECK_HEADERS(varnishapi.h,
 				[AC_DEFINE([HAVE_VARNISH_V2], [1], [Varnish 2 API support])],
 				[with_libvarnish="no (found none of the varnish header files)"])])])
 
@@ -5352,15 +5352,15 @@ fi
 
 if test "x$ac_system" = "xAIX"
 then
-        plugin_tcpconns="yes"
-        plugin_ipc="yes"
+	plugin_tcpconns="yes"
+	plugin_ipc="yes"
 fi
 
 # FreeBSD
 
 if test "x$ac_system" = "xFreeBSD"
 then
-        plugin_zfs_arc="yes"
+	plugin_zfs_arc="yes"
 fi
 
 
