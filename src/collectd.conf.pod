@@ -2267,7 +2267,7 @@ expected from them. This is documented in great detail in L<collectd-exec(5)>.
 =head2 Plugin C<fhcount>
 
 The C<fhcount> plugin provides statistics about used, unused and total number of
-file handles.
+file handles on Linux.
 
 The I<fhcount plugin> provides the following configuration options:
 

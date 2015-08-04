@@ -5215,6 +5215,7 @@ plugin_disk="no"
 plugin_drbd="no"
 plugin_entropy="no"
 plugin_ethstat="no"
+plugin_fhcount="no"
 plugin_fscache="no"
 plugin_interface="no"
 plugin_ipmi="no"
@@ -5257,6 +5258,7 @@ then
 	plugin_disk="yes"
 	plugin_drbd="yes"
 	plugin_entropy="yes"
+	plugin_fhcount="yes"
 	plugin_fscache="yes"
 	plugin_interface="yes"
 	plugin_ipc="yes"
@@ -5600,7 +5602,7 @@ AC_PLUGIN([email],       [yes],                [EMail statistics])
 AC_PLUGIN([entropy],     [$plugin_entropy],    [Entropy statistics])
 AC_PLUGIN([ethstat],     [$plugin_ethstat],    [Stats from NIC driver])
 AC_PLUGIN([exec],        [yes],                [Execution of external programs])
-AC_PLUGIN([fhcount],     [yes],                [File handles statistics])
+AC_PLUGIN([fhcount],     [$plugin_fhcount],    [File handles statistics])
 AC_PLUGIN([filecount],   [yes],                [Count files in directories])
 AC_PLUGIN([fscache],     [$plugin_fscache],    [fscache statistics])
 AC_PLUGIN([gmond],       [$with_libganglia],   [Ganglia plugin])
