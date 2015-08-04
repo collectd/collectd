@@ -5,21 +5,46 @@ compiler:
 addons:
   apt:
     packages:
+      - default-jdk
       - iptables-dev
+      - javahelper
       - libcap-dev
+      - libcurl4-openssl-dev
       - libdbi-dev
+      - libesmtp-dev,
+      - libganglia1-dev
+      - libgcrypt11-dev
+      - libglib2.0-dev
       - libhiredis-dev
+      - liblvm2-dev
+      - libmemcached-dev
+      - libmnl-dev
+      - libmodbus-dev
+      - libmysqlclient-dev
       - libnfnetlink-dev
       - libnotify-dev
+      - libopenipmi-dev
+      - liboping-dev
+      - libow-dev
       - libpcap-dev
       - libperl-dev
+      - libpq-dev
       - libprotobuf-c0-dev
+      - librabbitmq-dev
       - librrd-dev
+      - libsensors4-dev
       - libsnmp-dev
+      - libsnmp-dev
+      - libtokyocabinet-dev
+      - libtokyotyrant-dev
       - libudev-dev
+      - libupsclient-dev
       - libvarnishapi-dev
+      - libvirt-dev
+      - libxml2-dev
       - libyajl-dev
       - linux-libc-dev
       - protobuf-c-compiler
+      - python-dev
 language: c
 script: sh build.sh && ./configure && make distcheck
