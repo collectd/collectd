@@ -25,7 +25,6 @@
 #include "utils_ignorelist.h"
 
 #include <sys/time.h>
-#include <sys/types.h>
 #include <regex.h>
 #include <owcapi.h>
 

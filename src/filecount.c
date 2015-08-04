@@ -25,7 +25,6 @@
 #include "common.h"
 #include "plugin.h"       
 
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dirent.h>

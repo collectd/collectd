@@ -104,7 +104,6 @@
 
 #elif HAVE_PROCINFO_H
 #  include <procinfo.h>
-#  include <sys/types.h>
 
 #define MAXPROCENTRY 32
 #define MAXTHRDENTRY 16

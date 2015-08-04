@@ -65,7 +65,6 @@ static long long get_zfs_value(kstat_t *ksp, char *name)
 	return (get_kstat_value(ksp, name));
 }
 #else // FreeBSD
-#include <sys/types.h>
 #include <sys/sysctl.h>
 
 const char zfs_arcstat[] = "kstat.zfs.misc.arcstats.";

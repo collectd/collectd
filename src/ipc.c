@@ -35,7 +35,6 @@
   /* X/OPEN tells us to use <sys/{types,ipc,sem}.h> for semctl() */
   /* X/OPEN tells us to use <sys/{types,ipc,msg}.h> for msgctl() */
   /* X/OPEN tells us to use <sys/{types,ipc,shm}.h> for shmctl() */
-# include <sys/types.h>
 # include <sys/ipc.h>
 # include <sys/sem.h>
 # include <sys/msg.h>

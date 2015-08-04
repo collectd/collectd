@@ -70,7 +70,6 @@
 #endif
 
 #if KERNEL_LINUX
-# include <asm/types.h>
 /* sys/socket.h is necessary to compile when using netlink on older systems. */
 # include <sys/socket.h>
 # include <linux/netlink.h>
@@ -87,9 +86,6 @@
 
 /* Some includes needed for compiling on FreeBSD */
 #include <sys/time.h>
-#if HAVE_SYS_TYPES_H
-# include <sys/types.h>
-#endif
 #if HAVE_SYS_SOCKET_H
 # include <sys/socket.h>
 #endif
