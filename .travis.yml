@@ -1,3 +1,6 @@
 sudo: false
+compiler:
+  - gcc
+  - clang
 language: c
 script: sh build.sh && ./configure && make distcheck
