@@ -4665,8 +4665,8 @@ AM_CONDITIONAL(BUILD_WITH_LIBXMMS, test "x$with_libxmms" = "xyes")
 # }}}
 
 # --with-libyajl {{{
-with_libyajl_cppflags=""
-with_libyajl_ldflags=""
+with_libyajl_cppflags="-I/usr/local/include"
+with_libyajl_ldflags="-L/usr/local/lib"
 AC_ARG_WITH(libyajl, [AS_HELP_STRING([--with-libyajl@<:@=PREFIX@:>@], [Path to libyajl.])],
 [
 	if test "x$withval" != "xno" && test "x$withval" != "xyes"
