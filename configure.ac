@@ -2654,8 +2654,8 @@ AM_CONDITIONAL(BUILD_WITH_LIBMONGOC, test "x$with_libmongoc" = "xyes")
 # }}}
 
 # --with-libmosquitto {{{
-with_libmosquitto_cppflags=""
-with_libmosquitto_libs="-lmosquitto"
+with_libmosquitto_cppflags="-I/usr/local/include"
+with_libmosquitto_libs="-L/usr/local/lib -lmosquitto"
 AC_ARG_WITH(libmosquitto, [AS_HELP_STRING([--with-libmosquitto@<:@=PREFIX@:>@], [Path to libmosquitto.])],
 [
 	if test "x$withval" != "xno" && test "x$withval" != "xyes"
