@@ -22,7 +22,7 @@
  *   Florian Forster <octo at collectd.org>
  *   John (J5) Palmieri <j5 at stackdriver.com>
  **/
-
+#define _GNU_SOURCE
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
