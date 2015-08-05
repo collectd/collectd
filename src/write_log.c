@@ -35,7 +35,6 @@
 /* Folks without pthread will need to disable this plugin. */
 #include <pthread.h>
 
-#include <sys/socket.h>
 #include <netdb.h>
 
 #define WL_BUF_SIZE 8192

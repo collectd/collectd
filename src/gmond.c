@@ -33,9 +33,6 @@
 #if HAVE_PTHREAD_H
 # include <pthread.h>
 #endif
-#if HAVE_SYS_SOCKET_H
-# include <sys/socket.h>
-#endif
 #if HAVE_NETDB_H
 # include <netdb.h>
 #endif

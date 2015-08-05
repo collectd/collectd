@@ -37,9 +37,6 @@
 #if HAVE_ARPA_INET_H
 # include <arpa/inet.h>
 #endif /* HAVE_ARPA_INET_H */
-#if HAVE_SYS_SOCKET_H
-# include <sys/socket.h>
-#endif /* HAVE_SYS_SOCKET_H */
 #if HAVE_NETINET_IN_H
 # include <netinet/in.h>
 #endif /* HAVE_NETINET_IN_H */

@@ -33,7 +33,6 @@
 #include "utils_cache.h"
 #include "riemann.pb-c.h"
 
-#include <sys/socket.h>
 #include <arpa/inet.h>
 #include <errno.h>
 #include <netdb.h>
