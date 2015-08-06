@@ -14,7 +14,7 @@ cache_eviction		value:DERIVE:0:U
 cache_operation		value:DERIVE:0:U
 cache_ratio		value:GAUGE:0:100
 cache_result		value:DERIVE:0:U
-cache_size		value:GAUGE:0:U
+cache_size		value:GAUGE:0:1125899906842623
 ceph_bytes		value:GAUGE:U:U
 ceph_latency	value:GAUGE:U:U
 ceph_rate			value:DERIVE:0:U
