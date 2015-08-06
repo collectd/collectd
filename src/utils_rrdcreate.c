@@ -171,13 +171,9 @@ static int rra_get (char ***ret, const value_list_t *vl, /* {{{ */
 
   int rra_max;
 
-  int span;
-
   int cdp_num;
   int cdp_len;
   int i, j;
-
-  char buffer[128];
 
   /* The stepsize we use here: If it is user-set, use it. If not, use the
    * interval of the value-list. */
@@ -218,16 +214,17 @@ static int rra_get (char ***ret, const value_list_t *vl, /* {{{ */
   }
 
   rra_max = rts_num * rra_types_num;
+  assert (rra_max > 0);
 
-  if ((rra_def = (char **) malloc ((rra_max + 1) * sizeof (char *))) == NULL)
+  if ((rra_def = malloc ((rra_max + 1) * sizeof (*rra_def))) == NULL)
     return (-1);
-  memset (rra_def, '\0', (rra_max + 1) * sizeof (char *));
+  memset (rra_def, 0, (rra_max + 1) * sizeof (*rra_def));
   rra_num = 0;
 
   cdp_len = 0;
   for (i = 0; i < rts_num; i++)
   {
-    span = rts[i];
+    int span = rts[i];
 
     if ((span / ss) < cfg->rrarows)
       span = ss * cfg->rrarows;
@@ -243,6 +240,7 @@ static int rra_get (char ***ret, const value_list_t *vl, /* {{{ */
 
     for (j = 0; j < rra_types_num; j++)
     {
+      char buffer[128];
       int status;
 
       if (rra_num >= rra_max)
@@ -259,6 +257,12 @@ static int rra_get (char ***ret, const value_list_t *vl, /* {{{ */
 
       rra_def[rra_num++] = sstrdup (buffer);
     }
+  }
+
+  if (rra_num <= 0)
+  {
+    sfree (rra_def);
+    return (0);
   }
 
   *ret = rra_def;
@@ -286,7 +290,9 @@ static int ds_get (char ***ret, /* {{{ */
   char max[32];
   char buffer[128];
 
-  ds_def = (char **) malloc (ds->ds_num * sizeof (char *));
+  assert (ds->ds_num > 0);
+
+  ds_def = malloc (ds->ds_num * sizeof (*ds_def));
   if (ds_def == NULL)
   {
     char errbuf[1024];
@@ -294,7 +300,7 @@ static int ds_get (char ***ret, /* {{{ */
         sstrerror (errno, errbuf, sizeof (errbuf)));
     return (-1);
   }
-  memset (ds_def, '\0', ds->ds_num * sizeof (char *));
+  memset (ds_def, 0, ds->ds_num * sizeof (*ds_def));
 
   for (ds_num = 0; ds_num < ds->ds_num; ds_num++)
   {
@@ -350,6 +356,12 @@ static int ds_get (char ***ret, /* {{{ */
   {
     ds_free (ds_num, ds_def);
     return (-1);
+  }
+
+  if (ds_num <= 0)
+  {
+    sfree (ds_def);
+    return (0);
   }
 
   *ret = ds_def;
@@ -651,9 +663,9 @@ int cu_rrd_create_file (const char *filename, /* {{{ */
 {
   char **argv;
   int argc;
-  char **rra_def;
+  char **rra_def = NULL;
   int rra_num;
-  char **ds_def;
+  char **ds_def = NULL;
   int ds_num;
   int status = 0;
   time_t last_up;
@@ -671,6 +683,7 @@ int cu_rrd_create_file (const char *filename, /* {{{ */
   if ((ds_num = ds_get (&ds_def, ds, vl, cfg)) < 1)
   {
     ERROR ("cu_rrd_create_file failed: Could not calculate DSes");
+    rra_free (rra_num, rra_def);
     return (-1);
   }
 
@@ -681,6 +694,8 @@ int cu_rrd_create_file (const char *filename, /* {{{ */
     char errbuf[1024];
     ERROR ("cu_rrd_create_file failed: %s",
         sstrerror (errno, errbuf, sizeof (errbuf)));
+    rra_free (rra_num, rra_def);
+    ds_free (ds_num, ds_def);
     return (-1);
   }
 
@@ -709,18 +724,32 @@ int cu_rrd_create_file (const char *filename, /* {{{ */
   }
   else /* synchronous */
   {
-    status = srrd_create (filename, stepsize, last_up,
-        argc, (const char **) argv);
-
+    status = lock_file (filename);
     if (status != 0)
     {
-      WARNING ("cu_rrd_create_file: srrd_create (%s) returned status %i.",
-          filename, status);
+      if (status == EEXIST)
+        NOTICE ("cu_rrd_create_file: File \"%s\" is already being created.",
+            filename);
+      else
+        ERROR ("cu_rrd_create_file: Unable to lock file \"%s\".",
+            filename);
     }
     else
     {
-      DEBUG ("cu_rrd_create_file: Successfully created RRD file \"%s\".",
-          filename);
+      status = srrd_create (filename, stepsize, last_up,
+          argc, (const char **) argv);
+
+      if (status != 0)
+      {
+        WARNING ("cu_rrd_create_file: srrd_create (%s) returned status %i.",
+            filename, status);
+      }
+      else
+      {
+        DEBUG ("cu_rrd_create_file: Successfully created RRD file \"%s\".",
+            filename);
+      }
+      unlock_file (filename);
     }
   }
 

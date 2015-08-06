@@ -155,6 +155,10 @@ static int irq_read (void)
 		if (irq_name[irq_name_len - 1] != ':')
 			continue;
 
+		/* Is it the the ARM fast interrupt (FIQ)? */
+		if (irq_name_len == 4 && (strncmp(irq_name, "FIQ:", 4) == 0))
+			continue;
+
 		irq_name[irq_name_len - 1] = 0;
 		irq_name_len--;
 

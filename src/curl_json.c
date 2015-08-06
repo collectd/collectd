@@ -502,6 +502,7 @@ static int cj_config_add_key (cj_t *db, /* {{{ */
   {
     ERROR ("curl_json plugin: cj_config: "
            "Invalid key: %s", ci->key);
+    cj_key_free (key);
     return (-1);
   }
 
@@ -551,7 +552,6 @@ static int cj_config_add_key (cj_t *db, /* {{{ */
       db->tree = cj_avl_create();
 
     tree = db->tree;
-    name = key->path;
     ptr = key->path;
     if (*ptr == '/')
       ++ptr;
@@ -683,6 +683,7 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
   {
     ERROR ("curl_json plugin: cj_config: "
            "Invalid key: %s", ci->key);
+    cj_free (db);
     return (-1);
   }
   if (status != 0)

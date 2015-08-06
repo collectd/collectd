@@ -197,8 +197,10 @@ static int change_basedir (const char *orig_dir)
 	while ((dirlen > 0) && (dir[dirlen - 1] == '/'))
 		dir[--dirlen] = '\0';
 
-	if (dirlen <= 0)
+	if (dirlen <= 0) {
+		free (dir);
 		return (-1);
+	}
 
 	status = chdir (dir);
 	if (status == 0)
@@ -408,8 +410,9 @@ static int pidfile_create (void)
 static int pidfile_remove (void)
 {
 	const char *file = global_option_get ("PIDFile");
+	if (file == NULL)
+		return 0;
 
-	DEBUG ("unlink (%s)", (file != NULL) ? file : "<null>");
 	return (unlink (file));
 } /* static int pidfile_remove (const char *file) */
 #endif /* COLLECT_DAEMON */

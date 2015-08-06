@@ -304,6 +304,10 @@ static int camqp_create_exchange (camqp_config_t *conf) /* {{{ */
             /* type        = */ amqp_cstring_bytes (conf->exchange_type),
             /* passive     = */ 0,
             /* durable     = */ 0,
+#if defined(AMQP_VERSION) && AMQP_VERSION >= 0x00060000
+            /* auto delete = */ 0,
+            /* internal    = */ 0,
+#endif
             /* arguments   = */ argument_table);
     if ((ed_ret == NULL) && camqp_is_error (conf))
     {
@@ -712,7 +716,7 @@ static void *camqp_subscribe_thread (void *user_data) /* {{{ */
             continue;
         }
 
-        status = camqp_read_header (conf);
+        camqp_read_header (conf);
 
         amqp_maybe_release_buffers (conf->connection);
     } /* while (subscriber_threads_running) */

@@ -251,7 +251,14 @@ static int za_read (void)
 
 	/* Sizes */
 	za_read_gauge (ksp, "size",    "cache_size", "arc");
-	za_read_gauge (ksp, "l2_size", "cache_size", "L2");
+
+	/* The "l2_size" value has disappeared from Solaris some time in
+	 * early 2013, and has only reappeared recently in Solaris 11.2.
+	 * Stop trying if we ever fail to read it, so we don't spam the log.
+	 */
+	static int l2_size_avail = 1;
+	if (l2_size_avail && za_read_gauge (ksp, "l2_size", "cache_size", "L2") != 0)
+		l2_size_avail = 0;
 
 	/* Operations */
 	za_read_derive (ksp, "deleted",  "cache_operation", "deleted");

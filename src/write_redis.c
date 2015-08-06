@@ -74,6 +74,7 @@ static int wr_write (const data_set_t *ds, /* {{{ */
   value_size = sizeof (value);
   value_ptr = &value[0];
 
+<<<<<<< HEAD
 #define APPEND(...) do {                                             \
   status = snprintf (value_ptr, value_size, __VA_ARGS__);            \
   if (((size_t) status) > value_size)                                \
@@ -106,7 +107,12 @@ static int wr_write (const data_set_t *ds, /* {{{ */
 
 #undef APPEND
 
+=======
+  status = format_values (value_ptr, value_size, ds, vl, /* store rates = */ 0);
+>>>>>>> 4cfce925daf8e81c96c5bca630674f5e1f824067
   pthread_mutex_lock (&node->lock);
+  if (status != 0)
+    return (status);
 
   if (node->conn == NULL)
   {

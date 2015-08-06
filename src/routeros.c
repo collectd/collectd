@@ -331,7 +331,7 @@ static int cr_config_router (oconfig_item_t *ci) /* {{{ */
   router_data = malloc (sizeof (*router_data));
   if (router_data == NULL)
     return (-1);
-  memset (router_data, 0, sizeof (router_data));
+  memset (router_data, 0, sizeof (*router_data));
   router_data->connection = NULL;
   router_data->node = NULL;
   router_data->service = NULL;

@@ -36,6 +36,7 @@ static int yyerror (const char *s);
 /* Lexer variables */
 extern int yylineno;
 extern char *yytext;
+extern int yylex (void);
 
 extern oconfig_item_t *ci_root;
 extern char           *c_file;

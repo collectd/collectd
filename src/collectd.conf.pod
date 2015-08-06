@@ -98,7 +98,6 @@ Options inside a B<LoadPlugin> block can override default settings and
 influence the way plugins are loaded, e.g.:
 
  <LoadPlugin perl>
-   Globals true
    Interval 60
  </LoadPlugin>
 
@@ -502,7 +501,7 @@ are disabled by default.
 
 =head2 Plugin C<amqp>
 
-The I<AMQMP plugin> can be used to communicate with other instances of
+The I<AMQP plugin> can be used to communicate with other instances of
 I<collectd> or third party applications using an AMQP message broker. Values
 are sent to or received from the broker, which handles routing, queueing and
 possibly filtering or messages.
@@ -1474,7 +1473,7 @@ optional.
 =head2 Plugin C<curl_json>
 
 The B<curl_json plugin> collects values from JSON data to be parsed by
-B<libyajl> (L<http://www.lloydforge.org/projects/yajl/>) retrieved via
+B<libyajl> (L<https://lloyd.github.io/yajl/>) retrieved via
 either B<libcurl> (L<http://curl.haxx.se/>) or read directly from a
 unix socket. The former can be used, for example, to collect values
 from CouchDB documents (which are stored JSON notation), and the
@@ -5050,6 +5049,13 @@ activating this option. The draw-back is, that data covering the specified
 amount of time will be lost, for example, if a single statement within the
 transaction fails or if the database server crashes.
 
+=item B<Instance> I<name>
+
+Specify the plugin instance name that should be used instead of the database
+name (which is the default, if this option has not been specified). This
+allows to query multiple databases of the same name on the same host (e.g.
+when running multiple database server versions in parallel).
+
 =item B<Host> I<hostname>
 
 Specify the hostname or IP of the PostgreSQL server to connect to. If the
@@ -5484,7 +5490,7 @@ that numerical port numbers must be given as a string, too.
 
 Use I<Password> to authenticate when connecting to I<Redis>.
 
-=item B<Timeout> I<Timeout in miliseconds>
+=item B<Timeout> I<Milliseconds>
 
 The B<Timeout> option set the socket timeout for node response. Since the Redis
 read function is blocking, you should keep this value as low as possible. Keep
@@ -7012,7 +7018,7 @@ Hostname or address to connect to. Defaults to C<localhost>.
 
 Service name or port number to connect to. Defaults to C<27017>.
 
-=item B<Timeout> I<Timeout>
+=item B<Timeout> I<Milliseconds>
 
 Set the timeout for each operation on I<MongoDB> to I<Timeout> milliseconds.
 Setting this option to zero means no timeout, which is the default.
@@ -7296,7 +7302,7 @@ The B<Port> option is the TCP port on which the Redis instance accepts
 connections. Either a service name of a port number may be given. Please note
 that numerical port numbers must be given as a string, too.
 
-=item B<Timeout> I<Timeout in miliseconds>
+=item B<Timeout> I<Milliseconds>
 
 The B<Timeout> option sets the socket connection timeout, in milliseconds.
 

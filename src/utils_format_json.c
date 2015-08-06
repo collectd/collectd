@@ -113,7 +113,7 @@ static int values_to_json (char *buffer, size_t buffer_size, /* {{{ */
     if (ds->ds[i].type == DS_TYPE_GAUGE)
     {
       if(isfinite (vl->values[i].gauge))
-        BUFFER_ADD ("%g", vl->values[i].gauge);
+        BUFFER_ADD (JSON_GAUGE_FORMAT, vl->values[i].gauge);
       else
         BUFFER_ADD ("null");
     }
@@ -129,7 +129,7 @@ static int values_to_json (char *buffer, size_t buffer_size, /* {{{ */
       }
 
       if(isfinite (rates[i]))
-        BUFFER_ADD ("%g", rates[i]);
+        BUFFER_ADD (JSON_GAUGE_FORMAT, rates[i]);
       else
         BUFFER_ADD ("null");
     }
