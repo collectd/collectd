@@ -76,6 +76,7 @@ static vm_size_t pagesize;
 #elif HAVE_LIBKSTAT
 static int pagesize;
 static kstat_t *ksp;
+static kstat_t *ksz;
 /* #endif HAVE_LIBKSTAT */
 
 #elif HAVE_SYSCTL
@@ -137,6 +138,12 @@ static int memory_init (void)
 		ksp = NULL;
 		return (-1);
 	}
+    if (get_kstat (&ksz, "zfs", 0, "arcstats") != 0)
+    {
+        ksz = NULL;
+        return (-1);
+    }
+
 /* #endif HAVE_LIBKSTAT */
 
 #elif HAVE_SYSCTL
@@ -371,6 +378,8 @@ static int memory_read_internal (value_list_t *vl)
 	long long mem_lock;
 	long long mem_kern;
 	long long mem_unus;
+    long long arcsize;
+
 
 	long long pp_kernel;
 	long long physmem;
@@ -378,16 +387,19 @@ static int memory_read_internal (value_list_t *vl)
 
 	if (ksp == NULL)
 		return (-1);
+	if (ksz == NULL)
+		return (-1);
 
 	mem_used = get_kstat_value (ksp, "pagestotal");
 	mem_free = get_kstat_value (ksp, "pagesfree");
 	mem_lock = get_kstat_value (ksp, "pageslocked");
-	mem_kern = 0;
-	mem_unus = 0;
-
+    arcsize = get_kstat_value (ksz, "size");
 	pp_kernel = get_kstat_value (ksp, "pp_kernel");
 	physmem = get_kstat_value (ksp, "physmem");
 	availrmem = get_kstat_value (ksp, "availrmem");
+	
+    mem_kern = 0;
+	mem_unus = 0;
 
 	if ((mem_used < 0LL) || (mem_free < 0LL) || (mem_lock < 0LL))
 	{
@@ -426,16 +438,20 @@ static int memory_read_internal (value_list_t *vl)
 		mem_lock = 0;
 	}
 
+    
 	mem_used *= pagesize; /* If this overflows you have some serious */
 	mem_free *= pagesize; /* memory.. Why not call me up and give me */
 	mem_lock *= pagesize; /* some? ;) */
 	mem_kern *= pagesize; /* it's 2011 RAM is cheap */
 	mem_unus *= pagesize;
+    mem_kern -= arcsize;
+
 
 	MEMORY_SUBMIT ("used",     (gauge_t) mem_used,
 	               "free",     (gauge_t) mem_free,
 	               "locked",   (gauge_t) mem_lock,
 	               "kernel",   (gauge_t) mem_kern,
+	               "arc",      (gauge_t) arcsize,
 	               "unusable", (gauge_t) mem_unus);
 /* #endif HAVE_LIBKSTAT */
 
