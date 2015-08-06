@@ -73,6 +73,23 @@
 # include <libperfstat.h>
 #endif
 
+#ifndef COLLECTD_MNTTAB
+# if defined(_PATH_MOUNTED) /* glibc */
+#  define COLLECTD_MNTTAB _PATH_MOUNTED
+# elif defined(MNTTAB) /* Solaris */
+#  define COLLECTD_MNTTAB MNTTAB
+# elif defined(MNT_MNTTAB)
+#  define COLLECTD_MNTTAB MNT_MNTTAB
+# elif defined(MNTTABNAME)
+#  define COLLECTD_MNTTAB MNTTABNAME
+# elif defined(KMTAB)
+#  define COLLECTD_MNTTAB KMTAB
+# else
+#  define COLLECTD_MNTTAB "/etc/mnttab"
+# endif
+#endif
+
+
 #if HAVE_IOKIT_IOKITLIB_H
 static mach_port_t io_master_port = MACH_PORT_NULL;
 /* This defaults to false for backwards compatibility. Please fix in the next
@@ -113,6 +130,10 @@ static diskstats_t *disklist;
 extern kstat_ctl_t *kc;
 static kstat_t *ksp[MAX_NUMDISK];
 static int numdisk = 0;
+#include <sys/vnode.h>
+#include <sys/mnttab.h>
+
+
 /* #endif HAVE_LIBKSTAT */
 
 #elif defined(HAVE_LIBSTATGRAB)
@@ -224,6 +245,10 @@ static int disk_init (void)
 
 #elif HAVE_LIBKSTAT
 	kstat_t *ksp_chain;
+    FILE *fp;
+    char devid[64];
+    struct mnttab mnt;
+
 
 	numdisk = 0;
 
@@ -235,11 +260,24 @@ static int disk_init (void)
 			ksp_chain = ksp_chain->ks_next)
 	{
 		if (strncmp (ksp_chain->ks_class, "disk", 4)
+                && strncmp (ksp_chain->ks_name,  "vopstats_", 9)
 				&& strncmp (ksp_chain->ks_class, "partition", 9))
 			continue;
-		if (ksp_chain->ks_type != KSTAT_TYPE_IO)
+        if (ksp_chain->ks_type == KSTAT_TYPE_IO)
+            ksp[numdisk++] = ksp_chain;
+        else if (ksp_chain->ks_type == KSTAT_TYPE_NAMED) {
+            ssnprintf(devid,sizeof(devid),"dev=%s",ksp_chain->ks_name + 9);
+            fp=fopen(COLLECTD_MNTTAB,"r");
+            while(getmntent(fp,&mnt) == 0) {
+                if(strcmp((char *) "zfs", mnt.mnt_fstype) == 0) {
+                    if(hasmntopt(&mnt, (char *) devid)) {
+                        ksp[numdisk++] = ksp_chain;
+                    }
+                }
+            }
+            fclose(fp);
+        } else
 			continue;
-		ksp[numdisk++] = ksp_chain;
 	}
 #endif /* HAVE_LIBKSTAT */
 
@@ -766,38 +804,79 @@ static int disk_read (void)
 #  define KIO_WOPS    writes
 #  define KIO_RTIME   rtime
 #  define KIO_WTIME   wtime
+#  define VOP_ROPS    nread
+#  define VOP_WOPS    nwrite
+#  define VOP_RDIR    nreaddir
+#  define VOP_ROCTETS read_bytes
+#  define VOP_WOCTETS write_bytes
 # else
 #  error "kstat_io_t does not have the required members"
 # endif
 	static kstat_io_t kio;
+    static vopstats_t knamed;
+
 	int i;
+    uint64_t numops;
+    char nicename[128];
+    char devid[128];
+    FILE *fp;
+    struct mnttab mnt;
+
 
 	if (kc == NULL)
 		return (-1);
 
 	for (i = 0; i < numdisk; i++)
 	{
-		if (kstat_read (kc, ksp[i], &kio) == -1)
-			continue;
 
-		if (strncmp (ksp[i]->ks_class, "disk", 4) == 0)
-		{
-			disk_submit (ksp[i]->ks_name, "disk_octets",
-					kio.KIO_ROCTETS, kio.KIO_WOCTETS);
-			disk_submit (ksp[i]->ks_name, "disk_ops",
-					kio.KIO_ROPS, kio.KIO_WOPS);
-			/* FIXME: Convert this to microseconds if necessary */
-			disk_submit (ksp[i]->ks_name, "disk_time",
-					kio.KIO_RTIME, kio.KIO_WTIME);
-		}
-		else if (strncmp (ksp[i]->ks_class, "partition", 9) == 0)
-		{
-			disk_submit (ksp[i]->ks_name, "disk_octets",
-					kio.KIO_ROCTETS, kio.KIO_WOCTETS);
-			disk_submit (ksp[i]->ks_name, "disk_ops",
-					kio.KIO_ROPS, kio.KIO_WOPS);
-		}
-	}
+        /* parse solaris vopstats_ */
+        if (strncmp (ksp[i]->ks_name, "vopstats_", 9) == 0) {
+            if (kstat_read (kc, ksp[i], &knamed) == -1)
+                continue;
+
+            /* get number of ops */
+            numops = (uint64_t) knamed.VOP_ROPS.value.ui64 + (uint64_t) knamed.VOP_WOPS.value.ui64 + (uint64_t) knamed.VOP_RDIR.value.ui64;
+           
+            /* if no ops, we skip */
+            if(numops == 0)
+                continue;
+       
+            /* need to get mnttab format of dev= id */
+            snprintf(devid,sizeof(devid),"dev=%s",ksp[i]->ks_name + 9);
+            
+            fp=fopen(COLLECTD_MNTTAB,"r");
+
+            /* we look for all ZFS filesystem, then check devid, then get name */
+            while(getmntent(fp,&mnt) == 0) {
+                if(strcmp((char *) "zfs", mnt.mnt_fstype) == 0) {
+                    if(hasmntopt(&mnt, (char *) devid)) {
+                        /* we put zpool: infront of the name */
+                        snprintf(nicename,sizeof(nicename),"zpool:%s",mnt.mnt_special);
+                        disk_submit (nicename, "disk_octets", knamed.VOP_ROCTETS.value.ui64, knamed.VOP_WOCTETS.value.ui64);
+                        disk_submit (nicename, "disk_ops", knamed.VOP_ROPS.value.ui64, knamed.VOP_WOPS.value.ui64);
+                        continue;
+                    }
+                }
+            }
+            fclose(fp);
+        } else {
+		    if (kstat_read (kc, ksp[i], &kio) == -1)
+			    continue;
+
+		    if (strncmp (ksp[i]->ks_class, "disk", 4) == 0)
+		    {
+			    disk_submit (ksp[i]->ks_name, "disk_octets", kio.KIO_ROCTETS, kio.KIO_WOCTETS);
+                disk_submit (ksp[i]->ks_name, "disk_ops", kio.KIO_ROPS, kio.KIO_WOPS);
+                /* FIXME: Convert this to microseconds if necessary */
+                disk_submit (ksp[i]->ks_name, "disk_time", kio.KIO_RTIME, kio.KIO_WTIME);
+		    }
+		    else if (strncmp (ksp[i]->ks_class, "partition", 9) == 0)
+		    {
+			    disk_submit (ksp[i]->ks_name, "disk_octets", kio.KIO_ROCTETS, kio.KIO_WOCTETS);
+                disk_submit (ksp[i]->ks_name, "disk_ops", kio.KIO_ROPS, kio.KIO_WOPS);
+		    }
+	    }
+    }
 /* #endif defined(HAVE_LIBKSTAT) */
 
 #elif defined(HAVE_LIBSTATGRAB)
