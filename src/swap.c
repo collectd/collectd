@@ -157,6 +157,8 @@ static int swap_init (void) /* {{{ */
 /* #endif defined(VM_SWAPUSAGE) */
 
 #elif HAVE_LIBKVM_GETSWAPINFO
+	char errbuf[_POSIX2_LINE_MAX];
+
 	if (kvm_obj != NULL)
 	{
 		kvm_close (kvm_obj);
@@ -165,14 +167,11 @@ static int swap_init (void) /* {{{ */
 
 	kvm_pagesize = getpagesize ();
 
-	if ((kvm_obj = kvm_open (NULL, /* execfile */
-					NULL, /* corefile */
-					NULL, /* swapfile */
-					O_RDONLY, /* flags */
-					NULL)) /* errstr */
-			== NULL)
+	kvm_obj = kvm_openfiles (NULL, "/dev/null", NULL, O_RDONLY, errbuf);
+
+	if (kvm_obj == NULL)
 	{
-		ERROR ("swap plugin: kvm_open failed.");
+		ERROR ("swap plugin: kvm_openfiles failed, %s", errbuf);
 		return (-1);
 	}
 /* #endif HAVE_LIBKVM_GETSWAPINFO */

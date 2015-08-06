@@ -92,6 +92,7 @@ if BUILD_PLUGIN_AMQP
 pkglib_LTLIBRARIES += amqp.la
 amqp_la_SOURCES = amqp.c \
 		  utils_cmd_putval.c utils_cmd_putval.h \
+  	          utils_parse_option.c utils_parse_option.h \
 		  utils_format_graphite.c utils_format_graphite.h \
 		  utils_format_json.c utils_format_json.h
 amqp_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBRABBITMQ_LDFLAGS)
@@ -689,8 +690,15 @@ endif
 if BUILD_PLUGIN_NOTIFY_EMAIL
 pkglib_LTLIBRARIES += notify_email.la
 notify_email_la_SOURCES = notify_email.c
+<<<<<<< HEAD
 notify_email_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 notify_email_la_LIBADD = -lesmtp -lssl -lcrypto -lpthread -ldl
+=======
+notify_email_la_LDFLAGS = -module -avoid-version
+notify_email_la_LIBADD = -lesmtp -lssl -lcrypto -lpthread
+collectd_LDADD += "-dlopen" notify_email.la
+collectd_DEPENDENCIES += notify_email.la
+>>>>>>> 4cfce925daf8e81c96c5bca630674f5e1f824067
 endif
 
 if BUILD_PLUGIN_NTPD
@@ -933,8 +941,15 @@ if BUILD_PLUGIN_STATSD
 pkglib_LTLIBRARIES += statsd.la
 statsd_la_SOURCES = statsd.c \
                     utils_latency.h utils_latency.c
+<<<<<<< HEAD
 statsd_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 statsd_la_LIBADD = -lpthread
+=======
+statsd_la_LDFLAGS = -module -avoid-version
+statsd_la_LIBADD = -lpthread -lm
+collectd_LDADD += "-dlopen" statsd.la
+collectd_DEPENDENCIES += statsd.la
+>>>>>>> 4cfce925daf8e81c96c5bca630674f5e1f824067
 endif
 
 if BUILD_PLUGIN_SWAP

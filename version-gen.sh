@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
 DEFAULT_VERSION="5.4.2.git"
 
@@ -10,4 +10,4 @@ fi
 
 VERSION="`echo \"$VERSION\" | sed -e 's/-/./g'`"
 
-echo -n "$VERSION"
+printf "%s" "$VERSION"

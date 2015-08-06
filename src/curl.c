@@ -326,7 +326,10 @@ static int cc_config_add_match (web_page_t *page, /* {{{ */
   } /* while (status == 0) */
 
   if (status != 0)
+  {
+    cc_web_match_free (match);
     return (status);
+  }
 
   match->match = match_create_simple (match->regex, match->exclude_regex,
       match->dstype);
@@ -653,7 +656,7 @@ static int cc_read_page (web_page_t *wp) /* {{{ */
   status = curl_easy_perform (wp->curl);
   if (status != CURLE_OK)
   {
-    ERROR ("curl plugin: curl_easy_perform failed with staus %i: %s",
+    ERROR ("curl plugin: curl_easy_perform failed with status %i: %s",
         status, wp->curl_errbuf);
     return (-1);
   }
@@ -666,7 +669,7 @@ static int cc_read_page (web_page_t *wp) /* {{{ */
     long response_code = 0;
     status = curl_easy_getinfo(wp->curl, CURLINFO_RESPONSE_CODE, &response_code);
     if(status != CURLE_OK) {
-      ERROR ("curl plugin: Fetching response code failed with staus %i: %s",
+      ERROR ("curl plugin: Fetching response code failed with status %i: %s",
         status, wp->curl_errbuf);
     } else {
       cc_submit_response_code(wp, response_code);

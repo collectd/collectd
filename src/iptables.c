@@ -213,6 +213,7 @@ static int iptables_config (const char *key, const char *value)
 		    char errbuf[1024];
 		    ERROR ("realloc failed: %s",
 			    sstrerror (errno, errbuf, sizeof (errbuf)));
+		    sfree (temp.rule.comment);
 		    return (1);
 		}
 
@@ -223,6 +224,7 @@ static int iptables_config (const char *key, const char *value)
 		    char errbuf[1024];
 		    ERROR ("malloc failed: %s",
 			    sstrerror (errno, errbuf, sizeof (errbuf)));
+		    sfree (temp.rule.comment);
 		    return (1);
 		}
 		memcpy (final, &temp, sizeof (temp));

@@ -30,6 +30,10 @@
 #include "collectd.h"
 #include "plugin.h"
 
+#ifndef JSON_GAUGE_FORMAT
+# define JSON_GAUGE_FORMAT GAUGE_FORMAT
+#endif
+
 int format_json_initialize (char *buffer,
     size_t *ret_buffer_fill, size_t *ret_buffer_free);
 int format_json_value_list (char *buffer,

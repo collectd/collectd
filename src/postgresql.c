@@ -772,7 +772,7 @@ static char *values_to_sqlarray (const data_set_t *ds, const value_list_t *vl,
 
 		if (ds->ds[i].type == DS_TYPE_GAUGE)
 			status = ssnprintf (str_ptr, str_len,
-					",%f", vl->values[i].gauge);
+					","GAUGE_FORMAT, vl->values[i].gauge);
 		else if (store_rates) {
 			if (rates == NULL)
 				rates = uc_get_rate (ds, vl);

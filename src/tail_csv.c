@@ -106,7 +106,10 @@ static int tcsv_read_metric (instance_definition_t *id,
     if (md->data_source_type == -1)
         return (EINVAL);
 
-    if ((md->value_from >= fields_num) || (id->time_from >= fields_num))
+    if (md->value_from >= fields_num)
+        return (EINVAL);
+
+    if (id->time_from >= 0 && (id->time_from >= fields_num))
         return (EINVAL);
 
     t = 0;
@@ -309,7 +312,6 @@ static int tcsv_config_add_metric(oconfig_item_t *ci){
 
     for (i = 0; i < ci->children_num; ++i){
         oconfig_item_t *option = ci->children + i;
-        status = 0;
 
         if (strcasecmp("Type", option->key) == 0)
             status = cf_util_get_string(option, &md->type);
@@ -374,37 +376,42 @@ static void tcsv_instance_definition_destroy(void *arg){
     sfree(id);
 }
 
-static int tcsv_config_add_instance_collect(instance_definition_t *id, oconfig_item_t *ci){
+static int tcsv_config_add_instance_collect(instance_definition_t *id, oconfig_item_t *ci) {
     metric_definition_t *metric;
+    metric_definition_t **metric_list;
+    size_t metric_list_size;
     int i;
 
-    if (ci->values_num < 1){
+    if (ci->values_num < 1) {
         WARNING("tail_csv plugin: The `Collect' config option needs at least one argument.");
         return (-1);
     }
 
-    /* Verify string arguments */
-    for (i = 0; i < ci->values_num; ++i)
-        if (ci->values[i].type != OCONFIG_TYPE_STRING){
-            WARNING("tail_csv plugin: All arguments to `Collect' must be strings.");
-            return (-1);
-        }
-
-    id->metric_list = (metric_definition_t **)malloc(sizeof(metric_definition_t *) * ci->values_num);
-    if (id->metric_list == NULL)
+    metric_list_size = id->metric_list_len + (size_t) ci->values_num;
+    metric_list = realloc (id->metric_list, sizeof (*id->metric_list) * metric_list_size);
+    if (metric_list == NULL)
         return (-1);
+    id->metric_list = metric_list;
 
-    for (i = 0; i < ci->values_num; ++i){
+    for (i = 0; i < ci->values_num; i++) {
+        char *metric_name;
+
+        if (ci->values[i].type != OCONFIG_TYPE_STRING) {
+            WARNING("tail_csv plugin: All arguments to `Collect' must be strings.");
+            continue;
+        }
+        metric_name = ci->values[i].value.string;
+
         for (metric = metric_head; metric != NULL; metric = metric->next)
-            if (strcasecmp(ci->values[i].value.string, metric->name) == 0)
+            if (strcasecmp(metric_name, metric->name) == 0)
                 break;
 
-        if (metric == NULL){
-            WARNING("tail_csv plugin: `Collect' argument not found `%s'.", ci->values[i].value.string);
-            return (-1);
+        if (metric == NULL) {
+            WARNING ("tail_csv plugin: `Collect' argument not found `%s'.", metric_name);
+            continue;
         }
 
-        id->metric_list[i] = metric;
+        id->metric_list[id->metric_list_len] = metric;
         id->metric_list_len++;
     }
 

@@ -312,44 +312,51 @@ int strsplit (char *string, char **fields, size_t size)
 	return ((int) i);
 }
 
-int strjoin (char *dst, size_t dst_len,
+int strjoin (char *buffer, size_t buffer_size,
 		char **fields, size_t fields_num,
 		const char *sep)
 {
-	size_t field_len;
+	size_t avail;
+	char *ptr;
 	size_t sep_len;
-	int i;
+	size_t i;
 
-	memset (dst, '\0', dst_len);
-
-	if (fields_num <= 0)
+	if ((buffer_size < 1) || (fields_num <= 0))
 		return (-1);
+
+	memset (buffer, 0, buffer_size);
+	ptr = buffer;
+	avail = buffer_size - 1;
 
 	sep_len = 0;
 	if (sep != NULL)
 		sep_len = strlen (sep);
 
-	for (i = 0; i < (int)fields_num; i++)
+	for (i = 0; i < fields_num; i++)
 	{
+		size_t field_len;
+
 		if ((i > 0) && (sep_len > 0))
 		{
-			if (dst_len <= sep_len)
+			if (avail < sep_len)
 				return (-1);
 
-			strncat (dst, sep, dst_len);
-			dst_len -= sep_len;
+			memcpy (ptr, sep, sep_len);
+			ptr += sep_len;
+			avail -= sep_len;
 		}
 
 		field_len = strlen (fields[i]);
-
-		if (dst_len <= field_len)
+		if (avail < field_len)
 			return (-1);
 
-		strncat (dst, fields[i], dst_len);
-		dst_len -= field_len;
+		memcpy (ptr, fields[i], field_len);
+		ptr += field_len;
+		avail -= field_len;
 	}
 
-	return (strlen (dst));
+	assert (buffer[buffer_size - 1] == 0);
+	return (strlen (buffer));
 }
 
 int strsubstitute (char *str, char c_from, char c_to)
@@ -507,7 +514,11 @@ int escape_slashes (char *buffer, size_t buffer_size)
 		buffer_len--;
 	}
 
+<<<<<<< HEAD:src/daemon/common.c
 	for (i = 0; i < buffer_len - 1; i++)
+=======
+	for (i = 0; i < buf_len; i++)
+>>>>>>> 4cfce925daf8e81c96c5bca630674f5e1f824067:src/common.c
 	{
 		if (buffer[i] == '/')
 			buffer[i] = '_';
@@ -968,18 +979,17 @@ int format_values (char *ret, size_t ret_len, /* {{{ */
         for (i = 0; i < ds->ds_num; i++)
         {
                 if (ds->ds[i].type == DS_TYPE_GAUGE)
-                        BUFFER_ADD (":%f", vl->values[i].gauge);
+                        BUFFER_ADD (":"GAUGE_FORMAT, vl->values[i].gauge);
                 else if (store_rates)
                 {
                         if (rates == NULL)
                                 rates = uc_get_rate (ds, vl);
                         if (rates == NULL)
                         {
-                                WARNING ("format_values: "
-						"uc_get_rate failed.");
+                                WARNING ("format_values: uc_get_rate failed.");
                                 return (-1);
                         }
-                        BUFFER_ADD (":%g", rates[i]);
+                        BUFFER_ADD (":"GAUGE_FORMAT, rates[i]);
                 }
                 else if (ds->ds[i].type == DS_TYPE_COUNTER)
                         BUFFER_ADD (":%llu", vl->values[i].counter);
@@ -989,7 +999,7 @@ int format_values (char *ret, size_t ret_len, /* {{{ */
                         BUFFER_ADD (":%"PRIu64, vl->values[i].absolute);
                 else
                 {
-                        ERROR ("format_values plugin: Unknown data source type: %i",
+                        ERROR ("format_values: Unknown data source type: %i",
                                         ds->ds[i].type);
                         sfree (rates);
                         return (-1);

@@ -222,13 +222,13 @@ static int create_sockets (socket_entry_t **ret_sockets, /* {{{ */
   struct addrinfo *ai_ptr;
   int              ai_return;
 
-  socket_entry_t *sockets;
-  size_t          sockets_num;
+  socket_entry_t *sockets = NULL;
+  size_t          sockets_num = 0;
 
   int status;
-    
-  sockets     = *ret_sockets;
-  sockets_num = *ret_sockets_num;
+
+  if (*ret_sockets != NULL)
+    return (EINVAL);
 
   memset (&ai_hints, 0, sizeof (ai_hints));
   ai_hints.ai_flags    = 0;
@@ -360,8 +360,11 @@ static int create_sockets (socket_entry_t **ret_sockets, /* {{{ */
 
   freeaddrinfo (ai_list);
 
-  if ((*ret_sockets_num) >= sockets_num)
+  if (sockets_num == 0)
+  {
+    sfree (sockets);
     return (-1);
+  }
 
   *ret_sockets = sockets;
   *ret_sockets_num = sockets_num;
@@ -665,7 +668,7 @@ static int mc_handle_value_msg (Ganglia_value_msg *msg) /* {{{ */
     if ((map->ds_type == DS_TYPE_COUNTER)
         || (map->ds_type == DS_TYPE_ABSOLUTE))
       val_copy = value_counter;
-    if (map->ds_type == DS_TYPE_GAUGE)
+    else if (map->ds_type == DS_TYPE_GAUGE)
       val_copy = value_gauge;
     else if (map->ds_type == DS_TYPE_DERIVE)
       val_copy = value_derive;
@@ -872,6 +875,7 @@ static void *mc_receive_thread (void *arg) /* {{{ */
     }
   } /* while (mc_receive_thread_loop != 0) */
 
+  free (mc_receive_socket_entries);
   return ((void *) 0);
 } /* }}} void *mc_receive_thread */
 

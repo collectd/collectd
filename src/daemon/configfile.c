@@ -73,7 +73,7 @@ typedef struct cf_complex_callback_s
 typedef struct cf_value_map_s
 {
 	char *key;
-	int (*func) (const oconfig_item_t *);
+	int (*func) (oconfig_item_t *);
 } cf_value_map_t;
 
 typedef struct cf_global_option_s
@@ -86,9 +86,10 @@ typedef struct cf_global_option_s
 /*
  * Prototypes of callback functions
  */
-static int dispatch_value_typesdb (const oconfig_item_t *ci);
-static int dispatch_value_plugindir (const oconfig_item_t *ci);
-static int dispatch_loadplugin (const oconfig_item_t *ci);
+static int dispatch_value_typesdb (oconfig_item_t *ci);
+static int dispatch_value_plugindir (oconfig_item_t *ci);
+static int dispatch_loadplugin (oconfig_item_t *ci);
+static int dispatch_block_plugin (oconfig_item_t *ci);
 
 /*
  * Private variables
@@ -100,7 +101,8 @@ static cf_value_map_t cf_value_map[] =
 {
 	{"TypesDB",    dispatch_value_typesdb},
 	{"PluginDir",  dispatch_value_plugindir},
-	{"LoadPlugin", dispatch_loadplugin}
+	{"LoadPlugin", dispatch_loadplugin},
+	{"Plugin",     dispatch_block_plugin}
 };
 static int cf_value_map_num = STATIC_ARRAY_SIZE (cf_value_map);
 
@@ -154,9 +156,12 @@ static int cf_dispatch (const char *type, const char *orig_key,
 	int ret;
 	int i;
 
+	if (orig_key == NULL)
+		return (EINVAL);
+
 	DEBUG ("type = %s, key = %s, value = %s",
 			ESCAPE_NULL(type),
-			ESCAPE_NULL(orig_key),
+			orig_key,
 			ESCAPE_NULL(orig_value));
 
 	if ((cf_cb = cf_search (type)) == NULL)
@@ -197,8 +202,6 @@ static int cf_dispatch (const char *type, const char *orig_key,
 	free (key);
 	free (value);
 
-	DEBUG ("cf_dispatch: return (%i)", ret);
-
 	return (ret);
 } /* int cf_dispatch */
 
@@ -225,7 +228,7 @@ static int dispatch_global_option (const oconfig_item_t *ci)
 	return (-1);
 } /* int dispatch_global_option */
 
-static int dispatch_value_typesdb (const oconfig_item_t *ci)
+static int dispatch_value_typesdb (oconfig_item_t *ci)
 {
 	int i = 0;
 
@@ -251,7 +254,7 @@ static int dispatch_value_typesdb (const oconfig_item_t *ci)
 	return (0);
 } /* int dispatch_value_typesdb */
 
-static int dispatch_value_plugindir (const oconfig_item_t *ci)
+static int dispatch_value_plugindir (oconfig_item_t *ci)
 {
 	assert (strcasecmp (ci->key, "PluginDir") == 0);
 	
@@ -264,7 +267,7 @@ static int dispatch_value_plugindir (const oconfig_item_t *ci)
 	return (0);
 }
 
-static int dispatch_loadplugin (const oconfig_item_t *ci)
+static int dispatch_loadplugin (oconfig_item_t *ci)
 {
 	int i;
 	const char *name;
@@ -348,7 +351,7 @@ static int dispatch_value_plugin (const char *plugin, oconfig_item_t *ci)
 	return (cf_dispatch (plugin, ci->key, buffer_ptr));
 } /* int dispatch_value_plugin */
 
-static int dispatch_value (const oconfig_item_t *ci)
+static int dispatch_value (oconfig_item_t *ci)
 {
 	int ret = -2;
 	int i;
@@ -397,9 +400,19 @@ static int dispatch_block_plugin (oconfig_item_t *ci)
 
 	if (IS_TRUE (global_option_get ("AutoLoadPlugin")))
 	{
+		plugin_ctx_t ctx;
+		plugin_ctx_t old_ctx;
 		int status;
 
+		/* default to the global interval set before loading this plugin */
+		memset (&ctx, 0, sizeof (ctx));
+		ctx.interval = cf_get_default_interval ();
+
+		old_ctx = plugin_set_ctx (ctx);
 		status = plugin_load (name, /* flags = */ 0);
+		/* reset to the "global" context */
+		plugin_set_ctx (old_ctx);
+
 		if (status != 0)
 		{
 			ERROR ("Automatically loading plugin \"%s\" failed "
@@ -610,8 +623,11 @@ static int cf_include_all (oconfig_item_t *root, int depth)
 			return (-1);
 
 		/* Now replace the i'th child in `root' with `new'. */
-		if (cf_ci_replace_child (root, new, i) < 0)
+		if (cf_ci_replace_child (root, new, i) < 0) {
+			sfree (new->values);
+			sfree (new);
 			return (-1);
+		}
 
 		/* ... and go back to the new i'th child. */
 		--i;
@@ -741,6 +757,9 @@ static oconfig_item_t *cf_read_dir (const char *dir,
 
 		filenames[filenames_num - 1] = sstrdup (name);
 	}
+
+	if (filenames == NULL)
+		return (root);
 
 	qsort ((void *) filenames, filenames_num, sizeof (*filenames),
 			cf_compare_string);
