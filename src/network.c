@@ -1368,7 +1368,7 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
     warning_has_been_printed = 1;
   }
 
-  *ret_buffer += ph_length;
+  *ret_buffer = (void *) (((char *) *ret_buffer) + ph_length);
   *ret_buffer_size -= ph_length;
 
   return (0);
@@ -1407,7 +1407,7 @@ static int parse_packet (sockent_t *se, /* {{{ */
 				(void *) buffer,
 				sizeof (pkg_type));
 		memcpy ((void *) &pkg_length,
-				(void *) (buffer + sizeof (pkg_type)),
+				(void *) (((char *) buffer) + sizeof (pkg_type)),
 				sizeof (pkg_length));
 
 		pkg_length = ntohs (pkg_length);
