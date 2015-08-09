@@ -1510,7 +1510,7 @@ endif
 
 # Protocol buffer for the "write_riemann" plugin.
 EXTRA_DIST += riemann.proto
-if HAVE_PROTOC_C
+if BUILD_PLUGIN_WRITE_RIEMANN
 CLEANFILES += riemann.pb-c.c riemann.pb-c.h
 
 BUILT_SOURCES += riemann.pb-c.c riemann.pb-c.h
