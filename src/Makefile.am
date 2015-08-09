@@ -1500,7 +1500,7 @@ EXTRA_DIST +=   collectd.conf.pod \
 
 # Protocol buffer for the "pinba" plugin.
 EXTRA_DIST += pinba.proto
-if HAVE_PROTOC_C
+if BUILD_PLUGIN_PINBA
 CLEANFILES += pinba.pb-c.c pinba.pb-c.h
 BUILT_SOURCES += pinba.pb-c.c pinba.pb-c.h
 
