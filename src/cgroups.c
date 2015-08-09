@@ -63,7 +63,7 @@ static void cgroups_submit_one (char const *plugin_instance,
 /*
  * This function reads the given file and submits the metrics
  */
-static int process_cgroup_file(const char *cgroup_name, const char* type_value, const char *abs_path)
+static int process_cgroup_file(const char *cgroup_name, const char* type_value, const int ds_type, const char *abs_path)
 {
 	FILE *fh = NULL;
 	char buf[1024];
@@ -74,8 +74,8 @@ static int process_cgroup_file(const char *cgroup_name, const char* type_value, 
 	{
 		char errbuf[1024];
 		ERROR ("cgroups plugin: fopen (\"%s\") failed: %s",
-			   abs_path,
-			   sstrerror (errno, errbuf, sizeof (errbuf)));
+				abs_path,
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 
@@ -104,7 +104,7 @@ static int process_cgroup_file(const char *cgroup_name, const char* type_value, 
 		if (key[key_len - 1] == ':')
 			key[key_len - 1] = 0;
 
-		status = parse_value (fields[1], &value, DS_TYPE_DERIVE);
+		status = parse_value (fields[1], &value, ds_type);
 		if (status != 0)
 			continue;
 
@@ -145,7 +145,7 @@ static int read_cpuacct_procs (const char *dirname, char const *cgroup_name,
 	ssnprintf (abs_path, sizeof (abs_path), "%s/%s/cpuacct.stat",
 			   dirname, cgroup_name);
 
-	return process_cgroup_file(cgroup_name, "cpu", abs_path);
+	return process_cgroup_file(cgroup_name, "cpu", DS_TYPE_DERIVE, abs_path);
 } /* int read_cpuacct_procs */
 
 /*
@@ -178,7 +178,7 @@ static int read_memory_procs (const char *dirname, char const *cgroup_name,
 	ssnprintf (abs_path, sizeof (abs_path), "%s/%s/memory.stat",
 			   dirname, cgroup_name);
 	
-	return process_cgroup_file(cgroup_name, "memory", abs_path);
+	return process_cgroup_file(cgroup_name, "memory", DS_TYPE_GAUGE, abs_path);
 } /* int read_memory_procs */
 
 /*
@@ -187,7 +187,7 @@ static int read_memory_procs (const char *dirname, char const *cgroup_name,
  * read_cpuacct_procs callback on every folder it finds, such as "system".
  */
 static int read_cpuacct_root (const char *dirname, const char *filename,
-       void *user_data)
+ 	       void *user_data)
 {
 	char abs_path[PATH_MAX];
 	struct stat statbuf;
@@ -350,7 +350,7 @@ static int cgroups_read (void)
 void module_register (void)
 {
 	plugin_register_config ("cgroups", cgroups_config,
-           config_keys, config_keys_num);
+        	  	config_keys, config_keys_num);
 	plugin_register_init ("cgroups", cgroups_init);
 	plugin_register_read ("cgroups", cgroups_read);
 } /* void module_register */
