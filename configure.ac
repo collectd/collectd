@@ -57,12 +57,17 @@ AC_PROG_YACC
 PKG_PROG_PKG_CONFIG
 
 AC_CHECK_PROG([have_protoc_c], [protoc-c], [yes], [no])
-AC_CHECK_HEADERS([google/protobuf-c/protobuf-c.h],
-                 [have_protobuf_c_h="yes"],
-                 [have_protobuf_c_h="no"])
-if test "x$have_protoc_c" = "xyes" && test "x$have_protobuf_c_h" != "xyes"
+if test "x$have_protoc_c" = "xno"
 then
-	have_protoc_c="no (unable to find <google/protobuf-c/protobuf-c.h>)"
+	have_protoc_c="no (protoc-c compiler not found)"
+else
+	AC_CHECK_HEADERS([google/protobuf-c/protobuf-c.h],
+			 [have_protobuf_c_h="yes"],
+			 [have_protobuf_c_h="no"])
+	if test "x$have_protobuf_c_h" = "xno"
+	then
+		have_protoc_c="no (<google/protobuf-c/protobuf-c.h> not found)"
+	fi
 fi
 AM_CONDITIONAL(HAVE_PROTOC_C, test "x$have_protoc_c" = "xyes")
 
