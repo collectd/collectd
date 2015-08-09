@@ -1498,6 +1498,11 @@ EXTRA_DIST +=   collectd.conf.pod \
 		echo "$@ has some POD errors!"; false; \
 	fi
 
+AM_V_PROTOC_C = $(am__v_PROTOC_C_@AM_V@)
+am__v_PROTOC_C_ = $(am__v_PROTOC_C_@AM_DEFAULT_V@)
+am__v_PROTOC_C_0 = @echo "  PROTOC-C    " $@;
+am__v_PROTOC_C_1 =
+
 # Protocol buffer for the "pinba" plugin.
 EXTRA_DIST += pinba.proto
 if BUILD_PLUGIN_PINBA
@@ -1505,7 +1510,7 @@ CLEANFILES += pinba.pb-c.c pinba.pb-c.h
 BUILT_SOURCES += pinba.pb-c.c pinba.pb-c.h
 
 pinba.pb-c.c pinba.pb-c.h: pinba.proto
-	$(AM_V_GEN)protoc-c -I$(srcdir) --c_out . $(srcdir)/pinba.proto
+	$(AM_V_PROTOC_C)protoc-c -I$(srcdir) --c_out . $(srcdir)/pinba.proto
 endif
 
 # Protocol buffer for the "write_riemann" plugin.
@@ -1516,7 +1521,7 @@ CLEANFILES += riemann.pb-c.c riemann.pb-c.h
 BUILT_SOURCES += riemann.pb-c.c riemann.pb-c.h
 
 riemann.pb-c.c riemann.pb-c.h: riemann.proto
-	$(AM_V_GEN)protoc-c -I$(srcdir) --c_out . $(srcdir)/riemann.proto
+	$(AM_V_PROTOC_C)protoc-c -I$(srcdir) --c_out . $(srcdir)/riemann.proto
 endif
 
 install-exec-hook:
