@@ -64,8 +64,8 @@ fi
 
 if test "x$have_protoc_c" = "xyes"
 then
-	AC_CHECK_HEADERS([google/protobuf-c/protobuf-c.h],
-			 [have_protoc_c="yes"],
+	AC_CHECK_HEADERS([protobuf-c/protobuf-c.h google/protobuf-c/protobuf-c.h],
+			 [have_protoc_c="yes"; break],
 			 [have_protoc_c="no (<google/protobuf-c/protobuf-c.h> not found)"])
 fi
 if test "x$have_protoc_c" = "xyes"
