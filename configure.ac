@@ -60,14 +60,13 @@ AC_CHECK_PROG([have_protoc_c], [protoc-c], [yes], [no])
 if test "x$have_protoc_c" = "xno"
 then
 	have_protoc_c="no (protoc-c compiler not found)"
-else
+fi
+
+if test "X$have_protoc_c" = "xyes"
+then
 	AC_CHECK_HEADERS([google/protobuf-c/protobuf-c.h],
-			 [have_protobuf_c_h="yes"],
-			 [have_protobuf_c_h="no"])
-	if test "x$have_protobuf_c_h" = "xno"
-	then
-		have_protoc_c="no (<google/protobuf-c/protobuf-c.h> not found)"
-	fi
+			 []
+			 [have_protoc_c="no (<google/protobuf-c/protobuf-c.h> not found)"])
 fi
 AM_CONDITIONAL(HAVE_PROTOC_C, test "x$have_protoc_c" = "xyes")
 
