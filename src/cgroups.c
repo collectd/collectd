@@ -157,12 +157,12 @@ static int read_memory_procs (const char *dirname, char const *cgroup_name,
 	char abs_path[PATH_MAX];
 	struct stat statbuf;
 	int status;
-	
+
 	if (ignorelist_match (il_cgroup, cgroup_name))
 		return (0);
-	
+
 	ssnprintf (abs_path, sizeof (abs_path), "%s/%s", dirname, cgroup_name);
-	
+
 	status = lstat (abs_path, &statbuf);
 	if (status != 0)
 	{
@@ -170,14 +170,14 @@ static int read_memory_procs (const char *dirname, char const *cgroup_name,
 			   abs_path);
 		return (-1);
 	}
-	
+
 	/* We are only interested in directories, so skip everything else. */
 	if (!S_ISDIR (statbuf.st_mode))
 		return (0);
-	
+
 	ssnprintf (abs_path, sizeof (abs_path), "%s/%s/memory.stat",
 			   dirname, cgroup_name);
-	
+
 	return process_cgroup_file(cgroup_name, "memory", DS_TYPE_GAUGE, abs_path);
 } /* int read_memory_procs */
 
@@ -187,7 +187,7 @@ static int read_memory_procs (const char *dirname, char const *cgroup_name,
  * read_cpuacct_procs callback on every folder it finds, such as "system".
  */
 static int read_cpuacct_root (const char *dirname, const char *filename,
- 	       void *user_data)
+ 	        void *user_data)
 {
 	char abs_path[PATH_MAX];
 	struct stat statbuf;
@@ -224,16 +224,16 @@ static int read_memory_root (const char *dirname, const char *filename,
 	char abs_path[PATH_MAX];
 	struct stat statbuf;
 	int status;
-	
+
 	ssnprintf (abs_path, sizeof (abs_path), "%s/%s", dirname, filename);
-	
+
 	status = lstat (abs_path, &statbuf);
 	if (status != 0)
 	{
 		ERROR ("cgroups plugin: stat (%s) failed.", abs_path);
 		return (-1);
 	}
-	
+
 	if (S_ISDIR (statbuf.st_mode))
 	{
 		status = walk_directory (abs_path, read_memory_procs,
@@ -241,7 +241,7 @@ static int read_memory_root (const char *dirname, const char *filename,
 								 /* include_hidden = */ 0);
 		return (status);
 	}
-	
+
 	return (0);
 } /* read_memory_root */
 
