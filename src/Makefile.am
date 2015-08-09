@@ -1373,7 +1373,7 @@ CLEANFILES += pinba.pb-c.c pinba.pb-c.h
 BUILT_SOURCES += pinba.pb-c.c pinba.pb-c.h
 
 pinba.pb-c.c pinba.pb-c.h: pinba.proto
-	protoc-c -I$(srcdir) --c_out . $(srcdir)/pinba.proto
+	$(AM_V_GEN)protoc-c -I$(srcdir) --c_out . $(srcdir)/pinba.proto
 endif
 
 # Protocol buffer for the "write_riemann" plugin.
@@ -1384,7 +1384,7 @@ CLEANFILES += riemann.pb-c.c riemann.pb-c.h
 BUILT_SOURCES += riemann.pb-c.c riemann.pb-c.h
 
 riemann.pb-c.c riemann.pb-c.h: riemann.proto
-	protoc-c -I$(srcdir) --c_out . $(srcdir)/riemann.proto
+	$(AM_V_GEN)protoc-c -I$(srcdir) --c_out . $(srcdir)/riemann.proto
 endif
 
 install-exec-hook:
