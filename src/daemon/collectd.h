@@ -95,6 +95,9 @@
 #  include <time.h>
 # endif
 #endif
+#if HAVE_SYS_SOCKET_H
+# include <sys/socket.h>
+#endif
 
 #if HAVE_ASSERT_H
 # include <assert.h>
@@ -302,6 +305,10 @@ typedef int _Bool;
 #  undef sprintf
 #  pragma GCC poison sprintf
 # endif
+#endif
+
+#ifndef GAUGE_FORMAT
+# define GAUGE_FORMAT "%.15g"
 #endif
 
 /* Type for time as used by "utils_time.h" */

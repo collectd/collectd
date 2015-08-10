@@ -50,6 +50,8 @@ static void ml_append (char *);
 %}
 %option yylineno
 %option noyywrap
+%option noinput
+%option nounput
 %x ML
 WHITE_SPACE [\ \t\b]
 NON_WHITE_SPACE [^\ \t\b]

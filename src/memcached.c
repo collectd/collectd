@@ -34,7 +34,6 @@
 #include "configfile.h"
 
 #include <netdb.h>
-#include <sys/socket.h>
 #include <sys/un.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -62,6 +61,7 @@ static void memcached_free (memcached_t *st)
   sfree (st->socket);
   sfree (st->host);
   sfree (st->port);
+  sfree (st);
 }
 
 static int memcached_connect_unix (memcached_t *st)
@@ -565,7 +565,7 @@ static int memcached_add_read_callback (memcached_t *st)
   status = plugin_register_complex_read (/* group = */ "memcached",
       /* name      = */ callback_name,
       /* callback  = */ memcached_read,
-      /* interval  = */ NULL,
+      /* interval  = */ 0,
       /* user_data = */ &ud);
   return (status);
 } /* int memcached_add_read_callback */

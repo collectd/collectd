@@ -24,7 +24,7 @@ EXTRA_DIST = org/collectd/api/CollectdConfigInterface.java \
 	     org/collectd/java/GenericJMX.java \
 	     org/collectd/java/JMXMemory.java
 
-java-build-stamp: org/collectd/api/*.java org/collectd/java/*.java
+java-build-stamp: $(srcdir)/org/collectd/api/*.java $(srcdir)/org/collectd/java/*.java
 	$(JAVAC) -d "." "$(srcdir)/org/collectd/api"/*.java
 	$(JAVAC) -d "." "$(srcdir)/org/collectd/java"/*.java
 	mkdir -p .libs
@@ -40,6 +40,11 @@ install-exec-local: java-build-stamp
 		"$(DESTDIR)$(pkgdatadir)/java"
 	$(INSTALL) -m 644 .libs/generic-jmx.jar \
 		"$(DESTDIR)$(pkgdatadir)/java"
+
+uninstall-local:
+	rm -f "$(DESTDIR)$(pkgdatadir)/java/collectd-api.jar"
+	rm -f "$(DESTDIR)$(pkgdatadir)/java/generic-jmx.jar"
+	rmdir "$(DESTDIR)$(pkgdatadir)/java" || true
 
 clean-local:
 	rm -f "org/collectd/api"/*.class

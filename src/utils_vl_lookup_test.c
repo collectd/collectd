@@ -24,7 +24,7 @@
  *   Florian Forster <octo at collectd.org>
  **/
 
-#include "tests/macros.h"
+#include "testing.h"
 #include "collectd.h"
 #include "utils_vl_lookup.h"
 
@@ -65,7 +65,7 @@ static void *lookup_class_callback (data_set_t const *ds,
   identifier_t *class = user_class;
   identifier_t *obj;
 
-  OK(expect_new_obj);
+  assert (expect_new_obj);
 
   memcpy (&last_class_ident, class, sizeof (last_class_ident));
   
@@ -81,7 +81,7 @@ static void *lookup_class_callback (data_set_t const *ds,
   return ((void *) obj);
 }
 
-static void checked_lookup_add (lookup_t *obj, /* {{{ */
+static int checked_lookup_add (lookup_t *obj, /* {{{ */
     char const *host,
     char const *plugin, char const *plugin_instance,
     char const *type, char const *type_instance,
@@ -101,7 +101,8 @@ static void checked_lookup_add (lookup_t *obj, /* {{{ */
   memmove (user_class, &ident, sizeof (ident));
 
   OK(lookup_add (obj, &ident, group_by, user_class) == 0);
-} /* }}} void test_add */
+  return 0;
+} /* }}} int checked_lookup_add */
 
 static int checked_lookup_search (lookup_t *obj,
     char const *host,
@@ -129,20 +130,11 @@ static int checked_lookup_search (lookup_t *obj,
   return (status);
 }
 
-static lookup_t *checked_lookup_create (void)
-{
-  lookup_t *obj = lookup_create (
-      lookup_class_callback,
-      lookup_obj_callback,
-      (void *) free,
-      (void *) free);
-  OK(obj != NULL);
-  return (obj);
-}
-
 DEF_TEST(group_by_specific_host)
 {
-  lookup_t *obj = checked_lookup_create ();
+  lookup_t *obj;
+  CHECK_NOT_NULL (obj = lookup_create (
+        lookup_class_callback, lookup_obj_callback, (void *) free, (void *) free));
 
   checked_lookup_add (obj, "/.*/", "test", "", "test", "/.*/", LU_GROUP_BY_HOST);
   checked_lookup_search (obj, "host0", "test", "", "test", "0",
@@ -160,7 +152,9 @@ DEF_TEST(group_by_specific_host)
 
 DEF_TEST(group_by_any_host)
 {
-  lookup_t *obj = checked_lookup_create ();
+  lookup_t *obj;
+  CHECK_NOT_NULL (obj = lookup_create (
+        lookup_class_callback, lookup_obj_callback, (void *) free, (void *) free));
 
   checked_lookup_add (obj, "/.*/", "/.*/", "/.*/", "test", "/.*/", LU_GROUP_BY_HOST);
   checked_lookup_search (obj, "host0", "plugin0", "", "test", "0",
@@ -186,8 +180,11 @@ DEF_TEST(group_by_any_host)
 
 DEF_TEST(multiple_lookups)
 {
-  lookup_t *obj = checked_lookup_create ();
+  lookup_t *obj;
   int status;
+
+  CHECK_NOT_NULL (obj = lookup_create (
+        lookup_class_callback, lookup_obj_callback, (void *) free, (void *) free));
 
   checked_lookup_add (obj, "/.*/", "plugin0", "", "test", "/.*/", LU_GROUP_BY_HOST);
   checked_lookup_add (obj, "/.*/", "/.*/", "", "test", "ti0", LU_GROUP_BY_HOST);
@@ -211,7 +208,9 @@ DEF_TEST(multiple_lookups)
 
 DEF_TEST(regex)
 {
-  lookup_t *obj = checked_lookup_create ();
+  lookup_t *obj;
+  CHECK_NOT_NULL (obj = lookup_create (
+        lookup_class_callback, lookup_obj_callback, (void *) free, (void *) free));
 
   checked_lookup_add (obj, "/^db[0-9]\\./", "cpu", "/.*/", "cpu", "/.*/",
       LU_GROUP_BY_TYPE_INSTANCE);

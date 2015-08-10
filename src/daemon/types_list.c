@@ -101,7 +101,7 @@ static void parse_line (char *buf)
   char  *fields[64];
   size_t fields_num;
   data_set_t *ds;
-  int i;
+  size_t i;
 
   fields_num = strsplit (buf, fields, 64);
   if (fields_num < 2)
@@ -128,7 +128,7 @@ static void parse_line (char *buf)
     if (parse_ds (ds->ds + i, fields[i + 1], strlen (fields[i + 1])) != 0)
     {
       sfree (ds->ds);
-      ERROR ("types_list: parse_line: Cannot parse data source #%i "
+      ERROR ("types_list: parse_line: Cannot parse data source #%zu "
 	  "of data set %s", i, ds->type);
       return;
     }
@@ -164,7 +164,7 @@ static void parse_file (FILE *fh)
       continue;
 
     while ((buf_len > 0) && ((buf[buf_len - 1] == '\n')
-	  || (buf[buf_len - 1] == '\n')))
+	  || (buf[buf_len - 1] == '\r')))
       buf[--buf_len] = '\0';
 
     if (buf_len == 0)

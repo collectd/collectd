@@ -547,6 +547,12 @@ lv_read (void)
             continue;
         }
 
+        if (info.state != VIR_DOMAIN_RUNNING)
+        {
+            /* only gather stats for running domains */
+            continue;
+        }
+
         cpu_submit (info.cpuTime, domains[i], "virt_cpu_total");
         memory_submit ((gauge_t) info.memory * 1024, domains[i]);
 
@@ -588,7 +594,7 @@ lv_read (void)
         }
 
         for (j = 0; j < status; j++) {
-            memory_stats_submit ((gauge_t) minfo[j].val, domains[i], minfo[j].tag);
+            memory_stats_submit ((gauge_t) minfo[j].val * 1024, domains[i], minfo[j].tag);
         }
 
         sfree (minfo);
@@ -920,6 +926,9 @@ add_interface_device (virDomainPtr dom, const char *path, const char *address, u
     int new_size = sizeof (interface_devices[0]) * (nr_interface_devices+1);
     char *path_copy, *address_copy, number_string[15];
 
+    if ((path == NULL) || (address == NULL))
+        return EINVAL;
+
     path_copy = strdup (path);
     if (!path_copy) return -1;
 
@@ -954,6 +963,9 @@ ignore_device_match (ignorelist_t *il, const char *domname, const char *devpath)
 {
     char *name;
     int n, r;
+
+    if ((domname == NULL) || (devpath == NULL))
+        return 0;
 
     n = sizeof (char) * (strlen (domname) + strlen (devpath) + 2);
     name = malloc (n);

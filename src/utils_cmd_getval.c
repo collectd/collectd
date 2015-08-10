@@ -32,12 +32,15 @@
 #include "utils_parse_option.h"
 
 #define print_to_socket(fh, ...) \
-  if (fprintf (fh, __VA_ARGS__) < 0) { \
-    char errbuf[1024]; \
-    WARNING ("handle_getval: failed to write to socket #%i: %s", \
-	fileno (fh), sstrerror (errno, errbuf, sizeof (errbuf))); \
-    return -1; \
-  }
+  do { \
+    if (fprintf (fh, __VA_ARGS__) < 0) { \
+      char errbuf[1024]; \
+      WARNING ("handle_getval: failed to write to socket #%i: %s", \
+          fileno (fh), sstrerror (errno, errbuf, sizeof (errbuf))); \
+      return -1; \
+    } \
+    fflush(fh); \
+  } while (0)
 
 int handle_getval (FILE *fh, char *buffer)
 {
@@ -128,18 +131,18 @@ int handle_getval (FILE *fh, char *buffer)
     return (-1);
   }
 
-  if ((size_t) ds->ds_num != values_num)
+  if (ds->ds_num != values_num)
   {
-    ERROR ("ds[%s]->ds_num = %i, "
-	"but uc_get_rate_by_name returned %u values.",
-	ds->type, ds->ds_num, (unsigned int) values_num);
+    ERROR ("ds[%s]->ds_num = %zu, "
+	"but uc_get_rate_by_name returned %zu values.",
+	ds->type, ds->ds_num, values_num);
     print_to_socket (fh, "-1 Error reading value from cache.\n");
     sfree (values);
     sfree (identifier_copy);
     return (-1);
   }
 
-  print_to_socket (fh, "%u Value%s found\n", (unsigned int) values_num,
+  print_to_socket (fh, "%zu Value%s found\n", values_num,
       (values_num == 1) ? "" : "s");
   for (i = 0; i < values_num; i++)
   {

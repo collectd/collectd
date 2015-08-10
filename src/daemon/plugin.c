@@ -80,6 +80,12 @@ struct write_queue_s
 	write_queue_t *next;
 };
 
+struct flush_callback_s {
+	char *name;
+	cdtime_t timeout;
+};
+typedef struct flush_callback_s flush_callback_t;
+
 /*
  * Private variables
  */
@@ -235,13 +241,13 @@ static void destroy_read_heap (void) /* {{{ */
 
 	while (42)
 	{
-		callback_func_t *cf;
+		read_func_t *rf;
 
-		cf = c_heap_get_root (read_heap);
-		if (cf == NULL)
+		rf = c_heap_get_root (read_heap);
+		if (rf == NULL)
 			break;
-
-		destroy_callback (cf);
+		sfree (rf->rf_name);
+		destroy_callback ((callback_func_t *) rf);
 	}
 
 	c_heap_destroy (read_heap);
@@ -306,6 +312,56 @@ static int register_callback (llist_t **list, /* {{{ */
 
 	return (0);
 } /* }}} int register_callback */
+
+static void log_list_callbacks (llist_t **list, /* {{{ */
+				const char *comment)
+{
+	char *str;
+	int len;
+	llentry_t *le;
+	int i;
+	int n;
+	char **keys;
+
+	n = llist_size(*list);
+	if (n == 0)
+	{
+		INFO("%s [none]", comment);
+		return;
+	}
+
+	keys = calloc(n, sizeof(char*));
+
+	if (keys == NULL)
+	{
+		ERROR("%s: failed to allocate memory for list of callbacks",
+		      comment);
+
+		return;
+	}
+
+	for (le = llist_head (*list), i = 0, len = 0;
+	     le != NULL;
+	     le = le->next, i++)
+	{
+		keys[i] = le->key;
+		len += strlen(le->key) + 6;
+	}
+	str = malloc(len + 10);
+	if (str == NULL)
+	{
+		ERROR("%s: failed to allocate memory for list of callbacks",
+		      comment);
+	}
+	else
+	{
+		*str = '\0';
+		strjoin(str, len, keys, n, "', '");
+		INFO("%s ['%s']", comment, str);
+		free(str);
+	}
+	free(keys);
+} /* }}} void log_list_callbacks */
 
 static int create_register_callback (llist_t **list, /* {{{ */
 		const char *name, void *callback, user_data_t *ud)
@@ -833,7 +889,7 @@ static void start_write_threads (size_t num) /* {{{ */
 static void stop_write_threads (void) /* {{{ */
 {
 	write_queue_t *q;
-	int i;
+	size_t i;
 
 	if (write_threads == NULL)
 		return;
@@ -874,7 +930,7 @@ static void stop_write_threads (void) /* {{{ */
 
 	if (i > 0)
 	{
-		WARNING ("plugin: %i value list%s left after shutting down "
+		WARNING ("plugin: %zu value list%s left after shutting down "
 				"the write threads.",
 				i, (i == 1) ? " was" : "s were");
 	}
@@ -949,7 +1005,6 @@ int plugin_load (char const *plugin_name, uint32_t flags)
 	const char *dir;
 	char  filename[BUFSIZE] = "";
 	char  typename[BUFSIZE];
-	int   typename_len;
 	int   ret;
 	struct stat    statbuf;
 	struct dirent *de;
@@ -989,7 +1044,6 @@ int plugin_load (char const *plugin_name, uint32_t flags)
 		WARNING ("plugin_load: Filename too long: \"%s.so\"", plugin_name);
 		return (-1);
 	}
-	typename_len = strlen (typename);
 
 	if ((dh = opendir (dir)) == NULL)
 	{
@@ -1001,7 +1055,7 @@ int plugin_load (char const *plugin_name, uint32_t flags)
 
 	while ((de = readdir (dh)) != NULL)
 	{
-		if (strncasecmp (de->d_name, typename, typename_len))
+		if (strcasecmp (de->d_name, typename))
 			continue;
 
 		status = ssnprintf (filename, sizeof (filename),
@@ -1189,15 +1243,17 @@ int plugin_register_read (const char *name,
 	rf->rf_interval = plugin_get_interval ();
 
 	status = plugin_insert_read (rf);
-	if (status != 0)
+	if (status != 0) {
+		sfree (rf->rf_name);
 		sfree (rf);
+	}
 
 	return (status);
 } /* int plugin_register_read */
 
 int plugin_register_complex_read (const char *group, const char *name,
 		plugin_read_cb callback,
-		const struct timespec *interval,
+		cdtime_t interval,
 		user_data_t *user_data)
 {
 	read_func_t *rf;
@@ -1218,10 +1274,7 @@ int plugin_register_complex_read (const char *group, const char *name,
 		rf->rf_group[0] = '\0';
 	rf->rf_name = strdup (name);
 	rf->rf_type = RF_COMPLEX;
-	if (interval != NULL)
-		rf->rf_interval = TIMESPEC_TO_CDTIME_T (interval);
-	else
-		rf->rf_interval = plugin_get_interval ();
+	rf->rf_interval = (interval != 0) ? interval : plugin_get_interval ();
 
 	/* Set user data */
 	if (user_data == NULL)
@@ -1237,8 +1290,10 @@ int plugin_register_complex_read (const char *group, const char *name,
 	rf->rf_ctx = plugin_get_ctx ();
 
 	status = plugin_insert_read (rf);
-	if (status != 0)
+	if (status != 0) {
+		sfree (rf->rf_name);
 		sfree (rf);
+	}
 
 	return (status);
 } /* int plugin_register_complex_read */
@@ -1250,11 +1305,105 @@ int plugin_register_write (const char *name,
 				(void *) callback, ud));
 } /* int plugin_register_write */
 
+static int plugin_flush_timeout_callback (user_data_t *ud)
+{
+	flush_callback_t *cb = ud->data;
+
+	return plugin_flush (cb->name, cb->timeout, /* identifier = */ NULL);
+} /* static int plugin_flush_callback */
+
+static void plugin_flush_timeout_callback_free (void *data)
+{
+	flush_callback_t *cb = data;
+
+	if (cb == NULL) return;
+
+	sfree(cb->name);
+	sfree(cb);
+} /* static void plugin_flush_callback_free */
+
+static char *plugin_flush_callback_name (const char *name)
+{
+	char *flush_prefix = "flush/";
+	size_t prefix_size;
+	char *flush_name;
+	size_t name_size;
+
+	prefix_size = strlen(flush_prefix);
+	name_size = strlen(name);
+
+	flush_name = malloc (sizeof(char) * (name_size + prefix_size + 1));
+	if (flush_name == NULL)
+	{
+		ERROR ("plugin_flush_callback_name: malloc failed.");
+		return (NULL);
+	}
+
+	sstrncpy (flush_name, flush_prefix, prefix_size + 1);
+	sstrncpy (flush_name + prefix_size, name, name_size + 1);
+
+	return flush_name;
+} /* static char *plugin_flush_callback_name */
+
 int plugin_register_flush (const char *name,
 		plugin_flush_cb callback, user_data_t *ud)
 {
-	return (create_register_callback (&list_flush, name,
-				(void *) callback, ud));
+	int status;
+	plugin_ctx_t ctx = plugin_get_ctx ();
+
+	status = create_register_callback (&list_flush, name,
+		(void *) callback, ud);
+	if (status != 0)
+		return status;
+
+	if (ctx.flush_interval != 0)
+	{
+		char *flush_name;
+		user_data_t ud;
+		flush_callback_t *cb;
+
+		flush_name = plugin_flush_callback_name (name);
+		if (flush_name == NULL)
+			return (-1);
+
+		cb = malloc(sizeof(flush_callback_t));
+		if (cb == NULL)
+		{
+			ERROR ("plugin_register_flush: malloc failed.");
+			sfree(flush_name);
+			return (-1);
+		}
+
+		cb->name = strdup (name);
+		if (cb->name == NULL)
+		{
+			ERROR ("plugin_register_flush: strdup failed.");
+			sfree(cb);
+			sfree(flush_name);
+			return (-1);
+		}
+		cb->timeout = ctx.flush_timeout;
+
+		ud.data = cb;
+		ud.free_func = plugin_flush_timeout_callback_free;
+
+		status = plugin_register_complex_read (
+			/* group     = */ "flush",
+			/* name      = */ flush_name,
+			/* callback  = */ plugin_flush_timeout_callback,
+			/* interval  = */ ctx.flush_interval,
+			/* user data = */ &ud);
+
+		sfree(flush_name);
+		if (status != 0)
+		{
+			sfree(cb->name);
+			sfree(cb);
+			return status;
+		}
+	}
+
+	return 0;
 } /* int plugin_register_flush */
 
 int plugin_register_missing (const char *name,
@@ -1295,7 +1444,7 @@ static void plugin_free_data_sets (void)
 int plugin_register_data_set (const data_set_t *ds)
 {
 	data_set_t *ds_copy;
-	int i;
+	size_t i;
 
 	if ((data_sets != NULL)
 			&& (c_avl_get (data_sets, ds->type, NULL) == 0))
@@ -1400,6 +1549,11 @@ int plugin_unregister_read (const char *name) /* {{{ */
 	return (0);
 } /* }}} int plugin_unregister_read */
 
+void plugin_log_available_writers (void)
+{
+	log_list_callbacks (&list_write, "Available write targets:");
+}
+
 static int compare_read_func_group (llentry_t *e, void *ud) /* {{{ */
 {
 	read_func_t *rf    = e->value;
@@ -1468,7 +1622,21 @@ int plugin_unregister_write (const char *name)
 
 int plugin_unregister_flush (const char *name)
 {
-	return (plugin_unregister (list_flush, name));
+	plugin_ctx_t ctx = plugin_get_ctx ();
+
+	if (ctx.flush_interval != 0)
+	{
+		char *flush_name;
+
+		flush_name = plugin_flush_callback_name (name);
+		if (flush_name != NULL)
+		{
+			plugin_unregister_read(flush_name);
+			sfree(flush_name);
+		}
+	}
+
+	return plugin_unregister (list_flush, name);
 }
 
 int plugin_unregister_missing (const char *name)
@@ -1667,6 +1835,7 @@ int plugin_read_all_once (void)
 			return_status = -1;
 		}
 
+		sfree (rf->rf_name);
 		destroy_callback ((void *) rf);
 	}
 
@@ -1973,8 +2142,8 @@ static int plugin_dispatch_values_internal (value_list_t *vl)
 	if (ds->ds_num != vl->values_len)
 	{
 		ERROR ("plugin_dispatch_values: ds->type = %s: "
-				"(ds->ds_num = %i) != "
-				"(vl->values_len = %i)",
+				"(ds->ds_num = %zu) != "
+				"(vl->values_len = %zu)",
 				ds->type, ds->ds_num, vl->values_len);
 		return (-1);
 	}
@@ -2162,7 +2331,7 @@ int plugin_dispatch_values (value_list_t const *vl)
 
 __attribute__((sentinel))
 int plugin_dispatch_multivalue (value_list_t const *template, /* {{{ */
-		_Bool store_percentage, ...)
+		_Bool store_percentage, int store_type, ...)
 {
 	value_list_t *vl;
 	int failed = 0;
@@ -2171,28 +2340,32 @@ int plugin_dispatch_multivalue (value_list_t const *template, /* {{{ */
 
 	assert (template->values_len == 1);
 
-	va_start (ap, store_percentage);
-	while (42)
-	{
-		char const *name;
-		gauge_t value;
+  /* Calculate sum for Gauge to calculate percent if needed */
+	if (DS_TYPE_GAUGE == store_type)	{
+		va_start (ap, store_type);
+		while (42)
+		{
+			char const *name;
+			gauge_t value;
 
-		name = va_arg (ap, char const *);
-		if (name == NULL)
-			break;
+			name = va_arg (ap, char const *);
+			if (name == NULL)
+				break;
 
-		value = va_arg (ap, gauge_t);
-		if (!isnan (value))
-			sum += value;
+			value = va_arg (ap, gauge_t);
+			if (!isnan (value))
+				sum += value;
+		}
+		va_end (ap);
 	}
-	va_end (ap);
+
 
 	vl = plugin_value_list_clone (template);
 	/* plugin_value_list_clone makes sure vl->time is set to non-zero. */
 	if (store_percentage)
 		sstrncpy (vl->type, "percent", sizeof (vl->type));
 
-	va_start (ap, store_percentage);
+	va_start (ap, store_type);
 	while (42)
 	{
 		char const *name;
@@ -2205,9 +2378,27 @@ int plugin_dispatch_multivalue (value_list_t const *template, /* {{{ */
 		sstrncpy (vl->type_instance, name, sizeof (vl->type_instance));
 
 		/* Set the value. */
-		vl->values[0].gauge = va_arg (ap, gauge_t);
-		if (store_percentage)
-			vl->values[0].gauge *= 100.0 / sum;
+		switch (store_type)
+		{
+		case DS_TYPE_GAUGE:
+			vl->values[0].gauge = va_arg (ap, gauge_t);
+			if (store_percentage)
+				vl->values[0].gauge *= 100.0 / sum;
+			break;
+		case DS_TYPE_ABSOLUTE:
+			vl->values[0].absolute = va_arg (ap, absolute_t);
+			break;
+		case DS_TYPE_COUNTER:
+			vl->values[0].counter  = va_arg (ap, counter_t);
+			break;
+		case DS_TYPE_DERIVE:
+			vl->values[0].derive   = va_arg (ap, derive_t);
+			break;
+		default:
+			ERROR ("plugin_dispatch_multivalue: given store_type is incorrect.");
+			failed++;
+		}
+
 
 		status = plugin_write_enqueue (vl);
 		if (status != 0)

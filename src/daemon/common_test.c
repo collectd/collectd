@@ -24,7 +24,7 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
-#include "tests/macros.h"
+#include "testing.h"
 #include "common.h"
 
 DEF_TEST(sstrncpy)
@@ -189,6 +189,57 @@ DEF_TEST(strjoin)
   return (0);
 }
 
+DEF_TEST(escape_slashes)
+{
+  struct {
+    char *str;
+    char *want;
+  } cases[] = {
+    {"foo/bar/baz", "foo_bar_baz"},
+    {"/like/a/path", "like_a_path"},
+    {"trailing/slash/", "trailing_slash_"},
+    {"foo//bar", "foo__bar"},
+  };
+  size_t i;
+
+  for (i = 0; i < STATIC_ARRAY_SIZE (cases); i++) {
+    char buffer[32];
+
+    strncpy (buffer, cases[i].str, sizeof (buffer));
+    OK(escape_slashes (buffer, sizeof (buffer)) == 0);
+    STREQ(cases[i].want, buffer);
+  }
+
+  return 0;
+}
+
+DEF_TEST(escape_string)
+{
+  struct {
+    char *str;
+    char *want;
+  } cases[] = {
+    {"foobar", "foobar"},
+    {"f00bar", "f00bar"},
+    {"foo bar", "\"foo bar\""},
+    {"foo \"bar\"", "\"foo \\\"bar\\\"\""},
+    {"012345678901234", "012345678901234"},
+    {"012345 78901234", "\"012345 789012\""},
+    {"012345 78901\"34", "\"012345 78901\""},
+  };
+  size_t i;
+
+  for (i = 0; i < STATIC_ARRAY_SIZE (cases); i++) {
+    char buffer[16];
+
+    strncpy (buffer, cases[i].str, sizeof (buffer));
+    OK(escape_string (buffer, sizeof (buffer)) == 0);
+    STREQ(cases[i].want, buffer);
+  }
+
+  return 0;
+}
+
 DEF_TEST(strunescape)
 {
   char buffer[16];
@@ -231,6 +282,100 @@ DEF_TEST(strunescape)
   return (0);
 }
 
+DEF_TEST(parse_values)
+{
+  struct {
+    char buffer[64];
+    int status;
+    gauge_t value;
+  } cases[] = {
+    {"1435044576:42",     0, 42.0},
+    {"1435044576:42:23", -1,  NAN},
+    {"1435044576:U",      0,  NAN},
+    {"N:12.3",            0, 12.3},
+    {"N:42.0:23",        -1,  NAN},
+    {"N:U",               0,  NAN},
+    {"T:42.0",           -1,  NAN},
+  };
+
+  size_t i;
+  for (i = 0; i < STATIC_ARRAY_SIZE (cases); i++)
+  {
+    data_source_t dsrc = {
+      .name = "value",
+      .type = DS_TYPE_GAUGE,
+      .min = 0.0,
+      .max = NAN,
+    };
+    data_set_t ds = {
+      .type = "example",
+      .ds_num = 1,
+      .ds = &dsrc,
+    };
+
+    value_t v = {
+      .gauge = NAN,
+    };
+    value_list_t vl = {
+      .values = &v,
+      .values_len = 1,
+      .time = 0,
+      .interval = 0,
+      .host = "example.com",
+      .plugin = "common_test",
+      .type = "example",
+      .meta = NULL,
+    };
+
+    int status = parse_values (cases[i].buffer, &vl, &ds);
+    EXPECT_INTEQ (cases[i].status, status);
+    if (status != 0)
+      continue;
+
+    DBLEQ (cases[i].value, vl.values[0].gauge);
+  }
+
+  return (0);
+}
+
+DEF_TEST(value_to_rate)
+{
+  struct {
+    time_t t0;
+    time_t t1;
+    int ds_type;
+    value_t v0;
+    value_t v1;
+    gauge_t want;
+  } cases[] = {
+    { 0, 10, DS_TYPE_DERIVE,  {.derive  =    0}, {.derive = 1000},   NAN},
+    {10, 20, DS_TYPE_DERIVE,  {.derive  = 1000}, {.derive = 2000}, 100.0},
+    {20, 30, DS_TYPE_DERIVE,  {.derive  = 2000}, {.derive = 1800}, -20.0},
+    { 0, 10, DS_TYPE_COUNTER, {.counter =    0}, {.counter = 1000},   NAN},
+    {10, 20, DS_TYPE_COUNTER, {.counter = 1000}, {.counter = 5000}, 400.0},
+    /* 32bit wrap-around. */
+    {20, 30, DS_TYPE_COUNTER, {.counter = 4294967238ULL}, {.counter =   42}, 10.0},
+    /* 64bit wrap-around. */
+    {30, 40, DS_TYPE_COUNTER, {.counter = 18446744073709551558ULL}, {.counter =   42}, 10.0},
+  };
+  size_t i;
+
+  for (i = 0; i < STATIC_ARRAY_SIZE (cases); i++) {
+    value_to_rate_state_t state = { cases[i].v0, TIME_T_TO_CDTIME_T (cases[i].t0) };
+    gauge_t got;
+
+    if (cases[i].t0 == 0) {
+      OK(value_to_rate (&got, cases[i].v1, cases[i].ds_type, TIME_T_TO_CDTIME_T(cases[i].t1), &state) == EAGAIN);
+      continue;
+    }
+
+    OK(value_to_rate (&got, cases[i].v1, cases[i].ds_type, TIME_T_TO_CDTIME_T(cases[i].t1), &state) == 0);
+    DBLEQ(cases[i].want, got);
+  }
+
+  return 0;
+}
+
 int main (void)
 {
   RUN_TEST(sstrncpy);
@@ -238,7 +383,11 @@ int main (void)
   RUN_TEST(sstrdup);
   RUN_TEST(strsplit);
   RUN_TEST(strjoin);
+  RUN_TEST(escape_slashes);
+  RUN_TEST(escape_string);
   RUN_TEST(strunescape);
+  RUN_TEST(parse_values);
+  RUN_TEST(value_to_rate);
 
   END_TEST;
 }

@@ -23,6 +23,33 @@ AM_CPPFLAGS += -DPKGDATADIR='"${pkgdatadir}"'
 
 AUTOMAKE_OPTIONS = subdir-objects
 
+noinst_LTLIBRARIES =
+check_PROGRAMS =
+TESTS =
+
+noinst_LTLIBRARIES += liblatency.la
+liblatency_la_SOURCES = utils_latency.c utils_latency.h
+check_PROGRAMS += test_utils_latency
+TESTS += test_utils_latency
+test_utils_latency_SOURCES = utils_latency_test.c testing.h
+test_utils_latency_LDADD = liblatency.la daemon/libcommon.la daemon/libplugin_mock.la -lm
+
+noinst_LTLIBRARIES += liblookup.la
+liblookup_la_SOURCES = utils_vl_lookup.c utils_vl_lookup.h
+liblookup_la_LIBADD = daemon/libavltree.la
+check_PROGRAMS += test_utils_vl_lookup
+TESTS += test_utils_vl_lookup
+test_utils_vl_lookup_SOURCES = utils_vl_lookup_test.c testing.h
+test_utils_vl_lookup_LDADD = liblookup.la daemon/libcommon.la daemon/libplugin_mock.la
+
+noinst_LTLIBRARIES += libmount.la
+libmount_la_SOURCES = utils_mount.c utils_mount.h
+check_PROGRAMS += test_utils_mount
+TESTS += test_utils_mount
+test_utils_mount_SOURCES = utils_mount_test.c testing.h
+test_utils_mount_LDADD = libmount.la daemon/libcommon.la daemon/libplugin_mock.la
+
+
 sbin_PROGRAMS = collectdmon
 bin_PROGRAMS = collectd-nagios collectdctl collectd-tg
 
@@ -55,10 +82,10 @@ endif
 collectdctl_LDADD += libcollectdclient/libcollectdclient.la
 collectdctl_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 
-collectd_tg_SOURCES = collectd-tg.c \
-		      daemon/utils_heap.c daemon/utils_heap.h
-collectd_tg_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/src/libcollectdclient/collectd -I$(top_builddir)/src/libcollectdclient/collectd
-collectd_tg_LDADD =
+collectd_tg_SOURCES = collectd-tg.c
+collectd_tg_CPPFLAGS = $(AM_CPPFLAGS) \
+		       -I$(top_srcdir)/src/libcollectdclient/collectd -I$(top_builddir)/src/libcollectdclient/collectd
+collectd_tg_LDADD = daemon/libheap.la
 if BUILD_WITH_LIBSOCKET
 collectd_tg_LDADD += -lsocket
 endif
@@ -92,6 +119,7 @@ if BUILD_PLUGIN_AMQP
 pkglib_LTLIBRARIES += amqp.la
 amqp_la_SOURCES = amqp.c \
 		  utils_cmd_putval.c utils_cmd_putval.h \
+  	          utils_parse_option.c utils_parse_option.h \
 		  utils_format_graphite.c utils_format_graphite.h \
 		  utils_format_json.c utils_format_json.h
 amqp_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBRABBITMQ_LDFLAGS)
@@ -171,12 +199,21 @@ bind_la_CFLAGS = $(AM_CFLAGS) \
 bind_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
 endif
 
+if BUILD_PLUGIN_CEPH
+pkglib_LTLIBRARIES += ceph.la
+ceph_la_SOURCES = ceph.c
+ceph_la_CFLAGS = $(AM_CFLAGS)
+ceph_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
+ceph_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
+ceph_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
+endif
+
 if BUILD_PLUGIN_CGROUPS
 pkglib_LTLIBRARIES += cgroups.la
 cgroups_la_SOURCES = cgroups.c \
-		     utils_ignorelist.c utils_ignorelist.h \
-		     utils_mount.c utils_mount.h
+		     utils_ignorelist.c utils_ignorelist.h
 cgroups_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+cgroups_la_LIBADD = libmount.la
 endif
 
 if BUILD_PLUGIN_CONNTRACK
@@ -274,9 +311,9 @@ endif
 if BUILD_PLUGIN_DF
 pkglib_LTLIBRARIES += df.la
 df_la_SOURCES = df.c \
-		utils_ignorelist.c utils_ignorelist.h \
-		utils_mount.c utils_mount.h
+		utils_ignorelist.c utils_ignorelist.h
 df_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+df_la_LIBADD = libmount.la
 endif
 
 if BUILD_PLUGIN_DISK
@@ -350,6 +387,12 @@ ethstat_la_SOURCES = ethstat.c
 ethstat_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_FHCOUNT
+pkglib_LTLIBRARIES += fhcount.la
+fhcount_la_SOURCES = fhcount.c
+fhcount_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_FILECOUNT
 pkglib_LTLIBRARIES += filecount.la
 filecount_la_SOURCES = filecount.c
@@ -397,6 +440,13 @@ interface_la_LIBADD += -lperfstat
 endif
 endif # BUILD_PLUGIN_INTERFACE
 
+if BUILD_PLUGIN_IPC
+pkglib_LTLIBRARIES += ipc.la
+ipc_la_SOURCES = ipc.c
+ipc_la_CFLAGS = $(AM_CFLAGS)
+ipc_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_IPTABLES
 pkglib_LTLIBRARIES += iptables.la
 iptables_la_SOURCES = iptables.c
@@ -419,6 +469,8 @@ pkglib_LTLIBRARIES += ipvs.la
 ipvs_la_SOURCES = ipvs.c
 if IP_VS_H_NEEDS_KERNEL_CFLAGS
 ipvs_la_CFLAGS = $(AM_CFLAGS) $(KERNEL_CFLAGS)
+else
+ipvs_la_CFLAGS = $(AM_CFLAGS)
 endif
 ipvs_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
@@ -593,6 +645,14 @@ modbus_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMODBUS_CFLAGS)
 modbus_la_LIBADD = $(BUILD_WITH_LIBMODBUS_LIBS)
 endif
 
+if BUILD_PLUGIN_MQTT
+pkglib_LTLIBRARIES += mqtt.la
+mqtt_la_SOURCES = mqtt.c
+mqtt_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+mqtt_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBMOSQUITTO_CPPFLAGS)
+mqtt_la_LIBADD = $(BUILD_WITH_LIBMOSQUITTO_LIBS)
+endif
+
 if BUILD_PLUGIN_MULTIMETER
 pkglib_LTLIBRARIES += multimeter.la
 multimeter_la_SOURCES = multimeter.c
@@ -681,7 +741,7 @@ if BUILD_PLUGIN_NOTIFY_EMAIL
 pkglib_LTLIBRARIES += notify_email.la
 notify_email_la_SOURCES = notify_email.c
 notify_email_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-notify_email_la_LIBADD = -lesmtp -lssl -lcrypto -lpthread -ldl
+notify_email_la_LIBADD = -lesmtp -lssl -lcrypto -lpthread
 endif
 
 if BUILD_PLUGIN_NTPD
@@ -769,6 +829,7 @@ perl_la_CFLAGS += -Wno-nonnull
 endif
 perl_la_LDFLAGS = $(PLUGIN_LDFLAGS) \
 		$(PERL_LDFLAGS)
+perl_la_LIBADD = $(PERL_LIBS)
 endif
 
 if BUILD_PLUGIN_PF
@@ -921,10 +982,9 @@ endif
 
 if BUILD_PLUGIN_STATSD
 pkglib_LTLIBRARIES += statsd.la
-statsd_la_SOURCES = statsd.c \
-                    utils_latency.h utils_latency.c
+statsd_la_SOURCES = statsd.c
 statsd_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-statsd_la_LIBADD = -lpthread
+statsd_la_LIBADD = liblatency.la -lpthread -lm
 endif
 
 if BUILD_PLUGIN_SWAP
@@ -1059,6 +1119,12 @@ tokyotyrant_la_LIBADD += -lsocket
 endif
 endif
 
+if BUILD_PLUGIN_TURBOSTAT
+pkglib_LTLIBRARIES += turbostat.la
+turbostat_la_SOURCES = turbostat.c
+turbostat_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_UNIXSOCK
 pkglib_LTLIBRARIES += unixsock.la
 unixsock_la_SOURCES = unixsock.c \
@@ -1171,8 +1237,16 @@ write_kafka_la_SOURCES = write_kafka.c \
                         utils_format_json.c utils_format_json.h \
                         utils_cmd_putval.c utils_cmd_putval.h \
                         utils_crc32.c utils_crc32.h
+write_kafka_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBRDKAFKA_CPPFLAGS)
 write_kafka_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBRDKAFKA_LDFLAGS)
 write_kafka_la_LIBADD = $(BUILD_WITH_LIBRDKAFKA_LIBS)
+endif
+
+if BUILD_PLUGIN_WRITE_LOG
+pkglib_LTLIBRARIES += write_log.la
+write_log_la_SOURCES = write_log.c \
+                        utils_format_graphite.c utils_format_graphite.h
+write_log_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
 if BUILD_PLUGIN_WRITE_MONGODB
@@ -1197,6 +1271,12 @@ write_riemann_la_SOURCES = write_riemann.c write_riemann_threshold.c
 nodist_write_riemann_la_SOURCES = riemann.pb-c.c riemann.pb-c.h
 write_riemann_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 write_riemann_la_LIBADD = -lprotobuf-c
+endif
+
+if BUILD_PLUGIN_WRITE_SENSU
+pkglib_LTLIBRARIES += write_sensu.la
+write_sensu_la_SOURCES = write_sensu.c
+write_sensu_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
 if BUILD_PLUGIN_WRITE_TSDB
@@ -1230,7 +1310,20 @@ endif
 endif
 endif
 
+if BUILD_PLUGIN_ZOOKEEPER
+pkglib_LTLIBRARIES += zookeeper.la
+zookeeper_la_SOURCES = zookeeper.c
+zookeeper_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 BUILT_SOURCES += $(dist_man_MANS)
+
+if BUILD_PLUGIN_ZONE
+pkglib_LTLIBRARIES += zone.la
+zone_la_SOURCES = zone.c
+zone_la_CFLAGS = $(AM_CFLAGS)
+zone_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
 
 dist_man_MANS = collectd.1 \
 		collectd.conf.5 \
@@ -1324,48 +1417,4 @@ uninstall-hook:
 	rm -f $(DESTDIR)$(sysconfdir)/collectd.conf
 	rm -f $(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
 
-check_PROGRAMS = test_common test_utils_avltree test_utils_heap test_utils_mount test_utils_vl_lookup
 
-test_common_SOURCES = tests/test_common.c \
-                      daemon/common.h daemon/common.c \
-                      tests/mock/plugin.c \
-                      tests/mock/utils_cache.c \
-                      tests/mock/utils_time.c
-test_common_CPPFLAGS = $(AM_CPPFLAGS) $(LTDLINCL)
-test_common_LDFLAGS = -export-dynamic
-test_common_LDADD =
-
-test_utils_avltree_SOURCES = tests/test_utils_avltree.c \
-                             daemon/utils_avltree.c daemon/utils_avltree.h
-test_utils_avltree_CPPFLAGS = $(AM_CPPFLAGS) $(LTDLINCL)
-test_utils_avltree_LDFLAGS = -export-dynamic
-test_utils_avltree_LDADD =
-
-test_utils_heap_SOURCES = tests/test_utils_heap.c \
-                          daemon/utils_heap.c daemon/utils_heap.h
-test_utils_heap_CPPFLAGS = $(AM_CPPFLAGS) $(LTDLINCL)
-test_utils_heap_LDFLAGS = -export-dynamic
-test_utils_heap_LDADD =
-
-test_utils_mount_SOURCES = tests/test_utils_mount.c \
-                           utils_mount.c utils_mount.h \
-                           daemon/common.c daemon/common.h \
-                           tests/mock/plugin.c \
-                           tests/mock/utils_cache.c \
-                           tests/mock/utils_time.c
-test_utils_mount_CPPFLAGS = $(AM_CPPFLAGS) $(LTDLINCL)
-test_utils_mount_LDFLAGS = -export-dynamic
-test_utils_mount_LDADD =
-
-test_utils_vl_lookup_SOURCES = tests/test_utils_vl_lookup.c \
-                               utils_vl_lookup.h utils_vl_lookup.c \
-                               daemon/utils_avltree.c daemon/utils_avltree.h \
-                               daemon/common.c daemon/common.h \
-                               tests/mock/plugin.c \
-                               tests/mock/utils_cache.c \
-                               tests/mock/utils_time.c
-test_utils_vl_lookup_CPPFLAGS = $(AM_CPPFLAGS) $(LTDLINCL)
-test_utils_vl_lookup_LDFLAGS = -export-dynamic
-test_utils_vl_lookup_LDADD =
-
-TESTS = test_common test_utils_avltree test_utils_heap test_utils_mount test_utils_vl_lookup

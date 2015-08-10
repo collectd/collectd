@@ -78,8 +78,14 @@ Christophe Kalt <collectd at klb.taranis.org>
 Cyril Feraudet <cyril at feraudet.com>
  - ethstat plugin.
 
+Dagobert Michelsen <dam at opencsw.org>
+ - zone plugin.
+
 Dan Berrange <berrange at redhat.com>
  - uuid plugin.
+
+Dan Ryder <daryder at cisco.com>
+ - ceph plugin.
 
 David Bacher <drbacher at gmail.com>
  - serial plugin.
@@ -103,6 +109,9 @@ Fabian Linzberger <e at lefant.net>
 Fabien Wernli <cpan at faxm0dem.org>
  - Solaris improvements in the memory and interfaces plugin.
 
+Fabrice A. Marie <fabrice at kibinlabs.com>
+ - write_sensu plugin.
+
 Flavio Stanchina <flavio at stanchina.net>
  - mbmon plugin.
 
@@ -115,8 +124,15 @@ Jason Pepas <cell at ices.utexas.edu>
 J. Javier Maestro <jjmaestro at ieee.org>
  - Write-Graphite plugin: UDP support and LogSendErrors flag.
 
+Jeremy Katz <jeremy at katzbox.net>
+ - percentage reporting in memory and swap plugins.
+ - zookeeper plugin.
+
 Jérôme Renard <jerome.renard at gmail.com>
  - varnish plugin.
+
+Jiri Tyr <jiri.tyr at gmail.com>
+ - fhcount plugin.
 
 Kevin Bowling <kbowling at llnw.com>
  - write_tsdb plugin for http://opentsdb.net/
@@ -161,8 +177,14 @@ Marco Chiappero <marco at absence.it>
  - ip6tables support in the iptables plugin.
  - openvpn plugin (support for more status file formats)
 
+Mathijs Möhlmann <collectd at mmrc.nl>
+ - zone plugin.
+
 Michael Hanselmann <public at hansmi.ch>
  - md plugin.
+
+Michael Schenck <mschenck at digitalocean.com>
+ - IO time support to disk plugin.
 
 Michael Stapelberg <michael+git at stapelberg.de>
  - OpenBSD port of the tcpconns plugin.
@@ -266,6 +288,9 @@ Tommie Gannert <d00-tga at d.kth.se>
 
 Vincent Bernat <vincent at bernat.im>
  - smart plugin.
+
+Vincent Brillault <git at lerya.net>
+ - turbostat plugin, based on Len Brown <len.brown at intel.com> kernel tool
 
 Vincent Stehlé <vincent.stehle at free.fr>
  - hddtemp plugin.

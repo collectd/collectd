@@ -27,7 +27,6 @@ true \
 && rm -f src/*.o \
 && rm -f src/*.la \
 && rm -f src/*.lo \
-&& rm -f src/collectd \
 && rm -f src/collectd.1 \
 && rm -f src/collectd.conf \
 && rm -f src/collectdctl \
@@ -44,6 +43,21 @@ true \
 && rm -f src/*.pb-c.c \
 && rm -f src/*.pb-c.h \
 && rm -f src/Makefile.in \
+&& rm -f src/test-suite.log \
+&& rm -f src/test_common* \
+&& rm -f src/test_utils* \
+&& rm -f -r src/tests/.deps \
+&& rm -f -r src/tests/mock/.deps \
+&& rm -f src/tests/*.o \
+&& rm -f src/tests/mock/*.o \
+&& rm -f -r src/daemon/.deps \
+&& rm -f -r src/daemon/.libs \
+&& rm -f src/daemon/*.o \
+&& rm -f src/daemon/*.la \
+&& rm -f src/daemon/*.lo \
+&& rm -f src/daemon/collectd \
+&& rm -f src/daemon/Makefile.in \
+&& rm -f src/daemon/Makefile \
 && rm -f src/liboconfig/*.o \
 && rm -f src/liboconfig/*.la \
 && rm -f src/liboconfig/*.lo \

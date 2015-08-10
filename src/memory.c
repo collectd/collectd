@@ -160,9 +160,9 @@ static int memory_init (void)
 
 #define MEMORY_SUBMIT(...) do { \
 	if (values_absolute) \
-		plugin_dispatch_multivalue (vl, 0, __VA_ARGS__, NULL); \
+		plugin_dispatch_multivalue (vl, 0, DS_TYPE_GAUGE, __VA_ARGS__, NULL); \
 	if (values_percentage) \
-		plugin_dispatch_multivalue (vl, 1, __VA_ARGS__, NULL); \
+		plugin_dispatch_multivalue (vl, 1, DS_TYPE_GAUGE, __VA_ARGS__, NULL); \
 } while (0)
 
 static int memory_read_internal (value_list_t *vl)

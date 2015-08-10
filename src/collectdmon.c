@@ -80,7 +80,7 @@ static void exit_usage (char *name)
 
 			"\nFor <collectd options> see collectd.conf(5).\n"
 
-			"\n"PACKAGE" "VERSION", http://collectd.org/\n"
+			"\n"PACKAGE_NAME" "PACKAGE_VERSION", http://collectd.org/\n"
 			"by Florian octo Forster <octo@collectd.org>\n"
 			"for contributions see `AUTHORS'\n", name);
 	exit (0);
@@ -317,7 +317,10 @@ int main (int argc, char **argv)
 	openlog ("collectdmon", LOG_CONS | LOG_PID, LOG_DAEMON);
 
 	if (-1 == daemonize ())
+	{
+		free (collectd_argv);
 		return 1;
+	}
 
 	sa.sa_handler = sig_int_term_handler;
 	sa.sa_flags   = 0;
@@ -325,11 +328,13 @@ int main (int argc, char **argv)
 
 	if (0 != sigaction (SIGINT, &sa, NULL)) {
 		syslog (LOG_ERR, "Error: sigaction() failed: %s", strerror (errno));
+		free (collectd_argv);
 		return 1;
 	}
 
 	if (0 != sigaction (SIGTERM, &sa, NULL)) {
 		syslog (LOG_ERR, "Error: sigaction() failed: %s", strerror (errno));
+		free (collectd_argv);
 		return 1;
 	}
 
@@ -337,6 +342,7 @@ int main (int argc, char **argv)
 
 	if (0 != sigaction (SIGHUP, &sa, NULL)) {
 		syslog (LOG_ERR, "Error: sigaction() failed: %s", strerror (errno));
+		free (collectd_argv);
 		return 1;
 	}
 

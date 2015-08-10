@@ -26,6 +26,10 @@
 
 #include "plugin.h"
 
+#if HAVE_LIBKSTAT
+kstat_ctl_t *kc = NULL;
+#endif /* HAVE_LIBKSTAT */
+
 void plugin_log (int level, char const *format, ...)
 {
   char buffer[1024];

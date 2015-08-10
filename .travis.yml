@@ -1,0 +1,25 @@
+sudo: false
+compiler:
+  - gcc
+  - clang
+addons:
+  apt:
+    packages:
+      - iptables-dev
+      - libcap-dev
+      - libdbi-dev
+      - libhiredis-dev
+      - libnfnetlink-dev
+      - libnotify-dev
+      - libpcap-dev
+      - libperl-dev
+      - libprotobuf-c0-dev
+      - librrd-dev
+      - libsnmp-dev
+      - libudev-dev
+      - libvarnishapi-dev
+      - libyajl-dev
+      - linux-libc-dev
+      - protobuf-c-compiler
+language: c
+script: sh build.sh && ./configure && make distcheck
