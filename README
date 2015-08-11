@@ -49,7 +49,7 @@ Features
       Statistics from the Ceph distributed storage system.
 
     - cgroups
-      CPU accounting information for process groups under Linux.
+      CPU and memory accounting information for process groups under Linux.
 
     - conntrack
       Number of nf_conntrack entries.
