@@ -536,8 +536,6 @@ static int disk_read (void)
 	struct gident *geom_id;
 
 	const char *disk_name;
-	uint64_t read_bytes, write_bytes;
-	uint64_t read_ops, write_ops;
 	long double read_time, write_time;
 
 	for (retry = 0, dirty = 1; retry < 5 && dirty == 1; retry++) {
@@ -613,27 +611,22 @@ static int disk_read (void)
 		if (dirty && (snap_iter->sequence0 != snap_iter->sequence1))
 			continue;
 
-		devstat_compute_statistics(snap_iter, NULL, 10.0,
-		    DSM_TOTAL_TRANSFERS_READ, &read_ops,
-		    DSM_TOTAL_BYTES_READ, &read_bytes,
-		    DSM_TOTAL_DURATION_READ, &read_time,
-
-		    DSM_TOTAL_TRANSFERS_WRITE, &write_ops,
-		    DSM_TOTAL_BYTES_WRITE, &write_bytes,
-		    DSM_TOTAL_DURATION_WRITE, &write_time,
-
-		    DSM_NONE);
-
 		disk_name = ((struct gprovider *)geom_id->lg_ptr)->lg_name;
 
-		if ((read_bytes != 0) || (write_bytes != 0))
+		if ((snap_iter->bytes[DEVSTAT_READ] != 0) || (snap_iter->bytes[DEVSTAT_WRITE] != 0)) {
 			disk_submit(disk_name, "disk_octets",
-					(derive_t)read_bytes, (derive_t)write_bytes);
+					(derive_t)snap_iter->bytes[DEVSTAT_READ],
+					(derive_t)snap_iter->bytes[DEVSTAT_WRITE]);
+		}
 
-		if ((read_ops != 0) || (write_ops != 0))
+		if ((snap_iter->operations[DEVSTAT_READ] != 0) || (snap_iter->operations[DEVSTAT_WRITE] != 0)) {
 			disk_submit(disk_name, "disk_ops",
-					(derive_t)read_ops, (derive_t)write_ops);
+					(derive_t)snap_iter->operations[DEVSTAT_READ],
+					(derive_t)snap_iter->operations[DEVSTAT_WRITE]);
+		}
 
+		read_time = devstat_compute_etime(&snap_iter->duration[DEVSTAT_READ], NULL);
+		write_time = devstat_compute_etime(&snap_iter->duration[DEVSTAT_WRITE], NULL);
 		if ((read_time != 0) || (write_time != 0)) {
 			disk_submit (disk_name, "disk_time",
 					(derive_t)(read_time*1000), (derive_t)(write_time*1000));
