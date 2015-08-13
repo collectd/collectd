@@ -5362,6 +5362,7 @@ fi
 
 if test "x$ac_system" = "xFreeBSD"
 then
+	plugin_disk="yes"
 	plugin_zfs_arc="yes"
 fi
 
