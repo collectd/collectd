@@ -6,10 +6,6 @@ SUBDIRS += daemon
 
 PLUGIN_LDFLAGS = -module -avoid-version -export-symbols-regex '\<module_register\>'
 
-if COMPILER_IS_GCC
-AM_CFLAGS = -Wall -Werror
-endif
-
 AM_CPPFLAGS = -I$(srcdir)/daemon
 AM_CPPFLAGS += -DPREFIX='"${prefix}"'
 AM_CPPFLAGS += -DCONFIGFILE='"${sysconfdir}/${PACKAGE_NAME}.conf"'

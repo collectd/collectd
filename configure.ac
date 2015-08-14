@@ -5910,6 +5910,20 @@ AC_SUBST(LCC_VERSION_STRING)
 
 AC_CONFIG_FILES(src/libcollectdclient/collectd/lcc_features.h)
 
+AM_CFLAGS="-Wall"
+AC_ARG_ENABLE([werror],
+        AS_HELP_STRING(
+                [--disable-werror],
+                [Disable -Werror @<:@default=no@:>@)]
+        )
+)
+
+if test "x$enable_werror" != "xno"
+then
+        AM_CFLAGS="$AM_CFLAGS -Werror"
+fi
+AC_SUBST([AM_CFLAGS])
+
 AC_CONFIG_FILES([Makefile src/Makefile src/daemon/Makefile src/collectd.conf src/libcollectdclient/Makefile src/libcollectdclient/libcollectdclient.pc src/liboconfig/Makefile bindings/Makefile bindings/java/Makefile])
 AC_OUTPUT
 
