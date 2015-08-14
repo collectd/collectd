@@ -4,6 +4,11 @@ AC_CONFIG_SRCDIR(src/collectd.c)
 AC_CONFIG_HEADERS(src/config.h)
 AC_CONFIG_AUX_DIR([libltdl/config])
 
+dnl older automake's default of ARFLAGS=cru is noisy on newer binutils;
+dnl we don't really need the 'u' even in older toolchains.  Then there is
+dnl older libtool, which spelled it AR_FLAGS
+m4_divert_text([DEFAULTS], [: "${ARFLAGS=cr} ${AR_FLAGS=cr}"])
+
 m4_ifdef([LT_PACKAGE_VERSION],
 	# libtool >= 2.2
 	[
