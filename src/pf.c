@@ -28,6 +28,9 @@
 #if HAVE_NET_IF_H
 # include <net/if.h>
 #endif
+#if HAVE_NETINET_IN_H
+# include <netinet/in.h>
+#endif
 
 #include <net/pfvar.h>
 

@@ -624,6 +624,9 @@ AC_CHECK_HEADERS(net/pfvar.h,
 #if HAVE_NET_IF_H
 # include <net/if.h>
 #endif
+#if HAVE_NETINET_IN_H
+# include <netinet/in.h>
+#endif
 ])
 
 # For the multimeter plugin
