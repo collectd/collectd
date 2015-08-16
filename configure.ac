@@ -3292,11 +3292,6 @@ then
 fi
 if test "x$with_libpcap" = "xyes"
 then
-	AC_CHECK_HEADERS(pcap-bpf.h,,
-			 [with_libpcap="no (pcap-bpf.h not found)"])
-fi
-if test "x$with_libpcap" = "xyes"
-then
 	AC_CACHE_CHECK([whether libpcap has PCAP_ERROR_IFACE_NOT_UP],
 		       [c_cv_libpcap_have_pcap_error_iface_not_up],
 		       AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
