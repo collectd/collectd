@@ -28,6 +28,7 @@
 
 %{
 #include <stdlib.h>
+#include <string.h>
 #include "oconfig.h"
 #include "aux_types.h"
 #include "parser.h"
