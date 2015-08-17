@@ -146,6 +146,34 @@
 #define BMP085_TIME_CNV_PRESS_3    25500
 
 
+/* ------------ MS5611 defines ------------ */
+/* I2C address of the MS5611 sensor can be 0x76 or 0x77 */
+#define MS5611_I2C_ADDRESS          0x77
+
+/* commands */
+#define MS5611_ADDR_RESET           0x1E
+#define MS5611_ADDR_ADC_READ        0x00
+#define MS5611_ADDR_PROM_BASE       0xA0
+
+/* Convert D1, D2 command  */
+#define MS5611_ADDR_CONV_D1_BASE    0x40
+#define MS5611_ADDR_CONV_D2_BASE    0x50
+
+/* Add these values to the D*_BASE to select the Oversampling ratio (OSR). */
+#define MS5611_OSR_256              0x00
+#define MS5611_OSR_512              0x02
+#define MS5611_OSR_1024             0x04
+#define MS5611_OSR_2048             0x06
+#define MS5611_OSR_4096             0x08
+
+/* register sizes */
+#define MS5611_PROM_COEFFS             8
+
+/* in us */
+#define MS5611_TIME_CNV_TEMP        8660
+#define MS5611_TIME_RESET           2800
+
+
 /* ------------ Normalization ------------ */
 /* Mean sea level pressure normalization methods */
 #define MSLP_NONE          0
@@ -163,7 +191,8 @@ enum Sensor_type {
     Sensor_none = 0,
     Sensor_MPL115,
     Sensor_MPL3115,
-    Sensor_BMP085
+    Sensor_BMP085,
+    Sensor_MS5611
 };
 
 static const char *config_keys[] =
@@ -196,10 +225,14 @@ static enum Sensor_type sensor_type = Sensor_none; /**< detected/used sensor typ
 
 static __s32  mpl3115_oversample  = 0;    /**< MPL3115 CTRL1 oversample setting */
 
-// BMP085 configuration
+/* BMP085 configuration */
 static unsigned      bmp085_oversampling; /**< BMP085 oversampling (0-3) */
 static unsigned long bmp085_timeCnvPress; /**< BMP085 conversion time for pressure in us */
 static __u8          bmp085_cmdCnvPress;  /**< BMP085 pressure conversion command */
+
+/* MS5611 configuration */
+static unsigned      ms5611_osr_addr_offset; /**< MS5611 OSR offset for CONV_D* commands */
+static unsigned      ms5611_oversampling;    /**< MS5611 oversampling (256-4096) */
 
 
 /* MPL115 conversion coefficients */
@@ -223,6 +256,13 @@ static short bmp085_MB;
 static short bmp085_MC;
 static short bmp085_MD;
 
+/* MS5611 conversion coefficients */
+static unsigned short ms5611_SENS;
+static unsigned short ms5611_OFF;
+static unsigned short ms5611_TCS;
+static unsigned short ms5611_TCO;
+static unsigned short ms5611_TREF;
+static unsigned short ms5611_TEMPSENS;
 
 
 /* ------------------------ averaging ring buffer ------------------------ */
@@ -1349,6 +1389,274 @@ static int BMP085_read(double * pressure, double * temperature)
 }
 
 
+/* ------------------------ MS5611 access ------------------------ */
+
+/**
+ * Adjusts oversampling settings to values supported by MS5611
+ *
+ * MS5611 supports powers of 2 from 256 to 4096.
+ */
+static void MS5611_adjust_oversampling(void)
+{
+    int new_val = 0;
+    int i;
+
+    for (i = 8; i <= 12; ++i)
+    {
+        int oversample_i = 1 << i;
+        if (i == 12 || config_oversample < oversample_i * 3 / 2)
+        {
+            new_val = oversample_i;
+            ms5611_oversampling = oversample_i;
+            ms5611_osr_addr_offset = 2 * (i - 8);
+            break;
+        }
+    }
+    if (new_val == config_oversample)
+        return;
+    DEBUG("barometer: MS5611_adjust_oversampling - correcting oversampling from %d to %d",
+          config_oversample,
+          new_val);
+    config_oversample = new_val;
+}
+
+
+/**
+ * Read the MS5611 sensor conversion coefficients.
+ *
+ * These are (device specific) constants so we can read them just once.
+ *
+ * @return Zero when successful
+ */
+static int MS5611_read_coeffs(__u16* coeffs)
+{
+    __s32 res;
+    char errbuf[1024];
+    int addr;
+
+    /* Reset the chip first. */
+    res = i2c_smbus_write_byte(i2c_bus_fd, MS5611_ADDR_RESET);
+    if (res < 0)
+    {
+        ERROR ("barometer: MS5611_read_coeffs - problem resetting the device: %s",
+               sstrerror (errno, errbuf, sizeof (errbuf)));
+        return -1;
+    }
+
+    /* After reset, we need to wait up to 2.8ms before we can to the first read. */
+    usleep(MS5611_TIME_RESET);
+
+    for (addr = 0; addr < MS5611_PROM_COEFFS; addr++)
+    {
+        res = i2c_smbus_read_word_data(i2c_bus_fd, MS5611_ADDR_PROM_BASE + addr * 2);
+        if (res < 0)
+        {
+            ERROR ("barometer: MS5611_read_coeffs - problem reading data: %s",
+                   sstrerror (errno, errbuf, sizeof (errbuf)));
+            return -1;
+        }
+        /* The chip returns first the MSB and then the LSB. */
+        coeffs[addr] = res >> 8 | ((res << 8) & 0xFF00);
+    }
+
+    DEBUG("barometer: MS5611_read_coeffs - PROM: 0x%.4x, 0x%.4x, 0x%.4x, 0x%.4x, 0x%.4x, 0x%.4x, 0x%.4x, 0x%.4x",
+          coeffs[0], coeffs[1], coeffs[2], coeffs[3], coeffs[4], coeffs[5], coeffs[6], coeffs[7]);
+
+    return 0;
+}
+
+
+/**
+ * Verify the CRC-4 value on the MS5611 sensor PROM.
+ *
+ * The CRC-4 algorithm used is explained in detail in the AN520.
+ *
+ * @return Zero when the CRC-4 is correct.
+ */
+static int MS5611_check_crc4(const __u16* coeffs)
+{
+    unsigned int rem = 0;
+    unsigned int byte;
+    int i, j, bit;
+    unsigned int crc4;
+
+    for (i = 0; i < MS5611_PROM_COEFFS; ++i)
+    {
+        for (j = 0; j < 2; ++j)
+        {
+            byte = j ? coeffs[i] & 0xFF : coeffs[i] >> 8;
+            /* The last byte actually contains the crc-4 so we use a 0 here. */
+            if (i == MS5611_PROM_COEFFS - 1 && j == 1)
+                byte = 0;
+
+            rem ^= byte;
+            for (bit = 0; bit < 8; ++bit)
+            {
+                rem = rem & 0x8000 ? (rem << 1) ^ 0x13000 : rem << 1;
+            }
+        }
+    }
+    crc4 = 0x000F & (rem >> 12);
+    return (coeffs[MS5611_PROM_COEFFS - 1] & 0xf) != crc4;
+}
+
+
+/**
+ * Detect presence of a MS5611 pressure sensor by checking its ID register
+ *
+ * As a sideeffect will leave set I2C slave address.
+ *
+ * @return 1 if MS5611, 0 otherwise
+ */
+static int MS5611_detect(void)
+{
+    char errbuf[1024];
+
+    if (ioctl(i2c_bus_fd, I2C_SLAVE_FORCE, MS5611_I2C_ADDRESS) < 0)
+    {
+        ERROR("barometer: MS5611_detect - problem setting i2c slave address to 0x%02X: %s",
+              MS5611_I2C_ADDRESS,
+              sstrerror (errno, errbuf, sizeof (errbuf)));
+        return 0 ;
+    }
+
+    __u16 prom_coeffs[MS5611_PROM_COEFFS];
+    if (MS5611_read_coeffs(prom_coeffs))
+    {
+        DEBUG ("barometer: MS5611_detect - negative detection");
+        return 0;
+    }
+
+    if (MS5611_check_crc4(prom_coeffs))
+    {
+        ERROR("barometer: MS5611_detect - crc4 value doesn't match.");
+        return 0;
+    }
+
+    ms5611_SENS = prom_coeffs[1];
+    ms5611_OFF = prom_coeffs[2];
+    ms5611_TCS = prom_coeffs[3];
+    ms5611_TCO = prom_coeffs[4];
+    ms5611_TREF = prom_coeffs[5];
+    ms5611_TEMPSENS = prom_coeffs[6];
+
+    DEBUG ("barometer: MS5611_detect - positive detection, initialized.");
+    return 1;
+}
+
+
+/**
+ * Convert raw MS5611 adc values to real data using the sensor coefficients.
+ *
+ * @param adc_d1       ADC value read from CONV_D1 command
+ * @param adc_d2       ADC value read from CONV_D1 command
+ * @param pressure     computed real pressure
+ * @param temperature  computed real temperature
+ */
+static void MS5611_convert_adc_to_real(long adc_d1,
+                                       long adc_d2,
+                                       double * pressure,
+                                       double * temperature)
+{
+    long long dT, temp, off, sens, p;
+    long long t2, off2, sens2;
+    t2 = off2 = sens2 = 0;
+
+    /* calculate real temperature */
+    dT = adc_d2 - ((ulong)ms5611_TREF << 8);
+    temp = 2000 + (dT * (ulong)ms5611_TEMPSENS >> 23);
+
+    /* calculate real pressure */
+    off = ((ulong)ms5611_OFF << 16) + (dT * (ulong)ms5611_TCO >> 7);
+    sens = ((ulong)ms5611_SENS << 15) + (dT * (ulong)ms5611_TCS >> 8);
+
+    /* Second order temperature compensation */
+    if (temp < 2000)
+    {
+        t2 = dT * dT >> 31;
+        off2 = 5 * (temp - 2000) * (temp - 2000) / 2;
+        sens2 = off2 / 2;
+
+        if (temp < -1500)
+        {
+            off2 += 7 * (temp + 1500) * (temp + 1500);
+            sens2 += 11 * (temp + 1500) * (temp + 1500) / 2;
+        }
+    }
+    temp -= t2;
+    off -= off;
+    sens -= sens2;
+
+    p = ((adc_d1 * sens >> 21) - off) >> 15;
+
+    *temperature = (double)(temp) / 100.;
+    *pressure = (double)(p) / 100.;
+
+    DEBUG ("barometer: MS5611_convert_adc_to_real - got %lf hPa, %lf C",
+           *pressure,
+           *temperature);
+}
+
+
+/**
+ * Read compensated sensor measurements
+ *
+ * @param pressure    averaged measured pressure
+ * @param temperature averaged measured temperature
+ *
+ * @return Zero when successful
+ */
+static int MS5611_read(double * pressure, double * temperature)
+{
+    __s32 res;
+    __u8 measBuff[4], cmd_base;
+
+    int d;
+    long adc_d[2];
+
+    char errbuf[1024];
+
+    /* start conversion of values D1 and D2 */
+    for (d = 0; d < 2; ++d)
+    {
+        cmd_base = d ? MS5611_ADDR_CONV_D2_BASE : MS5611_ADDR_CONV_D1_BASE;
+        res = i2c_smbus_write_byte( i2c_bus_fd,
+                                    cmd_base + ms5611_osr_addr_offset );
+        if (res < 0)
+        {
+            ERROR ("barometer: MS5611_read - problem requesting D%d conversion: %s",
+                   d,
+                   sstrerror (errno, errbuf, sizeof (errbuf)));
+            return 1;
+        }
+
+        usleep(MS5611_TIME_CNV_TEMP); /* wait for the conversion */
+
+        res = i2c_smbus_read_i2c_block_data( i2c_bus_fd,
+                                             MS5611_ADDR_ADC_READ,
+                                             3,
+                                             measBuff);
+        if (res < 0)
+        {
+            ERROR ("barometer: MS5611_read - problem reading D%d data: %s",
+                   d,
+                   sstrerror (errno, errbuf, sizeof (errbuf)));
+            return 1;
+        }
+
+        adc_d[d] = ( (ulong)measBuff[0] << 16 ) | ( (ulong)measBuff[1] << 8 ) | measBuff[2];
+    }
+
+    DEBUG ("barometer: MS5611_read - D1 ADC value = %ld, D2 ADC value = %ld",
+           adc_d[0],
+           adc_d[1]);
+
+    MS5611_convert_adc_to_real(adc_d[0], adc_d[1], pressure, temperature);
+
+    return 0;
+}
+
+
 
 /* ------------------------ Sensor detection ------------------------ */
 /** 
@@ -1370,6 +1678,9 @@ enum Sensor_type Detect_sensor_type(void)
 
     else if(MPL115_detect())
         return Sensor_MPL115;
+
+    else if(MS5611_detect())
+        return Sensor_MS5611;
 
     return Sensor_none;
 }
@@ -1469,10 +1780,10 @@ static int collectd_barometer_config (const char *key, const char *value)
     else if (strcasecmp (key, "Oversampling") == 0)
     {
         int oversampling_tmp = atoi (value);
-        if (oversampling_tmp < 1 || oversampling_tmp > 1024)
+        if (oversampling_tmp < 1 || oversampling_tmp > 4096)
         {
             WARNING ("barometer: collectd_barometer_config: invalid oversampling: %d." \
-                     " Allowed values are 1 to 1024 (for MPL115) or 1 to 128 (for MPL3115) or 1 to 8 (for BMP085).",
+                     " Allowed values are 1 to 1024 (for MPL115) or 1 to 128 (for MPL3115) or 1 to 8 (for BMP085) or 256 to 4096 (for MS5611).",
                      oversampling_tmp);
             return 1;
         }
@@ -1755,6 +2066,69 @@ static int BMP085_collectd_barometer_read (void)
 }
 
 
+/**
+ * Plugin read callback for MS5611.
+ *
+ *  Dispatching will create values:
+ *  - <hostname>/barometer-ms5611/pressure-normalized
+ *  - <hostname>/barometer-ms5611/pressure-absolute
+ *  - <hostname>/barometer-ms5611/temperature
+ *
+ * @return Zero when successful.
+ */
+static int MS5611_collectd_barometer_read (void)
+{
+    int result = 0;
+
+    double pressure        = 0.0;
+    double temperature     = 0.0;
+    double norm_pressure   = 0.0;
+
+    value_list_t vl = VALUE_LIST_INIT;
+    value_t      values[1];
+
+    DEBUG("barometer: MS5611_collectd_barometer_read");
+
+    if (!configured)
+    {
+        return -1;
+    }
+
+    result = MS5611_read(&pressure, &temperature);
+    if(result)
+        return result;
+
+    norm_pressure = abs_to_mean_sea_level_pressure(pressure);
+
+    sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+    sstrncpy (vl.plugin, "barometer", sizeof (vl.plugin));
+    sstrncpy (vl.plugin_instance, "ms5611", sizeof (vl.plugin_instance));
+
+    vl.values_len = 1;
+    vl.values = values;
+
+    /* dispatch normalized air pressure */
+    sstrncpy (vl.type, "pressure", sizeof (vl.type));
+    sstrncpy (vl.type_instance, "normalized", sizeof (vl.type_instance));
+    values[0].gauge = norm_pressure;
+    plugin_dispatch_values (&vl);
+
+    /* dispatch absolute air pressure */
+    sstrncpy (vl.type, "pressure", sizeof (vl.type));
+    sstrncpy (vl.type_instance, "absolute", sizeof (vl.type_instance));
+    values[0].gauge = pressure;
+    plugin_dispatch_values (&vl);
+
+    /* dispatch sensor temperature */
+    sstrncpy (vl.type, "temperature", sizeof (vl.type));
+    sstrncpy (vl.type_instance, "", sizeof (vl.type_instance));
+    values[0].gauge = temperature;
+    plugin_dispatch_values (&vl);
+
+    return 0;
+}
+
+
 /** 
  * Initialization callback
  * 
@@ -1850,6 +2224,16 @@ static int collectd_barometer_init (void)
             return -1;
 
         plugin_register_read ("barometer", BMP085_collectd_barometer_read);
+    }
+    break;
+
+
+/* MS5611 */
+    case Sensor_MS5611:
+    {
+        MS5611_adjust_oversampling();
+
+        plugin_register_read ("barometer", MS5611_collectd_barometer_read);
     }
     break;
 

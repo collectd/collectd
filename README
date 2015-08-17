@@ -34,8 +34,8 @@ Features
 
     - barometer
       Reads absolute barometric pressure, air pressure reduced to sea level and
-      temperature.  Supported sensors are MPL115A2 and MPL3115 from Freescale
-      and BMP085 from Bosch.
+      temperature.  Supported sensors are MPL115A2 and MPL3115 from Freescale,
+      BMP085 from Bosch and MS5611 from Measurement Specialties.
 
     - battery
       Batterycharge, -current and voltage of ACPI and PMU based laptop
