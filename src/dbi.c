@@ -64,6 +64,8 @@ struct cdbi_database_s /* {{{ */
   char *name;
   char *select_db;
 
+  cdtime_t interval;
+
   char *driver;
   char *host;
   cdbi_driver_option_t *driver_options;
@@ -215,6 +217,7 @@ static void cdbi_database_free (cdbi_database_t *db) /* {{{ */
  *     
  *   <Database "plugin_instance1">
  *     Driver "mysql"
+ *     Interval 120
  *     DriverOption "hostname" "localhost"
  *     ...
  *     Query "plugin_instance0"
@@ -322,6 +325,8 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
           &db->queries, &db->queries_num);
     else if (strcasecmp ("Host", child->key) == 0)
       status = cf_util_get_string (child, &db->host);
+    else if (strcasecmp ("Interval", child->key) == 0)
+      status = cf_util_get_cdtime(child, &db->interval);
     else
     {
       WARNING ("dbi plugin: Option `%s' not allowed here.", child->key);
@@ -394,6 +399,8 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
     {
       user_data_t ud;
       char *name = NULL;
+      struct timespec interval = { 0, 0 };
+      CDTIME_T_TO_TIMESPEC (db->interval, &interval);
 
       databases = temp;
       databases[databases_num] = db;
@@ -407,7 +414,7 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
       plugin_register_complex_read (/* group = */ NULL,
           /* name = */ name ? name : db->name,
           /* callback = */ cdbi_read_database,
-          /* interval = */ 0,
+          /* interval = */ (db->interval > 0) ? &interval : NULL,
           /* user_data = */ &ud);
       free (name);
     }
@@ -597,7 +604,7 @@ static int cdbi_read_database_query (cdbi_database_t *db, /* {{{ */
 
   udb_query_prepare_result (q, prep_area, (db->host ? db->host : hostname_g),
       /* plugin = */ "dbi", db->name,
-      column_names, column_num, /* interval = */ 0);
+      column_names, column_num, /* interval = */ (db->interval > 0) ? db->interval : 0);
 
   /* 0 = error; 1 = success; */
   status = dbi_result_first_row (res); /* {{{ */
