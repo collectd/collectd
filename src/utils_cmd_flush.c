@@ -57,7 +57,7 @@ int handle_flush (FILE *fh, char *buffer)
 		fflush(fh); \
 	} while (0)
 
-	if ((fh == NULL) || (buffer == NULL))
+	if (buffer == NULL)
 		return (-1);
 
 	DEBUG ("utils_cmd_flush: handle_flush (fh = %p, buffer = %s);",
@@ -65,7 +65,13 @@ int handle_flush (FILE *fh, char *buffer)
 
 	if (strncasecmp ("FLUSH", buffer, strlen ("FLUSH")) != 0)
 	{
-		PRINT_TO_SOCK (fh, "-1 Cannot parse command.\n");
+        if (fh) {
+            PRINT_TO_SOCK (fh, "-1 Cannot parse command.\n");
+        }
+        else
+        {
+            ERROR("handle_flush: Cannot parse command.");
+        }
 		return (-1);
 	}
 	buffer += strlen ("FLUSH");
@@ -81,7 +87,14 @@ int handle_flush (FILE *fh, char *buffer)
 		status = parse_option (&buffer, &opt_key, &opt_value);
 		if (status != 0)
 		{
-			PRINT_TO_SOCK (fh, "-1 Parsing options failed.\n");
+			if (fh)
+            {
+                PRINT_TO_SOCK (fh, "-1 Parsing options failed.\n");
+            }
+            else
+            {
+                ERROR("handle_flush: Parsing options failed.");
+            }
 			strarray_free (plugins, plugins_num);
 			strarray_free (identifiers, identifiers_num);
 			return (-1);
@@ -101,8 +114,16 @@ int handle_flush (FILE *fh, char *buffer)
 
 			if ((endptr == opt_value) || (errno != 0) || (!isfinite (timeout)))
 			{
-				PRINT_TO_SOCK (fh, "-1 Invalid value for option `timeout': "
-						"%s\n", opt_value);
+                if (fh)
+                {
+                    PRINT_TO_SOCK (fh, "-1 Invalid value for option `timeout': "
+                                   "%s\n", opt_value);
+                }
+                else
+                {
+                    ERROR("handle_flush: Invalid value for option `timeout': "
+                          "%s", opt_value);
+                }
 				strarray_free (plugins, plugins_num);
 				strarray_free (identifiers, identifiers_num);
 				return (-1);
@@ -114,7 +135,14 @@ int handle_flush (FILE *fh, char *buffer)
 		}
 		else
 		{
-			PRINT_TO_SOCK (fh, "-1 Cannot parse option %s\n", opt_key);
+            if (fh)
+            {
+                PRINT_TO_SOCK (fh, "-1 Cannot parse option %s\n", opt_key);
+            }
+            else
+            {
+                ERROR("handle_flush: Cannot parse option %s", opt_key);
+            }
 			strarray_free (plugins, plugins_num);
 			strarray_free (identifiers, identifiers_num);
 			return (-1);
@@ -147,8 +175,11 @@ int handle_flush (FILE *fh, char *buffer)
 		}
 	}
 
-	PRINT_TO_SOCK (fh, "0 Done: %i successful, %i errors\n",
-			success, error);
+    if (fh)
+    {
+        PRINT_TO_SOCK (fh, "0 Done: %i successful, %i errors\n",
+                               success, error);
+    }
 
 	strarray_free (plugins, plugins_num);
 	strarray_free (identifiers, identifiers_num);

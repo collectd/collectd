@@ -161,6 +161,7 @@
 %define with_thermal 0%{!?_without_thermal:1}
 %define with_threshold 0%{!?_without_threshold:1}
 %define with_turbostat 0%{!?_without_turbostat:0%{?_has_asm_msr_index}}
+%define with_unixfifo 0%{!?_without_unixfifo:1}
 %define with_unixsock 0%{!?_without_unixsock:1}
 %define with_uptime 0%{!?_without_uptime:1}
 %define with_users 0%{!?_without_users:1}
@@ -1459,6 +1460,12 @@ Collectd utilities
 %define _with_turbostat --disable-turbostat
 %endif
 
+%if %{with_unixfifo}
+%define _with_unixfifo --enable-unixfifo
+%else
+%define _with_unixfifo --disable-unixfifo
+%endif
+
 %if %{with_unixsock}
 %define _with_unixsock --enable-unixsock
 %else
@@ -1712,6 +1719,7 @@ Collectd utilities
 	%{?_with_thermal} \
 	%{?_with_threshold} \
 	%{?_with_turbostat} \
+	%{?_with_unixfifo} \
 	%{?_with_unixsock} \
 	%{?_with_uptime} \
 	%{?_with_users} \
@@ -1849,6 +1857,7 @@ fi
 %{_mandir}/man5/collectd-email.5*
 %{_mandir}/man5/collectd-exec.5*
 %{_mandir}/man5/collectd-threshold.5*
+%{_mandir}/man5/collectd-unixfifo.5*
 %{_mandir}/man5/collectd-unixsock.5*
 %{_mandir}/man5/collectd.conf.5*
 %{_mandir}/man5/types.db.5*
@@ -2017,6 +2026,9 @@ fi
 %endif
 %if %{with_turbostat}
 %{_libdir}/%{name}/turbostat.so
+%endif
+%if %{with_unixfifo}
+%{_libdir}/%{name}/unixfifo.so
 %endif
 %if %{with_unixsock}
 %{_libdir}/%{name}/unixsock.so

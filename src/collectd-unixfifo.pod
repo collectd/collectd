@@ -1,0 +1,203 @@
+=encoding UTF-8
+
+=head1 NAME
+
+collectd-unixfifo - Documentation of collectd's C<unixfifo plugin>
+
+=head1 SYNOPSIS
+
+  # See collectd.conf(5)
+  LoadPlugin unixfifo
+  # ...
+  <Plugin unixfifo>
+    FifoFile "/path/to/fifo“
+    FifoGroup "collectd"
+    FifoPerms "0622”
+  </Plugin>
+
+=head1 DESCRIPTION
+
+The C<unixfifo plugin> opens an UNIX-fifo over which one can interact with
+the daemon. This can be used to submit externally collected
+values to collectd.
+
+=head1 COMMANDS
+
+Upon start the C<unixfifo plugin> opens a UNIX-fifo and waits for
+connections. Once a connection is established the client can send commands to
+the daemon which it will process if it understands them.
+
+The plugin DOES NOT answer commands.
+
+The following commands are implemented:
+
+=over 4
+
+=item B<PUTVAL> I<Identifier> [I<OptionList>] I<Valuelist>
+
+Submits one or more values (identified by I<Identifier>, see below) to the
+daemon which will dispatch it to all it's write-plugins.
+
+An I<Identifier> is of the form
+C<I<host>B</>I<plugin>B<->I<instance>B</>I<type>B<->I<instance>> with both
+I<instance>-parts being optional. If they're omitted the hyphen must be
+omitted, too. I<plugin> and each I<instance>-part may be chosen freely as long
+as the tuple (plugin, plugin instance, type instance) uniquely identifies the
+plugin within collectd. I<type> identifies the type and number of values
+(i.E<nbsp>e. data-set) passed to collectd. A large list of predefined
+data-sets is available in the B<types.db> file.
+
+The I<OptionList> is an optional list of I<Options>, where each option is a
+key-value-pair. A list of currently understood options can be found below, all
+other options will be ignored. Values that contain spaces must be quoted with
+double quotes.
+
+I<Valuelist> is a colon-separated list of the time and the values, each either
+an integer if the data-source is a counter, or a double if the data-source is
+of type "gauge". You can submit an undefined gauge-value by using B<U>. When
+submitting B<U> to a counter the behavior is undefined. The time is given as
+epoch (i.E<nbsp>e. standard UNIX time).
+
+You can mix options and values, but the order is important: Options only
+effect following values, so specifying an option as last field is allowed, but
+useless. Also, an option applies to B<all> following values, so you don't need
+to re-set an option over and over again.
+
+The currently defined B<Options> are:
+
+=over 4
+
+=item B<interval=>I<seconds>
+
+Gives the interval in which the data identified by I<Identifier> is being
+collected.
+
+=back
+
+Please note that this is the same format as used in the B<exec plugin>, see
+L<collectd-exec(5)>.
+
+Example:
+  -> | PUTVAL testhost/interface/if_octets-test0 interval=10 1179574444:123:456
+  <- | 0 Success
+
+=item B<PUTNOTIF> [I<OptionList>] B<message=>I<Message>
+
+Submits a notification to the daemon which will then dispatch it to all plugins
+which have registered for receiving notifications. 
+
+The B<PUTNOTIF> command is followed by a list of options which further describe
+the notification. The B<message> option is special in that it will consume the
+rest of the line as its value. The B<message>, B<severity>, and B<time> options
+are mandatory.
+
+Valid options are:
+
+=over 4
+
+=item B<message=>I<Message> (B<REQUIRED>)
+
+Sets the message of the notification. This is the message that will be made
+accessible to the user, so it should contain some useful information. As with
+all options: If the message includes spaces, it must be quoted with double
+quotes. This option is mandatory.
+
+=item B<severity=failure>|B<warning>|B<okay> (B<REQUIRED>)
+
+Sets the severity of the notification. This option is mandatory.
+
+=item B<time=>I<Time> (B<REQUIRED>)
+
+Sets the time of the notification. The time is given as "epoch", i.E<nbsp>e. as
+seconds since January 1st, 1970, 00:00:00. This option is mandatory.
+
+=item B<host=>I<Hostname>
+
+=item B<plugin=>I<Plugin>
+
+=item B<plugin_instance=>I<Plugin-Instance>
+
+=item B<type=>I<Type>
+
+=item B<type_instance=>I<Type-Instance>
+
+These "associative" options establish a relation between this notification and
+collected performance data. This connection is purely informal, i.E<nbsp>e. the
+daemon itself doesn't do anything with this information. However, websites or
+GUIs may use this information to place notifications near the affected graph or
+table. All the options are optional, but B<plugin_instance> without B<plugin>
+or B<type_instance> without B<type> doesn't make much sense and should be
+avoided.
+
+=item B<type:key=>I<value>
+
+Sets user defined meta information. The B<type> key is a single character
+defining the type of the meta information.
+
+The current supported types are:
+
+=over 8
+
+=item B<s> A string passed as-is.
+
+=back
+
+=back
+
+Please note that this is the same format as used in the B<exec plugin>, see
+L<collectd-exec(5)>.
+
+Example:
+  -> | PUTNOTIF type=temperature severity=warning time=1201094702 message=The roof is on fire!
+  <- | 0 Success
+
+=item B<FLUSH> [B<timeout=>I<Timeout>] [B<plugin=>I<Plugin> [...]] [B<identifier=>I<Ident> [...]]
+
+Flushes all cached data older than I<Timeout> seconds. If no timeout has been
+specified, it defaults to -1 which causes all data to be flushed.
+
+If the B<plugin> option has been specified, only the I<Plugin> plugin will be
+flushed. You can have multiple B<plugin> options to flush multiple plugins in
+one go. If the B<plugin> option is not given all plugins providing a flush
+callback will be flushed.
+
+If the B<identifier> option is given only the specified values will be flushed.
+This is meant to be used by graphing or displaying frontends which want to have
+the latest values for a specific graph. Again, you can specify the
+B<identifier> option multiple times to flush several values. If this option is
+not specified at all, all values will be flushed.
+
+Example:
+  -> | FLUSH plugin=rrdtool identifier=localhost/df/df-root identifier=localhost/df/df-var
+  <- | 0 Done: 2 successful, 0 errors
+
+=back
+
+=head2 Identifiers
+
+Value or value-lists are identified in a uniform fashion:
+
+I<Hostname>/I<Plugin>/I<Type>
+
+Where I<Plugin> and I<Type> are both either of type "I<Name>" or
+"I<Name>-I<Instance>". If the identifier includes spaces, it must be quoted
+using double quotes. This sounds more complicated than it is, so here are
+some examples:
+
+  myhost/cpu-0/cpu-user
+  myhost/load/load
+  myhost/memory/memory-used
+  myhost/disk-sda/disk_octets
+  "myups/snmp/temperature-Outlet 1"
+
+=head1 SEE ALSO
+
+L<collectd(1)>,
+L<collectd.conf(5)>,
+L<unix(7)>
+
+=head1 AUTHOR
+
+Jeff Adams E<lt>intensifi@mac.comE<gt>
+
+=cut
