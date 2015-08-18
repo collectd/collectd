@@ -5749,6 +5749,7 @@ AC_PLUGIN([thermal],     [$plugin_thermal],    [Linux ACPI thermal zone statisti
 AC_PLUGIN([threshold],   [yes],                [Threshold checking plugin])
 AC_PLUGIN([tokyotyrant], [$with_libtokyotyrant],  [TokyoTyrant database statistics])
 AC_PLUGIN([turbostat],   [$plugin_turbostat],  [Advanced statistic on Intel cpu states])
+AC_PLUGIN([unixfifo],    [yes],                [Unixfifo communication plugin])
 AC_PLUGIN([unixsock],    [yes],                [Unixsock communication plugin])
 AC_PLUGIN([uptime],      [$plugin_uptime],     [Uptime statistics])
 AC_PLUGIN([users],       [$plugin_users],      [User statistics])
@@ -6147,6 +6148,7 @@ Configuration:
     threshold . . . . . . $enable_threshold
     tokyotyrant . . . . . $enable_tokyotyrant
     turbostat . . . . . . $enable_turbostat
+    unixfifo  . . . . . . $enable_unixfifo
     unixsock  . . . . . . $enable_unixsock
     uptime  . . . . . . . $enable_uptime
     users . . . . . . . . $enable_users
