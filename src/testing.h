@@ -24,6 +24,8 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
+#include <inttypes.h>
+
 static int fail_count__ = 0;
 static int check_count__ = 0;
 
@@ -59,6 +61,15 @@ static int check_count__ = 0;
   printf ("ok %i - %s evaluates to \"%s\"\n", ++check_count__, #actual, expect); \
 } while (0)
 
+#define EXPECT_EQ(expect, actual, format) do { \
+  if ((expect) != (actual)) {\
+    printf ("not ok %i - %s incorrect: expected " format ", got " format "\n", \
+        ++check_count__, #actual, expect, actual); \
+    return (-1); \
+  } \
+  printf ("ok %i - %s evaluates to " format "\n", ++check_count__, #actual, expect); \
+} while (0)
+
 #define EXPECT_INTEQ(expect, actual) do { \
   if ((expect) != (actual)) {\
     printf ("not ok %i - %s incorrect: expected %d, got %d\n", \
@@ -67,6 +78,8 @@ static int check_count__ = 0;
   } \
   printf ("ok %i - %s evaluates to %d\n", ++check_count__, #actual, expect); \
 } while (0)
+
+#define EXPECT_EQ_UINT64(expect, actual) EXPECT_EQ((expect), (actual), "%"PRIu64)
 
 #define DBLEQ(expect, actual) do { \
   double e = (expect); double a = (actual); \

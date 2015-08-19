@@ -42,32 +42,37 @@
 /* typedef uint64_t cdtime_t; */
 
 /* 2^30 = 1073741824 */
-#define TIME_T_TO_CDTIME_T(t) (((cdtime_t) (t)) * 1073741824)
-#define CDTIME_T_TO_TIME_T(t) ((time_t) ((t) / 1073741824))
+#define TIME_T_TO_CDTIME_T(t) (((cdtime_t) (t)) << 30)
+
+#define MS_TO_CDTIME_T(ms) (((((cdtime_t) (ms)) / 1000) << 30) | \
+    ((((((cdtime_t) (ms)) % 1000) << 30) + 500) / 1000))
+#define US_TO_CDTIME_T(us) (((((cdtime_t) (us)) / 1000000) << 30) | \
+    ((((((cdtime_t) (us)) % 1000000) << 30) + 500000) / 1000000))
+#define NS_TO_CDTIME_T(ns) (((((cdtime_t) (ns)) / 1000000000) << 30) | \
+    ((((((cdtime_t) (ns)) % 1000000000) << 30) + 500000000) / 1000000000))
+
+#define CDTIME_T_TO_TIME_T(t) ((((time_t) (t)) + (1 << 29)) >> 30)
+#define CDTIME_T_TO_MS(t)  (((((long) (t)) >> 30) * 1000L) + \
+  (((((long) (t)) & 0x3fffffff) * 1000L + (1 << 29)) >> 30))
+#define CDTIME_T_TO_US(t)  (((((suseconds_t) (t)) >> 30) * 1000000L) + \
+  (((((suseconds_t) (t)) & 0x3fffffff) * 1000000L + (1 << 29)) >> 30))
+#define CDTIME_T_TO_NS(t)  (((((long) (t)) >> 30) * 1000000000L) + \
+  (((((long) (t)) & 0x3fffffff) * 1000000000L + (1 << 29)) >> 30))
 
 #define CDTIME_T_TO_DOUBLE(t) (((double) (t)) / 1073741824.0)
 #define DOUBLE_TO_CDTIME_T(d) ((cdtime_t) ((d) * 1073741824.0))
 
-#define MS_TO_CDTIME_T(ms) ((cdtime_t)    (((double) (ms)) * 1073741.824))
-#define CDTIME_T_TO_MS(t)  ((long)        (((double) (t))  / 1073741.824))
-#define US_TO_CDTIME_T(us) ((cdtime_t)    (((double) (us)) * 1073.741824))
-#define CDTIME_T_TO_US(t)  ((suseconds_t) (((double) (t))  / 1073.741824))
-#define NS_TO_CDTIME_T(ns) ((cdtime_t)    (((double) (ns)) * 1.073741824))
-#define CDTIME_T_TO_NS(t)  ((long)        (((double) (t))  / 1.073741824))
-
 #define CDTIME_T_TO_TIMEVAL(cdt,tvp) do {                                    \
         (tvp)->tv_sec = CDTIME_T_TO_TIME_T (cdt);                            \
-        (tvp)->tv_usec = CDTIME_T_TO_US ((cdt) % 1073741824);                \
+        (tvp)->tv_usec = CDTIME_T_TO_US ((cdt) & 0x3fffffff);                \
 } while (0)
-#define TIMEVAL_TO_CDTIME_T(tv) (TIME_T_TO_CDTIME_T ((tv)->tv_sec)           \
-    + US_TO_CDTIME_T ((tv)->tv_usec))
+#define TIMEVAL_TO_CDTIME_T(tv) US_TO_CDTIME_T(1000000 * (tv)->tv_sec + (tv)->tv_usec)
 
 #define CDTIME_T_TO_TIMESPEC(cdt,tsp) do {                                   \
   (tsp)->tv_sec = CDTIME_T_TO_TIME_T (cdt);                                  \
-  (tsp)->tv_nsec = CDTIME_T_TO_NS ((cdt) % 1073741824);                      \
+  (tsp)->tv_nsec = CDTIME_T_TO_NS ((cdt) & 0x3fffffff);                      \
 } while (0)
-#define TIMESPEC_TO_CDTIME_T(ts) (TIME_T_TO_CDTIME_T ((ts)->tv_sec)           \
-    + NS_TO_CDTIME_T ((ts)->tv_nsec))
+#define TIMESPEC_TO_CDTIME_T(ts) NS_TO_CDTIME_T(1000000000 * (ts)->tv_sec + (ts)->tv_nsec)
 
 cdtime_t cdtime (void);
 
