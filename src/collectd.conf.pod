@@ -7230,7 +7230,10 @@ a tag will be added with key B<tag_key> and value the item.
 =item B<tsdb_tag> B<tag_key>=B<tag_value>
 
 When you define a B<tsdb_tag> B<tag_key>=B<tag_value> key-value pair, a tag is added (copy/pasted from
-the defined B<tag_key>=B<tag_value>)
+the defined B<tag_key>=B<tag_value>). If you want to add more than one tag, put them on the same line and
+separe them with spaces. Example :
+
+  MetaDataSet "tsdb_tag" "k1=v1 k2=v2 k3=v3"
 
 =back
 

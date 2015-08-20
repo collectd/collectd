@@ -54,6 +54,8 @@
  *  - tsdb_tag_dsname         : If it is empty, no tag is defined.
  *
  *  - tsdb_tag                : Should contain "tagk=tagv". Il will add a tag.
+ *                            : "tagk1=tagv1 tagk2=tagv2..." is allowed.
+ *                            : It will be sent as is to the TSDB server.
  *
  * write_tsdb plugin filter rules example
  * --------------------------------------
@@ -514,23 +516,48 @@ static int wt_format_tags(char *ret, int ret_len,
         TSDB_META_DATA_GET_STRING(meta_tag);
         if(temp) {
             int n;
-            if(NULL == strchr(temp, '=')) {
-                ERROR("write_tsdb plugin: meta_data tag '%s' does not contain a '=' char (host=%s, plugin=%s, type=%s)",
-                        temp, vl->host, vl->plugin, vl->type);
-                sfree(temp);
+            char *key = temp;
+            while(NULL != temp) {
+                char *ptr1 = strchr(key, '=');
+                char *ptr2 = strchr(key, ' ');
+                if(NULL == ptr1) {
+                    ERROR("write_tsdb plugin: meta_data tag '%s' is missing a '=' char (host=%s, plugin=%s, type=%s)",
+                            temp, vl->host, vl->plugin, vl->type);
+                    sfree(temp);
+                    break;
+                }
+                if(NULL == ptr2) break; /* OK, no space. Good. */
+                
+                if(ptr2 < ptr1) {
+                    ERROR("write_tsdb plugin: meta_data tag '%s' contains space in key definition (host=%s, plugin=%s, type=%s)",
+                            temp, vl->host, vl->plugin, vl->type);
+                    sfree(temp);
+                    break;
+                }
+
+                key = ptr2;
+                while(' ' == ptr2[0]) ptr2++;
+                if('\0' == ptr2[0]) {
+                    /* temp ends with spaces */
+                    key[0] = '\0';
+                    break;
+                }
+                key = ptr2;
             }
-            if(temp[0] != '\0') {
+                
+            if(temp && temp[0] != '\0') {
                 n = ssnprintf(ptr, remaining_len, " %s", temp);
                 if(n >= remaining_len) {
                     ptr[0] = '\0';
                 } else {
-                    char *ptr2 = ptr+1;
-                    while(NULL != (ptr2 = strchr(ptr2, ' '))) ptr2[0] = '_'; 
+                    /* We do not check the tags syntax here. It should have
+                     * been done earlier.
+                     */
                     ptr += n;
                     remaining_len -= n;
                 }
             }
-            sfree(temp);
+            if(temp) sfree(temp);
         }
 
     } else {
