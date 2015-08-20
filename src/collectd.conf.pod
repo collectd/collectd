@@ -1626,9 +1626,10 @@ Specifies the path to the UNIX admin socket of the ceph daemon.
 
 =head2 Plugin C<cgroups>
 
-This plugin collects the CPU user/system time for each I<cgroup> by reading the
-F<cpuacct.stat> files in the first cpuacct-mountpoint (typically
-F</sys/fs/cgroup/cpu.cpuacct> on machines using systemd).
+This plugin collects the CPU user/system time and memory statistics for each
+I<cgroup> by reading the F<cpuacct.stat> and F<memory.stat> files in the first
+cpuacct-mountpoint, memory-mountpoint (typically
+F</sys/fs/cgroup/cpu,cpuacct/>, F</sys/fs/cgroup/memory/> on machines using systemd).
 
 =over 4
 
