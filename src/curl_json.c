@@ -654,11 +654,9 @@ static int cj_init_curl (cj_t *db) /* {{{ */
   if (db->timeout >= 0)
     curl_easy_setopt (db->curl, CURLOPT_TIMEOUT_MS, (long) db->timeout);
   else if (db->interval > 0)
-    curl_easy_setopt (db->curl, CURLOPT_TIMEOUT_MS,
-        CDTIME_T_TO_MS(db->timeout));
+    curl_easy_setopt (db->curl, CURLOPT_TIMEOUT_MS, (long) CDTIME_T_TO_MS(db->timeout));
   else
-    curl_easy_setopt (db->curl, CURLOPT_TIMEOUT_MS,
-        CDTIME_T_TO_MS(plugin_get_interval()));
+    curl_easy_setopt (db->curl, CURLOPT_TIMEOUT_MS, (long) CDTIME_T_TO_MS(plugin_get_interval()));
 #endif
 
   return (0);

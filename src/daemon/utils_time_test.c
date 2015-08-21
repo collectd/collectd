@@ -93,7 +93,7 @@ DEF_TEST(conversion)
 DEF_TEST(ns_to_cdtime)
 {
   struct {
-    long ns;
+    uint64_t ns;
     cdtime_t want;
   } cases[] = {
     // 1439981652801860766 * 2^30 / 10^9 = 1546168526406004689.4
