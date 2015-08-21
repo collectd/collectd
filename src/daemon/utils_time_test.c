@@ -85,7 +85,7 @@ DEF_TEST(conversion)
     EXPECT_EQ_UINT64 (cases[i].ts.tv_nsec, ts.tv_nsec);
 
     // cdtime -> double
-    DBLEQ (cases[i].d, CDTIME_T_TO_DOUBLE (cases[i].t));
+    EXPECT_EQ_DOUBLE (cases[i].d, CDTIME_T_TO_DOUBLE (cases[i].t));
   }
 
   return 0;

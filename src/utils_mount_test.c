@@ -77,14 +77,14 @@ DEF_TEST(cu_mount_getoptionvalue)
   char line_opts[] = "foo=one,bar=two,qux=three";
   char line_bool[] = "one,two,three";
 
-  STREQ ("one", cu_mount_getoptionvalue (line_opts, "foo="));
-  STREQ ("two", cu_mount_getoptionvalue (line_opts, "bar="));
-  STREQ ("three", cu_mount_getoptionvalue (line_opts, "qux="));
+  EXPECT_EQ_STR ("one", cu_mount_getoptionvalue (line_opts, "foo="));
+  EXPECT_EQ_STR ("two", cu_mount_getoptionvalue (line_opts, "bar="));
+  EXPECT_EQ_STR ("three", cu_mount_getoptionvalue (line_opts, "qux="));
   OK (NULL == cu_mount_getoptionvalue (line_opts, "unknown="));
 
-  STREQ ("", cu_mount_getoptionvalue (line_bool, "one"));
-  STREQ ("", cu_mount_getoptionvalue (line_bool, "two"));
-  STREQ ("", cu_mount_getoptionvalue (line_bool, "three"));
+  EXPECT_EQ_STR ("", cu_mount_getoptionvalue (line_bool, "one"));
+  EXPECT_EQ_STR ("", cu_mount_getoptionvalue (line_bool, "two"));
+  EXPECT_EQ_STR ("", cu_mount_getoptionvalue (line_bool, "three"));
   OK (NULL == cu_mount_getoptionvalue (line_bool, "four"));
 
   return (0);
