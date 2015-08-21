@@ -71,18 +71,18 @@ DEF_TEST(conversion)
     struct timespec ts;
 
     // cdtime -> s
-    EXPECT_EQ ((unsigned long) cases[i].tt, (unsigned long) CDTIME_T_TO_TIME_T (cases[i].t), "%lu");
+    EXPECT_EQ_UINT64 (cases[i].tt, CDTIME_T_TO_TIME_T (cases[i].t));
 
     // cdtime -> ms
-    EXPECT_EQ_UINT64 ((uint64_t) cases[i].ms, CDTIME_T_TO_MS (cases[i].t));
+    EXPECT_EQ_UINT64(cases[i].ms, CDTIME_T_TO_MS (cases[i].t));
 
     // cdtime -> us
     CDTIME_T_TO_TIMEVAL (cases[i].t, &tv);
-    EXPECT_EQ_UINT64 ((uint64_t) cases[i].tv.tv_usec, (uint64_t) tv.tv_usec);
+    EXPECT_EQ_UINT64 (cases[i].tv.tv_usec, tv.tv_usec);
 
     // cdtime -> ns
     CDTIME_T_TO_TIMESPEC (cases[i].t, &ts);
-    EXPECT_EQ_UINT64 ((uint64_t) cases[i].ts.tv_nsec, (uint64_t) ts.tv_nsec);
+    EXPECT_EQ_UINT64 (cases[i].ts.tv_nsec, ts.tv_nsec);
 
     // cdtime -> double
     DBLEQ (cases[i].d, CDTIME_T_TO_DOUBLE (cases[i].t));
@@ -108,8 +108,7 @@ DEF_TEST(ns_to_cdtime)
   size_t i;
 
   for (i = 0; i < (sizeof (cases) / sizeof (cases[0])); i++) {
-    cdtime_t got = NS_TO_CDTIME_T (cases[i].ns);
-    EXPECT_EQ_UINT64 ((uint64_t) cases[i].want, (uint64_t) got);
+    EXPECT_EQ_UINT64 (cases[i].want, NS_TO_CDTIME_T (cases[i].ns));
   }
 
   return 0;
