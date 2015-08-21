@@ -1,6 +1,6 @@
 /**
- * collectd - src/utils_time.h
- * Copyright (C) 2010       Florian octo Forster
+ * collectd - src/daemon/utils_time.h
+ * Copyright (C) 2010-2015  Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,7 +21,7 @@
  * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
- *   Florian octo Forster <ff at octo.it>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #ifndef UTILS_TIME_H
@@ -51,13 +51,13 @@
 #define NS_TO_CDTIME_T(ns) (((((cdtime_t) (ns)) / 1000000000) << 30) | \
     ((((((cdtime_t) (ns)) % 1000000000) << 30) + 500000000) / 1000000000))
 
-#define CDTIME_T_TO_TIME_T(t) ((((time_t) (t)) + (1 << 29)) >> 30)
-#define CDTIME_T_TO_MS(t)  (((((uint64_t) (t)) >> 30) * 1000L) + \
-  (((((uint64_t) (t)) & 0x3fffffff) * 1000L + (1 << 29)) >> 30))
-#define CDTIME_T_TO_US(t)  (((((uint64_t) (t)) >> 30) * 1000000L) + \
-  (((((uint64_t) (t)) & 0x3fffffff) * 1000000L + (1 << 29)) >> 30))
-#define CDTIME_T_TO_NS(t)  (((((uint64_t) (t)) >> 30) * 1000000000L) + \
-  (((((uint64_t) (t)) & 0x3fffffff) * 1000000000L + (1 << 29)) >> 30))
+#define CDTIME_T_TO_TIME_T(t) ((time_t) (((t) + (1 << 29)) >> 30))
+#define CDTIME_T_TO_MS(t)  ((uint64_t) ((((t) >> 30) * 1000) + \
+  ((((t) & 0x3fffffff) * 1000 + (1 << 29)) >> 30)))
+#define CDTIME_T_TO_US(t)  ((uint64_t) ((((t) >> 30) * 1000000) + \
+  ((((t) & 0x3fffffff) * 1000000 + (1 << 29)) >> 30)))
+#define CDTIME_T_TO_NS(t)  ((uint64_t) ((((t) >> 30) * 1000000000) + \
+  ((((t) & 0x3fffffff) * 1000000000 + (1 << 29)) >> 30)))
 
 #define CDTIME_T_TO_DOUBLE(t) (((double) (t)) / 1073741824.0)
 #define DOUBLE_TO_CDTIME_T(d) ((cdtime_t) ((d) * 1073741824.0))
