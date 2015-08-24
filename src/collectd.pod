@@ -108,7 +108,7 @@ L<collectd.conf(5)> for more detailed information about threshold checking.
 Please note that some plugins, that provide other means of communicating with
 the daemon, have manpages of their own to describe their functionality in more
 detail. In particular those are L<collectd-email(5)>, L<collectd-exec(5)>,
-L<collectd-perl(5)>, L<collectd-snmp(5)>, and L<collectd-unixsock(5)>
+L<collectd-perl(5)>, L<collectd-snmp(5)>, L<collectd-unixfifo(5)> and L<collectd-unixsock(5)>
 
 =head1 SIGNALS
 
@@ -125,7 +125,7 @@ These signals cause B<collectd> to shut down all plugins and terminate.
 This signal causes B<collectd> to signal all plugins to flush data from
 internal caches. E.E<nbsp>g. the C<rrdtool plugin> will write all pending data
 to the RRD files. This is the same as using the C<FLUSH -1> command of the
-C<unixsock plugin>.
+C<unixfifo plugin> and C<unixsock plugin>.
 
 =back
 
@@ -136,6 +136,7 @@ L<collectd-email(5)>,
 L<collectd-exec(5)>,
 L<collectd-perl(5)>,
 L<collectd-snmp(5)>,
+L<collectd-unixfifo(5)>,
 L<collectd-unixsock(5)>,
 L<types.db(5)>,
 L<http://collectd.org/>

@@ -121,7 +121,7 @@ int handle_putnotif (FILE *fh, char *buffer)
   notification_t n;
   int status;
 
-  if ((fh == NULL) || (buffer == NULL))
+  if (buffer == NULL)
     return (-1);
 
   DEBUG ("utils_cmd_putnotif: handle_putnotif (fh = %p, buffer = %s);",
@@ -131,14 +131,28 @@ int handle_putnotif (FILE *fh, char *buffer)
   status = parse_string (&buffer, &command);
   if (status != 0)
   {
-    print_to_socket (fh, "-1 Cannot parse command.\n");
+    if (fh)
+    {
+        print_to_socket (fh, "-1 Cannot parse command.\n");
+    }
+    else
+    {
+        ERROR ("handle_potnotif: Cannot parse command.");
+    }
     return (-1);
   }
   assert (command != NULL);
 
   if (strcasecmp ("PUTNOTIF", command) != 0)
   {
-    print_to_socket (fh, "-1 Unexpected command: `%s'.\n", command);
+      if (fh)
+      {
+          print_to_socket (fh, "-1 Unexpected command: `%s'.\n", command);
+      }
+      else
+      {
+          ERROR ("handle_potnotif: Unexpected command: `%s'.", command);
+      }
     return (-1);
   }
 
@@ -153,14 +167,28 @@ int handle_putnotif (FILE *fh, char *buffer)
     status = parse_option (&buffer, &key, &value);
     if (status != 0)
     {
-      print_to_socket (fh, "-1 Malformed option.\n");
+        if (fh)
+        {
+            print_to_socket (fh, "-1 Malformed option.\n");
+        }
+        else
+        {
+            ERROR ("handle_potnotif: Malformed option.");
+        }
       break;
     }
 
     status = set_option (&n, key, value);
     if (status != 0)
     {
-      print_to_socket (fh, "-1 Error parsing option `%s'\n", key);
+        if (fh)
+        {
+            print_to_socket (fh, "-1 Error parsing option `%s'\n", key);
+        }
+        else
+        {
+            ERROR ("handle_potnotif: Error parsing option `%s'", key);
+        }
       break;
     }
   } /* for (i) */
@@ -168,17 +196,38 @@ int handle_putnotif (FILE *fh, char *buffer)
   /* Check for required fields and complain if anything is missing. */
   if ((status == 0) && (n.severity == 0))
   {
-    print_to_socket (fh, "-1 Option `severity' missing.\n");
+      if (fh)
+      {
+          print_to_socket (fh, "-1 Option `severity' missing.\n");
+      }
+      else
+      {
+          ERROR ("handle_potnotif: Option `severity' missing.");
+      }
     status = -1;
   }
   if ((status == 0) && (n.time == 0))
   {
-    print_to_socket (fh, "-1 Option `time' missing.\n");
+      if (fh)
+      {
+          print_to_socket (fh, "-1 Option `time' missing.\n");
+      }
+      else
+      {
+          ERROR ("handle_potnotif: Option `time' missing.");
+      }
     status = -1;
   }
   if ((status == 0) && (strlen (n.message) == 0))
   {
-    print_to_socket (fh, "-1 No message or message of length 0 given.\n");
+      if (fh)
+      {
+          print_to_socket (fh, "-1 No message or message of length 0 given.\n");
+      }
+      else
+      {
+          ERROR ("handle_potnotif: No message or message of length 0 given.");
+      }
     status = -1;
   }
 
@@ -187,7 +236,10 @@ int handle_putnotif (FILE *fh, char *buffer)
   if (status == 0)
   {
     plugin_dispatch_notification (&n);
-    print_to_socket (fh, "0 Success\n");
+      if (fh)
+      {
+          print_to_socket (fh, "0 Success\n");
+      }
   }
 
   return (0);

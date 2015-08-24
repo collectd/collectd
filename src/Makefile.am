@@ -1128,6 +1128,17 @@ turbostat_la_SOURCES = turbostat.c
 turbostat_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_UNIXFIFO
+pkglib_LTLIBRARIES += unixfifo.la
+unixfifo_la_SOURCES = unixfifo.c \
+		      utils_cmd_flush.h utils_cmd_flush.c \
+		      utils_cmd_putval.h utils_cmd_putval.c \
+		      utils_cmd_putnotif.h utils_cmd_putnotif.c \
+		      utils_parse_option.h utils_parse_option.c
+unixfifo_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+unixfifo_la_LIBADD = -lpthread
+endif
+
 if BUILD_PLUGIN_UNIXSOCK
 pkglib_LTLIBRARIES += unixsock.la
 unixsock_la_SOURCES = unixsock.c \
@@ -1341,6 +1352,7 @@ dist_man_MANS = collectd.1 \
 		collectd-snmp.5 \
 		collectd-tg.1 \
 		collectd-threshold.5 \
+		collectd-unixfifo.5 \
 		collectd-unixsock.5 \
 		types.db.5
 
@@ -1361,6 +1373,7 @@ EXTRA_DIST +=   collectd.conf.pod \
 		collectd-snmp.pod \
 		collectd-tg.pod \
 		collectd-threshold.pod \
+		collectd-unixfifo.pod \
 		collectd-unixsock.pod \
 		postgresql_default.conf \
 		types.db.pod
