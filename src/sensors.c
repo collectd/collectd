@@ -140,7 +140,8 @@ static const char *config_keys[] =
 {
 	"Sensor",
 	"IgnoreSelected",
-	"SensorConfigFile"
+	"SensorConfigFile",
+	"UseLabels"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -169,6 +170,7 @@ typedef struct featurelist
 } featurelist_t;
 
 static char *conffile = NULL;
+static _Bool use_labels = 0;
 /* #endif (SENSORS_API_VERSION >= 0x400) && (SENSORS_API_VERSION < 0x500) */
 
 #else /* if SENSORS_API_VERSION >= 0x500 */
@@ -257,6 +259,12 @@ static int sensors_config (const char *key, const char *value)
 		if (IS_TRUE (value))
 			ignorelist_set_invert (sensor_list, 0);
 	}
+#if (SENSORS_API_VERSION >= 0x400) && (SENSORS_API_VERSION < 0x500)
+	else if (strcasecmp (key, "UseLabels") == 0)
+	{
+		use_labels = IS_TRUE (value) ? 1 : 0;
+	}
+#endif
 	else
 	{
 		return (-1);
@@ -555,6 +563,7 @@ static int sensors_read (void)
 		int status;
 		char plugin_instance[DATA_MAX_NAME_LEN];
 		char type_instance[DATA_MAX_NAME_LEN];
+		char *sensor_label;
 		const char *type;
 
 		status = sensors_get_value (fl->chip,
@@ -567,8 +576,17 @@ static int sensors_read (void)
 		if (status < 0)
 			continue;
 
-		sstrncpy (type_instance, fl->feature->name,
-				sizeof (type_instance));
+		if (use_labels)
+		{
+			sensor_label = sensors_get_label (fl->chip, fl->feature);
+			sstrncpy (type_instance, sensor_label, sizeof (type_instance));
+			free (sensor_label);
+		}
+		else
+		{
+			sstrncpy (type_instance, fl->feature->name,
+					sizeof (type_instance));
+		}
 
 		if (fl->feature->type == SENSORS_FEATURE_IN)
 			type = "voltage";
