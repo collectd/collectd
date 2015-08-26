@@ -354,18 +354,7 @@ static void reset_signal_mask (void) /* {{{ */
   sigprocmask (SIG_SETMASK, &ss, /* old mask = */ NULL);
 } /* }}} void reset_signal_mask */
 
-static void close_pipe(int fd_pipe[2])
-{
-  if(fd_pipe[0] != -1) {
-    close(fd_pipe[0]);
-  }
-
-  if(fd_pipe[1] != -1) {
-    close(fd_pipe[1]);
-  }
-}
-
-static int create_pipe(int fd_pipe[2])
+static int create_pipe (int fd_pipe[2]) /* {{{ */
 {
   char errbuf[1024];
   int status;
@@ -379,7 +368,16 @@ static int create_pipe(int fd_pipe[2])
   }
 
   return 0;
-}
+} /* }}} int create_pipe */
+
+static void close_pipe (int fd_pipe[2]) /* {{{ */
+{
+  if (fd_pipe[0] != -1)
+    close (fd_pipe[0]);
+
+  if (fd_pipe[1] != -1)
+    close (fd_pipe[1]);
+} /* }}} void close_pipe */
 
 /*
  * Creates three pipes (one for reading, one for writing and one for errors),
@@ -407,9 +405,10 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out, int *fd_err)
   if (pl->pid != 0)
     return (-1);
 
-  if(create_pipe(fd_pipe_in) == -1 || create_pipe(fd_pipe_out) == -1 || create_pipe(fd_pipe_err) == -1) {
+  if ((create_pipe(fd_pipe_in) == -1)
+      || (create_pipe(fd_pipe_out) == -1)
+      || (create_pipe(fd_pipe_err) == -1))
     goto failed;
-  }
 
   sp_ptr = NULL;
   status = getpwnam_r (pl->user, &sp, nambuf, sizeof (nambuf), &sp_ptr);
