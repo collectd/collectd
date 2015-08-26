@@ -4,6 +4,11 @@ AC_CONFIG_SRCDIR(src/)
 AC_CONFIG_HEADERS(src/config.h)
 AC_CONFIG_AUX_DIR([libltdl/config])
 
+dnl older automake's default of ARFLAGS=cru is noisy on newer binutils;
+dnl we don't really need the 'u' even in older toolchains.  Then there is
+dnl older libtool, which spelled it AR_FLAGS
+m4_divert_text([DEFAULTS], [: "${ARFLAGS=cr} ${AR_FLAGS=cr}"])
+
 m4_ifdef([LT_PACKAGE_VERSION],
 	# libtool >= 2.2
 	[
@@ -23,6 +28,8 @@ m4_ifdef([LT_PACKAGE_VERSION],
 	 AC_DEFINE(LIBTOOL_VERSION, 1, [Define to used libtool version.])
 	]
 )
+
+AM_CONDITIONAL([BUILD_INCLUDED_LTDL], [test "x$LTDLDEPS" != "x"])
 
 AM_INIT_AUTOMAKE([tar-pax dist-bzip2 foreign])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
@@ -631,6 +638,9 @@ AC_CHECK_HEADERS(net/pfvar.h,
 #endif
 #if HAVE_NET_IF_H
 # include <net/if.h>
+#endif
+#if HAVE_NETINET_IN_H
+# include <netinet/in.h>
 #endif
 ])
 
@@ -3289,11 +3299,6 @@ if test "x$with_libpcap" = "xyes"
 then
 	AC_CHECK_HEADERS(pcap.h,,
 			 [with_libpcap="no (pcap.h not found)"])
-fi
-if test "x$with_libpcap" = "xyes"
-then
-	AC_CHECK_HEADERS(pcap-bpf.h,,
-			 [with_libpcap="no (pcap-bpf.h not found)"])
 fi
 if test "x$with_libpcap" = "xyes"
 then
