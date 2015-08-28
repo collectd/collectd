@@ -7478,6 +7478,10 @@ complete. When this limit is reached, the POST operation will be aborted, and
 all the data in the current send buffer will probably be lost. Defaults to 0,
 which means the connection never times out.
 
+=item B<LogHttpError> B<true>|B<false>
+
+Enables printing of HTTP error code to log. Turned off by default.
+
 The C<write_http> plugin regularly submits the collected values to the HTTP
 server. How frequently this happens depends on how much data you are collecting
 and the size of B<BufferSize>. The optimal value to set B<Timeout> to is
