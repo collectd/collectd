@@ -59,6 +59,7 @@ struct wh_callback_s
         char *clientkeypass;
         long sslversion;
         _Bool store_rates;
+        _Bool log_http_error;
         int   low_speed_limit;
         time_t low_speed_time;
         int timeout;
@@ -80,12 +81,10 @@ struct wh_callback_s
 };
 typedef struct wh_callback_s wh_callback_t;
 
-static void wh_log_http_error_empty(wh_callback_t *cb){}
-
-void (*wh_log_http_error)(wh_callback_t *cb) = wh_log_http_error_empty;
-
-static void wh_log_http_error_impl(wh_callback_t *cb)
+static void wh_log_http_error(wh_callback_t *cb)
 {
+    if(!cb->log_http_error) return;
+    
     long http_code = 0;
     
     curl_easy_getinfo(cb->curl, CURLINFO_RESPONSE_CODE, &http_code);
@@ -556,6 +555,7 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
         cb->sslversion = CURL_SSLVERSION_DEFAULT;
         cb->low_speed_limit = 0;
         cb->timeout = 0;
+        cb->log_http_error = 0;
 
         pthread_mutex_init (&cb->send_lock, /* attr = */ NULL);
 
@@ -628,14 +628,7 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
                 else if (strcasecmp ("Timeout", child->key) == 0)
                         cf_util_get_int (child, &cb->timeout);
                 else if (strcasecmp ("LogHttpError", child->key) == 0)
-                {
-                        _Bool log_http_error = 0;
-                        cf_util_get_boolean (child, &log_http_error);
-                        if(log_http_error)
-                        {
-                            wh_log_http_error = wh_log_http_error_impl;
-                        }
-                }
+                        cf_util_get_boolean (child, &cb->log_http_error);
                 else
                 {
                         ERROR ("write_http plugin: Invalid configuration "
