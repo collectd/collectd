@@ -7482,7 +7482,7 @@ complete. When this limit is reached, the POST operation will be aborted, and
 all the data in the current send buffer will probably be lost. Defaults to 0,
 which means the connection never times out.
 
-=item B<LogHttpError> B<true>|B<false>
+=item B<LogHttpError> B<false>|B<true>
 
 Enables printing of HTTP error code to log. Turned off by default.
 
