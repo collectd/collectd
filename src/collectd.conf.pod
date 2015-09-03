@@ -3376,6 +3376,11 @@ Synopsis:
       Port "3306"
       MasterStats true
       ConnectTimeout 10
+      SSLKey "/path/to/key.pem"
+      SSLCert "/path/to/cert.pem"
+      SSLCA "/path/to/ca.pem"
+      SSLCAPath "/path/to/cas/"
+      SSLCipher "DHE-RSA-AES256-SHA"
     </Database>
 
     <Database bar>
@@ -3390,7 +3395,8 @@ Synopsis:
 A B<Database> block defines one connection to a MySQL database. It accepts a
 single argument which specifies the name of the database. None of the other
 options are required. MySQL will use default values as documented in the
-section "mysql_real_connect()" in the B<MySQL reference manual>.
+"mysql_real_connect()" and "mysql_ssl_set()" sections in the
+B<MySQL reference manual>.
 
 =over 4
 
@@ -3458,6 +3464,26 @@ or SQL threads are not running. Defaults to B<false>.
 =item B<ConnectTimeout> I<Seconds>
 
 Sets the connect timeout for the MySQL client.
+
+=item B<SSLKey> I<Path>
+
+If provided, the X509 key in PEM format.
+
+=item B<SSLCert> I<Path>
+
+If provided, the X509 cert in PEM format.
+
+=item B<SSLCA> I<Path>
+
+If provided, the CA file in PEM format (check OpenSSL docs).
+
+=item B<SSLCAPath> I<Path>
+
+If provided, the CA directory (check OpenSSL docs).
+
+=item B<SSLCipher> I<String>
+
+If provided, the SSL cipher to use.
 
 =back
 

@@ -46,6 +46,14 @@ struct mysql_database_s /* {{{ */
 	char *user;
 	char *pass;
 	char *database;
+	
+	// mysql_ssl_set params
+	char *key;
+	char *cert;
+	char *ca;
+	char *capath;
+	char *cipher;
+
 	char *socket;
 	int   port;
 	int   timeout;
@@ -89,6 +97,11 @@ static void mysql_database_free (void *arg) /* {{{ */
 	sfree (db->socket);
 	sfree (db->instance);
 	sfree (db->database);
+	sfree (db->key);
+	sfree (db->cert);
+	sfree (db->ca);
+	sfree (db->capath);
+	sfree (db->cipher);
 	sfree (db);
 } /* }}} void mysql_database_free */
 
@@ -130,6 +143,12 @@ static int mysql_config_database (oconfig_item_t *ci) /* {{{ */
 	db->user     = NULL;
 	db->pass     = NULL;
 	db->database = NULL;
+	db->key      = NULL;
+	db->cert     = NULL;
+	db->ca       = NULL;
+	db->capath   = NULL;
+	db->cipher   = NULL;
+
 	db->socket   = NULL;
 	db->con      = NULL;
 	db->timeout  = 0;
@@ -172,6 +191,16 @@ static int mysql_config_database (oconfig_item_t *ci) /* {{{ */
 			status = cf_util_get_string (child, &db->socket);
 		else if (strcasecmp ("Database", child->key) == 0)
 			status = cf_util_get_string (child, &db->database);
+		else if (strcasecmp ("SSLKey", child->key) == 0)
+			status = cf_util_get_string (child, &db->key);
+		else if (strcasecmp ("SSLCert", child->key) == 0)
+			status = cf_util_get_string (child, &db->cert);
+		else if (strcasecmp ("SSLCA", child->key) == 0)
+			status = cf_util_get_string (child, &db->ca);
+		else if (strcasecmp ("SSLCAPath", child->key) == 0)
+			status = cf_util_get_string (child, &db->capath);
+		else if (strcasecmp ("SSLCipher", child->key) == 0)
+			status = cf_util_get_string (child, &db->cipher);
 		else if (strcasecmp ("ConnectTimeout", child->key) == 0)
 			status = cf_util_get_int (child, &db->timeout);
 		else if (strcasecmp ("MasterStats", child->key) == 0)
@@ -250,6 +279,8 @@ static int mysql_config (oconfig_item_t *ci) /* {{{ */
 
 static MYSQL *getconnection (mysql_database_t *db)
 {
+	const char *cipher;
+	
 	if (db->is_connected)
 	{
 		int status;
@@ -277,6 +308,8 @@ static MYSQL *getconnection (mysql_database_t *db)
 	/* Configure TCP connect timeout (default: 0) */
 	db->con->options.connect_timeout = db->timeout;
 
+	mysql_ssl_set (db->con, db->key, db->cert, db->ca, db->capath, db->cipher);
+
 	if (mysql_real_connect (db->con, db->host, db->user, db->pass,
 				db->database, db->port, db->socket, 0) == NULL)
 	{
@@ -288,10 +321,14 @@ static MYSQL *getconnection (mysql_database_t *db)
 		return (NULL);
 	}
 
+	cipher = mysql_get_ssl_cipher (db->con);
+	
 	INFO ("mysql plugin: Successfully connected to database %s "
-			"at server %s (server version: %s, protocol version: %d)",
+			"at server %s with cipher %s "
+			"(server version: %s, protocol version: %d) ",
 			(db->database != NULL) ? db->database : "<none>",
 			mysql_get_host_info (db->con),
+			(cipher != NULL) ?  cipher : "<none>",
 			mysql_get_server_info (db->con),
 			mysql_get_proto_info (db->con));
 

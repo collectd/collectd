@@ -702,6 +702,11 @@
 #		User "db_user"
 #		Password "secret"
 #		Database "db_name"
+#		SSLKey "/path/to/key.pem"
+#		SSLCert "/path/to/cert.pem"
+#		SSLCA "/path/to/ca.pem"
+#		SSLCAPath "/path/to/cas/"
+#		SSLCipher "DHE-RSA-AES256-SHA"
 #		MasterStats true
 #		ConnectTimeout 10
 #		InnodbStats true
