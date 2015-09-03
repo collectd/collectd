@@ -286,6 +286,7 @@ static int dispatch_loadplugin (oconfig_item_t *ci)
 	name = ci->values[0].value.string;
 	if (strcmp ("libvirt", name) == 0)
 		name = "virt";
+        INFO("LoadPlugin: %s", name);
 
 	/* default to the global interval set before loading this plugin */
 	memset (&ctx, 0, sizeof (ctx));
