@@ -399,8 +399,6 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
     {
       user_data_t ud;
       char *name = NULL;
-      struct timespec interval = { 0, 0 };
-      CDTIME_T_TO_TIMESPEC (db->interval, &interval);
 
       databases = temp;
       databases[databases_num] = db;
@@ -414,7 +412,7 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
       plugin_register_complex_read (/* group = */ NULL,
           /* name = */ name ? name : db->name,
           /* callback = */ cdbi_read_database,
-          /* interval = */ (db->interval > 0) ? &interval : NULL,
+          /* interval = */ (db->interval > 0) ? db->interval : 0,
           /* user_data = */ &ud);
       free (name);
     }
