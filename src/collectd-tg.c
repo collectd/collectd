@@ -40,6 +40,7 @@
 #include <signal.h>
 #include <errno.h>
 #include <math.h>
+#include <sys/time.h>
 
 #include "utils_heap.h"
 
