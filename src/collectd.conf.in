@@ -336,7 +336,7 @@
 
 #<Plugin chrony>
 #	Host "localhost"
-#	Port 323
+#	Port "323"
 #</Plugin>
 
 #<Plugin cgroups>

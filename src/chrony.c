@@ -146,12 +146,15 @@ connect_client (const char *hostname,
 
 static int chrony_connect()
 {
+	DEBUG("chrony plugin: Connecting to %s:%s", g_chrony_host, g_chrony_port);
 	int socket = connect_client(g_chrony_host, g_chrony_port,  AF_UNSPEC, SOCK_DGRAM);
 	if (socket < 0)
 	{
 		ERROR ("chrony plugin: Error connecting to daemon. Errno = %d", errno);
 		return (1);
 	}
+	//TODO: Set timeouts!
+	DEBUG("chrony plugin: Connected");
 	g_chrony_socket = socket;
 	return (0);
 }
@@ -222,14 +225,19 @@ static int chrony_query(int p_command, tChrony_Request *p_req, tChrony_Response 
 		p_req->header.f_cmd_try = 0;
 		p_req->header.f_seq     = g_chrony_seq++;
 		
+		DEBUG("chrony plugin: Sending request");
 		if (chrony_send_request(p_req,req_size) != 0)
 		{
 			break;
 		}
+
+		DEBUG("chrony plugin: Waiting for response");
 		if (chrony_recv_response(p_resp,resp_size,p_resp_size) != 0)
 		{
 			break;
 		}
+		DEBUG("chrony plugin: Received response");
+
 		return (0);
 	} while (0);
 	
@@ -287,6 +295,7 @@ static int chrony_read (void)
 	tChrony_Response chrony_resp;
 	size_t chrony_resp_size;
 
+	DEBUG("chrony plugin: Requesting data");
 	chrony_init_req(&chrony_req);
 	status = chrony_query (REQ_N_SOURCES, &chrony_req, &chrony_resp, &chrony_resp_size);
         if (status != 0)
@@ -299,6 +308,21 @@ static int chrony_read (void)
 
 static int chrony_shutdown()
 {
+	if (g_is_connected != 0)
+	{
+		close(g_chrony_socket);
+		g_is_connected = 0;
+	}
+	if (g_chrony_host != NULL)
+	{
+		free (g_chrony_host);
+		g_chrony_host = NULL;
+	}
+	if (g_chrony_port != NULL)
+	{
+		free (g_chrony_port);
+		g_chrony_port = NULL;
+	}
 	return (0);
 }
 
