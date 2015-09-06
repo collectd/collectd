@@ -83,9 +83,18 @@ src/tests/.deps/
 src/tests/mock/.deps/
 src/tests/.dirstamp
 src/tests/mock/.dirstamp
+src/test_utils_latency
+src/test_utils_mount
+src/test_utils_vl_lookup
 test*.log
+*.trs
 
 # new daemon repo
 src/daemon/.deps/
 src/daemon/.dirstamp
 src/daemon/collectd
+src/daemon/test_common
+src/daemon/test_meta_data
+src/daemon/test_utils_avltree
+src/daemon/test_utils_heap
+src/daemon/test_utils_subst

@@ -49,7 +49,6 @@
 #include "utils_cache.h"
 
 #include <pthread.h>
-#include <sys/socket.h>
 #include <netdb.h>
 
 #ifndef WT_DEFAULT_NODE

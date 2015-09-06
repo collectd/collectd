@@ -37,7 +37,6 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <sys/un.h>
 
 #ifndef UNIX_PATH_MAX
@@ -83,42 +82,65 @@ struct statname_lookup_s
 typedef struct statname_lookup_s statname_lookup_t;
 
 /* Description of statistics returned by the recursor: {{{
-all-outqueries      counts the number of outgoing UDP queries since starting
-answers0-1          counts the number of queries answered within 1 millisecond
-answers100-1000     counts the number of queries answered within 1 second
-answers10-100       counts the number of queries answered within 100 milliseconds
-answers1-10         counts the number of queries answered within 10 milliseconds
-answers-slow        counts the number of queries answered after 1 second
-cache-entries       shows the number of entries in the cache
-cache-hits          counts the number of cache hits since starting
-cache-misses        counts the number of cache misses since starting
-chain-resends       number of queries chained to existing outstanding query
-client-parse-errors counts number of client packets that could not be parsed
-concurrent-queries  shows the number of MThreads currently running
-dlg-only-drops      number of records dropped because of delegation only setting
-negcache-entries    shows the number of entries in the Negative answer cache
-noerror-answers     counts the number of times it answered NOERROR since starting
-nsspeeds-entries    shows the number of entries in the NS speeds map
-nsset-invalidations number of times an nsset was dropped because it no longer worked
-nxdomain-answers    counts the number of times it answered NXDOMAIN since starting
-outgoing-timeouts   counts the number of timeouts on outgoing UDP queries since starting
-qa-latency          shows the current latency average
-questions           counts all End-user initiated queries with the RD bit set
-resource-limits     counts number of queries that could not be performed because of resource limits
-server-parse-errors counts number of server replied packets that could not be parsed
-servfail-answers    counts the number of times it answered SERVFAIL since starting
-spoof-prevents      number of times PowerDNS considered itself spoofed, and dropped the data
-sys-msec            number of CPU milliseconds spent in 'system' mode
-tcp-client-overflow number of times an IP address was denied TCP access because it already had too many connections
-tcp-outqueries      counts the number of outgoing TCP queries since starting
-tcp-questions       counts all incoming TCP queries (since starting)
-throttled-out       counts the number of throttled outgoing UDP queries since starting
-throttle-entries    shows the number of entries in the throttle map
-unauthorized-tcp    number of TCP questions denied because of allow-from restrictions
-unauthorized-udp    number of UDP questions denied because of allow-from restrictions
-unexpected-packets  number of answers from remote servers that were unexpected (might point to spoofing)
-uptime              number of seconds process has been running (since 3.1.5)
-user-msec           number of CPU milliseconds spent in 'user' mode
+all-outqueries        counts the number of outgoing UDP queries since starting
+answers-slow          counts the number of queries answered after 1 second
+answers0-1            counts the number of queries answered within 1 millisecond
+answers1-10           counts the number of queries answered within 10 milliseconds
+answers10-100         counts the number of queries answered within 100 milliseconds
+answers100-1000       counts the number of queries answered within 1 second
+cache-bytes           size of the cache in bytes (since 3.3.1)
+cache-entries         shows the number of entries in the cache
+cache-hits            counts the number of cache hits since starting, this does not include hits that got answered from the packet-cache
+cache-misses          counts the number of cache misses since starting
+case-mismatches       counts the number of mismatches in character case since starting
+chain-resends         number of queries chained to existing outstanding query
+client-parse-errors   counts number of client packets that could not be parsed
+concurrent-queries    shows the number of MThreads currently running
+dlg-only-drops        number of records dropped because of delegation only setting
+dont-outqueries       number of outgoing queries dropped because of 'dont-query' setting (since 3.3)
+edns-ping-matches     number of servers that sent a valid EDNS PING respons
+edns-ping-mismatches  number of servers that sent an invalid EDNS PING response
+failed-host-entries   number of servers that failed to resolve
+ipv6-outqueries       number of outgoing queries over IPv6
+ipv6-questions        counts all End-user initiated queries with the RD bit set, received over IPv6 UDP
+malloc-bytes          returns the number of bytes allocated by the process (broken, always returns 0)
+max-mthread-stack     maximum amount of thread stack ever used
+negcache-entries      shows the number of entries in the Negative answer cache
+no-packet-error       number of errorneous received packets
+noedns-outqueries     number of queries sent out without EDNS
+noerror-answers       counts the number of times it answered NOERROR since starting
+noping-outqueries     number of queries sent out without ENDS PING
+nsset-invalidations   number of times an nsset was dropped because it no longer worked
+nsspeeds-entries      shows the number of entries in the NS speeds map
+nxdomain-answers      counts the number of times it answered NXDOMAIN since starting
+outgoing-timeouts     counts the number of timeouts on outgoing UDP queries since starting
+over-capacity-drops   questions dropped because over maximum concurrent query limit (since 3.2)
+packetcache-bytes     size of the packet cache in bytes (since 3.3.1)
+packetcache-entries   size of packet cache (since 3.2)
+packetcache-hits      packet cache hits (since 3.2)
+packetcache-misses    packet cache misses (since 3.2)
+policy-drops          packets dropped because of (Lua) policy decision
+qa-latency            shows the current latency average
+questions             counts all end-user initiated queries with the RD bit set
+resource-limits       counts number of queries that could not be performed because of resource limits
+security-status       security status based on security polling
+server-parse-errors   counts number of server replied packets that could not be parsed
+servfail-answers      counts the number of times it answered SERVFAIL since starting
+spoof-prevents        number of times PowerDNS considered itself spoofed, and dropped the data
+sys-msec              number of CPU milliseconds spent in 'system' mode
+tcp-client-overflow   number of times an IP address was denied TCP access because it already had too many connections
+tcp-clients           counts the number of currently active TCP/IP clients
+tcp-outqueries        counts the number of outgoing TCP queries since starting
+tcp-questions         counts all incoming TCP queries (since starting)
+throttle-entries      shows the number of entries in the throttle map
+throttled-out         counts the number of throttled outgoing UDP queries since starting
+throttled-outqueries  idem to throttled-out
+unauthorized-tcp      number of TCP questions denied because of allow-from restrictions
+unauthorized-udp      number of UDP questions denied because of allow-from restrictions
+unexpected-packets    number of answers from remote servers that were unexpected (might point to spoofing)
+unreachables          number of times nameservers were unreachable since starting
+uptime                number of seconds process has been running (since 3.1.5)
+user-msec             number of CPU milliseconds spent in 'user' mode
 }}} */
 
 const char* const default_server_fields[] = /* {{{ */
@@ -157,8 +179,13 @@ statname_lookup_t lookup_table[] = /* {{{ */
   {"udp-answers-bytes",      "total_bytes",  "udp-answers-bytes"},
 
   /* Cache stuff */
+  {"cache-bytes",            "cache_size",   "cache-bytes"},
+  {"packetcache-bytes",      "cache_size",   "packet-bytes"},
+  {"packetcache-entries",    "cache_size",   "packet-entries"},
   {"packetcache-hit",        "cache_result", "packet-hit"},
+  {"packetcache-hits",       "cache_result", "packet-hit"},
   {"packetcache-miss",       "cache_result", "packet-miss"},
+  {"packetcache-misses",     "cache_result", "packet-miss"},
   {"packetcache-size",       "cache_size",   "packet"},
   {"key-cache-size",         "cache_size",   "key"},
   {"meta-cache-size",        "cache_size",   "meta"},
@@ -179,6 +206,7 @@ statname_lookup_t lookup_table[] = /* {{{ */
   {"corrupt-packets",        "ipt_packets",  "corrupt"},
   {"deferred-cache-inserts", "counter",      "cache-deferred_insert"},
   {"deferred-cache-lookup",  "counter",      "cache-deferred_lookup"},
+  {"dont-outqueries",        "dns_question", "dont-outqueries"},
   {"qsize-a",                "cache_size",   "answers"},
   {"qsize-q",                "cache_size",   "questions"},
   {"servfail-packets",       "ipt_packets",  "servfail"},
@@ -195,52 +223,67 @@ statname_lookup_t lookup_table[] = /* {{{ */
    * Recursor statistics *
    ***********************/
   /* Answers by return code */
-  {"noerror-answers",     "dns_rcode",    "NOERROR"},
-  {"nxdomain-answers",    "dns_rcode",    "NXDOMAIN"},
-  {"servfail-answers",    "dns_rcode",    "SERVFAIL"},
+  {"noerror-answers",      "dns_rcode",    "NOERROR"},
+  {"nxdomain-answers",     "dns_rcode",    "NXDOMAIN"},
+  {"servfail-answers",     "dns_rcode",    "SERVFAIL"},
 
   /* CPU utilization */
-  {"sys-msec",            "cpu",          "system"},
-  {"user-msec",           "cpu",          "user"},
+  {"sys-msec",             "cpu",          "system"},
+  {"user-msec",            "cpu",          "user"},
 
   /* Question-to-answer latency */
-  {"qa-latency",          "latency",      NULL},
+  {"qa-latency",           "latency",      NULL},
 
   /* Cache */
-  {"cache-entries",       "cache_size",   NULL},
-  {"cache-hits",          "cache_result", "hit"},
-  {"cache-misses",        "cache_result", "miss"},
+  {"cache-entries",        "cache_size",   NULL},
+  {"cache-hits",           "cache_result", "hit"},
+  {"cache-misses",         "cache_result", "miss"},
 
   /* Total number of questions.. */
-  {"questions",           "dns_qtype",    "total"},
+  {"questions",            "dns_qtype",    "total"},
 
   /* All the other stuff.. */
-  {"all-outqueries",      "dns_question", "outgoing"},
-  {"answers0-1",          "dns_answer",   "0_1"},
-  {"answers1-10",         "dns_answer",   "1_10"},
-  {"answers10-100",       "dns_answer",   "10_100"},
-  {"answers100-1000",     "dns_answer",   "100_1000"},
-  {"answers-slow",        "dns_answer",   "slow"},
-  {"chain-resends",       "dns_question", "chained"},
-  {"client-parse-errors", "counter",      "drops-client_parse_error"},
-  {"concurrent-queries",  "dns_question", "concurrent"},
-  {"dlg-only-drops",      "counter",      "drops-delegation_only"},
-  {"negcache-entries",    "cache_size",   "negative"},
-  {"nsspeeds-entries",    "gauge",        "entries-ns_speeds"},
-  {"nsset-invalidations", "counter",      "ns_set_invalidation"},
-  {"outgoing-timeouts",   "counter",      "drops-timeout_outgoing"},
-  {"resource-limits",     "counter",      "drops-resource_limit"},
-  {"server-parse-errors", "counter",      "drops-server_parse_error"},
-  {"spoof-prevents",      "counter",      "drops-spoofed"},
-  {"tcp-client-overflow", "counter",      "denied-client_overflow_tcp"},
-  {"tcp-outqueries",      "dns_question", "outgoing-tcp"},
-  {"tcp-questions",       "dns_question", "incoming-tcp"},
-  {"throttled-out",       "dns_question", "outgoing-throttled"},
-  {"throttle-entries",    "gauge",        "entries-throttle"},
-  {"unauthorized-tcp",    "counter",      "denied-unauthorized_tcp"},
-  {"unauthorized-udp",    "counter",      "denied-unauthorized_udp"},
-  {"unexpected-packets",  "dns_answer",   "unexpected"},
-  {"uptime",              "uptime",       NULL}
+  {"all-outqueries",       "dns_question", "outgoing"},
+  {"answers0-1",           "dns_answer",   "0_1"},
+  {"answers1-10",          "dns_answer",   "1_10"},
+  {"answers10-100",        "dns_answer",   "10_100"},
+  {"answers100-1000",      "dns_answer",   "100_1000"},
+  {"answers-slow",         "dns_answer",   "slow"},
+  {"case-mismatches",      "counter",      "case_mismatches"},
+  {"chain-resends",        "dns_question", "chained"},
+  {"client-parse-errors",  "counter",      "drops-client_parse_error"},
+  {"concurrent-queries",   "dns_question", "concurrent"},
+  {"dlg-only-drops",       "counter",      "drops-delegation_only"},
+  {"edns-ping-matches",    "counter",      "edns-ping_matches"},
+  {"edns-ping-mismatches", "counter",      "edns-ping_mismatches"},
+  {"failed-host-entries",  "counter",      "entries-failed_host"},
+  {"ipv6-outqueries",      "dns_question", "outgoing-ipv6"},
+  {"ipv6-questions",       "dns_question", "incoming-ipv6"},
+  {"malloc-bytes",         "gauge",        "malloc_bytes"},
+  {"max-mthread-stack",    "gauge",        "max_mthread_stack"},
+  {"no-packet-error",      "gauge",        "no_packet_error"},
+  {"noedns-outqueries",    "dns_question", "outgoing-noedns"},
+  {"noping-outqueries",    "dns_question", "outgoing-noping"},
+  {"over-capacity-drops",  "dns_question", "incoming-over_capacity"},
+  {"negcache-entries",     "cache_size",   "negative"},
+  {"nsspeeds-entries",     "gauge",        "entries-ns_speeds"},
+  {"nsset-invalidations",  "counter",      "ns_set_invalidation"},
+  {"outgoing-timeouts",    "counter",      "drops-timeout_outgoing"},
+  {"policy-drops",         "counter",      "drops-policy"},
+  {"resource-limits",      "counter",      "drops-resource_limit"},
+  {"server-parse-errors",  "counter",      "drops-server_parse_error"},
+  {"spoof-prevents",       "counter",      "drops-spoofed"},
+  {"tcp-client-overflow",  "counter",      "denied-client_overflow_tcp"},
+  {"tcp-clients",          "gauge",        "clients-tcp"},
+  {"tcp-outqueries",       "dns_question", "outgoing-tcp"},
+  {"tcp-questions",        "dns_question", "incoming-tcp"},
+  {"throttled-out",        "dns_question", "outgoing-throttled"},
+  {"throttle-entries",     "gauge",        "entries-throttle"},
+  {"throttled-outqueries", "dns_question", "outgoing-throttle"},
+  {"unauthorized-tcp",     "counter",      "denied-unauthorized_tcp"},
+  {"unauthorized-udp",     "counter",      "denied-unauthorized_udp"},
+  {"unexpected-packets",   "dns_answer",   "unexpected"},
+  {"uptime",               "uptime",       NULL}
 }; /* }}} */
 int lookup_table_length = STATIC_ARRAY_SIZE (lookup_table);
 
@@ -250,14 +293,12 @@ static llist_t *list = NULL;
 static char *local_sockpath = NULL;
 
 /* TODO: Do this before 4.4:
- * - Recursor:
- *   - Complete list of known pdns -> collectd mappings.
  * - Update the collectd.conf(5) manpage.
  *
  * -octo
  */
 
-/* <http://doc.powerdns.com/recursor-stats.html> */
+/* <https://doc.powerdns.com/md/recursor/stats/> */
 static void submit (const char *plugin_instance, /* {{{ */
     const char *pdns_type, const char *value)
 {

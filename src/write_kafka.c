@@ -34,7 +34,7 @@
 #include "utils_format_json.h"
 #include "utils_crc32.h"
 
-#include <sys/types.h>
+#include <stdint.h>
 #include <librdkafka/rdkafka.h>
 #include <pthread.h>
 #include <zlib.h>
@@ -44,7 +44,7 @@ struct kafka_topic_context {
 #define KAFKA_FORMAT_JSON        0
 #define KAFKA_FORMAT_COMMAND     1
 #define KAFKA_FORMAT_GRAPHITE    2
-    u_int8_t                     format;
+    uint8_t                     format;
     unsigned int                 graphite_flags;
     _Bool                        store_rates;
     rd_kafka_topic_conf_t       *conf;
@@ -52,7 +52,7 @@ struct kafka_topic_context {
     rd_kafka_conf_t             *kafka_conf;
     rd_kafka_t                  *kafka;
     int                          has_key;
-    u_int32_t                    key;
+    uint32_t                    key;
     char                        *prefix;
     char                        *postfix;
     char                         escape_char;
@@ -79,8 +79,8 @@ static int32_t kafka_partition(const rd_kafka_topic_t *rkt,
                                const void *keydata, size_t keylen,
                                int32_t partition_cnt, void *p, void *m)
 {
-    u_int32_t key = *((u_int32_t *)keydata );
-    u_int32_t target = key % partition_cnt;
+    uint32_t key = *((uint32_t *)keydata );
+    uint32_t target = key % partition_cnt;
     int32_t   i = partition_cnt;
 
     while (--i > 0 && !rd_kafka_topic_partition_available(rkt, target)) {
@@ -148,7 +148,7 @@ static int kafka_write(const data_set_t *ds, /* {{{ */
 	      user_data_t *ud)
 {
 	int			 status = 0;
-    u_int32_t    key;
+    uint32_t    key;
     char         buffer[8192];
     size_t bfree = sizeof(buffer);
     size_t bfill = 0;

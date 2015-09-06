@@ -71,27 +71,27 @@ DEF_TEST(base)
 
   /* retrieve and check all values */
   CHECK_ZERO (meta_data_get_string (m, "string", &s));
-  STREQ ("foobar", s);
+  EXPECT_EQ_STR ("foobar", s);
   sfree (s);
 
   CHECK_ZERO (meta_data_get_signed_int (m, "signed_int", &si));
-  EXPECT_INTEQ (-1, (int) si);
+  EXPECT_EQ_INT (-1, (int) si);
 
   CHECK_ZERO (meta_data_get_unsigned_int (m, "unsigned_int", &ui));
-  EXPECT_INTEQ (1, (int) ui);
+  EXPECT_EQ_INT (1, (int) ui);
 
   CHECK_ZERO (meta_data_get_double (m, "double", &d));
-  DBLEQ (47.11, d);
+  EXPECT_EQ_DOUBLE (47.11, d);
 
   CHECK_ZERO (meta_data_get_boolean (m, "boolean", &b));
   OK1 (b, "b evaluates to true");
 
   /* retrieving the wrong type always fails */
-  EXPECT_INTEQ (-2, meta_data_get_boolean (m, "string", &b));
-  EXPECT_INTEQ (-2, meta_data_get_string (m, "signed_int", &s));
-  EXPECT_INTEQ (-2, meta_data_get_string (m, "unsigned_int", &s));
-  EXPECT_INTEQ (-2, meta_data_get_string (m, "double", &s));
-  EXPECT_INTEQ (-2, meta_data_get_string (m, "boolean", &s));
+  EXPECT_EQ_INT (-2, meta_data_get_boolean (m, "string", &b));
+  EXPECT_EQ_INT (-2, meta_data_get_string (m, "signed_int", &s));
+  EXPECT_EQ_INT (-2, meta_data_get_string (m, "unsigned_int", &s));
+  EXPECT_EQ_INT (-2, meta_data_get_string (m, "double", &s));
+  EXPECT_EQ_INT (-2, meta_data_get_string (m, "boolean", &s));
 
   /* replace existing keys */
   CHECK_ZERO (meta_data_add_signed_int (m, "string", 666));
@@ -99,11 +99,11 @@ DEF_TEST(base)
 
   CHECK_ZERO (meta_data_add_signed_int (m, "signed_int", 666));
   CHECK_ZERO (meta_data_get_signed_int (m, "signed_int", &si));
-  EXPECT_INTEQ (666, (int) si);
+  EXPECT_EQ_INT (666, (int) si);
 
   /* deleting keys */
   CHECK_ZERO (meta_data_delete (m, "signed_int"));
-  EXPECT_INTEQ (-2, meta_data_delete (m, "doesnt exist"));
+  EXPECT_EQ_INT (-2, meta_data_delete (m, "doesnt exist"));
 
   meta_data_destroy (m);
   return 0;

@@ -119,6 +119,7 @@ if BUILD_PLUGIN_AMQP
 pkglib_LTLIBRARIES += amqp.la
 amqp_la_SOURCES = amqp.c \
 		  utils_cmd_putval.c utils_cmd_putval.h \
+  	          utils_parse_option.c utils_parse_option.h \
 		  utils_format_graphite.c utils_format_graphite.h \
 		  utils_format_json.c utils_format_json.h
 amqp_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBRABBITMQ_LDFLAGS)
@@ -337,6 +338,9 @@ disk_la_LIBADD += $(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
 endif
 if BUILD_WITH_LIBUDEV
 disk_la_LIBADD += -ludev
+endif
+if BUILD_FREEBSD
+disk_la_LIBADD += -ldevstat -lgeom
 endif
 if BUILD_WITH_PERFSTAT
 disk_la_LIBADD += -lperfstat

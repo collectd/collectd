@@ -96,7 +96,6 @@
 
 #include <dirent.h>
 #include <sys/ioctl.h>
-#include <sys/socket.h>
 
 #if !KERNEL_LINUX
 # error "No applicable input method."
