@@ -216,6 +216,13 @@ cgroups_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 cgroups_la_LIBADD = libmount.la
 endif
 
+if BUILD_PLUGIN_CHRONY
+pkglib_LTLIBRARIES += chrony.la
+chrony_la_SOURCES = chrony.c
+chrony_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+chrony_la_LIBADD =
+endif
+
 if BUILD_PLUGIN_CONNTRACK
 pkglib_LTLIBRARIES += conntrack.la
 conntrack_la_SOURCES = conntrack.c
