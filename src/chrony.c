@@ -1,13 +1,14 @@
 /* chrony plugin for collectd
    (c) 2015 by Claudius M Zingerli, ZSeng
    Internas roughly based on the ntpd plugin
+   Some functions copied from chronyd/web (marked)
    License: GPL2
 */
 /* TODO:
  *	- More robust udp parsing (using offsets instead of structs?)
+ *	  -> Currently chrony parses its data the same way as we do (using structs)
  *	- Plausibility checks on values received
- *
- *
+ *	  -> Done at higher levels
  */
 
 /* getaddrinfo */
@@ -15,28 +16,62 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
+#include <arpa/inet.h> /* ntohs/ntohl */
+
 #include "collectd.h"
 #include "common.h" /* auxiliary functions */
 #include "plugin.h" /* plugin_register_*, plugin_dispatch_values */
 
+#define CONFIG_KEY_HOST    "Host"
+#define CONFIG_KEY_PORT    "Port"
+#define CONFIG_KEY_TIMEOUT "Timeout"
+
+#define URAND_DEVICE_PATH "/dev/urandom" /* Used to initialize seq nr generator*/
+#define RAND_DEVICE_PATH  "/dev/random"  /* Used to initialize seq nr generator (fall back)*/
+
 static const char *g_config_keys[] =
 {
-        "Host",
-        "Port",
-	"Timeout"
+        CONFIG_KEY_HOST,
+        CONFIG_KEY_PORT,
+	CONFIG_KEY_TIMEOUT
 };
 
-static int g_config_keys_num = STATIC_ARRAY_SIZE (g_config_keys);
+static int    g_config_keys_num = STATIC_ARRAY_SIZE (g_config_keys);
+static int    g_is_connected    =  0;
+static int    g_chrony_socket   = -1;
+static time_t g_chrony_timeout  = -1;
+static char  *g_chrony_host     =  NULL;
+static char  *g_chrony_port     =  NULL;
+static char  *g_plugin_instance =  NULL;
+static uint32_t g_chrony_rand   =  1;
+static uint32_t g_chrony_seq_is_initialized = 0;
 
-# define CHRONY_DEFAULT_HOST "localhost"
-# define CHRONY_DEFAULT_PORT "323"
-# define CHRONY_DEFAULT_TIMEOUT 2
+#define PLUGIN_NAME_SHORT "chrony"
+#define PLUGIN_NAME       PLUGIN_NAME_SHORT " plugin"
+#define DAEMON_NAME       PLUGIN_NAME_SHORT
+#define CHRONY_DEFAULT_HOST "localhost"
+#define CHRONY_DEFAULT_PORT "323"
+#define CHRONY_DEFAULT_TIMEOUT 2
 
-/* Copied from chrony/candm.h */
+/* Return codes (collectd expects non-zero on errors) */
+#define CHRONY_RC_OK    (int)0
+#define CHRONY_RC_FAIL  (int)1
+
+/* Variables adapted from chrony/candm.h */
 /*BEGIN*/
 #define PROTO_VERSION_NUMBER 6
+#define IPADDR_UNSPEC 0
+#define IPADDR_INET4  1
+#define IPADDR_INET6  2
+#define IPV6_STR_MAX_SIZE (8*4+7+1)
 
-enum
+typedef enum
+{
+	PKT_TYPE_CMD_REQUEST = 1,
+	PKT_TYPE_CMD_REPLY   = 2
+} ePacketType;
+
+typedef enum
 {
 	REQ_N_SOURCES    = 14,
 	REQ_SOURCE_DATA  = 15,
@@ -44,20 +79,17 @@ enum
 	REQ_SOURCE_STATS = 34
 } eDaemonRequests;
 
-#define PKT_TYPE_CMD_REQUEST 1
-#define PKT_TYPE_CMD_REPLY 2
 
-#define RPY_NULL 1
-#define RPY_N_SOURCES 2
-#define RPY_SOURCE_DATA 3
-#define RPY_MANUAL_TIMESTAMP 4
-#define RPY_TRACKING 5
-#define RPY_SOURCE_STATS 6
-#define RPY_RTC 7
-
-#define IPADDR_UNSPEC 0
-#define IPADDR_INET4 1
-#define IPADDR_INET6 2
+typedef enum
+{
+	RPY_NULL             = 1,
+	RPY_N_SOURCES        = 2,
+	RPY_SOURCE_DATA      = 3,
+	RPY_MANUAL_TIMESTAMP = 4,
+	RPY_TRACKING         = 5,
+	RPY_SOURCE_STATS     = 6,
+	RPY_RTC              = 7
+} eDaemonReplies;
 
 #define ATTRIB_PACKED __attribute__((packed))
 typedef struct ATTRIB_PACKED
@@ -71,42 +103,42 @@ typedef struct ATTRIB_PACKED
 	uint32_t tv_sec_low;
 	uint32_t tv_nsec;
 } tTimeval;
-
 /*END*/
 
 typedef enum
 {
-	STT_SUCCESS = 0,
-	STT_FAILED  = 1,
-	STT_UNAUTH  = 2,
-	STT_INVALID = 3,
-	STT_NOSUCHSOURCE = 4,
-	STT_INVALIDTS  = 5,
-	STT_NOTENABLED = 6,
-	STT_BADSUBNET  = 7,
-	STT_ACCESSALLOWED = 8,
-	STT_ACCESSDENIED  = 9,
-	STT_NOHOSTACCESS  = 10,
+	STT_SUCCESS        =  0,
+	STT_FAILED         =  1,
+	STT_UNAUTH         =  2,
+	STT_INVALID        =  3,
+	STT_NOSUCHSOURCE   =  4,
+	STT_INVALIDTS      =  5,
+	STT_NOTENABLED     =  6,
+	STT_BADSUBNET      =  7,
+	STT_ACCESSALLOWED  =  8,
+	STT_ACCESSDENIED   =  9,
+	STT_NOHOSTACCESS   = 10,
 	STT_SOURCEALREADYKNOWN = 11,
 	STT_TOOMANYSOURCES = 12,
-	STT_NORTC      = 13,
-	STT_BADRTCFILE = 14,
-	STT_INACTIVE   = 15,
-	STT_BADSAMPLE  = 16,
-	STT_INVALIDAF  = 17,
-	STT_BADPKTVERSION = 18,
-	STT_BADPKTLENGTH = 19,
+	STT_NORTC          = 13,
+	STT_BADRTCFILE     = 14,
+	STT_INACTIVE       = 15,
+	STT_BADSAMPLE      = 16,
+	STT_INVALIDAF      = 17,
+	STT_BADPKTVERSION  = 18,
+	STT_BADPKTLENGTH   = 19
 } eChrony_Status;
 
+/* Chrony client request packets */
 typedef struct ATTRIB_PACKED
 {
-	uint8_t f_dummy0[80];
+	uint8_t f_dummy0[80]; //Chrony expects 80bytes dummy data (Avoiding UDP Amplification)
 } tChrony_Req_Tracking;
 
 typedef struct ATTRIB_PACKED
 {
 	uint32_t f_n_sources;
-} tChrony_N_Sources;
+} tChrony_Req_N_Sources;
 
 typedef struct ATTRIB_PACKED
 {
@@ -119,69 +151,6 @@ typedef struct ATTRIB_PACKED
 	int32_t f_index;
 	uint8_t f_dummy0[56];
 } tChrony_Req_Source_stats;
-
-#define IPV6_STR_MAX_SIZE 40
-typedef struct ATTRIB_PACKED
-{
-	union
-	{
-		uint32_t ip4;
-		uint8_t ip6[16];
-	} addr;
-	uint16_t f_family;
-} tChrony_IPAddr;
-
-typedef struct ATTRIB_PACKED
-{
-	tChrony_IPAddr addr;
-	uint16_t dummy; /* FIXME: Strange dummy space. Needed on gcc 4.8.3 on x86_64 */
-	int16_t  f_poll;    // 2^f_poll = Time between polls (s)
-	uint16_t f_stratum; //Remote clock stratum
-	uint16_t f_state;   //0 = RPY_SD_ST_SYNC,    1 = RPY_SD_ST_UNREACH,   2 = RPY_SD_ST_FALSETICKER
-       	                    //3 = RPY_SD_ST_JITTERY, 4 = RPY_SD_ST_CANDIDATE, 5 = RPY_SD_ST_OUTLIER
-	uint16_t f_mode;    //0 = RPY_SD_MD_CLIENT,  1 = RPY_SD_MD_PEER,      2 = RPY_SD_MD_REF
-	uint16_t f_flags;   //unused
-	uint16_t f_reachability; //???
-
-	uint32_t f_since_sample; //Time since last sample (s)
-	tFloat   f_origin_latest_meas; //
-	tFloat   f_latest_meas;        //
-	tFloat   f_latest_meas_err;    //
-} tChrony_Resp_Source_data;
-
-typedef struct ATTRIB_PACKED
-{
-	uint32_t f_ref_id;
-	tChrony_IPAddr addr;
-	uint16_t dummy; /* FIXME: Strange dummy space. Needed on gcc 4.8.3 on x86_64 */
-	uint32_t f_n_samples;     //Number of measurements done
-	uint32_t f_n_runs;        //How many measurements to come
-	uint32_t f_span_seconds;  //For how long we're measuring
-	tFloat   f_rtc_seconds_fast;  //???
-	tFloat   f_rtc_gain_rate_ppm; //Estimated relative frequency error
-	tFloat   f_skew_ppm;          //Clock skew (ppm) (worst case freq est error (skew: peak2peak))
-	tFloat   f_est_offset;        //Estimated offset of source
-	tFloat   f_est_offset_err;    //Error of estimation
-} tChrony_Resp_Source_stats;
-
-typedef struct ATTRIB_PACKED
-{
-	uint32_t f_ref_id;
-	tChrony_IPAddr addr;
-	uint16_t dummy; /* FIXME: Strange dummy space. Needed on gcc 4.8.3 on x86_64 */
-	uint16_t f_stratum;
-	uint16_t f_leap_status;
-	tTimeval f_ref_time;
-	tFloat   f_current_correction;
-	tFloat   f_last_offset;
-	tFloat   f_rms_offset;
-	tFloat   f_freq_ppm;
-	tFloat   f_resid_freq_ppm;
-	tFloat   f_skew_ppm;
-	tFloat   f_root_delay;
-	tFloat   f_root_dispersion;
-	tFloat   f_last_update_interval;
-} tChrony_Resp_Tracking;
 
 typedef struct ATTRIB_PACKED
 {
@@ -200,13 +169,81 @@ typedef struct ATTRIB_PACKED
 	} header; /* Packed: 20Bytes */
 	union
 	{
-		tChrony_N_Sources        n_sources;
+		tChrony_Req_N_Sources    n_sources;
 		tChrony_Req_Source_data  source_data;
 		tChrony_Req_Source_stats source_stats;
 		tChrony_Req_Tracking     tracking;
 	} body;
 	uint8_t padding[4+16]; /* Padding to match minimal response size */
 } tChrony_Request;
+
+/* Chrony daemon response packets */
+typedef struct ATTRIB_PACKED
+{
+	uint32_t f_n_sources;
+} tChrony_Resp_N_Sources;
+
+typedef struct ATTRIB_PACKED
+{
+	union
+	{
+		uint32_t ip4;
+		uint8_t  ip6[16];
+	} addr;
+	uint16_t f_family;
+} tChrony_IPAddr;
+
+typedef struct ATTRIB_PACKED
+{
+	tChrony_IPAddr addr;
+	uint16_t dummy;     /* FIXME: Strange dummy space. Needed on gcc 4.8.3/clang 3.4.1 on x86_64 */
+	int16_t  f_poll;    /* 2^f_poll = Time between polls (s) */
+	uint16_t f_stratum; /* Remote clock stratum */
+	uint16_t f_state;   /* 0 = RPY_SD_ST_SYNC,    1 = RPY_SD_ST_UNREACH,   2 = RPY_SD_ST_FALSETICKER */
+       	                    /* 3 = RPY_SD_ST_JITTERY, 4 = RPY_SD_ST_CANDIDATE, 5 = RPY_SD_ST_OUTLIER     */
+	uint16_t f_mode;    /* 0 = RPY_SD_MD_CLIENT,  1 = RPY_SD_MD_PEER,      2 = RPY_SD_MD_REF         */
+	uint16_t f_flags;   /* unused */
+	uint16_t f_reachability;       /* Bit mask of successfull tries to reach the source */
+
+	uint32_t f_since_sample;       /* Time since last sample (s) */
+	tFloat   f_origin_latest_meas; /*  */
+	tFloat   f_latest_meas;        /*  */
+	tFloat   f_latest_meas_err;    /*  */
+} tChrony_Resp_Source_data;
+
+typedef struct ATTRIB_PACKED
+{
+	uint32_t f_ref_id;
+	tChrony_IPAddr addr;
+	uint16_t dummy;               /* FIXME: Strange dummy space. Needed on gcc 4.8.3/clang 3.4.1 on x86_64 */
+	uint32_t f_n_samples;         /* Number of measurements done   */
+	uint32_t f_n_runs;            /* How many measurements to come */
+	uint32_t f_span_seconds;      /* For how long we're measuring  */
+	tFloat   f_rtc_seconds_fast;  /* ??? */
+	tFloat   f_rtc_gain_rate_ppm; /* Estimated relative frequency error */
+	tFloat   f_skew_ppm;          /* Clock skew (ppm) (worst case freq est error (skew: peak2peak)) */
+	tFloat   f_est_offset;        /* Estimated offset of source */
+	tFloat   f_est_offset_err;    /* Error of estimation        */
+} tChrony_Resp_Source_stats;
+
+typedef struct ATTRIB_PACKED
+{
+	uint32_t f_ref_id;
+	tChrony_IPAddr addr;
+	uint16_t dummy;     /* FIXME: Strange dummy space. Needed on gcc 4.8.3/clang 3.4.1 on x86_64 */
+	uint16_t f_stratum;
+	uint16_t f_leap_status;
+	tTimeval f_ref_time;
+	tFloat   f_current_correction;
+	tFloat   f_last_offset;
+	tFloat   f_rms_offset;
+	tFloat   f_freq_ppm;
+	tFloat   f_resid_freq_ppm;
+	tFloat   f_skew_ppm;
+	tFloat   f_root_delay;
+	tFloat   f_root_dispersion;
+	tFloat   f_last_update_interval;
+} tChrony_Resp_Tracking;
 
 typedef struct ATTRIB_PACKED
 {
@@ -229,7 +266,7 @@ typedef struct ATTRIB_PACKED
 
 	union
 	{
-		tChrony_N_Sources         n_sources;
+		tChrony_Resp_N_Sources         n_sources;
 		tChrony_Resp_Source_data  source_data;
 		tChrony_Resp_Source_stats source_stats;
 		tChrony_Resp_Tracking     tracking;
@@ -238,37 +275,30 @@ typedef struct ATTRIB_PACKED
 	uint8_t padding[1024];
 } tChrony_Response;
 
-static int g_is_connected = 0;
-static int g_chrony_socket = -1;
-static time_t g_chrony_timeout = 0;
-static char *g_chrony_host = NULL;
-static char *g_chrony_port = NULL;
-static uint32_t g_chrony_seq = 0;
 
 /*****************************************************************************/
 /* Internal functions */
 /*****************************************************************************/
-/* Code from: http://long.ccaba.upc.edu/long/045Guidelines/eva/ipv6.html#daytimeClient6 */
+/* Code adapted from: http://long.ccaba.upc.edu/long/045Guidelines/eva/ipv6.html#daytimeClient6 */
 /*BEGIN*/
-static int
-connect_client (const char *p_hostname,
-                const char *service,
-                int         family,
-                int         socktype)
+static int connect_client (const char *p_hostname,
+                const char *p_service,
+                int         p_family,
+                int         p_socktype)
 {
-	struct addrinfo hints, *res, *ressave;
+	struct addrinfo hints, *res=NULL, *ressave=NULL;
 	int n, sockfd;
 
 	memset(&hints, 0, sizeof(struct addrinfo));
 
-	hints.ai_family = family;
-	hints.ai_socktype = socktype;
+	hints.ai_family   = p_family;
+	hints.ai_socktype = p_socktype;
 
-	n = getaddrinfo(p_hostname, service, &hints, &res);
+	n = getaddrinfo(p_hostname, p_service, &hints, &res);
 
 	if (n <0)
 	{
-		ERROR ("chrony plugin: getaddrinfo error:: [%s]", gai_strerror(n));
+		ERROR (PLUGIN_NAME ": getaddrinfo error:: [%s]", gai_strerror(n));
 		return -1;
 	}
 
@@ -278,13 +308,14 @@ connect_client (const char *p_hostname,
 	while (res)
 	{
 		sockfd = socket(res->ai_family,
-		res->ai_socktype,
-		res->ai_protocol);
+				res->ai_socktype,
+				res->ai_protocol);
 
 		if (!(sockfd < 0))
 		{
 			if (connect(sockfd, res->ai_addr, res->ai_addrlen) == 0)
 			{
+				/* Success */
 				break;
 			}
 
@@ -297,17 +328,19 @@ connect_client (const char *p_hostname,
 	freeaddrinfo(ressave);
 	return sockfd;
 }
+
 /*Code originally from: git://git.tuxfamily.org/gitroot/chrony/chrony.git:util.c */
 /*char * UTI_IPToString(IPAddr *addr)*/
-char * niptoha(const tChrony_IPAddr *addr,char *p_buf, size_t p_buf_size)
+static char * niptoha(const tChrony_IPAddr *addr,char *p_buf, size_t p_buf_size)
 {
+	int rc=1;
 	unsigned long a, b, c, d, ip;
 	const uint8_t *ip6;
 
 	switch (ntohs(addr->f_family))
 	{
 	case IPADDR_UNSPEC:
-		snprintf(p_buf, p_buf_size, "[UNSPEC]");
+		rc=snprintf(p_buf, p_buf_size, "[UNSPEC]");
 	break;
 	case IPADDR_INET4:
 		ip = ntohl(addr->addr.ip4);
@@ -315,35 +348,38 @@ char * niptoha(const tChrony_IPAddr *addr,char *p_buf, size_t p_buf_size)
 		b = (ip>>16) & 0xff;
 		c = (ip>> 8) & 0xff;
 		d = (ip>> 0) & 0xff;
-		snprintf(p_buf, p_buf_size, "%ld.%ld.%ld.%ld", a, b, c, d);
+		rc=snprintf(p_buf, p_buf_size, "%ld.%ld.%ld.%ld", a, b, c, d);
 	break;
 	case IPADDR_INET6:
 		ip6 = addr->addr.ip6;
 
 #ifdef FEAT_IPV6
-		inet_ntop(AF_INET6, ip6, p_buf, p_bug_size);
+		rc=inet_ntop(AF_INET6, ip6, p_buf, p_bug_size);
 #else
-#if 0
-/* FIXME: Detect little endian systems */
-		snprintf(p_buf, p_buf_size, "%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
+#if defined(BYTE_ORDER) && (BYTE_ORDER == BIG_ENDIAN)
+		rc=snprintf(p_buf, p_buf_size, "%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
+			ip6[15], ip6[14], ip6[13], ip6[12], ip6[11], ip6[10], ip6[9], ip6[8],
+			ip6[7], ip6[6], ip6[5], ip6[4], ip6[3], ip6[2], ip6[1], ip6[0]);
+#else
+		rc=snprintf(p_buf, p_buf_size, "%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
 			ip6[0], ip6[1], ip6[2], ip6[3], ip6[4], ip6[5], ip6[6], ip6[7],
 			ip6[8], ip6[9], ip6[10], ip6[11], ip6[12], ip6[13], ip6[14], ip6[15]);
-#else
-		snprintf(p_buf, p_buf_size, "%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
-			ip6[5], ip6[4], ip6[3], ip6[2], ip6[1], ip6[0], ip6[9], ip6[8],
-			ip6[7], ip6[6], ip6[5], ip6[4], ip6[3], ip6[2], ip6[1], ip6[0]);
 #endif
 #endif
 	break;
 	default:
-		snprintf(p_buf, p_buf_size, "[UNKNOWN]");
+		rc=snprintf(p_buf, p_buf_size, "[UNKNOWN]");
 	}
+	assert(rc>0);
 	return p_buf;
 }
 /*END*/
 
 static int chrony_set_timeout()
 {
+	/*Set the socket's  timeout to g_chrony_timeout; a value of 0 signals infinite timeout*/
+	/*Returns 0 on success, !0 on error (check errno)*/
+
 	struct timeval tv;
 	tv.tv_sec  = g_chrony_timeout;
 	tv.tv_usec = 0;
@@ -351,54 +387,60 @@ static int chrony_set_timeout()
 	assert(g_chrony_socket>=0);
 	if (setsockopt(g_chrony_socket, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv,sizeof(struct timeval)) < 0)
 	{
-		return 1;
+		return CHRONY_RC_FAIL;
 	}
-	return 0;
+	return CHRONY_RC_OK;
 }
 
 static int chrony_connect()
 {
+	/*Connects to the chrony daemon*/
+	/*Returns 0 on success, !0 on error (check errno)*/
+	int socket;
+
 	if (g_chrony_host == NULL)
 	{
 		g_chrony_host = strdup(CHRONY_DEFAULT_HOST);
+		assert(g_chrony_host);
 	}
 	if (g_chrony_port == NULL)
 	{
 		g_chrony_port = strdup(CHRONY_DEFAULT_PORT);
+		assert(g_chrony_port);
 	}
-	if (g_chrony_timeout <= 0)
+	if (g_chrony_timeout < 0)
 	{
 		g_chrony_timeout = CHRONY_DEFAULT_TIMEOUT;
+		assert(g_chrony_timeout>=0);
 	}
 	
 
-	DEBUG("chrony plugin: Connecting to %s:%s", g_chrony_host, g_chrony_port);
-	int socket = connect_client(g_chrony_host, g_chrony_port,  AF_UNSPEC, SOCK_DGRAM);
+	DEBUG(PLUGIN_NAME ": Connecting to %s:%s", g_chrony_host, g_chrony_port);
+	socket = connect_client(g_chrony_host, g_chrony_port,  AF_UNSPEC, SOCK_DGRAM);
 	if (socket < 0)
 	{
-		ERROR ("chrony plugin: Error connecting to daemon. Errno = %d", errno);
-		return 1;
+		ERROR (PLUGIN_NAME ": Error connecting to daemon. Errno = %d", errno);
+		return CHRONY_RC_FAIL;
 	}
-	DEBUG("chrony plugin: Connected");
+	DEBUG(PLUGIN_NAME ": Connected");
 	g_chrony_socket = socket;
 
 	if (chrony_set_timeout())
 	{
-		ERROR ("chrony plugin: Error setting timeout to %lds. Errno = %d", g_chrony_timeout, errno);
-		return 1;
+		ERROR (PLUGIN_NAME ": Error setting timeout to %lds. Errno = %d", g_chrony_timeout, errno);
+		return CHRONY_RC_FAIL;
 	}
-	return 0;
+	return CHRONY_RC_OK;
 }
 
 static int chrony_send_request(const tChrony_Request *p_req, size_t p_req_size)
 {
 	if (send(g_chrony_socket,p_req,p_req_size,0) < 0)
 	{
-		ERROR ("chrony plugin: Error sending packet. Errno = %d", errno);
-		return 1;
-	} else {
-		return 0;
+		ERROR (PLUGIN_NAME ": Error sending packet. Errno = %d", errno);
+		return CHRONY_RC_FAIL;
 	}
+	return CHRONY_RC_OK;
 }
 
 static int chrony_recv_response(tChrony_Response *p_resp, size_t p_resp_max_size, size_t *p_resp_size)
@@ -406,11 +448,11 @@ static int chrony_recv_response(tChrony_Response *p_resp, size_t p_resp_max_size
 	ssize_t rc = recv(g_chrony_socket,p_resp,p_resp_max_size,0);
 	if (rc <= 0)
 	{
-		ERROR ("chrony plugin: Error receiving packet. Errno = %d", errno);
-		return 1;
+		ERROR (PLUGIN_NAME ": Error receiving packet: %s (%d)", strerror(errno), errno);
+		return CHRONY_RC_FAIL;
 	} else {
 		*p_resp_size = rc;
-		return 0;
+		return CHRONY_RC_OK;
 	}
 }
 
@@ -427,8 +469,8 @@ static int chrony_query(const int p_command, tChrony_Request *p_req, tChrony_Res
 		{
 			g_is_connected = 1;
 		} else {
-			ERROR ("chrony plugin: Unable to connect. Errno = %d", errno);
-			return 1;
+			ERROR (PLUGIN_NAME ": Unable to connect. Errno = %d", errno);
+			return CHRONY_RC_FAIL;
 		}
 	}
 
@@ -466,7 +508,7 @@ static int chrony_query(const int p_command, tChrony_Request *p_req, tChrony_Res
 			valid_command = 1;
 		break;
 		default:
-			ERROR ("chrony plugin: Unknown request command (Was: %d)", p_command);
+			ERROR (PLUGIN_NAME ": Unknown request command (Was: %d)", p_command);
 		break;
 		}
 
@@ -475,74 +517,74 @@ static int chrony_query(const int p_command, tChrony_Request *p_req, tChrony_Res
 			break;
 		}
 
+		uint32_t seq_nr = rand_r(&g_chrony_rand);
 		p_req->header.f_cmd     = htons(p_command);
 		p_req->header.f_cmd_try = 0;
-		p_req->header.f_seq     = htonl(g_chrony_seq++);
+		p_req->header.f_seq     = seq_nr;
 		
-		DEBUG("chrony plugin: Sending request (.cmd = %d, .seq = %d)",p_command,g_chrony_seq-1);
+		DEBUG(PLUGIN_NAME ": Sending request (.cmd = %d, .seq = %d)",p_command,seq_nr);
 		if (chrony_send_request(p_req,req_size) != 0)
 		{
 			break;
 		}
 
-		DEBUG("chrony plugin: Waiting for response");
+		DEBUG(PLUGIN_NAME ": Waiting for response");
 		if (chrony_recv_response(p_resp,resp_size,p_resp_size) != 0)
 		{
 			break;
 		}
-		DEBUG("chrony plugin: Received response: .version = %u, .type = %u, .cmd = %u, .reply = %u, .status = %u, .seq = %u",
+		DEBUG(PLUGIN_NAME ": Received response: .version = %u, .type = %u, .cmd = %u, .reply = %u, .status = %u, .seq = %u",
 				p_resp->header.f_version,p_resp->header.f_type,ntohs(p_resp->header.f_cmd),
 				ntohs(p_resp->header.f_reply),ntohs(p_resp->header.f_status),ntohl(p_resp->header.f_seq));
 
 		if (p_resp->header.f_version != p_req->header.f_version)
 		{
-			ERROR("chrony plugin: Wrong protocol version (Was: %d, expected: %d)", p_resp->header.f_version, p_req->header.f_version);
-			return 1;
+			ERROR(PLUGIN_NAME ": Wrong protocol version (Was: %d, expected: %d)", p_resp->header.f_version, p_req->header.f_version);
+			return CHRONY_RC_FAIL;
 		}
 		if (p_resp->header.f_type != PKT_TYPE_CMD_REPLY)
 		{
-			ERROR("chrony plugin: Wrong packet type (Was: %d, expected: %d)", p_resp->header.f_type, PKT_TYPE_CMD_REPLY);
-			return 1;
+			ERROR(PLUGIN_NAME ": Wrong packet type (Was: %d, expected: %d)", p_resp->header.f_type, PKT_TYPE_CMD_REPLY);
+			return CHRONY_RC_FAIL;
 		}
-		if (p_resp->header.f_seq != p_req->header.f_seq)
+		if (p_resp->header.f_seq != seq_nr)
 		{
 			/* FIXME: Implement sequence number handling */
-			ERROR("chrony plugin: Unexpected sequence number (Was: %d, expected: %d)", p_resp->header.f_seq, p_req->header.f_seq);
-			return 1;
+			ERROR(PLUGIN_NAME ": Unexpected sequence number (Was: %d, expected: %d)", p_resp->header.f_seq, p_req->header.f_seq);
+			return CHRONY_RC_FAIL;
 		}
 		if (p_resp->header.f_cmd != p_req->header.f_cmd)
 		{
-			ERROR("chrony plugin: Wrong reply command (Was: %d, expected: %d)", p_resp->header.f_cmd, p_req->header.f_cmd);
-			return 1;
+			ERROR(PLUGIN_NAME ": Wrong reply command (Was: %d, expected: %d)", p_resp->header.f_cmd, p_req->header.f_cmd);
+			return CHRONY_RC_FAIL;
 		}
 
 		if (ntohs(p_resp->header.f_reply) !=  resp_code)
 		{
-			ERROR("chrony plugin: Wrong reply code (Was: %d, expected: %d)", ntohs(p_resp->header.f_reply), resp_code);
-			return 1;
+			ERROR(PLUGIN_NAME ": Wrong reply code (Was: %d, expected: %d)", ntohs(p_resp->header.f_reply), resp_code);
+			return CHRONY_RC_FAIL;
 		}
 
 		switch (p_resp->header.f_status)
 		{
 		case STT_SUCCESS:
-			DEBUG("chrony plugin: Reply packet status STT_SUCCESS");
+			DEBUG(PLUGIN_NAME ": Reply packet status STT_SUCCESS");
 			break;
 		default:
-			ERROR("chrony plugin: Reply packet contains error status: %d (expected: %d)", p_resp->header.f_status, STT_SUCCESS);
-			return 1;
+			ERROR(PLUGIN_NAME ": Reply packet contains error status: %d (expected: %d)", p_resp->header.f_status, STT_SUCCESS);
+			return CHRONY_RC_FAIL;
 		}
 
-		//Good result
-		return 0;
+		/* Good result */
+		return CHRONY_RC_OK;
 	} while (0);
 	
-	//Some error occured
-	return 1;
+	/* Some error occured */
+	return CHRONY_RC_FAIL;
 }
 
 static void chrony_init_req(tChrony_Request *p_req)
 {
-	DEBUG("chrony plugin: Clearing %ld bytes",sizeof(*p_req));
 	memset(p_req,0,sizeof(*p_req));
 	p_req->header.f_version = PROTO_VERSION_NUMBER;
 	p_req->header.f_type    = PKT_TYPE_CMD_REQUEST;
@@ -562,8 +604,10 @@ static void chrony_init_req(tChrony_Request *p_req)
 #define FLOAT_COEF_MAX (-FLOAT_COEF_MIN - 1)
 
 /* double UTI_tFloatNetworkToHost(tFloat f) */
-double ntohf(tFloat p_float)
+static double ntohf(tFloat p_float)
 {
+	/* Convert tFloat in Network-bit-order to double in host-bit-order */
+
 	int32_t exp, coef;
 	uint32_t uval;
 
@@ -574,7 +618,7 @@ double ntohf(tFloat p_float)
 		exp -= 1 << FLOAT_EXP_BITS;
 	}
 
-	//coef = (x << FLOAT_EXP_BITS) >> FLOAT_EXP_BITS;
+	/* coef = (x << FLOAT_EXP_BITS) >> FLOAT_EXP_BITS; */
 	coef = uval % (1U << FLOAT_COEF_BITS);
 	if (coef >= 1 << (FLOAT_COEF_BITS - 1))
 	{
@@ -584,26 +628,87 @@ double ntohf(tFloat p_float)
 }
 /*END*/
 
-/* Code from: collectd/src/ntpd.c (MIT) */
-/*BEGIN*/
-static void chrony_push_data(char *type, char *type_inst, double value)
+static void chrony_push_data(char *p_type, char *p_type_inst, double p_value)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = value; //TODO: Check type??? (counter, gauge, derive, absolute)
+	values[0].gauge = p_value; /* TODO: Check type??? (counter, gauge, derive, absolute) */
 
 	vl.values     = values;
 	vl.values_len = 1;
-	sstrncpy (vl.host,            hostname_g, sizeof (vl.host));
-	sstrncpy (vl.plugin,          "chrony",   sizeof (vl.plugin));
-	sstrncpy (vl.plugin_instance, "",         sizeof (vl.plugin_instance));
-	sstrncpy (vl.type,            type,       sizeof (vl.type));
-	sstrncpy (vl.type_instance,   type_inst,  sizeof (vl.type_instance));
+
+	/* XXX: Shall g_chrony_host/g_chrony_port be reflected in the plugin's output? */
+	/* hostname_g is set in daemon/collectd.c (from config, via gethostname or by resolving localhost) */
+	/* defined as: char hostname_g[DATA_MAX_NAME_LEN]; (never NULL) */
+	                               { sstrncpy (vl.host,            hostname_g,          sizeof (vl.host)); }
+	                               { sstrncpy (vl.plugin,          PLUGIN_NAME_SHORT,   sizeof (vl.plugin)); }
+	if (g_plugin_instance != NULL) { sstrncpy (vl.plugin_instance, g_plugin_instance,   sizeof (vl.plugin_instance)); }
+	if (p_type            != NULL) { sstrncpy (vl.type,            p_type,              sizeof (vl.type)); }
+	if (p_type_inst       != NULL) { sstrncpy (vl.type_instance,   p_type_inst,         sizeof (vl.type_instance)); }
 
 	plugin_dispatch_values (&vl);
 }
-/*END*/
+
+
+static void chrony_push_data_valid(char *p_type, char *p_type_inst, const int p_is_valid, double p_value)
+{
+	/* Push real value if p_is_valid is true, push NAN if p_is_valid is not true (idea from ntp plugin)*/
+	if (p_is_valid == 0)
+	{
+		p_value = NAN;
+	}
+	chrony_push_data(p_type, p_type_inst, p_value);
+}
+
+
+static int chrony_init_seq()
+{
+	/* Initialize the sequence number generator from /dev/urandom */
+
+	/* Try urandom */
+	int fh = open(URAND_DEVICE_PATH, O_RDONLY);
+	if (fh >= 0)
+	{
+		ssize_t rc = read(fh, &g_chrony_rand, sizeof(g_chrony_rand));
+		if (rc != sizeof(g_chrony_rand))
+		{
+			ERROR (PLUGIN_NAME ": Reading from random source \'%s\'failed: %s (%d)", URAND_DEVICE_PATH, strerror(errno), errno);
+			close(fh);
+			return CHRONY_RC_FAIL;
+		}
+		close(fh);
+		DEBUG(PLUGIN_NAME ": Seeding RNG from " URAND_DEVICE_PATH);
+	} else {
+		if (errno == ENOENT)
+		{
+			/* URAND_DEVICE_PATH device not found. Try RAND_DEVICE_PATH as fall-back */
+			int fh = open(RAND_DEVICE_PATH, O_RDONLY);
+			if (fh >= 0)
+			{
+				ssize_t rc = read(fh, &g_chrony_rand, sizeof(g_chrony_rand));
+				if (rc != sizeof(g_chrony_rand))
+				{
+					ERROR (PLUGIN_NAME ": Reading from random source \'%s\'failed: %s (%d)", RAND_DEVICE_PATH, strerror(errno), errno);
+					close(fh);
+					return CHRONY_RC_FAIL;
+				}
+				close(fh);
+				DEBUG(PLUGIN_NAME ": Seeding RNG from " RAND_DEVICE_PATH);
+			} else {
+				/* Error opening RAND_DEVICE_PATH. Try time(NULL) as fall-back */
+				DEBUG(PLUGIN_NAME ": Seeding RNG from time(NULL)");
+				g_chrony_rand = time(NULL) ^ getpid();
+			}
+		} else {
+			ERROR (PLUGIN_NAME ": Opening random source \'%s\' failed: %s (%d)", URAND_DEVICE_PATH, strerror(errno), errno);
+			return CHRONY_RC_FAIL;
+		}
+	}
+
+
+	return CHRONY_RC_OK;
+}
 
 /*****************************************************************************/
 /* Exported functions */
@@ -613,7 +718,7 @@ static int chrony_config(const char *p_key, const char *p_value)
 	assert(p_key);
 	assert(p_value);
 	/* Parse config variables */
-	if (strcasecmp(p_key, "Host") == 0)
+	if (strcasecmp(p_key, CONFIG_KEY_HOST) == 0)
 	{
 		if (g_chrony_host != NULL)
 		{
@@ -621,10 +726,10 @@ static int chrony_config(const char *p_key, const char *p_value)
 		}
 		if ((g_chrony_host = strdup (p_value)) == NULL)
 		{
-			ERROR ("chrony plugin: Error duplicating host name");
-			return 1;
+			ERROR (PLUGIN_NAME ": Error duplicating host name");
+			return CHRONY_RC_FAIL;
 		}
-	} else if (strcasecmp(p_key, "Port") == 0)
+	} else if (strcasecmp(p_key, CONFIG_KEY_PORT) == 0)
 	{
 		if (g_chrony_port != NULL)
 		{
@@ -632,106 +737,138 @@ static int chrony_config(const char *p_key, const char *p_value)
 		}
 		if ((g_chrony_port = strdup (p_value)) == NULL)
 		{
-			ERROR ("chrony plugin: Error duplicating port name");
-			return 1;
+			ERROR (PLUGIN_NAME ": Error duplicating port name");
+			return CHRONY_RC_FAIL;
 		}
-	} else if (strcasecmp(p_key, "Timeout") == 0)
+	} else if (strcasecmp(p_key, CONFIG_KEY_TIMEOUT) == 0)
 	{
 		time_t tosec = strtol(p_value,NULL,0);
 		g_chrony_timeout = tosec;
 	} else {
-		WARNING("chrony plugin: Unknown configuration variable: %s %s",p_key,p_value);
-		return 1;
+		WARNING(PLUGIN_NAME ": Unknown configuration variable: %s %s",p_key,p_value);
+		return CHRONY_RC_FAIL;
 	}
+	/* XXX: We could set g_plugin_instance here to "g_chrony_host-g_chrony_port", but as multiple instances aren't yet supported, we skip this for now */
 
-	return 0;
+	return CHRONY_RC_OK;
 }
 
 
 static int chrony_request_daemon_stats()
 {
-	//Tracking request
-	size_t chrony_resp_size;
-	tChrony_Request  chrony_req;
-	tChrony_Response chrony_resp;
-	char src_addr[IPV6_STR_MAX_SIZE];
-
-	chrony_init_req(&chrony_req);
-	int rc = chrony_query(REQ_TRACKING, &chrony_req, &chrony_resp, &chrony_resp_size);
-	if (rc != 0)
-	{
-		ERROR ("chrony plugin: chrony_query (REQ_TRACKING) failed with status %i", rc);
-		return rc;
-	}
-	
-	memset(src_addr, 0, sizeof(src_addr));
-	niptoha(&chrony_resp.body.tracking.addr, src_addr, sizeof(src_addr));
-	DEBUG("chrony plugin: Daemon stat: .addr = %s, .ref_id= %u, .stratum = %u, .leap_status = %u, .ref_time = %u, .current_correction = %f, .last_offset = %f, .rms_offset = %f, .freq_ppm = %f, .skew_ppm = %f, .root_delay = %f, .root_dispersion = %f, .last_update_interval = %f",
-		src_addr,
-		ntohs(chrony_resp.body.tracking.f_ref_id), //FIXME: 16bit
-		ntohs(chrony_resp.body.tracking.f_stratum),
-		ntohs(chrony_resp.body.tracking.f_leap_status),
-		ntohl(chrony_resp.body.tracking.f_ref_time.tv_sec_high), //tTimeval
-		ntohf(chrony_resp.body.tracking.f_current_correction),
-		ntohf(chrony_resp.body.tracking.f_last_offset),
-		ntohf(chrony_resp.body.tracking.f_rms_offset),
-		ntohf(chrony_resp.body.tracking.f_freq_ppm),
-		ntohf(chrony_resp.body.tracking.f_skew_ppm),
-		ntohf(chrony_resp.body.tracking.f_root_delay),
-		ntohf(chrony_resp.body.tracking.f_root_dispersion),
-		ntohf(chrony_resp.body.tracking.f_last_update_interval)
-	);
-#if 0
-	chrony_push_data("clock_skew_ppm",    src_addr,ntohf(chrony_resp.body.source_stats.f_skew_ppm));
-	chrony_push_data("frequency_error",   src_addr,ntohf(chrony_resp.body.source_stats.f_rtc_gain_rate_ppm)); /* unit: ppm */
-	chrony_push_data("time_offset",       src_addr,ntohf(chrony_resp.body.source_stats.f_est_offset)); /* unit: s */
-#endif
-	return 0;
-}
-
-
-static int chrony_request_sources_count(unsigned int *p_count)
-{
+	/* Perform Tracking request */
 	int rc;
 	size_t chrony_resp_size;
 	tChrony_Request  chrony_req;
 	tChrony_Response chrony_resp;
 
-	DEBUG("chrony plugin: Requesting data");
+	chrony_init_req(&chrony_req);
+	rc = chrony_query(REQ_TRACKING, &chrony_req, &chrony_resp, &chrony_resp_size);
+	if (rc != 0)
+	{
+		ERROR (PLUGIN_NAME ": chrony_query (REQ_TRACKING) failed with status %i", rc);
+		return rc;
+	}
+	
+#if COLLECT_DEBUG
+	{
+		char src_addr[IPV6_STR_MAX_SIZE];
+		memset(src_addr, 0, sizeof(src_addr));
+		niptoha(&chrony_resp.body.tracking.addr, src_addr, sizeof(src_addr));
+		DEBUG(PLUGIN_NAME ": Daemon stat: .addr = %s, .ref_id= %u, .stratum = %u, .leap_status = %u, .ref_time = %u:%u:%u, .current_correction = %f, .last_offset = %f, .rms_offset = %f, .freq_ppm = %f, .skew_ppm = %f, .root_delay = %f, .root_dispersion = %f, .last_update_interval = %f",
+			src_addr,
+			ntohs(chrony_resp.body.tracking.f_ref_id), //FIXME: 16bit
+			ntohs(chrony_resp.body.tracking.f_stratum),
+			ntohs(chrony_resp.body.tracking.f_leap_status),
+			ntohl(chrony_resp.body.tracking.f_ref_time.tv_sec_high),
+			ntohl(chrony_resp.body.tracking.f_ref_time.tv_sec_low),
+			ntohl(chrony_resp.body.tracking.f_ref_time.tv_nsec),
+			ntohf(chrony_resp.body.tracking.f_current_correction),
+			ntohf(chrony_resp.body.tracking.f_last_offset),
+			ntohf(chrony_resp.body.tracking.f_rms_offset),
+			ntohf(chrony_resp.body.tracking.f_freq_ppm),
+			ntohf(chrony_resp.body.tracking.f_skew_ppm),
+			ntohf(chrony_resp.body.tracking.f_root_delay),
+			ntohf(chrony_resp.body.tracking.f_root_dispersion),
+			ntohf(chrony_resp.body.tracking.f_last_update_interval)
+		);
+	}
+#endif
+
+	double time_ref = ntohl(chrony_resp.body.tracking.f_ref_time.tv_nsec);
+	time_ref /= 1000000000.0;
+	time_ref += ntohl(chrony_resp.body.tracking.f_ref_time.tv_sec_low);
+	if (chrony_resp.body.tracking.f_ref_time.tv_sec_high)
+	{
+		double secs_high = ntohl(chrony_resp.body.tracking.f_ref_time.tv_sec_high);
+		secs_high *= 4294967296.0;
+		time_ref += secs_high;
+	}
+
+	/* Forward results to collectd-daemon */
+	/* Type_instance is always 'chrony' to tag daemon-wide data */
+	/*                Type               Type_instance  Value */
+	chrony_push_data("clock_stratum",    DAEMON_NAME,   ntohs(chrony_resp.body.tracking.f_stratum));
+	chrony_push_data("time_ref",         DAEMON_NAME,   time_ref); /* unit: s */
+	chrony_push_data("time_offset_ntp",  DAEMON_NAME,   ntohf(chrony_resp.body.tracking.f_current_correction)); /* Offset between system time and NTP, unit: s */ 
+	chrony_push_data("time_offset",      DAEMON_NAME,   ntohf(chrony_resp.body.tracking.f_last_offset)); /* Estimated Offset of the NTP time, unit: s */
+	chrony_push_data("time_offset_rms",  DAEMON_NAME,   ntohf(chrony_resp.body.tracking.f_rms_offset));  /* averaged value of the above, unit: s */
+	chrony_push_data("frequency_error",  DAEMON_NAME,   ntohf(chrony_resp.body.tracking.f_freq_ppm));    /* Frequency error of the local osc, unit: ppm */
+	chrony_push_data("clock_skew_ppm",   DAEMON_NAME,   ntohf(chrony_resp.body.tracking.f_skew_ppm)); 
+	chrony_push_data("root_delay",       DAEMON_NAME,   ntohf(chrony_resp.body.tracking.f_root_delay));  /* Network latency between local daemon and the current source */
+	chrony_push_data("root_dispersion",  DAEMON_NAME,   ntohf(chrony_resp.body.tracking.f_root_dispersion));
+	chrony_push_data("clock_last_update",DAEMON_NAME,   ntohf(chrony_resp.body.tracking.f_last_update_interval));
+
+	return CHRONY_RC_OK;
+}
+
+
+static int chrony_request_sources_count(unsigned int *p_count)
+{
+	/* Requests the number of time sources from the chrony daemon */
+	int rc;
+	size_t chrony_resp_size;
+	tChrony_Request  chrony_req;
+	tChrony_Response chrony_resp;
+
+	DEBUG(PLUGIN_NAME ": Requesting data");
 	chrony_init_req(&chrony_req);
 	rc = chrony_query (REQ_N_SOURCES, &chrony_req, &chrony_resp, &chrony_resp_size);
         if (rc != 0)
         {
-                ERROR ("chrony plugin: chrony_query (REQ_N_SOURCES) failed with status %i", rc);
+                ERROR (PLUGIN_NAME ": chrony_query (REQ_N_SOURCES) failed with status %i", rc);
                 return rc;
         }
 	
 	*p_count = ntohl(chrony_resp.body.n_sources.f_n_sources);
-	DEBUG("chrony plugin: Getting data of %d clock sources", *p_count);
+	DEBUG(PLUGIN_NAME ": Getting data of %d clock sources", *p_count);
 
-	return 0;
+	return CHRONY_RC_OK;
 }
 
 
-static int chrony_request_source_data(int p_src_idx)
+static int chrony_request_source_data(int p_src_idx, int *p_is_reachable)
 {
-	//Source data request
+	/* Perform Source data request for source #p_src_idx*/
+	int rc;
 	size_t chrony_resp_size;
 	tChrony_Request  chrony_req;
 	tChrony_Response chrony_resp;
+
 	char src_addr[IPV6_STR_MAX_SIZE];
+	memset(src_addr, 0, sizeof(src_addr));
 
 	chrony_init_req(&chrony_req);
 	chrony_req.body.source_data.f_index  = htonl(p_src_idx);
-	int rc = chrony_query(REQ_SOURCE_DATA, &chrony_req, &chrony_resp, &chrony_resp_size);
+	rc = chrony_query(REQ_SOURCE_DATA, &chrony_req, &chrony_resp, &chrony_resp_size);
 	if (rc != 0)
 	{
-		ERROR ("chrony plugin: chrony_query (REQ_SOURCE_DATA) failed with status %i", rc);
+		ERROR (PLUGIN_NAME ": chrony_query (REQ_SOURCE_DATA) failed with status %i", rc);
 		return rc;
 	}
-	memset(src_addr, 0, sizeof(src_addr));
+
 	niptoha(&chrony_resp.body.source_data.addr, src_addr, sizeof(src_addr));
-	DEBUG("chrony plugin: Source[%d] data: .addr = %s, .poll = %u, .stratum = %u, .state = %u, .mode = %u, .flags = %u, .reach = %u, .latest_meas_ago = %u, .orig_latest_meas = %f, .latest_meas = %f, .latest_meas_err = %f",
+	DEBUG(PLUGIN_NAME ": Source[%d] data: .addr = %s, .poll = %u, .stratum = %u, .state = %u, .mode = %u, .flags = %u, .reach = %u, .latest_meas_ago = %u, .orig_latest_meas = %f, .latest_meas = %f, .latest_meas_err = %f",
 		p_src_idx,
 		src_addr,
 		ntohs(chrony_resp.body.source_data.f_poll),
@@ -745,94 +882,133 @@ static int chrony_request_source_data(int p_src_idx)
 		ntohf(chrony_resp.body.source_data.f_latest_meas),
 		ntohf(chrony_resp.body.source_data.f_latest_meas_err)
 	);
-	chrony_push_data("clock_stratum",     src_addr,ntohs(chrony_resp.body.source_data.f_stratum));
-	chrony_push_data("clock_state",       src_addr,ntohs(chrony_resp.body.source_data.f_state));
-	chrony_push_data("clock_mode",        src_addr,ntohs(chrony_resp.body.source_data.f_mode));
-	chrony_push_data("clock_reachability",src_addr,ntohs(chrony_resp.body.source_data.f_reachability));
-	chrony_push_data("clock_last_meas",   src_addr,ntohs(chrony_resp.body.source_data.f_since_sample));
 
-	return 0;
+	/* Push NaN if source is currently not reachable */
+	int is_reachable = ntohs(chrony_resp.body.source_data.f_reachability) & 0x01; 
+	*p_is_reachable = is_reachable;
+
+	/* Forward results to collectd-daemon */
+	chrony_push_data_valid("clock_stratum",     src_addr, is_reachable, ntohs(chrony_resp.body.source_data.f_stratum));
+	chrony_push_data_valid("clock_state",       src_addr, is_reachable, ntohs(chrony_resp.body.source_data.f_state));
+	chrony_push_data_valid("clock_mode",        src_addr, is_reachable, ntohs(chrony_resp.body.source_data.f_mode));
+	chrony_push_data_valid("clock_reachability",src_addr, is_reachable, ntohs(chrony_resp.body.source_data.f_reachability));
+	chrony_push_data_valid("clock_last_meas",   src_addr, is_reachable, ntohs(chrony_resp.body.source_data.f_since_sample));
+
+	return CHRONY_RC_OK;
 }
 
 
-static int chrony_request_source_stats(int p_src_idx)
+static int chrony_request_source_stats(int p_src_idx, const int *p_is_reachable)
 {
-	//Source stats request
+	/* Perform Source stats request for source #p_src_idx */
+	int rc;
 	size_t chrony_resp_size;
 	tChrony_Request  chrony_req;
 	tChrony_Response chrony_resp;
+	double skew_ppm, frequency_error, time_offset;
+
 	char src_addr[IPV6_STR_MAX_SIZE];
-
-	chrony_init_req(&chrony_req);
-	chrony_req.body.source_stats.f_index = htonl(p_src_idx);
-	int rc = chrony_query(REQ_SOURCE_STATS, &chrony_req, &chrony_resp, &chrony_resp_size);
-	if (rc != 0)
-	{
-		ERROR ("chrony plugin: chrony_query (REQ_SOURCE_STATS) failed with status %i", rc);
-		return rc;
-	}
-
 	memset(src_addr, 0, sizeof(src_addr));
-	niptoha(&chrony_resp.body.source_stats.addr, src_addr, sizeof(src_addr));
-	DEBUG("chrony plugin: Source[%d] stat: .addr = %s, .ref_id= %u, .n_samples = %u, .n_runs = %u, .span_seconds = %u, .rtc_seconds_fast = %f, .rtc_gain_rate_ppm = %f, .skew_ppm= %f, .est_offset = %f, .est_offset_err = %f",
-		p_src_idx,
-		src_addr,
-		ntohl(chrony_resp.body.source_stats.f_ref_id),
-		ntohl(chrony_resp.body.source_stats.f_n_samples),
-		ntohl(chrony_resp.body.source_stats.f_n_runs),
-		ntohl(chrony_resp.body.source_stats.f_span_seconds),
-		ntohf(chrony_resp.body.source_stats.f_rtc_seconds_fast),
-		ntohf(chrony_resp.body.source_stats.f_rtc_gain_rate_ppm),
-		ntohf(chrony_resp.body.source_stats.f_skew_ppm),
-		ntohf(chrony_resp.body.source_stats.f_est_offset),
-		ntohf(chrony_resp.body.source_stats.f_est_offset_err)
-	);
-	chrony_push_data("clock_skew_ppm",    src_addr,ntohf(chrony_resp.body.source_stats.f_skew_ppm));
-	chrony_push_data("frequency_error",   src_addr,ntohf(chrony_resp.body.source_stats.f_rtc_gain_rate_ppm)); /* unit: ppm */
-	chrony_push_data("time_offset",       src_addr,ntohf(chrony_resp.body.source_stats.f_est_offset)); /* unit: s */
-	return 0;
-}
 
+	if (*p_is_reachable == 0)
+	{
+		skew_ppm        = 0;
+		frequency_error = 0;
+		time_offset     = 0;
+	} else {
+		chrony_init_req(&chrony_req);
+		chrony_req.body.source_stats.f_index = htonl(p_src_idx);
+		rc = chrony_query(REQ_SOURCE_STATS, &chrony_req, &chrony_resp, &chrony_resp_size);
+		if (rc != 0)
+		{
+			ERROR (PLUGIN_NAME ": chrony_query (REQ_SOURCE_STATS) failed with status %i", rc);
+			return rc;
+		}
+
+		skew_ppm        = ntohf(chrony_resp.body.source_stats.f_skew_ppm);
+		frequency_error = ntohf(chrony_resp.body.source_stats.f_rtc_gain_rate_ppm);
+		time_offset     = ntohf(chrony_resp.body.source_stats.f_est_offset);
+
+		niptoha(&chrony_resp.body.source_stats.addr, src_addr, sizeof(src_addr));
+		DEBUG(PLUGIN_NAME ": Source[%d] stat: .addr = %s, .ref_id= %u, .n_samples = %u, " \
+				".n_runs = %u, .span_seconds = %u, .rtc_seconds_fast = %f, " \
+				".rtc_gain_rate_ppm = %f, .skew_ppm= %f, .est_offset = %f, .est_offset_err = %f",
+			p_src_idx,
+			src_addr,
+			ntohl(chrony_resp.body.source_stats.f_ref_id),
+			ntohl(chrony_resp.body.source_stats.f_n_samples),
+			ntohl(chrony_resp.body.source_stats.f_n_runs),
+			ntohl(chrony_resp.body.source_stats.f_span_seconds),
+			ntohf(chrony_resp.body.source_stats.f_rtc_seconds_fast),
+			frequency_error,
+			skew_ppm,
+			time_offset,
+			ntohf(chrony_resp.body.source_stats.f_est_offset_err)
+		);
+
+	} //if (*is_reachable)
+
+	/* Forward results to collectd-daemon */
+	chrony_push_data_valid("clock_skew_ppm",    src_addr, *p_is_reachable, skew_ppm);
+	chrony_push_data_valid("frequency_error",   src_addr, *p_is_reachable, frequency_error); /* unit: ppm */
+	chrony_push_data_valid("time_offset",       src_addr, *p_is_reachable, time_offset); /* unit: s */
+
+	return CHRONY_RC_OK;
+}
 
 static int chrony_read()
 {
+	/* collectd read callback: Perform data acquisition */
 	int  rc;
+	unsigned int now_src, n_sources;
 
-	//Get daemon stats
+	if (g_chrony_seq_is_initialized == 0)
+	{
+		/* Seed RNG for sequence number generation */
+		rc = chrony_init_seq();
+		if (rc != CHRONY_RC_OK)
+		{
+			return rc;
+		}
+		g_chrony_seq_is_initialized = 1;
+	}
+	
+	/* Get daemon stats */
 	rc = chrony_request_daemon_stats();
-	if (rc != 0)
+	if (rc != CHRONY_RC_OK)
 	{
 		return rc;
 	}
 
-	//Get number of time sources, then check every source for status
-	unsigned int now_src, n_sources;
+	/* Get number of time sources, then check every source for status */
        	rc = chrony_request_sources_count(&n_sources);
-	if (rc != 0)
+	if (rc != CHRONY_RC_OK)
 	{
 		return rc;
 	}
 
 	for (now_src = 0; now_src < n_sources; ++now_src)
 	{
-		rc = chrony_request_source_data(now_src);
-		if (rc != 0)
+		int is_reachable;
+		rc = chrony_request_source_data(now_src, &is_reachable);
+		if (rc != CHRONY_RC_OK)
 		{
 			return rc;
 		}
 
-		rc = chrony_request_source_stats(now_src);
-		if (rc != 0)
+		rc = chrony_request_source_stats(now_src, &is_reachable);
+		if (rc != CHRONY_RC_OK)
 		{
 			return rc;
 		}
 	}
-	return 0;
+	return CHRONY_RC_OK;
 }
 
 
 static int chrony_shutdown()
 {
+	/* Collectd shutdown callback: Free mem */
 	if (g_is_connected != 0)
 	{
 		close(g_chrony_socket);
@@ -848,14 +1024,19 @@ static int chrony_shutdown()
 		free (g_chrony_port);
 		g_chrony_port = NULL;
 	}
-	return 0;
+	if (g_plugin_instance != NULL)
+	{
+		free (g_plugin_instance);
+		g_plugin_instance = NULL;
+	}
+	return CHRONY_RC_OK;
 }
 
 
 void module_register (void)
 {
-	plugin_register_config(  "chrony", chrony_config, g_config_keys, g_config_keys_num);
-        plugin_register_read(    "chrony", chrony_read);
-	plugin_register_shutdown("chrony", chrony_shutdown);
+	plugin_register_config(  PLUGIN_NAME_SHORT, chrony_config, g_config_keys, g_config_keys_num);
+	plugin_register_read(    PLUGIN_NAME_SHORT, chrony_read);
+	plugin_register_shutdown(PLUGIN_NAME_SHORT, chrony_shutdown);
 }
 
