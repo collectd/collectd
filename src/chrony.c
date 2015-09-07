@@ -80,14 +80,6 @@ typedef enum
 	STT_BADPKTLENGTH = 19,
 } eChrony_Status;
 
-static int g_is_connected = 0;
-static int g_chrony_socket = -1;
-static time_t g_chrony_timeout = 0;
-static char *g_chrony_host = NULL;
-static char *g_chrony_port = NULL;
-static uint32_t g_chrony_seq = 0;
-//static char  ntpd_port[16];
-
 typedef struct ATTRIB_PACKED
 {
 	uint32_t f_n_sources;
@@ -124,7 +116,7 @@ typedef struct ATTRIB_PACKED
 	uint16_t f_state;
 	uint16_t f_mode;
 	uint16_t f_flags;
-	uint16_t dummy; //FIXME: Strange dummy space. Needed on gcc 4.8.3 on x86_64
+	uint16_t dummy; /* FIXME: Strange dummy space. Needed on gcc 4.8.3 on x86_64 */
 	uint16_t f_reachability;
 
 	uint32_t f_since_sample;
@@ -137,7 +129,7 @@ typedef struct ATTRIB_PACKED
 {
 	uint32_t f_ref_id;
 	tChrony_IPAddr addr;
-	uint16_t dummy; //FIXME: Strange dummy space. Needed on gcc 4.8.3 on x86_64
+	uint16_t dummy; /* FIXME: Strange dummy space. Needed on gcc 4.8.3 on x86_64 */
 	uint32_t f_n_samples; //Number of measurements done
 	uint32_t f_n_runs; //How many measurements to come
 	uint32_t f_span_seconds; //For how long we're measuring
@@ -163,14 +155,14 @@ typedef struct ATTRIB_PACKED
 
 		uint32_t f_dummy2;
 		uint32_t f_dummy3;
-	} header; //Packed: 20Bytes
+	} header; /* Packed: 20Bytes */
 	union
 	{
-		tChrony_N_Sources n_sources; //Packed: 8 Bytes
+		tChrony_N_Sources n_sources; /* Packed: 4 Bytes */
 		tChrony_Req_Source_data source_data;
 		tChrony_Req_Source_stats source_stats;
 	} body;
-	uint8_t padding[4+16]; //Padding to match minimal response size
+	uint8_t padding[4+16]; /* Padding to match minimal response size */
 } tChrony_Request;
 
 typedef struct ATTRIB_PACKED
@@ -190,7 +182,7 @@ typedef struct ATTRIB_PACKED
 		uint32_t f_seq;
 		uint32_t f_dummy5;
 		uint32_t f_dummy6;
-	} header; //Packed: 24 Bytes
+	} header; /* Packed: 28 Bytes */
 
 	/*uint32_t EOR;*/
 
@@ -203,6 +195,13 @@ typedef struct ATTRIB_PACKED
 	
 	uint8_t padding[1024];
 } tChrony_Response;
+
+static int g_is_connected = 0;
+static int g_chrony_socket = -1;
+static time_t g_chrony_timeout = 0;
+static char *g_chrony_host = NULL;
+static char *g_chrony_port = NULL;
+static uint32_t g_chrony_seq = 0;
 
 /*****************************************************************************/
 /* Internal functions */
@@ -279,7 +278,7 @@ char * niptoha(const tChrony_IPAddr *addr,char *p_buf, size_t p_buf_size)
 	case IPADDR_INET6:
 		ip6 = addr->addr.ip6;
 #if 0
-//FIXME: Detect little endian systems
+/* FIXME: Detect little endian systems */
 		snprintf(p_buf, p_buf_size, "%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
 			ip6[0], ip6[1], ip6[2], ip6[3], ip6[4], ip6[5], ip6[6], ip6[7],
 			ip6[8], ip6[9], ip6[10], ip6[11], ip6[12], ip6[13], ip6[14], ip6[15]);
@@ -333,7 +332,6 @@ static int chrony_connect()
 		ERROR ("chrony plugin: Error connecting to daemon. Errno = %d", errno);
 		return (1);
 	}
-	//TODO: Set timeouts!
 	DEBUG("chrony plugin: Connected");
 	g_chrony_socket = socket;
 
@@ -459,7 +457,7 @@ static int chrony_query(int p_command, tChrony_Request *p_req, tChrony_Response 
 		}
 		if (p_resp->header.f_seq != p_req->header.f_seq)
 		{
-			//FIXME: Implement sequence number handling
+			/* FIXME: Implement sequence number handling */
 			ERROR("chrony plugin: Unexpected sequence number (Was: %d, expected: %d)", p_resp->header.f_seq, p_req->header.f_seq);
 			return 1;
 		}
@@ -502,7 +500,7 @@ static void chrony_init_req(tChrony_Request *p_req)
 	p_req->header.f_dummy3  = 0;
 }
 
-//Code from: https://github.com/mlichvar/chrony/blob/master/util.c (GPLv2)
+/* Code from: https://github.com/mlichvar/chrony/blob/master/util.c (GPLv2) */
 /*BEGIN*/
 #define FLOAT_EXP_BITS 7
 #define FLOAT_EXP_MIN (-(1 << (FLOAT_EXP_BITS - 1)))
@@ -511,7 +509,7 @@ static void chrony_init_req(tChrony_Request *p_req)
 #define FLOAT_COEF_MIN (-(1 << (FLOAT_COEF_BITS - 1)))
 #define FLOAT_COEF_MAX (-FLOAT_COEF_MIN - 1)
 
-//double UTI_FloatNetworkToHost(Float f)
+/* double UTI_FloatNetworkToHost(Float f) */
 double ntohf(Float f)
 {
   int32_t exp, coef, x;
@@ -551,7 +549,7 @@ static int chrony_config(const char *p_key, const char *p_value)
 {
 	assert(p_key);
 	assert(p_value);
-	//Parse config variables
+	/* Parse config variables */
 	if (strcasecmp(p_key, "Host") == 0)
 	{
 		if (g_chrony_host != NULL)
@@ -587,7 +585,6 @@ static int chrony_config(const char *p_key, const char *p_value)
 
 static int chrony_read (void)
 {
-	//plugin_dispatch_values (&vl);
 	int status,now_src;
 	char ip_addr_str0[ IPV6_STR_MAX_SIZE];
 	char ip_addr_str1[IPV6_STR_MAX_SIZE];
@@ -664,8 +661,8 @@ static int chrony_read (void)
 		chrony_push_data("clock_reachability",ip_addr_str0,ntohs(chrony_resp.body.source_data.f_reachability));
 		chrony_push_data("clock_last_meas",   ip_addr_str0,ntohs(chrony_resp.body.source_data.f_since_sample));
 		chrony_push_data("clock_skew_ppm",    ip_addr_str1,ntohf(chrony_resp1.body.source_stats.f_skew_ppm));
-		chrony_push_data("frequency_error",   ip_addr_str1,ntohf(chrony_resp1.body.source_stats.f_rtc_gain_rate_ppm)); //unit: ppm
-		chrony_push_data("time_offset",       ip_addr_str1,ntohf(chrony_resp1.body.source_stats.f_est_offset)); //unit: s
+		chrony_push_data("frequency_error",   ip_addr_str1,ntohf(chrony_resp1.body.source_stats.f_rtc_gain_rate_ppm)); /* unit: ppm */
+		chrony_push_data("time_offset",       ip_addr_str1,ntohf(chrony_resp1.body.source_stats.f_est_offset)); /* unit: s */
 #endif
 	}
 	return (0);
