@@ -21,6 +21,13 @@ ceph_latency            value:GAUGE:U:U
 ceph_rate               value:DERIVE:0:U
 changes_since_last_save value:GAUGE:0:U
 charge                  value:GAUGE:0:U
+clock_state             value:GAUGE:0:U
+clock_mode              value:GAUGE:0:U
+clock_reachability      value:GAUGE:0:U
+clock_stratum           value:GAUGE:0:U
+clock_last_meas         value:GAUGE:0:U
+clock_last_update       value:GAUGE:U:U
+clock_skew_ppm          value:GAUGE:-2:2
 compression             uncompressed:DERIVE:0:U, compressed:DERIVE:0:U
 compression_ratio       value:GAUGE:0:2
 connections             value:DERIVE:0:U
@@ -77,6 +84,7 @@ flow                    value:GAUGE:0:U
 fork_rate               value:DERIVE:0:U
 frequency               value:GAUGE:0:U
 frequency_offset        value:GAUGE:-1000000:1000000
+frequency_error         value:GAUGE:-2:2 
 fscache_stat            value:DERIVE:0:U
 gauge                   value:GAUGE:U:U
 hash_collisions         value:DERIVE:0:U
@@ -181,6 +189,8 @@ records                 value:GAUGE:0:U
 requests                value:GAUGE:0:U
 response_code           value:GAUGE:0:U
 response_time           value:GAUGE:0:U
+root_dispersion         value:GAUGE:U:U
+root_delay              value:GAUGE:U:U
 route_etx               value:GAUGE:0:U
 route_metric            value:GAUGE:0:U
 routes                  value:GAUGE:0:U
@@ -203,9 +213,12 @@ swap_io                 value:DERIVE:0:U
 tcp_connections         value:GAUGE:0:4294967295
 temperature             value:GAUGE:U:U
 threads                 value:GAUGE:0:U
+timeleft                value:GAUGE:0:U
 time_dispersion         value:GAUGE:-1000000:1000000
 time_offset             value:GAUGE:-1000000:1000000
-timeleft                value:GAUGE:0:U
+time_offset_ntp         value:GAUGE:-1000000:1000000
+time_offset_rms         value:GAUGE:-1000000:1000000
+time_ref                value:GAUGE:0:U
 total_bytes             value:DERIVE:0:U
 total_connections       value:DERIVE:0:U
 total_objects           value:DERIVE:0:U
