@@ -3,6 +3,12 @@
    Internas roughly based on the ntpd plugin
    License: GPL2
 */
+/* TODO:
+ *	- More robust udp parsing (using offsets instead of structs?)
+ *	- Plausibility checks on values received
+ *
+ *
+ */
 
 /* getaddrinfo */
 #include <sys/types.h>
@@ -115,7 +121,7 @@ typedef struct ATTRIB_PACKED
 	int16_t  f_poll;
 	uint16_t f_stratum;
 	uint16_t f_state;
-	uint16_t f_mode;
+	uint16_t f_mode; 
 	uint16_t f_flags;
 	uint16_t f_reachability;
 
