@@ -111,12 +111,12 @@ typedef struct ATTRIB_PACKED
 typedef struct ATTRIB_PACKED
 {
 	tChrony_IPAddr addr;
+	uint16_t dummy; /* FIXME: Strange dummy space. Needed on gcc 4.8.3 on x86_64 */
 	int16_t  f_poll;
 	uint16_t f_stratum;
 	uint16_t f_state;
 	uint16_t f_mode;
 	uint16_t f_flags;
-	uint16_t dummy; /* FIXME: Strange dummy space. Needed on gcc 4.8.3 on x86_64 */
 	uint16_t f_reachability;
 
 	uint32_t f_since_sample;
