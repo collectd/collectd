@@ -5246,6 +5246,7 @@ collectd features:])
 AC_COLLECTD([debug],     [enable],  [feature], [debugging])
 AC_COLLECTD([daemon],    [disable], [feature], [daemon mode])
 AC_COLLECTD([getifaddrs],[enable],  [feature], [getifaddrs under Linux])
+AC_COLLECTD([werror],    [disable], [feature], [building with -Werror])
 
 dependency_warning="no"
 dependency_error="no"
@@ -5916,13 +5917,6 @@ AC_SUBST(LCC_VERSION_STRING)
 AC_CONFIG_FILES(src/libcollectdclient/collectd/lcc_features.h)
 
 AM_CFLAGS="-Wall"
-AC_ARG_ENABLE([werror],
-        AS_HELP_STRING(
-                [--disable-werror],
-                [Disable -Werror @<:@default=no@:>@)]
-        )
-)
-
 if test "x$enable_werror" != "xno"
 then
         AM_CFLAGS="$AM_CFLAGS -Werror"
