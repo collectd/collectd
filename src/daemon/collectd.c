@@ -501,6 +501,7 @@ int notify_systemd (void)
         return 0;
     }
 
+    unsetenv ("NOTIFY_SOCKET");
     close(fd);
     return 1;
 }
