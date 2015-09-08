@@ -5953,6 +5953,17 @@ fi
 cat <<EOF;
 
 Configuration:
+  Build:
+    Platform  . . . . . . $ac_system
+    CC  . . . . . . . . . $CC
+    CFLAGS  . . . . . . . $AM_CFLAGS $CFLAGS
+    CPP . . . . . . . . . $CPP
+    CPPFLAGS  . . . . . . $CPPFLAGS
+    LD  . . . . . . . . . $LD
+    LDFLAGS . . . . . . . $LDFLAGS
+    YACC  . . . . . . . . $YACC
+    YFLAGS  . . . . . . . $YFLAGS
+
   Libraries:
     intel mic . . . . . . $with_mic
     libaquaero5 . . . . . $with_libaquaero5
