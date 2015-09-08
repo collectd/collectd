@@ -459,7 +459,11 @@ int notify_systemd (void)
 
     unsetenv ("NOTIFY_SOCKET");
 
+#if defined(SOCK_CLOEXEC)
+    fd = socket (AF_UNIX, SOCK_DGRAM|SOCK_CLOEXEC, /* protocol = */ 0);
+#else
     fd = socket (AF_UNIX, SOCK_DGRAM, /* protocol = */ 0);
+#endif
     if (fd < 0) {
         char errbuf[1024];
         ERROR ("creating UNIX socket failed: %s",
