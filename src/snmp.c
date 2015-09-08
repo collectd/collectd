@@ -1488,7 +1488,7 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
 
   if (host->sess_handle == NULL)
   {
-    DEBUG ("snmp plugin: csnmp_read_table: host->sess_handle == NULL");
+    DEBUG ("snmp plugin: csnmp_read_value: host->sess_handle == NULL");
     return (-1);
   }
 
