@@ -14,7 +14,6 @@ Type=notify
 
 # Restart the collectd daemon after a 10 seconds delay, in case it crashes.
 Restart=on-failure
-RestartSec=10
 
 [Install]
 WantedBy=multi-user.target
