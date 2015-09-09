@@ -11,7 +11,6 @@ EnvironmentFile=-/etc/default/collectd
 # Tell systemd it will receive a notification from collectd over it's control
 # socket once the daemon is ready. See systemd.service(5) for more details.
 Type=notify
-NotifyAccess=main
 
 # Restart the collectd daemon after a 10 seconds delay, in case it crashes.
 Restart=always
