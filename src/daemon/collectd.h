@@ -311,12 +311,7 @@ typedef int _Bool;
 # define GAUGE_FORMAT "%.15g"
 #endif
 
-/* Type for time as used by "utils_time.h" */
-typedef uint64_t cdtime_t;
+#include "globals.h"
 
-extern char     hostname_g[];
-extern cdtime_t interval_g;
-extern int      pidfile_from_cli;
-extern int      timeout_g;
 
 #endif /* COLLECTD_H */

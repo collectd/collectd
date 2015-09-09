@@ -49,16 +49,6 @@
 # define COLLECTD_LOCALE "C"
 #endif
 
-/*
- * Global variables
- */
-char hostname_g[DATA_MAX_NAME_LEN];
-cdtime_t interval_g;
-int  pidfile_from_cli = 0;
-int  timeout_g;
-#if HAVE_LIBKSTAT
-kstat_ctl_t *kc;
-#endif /* HAVE_LIBKSTAT */
 
 static int loop = 0;
 
@@ -108,11 +98,11 @@ static int init_hostname (void)
 	str = global_option_get ("Hostname");
 	if (str != NULL)
 	{
-		sstrncpy (hostname_g, str, sizeof (hostname_g));
+		sstrncpy (hostname_g, str, hostname_g_size);
 		return (0);
 	}
 
-	if (gethostname (hostname_g, sizeof (hostname_g)) != 0)
+	if (gethostname (hostname_g, hostname_g_size) != 0)
 	{
 		fprintf (stderr, "`gethostname' failed and no "
 				"hostname was configured.\n");
@@ -142,7 +132,7 @@ static int init_hostname (void)
 		if (ai_ptr->ai_canonname == NULL)
 			continue;
 
-		sstrncpy (hostname_g, ai_ptr->ai_canonname, sizeof (hostname_g));
+		sstrncpy (hostname_g, ai_ptr->ai_canonname, hostname_g_size);
 		break;
 	}
 
