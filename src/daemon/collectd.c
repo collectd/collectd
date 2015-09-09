@@ -445,23 +445,19 @@ static int notify_systemd(void) {
 }
 #endif /* KERNEL_LINUX */
 
-int main(int argc, char **argv) {
-  const char *configfile = CONFIGFILE;
-  int test_config = 0;
-  int test_readall = 0;
-  const char *basedir;
-  _Bool opt_create_basedir = 1;
-#if COLLECT_DAEMON
-  pid_t pid;
-  int daemonize = 1;
-#endif
-  int exit_status = 0;
+struct cmdline_config {
+  _Bool test_config;
+  _Bool test_readall;
+  _Bool create_basedir;
+  const char *configfile;
+  _Bool daemonize;
+};
 
+void read_cmdline(int argc, char **argv, struct cmdline_config *config) {
   /* read options */
   while (1) {
     int c;
-
-    c = getopt(argc, argv, "BhtTC:"
+    c = getopt(argc, argv, "htTC:"
 #if COLLECT_DAEMON
                            "fP:"
 #endif
@@ -472,19 +468,19 @@ int main(int argc, char **argv) {
 
     switch (c) {
     case 'B':
-      opt_create_basedir = 0;
+      config->create_basedir = 0;
       break;
     case 'C':
-      configfile = optarg;
+      config->configfile = optarg;
       break;
     case 't':
-      test_config = 1;
+      config->test_config = 1;
       break;
     case 'T':
-      test_readall = 1;
+      config->test_readall = 1;
       global_option_set("ReadThreads", "-1", 1);
 #if COLLECT_DAEMON
-      daemonize = 0;
+      config->daemonize = 0;
 #endif /* COLLECT_DAEMON */
       break;
 #if COLLECT_DAEMON
@@ -492,7 +488,7 @@ int main(int argc, char **argv) {
       global_option_set("PIDFile", optarg, 1);
       break;
     case 'f':
-      daemonize = 0;
+      config->daemonize = 0;
       break;
 #endif /* COLLECT_DAEMON */
     case 'h':
@@ -502,19 +498,17 @@ int main(int argc, char **argv) {
       exit_usage(1);
     } /* switch (c) */
   }   /* while (1) */
+}
 
-  if (optind < argc)
-    exit_usage(1);
-
-  plugin_init_ctx();
-
+int configure_collectd(struct cmdline_config *config) {
+  const char *basedir;
   /*
    * Read options from the config file, the environment and the command
    * line (in that order, with later options overwriting previous ones in
    * general).
    * Also, this will automatically load modules.
    */
-  if (cf_read(configfile)) {
+  if (cf_read(config->configfile)) {
     fprintf(stderr, "Error: Reading the config file failed!\n"
                     "Read the logs for details.\n");
     return 1;
@@ -528,22 +522,46 @@ int main(int argc, char **argv) {
     fprintf(stderr,
             "Don't have a basedir to use. This should not happen. Ever.");
     return 1;
-  } else if (change_basedir(basedir, opt_create_basedir)) {
+  } else if (change_basedir(basedir, config->create_basedir)) {
     fprintf(stderr, "Error: Unable to change to directory `%s'.\n", basedir);
     return 1;
   }
 
   /*
-   * Set global variables or, if that failes, exit. We cannot run with
+   * Set global variables or, if that fails, exit. We cannot run with
    * them being uninitialized. If nothing is configured, then defaults
    * are being used. So this means that the user has actually done
    * something wrong.
    */
   if (init_global_variables() != 0)
-    exit(EXIT_FAILURE);
+    return 1;
 
-  if (test_config)
+  return 0;
+}
+
+int main(int argc, char **argv) {
+#if COLLECT_DAEMON
+  pid_t pid;
+#endif
+  int exit_status = 0;
+
+  struct cmdline_config config = {
+      .daemonize = 1, .create_basedir = 1, .configfile = CONFIGFILE,
+  };
+
+  read_cmdline(argc, argv, &config);
+
+  if (config.test_config)
     return 0;
+
+  if (optind < argc)
+    exit_usage(1);
+
+  plugin_init_ctx();
+
+  int status;
+  if ((status = configure_collectd(&config)) != 0)
+    exit(EXIT_FAILURE);
 
 #if COLLECT_DAEMON
   /*
@@ -557,7 +575,7 @@ int main(int argc, char **argv) {
    * Only daemonize if we're not being supervised
    * by upstart or systemd (when using Linux).
    */
-  if (daemonize
+  if (config.daemonize
 #ifdef KERNEL_LINUX
       && notify_upstart() == 0 && notify_systemd() == 0
 #endif
@@ -652,7 +670,7 @@ int main(int argc, char **argv) {
     exit_status = 1;
   }
 
-  if (test_readall) {
+  if (config.test_readall) {
     if (plugin_read_all_once() != 0) {
       ERROR("Error: one or more plugin read callbacks failed.");
       exit_status = 1;

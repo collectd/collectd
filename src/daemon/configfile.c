@@ -1031,6 +1031,7 @@ int cf_read(const char *filename) {
   }
 
   return ret;
+
 } /* int cf_read */
 
 /* Assures the config option is a string, duplicates it and returns the copy in
