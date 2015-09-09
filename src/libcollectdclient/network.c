@@ -305,7 +305,7 @@ lcc_server_t *lcc_server_create (lcc_network_t *net, /* {{{ */
   memset (srv, 0, sizeof (*srv));
 
   srv->fd = -1;
-  srv->security_level = NONE;
+  srv->security_level = SECURITY_LEVEL_NONE;
   srv->username = NULL;
   srv->password = NULL;
   srv->next = NULL;

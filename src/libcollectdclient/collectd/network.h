@@ -44,9 +44,9 @@ typedef struct lcc_server_s lcc_server_t;
 
 enum lcc_security_level_e
 {
-  NONE,
-  SIGN,
-  ENCRYPT
+  SECURITY_LEVEL_NONE,
+  SECURITY_LEVEL_SIGN,
+  SECURITY_LEVEL_ENCRYPT
 };
 typedef enum lcc_security_level_e lcc_security_level_t;
 
