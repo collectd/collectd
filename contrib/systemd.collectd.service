@@ -17,9 +17,5 @@ NotifyAccess=main
 Restart=always
 RestartSec=10
 
-# Send all console messages to syslog.
-StandardOutput=syslog
-StandardError=syslog
-
 [Install]
 WantedBy=multi-user.target
