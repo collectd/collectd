@@ -13,7 +13,7 @@ EnvironmentFile=-/etc/default/collectd
 Type=notify
 
 # Restart the collectd daemon after a 10 seconds delay, in case it crashes.
-Restart=always
+Restart=on-failure
 RestartSec=10
 
 [Install]
