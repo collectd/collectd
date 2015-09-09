@@ -8,6 +8,7 @@ ExecStart=/usr/sbin/collectd
 EnvironmentFile=-/etc/sysconfig/collectd
 EnvironmentFile=-/etc/default/collectd
 ProtectSystem=full
+ProtectHome=true
 
 # Tell systemd it will receive a notification from collectd over it's control
 # socket once the daemon is ready. See systemd.service(5) for more details.
