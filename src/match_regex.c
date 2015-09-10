@@ -31,6 +31,11 @@
  * Perl-compatible regular expressions.
  */
 
+#ifdef WIN32
+#include <gnulib_config.h>
+#include <config.h>
+#endif /* WIN32 */
+
 #include "collectd.h"
 #include "filter_chain.h"
 

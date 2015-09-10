@@ -9,8 +9,20 @@ endif
 AM_CPPFLAGS += -DPLUGINDIR='"${pkglibdir}"'
 AM_CPPFLAGS += -DPKGDATADIR='"${pkgdatadir}"'
 
+COMMON_LDFLAGS =
+
+if BUILD_WIN32
+COMMON_LDFLAGS += -no-undefined -shared
+endif
+
 # Link to these libraries..
 COMMON_LIBS =
+if BUILD_WIN32
+COMMON_LIBS += -lws2_32
+endif
+if BUILD_WITH_GNULIB
+COMMON_LIBS += -lgnu
+endif
 if BUILD_WITH_LIBRT
 COMMON_LIBS += -lrt
 endif

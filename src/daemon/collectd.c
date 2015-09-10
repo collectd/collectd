@@ -25,6 +25,11 @@
  *   Alvaro Barcellos <alvaro.barcellos at gmail.com>
  **/
 
+#ifdef WIN32
+# include <gnulib_config.h>
+# include <config.h>
+#endif
+
 #include "collectd.h"
 #include "common.h"
 
@@ -32,7 +37,14 @@
 #include "configfile.h"
 
 #include <sys/types.h>
-#include <sys/un.h>
+#ifndef WIN32
+# include <sys/un.h>
+#else
+# include <sys/stat.h>
+# include <unistd.h>
+# undef gethostname
+# include <Winsock2.h>
+#endif
 #include <netdb.h>
 
 #include <pthread.h>
@@ -49,9 +61,14 @@
 # define COLLECTD_LOCALE "C"
 #endif
 
+#ifdef WIN32
+# undef COLLECT_DAEMON
+#endif
 
 static int loop = 0;
 
+/* TODO: some form of controlling collectd should be present on Windows. */
+#ifndef WIN32
 static void *do_flush (void __attribute__((unused)) *arg)
 {
 	INFO ("Flushing all data.");
@@ -85,6 +102,7 @@ static void sig_usr1_handler (int __attribute__((unused)) signal)
 	pthread_create (&thread, &attr, do_flush, NULL);
 	pthread_attr_destroy (&attr);
 }
+#endif /* !WIN32 */
 
 static int init_hostname (void)
 {
@@ -600,15 +618,17 @@ int configure_collectd (struct cmdline_config *config)
 	if (init_global_variables () != 0)
 		return (1);
 
-      return (0);
+	return (0);
 }
 
 int main (int argc, char **argv)
 {
+#ifndef WIN32
 	struct sigaction sig_int_action;
 	struct sigaction sig_term_action;
 	struct sigaction sig_usr1_action;
 	struct sigaction sig_pipe_action;
+#endif /* !WIN32 */
 	int status;
 #if COLLECT_DAEMON
 	struct sigaction sig_chld_action;
@@ -623,15 +643,15 @@ int main (int argc, char **argv)
 
 	read_cmdline(argc, argv, &config);
 
-	if (config.test_config)
-		return (0);
-
 	if (optind < argc)
 		exit_usage (1);
 
 	plugin_init_ctx ();
 	if ((status = configure_collectd (&config)))
 		return (status);
+
+	if (config.test_config)
+		return (0);
 
 #if COLLECT_DAEMON
 	/*
@@ -704,6 +724,7 @@ int main (int argc, char **argv)
 	} /* if (daemonize) */
 #endif /* COLLECT_DAEMON */
 
+#ifndef WIN32
 	memset (&sig_pipe_action, '\0', sizeof (sig_pipe_action));
 	sig_pipe_action.sa_handler = SIG_IGN;
 	sigaction (SIGPIPE, &sig_pipe_action, NULL);
@@ -737,6 +758,7 @@ int main (int argc, char **argv)
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (1);
 	}
+#endif /* !WIN32 */
 
 	/*
 	 * run the actual loops

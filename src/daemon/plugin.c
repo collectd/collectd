@@ -25,6 +25,13 @@
  *   Sebastian Harl <sh at tokkee.org>
  **/
 
+#ifdef WIN32
+# include <gnulib_config.h>
+# include <config.h>
+# include <sys/stat.h>
+# include <unistd.h>
+#endif
+
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
@@ -912,7 +919,7 @@ static void stop_write_threads (void) /* {{{ */
 	if (write_threads == NULL)
 		return;
 
-	INFO ("collectd: Stopping %zu write threads.", write_threads_num);
+	INFO ("collectd: Stopping %"PRIu64" write threads.", (uint64_t)write_threads_num);
 
 	pthread_mutex_lock (&write_lock);
 	write_loop = 0;
@@ -1017,6 +1024,12 @@ static void plugin_free_loaded ()
 }
 
 #define BUFSIZE 512
+
+#ifdef WIN32
+# define SHLIB_SUFFIX ".dll"
+#else
+# define SHLIB_SUFFIX ".so"
+#endif
 int plugin_load (char const *plugin_name, uint32_t flags)
 {
 	DIR  *dh;
@@ -1054,12 +1067,12 @@ int plugin_load (char const *plugin_name, uint32_t flags)
 			|| (strcasecmp ("python", plugin_name) == 0))
 		flags |= PLUGIN_FLAGS_GLOBAL;
 
-	/* `cpu' should not match `cpufreq'. To solve this we add `.so' to the
+	/* `cpu' should not match `cpufreq'. To solve this we add SHLIB_SUFFIX to the
 	 * type when matching the filename */
-	status = ssnprintf (typename, sizeof (typename), "%s.so", plugin_name);
+	status = ssnprintf (typename, sizeof (typename), "%s" SHLIB_SUFFIX, plugin_name);
 	if ((status < 0) || ((size_t) status >= sizeof (typename)))
 	{
-		WARNING ("plugin_load: Filename too long: \"%s.so\"", plugin_name);
+		WARNING ("plugin_load: Filename too long: \"%s" SHLIB_SUFFIX "\"", plugin_name);
 		return (-1);
 	}
 

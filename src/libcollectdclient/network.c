@@ -26,6 +26,11 @@
  *   Max Henkel <henkel at gmx.at>
  **/
 
+#ifdef WIN32
+# include <gnulib_config.h>
+# include <config.h>
+#endif
+
 #include "collectd.h"
 
 #include <stdlib.h>
@@ -45,6 +50,10 @@
 
 #if HAVE_NET_IF_H
 # include <net/if.h>
+#endif
+
+#ifdef WIN32
+# include <netioapi.h>
 #endif
 
 #include "collectd/network.h"
@@ -390,15 +399,15 @@ int lcc_server_set_ttl (lcc_server_t *srv, uint8_t ttl) /* {{{ */
   return (0);
 } /* }}} int lcc_server_set_ttl */
 
-int lcc_server_set_interface (lcc_server_t *srv, char const *interface) /* {{{ */
+int lcc_server_set_interface (lcc_server_t *srv, char const *interface_) /* {{{ */
 {
   unsigned int if_index;
   int status;
 
-  if ((srv == NULL) || (interface == NULL))
+  if ((srv == NULL) || (interface_ == NULL))
     return (EINVAL);
 
-  if_index = if_nametoindex (interface);
+  if_index = if_nametoindex (interface_);
   if (if_index == 0)
     return (ENOENT);
 
@@ -456,8 +465,8 @@ int lcc_server_set_interface (lcc_server_t *srv, char const *interface) /* {{{ *
 
   /* else: Not a multicast interface. */
 #if defined(SO_BINDTODEVICE)
-  status = setsockopt (srv->fd, SOL_SOCKET, SO_BINDTODEVICE, interface,
-      (socklen_t) (strlen (interface) + 1));
+  status = setsockopt (srv->fd, SOL_SOCKET, SO_BINDTODEVICE,
+      interface_, strlen (interface_) + 1);
   if (status != 0)
     return (-1);
 #endif

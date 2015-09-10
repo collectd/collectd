@@ -27,6 +27,11 @@
 #ifndef COLLECTD_H
 #define COLLECTD_H
 
+#ifdef WIN32
+# undef restrict
+# define restrict __restrict
+#endif
+
 #if HAVE_CONFIG_H
 # include "config.h"
 #endif
@@ -149,6 +154,10 @@ typedef int _Bool;
 # include <endian.h>
 #elif HAVE_SYS_ISA_DEFS_H
 # include <sys/isa_defs.h>
+#endif
+
+#ifdef WIN32
+#define __LITTLE_ENDIAN 1234
 #endif
 
 #ifndef BYTE_ORDER

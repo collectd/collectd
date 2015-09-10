@@ -24,6 +24,10 @@
  *   Florian octo Forster <octo at collectd.org>
  **/
 
+#ifdef WIN32
+# include <gnulib_config.h>
+#endif
+
 #include "config.h"
 
 #include <stdlib.h>

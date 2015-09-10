@@ -27,8 +27,16 @@
  *   Michał Mirosław <mirq-linux at rere.qmqm.pl>
 **/
 
+#ifdef WIN32
+# include "gnulib_config.h"
+#endif
+
 #if HAVE_CONFIG_H
 # include "config.h"
+#endif
+
+#ifdef WIN32
+# include <sys/stat.h>
 #endif
 
 #include "collectd.h"
@@ -42,6 +50,11 @@
 
 #ifdef HAVE_MATH_H
 # include <math.h>
+#endif
+
+#ifdef WIN32
+/* TODO: could this be included unconditionally? */
+# include <unistd.h>
 #endif
 
 /* for getaddrinfo */
@@ -64,7 +77,9 @@ extern kstat_ctl_t *kc;
 #endif
 
 #if !HAVE_GETPWNAM_R
+# ifdef HAVE_GETPWNAM
 static pthread_mutex_t getpwnam_r_lock = PTHREAD_MUTEX_INITIALIZER;
+# endif /* !HAVE_GETPWNAM */
 #endif
 
 #if !HAVE_STRERROR_R
@@ -1003,7 +1018,7 @@ int format_values (char *ret, size_t ret_len, /* {{{ */
                         BUFFER_ADD (":"GAUGE_FORMAT, rates[i]);
                 }
                 else if (ds->ds[i].type == DS_TYPE_COUNTER)
-                        BUFFER_ADD (":%llu", vl->values[i].counter);
+                        BUFFER_ADD (":%"PRIu64, (uint64_t)vl->values[i].counter);
                 else if (ds->ds[i].type == DS_TYPE_DERIVE)
                         BUFFER_ADD (":%"PRIi64, vl->values[i].derive);
                 else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
@@ -1227,6 +1242,9 @@ int parse_values (char *buffer, value_list_t *vl, const data_set_t *ds)
 int getpwnam_r (const char *name, struct passwd *pwbuf, char *buf,
 		size_t buflen, struct passwd **pwbufp)
 {
+#ifndef HAVE_GETPWNAM
+	return (-1);
+#else
 	int status = 0;
 	struct passwd *pw;
 
@@ -1273,6 +1291,7 @@ int getpwnam_r (const char *name, struct passwd *pwbuf, char *buf,
 	pthread_mutex_unlock (&getpwnam_r_lock);
 
 	return (status);
+#endif /* HAVE_GETPWNAM */
 } /* int getpwnam_r */
 #endif /* !HAVE_GETPWNAM_R */
 

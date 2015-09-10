@@ -226,9 +226,9 @@ static int wh_flush_nolock (cdtime_t timeout, wh_callback_t *cb) /* {{{ */
         int status;
 
         DEBUG ("write_http plugin: wh_flush_nolock: timeout = %.3f; "
-                        "send_buffer_fill = %zu;",
+                        "send_buffer_fill = %"PRIu64";",
                         CDTIME_T_TO_DOUBLE (timeout),
-                        cb->send_buffer_fill);
+                        (uint64_t)cb->send_buffer_fill);
 
         /* timeout == 0  => flush unconditionally */
         if (timeout > 0)
@@ -386,7 +386,7 @@ static int wh_write_command (const data_set_t *ds, const value_list_t *vl, /* {{
                         values);
         if (command_len >= sizeof (command)) {
                 ERROR ("write_http plugin: Command buffer too small: "
-                                "Need %zu bytes.", command_len + 1);
+                                "Need %"PRIu64" bytes.", (uint64_t) command_len + 1);
                 return (-1);
         }
 
@@ -421,9 +421,10 @@ static int wh_write_command (const data_set_t *ds, const value_list_t *vl, /* {{
         cb->send_buffer_fill += command_len;
         cb->send_buffer_free -= command_len;
 
-        DEBUG ("write_http plugin: <%s> buffer %zu/%zu (%g%%) \"%s\"",
+
+        DEBUG ("write_http plugin: <%s> buffer %"PRIu64"/%"PRIu64" (%g%%) \"%s\"",
                         cb->location,
-                        cb->send_buffer_fill, cb->send_buffer_size,
+                        (uint64_t)cb->send_buffer_fill, (uint64_t)cb->send_buffer_size,
                         100.0 * ((double) cb->send_buffer_fill) / ((double) cb->send_buffer_size),
                         command);
 
@@ -476,9 +477,9 @@ static int wh_write_json (const data_set_t *ds, const value_list_t *vl, /* {{{ *
                 return (status);
         }
 
-        DEBUG ("write_http plugin: <%s> buffer %zu/%zu (%g%%)",
+        DEBUG ("write_http plugin: <%s> buffer %"PRIu64"/%"PRIu64" (%g%%)",
                         cb->location,
-                        cb->send_buffer_fill, cb->send_buffer_size,
+                        (uint64_t)cb->send_buffer_fill, (uint64_t)cb->send_buffer_size,
                         100.0 * ((double) cb->send_buffer_fill) / ((double) cb->send_buffer_size));
 
         /* Check if we have enough space for this command. */
@@ -675,7 +676,7 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
         cb->send_buffer = malloc (cb->send_buffer_size);
         if (cb->send_buffer == NULL)
         {
-                ERROR ("write_http plugin: malloc(%zu) failed.", cb->send_buffer_size);
+                ERROR ("write_http plugin: malloc(%"PRIu64") failed.", (uint64_t) cb->send_buffer_size);
                 wh_callback_free (cb);
                 return (-1);
         }
@@ -728,7 +729,13 @@ static int wh_init (void) /* {{{ */
 {
         /* Call this while collectd is still single-threaded to avoid
          * initialization issues in libgcrypt. */
+#ifdef WIN32
+        /* These two macros might mean exactly the same, but the libcurl
+         * documentation isn't explicit about this. */
+        curl_global_init (CURL_GLOBAL_DEFAULT);
+#else
         curl_global_init (CURL_GLOBAL_SSL);
+#endif
         return (0);
 } /* }}} int wh_init */
 

@@ -7,4 +7,7 @@ AM_YFLAGS = -d
 lib_LTLIBRARIES = liboconfig.la
 
 liboconfig_la_LDFLAGS = -avoid-version $(LEXLIB)
+if BUILD_WIN32
+liboconfig_la_LDFLAGS += -shared -no-undefined
+endif
 liboconfig_la_SOURCES = oconfig.c oconfig.h aux_types.h scanner.l parser.y
