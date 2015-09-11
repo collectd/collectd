@@ -417,8 +417,8 @@ lv_config (const char *key, const char *value)
             else if (strcasecmp (fields[i], "uuid") == 0)
                 hostname_format[i] = hf_uuid;
             else {
-                sfree (value_copy);
                 ERROR (PLUGIN_NAME " plugin: unknown HostnameFormat field: %s", fields[i]);
+                sfree (value_copy);
                 return -1;
             }
         }
@@ -454,8 +454,8 @@ lv_config (const char *key, const char *value)
             else if (strcasecmp (fields[i], "uuid") == 0)
                 plugin_instance_format[i] = plginst_uuid;
             else {
+                ERROR (PLUGIN_NAME " plugin: unknown PluginInstanceFormat field: %s", fields[i]);
                 sfree (value_copy);
-                ERROR (PLUGIN_NAME " plugin: unknown HostnameFormat field: %s", fields[i]);
                 return -1;
             }
         }
