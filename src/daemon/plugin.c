@@ -1089,6 +1089,7 @@ int plugin_load (char const *plugin_name, uint32_t flags)
 			/* success */
 			plugin_mark_loaded (plugin_name);
 			ret = 0;
+			INFO ("plugin_load: plugin \"%s\" successfully loaded.", plugin_name);
 			break;
 		}
 		else
