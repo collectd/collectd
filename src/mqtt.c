@@ -407,11 +407,11 @@ static int publish (mqtt_client_conf_t *conf, char const *topic,
     {
         char errbuf[1024];
         c_complain (LOG_ERR,
-                &conf->complaint_cantpublish,
-                "plugin mqtt: mosquitto_publish failed: %s",
-                status == MOSQ_ERR_ERRNO ?
-                sstrerror(errno, errbuf, sizeof (errbuf)) :
-                mosquitto_strerror(status));
+            &conf->complaint_cantpublish,
+            "mqtt plugin: mosquitto_publish failed: %s",
+            (status == MOSQ_ERR_ERRNO)
+            ? sstrerror(errno, errbuf, sizeof (errbuf))
+            : mosquitto_strerror(status));
         /* Mark our connection "down" regardless of the error as a safety
          * measure; we will try to reconnect the next time we have to publish a
          * message */
@@ -527,6 +527,13 @@ static int mqtt_config_publisher (oconfig_item_t *ci)
     conf->topic_prefix = strdup (MQTT_DEFAULT_TOPIC_PREFIX);
     conf->store_rates = 1;
 
+    status = pthread_mutex_init (&conf->lock, NULL);
+    if (status != 0)
+    {
+      mqtt_free (conf);
+      return (status);
+    }
+
     C_COMPLAIN_INIT (&conf->complaint_cantpublish);
 
     for (i = 0; i < ci->children_num; i++)
@@ -614,6 +621,13 @@ static int mqtt_config_subscriber (oconfig_item_t *ci)
     conf->qos = 2;
     conf->topic = strdup (MQTT_DEFAULT_TOPIC);
     conf->clean_session = 1;
+
+    status = pthread_mutex_init (&conf->lock, NULL);
+    if (status != 0)
+    {
+      mqtt_free (conf);
+      return (status);
+    }
 
     C_COMPLAIN_INIT (&conf->complaint_cantpublish);
 
