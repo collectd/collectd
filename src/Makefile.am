@@ -6,10 +6,6 @@ SUBDIRS += daemon
 
 PLUGIN_LDFLAGS = -module -avoid-version -export-symbols-regex '\<module_register\>'
 
-if COMPILER_IS_GCC
-AM_CFLAGS = -Wall -Werror
-endif
-
 AM_CPPFLAGS = -I$(srcdir)/daemon
 AM_CPPFLAGS += -DPREFIX='"${prefix}"'
 AM_CPPFLAGS += -DCONFIGFILE='"${sysconfdir}/${PACKAGE_NAME}.conf"'
@@ -41,6 +37,9 @@ check_PROGRAMS += test_utils_vl_lookup
 TESTS += test_utils_vl_lookup
 test_utils_vl_lookup_SOURCES = utils_vl_lookup_test.c testing.h
 test_utils_vl_lookup_LDADD = liblookup.la daemon/libcommon.la daemon/libplugin_mock.la
+if BUILD_WITH_LIBKSTAT
+test_utils_vl_lookup_LDADD += -lkstat
+endif
 
 noinst_LTLIBRARIES += libmount.la
 libmount_la_SOURCES = utils_mount.c utils_mount.h
@@ -48,7 +47,9 @@ check_PROGRAMS += test_utils_mount
 TESTS += test_utils_mount
 test_utils_mount_SOURCES = utils_mount_test.c testing.h
 test_utils_mount_LDADD = libmount.la daemon/libcommon.la daemon/libplugin_mock.la
-
+if BUILD_WITH_LIBKSTAT
+test_utils_mount_LDADD += -lkstat
+endif
 
 sbin_PROGRAMS = collectdmon
 bin_PROGRAMS = collectd-nagios collectdctl collectd-tg

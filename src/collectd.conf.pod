@@ -1827,6 +1827,7 @@ than those of other plugins. It usually looks something like this:
     </Query>
     <Database "product_information">
       Driver "mysql"
+      Interval 120
       DriverOption "host" "localhost"
       DriverOption "username" "collectd"
       DriverOption "password" "aZo6daiw"
@@ -2005,6 +2006,11 @@ block. This name will be used as "PluginInstance" in the values submitted to
 the daemon. Other than that, that name is not used.
 
 =over 4
+
+=item B<Interval> I<Interval>
+
+Sets the interval (in seconds) in which the values will be collected from this
+database. By default the global B<Interval> setting will be used.
 
 =item B<Driver> I<Driver>
 
@@ -7133,13 +7139,17 @@ setting B<name>.
 B<address> means use the interface's mac address. This is useful since the
 interface path might change between reboots of a guest or across migrations.
 
-=item B<PluginInstanceFormat> B<name|uuid>
+=item B<PluginInstanceFormat> B<name|uuid|none>
 
 When the virt plugin logs data, it sets the plugin_instance of the collected
-data according to this setting. The default is to use the guest name as provided
-by the hypervisor, which is equal to setting B<name>.
+data according to this setting. The default is to not set the plugin_instance.
 
+B<name> means use the guest's name as provided by the hypervisor.
 B<uuid> means use the guest's UUID.
+
+You can also specify combinations of the B<name> and B<uuid> fields.
+For example B<name uuid> means to concatenate the guest name and UUID
+(with a literal colon character between, thus I<"foo:1234-1234-1234-1234">).
 
 =back
 
@@ -7481,6 +7491,10 @@ Sets the maximum time in milliseconds given for HTTP POST operations to
 complete. When this limit is reached, the POST operation will be aborted, and
 all the data in the current send buffer will probably be lost. Defaults to 0,
 which means the connection never times out.
+
+=item B<LogHttpError> B<false>|B<true>
+
+Enables printing of HTTP error code to log. Turned off by default.
 
 The C<write_http> plugin regularly submits the collected values to the HTTP
 server. How frequently this happens depends on how much data you are collecting

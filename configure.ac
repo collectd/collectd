@@ -2738,7 +2738,7 @@ AC_ARG_WITH(libmysql, [AS_HELP_STRING([--with-libmysql@<:@=PREFIX@:>@], [Path to
 ])
 if test "x$with_libmysql" = "xyes"
 then
-	with_mysql_cflags=`$with_mysql_config --cflags 2>/dev/null`
+	with_mysql_cflags=`$with_mysql_config --include 2>/dev/null`
 	mysql_config_status=$?
 
 	if test $mysql_config_status -ne 0
@@ -2774,15 +2774,17 @@ then
 	then
 		with_libmysql="no ($with_mysql_config failed)"
 	else
-		AC_CHECK_LIB(mysqlclient, mysql_init,
-		 [with_libmysql="yes"],
-		 [with_libmysql="no (symbol 'mysql_init' not found)"],
-		 [$with_mysql_libs])
-
-		AC_CHECK_LIB(mysqlclient, mysql_get_server_version,
+		SAVE_CPPFLAGS="$CPPFLAGS"
+		CPPFLAGS="$CPPFLAGS $with_mysql_cflags"
+		SAVE_LIBS="$LIBS"
+		LIBS="$with_mysql_libs"
+		AC_SEARCH_LIBS([mysql_get_server_version],
+		 [],
 		 [with_libmysql="yes"],
 		 [with_libmysql="no (symbol 'mysql_get_server_version' not found)"],
-		 [$with_mysql_libs])
+		 [])
+		CPPFLAGS="$SAVE_CPPFLAGS"
+		LIBS="$SAVE_LIBS"
 	fi
 fi
 if test "x$with_libmysql" = "xyes"
@@ -5246,6 +5248,7 @@ collectd features:])
 AC_COLLECTD([debug],     [enable],  [feature], [debugging])
 AC_COLLECTD([daemon],    [disable], [feature], [daemon mode])
 AC_COLLECTD([getifaddrs],[enable],  [feature], [getifaddrs under Linux])
+AC_COLLECTD([werror],    [disable], [feature], [building with -Werror])
 
 dependency_warning="no"
 dependency_error="no"
@@ -5915,6 +5918,13 @@ AC_SUBST(LCC_VERSION_STRING)
 
 AC_CONFIG_FILES(src/libcollectdclient/collectd/lcc_features.h)
 
+AM_CFLAGS="-Wall"
+if test "x$enable_werror" != "xno"
+then
+        AM_CFLAGS="$AM_CFLAGS -Werror"
+fi
+AC_SUBST([AM_CFLAGS])
+
 AC_CONFIG_FILES([Makefile src/Makefile src/daemon/Makefile src/collectd.conf src/libcollectdclient/Makefile src/libcollectdclient/libcollectdclient.pc src/liboconfig/Makefile bindings/Makefile bindings/java/Makefile])
 AC_OUTPUT
 
@@ -5945,6 +5955,17 @@ fi
 cat <<EOF;
 
 Configuration:
+  Build:
+    Platform  . . . . . . $ac_system
+    CC  . . . . . . . . . $CC
+    CFLAGS  . . . . . . . $AM_CFLAGS $CFLAGS
+    CPP . . . . . . . . . $CPP
+    CPPFLAGS  . . . . . . $CPPFLAGS
+    LD  . . . . . . . . . $LD
+    LDFLAGS . . . . . . . $LDFLAGS
+    YACC  . . . . . . . . $YACC
+    YFLAGS  . . . . . . . $YFLAGS
+
   Libraries:
     intel mic . . . . . . $with_mic
     libaquaero5 . . . . . $with_libaquaero5

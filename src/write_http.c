@@ -59,6 +59,7 @@ struct wh_callback_s
         char *clientkeypass;
         long sslversion;
         _Bool store_rates;
+        _Bool log_http_error;
         int   low_speed_limit;
         time_t low_speed_time;
         int timeout;
@@ -79,6 +80,19 @@ struct wh_callback_s
         pthread_mutex_t send_lock;
 };
 typedef struct wh_callback_s wh_callback_t;
+
+static void wh_log_http_error (wh_callback_t *cb)
+{
+        if (!cb->log_http_error)
+                return;
+
+        long http_code = 0;
+
+        curl_easy_getinfo (cb->curl, CURLINFO_RESPONSE_CODE, &http_code);
+
+        if (http_code != 200)
+                INFO ("write_http plugin: HTTP Error code: %lu", http_code);
+}
 
 static void wh_reset_buffer (wh_callback_t *cb)  /* {{{ */
 {
@@ -101,6 +115,9 @@ static int wh_send_buffer (wh_callback_t *cb) /* {{{ */
 
         curl_easy_setopt (cb->curl, CURLOPT_POSTFIELDS, cb->send_buffer);
         status = curl_easy_perform (cb->curl);
+
+        wh_log_http_error (cb);
+
         if (status != CURLE_OK)
         {
                 ERROR ("write_http plugin: curl_easy_perform failed with "
@@ -538,6 +555,7 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
         cb->sslversion = CURL_SSLVERSION_DEFAULT;
         cb->low_speed_limit = 0;
         cb->timeout = 0;
+        cb->log_http_error = 0;
 
         pthread_mutex_init (&cb->send_lock, /* attr = */ NULL);
 
@@ -609,6 +627,8 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
                         cf_util_get_int (child, &cb->low_speed_limit);
                 else if (strcasecmp ("Timeout", child->key) == 0)
                         cf_util_get_int (child, &cb->timeout);
+                else if (strcasecmp ("LogHttpError", child->key) == 0)
+                        cf_util_get_boolean (child, &cb->log_http_error);
                 else
                 {
                         ERROR ("write_http plugin: Invalid configuration "
