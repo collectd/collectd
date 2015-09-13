@@ -1852,30 +1852,33 @@ AC_ARG_WITH(libganglia, [AS_HELP_STRING([--with-libganglia@<:@=PREFIX@:>@], [Pat
 	 GANGLIA_LDFLAGS="-L$withval/lib"
 	 with_libganglia="yes"
  else
-	 with_libganglia_config="ganglia-config"
 	 with_libganglia="$withval"
  fi; fi; fi
 ],
 [
- with_libganglia_config="ganglia-config"
  with_libganglia="yes"
 ])
 
-if test "x$with_libganglia" = "xyes" && test "x$with_libganglia_config" != "x"
+if test "x$with_libganglia" = "xyes"
 then
-	if test "x$GANGLIA_CPPFLAGS" = "x"
+	if test "x$with_libganglia_config" != "x"
 	then
-		GANGLIA_CPPFLAGS=`"$with_libganglia_config" --cflags 2>/dev/null`
-	fi
+		if test "x$GANGLIA_CPPFLAGS" = "x"
+		then
+			GANGLIA_CPPFLAGS=`"$with_libganglia_config" --cflags 2>/dev/null`
+		fi
 
-	if test "x$GANGLIA_LDFLAGS" = "x"
-	then
-		GANGLIA_LDFLAGS=`"$with_libganglia_config" --ldflags 2>/dev/null`
-	fi
+		if test "x$GANGLIA_LDFLAGS" = "x"
+		then
+			GANGLIA_LDFLAGS=`"$with_libganglia_config" --ldflags 2>/dev/null`
+		fi
 
-	if test "x$GANGLIA_LIBS" = "x"
-	then
-		GANGLIA_LIBS=`"$with_libganglia_config" --libs 2>/dev/null`
+		if test "x$GANGLIA_LIBS" = "x"
+		then
+			GANGLIA_LIBS=`"$with_libganglia_config" --libs 2>/dev/null`
+		fi
+	else
+		GANGLIA_LIBS="-lganglia"
 	fi
 fi
 
