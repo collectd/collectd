@@ -62,7 +62,7 @@ static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 struct write_statsd_config_s {
   char* host;
-  int   port;
+  long int port;
   char* postfix;
   char* prefix;
   _Bool silence_type_warnings;
