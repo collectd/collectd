@@ -624,7 +624,7 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 				rf->rf_name, CDTIME_T_TO_DOUBLE(elapsed));
 
 		DEBUG ("plugin_read_thread: Effective interval of the "
-				"%s plugin is %.3f seconds.",
+				"`%s' plugin is %.3f seconds.",
 				rf->rf_name,
 				CDTIME_T_TO_DOUBLE (rf->rf_effective_interval));
 
@@ -641,7 +641,7 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 			rf->rf_next_read = now;
 		}
 
-		DEBUG ("plugin_read_thread: Next read of the %s plugin at %.3f.",
+		DEBUG ("plugin_read_thread: Next read of the `%s' plugin at %.3f.",
 				rf->rf_name,
 				CDTIME_T_TO_DOUBLE (rf->rf_next_read));
 
