@@ -1781,8 +1781,6 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
 static int csnmp_read_host (user_data_t *ud)
 {
   host_definition_t *host;
-  cdtime_t time_start;
-  cdtime_t time_end;
   int status;
   int success;
   int i;
@@ -1791,8 +1789,6 @@ static int csnmp_read_host (user_data_t *ud)
 
   if (host->interval == 0)
     host->interval = plugin_get_interval ();
-
-  time_start = cdtime ();
 
   if (host->sess_handle == NULL)
     csnmp_host_open_session (host);
@@ -1812,16 +1808,6 @@ static int csnmp_read_host (user_data_t *ud)
 
     if (status == 0)
       success++;
-  }
-
-  time_end = cdtime ();
-  if ((time_end - time_start) > host->interval)
-  {
-    WARNING ("snmp plugin: Host `%s' should be queried every %.3f "
-        "seconds, but reading all values takes %.3f seconds.",
-        host->name,
-        CDTIME_T_TO_DOUBLE (host->interval),
-        CDTIME_T_TO_DOUBLE (time_end - time_start));
   }
 
   if (success == 0)
