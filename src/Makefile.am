@@ -516,6 +516,12 @@ logfile_la_SOURCES = logfile.c
 logfile_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_LOGTAIL
+pkglib_LTLIBRARIES += logtail.la
+logtail_la_SOURCES = logtail.c
+logtail_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_LOG_LOGSTASH
 pkglib_LTLIBRARIES += log_logstash.la
 log_logstash_la_SOURCES = log_logstash.c
@@ -731,12 +737,6 @@ if BUILD_WITH_LIBCURL
 nginx_la_CFLAGS += $(BUILD_WITH_LIBCURL_CFLAGS)
 nginx_la_LIBADD += $(BUILD_WITH_LIBCURL_LIBS)
 endif
-endif
-
-if BUILD_PLUGIN_LOGTAIL
-pkglib_LTLIBRARIES += logtail.la
-logtail_la_SOURCES = logtail.c
-logtail_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
 if BUILD_PLUGIN_NOTIFY_DESKTOP
