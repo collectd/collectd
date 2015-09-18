@@ -253,6 +253,7 @@ static int smart_read (void)
 
     /* Query status with libatasmart */
     smart_handle_disk (devpath);
+    udev_device_unref (dev);
   }
 
   udev_enumerate_unref (enumerate);

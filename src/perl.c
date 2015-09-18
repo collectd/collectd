@@ -301,33 +301,32 @@ static int hv2data_source (pTHX_ HV *hash, data_source_t *ds)
 	return 0;
 } /* static int hv2data_source (HV *, data_source_t *) */
 
-static int av2value (pTHX_ char *name, AV *array, value_t *value, int len)
+/* av2value converts at most "len" elements from "array" to "value". Returns the
+ * number of elements converted or zero on error. */
+static size_t av2value (pTHX_ char *name, AV *array, value_t *value, size_t array_len)
 {
 	const data_set_t *ds;
+	size_t i;
 
-	int i = 0;
-
-	if ((NULL == name) || (NULL == array) || (NULL == value))
-		return -1;
-
-	if (av_len (array) < len - 1)
-		len = av_len (array) + 1;
-
-	if (0 >= len)
-		return -1;
+	if ((NULL == name) || (NULL == array) || (NULL == value) || (array_len == 0))
+		return 0;
 
 	ds = plugin_get_ds (name);
 	if (NULL == ds) {
 		log_err ("av2value: Unknown dataset \"%s\"", name);
-		return -1;
+		return 0;
 	}
 
-	if (ds->ds_num < len) {
-		log_warn ("av2value: Value length exceeds data set length.");
-		len = ds->ds_num;
+	if (array_len < ds->ds_num) {
+		log_warn ("av2value: array does not contain enough elements for type \"%s\": got %zu, want %zu",
+				name, array_len, ds->ds_num);
+		return 0;
+	} else if (array_len > ds->ds_num) {
+		log_warn ("av2value: array contains excess elements for type \"%s\": got %zu, want %zu",
+				name, array_len, ds->ds_num);
 	}
 
-	for (i = 0; i < len; ++i) {
+	for (i = 0; i < ds->ds_num; ++i) {
 		SV **tmp = av_fetch (array, i, 0);
 
 		if (NULL != tmp) {
@@ -341,11 +340,12 @@ static int av2value (pTHX_ char *name, AV *array, value_t *value, int len)
 				value[i].absolute = SvIV (*tmp);
 		}
 		else {
-			return -1;
+			return 0;
 		}
 	}
-	return len;
-} /* static int av2value (char *, AV *, value_t *, int) */
+
+	return ds->ds_num;
+} /* static size_t av2value (char *, AV *, value_t *, size_t) */
 
 /*
  * value list:
@@ -380,16 +380,14 @@ static int hv2value_list (pTHX_ HV *hash, value_list_t *vl)
 
 	{
 		AV  *array = (AV *)SvRV (*tmp);
-		int len    = av_len (array) + 1;
-
-		if (len <= 0)
+		/* av_len returns the highest index, not the actual length. */
+		size_t array_len = (size_t) (av_len (array) + 1);
+		if (array_len == 0)
 			return -1;
 
-		vl->values     = (value_t *)smalloc (len * sizeof (value_t));
-		vl->values_len = av2value (aTHX_ vl->type, (AV *)SvRV (*tmp),
-				vl->values, len);
-
-		if (-1 == vl->values_len) {
+		vl->values     = calloc (array_len, sizeof (*vl->values));
+		vl->values_len = av2value (aTHX_ vl->type, (AV *)SvRV (*tmp), vl->values, array_len);
+		if (vl->values_len == 0) {
 			sfree (vl->values);
 			return -1;
 		}
@@ -516,7 +514,6 @@ static int av2notification_meta (pTHX_ AV *array, notification_meta_t **meta)
 		if (NULL == (tmp = hv_fetch (hash, "value", 5, 0))) {
 			log_warn ("av2notification_meta: Skipping invalid "
 					"meta information.");
-			free ((*m)->name);
 			free (*m);
 			continue;
 		}
@@ -605,7 +602,7 @@ static int hv2notification (pTHX_ HV *hash, notification_t *n)
 
 static int data_set2av (pTHX_ data_set_t *ds, AV *array)
 {
-	int i = 0;
+	size_t i;
 
 	if ((NULL == ds) || (NULL == array))
 		return -1;
@@ -641,24 +638,17 @@ static int data_set2av (pTHX_ data_set_t *ds, AV *array)
 static int value_list2hv (pTHX_ value_list_t *vl, data_set_t *ds, HV *hash)
 {
 	AV *values = NULL;
-
-	int i   = 0;
-	int len = 0;
+	size_t i;
 
 	if ((NULL == vl) || (NULL == ds) || (NULL == hash))
 		return -1;
 
-	len = vl->values_len;
-
-	if (ds->ds_num < len) {
-		log_warn ("value2av: Value length exceeds data set length.");
-		len = ds->ds_num;
-	}
-
 	values = newAV ();
-	av_extend (values, len - 1);
+	/* av_extend takes the last *index* to which the array should be extended. */
+	av_extend (values, vl->values_len - 1);
 
-	for (i = 0; i < len; ++i) {
+	assert (ds->ds_num == vl->values_len);
+	for (i = 0; i < vl->values_len; ++i) {
 		SV *val = NULL;
 
 		if (DS_TYPE_COUNTER == ds->ds[i].type)

@@ -98,7 +98,6 @@ Options inside a B<LoadPlugin> block can override default settings and
 influence the way plugins are loaded, e.g.:
 
  <LoadPlugin perl>
-   Globals true
    Interval 60
  </LoadPlugin>
 
@@ -130,6 +129,15 @@ the average user from ever having to deal with this low level linking stuff.
 Sets a plugin-specific interval for collecting metrics. This overrides the
 global B<Interval> setting. If a plugin provides own support for specifying an
 interval, that setting will take precedence.
+
+=item B<FlushInterval> I<Seconds>
+
+Specifies the the interval, in seconds, to call the flush callback if it's
+defined in this plugin. By default, this is disabled
+
+=item B<FlushTimeout> I<Seconds>
+
+Specifies the value of the timeout argument of the flush callback.
 
 =back
 
@@ -502,10 +510,12 @@ are disabled by default.
 
 =head2 Plugin C<amqp>
 
-The I<AMQMP plugin> can be used to communicate with other instances of
+The I<AMQP plugin> can be used to communicate with other instances of
 I<collectd> or third party applications using an AMQP message broker. Values
 are sent to or received from the broker, which handles routing, queueing and
-possibly filtering or messages.
+possibly filtering out messages.
+
+B<Synopsis:>
 
  <Plugin "amqp">
    # Send values to an AMQP broker
@@ -519,6 +529,7 @@ possibly filtering or messages.
  #   ExchangeType "fanout"
  #   RoutingKey "collectd"
  #   Persistent false
+ #   ConnectionRetryDelay 0
  #   Format "command"
  #   StoreRates false
  #   GraphitePrefix "collectd."
@@ -540,6 +551,7 @@ possibly filtering or messages.
  #   QueueDurable false
  #   QueueAutoDelete true
  #   RoutingKey "collectd.#"
+ #   ConnectionRetryDelay 0
    </Subscribe>
  </Plugin>
 
@@ -629,6 +641,13 @@ Selects the I<delivery method> to use. If set to B<true>, the I<persistent>
 mode will be used, i.e. delivery is guaranteed. If set to B<false> (the
 default), the I<transient> delivery mode will be used, i.e. messages may be
 lost due to high load, overflowing queues or similar issues.
+
+=item B<ConnectionRetryDelay> I<Delay>
+
+When the connection to the AMQP broker is lost, defines the time in seconds to
+wait before attempting to reconnect. Defaults to 0, which implies collectd will
+attempt to reconnect at each read interval (in Subscribe mode) or each time
+values are ready for submission (in Publish mode).
 
 =item B<Format> B<Command>|B<JSON>|B<Graphite> (Publish only)
 
@@ -766,6 +785,18 @@ File that holds one or more SSL certificates. If you want to use HTTPS you will
 possibly need this option. What CA certificates come bundled with C<libcurl>
 and are checked by default depends on the distribution you use.
 
+=item B<SSLCiphers> I<list of ciphers>
+
+Specifies which ciphers to use in the connection. The list of ciphers
+must specify valid ciphers. See
+L<http://www.openssl.org/docs/apps/ciphers.html> for details.
+
+=item B<Timeout> I<Milliseconds>
+
+The B<Timeout> option sets the overall timeout for HTTP requests to B<URL>, in
+milliseconds. By default, the configured B<Interval> is used to set the
+timeout.
+
 =back
 
 =head2 Plugin C<apcups>
@@ -782,11 +813,21 @@ B<apcupsd> can handle it.
 
 TCP-Port to connect to. Defaults to B<3551>.
 
-=item B<ReportSeconds> B<true|false>
+=item B<ReportSeconds> B<true>|B<false>
 
 If set to B<true>, the time reported in the C<timeleft> metric will be
 converted to seconds. This is the recommended setting. If set to B<false>, the
 default for backwards compatibility, the time will be reported in minutes.
+
+=item B<PersistentConnection> B<true>|B<false>
+
+By default, the plugin will try to keep the connection to UPS open between
+reads. Since this appears to be somewhat brittle (I<apcupsd> appears to close
+the connection due to inactivity quite quickly), the plugin will try to detect
+this problem and switch to an open-read-close mode in such cases.
+
+You can instruct the plugin to close the connection after each read by setting
+this option to B<false>.
 
 =back
 
@@ -854,18 +895,38 @@ File that holds one or more SSL certificates. If you want to use HTTPS you will
 possibly need this option. What CA certificates come bundled with C<libcurl>
 and are checked by default depends on the distribution you use.
 
+=item B<Timeout> I<Milliseconds>
+
+The B<Timeout> option sets the overall timeout for HTTP requests to B<URL>, in
+milliseconds. By default, the configured B<Interval> is used to set the
+timeout.
+
 =back
 
 =head2 Plugin C<barometer>
 
-This plugin reads absolute air pressure using digital barometer sensor MPL115A2
-or MPL3115 from Freescale (sensor attached to any I2C bus available in
-the computer, for HW details see
-I<http://www.freescale.com/webapp/sps/site/prod_summary.jsp?code=MPL115A> or
-I<http://www.freescale.com/webapp/sps/site/prod_summary.jsp?code=MPL3115A2>).
-The sensor type - one fo these two - is detected automatically by the plugin
-and indicated in the plugin_instance (typically you will see subdirectory
-"barometer-mpl115" or "barometer-mpl3115").
+This plugin reads absolute air pressure using digital barometer sensor on a I2C
+bus. Supported sensors are:
+
+=over 5
+
+=item I<MPL115A2> from Freescale,
+see L<http://www.freescale.com/webapp/sps/site/prod_summary.jsp?code=MPL115A>.
+
+
+=item I<MPL3115> from Freescale
+see L<http://www.freescale.com/webapp/sps/site/prod_summary.jsp?code=MPL3115A2>.
+
+
+=item I<BMP085> from Bosch Sensortec
+
+=back
+
+The sensor type - one of the above - is detected automatically by the plugin
+and indicated in the plugin_instance (you will see subdirectory
+"barometer-mpl115" or "barometer-mpl3115", or "barometer-bmp085"). The order of
+detection is BMP085 -> MPL3115 -> MPL115A2, the first one found will be used
+(only one sensor can be used by the plugin).
 
 The plugin provides absolute barometric pressure, air pressure reduced to sea
 level (several possible approximations) and as an auxiliary value also internal
@@ -876,11 +937,11 @@ It was developed and tested under Linux only. The only platform dependency is
 the standard Linux i2c-dev interface (the particular bus driver has to
 support the SM Bus command subset).
 
-The reduction or normalization to mean sea level pressure requires (depedning on
-selected method/approximation) also altitude and reference to temperature sensor(s).
-When multiple temperature sensors are configured the minumum of their values is
-always used (expecting that the warmer ones are affected by e.g. direct sun light
-at that moment).
+The reduction or normalization to mean sea level pressure requires (depending
+on selected method/approximation) also altitude and reference to temperature
+sensor(s).  When multiple temperature sensors are configured the minumum of
+their values is always used (expecting that the warmer ones are affected by
+e.g. direct sun light at that moment).
 
 Synopsis:
 
@@ -898,8 +959,10 @@ Synopsis:
 
 =item B<Device> I<device>
 
-Device name of the I2C bus to which the sensor is connected. Note that typically
-you need to have loaded the i2c-dev module.
+The only mandatory configuration parameter.
+
+Device name of the I2C bus to which the sensor is connected. Note that
+typically you need to have loaded the i2c-dev module.
 Using i2c-tools you can check/list i2c buses available on your system by:
 
   i2cdetect -l
@@ -913,52 +976,69 @@ connected and detected on address 0x60.
 
 =item B<Oversampling> I<value>
 
-For MPL115 this is the size of the averaging window. To filter out sensor noise
-a simple averaging using floating window of configurable size is used. The plugin
-will use average of the last C<value> measurements (value of 1 means no averaging).
-Minimal size is 1, maximal 1024.
+Optional parameter controlling the oversampling/accuracy. Default value
+is 1 providing fastest and least accurate reading.
 
-For MPL3115 this is the oversampling value. The actual oversampling is performed
-by the sensor and the higher value the higher accuracy and longer conversion time
-(although nothing to worry about in the collectd context). Supported values are:
-1, 2, 4, 8, 16, 32, 64 and 128. Any other value is adjusted by the plugin to
-the closest supported one. Default is 128.
+For I<MPL115> this is the size of the averaging window. To filter out sensor
+noise a simple averaging using floating window of this configurable size is
+used. The plugin will use average of the last C<value> measurements (value of 1
+means no averaging).  Minimal size is 1, maximal 1024.
+
+For I<MPL3115> this is the oversampling value. The actual oversampling is
+performed by the sensor and the higher value the higher accuracy and longer
+conversion time (although nothing to worry about in the collectd context).
+Supported values are: 1, 2, 4, 8, 16, 32, 64 and 128. Any other value is
+adjusted by the plugin to the closest supported one.
+
+For I<BMP085> this is the oversampling value. The actual oversampling is
+performed by the sensor and the higher value the higher accuracy and longer
+conversion time (although nothing to worry about in the collectd context).
+Supported values are: 1, 2, 4, 8. Any other value is adjusted by the plugin to
+the closest supported one.
 
 =item B<PressureOffset> I<offset>
 
-You can further calibrate the sensor by supplying pressure and/or temperature offsets.
-This is added to the measured/caclulated value (i.e. if the measured value is too high
-then use negative offset).
+Optional parameter for MPL3115 only.
+
+You can further calibrate the sensor by supplying pressure and/or temperature
+offsets.  This is added to the measured/caclulated value (i.e. if the measured
+value is too high then use negative offset).
 In hPa, default is 0.0.
 
 =item B<TemperatureOffset> I<offset>
 
-You can further calibrate the sensor by supplying pressure and/or temperature offsets.
-This is added to the measured/caclulated value (i.e. if the measured value is too high
-then use negative offset).
+Optional parameter for MPL3115 only.
+
+You can further calibrate the sensor by supplying pressure and/or temperature
+offsets.  This is added to the measured/caclulated value (i.e. if the measured
+value is too high then use negative offset).
 In C, default is 0.0.
 
 =item B<Normalization> I<method>
 
-Normalization method - what approximation/model is used to compute mean sea
+Optional parameter, default value is 0.
+
+Normalization method - what approximation/model is used to compute the mean sea
 level pressure from the air absolute pressure.
 
 Supported values of the C<method> (integer between from 0 to 2) are:
 
 =over 5
 
-=item B<0> - no conversion, absolute pressrure is simply copied over. For this method you
+=item B<0> - no conversion, absolute pressure is simply copied over. For this method you
        do not need to configure C<Altitude> or C<TemperatureSensor>.
 
 =item B<1> - international formula for conversion ,
-See I<http://en.wikipedia.org/wiki/Atmospheric_pressure#Altitude_atmospheric_pressure_variation>.
-For this method you have to configure C<Altitude> but do not need C<TemperatureSensor>
-(uses fixed global temperature average instead).
+See
+L<http://en.wikipedia.org/wiki/Atmospheric_pressure#Altitude_atmospheric_pressure_variation>.
+For this method you have to configure C<Altitude> but do not need
+C<TemperatureSensor> (uses fixed global temperature average instead).
 
 =item B<2> - formula as recommended by the Deutsche Wetterdienst (German
 Meteorological Service).
-See I<http://de.wikipedia.org/wiki/Barometrische_H%C3%B6henformel#Theorie>
-For this method you have to configure both  C<Altitude> and C<TemperatureSensor>.
+See L<http://de.wikipedia.org/wiki/Barometrische_H%C3%B6henformel#Theorie>
+For this method you have to configure both  C<Altitude> and
+C<TemperatureSensor>.
 
 =back
 
@@ -969,15 +1049,15 @@ The altitude (in meters) of the location where you meassure the pressure.
 
 =item B<TemperatureSensor> I<reference>
 
-Temperature sensor which should be used as a reference when normalizing the pressure.
-When specified more sensors a minumum is found and uses each time.
-The temperature reading directly from this pressure sensor/plugin
-is typically not suitable as the pressure sensor
-will be probably inside while we want outside temperature.
-The collectd reference name is something like
+Temperature sensor(s) which should be used as a reference when normalizing the
+pressure using C<Normalization> method 2.
+When specified more sensors a minumum is found and used each time.  The
+temperature reading directly from this pressure sensor/plugin is typically not
+suitable as the pressure sensor will be probably inside while we want outside
+temperature.  The collectd reference name is something like
 <hostname>/<plugin_name>-<plugin_instance>/<type>-<type_instance>
-(<type_instance> is usually omitted when there is just single value type).
-Or you can figure it out from the path of the output data files.
+(<type_instance> is usually omitted when there is just single value type). Or
+you can figure it out from the path of the output data files.
 
 =back
 
@@ -1117,6 +1197,12 @@ Default: Disabled.
 Collect global memory statistics.
 
 Default: Enabled.
+
+=item B<Timeout> I<Milliseconds>
+
+The B<Timeout> option sets the overall timeout for HTTP requests to B<URL>, in
+milliseconds. By default, the configured B<Interval> is used to set the
+timeout.
 
 =item B<View> I<Name>
 
@@ -1446,6 +1532,10 @@ C<application/x-www-form-urlencoded>).
 Measure response time for the request. If this setting is enabled, B<Match>
 blocks (see below) are optional. Disabled by default.
 
+Beware that requests will get aborted if they take too long to complete. Adjust
+B<Timeout> accordingly if you expect B<MeasureResponseTime> to report such slow
+requests.
+
 =item B<MeasureResponseCode> B<true>|B<false>
 
 Measure response code for the request. If this setting is enabled, B<Match>
@@ -1460,12 +1550,24 @@ plugin below on how matches are defined. If the B<MeasureResponseTime> or
 B<MeasureResponseCode> options are set to B<true>, B<Match> blocks are
 optional.
 
+=item B<Timeout> I<Milliseconds>
+
+The B<Timeout> option sets the overall timeout for HTTP requests to B<URL>, in
+milliseconds. By default, the configured B<Interval> is used to set the
+timeout. Prior to version 5.5.0, there was no timeout and requests could hang
+indefinitely. This legacy behaviour can be achieved by setting the value of
+B<Timeout> to 0.
+
+If B<Timeout> is 0 or bigger than the B<Interval>, keep in mind that each slow
+network connection will stall one read thread. Adjust the B<ReadThreads> global
+setting accordingly to prevent this from blocking other plugins.
+
 =back
 
 =head2 Plugin C<curl_json>
 
 The B<curl_json plugin> collects values from JSON data to be parsed by
-B<libyajl> (L<http://www.lloydforge.org/projects/yajl/>) retrieved via
+B<libyajl> (L<https://lloyd.github.io/yajl/>) retrieved via
 either B<libcurl> (L<http://curl.haxx.se/>) or read directly from a
 unix socket. The former can be used, for example, to collect values
 from CouchDB documents (which are stored JSON notation), and the
@@ -1545,6 +1647,8 @@ URL. By default the global B<Interval> setting will be used.
 =item B<Header> I<Header>
 
 =item B<Post> I<Body>
+
+=item B<Timeout> I<Milliseconds>
 
 These options behave exactly equivalent to the appropriate options of the
 I<cURL> plugin. Please see there for a detailed description.
@@ -1646,6 +1750,8 @@ Examples:
 
 =item B<Post> I<Body>
 
+=item B<Timeout> I<Milliseconds>
+
 These options behave exactly equivalent to the appropriate options of the
 I<cURL plugin>. Please see there for a detailed description.
 
@@ -1721,6 +1827,7 @@ than those of other plugins. It usually looks something like this:
     </Query>
     <Database "product_information">
       Driver "mysql"
+      Interval 120
       DriverOption "host" "localhost"
       DriverOption "username" "collectd"
       DriverOption "password" "aZo6daiw"
@@ -1899,6 +2006,11 @@ block. This name will be used as "PluginInstance" in the values submitted to
 the daemon. Other than that, that name is not used.
 
 =over 4
+
+=item B<Interval> I<Interval>
+
+Sets the interval (in seconds) in which the values will be collected from this
+database. By default the global B<Interval> setting will be used.
 
 =item B<Driver> I<Driver>
 
@@ -2176,6 +2288,27 @@ passed as-is please enclose it in quotes.
 The B<Exec> and B<NotificationExec> statements change the semantics of the
 programs executed, i.E<nbsp>e. the data passed to them and the response
 expected from them. This is documented in great detail in L<collectd-exec(5)>.
+
+=back
+
+=head2 Plugin C<fhcount>
+
+The C<fhcount> plugin provides statistics about used, unused and total number of
+file handles on Linux.
+
+The I<fhcount plugin> provides the following configuration options:
+
+=over 4
+
+=item B<ValuesAbsolute> B<true>|B<false>
+
+Enables or disables reporting of file handles usage in absolute numbers,
+e.g. file handles used. Defaults to B<true>.
+
+=item B<ValuesPercentage> B<false>|B<true>
+
+Enables or disables reporting of file handles usage in percentages, e.g.
+percent of file handles used. Defaults to B<false>.
 
 =back
 
@@ -3202,6 +3335,114 @@ B<Collect> option is mandatory.
 
 =back
 
+=head2 Plugin C<mqtt>
+
+The I<MQTT plugin> can send metrics to MQTT (B<Publish> blocks) and receive
+values from MQTT (B<Subscribe> blocks).
+
+B<Synopsis:>
+
+ <Plugin mqtt>
+   <Publish "name">
+     Host "mqtt.example.com"
+     Prefix "collectd"
+   </Publish>
+   <Subscribe "name">
+     Host "mqtt.example.com"
+     Topic "collectd/#"
+   </Subscribe>
+ </Plugin>
+
+The plugin's configuration is in B<Publish> and/or B<Subscribe> blocks,
+configuring the sending and receiving direction respectively. The plugin will
+register a write callback named C<mqtt/I<name>> where I<name> is the string
+argument given to the B<Publish> block. Both types of blocks share many but not
+all of the following options. If an option is valid in only one of the blocks,
+it will be mentioned explicitly.
+
+B<Options:>
+
+=over 4
+
+=item B<Host> I<Hostname>
+
+Hostname of the MQTT broker to connect to.
+
+=item B<Port> I<Service>
+
+Port number or service name of the MQTT broker to connect to.
+
+=item B<User> I<UserName>
+
+Username used when authenticating to the MQTT broker.
+
+=item B<Password> I<Password>
+
+Password used when authenticating to the MQTT broker.
+
+=item B<ClientId> I<ClientId>
+
+MQTT client ID to use. Defaults to the hostname used by I<collectd>.
+
+=item B<QoS> [B<0>-B<2>]
+
+Sets the I<Quality of Service>, with the values C<0>, C<1> and C<2> meaning:
+
+=over 4
+
+=item B<0>
+
+At most once
+
+=item B<1>
+
+At least once
+
+=item B<2>
+
+Exactly once
+
+=back
+
+In B<Publish> blocks, this option determines the QoS flag set on outgoing
+messages and defaults to B<0>. In B<Subscribe> blocks, determines the maximum
+QoS setting the client is going to accept and defaults to B<2>. If the QoS flag
+on a message is larger than the maximum accepted QoS of a subscriber, the
+message's QoS will be downgraded.
+
+=item B<Prefix> I<Prefix> (Publish only)
+
+This plugin will use one topic per I<value list> which will looks like a path.
+I<Prefix> is used as the first path element and defaults to B<collectd>.
+
+An example topic name would be:
+
+ collectd/cpu-0/cpu-user
+
+=item B<Retain> B<false>|B<true> (Publish only)
+
+Controls whether the MQTT broker will retain (keep a copy of) the last message
+sent to each topic and deliver it to new subscribers. Defaults to B<false>.
+
+=item B<StoreRates> B<true>|B<false> (Publish only)
+
+Controls whether C<DERIVE> and C<COUNTER> metrics are converted to a I<rate>
+before sending. Defaults to B<true>.
+
+=item B<CleanSession> B<true>|B<false> (Subscribe only)
+
+Controls whether the MQTT "cleans" the session up after the subscriber
+disconnects or if it maintains the subscriber's subscriptions and all messages
+that arrive while the subscriber is disconnected. Defaults to B<true>.
+
+=item B<Topic> I<TopicName> (Subscribe only)
+
+Configures the topic(s) to subscribe to. You can use the single level C<+> and
+multi level C<#> wildcards. Defaults to B<collectd/#>, i.e. all topics beneath
+the B<collectd> branch.
+
+=back
+
 =head2 Plugin C<mysql>
 
 The C<mysql plugin> requires B<mysqlclient> to be installed. It connects to
@@ -4167,6 +4408,12 @@ File that holds one or more SSL certificates. If you want to use HTTPS you will
 possibly need this option. What CA certificates come bundled with C<libcurl>
 and are checked by default depends on the distribution you use.
 
+=item B<Timeout> I<Milliseconds>
+
+The B<Timeout> option sets the overall timeout for HTTP requests to B<URL>, in
+milliseconds. By default, the configured B<Interval> is used to set the
+timeout.
+
 =back
 
 =head2 Plugin C<notify_desktop>
@@ -4475,6 +4722,16 @@ The following options are accepted within each B<Instance> block:
 
 Sets the URL to use to connect to the I<OpenLDAP> server. This option is
 I<mandatory>.
+
+=item B<BindDN> I<BindDN>
+
+Name in the form of an LDAP distinguished name intended to be used for 
+authentication. Defaults to empty string to establish an anonymous authorization.
+
+=item B<Password> I<Password>
+
+Password for simple bind authentication. If this option is not set, 
+unauthenticated bind operation is used.
 
 =item B<StartTLS> B<true|false>
 
@@ -5135,6 +5392,13 @@ activating this option. The draw-back is, that data covering the specified
 amount of time will be lost, for example, if a single statement within the
 transaction fails or if the database server crashes.
 
+=item B<Instance> I<name>
+
+Specify the plugin instance name that should be used instead of the database
+name (which is the default, if this option has not been specified). This
+allows to query multiple databases of the same name on the same host (e.g.
+when running multiple database server versions in parallel).
+
 =item B<Host> I<hostname>
 
 Specify the hostname or IP of the PostgreSQL server to connect to. If the
@@ -5397,6 +5661,10 @@ dispatched to the daemon using the specified I<name> as an identifier. This
 allows to "group" several processes together. I<name> must not contain
 slashes.
 
+=item B<CollectContextSwitch> I<Boolean>
+
+Collect context switch of the process.
+
 =back
 
 =head2 Plugin C<protocols>
@@ -5569,7 +5837,7 @@ that numerical port numbers must be given as a string, too.
 
 Use I<Password> to authenticate when connecting to I<Redis>.
 
-=item B<Timeout> I<Timeout in miliseconds>
+=item B<Timeout> I<Milliseconds>
 
 The B<Timeout> option set the socket timeout for node response. Since the Redis
 read function is blocking, you should keep this value as low as possible. Keep
@@ -6583,6 +6851,79 @@ Default: B<1978>
 
 =back
 
+=head2 Plugin C<turbostat>
+
+The I<Turbostat plugin> reads CPU frequency and C-state residency on modern
+Intel processors by using the new Model Specific Registers.
+
+=over 4
+
+=item B<CoreCstates> I<Bitmask(Integer)>
+
+Bitmask of the list of core C states supported by the processor.
+This option should only be used if the automated detection fails.
+Default value extracted from the cpu model and family.
+
+Currently supported C-states (by this plugin): 3, 6, 7
+
+Example: (1<<3)+(1<<6)+(1<<7) = 392 for all states
+
+=item B<PackageCstates> I<Bitmask(Integer)>
+
+Bitmask of the list of pacages C states supported by the processor.
+This option should only be used if the automated detection fails.
+Default value extracted from the cpu model and family.
+
+Currently supported C-states (by this plugin): 2, 3, 6, 7, 8, 9, 10
+
+Example: (1<<2)+(1<<3)+(1<<6)+(1<<7) = 396 for states 2, 3, 6 and 7
+
+=item B<SystemManagementInterrupt> I<true>|I<false>
+
+Boolean enabling the collection of the I/O System-Management Interrupt
+counter'. This option should only be used if the automated detection
+fails or if you want to disable this feature.
+
+=item B<DigitalTemperatureSensor> I<true>|I<false>
+
+Boolean enabling the collection of the temperature of each core.
+This option should only be used if the automated detectionfails or 
+if you want to disable this feature.
+
+=item B<DigitalTemperatureSensor> I<true>|I<false>
+
+Boolean enabling the collection of the temperature of each package.
+This option should only be used if the automated detectionfails or 
+if you want to disable this feature.
+
+=item B<TCCActivationTemp> I<Temperature>
+
+Thermal Control Circuit Activation Temperature of the installed
+CPU. This temperature is used when collecting the temperature of
+cores or packages. This option should only be used if the automated
+detection fails. Default value extracted from B<MSR_IA32_TEMPERATURE_TARGET>
+
+=item B<RunningAveragePowerLimit> I<Bitmask(Integer)>
+
+Bitmask of the list of elements to be thermally monitored. This option
+should only be used if the automated detection fails or if you want to
+disable some collections. The different bits of this bitmask accepted
+by this plugin are:
+
+=over 4
+
+=item 0 ('1'): Package
+
+=item 1 ('2'): DRAM
+
+=item 2 ('4'): Cores
+
+=item 3 ('8'): Embedded graphic device
+
+=back
+
+=back
+
 =head2 Plugin C<unixsock>
 
 =over 4
@@ -6878,6 +7219,10 @@ You can also specify combinations of these fields. For example B<name uuid>
 means to concatenate the guest name and UUID (with a literal colon character
 between, thus I<"foo:1234-1234-1234-1234">).
 
+At the moment of writing (collectd-5.5), hostname string is limited to 62
+characters. In case when combination of fields exceeds 62 characters,
+hostname will be truncated without a warning.
+
 =item B<InterfaceFormat> B<name>|B<address>
 
 When the virt plugin logs interface data, it sets the name of the collected
@@ -6888,13 +7233,17 @@ setting B<name>.
 B<address> means use the interface's mac address. This is useful since the
 interface path might change between reboots of a guest or across migrations.
 
-=item B<PluginInstanceFormat> B<name|uuid>
+=item B<PluginInstanceFormat> B<name|uuid|none>
 
 When the virt plugin logs data, it sets the plugin_instance of the collected
-data according to this setting. The default is to use the guest name as provided
-by the hypervisor, which is equal to setting B<name>.
+data according to this setting. The default is to not set the plugin_instance.
 
+B<name> means use the guest's name as provided by the hypervisor.
 B<uuid> means use the guest's UUID.
+
+You can also specify combinations of the B<name> and B<uuid> fields.
+For example B<name uuid> means to concatenate the guest name and UUID
+(with a literal colon character between, thus I<"foo:1234-1234-1234-1234">).
 
 =back
 
@@ -7097,7 +7446,7 @@ Hostname or address to connect to. Defaults to C<localhost>.
 
 Service name or port number to connect to. Defaults to C<27017>.
 
-=item B<Timeout> I<Timeout>
+=item B<Timeout> I<Milliseconds>
 
 Set the timeout for each operation on I<MongoDB> to I<Timeout> milliseconds.
 Setting this option to zero means no timeout, which is the default.
@@ -7223,6 +7572,30 @@ are available on the server side. I<Bytes> must be at least 1024 and cannot
 exceed the size of an C<int>, i.e. 2E<nbsp>GByte.
 Defaults to C<4096>.
 
+=item B<LowSpeedLimit> I<Bytes per Second>
+
+Sets the minimal transfer rate in I<Bytes per Second> below which the
+connection with the HTTP server will be considered too slow and aborted. All
+the data submitted over this connection will probably be lost. Defaults to 0,
+which means no minimum transfer rate is enforced.
+
+=item B<Timeout> I<Timeout>
+
+Sets the maximum time in milliseconds given for HTTP POST operations to
+complete. When this limit is reached, the POST operation will be aborted, and
+all the data in the current send buffer will probably be lost. Defaults to 0,
+which means the connection never times out.
+
+=item B<LogHttpError> B<false>|B<true>
+
+Enables printing of HTTP error code to log. Turned off by default.
+
+The C<write_http> plugin regularly submits the collected values to the HTTP
+server. How frequently this happens depends on how much data you are collecting
+and the size of B<BufferSize>. The optimal value to set B<Timeout> to is
+slightly below this interval, which you can estimate by monitoring the network
+traffic between collectd and the HTTP server.
+
 =back
 
 =head2 Plugin C<write_kafka>
@@ -7343,14 +7716,18 @@ Synopsis:
         Host "localhost"
         Port "6379"
         Timeout 1000
+        Prefix "collectd/"
+        Database 1
     </Node>
   </Plugin>
 
 Values are submitted to I<Sorted Sets>, using the metric name as the key, and
 the timestamp as the score. Retrieving a date range can then be done using the
-C<ZRANGEBYSCORE> I<Redis> command. Additionnally, all the identifiers of these
-I<Sorted Sets> are kept in a I<Set> called C<collectd/values> and can be
-retrieved using the C<SMEMBERS> I<Redis> command. See
+C<ZRANGEBYSCORE> I<Redis> command. Additionally, all the identifiers of these
+I<Sorted Sets> are kept in a I<Set> called C<collectd/values> (or
+C<${prefix}/values> if the B<Prefix> option was specified) and can be retrieved
+using the C<SMEMBERS> I<Redis> command. You can specify the database to use 
+with the B<Database> parameter (default is C<0>). See
 L<http://redis.io/commands#sorted_set> and L<http://redis.io/commands#set> for
 details.
 
@@ -7366,9 +7743,9 @@ options are available:
 =item B<Node> I<Nodename>
 
 The B<Node> block identifies a new I<Redis> node, that is a new I<Redis>
-instance running in an specified host and port. The name for node is a
+instance running on a specified host and port. The node name is a
 canonical identifier which is used as I<plugin instance>. It is limited to
-64E<nbsp>characters in length.
+51E<nbsp>characters in length.
 
 =item B<Host> I<Hostname>
 
@@ -7381,9 +7758,20 @@ The B<Port> option is the TCP port on which the Redis instance accepts
 connections. Either a service name of a port number may be given. Please note
 that numerical port numbers must be given as a string, too.
 
-=item B<Timeout> I<Timeout in miliseconds>
+=item B<Timeout> I<Milliseconds>
 
 The B<Timeout> option sets the socket connection timeout, in milliseconds.
+
+=item B<Prefix> I<Prefix>
+
+Prefix used when constructing the name of the I<Sorted Sets> and the I<Set>
+containing all metrics. Defaults to C<collectd/>, so metrics will have names
+like C<collectd/cpu-0/cpu-user>. When setting this to something different, it
+is recommended but not required to include a trailing slash in I<Prefix>.
+
+=item B<Database> I<Index>
+
+This index selects the redis database to use for writing operations. Defaults to C<0>.
 
 =back
 
@@ -7506,6 +7894,116 @@ I<Riemann>.
 
 Consider the two given strings to be the key and value of an additional
 attribute for each metric being sent out to I<Riemann>.
+
+=back
+
+=head2 Plugin C<write_sensu>
+
+The I<write_sensu plugin> will send values to I<Sensu>, a powerful stream
+aggregation and monitoring system. The plugin sends I<JSON> encoded data to
+a local I<Sensu> client using a TCP socket.
+
+At the moment, the I<write_sensu plugin> does not send over a collectd_host
+parameter so it is not possible to use one collectd instance as a gateway for
+others. Each collectd host must pair with one I<Sensu> client.
+
+Synopsis:
+
+ <Plugin "write_sensu">
+   <Node "example">
+     Host "localhost"
+     Port "3030"
+     StoreRates true
+     AlwaysAppendDS false
+     MetricHandler "influx"
+     MetricHandler "default"
+     NotificationHandler "flapjack"
+     NotificationHandler "howling_monkey"
+     Notifications true
+   </Node>
+   Tag "foobar"
+   Attribute "foo" "bar"
+ </Plugin>
+
+The following options are understood by the I<write_sensu plugin>:
+
+=over 4
+
+=item E<lt>B<Node> I<Name>E<gt>
+
+The plugin's configuration consists of one or more B<Node> blocks. Each block
+is given a unique I<Name> and specifies one connection to an instance of
+I<Sensu>. Inside the B<Node> block, the following per-connection options are
+understood:
+
+=over 4
+
+=item B<Host> I<Address>
+
+Hostname or address to connect to. Defaults to C<localhost>.
+
+=item B<Port> I<Service>
+
+Service name or port number to connect to. Defaults to C<3030>.
+
+=item B<StoreRates> B<true>|B<false>
+
+If set to B<true> (the default), convert counter values to rates. If set to
+B<false> counter values are stored as is, i.e. as an increasing integer number.
+
+This will be reflected in the C<collectd_data_source_type> tag: If
+B<StoreRates> is enabled, converted values will have "rate" appended to the
+data source type, e.g.  C<collectd_data_source_type:derive:rate>.
+
+=item B<AlwaysAppendDS> B<false>|B<true>
+
+If set the B<true>, append the name of the I<Data Source> (DS) to the
+"service", i.e. the field that, together with the "host" field, uniquely
+identifies a metric in I<Sensu>. If set to B<false> (the default), this is
+only done when there is more than one DS.
+
+=item B<Notifications> B<false>|B<true>
+
+If set to B<true>, create I<Sensu> events for notifications. This is B<false>
+by default. At least one of B<Notifications> or B<Metrics> should be enabled.
+
+=item B<Metrics> B<false>|B<true>
+
+If set to B<true>, create I<Sensu> events for metrics. This is B<false>
+by default. At least one of B<Notifications> or B<Metrics> should be enabled.
+
+
+=item B<Separator> I<String>
+
+Sets the separator for I<Sensu> metrics name or checks. Defaults to "/".
+
+=item B<MetricHandler> I<String>
+
+Add a handler that will be set when metrics are sent to I<Sensu>. You can add
+several of them, one per line. Defaults to no handler.
+
+=item B<NotificationHandler> I<String>
+
+Add a handler that will be set when notifications are sent to I<Sensu>. You can
+add several of them, one per line. Defaults to no handler.
+
+=item B<EventServicePrefix> I<String>
+
+Add the given string as a prefix to the event service name.
+If B<EventServicePrefix> not set or set to an empty string (""),
+no prefix will be used.
+
+=back
+
+=item B<Tag> I<String>
+
+Add the given string as an additional tag to the metric being sent to
+I<Sensu>.
+
+=item B<Attribute> I<String> I<String>
+
+Consider the two given strings to be the key and value of an additional
+attribute for each metric being sent out to I<Sensu>.
 
 =back
 

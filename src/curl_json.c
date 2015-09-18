@@ -28,7 +28,6 @@
 #include "utils_avltree.h"
 #include "utils_complain.h"
 
-#include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/un.h>
 
@@ -78,6 +77,7 @@ struct cj_s /* {{{ */
   struct curl_slist *headers;
   char *post_body;
   cdtime_t interval;
+  int timeout;
 
   CURL *curl;
   char curl_errbuf[CURL_ERROR_SIZE];
@@ -502,6 +502,7 @@ static int cj_config_add_key (cj_t *db, /* {{{ */
   {
     ERROR ("curl_json plugin: cj_config: "
            "Invalid key: %s", ci->key);
+    cj_key_free (key);
     return (-1);
   }
 
@@ -551,7 +552,6 @@ static int cj_config_add_key (cj_t *db, /* {{{ */
       db->tree = cj_avl_create();
 
     tree = db->tree;
-    name = key->path;
     ptr = key->path;
     if (*ptr == '/')
       ++ptr;
@@ -562,7 +562,7 @@ static int cj_config_add_key (cj_t *db, /* {{{ */
       if (*ptr == '/')
       {
         c_avl_tree_t *value;
-        int len;
+        size_t len;
 
         len = ptr-name;
         if (len == 0)
@@ -650,6 +650,15 @@ static int cj_init_curl (cj_t *db) /* {{{ */
   if (db->post_body != NULL)
     curl_easy_setopt (db->curl, CURLOPT_POSTFIELDS, db->post_body);
 
+#ifdef HAVE_CURLOPT_TIMEOUT_MS
+  if (db->timeout >= 0)
+    curl_easy_setopt (db->curl, CURLOPT_TIMEOUT_MS, (long) db->timeout);
+  else if (db->interval > 0)
+    curl_easy_setopt (db->curl, CURLOPT_TIMEOUT_MS, (long) CDTIME_T_TO_MS(db->timeout));
+  else
+    curl_easy_setopt (db->curl, CURLOPT_TIMEOUT_MS, (long) CDTIME_T_TO_MS(plugin_get_interval()));
+#endif
+
   return (0);
 } /* }}} int cj_init_curl */
 
@@ -675,6 +684,8 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
   }
   memset (db, 0, sizeof (*db));
 
+  db->timeout = -1;
+
   if (strcasecmp ("URL", ci->key) == 0)
     status = cf_util_get_string (ci, &db->url);
   else if (strcasecmp ("Sock", ci->key) == 0)
@@ -683,6 +694,7 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
   {
     ERROR ("curl_json plugin: cj_config: "
            "Invalid key: %s", ci->key);
+    cj_free (db);
     return (-1);
   }
   if (status != 0)
@@ -720,6 +732,8 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
       status = cj_config_add_key (db, child);
     else if (strcasecmp ("Interval", child->key) == 0)
       status = cf_util_get_cdtime(child, &db->interval);
+    else if (strcasecmp ("Timeout", child->key) == 0)
+      status = cf_util_get_int (child, &db->timeout);
     else
     {
       WARNING ("curl_json plugin: Option `%s' not allowed here.", child->key);
@@ -747,9 +761,6 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
   {
     user_data_t ud;
     char *cb_name;
-    struct timespec interval = { 0, 0 };
-
-    CDTIME_T_TO_TIMESPEC (db->interval, &interval);
 
     if (db->instance == NULL)
       db->instance = strdup("default");
@@ -765,7 +776,7 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
                db->instance, db->url ? db->url : db->sock);
 
     plugin_register_complex_read (/* group = */ NULL, cb_name, cj_read,
-                                  /* interval = */ (db->interval > 0) ? &interval : NULL,
+                                  /* interval = */ db->interval,
                                   &ud);
     sfree (cb_name);
   }

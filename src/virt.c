@@ -128,7 +128,7 @@ enum plginst_field {
 };
 
 static enum plginst_field plugin_instance_format[PLGINST_MAX_FIELDS] =
-    { plginst_name };
+    { plginst_none };
 
 /* InterfaceFormat. */
 enum if_field {
@@ -417,8 +417,8 @@ lv_config (const char *key, const char *value)
             else if (strcasecmp (fields[i], "uuid") == 0)
                 hostname_format[i] = hf_uuid;
             else {
-                sfree (value_copy);
                 ERROR (PLUGIN_NAME " plugin: unknown HostnameFormat field: %s", fields[i]);
+                sfree (value_copy);
                 return -1;
             }
         }
@@ -449,13 +449,16 @@ lv_config (const char *key, const char *value)
         }
 
         for (i = 0; i < n; ++i) {
-            if (strcasecmp (fields[i], "name") == 0)
+            if (strcasecmp (fields[i], "none") == 0) {
+                plugin_instance_format[i] = plginst_none;
+                break;
+            } else if (strcasecmp (fields[i], "name") == 0)
                 plugin_instance_format[i] = plginst_name;
             else if (strcasecmp (fields[i], "uuid") == 0)
                 plugin_instance_format[i] = plginst_uuid;
             else {
+                ERROR (PLUGIN_NAME " plugin: unknown PluginInstanceFormat field: %s", fields[i]);
                 sfree (value_copy);
-                ERROR (PLUGIN_NAME " plugin: unknown HostnameFormat field: %s", fields[i]);
                 return -1;
             }
         }
@@ -926,6 +929,9 @@ add_interface_device (virDomainPtr dom, const char *path, const char *address, u
     int new_size = sizeof (interface_devices[0]) * (nr_interface_devices+1);
     char *path_copy, *address_copy, number_string[15];
 
+    if ((path == NULL) || (address == NULL))
+        return EINVAL;
+
     path_copy = strdup (path);
     if (!path_copy) return -1;
 
@@ -960,6 +966,9 @@ ignore_device_match (ignorelist_t *il, const char *domname, const char *devpath)
 {
     char *name;
     int n, r;
+
+    if ((domname == NULL) || (devpath == NULL))
+        return 0;
 
     n = sizeof (char) * (strlen (domname) + strlen (devpath) + 2);
     name = malloc (n);

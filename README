@@ -33,9 +33,9 @@ Features
       Statistics about Ascent, a free server for the game `World of Warcraft'.
 
     - barometer
-      Using digital barometer sensor MPL115A2 or MPL3115 from Freescale
-      provides absolute barometric pressure, air pressure reduced to sea level
-      and temperature.
+      Reads absolute barometric pressure, air pressure reduced to sea level and
+      temperature.  Supported sensors are MPL115A2 and MPL3115 from Freescale
+      and BMP085 from Bosch.
 
     - battery
       Batterycharge, -current and voltage of ACPI and PMU based laptop
@@ -107,6 +107,9 @@ Features
       Values gathered by a custom program or script.
       See collectd-exec(5).
 
+    - fhcount
+      File handles statistics.
+
     - filecount
       Count the number of files in directories.
 
@@ -123,12 +126,16 @@ Features
       Interface traffic: Number of octets, packets and errors for each
       interface.
 
-    - iptables
-      Iptables' counters: Number of bytes that were matched by a certain
-      iptables rule.
+    - ipc
+      IPC counters: semaphores used, number of allocated segments in shared
+      memory and more.
 
     - ipmi
       IPMI (Intelligent Platform Management Interface) sensors information.
+
+    - iptables
+      Iptables' counters: Number of bytes that were matched by a certain
+      iptables rule.
 
     - ipvs
       IPVS connection statistics (number of connections, octets and packets
@@ -184,6 +191,9 @@ Features
       Reads values from Modbus/TCP enabled devices. Supports reading values
       from multiple "slaves" so gateway devices can be used.
 
+    - mqtt
+      Publishes and subscribes to MQTT topics.
+
     - multimeter
       Information provided by serial multimeters, such as the `Metex
       M-4650CR'.
@@ -217,12 +227,12 @@ Features
     - ntpd
       NTP daemon statistics: Local clock drift, offset to peers, etc.
 
+    - numa
+      Information about Non-Uniform Memory Access (NUMA).
+
     - nut
       Network UPS tools: UPS current, voltage, power, charge, utilisation,
       temperature, etc. See upsd(8).
-
-    - numa
-      Information about Non-Uniform Memory Access (NUMA).
 
     - olsrd
       Queries routing information from the “Optimized Link State Routing”
@@ -345,6 +355,10 @@ Features
       Reads the number of records and file size from a running Tokyo Tyrant
       server.
 
+    - turbostat
+      Reads CPU frequency and C-state residency on modern Intel
+      turbo-capable processors.
+
     - uptime
       System uptime statistics.
 
@@ -373,6 +387,10 @@ Features
 
     - zfs_arc
       Statistics for ZFS' “Adaptive Replacement Cache” (ARC).
+
+    - zone
+      Measures the percentage of cpu load per container (zone) under Solaris 10
+      and higher
 
     - zookeeper
       Read data from Zookeeper's MNTR command.
@@ -424,10 +442,6 @@ Features
       can be configured to avoid logging send errors (especially useful when
       using UDP).
 
-    - write_tsdb
-      Sends data OpenTSDB, a scalable no master, no shared state time series
-      database.
-
     - write_http
       Sends the values collected by collectd to a web-server using HTTP POST
       requests. The transmitted data is either in a form understood by the
@@ -448,8 +462,16 @@ Features
     - write_riemann
       Sends data to Riemann, a stream processing and monitoring system.
 
+    - write_sensu
+      Sends data to Sensu, a stream processing and monitoring system, via the
+      Sensu client local TCP socket.
+
+    - write_tsdb
+      Sends data OpenTSDB, a scalable no master, no shared state time series
+      database.
+
   * Logging is, as everything in collectd, provided by plugins. The following
-    plugins keep up informed about what's going on:
+    plugins keep us informed about what's going on:
 
     - logfile
       Writes log messages to a file or STDOUT/STDERR.
@@ -623,6 +645,12 @@ Prerequisites
   * libatasmart (optional)
     Used by the `smart' plugin.
     <http://git.0pointer.de/?p=libatasmart.git>
+
+  * libcap (optional)
+    The `turbostat' plugin can optionally build Linux Capabilities support,
+    which avoids full privileges requirement (aka. running as root) to read
+    values.
+    <http://sites.google.com/site/fullycapable/>
 
   * libclntsh (optional)
     Used by the `oracle' plugin.

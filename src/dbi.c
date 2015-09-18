@@ -1,6 +1,6 @@
 /**
  * collectd - src/dbi.c
- * Copyright (C) 2008-2013  Florian octo Forster
+ * Copyright (C) 2008-2015  Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,9 +32,18 @@
 
 #include <dbi/dbi.h>
 
-#ifdef HAVE_LIBDBI_R
-  dbi_inst inst = NULL;
+/* libdbi 0.9.0 introduced a new thread-safe interface and marked the old
+ * functions "deprecated". These macros convert the new functions to their old
+ * counterparts for backwards compatibility. */
+#if !defined(LIBDBI_VERSION) || (LIBDBI_VERSION < 900)
+# define HAVE_LEGACY_LIBDBI 1
+# define dbi_initialize_r(a,inst) dbi_initialize(a)
+# define dbi_shutdown_r(inst) dbi_shutdown()
+# define dbi_set_verbosity_r(a,inst) dbi_set_verbosity(a)
+# define dbi_driver_list_r(a,inst) dbi_driver_list(a)
+# define dbi_driver_open_r(a,inst) dbi_driver_open(a)
 #endif
+
 /*
  * Data types
  */
@@ -55,6 +64,8 @@ struct cdbi_database_s /* {{{ */
   char *name;
   char *select_db;
 
+  cdtime_t interval;
+
   char *driver;
   char *host;
   cdbi_driver_option_t *driver_options;
@@ -71,6 +82,9 @@ typedef struct cdbi_database_s cdbi_database_t; /* }}} */
 /*
  * Global variables
  */
+#if !defined(HAVE_LEGACY_LIBDBI) || !HAVE_LEGACY_LIBDBI
+static dbi_inst          dbi_instance  = 0;
+#endif
 static udb_query_t     **queries       = NULL;
 static size_t            queries_num   = 0;
 static cdbi_database_t **databases     = NULL;
@@ -134,7 +148,7 @@ static int cdbi_result_get_field (dbi_result res, /* {{{ */
   else if (src_type == DBI_TYPE_STRING)
   {
     const char *value;
-
+    
     value = dbi_result_get_string_idx (res, index);
     if (value == NULL)
       sstrncpy (buffer, "", buffer_size);
@@ -200,9 +214,10 @@ static void cdbi_database_free (cdbi_database_t *db) /* {{{ */
  *     </Result>
  *     ...
  *   </Query>
- *
+ *     
  *   <Database "plugin_instance1">
  *     Driver "mysql"
+ *     Interval 120
  *     DriverOption "hostname" "localhost"
  *     ...
  *     Query "plugin_instance0"
@@ -310,6 +325,8 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
           &db->queries, &db->queries_num);
     else if (strcasecmp ("Host", child->key) == 0)
       status = cf_util_get_string (child, &db->host);
+    else if (strcasecmp ("Interval", child->key) == 0)
+      status = cf_util_get_cdtime(child, &db->interval);
     else
     {
       WARNING ("dbi plugin: Option `%s' not allowed here.", child->key);
@@ -339,6 +356,7 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
 
   while ((status == 0) && (db->queries_num > 0))
   {
+    size_t j;
     db->q_prep_areas = (udb_query_preparation_area_t **) calloc (
         db->queries_num, sizeof (*db->q_prep_areas));
 
@@ -349,12 +367,12 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
       break;
     }
 
-    for (i = 0; i < db->queries_num; ++i)
+    for (j = 0; j < db->queries_num; ++j)
     {
-      db->q_prep_areas[i]
-        = udb_query_allocate_preparation_area (db->queries[i]);
+      db->q_prep_areas[j]
+        = udb_query_allocate_preparation_area (db->queries[j]);
 
-      if (db->q_prep_areas[i] == NULL)
+      if (db->q_prep_areas[j] == NULL)
       {
         WARNING ("dbi plugin: udb_query_allocate_preparation_area failed");
         status = -1;
@@ -394,7 +412,7 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
       plugin_register_complex_read (/* group = */ NULL,
           /* name = */ name ? name : db->name,
           /* callback = */ cdbi_read_database,
-          /* interval = */ NULL,
+          /* interval = */ (db->interval > 0) ? db->interval : 0,
           /* user_data = */ &ud);
       free (name);
     }
@@ -454,24 +472,20 @@ static int cdbi_init (void) /* {{{ */
     return (-1);
   }
 
-#ifdef HAVE_LIBDBI_R
-  status = dbi_initialize_r (NULL, &inst);
-#else
-  status = dbi_initialize (NULL);
-#endif
+  status = dbi_initialize_r (/* driverdir = */ NULL, &dbi_instance);
   if (status < 0)
   {
-    ERROR ("dbi plugin: cdbi_init: dbi_initialize failed with status %i.",
+    ERROR ("dbi plugin: cdbi_init: dbi_initialize_r failed with status %i.",
         status);
     return (-1);
   }
   else if (status == 0)
   {
-    ERROR ("dbi plugin: `dbi_initialize' could not load any drivers. Please "
+    ERROR ("dbi plugin: `dbi_initialize_r' could not load any drivers. Please "
         "install at least one `DBD' or check your installation.");
     return (-1);
   }
-  DEBUG ("dbi plugin: cdbi_init: dbi_initialize reports %i driver%s.",
+  DEBUG ("dbi plugin: cdbi_init: dbi_initialize_r reports %i driver%s.",
       status, (status == 1) ? "" : "s");
 
   return (0);
@@ -588,7 +602,7 @@ static int cdbi_read_database_query (cdbi_database_t *db, /* {{{ */
 
   udb_query_prepare_result (q, prep_area, (db->host ? db->host : hostname_g),
       /* plugin = */ "dbi", db->name,
-      column_names, column_num, /* interval = */ 0);
+      column_names, column_num, /* interval = */ (db->interval > 0) ? db->interval : 0);
 
   /* 0 = error; 1 = success; */
   status = dbi_result_first_row (res); /* {{{ */
@@ -679,26 +693,16 @@ static int cdbi_connect_database (cdbi_database_t *db) /* {{{ */
     db->connection = NULL;
   }
 
-#ifdef HAVE_LIBDBI_R
-  driver = dbi_driver_open_r (db->driver, inst);
-#else
-  driver = dbi_driver_open (db->driver);
-#endif
+  driver = dbi_driver_open_r (db->driver, dbi_instance);
   if (driver == NULL)
   {
-    ERROR ("dbi plugin: cdbi_connect_database: dbi_driver_open (%s) failed.",
+    ERROR ("dbi plugin: cdbi_connect_database: dbi_driver_open_r (%s) failed.",
         db->driver);
     INFO ("dbi plugin: Maybe the driver isn't installed? "
         "Known drivers are:");
-#ifdef HAVE_LIBDBI_R
-    for (driver = dbi_driver_list_r (NULL, inst);
+    for (driver = dbi_driver_list_r (NULL, dbi_instance);
         driver != NULL;
-        driver = dbi_driver_list_r (driver, inst))
-#else
-    for (driver = dbi_driver_list (NULL);
-        driver != NULL;
-        driver = dbi_driver_list (driver))
-#endif
+        driver = dbi_driver_list_r (driver, dbi_instance))
     {
       INFO ("dbi plugin: * %s", dbi_driver_get_name (driver));
     }

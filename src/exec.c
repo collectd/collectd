@@ -339,7 +339,7 @@ static void exec_child (program_list_t *pl, int uid, int gid, int egid) /* {{{ *
     exit (-1);
   }
 
-  status = execvp (pl->exec, pl->argv);
+  execvp (pl->exec, pl->argv);
 
   ERROR ("exec plugin: Failed to execute ``%s'': %s",
       pl->exec, sstrerror (errno, errbuf, sizeof (errbuf)));
@@ -355,6 +355,31 @@ static void reset_signal_mask (void) /* {{{ */
   sigprocmask (SIG_SETMASK, &ss, /* old mask = */ NULL);
 } /* }}} void reset_signal_mask */
 
+static int create_pipe (int fd_pipe[2]) /* {{{ */
+{
+  char errbuf[1024];
+  int status;
+
+  status = pipe (fd_pipe);
+  if (status != 0)
+  {
+    ERROR ("exec plugin: pipe failed: %s",
+        sstrerror (errno, errbuf, sizeof (errbuf)));
+    return (-1);
+  }
+
+  return 0;
+} /* }}} int create_pipe */
+
+static void close_pipe (int fd_pipe[2]) /* {{{ */
+{
+  if (fd_pipe[0] != -1)
+    close (fd_pipe[0]);
+
+  if (fd_pipe[1] != -1)
+    close (fd_pipe[1]);
+} /* }}} void close_pipe */
+
 /*
  * Creates three pipes (one for reading, one for writing and one for errors),
  * forks a child, sets up the pipes so that fd_in is connected to STDIN of
@@ -363,9 +388,9 @@ static void reset_signal_mask (void) /* {{{ */
  */
 static int fork_child (program_list_t *pl, int *fd_in, int *fd_out, int *fd_err) /* {{{ */
 {
-  int fd_pipe_in[2];
-  int fd_pipe_out[2];
-  int fd_pipe_err[2];
+  int fd_pipe_in[2] = {-1, -1};
+  int fd_pipe_out[2] = {-1, -1};
+  int fd_pipe_err[2] = {-1, -1};
   char errbuf[1024];
   int status;
   int pid;
@@ -381,29 +406,10 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out, int *fd_err)
   if (pl->pid != 0)
     return (-1);
 
-  status = pipe (fd_pipe_in);
-  if (status != 0)
-  {
-    ERROR ("exec plugin: pipe failed: %s",
-        sstrerror (errno, errbuf, sizeof (errbuf)));
-    return (-1);
-  }
-
-  status = pipe (fd_pipe_out);
-  if (status != 0)
-  {
-    ERROR ("exec plugin: pipe failed: %s",
-        sstrerror (errno, errbuf, sizeof (errbuf)));
-    return (-1);
-  }
-
-  status = pipe (fd_pipe_err);
-  if (status != 0)
-  {
-    ERROR ("exec plugin: pipe failed: %s",
-        sstrerror (errno, errbuf, sizeof (errbuf)));
-    return (-1);
-  }
+  if ((create_pipe(fd_pipe_in) == -1)
+      || (create_pipe(fd_pipe_out) == -1)
+      || (create_pipe(fd_pipe_err) == -1))
+    goto failed;
 
   sp_ptr = NULL;
   status = getpwnam_r (pl->user, &sp, nambuf, sizeof (nambuf), &sp_ptr);
@@ -411,12 +417,13 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out, int *fd_err)
   {
     ERROR ("exec plugin: Failed to get user information for user ``%s'': %s",
         pl->user, sstrerror (errno, errbuf, sizeof (errbuf)));
-    return (-1);
+    goto failed;
   }
+
   if (sp_ptr == NULL)
   {
     ERROR ("exec plugin: No such user: `%s'", pl->user);
-    return (-1);
+    goto failed;
   }
 
   uid = sp.pw_uid;
@@ -424,7 +431,7 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out, int *fd_err)
   if (uid == 0)
   {
     ERROR ("exec plugin: Cowardly refusing to exec program as root.");
-    return (-1);
+    goto failed;
   }
 
   /* The group configured in the configfile is set as effective group, because
@@ -442,12 +449,12 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out, int *fd_err)
         ERROR ("exec plugin: Failed to get group information "
             "for group ``%s'': %s", pl->group,
             sstrerror (errno, errbuf, sizeof (errbuf)));
-        return (-1);
+        goto failed;
       }
       if (NULL == gr_ptr)
       {
         ERROR ("exec plugin: No such group: `%s'", pl->group);
-        return (-1);
+        goto failed;
       }
 
       egid = gr.gr_gid;
@@ -463,7 +470,7 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out, int *fd_err)
   {
     ERROR ("exec plugin: fork failed: %s",
         sstrerror (errno, errbuf, sizeof (errbuf)));
-    return (-1);
+    goto failed;
   }
   else if (pid == 0)
   {
@@ -531,6 +538,13 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out, int *fd_err)
     close (fd_pipe_err[0]);
 
   return (pid);
+
+failed:
+  close_pipe(fd_pipe_in);
+  close_pipe(fd_pipe_out);
+  close_pipe(fd_pipe_err);
+
+  return (-1);
 } /* int fork_child }}} */
 
 static int parse_line (char *buffer) /* {{{ */
@@ -745,8 +759,8 @@ static void *exec_notification_one (void *arg) /* {{{ */
 
   fprintf (fh,
       "Severity: %s\n"
-      "Time: %u\n",
-      severity, (unsigned int)CDTIME_T_TO_TIME_T(n->time));
+      "Time: %.3f\n",
+      severity, CDTIME_T_TO_DOUBLE (n->time));
 
   /* Print the optional fields */
   if (strlen (n->host) > 0)

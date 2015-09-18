@@ -52,6 +52,7 @@
 %{?el6:%global _has_iproute 1}
 %{?el6:%global _has_atasmart 1}
 %{?el6:%global _has_hiredis 1}
+%{?el6:%global _has_asm_msr_index 1}
 
 %{?el7:%global _has_libyajl 1}
 %{?el7:%global _has_recent_libpcap 1}
@@ -66,6 +67,8 @@
 %{?el7:%global _has_iproute 1}
 %{?el7:%global _has_atasmart 1}
 %{?el7:%global _has_hiredis 1}
+%{?el7:%global _has_asm_msr_index 1}
+%{?el7:%global _has_libmosquitto 1}
 
 # plugins enabled by default
 %define with_aggregation 0%{!?_without_aggregation:1}
@@ -94,11 +97,13 @@
 %define with_entropy 0%{!?_without_entropy:1}
 %define with_ethstat 0%{!?_without_ethstat:0%{?_has_recent_sockios_h}}
 %define with_exec 0%{!?_without_exec:1}
+%define with_fhcount 0%{!?_without_fhcount:1}
 %define with_filecount 0%{!?_without_filecount:1}
 %define with_fscache 0%{!?_without_fscache:1}
 %define with_gmond 0%{!?_without_gmond:0%{?_has_recent_libganglia}}
 %define with_hddtemp 0%{!?_without_hddtemp:1}
 %define with_interface 0%{!?_without_interface:1}
+%define with_ipc 0%{!?_without_ipc:1}
 %define with_ipmi 0%{!?_without_ipmi:1}
 %define with_iptables 0%{!?_without_iptables:0%{?_has_working_libiptc}}
 %define with_ipvs 0%{!?_without_ipvs:0%{?_has_ip_vs_h}}
@@ -117,6 +122,7 @@
 %define with_memory 0%{!?_without_memory:1}
 %define with_multimeter 0%{!?_without_multimeter:1}
 %define with_modbus 0%{!?_without_modbus:0%{?_has_libmodbus}}
+%define with_mqtt 0%{!?_without_mqtt:0%{?_has_libmosquitto}}
 %define with_mysql 0%{!?_without_mysql:1}
 %define with_netlink 0%{!?_without_netlink:0%{?_has_iproute}}
 %define with_network 0%{!?_without_network:1}
@@ -156,6 +162,7 @@
 %define with_ted 0%{!?_without_ted:1}
 %define with_thermal 0%{!?_without_thermal:1}
 %define with_threshold 0%{!?_without_threshold:1}
+%define with_turbostat 0%{!?_without_turbostat:0%{?_has_asm_msr_index}}
 %define with_unixsock 0%{!?_without_unixsock:1}
 %define with_uptime 0%{!?_without_uptime:1}
 %define with_users 0%{!?_without_users:1}
@@ -169,6 +176,7 @@
 %define with_write_log 0%{!?_without_write_log:1}
 %define with_write_redis 0%{!?_without_write_redis:0%{?_has_hiredis}}
 %define with_write_riemann 0%{!?_without_write_riemann:1}
+%define with_write_sensu 0%{!?_without_write_sensu:1}
 %define with_write_tsdb 0%{!?_without_write_tsdb:1}
 %define with_zfs_arc 0%{!?_without_zfs_arc:1}
 %define with_zookeeper 0%{!?_without_zookeeper:1}
@@ -208,17 +216,19 @@
 %define with_write_mongodb 0%{!?_without_write_mongodb:0}
 # plugin xmms disabled, requires xmms
 %define with_xmms 0%{!?_without_xmms:0}
+# plugin zone disabled, requires Solaris
+%define with_zone 0%{!?_without_zone:0}
 
-Summary:	Statistics collection daemon for filling RRD files
+Summary:	statistics collection and monitoring daemon
 Name:		collectd
-Version:	5.4.0
+Version:	5.5.0
 Release:	1%{?dist}
 URL:		http://collectd.org
 Source:		http://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
 Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
-BuildRequires:	libgcrypt-devel, kernel-headers, libtool-ltdl-devel
+BuildRequires:	libgcrypt-devel, kernel-headers, libtool-ltdl-devel, libcap-devel
 Vendor:		collectd development team <collectd@verplant.org>
 
 %if 0%{?el7:1}
@@ -506,6 +516,16 @@ BuildRequires:	mysql-devel
 %description mysql
 MySQL querying plugin. This plugin provides data of issued commands, called
 handlers and database traffic.
+%endif
+
+%if %{with_mqtt}
+%package mqtt
+Summary:	mqtt plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	mosquitto-devel
+%description mqtt
+The MQTT plugin publishes and subscribes to MQTT topics.
 %endif
 
 %if %{with_netlink}
@@ -946,7 +966,7 @@ Collectd utilities
 %if %{with_dbi}
 %define _with_dbi --enable-dbi
 %else
-%define _with_dbi --disable-dbi --without-libdbi
+%define _with_dbi --disable-dbi
 %endif
 
 %if %{with_df}
@@ -997,6 +1017,12 @@ Collectd utilities
 %define _with_exec --disable-exec
 %endif
 
+%if %{with_fhcount}
+%define _with_fhcount --enable-fhcount
+%else
+%define _with_fhcount --disable-fhcount
+%endif
+
 %if %{with_filecount}
 %define _with_filecount --enable-filecount
 %else
@@ -1025,6 +1051,12 @@ Collectd utilities
 %define _with_interface --enable-interface
 %else
 %define _with_interface --disable-interface
+%endif
+
+%if %{with_ipc}
+%define _with_ipc --enable-ipc
+%else
+%define _with_ipc --disable-ipc
 %endif
 
 %if %{with_ipmi}
@@ -1147,6 +1179,12 @@ Collectd utilities
 %define _with_multimeter --disable-multimeter
 %endif
 
+%if %{with_mqtt}
+%define _with_mqtt --enable-mqtt
+%else
+%define _with_mqtt --disable-mqtt
+%endif
+
 %if %{with_mysql}
 %define _with_mysql --enable-mysql
 %else
@@ -1192,7 +1230,7 @@ Collectd utilities
 %if %{with_notify_email}
 %define _with_notify_email --enable-notify_email
 %else
-%define _with_notify_email --disable-notify_email --without-libesmpt
+%define _with_notify_email --disable-notify_email
 %endif
 
 %if %{with_ntpd}
@@ -1246,7 +1284,7 @@ Collectd utilities
 %if %{with_perl}
 %define _with_perl --enable-perl --with-perl-bindings="INSTALLDIRS=vendor"
 %else
-%define _with_perl --disable-perl --without-libperl
+%define _with_perl --disable-perl
 %endif
 
 %if %{with_pf}
@@ -1433,6 +1471,12 @@ Collectd utilities
 %define _with_tokyotyrant --disable-tokyotyrant
 %endif
 
+%if %{with_turbostat}
+%define _with_turbostat --enable-turbostat
+%else
+%define _with_turbostat --disable-turbostat
+%endif
+
 %if %{with_unixsock}
 %define _with_unixsock --enable-unixsock
 %else
@@ -1508,7 +1552,7 @@ Collectd utilities
 %if %{with_write_mongodb}
 %define _with_write_mongodb --enable-write_mongodb
 %else
-%define _with_write_mongodb --disable-write_mongodb --without-libmongoc
+%define _with_write_mongodb --disable-write_mongodb
 %endif
 
 %if %{with_write_redis}
@@ -1521,6 +1565,12 @@ Collectd utilities
 %define _with_write_riemann --enable-write_riemann
 %else
 %define _with_write_riemann --disable-write_riemann
+%endif
+
+%if %{with_write_sensu}
+%define _with_write_sensu --enable-write_sensu
+%else
+%define _with_write_sensu --disable-write_sensu
 %endif
 
 %if %{with_write_tsdb}
@@ -1539,6 +1589,12 @@ Collectd utilities
 %define _with_zfs_arc --enable-zfs_arc
 %else
 %define _with_zfs_arc --disable-zfs_arc
+%endif
+
+%if %{with_zone}
+%define _with_zone --enable-zone
+%else
+%define _with_zone --disable-zone
 %endif
 
 %if %{with_zookeeper}
@@ -1590,11 +1646,13 @@ Collectd utilities
 	%{?_with_entropy} \
 	%{?_with_ethstat} \
 	%{?_with_exec} \
+	%{?_with_fhcount} \
 	%{?_with_filecount} \
 	%{?_with_fscache} \
 	%{?_with_gmond} \
 	%{?_with_hddtemp} \
 	%{?_with_interface} \
+	%{?_with_ipc} \
 	%{?_with_ipmi} \
 	%{?_with_iptables} \
 	%{?_with_ipvs} \
@@ -1607,6 +1665,7 @@ Collectd utilities
 	%{?_with_mic} \
 	%{?_with_modbus} \
 	%{?_with_multimeter} \
+	%{?_with_mqtt} \
 	%{?_with_mysql} \
 	%{?_with_netapp} \
 	%{?_with_netlink} \
@@ -1640,6 +1699,7 @@ Collectd utilities
 	%{?_with_write_redis} \
 	%{?_with_xmms} \
 	%{?_with_zfs_arc} \
+	%{?_with_zone} \
 	%{?_with_zookeeper} \
 	%{?_with_irq} \
 	%{?_with_load} \
@@ -1670,6 +1730,7 @@ Collectd utilities
 	%{?_with_ted} \
 	%{?_with_thermal} \
 	%{?_with_threshold} \
+	%{?_with_turbostat} \
 	%{?_with_unixsock} \
 	%{?_with_uptime} \
 	%{?_with_users} \
@@ -1681,6 +1742,7 @@ Collectd utilities
 	%{?_with_write_http} \
 	%{?_with_write_log} \
 	%{?_with_write_riemann} \
+	%{?_with_write_sensu} \
 	%{?_with_write_tsdb}
 
 
@@ -1864,6 +1926,9 @@ fi
 %if %{with_exec}
 %{_libdir}/%{name}/exec.so
 %endif
+%if %{with_fhcount}
+%{_libdir}/%{name}/fhcount.so
+%endif
 %if %{with_filecount}
 %{_libdir}/%{name}/filecount.so
 %endif
@@ -1872,6 +1937,9 @@ fi
 %endif
 %if %{with_interface}
 %{_libdir}/%{name}/interface.so
+%endif
+%if %{with_ipc}
+%{_libdir}/%{name}/ipc.so
 %endif
 %if %{with_ipvs}
 %{_libdir}/%{name}/ipvs.so
@@ -1963,8 +2031,11 @@ fi
 %if %{with_thermal}
 %{_libdir}/%{name}/thermal.so
 %endif
-%if %{with_load}
+%if %{with_threshold}
 %{_libdir}/%{name}/threshold.so
+%endif
+%if %{with_turbostat}
+%{_libdir}/%{name}/turbostat.so
 %endif
 %if %{with_unixsock}
 %{_libdir}/%{name}/unixsock.so
@@ -1992,6 +2063,9 @@ fi
 %endif
 %if %{with_write_log}
 %{_libdir}/%{name}/write_log.so
+%endif
+%if %{with_write_sensu}
+%{_libdir}/%{name}/write_sensu.so
 %endif
 %if %{with_write_tsdb}
 %{_libdir}/%{name}/write_tsdb.so
@@ -2150,6 +2224,11 @@ fi
 %{_libdir}/%{name}/modbus.so
 %endif
 
+%if %{with_mqtt}
+%files mqtt
+%{_libdir}/%{name}/mqtt.so
+%endif
+
 %if %{with_mysql}
 %files mysql
 %{_libdir}/%{name}/mysql.so
@@ -2289,14 +2368,22 @@ fi
 %doc contrib/
 
 %changelog
-# * TODO 5.5.0-1
-# - New upstream version
-# - New plugins enabled by default: ceph, drbd, log_logstash, write_tsdb, smart, openldap, redis, write_redis, zookeeper, write_log
-# - New plugins disabled by default: barometer, write_kafka
-# - Enable zfs_arc, now supported on Linux
-# - Install disk plugin in a dedicated package, as it depends on libudev
-# - use systemd on EL7, sysvinit on EL6 & EL5
-# - Install collectdctl, collectd-tg and collectd-nagios in collectd-utils.rpm
+#* TODO: next feature release changelog
+#- New upstream version
+#- New plugins enabled by default: mqtt
+#- New plugins disabled by default: zone
+#
+* Wed May 27 2015 Marc Fournier <marc.fournier@camptocamp.com> 5.5.0-1
+- New upstream version
+- New plugins enabled by default: ceph, drbd, log_logstash, write_tsdb, smart,
+  openldap, redis, write_redis, zookeeper, write_log, write_sensu, ipc,
+  turbostat, fhcount
+- New plugins disabled by default: barometer, write_kafka
+- Enable zfs_arc, now supported on Linux
+- Install disk plugin in a dedicated package, as it depends on libudev
+- use systemd on EL7, sysvinit on EL6 & EL5
+- Install collectdctl, collectd-tg and collectd-nagios in collectd-utils.rpm
+- Add build-dependency on libcap-devel
 
 * Mon Aug 19 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.4.0-1
 - New upstream version

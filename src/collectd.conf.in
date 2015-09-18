@@ -99,9 +99,9 @@
 #@BUILD_PLUGIN_BATTERY_TRUE@LoadPlugin battery
 #@BUILD_PLUGIN_BIND_TRUE@LoadPlugin bind
 #@BUILD_PLUGIN_CEPH_TRUE@LoadPlugin ceph
+#@BUILD_PLUGIN_CGROUPS_TRUE@LoadPlugin cgroups
 #@BUILD_PLUGIN_CONNTRACK_TRUE@LoadPlugin conntrack
 #@BUILD_PLUGIN_CONTEXTSWITCH_TRUE@LoadPlugin contextswitch
-#@BUILD_PLUGIN_CGROUPS_TRUE@LoadPlugin cgroups
 @BUILD_PLUGIN_CPU_TRUE@@BUILD_PLUGIN_CPU_TRUE@LoadPlugin cpu
 #@BUILD_PLUGIN_CPUFREQ_TRUE@LoadPlugin cpufreq
 @LOAD_PLUGIN_CSV@LoadPlugin csv
@@ -117,13 +117,15 @@
 #@BUILD_PLUGIN_ENTROPY_TRUE@LoadPlugin entropy
 #@BUILD_PLUGIN_ETHSTAT_TRUE@LoadPlugin ethstat
 #@BUILD_PLUGIN_EXEC_TRUE@LoadPlugin exec
+#@BUILD_PLUGIN_FHCOUNT_TRUE@LoadPlugin fhcount
 #@BUILD_PLUGIN_FILECOUNT_TRUE@LoadPlugin filecount
 #@BUILD_PLUGIN_FSCACHE_TRUE@LoadPlugin fscache
 #@BUILD_PLUGIN_GMOND_TRUE@LoadPlugin gmond
 #@BUILD_PLUGIN_HDDTEMP_TRUE@LoadPlugin hddtemp
 @BUILD_PLUGIN_INTERFACE_TRUE@@BUILD_PLUGIN_INTERFACE_TRUE@LoadPlugin interface
-#@BUILD_PLUGIN_IPTABLES_TRUE@LoadPlugin iptables
+#@BUILD_PLUGIN_IPC_TRUE@@BUILD_PLUGIN_IPC_TRUE@LoadPlugin ipc
 #@BUILD_PLUGIN_IPMI_TRUE@LoadPlugin ipmi
+#@BUILD_PLUGIN_IPTABLES_TRUE@LoadPlugin iptables
 #@BUILD_PLUGIN_IPVS_TRUE@LoadPlugin ipvs
 #@BUILD_PLUGIN_IRQ_TRUE@LoadPlugin irq
 #@BUILD_PLUGIN_JAVA_TRUE@LoadPlugin java
@@ -136,7 +138,9 @@
 #@BUILD_PLUGIN_MEMCACHEC_TRUE@LoadPlugin memcachec
 #@BUILD_PLUGIN_MEMCACHED_TRUE@LoadPlugin memcached
 @BUILD_PLUGIN_MEMORY_TRUE@@BUILD_PLUGIN_MEMORY_TRUE@LoadPlugin memory
+#@BUILD_PLUGIN_MIC_TRUE@LoadPlugin mic
 #@BUILD_PLUGIN_MODBUS_TRUE@LoadPlugin modbus
+#@BUILD_PLUGIN_MQTT_TRUE@LoadPlugin mqtt
 #@BUILD_PLUGIN_MULTIMETER_TRUE@LoadPlugin multimeter
 #@BUILD_PLUGIN_MYSQL_TRUE@LoadPlugin mysql
 #@BUILD_PLUGIN_NETAPP_TRUE@LoadPlugin netapp
@@ -154,18 +158,14 @@
 #@BUILD_PLUGIN_OPENLDAP_TRUE@LoadPlugin openldap
 #@BUILD_PLUGIN_OPENVPN_TRUE@LoadPlugin openvpn
 #@BUILD_PLUGIN_ORACLE_TRUE@LoadPlugin oracle
-#@BUILD_PLUGIN_PERL_TRUE@<LoadPlugin perl>
-#@BUILD_PLUGIN_PERL_TRUE@  Globals true
-#@BUILD_PLUGIN_PERL_TRUE@</LoadPlugin>
+#@BUILD_PLUGIN_PERL_TRUE@LoadPlugin perl
 #@BUILD_PLUGIN_PINBA_TRUE@LoadPlugin pinba
 #@BUILD_PLUGIN_PING_TRUE@LoadPlugin ping
 #@BUILD_PLUGIN_POSTGRESQL_TRUE@LoadPlugin postgresql
 #@BUILD_PLUGIN_POWERDNS_TRUE@LoadPlugin powerdns
 #@BUILD_PLUGIN_PROCESSES_TRUE@LoadPlugin processes
 #@BUILD_PLUGIN_PROTOCOLS_TRUE@LoadPlugin protocols
-#@BUILD_PLUGIN_PYTHON_TRUE@<LoadPlugin python>
-#@BUILD_PLUGIN_PYTHON_TRUE@  Globals true
-#@BUILD_PLUGIN_PYTHON_TRUE@</LoadPlugin>
+#@BUILD_PLUGIN_PYTHON_TRUE@LoadPlugin python
 #@BUILD_PLUGIN_REDIS_TRUE@LoadPlugin redis
 #@BUILD_PLUGIN_ROUTEROS_TRUE@LoadPlugin routeros
 #@BUILD_PLUGIN_RRDCACHED_TRUE@LoadPlugin rrdcached
@@ -186,12 +186,12 @@
 #@BUILD_PLUGIN_TED_TRUE@LoadPlugin ted
 #@BUILD_PLUGIN_THERMAL_TRUE@LoadPlugin thermal
 #@BUILD_PLUGIN_TOKYOTYRANT_TRUE@LoadPlugin tokyotyrant
+#@BUILD_PLUGIN_TURBOSTAT_TRUE@LoadPlugin turbostat
 #@BUILD_PLUGIN_UNIXSOCK_TRUE@LoadPlugin unixsock
 #@BUILD_PLUGIN_UPTIME_TRUE@LoadPlugin uptime
 #@BUILD_PLUGIN_USERS_TRUE@LoadPlugin users
 #@BUILD_PLUGIN_UUID_TRUE@LoadPlugin uuid
 #@BUILD_PLUGIN_VARNISH_TRUE@LoadPlugin varnish
-#@BUILD_PLUGIN_MIC_TRUE@LoadPlugin mic
 #@BUILD_PLUGIN_VIRT_TRUE@LoadPlugin virt
 #@BUILD_PLUGIN_VMEM_TRUE@LoadPlugin vmem
 #@BUILD_PLUGIN_VSERVER_TRUE@LoadPlugin vserver
@@ -203,9 +203,11 @@
 #@BUILD_PLUGIN_WRITE_MONGODB_TRUE@LoadPlugin write_mongodb
 #@BUILD_PLUGIN_WRITE_REDIS_TRUE@LoadPlugin write_redis
 #@BUILD_PLUGIN_WRITE_RIEMANN_TRUE@LoadPlugin write_riemann
+#@BUILD_PLUGIN_WRITE_SENSU_TRUE@LoadPlugin write_sensu
 #@BUILD_PLUGIN_WRITE_TSDB_TRUE@LoadPlugin write_tsdb
 #@BUILD_PLUGIN_XMMS_TRUE@LoadPlugin xmms
 #@BUILD_PLUGIN_ZFS_ARC_TRUE@LoadPlugin zfs_arc
+#@BUILD_PLUGIN_ZONE_TRUE@LoadPlugin zone
 #@BUILD_PLUGIN_ZOOKEEPER_TRUE@LoadPlugin zookeeper
 
 ##############################################################################
@@ -246,6 +248,7 @@
 #    RoutingKey "collectd"
 #    Persistent false
 #    StoreRates false
+#    ConnectionRetryDelay 0
 #  </Publish>
 #</Plugin>
 
@@ -262,6 +265,7 @@
 #	Host "localhost"
 #	Port "3551"
 #	ReportSeconds true
+#	PersistentConnection true
 #</Plugin>
 
 #<Plugin aquaero>
@@ -521,6 +525,11 @@
 #	NotificationExec "user:group" "/path/to/exec"
 #</Plugin>
 
+#<Plugin fhcount>
+#	ValuesAbsolute true
+#	ValuesPercentage false
+#</Plugin>
+
 #<Plugin filecount>
 #	<Directory "/path/to/dir">
 #		Instance "foodir"
@@ -661,6 +670,30 @@
 #			Collect "data_name"
 #		</Slave>
 #	</Host>
+#</Plugin>
+
+#<Plugin mqtt>
+#	<Publish "name">
+#		Host "localhost"
+#		Port 1883
+#		ClientId "localhost"
+#		User "user"
+#		Password "secret"
+#		QoS 0
+#		Prefix "collectd"
+#		StoreRates true
+#		Retain false
+#	</Publish>
+#	<Subscribe "name">
+#		Host "localhost"
+#		Port 1883
+#		ClientId "localhost"
+#		User "user"
+#		Password "secret"
+#		QoS 2
+#		Topic "collectd/#"
+#		CleanSession true
+#	</Subscribe>
 #</Plugin>
 
 #<Plugin mysql>
@@ -1205,6 +1238,25 @@
 #	Port "1978"
 #</Plugin>
 
+#<Plugin turbostat>
+##	None of the following option should be set manually
+##	This plugin automatically detect most optimal options
+##	Only set values here if:
+##	- The module ask you to
+##	- You want to disable the collection of some data
+##	- Your (intel) CPU is not supported (yet) by the module
+##	- The module generate a lot of errors 'MSR offset 0x... read failed'
+##	In the last two cases, please open a bug request
+#
+#	TCCActivationTemp "100"
+#	CoreCstates "392"
+# 	PackageCstates "396"
+#	SystemManagementInterrupt true
+#	DigitalTemperatureSensor true
+#	PackageThermalManagement true
+#	RunningAveragePowerLimit "7"	
+#</Plugin>
+
 #<Plugin unixsock>
 #	SocketFile "@prefix@/var/run/@PACKAGE_NAME@-unixsock"
 #	SocketGroup "collectd"
@@ -1310,6 +1362,8 @@
 #		Format "Command"
 #		StoreRates false
 #		BufferSize 4096
+#		LowSpeedLimit 0
+#		Timeout 0
 #	</Node>
 #</Plugin>
 
@@ -1337,6 +1391,7 @@
 #		Host "localhost"
 #		Port "6379"
 #		Timeout 1000
+#		Prefix "collectd/"
 #	</Node>
 #</Plugin>
 
@@ -1353,6 +1408,24 @@
 #		Notifications true
 #		CheckThresholds false
 #		EventServicePrefix ""
+#	</Node>
+#	Tag "foobar"
+#	Attribute "foo" "bar"
+#</Plugin>
+
+#<Plugin write_sensu>
+#	<Node "example">
+#		Host "localhost"
+#		Port 3030
+#		StoreRates true
+#		AlwaysAppendDS false
+#		Notifications true
+#		Metrics true
+#		EventServicePrefix ""
+#		MetricHandler "influx"
+#		MetricHandler "default"
+#		NotificationHandler "flapjack"
+#		NotificationHandler "howling_monkey"
 #	</Node>
 #	Tag "foobar"
 #	Attribute "foo" "bar"

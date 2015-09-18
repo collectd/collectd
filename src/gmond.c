@@ -33,9 +33,6 @@
 #if HAVE_PTHREAD_H
 # include <pthread.h>
 #endif
-#if HAVE_SYS_SOCKET_H
-# include <sys/socket.h>
-#endif
 #if HAVE_NETDB_H
 # include <netdb.h>
 #endif
@@ -83,12 +80,12 @@ typedef struct staging_entry_s staging_entry_t;
 
 struct metric_map_s
 {
-  char *ganglia_name;
-  char *type;
-  char *type_instance;
-  char *ds_name;
-  int   ds_type;
-  int   ds_index;
+  char  *ganglia_name;
+  char  *type;
+  char  *type_instance;
+  char  *ds_name;
+  int    ds_type;
+  size_t ds_index;
 };
 typedef struct metric_map_s metric_map_t;
 
@@ -166,7 +163,7 @@ static metric_map_t *metric_lookup (const char *key) /* {{{ */
     return (NULL);
 
   /* Look up the DS type and ds_index. */
-  if ((map[i].ds_type < 0) || (map[i].ds_index < 0)) /* {{{ */
+  if (map[i].ds_type < 0) /* {{{ */
   {
     const data_set_t *ds;
 
@@ -191,7 +188,7 @@ static metric_map_t *metric_lookup (const char *key) /* {{{ */
     }
     else
     {
-      int j;
+      size_t j;
 
       for (j = 0; j < ds->ds_num; j++)
         if (strcasecmp (ds->ds[j].name, map[i].ds_name) == 0)
@@ -222,13 +219,13 @@ static int create_sockets (socket_entry_t **ret_sockets, /* {{{ */
   struct addrinfo *ai_ptr;
   int              ai_return;
 
-  socket_entry_t *sockets;
-  size_t          sockets_num;
+  socket_entry_t *sockets = NULL;
+  size_t          sockets_num = 0;
 
   int status;
-    
-  sockets     = *ret_sockets;
-  sockets_num = *ret_sockets_num;
+
+  if (*ret_sockets != NULL)
+    return (EINVAL);
 
   memset (&ai_hints, 0, sizeof (ai_hints));
   ai_hints.ai_flags    = 0;
@@ -360,8 +357,11 @@ static int create_sockets (socket_entry_t **ret_sockets, /* {{{ */
 
   freeaddrinfo (ai_list);
 
-  if ((*ret_sockets_num) >= sockets_num)
+  if (sockets_num == 0)
+  {
+    sfree (sockets);
     return (-1);
+  }
 
   *ret_sockets = sockets;
   *ret_sockets_num = sockets_num;
@@ -508,7 +508,7 @@ static int staging_entry_submit (const char *host, const char *name, /* {{{ */
 
 static int staging_entry_update (const char *host, const char *name, /* {{{ */
     const char *type, const char *type_instance,
-    int ds_index, int ds_type, value_t value)
+    size_t ds_index, int ds_type, value_t value)
 {
   const data_set_t *ds;
   staging_entry_t *se;
@@ -522,7 +522,7 @@ static int staging_entry_update (const char *host, const char *name, /* {{{ */
 
   if (ds->ds_num <= ds_index)
   {
-    ERROR ("gmond plugin: Invalid index %i: %s has only %i data source(s).",
+    ERROR ("gmond plugin: Invalid index %zu: %s has only %zu data source(s).",
         ds_index, ds->type, ds->ds_num);
     return (-1);
   }
@@ -665,7 +665,7 @@ static int mc_handle_value_msg (Ganglia_value_msg *msg) /* {{{ */
     if ((map->ds_type == DS_TYPE_COUNTER)
         || (map->ds_type == DS_TYPE_ABSOLUTE))
       val_copy = value_counter;
-    if (map->ds_type == DS_TYPE_GAUGE)
+    else if (map->ds_type == DS_TYPE_GAUGE)
       val_copy = value_gauge;
     else if (map->ds_type == DS_TYPE_DERIVE)
       val_copy = value_derive;
@@ -872,6 +872,7 @@ static void *mc_receive_thread (void *arg) /* {{{ */
     }
   } /* while (mc_receive_thread_loop != 0) */
 
+  free (mc_receive_socket_entries);
   return ((void *) 0);
 } /* }}} void *mc_receive_thread */
 

@@ -26,11 +26,11 @@
 #if HAVE_SYS_IOCTL_H
 # include <sys/ioctl.h>
 #endif
-#if HAVE_SYS_SOCKET_H
-# include <sys/socket.h>
-#endif
 #if HAVE_NET_IF_H
 # include <net/if.h>
+#endif
+#if HAVE_NETINET_IN_H
+# include <netinet/in.h>
 #endif
 
 #include <net/pfvar.h>

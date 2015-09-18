@@ -34,7 +34,6 @@
 #include <poll.h>
 
 #include <pcap.h>
-#include <pcap-bpf.h>
 
 /*
  * Private data types

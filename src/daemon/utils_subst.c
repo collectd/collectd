@@ -31,33 +31,60 @@
 #include "collectd.h"
 #include "common.h"
 
-char *subst (char *buf, size_t buflen, const char *string, int off1, int off2,
+char *subst (char *buf, size_t buflen, const char *string, size_t off1, size_t off2,
 		const char *replacement)
 {
-	char  *buf_ptr = buf;
-	size_t len     = buflen;
+	char *out = buf;
 
-	if ((NULL == buf) || (0 >= buflen) || (NULL == string)
-			|| (0 > off1) || (0 > off2) || (off1 > off2)
-			|| (NULL == replacement))
+	char const *front;
+	char const *back;
+	size_t front_len;
+	size_t replacement_len;
+	size_t back_len;
+
+	if ((NULL == buf) || (0 == buflen) || (NULL == string) || (NULL == replacement))
 		return NULL;
 
-	sstrncpy (buf_ptr, string,
-			((size_t)off1 + 1 > buflen) ? buflen : (size_t)off1 + 1);
-	buf_ptr += off1;
-	len     -= off1;
+	size_t string_len = strlen (string);
+	if ((off1 > string_len) || (off2 > string_len) || (off1 > off2))
+		return NULL;
 
-	if (0 >= len)
-		return buf;
+	front = string;
+	back = string + off2;
+	front_len = off1;
+	replacement_len = strlen (replacement);
+	back_len = strlen (back);
 
-	sstrncpy (buf_ptr, replacement, len);
-	buf_ptr += strlen (replacement);
-	len     -= strlen (replacement);
+	if (front_len >= buflen) {
+		front_len = buflen - 1;
+		replacement_len = 0;
+		back_len = 0;
+	} else if ((front_len + replacement_len) >= buflen) {
+		replacement_len = buflen - (front_len + 1);
+		back_len = 0;
+	} else if ((front_len + replacement_len + back_len) >= buflen) {
+		back_len = buflen - (front_len + replacement_len + 1);
+	} else {
+		buflen = front_len + replacement_len + back_len + 1;
+	}
+	assert ((front_len + replacement_len + back_len) == (buflen - 1));
 
-	if (0 >= len)
-		return buf;
+	if (front_len != 0) {
+		sstrncpy (out, front, front_len + 1);
+		out += front_len;
+	}
 
-	sstrncpy (buf_ptr, string + off2, len);
+	if (replacement_len != 0) {
+		sstrncpy (out, replacement, replacement_len + 1);
+		out += replacement_len;
+	}
+
+	if (back_len != 0) {
+		sstrncpy (out, back, back_len + 1);
+		out += back_len;
+	}
+
+	out[0] = 0;
 	return buf;
 } /* subst */
 
@@ -87,7 +114,6 @@ char *asubst (const char *string, int off1, int off2, const char *replacement)
 char *subst_string (char *buf, size_t buflen, const char *string,
 		const char *needle, const char *replacement)
 {
-	char *temp;
 	size_t needle_len;
 	size_t i;
 
@@ -95,19 +121,13 @@ char *subst_string (char *buf, size_t buflen, const char *string,
 			|| (needle == NULL) || (replacement == NULL))
 		return (NULL);
 
-	temp = (char *) malloc (buflen);
-	if (temp == NULL)
-	{
-		ERROR ("subst_string: malloc failed.");
-		return (NULL);
-	}
-
 	needle_len = strlen (needle);
-	strncpy (buf, string, buflen);
+	sstrncpy (buf, string, buflen);
 
 	/* Limit the loop to prevent endless loops. */
 	for (i = 0; i < buflen; i++)
 	{
+		char temp[buflen];
 		char *begin_ptr;
 		size_t begin;
 
@@ -141,7 +161,6 @@ char *subst_string (char *buf, size_t buflen, const char *string,
 				i, string, needle, replacement);
 	}
 
-	sfree (temp);
 	return (buf);
 } /* char *subst_string */
 

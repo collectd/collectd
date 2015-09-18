@@ -28,6 +28,7 @@
 
 %{
 #include <stdlib.h>
+#include <string.h>
 #include "oconfig.h"
 #include "aux_types.h"
 #include "parser.h"
@@ -50,6 +51,8 @@ static void ml_append (char *);
 %}
 %option yylineno
 %option noyywrap
+%option noinput
+%option nounput
 %x ML
 WHITE_SPACE [\ \t\b]
 NON_WHITE_SPACE [^\ \t\b]

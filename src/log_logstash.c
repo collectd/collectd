@@ -97,7 +97,7 @@ static void log_logstash_print (yajl_gen g, int severity,
 	unsigned int len;
 #endif
 
-	if (yajl_gen_string(g, (u_char *)"@level", strlen("@level")) !=
+	if (yajl_gen_string(g, (u_char *)"level", strlen("level")) !=
 	    yajl_gen_status_ok)
 		goto err;
 
@@ -147,7 +147,7 @@ static void log_logstash_print (yajl_gen g, int severity,
 	 * format time as a UTC ISO 8601 compliant string
 	 */
 	strftime (timestamp_str, sizeof (timestamp_str),
-		  "%Y-%m-%d %H:%M:%SZ", &timestamp_tm);
+		  "%Y-%m-%dT%H:%M:%SZ", &timestamp_tm);
 	timestamp_str[sizeof (timestamp_str) - 1] = '\0';
 
 	if (yajl_gen_string(g, (u_char *)timestamp_str,
@@ -208,7 +208,7 @@ static void log_logstash_log (int severity, const char *msg,
 {
 	yajl_gen g;
 #if !defined(HAVE_YAJL_V2)
-	yajl_gen_config conf;
+	yajl_gen_config conf = {};
 
 	conf.beautify = 0;
 #endif
@@ -229,7 +229,7 @@ static void log_logstash_log (int severity, const char *msg,
 
 	if (yajl_gen_map_open(g) != yajl_gen_status_ok)
 		goto err;
-	if (yajl_gen_string(g, (u_char *)"@message", strlen("@message")) !=
+	if (yajl_gen_string(g, (u_char *)"message", strlen("message")) !=
 	    yajl_gen_status_ok)
 		goto err;
 	if (yajl_gen_string(g, (u_char *)msg, strlen(msg)) !=
@@ -252,7 +252,7 @@ static int log_logstash_notification (const notification_t *n,
 #if HAVE_YAJL_V2
 	g = yajl_gen_alloc(NULL);
 #else
-	yajl_gen_config conf;
+	yajl_gen_config conf = {};
 
 	conf.beautify = 0;
 	g = yajl_gen_alloc(&conf, NULL);
@@ -265,7 +265,7 @@ static int log_logstash_notification (const notification_t *n,
 
 	if (yajl_gen_map_open(g) != yajl_gen_status_ok)
 		goto err;
-	if (yajl_gen_string(g, (u_char *)"@message", strlen("@message")) !=
+	if (yajl_gen_string(g, (u_char *)"message", strlen("message")) !=
 	    yajl_gen_status_ok)
 		goto err;
 	if (strlen(n->message) > 0) {
@@ -279,14 +279,6 @@ static int log_logstash_notification (const notification_t *n,
 		    yajl_gen_status_ok)
 			goto err;
 	}
-
-
-	if (yajl_gen_string(g, (u_char *)"@fields", strlen("@fields")) !=
-	    yajl_gen_status_ok)
-		goto err;
-	if (yajl_gen_map_open(g) !=
-	    yajl_gen_status_ok)
-		goto err;
 
 	if (strlen(n->host) > 0) {
 		if (yajl_gen_string(g, (u_char *)"host", strlen("host")) !=
@@ -365,8 +357,6 @@ static int log_logstash_notification (const notification_t *n,
 			goto err;
 		break;
 	}
-	if (yajl_gen_map_close(g) != yajl_gen_status_ok)
-		goto err;
 
 	log_logstash_print (g, LOG_INFO, (n->time != 0) ? n->time : cdtime ());
 	return (0);

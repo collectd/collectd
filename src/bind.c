@@ -109,6 +109,7 @@ static int global_server_stats     = 1;
 static int global_zone_maint_stats = 1;
 static int global_resolver_stats   = 0;
 static int global_memory_stats     = 1;
+static int timeout                 = -1;
 
 static cb_view_t *views = NULL;
 static size_t     views_num = 0;
@@ -266,7 +267,7 @@ static void submit (time_t ts, const char *plugin_instance, /* {{{ */
   if (type_instance) {
     sstrncpy(vl.type_instance, type_instance,
         sizeof(vl.type_instance));
-    replace_special (vl.plugin_instance, sizeof (vl.plugin_instance));
+    replace_special (vl.type_instance, sizeof (vl.type_instance));
   }
   plugin_dispatch_values(&vl);
 } /* }}} void submit */
@@ -369,9 +370,11 @@ static int bind_xml_read_derive (xmlDoc *doc, xmlNode *node, /* {{{ */
   {
     ERROR ("bind plugin: Parsing string \"%s\" to derive value failed.",
         str_ptr);
+    xmlFree(str_ptr);
     return (-1);
   }
 
+  xmlFree(str_ptr);
   *ret_value = value.derive;
   return (0);
 } /* }}} int bind_xml_read_derive */
@@ -714,25 +717,40 @@ static int bind_xml_stats_handle_zone (int version, xmlDoc *doc, /* {{{ */
   int i;
   size_t j;
 
-  path_obj = xmlXPathEvalExpression (BAD_CAST "name", path_ctx);
-  if (path_obj == NULL)
+  if (version >= 3)
   {
-    ERROR ("bind plugin: xmlXPathEvalExpression failed.");
-    return (-1);
+    char *n = (char *) xmlGetProp (node, BAD_CAST "name");
+    char *c = (char *) xmlGetProp (node, BAD_CAST "rdataclass");
+    if (n && c)
+    {
+      zone_name = (char *) xmlMalloc(strlen(n) + strlen(c) + 2);
+      snprintf(zone_name, strlen(n) + strlen(c) + 2, "%s/%s", n, c);
+    }
+    xmlFree(n);
+    xmlFree(c);
   }
-
-  for (i = 0; path_obj->nodesetval && (i < path_obj->nodesetval->nodeNr); i++)
+  else
   {
-    zone_name = (char *) xmlNodeListGetString (doc,
-        path_obj->nodesetval->nodeTab[i]->xmlChildrenNode, 1);
-    if (zone_name != NULL)
-      break;
+    path_obj = xmlXPathEvalExpression (BAD_CAST "name", path_ctx);
+    if (path_obj == NULL)
+    {
+      ERROR ("bind plugin: xmlXPathEvalExpression failed.");
+      return (-1);
+    }
+
+    for (i = 0; path_obj->nodesetval && (i < path_obj->nodesetval->nodeNr); i++)
+    {
+      zone_name = (char *) xmlNodeListGetString (doc,
+          path_obj->nodesetval->nodeTab[i]->xmlChildrenNode, 1);
+      if (zone_name != NULL)
+        break;
+    }
+    xmlXPathFreeObject (path_obj);
   }
 
   if (zone_name == NULL)
   {
     ERROR ("bind plugin: Could not determine zone name.");
-    xmlXPathFreeObject (path_obj);
     return (-1);
   }
 
@@ -745,11 +763,8 @@ static int bind_xml_stats_handle_zone (int version, xmlDoc *doc, /* {{{ */
   xmlFree (zone_name);
   zone_name = NULL;
 
-  if (j >= views->zones_num)
-  {
-    xmlXPathFreeObject (path_obj);
+  if (j >= view->zones_num)
     return (0);
-  }
 
   zone_name = view->zones[j];
 
@@ -768,13 +783,30 @@ static int bind_xml_stats_handle_zone (int version, xmlDoc *doc, /* {{{ */
     ssnprintf (plugin_instance, sizeof (plugin_instance), "%s-zone-%s",
         view->name, zone_name);
 
-    bind_parse_generic_value_list (/* xpath = */ "counters",
+    if (version == 3)
+    {
+      list_info_ptr_t list_info =
+      {
+        plugin_instance,
+        /* type = */ "dns_qtype"
+      };
+      bind_parse_generic_name_attr_value_list (/* xpath = */ "counters[@type='rcode']",
         /* callback = */ bind_xml_table_callback,
         /* user_data = */ &table_ptr,
         doc, path_ctx, current_time, DS_TYPE_COUNTER);
+      bind_parse_generic_name_attr_value_list (/* xpath = */ "counters[@type='qtype']",
+        /* callback = */ bind_xml_list_callback,
+        /* user_data = */ &list_info,
+        doc, path_ctx, current_time, DS_TYPE_COUNTER);
+    }
+    else
+    {
+      bind_parse_generic_value_list (/* xpath = */ "counters",
+          /* callback = */ bind_xml_table_callback,
+          /* user_data = */ &table_ptr,
+          doc, path_ctx, current_time, DS_TYPE_COUNTER);
+    }
   } /* }}} */
-
-  xmlXPathFreeObject (path_obj);
 
   return (0);
 } /* }}} int bind_xml_stats_handle_zone */
@@ -968,8 +1000,7 @@ static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
         doc, path_ctx, current_time, DS_TYPE_GAUGE);
   } /* }}} */
 
-  // v3 does not provide per-zone stats any more
-  if (version < 3 && view->zones_num > 0)
+  if (view->zones_num > 0)
     bind_xml_stats_search_zones (version, doc, path_ctx, node, view,
         current_time);
 
@@ -1695,6 +1726,8 @@ static int bind_config (oconfig_item_t *ci) /* {{{ */
       bind_config_add_view (child);
     else if (strcasecmp ("ParseTime", child->key) == 0)
       cf_util_get_boolean (child, &config_parse_time);
+    else if (strcasecmp ("Timeout", child->key) == 0)
+      cf_util_get_int (child, &timeout);
     else
     {
       WARNING ("bind plugin: Unknown configuration option "
@@ -1724,6 +1757,11 @@ static int bind_init (void) /* {{{ */
   curl_easy_setopt (curl, CURLOPT_URL, (url != NULL) ? url : BIND_DEFAULT_URL);
   curl_easy_setopt (curl, CURLOPT_FOLLOWLOCATION, 1L);
   curl_easy_setopt (curl, CURLOPT_MAXREDIRS, 50L);
+#ifdef HAVE_CURLOPT_TIMEOUT_MS
+  curl_easy_setopt (curl, CURLOPT_TIMEOUT_MS, (timeout >= 0) ?
+      (long) timeout : (long) CDTIME_T_TO_MS(plugin_get_interval()));
+#endif
+
 
   return (0);
 } /* }}} int bind_init */

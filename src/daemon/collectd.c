@@ -32,7 +32,6 @@
 #include "configfile.h"
 
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <sys/un.h>
 #include <netdb.h>
 
@@ -197,8 +196,10 @@ static int change_basedir (const char *orig_dir)
 	while ((dirlen > 0) && (dir[dirlen - 1] == '/'))
 		dir[--dirlen] = '\0';
 
-	if (dirlen <= 0)
+	if (dirlen <= 0) {
+		free (dir);
 		return (-1);
+	}
 
 	status = chdir (dir);
 	if (status == 0)
@@ -270,7 +271,7 @@ static void update_kstat (void)
  */
 static void exit_usage (int status)
 {
-	printf ("Usage: "PACKAGE" [OPTIONS]\n\n"
+	printf ("Usage: "PACKAGE_NAME" [OPTIONS]\n\n"
 
 			"Available options:\n"
 			"  General:\n"
@@ -289,7 +290,7 @@ static void exit_usage (int status)
 			"  PID file          "PIDFILE"\n"
 			"  Plugin directory  "PLUGINDIR"\n"
 			"  Data directory    "PKGLOCALSTATEDIR"\n"
-			"\n"PACKAGE" "VERSION", http://collectd.org/\n"
+			"\n"PACKAGE_NAME" "PACKAGE_VERSION", http://collectd.org/\n"
 			"by Florian octo Forster <octo@collectd.org>\n"
 			"for contributions see `AUTHORS'\n");
 	exit (status);
@@ -408,8 +409,9 @@ static int pidfile_create (void)
 static int pidfile_remove (void)
 {
 	const char *file = global_option_get ("PIDFile");
+	if (file == NULL)
+		return 0;
 
-	DEBUG ("unlink (%s)", (file != NULL) ? file : "<null>");
 	return (unlink (file));
 } /* static int pidfile_remove (const char *file) */
 #endif /* COLLECT_DAEMON */
@@ -417,15 +419,18 @@ static int pidfile_remove (void)
 #ifdef KERNEL_LINUX
 int notify_upstart (void)
 {
-    const char  *upstart_job = getenv("UPSTART_JOB");
+    char const *upstart_job = getenv("UPSTART_JOB");
 
     if (upstart_job == NULL)
         return 0;
 
     if (strcmp(upstart_job, "collectd") != 0)
+    {
+        WARNING ("Environment specifies unexpected UPSTART_JOB=\"%s\", expected \"collectd\". Ignoring the variable.", upstart_job);
         return 0;
+    }
 
-    WARNING ("supervised by upstart, will stop to signal readyness");
+    NOTICE("Upstart detected, stopping now to signal readyness.");
     raise(SIGSTOP);
     unsetenv("UPSTART_JOB");
 
@@ -434,49 +439,70 @@ int notify_upstart (void)
 
 int notify_systemd (void)
 {
-    int                  fd = -1;
-    const char          *notifysocket = getenv("NOTIFY_SOCKET");
+    int                  fd;
+    const char          *notifysocket;
     struct sockaddr_un   su;
-    struct iovec         iov;
-    struct msghdr        hdr;
+    size_t               su_size;
+    char                 buffer[] = "READY=1\n";
 
+    notifysocket = getenv ("NOTIFY_SOCKET");
     if (notifysocket == NULL)
         return 0;
 
-    if ((strchr("@/", notifysocket[0])) == NULL ||
-        strlen(notifysocket) < 2)
+    if ((strlen (notifysocket) < 2)
+        || ((notifysocket[0] != '@') && (notifysocket[0] != '/')))
+    {
+        ERROR ("invalid notification socket NOTIFY_SOCKET=\"%s\": path must be absolute", notifysocket);
         return 0;
+    }
+    NOTICE ("Systemd detected, trying to signal readyness.");
 
-    WARNING ("supervised by systemd, will signal readyness");
-    if ((fd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
-        WARNING ("cannot contact systemd socket %s", notifysocket);
+    unsetenv ("NOTIFY_SOCKET");
+
+    fd = socket (AF_UNIX, SOCK_DGRAM, /* protocol = */ 0);
+    if (fd < 0) {
+        char errbuf[1024];
+        ERROR ("creating UNIX socket failed: %s",
+                 sstrerror (errno, errbuf, sizeof (errbuf)));
         return 0;
     }
 
-    bzero(&su, sizeof(su));
+    memset (&su, 0, sizeof (su));
     su.sun_family = AF_UNIX;
-    sstrncpy (su.sun_path, notifysocket, sizeof(su.sun_path));
-
-    if (notifysocket[0] == '@')
+    if (notifysocket[0] != '@')
+    {
+        /* regular UNIX socket */
+        sstrncpy (su.sun_path, notifysocket, sizeof (su.sun_path));
+        su_size = sizeof (su);
+    }
+    else
+    {
+#if KERNEL_LINUX
+        /* Linux abstract namespace socket: specify address as "\0foo", i.e.
+         * start with a null byte. Since null bytes have no special meaning in
+         * that case, we have to set su_size correctly to cover only the bytes
+         * that are part of the address. */
+        sstrncpy (su.sun_path, notifysocket, sizeof (su.sun_path));
         su.sun_path[0] = 0;
+        su_size = sizeof (sa_family_t) + strlen (notifysocket);
+        if (su_size > sizeof (su))
+            su_size = sizeof (su);
+#else
+	ERROR ("Systemd socket uses Linux abstract namespace notation (\"%s\"), "
+			"but I don't appear to be running on Linux.", notifysocket);
+	return 0;
+#endif
+    }
 
-    bzero(&iov, sizeof(iov));
-    iov.iov_base = "READY=1";
-    iov.iov_len = strlen("READY=1");
-
-    bzero(&hdr, sizeof(hdr));
-    hdr.msg_name = &su;
-    hdr.msg_namelen = offsetof(struct sockaddr_un, sun_path) +
-        strlen(notifysocket);
-    hdr.msg_iov = &iov;
-    hdr.msg_iovlen = 1;
-
-    unsetenv("NOTIFY_SOCKET");
-    if (sendmsg(fd, &hdr, MSG_NOSIGNAL) < 0) {
-        WARNING ("cannot send notification to systemd");
+    if (sendto (fd, buffer, strlen (buffer), MSG_NOSIGNAL, (void *) &su, (socklen_t) su_size) < 0)
+    {
+        char errbuf[1024];
+        ERROR ("sendto(\"%s\") failed: %s", notifysocket,
+                 sstrerror (errno, errbuf, sizeof (errbuf)));
         close(fd);
         return 0;
     }
+
     close(fd);
     return 1;
 }

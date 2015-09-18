@@ -204,7 +204,7 @@ static int value_list_to_string_multiple (char *buffer, int buffer_len,
 	int offset;
 	int status;
 	time_t tt;
-	int i;
+	size_t i;
 
 	memset (buffer, '\0', buffer_len);
 
@@ -227,7 +227,7 @@ static int value_list_to_string_multiple (char *buffer, int buffer_len,
 					":%llu", vl->values[i].counter);
 		else if (ds->ds[i].type == DS_TYPE_GAUGE)
 			status = ssnprintf (buffer + offset, buffer_len - offset,
-					":%lf", vl->values[i].gauge);
+					":"GAUGE_FORMAT, vl->values[i].gauge);
 		else if (ds->ds[i].type == DS_TYPE_DERIVE)
 			status = ssnprintf (buffer + offset, buffer_len - offset,
 					":%"PRIi64, vl->values[i].derive);
@@ -262,7 +262,7 @@ static int value_list_to_string (char *buffer, int buffer_len,
 				(unsigned) tt, vl->values[0].derive);
 			break;
 		case DS_TYPE_GAUGE:
-			status = ssnprintf (buffer, buffer_len, "%u:%lf",
+			status = ssnprintf (buffer, buffer_len, "%u:"GAUGE_FORMAT,
 				(unsigned) tt, vl->values[0].gauge);
 			break;
 		case DS_TYPE_COUNTER:
@@ -743,6 +743,7 @@ static int rrd_cache_insert (const char *filename,
 		new_rc = 1;
 	}
 
+	assert (value_time > 0); /* plugin_dispatch() ensures this. */
 	if (rc->last_value >= value_time)
 	{
 		pthread_mutex_unlock (&cache_lock);

@@ -123,6 +123,9 @@ void llist_remove (llist_t *l, llentry_t *e)
 {
 	llentry_t *prev;
 
+	if ((l == NULL) || (e == NULL))
+		return;
+
 	prev = l->head;
 	while ((prev != NULL) && (prev->next != e))
 		prev = prev->next;

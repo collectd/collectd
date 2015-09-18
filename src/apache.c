@@ -48,11 +48,13 @@ struct apache_s
 	_Bool verify_peer;
 	_Bool verify_host;
 	char *cacert;
+	char *ssl_ciphers;
 	char *server; /* user specific server type */
 	char *apache_buffer;
 	char apache_curl_error[CURL_ERROR_SIZE];
 	size_t apache_buffer_size;
 	size_t apache_buffer_fill;
+	int timeout;
 	CURL *curl;
 }; /* apache_s */
 
@@ -72,12 +74,14 @@ static void apache_free (apache_t *st)
 	sfree (st->user);
 	sfree (st->pass);
 	sfree (st->cacert);
+	sfree (st->ssl_ciphers);
 	sfree (st->server);
 	sfree (st->apache_buffer);
 	if (st->curl) {
 		curl_easy_cleanup(st->curl);
 		st->curl = NULL;
 	}
+	sfree (st);
 } /* apache_free */
 
 static size_t apache_curl_callback (void *buf, size_t size, size_t nmemb,
@@ -179,6 +183,8 @@ static int config_add (oconfig_item_t *ci)
 	}
 	memset (st, 0, sizeof (*st));
 
+	st->timeout = -1;
+
 	status = cf_util_get_string (ci, &st->name);
 	if (status != 0)
 	{
@@ -205,8 +211,12 @@ static int config_add (oconfig_item_t *ci)
 			status = cf_util_get_boolean (child, &st->verify_host);
 		else if (strcasecmp ("CACert", child->key) == 0)
 			status = cf_util_get_string (child, &st->cacert);
+		else if (strcasecmp ("SSLCiphers", child->key) == 0)
+			status = cf_util_get_string (child, &st->ssl_ciphers);
 		else if (strcasecmp ("Server", child->key) == 0)
 			status = cf_util_get_string (child, &st->server);
+		else if (strcasecmp ("Timeout", child->key) == 0)
+			status = cf_util_get_int (child, &st->timeout);
 		else
 		{
 			WARNING ("apache plugin: Option `%s' not allowed here.",
@@ -245,7 +255,7 @@ static int config_add (oconfig_item_t *ci)
 		status = plugin_register_complex_read (/* group = */ NULL,
 				/* name      = */ callback_name,
 				/* callback  = */ apache_read_host,
-				/* interval  = */ NULL,
+				/* interval  = */ 0,
 				/* user_data = */ &ud);
 	}
 
@@ -283,8 +293,6 @@ static int config (oconfig_item_t *ci)
 /* initialize curl for each host */
 static int init_host (apache_t *st) /* {{{ */
 {
-	static char credentials[1024];
-
 	assert (st->url != NULL);
 	/* (Assured by `config_add') */
 
@@ -334,6 +342,12 @@ static int init_host (apache_t *st) /* {{{ */
 
 	if (st->user != NULL)
 	{
+#ifdef HAVE_CURLOPT_USERNAME
+		curl_easy_setopt (st->curl, CURLOPT_USERNAME, st->user);
+		curl_easy_setopt (st->curl, CURLOPT_PASSWORD,
+				(st->pass == NULL) ? "" : st->pass);
+#else
+		static char credentials[1024];
 		int status;
 
 		status = ssnprintf (credentials, sizeof (credentials), "%s:%s",
@@ -349,6 +363,7 @@ static int init_host (apache_t *st) /* {{{ */
 		}
 
 		curl_easy_setopt (st->curl, CURLOPT_USERPWD, credentials);
+#endif
 	}
 
 	curl_easy_setopt (st->curl, CURLOPT_URL, st->url);
@@ -361,6 +376,15 @@ static int init_host (apache_t *st) /* {{{ */
 			st->verify_host ? 2L : 0L);
 	if (st->cacert != NULL)
 		curl_easy_setopt (st->curl, CURLOPT_CAINFO, st->cacert);
+	if (st->ssl_ciphers != NULL)
+		curl_easy_setopt (st->curl, CURLOPT_SSL_CIPHER_LIST,st->ssl_ciphers);
+
+#ifdef HAVE_CURLOPT_TIMEOUT_MS
+	if (st->timeout >= 0)
+		curl_easy_setopt (st->curl, CURLOPT_TIMEOUT_MS, (long) st->timeout);
+	else
+		curl_easy_setopt (st->curl, CURLOPT_TIMEOUT_MS, (long) CDTIME_T_TO_MS(plugin_get_interval()));
+#endif
 
 	return (0);
 } /* }}} int init_host */

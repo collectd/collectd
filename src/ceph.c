@@ -21,6 +21,7 @@
  *   Dan Ryder <daryder@cisco.com>
  **/
 
+#define _DEFAULT_SOURCE
 #define _BSD_SOURCE
 
 #include "collectd.h"
@@ -42,7 +43,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
-#include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/un.h>
@@ -656,7 +656,8 @@ static int cc_handle_bool(struct oconfig_item_s *item, int *dest)
 static int cc_add_daemon_config(oconfig_item_t *ci)
 {
     int ret, i;
-    struct ceph_daemon *array, *nd, cd;
+    struct ceph_daemon *nd, cd;
+    struct ceph_daemon **tmp;
     memset(&cd, 0, sizeof(struct ceph_daemon));
 
     if((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
@@ -708,21 +709,21 @@ static int cc_add_daemon_config(oconfig_item_t *ci)
         return -EINVAL;
     }
 
-    array = realloc(g_daemons,
-                    sizeof(struct ceph_daemon *) * (g_num_daemons + 1));
-    if(array == NULL)
+    tmp = realloc(g_daemons, (g_num_daemons+1) * sizeof(*g_daemons));
+    if(tmp == NULL)
     {
         /* The positive return value here indicates that this is a
          * runtime error, not a configuration error.  */
         return ENOMEM;
     }
-    g_daemons = (struct ceph_daemon**) array;
-    nd = malloc(sizeof(struct ceph_daemon));
+    g_daemons = tmp;
+
+    nd = malloc(sizeof(*nd));
     if(!nd)
     {
         return ENOMEM;
     }
-    memcpy(nd, &cd, sizeof(struct ceph_daemon));
+    memcpy(nd, &cd, sizeof(*nd));
     g_daemons[g_num_daemons++] = nd;
     return 0;
 }
