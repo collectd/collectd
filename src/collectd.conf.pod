@@ -7227,13 +7227,15 @@ When you define B<tsdb_id>, the metric name is not calculated but is B<Id> (with
 If a B<tsdb_tag_*> is defined, the related item is removed from the metric name. If B<tag_key> is not empty,
 a tag will be added with key B<tag_key> and value the item.
 
-=item B<tsdb_tag> B<tag_key>=B<tag_value>
+=item B<tsdb_tag_add_XX> B<tag_value>
 
-When you define a B<tsdb_tag> B<tag_key>=B<tag_value> key-value pair, a tag is added (copy/pasted from
-the defined B<tag_key>=B<tag_value>). If you want to add more than one tag, put them on the same line and
-separe them with spaces. Example :
+When you define a B<tsdb_tag_add_XX>, a B<tag_key>=B<tag_value> key-value pair tag is added. The
+key comes from B<tsdb_tag_add_XX> and would be B<XX> here. Note that you cannot define the same tag twice.
+Examples: 
 
-  MetaDataSet "tsdb_tag" "k1=v1 k2=v2 k3=v3"
+  MetaDataSet "tsdb_tag_add_k1" "v1"
+  MetaDataSet "tsdb_tag_add_k2" "v2"
+  MetaDataSet "tsdb_tag_add_k3" "v3"
 
 =back
 
