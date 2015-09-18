@@ -2736,6 +2736,102 @@ B<Note>: There is no need to notify the daemon after moving or removing the
 log file (e.E<nbsp>g. when rotating the logs). The plugin reopens the file
 for each line it writes.
 
+=head2 Plugin C<logtail>
+
+The I<logtail> plugin works like C<tail -f> with analyze of URI, statuscode, time or size.
+It can count,summarize,avg,percentile of these values. 
+
+It's try to save memory and CPU extremly, tries to avoid heap fragemtation. 
+It operates with memory pools which will be allocated per every C<Plugin> -> C<Files> -> C<Match> -> C<Report> chain.
+It handles 100k lines or 25MB (without Writers in collectd and Regexps in plugin-config) within 4s on 1-core VIRT with E5-2670 0 @ 2.60GHz
+
+
+Every C<Plugin> can have 1 or more C<Files> sections, each of them specifies 1 or more files or filemasks.
+Every C<Files> have 1 or more C<Match> sections, Every new line of file will be parsed and URL will be matched with first C<Prefix>, C<Suffix> or C<Exact> Keyword. 
+For every matched C<Match> can be 0 or more C<Report> sections.
+
+Synopsis:
+
+## optional parameters with default values have one comment symbol
+ <Plugin "logtail">
+            ## many files or glob-filemasks can be specified
+     <Files "/var/log/apache/website1_access.log*" "/var/log/apache/website1alias_access.log*">
+        Instance "website1"
+        Interval 60   # optional
+
+## text or symbols - what should match
+## %? - any word(to next separator)
+## "%?" - any line in quotes (single or double)
+## %r - special keyword: Request
+## %s - size
+## %b - bytes
+## %D - (micro)seconds
+#        Format "%? %? %? %? %? \"%? %r %?\" %s %b \"%?\" \"%?\" %D %? %?"
+ 
+# what to match for URI
+        <Match>
+          Suffix .jpg .png .css .js
+          Prefix "/static/"
+          Instance "static"
+
+          <Report>
+              Type "count"
+              Instance "total"  # optional. collectd-internal prefix make it "counter-total"
+          </Report>
+          <Report>
+              Type "count_code"
+              Threshold 200 300 400 404 405 500 501 505
+              Instance "code-%d" # optional
+          </Report>
+          <Report>
+              Type "count_time"
+              Threshold 1000 10000 100000 1000000
+              Instance "time-%d" # optional
+          </Report>
+          <Report>
+              Type "count_size"
+              Threshold 1000 10000 100000 1000000
+              Instance "size"  # optional
+          </Report>
+          <Report>
+              Type "sum_size"
+             Instance "sum_size"  # optional
+          </Report>
+          <Report>
+              Type "avg_size"
+              Instance "avg_size"  # optional
+          </Report>
+          <Report>
+              Type "avg_time"
+              Instance "avg_time"  # optional
+          </Report>
+          <Report>
+              Type "pct_time" # percentile
+              Threshold 50 90 99
+              Instance "pct_time"  # optional
+          </Report>
+          <Report>
+              Type "pct_size"   # percentile
+              Threshold 50 90 99
+              Instance "pct_size"  # optional
+          </Report>
+        </Match>
+        <Match>
+          Exact /server-status /status
+#         ..
+        </Match>
+        <Match>
+#todo:    Regex ^/user/
+#         ..
+        </Match>
+        <Match>
+          Prefix /
+#         ..
+        </Match>
+    </Files>
+ </Plugin>
+
+
 =head2 Plugin C<lpar>
 
 The I<LPAR plugin> reads CPU statistics of I<Logical Partitions>, a

@@ -733,6 +733,12 @@ nginx_la_LIBADD += $(BUILD_WITH_LIBCURL_LIBS)
 endif
 endif
 
+if BUILD_PLUGIN_LOGTAIL
+pkglib_LTLIBRARIES += logtail.la
+logtail_la_SOURCES = logtail.c
+logtail_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_NOTIFY_DESKTOP
 pkglib_LTLIBRARIES += notify_desktop.la
 notify_desktop_la_SOURCES = notify_desktop.c
