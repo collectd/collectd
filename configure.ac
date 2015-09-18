@@ -5676,6 +5676,7 @@ AC_PLUGIN([ipvs],        [$plugin_ipvs],       [IPVS connection statistics])
 AC_PLUGIN([irq],         [$plugin_irq],        [IRQ statistics])
 AC_PLUGIN([java],        [$with_java],         [Embed the Java Virtual Machine])
 AC_PLUGIN([load],        [$plugin_load],       [System load])
+AC_PLUGIN([logtail],     [yes],                [Continous and efficient parsing of log files])
 AC_PLUGIN([logfile],     [yes],                [File logging plugin])
 AC_PLUGIN([log_logstash], [$plugin_log_logstash], [Logstash json_event compatible logging])
 AC_PLUGIN([lpar],        [$with_perfstat],     [AIX logical partitions statistics])
@@ -6076,6 +6077,7 @@ Configuration:
     java  . . . . . . . . $enable_java
     load  . . . . . . . . $enable_load
     logfile . . . . . . . $enable_logfile
+    logtail . . . . . . . $enable_logtail
     log_logstash  . . . . $enable_log_logstash
     lpar  . . . . . . . . $enable_lpar
     lvm . . . . . . . . . $enable_lvm
