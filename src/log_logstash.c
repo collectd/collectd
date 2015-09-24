@@ -147,7 +147,7 @@ static void log_logstash_print (yajl_gen g, int severity,
 	 * format time as a UTC ISO 8601 compliant string
 	 */
 	strftime (timestamp_str, sizeof (timestamp_str),
-		  "%Y-%m-%d %H:%M:%SZ", &timestamp_tm);
+		  "%Y-%m-%dT%H:%M:%SZ", &timestamp_tm);
 	timestamp_str[sizeof (timestamp_str) - 1] = '\0';
 
 	if (yajl_gen_string(g, (u_char *)timestamp_str,
