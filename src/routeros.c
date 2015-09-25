@@ -45,6 +45,7 @@ struct cr_data_s {
   _Bool collect_memory;
   _Bool collect_df;
   _Bool collect_disk;
+  _Bool collect_health;
 };
 typedef struct cr_data_s cr_data_t;
 
@@ -214,6 +215,22 @@ static int handle_system_resource(__attribute__((unused))
 
   return (0);
 } /* }}} int handle_system_resource */
+
+static int handle_system_health(__attribute__((unused))
+                                ros_connection_t *c, /* {{{ */
+                                const ros_system_health_t *r,
+                                __attribute__((unused)) void *user_data) {
+  cr_data_t *rd;
+
+  if ((r == NULL) || (user_data == NULL))
+    return (EINVAL);
+  rd = user_data;
+
+  cr_submit_gauge(rd, "gauge", "voltage", (gauge_t)r->voltage);
+  cr_submit_gauge(rd, "gauge", "temperature", (gauge_t)r->temperature);
+
+  return (0);
+} /* }}} int handle_system_health */
 #endif
 
 static int cr_read(user_data_t *user_data) /* {{{ */
@@ -280,6 +297,19 @@ static int cr_read(user_data_t *user_data) /* {{{ */
       return (-1);
     }
   }
+
+  if (rd->collect_health) {
+    status = ros_system_health(rd->connection, handle_system_health,
+                               /* user data = */ rd);
+    if (status != 0) {
+      char errbuf[128];
+      ERROR ("routeros plugin: ros_system_health failed: %s",
+             sstrerror(status, errbuf, sizeof(errbuf)));
+      ros_disconnect(rd->connection);
+      rd->connection = NULL;
+      return (-1);
+    }
+  }
 #endif
 
   return (0);
@@ -341,6 +371,8 @@ static int cr_config_router(oconfig_item_t *ci) /* {{{ */
       cf_util_get_boolean(child, &router_data->collect_df);
     else if (strcasecmp("CollectDisk", child->key) == 0)
       cf_util_get_boolean(child, &router_data->collect_disk);
+    else if (strcasecmp("CollectHealth", child->key) == 0)
+      cf_util_get_boolean(child, &router_data->collect_health);
 #endif
     else {
       WARNING("routeros plugin: Unknown config option `%s'.", child->key);
