@@ -7279,6 +7279,7 @@ multiple routers:
       CollectRegistrationTable true
       CollectDF true
       CollectDisk true
+      CollectHealth true
     </Router>
   </Plugin>
 
@@ -7337,6 +7338,12 @@ Defaults to B<false>.
 =item B<CollectDisk> B<true>|B<false>
 
 When enabled, the number of sectors written and bad blocks will be collected.
+Defaults to B<false>.
+
+=item B<CollectHealth> B<true>|B<false>
+
+When enabled, the health statistics will be collected. This includes the
+voltage and temperature on supported hardware.
 Defaults to B<false>.
 
 =back
