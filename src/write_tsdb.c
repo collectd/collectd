@@ -190,6 +190,8 @@ struct wt_callback
     cdtime_t send_buf_init_time;
 
     pthread_mutex_t send_lock;
+
+    _Bool    connect_failed_log_enabled;
 };
 
 
@@ -281,8 +283,11 @@ static int wt_callback_init(struct wt_callback *cb)
     status = getaddrinfo(node, service, &ai_hints, &ai_list);
     if (status != 0)
     {
-        ERROR("write_tsdb plugin: getaddrinfo (%s, %s) failed: %s",
-              node, service, gai_strerror (status));
+        if(cb->connect_failed_log_enabled) {
+            ERROR("write_tsdb plugin: getaddrinfo (%s, %s) failed: %s",
+                    node, service, gai_strerror (status));
+            cb->connect_failed_log_enabled = 0;
+        }
         return -1;
     }
 
@@ -309,13 +314,20 @@ static int wt_callback_init(struct wt_callback *cb)
 
     if (cb->sock_fd < 0)
     {
-        char errbuf[1024];
-        ERROR("write_tsdb plugin: Connecting to %s:%s failed. "
-              "The last error was: %s", node, service,
-              sstrerror (errno, errbuf, sizeof(errbuf)));
+        if(cb->connect_failed_log_enabled) {
+            char errbuf[1024];
+            ERROR("write_tsdb plugin: Connecting to %s:%s failed. "
+                    "The last error was: %s", node, service,
+                    sstrerror (errno, errbuf, sizeof(errbuf)));
+            cb->connect_failed_log_enabled = 0;
+        }
         return -1;
     }
 
+    if(0 == cb->connect_failed_log_enabled) {
+        WARNING("write_tsdb plugin: Connecting to %s:%s succeeded.",node, service);
+        cb->connect_failed_log_enabled = 1;
+    }
     wt_reset_buffer(cb);
 
     return 0;
@@ -365,7 +377,11 @@ static int wt_flush(cdtime_t timeout,
         status = wt_callback_init(cb);
         if (status != 0)
         {
-            ERROR("write_tsdb plugin: wt_callback_init failed.");
+            if(cb->connect_failed_log_enabled || cb->sock_fd >= 0) {
+                /* Do not log if socket is not enabled : it was logged already
+                 * in wt_callback_init(). */
+                ERROR("write_tsdb plugin: wt_callback_init failed.");
+            }
             pthread_mutex_unlock(&cb->send_lock);
             return -1;
         }
@@ -688,6 +704,9 @@ static int wt_send_message (const char* key, const char* value,
     const char* host = vl->host;
     meta_data_t *md = vl->meta;
 
+    const char *node = cb->node ? cb->node : WT_DEFAULT_NODE;
+    const char *service = cb->service ? cb->service : WT_DEFAULT_SERVICE;
+
     /* skip if value is NaN */
     if (value[0] == 'n')
         return 0;
@@ -697,9 +716,8 @@ static int wt_send_message (const char* key, const char* value,
         if (status == -ENOENT) {
             /* defaults to empty string */
         } else if (status < 0) {
-            ERROR("write_tsdb plugin: tags metadata get failure");
+            ERROR("write_tsdb plugin (%s:%s): tags metadata get failure", node, service);
             sfree(temp);
-            pthread_mutex_unlock(&cb->send_lock);
             return status;
         } else {
             tags = temp;
@@ -722,8 +740,8 @@ static int wt_send_message (const char* key, const char* value,
     message_len = (size_t) status;
 
     if (message_len >= sizeof(message)) {
-        ERROR("write_tsdb plugin: message buffer too small: "
-              "Need %zu bytes.", message_len + 1);
+        ERROR("write_tsdb plugin(%s:%s): message buffer too small: "
+              "Need %zu bytes.", node, service, message_len + 1);
         return -1;
     }
 
@@ -734,7 +752,12 @@ static int wt_send_message (const char* key, const char* value,
         status = wt_callback_init(cb);
         if (status != 0)
         {
-            ERROR("write_tsdb plugin: wt_callback_init failed.");
+            if(cb->connect_failed_log_enabled || cb->sock_fd >= 0) {
+                /* Do not log if socket is not enabled : it was logged already
+                 * in wt_callback_init(). */
+                ERROR("write_tsdb plugin (%s:%s): wt_callback_init failed.", node, service);
+                cb->connect_failed_log_enabled = 0;
+            }
             pthread_mutex_unlock(&cb->send_lock);
             return -1;
         }
@@ -761,8 +784,8 @@ static int wt_send_message (const char* key, const char* value,
     cb->send_buf_free -= message_len;
 
     DEBUG("write_tsdb plugin: [%s]:%s buf %zu/%zu (%.1f %%) \"%s\"",
-          cb->node,
-          cb->service,
+          node,
+          service,
           cb->send_buf_fill, sizeof(cb->send_buf),
           100.0 * ((double) cb->send_buf_fill) /
           ((double) sizeof(cb->send_buf)),
@@ -782,6 +805,10 @@ static int wt_write_messages(const data_set_t *ds, const value_list_t *vl,
 
     int status;
     size_t i;
+
+    const char *node = cb->node ? cb->node : WT_DEFAULT_NODE;
+    const char *service = cb->service ? cb->service : WT_DEFAULT_SERVICE;
+
 
     if (0 != strcmp(ds->type, vl->type))
     {
@@ -831,8 +858,12 @@ static int wt_write_messages(const data_set_t *ds, const value_list_t *vl,
         status = wt_send_message(key, values, tags, vl->time, cb, vl);
         if (status != 0)
         {
-            ERROR("write_tsdb plugin: error with "
-                  "wt_send_message");
+            if(cb->connect_failed_log_enabled) {
+                /* Do not log if socket is not enabled : it was logged already
+                 * in wt_callback_init(). */
+                ERROR("write_tsdb plugin (%s:%s): error with "
+                        "wt_send_message", node, service);
+            }
             return status;
         }
     }
@@ -875,6 +906,7 @@ static int wt_config_tsd(oconfig_item_t *ci)
     cb->service = NULL;
     cb->host_tags = NULL;
     cb->store_rates = 0;
+    cb->connect_failed_log_enabled = 1;
 
     pthread_mutex_init (&cb->send_lock, NULL);
 
