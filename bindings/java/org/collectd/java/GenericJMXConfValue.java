@@ -70,6 +70,7 @@ class GenericJMXConfValue
   private List<String> _attributes;
   private String _instance_prefix;
   private List<String> _instance_from;
+  private String _plugin_name;
   private boolean _is_table;
 
   /**
@@ -480,6 +481,7 @@ class GenericJMXConfValue
     this._attributes = new ArrayList<String> ();
     this._instance_prefix = null;
     this._instance_from = new ArrayList<String> ();
+    this._plugin_name = null;
     this._is_table = false;
 
     /*
@@ -528,6 +530,12 @@ class GenericJMXConfValue
         String tmp = getConfigString (child);
         if (tmp != null)
           this._instance_from.add (tmp);
+        else if (child.getKey ().equalsIgnoreCase ("PluginName"))
+        {
+          String tmp = getConfigString (child);
+          if (tmp != null)
+            this._plugin_name = tmp;
+        }
       }
       else
         throw (new IllegalArgumentException ("Unknown option: "
@@ -582,6 +590,10 @@ class GenericJMXConfValue
 
     vl = new ValueList (pd);
     vl.setType (this._ds_name);
+    if (this._plugin_name != null)
+    {
+      vl.setPlugin (this._plugin_name);
+    }
 
     /*
      * Build the instnace prefix from the fixed string prefix and the
