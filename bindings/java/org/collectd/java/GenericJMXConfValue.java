@@ -28,6 +28,7 @@ package org.collectd.java;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Collection;
 import java.util.Set;
 import java.util.Iterator;
 import java.util.ArrayList;
@@ -39,6 +40,7 @@ import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
 import javax.management.openmbean.OpenType;
 import javax.management.openmbean.CompositeData;
+import javax.management.openmbean.TabularData;
 import javax.management.openmbean.InvalidKeyException;
 
 import org.collectd.api.Collectd;
@@ -295,6 +297,46 @@ class GenericJMXConfValue
     {
       if (value instanceof CompositeData)
         return (queryAttributeRecursive ((CompositeData) value, attrName));
+      else if (value instanceof TabularData)
+        return (queryAttributeRecursive ((TabularData) value, attrName));
+      else
+        return (null);
+    }
+  } /* }}} queryAttributeRecursive */
+
+  private Object queryAttributeRecursive (TabularData parent, /* {{{ */
+      List<String> attrName)
+  {
+    String key;
+    Object value = null;
+
+    key = attrName.remove (0);
+
+    TabularData tabularData = (TabularData) parent;
+    Collection<CompositeData> table =
+        (Collection<CompositeData>)tabularData.values();
+    for (CompositeData compositeData : table)
+    {
+      if (key.equals(compositeData.get("key")))
+      {
+        value = compositeData.get("value");
+      }
+    }
+    if (null == value)
+    {
+      return (null);
+    }
+
+    if (attrName.size () == 0)
+    {
+      return (value);
+    }
+    else
+    {
+      if (value instanceof CompositeData)
+        return (queryAttributeRecursive ((CompositeData) value, attrName));
+      else if (value instanceof TabularData)
+        return (queryAttributeRecursive ((TabularData) value, attrName));
       else
         return (null);
     }
@@ -341,6 +383,8 @@ class GenericJMXConfValue
     {
       if (value instanceof CompositeData)
         return (queryAttributeRecursive((CompositeData) value, attrNameList));
+      else if (value instanceof TabularData)
+        return (queryAttributeRecursive((TabularData) value, attrNameList));
       else if (value instanceof OpenType)
       {
         OpenType ot = (OpenType) value;
@@ -351,7 +395,7 @@ class GenericJMXConfValue
       else
       {
         Collectd.logError ("GenericJMXConfValue: Received object of "
-            + "unknown class.");
+            + "unknown class. " + attrName + " " + ((value == null)?"null":value.getClass().getName()));
         return (null);
       }
     }
