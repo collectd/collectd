@@ -462,6 +462,9 @@ Features
     - write_riemann
       Sends data to Riemann, a stream processing and monitoring system.
 
+    - write_statsd
+      Sends data to a StatsD server.
+
     - write_sensu
       Sends data to Sensu, a stream processing and monitoring system, via the
       Sensu client local TCP socket.
