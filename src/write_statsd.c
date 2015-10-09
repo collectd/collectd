@@ -274,8 +274,8 @@ static int write_statsd_init(void) {
   FREE_NOT_NULL(configuration.prefix)
 
   DEBUG("%s configuration completed.", WRITE_STATSD_NAME);
-  DEBUG("%s Host: %s", WRITE_STATSD_NAME, configuration.host);
-  DEBUG("%s Port: %i", WRITE_STATSD_NAME, configuration.port);
+  DEBUG("%s Host: %s",  WRITE_STATSD_NAME, configuration.host);
+  DEBUG("%s Port: %li", WRITE_STATSD_NAME, configuration.port);
   DEBUG("%s SilenceTypeWarnings: %i", WRITE_STATSD_NAME,
         configuration.silence_type_warnings);
   DEBUG("%s FormatString: %s", WRITE_STATSD_NAME,
