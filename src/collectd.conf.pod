@@ -510,7 +510,7 @@ are disabled by default.
 
 =head2 Plugin C<amqp>
 
-The I<AMQMP plugin> can be used to communicate with other instances of
+The I<AMQP plugin> can be used to communicate with other instances of
 I<collectd> or third party applications using an AMQP message broker. Values
 are sent to or received from the broker, which handles routing, queueing and
 possibly filtering out messages.
@@ -1827,6 +1827,7 @@ than those of other plugins. It usually looks something like this:
     </Query>
     <Database "product_information">
       Driver "mysql"
+      Interval 120
       DriverOption "host" "localhost"
       DriverOption "username" "collectd"
       DriverOption "password" "aZo6daiw"
@@ -2005,6 +2006,11 @@ block. This name will be used as "PluginInstance" in the values submitted to
 the daemon. Other than that, that name is not used.
 
 =over 4
+
+=item B<Interval> I<Interval>
+
+Sets the interval (in seconds) in which the values will be collected from this
+database. By default the global B<Interval> setting will be used.
 
 =item B<Driver> I<Driver>
 
@@ -2288,7 +2294,7 @@ expected from them. This is documented in great detail in L<collectd-exec(5)>.
 =head2 Plugin C<fhcount>
 
 The C<fhcount> plugin provides statistics about used, unused and total number of
-file handles.
+file handles on Linux.
 
 The I<fhcount plugin> provides the following configuration options:
 
@@ -7119,6 +7125,10 @@ You can also specify combinations of these fields. For example B<name uuid>
 means to concatenate the guest name and UUID (with a literal colon character
 between, thus I<"foo:1234-1234-1234-1234">).
 
+At the moment of writing (collectd-5.5), hostname string is limited to 62
+characters. In case when combination of fields exceeds 62 characters,
+hostname will be truncated without a warning.
+
 =item B<InterfaceFormat> B<name>|B<address>
 
 When the virt plugin logs interface data, it sets the name of the collected
@@ -7129,13 +7139,17 @@ setting B<name>.
 B<address> means use the interface's mac address. This is useful since the
 interface path might change between reboots of a guest or across migrations.
 
-=item B<PluginInstanceFormat> B<name|uuid>
+=item B<PluginInstanceFormat> B<name|uuid|none>
 
 When the virt plugin logs data, it sets the plugin_instance of the collected
-data according to this setting. The default is to use the guest name as provided
-by the hypervisor, which is equal to setting B<name>.
+data according to this setting. The default is to not set the plugin_instance.
 
+B<name> means use the guest's name as provided by the hypervisor.
 B<uuid> means use the guest's UUID.
+
+You can also specify combinations of the B<name> and B<uuid> fields.
+For example B<name uuid> means to concatenate the guest name and UUID
+(with a literal colon character between, thus I<"foo:1234-1234-1234-1234">).
 
 =back
 
@@ -7478,6 +7492,10 @@ complete. When this limit is reached, the POST operation will be aborted, and
 all the data in the current send buffer will probably be lost. Defaults to 0,
 which means the connection never times out.
 
+=item B<LogHttpError> B<false>|B<true>
+
+Enables printing of HTTP error code to log. Turned off by default.
+
 The C<write_http> plugin regularly submits the collected values to the HTTP
 server. How frequently this happens depends on how much data you are collecting
 and the size of B<BufferSize>. The optimal value to set B<Timeout> to is
@@ -7611,7 +7629,7 @@ Synopsis:
 
 Values are submitted to I<Sorted Sets>, using the metric name as the key, and
 the timestamp as the score. Retrieving a date range can then be done using the
-C<ZRANGEBYSCORE> I<Redis> command. Additionnally, all the identifiers of these
+C<ZRANGEBYSCORE> I<Redis> command. Additionally, all the identifiers of these
 I<Sorted Sets> are kept in a I<Set> called C<collectd/values> (or
 C<${prefix}/values> if the B<Prefix> option was specified) and can be retrieved
 using the C<SMEMBERS> I<Redis> command. You can specify the database to use 
@@ -7631,9 +7649,9 @@ options are available:
 =item B<Node> I<Nodename>
 
 The B<Node> block identifies a new I<Redis> node, that is a new I<Redis>
-instance running in an specified host and port. The name for node is a
+instance running on a specified host and port. The node name is a
 canonical identifier which is used as I<plugin instance>. It is limited to
-64E<nbsp>characters in length.
+51E<nbsp>characters in length.
 
 =item B<Host> I<Hostname>
 

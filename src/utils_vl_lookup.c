@@ -33,6 +33,10 @@
 #include "utils_vl_lookup.h"
 #include "utils_avltree.h"
 
+#if HAVE_LIBKSTAT
+kstat_ctl_t *kc;
+#endif /* HAVE_LIBKSTAT */
+
 #if BUILD_TEST
 # define sstrncpy strncpy
 # define plugin_log(s, ...) do { \
@@ -304,9 +308,10 @@ static int lu_handle_user_class (lookup_t *obj, /* {{{ */
   {
     /* call lookup_class_callback_t() and insert into the list of user objects. */
     user_obj = lu_create_user_obj (obj, ds, vl, user_class);
-    pthread_mutex_unlock (&user_class->lock);
-    if (user_obj == NULL)
+    if (user_obj == NULL) {
+      pthread_mutex_unlock (&user_class->lock);
       return (-1);
+    }
   }
   pthread_mutex_unlock (&user_class->lock);
 

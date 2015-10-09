@@ -29,19 +29,19 @@
 #include "configfile.h"
 
 #if HAVE_VARNISH_V4
-#include <varnish/vapi/vsm.h>
-#include <varnish/vapi/vsc.h>
+#include <vapi/vsm.h>
+#include <vapi/vsc.h>
 typedef struct VSC_C_main c_varnish_stats_t;
 #endif
 
 #if HAVE_VARNISH_V3
-#include <varnish/varnishapi.h>
-#include <varnish/vsc.h>
+#include <varnishapi.h>
+#include <vsc.h>
 typedef struct VSC_C_main c_varnish_stats_t;
 #endif
 
 #if HAVE_VARNISH_V2
-#include <varnish/varnishapi.h>
+#include <varnishapi.h>
 typedef struct varnish_stats c_varnish_stats_t;
 #endif
 

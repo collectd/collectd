@@ -68,6 +68,7 @@
 %{?el7:%global _has_atasmart 1}
 %{?el7:%global _has_hiredis 1}
 %{?el7:%global _has_asm_msr_index 1}
+%{?el7:%global _has_libmosquitto 1}
 
 # plugins enabled by default
 %define with_aggregation 0%{!?_without_aggregation:1}
@@ -121,6 +122,7 @@
 %define with_memory 0%{!?_without_memory:1}
 %define with_multimeter 0%{!?_without_multimeter:1}
 %define with_modbus 0%{!?_without_modbus:0%{?_has_libmodbus}}
+%define with_mqtt 0%{!?_without_mqtt:0%{?_has_libmosquitto}}
 %define with_mysql 0%{!?_without_mysql:1}
 %define with_netlink 0%{!?_without_netlink:0%{?_has_iproute}}
 %define with_network 0%{!?_without_network:1}
@@ -514,6 +516,16 @@ BuildRequires:	mysql-devel
 %description mysql
 MySQL querying plugin. This plugin provides data of issued commands, called
 handlers and database traffic.
+%endif
+
+%if %{with_mqtt}
+%package mqtt
+Summary:	mqtt plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	mosquitto-devel
+%description mqtt
+The MQTT plugin publishes and subscribes to MQTT topics.
 %endif
 
 %if %{with_netlink}
@@ -1167,6 +1179,12 @@ Collectd utilities
 %define _with_multimeter --disable-multimeter
 %endif
 
+%if %{with_mqtt}
+%define _with_mqtt --enable-mqtt
+%else
+%define _with_mqtt --disable-mqtt
+%endif
+
 %if %{with_mysql}
 %define _with_mysql --enable-mysql
 %else
@@ -1647,6 +1665,7 @@ Collectd utilities
 	%{?_with_mic} \
 	%{?_with_modbus} \
 	%{?_with_multimeter} \
+	%{?_with_mqtt} \
 	%{?_with_mysql} \
 	%{?_with_netapp} \
 	%{?_with_netlink} \
@@ -2205,6 +2224,11 @@ fi
 %{_libdir}/%{name}/modbus.so
 %endif
 
+%if %{with_mqtt}
+%files mqtt
+%{_libdir}/%{name}/mqtt.so
+%endif
+
 %if %{with_mysql}
 %files mysql
 %{_libdir}/%{name}/mysql.so
@@ -2346,6 +2370,7 @@ fi
 %changelog
 #* TODO: next feature release changelog
 #- New upstream version
+#- New plugins enabled by default: mqtt
 #- New plugins disabled by default: zone
 #
 * Wed May 27 2015 Marc Fournier <marc.fournier@camptocamp.com> 5.5.0-1

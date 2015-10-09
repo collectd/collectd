@@ -95,6 +95,9 @@
 #  include <time.h>
 # endif
 #endif
+#if HAVE_SYS_SOCKET_H
+# include <sys/socket.h>
+#endif
 
 #if HAVE_ASSERT_H
 # include <assert.h>

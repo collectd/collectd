@@ -1,7 +1,3 @@
-if COMPILER_IS_GCC
-AM_CFLAGS = -Wall -Werror
-endif
-
 AM_CPPFLAGS = -I$(top_srcdir)/src
 AM_CPPFLAGS += -DPREFIX='"${prefix}"'
 AM_CPPFLAGS += -DCONFIGFILE='"${sysconfdir}/${PACKAGE_NAME}.conf"'
@@ -93,8 +89,8 @@ else
 collectd_LDADD += -loconfig
 endif
 
-check_PROGRAMS = test_common test_meta_data test_utils_avltree test_utils_heap test_utils_subst
-TESTS          = test_common test_meta_data test_utils_avltree test_utils_heap test_utils_subst
+check_PROGRAMS = test_common test_meta_data test_utils_avltree test_utils_heap test_utils_time test_utils_subst
+TESTS          = test_common test_meta_data test_utils_avltree test_utils_heap test_utils_time test_utils_subst
 
 test_common_SOURCES = common_test.c ../testing.h
 test_common_LDADD = libcommon.la libplugin_mock.la
@@ -107,6 +103,8 @@ test_utils_avltree_LDADD = libavltree.la $(COMMON_LIBS)
 
 test_utils_heap_SOURCES = utils_heap_test.c ../testing.h
 test_utils_heap_LDADD = libheap.la $(COMMON_LIBS)
+
+test_utils_time_SOURCES = utils_time_test.c ../testing.h
 
 test_utils_subst_SOURCES = utils_subst_test.c ../testing.h \
 			   utils_subst.c utils_subst.h

@@ -4,6 +4,11 @@ AC_CONFIG_SRCDIR(src/)
 AC_CONFIG_HEADERS(src/config.h)
 AC_CONFIG_AUX_DIR([libltdl/config])
 
+dnl older automake's default of ARFLAGS=cru is noisy on newer binutils;
+dnl we don't really need the 'u' even in older toolchains.  Then there is
+dnl older libtool, which spelled it AR_FLAGS
+m4_divert_text([DEFAULTS], [: "${ARFLAGS=cr} ${AR_FLAGS=cr}"])
+
 m4_ifdef([LT_PACKAGE_VERSION],
 	# libtool >= 2.2
 	[
@@ -23,6 +28,8 @@ m4_ifdef([LT_PACKAGE_VERSION],
 	 AC_DEFINE(LIBTOOL_VERSION, 1, [Define to used libtool version.])
 	]
 )
+
+AM_CONDITIONAL([BUILD_INCLUDED_LTDL], [test "x$LTDLDEPS" != "x"])
 
 AM_INIT_AUTOMAKE([tar-pax dist-bzip2 foreign])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
@@ -90,12 +97,12 @@ case $host_os in
 esac
 AC_MSG_RESULT([$ac_system])
 
-AM_CONDITIONAL([BUILD_LINUX],[test "x$x$ac_system" = "xLinux"])
-AM_CONDITIONAL([BUILD_SOLARIS],[test "x$x$ac_system" = "xSolaris"])
-AM_CONDITIONAL([BUILD_DARWIN],[test "x$x$ac_system" = "xDarwin"])
-AM_CONDITIONAL([BUILD_OPENBSD],[test "x$x$ac_system" = "xOpenBSD"])
-AM_CONDITIONAL([BUILD_AIX],[test "x$x$ac_system" = "xAIX"])
-AM_CONDITIONAL([BUILD_FREEBSD],[test "x$x$ac_system" = "xFreeBSD"])
+AM_CONDITIONAL([BUILD_LINUX],[test "x$ac_system" = "xLinux"])
+AM_CONDITIONAL([BUILD_SOLARIS],[test "x$ac_system" = "xSolaris"])
+AM_CONDITIONAL([BUILD_DARWIN],[test "x$ac_system" = "xDarwin"])
+AM_CONDITIONAL([BUILD_OPENBSD],[test "x$ac_system" = "xOpenBSD"])
+AM_CONDITIONAL([BUILD_AIX],[test "x$ac_system" = "xAIX"])
+AM_CONDITIONAL([BUILD_FREEBSD],[test "x$ac_system" = "xFreeBSD"])
 
 if test "x$ac_system" = "xLinux"
 then
@@ -631,6 +638,9 @@ AC_CHECK_HEADERS(net/pfvar.h,
 #endif
 #if HAVE_NET_IF_H
 # include <net/if.h>
+#endif
+#if HAVE_NETINET_IN_H
+# include <netinet/in.h>
 #endif
 ])
 
@@ -1915,30 +1925,33 @@ AC_ARG_WITH(libganglia, [AS_HELP_STRING([--with-libganglia@<:@=PREFIX@:>@], [Pat
 	 GANGLIA_LDFLAGS="-L$withval/lib"
 	 with_libganglia="yes"
  else
-	 with_libganglia_config="ganglia-config"
 	 with_libganglia="$withval"
  fi; fi; fi
 ],
 [
- with_libganglia_config="ganglia-config"
  with_libganglia="yes"
 ])
 
-if test "x$with_libganglia" = "xyes" && test "x$with_libganglia_config" != "x"
+if test "x$with_libganglia" = "xyes"
 then
-	if test "x$GANGLIA_CPPFLAGS" = "x"
+	if test "x$with_libganglia_config" != "x"
 	then
-		GANGLIA_CPPFLAGS=`"$with_libganglia_config" --cflags 2>/dev/null`
-	fi
+		if test "x$GANGLIA_CPPFLAGS" = "x"
+		then
+			GANGLIA_CPPFLAGS=`"$with_libganglia_config" --cflags 2>/dev/null`
+		fi
 
-	if test "x$GANGLIA_LDFLAGS" = "x"
-	then
-		GANGLIA_LDFLAGS=`"$with_libganglia_config" --ldflags 2>/dev/null`
-	fi
+		if test "x$GANGLIA_LDFLAGS" = "x"
+		then
+			GANGLIA_LDFLAGS=`"$with_libganglia_config" --ldflags 2>/dev/null`
+		fi
 
-	if test "x$GANGLIA_LIBS" = "x"
-	then
-		GANGLIA_LIBS=`"$with_libganglia_config" --libs 2>/dev/null`
+		if test "x$GANGLIA_LIBS" = "x"
+		then
+			GANGLIA_LIBS=`"$with_libganglia_config" --libs 2>/dev/null`
+		fi
+	else
+		GANGLIA_LIBS="-lganglia"
 	fi
 fi
 
@@ -2562,7 +2575,7 @@ then
 	SAVE_CPPFLAGS="$CPPFLAGS"
 	CPPFLAGS="$CPPFLAGS $with_libmodbus_cflags"
 
-	AC_CHECK_HEADERS(modbus/modbus.h, [], [with_libmodbus="no (modbus/modbus.h not found)"])
+	AC_CHECK_HEADERS(modbus.h, [], [with_libmodbus="no (modbus.h not found)"])
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
 fi
@@ -2728,7 +2741,7 @@ AC_ARG_WITH(libmysql, [AS_HELP_STRING([--with-libmysql@<:@=PREFIX@:>@], [Path to
 ])
 if test "x$with_libmysql" = "xyes"
 then
-	with_mysql_cflags=`$with_mysql_config --cflags 2>/dev/null`
+	with_mysql_cflags=`$with_mysql_config --include 2>/dev/null`
 	mysql_config_status=$?
 
 	if test $mysql_config_status -ne 0
@@ -2764,15 +2777,17 @@ then
 	then
 		with_libmysql="no ($with_mysql_config failed)"
 	else
-		AC_CHECK_LIB(mysqlclient, mysql_init,
-		 [with_libmysql="yes"],
-		 [with_libmysql="no (symbol 'mysql_init' not found)"],
-		 [$with_mysql_libs])
-
-		AC_CHECK_LIB(mysqlclient, mysql_get_server_version,
+		SAVE_CPPFLAGS="$CPPFLAGS"
+		CPPFLAGS="$CPPFLAGS $with_mysql_cflags"
+		SAVE_LIBS="$LIBS"
+		LIBS="$with_mysql_libs"
+		AC_SEARCH_LIBS([mysql_get_server_version],
+		 [],
 		 [with_libmysql="yes"],
 		 [with_libmysql="no (symbol 'mysql_get_server_version' not found)"],
-		 [$with_mysql_libs])
+		 [])
+		CPPFLAGS="$SAVE_CPPFLAGS"
+		LIBS="$SAVE_LIBS"
 	fi
 fi
 if test "x$with_libmysql" = "xyes"
@@ -3289,11 +3304,6 @@ if test "x$with_libpcap" = "xyes"
 then
 	AC_CHECK_HEADERS(pcap.h,,
 			 [with_libpcap="no (pcap.h not found)"])
-fi
-if test "x$with_libpcap" = "xyes"
-then
-	AC_CHECK_HEADERS(pcap-bpf.h,,
-			 [with_libpcap="no (pcap-bpf.h not found)"])
 fi
 if test "x$with_libpcap" = "xyes"
 then
@@ -4838,11 +4848,11 @@ then
 
 	CPPFLAGS="$CPPFLAGS $with_libvarnish_cflags"
 
-	AC_CHECK_HEADERS(varnish/vapi/vsc.h,
+	AC_CHECK_HEADERS(vapi/vsc.h,
 		[AC_DEFINE([HAVE_VARNISH_V4], [1], [Varnish 4 API support])],
-		[AC_CHECK_HEADERS(varnish/vsc.h,
+		[AC_CHECK_HEADERS(vsc.h,
 			[AC_DEFINE([HAVE_VARNISH_V3], [1], [Varnish 3 API support])],
-			[AC_CHECK_HEADERS(varnish/varnishapi.h,
+			[AC_CHECK_HEADERS(varnishapi.h,
 				[AC_DEFINE([HAVE_VARNISH_V2], [1], [Varnish 2 API support])],
 				[with_libvarnish="no (found none of the varnish header files)"])])])
 
@@ -5241,6 +5251,7 @@ collectd features:])
 AC_COLLECTD([debug],     [enable],  [feature], [debugging])
 AC_COLLECTD([daemon],    [disable], [feature], [daemon mode])
 AC_COLLECTD([getifaddrs],[enable],  [feature], [getifaddrs under Linux])
+AC_COLLECTD([werror],    [disable], [feature], [building with -Werror])
 
 dependency_warning="no"
 dependency_error="no"
@@ -5262,6 +5273,7 @@ plugin_disk="no"
 plugin_drbd="no"
 plugin_entropy="no"
 plugin_ethstat="no"
+plugin_fhcount="no"
 plugin_fscache="no"
 plugin_interface="no"
 plugin_ipmi="no"
@@ -5305,6 +5317,7 @@ then
 	plugin_disk="yes"
 	plugin_drbd="yes"
 	plugin_entropy="yes"
+	plugin_fhcount="yes"
 	plugin_fscache="yes"
 	plugin_interface="yes"
 	plugin_ipc="yes"
@@ -5352,15 +5365,16 @@ fi
 
 if test "x$ac_system" = "xAIX"
 then
-        plugin_tcpconns="yes"
-        plugin_ipc="yes"
+	plugin_tcpconns="yes"
+	plugin_ipc="yes"
 fi
 
 # FreeBSD
 
 if test "x$ac_system" = "xFreeBSD"
 then
-        plugin_zfs_arc="yes"
+	plugin_disk="yes"
+	plugin_zfs_arc="yes"
 fi
 
 
@@ -5649,7 +5663,7 @@ AC_PLUGIN([email],       [yes],                [EMail statistics])
 AC_PLUGIN([entropy],     [$plugin_entropy],    [Entropy statistics])
 AC_PLUGIN([ethstat],     [$plugin_ethstat],    [Stats from NIC driver])
 AC_PLUGIN([exec],        [yes],                [Execution of external programs])
-AC_PLUGIN([fhcount],     [yes],                [File handles statistics])
+AC_PLUGIN([fhcount],     [$plugin_fhcount],    [File handles statistics])
 AC_PLUGIN([filecount],   [yes],                [Count files in directories])
 AC_PLUGIN([fscache],     [$plugin_fscache],    [fscache statistics])
 AC_PLUGIN([gmond],       [$with_libganglia],   [Ganglia plugin])
@@ -5908,6 +5922,13 @@ AC_SUBST(LCC_VERSION_STRING)
 
 AC_CONFIG_FILES(src/libcollectdclient/collectd/lcc_features.h)
 
+AM_CFLAGS="-Wall"
+if test "x$enable_werror" != "xno"
+then
+        AM_CFLAGS="$AM_CFLAGS -Werror"
+fi
+AC_SUBST([AM_CFLAGS])
+
 AC_CONFIG_FILES([Makefile src/Makefile src/daemon/Makefile src/collectd.conf src/libcollectdclient/Makefile src/libcollectdclient/libcollectdclient.pc src/liboconfig/Makefile bindings/Makefile bindings/java/Makefile])
 AC_OUTPUT
 
@@ -5938,6 +5959,17 @@ fi
 cat <<EOF;
 
 Configuration:
+  Build:
+    Platform  . . . . . . $ac_system
+    CC  . . . . . . . . . $CC
+    CFLAGS  . . . . . . . $AM_CFLAGS $CFLAGS
+    CPP . . . . . . . . . $CPP
+    CPPFLAGS  . . . . . . $CPPFLAGS
+    LD  . . . . . . . . . $LD
+    LDFLAGS . . . . . . . $LDFLAGS
+    YACC  . . . . . . . . $YACC
+    YFLAGS  . . . . . . . $YFLAGS
+
   Libraries:
     intel mic . . . . . . $with_mic
     libaquaero5 . . . . . $with_libaquaero5

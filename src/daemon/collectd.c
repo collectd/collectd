@@ -32,7 +32,6 @@
 #include "configfile.h"
 
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <sys/un.h>
 #include <netdb.h>
 
@@ -197,8 +196,10 @@ static int change_basedir (const char *orig_dir)
 	while ((dirlen > 0) && (dir[dirlen - 1] == '/'))
 		dir[--dirlen] = '\0';
 
-	if (dirlen <= 0)
+	if (dirlen <= 0) {
+		free (dir);
 		return (-1);
+	}
 
 	status = chdir (dir);
 	if (status == 0)

@@ -32,6 +32,9 @@
 #include "configfile.h"
 
 #if KERNEL_LINUX
+  /* _GNU_SOURCE is needed for struct shm_info.used_ids on musl libc */
+# define _GNU_SOURCE
+
   /* X/OPEN tells us to use <sys/{types,ipc,sem}.h> for semctl() */
   /* X/OPEN tells us to use <sys/{types,ipc,msg}.h> for msgctl() */
   /* X/OPEN tells us to use <sys/{types,ipc,shm}.h> for shmctl() */

@@ -31,9 +31,6 @@
 #if HAVE_SYS_TYPES_H
 #  include <sys/types.h>
 #endif
-#if HAVE_SYS_SOCKET_H
-#  include <sys/socket.h>
-#endif
 
 /* One cannot include both. This sucks. */
 #if HAVE_LINUX_IF_H

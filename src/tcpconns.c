@@ -71,13 +71,10 @@
 
 #if KERNEL_LINUX
 # include <asm/types.h>
-/* sys/socket.h is necessary to compile when using netlink on older systems. */
-# include <sys/socket.h>
 # include <linux/netlink.h>
 #if HAVE_LINUX_INET_DIAG_H
 # include <linux/inet_diag.h>
 #endif
-# include <sys/socket.h>
 # include <arpa/inet.h>
 /* #endif KERNEL_LINUX */
 
@@ -89,9 +86,6 @@
 #include <sys/time.h>
 #if HAVE_SYS_TYPES_H
 # include <sys/types.h>
-#endif
-#if HAVE_SYS_SOCKET_H
-# include <sys/socket.h>
 #endif
 #if HAVE_NET_IF_H
 # include <net/if.h>
@@ -113,7 +107,6 @@
 /* This is for OpenBSD and NetBSD. */
 #elif HAVE_LIBKVM_NLIST
 # include <sys/queue.h>
-# include <sys/socket.h>
 # include <net/route.h>
 # include <netinet/in.h>
 # include <netinet/in_systm.h>

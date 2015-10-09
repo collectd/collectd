@@ -40,6 +40,7 @@
 #include <signal.h>
 #include <errno.h>
 #include <math.h>
+#include <sys/time.h>
 
 #include "utils_heap.h"
 
@@ -100,6 +101,7 @@ static void signal_handler (int signal) /* {{{ */
   loop = 0;
 } /* }}} void signal_handler */
 
+#if HAVE_CLOCK_GETTIME
 static double dtime (void) /* {{{ */
 {
   struct timespec ts = { 0 };
@@ -109,6 +111,18 @@ static double dtime (void) /* {{{ */
 
   return ((double) ts.tv_sec) + (((double) ts.tv_nsec) / 1e9);
 } /* }}} double dtime */
+#else
+/* Work around for Mac OS X which doesn't have clock_gettime(2). *sigh* */
+static double dtime (void) /* {{{ */
+{
+  struct timeval tv = { 0 };
+
+  if (gettimeofday (&tv, /* timezone = */ NULL) != 0)
+    perror ("gettimeofday");
+
+  return ((double) tv.tv_sec) + (((double) tv.tv_usec) / 1e6);
+} /* }}} double dtime */
+#endif
 
 static int compare_time (const void *v0, const void *v1) /* {{{ */
 {

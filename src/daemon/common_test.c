@@ -27,6 +27,10 @@
 #include "testing.h"
 #include "common.h"
 
+#if HAVE_LIBKSTAT
+kstat_ctl_t *kc;
+#endif /* HAVE_LIBKSTAT */
+
 DEF_TEST(sstrncpy)
 {
   char buffer[16] = "";
@@ -38,18 +42,18 @@ DEF_TEST(sstrncpy)
 
   ret = sstrncpy (ptr, "foobar", 8);
   OK(ret == ptr);
-  STREQ ("foobar", ptr);
+  EXPECT_EQ_STR ("foobar", ptr);
   OK(buffer[3] == buffer[12]);
 
   ret = sstrncpy (ptr, "abc", 8);
   OK(ret == ptr);
-  STREQ ("abc", ptr);
+  EXPECT_EQ_STR ("abc", ptr);
   OK(buffer[3] == buffer[12]);
 
   ret = sstrncpy (ptr, "collectd", 8);
   OK(ret == ptr);
   OK(ptr[7] == 0);
-  STREQ ("collect", ptr);
+  EXPECT_EQ_STR ("collect", ptr);
   OK(buffer[3] == buffer[12]);
 
   return (0);
@@ -66,12 +70,12 @@ DEF_TEST(ssnprintf)
 
   status = ssnprintf (ptr, 8, "%i", 1337);
   OK(status == 4);
-  STREQ ("1337", ptr);
+  EXPECT_EQ_STR ("1337", ptr);
 
   status = ssnprintf (ptr, 8, "%s", "collectd");
   OK(status == 8);
   OK(ptr[7] == 0);
-  STREQ ("collect", ptr);
+  EXPECT_EQ_STR ("collect", ptr);
   OK(buffer[3] == buffer[12]);
 
   return (0);
@@ -83,7 +87,7 @@ DEF_TEST(sstrdup)
 
   ptr = sstrdup ("collectd");
   OK(ptr != NULL);
-  STREQ ("collectd", ptr);
+  EXPECT_EQ_STR ("collectd", ptr);
 
   sfree(ptr);
   OK(ptr == NULL);
@@ -103,40 +107,40 @@ DEF_TEST(strsplit)
   strncpy (buffer, "foo bar", sizeof (buffer));
   status = strsplit (buffer, fields, 8);
   OK(status == 2);
-  STREQ ("foo", fields[0]);
-  STREQ ("bar", fields[1]);
+  EXPECT_EQ_STR ("foo", fields[0]);
+  EXPECT_EQ_STR ("bar", fields[1]);
 
   strncpy (buffer, "foo \t bar", sizeof (buffer));
   status = strsplit (buffer, fields, 8);
   OK(status == 2);
-  STREQ ("foo", fields[0]);
-  STREQ ("bar", fields[1]);
+  EXPECT_EQ_STR ("foo", fields[0]);
+  EXPECT_EQ_STR ("bar", fields[1]);
 
   strncpy (buffer, "one two\tthree\rfour\nfive", sizeof (buffer));
   status = strsplit (buffer, fields, 8);
   OK(status == 5);
-  STREQ ("one", fields[0]);
-  STREQ ("two", fields[1]);
-  STREQ ("three", fields[2]);
-  STREQ ("four", fields[3]);
-  STREQ ("five", fields[4]);
+  EXPECT_EQ_STR ("one", fields[0]);
+  EXPECT_EQ_STR ("two", fields[1]);
+  EXPECT_EQ_STR ("three", fields[2]);
+  EXPECT_EQ_STR ("four", fields[3]);
+  EXPECT_EQ_STR ("five", fields[4]);
 
   strncpy (buffer, "\twith trailing\n", sizeof (buffer));
   status = strsplit (buffer, fields, 8);
   OK(status == 2);
-  STREQ ("with", fields[0]);
-  STREQ ("trailing", fields[1]);
+  EXPECT_EQ_STR ("with", fields[0]);
+  EXPECT_EQ_STR ("trailing", fields[1]);
 
   strncpy (buffer, "1 2 3 4 5 6 7 8 9 10 11 12 13", sizeof (buffer));
   status = strsplit (buffer, fields, 8);
   OK(status == 8);
-  STREQ ("7", fields[6]);
-  STREQ ("8", fields[7]);
+  EXPECT_EQ_STR ("7", fields[6]);
+  EXPECT_EQ_STR ("8", fields[7]);
 
   strncpy (buffer, "single", sizeof (buffer));
   status = strsplit (buffer, fields, 8);
   OK(status == 1);
-  STREQ ("single", fields[0]);
+  EXPECT_EQ_STR ("single", fields[0]);
 
   strncpy (buffer, "", sizeof (buffer));
   status = strsplit (buffer, fields, 8);
@@ -158,26 +162,26 @@ DEF_TEST(strjoin)
 
   status = strjoin (buffer, sizeof (buffer), fields, 2, "!");
   OK(status == 7);
-  STREQ ("foo!bar", buffer);
+  EXPECT_EQ_STR ("foo!bar", buffer);
 
   status = strjoin (buffer, sizeof (buffer), fields, 1, "!");
   OK(status == 3);
-  STREQ ("foo", buffer);
+  EXPECT_EQ_STR ("foo", buffer);
 
   status = strjoin (buffer, sizeof (buffer), fields, 0, "!");
   OK(status < 0);
 
   status = strjoin (buffer, sizeof (buffer), fields, 2, "rcht");
   OK(status == 10);
-  STREQ ("foorchtbar", buffer);
+  EXPECT_EQ_STR ("foorchtbar", buffer);
 
   status = strjoin (buffer, sizeof (buffer), fields, 4, "");
   OK(status == 12);
-  STREQ ("foobarbazqux", buffer);
+  EXPECT_EQ_STR ("foobarbazqux", buffer);
 
   status = strjoin (buffer, sizeof (buffer), fields, 4, "!");
   OK(status == 15);
-  STREQ ("foo!bar!baz!qux", buffer);
+  EXPECT_EQ_STR ("foo!bar!baz!qux", buffer);
 
   fields[0] = "0123";
   fields[1] = "4567";
@@ -207,7 +211,7 @@ DEF_TEST(escape_slashes)
 
     strncpy (buffer, cases[i].str, sizeof (buffer));
     OK(escape_slashes (buffer, sizeof (buffer)) == 0);
-    STREQ(cases[i].want, buffer);
+    EXPECT_EQ_STR(cases[i].want, buffer);
   }
 
   return 0;
@@ -234,7 +238,7 @@ DEF_TEST(escape_string)
 
     strncpy (buffer, cases[i].str, sizeof (buffer));
     OK(escape_string (buffer, sizeof (buffer)) == 0);
-    STREQ(cases[i].want, buffer);
+    EXPECT_EQ_STR(cases[i].want, buffer);
   }
 
   return 0;
@@ -248,23 +252,23 @@ DEF_TEST(strunescape)
   strncpy (buffer, "foo\\tbar", sizeof (buffer));
   status = strunescape (buffer, sizeof (buffer));
   OK(status == 0);
-  STREQ ("foo\tbar", buffer);
+  EXPECT_EQ_STR ("foo\tbar", buffer);
 
   strncpy (buffer, "\\tfoo\\r\\n", sizeof (buffer));
   status = strunescape (buffer, sizeof (buffer));
   OK(status == 0);
-  STREQ ("\tfoo\r\n", buffer);
+  EXPECT_EQ_STR ("\tfoo\r\n", buffer);
 
   strncpy (buffer, "With \\\"quotes\\\"", sizeof (buffer));
   status = strunescape (buffer, sizeof (buffer));
   OK(status == 0);
-  STREQ ("With \"quotes\"", buffer);
+  EXPECT_EQ_STR ("With \"quotes\"", buffer);
 
   /* Backslash before null byte */
   strncpy (buffer, "\\tbackslash end\\", sizeof (buffer));
   status = strunescape (buffer, sizeof (buffer));
   OK(status != 0);
-  STREQ ("\tbackslash end", buffer);
+  EXPECT_EQ_STR ("\tbackslash end", buffer);
   return (0);
 
   /* Backslash at buffer end */
@@ -328,11 +332,11 @@ DEF_TEST(parse_values)
     };
 
     int status = parse_values (cases[i].buffer, &vl, &ds);
-    EXPECT_INTEQ (cases[i].status, status);
+    EXPECT_EQ_INT (cases[i].status, status);
     if (status != 0)
       continue;
 
-    DBLEQ (cases[i].value, vl.values[0].gauge);
+    EXPECT_EQ_DOUBLE (cases[i].value, vl.values[0].gauge);
   }
 
   return (0);
@@ -370,7 +374,7 @@ DEF_TEST(value_to_rate)
     }
 
     OK(value_to_rate (&got, cases[i].v1, cases[i].ds_type, TIME_T_TO_CDTIME_T(cases[i].t1), &state) == 0);
-    DBLEQ(cases[i].want, got);
+    EXPECT_EQ_DOUBLE(cases[i].want, got);
   }
 
   return 0;

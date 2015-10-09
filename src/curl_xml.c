@@ -897,8 +897,7 @@ static int cx_init_curl (cx_t *db) /* {{{ */
   if (db->timeout >= 0)
     curl_easy_setopt (db->curl, CURLOPT_TIMEOUT_MS, (long) db->timeout);
   else
-    curl_easy_setopt (db->curl, CURLOPT_TIMEOUT_MS,
-       CDTIME_T_TO_MS(plugin_get_interval()));
+    curl_easy_setopt (db->curl, CURLOPT_TIMEOUT_MS, (long) CDTIME_T_TO_MS(plugin_get_interval()));
 #endif
 
   return (0);

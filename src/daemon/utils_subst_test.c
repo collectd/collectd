@@ -29,6 +29,10 @@
 #include "common.h" /* for STATIC_ARRAY_SIZE */
 #include "utils_subst.h"
 
+#if HAVE_LIBKSTAT
+kstat_ctl_t *kc;
+#endif /* HAVE_LIBKSTAT */
+
 DEF_TEST(subst)
 {
   struct {
@@ -82,7 +86,7 @@ DEF_TEST(subst)
     }
 
     OK(subst (buffer, sizeof (buffer), cases[i].str, cases[i].off1, cases[i].off2, cases[i].rplmt) == &buffer[0]);
-    STREQ(cases[i].want, buffer);
+    EXPECT_EQ_STR(cases[i].want, buffer);
   }
 
   return 0;
@@ -112,7 +116,7 @@ DEF_TEST(subst_string)
     }
 
     OK(subst_string (buffer, sizeof (buffer), cases[i].str, cases[i].srch, cases[i].rplmt) == buffer);
-    STREQ(cases[i].want, buffer);
+    EXPECT_EQ_STR(cases[i].want, buffer);
   }
 
   return 0;

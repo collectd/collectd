@@ -188,8 +188,7 @@ static int init (void)
   }
   else
   {
-    curl_easy_setopt (curl, CURLOPT_TIMEOUT_MS,
-       CDTIME_T_TO_MS(plugin_get_interval()));
+    curl_easy_setopt (curl, CURLOPT_TIMEOUT_MS, (long) CDTIME_T_TO_MS(plugin_get_interval()));
   }
 #endif
 
