@@ -7504,6 +7504,209 @@ traffic between collectd and the HTTP server.
 
 =back
 
+=head2 Plugin C<write_influxdb>
+
+The C<write_influxdb> plugin sends data to InfluxDB version 0.9 and later
+via the native HTTP protocol. InfluxDB version 0.8.x and earlier releases use
+a different protocol and are not supported.
+
+Synopsis:
+
+ <Plugin "write_influxdb">
+   MaxConnections 8
+
+   Username "default_username"
+   Password "default_password"
+
+   <Node "influx">
+     Host "influx.some.domain"
+     Port 8086
+     Database "perfdb"
+
+     <Format "%p_%f">
+       Tag "host" "%h"
+       Tag "instance" "%i"
+       Tag "type" "%t"
+       Tag "type_instance" "%j"
+     </Format>
+   </Node>
+ </Plugin>
+
+The plugin configuration can contain an arbitrary number of E<lt>B<Node>E<gt>
+blocks, each of which describes an InfluxDB instance to send data to. Most of
+the options that apply inside a E<lt>B<Node>E<gt> block can also be specified
+outside of a E<lt>B<Node>E<gt> block. In that case they specify default
+values for nodes defined from that point on.
+
+The following options are supported:
+
+=over 4
+
+=item B<MaxConnections> I<Number>
+
+Maximum number of persistent connections in the HTTP connection cache. The
+default is I<4>.
+
+=item E<lt>B<Node> I<String>E<gt>
+
+Specifies an InfluxDB instance to send data to. The parameter is the
+B<node name>. This is mostly used to identify the node in log messages.
+
+The following options can be specified inside the E<lt>B<Node>E<gt> section:
+
+=over 4
+
+=item B<Host> I<String>
+
+Hostname of InfluxDB server. This option is required, there is no default.
+
+=item B<Port> I<Number>
+
+Port number where InfluxDB listens to HTTP requests. Defaults to I<8086>.
+
+=item B<Database> I<String>
+
+Name of InfluxDB database to write to. This option is required, there is no
+default.
+
+=item B<URL> I<String>
+
+This can be given instead of the B<Host>, B<Port> and B<Database> parameters
+and allows to manually override the URL which is otherwise generated from
+the three parameters above using the scheme
+http://I<HOST>:I<PORT>/write?db=I<DATABASE>.
+
+This option is mutually exclusive with B<Host>, B<Port> and B<Database>.
+
+=item B<Username> I<String>
+
+User name for HTTP authentication. If this is given, B<Password> is also
+required. By default, collectd does not authenticate to InfluxDB.
+
+=item B<Password> I<String>
+
+Password for HTTP authentication. If this is given, B<Username> is also
+required.
+
+=item E<lt>B<Format> I<String>E<gt>
+
+Identifies the InfluxDB time series that collectd data should be written into.
+See B<Specifying Formats>, below, for further information. The default setting
+is as follows:
+
+ <Format "%p_%f">
+   Tag "host" "%h"
+   Tag "instance" "%i"
+   Tag "type" "%t"
+   Tag "type_instance" "%j"
+ </Format>
+
+=item B<StoreRates> B<True>|B<False>
+
+Determines whether or not I<COUNTER>, I<DERIVE> and I<ABSOLUTE> data sources
+are converted to a I<rate> (i.e. a I<GAUGE> value). If set to B<False>, no
+conversion is performed. Otherwise the conversion is performed using the
+internal value cache.
+
+The default is B<False>.
+
+=item B<IntAsFloat> B<True>|B<False>
+
+If B<StoreRates> is B<False>, this setting determines whether I<COUNTER>,
+I<DERIVE> and I<ABSOLUTE> values are sent to InfluxDB as integers or as
+floating point values. Note that InfluxDB fixes the data type of a time series
+when it is first created, and writes will fail if this setting is subsequently
+changed.
+
+If B<StoreRates> is B<True>, all data is sent to InfluxDB as floating point
+values and this setting has no effect.
+
+The default is B<False>.
+
+=item B<RequestTimeout> I<Number>
+
+Specifies the HTTP request timeout, in milliseconds. The default is I<10000>.
+
+=item B<BufferSize> I<Number>
+
+How many bytes of data to buffer internally before submitting a request to
+InfluxDB. This setting is crucial to the performance of InfluxDB, because each
+buffer submitted to InfluxDB causes a flush to disk. Consider increasing this
+setting if InfluxDB has performance issues related to disk writes.
+
+The default is I<65536>.
+
+=back
+
+=back
+
+=head3 Specifying Formats
+
+The E<lt>B<Format>E<gt> parameter specifies how collectd measurement names
+are converted to InfluxDB time series. The translation relies heavily on
+B<format strings>. A format string is a template string in which certain
+B<%> escapes are replaced:
+
+=over 4
+
+=item B<%%>
+
+A literal B<%> character.
+
+=item B<%h>
+
+Host name.
+
+=item B<%p>
+
+Plugin name.
+
+=item B<%i>
+
+Plugin instance.
+
+=item B<%t>
+
+Type.
+
+=item B<%j>
+
+Type instance.
+
+=item B<%f>
+
+Field name for multi-value types, e.g. I<interface> measurements have a I<rx>
+and a I<tx> field. Most single-value measurements have a single field called
+I<value>.
+
+=back
+
+InfluxDB groups time series into B<measurements>. Each measurement has a name,
+and within a measurement specific time series are identified by B<tags> and
+associated values assigned to each time series. Every time series, then, has
+one or more B<columns>, which also carry names.
+
+The parameter given in the main E<lt>B<Format>E<gt> statement is a format
+string which is used to generate the measurement name.
+
+Within the E<lt>B<Format>E<gt> block, then, several parameters of the form
+B<Tag> I<Name> I<Value> can be given. These specify a tag name (a fixed string)
+and a format string used to generate the tag value. If the tag value evaluates
+to an empty string for a given data item, then that tag is omitted. (InfluxDB
+does not allow empty tag values.)
+
+The InfluxDB column name is generated in a special way. If the B<%f> escape
+is used anywhere in the measurement name or a tag value, then each field of
+a multi-field data item goes into a time series of its own. In that case,
+all time series will have a single column and that column is always called
+I<value>.
+
+If the B<%f> escape is not used anywhere in the format specification, then
+all fields are written into a single time series, each into a column with
+the same name as the field. E.g., for a collectd data item of type
+I<if_octets> (see I<types.db>), the InfluxDB time series will have a I<rx>
+column and a I<tx> column.
+
 =head2 Plugin C<write_kafka>
 
 The I<write_kafka plugin> will send values to a I<Kafka> topic, a distributed
