@@ -593,7 +593,7 @@ static int wt_config(oconfig_item_t *ci) {
 
     if (strcasecmp("Node", child->key) == 0)
       wt_config_tsd(child);
-    if (strcasecmp("DNS_Cache_TTL", child->key) == 0) {
+    else if (strcasecmp("DNS_Cache_TTL", child->key) == 0) {
       int ttl;
       cf_util_get_int(child, &ttl);
       dnsttl = TIME_T_TO_CDTIME_T(ttl);
