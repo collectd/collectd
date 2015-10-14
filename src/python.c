@@ -302,7 +302,7 @@ void cpy_log_exception(const char *context) {
 		Py_XDECREF(traceback);
 		return;
 	}
-	list = PyObject_CallFunction(cpy_format_exception, "NNN", type, value, traceback); /* New reference. */
+	list = PyObject_CallFunction(cpy_format_exception, "NNN", type, value, traceback); /* New reference. Steals references from "type", "value" and "traceback". */
 	if (list)
 		l = PyObject_Length(list);
 	for (i = 0; i < l; ++i) {
@@ -322,9 +322,6 @@ void cpy_log_exception(const char *context) {
 	}
 	Py_XDECREF(list);
 	PyErr_Clear();
-	Py_DECREF(type);
-	Py_XDECREF(value);
-	Py_XDECREF(traceback);
 }
 
 static int cpy_read_callback(user_data_t *data) {
