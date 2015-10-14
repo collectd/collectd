@@ -656,7 +656,7 @@ static int disk_read (void)
 		if ((read_time != 0) || (write_time != 0)) {
 			disk_submit (disk_name, "disk_time", "read",
 					(derive_t)(read_time*1000));
-		        disk_submit (disk_name, "disk_time", "write".
+		        disk_submit (disk_name, "disk_time", "write",
 		                        (derive_t)(write_time*1000));
 		}
 	}
