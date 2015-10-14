@@ -74,6 +74,13 @@ static int cldap_init_host (cldap_t *st) /* {{{ */
 {
 	LDAP *ld;
 	int rc;
+
+	if (st->state && st->ld)
+	{
+		DEBUG ("openldap plugin: Already connected to %s", st->url);
+		return (0);
+	}
+
 	rc = ldap_initialize (&ld, st->url);
 	if (rc != LDAP_SUCCESS)
 	{
@@ -231,6 +238,7 @@ static int cldap_read_host (user_data_t *ud) /* {{{ */
 		ERROR ("openldap plugin: Failed to execute search: %s",
 				ldap_err2string (rc));
 		ldap_msgfree (result);
+		st->state = 0;
 		ldap_unbind_ext_s (st->ld, NULL, NULL);
 		return (-1);
 	}
@@ -528,7 +536,6 @@ static int cldap_read_host (user_data_t *ud) /* {{{ */
 	}
 
 	ldap_msgfree (result);
-	ldap_unbind_ext_s (st->ld, NULL, NULL);
 	return (0);
 } /* }}} int cldap_read_host */
 
