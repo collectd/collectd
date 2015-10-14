@@ -459,7 +459,11 @@ int notify_systemd (void)
 
     unsetenv ("NOTIFY_SOCKET");
 
+#if defined(SOCK_CLOEXEC)
+    fd = socket (AF_UNIX, SOCK_DGRAM|SOCK_CLOEXEC, /* protocol = */ 0);
+#else
     fd = socket (AF_UNIX, SOCK_DGRAM, /* protocol = */ 0);
+#endif
     if (fd < 0) {
         char errbuf[1024];
         ERROR ("creating UNIX socket failed: %s",
@@ -477,7 +481,6 @@ int notify_systemd (void)
     }
     else
     {
-#if KERNEL_LINUX
         /* Linux abstract namespace socket: specify address as "\0foo", i.e.
          * start with a null byte. Since null bytes have no special meaning in
          * that case, we have to set su_size correctly to cover only the bytes
@@ -487,11 +490,6 @@ int notify_systemd (void)
         su_size = sizeof (sa_family_t) + strlen (notifysocket);
         if (su_size > sizeof (su))
             su_size = sizeof (su);
-#else
-	ERROR ("Systemd socket uses Linux abstract namespace notation (\"%s\"), "
-			"but I don't appear to be running on Linux.", notifysocket);
-	return 0;
-#endif
     }
 
     if (sendto (fd, buffer, strlen (buffer), MSG_NOSIGNAL, (void *) &su, (socklen_t) su_size) < 0)
@@ -503,6 +501,7 @@ int notify_systemd (void)
         return 0;
     }
 
+    unsetenv ("NOTIFY_SOCKET");
     close(fd);
     return 1;
 }
