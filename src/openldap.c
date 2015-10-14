@@ -571,7 +571,7 @@ static int cldap_config_add (oconfig_item_t *ci) /* {{{ */
 	}
 
 	st->starttls = 0;
-	st->timeout = -1;
+	st->timeout = (long) (CDTIME_T_TO_MS(plugin_get_interval()) / 1000);
 	st->verifyhost = 1;
 	st->version = LDAP_VERSION3;
 

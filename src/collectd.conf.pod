@@ -4660,8 +4660,9 @@ client configuration mechanisms. See ldap.conf(5) for the details.
 
 =item B<Timeout> I<Seconds>
 
-Sets the timeout value for ldap operations. Defaults to B<-1> which results in
-an infinite timeout.
+Sets the timeout value for ldap operations, in seconds. By default, the
+configured B<Interval> is used to set the timeout. Use B<-1> to disable
+(infinite timeout).
 
 =item B<Version> I<Version>
 
