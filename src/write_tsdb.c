@@ -175,6 +175,8 @@ static const char *meta_tag_metric_id[] = {
  */
 struct wt_callback
 {
+    struct addrinfo * sock_info;
+    cdtime_t sock_info_last_update;
     int      sock_fd;
 
     char     *node;
@@ -193,6 +195,8 @@ struct wt_callback
 
     _Bool    connect_failed_log_enabled;
 };
+
+static cdtime_t dnsttl = TIME_T_TO_CDTIME_T(60);
 
 
 /*
@@ -260,10 +264,9 @@ static int wt_flush_nolock(cdtime_t timeout, struct wt_callback *cb)
 
 static int wt_callback_init(struct wt_callback *cb)
 {
-    struct addrinfo ai_hints;
-    struct addrinfo *ai_list;
     struct addrinfo *ai_ptr;
     int status;
+    cdtime_t now;
 
     const char *node = cb->node ? cb->node : WT_DEFAULT_NODE;
     const char *service = cb->service ? cb->service : WT_DEFAULT_SERVICE;
@@ -271,28 +274,49 @@ static int wt_callback_init(struct wt_callback *cb)
     if (cb->sock_fd > 0)
         return 0;
 
-    memset(&ai_hints, 0, sizeof(ai_hints));
-#ifdef AI_ADDRCONFIG
-    ai_hints.ai_flags    |= AI_ADDRCONFIG;
-#endif
-    ai_hints.ai_family   = AF_UNSPEC;
-    ai_hints.ai_socktype = SOCK_STREAM;
-
-    ai_list = NULL;
-
-    status = getaddrinfo(node, service, &ai_hints, &ai_list);
-    if (status != 0)
-    {
-        if(cb->connect_failed_log_enabled) {
-            ERROR("write_tsdb plugin: getaddrinfo (%s, %s) failed: %s",
-                    node, service, gai_strerror (status));
-            cb->connect_failed_log_enabled = 0;
+    now = cdtime();
+    if ((cb->sock_info_last_update + dnsttl) < now) {
+        if(cb->sock_info) {
+            freeaddrinfo(cb->sock_info);
+            cb->sock_info = NULL;
         }
-        return -1;
     }
 
-    assert (ai_list != NULL);
-    for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+    if(NULL == cb->sock_info) {
+        struct addrinfo ai_hints;
+
+        memset(&ai_hints, 0, sizeof(ai_hints));
+#ifdef AI_ADDRCONFIG
+        ai_hints.ai_flags    |= AI_ADDRCONFIG;
+#endif
+        ai_hints.ai_family   = AF_UNSPEC;
+        ai_hints.ai_socktype = SOCK_STREAM;
+
+        if ((cb->sock_info_last_update + dnsttl) >= now) {
+                DEBUG("write_tsdb plugin: too many getaddrinfo (%s, %s) failures",
+                        node, service);
+            return(-1);
+        }
+
+        cb->sock_info_last_update = now;
+        status = getaddrinfo(node, service, &ai_hints, &(cb->sock_info));
+        if (status != 0)
+        {
+            if(cb->sock_info) {
+                freeaddrinfo(cb->sock_info);
+                cb->sock_info = NULL;
+            }
+            if(cb->connect_failed_log_enabled) {
+                ERROR("write_tsdb plugin: getaddrinfo (%s, %s) failed: %s",
+                        node, service, gai_strerror (status));
+                cb->connect_failed_log_enabled = 0;
+            }
+            return -1;
+        }
+    }
+
+    assert (cb->sock_info != NULL);
+    for (ai_ptr = cb->sock_info; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
     {
         cb->sock_fd = socket(ai_ptr->ai_family, ai_ptr->ai_socktype,
                              ai_ptr->ai_protocol);
@@ -309,8 +333,6 @@ static int wt_callback_init(struct wt_callback *cb)
 
         break;
     }
-
-    freeaddrinfo(ai_list);
 
     if (cb->sock_fd < 0)
     {
@@ -901,6 +923,8 @@ static int wt_config_tsd(oconfig_item_t *ci)
         return -1;
     }
     memset(cb, 0, sizeof(*cb));
+    cb->sock_info = NULL;
+    cb->sock_info_last_update = 0;
     cb->sock_fd = -1;
     cb->node = NULL;
     cb->service = NULL;
@@ -956,6 +980,12 @@ static int wt_config(oconfig_item_t *ci)
 
         if (strcasecmp("Node", child->key) == 0)
             wt_config_tsd(child);
+        if (strcasecmp("DNS_Cache_TTL", child->key) == 0)
+        {
+            int ttl;
+            cf_util_get_int(child, &ttl);
+            dnsttl = TIME_T_TO_CDTIME_T(ttl);
+        }
         else
         {
             ERROR("write_tsdb plugin: Invalid configuration "
