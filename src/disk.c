@@ -269,26 +269,27 @@ static int disk_init (void)
 } /* int disk_init */
 
 static void disk_submit (const char *plugin_instance,
-		const char *type,
-		derive_t read, derive_t write)
+               const char *type,
+               const char *operation,
+               derive_t val)
 {
-	value_t values[2];
+	value_t v;
 	value_list_t vl = VALUE_LIST_INIT;
 
 	/* Both `ignorelist' and `plugin_instance' may be NULL. */
 	if (ignorelist_match (ignorelist, plugin_instance) != 0)
 	  return;
 
-	values[0].derive = read;
-	values[1].derive = write;
+	v.derive = val;
 
-	vl.values = values;
-	vl.values_len = 2;
+	vl.values = &v;
+	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "disk", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, plugin_instance,
-			sizeof (vl.plugin_instance));
+	                sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, type, sizeof (vl.type));
+	sstrncpy (vl.type_instance, operation, sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
 } /* void disk_submit */
@@ -316,23 +317,41 @@ static void submit_in_progress (char const *disk_name, gauge_t in_progress)
 
 static void submit_io_time (char const *plugin_instance, derive_t io_time, derive_t weighted_time)
 {
-	value_t values[2];
+	value_t v;
 	value_list_t vl = VALUE_LIST_INIT;
 
 	if (ignorelist_match (ignorelist, plugin_instance) != 0)
 	  return;
 
-	values[0].derive = io_time;
-	values[1].derive = weighted_time;
+	v.derive = io_time;
 
-	vl.values = values;
-	vl.values_len = 2;
+	vl.values = &v;
+	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "disk", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, "disk_io_time", sizeof (vl.type));
+	sstrncpy (vl.type_instance, "io_time", sizeof (vl.plugin));
 
 	plugin_dispatch_values (&vl);
+
+	value_t v2;
+	value_list_t vl2 = VALUE_LIST_INIT;
+
+	if (ignorelist_match (ignorelist, plugin_instance) != 0)
+	  return;
+
+	v2.derive = weighted_time;
+
+	vl2.values = &v2;
+	vl2.values_len = 1;
+	sstrncpy (vl2.host, hostname_g, sizeof (vl2.host));
+	sstrncpy (vl2.plugin, "disk", sizeof (vl2.plugin));
+	sstrncpy (vl2.plugin_instance, plugin_instance, sizeof (vl2.plugin_instance));
+	sstrncpy (vl2.type, "disk_io_time", sizeof (vl2.type));
+	sstrncpy (vl2.type_instance, "weighted_time", sizeof (vl2.plugin));
+
+	plugin_dispatch_values (&vl2);
 }
 
 
@@ -516,13 +535,18 @@ static int disk_read (void)
 
 		/* and submit */
 		DEBUG ("disk plugin: disk_name = \"%s\"", disk_name);
-		if ((read_byt != -1LL) || (write_byt != -1LL))
-			disk_submit (disk_name, "disk_octets", read_byt, write_byt);
-		if ((read_ops != -1LL) || (write_ops != -1LL))
-			disk_submit (disk_name, "disk_ops", read_ops, write_ops);
-		if ((read_tme != -1LL) || (write_tme != -1LL))
-			disk_submit (disk_name, "disk_time", read_tme / 1000, write_tme / 1000);
 
+		if ((read_byt != -1LL) || (write_byt != -1LL))
+		        disk_submit (disk_name, "disk_octets", "read", read_byt);
+		        disk_submit (disk_name, "disk_octets", "write", write_byt);
+		if ((read_ops != -1LL) || (write_ops != -1LL))
+		        disk_submit (disk_name, "disk_ops", "read", read_ops);
+		        disk_submit (disk_name, "disk_ops", "write", write_ops);
+		if ((read_tme != -1LL) || (write_tme != -1LL))
+		        disk_submit (disk_name, "disk_time", "read",
+		                        read_tme / 1000);
+		        disk_submit (disk_name, "disk_time", "write",
+		                        write_tme / 1000);
 	}
 	IOObjectRelease (disk_list);
 /* #endif HAVE_IOKIT_IOKITLIB_H */
@@ -614,22 +638,26 @@ static int disk_read (void)
 		disk_name = ((struct gprovider *)geom_id->lg_ptr)->lg_name;
 
 		if ((snap_iter->bytes[DEVSTAT_READ] != 0) || (snap_iter->bytes[DEVSTAT_WRITE] != 0)) {
-			disk_submit(disk_name, "disk_octets",
-					(derive_t)snap_iter->bytes[DEVSTAT_READ],
-					(derive_t)snap_iter->bytes[DEVSTAT_WRITE]);
+			disk_submit(disk_name, "disk_octets", "read",
+					(derive_t)snap_iter->bytes[DEVSTAT_READ]);
+		        disk_submit(disk_name, "disk_octets", "write",
+		                        (derive_t)snap_iter->bytes[DEVSTAT_WRITE]);
 		}
 
 		if ((snap_iter->operations[DEVSTAT_READ] != 0) || (snap_iter->operations[DEVSTAT_WRITE] != 0)) {
-			disk_submit(disk_name, "disk_ops",
-					(derive_t)snap_iter->operations[DEVSTAT_READ],
-					(derive_t)snap_iter->operations[DEVSTAT_WRITE]);
+			disk_submit(disk_name, "disk_ops", "read",
+					(derive_t)snap_iter->operations[DEVSTAT_READ]);
+		        disk_submit(disk_name, "disk_ops", "write",
+		                        (derive_t)snap_iter->operations[DEVSTAT_WRITE]);
 		}
 
 		read_time = devstat_compute_etime(&snap_iter->duration[DEVSTAT_READ], NULL);
 		write_time = devstat_compute_etime(&snap_iter->duration[DEVSTAT_WRITE], NULL);
 		if ((read_time != 0) || (write_time != 0)) {
-			disk_submit (disk_name, "disk_time",
-					(derive_t)(read_time*1000), (derive_t)(write_time*1000));
+			disk_submit (disk_name, "disk_time", "read",
+					(derive_t)(read_time*1000));
+		        disk_submit (disk_name, "disk_time", "write".
+		                        (derive_t)(write_time*1000));
 		}
 	}
 	geom_stats_snapshot_free(snap);
@@ -850,21 +878,29 @@ static int disk_read (void)
 			output_name = alt_name;
 
 		if ((ds->read_bytes != 0) || (ds->write_bytes != 0))
-			disk_submit (output_name, "disk_octets",
-					ds->read_bytes, ds->write_bytes);
+			disk_submit (output_name, "disk_octets", "read",
+					ds->read_bytes);
+		        disk_submit (output_name, "disk_octets", "write",
+		                        ds->write_bytes);
 
 		if ((ds->read_ops != 0) || (ds->write_ops != 0))
-			disk_submit (output_name, "disk_ops",
-					read_ops, write_ops);
+			disk_submit (output_name, "disk_ops", "read",
+					read_ops);
+		        disk_submit (output_name, "disk_ops", "write",
+		                        write_ops);
 
 		if ((ds->avg_read_time != 0) || (ds->avg_write_time != 0))
-			disk_submit (output_name, "disk_time",
-					ds->avg_read_time, ds->avg_write_time);
+			disk_submit (output_name, "disk_time", "read",
+					ds->avg_read_time);
+		        disk_submit (output_name, "disk_time", "write",
+		                        ds->avg_write_time);
 
 		if (is_disk)
 		{
-			disk_submit (output_name, "disk_merged",
-					read_merged, write_merged);
+			disk_submit (output_name, "disk_merged", "read",
+					read_merged);
+		        disk_submit (output_name, "disk_merged", "write",
+		                        write_merged);
 			submit_in_progress (output_name, in_progress);
 			submit_io_time (output_name, io_time, weighted_time);
 		} /* if (is_disk) */
@@ -911,20 +947,30 @@ static int disk_read (void)
 
 		if (strncmp (ksp[i]->ks_class, "disk", 4) == 0)
 		{
-			disk_submit (ksp[i]->ks_name, "disk_octets",
-					kio.KIO_ROCTETS, kio.KIO_WOCTETS);
-			disk_submit (ksp[i]->ks_name, "disk_ops",
-					kio.KIO_ROPS, kio.KIO_WOPS);
-			/* FIXME: Convert this to microseconds if necessary */
-			disk_submit (ksp[i]->ks_name, "disk_time",
-					kio.KIO_RTIME, kio.KIO_WTIME);
+		        disk_submit (ksp[i]->ks_name, "disk_octets", "read",
+		                        kio.KIO_ROCTETS);
+		        disk_submit (ksp[i]->ks_name, "disk_octets", "write",
+		                        kio.KIO_WOCTETS);
+		        disk_submit (ksp[i]->ks_name, "disk_ops", "read",
+		                        kio.KIO_ROPS);
+		        disk_submit (ksp[i]->ks_name, "disk_ops", "write",
+		                        kio.KIO_WOPS);
+		        /* FIXME: Convert this to microseconds if necessary */
+		        disk_submit (ksp[i]->ks_name, "disk_time", "read",
+		                        kio.KIO_RTIME);
+		        disk_submit (ksp[i]->ks_name, "disk_time", "write",
+		                        kio.KIO_WTIME);
 		}
 		else if (strncmp (ksp[i]->ks_class, "partition", 9) == 0)
 		{
-			disk_submit (ksp[i]->ks_name, "disk_octets",
-					kio.KIO_ROCTETS, kio.KIO_WOCTETS);
-			disk_submit (ksp[i]->ks_name, "disk_ops",
-					kio.KIO_ROPS, kio.KIO_WOPS);
+		        disk_submit (ksp[i]->ks_name, "disk_octets", "read",
+		                        kio.KIO_ROCTETS);
+		        disk_submit (ksp[i]->ks_name, "disk_octets", "write",
+		                        kio.KIO_WOCTETS);
+		        disk_submit (ksp[i]->ks_name, "disk_ops", "read",
+		                        kio.KIO_ROPS);
+		        disk_submit (ksp[i]->ks_name, "disk_ops", "write",
+		                        kio.KIO_WOPS);
 		}
 	}
 /* #endif defined(HAVE_LIBKSTAT) */
@@ -945,7 +991,8 @@ static int disk_read (void)
 	for (counter=0; counter < disks; counter++) {
 		strncpy(name, ds->disk_name, sizeof(name));
 		name[sizeof(name)-1] = '\0'; /* strncpy doesn't terminate longer strings */
-		disk_submit (name, "disk_octets", ds->read_bytes, ds->write_bytes);
+		disk_submit (name, "disk_octets", "read", ds->read_bytes);
+		disk_submit (name, "disk_octets", "write", ds->read_bytes, ds->write_bytes);
 		ds++;
 	}
 /* #endif defined(HAVE_LIBSTATGRAB) */
@@ -989,17 +1036,20 @@ static int disk_read (void)
 	{
 		read_sectors = stat_disk[i].rblks*stat_disk[i].bsize;
 		write_sectors = stat_disk[i].wblks*stat_disk[i].bsize;
-		disk_submit (stat_disk[i].name, "disk_octets", read_sectors, write_sectors);
+		disk_submit (stat_disk[i].name, "disk_octets", "read", read_sectors);
+		disk_submit (stat_disk[i].name, "disk_octets", "write", write_sectors);
 
 		read_ops = stat_disk[i].xrate;
 		write_ops = stat_disk[i].xfers - stat_disk[i].xrate;
-		disk_submit (stat_disk[i].name, "disk_ops", read_ops, write_ops);
+		disk_submit (stat_disk[i].name, "disk_ops", "read", read_ops);
+		disk_submit (stat_disk[i].name, "disk_ops", "write", write_ops);
 
 		read_time = stat_disk[i].rserv;
 		read_time *= ((double)(_system_configuration.Xint)/(double)(_system_configuration.Xfrac)) / 1000000.0;
 		write_time = stat_disk[i].wserv;
 		write_time *= ((double)(_system_configuration.Xint)/(double)(_system_configuration.Xfrac)) / 1000000.0;
-		disk_submit (stat_disk[i].name, "disk_time", read_time, write_time);
+		disk_submit (stat_disk[i].name, "disk_time", "read", read_time);
+		disk_submit (stat_disk[i].name, "disk_time", "write", write_time);
 	}
 #endif /* defined(HAVE_PERFSTAT) */
 

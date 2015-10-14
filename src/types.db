@@ -37,13 +37,13 @@ derive			value:DERIVE:0:U
 df_complex		value:GAUGE:0:U
 df_inodes		value:GAUGE:0:U
 df			used:GAUGE:0:1125899906842623, free:GAUGE:0:1125899906842623
-disk_latency		read:GAUGE:0:U, write:GAUGE:0:U
-disk_merged		read:DERIVE:0:U, write:DERIVE:0:U
-disk_octets		read:DERIVE:0:U, write:DERIVE:0:U
+disk_latency		value:GAUGE:0:U
+disk_merged		value:DERIVE:0:U
+disk_octets		value:DERIVE:0:U
 disk_ops_complex	value:DERIVE:0:U
-disk_ops		read:DERIVE:0:U, write:DERIVE:0:U
-disk_time		read:DERIVE:0:U, write:DERIVE:0:U
-disk_io_time		io_time:DERIVE:0:U, weighted_io_time:DERIVE:0:U
+disk_ops		value:DERIVE:0:U
+disk_time		value:DERIVE:0:U
+disk_io_time		value:DERIVE:0:U
 dns_answer		value:DERIVE:0:U
 dns_notify		value:DERIVE:0:U
 dns_octets		queries:DERIVE:0:U, responses:DERIVE:0:U
