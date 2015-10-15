@@ -309,25 +309,69 @@ static int write_statsd_write(
     const data_set_t *ds, const value_list_t *vl, user_data_t *ud) {
   int idx;
 
+  /*
+   * Build the type name using all available fields in vl:
+   * hostname.plugin[.plugin_instance].type[.type_instance]
+   */
+  char* value_key = NULL;
+  size_t value_key_len = 2;  // Dots are always present.
+  size_t plugin_instance_len = strlen(vl->plugin_instance);
+  size_t type_instance_len = strlen(vl->type_instance);
+
+  value_key_len += strlen(vl->host);
+  value_key_len += strlen(vl->plugin);
+  value_key_len += strlen(vl->type);
+
+  // Account for name's optional fields.
+  if (plugin_instance_len != 0) {
+    value_key_len += plugin_instance_len + 1;
+  }
+  if (type_instance_len != 0) {
+    value_key_len += type_instance_len + 1;
+  }
+
+  value_key = allocate(value_key_len + 1);
+  if (value_key == NULL) {
+    return -5;
+  }
+
+  // Determine format and build fixed part of the name.
+  if (plugin_instance_len != 0 && type_instance_len != 0) {
+    ssnprintf(value_key, value_key_len + 1, "%s.%s.%s.%s.%s",
+              vl->host, vl->plugin, vl->plugin_instance,
+              vl->type, vl->type_instance);
+  } else if (plugin_instance_len != 0) {
+    ssnprintf(value_key, value_key_len + 1, "%s.%s.%s.%s",
+              vl->host, vl->plugin, vl->plugin_instance, vl->type);
+  } else if (type_instance_len != 0) {
+    ssnprintf(value_key, value_key_len + 1, "%s.%s.%s.%s",
+              vl->host, vl->plugin, vl->type, vl->type_instance);
+  } else {
+    ssnprintf(value_key, value_key_len + 1, "%s.%s.%s",
+              vl->host, vl->plugin, vl->type);
+  }
+
+  // Process all values in the data set.
   for (idx = 0; idx < ds->ds_num; idx++) {
     char* message;
     size_t message_len;
     int result;
-    char* type = DS_TYPE_TO_STATSD[ds->ds[idx].type];
+    char* ds_type = DS_TYPE_TO_STATSD[ds->ds[idx].type];
     char* value = NULL;
 
-    if (type == NULL) {
+    if (ds_type == NULL) {
       if (!configuration.silence_type_warnings) {
         WARNING("write_statsd plugin: unsupported StatsD type '%s' "
                 "for value with name '%s'.",
                 DS_TYPE_TO_STRING(ds->ds[idx].type), ds->ds[idx].name);
       }
-      return 0;
+      continue;  // To the next value in the data set.
     }
 
     value = ds_value_to_string(ds->ds[idx].type, vl->values[idx]);
     if (value == NULL) {
-      return -5;
+      free(value_key);
+      return -6;
     }
 
     /*
@@ -335,19 +379,20 @@ static int write_statsd_write(
      * the type name, the value name, value and type identifier.
      */
     message_len = configuration.event_line_base_len;
-    message_len += strlen(ds->type);
+    message_len += value_key_len;
     message_len += strlen(ds->ds[idx].name);
     message_len += strlen(value);
-    message_len += strlen(type);
+    message_len += strlen(ds_type);
 
     message = allocate(message_len + 1);
     if (message == NULL) {
+      free(value_key);
       free(value);
-      return -6;
+      return -7;
     }
 
     ssnprintf(message, message_len + 1, configuration.event_line_format,
-             ds->type, ds->ds[idx].name, value, type);
+             value_key, ds->ds[idx].name, value, ds_type);
     free(value);
 
     result = write_statsd_send_message(message);
