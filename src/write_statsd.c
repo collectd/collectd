@@ -51,18 +51,9 @@
 
 
 /*** Type declarations. ***/
-static const char *config_keys[] = {
-  "Host",
-  "Port",
-  "Postfix",
-  "Prefix",
-  "SilenceTypeWarnings"
-};
-static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
-
 struct write_statsd_config_s {
   char* host;
-  long int port;
+  int   port;
   char* postfix;
   char* prefix;
   _Bool silence_type_warnings;
@@ -170,31 +161,47 @@ static write_statsd_link_t open_socket(void) {
 }
 
 
-static int write_statsd_config(const char *key, const char *value) {
-  if (strcasecmp(key, "Host") == 0) {
-    configuration.host = strdup(value);
-  }
+static int write_statsd_config(oconfig_item_t *conf) {
+  int idx;
+  int status;
 
-  if (strcasecmp(key, "Port") == 0) {
-    configuration.port = strtol(value, NULL, 10);
-    if (configuration.port == 0 || configuration.port == LONG_MAX ||
-        configuration.port == LONG_MIN) {
-      return -1;
+  for (idx = 0; idx < conf->children_num; idx++) {
+    oconfig_item_t *child = conf->children + idx;
+    status = 0;
+
+    if (strcasecmp("Host", child->key) == 0) {
+      status = cf_util_get_string(child, &configuration.host);
+
+    } else if (strcasecmp("Port", child->key) == 0) {
+      status = cf_util_get_int(child, & configuration.port);
+      
+    } else if (strcasecmp("Postfix", child->key) == 0) {
+      status = cf_util_get_string(child, &configuration.postfix);
+
+    } else if (strcasecmp("Prefix", child->key) == 0) {
+      status = cf_util_get_string(child, &configuration.prefix);
+    
+    } else if (strcasecmp("SilenceTypeWarnings", child->key) == 0) {
+      status = cf_util_get_boolean(
+          child, &configuration.silence_type_warnings);
+
+    } else {
+      WARNING("write_statsd plugin: Ignoring unknown config option '%s'.",
+              child->key);
+    }
+
+    /*
+     * If any of the options cannot be parsed print an error message
+     * but keep going on with the defaults.
+     * If the host was not parsed correctily the plugin init step
+     * will fail for us.
+     */
+    if (status != 0) {
+      ERROR("write_statsd plugin: Ignoring config option '%s' due to an error.",
+            child->key);
+      return status;
     }
   }
-
-  if (strcasecmp(key, "Postfix") == 0) {
-    configuration.postfix = strdup(value);
-  }
-
-  if (strcasecmp(key, "Prefix") == 0) {
-    configuration.prefix = strdup(value);
-  }
-
-  if (strcasecmp(key, "SilenceTypeWarnings") == 0) {
-    configuration.silence_type_warnings = IS_TRUE(value);
-  }
-
   return 0;
 }
 
@@ -274,8 +281,8 @@ static int write_statsd_init(void) {
   FREE_NOT_NULL(configuration.prefix)
 
   DEBUG("%s configuration completed.", WRITE_STATSD_NAME);
-  DEBUG("%s Host: %s",  WRITE_STATSD_NAME, configuration.host);
-  DEBUG("%s Port: %li", WRITE_STATSD_NAME, configuration.port);
+  DEBUG("%s Host: %s", WRITE_STATSD_NAME, configuration.host);
+  DEBUG("%s Port: %i", WRITE_STATSD_NAME, configuration.port);
   DEBUG("%s SilenceTypeWarnings: %i", WRITE_STATSD_NAME,
         configuration.silence_type_warnings);
   DEBUG("%s FormatString: %s", WRITE_STATSD_NAME,
@@ -295,7 +302,7 @@ static int write_statsd_send_message(const char* message) {
 
   slen = sizeof(link.server);
   result = sendto(link.sock, message, strlen(message), 0,
-                      (struct sockaddr *)&link.server, slen);
+                  (struct sockaddr *)&link.server, slen);
 
   if (result == -1) {
     ERROR("write_statsd plugin: unable to send message.");
@@ -407,8 +414,7 @@ static int write_statsd_write(
 
 
 void module_register(void) {
-  plugin_register_config(
-      WRITE_STATSD_NAME, write_statsd_config, config_keys, config_keys_num);
+  plugin_register_complex_config(WRITE_STATSD_NAME, write_statsd_config);
   plugin_register_init(WRITE_STATSD_NAME, write_statsd_init);
   plugin_register_shutdown(WRITE_STATSD_NAME, write_statsd_free);
   plugin_register_write(WRITE_STATSD_NAME, write_statsd_write, NULL);
