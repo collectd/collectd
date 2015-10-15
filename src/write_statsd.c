@@ -67,7 +67,7 @@ struct write_statsd_config_s {
   char* prefix;
   _Bool silence_type_warnings;
 
-  /* Internally derved options. */
+  /* Internally derived options. */
   char* event_line_format;
   size_t event_line_base_len;
 };
@@ -155,7 +155,7 @@ static write_statsd_link_t open_socket(void) {
   error = getaddrinfo(configuration.host, NULL, &requested, &resolved);
 
   if (error) {
-    ERROR("write_statsd plugin: unable to resolve addres - %s.",
+    ERROR("write_statsd plugin: unable to resolve address - %s.",
           gai_strerror(error));
     close(link.sock);
     link.sock = 0;
