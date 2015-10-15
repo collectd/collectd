@@ -127,9 +127,8 @@ static char* ds_value_to_string(int type, value_t value) {
 
 
 static write_statsd_link_t open_socket(void) {
-  write_statsd_link_t link      = {{0}, 0};
-  struct addrinfo     requested = {0};
-  struct addrinfo*    resolved  = NULL;
+  write_statsd_link_t link  = {{0}, 0};
+  struct addrinfo* resolved = NULL;
   int error = 0;
 
   link.sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -141,9 +140,7 @@ static write_statsd_link_t open_socket(void) {
 
   link.server.sin_family = AF_INET;
   link.server.sin_port   = htons(configuration.port);
-  requested.ai_family    = AF_INET;
-  requested.ai_socktype  = SOCK_DGRAM;
-  error = getaddrinfo(configuration.host, NULL, &requested, &resolved);
+  error = getaddrinfo(configuration.host, NULL, NULL, &resolved);
 
   if (error) {
     ERROR("write_statsd plugin: unable to resolve address - %s.",
