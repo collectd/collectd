@@ -1,7 +1,7 @@
 /**
  * collectd - src/openldap.c
  * Copyright (C) 2011       Kimo Rosenbaum
- * Copyright (C) 2014       Marc Fournier
+ * Copyright (C) 2014-2015  Marc Fournier
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -137,7 +137,7 @@ static int cldap_init_host (cldap_t *st) /* {{{ */
 		cred.bv_len = 0;
 	}
 
-	rc = ldap_sasl_bind_s (st->ld, st->binddn, LDAP_SASL_SIMPLE, &cred, 
+	rc = ldap_sasl_bind_s (st->ld, st->binddn, LDAP_SASL_SIMPLE, &cred,
 			NULL, NULL, NULL);
 	if (rc != LDAP_SUCCESS)
 	{
@@ -167,13 +167,9 @@ static void cldap_submit_value (const char *type, const char *type_instance, /* 
 	if ((st->host == NULL)
 			|| (strcmp ("", st->host) == 0)
 			|| (strcmp ("localhost", st->host) == 0))
-	{
 		sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-	}
 	else
-	{
 		sstrncpy (vl.host, st->host, sizeof (vl.host));
-	}
 
 	sstrncpy (vl.plugin, "openldap", sizeof (vl.plugin));
 	if (st->name != NULL)
@@ -635,9 +631,7 @@ static int cldap_config_add (oconfig_item_t *ci) /* {{{ */
 		}
 
 		if ((status == 0) && (ludpp->lud_host != NULL))
-		{
 			st->host = strdup (ludpp->lud_host);
-		}
 
 		ldap_free_urldesc (ludpp);
 	}
