@@ -98,6 +98,8 @@ static int cldap_init_host (cldap_t *st) /* {{{ */
 	ldap_set_option (st->ld, LDAP_OPT_TIMEOUT,
 		&(const struct timeval){st->timeout, 0});
 
+	ldap_set_option (st->ld, LDAP_OPT_RESTART, LDAP_OPT_ON);
+
 	if (st->cacert != NULL)
 		ldap_set_option (st->ld, LDAP_OPT_X_TLS_CACERTFILE, st->cacert);
 
