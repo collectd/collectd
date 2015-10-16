@@ -53,6 +53,9 @@ struct cldap_s /* {{{ */
 };
 typedef struct cldap_s cldap_t; /* }}} */
 
+static cldap_t **databases   = NULL;
+static size_t  databases_num = 0;
+
 static void cldap_free (cldap_t *st) /* {{{ */
 {
 	if (st == NULL)
@@ -641,23 +644,40 @@ static int cldap_config_add (oconfig_item_t *ci) /* {{{ */
 
 	if (status == 0)
 	{
-		user_data_t ud;
-		char callback_name[3*DATA_MAX_NAME_LEN];
+		cldap_t **temp;
 
-		memset (&ud, 0, sizeof (ud));
-		ud.data = st;
+		temp = (cldap_t **) realloc (databases,
+			sizeof (*databases) * (databases_num + 1));
 
-		memset (callback_name, 0, sizeof (callback_name));
-		ssnprintf (callback_name, sizeof (callback_name),
-				"openldap/%s/%s",
-				(st->host != NULL) ? st->host : hostname_g,
-				(st->name != NULL) ? st->name : "default"),
+		if (temp == NULL)
+		{
+			ERROR ("openldap plugin: realloc failed");
+			status = -1;
+		}
+		else
+		{
+			user_data_t ud;
+			char callback_name[3*DATA_MAX_NAME_LEN];
 
-		status = plugin_register_complex_read (/* group = */ NULL,
-				/* name      = */ callback_name,
-				/* callback  = */ cldap_read_host,
-				/* interval  = */ 0,
-				/* user_data = */ &ud);
+			databases = temp;
+			databases[databases_num] = st;
+			databases_num++;
+
+			memset (&ud, 0, sizeof (ud));
+			ud.data = st;
+
+			memset (callback_name, 0, sizeof (callback_name));
+			ssnprintf (callback_name, sizeof (callback_name),
+					"openldap/%s/%s",
+					(st->host != NULL) ? st->host : hostname_g,
+					(st->name != NULL) ? st->name : "default"),
+
+			status = plugin_register_complex_read (/* group = */ NULL,
+					/* name      = */ callback_name,
+					/* callback  = */ cldap_read_host,
+					/* interval  = */ 0,
+					/* user_data = */ &ud);
+		}
 	}
 
 	if (status != 0)
@@ -702,8 +722,22 @@ static int cldap_init (void) /* {{{ */
 	return (0);
 } /* }}} int cldap_init */
 
+static int cldap_shutdown (void) /* {{{ */
+{
+	size_t i;
+
+	for (i = 0; i < databases_num; i++)
+		if (databases[i]->ld != NULL)
+			ldap_unbind_ext_s (databases[i]->ld, NULL, NULL);
+	sfree (databases);
+	databases_num = 0;
+
+	return (0);
+} /* }}} int cldap_shutdown */
+
 void module_register (void) /* {{{ */
 {
 	plugin_register_complex_config ("openldap", cldap_config);
 	plugin_register_init ("openldap", cldap_init);
+	plugin_register_shutdown ("openldap", cldap_shutdown);
 } /* }}} void module_register */
