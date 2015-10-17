@@ -7913,6 +7913,82 @@ attribute for each metric being sent out to I<Sensu>.
 
 =back
 
+=head2 Plugin C<write_statsd>
+
+The I<write_statsd plugin> will send values to I<statsd>, a
+simple daemon for stats aggregation.
+
+Statsd is a simple text protocol that has its own data types.
+I<Collectd> data types are mapped to I<statsd> as follows:
+
+  +------------------+-------------+
+  | Collectd type    | Statsd type |
+  +------------------+-------------+
+  | DS_TYPE_COUNTER  | counter     |
+  | DS_TYPE_GAUGE    | gauge       |
+  | DS_TYPE_DERIVE   | gauge       |
+  | DS_TYPE_ABSOLUTE | -           |
+  +------------------+-------------+
+
+When metrics are sent to the I<statsd> server, the key used to identify them
+is based on the plugin and type data as well as the hostname.
+The key is a dot (C<.>) separated composition with the following format:
+
+  prefix.hostname.plugin.plugin_instance.type.type_instance.value_name
+
+Where:
+
+=over 4
+
+=item I<prefix> and I<postfix> are set in the configuration.
+
+=item I<hostname>, I<plugin>, I<type> and I<value_name> are always present.
+
+=item I<plugin_instance> and I<type_instance> are optional.
+
+=back
+
+Synopsis:
+
+ <Plugin "write_statsd">
+   Host "localhost"
+   Port 8125
+   Postfix ""
+   Prefix ""
+   SilenceTypeWarnings no
+ </Plugin>
+
+Only the I<Host> option is required, all other options
+are optional and default to the values in the synopsis.
+
+The following options are understood by the I<write_statsd plugin>:
+
+=over 4
+
+=item B<Host> I<String>
+
+The hostname or IP address of the I<statsd> server to send metrics to.
+
+=item B<Port> I<Integer>
+
+The port number of the I<Statsd> server.
+
+=item B<Postfix> I<String>
+
+The postfix used to build the metric key.
+
+=item B<Prefix> I<String>
+
+The prefix used to build the metric key.
+
+=item B<SilenceTypeWarnings> B<true>|B<false>
+
+When enabled, sending of values of unsupported types causes a warning.
+Since this can get noisy and users that are aware of this do
+not need a constant reminder these warnings can be disabled.
+
+=back
+
 =head2 Plugin C<zookeeper>
 
 The I<zookeeper plugin> will collect statistics from a I<Zookeeper> server
