@@ -17,7 +17,7 @@ collectd-exec - Documentation of collectd's C<exec plugin>
 
 =head1 DESCRIPTION
 
-The C<exec plugin> forks of an executable either to receive values or to
+The C<exec plugin> forks off an executable either to receive values or to
 dispatch notifications to the outside world. The syntax of the configuration is
 explained in L<collectd.conf(5)> but summarized in the above synopsis.
 
@@ -42,7 +42,7 @@ time and continuously write values to C<STDOUT>.
 See L<EXEC DATA FORMAT> below for a description of the output format expected
 from these programs.
 
-B<Warning:> If the executable only writes one value and then exits I will be
+B<Warning:> If the executable only writes one value and then exits it will be
 executed every I<Interval> seconds. If I<Interval> is short (the default is 10
 seconds) this may result in serious system load.
 
