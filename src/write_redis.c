@@ -57,6 +57,39 @@ typedef struct wr_node_s wr_node_t;
 /*
  * Functions
  */
+static redisContext * wr_connect ( wr_node_t *node ) /* {{{ */
+{
+  redisReply   *rr;
+
+  node->conn = redisConnectWithTimeout ((char *)node->host, node->port, node->timeout);
+   if (node->conn == NULL)
+   {
+     ERROR ("write_redis plugin: Connecting to host \"%s\" (port %i) failed: Unkown reason",
+          (node->host != NULL) ? node->host : "localhost",
+          (node->port != 0) ? node->port : 6379);
+     pthread_mutex_unlock (&node->lock);
+     return NULL;
+    }
+   else if (node->conn->err)
+   {
+     ERROR ("write_redis plugin: Connecting to host \"%s\" (port %i) failed: %s",
+             (node->host != NULL) ? node->host : "localhost",
+             (node->port != 0) ? node->port : 6379,
+             node->conn->errstr);
+     pthread_mutex_unlock (&node->lock);
+     return NULL;
+   }
+
+   rr = redisCommand(node->conn, "SELECT %d", node->database);
+   if (rr == NULL)
+     WARNING("SELECT command error. database:%d message:%s", node->database, node->conn->errstr);
+   else
+     freeReplyObject (rr);
+
+
+  return (redisContext *) node->conn;
+} /* }}} wr_connect */
+
 static int wr_write (const data_set_t *ds, /* {{{ */
     const value_list_t *vl,
     user_data_t *ud)
@@ -70,6 +103,7 @@ static int wr_write (const data_set_t *ds, /* {{{ */
   char *value_ptr;
   int status;
   redisReply   *rr;
+  int i;
 
   status = FORMAT_VL (ident, sizeof (ident), vl);
   if (status != 0)
@@ -82,37 +116,66 @@ static int wr_write (const data_set_t *ds, /* {{{ */
   memset (value, 0, sizeof (value));
   value_size = sizeof (value);
   value_ptr = &value[0];
-  status = format_values (value_ptr, value_size, ds, vl, node->store_rates);
+
+#define APPEND(...) do {                                             \
+  status = snprintf (value_ptr, value_size, __VA_ARGS__);            \
+  if (((size_t) status) > value_size)                                \
+  {                                                                  \
+    value_ptr += value_size;                                         \
+    value_size = 0;                                                  \
+  }                                                                  \
+  else                                                               \
+  {                                                                  \
+    value_ptr += status;                                             \
+    value_size -= status;                                            \
+  }                                                                  \
+} while (0)
+
+  APPEND ("%s:", time);
+
+  for (i = 0; i < ds->ds_num; i++)
+  {
+    if (ds->ds[i].type == DS_TYPE_COUNTER)
+      APPEND ("%llu", vl->values[i].counter);
+    else if (ds->ds[i].type == DS_TYPE_GAUGE)
+      APPEND (GAUGE_FORMAT, vl->values[i].gauge);
+    else if (ds->ds[i].type == DS_TYPE_DERIVE)
+      APPEND ("%"PRIi64, vl->values[i].derive);
+    else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
+      APPEND ("%"PRIu64, vl->values[i].absolute);
+    else
+      assert (23 == 42);
+  }
+
+#undef APPEND
+
+  status = format_values (value_ptr, value_size, ds, vl, /* store rates = */ 0);
   pthread_mutex_lock (&node->lock);
   if (status != 0)
     return (status);
 
+  // if node->conn == NULL connect
   if (node->conn == NULL)
   {
-    node->conn = redisConnectWithTimeout ((char *)node->host, node->port, node->timeout);
-    if (node->conn == NULL)
+    node->conn = wr_connect (node);
+    if ( node->conn == NULL )
+      return (0);
+  }
+  // else run ping command, if failed asume broken connection and reconnect
+  else
+  {
+    rr = redisCommand(node->conn, "PING");
+    if ( rr == NULL )
     {
-      ERROR ("write_redis plugin: Connecting to host \"%s\" (port %i) failed: Unkown reason",
-          (node->host != NULL) ? node->host : "localhost",
-          (node->port != 0) ? node->port : 6379);
-      pthread_mutex_unlock (&node->lock);
-      return (-1);
+      WARNING ("write_redis plugin: Connection to host \"%s\" (port %i) lost, try reconnect", node->host , node->port );
+      redisFree (node->conn);
+      node->conn = NULL;
+      node->conn = wr_connect (node);
+      if ( node->conn == NULL )
+        return (0);
     }
-    else if (node->conn->err)
-    {
-      ERROR ("write_redis plugin: Connecting to host \"%s\" (port %i) failed: %s",
-          (node->host != NULL) ? node->host : "localhost",
-          (node->port != 0) ? node->port : 6379,
-          node->conn->errstr);
-      pthread_mutex_unlock (&node->lock);
-      return (-1);
-    }
-
-    rr = redisCommand(node->conn, "SELECT %d", node->database);
-    if (rr == NULL)
-      WARNING("SELECT command error. database:%d message:%s", node->database, node->conn->errstr);
     else
-      freeReplyObject (rr);
+        freeReplyObject (rr);
   }
 
   rr = redisCommand (node->conn, "ZADD %s %s %s", key, time, value);
