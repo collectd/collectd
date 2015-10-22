@@ -57,6 +57,7 @@ struct write_statsd_config_s {
   char* postfix;
   char* prefix;
   _Bool silence_type_warnings;
+  _Bool always_append_ds;
 
   /* Internally derived options. */
   char* event_line_format;
@@ -182,6 +183,10 @@ static int write_statsd_config(oconfig_item_t *conf) {
       status = cf_util_get_boolean(
           child, &configuration.silence_type_warnings);
 
+    } else if (strcasecmp("AlwaysAppendDS", child->key) == 0) {
+      status = cf_util_get_boolean(
+          child, &configuration.always_append_ds);
+
     } else {
       WARNING("write_statsd plugin: Ignoring unknown config option '%s'.",
               child->key);
@@ -232,12 +237,12 @@ static int write_statsd_init(void) {
    * The length of the format must exclude the placeholders.
    */
   if (configuration.prefix == NULL && configuration.postfix == NULL) {
-    /* %s.%s:%s|%s */
-    configuration.event_line_format = strdup("%s.%s:%s|%s");
+    /* %s%s%s:%s|%s */
+    configuration.event_line_format = strdup("%s%s%s:%s|%s");
     len = 3;
 
   } else if (configuration.prefix == NULL) {
-    /* %s.%s.<postfix>:%s|%s */
+    /* %s%s%s.<postfix>:%s|%s */
     len = 4 + strlen(configuration.postfix);
     buffer_len = len + 8 + 1;
     configuration.event_line_format = allocate(buffer_len);
@@ -245,10 +250,10 @@ static int write_statsd_init(void) {
       return -2;
     }
     ssnprintf(configuration.event_line_format, buffer_len,
-             "%%s.%%s.%s:%%s|%%s", configuration.postfix);
+             "%%s%%s%%s.%s:%%s|%%s", configuration.postfix);
 
   } else if (configuration.postfix == NULL) {
-    /* <prefix>.%s.%s:%s|%s */
+    /* <prefix>.%s%s%s:%s|%s */
     len = strlen(configuration.prefix) + 4;
     buffer_len = len + 8 + 1;
     configuration.event_line_format = allocate(buffer_len);
@@ -256,10 +261,10 @@ static int write_statsd_init(void) {
       return -2;
     }
     ssnprintf(configuration.event_line_format, buffer_len,
-             "%s.%%s.%%s:%%s|%%s", configuration.prefix);
+             "%s.%%s%%s%%s:%%s|%%s", configuration.prefix);
 
   } else {
-    /* <prefix>.%s.%s.<potfix>:%s|%s */
+    /* <prefix>.%s%s%s.<potfix>:%s|%s */
     len = 5 + strlen(configuration.prefix) + strlen(configuration.postfix);
     buffer_len = len + 8 + 1;
     configuration.event_line_format = allocate(buffer_len);
@@ -267,7 +272,7 @@ static int write_statsd_init(void) {
       return -2;
     }
     ssnprintf(configuration.event_line_format, buffer_len,
-             "%s.%%s.%%s.%s:%%s|%%s", configuration.prefix,
+             "%s.%%s%%s%%s.%s:%%s|%%s", configuration.prefix,
              configuration.postfix);
 
   }
@@ -282,6 +287,8 @@ static int write_statsd_init(void) {
   DEBUG("%s Port: %i", WRITE_STATSD_NAME, configuration.port);
   DEBUG("%s SilenceTypeWarnings: %i", WRITE_STATSD_NAME,
         configuration.silence_type_warnings);
+  DEBUG("%s AlwaysAppendDS: %i", WRITE_STATSD_NAME,
+        configuration.always_append_ds);
   DEBUG("%s FormatString: %s", WRITE_STATSD_NAME,
         configuration.event_line_format);
   return 0;
@@ -362,6 +369,7 @@ static int write_statsd_write(
     int result;
     char* ds_type = DS_TYPE_TO_STATSD[ds->ds[idx].type];
     char* value = NULL;
+    _Bool append_ds_name = (configuration.always_append_ds || ds->ds_num > 1);
 
     if (ds_type == NULL) {
       if (!configuration.silence_type_warnings) {
@@ -384,7 +392,9 @@ static int write_statsd_write(
      */
     message_len = configuration.event_line_base_len;
     message_len += value_key_len;
-    message_len += strlen(ds->ds[idx].name);
+    if (append_ds_name) {
+      message_len += strlen(ds->ds[idx].name) + 1;
+    }
     message_len += strlen(value);
     message_len += strlen(ds_type);
 
@@ -395,8 +405,13 @@ static int write_statsd_write(
       return -7;
     }
 
-    ssnprintf(message, message_len + 1, configuration.event_line_format,
-             value_key, ds->ds[idx].name, value, ds_type);
+    if (append_ds_name) {
+      ssnprintf(message, message_len + 1, configuration.event_line_format,
+               value_key, ".", ds->ds[idx].name, value, ds_type);
+    } else {
+      ssnprintf(message, message_len + 1, configuration.event_line_format,
+               value_key, "", "", value, ds_type);
+    }
     free(value);
 
     result = write_statsd_send_message(message);

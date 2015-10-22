@@ -7956,6 +7956,7 @@ Synopsis:
    Postfix ""
    Prefix ""
    SilenceTypeWarnings no
+   AlwaysAppendDS no
  </Plugin>
 
 Only the I<Host> option is required, all other options
@@ -7986,6 +7987,12 @@ The prefix used to build the metric key.
 When enabled, sending of values of unsupported types causes a warning.
 Since this can get noisy and users that are aware of this do
 not need a constant reminder these warnings can be disabled.
+
+=item B<AlwaysAppendDS> B<false>|B<true>
+
+If set to B<true>, append the name of the I<Data Source> (DS) to the "metric"
+identifier. If set to B<false> (the default), this is only done when there is
+more than one DS.
 
 =back
 
