@@ -267,11 +267,11 @@ Simon Kuhnle <simon at blarzwurst.de>
 Sjoerd van der Berg <harekiet at gmail.com>
  - iptables plugin.
 
-Stefano Pogliani <stefano at spogliani.net>
- - StatsD write plugin.
-
 Stefan Hacker <stefan.hacker at web.de>
  - teamspeak2 plugin.
+
+Stefano Pogliani <stefano at spogliani.net>
+ - StatsD write plugin.
 
 Sven Trenkel <collectd at semidefinite.de>
  - netapp plugin.
