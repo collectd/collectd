@@ -88,7 +88,8 @@ static char* DS_TYPE_TO_STATSD[] = {
  * be modified outside of load_config or initialise.
  */
 static write_statsd_config_t configuration = {
-  NULL, 8125, NULL, NULL, 0, NULL, 0, NULL, 0
+  NULL, 8125, NULL, NULL, 0, 0,
+  NULL, 0, NULL, 0
 };
 
 
@@ -352,7 +353,7 @@ static int write_statsd_send_message(const char* message) {
 static int write_statsd_write(
     const data_set_t *ds, const value_list_t *vl, user_data_t *ud) {
   int   idx;
-  _Bool include_ds_name = ds->ds_num > 1;
+  _Bool include_ds_name = configuration.always_append_ds || ds->ds_num > 1;
 
   /*
    * Build the type name using all available fields in vl:
