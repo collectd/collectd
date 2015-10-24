@@ -57,6 +57,7 @@ struct write_statsd_config_s {
   char* postfix;
   char* prefix;
   _Bool silence_type_warnings;
+  _Bool always_append_ds;
 
   /* Internally derived options. */
   char*  event_line_format;
@@ -184,6 +185,10 @@ static int write_statsd_config(oconfig_item_t *conf) {
     } else if (strcasecmp("SilenceTypeWarnings", child->key) == 0) {
       status = cf_util_get_boolean(
           child, &configuration.silence_type_warnings);
+
+    } else if (strcasecmp("AlwaysAppendDS", child->key) == 0) {
+      status = cf_util_get_boolean(
+          child, &configuration.always_append_ds);
 
     } else {
       WARNING("write_statsd plugin: Ignoring unknown config option '%s'.",
