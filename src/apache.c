@@ -517,13 +517,14 @@ static void submit_scoreboard (char *buf, apache_t *st)
 	}
 }
 
+#define _MAX_LINES 64
 static int apache_read_host (user_data_t *user_data) /* {{{ */
 {
 	int i;
 
 	char *ptr;
 	char *saveptr;
-	char *lines[16];
+	char *lines[_MAX_LINES];
 	int   lines_num = 0;
 
 	char *fields[4];
@@ -569,7 +570,7 @@ static int apache_read_host (user_data_t *user_data) /* {{{ */
 		ptr = NULL;
 		lines_num++;
 
-		if (lines_num >= 16)
+		if (lines_num >= _MAX_LINES)
 			break;
 	}
 
