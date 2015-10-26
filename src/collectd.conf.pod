@@ -7158,6 +7158,7 @@ Synopsis:
 
  <Plugin write_tsdb>
    DNS_Cache_TTL 60
+   DNS_Random_Cache_TTL 60
    <Node "example">
      Host "tsd-1.my.domain"
      Port "4242"
@@ -7174,10 +7175,22 @@ Global directives are:
 
 =item B<DNS_Cache_TTL> I<ttl>
 
+=item B<DNS_Random_Cache_TTL> I<ttl>
+
 When Collectd connects to a TSDB node, it will request the DNS. This can become
 a problem is the TSDN node is unavailable or badly configured because Collected
 will request DNS in order to reconnect for every metric, which can flood your DNS.
-So you can cache the last value for C<ttl> seconds (default: 60s).
+So you can cache the last value for C<ttl> seconds (default: 600s e.g; 10 min).
+
+You can also define a random ttl. This prevents all your Collectd servers to
+request the DNS at the same time when the connection fails. Default value is
+15 * the write_tsdb interval (or the global interval if write_tsdb interval is not
+defined).
+
+Note : if the DNS resolution has already been successful, if the socket closes,
+the plugin will try to reconnect as soon as possible with the cached information.
+DNS is queried only when the socket is closed for a long time (DNS_Cache_TTL + 
+DNS_Random_Cache_TTL)
 
 =back
 

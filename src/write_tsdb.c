@@ -156,6 +156,21 @@
 # define WT_SEND_BUF_SIZE 1428
 #endif
 
+/* Default configuration */
+
+/* WRITE_TSDB_DEFAULT_DNS_TTL is the time we keep the dns cached info
+ * (seconds)
+ */
+#define WRITE_TSDB_DEFAULT_DNS_TTL 600
+
+/* WRITE_TSDB_DEFAULT_DNS_RANDOM_TTL helps define the max random
+ * time we keep the dns cached info :
+ * min = 0
+ * max = WRITE_TSDB_DEFAULT_DNS_RANDOM_TTL * get_plugin_interval()
+ */
+#define WRITE_TSDB_DEFAULT_DNS_RANDOM_TTL 15
+
+
 /* Meta data definitions about tsdb tags */
 #define TSDB_TAG_PLUGIN 0
 #define TSDB_TAG_PLUGININSTANCE 1
@@ -194,9 +209,13 @@ struct wt_callback
     pthread_mutex_t send_lock;
 
     _Bool    connect_failed_log_enabled;
+    int      connect_dns_failed_attempts_remaining;
+    cdtime_t next_random_ttl;
 };
 
-static cdtime_t dnsttl = TIME_T_TO_CDTIME_T(60);
+static cdtime_t dnsttl = TIME_T_TO_CDTIME_T(WRITE_TSDB_DEFAULT_DNS_TTL);
+static double dnsrandomttl = .0;
+static _Bool use_dnsrandomttl = 0;
 
 
 /*
@@ -262,6 +281,15 @@ static int wt_flush_nolock(cdtime_t timeout, struct wt_callback *cb)
     return status;
 }
 
+static cdtime_t new_random_ttl()
+{
+    time_t ttl = 0;
+    if(use_dnsrandomttl) {
+        ttl = (time_t)(dnsrandomttl * ((double) random ()) / (((double) RAND_MAX) + 1.0));
+    }
+    return TIME_T_TO_CDTIME_T(ttl);
+}
+
 static int wt_callback_init(struct wt_callback *cb)
 {
     struct addrinfo *ai_ptr;
@@ -275,10 +303,25 @@ static int wt_callback_init(struct wt_callback *cb)
         return 0;
 
     now = cdtime();
-    if ((cb->sock_info_last_update + dnsttl) < now) {
-        if(cb->sock_info) {
-            freeaddrinfo(cb->sock_info);
-            cb->sock_info = NULL;
+    if(cb->sock_info) {
+        /* When we are here, we still have the IP in cache.
+         * If we have remaining attempts without calling the DNS, we update the
+         * last_update date so we keep the info until next time.
+         * If there is no more attempts, we need to flush the cache.
+         */
+
+        if ((cb->sock_info_last_update + dnsttl + cb->next_random_ttl) < now) {
+            cb->next_random_ttl = new_random_ttl();
+            if(cb->connect_dns_failed_attempts_remaining > 0) {
+                /* Warning : this is run under send_lock mutex. 
+                 * This is why we do not use another mutex here.
+                 * */
+                cb->sock_info_last_update = now;
+                cb->connect_dns_failed_attempts_remaining-- ;
+            } else {
+                freeaddrinfo(cb->sock_info);
+                cb->sock_info = NULL;
+            }
         }
     }
 
@@ -292,13 +335,14 @@ static int wt_callback_init(struct wt_callback *cb)
         ai_hints.ai_family   = AF_UNSPEC;
         ai_hints.ai_socktype = SOCK_STREAM;
 
-        if ((cb->sock_info_last_update + dnsttl) >= now) {
+        if ((cb->sock_info_last_update + dnsttl + cb->next_random_ttl) >= now) {
                 DEBUG("write_tsdb plugin: too many getaddrinfo (%s, %s) failures",
                         node, service);
             return(-1);
         }
 
         cb->sock_info_last_update = now;
+        cb->next_random_ttl = new_random_ttl();
         status = getaddrinfo(node, service, &ai_hints, &(cb->sock_info));
         if (status != 0)
         {
@@ -350,6 +394,7 @@ static int wt_callback_init(struct wt_callback *cb)
         WARNING("write_tsdb plugin: Connecting to %s:%s succeeded.",node, service);
         cb->connect_failed_log_enabled = 1;
     }
+    cb->connect_dns_failed_attempts_remaining = 1;
     wt_reset_buffer(cb);
 
     return 0;
@@ -931,6 +976,8 @@ static int wt_config_tsd(oconfig_item_t *ci)
     cb->host_tags = NULL;
     cb->store_rates = 0;
     cb->connect_failed_log_enabled = 1;
+    cb->connect_dns_failed_attempts_remaining = 0;
+    cb->next_random_ttl = new_random_ttl();
 
     pthread_mutex_init (&cb->send_lock, NULL);
 
@@ -973,6 +1020,7 @@ static int wt_config_tsd(oconfig_item_t *ci)
 static int wt_config(oconfig_item_t *ci)
 {
     int i;
+    _Bool config_random_ttl = 0;
 
     for (i = 0; i < ci->children_num; i++)
     {
@@ -986,11 +1034,28 @@ static int wt_config(oconfig_item_t *ci)
             cf_util_get_int(child, &ttl);
             dnsttl = TIME_T_TO_CDTIME_T(ttl);
         }
+        else if (strcasecmp("DNS_Random_Cache_TTL", child->key) == 0)
+        {
+            int ttl;
+            cf_util_get_int(child, &ttl);
+            config_random_ttl = 1;
+            if(ttl) {
+                dnsrandomttl = (double)ttl;
+                use_dnsrandomttl = 1;
+            } else {
+                use_dnsrandomttl = 0;
+            }
+        }
         else
         {
             ERROR("write_tsdb plugin: Invalid configuration "
                   "option: %s.", child->key);
         }
+    }
+
+    if(! config_random_ttl ) {
+        use_dnsrandomttl = 1;
+        dnsrandomttl = CDTIME_T_TO_DOUBLE(WRITE_TSDB_DEFAULT_DNS_RANDOM_TTL * plugin_get_interval());
     }
 
     return 0;
