@@ -190,8 +190,7 @@ endif
 
 if BUILD_PLUGIN_CGROUPS
 pkglib_LTLIBRARIES += cgroups.la
-cgroups_la_SOURCES = cgroups.c \
-		     utils_ignorelist.c utils_ignorelist.h
+cgroups_la_SOURCES = cgroups.c
 cgroups_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 cgroups_la_LIBADD = libmount.la
 endif
@@ -290,16 +289,14 @@ endif
 
 if BUILD_PLUGIN_DF
 pkglib_LTLIBRARIES += df.la
-df_la_SOURCES = df.c \
-		utils_ignorelist.c utils_ignorelist.h
+df_la_SOURCES = df.c
 df_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 df_la_LIBADD = libmount.la
 endif
 
 if BUILD_PLUGIN_DISK
 pkglib_LTLIBRARIES += disk.la
-disk_la_SOURCES = disk.c \
-		  utils_ignorelist.c utils_ignorelist.h
+disk_la_SOURCES = disk.c
 disk_la_CFLAGS = $(AM_CFLAGS)
 disk_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 disk_la_LIBADD =
@@ -399,8 +396,7 @@ endif
 
 if BUILD_PLUGIN_INTERFACE
 pkglib_LTLIBRARIES += interface.la
-interface_la_SOURCES = interface.c \
-		       utils_ignorelist.c utils_ignorelist.h
+interface_la_SOURCES = interface.c
 interface_la_CFLAGS = $(AM_CFLAGS)
 interface_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 interface_la_LIBADD =
@@ -437,8 +433,7 @@ endif
 
 if BUILD_PLUGIN_IPMI
 pkglib_LTLIBRARIES += ipmi.la
-ipmi_la_SOURCES = ipmi.c \
-		  utils_ignorelist.c utils_ignorelist.h
+ipmi_la_SOURCES = ipmi.c
 ipmi_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_OPENIPMI_CFLAGS)
 ipmi_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 ipmi_la_LIBADD = $(BUILD_WITH_OPENIPMI_LIBS)
@@ -455,8 +450,7 @@ endif
 
 if BUILD_PLUGIN_IRQ
 pkglib_LTLIBRARIES += irq.la
-irq_la_SOURCES = irq.c \
-		 utils_ignorelist.c utils_ignorelist.h
+irq_la_SOURCES = irq.c
 irq_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
@@ -515,8 +509,7 @@ endif
 
 if BUILD_PLUGIN_MADWIFI
 pkglib_LTLIBRARIES += madwifi.la
-madwifi_la_SOURCES = madwifi.c madwifi.h \
-		     utils_ignorelist.c utils_ignorelist.h
+madwifi_la_SOURCES = madwifi.c madwifi.h
 madwifi_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
@@ -562,8 +555,7 @@ endif
 
 if BUILD_PLUGIN_MD
 pkglib_LTLIBRARIES += md.la
-md_la_SOURCES = md.c \
-		utils_ignorelist.c utils_ignorelist.h
+md_la_SOURCES = md.c
 md_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
@@ -608,8 +600,7 @@ endif
 
 if BUILD_PLUGIN_MIC
 pkglib_LTLIBRARIES += mic.la
-mic_la_SOURCES = mic.c \
-		 utils_ignorelist.c utils_ignorelist.h
+mic_la_SOURCES = mic.c
 mic_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_MIC_LIBPATH)
 mic_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_MIC_CPPFLAGS)
 mic_la_LIBADD = $(BUILD_WITH_MIC_LDADD)
@@ -643,8 +634,7 @@ endif
 
 if BUILD_PLUGIN_NETAPP
 pkglib_LTLIBRARIES += netapp.la
-netapp_la_SOURCES = netapp.c \
-		    utils_ignorelist.c utils_ignorelist.h
+netapp_la_SOURCES = netapp.c
 netapp_la_CPPFLAGS = $(AM_CPPFLAGS) $(LIBNETAPP_CPPFLAGS)
 netapp_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBNETAPP_LDFLAGS)
 netapp_la_LIBADD = $(LIBNETAPP_LIBS)
@@ -750,8 +740,7 @@ endif
 
 if BUILD_PLUGIN_ONEWIRE
 pkglib_LTLIBRARIES += onewire.la
-onewire_la_SOURCES = onewire.c \
-		     utils_ignorelist.c utils_ignorelist.h
+onewire_la_SOURCES = onewire.c
 onewire_la_CFLAGS = $(AM_CFLAGS)
 onewire_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBOWCAPI_CPPFLAGS)
 onewire_la_LIBADD = $(BUILD_WITH_LIBOWCAPI_LIBS)
@@ -864,8 +853,7 @@ endif
 
 if BUILD_PLUGIN_PROTOCOLS
 pkglib_LTLIBRARIES += protocols.la
-protocols_la_SOURCES = protocols.c \
-		       utils_ignorelist.c utils_ignorelist.h
+protocols_la_SOURCES = protocols.c
 protocols_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
@@ -903,8 +891,7 @@ endif
 
 if BUILD_PLUGIN_SENSORS
 pkglib_LTLIBRARIES += sensors.la
-sensors_la_SOURCES = sensors.c \
-		     utils_ignorelist.c utils_ignorelist.h
+sensors_la_SOURCES = sensors.c
 sensors_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBSENSORS_CFLAGS)
 sensors_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBSENSORS_LDFLAGS)
 sensors_la_LIBADD = -lsensors
@@ -927,8 +914,7 @@ endif
 if BUILD_PLUGIN_SMART
 if BUILD_WITH_LIBUDEV
 pkglib_LTLIBRARIES += smart.la
-smart_la_SOURCES = smart.c \
-		   utils_ignorelist.c utils_ignorelist.h
+smart_la_SOURCES = smart.c
 smart_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBATASMART_CPPFLAGS)
 smart_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBATASMART_LDFLAGS)
 smart_la_LIBADD = $(BUILD_WITH_LIBATASMART_LIBS) -ludev
@@ -1068,8 +1054,7 @@ endif
 
 if BUILD_PLUGIN_THERMAL
 pkglib_LTLIBRARIES += thermal.la
-thermal_la_SOURCES = thermal.c \
-		     utils_ignorelist.c utils_ignorelist.h
+thermal_la_SOURCES = thermal.c
 thermal_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
@@ -1154,8 +1139,7 @@ endif
 
 if BUILD_PLUGIN_VIRT
 pkglib_LTLIBRARIES += virt.la
-virt_la_SOURCES = virt.c \
-		  utils_ignorelist.c utils_ignorelist.h
+virt_la_SOURCES = virt.c
 virt_la_CFLAGS = $(AM_CFLAGS) \
 		$(BUILD_WITH_LIBVIRT_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
 virt_la_LIBADD = $(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
