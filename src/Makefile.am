@@ -1236,7 +1236,7 @@ endif
 
 if BUILD_PLUGIN_WRITE_INFLUXDB
 pkglib_LTLIBRARIES += write_influxdb.la
-write_influxdb_la_SOURCES = write_influxdb.c utils_buffer.c utils_buffer.h utils_curl.c utils_curl.h utils_format_influxdb.c utils_format_influxdb.h utils_iomux.c utils_iomux.o
+write_influxdb_la_SOURCES = write_influxdb.c utils_buffer.c utils_buffer.h utils_curl.c utils_curl.h utils_format_influxdb.c utils_format_influxdb.h utils_iomux.c utils_iomux.h
 write_influxdb_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 write_influxdb_la_CFLAGS = $(AM_CFLAGS)
 write_influxdb_la_LIBADD =
