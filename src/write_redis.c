@@ -59,7 +59,6 @@ static int wr_write (const data_set_t *ds, /* {{{ */
   size_t value_size;
   char *value_ptr;
   int status;
-  int i;
 
   status = FORMAT_VL (ident, sizeof (ident), vl);
   if (status != 0)
