@@ -7758,7 +7758,7 @@ C<ds_type:derive:rate>.
 
 =item B<AlwaysAppendDS> B<false>|B<true>
 
-If set the B<true>, append the name of the I<Data Source> (DS) to the
+If set to B<true>, append the name of the I<Data Source> (DS) to the
 "service", i.e. the field that, together with the "host" field, uniquely
 identifies a metric in I<Riemann>. If set to B<false> (the default), this is
 only done when there is more than one DS.
