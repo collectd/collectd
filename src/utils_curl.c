@@ -47,7 +47,7 @@ curl_to_poll (int action)
         case CURL_POLL_OUT:     return POLLOUT;
         case CURL_POLL_INOUT:   return POLLIN | POLLOUT;
         default:
-            WARNING ("CURL: unknown action value: %hd", action);
+            WARNING ("CURL: unknown action value: %d", action);
             return 0;
     }
 }
