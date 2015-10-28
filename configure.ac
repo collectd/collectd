@@ -1784,6 +1784,9 @@ then
 	then
 		with_libcurl="no ($with_curl_config failed)"
 	else
+		SAVE_CPPFLAGS="$CPPFLAGS"
+		CPPFLAGS="$CPPFLAGS $with_curl_cflags"
+
 		AC_CHECK_LIB(curl, curl_easy_init,
 		 [with_libcurl="yes"],
 		 [with_libcurl="no (symbol 'curl_easy_init' not found)"],
@@ -1796,6 +1799,8 @@ then
 		 [have_curlopt_timeout="yes"],
 		 [have_curlopt_timeout="no"],
 		 [[#include <curl/curl.h>]])
+
+		CPPFLAGS="$SAVE_CPPFLAGS"
 	fi
 fi
 if test "x$with_libcurl" = "xyes"
