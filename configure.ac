@@ -1800,6 +1800,24 @@ then
 		 [have_curlopt_timeout="no"],
 		 [[#include <curl/curl.h>]])
 
+		AC_CHECK_DECL(CURL_CSELECT_IN,
+		 [have_curl_cselect_in="yes"],
+		 [have_curl_cselect_in="no"],
+		 [[#include <curl/curl.h>]])
+
+		AC_CHECK_DECL(CURLMOPT_PIPELINING,
+		 [have_curlmopt_pipelining="yes"],
+		 [have_curlmopt_pipelining="no"],
+		 [[#include <curl/curl.h>]])
+		AC_CHECK_DECL(CURLMOPT_MAXCONNECTS,
+		 [have_curlmopt_maxconnects="yes"],
+		 [have_curlmopt_maxconnects="no"],
+		 [[#include <curl/curl.h>]])
+		AC_CHECK_DECL(CURLMOPT_MAX_HOST_CONNECTIONS,
+		 [have_curlmopt_max_host_connections="yes"],
+		 [have_curlmopt_max_host_connections="no"],
+		 [[#include <curl/curl.h>]])
+
 		CPPFLAGS="$SAVE_CPPFLAGS"
 	fi
 fi
@@ -1818,6 +1836,33 @@ then
 	if test "x$have_curlopt_timeout" = "xyes"
 	then
 		AC_DEFINE(HAVE_CURLOPT_TIMEOUT_MS, 1, [Define if libcurl supports CURLOPT_TIMEOUT_MS option.])
+	fi
+
+	if test "x$have_curl_cselect_in" = "xyes"
+	then
+		AC_DEFINE(HAVE_CURL_CSELECT_IN, 1, [Define if libcurl defines CURL_CSELECT_IN.])
+	fi
+
+	if test "x$have_curlmopt_pipelining" = "xyes"
+	then
+		AC_DEFINE(HAVE_CURLMOPT_PIPELINING, 1, [Define if libcurl supports CURLMOPT_PIPELINING option.])
+	fi
+
+	if test "x$have_curlmopt_maxconnects" = "xyes"
+	then
+		AC_DEFINE(HAVE_CURLMOPT_MAXCONNECTS, 1, [Define if libcurl supports CURLMOPT_MAXCONNECTS option.])
+	fi
+
+	if test "x$have_curlmopt_max_host_connections" = "xyes"
+	then
+		AC_DEFINE(HAVE_CURLMOPT_MAX_HOST_CONNECTIONS, 1, [Define if libcurl supports CURLMOPT_MAX_HOST_CONNECTIONS option.])
+	fi
+
+	if test "x$have_curl_cselect_in" = "xyes"
+	then
+		utils_curl_supported="yes"
+	else
+		utils_curl_supported="no"
 	fi
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBCURL, test "x$with_libcurl" = "xyes")
