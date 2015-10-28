@@ -7544,8 +7544,20 @@ The following options are supported:
 
 =item B<MaxConnections> I<Number>
 
-Maximum number of persistent connections in the HTTP connection cache. The
-default is I<4>.
+Global limit on the number of persistent connections in the HTTP connection
+cache. This option is supported if your CURL library has the
+B<CURLMOPT_MAXCONNECTS> option.
+
+If unspecified or zero, CURL's default is used.
+
+=item B<MaxHostConnections> I<Number>
+
+Per-host limit on the number of persistent connections in the HTTP connection
+cache. This option is supported if your CURL library has the
+B<CURLMOPT_MAX_HOST_CONNECTIONS> option. If supported, it should be preferred
+over B<MaxConnections>.
+
+The default value is I<4>.
 
 =item E<lt>B<Node> I<String>E<gt>
 

@@ -42,7 +42,12 @@ node_t default_config = {
 
 static node_t *nodes = NULL;
 static curl_reactor_t *curl_reactor = NULL;
-static int maxconnects = 4;
+#if HAVE_CURLMOPT_MAXCONNECTS
+static int maxconnects = 0;
+#endif
+#if HAVE_CURLMOPT_MAX_HOST_CONNECTIONS
+static int max_host_connects = 4;
+#endif
 
 
 struct values {
@@ -577,18 +582,32 @@ influxdb_config (oconfig_item_t *ci)
     for (i = 0; i < ci->children_num; i++) {
         oconfig_item_t *child = ci->children + i;
 
-        if (strcasecmp (child->key, "maxconnections") == 0)
-            cf_util_get_int (child, &maxconnects);
-        else if (strcasecmp (child->key, "node") == 0)
+        if (strcasecmp (child->key, "node") == 0)
             influxdb_config_node (child);
+#if HAVE_CURLMOPT_MAXCONNECTS
+        else if (strcasecmp (child->key, "maxconnections") == 0)
+            cf_util_get_int (child, &maxconnects);
+#endif
+#if HAVE_CURLMOPT_MAX_HOST_CONNECTIONS
+        else if (strcasecmp (child->key, "maxhostconnections") == 0)
+            cf_util_get_int (child, &max_host_connects);
+#endif
         else if (influxdb_config_nodeparam (child, &default_config) < 0)
             ERROR ("write_influxdb: Invalid config option: %s", child->key);
     }
 
-    if (maxconnects <= 0) {
-        ERROR ("write_influxdb: MaxConnects must be positive");
+#if HAVE_CURLMOPT_MAXCONNECTS
+    if (maxconnects < 0) {
+        ERROR ("write_influxdb: MaxConnections cannot be negative");
         return -1;
     }
+#endif
+#if HAVE_CURLMOPT_MAX_HOST_CONNECTIONS
+    if (max_host_connects <= 0) {
+        ERROR ("write_influxdb: MaxHostConnections must be positive");
+        return -1;
+    }
+#endif
 
     return 0;
 }
@@ -631,8 +650,17 @@ influxdb_init (void)
         return -1;
 
     CURLM *curlm = curl_reactor_curlm (curl_reactor);
+#if HAVE_CURLMOPT_PIPELINING
     curl_multi_setopt (curlm, CURLMOPT_PIPELINING, 1L);
-    curl_multi_setopt (curlm, CURLMOPT_MAXCONNECTS, (long) maxconnects);
+#endif
+#if HAVE_CURLMOPT_MAXCONNECTS
+    if (maxconnects != 0)
+        curl_multi_setopt (curlm, CURLMOPT_MAXCONNECTS, (long) maxconnects);
+#endif
+#if HAVE_CURLMOPT_MAX_HOST_CONNECTIONS
+    if (max_host_connects != 0)
+        curl_multi_setopt (curlm, CURLMOPT_MAX_HOST_CONNECTIONS, (long) max_host_connects);
+#endif
 
     node_t *node;
     for (node = nodes; node != NULL; node = node->next) {
