@@ -2499,9 +2499,9 @@ source, this is optional. Otherwise the option is required.
 
 =head2 Plugin C<grpc>
 
-The I<grpc> plugin provides an RPC interface to submit values to collectd
-based on the open source gRPC framework. It exposes and end-point for
-dispatching values to the daemon.
+The I<grpc> plugin provides an RPC interface to submit values to or query
+values from collectd based on the open source gRPC framework. It exposes and
+end-point for dispatching values to the daemon.
 
 The B<gRPC> homepage can be found at L<https://grpc.io/>.
 

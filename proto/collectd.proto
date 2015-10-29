@@ -27,10 +27,14 @@ syntax = "proto3";
 package collectd;
 
 import "types.proto";
+import "google/protobuf/timestamp.proto";
 
 service Collectd {
 	// Dispatch collected values to collectd.
 	rpc DispatchValues(DispatchValuesRequest) returns (DispatchValuesReply);
+
+	// Retrieve a list of all values available in collectd's value cache.
+	rpc ListValues(ListValuesRequest) returns (ListValuesReply);
 }
 
 // The arguments to DispatchValues.
@@ -40,4 +44,18 @@ message DispatchValuesRequest {
 
 // The response from DispatchValues.
 message DispatchValuesReply {
+}
+
+// The arguments to ListValues.
+message ListValuesRequest {
+}
+
+// The response from ListValues.
+message ListValuesReply {
+	message Value {
+		string name = 1;
+		google.protobuf.Timestamp time = 2;
+	}
+
+	repeated Value value = 1;
 }
