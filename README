@@ -119,6 +119,9 @@ Features
     - gmond
       Receive multicast traffic from Ganglia instances.
 
+    - grpc
+      Receive values over the network using the gRPC framework.
+
     - hddtemp
       Hard disk temperatures using hddtempd.
 
@@ -676,6 +679,10 @@ Prerequisites
     Used by the `gmond' plugin to process data received from Ganglia.
     <http://ganglia.info/>
 
+  * libgrpc (optional)
+    Used by the `grpc' plugin.
+    <https://grpc.io/>
+
   * libgcrypt (optional)
     Used by the `network' plugin for encryption and authentication.
     <http://www.gnupg.org/>
@@ -764,6 +771,11 @@ Prerequisites
   * libpq (optional)
     The PostgreSQL C client library used by the `postgresql' plugin.
     <http://www.postgresql.org/>
+
+  * libprotobuf, protoc 3.0+ (optional)
+    Used by the `grpc' plugin to generate service stubs and code to handle
+    network packets of collectd's protobuf-based network protocol.
+    <https://developers.google.com/protocol-buffers/>
 
   * libprotobuf-c, protoc-c (optional)
     Used by the `pinba' plugin to generate a parser for the network packets
