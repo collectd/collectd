@@ -271,7 +271,7 @@ typedef int _Bool;
 #endif
 
  #ifndef COLLECTD_USERAGENT
- # define COLLECTD_USERAGENT PACKAGE_NAME"/"PACKAGE_VERSION
+ # define COLLECTD_USERAGENT PACKAGE_NAME "/" PACKAGE_VERSION
  #endif
 
 /* Only enable __attribute__() for compilers known to support it. */
