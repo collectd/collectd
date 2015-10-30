@@ -36,6 +36,7 @@
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+#include "utils_cache.h"
 
 
 /*** Compile-time constants. ***/
@@ -58,6 +59,7 @@ struct write_statsd_config_s {
   char* prefix;
   _Bool silence_type_warnings;
   _Bool always_append_ds;
+  _Bool store_rates;
 
   /* Internally derived options. */
   char*  event_line_format;
@@ -88,7 +90,7 @@ static char* DS_TYPE_TO_STATSD[] = {
  * be modified outside of load_config or initialise.
  */
 static write_statsd_config_t configuration = {
-  NULL, 8125, NULL, NULL, 0, 0,
+  NULL, 8125, NULL, NULL, 0, 0, 1,
   NULL, 0, NULL, 0
 };
 
@@ -127,6 +129,17 @@ static char* ds_value_to_string(int type, value_t value) {
       return NULL;
   }
 
+  return result;
+}
+
+
+static char* ds_rate_to_string(int type, double rate) {
+  char* result = allocate(VALUE_STR_LEN);
+  if (result == NULL) {
+    return NULL;
+  }
+
+  ssnprintf(result, VALUE_STR_LEN, WS_DOUBLE_FORMAT, rate);
   return result;
 }
 
@@ -190,6 +203,10 @@ static int write_statsd_config(oconfig_item_t *conf) {
     } else if (strcasecmp("AlwaysAppendDS", child->key) == 0) {
       status = cf_util_get_boolean(
           child, &configuration.always_append_ds);
+
+    } else if (strcasecmp("StoreRates", child->key) == 0) {
+      status = cf_util_get_boolean(
+          child, &configuration.store_rates);
 
     } else {
       WARNING("write_statsd plugin: Ignoring unknown config option '%s'.",
@@ -363,6 +380,7 @@ static int write_statsd_write(
   size_t value_key_len = 2;  // Dots are always present.
   size_t plugin_instance_len = strlen(vl->plugin_instance);
   size_t type_instance_len = strlen(vl->type_instance);
+  gauge_t *rates = NULL;
 
   value_key_len += strlen(vl->host);
   value_key_len += strlen(vl->plugin);
@@ -397,6 +415,17 @@ static int write_statsd_write(
               vl->host, vl->plugin, vl->type);
   }
 
+  if (configuration.store_rates) {
+    rates = uc_get_rate (ds, vl);
+    if (rates == NULL) {
+      ERROR("write_statsd plugin: uc_get_rate failed.");
+      free(value_key);
+      return -6;
+    }
+  } else {
+    rates = NULL;
+  }
+
   // Process all values in the data set.
   for (idx = 0; idx < ds->ds_num; idx++) {
     char*  message;
@@ -414,10 +443,19 @@ static int write_statsd_write(
       continue;  // To the next value in the data set.
     }
 
-    value = ds_value_to_string(ds->ds[idx].type, vl->values[idx]);
+    if (ds->ds[idx].type == DS_TYPE_GAUGE) {
+      value = ds_value_to_string(ds->ds[idx].type, vl->values[idx]);
+    }
+    else if (rates != NULL) {
+      value = ds_rate_to_string(ds->ds[idx].type, rates[idx]);
+    }
+    else {
+      value = ds_value_to_string(ds->ds[idx].type, vl->values[idx]);
+    }
+
     if (value == NULL) {
       free(value_key);
-      return -6;
+      return -7;
     }
 
     /*
@@ -440,7 +478,7 @@ static int write_statsd_write(
     if (message == NULL) {
       free(value_key);
       free(value);
-      return -7;
+      return -8;
     }
 
     if (include_ds_name) {
@@ -462,6 +500,7 @@ static int write_statsd_write(
   }
 
   free(value_key);
+  free(rates);
   return 0;
 }
 

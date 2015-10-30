@@ -7955,8 +7955,9 @@ Synopsis:
    Port 8125
    Postfix ""
    Prefix ""
-   SilenceTypeWarnings no
-   AlwaysAppendDS no
+   SilenceTypeWarnings false
+   StoreRates true
+   AlwaysAppendDS false
  </Plugin>
 
 Only the I<Host> option is required, all other options
@@ -7987,6 +7988,12 @@ The prefix used to build the metric key.
 When enabled, sending of values of unsupported types causes a warning.
 Since this can get noisy and users that are aware of this do
 not need a constant reminder these warnings can be disabled.
+
+=item B<StoreRates> B<true|false>
+
+If set to B<true> (the default), convert counter values to rates. If set to
+B<false> counter values are stored as is, i.E<nbsp>e. as an increasing integer
+number.
 
 =item B<AlwaysAppendDS> B<false>|B<true>
 

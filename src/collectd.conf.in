@@ -1437,8 +1437,9 @@
 #  Port 8125
 #  Postfix ""
 #  Prefix ""
-#  SilenceTypeWarnings no
-#  AlwaysAppendDS no
+#  SilenceTypeWarnings false
+#  StoreRates true
+#  AlwaysAppendDS false
 #</Plugin>
 
 #<Plugin write_tsdb>
