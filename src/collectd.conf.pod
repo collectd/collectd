@@ -7927,7 +7927,7 @@ I<Collectd> data types are mapped to I<statsd> as follows:
   | DS_TYPE_COUNTER  | counter     |
   | DS_TYPE_GAUGE    | gauge       |
   | DS_TYPE_DERIVE   | gauge       |
-  | DS_TYPE_ABSOLUTE | -           |
+  | DS_TYPE_ABSOLUTE | counter     |
   +------------------+-------------+
 
 When metrics are sent to the I<statsd> server, the key used to identify them

@@ -82,7 +82,7 @@ static char* DS_TYPE_TO_STATSD[] = {
   "c",  /* DS_TYPE_COUNTER  */
   "g",  /* DS_TYPE_GAUGE    */
   "g",  /* DS_TYPE_DERIVE   */
-  NULL  /* DS_TYPE_ABSOLUTE */
+  "c"   /* DS_TYPE_ABSOLUTE */
 };
 
 /*
@@ -124,7 +124,12 @@ static char* ds_value_to_string(int type, value_t value) {
       ssnprintf(result, VALUE_STR_LEN, "%"PRId64, value.derive);
       break;
 
+    case DS_TYPE_ABSOLUTE:
+      ssnprintf(result, VALUE_STR_LEN, "%"PRIu64, value.absolute);
+      break;
+
     default:
+      ERROR("write_statsd: unknown data source type: %i", type);
       free(result);
       return NULL;
   }
