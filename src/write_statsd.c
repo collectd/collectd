@@ -121,7 +121,7 @@ static char* ds_value_to_string(int type, value_t value) {
       break;
 
     case DS_TYPE_DERIVE:
-      ssnprintf(result, VALUE_STR_LEN, "%"PRId64, value.derive);
+      ssnprintf(result, VALUE_STR_LEN, "%"PRIi64, value.derive);
       break;
 
     case DS_TYPE_ABSOLUTE:
