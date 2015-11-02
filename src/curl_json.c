@@ -203,12 +203,6 @@ static void cj_cb_inc_array_index (void *ctx, _Bool update_key)
 #define CJ_CB_ABORT    0
 #define CJ_CB_CONTINUE 1
 
-static int cj_cb_boolean (void * ctx, int boolVal)
-{
-  cj_cb_inc_array_index (ctx, /* update_key = */ 0);
-  return (CJ_CB_CONTINUE);
-}
-
 static int cj_cb_null (void * ctx)
 {
   cj_cb_inc_array_index (ctx, /* update_key = */ 0);
@@ -309,6 +303,11 @@ static int cj_cb_string (void *ctx, const unsigned char *val,
   /* Handle the string as if it was a number. */
   return (cj_cb_number (ctx, (const char *) val, len));
 } /* int cj_cb_string */
+
+static int cj_cb_boolean (void * ctx, int boolVal)
+{
+  return (cj_cb_number (ctx, (boolVal)? "1":"0", 1));
+}
 
 static int cj_cb_start (void *ctx)
 {
