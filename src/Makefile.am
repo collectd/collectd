@@ -1239,6 +1239,7 @@ pkglib_LTLIBRARIES += write_kafka.la
 write_kafka_la_SOURCES = write_kafka.c \
                         utils_format_graphite.c utils_format_graphite.h \
                         utils_format_json.c utils_format_json.h \
+                        utils_format_kafka_custom.c utils_format_kafka_custom.h \
                         utils_cmd_putval.c utils_cmd_putval.h \
                         utils_crc32.c utils_crc32.h
 write_kafka_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBRDKAFKA_CPPFLAGS)
