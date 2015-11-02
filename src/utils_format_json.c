@@ -502,21 +502,17 @@ static int notification_meta_data_to_json(char *buffer, size_t buffer_size, /* {
 } while (0)
 
 #define BUFFER_ADD_KEYVAL(meta) do { \
-  if (meta->type == NM_TYPE_SIGNED_INT) { \
-    if ( ! isnan ( meta->nm_value.nm_signed_int ) ) { \
-      BUFFER_ADD (",\"%s\":%"PRIi64, meta->name, meta->nm_value.nm_signed_int); \
-    } \
-  } else if (meta->type == NM_TYPE_UNSIGNED_INT) { \
-    if ( ! isnan ( meta->nm_value.nm_unsigned_int ) ) { \
-      BUFFER_ADD (",\"%s\":%"PRIu64, meta->name, meta->nm_value.nm_unsigned_int); \
-    } \
-  } else if (meta->type == NM_TYPE_DOUBLE) { \
+  if (meta->type == NM_TYPE_DOUBLE) { \
     if ( ! isnan ( meta->nm_value.nm_double ) ) { \
       BUFFER_ADD (",\"%s\":%e", meta->name, meta->nm_value.nm_double); \
     } \
   } else { \
     BUFFER_ADD (",\"%s\":", (meta->name)); \
-    if (meta->type == NM_TYPE_STRING) { \
+    if (meta->type == NM_TYPE_SIGNED_INT) { \
+      BUFFER_ADD ("%"PRIi64, meta->nm_value.nm_signed_int); \
+    } else if (meta->type == NM_TYPE_UNSIGNED_INT) { \
+      BUFFER_ADD ("%"PRIu64, meta->nm_value.nm_unsigned_int); \
+    }else if (meta->type == NM_TYPE_STRING) { \
       status = json_escape_string (temp, sizeof (temp), (meta->nm_value.nm_string)); \
       if (status != 0) \
         return (status); \
