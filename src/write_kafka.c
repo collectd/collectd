@@ -31,6 +31,7 @@
 #include "utils_cache.h"
 #include "utils_cmd_putval.h"
 #include "utils_format_graphite.h"
+#include "utils_format_kafka_custom.h"
 #include "utils_format_json.h"
 #include "utils_crc32.h"
 
