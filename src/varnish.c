@@ -141,7 +141,6 @@ static int varnish_monitor (void *priv, const struct VSC_point * const pt) /* {{
 	uint64_t val;
 	const user_config_t *conf;
 	const char *class;
-	const char *ident;
 	const char *name;
 
 	if (pt == NULL)
@@ -151,7 +150,6 @@ static int varnish_monitor (void *priv, const struct VSC_point * const pt) /* {{
 
 #if HAVE_VARNISH_V4
 	class = pt->section->fantom->type;
-	ident = pt->section->fantom->ident;
 	name  = pt->desc->name;
 
 	if (strcmp(class, "MAIN") != 0)
@@ -159,7 +157,6 @@ static int varnish_monitor (void *priv, const struct VSC_point * const pt) /* {{
 
 #elif HAVE_VARNISH_V3
 	class = pt->class;
-	ident = pt->ident;
 	name  = pt->name;
 
 	if (strcmp(class, "") != 0)
