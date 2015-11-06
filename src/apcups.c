@@ -139,7 +139,7 @@ static int net_open (char *host, int port)
 	if (status != 0)
 	{
 		char errbuf[1024];
-		INFO ("getaddrinfo failed: %s",
+		INFO ("apcups plugin: getaddrinfo failed: %s",
 				(status == EAI_SYSTEM)
 				? sstrerror (errno, errbuf, sizeof (errbuf))
 				: gai_strerror (status));
@@ -158,7 +158,7 @@ static int net_open (char *host, int port)
 
 	if (sd < 0)
 	{
-		DEBUG ("Unable to open a socket");
+		DEBUG ("apcups plugin: Unable to open a socket");
 		freeaddrinfo (ai_return);
 		return (-1);
 	}
@@ -170,13 +170,13 @@ static int net_open (char *host, int port)
 	if (status != 0) /* `connect(2)' failed */
 	{
 		char errbuf[1024];
-		INFO ("connect failed: %s",
+		INFO ("apcups plugin: connect failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		close (sd);
 		return (-1);
 	}
 
-	DEBUG ("Done opening a socket %i", sd);
+	DEBUG ("apcups plugin: Done opening a socket %i", sd);
 
 	return (sd);
 } /* int net_open (char *host, char *service, int port) */
@@ -480,7 +480,7 @@ static int apcups_read (void)
 	 */
 	if (status != 0)
 	{
-		DEBUG ("apc_query_server (%s, %i) = %i",
+		DEBUG ("apcups plugin: apc_query_server (%s, %i) = %i",
 				conf_host == NULL
 				? APCUPS_DEFAULT_HOST
 				: conf_host,
