@@ -851,8 +851,19 @@ static int statsd_metric_submit_unsafe (char const *name, /* {{{ */
     else
       values[0].gauge = (gauge_t) c_avl_size (metric->set);
   }
-  else
-    values[0].derive = (derive_t) metric->value;
+  else { /* STATSD_COUNTER */
+      /*
+       * Expand a single value to two metrics:
+       *
+       * - The absolute counter, as a gauge
+       * - A derived rate for this counter
+       */
+      values[0].derive = (derive_t) metric->value;
+      plugin_dispatch_values(&vl);
+
+      sstrncpy(vl.type, "gauge", sizeof (vl.type));
+      values[0].gauge = (gauge_t) metric->value;
+  }
 
   return (plugin_dispatch_values (&vl));
 } /* }}} int statsd_metric_submit_unsafe */
