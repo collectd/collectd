@@ -7719,6 +7719,38 @@ the same name as the field. E.g., for a collectd data item of type
 I<if_octets> (see I<types.db>), the InfluxDB time series will have a I<rx>
 column and a I<tx> column.
 
+=head3 Interaction with Metadata
+
+collectd metadata can be used to further control the generation of the
+measurement name and tags submitted in InfluxDB. The plugin supports the
+following metadata attributes (all of which must have a value of type string):
+
+=over 4
+
+=item B<influxdb:measurement>
+
+Overrides the measurement name generated through the E<lt>B<Format>E<gt> block
+in the plugin configuration.
+
+=item B<influxdb:prefix>
+
+Adds a prefix to the measurement name. The prefix is added regardless of
+whether or not the measurement name was overridden via the
+B<influxdb:measurement> attribute.
+
+=item B<influxdb:tag:>I<NAME>
+
+Add an additional tag to the time series submitted to InfluxDB. The tag name
+is I<NAME> and the tag value is the value of the metadata attribute. If the
+tag name collides with a tag generated via the E<lt>B<Format>E<gt>
+configuration, the metadata value takes precedence.
+
+If the value of the metadata attribute is the empty string, then the tag is
+not submitted to InfluxDB. In this case, if a tag with the same name is also
+generated via the E<lt>B<Format>E<gt> configuration, then that tag is deleted.
+
+=back
+
 =head2 Plugin C<write_kafka>
 
 The I<write_kafka plugin> will send values to a I<Kafka> topic, a distributed

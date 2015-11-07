@@ -420,6 +420,8 @@ influxdb_create_default_attrs (void)
     if (attrs == NULL)
         return NULL;
 
+    influxdb_attrs_set_meta_prefix (attrs, "influxdb");
+
     if (influxdb_attrs_add (attrs, "host", "%h") < 0)
         goto fail;
     if (influxdb_attrs_add (attrs, "instance", "%i") < 0)
@@ -452,9 +454,11 @@ influxdb_config_nodeparam (oconfig_item_t *child, node_t *node)
         cf_util_get_string (child, &node->username);
     else if (strcasecmp (child->key, "password") == 0)
         cf_util_get_string (child, &node->password);
-    else if (strcasecmp (child->key, "format") == 0)
+    else if (strcasecmp (child->key, "format") == 0) {
         node->attrs = influxdb_config_format (child);
-    else if (strcasecmp (child->key, "storerates") == 0)
+        if (node->attrs != NULL)
+            influxdb_attrs_set_meta_prefix (node->attrs, "influxdb");
+    } else if (strcasecmp (child->key, "storerates") == 0)
         cf_util_get_boolean (child, &node->store_rates);
     else if (strcasecmp (child->key, "intasfloat") == 0)
         cf_util_get_boolean (child, &node->int_as_float);

@@ -1,6 +1,16 @@
 #include "utils_format_influxdb.h"
 
 
+#define META_TAG_PREFIX "prefix"
+#define META_TAG_PREFIX_LEN (sizeof (META_TAG_PREFIX) - 1)
+
+#define META_TAG_MEASUREMENT "measurement"
+#define META_TAG_MEASUREMENT_LEN (sizeof (META_TAG_MEASUREMENT) - 1)
+
+#define META_TAG_TAG "tag"
+#define META_TAG_TAG_LEN (sizeof (META_TAG_TAG) - 1)
+
+
 struct influxdb_attr_s {
     char *name;
     char *fmt;
@@ -14,6 +24,8 @@ struct influxdb_attrs_s {
     char *fmt;
     influxdb_attr_t *first, *last;
     int flags;
+    char *meta_prefix;
+    unsigned meta_prefix_len;
 };
 
 
@@ -37,8 +49,31 @@ influxdb_attrs_create (const char *main_fmt)
     attrs->first = NULL;
     attrs->last = NULL;
     attrs->flags = flags;
+    attrs->meta_prefix = NULL;
+    attrs->meta_prefix_len = 0;
 
     return attrs;
+}
+
+
+int
+influxdb_attrs_set_meta_prefix (influxdb_attrs_t *attrs, const char *meta_prefix)
+{
+    sfree (attrs->meta_prefix);
+
+    if (meta_prefix != NULL) {
+        attrs->meta_prefix = strdup (meta_prefix);
+        if (attrs->meta_prefix == NULL) {
+            attrs->meta_prefix_len = 0;
+            return -1;
+        }
+        attrs->meta_prefix_len = strlen (attrs->meta_prefix);
+    } else {
+        attrs->meta_prefix = NULL;
+        attrs->meta_prefix_len = 0;
+    }
+
+    return 0;
 }
 
 
@@ -91,26 +126,107 @@ influxdb_attrs_format (buffer_t *buf, const influxdb_attrs_t *attrs, const value
 {
     const size_t orig_pos = buffer_getpos (buf);
 
-    if (influxdb_format (buf, attrs->fmt, vl, field) < 0)
+    const bool use_meta = vl->meta != NULL && attrs->meta_prefix != NULL;
+    char *prefix = NULL, *measurement = NULL;
+    if (use_meta) {
+        unsigned len = attrs->meta_prefix_len + 2;
+        if (META_TAG_PREFIX_LEN > META_TAG_MEASUREMENT_LEN)
+            len += META_TAG_PREFIX_LEN;
+        else
+            len += META_TAG_MEASUREMENT_LEN;
+
+        char sbuf[len];
+        ssnprintf (sbuf, sizeof (sbuf), "%s:%s", attrs->meta_prefix, META_TAG_PREFIX);
+        meta_data_get_string (vl->meta, sbuf, &prefix);
+        ssnprintf (sbuf, sizeof (sbuf), "%s:%s", attrs->meta_prefix, META_TAG_MEASUREMENT);
+        meta_data_get_string (vl->meta, sbuf, &measurement);
+    }
+
+    if (prefix != NULL && buffer_putstr (buf, prefix) < 0)
+        goto fail;
+
+    int rc = 0;
+    if (measurement != NULL)
+        rc = buffer_putstr (buf, measurement);
+    else
+        rc = influxdb_format (buf, attrs->fmt, vl, field);
+
+    if (rc < 0)
         goto fail;
 
     influxdb_attr_t *attr;
     for (attr = attrs->first; attr != NULL; attr = attr->next) {
+        /* Skip this tag if it's overridden by metadata. */
+        if (use_meta) {
+            char sbuf[attrs->meta_prefix_len + 1 + META_TAG_TAG_LEN + 1 + strlen (attr->name) + 1];
+            ssnprintf (sbuf, sizeof (sbuf), "%s:%s:%s", attrs->meta_prefix, META_TAG_TAG, attr->name);
+            if (meta_data_exists (vl->meta, sbuf))
+                continue;
+        }
+
         const size_t old_pos = buffer_getpos (buf);
         if (buffer_printf (buf, ",%s=", attr->name) < 0)
             goto fail;
-        int r = influxdb_format (buf, attr->fmt, vl, field);
-        if (r < 0)
+
+        rc = influxdb_format (buf, attr->fmt, vl, field);
+
+        if (rc < 0)
             goto fail;
-        if (r == 0)
+
+        if (rc == 0)
             buffer_setpos (buf, old_pos);
     }
 
-    return buffer_getpos (buf) - orig_pos;
+    int meta_count = 0;
+    char **keys = NULL;
+
+    if (use_meta) {
+        char tag_prefix[attrs->meta_prefix_len + 1 + META_TAG_TAG_LEN + 2];
+        const int tag_prefix_len = ssnprintf (tag_prefix, sizeof (tag_prefix), "%s:%s:", attrs->meta_prefix, META_TAG_TAG);
+        if (tag_prefix_len < 0)
+            goto fail;
+
+        meta_count = meta_data_toc (vl->meta, &keys);
+        if (meta_count < 0)
+            goto fail;
+
+        int i;
+        for (i = 0; i < meta_count; i++) {
+            if (strncmp (keys[i], tag_prefix, tag_prefix_len) != 0)
+                continue;
+
+            char *value = NULL;
+            meta_data_get_string (vl->meta, keys[i], &value);
+            if (value == NULL || value[0] == 0) {
+                sfree (value);
+                continue;
+            }
+
+            rc = buffer_printf (buf, ",%s=%s", keys[i] + tag_prefix_len, value);
+            sfree (value);
+
+            if (rc < 0)
+                goto fail;
+        }
+    }
+
+    rc = buffer_getpos (buf) - orig_pos;
+    goto cleanup;
 
 fail:
-    buffer_setpos (buf, orig_pos);
-    return -1;
+    rc = buffer_setpos (buf, orig_pos);
+
+cleanup:
+    sfree (prefix);
+    sfree (measurement);
+    if (keys != NULL) {
+        int i;
+        for (i = 0; i < meta_count; i++)
+            sfree (keys[i]);
+        sfree (keys);
+    }
+
+    return rc;
 }
 
 
@@ -220,6 +336,7 @@ influxdb_config_format (oconfig_item_t *ci)
     }
 
     influxdb_attrs_t *attrs = influxdb_attrs_create (fmt);
+    sfree (fmt);
     if (attrs == NULL) {
         ERROR ("write_influxdb: invalid format string: %s", fmt);
         return NULL;

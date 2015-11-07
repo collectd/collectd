@@ -61,6 +61,11 @@ typedef struct influxdb_attrs_s influxdb_attrs_t;
 influxdb_attrs_t *influxdb_attrs_create (const char *main_fmt);
 
 /*
+ * Set metadata prefix.
+ */
+int influxdb_attrs_set_meta_prefix (influxdb_attrs_t *attrs, const char *meta_prefix);
+
+/*
  * Add an attribute/value pair, where value is a format string.
  */
 int influxdb_attrs_add (influxdb_attrs_t *attrs, const char *name, const char *fmt);
