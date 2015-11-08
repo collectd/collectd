@@ -121,6 +121,24 @@ influxdb_attrs_flags (const influxdb_attrs_t *attrs)
 }
 
 
+static int
+format_tag (buffer_t *buf, const char *name, const char *value_fmt, const value_list_t *vl, const char *field)
+{
+    const size_t old_pos = buffer_getpos (buf);
+    if (buffer_printf (buf, ",%s=", name) < 0)
+        return -1;
+
+    int rc = influxdb_format (buf, value_fmt, vl, field);
+
+    if (rc <= 0)
+        buffer_setpos (buf, old_pos);
+    else
+        rc = buffer_getpos (buf) - old_pos;
+
+    return rc;
+}
+
+
 int
 influxdb_attrs_format (buffer_t *buf, const influxdb_attrs_t *attrs, const value_list_t *vl, const char *field)
 {
@@ -147,12 +165,8 @@ influxdb_attrs_format (buffer_t *buf, const influxdb_attrs_t *attrs, const value
     if (prefix != NULL && buffer_putstr (buf, prefix) < 0)
         goto fail;
 
-    int rc = 0;
-    if (measurement != NULL)
-        rc = buffer_putstr (buf, measurement);
-    else
-        rc = influxdb_format (buf, attrs->fmt, vl, field);
-
+    const char *fmt = measurement != NULL ? measurement : attrs->fmt;
+    int rc = influxdb_format (buf, fmt, vl, field);
     if (rc < 0)
         goto fail;
 
@@ -166,17 +180,8 @@ influxdb_attrs_format (buffer_t *buf, const influxdb_attrs_t *attrs, const value
                 continue;
         }
 
-        const size_t old_pos = buffer_getpos (buf);
-        if (buffer_printf (buf, ",%s=", attr->name) < 0)
+        if (format_tag (buf, attr->name, attr->fmt, vl, field) < 0)
             goto fail;
-
-        rc = influxdb_format (buf, attr->fmt, vl, field);
-
-        if (rc < 0)
-            goto fail;
-
-        if (rc == 0)
-            buffer_setpos (buf, old_pos);
     }
 
     if (use_meta) {
@@ -201,7 +206,7 @@ influxdb_attrs_format (buffer_t *buf, const influxdb_attrs_t *attrs, const value
                 continue;
             }
 
-            rc = buffer_printf (buf, ",%s=%s", keys[i] + tag_prefix_len, value);
+            rc = format_tag (buf, keys[i] + tag_prefix_len, value, vl, field);
             sfree (value);
 
             if (rc < 0)
@@ -213,7 +218,8 @@ influxdb_attrs_format (buffer_t *buf, const influxdb_attrs_t *attrs, const value
     goto cleanup;
 
 fail:
-    rc = buffer_setpos (buf, orig_pos);
+    buffer_setpos (buf, orig_pos);
+    rc = -1;
 
 cleanup:
     sfree (prefix);

@@ -7731,6 +7731,8 @@ following metadata attributes (all of which must have a value of type string):
 
 Overrides the measurement name generated through the E<lt>B<Format>E<gt> block
 in the plugin configuration.
+The value is subject to format string substitution as described above in
+B<Specifying Formats>.
 
 =item B<influxdb:prefix>
 
@@ -7745,9 +7747,13 @@ is I<NAME> and the tag value is the value of the metadata attribute. If the
 tag name collides with a tag generated via the E<lt>B<Format>E<gt>
 configuration, the metadata value takes precedence.
 
-If the value of the metadata attribute is the empty string, then the tag is
-not submitted to InfluxDB. In this case, if a tag with the same name is also
-generated via the E<lt>B<Format>E<gt> configuration, then that tag is deleted.
+The value is subject to format string substitution as described above in
+B<Specifying Formats>.
+
+If the value of the metadata attribute evaluates to the empty string, then the
+tag is not submitted to InfluxDB. In this case, if a tag with the same name
+is also generated via the E<lt>B<Format>E<gt> configuration, then that tag is
+deleted.
 
 =back
 
