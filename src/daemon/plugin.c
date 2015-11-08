@@ -1613,8 +1613,6 @@ void plugin_init_all (void)
 		write_threads_num = 5;
 	}
 
-	start_write_threads ((size_t) write_threads_num);
-
 	if ((list_init == NULL) && (read_heap == NULL))
 		return;
 
@@ -1649,6 +1647,8 @@ void plugin_init_all (void)
 
 		le = le->next;
 	}
+
+	start_write_threads ((size_t) write_threads_num);
 
 	max_read_interval = global_option_get_time ("MaxReadInterval",
 			DEFAULT_MAX_READ_INTERVAL);
