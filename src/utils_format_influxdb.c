@@ -125,6 +125,8 @@ int
 influxdb_attrs_format (buffer_t *buf, const influxdb_attrs_t *attrs, const value_list_t *vl, const char *field)
 {
     const size_t orig_pos = buffer_getpos (buf);
+    int meta_count = 0;
+    char **keys = NULL;
 
     const bool use_meta = vl->meta != NULL && attrs->meta_prefix != NULL;
     char *prefix = NULL, *measurement = NULL;
@@ -176,9 +178,6 @@ influxdb_attrs_format (buffer_t *buf, const influxdb_attrs_t *attrs, const value
         if (rc == 0)
             buffer_setpos (buf, old_pos);
     }
-
-    int meta_count = 0;
-    char **keys = NULL;
 
     if (use_meta) {
         char tag_prefix[attrs->meta_prefix_len + 1 + META_TAG_TAG_LEN + 2];
