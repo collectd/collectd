@@ -72,7 +72,7 @@
   (tsp)->tv_sec = CDTIME_T_TO_TIME_T (cdt);                                  \
   (tsp)->tv_nsec = (long) CDTIME_T_TO_NS ((cdt) & 0x3fffffff);               \
 } while (0)
-#define TIMESPEC_TO_CDTIME_T(ts) NS_TO_CDTIME_T(1000000000 * (ts)->tv_sec + (ts)->tv_nsec)
+#define TIMESPEC_TO_CDTIME_T(ts) NS_TO_CDTIME_T(1000000000ULL * (ts)->tv_sec + (ts)->tv_nsec)
 
 cdtime_t cdtime (void);
 
