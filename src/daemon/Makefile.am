@@ -59,6 +59,7 @@ collectd_SOURCES = collectd.c collectd.h \
 		   utils_cache.c utils_cache.h \
 		   utils_complain.c utils_complain.h \
 		   utils_hashtable.c utils_hashtable.h \
+		   utils_ignorelist.c utils_ignorelist.h \
 		   utils_llist.c utils_llist.h \
 		   utils_random.c utils_random.h \
 		   utils_tail_match.c utils_tail_match.h \
