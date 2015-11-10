@@ -387,6 +387,14 @@ gmond_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(GANGLIA_LDFLAGS)
 gmond_la_LIBADD = $(GANGLIA_LIBS)
 endif
 
+if BUILD_PLUGIN_GPS
+pkglib_LTLIBRARIES += gps.la
+gps_la_SOURCES = gps.c
+gps_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBGPS_CFLAGS)
+gps_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBGPS_LDFLAGS)
+gps_la_LIBADD = -lpthread $(BUILD_WITH_LIBGPS_LIBS)
+endif
+
 if BUILD_PLUGIN_HDDTEMP
 pkglib_LTLIBRARIES += hddtemp.la
 hddtemp_la_SOURCES = hddtemp.c
@@ -1324,6 +1332,7 @@ EXTRA_DIST +=   collectd.conf.pod \
 		collectd-threshold.pod \
 		collectd-unixsock.pod \
 		postgresql_default.conf \
+		gps.pod \
 		types.db.pod
 
 .pod.1:
