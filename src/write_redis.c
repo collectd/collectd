@@ -46,8 +46,6 @@ struct wr_node_s
   struct timeval timeout;
   char *prefix;
   int database;
-  int max_set_size;
-  _Bool store_rates;
 
   redisContext *conn;
   pthread_mutex_t lock;
@@ -62,30 +60,29 @@ static redisContext * wr_connect ( wr_node_t *node ) /* {{{ */
   redisReply   *rr;
 
   node->conn = redisConnectWithTimeout ((char *)node->host, node->port, node->timeout);
-   if (node->conn == NULL)
-   {
-     ERROR ("write_redis plugin: Connecting to host \"%s\" (port %i) failed: Unkown reason",
+  if (node->conn == NULL)
+  {
+    ERROR ("write_redis plugin: Connecting to host \"%s\" (port %i) failed: Unkown reason",
           (node->host != NULL) ? node->host : "localhost",
           (node->port != 0) ? node->port : 6379);
-     pthread_mutex_unlock (&node->lock);
-     return NULL;
-    }
-   else if (node->conn->err)
-   {
-     ERROR ("write_redis plugin: Connecting to host \"%s\" (port %i) failed: %s",
-             (node->host != NULL) ? node->host : "localhost",
-             (node->port != 0) ? node->port : 6379,
-             node->conn->errstr);
-     pthread_mutex_unlock (&node->lock);
-     return NULL;
-   }
+    redisFree (node->conn);
+    return NULL;
+  }
+  else if (node->conn->err)
+  {
+    ERROR ("write_redis plugin: Connecting to host \"%s\" (port %i) failed: %s",
+          (node->host != NULL) ? node->host : "localhost",
+          (node->port != 0) ? node->port : 6379,
+           node->conn->errstr);
+    redisFree (node->conn);
+    return NULL;
+  }
 
-   rr = redisCommand(node->conn, "SELECT %d", node->database);
-   if (rr == NULL)
-     WARNING("SELECT command error. database:%d message:%s", node->database, node->conn->errstr);
-   else
-     freeReplyObject (rr);
-
+  rr = redisCommand(node->conn, "SELECT %d", node->database);
+  if (rr == NULL)
+    WARNING("SELECT command error. database:%d message:%s", node->database, node->conn->errstr);
+  else
+    freeReplyObject (rr);
 
   return (redisContext *) node->conn;
 } /* }}} wr_connect */
@@ -159,7 +156,10 @@ static int wr_write (const data_set_t *ds, /* {{{ */
   {
     node->conn = wr_connect (node);
     if ( node->conn == NULL )
-      return (0);
+    {
+      pthread_mutex_unlock (&node->lock);
+      return (-1);
+    }
   }
   // else run ping command, if failed asume broken connection and reconnect
   else
@@ -172,7 +172,10 @@ static int wr_write (const data_set_t *ds, /* {{{ */
       node->conn = NULL;
       node->conn = wr_connect (node);
       if ( node->conn == NULL )
-        return (0);
+      {
+        pthread_mutex_unlock (&node->lock);
+        return (-1);
+      }
     }
     else
         freeReplyObject (rr);
@@ -184,15 +187,6 @@ static int wr_write (const data_set_t *ds, /* {{{ */
     WARNING("ZADD command error. key:%s message:%s", key, node->conn->errstr);
   else
     freeReplyObject (rr);
-
-  if (node->max_set_size >= 0)
-  {
-    rr = redisCommand (node->conn, "ZREMRANGEBYRANK %s %d %d", key, 0, (-1 * node->max_set_size) - 1);
-    if (rr == NULL)
-      WARNING("ZREMRANGEBYRANK command error. key:%s message:%s", key, node->conn->errstr);
-    else
-      freeReplyObject (rr);
-  }
 
   /* TODO(octo): This is more overhead than necessary. Use the cache and
    * metadata to determine if it is a new metric and call SADD only once for
@@ -245,8 +239,6 @@ static int wr_config_node (oconfig_item_t *ci) /* {{{ */
   node->conn = NULL;
   node->prefix = NULL;
   node->database = 0;
-  node->max_set_size = -1;
-  node->store_rates = 1;
   pthread_mutex_init (&node->lock, /* attr = */ NULL);
 
   status = cf_util_get_string_buffer (ci, node->name, sizeof (node->name));
@@ -280,12 +272,6 @@ static int wr_config_node (oconfig_item_t *ci) /* {{{ */
     }
     else if (strcasecmp ("Database", child->key) == 0) {
       status = cf_util_get_int (child, &node->database);
-    }
-    else if (strcasecmp ("MaxSetSize", child->key) == 0) {
-      status = cf_util_get_int (child, &node->max_set_size);
-    }
-    else if (strcasecmp ("StoreRates", child->key) == 0) {
-      status = cf_util_get_boolean (child, &node->store_rates);
     }
     else
       WARNING ("write_redis plugin: Ignoring unknown config option \"%s\".",
