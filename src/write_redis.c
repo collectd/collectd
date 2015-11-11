@@ -178,6 +178,7 @@ static int wr_write (const data_set_t *ds, /* {{{ */
         freeReplyObject (rr);
   }
 
+
   rr = redisCommand (node->conn, "ZADD %s %s %s", key, time, value);
   if (rr == NULL)
     WARNING("ZADD command error. key:%s message:%s", key, node->conn->errstr);
