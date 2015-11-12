@@ -177,6 +177,9 @@ static int ts_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
       status = ts_config_add_string (&data->type, child,
           /* may be empty = */ 0);
 #endif
+    else if (strcasecmp ("TypeInstance", child->key) == 0)
+      status = ts_config_add_string (&data->type_instance, child,
+          /* may be empty = */ 1);
     else if (strcasecmp ("MetaDataSet", child->key) == 0)
       status = ts_config_add_meta (&data->meta, child,
           /* may be empty = */ 1);
