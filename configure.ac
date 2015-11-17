@@ -2082,6 +2082,59 @@ AC_SUBST(GCRYPT_LIBS)
 AM_CONDITIONAL(BUILD_WITH_LIBGCRYPT, test "x$with_libgcrypt" = "xyes")
 # }}}
 
+
+###
+# --with-libgps {{{
+with_libgps_cflags=""
+with_libgps_ldflags=""
+AC_ARG_WITH(libgps, [AS_HELP_STRING([--with-libgps@<:@=PREFIX@:>@], [Path to libgps.])],
+[
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	then
+		with_libgps_cflags="-I$withval/include"
+		with_libgps_ldflags="-L$withval/lib"
+		with_libgps="yes"
+	else
+		with_libgps="$withval"
+	fi
+],
+[
+	with_libgps="yes"
+])
+if test "x$with_libgps" = "xyes"
+then
+	SAVE_CFLAGS="$CFLAGS"
+	CFLAGS="$CFLAGS $with_libgps_cflags"
+
+	AC_CHECK_HEADERS(gps.h, [with_libgps="yes"], [with_libgps="no (gps.h not found)"])
+
+	CFLAGS="$SAVE_CFLAGS"
+fi
+if test "x$with_libgps" = "xyes"
+then
+	SAVE_CFLAGS="$CFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+	CFLAGS="$CFLAGS $with_libgps_cflags"
+	LDFLAGS="$LDFLAGS $with_libgps_ldflags"
+
+	AC_CHECK_LIB(gps, gps_open, [with_libgps="yes"], [with_libgps="no (symbol gps_open not found)"])
+
+	CFLAGS="$SAVE_CFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+if test "x$with_libgps" = "xyes"
+then
+	BUILD_WITH_LIBGPS_CFLAGS="$with_libgps_cflags"
+	BUILD_WITH_LIBGPS_LDFLAGS="$with_libgps_ldflags"
+	BUILD_WITH_LIBGPS_LIBS="-lgps"
+	AC_SUBST(BUILD_WITH_LIBGPS_CFLAGS)
+	AC_SUBST(BUILD_WITH_LIBGPS_LDFLAGS)
+	AC_SUBST(BUILD_WITH_LIBGPS_LIBS)
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBGPS, test "x$with_libgps" = "xyes")
+# }}}
+
+
 # --with-libiptc {{{
 AC_ARG_WITH(libiptc, [AS_HELP_STRING([--with-libiptc@<:@=PREFIX@:>@], [Path to libiptc.])],
 [
@@ -5275,6 +5328,7 @@ plugin_entropy="no"
 plugin_ethstat="no"
 plugin_fhcount="no"
 plugin_fscache="no"
+plugin_gps="no"
 plugin_interface="no"
 plugin_ipmi="no"
 plugin_ipvs="no"
@@ -5539,6 +5593,11 @@ then
 	plugin_interface="yes"
 fi
 
+if test "x$with_libgps" = "xyes" && test "x$with_libpthread" = "xyes"
+then
+	plugin_gps="yes"
+fi
+
 if test "x$have_getloadavg" = "xyes"
 then
 	plugin_load="yes"
@@ -5667,6 +5726,7 @@ AC_PLUGIN([fhcount],     [$plugin_fhcount],    [File handles statistics])
 AC_PLUGIN([filecount],   [yes],                [Count files in directories])
 AC_PLUGIN([fscache],     [$plugin_fscache],    [fscache statistics])
 AC_PLUGIN([gmond],       [$with_libganglia],   [Ganglia plugin])
+AC_PLUGIN([gps],         [$plugin_gps],        [GPS plugin])
 AC_PLUGIN([hddtemp],     [yes],                [Query hddtempd])
 AC_PLUGIN([interface],   [$plugin_interface],  [Interface traffic statistics])
 AC_PLUGIN([ipc],         [$plugin_ipc],        [IPC statistics])
@@ -5978,6 +6038,7 @@ Configuration:
     libesmtp  . . . . . . $with_libesmtp
     libganglia  . . . . . $with_libganglia
     libgcrypt . . . . . . $with_libgcrypt
+    libgps  . . . . . . . $with_libgps
     libhal  . . . . . . . $with_libhal
     libhiredis  . . . . . $with_libhiredis
     libi2c-dev  . . . . . $with_libi2c
@@ -6066,6 +6127,7 @@ Configuration:
     filecount . . . . . . $enable_filecount
     fscache . . . . . . . $enable_fscache
     gmond . . . . . . . . $enable_gmond
+    gps . . . . . . . . . $enable_gps
     hddtemp . . . . . . . $enable_hddtemp
     interface . . . . . . $enable_interface
     ipc . . . . . . . . . $enable_ipc

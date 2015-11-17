@@ -1,0 +1,71 @@
+=encoding UTF-8
+
+=head1 NAME
+
+gps - Documentation of collectd's C<gps plugin>
+
+=head1 SYNOPSIS
+
+  # See collectd.conf(5)
+  LoadPlugin gps
+  <Plugin "gps">
+    Host "localhost"
+    Port "2947"
+    Timeout 1000
+  </Plugin>
+
+=head1 DESCRIPTION
+
+The C<gps plugin> connects to gpsd on the host machine.
+The port and the timeout are configurable. 
+
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<Host>
+
+The host on which gpsd runs.
+
+=item B<Port>
+
+Port to connect to gpsd on the host machine.
+
+=item B<Timeout>
+
+Timeout in ms.
+
+=back
+
+=head1 NOTIFICATION DATA FORMAT
+
+=over 4
+
+=item B<gps_sat>
+
+Number of satelites in view.
+0 means no GPS are visible.
+
+=item B<gps_hdop>
+
+Horizontal dilution.
+It should be between 0 and 3.
+Look at the documentaiton of your GPS.
+
+=item B<gps_vdop>
+
+Vertical dilution.
+Same as above.
+
+=head1 SEE ALSO
+
+L<collectd(1)>,
+L<collectd.conf(5)>,
+gpsd
+
+=head1 AUTHOR
+
+Nicolas Jourden E<lt>nicolas.jourden@laposte.netE<gt>
+
+=cut
