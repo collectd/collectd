@@ -78,9 +78,8 @@ frequency_offset	value:GAUGE:-1000000:1000000
 frequency		value:GAUGE:0:U
 fscache_stat		value:DERIVE:0:U
 gauge			value:GAUGE:U:U
-gps_sat			value:GAUGE:0:25
-gps_hdop		value:GAUGE:0:100
-gps_vdop		value:GAUGE:0:100
+satellites		value:GAUGE:0:U
+dilution_of_precision	value:GAUGE:0:U
 hash_collisions		value:DERIVE:0:U
 http_request_methods	value:DERIVE:0:U
 http_requests		value:DERIVE:0:U
