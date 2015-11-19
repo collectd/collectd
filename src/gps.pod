@@ -6,18 +6,26 @@ gps - Documentation of collectd's C<gps plugin>
 
 =head1 SYNOPSIS
 
-  # See collectd.conf(5)
-  LoadPlugin gps
-  <Plugin "gps">
-    Host "localhost"
-    Port "2947"
-    Timeout 1000
-  </Plugin>
+LoadPlugin gps
+<Plugin "gps">
+  # Connect to localhost on gpsd regular port:
+  Host "127.0.0.1"
+  Port "2947"
+  # 15 seconds timeout
+  Timeout 15
+  # Pause of 1 second between readings:
+  Pause 1
+</Plugin>
+
 
 =head1 DESCRIPTION
 
 The C<gps plugin> connects to gpsd on the host machine.
-The port and the timeout are configurable. 
+The host, port, timeout and pause are configurable. 
+
+This is useful if you run an NTP server using a GPS for source and you want to monitor it.
+
+Mind your GPS must send $--GSA for having the data reported !
 
 
 =head1 OPTIONS
@@ -26,15 +34,19 @@ The port and the timeout are configurable.
 
 =item B<Host>
 
-The host on which gpsd runs.
+The host on which gpsd runs (default localhost).
 
 =item B<Port>
 
-Port to connect to gpsd on the host machine.
+Port to connect to gpsd on the host machine (with quotes), (default 2947).
 
 =item B<Timeout>
 
-Timeout in ms.
+Timeout in seconds (default 15 sec).
+
+=item B<Pause>
+
+Pause to apply between readings in seconds (default 1 sec).
 
 =back
 
@@ -42,21 +54,17 @@ Timeout in ms.
 
 =over 4
 
-=item B<gps_sat>
+=item B<satellites>
 
-Number of satelites in view.
+Number of satellites in view.
 0 means no GPS are visible.
 
-=item B<gps_hdop>
+=item B<dilution_of_precision>
 
-Horizontal dilution.
+Vertical or horizontal dilution.
 It should be between 0 and 3.
-Look at the documentaiton of your GPS.
+Look at the documentaiton of your GPS to know more.
 
-=item B<gps_vdop>
-
-Vertical dilution.
-Same as above.
 
 =head1 SEE ALSO
 
@@ -66,6 +74,6 @@ gpsd
 
 =head1 AUTHOR
 
-Nicolas Jourden E<lt>nicolas.jourden@laposte.netE<gt>
+Nicolas JOURDEN E<lt>nicolas.jourden at laposte.netE<gt>
 
 =cut
