@@ -24,139 +24,112 @@
  *   Nicolas JOURDEN <nicolas.jourden at laposte.net>
  **/
 
-
-
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
-
+#include "utils_time.h"
+#include "configfile.h"
 
 #define GPS_DEFAULT_HOST    "localhost"
 #define GPS_DEFAULT_PORT    "2947"
-#define GPS_DEFAULT_TIMEOUT 15
-#define GPS_DEFAULT_PAUSE   1
+#define GPS_DEFAULT_TIMEOUT TIME_T_TO_CDTIME_T (15)
+#define GPS_DEFAULT_PAUSE   TIME_T_TO_CDTIME_T (1)
 
-
-#if HAVE_GPS_H
 #include <gps.h>
-#endif
-
-#if HAVE_LIBPTHREAD
 #include <pthread.h>
-#endif
-
-
-typedef struct
-{
-  char *host;
-  char *port;
-  int timeout;
-  int pause;
-} gps_definition_t;
-static gps_definition_t gps_data_config;
-
 
 typedef struct {
- int satellites;
- double vdop;
- double hdop;
-} gpsdata_t;
-static gpsdata_t gps_data_read;
+  char *host;
+  char *port;
+  cdtime_t timeout;
+  cdtime_t pause;
+} cgps_config_t;
 
-
-static const char *config_keys[] =
-{
-  "Host",
-  "Port",
-  "Timeout",
-  "Pause"
-};
-static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
-
+typedef struct {
+  gauge_t sats_used;
+  gauge_t sats_visible;
+  gauge_t hdop;
+  gauge_t vdop;
+} cgps_data_t;
 
 // Thread items:
 static pthread_t connector = (pthread_t) 0;
-static pthread_mutex_t data_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+static cgps_config_t config;
+
+static cgps_data_t      data = {NAN, NAN, NAN, NAN};
+static pthread_mutex_t  data_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /**
  * Thread reading from gpsd.
  */
 static void * gps_collectd_thread (void * pData)
 {
-  struct gps_data_t gps_data;
+  struct gps_data_t conn;
 
   while (1)
   {
-    if (gps_open(gps_data_config.host, gps_data_config.port, &gps_data) < 0)
+    int status = gps_open (config.host, config.port, &conn);
+    if (status < 0)
     {
-      WARNING ("gps: cannot connect to: %s:%s", gps_data_config.host, gps_data_config.port);
-      sleep(60);
+      WARNING ("gps plugin: Connecting to %s:%s failed: %s",
+               config.host, config.port, gps_errstr (status));
+      sleep (60);
       continue;
     }
 
-    gps_stream(&gps_data, WATCH_ENABLE | WATCH_JSON | WATCH_NEWSTYLE, NULL);
-    gps_send(&gps_data, "?WATCH={\"enable\":true,\"json\":true,\"nmea\":false}\r\n");
+    gps_stream (&conn, WATCH_ENABLE | WATCH_JSON | WATCH_NEWSTYLE, NULL);
+    gps_send (&conn, "?WATCH={\"enable\":true,\"json\":true,\"nmea\":false}\r\n");
 
     while (1)
     {
-      if (gps_waiting (&gps_data, gps_data_config.timeout ) )
+      long timeout_us = CDTIME_T_TO_US (config.timeout);
+      if (!gps_waiting (&conn, (int) timeout_us))
       {
-        DEBUG ("gps: reading\n");
-
-        if (gps_read (&gps_data) == -1)
-        {
-            WARNING ("gps: incorrect data !\n");
-        } 
-        else {
-          pthread_mutex_lock (&data_mutex);
-          DEBUG ("gps: parsing\n");
-
-          // Dop data:
-          if (isnan(gps_data.dop.vdop) == 0)
-          {
-            DEBUG ("gps: isnan(gps_data.dop.vdop) == 0 [OK]\n");
-            gps_data_read.vdop = gps_data.dop.vdop;
-          }
-          if (isnan(gps_data.dop.hdop) == 0)
-          {
-            DEBUG ("gps: isnan(gps_data.dop.hdop) == 0 [OK]\n");
-            gps_data_read.hdop = gps_data.dop.hdop;
-          }
-
-          // Sat in view:
-          if ((gps_data.set & LATLON_SET))
-          {
-            DEBUG ("gps: gps_data.set & LATLON_SET [OK] ... \n");
-            gps_data_read.satellites = gps_data.satellites_used;
-          }
- 
-          DEBUG ("gps: raw is hdop=%1.3f, vdop=%1.3f, sat-used=%02d, lat=%02.05f, lon=%03.05f\n", 
-            gps_data.dop.hdop,
-            gps_data.dop.vdop,
-            gps_data.satellites_used,
-            gps_data.fix.latitude,
-            gps_data.fix.longitude
-          );
-
-          pthread_mutex_unlock (&data_mutex);
-          sleep(gps_data_config.pause);
-        }
+        struct timespec pause_ns;
+        CDTIME_T_TO_TIMESPEC (config.pause, &pause_ns);
+        nanosleep (&pause_ns, NULL);
+        continue;
       }
+
+      if (gps_read (&conn) == -1)
+      {
+        WARNING ("gps plugin: incorrect data!");
+        continue;
+      }
+
+      pthread_mutex_lock (&data_lock);
+
+      // Number of sats in view:
+      data.sats_used = (gauge_t) conn.satellites_used;
+      data.sats_visible = (gauge_t) conn.satellites_visible;
+
+      // dilution of precision:
+      data.vdop = NAN; data.hdop = NAN;
+      if (data.sats_used > 0)
+      {
+        data.hdop = conn.dop.hdop;
+        data.vdop = conn.dop.vdop;
+      }
+
+
+      DEBUG ("gps plugin: %.0f sats used (of %.0f visible), hdop = %.3f, vdop = %.3f",
+             data.sats_used, data.sats_visible, data.hdop, data.vdop);
+
+      pthread_mutex_unlock (&data_lock);
     }
   }
 
-  gps_stream(&gps_data, WATCH_DISABLE, NULL);
-  gps_close(&gps_data);
+  gps_stream (&conn, WATCH_DISABLE, /* data = */ NULL);
+  gps_close (&conn);
 
-  pthread_exit ((void *)0);
+  pthread_exit ((void *) 0);
 }
-
 
 /**
  * Submit a piece of the data.
  */
-static void gps_collectd_submit (const char *type, gauge_t value, const char *type_instance)
+static void cgps_submit (const char *type, gauge_t value, const char *type_instance)
 {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
@@ -173,88 +146,76 @@ static void gps_collectd_submit (const char *type, gauge_t value, const char *ty
   plugin_dispatch_values (&vl);
 }
 
-
 /**
  * Read the data and submit by piece.
  */
-static int gps_collectd_read ()
+static int cgps_read ()
 {
-  pthread_mutex_lock (&data_mutex);
-  gps_collectd_submit("dilution_of_precision", (gauge_t) gps_data_read.hdop, "horizontal");
-  gps_collectd_submit("dilution_of_precision", (gauge_t) gps_data_read.vdop, "vertical");
-  gps_collectd_submit("satellites", (gauge_t) gps_data_read.satellites, "gps");
-  DEBUG ("gps: hdop=%1.3f, vdop=%1.3f, sat=%02d.\n", 
-    gps_data_read.hdop,
-    gps_data_read.vdop,
-    gps_data_read.satellites
-  );
-  pthread_mutex_unlock (&data_mutex);
+  cgps_data_t data_copy;
+
+  pthread_mutex_lock (&data_lock);
+  data_copy = data;
+  pthread_mutex_unlock (&data_lock);
+
+  cgps_submit ("dilution_of_precision", data_copy.hdop, "horizontal");
+  cgps_submit ("dilution_of_precision", data_copy.vdop, "vertical");
+  cgps_submit ("satellites", data_copy.sats_used, "used");
+  cgps_submit ("satellites", data_copy.sats_visible, "visible");
+
   return (0);
 }
-
 
 /**
  * Read configuration.
  */
-static int gps_collectd_config (const char *key, const char *value)
+static int cgps_config (oconfig_item_t *ci)
 {
-  char *endptr = NULL;
+  int i;
 
-  if (strcasecmp (key, "Host") == 0)
+  for (i = 0; i < ci->children_num; i++)
   {
-    if (gps_data_config.host != NULL)
-    {
-      free (gps_data_config.host);
-    }
-    gps_data_config.host = sstrdup (value);
+    oconfig_item_t *child = ci->children + i;
+
+    if (strcasecmp ("Host", child->key) == 0)
+      cf_util_get_string (child, &config.host);
+    else if (strcasecmp ("Port", child->key) == 0)
+      cf_util_get_service (child, &config.port);
+    else if (strcasecmp ("Timeout", child->key) == 0)
+      cf_util_get_cdtime (child, &config.timeout);
+    else if (strcasecmp ("Pause", child->key) == 0)
+      cf_util_get_cdtime (child, &config.pause);
+    else
+      WARNING ("gps plugin: Ignoring unknown config option \"%s\".", child->key);
   }
-  if (strcasecmp (key, "Port") == 0)
-  {
-    if (gps_data_config.port != NULL)
-    {
-      free (gps_data_config.port);
-    }
-    gps_data_config.port = sstrdup (value);
-  }
-  if (strcasecmp (key, "Timeout") == 0)
-  {
-    gps_data_config.timeout = (int) ( strtod(value, &endptr) * 1000 );
-  DEBUG ("gps: will use pause %s - %d.\n", value, gps_data_config.timeout);
-  }
-  if (strcasecmp (key, "Pause") == 0)
-  {
-    gps_data_config.pause = (int) (strtod (value, &endptr));
-  DEBUG ("gps: will use pause %s -  %d.\n", value, gps_data_config.pause);
-  }
-  return (0);
+
+  return 0;
 }
-
 
 /**
  * Init.
  */
-static int gps_collectd_init (void)
+static int cgps_init (void)
 {
-  int err = 0;
+  int status;
 
-  DEBUG ("gps: will use %s:%s, timeout %d ms, pause %d sec.\n", gps_data_config.host, gps_data_config.port, gps_data_config.timeout, gps_data_config.pause);
+  DEBUG ("gps plugin: config{host: \"%s\", port: \"%s\", timeout: %.3f, pause: %.3f}",
+         config.host, config.port,
+         CDTIME_T_TO_DOUBLE (config.timeout), CDTIME_T_TO_DOUBLE (config.pause));
 
-  err = plugin_thread_create (&connector, NULL, gps_collectd_thread, NULL);
-
-  if (err != 0)
+  status = plugin_thread_create (&connector, NULL, gps_collectd_thread, NULL);
+  if (status != 0)
   {
-    ERROR ("gps: pthread_create() failed.");
+    ERROR ("gps plugin: pthread_create() failed.");
     return (-1);
   }
 
   return (0);
 }
 
-
 /**
  * Shutdown.
  */
-static int gps_collectd_shutdown (void)
+static int cgps_shutdown (void)
 {
   if (connector != ((pthread_t) 0))
   {
@@ -262,8 +223,8 @@ static int gps_collectd_shutdown (void)
     connector = (pthread_t) 0;
   }
 
-  sfree (gps_data_config.port);
-  sfree (gps_data_config.host);
+  sfree (config.port);
+  sfree (config.host);
 
   return (0);
 }
@@ -271,23 +232,15 @@ static int gps_collectd_shutdown (void)
 /**
  * Register the module.
  */
-void module_register (void)                                                                    
+void module_register (void)
 {
-  gps_data_config.host = sstrdup (GPS_DEFAULT_HOST);
-  gps_data_config.port = sstrdup (GPS_DEFAULT_PORT);
-  gps_data_config.timeout = GPS_DEFAULT_TIMEOUT;
-  gps_data_config.pause = GPS_DEFAULT_PAUSE;
-  gps_data_read.hdop = 0;
-  gps_data_read.vdop = 0;
-  gps_data_read.satellites = 0;
+  config.host = sstrdup (GPS_DEFAULT_HOST);
+  config.port = sstrdup (GPS_DEFAULT_PORT);
+  config.timeout = GPS_DEFAULT_TIMEOUT;
+  config.pause = GPS_DEFAULT_PAUSE;
 
-  // Read the config params:
-  plugin_register_config ("gps", gps_collectd_config, config_keys, config_keys_num);
-  // Create the thread:
-  plugin_register_init ("gps", gps_collectd_init);
-  // Kill the thread and stop.
-  plugin_register_shutdown ("gps", gps_collectd_shutdown);
-  // Read plugin:
-  plugin_register_read ("gps", gps_collectd_read);
+  plugin_register_complex_config ("gps", cgps_config);
+  plugin_register_init ("gps", cgps_init);
+  plugin_register_read ("gps", cgps_read);
+  plugin_register_shutdown ("gps", cgps_shutdown);
 }
-
