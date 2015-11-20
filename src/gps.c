@@ -34,6 +34,8 @@
 #define GPS_DEFAULT_PORT    "2947"
 #define GPS_DEFAULT_TIMEOUT TIME_T_TO_CDTIME_T (15)
 #define GPS_DEFAULT_PAUSE   TIME_T_TO_CDTIME_T (1)
+#define GPS_MAX_ERROR       100
+#define GPS_CONFIG          "?WATCH={\"enable\":true,\"json\":true,\"nmea\":false}\r\n"
 
 #include <gps.h>
 #include <pthread.h>
@@ -63,12 +65,15 @@ static pthread_mutex_t  data_lock = PTHREAD_MUTEX_INITIALIZER;
 /**
  * Thread reading from gpsd.
  */
-static void * gps_collectd_thread (void * pData)
+static void * cgps_thread (void * pData)
 {
   struct gps_data_t conn;
+  int err_count;
 
   while (1)
   {
+    err_count = 0;
+
     int status = gps_open (config.host, config.port, &conn);
     if (status < 0)
     {
@@ -79,12 +84,12 @@ static void * gps_collectd_thread (void * pData)
     }
 
     gps_stream (&conn, WATCH_ENABLE | WATCH_JSON | WATCH_NEWSTYLE, NULL);
-    gps_send (&conn, "?WATCH={\"enable\":true,\"json\":true,\"nmea\":false}\r\n");
+    gps_send (&conn, GPS_CONFIG);
 
     while (1)
     {
-      long timeout_us = CDTIME_T_TO_US (config.timeout);
-      if (!gps_waiting (&conn, (int) timeout_us))
+      long timeout_ms = CDTIME_T_TO_MS (config.timeout);
+      if (!gps_waiting (&conn, (int) timeout_ms))
       {
         struct timespec pause_ns;
         CDTIME_T_TO_TIMESPEC (config.pause, &pause_ns);
@@ -94,7 +99,24 @@ static void * gps_collectd_thread (void * pData)
 
       if (gps_read (&conn) == -1)
       {
-        WARNING ("gps plugin: incorrect data!");
+        WARNING ("gps plugin: incorrect data! (err_count: %d)", err_count);
+        err_count++;
+
+        if (err_count > GPS_MAX_ERROR)
+        {
+          // Server is not responding ...
+          if (gps_send (&conn, GPS_CONFIG) == -1)
+          {
+            WARNING ("gps plugin: gpsd seems to be done, reconnecting");
+            break;
+          }
+          // Server is responding ...
+          else
+          {
+            err_count = 0;
+          }
+        }
+
         continue;
       }
 
@@ -202,7 +224,7 @@ static int cgps_init (void)
          config.host, config.port,
          CDTIME_T_TO_DOUBLE (config.timeout), CDTIME_T_TO_DOUBLE (config.pause));
 
-  status = plugin_thread_create (&connector, NULL, gps_collectd_thread, NULL);
+  status = plugin_thread_create (&connector, NULL, cgps_thread, NULL);
   if (status != 0)
   {
     ERROR ("gps plugin: pthread_create() failed.");
