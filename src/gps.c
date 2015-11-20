@@ -32,8 +32,8 @@
 
 #define GPS_DEFAULT_HOST    "localhost"
 #define GPS_DEFAULT_PORT    "2947"
-#define GPS_DEFAULT_TIMEOUT 15
-#define GPS_DEFAULT_PAUSE   1
+#define GPS_DEFAULT_TIMEOUT TIME_T_TO_CDTIME_T (15)
+#define GPS_DEFAULT_PAUSE   TIME_T_TO_CDTIME_T (1)
 
 #include <gps.h>
 #include <pthread.h>
@@ -41,8 +41,8 @@
 typedef struct {
   char *host;
   char *port;
-  int timeout;
-  int pause;
+  cdtime_t timeout;
+  cdtime_t pause;
 } cgps_config_t;
 
 typedef struct {
@@ -51,15 +51,6 @@ typedef struct {
   gauge_t hdop;
   gauge_t vdop;
 } cgps_data_t;
-
-static const char *config_keys[] =
-{
-  "Host",
-  "Port",
-  "Timeout",
-  "Pause"
-};
-static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 // Thread items:
 static pthread_t connector = (pthread_t) 0;
@@ -92,9 +83,12 @@ static void * gps_collectd_thread (void * pData)
 
     while (1)
     {
-      if (!gps_waiting (&conn, config.timeout))
+      long timeout_us = CDTIME_T_TO_US (config.timeout);
+      if (!gps_waiting (&conn, (int) timeout_us))
       {
-        sleep (config.pause);
+        struct timespec pause_ns;
+        CDTIME_T_TO_TIMESPEC (config.pause, &pause_ns);
+        nanosleep (&pause_ns, NULL);
         continue;
       }
 
@@ -174,30 +168,27 @@ static int cgps_read ()
 /**
  * Read configuration.
  */
-static int cgps_config (const char *key, const char *value)
+static int cgps_config (oconfig_item_t *ci)
 {
-  char *endptr = NULL;
+  int i;
 
-  if (strcasecmp (key, "Host") == 0)
+  for (i = 0; i < ci->children_num; i++)
   {
-    free (config.host);
-    config.host = sstrdup (value);
-  }
-  else if (strcasecmp (key, "Port") == 0)
-  {
-    free (config.port);
-    config.port = sstrdup (value);
-  }
-  else if (strcasecmp (key, "Timeout") == 0)
-  {
-    config.timeout = (int) (strtod(value, &endptr) * 1000);
-  }
-  else if (strcasecmp (key, "Pause") == 0)
-  {
-    config.pause = (int) (strtod (value, &endptr));
+    oconfig_item_t *child = ci->children + i;
+
+    if (strcasecmp ("Host", child->key) == 0)
+      cf_util_get_string (child, &config.host);
+    else if (strcasecmp ("Port", child->key) == 0)
+      cf_util_get_string (child, &config.port);
+    else if (strcasecmp ("Timeout", child->key) == 0)
+      cf_util_get_cdtime (child, &config.timeout);
+    else if (strcasecmp ("Pause", child->key) == 0)
+      cf_util_get_cdtime (child, &config.pause);
+    else
+      WARNING ("gps plugin: Ignoring unknown config option \"%s\".", child->key);
   }
 
-  return (0);
+  return 0;
 }
 
 /**
@@ -207,8 +198,9 @@ static int cgps_init (void)
 {
   int status;
 
-  DEBUG ("gps plugin: config{host: \"%s\", port: \"%s\", timeout: %d, pause: %d}",
-         config.host, config.port, config.timeout, config.pause);
+  DEBUG ("gps plugin: config{host: \"%s\", port: \"%s\", timeout: %.3f, pause: %.3f}",
+         config.host, config.port,
+         CDTIME_T_TO_DOUBLE (config.timeout), CDTIME_T_TO_DOUBLE (config.pause));
 
   status = plugin_thread_create (&connector, NULL, gps_collectd_thread, NULL);
   if (status != 0)
@@ -247,7 +239,7 @@ void module_register (void)
   config.timeout = GPS_DEFAULT_TIMEOUT;
   config.pause = GPS_DEFAULT_PAUSE;
 
-  plugin_register_config ("gps", cgps_config, config_keys, config_keys_num);
+  plugin_register_complex_config ("gps", cgps_config);
   plugin_register_init ("gps", cgps_init);
   plugin_register_read ("gps", cgps_read);
   plugin_register_shutdown ("gps", cgps_shutdown);
