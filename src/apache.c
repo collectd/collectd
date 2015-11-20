@@ -630,18 +630,14 @@ static int apache_read_host (user_data_t *user_data) /* {{{ */
 	while ((line = strtok_r (ptr, "\n\r", &saveptr)) != NULL)
 	{
 		ptr = NULL;
-		fields_num = strsplit (line, fields, 4);
+		fields_num = strsplit (line, fields, STATIC_ARRAY_SIZE (fields));
 
 		if (fields_num == 3)
 		{
-			if ((strcmp (fields[0], "Total") == 0)
-					&& (strcmp (fields[1], "Accesses:") == 0))
-				submit_derive ("apache_requests", "",
-						atoll (fields[2]), st);
-			else if ((strcmp (fields[0], "Total") == 0)
-					&& (strcmp (fields[1], "kBytes:") == 0))
-				submit_derive ("apache_bytes", "",
-						1024LL * atoll (fields[2]), st);
+			if ((strcmp (fields[0], "Total") == 0) && (strcmp (fields[1], "Accesses:") == 0))
+				submit_derive ("apache_requests", "", atoll (fields[2]), st);
+			else if ((strcmp (fields[0], "Total") == 0) && (strcmp (fields[1], "kBytes:") == 0))
+				submit_derive ("apache_bytes", "", 1024LL * atoll (fields[2]), st);
 		}
 		else if (fields_num == 2)
 		{
