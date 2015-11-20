@@ -179,7 +179,7 @@ static int cgps_config (oconfig_item_t *ci)
     if (strcasecmp ("Host", child->key) == 0)
       cf_util_get_string (child, &config.host);
     else if (strcasecmp ("Port", child->key) == 0)
-      cf_util_get_string (child, &config.port);
+      cf_util_get_service (child, &config.port);
     else if (strcasecmp ("Timeout", child->key) == 0)
       cf_util_get_cdtime (child, &config.timeout);
     else if (strcasecmp ("Pause", child->key) == 0)
