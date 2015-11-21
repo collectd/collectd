@@ -119,6 +119,9 @@ Features
     - gmond
       Receive multicast traffic from Ganglia instances.
 
+    - gps
+      Monitor gps related data through gpsd.
+
     - hddtemp
       Hard disk temperatures using hddtempd.
 
@@ -679,6 +682,10 @@ Prerequisites
   * libgcrypt (optional)
     Used by the `network' plugin for encryption and authentication.
     <http://www.gnupg.org/>
+
+  * libgps (optional)
+    Used by the `gps' plugin.
+    <http://developer.berlios.de/projects/gpsd/>
 
   * libhal (optional)
     If present, the `uuid' plugin will check for UUID from HAL.

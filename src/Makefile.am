@@ -1356,7 +1356,6 @@ EXTRA_DIST +=   collectd.conf.pod \
 		collectd-threshold.pod \
 		collectd-unixsock.pod \
 		postgresql_default.conf \
-		gps.pod \
 		types.db.pod
 
 .pod.1:

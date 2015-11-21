@@ -197,6 +197,9 @@ Michał Mirosław <mirq-linux at rere.qmqm.pl>
 Mirko Buffoni <briareos at eswat.org>
  - Port/Socket selection in the MySQL plugin.
 
+Nicolas Jourden <nicolas.jourden at laposte.net>
+ - gps plugin.
+
 Niki W. Waibel <niki.waibel at newlogic.com>
  - Initial autotools fixes.
  - libltdl code.
