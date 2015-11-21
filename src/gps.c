@@ -74,7 +74,11 @@ static void * cgps_thread (void * pData)
   {
     err_count = 0;
 
+#if GPSD_API_MAJOR_VERSION > 4
     int status = gps_open (config.host, config.port, &conn);
+#else
+    int status = gps_open_r (config.host, config.port, &conn);
+#endif
     if (status < 0)
     {
       WARNING ("gps plugin: Connecting to %s:%s failed: %s",
@@ -88,8 +92,12 @@ static void * cgps_thread (void * pData)
 
     while (1)
     {
+#if GPSD_API_MAJOR_VERSION > 4
       long timeout_ms = CDTIME_T_TO_MS (config.timeout);
       if (!gps_waiting (&conn, (int) timeout_ms))
+#else
+      if (!gps_waiting (&conn))
+#endif
       {
         struct timespec pause_ns;
         CDTIME_T_TO_TIMESPEC (config.pause, &pause_ns);
