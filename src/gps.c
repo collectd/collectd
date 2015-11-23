@@ -32,7 +32,7 @@
 
 #define GPS_DEFAULT_HOST    "localhost"
 #define GPS_DEFAULT_PORT    "2947"
-#define GPS_DEFAULT_TIMEOUT TIME_T_TO_CDTIME_T (15)
+#define GPS_DEFAULT_TIMEOUT TIME_T_TO_CDTIME_T (0.015)
 #define GPS_DEFAULT_PAUSE   TIME_T_TO_CDTIME_T (1)
 #define GPS_MAX_ERROR       100
 #define GPS_CONFIG          "?WATCH={\"enable\":true,\"json\":true,\"nmea\":false}\r\n"
@@ -61,13 +61,13 @@ static cgps_config_t config;
 
 static cgps_data_t      data = {NAN, NAN, NAN, NAN};
 static pthread_mutex_t  data_lock = PTHREAD_MUTEX_INITIALIZER;
+static struct gps_data_t gpsd_conn;
 
 /**
  * Thread reading from gpsd.
  */
 static void * cgps_thread (void * pData)
 {
-  struct gps_data_t conn;
   int err_count;
 
   while (1)
@@ -75,28 +75,28 @@ static void * cgps_thread (void * pData)
     err_count = 0;
 
 #if GPSD_API_MAJOR_VERSION > 4
-    int status = gps_open (config.host, config.port, &conn);
+    int status = gps_open (config.host, config.port, &gpsd_conn);
 #else
-    int status = gps_open_r (config.host, config.port, &conn);
+    int status = gps_open_r (config.host, config.port, &gpsd_conn);
 #endif
     if (status < 0)
     {
-      WARNING ("gps plugin: Connecting to %s:%s failed: %s",
+      WARNING ("gps plugin: connecting to %s:%s failed: %s",
                config.host, config.port, gps_errstr (status));
       sleep (60);
       continue;
     }
 
-    gps_stream (&conn, WATCH_ENABLE | WATCH_JSON | WATCH_NEWSTYLE, NULL);
-    gps_send (&conn, GPS_CONFIG);
+    gps_stream (&gpsd_conn, WATCH_ENABLE | WATCH_JSON | WATCH_NEWSTYLE, NULL);
+    gps_send (&gpsd_conn, GPS_CONFIG);
 
     while (1)
     {
 #if GPSD_API_MAJOR_VERSION > 4
-      long timeout_ms = CDTIME_T_TO_MS (config.timeout);
-      if (!gps_waiting (&conn, (int) timeout_ms))
+      long timeout_us = CDTIME_T_TO_US (config.timeout);
+      if (!gps_waiting (&gpsd_conn, (int) timeout_us ))
 #else
-      if (!gps_waiting (&conn))
+      if (!gps_waiting (&gpsd_conn))
 #endif
       {
         struct timespec pause_ns;
@@ -105,7 +105,7 @@ static void * cgps_thread (void * pData)
         continue;
       }
 
-      if (gps_read (&conn) == -1)
+      if (gps_read (&gpsd_conn) == -1)
       {
         WARNING ("gps plugin: incorrect data! (err_count: %d)", err_count);
         err_count++;
@@ -113,9 +113,10 @@ static void * cgps_thread (void * pData)
         if (err_count > GPS_MAX_ERROR)
         {
           // Server is not responding ...
-          if (gps_send (&conn, GPS_CONFIG) == -1)
+          if (gps_send (&gpsd_conn, GPS_CONFIG) == -1)
           {
-            WARNING ("gps plugin: gpsd seems to be done, reconnecting");
+            WARNING ("gps plugin: gpsd seems to be down, reconnecting");
+            gps_close (&gpsd_conn);
             break;
           }
           // Server is responding ...
@@ -131,15 +132,15 @@ static void * cgps_thread (void * pData)
       pthread_mutex_lock (&data_lock);
 
       // Number of sats in view:
-      data.sats_used = (gauge_t) conn.satellites_used;
-      data.sats_visible = (gauge_t) conn.satellites_visible;
+      data.sats_used = (gauge_t) gpsd_conn.satellites_used;
+      data.sats_visible = (gauge_t) gpsd_conn.satellites_visible;
 
       // dilution of precision:
       data.vdop = NAN; data.hdop = NAN;
       if (data.sats_used > 0)
       {
-        data.hdop = conn.dop.hdop;
-        data.vdop = conn.dop.vdop;
+        data.hdop = gpsd_conn.dop.hdop;
+        data.vdop = gpsd_conn.dop.vdop;
       }
 
 
@@ -150,8 +151,8 @@ static void * cgps_thread (void * pData)
     }
   }
 
-  gps_stream (&conn, WATCH_DISABLE, /* data = */ NULL);
-  gps_close (&conn);
+  gps_stream (&gpsd_conn, WATCH_DISABLE, /* data = */ NULL);
+  gps_close (&gpsd_conn);
 
   pthread_exit ((void *) 0);
 }
@@ -228,7 +229,7 @@ static int cgps_init (void)
 {
   int status;
 
-  DEBUG ("gps plugin: config{host: \"%s\", port: \"%s\", timeout: %.3f, pause: %.3f}",
+  DEBUG ("gps plugin: config{host: \"%s\", port: \"%s\", timeout: %.6f sec., pause: %.3f sec.}",
          config.host, config.port,
          CDTIME_T_TO_DOUBLE (config.timeout), CDTIME_T_TO_DOUBLE (config.pause));
 
@@ -252,6 +253,8 @@ static int cgps_shutdown (void)
     pthread_kill (connector, SIGTERM);
     connector = (pthread_t) 0;
   }
+
+  gps_close (&gpsd_conn);
 
   sfree (config.port);
   sfree (config.host);

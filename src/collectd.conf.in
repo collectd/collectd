@@ -559,8 +559,8 @@
 #<Plugin gps>
 #  Host "127.0.0.1"
 #  Port "2947"
-#  Timeout 15
-#  Pause 1
+#  Timeout 0.015
+#  Pause 10
 #</Plugin>
 
 #<Plugin hddtemp>
