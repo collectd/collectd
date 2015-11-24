@@ -76,11 +76,15 @@
 
 cdtime_t cdtime (void);
 
-/* format a cdtime_t value in ISO 8601 format:
- * returns the number of characters written to the string (not including the
- * terminating null byte or 0 on error; the function ensures that the string
- * is null terminated */
-size_t cdtime_to_iso8601 (char *s, size_t max, cdtime_t t);
+#define RFC3339_SIZE     26
+#define RFC3339NANO_SIZE 36
+
+/* rfc3339 formats a cdtime_t time in RFC 3339 format with second precision. */
+int rfc3339 (char *buffer, size_t buffer_size, cdtime_t t);
+
+/* rfc3339nano formats a cdtime_t time in RFC 3339 format with nanosecond
+ * precision. */
+int rfc3339nano (char *buffer, size_t buffer_size, cdtime_t t);
 
 #endif /* UTILS_TIME_H */
 /* vim: set sw=2 sts=2 et : */

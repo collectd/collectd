@@ -66,41 +66,85 @@ cdtime_t cdtime (void) /* {{{ */
 } /* }}} cdtime_t cdtime */
 #endif
 
-size_t cdtime_to_iso8601 (char *s, size_t max, cdtime_t t) /* {{{ */
+/* format_zone reads time zone information from "extern long timezone", exported
+ * by <time.h>, and formats it according to RFC 3339. This differs from
+ * strftime()'s "%z" format by including a colon between hour and minute. */
+static void format_zone (char *buffer, size_t buffer_size) /* {{{ */
+{
+  _Bool east = 0;
+  long hours;
+  long minutes;
+
+  minutes = timezone / 60;
+  if (minutes == 0) {
+    sstrncpy (buffer, "Z", buffer_size);
+    return;
+  }
+
+  if (minutes < 0)
+  {
+    east = 1;
+    minutes = minutes * (-1);
+  }
+
+  hours = minutes / 60;
+  minutes = minutes % 60;
+
+  ssnprintf (buffer, buffer_size, "%s%02ld:%02ld",
+             (east ? "+" : "-"), hours, minutes);
+} /* }}} int format_zone */
+
+static int format_rfc3339 (char *buffer, size_t buffer_size, cdtime_t t, _Bool print_nano) /* {{{ */
 {
   struct timespec t_spec;
   struct tm t_tm;
-
+  char base[20]; /* 2006-01-02T15:04:05 */
+  char nano[11]; /* .999999999 */
+  char zone[7];  /* +00:00 */
+  char *fields[] = {base, nano, zone};
   size_t len;
 
   CDTIME_T_TO_TIMESPEC (t, &t_spec);
   NORMALIZE_TIMESPEC (t_spec);
 
-  if (localtime_r ((time_t *)&t_spec.tv_sec, &t_tm) == NULL) {
+  if (localtime_r (&t_spec.tv_sec, &t_tm) == NULL) {
     char errbuf[1024];
-    ERROR ("cdtime_to_iso8601: localtime_r failed: %s",
-        sstrerror (errno, errbuf, sizeof (errbuf)));
-    return (0);
+    int status = errno;
+    ERROR ("format_rfc3339: localtime_r failed: %s",
+        sstrerror (status, errbuf, sizeof (errbuf)));
+    return (status);
   }
 
-  len = strftime (s, max, "%Y-%m-%dT%H:%M:%S", &t_tm);
+  len = strftime (base, sizeof (base), "%Y-%m-%dT%H:%M:%S", &t_tm);
   if (len == 0)
-    return 0;
+    return ENOMEM;
 
-  if (max - len > 2) {
-    int n = snprintf (s + len, max - len, ".%09i", (int)t_spec.tv_nsec);
-    len += (n < 0) ? 0
-      : (((size_t) n) < (max - len)) ? ((size_t) n)
-      : (max - len);
-  }
+  if (print_nano)
+    ssnprintf (nano, sizeof (nano), ".%09ld", (long) t_spec.tv_nsec);
+  else
+    sstrncpy (nano, "", sizeof (nano));
 
-  if (max - len > 3) {
-    size_t n = strftime (s + len, max - len, "%z", &t_tm);
-    len += (n < max - len) ? n : max - len;
-  }
+  format_zone (zone, sizeof (zone));
 
-  s[max - 1] = '\0';
-  return len;
-} /* }}} size_t cdtime_to_iso8601 */
+  if (strjoin (buffer, buffer_size, fields, STATIC_ARRAY_SIZE (fields), "") < 0)
+    return ENOMEM;
+  return 0;
+} /* }}} int cdtime_to_rfc3339nano */
+
+int rfc3339 (char *buffer, size_t buffer_size, cdtime_t t) /* {{{ */
+{
+  if (buffer_size < RFC3339_SIZE)
+    return ENOMEM;
+
+  return format_rfc3339 (buffer, buffer_size, t, 0);
+} /* }}} size_t cdtime_to_rfc3339 */
+
+int rfc3339nano (char *buffer, size_t buffer_size, cdtime_t t) /* {{{ */
+{
+  if (buffer_size < RFC3339NANO_SIZE)
+    return ENOMEM;
+
+  return format_rfc3339 (buffer, buffer_size, t, 1);
+} /* }}} size_t cdtime_to_rfc3339nano */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */

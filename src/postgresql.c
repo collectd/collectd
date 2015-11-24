@@ -826,7 +826,7 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 {
 	c_psql_database_t *db;
 
-	char time_str[32];
+	char time_str[RFC3339NANO_SIZE];
 	char values_name_str[1024];
 	char values_type_str[1024];
 	char values_str[1024];
@@ -845,8 +845,8 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 	assert (db->database != NULL);
 	assert (db->writers != NULL);
 
-	if (cdtime_to_iso8601 (time_str, sizeof (time_str), vl->time) == 0) {
-		log_err ("c_psql_write: Failed to convert time to ISO 8601 format");
+	if (rfc3339nano (time_str, sizeof (time_str), vl->time) != 0) {
+		log_err ("c_psql_write: Failed to convert time to RFC 3339 format");
 		return -1;
 	}
 
