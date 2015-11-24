@@ -8,12 +8,15 @@ check_for_application ()
 	do
 		which "$PROG" >/dev/null 2>&1
 		if test $? -ne 0; then
-			cat >&2 <<EOF
+			[ "$PROG" = "yacc" ] && which bison >/dev/null 2>&1
+			if test $? -ne 0; then
+				cat >&2 <<EOF
 WARNING: \`$PROG' not found!
     Please make sure that \`$PROG' is installed and is in one of the
     directories listed in the PATH environment variable.
 EOF
-			GLOBAL_ERROR_INDICATOR=1
+				GLOBAL_ERROR_INDICATOR=1
+			fi
 		fi
 	done
 }
