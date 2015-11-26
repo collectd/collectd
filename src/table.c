@@ -458,7 +458,7 @@ static int tbl_parse_line (tbl_t *tbl, char *line, size_t len)
 	}
 
 	if (i <= tbl->max_colnum) {
-		log_err ("Not enough columns in line "
+		log_warn ("Not enough columns in line "
 				"(expected at least %zu, got %zu).",
 				tbl->max_colnum + 1, i);
 		return -1;
@@ -490,11 +490,11 @@ static int tbl_read_table (tbl_t *tbl)
 	while (NULL != fgets (buf, sizeof (buf), fh)) {
 		if ('\0' != buf[sizeof (buf) - 1]) {
 			buf[sizeof (buf) - 1] = '\0';
-			log_err ("Table %s: Truncated line: %s", tbl->file, buf);
+			log_warn ("Table %s: Truncated line: %s", tbl->file, buf);
 		}
 
 		if (0 != tbl_parse_line (tbl, buf, sizeof (buf))) {
-			log_err ("Table %s: Failed to parse line: %s", tbl->file, buf);
+			log_warn ("Table %s: Failed to parse line: %s", tbl->file, buf);
 			continue;
 		}
 	}
