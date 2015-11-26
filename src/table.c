@@ -492,8 +492,8 @@ static int tbl_read_table (tbl_t *tbl)
 			buf[sizeof (buf) - 1] = '\0';
 			log_err ("Table %s: Truncated line: %s", tbl->file, buf);
 		}
-
-		if (0 != tbl_parse_line (tbl, buf, sizeof (buf))) {
+		# ignore comment lines
+		if ('#' != buf[0] && 0 != tbl_parse_line (tbl, buf, sizeof (buf))) {
 			log_err ("Table %s: Failed to parse line: %s", tbl->file, buf);
 			continue;
 		}
