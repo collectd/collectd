@@ -952,7 +952,7 @@ static int statsd_shutdown (void) /* {{{ */
   while (c_avl_pick (metrics_tree, &key, &value) == 0)
   {
     sfree (key);
-    sfree (value);
+    statsd_metric_free (value);
   }
   c_avl_destroy (metrics_tree);
   metrics_tree = NULL;

@@ -519,12 +519,9 @@ static void submit_scoreboard (char *buf, apache_t *st)
 
 static int apache_read_host (user_data_t *user_data) /* {{{ */
 {
-	int i;
-
 	char *ptr;
 	char *saveptr;
-	char *lines[16];
-	int   lines_num = 0;
+	char *line;
 
 	char *fields[4];
 	int   fields_num;
@@ -564,29 +561,17 @@ static int apache_read_host (user_data_t *user_data) /* {{{ */
 
 	ptr = st->apache_buffer;
 	saveptr = NULL;
-	while ((lines[lines_num] = strtok_r (ptr, "\n\r", &saveptr)) != NULL)
+	while ((line = strtok_r (ptr, "\n\r", &saveptr)) != NULL)
 	{
 		ptr = NULL;
-		lines_num++;
-
-		if (lines_num >= 16)
-			break;
-	}
-
-	for (i = 0; i < lines_num; i++)
-	{
-		fields_num = strsplit (lines[i], fields, 4);
+		fields_num = strsplit (line, fields, STATIC_ARRAY_SIZE (fields));
 
 		if (fields_num == 3)
 		{
-			if ((strcmp (fields[0], "Total") == 0)
-					&& (strcmp (fields[1], "Accesses:") == 0))
-				submit_derive ("apache_requests", "",
-						atoll (fields[2]), st);
-			else if ((strcmp (fields[0], "Total") == 0)
-					&& (strcmp (fields[1], "kBytes:") == 0))
-				submit_derive ("apache_bytes", "",
-						1024LL * atoll (fields[2]), st);
+			if ((strcmp (fields[0], "Total") == 0) && (strcmp (fields[1], "Accesses:") == 0))
+				submit_derive ("apache_requests", "", atoll (fields[2]), st);
+			else if ((strcmp (fields[0], "Total") == 0) && (strcmp (fields[1], "kBytes:") == 0))
+				submit_derive ("apache_bytes", "", 1024LL * atoll (fields[2]), st);
 		}
 		else if (fields_num == 2)
 		{
