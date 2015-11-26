@@ -29,6 +29,12 @@
 
 #include "collectd.h"
 
+#ifdef TESTING_H
+/* cdtime_mock is the time returned by cdtime() when build with
+ * -DMOCK_TIME */
+extern cdtime_t cdtime_mock;
+#endif
+
 /*
  * "cdtime_t" is a 64bit unsigned integer. The time is stored at a 2^-30 second
  * resolution, i.e. the most significant 34 bit are used to store the time in

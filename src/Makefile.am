@@ -28,7 +28,7 @@ liblatency_la_SOURCES = utils_latency.c utils_latency.h
 check_PROGRAMS += test_utils_latency
 TESTS += test_utils_latency
 test_utils_latency_SOURCES = utils_latency_test.c testing.h
-test_utils_latency_LDADD = liblatency.la daemon/libcommon.la daemon/libplugin_mock.la -lm
+test_utils_latency_LDADD = liblatency.la daemon/libplugin_mock.la -lm
 
 noinst_LTLIBRARIES += liblookup.la
 liblookup_la_SOURCES = utils_vl_lookup.c utils_vl_lookup.h
@@ -36,7 +36,7 @@ liblookup_la_LIBADD = daemon/libavltree.la
 check_PROGRAMS += test_utils_vl_lookup
 TESTS += test_utils_vl_lookup
 test_utils_vl_lookup_SOURCES = utils_vl_lookup_test.c testing.h
-test_utils_vl_lookup_LDADD = liblookup.la daemon/libcommon.la daemon/libplugin_mock.la
+test_utils_vl_lookup_LDADD = liblookup.la daemon/libplugin_mock.la
 if BUILD_WITH_LIBKSTAT
 test_utils_vl_lookup_LDADD += -lkstat
 endif
@@ -46,7 +46,7 @@ libmount_la_SOURCES = utils_mount.c utils_mount.h
 check_PROGRAMS += test_utils_mount
 TESTS += test_utils_mount
 test_utils_mount_SOURCES = utils_mount_test.c testing.h
-test_utils_mount_LDADD = libmount.la daemon/libcommon.la daemon/libplugin_mock.la
+test_utils_mount_LDADD = libmount.la daemon/libplugin_mock.la
 if BUILD_WITH_LIBKSTAT
 test_utils_mount_LDADD += -lkstat
 endif

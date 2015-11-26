@@ -1,6 +1,6 @@
 /**
  * collectd - src/utils_time.c
- * Copyright (C) 2010       Florian octo Forster
+ * Copyright (C) 2010-2015  Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,7 +21,7 @@
  * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
- *   Florian octo Forster <ff at octo.it>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #include "collectd.h"
@@ -29,7 +29,19 @@
 #include "plugin.h"
 #include "common.h"
 
-#if HAVE_CLOCK_GETTIME
+#ifndef DEFAULT_MOCK_TIME
+# define DEFAULT_MOCK_TIME 1542455354518929408ULL
+#endif
+
+#ifdef MOCK_TIME
+cdtime_t cdtime_mock = (cdtime_t) MOCK_TIME;
+
+cdtime_t cdtime (void)
+{
+  return cdtime_mock;
+}
+#else /* !MOCK_TIME */
+# if HAVE_CLOCK_GETTIME
 cdtime_t cdtime (void) /* {{{ */
 {
   int status;
@@ -46,7 +58,7 @@ cdtime_t cdtime (void) /* {{{ */
 
   return (TIMESPEC_TO_CDTIME_T (&ts));
 } /* }}} cdtime_t cdtime */
-#else
+# else /* !HAVE_CLOCK_GETTIME */
 /* Work around for Mac OS X which doesn't have clock_gettime(2). *sigh* */
 cdtime_t cdtime (void) /* {{{ */
 {
@@ -64,6 +76,7 @@ cdtime_t cdtime (void) /* {{{ */
 
   return (TIMEVAL_TO_CDTIME_T (&tv));
 } /* }}} cdtime_t cdtime */
+# endif
 #endif
 
 /* format_zone reads time zone information from "extern long timezone", exported
