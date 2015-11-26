@@ -1157,7 +1157,7 @@
 #			Type gauge
 #			InstancePrefix "objperslab"
 #			InstancesFrom 0
-#			ValuesFrom 4
+#			ValuesFrom 5
 #		</Result>
 #	</Table>
 #</Plugin>
