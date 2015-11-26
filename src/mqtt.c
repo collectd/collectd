@@ -176,9 +176,10 @@ static void on_message (
     char *payload;
     int status;
 
-    if ((msg->payloadlen <= 0)
-            || (((uint8_t *) msg->payload)[msg->payloadlen - 1] != 0))
+    if (msg->payloadlen <= 0) {
+        DEBUG ("mqtt plugin: message has empty payload");
         return;
+    }
 
     topic = strdup (msg->topic);
     name = strip_prefix (topic);
@@ -207,7 +208,15 @@ static void on_message (
     }
     vl.values_len = ds->ds_num;
 
-    payload = strdup ((void *) msg->payload);
+    payload = malloc (msg->payloadlen+1);
+    if (payload == NULL)
+    {
+        ERROR ("mqtt plugin: malloc for payload buffer failed.");
+        return;
+    }
+    memmove (payload, msg->payload, msg->payloadlen);
+    payload[msg->payloadlen] = 0;
+
     DEBUG ("mqtt plugin: payload = \"%s\"", payload);
     status = parse_values (payload, &vl, ds);
     if (status != 0)
