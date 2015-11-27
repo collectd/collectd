@@ -3347,6 +3347,38 @@ Configures the topic(s) to subscribe to. You can use the single level C<+> and
 multi level C<#> wildcards. Defaults to B<collectd/#>, i.e. all topics beneath
 the B<collectd> branch.
 
+=item B<CACert> I<file>
+
+Path to the PEM-encoded CA certificate file. Setting this option enables TLS
+communication with the MQTT broker, and as such, B<Port> should be the TLS-enabled
+port of the MQTT broker.
+A valid TLS configuration requires B<CACert>, B<CertificateFile> and B<CertificateKeyFile>.
+
+=item B<CertificateFile> I<file>
+
+Path to the PEM-encoded certificate file to use as client certificate when
+connecting to the MQTT broker.
+A valid TLS configuration requires B<CACert>, B<CertificateFile> and B<CertificateKeyFile>.
+
+=item B<CertificateKeyFile> I<file>
+
+Path to the unencrypted PEM-encoded key file corresponding to B<CertificateFile>.
+A valid TLS configuration requires B<CACert>, B<CertificateFile> and B<CertificateKeyFile>.
+
+=item B<TLSProtocol> I<protocol>
+
+If configured, this specifies the string protocol version (e.g. C<tlsv1>,
+C<tlsv1.2>) to use for the TLS connection to the broker. If not set a default
+version is used which depends on the version of OpenSSL the Mosquitto library
+was linked against.
+
+=item B<CipherSuite> I<ciphersuite>
+
+A string describing the ciphers available for use. See L<ciphers(1)> and the
+C<openssl ciphers> utility for more information. If unset, the default ciphers
+will be used.
+
+
 =back
 
 =head2 Plugin C<mysql>
