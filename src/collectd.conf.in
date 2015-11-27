@@ -683,6 +683,11 @@
 #		Prefix "collectd"
 #		StoreRates true
 #		Retain false
+#		CACert "/etc/ssl/ca.crt"
+#		CertificateFile "/etc/ssl/client.crt"
+#		CertificateKeyFile "/etc/ssl/client.pem"
+#		TLSProtocol "tlsv1.2"
+#		CipherSuite "ciphers"
 #	</Publish>
 #	<Subscribe "name">
 #		Host "localhost"

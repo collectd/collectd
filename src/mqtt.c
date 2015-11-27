@@ -642,7 +642,7 @@ static int mqtt_config_publisher (oconfig_item_t *ci)
  *   User "guest"
  *   Password "secret"
  *   Topic "collectd/#"
- * </Publish>
+ * </Subscribe>
  */
 static int mqtt_config_subscriber (oconfig_item_t *ci)
 {
