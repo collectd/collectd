@@ -3362,7 +3362,7 @@ connecting to the MQTT broker. Requires B<CertificateFile>
 
 Path to the unencrypted PEM-encoded key file corresponding to B<CertificateFile>. 
 
-=item B<TLSprotocol> I<protocol>
+=item B<TLSProtocol> I<protocol>
 
 If configured, this specifies the string protocol version (e.g. tlsv1, tlsv1.2) to
 use for the TLS connection to the broker. If not set a default version is used which

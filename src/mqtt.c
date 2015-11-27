@@ -535,7 +535,7 @@ static int mqtt_write (const data_set_t *ds, const value_list_t *vl,
  *   CACert "ca.pem"			Enables TLS if set
  *   CertificateFile "client-cert.pem"		optional
  *   CertificateKeyFile "client-key.pem"		optional
- *   TLSprotocol "tlsv1.2"		optional
+ *   TLSProtocol "tlsv1.2"		optional
  * </Publish>
  */
 static int mqtt_config_publisher (oconfig_item_t *ci)
@@ -618,7 +618,7 @@ static int mqtt_config_publisher (oconfig_item_t *ci)
             cf_util_get_string (child, &conf->certificatefile);
         else if (strcasecmp ("CertificateKeyFile", child->key) == 0)
             cf_util_get_string (child, &conf->certificatekeyfile);
-        else if (strcasecmp ("TLSprotocol", child->key) == 0)
+        else if (strcasecmp ("TLSProtocol", child->key) == 0)
             cf_util_get_string (child, &conf->tlsprotocol);
         else if (strcasecmp ("CipherSuite", child->key) == 0)
             cf_util_get_string (child, &conf->ciphersuite);
