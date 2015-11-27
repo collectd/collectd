@@ -3347,7 +3347,7 @@ Configures the topic(s) to subscribe to. You can use the single level C<+> and
 multi level C<#> wildcards. Defaults to B<collectd/#>, i.e. all topics beneath
 the B<collectd> branch.
 
-=item B<CACertificateFile> I<file>
+=item B<CACert> I<file>
 
 Path to the PEM-encoded CA certificate file. Setting this option enables TLS
 communication with the MQTT broker, and as such, B<Port> should be the TLS-enabled

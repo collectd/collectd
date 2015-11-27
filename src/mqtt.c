@@ -532,7 +532,7 @@ static int mqtt_write (const data_set_t *ds, const value_list_t *vl,
  *   StoreRates true
  *   Retain false
  *   QoS 0
- *   CACertificateFile "ca.pem"			Enables TLS if set
+ *   CACert "ca.pem"			Enables TLS if set
  *   CertificateFile "client-cert.pem"		optional
  *   CertificateKeyFile "client-key.pem"		optional
  *   TLSprotocol "tlsv1.2"		optional
@@ -612,7 +612,7 @@ static int mqtt_config_publisher (oconfig_item_t *ci)
             cf_util_get_boolean (child, &conf->store_rates);
         else if (strcasecmp ("Retain", child->key) == 0)
             cf_util_get_boolean (child, &conf->retain);
-        else if (strcasecmp ("CACertificateFile", child->key) == 0)
+        else if (strcasecmp ("CACert", child->key) == 0)
             cf_util_get_string (child, &conf->cacertificatefile);
         else if (strcasecmp ("CertificateFile", child->key) == 0)
             cf_util_get_string (child, &conf->certificatefile);
