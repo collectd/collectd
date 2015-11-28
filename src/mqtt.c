@@ -728,7 +728,7 @@ static int mqtt_config_subscriber (oconfig_item_t *ci)
             ERROR ("mqtt plugin: Unknown config option: %s", child->key);
     }
 
-    tmp = realloc (subscribers, sizeof (*subscribers) * subscribers_num);
+    tmp = realloc (subscribers, sizeof (*subscribers) * (subscribers_num + 1) );
     if (tmp == NULL)
     {
         ERROR ("mqtt plugin: realloc failed.");
