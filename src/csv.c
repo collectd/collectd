@@ -69,11 +69,11 @@ static int value_list_to_string (char *buffer, int buffer_len,
 			return (-1);
 		}
 
-		if (ds->ds[i].type == DS_TYPE_GAUGE) 
+		if (ds->ds[i].type == DS_TYPE_GAUGE)
 		{
 			status = ssnprintf (buffer + offset, buffer_len - offset,
 					",%lf", vl->values[i].gauge);
-		} 
+		}
 		else if (store_rates != 0)
 		{
 			if (rates == NULL)
