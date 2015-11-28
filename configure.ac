@@ -2040,12 +2040,6 @@ then
 		GCRYPT_CPPFLAGS=`"$with_libgcrypt_config" --cflags 2>/dev/null`
 	fi
 
-	if test "x$GCRYPT_LDFLAGS" = "x"
-	then
-		gcrypt_exec_prefix=`"$with_libgcrypt_config" --exec-prefix 2>/dev/null`
-		GCRYPT_LDFLAGS="-L$gcrypt_exec_prefix/lib"
-	fi
-
 	if test "x$GCRYPT_LIBS" = "x"
 	then
 		GCRYPT_LIBS=`"$with_libgcrypt_config" --libs 2>/dev/null`
@@ -2054,8 +2048,10 @@ fi
 
 SAVE_CPPFLAGS="$CPPFLAGS"
 SAVE_LDFLAGS="$LDFLAGS"
+SAVE_LIBS="$LIBS"
 CPPFLAGS="$CPPFLAGS $GCRYPT_CPPFLAGS"
 LDFLAGS="$LDFLAGS $GCRYPT_LDFLAGS"
+LIBS="$LIBS $GCRYPT_LIBS"
 
 if test "x$with_libgcrypt" = "xyes"
 then
@@ -2070,10 +2066,6 @@ fi
 
 if test "x$with_libgcrypt" = "xyes"
 then
-	if test "x$GCRYPT_LDFLAGS" != "x"
-	then
-		AC_MSG_NOTICE([gcrypt LDFLAGS: $GCRYPT_LDFLAGS])
-	fi
 	AC_CHECK_LIB(gcrypt, gcry_md_hash_buffer,
 		[with_libgcrypt="yes"],
 		[with_libgcrypt="no (symbol gcry_md_hash_buffer not found)"])
@@ -2087,6 +2079,7 @@ fi
 
 CPPFLAGS="$SAVE_CPPFLAGS"
 LDFLAGS="$SAVE_LDFLAGS"
+LIBS="$SAVE_LIBS"
 
 if test "x$with_libgcrypt" = "xyes"
 then
