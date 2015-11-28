@@ -1082,6 +1082,7 @@ static int cconn_connect(struct cconn *io)
     {
         ERROR("ceph plugin: cconn_connect: connect(%d) failed: error %d",
             fd, err);
+        close(fd);
         return err;
     }
 
@@ -1091,6 +1092,7 @@ static int cconn_connect(struct cconn *io)
         err = -errno;
         ERROR("ceph plugin: cconn_connect: fcntl(%d, O_NONBLOCK) error %d",
             fd, err);
+        close(fd);
         return err;
     }
     io->asok = fd;
