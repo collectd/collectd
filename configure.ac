@@ -1,9 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT([collectd],
-	[m4_esyscmd(./version-gen.sh)],
-	[https://github.com/collectd/collectd/issues],
-	[collectd],
-	[https://collectd.org])
+AC_INIT([collectd],[m4_esyscmd(./version-gen.sh)])
 AC_CONFIG_SRCDIR(src/)
 AC_CONFIG_HEADERS(src/config.h)
 AC_CONFIG_AUX_DIR([libltdl/config])
