@@ -44,7 +44,7 @@ struct kafka_topic_context {
 #define KAFKA_FORMAT_JSON        0
 #define KAFKA_FORMAT_COMMAND     1
 #define KAFKA_FORMAT_GRAPHITE    2
-    uint8_t                     format;
+    uint8_t                      format;
     unsigned int                 graphite_flags;
     _Bool                        store_rates;
     rd_kafka_topic_conf_t       *conf;
@@ -52,12 +52,12 @@ struct kafka_topic_context {
     rd_kafka_conf_t             *kafka_conf;
     rd_kafka_t                  *kafka;
     int                          has_key;
-    uint32_t                    key;
+    uint32_t                     key;
     char                        *prefix;
     char                        *postfix;
     char                         escape_char;
     char                        *topic_name;
-    pthread_mutex_t 		lock;
+    pthread_mutex_t              lock;
 };
 
 static int kafka_handle(struct kafka_topic_context *);
@@ -81,7 +81,7 @@ static int32_t kafka_partition(const rd_kafka_topic_t *rkt,
 {
     uint32_t key = *((uint32_t *)keydata );
     uint32_t target = key % partition_cnt;
-    int32_t   i = partition_cnt;
+    int32_t  i = partition_cnt;
 
     while (--i > 0 && !rd_kafka_topic_partition_available(rkt, target)) {
         target = (target + 1) % partition_cnt;
@@ -106,37 +106,37 @@ static int kafka_handle(struct kafka_topic_context *ctx) /* {{{ */
 
         if ((ctx->kafka = rd_kafka_new(RD_KAFKA_PRODUCER, conf,
                                     errbuf, sizeof(errbuf))) == NULL) {
-        	ERROR("write_kafka plugin: cannot create kafka handle.");
-        	return 1;
+            ERROR("write_kafka plugin: cannot create kafka handle.");
+            return 1;
         }
 
-    	rd_kafka_conf_destroy(ctx->kafka_conf);
-    	ctx->kafka_conf = NULL;
+        rd_kafka_conf_destroy(ctx->kafka_conf);
+        ctx->kafka_conf = NULL;
 
-    	INFO ("write_kafka plugin: created KAFKA handle : %s", rd_kafka_name(ctx->kafka));
+        INFO ("write_kafka plugin: created KAFKA handle : %s", rd_kafka_name(ctx->kafka));
 
 #ifdef HAVE_LIBRDKAFKA_LOGGER
-    	rd_kafka_set_logger(ctx->kafka, kafka_log);
+        rd_kafka_set_logger(ctx->kafka, kafka_log);
 #endif
     }
 
     if (ctx->topic == NULL ) {
-    	if ((topic_conf = rd_kafka_topic_conf_dup(ctx->conf)) == NULL) {
+        if ((topic_conf = rd_kafka_topic_conf_dup(ctx->conf)) == NULL) {
             ERROR("write_kafka plugin: cannot duplicate kafka topic config");
             return 1;
-	}
+        }
 
-    	if ((ctx->topic = rd_kafka_topic_new(ctx->kafka, ctx->topic_name,
-                                       		topic_conf)) == NULL) {
-        	ERROR("write_kafka plugin: cannot create topic : %s\n", 
-			rd_kafka_err2str(rd_kafka_errno2err(errno)));
-        	return errno;
-	}
+        if ((ctx->topic = rd_kafka_topic_new(ctx->kafka, ctx->topic_name,
+                                            topic_conf)) == NULL) {
+            ERROR("write_kafka plugin: cannot create topic : %s\n",
+            rd_kafka_err2str(rd_kafka_errno2err(errno)));
+            return errno;
+        }
 
-    	rd_kafka_topic_conf_destroy(ctx->conf);
-	ctx->conf = NULL;
+        rd_kafka_topic_conf_destroy(ctx->conf);
+        ctx->conf = NULL;
 
-    	INFO ("write_kafka plugin: handle created for topic : %s", rd_kafka_topic_name(ctx->topic));
+        INFO ("write_kafka plugin: handle created for topic : %s", rd_kafka_topic_name(ctx->topic));
     }
 
     return(0);
@@ -144,16 +144,16 @@ static int kafka_handle(struct kafka_topic_context *ctx) /* {{{ */
 } /* }}} int kafka_handle */
 
 static int kafka_write(const data_set_t *ds, /* {{{ */
-	      const value_list_t *vl,
-	      user_data_t *ud)
+          const value_list_t *vl,
+          user_data_t *ud)
 {
-	int			 status = 0;
-    uint32_t    key;
-    char         buffer[8192];
-    size_t bfree = sizeof(buffer);
-    size_t bfill = 0;
-    size_t blen = 0;
-	struct kafka_topic_context	*ctx = ud->data;
+    int      status = 0;
+    uint32_t key;
+    char     buffer[8192];
+    size_t   bfree = sizeof(buffer);
+    size_t   bfill = 0;
+    size_t   blen = 0;
+    struct   kafka_topic_context  *ctx = ud->data;
 
     if ((ds == NULL) || (vl == NULL) || (ctx == NULL))
         return EINVAL;
@@ -177,7 +177,6 @@ static int kafka_write(const data_set_t *ds, /* {{{ */
         blen = strlen(buffer);
         break;
     case KAFKA_FORMAT_JSON:
-
         format_json_initialize(buffer, &bfill, &bfree);
         format_json_value_list(buffer, &bfill, &bfree, ds, vl,
                                ctx->store_rates);
@@ -212,15 +211,15 @@ static int kafka_write(const data_set_t *ds, /* {{{ */
                      RD_KAFKA_MSG_F_COPY, buffer, blen,
                      &key, sizeof(key), NULL);
 
-	return status;
+    return status;
 } /* }}} int kafka_write */
 
 static void kafka_topic_context_free(void *p) /* {{{ */
 {
-	struct kafka_topic_context *ctx = p;
+    struct kafka_topic_context *ctx = p;
 
-	if (ctx == NULL)
-		return;
+    if (ctx == NULL)
+        return;
 
     if (ctx->topic_name != NULL)
         sfree(ctx->topic_name);
@@ -246,13 +245,13 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
     char                         callback_name[DATA_MAX_NAME_LEN];
     char                         errbuf[1024];
     user_data_t                  ud;
-	oconfig_item_t              *child;
+    oconfig_item_t              *child;
     rd_kafka_conf_res_t          ret;
 
-	if ((tctx = calloc(1, sizeof (*tctx))) == NULL) {
-		ERROR ("write_kafka plugin: calloc failed.");
+    if ((tctx = calloc(1, sizeof (*tctx))) == NULL) {
+        ERROR ("write_kafka plugin: calloc failed.");
         return;
-	}
+    }
 
     tctx->escape_char = '.';
     tctx->store_rates = 1;
@@ -290,33 +289,33 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
         goto errout;
     }
 
-	for (i = 0; i < ci->children_num; i++) {
-		/*
-		 * The code here could be simplified but makes room
-		 * for easy adding of new options later on.
-		 */
-		child = &ci->children[i];
-		status = 0;
+    for (i = 0; i < ci->children_num; i++) {
+        /*
+         * The code here could be simplified but makes room
+         * for easy adding of new options later on.
+         */
+        child = &ci->children[i];
+        status = 0;
 
-		if (strcasecmp ("Property", child->key) == 0) {
-			if (child->values_num != 2) {
-				WARNING("kafka properties need both a key and a value.");
+        if (strcasecmp ("Property", child->key) == 0) {
+            if (child->values_num != 2) {
+                WARNING("kafka properties need both a key and a value.");
                 goto errout;
-			}
-			if (child->values[0].type != OCONFIG_TYPE_STRING ||
-			    child->values[1].type != OCONFIG_TYPE_STRING) {
-				WARNING("kafka properties needs string arguments.");
+            }
+            if (child->values[0].type != OCONFIG_TYPE_STRING ||
+                child->values[1].type != OCONFIG_TYPE_STRING) {
+                WARNING("kafka properties needs string arguments.");
                 goto errout;
-			}
+            }
             key = child->values[0].value.string;
             val = child->values[1].value.string;
             ret = rd_kafka_topic_conf_set(tctx->conf,key, val,
                                           errbuf, sizeof(errbuf));
             if (ret != RD_KAFKA_CONF_OK) {
-				WARNING("cannot set kafka topic property %s to %s: %s.",
+                WARNING("cannot set kafka topic property %s to %s: %s.",
                         key, val, errbuf);
                 goto errout;
-			}
+            }
 
         } else if (strcasecmp ("Key", child->key) == 0)  {
             char *tmp_buf = NULL;
@@ -397,11 +396,11 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
     ud.data = tctx;
     ud.free_func = kafka_topic_context_free;
 
-	status = plugin_register_write (callback_name, kafka_write, &ud);
-	if (status != 0) {
-		WARNING ("write_kafka plugin: plugin_register_write (\"%s\") "
-				"failed with status %i.",
-				callback_name, status);
+    status = plugin_register_write (callback_name, kafka_write, &ud);
+    if (status != 0) {
+        WARNING ("write_kafka plugin: plugin_register_write (\"%s\") "
+                "failed with status %i.",
+                callback_name, status);
         goto errout;
     }
 
@@ -414,14 +413,14 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
     if (tctx->conf != NULL)
         rd_kafka_topic_conf_destroy(tctx->conf);
     if (tctx->kafka_conf != NULL)
-		rd_kafka_conf_destroy(tctx->kafka_conf);
+        rd_kafka_conf_destroy(tctx->kafka_conf);
     sfree(tctx);
 } /* }}} int kafka_config_topic */
 
 static int kafka_config(oconfig_item_t *ci) /* {{{ */
 {
-	int                          i;
-	oconfig_item_t              *child;
+    int                          i;
+    oconfig_item_t              *child;
     rd_kafka_conf_t             *conf;
     rd_kafka_conf_res_t          ret;
     char                         errbuf[1024];
@@ -430,49 +429,49 @@ static int kafka_config(oconfig_item_t *ci) /* {{{ */
         WARNING("cannot allocate kafka configuration.");
         return -1;
     }
-	for (i = 0; i < ci->children_num; i++)  {
-		child = &ci->children[i];
+    for (i = 0; i < ci->children_num; i++)  {
+        child = &ci->children[i];
 
-		if (strcasecmp("Topic", child->key) == 0) {
-			kafka_config_topic (conf, child);
-		} else if (strcasecmp(child->key, "Property") == 0) {
-			char *key = NULL;
-			char *val = NULL;
+        if (strcasecmp("Topic", child->key) == 0) {
+            kafka_config_topic (conf, child);
+        } else if (strcasecmp(child->key, "Property") == 0) {
+            char *key = NULL;
+            char *val = NULL;
 
-			if (child->values_num != 2) {
-				WARNING("kafka properties need both a key and a value.");
+            if (child->values_num != 2) {
+                WARNING("kafka properties need both a key and a value.");
                 goto errout;
-			}
-			if (child->values[0].type != OCONFIG_TYPE_STRING ||
-			    child->values[1].type != OCONFIG_TYPE_STRING) {
-				WARNING("kafka properties needs string arguments.");
+            }
+            if (child->values[0].type != OCONFIG_TYPE_STRING ||
+                child->values[1].type != OCONFIG_TYPE_STRING) {
+                WARNING("kafka properties needs string arguments.");
                 goto errout;
-			}
-			if ((key = strdup(child->values[0].value.string)) == NULL) {
-				WARNING("cannot allocate memory for attribute key.");
+            }
+            if ((key = strdup(child->values[0].value.string)) == NULL) {
+                WARNING("cannot allocate memory for attribute key.");
                 goto errout;
-			}
-			if ((val = strdup(child->values[1].value.string)) == NULL) {
-				WARNING("cannot allocate memory for attribute value.");
+            }
+            if ((val = strdup(child->values[1].value.string)) == NULL) {
+                WARNING("cannot allocate memory for attribute value.");
                 goto errout;
-			}
+            }
             ret = rd_kafka_conf_set(conf, key, val, errbuf, sizeof(errbuf));
             if (ret != RD_KAFKA_CONF_OK) {
                 WARNING("cannot set kafka property %s to %s: %s",
                         key, val, errbuf);
                 goto errout;
             }
-			sfree(key);
-			sfree(val);
-		} else {
-			WARNING ("write_kafka plugin: Ignoring unknown "
-				 "configuration option \"%s\" at top level.",
-				 child->key);
-		}
-	}
+            sfree(key);
+            sfree(val);
+        } else {
+            WARNING ("write_kafka plugin: Ignoring unknown "
+                 "configuration option \"%s\" at top level.",
+                 child->key);
+        }
+    }
     if (conf != NULL)
         rd_kafka_conf_destroy(conf);
-	return (0);
+    return (0);
  errout:
     if (conf != NULL)
         rd_kafka_conf_destroy(conf);
@@ -481,7 +480,6 @@ static int kafka_config(oconfig_item_t *ci) /* {{{ */
 
 void module_register(void)
 {
-	plugin_register_complex_config ("write_kafka", kafka_config);
+    plugin_register_complex_config ("write_kafka", kafka_config);
 }
 
-/* vim: set sw=8 sts=8 ts=8 noet : */
