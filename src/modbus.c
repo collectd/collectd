@@ -864,9 +864,15 @@ static int mb_config_add_host (oconfig_item_t *ci) /* {{{ */
 
   status = cf_util_get_string_buffer (ci, host->host, sizeof (host->host));
   if (status != 0)
+  {
+    sfree (host);
     return (status);
+  }
   if (host->host[0] == 0)
+  {
+    sfree (host);
     return (EINVAL);
+  }
 
   for (i = 0; i < ci->children_num; i++)
   {
