@@ -587,6 +587,7 @@
 #	Irq TRM
 #	IgnoreSelected false
 #	NamedIrq true
+#	AppendNum true
 #</Plugin>
 
 #<Plugin java>

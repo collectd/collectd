@@ -2599,6 +2599,9 @@ and all other interrupts are collected.
 
 Setting B<NamedIrq> to I<true> will use the allocated name of the irq instead of the number.
 
+B<AppendNum> used only in conjuction with B<NamedIrq>, appends IRQ number
+ to their names, usefull for duplicate names.
+
 Synopsis:
 
   <Plugin irq>
@@ -2610,6 +2613,7 @@ Synopsis:
     Irq TRM
     IgnoreSelected false
     NamedIrq true
+    AppendNum true
   </Plugin>
 
 =back
