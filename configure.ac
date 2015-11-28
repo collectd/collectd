@@ -70,7 +70,7 @@ then
 fi
 if test "x$have_protoc_c" = "xyes"
 then
-	AC_CHECK_LIB([protobuf-c], [protobuf_c_version],
+	AC_CHECK_LIB([protobuf-c], [protobuf_c_message_pack],
 		     [have_protoc_c="yes"],
 		     [have_protoc_c="no (libprotobuf-c not found)"])
 
