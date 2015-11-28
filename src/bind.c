@@ -1311,7 +1311,7 @@ static int bind_config_add_view (oconfig_item_t *ci) /* {{{ */
   if (tmp->name == NULL)
   {
     ERROR ("bind plugin: strdup failed.");
-    free (tmp);
+    sfree (views);
     return (-1);
   }
 
