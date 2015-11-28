@@ -356,6 +356,7 @@ static int fc_config_add_dir (oconfig_item_t *ci)
   if (dir->path == NULL)
   {
     ERROR ("filecount plugin: strdup failed.");
+    sfree (dir);
     return (-1);
   }
 
