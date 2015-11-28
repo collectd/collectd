@@ -221,6 +221,7 @@ static void on_message (
     if (payload == NULL)
     {
         ERROR ("mqtt plugin: malloc for payload buffer failed.");
+        sfree (vl.values);
         return;
     }
     memmove (payload, msg->payload, msg->payloadlen);
