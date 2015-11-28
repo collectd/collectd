@@ -129,17 +129,11 @@ static size_t cj_curl_callback (void *buf, /* {{{ */
     return (len);
 #endif
 
-  if (status != yajl_status_ok)
-  {
-    unsigned char *msg =
-      yajl_get_error(db->yajl, /* verbose = */ 1,
-          /* jsonText = */ (unsigned char *) buf, (unsigned int) len);
-    ERROR ("curl_json plugin: yajl_parse failed: %s", msg);
-    yajl_free_error(db->yajl, msg);
-    return (0); /* abort write callback */
-  }
-
-  return (len);
+  unsigned char *msg = yajl_get_error(db->yajl, /* verbose = */ 1,
+        /* jsonText = */ (unsigned char *) buf, (unsigned int) len);
+  ERROR ("curl_json plugin: yajl_parse failed: %s", msg);
+  yajl_free_error(db->yajl, msg);
+  return (0); /* abort write callback */
 } /* }}} size_t cj_curl_callback */
 
 static int cj_get_type (cj_key_t *key)
