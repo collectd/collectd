@@ -64,7 +64,10 @@ static int value_list_to_string (char *buffer, int buffer_len,
 				&& (ds->ds[i].type != DS_TYPE_GAUGE)
 				&& (ds->ds[i].type != DS_TYPE_DERIVE)
 				&& (ds->ds[i].type != DS_TYPE_ABSOLUTE))
+		{
+			sfree (rates);
 			return (-1);
+		}
 
 		if (ds->ds[i].type == DS_TYPE_GAUGE) 
 		{
