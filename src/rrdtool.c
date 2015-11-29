@@ -733,7 +733,10 @@ static int rrd_cache_insert (const char *filename,
 	{
 		rc = malloc (sizeof (*rc));
 		if (rc == NULL)
+		{
+			pthread_mutex_unlock (&cache_lock);
 			return (-1);
+		}
 		rc->values_num = 0;
 		rc->values = NULL;
 		rc->first_value = 0;
