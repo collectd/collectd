@@ -1199,7 +1199,10 @@ static void c_ithread_destructor (void *arg)
 
 	/* the ithread no longer exists */
 	if (NULL == t)
+	{
+		pthread_mutex_unlock (&perl_threads->mutex);
 		return;
+	}
 
 	c_ithread_destroy (ithread);
 
