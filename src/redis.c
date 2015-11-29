@@ -141,7 +141,7 @@ static redis_query_t *redis_config_query (oconfig_item_t *ci) /* {{{ */
      * Default to a gauge type.
      */
     (void)strncpy(rq->type, "gauge", sizeof(rq->type));
-    (void)strncpy(rq->instance, rq->query, sizeof(rq->instance));
+    (void)sstrncpy(rq->instance, rq->query, sizeof(rq->instance));
     replace_special(rq->instance, sizeof(rq->instance));
 
     for (i = 0; i < ci->children_num; i++) {
