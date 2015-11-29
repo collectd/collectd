@@ -2065,12 +2065,6 @@ then
 	AC_CHECK_LIB(gcrypt, gcry_md_hash_buffer,
 		[with_libgcrypt="yes"],
 		[with_libgcrypt="no (symbol gcry_md_hash_buffer not found)"])
-
-	if test "$with_libgcrypt" != "no"; then
-		m4_ifdef([AM_PATH_LIBGCRYPT],[AM_PATH_LIBGCRYPT(1:1.2.0,,with_libgcrypt="no (version 1.2.0+ required)")])
-		GCRYPT_CPPFLAGS="$LIBGCRYPT_CPPFLAGS $LIBGCRYPT_CFLAGS"
-		GCRYPT_LIBS="$LIBGCRYPT_LIBS"
-	fi
 fi
 
 CPPFLAGS="$SAVE_CPPFLAGS"
