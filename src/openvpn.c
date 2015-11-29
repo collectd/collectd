@@ -617,6 +617,13 @@ static int openvpn_config (const char *key, const char *value)
 
 		/* create a new vpn element since file, version and name are ok */
 		temp = (vpn_status_t *) malloc (sizeof (vpn_status_t));
+		if (temp == NULL)
+		{
+			char errbuf[1024];
+			ERROR ("openvpn plugin: malloc failed: %s",
+					sstrerror (errno, errbuf, sizeof (errbuf)));
+			return (1);
+		}
 		temp->file = status_file;
 		temp->version = status_version;
 		temp->name = status_name;
