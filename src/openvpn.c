@@ -622,6 +622,7 @@ static int openvpn_config (const char *key, const char *value)
 			char errbuf[1024];
 			ERROR ("openvpn plugin: malloc failed: %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
+			sfree (status_file);
 			return (1);
 		}
 		temp->file = status_file;
