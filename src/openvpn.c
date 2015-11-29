@@ -632,7 +632,7 @@ static int openvpn_config (const char *key, const char *value)
 		if (vpn_list == NULL)
 		{
 			char errbuf[1024];
-			ERROR ("openvpn plugin: malloc failed: %s",
+			ERROR ("openvpn plugin: realloc failed: %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 
 			sfree (temp->file);
