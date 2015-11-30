@@ -904,6 +904,7 @@ static int ntpd_read (void)
 
 	int status;
 	int i;
+	double tscale = 1e-6;
 
 	ik      = NULL;
 	ik_num  = 0;
@@ -932,13 +933,13 @@ static int ntpd_read (void)
 			"  pll offset    = %.8f\n"
 			"  pll frequency = %.8f\n" /* drift compensation */
 			"  est error     = %.8f\n",
-			ntpd_read_fp (ik->offset),
+			(int32_t)ntohl(ik->offset) * tscale,
 			ntpd_read_fp (ik->freq),
-			ntpd_read_fp (ik->esterror));
+			(u_long)ntohl(ik->esterror) * 1e-6);
 
 	ntpd_submit ("frequency_offset", "loop",  ntpd_read_fp (ik->freq));
-	ntpd_submit ("time_offset",      "loop",  ntpd_read_fp (ik->offset));
-	ntpd_submit ("time_offset",      "error", ntpd_read_fp (ik->esterror));
+	ntpd_submit ("time_offset",      "loop",  (int32_t)ntohl(ik->offset) * tscale);
+	ntpd_submit ("time_offset",      "error", (u_long)ntohl(ik->esterror) * 1e-6);
 
 	free (ik);
 	ik = NULL;
