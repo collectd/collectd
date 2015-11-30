@@ -31,6 +31,7 @@
 #include "utils_cache.h"
 #include "utils_cmd_putval.h"
 #include "utils_format_graphite.h"
+#include "utils_format_kafka_custom.h"
 #include "utils_format_json.h"
 #include "utils_crc32.h"
 
@@ -38,12 +39,16 @@
 #include <librdkafka/rdkafka.h>
 #include <pthread.h>
 #include <zlib.h>
+
 #include <errno.h>
 
 struct kafka_topic_context {
 #define KAFKA_FORMAT_JSON        0
 #define KAFKA_FORMAT_COMMAND     1
 #define KAFKA_FORMAT_GRAPHITE    2
+/* Warning : KAFKA_FORMAT_CUSTOM_1 is defined as 3.
+ * See utils_format_kafka_custom.h for more information.
+ */
     uint8_t                     format;
     unsigned int                 graphite_flags;
     _Bool                        store_rates;
@@ -184,6 +189,16 @@ static int kafka_write(const data_set_t *ds, /* {{{ */
         format_json_finalize(buffer, &bfill, &bfree);
         blen = strlen(buffer);
         break;
+#ifdef KAFKA_FORMAT_CUSTOM_1
+    case KAFKA_FORMAT_CUSTOM_1:
+
+        format_kafka_custom_initialize(buffer, &bfill, &bfree, ctx->format);
+        format_kafka_custom_value_list(buffer, &bfill, &bfree, ds, vl,
+                               ctx->store_rates, ctx->format);
+        format_kafka_custom_finalize(buffer, &bfill, &bfree, ctx->format);
+        blen = strlen(buffer);
+        break;
+#endif
     case KAFKA_FORMAT_GRAPHITE:
         status = format_graphite(buffer, sizeof(buffer), ds, vl,
                                  ctx->prefix, ctx->postfix, ctx->escape_char,
@@ -347,6 +362,12 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
 
             } else if (strcasecmp(key, "Json") == 0) {
                 tctx->format = KAFKA_FORMAT_JSON;
+
+#ifdef KAFKA_FORMAT_CUSTOM_1
+            } else if (strcasecmp(key, "Custom1") == 0) {
+                tctx->format = KAFKA_FORMAT_CUSTOM_1;
+		/* We name it Custom1 in case somebody needs more than 1 custom format */
+#endif
 
             } else {
                 WARNING ("write_kafka plugin: Invalid format string: %s",
