@@ -123,7 +123,7 @@ user-msec           number of CPU milliseconds spent in 'user' mode
 
 const char* const default_server_fields[] = /* {{{ */
 {
-  "latency"
+  "latency",
   "packetcache-hit",
   "packetcache-miss",
   "packetcache-size",

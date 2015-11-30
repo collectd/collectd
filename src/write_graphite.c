@@ -132,7 +132,7 @@ static int wg_send_buffer (struct wg_callback *cb)
     ssize_t status = 0;
 
     status = swrite (cb->sock_fd, cb->send_buf, strlen (cb->send_buf));
-    if (status < 0)
+    if (status != 0)
     {
         const char *protocol = cb->protocol ? cb->protocol : WG_DEFAULT_PROTOCOL;
 

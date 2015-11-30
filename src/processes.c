@@ -280,6 +280,7 @@ static void ps_list_register (const char *name, const char *regexp)
 		{
 			DEBUG ("ProcessMatch: compiling the regular expression \"%s\" failed.", regexp);
 			sfree(new->re);
+			sfree(new);
 			return;
 		}
 	}

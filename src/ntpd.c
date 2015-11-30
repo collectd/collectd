@@ -310,7 +310,7 @@ static int ntpd_config (const char *key, const char *value)
 	return (0);
 }
 
-static void ntpd_submit (char *type, char *type_inst, double value)
+static void ntpd_submit (char *type, char *type_inst, gauge_t value)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
@@ -332,7 +332,7 @@ static void ntpd_submit (char *type, char *type_inst, double value)
  * sets the LSB based on whether the peer was reachable. If the LSB is zero,
  * the values are out of date. */
 static void ntpd_submit_reach (char *type, char *type_inst, uint8_t reach,
-		double value)
+		gauge_t value)
 {
 	if (!(reach & 1))
 		value = NAN;
@@ -905,8 +905,18 @@ static int ntpd_read (void)
 	int                       ps_num;
 	int                       ps_size;
 
+	gauge_t offset_loop;
+	gauge_t freq_loop;
+	gauge_t offset_error;
+
 	int status;
 	int i;
+
+	/* On Linux, if the STA_NANO bit is set in ik->status, then ik->offset
+	 * is is nanoseconds, otherwise it's microseconds.
+	 * TODO(octo): STA_NANO is defined in the Linux specific <sys/timex.h> header. */
+	double scale_loop  = 1e-6;
+	double scale_error = 1e-6;
 
 	ik      = NULL;
 	ik_num  = 0;
@@ -930,18 +940,19 @@ static int ntpd_read (void)
 	}
 
 	/* kerninfo -> estimated error */
+	offset_loop  = scale_loop * ((gauge_t) ntohl (ik->offset));
+	freq_loop    = ntpd_read_fp (ik->freq);
+	offset_error = scale_error * ((gauge_t) ntohl (ik->esterror));
 
 	DEBUG ("info_kernel:\n"
-			"  pll offset    = %.8f\n"
-			"  pll frequency = %.8f\n" /* drift compensation */
-			"  est error     = %.8f\n",
-			ntpd_read_fp (ik->offset),
-			ntpd_read_fp (ik->freq),
-			ntpd_read_fp (ik->esterror));
+			"  pll offset    = %.8g\n"
+			"  pll frequency = %.8g\n" /* drift compensation */
+			"  est error     = %.8g\n",
+			offset_loop, freq_loop, offset_error);
 
-	ntpd_submit ("frequency_offset", "loop",  ntpd_read_fp (ik->freq));
-	ntpd_submit ("time_offset",      "loop",  ntpd_read_fp (ik->offset));
-	ntpd_submit ("time_offset",      "error", ntpd_read_fp (ik->esterror));
+	ntpd_submit ("frequency_offset", "loop",  freq_loop);
+	ntpd_submit ("time_offset",      "loop",  offset_loop);
+	ntpd_submit ("time_offset",      "error", offset_error);
 
 	free (ik);
 	ik = NULL;

@@ -1737,6 +1737,7 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
     res = NULL;
 
     sfree (errstr);
+    sfree (vl.values);
     csnmp_host_close_session (host);
 
     return (-1);

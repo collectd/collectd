@@ -733,7 +733,10 @@ static int rrd_cache_insert (const char *filename,
 	{
 		rc = malloc (sizeof (*rc));
 		if (rc == NULL)
+		{
+			pthread_mutex_unlock (&cache_lock);
 			return (-1);
+		}
 		rc->values_num = 0;
 		rc->values = NULL;
 		rc->first_value = 0;
@@ -1204,6 +1207,7 @@ static int rrd_init (void)
 	cache = c_avl_create ((int (*) (const void *, const void *)) strcmp);
 	if (cache == NULL)
 	{
+		pthread_mutex_unlock (&cache_lock);
 		ERROR ("rrdtool plugin: c_avl_create failed.");
 		return (-1);
 	}

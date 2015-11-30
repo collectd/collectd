@@ -57,12 +57,23 @@ AC_PROG_YACC
 PKG_PROG_PKG_CONFIG
 
 AC_CHECK_PROG([have_protoc_c], [protoc-c], [yes], [no])
-AC_CHECK_HEADERS([google/protobuf-c/protobuf-c.h],
-                 [have_protobuf_c_h="yes"],
-                 [have_protobuf_c_h="no"])
-if test "x$have_protoc_c" = "xyes" && test "x$have_protobuf_c_h" != "xyes"
+if test "x$have_protoc_c" = "xno"
 then
-	have_protoc_c="no (unable to find <google/protobuf-c/protobuf-c.h>)"
+	have_protoc_c="no (protoc-c compiler not found)"
+fi
+
+if test "x$have_protoc_c" = "xyes"
+then
+	AC_CHECK_HEADERS([protobuf-c/protobuf-c.h google/protobuf-c/protobuf-c.h],
+			 [have_protoc_c="yes"; break],
+			 [have_protoc_c="no (<google/protobuf-c/protobuf-c.h> not found)"])
+fi
+if test "x$have_protoc_c" = "xyes"
+then
+	AC_CHECK_LIB([protobuf-c], [protobuf_c_message_pack],
+		     [have_protoc_c="yes"],
+		     [have_protoc_c="no (libprotobuf-c not found)"])
+
 fi
 AM_CONDITIONAL(HAVE_PROTOC_C, test "x$have_protoc_c" = "xyes")
 
@@ -2025,12 +2036,6 @@ then
 		GCRYPT_CPPFLAGS=`"$with_libgcrypt_config" --cflags 2>/dev/null`
 	fi
 
-	if test "x$GCRYPT_LDFLAGS" = "x"
-	then
-		gcrypt_exec_prefix=`"$with_libgcrypt_config" --exec-prefix 2>/dev/null`
-		GCRYPT_LDFLAGS="-L$gcrypt_exec_prefix/lib"
-	fi
-
 	if test "x$GCRYPT_LIBS" = "x"
 	then
 		GCRYPT_LIBS=`"$with_libgcrypt_config" --libs 2>/dev/null`
@@ -2039,8 +2044,10 @@ fi
 
 SAVE_CPPFLAGS="$CPPFLAGS"
 SAVE_LDFLAGS="$LDFLAGS"
+SAVE_LIBS="$LIBS"
 CPPFLAGS="$CPPFLAGS $GCRYPT_CPPFLAGS"
 LDFLAGS="$LDFLAGS $GCRYPT_LDFLAGS"
+LIBS="$LIBS $GCRYPT_LIBS"
 
 if test "x$with_libgcrypt" = "xyes"
 then
@@ -2055,10 +2062,6 @@ fi
 
 if test "x$with_libgcrypt" = "xyes"
 then
-	if test "x$GCRYPT_LDFLAGS" != "x"
-	then
-		AC_MSG_NOTICE([gcrypt LDFLAGS: $GCRYPT_LDFLAGS])
-	fi
 	AC_CHECK_LIB(gcrypt, gcry_md_hash_buffer,
 		[with_libgcrypt="yes"],
 		[with_libgcrypt="no (symbol gcry_md_hash_buffer not found)"])
@@ -2072,6 +2075,7 @@ fi
 
 CPPFLAGS="$SAVE_CPPFLAGS"
 LDFLAGS="$SAVE_LDFLAGS"
+LIBS="$SAVE_LIBS"
 
 if test "x$with_libgcrypt" = "xyes"
 then
