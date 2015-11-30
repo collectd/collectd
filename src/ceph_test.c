@@ -44,11 +44,8 @@ DEF_TEST(parse_keys)
   {
     char got[DATA_MAX_NAME_LEN];
 
-    memset (got, 0, sizeof (got));
-
     CHECK_ZERO (parse_keys (got, sizeof (got), cases[i].str));
-
-    CHECK_ZERO (strcmp (got, cases[i].want));
+    EXPECT_EQ_STR (cases[i].want, got);
   }
 
   return 0;
