@@ -1436,6 +1436,12 @@ static int ps_read_process(long pid, procstat_t *ps, char *state)
 	ps->io_syscr = myUsage->pr_sysc;
 	ps->io_syscw = myUsage->pr_sysc;
 
+	/*
+	 * TODO: context switch counters for Solaris
+   */
+	ps->cswitch_vol   = -1;
+	ps->cswitch_invol = -1;
+
 
 	/*
 	 * TODO: Find way of setting BLOCKED and PAGING status
@@ -1673,6 +1679,10 @@ static int ps_read (void)
 
 				pse.cpu_user_counter = task_absolutetime_info.total_user;
 				pse.cpu_system_counter = task_absolutetime_info.total_system;
+
+				/* context switch counters not implemented */
+				pse.cswitch_vol   = -1;
+				pse.cswitch_invol = -1;
 			}
 
 			status = task_threads (task_list[task], &thread_list,
@@ -2026,6 +2036,10 @@ static int ps_read (void)
 			pse.io_syscr = -1;
 			pse.io_syscw = -1;
 
+			/* context switch counters not implemented */
+			pse.cswitch_vol   = -1;
+			pse.cswitch_invol = -1;
+
 			ps_list_add (procs[i].ki_comm, have_cmdline ? cmdline : NULL, &pse);
 
 			switch (procs[i].ki_stat)
@@ -2159,7 +2173,8 @@ static int ps_read (void)
 			pse.io_syscr = -1;
 			pse.io_syscw = -1;
 
-			pse.cswitch_vol = -1;
+			/* context switch counters not implemented */
+			pse.cswitch_vol   = -1;
 			pse.cswitch_invol = -1;
 
 			ps_list_add (procs[i].p_comm, have_cmdline ? cmdline : NULL, &pse);
@@ -2307,6 +2322,9 @@ static int ps_read (void)
 			pse.io_wchar = -1;
 			pse.io_syscr = -1;
 			pse.io_syscw = -1;
+
+			pse.cswitch_vol   = -1;
+			pse.cswitch_invol = -1;
 
 			ps_list_add (cmdline, cargs, &pse);
 		} /* for (i = 0 .. nprocs) */
