@@ -655,7 +655,10 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
 
   status = cf_util_get_string(ci, &hd->name);
   if (status != 0)
+  {
+    sfree (hd);
     return status;
+  }
 
   hd->sess_handle = NULL;
   hd->interval = 0;
