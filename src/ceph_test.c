@@ -46,7 +46,7 @@ DEF_TEST(parse_keys)
 
     memset (got, 0, sizeof (got));
 
-    parse_keys (cases[i].str, got);
+    CHECK_ZERO (parse_keys (got, sizeof (got), cases[i].str));
 
     CHECK_ZERO (strcmp (got, cases[i].want));
   }

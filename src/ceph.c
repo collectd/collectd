@@ -1,6 +1,7 @@
 /**
  * collectd - src/ceph.c
  * Copyright (C) 2011  New Dream Network
+ * Copyright (C) 2015  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,9 +17,10 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Colin McCabe <cmccabe@alumni.cmu.edu>
- *   Dennis Zou <yunzou@cisco.com>
- *   Dan Ryder <daryder@cisco.com>
+ *   Colin McCabe <cmccabe at alumni.cmu.edu>
+ *   Dennis Zou <yunzou at cisco.com>
+ *   Dan Ryder <daryder at cisco.com>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #define _DEFAULT_SOURCE
@@ -420,140 +422,140 @@ static void ceph_daemon_free(struct ceph_daemon *d)
     sfree(d);
 }
 
-/**
- * Compact ds name by removing special characters and trimming length to
- * DATA_MAX_NAME_LEN if necessary
- */
-static void compact_ds_name(char *source, char *dest)
+/* compact_ds_name removed the special characters ":", "_", "-" and "+" from the
+ * intput string. Characters following these special characters are capitalized.
+ * Trailing "+" and "-" characters are replaces with the strings "Plus" and
+ * "Minus". */
+static int compact_ds_name (char *buffer, size_t buffer_size, char const *src)
 {
-    int keys_num = 0, i;
-    char *save_ptr = NULL, *tmp_ptr = source;
-    char *keys[16];
-    char len_str[3];
-    char tmp[DATA_MAX_NAME_LEN];
-    size_t key_chars_remaining = (DATA_MAX_NAME_LEN-1);
-    int reserved = 0;
-    int offset = 0;
-    memset(tmp, 0, sizeof(tmp));
-    if(source == NULL || dest == NULL || source[0] == '\0' || dest[0] != '\0')
+    char *src_copy;
+    size_t src_len;
+    char *ptr = buffer;
+    size_t ptr_size = buffer_size;
+    _Bool append_plus = 0;
+    _Bool append_minus = 0;
+
+    if ((buffer == NULL) || (buffer_size <= strlen ("Minus")) || (src == NULL))
+      return EINVAL;
+
+    src_copy = strdup (src);
+    src_len = strlen(src);
+
+    /* Remove trailing "+" and "-". */
+    if (src_copy[src_len - 1] == '+')
     {
-        return;
+        append_plus = 1;
+        src_len--;
+        src_copy[src_len] = 0;
     }
-    size_t src_len = strlen(source);
-    snprintf(len_str, sizeof(len_str), "%zu", src_len);
-    unsigned char append_status = 0x0;
-    append_status |= (source[src_len - 1] == '-') ? 0x1 : 0x0;
-    append_status |= (source[src_len - 1] == '+') ? 0x2 : 0x0;
-    while ((keys[keys_num] = strtok_r(tmp_ptr, ":_-+", &save_ptr)) != NULL)
+    else if (src_copy[src_len - 1] == '-')
     {
-        tmp_ptr = NULL;
-        /** capitalize 1st char **/
-        keys[keys_num][0] = toupper(keys[keys_num][0]);
-        keys_num++;
-        if(keys_num >= 16)
-        {
-            break;
-        }
+        append_minus = 1;
+        src_len--;
+        src_copy[src_len] = 0;
     }
-    /** concatenate each part of source string **/
-    for(i = 0; i < keys_num; i++)
+
+    /* Split at special chars, capitalize first character, append to buffer. */
+    char *dummy = src_copy;
+    char *token;
+    char *save_ptr = NULL;
+    while ((token = strtok_r (dummy, ":_-+", &save_ptr)) != NULL)
     {
-        strncat(tmp, keys[i], key_chars_remaining);
-        key_chars_remaining -= strlen(keys[i]);
-    }
-    tmp[DATA_MAX_NAME_LEN - 1] = '\0';
-    /** to coordinate limitation of length of type_instance
-     *  we will truncate ds_name
-     *  when the its length is more than
-     *  DATA_MAX_NAME_LEN
-     */
-    if(strlen(tmp) > DATA_MAX_NAME_LEN - 1)
-    {
-        append_status |= 0x4;
-        /** we should reserve space for
-         * len_str
-         */
-        reserved += 2;
-    }
-    if(append_status & 0x1)
-    {
-        /** we should reserve space for
-         * "Minus"
-         */
-        reserved += 5;
-    }
-    if(append_status & 0x2)
-    {
-        /** we should reserve space for
-         * "Plus"
-         */
-        reserved += 4;
-    }
-    snprintf(dest, DATA_MAX_NAME_LEN - reserved, "%s", tmp);
-    offset = strlen(dest);
-    switch (append_status)
-    {
-        case 0x1:
-            memcpy(dest + offset, "Minus", 5);
-            break;
-        case 0x2:
-            memcpy(dest + offset, "Plus", 5);
-            break;
-        case 0x4:
-            memcpy(dest + offset, len_str, 2);
-            break;
-        case 0x5:
-            memcpy(dest + offset, "Minus", 5);
-            memcpy(dest + offset + 5, len_str, 2);
-            break;
-        case 0x6:
-            memcpy(dest + offset, "Plus", 4);
-            memcpy(dest + offset + 4, len_str, 2);
-            break;
-        default:
+        size_t len;
+
+        dummy = NULL;
+
+        token[0] = toupper ((int) token[0]);
+
+        assert (ptr_size > 1);
+
+        len = strlen (token);
+        if (len >= ptr_size)
+            len = ptr_size - 1;
+
+        assert (len > 0);
+        assert (len < ptr_size);
+
+        sstrncpy (ptr, token, len + 1);
+        ptr += len;
+        ptr_size -= len;
+
+        assert (*ptr == 0);
+        if (ptr_size <= 1)
             break;
     }
+
+    /* Append "Plus" or "Minus" if "+" or "-" has been stripped above. */
+    if (append_plus || append_minus)
+    {
+        char const *append = "Plus";
+        if (append_minus)
+            append = "Minus";
+
+        size_t offset = buffer_size - (strlen (append) + 1);
+        if (offset > strlen (buffer))
+            offset = strlen (buffer);
+
+        sstrncpy (buffer + offset, append, buffer_size - offset);
+    }
+
+    sfree (src_copy);
+    return 0;
+}
+
+static _Bool has_suffix (char const *str, char const *suffix)
+{
+    size_t str_len = strlen (str);
+    size_t suffix_len = strlen (suffix);
+    size_t offset;
+
+    if (suffix_len > str_len)
+        return 0;
+    offset = str_len - suffix_len;
+
+    if (strcmp (str + offset, suffix) == 0)
+        return 1;
+
+    return 0;
+}
+
+/* count_parts returns the number of elements a "foo.bar.baz" style key has. */
+static size_t count_parts (char const *key)
+{
+    char const *ptr;
+    size_t parts_num = 0;
+
+    for (ptr = key; ptr != NULL; ptr = strchr (ptr + 1, '.'))
+        parts_num++;
+
+    return parts_num;
 }
 
 /**
  * Parse key to remove "type" if this is for schema and initiate compaction
  */
-static int parse_keys(const char *key_str, char *ds_name)
+static int parse_keys (char *buffer, size_t buffer_size, const char *key_str)
 {
-    char *ptr, *rptr;
-    size_t ds_name_len = 0;
-    /**
-     * allow up to 100 characters before compaction - compact_ds_name will not
-     * allow more than DATA_MAX_NAME_LEN chars
-     */
-    int max_str_len = 100;
-    char tmp_ds_name[max_str_len];
-    memset(tmp_ds_name, 0, sizeof(tmp_ds_name));
-    if(ds_name == NULL || key_str == NULL ||  key_str[0] == '\0' ||
-                                                            ds_name[0] != '\0')
-    {
-        return -1;
-    }
-    if((ptr = strchr(key_str, '.')) == NULL
-            || (rptr = strrchr(key_str, '.')) == NULL)
-    {
-        memcpy(tmp_ds_name, key_str, max_str_len - 1);
-        goto compact;
-    }
+    char tmp[2 * buffer_size];
 
-    ds_name_len = (rptr - ptr) > max_str_len ? max_str_len : (rptr - ptr);
-    if((ds_name_len == 0) || strncmp(rptr + 1, "type", 4))
-    { /** copy whole key **/
-        memcpy(tmp_ds_name, key_str, max_str_len - 1);
+    if (buffer == NULL || buffer_size == 0 || key_str == NULL || strlen (key_str) == 0)
+        return EINVAL;
+
+    if ((count_parts (key_str) > 2) && has_suffix (key_str, ".type"))
+    {
+        /* strip ".type" suffix iff the key has more than two parts. */
+        size_t sz = strlen (key_str) - strlen (".type") + 1;
+
+        if (sz > sizeof (tmp))
+            sz = sizeof (tmp);
+        sstrncpy (tmp, key_str, sz);
     }
     else
-    {/** more than two keys **/
-        memcpy(tmp_ds_name, key_str, ((rptr - key_str) > (max_str_len - 1) ?
-                (max_str_len - 1) : (rptr - key_str)));
+    {
+        sstrncpy (tmp, key_str, sizeof (tmp));
     }
 
-    compact: compact_ds_name(tmp_ds_name, ds_name);
-    return 0;
+    return compact_ds_name (buffer, buffer_size, tmp);
 }
 
 /**
@@ -605,7 +607,7 @@ static int ceph_daemon_add_ds_entry(struct ceph_daemon *d, const char *name,
             ((pc_type & PERFCOUNTER_LATENCY) ? DSET_LATENCY : DSET_BYTES);
     d->ds_types[d->ds_num] = type;
 
-    if(parse_keys(name, ds_name))
+    if (parse_keys(ds_name, sizeof (ds_name), name))
     {
         return 1;
     }
@@ -957,7 +959,7 @@ static int node_handler_fetch_data(void *arg, const char *val, const char *key)
     char ds_name[DATA_MAX_NAME_LEN];
     memset(ds_name, 0, sizeof(ds_name));
 
-    if(parse_keys(key, ds_name))
+    if (parse_keys (ds_name, sizeof (ds_name), key))
     {
         return 1;
     }
