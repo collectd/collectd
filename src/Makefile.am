@@ -738,6 +738,12 @@ notify_email_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 notify_email_la_LIBADD = -lesmtp -lssl -lcrypto -lpthread
 endif
 
+if BUILD_PLUGIN_NOTIFY_NAGIOS
+pkglib_LTLIBRARIES += notify_nagios.la
+notify_nagios_la_SOURCES = notify_nagios.c
+notify_nagios_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_NTPD
 pkglib_LTLIBRARIES += ntpd.la
 ntpd_la_SOURCES = ntpd.c
