@@ -288,7 +288,7 @@ static int register_callback (llist_t **list, /* {{{ */
 		{
 			ERROR ("plugin: register_callback: "
 					"llentry_create failed.");
-			free (key);
+			sfree (key);
 			destroy_callback (cf);
 			return (-1);
 		}
@@ -358,9 +358,9 @@ static void log_list_callbacks (llist_t **list, /* {{{ */
 		*str = '\0';
 		strjoin(str, len, keys, n, "', '");
 		INFO("%s ['%s']", comment, str);
-		free(str);
+		sfree (str);
 	}
-	free(keys);
+	sfree (keys);
 } /* }}} void log_list_callbacks */
 
 static int create_register_callback (llist_t **list, /* {{{ */
@@ -941,17 +941,17 @@ static void stop_write_threads (void) /* {{{ */
  */
 void plugin_set_dir (const char *dir)
 {
-	if (plugindir != NULL)
-		free (plugindir);
+	sfree (plugindir);
 
 	if (dir == NULL)
-		plugindir = NULL;
-	else if ((plugindir = strdup (dir)) == NULL)
 	{
-		char errbuf[1024];
-		ERROR ("strdup failed: %s",
-				sstrerror (errno, errbuf, sizeof (errbuf)));
+		plugindir = NULL;
+		return;
 	}
+
+	plugindir = strdup (dir);
+	if (plugindir == NULL)
+		ERROR ("plugin_set_dir: strdup(\"%s\") failed", dir);
 }
 
 static _Bool plugin_is_loaded (char const *name)
@@ -1319,8 +1319,8 @@ static void plugin_flush_timeout_callback_free (void *data)
 
 	if (cb == NULL) return;
 
-	sfree(cb->name);
-	sfree(cb);
+	sfree (cb->name);
+	sfree (cb);
 } /* static void plugin_flush_callback_free */
 
 static char *plugin_flush_callback_name (const char *name)
@@ -1371,7 +1371,7 @@ int plugin_register_flush (const char *name,
 		if (cb == NULL)
 		{
 			ERROR ("plugin_register_flush: malloc failed.");
-			sfree(flush_name);
+			sfree (flush_name);
 			return (-1);
 		}
 
@@ -1379,8 +1379,8 @@ int plugin_register_flush (const char *name,
 		if (cb->name == NULL)
 		{
 			ERROR ("plugin_register_flush: strdup failed.");
-			sfree(cb);
-			sfree(flush_name);
+			sfree (cb);
+			sfree (flush_name);
 			return (-1);
 		}
 		cb->timeout = ctx.flush_timeout;
@@ -1395,11 +1395,11 @@ int plugin_register_flush (const char *name,
 			/* interval  = */ ctx.flush_interval,
 			/* user data = */ &ud);
 
-		sfree(flush_name);
+		sfree (flush_name);
 		if (status != 0)
 		{
-			sfree(cb->name);
-			sfree(cb);
+			sfree (cb->name);
+			sfree (cb);
 			return status;
 		}
 	}
@@ -1469,7 +1469,7 @@ int plugin_register_data_set (const data_set_t *ds)
 			* ds->ds_num);
 	if (ds_copy->ds == NULL)
 	{
-		free (ds_copy);
+		sfree (ds_copy);
 		return (-1);
 	}
 
@@ -1633,7 +1633,7 @@ int plugin_unregister_flush (const char *name)
 		if (flush_name != NULL)
 		{
 			plugin_unregister_read(flush_name);
-			sfree(flush_name);
+			sfree (flush_name);
 		}
 	}
 
@@ -2197,7 +2197,7 @@ static int plugin_dispatch_values_internal (value_list_t *vl)
 			 * don't get confused.. */
 			if (saved_values != NULL)
 			{
-				free (vl->values);
+				sfree (vl->values);
 				vl->values     = saved_values;
 				vl->values_len = saved_values_len;
 			}
@@ -2226,7 +2226,7 @@ static int plugin_dispatch_values_internal (value_list_t *vl)
 	 * confused.. */
 	if (saved_values != NULL)
 	{
-		free (vl->values);
+		sfree (vl->values);
 		vl->values     = saved_values;
 		vl->values_len = saved_values_len;
 	}
@@ -2712,7 +2712,11 @@ int plugin_notification_meta_free (notification_meta_t *n)
 
     if (this->type == NM_TYPE_STRING)
     {
-      free ((char *)this->nm_value.nm_string);
+      /* Assign to a temporary variable to work around nm_string's const
+       * modifier. */
+      void *tmp = (void *) this->nm_value.nm_string;
+
+      sfree (tmp);
       this->nm_value.nm_string = NULL;
     }
     sfree (this);
@@ -2819,7 +2823,7 @@ static void *plugin_thread_start (void *arg)
 
 	plugin_set_ctx (plugin_thread->ctx);
 
-	free (plugin_thread);
+	sfree (plugin_thread);
 
 	return start_routine (plugin_arg);
 } /* void *plugin_thread_start */
