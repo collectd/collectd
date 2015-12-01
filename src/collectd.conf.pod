@@ -2516,10 +2516,12 @@ Synopsis:
    # Connect to localhost on gpsd regular port:
    Host "127.0.0.1"
    Port "2947"
-   # 15 seconds timeout
-   Timeout 15
-   # Pause of 1 second between readings:
-   Pause 1
+   # 15 ms timeout
+   Timeout 0.015
+   # PauseRead of 5 sec. between readings:
+   PauseRead 5
+   # PauseConnect of 1 sec. between connection tentatives:
+   PauseConnect 1
  </Plugin>
 
 Available configuration options:
@@ -2536,11 +2538,15 @@ Port to connect to gpsd on the host machine. Defaults to B<2947>.
 
 =item B<Timeout> I<Seconds>
 
-Timeout in seconds (default 15 sec).
+Timeout in seconds (default 0.015 sec).
 
-=item B<Pause> I<Seconds>
+=item B<PauseRead> I<Seconds>
 
 Pause to apply between readings in seconds (default 1 sec).
+
+=item B<PauseConnect> I<Seconds>
+
+Pause to apply between tentative of connection in seconds (default 1 sec).
 
 =back
 
