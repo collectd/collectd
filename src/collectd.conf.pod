@@ -6232,6 +6232,12 @@ rate of counters and size of sets will be zero, timers report C<NaN> and gauges
 are unchanged. If set to B<True>, the such metrics are not dispatched and
 removed from the internal cache.
 
+=item B<CounterSum> B<false>|B<true>
+
+When enabled, create a C<count> metric which reports the change since the last
+read. This option primarily exists for compatibility with the I<statsd>
+impelemtation by Etsy.
+
 =item B<TimerPercentile> I<Percent>
 
 Calculate and dispatch the configured percentile, i.e. compute the latency, so

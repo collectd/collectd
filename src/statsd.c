@@ -64,6 +64,7 @@ struct statsd_metric_s
 {
   metric_type_t type;
   double value;
+  derive_t counter;
   latency_counter_t *latency;
   c_avl_tree_t *set;
   unsigned long updates_num;
@@ -88,6 +89,7 @@ static _Bool conf_delete_sets     = 0;
 static double *conf_timer_percentile = NULL;
 static size_t  conf_timer_percentile_num = 0;
 
+static _Bool conf_counter_sum     = 0;
 static _Bool conf_timer_lower     = 0;
 static _Bool conf_timer_upper     = 0;
 static _Bool conf_timer_sum       = 0;
@@ -261,6 +263,8 @@ static int statsd_handle_counter (char const *name, /* {{{ */
   if (status != 0)
     return (status);
 
+  /* Changes to the counter are added to (statsd_metric_t*)->value. ->counter is
+   * only updated in statsd_metric_submit_unsafe(). */
   return (statsd_metric_add (name, (double) (value.gauge / scale.gauge),
         STATSD_COUNTER));
 } /* }}} int statsd_handle_counter */
@@ -684,6 +688,8 @@ static int statsd_config (oconfig_item_t *ci) /* {{{ */
       cf_util_get_boolean (child, &conf_delete_gauges);
     else if (strcasecmp ("DeleteSets", child->key) == 0)
       cf_util_get_boolean (child, &conf_delete_sets);
+    else if (strcasecmp ("CounterSum", child->key) == 0)
+      cf_util_get_boolean (child, &conf_counter_sum);
     else if (strcasecmp ("TimerLower", child->key) == 0)
       cf_util_get_boolean (child, &conf_timer_lower);
     else if (strcasecmp ("TimerUpper", child->key) == 0)
@@ -754,8 +760,7 @@ static int statsd_metric_clear_set_unsafe (statsd_metric_t *metric) /* {{{ */
 } /* }}} int statsd_metric_clear_set_unsafe */
 
 /* Must hold metrics_lock when calling this function. */
-static int statsd_metric_submit_unsafe (char const *name, /* {{{ */
-    statsd_metric_t const *metric)
+static int statsd_metric_submit_unsafe (char const *name, statsd_metric_t *metric) /* {{{ */
 {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
@@ -851,17 +856,28 @@ static int statsd_metric_submit_unsafe (char const *name, /* {{{ */
       values[0].gauge = (gauge_t) c_avl_size (metric->set);
   }
   else { /* STATSD_COUNTER */
-      /*
-       * Expand a single value to two metrics:
-       *
-       * - The absolute counter, as a gauge
-       * - A derived rate for this counter
-       */
-      values[0].derive = (derive_t) metric->value;
-      plugin_dispatch_values(&vl);
+    gauge_t delta = nearbyint (metric->value);
 
-      sstrncpy(vl.type, "gauge", sizeof (vl.type));
-      values[0].gauge = (gauge_t) metric->value;
+    /* Etsy's statsd writes counters as two metrics: a rate and the change since
+     * the last write. Since collectd does not reset its DERIVE metrics to zero,
+     * this makes little sense, but we're dispatching a "count" metric here
+     * anyway - if requested by the user - for compatibility reasons. */
+    if (conf_counter_sum)
+    {
+      sstrncpy (vl.type, "count", sizeof (vl.type));
+      values[0].gauge = delta;
+      plugin_dispatch_values (&vl);
+
+      /* restore vl.type */
+      sstrncpy (vl.type, "derive", sizeof (vl.type));
+    }
+
+    /* Rather than resetting value to zero, subtract delta so we correctly keep
+     * track of residuals. */
+    metric->value   -= delta;
+    metric->counter += (derive_t) delta;
+
+    values[0].derive = metric->counter;
   }
 
   return (plugin_dispatch_values (&vl));
