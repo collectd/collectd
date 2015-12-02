@@ -530,12 +530,12 @@ class GenericJMXConfValue
         String tmp = getConfigString (child);
         if (tmp != null)
           this._instance_from.add (tmp);
-        else if (child.getKey ().equalsIgnoreCase ("PluginName"))
-        {
-          String tmp = getConfigString (child);
-          if (tmp != null)
-            this._plugin_name = tmp;
-        }
+      }
+      else if (child.getKey ().equalsIgnoreCase ("PluginName"))
+      {
+        String tmp = getConfigString (child);
+        if (tmp != null)
+          this._plugin_name = tmp;
       }
       else
         throw (new IllegalArgumentException ("Unknown option: "
