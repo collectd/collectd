@@ -547,15 +547,15 @@ static int ping_config (const char *key, const char *value) /* {{{ */
 
     if (ping_data != NULL)
     {
-      free(ping_data);
+      free (ping_data);
       ping_data = NULL;
     }
 
     size = atoi (value);
-    if ((size >= 1) && (size <= 65536))
+    if ((size >= 0) && (size <= 65536))
     {
       int i;
-      ping_data = (char*) malloc(size + 1);
+      ping_data = (char *) malloc(size + 1);
       if (ping_data == NULL)
       {
         char errbuf[1024];
