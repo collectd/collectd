@@ -483,7 +483,9 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 	{
 		read_func_t *rf;
 		plugin_ctx_t old_ctx;
+		cdtime_t start;
 		cdtime_t now;
+		cdtime_t elapsed;
 		int status;
 		int rf_type;
 		int rc;
@@ -562,6 +564,8 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 
 		DEBUG ("plugin_read_thread: Handling `%s'.", rf->rf_name);
 
+		start = cdtime ();
+
 		old_ctx = plugin_set_ctx (rf->rf_ctx);
 
 		if (rf_type == RF_SIMPLE)
@@ -605,8 +609,22 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 		/* update the ``next read due'' field */
 		now = cdtime ();
 
+		/* calculate the time spent in the read function */
+		elapsed = (now - start);
+
+		if (elapsed > rf->rf_effective_interval)
+			WARNING ("plugin_read_thread: read-function of the `%s' plugin took %.3f "
+				"seconds, which is above its read interval (%.3f seconds). You might "
+				"want to adjust the `Interval' or `ReadThreads' settings.",
+				rf->rf_name, CDTIME_T_TO_DOUBLE(elapsed),
+				CDTIME_T_TO_DOUBLE(rf->rf_effective_interval));
+
+		DEBUG ("plugin_read_thread: read-function of the `%s' plugin took "
+				"%.6f seconds.",
+				rf->rf_name, CDTIME_T_TO_DOUBLE(elapsed));
+
 		DEBUG ("plugin_read_thread: Effective interval of the "
-				"%s plugin is %.3f seconds.",
+				"`%s' plugin is %.3f seconds.",
 				rf->rf_name,
 				CDTIME_T_TO_DOUBLE (rf->rf_effective_interval));
 
@@ -623,7 +641,7 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 			rf->rf_next_read = now;
 		}
 
-		DEBUG ("plugin_read_thread: Next read of the %s plugin at %.3f.",
+		DEBUG ("plugin_read_thread: Next read of the `%s' plugin at %.3f.",
 				rf->rf_name,
 				CDTIME_T_TO_DOUBLE (rf->rf_next_read));
 
