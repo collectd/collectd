@@ -258,68 +258,78 @@ static int ceph_cb_boolean(void *ctx, int bool_val)
     return CEPH_CB_CONTINUE;
 }
 
+#define BUFFER_ADD(dest, src) do { \
+    size_t dest_size = sizeof (dest); \
+    strncat ((dest), (src), dest_size - strlen (dest)); \
+    (dest)[dest_size - 1] = 0; \
+} while (0)
+
 static int
 ceph_cb_number(void *ctx, const char *number_val, yajl_len_t number_len)
 {
     yajl_struct *yajl = (yajl_struct*)ctx;
     char buffer[number_len+1];
-    int i, latency_type = 0, result;
-    char key[128];
+    int i, status;
+    char key[2 * DATA_MAX_NAME_LEN];
+    _Bool latency_type = 0;
 
     memcpy(buffer, number_val, number_len);
     buffer[sizeof(buffer) - 1] = 0;
 
-    ssnprintf(key, yajl->state[0].key_len, "%s", yajl->state[0].key);
-    for(i = 1; i < yajl->depth; i++)
+    sstrncpy (key, yajl->state[0].key, sizeof (key));
+    for (i = 1; i < yajl->depth; i++)
     {
-        if((i == yajl->depth-1) && ((strcmp(yajl->state[i].key,"avgcount") == 0)
-                || (strcmp(yajl->state[i].key,"sum") == 0)))
+        /* Special case for latency metrics. */
+        if ((i == yajl->depth-1)
+                && ((strcmp(yajl->state[i].key,"avgcount") == 0)
+                    || (strcmp(yajl->state[i].key,"sum") == 0)))
         {
-            if(convert_special_metrics)
+            /* Super-special case for filestore:JournalWrBytes. For some
+             * reason, Ceph schema encodes this as a count/sum pair while all
+             * other "Bytes" data (excluding used/capacity bytes for OSD space)
+             * uses a single "Derive" type. To spare further confusion, keep
+             * this KPI as the same type of other "Bytes". Instead of keeping
+             * an "average" or "rate", use the "sum" in the pair and assign
+             * that to the derive value. */
+            if (convert_special_metrics && (i >= 2)
+                    && (strcmp("filestore", yajl->state[i-2].key) == 0)
+                    && (strcmp("journal_wr_bytes", yajl->state[i-1].key) == 0)
+                    && (strcmp("avgcount", yajl->state[i].key) == 0))
             {
-                /**
-                 * Special case for filestore:JournalWrBytes. For some reason,
-                 * Ceph schema encodes this as a count/sum pair while all
-                 * other "Bytes" data (excluding used/capacity bytes for OSD
-                 * space) uses a single "Derive" type. To spare further
-                 * confusion, keep this KPI as the same type of other "Bytes".
-                 * Instead of keeping an "average" or "rate", use the "sum" in
-                 * the pair and assign that to the derive value.
-                 */
-                if((strcmp(yajl->state[i-1].key, "journal_wr_bytes") == 0) &&
-                        (strcmp(yajl->state[i-2].key,"filestore") == 0) &&
-                        (strcmp(yajl->state[i].key,"avgcount") == 0))
-                {
-                    DEBUG("ceph plugin: Skipping avgcount for filestore.JournalWrBytes");
-                    yajl->depth = (yajl->depth - 1);
-                    return CEPH_CB_CONTINUE;
-                }
+                DEBUG("ceph plugin: Skipping avgcount for filestore.JournalWrBytes");
+                yajl->depth -= 1;
+                return CEPH_CB_CONTINUE;
             }
-            //probably a avgcount/sum pair. if not - we'll try full key later
+
+            /* Don't add "avgcount" or "sum" to the key just yet. If the
+             * handler function signals RETRY_AVGCOUNT, we'll add it and try
+             * again. */
             latency_type = 1;
             break;
         }
-        strncat(key, ".", 1);
-        strncat(key, yajl->state[i].key, yajl->state[i].key_len+1);
+
+        BUFFER_ADD (key, ".");
+        BUFFER_ADD (key, yajl->state[i].key);
     }
 
-    result = yajl->handler(yajl->handler_arg, buffer, key);
-
-    if((result == RETRY_AVGCOUNT) && latency_type)
+    status = yajl->handler(yajl->handler_arg, buffer, key);
+    if((status == RETRY_AVGCOUNT) && latency_type)
     {
-        strncat(key, ".", 1);
-        strncat(key, yajl->state[yajl->depth-1].key,
-                yajl->state[yajl->depth-1].key_len+1);
-        result = yajl->handler(yajl->handler_arg, buffer, key);
+        /* Add previously skipped part of the key, either "avgcount" or "sum",
+         * and try again. */
+        BUFFER_ADD (key, ".");
+        BUFFER_ADD (key, yajl->state[yajl->depth-1].key);
+
+        status = yajl->handler(yajl->handler_arg, buffer, key);
     }
 
-    if(result == -ENOMEM)
+    if(status == -ENOMEM)
     {
         ERROR("ceph plugin: memory allocation failed");
         return CEPH_CB_ABORT;
     }
 
-    yajl->depth = (yajl->depth - 1);
+    yajl->depth -= 1;
     return CEPH_CB_CONTINUE;
 }
 
@@ -1583,3 +1593,4 @@ void module_register(void)
     plugin_register_read("ceph", ceph_read);
     plugin_register_shutdown("ceph", ceph_shutdown);
 }
+/* vim: set sw=4 sts=4 et : */
