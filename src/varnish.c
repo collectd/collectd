@@ -588,6 +588,7 @@ static int varnish_read (user_data_t *ud) /* {{{ */
 {
 	struct VSM_data *vd;
 	const c_varnish_stats_t *stats;
+	_Bool ok;
 
 	user_config_t *conf;
 
@@ -617,10 +618,11 @@ static int varnish_read (user_data_t *ud) /* {{{ */
 	}
 
 #if HAVE_VARNISH_V3
-	if (VSC_Open (vd, /* diag = */ 1))
+	ok = (VSC_Open (vd, /* diag = */ 1) == 0);
 #else /* if HAVE_VARNISH_V4 */
-	if (VSM_Open (vd))
+	ok = (VSM_Open (vd) == 0);
 #endif
+	if (!ok)
 	{
 		VSM_Delete (vd);
 		ERROR ("varnish plugin: Unable to open connection.");
