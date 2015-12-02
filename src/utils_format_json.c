@@ -33,7 +33,14 @@
 #include "utils_cache.h"
 
 #if HAVE_LIBYAJL
-#include <yajl/yajl_gen.h>
+# include <yajl/yajl_common.h>
+# include <yajl/yajl_gen.h>
+# if HAVE_YAJL_YAJL_VERSION_H
+#  include <yajl/yajl_version.h>
+# endif
+# if defined(YAJL_MAJOR) && (YAJL_MAJOR > 1)
+#  define HAVE_YAJL_V2 1
+# endif
 #endif
 
 static int json_escape_string (char *buffer, size_t buffer_size, /* {{{ */
@@ -655,18 +662,33 @@ int format_json_notification (char *buffer, size_t buffer_size, /* {{{ */
 {
   yajl_gen g;
   unsigned char const *out;
+#if HAVE_YAJL_V2
   size_t unused_out_len;
+#else
+  unsigned int unused_out_len;
+#endif
 
   if ((buffer == NULL) || (n == NULL))
     return EINVAL;
 
+#if HAVE_YAJL_V2
   g = yajl_gen_alloc (NULL);
   if (g == NULL)
     return -1;
-
-#if COLLECT_DEBUG
+# if COLLECT_DEBUG
   yajl_gen_config (g, yajl_gen_beautify);
   yajl_gen_config (g, yajl_gen_validate_utf8);
+# endif
+
+#else /* !HAVE_YAJL_V2 */
+  yajl_gen_config conf = { 0 };
+# if COLLECT_DEBUG
+  conf.beautify = 1;
+  conf.indentString = "  ";
+# endif
+  g = yajl_gen_alloc (&conf, NULL);
+  if (g == NULL)
+    return -1;
 #endif
 
   if (format_alert (g, n) != 0)

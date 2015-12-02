@@ -29,7 +29,14 @@
 #include "utils_format_json.h"
 #include "common.h" /* for STATIC_ARRAY_SIZE */
 
+#include <yajl/yajl_common.h>
 #include <yajl/yajl_parse.h>
+#if HAVE_YAJL_YAJL_VERSION_H
+# include <yajl/yajl_version.h>
+#endif
+#if defined(YAJL_MAJOR) && (YAJL_MAJOR > 1)
+# define HAVE_YAJL_V2 1
+#endif
 
 struct label_s
 {
@@ -47,7 +54,11 @@ struct test_case_s
 };
 typedef struct test_case_s test_case_t;
 
+#if HAVE_YAJL_V2
 static int test_map_key (void *ctx, unsigned char const *key, size_t key_len)
+#else
+static int test_map_key (void *ctx, unsigned char const *key, unsigned int key_len)
+#endif
 {
   test_case_t *c = ctx;
   size_t i;
@@ -81,7 +92,11 @@ static int expect_label (char const *name, char const *got, char const *want)
   return 0;
 }
 
+#if HAVE_YAJL_V2
 static int test_string (void *ctx, unsigned char const *value, size_t value_len)
+#else
+static int test_string (void *ctx, unsigned char const *value, unsigned int value_len)
+#endif
 {
   test_case_t *c = ctx;
 
@@ -116,7 +131,11 @@ static int expect_json_labels (char *json, label_t *labels, size_t labels_num)
   test_case_t c = { labels, labels_num, NULL };
 
   yajl_handle hndl;
-  CHECK_NOT_NULL (hndl = yajl_alloc (&funcs, NULL, &c));
+#if HAVE_YAJL_V2
+  CHECK_NOT_NULL (hndl = yajl_alloc (&funcs, /* alloc = */ NULL, &c));
+#else
+  CHECK_NOT_NULL (hndl = yajl_alloc (&funcs, /* config = */ NULL, /* alloc = */ NULL, &c));
+#endif
   OK (yajl_parse (hndl, (unsigned char *) json, strlen (json)) == yajl_status_ok);
 
   yajl_free (hndl);
@@ -134,7 +153,7 @@ DEF_TEST(notification)
   };
 
   /* 1448284606.125 ^= 1555083754651779072 */
-  notification_t n = { NOTIF_WARNING, 1555083754651779072, "this is a message",
+  notification_t n = { NOTIF_WARNING, 1555083754651779072ULL, "this is a message",
     "example.com", "unit", "", "test", "case", NULL };
 
   char got[1024];
