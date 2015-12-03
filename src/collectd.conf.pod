@@ -2503,9 +2503,9 @@ instance "visible"). 0 means no GPS satellites are visible.
 
 =item B<dilution_of_precision>
 
-Vertical and horizontal dilution.
+Vertical and horizontal dilution (type instance "horizontal" or "vertical").
 It should be between 0 and 3.
-Look at the documentaiton of your GPS to know more.
+Look at the documentation of your GPS to know more.
 
 =back
 
@@ -2518,10 +2518,8 @@ Synopsis:
    Port "2947"
    # 15 ms timeout
    Timeout 0.015
-   # PauseRead of 5 sec. between readings:
-   PauseRead 5
-   # PauseConnect of 1 sec. between connection tentatives:
-   PauseConnect 1
+   # PauseConnect of 5 sec. between connection attempts.
+   PauseConnect 5
  </Plugin>
 
 Available configuration options:
@@ -2530,7 +2528,7 @@ Available configuration options:
 
 =item B<Host> I<Host>
 
-The host on which gpsd runs. Defaults to B<localhost>.
+The host on which gpsd daemon runs. Defaults to B<localhost>.
 
 =item B<Port> I<Port>
 
@@ -2540,13 +2538,17 @@ Port to connect to gpsd on the host machine. Defaults to B<2947>.
 
 Timeout in seconds (default 0.015 sec).
 
-=item B<PauseRead> I<Seconds>
+The GPS data stream is fetch by the plugin form the daemon.
+It waits for data to be available, if none arrives it times out 
+and loop for another reading.
+Mind to put a low value gpsd expects value in the micro-seconds area (500 us) since 
+the waiting function is blocking.
 
-Pause to apply between readings in seconds (default 1 sec).
+This only applies from gpsd release-2.95.
 
 =item B<PauseConnect> I<Seconds>
 
-Pause to apply between tentative of connection in seconds (default 1 sec).
+Pause to apply between attempts of connection to gpsd in seconds (default 5 sec).
 
 =back
 

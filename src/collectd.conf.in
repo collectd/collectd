@@ -560,8 +560,7 @@
 #  Host "127.0.0.1"
 #  Port "2947"
 #  Timeout 0.015
-#  PauseRead    10
-#  PauseConnect 1
+#  PauseConnect 5
 #</Plugin>
 
 #<Plugin hddtemp>

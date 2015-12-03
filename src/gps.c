@@ -35,9 +35,8 @@
 #define CGPS_TRUE                  1
 #define CGPS_FALSE                 0
 #define CGPS_DEFAULT_HOST          "localhost"
-#define CGPS_DEFAULT_PORT          "2947"
+#define CGPS_DEFAULT_PORT          "2947" /* DEFAULT_GPSD_PORT */
 #define CGPS_DEFAULT_TIMEOUT       TIME_T_TO_CDTIME_T (0.015)
-#define CGPS_DEFAULT_PAUSE_READ    TIME_T_TO_CDTIME_T (1)
 #define CGPS_DEFAULT_PAUSE_CONNECT TIME_T_TO_CDTIME_T (5)
 #define CGPS_MAX_ERROR             100
 #define CGPS_CONFIG                "?WATCH={\"enable\":true,\"json\":true,\"nmea\":false}\r\n"
@@ -49,7 +48,6 @@ typedef struct {
   char *host;
   char *port;
   cdtime_t timeout;
-  cdtime_t pause_read;
   cdtime_t pause_connect;
 } cgps_config_t;
 
@@ -157,11 +155,6 @@ static void * cgps_thread (void * pData)
       if (!gps_waiting (&gpsd_conn))
 #endif
       {
-        if (cgps_thread_pause(cgps_config_data.pause_read) == CGPS_FALSE)
-        {
-          goto stop;
-        }
-
         continue;
       }
 
@@ -279,8 +272,6 @@ static int cgps_config (oconfig_item_t *ci)
       cf_util_get_service (child, &cgps_config_data.port);
     else if (strcasecmp ("Timeout", child->key) == 0)
       cf_util_get_cdtime (child, &cgps_config_data.timeout);
-    else if (strcasecmp ("Pauseread", child->key) == 0)
-      cf_util_get_cdtime (child, &cgps_config_data.pause_read);
     else if (strcasecmp ("PauseConnect", child->key) == 0)
       cf_util_get_cdtime (child, &cgps_config_data.pause_connect);
     else
@@ -303,11 +294,9 @@ static int cgps_init (void)
     return 0;
   }
 
-  DEBUG ("gps plugin: config{host: \"%s\", port: \"%s\", timeout: %.6f sec., \
-pause read: %.3f sec, pause connect: %.3f sec.}",
+  DEBUG ("gps plugin: config{host: \"%s\", port: \"%s\", timeout: %.6f sec., pause connect: %.3f sec.}",
          cgps_config_data.host, cgps_config_data.port,
          CDTIME_T_TO_DOUBLE (cgps_config_data.timeout),
-         CDTIME_T_TO_DOUBLE (cgps_config_data.pause_read),
          CDTIME_T_TO_DOUBLE (cgps_config_data.pause_connect));
 
   status = plugin_thread_create (&cgps_thread_id, NULL, cgps_thread, NULL);
@@ -354,7 +343,6 @@ void module_register (void)
   cgps_config_data.host = sstrdup (CGPS_DEFAULT_HOST);
   cgps_config_data.port = sstrdup (CGPS_DEFAULT_PORT);
   cgps_config_data.timeout = CGPS_DEFAULT_TIMEOUT;
-  cgps_config_data.pause_read = CGPS_DEFAULT_PAUSE_READ;
   cgps_config_data.pause_connect = CGPS_DEFAULT_PAUSE_CONNECT;
 
   plugin_register_complex_config ("gps", cgps_config);
