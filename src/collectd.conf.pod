@@ -2541,8 +2541,10 @@ Timeout in seconds (default 0.015 sec).
 The GPS data stream is fetch by the plugin form the daemon.
 It waits for data to be available, if none arrives it times out 
 and loop for another reading.
-Mind to put a low value gpsd expects value in the micro-seconds area (500 us) since 
-the waiting function is blocking.
+Mind to put a low value gpsd expects value in the micro-seconds area 
+(recommended is 500 us) since the waiting function is blocking.
+Value must be between 500 us and 5 sec., if outside that range the 
+default value is applied.
 
 This only applies from gpsd release-2.95.
 
