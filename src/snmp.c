@@ -1108,11 +1108,11 @@ static int csnmp_strvbcopy (char *dst, /* {{{ */
     src = (char *) vb->val.bitstring;
   else if (vb->type == ASN_IPADDRESS)
   {
-    return ssnprintf (dst, dst_size, "%d.%d.%d.%d",
-          (uint8_t)vb->val.string[0],
-          (uint8_t)vb->val.string[1],
-          (uint8_t)vb->val.string[2],
-          (uint8_t)vb->val.string[3]);
+    return ssnprintf (dst, dst_size, "%"PRIu8".%"PRIu8".%"PRIu8".%"PRIu8"",
+          (uint8_t) vb->val.string[0],
+          (uint8_t) vb->val.string[1],
+          (uint8_t) vb->val.string[2],
+          (uint8_t) vb->val.string[3]);
   }
   else
   {
