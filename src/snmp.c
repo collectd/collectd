@@ -1106,6 +1106,14 @@ static int csnmp_strvbcopy (char *dst, /* {{{ */
     src = (char *) vb->val.string;
   else if (vb->type == ASN_BIT_STR)
     src = (char *) vb->val.bitstring;
+  else if (vb->type == ASN_IPADDRESS)
+  {
+    return ssnprintf (dst, dst_size, "%d.%d.%d.%d",
+          (uint8_t)vb->val.string[0],
+          (uint8_t)vb->val.string[1],
+          (uint8_t)vb->val.string[2],
+          (uint8_t)vb->val.string[3]);
+  }
   else
   {
     dst[0] = 0;
@@ -1171,7 +1179,7 @@ static int csnmp_instance_list_add (csnmp_list_instances_t **head,
   }
 
   /* Get instance name */
-  if ((vb->type == ASN_OCTET_STR) || (vb->type == ASN_BIT_STR))
+  if ((vb->type == ASN_OCTET_STR) || (vb->type == ASN_BIT_STR) || (vb->type == ASN_IPADDRESS))
   {
     char *ptr;
 
