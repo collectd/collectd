@@ -183,7 +183,7 @@ static int tbl_config_result (tbl_t *tbl, oconfig_item_t *ci)
 
 	res = (tbl_result_t *)realloc (tbl->results,
 			(tbl->results_num + 1) * sizeof (*tbl->results));
-	if (NULL == tbl) {
+	if (res == NULL) {
 		char errbuf[1024];
 		log_err ("realloc failed: %s.",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
