@@ -336,6 +336,7 @@ static int pb_add_socket (pinba_socket_t *s, /* {{{ */
     char errbuf[1024];
     ERROR ("pinba plugin: bind(2) failed: %s",
         sstrerror (errno, errbuf, sizeof (errbuf)));
+    close (fd);
     return (0);
   }
 
