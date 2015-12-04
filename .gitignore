@@ -98,3 +98,4 @@ src/daemon/test_meta_data
 src/daemon/test_utils_avltree
 src/daemon/test_utils_heap
 src/daemon/test_utils_subst
+src/daemon/test_utils_time
