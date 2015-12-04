@@ -95,35 +95,35 @@ struct wg_callback
     c_complain_t init_complaint;
     cdtime_t last_connect_time;
 
-    /*Force reconnect useful for load balanced environments*/
+    /* Force reconnect useful for load balanced environments */
     cdtime_t last_force_reconnect_time;
-    int force_reconnect_timeout;
-    int conn_forced_closed;
+    cdtime_t force_reconnect_timeout;
+    _Bool conn_forced_closed;
 };
 
-/*
-* Force Reconnect functions
-*/
-
-static void wg_force_reconnect_check(struct wg_callback *cb)
+/* wg_force_reconnect_check closes cb->sock_fd when it was open for longer
+ * than cb->force_reconnect_timeout. Must hold cb->send_lock when calling. */
+static void wg_force_reconnect_check (struct wg_callback *cb)
 {
     cdtime_t now;
-    if(!cb->force_reconnect_timeout) return;
-    //check if address changes if addr_timeout
+
+    if (cb->force_reconnect_timeout == 0)
+        return;
+
+    /* check if address changes if addr_timeout */
     now = cdtime ();
-    DEBUG("wg_force_reconnect_check: now %ld last: %ld ",CDTIME_T_TO_TIME_T(now),CDTIME_T_TO_TIME_T(cb->last_force_reconnect_time));
-    if ((now - cb->last_force_reconnect_time) < TIME_T_TO_CDTIME_T(cb->force_reconnect_timeout)){
-       return;
-    }
-    //here we should close connection on next
+    if ((now - cb->last_force_reconnect_time) < cb->force_reconnect_timeout)
+        return;
+
+    /* here we should close connection on next */
     close (cb->sock_fd);
     cb->sock_fd = -1;
-    INFO("Connection Forced closed after %ld seconds ",CDTIME_T_TO_TIME_T(now - cb->last_force_reconnect_time));
     cb->last_force_reconnect_time = now;
-    cb->conn_forced_closed=1;
+    cb->conn_forced_closed = 1;
+
+    INFO ("write_graphite plugin: Connection closed after %.3f seconds.",
+          CDTIME_T_TO_DOUBLE (now - cb->last_force_reconnect_time));
 }
-
-
 
 /*
  * Functions
@@ -277,16 +277,15 @@ static int wg_callback_init (struct wg_callback *cb)
                 "write_graphite plugin: Successfully connected to %s:%s via %s.",
                 cb->node, cb->service, cb->protocol);
     }
-    if(!cb->conn_forced_closed || cb->send_buf_free== 0)
-    {
-        /*when not forced connection*/
-        /*or buffer not initialized -- happens if forceReconnect happens before first connection*/
+
+    /* wg_force_reconnect_check does not flush the buffer before closing a
+     * sending socket, so only call wg_reset_buffer() if the socket was closed
+     * for a different reason (tracked in cb->conn_forced_closed). */
+    if (!cb->conn_forced_closed || (cb->send_buf_free == 0))
         wg_reset_buffer (cb);
-    }
-    else {
-         /*if forced connection don't reset buffer with valid metrics when reconnect*/
-         cb->conn_forced_closed=0;
-    }
+    else
+        cb->conn_forced_closed = 0;
+
     return (0);
 }
 
@@ -361,7 +360,7 @@ static int wg_send_message (char const *message, struct wg_callback *cb)
 
     pthread_mutex_lock (&cb->send_lock);
 
-    wg_force_reconnect_check(cb);
+    wg_force_reconnect_check (cb);
 
     if (cb->sock_fd < 0)
     {
@@ -499,9 +498,9 @@ static int wg_config_node (oconfig_item_t *ci)
     cb->node = strdup (WG_DEFAULT_NODE);
     cb->service = strdup (WG_DEFAULT_SERVICE);
     cb->protocol = strdup (WG_DEFAULT_PROTOCOL);
-    cb->last_force_reconnect_time=cdtime();
-    cb->force_reconnect_timeout=0;
-    cb->conn_forced_closed=0;
+    cb->last_force_reconnect_time = cdtime();
+    cb->force_reconnect_timeout = 0;
+    cb->conn_forced_closed = 0;
     cb->log_send_errors = WG_DEFAULT_LOG_SEND_ERRORS;
     cb->prefix = NULL;
     cb->postfix = NULL;
@@ -543,7 +542,7 @@ static int wg_config_node (oconfig_item_t *ci)
             }
         }
         else if (strcasecmp ("ForceReconnectTimeout", child->key) == 0)
-            cf_util_get_int (child,&cb->force_reconnect_timeout);
+            cf_util_get_cdtime (child, &cb->force_reconnect_timeout);
         else if (strcasecmp ("LogSendErrors", child->key) == 0)
             cf_util_get_boolean (child, &cb->log_send_errors);
         else if (strcasecmp ("Prefix", child->key) == 0)
