@@ -7277,6 +7277,14 @@ Service name or port number to connect to. Defaults to C<2003>.
 
 Protocol to use when connecting to I<Graphite>. Defaults to C<tcp>.
 
+=item B<ReconnectInterval> I<Seconds>
+
+When set to non-zero, forces the connection to the Graphite backend to be
+closed and re-opend periodically. This behavior is desirable in environments
+where the connection to the Graphite backend is done through load balancers,
+for example. When set to zero, the default, the connetion is kept open for as
+long as possible.
+
 =item B<LogSendErrors> B<false>|B<true>
 
 If set to B<true> (the default), logs errors when sending data to I<Graphite>.
