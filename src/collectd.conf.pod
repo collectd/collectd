@@ -4957,6 +4957,13 @@ Default: B<0.9>
 
 Sets the Time-To-Live of generated ICMP packets.
 
+=item B<Size> I<size>
+
+Sets the size of the data payload in ICMP packet to specified I<size> (it
+will be filled with regular ASCII pattern). If not set, default 56 byte
+long string is used so that the packet size of an ICMPv4 packet is exactly
+64 bytes, similar to the behaviour of normal ping(1) command.
+
 =item B<SourceAddress> I<host>
 
 Sets the source address to use. I<host> may either be a numerical network
