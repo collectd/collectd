@@ -186,7 +186,7 @@ static int za_read (void)
 		return (-1);
 	}
 
-	len = read_file_contents (ZOL_ARCSTATS_FILE, file_contents, sizeof(file_contents));
+	len = read_file_contents (ZOL_ARCSTATS_FILE, file_contents, sizeof(file_contents) - 1);
 	if (len > 1)
 	{
 
