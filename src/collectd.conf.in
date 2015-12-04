@@ -1347,6 +1347,7 @@
 #    Host "localhost"
 #    Port "2003"
 #    Protocol "tcp"
+#    ReconnectInterval 0
 #    LogSendErrors true
 #    Prefix "collectd"
 #    Postfix "collectd"
