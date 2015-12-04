@@ -285,6 +285,7 @@ static int interface_read (void)
 	int i;
 	derive_t rx;
 	derive_t tx;
+	char iname[DATA_MAX_NAME_LEN];
 
 	if (kc == NULL)
 		return (-1);
@@ -293,6 +294,8 @@ static int interface_read (void)
 	{
 		if (kstat_read (kc, ksp[i], NULL) == -1)
 			continue;
+
+		snprintf(iname, sizeof(iname), "%s_%d_%s", ksp[i]->ks_module, ksp[i]->ks_instance, ksp[i]->ks_name);
 
 		/* try to get 64bit counters */
 		rx = get_kstat_value (ksp[i], "rbytes64");
@@ -303,7 +306,7 @@ static int interface_read (void)
 		if (tx == -1LL)
 			tx = get_kstat_value (ksp[i], "obytes");
 		if ((rx != -1LL) || (tx != -1LL))
-			if_submit (ksp[i]->ks_name, "if_octets", rx, tx);
+			if_submit (iname, "if_octets", rx, tx);
 
 		/* try to get 64bit counters */
 		rx = get_kstat_value (ksp[i], "ipackets64");
@@ -314,13 +317,13 @@ static int interface_read (void)
 		if (tx == -1LL)
 			tx = get_kstat_value (ksp[i], "opackets");
 		if ((rx != -1LL) || (tx != -1LL))
-			if_submit (ksp[i]->ks_name, "if_packets", rx, tx);
+			if_submit (iname, "if_packets", rx, tx);
 
 		/* no 64bit error counters yet */
 		rx = get_kstat_value (ksp[i], "ierrors");
 		tx = get_kstat_value (ksp[i], "oerrors");
 		if ((rx != -1LL) || (tx != -1LL))
-			if_submit (ksp[i]->ks_name, "if_errors", rx, tx);
+			if_submit (iname, "if_errors", rx, tx);
 	}
 /* #endif HAVE_LIBKSTAT */
 
