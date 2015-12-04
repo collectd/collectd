@@ -703,6 +703,7 @@ static oconfig_item_t *cf_read_dir (const char *dir,
 	if (root == NULL)
 	{
 		ERROR ("configfile: malloc failed.");
+		closedir (dh);
 		return (NULL);
 	}
 	memset (root, 0, sizeof (oconfig_item_t));
@@ -722,6 +723,7 @@ static oconfig_item_t *cf_read_dir (const char *dir,
 			ERROR ("configfile: Not including `%s/%s' because its"
 					" name is too long.",
 					dir, de->d_name);
+			closedir (dh);
 			for (i = 0; i < filenames_num; ++i)
 				free (filenames[i]);
 			free (filenames);
@@ -734,6 +736,7 @@ static oconfig_item_t *cf_read_dir (const char *dir,
 				filenames_num * sizeof (*filenames));
 		if (tmp == NULL) {
 			ERROR ("configfile: realloc failed.");
+			closedir (dh);
 			for (i = 0; i < filenames_num - 1; ++i)
 				free (filenames[i]);
 			free (filenames);
@@ -746,7 +749,10 @@ static oconfig_item_t *cf_read_dir (const char *dir,
 	}
 
 	if (filenames == NULL)
+	{
+		closedir (dh);
 		return (root);
+	}
 
 	qsort ((void *) filenames, filenames_num, sizeof (*filenames),
 			cf_compare_string);
@@ -771,11 +777,12 @@ static oconfig_item_t *cf_read_dir (const char *dir,
 		free (name);
 	}
 
+	closedir (dh);
 	free(filenames);
 	return (root);
 } /* oconfig_item_t *cf_read_dir */
 
-/* 
+/*
  * cf_read_generic
  *
  * Path is stat'ed and either cf_read_file or cf_read_dir is called
