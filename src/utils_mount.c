@@ -762,13 +762,13 @@ void cu_mount_freelist (cu_mount_t *list)
 char *
 cu_mount_checkoption(char *line, char *keyword, int full)
 {
-	char *line2, *l2;
-	int l = strlen(keyword);
-	char *p1, *p2;
+	char *line2, *l2, *p1, *p2;
+	int l;
 
 	if(line == NULL || keyword == NULL) {
 		return NULL;
 	}
+
 	if(full != 0) {
 		full = 1;
 	}
@@ -782,6 +782,7 @@ cu_mount_checkoption(char *line, char *keyword, int full)
 		l2++;
 	}
 
+	l = strlen(keyword);
 	p1 = line - 1;
 	p2 = strchr(line, ',');
 	do {
