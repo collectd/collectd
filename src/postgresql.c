@@ -1042,7 +1042,7 @@ static int config_query_param_add (udb_query_t *q, oconfig_item_t *ci)
 
 	data = udb_query_get_user_data (q);
 	if (NULL == data) {
-		data = (c_psql_user_data_t *) smalloc (sizeof (*data));
+		data = (c_psql_user_data_t *) malloc (sizeof (*data));
 		if (NULL == data) {
 			log_err ("Out of memory.");
 			return -1;
