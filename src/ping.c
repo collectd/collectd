@@ -543,26 +543,21 @@ static int ping_config (const char *key, const char *value) /* {{{ */
           tmp, value);
   }
   else if (strcasecmp (key, "Size") == 0) {
-    int size;
+    size_t size = (size_t) atoi (value);
 
-    if (ping_data != NULL)
+    /* Max IP packet size - (IPv6 + ICMP) = 65535 - (40 + 8) = 65487 */
+    if (size <= 65487)
     {
-      free (ping_data);
-      ping_data = NULL;
-    }
+      size_t i;
 
-    size = atoi (value);
-    if ((size >= 0) && (size <= 65536))
-    {
-      int i;
-      ping_data = (char *) malloc(size + 1);
+      sfree (ping_data);
+      ping_data = malloc (size + 1);
       if (ping_data == NULL)
       {
-        char errbuf[1024];
-        ERROR ("ping plugin: malloc failed: %s",
-            sstrerror (errno, errbuf, sizeof (errbuf)));
+        ERROR ("ping plugin: malloc failed.");
         return (1);
       }
+
       /* Note: By default oping is using constant string
        * "liboping -- ICMP ping library <http://octo.it/liboping/>"
        * which is exactly 56 bytes.
@@ -576,9 +571,9 @@ static int ping_config (const char *key, const char *value) /* {{{ */
          * printable characters, and not NUL character. */
         ping_data[i] = ('0' + i % 64);
       }  /* }}} for (i = 0; i < size; i++) */
-      ping_data[size] = '\0';
+      ping_data[size] = 0;
     } else
-      WARNING ("ping plugin: Ignoring invalid Size %i.", size);
+      WARNING ("ping plugin: Ignoring invalid Size %zu.", size);
   }
   else if (strcasecmp (key, "Timeout") == 0)
   {
