@@ -1000,6 +1000,7 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 	{
 		WARNING ("Varnish plugin: \"Instance\" blocks accept only "
 				"one argument.");
+		sfree (conf);
 		return (EINVAL);
 	}
 
@@ -1107,6 +1108,7 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 		WARNING ("Varnish plugin: No metric has been configured for "
 				"instance \"%s\". Disabling this instance.",
 				(conf->instance == NULL) ? "localhost" : conf->instance);
+		sfree (conf);
 		return (EINVAL);
 	}
 
