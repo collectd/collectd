@@ -208,6 +208,11 @@ static int za_read (void)
 		{
 			llentry_t *e;
 			llvalues = malloc(sizeof(long long int) * i);
+			if (llvalues == NULL)
+			{
+				ERROR ("zfs_arc plugin: `malloc' failed.");
+				return (-1);
+			}
 			int j = 0;
 
 			pnl = file_contents;
