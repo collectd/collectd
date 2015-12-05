@@ -148,7 +148,6 @@ static int server_open_socket (lcc_server_t *srv) /* {{{ */
 
     if (ai_ptr->ai_family == AF_INET)
     {
-
       struct sockaddr_in *addr = (struct sockaddr_in *) ai_ptr->ai_addr;
       int optname;
 
@@ -157,9 +156,8 @@ static int server_open_socket (lcc_server_t *srv) /* {{{ */
       else
         optname = IP_TTL;
 
-      setsockopt (srv->fd, IPPROTO_IP, optname,
-          &srv->ttl,
-          sizeof (srv->ttl));
+      status = setsockopt (srv->fd, IPPROTO_IP, optname,
+          &srv->ttl, sizeof (srv->ttl));
     }
     else if (ai_ptr->ai_family == AF_INET6)
     {
@@ -172,9 +170,15 @@ static int server_open_socket (lcc_server_t *srv) /* {{{ */
       else
         optname = IPV6_UNICAST_HOPS;
 
-      setsockopt (srv->fd, IPPROTO_IPV6, optname,
-          &srv->ttl,
-          sizeof (srv->ttl));
+      status = setsockopt (srv->fd, IPPROTO_IPV6, optname,
+          &srv->ttl, sizeof (srv->ttl));
+    }
+    if (status != 0)
+    {
+      /* setsockopt failed. */
+      close (srv->fd);
+      srv->fd = -1;
+      continue;
     }
 
     srv->sa = malloc (ai_ptr->ai_addrlen);
