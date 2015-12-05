@@ -7349,6 +7349,8 @@ packets.
 Synopsis:
 
  <Plugin write_tsdb>
+   DNS_Cache_TTL 60
+   DNS_Random_Cache_TTL 60
    <Node "example">
      Host "tsd-1.my.domain"
      Port "4242"
@@ -7357,7 +7359,34 @@ Synopsis:
  </Plugin>
 
 The configuration consists of one or more E<lt>B<Node>E<nbsp>I<Name>E<gt>
-blocks. Inside the B<Node> blocks, the following options are recognized:
+blocks and global directives.
+
+Global directives are:
+
+=over 4
+
+=item B<DNS_Cache_TTL> I<ttl>
+
+=item B<DNS_Random_Cache_TTL> I<ttl>
+
+When Collectd connects to a TSDB node, it will request the DNS. This can become
+a problem is the TSDN node is unavailable or badly configured because Collected
+will request DNS in order to reconnect for every metric, which can flood your DNS.
+So you can cache the last value for C<ttl> seconds (default: 600s e.g; 10 min).
+
+You can also define a random ttl. This prevents all your Collectd servers to
+request the DNS at the same time when the connection fails. Default value is
+15 * the write_tsdb interval (or the global interval if write_tsdb interval is not
+defined).
+
+Note : if the DNS resolution has already been successful, if the socket closes,
+the plugin will try to reconnect as soon as possible with the cached information.
+DNS is queried only when the socket is closed for a long time (DNS_Cache_TTL + 
+DNS_Random_Cache_TTL)
+
+=back
+
+Inside the B<Node> blocks, the following options are recognized:
 
 =over 4
 
@@ -7389,6 +7418,85 @@ identifier. If set to B<false> (the default), this is only done when there is
 more than one DS.
 
 =back
+
+=head3 Note about rules and metadata
+
+The C<write_tsdb> plugin recognizes metadata :
+
+=over 4
+
+=item B<tsdb_prefix> B<Prefix>
+
+If set, metric name will be prefixed with B<Prefix>.
+
+Note : B<tsdb_prefix> also applies when you define B<tsdb_id>.
+
+=item B<tsdb_id> B<Id>
+
+When you define B<tsdb_id>, the metric name is not calculated but is B<Id> (with prefix if you defined B<tsdb_prefix>).
+
+=item B<tsdb_tag_plugin> B<tag_key>
+
+=item B<tsdb_tag_pluginInstance> B<tag_key>
+
+=item B<tsdb_tag_type> B<tag_key>
+
+=item B<tsdb_tag_typeInstance> B<tag_key>
+
+=item B<tsdb_tag_dsname> B<tag_key>
+
+If a B<tsdb_tag_*> is defined, the related item is removed from the metric name. If B<tag_key> is not empty,
+a tag will be added with key B<tag_key> and value the item.
+
+=item B<tsdb_tag_add_XX> B<tag_value>
+
+When you define a B<tsdb_tag_add_XX>, a B<tag_key>=B<tag_value> key-value pair tag is added. The
+key comes from B<tsdb_tag_add_XX> and would be B<XX> here. Note that you cannot define the same tag twice.
+Examples: 
+
+  MetaDataSet "tsdb_tag_add_k1" "v1"
+  MetaDataSet "tsdb_tag_add_k2" "v2"
+  MetaDataSet "tsdb_tag_add_k3" "v3"
+
+=back
+
+Example without B<tsdb_tag_*> :
+
+  cpu.1.cpu.user
+
+Same example with  :
+  tsdb_tag_pluginInstance = "cpu"
+  tsdb_tag_type = ""
+
+We get :
+  cpu.user cpu=1
+
+In this example, pluginInstance (named "1") is removed from the metric name and is set as a tag named "cpu".
+The type (named "cpu") is removed because B<tsdb_tag_type> is defined but is empty.
+
+You can define tags with filter rules and target_set :
+
+  <Chain "PreCache">
+    <Rule "opentsdb_cpu">
+      <Match "regex">
+        Plugin "^cpu$"
+      </Match>
+      <Target "set">
+        MetaDataSet "tsdb_tag_pluginInstance" "cpu"
+        MetaDataSet "tsdb_tag_type" ""
+      </Target>
+    </Rule>
+    <Rule "opentsdb_prefix">
+      <Match "regex">
+        Host "^"
+      </Match>
+      <Target "set">
+        MetaDataSet "tsdb_prefix" "sys."
+      </Target>
+    </Rule>
+  </Chain>
+
+This example will replace (for example) "cpu.1.cpu.user" with "sys.cpu.user cpu=1"
 
 =head2 Plugin C<write_mongodb>
 
@@ -8890,6 +8998,8 @@ Available options:
 =item B<PluginInstance> I<String>
 
 =item B<TypeInstance> I<String>
+
+=item B<MetaDataSet> I<String> I<String>
 
 Set the appropriate field to the given string. The strings for plugin instance
 and type instance may be empty, the strings for host and plugin may not be
