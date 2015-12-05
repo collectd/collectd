@@ -2185,7 +2185,7 @@ then
 		fi
 
 		AC_MSG_CHECKING([for libjvm.so])
-		TMPVAR=`find -L "$with_java_home" -name libjvm.so -type f -exec 'dirname' '{}' ';' 2>/dev/null | head -n 1`
+		TMPVAR=`find -L "$with_java_home" -type f -name libjvm.so -o -name libjvm.dylib -exec 'dirname' '{}' ';' 2>/dev/null | head -n 1`
 		if test "x$TMPVAR" != "x"
 		then
 			AC_MSG_RESULT([found in $TMPVAR])
