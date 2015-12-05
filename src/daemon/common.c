@@ -1169,6 +1169,9 @@ int parse_values (char *buffer, value_list_t *vl, const data_set_t *ds)
 	char *ptr;
 	char *saveptr;
 
+	if ((buffer == NULL) || (vl == NULL) || (ds == NULL))
+		return EINVAL;
+
 	i = 0;
 	dummy = buffer;
 	saveptr = NULL;
