@@ -977,10 +977,6 @@ int fc_process_chain (const data_set_t *ds, value_list_t *vl, /* {{{ */
   else if (status == FC_TARGET_RETURN)
     return (FC_TARGET_CONTINUE);
 
-  /* for-loop has been aborted: A target returned `FC_TARGET_STOP' */
-  if (rule != NULL)
-    return (FC_TARGET_CONTINUE);
-
   DEBUG ("fc_process_chain (%s): Executing the default targets.",
       chain->name);
 
