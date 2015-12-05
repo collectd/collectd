@@ -1207,6 +1207,7 @@ static int rrd_init (void)
 	cache = c_avl_create ((int (*) (const void *, const void *)) strcmp);
 	if (cache == NULL)
 	{
+		pthread_mutex_unlock (&cache_lock);
 		ERROR ("rrdtool plugin: c_avl_create failed.");
 		return (-1);
 	}
