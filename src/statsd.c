@@ -565,6 +565,7 @@ static int statsd_network_init (struct pollfd **ret_fds, /* {{{ */
     if (tmp == NULL)
     {
       ERROR ("statsd plugin: realloc failed.");
+      close (fd);
       continue;
     }
     fds = tmp;

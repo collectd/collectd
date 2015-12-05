@@ -679,6 +679,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 	char *handlers_str = build_json_str_list("handlers", &(host->notification_handlers));
 	if (handlers_str == NULL) {
 		ERROR("write_sensu plugin: Unable to alloc memory");
+		free(ret_str);
 		return NULL;
 	}
 	// incorporate the handlers
@@ -780,6 +781,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 		char *msg = replace_json_reserved(n->message);
 		if (msg == NULL) {
 			ERROR("write_sensu plugin: Unable to alloc memory");
+			free(ret_str);
 			return NULL;
 		}
 		res = asprintf(&temp_str, "%s, \"output\": \"%s - %s\"", ret_str, severity, msg);
