@@ -212,7 +212,6 @@ static int wt_callback_init(struct wt_callback *cb)
         ERROR("write_tsdb plugin: Connecting to %s:%s failed. "
               "The last error was: %s", node, service,
               sstrerror (errno, errbuf, sizeof(errbuf)));
-        close(cb->sock_fd);
         return -1;
     }
 
