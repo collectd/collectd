@@ -696,7 +696,7 @@ static int cx_config_add_values (const char *name, cx_xpath_t *xpath, /* {{{ */
     sstrncpy (xpath->values[i].path, ci->values[i].value.string, sizeof (xpath->values[i].path));
   }
 
-  return (0); 
+  return (0);
 } /* }}} cx_config_add_values */
 
 static int cx_config_add_xpath (cx_t *db, /* {{{ */
@@ -726,6 +726,7 @@ static int cx_config_add_xpath (cx_t *db, /* {{{ */
   {
     ERROR ("curl_xml plugin: invalid xpath. "
            "xpath value can't be an empty string");
+    sfree (xpath);
     return (-1);
   }
 
@@ -769,6 +770,8 @@ static int cx_config_add_xpath (cx_t *db, /* {{{ */
       if (db->list == NULL)
       {
         ERROR ("curl_xml plugin: list creation failed.");
+        sfree (xpath->path);
+        sfree (xpath);
         return (-1);
       }
     }
@@ -777,6 +780,8 @@ static int cx_config_add_xpath (cx_t *db, /* {{{ */
     if (name == NULL)
     {
         ERROR ("curl_xml plugin: strdup failed.");
+        sfree (xpath->path);
+        sfree (xpath);
         return (-1);
     }
 
@@ -784,6 +789,8 @@ static int cx_config_add_xpath (cx_t *db, /* {{{ */
     if (le == NULL)
     {
       ERROR ("curl_xml plugin: llentry_create failed.");
+      sfree (xpath->path);
+      sfree (xpath);
       return (-1);
     }
 
