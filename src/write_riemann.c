@@ -1051,6 +1051,7 @@ static int riemann_config(oconfig_item_t *ci) /* {{{ */
 			}
 			if ((val = strdup(child->values[1].value.string)) == NULL) {
 				WARNING("cannot allocate memory for attribute value.");
+				sfree (key);
 				return (-1);
 			}
 			strarray_add(&riemann_attrs, &riemann_attrs_num, key);
