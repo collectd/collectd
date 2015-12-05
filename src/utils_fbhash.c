@@ -41,7 +41,7 @@ struct fbhash_s
   c_avl_tree_t *tree;
 };
 
-/* 
+/*
  * Private functions
  */
 static void fbh_free_tree (c_avl_tree_t *tree) /* {{{ */
@@ -198,7 +198,7 @@ static int fbh_check_file (fbhash_t *h) /* {{{ */
   return (status);
 } /* }}} int fbh_check_file */
 
-/* 
+/*
  * Public functions
  */
 fbhash_t *fbh_create (const char *file) /* {{{ */
@@ -228,6 +228,7 @@ fbhash_t *fbh_create (const char *file) /* {{{ */
   if (status != 0)
   {
     fbh_destroy (h);
+    free (h);
     return (NULL);
   }
 
