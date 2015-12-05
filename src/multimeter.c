@@ -161,9 +161,10 @@ static int multimeter_init (void)
 			int rts = TIOCM_RTS;
 			double value;
 
+			memset (&tios, 0, sizeof (tios));
 			tios.c_cflag = B1200 | CS7 | CSTOPB | CREAD | CLOCAL;
 			tios.c_iflag = IGNBRK | IGNPAR;
-	    		tios.c_oflag = 0;
+			tios.c_oflag = 0;
 			tios.c_lflag = 0;
 			tios.c_cc[VTIME] = 3;
 			tios.c_cc[VMIN]  = LINE_LENGTH;
