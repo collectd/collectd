@@ -153,9 +153,9 @@ static int multimeter_init (void)
 
 	for (i = 0; i < 10; i++)
 	{
-		device[strlen(device)-1] = i + '0'; 
+		device[strlen(device)-1] = i + '0';
 
-		if ((fd = open(device, O_RDWR | O_NOCTTY)) > 0)
+		if ((fd = open(device, O_RDWR | O_NOCTTY)) != -1)
 		{
 			struct termios tios;
 			int rts = TIOCM_RTS;
@@ -171,7 +171,7 @@ static int multimeter_init (void)
 			tcflush(fd, TCIFLUSH);
 			tcsetattr(fd, TCSANOW, &tios);
 			ioctl(fd, TIOCMBIC, &rts);
-			
+
     			if (multimeter_read_value (&value) < -1)
 			{
 				close (fd);

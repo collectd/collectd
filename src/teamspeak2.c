@@ -258,6 +258,7 @@ static int tss2_get_socket (FILE **ret_read_fh, FILE **ret_write_fh)
 			WARNING ("teamspeak2 plugin: connect failed: %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			close (sd);
+			sd = -1;
 			continue;
 		}
 
