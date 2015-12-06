@@ -86,6 +86,7 @@ src/tests/mock/.dirstamp
 src/test_utils_latency
 src/test_utils_mount
 src/test_utils_vl_lookup
+src/test_plugin_ceph
 test*.log
 *.trs
 
