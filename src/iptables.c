@@ -65,10 +65,6 @@ static const char *config_keys[] =
 	"Chain6"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
-/*
-    Each table/chain combo that will be queried goes into this list
-*/
-
 enum protocol_version_e
 {
     IPV4,
@@ -76,6 +72,9 @@ enum protocol_version_e
 };
 typedef enum protocol_version_e protocol_version_t;
 
+/*
+ * Each table/chain combo that will be queried goes into this list
+ */
 #ifndef XT_TABLE_MAXNAMELEN
 # define XT_TABLE_MAXNAMELEN 32
 #endif
