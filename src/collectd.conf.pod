@@ -2525,6 +2525,17 @@ do that: By setting B<IgnoreSelected> to I<true> the effect of
 B<Interface> is inverted: All selected interfaces are ignored and all
 other interfaces are collected.
 
+=item B<UniqueName> I<true>|I<false>
+
+Interface name is not unique on Solaris (KSTAT), interface name is unique 
+only within a module/instance. Following tuple is considered unique: 
+   (ks_module, ks_instance, ks_name)
+If this option is set to true, interface name contains above three fields
+separated by an underscore. For more info on KSTAT, visit
+L<http://docs.oracle.com/cd/E23824_01/html/821-1468/kstat-3kstat.html#REFMAN3Ekstat-3kstat>
+
+This option is only available on Solaris.
+
 =back
 
 =head2 Plugin C<ipmi>
