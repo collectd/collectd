@@ -92,13 +92,13 @@ static const char *config_keys[] =
 static int config_keys_num = 2;
 
 static ignorelist_t *ignorelist = NULL;
-static _Bool unique_name = 0;
 
 #ifdef HAVE_LIBKSTAT
 #define MAX_NUMIF 256
 extern kstat_ctl_t *kc;
 static kstat_t *ksp[MAX_NUMIF];
 static int numif = 0;
+static _Bool unique_name = 0;
 #endif /* HAVE_LIBKSTAT */
 
 static int interface_config (const char *key, const char *value)
@@ -119,8 +119,12 @@ static int interface_config (const char *key, const char *value)
 	}
 	else if (strcasecmp (key, "UniqueName") == 0)
 	{
+		#ifdef HAVE_LIBKSTAT
 		if (IS_TRUE (value))
 			unique_name = 1;
+		#else
+			WARNING ("interface plugin: the \"UniqueName\" option is only valid on Solaris.");
+		#endif /* HAVE_LIBKSTAT */
 	}
 	else
 	{
@@ -305,9 +309,9 @@ static int interface_read (void)
 			continue;
 
 		if (unique_name)
-			snprintf(iname, sizeof(iname), "%s_%d_%s", ksp[i]->ks_module, ksp[i]->ks_instance, ksp[i]->ks_name);
+			ssnprintf(iname, sizeof(iname), "%s_%d_%s", ksp[i]->ks_module, ksp[i]->ks_instance, ksp[i]->ks_name);
 		else
-			snprintf(iname, sizeof(iname), "%s", ksp[i]->ks_name);
+			sstrncpy(iname, ksp[i]->ks_name, sizeof(iname));
 
 		/* try to get 64bit counters */
 		rx = get_kstat_value (ksp[i], "rbytes64");
