@@ -686,6 +686,13 @@ have_cpuid_h="no"
 AC_CHECK_HEADERS(cpuid.h, [have_cpuid_h="yes"])
 
 AC_CHECK_HEADERS(sys/capability.h)
+
+# For the interface plugin on Solaris
+if test "x$ac_system" = "xSolaris"
+then
+	AC_CHECK_HEADERS(zone.h)
+fi
+
 #
 # Checks for typedefs, structures, and compiler characteristics.
 #

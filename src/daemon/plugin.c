@@ -71,6 +71,15 @@ struct read_func_s
 };
 typedef struct read_func_s read_func_t;
 
+#if HAVE_LIBKSTAT
+struct kstat_func_s
+{
+	callback_func_t kf_super;
+	const kstat_filter_t *kf_filter;
+};
+typedef struct kstat_func_s kstat_func_t;
+#endif /* HAVE_LIBKSTAT */
+
 struct write_queue_s;
 typedef struct write_queue_s write_queue_t;
 struct write_queue_s
@@ -98,6 +107,9 @@ static llist_t *list_missing;
 static llist_t *list_shutdown;
 static llist_t *list_log;
 static llist_t *list_notification;
+#if HAVE_LIBKSTAT
+static llist_t *list_kstat;
+#endif
 
 static fc_chain_t *pre_cache_chain = NULL;
 static fc_chain_t *post_cache_chain = NULL;
@@ -1511,6 +1523,55 @@ int plugin_register_notification (const char *name,
 				(void *) callback, ud));
 } /* int plugin_register_log */
 
+#if HAVE_LIBKSTAT
+int plugin_register_kstat (const char *name,
+		plugin_kstat_cb callback, user_data_t *user_data,
+		const kstat_filter_t *filter)
+{
+	kstat_func_t *kf;
+
+	kf = malloc (sizeof (*kf));
+	if (kf == NULL) {
+		ERROR ("plugin_register_kstat: out of memory");
+		return (ENOMEM);
+	}
+
+	memset (kf, 0, sizeof (*kf));
+	kf->kf_super.cf_callback = callback;
+	kf->kf_super.cf_ctx = plugin_get_ctx ();
+	kf->kf_super.cf_udata = *user_data;
+	kf->kf_filter = filter;
+
+	return register_callback (&list_kstat, name, (callback_func_t *) kf);
+}
+
+
+static void kstat_set_cb (kstat_action_t action, const kstat_info_t *info,
+		user_data_t *user_data)
+{
+	kstat_set_t *set = user_data->data;
+	switch (action) {
+		case KSTAT_ADDED:
+			kstat_set_add (set, info->kstat);
+			break;
+		case KSTAT_REMOVED:
+			kstat_set_remove (set, info->id);
+			break;
+	}
+}
+
+
+int plugin_register_kstat_set (const char *name,
+		kstat_set_t *set,
+		const kstat_filter_t *filter)
+{
+	user_data_t user_data = {
+		.data = set,
+	};
+	return plugin_register_kstat (name, kstat_set_cb, &user_data, filter);
+}
+#endif /* HAVE_LIBKSTAT */
+
 int plugin_unregister_config (const char *name)
 {
 	cf_unregister (name);
@@ -1693,6 +1754,13 @@ int plugin_unregister_notification (const char *name)
 {
 	return (plugin_unregister (list_notification, name));
 }
+
+#if HAVE_LIBKSTAT
+int plugin_unregister_kstat (const char *name)
+{
+	return (plugin_unregister (list_kstat, name));
+}
+#endif
 
 void plugin_init_all (void)
 {
@@ -2035,6 +2103,10 @@ void plugin_shutdown_all (void)
 	destroy_all_callbacks (&list_notification);
 	destroy_all_callbacks (&list_shutdown);
 	destroy_all_callbacks (&list_log);
+
+#if HAVE_LIBKSTAT
+	destroy_all_callbacks (&list_kstat);
+#endif
 
 	plugin_free_loaded ();
 	plugin_free_data_sets ();
@@ -2468,6 +2540,42 @@ int plugin_dispatch_notification (const notification_t *notif)
 
 	return (0);
 } /* int plugin_dispatch_notification */
+
+#if HAVE_LIBKSTAT
+static int kstat_filter_match (const kstat_info_t *info,
+		const kstat_filter_t *filter)
+{
+	if (filter->module != NULL && strcmp (filter->module, info->module) != 0)
+		return (-1);
+	if (filter->instance != -1 && filter->instance != info->instance)
+		return (-1);
+	if (filter->name != NULL && strcmp (filter->name, info->name) != 0)
+		return (-1);
+	if (filter->class != NULL && strcmp (filter->class, info->class) != 0)
+		return (-1);
+	if (filter->type != -1 && filter->type != info->type)
+		return (-1);
+	if (filter->filter_func != NULL && filter->filter_func (info) != 0)
+		return (-1);
+	return (0);
+}
+
+void plugin_dispatch_kstat (kstat_action_t action, const kstat_info_t *info)
+{
+	llentry_t *le;
+
+	if (list_kstat == NULL)
+		return;
+
+	for (le = llist_head (list_kstat); le != NULL; le = le->next)
+	{
+		kstat_func_t *const kf = le->value;
+		const plugin_kstat_cb callback = kf->kf_super.cf_callback;
+		if (kstat_filter_match (info, kf->kf_filter) == 0)
+			callback (action, info, &kf->kf_super.cf_udata);
+	}
+}
+#endif /* HAVE_LIBKSTAT */
 
 void plugin_log (int level, const char *format, ...)
 {
