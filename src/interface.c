@@ -89,6 +89,7 @@ static const char *config_keys[] =
 static int config_keys_num = 2;
 
 static ignorelist_t *ignorelist = NULL;
+static _Bool unique_name = 0;
 
 #ifdef HAVE_LIBKSTAT
 #define MAX_NUMIF 256
@@ -112,6 +113,11 @@ static int interface_config (const char *key, const char *value)
 		if (IS_TRUE (value))
 			invert = 0;
 		ignorelist_set_invert (ignorelist, invert);
+	}
+	else if (strcasecmp (key, "UniqueName") == 0)
+	{
+		if (IS_TRUE (value))
+			unique_name = 1;
 	}
 	else
 	{
@@ -295,7 +301,10 @@ static int interface_read (void)
 		if (kstat_read (kc, ksp[i], NULL) == -1)
 			continue;
 
-		snprintf(iname, sizeof(iname), "%s_%d_%s", ksp[i]->ks_module, ksp[i]->ks_instance, ksp[i]->ks_name);
+		if (unique_name)
+			snprintf(iname, sizeof(iname), "%s_%d_%s", ksp[i]->ks_module, ksp[i]->ks_instance, ksp[i]->ks_name);
+		else
+			snprintf(iname, sizeof(iname), "%s", ksp[i]->ks_name);
 
 		/* try to get 64bit counters */
 		rx = get_kstat_value (ksp[i], "rbytes64");
