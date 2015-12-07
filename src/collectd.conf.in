@@ -476,6 +476,7 @@
 #<Plugin interface>
 #	Interface "eth0"
 #	IgnoreSelected false
+#	UniqueName false
 #</Plugin>
 
 #<Plugin ipmi>
