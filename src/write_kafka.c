@@ -453,12 +453,15 @@ static int kafka_config(oconfig_item_t *ci) /* {{{ */
             }
             if ((val = strdup(child->values[1].value.string)) == NULL) {
                 WARNING("cannot allocate memory for attribute value.");
+                sfree(key);
                 goto errout;
             }
             ret = rd_kafka_conf_set(conf, key, val, errbuf, sizeof(errbuf));
             if (ret != RD_KAFKA_CONF_OK) {
                 WARNING("cannot set kafka property %s to %s: %s",
                         key, val, errbuf);
+                sfree(key);
+                sfree(val);
                 goto errout;
             }
             sfree(key);
