@@ -236,7 +236,7 @@ static int ping_dispatch_all (pingobj_t *pingobj) /* {{{ */
 
 static void *ping_thread (void *arg) /* {{{ */
 {
-  static pingobj_t *pingobj = NULL;
+  pingobj_t *pingobj = NULL;
 
   struct timeval  tv_begin;
   struct timeval  tv_end;
