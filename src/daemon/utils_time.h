@@ -68,15 +68,15 @@ extern cdtime_t cdtime_mock;
 #define CDTIME_T_TO_DOUBLE(t) (((double) (t)) / 1073741824.0)
 #define DOUBLE_TO_CDTIME_T(d) ((cdtime_t) ((d) * 1073741824.0))
 
-#define CDTIME_T_TO_TIMEVAL(cdt,tvp) do {                                    \
-        (tvp)->tv_sec = CDTIME_T_TO_TIME_T (cdt);                            \
-        (tvp)->tv_usec = (suseconds_t) CDTIME_T_TO_US ((cdt) & 0x3fffffff);  \
+#define CDTIME_T_TO_TIMEVAL(cdt,tvp) do { \
+  (tvp)->tv_sec = (time_t) ((cdt) >> 30); \
+  (tvp)->tv_usec = (suseconds_t) ((((cdt) & 0x3fffffff) * 1000000 + (1 << 29)) >> 30); \
 } while (0)
 #define TIMEVAL_TO_CDTIME_T(tv) US_TO_CDTIME_T(1000000 * (tv)->tv_sec + (tv)->tv_usec)
 
-#define CDTIME_T_TO_TIMESPEC(cdt,tsp) do {                                   \
-  (tsp)->tv_sec = CDTIME_T_TO_TIME_T (cdt);                                  \
-  (tsp)->tv_nsec = (long) CDTIME_T_TO_NS ((cdt) & 0x3fffffff);               \
+#define CDTIME_T_TO_TIMESPEC(cdt,tsp) do { \
+  (tsp)->tv_sec = (time_t) ((cdt) >> 30); \
+  (tsp)->tv_nsec = (long) ((((cdt) & 0x3fffffff) * 1000000000 + (1 << 29)) >> 30); \
 } while (0)
 #define TIMESPEC_TO_CDTIME_T(ts) NS_TO_CDTIME_T(1000000000ULL * (ts)->tv_sec + (ts)->tv_nsec)
 
