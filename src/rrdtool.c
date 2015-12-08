@@ -1008,23 +1008,32 @@ static int rrd_config (const char *key, const char *value)
 	}
 	else if (strcasecmp ("DataDir", key) == 0)
 	{
-		if (datadir != NULL)
-			free (datadir);
-		datadir = strdup (value);
-		if (datadir != NULL)
+		char *tmp;
+		size_t len;
+
+		tmp = strdup (value);
+		if (tmp == NULL)
 		{
-			int len = strlen (datadir);
-			while ((len > 0) && (datadir[len - 1] == '/'))
-			{
-				len--;
-				datadir[len] = '\0';
-			}
-			if (len <= 0)
-			{
-				free (datadir);
-				datadir = NULL;
-			}
+			ERROR ("rrdtool plugin: strdup failed.");
+			return (1);
 		}
+
+		len = strlen (datadir);
+		while ((len > 0) && (datadir[len - 1] == '/'))
+		{
+			len--;
+			datadir[len] = 0;
+		}
+
+		if (len == 0)
+		{
+			ERROR ("rrdtool plugin: Invalid \"DataDir\" option.");
+			sfree (tmp);
+			return (1);
+		}
+
+		sfree (datadir);
+		datadir = tmp;
 	}
 	else if (strcasecmp ("StepSize", key) == 0)
 	{
