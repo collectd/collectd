@@ -188,6 +188,7 @@ static lcc_value_list_t *create_value_list (void) /* {{{ */
   strncpy (vl->identifier.type,
       (vl->values_types[0] == LCC_TYPE_GAUGE) ? "gauge" : "derive",
       sizeof (vl->identifier.type));
+  vl->identifier.type[sizeof (vl->identifier.type) - 1] = 0;
   snprintf (vl->identifier.type_instance, sizeof (vl->identifier.type_instance),
       "ti%li", random ());
 

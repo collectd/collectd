@@ -241,7 +241,7 @@ static int ping_dispatch_all (pingobj_t *pingobj) /* {{{ */
 
 static void *ping_thread (void *arg) /* {{{ */
 {
-  static pingobj_t *pingobj = NULL;
+  pingobj_t *pingobj = NULL;
 
   struct timeval  tv_begin;
   struct timeval  tv_end;
@@ -421,8 +421,10 @@ static int stop_thread (void) /* {{{ */
     status = -1;
   }
 
+  pthread_mutex_lock (&ping_lock);
   memset (&ping_thread_id, 0, sizeof (ping_thread_id));
   ping_thread_error = 0;
+  pthread_mutex_unlock (&ping_lock);
 
   return (status);
 } /* }}} int stop_thread */
