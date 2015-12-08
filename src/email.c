@@ -505,20 +505,27 @@ static void *open_connection (void __attribute__((unused)) *arg)
 
 		pthread_mutex_unlock (&available_mutex);
 
-		do {
+		while (42) {
 			errno = 0;
-			if (-1 == (remote = accept (connector_socket, NULL, NULL))) {
-				if (EINTR != errno) {
-					char errbuf[1024];
-					disabled = 1;
-					close (connector_socket);
-					connector_socket = -1;
-					log_err ("accept() failed: %s",
-							sstrerror (errno, errbuf, sizeof (errbuf)));
-					pthread_exit ((void *)1);
-				}
+
+			remote = accept (connector_socket, NULL, NULL);
+			if (remote == -1) {
+				char errbuf[1024];
+
+				if (errno == EINTR)
+					continue;
+
+				disabled = 1;
+				close (connector_socket);
+				connector_socket = -1;
+				log_err ("accept() failed: %s",
+						 sstrerror (errno, errbuf, sizeof (errbuf)));
+				pthread_exit ((void *)1);
 			}
-		} while (EINTR == errno);
+
+			/* access() succeeded. */
+			break;
+		}
 
 		connection = malloc (sizeof (*connection));
 		if (connection != NULL)
