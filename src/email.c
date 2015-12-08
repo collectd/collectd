@@ -520,13 +520,20 @@ static void *open_connection (void __attribute__((unused)) *arg)
 			}
 		} while (EINTR == errno);
 
-		connection = (conn_t *)smalloc (sizeof (conn_t));
+		connection = malloc (sizeof (*connection));
+		if (connection != NULL)
+		{
+			close (remote);
+			continue;
+		}
+		memset (connection, 0, sizeof (*connection));
 
 		connection->socket = fdopen (remote, "r");
 		connection->next   = NULL;
 
 		if (NULL == connection->socket) {
 			close (remote);
+			sfree (connection);
 			continue;
 		}
 
