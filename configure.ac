@@ -2668,13 +2668,13 @@ AM_CONDITIONAL(BUILD_WITH_LIBMONGOC, test "x$with_libmongoc" = "xyes")
 
 # --with-libmosquitto {{{
 with_libmosquitto_cppflags=""
-with_libmosquitto_libs="-lmosquitto"
+with_libmosquitto_ldflags=""
 AC_ARG_WITH(libmosquitto, [AS_HELP_STRING([--with-libmosquitto@<:@=PREFIX@:>@], [Path to libmosquitto.])],
 [
 	if test "x$withval" != "xno" && test "x$withval" != "xyes"
 	then
 		with_libmosquitto_cppflags="-I$withval/include"
-		with_libmosquitto_libs="-L$withval/lib -lmosquitto"
+		with_libmosquitto_ldflags="-L$withval/lib"
 		with_libmosquitto="yes"
 	else
 		with_libmosquitto="$withval"
@@ -2686,7 +2686,7 @@ AC_ARG_WITH(libmosquitto, [AS_HELP_STRING([--with-libmosquitto@<:@=PREFIX@:>@], 
 if test "x$with_libmosquitto" = "xyes"
 then
 	SAVE_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$with_libmosquitto_cppflags"
+	CPPFLAGS="$CPPFLAGS $with_libmosquitto_cppflags"
 
 	AC_CHECK_HEADERS(mosquitto.h, [with_libmosquitto="yes"], [with_libmosquitto="no (mosquitto.h not found)"])
 
@@ -2696,8 +2696,8 @@ if test "x$with_libmosquitto" = "xyes"
 then
 	SAVE_LDFLAGS="$LDFLAGS"
 	SAVE_CPPFLAGS="$CPPFLAGS"
-	LDFLAGS="$with_libmosquitto_libs"
-	CPPFLAGS="$with_libmosquitto_cppflags"
+	LDFLAGS="$LDFLAGS $with_libmosquitto_ldflags"
+	CPPFLAGS="$CPPFLAGS $with_libmosquitto_cppflags"
 
 	AC_CHECK_LIB(mosquitto, mosquitto_connect, [with_libmosquitto="yes"], [with_libmosquitto="no (libmosquitto not found)"])
 
@@ -2707,8 +2707,10 @@ fi
 if test "x$with_libmosquitto" = "xyes"
 then
 	BUILD_WITH_LIBMOSQUITTO_CPPFLAGS="$with_libmosquitto_cppflags"
-	BUILD_WITH_LIBMOSQUITTO_LIBS="$with_libmosquitto_libs"
+	BUILD_WITH_LIBMOSQUITTO_LDFLAGS="$with_libmosquitto_ldflags"
+	BUILD_WITH_LIBMOSQUITTO_LIBS="-lmosquitto"
 	AC_SUBST(BUILD_WITH_LIBMOSQUITTO_CPPFLAGS)
+	AC_SUBST(BUILD_WITH_LIBMOSQUITTO_LDFLAGS)
 	AC_SUBST(BUILD_WITH_LIBMOSQUITTO_LIBS)
 fi
 # }}}
