@@ -1161,7 +1161,7 @@ static int c_psql_config_writer (oconfig_item_t *ci)
 
 	writers = tmp;
 	writer  = writers + writers_num;
-	++writers_num;
+	memset (writer, 0, sizeof (*writer));
 
 	writer->name = sstrdup (ci->values[0].value.string);
 	writer->statement = NULL;
@@ -1181,10 +1181,10 @@ static int c_psql_config_writer (oconfig_item_t *ci)
 	if (status != 0) {
 		sfree (writer->statement);
 		sfree (writer->name);
-		sfree (writer);
 		return status;
 	}
 
+	++writers_num;
 	return 0;
 } /* c_psql_config_writer */
 
