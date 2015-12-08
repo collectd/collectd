@@ -262,8 +262,12 @@ static int meta_data_keys_to_json (char *buffer, size_t buffer_size, /* {{{ */
       if (meta_data_get_string (meta, key, &value) == 0)
       {
         char temp[512] = "";
-        json_escape_string (temp, sizeof (temp), value);
+
+        status = json_escape_string (temp, sizeof (temp), value);
         sfree (value);
+        if (status != 0)
+          return status;
+
         BUFFER_ADD (",\"%s\":%s", key, temp);
       }
     }
