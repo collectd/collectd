@@ -292,21 +292,34 @@ void cpy_log_exception(const char *context) {
 	list = PyObject_CallFunction(cpy_format_exception, "NNN", type, value, traceback); /* New reference. Steals references from "type", "value" and "traceback". */
 	if (list)
 		l = PyObject_Length(list);
+
 	for (i = 0; i < l; ++i) {
-		char *s;
 		PyObject *line;
-		
+		char const *msg;
+		char *cpy;
+
 		line = PyList_GET_ITEM(list, i); /* Borrowed reference. */
 		Py_INCREF(line);
-		s = strdup(cpy_unicode_or_bytes_to_string(&line));
+
+		msg = cpy_unicode_or_bytes_to_string(&line);
 		Py_DECREF(line);
-		if (s[strlen(s) - 1] == '\n')
-			s[strlen(s) - 1] = 0;
+		if (msg == NULL)
+			continue;
+
+		cpy = strdup(msg);
+		if (cpy == NULL)
+			continue;
+
+		if (cpy[strlen(cpy) - 1] == '\n')
+			cpy[strlen(cpy) - 1] = 0;
+
 		Py_BEGIN_ALLOW_THREADS
-		ERROR("%s", s);
+		ERROR("%s", cpy);
 		Py_END_ALLOW_THREADS
-		free(s);
+
+		free(cpy);
 	}
+
 	Py_XDECREF(list);
 	PyErr_Clear();
 }
@@ -753,7 +766,7 @@ static PyObject *cpy_unregister_generic(cpy_callback_t **list_head, PyObject *ar
 	for (tmp = *list_head; tmp; prev = tmp, tmp = tmp->next)
 		if (strcmp(name, tmp->name) == 0)
 			break;
-	
+
 	Py_DECREF(arg);
 	if (tmp == NULL) {
 		PyErr_Format(PyExc_RuntimeError, "Unable to unregister %s callback '%s'.", desc, name);
