@@ -1042,17 +1042,19 @@ static int config_query_param_add (udb_query_t *q, oconfig_item_t *ci)
 
 	data = udb_query_get_user_data (q);
 	if (NULL == data) {
-		data = (c_psql_user_data_t *) malloc (sizeof (*data));
+		data = malloc (sizeof (*data));
 		if (NULL == data) {
 			log_err ("Out of memory.");
 			return -1;
 		}
 		memset (data, 0, sizeof (*data));
 		data->params = NULL;
+		data->params_num = 0;
+
+		udb_query_set_user_data (q, data);
 	}
 
-	tmp = (c_psql_param_t *) realloc (data->params,
-			(data->params_num + 1) * sizeof (c_psql_param_t));
+	tmp = realloc (data->params, (data->params_num + 1) * sizeof (*data->params));
 	if (NULL == tmp) {
 		log_err ("Out of memory.");
 		return -1;
@@ -1076,8 +1078,6 @@ static int config_query_param_add (udb_query_t *q, oconfig_item_t *ci)
 	}
 
 	data->params_num++;
-	udb_query_set_user_data (q, data);
-
 	return (0);
 } /* config_query_param_add */
 
