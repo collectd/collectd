@@ -701,14 +701,15 @@ static int cx_config_add_values (const char *name, cx_xpath_t *xpath, /* {{{ */
   return (0);
 } /* }}} cx_config_add_values */
 
-static int cx_config_add_xpath (cx_t *db, /* {{{ */
-                                   oconfig_item_t *ci)
+static int cx_config_add_xpath (cx_t *db, oconfig_item_t *ci) /* {{{ */
 {
   cx_xpath_t *xpath;
+  char *name;
+  llentry_t *le;
   int status;
   int i;
 
-  xpath = (cx_xpath_t *) malloc (sizeof (*xpath));
+  xpath = malloc (sizeof (*xpath));
   if (xpath == NULL)
   {
     ERROR ("curl_xml plugin: malloc failed.");
@@ -719,16 +720,16 @@ static int cx_config_add_xpath (cx_t *db, /* {{{ */
   status = cf_util_get_string (ci, &xpath->path);
   if (status != 0)
   {
-    sfree (xpath);
+    cx_xpath_free (xpath);
     return (status);
   }
 
   /* error out if xpath->path is an empty string */
-  if (*xpath->path == 0)
+  if (strlen (xpath->path) == 0)
   {
     ERROR ("curl_xml plugin: invalid xpath. "
            "xpath value can't be an empty string");
-    sfree (xpath);
+    cx_xpath_free (xpath);
     return (-1);
   }
 
@@ -755,51 +756,49 @@ static int cx_config_add_xpath (cx_t *db, /* {{{ */
       break;
   } /* for (i = 0; i < ci->children_num; i++) */
 
-  if (status == 0 && xpath->type == NULL)
+  if (status != 0)
+  {
+    cx_xpath_free (xpath);
+    return status;
+  }
+
+  if (xpath->type == NULL)
   {
     WARNING ("curl_xml plugin: `Type' missing in `xpath' block.");
-    status = -1;
+    cx_xpath_free (xpath);
+    return -1;
   }
 
-  if (status == 0)
+  if (db->list == NULL)
   {
-    char *name;
-    llentry_t *le;
-
+    db->list = llist_create();
     if (db->list == NULL)
     {
-      db->list = llist_create();
-      if (db->list == NULL)
-      {
-        ERROR ("curl_xml plugin: list creation failed.");
-        sfree (xpath->path);
-        sfree (xpath);
-        return (-1);
-      }
-    }
-
-    name = strdup(xpath->path);
-    if (name == NULL)
-    {
-        ERROR ("curl_xml plugin: strdup failed.");
-        sfree (xpath->path);
-        sfree (xpath);
-        return (-1);
-    }
-
-    le = llentry_create (name, xpath);
-    if (le == NULL)
-    {
-      ERROR ("curl_xml plugin: llentry_create failed.");
-      sfree (xpath->path);
-      sfree (xpath);
+      ERROR ("curl_xml plugin: list creation failed.");
+      cx_xpath_free (xpath);
       return (-1);
     }
-
-    llist_append (db->list, le);
   }
 
-  return (status);
+  name = strdup (xpath->path);
+  if (name == NULL)
+  {
+    ERROR ("curl_xml plugin: strdup failed.");
+    cx_xpath_free (xpath);
+    return (-1);
+  }
+
+  le = llentry_create (name, xpath);
+  if (le == NULL)
+  {
+    ERROR ("curl_xml plugin: llentry_create failed.");
+    cx_xpath_free (xpath);
+    sfree (name);
+    return (-1);
+  }
+
+  llist_append (db->list, le);
+  return (0);
 } /* }}} int cx_config_add_xpath */
 
 static int cx_config_add_namespace (cx_t *db, /* {{{ */
