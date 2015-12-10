@@ -82,29 +82,33 @@ cdtime_t cdtime (void) /* {{{ */
 /* format_zone reads time zone information from "extern long timezone", exported
  * by <time.h>, and formats it according to RFC 3339. This differs from
  * strftime()'s "%z" format by including a colon between hour and minute. */
-static void format_zone (char *buffer, size_t buffer_size) /* {{{ */
+static int format_zone (char *buffer, size_t buffer_size, struct tm const *tm) /* {{{ */
 {
-  _Bool east = 0;
-  long hours;
-  long minutes;
+  char tmp[7];
+  size_t sz;
 
-  minutes = timezone / 60;
-  if (minutes == 0) {
-    sstrncpy (buffer, "Z", buffer_size);
-    return;
-  }
+  if ((buffer == NULL) || (buffer_size < 7))
+    return EINVAL;
 
-  if (minutes < 0)
+  sz = strftime (tmp, sizeof (tmp), "%z", tm);
+  if (sz == 0)
+    return ENOMEM;
+  if (sz != 5)
   {
-    east = 1;
-    minutes = minutes * (-1);
+    DEBUG ("format_zone: strftime(\"%%z\") = \"%s\", want \"+hhmm\"", tmp);
+    sstrncpy (buffer, tmp, buffer_size);
+    return 0;
   }
 
-  hours = minutes / 60;
-  minutes = minutes % 60;
+  buffer[0] = tmp[0];
+  buffer[1] = tmp[1];
+  buffer[2] = tmp[2];
+  buffer[3] = ':';
+  buffer[4] = tmp[3];
+  buffer[5] = tmp[4];
+  buffer[6] = 0;
 
-  ssnprintf (buffer, buffer_size, "%s%02ld:%02ld",
-             (east ? "+" : "-"), hours, minutes);
+  return 0;
 } /* }}} int format_zone */
 
 static int format_rfc3339 (char *buffer, size_t buffer_size, cdtime_t t, _Bool print_nano) /* {{{ */
@@ -116,6 +120,7 @@ static int format_rfc3339 (char *buffer, size_t buffer_size, cdtime_t t, _Bool p
   char zone[7];  /* +00:00 */
   char *fields[] = {base, nano, zone};
   size_t len;
+  int status;
 
   CDTIME_T_TO_TIMESPEC (t, &t_spec);
   NORMALIZE_TIMESPEC (t_spec);
@@ -137,12 +142,14 @@ static int format_rfc3339 (char *buffer, size_t buffer_size, cdtime_t t, _Bool p
   else
     sstrncpy (nano, "", sizeof (nano));
 
-  format_zone (zone, sizeof (zone));
+  status = format_zone (zone, sizeof (zone), &t_tm);
+  if (status != 0)
+    return status;
 
   if (strjoin (buffer, buffer_size, fields, STATIC_ARRAY_SIZE (fields), "") < 0)
     return ENOMEM;
   return 0;
-} /* }}} int cdtime_to_rfc3339nano */
+} /* }}} int format_rfc3339 */
 
 int rfc3339 (char *buffer, size_t buffer_size, cdtime_t t) /* {{{ */
 {
