@@ -2413,17 +2413,25 @@ with_liblvm2app_cppflags=""
 with_liblvm2app_ldflags=""
 AC_ARG_WITH(liblvm2app, [AS_HELP_STRING([--with-liblvm2app@<:@=PREFIX@:>@], [Path to liblvm2app.])],
 [
-        if test "x$withval" != "xno" && test "x$withval" != "xyes"
-        then
-                with_liblvm2app_cppflags="-I$withval/include"
-                with_liblvm2app_ldflags="-L$withval/lib"
-                with_liblvm2app="yes"
-        else
-                with_liblvm2app="$withval"
+	if test "x$withval" = "xno"
+	then
+		with_liblvm2app="no"
+	else
+		with_liblvm2app="yes"
+		if test "x$withval" != "xyes"
+		then
+			with_liblvm2app_cppflags="-I$withval/include"
+			with_liblvm2app_ldflags="-L$withval/lib"
+		fi
         fi
 ],
 [
-        with_liblvm2app="yes"
+	if test "x$ac_system" = "xLinux"
+	then
+		with_liblvm2app="yes"
+	else
+		with_liblvm2app="no (Linux only library)"
+	fi
 ])
 if test "x$with_liblvm2app" = "xyes"
 then
