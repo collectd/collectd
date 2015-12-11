@@ -3235,13 +3235,13 @@ fi
 
 # --with-libowcapi {{{
 with_libowcapi_cppflags=""
-with_libowcapi_libs="-lowcapi"
+with_libowcapi_ldflags=""
 AC_ARG_WITH(libowcapi, [AS_HELP_STRING([--with-libowcapi@<:@=PREFIX@:>@], [Path to libowcapi.])],
 [
 	if test "x$withval" != "xno" && test "x$withval" != "xyes"
 	then
 		with_libowcapi_cppflags="-I$withval/include"
-		with_libowcapi_libs="-L$withval/lib -lowcapi"
+		with_libowcapi_ldflags="-L$withval/lib"
 		with_libowcapi="yes"
 	else
 		with_libowcapi="$withval"
@@ -3253,7 +3253,7 @@ AC_ARG_WITH(libowcapi, [AS_HELP_STRING([--with-libowcapi@<:@=PREFIX@:>@], [Path 
 if test "x$with_libowcapi" = "xyes"
 then
 	SAVE_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$with_libowcapi_cppflags"
+	CPPFLAGS="$CPPFLAGS $with_libowcapi_cppflags"
 
 	AC_CHECK_HEADERS(owcapi.h, [with_libowcapi="yes"], [with_libowcapi="no (owcapi.h not found)"])
 
@@ -3263,7 +3263,7 @@ if test "x$with_libowcapi" = "xyes"
 then
 	SAVE_LDFLAGS="$LDFLAGS"
 	SAVE_CPPFLAGS="$CPPFLAGS"
-	LDFLAGS="$with_libowcapi_libs"
+	LDFLAGS="$LDFLAGS $with_libowcapi_ldflags"
 	CPPFLAGS="$with_libowcapi_cppflags"
 
 	AC_CHECK_LIB(owcapi, OW_get, [with_libowcapi="yes"], [with_libowcapi="no (libowcapi not found)"])
@@ -3274,8 +3274,10 @@ fi
 if test "x$with_libowcapi" = "xyes"
 then
 	BUILD_WITH_LIBOWCAPI_CPPFLAGS="$with_libowcapi_cppflags"
-	BUILD_WITH_LIBOWCAPI_LIBS="$with_libowcapi_libs"
+	BUILD_WITH_LIBOWCAPI_LDFLAGS="$with_libowcapi_ldflags"
+	BUILD_WITH_LIBOWCAPI_LIBS="-lowcapi"
 	AC_SUBST(BUILD_WITH_LIBOWCAPI_CPPFLAGS)
+	AC_SUBST(BUILD_WITH_LIBOWCAPI_LDFLAGS)
 	AC_SUBST(BUILD_WITH_LIBOWCAPI_LIBS)
 fi
 # }}}
