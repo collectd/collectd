@@ -2330,7 +2330,7 @@ if test "x$with_java" = "xyes"
 then
 	AC_CHECK_LIB(jvm, JNI_CreateJavaVM,
 	[with_java="yes"],
-	[with_java="no (libjvm not found)"],
+	[with_java="no (Symbol 'JNI_CreateJavaVM' not found)"],
 	[$JAVA_LIBS])
 fi
 if test "x$with_java" = "xyes"
