@@ -521,10 +521,10 @@ static int swap_read (void) /* {{{ */
                 return (0);
 
 	/* Allocate and initialize the swaptbl_t structure */
-        s = (swaptbl_t *) smalloc (swap_num * sizeof (swapent_t) + sizeof (struct swaptable));
+        s = malloc (swap_num * sizeof (swapent_t) + sizeof (struct swaptable));
         if (s == NULL)
         {
-                ERROR ("swap plugin: smalloc failed.");
+                ERROR ("swap plugin: malloc failed.");
                 return (-1);
         }
 
@@ -534,7 +534,7 @@ static int swap_read (void) /* {{{ */
 	s_paths = calloc (swap_num, PATH_MAX);
 	if (s_paths == NULL)
 	{
-		ERROR ("swap plugin: malloc failed.");
+		ERROR ("swap plugin: calloc failed.");
 		sfree (s);
 		return (-1);
 	}
