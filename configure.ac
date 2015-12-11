@@ -634,8 +634,6 @@ AC_CHECK_HEADERS(netinet/if_ether.h, [], [],
 #endif
 ])
 
-AC_CHECK_HEADERS(netinet/ip_compat.h)
-
 have_net_pfvar_h="no"
 AC_CHECK_HEADERS(net/pfvar.h,
                [have_net_pfvar_h="yes"],
