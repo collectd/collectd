@@ -97,7 +97,7 @@ if BUILD_AIX
 collectd_tg_LDADD += -lm
 endif
 if BUILD_WITH_LIBPTHREAD
-collectd_tg_LDADD += -lpthread
+collectd_tg_LDADD += $(PTHREAD_LIBS)
 endif
 collectd_tg_LDADD += libcollectdclient/libcollectdclient.la
 collectd_tg_DEPENDENCIES = libcollectdclient/libcollectdclient.la
@@ -349,21 +349,21 @@ if BUILD_PLUGIN_DNS
 pkglib_LTLIBRARIES += dns.la
 dns_la_SOURCES = dns.c utils_dns.c utils_dns.h
 dns_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-dns_la_LIBADD = -lpcap -lpthread
+dns_la_LIBADD = $(PTHREAD_LIBS) -lpcap
 endif
 
 if BUILD_PLUGIN_DRBD
 pkglib_LTLIBRARIES += drbd.la
 drbd_la_SOURCES = drbd.c
 drbd_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-drbd_la_LIBADD = -lpthread
+drbd_la_LIBADD = $(PTHREAD_LIBS)
 endif
 
 if BUILD_PLUGIN_EMAIL
 pkglib_LTLIBRARIES += email.la
 email_la_SOURCES = email.c
 email_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-email_la_LIBADD = -lpthread
+email_la_LIBADD = $(PTHREAD_LIBS)
 endif
 
 if BUILD_PLUGIN_ENTROPY
@@ -379,7 +379,7 @@ exec_la_SOURCES = exec.c \
 		  utils_cmd_putval.c utils_cmd_putval.h \
 		  utils_parse_option.h utils_parse_option.c
 exec_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-exec_la_LIBADD = -lpthread
+exec_la_LIBADD = $(PTHREAD_LIBS)
 endif
 
 if BUILD_PLUGIN_ETHSTAT
@@ -688,7 +688,7 @@ network_la_SOURCES = network.c network.h \
 		     utils_fbhash.c utils_fbhash.h
 network_la_CPPFLAGS = $(AM_CPPFLAGS)
 network_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-network_la_LIBADD = -lpthread
+network_la_LIBADD = $(PTHREAD_LIBS)
 if BUILD_WITH_LIBSOCKET
 network_la_LIBADD += -lsocket
 endif
@@ -735,7 +735,7 @@ if BUILD_PLUGIN_NOTIFY_EMAIL
 pkglib_LTLIBRARIES += notify_email.la
 notify_email_la_SOURCES = notify_email.c
 notify_email_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-notify_email_la_LIBADD = -lesmtp -lssl -lcrypto -lpthread
+notify_email_la_LIBADD = $(PTHREAD_LIBS) -lesmtp -lssl -lcrypto
 endif
 
 if BUILD_PLUGIN_NOTIFY_NAGIOS
@@ -765,7 +765,7 @@ pkglib_LTLIBRARIES += nut.la
 nut_la_SOURCES = nut.c
 nut_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBUPSCLIENT_CFLAGS)
 nut_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-nut_la_LIBADD = -lpthread $(BUILD_WITH_LIBUPSCLIENT_LIBS)
+nut_la_LIBADD = $(PTHREAD_LIBS) $(BUILD_WITH_LIBUPSCLIENT_LIBS)
 endif
 
 if BUILD_PLUGIN_OLSRD
@@ -972,7 +972,7 @@ snmp_la_CFLAGS += $(BUILD_WITH_LIBSNMP_CFLAGS)
 snmp_la_LIBADD += $(BUILD_WITH_LIBSNMP_LIBS)
 endif
 if BUILD_WITH_LIBPTHREAD
-snmp_la_LIBADD += -lpthread
+snmp_la_LIBADD += $(PTHREAD_LIBS)
 endif
 endif
 
@@ -980,7 +980,7 @@ if BUILD_PLUGIN_STATSD
 pkglib_LTLIBRARIES += statsd.la
 statsd_la_SOURCES = statsd.c
 statsd_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-statsd_la_LIBADD = liblatency.la -lpthread -lm
+statsd_la_LIBADD = $(PTHREAD_LIBS) liblatency.la -lm
 endif
 
 if BUILD_PLUGIN_SWAP
@@ -1131,7 +1131,7 @@ unixsock_la_SOURCES = unixsock.c \
 		      utils_cmd_putnotif.h utils_cmd_putnotif.c \
 		      utils_parse_option.h utils_parse_option.c
 unixsock_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-unixsock_la_LIBADD = -lpthread
+unixsock_la_LIBADD = $(PTHREAD_LIBS)
 endif
 
 if BUILD_PLUGIN_UPTIME
