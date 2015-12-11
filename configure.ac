@@ -5127,11 +5127,8 @@ AM_CONDITIONAL(BUILD_WITH_LIBATASMART, test "x$with_libatasmart" = "xyes")
 
 PKG_CHECK_MODULES([LIBNOTIFY], [libnotify],
 		[with_libnotify="yes"],
-		[if test "x$LIBNOTIFY_PKG_ERRORS" = "x"; then
-			 with_libnotify="no"
-		 else
-			 with_libnotify="no ($LIBNOTIFY_PKG_ERRORS)"
-		 fi])
+		[with_libnotify="no (pkg-config doesn't know libnotify)"]
+)
 
 # Check for enabled/disabled features
 #
