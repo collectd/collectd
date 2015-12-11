@@ -4087,11 +4087,6 @@ then
 	SAVE_CPPFLAGS="$CPPFLAGS"
 	CPPFLAGS="$CPPFLAGS $with_sensors_cflags"
 
-#	AC_CHECK_HEADERS(sensors/sensors.h,
-#	[
-#		AC_DEFINE(HAVE_SENSORS_SENSORS_H, 1, [Define to 1 if you have the <sensors/sensors.h> header file.])
-#	],
-#	[with_libsensors="no (sensors/sensors.h not found)"])
 	AC_CHECK_HEADERS(sensors/sensors.h, [], [with_libsensors="no (sensors/sensors.h not found)"])
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
