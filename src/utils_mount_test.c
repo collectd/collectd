@@ -24,8 +24,8 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
-#include "testing.h"
 #include "collectd.h"
+#include "testing.h"
 #include "utils_mount.h"
 
 #if HAVE_LIBKSTAT
