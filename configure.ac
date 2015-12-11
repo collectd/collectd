@@ -1530,9 +1530,14 @@ AC_ARG_WITH(libpthread, [AS_HELP_STRING([--with-libpthread=@<:@=PREFIX@:>@], [Pa
 		fi
 	fi
 ], [with_libpthread="yes"])
+
+AC_SUBST([PTHREAD_LIBS])
 if test "x$with_libpthread" = "xyes"
 then
-	AC_CHECK_LIB(pthread, pthread_create, [with_libpthread="yes"], [with_libpthread="no (libpthread not found)"], [])
+	SAVE_LIBS="$LIBS"
+	AC_CHECK_LIB(pthread, pthread_create, [], [with_libpthread="no (libpthread not found)"], [])
+	PTHREAD_LIBS="$LIBS"
+	LIBS="$SAVE_LIBS"
 fi
 
 if test "x$with_libpthread" = "xyes"
@@ -3002,7 +3007,7 @@ then
 
 	if test "x$LIBNETAPP_LIBS" = "x"
 	then
-		LIBNETAPP_LIBS="-lpthread -lxml -ladt -lssl -lm -lcrypto -lz"
+		LIBNETAPP_LIBS="$PTHREAD_LIBS -lxml -ladt -lssl -lm -lcrypto -lz"
 	fi
 	AC_MSG_NOTICE([netapp LIBS: $LIBNETAPP_LIBS])
 
@@ -4745,7 +4750,7 @@ AC_ARG_WITH(mic,[AS_HELP_STRING([--with-mic@<:@=PREFIX@:>@], [Path to Intel MIC 
 		AC_MSG_NOTICE([Not checking for Intel Mic: Manually configured])
 		with_mic_cflags="-I$withval/include"
 		with_mic_ldpath="-L$withval/lib/Linux"
-		with_mic_libs="-lMicAccessSDK -lscif -lpthread"
+		with_mic_libs="$PTHREAD_LIBS -lMicAccessSDK -lscif"
 		with_mic="yes"
 	fi; fi; fi
 ],
@@ -4767,8 +4772,8 @@ then
 
 	AC_CHECK_LIB(MicAccessSDK, MicInitAPI,
 			[with_mic_ldpath="$with_mic_ldpath"
-			with_mic_libs="-lMicAccessSDK -lscif -lpthread"],
-			[with_mic="no (symbol MicInitAPI not found)"],[-lscif -lpthread])
+			with_mic_libs="$PTHREAD_LIBS -lMicAccessSDK -lscif"],
+			[with_mic="no (symbol MicInitAPI not found)"],[$PTHREAD_LIBS -lscif])
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
 	LDFLAGS="$SAVE_LDFLAGS"
