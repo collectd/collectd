@@ -2183,9 +2183,6 @@ if test "x$with_java_home" = "x"
 then
 	with_java_home="/usr/lib/jvm"
 fi
-with_java_vmtype="client"
-with_java_cflags=""
-with_java_libs=""
 JAVAC="$JAVAC"
 JAR="$JAR"
 AC_ARG_WITH(java, [AS_HELP_STRING([--with-java@<:@=PREFIX@:>@], [Path to Java home.])],
