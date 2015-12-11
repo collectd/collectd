@@ -5417,7 +5417,6 @@ then
 fi
 
 # libi2c-dev
-with_libi2c="no"
 if test "x$ac_system" = "xLinux"
 then
 AC_CHECK_DECL(i2c_smbus_read_i2c_block_data,
@@ -5425,6 +5424,8 @@ AC_CHECK_DECL(i2c_smbus_read_i2c_block_data,
 	[with_libi2c="no (symbol i2c_smbus_read_i2c_block_data not found - have you installed libi2c-dev ?)"],
 	[[#include <stdlib.h>
 	#include <linux/i2c-dev.h>]])
+else
+	with_libi2c="no (Linux only)"
 fi
 
 if test "x$with_libi2c" = "xyes"
