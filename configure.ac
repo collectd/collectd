@@ -1535,7 +1535,7 @@ AC_SUBST([PTHREAD_LIBS])
 if test "x$with_libpthread" = "xyes"
 then
 	SAVE_LIBS="$LIBS"
-	AC_CHECK_LIB(pthread, pthread_create, [], [with_libpthread="no (libpthread not found)"], [])
+	AC_CHECK_LIB(pthread, pthread_create, [], [with_libpthread="no (Symbol 'pthread_create' not found)"], [])
 	PTHREAD_LIBS="$LIBS"
 	LIBS="$SAVE_LIBS"
 fi
