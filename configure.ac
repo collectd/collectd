@@ -2183,9 +2183,6 @@ if test "x$with_java_home" = "x"
 then
 	with_java_home="/usr/lib/jvm"
 fi
-with_java_vmtype="client"
-with_java_cflags=""
-with_java_libs=""
 JAVAC="$JAVAC"
 JAR="$JAR"
 AC_ARG_WITH(java, [AS_HELP_STRING([--with-java@<:@=PREFIX@:>@], [Path to Java home.])],
@@ -2278,6 +2275,10 @@ if test "x$JAVA_LDFLAGS" != "x"
 then
 	AC_MSG_NOTICE([Building with JAVA_LDFLAGS set to: $JAVA_LDFLAGS])
 fi
+if test "x$JAVA_LIBS" != "x"
+then
+	AC_MSG_NOTICE([Building with JAVA_LIBS set to: $JAVA_LIBS])
+fi
 if test "x$JAVAC" = "x"
 then
 	with_javac_path="$PATH"
@@ -2318,9 +2319,11 @@ fi
 SAVE_CPPFLAGS="$CPPFLAGS"
 SAVE_CFLAGS="$CFLAGS"
 SAVE_LDFLAGS="$LDFLAGS"
+SAVE_LIBS="$LIBS"
 CPPFLAGS="$CPPFLAGS $JAVA_CPPFLAGS"
 CFLAGS="$CFLAGS $JAVA_CFLAGS"
 LDFLAGS="$LDFLAGS $JAVA_LDFLAGS"
+LIBS="$LIBS $JAVA_LIBS"
 
 if test "x$with_java" = "xyes"
 then
@@ -2330,7 +2333,7 @@ if test "x$with_java" = "xyes"
 then
 	AC_CHECK_LIB(jvm, JNI_CreateJavaVM,
 	[with_java="yes"],
-	[with_java="no (libjvm not found)"],
+	[with_java="no (Symbol 'JNI_CreateJavaVM' not found)"],
 	[$JAVA_LIBS])
 fi
 if test "x$with_java" = "xyes"
@@ -2342,6 +2345,7 @@ fi
 CPPFLAGS="$SAVE_CPPFLAGS"
 CFLAGS="$SAVE_CFLAGS"
 LDFLAGS="$SAVE_LDFLAGS"
+LIBS="$SAVE_LIBS"
 
 AC_SUBST(JAVA_CPPFLAGS)
 AC_SUBST(JAVA_CFLAGS)
