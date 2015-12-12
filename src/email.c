@@ -532,7 +532,7 @@ static void *open_connection (void __attribute__((unused)) *arg)
 		}
 
 		connection = malloc (sizeof (*connection));
-		if (connection != NULL)
+		if (connection == NULL)
 		{
 			close (remote);
 			continue;
