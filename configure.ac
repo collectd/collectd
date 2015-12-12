@@ -54,6 +54,10 @@ AC_DISABLE_STATIC
 AC_PROG_LIBTOOL
 AC_PROG_LEX
 AC_PROG_YACC
+
+# Warn when pkg.m4 is missing
+m4_pattern_forbid([^_?PKG_[A-Z_]+$],[*** pkg.m4 missing, please install pkg-config])
+
 PKG_PROG_PKG_CONFIG
 
 AC_CHECK_PROG([have_protoc_c], [protoc-c], [yes], [no])
