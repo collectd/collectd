@@ -920,13 +920,19 @@ see L<http://www.freescale.com/webapp/sps/site/prod_summary.jsp?code=MPL3115A2>.
 
 =item I<BMP085> from Bosch Sensortec
 
+
+=item I<MS5611> from Measurement Specialties
+see L<http://www.meas-spec.com/product/pressure/MS5611-01BA03.aspx>.
+
+
 =back
 
 The sensor type - one of the above - is detected automatically by the plugin
 and indicated in the plugin_instance (you will see subdirectory
-"barometer-mpl115" or "barometer-mpl3115", or "barometer-bmp085"). The order of
-detection is BMP085 -> MPL3115 -> MPL115A2, the first one found will be used
-(only one sensor can be used by the plugin).
+"barometer-mpl115", "barometer-mpl3115", "barometer-bmp085" or
+"barometer-ms5611"). The order of detection is BMP085 -> MPL3115 -> MPL115A2 ->
+MS5611, the first one found will be used (only one sensor can be used by the
+plugin).
 
 The plugin provides absolute barometric pressure, air pressure reduced to sea
 level (several possible approximations) and as an auxiliary value also internal
@@ -995,6 +1001,12 @@ performed by the sensor and the higher value the higher accuracy and longer
 conversion time (although nothing to worry about in the collectd context).
 Supported values are: 1, 2, 4, 8. Any other value is adjusted by the plugin to
 the closest supported one.
+
+For I<SM5611> this is the oversampling value. The actual oversampling is
+performed by the sensor and the higher value the higher accuracy and longer
+conversion time (although nothing to worry about in the collectd context).
+Supported values are: 256, 512, 1024, 2048, 4096. Any other value is adjusted by
+the plugin to the closest supported one.
 
 =item B<PressureOffset> I<offset>
 
