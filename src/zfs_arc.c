@@ -186,7 +186,7 @@ static int za_read (void)
 		return (-1);
 	}
 
-	len = read_file_contents (ZOL_ARCSTATS_FILE, file_contents, sizeof(file_contents));
+	len = read_file_contents (ZOL_ARCSTATS_FILE, file_contents, sizeof(file_contents) - 1);
 	if (len > 1)
 	{
 
@@ -208,6 +208,11 @@ static int za_read (void)
 		{
 			llentry_t *e;
 			llvalues = malloc(sizeof(long long int) * i);
+			if (llvalues == NULL)
+			{
+				ERROR ("zfs_arc plugin: `malloc' failed.");
+				return (-1);
+			}
 			int j = 0;
 
 			pnl = file_contents;
@@ -251,6 +256,9 @@ static int za_read (void)
 
 	/* Sizes */
 	za_read_gauge (ksp, "size",    "cache_size", "arc");
+	za_read_gauge (ksp, "c",    "cache_size", "c");
+	za_read_gauge (ksp, "c_min",    "cache_size", "c_min");
+	za_read_gauge (ksp, "c_max",    "cache_size", "c_max");
 
 	/* The "l2_size" value has disappeared from Solaris some time in
 	 * early 2013, and has only reappeared recently in Solaris 11.2.

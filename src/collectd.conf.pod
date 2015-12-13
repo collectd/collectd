@@ -1827,6 +1827,7 @@ than those of other plugins. It usually looks something like this:
     </Query>
     <Database "product_information">
       Driver "mysql"
+      Interval 120
       DriverOption "host" "localhost"
       DriverOption "username" "collectd"
       DriverOption "password" "aZo6daiw"
@@ -2005,6 +2006,11 @@ block. This name will be used as "PluginInstance" in the values submitted to
 the daemon. Other than that, that name is not used.
 
 =over 4
+
+=item B<Interval> I<Interval>
+
+Sets the interval (in seconds) in which the values will be collected from this
+database. By default the global B<Interval> setting will be used.
 
 =item B<Driver> I<Driver>
 
@@ -2518,6 +2524,17 @@ to collect all interfaces I<except> a few ones. This option enables you to
 do that: By setting B<IgnoreSelected> to I<true> the effect of
 B<Interface> is inverted: All selected interfaces are ignored and all
 other interfaces are collected.
+
+=item B<UniqueName> I<true>|I<false>
+
+Interface name is not unique on Solaris (KSTAT), interface name is unique 
+only within a module/instance. Following tuple is considered unique: 
+   (ks_module, ks_instance, ks_name)
+If this option is set to true, interface name contains above three fields
+separated by an underscore. For more info on KSTAT, visit
+L<http://docs.oracle.com/cd/E23824_01/html/821-1468/kstat-3kstat.html#REFMAN3Ekstat-3kstat>
+
+This option is only available on Solaris.
 
 =back
 
@@ -3340,6 +3357,38 @@ that arrive while the subscriber is disconnected. Defaults to B<true>.
 Configures the topic(s) to subscribe to. You can use the single level C<+> and
 multi level C<#> wildcards. Defaults to B<collectd/#>, i.e. all topics beneath
 the B<collectd> branch.
+
+=item B<CACert> I<file>
+
+Path to the PEM-encoded CA certificate file. Setting this option enables TLS
+communication with the MQTT broker, and as such, B<Port> should be the TLS-enabled
+port of the MQTT broker.
+A valid TLS configuration requires B<CACert>, B<CertificateFile> and B<CertificateKeyFile>.
+
+=item B<CertificateFile> I<file>
+
+Path to the PEM-encoded certificate file to use as client certificate when
+connecting to the MQTT broker.
+A valid TLS configuration requires B<CACert>, B<CertificateFile> and B<CertificateKeyFile>.
+
+=item B<CertificateKeyFile> I<file>
+
+Path to the unencrypted PEM-encoded key file corresponding to B<CertificateFile>.
+A valid TLS configuration requires B<CACert>, B<CertificateFile> and B<CertificateKeyFile>.
+
+=item B<TLSProtocol> I<protocol>
+
+If configured, this specifies the string protocol version (e.g. C<tlsv1>,
+C<tlsv1.2>) to use for the TLS connection to the broker. If not set a default
+version is used which depends on the version of OpenSSL the Mosquitto library
+was linked against.
+
+=item B<CipherSuite> I<ciphersuite>
+
+A string describing the ciphers available for use. See L<ciphers(1)> and the
+C<openssl ciphers> utility for more information. If unset, the default ciphers
+will be used.
+
 
 =back
 
@@ -4398,6 +4447,21 @@ Default: C<Collectd notify: %s@%s>
 
 =back
 
+=head2 Plugin C<notify_nagios>
+
+The I<notify_nagios> plugin writes notifications to Nagios' I<command file> as
+a I<passive service check result>.
+
+Available configuration options:
+
+=over 4
+
+=item B<CommandFile> I<Path>
+
+Sets the I<command file> to write to. Defaults to F</usr/local/nagios/var/rw/nagios.cmd>.
+
+=back
+
 =head2 Plugin C<ntpd>
 
 =over 4
@@ -4903,6 +4967,13 @@ Default: B<0.9>
 =item B<TTL> I<0-255>
 
 Sets the Time-To-Live of generated ICMP packets.
+
+=item B<Size> I<size>
+
+Sets the size of the data payload in ICMP packet to specified I<size> (it
+will be filled with regular ASCII pattern). If not set, default 56 byte
+long string is used so that the packet size of an ICMPv4 packet is exactly
+64 bytes, similar to the behaviour of normal ping(1) command.
 
 =item B<SourceAddress> I<host>
 
@@ -6179,6 +6250,12 @@ rate of counters and size of sets will be zero, timers report C<NaN> and gauges
 are unchanged. If set to B<True>, the such metrics are not dispatched and
 removed from the internal cache.
 
+=item B<CounterSum> B<false>|B<true>
+
+When enabled, create a C<count> metric which reports the change since the last
+read. This option primarily exists for compatibility with the I<statsd>
+impelemtation by Etsy.
+
 =item B<TimerPercentile> I<Percent>
 
 Calculate and dispatch the configured percentile, i.e. compute the latency, so
@@ -7133,13 +7210,17 @@ setting B<name>.
 B<address> means use the interface's mac address. This is useful since the
 interface path might change between reboots of a guest or across migrations.
 
-=item B<PluginInstanceFormat> B<name|uuid>
+=item B<PluginInstanceFormat> B<name|uuid|none>
 
 When the virt plugin logs data, it sets the plugin_instance of the collected
-data according to this setting. The default is to use the guest name as provided
-by the hypervisor, which is equal to setting B<name>.
+data according to this setting. The default is to not set the plugin_instance.
 
+B<name> means use the guest's name as provided by the hypervisor.
 B<uuid> means use the guest's UUID.
+
+You can also specify combinations of the B<name> and B<uuid> fields.
+For example B<name uuid> means to concatenate the guest name and UUID
+(with a literal colon character between, thus I<"foo:1234-1234-1234-1234">).
 
 =back
 
@@ -7213,6 +7294,14 @@ Service name or port number to connect to. Defaults to C<2003>.
 =item B<Protocol> I<String>
 
 Protocol to use when connecting to I<Graphite>. Defaults to C<tcp>.
+
+=item B<ReconnectInterval> I<Seconds>
+
+When set to non-zero, forces the connection to the Graphite backend to be
+closed and re-opend periodically. This behavior is desirable in environments
+where the connection to the Graphite backend is done through load balancers,
+for example. When set to zero, the default, the connetion is kept open for as
+long as possible.
 
 =item B<LogSendErrors> B<false>|B<true>
 
@@ -7482,6 +7571,10 @@ complete. When this limit is reached, the POST operation will be aborted, and
 all the data in the current send buffer will probably be lost. Defaults to 0,
 which means the connection never times out.
 
+=item B<LogHttpError> B<false>|B<true>
+
+Enables printing of HTTP error code to log. Turned off by default.
+
 The C<write_http> plugin regularly submits the collected values to the HTTP
 server. How frequently this happens depends on how much data you are collecting
 and the size of B<BufferSize>. The optimal value to set B<Timeout> to is
@@ -7610,6 +7703,8 @@ Synopsis:
         Timeout 1000
         Prefix "collectd/"
         Database 1
+        MaxSetSize -1
+        StoreRates true
     </Node>
   </Plugin>
 
@@ -7618,7 +7713,7 @@ the timestamp as the score. Retrieving a date range can then be done using the
 C<ZRANGEBYSCORE> I<Redis> command. Additionally, all the identifiers of these
 I<Sorted Sets> are kept in a I<Set> called C<collectd/values> (or
 C<${prefix}/values> if the B<Prefix> option was specified) and can be retrieved
-using the C<SMEMBERS> I<Redis> command. You can specify the database to use 
+using the C<SMEMBERS> I<Redis> command. You can specify the database to use
 with the B<Database> parameter (default is C<0>). See
 L<http://redis.io/commands#sorted_set> and L<http://redis.io/commands#set> for
 details.
@@ -7663,7 +7758,18 @@ is recommended but not required to include a trailing slash in I<Prefix>.
 
 =item B<Database> I<Index>
 
-This index selects the redis database to use for writing operations. Defaults to C<0>.
+This index selects the redis database to use for writing operations. Defaults
+to C<0>.
+
+=item B<MaxSetSize> I<Items>
+
+The B<MaxSetSize> option limits the number of items that the I<Sorted Sets> can
+hold. Negative values for I<Items> sets no limit, which is the default behavior.
+
+=item B<StoreRates> B<true>|B<false>
+
+If set to B<true> (the default), convert counter values to rates. If set to
+B<false> counter values are stored as is, i.e. as an increasing integer number.
 
 =back
 
@@ -7744,7 +7850,7 @@ C<ds_type:derive:rate>.
 
 =item B<AlwaysAppendDS> B<false>|B<true>
 
-If set the B<true>, append the name of the I<Data Source> (DS) to the
+If set to B<true>, append the name of the I<Data Source> (DS) to the
 "service", i.e. the field that, together with the "host" field, uniquely
 identifies a metric in I<Riemann>. If set to B<false> (the default), this is
 only done when there is more than one DS.

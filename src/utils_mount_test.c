@@ -24,9 +24,13 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
-#include "testing.h"
 #include "collectd.h"
+#include "testing.h"
 #include "utils_mount.h"
+
+#if HAVE_LIBKSTAT
+kstat_ctl_t *kc;
+#endif /* HAVE_LIBKSTAT */
 
 DEF_TEST(cu_mount_checkoption)
 {

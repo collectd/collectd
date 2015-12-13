@@ -133,6 +133,7 @@ static int irq_read (void)
 	} else {
 		ERROR ("irq plugin: unable to get CPU count from first line "
 				"of /proc/interrupts");
+		fclose (fh);
 		return (-1);
 	}
 

@@ -1199,7 +1199,10 @@ static void c_ithread_destructor (void *arg)
 
 	/* the ithread no longer exists */
 	if (NULL == t)
+	{
+		pthread_mutex_unlock (&perl_threads->mutex);
 		return;
+	}
 
 	c_ithread_destroy (ithread);
 
@@ -1640,14 +1643,14 @@ static XS (Collectd_plugin_dispatch_values)
 
 	values = ST (/* stack index = */ 0);
 
+	if (NULL == values)
+		XSRETURN_EMPTY;
+
 	/* Make sure the argument is a hash reference. */
 	if (! (SvROK (values) && (SVt_PVHV == SvTYPE (SvRV (values))))) {
 		log_err ("Collectd::plugin_dispatch_values: Invalid values.");
 		XSRETURN_EMPTY;
 	}
-
-	if (NULL == values)
-		XSRETURN_EMPTY;
 
 	ret = pplugin_dispatch_values (aTHX_ (HV *)SvRV (values));
 

@@ -119,6 +119,7 @@ static int pidfile_delete (void)
 static int daemonize (void)
 {
 	struct rlimit rl;
+	int status;
 
 	pid_t pid = 0;
 	int   i   = 0;
@@ -153,21 +154,24 @@ static int daemonize (void)
 		close (i);
 
 	errno = 0;
-	if (open ("/dev/null", O_RDWR) != 0) {
+	status = open ("/dev/null", O_RDWR);
+	if (status != 0) {
 		syslog (LOG_ERR, "Error: couldn't connect STDIN to /dev/null: %s",
 				strerror (errno));
 		return -1;
 	}
 
 	errno = 0;
-	if (dup (0) != 1) {
+	status = dup (0);
+	if (status != 1) {
 		syslog (LOG_ERR, "Error: couldn't connect STDOUT to /dev/null: %s",
 				strerror (errno));
 		return -1;
 	}
 
 	errno = 0;
-	if (dup (0) != 2) {
+	status = dup (0);
+	if (status != 2) {
 		syslog (LOG_ERR, "Error: couldn't connect STDERR to /dev/null: %s",
 				strerror (errno));
 		return -1;

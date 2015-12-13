@@ -1037,6 +1037,7 @@ parse_int_file(const char *fmt, ...)
 	}
 	if (fscanf(filep, "%d", &value) != 1) {
 		ERROR("turbostat plugin: Failed to parse number from '%s'", path);
+		fclose(filep);
 		return -1;
 	}
 	fclose(filep);

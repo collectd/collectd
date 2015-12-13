@@ -114,6 +114,8 @@ static meta_entry_t *md_entry_clone (const meta_entry_t *orig) /* {{{ */
     return (NULL);
 
   copy = md_entry_alloc (orig->key);
+  if (copy == NULL)
+    return (NULL);
   copy->type = orig->type;
   if (copy->type == MD_TYPE_STRING)
     copy->value.mv_string = strdup (orig->value.mv_string);
@@ -255,7 +257,6 @@ void meta_data_destroy (meta_data_t *md) /* {{{ */
   if (md == NULL)
     return;
 
-  pthread_mutex_destroy(&md->lock);
   md_entry_free (md->head);
   pthread_mutex_destroy (&md->lock);
   free (md);

@@ -57,12 +57,23 @@ AC_PROG_YACC
 PKG_PROG_PKG_CONFIG
 
 AC_CHECK_PROG([have_protoc_c], [protoc-c], [yes], [no])
-AC_CHECK_HEADERS([google/protobuf-c/protobuf-c.h],
-                 [have_protobuf_c_h="yes"],
-                 [have_protobuf_c_h="no"])
-if test "x$have_protoc_c" = "xyes" && test "x$have_protobuf_c_h" != "xyes"
+if test "x$have_protoc_c" = "xno"
 then
-	have_protoc_c="no (unable to find <google/protobuf-c/protobuf-c.h>)"
+	have_protoc_c="no (protoc-c compiler not found)"
+fi
+
+if test "x$have_protoc_c" = "xyes"
+then
+	AC_CHECK_HEADERS([protobuf-c/protobuf-c.h google/protobuf-c/protobuf-c.h],
+			 [have_protoc_c="yes"; break],
+			 [have_protoc_c="no (<google/protobuf-c/protobuf-c.h> not found)"])
+fi
+if test "x$have_protoc_c" = "xyes"
+then
+	AC_CHECK_LIB([protobuf-c], [protobuf_c_message_pack],
+		     [have_protoc_c="yes"],
+		     [have_protoc_c="no (libprotobuf-c not found)"])
+
 fi
 AM_CONDITIONAL(HAVE_PROTOC_C, test "x$have_protoc_c" = "xyes")
 
@@ -401,7 +412,7 @@ AC_CHECK_HEADERS(sys/sysctl.h, [], [],
 AC_MSG_CHECKING([for sysctl kern.cp_times])
 if test -x /sbin/sysctl
 then
-	/sbin/sysctl kern.cp_times 2>/dev/null
+	/sbin/sysctl kern.cp_times >/dev/null 2>&1
 	if test $? -eq 0
 	then
 		AC_MSG_RESULT([yes])
@@ -654,8 +665,6 @@ AC_CHECK_HEADERS(netinet/if_ether.h, [], [],
 # include <netinet/in.h>
 #endif
 ])
-
-AC_CHECK_HEADERS(netinet/ip_compat.h)
 
 have_net_pfvar_h="no"
 AC_CHECK_HEADERS(net/pfvar.h,
@@ -1286,6 +1295,8 @@ have_getvfsstat="no"
 AC_CHECK_FUNCS(getvfsstat, [have_getvfsstat="yes"])
 have_listmntent="no"
 AC_CHECK_FUNCS(listmntent, [have_listmntent="yes"])
+have_getmntent_r="no"
+AC_CHECK_FUNCS(getmntent_r, [have_getmntent_r="yes"])
 
 have_getmntent="no"
 AC_CHECK_FUNCS(getmntent, [have_getmntent="c"])
@@ -1548,6 +1559,46 @@ if test "x$with_libhal" = "xyes"; then
 		AC_SUBST(BUILD_WITH_LIBHAL_LIBS)
 	fi
 fi
+
+# --with-libpthread {{{
+AC_ARG_WITH(libpthread, [AS_HELP_STRING([--with-libpthread=@<:@=PREFIX@:>@], [Path to libpthread.])],
+[	if test "x$withval" != "xno" \
+		&& test "x$withval" != "xyes"
+	then
+		LDFLAGS="$LDFLAGS -L$withval/lib"
+		CPPFLAGS="$CPPFLAGS -I$withval/include"
+		with_libpthread="yes"
+	else
+		if test "x$withval" = "xno"
+		then
+			with_libpthread="no (disabled)"
+		fi
+	fi
+], [with_libpthread="yes"])
+
+AC_SUBST([PTHREAD_LIBS])
+if test "x$with_libpthread" = "xyes"
+then
+	SAVE_LIBS="$LIBS"
+	AC_CHECK_LIB(pthread, pthread_create, [], [with_libpthread="no (Symbol 'pthread_create' not found)"], [])
+	PTHREAD_LIBS="$LIBS"
+	LIBS="$SAVE_LIBS"
+fi
+
+if test "x$with_libpthread" = "xyes"
+then
+	AC_CHECK_HEADERS(pthread.h,, [with_libpthread="no (pthread.h not found)"])
+fi
+if test "x$with_libpthread" = "xyes"
+then
+	collect_pthread=1
+else
+	collect_pthread=0
+fi
+AC_DEFINE_UNQUOTED(HAVE_LIBPTHREAD, [$collect_pthread],
+	[Wether or not to use pthread (POSIX threads) library])
+AM_CONDITIONAL(BUILD_WITH_LIBPTHREAD, test "x$with_libpthread" = "xyes")
+# }}}
 
 m4_divert_once([HELP_WITH], [
 collectd additional packages:])
@@ -1972,30 +2023,33 @@ AC_ARG_WITH(libganglia, [AS_HELP_STRING([--with-libganglia@<:@=PREFIX@:>@], [Pat
 	 GANGLIA_LDFLAGS="-L$withval/lib"
 	 with_libganglia="yes"
  else
-	 with_libganglia_config="ganglia-config"
 	 with_libganglia="$withval"
  fi; fi; fi
 ],
 [
- with_libganglia_config="ganglia-config"
  with_libganglia="yes"
 ])
 
-if test "x$with_libganglia" = "xyes" && test "x$with_libganglia_config" != "x"
+if test "x$with_libganglia" = "xyes"
 then
-	if test "x$GANGLIA_CPPFLAGS" = "x"
+	if test "x$with_libganglia_config" != "x"
 	then
-		GANGLIA_CPPFLAGS=`"$with_libganglia_config" --cflags 2>/dev/null`
-	fi
+		if test "x$GANGLIA_CPPFLAGS" = "x"
+		then
+			GANGLIA_CPPFLAGS=`"$with_libganglia_config" --cflags 2>/dev/null`
+		fi
 
-	if test "x$GANGLIA_LDFLAGS" = "x"
-	then
-		GANGLIA_LDFLAGS=`"$with_libganglia_config" --ldflags 2>/dev/null`
-	fi
+		if test "x$GANGLIA_LDFLAGS" = "x"
+		then
+			GANGLIA_LDFLAGS=`"$with_libganglia_config" --ldflags 2>/dev/null`
+		fi
 
-	if test "x$GANGLIA_LIBS" = "x"
-	then
-		GANGLIA_LIBS=`"$with_libganglia_config" --libs 2>/dev/null`
+		if test "x$GANGLIA_LIBS" = "x"
+		then
+			GANGLIA_LIBS=`"$with_libganglia_config" --libs 2>/dev/null`
+		fi
+	else
+		GANGLIA_LIBS="-lganglia"
 	fi
 fi
 
@@ -2067,12 +2121,6 @@ then
 		GCRYPT_CPPFLAGS=`"$with_libgcrypt_config" --cflags 2>/dev/null`
 	fi
 
-	if test "x$GCRYPT_LDFLAGS" = "x"
-	then
-		gcrypt_exec_prefix=`"$with_libgcrypt_config" --exec-prefix 2>/dev/null`
-		GCRYPT_LDFLAGS="-L$gcrypt_exec_prefix/lib"
-	fi
-
 	if test "x$GCRYPT_LIBS" = "x"
 	then
 		GCRYPT_LIBS=`"$with_libgcrypt_config" --libs 2>/dev/null`
@@ -2081,8 +2129,10 @@ fi
 
 SAVE_CPPFLAGS="$CPPFLAGS"
 SAVE_LDFLAGS="$LDFLAGS"
+SAVE_LIBS="$LIBS"
 CPPFLAGS="$CPPFLAGS $GCRYPT_CPPFLAGS"
 LDFLAGS="$LDFLAGS $GCRYPT_LDFLAGS"
+LIBS="$LIBS $GCRYPT_LIBS"
 
 if test "x$with_libgcrypt" = "xyes"
 then
@@ -2097,23 +2147,14 @@ fi
 
 if test "x$with_libgcrypt" = "xyes"
 then
-	if test "x$GCRYPT_LDFLAGS" != "x"
-	then
-		AC_MSG_NOTICE([gcrypt LDFLAGS: $GCRYPT_LDFLAGS])
-	fi
 	AC_CHECK_LIB(gcrypt, gcry_md_hash_buffer,
 		[with_libgcrypt="yes"],
 		[with_libgcrypt="no (symbol gcry_md_hash_buffer not found)"])
-
-	if test "$with_libgcrypt" != "no"; then
-		m4_ifdef([AM_PATH_LIBGCRYPT],[AM_PATH_LIBGCRYPT(1:1.2.0,,with_libgcrypt="no (version 1.2.0+ required)")])
-		GCRYPT_CPPFLAGS="$LIBGCRYPT_CPPFLAGS $LIBGCRYPT_CFLAGS"
-		GCRYPT_LIBS="$LIBGCRYPT_LIBS"
-	fi
 fi
 
 CPPFLAGS="$SAVE_CPPFLAGS"
 LDFLAGS="$SAVE_LDFLAGS"
+LIBS="$SAVE_LIBS"
 
 if test "x$with_libgcrypt" = "xyes"
 then
@@ -2227,9 +2268,6 @@ if test "x$with_java_home" = "x"
 then
 	with_java_home="/usr/lib/jvm"
 fi
-with_java_vmtype="client"
-with_java_cflags=""
-with_java_libs=""
 JAVAC="$JAVAC"
 JAR="$JAR"
 AC_ARG_WITH(java, [AS_HELP_STRING([--with-java@<:@=PREFIX@:>@], [Path to Java home.])],
@@ -2271,7 +2309,7 @@ then
 		fi
 
 		AC_MSG_CHECKING([for libjvm.so])
-		TMPVAR=`find -L "$with_java_home" -name libjvm.so -type f -exec 'dirname' '{}' ';' 2>/dev/null | head -n 1`
+		TMPVAR=`find -L "$with_java_home" -type f \( -name libjvm.so -o -name libjvm.dylib \) -exec 'dirname' '{}' ';' 2>/dev/null | head -n 1`
 		if test "x$TMPVAR" != "x"
 		then
 			AC_MSG_RESULT([found in $TMPVAR])
@@ -2322,6 +2360,10 @@ if test "x$JAVA_LDFLAGS" != "x"
 then
 	AC_MSG_NOTICE([Building with JAVA_LDFLAGS set to: $JAVA_LDFLAGS])
 fi
+if test "x$JAVA_LIBS" != "x"
+then
+	AC_MSG_NOTICE([Building with JAVA_LIBS set to: $JAVA_LIBS])
+fi
 if test "x$JAVAC" = "x"
 then
 	with_javac_path="$PATH"
@@ -2362,9 +2404,11 @@ fi
 SAVE_CPPFLAGS="$CPPFLAGS"
 SAVE_CFLAGS="$CFLAGS"
 SAVE_LDFLAGS="$LDFLAGS"
+SAVE_LIBS="$LIBS"
 CPPFLAGS="$CPPFLAGS $JAVA_CPPFLAGS"
 CFLAGS="$CFLAGS $JAVA_CFLAGS"
 LDFLAGS="$LDFLAGS $JAVA_LDFLAGS"
+LIBS="$LIBS $JAVA_LIBS"
 
 if test "x$with_java" = "xyes"
 then
@@ -2374,8 +2418,8 @@ if test "x$with_java" = "xyes"
 then
 	AC_CHECK_LIB(jvm, JNI_CreateJavaVM,
 	[with_java="yes"],
-	[with_java="no (libjvm not found)"],
-	[$JAVA_LIBS])
+	[with_java="no (Symbol 'JNI_CreateJavaVM' not found)"],
+	[$JAVA_LIBS $PTHREAD_LIBS])
 fi
 if test "x$with_java" = "xyes"
 then
@@ -2386,6 +2430,7 @@ fi
 CPPFLAGS="$SAVE_CPPFLAGS"
 CFLAGS="$SAVE_CFLAGS"
 LDFLAGS="$SAVE_LDFLAGS"
+LIBS="$SAVE_LIBS"
 
 AC_SUBST(JAVA_CPPFLAGS)
 AC_SUBST(JAVA_CFLAGS)
@@ -2457,17 +2502,25 @@ with_liblvm2app_cppflags=""
 with_liblvm2app_ldflags=""
 AC_ARG_WITH(liblvm2app, [AS_HELP_STRING([--with-liblvm2app@<:@=PREFIX@:>@], [Path to liblvm2app.])],
 [
-        if test "x$withval" != "xno" && test "x$withval" != "xyes"
-        then
-                with_liblvm2app_cppflags="-I$withval/include"
-                with_liblvm2app_ldflags="-L$withval/lib"
-                with_liblvm2app="yes"
-        else
-                with_liblvm2app="$withval"
+	if test "x$withval" = "xno"
+	then
+		with_liblvm2app="no"
+	else
+		with_liblvm2app="yes"
+		if test "x$withval" != "xyes"
+		then
+			with_liblvm2app_cppflags="-I$withval/include"
+			with_liblvm2app_ldflags="-L$withval/lib"
+		fi
         fi
 ],
 [
-        with_liblvm2app="yes"
+	if test "x$ac_system" = "xLinux"
+	then
+		with_liblvm2app="yes"
+	else
+		with_liblvm2app="no (Linux only library)"
+	fi
 ])
 if test "x$with_liblvm2app" = "xyes"
 then
@@ -2712,13 +2765,13 @@ AM_CONDITIONAL(BUILD_WITH_LIBMONGOC, test "x$with_libmongoc" = "xyes")
 
 # --with-libmosquitto {{{
 with_libmosquitto_cppflags=""
-with_libmosquitto_libs="-lmosquitto"
+with_libmosquitto_ldflags=""
 AC_ARG_WITH(libmosquitto, [AS_HELP_STRING([--with-libmosquitto@<:@=PREFIX@:>@], [Path to libmosquitto.])],
 [
 	if test "x$withval" != "xno" && test "x$withval" != "xyes"
 	then
 		with_libmosquitto_cppflags="-I$withval/include"
-		with_libmosquitto_libs="-L$withval/lib -lmosquitto"
+		with_libmosquitto_ldflags="-L$withval/lib"
 		with_libmosquitto="yes"
 	else
 		with_libmosquitto="$withval"
@@ -2730,7 +2783,7 @@ AC_ARG_WITH(libmosquitto, [AS_HELP_STRING([--with-libmosquitto@<:@=PREFIX@:>@], 
 if test "x$with_libmosquitto" = "xyes"
 then
 	SAVE_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$with_libmosquitto_cppflags"
+	CPPFLAGS="$CPPFLAGS $with_libmosquitto_cppflags"
 
 	AC_CHECK_HEADERS(mosquitto.h, [with_libmosquitto="yes"], [with_libmosquitto="no (mosquitto.h not found)"])
 
@@ -2740,8 +2793,8 @@ if test "x$with_libmosquitto" = "xyes"
 then
 	SAVE_LDFLAGS="$LDFLAGS"
 	SAVE_CPPFLAGS="$CPPFLAGS"
-	LDFLAGS="$with_libmosquitto_libs"
-	CPPFLAGS="$with_libmosquitto_cppflags"
+	LDFLAGS="$LDFLAGS $with_libmosquitto_ldflags"
+	CPPFLAGS="$CPPFLAGS $with_libmosquitto_cppflags"
 
 	AC_CHECK_LIB(mosquitto, mosquitto_connect, [with_libmosquitto="yes"], [with_libmosquitto="no (libmosquitto not found)"])
 
@@ -2751,8 +2804,10 @@ fi
 if test "x$with_libmosquitto" = "xyes"
 then
 	BUILD_WITH_LIBMOSQUITTO_CPPFLAGS="$with_libmosquitto_cppflags"
-	BUILD_WITH_LIBMOSQUITTO_LIBS="$with_libmosquitto_libs"
+	BUILD_WITH_LIBMOSQUITTO_LDFLAGS="$with_libmosquitto_ldflags"
+	BUILD_WITH_LIBMOSQUITTO_LIBS="-lmosquitto"
 	AC_SUBST(BUILD_WITH_LIBMOSQUITTO_CPPFLAGS)
+	AC_SUBST(BUILD_WITH_LIBMOSQUITTO_LDFLAGS)
 	AC_SUBST(BUILD_WITH_LIBMOSQUITTO_LIBS)
 fi
 # }}}
@@ -2785,7 +2840,7 @@ AC_ARG_WITH(libmysql, [AS_HELP_STRING([--with-libmysql@<:@=PREFIX@:>@], [Path to
 ])
 if test "x$with_libmysql" = "xyes"
 then
-	with_mysql_cflags=`$with_mysql_config --cflags 2>/dev/null`
+	with_mysql_cflags=`$with_mysql_config --include 2>/dev/null`
 	mysql_config_status=$?
 
 	if test $mysql_config_status -ne 0
@@ -2821,15 +2876,17 @@ then
 	then
 		with_libmysql="no ($with_mysql_config failed)"
 	else
-		AC_CHECK_LIB(mysqlclient, mysql_init,
-		 [with_libmysql="yes"],
-		 [with_libmysql="no (symbol 'mysql_init' not found)"],
-		 [$with_mysql_libs])
-
-		AC_CHECK_LIB(mysqlclient, mysql_get_server_version,
+		SAVE_CPPFLAGS="$CPPFLAGS"
+		CPPFLAGS="$CPPFLAGS $with_mysql_cflags"
+		SAVE_LIBS="$LIBS"
+		LIBS="$with_mysql_libs"
+		AC_SEARCH_LIBS([mysql_get_server_version],
+		 [],
 		 [with_libmysql="yes"],
 		 [with_libmysql="no (symbol 'mysql_get_server_version' not found)"],
-		 [$with_mysql_libs])
+		 [])
+		CPPFLAGS="$SAVE_CPPFLAGS"
+		LIBS="$SAVE_LIBS"
 	fi
 fi
 if test "x$with_libmysql" = "xyes"
@@ -3007,7 +3064,7 @@ then
 
 	if test "x$LIBNETAPP_LIBS" = "x"
 	then
-		LIBNETAPP_LIBS="-lpthread -lxml -ladt -lssl -lm -lcrypto -lz"
+		LIBNETAPP_LIBS="$PTHREAD_LIBS -lxml -ladt -lssl -lm -lcrypto -lz"
 	fi
 	AC_MSG_NOTICE([netapp LIBS: $LIBNETAPP_LIBS])
 
@@ -3275,13 +3332,13 @@ fi
 
 # --with-libowcapi {{{
 with_libowcapi_cppflags=""
-with_libowcapi_libs="-lowcapi"
+with_libowcapi_ldflags=""
 AC_ARG_WITH(libowcapi, [AS_HELP_STRING([--with-libowcapi@<:@=PREFIX@:>@], [Path to libowcapi.])],
 [
 	if test "x$withval" != "xno" && test "x$withval" != "xyes"
 	then
 		with_libowcapi_cppflags="-I$withval/include"
-		with_libowcapi_libs="-L$withval/lib -lowcapi"
+		with_libowcapi_ldflags="-L$withval/lib"
 		with_libowcapi="yes"
 	else
 		with_libowcapi="$withval"
@@ -3293,7 +3350,7 @@ AC_ARG_WITH(libowcapi, [AS_HELP_STRING([--with-libowcapi@<:@=PREFIX@:>@], [Path 
 if test "x$with_libowcapi" = "xyes"
 then
 	SAVE_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$with_libowcapi_cppflags"
+	CPPFLAGS="$CPPFLAGS $with_libowcapi_cppflags"
 
 	AC_CHECK_HEADERS(owcapi.h, [with_libowcapi="yes"], [with_libowcapi="no (owcapi.h not found)"])
 
@@ -3303,7 +3360,7 @@ if test "x$with_libowcapi" = "xyes"
 then
 	SAVE_LDFLAGS="$LDFLAGS"
 	SAVE_CPPFLAGS="$CPPFLAGS"
-	LDFLAGS="$with_libowcapi_libs"
+	LDFLAGS="$LDFLAGS $with_libowcapi_ldflags"
 	CPPFLAGS="$with_libowcapi_cppflags"
 
 	AC_CHECK_LIB(owcapi, OW_get, [with_libowcapi="yes"], [with_libowcapi="no (libowcapi not found)"])
@@ -3314,8 +3371,10 @@ fi
 if test "x$with_libowcapi" = "xyes"
 then
 	BUILD_WITH_LIBOWCAPI_CPPFLAGS="$with_libowcapi_cppflags"
-	BUILD_WITH_LIBOWCAPI_LIBS="$with_libowcapi_libs"
+	BUILD_WITH_LIBOWCAPI_LDFLAGS="$with_libowcapi_ldflags"
+	BUILD_WITH_LIBOWCAPI_LIBS="-lowcapi"
 	AC_SUBST(BUILD_WITH_LIBOWCAPI_CPPFLAGS)
+	AC_SUBST(BUILD_WITH_LIBOWCAPI_LDFLAGS)
 	AC_SUBST(BUILD_WITH_LIBOWCAPI_LIBS)
 fi
 # }}}
@@ -3642,41 +3701,6 @@ then
 	AC_SUBST(BUILD_WITH_LIBPQ_LDFLAGS)
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBPQ, test "x$with_libpq" = "xyes")
-# }}}
-
-# --with-libpthread {{{
-AC_ARG_WITH(libpthread, [AS_HELP_STRING([--with-libpthread=@<:@=PREFIX@:>@], [Path to libpthread.])],
-[	if test "x$withval" != "xno" \
-		&& test "x$withval" != "xyes"
-	then
-		LDFLAGS="$LDFLAGS -L$withval/lib"
-		CPPFLAGS="$CPPFLAGS -I$withval/include"
-		with_libpthread="yes"
-	else
-		if test "x$withval" = "xno"
-		then
-			with_libpthread="no (disabled)"
-		fi
-	fi
-], [with_libpthread="yes"])
-if test "x$with_libpthread" = "xyes"
-then
-	AC_CHECK_LIB(pthread, pthread_create, [with_libpthread="yes"], [with_libpthread="no (libpthread not found)"], [])
-fi
-
-if test "x$with_libpthread" = "xyes"
-then
-	AC_CHECK_HEADERS(pthread.h,, [with_libpthread="no (pthread.h not found)"])
-fi
-if test "x$with_libpthread" = "xyes"
-then
-	collect_pthread=1
-else
-	collect_pthread=0
-fi
-AC_DEFINE_UNQUOTED(HAVE_LIBPTHREAD, [$collect_pthread],
-	[Wether or not to use pthread (POSIX threads) library])
-AM_CONDITIONAL(BUILD_WITH_LIBPTHREAD, test "x$with_libpthread" = "xyes")
 # }}}
 
 # --with-python {{{
@@ -4125,11 +4149,6 @@ then
 	SAVE_CPPFLAGS="$CPPFLAGS"
 	CPPFLAGS="$CPPFLAGS $with_sensors_cflags"
 
-#	AC_CHECK_HEADERS(sensors/sensors.h,
-#	[
-#		AC_DEFINE(HAVE_SENSORS_SENSORS_H, 1, [Define to 1 if you have the <sensors/sensors.h> header file.])
-#	],
-#	[with_libsensors="no (sensors/sensors.h not found)"])
 	AC_CHECK_HEADERS(sensors/sensors.h, [], [with_libsensors="no (sensors/sensors.h not found)"])
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
@@ -4785,7 +4804,7 @@ AC_ARG_WITH(mic,[AS_HELP_STRING([--with-mic@<:@=PREFIX@:>@], [Path to Intel MIC 
 		AC_MSG_NOTICE([Not checking for Intel Mic: Manually configured])
 		with_mic_cflags="-I$withval/include"
 		with_mic_ldpath="-L$withval/lib/Linux"
-		with_mic_libs="-lMicAccessSDK -lscif -lpthread"
+		with_mic_libs="$PTHREAD_LIBS -lMicAccessSDK -lscif"
 		with_mic="yes"
 	fi; fi; fi
 ],
@@ -4807,8 +4826,8 @@ then
 
 	AC_CHECK_LIB(MicAccessSDK, MicInitAPI,
 			[with_mic_ldpath="$with_mic_ldpath"
-			with_mic_libs="-lMicAccessSDK -lscif -lpthread"],
-			[with_mic="no (symbol MicInitAPI not found)"],[-lscif -lpthread])
+			with_mic_libs="$PTHREAD_LIBS -lMicAccessSDK -lscif"],
+			[with_mic="no (symbol MicInitAPI not found)"],[$PTHREAD_LIBS -lscif])
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
 	LDFLAGS="$SAVE_LDFLAGS"
@@ -5165,11 +5184,8 @@ AM_CONDITIONAL(BUILD_WITH_LIBATASMART, test "x$with_libatasmart" = "xyes")
 
 PKG_CHECK_MODULES([LIBNOTIFY], [libnotify],
 		[with_libnotify="yes"],
-		[if test "x$LIBNOTIFY_PKG_ERRORS" = "x"; then
-			 with_libnotify="no"
-		 else
-			 with_libnotify="no ($LIBNOTIFY_PKG_ERRORS)"
-		 fi])
+		[with_libnotify="no (pkg-config doesn't know libnotify)"]
+)
 
 # Check for enabled/disabled features
 #
@@ -5293,6 +5309,7 @@ collectd features:])
 AC_COLLECTD([debug],     [enable],  [feature], [debugging])
 AC_COLLECTD([daemon],    [disable], [feature], [daemon mode])
 AC_COLLECTD([getifaddrs],[enable],  [feature], [getifaddrs under Linux])
+AC_COLLECTD([werror],    [disable], [feature], [building with -Werror])
 
 dependency_warning="no"
 dependency_error="no"
@@ -5464,7 +5481,6 @@ then
 fi
 
 # libi2c-dev
-with_libi2c="no"
 if test "x$ac_system" = "xLinux"
 then
 AC_CHECK_DECL(i2c_smbus_read_i2c_block_data,
@@ -5472,6 +5488,8 @@ AC_CHECK_DECL(i2c_smbus_read_i2c_block_data,
 	[with_libi2c="no (symbol i2c_smbus_read_i2c_block_data not found - have you installed libi2c-dev ?)"],
 	[[#include <stdlib.h>
 	#include <linux/i2c-dev.h>]])
+else
+	with_libi2c="no (Linux only)"
 fi
 
 if test "x$with_libi2c" = "xyes"
@@ -5560,6 +5578,11 @@ fi
 #	plugin_df="yes"
 #fi
 if test "x$c_cv_have_one_getmntent" = "xyes"
+then
+	plugin_df="yes"
+fi
+
+if test "x$c_cv_have_getmntent_r" = "xyes"
 then
 	plugin_df="yes"
 fi
@@ -5757,6 +5780,7 @@ AC_PLUGIN([nfs],         [$plugin_nfs],        [NFS statistics])
 AC_PLUGIN([nginx],       [$with_libcurl],      [nginx statistics])
 AC_PLUGIN([notify_desktop], [$with_libnotify], [Desktop notifications])
 AC_PLUGIN([notify_email], [$with_libesmtp],    [Email notifier])
+AC_PLUGIN([notify_nagios], [yes],              [Nagios notification plugin])
 AC_PLUGIN([ntpd],        [yes],                [NTPd statistics])
 AC_PLUGIN([numa],        [$plugin_numa],       [NUMA virtual memory statistics])
 AC_PLUGIN([nut],         [$with_libupsclient], [Network UPS tools statistics])
@@ -5975,6 +5999,13 @@ AC_SUBST(LCC_VERSION_STRING)
 
 AC_CONFIG_FILES(src/libcollectdclient/collectd/lcc_features.h)
 
+AM_CFLAGS="-Wall"
+if test "x$enable_werror" != "xno"
+then
+        AM_CFLAGS="$AM_CFLAGS -Werror"
+fi
+AC_SUBST([AM_CFLAGS])
+
 AC_CONFIG_FILES([Makefile src/Makefile src/daemon/Makefile src/collectd.conf src/libcollectdclient/Makefile src/libcollectdclient/libcollectdclient.pc src/liboconfig/Makefile bindings/Makefile bindings/java/Makefile])
 AC_OUTPUT
 
@@ -6005,6 +6036,17 @@ fi
 cat <<EOF;
 
 Configuration:
+  Build:
+    Platform  . . . . . . $ac_system
+    CC  . . . . . . . . . $CC
+    CFLAGS  . . . . . . . $AM_CFLAGS $CFLAGS
+    CPP . . . . . . . . . $CPP
+    CPPFLAGS  . . . . . . $CPPFLAGS
+    LD  . . . . . . . . . $LD
+    LDFLAGS . . . . . . . $LDFLAGS
+    YACC  . . . . . . . . $YACC
+    YFLAGS  . . . . . . . $YFLAGS
+
   Libraries:
     intel mic . . . . . . $with_mic
     libaquaero5 . . . . . $with_libaquaero5
@@ -6138,6 +6180,7 @@ Configuration:
     nginx . . . . . . . . $enable_nginx
     notify_desktop  . . . $enable_notify_desktop
     notify_email  . . . . $enable_notify_email
+    notify_nagios . . . . $enable_notify_nagios
     ntpd  . . . . . . . . $enable_ntpd
     numa  . . . . . . . . $enable_numa
     nut . . . . . . . . . $enable_nut

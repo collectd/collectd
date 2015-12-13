@@ -150,6 +150,7 @@
 #@BUILD_PLUGIN_NGINX_TRUE@LoadPlugin nginx
 #@BUILD_PLUGIN_NOTIFY_DESKTOP_TRUE@LoadPlugin notify_desktop
 #@BUILD_PLUGIN_NOTIFY_EMAIL_TRUE@LoadPlugin notify_email
+#@BUILD_PLUGIN_NOTIFY_NAGIOS_TRUE@LoadPlugin notify_nagios
 #@BUILD_PLUGIN_NTPD_TRUE@LoadPlugin ntpd
 #@BUILD_PLUGIN_NUMA_TRUE@LoadPlugin numa
 #@BUILD_PLUGIN_NUT_TRUE@LoadPlugin nut
@@ -291,7 +292,7 @@
 
 #<Plugin "battery">
 #  ValuesPercentage false
-#  ReportDegraded
+#  ReportDegraded false
 #</Plugin>
 
 #<Plugin "bind">
@@ -563,6 +564,7 @@
 #<Plugin interface>
 #	Interface "eth0"
 #	IgnoreSelected false
+#	UniqueName false
 #</Plugin>
 
 #<Plugin ipmi>
@@ -683,6 +685,11 @@
 #		Prefix "collectd"
 #		StoreRates true
 #		Retain false
+#		CACert "/etc/ssl/ca.crt"
+#		CertificateFile "/etc/ssl/client.crt"
+#		CertificateKeyFile "/etc/ssl/client.pem"
+#		TLSProtocol "tlsv1.2"
+#		CipherSuite "ciphers"
 #	</Publish>
 #	<Subscribe "name">
 #		Host "localhost"
@@ -831,6 +838,10 @@
 #	Subject "Aaaaaa!! %s on %s!!!!!"
 #	Recipient "email1@domain1.net"
 #	Recipient "email2@domain2.com"
+#</Plugin>
+
+#<Plugin notify_nagios>
+#	CommandFile "/usr/local/nagios/var/rw/nagios.cmd"
 #</Plugin>
 
 #<Plugin ntpd>
@@ -1127,6 +1138,7 @@
 #  DeleteTimers   false
 #  DeleteGauges   false
 #  DeleteSets     false
+#  CounterSum     false
 #  TimerPercentile 90.0
 #  TimerPercentile 95.0
 #  TimerPercentile 99.0
@@ -1337,6 +1349,7 @@
 #    Host "localhost"
 #    Port "2003"
 #    Protocol "tcp"
+#    ReconnectInterval 0
 #    LogSendErrors true
 #    Prefix "collectd"
 #    Postfix "collectd"
