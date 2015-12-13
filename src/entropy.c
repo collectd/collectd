@@ -68,6 +68,12 @@ static int entropy_read (void)
 #if KERNEL_NETBSD
 /* Provide a NetBSD implementation, partial from rndctl.c */
 
+/*
+ * Improved to keep the /dev/urandom open, since there's a reduction of
+ * of the entropy estimate from /dev/random for every open of /dev/urandom,
+ * and this will end up opening /dev/urandom lots of times.
+ */
+
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/param.h>
@@ -81,18 +87,23 @@ static int
 entropy_read (void)
 {
 	rndpoolstat_t rs;
-	int fd;
+	static int fd;
 
-	fd = open(_PATH_URANDOM, O_RDONLY, 0644);
-	if (fd < 0)
+	if (fd == 0) {
+		fd = open(_PATH_URANDOM, O_RDONLY, 0644);
+		if (fd < 0) {
+			fd = 0;
+			return -1;
+		}
+	}
+	if (ioctl(fd, RNDGETPOOLSTAT, &rs) < 0) {
+		(void) close(fd);
+		fd = 0; /* signal a reopen on next attempt */
 		return -1;
-
-	if (ioctl(fd, RNDGETPOOLSTAT, &rs) < 0)
-		return -1;
+	}
 
 	entropy_submit (rs.curentropy);
 
-	close(fd);
 	return 0;
 }
 
