@@ -356,7 +356,6 @@ if BUILD_PLUGIN_DRBD
 pkglib_LTLIBRARIES += drbd.la
 drbd_la_SOURCES = drbd.c
 drbd_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-drbd_la_LIBADD = $(PTHREAD_LIBS)
 endif
 
 if BUILD_PLUGIN_EMAIL
