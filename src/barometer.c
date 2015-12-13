@@ -33,20 +33,20 @@
 /* ------------ MPL115 defines ------------ */
 /* I2C address of the MPL115 sensor */
 #define MPL115_I2C_ADDRESS          0x60
-                                    
-/* register addresses */            
+
+/* register addresses */
 #define MPL115_ADDR_CONV            0x00
 #define MPL115_ADDR_COEFFS          0x04
-                                    
-/* register sizes */                
+
+/* register sizes */
 #define MPL115_NUM_CONV             4
 #define MPL115_NUM_COEFFS           12
-                                    
-/* commands / addresses */          
+
+/* commands / addresses */
 #define MPL115_CMD_CONVERT_PRESS    0x10
 #define MPL115_CMD_CONVERT_TEMP     0x11
 #define MPL115_CMD_CONVERT_BOTH     0x12
-                                    
+
 #define MPL115_CONVERSION_RETRIES   5
 
 
@@ -82,12 +82,12 @@
 #define MPL3115_PT_DATA_DREM        0x04
 #define MPL3115_PT_DATA_PDEF        0x02
 #define MPL3115_PT_DATA_TDEF        0x01
-                                    
+
 #define MPL3115_DR_STATUS_TDR       0x02
 #define MPL3115_DR_STATUS_PDR       0x04
 #define MPL3115_DR_STATUS_PTDR      0x08
 #define MPL3115_DR_STATUS_DR        (MPL3115_DR_STATUS_TDR | MPL3115_DR_STATUS_PDR | MPL3115_DR_STATUS_PTDR)
-                                    
+
 #define MPL3115_DR_STATUS_TOW       0x20
 #define MPL3115_DR_STATUS_POW       0x40
 #define MPL3115_DR_STATUS_PTOW      0x80
@@ -115,7 +115,7 @@
 /* I2C address of the BMP085 sensor */
 #define BMP085_I2C_ADDRESS          0x77
 
-/* register addresses */            
+/* register addresses */
 #define BMP085_ADDR_ID_REG          0xD0
 #define BMP085_ADDR_VERSION         0xD1
 
@@ -124,7 +124,7 @@
 #define BMP085_ADDR_CTRL_REG        0xF4
 #define BMP085_ADDR_COEFFS          0xAA
 
-/* register sizes */                
+/* register sizes */
 #define BMP085_NUM_COEFFS           22
 
 /* commands, values */
@@ -178,7 +178,7 @@ static const char *config_keys[] =
 };
 
 static int    config_keys_num     = STATIC_ARRAY_SIZE(config_keys);
-                                  
+
 static char * config_device       = NULL;  /**< I2C bus device */
 static int    config_oversample   = 1;     /**< averaging window */
 
@@ -187,9 +187,9 @@ static double config_temp_offset  = 0.0;   /**< temperature offset */
 
 static double config_altitude     = NAN;   /**< altitude */
 static int    config_normalize    = 0;     /**< normalization method */
-                                  
+
 static _Bool  configured          = 0;     /**< the whole plugin config status */
-                                  
+
 static int    i2c_bus_fd          = -1;    /**< I2C bus device FD */
 
 static enum Sensor_type sensor_type = Sensor_none; /**< detected/used sensor type */
@@ -243,7 +243,7 @@ static averaging_t pressure_averaging    = { NULL, 0, 0L, 0 };
 static averaging_t temperature_averaging = { NULL, 0, 0L, 0 };
 
 
-/** 
+/**
  * Create / allocate averaging buffer
  *
  * The buffer is initialized with zeros.
@@ -309,9 +309,9 @@ static double averaging_add_sample(averaging_t * avg, long int sample)
     avg->ring_buffer[avg->ring_buffer_head] = sample;
     avg->ring_buffer_head = (avg->ring_buffer_head+1) % avg->ring_buffer_size;
     result = (double)(avg->ring_buffer_sum) / (double)(avg->ring_buffer_size);
-    
-    DEBUG ("barometer: averaging_add_sample - added %ld, result = %lf", 
-           sample, 
+
+    DEBUG ("barometer: averaging_add_sample - added %ld, result = %lf",
+           sample,
            result);
 
     return result;
@@ -474,7 +474,7 @@ static int get_reference_temperature(double * result)
             list = list->next;
             continue;
         }
-            
+
         for(i=0; i<REF_TEMP_AVG_NUM*list->num_values; ++i)
         {
             DEBUG ("barometer: get_reference_temperature - history %d: %lf",
@@ -533,7 +533,7 @@ static int get_reference_temperature(double * result)
         }
         list = list->next;
     }  /* while sensor list */
-    
+
     if(*result == NAN)
     {
         ERROR("barometer: get_reference_temperature - no sensor available (yet?)");
@@ -546,7 +546,7 @@ static int get_reference_temperature(double * result)
 
 /* ------------------------ MPL115 access ------------------------ */
 
-/** 
+/**
  * Detect presence of a MPL115 pressure sensor.
  *
  * Unfortunately there seems to be no ID register so we just try to read first
@@ -554,7 +554,7 @@ static int get_reference_temperature(double * result)
  * MPL115. We should use this check as the last resort (which would be the typical
  * case anyway since MPL115 is the least accurate sensor).
  * As a sideeffect will leave set I2C slave address.
- * 
+ *
  * @return 1 if MPL115, 0 otherwise
  */
 static int MPL115_detect(void)
@@ -690,7 +690,7 @@ static void MPL115_convert_adc_to_real(double   adc_pressure,
     Pcomp = mpl115_coeffA0 +                                            \
         (mpl115_coeffB1 + mpl115_coeffC11*adc_pressure + mpl115_coeffC12*adc_temp) * adc_pressure + \
         (mpl115_coeffB2 + mpl115_coeffC22*adc_temp) * adc_temp;
-    
+
     *pressure = ((1150.0-500.0) * Pcomp / 1023.0) + 500.0;
     *temperature = (472.0 - adc_temp) / 5.35 + 25.0;
     DEBUG ("barometer: MPL115_convert_adc_to_real - got %lf hPa, %lf C",
@@ -802,11 +802,11 @@ static int MPL115_read_averaged(double * pressure, double * temperature)
 
 /* ------------------------ MPL3115 access ------------------------ */
 
-/** 
+/**
  * Detect presence of a MPL3115 pressure sensor by checking register "WHO AM I"
  *
  * As a sideeffect will leave set I2C slave address.
- * 
+ *
  * @return 1 if MPL3115, 0 otherwise
  */
 static int MPL3115_detect(void)
@@ -833,10 +833,10 @@ static int MPL3115_detect(void)
     return 0;
 }
 
-/** 
+/**
  * Adjusts oversampling to values supported by MPL3115
  *
- * MPL3115 supports only power of 2 in the range 1 to 128. 
+ * MPL3115 supports only power of 2 in the range 1 to 128.
  */
 static void MPL3115_adjust_oversampling(void)
 {
@@ -884,13 +884,13 @@ static void MPL3115_adjust_oversampling(void)
     }
 
     DEBUG("barometer: MPL3115_adjust_oversampling - correcting oversampling from %d to %d",
-          config_oversample, 
+          config_oversample,
           new_val);
     config_oversample = new_val;
 }
 
-/** 
- * Read sensor averegaed measurements
+/**
+ * Read sensor averaged measurements
  *
  * @param pressure    averaged measured pressure
  * @param temperature averaged measured temperature
@@ -904,7 +904,7 @@ static int MPL3115_read(double * pressure, double * temperature)
     __u8 data[MPL3115_NUM_CONV_VALS];
     long int tmp_value = 0;
     char errbuf[1024];
-    
+
     /* Set Active - activate the device from standby */
     res = i2c_smbus_read_byte_data(i2c_bus_fd, MPL3115_REG_CTRL_REG1);
     if (res < 0)
@@ -914,8 +914,8 @@ static int MPL3115_read(double * pressure, double * temperature)
         return 1;
     }
     ctrl = res;
-    res = i2c_smbus_write_byte_data(i2c_bus_fd, 
-                                    MPL3115_REG_CTRL_REG1, 
+    res = i2c_smbus_write_byte_data(i2c_bus_fd,
+                                    MPL3115_REG_CTRL_REG1,
                                     ctrl | MPL3115_CTRL_REG1_SBYB);
     if (res < 0)
     {
@@ -923,10 +923,10 @@ static int MPL3115_read(double * pressure, double * temperature)
                sstrerror (errno, errbuf, sizeof (errbuf)));
         return 1;
     }
-    
+
     /* base sleep is 5ms x OST */
     usleep(5000 * config_oversample);
-      
+
     /* check the flags/status if ready */
     res = i2c_smbus_read_byte_data(i2c_bus_fd, MPL3115_REG_STATUS);
     if (res < 0)
@@ -935,12 +935,12 @@ static int MPL3115_read(double * pressure, double * temperature)
                sstrerror (errno, errbuf, sizeof (errbuf)));
         return 1;
     }
-    
+
     while ((res & MPL3115_DR_STATUS_DR) != MPL3115_DR_STATUS_DR)
     {
         /* try some extra sleep... */
         usleep(10000);
-        
+
         /* ... and repeat the check. The conversion has to finish sooner or later. */
         res = i2c_smbus_read_byte_data(i2c_bus_fd, MPL3115_REG_STATUS);
         if (res < 0)
@@ -950,10 +950,10 @@ static int MPL3115_read(double * pressure, double * temperature)
             return 1;
         }
     }
-    
+
     /* Now read all the data in one block. There is address autoincrement. */
-    res = i2c_smbus_read_i2c_block_data(i2c_bus_fd, 
-                                        MPL3115_REG_OUT_P_MSB, 
+    res = i2c_smbus_read_i2c_block_data(i2c_bus_fd,
+                                        MPL3115_REG_OUT_P_MSB,
                                         MPL3115_NUM_CONV_VALS,
                                         data);
     if (res < 0)
@@ -962,11 +962,11 @@ static int MPL3115_read(double * pressure, double * temperature)
                sstrerror (errno, errbuf, sizeof (errbuf)));
         return 1;
     }
-    
+
     tmp_value = (data[0] << 16) | (data[1] << 8) | data[2];
     *pressure = ((double) tmp_value) / 4.0 / 16.0 / 100.0;
     DEBUG ("barometer: MPL3115_read - absolute pressure = %lf hPa", *pressure);
-    
+
     if(data[3] > 0x7F)
     {
         data[3] = ~data[3] + 1;
@@ -977,16 +977,16 @@ static int MPL3115_read(double * pressure, double * temperature)
     {
         *temperature = data[3];
     }
-    
+
     *temperature += (double)(data[4]) / 256.0;
     DEBUG ("barometer: MPL3115_read - temperature = %lf C", *temperature);
-    
+
     return 0;
 }
 
-/** 
+/**
  * Initialize MPL3115 for barometeric measurements
- * 
+ *
  * @return 0 if successful
  */
 static int MPL3115_init_sensor(void)
@@ -994,18 +994,18 @@ static int MPL3115_init_sensor(void)
     __s32 res;
     __s8 offset;
     char errbuf[1024];
-    
+
     /* Reset the sensor. It will reset immediately without ACKing */
     /* the transaction, so no error handling here. */
-    i2c_smbus_write_byte_data(i2c_bus_fd, 
-                              MPL3115_REG_CTRL_REG1, 
+    i2c_smbus_write_byte_data(i2c_bus_fd,
+                              MPL3115_REG_CTRL_REG1,
                               MPL3115_CTRL_REG1_RST);
-    
+
     /* wait some time for the reset to finish */
     usleep(100000);
 
     /* now it should be in standby already so we can go and configure it */
-    
+
     /*  Set temperature offset. */
     /*  result = ADCtemp + offset [C] */
     offset = (__s8) (config_temp_offset * 16.0);
@@ -1016,7 +1016,7 @@ static int MPL3115_init_sensor(void)
                sstrerror (errno, errbuf, sizeof (errbuf)));
         return -1;
     }
-    
+
     /*  Set pressure offset. */
     /*  result = ADCpress + offset [hPa] */
     offset = (__s8) (config_press_offset * 100.0 / 4.0);
@@ -1029,7 +1029,7 @@ static int MPL3115_init_sensor(void)
     }
 
     /* Enable Data Flags in PT_DATA_CFG - flags on both pressure and temp */
-    res = i2c_smbus_write_byte_data(i2c_bus_fd, 
+    res = i2c_smbus_write_byte_data(i2c_bus_fd,
                                     MPL3115_REG_PT_DATA_CFG,
                                     MPL3115_PT_DATA_DREM        \
                                     | MPL3115_PT_DATA_PDEF      \
@@ -1041,9 +1041,9 @@ static int MPL3115_init_sensor(void)
         return -1;
     }
 
-    /* Set to barometer with an OSR */ 
-    res = i2c_smbus_write_byte_data(i2c_bus_fd, 
-                                    MPL3115_REG_CTRL_REG1, 
+    /* Set to barometer with an OSR */
+    res = i2c_smbus_write_byte_data(i2c_bus_fd,
+                                    MPL3115_REG_CTRL_REG1,
                                     mpl3115_oversample);
     if (res < 0)
     {
@@ -1057,11 +1057,11 @@ static int MPL3115_init_sensor(void)
 
 /* ------------------------ BMP085 access ------------------------ */
 
-/** 
+/**
  * Detect presence of a BMP085 pressure sensor by checking its ID register
  *
  * As a sideeffect will leave set I2C slave address.
- * 
+ *
  * @return 1 if BMP085, 0 otherwise
  */
 static int BMP085_detect(void)
@@ -1101,10 +1101,10 @@ static int BMP085_detect(void)
 }
 
 
-/** 
+/**
  * Adjusts oversampling settings to values supported by BMP085
  *
- * BMP085 supports only 1,2,4 or 8 samples. 
+ * BMP085 supports only 1,2,4 or 8 samples.
  */
 static void BMP085_adjust_oversampling(void)
 {
@@ -1140,13 +1140,13 @@ static void BMP085_adjust_oversampling(void)
     }
 
     DEBUG("barometer: BMP085_adjust_oversampling - correcting oversampling from %d to %d",
-          config_oversample, 
+          config_oversample,
           new_val);
     config_oversample = new_val;
 }
 
 
-/** 
+/**
  * Read the BMP085 sensor conversion coefficients.
  *
  * These are (device specific) constants so we can read them just once.
@@ -1156,12 +1156,12 @@ static void BMP085_adjust_oversampling(void)
 static int BMP085_read_coeffs(void)
 {
     __s32 res;
-    __u8 coeffs[BMP085_NUM_COEFFS]; 
+    __u8 coeffs[BMP085_NUM_COEFFS];
     char errbuf[1024];
 
-    res = i2c_smbus_read_i2c_block_data(i2c_bus_fd, 
+    res = i2c_smbus_read_i2c_block_data(i2c_bus_fd,
                                         BMP085_ADDR_COEFFS,
-                                        BMP085_NUM_COEFFS, 
+                                        BMP085_NUM_COEFFS,
                                         coeffs);
     if (res < 0)
     {
@@ -1169,7 +1169,7 @@ static int BMP085_read_coeffs(void)
                sstrerror (errno, errbuf, sizeof (errbuf)));
         return -1;
     }
-    
+
     bmp085_AC1 = ((int16_t)  coeffs[0]  <<8) | (int16_t)  coeffs[1];
     bmp085_AC2 = ((int16_t)  coeffs[2]  <<8) | (int16_t)  coeffs[3];
     bmp085_AC3 = ((int16_t)  coeffs[4]  <<8) | (int16_t)  coeffs[5];
@@ -1240,13 +1240,13 @@ static void BMP085_convert_adc_to_real(long adc_pressure,
     X2 = (((long)bmp085_AC2 * B6) >> 11);
     X3 = X1 + X2;
     B3 = (((((long)bmp085_AC1 * 4) + X3) << bmp085_oversampling) + 2) >> 2;
-    
+
     /* B4 */
     X1 = (((long)bmp085_AC3*B6) >> 13);
     X2 = (bmp085_B1*((B6*B6) >> 12) ) >> 16;
     X3 = ((X1 + X2) + 2 ) >> 2;
     B4 = ((long)bmp085_AC4* (unsigned long)(X3 + 32768)) >> 15;
-    
+
     /* B7, P */
     B7 =  (unsigned long)(adc_pressure - B3)*(50000>>bmp085_oversampling);
     if( B7 < 0x80000000 )
@@ -1261,15 +1261,15 @@ static void BMP085_convert_adc_to_real(long adc_pressure,
     X1 = (X1 * 3038) >> 16;
     X2 = ((-7357) * P) >> 16;
     P = P + ( ( X1 + X2 + 3791 ) >> 4);
-    
-    *pressure = P / 100.0; // in [hPa] 
+
+    *pressure = P / 100.0; // in [hPa]
     DEBUG ("barometer: BMP085_convert_adc_to_real - got %lf hPa, %lf C",
            *pressure,
            *temperature);
 }
 
-    
-/** 
+
+/**
  * Read compensated sensor measurements
  *
  * @param pressure    averaged measured pressure
@@ -1301,9 +1301,9 @@ static int BMP085_read(double * pressure, double * temperature)
     usleep(BMP085_TIME_CNV_TEMP); /* wait for the conversion */
 
     res = i2c_smbus_read_i2c_block_data( i2c_bus_fd,
-                                         BMP085_ADDR_CONV, 
+                                         BMP085_ADDR_CONV,
                                          2,
-                                         measBuff); 
+                                         measBuff);
     if (res < 0)
     {
         ERROR ("barometer: BMP085_read - problem reading temperature data: %s",
@@ -1311,12 +1311,12 @@ static int BMP085_read(double * pressure, double * temperature)
         return 1;
     }
 
-    adc_temperature = ( (unsigned short)measBuff[0] << 8 ) + measBuff[1]; 
-    
+    adc_temperature = ( (unsigned short)measBuff[0] << 8 ) + measBuff[1];
+
 
     /* get presure */
     res = i2c_smbus_write_byte_data( i2c_bus_fd,
-                                     BMP085_ADDR_CTRL_REG, 
+                                     BMP085_ADDR_CTRL_REG,
                                      bmp085_cmdCnvPress );
     if (res < 0)
     {
@@ -1328,7 +1328,7 @@ static int BMP085_read(double * pressure, double * temperature)
     usleep(bmp085_timeCnvPress); /* wait for the conversion */
 
     res = i2c_smbus_read_i2c_block_data( i2c_bus_fd,
-                                         BMP085_ADDR_CONV, 
+                                         BMP085_ADDR_CONV,
                                          3,
                                          measBuff );
     if (res < 0)
@@ -1339,7 +1339,7 @@ static int BMP085_read(double * pressure, double * temperature)
     }
 
     adc_pressure = (long)((((ulong)measBuff[0]<<16) | ((ulong)measBuff[1]<<8) | (ulong)measBuff[2] ) >> (8 - bmp085_oversampling));
-    
+
 
     DEBUG ("barometer: BMP085_read - raw pressure ADC value = %ld, " \
            "raw temperature ADC value = %ld",
@@ -1354,13 +1354,13 @@ static int BMP085_read(double * pressure, double * temperature)
 
 
 /* ------------------------ Sensor detection ------------------------ */
-/** 
+/**
  * Detect presence of a supported sensor.
  *
  * As a sideeffect will leave set I2C slave address.
  * The detection is done in the order BMP085, MPL3115, MPL115 and stops after
  * first sensor beeing found.
- * 
+ *
  * @return detected sensor type
  */
 enum Sensor_type Detect_sensor_type(void)
@@ -1388,7 +1388,7 @@ enum Sensor_type Detect_sensor_type(void)
  * - MSLP_INTERNATIONAL - see http://en.wikipedia.org/wiki/Atmospheric_pressure#Altitude_atmospheric_pressure_variation
  *           Requires #config_altitude
  *
- * - MSLP_DEU_WETT - formula as recommended by the Deutsche Wetterdienst. See 
+ * - MSLP_DEU_WETT - formula as recommended by the Deutsche Wetterdienst. See
  *                http://de.wikipedia.org/wiki/Barometrische_H%C3%B6henformel#Theorie
  *           Requires both #config_altitude and temperature reference(s).
  *
@@ -1416,12 +1416,12 @@ static double abs_to_mean_sea_level_pressure(double abs_pressure)
     case MSLP_NONE:
         mean = abs_pressure;
         break;
-        
+
     case MSLP_INTERNATIONAL:
         mean = abs_pressure / \
             pow(1.0 - 0.0065*config_altitude/288.15, 9.80665*0.0289644/(8.31447*0.0065));
         break;
-        
+
     case MSLP_DEU_WETT:
     {
         double E; /* humidity */
@@ -1436,7 +1436,7 @@ static double abs_to_mean_sea_level_pressure(double abs_pressure)
     break;
 
     default:
-        ERROR ("barometer: abs_to_mean_sea_level_pressure: wrong conversion method %d", 
+        ERROR ("barometer: abs_to_mean_sea_level_pressure: wrong conversion method %d",
                config_normalize);
         mean = abs_pressure;
         break;
@@ -1447,17 +1447,17 @@ static double abs_to_mean_sea_level_pressure(double abs_pressure)
            config_normalize,
            mean);
 
-    return mean; 
+    return mean;
 }
 
 /* ------------------------ main plugin callbacks ------------------------ */
 
-/** 
+/**
  * Main plugin configuration callback (using simple config)
- * 
+ *
  * @param key   configuration key we should process
  * @param value configuration value we should process
- * 
+ *
  * @return Zero when successful.
  */
 static int collectd_barometer_config (const char *key, const char *value)
@@ -1511,7 +1511,7 @@ static int collectd_barometer_config (const char *key, const char *value)
     {
         config_temp_offset = atof(value);
     }
-    else 
+    else
     {
         return -1;
     }
@@ -1520,11 +1520,11 @@ static int collectd_barometer_config (const char *key, const char *value)
 }
 
 
-/** 
+/**
  * Shutdown callback.
- * 
+ *
  * Close I2C and delete all the buffers.
- * 
+ *
  * @return Zero when successful (at the moment the only possible outcome)
  */
 static int collectd_barometer_shutdown(void)
@@ -1550,9 +1550,9 @@ static int collectd_barometer_shutdown(void)
 }
 
 
-/** 
+/**
  * Plugin read callback for MPL115.
- * 
+ *
  *  Dispatching will create values:
  *  - <hostname>/barometer-mpl115/pressure-normalized
  *  - <hostname>/barometer-mpl115/pressure-absolute
@@ -1570,7 +1570,7 @@ static int MPL115_collectd_barometer_read (void)
 
     value_list_t vl = VALUE_LIST_INIT;
     value_t      values[1];
-    
+
     DEBUG("barometer: MPL115_collectd_barometer_read");
 
     if (!configured)
@@ -1632,9 +1632,9 @@ static int MPL115_collectd_barometer_read (void)
 }
 
 
-/** 
+/**
  * Plugin read callback for MPL3115.
- * 
+ *
  *  Dispatching will create values:
  *  - <hostname>/barometer-mpl3115/pressure-normalized
  *  - <hostname>/barometer-mpl3115/pressure-absolute
@@ -1645,21 +1645,21 @@ static int MPL115_collectd_barometer_read (void)
 static int MPL3115_collectd_barometer_read (void)
 {
     int result = 0;
-    
+
     double pressure        = 0.0;
     double temperature     = 0.0;
     double norm_pressure   = 0.0;
-    
+
     value_list_t vl = VALUE_LIST_INIT;
     value_t      values[1];
-    
+
     DEBUG("barometer: MPL3115_collectd_barometer_read");
-    
+
     if (!configured)
     {
         return -1;
     }
-    
+
     result = MPL3115_read(&pressure, &temperature);
     if(result)
         return result;
@@ -1695,9 +1695,9 @@ static int MPL3115_collectd_barometer_read (void)
 }
 
 
-/** 
+/**
  * Plugin read callback for BMP085.
- * 
+ *
  *  Dispatching will create values:
  *  - <hostname>/barometer-bmp085/pressure-normalized
  *  - <hostname>/barometer-bmp085/pressure-absolute
@@ -1708,21 +1708,21 @@ static int MPL3115_collectd_barometer_read (void)
 static int BMP085_collectd_barometer_read (void)
 {
     int result = 0;
-    
+
     double pressure        = 0.0;
     double temperature     = 0.0;
     double norm_pressure   = 0.0;
-    
+
     value_list_t vl = VALUE_LIST_INIT;
     value_t      values[1];
-    
+
     DEBUG("barometer: BMP085_collectd_barometer_read");
-    
+
     if (!configured)
     {
         return -1;
     }
-    
+
     result = BMP085_read(&pressure, &temperature);
     if(result)
         return result;
@@ -1758,12 +1758,12 @@ static int BMP085_collectd_barometer_read (void)
 }
 
 
-/** 
+/**
  * Initialization callback
- * 
+ *
  * Check config, initialize I2C bus access, conversion coefficients and averaging
  * ring buffers
- * 
+ *
  * @return Zero when successful.
  */
 static int collectd_barometer_init (void)
@@ -1814,10 +1814,10 @@ static int collectd_barometer_init (void)
     case Sensor_MPL3115:
     {
         MPL3115_adjust_oversampling();
-        
+
         if(MPL3115_init_sensor())
             return -1;
-        
+
         plugin_register_read ("barometer", MPL3115_collectd_barometer_read);
     }
     break;
@@ -1830,16 +1830,16 @@ static int collectd_barometer_init (void)
             ERROR("barometer: collectd_barometer_init pressure averaging init failed");
             return -1;
         }
-        
+
         if (averaging_create (&temperature_averaging, config_oversample))
         {
             ERROR("barometer: collectd_barometer_init temperature averaging init failed");
             return -1;
         }
-        
+
         if (MPL115_read_coeffs() < 0)
             return -1;
-        
+
         plugin_register_read ("barometer", MPL115_collectd_barometer_read);
     }
     break;
@@ -1861,7 +1861,7 @@ static int collectd_barometer_init (void)
         ERROR("barometer: collectd_barometer_init - no supported sensor found");
         return -1;
     }
-        
+
 
     configured = 1;
     return 0;
@@ -1869,15 +1869,15 @@ static int collectd_barometer_init (void)
 
 /* ------------------------ plugin register / entry point ------------------------ */
 
-/** 
+/**
  * Plugin "entry" - register all callback.
- * 
+ *
  */
 void module_register (void)
 {
-    plugin_register_config ("barometer", 
-                            collectd_barometer_config, 
-                            config_keys, 
+    plugin_register_config ("barometer",
+                            collectd_barometer_config,
+                            config_keys,
                             config_keys_num);
     plugin_register_init ("barometer", collectd_barometer_init);
     plugin_register_shutdown ("barometer", collectd_barometer_shutdown);
