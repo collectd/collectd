@@ -336,7 +336,7 @@ static int chrony_connect()
 	if (socket < 0)
 	{
 		ERROR ("chrony plugin: Error connecting to daemon. Errno = %d", errno);
-		return (1);
+		return 1;
 	}
 	DEBUG("chrony plugin: Connected");
 	g_chrony_socket = socket;
@@ -344,9 +344,9 @@ static int chrony_connect()
 	if (chrony_set_timeout())
 	{
 		ERROR ("chrony plugin: Error setting timeout to %lds. Errno = %d", g_chrony_timeout, errno);
-		return (1);
+		return 1;
 	}
-	return (0);
+	return 0;
 }
 
 static int chrony_send_request(const tChrony_Request *p_req, size_t p_req_size)
@@ -354,9 +354,9 @@ static int chrony_send_request(const tChrony_Request *p_req, size_t p_req_size)
 	if (send(g_chrony_socket,p_req,p_req_size,0) < 0)
 	{
 		ERROR ("chrony plugin: Error sending packet. Errno = %d", errno);
-		return (1);
+		return 1;
 	} else {
-		return (0);
+		return 0;
 	}
 }
 
@@ -366,26 +366,20 @@ static int chrony_recv_response(tChrony_Response *p_resp, size_t p_resp_max_size
 	if (rc <= 0)
 	{
 		ERROR ("chrony plugin: Error receiving packet. Errno = %d", errno);
-		return (1);
+		return 1;
 	} else {
-#if 0
-		if (rc < p_resp_max_size)
-		{
-			ERROR ("chrony plugin: Received too small response packet. (Should: %ld, was: %ld)", p_resp_max_size, rc);
-			return (1);
-		}
-#endif
 		*p_resp_size = rc;
-		return (0);
+		return 0;
 	}
 }
 
-static int chrony_query(int p_command, tChrony_Request *p_req, tChrony_Response *p_resp, size_t *p_resp_size)
+static int chrony_query(const int p_command, tChrony_Request *p_req, tChrony_Response *p_resp, size_t *p_resp_size)
 {
 	/* Check connection. We simply perform one try as collectd already handles retries */
 	assert(p_req);
 	assert(p_resp);
 	assert(p_resp_size);
+
 	if (g_is_connected == 0)
 	{
 		if (chrony_connect() == 0)
@@ -401,7 +395,7 @@ static int chrony_query(int p_command, tChrony_Request *p_req, tChrony_Response 
 	do
 	{
 		int valid_command = 0;
-		size_t req_size = sizeof(p_req->header) + sizeof(p_req->padding);
+		size_t req_size  = sizeof(p_req->header) + sizeof(p_req->padding);
 		size_t resp_size = sizeof(p_resp->header);
 		uint16_t resp_code = RPY_NULL;
 		switch (p_command)
@@ -411,22 +405,22 @@ static int chrony_query(int p_command, tChrony_Request *p_req, tChrony_Response 
 			resp_size += sizeof(p_resp->body.n_sources); 
 			resp_code = RPY_N_SOURCES;
 			valid_command = 1;
-			break;
+		break;
 		case REQ_SOURCE_DATA:
 			req_size  += sizeof(p_req->body.source_data);
 			resp_size += sizeof(p_resp->body.source_data); 
 			resp_code = RPY_SOURCE_DATA;
 			valid_command = 1;
-			break;
+		break;
 		case REQ_SOURCE_STATS:
 			req_size  += sizeof(p_req->body.source_stats);
 			resp_size += sizeof(p_resp->body.source_stats); 
 			resp_code = RPY_SOURCE_STATS;
 			valid_command = 1;
-			break;
+		break;
 		default:
 			ERROR ("chrony plugin: Unknown request command (Was: %d)", p_command);
-			break;
+		break;
 		}
 
 		if (valid_command == 0)
@@ -486,12 +480,15 @@ static int chrony_query(int p_command, tChrony_Request *p_req, tChrony_Response 
 			break;
 		default:
 			ERROR("chrony plugin: Reply packet contains error status: %d (expected: %d)", p_resp->header.f_status, STT_SUCCESS);
-			return (1);
+			return 1;
 		}
-		return (0);
+
+		//Good result
+		return 0;
 	} while (0);
 	
-	return (1);
+	//Some error occured
+	return 1;
 }
 
 static void chrony_init_req(tChrony_Request *p_req)
@@ -565,7 +562,7 @@ static int chrony_config(const char *p_key, const char *p_value)
 		if ((g_chrony_host = strdup (p_value)) == NULL)
 		{
 			ERROR ("chrony plugin: Error duplicating host name");
-			return (1);
+			return 1;
 		}
 	} else if (strcasecmp(p_key, "Port") == 0)
 	{
@@ -576,7 +573,7 @@ static int chrony_config(const char *p_key, const char *p_value)
 		if ((g_chrony_port = strdup (p_value)) == NULL)
 		{
 			ERROR ("chrony plugin: Error duplicating port name");
-			return (1);
+			return 1;
 		}
 	} else if (strcasecmp(p_key, "Timeout") == 0)
 	{
@@ -584,94 +581,138 @@ static int chrony_config(const char *p_key, const char *p_value)
 		g_chrony_timeout = tosec;
 	} else {
 		WARNING("chrony plugin: Unknown configuration variable: %s %s",p_key,p_value);
-		return (1);
+		return 1;
 	}
-	return (0);
+	return 0;
+}
+
+static int chrony_request_sources_count(unsigned int *p_count)
+{
+	int rc;
+	size_t chrony_resp_size;
+	tChrony_Request  chrony_req;
+	tChrony_Response chrony_resp;
+
+	DEBUG("chrony plugin: Requesting data");
+	chrony_init_req(&chrony_req);
+	rc = chrony_query (REQ_N_SOURCES, &chrony_req, &chrony_resp, &chrony_resp_size);
+        if (rc != 0)
+        {
+                ERROR ("chrony plugin: chrony_query (REQ_N_SOURCES) failed with status %i", rc);
+                return rc;
+        }
+	
+	*p_count = ntohl(chrony_resp.body.n_sources.f_n_sources);
+	DEBUG("chrony plugin: Getting data of %d clock sources", *p_count);
+	return 0;
+}
+
+static int chrony_request_source_data(int p_src_idx)
+{
+	//Source data request
+	size_t chrony_resp_size;
+	tChrony_Request  chrony_req;
+	tChrony_Response chrony_resp;
+	char src_addr[IPV6_STR_MAX_SIZE];
+
+	chrony_init_req(&chrony_req);
+	chrony_req.body.source_data.f_index  = htonl(p_src_idx);
+	int rc = chrony_query(REQ_SOURCE_DATA, &chrony_req, &chrony_resp, &chrony_resp_size);
+	if (rc != 0)
+	{
+		ERROR ("chrony plugin: chrony_query (REQ_SOURCE_DATA) failed with status %i", rc);
+		return rc;
+	}
+	memset(src_addr, 0, sizeof(src_addr));
+	niptoha(&chrony_resp.body.source_data.addr, src_addr, sizeof(src_addr));
+	DEBUG("chrony plugin: Source[%d] data: .addr = %s, .poll = %u, .stratum = %u, .state = %u, .mode = %u, .flags = %u, .reach = %u, .latest_meas_ago = %u, .orig_latest_meas = %f, .latest_meas = %f, .latest_meas_err = %f",
+		p_src_idx,
+		src_addr,
+		ntohs(chrony_resp.body.source_data.f_poll),
+		ntohs(chrony_resp.body.source_data.f_stratum),
+		ntohs(chrony_resp.body.source_data.f_state),
+		ntohs(chrony_resp.body.source_data.f_mode),
+		ntohs(chrony_resp.body.source_data.f_flags),
+		ntohs(chrony_resp.body.source_data.f_reachability),
+		ntohl(chrony_resp.body.source_data.f_since_sample),
+		ntohf(chrony_resp.body.source_data.f_origin_latest_meas),
+		ntohf(chrony_resp.body.source_data.f_latest_meas),
+		ntohf(chrony_resp.body.source_data.f_latest_meas_err)
+	);
+	chrony_push_data("clock_stratum",     src_addr,ntohs(chrony_resp.body.source_data.f_stratum));
+	chrony_push_data("clock_state",       src_addr,ntohs(chrony_resp.body.source_data.f_state));
+	chrony_push_data("clock_mode",        src_addr,ntohs(chrony_resp.body.source_data.f_mode));
+	chrony_push_data("clock_reachability",src_addr,ntohs(chrony_resp.body.source_data.f_reachability));
+	chrony_push_data("clock_last_meas",   src_addr,ntohs(chrony_resp.body.source_data.f_since_sample));
+	return 0;
+}
+
+
+static int chrony_request_source_stats(int p_src_idx)
+{
+	//Source stats request
+	size_t chrony_resp_size;
+	tChrony_Request  chrony_req;
+	tChrony_Response chrony_resp;
+	char src_addr[IPV6_STR_MAX_SIZE];
+
+	chrony_init_req(&chrony_req);
+	chrony_req.body.source_stats.f_index = htonl(p_src_idx);
+	int rc = chrony_query(REQ_SOURCE_STATS, &chrony_req, &chrony_resp, &chrony_resp_size);
+	if (rc != 0)
+	{
+		ERROR ("chrony plugin: chrony_query (REQ_SOURCE_STATS) failed with status %i", rc);
+		return rc;
+	}
+
+	memset(src_addr, 0, sizeof(src_addr));
+	niptoha(&chrony_resp.body.source_stats.addr, src_addr, sizeof(src_addr));
+	DEBUG("chrony plugin: Source[%d] stat: .addr = %s, .ref_id= %u, .n_samples = %u, .n_runs = %u, .span_seconds = %u, .rtc_seconds_fast = %f, .rtc_gain_rate_ppm = %f, .skew_ppm= %f, .est_offset = %f, .est_offset_err = %f",
+		p_src_idx,
+		src_addr,
+		ntohl(chrony_resp.body.source_stats.f_ref_id),
+		ntohl(chrony_resp.body.source_stats.f_n_samples),
+		ntohl(chrony_resp.body.source_stats.f_n_runs),
+		ntohl(chrony_resp.body.source_stats.f_span_seconds),
+		ntohf(chrony_resp.body.source_stats.f_rtc_seconds_fast),
+		ntohf(chrony_resp.body.source_stats.f_rtc_gain_rate_ppm),
+		ntohf(chrony_resp.body.source_stats.f_skew_ppm),
+		ntohf(chrony_resp.body.source_stats.f_est_offset),
+		ntohf(chrony_resp.body.source_stats.f_est_offset_err)
+	);
+	chrony_push_data("clock_skew_ppm",    src_addr,ntohf(chrony_resp.body.source_stats.f_skew_ppm));
+	chrony_push_data("frequency_error",   src_addr,ntohf(chrony_resp.body.source_stats.f_rtc_gain_rate_ppm)); /* unit: ppm */
+	chrony_push_data("time_offset",       src_addr,ntohf(chrony_resp.body.source_stats.f_est_offset)); /* unit: s */
+	return 0;
 }
 
 static int chrony_read (void)
 {
-	int status,now_src;
-	char ip_addr_str0[ IPV6_STR_MAX_SIZE];
-	char ip_addr_str1[IPV6_STR_MAX_SIZE];
-	
-	size_t chrony_resp_size;
-	tChrony_Request  chrony_req,chrony_req1;
-	tChrony_Response chrony_resp,chrony_resp1;
+	//Get number of time sources, then check every source for status
+	int  rc;
 
-	DEBUG("chrony plugin: Requesting data");
-	chrony_init_req(&chrony_req);
-	status = chrony_query (REQ_N_SOURCES, &chrony_req, &chrony_resp, &chrony_resp_size);
-        if (status != 0)
-        {
-                ERROR ("chrony plugin: chrony_query (REQ_N_SOURCES) failed with status %i", status);
-                return (status);
-        }
-	
-	int n_sources = ntohl(chrony_resp.body.n_sources.f_n_sources);
-	DEBUG("chrony plugin: Getting data of %d clock sources", n_sources);
+	unsigned int now_src, n_sources;
+       	rc = chrony_request_sources_count(&n_sources);
+	if (rc != 0)
+	{
+		return rc;
+	}
 
 	for (now_src = 0; now_src < n_sources; ++now_src)
 	{
-		chrony_init_req(&chrony_req);
-		chrony_init_req(&chrony_req1);
-		chrony_req.body.source_data.f_index = htonl(now_src);
-		chrony_req1.body.source_stats.f_index = htonl(now_src);
-		status = chrony_query(REQ_SOURCE_DATA, &chrony_req, &chrony_resp, &chrony_resp_size);
-		if (status != 0)
+		rc = chrony_request_source_data(now_src);
+		if (rc != 0)
 		{
-			ERROR ("chrony plugin: chrony_query (REQ_SOURCE_DATA) failed with status %i", status);
-			return (status);
+			return rc;
 		}
-		status = chrony_query(REQ_SOURCE_STATS, &chrony_req1, &chrony_resp1, &chrony_resp_size);
-		if (status != 0)
+
+		rc = chrony_request_source_stats(now_src);
+		if (rc != 0)
 		{
-			ERROR ("chrony plugin: chrony_query (REQ_SOURCE_STATS) failed with status %i", status);
-			return (status);
+			return rc;
 		}
-		memset(ip_addr_str0,0,sizeof(ip_addr_str0));
-		niptoha(&chrony_resp.body.source_data.addr,ip_addr_str0,sizeof(ip_addr_str0));
-		DEBUG("chrony plugin: Source[%d] data: .addr = %s, .poll = %u, .stratum = %u, .state = %u, .mode = %u, .flags = %u, .reach = %u, .latest_meas_ago = %u, .orig_latest_meas = %f, .latest_meas = %f, .latest_meas_err = %f",
-			now_src,
-			ip_addr_str0,
-			ntohs(chrony_resp.body.source_data.f_poll),
-			ntohs(chrony_resp.body.source_data.f_stratum),
-			ntohs(chrony_resp.body.source_data.f_state),
-			ntohs(chrony_resp.body.source_data.f_mode),
-			ntohs(chrony_resp.body.source_data.f_flags),
-			ntohs(chrony_resp.body.source_data.f_reachability),
-			ntohl(chrony_resp.body.source_data.f_since_sample),
-			ntohf(chrony_resp.body.source_data.f_origin_latest_meas),
-			ntohf(chrony_resp.body.source_data.f_latest_meas),
-			ntohf(chrony_resp.body.source_data.f_latest_meas_err));
-#if 1
-		memset(ip_addr_str1,0,sizeof(ip_addr_str1));
-		niptoha(&chrony_resp1.body.source_stats.addr,ip_addr_str1,sizeof(ip_addr_str1));
-		DEBUG("chrony plugin: Source[%d] stat: .addr = %s, .ref_id= %u, .n_samples = %u, .n_runs = %u, .span_seconds = %u, .rtc_seconds_fast = %f, .rtc_gain_rate_ppm = %f, .skew_ppm= %f, .est_offset = %f, .est_offset_err = %f",
-			now_src,
-			ip_addr_str1,
-			ntohl(chrony_resp1.body.source_stats.f_ref_id),
-			ntohl(chrony_resp1.body.source_stats.f_n_samples),
-			ntohl(chrony_resp1.body.source_stats.f_n_runs),
-			ntohl(chrony_resp1.body.source_stats.f_span_seconds),
-			ntohf(chrony_resp1.body.source_stats.f_rtc_seconds_fast),
-			ntohf(chrony_resp1.body.source_stats.f_rtc_gain_rate_ppm),
-			ntohf(chrony_resp1.body.source_stats.f_skew_ppm),
-			ntohf(chrony_resp1.body.source_stats.f_est_offset),
-			ntohf(chrony_resp1.body.source_stats.f_est_offset_err));
-#endif
-#if 1
-		chrony_push_data("clock_stratum",     ip_addr_str0,ntohs(chrony_resp.body.source_data.f_stratum));
-		chrony_push_data("clock_state",       ip_addr_str0,ntohs(chrony_resp.body.source_data.f_state));
-		chrony_push_data("clock_mode",        ip_addr_str0,ntohs(chrony_resp.body.source_data.f_mode));
-		chrony_push_data("clock_reachability",ip_addr_str0,ntohs(chrony_resp.body.source_data.f_reachability));
-		chrony_push_data("clock_last_meas",   ip_addr_str0,ntohs(chrony_resp.body.source_data.f_since_sample));
-		chrony_push_data("clock_skew_ppm",    ip_addr_str1,ntohf(chrony_resp1.body.source_stats.f_skew_ppm));
-		chrony_push_data("frequency_error",   ip_addr_str1,ntohf(chrony_resp1.body.source_stats.f_rtc_gain_rate_ppm)); /* unit: ppm */
-		chrony_push_data("time_offset",       ip_addr_str1,ntohf(chrony_resp1.body.source_stats.f_est_offset)); /* unit: s */
-#endif
 	}
-	return (0);
+	return 0;
 }
 
 static int chrony_shutdown()
@@ -691,12 +732,13 @@ static int chrony_shutdown()
 		free (g_chrony_port);
 		g_chrony_port = NULL;
 	}
-	return (0);
+	return 0;
 }
 
 void module_register (void)
 {
-	plugin_register_config ("chrony", chrony_config, g_config_keys, g_config_keys_num);
-        plugin_register_read ("chrony", chrony_read);
-	plugin_register_shutdown ("chrony", chrony_shutdown);
+	plugin_register_config(  "chrony", chrony_config, g_config_keys, g_config_keys_num);
+        plugin_register_read(    "chrony", chrony_read);
+	plugin_register_shutdown("chrony", chrony_shutdown);
 }
+
