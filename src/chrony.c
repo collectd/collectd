@@ -36,9 +36,13 @@ static int g_config_keys_num = STATIC_ARRAY_SIZE (g_config_keys);
 /*BEGIN*/
 #define PROTO_VERSION_NUMBER 6
 
-#define REQ_N_SOURCES 14
-#define REQ_SOURCE_DATA 15
-#define REQ_SOURCE_STATS 34
+enum
+{
+	REQ_N_SOURCES    = 14,
+	REQ_SOURCE_DATA  = 15,
+	REQ_TRACKING     = 33,
+	REQ_SOURCE_STATS = 34
+} eDaemonRequests;
 
 #define PKT_TYPE_CMD_REQUEST 1
 #define PKT_TYPE_CMD_REPLY 2
@@ -58,8 +62,16 @@ static int g_config_keys_num = STATIC_ARRAY_SIZE (g_config_keys);
 #define ATTRIB_PACKED __attribute__((packed))
 typedef struct ATTRIB_PACKED
 {
-	int32_t f;
-} Float;
+	int32_t value;
+} tFloat;
+
+typedef struct ATTRIB_PACKED
+{
+	uint32_t tv_sec_high;
+	uint32_t tv_sec_low;
+	uint32_t tv_nsec;
+} tTimeval;
+
 /*END*/
 
 typedef enum
@@ -85,6 +97,11 @@ typedef enum
 	STT_BADPKTVERSION = 18,
 	STT_BADPKTLENGTH = 19,
 } eChrony_Status;
+
+typedef struct ATTRIB_PACKED
+{
+	uint8_t f_dummy0[80];
+} tChrony_Req_Tracking;
 
 typedef struct ATTRIB_PACKED
 {
@@ -118,17 +135,18 @@ typedef struct ATTRIB_PACKED
 {
 	tChrony_IPAddr addr;
 	uint16_t dummy; /* FIXME: Strange dummy space. Needed on gcc 4.8.3 on x86_64 */
-	int16_t  f_poll;
-	uint16_t f_stratum;
-	uint16_t f_state;
-	uint16_t f_mode; 
-	uint16_t f_flags;
-	uint16_t f_reachability;
+	int16_t  f_poll;    // 2^f_poll = Time between polls (s)
+	uint16_t f_stratum; //Remote clock stratum
+	uint16_t f_state;   //0 = RPY_SD_ST_SYNC,    1 = RPY_SD_ST_UNREACH,   2 = RPY_SD_ST_FALSETICKER
+       	                    //3 = RPY_SD_ST_JITTERY, 4 = RPY_SD_ST_CANDIDATE, 5 = RPY_SD_ST_OUTLIER
+	uint16_t f_mode;    //0 = RPY_SD_MD_CLIENT,  1 = RPY_SD_MD_PEER,      2 = RPY_SD_MD_REF
+	uint16_t f_flags;   //unused
+	uint16_t f_reachability; //???
 
-	uint32_t f_since_sample;
-	Float f_origin_latest_meas;
-	Float f_latest_meas;
-	Float f_latest_meas_err;
+	uint32_t f_since_sample; //Time since last sample (s)
+	tFloat   f_origin_latest_meas; //
+	tFloat   f_latest_meas;        //
+	tFloat   f_latest_meas_err;    //
 } tChrony_Resp_Source_data;
 
 typedef struct ATTRIB_PACKED
@@ -136,25 +154,43 @@ typedef struct ATTRIB_PACKED
 	uint32_t f_ref_id;
 	tChrony_IPAddr addr;
 	uint16_t dummy; /* FIXME: Strange dummy space. Needed on gcc 4.8.3 on x86_64 */
-	uint32_t f_n_samples; //Number of measurements done
-	uint32_t f_n_runs; //How many measurements to come
-	uint32_t f_span_seconds; //For how long we're measuring
-	Float f_rtc_seconds_fast;
-	Float f_rtc_gain_rate_ppm; //Estimated relative frequency error
-	Float f_skew_ppm; //Clock skew
-	Float f_est_offset; //Estimated offset of source
-	Float f_est_offset_err; //Error of estimation
+	uint32_t f_n_samples;     //Number of measurements done
+	uint32_t f_n_runs;        //How many measurements to come
+	uint32_t f_span_seconds;  //For how long we're measuring
+	tFloat   f_rtc_seconds_fast;  //???
+	tFloat   f_rtc_gain_rate_ppm; //Estimated relative frequency error
+	tFloat   f_skew_ppm;          //Clock skew (ppm) (worst case freq est error (skew: peak2peak))
+	tFloat   f_est_offset;        //Estimated offset of source
+	tFloat   f_est_offset_err;    //Error of estimation
 } tChrony_Resp_Source_stats;
 
+typedef struct ATTRIB_PACKED
+{
+	uint32_t f_ref_id;
+	tChrony_IPAddr addr;
+	uint16_t dummy; /* FIXME: Strange dummy space. Needed on gcc 4.8.3 on x86_64 */
+	uint16_t f_stratum;
+	uint16_t f_leap_status;
+	tTimeval f_ref_time;
+	tFloat   f_current_correction;
+	tFloat   f_last_offset;
+	tFloat   f_rms_offset;
+	tFloat   f_freq_ppm;
+	tFloat   f_resid_freq_ppm;
+	tFloat   f_skew_ppm;
+	tFloat   f_root_delay;
+	tFloat   f_root_dispersion;
+	tFloat   f_last_update_interval;
+} tChrony_Resp_Tracking;
 
 typedef struct ATTRIB_PACKED
 {
 	struct
 	{
-		uint8_t f_version;
-		uint8_t f_type;
-		uint8_t f_dummy0;
-		uint8_t f_dummy1;
+		uint8_t  f_version;
+		uint8_t  f_type;
+		uint8_t  f_dummy0;
+		uint8_t  f_dummy1;
 		uint16_t f_cmd;
 		uint16_t f_cmd_try;
 		uint32_t f_seq;
@@ -164,9 +200,10 @@ typedef struct ATTRIB_PACKED
 	} header; /* Packed: 20Bytes */
 	union
 	{
-		tChrony_N_Sources n_sources; /* Packed: 4 Bytes */
-		tChrony_Req_Source_data source_data;
+		tChrony_N_Sources        n_sources;
+		tChrony_Req_Source_data  source_data;
 		tChrony_Req_Source_stats source_stats;
+		tChrony_Req_Tracking     tracking;
 	} body;
 	uint8_t padding[4+16]; /* Padding to match minimal response size */
 } tChrony_Request;
@@ -190,13 +227,12 @@ typedef struct ATTRIB_PACKED
 		uint32_t f_dummy6;
 	} header; /* Packed: 28 Bytes */
 
-	/*uint32_t EOR;*/
-
 	union
 	{
-		tChrony_N_Sources n_sources;
-		tChrony_Resp_Source_data source_data;
+		tChrony_N_Sources         n_sources;
+		tChrony_Resp_Source_data  source_data;
 		tChrony_Resp_Source_stats source_stats;
+		tChrony_Resp_Tracking     tracking;
 	} body;
 	
 	uint8_t padding[1024];
@@ -215,7 +251,7 @@ static uint32_t g_chrony_seq = 0;
 /* Code from: http://long.ccaba.upc.edu/long/045Guidelines/eva/ipv6.html#daytimeClient6 */
 /*BEGIN*/
 static int
-connect_client (const char *hostname,
+connect_client (const char *p_hostname,
                 const char *service,
                 int         family,
                 int         socktype)
@@ -228,7 +264,7 @@ connect_client (const char *hostname,
 	hints.ai_family = family;
 	hints.ai_socktype = socktype;
 
-	n = getaddrinfo(hostname, service, &hints, &res);
+	n = getaddrinfo(p_hostname, service, &hints, &res);
 
 	if (n <0)
 	{
@@ -261,7 +297,7 @@ connect_client (const char *hostname,
 	freeaddrinfo(ressave);
 	return sockfd;
 }
-/*Code originally from: https://github.com/mlichvar/chrony/blob/master/util.c */
+/*Code originally from: git://git.tuxfamily.org/gitroot/chrony/chrony.git:util.c */
 /*char * UTI_IPToString(IPAddr *addr)*/
 char * niptoha(const tChrony_IPAddr *addr,char *p_buf, size_t p_buf_size)
 {
@@ -283,6 +319,10 @@ char * niptoha(const tChrony_IPAddr *addr,char *p_buf, size_t p_buf_size)
 	break;
 	case IPADDR_INET6:
 		ip6 = addr->addr.ip6;
+
+#ifdef FEAT_IPV6
+		inet_ntop(AF_INET6, ip6, p_buf, p_bug_size);
+#else
 #if 0
 /* FIXME: Detect little endian systems */
 		snprintf(p_buf, p_buf_size, "%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
@@ -292,6 +332,7 @@ char * niptoha(const tChrony_IPAddr *addr,char *p_buf, size_t p_buf_size)
 		snprintf(p_buf, p_buf_size, "%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
 			ip6[5], ip6[4], ip6[3], ip6[2], ip6[1], ip6[0], ip6[9], ip6[8],
 			ip6[7], ip6[6], ip6[5], ip6[4], ip6[3], ip6[2], ip6[1], ip6[0]);
+#endif
 #endif
 	break;
 	default:
@@ -310,9 +351,9 @@ static int chrony_set_timeout()
 	assert(g_chrony_socket>=0);
 	if (setsockopt(g_chrony_socket, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv,sizeof(struct timeval)) < 0)
 	{
-		return (1);
+		return 1;
 	}
-	return (0);
+	return 0;
 }
 
 static int chrony_connect()
@@ -394,28 +435,34 @@ static int chrony_query(const int p_command, tChrony_Request *p_req, tChrony_Res
 
 	do
 	{
-		int valid_command = 0;
-		size_t req_size  = sizeof(p_req->header) + sizeof(p_req->padding);
-		size_t resp_size = sizeof(p_resp->header);
+		int valid_command  = 0;
+		size_t req_size    = sizeof(p_req->header) + sizeof(p_req->padding);
+		size_t resp_size   = sizeof(p_resp->header);
 		uint16_t resp_code = RPY_NULL;
 		switch (p_command)
 		{
+		case REQ_TRACKING:
+			req_size  += sizeof(p_req->body.tracking);
+			resp_size += sizeof(p_resp->body.tracking); 
+			resp_code  = RPY_TRACKING;
+			valid_command = 1;
+		break;
 		case REQ_N_SOURCES:
 			req_size  += sizeof(p_req->body.n_sources);
 			resp_size += sizeof(p_resp->body.n_sources); 
-			resp_code = RPY_N_SOURCES;
+			resp_code  = RPY_N_SOURCES;
 			valid_command = 1;
 		break;
 		case REQ_SOURCE_DATA:
 			req_size  += sizeof(p_req->body.source_data);
 			resp_size += sizeof(p_resp->body.source_data); 
-			resp_code = RPY_SOURCE_DATA;
+			resp_code  = RPY_SOURCE_DATA;
 			valid_command = 1;
 		break;
 		case REQ_SOURCE_STATS:
 			req_size  += sizeof(p_req->body.source_stats);
 			resp_size += sizeof(p_resp->body.source_stats); 
-			resp_code = RPY_SOURCE_STATS;
+			resp_code  = RPY_SOURCE_STATS;
 			valid_command = 1;
 		break;
 		default:
@@ -432,7 +479,7 @@ static int chrony_query(const int p_command, tChrony_Request *p_req, tChrony_Res
 		p_req->header.f_cmd_try = 0;
 		p_req->header.f_seq     = htonl(g_chrony_seq++);
 		
-		DEBUG("chrony plugin: Sending request");
+		DEBUG("chrony plugin: Sending request (.cmd = %d, .seq = %d)",p_command,g_chrony_seq-1);
 		if (chrony_send_request(p_req,req_size) != 0)
 		{
 			break;
@@ -443,7 +490,9 @@ static int chrony_query(const int p_command, tChrony_Request *p_req, tChrony_Res
 		{
 			break;
 		}
-		DEBUG("chrony plugin: Received response: .version = %u, .type = %u, .cmd = %u, .reply = %u, .status = %u, .seq = %u",p_resp->header.f_version,p_resp->header.f_type,ntohs(p_resp->header.f_cmd),ntohs(p_resp->header.f_reply),ntohs(p_resp->header.f_status),ntohl(p_resp->header.f_seq));
+		DEBUG("chrony plugin: Received response: .version = %u, .type = %u, .cmd = %u, .reply = %u, .status = %u, .seq = %u",
+				p_resp->header.f_version,p_resp->header.f_type,ntohs(p_resp->header.f_cmd),
+				ntohs(p_resp->header.f_reply),ntohs(p_resp->header.f_status),ntohl(p_resp->header.f_seq));
 
 		if (p_resp->header.f_version != p_req->header.f_version)
 		{
@@ -469,7 +518,7 @@ static int chrony_query(const int p_command, tChrony_Request *p_req, tChrony_Res
 
 		if (ntohs(p_resp->header.f_reply) !=  resp_code)
 		{
-			ERROR("chrony plugin: Wrong reply code (Was: %d, expected: %d)", ntohs(p_resp->header.f_reply), p_command);
+			ERROR("chrony plugin: Wrong reply code (Was: %d, expected: %d)", ntohs(p_resp->header.f_reply), resp_code);
 			return 1;
 		}
 
@@ -503,7 +552,7 @@ static void chrony_init_req(tChrony_Request *p_req)
 	p_req->header.f_dummy3  = 0;
 }
 
-/* Code from: https://github.com/mlichvar/chrony/blob/master/util.c (GPLv2) */
+/* Code from: git://git.tuxfamily.org/gitroot/chrony/chrony.git:util.c (GPLv2) */
 /*BEGIN*/
 #define FLOAT_EXP_BITS 7
 #define FLOAT_EXP_MIN (-(1 << (FLOAT_EXP_BITS - 1)))
@@ -512,15 +561,26 @@ static void chrony_init_req(tChrony_Request *p_req)
 #define FLOAT_COEF_MIN (-(1 << (FLOAT_COEF_BITS - 1)))
 #define FLOAT_COEF_MAX (-FLOAT_COEF_MIN - 1)
 
-/* double UTI_FloatNetworkToHost(Float f) */
-double ntohf(Float f)
+/* double UTI_tFloatNetworkToHost(tFloat f) */
+double ntohf(tFloat p_float)
 {
-  int32_t exp, coef, x;
+	int32_t exp, coef;
+	uint32_t uval;
 
-  x = ntohl(f.f);
-  exp = (x >> FLOAT_COEF_BITS) - FLOAT_COEF_BITS;
-  coef = x << FLOAT_EXP_BITS >> FLOAT_EXP_BITS;
-  return coef * pow(2.0, exp);
+	uval = ntohl(p_float.value);
+	exp = (uval >> FLOAT_COEF_BITS) - FLOAT_COEF_BITS;
+	if (exp >= 1 << (FLOAT_EXP_BITS - 1))
+	{
+		exp -= 1 << FLOAT_EXP_BITS;
+	}
+
+	//coef = (x << FLOAT_EXP_BITS) >> FLOAT_EXP_BITS;
+	coef = uval % (1U << FLOAT_COEF_BITS);
+	if (coef >= 1 << (FLOAT_COEF_BITS - 1))
+	{
+		coef -= 1 << FLOAT_COEF_BITS; 
+	}
+	return coef * pow(2.0, exp);
 }
 /*END*/
 
@@ -531,15 +591,15 @@ static void chrony_push_data(char *type, char *type_inst, double value)
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = value;
+	values[0].gauge = value; //TODO: Check type??? (counter, gauge, derive, absolute)
 
-	vl.values = values;
+	vl.values     = values;
 	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-	sstrncpy (vl.plugin, "chrony", sizeof (vl.plugin));
-	sstrncpy (vl.plugin_instance, "", sizeof (vl.plugin_instance));
-	sstrncpy (vl.type, type, sizeof (vl.type));
-	sstrncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
+	sstrncpy (vl.host,            hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin,          "chrony",   sizeof (vl.plugin));
+	sstrncpy (vl.plugin_instance, "",         sizeof (vl.plugin_instance));
+	sstrncpy (vl.type,            type,       sizeof (vl.type));
+	sstrncpy (vl.type_instance,   type_inst,  sizeof (vl.type_instance));
 
 	plugin_dispatch_values (&vl);
 }
@@ -583,8 +643,52 @@ static int chrony_config(const char *p_key, const char *p_value)
 		WARNING("chrony plugin: Unknown configuration variable: %s %s",p_key,p_value);
 		return 1;
 	}
+
 	return 0;
 }
+
+
+static int chrony_request_daemon_stats()
+{
+	//Tracking request
+	size_t chrony_resp_size;
+	tChrony_Request  chrony_req;
+	tChrony_Response chrony_resp;
+	char src_addr[IPV6_STR_MAX_SIZE];
+
+	chrony_init_req(&chrony_req);
+	int rc = chrony_query(REQ_TRACKING, &chrony_req, &chrony_resp, &chrony_resp_size);
+	if (rc != 0)
+	{
+		ERROR ("chrony plugin: chrony_query (REQ_TRACKING) failed with status %i", rc);
+		return rc;
+	}
+	
+	memset(src_addr, 0, sizeof(src_addr));
+	niptoha(&chrony_resp.body.tracking.addr, src_addr, sizeof(src_addr));
+	DEBUG("chrony plugin: Daemon stat: .addr = %s, .ref_id= %u, .stratum = %u, .leap_status = %u, .ref_time = %u, .current_correction = %f, .last_offset = %f, .rms_offset = %f, .freq_ppm = %f, .skew_ppm = %f, .root_delay = %f, .root_dispersion = %f, .last_update_interval = %f",
+		src_addr,
+		ntohs(chrony_resp.body.tracking.f_ref_id), //FIXME: 16bit
+		ntohs(chrony_resp.body.tracking.f_stratum),
+		ntohs(chrony_resp.body.tracking.f_leap_status),
+		ntohl(chrony_resp.body.tracking.f_ref_time.tv_sec_high), //tTimeval
+		ntohf(chrony_resp.body.tracking.f_current_correction),
+		ntohf(chrony_resp.body.tracking.f_last_offset),
+		ntohf(chrony_resp.body.tracking.f_rms_offset),
+		ntohf(chrony_resp.body.tracking.f_freq_ppm),
+		ntohf(chrony_resp.body.tracking.f_skew_ppm),
+		ntohf(chrony_resp.body.tracking.f_root_delay),
+		ntohf(chrony_resp.body.tracking.f_root_dispersion),
+		ntohf(chrony_resp.body.tracking.f_last_update_interval)
+	);
+#if 0
+	chrony_push_data("clock_skew_ppm",    src_addr,ntohf(chrony_resp.body.source_stats.f_skew_ppm));
+	chrony_push_data("frequency_error",   src_addr,ntohf(chrony_resp.body.source_stats.f_rtc_gain_rate_ppm)); /* unit: ppm */
+	chrony_push_data("time_offset",       src_addr,ntohf(chrony_resp.body.source_stats.f_est_offset)); /* unit: s */
+#endif
+	return 0;
+}
+
 
 static int chrony_request_sources_count(unsigned int *p_count)
 {
@@ -604,8 +708,10 @@ static int chrony_request_sources_count(unsigned int *p_count)
 	
 	*p_count = ntohl(chrony_resp.body.n_sources.f_n_sources);
 	DEBUG("chrony plugin: Getting data of %d clock sources", *p_count);
+
 	return 0;
 }
+
 
 static int chrony_request_source_data(int p_src_idx)
 {
@@ -644,6 +750,7 @@ static int chrony_request_source_data(int p_src_idx)
 	chrony_push_data("clock_mode",        src_addr,ntohs(chrony_resp.body.source_data.f_mode));
 	chrony_push_data("clock_reachability",src_addr,ntohs(chrony_resp.body.source_data.f_reachability));
 	chrony_push_data("clock_last_meas",   src_addr,ntohs(chrony_resp.body.source_data.f_since_sample));
+
 	return 0;
 }
 
@@ -686,11 +793,19 @@ static int chrony_request_source_stats(int p_src_idx)
 	return 0;
 }
 
-static int chrony_read (void)
+
+static int chrony_read()
 {
-	//Get number of time sources, then check every source for status
 	int  rc;
 
+	//Get daemon stats
+	rc = chrony_request_daemon_stats();
+	if (rc != 0)
+	{
+		return rc;
+	}
+
+	//Get number of time sources, then check every source for status
 	unsigned int now_src, n_sources;
        	rc = chrony_request_sources_count(&n_sources);
 	if (rc != 0)
@@ -715,6 +830,7 @@ static int chrony_read (void)
 	return 0;
 }
 
+
 static int chrony_shutdown()
 {
 	if (g_is_connected != 0)
@@ -734,6 +850,7 @@ static int chrony_shutdown()
 	}
 	return 0;
 }
+
 
 void module_register (void)
 {
