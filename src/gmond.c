@@ -411,10 +411,19 @@ static int request_meta_data (const char *host, const char *name) /* {{{ */
 
   pthread_mutex_lock (&mc_send_sockets_lock);
   for (i = 0; i < mc_send_sockets_num; i++)
-    sendto (mc_send_sockets[i].fd, buffer, (size_t) buffer_size,
+  {
+    ssize_t status = sendto (mc_send_sockets[i].fd, buffer, (size_t) buffer_size,
         /* flags = */ 0,
         (struct sockaddr *) &mc_send_sockets[i].addr,
         mc_send_sockets[i].addrlen);
+    if (status == -1)
+    {
+      char errbuf[1024];
+      ERROR ("gmond plugin: sendto(2) failed: %s",
+             sstrerror (errno, errbuf, sizeof (errbuf)));
+      continue;
+    }
+  }
   pthread_mutex_unlock (&mc_send_sockets_lock);
 
   sfree (msg.Ganglia_metadata_msg_u.grequest.metric_id.host);
