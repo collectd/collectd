@@ -2509,7 +2509,10 @@ static int perl_config (oconfig_item_t *ci)
 		int current_status = 0;
 
 		if (NULL != perl_threads)
-			aTHX = PERL_GET_CONTEXT;
+		{
+			if ((aTHX = PERL_GET_CONTEXT) == NULL)
+				return -1;
+		}
 
 		if (0 == strcasecmp (c->key, "LoadPlugin"))
 			current_status = perl_config_loadplugin (aTHX_ c);
