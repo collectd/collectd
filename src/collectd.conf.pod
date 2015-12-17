@@ -159,12 +159,27 @@ plugins that don't provide any configuration, e.g. the I<Load plugin>.
 When set to B<true>, various statistics about the I<collectd> daemon will be
 collected, with "collectd" as the I<plugin name>. Defaults to B<false>.
 
-The "write_queue" I<plugin instance> reports the number of elements currently
-queued and the number of elements dropped off the queue by the
-B<WriteQueueLimitLow>/B<WriteQueueLimitHigh> mechanism.
+The following metrics are reported:
 
-The "cache" I<plugin instance> reports the number of elements in the value list
-cache (the cache you can interact with using L<collectd-unixsock(5)>).
+=over 4
+
+=item C<collectd-write_queue/queue_length>
+
+The number of metrics currently in the write queue. You can limit the queue
+length with the B<WriteQueueLimitLow> and B<WriteQueueLimitHigh> options.
+
+=item C<collectd-write_queue/derive-dropped>
+
+The number of metrics dropped due to a queue length limitation.
+If this value is non-zero, your system can't handle all incoming metrics and
+protects itself against overload by dropping metrics.
+
+=item C<collectd-cache/cache_size>
+
+The number of elements in the metric cache (the cache you can interact with
+using L<collectd-unixsock(5)>).
+
+=back
 
 =item B<Include> I<Path> [I<pattern>]
 

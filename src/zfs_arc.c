@@ -211,6 +211,7 @@ static int za_read (void)
 			if (llvalues == NULL)
 			{
 				ERROR ("zfs_arc plugin: `malloc' failed.");
+				llist_destroy (ksp);
 				return (-1);
 			}
 			int j = 0;
