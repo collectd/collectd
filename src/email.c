@@ -301,8 +301,11 @@ static void *collect (void *arg)
 						break;
 				continue;
 			}
+			if (len < 3) { /* [a-z] ':' '\n' */
+				continue;
+			}
 
-			line[len - 1] = '\0';
+			line[len - 1] = 0;
 
 			log_debug ("collect: line = '%s'", line);
 
@@ -325,12 +328,12 @@ static void *collect (void *arg)
 				bytes = atoi (tmp);
 
 				pthread_mutex_lock (&count_mutex);
-				type_list_incr (&list_count, type, 1);
+				type_list_incr (&list_count, type, /* increment = */ 1);
 				pthread_mutex_unlock (&count_mutex);
 
 				if (bytes > 0) {
 					pthread_mutex_lock (&size_mutex);
-					type_list_incr (&list_size, type, bytes);
+					type_list_incr (&list_size, type, /* increment = */ bytes);
 					pthread_mutex_unlock (&size_mutex);
 				}
 			}
@@ -342,14 +345,17 @@ static void *collect (void *arg)
 				pthread_mutex_unlock (&score_mutex);
 			}
 			else if ('c' == line[0]) { /* c:<type1>[,<type2>,...] */
-				char *ptr  = NULL;
-				char *type = strtok_r (line + 2, ",", &ptr);
+				char *dummy = line + 2;
+				char *endptr = NULL;
+				char *type;
 
-				do {
-					pthread_mutex_lock (&check_mutex);
-					type_list_incr (&list_check, type, 1);
-					pthread_mutex_unlock (&check_mutex);
-				} while (NULL != (type = strtok_r (NULL, ",", &ptr)));
+				pthread_mutex_lock (&check_mutex);
+				while ((type = strtok_r (dummy, ",", &endptr)) != NULL)
+				{
+					dummy = NULL;
+					type_list_incr (&list_check, type, /* increment = */ 1);
+				}
+				pthread_mutex_unlock (&check_mutex);
 			}
 			else {
 				log_err ("collect: unknown type '%c'", line[0]);
