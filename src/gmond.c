@@ -286,8 +286,14 @@ static int create_sockets (socket_entry_t **ret_sockets, /* {{{ */
     {
       int yes = 1;
 
-      setsockopt (sockets[sockets_num].fd, SOL_SOCKET, SO_REUSEADDR,
+      status = setsockopt (sockets[sockets_num].fd, SOL_SOCKET, SO_REUSEADDR,
           (void *) &yes, sizeof (yes));
+      if (status != 0)
+      {
+        char errbuf[1024];
+        WARNING ("gmond plugin: setsockopt(2) failed: %s",
+                 sstrerror (errno, errbuf, sizeof (errbuf)));
+      }
     }
 
     status = bind (sockets[sockets_num].fd, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
