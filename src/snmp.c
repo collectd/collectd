@@ -655,7 +655,10 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
 
   status = cf_util_get_string(ci, &hd->name);
   if (status != 0)
+  {
+    sfree (hd);
     return status;
+  }
 
   hd->sess_handle = NULL;
   hd->interval = 0;
@@ -924,8 +927,7 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
     tmp_unsigned = (uint32_t) *vl->val.integer;
     tmp_signed = (int32_t) *vl->val.integer;
 
-    if ((vl->type == ASN_INTEGER)
-        || (vl->type == ASN_GAUGE))
+    if (vl->type == ASN_INTEGER)
       prefer_signed = 1;
 
     DEBUG ("snmp plugin: Parsed int32 value is %"PRIu64".", tmp_unsigned);
@@ -1104,6 +1106,14 @@ static int csnmp_strvbcopy (char *dst, /* {{{ */
     src = (char *) vb->val.string;
   else if (vb->type == ASN_BIT_STR)
     src = (char *) vb->val.bitstring;
+  else if (vb->type == ASN_IPADDRESS)
+  {
+    return ssnprintf (dst, dst_size, "%"PRIu8".%"PRIu8".%"PRIu8".%"PRIu8"",
+          (uint8_t) vb->val.string[0],
+          (uint8_t) vb->val.string[1],
+          (uint8_t) vb->val.string[2],
+          (uint8_t) vb->val.string[3]);
+  }
   else
   {
     dst[0] = 0;
@@ -1169,7 +1179,7 @@ static int csnmp_instance_list_add (csnmp_list_instances_t **head,
   }
 
   /* Get instance name */
-  if ((vb->type == ASN_OCTET_STR) || (vb->type == ASN_BIT_STR))
+  if ((vb->type == ASN_OCTET_STR) || (vb->type == ASN_BIT_STR) || (vb->type == ASN_IPADDRESS))
   {
     char *ptr;
 
@@ -1388,7 +1398,7 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
 static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
 {
   struct snmp_pdu *req;
-  struct snmp_pdu *res;
+  struct snmp_pdu *res = NULL;
   struct variable_list *vb;
 
   const data_set_t *ds;
@@ -1745,6 +1755,7 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
     res = NULL;
 
     sfree (errstr);
+    sfree (vl.values);
     csnmp_host_close_session (host);
 
     return (-1);
@@ -1781,8 +1792,6 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
 static int csnmp_read_host (user_data_t *ud)
 {
   host_definition_t *host;
-  cdtime_t time_start;
-  cdtime_t time_end;
   int status;
   int success;
   int i;
@@ -1791,8 +1800,6 @@ static int csnmp_read_host (user_data_t *ud)
 
   if (host->interval == 0)
     host->interval = plugin_get_interval ();
-
-  time_start = cdtime ();
 
   if (host->sess_handle == NULL)
     csnmp_host_open_session (host);
@@ -1812,16 +1819,6 @@ static int csnmp_read_host (user_data_t *ud)
 
     if (status == 0)
       success++;
-  }
-
-  time_end = cdtime ();
-  if ((time_end - time_start) > host->interval)
-  {
-    WARNING ("snmp plugin: Host `%s' should be queried every %.3f "
-        "seconds, but reading all values takes %.3f seconds.",
-        host->name,
-        CDTIME_T_TO_DOUBLE (host->interval),
-        CDTIME_T_TO_DOUBLE (time_end - time_start));
   }
 
   if (success == 0)

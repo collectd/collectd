@@ -302,29 +302,39 @@ void cpy_log_exception(const char *context) {
 		Py_XDECREF(traceback);
 		return;
 	}
-	list = PyObject_CallFunction(cpy_format_exception, "NNN", type, value, traceback); /* New reference. */
+	list = PyObject_CallFunction(cpy_format_exception, "NNN", type, value, traceback); /* New reference. Steals references from "type", "value" and "traceback". */
 	if (list)
 		l = PyObject_Length(list);
+
 	for (i = 0; i < l; ++i) {
-		char *s;
 		PyObject *line;
-		
+		char const *msg;
+		char *cpy;
+
 		line = PyList_GET_ITEM(list, i); /* Borrowed reference. */
 		Py_INCREF(line);
-		s = strdup(cpy_unicode_or_bytes_to_string(&line));
+
+		msg = cpy_unicode_or_bytes_to_string(&line);
 		Py_DECREF(line);
-		if (s[strlen(s) - 1] == '\n')
-			s[strlen(s) - 1] = 0;
+		if (msg == NULL)
+			continue;
+
+		cpy = strdup(msg);
+		if (cpy == NULL)
+			continue;
+
+		if (cpy[strlen(cpy) - 1] == '\n')
+			cpy[strlen(cpy) - 1] = 0;
+
 		Py_BEGIN_ALLOW_THREADS
-		ERROR("%s", s);
+		ERROR("%s", cpy);
 		Py_END_ALLOW_THREADS
-		free(s);
+
+		free(cpy);
 	}
+
 	Py_XDECREF(list);
 	PyErr_Clear();
-	Py_DECREF(type);
-	Py_XDECREF(value);
-	Py_XDECREF(traceback);
 }
 
 static int cpy_read_callback(user_data_t *data) {
@@ -541,7 +551,12 @@ static PyObject *cpy_register_generic(cpy_callback_t **list_head, PyObject *args
 
 	Py_INCREF(callback);
 	Py_XINCREF(data);
+
 	c = malloc(sizeof(*c));
+	if (c == NULL)
+		return NULL;
+	memset (c, 0, sizeof (*c));
+
 	c->name = strdup(buf);
 	c->callback = callback;
 	c->data = data;
@@ -612,7 +627,7 @@ static PyObject *cpy_register_generic_userdata(void *reg, void *handler, PyObjec
 	char buf[512];
 	reg_function_t *register_function = (reg_function_t *) reg;
 	cpy_callback_t *c = NULL;
-	user_data_t *user_data = NULL;
+	user_data_t user_data;
 	char *name = NULL;
 	PyObject *callback = NULL, *data = NULL;
 	static char *kwlist[] = {"callback", "data", "name", NULL};
@@ -628,22 +643,29 @@ static PyObject *cpy_register_generic_userdata(void *reg, void *handler, PyObjec
 	
 	Py_INCREF(callback);
 	Py_XINCREF(data);
+
 	c = malloc(sizeof(*c));
+	if (c == NULL)
+		return NULL;
+	memset (c, 0, sizeof (*c));
+
 	c->name = strdup(buf);
 	c->callback = callback;
 	c->data = data;
 	c->next = NULL;
-	user_data = malloc(sizeof(*user_data));
-	user_data->free_func = cpy_destroy_user_data;
-	user_data->data = c;
-	register_function(buf, handler, user_data);
+
+	memset (&user_data, 0, sizeof (user_data));
+	user_data.free_func = cpy_destroy_user_data;
+	user_data.data = c;
+
+	register_function(buf, handler, &user_data);
 	return cpy_string_to_unicode_or_bytes(buf);
 }
 
 static PyObject *cpy_register_read(PyObject *self, PyObject *args, PyObject *kwds) {
 	char buf[512];
 	cpy_callback_t *c = NULL;
-	user_data_t *user_data = NULL;
+	user_data_t user_data;
 	double interval = 0;
 	char *name = NULL;
 	PyObject *callback = NULL, *data = NULL;
@@ -660,16 +682,23 @@ static PyObject *cpy_register_read(PyObject *self, PyObject *args, PyObject *kwd
 	
 	Py_INCREF(callback);
 	Py_XINCREF(data);
+
 	c = malloc(sizeof(*c));
+	if (c == NULL)
+		return NULL;
+	memset (c, 0, sizeof (*c));
+
 	c->name = strdup(buf);
 	c->callback = callback;
 	c->data = data;
 	c->next = NULL;
-	user_data = malloc(sizeof(*user_data));
-	user_data->free_func = cpy_destroy_user_data;
-	user_data->data = c;
-	plugin_register_complex_read(/* group = */ NULL, buf,
-			cpy_read_callback, DOUBLE_TO_CDTIME_T (interval), user_data);
+
+	memset (&user_data, 0, sizeof (user_data));
+	user_data.free_func = cpy_destroy_user_data;
+	user_data.data = c;
+
+	plugin_register_complex_read(/* group = */ "python", buf,
+			cpy_read_callback, DOUBLE_TO_CDTIME_T (interval), &user_data);
 	return cpy_string_to_unicode_or_bytes(buf);
 }
 
@@ -769,7 +798,7 @@ static PyObject *cpy_unregister_generic(cpy_callback_t **list_head, PyObject *ar
 	for (tmp = *list_head; tmp; prev = tmp, tmp = tmp->next)
 		if (strcmp(name, tmp->name) == 0)
 			break;
-	
+
 	Py_DECREF(arg);
 	if (tmp == NULL) {
 		PyErr_Format(PyExc_RuntimeError, "Unable to unregister %s callback '%s'.", desc, name);

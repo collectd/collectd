@@ -122,14 +122,18 @@ static void parse_line (char *buf)
   ds->ds_num = fields_num - 1;
   ds->ds = (data_source_t *) calloc (ds->ds_num, sizeof (data_source_t));
   if (ds->ds == NULL)
+  {
+    sfree (ds);
     return;
+  }
 
   for (i = 0; i < ds->ds_num; i++)
     if (parse_ds (ds->ds + i, fields[i + 1], strlen (fields[i + 1])) != 0)
     {
-      sfree (ds->ds);
       ERROR ("types_list: parse_line: Cannot parse data source #%zu "
 	  "of data set %s", i, ds->type);
+      sfree (ds->ds);
+      sfree (ds);
       return;
     }
 
