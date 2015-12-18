@@ -817,6 +817,7 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
 				exp_size, buffer_len);
 		return (-1);
 	}
+	assert (pkg_numval <= ((buffer_len - 6) / 9));
 
 	if (pkg_length != exp_size)
 	{
