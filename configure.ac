@@ -99,6 +99,10 @@ case $host_os in
 	AC_DEFINE([KERNEL_OPENBSD], 1, [True if program is to be compiled for an OpenBSD kernel])
 	ac_system="OpenBSD"
 	;;
+	*netbsd*)
+	AC_DEFINE([KERNEL_NETBSD], 1, [True if program is to be compiled for a NetBSD kernel])
+	ac_system="NetBSD"
+	;;
 	*aix*)
 	AC_DEFINE([KERNEL_AIX], 1, [True if program is to be compiled for a AIX kernel])
 	ac_system="AIX"
@@ -185,6 +189,19 @@ AC_HEADER_DIRENT
 AC_HEADER_STDBOOL
 
 AC_CHECK_HEADERS(stdio.h errno.h math.h stdarg.h syslog.h fcntl.h signal.h assert.h sys/types.h sys/socket.h sys/select.h poll.h netdb.h arpa/inet.h sys/resource.h sys/param.h kstat.h regex.h sys/ioctl.h endian.h sys/isa_defs.h fnmatch.h libgen.h)
+
+# For entropy plugin on newer NetBSD
+AC_CHECK_HEADERS(sys/rndio.h, [], [],
+[#if HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+#if HAVE_SYS_IOCTL_H
+# include <sys/ioctl.h>
+#endif
+#if HAVE_SYS_PARAM_H
+# include <sys/param.h>
+#endif
+])
 
 # For ping library
 AC_CHECK_HEADERS(netinet/in_systm.h, [], [],
@@ -406,6 +423,22 @@ then
 		AC_MSG_RESULT([yes])
 		AC_DEFINE(HAVE_SYSCTL_KERN_CP_TIMES, 1,
 		[Define if sysctl supports kern.cp_times])
+	else
+		AC_MSG_RESULT([no])
+	fi
+else
+	AC_MSG_RESULT([no])
+fi
+
+AC_MSG_CHECKING([for sysctl kern.cp_time])
+if test -x /sbin/sysctl
+then
+	/sbin/sysctl kern.cp_time 2>/dev/null
+	if test $? -eq 0
+	then
+		AC_MSG_RESULT([yes])
+		AC_DEFINE(HAVE_SYSCTL_KERN_CP_TIME, 1,
+			[Define if sysctl supports kern.cp_time])
 	else
 		AC_MSG_RESULT([no])
 	fi
@@ -1436,6 +1469,24 @@ AC_CHECK_MEMBERS([struct kinfo_proc.p_pid, struct kinfo_proc.p_vm_rssize],
 #include <sys/sysctl.h>
 #include <kvm.h>
 	])
+
+
+AC_CHECK_MEMBERS([struct kinfo_proc2.p_pid, struct kinfo_proc2.p_uru_maxrss],
+	[
+		AC_DEFINE(HAVE_STRUCT_KINFO_PROC2_NETBSD, 1,
+			[Define if struct kinfo_proc2 exists in the NetBSD variant.])
+		have_struct_kinfo_proc2_netbsd="yes"
+	],
+	[
+		have_struct_kinfo_proc2_netbsd="no"
+	],
+	[
+#include <sys/param.h>
+#include <sys/sysctl.h>
+#include <kvm.h>
+	])
+
+
 
 AC_CHECK_MEMBERS([struct udphdr.uh_dport, struct udphdr.uh_sport], [], [],
 [#define _BSD_SOURCE
@@ -5298,6 +5349,7 @@ plugin_load="no"
 plugin_log_logstash="no"
 plugin_memory="no"
 plugin_multimeter="no"
+plugin_netstat_udp="no"
 plugin_nfs="no"
 plugin_numa="no"
 plugin_perl="no"
@@ -5367,6 +5419,15 @@ fi
 if test "x$ac_system" = "xOpenBSD"
 then
 	plugin_tcpconns="yes"
+fi
+
+if test "x$ac_system" = "xNetBSD"
+then
+	plugin_entropy="yes"
+	plugin_irq="yes"
+	plugin_processes="yes"
+	plugin_disk="yes"
+	plugin_netstat_udp="yes"
 fi
 
 # Mac OS X devices
@@ -5615,6 +5676,11 @@ then
 	plugin_swap="yes"
 fi
 
+if test "x$have_swapctl" = "xyes" && test "x$c_cv_have_swapctl_three_args" = "xyes"
+then
+	plugin_swap="yes"
+fi
+
 if test "x$with_kvm_openfiles$with_kvm_nlist" = "xyesyes"
 then
 	plugin_tcpconns="yes"
@@ -5719,6 +5785,7 @@ AC_PLUGIN([multimeter],  [$plugin_multimeter], [Read multimeter values])
 AC_PLUGIN([mysql],       [$with_libmysql],     [MySQL statistics])
 AC_PLUGIN([netapp],      [$with_libnetapp],    [NetApp plugin])
 AC_PLUGIN([netlink],     [$with_libmnl],       [Enhanced Linux network statistics])
+AC_PLUGIN([netstat_udp], [$plugin_netstat_udp], [UDP network statistics])
 AC_PLUGIN([network],     [yes],                [Network communication plugin])
 AC_PLUGIN([nfs],         [$plugin_nfs],        [NFS statistics])
 AC_PLUGIN([nginx],       [$with_libcurl],      [nginx statistics])
@@ -6119,6 +6186,7 @@ Configuration:
     mysql . . . . . . . . $enable_mysql
     netapp  . . . . . . . $enable_netapp
     netlink . . . . . . . $enable_netlink
+    netstat_udp . . . . . $enable_netstat_udp
     network . . . . . . . $enable_network
     nfs . . . . . . . . . $enable_nfs
     nginx . . . . . . . . $enable_nginx
