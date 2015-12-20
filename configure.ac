@@ -433,7 +433,7 @@ fi
 AC_MSG_CHECKING([for sysctl kern.cp_time])
 if test -x /sbin/sysctl
 then
-	/sbin/sysctl kern.cp_time 2>/dev/null
+	/sbin/sysctl kern.cp_time >/dev/null 2>&1
 	if test $? -eq 0
 	then
 		AC_MSG_RESULT([yes])
