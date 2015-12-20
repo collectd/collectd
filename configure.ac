@@ -5349,7 +5349,6 @@ plugin_load="no"
 plugin_log_logstash="no"
 plugin_memory="no"
 plugin_multimeter="no"
-plugin_netstat_udp="no"
 plugin_nfs="no"
 plugin_numa="no"
 plugin_perl="no"
@@ -5427,7 +5426,6 @@ then
 	plugin_irq="yes"
 	plugin_processes="yes"
 	plugin_disk="yes"
-	plugin_netstat_udp="yes"
 fi
 
 # Mac OS X devices
@@ -5785,7 +5783,6 @@ AC_PLUGIN([multimeter],  [$plugin_multimeter], [Read multimeter values])
 AC_PLUGIN([mysql],       [$with_libmysql],     [MySQL statistics])
 AC_PLUGIN([netapp],      [$with_libnetapp],    [NetApp plugin])
 AC_PLUGIN([netlink],     [$with_libmnl],       [Enhanced Linux network statistics])
-AC_PLUGIN([netstat_udp], [$plugin_netstat_udp], [UDP network statistics])
 AC_PLUGIN([network],     [yes],                [Network communication plugin])
 AC_PLUGIN([nfs],         [$plugin_nfs],        [NFS statistics])
 AC_PLUGIN([nginx],       [$with_libcurl],      [nginx statistics])
@@ -6186,7 +6183,6 @@ Configuration:
     mysql . . . . . . . . $enable_mysql
     netapp  . . . . . . . $enable_netapp
     netlink . . . . . . . $enable_netlink
-    netstat_udp . . . . . $enable_netstat_udp
     network . . . . . . . $enable_network
     nfs . . . . . . . . . $enable_nfs
     nginx . . . . . . . . $enable_nginx
