@@ -376,7 +376,7 @@ int redis_handle_query (redisContext *rh, redis_node_t *rn, redis_query_t *rq) /
     redis_submit(rn->name, rq->type, (strlen(rq->instance) >0)?rq->instance:NULL, val);
     freeReplyObject (rr);
     return 0;
-} /* }}} int redis_handle_info */
+} /* }}} int redis_handle_query */
 
 static int redis_read (void) /* {{{ */
 {
@@ -429,10 +429,15 @@ static int redis_read (void) /* {{{ */
     redis_handle_info (rn->name, rr->str, "volatile_changes", NULL, "changes_since_last_save", DS_TYPE_GAUGE);
     redis_handle_info (rn->name, rr->str, "total_connections", NULL, "total_connections_received", DS_TYPE_DERIVE);
     redis_handle_info (rn->name, rr->str, "total_operations", NULL, "total_commands_processed", DS_TYPE_DERIVE);
-    redis_handle_info (rn->name, rr->str, "expired_keys", NULL, "expired_keys", DS_TYPE_GAUGE);
+    redis_handle_info (rn->name, rr->str, "expired_keys", NULL, "expired_keys", DS_TYPE_DERIVE);
+    redis_handle_info (rn->name, rr->str, "evicted_keys", NULL, "evicted_keys", DS_TYPE_DERIVE);
     redis_handle_info (rn->name, rr->str, "pubsub", "channels", "pubsub_channels", DS_TYPE_GAUGE);
     redis_handle_info (rn->name, rr->str, "pubsub", "patterns", "pubsub_patterns", DS_TYPE_GAUGE);
     redis_handle_info (rn->name, rr->str, "current_connections", "slaves", "connected_slaves", DS_TYPE_GAUGE);
+    redis_handle_info (rn->name, rr->str, "cache_result", "hits", "keyspace_hits", DS_TYPE_DERIVE);
+    redis_handle_info (rn->name, rr->str, "cache_result", "misses", "keyspace_misses", DS_TYPE_DERIVE);
+    redis_handle_info (rn->name, rr->str, "total_bytes", "input", "total_net_input_bytes", DS_TYPE_DERIVE);
+    redis_handle_info (rn->name, rr->str, "total_bytes", "output", "total_net_output_bytes", DS_TYPE_DERIVE);
 
     freeReplyObject (rr);
 
