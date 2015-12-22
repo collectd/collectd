@@ -40,6 +40,7 @@
 
 
 /*** Compile-time constants. ***/
+#define MAX_KEY_LENGTH    1024
 #define WS_DOUBLE_FORMAT  "%f"
 #define VALUE_STR_LEN     20
 #define WRITE_STATSD_NAME "write_statsd"
@@ -57,16 +58,9 @@ struct write_statsd_config_s {
   int   port;
   char* postfix;
   char* prefix;
-  _Bool silence_type_warnings;
   _Bool always_append_ds;
+  _Bool silence_type_warnings;
   _Bool store_rates;
-
-  /* Internally derived options. */
-  char*  event_line_format;
-  size_t event_line_base_len;
-  /* The short line format is used when the DS name is not included. */
-  char*  short_event_line_format;
-  size_t short_event_line_base_len;
 };
 typedef struct write_statsd_config_s write_statsd_config_t;
 
@@ -90,8 +84,13 @@ static char* DS_TYPE_TO_STATSD[] = {
  * be modified outside of load_config or initialise.
  */
 static write_statsd_config_t configuration = {
-  NULL, 8125, NULL, NULL, 0, 0, 1,
-  NULL, 0, NULL, 0
+  NULL,  // host
+  8125,  // port
+  NULL,  // postfix
+  NULL,  // prefix
+  0,     // always_append_ds
+  0,     // silence_type_warnings
+  1      // store_rates
 };
 
 
@@ -210,8 +209,7 @@ static int write_statsd_config(oconfig_item_t *conf) {
           child, &configuration.always_append_ds);
 
     } else if (strcasecmp("StoreRates", child->key) == 0) {
-      status = cf_util_get_boolean(
-          child, &configuration.store_rates);
+      status = cf_util_get_boolean(child, &configuration.store_rates);
 
     } else {
       WARNING("write_statsd plugin: Ignoring unknown config option '%s'.",
@@ -237,20 +235,11 @@ static int write_statsd_free(void) {
   FREE_NOT_NULL(configuration.host);
   FREE_NOT_NULL(configuration.postfix);
   FREE_NOT_NULL(configuration.prefix);
-
-  configuration.event_line_base_len = 0;
-  configuration.short_event_line_base_len = 0;
-  FREE_NOT_NULL(configuration.event_line_format);
-  FREE_NOT_NULL(configuration.short_event_line_format);
-
   DEBUG("Freed %s module.", WRITE_STATSD_NAME);
   return 0;
 }
 
 static int write_statsd_init(void) {
-  size_t buffer_len = 0;
-  size_t len = 0;
-
   if (configuration.host == NULL) {
     ERROR("write_statsd plugin: missing required 'Host' configuration.");
     FREE_NOT_NULL(configuration.postfix)
@@ -258,95 +247,18 @@ static int write_statsd_init(void) {
     return -1;
   }
 
-  /*
-   * Generate format for event lines to pass to ssnprintf.
-   * A line full event line would be:
-   * <prefix>.<metric-name>.<value-name>.<postfix>:<value>|<type>
-   * The length of the format must exclude the placeholders.
-   *
-   * The value-name and its separator are ignored in the
-   * short format configuration.
-   */
-  if (configuration.prefix == NULL && configuration.postfix == NULL) {
-    /* %s.%s:%s|%s && %s:%s|%s */
-    configuration.event_line_format = strdup("%s.%s:%s|%s");
-    configuration.short_event_line_format = strdup("%s:%s|%s");
-    len = 3;
-
-  } else if (configuration.prefix == NULL) {
-    /* %s.%s.<postfix>:%s|%s && %s.<postfix>:%s|%s */
-    len = 4 + strlen(configuration.postfix);
-    buffer_len = len + 8 + 1;
-    configuration.event_line_format = allocate(buffer_len);
-    if (configuration.event_line_format == NULL) {
-      return -2;
-    }
-    configuration.short_event_line_format = allocate(buffer_len - 3);
-    if (configuration.short_event_line_format == NULL) {
-      free(configuration.event_line_format);
-      return -2;
-    }
-    ssnprintf(configuration.event_line_format, buffer_len,
-              "%%s.%%s.%s:%%s|%%s", configuration.postfix);
-    ssnprintf(configuration.short_event_line_format, buffer_len - 3,
-              "%%s.%s:%%s|%%s", configuration.postfix);
-
-  } else if (configuration.postfix == NULL) {
-    /* <prefix>.%s.%s:%s|%s && <prefix>.%s:%s|%s */
-    len = strlen(configuration.prefix) + 4;
-    buffer_len = len + 8 + 1;
-    configuration.event_line_format = allocate(buffer_len);
-    if (configuration.event_line_format == NULL) {
-      return -2;
-    }
-    configuration.short_event_line_format = allocate(buffer_len - 3);
-    if (configuration.short_event_line_format == NULL) {
-      free(configuration.event_line_format);
-      return -2;
-    }
-    ssnprintf(configuration.event_line_format, buffer_len,
-              "%s.%%s.%%s:%%s|%%s", configuration.prefix);
-    ssnprintf(configuration.short_event_line_format, buffer_len - 3,
-              "%s.%%s:%%s|%%s", configuration.prefix);
-
-  } else {
-    /* <prefix>.%s.%s.<potfix>:%s|%s && <prefix>.%s.<potfix>:%s|%s */
-    len = 5 + strlen(configuration.prefix) + strlen(configuration.postfix);
-    buffer_len = len + 8 + 1;
-    configuration.event_line_format = allocate(buffer_len);
-    if (configuration.event_line_format == NULL) {
-      return -2;
-    }
-    configuration.short_event_line_format = allocate(buffer_len - 3);
-    if (configuration.short_event_line_format == NULL) {
-      free(configuration.event_line_format);
-      return -2;
-    }
-    ssnprintf(configuration.event_line_format, buffer_len,
-              "%s.%%s.%%s.%s:%%s|%%s", configuration.prefix,
-              configuration.postfix);
-    ssnprintf(configuration.short_event_line_format, buffer_len - 3,
-              "%s.%%s.%s:%%s|%%s", configuration.prefix,
-              configuration.postfix);
-
-  }
-  configuration.event_line_base_len = len;
-  configuration.short_event_line_base_len = len - 1;
-
-  /* Postfix and prefix are now in event_line_format so they can be freed. */
-  FREE_NOT_NULL(configuration.postfix)
-  FREE_NOT_NULL(configuration.prefix)
-
   DEBUG("%s configuration completed.", WRITE_STATSD_NAME);
   DEBUG("%s Host: %s", WRITE_STATSD_NAME, configuration.host);
   DEBUG("%s Port: %i", WRITE_STATSD_NAME, configuration.port);
+  DEBUG("%s Prefix: %s", WRITE_STATSD_NAME, configuration.prefix);
+  DEBUG("%s Postfix: %s", WRITE_STATSD_NAME, configuration.postfix);
+
+  DEBUG("%s AlwaysAppendDS: %i", WRITE_STATSD_NAME,
+        configuration.always_append_ds);
   DEBUG("%s SilenceTypeWarnings: %i", WRITE_STATSD_NAME,
         configuration.silence_type_warnings);
+  DEBUG("%s StoreRates: %i", WRITE_STATSD_NAME, configuration.store_rates);
 
-  DEBUG("%s FormatString: %s", WRITE_STATSD_NAME,
-        configuration.event_line_format);
-  DEBUG("%s ShortFormatString: %s", WRITE_STATSD_NAME,
-        configuration.short_event_line_format);
   return 0;
 }
 
@@ -372,6 +284,59 @@ static int write_statsd_send_message(const char* message) {
   return 0;
 }
 
+
+static size_t write_statsd_format_key(
+    const value_list_t *vl, _Bool include_ds_name, char* ds_name, char* key) {
+  size_t plugin_instance_len = strlen(vl->plugin_instance);
+  size_t type_instance_len = strlen(vl->type_instance);
+
+  // Check which parts of the name should be included.
+  _Bool has_prefix  = configuration.prefix != NULL;
+  _Bool has_postfix = configuration.postfix != NULL;
+  _Bool has_plugin_instance = plugin_instance_len != 0;
+  _Bool has_type_instance   = type_instance_len != 0;
+
+  // Check that the string would fit in MAX_KEY_LENGTH.
+  size_t key_length = strlen(vl->host) + strlen(vl->plugin);
+  key_length += strlen(vl->type) + 2;
+
+  //  optionals:
+  if (has_prefix) {
+    key_length += strlen(configuration.prefix) + 1;
+  }
+  if (has_postfix) {
+    key_length += strlen(configuration.postfix) + 1;
+  }
+  if (has_plugin_instance) {
+    key_length += plugin_instance_len + 1;
+  }
+  if (has_type_instance) {
+    key_length += type_instance_len + 1;
+  }
+  if (include_ds_name) {
+    key_length += strlen(ds_name) + 1;
+  }
+
+  if (key_length >= MAX_KEY_LENGTH) {
+    ERROR("write_statsd plugin: cannot process value, name too long");
+    return 0;
+  }
+
+  // Format key to be :
+  //   [prefix.]host.plugin.[plugin_instance.]type[.type_instance][.ds_name][.postfix]
+  return snprintf(
+      //                    PR. H. P. PI. T . TI. DS. PO
+      key, MAX_KEY_LENGTH, "%s%s%s.%s.%s%s%s%s%s%s%s%s%s",
+      has_prefix ? configuration.prefix : "", has_prefix ? "." : "",
+      vl->host, vl->plugin,
+      vl->plugin_instance, has_plugin_instance ? "." : "",
+      vl->type, has_type_instance ? "." : "", vl->type_instance,
+      include_ds_name ? "." : "", include_ds_name ? ds_name : "",
+      has_postfix ? "." : "", has_postfix ? configuration.postfix : ""
+  );
+}
+
+
 static int write_statsd_write(
     const data_set_t *ds, const value_list_t *vl, user_data_t *ud) {
   int   idx;
@@ -381,62 +346,30 @@ static int write_statsd_write(
    * Build the type name using all available fields in vl:
    * hostname.plugin[.plugin_instance].type[.type_instance]
    */
-  char*  value_key = NULL;
-  size_t value_key_len = 2;  // Dots are always present.
-  size_t plugin_instance_len = strlen(vl->plugin_instance);
-  size_t type_instance_len = strlen(vl->type_instance);
-  gauge_t *rates = NULL;
+  gauge_t* rates = NULL;
+  char*    key = NULL;
 
-  value_key_len += strlen(vl->host);
-  value_key_len += strlen(vl->plugin);
-  value_key_len += strlen(vl->type);
-
-  // Account for name's optional fields.
-  if (plugin_instance_len != 0) {
-    value_key_len += plugin_instance_len + 1;
-  }
-  if (type_instance_len != 0) {
-    value_key_len += type_instance_len + 1;
-  }
-
-  value_key = allocate(value_key_len + 1);
-  if (value_key == NULL) {
+  key = allocate(MAX_KEY_LENGTH);
+  if (key == NULL) {
     return -5;
   }
 
-  // Determine format and build fixed part of the name.
-  if (plugin_instance_len != 0 && type_instance_len != 0) {
-    ssnprintf(value_key, value_key_len + 1, "%s.%s.%s.%s.%s",
-              vl->host, vl->plugin, vl->plugin_instance,
-              vl->type, vl->type_instance);
-  } else if (plugin_instance_len != 0) {
-    ssnprintf(value_key, value_key_len + 1, "%s.%s.%s.%s",
-              vl->host, vl->plugin, vl->plugin_instance, vl->type);
-  } else if (type_instance_len != 0) {
-    ssnprintf(value_key, value_key_len + 1, "%s.%s.%s.%s",
-              vl->host, vl->plugin, vl->type, vl->type_instance);
-  } else {
-    ssnprintf(value_key, value_key_len + 1, "%s.%s.%s",
-              vl->host, vl->plugin, vl->type);
-  }
-
   if (configuration.store_rates) {
-    rates = uc_get_rate (ds, vl);
+    rates = uc_get_rate(ds, vl);
     if (rates == NULL) {
       ERROR("write_statsd plugin: uc_get_rate failed.");
-      free(value_key);
+      free(key);
       return -6;
     }
-  } else {
-    rates = NULL;
   }
 
   // Process all values in the data set.
   for (idx = 0; idx < ds->ds_num; idx++) {
+    size_t actual_key_length;
+    char*  ds_type = DS_TYPE_TO_STATSD[ds->ds[idx].type];
     char*  message;
     size_t message_len;
     int    result;
-    char*  ds_type = DS_TYPE_TO_STATSD[ds->ds[idx].type];
     char*  value = NULL;
 
     if (ds_type == NULL) {
@@ -448,63 +381,54 @@ static int write_statsd_write(
       continue;  // To the next value in the data set.
     }
 
-    if (ds->ds[idx].type == DS_TYPE_GAUGE) {
+    if (ds->ds[idx].type == DS_TYPE_GAUGE || rates == NULL) {
       value = ds_value_to_string(ds->ds[idx].type, vl->values[idx]);
-    }
-    else if (rates != NULL) {
+    } else {
       value = ds_rate_to_string(ds->ds[idx].type, rates[idx]);
-    }
-    else {
-      value = ds_value_to_string(ds->ds[idx].type, vl->values[idx]);
     }
 
     if (value == NULL) {
-      free(value_key);
-      return -7;
+      ERROR("write_statsd plugin: unable to get value from data set.");
+      free(value);
+      continue;  // To the next value in the data set.
     }
 
     /*
      * The full message will have prefix, postfix and separators plus
      * the type name, the value name, value and type identifier.
      */
-    if (include_ds_name) {
-      message_len = configuration.event_line_base_len;
-      message_len += strlen(ds->ds[idx].name);
-
-    } else {
-      message_len = configuration.short_event_line_base_len;
+    actual_key_length = write_statsd_format_key(
+        vl, include_ds_name, ds->ds[idx].name, key);
+    if (actual_key_length <= 0) {
+      ERROR("write_statsd plugin: unable to get key from data set.");
+      free(value);
+      continue;  // To the next value in the data set.
     }
 
-    message_len += value_key_len;
+    message_len =  actual_key_length;
     message_len += strlen(value);
     message_len += strlen(ds_type);
+    message_len += 3;  // For the ": " and "|" parts.
 
     message = allocate(message_len + 1);
     if (message == NULL) {
-      free(value_key);
+      free(key);
       free(value);
-      return -8;
+      return -7;
     }
 
-    if (include_ds_name) {
-      ssnprintf(message, message_len + 1, configuration.event_line_format,
-                value_key, ds->ds[idx].name, value, ds_type);
-    } else {
-      ssnprintf(message, message_len + 1,
-                configuration.short_event_line_format,
-                value_key, value, ds_type);
-    }
+    snprintf(message, message_len + 1, "%s: %s|%s", key, value, ds_type);
     free(value);
 
     result = write_statsd_send_message(message);
     free(message);
     if (result != 0) {
-      free(value_key);
+      free(key);
       return result;
     }
   }
 
-  free(value_key);
+  free(key);
   free(rates);
   return 0;
 }
