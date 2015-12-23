@@ -1017,7 +1017,7 @@ static int rrd_config (const char *key, const char *value)
 			ERROR ("rrdtool plugin: strdup failed.");
 			return (1);
 		}
-
+		datadir = tmp
 		len = strlen (datadir);
 		while ((len > 0) && (datadir[len - 1] == '/'))
 		{
