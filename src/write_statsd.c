@@ -43,7 +43,7 @@
 /*** Type declarations. ***/
 struct write_statsd_config_s {
   char* host;
-  int   port;
+  char* port;
   char* postfix;
   char* prefix;
   _Bool always_append_ds;
@@ -51,12 +51,6 @@ struct write_statsd_config_s {
   _Bool store_rates;
 };
 typedef struct write_statsd_config_s write_statsd_config_t;
-
-struct write_statsd_link_s {
-  struct sockaddr_in server;
-  int    sock;
-};
-typedef struct write_statsd_link_s write_statsd_link_t;
 
 
 /*** Module variables. ***/
@@ -75,7 +69,7 @@ static int write_statsd_write(
 static char* ds_value_to_string(int type, value_t value) {
   char* result = malloc(VALUE_STR_LEN);
   if (result == NULL) {
-    ERROR("write_statsd plugin: not enough memory for value buffer.");
+    ERROR("%s: not enough memory for value buffer", WRITE_STATSD_NAME);
     return NULL;
   }
 
@@ -97,7 +91,7 @@ static char* ds_value_to_string(int type, value_t value) {
       break;
 
     default:
-      ERROR("write_statsd: unknown data source type: %i", type);
+      ERROR("%s: unknown data source type: %i", WRITE_STATSD_NAME, type);
       free(result);
       return NULL;
   }
@@ -109,7 +103,7 @@ static char* ds_value_to_string(int type, value_t value) {
 static char* ds_rate_to_string(int type, double rate) {
   char* result = malloc(VALUE_STR_LEN);
   if (result == NULL) {
-    ERROR("write_statsd plugin: not enough memory for rates buffer.");
+    ERROR("%s: not enough memory for rates buffer", WRITE_STATSD_NAME);
     return NULL;
   }
 
@@ -118,35 +112,52 @@ static char* ds_rate_to_string(int type, double rate) {
 }
 
 
-static write_statsd_link_t open_socket(write_statsd_config_t* configuration) {
-  write_statsd_link_t link  = {{0}, 0};
-  struct addrinfo* resolved = NULL;
+static int open_socket(write_statsd_config_t* config) {
   int error = 0;
+  int sock  = 0;
 
-  link.sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-  if (link.sock == -1) {
-    ERROR("write_statsd plugin: unable to open socket connection.");
-    link.sock = 0;
-    return link;
+  struct addrinfo* ai;
+  struct addrinfo  ai_hints;
+  struct addrinfo* ai_list;
+
+  // Resolve address.
+  memset((void*)&ai_hints, '\0', sizeof(ai_hints));
+  ai_hints.ai_family   = AF_UNSPEC;
+  ai_hints.ai_socktype = SOCK_DGRAM;
+  error = getaddrinfo(config->host, config->port, &ai_hints, &ai_list);
+
+  if (error != 0) {
+    ERROR("%s: unable to resolve address", WRITE_STATSD_NAME);
+    return 0;
   }
 
-  link.server.sin_family = AF_INET;
-  link.server.sin_port   = htons(configuration->port);
-  error = getaddrinfo(configuration->host, NULL, NULL, &resolved);
+  // Find a usable address.
+  for (ai = ai_list; ai != NULL; ai = ai->ai_next) {
+    sock = socket(ai->ai_family, SOCK_DGRAM, 0);
+    if (sock < 0) {
+      char errbuf[1024];
+      WARNING("%s: socket(2) failed: %s", WRITE_STATSD_NAME,
+              sstrerror(errno, errbuf, sizeof(errbuf)));
+      sock = 0;
+      continue;
+    }
 
-  if (error) {
-    ERROR("write_statsd plugin: unable to resolve address - %s.",
-          gai_strerror(error));
-    close(link.sock);
-    link.sock = 0;
-    return link;
+    error = (int)connect(sock, ai->ai_addr, ai->ai_addrlen);
+    if (error == -1) {
+      char errbuf[1024];
+      WARNING ("%s: connect(2) failed: %s", WRITE_STATSD_NAME,
+               sstrerror(errno, errbuf, sizeof(errbuf)));
+      close(sock);
+      sock = 0;
+      continue;
+    }
+
+    break;
   }
 
-  memcpy(&link.server.sin_addr,
-         &((struct sockaddr_in*)resolved->ai_addr)->sin_addr,
-         sizeof(struct in_addr));
-  freeaddrinfo(resolved);
-  return link;
+  // Return the link to the caller.
+  freeaddrinfo(ai_list);
+  return sock;
 }
 
 
@@ -157,11 +168,11 @@ static int write_statsd_config(oconfig_item_t *conf) {
   // Initialise configuration holder.
   write_statsd_config_t* configuration = malloc(sizeof(write_statsd_config_t));
   if (configuration == NULL) {
-    ERROR("write_statsd plugin: not enough memory for configuration.");
+    ERROR("%s: not enough memory for configuration", WRITE_STATSD_NAME);
     return -1;
   }
   configuration->host = NULL;
-  configuration->port = 8125;
+  configuration->port = strdup("8125");
   configuration->postfix = NULL;
   configuration->prefix  = NULL;
   configuration->always_append_ds = 0;
@@ -177,14 +188,14 @@ static int write_statsd_config(oconfig_item_t *conf) {
       status = cf_util_get_string(child, &configuration->host);
 
     } else if (strcasecmp("Port", child->key) == 0) {
-      status = cf_util_get_int(child, &configuration->port);
-      
+      status = cf_util_get_service(child, &configuration->port);
+
     } else if (strcasecmp("Postfix", child->key) == 0) {
       status = cf_util_get_string(child, &configuration->postfix);
 
     } else if (strcasecmp("Prefix", child->key) == 0) {
       status = cf_util_get_string(child, &configuration->prefix);
-    
+
     } else if (strcasecmp("SilenceTypeWarnings", child->key) == 0) {
       status = cf_util_get_boolean(
           child, &configuration->silence_type_warnings);
@@ -197,7 +208,7 @@ static int write_statsd_config(oconfig_item_t *conf) {
       status = cf_util_get_boolean(child, &configuration->store_rates);
 
     } else {
-      WARNING("write_statsd plugin: Ignoring unknown config option '%s'.",
+      WARNING("%s: Ignoring unknown config option '%s'", WRITE_STATSD_NAME,
               child->key);
     }
 
@@ -207,24 +218,24 @@ static int write_statsd_config(oconfig_item_t *conf) {
      * If the host was not parsed correctily the configuration will fail.
      */
     if (status != 0) {
-      ERROR("write_statsd plugin: Ignoring config option '%s' due to an error.",
-            child->key);
+      ERROR("%s: Ignoring config option '%s' due to an error",
+            WRITE_STATSD_NAME, child->key);
       return status;
     }
   }
 
   // Check required options.
   if (configuration->host == NULL) {
-    ERROR("write_statsd plugin: missing required 'Host' configuration.");
+    ERROR("%s: missing required 'Host' configuration", WRITE_STATSD_NAME);
     sfree(configuration->postfix);
     sfree(configuration->prefix);
     return -2;
   }
 
   // Print loaded configuration (for debug).
-  DEBUG("%s configuration completed.", WRITE_STATSD_NAME);
+  DEBUG("%s configuration completed", WRITE_STATSD_NAME);
   DEBUG("%s Host: %s", WRITE_STATSD_NAME, configuration->host);
-  DEBUG("%s Port: %i", WRITE_STATSD_NAME, configuration->port);
+  DEBUG("%s Port: %s", WRITE_STATSD_NAME, configuration->port);
   DEBUG("%s Prefix: %s", WRITE_STATSD_NAME, configuration->prefix);
   DEBUG("%s Postfix: %s", WRITE_STATSD_NAME, configuration->postfix);
   DEBUG("%s AlwaysAppendDS: %i", WRITE_STATSD_NAME,
@@ -270,7 +281,7 @@ static size_t write_statsd_format_key(
 
   // Check that the string would fit in MAX_KEY_LENGTH.
   if (length >= MAX_KEY_LENGTH) {
-    ERROR("write_statsd plugin: value name too long, truncated.");
+    ERROR("%s: value name too long, truncated", WRITE_STATSD_NAME);
     return MAX_KEY_LENGTH;
   }
   return length;
@@ -279,23 +290,23 @@ static size_t write_statsd_format_key(
 
 static int write_statsd_send_message(
     const char* message, write_statsd_config_t* configuration) {
-  int slen;
+  int msg_len;
   int result;
-  write_statsd_link_t link = open_socket(configuration);
+  int sock = open_socket(configuration);
 
-  if (link.sock == 0) {
+  if (sock == 0) {
     return 0;
   }
 
-  slen = sizeof(link.server);
-  result = sendto(link.sock, message, strlen(message), 0,
-                  (struct sockaddr *)&link.server, slen);
-
-  if (result == -1) {
-    ERROR("write_statsd plugin: unable to send message.");
+  msg_len = strlen(message);
+  result = write(sock, message, msg_len);
+  if (result != msg_len) {
+    char errbuf[1024];
+    ERROR("%s: sendto(2) failed: %s", WRITE_STATSD_NAME,
+          sstrerror(errno, errbuf, sizeof(errbuf)));
   };
 
-  close(link.sock);
+  close(sock);
   return 0;
 }
 
@@ -315,14 +326,14 @@ static int write_statsd_write(
 
   key = malloc(MAX_KEY_LENGTH);
   if (key == NULL) {
-    ERROR("write_statsd plugin: not enough memory for key buffer.");
+    ERROR("%s: not enough memory for key buffer", WRITE_STATSD_NAME);
     return -5;
   }
 
   if (configuration->store_rates) {
     rates = uc_get_rate(ds, vl);
     if (rates == NULL) {
-      ERROR("write_statsd plugin: uc_get_rate failed.");
+      ERROR("%s: uc_get_rate failed", WRITE_STATSD_NAME);
       free(key);
       return -6;
     }
@@ -339,9 +350,9 @@ static int write_statsd_write(
 
     if (ds_type == NULL) {
       if (!configuration->silence_type_warnings) {
-        WARNING("write_statsd plugin: unsupported StatsD type '%s' "
-                "for value with name '%s'.",
-                DS_TYPE_TO_STRING(ds->ds[idx].type), ds->ds[idx].name);
+        WARNING("%s: unsupported StatsD type '%s' for value with name '%s'",
+                WRITE_STATSD_NAME, DS_TYPE_TO_STRING(ds->ds[idx].type),
+                ds->ds[idx].name);
       }
       continue;  // To the next value in the data set.
     }
@@ -353,7 +364,7 @@ static int write_statsd_write(
     }
 
     if (value == NULL) {
-      ERROR("write_statsd plugin: unable to get value from data set.");
+      ERROR("%s: unable to get value from data set", WRITE_STATSD_NAME);
       free(value);
       continue;  // To the next value in the data set.
     }
@@ -365,7 +376,7 @@ static int write_statsd_write(
     actual_key_length = write_statsd_format_key(
         vl, include_ds_name, ds->ds[idx].name, key, configuration);
     if (actual_key_length <= 0) {
-      ERROR("write_statsd plugin: unable to get key from data set.");
+      ERROR("%s: unable to get key from data set", WRITE_STATSD_NAME);
       free(value);
       continue;  // To the next value in the data set.
     }
@@ -377,7 +388,7 @@ static int write_statsd_write(
 
     message = malloc(message_len + 1);
     if (message == NULL) {
-      ERROR("write_statsd plugin: not enough memory for message buffer.");
+      ERROR("%s: not enough memory for message buffer", WRITE_STATSD_NAME);
       free(key);
       free(value);
       return -7;
