@@ -262,10 +262,11 @@ sub getthreshold # {{{
     $self->_socket_chat($msg, sub {
             local $_ = shift;
             my $ret = shift;
-		    /^\s*([^:]+):\s*(.*)/ and do {
-			    $1 =~ s/\s*$//;
-			    $ret->{$1} = $2;
-		    };
+            my ( $key, $val );
+            ( $key, $val ) = /^\s*([^:]+):\s*(.*)/ and do {
+                  $key =~ s/\s*$//;
+                  $ret->{$key} = $val;
+            };
         }, $ret
     );
 	return $ret;

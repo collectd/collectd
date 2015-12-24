@@ -61,14 +61,10 @@ typedef struct ip6tc_handle ip6tc_handle_t;
  */
 static const char *config_keys[] =
 {
-	"Chain",
-	"Chain6"
+    "Chain",
+    "Chain6"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
-/*
-    Each table/chain combo that will be queried goes into this list
-*/
-
 enum protocol_version_e
 {
     IPV4,
@@ -76,6 +72,9 @@ enum protocol_version_e
 };
 typedef enum protocol_version_e protocol_version_t;
 
+/*
+ * Each table/chain combo that will be queried goes into this list
+ */
 #ifndef XT_TABLE_MAXNAMELEN
 # define XT_TABLE_MAXNAMELEN 32
 #endif
@@ -85,14 +84,14 @@ typedef struct {
     char chain[XT_TABLE_MAXNAMELEN];
     union
     {
-	int   num;
-	char *comment;
+        int   num;
+        char *comment;
     } rule;
     enum
     {
-	RTYPE_NUM,
-	RTYPE_COMMENT,
-	RTYPE_COMMENT_ALL
+        RTYPE_NUM,
+        RTYPE_COMMENT,
+        RTYPE_COMMENT_ALL
     } rule_type;
     char name[64];
 } ip_chain_t;
@@ -102,147 +101,142 @@ static int chain_num = 0;
 
 static int iptables_config (const char *key, const char *value)
 {
-	/* int ip_value; */
-	protocol_version_t ip_version = 0;
+    /* int ip_value; */
+    protocol_version_t ip_version = 0;
 
-	if (strcasecmp (key, "Chain") == 0)
-		ip_version = IPV4;
-	else if (strcasecmp (key, "Chain6") == 0)
-		ip_version = IPV6;
+    if (strcasecmp (key, "Chain") == 0)
+        ip_version = IPV4;
+    else if (strcasecmp (key, "Chain6") == 0)
+        ip_version = IPV6;
+    else
+        return (1);
 
-	if (( ip_version == IPV4 ) || ( ip_version == IPV6 ))
-	{
-		ip_chain_t temp, *final, **list;
-		char *table;
-		int   table_len;
-		char *chain;
-		int   chain_len;
+    ip_chain_t temp, *final, **list;
+    char *table;
+    int   table_len;
+    char *chain;
+    int   chain_len;
 
-		char *value_copy;
-		char *fields[4];
-		int   fields_num;
-		
-		memset (&temp, 0, sizeof (temp));
+    char *value_copy;
+    char *fields[4];
+    int   fields_num;
 
-		value_copy = strdup (value);
-		if (value_copy == NULL)
-		{
-		    char errbuf[1024];
-		    ERROR ("strdup failed: %s",
-			    sstrerror (errno, errbuf, sizeof (errbuf)));
-		    return (1);
-		}
+    memset (&temp, 0, sizeof (temp));
 
-		/*
-	         *  Time to fill the temp element
-        	 *  Examine value string, it should look like:
-	         *  Chain[6] <table> <chain> [<comment|num> [name]]
-       		 */
+    value_copy = strdup (value);
+    if (value_copy == NULL)
+    {
+        char errbuf[1024];
+        ERROR ("strdup failed: %s",
+                sstrerror (errno, errbuf, sizeof (errbuf)));
+        return (1);
+    }
 
-		/* set IPv4 or IPv6 */
-                temp.ip_version = ip_version;
+    /*
+     *  Time to fill the temp element
+     *  Examine value string, it should look like:
+     *  Chain[6] <table> <chain> [<comment|num> [name]]
+     */
 
-		/* Chain <table> <chain> [<comment|num> [name]] */
-		fields_num = strsplit (value_copy, fields, 4);
-		if (fields_num < 2)
-		{
-		    free (value_copy);
-		    return (1);
-		}
+    /* set IPv4 or IPv6 */
+    temp.ip_version = ip_version;
 
-		table = fields[0];
-		chain = fields[1];
+    /* Chain <table> <chain> [<comment|num> [name]] */
+    fields_num = strsplit (value_copy, fields, 4);
+    if (fields_num < 2)
+    {
+        free (value_copy);
+        return (1);
+    }
 
-		table_len = strlen (table) + 1;
-		if ((unsigned int)table_len > sizeof(temp.table))
-		{
-			ERROR ("Table `%s' too long.", table);
-			free (value_copy);
-			return (1);
-		}
-		sstrncpy (temp.table, table, table_len);
+    table = fields[0];
+    chain = fields[1];
 
-		chain_len = strlen (chain) + 1;
-		if ((unsigned int)chain_len > sizeof(temp.chain))
-		{
-			ERROR ("Chain `%s' too long.", chain);
-			free (value_copy);
-			return (1);
-		}
-		sstrncpy (temp.chain, chain, chain_len);
+    table_len = strlen (table) + 1;
+    if ((unsigned int)table_len > sizeof(temp.table))
+    {
+        ERROR ("Table `%s' too long.", table);
+        free (value_copy);
+        return (1);
+    }
+    sstrncpy (temp.table, table, table_len);
 
-		if (fields_num >= 3)
-		{
-		    char *comment = fields[2];
-		    int   rule = atoi (comment);
+    chain_len = strlen (chain) + 1;
+    if ((unsigned int)chain_len > sizeof(temp.chain))
+    {
+        ERROR ("Chain `%s' too long.", chain);
+        free (value_copy);
+        return (1);
+    }
+    sstrncpy (temp.chain, chain, chain_len);
 
-		    if (rule)
-		    {
-			temp.rule.num = rule;
-			temp.rule_type = RTYPE_NUM;
-		    }
-		    else
-		    {
-			temp.rule.comment = strdup (comment);
-			if (temp.rule.comment == NULL)
-			{
-			    free (value_copy);
-			    return (1);
-			}
-			temp.rule_type = RTYPE_COMMENT;
-		    }
-		}
-		else
-		{
-		    temp.rule_type = RTYPE_COMMENT_ALL;
-		}
+    if (fields_num >= 3)
+    {
+        char *comment = fields[2];
+        int   rule = atoi (comment);
 
-		if (fields_num >= 4)
-		    sstrncpy (temp.name, fields[3], sizeof (temp.name));
+        if (rule)
+        {
+            temp.rule.num = rule;
+            temp.rule_type = RTYPE_NUM;
+        }
+        else
+        {
+            temp.rule.comment = strdup (comment);
+            if (temp.rule.comment == NULL)
+            {
+                free (value_copy);
+                return (1);
+            }
+            temp.rule_type = RTYPE_COMMENT;
+        }
+    }
+    else
+    {
+        temp.rule_type = RTYPE_COMMENT_ALL;
+    }
 
-		free (value_copy);
-		value_copy = NULL;
-		table = NULL;
-		chain = NULL;
+    if (fields_num >= 4)
+        sstrncpy (temp.name, fields[3], sizeof (temp.name));
 
-		list = (ip_chain_t **) realloc (chain_list, (chain_num + 1) * sizeof (ip_chain_t *));
-		if (list == NULL)
-		{
-		    char errbuf[1024];
-		    ERROR ("realloc failed: %s",
-			    sstrerror (errno, errbuf, sizeof (errbuf)));
-		    sfree (temp.rule.comment);
-		    return (1);
-		}
+    free (value_copy);
+    value_copy = NULL;
+    table = NULL;
+    chain = NULL;
 
-		chain_list = list;
-		final = (ip_chain_t *) malloc( sizeof(temp) );
-		if (final == NULL) 
-		{
-		    char errbuf[1024];
-		    ERROR ("malloc failed: %s",
-			    sstrerror (errno, errbuf, sizeof (errbuf)));
-		    sfree (temp.rule.comment);
-		    return (1);
-		}
-		memcpy (final, &temp, sizeof (temp));
-		chain_list[chain_num] = final;
-		chain_num++;
+    list = (ip_chain_t **) realloc (chain_list, (chain_num + 1) * sizeof (ip_chain_t *));
+    if (list == NULL)
+    {
+        char errbuf[1024];
+        ERROR ("realloc failed: %s",
+                sstrerror (errno, errbuf, sizeof (errbuf)));
+        sfree (temp.rule.comment);
+        return (1);
+    }
 
-		DEBUG ("Chain #%i: table = %s; chain = %s;", chain_num, final->table, final->chain);
-	}
-	else 
-	{
-		return (-1);
-	}
+    chain_list = list;
+    final = (ip_chain_t *) malloc( sizeof(temp) );
+    if (final == NULL)
+    {
+        char errbuf[1024];
+        ERROR ("malloc failed: %s",
+                sstrerror (errno, errbuf, sizeof (errbuf)));
+        sfree (temp.rule.comment);
+        return (1);
+    }
+    memcpy (final, &temp, sizeof (temp));
+    chain_list[chain_num] = final;
+    chain_num++;
 
-	return (0);
+    DEBUG ("Chain #%i: table = %s; chain = %s;", chain_num, final->table, final->chain);
+
+    return (0);
 } /* int iptables_config */
 
 static int submit6_match (const struct ip6t_entry_match *match,
-                const struct ip6t_entry *entry,
-                const ip_chain_t *chain,
-                int rule_num)
+                          const struct ip6t_entry *entry,
+                          const ip_chain_t *chain,
+                          int rule_num)
 {
     int status;
     value_t values[1];
@@ -259,7 +253,7 @@ static int submit6_match (const struct ip6t_entry_match *match,
         if (strcmp (match->u.user.name, "comment") != 0)
             return (0);
         if ((chain->rule_type == RTYPE_COMMENT)
-                && (strcmp (chain->rule.comment, (char *) match->data) != 0))
+             && (strcmp (chain->rule.comment, (char *) match->data) != 0))
             return (0);
     }
 
@@ -269,7 +263,7 @@ static int submit6_match (const struct ip6t_entry_match *match,
     sstrncpy (vl.plugin, "ip6tables", sizeof (vl.plugin));
 
     status = ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
-            "%s-%s", chain->table, chain->chain);
+                        "%s-%s", chain->table, chain->chain);
     if ((status < 1) || ((unsigned int)status >= sizeof (vl.plugin_instance)))
         return (0);
 
@@ -281,10 +275,10 @@ static int submit6_match (const struct ip6t_entry_match *match,
     {
         if (chain->rule_type == RTYPE_NUM)
             ssnprintf (vl.type_instance, sizeof (vl.type_instance),
-                    "%i", chain->rule.num);
+                       "%i", chain->rule.num);
         else
             sstrncpy (vl.type_instance, (char *) match->data,
-                    sizeof (vl.type_instance));
+                      sizeof (vl.type_instance));
     }
 
     sstrncpy (vl.type, "ipt_bytes", sizeof (vl.type));
@@ -301,9 +295,9 @@ static int submit6_match (const struct ip6t_entry_match *match,
 
 /* This needs to return `int' for IPT_MATCH_ITERATE to work. */
 static int submit_match (const struct ipt_entry_match *match,
-		const struct ipt_entry *entry,
-		const ip_chain_t *chain,
-		int rule_num) 
+                         const struct ipt_entry *entry,
+                         const ip_chain_t *chain,
+                         int rule_num)
 {
     int status;
     value_t values[1];
@@ -312,16 +306,16 @@ static int submit_match (const struct ipt_entry_match *match,
     /* Select the rules to collect */
     if (chain->rule_type == RTYPE_NUM)
     {
-	if (chain->rule.num != rule_num)
-	    return (0);
+        if (chain->rule.num != rule_num)
+            return (0);
     }
     else
     {
-	if (strcmp (match->u.user.name, "comment") != 0)
-	    return (0);
-	if ((chain->rule_type == RTYPE_COMMENT)
-		&& (strcmp (chain->rule.comment, (char *) match->data) != 0))
-	    return (0);
+        if (strcmp (match->u.user.name, "comment") != 0)
+            return (0);
+        if ((chain->rule_type == RTYPE_COMMENT)
+             && (strcmp (chain->rule.comment, (char *) match->data) != 0))
+            return (0);
     }
 
     vl.values = values;
@@ -330,22 +324,22 @@ static int submit_match (const struct ipt_entry_match *match,
     sstrncpy (vl.plugin, "iptables", sizeof (vl.plugin));
 
     status = ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
-	    "%s-%s", chain->table, chain->chain);
+                        "%s-%s", chain->table, chain->chain);
     if ((status < 1) || ((unsigned int)status >= sizeof (vl.plugin_instance)))
-	return (0);
+        return (0);
 
     if (chain->name[0] != '\0')
     {
-	sstrncpy (vl.type_instance, chain->name, sizeof (vl.type_instance));
+        sstrncpy (vl.type_instance, chain->name, sizeof (vl.type_instance));
     }
     else
     {
-	if (chain->rule_type == RTYPE_NUM)
-	    ssnprintf (vl.type_instance, sizeof (vl.type_instance),
-		    "%i", chain->rule.num);
-	else
-	    sstrncpy (vl.type_instance, (char *) match->data,
-		    sizeof (vl.type_instance));
+        if (chain->rule_type == RTYPE_NUM)
+            ssnprintf (vl.type_instance, sizeof (vl.type_instance),
+                       "%i", chain->rule.num);
+        else
+            sstrncpy (vl.type_instance, (char *) match->data,
+                      sizeof (vl.type_instance));
     }
 
     sstrncpy (vl.type, "ipt_bytes", sizeof (vl.type));
@@ -361,7 +355,7 @@ static int submit_match (const struct ipt_entry_match *match,
 
 
 /* ipv6 submit_chain */
-static void submit6_chain( ip6tc_handle_t *handle, ip_chain_t *chain )
+static void submit6_chain (ip6tc_handle_t *handle, ip_chain_t *chain)
 {
     const struct ip6t_entry *entry;
     int rule_num;
@@ -393,33 +387,33 @@ static void submit6_chain( ip6tc_handle_t *handle, ip_chain_t *chain )
 
 
 /* ipv4 submit_chain */
-static void submit_chain( iptc_handle_t *handle, ip_chain_t *chain )
+static void submit_chain (iptc_handle_t *handle, ip_chain_t *chain)
 {
     const struct ipt_entry *entry;
     int rule_num;
 
-    /* Find first rule for chain and use the iterate macro */    
+    /* Find first rule for chain and use the iterate macro */
     entry = iptc_first_rule( chain->chain, handle );
     if (entry == NULL)
     {
-	DEBUG ("iptc_first_rule failed: %s", iptc_strerror (errno));
-	return;
+        DEBUG ("iptc_first_rule failed: %s", iptc_strerror (errno));
+        return;
     }
 
     rule_num = 1;
     while (entry)
     {
-	if (chain->rule_type == RTYPE_NUM)
-	{
-	    submit_match (NULL, entry, chain, rule_num);
-	}
-	else
-	{
-	    IPT_MATCH_ITERATE( entry, submit_match, entry, chain, rule_num );
-	}
+        if (chain->rule_type == RTYPE_NUM)
+        {
+            submit_match (NULL, entry, chain, rule_num);
+        }
+        else
+        {
+            IPT_MATCH_ITERATE( entry, submit_match, entry, chain, rule_num );
+        }
 
-	entry = iptc_next_rule( entry, handle );
-	rule_num++;
+        entry = iptc_next_rule( entry, handle );
+        rule_num++;
     } /* while (entry) */
 }
 
@@ -430,65 +424,64 @@ static int iptables_read (void)
     int num_failures = 0;
     ip_chain_t *chain;
 
-    /* Init the iptc handle structure and query the correct table */    
+    /* Init the iptc handle structure and query the correct table */
     for (i = 0; i < chain_num; i++)
     {
-	chain = chain_list[i];
-	
-	if (!chain)
-	{
-	    DEBUG ("iptables plugin: chain == NULL");
-	    continue;
-	}
+        chain = chain_list[i];
 
-	if ( chain->ip_version == IPV4 )
+        if (!chain)
+        {
+            DEBUG ("iptables plugin: chain == NULL");
+            continue;
+        }
+
+        if ( chain->ip_version == IPV4 )
         {
 #ifdef HAVE_IPTC_HANDLE_T
-		iptc_handle_t _handle;
-		iptc_handle_t *handle = &_handle;
+            iptc_handle_t _handle;
+            iptc_handle_t *handle = &_handle;
 
-		*handle = iptc_init (chain->table);
+            *handle = iptc_init (chain->table);
 #else
-		iptc_handle_t *handle;
-                handle = iptc_init (chain->table);
+            iptc_handle_t *handle;
+            handle = iptc_init (chain->table);
 #endif
 
-                if (!handle)
-                {
-                        ERROR ("iptables plugin: iptc_init (%s) failed: %s",
-                                chain->table, iptc_strerror (errno));
-                        num_failures++;
-                        continue;
-                }
+            if (!handle)
+            {
+                ERROR ("iptables plugin: iptc_init (%s) failed: %s",
+                        chain->table, iptc_strerror (errno));
+                num_failures++;
+                continue;
+            }
 
-                submit_chain (handle, chain);
-                iptc_free (handle);
+            submit_chain (handle, chain);
+            iptc_free (handle);
         }
         else if ( chain->ip_version == IPV6 )
         {
 #ifdef HAVE_IP6TC_HANDLE_T
-		ip6tc_handle_t _handle;
-		ip6tc_handle_t *handle = &_handle;
+            ip6tc_handle_t _handle;
+            ip6tc_handle_t *handle = &_handle;
 
-		*handle = ip6tc_init (chain->table);
+            *handle = ip6tc_init (chain->table);
 #else
-                ip6tc_handle_t *handle;
-                handle = ip6tc_init (chain->table);
+            ip6tc_handle_t *handle;
+            handle = ip6tc_init (chain->table);
 #endif
+            if (!handle)
+            {
+                ERROR ("iptables plugin: ip6tc_init (%s) failed: %s",
+                        chain->table, ip6tc_strerror (errno));
+                num_failures++;
+                continue;
+            }
 
-                if (!handle)
-                {
-                        ERROR ("iptables plugin: ip6tc_init (%s) failed: %s",
-                                chain->table, ip6tc_strerror (errno));
-                        num_failures++;
-                        continue;
-                }
-
-                submit6_chain (handle, chain);
-                ip6tc_free (handle);
+            submit6_chain (handle, chain);
+            ip6tc_free (handle);
         }
-        else num_failures++;
-
+        else
+            num_failures++;
     } /* for (i = 0 .. chain_num) */
 
     return ((num_failures < chain_num) ? 0 : -1);
@@ -500,11 +493,9 @@ static int iptables_shutdown (void)
 
     for (i = 0; i < chain_num; i++)
     {
-	if ((chain_list[i] != NULL) && (chain_list[i]->rule_type == RTYPE_COMMENT))
-	{
-	    sfree (chain_list[i]->rule.comment);
-	}
-	sfree (chain_list[i]);
+        if ((chain_list[i] != NULL) && (chain_list[i]->rule_type == RTYPE_COMMENT))
+            sfree (chain_list[i]->rule.comment);
+        sfree (chain_list[i]);
     }
     sfree (chain_list);
 
@@ -514,11 +505,8 @@ static int iptables_shutdown (void)
 void module_register (void)
 {
     plugin_register_config ("iptables", iptables_config,
-	    config_keys, config_keys_num);
+                             config_keys, config_keys_num);
     plugin_register_read ("iptables", iptables_read);
     plugin_register_shutdown ("iptables", iptables_shutdown);
 } /* void module_register */
 
-/*
- * vim:shiftwidth=4:softtabstop=4:tabstop=8
- */

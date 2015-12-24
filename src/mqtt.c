@@ -24,6 +24,7 @@
  * Authors:
  *   Marc Falzon <marc at baha dot mu>
  *   Florian octo Forster <octo at collectd.org>
+ *   Jan-Piet Mens <jpmens at gmail.com>
  **/
 
 // Reference: http://mosquitto.org/api/files/mosquitto-h.html
@@ -48,6 +49,9 @@
 #ifndef MQTT_KEEPALIVE
 # define MQTT_KEEPALIVE 60
 #endif
+#ifndef SSL_VERIFY_PEER
+# define SSL_VERIFY_PEER  1
+#endif
 
 
 /*
@@ -67,6 +71,11 @@ struct mqtt_client_conf
     char               *username;
     char               *password;
     int                 qos;
+    char                *cacertificatefile;
+    char                *certificatefile;
+    char                *certificatekeyfile;
+    char                *tlsprotocol;
+    char                *ciphersuite;
 
     /* For publishing */
     char               *topic_prefix;
@@ -176,9 +185,10 @@ static void on_message (
     char *payload;
     int status;
 
-    if ((msg->payloadlen <= 0)
-            || (((uint8_t *) msg->payload)[msg->payloadlen - 1] != 0))
+    if (msg->payloadlen <= 0) {
+        DEBUG ("mqtt plugin: message has empty payload");
         return;
+    }
 
     topic = strdup (msg->topic);
     name = strip_prefix (topic);
@@ -207,7 +217,16 @@ static void on_message (
     }
     vl.values_len = ds->ds_num;
 
-    payload = strdup ((void *) msg->payload);
+    payload = malloc (msg->payloadlen+1);
+    if (payload == NULL)
+    {
+        ERROR ("mqtt plugin: malloc for payload buffer failed.");
+        sfree (vl.values);
+        return;
+    }
+    memmove (payload, msg->payload, msg->payloadlen);
+    payload[msg->payloadlen] = 0;
+
     DEBUG ("mqtt plugin: payload = \"%s\"", payload);
     status = parse_values (payload, &vl, ds);
     if (status != 0)
@@ -276,6 +295,35 @@ static int mqtt_connect (mqtt_client_conf_t *conf)
         ERROR ("mqtt plugin: mosquitto_new failed");
         return (-1);
     }
+
+#if LIBMOSQUITTO_MAJOR != 0
+    if (conf->cacertificatefile) {
+        status = mosquitto_tls_set(conf->mosq, conf->cacertificatefile, NULL,
+	                           conf->certificatefile, conf->certificatekeyfile, /* pw_callback */NULL);
+        if (status != MOSQ_ERR_SUCCESS) {
+            ERROR ("mqtt plugin: cannot mosquitto_tls_set: %s", mosquitto_strerror(status));
+            mosquitto_destroy (conf->mosq);
+            conf->mosq = NULL;
+            return (-1);
+        }
+
+        status = mosquitto_tls_opts_set(conf->mosq, SSL_VERIFY_PEER, conf->tlsprotocol, conf->ciphersuite);
+        if (status != MOSQ_ERR_SUCCESS) {
+            ERROR ("mqtt plugin: cannot mosquitto_tls_opts_set: %s", mosquitto_strerror(status));
+            mosquitto_destroy (conf->mosq);
+            conf->mosq = NULL;
+            return (-1);
+        }
+
+        status = mosquitto_tls_insecure_set(conf->mosq, false);
+        if (status != MOSQ_ERR_SUCCESS) {
+            ERROR ("mqtt plugin: cannot mosquitto_tls_insecure_set: %s", mosquitto_strerror(status));
+            mosquitto_destroy (conf->mosq);
+            conf->mosq = NULL;
+            return (-1);
+        }
+    }
+#endif
 
     if (conf->username && conf->password)
     {
@@ -494,6 +542,10 @@ static int mqtt_write (const data_set_t *ds, const value_list_t *vl,
  *   StoreRates true
  *   Retain false
  *   QoS 0
+ *   CACert "ca.pem"			Enables TLS if set
+ *   CertificateFile "client-cert.pem"		optional
+ *   CertificateKeyFile "client-key.pem"		optional
+ *   TLSProtocol "tlsv1.2"		optional
  * </Publish>
  */
 static int mqtt_config_publisher (oconfig_item_t *ci)
@@ -570,6 +622,16 @@ static int mqtt_config_publisher (oconfig_item_t *ci)
             cf_util_get_boolean (child, &conf->store_rates);
         else if (strcasecmp ("Retain", child->key) == 0)
             cf_util_get_boolean (child, &conf->retain);
+        else if (strcasecmp ("CACert", child->key) == 0)
+            cf_util_get_string (child, &conf->cacertificatefile);
+        else if (strcasecmp ("CertificateFile", child->key) == 0)
+            cf_util_get_string (child, &conf->certificatefile);
+        else if (strcasecmp ("CertificateKeyFile", child->key) == 0)
+            cf_util_get_string (child, &conf->certificatekeyfile);
+        else if (strcasecmp ("TLSProtocol", child->key) == 0)
+            cf_util_get_string (child, &conf->tlsprotocol);
+        else if (strcasecmp ("CipherSuite", child->key) == 0)
+            cf_util_get_string (child, &conf->ciphersuite);
         else
             ERROR ("mqtt plugin: Unknown config option: %s", child->key);
     }
@@ -590,7 +652,7 @@ static int mqtt_config_publisher (oconfig_item_t *ci)
  *   User "guest"
  *   Password "secret"
  *   Topic "collectd/#"
- * </Publish>
+ * </Subscribe>
  */
 static int mqtt_config_subscriber (oconfig_item_t *ci)
 {
@@ -667,7 +729,7 @@ static int mqtt_config_subscriber (oconfig_item_t *ci)
             ERROR ("mqtt plugin: Unknown config option: %s", child->key);
     }
 
-    tmp = realloc (subscribers, sizeof (*subscribers) * subscribers_num);
+    tmp = realloc (subscribers, sizeof (*subscribers) * (subscribers_num + 1) );
     if (tmp == NULL)
     {
         ERROR ("mqtt plugin: realloc failed.");

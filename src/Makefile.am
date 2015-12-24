@@ -28,7 +28,7 @@ liblatency_la_SOURCES = utils_latency.c utils_latency.h
 check_PROGRAMS += test_utils_latency
 TESTS += test_utils_latency
 test_utils_latency_SOURCES = utils_latency_test.c testing.h
-test_utils_latency_LDADD = liblatency.la daemon/libcommon.la daemon/libplugin_mock.la -lm
+test_utils_latency_LDADD = liblatency.la daemon/libplugin_mock.la -lm
 
 noinst_LTLIBRARIES += liblookup.la
 liblookup_la_SOURCES = utils_vl_lookup.c utils_vl_lookup.h
@@ -36,7 +36,7 @@ liblookup_la_LIBADD = daemon/libavltree.la
 check_PROGRAMS += test_utils_vl_lookup
 TESTS += test_utils_vl_lookup
 test_utils_vl_lookup_SOURCES = utils_vl_lookup_test.c testing.h
-test_utils_vl_lookup_LDADD = liblookup.la daemon/libcommon.la daemon/libplugin_mock.la
+test_utils_vl_lookup_LDADD = liblookup.la daemon/libplugin_mock.la
 if BUILD_WITH_LIBKSTAT
 test_utils_vl_lookup_LDADD += -lkstat
 endif
@@ -46,7 +46,7 @@ libmount_la_SOURCES = utils_mount.c utils_mount.h
 check_PROGRAMS += test_utils_mount
 TESTS += test_utils_mount
 test_utils_mount_SOURCES = utils_mount_test.c testing.h
-test_utils_mount_LDADD = libmount.la daemon/libcommon.la daemon/libplugin_mock.la
+test_utils_mount_LDADD = libmount.la daemon/libplugin_mock.la
 if BUILD_WITH_LIBKSTAT
 test_utils_mount_LDADD += -lkstat
 endif
@@ -97,7 +97,7 @@ if BUILD_AIX
 collectd_tg_LDADD += -lm
 endif
 if BUILD_WITH_LIBPTHREAD
-collectd_tg_LDADD += -lpthread
+collectd_tg_LDADD += $(PTHREAD_LIBS)
 endif
 collectd_tg_LDADD += libcollectdclient/libcollectdclient.la
 collectd_tg_DEPENDENCIES = libcollectdclient/libcollectdclient.la
@@ -211,8 +211,7 @@ endif
 
 if BUILD_PLUGIN_CGROUPS
 pkglib_LTLIBRARIES += cgroups.la
-cgroups_la_SOURCES = cgroups.c \
-		     utils_ignorelist.c utils_ignorelist.h
+cgroups_la_SOURCES = cgroups.c
 cgroups_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 cgroups_la_LIBADD = libmount.la
 endif
@@ -311,16 +310,14 @@ endif
 
 if BUILD_PLUGIN_DF
 pkglib_LTLIBRARIES += df.la
-df_la_SOURCES = df.c \
-		utils_ignorelist.c utils_ignorelist.h
+df_la_SOURCES = df.c
 df_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 df_la_LIBADD = libmount.la
 endif
 
 if BUILD_PLUGIN_DISK
 pkglib_LTLIBRARIES += disk.la
-disk_la_SOURCES = disk.c \
-		  utils_ignorelist.c utils_ignorelist.h
+disk_la_SOURCES = disk.c
 disk_la_CFLAGS = $(AM_CFLAGS)
 disk_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 disk_la_LIBADD =
@@ -352,21 +349,20 @@ if BUILD_PLUGIN_DNS
 pkglib_LTLIBRARIES += dns.la
 dns_la_SOURCES = dns.c utils_dns.c utils_dns.h
 dns_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-dns_la_LIBADD = -lpcap -lpthread
+dns_la_LIBADD = $(PTHREAD_LIBS) -lpcap
 endif
 
 if BUILD_PLUGIN_DRBD
 pkglib_LTLIBRARIES += drbd.la
 drbd_la_SOURCES = drbd.c
 drbd_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-drbd_la_LIBADD = -lpthread
 endif
 
 if BUILD_PLUGIN_EMAIL
 pkglib_LTLIBRARIES += email.la
 email_la_SOURCES = email.c
 email_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-email_la_LIBADD = -lpthread
+email_la_LIBADD = $(PTHREAD_LIBS)
 endif
 
 if BUILD_PLUGIN_ENTROPY
@@ -382,7 +378,7 @@ exec_la_SOURCES = exec.c \
 		  utils_cmd_putval.c utils_cmd_putval.h \
 		  utils_parse_option.h utils_parse_option.c
 exec_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-exec_la_LIBADD = -lpthread
+exec_la_LIBADD = $(PTHREAD_LIBS)
 endif
 
 if BUILD_PLUGIN_ETHSTAT
@@ -423,8 +419,7 @@ endif
 
 if BUILD_PLUGIN_INTERFACE
 pkglib_LTLIBRARIES += interface.la
-interface_la_SOURCES = interface.c \
-		       utils_ignorelist.c utils_ignorelist.h
+interface_la_SOURCES = interface.c
 interface_la_CFLAGS = $(AM_CFLAGS)
 interface_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 interface_la_LIBADD =
@@ -461,8 +456,7 @@ endif
 
 if BUILD_PLUGIN_IPMI
 pkglib_LTLIBRARIES += ipmi.la
-ipmi_la_SOURCES = ipmi.c \
-		  utils_ignorelist.c utils_ignorelist.h
+ipmi_la_SOURCES = ipmi.c
 ipmi_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_OPENIPMI_CFLAGS)
 ipmi_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 ipmi_la_LIBADD = $(BUILD_WITH_OPENIPMI_LIBS)
@@ -481,8 +475,7 @@ endif
 
 if BUILD_PLUGIN_IRQ
 pkglib_LTLIBRARIES += irq.la
-irq_la_SOURCES = irq.c \
-		 utils_ignorelist.c utils_ignorelist.h
+irq_la_SOURCES = irq.c
 irq_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
@@ -492,7 +485,7 @@ java_la_SOURCES = java.c
 java_la_CPPFLAGS = $(AM_CPPFLAGS) $(JAVA_CPPFLAGS)
 java_la_CFLAGS = $(AM_CFLAGS) $(JAVA_CFLAGS)
 java_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(JAVA_LDFLAGS)
-java_la_LIBADD = $(JAVA_LIBS)
+java_la_LIBADD = $(PTHREAD_LIBS) $(JAVA_LIBS)
 endif
 
 if BUILD_PLUGIN_LOAD
@@ -541,8 +534,7 @@ endif
 
 if BUILD_PLUGIN_MADWIFI
 pkglib_LTLIBRARIES += madwifi.la
-madwifi_la_SOURCES = madwifi.c madwifi.h \
-		     utils_ignorelist.c utils_ignorelist.h
+madwifi_la_SOURCES = madwifi.c madwifi.h
 madwifi_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
@@ -588,8 +580,7 @@ endif
 
 if BUILD_PLUGIN_MD
 pkglib_LTLIBRARIES += md.la
-md_la_SOURCES = md.c \
-		utils_ignorelist.c utils_ignorelist.h
+md_la_SOURCES = md.c
 md_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
@@ -634,8 +625,7 @@ endif
 
 if BUILD_PLUGIN_MIC
 pkglib_LTLIBRARIES += mic.la
-mic_la_SOURCES = mic.c \
-		 utils_ignorelist.c utils_ignorelist.h
+mic_la_SOURCES = mic.c
 mic_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_MIC_LIBPATH)
 mic_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_MIC_CPPFLAGS)
 mic_la_LIBADD = $(BUILD_WITH_MIC_LDADD)
@@ -652,8 +642,8 @@ endif
 if BUILD_PLUGIN_MQTT
 pkglib_LTLIBRARIES += mqtt.la
 mqtt_la_SOURCES = mqtt.c
-mqtt_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 mqtt_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBMOSQUITTO_CPPFLAGS)
+mqtt_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBMOSQUITTO_LDFLAGS)
 mqtt_la_LIBADD = $(BUILD_WITH_LIBMOSQUITTO_LIBS)
 endif
 
@@ -677,8 +667,7 @@ endif
 
 if BUILD_PLUGIN_NETAPP
 pkglib_LTLIBRARIES += netapp.la
-netapp_la_SOURCES = netapp.c \
-		    utils_ignorelist.c utils_ignorelist.h
+netapp_la_SOURCES = netapp.c
 netapp_la_CPPFLAGS = $(AM_CPPFLAGS) $(LIBNETAPP_CPPFLAGS)
 netapp_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBNETAPP_LDFLAGS)
 netapp_la_LIBADD = $(LIBNETAPP_LIBS)
@@ -698,7 +687,7 @@ network_la_SOURCES = network.c network.h \
 		     utils_fbhash.c utils_fbhash.h
 network_la_CPPFLAGS = $(AM_CPPFLAGS)
 network_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-network_la_LIBADD = -lpthread
+network_la_LIBADD = $(PTHREAD_LIBS)
 if BUILD_WITH_LIBSOCKET
 network_la_LIBADD += -lsocket
 endif
@@ -745,7 +734,13 @@ if BUILD_PLUGIN_NOTIFY_EMAIL
 pkglib_LTLIBRARIES += notify_email.la
 notify_email_la_SOURCES = notify_email.c
 notify_email_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-notify_email_la_LIBADD = -lesmtp -lssl -lcrypto -lpthread
+notify_email_la_LIBADD = $(PTHREAD_LIBS) -lesmtp -lssl -lcrypto
+endif
+
+if BUILD_PLUGIN_NOTIFY_NAGIOS
+pkglib_LTLIBRARIES += notify_nagios.la
+notify_nagios_la_SOURCES = notify_nagios.c
+notify_nagios_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
 if BUILD_PLUGIN_NTPD
@@ -769,7 +764,7 @@ pkglib_LTLIBRARIES += nut.la
 nut_la_SOURCES = nut.c
 nut_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBUPSCLIENT_CFLAGS)
 nut_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-nut_la_LIBADD = -lpthread $(BUILD_WITH_LIBUPSCLIENT_LIBS)
+nut_la_LIBADD = $(PTHREAD_LIBS) $(BUILD_WITH_LIBUPSCLIENT_LIBS)
 endif
 
 if BUILD_PLUGIN_OLSRD
@@ -784,12 +779,11 @@ endif
 
 if BUILD_PLUGIN_ONEWIRE
 pkglib_LTLIBRARIES += onewire.la
-onewire_la_SOURCES = onewire.c \
-		     utils_ignorelist.c utils_ignorelist.h
+onewire_la_SOURCES = onewire.c
 onewire_la_CFLAGS = $(AM_CFLAGS)
 onewire_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBOWCAPI_CPPFLAGS)
 onewire_la_LIBADD = $(BUILD_WITH_LIBOWCAPI_LIBS)
-onewire_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+onewire_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBOWCAPI_LDFLAGS)
 endif
 
 if BUILD_PLUGIN_OPENLDAP
@@ -898,8 +892,7 @@ endif
 
 if BUILD_PLUGIN_PROTOCOLS
 pkglib_LTLIBRARIES += protocols.la
-protocols_la_SOURCES = protocols.c \
-		       utils_ignorelist.c utils_ignorelist.h
+protocols_la_SOURCES = protocols.c
 protocols_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
@@ -937,8 +930,7 @@ endif
 
 if BUILD_PLUGIN_SENSORS
 pkglib_LTLIBRARIES += sensors.la
-sensors_la_SOURCES = sensors.c \
-		     utils_ignorelist.c utils_ignorelist.h
+sensors_la_SOURCES = sensors.c
 sensors_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBSENSORS_CFLAGS)
 sensors_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBSENSORS_LDFLAGS)
 sensors_la_LIBADD = -lsensors
@@ -961,8 +953,7 @@ endif
 if BUILD_PLUGIN_SMART
 if BUILD_WITH_LIBUDEV
 pkglib_LTLIBRARIES += smart.la
-smart_la_SOURCES = smart.c \
-		   utils_ignorelist.c utils_ignorelist.h
+smart_la_SOURCES = smart.c
 smart_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBATASMART_CPPFLAGS)
 smart_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBATASMART_LDFLAGS)
 smart_la_LIBADD = $(BUILD_WITH_LIBATASMART_LIBS) -ludev
@@ -980,7 +971,7 @@ snmp_la_CFLAGS += $(BUILD_WITH_LIBSNMP_CFLAGS)
 snmp_la_LIBADD += $(BUILD_WITH_LIBSNMP_LIBS)
 endif
 if BUILD_WITH_LIBPTHREAD
-snmp_la_LIBADD += -lpthread
+snmp_la_LIBADD += $(PTHREAD_LIBS)
 endif
 endif
 
@@ -988,7 +979,7 @@ if BUILD_PLUGIN_STATSD
 pkglib_LTLIBRARIES += statsd.la
 statsd_la_SOURCES = statsd.c
 statsd_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-statsd_la_LIBADD = liblatency.la -lpthread -lm
+statsd_la_LIBADD = $(PTHREAD_LIBS) liblatency.la -lm
 endif
 
 if BUILD_PLUGIN_SWAP
@@ -1101,8 +1092,7 @@ endif
 
 if BUILD_PLUGIN_THERMAL
 pkglib_LTLIBRARIES += thermal.la
-thermal_la_SOURCES = thermal.c \
-		     utils_ignorelist.c utils_ignorelist.h
+thermal_la_SOURCES = thermal.c
 thermal_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
@@ -1140,7 +1130,7 @@ unixsock_la_SOURCES = unixsock.c \
 		      utils_cmd_putnotif.h utils_cmd_putnotif.c \
 		      utils_parse_option.h utils_parse_option.c
 unixsock_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-unixsock_la_LIBADD = -lpthread
+unixsock_la_LIBADD = $(PTHREAD_LIBS)
 endif
 
 if BUILD_PLUGIN_UPTIME
@@ -1187,8 +1177,7 @@ endif
 
 if BUILD_PLUGIN_VIRT
 pkglib_LTLIBRARIES += virt.la
-virt_la_SOURCES = virt.c \
-		  utils_ignorelist.c utils_ignorelist.h
+virt_la_SOURCES = virt.c
 virt_la_CFLAGS = $(AM_CFLAGS) \
 		$(BUILD_WITH_LIBVIRT_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
 virt_la_LIBADD = $(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
@@ -1389,25 +1378,30 @@ EXTRA_DIST +=   collectd.conf.pod \
 		echo "$@ has some POD errors!"; false; \
 	fi
 
+AM_V_PROTOC_C = $(am__v_PROTOC_C_@AM_V@)
+am__v_PROTOC_C_ = $(am__v_PROTOC_C_@AM_DEFAULT_V@)
+am__v_PROTOC_C_0 = @echo "  PROTOC-C    " $@;
+am__v_PROTOC_C_1 =
+
 # Protocol buffer for the "pinba" plugin.
 EXTRA_DIST += pinba.proto
-if HAVE_PROTOC_C
+if BUILD_PLUGIN_PINBA
 CLEANFILES += pinba.pb-c.c pinba.pb-c.h
 BUILT_SOURCES += pinba.pb-c.c pinba.pb-c.h
 
 pinba.pb-c.c pinba.pb-c.h: pinba.proto
-	protoc-c -I$(srcdir) --c_out . $(srcdir)/pinba.proto
+	$(AM_V_PROTOC_C)protoc-c -I$(srcdir) --c_out . $(srcdir)/pinba.proto
 endif
 
 # Protocol buffer for the "write_riemann" plugin.
 EXTRA_DIST += riemann.proto
-if HAVE_PROTOC_C
+if BUILD_PLUGIN_WRITE_RIEMANN
 CLEANFILES += riemann.pb-c.c riemann.pb-c.h
 
 BUILT_SOURCES += riemann.pb-c.c riemann.pb-c.h
 
 riemann.pb-c.c riemann.pb-c.h: riemann.proto
-	protoc-c -I$(srcdir) --c_out . $(srcdir)/riemann.proto
+	$(AM_V_PROTOC_C)protoc-c -I$(srcdir) --c_out . $(srcdir)/riemann.proto
 endif
 
 install-exec-hook:
@@ -1428,4 +1422,11 @@ uninstall-hook:
 	rm -f $(DESTDIR)$(sysconfdir)/collectd.conf
 	rm -f $(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
 
-
+if BUILD_PLUGIN_CEPH
+test_plugin_ceph_SOURCES = ceph_test.c
+test_plugin_ceph_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
+test_plugin_ceph_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
+test_plugin_ceph_LDADD = daemon/libcommon.la daemon/libplugin_mock.la $(BUILD_WITH_LIBYAJL_LIBS)
+check_PROGRAMS += test_plugin_ceph
+TESTS += test_plugin_ceph
+endif

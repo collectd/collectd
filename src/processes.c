@@ -287,7 +287,8 @@ static void ps_list_register (const char *name, const char *regexp)
 		if (status != 0)
 		{
 			DEBUG ("ProcessMatch: compiling the regular expression \"%s\" failed.", regexp);
-			sfree(new->re);
+			sfree (new->re);
+			sfree (new);
 			return;
 		}
 	}
@@ -1436,6 +1437,12 @@ static int ps_read_process(long pid, procstat_t *ps, char *state)
 	ps->io_syscr = myUsage->pr_sysc;
 	ps->io_syscw = myUsage->pr_sysc;
 
+	/*
+	 * TODO: context switch counters for Solaris
+   */
+	ps->cswitch_vol   = -1;
+	ps->cswitch_invol = -1;
+
 
 	/*
 	 * TODO: Find way of setting BLOCKED and PAGING status
@@ -1673,6 +1680,10 @@ static int ps_read (void)
 
 				pse.cpu_user_counter = task_absolutetime_info.total_user;
 				pse.cpu_system_counter = task_absolutetime_info.total_system;
+
+				/* context switch counters not implemented */
+				pse.cswitch_vol   = -1;
+				pse.cswitch_invol = -1;
 			}
 
 			status = task_threads (task_list[task], &thread_list,
@@ -2026,19 +2037,23 @@ static int ps_read (void)
 			pse.io_syscr = -1;
 			pse.io_syscw = -1;
 
-			ps_list_add (procs[i].ki_comm, have_cmdline ? cmdline : NULL, &pse);
-		} /* if ((proc_ptr == NULL) || (proc_ptr->ki_pid != procs[i].ki_pid)) */
+			/* context switch counters not implemented */
+			pse.cswitch_vol   = -1;
+			pse.cswitch_invol = -1;
 
-		switch (procs[i].ki_stat)
-		{
-			case SSTOP: 	stopped++;	break;
-			case SSLEEP:	sleeping++;	break;
-			case SRUN:	running++;	break;
-			case SIDL:	idle++;		break;
-			case SWAIT:	wait++;		break;
-			case SLOCK:	blocked++;	break;
-			case SZOMB:	zombies++;	break;
-		}
+			ps_list_add (procs[i].ki_comm, have_cmdline ? cmdline : NULL, &pse);
+
+			switch (procs[i].ki_stat)
+			{
+				case SSTOP:	stopped++;	break;
+				case SSLEEP:	sleeping++;	break;
+				case SRUN:	running++;	break;
+				case SIDL:	idle++;		break;
+				case SWAIT:	wait++;		break;
+				case SLOCK:	blocked++;	break;
+				case SZOMB:	zombies++;	break;
+			}
+		} /* if ((proc_ptr == NULL) || (proc_ptr->ki_pid != procs[i].ki_pid)) */
 	}
 
 	kvm_close(kd);
@@ -2159,22 +2174,23 @@ static int ps_read (void)
 			pse.io_syscr = -1;
 			pse.io_syscw = -1;
 
-			pse.cswitch_vol = -1;
+			/* context switch counters not implemented */
+			pse.cswitch_vol   = -1;
 			pse.cswitch_invol = -1;
 
 			ps_list_add (procs[i].p_comm, have_cmdline ? cmdline : NULL, &pse);
-		} /* if ((proc_ptr == NULL) || (proc_ptr->p_pid != procs[i].p_pid)) */
 
-		switch (procs[i].p_stat)
-		{
-			case SSTOP: 	stopped++;	break;
-			case SSLEEP:	sleeping++;	break;
-			case SRUN:	running++;	break;
-			case SIDL:	idle++;		break;
-			case SONPROC:	onproc++;	break;
-			case SDEAD:	dead++;		break;
-			case SZOMB:	zombies++;	break;
-		}
+			switch (procs[i].p_stat)
+			{
+				case SSTOP:	stopped++;	break;
+				case SSLEEP:	sleeping++;	break;
+				case SRUN:	running++;	break;
+				case SIDL:	idle++;		break;
+				case SONPROC:	onproc++;	break;
+				case SDEAD:	dead++;		break;
+				case SZOMB:	zombies++;	break;
+			}
+		} /* if ((proc_ptr == NULL) || (proc_ptr->p_pid != procs[i].p_pid)) */
 	}
 
 	kvm_close(kd);
@@ -2307,6 +2323,9 @@ static int ps_read (void)
 			pse.io_wchar = -1;
 			pse.io_syscr = -1;
 			pse.io_syscw = -1;
+
+			pse.cswitch_vol   = -1;
+			pse.cswitch_invol = -1;
 
 			ps_list_add (cmdline, cargs, &pse);
 		} /* for (i = 0 .. nprocs) */

@@ -24,6 +24,9 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
+#ifndef TESTING_H
+#define TESTING_H 1
+
 #include <inttypes.h>
 
 static int fail_count__ = 0;
@@ -109,3 +112,5 @@ static int check_count__ = 0;
   status_ = (long) (expr); \
   OK1(status_ == 0L, #expr); \
 } while (0)
+
+#endif /* TESTING_H */

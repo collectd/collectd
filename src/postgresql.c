@@ -826,7 +826,7 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 {
 	c_psql_database_t *db;
 
-	char time_str[32];
+	char time_str[RFC3339NANO_SIZE];
 	char values_name_str[1024];
 	char values_type_str[1024];
 	char values_str[1024];
@@ -845,8 +845,8 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 	assert (db->database != NULL);
 	assert (db->writers != NULL);
 
-	if (cdtime_to_iso8601 (time_str, sizeof (time_str), vl->time) == 0) {
-		log_err ("c_psql_write: Failed to convert time to ISO 8601 format");
+	if (rfc3339nano (time_str, sizeof (time_str), vl->time) != 0) {
+		log_err ("c_psql_write: Failed to convert time to RFC 3339 format");
 		return -1;
 	}
 
@@ -1042,17 +1042,19 @@ static int config_query_param_add (udb_query_t *q, oconfig_item_t *ci)
 
 	data = udb_query_get_user_data (q);
 	if (NULL == data) {
-		data = (c_psql_user_data_t *) smalloc (sizeof (*data));
+		data = malloc (sizeof (*data));
 		if (NULL == data) {
 			log_err ("Out of memory.");
 			return -1;
 		}
 		memset (data, 0, sizeof (*data));
 		data->params = NULL;
+		data->params_num = 0;
+
+		udb_query_set_user_data (q, data);
 	}
 
-	tmp = (c_psql_param_t *) realloc (data->params,
-			(data->params_num + 1) * sizeof (c_psql_param_t));
+	tmp = realloc (data->params, (data->params_num + 1) * sizeof (*data->params));
 	if (NULL == tmp) {
 		log_err ("Out of memory.");
 		return -1;
@@ -1076,8 +1078,6 @@ static int config_query_param_add (udb_query_t *q, oconfig_item_t *ci)
 	}
 
 	data->params_num++;
-	udb_query_set_user_data (q, data);
-
 	return (0);
 } /* config_query_param_add */
 
@@ -1161,7 +1161,7 @@ static int c_psql_config_writer (oconfig_item_t *ci)
 
 	writers = tmp;
 	writer  = writers + writers_num;
-	++writers_num;
+	memset (writer, 0, sizeof (*writer));
 
 	writer->name = sstrdup (ci->values[0].value.string);
 	writer->statement = NULL;
@@ -1181,10 +1181,10 @@ static int c_psql_config_writer (oconfig_item_t *ci)
 	if (status != 0) {
 		sfree (writer->statement);
 		sfree (writer->name);
-		sfree (writer);
 		return status;
 	}
 
+	++writers_num;
 	return 0;
 } /* c_psql_config_writer */
 

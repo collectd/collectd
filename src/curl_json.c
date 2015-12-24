@@ -131,17 +131,11 @@ static size_t cj_curl_callback (void *buf, /* {{{ */
     return (len);
 #endif
 
-  if (status != yajl_status_ok)
-  {
-    unsigned char *msg =
-      yajl_get_error(db->yajl, /* verbose = */ 1,
-          /* jsonText = */ (unsigned char *) buf, (unsigned int) len);
-    ERROR ("curl_json plugin: yajl_parse failed: %s", msg);
-    yajl_free_error(db->yajl, msg);
-    return (0); /* abort write callback */
-  }
-
-  return (len);
+  unsigned char *msg = yajl_get_error(db->yajl, /* verbose = */ 1,
+        /* jsonText = */ (unsigned char *) buf, (unsigned int) len);
+  ERROR ("curl_json plugin: yajl_parse failed: %s", msg);
+  yajl_free_error(db->yajl, msg);
+  return (0); /* abort write callback */
 } /* }}} size_t cj_curl_callback */
 
 static int cj_get_type (cj_key_t *key)
@@ -525,71 +519,68 @@ static int cj_config_add_key (cj_t *db, /* {{{ */
       break;
   } /* for (i = 0; i < ci->children_num; i++) */
 
-  while (status == 0)
+  if (status != 0)
   {
-    if (key->type == NULL)
-    {
-      WARNING ("curl_json plugin: `Type' missing in `Key' block.");
-      status = -1;
-    }
+    cj_key_free (key);
+    return (-1);
+  }
 
-    break;
-  } /* while (status == 0) */
+  if (key->type == NULL)
+  {
+    WARNING ("curl_json plugin: `Type' missing in `Key' block.");
+    cj_key_free (key);
+    return (-1);
+  }
 
   /* store path in a tree that will match the json map structure, example:
    * "httpd/requests/count",
    * "httpd/requests/current" ->
    * { "httpd": { "requests": { "count": $key, "current": $key } } }
    */
-  if (status == 0)
+  char *ptr;
+  char *name;
+  c_avl_tree_t *tree;
+
+  if (db->tree == NULL)
+    db->tree = cj_avl_create();
+
+  tree = db->tree;
+  ptr = key->path;
+  if (*ptr == '/')
+    ++ptr;
+
+  name = ptr;
+  while ((ptr = strchr (name, '/')) != NULL)
   {
-    char *ptr;
-    char *name;
     char ent[PATH_MAX];
-    c_avl_tree_t *tree;
+    c_avl_tree_t *value;
+    size_t len;
 
-    if (db->tree == NULL)
-      db->tree = cj_avl_create();
+    len = ptr - name;
+    if (len == 0)
+      break;
 
-    tree = db->tree;
-    ptr = key->path;
-    if (*ptr == '/')
-      ++ptr;
+    len = COUCH_MIN(len, sizeof (ent)-1);
+    sstrncpy (ent, name, len+1);
 
-    name = ptr;
-    while (*ptr)
+    if (c_avl_get (tree, ent, (void *) &value) != 0)
     {
-      if (*ptr == '/')
-      {
-        c_avl_tree_t *value;
-        size_t len;
-
-        len = ptr-name;
-        if (len == 0)
-          break;
-        len = COUCH_MIN(len, sizeof (ent)-1);
-        sstrncpy (ent, name, len+1);
-
-        if (c_avl_get (tree, ent, (void *) &value) != 0)
-        {
-          value = cj_avl_create ();
-          c_avl_insert (tree, strdup (ent), value);
-        }
-
-        tree = value;
-        name = ptr+1;
-      }
-      ++ptr;
+      value = cj_avl_create ();
+      c_avl_insert (tree, strdup (ent), value);
     }
-    if (*name)
-      c_avl_insert (tree, strdup(name), key);
-    else
-    {
-      ERROR ("curl_json plugin: invalid key: %s", key->path);
-      status = -1;
-    }
+
+    tree = value;
+    name = ptr + 1;
   }
 
+  if (strlen (name) == 0)
+  {
+    ERROR ("curl_json plugin: invalid key: %s", key->path);
+    cj_key_free (key);
+    return (-1);
+  }
+
+  c_avl_insert (tree, strdup (name), key);
   return (status);
 } /* }}} int cj_config_add_key */
 
