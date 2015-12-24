@@ -111,6 +111,25 @@ char *asubst (const char *string, int off1, int off2, const char *replacement)
 	return ret;
 } /* asubst */
 
+char *subst_escape (const char *string, const char *invalid, char escape)
+{
+	char *head;
+	char *result;
+	assert(strchr(invalid, escape) == NULL);
+
+	result = strdup(string);
+	if (result == NULL) {
+		ERROR("subst_escape: out of memory");
+		return NULL;
+	}
+
+	for (head = result + strcspn(result, invalid); *head != '\0';
+		 head += strcspn(head, invalid))
+		*head = escape;
+
+	return result;
+} /* subst_escape */
+
 char *subst_string (char *buf, size_t buflen, const char *string,
 		const char *needle, const char *replacement)
 {

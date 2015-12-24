@@ -32,9 +32,12 @@
 
 #include "common.h"
 #include "utils_cache.h"
+#include "utils_subst.h"
 
 
 /*** Compile-time constants. ***/
+#define ESCAPE_KEY_CHAR   '_'
+#define INVALID_KEY_CHARS ".:| "
 #define MAX_KEY_LENGTH    1024
 #define VALUE_STR_LEN     20
 #define WRITE_STATSD_NAME "write_statsd"
@@ -62,6 +65,7 @@ static char* DS_TYPE_TO_STATSD[] = {
 };
 
 /*** Module functions. ***/
+static void write_statsd_free_config(void* configuration);
 static int write_statsd_write(
     const data_set_t *ds, const value_list_t *vl, user_data_t *ud);
 
@@ -161,6 +165,11 @@ static int open_socket(write_statsd_config_t* config) {
 }
 
 
+static char* write_statsd_escape(const char* string) {
+  return subst_escape(string, INVALID_KEY_CHARS, ESCAPE_KEY_CHAR);
+}
+
+
 static int write_statsd_config(oconfig_item_t *conf) {
   int idx;
   int status;
@@ -188,6 +197,7 @@ static int write_statsd_config(oconfig_item_t *conf) {
       status = cf_util_get_string(child, &configuration->host);
 
     } else if (strcasecmp("Port", child->key) == 0) {
+      sfree(configuration->port);
       status = cf_util_get_service(child, &configuration->port);
 
     } else if (strcasecmp("Postfix", child->key) == 0) {
@@ -232,6 +242,18 @@ static int write_statsd_config(oconfig_item_t *conf) {
     return -2;
   }
 
+  // Escape prefix and postfix.
+  if (configuration->postfix) {
+    char* current = configuration->postfix;
+    configuration->postfix = write_statsd_escape(current);
+    sfree(current);
+  }
+  if (configuration->prefix) {
+    char* current = configuration->prefix;
+    configuration->prefix = write_statsd_escape(current);
+    sfree(current);
+  }
+
   // Print loaded configuration (for debug).
   DEBUG("%s configuration completed", WRITE_STATSD_NAME);
   DEBUG("%s Host: %s", WRITE_STATSD_NAME, configuration->host);
@@ -247,7 +269,7 @@ static int write_statsd_config(oconfig_item_t *conf) {
   // Register write callback with configuration as the user data.
   user_data_t ud;
   ud.data = (void*)configuration;
-  ud.free_func = free;
+  ud.free_func = write_statsd_free_config;
   plugin_register_write(WRITE_STATSD_NAME, write_statsd_write, &ud);
 
   return 0;
@@ -266,18 +288,31 @@ static size_t write_statsd_format_key(
   _Bool has_plugin_instance = plugin_instance_len != 0;
   _Bool has_type_instance   = type_instance_len != 0;
 
+  // Escape key parts:
+  char* host = write_statsd_escape(vl->host);
+  char* plugin = write_statsd_escape(vl->plugin);
+  char* plugin_instance = write_statsd_escape(vl->plugin_instance);
+  char* type = write_statsd_escape(vl->type);
+  char* type_instance = write_statsd_escape(vl->type_instance);
+
   // Format key to be :
   //   [prefix.]host.plugin.[plugin_instance.]type[.type_instance][.ds_name][.postfix]
   size_t length = snprintf(
-      //                    PR. H. P. PI. T . TI. DS. PO
+      //   format   ->      PR. H. P. PI. T . TI. DS. PO
       key, MAX_KEY_LENGTH, "%s%s%s.%s.%s%s%s%s%s%s%s%s%s",
       has_prefix ? configuration->prefix : "", has_prefix ? "." : "",
-      vl->host, vl->plugin,
-      vl->plugin_instance, has_plugin_instance ? "." : "",
-      vl->type, has_type_instance ? "." : "", vl->type_instance,
+      host, plugin, plugin_instance, has_plugin_instance ? "." : "",
+      type, has_type_instance ? "." : "", type_instance,
       include_ds_name ? "." : "", include_ds_name ? ds_name : "",
       has_postfix ? "." : "", has_postfix ? configuration->postfix : ""
   );
+
+  // Free escaped versions of strings.
+  sfree(host);
+  sfree(plugin);
+  sfree(plugin_instance);
+  sfree(type);
+  sfree(type_instance);
 
   // Check that the string would fit in MAX_KEY_LENGTH.
   if (length >= MAX_KEY_LENGTH) {
@@ -286,6 +321,16 @@ static size_t write_statsd_format_key(
   }
   return length;
 }
+
+
+static void write_statsd_free_config(void* configuration) {
+  write_statsd_config_t* config = (write_statsd_config_t*)configuration;
+  sfree(config->host);
+  sfree(config->port);
+  sfree(config->postfix);
+  sfree(config->prefix);
+  sfree(configuration);
+};
 
 
 static int write_statsd_send_message(

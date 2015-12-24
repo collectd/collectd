@@ -81,6 +81,23 @@ char *subst (char *buf, size_t buflen, const char *string, int off1, int off2,
 char *asubst (const char *string, int off1, int off2, const char *replacement);
 
 /*
+ * subst_escape:
+ *
+ * Escapes `string`, substituting all occurences of the characters
+ * in `invalid` with the escape character `escape`.
+ *
+ * The string is copied before escaping it and the copied string is returned.
+ * The caller is responsible for freeing the string.
+ *
+ * Example:
+ *	 string  = "a:b.c"
+ *	 invalid = ":."
+ *	 escape  = '_'
+ *	 -> "a_b_c"
+ */
+char *subst_escape (const char *string, const char *invalid, char escape);
+
+/*
  * subst_string:
  *
  * Works like `subst', but instead of specifying start and end offsets you

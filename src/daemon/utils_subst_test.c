@@ -122,10 +122,37 @@ DEF_TEST(subst_string)
   return 0;
 }
 
+DEF_TEST(subst_escape)
+{
+  struct {
+    char *str;
+    char *replace;
+    char *want;
+  } cases[] = {
+    {"",      "",    ""},
+    {"abc",   ":",   "abc"},
+    {"a:b:c", ":",   "a_b_c"},
+    {"a:b.c", ":.",  "a_b_c"},
+    {".a:b ", ".: ", "_a_b_"},
+    {"..:: ", ".: ", "_____"},
+    {"123:4", "",    "123:4"},
+  };
+  size_t i;
+
+  for (i = 0; i < STATIC_ARRAY_SIZE (cases); i++) {
+    char *string = subst_escape(cases[i].str, cases[i].replace, '_');
+    EXPECT_EQ_STR(cases[i].want, string);
+    free(string);
+  }
+
+  return 0;
+}
+
 int main (void)
 {
   RUN_TEST(subst);
   RUN_TEST(subst_string);
+  RUN_TEST(subst_escape);
 
   END_TEST;
 }
