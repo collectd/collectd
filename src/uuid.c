@@ -114,7 +114,7 @@ uuid_get_from_dmidecode(void)
     return (uuid);
 }
 
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(__FreeBSD__)
 static char *
 uuid_get_from_sysctlbyname(const char *name)
 {
@@ -212,8 +212,10 @@ uuid_get_local(void)
 #if defined(__APPLE__)
     if ((uuid = uuid_get_from_sysctlbyname("kern.uuid")) != NULL)
         return (uuid);
-#endif
-#if defined(__linux__)
+#elif defined(__FreeBSD__)
+    if ((uuid = uuid_get_from_sysctlbyname("kern.hostuuid")) != NULL)
+        return (uuid);
+#elif defined(__linux__)
     if ((uuid = uuid_get_from_file("/sys/class/dmi/id/product_uuid")) != NULL)
         return (uuid);
 #endif
