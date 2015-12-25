@@ -192,10 +192,14 @@ uuid_get_local(void)
     if ((uuid = uuid_get_from_file(uuidfile ? uuidfile : "/etc/uuid")) != NULL)
         return (uuid);
 
+#if defined(__linux__)
+    if ((uuid = uuid_get_from_file("/sys/class/dmi/id/product_uuid")) != NULL)
+        return (uuid);
+#endif
+
 #if HAVE_LIBHAL_H
-    if ((uuid = uuid_get_from_hal()) != NULL) {
-        return uuid;
-    }
+    if ((uuid = uuid_get_from_hal()) != NULL)
+        return (uuid);
 #endif
 
     if ((uuid = uuid_get_from_dmidecode()) != NULL)
