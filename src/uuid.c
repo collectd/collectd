@@ -48,18 +48,20 @@ looks_like_a_uuid (const char *uuid)
 {
     int len;
 
-    if (!uuid) return 0;
+    if (!uuid)
+        return (0);
 
     len = strlen (uuid);
 
     if (len < UUID_PRINTABLE_COMPACT_LENGTH)
-        return 0;
+        return (0);
 
     while (*uuid) {
-        if (!isxdigit ((int)*uuid) && *uuid != '-') return 0;
+        if (!isxdigit ((int)*uuid) && *uuid != '-')
+            return (0);
         uuid++;
     }
-    return 1;
+    return (1);
 }
 
 static char *
@@ -87,9 +89,9 @@ uuid_parse_dmidecode(FILE *file)
         if (!looks_like_a_uuid (fields[1]))
             continue;
 
-        return strdup (fields[1]);
+        return (strdup (fields[1]));
     }
-    return NULL;
+    return (NULL);
 }
 
 static char *
@@ -98,14 +100,13 @@ uuid_get_from_dmidecode(void)
     FILE *dmidecode = popen("dmidecode 2>/dev/null", "r");
     char *uuid;
 
-    if (!dmidecode) {
-        return NULL;
-    }
+    if (!dmidecode)
+        return (NULL);
 
     uuid = uuid_parse_dmidecode(dmidecode);
 
     pclose(dmidecode);
-    return uuid;
+    return (uuid);
 }
 
 #if HAVE_LIBHAL_H
@@ -123,50 +124,42 @@ uuid_get_from_hal(void)
 
     dbus_error_init(&error);
 
-    if (!(con = dbus_bus_get(DBUS_BUS_SYSTEM, &error)) ) {
+    if (!(con = dbus_bus_get(DBUS_BUS_SYSTEM, &error)))
         goto bailout_nobus;
-    }
 
     ctx = libhal_ctx_new();
     libhal_ctx_set_dbus_connection(ctx, con);
 
-    if (!libhal_ctx_init(ctx, &error)) {
+    if (!libhal_ctx_init(ctx, &error))
         goto bailout;
-    }
 
     if (!libhal_device_property_exists(ctx,
                                        UUID_PATH,
                                        UUID_PROPERTY,
-                                       &error)) {
+                                       &error))
         goto bailout;
-    }
 
     char *uuid  = libhal_device_get_property_string(ctx,
                                                     UUID_PATH,
                                                     UUID_PROPERTY,
                                                     &error);
-    if (looks_like_a_uuid (uuid)) {
-        return uuid;
-    }
+    if (looks_like_a_uuid (uuid))
+        return (uuid);
 
  bailout:
     {
         DBusError ctxerror;
         dbus_error_init(&ctxerror);
-        if (!(libhal_ctx_shutdown(ctx, &ctxerror))) {
+        if (!(libhal_ctx_shutdown(ctx, &ctxerror)))
             dbus_error_free(&ctxerror);
-        }
     }
 
     libhal_ctx_free(ctx);
-    //dbus_connection_unref(con);
 
  bailout_nobus:
-    if (dbus_error_is_set(&error)) {
-        /*printf("Error %s\n", error.name);*/
+    if (dbus_error_is_set(&error))
         dbus_error_free(&error);
-    }
-    return NULL;
+    return (NULL);
 }
 #endif
 
@@ -178,16 +171,16 @@ uuid_get_from_file(const char *path)
 
     file = fopen (path, "r");
     if (file == NULL)
-        return NULL;
+        return (NULL);
 
     if (!fgets(uuid, sizeof(uuid), file)) {
         fclose(file);
-        return NULL;
+        return (NULL);
     }
     fclose(file);
     strstripnewline (uuid);
 
-    return strdup (uuid);
+    return (strdup (uuid));
 }
 
 static char *
@@ -196,9 +189,8 @@ uuid_get_local(void)
     char *uuid;
 
     /* Check /etc/uuid / UUIDFile before any other method. */
-    if ((uuid = uuid_get_from_file(uuidfile ? uuidfile : "/etc/uuid")) != NULL){
-        return uuid;
-    }
+    if ((uuid = uuid_get_from_file(uuidfile ? uuidfile : "/etc/uuid")) != NULL)
+        return (uuid);
 
 #if HAVE_LIBHAL_H
     if ((uuid = uuid_get_from_hal()) != NULL) {
@@ -206,15 +198,13 @@ uuid_get_local(void)
     }
 #endif
 
-    if ((uuid = uuid_get_from_dmidecode()) != NULL) {
-        return uuid;
-    }
+    if ((uuid = uuid_get_from_dmidecode()) != NULL)
+        return (uuid);
 
-    if ((uuid = uuid_get_from_file("/sys/hypervisor/uuid")) != NULL) {
-        return uuid;
-    }
+    if ((uuid = uuid_get_from_file("/sys/hypervisor/uuid")) != NULL)
+        return (uuid);
 
-    return NULL;
+    return (NULL);
 }
 
 static int
@@ -223,14 +213,13 @@ uuid_config (const char *key, const char *value)
     if (strcasecmp (key, "UUIDFile") == 0) {
         char *tmp = strdup (value);
         if (tmp == NULL)
-            return -1;
+            return (-1);
         sfree (uuidfile);
         uuidfile = tmp;
-    } else {
-        return 1;
+        return (0);
     }
 
-    return 0;
+    return (1);
 }
 
 static int
@@ -241,11 +230,11 @@ uuid_init (void)
     if (uuid) {
         sstrncpy (hostname_g, uuid, DATA_MAX_NAME_LEN);
         sfree (uuid);
-        return 0;
+        return (0);
     }
 
     WARNING ("uuid: could not read UUID using any known method");
-    return 0;
+    return (0);
 }
 
 void module_register (void)
