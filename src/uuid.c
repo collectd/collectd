@@ -1,6 +1,7 @@
 /**
  * collectd - src/uuid.c
  * Copyright (C) 2007  Red Hat Inc.
+ * Copyright (C) 2015  Ruben Kerkhof
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -28,6 +29,10 @@
 #include "common.h"
 #include "configfile.h"
 #include "plugin.h"
+
+#if HAVE_SYS_SYSCTL_H
+#include <sys/sysctl.h>
+#endif
 
 #if HAVE_LIBHAL_H
 #include <libhal.h>
@@ -108,6 +113,18 @@ uuid_get_from_dmidecode(void)
     pclose(dmidecode);
     return (uuid);
 }
+
+#if defined(__APPLE__)
+static char *
+uuid_get_from_sysctlbyname(const char *name)
+{
+    char uuid[UUID_PRINTABLE_NORMAL_LENGTH + 1];
+    size_t len = sizeof (uuid);
+    if (sysctlbyname(name, &uuid, &len, NULL, 0) == -1)
+        return NULL;
+    return (strdup (uuid));
+}
+#endif
 
 #if HAVE_LIBHAL_H
 
@@ -192,6 +209,10 @@ uuid_get_local(void)
     if ((uuid = uuid_get_from_file(uuidfile ? uuidfile : "/etc/uuid")) != NULL)
         return (uuid);
 
+#if defined(__APPLE__)
+    if ((uuid = uuid_get_from_sysctlbyname("kern.uuid")) != NULL)
+        return (uuid);
+#endif
 #if defined(__linux__)
     if ((uuid = uuid_get_from_file("/sys/class/dmi/id/product_uuid")) != NULL)
         return (uuid);
