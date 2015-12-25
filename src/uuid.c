@@ -124,6 +124,21 @@ uuid_get_from_sysctlbyname(const char *name)
         return NULL;
     return (strdup (uuid));
 }
+#elif defined(__OpenBSD__)
+static char *
+uuid_get_from_sysctl(void)
+{
+    char uuid[UUID_PRINTABLE_NORMAL_LENGTH + 1];
+    size_t len = sizeof (uuid);
+    int mib[2];
+
+    mib[0] = CTL_HW;
+    mib[1] = HW_UUID;
+
+    if (sysctl(mib, 2, uuid, &len, NULL, 0) == -1)
+        return NULL;
+    return (strdup (uuid));
+}
 #endif
 
 #if HAVE_LIBHAL_H
@@ -217,6 +232,9 @@ uuid_get_local(void)
         return (uuid);
 #elif defined(__NetBSD__)
     if ((uuid = uuid_get_from_sysctlbyname("machdep.dmi.system-uuid")) != NULL)
+        return (uuid);
+#elif defined(__OpenBSD__)
+    if ((uuid = uuid_get_from_sysctl()) != NULL)
         return (uuid);
 #elif defined(__linux__)
     if ((uuid = uuid_get_from_file("/sys/class/dmi/id/product_uuid")) != NULL)
