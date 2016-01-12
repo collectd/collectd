@@ -489,6 +489,7 @@
 
 #<Plugin iptables>
 #	Chain table chain
+#	Chain6 table chain
 #</Plugin>
 
 #<Plugin irq>
