@@ -4796,6 +4796,9 @@ collected for these selected processes are size of the resident segment size
 (RSS), user- and system-time used, number of processes and number of threads,
 io data (where available) and minor and major pagefaults.
 
+Some platforms have a limit on the length of process names. I<Name> must stay
+below this limit.
+
 =item B<ProcessMatch> I<name> I<regex>
 
 Similar to the B<Process> option this allows to select more detailed

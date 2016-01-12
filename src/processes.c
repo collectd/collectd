@@ -546,6 +546,10 @@ static int ps_config (oconfig_item_t *ci)
 {
 	int i;
 
+#if KERNEL_LINUX
+	const size_t max_procname_len = 15;
+#endif
+
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *c = ci->children + i;
 
@@ -565,6 +569,15 @@ static int ps_config (oconfig_item_t *ci)
 						"content (%i elements) of the <Process '%s'> block.",
 						c->children_num, c->values[0].value.string);
 			}
+
+#if KERNEL_LINUX
+			if (strlen (c->values[0].value.string) > max_procname_len) {
+				WARNING ("processes plugin: this platform has a %lu character limit "
+						"to process names. The `Process \"%s\"' option will "
+						"not work as expected.",
+						max_procname_len, c->values[0].value.string);
+			}
+#endif
 
 			ps_list_register (c->values[0].value.string, NULL);
 		}
