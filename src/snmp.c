@@ -1379,7 +1379,7 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
 static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
 {
   struct snmp_pdu *req;
-  struct snmp_pdu *res;
+  struct snmp_pdu *res = NULL;
   struct variable_list *vb;
 
   const data_set_t *ds;
