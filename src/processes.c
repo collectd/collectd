@@ -570,7 +570,7 @@ static int ps_config (oconfig_item_t *ci)
 
 #if KERNEL_LINUX
 			if (strlen (c->values[0].value.string) > max_procname_len) {
-				WARNING ("processes plugin: this platform has a %lu character limit "
+				WARNING ("processes plugin: this platform has a %zu character limit "
 						"to process names. The `Process \"%s\"' option will "
 						"not work as expected.",
 						max_procname_len, c->values[0].value.string);
