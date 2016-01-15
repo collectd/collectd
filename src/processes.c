@@ -1125,7 +1125,7 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 	/* Leave the rest at zero if this is only a zombi */
 	if (ps->num_proc == 0)
 	{
-		DEBUG ("processes plugin: This is only a zombi: pid = %i; "
+		DEBUG ("processes plugin: This is only a zombie: pid = %i; "
 				"name = %s;", pid, ps->name);
 		return (0);
 	}
