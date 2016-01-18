@@ -53,7 +53,6 @@ static const char *config_keys[] =
 	"FSType",
 	"IgnoreSelected",
 	"ReportByDevice",
-	"ReportReserved",
 	"ReportInodes",
 	"ValuesAbsolute",
 	"ValuesPercentage"
