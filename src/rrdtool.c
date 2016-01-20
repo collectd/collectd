@@ -1018,11 +1018,11 @@ static int rrd_config (const char *key, const char *value)
 			return (1);
 		}
 
-		len = strlen (datadir);
-		while ((len > 0) && (datadir[len - 1] == '/'))
+		len = strlen (tmp);
+		while ((len > 0) && (tmp[len - 1] == '/'))
 		{
 			len--;
-			datadir[len] = 0;
+			tmp[len] = 0;
 		}
 
 		if (len == 0)
@@ -1032,7 +1032,11 @@ static int rrd_config (const char *key, const char *value)
 			return (1);
 		}
 
-		sfree (datadir);
+		if (datadir != NULL)
+		{
+			sfree (datadir);
+		}
+
 		datadir = tmp;
 	}
 	else if (strcasecmp ("StepSize", key) == 0)

@@ -31,6 +31,11 @@
 #include "plugin.h"
 #include "configfile.h"
 
+#if defined(__APPLE__)
+#pragma clang diagnostic push
+#pragma clang diagnostic warning "-Wdeprecated-declarations"
+#endif
+
 #include <lber.h>
 #include <ldap.h>
 
@@ -698,3 +703,7 @@ void module_register (void) /* {{{ */
 	plugin_register_complex_config ("openldap", cldap_config);
 	plugin_register_init ("openldap", cldap_init);
 } /* }}} void module_register */
+
+#if defined(__APPLE__)
+#pragma clang diagnostic pop
+#endif
