@@ -2591,9 +2591,13 @@ a notification is sent.
 
 =item B<Chain> I<Table> I<Chain> [I<Comment|Number> [I<Name>]]
 
-Select the rules to count. If only I<Table> and I<Chain> are given, this plugin
-will collect the counters of all rules which have a comment-match. The comment
-is then used as type-instance.
+=item B<Chain6> I<Table> I<Chain> [I<Comment|Number> [I<Name>]]
+
+Select the iptables/ip6tables filter rules to count packets and bytes from.
+
+If only I<Table> and I<Chain> are given, this plugin will collect the counters
+of all rules which have a comment-match. The comment is then used as
+type-instance.
 
 If I<Comment> or I<Number> is given, only the rule with the matching comment or
 the I<n>th rule will be collected. Again, the comment (or the number) will be
