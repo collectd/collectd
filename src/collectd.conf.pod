@@ -2540,6 +2540,23 @@ do that: By setting B<IgnoreSelected> to I<true> the effect of
 B<Interface> is inverted: All selected interfaces are ignored and all
 other interfaces are collected.
 
+It is possible to use regular expressions to match interface names, if the
+name is surrounded by I</.../> and collectd was compiled with support for
+regexps. This is useful if there's a need to collect (or ignore) data
+for a group of interfaces that are similarly named, without the need to
+explicitly list all of them (especially useful if the list is dynamic).
+Example:
+
+ Interface "lo"
+ Interface "/^veth/"
+ Interface "/^tun[0-9]+/"
+ IgnoreSelected "true"
+
+This will ignore the loopback interface, all interfaces with names starting
+with I<veth> and all interfaces with names starting with I<tun> followed by
+at least one digit.
+
+
 =item B<UniqueName> I<true>|I<false>
 
 Interface name is not unique on Solaris (KSTAT), interface name is unique 
