@@ -4483,6 +4483,18 @@ Sets the I<command file> to write to. Defaults to F</usr/local/nagios/var/rw/nag
 
 =head2 Plugin C<ntpd>
 
+The C<ntpd> plugin collects per-peer ntpd data such as time offset and time
+dispersion.
+
+For talking to B<ntpd> it mimics what B<ntpdc> control program does on
+wire - uses B<mode 7> specific requests. This mode is deprecated with
+newer B<ntpd> releases (4.2.7p230 and later) for C<ntpd> plugin to work
+orrectly with them, the ntp daemon must be explicitly configured to
+nable B<mode7> (it is disabled by default). Refer to the B<ntp.conf>
+anual page for details.
+
+Available configuration options for the C<ntpd> plugin:
+
 =over 4
 
 =item B<Host> I<Hostname>
