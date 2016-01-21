@@ -484,7 +484,6 @@
 #	FSType "ext3"
 #	IgnoreSelected false
 #	ReportByDevice false
-#	ReportReserved false
 #	ReportInodes false
 #	ValuesAbsolute true
 #	ValuesPercentage false
