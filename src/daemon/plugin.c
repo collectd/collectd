@@ -2402,7 +2402,7 @@ int plugin_dispatch_multivalue (value_list_t const *template, /* {{{ */
 		case DS_TYPE_GAUGE:
 			vl->values[0].gauge = va_arg (ap, gauge_t);
 			if (store_percentage)
-				vl->values[0].gauge *= 100.0 / sum;
+				vl->values[0].gauge *= sum ? (100.0 / sum) : 0;
 			break;
 		case DS_TYPE_ABSOLUTE:
 			vl->values[0].absolute = va_arg (ap, absolute_t);
