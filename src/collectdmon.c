@@ -119,7 +119,7 @@ static int pidfile_delete (void)
 static int daemonize (void)
 {
 	struct rlimit rl;
-	int status;
+	int dev_null;
 
 	pid_t pid = 0;
 	int   i   = 0;
@@ -153,29 +153,30 @@ static int daemonize (void)
 	for (i = 0; i < (int)rl.rlim_max; ++i)
 		close (i);
 
-	errno = 0;
-	status = open ("/dev/null", O_RDWR);
-	if (status != 0) {
-		syslog (LOG_ERR, "Error: couldn't connect STDIN to /dev/null: %s",
-				strerror (errno));
+	dev_null = open ("/dev/null", O_RDWR);
+	if (dev_null == -1) {
+		syslog (LOG_ERR, "Error: couldn't failed to open /dev/null: %s", strerror (errno));
 		return -1;
 	}
 
-	errno = 0;
-	status = dup (0);
-	if (status != 1) {
-		syslog (LOG_ERR, "Error: couldn't connect STDOUT to /dev/null: %s",
-				strerror (errno));
+	if (dup2 (dev_null, STDIN_FILENO) == -1) {
+		syslog (LOG_ERR, "Error: couldn't connect STDIN to /dev/null: %s", strerror (errno));
 		return -1;
 	}
 
-	errno = 0;
-	status = dup (0);
-	if (status != 2) {
-		syslog (LOG_ERR, "Error: couldn't connect STDERR to /dev/null: %s",
-				strerror (errno));
+	if (dup2 (dev_null, STDOUT_FILENO) == -1) {
+		syslog (LOG_ERR, "Error: couldn't connect STDOUT to /dev/null: %s", strerror (errno));
 		return -1;
 	}
+
+	if (dup2 (dev_null, STDERR_FILENO) == -1) {
+		syslog (LOG_ERR, "Error: couldn't connect STDERR to /dev/null: %s", strerror (errno));
+		return -1;
+	}
+
+	if ((dev_null != STDIN_FILENO) && (dev_null != STDOUT_FILENO) && (dev_null != STDERR_FILENO))
+		close (dev_null);
+
 	return 0;
 } /* daemonize */
 
