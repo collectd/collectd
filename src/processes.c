@@ -314,7 +314,9 @@ static void ps_list_register (const char *name, const char *regexp)
 					"`ProcessMatch' with the same name. "
 					"All but the first setting will be "
 					"ignored.");
+#if HAVE_REGEX_H
 			sfree (new->re);
+#endif
 			sfree (new);
 			return;
 		}
