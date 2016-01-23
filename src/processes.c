@@ -1326,8 +1326,8 @@ static int read_fork_rate ()
 #endif /*KERNEL_LINUX */
 
 #if KERNEL_SOLARIS
-static const char *ps_get_cmdline (long pid, /* {{{ */
-		char *buffer, size_t buffer_size)
+static char *ps_get_cmdline (pid_t pid, char *name __attribute__((unused)), /* {{{ */
+    char *buffer, size_t buffer_size)
 {
 	char path[PATH_MAX];
 	psinfo_t info;
@@ -2440,7 +2440,7 @@ static int ps_read (void)
 
 
 		ps_list_add (ps.name,
-				ps_get_cmdline (pid, cmdline, sizeof (cmdline)),
+				ps_get_cmdline (pid, ps.name, cmdline, sizeof (cmdline)),
 				&pse);
 	} /* while(readdir) */
 	closedir (proc);
