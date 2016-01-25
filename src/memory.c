@@ -504,7 +504,8 @@ static int memory_read_internal (value_list_t *vl)
 	MEMORY_SUBMIT ("free",   (gauge_t) (pmemory.real_free    * pagesize),
 	               "cached", (gauge_t) (pmemory.numperm      * pagesize),
 	               "system", (gauge_t) (pmemory.real_system  * pagesize),
-	               "user",   (gauge_t) (pmemory.real_process * pagesize));
+	               "user",   (gauge_t) (pmemory.real_process * pagesize),
+	               "used",   (gauge_t) (pmemory.real_inuse   * pagesize));
 #endif /* HAVE_PERFSTAT */
 
 	return (0);
