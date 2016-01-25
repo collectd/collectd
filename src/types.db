@@ -74,6 +74,7 @@ file_size		value:GAUGE:0:U
 files			value:GAUGE:0:U
 flow			value:GAUGE:0:U
 fork_rate		value:DERIVE:0:U
+syscalls        value:DERIVE:0:U
 frequency_offset	value:GAUGE:-1000000:1000000
 frequency		value:GAUGE:0:U
 fscache_stat		value:DERIVE:0:U
