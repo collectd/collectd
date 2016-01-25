@@ -888,6 +888,9 @@ processes_la_LIBADD =
 if BUILD_WITH_LIBKVM_GETPROCS
 processes_la_LIBADD += -lkvm
 endif
+if BUILD_WITH_PERFSTAT
+processes_la_LIBADD += -lperfstat
+endif
 endif
 
 if BUILD_PLUGIN_PROTOCOLS
