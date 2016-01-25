@@ -29,7 +29,6 @@
 #include "configfile.h"
 
 #include <pthread.h>
-#include <sys/socket.h>
 #include <netdb.h>
 #include <poll.h>
 

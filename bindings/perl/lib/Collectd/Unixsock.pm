@@ -137,13 +137,13 @@ sub _parse_identifier
 
 sub _escape_argument
 {
-	local $_ = shift;
+    my $arg = shift;
 
-	return $_ if /^\w+$/;
+	return $arg if $arg =~ /^\w+$/;
 
-	s#\\#\\\\#g;
-	s#"#\\"#g;
-	return "\"$_\"";
+	$arg =~ s#\\#\\\\#g;
+	$arg =~ s#"#\\"#g;
+	return "\"$arg\"";
 }
 
 # Send a command on a socket, including any required argument escaping.

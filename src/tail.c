@@ -332,7 +332,6 @@ static int ctail_read (user_data_t *ud)
 
 static int ctail_init (void)
 {
-  struct timespec cb_interval;
   char str[255];
   user_data_t ud;
   size_t i;
@@ -349,8 +348,7 @@ static int ctail_init (void)
   {
     ud.data = (void *)tail_match_list[i];
     ssnprintf(str, sizeof(str), "tail-%zu", i);
-    CDTIME_T_TO_TIMESPEC (tail_match_list_intervals[i], &cb_interval);
-    plugin_register_complex_read (NULL, str, ctail_read, &cb_interval, &ud);
+    plugin_register_complex_read (NULL, str, ctail_read, tail_match_list_intervals[i], &ud);
   }
 
   return (0);

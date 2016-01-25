@@ -553,7 +553,7 @@ static int ut_report_state (const data_set_t *ds,
     {
       gauge_t value;
       gauge_t sum;
-      int i;
+      size_t i;
 
       sum = 0.0;
       for (i = 0; i < vl->values_len; i++)
@@ -701,7 +701,7 @@ static int ut_check_one_threshold (const data_set_t *ds,
 { /* {{{ */
   int ret = -1;
   int ds_index = -1;
-  int i;
+  size_t i;
   gauge_t values_copy[ds->ds_num];
 
   memcpy (values_copy, values, sizeof (values_copy));

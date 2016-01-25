@@ -49,7 +49,6 @@
 #include "utils_cache.h"
 
 #include <pthread.h>
-#include <sys/socket.h>
 #include <netdb.h>
 
 #ifndef WT_DEFAULT_NODE
@@ -410,7 +409,7 @@ static int wt_send_message (const char* key, const char* value,
                             const char* host, meta_data_t *md)
 {
     int status;
-    int message_len;
+    size_t message_len;
     char *temp = NULL;
     char *tags = "";
     char message[1024];
@@ -435,7 +434,7 @@ static int wt_send_message (const char* key, const char* value,
         }
     }
 
-    message_len = ssnprintf (message,
+    status = ssnprintf (message,
                              sizeof(message),
                              "put %s %.0f %s fqdn=%s %s %s\r\n",
                              key,
@@ -444,12 +443,14 @@ static int wt_send_message (const char* key, const char* value,
                              host,
                              tags,
                              host_tags);
-
     sfree(temp);
+    if (status < 0)
+        return -1;
+    message_len = (size_t) status;
 
     if (message_len >= sizeof(message)) {
         ERROR("write_tsdb plugin: message buffer too small: "
-              "Need %d bytes.", message_len + 1);
+              "Need %zu bytes.", message_len + 1);
         return -1;
     }
 
@@ -505,7 +506,8 @@ static int wt_write_messages(const data_set_t *ds, const value_list_t *vl,
     char key[10*DATA_MAX_NAME_LEN];
     char values[512];
 
-    int status, i;
+    int status;
+    size_t i;
 
     if (0 != strcmp(ds->type, vl->type))
     {

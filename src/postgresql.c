@@ -615,7 +615,7 @@ static int c_psql_read (user_data_t *ud)
 	c_psql_database_t *db;
 
 	int success = 0;
-	int i;
+	size_t i;
 
 	if ((ud == NULL) || (ud->data == NULL)) {
 		log_err ("c_psql_read: Invalid user data.");
@@ -663,8 +663,7 @@ static char *values_name_to_sqlarray (const data_set_t *ds,
 {
 	char  *str_ptr;
 	size_t str_len;
-
-	int i;
+	size_t i;
 
 	str_ptr = string;
 	str_len = string_len;
@@ -702,8 +701,7 @@ static char *values_type_to_sqlarray (const data_set_t *ds,
 {
 	char  *str_ptr;
 	size_t str_len;
-
-	int i;
+	size_t i;
 
 	str_ptr = string;
 	str_len = string_len;
@@ -751,8 +749,7 @@ static char *values_to_sqlarray (const data_set_t *ds, const value_list_t *vl,
 	size_t str_len;
 
 	gauge_t *rates = NULL;
-
-	int i;
+	size_t i;
 
 	str_ptr = string;
 	str_len = string_len;
@@ -829,7 +826,7 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 {
 	c_psql_database_t *db;
 
-	char time_str[32];
+	char time_str[RFC3339NANO_SIZE];
 	char values_name_str[1024];
 	char values_type_str[1024];
 	char values_str[1024];
@@ -837,7 +834,7 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 	const char *params[9];
 
 	int success = 0;
-	int i;
+	size_t i;
 
 	if ((ud == NULL) || (ud->data == NULL)) {
 		log_err ("c_psql_write: Invalid user data.");
@@ -848,8 +845,8 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 	assert (db->database != NULL);
 	assert (db->writers != NULL);
 
-	if (cdtime_to_iso8601 (time_str, sizeof (time_str), vl->time) == 0) {
-		log_err ("c_psql_write: Failed to convert time to ISO 8601 format");
+	if (rfc3339nano (time_str, sizeof (time_str), vl->time) != 0) {
+		log_err ("c_psql_write: Failed to convert time to RFC 3339 format");
 		return -1;
 	}
 
@@ -1196,7 +1193,6 @@ static int c_psql_config_database (oconfig_item_t *ci)
 	c_psql_database_t *db;
 
 	char cb_name[DATA_MAX_NAME_LEN];
-	struct timespec cb_interval = { 0, 0 };
 	user_data_t ud;
 
 	static _Bool have_flush = 0;
@@ -1291,12 +1287,9 @@ static int c_psql_config_database (oconfig_item_t *ci)
 	ssnprintf (cb_name, sizeof (cb_name), "postgresql-%s", db->instance);
 
 	if (db->queries_num > 0) {
-		CDTIME_T_TO_TIMESPEC (db->interval, &cb_interval);
-
 		++db->ref_cnt;
 		plugin_register_complex_read ("postgresql", cb_name, c_psql_read,
-				/* interval = */ (db->interval > 0) ? &cb_interval : NULL,
-				&ud);
+				/* interval = */ db->interval, &ud);
 	}
 	if (db->writers_num > 0) {
 		++db->ref_cnt;

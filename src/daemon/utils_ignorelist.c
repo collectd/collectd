@@ -89,50 +89,45 @@ static inline void ignorelist_append (ignorelist_t *il, ignorelist_item_t *item)
 }
 
 #if HAVE_REGEX_H
-static int ignorelist_append_regex(ignorelist_t *il, const char *entry)
+static int ignorelist_append_regex(ignorelist_t *il, const char *re_str)
 {
 	regex_t *re;
-	ignorelist_item_t *item;
+	ignorelist_item_t *entry;
 	int status;
 
-	/* create buffer */
 	re = malloc (sizeof (*re));
 	if (re == NULL)
 	{
 		ERROR ("ignorelist_append_regex: malloc failed.");
-		return ENOMEM;
+		return (ENOMEM);
 	}
 	memset (re, 0, sizeof (*re));
 
-	/* compile regex */
-	status = regcomp (re, entry, REG_EXTENDED);
+	status = regcomp (re, re_str, REG_EXTENDED);
 	if (status != 0)
 	{
 		char errbuf[1024];
-
 		(void) regerror (status, re, errbuf, sizeof (errbuf));
-		ERROR ("ignorelist_append_regex: Compiling regular expression \"%s\" failed: %s", entry, errbuf);
+		ERROR ("utils_ignorelist: regcomp failed: %s", errbuf);
+		ERROR ("ignorelist_append_regex: Compiling regular expression \"%s\" failed: %s", re_str, errbuf);
 		sfree (re);
-		return status;
+		return (status);
 	}
 
-	/* create new entry */
-	item = malloc (sizeof (*item));
-	if (item == NULL)
+	entry = malloc (sizeof (*entry));
+	if (entry == NULL)
 	{
 		ERROR ("ignorelist_append_regex: malloc failed.");
 		regfree (re);
 		sfree (re);
-		return ENOMEM;
+		return (ENOMEM);
 	}
-	memset (item, 0, sizeof (*item));
-	item->rmatch = re;
+	memset (entry, 0, sizeof (*entry));
+	entry->rmatch = re;
 
-	/* append new entry */
-	ignorelist_append (il, item);
-
+	ignorelist_append (il, entry);
 	return (0);
-} /* int ignorelist_append_regex(ignorelist_t *il, const char *entry) */
+} /* int ignorelist_append_regex */
 #endif
 
 static int ignorelist_append_string(ignorelist_t *il, const char *entry)
@@ -264,7 +259,7 @@ void ignorelist_set_invert (ignorelist_t *il, int invert)
 
 /*
  * append entry into ignorelist_t
- * return 1 for success
+ * return 0 for success
  */
 int ignorelist_add (ignorelist_t *il, const char *entry)
 {

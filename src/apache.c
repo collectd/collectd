@@ -255,7 +255,7 @@ static int config_add (oconfig_item_t *ci)
 		status = plugin_register_complex_read (/* group = */ NULL,
 				/* name      = */ callback_name,
 				/* callback  = */ apache_read_host,
-				/* interval  = */ NULL,
+				/* interval  = */ 0,
 				/* user_data = */ &ud);
 	}
 
@@ -383,8 +383,7 @@ static int init_host (apache_t *st) /* {{{ */
 	if (st->timeout >= 0)
 		curl_easy_setopt (st->curl, CURLOPT_TIMEOUT_MS, (long) st->timeout);
 	else
-		curl_easy_setopt (st->curl, CURLOPT_TIMEOUT_MS,
-				CDTIME_T_TO_MS(plugin_get_interval()));
+		curl_easy_setopt (st->curl, CURLOPT_TIMEOUT_MS, (long) CDTIME_T_TO_MS(plugin_get_interval()));
 #endif
 
 	return (0);

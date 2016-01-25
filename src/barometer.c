@@ -407,7 +407,7 @@ static int get_reference_temperature(double * result)
 
     gauge_t * values = NULL;   /**< rate values */
     size_t    values_num = 0;  /**< number of rate values */
-    int i;
+    size_t i;
 
     gauge_t values_history[REF_TEMP_AVG_NUM];
 
@@ -447,9 +447,8 @@ static int get_reference_temperature(double * result)
 
             for(i=0; i<values_num; ++i)
             {
-                DEBUG ("barometer: get_reference_temperature - rate %d: %lf **",
-                       i,
-                       values[i]);
+                DEBUG ("barometer: get_reference_temperature - rate %zu: %lf **",
+                       i, values[i]);
                 if(!isnan(values[i]))
                 {
                     avg_sum += values[i];
@@ -477,9 +476,8 @@ static int get_reference_temperature(double * result)
 
         for(i=0; i<REF_TEMP_AVG_NUM*list->num_values; ++i)
         {
-            DEBUG ("barometer: get_reference_temperature - history %d: %lf",
-                   i,
-                   values_history[i]);
+            DEBUG ("barometer: get_reference_temperature - history %zu: %lf",
+                   i, values_history[i]);
             if(!isnan(values_history[i]))
             {
                 avg_sum += values_history[i];
@@ -503,9 +501,8 @@ static int get_reference_temperature(double * result)
 
             for(i=0; i<values_num; ++i)
             {
-                DEBUG ("barometer: get_reference_temperature - rate last %d: %lf **",
-                       i,
-                       values[i]);
+                DEBUG ("barometer: get_reference_temperature - rate last %zu: %lf **",
+                       i, values[i]);
                 if(!isnan(values[i]))
                 {
                     avg_sum += values[i];

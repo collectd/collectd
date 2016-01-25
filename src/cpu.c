@@ -536,11 +536,12 @@ static void cpu_commit (void) /* {{{ */
 /* Adds a derive value to the internal state. This should be used by each read
  * function for each state. At the end of the iteration, the read function
  * should call cpu_commit(). */
-static int cpu_stage (size_t cpu_num, size_t state, derive_t value, cdtime_t now) /* {{{ */
+static int cpu_stage (size_t cpu_num, size_t state, derive_t d, cdtime_t now) /* {{{ */
 {
 	int status;
 	cpu_state_t *s;
-	value_t v;
+	gauge_t rate = NAN;
+	value_t val = {.derive = d};
 
 	if (state >= COLLECTD_CPU_STATE_ACTIVE)
 		return (EINVAL);
@@ -554,12 +555,11 @@ static int cpu_stage (size_t cpu_num, size_t state, derive_t value, cdtime_t now
 
 	s = get_cpu_state (cpu_num, state);
 
-	v.gauge = NAN;
-	status = value_to_rate (&v, value, &s->conv, DS_TYPE_DERIVE, now);
+	status = value_to_rate (&rate, val, DS_TYPE_DERIVE, now, &s->conv);
 	if (status != 0)
 		return (status);
 
-	s->rate = v.gauge;
+	s->rate = rate;
 	s->has_value = 1;
 	return (0);
 } /* }}} int cpu_stage */

@@ -6,10 +6,6 @@ SUBDIRS += daemon
 
 PLUGIN_LDFLAGS = -module -avoid-version -export-symbols-regex '\<module_register\>'
 
-if COMPILER_IS_GCC
-AM_CFLAGS = -Wall -Werror
-endif
-
 AM_CPPFLAGS = -I$(srcdir)/daemon
 AM_CPPFLAGS += -DPREFIX='"${prefix}"'
 AM_CPPFLAGS += -DCONFIGFILE='"${sysconfdir}/${PACKAGE_NAME}.conf"'
@@ -23,13 +19,37 @@ AM_CPPFLAGS += -DPKGDATADIR='"${pkgdatadir}"'
 
 AUTOMAKE_OPTIONS = subdir-objects
 
-noinst_LTLIBRARIES = libmount.la liblookup.la
+noinst_LTLIBRARIES =
+check_PROGRAMS =
+TESTS =
 
-libmount_la_SOURCES = utils_mount.c utils_mount.h
-libmount_la_LIBADD = daemon/libcommon.la
+noinst_LTLIBRARIES += liblatency.la
+liblatency_la_SOURCES = utils_latency.c utils_latency.h
+check_PROGRAMS += test_utils_latency
+TESTS += test_utils_latency
+test_utils_latency_SOURCES = utils_latency_test.c testing.h
+test_utils_latency_LDADD = liblatency.la daemon/libplugin_mock.la -lm
 
+noinst_LTLIBRARIES += liblookup.la
 liblookup_la_SOURCES = utils_vl_lookup.c utils_vl_lookup.h
-liblookup_la_LIBADD = daemon/libavltree.la daemon/libcommon.la
+liblookup_la_LIBADD = daemon/libavltree.la
+check_PROGRAMS += test_utils_vl_lookup
+TESTS += test_utils_vl_lookup
+test_utils_vl_lookup_SOURCES = utils_vl_lookup_test.c testing.h
+test_utils_vl_lookup_LDADD = liblookup.la daemon/libplugin_mock.la
+if BUILD_WITH_LIBKSTAT
+test_utils_vl_lookup_LDADD += -lkstat
+endif
+
+noinst_LTLIBRARIES += libmount.la
+libmount_la_SOURCES = utils_mount.c utils_mount.h
+check_PROGRAMS += test_utils_mount
+TESTS += test_utils_mount
+test_utils_mount_SOURCES = utils_mount_test.c testing.h
+test_utils_mount_LDADD = libmount.la daemon/libplugin_mock.la
+if BUILD_WITH_LIBKSTAT
+test_utils_mount_LDADD += -lkstat
+endif
 
 sbin_PROGRAMS = collectdmon
 bin_PROGRAMS = collectd-nagios collectdctl collectd-tg
@@ -64,7 +84,8 @@ collectdctl_LDADD += libcollectdclient/libcollectdclient.la
 collectdctl_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 
 collectd_tg_SOURCES = collectd-tg.c
-collectd_tg_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/src/libcollectdclient/collectd -I$(top_builddir)/src/libcollectdclient/collectd
+collectd_tg_CPPFLAGS = $(AM_CPPFLAGS) \
+		       -I$(top_srcdir)/src/libcollectdclient/collectd -I$(top_builddir)/src/libcollectdclient/collectd
 collectd_tg_LDADD = daemon/libheap.la
 if BUILD_WITH_LIBSOCKET
 collectd_tg_LDADD += -lsocket
@@ -76,7 +97,7 @@ if BUILD_AIX
 collectd_tg_LDADD += -lm
 endif
 if BUILD_WITH_LIBPTHREAD
-collectd_tg_LDADD += -lpthread
+collectd_tg_LDADD += $(PTHREAD_LIBS)
 endif
 collectd_tg_LDADD += libcollectdclient/libcollectdclient.la
 collectd_tg_DEPENDENCIES = libcollectdclient/libcollectdclient.la
@@ -316,6 +337,9 @@ endif
 if BUILD_WITH_LIBUDEV
 disk_la_LIBADD += -ludev
 endif
+if BUILD_FREEBSD
+disk_la_LIBADD += -ldevstat -lgeom
+endif
 if BUILD_WITH_PERFSTAT
 disk_la_LIBADD += -lperfstat
 endif
@@ -325,21 +349,20 @@ if BUILD_PLUGIN_DNS
 pkglib_LTLIBRARIES += dns.la
 dns_la_SOURCES = dns.c utils_dns.c utils_dns.h
 dns_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-dns_la_LIBADD = -lpcap -lpthread
+dns_la_LIBADD = $(PTHREAD_LIBS) -lpcap
 endif
 
 if BUILD_PLUGIN_DRBD
 pkglib_LTLIBRARIES += drbd.la
 drbd_la_SOURCES = drbd.c
 drbd_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-drbd_la_LIBADD = -lpthread
 endif
 
 if BUILD_PLUGIN_EMAIL
 pkglib_LTLIBRARIES += email.la
 email_la_SOURCES = email.c
 email_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-email_la_LIBADD = -lpthread
+email_la_LIBADD = $(PTHREAD_LIBS)
 endif
 
 if BUILD_PLUGIN_ENTROPY
@@ -355,7 +378,7 @@ exec_la_SOURCES = exec.c \
 		  utils_cmd_putval.c utils_cmd_putval.h \
 		  utils_parse_option.h utils_parse_option.c
 exec_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-exec_la_LIBADD = -lpthread
+exec_la_LIBADD = $(PTHREAD_LIBS)
 endif
 
 if BUILD_PLUGIN_ETHSTAT
@@ -444,6 +467,8 @@ pkglib_LTLIBRARIES += ipvs.la
 ipvs_la_SOURCES = ipvs.c
 if IP_VS_H_NEEDS_KERNEL_CFLAGS
 ipvs_la_CFLAGS = $(AM_CFLAGS) $(KERNEL_CFLAGS)
+else
+ipvs_la_CFLAGS = $(AM_CFLAGS)
 endif
 ipvs_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
@@ -460,7 +485,7 @@ java_la_SOURCES = java.c
 java_la_CPPFLAGS = $(AM_CPPFLAGS) $(JAVA_CPPFLAGS)
 java_la_CFLAGS = $(AM_CFLAGS) $(JAVA_CFLAGS)
 java_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(JAVA_LDFLAGS)
-java_la_LIBADD = $(JAVA_LIBS)
+java_la_LIBADD = $(PTHREAD_LIBS) $(JAVA_LIBS)
 endif
 
 if BUILD_PLUGIN_LOAD
@@ -614,6 +639,14 @@ modbus_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMODBUS_CFLAGS)
 modbus_la_LIBADD = $(BUILD_WITH_LIBMODBUS_LIBS)
 endif
 
+if BUILD_PLUGIN_MQTT
+pkglib_LTLIBRARIES += mqtt.la
+mqtt_la_SOURCES = mqtt.c
+mqtt_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBMOSQUITTO_CPPFLAGS)
+mqtt_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBMOSQUITTO_LDFLAGS)
+mqtt_la_LIBADD = $(BUILD_WITH_LIBMOSQUITTO_LIBS)
+endif
+
 if BUILD_PLUGIN_MULTIMETER
 pkglib_LTLIBRARIES += multimeter.la
 multimeter_la_SOURCES = multimeter.c
@@ -654,7 +687,7 @@ network_la_SOURCES = network.c network.h \
 		     utils_fbhash.c utils_fbhash.h
 network_la_CPPFLAGS = $(AM_CPPFLAGS)
 network_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-network_la_LIBADD = -lpthread
+network_la_LIBADD = $(PTHREAD_LIBS)
 if BUILD_WITH_LIBSOCKET
 network_la_LIBADD += -lsocket
 endif
@@ -701,7 +734,13 @@ if BUILD_PLUGIN_NOTIFY_EMAIL
 pkglib_LTLIBRARIES += notify_email.la
 notify_email_la_SOURCES = notify_email.c
 notify_email_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-notify_email_la_LIBADD = -lesmtp -lssl -lcrypto -lpthread
+notify_email_la_LIBADD = $(PTHREAD_LIBS) -lesmtp -lssl -lcrypto
+endif
+
+if BUILD_PLUGIN_NOTIFY_NAGIOS
+pkglib_LTLIBRARIES += notify_nagios.la
+notify_nagios_la_SOURCES = notify_nagios.c
+notify_nagios_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
 if BUILD_PLUGIN_NTPD
@@ -725,7 +764,7 @@ pkglib_LTLIBRARIES += nut.la
 nut_la_SOURCES = nut.c
 nut_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBUPSCLIENT_CFLAGS)
 nut_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-nut_la_LIBADD = -lpthread $(BUILD_WITH_LIBUPSCLIENT_LIBS)
+nut_la_LIBADD = $(PTHREAD_LIBS) $(BUILD_WITH_LIBUPSCLIENT_LIBS)
 endif
 
 if BUILD_PLUGIN_OLSRD
@@ -744,7 +783,7 @@ onewire_la_SOURCES = onewire.c
 onewire_la_CFLAGS = $(AM_CFLAGS)
 onewire_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBOWCAPI_CPPFLAGS)
 onewire_la_LIBADD = $(BUILD_WITH_LIBOWCAPI_LIBS)
-onewire_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+onewire_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBOWCAPI_LDFLAGS)
 endif
 
 if BUILD_PLUGIN_OPENLDAP
@@ -849,6 +888,9 @@ processes_la_LIBADD =
 if BUILD_WITH_LIBKVM_GETPROCS
 processes_la_LIBADD += -lkvm
 endif
+if BUILD_WITH_PERFSTAT
+processes_la_LIBADD += -lperfstat
+endif
 endif
 
 if BUILD_PLUGIN_PROTOCOLS
@@ -932,16 +974,15 @@ snmp_la_CFLAGS += $(BUILD_WITH_LIBSNMP_CFLAGS)
 snmp_la_LIBADD += $(BUILD_WITH_LIBSNMP_LIBS)
 endif
 if BUILD_WITH_LIBPTHREAD
-snmp_la_LIBADD += -lpthread
+snmp_la_LIBADD += $(PTHREAD_LIBS)
 endif
 endif
 
 if BUILD_PLUGIN_STATSD
 pkglib_LTLIBRARIES += statsd.la
-statsd_la_SOURCES = statsd.c \
-                    utils_latency.h utils_latency.c
+statsd_la_SOURCES = statsd.c
 statsd_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-statsd_la_LIBADD = -lpthread -lm
+statsd_la_LIBADD = $(PTHREAD_LIBS) liblatency.la -lm
 endif
 
 if BUILD_PLUGIN_SWAP
@@ -1092,7 +1133,7 @@ unixsock_la_SOURCES = unixsock.c \
 		      utils_cmd_putnotif.h utils_cmd_putnotif.c \
 		      utils_parse_option.h utils_parse_option.c
 unixsock_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-unixsock_la_LIBADD = -lpthread
+unixsock_la_LIBADD = $(PTHREAD_LIBS)
 endif
 
 if BUILD_PLUGIN_UPTIME
@@ -1273,6 +1314,13 @@ endif
 
 BUILT_SOURCES += $(dist_man_MANS)
 
+if BUILD_PLUGIN_ZONE
+pkglib_LTLIBRARIES += zone.la
+zone_la_SOURCES = zone.c
+zone_la_CFLAGS = $(AM_CFLAGS)
+zone_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 dist_man_MANS = collectd.1 \
 		collectd.conf.5 \
 		collectd-email.5 \
@@ -1369,16 +1417,6 @@ uninstall-hook:
 	rm -f $(DESTDIR)$(pkgdatadir)/types.db;
 	rm -f $(DESTDIR)$(sysconfdir)/collectd.conf
 	rm -f $(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
-
-check_PROGRAMS = test_utils_mount test_utils_vl_lookup
-
-test_utils_mount_SOURCES = utils_mount_test.c testing.h
-test_utils_mount_LDADD = libmount.la daemon/libplugin_mock.la
-
-test_utils_vl_lookup_SOURCES = utils_vl_lookup_test.c testing.h
-test_utils_vl_lookup_LDADD = liblookup.la daemon/libplugin_mock.la
-
-TESTS = test_utils_mount test_utils_vl_lookup
 
 if BUILD_PLUGIN_CEPH
 test_plugin_ceph_SOURCES = ceph_test.c

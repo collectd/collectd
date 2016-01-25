@@ -287,7 +287,7 @@ static int lcc_receive (lcc_connection_t *c, /* {{{ */
    * beginning of the message. */
   ptr = NULL;
   errno = 0;
-  res.status = strtol (buffer, &ptr, 0);
+  res.status = (int) strtol (buffer, &ptr, 0);
   if ((errno != 0) || (ptr == &buffer[0]))
   {
     lcc_set_errno (c, errno);

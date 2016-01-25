@@ -204,7 +204,7 @@ static int value_list_to_string_multiple (char *buffer, int buffer_len,
 	int offset;
 	int status;
 	time_t tt;
-	int i;
+	size_t i;
 
 	memset (buffer, '\0', buffer_len);
 

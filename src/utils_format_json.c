@@ -81,7 +81,7 @@ static int values_to_json (char *buffer, size_t buffer_size, /* {{{ */
                 const data_set_t *ds, const value_list_t *vl, int store_rates)
 {
   size_t offset = 0;
-  int i;
+  size_t i;
   gauge_t *rates = NULL;
 
   memset (buffer, 0, buffer_size);
@@ -160,7 +160,7 @@ static int dstypes_to_json (char *buffer, size_t buffer_size, /* {{{ */
                 const data_set_t *ds)
 {
   size_t offset = 0;
-  int i;
+  size_t i;
 
   memset (buffer, 0, buffer_size);
 
@@ -197,7 +197,7 @@ static int dsnames_to_json (char *buffer, size_t buffer_size, /* {{{ */
                 const data_set_t *ds)
 {
   size_t offset = 0;
-  int i;
+  size_t i;
 
   memset (buffer, 0, buffer_size);
 

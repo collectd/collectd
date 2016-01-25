@@ -68,6 +68,7 @@
 %{?el7:%global _has_atasmart 1}
 %{?el7:%global _has_hiredis 1}
 %{?el7:%global _has_asm_msr_index 1}
+%{?el7:%global _has_libmosquitto 1}
 
 # plugins enabled by default
 %define with_aggregation 0%{!?_without_aggregation:1}
@@ -121,6 +122,7 @@
 %define with_memory 0%{!?_without_memory:1}
 %define with_multimeter 0%{!?_without_multimeter:1}
 %define with_modbus 0%{!?_without_modbus:0%{?_has_libmodbus}}
+%define with_mqtt 0%{!?_without_mqtt:0%{?_has_libmosquitto}}
 %define with_mysql 0%{!?_without_mysql:1}
 %define with_netlink 0%{!?_without_netlink:0%{?_has_iproute}}
 %define with_network 0%{!?_without_network:1}
@@ -128,6 +130,7 @@
 %define with_nginx 0%{!?_without_nginx:1}
 %define with_notify_desktop 0%{!?_without_notify_desktop:1}
 %define with_notify_email 0%{!?_without_notify_email:1}
+%define with_notify_nagios 0%{!?_without_notify_nagios:1}
 %define with_ntpd 0%{!?_without_ntpd:1}
 %define with_numa 0%{!?_without_numa:1}
 %define with_nut 0%{!?_without_nut:1}
@@ -214,6 +217,8 @@
 %define with_write_mongodb 0%{!?_without_write_mongodb:0}
 # plugin xmms disabled, requires xmms
 %define with_xmms 0%{!?_without_xmms:0}
+# plugin zone disabled, requires Solaris
+%define with_zone 0%{!?_without_zone:0}
 
 Summary:	statistics collection and monitoring daemon
 Name:		collectd
@@ -512,6 +517,16 @@ BuildRequires:	mysql-devel
 %description mysql
 MySQL querying plugin. This plugin provides data of issued commands, called
 handlers and database traffic.
+%endif
+
+%if %{with_mqtt}
+%package mqtt
+Summary:	mqtt plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	mosquitto-devel
+%description mqtt
+The MQTT plugin publishes and subscribes to MQTT topics.
 %endif
 
 %if %{with_netlink}
@@ -1165,6 +1180,12 @@ Collectd utilities
 %define _with_multimeter --disable-multimeter
 %endif
 
+%if %{with_mqtt}
+%define _with_mqtt --enable-mqtt
+%else
+%define _with_mqtt --disable-mqtt
+%endif
+
 %if %{with_mysql}
 %define _with_mysql --enable-mysql
 %else
@@ -1211,6 +1232,12 @@ Collectd utilities
 %define _with_notify_email --enable-notify_email
 %else
 %define _with_notify_email --disable-notify_email
+%endif
+
+%if %{with_notify_nagios}
+%define _with_notify_nagios --enable-notify_nagios
+%else
+%define _with_notify_nagios --disable-notify_nagios
 %endif
 
 %if %{with_ntpd}
@@ -1571,6 +1598,12 @@ Collectd utilities
 %define _with_zfs_arc --disable-zfs_arc
 %endif
 
+%if %{with_zone}
+%define _with_zone --enable-zone
+%else
+%define _with_zone --disable-zone
+%endif
+
 %if %{with_zookeeper}
 %define _with_zookeeper --enable-zookeeper
 %else
@@ -1639,6 +1672,7 @@ Collectd utilities
 	%{?_with_mic} \
 	%{?_with_modbus} \
 	%{?_with_multimeter} \
+	%{?_with_mqtt} \
 	%{?_with_mysql} \
 	%{?_with_netapp} \
 	%{?_with_netlink} \
@@ -1672,6 +1706,7 @@ Collectd utilities
 	%{?_with_write_redis} \
 	%{?_with_xmms} \
 	%{?_with_zfs_arc} \
+	%{?_with_zone} \
 	%{?_with_zookeeper} \
 	%{?_with_irq} \
 	%{?_with_load} \
@@ -1683,6 +1718,7 @@ Collectd utilities
 	%{?_with_memory} \
 	%{?_with_network} \
 	%{?_with_nfs} \
+	%{?_with_notify_nagios} \
 	%{?_with_ntpd} \
 	%{?_with_numa} \
 	%{?_with_olsrd} \
@@ -1949,6 +1985,9 @@ fi
 %if %{with_nfs}
 %{_libdir}/%{name}/nfs.so
 %endif
+%if %{with_notify_nagios}
+%{_libdir}/%{name}/notify_nagios.so
+%endif
 %if %{with_ntpd}
 %{_libdir}/%{name}/ntpd.so
 %endif
@@ -2196,6 +2235,11 @@ fi
 %{_libdir}/%{name}/modbus.so
 %endif
 
+%if %{with_mqtt}
+%files mqtt
+%{_libdir}/%{name}/mqtt.so
+%endif
+
 %if %{with_mysql}
 %files mysql
 %{_libdir}/%{name}/mysql.so
@@ -2335,6 +2379,11 @@ fi
 %doc contrib/
 
 %changelog
+#* TODO: next feature release changelog
+#- New upstream version
+#- New plugins enabled by default: mqtt, notify_nagios
+#- New plugins disabled by default: zone
+#
 * Wed May 27 2015 Marc Fournier <marc.fournier@camptocamp.com> 5.5.0-1
 - New upstream version
 - New plugins enabled by default: ceph, drbd, log_logstash, write_tsdb, smart,

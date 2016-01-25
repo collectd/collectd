@@ -130,6 +130,15 @@ Sets a plugin-specific interval for collecting metrics. This overrides the
 global B<Interval> setting. If a plugin provides own support for specifying an
 interval, that setting will take precedence.
 
+=item B<FlushInterval> I<Seconds>
+
+Specifies the the interval, in seconds, to call the flush callback if it's
+defined in this plugin. By default, this is disabled
+
+=item B<FlushTimeout> I<Seconds>
+
+Specifies the value of the timeout argument of the flush callback.
+
 =back
 
 =item B<AutoLoadPlugin> B<false>|B<true>
@@ -519,7 +528,9 @@ are disabled by default.
 The I<AMQP plugin> can be used to communicate with other instances of
 I<collectd> or third party applications using an AMQP message broker. Values
 are sent to or received from the broker, which handles routing, queueing and
-possibly filtering or messages.
+possibly filtering out messages.
+
+B<Synopsis:>
 
  <Plugin "amqp">
    # Send values to an AMQP broker
@@ -817,11 +828,21 @@ B<apcupsd> can handle it.
 
 TCP-Port to connect to. Defaults to B<3551>.
 
-=item B<ReportSeconds> B<true|false>
+=item B<ReportSeconds> B<true>|B<false>
 
 If set to B<true>, the time reported in the C<timeleft> metric will be
 converted to seconds. This is the recommended setting. If set to B<false>, the
 default for backwards compatibility, the time will be reported in minutes.
+
+=item B<PersistentConnection> B<true>|B<false>
+
+By default, the plugin will try to keep the connection to UPS open between
+reads. Since this appears to be somewhat brittle (I<apcupsd> appears to close
+the connection due to inactivity quite quickly), the plugin will try to detect
+this problem and switch to an open-read-close mode in such cases.
+
+You can instruct the plugin to close the connection after each read by setting
+this option to B<false>.
 
 =back
 
@@ -1821,6 +1842,7 @@ than those of other plugins. It usually looks something like this:
     </Query>
     <Database "product_information">
       Driver "mysql"
+      Interval 120
       DriverOption "host" "localhost"
       DriverOption "username" "collectd"
       DriverOption "password" "aZo6daiw"
@@ -1999,6 +2021,11 @@ block. This name will be used as "PluginInstance" in the values submitted to
 the daemon. Other than that, that name is not used.
 
 =over 4
+
+=item B<Interval> I<Interval>
+
+Sets the interval (in seconds) in which the values will be collected from this
+database. By default the global B<Interval> setting will be used.
 
 =item B<Driver> I<Driver>
 
@@ -2529,6 +2556,17 @@ This will ignore the loopback interface, all interfaces with names starting
 with I<veth> and all interfaces with names starting with I<tun> followed by
 at least one digit.
 
+
+=item B<UniqueName> I<true>|I<false>
+
+Interface name is not unique on Solaris (KSTAT), interface name is unique 
+only within a module/instance. Following tuple is considered unique: 
+   (ks_module, ks_instance, ks_name)
+If this option is set to true, interface name contains above three fields
+separated by an underscore. For more info on KSTAT, visit
+L<http://docs.oracle.com/cd/E23824_01/html/821-1468/kstat-3kstat.html#REFMAN3Ekstat-3kstat>
+
+This option is only available on Solaris.
 
 =back
 
@@ -3247,6 +3285,146 @@ B<Collect> option is mandatory.
 =back
 
 =back
+
+=back
+
+=head2 Plugin C<mqtt>
+
+The I<MQTT plugin> can send metrics to MQTT (B<Publish> blocks) and receive
+values from MQTT (B<Subscribe> blocks).
+
+B<Synopsis:>
+
+ <Plugin mqtt>
+   <Publish "name">
+     Host "mqtt.example.com"
+     Prefix "collectd"
+   </Publish>
+   <Subscribe "name">
+     Host "mqtt.example.com"
+     Topic "collectd/#"
+   </Subscribe>
+ </Plugin>
+
+The plugin's configuration is in B<Publish> and/or B<Subscribe> blocks,
+configuring the sending and receiving direction respectively. The plugin will
+register a write callback named C<mqtt/I<name>> where I<name> is the string
+argument given to the B<Publish> block. Both types of blocks share many but not
+all of the following options. If an option is valid in only one of the blocks,
+it will be mentioned explicitly.
+
+B<Options:>
+
+=over 4
+
+=item B<Host> I<Hostname>
+
+Hostname of the MQTT broker to connect to.
+
+=item B<Port> I<Service>
+
+Port number or service name of the MQTT broker to connect to.
+
+=item B<User> I<UserName>
+
+Username used when authenticating to the MQTT broker.
+
+=item B<Password> I<Password>
+
+Password used when authenticating to the MQTT broker.
+
+=item B<ClientId> I<ClientId>
+
+MQTT client ID to use. Defaults to the hostname used by I<collectd>.
+
+=item B<QoS> [B<0>-B<2>]
+
+Sets the I<Quality of Service>, with the values C<0>, C<1> and C<2> meaning:
+
+=over 4
+
+=item B<0>
+
+At most once
+
+=item B<1>
+
+At least once
+
+=item B<2>
+
+Exactly once
+
+=back
+
+In B<Publish> blocks, this option determines the QoS flag set on outgoing
+messages and defaults to B<0>. In B<Subscribe> blocks, determines the maximum
+QoS setting the client is going to accept and defaults to B<2>. If the QoS flag
+on a message is larger than the maximum accepted QoS of a subscriber, the
+message's QoS will be downgraded.
+
+=item B<Prefix> I<Prefix> (Publish only)
+
+This plugin will use one topic per I<value list> which will looks like a path.
+I<Prefix> is used as the first path element and defaults to B<collectd>.
+
+An example topic name would be:
+
+ collectd/cpu-0/cpu-user
+
+=item B<Retain> B<false>|B<true> (Publish only)
+
+Controls whether the MQTT broker will retain (keep a copy of) the last message
+sent to each topic and deliver it to new subscribers. Defaults to B<false>.
+
+=item B<StoreRates> B<true>|B<false> (Publish only)
+
+Controls whether C<DERIVE> and C<COUNTER> metrics are converted to a I<rate>
+before sending. Defaults to B<true>.
+
+=item B<CleanSession> B<true>|B<false> (Subscribe only)
+
+Controls whether the MQTT "cleans" the session up after the subscriber
+disconnects or if it maintains the subscriber's subscriptions and all messages
+that arrive while the subscriber is disconnected. Defaults to B<true>.
+
+=item B<Topic> I<TopicName> (Subscribe only)
+
+Configures the topic(s) to subscribe to. You can use the single level C<+> and
+multi level C<#> wildcards. Defaults to B<collectd/#>, i.e. all topics beneath
+the B<collectd> branch.
+
+=item B<CACert> I<file>
+
+Path to the PEM-encoded CA certificate file. Setting this option enables TLS
+communication with the MQTT broker, and as such, B<Port> should be the TLS-enabled
+port of the MQTT broker.
+A valid TLS configuration requires B<CACert>, B<CertificateFile> and B<CertificateKeyFile>.
+
+=item B<CertificateFile> I<file>
+
+Path to the PEM-encoded certificate file to use as client certificate when
+connecting to the MQTT broker.
+A valid TLS configuration requires B<CACert>, B<CertificateFile> and B<CertificateKeyFile>.
+
+=item B<CertificateKeyFile> I<file>
+
+Path to the unencrypted PEM-encoded key file corresponding to B<CertificateFile>.
+A valid TLS configuration requires B<CACert>, B<CertificateFile> and B<CertificateKeyFile>.
+
+=item B<TLSProtocol> I<protocol>
+
+If configured, this specifies the string protocol version (e.g. C<tlsv1>,
+C<tlsv1.2>) to use for the TLS connection to the broker. If not set a default
+version is used which depends on the version of OpenSSL the Mosquitto library
+was linked against.
+
+=item B<CipherSuite> I<ciphersuite>
+
+A string describing the ciphers available for use. See L<ciphers(1)> and the
+C<openssl ciphers> utility for more information. If unset, the default ciphers
+will be used.
+
 
 =back
 
@@ -4305,6 +4483,21 @@ Default: C<Collectd notify: %s@%s>
 
 =back
 
+=head2 Plugin C<notify_nagios>
+
+The I<notify_nagios> plugin writes notifications to Nagios' I<command file> as
+a I<passive service check result>.
+
+Available configuration options:
+
+=over 4
+
+=item B<CommandFile> I<Path>
+
+Sets the I<command file> to write to. Defaults to F</usr/local/nagios/var/rw/nagios.cmd>.
+
+=back
+
 =head2 Plugin C<ntpd>
 
 The C<ntpd> plugin collects per-peer ntpd data such as time offset and time
@@ -4541,6 +4734,16 @@ The following options are accepted within each B<Instance> block:
 
 Sets the URL to use to connect to the I<OpenLDAP> server. This option is
 I<mandatory>.
+
+=item B<BindDN> I<BindDN>
+
+Name in the form of an LDAP distinguished name intended to be used for 
+authentication. Defaults to empty string to establish an anonymous authorization.
+
+=item B<Password> I<Password>
+
+Password for simple bind authentication. If this option is not set, 
+unauthenticated bind operation is used.
 
 =item B<StartTLS> B<true|false>
 
@@ -4812,6 +5015,13 @@ Default: B<0.9>
 =item B<TTL> I<0-255>
 
 Sets the Time-To-Live of generated ICMP packets.
+
+=item B<Size> I<size>
+
+Sets the size of the data payload in ICMP packet to specified I<size> (it
+will be filled with regular ASCII pattern). If not set, default 56 byte
+long string is used so that the packet size of an ICMPv4 packet is exactly
+64 bytes, similar to the behaviour of normal ping(1) command.
 
 =item B<SourceAddress> I<host>
 
@@ -5470,6 +5680,10 @@ dispatched to the daemon using the specified I<name> as an identifier. This
 allows to "group" several processes together. I<name> must not contain
 slashes.
 
+=item B<CollectContextSwitch> I<Boolean>
+
+Collect context switch of the process.
+
 =back
 
 =head2 Plugin C<protocols>
@@ -6083,6 +6297,12 @@ If set to B<False>, the default, metrics are dispatched unchanged, i.e. the
 rate of counters and size of sets will be zero, timers report C<NaN> and gauges
 are unchanged. If set to B<True>, the such metrics are not dispatched and
 removed from the internal cache.
+
+=item B<CounterSum> B<false>|B<true>
+
+When enabled, create a C<count> metric which reports the change since the last
+read. This option primarily exists for compatibility with the I<statsd>
+impelemtation by Etsy.
 
 =item B<TimerPercentile> I<Percent>
 
@@ -7038,17 +7258,17 @@ setting B<name>.
 B<address> means use the interface's mac address. This is useful since the
 interface path might change between reboots of a guest or across migrations.
 
-=item B<PluginInstanceFormat> B<name|uuid>
+=item B<PluginInstanceFormat> B<name|uuid|none>
 
 When the virt plugin logs data, it sets the plugin_instance of the collected
-data according to this setting. The default is to use the guest name as provided
-by the hypervisor, which is equal to setting B<name>.
+data according to this setting. The default is to not set the plugin_instance.
 
+B<name> means use the guest's name as provided by the hypervisor.
 B<uuid> means use the guest's UUID.
 
-You can also specify combinations of these fields. For example B<name uuid>
-means to concatenate the guest name and UUID (with a literal colon character
-between, thus I<"foo:1234-1234-1234-1234">).
+You can also specify combinations of the B<name> and B<uuid> fields.
+For example B<name uuid> means to concatenate the guest name and UUID
+(with a literal colon character between, thus I<"foo:1234-1234-1234-1234">).
 
 =back
 
@@ -7122,6 +7342,14 @@ Service name or port number to connect to. Defaults to C<2003>.
 =item B<Protocol> I<String>
 
 Protocol to use when connecting to I<Graphite>. Defaults to C<tcp>.
+
+=item B<ReconnectInterval> I<Seconds>
+
+When set to non-zero, forces the connection to the Graphite backend to be
+closed and re-opend periodically. This behavior is desirable in environments
+where the connection to the Graphite backend is done through load balancers,
+for example. When set to zero, the default, the connetion is kept open for as
+long as possible.
 
 =item B<LogSendErrors> B<false>|B<true>
 
@@ -7391,6 +7619,10 @@ complete. When this limit is reached, the POST operation will be aborted, and
 all the data in the current send buffer will probably be lost. Defaults to 0,
 which means the connection never times out.
 
+=item B<LogHttpError> B<false>|B<true>
+
+Enables printing of HTTP error code to log. Turned off by default.
+
 The C<write_http> plugin regularly submits the collected values to the HTTP
 server. How frequently this happens depends on how much data you are collecting
 and the size of B<BufferSize>. The optimal value to set B<Timeout> to is
@@ -7517,14 +7749,20 @@ Synopsis:
         Host "localhost"
         Port "6379"
         Timeout 1000
+        Prefix "collectd/"
+        Database 1
+        MaxSetSize -1
+        StoreRates true
     </Node>
   </Plugin>
 
 Values are submitted to I<Sorted Sets>, using the metric name as the key, and
 the timestamp as the score. Retrieving a date range can then be done using the
 C<ZRANGEBYSCORE> I<Redis> command. Additionally, all the identifiers of these
-I<Sorted Sets> are kept in a I<Set> called C<collectd/values> and can be
-retrieved using the C<SMEMBERS> I<Redis> command. See
+I<Sorted Sets> are kept in a I<Set> called C<collectd/values> (or
+C<${prefix}/values> if the B<Prefix> option was specified) and can be retrieved
+using the C<SMEMBERS> I<Redis> command. You can specify the database to use
+with the B<Database> parameter (default is C<0>). See
 L<http://redis.io/commands#sorted_set> and L<http://redis.io/commands#set> for
 details.
 
@@ -7558,6 +7796,28 @@ that numerical port numbers must be given as a string, too.
 =item B<Timeout> I<Milliseconds>
 
 The B<Timeout> option sets the socket connection timeout, in milliseconds.
+
+=item B<Prefix> I<Prefix>
+
+Prefix used when constructing the name of the I<Sorted Sets> and the I<Set>
+containing all metrics. Defaults to C<collectd/>, so metrics will have names
+like C<collectd/cpu-0/cpu-user>. When setting this to something different, it
+is recommended but not required to include a trailing slash in I<Prefix>.
+
+=item B<Database> I<Index>
+
+This index selects the redis database to use for writing operations. Defaults
+to C<0>.
+
+=item B<MaxSetSize> I<Items>
+
+The B<MaxSetSize> option limits the number of items that the I<Sorted Sets> can
+hold. Negative values for I<Items> sets no limit, which is the default behavior.
+
+=item B<StoreRates> B<true>|B<false>
+
+If set to B<true> (the default), convert counter values to rates. If set to
+B<false> counter values are stored as is, i.e. as an increasing integer number.
 
 =back
 

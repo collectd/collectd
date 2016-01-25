@@ -65,11 +65,6 @@ file. That is very handy when you realise that you have bundled up DSes in one
 RRD-file that should have been in multiple RRD-files instead. Is is used by
 `migrate-3-4.px' to split up the cpu-, nfs-, swap-files and possibly others.
 
-fedora/
--------
-  Init-script and Spec-file that can be used when creating RPM-packages for
-Fedora.
-
 GenericJMX.conf
 ---------------
   Example configuration file for the ‘GenericJMX’ Java plugin. Please read the

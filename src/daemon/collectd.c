@@ -32,7 +32,6 @@
 #include "configfile.h"
 
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <sys/un.h>
 #include <netdb.h>
 
@@ -425,15 +424,18 @@ static int pidfile_remove (void)
 #ifdef KERNEL_LINUX
 int notify_upstart (void)
 {
-    const char  *upstart_job = getenv("UPSTART_JOB");
+    char const *upstart_job = getenv("UPSTART_JOB");
 
     if (upstart_job == NULL)
         return 0;
 
     if (strcmp(upstart_job, "collectd") != 0)
+    {
+        WARNING ("Environment specifies unexpected UPSTART_JOB=\"%s\", expected \"collectd\". Ignoring the variable.", upstart_job);
         return 0;
+    }
 
-    WARNING ("supervised by upstart, will stop to signal readyness");
+    NOTICE("Upstart detected, stopping now to signal readyness.");
     raise(SIGSTOP);
     unsetenv("UPSTART_JOB");
 
@@ -442,49 +444,69 @@ int notify_upstart (void)
 
 int notify_systemd (void)
 {
-    int                  fd = -1;
-    const char          *notifysocket = getenv("NOTIFY_SOCKET");
+    int                  fd;
+    const char          *notifysocket;
     struct sockaddr_un   su;
-    struct iovec         iov;
-    struct msghdr        hdr;
+    size_t               su_size;
+    char                 buffer[] = "READY=1\n";
 
+    notifysocket = getenv ("NOTIFY_SOCKET");
     if (notifysocket == NULL)
         return 0;
 
-    if ((strchr("@/", notifysocket[0])) == NULL ||
-        strlen(notifysocket) < 2)
+    if ((strlen (notifysocket) < 2)
+        || ((notifysocket[0] != '@') && (notifysocket[0] != '/')))
+    {
+        ERROR ("invalid notification socket NOTIFY_SOCKET=\"%s\": path must be absolute", notifysocket);
         return 0;
+    }
+    NOTICE ("Systemd detected, trying to signal readyness.");
 
-    WARNING ("supervised by systemd, will signal readyness");
-    if ((fd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
-        WARNING ("cannot contact systemd socket %s", notifysocket);
+    unsetenv ("NOTIFY_SOCKET");
+
+#if defined(SOCK_CLOEXEC)
+    fd = socket (AF_UNIX, SOCK_DGRAM|SOCK_CLOEXEC, /* protocol = */ 0);
+#else
+    fd = socket (AF_UNIX, SOCK_DGRAM, /* protocol = */ 0);
+#endif
+    if (fd < 0) {
+        char errbuf[1024];
+        ERROR ("creating UNIX socket failed: %s",
+                 sstrerror (errno, errbuf, sizeof (errbuf)));
         return 0;
     }
 
-    bzero(&su, sizeof(su));
+    memset (&su, 0, sizeof (su));
     su.sun_family = AF_UNIX;
-    sstrncpy (su.sun_path, notifysocket, sizeof(su.sun_path));
-
-    if (notifysocket[0] == '@')
+    if (notifysocket[0] != '@')
+    {
+        /* regular UNIX socket */
+        sstrncpy (su.sun_path, notifysocket, sizeof (su.sun_path));
+        su_size = sizeof (su);
+    }
+    else
+    {
+        /* Linux abstract namespace socket: specify address as "\0foo", i.e.
+         * start with a null byte. Since null bytes have no special meaning in
+         * that case, we have to set su_size correctly to cover only the bytes
+         * that are part of the address. */
+        sstrncpy (su.sun_path, notifysocket, sizeof (su.sun_path));
         su.sun_path[0] = 0;
+        su_size = sizeof (sa_family_t) + strlen (notifysocket);
+        if (su_size > sizeof (su))
+            su_size = sizeof (su);
+    }
 
-    bzero(&iov, sizeof(iov));
-    iov.iov_base = "READY=1";
-    iov.iov_len = strlen("READY=1");
-
-    bzero(&hdr, sizeof(hdr));
-    hdr.msg_name = &su;
-    hdr.msg_namelen = offsetof(struct sockaddr_un, sun_path) +
-        strlen(notifysocket);
-    hdr.msg_iov = &iov;
-    hdr.msg_iovlen = 1;
-
-    unsetenv("NOTIFY_SOCKET");
-    if (sendmsg(fd, &hdr, MSG_NOSIGNAL) < 0) {
-        WARNING ("cannot send notification to systemd");
+    if (sendto (fd, buffer, strlen (buffer), MSG_NOSIGNAL, (void *) &su, (socklen_t) su_size) < 0)
+    {
+        char errbuf[1024];
+        ERROR ("sendto(\"%s\") failed: %s", notifysocket,
+                 sstrerror (errno, errbuf, sizeof (errbuf)));
         close(fd);
         return 0;
     }
+
+    unsetenv ("NOTIFY_SOCKET");
     close(fd);
     return 1;
 }
@@ -616,6 +638,8 @@ int main (int argc, char **argv)
 #endif
 	)
 	{
+		int status;
+
 		if ((pid = fork ()) == -1)
 		{
 			/* error */
@@ -644,19 +668,24 @@ int main (int argc, char **argv)
 		close (1);
 		close (0);
 
-		if (open ("/dev/null", O_RDWR) != 0)
+		status = open ("/dev/null", O_RDWR);
+		if (status != 0)
 		{
-			ERROR ("Error: Could not connect `STDIN' to `/dev/null'");
+			ERROR ("Error: Could not connect `STDIN' to `/dev/null' (status %d)", status);
 			return (1);
 		}
-		if (dup (0) != 1)
+
+		status = dup (0);
+		if (status != 1)
 		{
-			ERROR ("Error: Could not connect `STDOUT' to `/dev/null'");
+			ERROR ("Error: Could not connect `STDOUT' to `/dev/null' (status %d)", status);
 			return (1);
 		}
-		if (dup (0) != 2)
+
+		status = dup (0);
+		if (status != 2)
 		{
-			ERROR ("Error: Could not connect `STDERR' to `/dev/null'");
+			ERROR ("Error: Could not connect `STDERR' to `/dev/null', (status %d)", status);
 			return (1);
 		}
 	} /* if (daemonize) */

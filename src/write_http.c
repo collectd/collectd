@@ -59,6 +59,7 @@ struct wh_callback_s
         char *clientkeypass;
         long sslversion;
         _Bool store_rates;
+        _Bool log_http_error;
         int   low_speed_limit;
         time_t low_speed_time;
         int timeout;
@@ -79,6 +80,19 @@ struct wh_callback_s
         pthread_mutex_t send_lock;
 };
 typedef struct wh_callback_s wh_callback_t;
+
+static void wh_log_http_error (wh_callback_t *cb)
+{
+        if (!cb->log_http_error)
+                return;
+
+        long http_code = 0;
+
+        curl_easy_getinfo (cb->curl, CURLINFO_RESPONSE_CODE, &http_code);
+
+        if (http_code != 200)
+                INFO ("write_http plugin: HTTP Error code: %lu", http_code);
+}
 
 static void wh_reset_buffer (wh_callback_t *cb)  /* {{{ */
 {
@@ -101,6 +115,9 @@ static int wh_send_buffer (wh_callback_t *cb) /* {{{ */
 
         curl_easy_setopt (cb->curl, CURLOPT_POSTFIELDS, cb->send_buffer);
         status = curl_easy_perform (cb->curl);
+
+        wh_log_http_error (cb);
+
         if (status != CURLE_OK)
         {
                 ERROR ("write_http plugin: curl_easy_perform failed with "
@@ -523,6 +540,7 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
         int buffer_size = 0;
         user_data_t user_data;
         char callback_name[DATA_MAX_NAME_LEN];
+        int status = 0;
         int i;
 
         cb = malloc (sizeof (*cb));
@@ -538,6 +556,7 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
         cb->sslversion = CURL_SSLVERSION_DEFAULT;
         cb->low_speed_limit = 0;
         cb->timeout = 0;
+        cb->log_http_error = 0;
 
         pthread_mutex_init (&cb->send_lock, /* attr = */ NULL);
 
@@ -552,30 +571,32 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
                 oconfig_item_t *child = ci->children + i;
 
                 if (strcasecmp ("URL", child->key) == 0)
-                        cf_util_get_string (child, &cb->location);
+                        status = cf_util_get_string (child, &cb->location);
                 else if (strcasecmp ("User", child->key) == 0)
-                        cf_util_get_string (child, &cb->user);
+                        status = cf_util_get_string (child, &cb->user);
                 else if (strcasecmp ("Password", child->key) == 0)
-                        cf_util_get_string (child, &cb->pass);
+                        status = cf_util_get_string (child, &cb->pass);
                 else if (strcasecmp ("VerifyPeer", child->key) == 0)
-                        cf_util_get_boolean (child, &cb->verify_peer);
+                        status = cf_util_get_boolean (child, &cb->verify_peer);
                 else if (strcasecmp ("VerifyHost", child->key) == 0)
-                        cf_util_get_boolean (child, &cb->verify_host);
+                        status = cf_util_get_boolean (child, &cb->verify_host);
                 else if (strcasecmp ("CACert", child->key) == 0)
-                        cf_util_get_string (child, &cb->cacert);
+                        status = cf_util_get_string (child, &cb->cacert);
                 else if (strcasecmp ("CAPath", child->key) == 0)
-                        cf_util_get_string (child, &cb->capath);
+                        status = cf_util_get_string (child, &cb->capath);
                 else if (strcasecmp ("ClientKey", child->key) == 0)
-                        cf_util_get_string (child, &cb->clientkey);
+                        status = cf_util_get_string (child, &cb->clientkey);
                 else if (strcasecmp ("ClientCert", child->key) == 0)
-                        cf_util_get_string (child, &cb->clientcert);
+                        status = cf_util_get_string (child, &cb->clientcert);
                 else if (strcasecmp ("ClientKeyPass", child->key) == 0)
-                        cf_util_get_string (child, &cb->clientkeypass);
+                        status = cf_util_get_string (child, &cb->clientkeypass);
                 else if (strcasecmp ("SSLVersion", child->key) == 0)
                 {
                         char *value = NULL;
 
-                        cf_util_get_string (child, &value);
+                        status = cf_util_get_string (child, &value);
+                        if (status != 0)
+                                break;
 
                         if (value == NULL || strcasecmp ("default", value) == 0)
                                 cb->sslversion = CURL_SSLVERSION_DEFAULT;
@@ -594,26 +615,41 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
                                 cb->sslversion = CURL_SSLVERSION_TLSv1_2;
 #endif
                         else
+                        {
                                 ERROR ("write_http plugin: Invalid SSLVersion "
                                                 "option: %s.", value);
+                                status = EINVAL;
+                        }
 
                         sfree(value);
                 }
                 else if (strcasecmp ("Format", child->key) == 0)
-                        config_set_format (cb, child);
+                        status = config_set_format (cb, child);
                 else if (strcasecmp ("StoreRates", child->key) == 0)
-                        cf_util_get_boolean (child, &cb->store_rates);
+                        status = cf_util_get_boolean (child, &cb->store_rates);
                 else if (strcasecmp ("BufferSize", child->key) == 0)
-                        cf_util_get_int (child, &buffer_size);
+                        status = cf_util_get_int (child, &buffer_size);
                 else if (strcasecmp ("LowSpeedLimit", child->key) == 0)
-                        cf_util_get_int (child, &cb->low_speed_limit);
+                        status = cf_util_get_int (child, &cb->low_speed_limit);
                 else if (strcasecmp ("Timeout", child->key) == 0)
-                        cf_util_get_int (child, &cb->timeout);
+                        status = cf_util_get_int (child, &cb->timeout);
+                else if (strcasecmp ("LogHttpError", child->key) == 0)
+                        status = cf_util_get_boolean (child, &cb->log_http_error);
                 else
                 {
                         ERROR ("write_http plugin: Invalid configuration "
                                         "option: %s.", child->key);
+                        status = EINVAL;
                 }
+
+                if (status != 0)
+                        break;
+        }
+
+        if (status != 0)
+        {
+                wh_callback_free (cb);
+                return (status);
         }
 
         if (cb->location == NULL)

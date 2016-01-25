@@ -50,7 +50,6 @@
 # include <pthread.h>
 #endif
 
-#include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/select.h>
 

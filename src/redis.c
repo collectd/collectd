@@ -304,7 +304,7 @@ int redis_handle_info (char *node, char const *info_line, char const *type, char
     int i;
 
     str += strlen (field_name) + 1; /* also skip the ':' */
-    for(i=0;(*str && (isdigit(*str) || *str == '.'));i++,str++)
+    for(i=0;(*str && (isdigit((unsigned char)*str) || *str == '.'));i++,str++)
       buf[i] = *str;
     buf[i] ='\0';
 

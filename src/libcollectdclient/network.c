@@ -392,7 +392,7 @@ int lcc_server_set_ttl (lcc_server_t *srv, uint8_t ttl) /* {{{ */
 
 int lcc_server_set_interface (lcc_server_t *srv, char const *interface) /* {{{ */
 {
-  int if_index;
+  unsigned int if_index;
   int status;
 
   if ((srv == NULL) || (interface == NULL))
@@ -420,7 +420,7 @@ int lcc_server_set_interface (lcc_server_t *srv, char const *interface) /* {{{ *
       memset (&mreq, 0, sizeof (mreq));
       mreq.imr_multiaddr.s_addr = addr->sin_addr.s_addr;
       mreq.imr_address.s_addr = ntohl (INADDR_ANY);
-      mreq.imr_ifindex = if_index;
+      mreq.imr_ifindex = (int) if_index;
 #else
       struct ip_mreq mreq;
 
@@ -456,8 +456,8 @@ int lcc_server_set_interface (lcc_server_t *srv, char const *interface) /* {{{ *
 
   /* else: Not a multicast interface. */
 #if defined(SO_BINDTODEVICE)
-  status = setsockopt (srv->fd, SOL_SOCKET, SO_BINDTODEVICE,
-      interface, strlen (interface) + 1);
+  status = setsockopt (srv->fd, SOL_SOCKET, SO_BINDTODEVICE, interface,
+      (socklen_t) (strlen (interface) + 1));
   if (status != 0)
     return (-1);
 #endif

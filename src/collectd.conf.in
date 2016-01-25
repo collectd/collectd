@@ -140,6 +140,7 @@
 @BUILD_PLUGIN_MEMORY_TRUE@@BUILD_PLUGIN_MEMORY_TRUE@LoadPlugin memory
 #@BUILD_PLUGIN_MIC_TRUE@LoadPlugin mic
 #@BUILD_PLUGIN_MODBUS_TRUE@LoadPlugin modbus
+#@BUILD_PLUGIN_MQTT_TRUE@LoadPlugin mqtt
 #@BUILD_PLUGIN_MULTIMETER_TRUE@LoadPlugin multimeter
 #@BUILD_PLUGIN_MYSQL_TRUE@LoadPlugin mysql
 #@BUILD_PLUGIN_NETAPP_TRUE@LoadPlugin netapp
@@ -149,6 +150,7 @@
 #@BUILD_PLUGIN_NGINX_TRUE@LoadPlugin nginx
 #@BUILD_PLUGIN_NOTIFY_DESKTOP_TRUE@LoadPlugin notify_desktop
 #@BUILD_PLUGIN_NOTIFY_EMAIL_TRUE@LoadPlugin notify_email
+#@BUILD_PLUGIN_NOTIFY_NAGIOS_TRUE@LoadPlugin notify_nagios
 #@BUILD_PLUGIN_NTPD_TRUE@LoadPlugin ntpd
 #@BUILD_PLUGIN_NUMA_TRUE@LoadPlugin numa
 #@BUILD_PLUGIN_NUT_TRUE@LoadPlugin nut
@@ -206,6 +208,7 @@
 #@BUILD_PLUGIN_WRITE_TSDB_TRUE@LoadPlugin write_tsdb
 #@BUILD_PLUGIN_XMMS_TRUE@LoadPlugin xmms
 #@BUILD_PLUGIN_ZFS_ARC_TRUE@LoadPlugin zfs_arc
+#@BUILD_PLUGIN_ZONE_TRUE@LoadPlugin zone
 #@BUILD_PLUGIN_ZOOKEEPER_TRUE@LoadPlugin zookeeper
 
 ##############################################################################
@@ -263,6 +266,7 @@
 #	Host "localhost"
 #	Port "3551"
 #	ReportSeconds true
+#	PersistentConnection true
 #</Plugin>
 
 #<Plugin aquaero>
@@ -559,6 +563,7 @@
 #<Plugin interface>
 #	Interface "eth0"
 #	IgnoreSelected false
+#	UniqueName false
 #</Plugin>
 
 #<Plugin ipmi>
@@ -667,6 +672,35 @@
 #			Collect "data_name"
 #		</Slave>
 #	</Host>
+#</Plugin>
+
+#<Plugin mqtt>
+#	<Publish "name">
+#		Host "localhost"
+#		Port 1883
+#		ClientId "localhost"
+#		User "user"
+#		Password "secret"
+#		QoS 0
+#		Prefix "collectd"
+#		StoreRates true
+#		Retain false
+#		CACert "/etc/ssl/ca.crt"
+#		CertificateFile "/etc/ssl/client.crt"
+#		CertificateKeyFile "/etc/ssl/client.pem"
+#		TLSProtocol "tlsv1.2"
+#		CipherSuite "ciphers"
+#	</Publish>
+#	<Subscribe "name">
+#		Host "localhost"
+#		Port 1883
+#		ClientId "localhost"
+#		User "user"
+#		Password "secret"
+#		QoS 2
+#		Topic "collectd/#"
+#		CleanSession true
+#	</Subscribe>
 #</Plugin>
 
 #<Plugin mysql>
@@ -804,6 +838,10 @@
 #	Subject "Aaaaaa!! %s on %s!!!!!"
 #	Recipient "email1@domain1.net"
 #	Recipient "email2@domain2.com"
+#</Plugin>
+
+#<Plugin notify_nagios>
+#	CommandFile "/usr/local/nagios/var/rw/nagios.cmd"
 #</Plugin>
 
 #<Plugin ntpd>
@@ -1100,6 +1138,7 @@
 #  DeleteTimers   false
 #  DeleteGauges   false
 #  DeleteSets     false
+#  CounterSum     false
 #  TimerPercentile 90.0
 #  TimerPercentile 95.0
 #  TimerPercentile 99.0
@@ -1310,6 +1349,7 @@
 #    Host "localhost"
 #    Port "2003"
 #    Protocol "tcp"
+#    ReconnectInterval 0
 #    LogSendErrors true
 #    Prefix "collectd"
 #    Postfix "collectd"
@@ -1364,6 +1404,7 @@
 #		Host "localhost"
 #		Port "6379"
 #		Timeout 1000
+#		Prefix "collectd/"
 #	</Node>
 #</Plugin>
 
