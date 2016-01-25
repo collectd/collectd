@@ -143,6 +143,10 @@
 # include <kstat.h>
 #endif
 
+#if HAVE_PERFSTAT
+# include <libperfstat.h>
+#endif
+
 #ifndef CMDLINE_BUFFER_SIZE
 # if defined(ARG_MAX) && (ARG_MAX < 4096)
 #  define CMDLINE_BUFFER_SIZE ARG_MAX
@@ -757,7 +761,7 @@ static void ps_submit_proc_list (procstat_t *ps)
 			ps->io_rchar, ps->io_wchar, ps->io_syscr, ps->io_syscw);
 } /* void ps_submit_proc_list */
 
-#if KERNEL_LINUX || KERNEL_SOLARIS
+#if KERNEL_LINUX || KERNEL_SOLARIS || HAVE_PERFSTAT 
 static void ps_submit_fork_rate (derive_t value)
 {
 	value_t values[1];
@@ -775,6 +779,25 @@ static void ps_submit_fork_rate (derive_t value)
 
 	plugin_dispatch_values(&vl);
 }
+
+static void ps_submit_syscalls (derive_t value)
+{
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
+
+	values[0].derive = value;
+
+	vl.values = values;
+	vl.values_len = 1;
+	sstrncpy(vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy(vl.plugin, "processes", sizeof (vl.plugin));
+	sstrncpy(vl.plugin_instance, "", sizeof (vl.plugin_instance));
+	sstrncpy(vl.type, "syscalls", sizeof (vl.type));
+	sstrncpy(vl.type_instance, "", sizeof (vl.type_instance));
+
+	plugin_dispatch_values(&vl);
+}
+
 #endif /* KERNEL_LINUX || KERNEL_SOLARIS*/
 
 /* ------- additional functions for KERNEL_LINUX/HAVE_THREAD_INFO ------- */
@@ -1168,12 +1191,14 @@ static char *ps_get_cmdline (pid_t pid, char *name, char *buf, size_t buf_len)
 	return buf;
 } /* char *ps_get_cmdline (...) */
 
-static int read_fork_rate ()
+static int read_fork_rate_and_syscalls()
 {
 	FILE *proc_stat;
 	char buffer[1024];
-	value_t value;
-	_Bool value_valid = 0;
+	value_t fr_value;	/* fork rate */
+	value_t intr_value; /* interrupts */
+	_Bool fr_value_valid = 0;
+	_Bool intr_value_valid = 0;
 
 	proc_stat = fopen ("/proc/stat", "r");
 	if (proc_stat == NULL)
@@ -1190,26 +1215,36 @@ static int read_fork_rate ()
 		char *fields[3];
 		int fields_num;
 
-		fields_num = strsplit (buffer, fields,
-				STATIC_ARRAY_SIZE (fields));
-		if (fields_num != 2)
-			continue;
+		fields_num = strsplit (buffer, fields, 
+			STATIC_ARRAY_SIZE (fields));
 
-		if (strcmp ("processes", fields[0]) != 0)
-			continue;
+		if((fields_num == 2) && (strcmp ("processes", fields[0]) == 0))
+		{
+			status = parse_value (fields[1], &fr_value, 
+				DS_TYPE_DERIVE);
 
-		status = parse_value (fields[1], &value, DS_TYPE_DERIVE);
-		if (status == 0)
-			value_valid = 1;
+			if (status == 0)
+				fr_value_valid = 1;
+		}
+		else if ((fields_num >= 2) && (strcmp ("intr", fields[0]) == 0))
+		{
+			status = parse_value (fields[1], &intr_value, 
+				DS_TYPE_DERIVE);
 
-		break;
+			if (status == 0)
+				intr_value_valid = 1;
+		}
+
+		if(fr_value_valid && intr_value_valid)
+			break;
 	}
 	fclose(proc_stat);
 
-	if (!value_valid)
+	if (!fr_value_valid || !intr_value_valid)
 		return (-1);
 
-	ps_submit_fork_rate (value.derive);
+	ps_submit_fork_rate (fr_value.derive);
+	ps_submit_syscalls (fr_value.derive + intr_value.derive);
 	return (0);
 }
 #endif /*KERNEL_LINUX */
@@ -1357,11 +1392,12 @@ static int ps_read_process(long pid, procstat_t *ps, char *state)
  * are retrieved from kstat (module cpu, name sys, class misc, stat nthreads).
  * The result is the sum for all the threads created on each cpu
  */
-static int read_fork_rate()
+static int read_fork_rate_and_syscalls()
 {
 	extern kstat_ctl_t *kc;
 	kstat_t *ksp_chain = NULL;
-	derive_t result = 0;
+	derive_t fr_result = 0;   /* fork rate */
+	derive_t sc_result= 0;	  /* system calls */
 
 	if (kc == NULL)
 		return (-1);
@@ -1380,13 +1416,19 @@ static int read_fork_rate()
 
 			tmp = get_kstat_value(ksp_chain, "nthreads");
 			if (tmp != -1LL)
-				result += tmp;
+				fr_result += tmp;
+
+			tmp = get_kstat_value(ksp_chain, "syscall");
+			if (tmp != -1LL)
+				sc_result += tmp;
 		}
 	}
 
-	ps_submit_fork_rate (result);
+	ps_submit_fork_rate (fr_result);
+	ps_submit_syscalls (sc_result);
 	return (0);
 }
+
 #endif /* KERNEL_SOLARIS */
 
 #if HAVE_THREAD_INFO
@@ -1424,6 +1466,27 @@ static int mach_get_task_name (task_t t, int *pid, char *name, size_t name_max_l
 	return (0);
 }
 #endif /* HAVE_THREAD_INFO */
+
+#if HAVE_PERFSTAT
+static int read_fork_rate_and_syscalls ()
+{
+	int status = 0; 
+
+	perfstat_cpu_total_t cpu_totals;
+
+	status = perfstat_cpu_total(NULL, &cpu_totals, 
+			sizeof(perfstat_cpu_total_t), 1);
+
+	if((-1) == status)
+		return (-1);
+
+	ps_submit_fork_rate((derive_t) cpu_totals.sysfork);
+	ps_submit_syscalls((derive_t) cpu_totals.syscall);
+
+	return (0);
+}
+#endif
+
 /* ------- end of additional functions for KERNEL_LINUX/HAVE_THREAD_INFO ------- */
 
 /* do actual readings from kernel */
@@ -1795,7 +1858,7 @@ static int ps_read (void)
 	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
 		ps_submit_proc_list (ps_ptr);
 
-	read_fork_rate();
+	read_fork_rate_and_syscalls();
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD
@@ -2210,6 +2273,11 @@ static int ps_read (void)
 
 	for (ps = list_head_g; ps != NULL; ps = ps->next)
 		ps_submit_proc_list (ps);
+
+#if HAVE_PERFSTAT 
+    read_fork_rate_and_syscalls();
+#endif 
+
 /* #endif HAVE_PROCINFO_H */
 
 #elif KERNEL_SOLARIS
@@ -2325,7 +2393,7 @@ static int ps_read (void)
 	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
 		ps_submit_proc_list (ps_ptr);
 
-	read_fork_rate();
+	read_fork_rate_and_syscalls();
 #endif /* KERNEL_SOLARIS */
 
 	return (0);
