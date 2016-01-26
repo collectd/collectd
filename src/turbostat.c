@@ -1516,7 +1516,7 @@ check_permissions(void)
 	}
 
 	if (euidaccess("/dev/cpu/0/msr", R_OK)) {
-		WARNING("turbostat plugin: Collectd cannot open"
+		WARNING("turbostat plugin: Collectd cannot open "
 			"/dev/cpu/0/msr. If you don't want to run collectd as "
 			"root, you need to change the ownership (chown) and "
 			"permissions on /dev/cpu/*/msr to allow such access");
@@ -1539,8 +1539,8 @@ turbostat_init(void)
 	int ret;
 
 	if (stat("/dev/cpu/0/msr", &sb)) {
-		ERROR("turbostat plugin: Initialization failed: /dev/cpu/0/msr"
-		      " does not exist while the CPU supports MSR. You may be "
+		ERROR("turbostat plugin: Initialization failed: /dev/cpu/0/msr "
+		      "does not exist while the CPU supports MSR. You may be "
 		      "missing the corresponding kernel module, please try '# "
 		      "modprobe msr'");
 		return -1;
