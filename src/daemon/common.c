@@ -60,6 +60,10 @@
 # include <arpa/inet.h>
 #endif
 
+#ifdef HAVE_SYS_CAPABILITY_H
+# include <sys/capability.h>
+#endif
+
 #ifdef HAVE_LIBKSTAT
 extern kstat_ctl_t *kc;
 #endif
@@ -1668,3 +1672,26 @@ void strarray_free (char **array, size_t array_len) /* {{{ */
 		sfree (array[i]);
 	sfree (array);
 } /* }}} void strarray_free */
+
+#ifdef HAVE_SYS_CAPABILITY_H
+int check_capability (int capability) /* {{{ */
+{
+	struct __user_cap_header_struct cap_header_data;
+	cap_user_header_t cap_header = &cap_header_data;
+	struct __user_cap_data_struct cap_data_data;
+	cap_user_data_t cap_data = &cap_data_data;
+
+	cap_header->pid = getpid();
+	cap_header->version = _LINUX_CAPABILITY_VERSION;
+	if (capget(cap_header, cap_data) < 0)
+	{
+		ERROR("check_capability: capget failed");
+		return (-1);
+	}
+
+	if ((cap_data->effective & (1 << capability)) == 0)
+		return (-1);
+	else
+		return (0);
+} /* }}} int check_capability */
+#endif
