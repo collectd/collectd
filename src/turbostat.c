@@ -1474,13 +1474,8 @@ out:
 static int
 check_permissions(void)
 {
-#ifdef HAVE_SYS_CAPABILITY_H
-	struct __user_cap_header_struct cap_header_data;
-	cap_user_header_t cap_header = &cap_header_data;
-	struct __user_cap_data_struct cap_data_data;
-	cap_user_data_t cap_data = &cap_data_data;
+
 	int ret = 0;
-#endif /* HAVE_SYS_CAPABILITY_H */
 
 	if (getuid() == 0) {
 		/* We have everything we need */
@@ -1494,15 +1489,7 @@ check_permissions(void)
 #else /* HAVE_SYS_CAPABILITY_H */
 	}
 
-	/* check for CAP_SYS_RAWIO */
-	cap_header->pid = getpid();
-	cap_header->version = _LINUX_CAPABILITY_VERSION;
-	if (capget(cap_header, cap_data) < 0) {
-		ERROR("turbostat plugin: capget failed");
-		return -1;
-	}
-
-	if ((cap_data->effective & (1 << CAP_SYS_RAWIO)) == 0) {
+	if (check_capability(CAP_SYS_RAWIO) != 0) {
 		WARNING("turbostat plugin: Collectd doesn't have the "
 			"CAP_SYS_RAWIO capability. If you don't want to run "
 			"collectd as root, try running \"setcap "
