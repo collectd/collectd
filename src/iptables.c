@@ -30,6 +30,10 @@
 #include "plugin.h"
 #include "configfile.h"
 
+#ifdef HAVE_SYS_CAPABILITY_H
+# include <sys/capability.h>
+#endif
+
 #include <libiptc/libiptc.h>
 #include <libiptc/libip6tc.h>
 
@@ -499,10 +503,30 @@ static int iptables_shutdown (void)
     return (0);
 } /* int iptables_shutdown */
 
+static int iptables_init (void)
+{
+#ifdef HAVE_SYS_CAPABILITY_H
+    if (check_capability (CAP_NET_ADMIN) != 0)
+    {
+        if (getuid () == 0)
+            WARNING ("iptables plugin: Running collectd as root, but the "
+                  "CAP_NET_ADMIN capability is missing. The plugin's read "
+                  "function will probably fail. Is your init system dropping "
+                  "capabilities ?");
+        else
+            WARNING ("iptables plugin: collectd doesn't have the CAP_NET_ADMIN "
+                  "capability. If you don't want to run collectd as root, try "
+                  "running \"setcap cap_net_admin=ep\" on the collectd binary.");
+    }
+#endif
+    return (0);
+} /* int iptables_init */
+
 void module_register (void)
 {
     plugin_register_config ("iptables", iptables_config,
                              config_keys, config_keys_num);
+    plugin_register_init ("iptables", iptables_init);
     plugin_register_read ("iptables", iptables_read);
     plugin_register_shutdown ("iptables", iptables_shutdown);
 } /* void module_register */
