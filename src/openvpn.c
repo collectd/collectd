@@ -525,6 +525,8 @@ static int openvpn_read (void)
 	/* call the right read function for every status entry in the list */
 	for (i = 0; i < vpn_num; i++)
 	{
+		int vpn_read = 0;
+
 		fh = fopen (vpn_list[i]->file, "r");
 		if (fh == NULL)
 		{
