@@ -1175,7 +1175,8 @@ endif
 if BUILD_PLUGIN_WRITE_HTTP
 pkglib_LTLIBRARIES += write_http.la
 write_http_la_SOURCES = write_http.c \
-			utils_format_json.c utils_format_json.h
+			utils_format_json.c utils_format_json.h \
+			utils_format_kairosdb.c utils_format_kairosdb.h
 write_http_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 write_http_la_CFLAGS = $(AM_CFLAGS)
 write_http_la_LIBADD =
