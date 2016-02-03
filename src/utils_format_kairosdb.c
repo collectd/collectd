@@ -124,15 +124,20 @@ static int values_to_kairosdb (char *buffer, size_t buffer_size, /* {{{ */
     offset += ((size_t) status); \
 } while (0)
 
-  BUFFER_ADD ("[[");
-  BUFFER_ADD ("%"PRIu64, CDTIME_T_TO_MS (vl->time));
-  BUFFER_ADD (",");
   if (ds->ds[ds_idx].type == DS_TYPE_GAUGE)
   {
     if(isfinite (vl->values[ds_idx].gauge))
+    {
+      BUFFER_ADD ("[[");
+      BUFFER_ADD ("%"PRIu64, CDTIME_T_TO_MS (vl->time));
+      BUFFER_ADD (",");
       BUFFER_ADD (JSON_GAUGE_FORMAT, vl->values[ds_idx].gauge);
+    }
     else
-      BUFFER_ADD ("null");
+    {
+      WARNING ("utils_format_kairosdb: skipping null value.");
+      return (-1);
+    }
   }
   else if (store_rates)
   {
@@ -146,16 +151,39 @@ static int values_to_kairosdb (char *buffer, size_t buffer_size, /* {{{ */
     }
 
     if(isfinite (rates[ds_idx]))
+    {
+      BUFFER_ADD ("[[");
+      BUFFER_ADD ("%"PRIu64, CDTIME_T_TO_MS (vl->time));
+      BUFFER_ADD (",");
       BUFFER_ADD (JSON_GAUGE_FORMAT, rates[ds_idx]);
+    }
     else
-      BUFFER_ADD ("null");
+    {
+      WARNING ("utils_format_kairosdb: skipping null value.");
+      return (-1);
+    }
   }
   else if (ds->ds[ds_idx].type == DS_TYPE_COUNTER)
+  {
+    BUFFER_ADD ("[[");
+    BUFFER_ADD ("%"PRIu64, CDTIME_T_TO_MS (vl->time));
+    BUFFER_ADD (",");
     BUFFER_ADD ("%llu", vl->values[ds_idx].counter);
+  }
   else if (ds->ds[ds_idx].type == DS_TYPE_DERIVE)
+  {
+    BUFFER_ADD ("[[");
+    BUFFER_ADD ("%"PRIu64, CDTIME_T_TO_MS (vl->time));
+    BUFFER_ADD (",");
     BUFFER_ADD ("%"PRIi64, vl->values[ds_idx].derive);
+  }
   else if (ds->ds[ds_idx].type == DS_TYPE_ABSOLUTE)
+  {
+    BUFFER_ADD ("[[");
+    BUFFER_ADD ("%"PRIu64, CDTIME_T_TO_MS (vl->time));
+    BUFFER_ADD (",");
     BUFFER_ADD ("%"PRIu64, vl->values[ds_idx].absolute);
+  }
   else
   {
     ERROR ("format_kairosdb: Unknown data source type: %i",
@@ -171,103 +199,6 @@ static int values_to_kairosdb (char *buffer, size_t buffer_size, /* {{{ */
   sfree(rates);
   return (0);
 } /* }}} int values_to_kairosdb */
-
-static int meta_data_to_kairosdb (char *buffer, size_t buffer_size, /* {{{ */
-    meta_data_t *meta)
-{
-  size_t offset = 0;
-  char **keys = NULL;
-  int keys_num;
-  int status;
-  int i;
-
-  buffer[0] = 0;
-
-  if (meta == NULL)
-    return (EINVAL);
-
-#define BUFFER_ADD(...) do { \
-  status = ssnprintf (buffer + offset, buffer_size - offset, \
-      __VA_ARGS__); \
-  if (status < 1) \
-    return (-1); \
-  else if (((size_t) status) >= (buffer_size - offset)) \
-    return (-ENOMEM); \
-  else \
-    offset += ((size_t) status); \
-} while (0)
-
-  keys_num = meta_data_toc (meta, &keys);
-  if (keys_num == 0)
-  {
-    sfree (keys);
-    return (0);
-  }
-
-  for (i = 0; i < keys_num; ++i)
-  {
-    int type;
-    char *key = keys[i];
-
-    type = meta_data_type (meta, key);
-    if (type == MD_TYPE_STRING)
-    {
-      char *value = NULL;
-      if (meta_data_get_string (meta, key, &value) == 0)
-      {
-        char temp[512] = "";
-        kairosdb_escape_string (temp, sizeof (temp), value);
-        sfree (value);
-        BUFFER_ADD (",\"%s\":%s", key, temp);
-      }
-    }
-    else if (type == MD_TYPE_SIGNED_INT)
-    {
-      int64_t value = 0;
-      if (meta_data_get_signed_int (meta, key, &value) == 0)
-        BUFFER_ADD (",\"%s\":%"PRIi64, key, value);
-    }
-    else if (type == MD_TYPE_UNSIGNED_INT)
-    {
-      uint64_t value = 0;
-      if (meta_data_get_unsigned_int (meta, key, &value) == 0)
-        BUFFER_ADD (",\"%s\":%"PRIu64, key, value);
-    }
-    else if (type == MD_TYPE_DOUBLE)
-    {
-      double value = 0.0;
-      if (meta_data_get_double (meta, key, &value) == 0)
-        BUFFER_ADD (",\"%s\":%f", key, value);
-    }
-    else if (type == MD_TYPE_BOOLEAN)
-    {
-      _Bool value = 0;
-      if (meta_data_get_boolean (meta, key, &value) == 0)
-      {
-        /*
-         * XXX: This should be handled through a core tag plugin someday
-         * if tag is network:received drop it
-         */
-        if (! ((strlen(key) == 16) && (strncmp(key, "network:received", 16) == 0)))
-        {
-          BUFFER_ADD (",\"%s\":%s", key, value ? "true" : "false");
-        }
-      }
-    }
-    sfree (key);
-  } /* for (keys) */
-  sfree (keys);
-
-  if (offset <= 0)
-    return (ENOENT);
-
-  buffer[0] = '{'; /* replace leading ',' */
-  BUFFER_ADD ("}");
-
-#undef BUFFER_ADD
-
-  return (0);
-} /* }}} int meta_data_to_kairosdb */
 
 static int value_list_to_kairosdb (char *buffer, size_t buffer_size, /* {{{ */
                 const data_set_t *ds, const value_list_t *vl, int store_rates)
@@ -290,6 +221,13 @@ static int value_list_to_kairosdb (char *buffer, size_t buffer_size, /* {{{ */
     offset += ((size_t) status); \
 } while (0)
 
+#define BUFFER_ADD_KEYVAL(key, value) do { \
+  status = kairosdb_escape_string (temp, sizeof (temp), (value)); \
+  if (status != 0) \
+    return (status); \
+  BUFFER_ADD (",\"%s\": %s", (key), temp); \
+} while (0)
+
   for (i = 0; i < ds->ds_num; i++)
   {
     /* All value lists have a leading comma. The first one will be replaced with
@@ -302,22 +240,7 @@ static int value_list_to_kairosdb (char *buffer, size_t buffer_size, /* {{{ */
     {
       BUFFER_ADD (".%s", vl->plugin);
     }
-    if (strlen(vl->plugin_instance))
-    {
-      meta_data_add_string(vl->meta, "plugin_instance", vl->plugin_instance);
-    }
-    if (strlen(vl->type))
-    {
-      meta_data_add_string(vl->meta, "type", vl->type);
-    }
-    if (strlen(vl->type_instance))
-    {
-      meta_data_add_string(vl->meta, "type_instance", vl->type_instance);
-    }
-    if (ds->ds_num > 0)
-    {
-      meta_data_add_string(vl->meta, "ds", ds->ds[i].name);
-    }
+
 
     status = values_to_kairosdb (temp, sizeof (temp), ds, vl, store_rates, i);
     if (status != 0)
@@ -325,30 +248,24 @@ static int value_list_to_kairosdb (char *buffer, size_t buffer_size, /* {{{ */
 
     BUFFER_ADD ("\", \"datapoints\": %s", temp);
 
-#define BUFFER_ADD_KEYVAL(key, value) do { \
-  status = kairosdb_escape_string (temp, sizeof (temp), (value)); \
-  if (status != 0) \
-    return (status); \
-  BUFFER_ADD (",\"%s\": %s", (key), temp); \
-} while (0)
-
-    /* Now adds meta data to metrics using fqdn
-     *
+    /*
+     * Now adds meta data to metric as tags
      */
-    meta_data_add_string(vl->meta, "host", vl->host);
 
-    if (vl->meta != NULL)
-    {
-      char meta_buffer[buffer_size];
-      memset (meta_buffer, 0, sizeof (meta_buffer));
-      status = meta_data_to_kairosdb (meta_buffer, sizeof (meta_buffer), vl->meta);
-      if (status != 0)
-        return (status);
+    memset (temp, 0, sizeof(temp));
 
-      BUFFER_ADD (",\"tags\": %s", meta_buffer);
-    } /* if (vl->meta != NULL) */
+    BUFFER_ADD (", \"tags\":\{");
 
-    BUFFER_ADD ("}");
+    BUFFER_ADD ("\"host\": \"%s\"", vl->host);
+    if (strlen(vl->plugin_instance))
+      BUFFER_ADD_KEYVAL ("plugin_instance", vl->plugin_instance);
+    if (strlen(vl->type))
+      BUFFER_ADD_KEYVAL ("type", vl->type);
+    if (strlen(vl->type_instance))
+      BUFFER_ADD_KEYVAL ("type_instance", vl->type_instance);
+    if (ds->ds_num > 0)
+      BUFFER_ADD_KEYVAL ("ds", ds->ds[i].name);
+    BUFFER_ADD ("}}");
   } /* for ds->ds_num */
 
 #undef BUFFER_ADD_KEYVAL
