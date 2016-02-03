@@ -135,7 +135,12 @@ static int values_to_kairosdb (char *buffer, size_t buffer_size, /* {{{ */
     }
     else
     {
-      WARNING ("utils_format_kairosdb: skipping null value.");
+      DEBUG ("utils_format_kairosdb: invalid vl->values[ds_idx].gauge for %s|%s|%s|%s|%s",
+                vl->plugin,
+                vl->plugin_instance,
+                vl->type,
+                vl->type_instance,
+                ds->ds[ds_idx].name);
       return (-1);
     }
   }
@@ -145,7 +150,13 @@ static int values_to_kairosdb (char *buffer, size_t buffer_size, /* {{{ */
       rates = uc_get_rate (ds, vl);
     if (rates == NULL)
     {
-      WARNING ("utils_format_kairosdb: uc_get_rate failed.");
+      WARNING ("utils_format_kairosdb: uc_get_rate failed for %s|%s|%s|%s|%s",
+                vl->plugin,
+                vl->plugin_instance,
+                vl->type,
+                vl->type_instance,
+                ds->ds[ds_idx].name);
+
       sfree(rates);
       return (-1);
     }
@@ -159,7 +170,12 @@ static int values_to_kairosdb (char *buffer, size_t buffer_size, /* {{{ */
     }
     else
     {
-      WARNING ("utils_format_kairosdb: skipping null value.");
+      WARNING ("utils_format_kairosdb: invalid rates[ds_idx] for %s|%s|%s|%s|%s",
+                vl->plugin,
+                vl->plugin_instance,
+                vl->type,
+                vl->type_instance,
+                ds->ds[ds_idx].name);
       return (-1);
     }
   }
