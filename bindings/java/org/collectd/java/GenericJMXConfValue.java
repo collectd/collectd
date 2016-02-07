@@ -26,7 +26,6 @@
 
 package org.collectd.java;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Collection;
 import java.util.Set;
@@ -35,6 +34,8 @@ import java.util.ArrayList;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
@@ -78,7 +79,7 @@ class GenericJMXConfValue
    *
    * Returns null if a conversion is not possible or not implemented.
    */
-  private Number genericObjectToNumber (Object obj, int ds_type) /* {{{ */
+  Number genericObjectToNumber (Object obj, int ds_type) /* {{{ */
   {
     if (obj instanceof String)
     {
@@ -108,9 +109,17 @@ class GenericJMXConfValue
     {
       return (new Integer ((Integer) obj));
     }
+    else if (obj instanceof AtomicInteger)
+    {
+      return ((AtomicInteger) obj).get();
+    }
     else if (obj instanceof Long)
     {
       return (new Long ((Long) obj));
+    }
+    else if (obj instanceof AtomicLong)
+    {
+      return ((AtomicLong) obj).get();
     }
     else if (obj instanceof Float)
     {
