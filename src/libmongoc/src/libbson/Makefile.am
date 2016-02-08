@@ -9,15 +9,15 @@ noinst_LTLIBRARIES =
 noinst_PROGRAMS =
 
 include src/Makefile.am
-include tests/Makefile.am
-include examples/Makefile.am
-include doc/Makefile.am
-if ENABLE_MAN_PAGES
-include doc/man/Makefile.am
-endif
-if ENABLE_HTML_DOCS
-include doc/html/Makefile.am
-endif
+# include tests/Makefile.am
+# include examples/Makefile.am
+# include doc/Makefile.am
+# if ENABLE_MAN_PAGES
+# include doc/man/Makefile.am
+# endif
+# if ENABLE_HTML_DOCS
+# include doc/html/Makefile.am
+# endif
 
 # for various extra dist
 include build/cmake/Makefile.am
