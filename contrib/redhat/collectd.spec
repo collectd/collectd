@@ -62,7 +62,6 @@
 %{?el7:%global _has_lvm2app_h 1}
 %{?el7:%global _has_libudev 1}
 %{?el7:%global _has_recent_librrd 1}
-%{?el7:%global _has_varnish4 1}
 %{?el7:%global _has_broken_libmemcached 1}
 %{?el7:%global _has_iproute 1}
 %{?el7:%global _has_atasmart 1}
@@ -168,7 +167,7 @@
 %define with_uptime 0%{!?_without_uptime:1}
 %define with_users 0%{!?_without_users:1}
 %define with_uuid 0%{!?_without_uuid:1}
-%define with_varnish 0%{!?_without_varnish:0%{!?_has_varnish4:1}}
+%define with_varnish 0%{!?_without_varnish:1}
 %define with_vmem 0%{!?_without_vmem:1}
 %define with_vserver 0%{!?_without_vserver:1}
 %define with_wireless 0%{!?_without_wireless:1}
