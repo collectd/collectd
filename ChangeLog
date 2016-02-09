@@ -1,3 +1,76 @@
+2016-01-22, Version 5.5.1
+	* Build system: Compilation errors have been avoided by correctly
+	  defining package name and version used by autoconf. Thanks to Nathan
+	  Berkley. #1063
+	* Build system: Dependency ordering was fixed to ensure parallel builds
+	  work reliably. Thanks to Gustavo Zacarias. #1125
+	* Build system: Error messages have been improved and building the unit
+	  tests has been fixed on Solaris. Thanks to Florian Forster and
+	  Dagobert Michelsen. #1077
+	* Build system: The move of the "utils_ignorelist" functions has been
+	  reverted. This fixes build issues of numerous plugins. Thanks to
+	  Benjamin Drung;. #1323
+	* Build system: The fhcount plugin has been restricted to Linux. Thanks
+	  to Ruben Kerkhof. #1195
+	* Build system: Detection of header files for the turbostat plugin has
+	  been fixed. Thanks to Marc Fournier. #1075
+	* collectd: The "LC_NUMERIC" locale is now forced, to prevent issues
+	  with some plugins on environments using a comma as decimal separator.
+	  Thanks to Florian Forster. #1237
+	* Documentation: Some precisions related to the virt plugin have beed
+	  added. Thanks to Wojtek Bocer and Ruben Kerkhof.
+	* Documentation: The CollectdInternalStats documentation has been
+	  improved. Thanks to Yves Mettier and Florian Forster.
+	* Battery plugin: A missing Type has been added. Thanks to Marc
+	  Fournier. #1338
+	* Bind plugin: An off-by-one error has been fixed: an index was checked
+	  against a wrong variable, which may lead to an out-of-bounds read.
+	  Thanks to Michal Humpula. #1123
+	* Ceph plugin: JSON parsing has been refactored to support ceph 10.0.0
+	  and fixes several buffer overflows. Thanks to Florian Forster. #1350
+	* CPU plugin: A Mac OS X specific bug has been fixed: the plugin
+	  expected an incorrect number of CPU states, resulting in failing read
+	  callbacks. This regression was introduced in 5.5.0. Thanks to Robert
+	  Viduya.
+	* Disk plugin: Support for Mac OS X 10.10 has been added. Thanks to
+	  Robert Viduya. #1065
+	* IPC plugin: Support for building with musl-libc has been added. Thanks
+	  to Natanael Copa. #1147
+	* Log Logstash plugin: A segfault when using libyajl, version 1 was
+	  fixed. Thanks to Vincent Bernat. #1190
+	* Log Logstash plugin: The timestamp is now ISO 8601 compliant. Thanks
+	  to Marc Fournier. #1132
+	* memcached plugin: The Type of the listen-disabled metric was fixed.
+	  Thanks to Florian Forster. #1356
+	* MySQL plugin: The Type used by Innodb_buffer_pool_pages_flushed was
+	  fixed. Thanks to Marek Becka. #1085
+	* OpenLDAP plugin: A crash when using LDAPI (LDAP-over-IPC) got fixed.
+	  Thanks to Marek Becka. #1080
+	* OpenLDAP plugin: Support for Mac OS X has been added. Thanks to Ruben
+	  Kerkhof. #1489
+	* SMART plugin: A memory leak has been fixed. Thanks to Florian
+	  Schüller and Pierre-Yves Ritschard. #1076
+	* Swap plugin: A regression that would lead to swap usage being reported
+	  in kilobytes (instead of bytes) has been fixed. Thanks to Marek Becka.
+	  #1071
+	* Varnish plugin: Support for FreeBSD has been added. Thanks to Ruben
+	  Kerkhof. #1182
+	* Varnish plugin: Support for versions 3 and 4 has been made more
+	  tolerant to minor changes in Varnish point releases. Thanks to Marc
+	  Fournier. #1302
+	* virt plugin: A copy-and-paste mistake in an error message has been
+	  fixed. Thanks to Ruben Kerkhof. #1101
+	* Write Kafka plugin: Support for Solaris has been added. Thanks to
+	  Shahul Hameed. #1171
+	* Write Redis plugin: Dead code has been removed. Thanks to Brian Kelly.
+	  #1143
+	* 27 patches have been applied to numerous plugins and core components,
+	  fixing various programming errors which were reported by scan-build,
+	  libasan, FBInfer, coverity-scan and clang: Thanks to Ruben Kerkhof,
+	  Florian Forster and Marek Becka.
+	* Collectd::Unixsock: A Perl error got corrected. Thanks to Ciaran Mac
+	  An Iomaire. #1295
+
 2015-05-27, Version 5.5.0
 	* Build system: Ability to make out-of-tree builds has been fixed.
 	  Thanks to Vincent Bernat. #792

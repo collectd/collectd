@@ -455,7 +455,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 	}
 
 	// incorporate sensu tags from config if any
-	if (strlen(sensu_tags) != 0) {
+	if ((sensu_tags != NULL) && (strlen(sensu_tags) != 0)) {
 		res = asprintf(&temp_str, "%s, %s", ret_str, sensu_tags);
 		free(ret_str);
 		if (res == -1) {
@@ -752,7 +752,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 	}
 
 	// incorporate sensu tags from config if any
-	if (strlen(sensu_tags) != 0) {
+	if ((sensu_tags != NULL) && (strlen(sensu_tags) != 0)) {
 		res = asprintf(&temp_str, "%s, %s", ret_str, sensu_tags);
 		free(ret_str);
 		if (res == -1) {
