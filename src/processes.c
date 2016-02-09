@@ -359,6 +359,31 @@ static int ps_list_match (const char *name, const char *cmdline, procstat_t *ps)
 	return (0);
 } /* int ps_list_match */
 
+static void ps_update_counter (
+        _Bool init,
+        derive_t *group_counter,
+        derive_t *curr_counter, unsigned long *curr_value,
+        derive_t new_counter, unsigned long new_value) {
+    if (init)
+    {
+        *curr_value = new_value;
+        *curr_counter += new_value;
+        *group_counter += new_value;
+        return;
+    }
+
+    if (new_counter < *curr_counter)
+    {
+        *curr_value = new_counter + (ULONG_MAX - *curr_counter);
+    }
+    else
+    {
+        *curr_value = new_counter - *curr_counter;
+    }
+    *curr_counter = new_counter;
+    *group_counter += *curr_value;
+}
+
 /* add process entry to 'instances' of process 'name' (or refresh it) */
 static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t *entry)
 {
@@ -370,6 +395,8 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 
 	for (ps = list_head_g; ps != NULL; ps = ps->next)
 	{
+        _Bool want_init;
+
 		if ((ps_list_match (name, cmdline, ps)) == 0)
 			continue;
 
@@ -426,79 +453,27 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 		ps->cswitch_vol   += ((pse->cswitch_vol == -1)?0:pse->cswitch_vol);
 		ps->cswitch_invol += ((pse->cswitch_invol == -1)?0:pse->cswitch_invol);
 
-		if ((entry->vmem_minflt_counter == 0)
-				&& (entry->vmem_majflt_counter == 0))
-		{
-			pse->vmem_minflt_counter += entry->vmem_minflt;
-			pse->vmem_minflt = entry->vmem_minflt;
+		want_init = (entry->vmem_minflt_counter == 0)
+				&& (entry->vmem_majflt_counter == 0);
+		ps_update_counter (want_init,
+				&ps->vmem_minflt_counter,
+				&pse->vmem_minflt_counter, &pse->vmem_minflt,
+				entry->vmem_minflt_counter, entry->vmem_minflt);
+		ps_update_counter (want_init,
+				&ps->vmem_majflt_counter,
+				&pse->vmem_majflt_counter, &pse->vmem_majflt,
+				entry->vmem_majflt_counter, entry->vmem_majflt);
 
-			pse->vmem_majflt_counter += entry->vmem_majflt;
-			pse->vmem_majflt = entry->vmem_majflt;
-		}
-		else
-		{
-			if (entry->vmem_minflt_counter < pse->vmem_minflt_counter)
-			{
-				pse->vmem_minflt = entry->vmem_minflt_counter
-					+ (ULONG_MAX - pse->vmem_minflt_counter);
-			}
-			else
-			{
-				pse->vmem_minflt = entry->vmem_minflt_counter - pse->vmem_minflt_counter;
-			}
-			pse->vmem_minflt_counter = entry->vmem_minflt_counter;
-
-			if (entry->vmem_majflt_counter < pse->vmem_majflt_counter)
-			{
-				pse->vmem_majflt = entry->vmem_majflt_counter
-					+ (ULONG_MAX - pse->vmem_majflt_counter);
-			}
-			else
-			{
-				pse->vmem_majflt = entry->vmem_majflt_counter - pse->vmem_majflt_counter;
-			}
-			pse->vmem_majflt_counter = entry->vmem_majflt_counter;
-		}
-
-		ps->vmem_minflt_counter += pse->vmem_minflt;
-		ps->vmem_majflt_counter += pse->vmem_majflt;
-
-		if ((entry->cpu_user_counter == 0)
-				&& (entry->cpu_system_counter == 0))
-		{
-			pse->cpu_user_counter += entry->cpu_user;
-			pse->cpu_user = entry->cpu_user;
-
-			pse->cpu_system_counter += entry->cpu_system;
-			pse->cpu_system = entry->cpu_system;
-		}
-		else
-		{
-			if (entry->cpu_user_counter < pse->cpu_user_counter)
-			{
-				pse->cpu_user = entry->cpu_user_counter
-					+ (ULONG_MAX - pse->cpu_user_counter);
-			}
-			else
-			{
-				pse->cpu_user = entry->cpu_user_counter - pse->cpu_user_counter;
-			}
-			pse->cpu_user_counter = entry->cpu_user_counter;
-
-			if (entry->cpu_system_counter < pse->cpu_system_counter)
-			{
-				pse->cpu_system = entry->cpu_system_counter
-					+ (ULONG_MAX - pse->cpu_system_counter);
-			}
-			else
-			{
-				pse->cpu_system = entry->cpu_system_counter - pse->cpu_system_counter;
-			}
-			pse->cpu_system_counter = entry->cpu_system_counter;
-		}
-
-		ps->cpu_user_counter   += pse->cpu_user;
-		ps->cpu_system_counter += pse->cpu_system;
+		want_init = (entry->cpu_user_counter == 0)
+				&& (entry->cpu_system_counter == 0);
+		ps_update_counter (want_init,
+				&ps->cpu_user_counter,
+				&pse->cpu_user_counter, &pse->cpu_user,
+				entry->cpu_user_counter, entry->cpu_user);
+		ps_update_counter (want_init,
+				&ps->cpu_system_counter,
+				&pse->cpu_system_counter, &pse->cpu_system,
+				entry->cpu_system_counter, entry->cpu_system);
 	}
 }
 
