@@ -100,6 +100,9 @@
 #  include <sys/sysctl.h>
 #  include <sys/user.h>
 #  include <sys/proc.h>
+#  ifndef KERNEL_FREEBSD
+#    define KERNEL_FREEBSD 1
+#  endif
 /* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD */
 
 #elif HAVE_PROCINFO_H
@@ -549,7 +552,7 @@ static int ps_config (oconfig_item_t *ci)
 
 #if KERNEL_LINUX
 	const size_t max_procname_len = 15;
-#elif KERNEL_SOLARIS
+#elif KERNEL_SOLARIS || KERNEL_FREEBSD
 	const size_t max_procname_len = MAXCOMLEN -1;
 #endif
 
@@ -573,7 +576,7 @@ static int ps_config (oconfig_item_t *ci)
 						c->children_num, c->values[0].value.string);
 			}
 
-#if KERNEL_LINUX || KERNEL_SOLARIS
+#if KERNEL_LINUX || KERNEL_SOLARIS || KERNEL_FREEBSD
 			if (strlen (c->values[0].value.string) > max_procname_len) {
 				WARNING ("processes plugin: this platform has a %zu character limit "
 						"to process names. The `Process \"%s\"' option will "
