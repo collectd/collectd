@@ -21,36 +21,36 @@ ceph_latency            value:GAUGE:U:U
 ceph_rate               value:DERIVE:0:U
 changes_since_last_save value:GAUGE:0:U
 charge                  value:GAUGE:0:U
-compression_ratio       value:GAUGE:0:2
 compression             uncompressed:DERIVE:0:U, compressed:DERIVE:0:U
+compression_ratio       value:GAUGE:0:2
 connections             value:DERIVE:0:U
 conntrack               value:GAUGE:0:4294967295
 contextswitch           value:DERIVE:0:U
 count                   value:GAUGE:0:U
 counter                 value:COUNTER:U:U
-cpufreq                 value:GAUGE:0:U
 cpu                     value:DERIVE:0:U
+cpufreq                 value:GAUGE:0:U
+current                 value:GAUGE:U:U
 current_connections     value:GAUGE:0:U
 current_sessions        value:GAUGE:0:U
-current                 value:GAUGE:U:U
 delay                   value:GAUGE:-1000000:1000000
 derive                  value:DERIVE:0:U
+df                      used:GAUGE:0:1125899906842623, free:GAUGE:0:1125899906842623
 df_complex              value:GAUGE:0:U
 df_inodes               value:GAUGE:0:U
-df                      used:GAUGE:0:1125899906842623, free:GAUGE:0:1125899906842623
+disk_io_time            io_time:DERIVE:0:U, weighted_io_time:DERIVE:0:U
 disk_latency            read:GAUGE:0:U, write:GAUGE:0:U
 disk_merged             read:DERIVE:0:U, write:DERIVE:0:U
 disk_octets             read:DERIVE:0:U, write:DERIVE:0:U
-disk_ops_complex        value:DERIVE:0:U
 disk_ops                read:DERIVE:0:U, write:DERIVE:0:U
+disk_ops_complex        value:DERIVE:0:U
 disk_time               read:DERIVE:0:U, write:DERIVE:0:U
-disk_io_time            io_time:DERIVE:0:U, weighted_io_time:DERIVE:0:U
 dns_answer              value:DERIVE:0:U
 dns_notify              value:DERIVE:0:U
 dns_octets              queries:DERIVE:0:U, responses:DERIVE:0:U
 dns_opcode              value:DERIVE:0:U
-dns_qtype_cached        value:GAUGE:0:4294967295
 dns_qtype               value:DERIVE:0:U
+dns_qtype_cached        value:GAUGE:0:4294967295
 dns_query               value:DERIVE:0:U
 dns_question            value:DERIVE:0:U
 dns_rcode               value:DERIVE:0:U
@@ -75,8 +75,8 @@ file_size               value:GAUGE:0:U
 files                   value:GAUGE:0:U
 flow                    value:GAUGE:0:U
 fork_rate               value:DERIVE:0:U
-frequency_offset        value:GAUGE:-1000000:1000000
 frequency               value:GAUGE:0:U
+frequency_offset        value:GAUGE:-1000000:1000000
 fscache_stat            value:DERIVE:0:U
 gauge                   value:GAUGE:U:U
 hash_collisions         value:DERIVE:0:U
@@ -113,20 +113,20 @@ memory                  value:GAUGE:0:281474976710656
 memory_lua              value:GAUGE:0:281474976710656
 multimeter              value:GAUGE:U:U
 mutex_operations        value:DERIVE:0:U
-mysql_commands          value:DERIVE:0:U
-mysql_handler           value:DERIVE:0:U
-mysql_locks             value:DERIVE:0:U
-mysql_log_position      value:DERIVE:0:U
-mysql_octets            rx:DERIVE:0:U, tx:DERIVE:0:U
-mysql_bpool_pages       value:GAUGE:0:U
 mysql_bpool_bytes       value:GAUGE:0:U
 mysql_bpool_counters    value:DERIVE:0:U
+mysql_bpool_pages       value:GAUGE:0:U
+mysql_commands          value:DERIVE:0:U
+mysql_handler           value:DERIVE:0:U
 mysql_innodb_data       value:DERIVE:0:U
 mysql_innodb_dblwr      value:DERIVE:0:U
 mysql_innodb_log        value:DERIVE:0:U
 mysql_innodb_pages      value:DERIVE:0:U
 mysql_innodb_row_lock   value:DERIVE:0:U
 mysql_innodb_rows       value:DERIVE:0:U
+mysql_locks             value:DERIVE:0:U
+mysql_log_position      value:DERIVE:0:U
+mysql_octets            rx:DERIVE:0:U, tx:DERIVE:0:U
 mysql_select            value:DERIVE:0:U
 mysql_sort              value:DERIVE:0:U
 mysql_sort_merge_passes value:DERIVE:0:U
@@ -148,8 +148,8 @@ percent_inodes          value:GAUGE:0:100.1
 pf_counters             value:DERIVE:0:U
 pf_limits               value:DERIVE:0:U
 pf_source               value:DERIVE:0:U
-pf_states               value:GAUGE:0:U
 pf_state                value:DERIVE:0:U
+pf_states               value:GAUGE:0:U
 pg_blks                 value:DERIVE:0:U
 pg_db_size              value:GAUGE:0:U
 pg_n_tup_c              value:DERIVE:0:U
@@ -157,9 +157,9 @@ pg_n_tup_g              value:GAUGE:0:U
 pg_numbackends          value:GAUGE:0:U
 pg_scan                 value:DERIVE:0:U
 pg_xact                 value:DERIVE:0:U
+ping                    value:GAUGE:0:65535
 ping_droprate           value:GAUGE:0:100
 ping_stddev             value:GAUGE:0:65535
-ping                    value:GAUGE:0:65535
 players                 value:GAUGE:0:1000000
 power                   value:GAUGE:0:U
 pressure                value:GAUGE:0:U
@@ -179,8 +179,8 @@ pubsub                  value:GAUGE:0:U
 queue_length            value:GAUGE:0:U
 records                 value:GAUGE:0:U
 requests                value:GAUGE:0:U
-response_time           value:GAUGE:0:U
 response_code           value:GAUGE:0:U
+response_time           value:GAUGE:0:U
 route_etx               value:GAUGE:0:U
 route_metric            value:GAUGE:0:U
 routes                  value:GAUGE:0:U
@@ -189,23 +189,23 @@ serial_octets           rx:DERIVE:0:U, tx:DERIVE:0:U
 signal_noise            value:GAUGE:U:0
 signal_power            value:GAUGE:U:0
 signal_quality          value:GAUGE:0:U
-smart_poweron           value:GAUGE:0:U
-smart_powercycles       value:GAUGE:0:U
-smart_badsectors        value:GAUGE:0:U
-smart_temperature       value:GAUGE:-300:300
 smart_attribute         current:GAUGE:0:255, worst:GAUGE:0:255, threshold:GAUGE:0:255, pretty:GAUGE:0:U
+smart_badsectors        value:GAUGE:0:U
+smart_powercycles       value:GAUGE:0:U
+smart_poweron           value:GAUGE:0:U
+smart_temperature       value:GAUGE:-300:300
 snr                     value:GAUGE:0:U
 spam_check              value:GAUGE:0:U
 spam_score              value:GAUGE:U:U
 spl                     value:GAUGE:U:U
-swap_io                 value:DERIVE:0:U
 swap                    value:GAUGE:0:1099511627776
+swap_io                 value:DERIVE:0:U
 tcp_connections         value:GAUGE:0:4294967295
 temperature             value:GAUGE:U:U
 threads                 value:GAUGE:0:U
 time_dispersion         value:GAUGE:-1000000:1000000
-timeleft                value:GAUGE:0:U
 time_offset             value:GAUGE:-1000000:1000000
+timeleft                value:GAUGE:0:U
 total_bytes             value:DERIVE:0:U
 total_connections       value:DERIVE:0:U
 total_objects           value:DERIVE:0:U
@@ -226,8 +226,8 @@ vmpage_faults           minflt:DERIVE:0:U, majflt:DERIVE:0:U
 vmpage_io               in:DERIVE:0:U, out:DERIVE:0:U
 vmpage_number           value:GAUGE:0:4294967295
 volatile_changes        value:GAUGE:0:U
-voltage_threshold       value:GAUGE:U:U, threshold:GAUGE:U:U
 voltage                 value:GAUGE:U:U
+voltage_threshold       value:GAUGE:U:U, threshold:GAUGE:U:U
 vs_memory               value:GAUGE:0:9223372036854775807
 vs_processes            value:GAUGE:0:65535
 vs_threads              value:GAUGE:0:65535
