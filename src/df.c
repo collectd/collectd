@@ -28,6 +28,14 @@
 #include "utils_mount.h"
 #include "utils_ignorelist.h"
 
+#if defined(__NetBSD__)
+#include <sys/param.h>
+#include <math.h>
+#if __NetBSD_Version__ < 699001900
+typedef float float_t;
+#endif
+#endif
+
 #if HAVE_STATVFS
 # if HAVE_SYS_STATVFS_H
 #  include <sys/statvfs.h>
