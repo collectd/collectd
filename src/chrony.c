@@ -522,7 +522,7 @@ static int chrony_query(const int p_command, tChrony_Request *p_req, tChrony_Res
 		p_req->header.f_cmd_try = 0;
 		p_req->header.f_seq     = seq_nr;
 		
-		DEBUG(PLUGIN_NAME ": Sending request (.cmd = %d, .seq = %d)",p_command,seq_nr);
+		DEBUG(PLUGIN_NAME ": Sending request (.cmd = %d, .seq = %d)",p_command, seq_nr);
 		if (chrony_send_request(p_req,req_size) != 0)
 		{
 			break;
@@ -534,8 +534,8 @@ static int chrony_query(const int p_command, tChrony_Request *p_req, tChrony_Res
 			break;
 		}
 		DEBUG(PLUGIN_NAME ": Received response: .version = %u, .type = %u, .cmd = %u, .reply = %u, .status = %u, .seq = %u",
-				p_resp->header.f_version,p_resp->header.f_type,ntohs(p_resp->header.f_cmd),
-				ntohs(p_resp->header.f_reply),ntohs(p_resp->header.f_status),ntohl(p_resp->header.f_seq));
+				p_resp->header.f_version, p_resp->header.f_type, ntohs(p_resp->header.f_cmd),
+				ntohs(p_resp->header.f_reply), ntohs(p_resp->header.f_status), p_resp->header.f_seq);
 
 		if (p_resp->header.f_version != p_req->header.f_version)
 		{
