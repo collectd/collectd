@@ -187,6 +187,8 @@ static int wt_callback_init(struct wt_callback *cb)
         if (cb->sock_fd < 0)
             continue;
 
+        set_sock_opts(cb->sock_fd);
+
         status = connect(cb->sock_fd, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
         if (status != 0)
         {
