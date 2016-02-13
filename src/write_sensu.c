@@ -196,6 +196,8 @@ static int sensu_connect(struct sensu_host *host) /* {{{ */
 		if (setsockopt(host->s, SOL_SOCKET, SO_LINGER, &so_linger, sizeof so_linger) != 0)
 			WARNING("write_sensu plugin: failed to set socket close() lingering");
 
+		set_sock_opts(host->s);
+
 		// connect the socket
 		if (connect(host->s, ai->ai_addr, ai->ai_addrlen) != 0) {
 			close(host->s);
