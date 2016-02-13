@@ -240,6 +240,8 @@ static int wg_callback_init (struct wg_callback *cb)
             continue;
         }
 
+        set_sock_opts (cb->sock_fd);
+
         status = connect (cb->sock_fd, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
         if (status != 0)
         {
