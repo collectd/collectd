@@ -11,12 +11,18 @@
  *	  -> Done at higher levels
  */
 
-/* getaddrinfo */
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
-
-#include <arpa/inet.h> /* ntohs/ntohl */
+#if HAVE_SYS_TYPES_H
+#  include <sys/types.h> /* getaddrinfo */
+#endif
+#if HAVE_SYS_SOCKET_H
+#  include <sys/socket.h>
+#endif
+#if HAVE_NETDB_H
+#  include <netdb.h>
+#endif
+#if HAVE_ARPA_INET_H
+#  include <arpa/inet.h> /* ntohs/ntohl */
+#endif
 
 #include "collectd.h"
 #include "common.h" /* auxiliary functions */
@@ -54,10 +60,10 @@ static uint32_t g_chrony_seq_is_initialized = 0;
 #define CHRONY_DEFAULT_TIMEOUT 2
 
 /* Return codes (collectd expects non-zero on errors) */
-#define CHRONY_RC_OK    (int)0
-#define CHRONY_RC_FAIL  (int)1
+#define CHRONY_RC_OK    0
+#define CHRONY_RC_FAIL  1
 
-/* Variables adapted from chrony/candm.h */
+/* Variables adapted from chrony/candm.h (GPL2)*/
 /*BEGIN*/
 #define PROTO_VERSION_NUMBER 6
 #define IPADDR_UNSPEC 0
