@@ -2,7 +2,7 @@
    (c) 2015 by Claudius M Zingerli, ZSeng
    Internas roughly based on the ntpd plugin
    Some functions copied from chronyd/web (marked)
-   License: GPL2
+License: GPL2
 */
 /* TODO:
  *	- More robust udp parsing (using offsets instead of structs?)
@@ -10,6 +10,8 @@
  *	- Plausibility checks on values received
  *	  -> Done at higher levels
  */
+
+#include "config.h"
 
 #if HAVE_SYS_TYPES_H
 #  include <sys/types.h> /* getaddrinfo */
@@ -37,8 +39,8 @@
 
 static const char *g_config_keys[] =
 {
-        CONFIG_KEY_HOST,
-        CONFIG_KEY_PORT,
+	CONFIG_KEY_HOST,
+	CONFIG_KEY_PORT,
 	CONFIG_KEY_TIMEOUT
 };
 
@@ -206,7 +208,7 @@ typedef struct ATTRIB_PACKED
 	int16_t  f_poll;    /* 2^f_poll = Time between polls (s) */
 	uint16_t f_stratum; /* Remote clock stratum */
 	uint16_t f_state;   /* 0 = RPY_SD_ST_SYNC,    1 = RPY_SD_ST_UNREACH,   2 = RPY_SD_ST_FALSETICKER */
-       	                    /* 3 = RPY_SD_ST_JITTERY, 4 = RPY_SD_ST_CANDIDATE, 5 = RPY_SD_ST_OUTLIER     */
+	/* 3 = RPY_SD_ST_JITTERY, 4 = RPY_SD_ST_CANDIDATE, 5 = RPY_SD_ST_OUTLIER     */
 	uint16_t f_mode;    /* 0 = RPY_SD_MD_CLIENT,  1 = RPY_SD_MD_PEER,      2 = RPY_SD_MD_REF         */
 	uint16_t f_flags;   /* unused */
 	uint16_t f_reachability;       /* Bit mask of successfull tries to reach the source */
@@ -277,7 +279,7 @@ typedef struct ATTRIB_PACKED
 		tChrony_Resp_Source_stats source_stats;
 		tChrony_Resp_Tracking     tracking;
 	} body;
-	
+
 	uint8_t padding[1024];
 } tChrony_Response;
 
@@ -288,9 +290,9 @@ typedef struct ATTRIB_PACKED
 /* Code adapted from: http://long.ccaba.upc.edu/long/045Guidelines/eva/ipv6.html#daytimeClient6 */
 /*BEGIN*/
 static int connect_client (const char *p_hostname,
-                const char *p_service,
-                int         p_family,
-                int         p_socktype)
+		const char *p_service,
+		int         p_family,
+		int         p_socktype)
 {
 	struct addrinfo hints, *res=NULL, *ressave=NULL;
 	int n, sockfd;
@@ -345,36 +347,36 @@ static char * niptoha(const tChrony_IPAddr *addr,char *p_buf, size_t p_buf_size)
 
 	switch (ntohs(addr->f_family))
 	{
-	case IPADDR_UNSPEC:
-		rc=snprintf(p_buf, p_buf_size, "[UNSPEC]");
-	break;
-	case IPADDR_INET4:
-		ip = ntohl(addr->addr.ip4);
-		a = (ip>>24) & 0xff;
-		b = (ip>>16) & 0xff;
-		c = (ip>> 8) & 0xff;
-		d = (ip>> 0) & 0xff;
-		rc=snprintf(p_buf, p_buf_size, "%ld.%ld.%ld.%ld", a, b, c, d);
-	break;
-	case IPADDR_INET6:
-		ip6 = addr->addr.ip6;
+		case IPADDR_UNSPEC:
+			rc=snprintf(p_buf, p_buf_size, "[UNSPEC]");
+			break;
+		case IPADDR_INET4:
+			ip = ntohl(addr->addr.ip4);
+			a = (ip>>24) & 0xff;
+			b = (ip>>16) & 0xff;
+			c = (ip>> 8) & 0xff;
+			d = (ip>> 0) & 0xff;
+			rc=snprintf(p_buf, p_buf_size, "%ld.%ld.%ld.%ld", a, b, c, d);
+			break;
+		case IPADDR_INET6:
+			ip6 = addr->addr.ip6;
 
 #ifdef FEAT_IPV6
-		rc=inet_ntop(AF_INET6, ip6, p_buf, p_bug_size);
+			rc=inet_ntop(AF_INET6, ip6, p_buf, p_bug_size);
 #else
 #if defined(BYTE_ORDER) && (BYTE_ORDER == BIG_ENDIAN)
-		rc=snprintf(p_buf, p_buf_size, "%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
-			ip6[15], ip6[14], ip6[13], ip6[12], ip6[11], ip6[10], ip6[9], ip6[8],
-			ip6[7], ip6[6], ip6[5], ip6[4], ip6[3], ip6[2], ip6[1], ip6[0]);
+			rc=snprintf(p_buf, p_buf_size, "%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
+					ip6[15], ip6[14], ip6[13], ip6[12], ip6[11], ip6[10], ip6[9], ip6[8],
+					ip6[7], ip6[6], ip6[5], ip6[4], ip6[3], ip6[2], ip6[1], ip6[0]);
 #else
-		rc=snprintf(p_buf, p_buf_size, "%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
-			ip6[0], ip6[1], ip6[2], ip6[3], ip6[4], ip6[5], ip6[6], ip6[7],
-			ip6[8], ip6[9], ip6[10], ip6[11], ip6[12], ip6[13], ip6[14], ip6[15]);
+			rc=snprintf(p_buf, p_buf_size, "%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
+					ip6[0], ip6[1], ip6[2], ip6[3], ip6[4], ip6[5], ip6[6], ip6[7],
+					ip6[8], ip6[9], ip6[10], ip6[11], ip6[12], ip6[13], ip6[14], ip6[15]);
 #endif
 #endif
-	break;
-	default:
-		rc=snprintf(p_buf, p_buf_size, "[UNKNOWN]");
+			break;
+		default:
+			rc=snprintf(p_buf, p_buf_size, "[UNKNOWN]");
 	}
 	assert(rc>0);
 	return p_buf;
@@ -419,7 +421,7 @@ static int chrony_connect()
 		g_chrony_timeout = CHRONY_DEFAULT_TIMEOUT;
 		assert(g_chrony_timeout>=0);
 	}
-	
+
 
 	DEBUG(PLUGIN_NAME ": Connecting to %s:%s", g_chrony_host, g_chrony_port);
 	socket = connect_client(g_chrony_host, g_chrony_port,  AF_UNSPEC, SOCK_DGRAM);
@@ -489,33 +491,33 @@ static int chrony_query(const int p_command, tChrony_Request *p_req, tChrony_Res
 		uint16_t resp_code = RPY_NULL;
 		switch (p_command)
 		{
-		case REQ_TRACKING:
-			req_size  += sizeof(p_req->body.tracking);
-			resp_size += sizeof(p_resp->body.tracking); 
-			resp_code  = RPY_TRACKING;
-			valid_command = 1;
-		break;
-		case REQ_N_SOURCES:
-			req_size  += sizeof(p_req->body.n_sources);
-			resp_size += sizeof(p_resp->body.n_sources); 
-			resp_code  = RPY_N_SOURCES;
-			valid_command = 1;
-		break;
-		case REQ_SOURCE_DATA:
-			req_size  += sizeof(p_req->body.source_data);
-			resp_size += sizeof(p_resp->body.source_data); 
-			resp_code  = RPY_SOURCE_DATA;
-			valid_command = 1;
-		break;
-		case REQ_SOURCE_STATS:
-			req_size  += sizeof(p_req->body.source_stats);
-			resp_size += sizeof(p_resp->body.source_stats); 
-			resp_code  = RPY_SOURCE_STATS;
-			valid_command = 1;
-		break;
-		default:
-			ERROR (PLUGIN_NAME ": Unknown request command (Was: %d)", p_command);
-		break;
+			case REQ_TRACKING:
+				req_size  += sizeof(p_req->body.tracking);
+				resp_size += sizeof(p_resp->body.tracking); 
+				resp_code  = RPY_TRACKING;
+				valid_command = 1;
+				break;
+			case REQ_N_SOURCES:
+				req_size  += sizeof(p_req->body.n_sources);
+				resp_size += sizeof(p_resp->body.n_sources); 
+				resp_code  = RPY_N_SOURCES;
+				valid_command = 1;
+				break;
+			case REQ_SOURCE_DATA:
+				req_size  += sizeof(p_req->body.source_data);
+				resp_size += sizeof(p_resp->body.source_data); 
+				resp_code  = RPY_SOURCE_DATA;
+				valid_command = 1;
+				break;
+			case REQ_SOURCE_STATS:
+				req_size  += sizeof(p_req->body.source_stats);
+				resp_size += sizeof(p_resp->body.source_stats); 
+				resp_code  = RPY_SOURCE_STATS;
+				valid_command = 1;
+				break;
+			default:
+				ERROR (PLUGIN_NAME ": Unknown request command (Was: %d)", p_command);
+				break;
 		}
 
 		if (valid_command == 0)
@@ -527,7 +529,7 @@ static int chrony_query(const int p_command, tChrony_Request *p_req, tChrony_Res
 		p_req->header.f_cmd     = htons(p_command);
 		p_req->header.f_cmd_try = 0;
 		p_req->header.f_seq     = seq_nr;
-		
+
 		DEBUG(PLUGIN_NAME ": Sending request (.cmd = %d, .seq = %d)",p_command, seq_nr);
 		if (chrony_send_request(p_req,req_size) != 0)
 		{
@@ -573,18 +575,18 @@ static int chrony_query(const int p_command, tChrony_Request *p_req, tChrony_Res
 
 		switch (p_resp->header.f_status)
 		{
-		case STT_SUCCESS:
-			DEBUG(PLUGIN_NAME ": Reply packet status STT_SUCCESS");
-			break;
-		default:
-			ERROR(PLUGIN_NAME ": Reply packet contains error status: %d (expected: %d)", p_resp->header.f_status, STT_SUCCESS);
-			return CHRONY_RC_FAIL;
+			case STT_SUCCESS:
+				DEBUG(PLUGIN_NAME ": Reply packet status STT_SUCCESS");
+				break;
+			default:
+				ERROR(PLUGIN_NAME ": Reply packet contains error status: %d (expected: %d)", p_resp->header.f_status, STT_SUCCESS);
+				return CHRONY_RC_FAIL;
 		}
 
 		/* Good result */
 		return CHRONY_RC_OK;
 	} while (0);
-	
+
 	/* Some error occured */
 	return CHRONY_RC_FAIL;
 }
@@ -647,8 +649,8 @@ static void chrony_push_data(char *p_type, char *p_type_inst, double p_value)
 	/* XXX: Shall g_chrony_host/g_chrony_port be reflected in the plugin's output? */
 	/* hostname_g is set in daemon/collectd.c (from config, via gethostname or by resolving localhost) */
 	/* defined as: char hostname_g[DATA_MAX_NAME_LEN]; (never NULL) */
-	                               { sstrncpy (vl.host,            hostname_g,          sizeof (vl.host)); }
-	                               { sstrncpy (vl.plugin,          PLUGIN_NAME_SHORT,   sizeof (vl.plugin)); }
+	sstrncpy (vl.host,            hostname_g,          sizeof (vl.host));
+	sstrncpy (vl.plugin,          PLUGIN_NAME_SHORT,   sizeof (vl.plugin));
 	if (g_plugin_instance != NULL) { sstrncpy (vl.plugin_instance, g_plugin_instance,   sizeof (vl.plugin_instance)); }
 	if (p_type            != NULL) { sstrncpy (vl.type,            p_type,              sizeof (vl.type)); }
 	if (p_type_inst       != NULL) { sstrncpy (vl.type_instance,   p_type_inst,         sizeof (vl.type_instance)); }
@@ -775,29 +777,29 @@ static int chrony_request_daemon_stats()
 		ERROR (PLUGIN_NAME ": chrony_query (REQ_TRACKING) failed with status %i", rc);
 		return rc;
 	}
-	
+
 #if COLLECT_DEBUG
 	{
 		char src_addr[IPV6_STR_MAX_SIZE];
 		memset(src_addr, 0, sizeof(src_addr));
 		niptoha(&chrony_resp.body.tracking.addr, src_addr, sizeof(src_addr));
 		DEBUG(PLUGIN_NAME ": Daemon stat: .addr = %s, .ref_id= %u, .stratum = %u, .leap_status = %u, .ref_time = %u:%u:%u, .current_correction = %f, .last_offset = %f, .rms_offset = %f, .freq_ppm = %f, .skew_ppm = %f, .root_delay = %f, .root_dispersion = %f, .last_update_interval = %f",
-			src_addr,
-			ntohs(chrony_resp.body.tracking.f_ref_id), //FIXME: 16bit
-			ntohs(chrony_resp.body.tracking.f_stratum),
-			ntohs(chrony_resp.body.tracking.f_leap_status),
-			ntohl(chrony_resp.body.tracking.f_ref_time.tv_sec_high),
-			ntohl(chrony_resp.body.tracking.f_ref_time.tv_sec_low),
-			ntohl(chrony_resp.body.tracking.f_ref_time.tv_nsec),
-			ntohf(chrony_resp.body.tracking.f_current_correction),
-			ntohf(chrony_resp.body.tracking.f_last_offset),
-			ntohf(chrony_resp.body.tracking.f_rms_offset),
-			ntohf(chrony_resp.body.tracking.f_freq_ppm),
-			ntohf(chrony_resp.body.tracking.f_skew_ppm),
-			ntohf(chrony_resp.body.tracking.f_root_delay),
-			ntohf(chrony_resp.body.tracking.f_root_dispersion),
-			ntohf(chrony_resp.body.tracking.f_last_update_interval)
-		);
+				src_addr,
+				ntohs(chrony_resp.body.tracking.f_ref_id), //FIXME: 16bit
+				ntohs(chrony_resp.body.tracking.f_stratum),
+				ntohs(chrony_resp.body.tracking.f_leap_status),
+				ntohl(chrony_resp.body.tracking.f_ref_time.tv_sec_high),
+				ntohl(chrony_resp.body.tracking.f_ref_time.tv_sec_low),
+				ntohl(chrony_resp.body.tracking.f_ref_time.tv_nsec),
+				ntohf(chrony_resp.body.tracking.f_current_correction),
+				ntohf(chrony_resp.body.tracking.f_last_offset),
+				ntohf(chrony_resp.body.tracking.f_rms_offset),
+				ntohf(chrony_resp.body.tracking.f_freq_ppm),
+				ntohf(chrony_resp.body.tracking.f_skew_ppm),
+				ntohf(chrony_resp.body.tracking.f_root_delay),
+				ntohf(chrony_resp.body.tracking.f_root_dispersion),
+				ntohf(chrony_resp.body.tracking.f_last_update_interval)
+		     );
 	}
 #endif
 
@@ -840,12 +842,12 @@ static int chrony_request_sources_count(unsigned int *p_count)
 	DEBUG(PLUGIN_NAME ": Requesting data");
 	chrony_init_req(&chrony_req);
 	rc = chrony_query (REQ_N_SOURCES, &chrony_req, &chrony_resp, &chrony_resp_size);
-        if (rc != 0)
-        {
-                ERROR (PLUGIN_NAME ": chrony_query (REQ_N_SOURCES) failed with status %i", rc);
-                return rc;
-        }
-	
+	if (rc != 0)
+	{
+		ERROR (PLUGIN_NAME ": chrony_query (REQ_N_SOURCES) failed with status %i", rc);
+		return rc;
+	}
+
 	*p_count = ntohl(chrony_resp.body.n_sources.f_n_sources);
 	DEBUG(PLUGIN_NAME ": Getting data of %d clock sources", *p_count);
 
@@ -875,19 +877,19 @@ static int chrony_request_source_data(int p_src_idx, int *p_is_reachable)
 
 	niptoha(&chrony_resp.body.source_data.addr, src_addr, sizeof(src_addr));
 	DEBUG(PLUGIN_NAME ": Source[%d] data: .addr = %s, .poll = %u, .stratum = %u, .state = %u, .mode = %u, .flags = %u, .reach = %u, .latest_meas_ago = %u, .orig_latest_meas = %f, .latest_meas = %f, .latest_meas_err = %f",
-		p_src_idx,
-		src_addr,
-		ntohs(chrony_resp.body.source_data.f_poll),
-		ntohs(chrony_resp.body.source_data.f_stratum),
-		ntohs(chrony_resp.body.source_data.f_state),
-		ntohs(chrony_resp.body.source_data.f_mode),
-		ntohs(chrony_resp.body.source_data.f_flags),
-		ntohs(chrony_resp.body.source_data.f_reachability),
-		ntohl(chrony_resp.body.source_data.f_since_sample),
-		ntohf(chrony_resp.body.source_data.f_origin_latest_meas),
-		ntohf(chrony_resp.body.source_data.f_latest_meas),
-		ntohf(chrony_resp.body.source_data.f_latest_meas_err)
-	);
+			p_src_idx,
+			src_addr,
+			ntohs(chrony_resp.body.source_data.f_poll),
+			ntohs(chrony_resp.body.source_data.f_stratum),
+			ntohs(chrony_resp.body.source_data.f_state),
+			ntohs(chrony_resp.body.source_data.f_mode),
+			ntohs(chrony_resp.body.source_data.f_flags),
+			ntohs(chrony_resp.body.source_data.f_reachability),
+			ntohl(chrony_resp.body.source_data.f_since_sample),
+			ntohf(chrony_resp.body.source_data.f_origin_latest_meas),
+			ntohf(chrony_resp.body.source_data.f_latest_meas),
+			ntohf(chrony_resp.body.source_data.f_latest_meas_err)
+	     );
 
 	/* Push NaN if source is currently not reachable */
 	int is_reachable = ntohs(chrony_resp.body.source_data.f_reachability) & 0x01; 
@@ -939,18 +941,18 @@ static int chrony_request_source_stats(int p_src_idx, const int *p_is_reachable)
 		DEBUG(PLUGIN_NAME ": Source[%d] stat: .addr = %s, .ref_id= %u, .n_samples = %u, " \
 				".n_runs = %u, .span_seconds = %u, .rtc_seconds_fast = %f, " \
 				".rtc_gain_rate_ppm = %f, .skew_ppm= %f, .est_offset = %f, .est_offset_err = %f",
-			p_src_idx,
-			src_addr,
-			ntohl(chrony_resp.body.source_stats.f_ref_id),
-			ntohl(chrony_resp.body.source_stats.f_n_samples),
-			ntohl(chrony_resp.body.source_stats.f_n_runs),
-			ntohl(chrony_resp.body.source_stats.f_span_seconds),
-			ntohf(chrony_resp.body.source_stats.f_rtc_seconds_fast),
-			frequency_error,
-			skew_ppm,
-			time_offset,
-			ntohf(chrony_resp.body.source_stats.f_est_offset_err)
-		);
+				p_src_idx,
+				src_addr,
+				ntohl(chrony_resp.body.source_stats.f_ref_id),
+				ntohl(chrony_resp.body.source_stats.f_n_samples),
+				ntohl(chrony_resp.body.source_stats.f_n_runs),
+				ntohl(chrony_resp.body.source_stats.f_span_seconds),
+				ntohf(chrony_resp.body.source_stats.f_rtc_seconds_fast),
+				frequency_error,
+				skew_ppm,
+				time_offset,
+				ntohf(chrony_resp.body.source_stats.f_est_offset_err)
+		     );
 
 	} //if (*is_reachable)
 
@@ -978,7 +980,7 @@ static int chrony_read()
 		}
 		g_chrony_seq_is_initialized = 1;
 	}
-	
+
 	/* Get daemon stats */
 	rc = chrony_request_daemon_stats();
 	if (rc != CHRONY_RC_OK)
@@ -987,7 +989,7 @@ static int chrony_read()
 	}
 
 	/* Get number of time sources, then check every source for status */
-       	rc = chrony_request_sources_count(&n_sources);
+	rc = chrony_request_sources_count(&n_sources);
 	if (rc != CHRONY_RC_OK)
 	{
 		return rc;
