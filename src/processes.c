@@ -777,14 +777,14 @@ static void ps_submit_fork_rate (derive_t value)
 
 /* ------- additional functions for KERNEL_LINUX/HAVE_THREAD_INFO ------- */
 #if KERNEL_LINUX
-static int ps_read_tasks (int pid)
+static int ps_read_tasks (long pid)
 {
 	char           dirname[64];
 	DIR           *dh;
 	struct dirent *ent;
 	int count = 0;
 
-	ssnprintf (dirname, sizeof (dirname), "/proc/%i/task", pid);
+	ssnprintf (dirname, sizeof (dirname), "/proc/%li/task", pid);
 
 	if ((dh = opendir (dirname)) == NULL)
 	{
@@ -805,7 +805,7 @@ static int ps_read_tasks (int pid)
 } /* int *ps_read_tasks */
 
 /* Read advanced virtual memory data from /proc/pid/status */
-static procstat_t *ps_read_vmem (int pid, procstat_t *ps)
+static procstat_t *ps_read_vmem (long pid, procstat_t *ps)
 {
 	FILE *fh;
 	char buffer[1024];
@@ -816,7 +816,7 @@ static procstat_t *ps_read_vmem (int pid, procstat_t *ps)
 	char *fields[8];
 	int numfields;
 
-	ssnprintf (filename, sizeof (filename), "/proc/%i/status", pid);
+	ssnprintf (filename, sizeof (filename), "/proc/%li/status", pid);
 	if ((fh = fopen (filename, "r")) == NULL)
 		return (NULL);
 
@@ -867,7 +867,7 @@ static procstat_t *ps_read_vmem (int pid, procstat_t *ps)
 	return (ps);
 } /* procstat_t *ps_read_vmem */
 
-static procstat_t *ps_read_io (int pid, procstat_t *ps)
+static procstat_t *ps_read_io (long pid, procstat_t *ps)
 {
 	FILE *fh;
 	char buffer[1024];
@@ -876,7 +876,7 @@ static procstat_t *ps_read_io (int pid, procstat_t *ps)
 	char *fields[8];
 	int numfields;
 
-	ssnprintf (filename, sizeof (filename), "/proc/%i/io", pid);
+	ssnprintf (filename, sizeof (filename), "/proc/%li/io", pid);
 	if ((fh = fopen (filename, "r")) == NULL)
 		return (NULL);
 
@@ -922,7 +922,7 @@ static procstat_t *ps_read_io (int pid, procstat_t *ps)
 	return (ps);
 } /* procstat_t *ps_read_io */
 
-int ps_read_process (int pid, procstat_t *ps, char *state)
+int ps_read_process (long pid, procstat_t *ps, char *state)
 {
 	char  filename[64];
 	char  buffer[1024];
@@ -945,7 +945,7 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 
 	memset (ps, 0, sizeof (procstat_t));
 
-	ssnprintf (filename, sizeof (filename), "/proc/%i/stat", pid);
+	ssnprintf (filename, sizeof (filename), "/proc/%li/stat", pid);
 
 	buffer_len = read_file_contents (filename,
 			buffer, sizeof(buffer) - 1);
@@ -990,9 +990,9 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 	fields_len = strsplit (buffer_ptr, fields, STATIC_ARRAY_SIZE (fields));
 	if (fields_len < 22)
 	{
-		DEBUG ("processes plugin: ps_read_process (pid = %i):"
+		DEBUG ("processes plugin: ps_read_process (pid = %li):"
 				" `%s' has only %i fields..",
-				(int) pid, filename, fields_len);
+				pid, filename, fields_len);
 		return (-1);
 	}
 
@@ -1016,7 +1016,7 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 	/* Leave the rest at zero if this is only a zombi */
 	if (ps->num_proc == 0)
 	{
-		DEBUG ("processes plugin: This is only a zombie: pid = %i; "
+		DEBUG ("processes plugin: This is only a zombie: pid = %li; "
 				"name = %s;", pid, ps->name);
 		return (0);
 	}
@@ -1064,14 +1064,14 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 		ps->io_syscr = -1;
 		ps->io_syscw = -1;
 
-		DEBUG("ps_read_process: not get io data for pid %i",pid);
+		DEBUG("ps_read_process: not get io data for pid %li", pid);
 	}
 
 	/* success */
 	return (0);
 } /* int ps_read_process (...) */
 
-static char *ps_get_cmdline (pid_t pid, char *name, char *buf, size_t buf_len)
+static char *ps_get_cmdline (long pid, char *name, char *buf, size_t buf_len)
 {
 	char  *buf_ptr;
 	size_t len;
@@ -1084,8 +1084,7 @@ static char *ps_get_cmdline (pid_t pid, char *name, char *buf, size_t buf_len)
 	if ((pid < 1) || (NULL == buf) || (buf_len < 2))
 		return NULL;
 
-	ssnprintf (file, sizeof (file), "/proc/%u/cmdline",
-		       	(unsigned int) pid);
+	ssnprintf (file, sizeof (file), "/proc/%li/cmdline", pid);
 
 	errno = 0;
 	fd = open (file, O_RDONLY);
@@ -1213,7 +1212,7 @@ static int read_fork_rate ()
 #endif /*KERNEL_LINUX */
 
 #if KERNEL_SOLARIS
-static char *ps_get_cmdline (pid_t pid, char *name __attribute__((unused)), /* {{{ */
+static char *ps_get_cmdline (long pid, char *name __attribute__((unused)), /* {{{ */
     char *buffer, size_t buffer_size)
 {
 	char path[PATH_MAX];
@@ -1702,7 +1701,7 @@ static int ps_read (void)
 
 	struct dirent *ent;
 	DIR           *proc;
-	int            pid;
+	long           pid;
 
 	char cmdline[ARG_MAX];
 
@@ -1729,7 +1728,7 @@ static int ps_read (void)
 		if (!isdigit (ent->d_name[0]))
 			continue;
 
-		if ((pid = atoi (ent->d_name)) < 1)
+		if ((pid = atol (ent->d_name)) < 1)
 			continue;
 
 		status = ps_read_process (pid, &ps, &state);
