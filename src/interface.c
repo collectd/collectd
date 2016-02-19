@@ -286,6 +286,10 @@ static int interface_read (void)
 		incoming = atoll (fields[2]);
 		outgoing = atoll (fields[10]);
 		if_submit (device, "if_errors", incoming, outgoing);
+
+		incoming = atoll (fields[3]);
+		outgoing = atoll (fields[11]);
+		if_submit (device, "if_dropped", incoming, outgoing);
 	}
 
 	fclose (fh);
