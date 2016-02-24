@@ -54,6 +54,7 @@ struct cx_xpath_s /* {{{ */
   size_t values_len;
   char *instance_prefix;
   char *instance;
+  char *plugin_instance_from;
   int is_table;
   unsigned long magic;
 };
@@ -145,6 +146,7 @@ static void cx_xpath_free(cx_xpath_t *xpath) /* {{{ */
   sfree(xpath->path);
   sfree(xpath->type);
   sfree(xpath->instance_prefix);
+  sfree(xpath->plugin_instance_from);
   sfree(xpath->instance);
   sfree(xpath->values);
   sfree(xpath);
@@ -380,23 +382,12 @@ static int cx_handle_all_value_xpaths(xmlXPathContextPtr xpath_ctx, /* {{{ */
 } /* }}} int cx_handle_all_value_xpaths */
 
 static int cx_handle_instance_xpath(xmlXPathContextPtr xpath_ctx, /* {{{ */
-                                    cx_xpath_t *xpath, value_list_t *vl,
-                                    _Bool is_table) {
+                                    cx_xpath_t *xpath, value_list_t *vl) {
+
   xmlXPathObjectPtr instance_node_obj = NULL;
   xmlNodeSetPtr instance_node = NULL;
 
   memset(vl->type_instance, 0, sizeof(vl->type_instance));
-
-  /* If the base xpath returns more than one block, the result is assumed to be
-   * a table. The `Instance' option is not optional in this case. Check for the
-   * condition and inform the user. */
-  if (is_table && (xpath->instance == NULL)) {
-    WARNING("curl_xml plugin: "
-            "Base-XPath %s is a table (more than one result was returned), "
-            "but no instance-XPath has been defined.",
-            xpath->path);
-    return -1;
-  }
 
   /* instance has to be an xpath expression */
   if (xpath->instance != NULL) {
@@ -463,6 +454,61 @@ static int cx_handle_instance_xpath(xmlXPathContextPtr xpath_ctx, /* {{{ */
    * somewhere inside this structure. */
   xmlXPathFreeObject(instance_node_obj);
 
+  /* Part 2, handle PluginInstanceFrom */
+  instance_node_obj = NULL;
+  instance_node = NULL;
+
+  /* plugin_instance_from has to be an xpath expression */
+  if (xpath->plugin_instance_from != NULL) {
+    int tmp_size;
+
+    instance_node_obj = cx_evaluate_xpath(xpath_ctx,
+                                          BAD_CAST xpath->plugin_instance_from);
+    if (instance_node_obj == NULL)
+      return -1; /* error is already logged */
+
+    instance_node = instance_node_obj->nodesetval;
+    tmp_size = (instance_node) ? instance_node->nodeNr : 0;
+
+    if (tmp_size <= 0) {
+      WARNING("curl_xml plugin: "
+              "relative xpath expression for 'PluginInstanceFrom' \"%s\" "
+              "doesn't match any of the nodes. Skipping the node.",
+              xpath->plugin_instance_from);
+      xmlXPathFreeObject(instance_node_obj);
+      return -1;
+    }
+
+    if (tmp_size > 1) {
+      WARNING("curl_xml plugin: "
+              "relative xpath expression for 'PluginInstanceFrom' \"%s\" "
+              "is expected to return only one text node. Skipping the node.",
+              xpath->plugin_instance_from);
+      xmlXPathFreeObject(instance_node_obj);
+      return -1;
+    }
+
+    /* ignoring the element if other than textnode/attribute */
+    if (cx_if_not_text_node(instance_node->nodeTab[0])) {
+      WARNING("curl_xml plugin: "
+              "relative xpath expression \"%s\" is expected to return only "
+              "text node which is not the case. Skipping the node.",
+              xpath->plugin_instance_from);
+      xmlXPathFreeObject(instance_node_obj);
+      return -1;
+    }
+
+    if (instance_node != NULL) {
+      char *node_value = (char *)xmlNodeGetContent(instance_node->nodeTab[0]);
+      sstrncpy (vl->plugin_instance, node_value, sizeof(vl->plugin_instance));
+      sfree(node_value);
+    }
+
+    /* Free `instance_node_obj' this late, because `instance_node' points to
+     * somewhere inside this structure. */
+    xmlXPathFreeObject(instance_node_obj);
+  } /* if (xpath->plugin_instance_from != NULL) */
+
   return 0;
 } /* }}} int cx_handle_instance_xpath */
 
@@ -494,11 +540,12 @@ static int cx_handle_base_xpath(const cx_t *db, /* {{{ */
   }
 
   /* If base_xpath returned multiple results, then */
-  /* Instance in the xpath block is required */
-  if (total_nodes > 1 && xpath->instance == NULL) {
+  /* InstanceFrom or PluginInstanceFrom in the xpath block is required */ 
+  if (total_nodes > 1 && xpath->instance == NULL
+      && xpath->plugin_instance_from == NULL) {
     ERROR("curl_xml plugin: "
-          "InstanceFrom is must in xpath block since the base xpath expression "
-          "\"%s\" "
+          "InstanceFrom or PluginInstanceFrom is must in xpath block "
+          "since the base xpath expression \"%s\" "
           "returned multiple results. Skipping the xpath block...",
           base_xpath);
     return -1;
@@ -510,16 +557,16 @@ static int cx_handle_base_xpath(const cx_t *db, /* {{{ */
   sstrncpy(vl.plugin, (db->plugin_name != NULL) ? db->plugin_name : "curl_xml",
            sizeof(vl.plugin));
   sstrncpy(vl.host, cx_host(db), sizeof(vl.host));
-  if (db->instance != NULL)
-    sstrncpy(vl.plugin_instance, db->instance, sizeof(vl.plugin_instance));
 
   for (int i = 0; i < total_nodes; i++) {
     int status;
 
     xpath_ctx->node = base_nodes->nodeTab[i];
 
-    status = cx_handle_instance_xpath(xpath_ctx, xpath, &vl,
-                                      /* is_table = */ (total_nodes > 1));
+    if (db->instance != NULL)
+      sstrncpy (vl.plugin_instance, db->instance, sizeof (vl.plugin_instance));
+
+    status = cx_handle_instance_xpath(xpath_ctx, xpath, &vl);
     if (status != 0)
       continue; /* An error has already been reported. */
 
@@ -722,6 +769,8 @@ static int cx_config_add_xpath(cx_t *db, oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string(child, &xpath->instance_prefix);
     else if (strcasecmp("InstanceFrom", child->key) == 0)
       status = cf_util_get_string(child, &xpath->instance);
+    else if (strcasecmp("PluginInstanceFrom", child->key) == 0)
+      status = cf_util_get_string(child, &xpath->plugin_instance_from);
     else if (strcasecmp("ValuesFrom", child->key) == 0)
       status = cx_config_add_values("ValuesFrom", xpath, child);
     else {
