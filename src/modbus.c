@@ -288,7 +288,9 @@ static int mb_init_connection (mb_host_t *host) /* {{{ */
   if (host == NULL)
     return (EINVAL);
 
+#if COLLECT_DEBUG
   modbus_set_debug (&host->connection, 1);
+#endif
 
   /* We'll do the error handling ourselves. */
   modbus_set_error_handling (&host->connection, NOP_ON_ERROR);
@@ -341,7 +343,9 @@ static int mb_init_connection (mb_host_t *host) /* {{{ */
     return (-1);
   }
 
+#if COLLECT_DEBUG
   modbus_set_debug (host->connection, 1);
+#endif
 
   /* We'll do the error handling ourselves. */
   modbus_set_error_recovery (host->connection, 0);
