@@ -1802,6 +1802,11 @@ The following options are valid within B<URL> blocks:
 Use I<Name> as the host name when submitting values. Defaults to the global
 host name setting.
 
+=item B<PluginName> I<PluginName>
+
+Use I<PluginName> as the plugin name when submitting values.
+Defaults to 'curl_json'.
+
 =item B<Instance> I<Instance>
 
 Sets the plugin instance to I<Instance>.
