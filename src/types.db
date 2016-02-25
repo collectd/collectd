@@ -185,6 +185,10 @@ pg_n_tup_g              value:GAUGE:0:U
 pg_numbackends          value:GAUGE:0:U
 pg_scan                 value:DERIVE:0:U
 pg_xact                 value:DERIVE:0:U
+phpfpm_listen_queue     value:GAUGE:0:65535
+phpfpm_processes        value:GAUGE:0:65535
+phpfpm_requests         value:DERIVE:0:U
+phpfpm_slow_requests    value:DERIVE:0:U
 ping                    value:GAUGE:0:65535
 ping_droprate           value:GAUGE:0:100
 ping_stddev             value:GAUGE:0:65535
