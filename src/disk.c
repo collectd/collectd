@@ -106,6 +106,10 @@ typedef struct diskstats
 	derive_t avg_read_time;
 	derive_t avg_write_time;
 
+	_Bool has_merged;
+	_Bool has_in_progress;
+	_Bool has_io_time;
+
 	struct diskstats *next;
 } diskstats_t;
 
@@ -818,6 +822,16 @@ static int disk_read (void)
 			ds->read_time = read_time;
 			ds->write_ops = write_ops;
 			ds->write_time = write_time;
+
+			if (read_merged || write_merged)
+				ds->has_merged = 1;
+
+			if (in_progress)
+				ds->has_in_progress = 1;
+
+			if (io_time)
+				ds->has_io_time = 1;
+		
 		} /* if (is_disk) */
 
 		/* Don't write to the RRDs if we've just started.. */
@@ -859,10 +873,13 @@ static int disk_read (void)
 
 		if (is_disk)
 		{
-			disk_submit (output_name, "disk_merged",
+			if (ds->has_merged)
+				disk_submit (output_name, "disk_merged",
 					read_merged, write_merged);
-			submit_in_progress (output_name, in_progress);
-			submit_io_time (output_name, io_time, weighted_time);
+			if (ds->has_in_progress)
+				submit_in_progress (output_name, in_progress);
+			if (ds->has_io_time)
+				submit_io_time (output_name, io_time, weighted_time);
 		} /* if (is_disk) */
 
 #if HAVE_LIBUDEV
