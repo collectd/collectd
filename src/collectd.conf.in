@@ -84,7 +84,7 @@
 # Lines beginning with a single `#' belong to plugins which have been built  #
 # but are disabled by default.                                               #
 #                                                                            #
-# Lines begnning with `##' belong to plugins which have not been built due   #
+# Lines beginning with `##' belong to plugins which have not been built due  #
 # to missing dependencies or because they have been deactivated explicitly.  #
 ##############################################################################
 
