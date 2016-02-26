@@ -44,6 +44,7 @@ AC_SYS_LARGEFILE
 #
 AC_PROG_CC
 AC_PROG_CPP
+AC_PROG_EGREP
 AC_PROG_INSTALL
 AC_PROG_LN_S
 AC_PROG_MAKE_SET
@@ -59,6 +60,18 @@ AC_PROG_YACC
 m4_pattern_forbid([^_?PKG_[A-Z_]+$],[*** pkg.m4 missing, please install pkg-config])
 
 PKG_PROG_PKG_CONFIG
+
+AC_CACHE_CHECK([if bison is the parser generator],
+	[collectd_cv_prog_bison],
+	[AS_IF([$YACC --version 2>/dev/null | $EGREP -q '^bison '],
+		[collectd_cv_prog_bison=yes], [collectd_cv_prog_bison=no]
+	)]
+)
+
+if test "x$collectd_cv_prog_bison" = "xno" && test ! -f "${srcdir}/liboconfig/parser.c"
+then
+	AC_MSG_ERROR([bison is missing and you do not have ${srcdir}/liboconfig/parser.c. Please install bison])
+fi
 
 AC_CHECK_PROG([have_protoc_c], [protoc-c], [yes], [no])
 if test "x$have_protoc_c" = "xno"

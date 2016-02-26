@@ -531,13 +531,16 @@ static int apache_read_host (user_data_t *user_data) /* {{{ */
 
 	st = user_data->data;
 
+	int status;
+
+	char *content_type;
+	static const char *text_plain = "text/plain";
+
 	assert (st->url != NULL);
 	/* (Assured by `config_add') */
 
 	if (st->curl == NULL)
 	{
-		int status;
-
 		status = init_host (st);
 		if (status != 0)
 			return (-1);
@@ -558,6 +561,16 @@ static int apache_read_host (user_data_t *user_data) /* {{{ */
 		WARNING ("apache plugin: Unable to determine server software "
 				"automatically. Will assume Apache.");
 		st->server_type = APACHE;
+	}
+
+	status = curl_easy_getinfo (st->curl, CURLINFO_CONTENT_TYPE, &content_type);
+	if ((status == CURLE_OK) && (content_type != NULL) &&
+	    (strncasecmp (content_type, text_plain, strlen (text_plain)) != 0))
+	{
+		WARNING ("apache plugin: `Content-Type' response header is not `%s' "
+			"(received: `%s'). Expecting unparseable data. Please check `URL' "
+			"parameter (missing `?auto' suffix ?)",
+			text_plain, content_type);
 	}
 
 	ptr = st->apache_buffer;
