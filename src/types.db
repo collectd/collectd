@@ -128,6 +128,8 @@ mysql_innodb_row_lock	value:DERIVE:0:U
 mysql_innodb_rows	value:DERIVE:0:U
 mysql_select		value:DERIVE:0:U
 mysql_sort		value:DERIVE:0:U
+mysql_sort_merge_passes	value:DERIVE:0:U
+mysql_sort_rows		value:DERIVE:0:U
 nfs_procedure		value:DERIVE:0:U
 nginx_connections	value:GAUGE:0:U
 nginx_requests		value:DERIVE:0:U

@@ -900,8 +900,15 @@ static int mysql_read (user_data_t *ud)
 		}
 		else if (strncmp (key, "Sort_", strlen ("Sort_")) == 0)
 		{
-			counter_submit ("mysql_sort", key + strlen ("Sort_"),
-					val, db);
+			if (strcmp (key, "Sort_merge_passes") == 0)
+				counter_submit ("mysql_sort_merge_passes", NULL, val, db);
+			else if (strcmp (key, "Sort_rows") == 0)
+				counter_submit ("mysql_sort_rows", NULL, val, db);
+			else if (strcmp (key, "Sort_range") == 0)
+				counter_submit ("mysql_sort", "range", val, db);
+			else if (strcmp (key, "Sort_scan") == 0)
+				counter_submit ("mysql_sort", "scan", val, db);
+			
 		}
 	}
 	mysql_free_result (res); res = NULL;
