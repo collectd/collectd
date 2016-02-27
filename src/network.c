@@ -776,11 +776,11 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
 
 	uint16_t tmp16;
 	size_t exp_size;
-	size_t i;
+	int   i;
 
 	uint16_t pkg_length;
 	uint16_t pkg_type;
-	size_t pkg_numval;
+	uint16_t pkg_numval;
 
 	uint8_t *pkg_types;
 	value_t *pkg_values;
@@ -802,7 +802,7 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
 
 	memcpy ((void *) &tmp16, buffer, sizeof (tmp16));
 	buffer += sizeof (tmp16);
-	pkg_numval = (size_t) ntohs (tmp16);
+	pkg_numval = ntohs (tmp16);
 
 	assert (pkg_type == TYPE_VALUES);
 
@@ -817,7 +817,6 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
 				exp_size, buffer_len);
 		return (-1);
 	}
-	assert (pkg_numval <= ((buffer_len - 6) / 9));
 
 	if (pkg_length != exp_size)
 	{
@@ -827,20 +826,20 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
 		return (-1);
 	}
 
-	pkg_types = calloc (pkg_numval, sizeof (*pkg_types));
-	pkg_values = calloc (pkg_numval, sizeof (*pkg_values));
+	pkg_types = (uint8_t *) malloc (pkg_numval * sizeof (uint8_t));
+	pkg_values = (value_t *) malloc (pkg_numval * sizeof (value_t));
 	if ((pkg_types == NULL) || (pkg_values == NULL))
 	{
 		sfree (pkg_types);
 		sfree (pkg_values);
-		ERROR ("network plugin: parse_part_values: calloc failed.");
+		ERROR ("network plugin: parse_part_values: malloc failed.");
 		return (-1);
 	}
 
-	memcpy (pkg_types, buffer, pkg_numval * sizeof (*pkg_types));
-	buffer += pkg_numval * sizeof (*pkg_types);
-	memcpy (pkg_values, buffer, pkg_numval * sizeof (*pkg_values));
-	buffer += pkg_numval * sizeof (*pkg_values);
+	memcpy ((void *) pkg_types, (void *) buffer, pkg_numval * sizeof (uint8_t));
+	buffer += pkg_numval * sizeof (uint8_t);
+	memcpy ((void *) pkg_values, (void *) buffer, pkg_numval * sizeof (value_t));
+	buffer += pkg_numval * sizeof (value_t);
 
 	for (i = 0; i < pkg_numval; i++)
 	{
@@ -874,7 +873,7 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
 
 	*ret_buffer     = buffer;
 	*ret_buffer_len = buffer_len - pkg_length;
-	*ret_num_values = pkg_numval;
+	*ret_num_values = (size_t) pkg_numval;
 	*ret_values     = pkg_values;
 
 	sfree (pkg_types);

@@ -1,7 +1,6 @@
 /**
  * collectd - src/ceph.c
  * Copyright (C) 2011  New Dream Network
- * Copyright (C) 2015  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,10 +16,9 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Colin McCabe <cmccabe at alumni.cmu.edu>
- *   Dennis Zou <yunzou at cisco.com>
- *   Dan Ryder <daryder at cisco.com>
- *   Florian octo Forster <octo at collectd.org>
+ *   Colin McCabe <cmccabe@alumni.cmu.edu>
+ *   Dennis Zou <yunzou@cisco.com>
+ *   Dan Ryder <daryder@cisco.com>
  **/
 
 #define _DEFAULT_SOURCE
@@ -134,10 +132,11 @@ struct yajl_struct
 {
     node_handler_t handler;
     void * handler_arg;
-
-    char *key;
-    char *stack[YAJL_MAX_DEPTH];
-    size_t depth;
+    struct {
+      char key[DATA_MAX_NAME_LEN];
+      int key_len;
+    } state[YAJL_MAX_DEPTH];
+    int depth;
 };
 typedef struct yajl_struct yajl_struct;
 
@@ -256,81 +255,68 @@ static int ceph_cb_boolean(void *ctx, int bool_val)
     return CEPH_CB_CONTINUE;
 }
 
-#define BUFFER_ADD(dest, src) do { \
-    size_t dest_size = sizeof (dest); \
-    strncat ((dest), (src), dest_size - strlen (dest)); \
-    (dest)[dest_size - 1] = 0; \
-} while (0)
-
 static int
 ceph_cb_number(void *ctx, const char *number_val, yajl_len_t number_len)
 {
-    yajl_struct *state = (yajl_struct*) ctx;
+    yajl_struct *yajl = (yajl_struct*)ctx;
     char buffer[number_len+1];
-    char key[2 * DATA_MAX_NAME_LEN];
-    _Bool latency_type = 0;
-    size_t i;
-    int status;
+    int i, latency_type = 0, result;
+    char key[128];
 
     memcpy(buffer, number_val, number_len);
     buffer[sizeof(buffer) - 1] = 0;
 
-    memset (key, 0, sizeof (key));
-    for (i = 0; i < state->depth; i++)
+    ssnprintf(key, yajl->state[0].key_len, "%s", yajl->state[0].key);
+    for(i = 1; i < yajl->depth; i++)
     {
-        if (state->stack[i] == NULL)
-            continue;
-
-        if (strlen (key) != 0)
-            BUFFER_ADD (key, ".");
-        BUFFER_ADD (key, state->stack[i]);
-    }
-
-    /* Special case for latency metrics. */
-    if ((strcmp ("avgcount", state->key) == 0)
-        || (strcmp ("sum", state->key) == 0))
-    {
-        latency_type = 1;
-
-        /* Super-special case for filestore.journal_wr_bytes.avgcount: For
-         * some reason, Ceph schema encodes this as a count/sum pair while all
-         * other "Bytes" data (excluding used/capacity bytes for OSD space) uses
-         * a single "Derive" type. To spare further confusion, keep this KPI as
-         * the same type of other "Bytes". Instead of keeping an "average" or
-         * "rate", use the "sum" in the pair and assign that to the derive
-         * value. */
-        if (convert_special_metrics && (state->depth >= 2)
-            && (strcmp("filestore", state->stack[state->depth - 2]) == 0)
-            && (strcmp("journal_wr_bytes", state->stack[state->depth - 1]) == 0)
-            && (strcmp("avgcount", state->key) == 0))
+        if((i == yajl->depth-1) && ((strcmp(yajl->state[i].key,"avgcount") == 0)
+                || (strcmp(yajl->state[i].key,"sum") == 0)))
         {
-            DEBUG("ceph plugin: Skipping avgcount for filestore.JournalWrBytes");
-            return CEPH_CB_CONTINUE;
+            if(convert_special_metrics)
+            {
+                /**
+                 * Special case for filestore:JournalWrBytes. For some reason,
+                 * Ceph schema encodes this as a count/sum pair while all
+                 * other "Bytes" data (excluding used/capacity bytes for OSD
+                 * space) uses a single "Derive" type. To spare further
+                 * confusion, keep this KPI as the same type of other "Bytes".
+                 * Instead of keeping an "average" or "rate", use the "sum" in
+                 * the pair and assign that to the derive value.
+                 */
+                if((strcmp(yajl->state[i-1].key, "journal_wr_bytes") == 0) &&
+                        (strcmp(yajl->state[i-2].key,"filestore") == 0) &&
+                        (strcmp(yajl->state[i].key,"avgcount") == 0))
+                {
+                    DEBUG("ceph plugin: Skipping avgcount for filestore.JournalWrBytes");
+                    yajl->depth = (yajl->depth - 1);
+                    return CEPH_CB_CONTINUE;
+                }
+            }
+            //probably a avgcount/sum pair. if not - we'll try full key later
+            latency_type = 1;
+            break;
         }
-    }
-    else /* not a latency type */
-    {
-        BUFFER_ADD (key, ".");
-        BUFFER_ADD (key, state->key);
+        strncat(key, ".", 1);
+        strncat(key, yajl->state[i].key, yajl->state[i].key_len+1);
     }
 
-    status = state->handler(state->handler_arg, buffer, key);
-    if((status == RETRY_AVGCOUNT) && latency_type)
-    {
-        /* Add previously skipped part of the key, either "avgcount" or "sum",
-         * and try again. */
-        BUFFER_ADD (key, ".");
-        BUFFER_ADD (key, state->key);
+    result = yajl->handler(yajl->handler_arg, buffer, key);
 
-        status = state->handler(state->handler_arg, buffer, key);
+    if((result == RETRY_AVGCOUNT) && latency_type)
+    {
+        strncat(key, ".", 1);
+        strncat(key, yajl->state[yajl->depth-1].key,
+                yajl->state[yajl->depth-1].key_len+1);
+        result = yajl->handler(yajl->handler_arg, buffer, key);
     }
 
-    if (status != 0)
+    if(result == -ENOMEM)
     {
-        ERROR("ceph plugin: JSON handler failed with status %d.", status);
+        ERROR("ceph plugin: memory allocation failed");
         return CEPH_CB_ABORT;
     }
 
+    yajl->depth = (yajl->depth - 1);
     return CEPH_CB_CONTINUE;
 }
 
@@ -342,52 +328,37 @@ static int ceph_cb_string(void *ctx, const unsigned char *string_val,
 
 static int ceph_cb_start_map(void *ctx)
 {
-    yajl_struct *state = (yajl_struct*) ctx;
-
-    /* Push key to the stack */
-    if (state->depth == YAJL_MAX_DEPTH)
-        return CEPH_CB_ABORT;
-
-    state->stack[state->depth] = state->key;
-    state->depth++;
-    state->key = NULL;
-
-    return CEPH_CB_CONTINUE;
-}
-
-static int ceph_cb_end_map(void *ctx)
-{
-    yajl_struct *state = (yajl_struct*) ctx;
-
-    /* Pop key from the stack */
-    if (state->depth == 0)
-        return CEPH_CB_ABORT;
-
-    sfree (state->key);
-    state->depth--;
-    state->key = state->stack[state->depth];
-    state->stack[state->depth] = NULL;
-
     return CEPH_CB_CONTINUE;
 }
 
 static int
 ceph_cb_map_key(void *ctx, const unsigned char *key, yajl_len_t string_len)
 {
-    yajl_struct *state = (yajl_struct*) ctx;
-    size_t sz = ((size_t) string_len) + 1;
+    yajl_struct *yajl = (yajl_struct*)ctx;
 
-    sfree (state->key);
-    state->key = malloc (sz);
-    if (state->key == NULL)
+    if((yajl->depth+1)  >= YAJL_MAX_DEPTH)
     {
-        ERROR ("ceph plugin: malloc failed.");
+        ERROR("ceph plugin: depth exceeds max, aborting.");
         return CEPH_CB_ABORT;
     }
 
-    memmove (state->key, key, sz - 1);
-    state->key[sz - 1] = 0;
+    char buffer[string_len+1];
 
+    memcpy(buffer, key, string_len);
+    buffer[sizeof(buffer) - 1] = 0;
+
+    snprintf(yajl->state[yajl->depth].key, sizeof(buffer), "%s", buffer);
+    yajl->state[yajl->depth].key_len = sizeof(buffer);
+    yajl->depth = (yajl->depth + 1);
+
+    return CEPH_CB_CONTINUE;
+}
+
+static int ceph_cb_end_map(void *ctx)
+{
+    yajl_struct *yajl = (yajl_struct*)ctx;
+
+    yajl->depth = (yajl->depth - 1);
     return CEPH_CB_CONTINUE;
 }
 
@@ -448,140 +419,140 @@ static void ceph_daemon_free(struct ceph_daemon *d)
     sfree(d);
 }
 
-/* compact_ds_name removed the special characters ":", "_", "-" and "+" from the
- * intput string. Characters following these special characters are capitalized.
- * Trailing "+" and "-" characters are replaces with the strings "Plus" and
- * "Minus". */
-static int compact_ds_name (char *buffer, size_t buffer_size, char const *src)
+/**
+ * Compact ds name by removing special characters and trimming length to
+ * DATA_MAX_NAME_LEN if necessary
+ */
+static void compact_ds_name(char *source, char *dest)
 {
-    char *src_copy;
-    size_t src_len;
-    char *ptr = buffer;
-    size_t ptr_size = buffer_size;
-    _Bool append_plus = 0;
-    _Bool append_minus = 0;
-
-    if ((buffer == NULL) || (buffer_size <= strlen ("Minus")) || (src == NULL))
-      return EINVAL;
-
-    src_copy = strdup (src);
-    src_len = strlen(src);
-
-    /* Remove trailing "+" and "-". */
-    if (src_copy[src_len - 1] == '+')
+    int keys_num = 0, i;
+    char *save_ptr = NULL, *tmp_ptr = source;
+    char *keys[16];
+    char len_str[3];
+    char tmp[DATA_MAX_NAME_LEN];
+    size_t key_chars_remaining = (DATA_MAX_NAME_LEN-1);
+    int reserved = 0;
+    int offset = 0;
+    memset(tmp, 0, sizeof(tmp));
+    if(source == NULL || dest == NULL || source[0] == '\0' || dest[0] != '\0')
     {
-        append_plus = 1;
-        src_len--;
-        src_copy[src_len] = 0;
+        return;
     }
-    else if (src_copy[src_len - 1] == '-')
+    size_t src_len = strlen(source);
+    snprintf(len_str, sizeof(len_str), "%zu", src_len);
+    unsigned char append_status = 0x0;
+    append_status |= (source[src_len - 1] == '-') ? 0x1 : 0x0;
+    append_status |= (source[src_len - 1] == '+') ? 0x2 : 0x0;
+    while ((keys[keys_num] = strtok_r(tmp_ptr, ":_-+", &save_ptr)) != NULL)
     {
-        append_minus = 1;
-        src_len--;
-        src_copy[src_len] = 0;
+        tmp_ptr = NULL;
+        /** capitalize 1st char **/
+        keys[keys_num][0] = toupper(keys[keys_num][0]);
+        keys_num++;
+        if(keys_num >= 16)
+        {
+            break;
+        }
     }
-
-    /* Split at special chars, capitalize first character, append to buffer. */
-    char *dummy = src_copy;
-    char *token;
-    char *save_ptr = NULL;
-    while ((token = strtok_r (dummy, ":_-+", &save_ptr)) != NULL)
+    /** concatenate each part of source string **/
+    for(i = 0; i < keys_num; i++)
     {
-        size_t len;
-
-        dummy = NULL;
-
-        token[0] = toupper ((int) token[0]);
-
-        assert (ptr_size > 1);
-
-        len = strlen (token);
-        if (len >= ptr_size)
-            len = ptr_size - 1;
-
-        assert (len > 0);
-        assert (len < ptr_size);
-
-        sstrncpy (ptr, token, len + 1);
-        ptr += len;
-        ptr_size -= len;
-
-        assert (*ptr == 0);
-        if (ptr_size <= 1)
+        strncat(tmp, keys[i], key_chars_remaining);
+        key_chars_remaining -= strlen(keys[i]);
+    }
+    tmp[DATA_MAX_NAME_LEN - 1] = '\0';
+    /** to coordinate limitation of length of type_instance
+     *  we will truncate ds_name
+     *  when the its length is more than
+     *  DATA_MAX_NAME_LEN
+     */
+    if(strlen(tmp) > DATA_MAX_NAME_LEN - 1)
+    {
+        append_status |= 0x4;
+        /** we should reserve space for
+         * len_str
+         */
+        reserved += 2;
+    }
+    if(append_status & 0x1)
+    {
+        /** we should reserve space for
+         * "Minus"
+         */
+        reserved += 5;
+    }
+    if(append_status & 0x2)
+    {
+        /** we should reserve space for
+         * "Plus"
+         */
+        reserved += 4;
+    }
+    snprintf(dest, DATA_MAX_NAME_LEN - reserved, "%s", tmp);
+    offset = strlen(dest);
+    switch (append_status)
+    {
+        case 0x1:
+            memcpy(dest + offset, "Minus", 5);
+            break;
+        case 0x2:
+            memcpy(dest + offset, "Plus", 5);
+            break;
+        case 0x4:
+            memcpy(dest + offset, len_str, 2);
+            break;
+        case 0x5:
+            memcpy(dest + offset, "Minus", 5);
+            memcpy(dest + offset + 5, len_str, 2);
+            break;
+        case 0x6:
+            memcpy(dest + offset, "Plus", 4);
+            memcpy(dest + offset + 4, len_str, 2);
+            break;
+        default:
             break;
     }
-
-    /* Append "Plus" or "Minus" if "+" or "-" has been stripped above. */
-    if (append_plus || append_minus)
-    {
-        char const *append = "Plus";
-        if (append_minus)
-            append = "Minus";
-
-        size_t offset = buffer_size - (strlen (append) + 1);
-        if (offset > strlen (buffer))
-            offset = strlen (buffer);
-
-        sstrncpy (buffer + offset, append, buffer_size - offset);
-    }
-
-    sfree (src_copy);
-    return 0;
-}
-
-static _Bool has_suffix (char const *str, char const *suffix)
-{
-    size_t str_len = strlen (str);
-    size_t suffix_len = strlen (suffix);
-    size_t offset;
-
-    if (suffix_len > str_len)
-        return 0;
-    offset = str_len - suffix_len;
-
-    if (strcmp (str + offset, suffix) == 0)
-        return 1;
-
-    return 0;
-}
-
-/* count_parts returns the number of elements a "foo.bar.baz" style key has. */
-static size_t count_parts (char const *key)
-{
-    char const *ptr;
-    size_t parts_num = 0;
-
-    for (ptr = key; ptr != NULL; ptr = strchr (ptr + 1, '.'))
-        parts_num++;
-
-    return parts_num;
 }
 
 /**
  * Parse key to remove "type" if this is for schema and initiate compaction
  */
-static int parse_keys (char *buffer, size_t buffer_size, const char *key_str)
+static int parse_keys(const char *key_str, char *ds_name)
 {
-    char tmp[2 * buffer_size];
-
-    if (buffer == NULL || buffer_size == 0 || key_str == NULL || strlen (key_str) == 0)
-        return EINVAL;
-
-    if ((count_parts (key_str) > 2) && has_suffix (key_str, ".type"))
+    char *ptr, *rptr;
+    size_t ds_name_len = 0;
+    /**
+     * allow up to 100 characters before compaction - compact_ds_name will not
+     * allow more than DATA_MAX_NAME_LEN chars
+     */
+    int max_str_len = 100;
+    char tmp_ds_name[max_str_len];
+    memset(tmp_ds_name, 0, sizeof(tmp_ds_name));
+    if(ds_name == NULL || key_str == NULL ||  key_str[0] == '\0' ||
+                                                            ds_name[0] != '\0')
     {
-        /* strip ".type" suffix iff the key has more than two parts. */
-        size_t sz = strlen (key_str) - strlen (".type") + 1;
+        return -1;
+    }
+    if((ptr = strchr(key_str, '.')) == NULL
+            || (rptr = strrchr(key_str, '.')) == NULL)
+    {
+        memcpy(tmp_ds_name, key_str, max_str_len - 1);
+        goto compact;
+    }
 
-        if (sz > sizeof (tmp))
-            sz = sizeof (tmp);
-        sstrncpy (tmp, key_str, sz);
+    ds_name_len = (rptr - ptr) > max_str_len ? max_str_len : (rptr - ptr);
+    if((ds_name_len == 0) || strncmp(rptr + 1, "type", 4))
+    { /** copy whole key **/
+        memcpy(tmp_ds_name, key_str, max_str_len - 1);
     }
     else
-    {
-        sstrncpy (tmp, key_str, sizeof (tmp));
+    {/** more than two keys **/
+        memcpy(tmp_ds_name, key_str, ((rptr - key_str) > (max_str_len - 1) ?
+                (max_str_len - 1) : (rptr - key_str)));
     }
 
-    return compact_ds_name (buffer, buffer_size, tmp);
+    compact: compact_ds_name(tmp_ds_name, ds_name);
+    return 0;
 }
 
 /**
@@ -633,7 +604,7 @@ static int ceph_daemon_add_ds_entry(struct ceph_daemon *d, const char *name,
             ((pc_type & PERFCOUNTER_LATENCY) ? DSET_LATENCY : DSET_BYTES);
     d->ds_types[d->ds_num] = type;
 
-    if (parse_keys(ds_name, sizeof (ds_name), name))
+    if(parse_keys(name, ds_name))
     {
         return 1;
     }
@@ -985,7 +956,7 @@ static int node_handler_fetch_data(void *arg, const char *val, const char *key)
     char ds_name[DATA_MAX_NAME_LEN];
     memset(ds_name, 0, sizeof(ds_name));
 
-    if (parse_keys (ds_name, sizeof (ds_name), key))
+    if(parse_keys(key, ds_name))
     {
         return 1;
     }
@@ -1111,7 +1082,6 @@ static int cconn_connect(struct cconn *io)
     {
         ERROR("ceph plugin: cconn_connect: connect(%d) failed: error %d",
             fd, err);
-        close(fd);
         return err;
     }
 
@@ -1121,7 +1091,6 @@ static int cconn_connect(struct cconn *io)
         err = -errno;
         ERROR("ceph plugin: cconn_connect: fcntl(%d, O_NONBLOCK) error %d",
             fd, err);
-        close(fd);
         return err;
     }
     io->asok = fd;
@@ -1609,4 +1578,3 @@ void module_register(void)
     plugin_register_read("ceph", ceph_read);
     plugin_register_shutdown("ceph", ceph_shutdown);
 }
-/* vim: set sw=4 sts=4 et : */

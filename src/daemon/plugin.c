@@ -288,7 +288,7 @@ static int register_callback (llist_t **list, /* {{{ */
 		{
 			ERROR ("plugin: register_callback: "
 					"llentry_create failed.");
-			sfree (key);
+			free (key);
 			destroy_callback (cf);
 			return (-1);
 		}
@@ -358,9 +358,9 @@ static void log_list_callbacks (llist_t **list, /* {{{ */
 		*str = '\0';
 		strjoin(str, len, keys, n, "', '");
 		INFO("%s ['%s']", comment, str);
-		sfree (str);
+		free(str);
 	}
-	sfree (keys);
+	free(keys);
 } /* }}} void log_list_callbacks */
 
 static int create_register_callback (llist_t **list, /* {{{ */
@@ -483,9 +483,7 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 	{
 		read_func_t *rf;
 		plugin_ctx_t old_ctx;
-		cdtime_t start;
 		cdtime_t now;
-		cdtime_t elapsed;
 		int status;
 		int rf_type;
 		int rc;
@@ -564,8 +562,6 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 
 		DEBUG ("plugin_read_thread: Handling `%s'.", rf->rf_name);
 
-		start = cdtime ();
-
 		old_ctx = plugin_set_ctx (rf->rf_ctx);
 
 		if (rf_type == RF_SIMPLE)
@@ -609,22 +605,8 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 		/* update the ``next read due'' field */
 		now = cdtime ();
 
-		/* calculate the time spent in the read function */
-		elapsed = (now - start);
-
-		if (elapsed > rf->rf_effective_interval)
-			WARNING ("plugin_read_thread: read-function of the `%s' plugin took %.3f "
-				"seconds, which is above its read interval (%.3f seconds). You might "
-				"want to adjust the `Interval' or `ReadThreads' settings.",
-				rf->rf_name, CDTIME_T_TO_DOUBLE(elapsed),
-				CDTIME_T_TO_DOUBLE(rf->rf_effective_interval));
-
-		DEBUG ("plugin_read_thread: read-function of the `%s' plugin took "
-				"%.6f seconds.",
-				rf->rf_name, CDTIME_T_TO_DOUBLE(elapsed));
-
 		DEBUG ("plugin_read_thread: Effective interval of the "
-				"`%s' plugin is %.3f seconds.",
+				"%s plugin is %.3f seconds.",
 				rf->rf_name,
 				CDTIME_T_TO_DOUBLE (rf->rf_effective_interval));
 
@@ -641,7 +623,7 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 			rf->rf_next_read = now;
 		}
 
-		DEBUG ("plugin_read_thread: Next read of the `%s' plugin at %.3f.",
+		DEBUG ("plugin_read_thread: Next read of the %s plugin at %.3f.",
 				rf->rf_name,
 				CDTIME_T_TO_DOUBLE (rf->rf_next_read));
 
@@ -959,17 +941,17 @@ static void stop_write_threads (void) /* {{{ */
  */
 void plugin_set_dir (const char *dir)
 {
-	sfree (plugindir);
+	if (plugindir != NULL)
+		free (plugindir);
 
 	if (dir == NULL)
-	{
 		plugindir = NULL;
-		return;
+	else if ((plugindir = strdup (dir)) == NULL)
+	{
+		char errbuf[1024];
+		ERROR ("strdup failed: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 	}
-
-	plugindir = strdup (dir);
-	if (plugindir == NULL)
-		ERROR ("plugin_set_dir: strdup(\"%s\") failed", dir);
 }
 
 static _Bool plugin_is_loaded (char const *name)
@@ -1337,8 +1319,8 @@ static void plugin_flush_timeout_callback_free (void *data)
 
 	if (cb == NULL) return;
 
-	sfree (cb->name);
-	sfree (cb);
+	sfree(cb->name);
+	sfree(cb);
 } /* static void plugin_flush_callback_free */
 
 static char *plugin_flush_callback_name (const char *name)
@@ -1389,7 +1371,7 @@ int plugin_register_flush (const char *name,
 		if (cb == NULL)
 		{
 			ERROR ("plugin_register_flush: malloc failed.");
-			sfree (flush_name);
+			sfree(flush_name);
 			return (-1);
 		}
 
@@ -1397,8 +1379,8 @@ int plugin_register_flush (const char *name,
 		if (cb->name == NULL)
 		{
 			ERROR ("plugin_register_flush: strdup failed.");
-			sfree (cb);
-			sfree (flush_name);
+			sfree(cb);
+			sfree(flush_name);
 			return (-1);
 		}
 		cb->timeout = ctx.flush_timeout;
@@ -1413,11 +1395,11 @@ int plugin_register_flush (const char *name,
 			/* interval  = */ ctx.flush_interval,
 			/* user data = */ &ud);
 
-		sfree (flush_name);
+		sfree(flush_name);
 		if (status != 0)
 		{
-			sfree (cb->name);
-			sfree (cb);
+			sfree(cb->name);
+			sfree(cb);
 			return status;
 		}
 	}
@@ -1487,7 +1469,7 @@ int plugin_register_data_set (const data_set_t *ds)
 			* ds->ds_num);
 	if (ds_copy->ds == NULL)
 	{
-		sfree (ds_copy);
+		free (ds_copy);
 		return (-1);
 	}
 
@@ -1651,7 +1633,7 @@ int plugin_unregister_flush (const char *name)
 		if (flush_name != NULL)
 		{
 			plugin_unregister_read(flush_name);
-			sfree (flush_name);
+			sfree(flush_name);
 		}
 	}
 
@@ -2215,7 +2197,7 @@ static int plugin_dispatch_values_internal (value_list_t *vl)
 			 * don't get confused.. */
 			if (saved_values != NULL)
 			{
-				sfree (vl->values);
+				free (vl->values);
 				vl->values     = saved_values;
 				vl->values_len = saved_values_len;
 			}
@@ -2244,7 +2226,7 @@ static int plugin_dispatch_values_internal (value_list_t *vl)
 	 * confused.. */
 	if (saved_values != NULL)
 	{
-		sfree (vl->values);
+		free (vl->values);
 		vl->values     = saved_values;
 		vl->values_len = saved_values_len;
 	}
@@ -2402,7 +2384,7 @@ int plugin_dispatch_multivalue (value_list_t const *template, /* {{{ */
 		case DS_TYPE_GAUGE:
 			vl->values[0].gauge = va_arg (ap, gauge_t);
 			if (store_percentage)
-				vl->values[0].gauge *= sum ? (100.0 / sum) : 0;
+				vl->values[0].gauge *= 100.0 / sum;
 			break;
 		case DS_TYPE_ABSOLUTE:
 			vl->values[0].absolute = va_arg (ap, absolute_t);
@@ -2730,11 +2712,7 @@ int plugin_notification_meta_free (notification_meta_t *n)
 
     if (this->type == NM_TYPE_STRING)
     {
-      /* Assign to a temporary variable to work around nm_string's const
-       * modifier. */
-      void *tmp = (void *) this->nm_value.nm_string;
-
-      sfree (tmp);
+      free ((char *)this->nm_value.nm_string);
       this->nm_value.nm_string = NULL;
     }
     sfree (this);
@@ -2841,7 +2819,7 @@ static void *plugin_thread_start (void *arg)
 
 	plugin_set_ctx (plugin_thread->ctx);
 
-	sfree (plugin_thread);
+	free (plugin_thread);
 
 	return start_routine (plugin_arg);
 } /* void *plugin_thread_start */

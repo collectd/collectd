@@ -41,66 +41,19 @@
 
 typedef	llist_t kstat_t;
 
-static int put_zfs_value (kstat_t *ksp, char const *k, value_t v)
+static long long get_zfs_value(kstat_t *zfs_stats  __attribute__((unused)),
+		char *name)
 {
 	llentry_t *e;
-	char *k_copy;
-	value_t *v_copy;
 
-	k_copy = strdup (k);
-	if (k_copy == NULL)
-		return ENOMEM;
-
-	v_copy = malloc (sizeof (*v_copy));
-	if (v_copy == NULL)
-	{
-		sfree (k_copy);
-		return ENOMEM;
-	}
-	*v_copy = v;
-
-	e = llentry_create (k_copy, v_copy);
+	e = llist_search (zfs_stats, name);
 	if (e == NULL)
 	{
-		sfree (v_copy);
-		sfree (k_copy);
-		return ENOMEM;
-	}
-
-	llist_append (ksp, e);
-	return 0;
-}
-
-static long long get_zfs_value(kstat_t *ksp, char *key)
-{
-	llentry_t *e;
-	value_t *v;
-
-	e = llist_search (ksp, key);
-	if (e == NULL)
-	{
-		ERROR ("zfs_arc plugin: `llist_search` failed for key: '%s'.", key);
+		ERROR ("zfs_arc plugin: `llist_search` failed for key: '%s'.", name);
 		return (-1);
 	}
 
-	v = e->value;
-	return ((long long) v->derive);
-}
-
-static void free_zfs_values (kstat_t *ksp)
-{
-	llentry_t *e;
-
-	if (ksp == NULL)
-		return;
-
-	for (e = llist_head (ksp); e != NULL; e = e->next)
-	{
-		sfree (e->key);
-		sfree (e->value);
-	}
-
-	llist_destroy (ksp);
+	return (*(long long int*)e->value);
 }
 
 #elif !defined(__FreeBSD__) // Solaris
@@ -220,44 +173,72 @@ static int za_read (void)
 	kstat_t	 *ksp	= NULL;
 
 #if KERNEL_LINUX
-	FILE *fh;
-	char buffer[1024];
-
-	fh = fopen (ZOL_ARCSTATS_FILE, "r");
-	if (fh == NULL)
-	{
-		char errbuf[1024];
-		ERROR ("zfs_arc plugin: Opening \"%s\" failed: %s", ZOL_ARCSTATS_FILE,
-		       sstrerror (errno, errbuf, sizeof (errbuf)));
-		return (-1);
-	}
+	long long int *llvalues = NULL;
+	char file_contents[1024 * 10];
+	char *fields[3];
+	int numfields;
+	ssize_t len;
 
 	ksp = llist_create ();
 	if (ksp == NULL)
 	{
 		ERROR ("zfs_arc plugin: `llist_create' failed.");
-		fclose (fh);
 		return (-1);
 	}
 
-	while (fgets (buffer, sizeof (buffer), fh) != NULL)
+	len = read_file_contents (ZOL_ARCSTATS_FILE, file_contents, sizeof(file_contents));
+	if (len > 1)
 	{
-		char *fields[3];
-		value_t v;
-		int status;
 
-		status = strsplit (buffer, fields, STATIC_ARRAY_SIZE (fields));
-		if (status != 3)
-			continue;
+		int i=0;
+		char *pnl = file_contents;
+		char *pnnl;
 
-		status = parse_value (fields[2], &v, DS_TYPE_DERIVE);
-		if (status != 0)
-			continue;
+		file_contents[len] = '\0';
 
-		put_zfs_value (ksp, fields[0], v);
+		while (pnl != NULL)
+		{
+			pnl = strchr(pnl, '\n');
+			i++;
+			if (pnl && (*pnl != '\0'))
+				pnl++;
+		}
+
+		if (i > 0)
+		{
+			llentry_t *e;
+			llvalues = malloc(sizeof(long long int) * i);
+			int j = 0;
+
+			pnl = file_contents;
+			while (pnl != NULL)
+			{
+				pnnl = strchr(pnl, '\n');
+				if (pnnl != NULL)
+					*pnnl = '\0';
+
+				numfields = strsplit (pnl, fields, 4);
+				if (numfields == 3)
+				{
+					llvalues[j] = atoll (fields[2]);
+
+					e = llentry_create (fields[0], &llvalues[j]);
+					if (e == NULL)
+					{
+						ERROR ("zfs_arc plugin: `llentry_create' failed.");
+					}
+					else
+					{
+						llist_append (ksp, e);
+					}
+					j++;
+				}
+				pnl = pnnl;
+				if (pnl != NULL)
+					pnl ++;
+			}
+		}
 	}
-
-	fclose (fh);
 
 #elif !defined(__FreeBSD__) // Solaris
 	get_kstat (&ksp, "zfs", 0, "arcstats");
@@ -324,7 +305,14 @@ static int za_read (void)
 	za_submit ("io_octets", "L2", l2_io, /* num values = */ 2);
 
 #if defined(KERNEL_LINUX)
-	free_zfs_values (ksp);
+	if (llvalues != NULL)
+	{
+		free(llvalues);
+	}
+	if (ksp != NULL)
+	{
+		llist_destroy (ksp);
+	}
 #endif
 
 	return (0);

@@ -33,6 +33,7 @@
 #include "utils_threshold.h"
 
 #include <assert.h>
+#include <ltdl.h>
 #include <pthread.h>
 
 /*

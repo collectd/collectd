@@ -262,7 +262,6 @@ static agg_instance_t *agg_instance_create (data_set_t const *ds, /* {{{ */
     inst->state_ ## field = malloc (sizeof (*inst->state_ ## field)); \
     if (inst->state_ ## field == NULL) { \
       agg_instance_destroy (inst); \
-      free (inst); \
       ERROR ("aggregation plugin: malloc() failed."); \
       return (NULL); \
     } \

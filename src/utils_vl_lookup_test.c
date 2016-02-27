@@ -24,8 +24,8 @@
  *   Florian Forster <octo at collectd.org>
  **/
 
-#include "collectd.h"
 #include "testing.h"
+#include "collectd.h"
 #include "utils_vl_lookup.h"
 
 static _Bool expect_new_obj = 0;

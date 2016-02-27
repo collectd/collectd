@@ -142,12 +142,8 @@ static int drbd_read (void)
 				fields, STATIC_ARRAY_SIZE (fields));
 
 		/* ignore headers (first two iterations) */
-		if ((strcmp(fields[0], "version:") == 0) ||
-				(strcmp(fields[0], "srcversion:") == 0) ||
-				(strcmp(fields[0], "GIT-hash:") == 0))
-		{
+		if (fields_num < 4)
 			continue;
-		}
 
 		if (isdigit(fields[0][0]))
 		{

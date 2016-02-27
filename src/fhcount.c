@@ -98,7 +98,6 @@ static int fhcount_read(void) {
   }
   if (fgets(buffer, buffer_len, fp) == NULL) {
     ERROR("fhcount: fgets: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
-    fclose(fp);
     return(EXIT_FAILURE);
   }
   fclose(fp);

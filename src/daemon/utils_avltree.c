@@ -652,7 +652,6 @@ int c_avl_pick (c_avl_tree_t *t, void **key, void **value)
 	*value = n->value;
 
 	free_node (n);
-	--t->size;
 	rebalance (t, p);
 
 	return (0);

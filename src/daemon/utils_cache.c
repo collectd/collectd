@@ -193,13 +193,12 @@ static int uc_insert (const data_set_t *ds, const value_list_t *vl,
 	    / CDTIME_T_TO_DOUBLE (vl->interval);
 	ce->values_raw[i].absolute = vl->values[i].absolute;
 	break;
-
+	
       default:
 	/* This shouldn't happen. */
 	ERROR ("uc_insert: Don't know how to handle data source type %i.",
 	    ds->ds[i].type);
 	sfree (key_copy);
-	cache_free (ce);
 	return (-1);
     } /* switch (ds->ds[i].type) */
   } /* for (i) */

@@ -896,19 +896,18 @@ Configuring with libjvm
   library checks succeed.
 
   If this doesn't work for you, you have the possibility to specify CPP-flags,
-  C-flags, LD-flags and LIBS for the ‘Java’ plugin by hand, using the
-  following environment variables:
+  C-flags and LD-flags for the ‘Java’ plugin by hand, using the following three
+  (environment) variables:
 
     - JAVA_CPPFLAGS
     - JAVA_CFLAGS
     - JAVA_LDFLAGS
-    - JAVA_LIBS
 
   For example (shortened for demonstration purposes):
 
     ./configure JAVA_CPPFLAGS="-I$JAVA_HOME/include -I$JAVA_HOME/include/linux"
 
-  Adding "-ljvm" to JAVA_LIBS is done automatically, you don't have to
+  Adding "-ljvm" to the JAVA_LDFLAGS is done automatically, you don't have to
   do that.
 
 Generating the configure script

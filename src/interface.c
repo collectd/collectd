@@ -95,7 +95,6 @@ static ignorelist_t *ignorelist = NULL;
 extern kstat_ctl_t *kc;
 static kstat_t *ksp[MAX_NUMIF];
 static int numif = 0;
-static _Bool unique_name = 0;
 #endif /* HAVE_LIBKSTAT */
 
 static int interface_config (const char *key, const char *value)
@@ -113,15 +112,6 @@ static int interface_config (const char *key, const char *value)
 		if (IS_TRUE (value))
 			invert = 0;
 		ignorelist_set_invert (ignorelist, invert);
-	}
-	else if (strcasecmp (key, "UniqueName") == 0)
-	{
-		#ifdef HAVE_LIBKSTAT
-		if (IS_TRUE (value))
-			unique_name = 1;
-		#else
-			WARNING ("interface plugin: the \"UniqueName\" option is only valid on Solaris.");
-		#endif /* HAVE_LIBKSTAT */
 	}
 	else
 	{
@@ -295,7 +285,6 @@ static int interface_read (void)
 	int i;
 	derive_t rx;
 	derive_t tx;
-	char iname[DATA_MAX_NAME_LEN];
 
 	if (kc == NULL)
 		return (-1);
@@ -304,11 +293,6 @@ static int interface_read (void)
 	{
 		if (kstat_read (kc, ksp[i], NULL) == -1)
 			continue;
-
-		if (unique_name)
-			ssnprintf(iname, sizeof(iname), "%s_%d_%s", ksp[i]->ks_module, ksp[i]->ks_instance, ksp[i]->ks_name);
-		else
-			sstrncpy(iname, ksp[i]->ks_name, sizeof(iname));
 
 		/* try to get 64bit counters */
 		rx = get_kstat_value (ksp[i], "rbytes64");
@@ -319,7 +303,7 @@ static int interface_read (void)
 		if (tx == -1LL)
 			tx = get_kstat_value (ksp[i], "obytes");
 		if ((rx != -1LL) || (tx != -1LL))
-			if_submit (iname, "if_octets", rx, tx);
+			if_submit (ksp[i]->ks_name, "if_octets", rx, tx);
 
 		/* try to get 64bit counters */
 		rx = get_kstat_value (ksp[i], "ipackets64");
@@ -330,13 +314,13 @@ static int interface_read (void)
 		if (tx == -1LL)
 			tx = get_kstat_value (ksp[i], "opackets");
 		if ((rx != -1LL) || (tx != -1LL))
-			if_submit (iname, "if_packets", rx, tx);
+			if_submit (ksp[i]->ks_name, "if_packets", rx, tx);
 
 		/* no 64bit error counters yet */
 		rx = get_kstat_value (ksp[i], "ierrors");
 		tx = get_kstat_value (ksp[i], "oerrors");
 		if ((rx != -1LL) || (tx != -1LL))
-			if_submit (iname, "if_errors", rx, tx);
+			if_submit (ksp[i]->ks_name, "if_errors", rx, tx);
 	}
 /* #endif HAVE_LIBKSTAT */
 

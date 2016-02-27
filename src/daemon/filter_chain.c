@@ -904,17 +904,17 @@ int fc_process_chain (const data_set_t *ds, value_list_t *vl, /* {{{ */
 {
   fc_rule_t *rule;
   fc_target_t *target;
-  int status = FC_TARGET_CONTINUE;
+  int status;
 
   if (chain == NULL)
     return (-1);
 
   DEBUG ("fc_process_chain (chain = %s);", chain->name);
 
+  status = FC_TARGET_CONTINUE;
   for (rule = chain->rules; rule != NULL; rule = rule->next)
   {
     fc_match_t *match;
-    status = FC_TARGET_CONTINUE;
 
     if (rule->name[0] != 0)
     {
@@ -976,7 +976,8 @@ int fc_process_chain (const data_set_t *ds, value_list_t *vl, /* {{{ */
       }
     }
 
-    if ((status == FC_TARGET_STOP) || (status == FC_TARGET_RETURN))
+    if ((status == FC_TARGET_STOP)
+        || (status == FC_TARGET_RETURN))
     {
       if (rule->name[0] != 0)
       {
@@ -987,10 +988,20 @@ int fc_process_chain (const data_set_t *ds, value_list_t *vl, /* {{{ */
       }
       break;
     }
+    else
+    {
+      status = FC_TARGET_CONTINUE;
+    }
   } /* for (rule) */
 
-  if ((status == FC_TARGET_STOP) || (status == FC_TARGET_RETURN))
-    return (status);
+  if (status == FC_TARGET_STOP)
+    return (FC_TARGET_STOP);
+  else if (status == FC_TARGET_RETURN)
+    return (FC_TARGET_CONTINUE);
+
+  /* for-loop has been aborted: A target returned `FC_TARGET_STOP' */
+  if (rule != NULL)
+    return (FC_TARGET_CONTINUE);
 
   DEBUG ("fc_process_chain (%s): Executing the default targets.",
       chain->name);
