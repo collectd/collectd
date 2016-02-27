@@ -52,8 +52,7 @@ class GenericJMXConfConnection
   private String _host = null;
   private String _instance_prefix = null;
   private String _service_url = null;
-  private JMXConnector _jmx_connector = null;
-  private MBeanServerConnection _mbean_connection = null;
+  private MBeanServerConnection _jmx_connection = null;
   private List<GenericJMXConfMBean> _mbeans = null;
 
   /*
@@ -93,72 +92,55 @@ class GenericJMXConfConnection
     return Collectd.getHostname();
   } /* }}} String getHost */
 
-  private void connect () /* {{{ */
+private void connect () /* {{{ */
+{
+  JMXServiceURL service_url;
+  JMXConnector connector;
+  Map environment;
+
+  if (_jmx_connection != null)
+    return;
+
+  environment = null;
+  if (this._password != null)
   {
-    JMXServiceURL service_url;
-    Map<String,Object> environment;
+    String[] credentials;
 
-    // already connected
-    if (this._jmx_connector != null) {
-      return;
-    }
+    if (this._username == null)
+      this._username = new String ("monitorRole");
 
-    environment = null;
-    if (this._password != null)
-    {
-      String[] credentials;
+    credentials = new String[] { this._username, this._password };
 
-      if (this._username == null)
-        this._username = new String ("monitorRole");
+    environment = new HashMap ();
+    environment.put (JMXConnector.CREDENTIALS, credentials);
+    environment.put(JMXConnectorFactory.PROTOCOL_PROVIDER_CLASS_LOADER, this.getClass().getClassLoader());
+  }
 
-      credentials = new String[] { this._username, this._password };
-
-      environment = new HashMap<String,Object> ();
-      environment.put (JMXConnector.CREDENTIALS, credentials);
-      environment.put (JMXConnectorFactory.PROTOCOL_PROVIDER_CLASS_LOADER, this.getClass().getClassLoader());
-    }
-
-    try
-    {
-      service_url = new JMXServiceURL (this._service_url);
-      this._jmx_connector = JMXConnectorFactory.connect (service_url, environment);
-      this._mbean_connection = _jmx_connector.getMBeanServerConnection ();
-    }
-    catch (Exception e)
-    {
-      Collectd.logError ("GenericJMXConfConnection: "
-          + "Creating MBean server connection failed: " + e);
-      disconnect ();
-      return;
-    }
-  } /* }}} void connect */
-
-  private void disconnect () /* {{{ */
+  try
   {
-    try
-    {
-      this._jmx_connector.close();
-    }
-    catch (Exception e)
-    {
-      // It's fine if close throws an exception
-    }
+    service_url = new JMXServiceURL (this._service_url);
+    connector = JMXConnectorFactory.connect (service_url, environment);
+    _jmx_connection = connector.getMBeanServerConnection ();
+  }
+  catch (Exception e)
+  {
+    Collectd.logError ("GenericJMXConfConnection: "
+        + "Creating MBean server connection failed: " + e);
+    return;
+  }
+} /* }}} void connect */
 
-    this._jmx_connector = null;
-    this._mbean_connection = null;
-  } /* }}} void disconnect */
-
-  /*
-   * public methods
-   *
-   * <Connection>
-   *   Host "tomcat0.mycompany"
-   *   ServiceURL "service:jmx:rmi:///jndi/rmi://localhost:17264/jmxrmi"
-   *   Collect "java.lang:type=GarbageCollector,name=Copy"
-   *   Collect "java.lang:type=Memory"
-   * </Connection>
-   *
-   */
+/*
+ * public methods
+ *
+ * <Connection>
+ *   Host "tomcat0.mycompany"
+ *   ServiceURL "service:jmx:rmi:///jndi/rmi://localhost:17264/jmxrmi"
+ *   Collect "java.lang:type=GarbageCollector,name=Copy"
+ *   Collect "java.lang:type=Memory"
+ * </Connection>
+ *
+ */
   public GenericJMXConfConnection (OConfigItem ci) /* {{{ */
     throws IllegalArgumentException
   {
@@ -235,10 +217,9 @@ class GenericJMXConfConnection
   {
     PluginData pd;
 
-    // try to connect
     connect ();
 
-    if (this._mbean_connection == null)
+    if (this._jmx_connection == null)
       return;
 
     Collectd.logDebug ("GenericJMXConfConnection.query: "
@@ -253,11 +234,11 @@ class GenericJMXConfConnection
     {
       int status;
 
-      status = this._mbeans.get (i).query (this._mbean_connection, pd,
+      status = this._mbeans.get (i).query (this._jmx_connection, pd,
           this._instance_prefix);
       if (status != 0)
       {
-        disconnect ();
+        this._jmx_connection = null;
         return;
       }
     } /* for */

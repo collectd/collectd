@@ -117,10 +117,9 @@ static int wr_write (const data_set_t *ds, /* {{{ */
   value_size = sizeof (value);
   value_ptr = &value[0];
   status = format_values (value_ptr, value_size, ds, vl, node->store_rates);
+  pthread_mutex_lock (&node->lock);
   if (status != 0)
     return (status);
-
-  pthread_mutex_lock (&node->lock);
 
   // if node->conn == NULL connect
   if (node->conn == NULL)

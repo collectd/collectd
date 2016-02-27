@@ -20,6 +20,7 @@ Makefile
 config.log
 config.status
 libtool
+src/.deps
 src/collectd.conf
 src/config.h
 src/libcollectdclient/libcollectdclient.pc
@@ -30,7 +31,7 @@ src/stamp-h1
 *.lo
 *.o
 .libs/
-.deps/
+src/collectd
 src/collectd-nagios
 src/collectd-tg
 src/collectdctl
@@ -72,11 +73,28 @@ bindings/java/org/collectd/java/*.class
 # python stuff
 *.pyc
 
+# tag stuff
+src/tags
+
 # backup stuff
 *~
-# Unit tests
-src/tests/
-test_*
+# tests stuff
+src/tests/.deps/
+src/tests/mock/.deps/
+src/tests/.dirstamp
+src/tests/mock/.dirstamp
+src/test_utils_latency
+src/test_utils_mount
+src/test_utils_vl_lookup
+test*.log
+*.trs
 
-# src/daemon/...
+# new daemon repo
+src/daemon/.deps/
+src/daemon/.dirstamp
 src/daemon/collectd
+src/daemon/test_common
+src/daemon/test_meta_data
+src/daemon/test_utils_avltree
+src/daemon/test_utils_heap
+src/daemon/test_utils_subst

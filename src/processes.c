@@ -287,8 +287,7 @@ static void ps_list_register (const char *name, const char *regexp)
 		if (status != 0)
 		{
 			DEBUG ("ProcessMatch: compiling the regular expression \"%s\" failed.", regexp);
-			sfree (new->re);
-			sfree (new);
+			sfree(new->re);
 			return;
 		}
 	}
@@ -314,9 +313,7 @@ static void ps_list_register (const char *name, const char *regexp)
 					"`ProcessMatch' with the same name. "
 					"All but the first setting will be "
 					"ignored.");
-#if HAVE_REGEX_H
 			sfree (new->re);
-#endif
 			sfree (new);
 			return;
 		}
@@ -361,31 +358,6 @@ static int ps_list_match (const char *name, const char *cmdline, procstat_t *ps)
 	return (0);
 } /* int ps_list_match */
 
-static void ps_update_counter (
-        _Bool init,
-        derive_t *group_counter,
-        derive_t *curr_counter, unsigned long *curr_value,
-        derive_t new_counter, unsigned long new_value) {
-    if (init)
-    {
-        *curr_value = new_value;
-        *curr_counter += new_value;
-        *group_counter += new_value;
-        return;
-    }
-
-    if (new_counter < *curr_counter)
-    {
-        *curr_value = new_counter + (ULONG_MAX - *curr_counter);
-    }
-    else
-    {
-        *curr_value = new_counter - *curr_counter;
-    }
-    *curr_counter = new_counter;
-    *group_counter += *curr_value;
-}
-
 /* add process entry to 'instances' of process 'name' (or refresh it) */
 static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t *entry)
 {
@@ -397,8 +369,6 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 
 	for (ps = list_head_g; ps != NULL; ps = ps->next)
 	{
-        _Bool want_init;
-
 		if ((ps_list_match (name, cmdline, ps)) == 0)
 			continue;
 
@@ -455,27 +425,79 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 		ps->cswitch_vol   += ((pse->cswitch_vol == -1)?0:pse->cswitch_vol);
 		ps->cswitch_invol += ((pse->cswitch_invol == -1)?0:pse->cswitch_invol);
 
-		want_init = (entry->vmem_minflt_counter == 0)
-				&& (entry->vmem_majflt_counter == 0);
-		ps_update_counter (want_init,
-				&ps->vmem_minflt_counter,
-				&pse->vmem_minflt_counter, &pse->vmem_minflt,
-				entry->vmem_minflt_counter, entry->vmem_minflt);
-		ps_update_counter (want_init,
-				&ps->vmem_majflt_counter,
-				&pse->vmem_majflt_counter, &pse->vmem_majflt,
-				entry->vmem_majflt_counter, entry->vmem_majflt);
+		if ((entry->vmem_minflt_counter == 0)
+				&& (entry->vmem_majflt_counter == 0))
+		{
+			pse->vmem_minflt_counter += entry->vmem_minflt;
+			pse->vmem_minflt = entry->vmem_minflt;
 
-		want_init = (entry->cpu_user_counter == 0)
-				&& (entry->cpu_system_counter == 0);
-		ps_update_counter (want_init,
-				&ps->cpu_user_counter,
-				&pse->cpu_user_counter, &pse->cpu_user,
-				entry->cpu_user_counter, entry->cpu_user);
-		ps_update_counter (want_init,
-				&ps->cpu_system_counter,
-				&pse->cpu_system_counter, &pse->cpu_system,
-				entry->cpu_system_counter, entry->cpu_system);
+			pse->vmem_majflt_counter += entry->vmem_majflt;
+			pse->vmem_majflt = entry->vmem_majflt;
+		}
+		else
+		{
+			if (entry->vmem_minflt_counter < pse->vmem_minflt_counter)
+			{
+				pse->vmem_minflt = entry->vmem_minflt_counter
+					+ (ULONG_MAX - pse->vmem_minflt_counter);
+			}
+			else
+			{
+				pse->vmem_minflt = entry->vmem_minflt_counter - pse->vmem_minflt_counter;
+			}
+			pse->vmem_minflt_counter = entry->vmem_minflt_counter;
+
+			if (entry->vmem_majflt_counter < pse->vmem_majflt_counter)
+			{
+				pse->vmem_majflt = entry->vmem_majflt_counter
+					+ (ULONG_MAX - pse->vmem_majflt_counter);
+			}
+			else
+			{
+				pse->vmem_majflt = entry->vmem_majflt_counter - pse->vmem_majflt_counter;
+			}
+			pse->vmem_majflt_counter = entry->vmem_majflt_counter;
+		}
+
+		ps->vmem_minflt_counter += pse->vmem_minflt;
+		ps->vmem_majflt_counter += pse->vmem_majflt;
+
+		if ((entry->cpu_user_counter == 0)
+				&& (entry->cpu_system_counter == 0))
+		{
+			pse->cpu_user_counter += entry->cpu_user;
+			pse->cpu_user = entry->cpu_user;
+
+			pse->cpu_system_counter += entry->cpu_system;
+			pse->cpu_system = entry->cpu_system;
+		}
+		else
+		{
+			if (entry->cpu_user_counter < pse->cpu_user_counter)
+			{
+				pse->cpu_user = entry->cpu_user_counter
+					+ (ULONG_MAX - pse->cpu_user_counter);
+			}
+			else
+			{
+				pse->cpu_user = entry->cpu_user_counter - pse->cpu_user_counter;
+			}
+			pse->cpu_user_counter = entry->cpu_user_counter;
+
+			if (entry->cpu_system_counter < pse->cpu_system_counter)
+			{
+				pse->cpu_system = entry->cpu_system_counter
+					+ (ULONG_MAX - pse->cpu_system_counter);
+			}
+			else
+			{
+				pse->cpu_system = entry->cpu_system_counter - pse->cpu_system_counter;
+			}
+			pse->cpu_system_counter = entry->cpu_system_counter;
+		}
+
+		ps->cpu_user_counter   += pse->cpu_user;
+		ps->cpu_system_counter += pse->cpu_system;
 	}
 }
 
@@ -1102,7 +1124,7 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 	/* Leave the rest at zero if this is only a zombi */
 	if (ps->num_proc == 0)
 	{
-		DEBUG ("processes plugin: This is only a zombie: pid = %i; "
+		DEBUG ("processes plugin: This is only a zombi: pid = %i; "
 				"name = %s;", pid, ps->name);
 		return (0);
 	}
@@ -1303,8 +1325,8 @@ static int read_fork_rate ()
 #endif /*KERNEL_LINUX */
 
 #if KERNEL_SOLARIS
-static char *ps_get_cmdline (pid_t pid, char *name __attribute__((unused)), /* {{{ */
-    char *buffer, size_t buffer_size)
+static const char *ps_get_cmdline (long pid, /* {{{ */
+		char *buffer, size_t buffer_size)
 {
 	char path[PATH_MAX];
 	psinfo_t info;
@@ -1413,12 +1435,6 @@ static int ps_read_process(long pid, procstat_t *ps, char *state)
 	ps->io_wchar = myUsage->pr_oublk * chars_per_block;
 	ps->io_syscr = myUsage->pr_sysc;
 	ps->io_syscw = myUsage->pr_sysc;
-
-	/*
-	 * TODO: context switch counters for Solaris
-   */
-	ps->cswitch_vol   = -1;
-	ps->cswitch_invol = -1;
 
 
 	/*
@@ -1657,10 +1673,6 @@ static int ps_read (void)
 
 				pse.cpu_user_counter = task_absolutetime_info.total_user;
 				pse.cpu_system_counter = task_absolutetime_info.total_system;
-
-				/* context switch counters not implemented */
-				pse.cswitch_vol   = -1;
-				pse.cswitch_invol = -1;
 			}
 
 			status = task_threads (task_list[task], &thread_list,
@@ -2014,10 +2026,6 @@ static int ps_read (void)
 			pse.io_syscr = -1;
 			pse.io_syscw = -1;
 
-			/* context switch counters not implemented */
-			pse.cswitch_vol   = -1;
-			pse.cswitch_invol = -1;
-
 			ps_list_add (procs[i].ki_comm, have_cmdline ? cmdline : NULL, &pse);
 
 			switch (procs[i].ki_stat)
@@ -2151,8 +2159,7 @@ static int ps_read (void)
 			pse.io_syscr = -1;
 			pse.io_syscw = -1;
 
-			/* context switch counters not implemented */
-			pse.cswitch_vol   = -1;
+			pse.cswitch_vol = -1;
 			pse.cswitch_invol = -1;
 
 			ps_list_add (procs[i].p_comm, have_cmdline ? cmdline : NULL, &pse);
@@ -2301,9 +2308,6 @@ static int ps_read (void)
 			pse.io_syscr = -1;
 			pse.io_syscw = -1;
 
-			pse.cswitch_vol   = -1;
-			pse.cswitch_invol = -1;
-
 			ps_list_add (cmdline, cargs, &pse);
 		} /* for (i = 0 .. nprocs) */
 
@@ -2417,7 +2421,7 @@ static int ps_read (void)
 
 
 		ps_list_add (ps.name,
-				ps_get_cmdline (pid, ps.name, cmdline, sizeof (cmdline)),
+				ps_get_cmdline (pid, cmdline, sizeof (cmdline)),
 				&pse);
 	} /* while(readdir) */
 	closedir (proc);

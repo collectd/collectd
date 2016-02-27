@@ -24,9 +24,9 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
-#include "common.h" /* for STATIC_ARRAY_SIZE */
-#include "collectd.h"
 #include "testing.h"
+#include "collectd.h"
+#include "common.h" /* for STATIC_ARRAY_SIZE */
 #include "utils_subst.h"
 
 #if HAVE_LIBKSTAT

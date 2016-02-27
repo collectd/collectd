@@ -198,6 +198,11 @@ static int zookeeper_query (char *buffer, size_t buffer_size)
 		}
 
 		buffer_fill += (size_t) status;
+		if (status == 0)
+		{
+			/* done reading from the socket */
+			break;
+		}
 	} /* while (recv) */
 
 	status = 0;

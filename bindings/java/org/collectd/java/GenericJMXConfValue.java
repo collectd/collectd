@@ -28,7 +28,6 @@ package org.collectd.java;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Collection;
 import java.util.Set;
 import java.util.Iterator;
 import java.util.ArrayList;
@@ -40,7 +39,6 @@ import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
 import javax.management.openmbean.OpenType;
 import javax.management.openmbean.CompositeData;
-import javax.management.openmbean.TabularData;
 import javax.management.openmbean.InvalidKeyException;
 
 import org.collectd.api.Collectd;
@@ -70,7 +68,6 @@ class GenericJMXConfValue
   private List<String> _attributes;
   private String _instance_prefix;
   private List<String> _instance_from;
-  private String _plugin_name;
   private boolean _is_table;
 
   /**
@@ -298,46 +295,6 @@ class GenericJMXConfValue
     {
       if (value instanceof CompositeData)
         return (queryAttributeRecursive ((CompositeData) value, attrName));
-      else if (value instanceof TabularData)
-        return (queryAttributeRecursive ((TabularData) value, attrName));
-      else
-        return (null);
-    }
-  } /* }}} queryAttributeRecursive */
-
-  private Object queryAttributeRecursive (TabularData parent, /* {{{ */
-      List<String> attrName)
-  {
-    String key;
-    Object value = null;
-
-    key = attrName.remove (0);
-
-    TabularData tabularData = (TabularData) parent;
-    Collection<CompositeData> table =
-        (Collection<CompositeData>)tabularData.values();
-    for (CompositeData compositeData : table)
-    {
-      if (key.equals(compositeData.get("key")))
-      {
-        value = compositeData.get("value");
-      }
-    }
-    if (null == value)
-    {
-      return (null);
-    }
-
-    if (attrName.size () == 0)
-    {
-      return (value);
-    }
-    else
-    {
-      if (value instanceof CompositeData)
-        return (queryAttributeRecursive ((CompositeData) value, attrName));
-      else if (value instanceof TabularData)
-        return (queryAttributeRecursive ((TabularData) value, attrName));
       else
         return (null);
     }
@@ -384,8 +341,6 @@ class GenericJMXConfValue
     {
       if (value instanceof CompositeData)
         return (queryAttributeRecursive((CompositeData) value, attrNameList));
-      else if (value instanceof TabularData)
-        return (queryAttributeRecursive((TabularData) value, attrNameList));
       else if (value instanceof OpenType)
       {
         OpenType ot = (OpenType) value;
@@ -396,7 +351,7 @@ class GenericJMXConfValue
       else
       {
         Collectd.logError ("GenericJMXConfValue: Received object of "
-            + "unknown class. " + attrName + " " + ((value == null)?"null":value.getClass().getName()));
+            + "unknown class.");
         return (null);
       }
     }
@@ -481,7 +436,6 @@ class GenericJMXConfValue
     this._attributes = new ArrayList<String> ();
     this._instance_prefix = null;
     this._instance_from = new ArrayList<String> ();
-    this._plugin_name = null;
     this._is_table = false;
 
     /*
@@ -530,12 +484,6 @@ class GenericJMXConfValue
         String tmp = getConfigString (child);
         if (tmp != null)
           this._instance_from.add (tmp);
-      }
-      else if (child.getKey ().equalsIgnoreCase ("PluginName"))
-      {
-        String tmp = getConfigString (child);
-        if (tmp != null)
-          this._plugin_name = tmp;
       }
       else
         throw (new IllegalArgumentException ("Unknown option: "
@@ -590,10 +538,6 @@ class GenericJMXConfValue
 
     vl = new ValueList (pd);
     vl.setType (this._ds_name);
-    if (this._plugin_name != null)
-    {
-      vl.setPlugin (this._plugin_name);
-    }
 
     /*
      * Build the instnace prefix from the fixed string prefix and the

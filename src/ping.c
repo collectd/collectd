@@ -73,7 +73,6 @@ static char  *ping_source = NULL;
 #ifdef HAVE_OPING_1_3
 static char  *ping_device = NULL;
 #endif
-static char  *ping_data = NULL;
 static int    ping_ttl = PING_DEF_TTL;
 static double ping_interval = 1.0;
 static double ping_timeout = 0.9;
@@ -92,7 +91,6 @@ static const char *config_keys[] =
 #ifdef HAVE_OPING_1_3
   "Device",
 #endif
-  "Size",
   "TTL",
   "Interval",
   "Timeout",
@@ -244,7 +242,7 @@ static int ping_dispatch_all (pingobj_t *pingobj) /* {{{ */
 
 static void *ping_thread (void *arg) /* {{{ */
 {
-  pingobj_t *pingobj = NULL;
+  static pingobj_t *pingobj = NULL;
 
   struct timeval  tv_begin;
   struct timeval  tv_end;
@@ -281,9 +279,6 @@ static void *ping_thread (void *arg) /* {{{ */
 
   ping_setopt (pingobj, PING_OPT_TIMEOUT, (void *) &ping_timeout);
   ping_setopt (pingobj, PING_OPT_TTL, (void *) &ping_ttl);
-
-  if (ping_data != NULL)
-    ping_setopt (pingobj, PING_OPT_DATA, (void *) ping_data);
 
   /* Add all the hosts to the ping object. */
   count = 0;
@@ -427,10 +422,8 @@ static int stop_thread (void) /* {{{ */
     status = -1;
   }
 
-  pthread_mutex_lock (&ping_lock);
   memset (&ping_thread_id, 0, sizeof (ping_thread_id));
   ping_thread_error = 0;
-  pthread_mutex_unlock (&ping_lock);
 
   return (status);
 } /* }}} int stop_thread */
@@ -543,39 +536,6 @@ static int ping_config (const char *key, const char *value) /* {{{ */
     else
       WARNING ("ping plugin: Ignoring invalid interval %g (%s)",
           tmp, value);
-  }
-  else if (strcasecmp (key, "Size") == 0) {
-    size_t size = (size_t) atoi (value);
-
-    /* Max IP packet size - (IPv6 + ICMP) = 65535 - (40 + 8) = 65487 */
-    if (size <= 65487)
-    {
-      size_t i;
-
-      sfree (ping_data);
-      ping_data = malloc (size + 1);
-      if (ping_data == NULL)
-      {
-        ERROR ("ping plugin: malloc failed.");
-        return (1);
-      }
-
-      /* Note: By default oping is using constant string
-       * "liboping -- ICMP ping library <http://octo.it/liboping/>"
-       * which is exactly 56 bytes.
-       *
-       * Optimally we would follow the ping(1) behaviour, but we
-       * cannot use byte 00 or start data payload at exactly same
-       * location, due to oping library limitations. */
-      for (i = 0; i < size; i++) /* {{{ */
-      {
-        /* This restricts data pattern to be only composed of easily
-         * printable characters, and not NUL character. */
-        ping_data[i] = ('0' + i % 64);
-      }  /* }}} for (i = 0; i < size; i++) */
-      ping_data[size] = 0;
-    } else
-      WARNING ("ping plugin: Ignoring invalid Size %zu.", size);
   }
   else if (strcasecmp (key, "Timeout") == 0)
   {
@@ -726,11 +686,6 @@ static int ping_shutdown (void) /* {{{ */
     sfree (hl);
 
     hl = hl_next;
-  }
-
-  if (ping_data != NULL) {
-    free (ping_data);
-    ping_data = NULL;
   }
 
   return (0);

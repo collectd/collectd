@@ -301,11 +301,6 @@ static int do_init (void)
 #if HAVE_SETLOCALE
 	if (setlocale (LC_NUMERIC, COLLECTD_LOCALE) == NULL)
 		WARNING ("setlocale (\"%s\") failed.", COLLECTD_LOCALE);
-
-	/* Update the environment, so that libraries that are calling
-	 * setlocale(LC_NUMERIC, "") don't accidentally revert these changes. */
-	unsetenv ("LC_ALL");
-	setenv ("LC_NUMERIC", COLLECTD_LOCALE, /* overwrite = */ 1);
 #endif
 
 #if HAVE_LIBKSTAT
@@ -638,8 +633,6 @@ int main (int argc, char **argv)
 #endif
 	)
 	{
-		int status;
-
 		if ((pid = fork ()) == -1)
 		{
 			/* error */
@@ -668,24 +661,19 @@ int main (int argc, char **argv)
 		close (1);
 		close (0);
 
-		status = open ("/dev/null", O_RDWR);
-		if (status != 0)
+		if (open ("/dev/null", O_RDWR) != 0)
 		{
-			ERROR ("Error: Could not connect `STDIN' to `/dev/null' (status %d)", status);
+			ERROR ("Error: Could not connect `STDIN' to `/dev/null'");
 			return (1);
 		}
-
-		status = dup (0);
-		if (status != 1)
+		if (dup (0) != 1)
 		{
-			ERROR ("Error: Could not connect `STDOUT' to `/dev/null' (status %d)", status);
+			ERROR ("Error: Could not connect `STDOUT' to `/dev/null'");
 			return (1);
 		}
-
-		status = dup (0);
-		if (status != 2)
+		if (dup (0) != 2)
 		{
-			ERROR ("Error: Could not connect `STDERR' to `/dev/null', (status %d)", status);
+			ERROR ("Error: Could not connect `STDERR' to `/dev/null'");
 			return (1);
 		}
 	} /* if (daemonize) */

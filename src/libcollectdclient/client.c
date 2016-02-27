@@ -526,11 +526,9 @@ static int lcc_open_netsocket (lcc_connection_t *c, /* {{{ */
   if (status != 0)
   {
     lcc_set_errno (c, status);
-    freeaddrinfo (ai_res);
     return (-1);
   }
 
-  freeaddrinfo (ai_res);
   return (0);
 } /* }}} int lcc_open_netsocket */
 

@@ -360,13 +360,10 @@ static int sigrok_init(void)
 		return -1;
 	}
 
-	status = plugin_thread_create(&sr_thread, NULL, sigrok_read_thread,
-			NULL);
-	if (status != 0)
-	{
-		char errbuf[1024];
+	if ((status = plugin_thread_create(&sr_thread, NULL, sigrok_read_thread,
+			NULL)) != 0) {
 		ERROR("sigrok plugin: Failed to create thread: %s.",
-				sstrerror (errno, errbuf, sizeof (errbuf)));
+				strerror(status));
 		return -1;
 	}
 	sr_thread_running = TRUE;

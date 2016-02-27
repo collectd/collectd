@@ -12,9 +12,10 @@
  * ranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public Licence for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * You should have received a copy of the GNU General Public
+ * Licence along with this program; if not, write to the Free
+ * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139,
+ * USA.
  *
  * Author:
  *   Niki W. Waibel <niki.waibel@gmx.net>
@@ -570,64 +571,6 @@ static cu_mount_t *cu_mount_gen_getmntent (void)
 #warn "This version of `getmntent' hat not yet been implemented!"
 /* #endif HAVE_SEQ_GETMNTENT */
 
-#elif HAVE_GETMNTENT_R
-static cu_mount_t *cu_mount_getmntent (void)
-{
-	FILE *fp;
-	struct mntent me;
-	char mntbuf[1024];
-
-	cu_mount_t *first = NULL;
-	cu_mount_t *last  = NULL;
-	cu_mount_t *new   = NULL;
-
-	DEBUG ("utils_mount: (void); COLLECTD_MNTTAB = %s", COLLECTD_MNTTAB);
-
-	if ((fp = setmntent (COLLECTD_MNTTAB, "r")) == NULL)
-	{
-		char errbuf[1024];
-		ERROR ("setmntent (%s): %s", COLLECTD_MNTTAB,
-				sstrerror (errno, errbuf, sizeof (errbuf)));
-		return (NULL);
-	}
-
-	while (getmntent_r (fp, &me, mntbuf, sizeof (mntbuf) ))
-	{
-		if ((new = malloc (sizeof (cu_mount_t))) == NULL)
-			break;
-		memset (new, '\0', sizeof (cu_mount_t));
-
-		/* Copy values from `struct mntent *' */
-		new->dir         = sstrdup (me.mnt_dir);
-		new->spec_device = sstrdup (me.mnt_fsname);
-		new->type        = sstrdup (me.mnt_type);
-		new->options     = sstrdup (me.mnt_opts);
-		new->device      = get_device_name (new->options);
-		new->next        = NULL;
-
-		DEBUG ("utils_mount: new = {dir = %s, spec_device = %s, type = %s, options = %s, device = %s}",
-				new->dir, new->spec_device, new->type, new->options, new->device);
-
-		/* Append to list */
-		if (first == NULL)
-		{
-			first = new;
-			last  = new;
-		}
-		else
-		{
-			last->next = new;
-			last       = new;
-		}
-	}
-
-	endmntent (fp);
-
-	DEBUG ("utils_mount: return (0x%p)", (void *) first);
-
-	return (first);
-} /* HAVE_GETMNTENT_R */
-
 #elif HAVE_ONE_GETMNTENT
 static cu_mount_t *cu_mount_getmntent (void)
 {
@@ -759,13 +702,13 @@ void cu_mount_freelist (cu_mount_t *list)
 char *
 cu_mount_checkoption(char *line, char *keyword, int full)
 {
-	char *line2, *l2, *p1, *p2;
-	int l;
+	char *line2, *l2;
+	int l = strlen(keyword);
+	char *p1, *p2;
 
 	if(line == NULL || keyword == NULL) {
 		return NULL;
 	}
-
 	if(full != 0) {
 		full = 1;
 	}
@@ -779,7 +722,6 @@ cu_mount_checkoption(char *line, char *keyword, int full)
 		l2++;
 	}
 
-	l = strlen(keyword);
 	p1 = line - 1;
 	p2 = strchr(line, ',');
 	do {
