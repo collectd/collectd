@@ -1,7 +1,7 @@
 SUBDIRS =
 
 if BUILD_WITH_JAVA
-SUBDIRS += java
+SUBDIRS += java java-tests
 endif
 
 EXTRA_DIST = perl/Makefile.PL \
