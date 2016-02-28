@@ -68,9 +68,9 @@ AC_CACHE_CHECK([if bison is the parser generator],
 	)]
 )
 
-if test "x$collectd_cv_prog_bison" = "xno" && test ! -f "${srcdir}/liboconfig/parser.c"
+if test "x$collectd_cv_prog_bison" = "xno" && test ! -f "${srcdir}/src/liboconfig/parser.c"
 then
-	AC_MSG_ERROR([bison is missing and you do not have ${srcdir}/liboconfig/parser.c. Please install bison])
+	AC_MSG_ERROR([bison is missing and you do not have ${srcdir}/src/liboconfig/parser.c. Please install bison])
 fi
 
 AC_CHECK_PROG([have_protoc_c], [protoc-c], [yes], [no])
