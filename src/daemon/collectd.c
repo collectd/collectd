@@ -422,7 +422,7 @@ static int pidfile_remove (void)
 #endif /* COLLECT_DAEMON */
 
 #ifdef KERNEL_LINUX
-int notify_upstart (void)
+static int notify_upstart (void)
 {
     char const *upstart_job = getenv("UPSTART_JOB");
 
@@ -442,7 +442,7 @@ int notify_upstart (void)
     return 1;
 }
 
-int notify_systemd (void)
+static int notify_systemd (void)
 {
     int                  fd;
     const char          *notifysocket;
