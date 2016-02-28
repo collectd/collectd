@@ -12,8 +12,8 @@ We'd like to keep the github issue tracker for bugreports and patch reviews.
 
 ## Found a bug ?
 
-Please mention the exact collectd version you're using, how you installed it
-(built from source, or installed from packages. Where did you download it
+Please mention the exact collectd version you're using, how it was installed
+(built from source, or installed from packages. Where was it downloaded
 from). Which operating system/architecture, distribution and version are you
 running collectd on.
 
