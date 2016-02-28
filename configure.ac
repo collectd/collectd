@@ -3,6 +3,7 @@ AC_INIT([collectd],[m4_esyscmd(./version-gen.sh)])
 AC_CONFIG_SRCDIR(src/)
 AC_CONFIG_HEADERS(src/config.h)
 AC_CONFIG_AUX_DIR([libltdl/config])
+AC_CONFIG_MACRO_DIR([m4])
 
 dnl older automake's default of ARFLAGS=cru is noisy on newer binutils;
 dnl we don't really need the 'u' even in older toolchains.  Then there is
@@ -72,6 +73,51 @@ if test "x$collectd_cv_prog_bison" = "xno" && test ! -f "${srcdir}/src/liboconfi
 then
 	AC_MSG_ERROR([bison is missing and you do not have ${srcdir}/src/liboconfig/parser.c. Please install bison])
 fi
+
+# check and add compiler flags
+
+CC_CHECK_FLAGS_APPEND([with_cflags], [CFLAGS], [\
+        -pipe \
+        -Wall \
+        -Wextra \
+        "-Wformat=2 -Wformat-security -Wformat-nonliteral" \
+        -Wlogical-op \
+        -Wmissing-include-dirs \
+        -Wold-style-definition \
+        -Wpointer-arith \
+        -Winit-self \
+        -Wsuggest-attribute=noreturn \
+        -Wmissing-prototypes \
+        -Wimplicit-function-declaration \
+        -Wmissing-declarations \
+        -Wstrict-prototypes \
+        -Wredundant-decls \
+        -Wmissing-noreturn \
+        -Wshadow \
+        -Wendif-labels \
+        -Wwrite-strings \
+        -Wno-unused-parameter \
+        -Wno-missing-field-initializers \
+        -Wno-unused-result \
+        -Wno-format-signedness \
+        -Wdate-time \
+        -Wnested-externs \
+        -fdiagnostics-color=auto \
+        -fno-common \
+        -fstack-protector \
+        -fstack-protector-strong \
+        -fPIE \
+        --param=ssp-buffer-size=4])
+
+AC_SUBST([AM_CFLAGS], "$with_cflags")
+
+CC_CHECK_FLAGS_APPEND([with_ldflags], [LDFLAGS], [\
+        -Wl,--as-needed \
+        -Wl,--no-undefined \
+        -Wl,-z,relro \
+        -Wl,-z,now \
+        -pie])
+AC_SUBST([AM_LDFLAGS], "$with_ldflags")
 
 AC_CHECK_PROG([have_protoc_c], [protoc-c], [yes], [no])
 if test "x$have_protoc_c" = "xno"
@@ -6020,10 +6066,11 @@ AC_SUBST(LCC_VERSION_STRING)
 
 AC_CONFIG_FILES(src/libcollectdclient/collectd/lcc_features.h)
 
-AM_CFLAGS="-Wall"
 if test "x$enable_werror" != "xno"
 then
         AM_CFLAGS="$AM_CFLAGS -Werror"
+else
+        AM_CFLAGS="$AM_CFLAGS -Wno-error"
 fi
 AC_SUBST([AM_CFLAGS])
 
