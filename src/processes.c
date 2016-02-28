@@ -1047,7 +1047,7 @@ int ps_read_process (long pid, procstat_t *ps, char *state)
 		/* No VMem data */
 		ps->vmem_data = -1;
 		ps->vmem_code = -1;
-		DEBUG("ps_read_process: did not get vmem data for pid %i",pid);
+		DEBUG("ps_read_process: did not get vmem data for pid %li", pid);
 	}
 
 	ps->cpu_user_counter = cpu_user_counter;
