@@ -24,13 +24,13 @@
  *   Florian Forster <ff at octo.it>
  **/
 
+#include <math.h>
+#include <limits.h>
+
 #include "collectd.h"
 #include "plugin.h"
 #include "utils_latency.h"
 #include "common.h"
-
-#include <math.h>
-#include <limits.h>
 
 #ifndef LLONG_MAX
 # define LLONG_MAX 9223372036854775807LL
@@ -117,7 +117,7 @@ static void change_bin_width (latency_counter_t *lc, cdtime_t latency) /* {{{ */
       CDTIME_T_TO_DOUBLE (new_bin_width));
 } /* }}} void change_bin_width */
 
-latency_counter_t *latency_counter_create () /* {{{ */
+latency_counter_t *latency_counter_create (void) /* {{{ */
 {
   latency_counter_t *lc;
 
