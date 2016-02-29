@@ -76,7 +76,7 @@ struct latency_counter_s
 * So, if the required bin width is 300, then new bin width will be 512 as it is
 * the next nearest power of 2.
 */
-void change_bin_width (latency_counter_t *lc, cdtime_t latency) /* {{{ */
+static void change_bin_width (latency_counter_t *lc, cdtime_t latency) /* {{{ */
 {
   /* This function is called because the new value is above histogram's range.
    * First find the required bin width:
