@@ -40,8 +40,10 @@ static char *verify_peer = NULL;
 static char *verify_host = NULL;
 static char *cacert      = NULL;
 static char *timeout     = NULL;
+static char *vhost       = NULL;
 
 static CURL *curl = NULL;
+static struct curl_slist *headers = NULL;
 
 static char   nginx_buffer[16384];
 static size_t nginx_buffer_len = 0;
@@ -50,6 +52,7 @@ static char   nginx_curl_error[CURL_ERROR_SIZE];
 static const char *config_keys[] =
 {
   "URL",
+  "VHost",
   "User",
   "Password",
   "VerifyPeer",
@@ -99,6 +102,8 @@ static int config (const char *key, const char *value)
 {
   if (strcasecmp (key, "url") == 0)
     return (config_set (&url, value));
+  if (strcasecmp (key, "vhost") == 0)
+    return (config_set (&vhost, value));
   else if (strcasecmp (key, "user") == 0)
     return (config_set (&user, value));
   else if (strcasecmp (key, "password") == 0)
@@ -125,7 +130,7 @@ static int init (void)
     ERROR ("nginx plugin: curl_easy_init failed.");
     return (-1);
   }
-
+  curl_easy_setopt (curl, CURLOPT_VERBOSE, 1L);
   curl_easy_setopt (curl, CURLOPT_NOSIGNAL, 1L);
   curl_easy_setopt (curl, CURLOPT_WRITEFUNCTION, nginx_curl_callback);
   curl_easy_setopt (curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
@@ -154,6 +159,16 @@ static int init (void)
   {
     curl_easy_setopt (curl, CURLOPT_URL, url);
   }
+
+  if (vhost != NULL)
+  {
+    char header[256];
+    snprintf(header, sizeof(header)-1, "Host: %s", vhost);
+    headers = curl_slist_append (headers, header);
+
+    curl_easy_setopt (curl, CURLOPT_HTTPHEADER, headers);
+  }
+
 
   curl_easy_setopt (curl, CURLOPT_FOLLOWLOCATION, 1L);
   curl_easy_setopt (curl, CURLOPT_MAXREDIRS, 50L);
@@ -245,7 +260,6 @@ static int nginx_read (void)
     WARNING ("nginx plugin: curl_easy_perform failed: %s", nginx_curl_error);
     return (-1);
   }
-
   ptr = nginx_buffer;
   saveptr = NULL;
   while ((lines[lines_num] = strtok_r (ptr, "\n\r", &saveptr)) != NULL)
