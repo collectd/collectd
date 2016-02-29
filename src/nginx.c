@@ -130,7 +130,6 @@ static int init (void)
     ERROR ("nginx plugin: curl_easy_init failed.");
     return (-1);
   }
-  curl_easy_setopt (curl, CURLOPT_VERBOSE, 1L);
   curl_easy_setopt (curl, CURLOPT_NOSIGNAL, 1L);
   curl_easy_setopt (curl, CURLOPT_WRITEFUNCTION, nginx_curl_callback);
   curl_easy_setopt (curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
@@ -168,7 +167,6 @@ static int init (void)
 
     curl_easy_setopt (curl, CURLOPT_HTTPHEADER, headers);
   }
-
 
   curl_easy_setopt (curl, CURLOPT_FOLLOWLOCATION, 1L);
   curl_easy_setopt (curl, CURLOPT_MAXREDIRS, 50L);
