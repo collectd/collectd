@@ -190,7 +190,7 @@ static int interface_read (void)
 	struct ifaddrs *if_list;
 	struct ifaddrs *if_ptr;
 
-/* Darin/Mac OS X and possible other *BSDs */
+/* Darwin/Mac OS X and possible other *BSDs */
 #if HAVE_STRUCT_IF_DATA
 #  define IFA_DATA if_data
 #  define IFA_RX_BYTES ifi_ibytes
