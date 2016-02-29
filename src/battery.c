@@ -111,7 +111,7 @@ static void battery_submit (const char *plugin_instance, const char *type, doubl
 } /* void battery_submit */
 
 #if HAVE_IOKIT_PS_IOPOWERSOURCES_H || HAVE_IOKIT_IOKITLIB_H
-double dict_get_double (CFDictionaryRef dict, char *key_string)
+static double dict_get_double (CFDictionaryRef dict, char *key_string)
 {
 	double      val_double;
 	long long   val_int;
