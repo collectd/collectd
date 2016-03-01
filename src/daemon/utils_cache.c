@@ -559,7 +559,7 @@ gauge_t *uc_get_rate (const data_set_t *ds, const value_list_t *vl)
   return (ret);
 } /* gauge_t *uc_get_rate */
 
-size_t uc_get_size() {
+size_t uc_get_size (void) {
   size_t size_arrays = 0;
 
   pthread_mutex_lock (&cache_lock);

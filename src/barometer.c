@@ -1360,7 +1360,7 @@ static int BMP085_read(double * pressure, double * temperature)
  *
  * @return detected sensor type
  */
-enum Sensor_type Detect_sensor_type(void)
+static enum Sensor_type detect_sensor_type(void)
 {
     if(BMP085_detect())
         return Sensor_BMP085;
@@ -1802,7 +1802,7 @@ static int collectd_barometer_init (void)
     }
 
     /* detect sensor type - this will also set slave address */
-    sensor_type = Detect_sensor_type();
+    sensor_type = detect_sensor_type();
 
     /* init correct sensor type */
     switch(sensor_type)

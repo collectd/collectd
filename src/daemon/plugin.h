@@ -334,7 +334,7 @@ int plugin_unregister_notification (const char *name);
  *  Since some writers dynamically build their name it can be hard for
  *  the configuring person to know it. This function will fill this gap.
  */
-void plugin_log_available_writers ();
+void plugin_log_available_writers (void);
 
 /*
  * NAME

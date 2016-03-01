@@ -46,7 +46,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-int vasprintf(char **str, const char *fmt, va_list args) {
+static int vasprintf(char **str, const char *fmt, va_list args) {
 	int size = 0;
 	va_list tmpa;
 	// copy
@@ -70,7 +70,7 @@ int vasprintf(char **str, const char *fmt, va_list args) {
 	return size;
 }
 
-int asprintf(char **str, const char *fmt, ...) {
+static int asprintf(char **str, const char *fmt, ...) {
 	int size = 0;
 	va_list args;
 	// init variadic argumens
@@ -258,7 +258,7 @@ static char *build_json_str_list(const char *tag, struct str_list const *list) /
 	return ret_str;
 } /* }}} char *build_json_str_list*/
 
-int sensu_format_name2(char *ret, int ret_len,
+static int sensu_format_name2(char *ret, int ret_len,
 		const char *hostname,
 		const char *plugin, const char *plugin_instance,
 		const char *type, const char *type_instance,
@@ -550,7 +550,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
  * http://creativeandcritical.net/str-replace-c/
  * copyright (c) Laird Shaw, under public domain.
  */
-char *replace_str(const char *str, const char *old, /* {{{ */
+static char *replace_str(const char *str, const char *old, /* {{{ */
 		const char *new)
 {
 	char *ret, *r;
