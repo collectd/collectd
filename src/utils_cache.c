@@ -737,7 +737,6 @@ int uc_get_history_by_name (const char *name,
   if (ce->history_length < num_steps)
   {
     gauge_t *tmp;
-    size_t i;
 
     tmp = realloc (ce->history, sizeof (*ce->history)
 	* num_steps * ce->values_num);

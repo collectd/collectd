@@ -293,7 +293,6 @@ static int notify_email_notification (const notification_t *n,
 
   /* Initiate a connection to the SMTP server and transfer the message. */
   if (!smtp_start_session (session)) {
-    char buf[MAXSTRING];
     ERROR ("notify_email plugin: SMTP server problem: %s",
         smtp_strerror (smtp_errno (), buf, sizeof buf));
     pthread_mutex_unlock (&session_lock);
