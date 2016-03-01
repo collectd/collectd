@@ -423,7 +423,7 @@ static int pidfile_remove (void)
 #endif /* COLLECT_DAEMON */
 
 #ifdef KERNEL_LINUX
-int notify_upstart (void)
+static int notify_upstart (void)
 {
     const char  *upstart_job = getenv("UPSTART_JOB");
 
