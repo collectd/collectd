@@ -321,7 +321,7 @@ static int redis_handle_info (char *node, char const *info_line, char const *typ
 
 } /* }}} int redis_handle_info */
 
-int redis_handle_query (redisContext *rh, redis_node_t *rn, redis_query_t *rq) /* {{{ */
+static int redis_handle_query (redisContext *rh, redis_node_t *rn, redis_query_t *rq) /* {{{ */
 {
     redisReply *rr;
     const data_set_t *ds;
