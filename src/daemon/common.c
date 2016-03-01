@@ -62,6 +62,9 @@
 #include <netdb.h>
 
 #include <poll.h>
+#ifndef MSG_DONTWAIT
+# define MSG_DONTWAIT 0
+#endif
 
 #if HAVE_NETINET_IN_H
 # include <netinet/in.h>
