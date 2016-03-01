@@ -26,13 +26,6 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
-#include "collectd.h"
-#include "plugin.h"
-#include "common.h"
-#include "configfile.h"
-#include "utils_cache.h"
-#include "riemann.pb-c.h"
-
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <errno.h>
@@ -40,12 +33,18 @@
 #include <inttypes.h>
 #include <pthread.h>
 
+#include "collectd.h"
+#include "plugin.h"
+#include "common.h"
+#include "configfile.h"
+#include "utils_cache.h"
+#include "riemann.pb-c.h"
+#include "write_riemann_threshold.h"
+
 #define RIEMANN_HOST		"localhost"
 #define RIEMANN_PORT		"5555"
 #define RIEMANN_TTL_FACTOR      2.0
 #define RIEMANN_BATCH_MAX      8192
-
-int write_riemann_threshold_check(const data_set_t *, const value_list_t *, int *);
 
 struct riemann_host {
 	char			*name;
