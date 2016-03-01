@@ -551,7 +551,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
  * http://creativeandcritical.net/str-replace-c/
  * copyright (c) Laird Shaw, under public domain.
  */
-char *replace_str(const char *str, const char *old, /* {{{ */
+static char *replace_str(const char *str, const char *old, /* {{{ */
 		const char *new)
 {
 	char *ret, *r;
