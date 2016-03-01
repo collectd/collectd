@@ -926,7 +926,7 @@ static procstat_t *ps_read_io (long pid, procstat_t *ps)
 	return (ps);
 } /* procstat_t *ps_read_io */
 
-int ps_read_process (long pid, procstat_t *ps, char *state)
+static int ps_read_process (long pid, procstat_t *ps, char *state)
 {
 	char  filename[64];
 	char  buffer[1024];

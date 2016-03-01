@@ -29,6 +29,7 @@
 
 #include "plugin.h"
 #include "configfile.h"
+#include "types_list.h"
 
 static int parse_ds (data_source_t *dsrc, char *buf, size_t buf_len)
 {

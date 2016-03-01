@@ -868,7 +868,7 @@ static int ut_missing (const value_list_t *vl,
   return (0);
 } /* }}} int ut_missing */
 
-int ut_config (oconfig_item_t *ci)
+static int ut_config (oconfig_item_t *ci)
 { /* {{{ */
   int i;
   int status = 0;

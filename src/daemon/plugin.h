@@ -457,4 +457,10 @@ cdtime_t plugin_get_interval (void);
 int plugin_thread_create (pthread_t *thread, const pthread_attr_t *attr,
 		void *(*start_routine) (void *), void *arg);
 
+/*
+ * Plugins need to implement this
+ */
+
+void module_register (void);
+
 #endif /* PLUGIN_H */
