@@ -24,6 +24,8 @@
  *   Fabrice A. Marie <fabrice at kibinlabs.com>
  */
 
+#define _GNU_SOURCE
+
 #include "collectd.h"
 #include "plugin.h"
 #include "common.h"
