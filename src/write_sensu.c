@@ -259,7 +259,7 @@ static char *build_json_str_list(const char *tag, struct str_list const *list) /
 	return ret_str;
 } /* }}} char *build_json_str_list*/
 
-int sensu_format_name2(char *ret, int ret_len,
+static int sensu_format_name2(char *ret, int ret_len,
 		const char *hostname,
 		const char *plugin, const char *plugin_instance,
 		const char *type, const char *type_instance,
