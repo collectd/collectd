@@ -1222,7 +1222,7 @@ endif
 
 if BUILD_PLUGIN_WRITE_RIEMANN
 pkglib_LTLIBRARIES += write_riemann.la
-write_riemann_la_SOURCES = write_riemann.c write_riemann_threshold.c
+write_riemann_la_SOURCES = write_riemann.c write_riemann_threshold.c write_riemann_threshold.h
 nodist_write_riemann_la_SOURCES = riemann.pb-c.c riemann.pb-c.h
 write_riemann_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 write_riemann_la_LIBADD = -lprotobuf-c
