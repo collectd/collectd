@@ -47,7 +47,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-int vasprintf(char **str, const char *fmt, va_list args) {
+static int vasprintf(char **str, const char *fmt, va_list args) {
 	int size = 0;
 	va_list tmpa;
 	// copy
