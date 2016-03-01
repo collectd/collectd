@@ -71,7 +71,7 @@ static int vasprintf(char **str, const char *fmt, va_list args) {
 	return size;
 }
 
-int asprintf(char **str, const char *fmt, ...) {
+static int asprintf(char **str, const char *fmt, ...) {
 	int size = 0;
 	va_list args;
 	// init variadic argumens
