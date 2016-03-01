@@ -50,11 +50,7 @@ AUTOMAKE_OPTIONS = subdir-objects
 sbin_PROGRAMS = collectd
 
 lib_LTLIBRARIES = libcollectd.la
-noinst_LTLIBRARIES = libavltree.la libcommon.la libheap.la libmetadata.la libplugin_mock.la
-
-
-libcommon_la_SOURCES = common.c common.h
-libcommon_la_LIBADD = $(COMMON_LIBS)
+noinst_LTLIBRARIES = libmetadata.la libplugin_mock.la
 
 
 libcollectd_la_SOURCES =  \
@@ -88,7 +84,7 @@ libmetadata_la_SOURCES = meta_data.c meta_data.h
 libplugin_mock_la_SOURCES = plugin_mock.c utils_cache_mock.c \
 			    utils_time.c utils_time.h
 libplugin_mock_la_CPPFLAGS = $(AM_CPPFLAGS) -DMOCK_TIME
-libplugin_mock_la_LIBADD = $(COMMON_LIBS) libcommon.la
+libplugin_mock_la_LIBADD = $(COMMON_LIBS)
 
 if BUILD_WITH_OWN_LIBOCONFIG
 libcollectd_la_LIBADD += $(top_builddir)/src/liboconfig/liboconfig.la
@@ -102,8 +98,8 @@ collectd_SOURCES = collectd.c collectd.h
 collectd_CPPFLAGS =  $(AM_CPPFLAGS) $(LTDLINCL)
 collectd_CFLAGS = $(AM_CFLAGS)
 collectd_LDFLAGS = -export-dynamic
-collectd_LDADD = libcollectd.la libavltree.la libcommon.la libheap.la -lm $(COMMON_LIBS)
-collectd_DEPENDENCIES = libavltree.la libcommon.la libheap.la libmetadata.la
+collectd_LDADD = libcollectd.la -lm $(COMMON_LIBS)
+collectd_DEPENDENCIES = libmetadata.la
 
 # The daemon needs to call sg_init, so we need to link it against libstatgrab,
 # too. -octo

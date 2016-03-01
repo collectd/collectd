@@ -35,7 +35,7 @@ test_utils_latency_LDADD = liblatency.la daemon/libplugin_mock.la -lm
 
 noinst_LTLIBRARIES += liblookup.la
 liblookup_la_SOURCES = utils_vl_lookup.c utils_vl_lookup.h
-liblookup_la_LIBADD = daemon/libcollectd.la daemon/libavltree.la
+liblookup_la_LIBADD = daemon/libcollectd.la
 check_PROGRAMS += test_utils_vl_lookup
 TESTS += test_utils_vl_lookup
 test_utils_vl_lookup_SOURCES = utils_vl_lookup_test.c testing.h
