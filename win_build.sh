@@ -28,7 +28,9 @@ else
       sys_resource \
       sys_wait \
       setlocale \
-      strtok_r
+      strtok_r \
+      poll \
+      recv
 
   cd ${TOP_SRCDIR}/_build_aux/_gnulib
   ./configure --host=mingw32 LIBS="-lws2_32 -lpthread"
