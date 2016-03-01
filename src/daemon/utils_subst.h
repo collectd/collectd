@@ -66,7 +66,7 @@
  *
  * The function returns 'buf' on success, NULL else.
  */
-char *subst (char *buf, size_t buflen, const char *string, int off1, int off2,
+char *subst (char *buf, size_t buflen, const char *string, size_t off1, size_t off2,
 		const char *replacement);
 
 /*
