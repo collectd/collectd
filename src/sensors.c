@@ -265,7 +265,7 @@ static int sensors_config (const char *key, const char *value)
 	return (0);
 }
 
-void sensors_free_features (void)
+static void sensors_free_features (void)
 {
 	featurelist_t *thisft;
 	featurelist_t *nextft;
