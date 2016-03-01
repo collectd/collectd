@@ -440,7 +440,7 @@ static int notify_upstart (void)
     return 1;
 }
 
-int notify_systemd (void)
+static int notify_systemd (void)
 {
     int                  fd = -1;
     const char          *notifysocket = getenv("NOTIFY_SOCKET");
