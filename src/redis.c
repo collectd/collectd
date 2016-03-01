@@ -294,7 +294,7 @@ static int redis_init (void) /* {{{ */
   return (0);
 } /* }}} int redis_init */
 
-int redis_handle_info (char *node, char const *info_line, char const *type, char const *type_instance, char const *field_name, int ds_type) /* {{{ */
+static int redis_handle_info (char *node, char const *info_line, char const *type, char const *type_instance, char const *field_name, int ds_type) /* {{{ */
 {
   char *str = strstr (info_line, field_name);
   static char buf[MAX_REDIS_VAL_SIZE];
