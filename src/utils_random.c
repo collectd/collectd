@@ -24,10 +24,12 @@
  *   Florian Forster <octo at collectd.org>
  **/
 
+#include <pthread.h>
+
 #include "collectd.h"
 #include "utils_time.h"
+#include "utils_random.h"
 
-#include <pthread.h>
 
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 static _Bool have_seed = 0;
