@@ -399,11 +399,11 @@ static int redis_read (void) /* {{{ */
 
     if (strlen (rn->passwd) > 0)
     {
-      DEBUG ("redis plugin: authenticanting node `%s' passwd(%s).", rn->name, rn->passwd);
+      DEBUG ("redis plugin: authenticating node `%s' passwd(%s).", rn->name, rn->passwd);
 
       if ((rr = redisCommand (rh, "AUTH %s", rn->passwd)) == NULL)
       {
-        WARNING("redis plugin: unable to authenticate on node `%s'.", rn->name);
+        WARNING ("redis plugin: unable to authenticate on node `%s'.", rn->name);
         goto redis_fail;
       }
 
