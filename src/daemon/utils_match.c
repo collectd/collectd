@@ -28,6 +28,11 @@
 #include "common.h"
 #include "plugin.h"
 
+#ifdef WIN32
+# define regcomp rpl_regcomp
+# define regexec rpl_regexec
+#endif
+
 #include "utils_match.h"
 
 #include <regex.h>

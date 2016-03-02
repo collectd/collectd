@@ -27,6 +27,11 @@
 #ifndef COLLECTD_H
 #define COLLECTD_H
 
+#ifdef WIN32
+# undef restrict
+# define restrict __restrict
+#endif
+
 #if HAVE_CONFIG_H
 # include "config.h"
 #endif
@@ -149,6 +154,10 @@ typedef int _Bool;
 # include <endian.h>
 #elif HAVE_SYS_ISA_DEFS_H
 # include <sys/isa_defs.h>
+#endif
+
+#ifdef WIN32
+#define __LITTLE_ENDIAN 1234
 #endif
 
 #ifndef BYTE_ORDER
@@ -311,12 +320,7 @@ typedef int _Bool;
 # define GAUGE_FORMAT "%.15g"
 #endif
 
-/* Type for time as used by "utils_time.h" */
-typedef uint64_t cdtime_t;
+#include "globals.h"
 
-extern char     hostname_g[];
-extern cdtime_t interval_g;
-extern int      pidfile_from_cli;
-extern int      timeout_g;
 
 #endif /* COLLECTD_H */

@@ -40,7 +40,7 @@ static int parse_ds (data_source_t *dsrc, char *buf, size_t buf_len)
 
   if (buf_len < 11)
   {
-    ERROR ("parse_ds: (buf_len = %zu) < 11", buf_len);
+    ERROR ("parse_ds: (buf_len = %"PRIu64") < 11", (uint64_t)buf_len);
     return (-1);
   }
 
@@ -131,7 +131,7 @@ static void parse_line (char *buf)
   for (i = 0; i < ds->ds_num; i++)
     if (parse_ds (ds->ds + i, fields[i + 1], strlen (fields[i + 1])) != 0)
     {
-      ERROR ("types_list: parse_line: Cannot parse data source #%zu "
+      ERROR ("types_list: parse_line: Cannot parse data source #%"PRIu64" "
 	  "of data set %s", i, ds->type);
       sfree (ds->ds);
       sfree (ds);

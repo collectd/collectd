@@ -24,6 +24,11 @@
  *   Florian Forster <octo at collectd.org>
  **/
 
+#ifdef WIN32
+#include <gnulib_config.h>
+#include <config.h>
+#endif /* WIN32 */
+
 #include "collectd.h"
 #include "common.h"
 #include "filter_chain.h"
@@ -193,9 +198,9 @@ static int tr_action_invoke (tr_action_t *act_head, /* {{{ */
         (size_t) matches[0].rm_so, (size_t) matches[0].rm_eo, act->replacement);
     if (subst_status == NULL)
     {
-      ERROR ("Target `replace': subst (buffer = %s, start = %zu, end = %zu, "
+      ERROR ("Target `replace': subst (buffer = %s, start = %"PRIu64", end = %"PRIu64", "
           "replacement = %s) failed.",
-          buffer, (size_t) matches[0].rm_so, (size_t) matches[0].rm_eo,
+          buffer, (uint64_t) matches[0].rm_so, (uint64_t) matches[0].rm_eo,
           act->replacement);
       continue;
     }

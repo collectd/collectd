@@ -25,6 +25,13 @@
  *   Sebastian tokkee Harl <sh at tokkee.org>
  **/
 
+
+#ifdef WIN32
+# include <gnulib_config.h>
+# include <config.h>
+# include <sys/stat.h>
+#endif
+
 #include "collectd.h"
 
 #include "liboconfig/oconfig.h"
@@ -1115,7 +1122,7 @@ int cf_register_complex (const char *type, int (*callback) (oconfig_item_t *))
 	return (0);
 } /* int cf_register_complex */
 
-int cf_read (char *filename)
+int cf_read (const char *filename)
 {
 	oconfig_item_t *conf;
 	int i;

@@ -25,6 +25,11 @@
  *
  **/
 
+#ifdef WIN32
+# include <gnulib_config.h>
+# include <config.h>
+#endif
+
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"

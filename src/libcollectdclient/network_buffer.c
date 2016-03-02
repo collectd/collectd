@@ -24,6 +24,10 @@
  *   Florian octo Forster <octo at collectd.org>
  **/
 
+#ifdef WIN32
+# include <gnulib_config.h>
+#endif
+
 #include "config.h"
 
 #include <stdlib.h>
@@ -668,7 +672,7 @@ lcc_network_buffer_t *lcc_network_buffer_create (size_t size) /* {{{ */
   nb->ptr = nb->buffer;
   nb->free = nb->size;
 
-  nb->seclevel = NONE;
+  nb->seclevel = SECURITY_LEVEL_NONE;
   nb->username = NULL;
   nb->password = NULL;
 
@@ -691,13 +695,13 @@ int lcc_network_buffer_set_security_level (lcc_network_buffer_t *nb, /* {{{ */
   char *username_copy;
   char *password_copy;
 
-  if (level == NONE)
+  if (level == SECURITY_LEVEL_NONE)
   {
     free (nb->username);
     free (nb->password);
     nb->username = NULL;
     nb->password = NULL;
-    nb->seclevel = NONE;
+    nb->seclevel = SECURITY_LEVEL_NONE;
     lcc_network_buffer_initialize (nb);
     return (0);
   }
@@ -735,7 +739,7 @@ int lcc_network_buffer_initialize (lcc_network_buffer_t *nb) /* {{{ */
   nb->free = nb->size;
 
 #if HAVE_LIBGCRYPT
-  if (nb->seclevel == SIGN)
+  if (nb->seclevel == SECURITY_LEVEL_SIGN)
   {
     size_t username_len;
     uint16_t pkg_type = htons (TYPE_SIGN_SHA256);
@@ -755,7 +759,7 @@ int lcc_network_buffer_initialize (lcc_network_buffer_t *nb) /* {{{ */
     nb->ptr += username_len;
     nb->free -= username_len;
   }
-  else if (nb->seclevel == ENCRYPT)
+  else if (nb->seclevel == SECURITY_LEVEL_ENCRYPT)
   {
     size_t username_length = strlen (nb->username);
     uint16_t pkg_type = htons (TYPE_ENCR_AES256);
@@ -791,9 +795,9 @@ int lcc_network_buffer_finalize (lcc_network_buffer_t *nb) /* {{{ */
     return (EINVAL);
 
 #if HAVE_LIBGCRYPT
-  if (nb->seclevel == SIGN)
+  if (nb->seclevel == SECURITY_LEVEL_SIGN)
     return nb_add_signature (nb);
-  else if (nb->seclevel == ENCRYPT)
+  else if (nb->seclevel == SECURITY_LEVEL_ENCRYPT)
     return nb_add_encryption (nb);
 #endif
 

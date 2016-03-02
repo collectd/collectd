@@ -30,6 +30,12 @@
  *   the end of a file.
  **/
 
+#ifdef WIN32
+# include <gnulib_config.h>
+# include <config.h>
+# include <sys/stat.h>
+#endif
+
 #include "collectd.h"
 #include "common.h"
 #include "utils_tail.h"

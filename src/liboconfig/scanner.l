@@ -27,6 +27,10 @@
  */
 
 %{
+#ifdef WIN32
+# include <gnulib_config.h>
+# include <config.h>
+#endif
 #include <stdlib.h>
 #include <string.h>
 #include "oconfig.h"

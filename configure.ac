@@ -127,6 +127,10 @@ case $host_os in
 	*)
 	ac_system="unknown"
 esac
+if test "x$OS" = "xWindows_NT"
+then
+	ac_system="Windows_NT"
+fi
 AC_MSG_RESULT([$ac_system])
 
 AM_CONDITIONAL([BUILD_LINUX],[test "x$ac_system" = "xLinux"])
@@ -135,6 +139,7 @@ AM_CONDITIONAL([BUILD_DARWIN],[test "x$ac_system" = "xDarwin"])
 AM_CONDITIONAL([BUILD_OPENBSD],[test "x$ac_system" = "xOpenBSD"])
 AM_CONDITIONAL([BUILD_AIX],[test "x$ac_system" = "xAIX"])
 AM_CONDITIONAL([BUILD_FREEBSD],[test "x$ac_system" = "xFreeBSD"])
+AM_CONDITIONAL([BUILD_WIN32],[test "x$ac_system" = "xWindows_NT"])
 
 if test "x$ac_system" = "xLinux"
 then
@@ -831,11 +836,16 @@ then
 	CFLAGS="$CFLAGS -D_REENTRANT=1"
 fi
 
-AC_CHECK_FUNCS(getpwnam_r getgrnam_r setgroups regcomp regerror regexec regfree)
+AC_CHECK_FUNCS(getpwnam getpwnam_r getgrnam_r setgroups regcomp regerror regexec regfree)
 
 socket_needs_socket="no"
-AC_CHECK_FUNCS(socket, [], AC_CHECK_LIB(socket, socket, [socket_needs_socket="yes"], AC_MSG_ERROR(cannot find socket)))
+socket_needs_gnulib="no"
+AC_CHECK_FUNCS(socket, [],
+               AC_CHECK_LIB(socket, socket, [socket_needs_socket="yes"],
+                            AC_CHECK_LIB(gnu, rpl_socket, [socket_needs_gnulib="yes"],
+                                         AC_MSG_ERROR(cannot find socket))))
 AM_CONDITIONAL(BUILD_WITH_LIBSOCKET, test "x$socket_needs_socket" = "xyes")
+AM_CONDITIONAL(BUILD_WITH_GNULIB, test "x$socket_needs_gnulib" = "xyes")
 
 clock_gettime_needs_rt="no"
 clock_gettime_needs_posix4="no"
@@ -860,13 +870,16 @@ fi
 
 nanosleep_needs_rt="no"
 nanosleep_needs_posix4="no"
+nanosleep_needs_gnulib="no"
 AC_CHECK_FUNCS(nanosleep,
     [],
     AC_CHECK_LIB(rt, nanosleep,
         [nanosleep_needs_rt="yes"],
         AC_CHECK_LIB(posix4, nanosleep,
             [nanosleep_needs_posix4="yes"],
-            AC_MSG_ERROR(cannot find nanosleep))))
+            AC_CHECK_FUNCS(rpl_nanosleep,
+                [nanosleep_needs_gnulib="yes"],
+                AC_MSG_ERROR(cannot find nanosleep)))))
 
 AM_CONDITIONAL(BUILD_WITH_LIBRT, test "x$clock_gettime_needs_rt" = "xyes" || test "x$nanosleep_needs_rt" = "xyes")
 AM_CONDITIONAL(BUILD_WITH_LIBPOSIX4, test "x$clock_gettime_needs_posix4" = "xyes" || test "x$nanosleep_needs_posix4" = "xyes")
@@ -5428,6 +5441,12 @@ then
 	fi
 fi
 
+# Windows
+if test "x$ac_system" = "xWindows_NT"
+then
+	plugin_wmi="yes"
+fi
+
 if test "x$ac_system" = "xOpenBSD"
 then
 	plugin_tcpconns="yes"
@@ -5857,6 +5876,7 @@ AC_PLUGIN([virt],        [$plugin_virt],       [Virtual machine statistics])
 AC_PLUGIN([vmem],        [$plugin_vmem],       [Virtual memory statistics])
 AC_PLUGIN([vserver],     [$plugin_vserver],    [Linux VServer statistics])
 AC_PLUGIN([wireless],    [$plugin_wireless],   [Wireless statistics])
+AC_PLUGIN([wmi],         [$plugin_wmi],        [Windows Management Instrumentation])
 AC_PLUGIN([write_graphite], [yes],             [Graphite / Carbon output plugin])
 AC_PLUGIN([write_http],  [$with_libcurl],      [HTTP output plugin])
 AC_PLUGIN([write_kafka],  [$with_librdkafka],  [Kafka output plugin])
@@ -6256,6 +6276,7 @@ Configuration:
     vmem  . . . . . . . . $enable_vmem
     vserver . . . . . . . $enable_vserver
     wireless  . . . . . . $enable_wireless
+    wmi . . . . . . . . . $enable_wmi
     write_graphite  . . . $enable_write_graphite
     write_http  . . . . . $enable_write_http
     write_kafka . . . . . $enable_write_kafka

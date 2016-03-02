@@ -25,6 +25,11 @@
  *   Alvaro Barcellos <alvaro.barcellos at gmail.com>
  **/
 
+#ifdef WIN32
+# include <gnulib_config.h>
+# include <config.h>
+#endif
+
 #include "collectd.h"
 #include "common.h"
 
@@ -32,7 +37,14 @@
 #include "configfile.h"
 
 #include <sys/types.h>
-#include <sys/un.h>
+#ifndef WIN32
+# include <sys/un.h>
+#else
+# include <sys/stat.h>
+# include <unistd.h>
+# undef gethostname
+# include <Winsock2.h>
+#endif
 #include <netdb.h>
 
 #include <pthread.h>
@@ -49,19 +61,14 @@
 # define COLLECTD_LOCALE "C"
 #endif
 
-/*
- * Global variables
- */
-char hostname_g[DATA_MAX_NAME_LEN];
-cdtime_t interval_g;
-int  pidfile_from_cli = 0;
-int  timeout_g;
-#if HAVE_LIBKSTAT
-kstat_ctl_t *kc;
-#endif /* HAVE_LIBKSTAT */
+#ifdef WIN32
+# undef COLLECT_DAEMON
+#endif
 
 static int loop = 0;
 
+/* TODO: some form of controlling collectd should be present on Windows. */
+#ifndef WIN32
 static void *do_flush (void __attribute__((unused)) *arg)
 {
 	INFO ("Flushing all data.");
@@ -95,6 +102,7 @@ static void sig_usr1_handler (int __attribute__((unused)) signal)
 	pthread_create (&thread, &attr, do_flush, NULL);
 	pthread_attr_destroy (&attr);
 }
+#endif /* !WIN32 */
 
 static int init_hostname (void)
 {
@@ -108,11 +116,11 @@ static int init_hostname (void)
 	str = global_option_get ("Hostname");
 	if (str != NULL)
 	{
-		sstrncpy (hostname_g, str, sizeof (hostname_g));
+		sstrncpy (hostname_g, str, hostname_g_size);
 		return (0);
 	}
 
-	if (gethostname (hostname_g, sizeof (hostname_g)) != 0)
+	if (gethostname (hostname_g, hostname_g_size) != 0)
 	{
 		fprintf (stderr, "`gethostname' failed and no "
 				"hostname was configured.\n");
@@ -142,7 +150,7 @@ static int init_hostname (void)
 		if (ai_ptr->ai_canonname == NULL)
 			continue;
 
-		sstrncpy (hostname_g, ai_ptr->ai_canonname, sizeof (hostname_g));
+		sstrncpy (hostname_g, ai_ptr->ai_canonname, hostname_g_size);
 		break;
 	}
 
@@ -512,23 +520,17 @@ static int notify_systemd (void)
 }
 #endif /* KERNEL_LINUX */
 
-int main (int argc, char **argv)
+struct cmdline_config
 {
-	struct sigaction sig_int_action;
-	struct sigaction sig_term_action;
-	struct sigaction sig_usr1_action;
-	struct sigaction sig_pipe_action;
-	char *configfile = CONFIGFILE;
-	int test_config  = 0;
-	int test_readall = 0;
-	const char *basedir;
-#if COLLECT_DAEMON
-	struct sigaction sig_chld_action;
-	pid_t pid;
-	int daemonize    = 1;
-#endif
-	int exit_status = 0;
+	int test_config;
+	int test_readall;
+	const char *configfile;
+	int daemonize;
+	int pidfile_from_cli;
+};
 
+void read_cmdline (int argc, char **argv, struct cmdline_config *config)
+{
 	/* read options */
 	while (1)
 	{
@@ -546,25 +548,25 @@ int main (int argc, char **argv)
 		switch (c)
 		{
 			case 'C':
-				configfile = optarg;
+				config->configfile = optarg;
 				break;
 			case 't':
-				test_config = 1;
+				config->test_config = 1;
 				break;
 			case 'T':
-				test_readall = 1;
+				config->test_readall = 1;
 				global_option_set ("ReadThreads", "-1");
 #if COLLECT_DAEMON
-				daemonize = 0;
+				config->daemonize = 0;
 #endif /* COLLECT_DAEMON */
 				break;
 #if COLLECT_DAEMON
 			case 'P':
 				global_option_set ("PIDFile", optarg);
-				pidfile_from_cli = 1;
+				config->pidfile_from_cli = 1;
 				break;
 			case 'f':
-				daemonize = 0;
+				config->daemonize = 0;
 				break;
 #endif /* COLLECT_DAEMON */
 			case 'h':
@@ -574,19 +576,18 @@ int main (int argc, char **argv)
 				exit_usage (1);
 		} /* switch (c) */
 	} /* while (1) */
+}
 
-	if (optind < argc)
-		exit_usage (1);
-
-	plugin_init_ctx ();
-
+int configure_collectd (struct cmdline_config *config)
+{
+	const char *basedir;
 	/*
 	 * Read options from the config file, the environment and the command
 	 * line (in that order, with later options overwriting previous ones in
 	 * general).
 	 * Also, this will automatically load modules.
 	 */
-	if (cf_read (configfile))
+	if (cf_read (config->configfile))
 	{
 		fprintf (stderr, "Error: Reading the config file failed!\n"
 				"Read the syslog for details.\n");
@@ -617,7 +618,39 @@ int main (int argc, char **argv)
 	if (init_global_variables () != 0)
 		return (1);
 
-	if (test_config)
+	return (0);
+}
+
+int main (int argc, char **argv)
+{
+#ifndef WIN32
+	struct sigaction sig_int_action;
+	struct sigaction sig_term_action;
+	struct sigaction sig_usr1_action;
+	struct sigaction sig_pipe_action;
+#endif /* !WIN32 */
+	int status;
+#if COLLECT_DAEMON
+	struct sigaction sig_chld_action;
+	pid_t pid;
+#endif
+	int exit_status = 0;
+
+	struct cmdline_config config;
+	memset(&config, 0, sizeof (config));
+	config.daemonize = 1;
+	config.configfile = CONFIGFILE;
+
+	read_cmdline(argc, argv, &config);
+
+	if (optind < argc)
+		exit_usage (1);
+
+	plugin_init_ctx ();
+	if ((status = configure_collectd (&config)))
+		return (status);
+
+	if (config.test_config)
 		return (0);
 
 #if COLLECT_DAEMON
@@ -632,7 +665,7 @@ int main (int argc, char **argv)
      * Only daemonize if we're not being supervised
      * by upstart or systemd (when using Linux).
      */
-	if (daemonize
+	if (config.daemonize
 #ifdef KERNEL_LINUX
 	    && notify_upstart() == 0 && notify_systemd() == 0
 #endif
@@ -691,6 +724,7 @@ int main (int argc, char **argv)
 	} /* if (daemonize) */
 #endif /* COLLECT_DAEMON */
 
+#ifndef WIN32
 	memset (&sig_pipe_action, '\0', sizeof (sig_pipe_action));
 	sig_pipe_action.sa_handler = SIG_IGN;
 	sigaction (SIGPIPE, &sig_pipe_action, NULL);
@@ -724,13 +758,14 @@ int main (int argc, char **argv)
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (1);
 	}
+#endif /* !WIN32 */
 
 	/*
 	 * run the actual loops
 	 */
 	do_init ();
 
-	if (test_readall)
+	if (config.test_readall)
 	{
 		if (plugin_read_all_once () != 0)
 			exit_status = 1;
@@ -747,7 +782,7 @@ int main (int argc, char **argv)
 	do_shutdown ();
 
 #if COLLECT_DAEMON
-	if (daemonize)
+	if (config.daemonize)
 		pidfile_remove ();
 #endif /* COLLECT_DAEMON */
 

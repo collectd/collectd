@@ -161,7 +161,7 @@ static int uc_insert (const data_set_t *ds, const value_list_t *vl,
   if (ce == NULL)
   {
     sfree (key_copy);
-    ERROR ("uc_insert: cache_alloc (%zu) failed.", ds->ds_num);
+    ERROR ("uc_insert: cache_alloc (%"PRIu64") failed.", ds->ds_num);
     return (-1);
   }
 
@@ -449,7 +449,7 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
 	return (-1);
     } /* switch (ds->ds[i].type) */
 
-    DEBUG ("uc_update: %s: ds[%zu] = %lf", name, i, ce->values_gauge[i]);
+    DEBUG ("uc_update: %s: ds[%"PRIu64"] = %lf", name, i, ce->values_gauge[i]);
   } /* for (i) */
 
   /* Update the history if it exists. */
@@ -549,9 +549,9 @@ gauge_t *uc_get_rate (const data_set_t *ds, const value_list_t *vl)
    * values are returned. */
   if (ret_num != (size_t) ds->ds_num)
   {
-    ERROR ("utils_cache: uc_get_rate: ds[%s] has %zu values, "
-	"but uc_get_rate_by_name returned %zu.",
-	ds->type, ds->ds_num, ret_num);
+    ERROR ("utils_cache: uc_get_rate: ds[%s] has %"PRIu64" values, "
+	"but uc_get_rate_by_name returned %"PRIu64".",
+	ds->type, ds->ds_num, (uint64_t)ret_num);
     sfree (ret);
     return (NULL);
   }
