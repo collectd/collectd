@@ -79,7 +79,7 @@ static int tt_config (const char *key, const char *value)
 	return (0);
 }
 
-static void printerr()
+static void printerr (void)
 {
 	int ecode = tcrdbecode(rdb);
 	ERROR ("tokyotyrant plugin: error: %d, %s",
