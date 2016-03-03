@@ -551,14 +551,14 @@ int main (int argc, char **argv) {
   int status;
 
   while (42) {
-    int c;
+    int n;
 
-    c = getopt (argc, argv, "s:h");
+    n = getopt (argc, argv, "s:h");
 
-    if (c == -1)
+    if (n == -1)
       break;
 
-    switch (c) {
+    switch (n) {
       case 's':
         snprintf (address, sizeof (address), "unix:%s", optarg);
         address[sizeof (address) - 1] = '\0';

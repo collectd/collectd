@@ -45,8 +45,6 @@ oconfig_item_t *oconfig_parse_fh (FILE *fh)
   yyset_in (fh);
 
   if (NULL == c_file) {
-    int status;
-
     status = snprintf (file, sizeof (file), "<fd#%d>", fileno (fh));
 
     if ((status < 0) || (status >= sizeof (file))) {
