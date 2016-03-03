@@ -2076,7 +2076,7 @@ static int perl_shutdown (void)
 		return 0;
 
 	if (NULL == aTHX) {
-		c_ithread_t *t = NULL;
+		t = NULL;
 
 		pthread_mutex_lock (&perl_threads->mutex);
 		t = c_ithread_create (perl_threads->head->interp);
