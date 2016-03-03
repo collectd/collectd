@@ -399,25 +399,27 @@ static int redis_read (void) /* {{{ */
 
     if (strlen (rn->passwd) > 0)
     {
-      DEBUG ("redis plugin: authenticanting node `%s' passwd(%s).", rn->name, rn->passwd);
-      rr = redisCommand (rh, "AUTH %s", rn->passwd);
+      DEBUG ("redis plugin: authenticating node `%s' passwd(%s).", rn->name, rn->passwd);
 
-      if (rr == NULL || rr->type != REDIS_REPLY_STATUS)
+      if ((rr = redisCommand (rh, "AUTH %s", rn->passwd)) == NULL)
       {
         WARNING ("redis plugin: unable to authenticate on node `%s'.", rn->name);
-        if (rr != NULL)
-          freeReplyObject (rr);
-
-        redisFree (rh);
-        continue;
+        goto redis_fail;
       }
+
+      if (rr->type != REDIS_REPLY_STATUS)
+      {
+        WARNING ("redis plugin: invalid authentication on node `%s'.", rn->name);
+        goto redis_fail;
+      }
+
+      freeReplyObject (rr);
     }
 
     if ((rr = redisCommand(rh, "INFO")) == NULL)
     {
-      WARNING ("redis plugin: unable to connect to node `%s'.", rn->name);
-      redisFree (rh);
-      continue;
+      WARNING ("redis plugin: unable to get info from node `%s'.", rn->name);
+      goto redis_fail;
     }
 
     redis_handle_info (rn->name, rr->str, "uptime", NULL, "uptime_in_seconds", DS_TYPE_GAUGE);
@@ -439,11 +441,12 @@ static int redis_read (void) /* {{{ */
     redis_handle_info (rn->name, rr->str, "total_bytes", "input", "total_net_input_bytes", DS_TYPE_DERIVE);
     redis_handle_info (rn->name, rr->str, "total_bytes", "output", "total_net_output_bytes", DS_TYPE_DERIVE);
 
-    freeReplyObject (rr);
-
     for (rq = rn->queries; rq != NULL; rq = rq->next)
         redis_handle_query(rh, rn, rq);
 
+redis_fail:
+    if (rr != NULL)
+      freeReplyObject (rr);
     redisFree (rh);
   }
 
