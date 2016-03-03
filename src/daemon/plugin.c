@@ -1567,7 +1567,6 @@ int plugin_unregister_notification (const char *name)
 void plugin_init_all (void)
 {
 	char const *chain_name;
-	long write_threads_num;
 	llentry_t *le;
 	int status;
 

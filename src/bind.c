@@ -836,8 +836,6 @@ static int bind_xml_stats_search_zones (int version, xmlDoc *doc, /* {{{ */
 
   for (i = 0; i < zone_nodes->nodesetval->nodeNr; i++)
   {
-    xmlNode *node;
-
     node = zone_nodes->nodesetval->nodeTab[i];
     assert (node != NULL);
 

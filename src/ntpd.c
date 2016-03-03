@@ -166,16 +166,16 @@ struct resp_pkt
 /* l_fp to double */
 #define M_LFPTOD(r_i, r_uf, d) \
 	do { \
-		register int32_t  i; \
-		register uint32_t f; \
+		register int32_t  ri; \
+		register uint32_t rf; \
 		\
-		i = (r_i); \
-		f = (r_uf); \
-		if (i < 0) { \
-			M_NEG(i, f); \
-			(d) = -((double) i + ((double) f) / 4294967296.0); \
+		ri = (r_i); \
+		rf = (r_uf); \
+		if (ri < 0) { \
+			M_NEG(ri, rf); \
+			(d) = -((double) ri + ((double) rf) / 4294967296.0); \
 		} else { \
-			(d) = (double) i + ((double) f) / 4294967296.0; \
+			(d) = (double) ri + ((double) rf) / 4294967296.0; \
 		} \
 	} while (0)
 
