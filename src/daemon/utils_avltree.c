@@ -245,7 +245,7 @@ static void rebalance (c_avl_tree_t *t, c_avl_node_t *n)
 		{
 			assert (n->right != NULL);
 			b_bottom = BALANCE (n->right);
-			assert ((b_bottom >= -1) || (b_bottom <= 1));
+			assert ((b_bottom >= -1) && (b_bottom <= 1));
 			if (b_bottom == 1)
 				n = rotate_right_left (t, n);
 			else
@@ -255,7 +255,7 @@ static void rebalance (c_avl_tree_t *t, c_avl_node_t *n)
 		{
 			assert (n->left != NULL);
 			b_bottom = BALANCE (n->left);
-			assert ((b_bottom >= -1) || (b_bottom <= 1));
+			assert ((b_bottom >= -1) && (b_bottom <= 1));
 			if (b_bottom == -1)
 				n = rotate_left_right (t, n);
 			else
