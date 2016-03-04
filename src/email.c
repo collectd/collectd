@@ -389,8 +389,8 @@ static void *open_connection (void __attribute__((unused)) *arg)
 {
 	struct sockaddr_un addr;
 
-	char *path  = (NULL == sock_file) ? SOCK_PATH : sock_file;
-	char *group = (NULL == sock_group) ? COLLECTD_GRP_NAME : sock_group;
+	const char *path  = (NULL == sock_file) ? SOCK_PATH : sock_file;
+	const char *group = (NULL == sock_group) ? COLLECTD_GRP_NAME : sock_group;
 
 	/* create UNIX socket */
 	errno = 0;
