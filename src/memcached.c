@@ -98,8 +98,8 @@ static int memcached_connect_unix (memcached_t *st)
 
 static int memcached_connect_inet (memcached_t *st)
 {
-  char *host;
-  char *port;
+  const char *host;
+  const char *port;
 
   struct addrinfo  ai_hints;
   struct addrinfo *ai_list, *ai_ptr;
