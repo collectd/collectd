@@ -75,9 +75,9 @@ struct list_item_s
 
 struct statname_lookup_s
 {
-  char *name;
-  char *type;
-  char *type_instance;
+  const char *name;
+  const char *type;
+  const char *type_instance;
 };
 typedef struct statname_lookup_s statname_lookup_t;
 
@@ -143,7 +143,7 @@ uptime                number of seconds process has been running (since 3.1.5)
 user-msec             number of CPU milliseconds spent in 'user' mode
 }}} */
 
-const char* const default_server_fields[] = /* {{{ */
+static const char* const default_server_fields[] = /* {{{ */
 {
   "latency",
   "packetcache-hit",
@@ -158,9 +158,9 @@ const char* const default_server_fields[] = /* {{{ */
   "udp-answers",
   "udp-queries",
 }; /* }}} */
-int default_server_fields_num = STATIC_ARRAY_SIZE (default_server_fields);
+static int default_server_fields_num = STATIC_ARRAY_SIZE (default_server_fields);
 
-statname_lookup_t lookup_table[] = /* {{{ */
+static statname_lookup_t lookup_table[] = /* {{{ */
 {
   /*********************
    * Server statistics *
@@ -285,7 +285,7 @@ statname_lookup_t lookup_table[] = /* {{{ */
   {"unexpected-packets",   "dns_answer",   "unexpected"},
   {"uptime",               "uptime",       NULL}
 }; /* }}} */
-int lookup_table_length = STATIC_ARRAY_SIZE (lookup_table);
+static int lookup_table_length = STATIC_ARRAY_SIZE (lookup_table);
 
 static llist_t *list = NULL;
 
