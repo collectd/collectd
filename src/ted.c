@@ -263,7 +263,7 @@ static int ted_open_device (void)
     return (0);
 } /* int ted_open_device */
 
-static void ted_submit (char *type, double value)
+static void ted_submit (const char *type, double value)
 {
     value_t values[1];
     value_list_t vl = VALUE_LIST_INIT;
