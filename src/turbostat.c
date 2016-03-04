@@ -457,7 +457,7 @@ delta_core(struct core_data *delta, const struct core_data *new, const struct co
  */
 static inline int __attribute__((warn_unused_result))
 delta_thread(struct thread_data *delta, const struct thread_data *new, const struct thread_data *old,
-	const struct core_data *core_delta)
+	const struct core_data *cdelta)
 {
 	delta->tsc = new->tsc - old->tsc;
 
@@ -491,12 +491,12 @@ delta_thread(struct thread_data *delta, const struct thread_data *new, const str
 	 * it is possible for mperf's non-halted cycles + idle states
 	 * to exceed TSC's all cycles: show c1 = 0% in that case.
 	 */
-	if ((delta->mperf + core_delta->c3 + core_delta->c6 + core_delta->c7) > delta->tsc)
+	if ((delta->mperf + cdelta->c3 + cdelta->c6 + cdelta->c7) > delta->tsc)
 		delta->c1 = 0;
 	else {
 		/* normal case, derive c1 */
-		delta->c1 = delta->tsc - delta->mperf - core_delta->c3
-			- core_delta->c6 - core_delta->c7;
+		delta->c1 = delta->tsc - delta->mperf - cdelta->c3
+			- cdelta->c6 - cdelta->c7;
 	}
 
 	if (delta->mperf == 0) {
@@ -805,7 +805,7 @@ guess:
  * Identify the functionality of the CPU
  */
 static int __attribute__((warn_unused_result))
-probe_cpu()
+probe_cpu(void)
 {
 	unsigned int eax, ebx, ecx, edx, max_level;
 	unsigned int fms, family, model;
@@ -1147,7 +1147,7 @@ allocate_cpu_set(cpu_set_t ** set, size_t * size) {
  * Build a local representation of the cpu distribution
  */
 static int __attribute__((warn_unused_result))
-topology_probe()
+topology_probe(void)
 {
 	unsigned int i;
 	int ret;

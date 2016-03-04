@@ -1050,7 +1050,7 @@ PyMODINIT_FUNC PyInit_collectd(void) {
 }
 #endif
 
-static int cpy_init_python() {
+static int cpy_init_python(void) {
 	PyObject *sys;
 	PyObject *module;
 
