@@ -176,7 +176,7 @@ static char *conffile = NULL;
 	"as bug."
 #endif
 
-featurelist_t *first_feature = NULL;
+static featurelist_t *first_feature = NULL;
 static ignorelist_t *sensor_list;
 
 #if SENSORS_API_VERSION < 0x400
