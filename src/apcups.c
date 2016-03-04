@@ -220,7 +220,7 @@ static int net_recv (int *sockfd, char *buf, int buflen)
  * Returns zero on success
  * Returns non-zero on error
  */
-static int net_send (int *sockfd, char *buff, int len)
+static int net_send (int *sockfd, const char *buff, int len)
 {
 	uint16_t packet_size;
 
@@ -401,7 +401,7 @@ static int apcups_config (oconfig_item_t *ci)
 	return (0);
 } /* int apcups_config */
 
-static void apc_submit_generic (char *type, char *type_inst, double value)
+static void apc_submit_generic (const char *type, const char *type_inst, double value)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
