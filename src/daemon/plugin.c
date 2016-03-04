@@ -1343,7 +1343,7 @@ static void plugin_flush_timeout_callback_free (void *data)
 
 static char *plugin_flush_callback_name (const char *name)
 {
-	char *flush_prefix = "flush/";
+	const char *flush_prefix = "flush/";
 	size_t prefix_size;
 	char *flush_name;
 	size_t name_size;
