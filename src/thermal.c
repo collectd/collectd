@@ -35,8 +35,8 @@ static const char *config_keys[] = {
 	"ForceUseProcfs"
 };
 
-const char *const dirname_sysfs = "/sys/class/thermal";
-const char *const dirname_procfs = "/proc/acpi/thermal_zone";
+static const char *const dirname_sysfs = "/sys/class/thermal";
+static const char *const dirname_procfs = "/proc/acpi/thermal_zone";
 
 static _Bool force_procfs = 0;
 static ignorelist_t *device_list;
