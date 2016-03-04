@@ -156,9 +156,6 @@ typedef int (printer)(const char *, ...);
 /*
  * Global variables
  */
-int qtype_counts[T_MAX];
-int opcode_counts[OP_MAX];
-int qclass_counts[C_MAX];
 
 #if HAVE_PCAP_H
 static pcap_t *pcap_obj = NULL;
@@ -417,11 +414,6 @@ handle_dns(const char *buf, int len)
     qh.qclass = ntohs(us);
 
     qh.length = (uint16_t) len;
-
-    /* gather stats */
-    qtype_counts[qh.qtype]++;
-    qclass_counts[qh.qclass]++;
-    opcode_counts[qh.opcode]++;
 
     if (Callback != NULL)
 	    Callback (&qh);
