@@ -96,7 +96,7 @@ enum ceph_dset_type_d
 };
 
 /** Valid types for ceph defined in types.db */
-const char * ceph_dset_types [CEPH_DSET_TYPES_NUM] =
+static const char * const ceph_dset_types [CEPH_DSET_TYPES_NUM] =
                                    {"ceph_latency", "ceph_bytes", "ceph_rate"};
 
 /******* ceph_daemon *******/
