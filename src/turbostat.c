@@ -805,7 +805,7 @@ guess:
  * Identify the functionality of the CPU
  */
 static int __attribute__((warn_unused_result))
-probe_cpu()
+probe_cpu(void)
 {
 	unsigned int eax, ebx, ecx, edx, max_level;
 	unsigned int fms, family, model;
@@ -1147,7 +1147,7 @@ allocate_cpu_set(cpu_set_t ** set, size_t * size) {
  * Build a local representation of the cpu distribution
  */
 static int __attribute__((warn_unused_result))
-topology_probe()
+topology_probe(void)
 {
 	unsigned int i;
 	int ret;
