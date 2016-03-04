@@ -151,7 +151,7 @@ static int us_open_socket (void)
 
 	do
 	{
-		char *grpname;
+		const char *grpname;
 		struct group *g;
 		struct group sg;
 		char grbuf[2048];
