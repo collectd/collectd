@@ -870,7 +870,7 @@ static int plugin_mark_loaded (char const *name)
 	return (status);
 }
 
-static void plugin_free_loaded ()
+static void plugin_free_loaded (void)
 {
 	void *key;
 	void *value;

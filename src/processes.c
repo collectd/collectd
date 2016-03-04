@@ -1165,7 +1165,7 @@ static char *ps_get_cmdline (long pid, char *name, char *buf, size_t buf_len)
 	return buf;
 } /* char *ps_get_cmdline (...) */
 
-static int read_fork_rate ()
+static int read_fork_rate (void)
 {
 	FILE *proc_stat;
 	char buffer[1024];
