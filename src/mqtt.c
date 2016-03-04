@@ -700,11 +700,11 @@ static int mqtt_config_subscriber (oconfig_item_t *ci)
             cf_util_get_string (child, &conf->host);
         else if (strcasecmp ("Port", child->key) == 0)
         {
-            int tmp = cf_util_get_port_number (child);
-            if (tmp < 0)
+            status = cf_util_get_port_number (child);
+            if (status < 0)
                 ERROR ("mqtt plugin: Invalid port number.");
             else
-                conf->port = tmp;
+                conf->port = status;
         }
         else if (strcasecmp ("ClientId", child->key) == 0)
             cf_util_get_string (child, &conf->client_id);
@@ -714,12 +714,12 @@ static int mqtt_config_subscriber (oconfig_item_t *ci)
             cf_util_get_string (child, &conf->password);
         else if (strcasecmp ("QoS", child->key) == 0)
         {
-            int tmp = -1;
-            status = cf_util_get_int (child, &tmp);
-            if ((status != 0) || (tmp < 0) || (tmp > 2))
+            int qos = -1;
+            status = cf_util_get_int (child, &qos);
+            if ((status != 0) || (qos < 0) || (qos > 2))
                 ERROR ("mqtt plugin: Not a valid QoS setting.");
             else
-                conf->qos = tmp;
+                conf->qos = qos;
         }
         else if (strcasecmp ("Topic", child->key) == 0)
             cf_util_get_string (child, &conf->topic);
