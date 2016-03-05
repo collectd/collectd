@@ -68,7 +68,8 @@ static int smart_config (const char *key, const char *value)
   return (0);
 } /* int smart_config */
 
-static void smart_submit (const char *dev, char *type, char *type_inst, double value)
+static void smart_submit (const char *dev, const char *type,
+		const char *type_inst, double value)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
