@@ -477,7 +477,7 @@ else
 	have_linux_raid_md_u_h="no"
 fi
 
-# For the swap module
+# For the wireless module
 have_linux_wireless_h="no"
 if test "x$ac_system" = "xLinux"
 then
