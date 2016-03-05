@@ -62,7 +62,7 @@ static int rra_timespans[] =
 };
 static int rra_timespans_num = STATIC_ARRAY_SIZE (rra_timespans);
 
-static char *rra_types[] =
+static const char *const rra_types[] =
 {
   "AVERAGE",
   "MIN",
@@ -305,7 +305,7 @@ static int ds_get (char ***ret, /* {{{ */
   for (ds_num = 0; ds_num < ds->ds_num; ds_num++)
   {
     data_source_t *d = ds->ds + ds_num;
-    char *type;
+    const char *type;
     int status;
 
     ds_def[ds_num] = NULL;
