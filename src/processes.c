@@ -1450,7 +1450,7 @@ static int ps_read_process(long pid, procstat_t *ps, char *state)
  * are retrieved from kstat (module cpu, name sys, class misc, stat nthreads).
  * The result is the sum for all the threads created on each cpu
  */
-static int read_fork_rate()
+static int read_fork_rate (void)
 {
 	extern kstat_ctl_t *kc;
 	kstat_t *ksp_chain = NULL;
