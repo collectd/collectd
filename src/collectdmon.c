@@ -69,7 +69,8 @@ static int restart = 0;
 static char  *pidfile      = NULL;
 static pid_t  collectd_pid = 0;
 
-static void exit_usage (char *name)
+__attribute__((noreturn))
+static void exit_usage (const char *name)
 {
 	printf ("Usage: %s <options> [-- <collectd options>]\n"
 

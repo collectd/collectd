@@ -269,6 +269,7 @@ static void update_kstat (void)
 /* TODO
  * Remove all settings but `-f' and `-C'
  */
+__attribute__((noreturn))
 static void exit_usage (int status)
 {
 	printf ("Usage: "PACKAGE_NAME" [OPTIONS]\n\n"
