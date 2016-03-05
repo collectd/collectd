@@ -757,7 +757,7 @@ void cu_mount_freelist (cu_mount_t *list)
 } /* void cu_mount_freelist(cu_mount_t *list) */
 
 char *
-cu_mount_checkoption(char *line, char *keyword, int full)
+cu_mount_checkoption(char *line, const char *keyword, int full)
 {
 	char *line2, *l2, *p1, *p2;
 	int l;
