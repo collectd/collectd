@@ -798,7 +798,7 @@ cu_mount_checkoption(char *line, const char *keyword, int full)
 } /* char *cu_mount_checkoption(char *line, char *keyword, int full) */
 
 char *
-cu_mount_getoptionvalue(char *line, char *keyword)
+cu_mount_getoptionvalue(char *line, const char *keyword)
 {
 	char *r;
 
@@ -820,7 +820,7 @@ cu_mount_getoptionvalue(char *line, char *keyword)
 		}
 	}
 	return r;
-} /* char *cu_mount_getoptionvalue(char *line, char *keyword) */
+} /* char *cu_mount_getoptionvalue(char *line, const char *keyword) */
 
 int
 cu_mount_type(const char *type)
