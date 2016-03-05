@@ -195,7 +195,7 @@ static int init (void)
   return (0);
 } /* void init */
 
-static void submit (char *type, char *inst, long long value)
+static void submit (const char *type, const char *inst, long long value)
 {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
