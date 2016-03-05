@@ -518,7 +518,7 @@ int main (int argc, char **argv)
 	struct sigaction sig_term_action;
 	struct sigaction sig_usr1_action;
 	struct sigaction sig_pipe_action;
-	char *configfile = CONFIGFILE;
+	const char *configfile = CONFIGFILE;
 	int test_config  = 0;
 	int test_readall = 0;
 	const char *basedir;

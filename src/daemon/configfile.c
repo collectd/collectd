@@ -72,15 +72,15 @@ typedef struct cf_complex_callback_s
 
 typedef struct cf_value_map_s
 {
-	char *key;
+	const char *key;
 	int (*func) (oconfig_item_t *);
 } cf_value_map_t;
 
 typedef struct cf_global_option_s
 {
-	char *key;
+	const char *key;
 	char *value;
-	char *def;
+	const char *def;
 } cf_global_option_t;
 
 /*
@@ -381,7 +381,7 @@ static int dispatch_value (oconfig_item_t *ci)
 static int dispatch_block_plugin (oconfig_item_t *ci)
 {
 	int i;
-	char *name;
+	const char *name;
 
 	cf_complex_callback_t *cb;
 
@@ -1115,7 +1115,7 @@ int cf_register_complex (const char *type, int (*callback) (oconfig_item_t *))
 	return (0);
 } /* int cf_register_complex */
 
-int cf_read (char *filename)
+int cf_read (const char *filename)
 {
 	oconfig_item_t *conf;
 	int i;

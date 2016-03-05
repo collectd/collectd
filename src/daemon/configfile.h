@@ -87,7 +87,7 @@ int cf_register_complex (const char *type, int (*callback) (oconfig_item_t *));
  *  Returns zero upon success and non-zero otherwise. A error-message will have
  *  been printed in this case.
  */
-int cf_read (char *filename);
+int cf_read (const char *filename);
 
 int global_option_set (const char *option, const char *value);
 const char *global_option_get (const char *option);
