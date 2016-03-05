@@ -554,7 +554,7 @@ static int nfs_submit_nfs4_client (const char *instance, char **fields,
 	return (0);
 }
 
-static void nfs_read_linux (FILE *fh, char *inst)
+static void nfs_read_linux (FILE *fh, const char *inst)
 {
 	char buffer[1024];
 
@@ -603,7 +603,7 @@ static void nfs_read_linux (FILE *fh, char *inst)
 #endif /* KERNEL_LINUX */
 
 #if HAVE_LIBKSTAT
-static int nfs_read_kstat (kstat_t *ksp, int nfs_version, char *inst,
+static int nfs_read_kstat (kstat_t *ksp, int nfs_version, const char *inst,
 		char const **proc_names, size_t proc_names_num)
 {
 	char plugin_instance[DATA_MAX_NAME_LEN];
