@@ -66,7 +66,7 @@ typedef struct mysql_database_s mysql_database_t; /* }}} */
 static int mysql_read (user_data_t *ud);
 
 void mysql_read_default_options(struct st_mysql_options *options,
-		const char *filename,const char *group);
+		const char *filename, const char *group);
 
 static void mysql_database_free (void *arg) /* {{{ */
 {
@@ -403,8 +403,8 @@ static int mysql_read_master_stats (mysql_database_t *db, MYSQL *con)
 	MYSQL_RES *res;
 	MYSQL_ROW  row;
 
-	char *query;
-	int   field_num;
+	const char *query;
+	int         field_num;
 	unsigned long long position;
 
 	query = "SHOW MASTER STATUS";
@@ -449,8 +449,8 @@ static int mysql_read_slave_stats (mysql_database_t *db, MYSQL *con)
 	MYSQL_RES *res;
 	MYSQL_ROW  row;
 
-	char *query;
-	int   field_num;
+	const char *query;
+	int         field_num;
 
 	/* WTF? libmysqlclient does not seem to provide any means to
 	 * translate a column name to a column index ... :-/ */
@@ -572,10 +572,10 @@ static int mysql_read_innodb_stats (mysql_database_t *db, MYSQL *con)
 	MYSQL_RES *res;
 	MYSQL_ROW  row;
 
-	char *query;
+	const char *query;
     struct {
-        char *key;
-        char *type;
+        const char *key;
+        const char *type;
         int ds_type;
     } metrics[] = {
         { "metadata_mem_pool_size",         "bytes",        DS_TYPE_GAUGE },
@@ -694,10 +694,10 @@ static int mysql_read_innodb_stats (mysql_database_t *db, MYSQL *con)
 static int mysql_read (user_data_t *ud)
 {
 	mysql_database_t *db;
-	MYSQL     *con;
-	MYSQL_RES *res;
-	MYSQL_ROW  row;
-	char      *query;
+	MYSQL      *con;
+	MYSQL_RES  *res;
+	MYSQL_ROW   row;
+	const char *query;
 
 	derive_t qcache_hits          = 0;
 	derive_t qcache_inserts       = 0;
