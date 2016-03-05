@@ -237,7 +237,7 @@ static int memory_read_internal (value_list_t *vl)
 	 * vm.stats.vm.v_inactive_count: 113730
 	 * vm.stats.vm.v_cache_count: 10809
 	 */
-	char *sysctl_keys[8] =
+	const char *sysctl_keys[8] =
 	{
 		"vm.stats.vm.v_page_size",
 		"vm.stats.vm.v_page_count",
