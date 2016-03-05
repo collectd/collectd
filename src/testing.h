@@ -36,7 +36,7 @@ static int check_count__ = 0;
 # define DBL_PRECISION 1e-12
 #endif
 
-#define DEF_TEST(func) static int test_##func ()
+#define DEF_TEST(func) static int test_##func (void)
 
 #define RUN_TEST(func) do { \
   int status; \
