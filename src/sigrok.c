@@ -136,9 +136,9 @@ static int sigrok_config(oconfig_item_t *ci)
 	return 0;
 }
 
-static char *sigrok_value_type(const struct sr_datafeed_analog *analog)
+static const char *sigrok_value_type(const struct sr_datafeed_analog *analog)
 {
-	char *s;
+	const char *s;
 
 	if (analog->mq == SR_MQ_VOLTAGE)
 		s = "voltage";
