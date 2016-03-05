@@ -2179,9 +2179,9 @@ static MGVTBL g_interval_vtbl = {
 /* bootstrap the Collectd module */
 static void xs_init (pTHX)
 {
-	HV         *stash = NULL;
-	SV         *tmp   = NULL;
-	const char *file  = __FILE__;
+	HV   *stash = NULL;
+	SV   *tmp   = NULL;
+	char *file  = __FILE__;
 
 	int i = 0;
 
