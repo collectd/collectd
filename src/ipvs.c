@@ -224,7 +224,8 @@ static int get_ti (struct ip_vs_dest_entry *de, char *ti, size_t size)
 	return 0;
 } /* get_ti */
 
-static void cipvs_submit_connections (char *pi, char *ti, derive_t value)
+static void cipvs_submit_connections (const char *pi, const char *ti,
+		derive_t value)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
@@ -245,7 +246,7 @@ static void cipvs_submit_connections (char *pi, char *ti, derive_t value)
 	return;
 } /* cipvs_submit_connections */
 
-static void cipvs_submit_if (char *pi, char *t, char *ti,
+static void cipvs_submit_if (const char *pi, const char *t, const char *ti,
 		derive_t rx, derive_t tx)
 {
 	value_t values[2];
@@ -268,7 +269,8 @@ static void cipvs_submit_if (char *pi, char *t, char *ti,
 	return;
 } /* cipvs_submit_if */
 
-static void cipvs_submit_dest (char *pi, struct ip_vs_dest_entry *de) {
+static void cipvs_submit_dest (const char *pi, struct ip_vs_dest_entry *de)
+{
 	struct ip_vs_stats_user stats = de->stats;
 
 	char ti[DATA_MAX_NAME_LEN];
