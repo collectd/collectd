@@ -154,7 +154,7 @@ typedef struct {
 	int ref_cnt;
 } c_psql_database_t;
 
-static char *def_queries[] = {
+static const char *const def_queries[] = {
 	"backends",
 	"transactions",
 	"queries",
@@ -429,9 +429,9 @@ static PGresult *c_psql_exec_query_noparams (c_psql_database_t *db,
 static PGresult *c_psql_exec_query_params (c_psql_database_t *db,
 		udb_query_t *q, c_psql_user_data_t *data)
 {
-	char *params[db->max_params_num];
-	char  interval[64];
-	int   i;
+	const char *params[db->max_params_num];
+	char        interval[64];
+	int         i;
 
 	if ((data == NULL) || (data->params_num == 0))
 		return (c_psql_exec_query_noparams (db, q));
