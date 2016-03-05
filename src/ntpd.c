@@ -247,7 +247,7 @@ struct info_kernel
 };
 
 /* List of reference clock names */
-static char *refclock_names[] =
+static const char *refclock_names[] =
 {
 	"UNKNOWN",    "LOCAL",        "GPS_TRAK",   "WWV_PST",     /*  0- 3 */
 	"SPECTRACOM", "TRUETIME",     "IRIG_AUDIO", "CHU_AUDIO",   /*  4- 7 */
@@ -307,7 +307,7 @@ static int ntpd_config (const char *key, const char *value)
 	return (0);
 }
 
-static void ntpd_submit (char *type, char *type_inst, gauge_t value)
+static void ntpd_submit (const char *type, const char *type_inst, gauge_t value)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
@@ -328,8 +328,8 @@ static void ntpd_submit (char *type, char *type_inst, gauge_t value)
 /* Each time a peer is polled, ntpd shifts the reach register to the left and
  * sets the LSB based on whether the peer was reachable. If the LSB is zero,
  * the values are out of date. */
-static void ntpd_submit_reach (char *type, char *type_inst, uint8_t reach,
-		gauge_t value)
+static void ntpd_submit_reach (const char *type, const char *type_inst,
+		uint8_t reach, gauge_t value)
 {
 	if (!(reach & 1))
 		value = NAN;
@@ -339,8 +339,8 @@ static void ntpd_submit_reach (char *type, char *type_inst, uint8_t reach,
 
 static int ntpd_connect (void)
 {
-	char *host;
-	char *port;
+	const char *host;
+	const char *port;
 
 	struct addrinfo  ai_hints;
 	struct addrinfo *ai_list;
