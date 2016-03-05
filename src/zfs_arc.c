@@ -71,7 +71,7 @@ static int put_zfs_value (kstat_t *ksp, char const *k, value_t v)
 	return 0;
 }
 
-static long long get_zfs_value(kstat_t *ksp, char *key)
+static long long get_zfs_value(kstat_t *ksp, const char *key)
 {
 	llentry_t *e;
 	value_t *v;
