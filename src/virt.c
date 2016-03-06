@@ -906,7 +906,7 @@ add_block_device (virDomainPtr dom, const char *path)
 }
 
 static void
-free_interface_devices ()
+free_interface_devices (void)
 {
     int i;
 
