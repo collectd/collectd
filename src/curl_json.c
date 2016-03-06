@@ -861,7 +861,7 @@ static void cj_submit (cj_t *db, cj_key_t *key, value_t *value) /* {{{ */
 static int cj_sock_perform (cj_t *db) /* {{{ */
 {
   char errbuf[1024];
-  struct sockaddr_un sa_unix = {};
+  struct sockaddr_un sa_unix = { 0 };
   sa_unix.sun_family = AF_UNIX;
   sstrncpy (sa_unix.sun_path, db->sock, sizeof (sa_unix.sun_path));
 
