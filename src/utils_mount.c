@@ -431,16 +431,16 @@ static cu_mount_t *cu_mount_listmntent (void)
 #elif HAVE_GETVFSSTAT || HAVE_GETFSSTAT
 static cu_mount_t *cu_mount_getfsstat (void)
 {
-#if HAVE_GETVFSSTAT
-#  define STRUCT_STATFS struct statvfs
-#  define CMD_STATFS    getvfsstat
-#  define FLAGS_STATFS  ST_NOWAIT
-/* #endif HAVE_GETVFSSTAT */
-#elif HAVE_GETFSSTAT
+#if HAVE_GETFSSTAT
 #  define STRUCT_STATFS struct statfs
 #  define CMD_STATFS    getfsstat
 #  define FLAGS_STATFS  MNT_NOWAIT
-#endif /* HAVE_GETFSSTAT */
+/* #endif HAVE_GETFSSTAT */
+#elif HAVE_GETVFSSTAT
+#  define STRUCT_STATFS struct statvfs
+#  define CMD_STATFS    getvfsstat
+#  define FLAGS_STATFS  ST_NOWAIT
+#endif /* HAVE_GETVFSSTAT */
 
 	int bufsize;
 	STRUCT_STATFS *buf;
