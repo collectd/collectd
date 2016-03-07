@@ -1277,6 +1277,13 @@ write_tsdb_la_SOURCES = write_tsdb.c
 write_tsdb_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_XENCPU
+pkglib_LTLIBRARIES += xencpu.la
+xencpu_la_SOURCES = xencpu.c
+xencpu_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+xencpu_la_LIBADD = -lxenctrl
+endif
+
 if BUILD_PLUGIN_XMMS
 pkglib_LTLIBRARIES += xmms.la
 xmms_la_SOURCES = xmms.c
