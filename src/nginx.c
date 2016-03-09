@@ -256,7 +256,7 @@ static int nginx_read (void)
   /*
    * Active connections: 291
    * server accepts handled requests
-   *  16630948 16630948 31070465
+   *  101059015 100422216 347910649
    * Reading: 6 Writing: 179 Waiting: 106
    */
   for (int i = 0; i < lines_num; i++)
@@ -277,6 +277,7 @@ static int nginx_read (void)
       {
 	submit ("connections", "accepted", atoll (fields[0]));
 	submit ("connections", "handled", atoll (fields[1]));
+	submit ("connections", "failed", (atoll(fields[0]) - atoll (fields[1])));
 	submit ("nginx_requests", NULL, atoll (fields[2]));
       }
     }
