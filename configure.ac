@@ -29,7 +29,7 @@ m4_ifdef([LT_PACKAGE_VERSION],
 	]
 )
 
-AM_CONDITIONAL([BUILD_INCLUDED_LTDL], [test "x${LIBLTDL}" = 'x${top_builddir}/libltdl/libltdlc.la'])
+AM_CONDITIONAL([BUILD_INCLUDED_LTDL], [test "x$LTDLDEPS" != "x"])
 
 AM_INIT_AUTOMAKE([tar-pax dist-bzip2 foreign])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
