@@ -164,8 +164,8 @@ static int init (void)
     char header[256];
     snprintf(header, sizeof(header)-1, "Host: %s", vhost);
     headers = curl_slist_append (headers, header);
-
-    curl_easy_setopt (curl, CURLOPT_HTTPHEADER, headers);
+	if (headers != NULL)
+		curl_easy_setopt (curl, CURLOPT_HTTPHEADER, headers);
   }
 
   curl_easy_setopt (curl, CURLOPT_FOLLOWLOCATION, 1L);
