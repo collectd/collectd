@@ -487,6 +487,8 @@ sub get_files_by_ident
   my $ident = shift;
   my $all_files;
   my @ret = ();
+  my $temp;
+  my $hosts;
 
   my $cache_key = ident_to_string ($ident);
   if (defined ($Cache->{'get_files_by_ident'}{$cache_key}))
@@ -496,7 +498,20 @@ sub get_files_by_ident
     return ($ret)
   }
 
-  $all_files = _get_all_files ();
+  if ($ident->{'hostname'})
+  {
+    $all_files = [];
+    $hosts = $ident->{'hostname'};
+    foreach (@$hosts)
+    {
+      $temp = get_files_for_host ($_);
+      push (@$all_files, @$temp);
+    }
+  }
+  else
+  {
+    $all_files = _get_all_files ();
+  }
 
   @ret = grep { _filter_ident ($ident, $_) == 0 } (@$all_files);
 
