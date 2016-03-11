@@ -38,7 +38,7 @@ i.e. a C<E<lt>PluginE<nbsp>...E<gt>> block.
 The syntax of this config file is similar to the config file of the famous
 I<Apache> webserver. Each line contains either an option (a key and a list of
 one or more values) or a section-start or -end. Empty lines and everything
-after a non-quoted hash-symbol (C<#>) is ignored. I<Keys> are unquoted
+after a non-quoted hash-symbol (C<#>) are ignored. I<Keys> are unquoted
 strings, consisting only of alphanumeric characters and the underscore (C<_>)
 character. Keys are handled case insensitive by I<collectd> itself and all
 plugins included with it. I<Values> can either be an I<unquoted string>, a
@@ -70,7 +70,7 @@ C<E<lt>B<Plugin> ...E<gt>> block.
 
 =item B<BaseDir> I<Directory>
 
-Sets the base directory. This is the directory beneath all RRD-files are
+Sets the base directory. This is the directory beneath which all RRD-files are
 created. Possibly more subdirectories are created. This is also the working
 directory for the daemon.
 
@@ -83,7 +83,7 @@ I<collectd> will be mostly useless.
 Only the first B<LoadPlugin> statement or block for a given plugin name has any
 effect. This is useful when you want to split up the configuration into smaller
 files and want each file to be "self contained", i.e. it contains a B<Plugin>
-block I<and> then appropriate B<LoadPlugin> statement. The downside is that if
+block I<and> the appropriate B<LoadPlugin> statement. The downside is that if
 you have multiple conflicting B<LoadPlugin> blocks, e.g. when they specify
 different intervals, only one of them (the first one encountered) will take
 effect and all others will be silently ignored.
@@ -127,13 +127,13 @@ the average user from ever having to deal with this low level linking stuff.
 =item B<Interval> I<Seconds>
 
 Sets a plugin-specific interval for collecting metrics. This overrides the
-global B<Interval> setting. If a plugin provides own support for specifying an
-interval, that setting will take precedence.
+global B<Interval> setting. If a plugin provides its own support for specifying
+an interval, that setting will take precedence.
 
 =item B<FlushInterval> I<Seconds>
 
-Specifies the the interval, in seconds, to call the flush callback if it's
-defined in this plugin. By default, this is disabled
+Specifies the interval, in seconds, to call the flush callback if it's
+defined in this plugin. By default, this is disabled.
 
 =item B<FlushTimeout> I<Seconds>
 
@@ -214,7 +214,7 @@ matching C<*.conf> in any subdirectory of C</etc/collectd.d>:
 
 =back
 
-If more than one files are included by a single B<Include> option, the files
+If more than one file is included by a single B<Include> option, the files
 will be included in lexicographical order (as defined by the C<strcmp>
 function). Thus, you can e.E<nbsp>g. use numbered prefixes to specify the
 order in which the files are loaded.
@@ -255,7 +255,7 @@ magic! (Assuming you're using the I<RRDtool> or I<RRDCacheD> plugin.)
 
 =item B<MaxReadInterval> I<Seconds>
 
-Read plugin doubles interval between queries after each failed attempt
+A read plugin doubles the interval between queries after each failed attempt
 to get data.
 
 This options limits the maximum value of the interval. The default value is
