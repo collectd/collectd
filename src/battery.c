@@ -143,7 +143,7 @@ static void submit_capacity (char const *plugin_instance, /* {{{ */
 } /* }}} void submit_capacity */
 
 #if HAVE_IOKIT_PS_IOPOWERSOURCES_H || HAVE_IOKIT_IOKITLIB_H
-static double dict_get_double (CFDictionaryRef dict, char *key_string) /* {{{ */
+static double dict_get_double (CFDictionaryRef dict, const char *key_string) /* {{{ */
 {
 	double      val_double;
 	long long   val_int;
