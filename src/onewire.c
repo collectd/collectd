@@ -459,7 +459,7 @@ static int cow_read_bus (const char *path)
     else
       status = ssnprintf (subpath, sizeof (subpath), "%s/%s",
           path, buffer_ptr);
-    if ((status <= 0) || (status >= sizeof (subpath)))
+    if ((status <= 0) || (status >= (int) sizeof (subpath)))
       continue;
 
     for (i = 0; i < ow_family_features_num; i++)
