@@ -252,7 +252,7 @@ static int ctail_config_add_match (cu_tail_match_t *tm,
     
     if ((cm.flags & UTILS_MATCH_CF_GAUGE_LATENCY) && (cm.percentile_num == 0))
     {
-      WARNING ("tail plugin: `DSType Latency' has no 'LatencyPercentile' options.");
+      WARNING ("tail plugin: `Match' with `DSType Latency' has no 'LatencyPercentile' options.");
       status = -1;
       break;
     }
