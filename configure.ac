@@ -850,8 +850,6 @@ fi
 if test "x$have_clock_gettime" = "xyes"
 then
 	AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [Define if the clock_gettime(2) function is available.])
-else
-	AC_MSG_WARN(cannot find clock_gettime)
 fi
 
 nanosleep_needs_rt="no"
