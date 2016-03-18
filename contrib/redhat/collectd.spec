@@ -2053,11 +2053,12 @@ fi
 %doc contrib/
 
 %changelog
-* Mon Aug 19 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.4.0-1
+* Mon Aug 19 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.4.2-1
 - New upstream version
 - Build netlink plugin by default
 - Enable cgroups, lvm and statsd plugins
 - Enable (but don't build by default) mic, aquaero and sigrok plugins
+- Enable modbus, memcachec and xmms plugins on RHEL7
 
 * Tue Aug 06 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.3.1-1
 - New upstream version
