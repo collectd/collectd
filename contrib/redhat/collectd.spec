@@ -60,6 +60,7 @@
 %{?el7:%global _has_varnish4 1}
 %{?el7:%global _has_broken_libmemcached 1}
 %{?el7:%global _has_iproute 1}
+%{?el7:%global _has_libmodbus 1}
 
 # plugins enabled by default
 %define with_aggregation 0%{!?_without_aggregation:1}
