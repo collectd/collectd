@@ -94,7 +94,7 @@ I<Valuelist> is a colon-separated list of the time and the values, each either
 an integer if the data-source is a counter, or a double if the data-source is
 of type "gauge". You can submit an undefined gauge-value by using B<U>. When
 submitting B<U> to a counter the behavior is undefined. The time is given as
-epoch (i.E<nbsp>e. standard UNIX time).
+epoch (i.E<nbsp>e. standard UNIX time) or B<N> to use the current time.
 
 You can mix options and values, but the order is important: Options only
 effect following values, so specifying an option as last field is allowed, but
