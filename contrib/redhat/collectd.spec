@@ -58,7 +58,6 @@
 %{?el7:%global _has_lvm2app_h 1}
 %{?el7:%global _has_recent_librrd 1}
 %{?el7:%global _has_varnish4 1}
-%{?el7:%global _has_broken_libmemcached 1}
 %{?el7:%global _has_iproute 1}
 %{?el7:%global _has_libmodbus 1}
 
@@ -104,7 +103,7 @@
 %define with_madwifi 0%{!?_without_madwifi:1}
 %define with_mbmon 0%{!?_without_mbmon:1}
 %define with_md 0%{!?_without_md:1}
-%define with_memcachec 0%{!?_without_memcachec:0%{!?_has_broken_libmemcached:1}}
+%define with_memcachec 0%{!?_without_memcachec:1}
 %define with_memcached 0%{!?_without_memcached:1}
 %define with_memory 0%{!?_without_memory:1}
 %define with_multimeter 0%{!?_without_multimeter:1}
