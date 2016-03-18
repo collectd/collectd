@@ -60,6 +60,7 @@
 %{?el7:%global _has_varnish4 1}
 %{?el7:%global _has_iproute 1}
 %{?el7:%global _has_libmodbus 1}
+%{?el7:%global _has_xmms 1}
 
 # plugins enabled by default
 %define with_aggregation 0%{!?_without_aggregation:1}
@@ -155,6 +156,7 @@
 %define with_write_graphite 0%{!?_without_write_graphite:1}
 %define with_write_http 0%{!?_without_write_http:1}
 %define with_write_riemann 0%{!?_without_write_riemann:1}
+%define with_xmms 0%{!?_without_xmms:0%{!?_has_xmms:1}}
 
 # Plugins not built by default because of dependencies on libraries not
 # available in RHEL or EPEL:
@@ -189,8 +191,6 @@
 %define with_write_mongodb 0%{!?_without_write_mongodb:0}
 # plugin write_redis disabled, requires credis
 %define with_write_redis 0%{!?_without_write_redis:0}
-# plugin xmms disabled, requires xmms
-%define with_xmms 0%{!?_without_xmms:0}
 # plugin zfs_arc disabled, requires FreeBSD/Solaris
 %define with_zfs_arc 0%{!?_without_zfs_arc:0}
 
@@ -674,6 +674,16 @@ Requires:	%{name}%{?_isa} = %{version}-%{release}
 BuildRequires:	protobuf-c-devel
 %description write_riemann
 The riemann plugin submits values to Riemann, an event stream processor.
+%endif
+
+%if %{with_xmms}
+%package xmms
+Summary:	XMMS plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	xmms-devel
+%description xmms
+The xmms plugin collects information from the XMMS music player.
 %endif
 
 %package collection3
@@ -2024,6 +2034,11 @@ fi
 %if %{with_write_riemann}
 %files write_riemann
 %{_libdir}/%{name}/write_riemann.so
+%endif
+
+%if %{with_xmms}
+%files xmms
+%{_libdir}/%{name}/xmms.so
 %endif
 
 %files collection3
