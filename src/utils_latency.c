@@ -24,13 +24,13 @@
  *   Florian Forster <ff at octo.it>
  **/
 
-#include <math.h>
-#include <limits.h>
-
 #include "collectd.h"
 #include "plugin.h"
 #include "utils_latency.h"
 #include "common.h"
+
+#include <math.h>
+#include <limits.h>
 
 #ifndef LLONG_MAX
 # define LLONG_MAX 9223372036854775807LL
