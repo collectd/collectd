@@ -156,7 +156,7 @@
 %define with_write_graphite 0%{!?_without_write_graphite:1}
 %define with_write_http 0%{!?_without_write_http:1}
 %define with_write_riemann 0%{!?_without_write_riemann:1}
-%define with_xmms 0%{!?_without_xmms:0%{!?_has_xmms:1}}
+%define with_xmms 0%{!?_without_xmms:0%{?_has_xmms}}
 
 # Plugins not built by default because of dependencies on libraries not
 # available in RHEL or EPEL:
