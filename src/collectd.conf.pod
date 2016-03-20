@@ -6759,6 +6759,8 @@ Calculate and dispatch various values out of I<Timer> metrics received during
 an interval. If set to B<False>, the default, these values aren't calculated /
 dispatched.
 
+Please note what reported timer values less than 0.001 are ignored in all B<Timer*> reports.
+
 =back
 
 =head2 Plugin C<swap>
