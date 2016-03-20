@@ -541,14 +541,10 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
         cb->verify_peer = 1;
         cb->verify_host = 1;
         cb->format = WH_FORMAT_COMMAND;
-<<<<<<< HEAD
         cb->sslversion = CURL_SSLVERSION_DEFAULT;
         cb->low_speed_limit = 0;
         cb->timeout = 0;
-=======
-        cb->curl = NULL;
         cb->headers = NULL;
->>>>>>> collectd-5.4
 
         pthread_mutex_init (&cb->send_lock, /* attr = */ NULL);
 
