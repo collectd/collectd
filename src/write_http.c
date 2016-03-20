@@ -56,7 +56,7 @@ struct wh_callback_s
         int format;
 
         CURL *curl;
-	struct curl_slist *headers;
+        struct curl_slist *headers;
         char curl_errbuf[CURL_ERROR_SIZE];
 
         char   send_buffer[4096];
@@ -113,7 +113,7 @@ static int wh_callback_init (wh_callback_t *cb) /* {{{ */
         curl_easy_setopt (cb->curl, CURLOPT_NOSIGNAL, 1L);
         curl_easy_setopt (cb->curl, CURLOPT_USERAGENT, PACKAGE_NAME"/"PACKAGE_VERSION);
 
-	cb->headers = NULL;
+        cb->headers = NULL;
         cb->headers = curl_slist_append (cb->headers, "Accept:  */*");
         if (cb->format == WH_FORMAT_JSON)
                 cb->headers = curl_slist_append (cb->headers, "Content-Type: application/json");
@@ -264,11 +264,11 @@ static void wh_callback_free (void *data) /* {{{ */
 
         curl_easy_cleanup (cb->curl);
 
-	if (cb->headers != NULL)
-	{
-		curl_slist_free_all (cb->headers);
-		cb->headers = NULL;
-	}
+        if (cb->headers != NULL)
+        {
+                curl_slist_free_all (cb->headers);
+                cb->headers = NULL;
+        }
 
         sfree (cb->location);
         sfree (cb->user);
@@ -531,7 +531,7 @@ static int wh_config_url (oconfig_item_t *ci) /* {{{ */
         cb->cacert = NULL;
         cb->format = WH_FORMAT_COMMAND;
         cb->curl = NULL;
-	cb->headers = NULL;
+        cb->headers = NULL;
 
         pthread_mutex_init (&cb->send_lock, /* attr = */ NULL);
 
