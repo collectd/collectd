@@ -68,6 +68,7 @@ struct wh_callback_s
         int format;
 
         CURL *curl;
+        struct curl_slist *headers;
         char curl_errbuf[CURL_ERROR_SIZE];
 
         char  *send_buffer;
@@ -112,8 +113,6 @@ static int wh_send_buffer (wh_callback_t *cb) /* {{{ */
 
 static int wh_callback_init (wh_callback_t *cb) /* {{{ */
 {
-        struct curl_slist *headers;
-
         if (cb->curl != NULL)
                 return (0);
 
@@ -140,14 +139,14 @@ static int wh_callback_init (wh_callback_t *cb) /* {{{ */
         curl_easy_setopt (cb->curl, CURLOPT_NOSIGNAL, 1L);
         curl_easy_setopt (cb->curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
 
-        headers = NULL;
-        headers = curl_slist_append (headers, "Accept:  */*");
+        cb->headers = NULL;
+        cb->headers = curl_slist_append (cb->headers, "Accept:  */*");
         if (cb->format == WH_FORMAT_JSON)
-                headers = curl_slist_append (headers, "Content-Type: application/json");
+                cb->headers = curl_slist_append (cb->headers, "Content-Type: application/json");
         else
-                headers = curl_slist_append (headers, "Content-Type: text/plain");
-        headers = curl_slist_append (headers, "Expect:");
-        curl_easy_setopt (cb->curl, CURLOPT_HTTPHEADER, headers);
+                cb->headers = curl_slist_append (cb->headers, "Content-Type: text/plain");
+        cb->headers = curl_slist_append (cb->headers, "Expect:");
+        curl_easy_setopt (cb->curl, CURLOPT_HTTPHEADER, cb->headers);
 
         curl_easy_setopt (cb->curl, CURLOPT_ERRORBUFFER, cb->curl_errbuf);
         curl_easy_setopt (cb->curl, CURLOPT_URL, cb->location);
@@ -314,6 +313,13 @@ static void wh_callback_free (void *data) /* {{{ */
                 curl_easy_cleanup (cb->curl);
                 cb->curl = NULL;
         }
+
+        if (cb->headers != NULL)
+        {
+                curl_slist_free_all (cb->headers);
+                cb->headers = NULL;
+        }
+
         sfree (cb->name);
         sfree (cb->location);
         sfree (cb->user);
@@ -535,9 +541,14 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
         cb->verify_peer = 1;
         cb->verify_host = 1;
         cb->format = WH_FORMAT_COMMAND;
+<<<<<<< HEAD
         cb->sslversion = CURL_SSLVERSION_DEFAULT;
         cb->low_speed_limit = 0;
         cb->timeout = 0;
+=======
+        cb->curl = NULL;
+        cb->headers = NULL;
+>>>>>>> collectd-5.4
 
         pthread_mutex_init (&cb->send_lock, /* attr = */ NULL);
 
