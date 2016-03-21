@@ -208,9 +208,7 @@ I<pattern> may be specified to filter which files to include. This may be used
 in combination with recursively including a directory to easily be able to
 arbitrarily mix configuration files and other documents (e.g. README files).
 The given example is similar to the first example above but includes all files
-matching C<*.conf> in any subdirectory of C</etc/collectd.d>:
-
-  Include "/etc/collectd.d" "*.conf"
+matching C<*.conf> in any subdirectory of C</etc/collectd.d>.
 
 =back
 
