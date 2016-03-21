@@ -564,6 +564,14 @@ I<collectd>, and I<Connection> blocks which define the parameters needed to
 connect to an I<MBeanServer> and what data to collect. The configuration of the
 I<SNMP plugin> is similar in nature, in case you know it.
 
+There is also and option to disable logging in case your configuration causes a
+lot of logging output. If the option is added in the I<GenericJMX plugin> block
+it will be active, it needs an argument to parse but it is not used in any way.
+For example “yes” can be used as the argument. Note: if you want logging do not
+include this option.
+
+=item B<DisableLogging> I<yes>
+
 =head3   MBean blocks
 
 I<MBean> blocks specify what data is retrieved from I<MBeans> and how that data
