@@ -67,7 +67,7 @@ class GenericJMXConfConnection
     values = ci.getValues ();
     if (values.size () != 1)
     {
-      Collectd.logError ("GenericJMXConfConnection: The " + ci.getKey ()
+      GenericJMXLogger.logError ("GenericJMXConfConnection: The " + ci.getKey ()
           + " configuration option needs exactly one string argument.");
       return (null);
     }
@@ -75,7 +75,7 @@ class GenericJMXConfConnection
     v = values.get (0);
     if (v.getType () != OConfigValue.OCONFIG_TYPE_STRING)
     {
-      Collectd.logError ("GenericJMXConfConnection: The " + ci.getKey ()
+      GenericJMXLogger.logError ("GenericJMXConfConnection: The " + ci.getKey ()
           + " configuration option needs exactly one string argument.");
       return (null);
     }
@@ -126,7 +126,7 @@ class GenericJMXConfConnection
     }
     catch (Exception e)
     {
-      Collectd.logError ("GenericJMXConfConnection: "
+      GenericJMXLogger.logError ("GenericJMXConfConnection: "
           + "Creating MBean server connection failed: " + e);
       disconnect ();
       return;
@@ -215,7 +215,7 @@ class GenericJMXConfConnection
             throw (new IllegalArgumentException ("No such MBean defined: "
                   + tmp + ". Please make sure all `MBean' blocks appear "
                   + "before (above) all `Connection' blocks."));
-          Collectd.logDebug ("GenericJMXConfConnection: " + this._host + ": Add " + tmp);
+          GenericJMXLogger.logDebug ("GenericJMXConfConnection: " + this._host + ": Add " + tmp);
           this._mbeans.add (mbean);
         }
       }
@@ -241,7 +241,7 @@ class GenericJMXConfConnection
     if (this._mbean_connection == null)
       return;
 
-    Collectd.logDebug ("GenericJMXConfConnection.query: "
+    GenericJMXLogger.logDebug ("GenericJMXConfConnection.query: "
         + "Reading " + this._mbeans.size () + " mbeans from "
         + ((this._host != null) ? this._host : "(null)"));
 

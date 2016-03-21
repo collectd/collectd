@@ -82,7 +82,7 @@ public class JMXMemory implements CollectdConfigInterface,
     mem_committed = usage.getCommitted ();
     mem_max = usage.getMax ();
 
-    Collectd.logDebug ("JMXMemory plugin: plugin_instance = " + plugin_instance + "; "
+    GenericJMXLogger.logDebug ("JMXMemory plugin: plugin_instance = " + plugin_instance + "; "
         + "mem_init = " + mem_init + "; "
         + "mem_used = " + mem_used + "; "
         + "mem_committed = " + mem_committed + "; "
@@ -136,7 +136,7 @@ public class JMXMemory implements CollectdConfigInterface,
     values = ci.getValues ();
     if (values.size () != 1)
     {
-      Collectd.logError ("JMXMemory plugin: The JMXServiceURL option needs "
+      GenericJMXLogger.logError ("JMXMemory plugin: The JMXServiceURL option needs "
           + "exactly one string argument.");
       return (-1);
     }
@@ -144,7 +144,7 @@ public class JMXMemory implements CollectdConfigInterface,
     cv = values.get (0);
     if (cv.getType () != OConfigValue.OCONFIG_TYPE_STRING)
     {
-      Collectd.logError ("JMXMemory plugin: The JMXServiceURL option needs "
+      GenericJMXLogger.logError ("JMXMemory plugin: The JMXServiceURL option needs "
           + "exactly one string argument.");
       return (-1);
     }
@@ -158,7 +158,7 @@ public class JMXMemory implements CollectdConfigInterface,
     List<OConfigItem> children;
     int i;
 
-    Collectd.logDebug ("JMXMemory plugin: config: ci = " + ci + ";");
+    GenericJMXLogger.logDebug ("JMXMemory plugin: config: ci = " + ci + ";");
 
     children = ci.getChildren ();
     for (i = 0; i < children.size (); i++)
@@ -174,7 +174,7 @@ public class JMXMemory implements CollectdConfigInterface,
       }
       else
       {
-        Collectd.logError ("JMXMemory plugin: Unknown config option: " + key);
+        GenericJMXLogger.logError ("JMXMemory plugin: Unknown config option: " + key);
       }
     }
 
@@ -189,7 +189,7 @@ public class JMXMemory implements CollectdConfigInterface,
 
     if (_jmx_service_url == null)
     {
-      Collectd.logError ("JMXMemory: _jmx_service_url == null");
+      GenericJMXLogger.logError ("JMXMemory: _jmx_service_url == null");
       return (-1);
     }
 
@@ -204,7 +204,7 @@ public class JMXMemory implements CollectdConfigInterface,
     }
     catch (Exception e)
     {
-      Collectd.logError ("JMXMemory: Creating MBean failed: " + e);
+      GenericJMXLogger.logError ("JMXMemory: Creating MBean failed: " + e);
       return (-1);
     }
 
@@ -215,7 +215,7 @@ public class JMXMemory implements CollectdConfigInterface,
   {
     if (_mbean == null)
     {
-      Collectd.logError ("JMXMemory: _mbean == null");
+      GenericJMXLogger.logError ("JMXMemory: _mbean == null");
       return (-1);
     }
 

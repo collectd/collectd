@@ -56,7 +56,7 @@ class GenericJMXConfMBean
     values = ci.getValues ();
     if (values.size () != 1)
     {
-      Collectd.logError ("GenericJMXConfMBean: The " + ci.getKey ()
+      GenericJMXLogger.logError ("GenericJMXConfMBean: The " + ci.getKey ()
           + " configuration option needs exactly one string argument.");
       return (null);
     }
@@ -64,7 +64,7 @@ class GenericJMXConfMBean
     v = values.get (0);
     if (v.getType () != OConfigValue.OCONFIG_TYPE_STRING)
     {
-      Collectd.logError ("GenericJMXConfMBean: The " + ci.getKey ()
+      GenericJMXLogger.logError ("GenericJMXConfMBean: The " + ci.getKey ()
           + " configuration option needs exactly one string argument.");
       return (null);
     }
@@ -104,7 +104,7 @@ class GenericJMXConfMBean
     {
       OConfigItem child = iter.next ();
 
-      Collectd.logDebug ("GenericJMXConfMBean: child.getKey () = "
+      GenericJMXLogger.logDebug ("GenericJMXConfMBean: child.getKey () = "
           + child.getKey ());
       if (child.getKey ().equalsIgnoreCase ("ObjectName"))
       {
@@ -171,13 +171,13 @@ class GenericJMXConfMBean
     }
     catch (Exception e)
     {
-      Collectd.logError ("GenericJMXConfMBean: queryNames failed: " + e);
+      GenericJMXLogger.logError ("GenericJMXConfMBean: queryNames failed: " + e);
       return (-1);
     }
 
     if (names.size () == 0)
     {
-      Collectd.logWarning ("GenericJMXConfMBean: No MBean matched "
+      GenericJMXLogger.logWarning ("GenericJMXConfMBean: No MBean matched "
           + "the ObjectName " + this._obj_name);
     }
 
@@ -194,7 +194,7 @@ class GenericJMXConfMBean
       instanceList = new ArrayList<String> ();
       instance     = new StringBuffer ();
 
-      Collectd.logDebug ("GenericJMXConfMBean: objName = "
+      GenericJMXLogger.logDebug ("GenericJMXConfMBean: objName = "
           + objName.toString ());
 
       for (int i = 0; i < this._instance_from.size (); i++)
@@ -206,7 +206,7 @@ class GenericJMXConfMBean
         propertyValue = objName.getKeyProperty (propertyName);
         if (propertyValue == null)
         {
-          Collectd.logError ("GenericJMXConfMBean: "
+          GenericJMXLogger.logError ("GenericJMXConfMBean: "
               + "No such property in object name: " + propertyName);
         }
         else
@@ -230,7 +230,7 @@ class GenericJMXConfMBean
 
       pd_tmp.setPluginInstance (instance.toString ());
 
-      Collectd.logDebug ("GenericJMXConfMBean: instance = " + instance.toString ());
+      GenericJMXLogger.logDebug ("GenericJMXConfMBean: instance = " + instance.toString ());
 
       for (int i = 0; i < this._values.size (); i++)
         this._values.get (i).query (conn, objName, pd_tmp);

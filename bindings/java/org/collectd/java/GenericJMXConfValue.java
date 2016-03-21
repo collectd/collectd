@@ -216,7 +216,7 @@ class GenericJMXConfValue
       }
       else
       {
-        Collectd.logError ("GenericJMXConfValue: At least one of the "
+        GenericJMXLogger.logError ("GenericJMXConfValue: At least one of the "
             + "attributes was not of type `CompositeData', as required "
             + "when table is set to `true'.");
         return;
@@ -235,7 +235,7 @@ class GenericJMXConfValue
       values = genericCompositeToNumber (cdlist, key);
       if (values == null)
       {
-        Collectd.logError ("GenericJMXConfValue: Cannot build a list of "
+        GenericJMXLogger.logError ("GenericJMXConfValue: Cannot build a list of "
             + "numbers for key " + key + ". Most likely not all attributes "
             + "have this key.");
         continue;
@@ -259,7 +259,7 @@ class GenericJMXConfValue
     values = genericListToNumber (objects);
     if (values == null)
     {
-      Collectd.logError ("GenericJMXConfValue: Cannot convert list of "
+      GenericJMXLogger.logError ("GenericJMXConfValue: Cannot convert list of "
           + "objects to numbers.");
       return;
     }
@@ -371,7 +371,7 @@ class GenericJMXConfValue
     }
     catch (Exception e)
     {
-      Collectd.logError ("GenericJMXConfValue.query: getAttribute failed: "
+      GenericJMXLogger.logError ("GenericJMXConfValue.query: getAttribute failed: "
           + e);
       return (null);
     }
@@ -389,13 +389,13 @@ class GenericJMXConfValue
       else if (value instanceof OpenType)
       {
         OpenType ot = (OpenType) value;
-        Collectd.logNotice ("GenericJMXConfValue: Handling of OpenType \""
+        GenericJMXLogger.logNotice ("GenericJMXConfValue: Handling of OpenType \""
             + ot.getTypeName () + "\" is not yet implemented.");
         return (null);
       }
       else
       {
-        Collectd.logError ("GenericJMXConfValue: Received object of "
+        GenericJMXLogger.logError ("GenericJMXConfValue: Received object of "
             + "unknown class. " + attrName + " " + ((value == null)?"null":value.getClass().getName()));
         return (null);
       }
@@ -426,7 +426,7 @@ class GenericJMXConfValue
     values = ci.getValues ();
     if (values.size () != 1)
     {
-      Collectd.logError ("GenericJMXConfValue: The " + ci.getKey ()
+      GenericJMXLogger.logError ("GenericJMXConfValue: The " + ci.getKey ()
           + " configuration option needs exactly one string argument.");
       return (null);
     }
@@ -434,7 +434,7 @@ class GenericJMXConfValue
     v = values.get (0);
     if (v.getType () != OConfigValue.OCONFIG_TYPE_STRING)
     {
-      Collectd.logError ("GenericJMXConfValue: The " + ci.getKey ()
+      GenericJMXLogger.logError ("GenericJMXConfValue: The " + ci.getKey ()
           + " configuration option needs exactly one string argument.");
       return (null);
     }
@@ -451,7 +451,7 @@ class GenericJMXConfValue
     values = ci.getValues ();
     if (values.size () != 1)
     {
-      Collectd.logError ("GenericJMXConfValue: The " + ci.getKey ()
+      GenericJMXLogger.logError ("GenericJMXConfValue: The " + ci.getKey ()
           + " configuration option needs exactly one boolean argument.");
       return (null);
     }
@@ -459,7 +459,7 @@ class GenericJMXConfValue
     v = values.get (0);
     if (v.getType () != OConfigValue.OCONFIG_TYPE_BOOLEAN)
     {
-      Collectd.logError ("GenericJMXConfValue: The " + ci.getKey ()
+      GenericJMXLogger.logError ("GenericJMXConfValue: The " + ci.getKey ()
           + " configuration option needs exactly one boolean argument.");
       return (null);
     }
@@ -571,7 +571,7 @@ class GenericJMXConfValue
       this._ds = Collectd.getDS (this._ds_name);
       if (this._ds == null)
       {
-        Collectd.logError ("GenericJMXConfValue: Unknown type: "
+        GenericJMXLogger.logError ("GenericJMXConfValue: Unknown type: "
             + this._ds_name);
         return;
       }
@@ -580,7 +580,7 @@ class GenericJMXConfValue
     dsrc = this._ds.getDataSources ();
     if (dsrc.size () != this._attributes.size ())
     {
-      Collectd.logError ("GenericJMXConfValue.query: The data set "
+      GenericJMXLogger.logError ("GenericJMXConfValue.query: The data set "
           + this._ds_name + " has " + this._ds.getDataSources ().size ()
           + " data sources, but there were " + this._attributes.size ()
           + " attributes configured. This doesn't match!");
@@ -609,7 +609,7 @@ class GenericJMXConfValue
       propertyValue = objName.getKeyProperty (propertyName);
       if (propertyValue == null)
       {
-        Collectd.logError ("GenericJMXConfMBean: "
+        GenericJMXLogger.logError ("GenericJMXConfMBean: "
             + "No such property in object name: " + propertyName);
       }
       else
@@ -637,7 +637,7 @@ class GenericJMXConfValue
       v = queryAttribute (conn, objName, this._attributes.get (i));
       if (v == null)
       {
-        Collectd.logError ("GenericJMXConfValue.query: "
+        GenericJMXLogger.logError ("GenericJMXConfValue.query: "
             + "Querying attribute " + this._attributes.get (i) + " failed.");
         return;
       }

@@ -62,7 +62,7 @@ public class GenericJMX implements CollectdConfigInterface,
     List<OConfigItem> children;
     int i;
 
-    Collectd.logDebug ("GenericJMX plugin: config: ci = " + ci + ";");
+    GenericJMXLogger.logDebug ("GenericJMX plugin: config: ci = " + ci + ";");
 
     children = ci.getChildren ();
     for (i = 0; i < children.size (); i++)
@@ -81,7 +81,7 @@ public class GenericJMX implements CollectdConfigInterface,
         }
         catch (IllegalArgumentException e)
         {
-          Collectd.logError ("GenericJMX plugin: "
+          GenericJMXLogger.logError ("GenericJMX plugin: "
               + "Evaluating `MBean' block failed: " + e);
         }
       }
@@ -94,13 +94,16 @@ public class GenericJMX implements CollectdConfigInterface,
         }
         catch (IllegalArgumentException e)
         {
-          Collectd.logError ("GenericJMX plugin: "
+          GenericJMXLogger.logError ("GenericJMX plugin: "
               + "Evaluating `Connection' block failed: " + e);
         }
       }
+      else if (key.equalsIgnoreCase("DisableLogging")) {
+        GenericJMXLogger.disableLogging();
+      }
       else
       {
-        Collectd.logError ("GenericJMX plugin: Unknown config option: " + key);
+        GenericJMXLogger.logError ("GenericJMX plugin: Unknown config option: " + key);
       }
     } /* for (i = 0; i < children.size (); i++) */
 
@@ -117,7 +120,7 @@ public class GenericJMX implements CollectdConfigInterface,
       }
       catch (Exception e)
       {
-        Collectd.logError ("GenericJMX: Caught unexpected exception: " + e);
+        GenericJMXLogger.logError ("GenericJMX: Caught unexpected exception: " + e);
         e.printStackTrace ();
       }
     }
@@ -142,7 +145,7 @@ public class GenericJMX implements CollectdConfigInterface,
 
   static private void putMBean (GenericJMXConfMBean mbean)
   {
-    Collectd.logDebug ("GenericJMX.putMBean: Adding " + mbean.getName ());
+    GenericJMXLogger.logDebug ("GenericJMX.putMBean: Adding " + mbean.getName ());
     _mbeans.put (mbean.getName (), mbean);
   }
 } /* class GenericJMX */
