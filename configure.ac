@@ -2726,8 +2726,8 @@ AC_ARG_WITH(libmongoc, [AS_HELP_STRING([--with-libmongoc@<:@=PREFIX@:>@], [Path 
 	 with_libmongoc="no"
  else
 	 with_libmongoc="yes"
-	 LIBMONGOC_CPPFLAGS="$LIBMONGOC_CPPFLAGS -I$withval/include"
-	 LIBMONGOC_LDFLAGS="$LIBMONGOC_LDFLAGS -L$withval/lib"
+	 LIBMONGOC_CPPFLAGS=$(pkg-config --cflags libmongoc-1.0)
+	 LIBMONGOC_LDFLAGS=$(pkg-config --libs libmongoc-1.0)
  fi; fi
 ],
 [with_libmongoc="yes"])
@@ -2744,9 +2744,9 @@ then
 	then
 		AC_MSG_NOTICE([libmongoc CPPFLAGS: $LIBMONGOC_CPPFLAGS])
 	fi
-	AC_CHECK_HEADERS(mongo.h,
+	AC_CHECK_HEADERS(mongoc.h,
 	[with_libmongoc="yes"],
-	[with_libmongoc="no ('mongo.h' not found)"],
+	[with_libmongoc="no ('mongoc.h' not found)"],
 [#if HAVE_STDINT_H
 # define MONGO_HAVE_STDINT 1
 #else
