@@ -415,7 +415,9 @@ static int sensors_load_conf (void)
 			if ((feature->type != SENSORS_FEATURE_IN)
 					&& (feature->type != SENSORS_FEATURE_FAN)
 					&& (feature->type != SENSORS_FEATURE_TEMP)
-					&& (feature->type != SENSORS_FEATURE_POWER))
+					&& (feature->type != SENSORS_FEATURE_POWER)
+					&& (feature->type != SENSORS_FEATURE_ENERGY)
+					&& (feature->type != SENSORS_FEATURE_CURR))
 			{
 				DEBUG ("sensors plugin: sensors_load_conf: "
 						"Ignoring feature `%s', "
@@ -432,7 +434,9 @@ static int sensors_load_conf (void)
 				if ((subfeature->type != SENSORS_SUBFEATURE_IN_INPUT)
 						&& (subfeature->type != SENSORS_SUBFEATURE_FAN_INPUT)
 						&& (subfeature->type != SENSORS_SUBFEATURE_TEMP_INPUT)
-						&& (subfeature->type != SENSORS_SUBFEATURE_POWER_INPUT))
+						&& (subfeature->type != SENSORS_SUBFEATURE_POWER_INPUT)
+						&& (subfeature->type != SENSORS_SUBFEATURE_ENERGY_INPUT)
+						&& (subfeature->type != SENSORS_SUBFEATURE_CURR_INPUT))
 					continue;
 
 				fl = (featurelist_t *) malloc (sizeof (featurelist_t));
@@ -581,6 +585,12 @@ static int sensors_read (void)
 		else if (fl->feature->type
 				== SENSORS_FEATURE_POWER)
 			type = "power";
+		else if (fl->feature->type
+				== SENSORS_FEATURE_ENERGY)
+			type = "energy";
+		else if (fl->feature->type
+				== SENSORS_FEATURE_CURR)
+			type = "current";
 		else
 			continue;
 
