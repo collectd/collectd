@@ -84,7 +84,7 @@
 # Lines beginning with a single `#' belong to plugins which have been built  #
 # but are disabled by default.                                               #
 #                                                                            #
-# Lines begnning with `##' belong to plugins which have not been built due   #
+# Lines beginning with `##' belong to plugins which have not been built due  #
 # to missing dependencies or because they have been deactivated explicitly.  #
 ##############################################################################
 
@@ -150,6 +150,7 @@
 #@BUILD_PLUGIN_NGINX_TRUE@LoadPlugin nginx
 #@BUILD_PLUGIN_NOTIFY_DESKTOP_TRUE@LoadPlugin notify_desktop
 #@BUILD_PLUGIN_NOTIFY_EMAIL_TRUE@LoadPlugin notify_email
+#@BUILD_PLUGIN_NOTIFY_NAGIOS_TRUE@LoadPlugin notify_nagios
 #@BUILD_PLUGIN_NTPD_TRUE@LoadPlugin ntpd
 #@BUILD_PLUGIN_NUMA_TRUE@LoadPlugin numa
 #@BUILD_PLUGIN_NUT_TRUE@LoadPlugin nut
@@ -291,7 +292,7 @@
 
 #<Plugin "battery">
 #  ValuesPercentage false
-#  ReportDegraded
+#  ReportDegraded false
 #</Plugin>
 
 #<Plugin "bind">
@@ -487,7 +488,6 @@
 #	FSType "ext3"
 #	IgnoreSelected false
 #	ReportByDevice false
-#	ReportReserved false
 #	ReportInodes false
 #	ValuesAbsolute true
 #	ValuesPercentage false
@@ -563,6 +563,7 @@
 #<Plugin interface>
 #	Interface "eth0"
 #	IgnoreSelected false
+#	UniqueName false
 #</Plugin>
 
 #<Plugin ipmi>
@@ -576,6 +577,7 @@
 
 #<Plugin iptables>
 #	Chain table chain
+#	Chain6 table chain
 #</Plugin>
 
 #<Plugin irq>
@@ -683,6 +685,11 @@
 #		Prefix "collectd"
 #		StoreRates true
 #		Retain false
+#		CACert "/etc/ssl/ca.crt"
+#		CertificateFile "/etc/ssl/client.crt"
+#		CertificateKeyFile "/etc/ssl/client.pem"
+#		TLSProtocol "tlsv1.2"
+#		CipherSuite "ciphers"
 #	</Publish>
 #	<Subscribe "name">
 #		Host "localhost"
@@ -831,6 +838,10 @@
 #	Subject "Aaaaaa!! %s on %s!!!!!"
 #	Recipient "email1@domain1.net"
 #	Recipient "email2@domain2.com"
+#</Plugin>
+
+#<Plugin notify_nagios>
+#	CommandFile "/usr/local/nagios/var/rw/nagios.cmd"
 #</Plugin>
 
 #<Plugin ntpd>
@@ -1127,6 +1138,7 @@
 #  DeleteTimers   false
 #  DeleteGauges   false
 #  DeleteSets     false
+#  CounterSum     false
 #  TimerPercentile 90.0
 #  TimerPercentile 95.0
 #  TimerPercentile 99.0
@@ -1242,10 +1254,10 @@
 ##	None of the following option should be set manually
 ##	This plugin automatically detect most optimal options
 ##	Only set values here if:
-##	- The module ask you to
+##	- The module asks you to
 ##	- You want to disable the collection of some data
-##	- Your (intel) CPU is not supported (yet) by the module
-##	- The module generate a lot of errors 'MSR offset 0x... read failed'
+##	- Your (Intel) CPU is not supported (yet) by the module
+##	- The module generates a lot of errors 'MSR offset 0x... read failed'
 ##	In the last two cases, please open a bug request
 #
 #	TCCActivationTemp "100"
@@ -1337,6 +1349,7 @@
 #    Host "localhost"
 #    Port "2003"
 #    Protocol "tcp"
+#    ReconnectInterval 0
 #    LogSendErrors true
 #    Prefix "collectd"
 #    Postfix "collectd"

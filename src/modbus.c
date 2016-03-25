@@ -310,7 +310,9 @@ static int mb_init_connection (mb_host_t *host) /* {{{ */
   if (host == NULL)
     return (EINVAL);
 
+#if COLLECT_DEBUG
   modbus_set_debug (&host->connection, 1);
+#endif
 
   /* We'll do the error handling ourselves. */
   modbus_set_error_handling (&host->connection, NOP_ON_ERROR);
@@ -390,7 +392,9 @@ static int mb_init_connection (mb_host_t *host) /* {{{ */
     }
   }
 
+#if COLLECT_DEBUG
   modbus_set_debug (host->connection, 1);
+#endif
 
   /* We'll do the error handling ourselves. */
   modbus_set_error_recovery (host->connection, 0);
@@ -942,9 +946,15 @@ static int mb_config_add_host (oconfig_item_t *ci) /* {{{ */
 
   status = cf_util_get_string_buffer (ci, host->host, sizeof (host->host));
   if (status != 0)
+  {
+    sfree (host);
     return (status);
+  }
   if (host->host[0] == 0)
+  {
+    sfree (host);
     return (EINVAL);
+  }
 
   for (i = 0; i < ci->children_num; i++)
   {

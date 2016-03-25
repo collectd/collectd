@@ -72,6 +72,7 @@
 extern char *optarg;
 extern int   optind;
 
+__attribute__((noreturn))
 static void exit_usage (const char *name, int status) {
   fprintf ((status == 0) ? stdout : stderr,
       "Usage: %s [options] <command> [cmd options]\n\n"

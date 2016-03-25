@@ -136,9 +136,9 @@ static int sigrok_config(oconfig_item_t *ci)
 	return 0;
 }
 
-static char *sigrok_value_type(const struct sr_datafeed_analog *analog)
+static const char *sigrok_value_type(const struct sr_datafeed_analog *analog)
 {
-	char *s;
+	const char *s;
 
 	if (analog->mq == SR_MQ_VOLTAGE)
 		s = "voltage";
@@ -360,10 +360,13 @@ static int sigrok_init(void)
 		return -1;
 	}
 
-	if ((status = plugin_thread_create(&sr_thread, NULL, sigrok_read_thread,
-			NULL)) != 0) {
+	status = plugin_thread_create(&sr_thread, NULL, sigrok_read_thread,
+			NULL);
+	if (status != 0)
+	{
+		char errbuf[1024];
 		ERROR("sigrok plugin: Failed to create thread: %s.",
-				strerror(status));
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return -1;
 	}
 	sr_thread_running = TRUE;

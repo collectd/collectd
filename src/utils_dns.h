@@ -48,8 +48,6 @@
 #define DNS_MSG_HDR_SZ 12
 
 #define T_MAX 65536
-#define OP_MAX 16
-#define C_MAX 65536
 #define MAX_QNAME_SZ 512
 
 struct rfc1035_header_s {
@@ -74,10 +72,6 @@ struct rfc1035_header_s {
     uint16_t length;
 };
 typedef struct rfc1035_header_s rfc1035_header_t;
-
-extern int qtype_counts[T_MAX];
-extern int opcode_counts[OP_MAX];
-extern int qclass_counts[C_MAX];
 
 #if HAVE_PCAP_H
 void dnstop_set_pcap_obj (pcap_t *po);

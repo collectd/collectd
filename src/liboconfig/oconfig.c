@@ -193,7 +193,7 @@ oconfig_item_t *oconfig_clone (const oconfig_item_t *ci_orig)
   return (ci_copy);
 } /* oconfig_item_t *oconfig_clone */
 
-void oconfig_free_all (oconfig_item_t *ci)
+static void oconfig_free_all (oconfig_item_t *ci)
 {
   int i;
 

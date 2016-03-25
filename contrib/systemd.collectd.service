@@ -10,12 +10,22 @@ EnvironmentFile=-/etc/default/collectd
 ProtectSystem=full
 ProtectHome=true
 
-# drop all capabilities:
-CapabilityBoundingSet=
-# use this instead if you use the dns or ping plugin
-#CapabilityBoundingSet=CAP_NET_RAW
-# turn this on if you use the iptables next to the dns or ping plugin
+# A few plugins won't work without some privileges, which you'll have to
+# specify using the CapabilityBoundingSet directive below.
+#
+# Here's a (incomplete) list of the plugins known capability requirements:
+#   ceph            CAP_DAC_OVERRIDE
+#   dns             CAP_NET_RAW
+#   exec            CAP_SETUID CAP_SETGID
+#   iptables        CAP_NET_ADMIN
+#   ping            CAP_NET_RAW
+#   turbostat       CAP_SYS_RAWIO
+#
+# Example, if you use the iptables plugin alongside the dns or ping plugin:
 #CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN
+#
+# By default, drop all capabilities:
+CapabilityBoundingSet=
 
 NoNewPrivileges=true
 

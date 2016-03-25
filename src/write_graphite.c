@@ -94,8 +94,36 @@ struct wg_callback
     pthread_mutex_t send_lock;
     c_complain_t init_complaint;
     cdtime_t last_connect_time;
+
+    /* Force reconnect useful for load balanced environments */
+    cdtime_t last_reconnect_time;
+    cdtime_t reconnect_interval;
+    _Bool reconnect_interval_reached;
 };
 
+/* wg_force_reconnect_check closes cb->sock_fd when it was open for longer
+ * than cb->reconnect_interval. Must hold cb->send_lock when calling. */
+static void wg_force_reconnect_check (struct wg_callback *cb)
+{
+    cdtime_t now;
+
+    if (cb->reconnect_interval == 0)
+        return;
+
+    /* check if address changes if addr_timeout */
+    now = cdtime ();
+    if ((now - cb->last_reconnect_time) < cb->reconnect_interval)
+        return;
+
+    /* here we should close connection on next */
+    close (cb->sock_fd);
+    cb->sock_fd = -1;
+    cb->last_reconnect_time = now;
+    cb->reconnect_interval_reached = 1;
+
+    INFO ("write_graphite plugin: Connection closed after %.3f seconds.",
+          CDTIME_T_TO_DOUBLE (now - cb->last_reconnect_time));
+}
 
 /*
  * Functions
@@ -113,7 +141,7 @@ static int wg_send_buffer (struct wg_callback *cb)
     ssize_t status = 0;
 
     status = swrite (cb->sock_fd, cb->send_buf, strlen (cb->send_buf));
-    if (status < 0)
+    if (status != 0)
     {
         if (cb->log_send_errors)
         {
@@ -250,7 +278,13 @@ static int wg_callback_init (struct wg_callback *cb)
                 cb->node, cb->service, cb->protocol);
     }
 
-    wg_reset_buffer (cb);
+    /* wg_force_reconnect_check does not flush the buffer before closing a
+     * sending socket, so only call wg_reset_buffer() if the socket was closed
+     * for a different reason (tracked in cb->reconnect_interval_reached). */
+    if (!cb->reconnect_interval_reached || (cb->send_buf_free == 0))
+        wg_reset_buffer (cb);
+    else
+        cb->reconnect_interval_reached = 0;
 
     return (0);
 }
@@ -325,6 +359,8 @@ static int wg_send_message (char const *message, struct wg_callback *cb)
     message_len = strlen (message);
 
     pthread_mutex_lock (&cb->send_lock);
+
+    wg_force_reconnect_check (cb);
 
     if (cb->sock_fd < 0)
     {
@@ -462,6 +498,9 @@ static int wg_config_node (oconfig_item_t *ci)
     cb->node = strdup (WG_DEFAULT_NODE);
     cb->service = strdup (WG_DEFAULT_SERVICE);
     cb->protocol = strdup (WG_DEFAULT_PROTOCOL);
+    cb->last_reconnect_time = cdtime();
+    cb->reconnect_interval = 0;
+    cb->reconnect_interval_reached = 0;
     cb->log_send_errors = WG_DEFAULT_LOG_SEND_ERRORS;
     cb->prefix = NULL;
     cb->postfix = NULL;
@@ -502,6 +541,8 @@ static int wg_config_node (oconfig_item_t *ci)
                 status = -1;
             }
         }
+        else if (strcasecmp ("ReconnectInterval", child->key) == 0)
+            cf_util_get_cdtime (child, &cb->reconnect_interval);
         else if (strcasecmp ("LogSendErrors", child->key) == 0)
             cf_util_get_boolean (child, &cb->log_send_errors);
         else if (strcasecmp ("Prefix", child->key) == 0)

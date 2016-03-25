@@ -26,25 +26,24 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
-#include "collectd.h"
-#include "plugin.h"
-#include "common.h"
-#include "configfile.h"
-#include "utils_cache.h"
-#include "riemann.pb-c.h"
-
 #include <arpa/inet.h>
 #include <errno.h>
 #include <netdb.h>
 #include <inttypes.h>
 #include <pthread.h>
 
+#include "collectd.h"
+#include "plugin.h"
+#include "common.h"
+#include "configfile.h"
+#include "utils_cache.h"
+#include "riemann.pb-c.h"
+#include "write_riemann_threshold.h"
+
 #define RIEMANN_HOST		"localhost"
 #define RIEMANN_PORT		"5555"
 #define RIEMANN_TTL_FACTOR      2.0
 #define RIEMANN_BATCH_MAX      8192
-
-int write_riemann_threshold_check(const data_set_t *, const value_list_t *, int *);
 
 struct riemann_host {
 	char			*name;
@@ -1050,6 +1049,7 @@ static int riemann_config(oconfig_item_t *ci) /* {{{ */
 			}
 			if ((val = strdup(child->values[1].value.string)) == NULL) {
 				WARNING("cannot allocate memory for attribute value.");
+				sfree (key);
 				return (-1);
 			}
 			strarray_add(&riemann_attrs, &riemann_attrs_num, key);

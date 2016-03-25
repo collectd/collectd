@@ -225,7 +225,7 @@ entire_file:
 %%
 static int yyerror (const char *s)
 {
-	char *text;
+	const char *text;
 
 	if (*yytext == '\n')
 		text = "<newline>";

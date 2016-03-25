@@ -470,7 +470,7 @@ static int qos_filter_cb (const struct nlmsghdr *nlh, void *args)
   const char *kind = NULL;
 
   /* char *type_instance; */
-  char *tc_type;
+  const char *tc_type;
   char tc_inst[DATA_MAX_NAME_LEN];
 
   _Bool stats_submitted = 0;

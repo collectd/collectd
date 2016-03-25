@@ -30,6 +30,7 @@
 
 #include "collectd.h"
 #include "common.h"
+#include "utils_subst.h"
 
 char *subst (char *buf, size_t buflen, const char *string, size_t off1, size_t off2,
 		const char *replacement)

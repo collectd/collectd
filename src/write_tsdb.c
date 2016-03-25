@@ -211,7 +211,6 @@ static int wt_callback_init(struct wt_callback *cb)
         ERROR("write_tsdb plugin: Connecting to %s:%s failed. "
               "The last error was: %s", node, service,
               sstrerror (errno, errbuf, sizeof(errbuf)));
-        close(cb->sock_fd);
         return -1;
     }
 
@@ -347,7 +346,7 @@ static int wt_format_name(char *ret, int ret_len,
 {
     int status;
     char *temp = NULL;
-    char *prefix = "";
+    const char *prefix = "";
     const char *meta_prefix = "tsdb_prefix";
 
     if (vl->meta) {
@@ -412,9 +411,9 @@ static int wt_send_message (const char* key, const char* value,
     int status;
     size_t message_len;
     char *temp = NULL;
-    char *tags = "";
+    const char *tags = "";
     char message[1024];
-    char *host_tags = cb->host_tags ? cb->host_tags : "";
+    const char *host_tags = cb->host_tags ? cb->host_tags : "";
     const char *meta_tsdb = "tsdb_tags";
 
     /* skip if value is NaN */

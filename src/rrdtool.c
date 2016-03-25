@@ -733,7 +733,10 @@ static int rrd_cache_insert (const char *filename,
 	{
 		rc = malloc (sizeof (*rc));
 		if (rc == NULL)
+		{
+			pthread_mutex_unlock (&cache_lock);
 			return (-1);
+		}
 		rc->values_num = 0;
 		rc->values = NULL;
 		rc->first_value = 0;
@@ -1005,23 +1008,36 @@ static int rrd_config (const char *key, const char *value)
 	}
 	else if (strcasecmp ("DataDir", key) == 0)
 	{
-		if (datadir != NULL)
-			free (datadir);
-		datadir = strdup (value);
+		char *tmp;
+		size_t len;
+
+		tmp = strdup (value);
+		if (tmp == NULL)
+		{
+			ERROR ("rrdtool plugin: strdup failed.");
+			return (1);
+		}
+
+		len = strlen (tmp);
+		while ((len > 0) && (tmp[len - 1] == '/'))
+		{
+			len--;
+			tmp[len] = 0;
+		}
+
+		if (len == 0)
+		{
+			ERROR ("rrdtool plugin: Invalid \"DataDir\" option.");
+			sfree (tmp);
+			return (1);
+		}
+
 		if (datadir != NULL)
 		{
-			int len = strlen (datadir);
-			while ((len > 0) && (datadir[len - 1] == '/'))
-			{
-				len--;
-				datadir[len] = '\0';
-			}
-			if (len <= 0)
-			{
-				free (datadir);
-				datadir = NULL;
-			}
+			sfree (datadir);
 		}
+
+		datadir = tmp;
 	}
 	else if (strcasecmp ("StepSize", key) == 0)
 	{
@@ -1204,6 +1220,7 @@ static int rrd_init (void)
 	cache = c_avl_create ((int (*) (const void *, const void *)) strcmp);
 	if (cache == NULL)
 	{
+		pthread_mutex_unlock (&cache_lock);
 		ERROR ("rrdtool plugin: c_avl_create failed.");
 		return (-1);
 	}

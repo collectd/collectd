@@ -127,7 +127,16 @@ static int us_open_socket (void)
 		return (-1);
 	}
 
-	chmod (sa.sun_path, sock_perms);
+	status = chmod (sa.sun_path, sock_perms);
+	if (status == -1)
+	{
+		char errbuf[1024];
+		ERROR ("unixsock plugin: chmod failed: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		close (sock_fd);
+		sock_fd = -1;
+		return (-1);
+	}
 
 	status = listen (sock_fd, 8);
 	if (status != 0)
@@ -142,7 +151,7 @@ static int us_open_socket (void)
 
 	do
 	{
-		char *grpname;
+		const char *grpname;
 		struct group *g;
 		struct group sg;
 		char grbuf[2048];

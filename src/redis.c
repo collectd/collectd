@@ -141,7 +141,7 @@ static redis_query_t *redis_config_query (oconfig_item_t *ci) /* {{{ */
      * Default to a gauge type.
      */
     (void)strncpy(rq->type, "gauge", sizeof(rq->type));
-    (void)strncpy(rq->instance, rq->query, sizeof(rq->instance));
+    (void)sstrncpy(rq->instance, rq->query, sizeof(rq->instance));
     replace_special(rq->instance, sizeof(rq->instance));
 
     for (i = 0; i < ci->children_num; i++) {
@@ -294,7 +294,7 @@ static int redis_init (void) /* {{{ */
   return (0);
 } /* }}} int redis_init */
 
-int redis_handle_info (char *node, char const *info_line, char const *type, char const *type_instance, char const *field_name, int ds_type) /* {{{ */
+static int redis_handle_info (char *node, char const *info_line, char const *type, char const *type_instance, char const *field_name, int ds_type) /* {{{ */
 {
   char *str = strstr (info_line, field_name);
   static char buf[MAX_REDIS_VAL_SIZE];
@@ -304,7 +304,7 @@ int redis_handle_info (char *node, char const *info_line, char const *type, char
     int i;
 
     str += strlen (field_name) + 1; /* also skip the ':' */
-    for(i=0;(*str && (isdigit(*str) || *str == '.'));i++,str++)
+    for(i=0;(*str && (isdigit((unsigned char)*str) || *str == '.'));i++,str++)
       buf[i] = *str;
     buf[i] ='\0';
 
@@ -321,7 +321,7 @@ int redis_handle_info (char *node, char const *info_line, char const *type, char
 
 } /* }}} int redis_handle_info */
 
-int redis_handle_query (redisContext *rh, redis_node_t *rn, redis_query_t *rq) /* {{{ */
+static int redis_handle_query (redisContext *rh, redis_node_t *rn, redis_query_t *rq) /* {{{ */
 {
     redisReply *rr;
     const data_set_t *ds;
@@ -376,7 +376,7 @@ int redis_handle_query (redisContext *rh, redis_node_t *rn, redis_query_t *rq) /
     redis_submit(rn->name, rq->type, (strlen(rq->instance) >0)?rq->instance:NULL, val);
     freeReplyObject (rr);
     return 0;
-} /* }}} int redis_handle_info */
+} /* }}} int redis_handle_query */
 
 static int redis_read (void) /* {{{ */
 {
@@ -399,25 +399,27 @@ static int redis_read (void) /* {{{ */
 
     if (strlen (rn->passwd) > 0)
     {
-      DEBUG ("redis plugin: authenticanting node `%s' passwd(%s).", rn->name, rn->passwd);
-      rr = redisCommand (rh, "AUTH %s", rn->passwd);
+      DEBUG ("redis plugin: authenticating node `%s' passwd(%s).", rn->name, rn->passwd);
 
-      if (rr == NULL || rr->type != REDIS_REPLY_STATUS)
+      if ((rr = redisCommand (rh, "AUTH %s", rn->passwd)) == NULL)
       {
         WARNING ("redis plugin: unable to authenticate on node `%s'.", rn->name);
-        if (rr != NULL)
-          freeReplyObject (rr);
-
-        redisFree (rh);
-        continue;
+        goto redis_fail;
       }
+
+      if (rr->type != REDIS_REPLY_STATUS)
+      {
+        WARNING ("redis plugin: invalid authentication on node `%s'.", rn->name);
+        goto redis_fail;
+      }
+
+      freeReplyObject (rr);
     }
 
     if ((rr = redisCommand(rh, "INFO")) == NULL)
     {
-      WARNING ("redis plugin: unable to connect to node `%s'.", rn->name);
-      redisFree (rh);
-      continue;
+      WARNING ("redis plugin: unable to get info from node `%s'.", rn->name);
+      goto redis_fail;
     }
 
     redis_handle_info (rn->name, rr->str, "uptime", NULL, "uptime_in_seconds", DS_TYPE_GAUGE);
@@ -429,16 +431,22 @@ static int redis_read (void) /* {{{ */
     redis_handle_info (rn->name, rr->str, "volatile_changes", NULL, "changes_since_last_save", DS_TYPE_GAUGE);
     redis_handle_info (rn->name, rr->str, "total_connections", NULL, "total_connections_received", DS_TYPE_DERIVE);
     redis_handle_info (rn->name, rr->str, "total_operations", NULL, "total_commands_processed", DS_TYPE_DERIVE);
-    redis_handle_info (rn->name, rr->str, "expired_keys", NULL, "expired_keys", DS_TYPE_GAUGE);
+    redis_handle_info (rn->name, rr->str, "expired_keys", NULL, "expired_keys", DS_TYPE_DERIVE);
+    redis_handle_info (rn->name, rr->str, "evicted_keys", NULL, "evicted_keys", DS_TYPE_DERIVE);
     redis_handle_info (rn->name, rr->str, "pubsub", "channels", "pubsub_channels", DS_TYPE_GAUGE);
     redis_handle_info (rn->name, rr->str, "pubsub", "patterns", "pubsub_patterns", DS_TYPE_GAUGE);
     redis_handle_info (rn->name, rr->str, "current_connections", "slaves", "connected_slaves", DS_TYPE_GAUGE);
-
-    freeReplyObject (rr);
+    redis_handle_info (rn->name, rr->str, "cache_result", "hits", "keyspace_hits", DS_TYPE_DERIVE);
+    redis_handle_info (rn->name, rr->str, "cache_result", "misses", "keyspace_misses", DS_TYPE_DERIVE);
+    redis_handle_info (rn->name, rr->str, "total_bytes", "input", "total_net_input_bytes", DS_TYPE_DERIVE);
+    redis_handle_info (rn->name, rr->str, "total_bytes", "output", "total_net_output_bytes", DS_TYPE_DERIVE);
 
     for (rq = rn->queries; rq != NULL; rq = rq->next)
         redis_handle_query(rh, rn, rq);
 
+redis_fail:
+    if (rr != NULL)
+      freeReplyObject (rr);
     redisFree (rh);
   }
 

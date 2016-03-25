@@ -193,12 +193,13 @@ static int uc_insert (const data_set_t *ds, const value_list_t *vl,
 	    / CDTIME_T_TO_DOUBLE (vl->interval);
 	ce->values_raw[i].absolute = vl->values[i].absolute;
 	break;
-	
+
       default:
 	/* This shouldn't happen. */
 	ERROR ("uc_insert: Don't know how to handle data source type %i.",
 	    ds->ds[i].type);
 	sfree (key_copy);
+	cache_free (ce);
 	return (-1);
     } /* switch (ds->ds[i].type) */
   } /* for (i) */
@@ -558,7 +559,7 @@ gauge_t *uc_get_rate (const data_set_t *ds, const value_list_t *vl)
   return (ret);
 } /* gauge_t *uc_get_rate */
 
-size_t uc_get_size() {
+size_t uc_get_size (void) {
   size_t size_arrays = 0;
 
   pthread_mutex_lock (&cache_lock);
@@ -735,7 +736,6 @@ int uc_get_history_by_name (const char *name,
   if (ce->history_length < num_steps)
   {
     gauge_t *tmp;
-    size_t i;
 
     tmp = realloc (ce->history, sizeof (*ce->history)
 	* num_steps * ce->values_num);

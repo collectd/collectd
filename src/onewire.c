@@ -415,11 +415,11 @@ static int cow_read_ds2409 (const char *path)
   int status;
 
   status = ssnprintf (subpath, sizeof (subpath), "%s/main", path);
-  if ((status > 0) && (status < sizeof (subpath)))
+  if ((status > 0) && (status < (int) sizeof (subpath)))
     cow_read_bus (subpath);
 
   status = ssnprintf (subpath, sizeof (subpath), "%s/aux", path);
-  if ((status > 0) && (status < sizeof (subpath)))
+  if ((status > 0) && (status < (int) sizeof (subpath)))
     cow_read_bus (subpath);
 
   return (0);
@@ -459,7 +459,7 @@ static int cow_read_bus (const char *path)
     else
       status = ssnprintf (subpath, sizeof (subpath), "%s/%s",
           path, buffer_ptr);
-    if ((status <= 0) || (status >= sizeof (subpath)))
+    if ((status <= 0) || (status >= (int) sizeof (subpath)))
       continue;
 
     for (i = 0; i < ow_family_features_num; i++)

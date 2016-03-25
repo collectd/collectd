@@ -53,7 +53,6 @@ static const char *config_keys[] =
 	"FSType",
 	"IgnoreSelected",
 	"ReportByDevice",
-	"ReportReserved",
 	"ReportInodes",
 	"ValuesAbsolute",
 	"ValuesPercentage"
@@ -204,6 +203,7 @@ static int df_read (void)
 	{
 		unsigned long long blocksize;
 		char disk_name[256];
+		cu_mount_t *dup_ptr;
 		uint64_t blk_free;
 		uint64_t blk_reserved;
 		uint64_t blk_used;
@@ -217,6 +217,27 @@ static int df_read (void)
 		if (ignorelist_match (il_mountpoint, mnt_ptr->dir))
 			continue;
 		if (ignorelist_match (il_fstype, mnt_ptr->type))
+			continue;
+
+		/* search for duplicates *in front of* the current mnt_ptr. */
+		for (dup_ptr = mnt_list; dup_ptr != NULL; dup_ptr = dup_ptr->next)
+		{
+			/* No duplicate found: mnt_ptr is the first of its kind. */
+			if (dup_ptr == mnt_ptr)
+			{
+				dup_ptr = NULL;
+				break;
+			}
+
+			/* Duplicate found: leave non-NULL dup_ptr. */
+			if (by_device && (strcmp (mnt_ptr->spec_device, dup_ptr->spec_device) == 0))
+				break;
+			else if (!by_device && (strcmp (mnt_ptr->dir, dup_ptr->dir) == 0))
+				break;
+		}
+
+		/* ignore duplicates */
+		if (dup_ptr != NULL)
 			continue;
 
 		if (STATANYFS (mnt_ptr->dir, &statbuf) < 0)
@@ -249,11 +270,7 @@ static int df_read (void)
 		else
 		{
 			if (strcmp (mnt_ptr->dir, "/") == 0)
-			{
-				if (strcmp (mnt_ptr->type, "rootfs") == 0)
-					continue;
 				sstrncpy (disk_name, "root", sizeof (disk_name));
-			}
 			else
 			{
 				int i, len;

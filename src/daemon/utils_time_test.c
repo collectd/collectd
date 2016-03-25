@@ -26,8 +26,8 @@
 
 #define DBL_PRECISION 1e-3
 
-#include "testing.h"
 #include "collectd.h"
+#include "testing.h"
 #include "utils_time.h"
 
 DEF_TEST(conversion)
@@ -62,7 +62,7 @@ DEF_TEST(conversion)
     // 1546167831554815222 / 2^30 = 1439981005.6712620165...
     {1546167831554815222ULL, 1439981005.671, 1439981006, 1439981005671ULL, {1439981005, 671262}, {1439981005, 671262017}},
     // 1546167986577716567 / 2^30 = 1439981150.0475896215...
-    {1546167986577716567ULL, 1439981150.048, 1439981150, 1439981150048ULL, {1439981150,  47590}, {1439981005,  47589622}},
+    {1546167986577716567ULL, 1439981150.048, 1439981150, 1439981150048ULL, {1439981150,  47590}, {1439981150,  47589622}},
   };
   size_t i;
 
@@ -78,10 +78,12 @@ DEF_TEST(conversion)
 
     // cdtime -> us
     CDTIME_T_TO_TIMEVAL (cases[i].t, &tv);
+    EXPECT_EQ_UINT64 (cases[i].tv.tv_sec, tv.tv_sec);
     EXPECT_EQ_UINT64 (cases[i].tv.tv_usec, tv.tv_usec);
 
     // cdtime -> ns
     CDTIME_T_TO_TIMESPEC (cases[i].t, &ts);
+    EXPECT_EQ_UINT64 (cases[i].ts.tv_sec, ts.tv_sec);
     EXPECT_EQ_UINT64 (cases[i].ts.tv_nsec, ts.tv_nsec);
 
     // cdtime -> double

@@ -638,7 +638,7 @@ static int udb_result_create (const char *query_name, /* {{{ */
 /*
  * Query private functions
  */
-void udb_query_free_one (udb_query_t *q) /* {{{ */
+static void udb_query_free_one (udb_query_t *q) /* {{{ */
 {
   if (q == NULL)
     return;

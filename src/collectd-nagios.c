@@ -245,6 +245,7 @@ static int match_range (range_t *range, double value)
 	return (((ret - range->invert) == 0) ? 0 : 1);
 } /* int match_range */
 
+__attribute__((noreturn))
 static void usage (const char *name)
 {
 	fprintf (stderr, "Usage: %s <-s socket> <-n value_spec> <-H hostname> [options]\n"

@@ -29,6 +29,7 @@
 #include "plugin.h"
 
 #include "utils_parse_option.h"
+#include "utils_cmd_putval.h"
 
 #define print_to_socket(fh, ...) \
     do { \

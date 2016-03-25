@@ -56,9 +56,9 @@ struct ctail_config_match_s
 };
 typedef struct ctail_config_match_s ctail_config_match_t;
 
-cu_tail_match_t **tail_match_list = NULL;
-size_t tail_match_list_num = 0;
-cdtime_t tail_match_list_intervals[255];
+static cu_tail_match_t **tail_match_list = NULL;
+static size_t tail_match_list_num = 0;
+static cdtime_t tail_match_list_intervals[255];
 
 static int ctail_config_add_match_dstype (ctail_config_match_t *cm,
     oconfig_item_t *ci)
@@ -236,7 +236,7 @@ static int ctail_config_add_file (oconfig_item_t *ci)
   if (tm == NULL)
   {
     ERROR ("tail plugin: tail_match_create (%s) failed.",
-	ci->values[0].value.string);
+        ci->values[0].value.string);
     return (-1);
   }
 
@@ -253,7 +253,7 @@ static int ctail_config_add_file (oconfig_item_t *ci)
     {
       status = ctail_config_add_match (tm, plugin_instance, option, interval);
       if (status == 0)
-	num_matches++;
+        num_matches++;
       /* Be mild with failed matches.. */
       status = 0;
     }
@@ -266,10 +266,12 @@ static int ctail_config_add_file (oconfig_item_t *ci)
       break;
   } /* for (i = 0; i < ci->children_num; i++) */
 
+  sfree (plugin_instance);
+
   if (num_matches == 0)
   {
     ERROR ("tail plugin: No (valid) matches found for file `%s'.",
-	ci->values[0].value.string);
+        ci->values[0].value.string);
     tail_match_destroy (tm);
     return (-1);
   }
@@ -278,7 +280,7 @@ static int ctail_config_add_file (oconfig_item_t *ci)
     cu_tail_match_t **temp;
 
     temp = (cu_tail_match_t **) realloc (tail_match_list,
-	sizeof (cu_tail_match_t *) * (tail_match_list_num + 1));
+        sizeof (cu_tail_match_t *) * (tail_match_list_num + 1));
     if (temp == NULL)
     {
       ERROR ("tail plugin: realloc failed.");

@@ -106,19 +106,19 @@ static PyObject *cpy_common_repr(PyObject *s) {
 	return ret;
 }
 
-static char time_doc[] = "This is the Unix timestap of the time this value was read.\n"
+static char time_doc[] = "This is the Unix timestamp of the time this value was read.\n"
 		"For dispatching values this can be set to 0 which means \"now\".\n"
 		"This means the time the value is actually dispatched, not the time\n"
 		"it was set to 0.";
 
 static char host_doc[] = "The hostname of the host this value was read from.\n"
 		"For dispatching this can be set to an empty string which means\n"
-		"the local hostname as defined in the collectd.conf.";
+		"the local hostname as defined in collectd.conf.";
 
 static char type_doc[] = "The type of this value. This type has to be defined\n"
-		"in your types.db. Attempting to set it to any other value will\n"
-		"raise a TypeError exception.\n"
-		"Assigning a type is mandetory, calling dispatch without doing\n"
+		"in the types.db file. Attempting to set it to any other value\n"
+		"will raise a TypeError exception.\n"
+		"Assigning a type is mandatory, calling dispatch without doing\n"
 		"so will raise a RuntimeError exception.";
 
 static char type_instance_doc[] = "";
@@ -129,7 +129,7 @@ static char plugin_doc[] = "The name of the plugin that read the data. Setting t
 static char plugin_instance_doc[] = "";
 
 static char PluginData_doc[] = "This is an internal class that is the base for Values\n"
-		"and Notification. It is pretty useless by itself and was therefore not\n"
+		"and Notification. It is pretty useless by itself and is therefore not\n"
 		"exported to the collectd module.";
 
 static PyObject *PluginData_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
@@ -312,8 +312,8 @@ static char interval_doc[] = "The interval is the timespan in seconds between tw
 static char values_doc[] = "These are the actual values that get dispatched to collectd.\n"
 		"It has to be a sequence (a tuple or list) of numbers.\n"
 		"The size of the sequence and the type of its content depend on the type\n"
-		"member your types.db file. For more information on this read the types.db\n"
-		"man page.\n"
+		"member in the types.db file. For more information on this read the\n"
+		"types.db man page.\n"
 		"\n"
 		"If the sequence does not have the correct size upon dispatch a RuntimeError\n"
 		"exception will be raised. If the content of the sequence is not a number,\n"
@@ -322,7 +322,7 @@ static char values_doc[] = "These are the actual values that get dispatched to c
 static char meta_doc[] = "These are the meta data for this Value object.\n"
 		"It has to be a dictionary of numbers, strings or bools. All keys must be\n"
 		"strings. int and long objects will be dispatched as signed integers unless\n"
-		"they are between 2**63 and 2**64-1, which will result in a unsigned integer.\n"
+		"they are between 2**63 and 2**64-1, which will result in an unsigned integer.\n"
 		"You can force one of these storage classes by using the classes\n"
 		"collectd.Signed and collectd.Unsigned. A meta object received by a write\n"
 		"callback will always contain Signed or Unsigned objects.";
@@ -340,7 +340,7 @@ static char dispatch_doc[] = "dispatch([type][, values][, plugin_instance][, typ
 static char write_doc[] = "write([destination][, type][, values][, plugin_instance][, type_instance]"
 		"[, plugin][, host][, time][, interval]) -> None.  Dispatch a value list.\n"
 		"\n"
-		"Write this instance to a single plugin or all plugins if 'destination' is obmitted.\n"
+		"Write this instance to a single plugin or all plugins if 'destination' is omitted.\n"
 		"This will bypass the main collectd process and all filtering and caching.\n"
 		"Other than that it works similar to 'dispatch'. In most cases 'dispatch' should be\n"
 		"used instead of 'write'.\n";

@@ -1524,7 +1524,7 @@ static int cna_change_volume_status (const char *hostname, /* {{{ */
 {
 	notification_t n;
 
-	memset (&n, 0, sizeof (&n));
+	memset (&n, 0, sizeof (n));
 	n.time = cdtime ();
 	sstrncpy (n.host, hostname, sizeof (n.host));
 	sstrncpy (n.plugin, "netapp", sizeof (n.plugin));

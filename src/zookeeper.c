@@ -108,8 +108,8 @@ static int zookeeper_connect (void)
 	struct addrinfo ai_hints;
 	struct addrinfo *ai;
 	struct addrinfo *ai_list;
-	char *host;
-	char *port;
+	const char *host;
+	const char *port;
 
 	memset ((void *) &ai_hints, '\0', sizeof (ai_hints));
 	ai_hints.ai_family   = AF_UNSPEC;
@@ -198,11 +198,6 @@ static int zookeeper_query (char *buffer, size_t buffer_size)
 		}
 
 		buffer_fill += (size_t) status;
-		if (status == 0)
-		{
-			/* done reading from the socket */
-			break;
-		}
 	} /* while (recv) */
 
 	status = 0;

@@ -12,10 +12,9 @@
  * ranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public Licence for more details.
  *
- * You should have received a copy of the GNU General Public
- * Licence along with this program; if not, write to the Free
- * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139,
- * USA.
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Author:
  *   Niki W. Waibel <niki.waibel@gmx.net>
@@ -114,7 +113,7 @@ void cu_mount_freelist(cu_mount_t *list);
 	allocated by *list and *list itself as well.
 */
 
-char *cu_mount_checkoption(char *line, char *keyword, int full);
+char *cu_mount_checkoption(char *line, const char *keyword, int full);
 /*
   DESCRIPTION
 	The cu_mount_checkoption() function is a replacement of
@@ -154,7 +153,7 @@ char *cu_mount_checkoption(char *line, char *keyword, int full);
 	maybe you might want to try cu_mount_getoptionvalue()...
 */
 
-char *cu_mount_getoptionvalue(char *line, char *keyword);
+char *cu_mount_getoptionvalue(char *line, const char *keyword);
 /*
   DESCRIPTION
 	The cu_mount_getoptionvalue() function can be used to grab

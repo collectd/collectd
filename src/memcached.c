@@ -98,8 +98,8 @@ static int memcached_connect_unix (memcached_t *st)
 
 static int memcached_connect_inet (memcached_t *st)
 {
-  char *host;
-  char *port;
+  const char *host;
+  const char *port;
 
   struct addrinfo  ai_hints;
   struct addrinfo *ai_list, *ai_ptr;
@@ -439,7 +439,7 @@ static int memcached_read (user_data_t *user_data)
     }
     else if (FIELD_IS ("listen_disabled_num"))
     {
-      submit_derive ("memcached_connections", "listen_disabled", atof (fields[2]), st);
+      submit_derive ("connections", "listen_disabled", atof (fields[2]), st);
     }
 
     /*

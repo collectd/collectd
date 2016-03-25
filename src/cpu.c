@@ -221,15 +221,25 @@ static int init (void)
 
 	port_host = mach_host_self ();
 
-	/* FIXME: Free `cpu_list' if it's not NULL */
-	if ((status = host_processors (port_host, &cpu_list, &cpu_list_len)) != KERN_SUCCESS)
+	status = host_processors (port_host, &cpu_list, &cpu_list_len);
+	if (status == KERN_INVALID_ARGUMENT)
 	{
-		ERROR ("cpu plugin: host_processors returned %i", (int) status);
+		ERROR ("cpu plugin: Don't have a privileged host control port. "
+				"The most common cause for this problem is "
+				"that collectd is running without root "
+				"privileges, which are required to read CPU "
+				"load information. "
+				"<https://collectd.org/bugs/22>");
+		cpu_list_len = 0;
+		return (-1);
+	}
+	if (status != KERN_SUCCESS)
+	{
+		ERROR ("cpu plugin: host_processors() failed with status %d.", (int) status);
 		cpu_list_len = 0;
 		return (-1);
 	}
 
-	DEBUG ("host_processors returned %i %s", (int) cpu_list_len, cpu_list_len == 1 ? "processor" : "processors");
 	INFO ("cpu plugin: Found %i processor%s.", (int) cpu_list_len, cpu_list_len == 1 ? "" : "s");
 /* #endif PROCESSOR_CPU_LOAD_INFO */
 

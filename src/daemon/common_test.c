@@ -24,8 +24,8 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
-#include "testing.h"
 #include "common.h"
+#include "testing.h"
 
 #if HAVE_LIBKSTAT
 kstat_ctl_t *kc;

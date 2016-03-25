@@ -30,6 +30,7 @@
 #include "common.h"
 #include "plugin.h"
 #include "utils_parse_option.h"
+#include "utils_cmd_flush.h"
 
 int handle_flush (FILE *fh, char *buffer)
 {

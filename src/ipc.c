@@ -298,7 +298,7 @@ static int ipc_read_msg (void) /* {{{ */
     msg_alloc_queues++;
     msg_used_space += ipcinfo_msg[i].msg_cbytes;
     msg_qnum += ipcinfo_msg[i].msg_qnum;
-
+  }
   free(ipcinfo_msg);
 
   ipc_submit_g("msg", "count", "queues", msg_alloc_queues);

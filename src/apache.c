@@ -519,12 +519,9 @@ static void submit_scoreboard (char *buf, apache_t *st)
 
 static int apache_read_host (user_data_t *user_data) /* {{{ */
 {
-	int i;
-
 	char *ptr;
 	char *saveptr;
-	char *lines[16];
-	int   lines_num = 0;
+	char *line;
 
 	char *fields[4];
 	int   fields_num;
@@ -533,13 +530,16 @@ static int apache_read_host (user_data_t *user_data) /* {{{ */
 
 	st = user_data->data;
 
+	int status;
+
+	char *content_type;
+	static const char *text_plain = "text/plain";
+
 	assert (st->url != NULL);
 	/* (Assured by `config_add') */
 
 	if (st->curl == NULL)
 	{
-		int status;
-
 		status = init_host (st);
 		if (status != 0)
 			return (-1);
@@ -562,31 +562,29 @@ static int apache_read_host (user_data_t *user_data) /* {{{ */
 		st->server_type = APACHE;
 	}
 
-	ptr = st->apache_buffer;
-	saveptr = NULL;
-	while ((lines[lines_num] = strtok_r (ptr, "\n\r", &saveptr)) != NULL)
+	status = curl_easy_getinfo (st->curl, CURLINFO_CONTENT_TYPE, &content_type);
+	if ((status == CURLE_OK) && (content_type != NULL) &&
+	    (strncasecmp (content_type, text_plain, strlen (text_plain)) != 0))
 	{
-		ptr = NULL;
-		lines_num++;
-
-		if (lines_num >= 16)
-			break;
+		WARNING ("apache plugin: `Content-Type' response header is not `%s' "
+			"(received: `%s'). Expecting unparseable data. Please check `URL' "
+			"parameter (missing `?auto' suffix ?)",
+			text_plain, content_type);
 	}
 
-	for (i = 0; i < lines_num; i++)
+	ptr = st->apache_buffer;
+	saveptr = NULL;
+	while ((line = strtok_r (ptr, "\n\r", &saveptr)) != NULL)
 	{
-		fields_num = strsplit (lines[i], fields, 4);
+		ptr = NULL;
+		fields_num = strsplit (line, fields, STATIC_ARRAY_SIZE (fields));
 
 		if (fields_num == 3)
 		{
-			if ((strcmp (fields[0], "Total") == 0)
-					&& (strcmp (fields[1], "Accesses:") == 0))
-				submit_derive ("apache_requests", "",
-						atoll (fields[2]), st);
-			else if ((strcmp (fields[0], "Total") == 0)
-					&& (strcmp (fields[1], "kBytes:") == 0))
-				submit_derive ("apache_bytes", "",
-						1024LL * atoll (fields[2]), st);
+			if ((strcmp (fields[0], "Total") == 0) && (strcmp (fields[1], "Accesses:") == 0))
+				submit_derive ("apache_requests", "", atoll (fields[2]), st);
+			else if ((strcmp (fields[0], "Total") == 0) && (strcmp (fields[1], "kBytes:") == 0))
+				submit_derive ("apache_bytes", "", 1024LL * atoll (fields[2]), st);
 		}
 		else if (fields_num == 2)
 		{

@@ -334,7 +334,7 @@ int plugin_unregister_notification (const char *name);
  *  Since some writers dynamically build their name it can be hard for
  *  the configuring person to know it. This function will fill this gap.
  */
-void plugin_log_available_writers ();
+void plugin_log_available_writers (void);
 
 /*
  * NAME
@@ -458,5 +458,11 @@ cdtime_t plugin_get_interval (void);
 
 int plugin_thread_create (pthread_t *thread, const pthread_attr_t *attr,
 		void *(*start_routine) (void *), void *arg);
+
+/*
+ * Plugins need to implement this
+ */
+
+void module_register (void);
 
 #endif /* PLUGIN_H */

@@ -90,7 +90,7 @@ static int sl_notification (const notification_t *n,
 	char  buf[1024] = "";
 	size_t offset = 0;
 	int log_severity;
-	char *severity_string;
+	const char *severity_string;
 	int status;
 
 	if (n->severity > notif_severity)

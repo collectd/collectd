@@ -153,17 +153,18 @@ static int multimeter_init (void)
 
 	for (i = 0; i < 10; i++)
 	{
-		device[strlen(device)-1] = i + '0'; 
+		device[strlen(device)-1] = i + '0';
 
-		if ((fd = open(device, O_RDWR | O_NOCTTY)) > 0)
+		if ((fd = open(device, O_RDWR | O_NOCTTY)) != -1)
 		{
 			struct termios tios;
 			int rts = TIOCM_RTS;
 			double value;
 
+			memset (&tios, 0, sizeof (tios));
 			tios.c_cflag = B1200 | CS7 | CSTOPB | CREAD | CLOCAL;
 			tios.c_iflag = IGNBRK | IGNPAR;
-	    		tios.c_oflag = 0;
+			tios.c_oflag = 0;
 			tios.c_lflag = 0;
 			tios.c_cc[VTIME] = 3;
 			tios.c_cc[VMIN]  = LINE_LENGTH;
@@ -171,7 +172,7 @@ static int multimeter_init (void)
 			tcflush(fd, TCIFLUSH);
 			tcsetattr(fd, TCSANOW, &tios);
 			ioctl(fd, TIOCMBIC, &rts);
-			
+
     			if (multimeter_read_value (&value) < -1)
 			{
 				close (fd);

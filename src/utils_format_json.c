@@ -230,19 +230,14 @@ static int dsnames_to_json (char *buffer, size_t buffer_size, /* {{{ */
   return (0);
 } /* }}} int dsnames_to_json */
 
-static int meta_data_to_json (char *buffer, size_t buffer_size, /* {{{ */
-    meta_data_t *meta)
+static int meta_data_keys_to_json (char *buffer, size_t buffer_size, /* {{{ */
+    meta_data_t *meta, char **keys, size_t keys_num)
 {
   size_t offset = 0;
-  char **keys = NULL;
-  int keys_num;
   int status;
-  int i;
+  size_t i;
 
   buffer[0] = 0;
-
-  if (meta == NULL)
-    return (EINVAL);
 
 #define BUFFER_ADD(...) do { \
   status = ssnprintf (buffer + offset, buffer_size - offset, \
@@ -254,13 +249,6 @@ static int meta_data_to_json (char *buffer, size_t buffer_size, /* {{{ */
   else \
     offset += ((size_t) status); \
 } while (0)
-
-  keys_num = meta_data_toc (meta, &keys);
-  if (keys_num == 0)
-  {
-    sfree (keys);
-    return (0);
-  }
 
   for (i = 0; i < keys_num; ++i)
   {
@@ -274,8 +262,12 @@ static int meta_data_to_json (char *buffer, size_t buffer_size, /* {{{ */
       if (meta_data_get_string (meta, key, &value) == 0)
       {
         char temp[512] = "";
-        json_escape_string (temp, sizeof (temp), value);
+
+        status = json_escape_string (temp, sizeof (temp), value);
         sfree (value);
+        if (status != 0)
+          return status;
+
         BUFFER_ADD (",\"%s\":%s", key, temp);
       }
     }
@@ -303,10 +295,7 @@ static int meta_data_to_json (char *buffer, size_t buffer_size, /* {{{ */
       if (meta_data_get_boolean (meta, key, &value) == 0)
         BUFFER_ADD (",\"%s\":%s", key, value ? "true" : "false");
     }
-
-    free (key);
   } /* for (keys) */
-  free (keys);
 
   if (offset <= 0)
     return (ENOENT);
@@ -317,6 +306,31 @@ static int meta_data_to_json (char *buffer, size_t buffer_size, /* {{{ */
 #undef BUFFER_ADD
 
   return (0);
+} /* }}} int meta_data_keys_to_json */
+
+static int meta_data_to_json (char *buffer, size_t buffer_size, /* {{{ */
+    meta_data_t *meta)
+{
+  char **keys = NULL;
+  size_t keys_num;
+  int status;
+  size_t i;
+
+  if ((buffer == NULL) || (buffer_size == 0) || (meta == NULL))
+    return (EINVAL);
+
+  status = meta_data_toc (meta, &keys);
+  if (status <= 0)
+    return (status);
+  keys_num = (size_t) status;
+
+  status = meta_data_keys_to_json (buffer, buffer_size, meta, keys, keys_num);
+
+  for (i = 0; i < keys_num; ++i)
+    sfree (keys[i]);
+  sfree (keys);
+
+  return status;
 } /* }}} int meta_data_to_json */
 
 static int value_list_to_json (char *buffer, size_t buffer_size, /* {{{ */

@@ -72,15 +72,15 @@ typedef struct cf_complex_callback_s
 
 typedef struct cf_value_map_s
 {
-	char *key;
+	const char *key;
 	int (*func) (oconfig_item_t *);
 } cf_value_map_t;
 
 typedef struct cf_global_option_s
 {
-	char *key;
+	const char *key;
 	char *value;
-	char *def;
+	const char *def;
 } cf_global_option_t;
 
 /*
@@ -381,7 +381,7 @@ static int dispatch_value (oconfig_item_t *ci)
 static int dispatch_block_plugin (oconfig_item_t *ci)
 {
 	int i;
-	char *name;
+	const char *name;
 
 	cf_complex_callback_t *cb;
 
@@ -721,6 +721,7 @@ static oconfig_item_t *cf_read_dir (const char *dir,
 	if (root == NULL)
 	{
 		ERROR ("configfile: malloc failed.");
+		closedir (dh);
 		return (NULL);
 	}
 	memset (root, 0, sizeof (oconfig_item_t));
@@ -740,6 +741,7 @@ static oconfig_item_t *cf_read_dir (const char *dir,
 			ERROR ("configfile: Not including `%s/%s' because its"
 					" name is too long.",
 					dir, de->d_name);
+			closedir (dh);
 			for (i = 0; i < filenames_num; ++i)
 				free (filenames[i]);
 			free (filenames);
@@ -752,6 +754,7 @@ static oconfig_item_t *cf_read_dir (const char *dir,
 				filenames_num * sizeof (*filenames));
 		if (tmp == NULL) {
 			ERROR ("configfile: realloc failed.");
+			closedir (dh);
 			for (i = 0; i < filenames_num - 1; ++i)
 				free (filenames[i]);
 			free (filenames);
@@ -764,7 +767,10 @@ static oconfig_item_t *cf_read_dir (const char *dir,
 	}
 
 	if (filenames == NULL)
+	{
+		closedir (dh);
 		return (root);
+	}
 
 	qsort ((void *) filenames, filenames_num, sizeof (*filenames),
 			cf_compare_string);
@@ -789,11 +795,12 @@ static oconfig_item_t *cf_read_dir (const char *dir,
 		free (name);
 	}
 
+	closedir (dh);
 	free(filenames);
 	return (root);
 } /* oconfig_item_t *cf_read_dir */
 
-/* 
+/*
  * cf_read_generic
  *
  * Path is stat'ed and either cf_read_file or cf_read_dir is called
@@ -1108,7 +1115,7 @@ int cf_register_complex (const char *type, int (*callback) (oconfig_item_t *))
 	return (0);
 } /* int cf_register_complex */
 
-int cf_read (char *filename)
+int cf_read (const char *filename)
 {
 	oconfig_item_t *conf;
 	int i;

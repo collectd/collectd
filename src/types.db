@@ -15,6 +15,7 @@ cache_operation		value:DERIVE:0:U
 cache_ratio		value:GAUGE:0:100
 cache_result		value:DERIVE:0:U
 cache_size		value:GAUGE:0:1125899906842623
+capacity	value:GAUGE:0:U
 ceph_bytes		value:GAUGE:U:U
 ceph_latency	value:GAUGE:U:U
 ceph_rate			value:DERIVE:0:U
@@ -66,7 +67,8 @@ email_check		value:GAUGE:0:U
 email_count		value:GAUGE:0:U
 email_size		value:GAUGE:0:U
 entropy			value:GAUGE:0:4294967295
-expired_keys    value:GAUGE:0:U
+expired_keys    value:DERIVE:0:U
+evicted_keys    value:DERIVE:0:U
 fanspeed		value:GAUGE:0:U
 file_handles		value:GAUGE:0:U
 file_size		value:GAUGE:0:U

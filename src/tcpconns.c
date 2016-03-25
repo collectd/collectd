@@ -283,7 +283,7 @@ static uint32_t count_total[TCP_STATE_MAX + 1];
 static uint32_t sequence_number = 0;
 #endif
 
-enum
+static enum
 {
   SRC_DUNNO,
   SRC_NETLINK,
