@@ -20,17 +20,23 @@
  *   Niki W. Waibel <niki.waibel@gmx.net>
 **/
 
+#if HAVE_CONFIG_H
+# include "config.h"
+#endif
+
+#if HAVE_XFS_XQM_H
+# define _GNU_SOURCE
+# include <xfs/xqm.h>
+#define XFS_SUPER_MAGIC_STR "XFSB"
+#define XFS_SUPER_MAGIC2_STR "BSFX"
+#endif
+
 #include "collectd.h"
 #include "utils_mount.h"
 
 #include "common.h" /* sstrncpy() et alii */
 #include "plugin.h" /* ERROR() macro */
 
-#if HAVE_XFS_XQM_H
-# include <xfs/xqm.h>
-#define XFS_SUPER_MAGIC_STR "XFSB"
-#define XFS_SUPER_MAGIC2_STR "BSFX"
-#endif
 
 #if HAVE_GETVFSSTAT
 #  if HAVE_SYS_TYPES_H

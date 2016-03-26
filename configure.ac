@@ -644,7 +644,12 @@ AC_CHECK_HEADERS(linux/un.h, [], [],
 #endif
 ])
 
-AC_CHECK_HEADERS(pwd.h grp.h sys/un.h ctype.h limits.h xfs/xqm.h fs_info.h fshelp.h paths.h mntent.h mnttab.h sys/fstyp.h sys/fs_types.h sys/mntent.h sys/mnttab.h sys/statfs.h sys/statvfs.h sys/vfs.h sys/vfstab.h sys/vmmeter.h kvm.h wordexp.h locale.h)
+AC_CHECK_HEADERS(pwd.h grp.h sys/un.h ctype.h limits.h fs_info.h fshelp.h paths.h mntent.h mnttab.h sys/fstyp.h sys/fs_types.h sys/mntent.h sys/mnttab.h sys/statfs.h sys/statvfs.h sys/vfs.h sys/vfstab.h sys/vmmeter.h kvm.h wordexp.h locale.h)
+
+AC_CHECK_HEADERS([xfs/xqm.h], [], [],
+[
+#define _GNU_SOURCE
+])
 
 # For the dns plugin
 AC_CHECK_HEADERS(arpa/nameser.h)
