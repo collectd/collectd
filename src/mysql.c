@@ -65,9 +65,6 @@ typedef struct mysql_database_s mysql_database_t; /* }}} */
 
 static int mysql_read (user_data_t *ud);
 
-void mysql_read_default_options(struct st_mysql_options *options,
-		const char *filename,const char *group);
-
 static void mysql_database_free (void *arg) /* {{{ */
 {
 	mysql_database_t *db;
