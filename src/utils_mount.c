@@ -24,13 +24,14 @@
 # include "config.h"
 #endif
 
-#include "common.h"
 #if HAVE_XFS_XQM_H
+# define _GNU_SOURCE
 # include <xfs/xqm.h>
 #define XFS_SUPER_MAGIC_STR "XFSB"
 #define XFS_SUPER_MAGIC2_STR "BSFX"
 #endif
 
+#include "common.h"
 #include "plugin.h"
 #include "utils_mount.h"
 
