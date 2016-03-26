@@ -601,7 +601,28 @@ AC_CHECK_HEADERS(linux/un.h, [], [],
 #endif
 ])
 
-AC_CHECK_HEADERS(pwd.h grp.h sys/un.h ctype.h limits.h fs_info.h fshelp.h paths.h mntent.h mnttab.h sys/fstyp.h sys/fs_types.h sys/mntent.h sys/mnttab.h sys/statfs.h sys/statvfs.h sys/vfs.h sys/vfstab.h kvm.h wordexp.h)
+AC_CHECK_HEADERS([ \
+  ctype.h \
+  fs_info.h \
+  fshelp.h \
+  grp.h \
+  kvm.h \
+  limits.h \
+  mntent.h \
+  mnttab.h \
+  paths.h \
+  pwd.h \
+  sys/fs_types.h \
+  sys/fstyp.h \
+  sys/mntent.h \
+  sys/mnttab.h \
+  sys/statfs.h \
+  sys/statvfs.h \
+  sys/un.h \
+  sys/vfs.h \
+  sys/vfstab.h \
+  wordexp.h \
+])
 
 AC_CHECK_HEADERS([xfs/xqm.h], [], [],
 [
