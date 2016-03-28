@@ -358,7 +358,7 @@ static int dispatch_value_plugin (const char *plugin, oconfig_item_t *ci)
 
 static int dispatch_value (oconfig_item_t *ci)
 {
-	int ret = -2;
+	int ret = 0;
 	int i;
 
 	for (i = 0; i < cf_value_map_num; i++)
@@ -1119,6 +1119,7 @@ int cf_read (const char *filename)
 {
 	oconfig_item_t *conf;
 	int i;
+	int ret = 0;
 
 	conf = cf_read_generic (filename, /* pattern = */ NULL, /* depth = */ 0);
 	if (conf == NULL)
@@ -1136,18 +1137,27 @@ int cf_read (const char *filename)
 	for (i = 0; i < conf->children_num; i++)
 	{
 		if (conf->children[i].children == NULL)
-			dispatch_value (conf->children + i);
+		{
+			if (dispatch_value (conf->children + i) != 0)
+				ret = -1;
+		}
 		else
-			dispatch_block (conf->children + i);
+		{
+			if (dispatch_block (conf->children + i) != 0)
+				ret = -1;
+		}
 	}
 
 	oconfig_free (conf);
 
 	/* Read the default types.db if no `TypesDB' option was given. */
 	if (cf_default_typesdb)
-		read_types_list (PKGDATADIR"/types.db");
+	{
+		if (read_types_list (PKGDATADIR"/types.db") != 0)
+			ret = -1;
+	}
 
-	return (0);
+	return ret;
 } /* int cf_read */
 
 /* Assures the config option is a string, duplicates it and returns the copy in

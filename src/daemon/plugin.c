@@ -1693,11 +1693,12 @@ int plugin_unregister_notification (const char *name)
 	return (plugin_unregister (list_notification, name));
 }
 
-void plugin_init_all (void)
+int plugin_init_all (void)
 {
 	char const *chain_name;
 	llentry_t *le;
 	int status;
+	int ret = 0;
 
 	/* Init the value cache */
 	uc_init ();
@@ -1742,7 +1743,7 @@ void plugin_init_all (void)
 	}
 
 	if ((list_init == NULL) && (read_heap == NULL))
-		return;
+		return ret;
 
 	/* Calling all init callbacks before checking if read callbacks
 	 * are available allows the init callbacks to register the read
@@ -1771,6 +1772,7 @@ void plugin_init_all (void)
 			 * handling themselves. */
 			/* FIXME: Unload _all_ functions */
 			plugin_unregister_read (le->key);
+			ret = -1;
 		}
 
 		le = le->next;
@@ -1792,6 +1794,7 @@ void plugin_init_all (void)
 		if (num != -1)
 			start_read_threads ((num > 0) ? num : 5);
 	}
+	return ret;
 } /* void plugin_init_all */
 
 /* TODO: Rename this function. */
@@ -1975,9 +1978,10 @@ int plugin_flush (const char *plugin, cdtime_t timeout, const char *identifier)
   return (0);
 } /* int plugin_flush */
 
-void plugin_shutdown_all (void)
+int plugin_shutdown_all (void)
 {
 	llentry_t *le;
+	int ret = 0;  // Assume success.
 
 	stop_read_threads ();
 
@@ -2014,7 +2018,8 @@ void plugin_shutdown_all (void)
 		 * after callback returns. */
 		le = le->next;
 
-		(*callback) ();
+		if ((*callback) () != 0)
+			ret = -1;
 
 		plugin_set_ctx (old_ctx);
 	}
@@ -2036,6 +2041,7 @@ void plugin_shutdown_all (void)
 
 	plugin_free_loaded ();
 	plugin_free_data_sets ();
+	return (ret);
 } /* void plugin_shutdown_all */
 
 int plugin_dispatch_missing (const value_list_t *vl) /* {{{ */

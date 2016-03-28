@@ -332,9 +332,7 @@ static int do_init (void)
 	}
 #endif
 
-	plugin_init_all ();
-
-	return (0);
+	return plugin_init_all ();
 } /* int do_init () */
 
 
@@ -388,8 +386,7 @@ static int do_loop (void)
 
 static int do_shutdown (void)
 {
-	plugin_shutdown_all ();
-	return (0);
+	return plugin_shutdown_all ();
 } /* int do_shutdown */
 
 #if COLLECT_DAEMON
@@ -729,12 +726,19 @@ int main (int argc, char **argv)
 	/*
 	 * run the actual loops
 	 */
-	do_init ();
+	if (do_init () != 0)
+	{
+		ERROR ("Error: one or more plugin init callbacks failed.");
+		exit_status = 1;
+	}
 
 	if (test_readall)
 	{
 		if (plugin_read_all_once () != 0)
+		{
+			ERROR ("Error: one or more plugin read callbacks failed.");
 			exit_status = 1;
+		}
 	}
 	else
 	{
@@ -745,7 +749,11 @@ int main (int argc, char **argv)
 	/* close syslog */
 	INFO ("Exiting normally.");
 
-	do_shutdown ();
+	if (do_shutdown () != 0)
+	{
+		ERROR ("Error: one or more plugin shutdown callbacks failed.");
+		exit_status = 1;
+	}
 
 #if COLLECT_DAEMON
 	if (daemonize)
