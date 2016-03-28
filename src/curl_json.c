@@ -474,13 +474,12 @@ static int cj_config_add_key (cj_t *db, /* {{{ */
     return (-1);
   }
 
-  key = malloc (sizeof (*key));
+  key = calloc (1, sizeof (*key));
   if (key == NULL)
   {
-    ERROR ("curl_json plugin: malloc failed.");
+    ERROR ("curl_json plugin: calloc failed.");
     return (-1);
   }
-  memset (key, 0, sizeof (*key));
   key->magic = CJ_KEY_MAGIC;
 
   if (strcasecmp ("Key", ci->key) == 0)
@@ -667,13 +666,12 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  db = malloc (sizeof (*db));
+  db = calloc (1, sizeof (*db));
   if (db == NULL)
   {
-    ERROR ("curl_json plugin: malloc failed.");
+    ERROR ("curl_json plugin: calloc failed.");
     return (-1);
   }
-  memset (db, 0, sizeof (*db));
 
   db->timeout = -1;
 
