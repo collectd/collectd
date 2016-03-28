@@ -130,7 +130,7 @@ static redis_query_t *redis_config_query (oconfig_item_t *ci) /* {{{ */
 
     rq = calloc(1, sizeof(*rq));
     if (rq == NULL) {
-        ERROR("redis plugin: calloca failed adding redis_query.");
+        ERROR("redis plugin: calloc failed adding redis_query.");
         return NULL;
     }
     status = cf_util_get_string_buffer(ci, rq->query, sizeof(rq->query));

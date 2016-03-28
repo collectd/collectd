@@ -207,7 +207,7 @@ static int udb_result_submit (udb_result_t *r, /* {{{ */
   vl.values = (value_t *) calloc (r->values_num, sizeof (value_t));
   if (vl.values == NULL)
   {
-    ERROR ("db query utils: malloc failed.");
+    ERROR ("db query utils: calloc failed.");
     return (-1);
   }
   vl.values_len = r_area->ds->ds_num;
@@ -390,7 +390,7 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
       = (size_t *) calloc (r->instances_num, sizeof (size_t));
     if (prep_area->instances_pos == NULL)
     {
-      ERROR ("db query utils: udb_result_prepare_result: malloc failed.");
+      ERROR ("db query utils: udb_result_prepare_result: calloc failed.");
       BAIL_OUT (-ENOMEM);
     }
 
@@ -398,7 +398,7 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
       = (char **) calloc (r->instances_num, sizeof (char *));
     if (prep_area->instances_buffer == NULL)
     {
-      ERROR ("db query utils: udb_result_prepare_result: malloc failed.");
+      ERROR ("db query utils: udb_result_prepare_result: calloc failed.");
       BAIL_OUT (-ENOMEM);
     }
   } /* if (r->instances_num > 0) */
@@ -407,7 +407,7 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
     = (size_t *) calloc (r->values_num, sizeof (size_t));
   if (prep_area->values_pos == NULL)
   {
-    ERROR ("db query utils: udb_result_prepare_result: malloc failed.");
+    ERROR ("db query utils: udb_result_prepare_result: calloc failed.");
     BAIL_OUT (-ENOMEM);
   }
 
@@ -415,7 +415,7 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
     = (char **) calloc (r->values_num, sizeof (char *));
   if (prep_area->values_buffer == NULL)
   {
-    ERROR ("db query utils: udb_result_prepare_result: malloc failed.");
+    ERROR ("db query utils: udb_result_prepare_result: calloc failed.");
     BAIL_OUT (-ENOMEM);
   }
 
@@ -423,7 +423,7 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
     = (size_t *) calloc (r->metadata_num, sizeof (size_t));
   if (prep_area->metadata_pos == NULL)
   {
-    ERROR ("db query utils: udb_result_prepare_result: malloc failed.");
+    ERROR ("db query utils: udb_result_prepare_result: calloc failed.");
     BAIL_OUT (-ENOMEM);
   }
 
@@ -431,7 +431,7 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
     = (char **) calloc (r->metadata_num, sizeof (char *));
   if (prep_area->metadata_buffer == NULL)
   {
-    ERROR ("db query utils: udb_result_prepare_result: malloc failed.");
+    ERROR ("db query utils: udb_result_prepare_result: calloc failed.");
     BAIL_OUT (-ENOMEM);
   }
 

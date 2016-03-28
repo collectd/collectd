@@ -273,7 +273,7 @@ static int o_config_add_database (oconfig_item_t *ci) /* {{{ */
 
     if (db->q_prep_areas == NULL)
     {
-      WARNING ("oracle plugin: malloc failed");
+      WARNING ("oracle plugin: calloc failed");
       status = -1;
       break;
     }
