@@ -717,14 +717,13 @@ static oconfig_item_t *cf_read_dir (const char *dir,
 		return (NULL);
 	}
 
-	root = malloc (sizeof (*root));
+	root = calloc (1, sizeof (*root));
 	if (root == NULL)
 	{
-		ERROR ("configfile: malloc failed.");
+		ERROR ("configfile: calloc failed.");
 		closedir (dh);
 		return (NULL);
 	}
-	memset (root, 0, sizeof (oconfig_item_t));
 
 	while ((de = readdir (dh)) != NULL)
 	{
@@ -835,13 +834,12 @@ static oconfig_item_t *cf_read_generic (const char *path,
 		return (NULL);
 	}
 
-	root = malloc (sizeof (*root));
+	root = calloc (1, sizeof (*root));
 	if (root == NULL)
 	{
-		ERROR ("configfile: malloc failed.");
+		ERROR ("configfile: calloc failed.");
 		return (NULL);
 	}
-	memset (root, '\0', sizeof (oconfig_item_t));
 
 	/* wordexp() might return a sorted list already. That's not
 	 * documented though, so let's make sure we get what we want. */

@@ -665,10 +665,9 @@ c_avl_iterator_t *c_avl_get_iterator (c_avl_tree_t *t)
 	if (t == NULL)
 		return (NULL);
 
-	iter = malloc (sizeof (*iter));
+	iter = calloc (1, sizeof (*iter));
 	if (iter == NULL)
 		return (NULL);
-	memset (iter, '\0', sizeof (c_avl_iterator_t));
 	iter->tree = t;
 
 	return (iter);

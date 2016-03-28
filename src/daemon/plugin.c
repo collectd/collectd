@@ -368,13 +368,12 @@ static int create_register_callback (llist_t **list, /* {{{ */
 {
 	callback_func_t *cf;
 
-	cf = malloc (sizeof (*cf));
+	cf = calloc (1, sizeof (*cf));
 	if (cf == NULL)
 	{
-		ERROR ("plugin: create_register_callback: malloc failed.");
+		ERROR ("plugin: create_register_callback: calloc failed.");
 		return (-1);
 	}
-	memset (cf, 0, sizeof (*cf));
 
 	cf->cf_callback = callback;
 	if (ud == NULL)
@@ -1244,14 +1243,13 @@ int plugin_register_read (const char *name,
 	read_func_t *rf;
 	int status;
 
-	rf = malloc (sizeof (*rf));
+	rf = calloc (1, sizeof (*rf));
 	if (rf == NULL)
 	{
-		ERROR ("plugin_register_read: malloc failed.");
+		ERROR ("plugin_register_read: calloc failed.");
 		return (ENOMEM);
 	}
 
-	memset (rf, 0, sizeof (read_func_t));
 	rf->rf_callback = (void *) callback;
 	rf->rf_udata.data = NULL;
 	rf->rf_udata.free_func = NULL;
@@ -1278,14 +1276,13 @@ int plugin_register_complex_read (const char *group, const char *name,
 	read_func_t *rf;
 	int status;
 
-	rf = malloc (sizeof (*rf));
+	rf = calloc (1,sizeof (*rf));
 	if (rf == NULL)
 	{
-		ERROR ("plugin_register_complex_read: malloc failed.");
+		ERROR ("plugin_register_complex_read: calloc failed.");
 		return (ENOMEM);
 	}
 
-	memset (rf, 0, sizeof (read_func_t));
 	rf->rf_callback = (void *) callback;
 	if (group != NULL)
 		sstrncpy (rf->rf_group, group, sizeof (rf->rf_group));
@@ -2578,13 +2575,12 @@ static int plugin_notification_meta_add (notification_t *n,
     return (-1);
   }
 
-  meta = malloc (sizeof (*meta));
+  meta = calloc (1, sizeof (*meta));
   if (meta == NULL)
   {
-    ERROR ("plugin_notification_meta_add: malloc failed.");
+    ERROR ("plugin_notification_meta_add: calloc failed.");
     return (-1);
   }
-  memset (meta, 0, sizeof (notification_meta_t));
 
   sstrncpy (meta->name, name, sizeof (meta->name));
   meta->type = type;

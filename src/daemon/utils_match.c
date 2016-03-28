@@ -238,10 +238,9 @@ cu_match_t *match_create_callback (const char *regex, const char *excluderegex,
   DEBUG ("utils_match: match_create_callback: regex = %s, excluderegex = %s",
 	 regex, excluderegex);
 
-  obj = malloc (sizeof (*obj));
+  obj = calloc (1, sizeof (*obj));
   if (obj == NULL)
     return (NULL);
-  memset (obj, '\0', sizeof (cu_match_t));
 
   status = regcomp (&obj->regex, regex, REG_EXTENDED | REG_NEWLINE);
   if (status != 0)
@@ -275,10 +274,9 @@ cu_match_t *match_create_simple (const char *regex,
   cu_match_value_t *user_data;
   cu_match_t *obj;
 
-  user_data = malloc (sizeof (*user_data));
+  user_data = calloc (1, sizeof (*user_data));
   if (user_data == NULL)
     return (NULL);
-  memset (user_data, '\0', sizeof (cu_match_value_t));
   user_data->ds_type = match_ds_type;
 
   obj = match_create_callback (regex, excluderegex,

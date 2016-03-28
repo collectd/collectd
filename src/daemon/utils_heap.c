@@ -112,14 +112,13 @@ c_heap_t *c_heap_create (int (*compare) (const void *, const void *))
   if (compare == NULL)
     return (NULL);
 
-  h = malloc (sizeof (*h));
+  h = calloc (1, sizeof (*h));
   if (h == NULL)
     return (NULL);
 
-  memset (h, 0, sizeof (*h));
   pthread_mutex_init (&h->lock, /* attr = */ NULL);
   h->compare = compare;
-  
+
   h->list = NULL;
   h->list_len = 0;
   h->list_size = 0;

@@ -48,11 +48,9 @@ llist_t *llist_create (void)
 {
 	llist_t *ret;
 
-	ret = malloc (sizeof (*ret));
+	ret = calloc (1, sizeof (*ret));
 	if (ret == NULL)
 		return (NULL);
-
-	memset (ret, '\0', sizeof (llist_t));
 
 	return (ret);
 }

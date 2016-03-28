@@ -115,10 +115,9 @@ char *ssnprintf_alloc (char const *format, ...) /* {{{ */
 		return (strdup (static_buffer));
 
 	/* Allocate a buffer large enough to hold the string. */
-	alloc_buffer = malloc (alloc_buffer_size);
+	alloc_buffer = calloc (1, alloc_buffer_size);
 	if (alloc_buffer == NULL)
 		return (NULL);
-	memset (alloc_buffer, 0, alloc_buffer_size);
 
 	/* Print again into this new buffer. */
 	va_start (ap, format);
@@ -409,10 +408,9 @@ int escape_string (char *buffer, size_t buffer_size)
   if (buffer_size < 3)
     return (EINVAL);
 
-  temp = malloc (buffer_size);
+  temp = calloc (1, buffer_size);
   if (temp == NULL)
     return (ENOMEM);
-  memset (temp, 0, buffer_size);
 
   temp[0] = '"';
   j = 1;

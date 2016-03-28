@@ -83,13 +83,12 @@ static cache_entry_t *cache_alloc (size_t values_num)
 {
   cache_entry_t *ce;
 
-  ce = malloc (sizeof (*ce));
+  ce = calloc (1, sizeof (*ce));
   if (ce == NULL)
   {
-    ERROR ("utils_cache: cache_alloc: malloc failed.");
+    ERROR ("utils_cache: cache_alloc: calloc failed.");
     return (NULL);
   }
-  memset (ce, '\0', sizeof (cache_entry_t));
   ce->values_num = values_num;
 
   ce->values_gauge = calloc (values_num, sizeof (*ce->values_gauge));

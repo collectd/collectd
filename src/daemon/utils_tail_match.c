@@ -126,10 +126,9 @@ cu_tail_match_t *tail_match_create (const char *filename)
 {
   cu_tail_match_t *obj;
 
-  obj = malloc (sizeof (*obj));
+  obj = calloc (1, sizeof (*obj));
   if (obj == NULL)
     return (NULL);
-  memset (obj, '\0', sizeof (cu_tail_match_t));
 
   obj->tail = cu_tail_create (filename);
   if (obj->tail == NULL)
@@ -212,13 +211,12 @@ int tail_match_add_match_simple (cu_tail_match_t *obj,
   if (match == NULL)
     return (-1);
 
-  user_data = malloc (sizeof (*user_data));
+  user_data = calloc (1, sizeof (*user_data));
   if (user_data == NULL)
   {
     match_destroy (match);
     return (-1);
   }
-  memset (user_data, '\0', sizeof (cu_tail_match_simple_t));
 
   sstrncpy (user_data->plugin, plugin, sizeof (user_data->plugin));
   if (plugin_instance != NULL)
