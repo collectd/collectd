@@ -87,7 +87,7 @@ static int ts_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   int status;
   int i;
 
-  data = (ts_data_t *) malloc (sizeof (*data));
+  data = malloc (sizeof (*data));
   if (data == NULL)
   {
     ERROR ("ts_create: malloc failed.");

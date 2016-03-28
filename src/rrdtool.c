@@ -166,7 +166,7 @@ static int srrd_update (char *filename, char *template,
 	assert (template == NULL);
 
 	new_argc = 2 + argc;
-	new_argv = (char **) malloc ((new_argc + 1) * sizeof (char *));
+	new_argv = malloc ((new_argc + 1) * sizeof (*new_argv));
 	if (new_argv == NULL)
 	{
 		ERROR ("rrdtool plugin: malloc failed.");
@@ -480,7 +480,7 @@ static int rrd_queue_enqueue (const char *filename,
 {
   rrd_queue_t *queue_entry;
 
-  queue_entry = (rrd_queue_t *) malloc (sizeof (rrd_queue_t));
+  queue_entry = malloc (sizeof (*queue_entry));
   if (queue_entry == NULL)
     return (-1);
 

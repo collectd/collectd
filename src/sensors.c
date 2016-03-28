@@ -378,7 +378,7 @@ static int sensors_load_conf (void)
 				continue;
 			}
 
-			fl = (featurelist_t *) malloc (sizeof (featurelist_t));
+			fl = malloc (sizeof (*fl));
 			if (fl == NULL)
 			{
 				ERROR ("sensors plugin: malloc failed.");
@@ -435,7 +435,7 @@ static int sensors_load_conf (void)
 						&& (subfeature->type != SENSORS_SUBFEATURE_POWER_INPUT))
 					continue;
 
-				fl = (featurelist_t *) malloc (sizeof (featurelist_t));
+				fl = malloc (sizeof (*fl));
 				if (fl == NULL)
 				{
 					ERROR ("sensors plugin: malloc failed.");

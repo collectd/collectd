@@ -294,7 +294,7 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  db = (cdbi_database_t *) malloc (sizeof (*db));
+  db = malloc (sizeof (*db));
   if (db == NULL)
   {
     ERROR ("dbi plugin: malloc failed.");
@@ -357,12 +357,11 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
   while ((status == 0) && (db->queries_num > 0))
   {
     size_t j;
-    db->q_prep_areas = (udb_query_preparation_area_t **) calloc (
-        db->queries_num, sizeof (*db->q_prep_areas));
 
+    db->q_prep_areas = calloc (db->queries_num, sizeof (*db->q_prep_areas));
     if (db->q_prep_areas == NULL)
     {
-      WARNING ("dbi plugin: malloc failed");
+      WARNING ("dbi plugin: calloc failed");
       status = -1;
       break;
     }
@@ -548,35 +547,33 @@ static int cdbi_read_database_query (cdbi_database_t *db, /* {{{ */
   }
 
   /* Allocate `column_names' and `column_values'. {{{ */
-  column_names = (char **) calloc (column_num, sizeof (char *));
+  column_names = calloc (column_num, sizeof (*column_names));
   if (column_names == NULL)
   {
-    ERROR ("dbi plugin: malloc failed.");
+    ERROR ("dbi plugin: calloc failed.");
     BAIL_OUT (-1);
   }
 
-  column_names[0] = (char *) calloc (column_num,
-      DATA_MAX_NAME_LEN * sizeof (char));
+  column_names[0] = calloc (column_num, DATA_MAX_NAME_LEN);
   if (column_names[0] == NULL)
   {
-    ERROR ("dbi plugin: malloc failed.");
+    ERROR ("dbi plugin: calloc failed.");
     BAIL_OUT (-1);
   }
   for (i = 1; i < column_num; i++)
     column_names[i] = column_names[i - 1] + DATA_MAX_NAME_LEN;
 
-  column_values = (char **) calloc (column_num, sizeof (char *));
+  column_values = calloc (column_num, sizeof (*column_values));
   if (column_values == NULL)
   {
-    ERROR ("dbi plugin: malloc failed.");
+    ERROR ("dbi plugin: calloc failed.");
     BAIL_OUT (-1);
   }
 
-  column_values[0] = (char *) calloc (column_num,
-      DATA_MAX_NAME_LEN * sizeof (char));
+  column_values[0] = calloc (column_num, DATA_MAX_NAME_LEN);
   if (column_values[0] == NULL)
   {
-    ERROR ("dbi plugin: malloc failed.");
+    ERROR ("dbi plugin: calloc failed.");
     BAIL_OUT (-1);
   }
   for (i = 1; i < column_num; i++)

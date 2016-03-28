@@ -83,7 +83,7 @@ static cache_entry_t *cache_alloc (size_t values_num)
 {
   cache_entry_t *ce;
 
-  ce = (cache_entry_t *) malloc (sizeof (cache_entry_t));
+  ce = malloc (sizeof (*ce));
   if (ce == NULL)
   {
     ERROR ("utils_cache: cache_alloc: malloc failed.");
@@ -499,7 +499,7 @@ int uc_get_rate_by_name (const char *name, gauge_t **ret_values, size_t *ret_val
     else
     {
       ret_num = ce->values_num;
-      ret = (gauge_t *) malloc (ret_num * sizeof (gauge_t));
+      ret = malloc (ret_num * sizeof (*ret));
       if (ret == NULL)
       {
         ERROR ("utils_cache: uc_get_rate_by_name: malloc failed.");

@@ -474,7 +474,7 @@ static int cj_config_add_key (cj_t *db, /* {{{ */
     return (-1);
   }
 
-  key = (cj_key_t *) malloc (sizeof (*key));
+  key = malloc (sizeof (*key));
   if (key == NULL)
   {
     ERROR ("curl_json plugin: malloc failed.");
@@ -615,7 +615,7 @@ static int cj_init_curl (cj_t *db) /* {{{ */
     if (db->pass != NULL)
       credentials_size += strlen (db->pass);
 
-    db->credentials = (char *) malloc (credentials_size);
+    db->credentials = malloc (credentials_size);
     if (db->credentials == NULL)
     {
       ERROR ("curl_json plugin: malloc failed.");
@@ -667,7 +667,7 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  db = (cj_t *) malloc (sizeof (*db));
+  db = malloc (sizeof (*db));
   if (db == NULL)
   {
     ERROR ("curl_json plugin: malloc failed.");

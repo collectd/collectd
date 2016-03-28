@@ -206,7 +206,7 @@ static int cmc_config_add_match (web_page_t *page, /* {{{ */
     WARNING ("memcachec plugin: Ignoring arguments for the `Match' block.");
   }
 
-  match = (web_match_t *) malloc (sizeof (*match));
+  match = malloc (sizeof (*match));
   if (match == NULL)
   {
     ERROR ("memcachec plugin: malloc failed.");
@@ -305,7 +305,7 @@ static int cmc_config_add_page (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  page = (web_page_t *) malloc (sizeof (*page));
+  page = malloc (sizeof (*page));
   if (page == NULL)
   {
     ERROR ("memcachec plugin: malloc failed.");

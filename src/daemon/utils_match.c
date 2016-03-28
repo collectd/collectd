@@ -63,7 +63,7 @@ static char *match_substr (const char *str, int begin, int end)
   }
 
   ret_len = end - begin;
-  ret = (char *) malloc (sizeof (char) * (ret_len + 1));
+  ret = malloc (ret_len + 1);
   if (ret == NULL)
   {
     ERROR ("utils_match: match_substr: malloc failed.");
@@ -238,7 +238,7 @@ cu_match_t *match_create_callback (const char *regex, const char *excluderegex,
   DEBUG ("utils_match: match_create_callback: regex = %s, excluderegex = %s",
 	 regex, excluderegex);
 
-  obj = (cu_match_t *) malloc (sizeof (cu_match_t));
+  obj = malloc (sizeof (*obj));
   if (obj == NULL)
     return (NULL);
   memset (obj, '\0', sizeof (cu_match_t));
@@ -275,7 +275,7 @@ cu_match_t *match_create_simple (const char *regex,
   cu_match_value_t *user_data;
   cu_match_t *obj;
 
-  user_data = (cu_match_value_t *) malloc (sizeof (cu_match_value_t));
+  user_data = malloc (sizeof (*user_data));
   if (user_data == NULL)
     return (NULL);
   memset (user_data, '\0', sizeof (cu_match_value_t));

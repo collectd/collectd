@@ -464,7 +464,7 @@ static disk_t *get_disk(cfg_disk_t *cd, const char *name) /* {{{ */
 			return d;
 	}
 
-	d = malloc(sizeof(*d));
+	d = malloc (sizeof (*d));
 	if (d == NULL)
 		return (NULL);
 	memset (d, 0, sizeof (*d));
@@ -2827,7 +2827,7 @@ static host_config_t *cna_alloc_host (void) /* {{{ */
 {
 	host_config_t *host;
 
-	host = malloc(sizeof(*host));
+	host = malloc (sizeof (*host));
 	if (! host)
 		return (NULL);
 	memset (host, 0, sizeof (*host));

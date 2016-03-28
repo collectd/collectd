@@ -102,7 +102,7 @@ char *asubst (const char *string, int off1, int off2, const char *replacement)
 
 	len = off1 + strlen (replacement) + strlen (string) - off2 + 1;
 
-	buf = (char *)malloc (len);
+	buf = malloc (len);
 	if (NULL == buf)
 		return NULL;
 

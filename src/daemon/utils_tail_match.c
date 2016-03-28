@@ -126,7 +126,7 @@ cu_tail_match_t *tail_match_create (const char *filename)
 {
   cu_tail_match_t *obj;
 
-  obj = (cu_tail_match_t *) malloc (sizeof (cu_tail_match_t));
+  obj = malloc (sizeof (*obj));
   if (obj == NULL)
     return (NULL);
   memset (obj, '\0', sizeof (cu_tail_match_t));
@@ -212,7 +212,7 @@ int tail_match_add_match_simple (cu_tail_match_t *obj,
   if (match == NULL)
     return (-1);
 
-  user_data = (cu_tail_match_simple_t *) malloc (sizeof (cu_tail_match_simple_t));
+  user_data = malloc (sizeof (*user_data));
   if (user_data == NULL)
   {
     match_destroy (match);

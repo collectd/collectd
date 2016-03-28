@@ -61,7 +61,7 @@ static char *tr_strdup (const char *orig) /* {{{ */
     return (NULL);
 
   sz = strlen (orig) + 1;
-  dest = (char *) malloc (sz);
+  dest = malloc (sz);
   if (dest == NULL)
     return (NULL);
 
@@ -102,7 +102,7 @@ static int tr_config_add_action (tr_action_t **dest, /* {{{ */
     return (-1);
   }
 
-  act = (tr_action_t *) malloc (sizeof (*act));
+  act = malloc (sizeof (*act));
   if (act == NULL)
   {
     ERROR ("tr_config_add_action: malloc failed.");
@@ -244,7 +244,7 @@ static int tr_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   int status;
   int i;
 
-  data = (tr_data_t *) malloc (sizeof (*data));
+  data = malloc (sizeof (*data));
   if (data == NULL)
   {
     ERROR ("tr_create: malloc failed.");

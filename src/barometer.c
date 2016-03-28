@@ -343,9 +343,9 @@ static temperature_list_t * temp_list = NULL;
  */
 static int temp_list_add(temperature_list_t * list, const char * sensor)
 {
-    temperature_list_t * new_temp;
+    temperature_list_t *new_temp;
 
-    new_temp = (temperature_list_t *) malloc(sizeof(*new_temp));
+    new_temp = malloc(sizeof (*new_temp));
     if(new_temp == NULL)
         return -1;
 

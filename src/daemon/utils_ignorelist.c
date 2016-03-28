@@ -134,7 +134,7 @@ static int ignorelist_append_string(ignorelist_t *il, const char *entry)
 	ignorelist_item_t *new;
 
 	/* create new entry */
-	if ((new = malloc(sizeof(ignorelist_item_t))) == NULL )
+	if ((new = malloc(sizeof (*new))) == NULL )
 	{
 		ERROR ("cannot allocate new entry");
 		return (1);

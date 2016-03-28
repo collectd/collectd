@@ -1801,7 +1801,7 @@ static cjni_callback_info_t *cjni_callback_info_create (JNIEnv *jvm_env, /* {{{ 
     return (NULL);
   }
 
-  cbi = (cjni_callback_info_t *) malloc (sizeof (*cbi));
+  cbi = malloc (sizeof (*cbi));
   if (cbi == NULL)
   {
     ERROR ("java plugin: cjni_callback_info_create: malloc failed.");
@@ -2067,7 +2067,7 @@ static JNIEnv *cjni_thread_attach (void) /* {{{ */
   if (cjni_env == NULL)
   {
     /* This pointer is free'd in `cjni_jvm_env_destroy'. */
-    cjni_env = (cjni_jvm_env_t *) malloc (sizeof (*cjni_env));
+    cjni_env = malloc (sizeof (*cjni_env));
     if (cjni_env == NULL)
     {
       ERROR ("java plugin: cjni_thread_attach: malloc failed.");
@@ -2801,7 +2801,7 @@ static int cjni_match_target_create (const oconfig_item_t *ci, /* {{{ */
 
   /* Allocate a new callback info structure. This is going to be our user_data
    * pointer. */
-  cbi_ret = (cjni_callback_info_t *) malloc (sizeof (*cbi_ret));
+  cbi_ret = malloc (sizeof (*cbi_ret));
   if (cbi_ret == NULL)
   {
     ERROR ("java plugin: cjni_match_target_create: malloc failed.");

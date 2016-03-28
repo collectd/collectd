@@ -467,8 +467,7 @@ static cu_mount_t *cu_mount_getfsstat (void)
 		return (NULL);
 	}
 
-	if ((buf = (STRUCT_STATFS *) malloc (bufsize * sizeof (STRUCT_STATFS)))
-			== NULL)
+	if ((buf = malloc (bufsize * sizeof (*buf))) == NULL)
 		return (NULL);
 	memset (buf, '\0', bufsize * sizeof (STRUCT_STATFS));
 
@@ -487,7 +486,7 @@ static cu_mount_t *cu_mount_getfsstat (void)
 
 	for (i = 0; i < num; i++)
 	{
-		if ((new = malloc (sizeof (cu_mount_t))) == NULL)
+		if ((new = malloc (sizeof (*new))) == NULL)
 			break;
 		memset (new, '\0', sizeof (cu_mount_t));
 		
@@ -541,7 +540,7 @@ static cu_mount_t *cu_mount_gen_getmntent (void)
 
 	while (getmntent (fp, &mt) == 0)
 	{
-		if ((new = malloc (sizeof (cu_mount_t))) == NULL)
+		if ((new = malloc (sizeof (*new))) == NULL)
 			break;
 		memset (new, '\0', sizeof (cu_mount_t));
 		
@@ -599,7 +598,7 @@ static cu_mount_t *cu_mount_getmntent (void)
 
 	while (getmntent_r (fp, &me, mntbuf, sizeof (mntbuf) ))
 	{
-		if ((new = malloc (sizeof (cu_mount_t))) == NULL)
+		if ((new = malloc (sizeof (*new))) == NULL)
 			break;
 		memset (new, '\0', sizeof (cu_mount_t));
 
@@ -656,7 +655,7 @@ static cu_mount_t *cu_mount_getmntent (void)
 
 	while ((me = getmntent (fp)) != NULL)
 	{
-		if ((new = malloc (sizeof (cu_mount_t))) == NULL)
+		if ((new = malloc (sizeof (*new))) == NULL)
 			break;
 		memset (new, '\0', sizeof (cu_mount_t));
 		
@@ -820,7 +819,7 @@ cu_mount_getoptionvalue(char *line, const char *keyword)
 			if((p-r) == 1) {
 				return NULL;
 			}
-			m = (char *)smalloc(p-r+1);
+			m = smalloc(p-r+1);
 			sstrncpy(m, r, p-r+1);
 			return m;
 		}

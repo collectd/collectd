@@ -385,7 +385,7 @@ static port_entry_t *conn_get_port_entry (uint16_t port, int create)
 
   if ((ret == NULL) && (create != 0))
   {
-    ret = (port_entry_t *) malloc (sizeof (port_entry_t));
+    ret = malloc (sizeof (*ret));
     if (ret == NULL)
       return (NULL);
     memset (ret, '\0', sizeof (port_entry_t));
@@ -832,7 +832,7 @@ static int conn_read (void)
     return (-1);
   }
 
-  buffer = (char *) malloc (buffer_len);
+  buffer = malloc (buffer_len);
   if (buffer == NULL)
   {
     ERROR ("tcpconns plugin: malloc failed.");

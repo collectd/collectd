@@ -140,7 +140,7 @@ static int mr_config_add_regex (mr_regex_t **re_head, /* {{{ */
 		return (-1);
 	}
 
-	re = (mr_regex_t *) malloc (sizeof (*re));
+	re = malloc (sizeof (*re));
 	if (re == NULL)
 	{
 		log_err ("mr_config_add_regex: malloc failed.");
@@ -194,7 +194,7 @@ static int mr_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 	int status;
 	int i;
 
-	m = (mr_match_t *) malloc (sizeof (*m));
+	m = malloc (sizeof (*m));
 	if (m == NULL)
 	{
 		log_err ("mr_create: malloc failed.");

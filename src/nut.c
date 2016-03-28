@@ -80,7 +80,7 @@ static int nut_add_ups (const char *name)
 
   DEBUG ("nut plugin: nut_add_ups (name = %s);", name);
 
-  ups = (nut_ups_t *) malloc (sizeof (nut_ups_t));
+  ups = malloc (sizeof (*ups));
   if (ups == NULL)
   {
     ERROR ("nut plugin: nut_add_ups: malloc failed.");
@@ -152,7 +152,7 @@ static int nut_read_one (nut_ups_t *ups)
   /* (Re-)Connect if we have no connection */
   if (ups->conn == NULL)
   {
-    ups->conn = (collectd_upsconn_t *) malloc (sizeof (collectd_upsconn_t));
+    ups->conn = malloc (sizeof (*ups->conn));
     if (ups->conn == NULL)
     {
       ERROR ("nut plugin: malloc failed.");

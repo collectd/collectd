@@ -368,9 +368,8 @@ static int interface_read (void)
 
 	if (pnif != nif || ifstat == NULL)
 	{
-		if (ifstat != NULL)
-			free(ifstat);
-		ifstat = malloc(nif * sizeof(perfstat_netinterface_t));
+		free(ifstat);
+		ifstat = malloc(nif * sizeof (*ifstat));
 	}
 	pnif = nif;
 

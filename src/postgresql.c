@@ -218,7 +218,7 @@ static c_psql_database_t *c_psql_database_new (const char *name)
 	c_psql_database_t **tmp;
 	c_psql_database_t  *db;
 
-	db = (c_psql_database_t *)malloc (sizeof(*db));
+	db = malloc (sizeof(*db));
 	if (NULL == db) {
 		log_err ("Out of memory.");
 		return NULL;

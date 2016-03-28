@@ -215,7 +215,7 @@ static int iptables_config (const char *key, const char *value)
     }
 
     chain_list = list;
-    final = (ip_chain_t *) malloc( sizeof(temp) );
+    final = malloc(sizeof (*final));
     if (final == NULL)
     {
         char errbuf[1024];

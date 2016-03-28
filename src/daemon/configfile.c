@@ -717,7 +717,7 @@ static oconfig_item_t *cf_read_dir (const char *dir,
 		return (NULL);
 	}
 
-	root = (oconfig_item_t *) malloc (sizeof (oconfig_item_t));
+	root = malloc (sizeof (*root));
 	if (root == NULL)
 	{
 		ERROR ("configfile: malloc failed.");
@@ -835,7 +835,7 @@ static oconfig_item_t *cf_read_generic (const char *path,
 		return (NULL);
 	}
 
-	root = (oconfig_item_t *) malloc (sizeof (oconfig_item_t));
+	root = malloc (sizeof (*root));
 	if (root == NULL)
 	{
 		ERROR ("configfile: malloc failed.");
@@ -1067,7 +1067,7 @@ void cf_register (const char *type,
 	cf_unregister (type);
 
 	/* This pointer will be free'd in `cf_unregister' */
-	if ((cf_cb = (cf_callback_t *) malloc (sizeof (cf_callback_t))) == NULL)
+	if ((cf_cb = malloc (sizeof (*cf_cb))) == NULL)
 		return;
 
 	cf_cb->type     = type;
@@ -1084,7 +1084,7 @@ int cf_register_complex (const char *type, int (*callback) (oconfig_item_t *))
 {
 	cf_complex_callback_t *new;
 
-	new = (cf_complex_callback_t *) malloc (sizeof (cf_complex_callback_t));
+	new = malloc (sizeof (*new));
 	if (new == NULL)
 		return (-1);
 

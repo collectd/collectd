@@ -290,7 +290,7 @@ static int tcsv_config_add_metric(oconfig_item_t *ci){
     int status;
     int i;
 
-    md = (metric_definition_t *)malloc(sizeof(*md));
+    md = malloc(sizeof(*md));
     if (md == NULL)
         return (-1);
     memset(md, 0, sizeof(*md));

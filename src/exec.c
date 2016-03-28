@@ -126,7 +126,7 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  pl = (program_list_t *) malloc (sizeof (program_list_t));
+  pl = malloc (sizeof (*pl));
   if (pl == NULL)
   {
     ERROR ("exec plugin: malloc failed.");
@@ -163,7 +163,7 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  pl->argv = (char **) malloc (ci->values_num * sizeof (char *));
+  pl->argv = malloc (ci->values_num * sizeof (*pl->argv));
   if (pl->argv == NULL)
   {
     ERROR ("exec plugin: malloc failed.");
@@ -869,8 +869,7 @@ static int exec_notification (const notification_t *n, /* {{{ */
     if (pl->pid != 0)
       continue;
 
-    pln = (program_list_and_notification_t *) malloc (sizeof
-        (program_list_and_notification_t));
+    pln = malloc (sizeof (*pln));
     if (pln == NULL)
     {
       ERROR ("exec plugin: malloc failed.");

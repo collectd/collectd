@@ -101,7 +101,7 @@ static int mh_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   mh_match_t *m;
   int i;
 
-  m = (mh_match_t *) malloc (sizeof (*m));
+  m = malloc (sizeof (*m));
   if (m == NULL)
   {
     ERROR ("mh_create: malloc failed.");

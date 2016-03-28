@@ -52,7 +52,7 @@ static int mt_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   int status;
   int i;
 
-  m = (mt_match_t *) malloc (sizeof (*m));
+  m = malloc (sizeof (*m));
   if (m == NULL)
   {
     ERROR ("mt_create: malloc failed.");

@@ -83,7 +83,7 @@ static int tss2_add_vserver (int vserver_port)
 	}
 
 	/* Allocate memory */
-	entry = (vserver_list_t *) malloc (sizeof (vserver_list_t));
+	entry = malloc (sizeof (*entry));
 	if (entry == NULL)
 	{
 		ERROR ("teamspeak2 plugin: malloc failed.");

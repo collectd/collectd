@@ -174,7 +174,7 @@ static char *fc_strdup (const char *orig) /* {{{ */
     return (NULL);
 
   sz = strlen (orig) + 1;
-  dest = (char *) malloc (sz);
+  dest = malloc (sz);
   if (dest == NULL)
     return (NULL);
 
@@ -235,7 +235,7 @@ static int fc_config_add_match (fc_match_t **matches_head, /* {{{ */
     return (-1);
   }
 
-  m = (fc_match_t *) malloc (sizeof (*m));
+  m = malloc (sizeof (*m));
   if (m == NULL)
   {
     ERROR ("fc_config_add_match: malloc failed.");
@@ -307,7 +307,7 @@ static int fc_config_add_target (fc_target_t **targets_head, /* {{{ */
     return (-1);
   }
 
-  t = (fc_target_t *) malloc (sizeof (*t));
+  t = malloc (sizeof (*t));
   if (t == NULL)
   {
     ERROR ("fc_config_add_target: malloc failed.");
@@ -373,7 +373,7 @@ static int fc_config_add_rule (fc_chain_t *chain, /* {{{ */
     return (-1);
   }
 
-  rule = (fc_rule_t *) malloc (sizeof (*rule));
+  rule = malloc (sizeof (*rule));
   if (rule == NULL)
   {
     ERROR ("fc_config_add_rule: malloc failed.");
@@ -469,7 +469,7 @@ static int fc_config_add_chain (const oconfig_item_t *ci) /* {{{ */
 
   if (chain == NULL)
   {
-    chain = (fc_chain_t *) malloc (sizeof (*chain));
+    chain = malloc (sizeof (*chain));
     if (chain == NULL)
     {
       ERROR ("fc_config_add_chain: malloc failed.");
@@ -824,7 +824,7 @@ int fc_register_match (const char *name, match_proc_t proc) /* {{{ */
 
   DEBUG ("fc_register_match (%s);", name);
 
-  m = (fc_match_t *) malloc (sizeof (*m));
+  m = malloc (sizeof (*m));
   if (m == NULL)
     return (-ENOMEM);
   memset (m, 0, sizeof (*m));
@@ -858,7 +858,7 @@ int fc_register_target (const char *name, target_proc_t proc) /* {{{ */
 
   DEBUG ("fc_register_target (%s);", name);
 
-  t = (fc_target_t *) malloc (sizeof (*t));
+  t = malloc (sizeof (*t));
   if (t == NULL)
     return (-ENOMEM);
   memset (t, 0, sizeof (*t));

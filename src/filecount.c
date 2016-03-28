@@ -344,7 +344,7 @@ static int fc_config_add_dir (oconfig_item_t *ci)
   }
 
   /* Initialize `dir' */
-  dir = (fc_directory_conf_t *) malloc (sizeof (*dir));
+  dir = malloc (sizeof (*dir));
   if (dir == NULL)
   {
     ERROR ("filecount plugin: malloc failed.");

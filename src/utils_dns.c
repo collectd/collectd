@@ -209,7 +209,7 @@ static void ignore_list_add (const struct in6_addr *addr)
     if (ignore_list_match (addr) != 0)
 	return;
 
-    new = malloc (sizeof (ip_list_t));
+    new = malloc (sizeof (*new));
     if (new == NULL)
     {
 	perror ("malloc");

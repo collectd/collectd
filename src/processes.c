@@ -262,7 +262,7 @@ static void ps_list_register (const char *name, const char *regexp)
 	procstat_t *ptr;
 	int status;
 
-	new = (procstat_t *) malloc (sizeof (procstat_t));
+	new = malloc (sizeof (*new));
 	if (new == NULL)
 	{
 		ERROR ("processes plugin: ps_list_register: malloc failed.");
@@ -275,7 +275,7 @@ static void ps_list_register (const char *name, const char *regexp)
 	if (regexp != NULL)
 	{
 		DEBUG ("ProcessMatch: adding \"%s\" as criteria to process %s.", regexp, name);
-		new->re = (regex_t *) malloc (sizeof (regex_t));
+		new->re = malloc (sizeof (*new->re));
 		if (new->re == NULL)
 		{
 			ERROR ("processes plugin: ps_list_register: malloc failed.");
@@ -410,7 +410,7 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 		{
 			procstat_entry_t *new;
 
-			new = (procstat_entry_t *) malloc (sizeof (procstat_entry_t));
+			new = malloc (sizeof (*new));
 			if (new == NULL)
 				return;
 			memset (new, 0, sizeof (procstat_entry_t));

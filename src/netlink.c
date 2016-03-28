@@ -109,7 +109,7 @@ static int add_ignorelist (const char *dev, const char *type,
 {
   ir_ignorelist_t *entry;
 
-  entry = (ir_ignorelist_t *) malloc (sizeof (ir_ignorelist_t));
+  entry = malloc (sizeof (*entry));
   if (entry == NULL)
     return (-1);
 

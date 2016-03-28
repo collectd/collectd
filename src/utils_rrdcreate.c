@@ -421,7 +421,7 @@ static int srrd_create (const char *filename, /* {{{ */
   char last_up_str[16];
 
   new_argc = 6 + argc;
-  new_argv = (char **) malloc ((new_argc + 1) * sizeof (char *));
+  new_argv = malloc ((new_argc + 1) * sizeof (*new_argv));
   if (new_argv == NULL)
   {
     ERROR ("rrdtool plugin: malloc failed.");
@@ -689,7 +689,7 @@ int cu_rrd_create_file (const char *filename, /* {{{ */
 
   argc = ds_num + rra_num;
 
-  if ((argv = (char **) malloc (sizeof (char *) * (argc + 1))) == NULL)
+  if ((argv = malloc (sizeof (*argv) * (argc + 1))) == NULL)
   {
     char errbuf[1024];
     ERROR ("cu_rrd_create_file failed: %s",

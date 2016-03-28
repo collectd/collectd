@@ -126,7 +126,7 @@ static int tn_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   int status;
   int i;
 
-  data = (tn_data_t *) malloc (sizeof (*data));
+  data = malloc (sizeof (*data));
   if (data == NULL)
   {
     ERROR ("tn_create: malloc failed.");

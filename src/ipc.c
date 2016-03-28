@@ -213,7 +213,7 @@ static caddr_t ipc_get_info (cid_t cid, int cmd, int version, int stsize, int *n
 
   *nmemb = size / stsize;
 
-  buff = (caddr_t)malloc (size);
+  buff = malloc (size);
   if (buff == NULL)  {
     ERROR ("ipc plugin: ipc_get_info malloc failed.");
     return (NULL);

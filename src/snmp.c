@@ -310,7 +310,7 @@ static int csnmp_config_add_data_values (data_definition_t *dd, oconfig_item_t *
 
   sfree (dd->values);
   dd->values_len = 0;
-  dd->values = (oid_t *) malloc (sizeof (oid_t) * ci->values_num);
+  dd->values = malloc (sizeof (*dd->values) * ci->values_num);
   if (dd->values == NULL)
     return (-1);
   dd->values_len = (size_t) ci->values_num;
@@ -384,7 +384,7 @@ static int csnmp_config_add_data (oconfig_item_t *ci)
   int status = 0;
   int i;
 
-  dd = (data_definition_t *) malloc (sizeof (data_definition_t));
+  dd = malloc (sizeof (*dd));
   if (dd == NULL)
     return (-1);
   memset (dd, '\0', sizeof (data_definition_t));
@@ -646,7 +646,7 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
   char cb_name[DATA_MAX_NAME_LEN];
   user_data_t cb_data;
 
-  hd = (host_definition_t *) malloc (sizeof (host_definition_t));
+  hd = malloc (sizeof (*hd));
   if (hd == NULL)
     return (-1);
   memset (hd, '\0', sizeof (host_definition_t));
@@ -1710,7 +1710,7 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
   }
 
   vl.values_len = ds->ds_num;
-  vl.values = (value_t *) malloc (sizeof (value_t) * vl.values_len);
+  vl.values = malloc (sizeof (*vl.values) * vl.values_len);
   if (vl.values == NULL)
     return (-1);
   for (i = 0; i < vl.values_len; i++)

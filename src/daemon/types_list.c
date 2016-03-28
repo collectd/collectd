@@ -112,7 +112,7 @@ static void parse_line (char *buf)
   if (fields[0][0] == '#')
     return;
 
-  ds = (data_set_t *) malloc (sizeof (data_set_t));
+  ds = malloc (sizeof (*ds));
   if (ds == NULL)
     return;
 

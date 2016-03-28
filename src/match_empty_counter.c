@@ -46,7 +46,7 @@ static int mec_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 {
   mec_match_t *m;
 
-  m = (mec_match_t *) malloc (sizeof (*m));
+  m = malloc (sizeof (*m));
   if (m == NULL)
   {
     ERROR ("mec_create: malloc failed.");

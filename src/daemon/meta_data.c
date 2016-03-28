@@ -71,7 +71,7 @@ static char *md_strdup (const char *orig) /* {{{ */
     return (NULL);
 
   sz = strlen (orig) + 1;
-  dest = (char *) malloc (sz);
+  dest = malloc (sz);
   if (dest == NULL)
     return (NULL);
 
@@ -84,7 +84,7 @@ static meta_entry_t *md_entry_alloc (const char *key) /* {{{ */
 {
   meta_entry_t *e;
 
-  e = (meta_entry_t *) malloc (sizeof (*e));
+  e = malloc (sizeof (*e));
   if (e == NULL)
   {
     ERROR ("md_entry_alloc: malloc failed.");
@@ -220,7 +220,7 @@ meta_data_t *meta_data_create (void) /* {{{ */
 {
   meta_data_t *md;
 
-  md = (meta_data_t *) malloc (sizeof (*md));
+  md = malloc (sizeof (*md));
   if (md == NULL)
   {
     ERROR ("meta_data_create: malloc failed.");

@@ -550,7 +550,7 @@ static int udb_result_create (const char *query_name, /* {{{ */
         ci->values_num, (ci->values_num == 1) ? "" : "s");
   }
 
-  r = (udb_result_t *) malloc (sizeof (*r));
+  r = malloc (sizeof (*r));
   if (r == NULL)
   {
     ERROR ("db query utils: malloc failed.");
@@ -678,7 +678,7 @@ int udb_query_create (udb_query_t ***ret_query_list, /* {{{ */
     return (-1);
   }
 
-  q = (udb_query_t *) malloc (sizeof (*q));
+  q = malloc (sizeof (*q));
   if (q == NULL)
   {
     ERROR ("db query utils: malloc failed.");

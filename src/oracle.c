@@ -198,7 +198,7 @@ static int o_config_add_database (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  db = (o_database_t *) malloc (sizeof (*db));
+  db = malloc (sizeof (*db));
   if (db == NULL)
   {
     ERROR ("oracle plugin: malloc failed.");

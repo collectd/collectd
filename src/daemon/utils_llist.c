@@ -48,7 +48,7 @@ llist_t *llist_create (void)
 {
 	llist_t *ret;
 
-	ret = (llist_t *) malloc (sizeof (llist_t));
+	ret = malloc (sizeof (*ret));
 	if (ret == NULL)
 		return (NULL);
 
@@ -78,7 +78,7 @@ llentry_t *llentry_create (char *key, void *value)
 {
 	llentry_t *e;
 
-	e = (llentry_t *) malloc (sizeof (llentry_t));
+	e = malloc (sizeof (*e));
 	if (e)
 	{
 		e->key   = key;

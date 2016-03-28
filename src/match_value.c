@@ -200,7 +200,7 @@ static int mv_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   int status;
   int i;
 
-  m = (mv_match_t *) malloc (sizeof (*m));
+  m = malloc (sizeof (*m));
   if (m == NULL)
   {
     ERROR ("mv_create: malloc failed.");

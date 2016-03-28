@@ -113,7 +113,7 @@ static int mysql_config_database (oconfig_item_t *ci) /* {{{ */
 		return (-1);
 	}
 
-	db = (mysql_database_t *) malloc (sizeof (*db));
+	db = malloc (sizeof (*db));
 	if (db == NULL)
 	{
 		ERROR ("mysql plugin: malloc failed.");

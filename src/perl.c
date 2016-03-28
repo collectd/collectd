@@ -437,7 +437,7 @@ static int av2data_set (pTHX_ AV *array, char *name, data_set_t *ds)
 		return -1;
 	}
 
-	ds->ds = (data_source_t *)smalloc ((len + 1) * sizeof (data_source_t));
+	ds->ds = smalloc ((len + 1) * sizeof (*ds->ds));
 	ds->ds_num = len + 1;
 
 	for (i = 0; i <= len; ++i) {
@@ -501,7 +501,7 @@ static int av2notification_meta (pTHX_ AV *array, notification_meta_t **meta)
 
 		hash = (HV *)SvRV (*tmp);
 
-		*m = (notification_meta_t *)smalloc (sizeof (**m));
+		*m = smalloc (sizeof (**m));
 
 		if (NULL == (tmp = hv_fetch (hash, "name", 4, 0))) {
 			log_warn ("av2notification_meta: Skipping invalid "
@@ -1218,7 +1218,7 @@ static c_ithread_t *c_ithread_create (PerlInterpreter *base)
 
 	assert (NULL != perl_threads);
 
-	t = (c_ithread_t *)smalloc (sizeof (c_ithread_t));
+	t = smalloc (sizeof (*t));
 	memset (t, 0, sizeof (c_ithread_t));
 
 	t->interp = (NULL == base)
@@ -1428,7 +1428,7 @@ static int fc_create (int type, const oconfig_item_t *ci, void **user_data)
 		return -1;
 	}
 
-	data = (pfc_user_data_t *)smalloc (sizeof (*data));
+	data = smalloc (sizeof (*data));
 	data->name      = sstrdup (ci->values[0].value.string);
 	data->user_data = newSV (0);
 
@@ -2252,7 +2252,7 @@ static int init_pi (int argc, char **argv)
 #endif
 	PERL_SYS_INIT3 (&argc, &argv, &environ);
 
-	perl_threads = (c_ithread_list_t *)smalloc (sizeof (c_ithread_list_t));
+	perl_threads = smalloc (sizeof (*perl_threads));
 	memset (perl_threads, 0, sizeof (c_ithread_list_t));
 
 	pthread_mutex_init (&perl_threads->mutex, NULL);
@@ -2394,7 +2394,7 @@ static int perl_config_enabledebugger (pTHX_ oconfig_item_t *ci)
 		perl_argv[perl_argc - 1] = "-d";
 	}
 	else {
-		perl_argv[perl_argc - 1] = (char *)smalloc (strlen (value) + 4);
+		perl_argv[perl_argc - 1] = smalloc (strlen (value) + 4);
 		sstrncpy (perl_argv[perl_argc - 1], "-d:", 4);
 		sstrncpy (perl_argv[perl_argc - 1] + 3, value, strlen (value) + 1);
 	}
@@ -2427,7 +2427,7 @@ static int perl_config_includedir (pTHX_ oconfig_item_t *ci)
 			exit (3);
 		}
 
-		perl_argv[perl_argc - 1] = (char *)smalloc (strlen (value) + 3);
+		perl_argv[perl_argc - 1] = smalloc (strlen (value) + 3);
 		sstrncpy(perl_argv[perl_argc - 1], "-I", 3);
 		sstrncpy(perl_argv[perl_argc - 1] + 2, value, strlen (value) + 1);
 
@@ -2545,7 +2545,7 @@ static int perl_config (oconfig_item_t *ci)
 void module_register (void)
 {
 	perl_argc = 4;
-	perl_argv = (char **)smalloc ((perl_argc + 1) * sizeof (char *));
+	perl_argv = smalloc ((perl_argc + 1) * sizeof (*perl_argv));
 
 	/* default options for the Perl interpreter */
 	perl_argv[0] = "";
