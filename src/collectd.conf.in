@@ -113,6 +113,7 @@
 #@BUILD_PLUGIN_DF_TRUE@LoadPlugin df
 #@BUILD_PLUGIN_DISK_TRUE@LoadPlugin disk
 #@BUILD_PLUGIN_DNS_TRUE@LoadPlugin dns
+#@BUILD_PLUGIN_DPDKSTAT_TRUE@LoadPlugin dpdkstat
 #@BUILD_PLUGIN_DRBD_TRUE@LoadPlugin drbd
 #@BUILD_PLUGIN_EMAIL_TRUE@LoadPlugin email
 #@BUILD_PLUGIN_ENTROPY_TRUE@LoadPlugin entropy
@@ -513,6 +514,13 @@
 #	Interface "eth0"
 #	IgnoreSource "192.168.0.1"
 #	SelectNumericQueryTypes true
+#</Plugin>
+
+#<Plugin dpdkstat>
+#       Interval 1
+#       Coremask "0xf"
+#       ProcessType "secondary"
+#       FilePrefix "rte"
 #</Plugin>
 
 #<Plugin email>

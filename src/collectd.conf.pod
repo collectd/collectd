@@ -2343,6 +2343,51 @@ Enabled by default, collects unknown (and thus presented as numeric only) query 
 
 =back
 
+=head2 Plugin C<dpdkstat>
+
+The I<dpdkstat plugin> collects information about DPDK interfaces using the
+extended NIC stats API in DPDK.
+
+B<Synopsis:>
+
+ <Plugin "dpdkstat">
+    Interval 1
+    Coremask "0x4"
+    MemoryChannels "4"
+    ProcessType "secondary"
+    FilePrefix "rte"
+ </Plugin>
+
+B<Options:>
+
+=over 4
+
+=item B<Interval> I<seconds>
+
+The interval within which to retreive stats in seconds. For milliseconds simple
+divide the time by 1000 for example if the desired interval is 50ms, set
+interval to 0.05.
+
+=item B<Coremask> I<Mask>
+
+An hexadecimal bit mask of the cores to run on. Note that core numbering can
+change between platforms and should be determined beforehand.
+
+=item B<Memorychannels> I<Channels>
+
+Number of memory channels per processor socket.
+
+=item B<ProcessType> I<type>
+
+The type of DPDK process instance.
+
+=item B<FilePrefix> I<File>
+
+The prefix text used for hugepage filenames. The filename will be set to
+/var/run/.<prefix>_config where prefix is what is passed in by the user.
+
+=back
+
 =head2 Plugin C<email>
 
 =over 4

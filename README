@@ -988,6 +988,97 @@ Crosscompiling
     * `endianflip' (12345678 -> 87654321)
     * `intswap'    (12345678 -> 56781234)
 
+Configuring with DPDK
+---------------------
+
+Build DPDK for use with collectd:
+  To compile DPDK for use with collectd dpdkstat start by:
+    - Clone DPDK:
+      $ git clone git://dpdk.org/dpdk
+    - Checkout the system requirements at
+      http://dpdk.org/doc/guides/linux_gsg/sys_reqs.html and make sure you have
+      the required tools and hugepage setup as specified there.
+      NOTE: It's recommended to use the 1GB hugepage setup for best performance,
+            please follow the instruction for "Reserving Hugepages for DPDK Use"
+            in the link above.
+      However if you plan on configuring 2MB hugepages on the fly please ensure
+      to add appropriate commands to reserve hugepages in a system startup script
+      if collectd is booted at system startup time. These commands include:
+          mkdir -p /mnt/huge
+          mount -t hugetlbfs nodev /mnt/huge
+          echo 64 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages
+    - To configure the DPDK build for the combined shared library modify
+      config/common_base in your DPDK as follows
+        #
+        # Compile to share library
+        #
+        -CONFIG_RTE_BUILD_SHARED_LIB=n
+        +CONFIG_RTE_BUILD_SHARED_LIB=y
+    - Prepare the configuration for the appropriate target as specified at:
+      http://dpdk.org/doc/guides/linux_gsg/build_dpdk.html.
+      For example:
+          $ make config T=x86_64-native-linuxapp-gcc
+    - Build the target:
+          $ make
+    - Install DPDK to /usr
+          $ sudo make install prefix=/usr
+      NOTE 1: You must run make install as the configuration of collectd with
+            DPDK expects DPDK to be installed somewhere.
+      NOTE 2: If you don't specify a prefix then DPDK will be installed in /usr/local/
+      NOTE 3: If you are not root then use sudo to make install DPDK to the appropriate
+            location.
+    - Check that the DPDK library has been installed in /usr/lib or /lib
+          $ ls /usr/lib | grep dpdk
+    - Bind the interfaces to use with dpdkstat to DPDK:
+      DPDK devices can be setup with either the VFIO (for DPDK 1.7+) or UIO modules.
+      Note: UIO requires inserting an out of tree driver igb_uio.ko that is available
+      in DPDK.
+      UIO Setup:
+      - Insert uio.ko:
+           $ sudo modprobe uio
+      - Insert igb_uio.ko:
+           $ sudo insmod $DPDK_BUILD/kmod/igb_uio.ko
+      - Bind network device to igb_uio:
+           $ sudo $DPDK_DIR/tools/dpdk_nic_bind.py --bind=igb_uio eth1
+      VFIO Setup:
+      - VFIO needs to be supported in the kernel and the BIOS. More information can be found
+        @ http://dpdk.org/doc/guides/linux_gsg/build_dpdk.html.
+      - Insert the `vfio-pci.ko' module: modprobe vfio-pci
+      - Set the correct permissions for the vfio device:
+           $ sudo /usr/bin/chmod a+x /dev/vfio
+           $ sudo /usr/bin/chmod 0666 /dev/vfio/*
+     - Bind the network device to vfio-pci:
+           $ sudo $DPDK_DIR/tools/dpdk_nic_bind.py --bind=vfio-pci eth1
+       NOTE: Please ensure to add appropriate commands to bind the network
+             interfaces to DPDK in a system startup script if collectd is
+             booted at system startup time.
+     - Run ldconfig to update the shared library cache.
+
+Configure collectd with DPDK:
+    - Generate the build script as specified below. (i.e. run `build.sh').
+    - Configure collectd with the DPDK library:
+       ./configure --with-libdpdk=/usr
+
+       Libraries:
+       ...
+       dpdk  . . . . . . . . yes
+
+       Modules:
+       ...
+       dpdkstat . . . . . . .yes
+
+
+    - Make sure that dpdk and dpdkstat are enabled in the configuration log:
+
+    - Build collectd:
+          $ make -j && make -j install.
+      NOTE: If you are building on Ubuntu 14.04 you need to use:
+          $  make -j CFLAGS+='-mavx' && make -j install
+
+Usage of dpdkstat:
+    - The same PCI device configuration should be passed to the primary process
+      as the secondary process uses the same port indexes as the primary.
+      NOTE: A blacklist/whitelist of NICs isn't supported yet.
 
 Contact
 -------

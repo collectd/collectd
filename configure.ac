@@ -2411,6 +2411,69 @@ then
 fi
 # }}}
 
+# --with-libdpdk {{{
+AC_ARG_WITH(libdpdk, [AS_HELP_STRING([--with-libdpdk@<:@=PREFIX@:>@], [Path to the DPDK build directory.])],
+[
+  if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	then
+		with_dpdk_path="$withval"
+		with_dpdk="yes"
+	else
+		if test "x$withval" = "xno"
+		then
+			with_dpdk="no (disabled)"
+		fi
+	fi
+], [with_dpdk="yes"])
+
+if test "x$with_dpdk" = "xyes"
+then
+	RTE_BUILD="$with_dpdk_path"
+	DPDK_INCLUDE="$RTE_BUILD/include/dpdk"
+	DPDK_LIB_DIR="$RTE_BUILD/lib"
+	DPDK_LIB="-ldpdk"
+	DPDK_EXTRA_LIB="-ldl -lpthread -lrt -lm"
+
+	SAVE_CFLAGS="$CFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+	LDFLAGS="$LDFLAGS -L$DPDK_LIB_DIR"
+	CFLAGS="$CFLAGS -I$DPDK_INCLUDE -fpic"
+	FOUND_DPDK=false
+	SAVE_LIBS="$LIBS"
+	LIBS="$LIBS $DPDK_LIB $DPDK_EXTRA_LIB"
+	AC_CHECK_LIB(dpdk, rte_eal_init,
+                     [with_libdpdk="yes"],
+                     [with_libdpdk="DPDK not found"])
+	AC_LINK_IFELSE(
+		[AC_LANG_PROGRAM(
+[[
+#include <rte_config.h>
+#include <rte_eal.h>
+]],
+[[
+int rte_argc;
+char ** rte_argv;
+rte_eal_init(rte_argc, rte_argv);
+]]
+	)],
+		[FOUND_DPDK=true])
+	if $FOUND_DPDK; then :; else
+		 AC_MSG_ERROR([cannot link with dpdk])
+	fi
+	DPDK_LDFLAGS="-ldpdk"
+	CFLAGS="$SAVE_CFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+	LIBS="$SAVE_LIBS"
+	BUILD_WITH_DPDK_CFLAGS="-I$DPDK_INCLUDE -fPIC"
+	BUILD_WITH_DPDK_LDFLAGS="-L$DPDK_LIB_DIR"
+	BUILD_WITH_DPDK_LIBS="$DPDK_LDFLAGS -ldl -lpthread -lrt -lm"
+	AC_SUBST(BUILD_WITH_DPDK_CFLAGS)
+	AC_SUBST(BUILD_WITH_DPDK_LDFLAGS)
+	AC_SUBST(BUILD_WITH_DPDK_LIBS)
+	AC_DEFINE_UNQUOTED(DPDK, [1], [System uses DPDK.])
+fi
+# }}}
+
 # --with-java {{{
 with_java_home="$JAVA_HOME"
 if test "x$with_java_home" = "x"
@@ -5556,6 +5619,7 @@ plugin_curl_xml="no"
 plugin_df="no"
 plugin_disk="no"
 plugin_drbd="no"
+plugin_dpdk="no"
 plugin_entropy="no"
 plugin_ethstat="no"
 plugin_fhcount="no"
@@ -5974,6 +6038,7 @@ AC_PLUGIN([dbi],                 [$with_libdbi],            [General database st
 AC_PLUGIN([df],                  [$plugin_df],              [Filesystem usage statistics])
 AC_PLUGIN([disk],                [$plugin_disk],            [Disk usage statistics])
 AC_PLUGIN([dns],                 [$with_libpcap],           [DNS traffic analysis])
+AC_PLUGIN([dpdkstat],    [$with_libdpdk],      [Stats & Status from DPDK])
 AC_PLUGIN([drbd],                [$plugin_drbd],            [DRBD statistics])
 AC_PLUGIN([email],               [yes],                     [EMail statistics])
 AC_PLUGIN([entropy],             [$plugin_entropy],         [Entropy statistics])
@@ -6293,6 +6358,7 @@ AC_MSG_RESULT([    PROTOC  . . . . . . . $PROTOC])
 AC_MSG_RESULT([    YACC  . . . . . . . . $YACC])
 AC_MSG_RESULT([    YFLAGS  . . . . . . . $YFLAGS])
 AC_MSG_RESULT()
+    dpdk  . . . . . . . . $with_libdpdk
 AC_MSG_RESULT([  Libraries:])
 AC_MSG_RESULT([    intel mic . . . . . . $with_mic])
 AC_MSG_RESULT([    libaquaero5 . . . . . $with_libaquaero5])
@@ -6382,6 +6448,7 @@ AC_MSG_RESULT([    curl  . . . . . . . . $enable_curl])
 AC_MSG_RESULT([    curl_json . . . . . . $enable_curl_json])
 AC_MSG_RESULT([    curl_xml  . . . . . . $enable_curl_xml])
 AC_MSG_RESULT([    dbi . . . . . . . . . $enable_dbi])
+    dpdkstat . . . . . . .$enable_dpdkstat
 AC_MSG_RESULT([    df  . . . . . . . . . $enable_df])
 AC_MSG_RESULT([    disk  . . . . . . . . $enable_disk])
 AC_MSG_RESULT([    dns . . . . . . . . . $enable_dns])
