@@ -2587,7 +2587,7 @@ static void network_init_buffer (void)
 	memset (&send_buffer_vl, 0, sizeof (send_buffer_vl));
 } /* int network_init_buffer */
 
-static void networt_send_buffer_plain (sockent_t *se, /* {{{ */
+static void network_send_buffer_plain (sockent_t *se, /* {{{ */
 		const char *buffer, size_t buffer_size)
 {
 	int status;
@@ -2617,7 +2617,7 @@ static void networt_send_buffer_plain (sockent_t *se, /* {{{ */
 
 		break;
 	} /* while (42) */
-} /* }}} void networt_send_buffer_plain */
+} /* }}} void network_send_buffer_plain */
 
 #if HAVE_LIBGCRYPT
 #define BUFFER_ADD(p,s) do { \
@@ -2625,7 +2625,7 @@ static void networt_send_buffer_plain (sockent_t *se, /* {{{ */
   buffer_offset += (s); \
 } while (0)
 
-static void networt_send_buffer_signed (sockent_t *se, /* {{{ */
+static void network_send_buffer_signed (sockent_t *se, /* {{{ */
 		const char *in_buffer, size_t in_buffer_size)
 {
   part_signature_sha256_t ps;
@@ -2699,10 +2699,10 @@ static void networt_send_buffer_signed (sockent_t *se, /* {{{ */
   hd = NULL;
 
   buffer_offset = PART_SIGNATURE_SHA256_SIZE + username_len + in_buffer_size;
-  networt_send_buffer_plain (se, buffer, buffer_offset);
-} /* }}} void networt_send_buffer_signed */
+  network_send_buffer_plain (se, buffer, buffer_offset);
+} /* }}} void network_send_buffer_signed */
 
-static void networt_send_buffer_encrypted (sockent_t *se, /* {{{ */
+static void network_send_buffer_encrypted (sockent_t *se, /* {{{ */
 		const char *in_buffer, size_t in_buffer_size)
 {
   part_encryption_aes256_t pea;
@@ -2732,7 +2732,7 @@ static void networt_send_buffer_encrypted (sockent_t *se, /* {{{ */
     - sizeof (pea.hash);
 
   assert (buffer_size <= sizeof (buffer));
-  DEBUG ("network plugin: networt_send_buffer_encrypted: "
+  DEBUG ("network plugin: network_send_buffer_encrypted: "
       "buffer_size = %zu;", buffer_size);
 
   pea.head.length = htons ((uint16_t) (PART_ENCRYPTION_AES256_SIZE
@@ -2779,8 +2779,8 @@ static void networt_send_buffer_encrypted (sockent_t *se, /* {{{ */
   }
 
   /* Send it out without further modifications */
-  networt_send_buffer_plain (se, buffer, buffer_size);
-} /* }}} void networt_send_buffer_encrypted */
+  network_send_buffer_plain (se, buffer, buffer_size);
+} /* }}} void network_send_buffer_encrypted */
 #undef BUFFER_ADD
 #endif /* HAVE_LIBGCRYPT */
 
@@ -2794,12 +2794,12 @@ static void network_send_buffer (char *buffer, size_t buffer_len) /* {{{ */
   {
 #if HAVE_LIBGCRYPT
     if (se->data.client.security_level == SECURITY_LEVEL_ENCRYPT)
-      networt_send_buffer_encrypted (se, buffer, buffer_len);
+      network_send_buffer_encrypted (se, buffer, buffer_len);
     else if (se->data.client.security_level == SECURITY_LEVEL_SIGN)
-      networt_send_buffer_signed (se, buffer, buffer_len);
+      network_send_buffer_signed (se, buffer, buffer_len);
     else /* if (se->data.client.security_level == SECURITY_LEVEL_NONE) */
 #endif /* HAVE_LIBGCRYPT */
-      networt_send_buffer_plain (se, buffer, buffer_len);
+      network_send_buffer_plain (se, buffer, buffer_len);
   } /* for (sending_sockets) */
 } /* }}} void network_send_buffer */
 
@@ -3192,7 +3192,7 @@ static int network_config_add_server (const oconfig_item_t *ci) /* {{{ */
   }
 
   /* No call to sockent_client_connect() here -- it is called from
-   * networt_send_buffer_plain(). */
+   * network_send_buffer_plain(). */
 
   status = sockent_add (se);
   if (status != 0)
