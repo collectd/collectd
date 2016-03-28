@@ -709,13 +709,12 @@ static int cx_config_add_xpath (cx_t *db, oconfig_item_t *ci) /* {{{ */
   int status;
   int i;
 
-  xpath = malloc (sizeof (*xpath));
+  xpath = calloc (1, sizeof (*xpath));
   if (xpath == NULL)
   {
-    ERROR ("curl_xml plugin: malloc failed.");
+    ERROR ("curl_xml plugin: calloc failed.");
     return (-1);
   }
-  memset (xpath, 0, sizeof (*xpath));
 
   status = cf_util_get_string (ci, &xpath->path);
   if (status != 0)
@@ -923,13 +922,12 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  db = malloc (sizeof (*db));
+  db = calloc (1, sizeof (*db));
   if (db == NULL)
   {
-    ERROR ("curl_xml plugin: malloc failed.");
+    ERROR ("curl_xml plugin: calloc failed.");
     return (-1);
   }
-  memset (db, 0, sizeof (*db));
 
   db->timeout = -1;
 
