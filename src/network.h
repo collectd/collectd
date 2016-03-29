@@ -70,6 +70,9 @@
 #define TYPE_INTERVAL        0x0007
 #define TYPE_INTERVAL_HR     0x0009
 
+/*  Custom Mindera Extension to Binary Collectd Protocol */
+#define TYPE_TAGS     		 0x0099
+
 /* Types to transmit notifications */
 #define TYPE_MESSAGE         0x0100
 #define TYPE_SEVERITY        0x0101
