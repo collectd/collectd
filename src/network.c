@@ -277,6 +277,7 @@ typedef struct receive_list_entry_s receive_list_entry_t;
 /*
  * Private variables
  */
+static char* network_config_tags;
 static int network_config_ttl = 0;
 /* Ethernet - (IPv6 + UDP) = 1500 - (40 + 8) = 1452 */
 static size_t network_config_packet_size = 1452;
@@ -2816,6 +2817,13 @@ static int add_to_buffer (char *buffer, int buffer_size, /* {{{ */
 			return (-1);
 		sstrncpy (vl_def->host, vl->host, sizeof (vl_def->host));
 	}
+    
+    if (strlen(network_config_tags) > 0)
+    {
+        if (write_part_string (&buffer, &buffer_size, TYPE_TAGS,
+                               network_config_tags, strlen (network_config_tags)) != 0)
+            return (-1);
+    }
 
 	if (vl_def->time != vl->time)
 	{
@@ -3205,6 +3213,22 @@ static int network_config_add_server (const oconfig_item_t *ci) /* {{{ */
   return (0);
 } /* }}} int network_config_add_server */
 
+static int network_config_set_tags (oconfig_item_t *ci) /* {{{ */
+{
+    if ((ci->values_num != 1)
+        || (ci->values[0].type != OCONFIG_TYPE_STRING))
+    {
+        WARNING ("network plugin: The `Tags' config option needs exactly "
+                 "one string argument (ex: tag1=val1,tag2=val2,tag3=val3).");
+        return (-1);
+    }
+    
+    network_config_tags = (char*) malloc ((strlen(ci->values[0].value.string) * sizeof(char)) + 1);
+    strcpy(network_config_tags, ci->values[0].value.string);
+    
+    return (0);
+} /* }}} int network_config_set_tags */
+
 static int network_config (oconfig_item_t *ci) /* {{{ */
 {
   int i;
@@ -3225,6 +3249,8 @@ static int network_config (oconfig_item_t *ci) /* {{{ */
       network_config_add_listen (child);
     else if (strcasecmp ("Server", child->key) == 0)
       network_config_add_server (child);
+    else if (strcasecmp ("Tags", child->key) == 0)
+        network_config_set_tags (child);
     else if (strcasecmp ("TimeToLive", child->key) == 0) {
       /* Handled earlier */
     }
