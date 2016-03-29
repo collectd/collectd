@@ -152,7 +152,7 @@ static int df_config (const char *key, const char *value)
 
 		return (0);
 	}
-
+	WARNING ("df plugin: Ignoring config key '%s'", key);
 	return (-1);
 }
 
