@@ -570,7 +570,11 @@ it will be active, it needs an argument to parse but it is not used in any way.
 For example “yes” can be used as the argument. Note: if you want logging do not
 include this option.
 
+=over 4
+
 =item B<DisableLogging> I<yes>
+
+=back
 
 =head3   MBean blocks
 
