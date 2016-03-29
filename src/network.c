@@ -3218,8 +3218,8 @@ static int network_config_set_tags (oconfig_item_t *ci) /* {{{ */
     if ((ci->values_num != 1)
         || (ci->values[0].type != OCONFIG_TYPE_STRING))
     {
-        WARNING ("network plugin: The `SecurityLevel' config option needs exactly "
-                 "one string argument.");
+        WARNING ("network plugin: The `Tags' config option needs exactly "
+                 "one string argument (ex: tag1=val1,tag2=val2,tag3=val3).");
         return (-1);
     }
     
