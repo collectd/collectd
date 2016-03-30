@@ -5758,6 +5758,7 @@ m4_divert_once([HELP_ENABLE], [])
 AC_PLUGIN([aggregation], [yes],                [Aggregation plugin])
 AC_PLUGIN([amqp],        [$with_librabbitmq],  [AMQP output plugin])
 AC_PLUGIN([apache],      [$with_libcurl],      [Apache httpd statistics])
+AC_PLUGIN([apachelog],   [yes],                [Apache log statistics])
 AC_PLUGIN([apcups],      [yes],                [Statistics of UPSes by APC])
 AC_PLUGIN([apple_sensors], [$with_libiokit],   [Apple's hardware sensors])
 AC_PLUGIN([aquaero],     [$with_libaquaero5],  [Aquaero's hardware sensors])
@@ -6158,6 +6159,7 @@ Configuration:
     aggregation . . . . . $enable_aggregation
     amqp    . . . . . . . $enable_amqp
     apache  . . . . . . . $enable_apache
+    apachelog . . . . . . $enable_apachelog
     apcups  . . . . . . . $enable_apcups
     apple_sensors . . . . $enable_apple_sensors
     aquaero . . . . . . . $enable_aquaero

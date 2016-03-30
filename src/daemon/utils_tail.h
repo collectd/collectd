@@ -50,6 +50,15 @@ typedef int tailfunc_t(void *data, char *buf, int buflen);
 cu_tail_t *cu_tail_create (const char *file);
 
 /*
+ *  cu_tail_disable_seek_on_newfile 
+ *
+ * set a feature needed to follow files rotated with apache rotatelogs utility
+ *
+ */
+
+void cu_tail_disable_seek_end_on_newfile (cu_tail_t *obj);
+
+/*
  * cu_tail_destroy
  *
  * Takes a tail object returned by `cu_tail_create' and destroys it, freeing
@@ -57,6 +66,7 @@ cu_tail_t *cu_tail_create (const char *file);
  *
  * Returns 0 when successful and non-zero otherwise.
  */
+
 int cu_tail_destroy (cu_tail_t *obj);
 
 /*
