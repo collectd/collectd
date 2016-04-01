@@ -83,13 +83,12 @@ static int tss2_add_vserver (int vserver_port)
 	}
 
 	/* Allocate memory */
-	entry = malloc (sizeof (*entry));
+	entry = calloc (1, sizeof (*entry));
 	if (entry == NULL)
 	{
-		ERROR ("teamspeak2 plugin: malloc failed.");
+		ERROR ("teamspeak2 plugin: calloc failed.");
 		return (-1);
 	}
-	memset (entry, 0, sizeof (vserver_list_t));
 
 	/* Save data */
 	entry->port = vserver_port;
