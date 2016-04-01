@@ -72,11 +72,10 @@ static int sigrok_config_device(oconfig_item_t *ci)
 	struct config_device *cfdev;
 	int i;
 
-	if (!(cfdev = malloc(sizeof(*cfdev)))) {
-		ERROR("sigrok plugin: malloc() failed.");
+	if (!(cfdev = calloc(1, sizeof(*cfdev)))) {
+		ERROR("sigrok plugin: calloc failed.");
 		return -1;
 	}
-	memset(cfdev, 0, sizeof(*cfdev));
 	if (cf_util_get_string(ci, &cfdev->name)) {
 		free(cfdev);
 		WARNING("sigrok plugin: Invalid device name.");
