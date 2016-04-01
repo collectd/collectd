@@ -943,10 +943,9 @@ static int varnish_init (void) /* {{{ */
 	if (have_instance)
 		return (0);
 
-	conf = malloc (sizeof (*conf));
+	conf = calloc (1, sizeof (*conf));
 	if (conf == NULL)
 		return (ENOMEM);
-	memset (conf, 0, sizeof (*conf));
 
 	/* Default settings: */
 	conf->instance = NULL;
@@ -972,10 +971,9 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 	char callback_name[DATA_MAX_NAME_LEN];
 	int i;
 
-	conf = malloc (sizeof (*conf));
+	conf = calloc (1, sizeof (*conf));
 	if (conf == NULL)
 		return (ENOMEM);
-	memset (conf, 0, sizeof (*conf));
 	conf->instance = NULL;
 
 	varnish_config_apply_default (conf);
