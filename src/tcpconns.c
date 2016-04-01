@@ -385,10 +385,9 @@ static port_entry_t *conn_get_port_entry (uint16_t port, int create)
 
   if ((ret == NULL) && (create != 0))
   {
-    ret = malloc (sizeof (*ret));
+    ret = calloc (1, sizeof (*ret));
     if (ret == NULL)
       return (NULL);
-    memset (ret, '\0', sizeof (port_entry_t));
 
     ret->port = port;
     ret->next = port_list_head;
