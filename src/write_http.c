@@ -183,7 +183,7 @@ static int wh_callback_init (wh_callback_t *cb) /* {{{ */
                 if (cb->pass != NULL)
                         credentials_size += strlen (cb->pass);
 
-                cb->credentials = (char *) malloc (credentials_size);
+                cb->credentials = malloc (credentials_size);
                 if (cb->credentials == NULL)
                 {
                         ERROR ("curl plugin: malloc failed.");
