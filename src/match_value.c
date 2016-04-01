@@ -200,13 +200,12 @@ static int mv_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   int status;
   int i;
 
-  m = malloc (sizeof (*m));
+  m = calloc (1, sizeof (*m));
   if (m == NULL)
   {
-    ERROR ("mv_create: malloc failed.");
+    ERROR ("mv_create: calloc failed.");
     return (-ENOMEM);
   }
-  memset (m, 0, sizeof (*m));
 
   m->min = NAN;
   m->max = NAN;
