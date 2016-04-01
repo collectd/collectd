@@ -127,14 +127,13 @@ static statsd_metric_t *statsd_metric_lookup_unsafe (char const *name, /* {{{ */
     return (NULL);
   }
 
-  metric = malloc (sizeof (*metric));
+  metric = calloc (1, sizeof (*metric));
   if (metric == NULL)
   {
-    ERROR ("statsd plugin: malloc failed.");
+    ERROR ("statsd plugin: calloc failed.");
     sfree (key_copy);
     return (NULL);
   }
-  memset (metric, 0, sizeof (*metric));
 
   metric->type = type;
   metric->latency = NULL;
