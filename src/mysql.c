@@ -113,13 +113,12 @@ static int mysql_config_database (oconfig_item_t *ci) /* {{{ */
 		return (-1);
 	}
 
-	db = malloc (sizeof (*db));
+	db = calloc (1, sizeof (*db));
 	if (db == NULL)
 	{
-		ERROR ("mysql plugin: malloc failed.");
+		ERROR ("mysql plugin: calloc failed.");
 		return (-1);
 	}
-	memset (db, 0, sizeof (*db));
 
 	/* initialize all the pointers */
 	db->alias    = NULL;
