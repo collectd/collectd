@@ -109,11 +109,9 @@ static int add_ignorelist (const char *dev, const char *type,
 {
   ir_ignorelist_t *entry;
 
-  entry = malloc (sizeof (*entry));
+  entry = calloc (1, sizeof (*entry));
   if (entry == NULL)
     return (-1);
-
-  memset (entry, '\0', sizeof (ir_ignorelist_t));
 
   if (strcasecmp (dev, "All") != 0)
   {
