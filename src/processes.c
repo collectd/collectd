@@ -262,13 +262,12 @@ static void ps_list_register (const char *name, const char *regexp)
 	procstat_t *ptr;
 	int status;
 
-	new = malloc (sizeof (*new));
+	new = calloc (1, sizeof (*new));
 	if (new == NULL)
 	{
-		ERROR ("processes plugin: ps_list_register: malloc failed.");
+		ERROR ("processes plugin: ps_list_register: calloc failed.");
 		return;
 	}
-	memset (new, 0, sizeof (procstat_t));
 	sstrncpy (new->name, name, sizeof (new->name));
 
 #if HAVE_REGEX_H
@@ -410,10 +409,9 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 		{
 			procstat_entry_t *new;
 
-			new = malloc (sizeof (*new));
+			new = calloc (1, sizeof (*new));
 			if (new == NULL)
 				return;
-			memset (new, 0, sizeof (procstat_entry_t));
 			new->id = entry->id;
 
 			if (pse == NULL)
@@ -1348,18 +1346,15 @@ static int ps_read_process(long pid, procstat_t *ps, char *state)
 	snprintf(f_usage, sizeof (f_usage), "/proc/%li/usage", pid);
 
 
-	buffer = malloc(sizeof (pstatus_t));
-	memset(buffer, 0, sizeof (pstatus_t));
+	buffer = calloc(1, sizeof (pstatus_t));
 	read_file_contents(filename, buffer, sizeof (pstatus_t));
 	myStatus = (pstatus_t *) buffer;
 
-	buffer = malloc(sizeof (psinfo_t));
-	memset(buffer, 0, sizeof(psinfo_t));
+	buffer = calloc(1, sizeof (psinfo_t));
 	read_file_contents(f_psinfo, buffer, sizeof (psinfo_t));
 	myInfo = (psinfo_t *) buffer;
 
-	buffer = malloc(sizeof (prusage_t));
-	memset(buffer, 0, sizeof(prusage_t));
+	buffer = calloc(1, sizeof (prusage_t));
 	read_file_contents(f_usage, buffer, sizeof (prusage_t));
 	myUsage = (prusage_t *) buffer;
 
