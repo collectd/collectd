@@ -486,13 +486,12 @@ static int wg_config_node (oconfig_item_t *ci)
     int i;
     int status = 0;
 
-    cb = malloc (sizeof (*cb));
+    cb = calloc (1, sizeof (*cb));
     if (cb == NULL)
     {
-        ERROR ("write_graphite plugin: malloc failed.");
+        ERROR ("write_graphite plugin: calloc failed.");
         return (-1);
     }
-    memset (cb, 0, sizeof (*cb));
     cb->sock_fd = -1;
     cb->name = NULL;
     cb->node = strdup (WG_DEFAULT_NODE);
