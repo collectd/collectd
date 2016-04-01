@@ -552,10 +552,9 @@ static PyObject *cpy_register_generic(cpy_callback_t **list_head, PyObject *args
 	Py_INCREF(callback);
 	Py_XINCREF(data);
 
-	c = malloc(sizeof(*c));
+	c = calloc(1, sizeof(*c));
 	if (c == NULL)
 		return NULL;
-	memset (c, 0, sizeof (*c));
 
 	c->name = strdup(buf);
 	c->callback = callback;
@@ -644,10 +643,9 @@ static PyObject *cpy_register_generic_userdata(void *reg, void *handler, PyObjec
 	Py_INCREF(callback);
 	Py_XINCREF(data);
 
-	c = malloc(sizeof(*c));
+	c = calloc(1, sizeof(*c));
 	if (c == NULL)
 		return NULL;
-	memset (c, 0, sizeof (*c));
 
 	c->name = strdup(buf);
 	c->callback = callback;
@@ -683,10 +681,9 @@ static PyObject *cpy_register_read(PyObject *self, PyObject *args, PyObject *kwd
 	Py_INCREF(callback);
 	Py_XINCREF(data);
 
-	c = malloc(sizeof(*c));
+	c = calloc(1, sizeof(*c));
 	if (c == NULL)
 		return NULL;
-	memset (c, 0, sizeof (*c));
 
 	c->name = strdup(buf);
 	c->callback = callback;
