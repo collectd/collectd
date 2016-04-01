@@ -537,13 +537,12 @@ static void *open_connection (void __attribute__((unused)) *arg)
 			break;
 		}
 
-		connection = malloc (sizeof (*connection));
+		connection = calloc (1, sizeof (*connection));
 		if (connection == NULL)
 		{
 			close (remote);
 			continue;
 		}
-		memset (connection, 0, sizeof (*connection));
 
 		connection->socket = fdopen (remote, "r");
 		connection->next   = NULL;
