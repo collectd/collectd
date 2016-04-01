@@ -205,12 +205,11 @@ static int riemann_send_msg (struct riemann_host *host, const Msg *msg) /* {{{ *
 	if (host->use_tcp)
 		buffer_len += 4;
 
-	buffer = malloc (buffer_len);
+	buffer = calloc (1, buffer_len);
 	if (buffer == NULL) {
-		ERROR ("write_riemann plugin: malloc failed.");
+		ERROR ("write_riemann plugin: calloc failed.");
 		return ENOMEM;
 	}
-	memset (buffer, 0, buffer_len);
 
 	if (host->use_tcp)
 	{
@@ -365,13 +364,12 @@ static Msg *riemann_notification_to_protobuf(struct riemann_host *host, /* {{{ *
 	notification_meta_t *meta;
 	size_t i;
 
-	msg = malloc (sizeof (*msg));
+	msg = calloc (1, sizeof (*msg));
 	if (msg == NULL)
 	{
-		ERROR ("write_riemann plugin: malloc failed.");
+		ERROR ("write_riemann plugin: calloc failed.");
 		return (NULL);
 	}
-	memset (msg, 0, sizeof (*msg));
 	msg__init (msg);
 
 	msg->events = malloc (sizeof (*msg->events));
@@ -382,15 +380,14 @@ static Msg *riemann_notification_to_protobuf(struct riemann_host *host, /* {{{ *
 		return (NULL);
 	}
 
-	event = malloc (sizeof (*event));
+	event = calloc (1, sizeof (*event));
 	if (event == NULL)
 	{
-		ERROR ("write_riemann plugin: malloc failed.");
+		ERROR ("write_riemann plugin: calloc failed.");
 		sfree (msg->events);
 		sfree (msg);
 		return (NULL);
 	}
-	memset (event, 0, sizeof (*event));
 	event__init (event);
 
 	msg->events[0] = event;
@@ -474,13 +471,12 @@ static Event *riemann_value_to_protobuf(struct riemann_host const *host, /* {{{ 
 	double ttl;
 	size_t i;
 
-	event = malloc (sizeof (*event));
+	event = calloc (1, sizeof (*event));
 	if (event == NULL)
 	{
-		ERROR ("write_riemann plugin: malloc failed.");
+		ERROR ("write_riemann plugin: calloc failed.");
 		return (NULL);
 	}
-	memset (event, 0, sizeof (*event));
 	event__init (event);
 
 	event->host = strdup (vl->host);
@@ -607,13 +603,12 @@ static Msg *riemann_value_list_to_protobuf (struct riemann_host const *host, /* 
 	gauge_t *rates = NULL;
 
 	/* Initialize the Msg structure. */
-	msg = malloc (sizeof (*msg));
+	msg = calloc (1, sizeof (*msg));
 	if (msg == NULL)
 	{
-		ERROR ("write_riemann plugin: malloc failed.");
+		ERROR ("write_riemann plugin: calloc failed.");
 		return (NULL);
 	}
-	memset (msg, 0, sizeof (*msg));
 	msg__init (msg);
 
 	/* Set up events. First, the list of pointers. */
