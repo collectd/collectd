@@ -126,13 +126,12 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  pl = malloc (sizeof (*pl));
+  pl = calloc (1, sizeof (*pl));
   if (pl == NULL)
   {
-    ERROR ("exec plugin: malloc failed.");
+    ERROR ("exec plugin: calloc failed.");
     return (-1);
   }
-  memset (pl, '\0', sizeof (program_list_t));
 
   if (strcasecmp ("NotificationExec", ci->key) == 0)
     pl->flags |= PL_NOTIF_ACTION;
@@ -163,16 +162,15 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  pl->argv = malloc (ci->values_num * sizeof (*pl->argv));
+  pl->argv = calloc (ci->values_num, sizeof (*pl->argv));
   if (pl->argv == NULL)
   {
-    ERROR ("exec plugin: malloc failed.");
+    ERROR ("exec plugin: calloc failed.");
     sfree (pl->exec);
     sfree (pl->user);
     sfree (pl);
     return (-1);
   }
-  memset (pl->argv, '\0', ci->values_num * sizeof (char *));
 
   {
     char *tmp = strrchr (ci->values[1].value.string, '/');
@@ -184,7 +182,7 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
   pl->argv[0] = strdup (buffer);
   if (pl->argv[0] == NULL)
   {
-    ERROR ("exec plugin: malloc failed.");
+    ERROR ("exec plugin: strdup failed.");
     sfree (pl->argv);
     sfree (pl->exec);
     sfree (pl->user);
