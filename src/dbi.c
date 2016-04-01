@@ -294,13 +294,12 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  db = malloc (sizeof (*db));
+  db = calloc (1, sizeof (*db));
   if (db == NULL)
   {
-    ERROR ("dbi plugin: malloc failed.");
+    ERROR ("dbi plugin: calloc failed.");
     return (-1);
   }
-  memset (db, 0, sizeof (*db));
 
   status = cf_util_get_string (ci, &db->name);
   if (status != 0)
