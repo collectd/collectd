@@ -464,10 +464,9 @@ static disk_t *get_disk(cfg_disk_t *cd, const char *name) /* {{{ */
 			return d;
 	}
 
-	d = malloc (sizeof (*d));
+	d = calloc (1, sizeof (*d));
 	if (d == NULL)
 		return (NULL);
-	memset (d, 0, sizeof (*d));
 	d->next = NULL;
 
 	d->name = strdup(name);
@@ -513,10 +512,9 @@ static data_volume_usage_t *get_volume_usage (cfg_volume_usage_t *cvu, /* {{{ */
 		return (NULL);
 
 	/* Not found: allocate. */
-	new = malloc (sizeof (*new));
+	new = calloc (1, sizeof (*new));
 	if (new == NULL)
 		return (NULL);
-	memset (new, 0, sizeof (*new));
 	new->next = NULL;
 
 	new->name = strdup (name);
@@ -581,10 +579,9 @@ static data_volume_perf_t *get_volume_perf (cfg_volume_perf_t *cvp, /* {{{ */
 		return (NULL);
 
 	/* Not found: allocate. */
-	new = malloc (sizeof (*new));
+	new = calloc (1, sizeof (*new));
 	if (new == NULL)
 		return (NULL);
-	memset (new, 0, sizeof (*new));
 	new->next = NULL;
 
 	new->name = strdup (name);
@@ -2405,10 +2402,9 @@ static int cna_config_volume_performance (host_config_t *host, /* {{{ */
 
 	if (host->cfg_volume_perf == NULL)
 	{
-		cfg_volume_perf = malloc (sizeof (*cfg_volume_perf));
+		cfg_volume_perf = calloc (1, sizeof (*cfg_volume_perf));
 		if (cfg_volume_perf == NULL)
 			return (ENOMEM);
-		memset (cfg_volume_perf, 0, sizeof (*cfg_volume_perf));
 
 		/* Set default flags */
 		cfg_volume_perf->query = NULL;
@@ -2533,10 +2529,9 @@ static int cna_config_quota (host_config_t *host, oconfig_item_t *ci) /* {{{ */
 
 	if (host->cfg_quota == NULL)
 	{
-		cfg_quota = malloc (sizeof (*cfg_quota));
+		cfg_quota = calloc (1, sizeof (*cfg_quota));
 		if (cfg_quota == NULL)
 			return (ENOMEM);
-		memset (cfg_quota, 0, sizeof (*cfg_quota));
 		cfg_quota->query = NULL;
 
 		host->cfg_quota = cfg_quota;
@@ -2566,10 +2561,9 @@ static int cna_config_disk(host_config_t *host, oconfig_item_t *ci) { /* {{{ */
 
 	if (host->cfg_disk == NULL)
 	{
-		cfg_disk = malloc (sizeof (*cfg_disk));
+		cfg_disk = calloc (1, sizeof (*cfg_disk));
 		if (cfg_disk == NULL)
 			return (ENOMEM);
-		memset (cfg_disk, 0, sizeof (*cfg_disk));
 
 		/* Set default flags */
 		cfg_disk->flags = CFG_DISK_ALL;
@@ -2612,10 +2606,9 @@ static int cna_config_wafl(host_config_t *host, oconfig_item_t *ci) /* {{{ */
 
 	if (host->cfg_wafl == NULL)
 	{
-		cfg_wafl = malloc (sizeof (*cfg_wafl));
+		cfg_wafl = calloc (1, sizeof (*cfg_wafl));
 		if (cfg_wafl == NULL)
 			return (ENOMEM);
-		memset (cfg_wafl, 0, sizeof (*cfg_wafl));
 
 		/* Set default flags */
 		cfg_wafl->flags = CFG_WAFL_ALL;
@@ -2681,10 +2674,9 @@ static int cna_config_volume_usage(host_config_t *host, /* {{{ */
 
 	if (host->cfg_volume_usage == NULL)
 	{
-		cfg_volume_usage = malloc (sizeof (*cfg_volume_usage));
+		cfg_volume_usage = calloc (1, sizeof (*cfg_volume_usage));
 		if (cfg_volume_usage == NULL)
 			return (ENOMEM);
-		memset (cfg_volume_usage, 0, sizeof (*cfg_volume_usage));
 
 		/* Set default flags */
 		cfg_volume_usage->query = NULL;
@@ -2743,10 +2735,9 @@ static int cna_config_snapvault (host_config_t *host, /* {{{ */
 
 	if (host->cfg_snapvault == NULL)
 	{
-		cfg_snapvault = malloc (sizeof (*cfg_snapvault));
+		cfg_snapvault = calloc (1, sizeof (*cfg_snapvault));
 		if (cfg_snapvault == NULL)
 			return ENOMEM;
-		memset (cfg_snapvault, 0, sizeof (*cfg_snapvault));
 		cfg_snapvault->query = NULL;
 
 		host->cfg_snapvault = cfg_snapvault;
@@ -2773,16 +2764,15 @@ static int cna_config_system (host_config_t *host, /* {{{ */
 {
 	cfg_system_t *cfg_system;
 	int i;
-	
+
 	if ((host == NULL) || (ci == NULL))
 		return (EINVAL);
 
 	if (host->cfg_system == NULL)
 	{
-		cfg_system = malloc (sizeof (*cfg_system));
+		cfg_system = calloc (1, sizeof (*cfg_system));
 		if (cfg_system == NULL)
 			return (ENOMEM);
-		memset (cfg_system, 0, sizeof (*cfg_system));
 
 		/* Set default flags */
 		cfg_system->flags = CFG_SYSTEM_ALL;
@@ -2827,10 +2817,9 @@ static host_config_t *cna_alloc_host (void) /* {{{ */
 {
 	host_config_t *host;
 
-	host = malloc (sizeof (*host));
-	if (! host)
+	host = calloc (1, sizeof (*host));
+	if (host == NULL)
 		return (NULL);
-	memset (host, 0, sizeof (*host));
 
 	host->name = NULL;
 	host->protocol = NA_SERVER_TRANSPORT_HTTPS;
