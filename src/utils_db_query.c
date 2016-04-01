@@ -550,13 +550,12 @@ static int udb_result_create (const char *query_name, /* {{{ */
         ci->values_num, (ci->values_num == 1) ? "" : "s");
   }
 
-  r = malloc (sizeof (*r));
+  r = calloc (1, sizeof (*r));
   if (r == NULL)
   {
-    ERROR ("db query utils: malloc failed.");
+    ERROR ("db query utils: calloc failed.");
     return (-1);
   }
-  memset (r, 0, sizeof (*r));
   r->type = NULL;
   r->instance_prefix = NULL;
   r->instances = NULL;
@@ -678,13 +677,12 @@ int udb_query_create (udb_query_t ***ret_query_list, /* {{{ */
     return (-1);
   }
 
-  q = malloc (sizeof (*q));
+  q = calloc (1, sizeof (*q));
   if (q == NULL)
   {
-    ERROR ("db query utils: malloc failed.");
+    ERROR ("db query utils: calloc failed.");
     return (-1);
   }
-  memset (q, 0, sizeof (*q));
   q->min_version = 0;
   q->max_version = UINT_MAX;
 
@@ -1072,17 +1070,16 @@ udb_query_allocate_preparation_area (udb_query_t *q) /* {{{ */
   udb_result_preparation_area_t **next_r_area;
   udb_result_t *r;
 
-  q_area = malloc (sizeof (*q_area));
+  q_area = calloc (1, sizeof (*q_area));
   if (q_area == NULL)
     return NULL;
-  memset (q_area, 0, sizeof (*q_area));
 
   next_r_area = &q_area->result_prep_areas;
   for (r = q->results; r != NULL; r = r->next)
   {
     udb_result_preparation_area_t *r_area;
 
-    r_area = malloc (sizeof (*r_area));
+    r_area = calloc (1, sizeof (*r_area));
     if (r_area == NULL)
     {
       udb_result_preparation_area_t *a = q_area->result_prep_areas;
@@ -1097,8 +1094,6 @@ udb_query_allocate_preparation_area (udb_query_t *q) /* {{{ */
       free (q_area);
       return NULL;
     }
-
-    memset (r_area, 0, sizeof (*r_area));
 
     *next_r_area = r_area;
     next_r_area  = &r_area->next;
