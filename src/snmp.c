@@ -384,10 +384,9 @@ static int csnmp_config_add_data (oconfig_item_t *ci)
   int status = 0;
   int i;
 
-  dd = malloc (sizeof (*dd));
+  dd = calloc (1, sizeof (*dd));
   if (dd == NULL)
     return (-1);
-  memset (dd, '\0', sizeof (data_definition_t));
 
   status = cf_util_get_string(ci, &dd->name);
   if (status != 0)
@@ -646,10 +645,9 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
   char cb_name[DATA_MAX_NAME_LEN];
   user_data_t cb_data;
 
-  hd = malloc (sizeof (*hd));
+  hd = calloc (1, sizeof (*hd));
   if (hd == NULL)
     return (-1);
-  memset (hd, '\0', sizeof (host_definition_t));
   hd->version = 2;
   C_COMPLAIN_INIT (&hd->complaint);
 
@@ -1162,13 +1160,12 @@ static int csnmp_instance_list_add (csnmp_list_instances_t **head,
 
   csnmp_oid_init (&vb_name, vb->name, vb->name_length);
 
-  il = malloc (sizeof (*il));
+  il = calloc (1, sizeof (*il));
   if (il == NULL)
   {
-    ERROR ("snmp plugin: malloc failed.");
+    ERROR ("snmp plugin: calloc failed.");
     return (-1);
   }
-  memset (il, 0, sizeof (*il));
   il->next = NULL;
 
   status = csnmp_oid_suffix (&il->suffix, &vb_name, &dd->instance.oid);
@@ -1607,14 +1604,13 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
           continue;
         }
 
-        vt = malloc (sizeof (*vt));
+        vt = calloc (1, sizeof (*vt));
         if (vt == NULL)
         {
-          ERROR ("snmp plugin: malloc failed.");
+          ERROR ("snmp plugin: calloc failed.");
           status = -1;
           break;
         }
-        memset (vt, 0, sizeof (*vt));
 
         vt->value = csnmp_value_list_to_value (vb, ds->ds[i].type,
             data->scale, data->shift, host->name, data->name);
