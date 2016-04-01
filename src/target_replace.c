@@ -102,13 +102,12 @@ static int tr_config_add_action (tr_action_t **dest, /* {{{ */
     return (-1);
   }
 
-  act = malloc (sizeof (*act));
+  act = calloc (1, sizeof (*act));
   if (act == NULL)
   {
-    ERROR ("tr_config_add_action: malloc failed.");
+    ERROR ("tr_config_add_action: calloc failed.");
     return (-ENOMEM);
   }
-  memset (act, 0, sizeof (*act));
 
   act->replacement = NULL;
   act->may_be_empty = may_be_empty;
@@ -244,13 +243,12 @@ static int tr_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   int status;
   int i;
 
-  data = malloc (sizeof (*data));
+  data = calloc (1, sizeof (*data));
   if (data == NULL)
   {
-    ERROR ("tr_create: malloc failed.");
+    ERROR ("tr_create: calloc failed.");
     return (-ENOMEM);
   }
-  memset (data, 0, sizeof (*data));
 
   data->host = NULL;
   data->plugin = NULL;

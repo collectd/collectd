@@ -87,13 +87,12 @@ static int ts_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   int status;
   int i;
 
-  data = malloc (sizeof (*data));
+  data = calloc (1, sizeof (*data));
   if (data == NULL)
   {
-    ERROR ("ts_create: malloc failed.");
+    ERROR ("ts_create: calloc failed.");
     return (-ENOMEM);
   }
-  memset (data, 0, sizeof (*data));
 
   data->host = NULL;
   data->plugin = NULL;
