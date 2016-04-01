@@ -80,13 +80,12 @@ static int nut_add_ups (const char *name)
 
   DEBUG ("nut plugin: nut_add_ups (name = %s);", name);
 
-  ups = malloc (sizeof (*ups));
+  ups = calloc (1, sizeof (*ups));
   if (ups == NULL)
   {
-    ERROR ("nut plugin: nut_add_ups: malloc failed.");
+    ERROR ("nut plugin: nut_add_ups: calloc failed.");
     return (1);
   }
-  memset (ups, '\0', sizeof (nut_ups_t));
 
   status = upscli_splitname (name, &ups->upsname, &ups->hostname,
       &ups->port);
