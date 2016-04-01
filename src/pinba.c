@@ -381,14 +381,13 @@ static pinba_socket_t *pinba_socket_open (const char *node, /* {{{ */
   }
   assert (ai_list != NULL);
 
-  s = malloc (sizeof (*s));
+  s = calloc (1, sizeof (*s));
   if (s == NULL)
   {
     freeaddrinfo (ai_list);
-    ERROR ("pinba plugin: malloc failed.");
+    ERROR ("pinba plugin: calloc failed.");
     return (NULL);
   }
-  memset (s, 0, sizeof (*s));
 
   for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
   {
