@@ -584,10 +584,9 @@ int lcc_connect (const char *address, lcc_connection_t **ret_con) /* {{{ */
   if (ret_con == NULL)
     return (-1);
 
-  c = malloc (sizeof (*c));
+  c = calloc (1, sizeof (*c));
   if (c == NULL)
     return (-1);
-  memset (c, 0, sizeof (*c));
 
   status = lcc_open_socket (c, address);
   if (status != 0)
