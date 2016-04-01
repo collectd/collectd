@@ -549,13 +549,12 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
         int status = 0;
         int i;
 
-        cb = malloc (sizeof (*cb));
+        cb = calloc (1, sizeof (*cb));
         if (cb == NULL)
         {
-                ERROR ("write_http plugin: malloc failed.");
+                ERROR ("write_http plugin: calloc failed.");
                 return (-1);
         }
-        memset (cb, 0, sizeof (*cb));
         cb->verify_peer = 1;
         cb->verify_host = 1;
         cb->format = WH_FORMAT_COMMAND;
