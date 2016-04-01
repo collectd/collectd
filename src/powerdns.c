@@ -840,13 +840,12 @@ static int powerdns_config_add_server (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  item = malloc (sizeof (*item));
+  item = calloc (1, sizeof (*item));
   if (item == NULL)
   {
-    ERROR ("powerdns plugin: malloc failed.");
+    ERROR ("powerdns plugin: calloc failed.");
     return (-1);
   }
-  memset (item, '\0', sizeof (list_item_t));
 
   item->instance = strdup (ci->values[0].value.string);
   if (item->instance == NULL)
