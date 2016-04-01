@@ -938,10 +938,9 @@ static int mb_config_add_host (oconfig_item_t *ci) /* {{{ */
   int status;
   int i;
 
-  host = malloc (sizeof (*host));
+  host = calloc (1, sizeof (*host));
   if (host == NULL)
     return (ENOMEM);
-  memset (host, 0, sizeof (*host));
   host->slaves = NULL;
 
   status = cf_util_get_string_buffer (ci, host->host, sizeof (host->host));
