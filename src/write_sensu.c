@@ -177,7 +177,7 @@ static void sensu_close_socket(struct sensu_host *host) /* {{{ */
 static char *build_json_str_list(const char *tag, struct str_list const *list) /* {{{ */
 {
 	int res;
-	char *ret_str;
+	char *ret_str = NULL;
 	char *temp_str;
 	int i;
 	if (list->nb_strs == 0) {
