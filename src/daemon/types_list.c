@@ -112,11 +112,9 @@ static void parse_line (char *buf)
   if (fields[0][0] == '#')
     return;
 
-  ds = (data_set_t *) malloc (sizeof (data_set_t));
+  ds = calloc (1, sizeof (*ds));
   if (ds == NULL)
     return;
-
-  memset (ds, '\0', sizeof (data_set_t));
 
   sstrncpy (ds->type, fields[0], sizeof (ds->type));
 

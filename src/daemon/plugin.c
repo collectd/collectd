@@ -368,13 +368,12 @@ static int create_register_callback (llist_t **list, /* {{{ */
 {
 	callback_func_t *cf;
 
-	cf = (callback_func_t *) malloc (sizeof (*cf));
+	cf = calloc (1, sizeof (*cf));
 	if (cf == NULL)
 	{
-		ERROR ("plugin: create_register_callback: malloc failed.");
+		ERROR ("plugin: create_register_callback: calloc failed.");
 		return (-1);
 	}
-	memset (cf, 0, sizeof (*cf));
 
 	cf->cf_callback = callback;
 	if (ud == NULL)
@@ -1244,14 +1243,13 @@ int plugin_register_read (const char *name,
 	read_func_t *rf;
 	int status;
 
-	rf = malloc (sizeof (*rf));
+	rf = calloc (1, sizeof (*rf));
 	if (rf == NULL)
 	{
-		ERROR ("plugin_register_read: malloc failed.");
+		ERROR ("plugin_register_read: calloc failed.");
 		return (ENOMEM);
 	}
 
-	memset (rf, 0, sizeof (read_func_t));
 	rf->rf_callback = (void *) callback;
 	rf->rf_udata.data = NULL;
 	rf->rf_udata.free_func = NULL;
@@ -1278,14 +1276,13 @@ int plugin_register_complex_read (const char *group, const char *name,
 	read_func_t *rf;
 	int status;
 
-	rf = malloc (sizeof (*rf));
+	rf = calloc (1,sizeof (*rf));
 	if (rf == NULL)
 	{
-		ERROR ("plugin_register_complex_read: malloc failed.");
+		ERROR ("plugin_register_complex_read: calloc failed.");
 		return (ENOMEM);
 	}
 
-	memset (rf, 0, sizeof (read_func_t));
 	rf->rf_callback = (void *) callback;
 	if (group != NULL)
 		sstrncpy (rf->rf_group, group, sizeof (rf->rf_group));
@@ -1351,7 +1348,7 @@ static char *plugin_flush_callback_name (const char *name)
 	prefix_size = strlen(flush_prefix);
 	name_size = strlen(name);
 
-	flush_name = malloc (sizeof(char) * (name_size + prefix_size + 1));
+	flush_name = malloc (name_size + prefix_size + 1);
 	if (flush_name == NULL)
 	{
 		ERROR ("plugin_flush_callback_name: malloc failed.");
@@ -1384,7 +1381,7 @@ int plugin_register_flush (const char *name,
 		if (flush_name == NULL)
 			return (-1);
 
-		cb = malloc(sizeof(flush_callback_t));
+		cb = malloc(sizeof (*cb));
 		if (cb == NULL)
 		{
 			ERROR ("plugin_register_flush: malloc failed.");
@@ -1477,12 +1474,12 @@ int plugin_register_data_set (const data_set_t *ds)
 			return (-1);
 	}
 
-	ds_copy = (data_set_t *) malloc (sizeof (data_set_t));
+	ds_copy = malloc (sizeof (*ds_copy));
 	if (ds_copy == NULL)
 		return (-1);
 	memcpy(ds_copy, ds, sizeof (data_set_t));
 
-	ds_copy->ds = (data_source_t *) malloc (sizeof (data_source_t)
+	ds_copy->ds = malloc (sizeof (*ds_copy->ds)
 			* ds->ds_num);
 	if (ds_copy->ds == NULL)
 	{
@@ -2578,13 +2575,12 @@ static int plugin_notification_meta_add (notification_t *n,
     return (-1);
   }
 
-  meta = (notification_meta_t *) malloc (sizeof (notification_meta_t));
+  meta = calloc (1, sizeof (*meta));
   if (meta == NULL)
   {
-    ERROR ("plugin_notification_meta_add: malloc failed.");
+    ERROR ("plugin_notification_meta_add: calloc failed.");
     return (-1);
   }
-  memset (meta, 0, sizeof (notification_meta_t));
 
   sstrncpy (meta->name, name, sizeof (meta->name));
   meta->type = type;

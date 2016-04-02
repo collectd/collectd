@@ -699,7 +699,7 @@ static int openvpn_config (const char *key, const char *value)
 		}
 
 		/* create a new vpn element since file, version and name are ok */
-		temp = (vpn_status_t *) malloc (sizeof (vpn_status_t));
+		temp = malloc (sizeof (*temp));
 		if (temp == NULL)
 		{
 			char errbuf[1024];

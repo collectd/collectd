@@ -270,13 +270,12 @@ static int cc_config_add_match (web_page_t *page, /* {{{ */
     WARNING ("curl plugin: Ignoring arguments for the `Match' block.");
   }
 
-  match = (web_match_t *) malloc (sizeof (*match));
+  match = calloc (1, sizeof (*match));
   if (match == NULL)
   {
-    ERROR ("curl plugin: malloc failed.");
+    ERROR ("curl plugin: calloc failed.");
     return (-1);
   }
-  memset (match, 0, sizeof (*match));
 
   status = 0;
   for (i = 0; i < ci->children_num; i++)
@@ -388,7 +387,7 @@ static int cc_page_init_curl (web_page_t *wp) /* {{{ */
     if (wp->pass != NULL)
       credentials_size += strlen (wp->pass);
 
-    wp->credentials = (char *) malloc (credentials_size);
+    wp->credentials = malloc (credentials_size);
     if (wp->credentials == NULL)
     {
       ERROR ("curl plugin: malloc failed.");
@@ -436,13 +435,12 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  page = (web_page_t *) malloc (sizeof (*page));
+  page = calloc (1, sizeof (*page));
   if (page == NULL)
   {
-    ERROR ("curl plugin: malloc failed.");
+    ERROR ("curl plugin: calloc failed.");
     return (-1);
   }
-  memset (page, 0, sizeof (*page));
   page->url = NULL;
   page->user = NULL;
   page->pass = NULL;

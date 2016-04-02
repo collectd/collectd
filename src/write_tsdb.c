@@ -579,13 +579,12 @@ static int wt_config_tsd(oconfig_item_t *ci)
     char callback_name[DATA_MAX_NAME_LEN];
     int i;
 
-    cb = malloc(sizeof(*cb));
+    cb = calloc(1, sizeof(*cb));
     if (cb == NULL)
     {
-        ERROR("write_tsdb plugin: malloc failed.");
+        ERROR("write_tsdb plugin: calloc failed.");
         return -1;
     }
-    memset(cb, 0, sizeof(*cb));
     cb->sock_fd = -1;
     cb->node = NULL;
     cb->service = NULL;

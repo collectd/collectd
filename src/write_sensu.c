@@ -524,11 +524,10 @@ static char *replace_str(const char *str, const char *old, /* {{{ */
 	} else
 		retlen = strlen(str);
 
-	ret = malloc(retlen + 1);
+	ret = calloc(1, retlen + 1);
 	if (ret == NULL)
 		return NULL;
 	// added to original: not optimized, but keeps valgrind happy.
-	memset(ret, 0, retlen + 1);
 
 	r = ret;
 	p = str;

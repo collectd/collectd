@@ -485,7 +485,7 @@ c_avl_tree_t *c_avl_create (int (*compare) (const void *, const void *))
 	if (compare == NULL)
 		return (NULL);
 
-	if ((t = (c_avl_tree_t *) malloc (sizeof (c_avl_tree_t))) == NULL)
+	if ((t = malloc (sizeof (*t))) == NULL)
 		return (NULL);
 
 	t->root = NULL;
@@ -509,7 +509,7 @@ int c_avl_insert (c_avl_tree_t *t, void *key, void *value)
 	c_avl_node_t *nptr;
 	int cmp;
 
-	if ((new = (c_avl_node_t *) malloc (sizeof (c_avl_node_t))) == NULL)
+	if ((new = malloc (sizeof (*new))) == NULL)
 		return (-1);
 
 	new->key = key;
@@ -665,10 +665,9 @@ c_avl_iterator_t *c_avl_get_iterator (c_avl_tree_t *t)
 	if (t == NULL)
 		return (NULL);
 
-	iter = (c_avl_iterator_t *) malloc (sizeof (c_avl_iterator_t));
+	iter = calloc (1, sizeof (*iter));
 	if (iter == NULL)
 		return (NULL);
-	memset (iter, '\0', sizeof (c_avl_iterator_t));
 	iter->tree = t;
 
 	return (iter);

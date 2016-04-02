@@ -378,13 +378,12 @@ static int sensors_load_conf (void)
 				continue;
 			}
 
-			fl = (featurelist_t *) malloc (sizeof (featurelist_t));
+			fl = calloc (1, sizeof (*fl));
 			if (fl == NULL)
 			{
-				ERROR ("sensors plugin: malloc failed.");
+				ERROR ("sensors plugin: calloc failed.");
 				continue;
 			}
-			memset (fl, '\0', sizeof (featurelist_t));
 
 			fl->chip = chip;
 			fl->data = feature;
@@ -435,13 +434,12 @@ static int sensors_load_conf (void)
 						&& (subfeature->type != SENSORS_SUBFEATURE_POWER_INPUT))
 					continue;
 
-				fl = (featurelist_t *) malloc (sizeof (featurelist_t));
+				fl = calloc (1, sizeof (*fl));
 				if (fl == NULL)
 				{
-					ERROR ("sensors plugin: malloc failed.");
+					ERROR ("sensors plugin: calloc failed.");
 					continue;
 				}
-				memset (fl, '\0', sizeof (featurelist_t));
 
 				fl->chip = chip;
 				fl->feature = feature;

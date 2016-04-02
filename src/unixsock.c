@@ -368,7 +368,7 @@ static void *us_server_thread (void __attribute__((unused)) *arg)
 			pthread_exit ((void *) 1);
 		}
 
-		remote_fd = (int *) malloc (sizeof (int));
+		remote_fd = malloc (sizeof (*remote_fd));
 		if (remote_fd == NULL)
 		{
 			char errbuf[1024];

@@ -454,10 +454,9 @@ static staging_entry_t *staging_entry_get (const char *host, /* {{{ */
     return (se);
 
   /* insert new entry */
-  se = (staging_entry_t *) malloc (sizeof (*se));
+  se = calloc (1, sizeof (*se));
   if (se == NULL)
     return (NULL);
-  memset (se, 0, sizeof (*se));
 
   sstrncpy (se->key, key, sizeof (se->key));
   se->flags = 0;

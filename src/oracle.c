@@ -198,13 +198,12 @@ static int o_config_add_database (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  db = (o_database_t *) malloc (sizeof (*db));
+  db = calloc (1, sizeof (*db));
   if (db == NULL)
   {
-    ERROR ("oracle plugin: malloc failed.");
+    ERROR ("oracle plugin: calloc failed.");
     return (-1);
   }
-  memset (db, 0, sizeof (*db));
   db->name = NULL;
   db->host = NULL;
   db->connect_id = NULL;
@@ -273,7 +272,7 @@ static int o_config_add_database (oconfig_item_t *ci) /* {{{ */
 
     if (db->q_prep_areas == NULL)
     {
-      WARNING ("oracle plugin: malloc failed");
+      WARNING ("oracle plugin: calloc failed");
       status = -1;
       break;
     }
@@ -502,13 +501,12 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
 #define ALLOC_OR_FAIL(ptr, ptr_size) \
   do { \
     size_t alloc_size = (size_t) ((ptr_size)); \
-    (ptr) = malloc (alloc_size); \
+    (ptr) = calloc (1, alloc_size); \
     if ((ptr) == NULL) { \
       FREE_ALL; \
-      ERROR ("oracle plugin: o_read_database_query: malloc failed."); \
+      ERROR ("oracle plugin: o_read_database_query: calloc failed."); \
       return (-1); \
     } \
-    memset ((ptr), 0, alloc_size); \
   } while (0)
 
   /* Initialize everything to NULL so the above works. */

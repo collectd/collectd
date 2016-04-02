@@ -218,7 +218,7 @@ static c_psql_database_t *c_psql_database_new (const char *name)
 	c_psql_database_t **tmp;
 	c_psql_database_t  *db;
 
-	db = (c_psql_database_t *)malloc (sizeof(*db));
+	db = malloc (sizeof(*db));
 	if (NULL == db) {
 		log_err ("Out of memory.");
 		return NULL;
@@ -1042,12 +1042,11 @@ static int config_query_param_add (udb_query_t *q, oconfig_item_t *ci)
 
 	data = udb_query_get_user_data (q);
 	if (NULL == data) {
-		data = malloc (sizeof (*data));
+		data = calloc (1, sizeof (*data));
 		if (NULL == data) {
 			log_err ("Out of memory.");
 			return -1;
 		}
-		memset (data, 0, sizeof (*data));
 		data->params = NULL;
 		data->params_num = 0;
 

@@ -467,10 +467,8 @@ static cu_mount_t *cu_mount_getfsstat (void)
 		return (NULL);
 	}
 
-	if ((buf = (STRUCT_STATFS *) malloc (bufsize * sizeof (STRUCT_STATFS)))
-			== NULL)
+	if ((buf = calloc (bufsize, sizeof (*buf))) == NULL)
 		return (NULL);
-	memset (buf, '\0', bufsize * sizeof (STRUCT_STATFS));
 
 	/* The bufsize needs to be passed in bytes. Really. This is not in the
 	 * manpage.. -octo */
@@ -487,10 +485,9 @@ static cu_mount_t *cu_mount_getfsstat (void)
 
 	for (i = 0; i < num; i++)
 	{
-		if ((new = malloc (sizeof (cu_mount_t))) == NULL)
+		if ((new = calloc (1, sizeof (*new))) == NULL)
 			break;
-		memset (new, '\0', sizeof (cu_mount_t));
-		
+
 		/* Copy values from `struct mnttab' */
 		new->dir         = sstrdup (buf[i].f_mntonname);
 		new->spec_device = sstrdup (buf[i].f_mntfromname);
@@ -541,10 +538,9 @@ static cu_mount_t *cu_mount_gen_getmntent (void)
 
 	while (getmntent (fp, &mt) == 0)
 	{
-		if ((new = malloc (sizeof (cu_mount_t))) == NULL)
+		if ((new = calloc (1, sizeof (*new))) == NULL)
 			break;
-		memset (new, '\0', sizeof (cu_mount_t));
-		
+
 		/* Copy values from `struct mnttab' */
 		new->dir         = sstrdup (mt.mnt_mountp);
 		new->spec_device = sstrdup (mt.mnt_special);
@@ -599,9 +595,8 @@ static cu_mount_t *cu_mount_getmntent (void)
 
 	while (getmntent_r (fp, &me, mntbuf, sizeof (mntbuf) ))
 	{
-		if ((new = malloc (sizeof (cu_mount_t))) == NULL)
+		if ((new = calloc (1, sizeof (*new))) == NULL)
 			break;
-		memset (new, '\0', sizeof (cu_mount_t));
 
 		/* Copy values from `struct mntent *' */
 		new->dir         = sstrdup (me.mnt_dir);
@@ -656,10 +651,9 @@ static cu_mount_t *cu_mount_getmntent (void)
 
 	while ((me = getmntent (fp)) != NULL)
 	{
-		if ((new = malloc (sizeof (cu_mount_t))) == NULL)
+		if ((new = calloc (1, sizeof (*new))) == NULL)
 			break;
-		memset (new, '\0', sizeof (cu_mount_t));
-		
+
 		/* Copy values from `struct mntent *' */
 		new->dir         = sstrdup (me->mnt_dir);
 		new->spec_device = sstrdup (me->mnt_fsname);
@@ -820,7 +814,7 @@ cu_mount_getoptionvalue(char *line, const char *keyword)
 			if((p-r) == 1) {
 				return NULL;
 			}
-			m = (char *)smalloc(p-r+1);
+			m = smalloc(p-r+1);
 			sstrncpy(m, r, p-r+1);
 			return m;
 		}

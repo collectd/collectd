@@ -559,7 +559,7 @@ static int mqtt_config_publisher (oconfig_item_t *ci)
     conf = calloc (1, sizeof (*conf));
     if (conf == NULL)
     {
-        ERROR ("mqtt plugin: malloc failed.");
+        ERROR ("mqtt plugin: calloc failed.");
         return (-1);
     }
     conf->publish = 1;
@@ -664,7 +664,7 @@ static int mqtt_config_subscriber (oconfig_item_t *ci)
     conf = calloc (1, sizeof (*conf));
     if (conf == NULL)
     {
-        ERROR ("mqtt plugin: malloc failed.");
+        ERROR ("mqtt plugin: calloc failed.");
         return (-1);
     }
     conf->publish = 0;

@@ -686,7 +686,7 @@ static int cx_config_add_values (const char *name, cx_xpath_t *xpath, /* {{{ */
   sfree (xpath->values);
 
   xpath->values_len = 0;
-  xpath->values = (cx_values_t *) malloc (sizeof (cx_values_t) * ci->values_num);
+  xpath->values = malloc (sizeof (cx_values_t) * ci->values_num);
   if (xpath->values == NULL)
     return (-1);
   xpath->values_len = (size_t) ci->values_num;
@@ -709,13 +709,12 @@ static int cx_config_add_xpath (cx_t *db, oconfig_item_t *ci) /* {{{ */
   int status;
   int i;
 
-  xpath = malloc (sizeof (*xpath));
+  xpath = calloc (1, sizeof (*xpath));
   if (xpath == NULL)
   {
-    ERROR ("curl_xml plugin: malloc failed.");
+    ERROR ("curl_xml plugin: calloc failed.");
     return (-1);
   }
-  memset (xpath, 0, sizeof (*xpath));
 
   status = cf_util_get_string (ci, &xpath->path);
   if (status != 0)
@@ -873,7 +872,7 @@ static int cx_init_curl (cx_t *db) /* {{{ */
     if (db->pass != NULL)
       credentials_size += strlen (db->pass);
 
-    db->credentials = (char *) malloc (credentials_size);
+    db->credentials = malloc (credentials_size);
     if (db->credentials == NULL)
     {
       ERROR ("curl_xml plugin: malloc failed.");
@@ -923,13 +922,12 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  db = (cx_t *) malloc (sizeof (*db));
+  db = calloc (1, sizeof (*db));
   if (db == NULL)
   {
-    ERROR ("curl_xml plugin: malloc failed.");
+    ERROR ("curl_xml plugin: calloc failed.");
     return (-1);
   }
-  memset (db, 0, sizeof (*db));
 
   db->timeout = -1;
 

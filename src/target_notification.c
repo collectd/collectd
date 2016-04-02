@@ -126,13 +126,12 @@ static int tn_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   int status;
   int i;
 
-  data = (tn_data_t *) malloc (sizeof (*data));
+  data = calloc (1, sizeof (*data));
   if (data == NULL)
   {
-    ERROR ("tn_create: malloc failed.");
+    ERROR ("tn_create: calloc failed.");
     return (-ENOMEM);
   }
-  memset (data, 0, sizeof (*data));
 
   data->message = NULL;
   data->severity = 0;

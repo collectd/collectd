@@ -175,13 +175,12 @@ static int config_add (oconfig_item_t *ci)
 	int i;
 	int status;
 
-	st = malloc (sizeof (*st));
+	st = calloc (1, sizeof (*st));
 	if (st == NULL)
 	{
-		ERROR ("apache plugin: malloc failed.");
+		ERROR ("apache plugin: calloc failed.");
 		return (-1);
 	}
-	memset (st, 0, sizeof (*st));
 
 	st->timeout = -1;
 

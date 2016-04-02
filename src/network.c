@@ -618,14 +618,14 @@ static int write_part_values (char **ret_buffer, int *ret_buffer_len,
 	if (*ret_buffer_len < packet_len)
 		return (-1);
 
-	pkg_values_types = (uint8_t *) malloc (num_values * sizeof (uint8_t));
+	pkg_values_types = malloc (num_values * sizeof (*pkg_values_types));
 	if (pkg_values_types == NULL)
 	{
 		ERROR ("network plugin: write_part_values: malloc failed.");
 		return (-1);
 	}
 
-	pkg_values = (value_t *) malloc (num_values * sizeof (value_t));
+	pkg_values = malloc (num_values * sizeof (*pkg_values));
 	if (pkg_values == NULL)
 	{
 		free (pkg_values_types);
@@ -2012,10 +2012,9 @@ static sockent_t *sockent_create (int type) /* {{{ */
 	if ((type != SOCKENT_TYPE_CLIENT) && (type != SOCKENT_TYPE_SERVER))
 		return (NULL);
 
-	se = malloc (sizeof (*se));
+	se = calloc (1, sizeof (*se));
 	if (se == NULL)
 		return (NULL);
-	memset (se, 0, sizeof (*se));
 
 	se->type = type;
 	se->node = NULL;
@@ -2196,16 +2195,15 @@ static int sockent_client_connect (sockent_t *se) /* {{{ */
 			continue;
 		}
 
-		client->addr = malloc (sizeof (*client->addr));
+		client->addr = calloc (1, sizeof (*client->addr));
 		if (client->addr == NULL)
 		{
-			ERROR ("network plugin: malloc failed.");
+			ERROR ("network plugin: calloc failed.");
 			close (client->fd);
 			client->fd = -1;
 			continue;
 		}
 
-		memset (client->addr, 0, sizeof (*client->addr));
 		assert (sizeof (*client->addr) >= ai_ptr->ai_addrlen);
 		memcpy (client->addr, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
 		client->addrlen = ai_ptr->ai_addrlen;
@@ -2495,15 +2493,15 @@ static int network_receive (void) /* {{{ */
 			 * these entries in the dispatch thread but put them in
 			 * another list, so we don't have to allocate more and
 			 * more of these structures. */
-			ent = malloc (sizeof (receive_list_entry_t));
+			ent = calloc (1, sizeof (*ent));
 			if (ent == NULL)
 			{
-				ERROR ("network plugin: malloc failed.");
+				ERROR ("network plugin: calloc failed.");
 				status = ENOMEM;
 				break;
 			}
-			memset (ent, 0, sizeof (receive_list_entry_t));
-			ent->data = malloc (network_config_packet_size);
+
+			ent->data = malloc (*ent->data);
 			if (ent->data == NULL)
 			{
 				sfree (ent);

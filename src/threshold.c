@@ -70,7 +70,7 @@ static int ut_threshold_add (const threshold_t *th)
     return (-1);
   }
 
-  th_copy = (threshold_t *) malloc (sizeof (threshold_t));
+  th_copy = malloc (sizeof (*th_copy));
   if (th_copy == NULL)
   {
     sfree (name_copy);

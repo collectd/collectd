@@ -176,11 +176,11 @@ static int direct_list_insert(const char * config)
 {
     regmatch_t               pmatch[3];
     size_t                   nmatch = 3;
-    direct_access_element_t *element = NULL;
+    direct_access_element_t *element;
 
     DEBUG ("onewire plugin: direct_list_insert <%s>", config);
 
-    element = (direct_access_element_t *) malloc (sizeof(*element));
+    element = malloc (sizeof (*element));
     if (element == NULL)
     {
         ERROR ("onewire plugin: direct_list_insert - cannot allocate element");

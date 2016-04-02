@@ -925,15 +925,14 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
     int status;
     int i;
 
-    conf = malloc (sizeof (*conf));
+    conf = calloc (1, sizeof (*conf));
     if (conf == NULL)
     {
-        ERROR ("amqp plugin: malloc failed.");
+        ERROR ("amqp plugin: calloc failed.");
         return (ENOMEM);
     }
 
     /* Initialize "conf" {{{ */
-    memset (conf, 0, sizeof (*conf));
     conf->publish = publish;
     conf->name = NULL;
     conf->format = CAMQP_FORMAT_COMMAND;

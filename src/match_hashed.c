@@ -101,13 +101,12 @@ static int mh_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   mh_match_t *m;
   int i;
 
-  m = (mh_match_t *) malloc (sizeof (*m));
+  m = calloc (1, sizeof (*m));
   if (m == NULL)
   {
-    ERROR ("mh_create: malloc failed.");
+    ERROR ("mh_create: calloc failed.");
     return (-ENOMEM);
   }
-  memset (m, 0, sizeof (*m));
 
   for (i = 0; i < ci->children_num; i++)
   {

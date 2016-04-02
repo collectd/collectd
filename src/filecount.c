@@ -344,13 +344,12 @@ static int fc_config_add_dir (oconfig_item_t *ci)
   }
 
   /* Initialize `dir' */
-  dir = (fc_directory_conf_t *) malloc (sizeof (*dir));
+  dir = calloc (1, sizeof (*dir));
   if (dir == NULL)
   {
-    ERROR ("filecount plugin: malloc failed.");
+    ERROR ("filecount plugin: calloc failed.");
     return (-1);
   }
-  memset (dir, 0, sizeof (*dir));
 
   dir->path = strdup (ci->values[0].value.string);
   if (dir->path == NULL)
