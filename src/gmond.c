@@ -323,14 +323,27 @@ static int create_sockets (socket_entry_t **ret_sockets, /* {{{ */
       }
 
       loop = 1;
-      setsockopt (sockets[sockets_num].fd, IPPROTO_IP, IP_MULTICAST_LOOP,
+      status = setsockopt (sockets[sockets_num].fd, IPPROTO_IP, IP_MULTICAST_LOOP,
           (void *) &loop, sizeof (loop));
+      if (status != 0)
+      {
+        char errbuf[1024];
+        WARNING ("gmond plugin: setsockopt(2) failed: %s",
+                 sstrerror (errno, errbuf, sizeof (errbuf)));
+      }
 
       memset (&mreq, 0, sizeof (mreq));
       mreq.imr_multiaddr.s_addr = addr->sin_addr.s_addr;
       mreq.imr_interface.s_addr = htonl (INADDR_ANY);
-      setsockopt (sockets[sockets_num].fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
+
+      status = setsockopt (sockets[sockets_num].fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
           (void *) &mreq, sizeof (mreq));
+      if (status != 0)
+      {
+        char errbuf[1024];
+        WARNING ("gmond plugin: setsockopt(2) failed: %s",
+                 sstrerror (errno, errbuf, sizeof (errbuf)));
+      }
     } /* if (ai_ptr->ai_family == AF_INET) */
     else if (ai_ptr->ai_family == AF_INET6)
     {
@@ -347,15 +360,27 @@ static int create_sockets (socket_entry_t **ret_sockets, /* {{{ */
       }
 
       loop = 1;
-      setsockopt (sockets[sockets_num].fd, IPPROTO_IPV6, IPV6_MULTICAST_LOOP,
+      status = setsockopt (sockets[sockets_num].fd, IPPROTO_IPV6, IPV6_MULTICAST_LOOP,
           (void *) &loop, sizeof (loop));
+      if (status != 0)
+      {
+        char errbuf[1024];
+        WARNING ("gmond plugin: setsockopt(2) failed: %s",
+                 sstrerror (errno, errbuf, sizeof (errbuf)));
+      }
 
       memset (&mreq, 0, sizeof (mreq));
       memcpy (&mreq.ipv6mr_multiaddr,
           &addr->sin6_addr, sizeof (addr->sin6_addr));
       mreq.ipv6mr_interface = 0; /* any */
-      setsockopt (sockets[sockets_num].fd, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP,
+      status = setsockopt (sockets[sockets_num].fd, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP,
           (void *) &mreq, sizeof (mreq));
+      if (status != 0)
+      {
+        char errbuf[1024];
+        WARNING ("gmond plugin: setsockopt(2) failed: %s",
+                 sstrerror (errno, errbuf, sizeof (errbuf)));
+      }
     } /* if (ai_ptr->ai_family == AF_INET6) */
 
     sockets_num++;
