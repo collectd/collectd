@@ -59,7 +59,7 @@ struct mv_match_s
 static void mv_free_match (mv_match_t *m) /* {{{ */
 {
   size_t i;
-  
+
   if (m == NULL)
     return;
 
@@ -69,7 +69,7 @@ static void mv_free_match (mv_match_t *m) /* {{{ */
       free(m->data_sources[i]);
     free(m->data_sources);
   }
-  
+
   free (m);
 } /* }}} void mv_free_match */
 

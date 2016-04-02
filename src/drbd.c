@@ -28,7 +28,7 @@
  See: http://www.drbd.org/users-guide/ch-admin.html#s-performance-indicators
 
  version: 8.3.11 (api:88/proto:86-96)
- srcversion: 71955441799F513ACA6DA60 
+ srcversion: 71955441799F513ACA6DA60
   0: cs:Connected ro:Primary/Secondary ds:UpToDate/UpToDate B r-----
 	 ns:64363752 nr:0 dw:357799284 dr:846902273 al:34987022 bm:18062 lo:0 \
 						pe:0 ua:0 ap:0 ep:1 wo:f oos:0

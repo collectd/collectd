@@ -257,7 +257,7 @@ static int dispatch_value_typesdb (oconfig_item_t *ci)
 static int dispatch_value_plugindir (oconfig_item_t *ci)
 {
 	assert (strcasecmp (ci->key, "PluginDir") == 0);
-	
+
 	if (ci->values_num != 1)
 		return (-1);
 	if (ci->values[0].type != OCONFIG_TYPE_STRING)
@@ -924,7 +924,7 @@ static oconfig_item_t *cf_read_generic (const char *path,
 } /* oconfig_item_t *cf_read_generic */
 #endif /* !HAVE_WORDEXP_H */
 
-/* 
+/*
  * Public functions
  */
 int global_option_set (const char *option, const char *value)
@@ -967,7 +967,7 @@ const char *global_option_get (const char *option)
 
 	if (i >= cf_global_options_num)
 		return (NULL);
-	
+
 	return ((cf_global_options[i].value != NULL)
 			? cf_global_options[i].value
 			: cf_global_options[i].def);

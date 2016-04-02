@@ -555,7 +555,7 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q,
 		log_err ("calloc failed.");
 		BAIL_OUT (-1);
 	}
-	
+
 	for (col = 0; col < column_num; ++col) {
 		/* Pointers returned by `PQfname' are freed by `PQclear' via
 		 * `BAIL_OUT'. */
@@ -867,7 +867,7 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 #undef VALUE_OR_NULL
 
 	if( db->expire_delay > 0 && vl->time < (cdtime() - vl->interval - db->expire_delay) ) {
-		log_info ("c_psql_write: Skipped expired value @ %s - %s/%s-%s/%s-%s/%s", 
+		log_info ("c_psql_write: Skipped expired value @ %s - %s/%s-%s/%s-%s/%s",
 			params[0], params[1], params[2], params[3], params[4], params[5], params[6] );
 		return 0;
         }

@@ -248,7 +248,7 @@ static int cx_check_type (const data_set_t *ds, cx_xpath_t *xpath) /* {{{ */
   return (0);
 } /* }}} cx_check_type */
 
-static xmlXPathObjectPtr cx_evaluate_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */ 
+static xmlXPathObjectPtr cx_evaluate_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */
            xmlChar *expr)
 {
   xmlXPathObjectPtr xpath_obj;
@@ -315,7 +315,7 @@ static int cx_handle_single_value_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */
   {
     WARNING ("curl_xml plugin: "
         "relative xpath expression \"%s\" is expected to return "
-        "only text/attribute node which is not the case. Skipping...", 
+        "only text/attribute node which is not the case. Skipping...",
         xpath->values[index].path);
     xmlXPathFreeObject (values_node_obj);
     return (-1);
@@ -336,7 +336,7 @@ static int cx_handle_single_value_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */
       vl->values[index].absolute = (absolute_t) strtoull (node_value,
           /* endptr = */ NULL, /* base = */ 0);
       break;
-    case DS_TYPE_GAUGE: 
+    case DS_TYPE_GAUGE:
       vl->values[index].gauge = (gauge_t) strtod (node_value,
           /* endptr = */ NULL);
   }
@@ -472,7 +472,7 @@ static int cx_handle_instance_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */
 
 static int  cx_handle_base_xpath (char const *plugin_instance, /* {{{ */
     char const *host,
-    xmlXPathContextPtr xpath_ctx, const data_set_t *ds, 
+    xmlXPathContextPtr xpath_ctx, const data_set_t *ds,
     char *base_xpath, cx_xpath_t *xpath)
 {
   int total_nodes;
@@ -483,7 +483,7 @@ static int  cx_handle_base_xpath (char const *plugin_instance, /* {{{ */
 
   value_list_t vl = VALUE_LIST_INIT;
 
-  base_node_obj = cx_evaluate_xpath (xpath_ctx, BAD_CAST base_xpath); 
+  base_node_obj = cx_evaluate_xpath (xpath_ctx, BAD_CAST base_xpath);
   if (base_node_obj == NULL)
     return -1; /* error is logged already */
 
@@ -500,7 +500,7 @@ static int  cx_handle_base_xpath (char const *plugin_instance, /* {{{ */
   }
 
   /* If base_xpath returned multiple results, then */
-  /* Instance in the xpath block is required */ 
+  /* Instance in the xpath block is required */
   if (total_nodes > 1 && xpath->instance == NULL)
   {
     ERROR ("curl_xml plugin: "
@@ -515,7 +515,7 @@ static int  cx_handle_base_xpath (char const *plugin_instance, /* {{{ */
   sstrncpy (vl.plugin, "curl_xml", sizeof (vl.plugin));
   sstrncpy (vl.host, (host != NULL) ? host : hostname_g, sizeof (vl.host));
   if (plugin_instance != NULL)
-    sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance)); 
+    sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
 
   for (i = 0; i < total_nodes; i++)
   {
@@ -534,19 +534,19 @@ static int  cx_handle_base_xpath (char const *plugin_instance, /* {{{ */
   } /* for (i = 0; i < total_nodes; i++) */
 
   /* free up the allocated memory */
-  xmlXPathFreeObject (base_node_obj); 
+  xmlXPathFreeObject (base_node_obj);
 
-  return (0); 
+  return (0);
 } /* }}} cx_handle_base_xpath */
 
-static int cx_handle_parsed_xml(xmlDocPtr doc, /* {{{ */ 
+static int cx_handle_parsed_xml(xmlDocPtr doc, /* {{{ */
                        xmlXPathContextPtr xpath_ctx, cx_t *db)
 {
   llentry_t *le;
   const data_set_t *ds;
   cx_xpath_t *xpath;
   int status=-1;
-  
+
 
   le = llist_head (db->list);
   while (le != NULL)
@@ -620,7 +620,7 @@ static int cx_curl_perform (cx_t *db, CURL *curl) /* {{{ */
   char *url;
   url = db->url;
 
-  db->buffer_fill = 0; 
+  db->buffer_fill = 0;
   status = curl_easy_perform (curl);
   if (status != CURLE_OK)
   {

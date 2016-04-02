@@ -389,7 +389,7 @@ static signed long long dict_get_value (CFDictionaryRef dict, const char *key)
 		DEBUG ("CFStringCreateWithCString (%s) failed.", key);
 		return (-1LL);
 	}
-	
+
 	/* get => we don't need to release (== free) the object */
 	val_obj = (CFNumberRef) CFDictionaryGetValue (dict, key_obj);
 
@@ -637,7 +637,7 @@ static int disk_read (void)
 #elif KERNEL_LINUX
 	FILE *fh;
 	char buffer[1024];
-	
+
 	char *fields[32];
 	int numfields;
 	int fieldshift = 0;
@@ -936,10 +936,10 @@ static int disk_read (void)
 #endif
 	int counter;
 	char name[DATA_MAX_NAME_LEN];
-	
+
 	if ((ds = sg_get_disk_io_stats(&disks)) == NULL)
 		return (0);
-		
+
 	for (counter=0; counter < disks; counter++) {
 		strncpy(name, ds->disk_name, sizeof(name));
 		name[sizeof(name)-1] = '\0'; /* strncpy doesn't terminate longer strings */
@@ -959,7 +959,7 @@ static int disk_read (void)
 	int rnumdisk;
 	int i;
 
-	if ((numdisk = perfstat_disk(NULL, NULL, sizeof(perfstat_disk_t), 0)) < 0) 
+	if ((numdisk = perfstat_disk(NULL, NULL, sizeof(perfstat_disk_t), 0)) < 0)
 	{
 		char errbuf[1024];
 		WARNING ("disk plugin: perfstat_disk: %s",
@@ -968,14 +968,14 @@ static int disk_read (void)
 	}
 
 	if (numdisk != pnumdisk || stat_disk==NULL) {
-		if (stat_disk!=NULL) 
+		if (stat_disk!=NULL)
 			free(stat_disk);
 		stat_disk = (perfstat_disk_t *)calloc(numdisk, sizeof(perfstat_disk_t));
-	} 
+	}
 	pnumdisk = numdisk;
 
 	firstpath.name[0]='\0';
-	if ((rnumdisk = perfstat_disk(&firstpath, stat_disk, sizeof(perfstat_disk_t), numdisk)) < 0) 
+	if ((rnumdisk = perfstat_disk(&firstpath, stat_disk, sizeof(perfstat_disk_t), numdisk)) < 0)
 	{
 		char errbuf[1024];
 		WARNING ("disk plugin: perfstat_disk : %s",
@@ -983,7 +983,7 @@ static int disk_read (void)
 		return (-1);
 	}
 
-	for (i = 0; i < rnumdisk; i++) 
+	for (i = 0; i < rnumdisk; i++)
 	{
 		read_sectors = stat_disk[i].rblks*stat_disk[i].bsize;
 		write_sectors = stat_disk[i].wblks*stat_disk[i].bsize;

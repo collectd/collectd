@@ -879,7 +879,7 @@ static cdtime_t cna_child_get_cdtime (na_elem_t *data) /* {{{ */
 } /* }}} cdtime_t cna_child_get_cdtime */
 
 
-/* 
+/*
  * Query functions
  *
  * These functions are called with appropriate data returned by the libnetapp
@@ -897,7 +897,7 @@ static int cna_handle_wafl_data (const char *hostname, cfg_wafl_t *cfg_wafl, /* 
 	na_elem_iter_t counter_iter;
 
 	memset (&perf_data, 0, sizeof (perf_data));
-	
+
 	perf_data.timestamp = cna_child_get_cdtime (data);
 
 	instances = na_elem_child(na_elem_child (data, "instances"), "instance-data");
@@ -1062,7 +1062,7 @@ static int cna_handle_disk_data (const char *hostname, /* {{{ */
 
 	if ((cfg_disk == NULL) || (data == NULL))
 		return (EINVAL);
-	
+
 	timestamp = cna_child_get_cdtime (data);
 
 	instances = na_elem_child (data, "instances");
@@ -1254,7 +1254,7 @@ static int cna_handle_volume_perf_data (const char *hostname, /* {{{ */
 	na_elem_t *elem_instances;
 	na_elem_iter_t iter_instances;
 	na_elem_t *elem_instance;
-	
+
 	timestamp = cna_child_get_cdtime (data);
 
 	elem_instances = na_elem_child(data, "instances");
@@ -1733,7 +1733,7 @@ static int cna_handle_volume_usage_data (const host_config_t *host, /* {{{ */
 
 		if ((v->flags & CFG_VOLUME_USAGE_SNAP) != 0)
 			cna_handle_volume_snap_usage(host, v);
-		
+
 		if ((v->flags & CFG_VOLUME_USAGE_DF) == 0)
 			continue;
 
@@ -2128,7 +2128,7 @@ static int cna_handle_system_data (const char *hostname, /* {{{ */
 
 	const char *instance;
 	cdtime_t timestamp;
-	
+
 	timestamp = cna_child_get_cdtime (data);
 
 	instances = na_elem_child(na_elem_child (data, "instances"), "instance-data");
@@ -2195,7 +2195,7 @@ static int cna_handle_system_data (const char *hostname, /* {{{ */
 			&& (HAS_ALL_FLAGS (counter_flags, 0x01 | 0x02)))
 		submit_two_derive (hostname, instance, "disk_octets", NULL,
 				disk_read, disk_written, timestamp, interval);
-				
+
 	if ((cfg_system->flags & CFG_SYSTEM_NET)
 			&& (HAS_ALL_FLAGS (counter_flags, 0x04 | 0x08)))
 		submit_two_derive (hostname, instance, "if_octets", NULL,
@@ -2437,10 +2437,10 @@ static int cna_config_volume_performance (host_config_t *host, /* {{{ */
 		host->cfg_volume_perf = cfg_volume_perf;
 	}
 	cfg_volume_perf = host->cfg_volume_perf;
-	
+
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *item = ci->children + i;
-		
+
 		/* if (!item || !item->key || !*item->key) continue; */
 		if (strcasecmp(item->key, "Interval") == 0)
 			cna_config_get_interval (item, &cfg_volume_perf->interval);
@@ -2573,10 +2573,10 @@ static int cna_config_disk(host_config_t *host, oconfig_item_t *ci) { /* {{{ */
 		host->cfg_disk = cfg_disk;
 	}
 	cfg_disk = host->cfg_disk;
-	
+
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *item = ci->children + i;
-		
+
 		/* if (!item || !item->key || !*item->key) continue; */
 		if (strcasecmp(item->key, "Interval") == 0)
 			cna_config_get_interval (item, &cfg_disk->interval);
@@ -2619,7 +2619,7 @@ static int cna_config_wafl(host_config_t *host, oconfig_item_t *ci) /* {{{ */
 
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *item = ci->children + i;
-		
+
 		if (strcasecmp(item->key, "Interval") == 0)
 			cna_config_get_interval (item, &cfg_wafl->interval);
 		else if (!strcasecmp(item->key, "GetNameCache"))
@@ -2700,10 +2700,10 @@ static int cna_config_volume_usage(host_config_t *host, /* {{{ */
 		host->cfg_volume_usage = cfg_volume_usage;
 	}
 	cfg_volume_usage = host->cfg_volume_usage;
-	
+
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *item = ci->children + i;
-		
+
 		/* if (!item || !item->key || !*item->key) continue; */
 		if (strcasecmp(item->key, "Interval") == 0)
 			cna_config_get_interval (item, &cfg_volume_usage->interval);

@@ -43,7 +43,7 @@ extern cdtime_t cdtime_mock;
  * manner is that comparing times and calculating differences is as simple as
  * it is with "time_t", i.e. a simple integer comparison / subtraction works.
  */
-/* 
+/*
  * cdtime_t is defined in "collectd.h" */
 /* typedef uint64_t cdtime_t; */
 

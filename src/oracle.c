@@ -174,7 +174,7 @@ static void o_database_free (o_database_t *db) /* {{{ */
  *       ValuesFrom "value"
  *     </Result>
  *   </Query>
- *     
+ *
  *   <Database "plugin_instance1">
  *     ConnectID "db01"
  *     Username "oracle"
@@ -462,7 +462,7 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
   {
     ub4 param_counter = 0;
     status = OCIAttrGet (oci_statement, OCI_HTYPE_STMT, /* {{{ */
-        &param_counter, /* size pointer = */ NULL, 
+        &param_counter, /* size pointer = */ NULL,
         OCI_ATTR_PARAM_COUNT, oci_error);
     if (status != OCI_SUCCESS)
     {
@@ -475,7 +475,7 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
   } while (0); /* }}} */
 
   /* Allocate the following buffers:
-   * 
+   *
    *  +---------------+-----------------------------------+
    *  ! Name          ! Size                              !
    *  +---------------+-----------------------------------+
@@ -651,7 +651,7 @@ static int o_read_database (o_database_t *db) /* {{{ */
     ub4 connection_status;
 
     server_handle = NULL;
-    status = OCIAttrGet ((void *) db->oci_service_context, OCI_HTYPE_SVCCTX, 
+    status = OCIAttrGet ((void *) db->oci_service_context, OCI_HTYPE_SVCCTX,
         (void *) &server_handle, /* size pointer = */ NULL,
         OCI_ATTR_SERVER, oci_error);
     if (status != OCI_SUCCESS)
@@ -743,7 +743,7 @@ static int o_shutdown (void) /* {{{ */
       OCIHandleFree (databases[i]->oci_service_context, OCI_HTYPE_SVCCTX);
       databases[i]->oci_service_context = NULL;
     }
-  
+
   for (i = 0; i < queries_num; i++)
   {
     OCIStmt *oci_statement;
@@ -755,7 +755,7 @@ static int o_shutdown (void) /* {{{ */
       udb_query_set_user_data (queries[i], NULL);
     }
   }
-  
+
   OCIHandleFree (oci_env, OCI_HTYPE_ENV);
   oci_env = NULL;
 

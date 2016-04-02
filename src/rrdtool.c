@@ -442,7 +442,7 @@ static void *rrd_queue_thread (void __attribute__((unused)) *data)
 		}
 
 		/* Update `tv_next_update' */
-		if (write_rate > 0.0) 
+		if (write_rate > 0.0)
                 {
                   gettimeofday (&tv_now, /* timezone = */ NULL);
                   tv_next_update.tv_sec = tv_now.tv_sec;
@@ -522,7 +522,7 @@ static int rrd_queue_dequeue (const char *filename,
   {
     if (strcmp (this->filename, filename) == 0)
       break;
-    
+
     prev = this;
     this = this->next;
   }
@@ -607,7 +607,7 @@ static void rrd_cache_flush (cdtime_t timeout)
 		}
 	} /* while (c_avl_iterator_next) */
 	c_avl_iterator_destroy (iter);
-	
+
 	for (i = 0; i < keys_num; i++)
 	{
 		if (c_avl_remove (cache, keys[i], (void *) &key, (void *) &rc) != 0)
@@ -1087,7 +1087,7 @@ static int rrd_config (const char *key, const char *value)
 		while ((ptr = strtok_r (dummy, ", \t", &saveptr)) != NULL)
 		{
 			dummy = NULL;
-			
+
 			tmp_alloc = realloc (rrdcreate_config.timespans,
 					sizeof (int) * (rrdcreate_config.timespans_num + 1));
 			if (tmp_alloc == NULL)

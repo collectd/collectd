@@ -367,7 +367,7 @@ int main (int argc, char **argv) /* {{{ */
   else
   {
     lcc_server_t *srv;
-    
+
     srv = lcc_server_create (net, conf_destination, conf_service);
     if (srv == NULL)
     {

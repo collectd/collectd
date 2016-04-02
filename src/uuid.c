@@ -100,7 +100,7 @@ uuid_get_from_dmidecode(void)
     if (!dmidecode) {
         return NULL;
     }
-    
+
     uuid = uuid_parse_dmidecode(dmidecode);
 
     pclose(dmidecode);

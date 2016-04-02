@@ -130,7 +130,7 @@ static int cldap_init_host (cldap_t *st) /* {{{ */
 		cred.bv_len = 0;
 	}
 
-	rc = ldap_sasl_bind_s (st->ld, st->binddn, LDAP_SASL_SIMPLE, &cred, 
+	rc = ldap_sasl_bind_s (st->ld, st->binddn, LDAP_SASL_SIMPLE, &cred,
 			NULL, NULL, NULL);
 	if (rc != LDAP_SUCCESS)
 	{

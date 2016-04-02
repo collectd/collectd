@@ -23,7 +23,7 @@
 
 #include "collectd.h"
 #include "common.h"
-#include "plugin.h"       
+#include "plugin.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -541,7 +541,7 @@ static int fc_read_dir (fc_directory_conf_t *dir)
 
   if (dir->mtime != 0)
     dir->now = time (NULL);
-    
+
   status = walk_directory (dir->path, fc_read_dir_callback, dir,
       /* include hidden */ (dir->options & FC_HIDDEN) ? 1 : 0);
   if (status != 0)

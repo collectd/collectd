@@ -157,7 +157,7 @@ static int lu_copy_ident_to_match_part (part_match_t *match_part, /* {{{ */
   assert (sizeof (match_part->str) > len);
   /* strip trailing slash */
   match_part->str[len - 2] = 0;
-  
+
   status = regcomp (&match_part->regex, match_part->str,
       /* flags = */ REG_EXTENDED);
   if (status != 0)
@@ -169,7 +169,7 @@ static int lu_copy_ident_to_match_part (part_match_t *match_part, /* {{{ */
     return (EINVAL);
   }
   match_part->is_regex = 1;
-  
+
   return (0);
 } /* }}} int lu_copy_ident_to_match_part */
 
@@ -336,7 +336,7 @@ static int lu_handle_user_class_list (lookup_t *obj, /* {{{ */
 {
   user_class_list_t *ptr;
   int retval = 0;
-  
+
   for (ptr = user_class_list; ptr != NULL; ptr = ptr->next)
   {
     int status;
@@ -401,7 +401,7 @@ static by_type_entry_t *lu_search_by_type (lookup_t *obj, /* {{{ */
     sfree (type_copy);
     return (NULL);
   }
-  
+
   return (by_type);
 } /* }}} by_type_entry_t *lu_search_by_type */
 
@@ -507,7 +507,7 @@ static void lu_destroy_user_class_list (lookup_t *obj, /* {{{ */
 static void lu_destroy_by_type (lookup_t *obj, /* {{{ */
     by_type_entry_t *by_type)
 {
-  
+
   while (42)
   {
     char *plugin = NULL;
@@ -651,6 +651,6 @@ int lookup_search (lookup_t *obj, /* {{{ */
       return (status);
     retval += status;
   }
-    
+
   return (retval);
 } /* }}} lookup_search */

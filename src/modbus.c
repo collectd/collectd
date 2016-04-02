@@ -80,7 +80,7 @@ enum mb_register_type_e /* {{{ */
   REG_TYPE_UINT32,
   REG_TYPE_FLOAT
 }; /* }}} */
-enum mb_mreg_type_e /* {{{ */ 
+enum mb_mreg_type_e /* {{{ */
 {
   MREG_HOLDING,
   MREG_INPUT
@@ -503,7 +503,7 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
     modbus_free (host->connection);
 #endif
   }
- 
+
 #if LEGACY_LIBMODBUS
   /* Version 2.0.3: Pass the connection struct as a pointer and pass the slave
    * id to each call of "read_holding_registers". */

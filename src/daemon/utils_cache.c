@@ -246,7 +246,7 @@ int uc_check_timeout (void)
 
   int status;
   int i;
-  
+
   pthread_mutex_lock (&cache_lock);
 
   now = cdtime ();

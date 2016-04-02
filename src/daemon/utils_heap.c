@@ -173,7 +173,7 @@ int c_heap_insert (c_heap_t *h, void *ptr)
 
   /* Reorganize the heap from bottom up. */
   reheap (h, /* parent of this node = */ (index - 1) / 2, DIR_UP);
-  
+
   pthread_mutex_unlock (&h->lock);
   return (0);
 } /* int c_heap_insert */
