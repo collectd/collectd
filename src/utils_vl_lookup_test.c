@@ -68,7 +68,7 @@ static void *lookup_class_callback (data_set_t const *ds,
   assert (expect_new_obj);
 
   memcpy (&last_class_ident, class, sizeof (last_class_ident));
-  
+
   obj = malloc (sizeof (*obj));
   strncpy (obj->host, vl->host, sizeof (obj->host));
   strncpy (obj->plugin, vl->plugin, sizeof (obj->plugin));

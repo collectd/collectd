@@ -912,7 +912,7 @@ static int mc_receive_thread_stop (void) /* {{{ */
   return (0);
 } /* }}} int mc_receive_thread_stop */
 
-/* 
+/*
  * Config:
  *
  * <Plugin gmond>

@@ -314,7 +314,7 @@ int meta_data_toc (meta_data_t *md, char ***toc) /* {{{ */
   pthread_mutex_lock (&md->lock);
 
   for (e = md->head; e != NULL; e = e->next)
-    ++count;    
+    ++count;
 
   if (count == 0)
   {
@@ -325,7 +325,7 @@ int meta_data_toc (meta_data_t *md, char ***toc) /* {{{ */
   *toc = calloc(count, sizeof(**toc));
   for (e = md->head; e != NULL; e = e->next)
     (*toc)[i++] = strdup(e->key);
-  
+
   pthread_mutex_unlock (&md->lock);
   return count;
 } /* }}} int meta_data_toc */
@@ -504,7 +504,7 @@ int meta_data_get_string (meta_data_t *md, /* {{{ */
     ERROR ("meta_data_get_string: md_strdup failed.");
     return (-ENOMEM);
   }
- 
+
   pthread_mutex_unlock (&md->lock);
 
   *value = temp;

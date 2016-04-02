@@ -333,7 +333,7 @@ static int fc_config_add_target (fc_target_t **targets_head, /* {{{ */
   {
     t->user_data = NULL;
   }
-  
+
   if (*targets_head != NULL)
   {
     ptr = *targets_head;

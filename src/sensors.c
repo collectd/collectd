@@ -18,7 +18,7 @@
  *
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
- *   
+ *
  *   Lubos Stanek <lubek at users.sourceforge.net> Wed Oct 27, 2006
  *   - config ExtendedSensorNaming option
  *   - precise sensor feature selection (chip-bus-address/type-feature)
@@ -76,7 +76,7 @@ struct sensors_labeltypes_s
 typedef struct sensors_labeltypes_s sensors_labeltypes_t;
 
 /* finite list of known labels extracted from lm_sensors */
-static sensors_labeltypes_t known_features[] = 
+static sensors_labeltypes_t known_features[] =
 {
 	{ "fan1", SENSOR_TYPE_FANSPEED },
 	{ "fan2", SENSOR_TYPE_FANSPEED },
@@ -289,7 +289,7 @@ static int sensors_load_conf (void)
 
 	FILE *fh = NULL;
 	featurelist_t *last_feature = NULL;
-	
+
 	const sensors_chip_name *chip;
 	int chip_num;
 

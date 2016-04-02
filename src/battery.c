@@ -341,7 +341,7 @@ static void get_via_generic_iokit (double *ret_capacity_full, /* {{{ */
 				*ret_voltage = temp_double / 1000.0;
 			}
 		}
-		
+
 		CFRelease (bat_root_dict);
 	}
 

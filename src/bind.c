@@ -54,7 +54,7 @@
 # define BIND_DEFAULT_URL "http://localhost:8053/"
 #endif
 
-/* 
+/*
  * Some types used for the callback functions. `translation_table_ptr_t' and
  * `list_info_ptr_t' are passed to the callbacks in the `void *user_data'
  * pointer.
@@ -474,7 +474,7 @@ static int bind_xml_read_timestamp (const char *xpath_expression, /* {{{ */
   return (0);
 } /* }}} int bind_xml_read_timestamp */
 
-/* 
+/*
  * bind_parse_generic_name_value
  *
  * Reads statistics in the form:
@@ -559,7 +559,7 @@ static int bind_parse_generic_name_value (const char *xpath_expression, /* {{{ *
   return (0);
 } /* }}} int bind_parse_generic_name_value */
 
-/* 
+/*
  * bind_parse_generic_value_list
  *
  * Reads statistics in the form:
@@ -774,7 +774,7 @@ static int bind_xml_stats_handle_zone (int version, xmlDoc *doc, /* {{{ */
   { /* Parse the <counters> tag {{{ */
     char plugin_instance[DATA_MAX_NAME_LEN];
     translation_table_ptr_t table_ptr =
-    { 
+    {
       nsstats_translation_table,
       nsstats_translation_table_length,
       plugin_instance
@@ -955,7 +955,7 @@ static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
   {
     char plugin_instance[DATA_MAX_NAME_LEN];
     translation_table_ptr_t table_ptr =
-    { 
+    {
       resstats_translation_table,
       resstats_translation_table_length,
       plugin_instance

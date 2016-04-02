@@ -146,7 +146,7 @@ static int vserver_read (void)
 	if (proc == NULL)
 	{
 		char errbuf[1024];
-		ERROR ("vserver plugin: fopen (%s): %s", PROCDIR, 
+		ERROR ("vserver plugin: fopen (%s): %s", PROCDIR,
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -185,7 +185,7 @@ static int vserver_read (void)
 		len = ssnprintf (file, sizeof (file), PROCDIR "/%s", dent->d_name);
 		if ((len < 0) || (len >= BUFSIZE))
 			continue;
-		
+
 		status = stat (file, &statbuf);
 		if (status != 0)
 		{
@@ -194,7 +194,7 @@ static int vserver_read (void)
 					file, sstrerror (errno, errbuf, sizeof (errbuf)));
 			continue;
 		}
-		
+
 		if (!S_ISDIR (statbuf.st_mode))
 			continue;
 

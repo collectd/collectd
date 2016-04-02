@@ -34,7 +34,7 @@
 /*
  * DESCRIPTION
  *  Remove a registered plugin from the internal data structures.
- * 
+ *
  * PARAMETERS
  *  `type'      Name of the plugin (must be the same as passed to
  *              `plugin_register'

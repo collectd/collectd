@@ -23,7 +23,7 @@
 
 
 /**
- * There are several data streams provided by Madwifi plugin, some are 
+ * There are several data streams provided by Madwifi plugin, some are
  * connected to network interface, some are connected to each node
  * associated to that interface. Nodes represents other sides in
  * wireless communication, for example on network interface in AP mode,
@@ -42,18 +42,18 @@
  *	node_stat	Node statistic counters
  *
  * Both statistic counters have type instances for each counter returned
- * by Madwifi. See madwifi.h for content of ieee80211_nodestats, 
+ * by Madwifi. See madwifi.h for content of ieee80211_nodestats,
  * ieee80211_stats and ath_stats structures. Type instances use the same
  * name as fields in these structures (like ns_rx_dup). Some fields are
  * not reported, because they are not counters (like ns_tx_deauth_code
  * or ast_tx_rssi). Fields ns_rx_bytes and ns_tx_bytes are reported as
  * node_octets data stream instead of type instance of node_stat.
  * Statistics are not logged when they are zero.
- * 
+ *
  * There are two sets of these counters - the first 'WatchList' is a
  * set of counters that are individually logged. The second 'MiscList'
  * is a set of counters that are summed together and the sum is logged.
- * By default, the most important statistics are in the WatchList and 
+ * By default, the most important statistics are in the WatchList and
  * many error statistics are in MiscList. There are also many statistics
  * that are not in any of these sets, so they are not monitored by default.
  * It is possible to alter these lists using configuration options:
@@ -629,7 +629,7 @@ process_stat_struct (int which, const void *ptr, const char *dev, const char *ma
 		if (item_summed (i))
 			misc += val;
 	}
-	
+
 	if (misc != 0)
 		submit_derive (dev, type_name, misc_name, mac, misc);
 
@@ -891,7 +891,7 @@ procfs_iterate(int sk)
 	int status;
 	int num_success;
 	int num_fail;
-	
+
 	if ((fh = fopen ("/proc/net/dev", "r")) == NULL)
 	{
 		WARNING ("madwifi plugin: opening /proc/net/dev failed");
@@ -953,7 +953,7 @@ static int madwifi_read (void)
 
 /* procfs iteration is not safe because it does not check whether given
    interface is madwifi interface and there are private ioctls used, which
-   may do something completely different on non-madwifi devices.   
+   may do something completely different on non-madwifi devices.
    Therefore, it is not used unless explicitly enabled (and should be used
    together with ignorelist). */
 

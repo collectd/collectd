@@ -27,7 +27,7 @@
  **/
 /**
  * Usage:
- * 
+ *
  * Define plugin's global pointer variable of type ignorelist_t:
  *   ignorelist_t *myconfig_ignore;
  * If you know the state of the global ignore (IgnoreSelected),

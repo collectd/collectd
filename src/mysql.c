@@ -738,7 +738,7 @@ static int mysql_read (user_data_t *ud)
 		key = row[0];
 		val = atoll (row[1]);
 
-		if (strncmp (key, "Com_", 
+		if (strncmp (key, "Com_",
 			          strlen ("Com_")) == 0)
 		{
 			if (val == 0ULL)
@@ -746,18 +746,18 @@ static int mysql_read (user_data_t *ud)
 
 			/* Ignore `prepared statements' */
 			if (strncmp (key, "Com_stmt_", strlen ("Com_stmt_")) != 0)
-				counter_submit ("mysql_commands", 
-						key + strlen ("Com_"), 
+				counter_submit ("mysql_commands",
+						key + strlen ("Com_"),
 						val, db);
 		}
-		else if (strncmp (key, "Handler_", 
+		else if (strncmp (key, "Handler_",
 				        strlen ("Handler_")) == 0)
 		{
 			if (val == 0ULL)
 				continue;
 
-			counter_submit ("mysql_handler", 
-					key + strlen ("Handler_"), 
+			counter_submit ("mysql_handler",
+					key + strlen ("Handler_"),
 					val, db);
 		}
 		else if (strncmp (key, "Qcache_",
@@ -774,7 +774,7 @@ static int mysql_read (user_data_t *ud)
 			else if (strcmp (key, "Qcache_queries_in_cache") == 0)
 				qcache_queries_in_cache = (gauge_t) val;
 		}
-		else if (strncmp (key, "Bytes_", 
+		else if (strncmp (key, "Bytes_",
 				        strlen ("Bytes_")) == 0)
 		{
 			if (strcmp (key, "Bytes_received") == 0)
@@ -782,7 +782,7 @@ static int mysql_read (user_data_t *ud)
 			else if (strcmp (key, "Bytes_sent") == 0)
 				traffic_outgoing += val;
 		}
-		else if (strncmp (key, "Threads_", 
+		else if (strncmp (key, "Threads_",
        				        strlen ("Threads_")) == 0)
 		{
 			if (strcmp (key, "Threads_running") == 0)
@@ -902,7 +902,7 @@ static int mysql_read (user_data_t *ud)
 				counter_submit ("mysql_sort", "range", val, db);
 			else if (strcmp (key, "Sort_scan") == 0)
 				counter_submit ("mysql_sort", "scan", val, db);
-			
+
 		}
 	}
 	mysql_free_result (res); res = NULL;

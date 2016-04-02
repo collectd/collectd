@@ -399,7 +399,7 @@ static int start_thread (void) /* {{{ */
     pthread_mutex_unlock (&ping_lock);
     return (-1);
   }
-    
+
   pthread_mutex_unlock (&ping_lock);
   return (0);
 } /* }}} int start_thread */

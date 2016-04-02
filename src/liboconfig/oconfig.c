@@ -176,7 +176,7 @@ oconfig_item_t *oconfig_clone (const oconfig_item_t *ci_orig)
     for (i = 0; i < ci_copy->children_num; i++)
     {
       oconfig_item_t *child;
-      
+
       child = oconfig_clone (ci_orig->children + i);
       if (child == NULL)
       {
