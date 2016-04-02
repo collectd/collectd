@@ -192,6 +192,7 @@ static char *build_json_str_list(const char *tag, struct str_list const *list) /
 	res = asprintf(&temp_str, "\"%s\": [\"%s\"", tag, list->strs[0]);
 	if (res == -1) {
 		ERROR("write_sensu plugin: Unable to alloc memory");
+		free(ret_str);
 		return NULL;
 	}
 	for (i=1; i<list->nb_strs; i++) {
