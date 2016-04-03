@@ -145,10 +145,10 @@ static int dpdk_config_init_default(void)
     g_configuration->enabled_port_mask = 0;
     g_configuration->eal_argc = 2;
     g_configuration->eal_initialized = 0;
-    snprintf(g_configuration->coremask, DATA_MAX_NAME_LEN, "%s", "0xf");
-    snprintf(g_configuration->memory_channels, DATA_MAX_NAME_LEN, "%s", "1");
-    snprintf(g_configuration->process_type, DATA_MAX_NAME_LEN, "%s", "secondary");
-    snprintf(g_configuration->file_prefix, DATA_MAX_NAME_LEN, "%s",
+    ssnprintf(g_configuration->coremask, DATA_MAX_NAME_LEN, "%s", "0xf");
+    ssnprintf(g_configuration->memory_channels, DATA_MAX_NAME_LEN, "%s", "1");
+    ssnprintf(g_configuration->process_type, DATA_MAX_NAME_LEN, "%s", "secondary");
+    ssnprintf(g_configuration->file_prefix, DATA_MAX_NAME_LEN, "%s",
              "/var/run/.rte_config");
   return 0;
 }
@@ -175,27 +175,27 @@ static int dpdk_config(oconfig_item_t *ci)
       DEBUG("dpdkstat: Plugin Read Interval %lu milliseconds\n",
             CDTIME_T_TO_MS(g_configuration->interval));
     } else if (strcasecmp("Coremask", child->key) == 0) {
-      snprintf(g_configuration->coremask, DATA_MAX_NAME_LEN, "%s",
+      ssnprintf(g_configuration->coremask, DATA_MAX_NAME_LEN, "%s",
                child->values[0].value.string);
       DEBUG("dpdkstat:COREMASK %s \n", g_configuration->coremask);
       g_configuration->eal_argc+=1;
     } else if (strcasecmp("MemoryChannels", child->key) == 0) {
-      snprintf(g_configuration->memory_channels, DATA_MAX_NAME_LEN, "%s",
+      ssnprintf(g_configuration->memory_channels, DATA_MAX_NAME_LEN, "%s",
                child->values[0].value.string);
       DEBUG("dpdkstat:Memory Channels %s \n", g_configuration->memory_channels);
       g_configuration->eal_argc+=1;
     } else if (strcasecmp("SocketMemory", child->key) == 0) {
-      snprintf(g_configuration->socket_memory, DATA_MAX_NAME_LEN, "%s",
+      ssnprintf(g_configuration->socket_memory, DATA_MAX_NAME_LEN, "%s",
                child->values[0].value.string);
       DEBUG("dpdkstat: socket mem %s \n", g_configuration->socket_memory);
       g_configuration->eal_argc+=1;
     } else if (strcasecmp("ProcessType", child->key) == 0) {
-      snprintf(g_configuration->process_type, DATA_MAX_NAME_LEN, "%s",
+      ssnprintf(g_configuration->process_type, DATA_MAX_NAME_LEN, "%s",
                child->values[0].value.string);
       DEBUG("dpdkstat: proc type %s \n", g_configuration->process_type);
       g_configuration->eal_argc+=1;
     } else if (strcasecmp("FilePrefix", child->key) == 0) {
-      snprintf(g_configuration->file_prefix, DATA_MAX_NAME_LEN, "/var/run/.%s_config",
+      ssnprintf(g_configuration->file_prefix, DATA_MAX_NAME_LEN, "/var/run/.%s_config",
                child->values[0].value.string);
       DEBUG("dpdkstat: file prefix %s \n", g_configuration->file_prefix);
       if (strcasecmp(g_configuration->file_prefix, "/var/run/.rte_config") != 0) {
@@ -581,7 +581,7 @@ static int dpdk_read (user_data_t *ud)
     int nbytes = read(g_configuration->helper_pipes[0], buf, sizeof(buf));
     if(nbytes <= 0)
       break;
-    snprintf( out, nbytes, "%s", buf);
+    ssnprintf( out, nbytes, "%s", buf);
     DEBUG("dpdkstat: helper-proc: %s\n", out);
   }
 
@@ -612,7 +612,7 @@ static int dpdk_read (user_data_t *ud)
       cdtime_t time = g_configuration->port_read_time[i];
       char dev_name[64];
       int len = g_configuration->num_stats_in_port[i];
-      snprintf(dev_name, sizeof(dev_name), "port.%d", i);
+      ssnprintf(dev_name, sizeof(dev_name), "port.%d", i);
       struct rte_eth_xstats *xstats = (&g_configuration->xstats);
       xstats += count; /* pointer arithmetic to jump to each stats struct */
       for (j = 0; j < len; j++) {
