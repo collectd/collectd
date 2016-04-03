@@ -2417,16 +2417,16 @@ AC_ARG_WITH(libdpdk, [AS_HELP_STRING([--with-libdpdk@<:@=PREFIX@:>@], [Path to t
   if test "x$withval" != "xno" && test "x$withval" != "xyes"
 	then
 		with_dpdk_path="$withval"
-		with_dpdk="yes"
+		with_libdpdk="yes"
 	else
 		if test "x$withval" = "xno"
 		then
-			with_dpdk="no (disabled)"
+			with_libdpdk="no (disabled)"
 		fi
 	fi
-], [with_dpdk="yes"])
+], [with_libdpdk="no"])
 
-if test "x$with_dpdk" = "xyes"
+if test "x$with_libdpdk" = "xyes"
 then
 	RTE_BUILD="$with_dpdk_path"
 	DPDK_INCLUDE="$RTE_BUILD/include/dpdk"
@@ -2443,7 +2443,7 @@ then
 	LIBS="$LIBS $DPDK_LIB $DPDK_EXTRA_LIB"
 	AC_CHECK_LIB(dpdk, rte_eal_init,
                      [with_libdpdk="yes"],
-                     [with_libdpdk="DPDK not found"])
+                     [with_libdpdk="no"])
 	AC_LINK_IFELSE(
 		[AC_LANG_PROGRAM(
 [[
@@ -2457,13 +2457,13 @@ rte_eal_init(rte_argc, rte_argv);
 ]]
 	)],
 		[FOUND_DPDK=true])
-	if $FOUND_DPDK; then :; else
-		 AC_MSG_ERROR([cannot link with dpdk])
-	fi
-	DPDK_LDFLAGS="-ldpdk"
 	CFLAGS="$SAVE_CFLAGS"
 	LDFLAGS="$SAVE_LDFLAGS"
 	LIBS="$SAVE_LIBS"
+	if $FOUND_DPDK; then :; else
+		AC_MSG_ERROR([cannot link with dpdk])
+	fi
+	DPDK_LDFLAGS="-ldpdk"
 	BUILD_WITH_DPDK_CFLAGS="-I$DPDK_INCLUDE -fPIC"
 	BUILD_WITH_DPDK_LDFLAGS="-L$DPDK_LIB_DIR"
 	BUILD_WITH_DPDK_LIBS="$DPDK_LDFLAGS -ldl -lpthread -lrt -lm"
