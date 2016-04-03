@@ -509,7 +509,8 @@ static int dpdk_helper_run (void)
                   i, len);
             return -1;
           }
-          num_xstats += g_configuration->num_stats_in_port[i];
+          num_xstats += g_configuration->num_stats_in_port[enabled_port_count];
+          enabled_port_count++;
         }
       } /* if (enabled_port_mask) */
     } /* for (nb_ports) */
