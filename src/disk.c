@@ -293,27 +293,6 @@ static void disk_submit (const char *plugin_instance,
 	plugin_dispatch_values (&vl);
 } /* void disk_submit */
 
-#if KERNEL_LINUX
-static void submit_in_progress (char const *disk_name, gauge_t in_progress)
-{
-	value_t v;
-	value_list_t vl = VALUE_LIST_INIT;
-
-	if (ignorelist_match (ignorelist, disk_name) != 0)
-	  return;
-
-	v.gauge = in_progress;
-
-	vl.values = &v;
-	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-	sstrncpy (vl.plugin, "disk", sizeof (vl.plugin));
-	sstrncpy (vl.plugin_instance, disk_name, sizeof (vl.plugin_instance));
-	sstrncpy (vl.type, "pending_operations", sizeof (vl.type));
-
-	plugin_dispatch_values (&vl);
-}
-
 static void submit_io_time (char const *plugin_instance, derive_t io_time, derive_t weighted_time)
 {
 	value_t values[2];
@@ -331,6 +310,27 @@ static void submit_io_time (char const *plugin_instance, derive_t io_time, deriv
 	sstrncpy (vl.plugin, "disk", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, "disk_io_time", sizeof (vl.type));
+
+	plugin_dispatch_values (&vl);
+} /* void submit_io_time */
+
+#if KERNEL_LINUX
+static void submit_in_progress (char const *disk_name, gauge_t in_progress)
+{
+	value_t v;
+	value_list_t vl = VALUE_LIST_INIT;
+
+	if (ignorelist_match (ignorelist, disk_name) != 0)
+	  return;
+
+	v.gauge = in_progress;
+
+	vl.values = &v;
+	vl.values_len = 1;
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "disk", sizeof (vl.plugin));
+	sstrncpy (vl.plugin_instance, disk_name, sizeof (vl.plugin_instance));
+	sstrncpy (vl.type, "pending_operations", sizeof (vl.type));
 
 	plugin_dispatch_values (&vl);
 }
@@ -536,7 +536,7 @@ static int disk_read (void)
 	struct gident *geom_id;
 
 	const char *disk_name;
-	long double read_time, write_time;
+	long double read_time, write_time, busy_time, total_duration;
 
 	for (retry = 0, dirty = 1; retry < 5 && dirty == 1; retry++) {
 		if (snap != NULL)
@@ -630,6 +630,16 @@ static int disk_read (void)
 		if ((read_time != 0) || (write_time != 0)) {
 			disk_submit (disk_name, "disk_time",
 					(derive_t)(read_time*1000), (derive_t)(write_time*1000));
+		}
+		if (devstat_compute_statistics(snap_iter, NULL, 1.0,
+		    DSM_TOTAL_BUSY_TIME, &busy_time,
+		    DSM_TOTAL_DURATION, &total_duration,
+		    DSM_NONE) != 0) {
+			WARNING("%s", devstat_errbuf);
+		}
+		else
+		{
+			submit_io_time(disk_name, busy_time, total_duration);
 		}
 	}
 	geom_stats_snapshot_free(snap);
