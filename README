@@ -925,6 +925,7 @@ To generate the `configure` script, you'll need the following dependencies:
 - bison
 - libtool
 - libtool-ltdl
+- pkg-config
 
 The `build.sh' script takes no arguments.
 
