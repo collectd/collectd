@@ -536,7 +536,7 @@ static int disk_read (void)
 	struct gident *geom_id;
 
 	const char *disk_name;
-	long double read_time, write_time;
+	long double read_time, write_time, busy_time, total_duration;
 
 	for (retry = 0, dirty = 1; retry < 5 && dirty == 1; retry++) {
 		if (snap != NULL)
@@ -630,6 +630,16 @@ static int disk_read (void)
 		if ((read_time != 0) || (write_time != 0)) {
 			disk_submit (disk_name, "disk_time",
 					(derive_t)(read_time*1000), (derive_t)(write_time*1000));
+		}
+		if (devstat_compute_statistics(snap_iter, NULL, 1.0,
+		    DSM_TOTAL_BUSY_TIME, &busy_time,
+		    DSM_TOTAL_DURATION, &total_duration,
+		    DSM_NONE) != 0) {
+			WARNING("%s", devstat_errbuf);
+		}
+		else
+		{
+			submit_io_time(disk_name, busy_time, total_duration);
 		}
 	}
 	geom_stats_snapshot_free(snap);
