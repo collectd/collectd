@@ -503,7 +503,7 @@ static int dpdk_helper_run (void)
           len = g_configuration->num_stats_in_port[enabled_port_count];
           g_configuration->port_read_time[enabled_port_count] = cdtime();
           ret = rte_eth_xstats_get(i, &g_configuration->xstats + num_xstats,
-                                   g_configuration->num_stats_in_port[i]);
+                                   g_configuration->num_stats_in_port[enabled_port_count]);
           if (ret < 0 || ret != len) {
             DEBUG("dpdkstat-helper: Error reading xstats on port %d len = %d\n",
                   i, len);
