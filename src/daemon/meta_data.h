@@ -43,6 +43,7 @@ typedef struct meta_data_s meta_data_t;
 
 meta_data_t *meta_data_create (void);
 meta_data_t *meta_data_clone (meta_data_t *orig);
+int meta_data_clone_merge (meta_data_t **dest, meta_data_t *orig);
 void meta_data_destroy (meta_data_t *md);
 
 int meta_data_exists (meta_data_t *md, const char *key);
