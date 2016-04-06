@@ -774,7 +774,7 @@ static int ceph_config(oconfig_item_t *ci)
             }
             else if(ret)
             {
-                //process other daemons and ignore this one
+                /* process other daemons and ignore this one */
                 continue;
             }
         }
@@ -925,7 +925,7 @@ static double get_last_avg(struct ceph_daemon *d, const char *ds_n, int index,
         {
             tmp_index = index;
         }
-        //test previous index
+        /* test previous index */
         else if((index > 0) && (strcmp(d->last_poll_data[index-1]->ds_name, ds_n) == 0))
         {
             tmp_index = (index - 1);
@@ -992,7 +992,7 @@ static int node_handler_fetch_data(void *arg, const char *val, const char *key)
 
     if(index >= vtmp->d->ds_num)
     {
-        //don't overflow bounds of array
+        /* don't overflow bounds of array */
         index = (vtmp->d->ds_num - 1);
     }
 
@@ -1004,18 +1004,18 @@ static int node_handler_fetch_data(void *arg, const char *val, const char *key)
      */
     if(strcmp(ds_name, vtmp->d->ds_names[index]) == 0)
     {
-        //found match
+        /* found match */
         type = vtmp->d->ds_types[index];
     }
     else if((index > 0) && (strcmp(ds_name, vtmp->d->ds_names[index-1]) == 0))
     {
-        //try previous key
+        /* try previous key */
         type = vtmp->d->ds_types[index-1];
     }
 
     if(type == DSET_TYPE_UNFOUND)
     {
-        //couldn't find right type by guessing, check the old way
+        /* couldn't find right type by guessing, check the old way */
         type = backup_search_for_type(vtmp->d, ds_name);
     }
 
@@ -1026,8 +1026,10 @@ static int node_handler_fetch_data(void *arg, const char *val, const char *key)
             {
                 sscanf(val, "%" PRIu64, &vtmp->avgcount);
                 vtmp->avgcount_exists = 0;
-                //return after saving avgcount - don't dispatch value
-                //until latency calculation
+                /*
+                 * return after saving avgcount - don't dispatch value
+                 * until latency calculation
+                 */
                 return 0;
             }
             else
@@ -1211,7 +1213,7 @@ static int cconn_process_json(struct cconn *io)
             result = cconn_process_data(io, &io->yajl, hand);
             break;
         case ASOK_REQ_SCHEMA:
-            //init daemon specific variables
+            /* init daemon specific variables */
             io->d->ds_num = 0;
             io->d->last_idx = 0;
             io->d->last_poll_data = NULL;

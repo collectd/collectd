@@ -1458,15 +1458,15 @@ static int bind_xml (const char *data) /* {{{ */
     return (-1);
   }
 
-  //
-  // version 3.* of statistics XML (since BIND9.9)
-  //
+  /*
+   * version 3.* of statistics XML (since BIND9.9)
+   */
 
   xpathObj = xmlXPathEvalExpression (BAD_CAST "/statistics", xpathCtx);
   if (xpathObj == NULL || xpathObj->nodesetval == NULL || xpathObj->nodesetval->nodeNr == 0)
   {
     DEBUG ("bind plugin: Statistics appears not to be v3");
-    // we will fallback to v1 or v2 detection
+    /* we will fallback to v1 or v2 detection */
     if (xpathObj != NULL) { xmlXPathFreeObject (xpathObj); }
   }
   else
@@ -1504,7 +1504,7 @@ static int bind_xml (const char *data) /* {{{ */
       break;
     }
 
-    // we are finished, early-return
+    /* we are finished, early-return */
     xmlXPathFreeObject (xpathObj);
     xmlXPathFreeContext (xpathCtx);
     xmlFreeDoc (doc);
@@ -1512,9 +1512,9 @@ static int bind_xml (const char *data) /* {{{ */
     return (ret);
   }
 
-  //
-  // versions 1.* or 2.* of statistics XML
-  //
+  /*
+   * versions 1.* or 2.* of statistics XML
+   */
 
   xpathObj = xmlXPathEvalExpression (BAD_CAST "/isc/bind/statistics", xpathCtx);
   if (xpathObj == NULL)
