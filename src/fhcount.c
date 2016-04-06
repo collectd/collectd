@@ -69,13 +69,13 @@ static void fhcount_submit(
   vl.values = values;
   vl.values_len = 1;
 
-  // Compose the metric
+  /* Compose the metric */
   sstrncpy(vl.host, hostname_g, sizeof(vl.host));
   sstrncpy(vl.plugin, "fhcount", sizeof(vl.plugin));
   sstrncpy(vl.type, type, sizeof(vl.type));
   sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
 
-  // Dispatch the metric
+  /* Dispatch the metric */
   plugin_dispatch_values(&vl);
 }
 
@@ -90,7 +90,7 @@ static int fhcount_read(void) {
   char errbuf[1024];
   FILE *fp;
 
-  // Open file
+  /* Open file */
   fp = fopen("/proc/sys/fs/file-nr" , "r");
   if (fp == NULL) {
     ERROR("fhcount: fopen: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
@@ -103,7 +103,7 @@ static int fhcount_read(void) {
   }
   fclose(fp);
 
-  // Tokenize string
+  /* Tokenize string */
   numfields = strsplit(buffer, fields, STATIC_ARRAY_SIZE(fields));
 
   if (numfields != 3) {
@@ -111,14 +111,14 @@ static int fhcount_read(void) {
     return(EXIT_FAILURE);
   }
 
-  // Define the values
+  /* Define the values */
   strtogauge(fields[0], &used);
   strtogauge(fields[1], &unused);
   strtogauge(fields[2], &max);
   prc_used = (gauge_t) used/max*100;
   prc_unused = (gauge_t) unused/max*100;
 
-  // Submit values
+  /* Submit values */
   if (values_absolute) {
     fhcount_submit("file_handles", "used", (gauge_t) used);
     fhcount_submit("file_handles", "unused", (gauge_t) unused);
