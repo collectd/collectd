@@ -103,15 +103,17 @@ static int ts_config_add_meta (meta_data_t **dest, /* {{{ */
     return (-1);
   }
 
-  if(NULL == (*dest)) {
+  if ((*dest) == NULL)
+  {
     // Create a new meta_data_t
-    if( NULL == (*dest = meta_data_create())) {
+    if ((*dest = meta_data_create()) == NULL)
+    {
       ERROR ("Target `set': failed to create a meta data for `%s'.", ci->key);
       return (-1);
     }
   }
 
-  return(meta_data_add_string (*dest, key, string));
+  return (meta_data_add_string (*dest, key, string));
 } /* }}} int ts_config_add_meta */
 
 static int ts_destroy (void **user_data) /* {{{ */
@@ -237,7 +239,8 @@ static int ts_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
     return (-EINVAL);
   }
 
-  if(NULL != data->meta) {
+  if (data->meta != NULL)
+  {
     meta_data_clone_merge(&(vl->meta), data->meta);
   }
 
