@@ -109,7 +109,7 @@ static int sensu_connect(struct sensu_host *host) /* {{{ */
 	char const		*node;
 	char const		*service;
 
-	// Resolve the target if we haven't done already
+	/* Resolve the target if we haven't done already */
 	if (!(host->flags & F_READY)) {
 		memset(&hints, 0, sizeof(hints));
 		memset(&service, 0, sizeof(service));
@@ -136,20 +136,20 @@ static int sensu_connect(struct sensu_host *host) /* {{{ */
 	struct linger so_linger;
 	host->s = -1;
 	for (ai = host->res; ai != NULL; ai = ai->ai_next) {
-		// create the socket
+		/* create the socket */
 		if ((host->s = socket(ai->ai_family,
 				      ai->ai_socktype,
 				      ai->ai_protocol)) == -1) {
 			continue;
 		}
 
-		// Set very low close() lingering
+		/* Set very low close() lingering */
 		so_linger.l_onoff = 1;
 		so_linger.l_linger = 3;
 		if (setsockopt(host->s, SOL_SOCKET, SO_LINGER, &so_linger, sizeof so_linger) != 0)
 			WARNING("write_sensu plugin: failed to set socket close() lingering");
 
-		// connect the socket
+		/* connect the socket */
 		if (connect(host->s, ai->ai_addr, ai->ai_addrlen) != 0) {
 			close(host->s);
 			host->s = -1;
@@ -264,7 +264,7 @@ static void in_place_replace_sensu_name_reserved(char *orig_name) /* {{{ */
 	int i;
 	int len=strlen(orig_name);
 	for (i=0; i<len; i++) {
-		// some plugins like ipmi generate special characters in metric name
+		/* some plugins like ipmi generate special characters in metric name */
 		switch(orig_name[i]) {
 			case '(': orig_name[i] = '_'; break;
 			case ')': orig_name[i] = '_'; break;
@@ -289,7 +289,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 	char *temp_str;
 	char *value_str;
 	int res;
-	// First part of the JSON string
+	/* First part of the JSON string */
 	const char *part1 = "{\"name\": \"collectd\", \"type\": \"metric\"";
 
 	char *handlers_str = build_json_str_list("handlers", &(host->metric_handlers));
@@ -298,7 +298,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 		return NULL;
 	}
 
-	// incorporate the handlers
+	/* incorporate the handlers */
 	if (strlen(handlers_str) == 0) {
 		free(handlers_str);
 		ret_str = strdup(part1);
@@ -316,7 +316,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 		}
 	}
 
-	// incorporate the plugin name information
+	/* incorporate the plugin name information */
 	res = asprintf(&temp_str, "%s, \"collectd_plugin\": \"%s\"", ret_str, vl->plugin);
 	free(ret_str);
 	if (res == -1) {
@@ -325,7 +325,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 	}
 	ret_str = temp_str;
 
-	// incorporate the plugin type
+	/* incorporate the plugin type */
 	res = asprintf(&temp_str, "%s, \"collectd_plugin_type\": \"%s\"", ret_str, vl->type);
 	free(ret_str);
 	if (res == -1) {
@@ -334,7 +334,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 	}
 	ret_str = temp_str;
 
-	// incorporate the plugin instance if any
+	/* incorporate the plugin instance if any */
 	if (vl->plugin_instance[0] != 0) {
 		res = asprintf(&temp_str, "%s, \"collectd_plugin_instance\": \"%s\"", ret_str, vl->plugin_instance);
 		free(ret_str);
@@ -345,7 +345,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 		ret_str = temp_str;
 	}
 
-	// incorporate the plugin type instance if any
+	/* incorporate the plugin type instance if any +/
 	if (vl->type_instance[0] != 0) {
 		res = asprintf(&temp_str, "%s, \"collectd_plugin_type_instance\": \"%s\"", ret_str, vl->type_instance);
 		free(ret_str);
@@ -356,7 +356,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 		ret_str = temp_str;
 	}
 
-	// incorporate the data source type
+	/* incorporate the data source type */
 	if ((ds->ds[index].type != DS_TYPE_GAUGE) && (rates != NULL)) {
 		char ds_type[DATA_MAX_NAME_LEN];
 		ssnprintf (ds_type, sizeof (ds_type), "%s:rate", DS_TYPE_TO_STRING(ds->ds[index].type));
@@ -377,7 +377,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 		ret_str = temp_str;
 	}
 
-	// incorporate the data source name
+	/* incorporate the data source name */
 	res = asprintf(&temp_str, "%s, \"collectd_data_source_name\": \"%s\"", ret_str, ds->ds[index].name);
 	free(ret_str);
 	if (res == -1) {
@@ -386,7 +386,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 	}
 	ret_str = temp_str;
 
-	// incorporate the data source index
+	/* incorporate the data source index */
 	{
 		char ds_index[DATA_MAX_NAME_LEN];
 		ssnprintf (ds_index, sizeof (ds_index), "%zu", index);
@@ -399,7 +399,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 		ret_str = temp_str;
 	}
 
-	// add key value attributes from config if any
+	/* add key value attributes from config if any */
 	for (i = 0; i < sensu_attrs_num; i += 2) {
 		res = asprintf(&temp_str, "%s, \"%s\": \"%s\"", ret_str, sensu_attrs[i], sensu_attrs[i+1]);
 		free(ret_str);
@@ -410,7 +410,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 		ret_str = temp_str;
 	}
 
-	// incorporate sensu tags from config if any
+	/* incorporate sensu tags from config if any */
 	if ((sensu_tags != NULL) && (strlen(sensu_tags) != 0)) {
 		res = asprintf(&temp_str, "%s, %s", ret_str, sensu_tags);
 		free(ret_str);
@@ -421,7 +421,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 		ret_str = temp_str;
 	}
 
-	// calculate the value and set to a string
+	/* calculate the value and set to a string */
 	if (ds->ds[index].type == DS_TYPE_GAUGE) {
 		res = asprintf(&value_str, GAUGE_FORMAT, vl->values[index].gauge);
 		if (res == -1) {
@@ -463,7 +463,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 		}
 	}
 
-	// Generate the full service name
+	/* Generate the full service name */
 	sensu_format_name2(name_buffer, sizeof(name_buffer),
 		vl->host, vl->plugin, vl->plugin_instance,
 		vl->type, vl->type_instance, host->separator);
@@ -482,10 +482,10 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 					host->event_service_prefix, name_buffer);
 	}
 
-	// Replace collectd sensor name reserved characters so that time series DB is happy
+	/* Replace collectd sensor name reserved characters so that time series DB is happy */
 	in_place_replace_sensu_name_reserved(service_buffer);
 
-	// finalize the buffer by setting the output and closing curly bracket
+	/* finalize the buffer by setting the output and closing curly bracket */
 	res = asprintf(&temp_str, "%s, \"output\": \"%s %s %ld\"}\n", ret_str, service_buffer, value_str, CDTIME_T_TO_TIME_T(vl->time));
 	free(ret_str);
 	free(value_str);
@@ -528,7 +528,7 @@ static char *replace_str(const char *str, const char *old, /* {{{ */
 	ret = calloc(1, retlen + 1);
 	if (ret == NULL)
 		return NULL;
-	// added to original: not optimized, but keeps valgrind happy.
+	/* added to original: not optimized, but keeps valgrind happy. */
 
 	r = ret;
 	p = str;
@@ -597,7 +597,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 	int status;
 	size_t i;
 	int res;
-	// add the severity/status
+	/* add the severity/status */
 	switch (n->severity) {
 		case NOTIF_OKAY:
 			severity = "OK";
@@ -622,7 +622,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 	}
 	ret_str = temp_str;
 
-	// incorporate the timestamp
+	/* incorporate the timestamp */
 	res = asprintf(&temp_str, "%s, \"timestamp\": %ld", ret_str, CDTIME_T_TO_TIME_T(n->time));
 	free(ret_str);
 	if (res == -1) {
@@ -637,7 +637,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 		free(ret_str);
 		return NULL;
 	}
-	// incorporate the handlers
+	/* incorporate the handlers */
 	if (strlen(handlers_str) != 0) {
 		res = asprintf(&temp_str, "%s, %s", ret_str, handlers_str);
 		free(ret_str);
@@ -651,7 +651,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 		free(handlers_str);
 	}
 
-	// incorporate the plugin name information if any
+	/* incorporate the plugin name information if any */
 	if (n->plugin[0] != 0) {
 		res = asprintf(&temp_str, "%s, \"collectd_plugin\": \"%s\"", ret_str, n->plugin);
 		free(ret_str);
@@ -662,7 +662,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 		ret_str = temp_str;
 	}
 
-	// incorporate the plugin type if any
+	/* incorporate the plugin type if any */
 	if (n->type[0] != 0) {
 		res = asprintf(&temp_str, "%s, \"collectd_plugin_type\": \"%s\"", ret_str, n->type);
 		free(ret_str);
@@ -673,7 +673,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 		ret_str = temp_str;
 	}
 
-	// incorporate the plugin instance if any
+	/* incorporate the plugin instance if any */
 	if (n->plugin_instance[0] != 0) {
 		res = asprintf(&temp_str, "%s, \"collectd_plugin_instance\": \"%s\"", ret_str, n->plugin_instance);
 		free(ret_str);
@@ -684,7 +684,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 		ret_str = temp_str;
 	}
 
-	// incorporate the plugin type instance if any
+	/* incorporate the plugin type instance if any */
 	if (n->type_instance[0] != 0) {
 		res = asprintf(&temp_str, "%s, \"collectd_plugin_type_instance\": \"%s\"", ret_str, n->type_instance);
 		free(ret_str);
@@ -695,7 +695,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 		ret_str = temp_str;
 	}
 
-	// add key value attributes from config if any
+	/* add key value attributes from config if any */
 	for (i = 0; i < sensu_attrs_num; i += 2) {
 		res = asprintf(&temp_str, "%s, \"%s\": \"%s\"", ret_str, sensu_attrs[i], sensu_attrs[i+1]);
 		free(ret_str);
@@ -706,7 +706,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 		ret_str = temp_str;
 	}
 
-	// incorporate sensu tags from config if any
+	/* incorporate sensu tags from config if any */
 	if ((sensu_tags != NULL) && (strlen(sensu_tags) != 0)) {
 		res = asprintf(&temp_str, "%s, %s", ret_str, sensu_tags);
 		free(ret_str);
@@ -717,11 +717,11 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 		ret_str = temp_str;
 	}
 
-	// incorporate the service name
+	/* incorporate the service name */
 	sensu_format_name2(service_buffer, sizeof(service_buffer),
 				/* host */ "", n->plugin, n->plugin_instance,
 				n->type, n->type_instance, host->separator);
-	// replace sensu event name chars that are considered illegal
+	/* replace sensu event name chars that are considered illegal */
 	in_place_replace_sensu_name_reserved(service_buffer);
 	res = asprintf(&temp_str, "%s, \"name\": \"%s\"", ret_str, &service_buffer[1]);
 	free(ret_str);
@@ -731,7 +731,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 	}
 	ret_str = temp_str;
 
-	// incorporate the check output
+	/* incorporate the check output */
 	if (n->message[0] != 0) {
 		char *msg = replace_json_reserved(n->message);
 		if (msg == NULL) {
@@ -749,7 +749,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 		ret_str = temp_str;
 	}
 
-	// Pull in values from threshold and add extra attributes
+	/* Pull in values from threshold and add extra attributes */
 	for (meta = n->meta; meta != NULL; meta = meta->next) {
 		if (strcasecmp("CurrentValue", meta->name) == 0 && meta->type == NM_TYPE_DOUBLE) {
 			res = asprintf(&temp_str, "%s, \"current_value\": \"%.8f\"", ret_str, meta->nm_value.nm_double);
@@ -771,7 +771,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 		}
 	}
 
-	// close the curly bracket
+	/* close the curly bracket */
 	res = asprintf(&temp_str, "%s}\n", ret_str);
 	free(ret_str);
 	if (res == -1) {
