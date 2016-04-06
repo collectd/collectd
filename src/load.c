@@ -139,10 +139,16 @@ static int load_read (void)
 	char *fields[8];
 	int numfields;
 
-	if ((loadavg = fopen ("/proc/loadavg", "r")) == NULL)
+	const char *prefix = global_option_get("PseudoFSPrefix");
+	const char *path   = "/proc/loadavg";
+	char statfile[strlen(prefix) + strlen(path) + 1];
+
+	ssnprintf(statfile, sizeof(statfile), "%s%s", prefix, path);
+	if ((loadavg = fopen (statfile, "r")) == NULL)
 	{
 		char errbuf[1024];
-		WARNING ("load: fopen: %s",
+		WARNING ("load: fopen(%s): %s",
+				statfile,
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}

@@ -91,9 +91,15 @@ static int cs_read (void)
 	derive_t result = 0;
 	int status = -2;
 
-	fh = fopen ("/proc/stat", "r");
+	const char *prefix = global_option_get("PseudoFSPrefix");
+	const char *path   = "/proc/stat";
+	char statfile[strlen(prefix) + strlen(path) + 1];
+
+	ssnprintf(statfile, sizeof(statfile), "%s%s", prefix, path);
+	fh = fopen (statfile, "r");
 	if (fh == NULL) {
-		ERROR ("contextswitch plugin: unable to open /proc/stat: %s",
+		ERROR ("contextswitch plugin: unable to open %s: %s",
+				statfile,
 				sstrerror (errno, buffer, sizeof (buffer)));
 		return (-1);
 	}

@@ -806,10 +806,11 @@ static void ps_submit_fork_rate (derive_t value)
 #if KERNEL_LINUX
 static procstat_t *ps_read_tasks_status (long pid, procstat_t *ps)
 {
-	char           dirname[64];
 	DIR           *dh;
-	char           filename[64];
 	FILE          *fh;
+	const char    *prefix = global_option_get("PseudoFSPrefix");
+	char           filename[strlen(prefix) + 64];
+	char           dirname[strlen(prefix) + 64];
 	struct dirent *ent;
 	derive_t cswitch_vol = 0;
 	derive_t cswitch_invol = 0;
@@ -817,7 +818,8 @@ static procstat_t *ps_read_tasks_status (long pid, procstat_t *ps)
 	char *fields[8];
 	int numfields;
 
-	ssnprintf (dirname, sizeof (dirname), "/proc/%li/task", pid);
+
+	ssnprintf (dirname, sizeof (dirname), "%s/proc/%li/task", prefix, pid);
 
 	if ((dh = opendir (dirname)) == NULL)
 	{
@@ -834,7 +836,7 @@ static procstat_t *ps_read_tasks_status (long pid, procstat_t *ps)
 
 		tpid = ent->d_name;
 
-		ssnprintf (filename, sizeof (filename), "/proc/%li/task/%s/status", pid, tpid);
+		ssnprintf (filename, sizeof (filename), "%s/proc/%li/task/%s/status", prefix, pid, tpid);
 		if ((fh = fopen (filename, "r")) == NULL)
 		{
 			DEBUG ("Failed to open file `%s'", filename);
@@ -892,7 +894,8 @@ static procstat_t *ps_read_status (long pid, procstat_t *ps)
 {
 	FILE *fh;
 	char buffer[1024];
-	char filename[64];
+	const char *prefix = global_option_get("PseudoFSPrefix");
+	char filename[strlen(prefix) + 64];
 	unsigned long lib = 0;
 	unsigned long exe = 0;
 	unsigned long data = 0;
@@ -900,7 +903,7 @@ static procstat_t *ps_read_status (long pid, procstat_t *ps)
 	char *fields[8];
 	int numfields;
 
-	ssnprintf (filename, sizeof (filename), "/proc/%li/status", pid);
+	ssnprintf (filename, sizeof (filename), "%s/proc/%li/status", prefix, pid);
 	if ((fh = fopen (filename, "r")) == NULL)
 		return (NULL);
 
@@ -962,12 +965,13 @@ static procstat_t *ps_read_io (long pid, procstat_t *ps)
 {
 	FILE *fh;
 	char buffer[1024];
-	char filename[64];
+	const char *prefix = global_option_get("PseudoFSPrefix");
+	char filename[strlen(prefix) + 64];
 
 	char *fields[8];
 	int numfields;
 
-	ssnprintf (filename, sizeof (filename), "/proc/%li/io", pid);
+	ssnprintf (filename, sizeof (filename), "%s/proc/%li/io", prefix, pid);
 	if ((fh = fopen (filename, "r")) == NULL)
 		return (NULL);
 
@@ -1015,7 +1019,8 @@ static procstat_t *ps_read_io (long pid, procstat_t *ps)
 
 static int ps_read_process (long pid, procstat_t *ps, char *state)
 {
-	char  filename[64];
+	const char *prefix = global_option_get("PseudoFSPrefix");
+	char  filename[strlen(prefix) + 64];
 	char  buffer[1024];
 
 	char *fields[64];
@@ -1038,7 +1043,7 @@ static int ps_read_process (long pid, procstat_t *ps, char *state)
 
 	memset (ps, 0, sizeof (procstat_t));
 
-	ssnprintf (filename, sizeof (filename), "/proc/%li/stat", pid);
+	ssnprintf (filename, sizeof (filename), "%s/proc/%li/stat", prefix, pid);
 
 	status = read_file_contents (filename, buffer, sizeof(buffer) - 1);
 	if (status <= 0)
@@ -1176,7 +1181,8 @@ static char *ps_get_cmdline (long pid, char *name, char *buf, size_t buf_len)
 	char  *buf_ptr;
 	size_t len;
 
-	char file[PATH_MAX];
+	const char *prefix = global_option_get("PseudoFSPrefix");
+	char file[strlen(prefix) + 64];
 	int  fd;
 
 	size_t n;
@@ -1184,7 +1190,7 @@ static char *ps_get_cmdline (long pid, char *name, char *buf, size_t buf_len)
 	if ((pid < 1) || (NULL == buf) || (buf_len < 2))
 		return NULL;
 
-	ssnprintf (file, sizeof (file), "/proc/%li/cmdline", pid);
+	ssnprintf (file, sizeof (file), "%s/proc/%li/cmdline", prefix, pid);
 
 	errno = 0;
 	fd = open (file, O_RDONLY);
@@ -1271,12 +1277,17 @@ static int read_fork_rate (void)
 	char buffer[1024];
 	value_t value;
 	_Bool value_valid = 0;
+	const char *prefix = global_option_get("PseudoFSPrefix");
+	const char *path   = "/proc/stat";
+	char statfile[strlen(prefix) + strlen(path) + 1];
 
-	proc_stat = fopen ("/proc/stat", "r");
+	ssnprintf(statfile, sizeof(statfile), "%s%s", prefix, path);
+	proc_stat = fopen (statfile, "r");
 	if (proc_stat == NULL)
 	{
 		char errbuf[1024];
-		ERROR ("processes plugin: fopen (/proc/stat) failed: %s",
+		ERROR ("processes plugin: fopen (%s) failed: %s",
+				statfile,
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -1318,8 +1329,9 @@ static char *ps_get_cmdline (long pid, char *name __attribute__((unused)), /* {{
 	char path[PATH_MAX];
 	psinfo_t info;
 	ssize_t status;
+	const char *prefix = global_option_get("PseudoFSPrefix");
 
-	snprintf(path, sizeof (path), "/proc/%li/psinfo", pid);
+	snprintf(path, sizeof (path), "%s/proc/%li/psinfo", prefix, pid);
 
 	status = read_file_contents (path, (void *) &info, sizeof (info));
 	if ((status < 0) || (((size_t) status) != sizeof (info)))
@@ -1348,14 +1360,15 @@ static int ps_read_process(long pid, procstat_t *ps, char *state)
 	char filename[64];
 	char f_psinfo[64], f_usage[64];
 	char *buffer;
+	const char *prefix = global_option_get("PseudoFSPrefix");
 
 	pstatus_t *myStatus;
 	psinfo_t *myInfo;
 	prusage_t *myUsage;
 
-	snprintf(filename, sizeof (filename), "/proc/%li/status", pid);
-	snprintf(f_psinfo, sizeof (f_psinfo), "/proc/%li/psinfo", pid);
-	snprintf(f_usage, sizeof (f_usage), "/proc/%li/usage", pid);
+	snprintf(filename, sizeof (filename), "%s/proc/%li/status", prefix, pid);
+	snprintf(f_psinfo, sizeof (f_psinfo), "%s/proc/%li/psinfo", prefix, pid);
+	snprintf(f_usage, sizeof (f_usage), "%s/proc/%li/usage", prefix, pid);
 
 
 	buffer = calloc(1, sizeof (pstatus_t));
