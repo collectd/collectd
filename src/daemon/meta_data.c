@@ -105,12 +105,15 @@ static meta_entry_t *md_entry_alloc (const char *key) /* {{{ */
   return (e);
 } /* }}} meta_entry_t *md_entry_alloc */
 
-static meta_entry_t *md_entry_clone (const meta_entry_t *orig) /* {{{ */
+/* XXX: The lock on md must be held while calling this function! */
+static meta_entry_t *md_entry_clone_contents (const meta_entry_t *orig) /* {{{ */
 {
   meta_entry_t *copy;
 
-  if (orig == NULL)
-    return (NULL);
+  /* WARNINGS :
+   *  - we do not check that orig != NULL here. You should have done it before.
+   *  - we do not set copy->next. DO NOT FORGET TO SET copy->next IN YOUR FUNCTION
+   */
 
   copy = md_entry_alloc (orig->key);
   if (copy == NULL)
@@ -120,6 +123,18 @@ static meta_entry_t *md_entry_clone (const meta_entry_t *orig) /* {{{ */
     copy->value.mv_string = strdup (orig->value.mv_string);
   else
     copy->value = orig->value;
+
+  return (copy);
+} /* }}} meta_entry_t *md_entry_clone_contents */
+
+static meta_entry_t *md_entry_clone (const meta_entry_t *orig) /* {{{ */
+{
+  meta_entry_t *copy;
+
+  if (orig == NULL)
+    return (NULL);
+
+  copy = md_entry_clone_contents(orig);
 
   copy->next = md_entry_clone (orig->next);
   return (copy);
@@ -197,6 +212,63 @@ static int md_entry_insert (meta_data_t *md, meta_entry_t *e) /* {{{ */
 } /* }}} int md_entry_insert */
 
 /* XXX: The lock on md must be held while calling this function! */
+static int md_entry_insert_clone (meta_data_t *md, meta_entry_t *orig) /* {{{ */
+{
+  meta_entry_t *e;
+  meta_entry_t *this;
+  meta_entry_t *prev;
+
+  /* WARNINGS :
+   *  - we do not check that md and e != NULL here. You should have done it before.
+   *  - we do not use the lock. You should have set it before.
+   */
+
+  e = md_entry_clone_contents(orig);
+
+  prev = NULL;
+  this = md->head;
+  while (this != NULL)
+  {
+    if (strcasecmp (e->key, this->key) == 0)
+      break;
+
+    prev = this;
+    this = this->next;
+  }
+
+  if (this == NULL)
+  {
+    /* This key does not exist yet. */
+    if (md->head == NULL)
+      md->head = e;
+    else
+    {
+      assert (prev != NULL);
+      prev->next = e;
+    }
+
+    e->next = NULL;
+  }
+  else /* (this != NULL) */
+  {
+    if (prev == NULL)
+      md->head = e;
+    else
+      prev->next = e;
+
+    e->next = this->next;
+  }
+
+  if (this != NULL)
+  {
+    this->next = NULL;
+    md_entry_free (this);
+  }
+
+  return (0);
+} /* }}} int md_entry_insert_clone */
+
+/* XXX: The lock on md must be held while calling this function! */
 static meta_entry_t *md_entry_lookup (meta_data_t *md, /* {{{ */
     const char *key)
 {
@@ -248,6 +320,27 @@ meta_data_t *meta_data_clone (meta_data_t *orig) /* {{{ */
 
   return (copy);
 } /* }}} meta_data_t *meta_data_clone */
+
+int meta_data_clone_merge (meta_data_t **dest, meta_data_t *orig) /* {{{ */
+{
+  meta_entry_t *e;
+
+  if (orig == NULL)
+    return (0);
+
+  if(NULL == *dest) {
+    *dest = meta_data_clone(orig);
+    return(0);
+  }
+
+  pthread_mutex_lock (&orig->lock);
+  for(e=orig->head; NULL != e; e = e->next) {
+    md_entry_insert_clone((*dest), e);
+  }
+  pthread_mutex_unlock (&orig->lock);
+
+  return (0);
+} /* }}} int meta_data_clone_merge */
 
 void meta_data_destroy (meta_data_t *md) /* {{{ */
 {
