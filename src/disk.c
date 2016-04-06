@@ -293,6 +293,7 @@ static void disk_submit (const char *plugin_instance,
 	plugin_dispatch_values (&vl);
 } /* void disk_submit */
 
+#if KERNEL_FREEBSD || KERNEL_LINUX
 static void submit_io_time (char const *plugin_instance, derive_t io_time, derive_t weighted_time)
 {
 	value_t values[2];
@@ -313,6 +314,7 @@ static void submit_io_time (char const *plugin_instance, derive_t io_time, deriv
 
 	plugin_dispatch_values (&vl);
 } /* void submit_io_time */
+#endif /* KERNEL_FREEBSD || KERNEL_LINUX */
 
 #if KERNEL_LINUX
 static void submit_in_progress (char const *disk_name, gauge_t in_progress)
