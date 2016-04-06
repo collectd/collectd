@@ -187,35 +187,25 @@ static riemann_message_t *wrr_notification_to_message(struct riemann_host *host,
 				     RIEMANN_EVENT_FIELD_NONE);
 
 	if (n->host[0] != 0)
-		riemann_event_attribute_add(event,
-					    riemann_attribute_create("host", n->host));
+		riemann_event_string_attribute_add(event, "host", n->host);
 	if (n->plugin[0] != 0)
-		riemann_event_attribute_add(event,
-					    riemann_attribute_create("plugin", n->plugin));
+		riemann_event_string_attribute_add(event, "plugin", n->plugin);
 	if (n->plugin_instance[0] != 0)
-		riemann_event_attribute_add(event,
-					    riemann_attribute_create("plugin_instance",
-								     n->plugin_instance));
+		riemann_event_string_attribute_add(event, "plugin_instance", n->plugin_instance);
 
 	if (n->type[0] != 0)
-		riemann_event_attribute_add(event,
-					    riemann_attribute_create("type", n->type));
+		riemann_event_string_attribute_add(event, "type", n->type);
 	if (n->type_instance[0] != 0)
-		riemann_event_attribute_add(event,
-					    riemann_attribute_create("type_instance",
-								     n->type_instance));
+		riemann_event_string_attribute_add(event, "type_instance", n->type_instance);
 
 	for (i = 0; i < riemann_attrs_num; i += 2)
-		riemann_event_attribute_add(event,
-					    riemann_attribute_create(riemann_attrs[i],
-								     riemann_attrs[i +1]));
+		riemann_event_string_attribute_add(event, riemann_attrs[i], riemann_attrs[i+1]);
 
 	for (i = 0; i < riemann_tags_num; i++)
 		riemann_event_tag_add(event, riemann_tags[i]);
 
 	if (n->message[0] != 0)
-		riemann_event_attribute_add(event,
-					    riemann_attribute_create("description", n->message));
+		riemann_event_string_attribute_add(event, "description", n->message);
 
 	/* Pull in values from threshold and add extra attributes */
 	for (meta = n->meta; meta != NULL; meta = meta->next)
@@ -230,9 +220,7 @@ static riemann_message_t *wrr_notification_to_message(struct riemann_host *host,
 		}
 
 		if (meta->type == NM_TYPE_STRING) {
-			riemann_event_attribute_add(event,
-						    riemann_attribute_create(meta->name,
-									     meta->nm_value.nm_string));
+			riemann_event_string_attribute_add(event, meta->name, meta->nm_value.nm_string);
 			continue;
 		}
 	}
@@ -294,10 +282,10 @@ static riemann_event_t *wrr_value_to_event(struct riemann_host const *host, /* {
 			  RIEMANN_EVENT_FIELD_HOST, vl->host,
 			  RIEMANN_EVENT_FIELD_TIME, (int64_t) CDTIME_T_TO_TIME_T(vl->time),
 			  RIEMANN_EVENT_FIELD_TTL, (float) CDTIME_T_TO_DOUBLE(vl->interval) * host->ttl_factor,
-			  RIEMANN_EVENT_FIELD_ATTRIBUTES,
-			  riemann_attribute_create("plugin", vl->plugin),
-			  riemann_attribute_create("type", vl->type),
-			  riemann_attribute_create("ds_name", ds->ds[index].name),
+			  RIEMANN_EVENT_FIELD_STRING_ATTRIBUTES,
+			  "plugin", vl->plugin,
+			  "type", vl->type,
+			  "ds_name", ds->ds[index].name,
 			  NULL,
 			  RIEMANN_EVENT_FIELD_SERVICE, service_buffer,
 			  RIEMANN_EVENT_FIELD_NONE);
@@ -325,13 +313,9 @@ static riemann_event_t *wrr_value_to_event(struct riemann_host const *host, /* {
 	}
 
 	if (vl->plugin_instance[0] != 0)
-		riemann_event_attribute_add(event,
-					    riemann_attribute_create("plugin_instance",
-								     vl->plugin_instance));
+		riemann_event_string_attribute_add(event, "plugin_instance", vl->plugin_instance);
 	if (vl->type_instance[0] != 0)
-		riemann_event_attribute_add(event,
-					    riemann_attribute_create("type_instance",
-								     vl->type_instance));
+		riemann_event_string_attribute_add(event, "type_instance", vl->type_instance);
 
 	if ((ds->ds[index].type != DS_TYPE_GAUGE) && (rates != NULL))
 	{
@@ -339,28 +323,23 @@ static riemann_event_t *wrr_value_to_event(struct riemann_host const *host, /* {
 
 		ssnprintf(ds_type, sizeof(ds_type), "%s:rate",
 			  DS_TYPE_TO_STRING(ds->ds[index].type));
-		riemann_event_attribute_add(event,
-					    riemann_attribute_create("ds_type", ds_type));
+		riemann_event_string_attribute_add(event, "ds_type", ds_type);
 	}
 	else
 	{
-		riemann_event_attribute_add(event,
-					    riemann_attribute_create("ds_type",
-								     DS_TYPE_TO_STRING(ds->ds[index].type)));
+		riemann_event_string_attribute_add(event, "ds_type",
+                                       DS_TYPE_TO_STRING(ds->ds[index].type));
 	}
 
 	{
 		char ds_index[DATA_MAX_NAME_LEN];
 
 		ssnprintf(ds_index, sizeof(ds_index), "%zu", index);
-		riemann_event_attribute_add(event,
-					    riemann_attribute_create("ds_index", ds_index));
+		riemann_event_string_attribute_add(event, "ds_index", ds_index);
 	}
 
 	for (i = 0; i < riemann_attrs_num; i += 2)
-		riemann_event_attribute_add(event,
-					    riemann_attribute_create(riemann_attrs[i],
-								     riemann_attrs[i +1]));
+		riemann_event_string_attribute_add(event, riemann_attrs[i], riemann_attrs[i +1]);
 
 	for (i = 0; i < riemann_tags_num; i++)
 		riemann_event_tag_add(event, riemann_tags[i]);
@@ -542,7 +521,7 @@ static int wrr_batch_add_value_list(struct riemann_host *host, /* {{{ */
 		}
 	}
 
-	len = protobuf_c_message_get_packed_size((const ProtobufCMessage*)(host->batch_msg));
+	len = riemann_message_get_packed_size(host->batch_msg);
 	ret = 0;
 	if ((host->batch_max < 0) || (((size_t) host->batch_max) <= len)) {
 		ret = wrr_batch_flush_nolock(0, host);
