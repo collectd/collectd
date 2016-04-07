@@ -65,6 +65,7 @@ struct riemann_host {
 	char			 *tls_ca_file;
 	char			 *tls_cert_file;
 	char			 *tls_key_file;
+	struct timeval timeout;
 };
 
 static char	**riemann_tags;
@@ -95,6 +96,15 @@ static int wrr_connect(struct riemann_host *host) /* {{{ */
 		WARNING("write_riemann plugin: Unable to connect to Riemann at %s:%d",
 			node, port);
 		return -1;
+	}
+	if (host->timeout.tv_sec != 0) {
+		if (riemann_client_set_timeout(host->client, &host->timeout) != 0) {
+			riemann_client_free(host->client);
+			host->client = NULL;
+			WARNING("write_riemann plugin: Unable to connect to Riemann at %s:%d",
+			        node, port);
+			return -1;
+		}
 	}
 	DEBUG("write_riemann plugin: got a successful connection for: %s:%d",
 	      node, port);
@@ -639,6 +649,8 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
   host->ttl_factor = RIEMANN_TTL_FACTOR;
   host->client = NULL;
   host->client_type = RIEMANN_CLIENT_TCP;
+  host->timeout.tv_sec = 0;
+  host->timeout.tv_usec = 0;
 
   status = cf_util_get_string(ci, &host->name);
   if (status != 0) {
@@ -677,6 +689,10 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
         break;
     } else if (strcasecmp("BatchMaxSize", child->key) == 0) {
       status = cf_util_get_int(child, &host->batch_max);
+      if (status != 0)
+        break;
+    } else if (strcasecmp("Timeout", child->key) == 0) {
+      status = cf_util_get_int(child, (int *)&host->timeout.tv_sec);
       if (status != 0)
         break;
     } else if (strcasecmp("Port", child->key) == 0) {
