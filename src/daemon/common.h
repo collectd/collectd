@@ -1,6 +1,6 @@
 /**
  * collectd - src/common.h
- * Copyright (C) 2005-2014  Florian octo Forster
+ * Copyright (C) 2005-2015  Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -98,6 +98,13 @@ char *sstrerror (int errnum, char *buf, size_t buflen);
  *   case.
  */
 ssize_t sread (int fd, void *buf, size_t count);
+
+/* read_file reads the contents of "file" into memory and stores a pointer in
+ * "ret_data", which must be freed by the caller. The number of bytes read is
+ * stored in "ret_data_size". On success, 0 is returned. On failure, an error
+ * code is stored in "errno" and -1 is returned; "ret_data" and "ret_data_size"
+ * are left unmodified. */
+int read_file (char const *file, void **ret_data, size_t *ret_data_size);
 
 /*
  * NAME
