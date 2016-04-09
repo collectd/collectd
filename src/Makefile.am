@@ -896,6 +896,12 @@ protocols_la_SOURCES = protocols.c
 protocols_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_CORETEMP
+pkglib_LTLIBRARIES += coretemp.la
+coretemp_la_SOURCES = coretemp.c
+coretemp_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_REDIS
 pkglib_LTLIBRARIES += redis.la
 redis_la_SOURCES = redis.c
