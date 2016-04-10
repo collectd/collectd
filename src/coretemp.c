@@ -112,8 +112,8 @@ struct coretemp_core
   unsigned int socket;
   unsigned int core;
   unsigned int hwmon;
-  char *label;
   int input;
+  char *label;
 };
 
 struct coretemp_core **c=0;
@@ -188,6 +188,7 @@ FILE *f=0;
               rewinddir(dp2);
               dp4 = dp2;
               dp3 = 0;
+              hwmon = 0;
               goto no_hwmon;
             }
             
@@ -213,7 +214,7 @@ FILE *f=0;
                 core = atoi(&de4->d_name[4]);
                 idx=-1;
                 for(i=0; i<core_count;i++ ) {
-                  if ( c[i]->socket == socket && c[i]->core == core ) idx = i;
+                  if ( c[i]->socket == socket && c[i]->core == core && c[i]->hwmon == hwmon ) idx = i;
                 }
                 
                 if ( idx < 0 ) {
@@ -234,7 +235,6 @@ FILE *f=0;
                   idx = core_count;
                   ++core_count;
                 }
-                
                 
                 ++s;
                 *b=t;
