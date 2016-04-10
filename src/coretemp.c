@@ -141,7 +141,8 @@ struct dirent *de, *de2, *de3, *de4;
 unsigned int socket=0;
 int l, core, idx, i, hwmon=0;
 char core_name[100];
-char *s, *b, t,*realloc_sucks;
+char *s, *b, t;
+void *realloc_sucks;
 FILE *f=0;
 
   if ( chdir(CORETEMP_PATH) ) {
