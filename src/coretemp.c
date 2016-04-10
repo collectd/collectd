@@ -141,7 +141,7 @@ struct dirent *de, *de2, *de3, *de4;
 unsigned int socket=0;
 int l, core, idx, i, hwmon=0;
 char core_name[100];
-char *s, *b, t;
+char *s, *b, t,*realloc_sucks;
 FILE *f=0;
 
   if ( chdir(CORETEMP_PATH) ) {
@@ -216,7 +216,9 @@ FILE *f=0;
                 }
                 
                 if ( idx < 0 ) {
+                  realloc_sucks = c;
                   if ( NULL == (c = realloc(c, sizeof(struct coretemp_core*)*(core_count+1))) ) {
+                    c = realloc_sucks;
                     ERROR ("coretemp plugin: realloc failed");
                     goto error_exit;
                   }
