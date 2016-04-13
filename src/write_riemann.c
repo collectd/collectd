@@ -37,6 +37,7 @@
 #include "common.h"
 #include "configfile.h"
 #include "utils_cache.h"
+#include "utils_complain.h"
 #include "write_riemann_threshold.h"
 
 #define RIEMANN_HOST		"localhost"
@@ -55,6 +56,8 @@ struct riemann_host {
 	_Bool			 always_append_ds;
 	char			*node;
 	int			 port;
+    c_complain_t init_complaint;
+    c_complain_t init_send_complaint;
 	riemann_client_type_t	 client_type;
 	riemann_client_t	*client;
 	double			 ttl_factor;
@@ -93,21 +96,25 @@ static int wrr_connect(struct riemann_host *host) /* {{{ */
 					     RIEMANN_CLIENT_OPTION_TLS_KEY_FILE, host->tls_key_file,
 					     RIEMANN_CLIENT_OPTION_NONE);
 	if (host->client == NULL) {
-		WARNING("write_riemann plugin: Unable to connect to Riemann at %s:%d",
-			node, port);
+        c_complain (LOG_ERR, &host->init_complaint,
+                    "write_riemann plugin: Unable to connect to Riemann at %s:%d",
+                    node, port);
 		return -1;
 	}
 	if (host->timeout.tv_sec != 0) {
 		if (riemann_client_set_timeout(host->client, &host->timeout) != 0) {
 			riemann_client_free(host->client);
 			host->client = NULL;
-			WARNING("write_riemann plugin: Unable to connect to Riemann at %s:%d",
-			        node, port);
+            c_complain (LOG_ERR, &host->init_complaint,
+                        "write_riemann plugin: Unable to connect to Riemann at %s:%d",
+                        node, port);
 			return -1;
 		}
 	}
-	DEBUG("write_riemann plugin: got a successful connection for: %s:%d",
-	      node, port);
+
+    c_release (LOG_INFO, &host->init_complaint,
+               "write_riemann plugin: Successfully connected to %s:%d",
+               node, port);
 
 	return 0;
 } /* }}} int wrr_connect */
@@ -491,8 +498,11 @@ static int wrr_batch_flush(cdtime_t timeout,
 	pthread_mutex_lock(&host->lock);
 	status = wrr_batch_flush_nolock(timeout, host);
 	if (status != 0)
-		ERROR("write_riemann plugin: riemann_client_send failed with status %i",
-		      status);
+        c_complain (LOG_ERR, &host->init_complaint,
+                    "write_riemann plugin: riemann_client_send failed with status %i",
+                    status);
+    else
+        c_release (LOG_DEBUG, &host->init_complaint, "write_riemann plugin: batch sent.");
 
 	pthread_mutex_unlock(&host->lock);
 	return status;
@@ -561,8 +571,12 @@ static int wrr_notification(const notification_t *n, user_data_t *ud) /* {{{ */
 
 	status = wrr_send(host, msg);
 	if (status != 0)
-		ERROR("write_riemann plugin: riemann_client_send failed with status %i",
-		      status);
+        c_complain (LOG_ERR, &host->init_complaint,
+                    "write_riemann plugin: riemann_client_send failed with status %i",
+                    status);
+    else
+        c_release (LOG_DEBUG, &host->init_complaint,
+                   "write_riemann plugin: riemann_client_send succeeded");
 
 	riemann_message_free(msg);
 	return (status);
@@ -593,9 +607,6 @@ static int wrr_write(const data_set_t *ds, /* {{{ */
       return (-1);
 
     status = wrr_send(host, msg);
-    if (status != 0)
-      ERROR("write_riemann plugin: riemann_client_send failed with status %i",
-            status);
 
     riemann_message_free(msg);
   }
@@ -638,6 +649,7 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
     return ENOMEM;
   }
   pthread_mutex_init(&host->lock, NULL);
+  C_COMPLAIN_INIT (&host->init_complaint);
   host->reference_count = 1;
   host->node = NULL;
   host->port = 0;
