@@ -57,7 +57,6 @@ struct riemann_host {
 	char			*node;
 	int			 port;
     c_complain_t init_complaint;
-    c_complain_t init_send_complaint;
 	riemann_client_type_t	 client_type;
 	riemann_client_t	*client;
 	double			 ttl_factor;
