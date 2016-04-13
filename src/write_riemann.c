@@ -46,6 +46,7 @@
 #define RIEMANN_BATCH_MAX      8192
 
 struct riemann_host {
+    c_complain_t init_complaint;
 	char			*name;
 	char			*event_service_prefix;
 	pthread_mutex_t	 lock;
@@ -56,7 +57,6 @@ struct riemann_host {
 	_Bool			 always_append_ds;
 	char			*node;
 	int			 port;
-    c_complain_t init_complaint;
 	riemann_client_type_t	 client_type;
 	riemann_client_t	*client;
 	double			 ttl_factor;
