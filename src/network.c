@@ -2501,7 +2501,7 @@ static int network_receive (void) /* {{{ */
 				break;
 			}
 
-			ent->data = malloc (*ent->data);
+			ent->data = malloc (network_config_packet_size);
 			if (ent->data == NULL)
 			{
 				sfree (ent);
