@@ -62,6 +62,7 @@ struct riemann_host {
 	double			 ttl_factor;
     cdtime_t         batch_init;
     int              batch_max;
+    int              batch_timeout;
 	int			     reference_count;
   riemann_message_t	*batch_msg;
 	char			 *tls_ca_file;
@@ -515,6 +516,7 @@ static int wrr_batch_add_value_list(struct riemann_host *host, /* {{{ */
 	riemann_message_t *msg;
 	size_t len;
 	int ret;
+    cdtime_t timeout;
 
 	msg = wrr_value_list_to_message(host, ds, vl, statuses);
 	if (msg == NULL)
@@ -546,7 +548,12 @@ static int wrr_batch_add_value_list(struct riemann_host *host, /* {{{ */
 	ret = 0;
 	if ((host->batch_max < 0) || (((size_t) host->batch_max) <= len)) {
 		ret = wrr_batch_flush_nolock(0, host);
-	}
+	} else {
+        if (host->batch_timeout > 0) {
+            timeout = TIME_T_TO_CDTIME_T((time_t)host->batch_timeout);
+            ret = wrr_batch_flush_nolock(timeout, host);
+        }
+    }
 
 	pthread_mutex_unlock(&host->lock);
 	return ret;
@@ -659,6 +666,7 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
   host->batch_mode = 1;
   host->batch_max = RIEMANN_BATCH_MAX; /* typical MSS */
   host->batch_init = cdtime();
+  host->batch_timeout = 0;
   host->ttl_factor = RIEMANN_TTL_FACTOR;
   host->client = NULL;
   host->client_type = RIEMANN_CLIENT_TCP;
@@ -702,6 +710,10 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
         break;
     } else if (strcasecmp("BatchMaxSize", child->key) == 0) {
       status = cf_util_get_int(child, &host->batch_max);
+      if (status != 0)
+        break;
+    } else if (strcasecmp("BatchFlushTimeout", child->key) == 0) {
+      status = cf_util_get_int(child, &host->batch_timeout);
       if (status != 0)
         break;
     } else if (strcasecmp("Timeout", child->key) == 0) {
