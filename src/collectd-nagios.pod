@@ -29,6 +29,10 @@ as no argument is passed more than once.
 
 Path of the UNIX socket opened by collectd's C<unixsock plugin>.
 
+=item B<-t>
+
+If this option is given, collectd-nagios connects via TCP to B<-s> I<socket>, opened by collectd's C<tcpsock plugin>.
+
 =item B<-n> I<value_spec>
 
 The value to read from collectd. The argument is in the form

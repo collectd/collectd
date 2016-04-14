@@ -1078,6 +1078,20 @@ tcpconns_la_LIBADD += -lkvm
 endif
 endif
 
+if BUILD_PLUGIN_TCPSOCK
+pkglib_LTLIBRARIES += tcpsock.la
+tcpsock_la_SOURCES  = tcpsock.c \
+		      utils_cmd_flush.h utils_cmd_flush.c \
+		      utils_cmd_getval.h utils_cmd_getval.c \
+		      utils_cmd_getthreshold.h utils_cmd_getthreshold.c \
+		      utils_cmd_listval.h utils_cmd_listval.c \
+		      utils_cmd_putval.h utils_cmd_putval.c \
+		      utils_cmd_putnotif.h utils_cmd_putnotif.c \
+		      utils_parse_option.h utils_parse_option.c
+tcpsock_la_LDFLAGS  = $(PLUGIN_LDFLAGS)
+tcpsock_la_LIBADD   = -lpthread
+endif
+
 if BUILD_PLUGIN_TEAMSPEAK2
 pkglib_LTLIBRARIES += teamspeak2.la
 teamspeak2_la_SOURCES = teamspeak2.c
@@ -1332,6 +1346,7 @@ dist_man_MANS = collectd.1 \
 		collectd-tg.1 \
 		collectd-threshold.5 \
 		collectd-unixsock.5 \
+		collectd-tcpsock.5 \
 		types.db.5
 
 #collectd_1_SOURCES = collectd.pod
@@ -1352,6 +1367,7 @@ EXTRA_DIST +=   collectd.conf.pod \
 		collectd-tg.pod \
 		collectd-threshold.pod \
 		collectd-unixsock.pod \
+		collectd-tcpsock.pod \
 		postgresql_default.conf \
 		types.db.pod
 
