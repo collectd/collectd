@@ -775,7 +775,7 @@ AC_HEADER_TIME
 # Checks for library functions.
 #
 AC_PROG_GCC_TRADITIONAL
-AC_CHECK_FUNCS(gettimeofday select strdup strtol getaddrinfo getnameinfo strchr memcpy strstr strcmp strncmp strncpy strlen strncasecmp strcasecmp openlog closelog sysconf setenv if_indextoname setlocale)
+AC_CHECK_FUNCS(gettimeofday select strdup strtol getaddrinfo getnameinfo strchr memcpy strstr strcmp strncmp strncpy strlen strncasecmp strcasecmp openlog closelog sysconf setenv if_indextoname setlocale epoll_create port_create kqueue)
 
 AC_FUNC_STRERROR_R
 
@@ -1925,6 +1925,9 @@ then
 	then
 		with_libcurl="no ($with_curl_config failed)"
 	else
+		SAVE_CPPFLAGS="$CPPFLAGS"
+		CPPFLAGS="$CPPFLAGS $with_curl_cflags"
+
 		AC_CHECK_LIB(curl, curl_easy_init,
 		 [with_libcurl="yes"],
 		 [with_libcurl="no (symbol 'curl_easy_init' not found)"],
@@ -1937,6 +1940,26 @@ then
 		 [have_curlopt_timeout="yes"],
 		 [have_curlopt_timeout="no"],
 		 [[#include <curl/curl.h>]])
+
+		AC_CHECK_DECL(CURL_CSELECT_IN,
+		 [have_curl_cselect_in="yes"],
+		 [have_curl_cselect_in="no"],
+		 [[#include <curl/curl.h>]])
+
+		AC_CHECK_DECL(CURLMOPT_PIPELINING,
+		 [have_curlmopt_pipelining="yes"],
+		 [have_curlmopt_pipelining="no"],
+		 [[#include <curl/curl.h>]])
+		AC_CHECK_DECL(CURLMOPT_MAXCONNECTS,
+		 [have_curlmopt_maxconnects="yes"],
+		 [have_curlmopt_maxconnects="no"],
+		 [[#include <curl/curl.h>]])
+		AC_CHECK_DECL(CURLMOPT_MAX_HOST_CONNECTIONS,
+		 [have_curlmopt_max_host_connections="yes"],
+		 [have_curlmopt_max_host_connections="no"],
+		 [[#include <curl/curl.h>]])
+
+		CPPFLAGS="$SAVE_CPPFLAGS"
 	fi
 fi
 if test "x$with_libcurl" = "xyes"
@@ -1954,6 +1977,33 @@ then
 	if test "x$have_curlopt_timeout" = "xyes"
 	then
 		AC_DEFINE(HAVE_CURLOPT_TIMEOUT_MS, 1, [Define if libcurl supports CURLOPT_TIMEOUT_MS option.])
+	fi
+
+	if test "x$have_curl_cselect_in" = "xyes"
+	then
+		AC_DEFINE(HAVE_CURL_CSELECT_IN, 1, [Define if libcurl defines CURL_CSELECT_IN.])
+	fi
+
+	if test "x$have_curlmopt_pipelining" = "xyes"
+	then
+		AC_DEFINE(HAVE_CURLMOPT_PIPELINING, 1, [Define if libcurl supports CURLMOPT_PIPELINING option.])
+	fi
+
+	if test "x$have_curlmopt_maxconnects" = "xyes"
+	then
+		AC_DEFINE(HAVE_CURLMOPT_MAXCONNECTS, 1, [Define if libcurl supports CURLMOPT_MAXCONNECTS option.])
+	fi
+
+	if test "x$have_curlmopt_max_host_connections" = "xyes"
+	then
+		AC_DEFINE(HAVE_CURLMOPT_MAX_HOST_CONNECTIONS, 1, [Define if libcurl supports CURLMOPT_MAX_HOST_CONNECTIONS option.])
+	fi
+
+	if test "x$have_curl_cselect_in" = "xyes"
+	then
+		utils_curl_supported="yes"
+	else
+		utils_curl_supported="no"
 	fi
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBCURL, test "x$with_libcurl" = "xyes")
@@ -5882,6 +5932,7 @@ AC_PLUGIN([vserver],     [$plugin_vserver],    [Linux VServer statistics])
 AC_PLUGIN([wireless],    [$plugin_wireless],   [Wireless statistics])
 AC_PLUGIN([write_graphite], [yes],             [Graphite / Carbon output plugin])
 AC_PLUGIN([write_http],  [$with_libcurl],      [HTTP output plugin])
+AC_PLUGIN([write_influxdb], [$utils_curl_supported], [InfluxDB output plugin])
 AC_PLUGIN([write_kafka],  [$with_librdkafka],  [Kafka output plugin])
 AC_PLUGIN([write_log], [yes],                  [Log output plugin])
 AC_PLUGIN([write_mongodb], [$with_libmongoc],  [MongoDB output plugin])
@@ -6281,6 +6332,7 @@ Configuration:
     wireless  . . . . . . $enable_wireless
     write_graphite  . . . $enable_write_graphite
     write_http  . . . . . $enable_write_http
+    write_influxdb  . . . $enable_write_influxdb
     write_kafka . . . . . $enable_write_kafka
     write_log . . . . . . $enable_write_log
     write_mongodb . . . . $enable_write_mongodb
