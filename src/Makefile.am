@@ -120,7 +120,7 @@ if BUILD_PLUGIN_AMQP
 pkglib_LTLIBRARIES += amqp.la
 amqp_la_SOURCES = amqp.c \
 		  utils_cmd_putval.c utils_cmd_putval.h \
-  	          utils_parse_option.c utils_parse_option.h \
+	          utils_parse_option.c utils_parse_option.h \
 		  utils_format_graphite.c utils_format_graphite.h \
 		  utils_format_json.c utils_format_json.h
 amqp_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBRABBITMQ_LDFLAGS)
@@ -1383,17 +1383,6 @@ BUILT_SOURCES += pinba.pb-c.c pinba.pb-c.h
 
 pinba.pb-c.c pinba.pb-c.h: pinba.proto
 	$(AM_V_PROTOC_C)protoc-c -I$(srcdir) --c_out . $(srcdir)/pinba.proto
-endif
-
-# Protocol buffer for the "write_riemann" plugin.
-EXTRA_DIST += riemann.proto
-if BUILD_PLUGIN_WRITE_RIEMANN
-CLEANFILES += riemann.pb-c.c riemann.pb-c.h
-
-BUILT_SOURCES += riemann.pb-c.c riemann.pb-c.h
-
-riemann.pb-c.c riemann.pb-c.h: riemann.proto
-	$(AM_V_PROTOC_C)protoc-c -I$(srcdir) --c_out . $(srcdir)/riemann.proto
 endif
 
 install-exec-hook:
