@@ -136,21 +136,18 @@ static int wrr_disconnect(struct riemann_host *host) /* {{{ */
  *
  * Acquires the host lock, disconnects on errors.
  */
-static int wrr_send(struct riemann_host *host, riemann_message_t *msg) /* {{{ */
+static int wrr_send_nolock(struct riemann_host *host, riemann_message_t *msg) /* {{{ */
 {
 	int status = 0;
-	pthread_mutex_lock (&host->lock);
 
 	status = wrr_connect(host);
 	if (status != 0) {
-        pthread_mutex_unlock(&host->lock);
 		return status;
     }
 
 	status = riemann_client_send_message(host->client, msg);
 	if (status != 0) {
 		wrr_disconnect(host);
-		pthread_mutex_unlock(&host->lock);
 		return status;
 	}
 
@@ -166,15 +163,23 @@ static int wrr_send(struct riemann_host *host, riemann_message_t *msg) /* {{{ */
 		if (response == NULL)
 		{
 			wrr_disconnect(host);
-			pthread_mutex_unlock(&host->lock);
 			return errno;
 		}
 		riemann_message_free(response);
 	}
 
-	pthread_mutex_unlock (&host->lock);
 	return 0;
 } /* }}} int wrr_send */
+
+static int wrr_send(struct riemann_host *host, riemann_message_t *msg)
+{
+    int status = 0;
+
+    pthread_mutex_lock (&host->lock);
+    status = wrr_send_nolock(host, msg);
+    pthread_mutex_unlock (&host->lock);
+    return status;
+}
 
 static riemann_message_t *wrr_notification_to_message(struct riemann_host *host, /* {{{ */
 		notification_t const *n)
@@ -461,7 +466,7 @@ static int wrr_batch_flush_nolock(cdtime_t timeout,
 		if ((host->batch_init + timeout) > now)
 			return status;
 	}
-	wrr_send(host, host->batch_msg);
+	wrr_send_nolock(host, host->batch_msg);
 	riemann_message_free(host->batch_msg);
 
 	if (host->client_type != RIEMANN_CLIENT_UDP)
