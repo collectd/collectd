@@ -1364,6 +1364,10 @@ static int ps_read_process(long pid, procstat_t *ps, char *state)
 		ps->num_proc = 0;
 		ps->num_lwp = 0;
 		*state = (char) 'Z';
+
+		sfree(myStatus);
+		sfree(myInfo);
+		sfree(myUsage);
 		return (0);
 	} else {
 		ps->num_proc = 1;

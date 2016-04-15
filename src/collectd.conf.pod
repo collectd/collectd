@@ -208,9 +208,7 @@ I<pattern> may be specified to filter which files to include. This may be used
 in combination with recursively including a directory to easily be able to
 arbitrarily mix configuration files and other documents (e.g. README files).
 The given example is similar to the first example above but includes all files
-matching C<*.conf> in any subdirectory of C</etc/collectd.d>:
-
-  Include "/etc/collectd.d" "*.conf"
+matching C<*.conf> in any subdirectory of C</etc/collectd.d>.
 
 =back
 
@@ -7576,6 +7574,12 @@ authentication.
 =item B<ClientKeyPass> I<Password>
 
 Password required to load the private key in B<ClientKey>.
+
+=item B<Header> I<Header>
+
+A HTTP header to add to the request.  Multiple headers are added if this option is specified more than once.  Example:
+
+  Header "X-Custom-Header: custom_value"
 
 =item B<SSLVersion> B<SSLv2>|B<SSLv3>|B<TLSv1>|B<TLSv1_0>|B<TLSv1_1>|B<TLSv1_2>
 
