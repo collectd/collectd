@@ -5849,6 +5849,7 @@ AC_PLUGIN([rrdcached],   [$librrd_rrdc_update], [RRDTool output plugin])
 AC_PLUGIN([rrdtool],     [$with_librrd],       [RRDTool output plugin])
 AC_PLUGIN([sensors],     [$with_libsensors],   [lm_sensors statistics])
 AC_PLUGIN([serial],      [$plugin_serial],     [serial port traffic])
+AC_PLUGIN([serve_http],  [yes],                [HTTP serving output plugin])
 AC_PLUGIN([sigrok],      [$with_libsigrok],    [sigrok acquisition sources])
 AC_PLUGIN([smart],       [$with_libatasmart],  [SMART statistics])
 AC_PLUGIN([snmp],        [$with_libnetsnmp],   [SNMP querying plugin])
@@ -6248,6 +6249,7 @@ Configuration:
     rrdtool . . . . . . . $enable_rrdtool
     sensors . . . . . . . $enable_sensors
     serial  . . . . . . . $enable_serial
+    serve_http  . . . . . $enable_serve_http
     sigrok  . . . . . . . $enable_sigrok
     smart . . . . . . . . $enable_smart
     snmp  . . . . . . . . $enable_snmp
