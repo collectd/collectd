@@ -1,5 +1,6 @@
 [Unit]
 Description=Collectd
+Documentation=man:collectd(1) man:collectd.conf(5)
 After=local-fs.target network.target
 Requires=local-fs.target network.target
 
