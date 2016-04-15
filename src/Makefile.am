@@ -232,6 +232,13 @@ contextswitch_la_LIBADD += -lperfstat
 endif
 endif
 
+if BUILD_PLUGIN_CORETEMP
+pkglib_LTLIBRARIES += coretemp.la
+coretemp_la_SOURCES = coretemp.c
+coretemp_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+coretemp_la_CFLAGS = -D_GNU_SOURCE
+endif
+
 if BUILD_PLUGIN_CPU
 pkglib_LTLIBRARIES += cpu.la
 cpu_la_SOURCES = cpu.c
@@ -894,12 +901,6 @@ if BUILD_PLUGIN_PROTOCOLS
 pkglib_LTLIBRARIES += protocols.la
 protocols_la_SOURCES = protocols.c
 protocols_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-endif
-
-if BUILD_PLUGIN_CORETEMP
-pkglib_LTLIBRARIES += coretemp.la
-coretemp_la_SOURCES = coretemp.c
-coretemp_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
 if BUILD_PLUGIN_REDIS
