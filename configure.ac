@@ -5411,9 +5411,9 @@ plugin_zookeeper="no"
 if test "x$ac_system" = "xLinux"
 then
 	plugin_battery="yes"
+	plugin_cgroups="yes"
 	plugin_conntrack="yes"
 	plugin_contextswitch="yes"
-	plugin_cgroups="yes"
 	plugin_cpu="yes"
 	plugin_cpufreq="yes"
 	plugin_disk="yes"
@@ -5458,10 +5458,10 @@ fi
 
 if test "x$ac_system" = "xNetBSD"
 then
+	plugin_disk="yes"
 	plugin_entropy="yes"
 	plugin_irq="yes"
 	plugin_processes="yes"
-	plugin_disk="yes"
 fi
 
 # Mac OS X devices
@@ -5475,8 +5475,8 @@ fi
 
 if test "x$ac_system" = "xAIX"
 then
-	plugin_tcpconns="yes"
 	plugin_ipc="yes"
+	plugin_tcpconns="yes"
 fi
 
 # FreeBSD
@@ -5490,13 +5490,13 @@ fi
 
 if test "x$with_perfstat" = "xyes"
 then
-	plugin_cpu="yes"
 	plugin_contextswitch="yes"
+	plugin_cpu="yes"
 	plugin_disk="yes"
-	plugin_memory="yes"
-	plugin_swap="yes"
 	plugin_interface="yes"
 	plugin_load="yes"
+	plugin_memory="yes"
+	plugin_swap="yes"
 	plugin_uptime="yes"
 fi
 
@@ -5766,20 +5766,20 @@ AC_PLUGIN([barometer],   [$plugin_barometer],  [Barometer sensor on I2C])
 AC_PLUGIN([battery],     [$plugin_battery],    [Battery statistics])
 AC_PLUGIN([bind],        [$plugin_bind],       [ISC Bind nameserver statistics])
 AC_PLUGIN([ceph],        [$plugin_ceph],       [Ceph daemon statistics])
+AC_PLUGIN([cgroups],     [$plugin_cgroups],    [CGroups CPU usage accounting])
 AC_PLUGIN([conntrack],   [$plugin_conntrack],  [nf_conntrack statistics])
 AC_PLUGIN([contextswitch], [$plugin_contextswitch], [context switch statistics])
-AC_PLUGIN([cpufreq],     [$plugin_cpufreq],    [CPU frequency statistics])
 AC_PLUGIN([cpu],         [$plugin_cpu],        [CPU usage statistics])
+AC_PLUGIN([cpufreq],     [$plugin_cpufreq],    [CPU frequency statistics])
 AC_PLUGIN([csv],         [yes],                [CSV output plugin])
 AC_PLUGIN([curl],        [$with_libcurl],      [CURL generic web statistics])
 AC_PLUGIN([curl_json],   [$plugin_curl_json],    [CouchDB statistics])
 AC_PLUGIN([curl_xml],   [$plugin_curl_xml],    [CURL generic xml statistics])
-AC_PLUGIN([cgroups],     [$plugin_cgroups],    [CGroups CPU usage accounting])
 AC_PLUGIN([dbi],         [$with_libdbi],       [General database statistics])
 AC_PLUGIN([df],          [$plugin_df],         [Filesystem usage statistics])
 AC_PLUGIN([disk],        [$plugin_disk],       [Disk usage statistics])
-AC_PLUGIN([drbd],        [$plugin_drbd],       [DRBD statistics])
 AC_PLUGIN([dns],         [$with_libpcap],      [DNS traffic analysis])
+AC_PLUGIN([drbd],        [$plugin_drbd],       [DRBD statistics])
 AC_PLUGIN([email],       [yes],                [EMail statistics])
 AC_PLUGIN([entropy],     [$plugin_entropy],    [Entropy statistics])
 AC_PLUGIN([ethstat],     [$plugin_ethstat],    [Stats from NIC driver])
@@ -5797,8 +5797,8 @@ AC_PLUGIN([ipvs],        [$plugin_ipvs],       [IPVS connection statistics])
 AC_PLUGIN([irq],         [$plugin_irq],        [IRQ statistics])
 AC_PLUGIN([java],        [$with_java],         [Embed the Java Virtual Machine])
 AC_PLUGIN([load],        [$plugin_load],       [System load])
-AC_PLUGIN([logfile],     [yes],                [File logging plugin])
 AC_PLUGIN([log_logstash], [$plugin_log_logstash], [Logstash json_event compatible logging])
+AC_PLUGIN([logfile],     [yes],                [File logging plugin])
 AC_PLUGIN([lpar],        [$with_perfstat],     [AIX logical partitions statistics])
 AC_PLUGIN([lvm],         [$with_liblvm2app],   [LVM statistics])
 AC_PLUGIN([madwifi],     [$have_linux_wireless_h], [Madwifi wireless statistics])
