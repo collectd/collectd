@@ -2559,8 +2559,8 @@ at least one digit.
 
 =item B<UniqueName> I<true>|I<false>
 
-Interface name is not unique on Solaris (KSTAT), interface name is unique 
-only within a module/instance. Following tuple is considered unique: 
+Interface name is not unique on Solaris (KSTAT), interface name is unique
+only within a module/instance. Following tuple is considered unique:
    (ks_module, ks_instance, ks_name)
 If this option is set to true, interface name contains above three fields
 separated by an underscore. For more info on KSTAT, visit
@@ -4737,12 +4737,12 @@ I<mandatory>.
 
 =item B<BindDN> I<BindDN>
 
-Name in the form of an LDAP distinguished name intended to be used for 
+Name in the form of an LDAP distinguished name intended to be used for
 authentication. Defaults to empty string to establish an anonymous authorization.
 
 =item B<Password> I<Password>
 
-Password for simple bind authentication. If this option is not set, 
+Password for simple bind authentication. If this option is not set,
 unauthenticated bind operation is used.
 
 =item B<StartTLS> B<true|false>
@@ -6912,13 +6912,13 @@ fails or if you want to disable this feature.
 =item B<DigitalTemperatureSensor> I<true>|I<false>
 
 Boolean enabling the collection of the temperature of each core.
-This option should only be used if the automated detectionfails or 
+This option should only be used if the automated detectionfails or
 if you want to disable this feature.
 
 =item B<DigitalTemperatureSensor> I<true>|I<false>
 
 Boolean enabling the collection of the temperature of each package.
-This option should only be used if the automated detectionfails or 
+This option should only be used if the automated detectionfails or
 if you want to disable this feature.
 
 =item B<TCCActivationTemp> I<Temperature>
@@ -7863,10 +7863,25 @@ Hostname or address to connect to. Defaults to C<localhost>.
 
 Service name or port number to connect to. Defaults to C<5555>.
 
-=item B<Protocol> B<UDP>|B<TCP>
+=item B<Protocol> B<UDP>|B<TCP>|B<TLS>
 
 Specify the protocol to use when communicating with I<Riemann>. Defaults to
 B<TCP>.
+
+=item B<TLSCertFile> I<Path>
+
+When using the B<TLS> protocol, path to a PEM certificate to present
+to remote host.
+
+=item B<TLSCAFile> I<Path>
+
+When using the B<TLS> protocol, path to a PEM CA certificate to
+use to validate the remote hosts's identity.
+
+=item B<TLSKeyFile> I<Path>
+
+When using the B<TLS> protocol, path to a PEM private key associated
+with the certificate defined by B<TLSCertFile>.
 
 =item B<Batch> B<true>|B<false>
 
@@ -7886,6 +7901,11 @@ Defaults to true
 =item B<BatchMaxSize> I<size>
 
 Maximum payload size for a riemann packet. Defaults to 8192
+
+=item B<BatchFlushTimeout> I<seconds>
+
+Maximum amount of seconds to wait in between to batch flushes.
+No timeout by default.
 
 =item B<StoreRates> B<true>|B<false>
 
