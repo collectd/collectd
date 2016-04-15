@@ -207,18 +207,16 @@ static int coretemp_findcores()
 	  if (idx < 0)
 	  {
 	    realloc_sucks = c;
-	    if (NULL ==
-		(c =
-		 realloc(c,
-			 sizeof(struct coretemp_core *) *
-			 (core_count + 1))))
+	    if (!(c =
+		  realloc(c,
+			  sizeof(struct coretemp_core *) *
+			  (core_count + 1))))
 	    {
 	      c = realloc_sucks;
 	      ERROR("coretemp plugin: realloc failed");
 	      goto error_exit;
 	    }
-	    if (NULL ==
-		(c[core_count] = malloc(sizeof(struct coretemp_core))))
+	    if (!(c[core_count] = malloc(sizeof(struct coretemp_core))))
 	    {
 	      ERROR("coretemp plugin: malloc failed");
 	      goto error_exit;
@@ -235,7 +233,7 @@ static int coretemp_findcores()
 	  *b = t;
 	  if (!strcmp(s, "max"))
 	  {
-	    if (NULL == (f = fopen(de4->d_name, "r")))
+	    if (!(f = fopen(de4->d_name, "r")))
 	    {
 	      ERROR("coretemp plugin: unable to open (%s)", de4->d_name);
 	      goto error_exit;
@@ -252,7 +250,7 @@ static int coretemp_findcores()
 	  }
 	  else if (!strcmp(s, "label"))
 	  {
-	    if (NULL == (f = fopen(de4->d_name, "r")))
+	    if (!(f = fopen(de4->d_name, "r")))
 	    {
 	      ERROR("coretemp plugin: unable to open (%s)", de4->d_name);
 	      goto error_exit;
