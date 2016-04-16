@@ -697,7 +697,7 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
 	value_list.values_len = size;
 	value_list.time = DOUBLE_TO_CDTIME_T(time);
 	value_list.interval = DOUBLE_TO_CDTIME_T(interval);
-	value_list.meta = cpy_build_meta(meta);;
+	value_list.meta = cpy_build_meta(meta);
 	if (value_list.host[0] == 0)
 		sstrncpy(value_list.host, hostname_g, sizeof(value_list.host));
 	if (value_list.plugin[0] == 0)
