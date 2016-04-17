@@ -97,8 +97,7 @@ static int coretemp_findcores()
   struct dirent *de, *de2, *de3, *de4;
   unsigned int socket = 0;
   int l, core, idx, i, hwmon = 0;
-  char core_name[100];
-  char *s, *b, t;
+  char core_name[100], t, *s, *b;
   void *realloc_sucks;
   FILE *f = 0;
 
@@ -306,8 +305,8 @@ no_hwmon:
   DEBUG ("coretemp: found cores %d", core_count);
   for (i = 0; i < core_count; i++)
   {
-    DEBUG ("coretemp: socket=%d core=%d tjmax=%d label=%s",
-           c[i]->socket, c[i]->core, c[i]->tjmax, c[i]->label);
+    DEBUG ("coretemp: socket=%d hwmon=%d core=%d tjmax=%d label=%s",
+           c[i]->socket, c[i]->hwmon, c[i]->core, c[i]->tjmax, c[i]->label);
   }
 #endif				/* COLLECT_DEBUG */
 
