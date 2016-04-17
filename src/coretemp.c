@@ -105,14 +105,14 @@ static int coretemp_findcores()
   if (chdir (CORETEMP_PATH))
   {
     ERROR ("coretemp plugin: unable to find coretemp path (%s)",
-	  CORETEMP_PATH);
+           CORETEMP_PATH);
     return (-1);
   }
 
   if (!(dp = opendir (".")))
   {
     ERROR ("coretemp plugin: unable to diropen() coretemp path (%s)",
-	  CORETEMP_PATH);
+           CORETEMP_PATH);
     return (-1);
   }
 
@@ -125,176 +125,176 @@ static int coretemp_findcores()
       socket = atoi (&de->d_name[CORETEMP_STRLEN]);
       if (chdir (de->d_name))
       {
-	ERROR ("coretemp plugin: unable to chdir into [ %s ] for coretemp data",
-	     de->d_name);
-	goto error_exit;
+        ERROR ("coretemp plugin: unable to chdir into [ %s ] for coretemp data",
+               de->d_name);
+        goto error_exit;
       }
       dp2 = opendir (".");
       int hwmon_mode = 1;
       while ((de2 = readdir (dp2)))
       {
-	if (de2->d_name[0] == '.')
-	  continue;
-	if (!(s = strchr (&de2->d_name[4], '_')))
-	  continue;
-	*s = 0;
-	if (!strncmp (de2->d_name, "temp", 4))
-	{
-	  hwmon_mode = 0;
-	  break;
-	}
+        if (de2->d_name[0] == '.')
+          continue;
+        if (!(s = strchr (&de2->d_name[4], '_')))
+          continue;
+        *s = 0;
+        if (!strncmp (de2->d_name, "temp", 4))
+        {
+          hwmon_mode = 0;
+          break;
+        }
       }
       rewinddir (dp2);
 
       if (hwmon_mode)
       {
-	if (chdir ("hwmon"))
-	{
-	  ERROR ("coretemp plugin: unable to figure out the coretemp format");
-	  goto error_exit;
-	}
-	dp3 = opendir (".");
+        if (chdir ("hwmon"))
+        {
+          ERROR ("coretemp plugin: unable to figure out the coretemp format");
+          goto error_exit;
+        }
+        dp3 = opendir (".");
       }
       else
       {
-	rewinddir (dp2);
-	dp4 = dp2;
-	dp3 = 0;
-	hwmon = 0;
-	goto no_hwmon;
+        rewinddir (dp2);
+        dp4 = dp2;
+        dp3 = 0;
+        hwmon = 0;
+        goto no_hwmon;
       }
 
       while (dp3 && (de3 = readdir (dp3)))
       {
-	if (de3->d_name[0] == '.')
-	  continue;
-	if (strncmp (de3->d_name, "hwmon", 5))
-	  continue;
-	hwmon = atoi (&de3->d_name[5]);
-	if (chdir (de3->d_name))
-	{
-	  ERROR ("coretemp plugin: unable to chdir into [ %s ] for coretemp data",
-	       de3->d_name);
-	  goto error_exit;
-	}
-	dp4 = opendir (".");
+        if (de3->d_name[0] == '.')
+          continue;
+        if (strncmp (de3->d_name, "hwmon", 5))
+          continue;
+        hwmon = atoi (&de3->d_name[5]);
+        if (chdir (de3->d_name))
+        {
+          ERROR ("coretemp plugin: unable to chdir into [ %s ] for coretemp data",
+                 de3->d_name);
+          goto error_exit;
+        }
+        dp4 = opendir (".");
 
-      no_hwmon:
-	while ((de4 = readdir (dp4)))
-	{
-	  if (de4->d_name[0] == '.')
-	    continue;
-	  if ((l = strlen (de4->d_name)) < 5)
-	    continue;
-	  if (!(s = strchr (&de4->d_name[4], '_')))
-	    continue;
+no_hwmon:
+        while ((de4 = readdir (dp4)))
+        {
+          if (de4->d_name[0] == '.')
+            continue;
+          if ((l = strlen (de4->d_name)) < 5)
+            continue;
+          if (!(s = strchr (&de4->d_name[4], '_')))
+            continue;
 
-	  b = s;
-	  t = *b;
-	  *s = 0;
-	  core = atoi (&de4->d_name[4]);
-	  idx = -1;
-	  for (i = 0; i < core_count; i++)
-	  {
-	    if (c[i]->socket == socket && c[i]->core == core
-		&& c[i]->hwmon == hwmon)
-	      idx = i;
-	  }
+          b = s;
+          t = *b;
+          *s = 0;
+          core = atoi (&de4->d_name[4]);
+          idx = -1;
+          for (i = 0; i < core_count; i++)
+          {
+            if (c[i]->socket == socket && c[i]->core == core
+                && c[i]->hwmon == hwmon)
+              idx = i;
+          }
 
-	  if (idx < 0)
-	  {
-	    realloc_sucks = c;
-	    if (!(c =
-		  realloc (c,
-			  sizeof (struct coretemp_core *) *
-			  (core_count + 1))))
-	    {
-	      c = realloc_sucks;
-	      ERROR ("coretemp plugin: realloc failed");
-	      goto error_exit;
-	    }
-	    if (!(c[core_count] = calloc (1, sizeof (struct coretemp_core))))
-	    {
-	      ERROR ("coretemp plugin: malloc failed");
-	      goto error_exit;
-	    }
-	    c[core_count]->socket = socket;
-	    c[core_count]->core = core;
-	    c[core_count]->hwmon = hwmon;
-	    idx = core_count;
-	    ++core_count;
-	  }
+          if (idx < 0)
+          {
+            realloc_sucks = c;
+            if (!(c =
+                    realloc (c,
+                             sizeof (struct coretemp_core *) *
+                             (core_count + 1))))
+            {
+              c = realloc_sucks;
+              ERROR ("coretemp plugin: realloc failed");
+              goto error_exit;
+            }
+            if (!(c[core_count] = calloc (1, sizeof (struct coretemp_core))))
+            {
+              ERROR ("coretemp plugin: malloc failed");
+              goto error_exit;
+            }
+            c[core_count]->socket = socket;
+            c[core_count]->core = core;
+            c[core_count]->hwmon = hwmon;
+            idx = core_count;
+            ++core_count;
+          }
 
-	  ++s;
-	  *b = t;
-	  if (!strcmp (s, "max"))
-	  {
-	    if (!(f = fopen (de4->d_name, "r")))
-	    {
-	      ERROR ("coretemp plugin: unable to open (%s)", de4->d_name);
-	      goto error_exit;
-	    }
+          ++s;
+          *b = t;
+          if (!strcmp (s, "max"))
+          {
+            if (!(f = fopen (de4->d_name, "r")))
+            {
+              ERROR ("coretemp plugin: unable to open (%s)", de4->d_name);
+              goto error_exit;
+            }
 
-	    if (!fgets (core_name, sizeof (core_name) - 1, f))
-	    {
-	      ERROR ("coretemp plugin: unable to read tjmax");
-	      goto error_exit;
-	    }
-	    fclose (f);
-	    f = 0;
-	    c[idx]->tjmax = atoi (core_name);
-	  }
-	  else if (!strcmp (s, "label"))
-	  {
-	    if (!(f = fopen (de4->d_name, "r")))
-	    {
-	      ERROR ("coretemp plugin: unable to open (%s)", de4->d_name);
-	      goto error_exit;
-	    }
-	    if (!fgets (core_name, sizeof (core_name) - 1, f))
-	    {
-	      ERROR ("coretemp plugin: unable to read core label");
-	      goto error_exit;
-	    }
-	    fclose (f);
-	    f = 0;
-	    i = strlen (core_name);
-	    core_name[i - 1] = 0;
-	    // c[idx]->label = malloc(sizeof (char)*i);
-	    // strncpy(c[idx]->label, core_name, i-1);
-	    if (asprintf (&c[idx]->label, "%s", core_name) == -1)
-	    {
-	      c[idx]->label = 0;
-	      ERROR ("coretemp plugin: unable to allocate memory for label");
-	      goto error_exit;
-	    }
-	    s = c[idx]->label;
-	    while (*s)
-	    {
-	      if (*s == ' ')
-		*s = '_';
-	      ++s;
-	    }
-	  }
-	  else if (!strcmp (s, "input"))
-	  {
-	    c[idx]->input = open (de4->d_name, O_RDONLY);
-	  }
-	}
-	closedir (dp4);
-	dp4 = 0;
+            if (!fgets (core_name, sizeof (core_name) - 1, f))
+            {
+              ERROR ("coretemp plugin: unable to read tjmax");
+              goto error_exit;
+            }
+            fclose (f);
+            f = 0;
+            c[idx]->tjmax = atoi (core_name);
+          }
+          else if (!strcmp (s, "label"))
+          {
+            if (!(f = fopen (de4->d_name, "r")))
+            {
+              ERROR ("coretemp plugin: unable to open (%s)", de4->d_name);
+              goto error_exit;
+            }
+            if (!fgets (core_name, sizeof (core_name) - 1, f))
+            {
+              ERROR ("coretemp plugin: unable to read core label");
+              goto error_exit;
+            }
+            fclose (f);
+            f = 0;
+            i = strlen (core_name);
+            core_name[i - 1] = 0;
+            // c[idx]->label = malloc(sizeof (char)*i);
+            // strncpy(c[idx]->label, core_name, i-1);
+            if (asprintf (&c[idx]->label, "%s", core_name) == -1)
+            {
+              c[idx]->label = 0;
+              ERROR ("coretemp plugin: unable to allocate memory for label");
+              goto error_exit;
+            }
+            s = c[idx]->label;
+            while (*s)
+            {
+              if (*s == ' ')
+                *s = '_';
+              ++s;
+            }
+          }
+          else if (!strcmp (s, "input"))
+          {
+            c[idx]->input = open (de4->d_name, O_RDONLY);
+          }
+        }
+        closedir (dp4);
+        dp4 = 0;
 
-	if (chdir (".."))
-	{
-	  ERROR ("coretemp plugin: unable to parse coretemp directory structure");
-	  goto error_exit;
-	}
+        if (chdir (".."))
+        {
+          ERROR ("coretemp plugin: unable to parse coretemp directory structure");
+          goto error_exit;
+        }
 
       }
       if (dp3)
       {
-	closedir (dp3);
-	dp3 = 0;
+        closedir (dp3);
+        dp3 = 0;
       }
     }
 
@@ -307,7 +307,7 @@ static int coretemp_findcores()
   for (i = 0; i < core_count; i++)
   {
     DEBUG ("coretemp: socket=%d core=%d tjmax=%d label=%s",
-	  c[i]->socket, c[i]->core, c[i]->tjmax, c[i]->label);
+           c[i]->socket, c[i]->core, c[i]->tjmax, c[i]->label);
   }
 #endif				/* COLLECT_DEBUG */
 
@@ -353,7 +353,7 @@ error_exit:
 
 static void
 coretemp_submit(const char *temp_type, const char *str_core_id,
-		const char *str_value)
+                const char *str_value)
 {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
@@ -361,7 +361,7 @@ coretemp_submit(const char *temp_type, const char *str_core_id,
   if (parse_value (str_value, values, DS_TYPE_GAUGE))
   {
     ERROR ("coretemp plugin: Parsing string as integer failed: %s",
-	  str_value);
+           str_value);
     return;
   }
 
@@ -406,9 +406,9 @@ static int coretemp_read(void)
 
 #if COLLECT_DEBUG
     DEBUG ("coretemp: MaxValues=%d ValuesDegrees=%d ValuesPercentage=%d idx=%d core=%d socket=%d hwmon=%d tjmax=%d temp=%d pct=%d label=%s",
-	 MaxValues, ValuesDegrees, ValuesPercentage, idx, c[idx]->core,
-	 c[idx]->socket, c[idx]->hwmon, c[idx]->tjmax, temp / 1000,
-	 pct, c[idx]->label);
+           MaxValues, ValuesDegrees, ValuesPercentage, idx, c[idx]->core,
+           c[idx]->socket, c[idx]->hwmon, c[idx]->tjmax, temp / 1000,
+           pct, c[idx]->label);
     // fprintf(fdopen(0, "w"), "coretemp: idx=%d core=%d socket=%d
     // tjmax=%d temp=%d pct=%d label=%s\n", idx, c[idx]->core,
     // c[idx]->socket, c[idx]->tjmax, temp/1000, pct, c[idx]->label);
@@ -482,7 +482,7 @@ void module_register(void)
 {
 
   plugin_register_config ("coretemp", coretemp_config, config_keys,
-			 STATIC_ARRAY_SIZE (config_keys));
+                          STATIC_ARRAY_SIZE (config_keys));
   if (!ValuesPercentage && !ValuesDegrees)
     ERROR("coretemp plugin: nothing to report! ValuesPercentage=false and ValuesDegrees=false, set at least one to true");
   else
