@@ -359,8 +359,7 @@ coretemp_submit(const char *temp_type, const char *str_core_id,
 
   if (parse_value (str_value, values, DS_TYPE_GAUGE))
   {
-    ERROR ("coretemp plugin: Parsing string as integer failed: %s",
-           str_value);
+    ERROR ("coretemp plugin: Parsing string as integer failed: %s", str_value);
     return;
   }
 
@@ -405,9 +404,9 @@ static int coretemp_read(void)
 
 #if COLLECT_DEBUG
     DEBUG ("coretemp: MaxValues=%d ValuesDegrees=%d ValuesPercentage=%d idx=%d core=%d socket=%d hwmon=%d tjmax=%d temp=%d pct=%d label=%s",
-           MaxValues, ValuesDegrees, ValuesPercentage, idx, c[idx]->core,
-           c[idx]->socket, c[idx]->hwmon, c[idx]->tjmax, temp / 1000,
-           pct, c[idx]->label);
+          MaxValues, ValuesDegrees, ValuesPercentage, idx, c[idx]->core,
+          c[idx]->socket, c[idx]->hwmon, c[idx]->tjmax, temp / 1000,
+          pct, c[idx]->label);
     // fprintf(fdopen(0, "w"), "coretemp: idx=%d core=%d socket=%d
     // tjmax=%d temp=%d pct=%d label=%s\n", idx, c[idx]->core,
     // c[idx]->socket, c[idx]->tjmax, temp/1000, pct, c[idx]->label);
@@ -480,8 +479,7 @@ static int coretemp_config(const char *key, const char *value)
 void module_register(void)
 {
 
-  plugin_register_config ("coretemp", coretemp_config, config_keys,
-                          STATIC_ARRAY_SIZE (config_keys));
+  plugin_register_config ("coretemp", coretemp_config, config_keys, STATIC_ARRAY_SIZE (config_keys));
   if (!ValuesPercentage && !ValuesDegrees)
     ERROR("coretemp plugin: nothing to report! ValuesPercentage=false and ValuesDegrees=false, set at least one to true");
   else
