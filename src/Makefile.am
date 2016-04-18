@@ -120,7 +120,7 @@ if BUILD_PLUGIN_AMQP
 pkglib_LTLIBRARIES += amqp.la
 amqp_la_SOURCES = amqp.c \
 		  utils_cmd_putval.c utils_cmd_putval.h \
-  	          utils_parse_option.c utils_parse_option.h \
+	          utils_parse_option.c utils_parse_option.h \
 		  utils_format_graphite.c utils_format_graphite.h \
 		  utils_format_json.c utils_format_json.h
 amqp_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBRABBITMQ_LDFLAGS)
@@ -1261,9 +1261,8 @@ endif
 if BUILD_PLUGIN_WRITE_RIEMANN
 pkglib_LTLIBRARIES += write_riemann.la
 write_riemann_la_SOURCES = write_riemann.c write_riemann_threshold.c write_riemann_threshold.h
-nodist_write_riemann_la_SOURCES = riemann.pb-c.c riemann.pb-c.h
-write_riemann_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-write_riemann_la_LIBADD = -lprotobuf-c
+write_riemann_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(RIEMANN_C_LIBS)
+write_riemann_la_CFLAGS = $(AM_CFLAGS) $(RIEMANN_C_CFLAGS)
 endif
 
 if BUILD_PLUGIN_WRITE_SENSU
@@ -1384,17 +1383,6 @@ BUILT_SOURCES += pinba.pb-c.c pinba.pb-c.h
 
 pinba.pb-c.c pinba.pb-c.h: pinba.proto
 	$(AM_V_PROTOC_C)protoc-c -I$(srcdir) --c_out . $(srcdir)/pinba.proto
-endif
-
-# Protocol buffer for the "write_riemann" plugin.
-EXTRA_DIST += riemann.proto
-if BUILD_PLUGIN_WRITE_RIEMANN
-CLEANFILES += riemann.pb-c.c riemann.pb-c.h
-
-BUILT_SOURCES += riemann.pb-c.c riemann.pb-c.h
-
-riemann.pb-c.c riemann.pb-c.h: riemann.proto
-	$(AM_V_PROTOC_C)protoc-c -I$(srcdir) --c_out . $(srcdir)/riemann.proto
 endif
 
 install-exec-hook:
