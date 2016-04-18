@@ -2354,7 +2354,7 @@ int plugin_dispatch_multivalue (value_list_t const *template, /* {{{ */
 
 	assert (template->values_len == 1);
 
-  /* Calculate sum for Gauge to calculate percent if needed */
+	/* Calculate sum for Gauge to calculate percent if needed */
 	if (DS_TYPE_GAUGE == store_type)	{
 		va_start (ap, store_type);
 		while (42)

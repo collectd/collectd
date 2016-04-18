@@ -483,7 +483,7 @@ static int putval (lcc_connection_t *c, int argc, char **argv)
 
       values_len = 0;
       value = tmp;
-      while (value != 0) {
+      while (value != NULL) {
         char *dot, *endptr;
 
         tmp = strchr (value, (int)':');

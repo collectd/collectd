@@ -1371,6 +1371,7 @@
 #		ClientKey "/etc/ssl/client.pem"
 #		ClientCert "/etc/ssl/client.crt"
 #		ClientKeyPass "secret"
+#		Header "X-Custom-Header: custom_value"
 #		SSLVersion "TLSv1"
 #		Format "Command"
 #		StoreRates false
