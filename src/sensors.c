@@ -64,7 +64,9 @@ static char *sensor_type_name_map[] =
 	"temperature",
 # define SENSOR_TYPE_POWER       3
 	"power",
-# define SENSOR_TYPE_UNKNOWN     4
+# define SENSOR_TYPE_CURRENT     4
+	"current",
+# define SENSOR_TYPE_UNKNOWN     5
 	NULL
 };
 
@@ -131,6 +133,10 @@ static sensors_labeltypes_t known_features[] =
 	{ "2.0V", SENSOR_TYPE_VOLTAGE },
 	{ "12V", SENSOR_TYPE_VOLTAGE },
 	{ "power1", SENSOR_TYPE_POWER }
+	{ "curr1", SENSOR_TYPE_CURRENT }
+	{ "curr2", SENSOR_TYPE_CURRENT }
+	{ "curr3", SENSOR_TYPE_CURRENT }
+	{ "curr4", SENSOR_TYPE_CURRENT }
 };
 static int known_features_num = STATIC_ARRAY_SIZE (known_features);
 /* end new naming */
@@ -414,7 +420,8 @@ static int sensors_load_conf (void)
 			if ((feature->type != SENSORS_FEATURE_IN)
 					&& (feature->type != SENSORS_FEATURE_FAN)
 					&& (feature->type != SENSORS_FEATURE_TEMP)
-					&& (feature->type != SENSORS_FEATURE_POWER))
+					&& (feature->type != SENSORS_FEATURE_POWER)
+					&& (feature->type != SENSORS_FEATURE_CURR))
 			{
 				DEBUG ("sensors plugin: sensors_load_conf: "
 						"Ignoring feature `%s', "
@@ -431,7 +438,8 @@ static int sensors_load_conf (void)
 				if ((subfeature->type != SENSORS_SUBFEATURE_IN_INPUT)
 						&& (subfeature->type != SENSORS_SUBFEATURE_FAN_INPUT)
 						&& (subfeature->type != SENSORS_SUBFEATURE_TEMP_INPUT)
-						&& (subfeature->type != SENSORS_SUBFEATURE_POWER_INPUT))
+						&& (subfeature->type != SENSORS_SUBFEATURE_POWER_INPUT)
+						&& (subfeature->type != SENSORS_SUBFEATURE_CURR_INPUT))
 					continue;
 
 				fl = calloc (1, sizeof (*fl));
@@ -579,6 +587,9 @@ static int sensors_read (void)
 		else if (fl->feature->type
 				== SENSORS_FEATURE_POWER)
 			type = "power";
+		else if (fl->feature->type
+				== SENSORS_FEATURE_CURR)
+			type = "current";
 		else
 			continue;
 
