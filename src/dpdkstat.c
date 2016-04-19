@@ -32,26 +32,11 @@
 #include "plugin.h" /* plugin_register_*, plugin_dispatch_values */
 #include "utils_time.h"
 
-#include <stdio.h>
-#include <string.h>
-#include <stdint.h>
-#include <signal.h>
-#include <stdarg.h>
-#include <stdlib.h>
-#include <errno.h>
 #include <getopt.h>
-#include <inttypes.h>
-#include <fcntl.h>
 #include <semaphore.h>
 #include <sys/mman.h>
 #include <sys/queue.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/wait.h>
 #include <poll.h>
-#include <unistd.h>
-#include <string.h>
 
 #include <rte_config.h>
 #include <rte_eal.h>
@@ -71,8 +56,6 @@
 #include <rte_branch_prediction.h>
 #include <rte_string_fns.h>
 
-
-#define DATA_MAX_NAME_LEN        64
 #define DPDKSTAT_MAX_BUFFER_SIZE (4096*4)
 #define DPDK_SHM_NAME "dpdk_collectd_stats_shm"
 #define REINIT_SHM 1
@@ -122,10 +105,10 @@ struct dpdk_config_s {
 };
 typedef struct dpdk_config_s dpdk_config_t;
 
-static int g_configured = 0;
-static dpdk_config_t *g_configuration = 0;
+static int g_configured;
+static dpdk_config_t *g_configuration;
 
-static int dpdk_config_init_default(void);
+static void dpdk_config_init_default(void);
 static int dpdk_config(oconfig_item_t *ci);
 static int dpdk_helper_init_eal(void);
 static int dpdk_helper_run(void);
@@ -134,10 +117,9 @@ static int dpdk_init (void);
 static int dpdk_read(user_data_t *ud);
 static int dpdk_shm_cleanup(void);
 static int dpdk_shm_init(size_t size);
-void module_register(void);
 
 /* Write the default configuration to the g_configuration instances */
-static int dpdk_config_init_default(void)
+static void dpdk_config_init_default(void)
 {
     g_configuration->interval = plugin_get_interval();
     WARNING("dpdkstat: No time interval was configured, default value %lu ms is set\n",
@@ -150,7 +132,6 @@ static int dpdk_config_init_default(void)
     ssnprintf(g_configuration->process_type, DATA_MAX_NAME_LEN, "%s", "secondary");
     ssnprintf(g_configuration->file_prefix, DATA_MAX_NAME_LEN, "%s",
              "/var/run/.rte_config");
-  return 0;
 }
 
 static int dpdk_config(oconfig_item_t *ci)
@@ -158,13 +139,14 @@ static int dpdk_config(oconfig_item_t *ci)
   int i = 0, ret = 0;
 
   /* Initialize a POSIX SHared Memory (SHM) object. */
-  dpdk_shm_init(sizeof(dpdk_config_t));
-
-  /* Set defaults for config, overwritten by loop if config item exists */
-  ret = dpdk_config_init_default();
-  if(ret != 0) {
+  int err = dpdk_shm_init(sizeof(dpdk_config_t));
+  if (err) {
+    DEBUG("dpdkstat: error in shm_init, %s", strerror(errno));
     return -1;
   }
+
+  /* Set defaults for config, overwritten by loop if config item exists */
+  dpdk_config_init_default();
 
   for (i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
@@ -236,8 +218,7 @@ static int dpdk_shm_init(size_t size)
     goto fail_close;
   }
   /* Map the shared memory object into this process' virtual address space. */
-  g_configuration = (dpdk_config_t *)
-                    mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+  g_configuration = mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
   if (g_configuration == MAP_FAILED) {
     WARNING("dpdkstat:Failed to mmap SHM:%s\n", strerror(errno));
     goto fail_close;
@@ -252,8 +233,17 @@ static int dpdk_shm_init(size_t size)
   memset(g_configuration, 0, size);
 
   /* Initialize the semaphores for SHM use */
-  sem_init(&g_configuration->sema_helper_get_stats, 1, 0);
-  sem_init(&g_configuration->sema_stats_in_shm, 1, 0);
+  int err = sem_init(&g_configuration->sema_helper_get_stats, 1, 0);
+  if(err) {
+    ERROR("dpdkstat semaphore init failed: %s\n", strerror(errno));
+    goto fail_close;
+  }
+  err = sem_init(&g_configuration->sema_stats_in_shm, 1, 0);
+  if(err) {
+    ERROR("dpdkstat semaphore init failed: %s\n", strerror(errno));
+    goto fail_close;
+  }
+
   return 0;
 
 fail_close:
@@ -269,7 +259,7 @@ fail:
 static int dpdk_re_init_shm()
 {
   dpdk_config_t temp_config;
-  memcpy(&temp_config,g_configuration, sizeof(dpdk_config_t));
+  memcpy(&temp_config, g_configuration, sizeof(dpdk_config_t));
   DEBUG("dpdkstat: %s: ports %d, xstats %d\n", __func__, temp_config.num_ports,
         temp_config.num_xstats);
 
@@ -289,7 +279,7 @@ static int dpdk_re_init_shm()
   if(!g_configured)
     dpdk_config_init_default();
 
-  memcpy(g_configuration,&temp_config, sizeof(dpdk_config_t));
+  memcpy(g_configuration, &temp_config, sizeof(dpdk_config_t));
   g_configuration->collectd_reinit_shm = 0;
 
   return 0;
@@ -304,10 +294,7 @@ static int dpdk_init (void)
 
   /* If the XML config() function has been run, dont re-initialize defaults */
   if(!g_configured) {
-    ret = dpdk_config_init_default();
-    if (ret != 0) {
-      return -1;
-    }
+    dpdk_config_init_default();
   }
 
   plugin_register_complex_read (NULL, "dpdkstat", dpdk_read,
@@ -323,12 +310,15 @@ static int dpdk_helper_exit(int reset)
     g_configuration->num_ports = 0;
     memset(&g_configuration->xstats, 0, g_configuration->num_xstats* sizeof(struct rte_eth_xstats));
     g_configuration->num_xstats = 0;
-    int i =0;
-    for(;i < RTE_MAX_ETHPORTS; i++)
+    for(int i = 0; i < RTE_MAX_ETHPORTS; i++)
       g_configuration->num_stats_in_port[i] = 0;
   }
   close(g_configuration->helper_pipes[1]);
-  kill(g_configuration->helper_pid, SIGKILL);
+  int err = kill(g_configuration->helper_pid, SIGKILL);
+  if(err) {
+    ERROR("dpdkstat: error sending kill to helper: %s\n", strerror(errno));
+  }
+
   return 0;
 }
 
@@ -354,8 +344,11 @@ static int dpdk_helper_spawn(enum DPDK_HELPER_ACTION action)
 
   int pipe0_flags = fcntl(g_configuration->helper_pipes[1], F_GETFL, 0);
   int pipe1_flags = fcntl(g_configuration->helper_pipes[0], F_GETFL, 0);
-  fcntl(g_configuration->helper_pipes[1], F_SETFL, pipe1_flags | O_NONBLOCK);
-  fcntl(g_configuration->helper_pipes[0], F_SETFL, pipe0_flags | O_NONBLOCK);
+  int p1err = fcntl(g_configuration->helper_pipes[1], F_SETFL, pipe1_flags | O_NONBLOCK);
+  int p2err = fcntl(g_configuration->helper_pipes[0], F_SETFL, pipe0_flags | O_NONBLOCK);
+  if (pipe0_flags == -1 || pipe1_flags == -1 || p1err = -1 || p2err == -1) {
+    ERROR("dpdkstat: error setting up pipes: %s\n", strerror(errno));
+  }
 
   pid_t pid = fork();
   if (pid > 0) {
@@ -472,8 +465,7 @@ static int dpdk_helper_run (void)
 
     g_configuration->helper_status = DPDK_HELPER_ALIVE_SENDING_STATS;
 
-    uint8_t nb_ports;
-    nb_ports = rte_eth_dev_count();
+    uint8_t nb_ports = rte_eth_dev_count();
     if (nb_ports == 0) {
       DEBUG("dpdkstat-helper: No DPDK ports available. "
               "Check bound devices to DPDK driver.\n");
@@ -486,8 +478,8 @@ static int dpdk_helper_run (void)
     if (g_configuration->enabled_port_mask == 0)
       g_configuration->enabled_port_mask = 0xffff;
 
-    int i, len = 0, enabled_port_count = 0, num_xstats = 0;
-    for (i = 0; i < nb_ports; i++) {
+    int len = 0, enabled_port_count = 0, num_xstats = 0;
+    for (int i = 0; i < nb_ports; i++) {
       if (g_configuration->enabled_port_mask & (1 << i)) {
         if(g_configuration->helper_action == DPDK_HELPER_ACTION_COUNT_STATS) {
           len = rte_eth_xstats_get(i, NULL, 0);
@@ -525,7 +517,9 @@ static int dpdk_helper_run (void)
       dpdk_helper_exit(NO_RESET);
     }
     /* Now kick collectd send thread to send the stats */
-    sem_post(&g_configuration->sema_stats_in_shm);
+    int err = sem_post(&g_configuration->sema_stats_in_shm);
+    if (err)
+      ERROR("dpdkstat: error posting semaphore to helper %s\n", strerror(errno));
   } /* while(1) */
 
   return 0;
@@ -555,7 +549,11 @@ static int dpdk_read (user_data_t *ud)
       if(g_configuration->num_xstats == 0)
         action = DPDK_HELPER_ACTION_COUNT_STATS;
       /* Spawn the helper thread to count stats or to read stats. */
-      dpdk_helper_spawn(action);
+      int err = dpdk_helper_spawn(action);
+      if(err) {
+        ERROR("dpdkstat: error spawning helper %s\n", strerror(errno));
+        return -1;
+      }
     }
 
   int exit_status;
@@ -606,35 +604,35 @@ static int dpdk_read (user_data_t *ud)
   }
 
   /* Dispatch the stats.*/
-    int i, j, count = 0;
+  int count = 0;
 
-    for (i = 0; i < g_configuration->num_ports; i++) {
-      cdtime_t time = g_configuration->port_read_time[i];
-      char dev_name[64];
-      int len = g_configuration->num_stats_in_port[i];
-      ssnprintf(dev_name, sizeof(dev_name), "port.%d", i);
-      struct rte_eth_xstats *xstats = (&g_configuration->xstats);
-      xstats += count; /* pointer arithmetic to jump to each stats struct */
-      for (j = 0; j < len; j++) {
-        value_t dpdkstat_values[1];
-        value_list_t dpdkstat_vl = VALUE_LIST_INIT;
+  for (int i = 0; i < g_configuration->num_ports; i++) {
+    cdtime_t time = g_configuration->port_read_time[i];
+    char dev_name[64];
+    int len = g_configuration->num_stats_in_port[i];
+    ssnprintf(dev_name, sizeof(dev_name), "port.%d", i);
+    struct rte_eth_xstats *xstats = (&g_configuration->xstats);
+    xstats += count; /* pointer arithmetic to jump to each stats struct */
+    for (int j = 0; j < len; j++) {
+      value_t dpdkstat_values[1];
+      value_list_t dpdkstat_vl = VALUE_LIST_INIT
 
-        dpdkstat_values[0].counter = xstats[j].value;
-        dpdkstat_vl.values = dpdkstat_values;
-        dpdkstat_vl.values_len = 1; /* Submit stats one at a time */
-        dpdkstat_vl.time = time;
-        sstrncpy (dpdkstat_vl.host, hostname_g, sizeof (dpdkstat_vl.host));
-        sstrncpy (dpdkstat_vl.plugin, "dpdkstat", sizeof (dpdkstat_vl.plugin));
-        sstrncpy (dpdkstat_vl.plugin_instance, dev_name,
-                  sizeof (dpdkstat_vl.plugin_instance));
-        sstrncpy (dpdkstat_vl.type, "counter",
-                  sizeof (dpdkstat_vl.type));
-        sstrncpy (dpdkstat_vl.type_instance, xstats[j].name,
-                  sizeof (dpdkstat_vl.type_instance));
-        plugin_dispatch_values (&dpdkstat_vl);
-      }
-      count += len;
-    } /* for each port */
+      dpdkstat_values[0].counter = xstats[j].value;
+      dpdkstat_vl.values = dpdkstat_values;
+      dpdkstat_vl.values_len = 1; /* Submit stats one at a time */
+      dpdkstat_vl.time = time;
+      sstrncpy (dpdkstat_vl.host, hostname_g, sizeof (dpdkstat_vl.host));
+      sstrncpy (dpdkstat_vl.plugin, "dpdkstat", sizeof (dpdkstat_vl.plugin));
+      sstrncpy (dpdkstat_vl.plugin_instance, dev_name,
+                sizeof (dpdkstat_vl.plugin_instance));
+      sstrncpy (dpdkstat_vl.type, "counter",
+                sizeof (dpdkstat_vl.type));
+      sstrncpy (dpdkstat_vl.type_instance, xstats[j].name,
+                sizeof (dpdkstat_vl.type_instance));
+      plugin_dispatch_values (&dpdkstat_vl);
+    }
+    count += len;
+  } /* for each port */
   return 0;
 }
 
@@ -656,9 +654,18 @@ static int dpdk_shm_cleanup(void)
 
 static int dpdk_shutdown (void)
 {
+  int ret = 0;
   close(g_configuration->helper_pipes[1]);
-  kill(g_configuration->helper_pid, SIGKILL);
-  int ret = dpdk_shm_cleanup();
+  int err = kill(g_configuration->helper_pid, SIGKILL);
+  if (err) {
+    ERROR("dpdkstat: error sending sigkill to helper %s\n", strerror(errno));
+    ret = -1;
+  }
+  err = dpdk_shm_cleanup();
+  if (err) {
+    ERROR("dpdkstat: error cleaning up SHM: %s\n", strerror(errno));
+    ret = -1;
+  }
 
   return ret;
 }
