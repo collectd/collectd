@@ -176,7 +176,7 @@
 %define with_write_http 0%{!?_without_write_http:1}
 %define with_write_log 0%{!?_without_write_log:1}
 %define with_write_redis 0%{!?_without_write_redis:0%{?_has_hiredis}}
-%define with_write_riemann 0%{!?_without_write_riemann:1}
+%define with_write_riemann 0%{!?_without_write_riemann:0%{?_has_recent_riemann_c_client}}
 %define with_write_sensu 0%{!?_without_write_sensu:1}
 %define with_write_tsdb 0%{!?_without_write_tsdb:1}
 %define with_xmms 0%{!?_without_xmms:0%{?_has_xmms}}
