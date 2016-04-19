@@ -5233,7 +5233,7 @@ PKG_CHECK_MODULES([LIBNOTIFY], [libnotify],
 
 PKG_CHECK_MODULES([RIEMANN_C], [riemann-client >= 1.8.0],
  [with_riemann_c="yes"],
- [with_riemann_c="no (pbg-config doesn't know riemann-c-client)"])
+ [with_riemann_c="no (pkg-config doesn't know riemann-c-client)"])
 
 # Check for enabled/disabled features
 #
