@@ -73,7 +73,7 @@ struct coretemp_core **c = 0;
 unsigned int core_count = 0;
 
 // free the coretemp_core struct list
-static int coretemp_cleanup()
+static int coretemp_cleanup ()
 {
   int i;
   for (i = 0; i < core_count; i++)
@@ -91,7 +91,7 @@ static int coretemp_cleanup()
   return 0;
 }
 
-static int coretemp_findcores()
+static int coretemp_findcores ()
 {
   DIR *dp = 0, *dp2 = 0, *dp3 = 0, *dp4 = 0;
   struct dirent *de, *de2, *de3, *de4;
@@ -110,7 +110,7 @@ static int coretemp_findcores()
 
   if (!(dp = opendir (".")))
   {
-    ERROR ("coretemp plugin: unable to diropen() coretemp path (%s)",
+    ERROR ("coretemp plugin: unable to diropen () coretemp path (%s)",
            CORETEMP_PATH);
     return (-1);
   }
@@ -259,8 +259,6 @@ no_hwmon:
             f = 0;
             i = strlen (core_name);
             core_name[i - 1] = 0;
-            // c[idx]->label = malloc(sizeof (char)*i);
-            // strncpy(c[idx]->label, core_name, i-1);
             if (asprintf (&c[idx]->label, "%s", core_name) == -1)
             {
               c[idx]->label = 0;
@@ -351,7 +349,7 @@ error_exit:
 
 
 static void
-coretemp_submit(const char *temp_type, const char *str_core_id,
+coretemp_submit (const char *temp_type, const char *str_core_id,
                 const char *str_value)
 {
   value_t values[1];
@@ -375,7 +373,7 @@ coretemp_submit(const char *temp_type, const char *str_core_id,
   plugin_dispatch_values (&vl);
 }
 
-static int coretemp_read(void)
+static int coretemp_read (void)
 {
   int pct, max_pct = 0, max_temp = 0;
   int idx = 0;
@@ -407,9 +405,6 @@ static int coretemp_read(void)
           MaxValues, ValuesDegrees, ValuesPercentage, idx, c[idx]->core,
           c[idx]->socket, c[idx]->hwmon, c[idx]->tjmax, temp / 1000,
           pct, c[idx]->label);
-    // fprintf(fdopen(0, "w"), "coretemp: idx=%d core=%d socket=%d
-    // tjmax=%d temp=%d pct=%d label=%s\n", idx, c[idx]->core,
-    // c[idx]->socket, c[idx]->tjmax, temp/1000, pct, c[idx]->label);
 #endif				/* COLLECT_DEBUG */
 
     if (MaxValues == 2)
@@ -448,7 +443,7 @@ static int coretemp_read(void)
   return 0;
 }
 
-static int coretemp_config(const char *key, const char *value)
+static int coretemp_config (const char *key, const char *value)
 {
   if (!strcasecmp (key, "MaxValues"))
   {
@@ -476,7 +471,7 @@ static int coretemp_config(const char *key, const char *value)
   return 0;
 }
 
-void module_register(void)
+void module_register (void)
 {
 
   plugin_register_config ("coretemp", coretemp_config, config_keys, STATIC_ARRAY_SIZE (config_keys));
