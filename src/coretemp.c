@@ -481,7 +481,7 @@ void module_register(void)
 
   plugin_register_config ("coretemp", coretemp_config, config_keys, STATIC_ARRAY_SIZE (config_keys));
   if (!ValuesPercentage && !ValuesDegrees)
-    ERROR("coretemp plugin: nothing to report! ValuesPercentage=false and ValuesDegrees=false, set at least one to true");
+    ERROR ("coretemp plugin: nothing to report! ValuesPercentage=false and ValuesDegrees=false, set at least one to true");
   else
     coretemp_findcores ();	// otherwise why waste cycles?
 
