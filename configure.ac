@@ -4709,6 +4709,46 @@ then
 fi
 # }}}
 
+# --with-libxenctrl {{{
+with_libxenctrl_cppflags=""
+with_libxenctrl_ldflags=""
+AC_ARG_WITH(libxenctrl, [AS_HELP_STRING([--with-libxenctrl@<:@=PREFIX@:>@], [Path to libxenctrl.])],
+[
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	then
+		with_libxenctrl_cppflags="-I$withval/include"
+		with_libxenctrl_ldflags="-L$withval/lib"
+		with_libxenctrl="yes"
+	else
+		with_libxenctrl="$withval"
+	fi
+],
+[
+	with_libxenctrl="yes"
+])
+if test "x$with_libxenctrl" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libxenctrl_cppflags"
+
+	AC_CHECK_HEADERS(xenctrl.h, [with_libxenctrl="yes"], [with_libxenctrl="no (xenctrl.h not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_libxenctrl" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libxenctrl_cppflags"
+	LDFLAGS="$LDFLAGS $with_libxenctrl_ldflags"
+
+	#Xen versions older than 3.4 has no xc_getcpuinfo()
+	AC_CHECK_LIB(xenctrl, xc_getcpuinfo, [with_libxenctrl="yes"], [with_libxenctrl="no (symbol 'xc_getcpuinfo' not found)"], [])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+
 # --with-libxmms {{{
 with_xmms_config="xmms-config"
 with_xmms_cflags=""
@@ -5407,6 +5447,7 @@ plugin_virt="no"
 plugin_vmem="no"
 plugin_vserver="no"
 plugin_wireless="no"
+plugin_xencpu="no"
 plugin_zfs_arc="no"
 plugin_zone="no"
 plugin_zookeeper="no"
@@ -5738,6 +5779,10 @@ then
 	plugin_virt="yes"
 fi
 
+if test "x$with_libxenctrl" = "xyes"
+then
+  plugin_xencpu="yes"
+fi
 
 m4_divert_once([HELP_ENABLE], [
 collectd plugins:])
@@ -5893,6 +5938,7 @@ AC_PLUGIN([write_redis],         [$with_libhiredis],        [Redis output plugin
 AC_PLUGIN([write_riemann],       [$with_riemann_c],         [Riemann output plugin])
 AC_PLUGIN([write_sensu],         [yes],                     [Sensu output plugin])
 AC_PLUGIN([write_tsdb],          [yes],                     [TSDB output plugin])
+AC_PLUGIN([xencpu],              [$plugin_xencpu],          [Xen Host CPU usage])
 AC_PLUGIN([xmms],                [$with_libxmms],           [XMMS statistics])
 AC_PLUGIN([zfs_arc],             [$plugin_zfs_arc],         [ZFS ARC statistics])
 AC_PLUGIN([zone],                [$plugin_zone],            [Solaris container statistics])
@@ -6144,6 +6190,7 @@ Configuration:
     libupsclient  . . . . $with_libupsclient
     libvarnish  . . . . . $with_libvarnish
     libvirt . . . . . . . $with_libvirt
+    libxenctrl  . . . . . $with_libxenctrl
     libxml2 . . . . . . . $with_libxml2
     libxmms . . . . . . . $with_libxmms
     libyajl . . . . . . . $with_libyajl
@@ -6293,6 +6340,7 @@ Configuration:
     write_riemann . . . . $enable_write_riemann
     write_sensu . . . . . $enable_write_sensu
     write_tsdb  . . . . . $enable_write_tsdb
+    xencpu  . . . . . . . $enable_xencpu
     xmms  . . . . . . . . $enable_xmms
     zfs_arc . . . . . . . $enable_zfs_arc
     zone  . . . . . . . . $enable_zone

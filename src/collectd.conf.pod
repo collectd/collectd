@@ -8077,6 +8077,14 @@ attribute for each metric being sent out to I<Sensu>.
 
 =back
 
+=head2 Plugin C<xencpu>
+
+This plugin collects metrics of hardware CPU load for machine running Xen
+hypervisor. Load is calculated from 'idle time' value, provided by Xen.
+Result is reported using the C<percent> type, for each CPU (core).
+
+This plugin doesn't have any options (yet).
+
 =head2 Plugin C<zookeeper>
 
 The I<zookeeper plugin> will collect statistics from a I<Zookeeper> server
