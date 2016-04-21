@@ -132,10 +132,10 @@ static sensors_labeltypes_t known_features[] =
 	{ "2.5V", SENSOR_TYPE_VOLTAGE },
 	{ "2.0V", SENSOR_TYPE_VOLTAGE },
 	{ "12V", SENSOR_TYPE_VOLTAGE },
-	{ "power1", SENSOR_TYPE_POWER }
-	{ "curr1", SENSOR_TYPE_CURRENT }
-	{ "curr2", SENSOR_TYPE_CURRENT }
-	{ "curr3", SENSOR_TYPE_CURRENT }
+	{ "power1", SENSOR_TYPE_POWER },
+	{ "curr1", SENSOR_TYPE_CURRENT },
+	{ "curr2", SENSOR_TYPE_CURRENT },
+	{ "curr3", SENSOR_TYPE_CURRENT },
 	{ "curr4", SENSOR_TYPE_CURRENT }
 };
 static int known_features_num = STATIC_ARRAY_SIZE (known_features);
