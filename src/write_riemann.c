@@ -385,6 +385,37 @@ wrr_value_to_event(struct riemann_host const *host, /* {{{ */
                       RIEMANN_EVENT_FIELD_NONE);
   }
 
+
+  if (vl->meta)
+    {
+      meta_data_keys_t *keys = NULL;
+      meta_data_keys_t *key;
+      char *temp;
+      int status, type;
+
+      meta_data_list_keys(vl->meta, &keys);
+      for (key = keys; key; key = key->next)
+	{
+	  temp = NULL;
+	  type = meta_data_type(vl->meta, key->val);
+	  switch (type)
+	    {
+	    case MD_TYPE_STRING:
+	      status = meta_data_get_string(vl->meta, key->val, &temp);
+	      if (status == -ENOENT) {
+		ERROR ("write_riemann plugin: wrr_value_to_event Could not get value for MetaData key %s", key->val);
+	      }
+	      riemann_event_string_attribute_add(event, key->val, temp);
+	      DEBUG("write_riemann plugin wrr_value_to_event Adding attribute %s:%s", key->val, temp);
+	      sfree(temp);
+	      break;
+	    default:
+	      ERROR ("write_riemann plugin: wrr_value_to_event MetaData type unknown or not supported");
+	    }
+	}
+      meta_data_free_list_keys(&keys);
+    }
+
   DEBUG("write_riemann plugin: Successfully created message for metric: "
         "host = \"%s\", service = \"%s\"",
         event->host, event->service);

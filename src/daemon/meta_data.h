@@ -46,6 +46,14 @@ meta_data_t *meta_data_clone(meta_data_t *orig);
 int meta_data_clone_merge(meta_data_t **dest, meta_data_t *orig);
 void meta_data_destroy(meta_data_t *md);
 
+struct meta_data_keys_s;
+typedef struct meta_data_keys_s meta_data_keys_t;
+struct meta_data_keys_s
+{
+    char		*val;
+    meta_data_keys_t	*next;
+};
+
 int meta_data_exists(meta_data_t *md, const char *key);
 int meta_data_type(meta_data_t *md, const char *key);
 int meta_data_toc(meta_data_t *md, char ***toc);
@@ -58,6 +66,8 @@ int meta_data_add_unsigned_int(meta_data_t *md, const char *key,
 int meta_data_add_double(meta_data_t *md, const char *key, double value);
 int meta_data_add_boolean(meta_data_t *md, const char *key, _Bool value);
 
+int meta_data_list_keys(meta_data_t *md, meta_data_keys_t **keys);
+void meta_data_free_list_keys(meta_data_keys_t **keys);
 int meta_data_get_string(meta_data_t *md, const char *key, char **value);
 int meta_data_get_signed_int(meta_data_t *md, const char *key, int64_t *value);
 int meta_data_get_unsigned_int(meta_data_t *md, const char *key,

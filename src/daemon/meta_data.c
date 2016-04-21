@@ -746,3 +746,41 @@ int meta_data_as_string(meta_data_t *md, /* {{{ */
 
   return (0);
 } /* }}} int meta_data_as_string */
+
+int meta_data_list_keys (meta_data_t *md, meta_data_keys_t **keys) /* {{{ */
+{
+  meta_entry_t *e;
+  meta_data_keys_t *tmp;
+
+  if (md == NULL)
+    return (-EINVAL);
+
+  pthread_mutex_lock (&md->lock);
+
+  for (e = md->head; e != NULL; e = e->next)
+  {
+      tmp = malloc(sizeof(meta_data_keys_t *));
+      tmp->val = md_strdup(e->key);
+      tmp->next = *keys;
+      *keys = tmp;
+  }
+
+  pthread_mutex_unlock (&md->lock);
+  return (0);
+} /* }}} int meta_data_list_keys */
+
+
+void meta_data_free_list_keys (meta_data_keys_t **keys) /* {{{ */
+{
+    meta_data_keys_t *tmp = NULL;
+
+    while (*keys)
+    {
+	tmp = *keys;
+	*keys = (*keys)->next;
+	free(tmp->val);
+	free(tmp);
+    }
+} /* }}} void meta_data_free_list_keys */
+  
+/* vim: set sw=2 sts=2 et fdm=marker : */
