@@ -121,6 +121,7 @@ zone_find_stats(c_avl_tree_t *tree, zoneid_t zoneid)
 		}
 		if (!(key = malloc(sizeof(*key)))) {
 			WARNING("zone plugin: no memory");
+			free(ret);
 			return(NULL);
 		}
 		*key = zoneid;
