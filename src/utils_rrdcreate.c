@@ -70,7 +70,7 @@ static const char *const rra_types[] =
 };
 static int rra_types_num = STATIC_ARRAY_SIZE (rra_types);
 
-#if !defined(HAVE_THREADSAFE_LIBRRD) || !HAVE_THREADSAFE_LIBRRD
+#if !defined(HAVE_THREADSAFE_LIBRRD)
 static pthread_mutex_t librrd_lock = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
