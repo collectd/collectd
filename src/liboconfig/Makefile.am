@@ -1,5 +1,3 @@
-AUTOMAKE_OPTIONS = foreign no-dependencies
-
 BUILT_SOURCES = parser.h
 #CLEANFILES = parser.[ch] scanner.c
 AM_YFLAGS = -d
