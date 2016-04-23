@@ -1748,7 +1748,6 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
 
     if (res != NULL)
       snmp_free_pdu (res);
-    res = NULL;
 
     sfree (errstr);
     sfree (vl.values);
