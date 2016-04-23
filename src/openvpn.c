@@ -712,7 +712,7 @@ static int openvpn_config (const char *key, const char *value)
 		temp->version = status_version;
 		temp->name = status_name;
 
-		vpn_list = (vpn_status_t **) realloc (vpn_list, (vpn_num + 1) * sizeof (vpn_status_t *));
+		vpn_list = realloc (vpn_list, (vpn_num + 1) * sizeof (vpn_status_t *));
 		if (vpn_list == NULL)
 		{
 			char errbuf[1024];
