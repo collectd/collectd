@@ -4114,10 +4114,7 @@ then
 fi
 if test "x$with_librrd" = "xyes"
 then
-	SAVE_CPPFLAGS="$CPPFLAGS"
 	SAVE_LDFLAGS="$LDFLAGS"
-
-	CPPFLAGS="$CPPFLAGS $librrd_cflags"
 	LDFLAGS="$LDFLAGS $librrd_ldflags"
 
 	AC_CHECK_LIB(rrd_th, rrd_update_r,
@@ -4141,7 +4138,6 @@ then
 		AC_CHECK_LIB(rrd, rrdc_update, [librrd_rrdc_update="yes"], [librrd_rrdc_update="no"])
 	fi
 
-	CPPFLAGS="$SAVE_CPPFLAGS"
 	LDFLAGS="$SAVE_LDFLAGS"
 fi
 if test "x$with_librrd" = "xyes"
