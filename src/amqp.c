@@ -736,6 +736,7 @@ static int camqp_subscribe_init (camqp_config_t *conf) /* {{{ */
     if (tmp == NULL)
     {
         ERROR ("amqp plugin: realloc failed.");
+        sfree (subscriber_threads);
         camqp_config_free (conf);
         return (ENOMEM);
     }
