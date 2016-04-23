@@ -221,6 +221,7 @@ static int udb_result_submit (udb_result_t *r, /* {{{ */
       ERROR ("db query utils: udb_result_submit: Parsing `%s' as %s failed.",
           value_str, DS_TYPE_TO_STRING (r_area->ds->ds[i].type));
       errno = EINVAL;
+      free (vl.values);
       return (-1);
     }
   }
