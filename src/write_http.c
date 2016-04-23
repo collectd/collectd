@@ -240,7 +240,7 @@ static int wh_flush_nolock (cdtime_t timeout, wh_callback_t *cb) /* {{{ */
 
         if (cb->format == WH_FORMAT_COMMAND)
         {
-                if (cb->send_buffer_fill <= 0)
+                if (cb->send_buffer_fill == 0)
                 {
                         cb->send_buffer_init_time = cdtime ();
                         return (0);
