@@ -3824,15 +3824,11 @@ AC_ARG_WITH(librrd, [AS_HELP_STRING([--with-librrd@<:@=PREFIX@:>@], [Path to rrd
 if test "x$with_librrd" = "xyes"
 then
 	SAVE_CPPFLAGS="$CPPFLAGS"
-	SAVE_LDFLAGS="$LDFLAGS"
-
 	CPPFLAGS="$CPPFLAGS $librrd_cflags"
-	LDFLAGS="$LDFLAGS $librrd_ldflags"
 
 	AC_CHECK_HEADERS(rrd.h,, [with_librrd="no (rrd.h not found)"])
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
-	LDFLAGS="$SAVE_LDFLAGS"
 fi
 if test "x$with_librrd" = "xyes"
 then
