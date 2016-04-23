@@ -712,17 +712,19 @@ static int openvpn_config (const char *key, const char *value)
 		temp->version = status_version;
 		temp->name = status_name;
 
-		vpn_list = realloc (vpn_list, (vpn_num + 1) * sizeof (*vpn_list));
-		if (vpn_list == NULL)
+		vpn_status_t **tmp_list = realloc (vpn_list, (vpn_num + 1) * sizeof (*vpn_list));
+		if (tmp_list == NULL)
 		{
 			char errbuf[1024];
 			ERROR ("openvpn plugin: realloc failed: %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 
+			sfree (vpn_list);
 			sfree (temp->file);
 			sfree (temp);
 			return (1);
 		}
+		vpn_list = tmp_list;
 
 		vpn_list[vpn_num] = temp;
 		vpn_num++;
