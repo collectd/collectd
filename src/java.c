@@ -1905,7 +1905,7 @@ static int cjni_callback_register (JNIEnv *jvm_env, /* {{{ */
 
   pthread_mutex_lock (&java_callbacks_lock);
 
-  tmp = (cjni_callback_info_t *) realloc (java_callbacks,
+  tmp = realloc (java_callbacks,
       (java_callbacks_num + 1) * sizeof (*java_callbacks));
   if (tmp == NULL)
   {
@@ -2167,7 +2167,7 @@ static int cjni_config_add_jvm_arg (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  tmp = (char **) realloc (jvm_argv, sizeof (char *) * (jvm_argc + 1));
+  tmp = realloc (jvm_argv, sizeof (char *) * (jvm_argc + 1));
   if (tmp == NULL)
   {
     ERROR ("java plugin: realloc failed.");
@@ -2203,7 +2203,7 @@ static int cjni_config_load_plugin (oconfig_item_t *ci) /* {{{ */
   if (jvm_env == NULL)
     return (-1);
 
-  class = (java_plugin_class_t *) realloc (java_classes_list,
+  class = realloc (java_classes_list,
       (java_classes_list_len + 1) * sizeof (*java_classes_list));
   if (class == NULL)
   {

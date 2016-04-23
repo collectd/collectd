@@ -240,7 +240,7 @@ static int cdbi_config_add_database_driver_option (cdbi_database_t *db, /* {{{ *
     return (-1);
   }
 
-  option = (cdbi_driver_option_t *) realloc (db->driver_options,
+  option = realloc (db->driver_options,
       sizeof (*option) * (db->driver_options_num + 1));
   if (option == NULL)
   {
@@ -386,7 +386,7 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
   {
     cdbi_database_t **temp;
 
-    temp = (cdbi_database_t **) realloc (databases,
+    temp = realloc (databases,
         sizeof (*databases) * (databases_num + 1));
     if (temp == NULL)
     {

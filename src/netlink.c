@@ -244,7 +244,7 @@ static int update_iflist (struct ifinfomsg *msg, const char *dev)
   {
     char **temp;
 
-    temp = (char **) realloc (iflist, (msg->ifi_index + 1) * sizeof (char *));
+    temp = realloc (iflist, (msg->ifi_index + 1) * sizeof (char *));
     if (temp == NULL)
     {
       ERROR ("netlink plugin: update_iflist: realloc failed.");

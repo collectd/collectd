@@ -542,7 +542,7 @@ static int powerdns_get_data_stream (list_item_t *item, /* {{{ */
     else if (status == 0)
       break;
 
-    buffer_new = (char *) realloc (buffer, buffer_size + status + 1);
+    buffer_new = realloc (buffer, buffer_size + status + 1);
     if (buffer_new == NULL)
     {
       FUNC_ERROR ("realloc");
@@ -799,7 +799,7 @@ static int powerdns_config_add_collect (list_item_t *li, /* {{{ */
       return (-1);
     }
 
-  temp = (char **) realloc (li->fields,
+  temp = realloc (li->fields,
       sizeof (char *) * (li->fields_num + ci->values_num));
   if (temp == NULL)
   {

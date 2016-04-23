@@ -263,7 +263,7 @@ int uc_check_timeout (void)
       continue;
 
     /* If entry has not been updated, add to `keys' array */
-    tmp = (char **) realloc ((void *) keys,
+    tmp = realloc ((void *) keys,
 	(keys_len + 1) * sizeof (char *));
     if (tmp == NULL)
     {

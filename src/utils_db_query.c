@@ -142,7 +142,7 @@ static int udb_config_add_string (char ***ret_array, /* {{{ */
   }
 
   array_len = *ret_array_len;
-  array = (char **) realloc (*ret_array,
+  array = realloc (*ret_array,
       sizeof (char *) * (array_len + ci->values_num));
   if (array == NULL)
   {
@@ -750,7 +750,7 @@ int udb_query_create (udb_query_t ***ret_query_list, /* {{{ */
   {
     udb_query_t **temp;
 
-    temp = (udb_query_t **) realloc (query_list,
+    temp = realloc (query_list,
         sizeof (*query_list) * (query_list_len + 1));
     if (temp == NULL)
     {
@@ -815,7 +815,7 @@ int udb_query_pick_from_list_by_name (const char *name, /* {{{ */
       continue;
 
     tmp_list_len = *dst_list_len;
-    tmp_list = (udb_query_t **) realloc (*dst_list, (tmp_list_len + 1)
+    tmp_list = realloc (*dst_list, (tmp_list_len + 1)
         * sizeof (udb_query_t *));
     if (tmp_list == NULL)
     {

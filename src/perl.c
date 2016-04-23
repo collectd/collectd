@@ -2382,7 +2382,7 @@ static int perl_config_enabledebugger (pTHX_ oconfig_item_t *ci)
 
 	value = ci->values[0].value.string;
 
-	perl_argv = (char **)realloc (perl_argv,
+	perl_argv = realloc (perl_argv,
 			(++perl_argc + 1) * sizeof (char *));
 
 	if (NULL == perl_argv) {
@@ -2419,7 +2419,7 @@ static int perl_config_includedir (pTHX_ oconfig_item_t *ci)
 	value = ci->values[0].value.string;
 
 	if (NULL == aTHX) {
-		perl_argv = (char **)realloc (perl_argv,
+		perl_argv = realloc (perl_argv,
 				(++perl_argc + 1) * sizeof (char *));
 
 		if (NULL == perl_argv) {

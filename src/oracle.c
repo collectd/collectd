@@ -299,7 +299,7 @@ static int o_config_add_database (oconfig_item_t *ci) /* {{{ */
   {
     o_database_t **temp;
 
-    temp = (o_database_t **) realloc (databases,
+    temp = realloc (databases,
         sizeof (*databases) * (databases_num + 1));
     if (temp == NULL)
     {

@@ -663,7 +663,7 @@ static int ntpd_receive_response (int *res_items, int *res_size,
 		 */
 		DEBUG ("realloc (%p, %zu)", (void *) *res_data,
 				(items_num + pkt_item_num) * res_item_size);
-		items = realloc ((void *) *res_data,
+		items = realloc (*res_data,
 				(items_num + pkt_item_num) * res_item_size);
 		if (items == NULL)
 		{

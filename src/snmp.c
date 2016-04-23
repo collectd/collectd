@@ -520,7 +520,7 @@ static int csnmp_config_add_host_collect (host_definition_t *host,
     }
 
   data_list_len = host->data_list_len + ci->values_num;
-  data_list = (data_definition_t **) realloc (host->data_list,
+  data_list = realloc (host->data_list,
       sizeof (data_definition_t *) * data_list_len);
   if (data_list == NULL)
     return (-1);

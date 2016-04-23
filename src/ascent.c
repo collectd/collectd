@@ -161,7 +161,7 @@ static size_t ascent_curl_callback (void *buf, size_t size, size_t nmemb, /* {{{
   {
     char *temp;
 
-    temp = (char *) realloc (ascent_buffer,
+    temp = realloc (ascent_buffer,
         ascent_buffer_fill + len + 1);
     if (temp == NULL)
     {

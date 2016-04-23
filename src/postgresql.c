@@ -224,7 +224,7 @@ static c_psql_database_t *c_psql_database_new (const char *name)
 		return NULL;
 	}
 
-	tmp = (c_psql_database_t **)realloc (databases,
+	tmp = realloc (databases,
 			(databases_num + 1) * sizeof (*databases));
 	if (NULL == tmp) {
 		log_err ("Out of memory.");
@@ -1115,7 +1115,7 @@ static int config_add_writer (oconfig_item_t *ci,
 		if (strcasecmp (name, src_writers[i].name) != 0)
 			continue;
 
-		tmp = (c_psql_writer_t **)realloc (*dst_writers,
+		tmp = realloc (*dst_writers,
 				sizeof (**dst_writers) * (*dst_writers_num + 1));
 		if (tmp == NULL) {
 			log_err ("Out of memory.");
@@ -1151,7 +1151,7 @@ static int c_psql_config_writer (oconfig_item_t *ci)
 		return 1;
 	}
 
-	tmp = (c_psql_writer_t *)realloc (writers,
+	tmp = realloc (writers,
 			sizeof (*writers) * (writers_num + 1));
 	if (tmp == NULL) {
 		log_err ("Out of memory.");

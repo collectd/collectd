@@ -655,7 +655,7 @@ static int fc_bit_write_create (const oconfig_item_t *ci, /* {{{ */
       }
       plugin = child->values[j].value.string;
 
-      temp = (fc_writer_t *) realloc (plugin_list, (plugin_list_len + 2)
+      temp = realloc (plugin_list, (plugin_list_len + 2)
           * (sizeof (*plugin_list)));
       if (temp == NULL)
       {

@@ -105,7 +105,7 @@ static size_t apache_curl_callback (void *buf, size_t size, size_t nmemb,
 	{
 		char *temp;
 
-		temp = (char *) realloc (st->apache_buffer,
+		temp = realloc (st->apache_buffer,
 				st->apache_buffer_fill + len + 1);
 		if (temp == NULL)
 		{

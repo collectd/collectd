@@ -176,7 +176,7 @@ static int notify_email_config (const char *key, const char *value)
   {
     char **tmp;
 
-    tmp = (char **) realloc ((void *) recipients, (recipients_len + 1) * sizeof (char *));
+    tmp = realloc (recipients, (recipients_len + 1) * sizeof (char *));
     if (tmp == NULL) {
       ERROR ("notify_email: realloc failed.");
       return (-1);

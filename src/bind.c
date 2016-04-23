@@ -1613,7 +1613,7 @@ static int bind_config_add_view_zone (cb_view_t *view, /* {{{ */
     return (-1);
   }
 
-  tmp = (char **) realloc (view->zones,
+  tmp = realloc (view->zones,
       sizeof (char *) * (view->zones_num + 1));
   if (tmp == NULL)
   {
@@ -1644,7 +1644,7 @@ static int bind_config_add_view (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  tmp = (cb_view_t *) realloc (views, sizeof (*views) * (views_num + 1));
+  tmp = realloc (views, sizeof (*views) * (views_num + 1));
   if (tmp == NULL)
   {
     ERROR ("bind plugin: realloc failed.");

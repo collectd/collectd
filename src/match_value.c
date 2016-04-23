@@ -129,7 +129,7 @@ static int mv_config_add_data_source (mv_match_t *m, /* {{{ */
 
   /* Allocate space for the char pointers */
   new_data_sources_num = m->data_sources_num + ((size_t) ci->values_num);
-  temp = (char **) realloc (m->data_sources,
+  temp = realloc (m->data_sources,
       new_data_sources_num * sizeof (char *));
   if (temp == NULL)
   {

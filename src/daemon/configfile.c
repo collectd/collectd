@@ -514,7 +514,7 @@ static int cf_ci_replace_child (oconfig_item_t *dst, oconfig_item_t *src,
 		return (0);
 	}
 
-	temp = (oconfig_item_t *) realloc (dst->children,
+	temp = realloc (dst->children,
 			sizeof (oconfig_item_t)
 			* (dst->children_num + src->children_num - 1));
 	if (temp == NULL)
@@ -562,7 +562,7 @@ static int cf_ci_append_children (oconfig_item_t *dst, oconfig_item_t *src)
 	if ((src == NULL) || (src->children_num == 0))
 		return (0);
 
-	temp = (oconfig_item_t *) realloc (dst->children,
+	temp = realloc (dst->children,
 			sizeof (oconfig_item_t)
 			* (dst->children_num + src->children_num));
 	if (temp == NULL)
@@ -749,7 +749,7 @@ static oconfig_item_t *cf_read_dir (const char *dir,
 		}
 
 		++filenames_num;
-		tmp = (char **) realloc (filenames,
+		tmp = realloc (filenames,
 				filenames_num * sizeof (*filenames));
 		if (tmp == NULL) {
 			ERROR ("configfile: realloc failed.");

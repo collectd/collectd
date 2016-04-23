@@ -121,7 +121,7 @@ static size_t cx_curl_callback (void *buf, /* {{{ */
   {
     char *temp;
 
-    temp = (char *) realloc (db->buffer,
+    temp = realloc (db->buffer,
                     db->buffer_fill + len + 1);
     if (temp == NULL)
     {

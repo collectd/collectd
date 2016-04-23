@@ -694,7 +694,7 @@ int main (int argc, char **argv)
 			case 'd':
 			{
 				char **tmp;
-				tmp = (char **) realloc (match_ds_g,
+				tmp = realloc (match_ds_g,
 						(match_ds_num_g + 1)
 						* sizeof (char *));
 				if (tmp == NULL)

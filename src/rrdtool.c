@@ -588,7 +588,7 @@ static void rrd_cache_flush (cdtime_t timeout)
 		}
 		else /* ancient and no values -> waste of memory */
 		{
-			char **tmp = (char **) realloc ((void *) keys,
+			char **tmp = realloc (keys,
 					(keys_num + 1) * sizeof (char *));
 			if (tmp == NULL)
 			{
@@ -756,7 +756,7 @@ static int rrd_cache_insert (const char *filename,
 		return (-1);
 	}
 
-	values_new = (char **) realloc ((void *) rc->values,
+	values_new = realloc ((void *) rc->values,
 			(rc->values_num + 1) * sizeof (char *));
 	if (values_new == NULL)
 	{

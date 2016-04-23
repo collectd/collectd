@@ -279,7 +279,7 @@ static int ctail_config_add_file (oconfig_item_t *ci)
   {
     cu_tail_match_t **temp;
 
-    temp = (cu_tail_match_t **) realloc (tail_match_list,
+    temp = realloc (tail_match_list,
         sizeof (cu_tail_match_t *) * (tail_match_list_num + 1));
     if (temp == NULL)
     {

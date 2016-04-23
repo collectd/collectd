@@ -108,7 +108,7 @@ static size_t cc_curl_callback (void *buf, /* {{{ */
     size_t temp_size;
 
     temp_size = wp->buffer_fill + len + 1;
-    temp = (char *) realloc (wp->buffer, temp_size);
+    temp = realloc (wp->buffer, temp_size);
     if (temp == NULL)
     {
       ERROR ("curl plugin: realloc failed.");

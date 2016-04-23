@@ -204,7 +204,7 @@ static int iptables_config (const char *key, const char *value)
     table = NULL;
     chain = NULL;
 
-    list = (ip_chain_t **) realloc (chain_list, (chain_num + 1) * sizeof (ip_chain_t *));
+    list = realloc (chain_list, (chain_num + 1) * sizeof (ip_chain_t *));
     if (list == NULL)
     {
         char errbuf[1024];

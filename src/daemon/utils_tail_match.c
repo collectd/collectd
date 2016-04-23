@@ -179,7 +179,7 @@ int tail_match_add_match (cu_tail_match_t *obj, cu_match_t *match,
 {
   cu_tail_match_match_t *temp;
 
-  temp = (cu_tail_match_match_t *) realloc (obj->matches,
+  temp = realloc (obj->matches,
       sizeof (cu_tail_match_match_t) * (obj->matches_num + 1));
   if (temp == NULL)
     return (-1);
