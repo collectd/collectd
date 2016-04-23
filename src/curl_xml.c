@@ -114,7 +114,7 @@ static size_t cx_curl_callback (void *buf, /* {{{ */
     return (0);
   }
 
-   if (len <= 0)
+   if (len == 0)
     return (len);
 
   if ((db->buffer_fill + len) >= db->buffer_size)
