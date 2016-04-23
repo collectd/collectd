@@ -3806,68 +3806,102 @@ AM_CONDITIONAL(BUILD_WITH_LIBROUTEROS, test "x$with_librouteros" = "xyes")
 # }}}
 
 # --with-librrd {{{
-# AC_ARG_WITH (package, help-string, [action-if-given], [action-if-not-given])
 librrd_cflags=""
 librrd_ldflags=""
-librrd_threadsafe="yes"
+librrd_threadsafe="no"
 librrd_rrdc_update="no"
-AC_ARG_WITH(librrd, [AS_HELP_STRING([--with-librrd@<:@=PREFIX@:>@], [Path to rrdtool.])],
-[	if test "x$withval" != "xno" && test "x$withval" != "xyes"
-	then
-		librrd_cflags="-I$withval/include"
-		librrd_ldflags="-L$withval/lib"
-		with_librrd="yes"
-	else
-		with_librrd="$withval"
-	fi
-], [with_librrd="yes"])
+AC_ARG_WITH(librrd,
+  [AS_HELP_STRING([--with-librrd@<:@=PREFIX@:>@], [Path to rrdtool.])],
+  [
+    if test "x$withval" != "xno" && test "x$withval" != "xyes"
+    then
+      librrd_cflags="-I$withval/include"
+      librrd_ldflags="-L$withval/lib"
+      with_librrd="yes"
+    else
+      with_librrd="$withval"
+    fi
+  ],
+  [with_librrd="yes"]
+)
+
 if test "x$with_librrd" = "xyes"
 then
-	SAVE_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$CPPFLAGS $librrd_cflags"
+  SAVE_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LDFLAGS $librrd_ldflags"
+  PKG_CHECK_MODULES([RRD], [librrd >= 1.6.0],
+    [
+      AC_CHECK_LIB([rrd], [rrd_update_r],
+        [librrd_threadsafe="yes"],
+        [:]
+      )
+      AC_CHECK_LIB([rrd], [rrdc_update],
+        [librrd_rrdc_update="yes"],
+        [:]
+      )
+    ],[:]
+  )
+  LDFLAGS="$SAVE_LDFLAGS"
 
-	AC_CHECK_HEADERS(rrd.h,, [with_librrd="no (rrd.h not found)"])
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $RRD_CFLAGS $librrd_cflags"
 
-	CPPFLAGS="$SAVE_CPPFLAGS"
+  AC_CHECK_HEADERS([rrd.h],, [with_librrd="no (rrd.h not found)"])
+
+  CPPFLAGS="$SAVE_CPPFLAGS"
 fi
-if test "x$with_librrd" = "xyes"
+
+if test "x$with_librrd" = "xyes" && test "x$librrd_threadsafe" = "xno"
 then
-	SAVE_LDFLAGS="$LDFLAGS"
-	LDFLAGS="$LDFLAGS $librrd_ldflags"
+  SAVE_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LDFLAGS $librrd_ldflags"
 
-	AC_CHECK_LIB(rrd_th, rrd_update_r,
-	[with_librrd="yes"
-	 librrd_ldflags="$librrd_ldflags -lrrd_th"
-	],
-	[librrd_threadsafe="no"
-	 AC_CHECK_LIB(rrd, rrd_update,
-	 [with_librrd="yes"
-	  librrd_ldflags="$librrd_ldflags -lrrd"
-	 ],
-	 [with_librrd="no (symbol 'rrd_update' not found)"]
-	 )
-	]
-	)
-
-	if test "x$librrd_threadsafe" = "xyes"
-	then
-		AC_CHECK_LIB(rrd_th, rrdc_update, [librrd_rrdc_update="yes"], [librrd_rrdc_update="no"])
-	else
-		AC_CHECK_LIB(rrd, rrdc_update, [librrd_rrdc_update="yes"], [librrd_rrdc_update="no"])
-	fi
-
-	LDFLAGS="$SAVE_LDFLAGS"
+  AC_CHECK_LIB([rrd_th], [rrd_update_r],
+    [
+      librrd_ldflags="$librrd_ldflags -lrrd_th"
+      librrd_threadsafe="yes"
+      AC_CHECK_LIB([rrd_th], [rrdc_update],
+        [librrd_rrdc_update="yes"],
+        [:],
+      )
+    ],
+    [:]
+  )
+  LDFLAGS="$SAVE_LDFLAGS"
 fi
+
+if test "x$with_librrd" = "xyes" && test "x$librrd_threadsafe" = "xno"
+then
+  SAVE_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LDFLAGS $librrd_ldflags"
+
+  AC_CHECK_LIB([rrd], [rrd_update],
+    [
+      librrd_ldflags="$librrd_ldflags -lrrd"
+      AC_CHECK_LIB([rrd], [rrdc_update],
+        [librrd_rrdc_update="yes"],
+        [:]
+      )
+    ],
+    [with_librrd="no (symbol 'rrd_update' not found)"]
+  )
+  LDFLAGS="$SAVE_LDFLAGS"
+fi
+
 if test "x$with_librrd" = "xyes"
 then
-	BUILD_WITH_LIBRRD_CFLAGS="$librrd_cflags"
-	BUILD_WITH_LIBRRD_LDFLAGS="$librrd_ldflags"
-	AC_SUBST(BUILD_WITH_LIBRRD_CFLAGS)
-	AC_SUBST(BUILD_WITH_LIBRRD_LDFLAGS)
+  BUILD_WITH_LIBRRD_CFLAGS="$RRD_CFLAGS $librrd_cflags"
+  BUILD_WITH_LIBRRD_LDFLAGS="$librrd_ldflags"
+  BUILD_WITH_LIBRRD_LIBS="$RRD_LIBS"
+  AC_SUBST(BUILD_WITH_LIBRRD_CFLAGS)
+  AC_SUBST(BUILD_WITH_LIBRRD_LDFLAGS)
+  AC_SUBST(BUILD_WITH_LIBRRD_LIBS)
 fi
 if test "x$librrd_threadsafe" = "xyes"
 then
-	AC_DEFINE(HAVE_THREADSAFE_LIBRRD, 1, [Define to 1 if you have the threadsafe rrd library (-lrrd_th).])
+  AC_DEFINE([HAVE_THREADSAFE_LIBRRD], [1],
+    [Define to 1 if the rrd library is thread-safe]
+  )
 fi
 # }}}
 
