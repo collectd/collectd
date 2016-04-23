@@ -90,7 +90,6 @@ DEF_TEST(sstrdup)
   EXPECT_EQ_STR ("collectd", ptr);
 
   sfree(ptr);
-  OK(ptr == NULL);
 
   ptr = sstrdup (NULL);
   OK(ptr == NULL);
