@@ -277,7 +277,7 @@ static size_t bind_curl_callback (void *buf, size_t size, /* {{{ */
 {
   size_t len = size * nmemb;
 
-  if (len <= 0)
+  if (len == 0)
     return (len);
 
   if ((bind_buffer_fill + len) >= bind_buffer_size)
