@@ -196,7 +196,7 @@ static int change_basedir (const char *orig_dir)
 	while ((dirlen > 0) && (dir[dirlen - 1] == '/'))
 		dir[--dirlen] = '\0';
 
-	if (dirlen <= 0) {
+	if (dirlen == 0) {
 		free (dir);
 		return (-1);
 	}
