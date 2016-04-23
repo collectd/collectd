@@ -934,7 +934,7 @@ static int parse_part_string (void **ret_buffer, size_t *ret_buffer_len,
 	uint16_t pkg_length;
 	size_t payload_size;
 
-	if (output_len <= 0)
+	if (output_len == 0)
 		return (EINVAL);
 
 	if (buffer_len < header_size)
