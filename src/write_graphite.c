@@ -180,7 +180,7 @@ static int wg_flush_nolock (cdtime_t timeout, struct wg_callback *cb)
             return (0);
     }
 
-    if (cb->send_buf_fill <= 0)
+    if (cb->send_buf_fill == 0)
     {
         cb->send_buf_init_time = cdtime ();
         return (0);
