@@ -1038,13 +1038,11 @@ static int ps_read_process (long pid, procstat_t *ps, char *state)
 	 * strchr(3) and strrchr(3) to avoid pointer arithmetic which would
 	 * otherwise be required to determine name_len. */
 	name_start_pos = 0;
-	while ((buffer[name_start_pos] != '(')
-			&& (name_start_pos < buffer_len))
+	while (name_start_pos < buffer_len && buffer[name_start_pos] != '(')
 		name_start_pos++;
 
 	name_end_pos = buffer_len;
-	while ((buffer[name_end_pos] != ')')
-			&& (name_end_pos > 0))
+	while (name_end_pos > 0 && buffer[name_end_pos] != ')')
 		name_end_pos--;
 
 	/* Either '(' or ')' is not found or they are in the wrong order.
