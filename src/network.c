@@ -934,7 +934,7 @@ static int parse_part_string (void **ret_buffer, size_t *ret_buffer_len,
 	uint16_t pkg_length;
 	size_t payload_size;
 
-	if (output_len <= 0)
+	if (output_len == 0)
 		return (EINVAL);
 
 	if (buffer_len < header_size)
@@ -2311,7 +2311,7 @@ static int sockent_server_listen (sockent_t *se) /* {{{ */
 
 	freeaddrinfo (ai_list);
 
-	if (se->data.server.fd_num <= 0)
+	if (se->data.server.fd_num == 0)
 		return (-1);
 	return (0);
 } /* }}} int sockent_server_listen */

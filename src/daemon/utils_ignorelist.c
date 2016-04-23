@@ -235,7 +235,6 @@ void ignorelist_free (ignorelist_t *il)
 	}
 
 	sfree (il);
-	il = NULL;
 } /* void ignorelist_destroy (ignorelist_t *il) */
 
 /*

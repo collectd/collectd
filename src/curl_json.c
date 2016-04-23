@@ -116,7 +116,7 @@ static size_t cj_curl_callback (void *buf, /* {{{ */
 
   len = size * nmemb;
 
-  if (len <= 0)
+  if (len == 0)
     return (len);
 
   db = user_data;

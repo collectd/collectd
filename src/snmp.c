@@ -1673,7 +1673,7 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
 static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
 {
   struct snmp_pdu *req;
-  struct snmp_pdu *res;
+  struct snmp_pdu *res = NULL;
   struct variable_list *vb;
 
   const data_set_t *ds;
@@ -1735,7 +1735,6 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
   for (i = 0; i < data->values_len; i++)
     snmp_add_null_var (req, data->values[i].oid, data->values[i].oid_len);
 
-  res = NULL;
   status = snmp_sess_synch_response (host->sess_handle, req, &res);
 
   if ((status != STAT_SUCCESS) || (res == NULL))
@@ -1748,7 +1747,6 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
 
     if (res != NULL)
       snmp_free_pdu (res);
-    res = NULL;
 
     sfree (errstr);
     sfree (vl.values);
@@ -1774,9 +1772,7 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
             data->scale, data->shift, host->name, data->name);
   } /* for (res->variables) */
 
-  if (res != NULL)
-    snmp_free_pdu (res);
-  res = NULL;
+  snmp_free_pdu (res);
 
   DEBUG ("snmp plugin: -> plugin_dispatch_values (&vl);");
   plugin_dispatch_values (&vl);

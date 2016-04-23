@@ -159,8 +159,7 @@ static int zookeeper_connect (void)
 
 static int zookeeper_query (char *buffer, size_t buffer_size)
 {
-	int sk = -1;
-	int status;
+	int sk, status;
 	size_t buffer_fill;
 
 	sk = zookeeper_connect();

@@ -1038,13 +1038,11 @@ static int ps_read_process (long pid, procstat_t *ps, char *state)
 	 * strchr(3) and strrchr(3) to avoid pointer arithmetic which would
 	 * otherwise be required to determine name_len. */
 	name_start_pos = 0;
-	while ((buffer[name_start_pos] != '(')
-			&& (name_start_pos < buffer_len))
+	while (name_start_pos < buffer_len && buffer[name_start_pos] != '(')
 		name_start_pos++;
 
 	name_end_pos = buffer_len;
-	while ((buffer[name_end_pos] != ')')
-			&& (name_end_pos > 0))
+	while (name_end_pos > 0 && buffer[name_end_pos] != ')')
 		name_end_pos--;
 
 	/* Either '(' or ')' is not found or they are in the wrong order.
@@ -1092,7 +1090,7 @@ static int ps_read_process (long pid, procstat_t *ps, char *state)
 			ps->vmem_code = -1;
 			DEBUG("ps_read_process: did not get vmem data for pid %li", pid);
 		}
-		if (ps->num_lwp <= 0)
+		if (ps->num_lwp == 0)
 			ps->num_lwp = 1;
 		ps->num_proc = 1;
 	}
@@ -1216,7 +1214,7 @@ static char *ps_get_cmdline (long pid, char *name, char *buf, size_t buf_len)
 		buf_ptr += status;
 		len     -= status;
 
-		if (len <= 0)
+		if (len == 0)
 			break;
 	}
 

@@ -95,7 +95,7 @@ static size_t cc_curl_callback (void *buf, /* {{{ */
   size_t len;
 
   len = size * nmemb;
-  if (len <= 0)
+  if (len == 0)
     return (len);
 
   wp = user_data;
@@ -543,7 +543,7 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
     web_page_t *prev;
 
     prev = pages_g;
-    while ((prev != NULL) && (prev->next != NULL))
+    while (prev->next != NULL)
       prev = prev->next;
     prev->next = page;
   }

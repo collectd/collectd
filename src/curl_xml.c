@@ -114,7 +114,7 @@ static size_t cx_curl_callback (void *buf, /* {{{ */
     return (0);
   }
 
-   if (len <= 0)
+   if (len == 0)
     return (len);
 
   if ((db->buffer_fill + len) >= db->buffer_size)
@@ -170,7 +170,6 @@ static void cx_list_free (llist_t *list) /* {{{ */
   }
 
   llist_destroy (list);
-  list = NULL;
 } /* }}} void cx_list_free */
 
 static void cx_free (void *arg) /* {{{ */

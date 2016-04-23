@@ -98,7 +98,7 @@ static size_t apache_curl_callback (void *buf, size_t size, size_t nmemb,
 		return (0);
 	}
 
-	if (len <= 0)
+	if (len == 0)
 		return (len);
 
 	if ((st->apache_buffer_fill + len) >= st->apache_buffer_size)
@@ -137,7 +137,7 @@ static size_t apache_header_callback (void *buf, size_t size, size_t nmemb,
 		return (0);
 	}
 
-	if (len <= 0)
+	if (len == 0)
 		return (len);
 
 	/* look for the Server header */

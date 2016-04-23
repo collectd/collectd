@@ -224,8 +224,6 @@ int escape_string (char *buffer, size_t buffer_size);
  */
 void replace_special (char *buffer, size_t buffer_size);
 
-int strsubstitute (char *str, char c_from, char c_to);
-
 /*
  * NAME
  *   strunescape

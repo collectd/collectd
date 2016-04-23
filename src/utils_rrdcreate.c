@@ -355,7 +355,7 @@ static int ds_get (char ***ret, /* {{{ */
     return (-1);
   }
 
-  if (ds_num <= 0)
+  if (ds_num == 0)
   {
     sfree (ds_def);
     return (0);

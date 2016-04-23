@@ -335,7 +335,7 @@ static int mv_match (const data_set_t *ds, const value_list_t *vl, /* {{{ */
       if (m->satisfy == SATISFY_ANY)
         break;
     }
-    else if (value_matches == 0)
+    else
     {
       status = FC_MATCH_NO_MATCH;
       if (m->satisfy == SATISFY_ALL)

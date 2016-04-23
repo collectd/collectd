@@ -335,7 +335,7 @@ int strjoin (char *buffer, size_t buffer_size,
 	size_t sep_len;
 	size_t i;
 
-	if ((buffer_size < 1) || (fields_num <= 0))
+	if ((buffer_size < 1) || (fields_num == 0))
 		return (-1);
 
 	memset (buffer, 0, buffer_size);
@@ -372,27 +372,6 @@ int strjoin (char *buffer, size_t buffer_size,
 	assert (buffer[buffer_size - 1] == 0);
 	return ((int) strlen (buffer));
 }
-
-int strsubstitute (char *str, char c_from, char c_to)
-{
-	int ret;
-
-	if (str == NULL)
-		return (-1);
-
-	ret = 0;
-	while (*str != '\0')
-	{
-		if (*str == c_from)
-		{
-			*str = c_to;
-			ret++;
-		}
-		str++;
-	}
-
-	return (ret);
-} /* int strsubstitute */
 
 int escape_string (char *buffer, size_t buffer_size)
 {

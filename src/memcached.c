@@ -173,8 +173,7 @@ static int memcached_connect (memcached_t *st)
 
 static int memcached_query_daemon (char *buffer, size_t buffer_size, memcached_t *st)
 {
-  int fd = -1;
-  int status;
+  int fd, status;
   size_t buffer_fill;
 
   fd = memcached_connect (st);

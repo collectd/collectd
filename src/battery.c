@@ -358,7 +358,7 @@ static int battery_read (void) /* {{{ */
 	 * IOPowerSources. IOKit, on the other hand, only reports the full
 	 * capacity. We use the two to calculate the current charged capacity. */
 	gauge_t charge_rel = NAN; /* Current charge in percent */
-	gauge_t capacity_charged = NAN; /* Charged capacity */
+	gauge_t capacity_charged; /* Charged capacity */
 	gauge_t capacity_full = NAN; /* Total capacity */
 	gauge_t capacity_design = NAN; /* Full design capacity */
 

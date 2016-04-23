@@ -204,7 +204,7 @@ static int udb_result_submit (udb_result_t *r, /* {{{ */
   assert (((size_t) r_area->ds->ds_num) == r->values_num);
   assert (r->values_num > 0);
 
-  vl.values = (value_t *) calloc (r->values_num, sizeof (value_t));
+  vl.values = calloc (r->values_num, sizeof (*vl.values));
   if (vl.values == NULL)
   {
     ERROR ("db query utils: calloc failed.");
@@ -221,6 +221,7 @@ static int udb_result_submit (udb_result_t *r, /* {{{ */
       ERROR ("db query utils: udb_result_submit: Parsing `%s' as %s failed.",
           value_str, DS_TYPE_TO_STRING (r_area->ds->ds[i].type));
       errno = EINVAL;
+      free (vl.values);
       return (-1);
     }
   }
@@ -234,7 +235,7 @@ static int udb_result_submit (udb_result_t *r, /* {{{ */
   sstrncpy (vl.type, r->type, sizeof (vl.type));
 
   /* Set vl.type_instance {{{ */
-  if (r->instances_num <= 0)
+  if (r->instances_num == 0)
   {
     if (r->instance_prefix == NULL)
       vl.type_instance[0] = 0;
