@@ -335,7 +335,7 @@ int strjoin (char *buffer, size_t buffer_size,
 	size_t sep_len;
 	size_t i;
 
-	if ((buffer_size < 1) || (fields_num <= 0))
+	if ((buffer_size < 1) || (fields_num == 0))
 		return (-1);
 
 	memset (buffer, 0, buffer_size);
