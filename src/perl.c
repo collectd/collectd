@@ -2064,9 +2064,8 @@ static int perl_flush (cdtime_t timeout, const char *identifier,
 
 static int perl_shutdown (void)
 {
-	c_ithread_t *t = NULL;
-
-	int ret = 0;
+	c_ithread_t *t;
+	int ret;
 
 	dTHX;
 
@@ -2076,8 +2075,6 @@ static int perl_shutdown (void)
 		return 0;
 
 	if (NULL == aTHX) {
-		t = NULL;
-
 		pthread_mutex_lock (&perl_threads->mutex);
 		t = c_ithread_create (perl_threads->head->interp);
 		pthread_mutex_unlock (&perl_threads->mutex);
