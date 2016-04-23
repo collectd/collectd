@@ -2088,8 +2088,10 @@ static int plugin_dispatch_values_internal (value_list_t *vl)
 
 	int free_meta_data = 0;
 
-	if ((vl == NULL) || (vl->type[0] == 0)
-			|| (vl->values == NULL) || (vl->values_len < 1))
+	assert(vl);
+	assert(vl->plugin);
+
+	if (vl->type[0] == 0 || vl->values == NULL || vl->values_len < 1)
 	{
 		ERROR ("plugin_dispatch_values: Invalid value list "
 				"from plugin %s.", vl->plugin);
