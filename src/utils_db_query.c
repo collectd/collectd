@@ -234,7 +234,7 @@ static int udb_result_submit (udb_result_t *r, /* {{{ */
   sstrncpy (vl.type, r->type, sizeof (vl.type));
 
   /* Set vl.type_instance {{{ */
-  if (r->instances_num <= 0)
+  if (r->instances_num == 0)
   {
     if (r->instance_prefix == NULL)
       vl.type_instance[0] = 0;
