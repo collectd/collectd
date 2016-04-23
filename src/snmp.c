@@ -1774,9 +1774,7 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
             data->scale, data->shift, host->name, data->name);
   } /* for (res->variables) */
 
-  if (res != NULL)
-    snmp_free_pdu (res);
-  res = NULL;
+  snmp_free_pdu (res);
 
   DEBUG ("snmp plugin: -> plugin_dispatch_values (&vl);");
   plugin_dispatch_values (&vl);
