@@ -543,7 +543,7 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
     web_page_t *prev;
 
     prev = pages_g;
-    while ((prev != NULL) && (prev->next != NULL))
+    while (prev->next != NULL)
       prev = prev->next;
     prev->next = page;
   }
