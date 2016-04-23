@@ -37,9 +37,7 @@
 
 #define sfree(ptr) \
 	do { \
-		if((ptr) != NULL) { \
-			free(ptr); \
-		} \
+		free(ptr); \
 		(ptr) = NULL; \
 	} while (0)
 
