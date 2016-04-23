@@ -284,7 +284,7 @@ static size_t bind_curl_callback (void *buf, size_t size, /* {{{ */
   {
     char *temp;
 
-    temp = realloc(bind_buffer, bind_buffer_fill + len + 1);
+    temp = realloc (bind_buffer, bind_buffer_fill + len + 1);
     if (temp == NULL)
     {
       ERROR ("bind plugin: realloc failed.");
