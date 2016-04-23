@@ -95,7 +95,7 @@ static size_t cc_curl_callback (void *buf, /* {{{ */
   size_t len;
 
   len = size * nmemb;
-  if (len <= 0)
+  if (len == 0)
     return (len);
 
   wp = user_data;
