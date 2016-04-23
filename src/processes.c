@@ -1092,7 +1092,7 @@ static int ps_read_process (long pid, procstat_t *ps, char *state)
 			ps->vmem_code = -1;
 			DEBUG("ps_read_process: did not get vmem data for pid %li", pid);
 		}
-		if (ps->num_lwp <= 0)
+		if (ps->num_lwp == 0)
 			ps->num_lwp = 1;
 		ps->num_proc = 1;
 	}
