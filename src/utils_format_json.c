@@ -297,7 +297,7 @@ static int meta_data_keys_to_json (char *buffer, size_t buffer_size, /* {{{ */
     }
   } /* for (keys) */
 
-  if (offset <= 0)
+  if (offset == 0)
     return (ENOENT);
 
   buffer[0] = '{'; /* replace leading ',' */
