@@ -510,7 +510,6 @@ static int cdbi_read_database_query (cdbi_database_t *db, /* {{{ */
 
   column_names = NULL;
   column_values = NULL;
-  res = NULL;
 
   statement = udb_query_get_statement (q);
   assert (statement != NULL);
