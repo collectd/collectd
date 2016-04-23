@@ -1216,7 +1216,7 @@ static char *ps_get_cmdline (long pid, char *name, char *buf, size_t buf_len)
 		buf_ptr += status;
 		len     -= status;
 
-		if (len <= 0)
+		if (len == 0)
 			break;
 	}
 
