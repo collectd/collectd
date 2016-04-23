@@ -4119,17 +4119,17 @@ then
 
 	AC_CHECK_LIB(rrd_th, rrd_update_r,
 	[with_librrd="yes"
-	 librrd_ldflags="$librrd_ldflags -lrrd_th -lm"
+	 librrd_ldflags="$librrd_ldflags -lrrd_th"
 	],
 	[librrd_threadsafe="no"
 	 AC_CHECK_LIB(rrd, rrd_update,
 	 [with_librrd="yes"
-	  librrd_ldflags="$librrd_ldflags -lrrd -lm"
+	  librrd_ldflags="$librrd_ldflags -lrrd"
 	 ],
-	 [with_librrd="no (symbol 'rrd_update' not found)"],
-	 [-lm])
-	],
-	[-lm])
+	 [with_librrd="no (symbol 'rrd_update' not found)"]
+	 )
+	]
+	)
 
 	if test "x$librrd_threadsafe" = "xyes"
 	then
