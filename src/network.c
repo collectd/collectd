@@ -2311,7 +2311,7 @@ static int sockent_server_listen (sockent_t *se) /* {{{ */
 
 	freeaddrinfo (ai_list);
 
-	if (se->data.server.fd_num <= 0)
+	if (se->data.server.fd_num == 0)
 		return (-1);
 	return (0);
 } /* }}} int sockent_server_listen */
