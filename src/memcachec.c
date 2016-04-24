@@ -51,6 +51,7 @@ struct web_page_s;
 typedef struct web_page_s web_page_t;
 struct web_page_s /* {{{ */
 {
+  char *plugin_name;
   char *instance;
 
   char *server;
@@ -94,6 +95,7 @@ static void cmc_web_page_free(web_page_t *wp) /* {{{ */
     memcached_free(wp->memc);
   wp->memc = NULL;
 
+  sfree(wp->plugin_name);
   sfree(wp->instance);
   sfree(wp->server);
   sfree(wp->key);
@@ -302,6 +304,8 @@ static int cmc_config_add_page(oconfig_item_t *ci) /* {{{ */
       status = cmc_config_add_string("Server", &page->server, child);
     else if (strcasecmp("Key", child->key) == 0)
       status = cmc_config_add_string("Key", &page->key, child);
+    else if (strcasecmp("PluginName", child->key) == 0)
+      status = cmc_config_add_string("PluginName", &page->plugin_name, child);
     else if (strcasecmp("Match", child->key) == 0)
       /* Be liberal with failing matches => don't set `status'. */
       cmc_config_add_match(page, child);
@@ -407,7 +411,8 @@ static void cmc_submit(const web_page_t *wp, const web_match_t *wm, /* {{{ */
 
   vl.values = &value;
   vl.values_len = 1;
-  sstrncpy(vl.plugin, "memcachec", sizeof(vl.plugin));
+  sstrncpy(vl.plugin, (wp->plugin_name != NULL) ? wp->plugin_name : "memcachec",
+           sizeof (vl.plugin));
   sstrncpy(vl.plugin_instance, wp->instance, sizeof(vl.plugin_instance));
   sstrncpy(vl.type, wm->type, sizeof(vl.type));
   sstrncpy(vl.type_instance, wm->instance, sizeof(vl.type_instance));

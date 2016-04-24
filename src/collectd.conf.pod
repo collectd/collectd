@@ -3542,6 +3542,7 @@ Synopsis of the configuration:
    <Page "plugin_instance">
      Server "localhost"
      Key "page_key"
+     PluginName "plugin_name"
      <Match>
        Regex "(\\d+) bytes sent"
        DSType CounterAdd
@@ -3568,6 +3569,11 @@ B<Page> block.
 =item B<Key> I<Key>
 
 When connected to the memcached server, asks for the page I<Key>.
+
+=item B<PluginName> I<PluginName>
+
+Use I<PluginName> as the plugin name when submitting values.
+Defaults to 'memcachec'.
 
 =item E<lt>B<Match>E<gt>
 
