@@ -216,6 +216,8 @@
 %define with_write_kafka 0%{!?_without_write_kafka:0}
 # plugin write_mongodb disabled, requires libmongoc
 %define with_write_mongodb 0%{!?_without_write_mongodb:0}
+# plugin xencpu disabled, requires xen-devel from non-default repo
+%define with_xencpu 0%{!?_without_xencpu:0}
 # plugin zone disabled, requires Solaris
 %define with_zone 0%{!?_without_zone:0}
 
@@ -787,6 +789,16 @@ Requires:	%{name}%{?_isa} = %{version}-%{release}
 BuildRequires:	protobuf-c-devel
 %description write_riemann
 The riemann plugin submits values to Riemann, an event stream processor.
+%endif
+
+%if %{with_xencpu}
+%package xencpu
+Summary:	xencpu plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	xen-devel
+%description xencpu
+The xencpu plugin collects CPU statistics from Xen.
 %endif
 
 %if %{with_xmms}
@@ -1595,6 +1607,12 @@ Collectd utilities
 %define _with_write_tsdb --disable-write_tsdb
 %endif
 
+%if %{with_xencpu}
+%define _with_xencpu --enable-xencpu
+%else
+%define _with_xencpu --disable-xencpu
+%endif
+
 %if %{with_xmms}
 %define _with_xmms --enable-xmms
 %else
@@ -1713,6 +1731,7 @@ Collectd utilities
 	%{?_with_write_kafka} \
 	%{?_with_write_mongodb} \
 	%{?_with_write_redis} \
+	%{?_with_xencpu} \
 	%{?_with_xmms} \
 	%{?_with_zfs_arc} \
 	%{?_with_zone} \
@@ -2376,6 +2395,11 @@ fi
 %{_libdir}/%{name}/write_riemann.so
 %endif
 
+%if %{with_xencpu}
+%files xencpu
+%{_libdir}/%{name}/xencpu.so
+%endif
+
 %if %{with_xmms}
 %files xmms
 %{_libdir}/%{name}/xmms.so
@@ -2396,7 +2420,7 @@ fi
 #* TODO: next feature release changelog
 #- New upstream version
 #- New plugins enabled by default: mqtt, notify_nagios
-#- New plugins disabled by default: zone
+#- New plugins disabled by default: zone, xencpu
 #
 * Wed May 27 2015 Marc Fournier <marc.fournier@camptocamp.com> 5.5.0-1
 - New upstream version
