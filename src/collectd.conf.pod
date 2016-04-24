@@ -7735,7 +7735,8 @@ B<Synopsis:>
        Index 1
    </Metric>
    <File "/var/log/snort/snort.stats">
-       Instance "snort-eth0"
+       PluginName "snortstats"
+       Instance "eth0"
        Interval 600
        Collect "snort-dropped"
    </File>
@@ -7786,6 +7787,11 @@ Each B<File> block represents one CSV file to read. There must be at least one
 I<File> block but there can be multiple if you have multiple CSV files.
 
 =over 4
+
+=item B<PluginName> I<PluginName>
+
+Use I<PluginName> as the plugin name when submitting values.
+Defaults to 'tail_csv'.
 
 =item B<Instance> I<PluginInstance>
 
