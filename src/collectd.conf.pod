@@ -7519,6 +7519,7 @@ user using (extended) regular expressions, as described in L<regex(7)>.
 
   <Plugin "tail">
     <File "/var/log/exim4/mainlog">
+      PluginName "mail"
       Instance "exim"
       Interval 60
       <Match>
@@ -7550,11 +7551,13 @@ The config consists of one or more B<File> blocks, each of which configures one
 logfile to parse. Within each B<File> block, there are one or more B<Match>
 blocks, which configure a regular expression to search for.
 
-The B<Instance> option in the B<File> block may be used to set the plugin
-instance. So in the above example the plugin name C<tail-foo> would be used.
-This plugin instance is for all B<Match> blocks that B<follow> it, until the
-next B<Instance> option. This way you can extract several plugin instances from
-one logfile, handy when parsing syslog and the like.
+The B<PluginName> and B<Instance> options in the B<File> block may be used to set
+the plugin name and instance respectively. So in the above example the plugin name
+C<mail-exim> would be used.
+
+These options are applied for all B<Match> blocks that B<follow> it, until the
+next B<PluginName> or B<Instance> option. This way you can extract several plugin
+instances from one logfile, handy when parsing syslog and the like.
 
 The B<Interval> option allows you to define the length of time between reads. If
 this is not set, the default Interval will be used.
