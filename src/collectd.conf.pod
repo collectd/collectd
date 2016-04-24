@@ -1611,6 +1611,7 @@ finance page and dispatch the value to collectd.
 
   <Plugin curl>
     <Page "stock_quotes">
+      PluginName "quotes"
       URL "http://finance.google.com/finance?q=NYSE%3AAMD"
       User "foo"
       Password "bar"
@@ -1641,6 +1642,11 @@ string argument to the B<Page> block is used as plugin instance.
 The following options are valid within B<Page> blocks:
 
 =over 4
+
+=item B<PluginName> I<PluginName>
+
+Use I<PluginName> as the plugin name when submitting values.
+Defaults to 'curl'.
 
 =item B<URL> I<URL>
 
