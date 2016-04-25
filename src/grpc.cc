@@ -301,7 +301,7 @@ public:
 			}
 		}
 
-		builder.RegisterAsyncService(&service_);
+		builder.RegisterService(&service_);
 		cq_ = builder.AddCompletionQueue();
 		server_ = builder.BuildAndStart();
 	} /* Start() */
