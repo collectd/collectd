@@ -269,10 +269,10 @@ static int za_read (void)
 #endif
 
 	/* Sizes */
-	za_read_gauge (ksp, "size",    "cache_size", "arc");
-	za_read_gauge (ksp, "c",    "cache_size", "c");
-	za_read_gauge (ksp, "c_min",    "cache_size", "c_min");
-	za_read_gauge (ksp, "c_max",    "cache_size", "c_max");
+	za_read_gauge (ksp, "size",  "cache_size", "arc");
+	za_read_gauge (ksp, "c",     "cache_size", "c");
+	za_read_gauge (ksp, "c_min", "cache_size", "c_min");
+	za_read_gauge (ksp, "c_max", "cache_size", "c_max");
 
 	/* The "l2_size" value has disappeared from Solaris some time in
 	 * early 2013, and has only reappeared recently in Solaris 11.2.
