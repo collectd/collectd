@@ -111,6 +111,7 @@ memcached_octets        rx:DERIVE:0:U, tx:DERIVE:0:U
 memcached_ops           value:DERIVE:0:U
 memory                  value:GAUGE:0:281474976710656
 memory_lua              value:GAUGE:0:281474976710656
+memory_throttle_count   value:DERIVE:0:U
 multimeter              value:GAUGE:U:U
 mutex_operations        value:DERIVE:0:U
 mysql_bpool_bytes       value:GAUGE:0:U

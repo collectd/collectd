@@ -295,6 +295,7 @@ static int za_read (void)
 	/* Issue indicators */
 	za_read_derive (ksp, "mutex_miss", "mutex_operations", "miss");
 	za_read_derive (ksp, "hash_collisions", "hash_collisions", "");
+	za_read_derive (ksp, "memory_throttle_count", "memory_throttle_count", "");
 
 	/* Evictions */
 	za_read_derive (ksp, "evict_l2_cached",     "cache_eviction", "cached");
