@@ -269,11 +269,19 @@ static int za_read (void)
 #endif
 
 	/* Sizes */
-	za_read_gauge (ksp, "size",  "cache_size", "arc");
-	za_read_gauge (ksp, "c",     "cache_size", "c");
-	za_read_gauge (ksp, "p",     "cache_size", "p");
-	za_read_gauge (ksp, "c_min", "cache_size", "c_min");
-	za_read_gauge (ksp, "c_max", "cache_size", "c_max");
+	za_read_gauge (ksp, "anon_size",      "cache_size", "anon_size");
+	za_read_gauge (ksp, "c",              "cache_size", "c");
+	za_read_gauge (ksp, "c_max",          "cache_size", "c_max");
+	za_read_gauge (ksp, "c_min",          "cache_size", "c_min");
+	za_read_gauge (ksp, "hdr_size",       "cache_size", "hdr_size");
+	za_read_gauge (ksp, "metadata_size",  "cache_size", "metadata_size");
+	za_read_gauge (ksp, "mfu_ghost_size", "cache_size", "mfu_ghost_size");
+	za_read_gauge (ksp, "mfu_size",       "cache_size", "mfu_size");
+	za_read_gauge (ksp, "mru_ghost_size", "cache_size", "mru_ghost_size");
+	za_read_gauge (ksp, "mru_size",       "cache_size", "mru_size");
+	za_read_gauge (ksp, "other_size",     "cache_size", "other_size");
+	za_read_gauge (ksp, "p",              "cache_size", "p");
+	za_read_gauge (ksp, "size",           "cache_size", "arc");
 
 	/* The "l2_size" value has disappeared from Solaris some time in
 	 * early 2013, and has only reappeared recently in Solaris 11.2.
