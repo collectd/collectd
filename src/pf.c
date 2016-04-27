@@ -106,7 +106,6 @@ static int pf_read (void)
 	}
 
 	close (fd);
-	fd = -1;
 
 	if (!state.running)
 	{
