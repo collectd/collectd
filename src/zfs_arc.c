@@ -271,6 +271,7 @@ static int za_read (void)
 	/* Sizes */
 	za_read_gauge (ksp, "size",  "cache_size", "arc");
 	za_read_gauge (ksp, "c",     "cache_size", "c");
+	za_read_gauge (ksp, "p",     "cache_size", "p");
 	za_read_gauge (ksp, "c_min", "cache_size", "c_min");
 	za_read_gauge (ksp, "c_max", "cache_size", "c_max");
 
