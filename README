@@ -994,6 +994,10 @@ Crosscompiling
 Configuring with DPDK
 ---------------------
 
+Note: DPDK 16.04 is the minimum version of DPDK required for the dpdkstat
+plugin. This is to allow the plugin to take advantage of functions added to
+detect if the DPDK primary process is alive.
+
 Build DPDK for use with collectd:
   To compile DPDK for use with collectd dpdkstat start by:
     - Clone DPDK:
