@@ -94,11 +94,10 @@ static counter_list_t *counter_list_create (counter_list_t **list,
 {
 	counter_list_t *entry;
 
-	entry = (counter_list_t *) malloc (sizeof (counter_list_t));
+	entry = calloc (1, sizeof (*entry));
 	if (entry == NULL)
 		return (NULL);
 
-	memset (entry, 0, sizeof (counter_list_t));
 	entry->key = key;
 	entry->value = value;
 

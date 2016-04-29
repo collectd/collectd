@@ -114,7 +114,7 @@ static int kafka_handle(struct kafka_topic_context *ctx) /* {{{ */
 
         INFO ("write_kafka plugin: created KAFKA handle : %s", rd_kafka_name(ctx->kafka));
 
-#ifdef HAVE_LIBRDKAFKA_LOGGER
+#if defined(HAVE_LIBRDKAFKA_LOGGER) && !defined(HAVE_LIBRDKAFKA_LOG_CB)
         rd_kafka_set_logger(ctx->kafka, kafka_log);
 #endif
     }
@@ -469,4 +469,3 @@ void module_register(void)
 {
     plugin_register_complex_config ("write_kafka", kafka_config);
 }
-

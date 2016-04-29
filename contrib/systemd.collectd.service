@@ -1,7 +1,8 @@
 [Unit]
-Description=Collectd
-After=local-fs.target network.target
-Requires=local-fs.target network.target
+Description=Collectd statistics daemon
+Documentation=man:collectd(1) man:collectd.conf(5)
+After=local-fs.target network-online.target
+Requires=local-fs.target network-online.target
 
 [Service]
 ExecStart=/usr/sbin/collectd
@@ -33,7 +34,7 @@ NoNewPrivileges=true
 # socket once the daemon is ready. See systemd.service(5) for more details.
 Type=notify
 
-# Restart the collectd daemon after a 10 seconds delay, in case it crashes.
+# Restart the collectd daemon when it fails.
 Restart=on-failure
 
 [Install]

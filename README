@@ -767,8 +767,7 @@ Prerequisites
 
   * libprotobuf-c, protoc-c (optional)
     Used by the `pinba' plugin to generate a parser for the network packets
-    sent by the Pinba PHP extension, and by the `write_riemann' plugin to
-    generate events to be sent to a Riemann server.
+    sent by the Pinba PHP extension.
     <http://code.google.com/p/protobuf-c/>
 
   * libpython (optional)
@@ -842,6 +841,10 @@ Prerequisites
      Fetches statistics from a Varnish instance. This is needed for the
      `varnish' plugin.
      <http://varnish-cache.org>
+
+  * riemann-c-client (optional)
+     For the `write_riemann' plugin.
+     <https://github.com/algernon/riemann-c-client>
 
 Configuring / Compiling / Installing
 ------------------------------------
@@ -925,6 +928,7 @@ To generate the `configure` script, you'll need the following dependencies:
 - bison
 - libtool
 - libtool-ltdl
+- pkg-config
 
 The `build.sh' script takes no arguments.
 

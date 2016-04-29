@@ -137,7 +137,9 @@ class GenericJMXConfConnection
   {
     try
     {
-      this._jmx_connector.close();
+      if (this._jmx_connector != null) {
+        this._jmx_connector.close();
+      }
     }
     catch (Exception e)
     {

@@ -106,6 +106,10 @@ typedef struct diskstats
 	derive_t avg_read_time;
 	derive_t avg_write_time;
 
+	_Bool has_merged;
+	_Bool has_in_progress;
+	_Bool has_io_time;
+
 	struct diskstats *next;
 } diskstats_t;
 
@@ -275,10 +279,6 @@ static void disk_submit (const char *plugin_instance,
 	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	/* Both `ignorelist' and `plugin_instance' may be NULL. */
-	if (ignorelist_match (ignorelist, plugin_instance) != 0)
-	  return;
-
 	values[0].derive = read;
 	values[1].derive = write;
 
@@ -293,34 +293,11 @@ static void disk_submit (const char *plugin_instance,
 	plugin_dispatch_values (&vl);
 } /* void disk_submit */
 
-#if KERNEL_LINUX
-static void submit_in_progress (char const *disk_name, gauge_t in_progress)
-{
-	value_t v;
-	value_list_t vl = VALUE_LIST_INIT;
-
-	if (ignorelist_match (ignorelist, disk_name) != 0)
-	  return;
-
-	v.gauge = in_progress;
-
-	vl.values = &v;
-	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-	sstrncpy (vl.plugin, "disk", sizeof (vl.plugin));
-	sstrncpy (vl.plugin_instance, disk_name, sizeof (vl.plugin_instance));
-	sstrncpy (vl.type, "pending_operations", sizeof (vl.type));
-
-	plugin_dispatch_values (&vl);
-}
-
+#if KERNEL_FREEBSD || KERNEL_LINUX
 static void submit_io_time (char const *plugin_instance, derive_t io_time, derive_t weighted_time)
 {
 	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
-
-	if (ignorelist_match (ignorelist, plugin_instance) != 0)
-	  return;
 
 	values[0].derive = io_time;
 	values[1].derive = weighted_time;
@@ -331,6 +308,25 @@ static void submit_io_time (char const *plugin_instance, derive_t io_time, deriv
 	sstrncpy (vl.plugin, "disk", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, "disk_io_time", sizeof (vl.type));
+
+	plugin_dispatch_values (&vl);
+} /* void submit_io_time */
+#endif /* KERNEL_FREEBSD || KERNEL_LINUX */
+
+#if KERNEL_LINUX
+static void submit_in_progress (char const *disk_name, gauge_t in_progress)
+{
+	value_t v;
+	value_list_t vl = VALUE_LIST_INIT;
+
+	v.gauge = in_progress;
+
+	vl.values = &v;
+	vl.values_len = 1;
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "disk", sizeof (vl.plugin));
+	sstrncpy (vl.plugin_instance, disk_name, sizeof (vl.plugin_instance));
+	sstrncpy (vl.type, "pending_operations", sizeof (vl.type));
 
 	plugin_dispatch_values (&vl);
 }
@@ -389,7 +385,7 @@ static signed long long dict_get_value (CFDictionaryRef dict, const char *key)
 		DEBUG ("CFStringCreateWithCString (%s) failed.", key);
 		return (-1LL);
 	}
-	
+
 	/* get => we don't need to release (== free) the object */
 	val_obj = (CFNumberRef) CFDictionaryGetValue (dict, key_obj);
 
@@ -504,6 +500,15 @@ static int disk_read (void)
 		else
 			ssnprintf (disk_name, sizeof (disk_name), "%i-%i", disk_major, disk_minor);
 
+		DEBUG ("disk plugin: disk_name = \"%s\"", disk_name);
+
+		/* check the name against ignore list */
+		if (ignorelist_match (ignorelist, disk_name) != 0) {
+			CFRelease (props_dict);
+			IOObjectRelease (disk);
+			continue;
+		}
+
 		/* extract the stats */
 		read_ops  = dict_get_value (stats_dict, kIOBlockStorageDriverStatisticsReadsKey);
 		read_byt  = dict_get_value (stats_dict, kIOBlockStorageDriverStatisticsBytesReadKey);
@@ -515,7 +520,6 @@ static int disk_read (void)
 		IOObjectRelease (disk);
 
 		/* and submit */
-		DEBUG ("disk plugin: disk_name = \"%s\"", disk_name);
 		if ((read_byt != -1LL) || (write_byt != -1LL))
 			disk_submit (disk_name, "disk_octets", read_byt, write_byt);
 		if ((read_ops != -1LL) || (write_ops != -1LL))
@@ -536,7 +540,7 @@ static int disk_read (void)
 	struct gident *geom_id;
 
 	const char *disk_name;
-	long double read_time, write_time;
+	long double read_time, write_time, busy_time, total_duration;
 
 	for (retry = 0, dirty = 1; retry < 5 && dirty == 1; retry++) {
 		if (snap != NULL)
@@ -613,6 +617,9 @@ static int disk_read (void)
 
 		disk_name = ((struct gprovider *)geom_id->lg_ptr)->lg_name;
 
+		if (ignorelist_match (ignorelist, disk_name) != 0)
+			continue;
+
 		if ((snap_iter->bytes[DEVSTAT_READ] != 0) || (snap_iter->bytes[DEVSTAT_WRITE] != 0)) {
 			disk_submit(disk_name, "disk_octets",
 					(derive_t)snap_iter->bytes[DEVSTAT_READ],
@@ -631,13 +638,23 @@ static int disk_read (void)
 			disk_submit (disk_name, "disk_time",
 					(derive_t)(read_time*1000), (derive_t)(write_time*1000));
 		}
+		if (devstat_compute_statistics(snap_iter, NULL, 1.0,
+		    DSM_TOTAL_BUSY_TIME, &busy_time,
+		    DSM_TOTAL_DURATION, &total_duration,
+		    DSM_NONE) != 0) {
+			WARNING("%s", devstat_errbuf);
+		}
+		else
+		{
+			submit_io_time(disk_name, busy_time, total_duration);
+		}
 	}
 	geom_stats_snapshot_free(snap);
 
 #elif KERNEL_LINUX
 	FILE *fh;
 	char buffer[1024];
-	
+
 	char *fields[32];
 	int numfields;
 	int fieldshift = 0;
@@ -818,6 +835,16 @@ static int disk_read (void)
 			ds->read_time = read_time;
 			ds->write_ops = write_ops;
 			ds->write_time = write_time;
+
+			if (read_merged || write_merged)
+				ds->has_merged = 1;
+
+			if (in_progress)
+				ds->has_in_progress = 1;
+
+			if (io_time)
+				ds->has_io_time = 1;
+		
 		} /* if (is_disk) */
 
 		/* Don't write to the RRDs if we've just started.. */
@@ -845,6 +872,9 @@ static int disk_read (void)
 			output_name = alt_name;
 #endif
 
+		if (ignorelist_match (ignorelist, output_name) != 0)
+			continue;
+
 		if ((ds->read_bytes != 0) || (ds->write_bytes != 0))
 			disk_submit (output_name, "disk_octets",
 					ds->read_bytes, ds->write_bytes);
@@ -859,10 +889,13 @@ static int disk_read (void)
 
 		if (is_disk)
 		{
-			disk_submit (output_name, "disk_merged",
+			if (ds->has_merged)
+				disk_submit (output_name, "disk_merged",
 					read_merged, write_merged);
-			submit_in_progress (output_name, in_progress);
-			submit_io_time (output_name, io_time, weighted_time);
+			if (ds->has_in_progress)
+				submit_in_progress (output_name, in_progress);
+			if (ds->has_io_time)
+				submit_io_time (output_name, io_time, weighted_time);
 		} /* if (is_disk) */
 
 #if HAVE_LIBUDEV
@@ -909,6 +942,9 @@ static int disk_read (void)
 
 		if (strncmp (ksp[i]->ks_class, "disk", 4) == 0)
 		{
+			if (ignorelist_match (ignorelist, ksp[i]->ks_name) != 0)
+				continue;
+
 			disk_submit (ksp[i]->ks_name, "disk_octets",
 					kio.KIO_ROCTETS, kio.KIO_WOCTETS);
 			disk_submit (ksp[i]->ks_name, "disk_ops",
@@ -919,6 +955,9 @@ static int disk_read (void)
 		}
 		else if (strncmp (ksp[i]->ks_class, "partition", 9) == 0)
 		{
+			if (ignorelist_match (ignorelist, ksp[i]->ks_name) != 0)
+				continue;
+
 			disk_submit (ksp[i]->ks_name, "disk_octets",
 					kio.KIO_ROCTETS, kio.KIO_WOCTETS);
 			disk_submit (ksp[i]->ks_name, "disk_ops",
@@ -936,13 +975,19 @@ static int disk_read (void)
 #endif
 	int counter;
 	char name[DATA_MAX_NAME_LEN];
-	
+
 	if ((ds = sg_get_disk_io_stats(&disks)) == NULL)
 		return (0);
-		
+
 	for (counter=0; counter < disks; counter++) {
 		strncpy(name, ds->disk_name, sizeof(name));
 		name[sizeof(name)-1] = '\0'; /* strncpy doesn't terminate longer strings */
+
+		if (ignorelist_match (ignorelist, name) != 0) {
+			ds++;
+			continue;
+		}
+
 		disk_submit (name, "disk_octets", ds->read_bytes, ds->write_bytes);
 		ds++;
 	}
@@ -959,7 +1004,7 @@ static int disk_read (void)
 	int rnumdisk;
 	int i;
 
-	if ((numdisk = perfstat_disk(NULL, NULL, sizeof(perfstat_disk_t), 0)) < 0) 
+	if ((numdisk = perfstat_disk(NULL, NULL, sizeof(perfstat_disk_t), 0)) < 0)
 	{
 		char errbuf[1024];
 		WARNING ("disk plugin: perfstat_disk: %s",
@@ -968,14 +1013,14 @@ static int disk_read (void)
 	}
 
 	if (numdisk != pnumdisk || stat_disk==NULL) {
-		if (stat_disk!=NULL) 
+		if (stat_disk!=NULL)
 			free(stat_disk);
 		stat_disk = (perfstat_disk_t *)calloc(numdisk, sizeof(perfstat_disk_t));
-	} 
+	}
 	pnumdisk = numdisk;
 
 	firstpath.name[0]='\0';
-	if ((rnumdisk = perfstat_disk(&firstpath, stat_disk, sizeof(perfstat_disk_t), numdisk)) < 0) 
+	if ((rnumdisk = perfstat_disk(&firstpath, stat_disk, sizeof(perfstat_disk_t), numdisk)) < 0)
 	{
 		char errbuf[1024];
 		WARNING ("disk plugin: perfstat_disk : %s",
@@ -983,8 +1028,11 @@ static int disk_read (void)
 		return (-1);
 	}
 
-	for (i = 0; i < rnumdisk; i++) 
+	for (i = 0; i < rnumdisk; i++)
 	{
+		if (ignorelist_match (ignorelist, stat_disk[i].name) != 0)
+			continue;
+
 		read_sectors = stat_disk[i].rblks*stat_disk[i].bsize;
 		write_sectors = stat_disk[i].wblks*stat_disk[i].bsize;
 		disk_submit (stat_disk[i].name, "disk_octets", read_sectors, write_sectors);

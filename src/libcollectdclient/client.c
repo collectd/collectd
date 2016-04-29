@@ -312,7 +312,7 @@ static int lcc_receive (lcc_connection_t *c, /* {{{ */
   /* Allocate space for the char-pointers */
   res.lines_num = (size_t) res.status;
   res.status = 0;
-  res.lines = (char **) malloc (res.lines_num * sizeof (char *));
+  res.lines = malloc (res.lines_num * sizeof (*res.lines));
   if (res.lines == NULL)
   {
     lcc_set_errno (c, ENOMEM);
@@ -584,10 +584,9 @@ int lcc_connect (const char *address, lcc_connection_t **ret_con) /* {{{ */
   if (ret_con == NULL)
     return (-1);
 
-  c = (lcc_connection_t *) malloc (sizeof (*c));
+  c = calloc (1, sizeof (*c));
   if (c == NULL)
     return (-1);
-  memset (c, 0, sizeof (*c));
 
   status = lcc_open_socket (c, address);
   if (status != 0)
@@ -687,7 +686,7 @@ int lcc_getval (lcc_connection_t *c, lcc_identifier_t *ident, /* {{{ */
   /* Allocate space for the values */
   if (ret_values != NULL)
   {
-    values = (gauge_t *) malloc (values_num * sizeof (*values));
+    values = malloc (values_num * sizeof (*values));
     if (values == NULL)
       BAIL_OUT (ENOMEM);
   }
@@ -894,7 +893,7 @@ int lcc_listval (lcc_connection_t *c, /* {{{ */
   }
 
   ident_num = res.lines_num;
-  ident = (lcc_identifier_t *) malloc (ident_num * sizeof (*ident));
+  ident = malloc (ident_num * sizeof (*ident));
   if (ident == NULL)
   {
     lcc_response_free (&res);

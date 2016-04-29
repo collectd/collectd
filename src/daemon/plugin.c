@@ -368,13 +368,12 @@ static int create_register_callback (llist_t **list, /* {{{ */
 {
 	callback_func_t *cf;
 
-	cf = (callback_func_t *) malloc (sizeof (*cf));
+	cf = calloc (1, sizeof (*cf));
 	if (cf == NULL)
 	{
-		ERROR ("plugin: create_register_callback: malloc failed.");
+		ERROR ("plugin: create_register_callback: calloc failed.");
 		return (-1);
 	}
-	memset (cf, 0, sizeof (*cf));
 
 	cf->cf_callback = callback;
 	if (ud == NULL)
@@ -998,7 +997,7 @@ static int plugin_mark_loaded (char const *name)
 	return (status);
 }
 
-static void plugin_free_loaded ()
+static void plugin_free_loaded (void)
 {
 	void *key;
 	void *value;
@@ -1244,14 +1243,13 @@ int plugin_register_read (const char *name,
 	read_func_t *rf;
 	int status;
 
-	rf = malloc (sizeof (*rf));
+	rf = calloc (1, sizeof (*rf));
 	if (rf == NULL)
 	{
-		ERROR ("plugin_register_read: malloc failed.");
+		ERROR ("plugin_register_read: calloc failed.");
 		return (ENOMEM);
 	}
 
-	memset (rf, 0, sizeof (read_func_t));
 	rf->rf_callback = (void *) callback;
 	rf->rf_udata.data = NULL;
 	rf->rf_udata.free_func = NULL;
@@ -1278,14 +1276,13 @@ int plugin_register_complex_read (const char *group, const char *name,
 	read_func_t *rf;
 	int status;
 
-	rf = malloc (sizeof (*rf));
+	rf = calloc (1,sizeof (*rf));
 	if (rf == NULL)
 	{
-		ERROR ("plugin_register_complex_read: malloc failed.");
+		ERROR ("plugin_register_complex_read: calloc failed.");
 		return (ENOMEM);
 	}
 
-	memset (rf, 0, sizeof (read_func_t));
 	rf->rf_callback = (void *) callback;
 	if (group != NULL)
 		sstrncpy (rf->rf_group, group, sizeof (rf->rf_group));
@@ -1343,7 +1340,7 @@ static void plugin_flush_timeout_callback_free (void *data)
 
 static char *plugin_flush_callback_name (const char *name)
 {
-	char *flush_prefix = "flush/";
+	const char *flush_prefix = "flush/";
 	size_t prefix_size;
 	char *flush_name;
 	size_t name_size;
@@ -1351,7 +1348,7 @@ static char *plugin_flush_callback_name (const char *name)
 	prefix_size = strlen(flush_prefix);
 	name_size = strlen(name);
 
-	flush_name = malloc (sizeof(char) * (name_size + prefix_size + 1));
+	flush_name = malloc (name_size + prefix_size + 1);
 	if (flush_name == NULL)
 	{
 		ERROR ("plugin_flush_callback_name: malloc failed.");
@@ -1378,14 +1375,13 @@ int plugin_register_flush (const char *name,
 	if (ctx.flush_interval != 0)
 	{
 		char *flush_name;
-		user_data_t ud;
 		flush_callback_t *cb;
 
 		flush_name = plugin_flush_callback_name (name);
 		if (flush_name == NULL)
 			return (-1);
 
-		cb = malloc(sizeof(flush_callback_t));
+		cb = malloc(sizeof (*cb));
 		if (cb == NULL)
 		{
 			ERROR ("plugin_register_flush: malloc failed.");
@@ -1403,15 +1399,15 @@ int plugin_register_flush (const char *name,
 		}
 		cb->timeout = ctx.flush_timeout;
 
-		ud.data = cb;
-		ud.free_func = plugin_flush_timeout_callback_free;
+		ud->data = cb;
+		ud->free_func = plugin_flush_timeout_callback_free;
 
 		status = plugin_register_complex_read (
 			/* group     = */ "flush",
 			/* name      = */ flush_name,
 			/* callback  = */ plugin_flush_timeout_callback,
 			/* interval  = */ ctx.flush_interval,
-			/* user data = */ &ud);
+			/* user data = */ ud);
 
 		sfree (flush_name);
 		if (status != 0)
@@ -1478,12 +1474,12 @@ int plugin_register_data_set (const data_set_t *ds)
 			return (-1);
 	}
 
-	ds_copy = (data_set_t *) malloc (sizeof (data_set_t));
+	ds_copy = malloc (sizeof (*ds_copy));
 	if (ds_copy == NULL)
 		return (-1);
 	memcpy(ds_copy, ds, sizeof (data_set_t));
 
-	ds_copy->ds = (data_source_t *) malloc (sizeof (data_source_t)
+	ds_copy->ds = malloc (sizeof (*ds_copy->ds)
 			* ds->ds_num);
 	if (ds_copy->ds == NULL)
 	{
@@ -1697,7 +1693,6 @@ int plugin_unregister_notification (const char *name)
 void plugin_init_all (void)
 {
 	char const *chain_name;
-	long write_threads_num;
 	llentry_t *le;
 	int status;
 
@@ -2093,8 +2088,10 @@ static int plugin_dispatch_values_internal (value_list_t *vl)
 
 	int free_meta_data = 0;
 
-	if ((vl == NULL) || (vl->type[0] == 0)
-			|| (vl->values == NULL) || (vl->values_len < 1))
+	assert(vl);
+	assert(vl->plugin);
+
+	if (vl->type[0] == 0 || vl->values == NULL || vl->values_len < 1)
 	{
 		ERROR ("plugin_dispatch_values: Invalid value list "
 				"from plugin %s.", vl->plugin);
@@ -2359,7 +2356,7 @@ int plugin_dispatch_multivalue (value_list_t const *template, /* {{{ */
 
 	assert (template->values_len == 1);
 
-  /* Calculate sum for Gauge to calculate percent if needed */
+	/* Calculate sum for Gauge to calculate percent if needed */
 	if (DS_TYPE_GAUGE == store_type)	{
 		va_start (ap, store_type);
 		while (42)
@@ -2580,13 +2577,12 @@ static int plugin_notification_meta_add (notification_t *n,
     return (-1);
   }
 
-  meta = (notification_meta_t *) malloc (sizeof (notification_meta_t));
+  meta = calloc (1, sizeof (*meta));
   if (meta == NULL)
   {
-    ERROR ("plugin_notification_meta_add: malloc failed.");
+    ERROR ("plugin_notification_meta_add: calloc failed.");
     return (-1);
   }
-  memset (meta, 0, sizeof (notification_meta_t));
 
   sstrncpy (meta->name, name, sizeof (meta->name));
   meta->type = type;

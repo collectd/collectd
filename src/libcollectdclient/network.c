@@ -271,10 +271,9 @@ lcc_network_t *lcc_network_create (void) /* {{{ */
 {
   lcc_network_t *net;
 
-  net = malloc (sizeof (*net));
+  net = calloc (1, sizeof (*net));
   if (net == NULL)
     return (NULL);
-  memset (net, 0, sizeof (*net));
 
   net->servers = NULL;
 
@@ -299,10 +298,9 @@ lcc_server_t *lcc_server_create (lcc_network_t *net, /* {{{ */
   if (service == NULL)
     service = NET_DEFAULT_PORT;
 
-  srv = malloc (sizeof (*srv));
+  srv = calloc (1, sizeof (*srv));
   if (srv == NULL)
     return (NULL);
-  memset (srv, 0, sizeof (*srv));
 
   srv->fd = -1;
   srv->security_level = NONE;

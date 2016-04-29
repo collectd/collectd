@@ -85,7 +85,7 @@ static int tcsv_submit (instance_definition_t *id,
 static cdtime_t parse_time (char const *tbuf)
 {
     double t;
-    char *endptr = 0;
+    char *endptr = NULL;
 
     errno = 0;
     t = strtod (tbuf, &endptr);
@@ -290,10 +290,9 @@ static int tcsv_config_add_metric(oconfig_item_t *ci){
     int status;
     int i;
 
-    md = (metric_definition_t *)malloc(sizeof(*md));
+    md = calloc(1, sizeof(*md));
     if (md == NULL)
         return (-1);
-    memset(md, 0, sizeof(*md));
     md->name = NULL;
     md->type = NULL;
     md->instance = NULL;
@@ -426,10 +425,9 @@ static int tcsv_config_add_file(oconfig_item_t *ci)
     char cb_name[DATA_MAX_NAME_LEN];
     user_data_t cb_data;
 
-    id = malloc(sizeof(*id));
+    id = calloc(1, sizeof(*id));
     if (id == NULL)
         return (-1);
-    memset(id, 0, sizeof(*id));
     id->instance = NULL;
     id->path = NULL;
     id->metric_list = NULL;

@@ -35,8 +35,26 @@ struct ts_data_s
   char *plugin_instance;
   /* char *type; */
   char *type_instance;
+  meta_data_t *meta;
 };
 typedef struct ts_data_s ts_data_t;
+
+static int ts_util_get_key_and_string_wo_strdup (const oconfig_item_t *ci, char **ret_key, char **ret_string) /* {{{ */
+{
+  if ((ci->values_num != 2)
+      || (ci->values[0].type != OCONFIG_TYPE_STRING)
+      || (ci->values[1].type != OCONFIG_TYPE_STRING))
+  {
+    ERROR ("ts_util_get_key_and_string_wo_strdup: The %s option requires "
+        "exactly two string argument.", ci->key);
+    return (-1);
+  }
+
+  *ret_key = ci->values[0].value.string;
+  *ret_string = ci->values[1].value.string;
+
+  return (0);
+} /* }}} int ts_util_get_key_and_string_wo_strdup */
 
 static int ts_config_add_string (char **dest, /* {{{ */
     const oconfig_item_t *ci, int may_be_empty)
@@ -60,6 +78,44 @@ static int ts_config_add_string (char **dest, /* {{{ */
   return (0);
 } /* }}} int ts_config_add_string */
 
+static int ts_config_add_meta (meta_data_t **dest, /* {{{ */
+    const oconfig_item_t *ci, int may_be_empty)
+{
+  char *key = NULL;
+  char *string = NULL;
+  int status;
+
+  status = ts_util_get_key_and_string_wo_strdup (ci, &key, &string);
+  if (status != 0)
+    return (status);
+
+  if (strlen (key) == 0)
+  {
+    ERROR ("Target `set': The `%s' option does not accept empty string as first argument.",
+        ci->key);
+    return (-1);
+  }
+
+  if (!may_be_empty && (strlen (string) == 0))
+  {
+    ERROR ("Target `set': The `%s' option does not accept empty string as second argument.",
+        ci->key);
+    return (-1);
+  }
+
+  if ((*dest) == NULL)
+  {
+    // Create a new meta_data_t
+    if ((*dest = meta_data_create()) == NULL)
+    {
+      ERROR ("Target `set': failed to create a meta data for `%s'.", ci->key);
+      return (-1);
+    }
+  }
+
+  return (meta_data_add_string (*dest, key, string));
+} /* }}} int ts_config_add_meta */
+
 static int ts_destroy (void **user_data) /* {{{ */
 {
   ts_data_t *data;
@@ -76,6 +132,7 @@ static int ts_destroy (void **user_data) /* {{{ */
   free (data->plugin_instance);
   /* free (data->type); */
   free (data->type_instance);
+  meta_data_destroy(data->meta);
   free (data);
 
   return (0);
@@ -87,19 +144,19 @@ static int ts_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   int status;
   int i;
 
-  data = (ts_data_t *) malloc (sizeof (*data));
+  data = calloc (1, sizeof (*data));
   if (data == NULL)
   {
-    ERROR ("ts_create: malloc failed.");
+    ERROR ("ts_create: calloc failed.");
     return (-ENOMEM);
   }
-  memset (data, 0, sizeof (*data));
 
   data->host = NULL;
   data->plugin = NULL;
   data->plugin_instance = NULL;
   /* data->type = NULL; */
   data->type_instance = NULL;
+  data->meta = NULL;
 
   status = 0;
   for (i = 0; i < ci->children_num; i++)
@@ -124,6 +181,9 @@ static int ts_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
     else if (strcasecmp ("TypeInstance", child->key) == 0)
       status = ts_config_add_string (&data->type_instance, child,
           /* may be empty = */ 1);
+    else if (strcasecmp ("MetaDataSet", child->key) == 0)
+      status = ts_config_add_meta (&data->meta, child,
+          /* may be empty = */ 1);
     else
     {
       ERROR ("Target `set': The `%s' configuration option is not understood "
@@ -142,10 +202,12 @@ static int ts_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
         && (data->plugin == NULL)
         && (data->plugin_instance == NULL)
         /* && (data->type == NULL) */
-        && (data->type_instance == NULL))
+        && (data->type_instance == NULL)
+        && (data->meta == NULL))
     {
       ERROR ("Target `set': You need to set at least one of `Host', "
-          "`Plugin', `PluginInstance' or `TypeInstance'.");
+          "`Plugin', `PluginInstance', `TypeInstance', "
+          "`MetaDataSet' or `MetaDataEval'.");
       status = -1;
     }
 
@@ -175,6 +237,11 @@ static int ts_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
   {
     ERROR ("Target `set': Invoke: `data' is NULL.");
     return (-EINVAL);
+  }
+
+  if (data->meta != NULL)
+  {
+    meta_data_clone_merge(&(vl->meta), data->meta);
   }
 
 #define SET_FIELD(f) if (data->f != NULL) { sstrncpy (vl->f, data->f, sizeof (vl->f)); }

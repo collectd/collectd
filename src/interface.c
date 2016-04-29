@@ -190,7 +190,7 @@ static int interface_read (void)
 	struct ifaddrs *if_list;
 	struct ifaddrs *if_ptr;
 
-/* Darin/Mac OS X and possible other *BSDs */
+/* Darwin/Mac OS X and possible other *BSDs */
 #if HAVE_STRUCT_IF_DATA
 #  define IFA_DATA if_data
 #  define IFA_RX_BYTES ifi_ibytes
@@ -286,6 +286,10 @@ static int interface_read (void)
 		incoming = atoll (fields[2]);
 		outgoing = atoll (fields[10]);
 		if_submit (device, "if_errors", incoming, outgoing);
+
+		incoming = atoll (fields[3]);
+		outgoing = atoll (fields[11]);
+		if_submit (device, "if_dropped", incoming, outgoing);
 	}
 
 	fclose (fh);
@@ -364,9 +368,8 @@ static int interface_read (void)
 
 	if (pnif != nif || ifstat == NULL)
 	{
-		if (ifstat != NULL)
-			free(ifstat);
-		ifstat = malloc(nif * sizeof(perfstat_netinterface_t));
+		free(ifstat);
+		ifstat = malloc(nif * sizeof (*ifstat));
 	}
 	pnif = nif;
 

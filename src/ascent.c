@@ -32,7 +32,7 @@
 #include <curl/curl.h>
 #include <libxml/parser.h>
 
-static char *races_list[] = /* {{{ */
+static const char *races_list[] = /* {{{ */
 {
   NULL,
   "Human",    /*  1 */
@@ -49,7 +49,7 @@ static char *races_list[] = /* {{{ */
 }; /* }}} */
 #define RACES_LIST_LENGTH STATIC_ARRAY_SIZE (races_list)
 
-static char *classes_list[] = /* {{{ */
+static const char *classes_list[] = /* {{{ */
 {
   NULL,
   "Warrior", /*  1 */
@@ -66,7 +66,7 @@ static char *classes_list[] = /* {{{ */
 }; /* }}} */
 #define CLASSES_LIST_LENGTH STATIC_ARRAY_SIZE (classes_list)
 
-static char *genders_list[] = /* {{{ */
+static const char *genders_list[] = /* {{{ */
 {
   "Male",
   "Female"
@@ -154,14 +154,14 @@ static size_t ascent_curl_callback (void *buf, size_t size, size_t nmemb, /* {{{
 {
   size_t len = size * nmemb;
 
-  if (len <= 0)
+  if (len == 0)
     return (len);
 
   if ((ascent_buffer_fill + len) >= ascent_buffer_size)
   {
     char *temp;
 
-    temp = (char *) realloc (ascent_buffer,
+    temp = realloc (ascent_buffer,
         ascent_buffer_fill + len + 1);
     if (temp == NULL)
     {

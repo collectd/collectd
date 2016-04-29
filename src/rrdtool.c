@@ -166,7 +166,7 @@ static int srrd_update (char *filename, char *template,
 	assert (template == NULL);
 
 	new_argc = 2 + argc;
-	new_argv = (char **) malloc ((new_argc + 1) * sizeof (char *));
+	new_argv = malloc ((new_argc + 1) * sizeof (*new_argv));
 	if (new_argv == NULL)
 	{
 		ERROR ("rrdtool plugin: malloc failed.");
@@ -442,7 +442,7 @@ static void *rrd_queue_thread (void __attribute__((unused)) *data)
 		}
 
 		/* Update `tv_next_update' */
-		if (write_rate > 0.0) 
+		if (write_rate > 0.0)
                 {
                   gettimeofday (&tv_now, /* timezone = */ NULL);
                   tv_next_update.tv_sec = tv_now.tv_sec;
@@ -480,7 +480,7 @@ static int rrd_queue_enqueue (const char *filename,
 {
   rrd_queue_t *queue_entry;
 
-  queue_entry = (rrd_queue_t *) malloc (sizeof (rrd_queue_t));
+  queue_entry = malloc (sizeof (*queue_entry));
   if (queue_entry == NULL)
     return (-1);
 
@@ -522,7 +522,7 @@ static int rrd_queue_dequeue (const char *filename,
   {
     if (strcmp (this->filename, filename) == 0)
       break;
-    
+
     prev = this;
     this = this->next;
   }
@@ -588,7 +588,7 @@ static void rrd_cache_flush (cdtime_t timeout)
 		}
 		else /* ancient and no values -> waste of memory */
 		{
-			char **tmp = (char **) realloc ((void *) keys,
+			char **tmp = realloc (keys,
 					(keys_num + 1) * sizeof (char *));
 			if (tmp == NULL)
 			{
@@ -607,7 +607,7 @@ static void rrd_cache_flush (cdtime_t timeout)
 		}
 	} /* while (c_avl_iterator_next) */
 	c_avl_iterator_destroy (iter);
-	
+
 	for (i = 0; i < keys_num; i++)
 	{
 		if (c_avl_remove (cache, keys[i], (void *) &key, (void *) &rc) != 0)
@@ -756,7 +756,7 @@ static int rrd_cache_insert (const char *filename,
 		return (-1);
 	}
 
-	values_new = (char **) realloc ((void *) rc->values,
+	values_new = realloc ((void *) rc->values,
 			(rc->values_num + 1) * sizeof (char *));
 	if (values_new == NULL)
 	{
@@ -1087,7 +1087,7 @@ static int rrd_config (const char *key, const char *value)
 		while ((ptr = strtok_r (dummy, ", \t", &saveptr)) != NULL)
 		{
 			dummy = NULL;
-			
+
 			tmp_alloc = realloc (rrdcreate_config.timespans,
 					sizeof (int) * (rrdcreate_config.timespans_num + 1));
 			if (tmp_alloc == NULL)

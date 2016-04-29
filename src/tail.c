@@ -56,9 +56,9 @@ struct ctail_config_match_s
 };
 typedef struct ctail_config_match_s ctail_config_match_t;
 
-cu_tail_match_t **tail_match_list = NULL;
-size_t tail_match_list_num = 0;
-cdtime_t tail_match_list_intervals[255];
+static cu_tail_match_t **tail_match_list = NULL;
+static size_t tail_match_list_num = 0;
+static cdtime_t tail_match_list_intervals[255];
 
 static int ctail_config_add_match_dstype (ctail_config_match_t *cm,
     oconfig_item_t *ci)
@@ -279,7 +279,7 @@ static int ctail_config_add_file (oconfig_item_t *ci)
   {
     cu_tail_match_t **temp;
 
-    temp = (cu_tail_match_t **) realloc (tail_match_list,
+    temp = realloc (tail_match_list,
         sizeof (cu_tail_match_t *) * (tail_match_list_num + 1));
     if (temp == NULL)
     {

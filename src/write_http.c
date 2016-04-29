@@ -69,6 +69,7 @@ struct wh_callback_s
         int format;
 
         CURL *curl;
+        struct curl_slist *headers;
         char curl_errbuf[CURL_ERROR_SIZE];
 
         char  *send_buffer;
@@ -129,8 +130,6 @@ static int wh_send_buffer (wh_callback_t *cb) /* {{{ */
 
 static int wh_callback_init (wh_callback_t *cb) /* {{{ */
 {
-        struct curl_slist *headers;
-
         if (cb->curl != NULL)
                 return (0);
 
@@ -157,14 +156,13 @@ static int wh_callback_init (wh_callback_t *cb) /* {{{ */
         curl_easy_setopt (cb->curl, CURLOPT_NOSIGNAL, 1L);
         curl_easy_setopt (cb->curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
 
-        headers = NULL;
-        headers = curl_slist_append (headers, "Accept:  */*");
+        cb->headers = curl_slist_append (cb->headers, "Accept:  */*");
         if (cb->format == WH_FORMAT_JSON)
-                headers = curl_slist_append (headers, "Content-Type: application/json");
+                cb->headers = curl_slist_append (cb->headers, "Content-Type: application/json");
         else
-                headers = curl_slist_append (headers, "Content-Type: text/plain");
-        headers = curl_slist_append (headers, "Expect:");
-        curl_easy_setopt (cb->curl, CURLOPT_HTTPHEADER, headers);
+                cb->headers = curl_slist_append (cb->headers, "Content-Type: text/plain");
+        cb->headers = curl_slist_append (cb->headers, "Expect:");
+        curl_easy_setopt (cb->curl, CURLOPT_HTTPHEADER, cb->headers);
 
         curl_easy_setopt (cb->curl, CURLOPT_ERRORBUFFER, cb->curl_errbuf);
         curl_easy_setopt (cb->curl, CURLOPT_URL, cb->location);
@@ -184,7 +182,7 @@ static int wh_callback_init (wh_callback_t *cb) /* {{{ */
                 if (cb->pass != NULL)
                         credentials_size += strlen (cb->pass);
 
-                cb->credentials = (char *) malloc (credentials_size);
+                cb->credentials = malloc (credentials_size);
                 if (cb->credentials == NULL)
                 {
                         ERROR ("curl plugin: malloc failed.");
@@ -242,7 +240,7 @@ static int wh_flush_nolock (cdtime_t timeout, wh_callback_t *cb) /* {{{ */
 
         if (cb->format == WH_FORMAT_COMMAND)
         {
-                if (cb->send_buffer_fill <= 0)
+                if (cb->send_buffer_fill == 0)
                 {
                         cb->send_buffer_init_time = cdtime ();
                         return (0);
@@ -331,6 +329,13 @@ static void wh_callback_free (void *data) /* {{{ */
                 curl_easy_cleanup (cb->curl);
                 cb->curl = NULL;
         }
+
+        if (cb->headers != NULL)
+        {
+                curl_slist_free_all (cb->headers);
+                cb->headers = NULL;
+        }
+
         sfree (cb->name);
         sfree (cb->location);
         sfree (cb->user);
@@ -534,6 +539,25 @@ static int config_set_format (wh_callback_t *cb, /* {{{ */
         return (0);
 } /* }}} int config_set_format */
 
+static int wh_config_append_string (const char *name, struct curl_slist **dest, /* {{{ */
+    oconfig_item_t *ci)
+{
+  struct curl_slist *temp = NULL;
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
+  {
+    WARNING ("write_http plugin: `%s' needs exactly one string argument.", name);
+    return (-1);
+  }
+
+  temp = curl_slist_append(*dest, ci->values[0].value.string);
+  if (temp == NULL)
+    return (-1);
+
+  *dest = temp;
+
+  return (0);
+} /* }}} int wh_config_append_string */
+
 static int wh_config_node (oconfig_item_t *ci) /* {{{ */
 {
         wh_callback_t *cb;
@@ -543,13 +567,12 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
         int status = 0;
         int i;
 
-        cb = malloc (sizeof (*cb));
+        cb = calloc (1, sizeof (*cb));
         if (cb == NULL)
         {
-                ERROR ("write_http plugin: malloc failed.");
+                ERROR ("write_http plugin: calloc failed.");
                 return (-1);
         }
-        memset (cb, 0, sizeof (*cb));
         cb->verify_peer = 1;
         cb->verify_host = 1;
         cb->format = WH_FORMAT_COMMAND;
@@ -557,6 +580,8 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
         cb->low_speed_limit = 0;
         cb->timeout = 0;
         cb->log_http_error = 0;
+        cb->headers = NULL;
+
 
         pthread_mutex_init (&cb->send_lock, /* attr = */ NULL);
 
@@ -635,6 +660,8 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
                         status = cf_util_get_int (child, &cb->timeout);
                 else if (strcasecmp ("LogHttpError", child->key) == 0)
                         status = cf_util_get_boolean (child, &cb->log_http_error);
+                else if (strcasecmp ("Header", child->key) == 0)
+                        status = wh_config_append_string ("Header", &cb->headers, child);
                 else
                 {
                         ERROR ("write_http plugin: Invalid configuration "

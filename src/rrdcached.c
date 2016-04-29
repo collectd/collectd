@@ -95,7 +95,7 @@ static int value_list_to_string (char *buffer, int buffer_len,
       status = ssnprintf (buffer + offset, buffer_len - offset,
           ":%llu", vl->values[i].counter);
     }
-    else if (ds->ds[i].type == DS_TYPE_GAUGE) 
+    else if (ds->ds[i].type == DS_TYPE_GAUGE)
     {
       status = ssnprintf (buffer + offset, buffer_len - offset,
           ":%f", vl->values[i].gauge);
@@ -107,7 +107,7 @@ static int value_list_to_string (char *buffer, int buffer_len,
     else /* if (ds->ds[i].type == DS_TYPE_ABSOLUTE) */ {
       status = ssnprintf (buffer + offset, buffer_len - offset,
 	  ":%"PRIu64, vl->values[i].absolute);
- 
+
     }
 
     if ((status < 1) || (status >= (buffer_len - offset)))

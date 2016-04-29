@@ -66,10 +66,11 @@
 static int loop    = 0;
 static int restart = 0;
 
-static char  *pidfile      = NULL;
-static pid_t  collectd_pid = 0;
+static const char *pidfile      = NULL;
+static pid_t       collectd_pid = 0;
 
-static void exit_usage (char *name)
+__attribute__((noreturn))
+static void exit_usage (const char *name)
 {
 	printf ("Usage: %s <options> [-- <collectd options>]\n"
 
@@ -155,21 +156,24 @@ static int daemonize (void)
 
 	dev_null = open ("/dev/null", O_RDWR);
 	if (dev_null == -1) {
-		syslog (LOG_ERR, "Error: couldn't failed to open /dev/null: %s", strerror (errno));
+		syslog (LOG_ERR, "Error: couldn't open /dev/null: %s", strerror (errno));
 		return -1;
 	}
 
 	if (dup2 (dev_null, STDIN_FILENO) == -1) {
+		close (dev_null);
 		syslog (LOG_ERR, "Error: couldn't connect STDIN to /dev/null: %s", strerror (errno));
 		return -1;
 	}
 
 	if (dup2 (dev_null, STDOUT_FILENO) == -1) {
+		close (dev_null);
 		syslog (LOG_ERR, "Error: couldn't connect STDOUT to /dev/null: %s", strerror (errno));
 		return -1;
 	}
 
 	if (dup2 (dev_null, STDERR_FILENO) == -1) {
+		close (dev_null);
 		syslog (LOG_ERR, "Error: couldn't connect STDERR to /dev/null: %s", strerror (errno));
 		return -1;
 	}

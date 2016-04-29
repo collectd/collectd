@@ -114,14 +114,14 @@ static size_t cx_curl_callback (void *buf, /* {{{ */
     return (0);
   }
 
-   if (len <= 0)
+   if (len == 0)
     return (len);
 
   if ((db->buffer_fill + len) >= db->buffer_size)
   {
     char *temp;
 
-    temp = (char *) realloc (db->buffer,
+    temp = realloc (db->buffer,
                     db->buffer_fill + len + 1);
     if (temp == NULL)
     {
@@ -170,7 +170,6 @@ static void cx_list_free (llist_t *list) /* {{{ */
   }
 
   llist_destroy (list);
-  list = NULL;
 } /* }}} void cx_list_free */
 
 static void cx_free (void *arg) /* {{{ */
@@ -217,15 +216,18 @@ static void cx_free (void *arg) /* {{{ */
 static int cx_config_append_string (const char *name, struct curl_slist **dest, /* {{{ */
     oconfig_item_t *ci)
 {
+  struct curl_slist *temp = NULL;
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
     WARNING ("curl_xml plugin: `%s' needs exactly one string argument.", name);
     return (-1);
   }
 
-  *dest = curl_slist_append(*dest, ci->values[0].value.string);
-  if (*dest == NULL)
+  temp = curl_slist_append(*dest, ci->values[0].value.string);
+  if (temp == NULL)
     return (-1);
+
+  *dest = temp;
 
   return (0);
 } /* }}} int cx_config_append_string */
@@ -248,7 +250,7 @@ static int cx_check_type (const data_set_t *ds, cx_xpath_t *xpath) /* {{{ */
   return (0);
 } /* }}} cx_check_type */
 
-static xmlXPathObjectPtr cx_evaluate_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */ 
+static xmlXPathObjectPtr cx_evaluate_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */
            xmlChar *expr)
 {
   xmlXPathObjectPtr xpath_obj;
@@ -315,7 +317,7 @@ static int cx_handle_single_value_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */
   {
     WARNING ("curl_xml plugin: "
         "relative xpath expression \"%s\" is expected to return "
-        "only text/attribute node which is not the case. Skipping...", 
+        "only text/attribute node which is not the case. Skipping...",
         xpath->values[index].path);
     xmlXPathFreeObject (values_node_obj);
     return (-1);
@@ -336,7 +338,7 @@ static int cx_handle_single_value_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */
       vl->values[index].absolute = (absolute_t) strtoull (node_value,
           /* endptr = */ NULL, /* base = */ 0);
       break;
-    case DS_TYPE_GAUGE: 
+    case DS_TYPE_GAUGE:
       vl->values[index].gauge = (gauge_t) strtod (node_value,
           /* endptr = */ NULL);
   }
@@ -472,7 +474,7 @@ static int cx_handle_instance_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */
 
 static int  cx_handle_base_xpath (char const *plugin_instance, /* {{{ */
     char const *host,
-    xmlXPathContextPtr xpath_ctx, const data_set_t *ds, 
+    xmlXPathContextPtr xpath_ctx, const data_set_t *ds,
     char *base_xpath, cx_xpath_t *xpath)
 {
   int total_nodes;
@@ -483,7 +485,7 @@ static int  cx_handle_base_xpath (char const *plugin_instance, /* {{{ */
 
   value_list_t vl = VALUE_LIST_INIT;
 
-  base_node_obj = cx_evaluate_xpath (xpath_ctx, BAD_CAST base_xpath); 
+  base_node_obj = cx_evaluate_xpath (xpath_ctx, BAD_CAST base_xpath);
   if (base_node_obj == NULL)
     return -1; /* error is logged already */
 
@@ -500,7 +502,7 @@ static int  cx_handle_base_xpath (char const *plugin_instance, /* {{{ */
   }
 
   /* If base_xpath returned multiple results, then */
-  /* Instance in the xpath block is required */ 
+  /* Instance in the xpath block is required */
   if (total_nodes > 1 && xpath->instance == NULL)
   {
     ERROR ("curl_xml plugin: "
@@ -515,7 +517,7 @@ static int  cx_handle_base_xpath (char const *plugin_instance, /* {{{ */
   sstrncpy (vl.plugin, "curl_xml", sizeof (vl.plugin));
   sstrncpy (vl.host, (host != NULL) ? host : hostname_g, sizeof (vl.host));
   if (plugin_instance != NULL)
-    sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance)); 
+    sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
 
   for (i = 0; i < total_nodes; i++)
   {
@@ -534,19 +536,19 @@ static int  cx_handle_base_xpath (char const *plugin_instance, /* {{{ */
   } /* for (i = 0; i < total_nodes; i++) */
 
   /* free up the allocated memory */
-  xmlXPathFreeObject (base_node_obj); 
+  xmlXPathFreeObject (base_node_obj);
 
-  return (0); 
+  return (0);
 } /* }}} cx_handle_base_xpath */
 
-static int cx_handle_parsed_xml(xmlDocPtr doc, /* {{{ */ 
+static int cx_handle_parsed_xml(xmlDocPtr doc, /* {{{ */
                        xmlXPathContextPtr xpath_ctx, cx_t *db)
 {
   llentry_t *le;
   const data_set_t *ds;
   cx_xpath_t *xpath;
   int status=-1;
-  
+
 
   le = llist_head (db->list);
   while (le != NULL)
@@ -620,7 +622,7 @@ static int cx_curl_perform (cx_t *db, CURL *curl) /* {{{ */
   char *url;
   url = db->url;
 
-  db->buffer_fill = 0; 
+  db->buffer_fill = 0;
   status = curl_easy_perform (curl);
   if (status != CURLE_OK)
   {
@@ -686,7 +688,7 @@ static int cx_config_add_values (const char *name, cx_xpath_t *xpath, /* {{{ */
   sfree (xpath->values);
 
   xpath->values_len = 0;
-  xpath->values = (cx_values_t *) malloc (sizeof (cx_values_t) * ci->values_num);
+  xpath->values = malloc (sizeof (cx_values_t) * ci->values_num);
   if (xpath->values == NULL)
     return (-1);
   xpath->values_len = (size_t) ci->values_num;
@@ -709,13 +711,12 @@ static int cx_config_add_xpath (cx_t *db, oconfig_item_t *ci) /* {{{ */
   int status;
   int i;
 
-  xpath = malloc (sizeof (*xpath));
+  xpath = calloc (1, sizeof (*xpath));
   if (xpath == NULL)
   {
-    ERROR ("curl_xml plugin: malloc failed.");
+    ERROR ("curl_xml plugin: calloc failed.");
     return (-1);
   }
-  memset (xpath, 0, sizeof (*xpath));
 
   status = cf_util_get_string (ci, &xpath->path);
   if (status != 0)
@@ -873,7 +874,7 @@ static int cx_init_curl (cx_t *db) /* {{{ */
     if (db->pass != NULL)
       credentials_size += strlen (db->pass);
 
-    db->credentials = (char *) malloc (credentials_size);
+    db->credentials = malloc (credentials_size);
     if (db->credentials == NULL)
     {
       ERROR ("curl_xml plugin: malloc failed.");
@@ -923,13 +924,12 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  db = (cx_t *) malloc (sizeof (*db));
+  db = calloc (1, sizeof (*db));
   if (db == NULL)
   {
-    ERROR ("curl_xml plugin: malloc failed.");
+    ERROR ("curl_xml plugin: calloc failed.");
     return (-1);
   }
-  memset (db, 0, sizeof (*db));
 
   db->timeout = -1;
 

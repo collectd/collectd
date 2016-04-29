@@ -262,20 +262,19 @@ static void ps_list_register (const char *name, const char *regexp)
 	procstat_t *ptr;
 	int status;
 
-	new = (procstat_t *) malloc (sizeof (procstat_t));
+	new = calloc (1, sizeof (*new));
 	if (new == NULL)
 	{
-		ERROR ("processes plugin: ps_list_register: malloc failed.");
+		ERROR ("processes plugin: ps_list_register: calloc failed.");
 		return;
 	}
-	memset (new, 0, sizeof (procstat_t));
 	sstrncpy (new->name, name, sizeof (new->name));
 
 #if HAVE_REGEX_H
 	if (regexp != NULL)
 	{
 		DEBUG ("ProcessMatch: adding \"%s\" as criteria to process %s.", regexp, name);
-		new->re = (regex_t *) malloc (sizeof (regex_t));
+		new->re = malloc (sizeof (*new->re));
 		if (new->re == NULL)
 		{
 			ERROR ("processes plugin: ps_list_register: malloc failed.");
@@ -410,10 +409,9 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 		{
 			procstat_entry_t *new;
 
-			new = (procstat_entry_t *) malloc (sizeof (procstat_entry_t));
+			new = calloc (1, sizeof (*new));
 			if (new == NULL)
 				return;
-			memset (new, 0, sizeof (procstat_entry_t));
 			new->id = entry->id;
 
 			if (pse == NULL)
@@ -792,7 +790,7 @@ static void ps_submit_fork_rate (derive_t value)
 
 /* ------- additional functions for KERNEL_LINUX/HAVE_THREAD_INFO ------- */
 #if KERNEL_LINUX
-static procstat_t *ps_read_tasks_status (int pid, procstat_t *ps)
+static procstat_t *ps_read_tasks_status (long pid, procstat_t *ps)
 {
 	char           dirname[64];
 	DIR           *dh;
@@ -805,7 +803,7 @@ static procstat_t *ps_read_tasks_status (int pid, procstat_t *ps)
 	char *fields[8];
 	int numfields;
 
-	ssnprintf (dirname, sizeof (dirname), "/proc/%i/task", pid);
+	ssnprintf (dirname, sizeof (dirname), "/proc/%li/task", pid);
 
 	if ((dh = opendir (dirname)) == NULL)
 	{
@@ -822,7 +820,7 @@ static procstat_t *ps_read_tasks_status (int pid, procstat_t *ps)
 
 		tpid = ent->d_name;
 
-		ssnprintf (filename, sizeof (filename), "/proc/%i/task/%s/status", pid, tpid);
+		ssnprintf (filename, sizeof (filename), "/proc/%li/task/%s/status", pid, tpid);
 		if ((fh = fopen (filename, "r")) == NULL)
 		{
 			DEBUG ("Failed to open file `%s'", filename);
@@ -876,7 +874,7 @@ static procstat_t *ps_read_tasks_status (int pid, procstat_t *ps)
 } /* int *ps_read_tasks_status */
 
 /* Read data from /proc/pid/status */
-static procstat_t *ps_read_status (int pid, procstat_t *ps)
+static procstat_t *ps_read_status (long pid, procstat_t *ps)
 {
 	FILE *fh;
 	char buffer[1024];
@@ -888,7 +886,7 @@ static procstat_t *ps_read_status (int pid, procstat_t *ps)
 	char *fields[8];
 	int numfields;
 
-	ssnprintf (filename, sizeof (filename), "/proc/%i/status", pid);
+	ssnprintf (filename, sizeof (filename), "/proc/%li/status", pid);
 	if ((fh = fopen (filename, "r")) == NULL)
 		return (NULL);
 
@@ -946,7 +944,7 @@ static procstat_t *ps_read_status (int pid, procstat_t *ps)
 	return (ps);
 } /* procstat_t *ps_read_vmem */
 
-static procstat_t *ps_read_io (int pid, procstat_t *ps)
+static procstat_t *ps_read_io (long pid, procstat_t *ps)
 {
 	FILE *fh;
 	char buffer[1024];
@@ -955,7 +953,7 @@ static procstat_t *ps_read_io (int pid, procstat_t *ps)
 	char *fields[8];
 	int numfields;
 
-	ssnprintf (filename, sizeof (filename), "/proc/%i/io", pid);
+	ssnprintf (filename, sizeof (filename), "/proc/%li/io", pid);
 	if ((fh = fopen (filename, "r")) == NULL)
 		return (NULL);
 
@@ -1001,7 +999,7 @@ static procstat_t *ps_read_io (int pid, procstat_t *ps)
 	return (ps);
 } /* procstat_t *ps_read_io */
 
-int ps_read_process (int pid, procstat_t *ps, char *state)
+static int ps_read_process (long pid, procstat_t *ps, char *state)
 {
 	char  filename[64];
 	char  buffer[1024];
@@ -1026,7 +1024,7 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 
 	memset (ps, 0, sizeof (procstat_t));
 
-	ssnprintf (filename, sizeof (filename), "/proc/%i/stat", pid);
+	ssnprintf (filename, sizeof (filename), "/proc/%li/stat", pid);
 
 	status = read_file_contents (filename, buffer, sizeof(buffer) - 1);
 	if (status <= 0)
@@ -1040,13 +1038,11 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 	 * strchr(3) and strrchr(3) to avoid pointer arithmetic which would
 	 * otherwise be required to determine name_len. */
 	name_start_pos = 0;
-	while ((buffer[name_start_pos] != '(')
-			&& (name_start_pos < buffer_len))
+	while (name_start_pos < buffer_len && buffer[name_start_pos] != '(')
 		name_start_pos++;
 
 	name_end_pos = buffer_len;
-	while ((buffer[name_end_pos] != ')')
-			&& (name_end_pos > 0))
+	while (name_end_pos > 0 && buffer[name_end_pos] != ')')
 		name_end_pos--;
 
 	/* Either '(' or ')' is not found or they are in the wrong order.
@@ -1071,9 +1067,9 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 	fields_len = strsplit (buffer_ptr, fields, STATIC_ARRAY_SIZE (fields));
 	if (fields_len < 22)
 	{
-		DEBUG ("processes plugin: ps_read_process (pid = %i):"
+		DEBUG ("processes plugin: ps_read_process (pid = %li):"
 				" `%s' has only %i fields..",
-				(int) pid, filename, fields_len);
+				pid, filename, fields_len);
 		return (-1);
 	}
 
@@ -1092,9 +1088,9 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 			/* No VMem data */
 			ps->vmem_data = -1;
 			ps->vmem_code = -1;
-			DEBUG("ps_read_process: did not get vmem data for pid %i",pid);
+			DEBUG("ps_read_process: did not get vmem data for pid %li", pid);
 		}
-		if (ps->num_lwp <= 0)
+		if (ps->num_lwp == 0)
 			ps->num_lwp = 1;
 		ps->num_proc = 1;
 	}
@@ -1102,7 +1098,7 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 	/* Leave the rest at zero if this is only a zombi */
 	if (ps->num_proc == 0)
 	{
-		DEBUG ("processes plugin: This is only a zombie: pid = %i; "
+		DEBUG ("processes plugin: This is only a zombie: pid = %li; "
 				"name = %s;", pid, ps->name);
 		return (0);
 	}
@@ -1142,7 +1138,7 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 		ps->io_syscr = -1;
 		ps->io_syscw = -1;
 
-		DEBUG("ps_read_process: not get io data for pid %i",pid);
+		DEBUG("ps_read_process: not get io data for pid %li", pid);
 	}
 
 	if ( report_ctx_switch )
@@ -1153,7 +1149,7 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 			ps->cswitch_invol = -1;
 
 			DEBUG("ps_read_tasks_status: not get context "
-					"switch data for pid %i",pid);
+					"switch data for pid %li", pid);
 		}
 	}
 
@@ -1161,7 +1157,7 @@ int ps_read_process (int pid, procstat_t *ps, char *state)
 	return (0);
 } /* int ps_read_process (...) */
 
-static char *ps_get_cmdline (pid_t pid, char *name, char *buf, size_t buf_len)
+static char *ps_get_cmdline (long pid, char *name, char *buf, size_t buf_len)
 {
 	char  *buf_ptr;
 	size_t len;
@@ -1174,8 +1170,7 @@ static char *ps_get_cmdline (pid_t pid, char *name, char *buf, size_t buf_len)
 	if ((pid < 1) || (NULL == buf) || (buf_len < 2))
 		return NULL;
 
-	ssnprintf (file, sizeof (file), "/proc/%u/cmdline",
-		       	(unsigned int) pid);
+	ssnprintf (file, sizeof (file), "/proc/%li/cmdline", pid);
 
 	errno = 0;
 	fd = open (file, O_RDONLY);
@@ -1219,7 +1214,7 @@ static char *ps_get_cmdline (pid_t pid, char *name, char *buf, size_t buf_len)
 		buf_ptr += status;
 		len     -= status;
 
-		if (len <= 0)
+		if (len == 0)
 			break;
 	}
 
@@ -1256,7 +1251,7 @@ static char *ps_get_cmdline (pid_t pid, char *name, char *buf, size_t buf_len)
 	return buf;
 } /* char *ps_get_cmdline (...) */
 
-static int read_fork_rate ()
+static int read_fork_rate (void)
 {
 	FILE *proc_stat;
 	char buffer[1024];
@@ -1303,7 +1298,7 @@ static int read_fork_rate ()
 #endif /*KERNEL_LINUX */
 
 #if KERNEL_SOLARIS
-static char *ps_get_cmdline (pid_t pid, char *name __attribute__((unused)), /* {{{ */
+static char *ps_get_cmdline (long pid, char *name __attribute__((unused)), /* {{{ */
     char *buffer, size_t buffer_size)
 {
 	char path[PATH_MAX];
@@ -1349,18 +1344,15 @@ static int ps_read_process(long pid, procstat_t *ps, char *state)
 	snprintf(f_usage, sizeof (f_usage), "/proc/%li/usage", pid);
 
 
-	buffer = malloc(sizeof (pstatus_t));
-	memset(buffer, 0, sizeof (pstatus_t));
+	buffer = calloc(1, sizeof (pstatus_t));
 	read_file_contents(filename, buffer, sizeof (pstatus_t));
 	myStatus = (pstatus_t *) buffer;
 
-	buffer = malloc(sizeof (psinfo_t));
-	memset(buffer, 0, sizeof(psinfo_t));
+	buffer = calloc(1, sizeof (psinfo_t));
 	read_file_contents(f_psinfo, buffer, sizeof (psinfo_t));
 	myInfo = (psinfo_t *) buffer;
 
-	buffer = malloc(sizeof (prusage_t));
-	memset(buffer, 0, sizeof(prusage_t));
+	buffer = calloc(1, sizeof (prusage_t));
 	read_file_contents(f_usage, buffer, sizeof (prusage_t));
 	myUsage = (prusage_t *) buffer;
 
@@ -1370,6 +1362,10 @@ static int ps_read_process(long pid, procstat_t *ps, char *state)
 		ps->num_proc = 0;
 		ps->num_lwp = 0;
 		*state = (char) 'Z';
+
+		sfree(myStatus);
+		sfree(myInfo);
+		sfree(myUsage);
 		return (0);
 	} else {
 		ps->num_proc = 1;
@@ -1451,7 +1447,7 @@ static int ps_read_process(long pid, procstat_t *ps, char *state)
  * are retrieved from kstat (module cpu, name sys, class misc, stat nthreads).
  * The result is the sum for all the threads created on each cpu
  */
-static int read_fork_rate()
+static int read_fork_rate (void)
 {
 	extern kstat_ctl_t *kc;
 	kstat_t *ksp_chain = NULL;
@@ -1802,7 +1798,7 @@ static int ps_read (void)
 
 	struct dirent *ent;
 	DIR           *proc;
-	int            pid;
+	long           pid;
 
 	char cmdline[CMDLINE_BUFFER_SIZE];
 
@@ -1829,7 +1825,7 @@ static int ps_read (void)
 		if (!isdigit (ent->d_name[0]))
 			continue;
 
-		if ((pid = atoi (ent->d_name)) < 1)
+		if ((pid = atol (ent->d_name)) < 1)
 			continue;
 
 		status = ps_read_process (pid, &ps, &state);

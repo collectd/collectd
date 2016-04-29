@@ -260,8 +260,8 @@ static int mbmon_read (void)
 		double value;
 		char *nextc;
 
-		char *type;
-		char *inst;
+		const char *type;
+		const char *inst;
 
 		*t++ = '\0';
 		trim_spaces (s);

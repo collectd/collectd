@@ -611,7 +611,7 @@ static int olsrd_read_table (FILE *fh, /* {{{ */
   {
     /* An empty line ends the table. */
     buffer_len = strchomp (buffer);
-    if (buffer_len <= 0)
+    if (buffer_len == 0)
     {
       (*callback) (lineno, /* fields_num = */ 0, /* fields = */ NULL);
       break;
@@ -622,7 +622,7 @@ static int olsrd_read_table (FILE *fh, /* {{{ */
     (*callback) (lineno, fields_num, fields);
     lineno++;
   } /* while (fgets) */
-  
+
   return (0);
 } /* }}} int olsrd_read_table */
 
@@ -663,9 +663,9 @@ static int olsrd_read (void) /* {{{ */
   while (fgets (buffer, sizeof (buffer), fh) != NULL)
   {
     buffer_len = strchomp (buffer);
-    if (buffer_len <= 0)
+    if (buffer_len == 0)
       continue;
-    
+
     if (strcmp ("Table: Links", buffer) == 0)
       olsrd_read_table (fh, olsrd_cb_links);
     else if (strcmp ("Table: Neighbors", buffer) == 0)
@@ -690,7 +690,7 @@ static int olsrd_read (void) /* {{{ */
   } /* while (fgets) */
 
   fclose (fh);
-  
+
   return (0);
 } /* }}} int olsrd_read */
 

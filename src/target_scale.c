@@ -328,7 +328,7 @@ static int ts_config_add_data_source(ts_data_t *data, /* {{{ */
 
 	/* Allocate space for the char pointers */
 	new_data_sources_num = data->data_sources_num + ((size_t) ci->values_num);
-	temp = (char **) realloc (data->data_sources,
+	temp = realloc (data->data_sources,
 			new_data_sources_num * sizeof (char *));
 	if (temp == NULL)
 	{
@@ -387,13 +387,12 @@ static int ts_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 	int status;
 	int i;
 
-	data = (ts_data_t *) malloc (sizeof (*data));
+	data = calloc (1, sizeof (*data));
 	if (data == NULL)
 	{
-		ERROR ("ts_create: malloc failed.");
+		ERROR ("ts_create: calloc failed.");
 		return (-ENOMEM);
 	}
-	memset (data, 0, sizeof (*data));
 
 	data->factor = NAN;
 	data->offset = NAN;

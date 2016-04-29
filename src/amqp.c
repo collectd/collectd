@@ -736,7 +736,7 @@ static int camqp_subscribe_init (camqp_config_t *conf) /* {{{ */
     if (tmp == NULL)
     {
         ERROR ("amqp plugin: realloc failed.");
-        camqp_config_free (conf);
+        sfree (subscriber_threads);
         return (ENOMEM);
     }
     subscriber_threads = tmp;
@@ -750,7 +750,6 @@ static int camqp_subscribe_init (camqp_config_t *conf) /* {{{ */
         char errbuf[1024];
         ERROR ("amqp plugin: pthread_create failed: %s",
                 sstrerror (status, errbuf, sizeof (errbuf)));
-        camqp_config_free (conf);
         return (status);
     }
 
@@ -925,15 +924,14 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
     int status;
     int i;
 
-    conf = malloc (sizeof (*conf));
+    conf = calloc (1, sizeof (*conf));
     if (conf == NULL)
     {
-        ERROR ("amqp plugin: malloc failed.");
+        ERROR ("amqp plugin: calloc failed.");
         return (ENOMEM);
     }
 
     /* Initialize "conf" {{{ */
-    memset (conf, 0, sizeof (*conf));
     conf->publish = publish;
     conf->name = NULL;
     conf->format = CAMQP_FORMAT_COMMAND;

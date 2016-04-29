@@ -209,10 +209,9 @@ fbhash_t *fbh_create (const char *file) /* {{{ */
   if (file == NULL)
     return (NULL);
 
-  h = malloc (sizeof (*h));
+  h = calloc (1, sizeof (*h));
   if (h == NULL)
     return (NULL);
-  memset (h, 0, sizeof (*h));
 
   h->filename = strdup (file);
   if (h->filename == NULL)

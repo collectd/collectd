@@ -464,10 +464,9 @@ static disk_t *get_disk(cfg_disk_t *cd, const char *name) /* {{{ */
 			return d;
 	}
 
-	d = malloc(sizeof(*d));
+	d = calloc (1, sizeof (*d));
 	if (d == NULL)
 		return (NULL);
-	memset (d, 0, sizeof (*d));
 	d->next = NULL;
 
 	d->name = strdup(name);
@@ -513,10 +512,9 @@ static data_volume_usage_t *get_volume_usage (cfg_volume_usage_t *cvu, /* {{{ */
 		return (NULL);
 
 	/* Not found: allocate. */
-	new = malloc (sizeof (*new));
+	new = calloc (1, sizeof (*new));
 	if (new == NULL)
 		return (NULL);
-	memset (new, 0, sizeof (*new));
 	new->next = NULL;
 
 	new->name = strdup (name);
@@ -581,10 +579,9 @@ static data_volume_perf_t *get_volume_perf (cfg_volume_perf_t *cvp, /* {{{ */
 		return (NULL);
 
 	/* Not found: allocate. */
-	new = malloc (sizeof (*new));
+	new = calloc (1, sizeof (*new));
 	if (new == NULL)
 		return (NULL);
-	memset (new, 0, sizeof (*new));
 	new->next = NULL;
 
 	new->name = strdup (name);
@@ -882,7 +879,7 @@ static cdtime_t cna_child_get_cdtime (na_elem_t *data) /* {{{ */
 } /* }}} cdtime_t cna_child_get_cdtime */
 
 
-/* 
+/*
  * Query functions
  *
  * These functions are called with appropriate data returned by the libnetapp
@@ -900,7 +897,7 @@ static int cna_handle_wafl_data (const char *hostname, cfg_wafl_t *cfg_wafl, /* 
 	na_elem_iter_t counter_iter;
 
 	memset (&perf_data, 0, sizeof (perf_data));
-	
+
 	perf_data.timestamp = cna_child_get_cdtime (data);
 
 	instances = na_elem_child(na_elem_child (data, "instances"), "instance-data");
@@ -1065,7 +1062,7 @@ static int cna_handle_disk_data (const char *hostname, /* {{{ */
 
 	if ((cfg_disk == NULL) || (data == NULL))
 		return (EINVAL);
-	
+
 	timestamp = cna_child_get_cdtime (data);
 
 	instances = na_elem_child (data, "instances");
@@ -1257,7 +1254,7 @@ static int cna_handle_volume_perf_data (const char *hostname, /* {{{ */
 	na_elem_t *elem_instances;
 	na_elem_iter_t iter_instances;
 	na_elem_t *elem_instance;
-	
+
 	timestamp = cna_child_get_cdtime (data);
 
 	elem_instances = na_elem_child(data, "instances");
@@ -1736,7 +1733,7 @@ static int cna_handle_volume_usage_data (const host_config_t *host, /* {{{ */
 
 		if ((v->flags & CFG_VOLUME_USAGE_SNAP) != 0)
 			cna_handle_volume_snap_usage(host, v);
-		
+
 		if ((v->flags & CFG_VOLUME_USAGE_DF) == 0)
 			continue;
 
@@ -2131,7 +2128,7 @@ static int cna_handle_system_data (const char *hostname, /* {{{ */
 
 	const char *instance;
 	cdtime_t timestamp;
-	
+
 	timestamp = cna_child_get_cdtime (data);
 
 	instances = na_elem_child(na_elem_child (data, "instances"), "instance-data");
@@ -2198,7 +2195,7 @@ static int cna_handle_system_data (const char *hostname, /* {{{ */
 			&& (HAS_ALL_FLAGS (counter_flags, 0x01 | 0x02)))
 		submit_two_derive (hostname, instance, "disk_octets", NULL,
 				disk_read, disk_written, timestamp, interval);
-				
+
 	if ((cfg_system->flags & CFG_SYSTEM_NET)
 			&& (HAS_ALL_FLAGS (counter_flags, 0x04 | 0x08)))
 		submit_two_derive (hostname, instance, "if_octets", NULL,
@@ -2405,10 +2402,9 @@ static int cna_config_volume_performance (host_config_t *host, /* {{{ */
 
 	if (host->cfg_volume_perf == NULL)
 	{
-		cfg_volume_perf = malloc (sizeof (*cfg_volume_perf));
+		cfg_volume_perf = calloc (1, sizeof (*cfg_volume_perf));
 		if (cfg_volume_perf == NULL)
 			return (ENOMEM);
-		memset (cfg_volume_perf, 0, sizeof (*cfg_volume_perf));
 
 		/* Set default flags */
 		cfg_volume_perf->query = NULL;
@@ -2441,10 +2437,10 @@ static int cna_config_volume_performance (host_config_t *host, /* {{{ */
 		host->cfg_volume_perf = cfg_volume_perf;
 	}
 	cfg_volume_perf = host->cfg_volume_perf;
-	
+
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *item = ci->children + i;
-		
+
 		/* if (!item || !item->key || !*item->key) continue; */
 		if (strcasecmp(item->key, "Interval") == 0)
 			cna_config_get_interval (item, &cfg_volume_perf->interval);
@@ -2533,10 +2529,9 @@ static int cna_config_quota (host_config_t *host, oconfig_item_t *ci) /* {{{ */
 
 	if (host->cfg_quota == NULL)
 	{
-		cfg_quota = malloc (sizeof (*cfg_quota));
+		cfg_quota = calloc (1, sizeof (*cfg_quota));
 		if (cfg_quota == NULL)
 			return (ENOMEM);
-		memset (cfg_quota, 0, sizeof (*cfg_quota));
 		cfg_quota->query = NULL;
 
 		host->cfg_quota = cfg_quota;
@@ -2566,10 +2561,9 @@ static int cna_config_disk(host_config_t *host, oconfig_item_t *ci) { /* {{{ */
 
 	if (host->cfg_disk == NULL)
 	{
-		cfg_disk = malloc (sizeof (*cfg_disk));
+		cfg_disk = calloc (1, sizeof (*cfg_disk));
 		if (cfg_disk == NULL)
 			return (ENOMEM);
-		memset (cfg_disk, 0, sizeof (*cfg_disk));
 
 		/* Set default flags */
 		cfg_disk->flags = CFG_DISK_ALL;
@@ -2579,10 +2573,10 @@ static int cna_config_disk(host_config_t *host, oconfig_item_t *ci) { /* {{{ */
 		host->cfg_disk = cfg_disk;
 	}
 	cfg_disk = host->cfg_disk;
-	
+
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *item = ci->children + i;
-		
+
 		/* if (!item || !item->key || !*item->key) continue; */
 		if (strcasecmp(item->key, "Interval") == 0)
 			cna_config_get_interval (item, &cfg_disk->interval);
@@ -2612,10 +2606,9 @@ static int cna_config_wafl(host_config_t *host, oconfig_item_t *ci) /* {{{ */
 
 	if (host->cfg_wafl == NULL)
 	{
-		cfg_wafl = malloc (sizeof (*cfg_wafl));
+		cfg_wafl = calloc (1, sizeof (*cfg_wafl));
 		if (cfg_wafl == NULL)
 			return (ENOMEM);
-		memset (cfg_wafl, 0, sizeof (*cfg_wafl));
 
 		/* Set default flags */
 		cfg_wafl->flags = CFG_WAFL_ALL;
@@ -2626,7 +2619,7 @@ static int cna_config_wafl(host_config_t *host, oconfig_item_t *ci) /* {{{ */
 
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *item = ci->children + i;
-		
+
 		if (strcasecmp(item->key, "Interval") == 0)
 			cna_config_get_interval (item, &cfg_wafl->interval);
 		else if (!strcasecmp(item->key, "GetNameCache"))
@@ -2681,10 +2674,9 @@ static int cna_config_volume_usage(host_config_t *host, /* {{{ */
 
 	if (host->cfg_volume_usage == NULL)
 	{
-		cfg_volume_usage = malloc (sizeof (*cfg_volume_usage));
+		cfg_volume_usage = calloc (1, sizeof (*cfg_volume_usage));
 		if (cfg_volume_usage == NULL)
 			return (ENOMEM);
-		memset (cfg_volume_usage, 0, sizeof (*cfg_volume_usage));
 
 		/* Set default flags */
 		cfg_volume_usage->query = NULL;
@@ -2708,10 +2700,10 @@ static int cna_config_volume_usage(host_config_t *host, /* {{{ */
 		host->cfg_volume_usage = cfg_volume_usage;
 	}
 	cfg_volume_usage = host->cfg_volume_usage;
-	
+
 	for (i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *item = ci->children + i;
-		
+
 		/* if (!item || !item->key || !*item->key) continue; */
 		if (strcasecmp(item->key, "Interval") == 0)
 			cna_config_get_interval (item, &cfg_volume_usage->interval);
@@ -2743,10 +2735,9 @@ static int cna_config_snapvault (host_config_t *host, /* {{{ */
 
 	if (host->cfg_snapvault == NULL)
 	{
-		cfg_snapvault = malloc (sizeof (*cfg_snapvault));
+		cfg_snapvault = calloc (1, sizeof (*cfg_snapvault));
 		if (cfg_snapvault == NULL)
 			return ENOMEM;
-		memset (cfg_snapvault, 0, sizeof (*cfg_snapvault));
 		cfg_snapvault->query = NULL;
 
 		host->cfg_snapvault = cfg_snapvault;
@@ -2773,16 +2764,15 @@ static int cna_config_system (host_config_t *host, /* {{{ */
 {
 	cfg_system_t *cfg_system;
 	int i;
-	
+
 	if ((host == NULL) || (ci == NULL))
 		return (EINVAL);
 
 	if (host->cfg_system == NULL)
 	{
-		cfg_system = malloc (sizeof (*cfg_system));
+		cfg_system = calloc (1, sizeof (*cfg_system));
 		if (cfg_system == NULL)
 			return (ENOMEM);
-		memset (cfg_system, 0, sizeof (*cfg_system));
 
 		/* Set default flags */
 		cfg_system->flags = CFG_SYSTEM_ALL;
@@ -2827,10 +2817,9 @@ static host_config_t *cna_alloc_host (void) /* {{{ */
 {
 	host_config_t *host;
 
-	host = malloc(sizeof(*host));
-	if (! host)
+	host = calloc (1, sizeof (*host));
+	if (host == NULL)
 		return (NULL);
-	memset (host, 0, sizeof (*host));
 
 	host->name = NULL;
 	host->protocol = NA_SERVER_TRANSPORT_HTTPS;

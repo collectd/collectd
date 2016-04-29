@@ -174,7 +174,7 @@ static char *fc_strdup (const char *orig) /* {{{ */
     return (NULL);
 
   sz = strlen (orig) + 1;
-  dest = (char *) malloc (sz);
+  dest = malloc (sz);
   if (dest == NULL)
     return (NULL);
 
@@ -235,13 +235,12 @@ static int fc_config_add_match (fc_match_t **matches_head, /* {{{ */
     return (-1);
   }
 
-  m = (fc_match_t *) malloc (sizeof (*m));
+  m = calloc (1, sizeof (*m));
   if (m == NULL)
   {
-    ERROR ("fc_config_add_match: malloc failed.");
+    ERROR ("fc_config_add_match: calloc failed.");
     return (-1);
   }
-  memset (m, 0, sizeof (*m));
 
   sstrncpy (m->name, ptr->name, sizeof (m->name));
   memcpy (&m->proc, &ptr->proc, sizeof (m->proc));
@@ -307,13 +306,12 @@ static int fc_config_add_target (fc_target_t **targets_head, /* {{{ */
     return (-1);
   }
 
-  t = (fc_target_t *) malloc (sizeof (*t));
+  t = calloc (1, sizeof (*t));
   if (t == NULL)
   {
-    ERROR ("fc_config_add_target: malloc failed.");
+    ERROR ("fc_config_add_target: calloc failed.");
     return (-1);
   }
-  memset (t, 0, sizeof (*t));
 
   sstrncpy (t->name, ptr->name, sizeof (t->name));
   memcpy (&t->proc, &ptr->proc, sizeof (t->proc));
@@ -335,7 +333,7 @@ static int fc_config_add_target (fc_target_t **targets_head, /* {{{ */
   {
     t->user_data = NULL;
   }
-  
+
   if (*targets_head != NULL)
   {
     ptr = *targets_head;
@@ -373,14 +371,12 @@ static int fc_config_add_rule (fc_chain_t *chain, /* {{{ */
     return (-1);
   }
 
-  rule = (fc_rule_t *) malloc (sizeof (*rule));
+  rule = calloc (1, sizeof (*rule));
   if (rule == NULL)
   {
-    ERROR ("fc_config_add_rule: malloc failed.");
+    ERROR ("fc_config_add_rule: calloc failed.");
     return (-1);
   }
-  memset (rule, 0, sizeof (*rule));
-  rule->next = NULL;
 
   if (ci->values_num == 1)
   {
@@ -469,17 +465,13 @@ static int fc_config_add_chain (const oconfig_item_t *ci) /* {{{ */
 
   if (chain == NULL)
   {
-    chain = (fc_chain_t *) malloc (sizeof (*chain));
+    chain = calloc (1, sizeof (*chain));
     if (chain == NULL)
     {
-      ERROR ("fc_config_add_chain: malloc failed.");
+      ERROR ("fc_config_add_chain: calloc failed.");
       return (-1);
     }
-    memset (chain, 0, sizeof (*chain));
     sstrncpy (chain->name, ci->values[0].value.string, sizeof (chain->name));
-    chain->rules = NULL;
-    chain->targets = NULL;
-    chain->next = NULL;
   }
 
   for (i = 0; i < ci->children_num; i++)
@@ -663,7 +655,7 @@ static int fc_bit_write_create (const oconfig_item_t *ci, /* {{{ */
       }
       plugin = child->values[j].value.string;
 
-      temp = (fc_writer_t *) realloc (plugin_list, (plugin_list_len + 2)
+      temp = realloc (plugin_list, (plugin_list_len + 2)
           * (sizeof (*plugin_list)));
       if (temp == NULL)
       {
@@ -824,14 +816,12 @@ int fc_register_match (const char *name, match_proc_t proc) /* {{{ */
 
   DEBUG ("fc_register_match (%s);", name);
 
-  m = (fc_match_t *) malloc (sizeof (*m));
+  m = calloc (1, sizeof (*m));
   if (m == NULL)
     return (-ENOMEM);
-  memset (m, 0, sizeof (*m));
 
   sstrncpy (m->name, name, sizeof (m->name));
   memcpy (&m->proc, &proc, sizeof (m->proc));
-  m->next = NULL;
 
   if (match_list_head == NULL)
   {
@@ -858,14 +848,12 @@ int fc_register_target (const char *name, target_proc_t proc) /* {{{ */
 
   DEBUG ("fc_register_target (%s);", name);
 
-  t = (fc_target_t *) malloc (sizeof (*t));
+  t = calloc (1, sizeof (*t));
   if (t == NULL)
     return (-ENOMEM);
-  memset (t, 0, sizeof (*t));
 
   sstrncpy (t->name, name, sizeof (t->name));
   memcpy (&t->proc, &proc, sizeof (t->proc));
-  t->next = NULL;
 
   if (target_list_head == NULL)
   {

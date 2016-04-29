@@ -72,6 +72,7 @@
 extern char *optarg;
 extern int   optind;
 
+__attribute__((noreturn))
 static void exit_usage (const char *name, int status) {
   fprintf ((status == 0) ? stdout : stderr,
       "Usage: %s [options] <command> [cmd options]\n\n"
@@ -482,7 +483,7 @@ static int putval (lcc_connection_t *c, int argc, char **argv)
 
       values_len = 0;
       value = tmp;
-      while (value != 0) {
+      while (value != NULL) {
         char *dot, *endptr;
 
         tmp = strchr (value, (int)':');

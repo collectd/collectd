@@ -120,7 +120,7 @@ if BUILD_PLUGIN_AMQP
 pkglib_LTLIBRARIES += amqp.la
 amqp_la_SOURCES = amqp.c \
 		  utils_cmd_putval.c utils_cmd_putval.h \
-  	          utils_parse_option.c utils_parse_option.h \
+	          utils_parse_option.c utils_parse_option.h \
 		  utils_format_graphite.c utils_format_graphite.h \
 		  utils_format_json.c utils_format_json.h
 amqp_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBRABBITMQ_LDFLAGS)
@@ -915,17 +915,17 @@ endif
 if BUILD_PLUGIN_RRDCACHED
 pkglib_LTLIBRARIES += rrdcached.la
 rrdcached_la_SOURCES = rrdcached.c utils_rrdcreate.c utils_rrdcreate.h
-rrdcached_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+rrdcached_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBRRD_LDFLAGS)
 rrdcached_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBRRD_CFLAGS)
-rrdcached_la_LIBADD = $(BUILD_WITH_LIBRRD_LDFLAGS)
+rrdcached_la_LIBADD = $(BUILD_WITH_LIBRRD_LIBS)
 endif
 
 if BUILD_PLUGIN_RRDTOOL
 pkglib_LTLIBRARIES += rrdtool.la
 rrdtool_la_SOURCES = rrdtool.c utils_rrdcreate.c utils_rrdcreate.h
-rrdtool_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+rrdtool_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBRRD_LDFLAGS)
 rrdtool_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBRRD_CFLAGS)
-rrdtool_la_LIBADD = $(BUILD_WITH_LIBRRD_LDFLAGS)
+rrdtool_la_LIBADD = $(BUILD_WITH_LIBRRD_LIBS)
 endif
 
 if BUILD_PLUGIN_SENSORS
@@ -1260,10 +1260,9 @@ endif
 
 if BUILD_PLUGIN_WRITE_RIEMANN
 pkglib_LTLIBRARIES += write_riemann.la
-write_riemann_la_SOURCES = write_riemann.c write_riemann_threshold.c
-nodist_write_riemann_la_SOURCES = riemann.pb-c.c riemann.pb-c.h
-write_riemann_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-write_riemann_la_LIBADD = -lprotobuf-c
+write_riemann_la_SOURCES = write_riemann.c write_riemann_threshold.c write_riemann_threshold.h
+write_riemann_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(RIEMANN_C_LIBS)
+write_riemann_la_CFLAGS = $(AM_CFLAGS) $(RIEMANN_C_CFLAGS)
 endif
 
 if BUILD_PLUGIN_WRITE_SENSU
@@ -1276,6 +1275,13 @@ if BUILD_PLUGIN_WRITE_TSDB
 pkglib_LTLIBRARIES += write_tsdb.la
 write_tsdb_la_SOURCES = write_tsdb.c
 write_tsdb_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
+if BUILD_PLUGIN_XENCPU
+pkglib_LTLIBRARIES += xencpu.la
+xencpu_la_SOURCES = xencpu.c
+xencpu_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+xencpu_la_LIBADD = -lxenctrl
 endif
 
 if BUILD_PLUGIN_XMMS
@@ -1384,17 +1390,6 @@ BUILT_SOURCES += pinba.pb-c.c pinba.pb-c.h
 
 pinba.pb-c.c pinba.pb-c.h: pinba.proto
 	$(AM_V_PROTOC_C)protoc-c -I$(srcdir) --c_out . $(srcdir)/pinba.proto
-endif
-
-# Protocol buffer for the "write_riemann" plugin.
-EXTRA_DIST += riemann.proto
-if BUILD_PLUGIN_WRITE_RIEMANN
-CLEANFILES += riemann.pb-c.c riemann.pb-c.h
-
-BUILT_SOURCES += riemann.pb-c.c riemann.pb-c.h
-
-riemann.pb-c.c riemann.pb-c.h: riemann.proto
-	$(AM_V_PROTOC_C)protoc-c -I$(srcdir) --c_out . $(srcdir)/riemann.proto
 endif
 
 install-exec-hook:

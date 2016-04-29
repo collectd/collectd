@@ -71,7 +71,7 @@ static size_t nginx_curl_callback (void *buf, size_t size, size_t nmemb,
     len = (sizeof (nginx_buffer) - 1) - nginx_buffer_len;
   }
 
-  if (len <= 0)
+  if (len == 0)
     return (len);
 
   memcpy (&nginx_buffer[nginx_buffer_len], buf, len);
@@ -195,7 +195,7 @@ static int init (void)
   return (0);
 } /* void init */
 
-static void submit (char *type, char *inst, long long value)
+static void submit (const char *type, const char *inst, long long value)
 {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;

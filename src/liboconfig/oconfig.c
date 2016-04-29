@@ -106,13 +106,12 @@ oconfig_item_t *oconfig_clone (const oconfig_item_t *ci_orig)
 {
   oconfig_item_t *ci_copy;
 
-  ci_copy = (oconfig_item_t *) malloc (sizeof (*ci_copy));
+  ci_copy = calloc (1, sizeof (*ci_copy));
   if (ci_copy == NULL)
   {
-    fprintf (stderr, "malloc failed.\n");
+    fprintf (stderr, "calloc failed.\n");
     return (NULL);
   }
-  memset (ci_copy, 0, sizeof (*ci_copy));
   ci_copy->values = NULL;
   ci_copy->parent = NULL;
   ci_copy->children = NULL;
@@ -177,7 +176,7 @@ oconfig_item_t *oconfig_clone (const oconfig_item_t *ci_orig)
     for (i = 0; i < ci_copy->children_num; i++)
     {
       oconfig_item_t *child;
-      
+
       child = oconfig_clone (ci_orig->children + i);
       if (child == NULL)
       {
@@ -193,7 +192,7 @@ oconfig_item_t *oconfig_clone (const oconfig_item_t *ci_orig)
   return (ci_copy);
 } /* oconfig_item_t *oconfig_clone */
 
-void oconfig_free_all (oconfig_item_t *ci)
+static void oconfig_free_all (oconfig_item_t *ci)
 {
   int i;
 
@@ -222,7 +221,6 @@ void oconfig_free (oconfig_item_t *ci)
 {
   oconfig_free_all (ci);
   free (ci);
-  ci = NULL;
 }
 
 /*

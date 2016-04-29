@@ -142,7 +142,7 @@ static int wt_flush_nolock(cdtime_t timeout, struct wt_callback *cb)
             return 0;
     }
 
-    if (cb->send_buf_fill <= 0)
+    if (cb->send_buf_fill == 0)
     {
         cb->send_buf_init_time = cdtime();
         return 0;
@@ -346,7 +346,7 @@ static int wt_format_name(char *ret, int ret_len,
 {
     int status;
     char *temp = NULL;
-    char *prefix = "";
+    const char *prefix = "";
     const char *meta_prefix = "tsdb_prefix";
 
     if (vl->meta) {
@@ -411,9 +411,9 @@ static int wt_send_message (const char* key, const char* value,
     int status;
     size_t message_len;
     char *temp = NULL;
-    char *tags = "";
+    const char *tags = "";
     char message[1024];
-    char *host_tags = cb->host_tags ? cb->host_tags : "";
+    const char *host_tags = cb->host_tags ? cb->host_tags : "";
     const char *meta_tsdb = "tsdb_tags";
 
     /* skip if value is NaN */
@@ -579,13 +579,12 @@ static int wt_config_tsd(oconfig_item_t *ci)
     char callback_name[DATA_MAX_NAME_LEN];
     int i;
 
-    cb = malloc(sizeof(*cb));
+    cb = calloc(1, sizeof(*cb));
     if (cb == NULL)
     {
-        ERROR("write_tsdb plugin: malloc failed.");
+        ERROR("write_tsdb plugin: calloc failed.");
         return -1;
     }
-    memset(cb, 0, sizeof(*cb));
     cb->sock_fd = -1;
     cb->node = NULL;
     cb->service = NULL;

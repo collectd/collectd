@@ -27,7 +27,7 @@
  **/
 /**
  * Usage:
- * 
+ *
  * Define plugin's global pointer variable of type ignorelist_t:
  *   ignorelist_t *myconfig_ignore;
  * If you know the state of the global ignore (IgnoreSelected),
@@ -94,13 +94,12 @@ static int ignorelist_append_regex(ignorelist_t *il, const char *re_str)
 	ignorelist_item_t *entry;
 	int status;
 
-	re = malloc (sizeof (*re));
+	re = calloc (1, sizeof (*re));
 	if (re == NULL)
 	{
-		ERROR ("ignorelist_append_regex: malloc failed.");
+		ERROR ("ignorelist_append_regex: calloc failed.");
 		return (ENOMEM);
 	}
-	memset (re, 0, sizeof (*re));
 
 	status = regcomp (re, re_str, REG_EXTENDED);
 	if (status != 0)
@@ -113,15 +112,14 @@ static int ignorelist_append_regex(ignorelist_t *il, const char *re_str)
 		return (status);
 	}
 
-	entry = malloc (sizeof (*entry));
+	entry = calloc (1, sizeof (*entry));
 	if (entry == NULL)
 	{
-		ERROR ("ignorelist_append_regex: malloc failed.");
+		ERROR ("ignorelist_append_regex: calloc failed.");
 		regfree (re);
 		sfree (re);
 		return (ENOMEM);
 	}
-	memset (entry, 0, sizeof (*entry));
 	entry->rmatch = re;
 
 	ignorelist_append (il, entry);
@@ -134,12 +132,11 @@ static int ignorelist_append_string(ignorelist_t *il, const char *entry)
 	ignorelist_item_t *new;
 
 	/* create new entry */
-	if ((new = malloc(sizeof(ignorelist_item_t))) == NULL )
+	if ((new = calloc(1, sizeof (*new))) == NULL )
 	{
 		ERROR ("cannot allocate new entry");
 		return (1);
 	}
-	memset (new, '\0', sizeof(ignorelist_item_t));
 	new->smatch = sstrdup(entry);
 
 	/* append new entry */
@@ -194,10 +191,9 @@ ignorelist_t *ignorelist_create (int invert)
 {
 	ignorelist_t *il;
 
-	il = malloc (sizeof (*il));
+	il = calloc (1, sizeof (*il));
 	if (il == NULL)
 		return NULL;
-	memset (il, 0, sizeof (*il));
 
 	/*
 	 * ->ignore == 0  =>  collect
@@ -239,7 +235,6 @@ void ignorelist_free (ignorelist_t *il)
 	}
 
 	sfree (il);
-	il = NULL;
 } /* void ignorelist_destroy (ignorelist_t *il) */
 
 /*

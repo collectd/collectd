@@ -130,7 +130,7 @@ static int cldap_init_host (cldap_t *st) /* {{{ */
 		cred.bv_len = 0;
 	}
 
-	rc = ldap_sasl_bind_s (st->ld, st->binddn, LDAP_SASL_SIMPLE, &cred, 
+	rc = ldap_sasl_bind_s (st->ld, st->binddn, LDAP_SASL_SIMPLE, &cred,
 			NULL, NULL, NULL);
 	if (rc != LDAP_SUCCESS)
 	{
@@ -553,13 +553,12 @@ static int cldap_config_add (oconfig_item_t *ci) /* {{{ */
 	int i;
 	int status;
 
-	st = malloc (sizeof (*st));
+	st = calloc (1, sizeof (*st));
 	if (st == NULL)
 	{
-		ERROR ("openldap plugin: malloc failed.");
+		ERROR ("openldap plugin: calloc failed.");
 		return (-1);
 	}
-	memset (st, 0, sizeof (*st));
 
 	status = cf_util_get_string (ci, &st->name);
 	if (status != 0)

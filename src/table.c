@@ -188,7 +188,7 @@ static int tbl_config_result (tbl_t *tbl, oconfig_item_t *ci)
 		return 1;
 	}
 
-	res = (tbl_result_t *)realloc (tbl->results,
+	res = realloc (tbl->results,
 			(tbl->results_num + 1) * sizeof (*tbl->results));
 	if (res == NULL) {
 		char errbuf[1024];
@@ -254,7 +254,7 @@ static int tbl_config_table (oconfig_item_t *ci)
 		return 1;
 	}
 
-	tbl = (tbl_t *)realloc (tables, (tables_num + 1) * sizeof (*tables));
+	tbl = realloc (tables, (tables_num + 1) * sizeof (*tables));
 	if (NULL == tbl) {
 		char errbuf[1024];
 		log_err ("realloc failed: %s.",

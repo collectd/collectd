@@ -274,10 +274,9 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
   int status;
   int i;
 
-  node = malloc (sizeof (*node));
+  node = calloc (1, sizeof (*node));
   if (node == NULL)
     return (ENOMEM);
-  memset (node, 0, sizeof (*node));
   mongo_init (node->conn);
   node->host = NULL;
   node->store_rates = 1;

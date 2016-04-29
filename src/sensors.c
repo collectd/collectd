@@ -18,7 +18,7 @@
  *
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
- *   
+ *
  *   Lubos Stanek <lubek at users.sourceforge.net> Wed Oct 27, 2006
  *   - config ExtendedSensorNaming option
  *   - precise sensor feature selection (chip-bus-address/type-feature)
@@ -76,7 +76,7 @@ struct sensors_labeltypes_s
 typedef struct sensors_labeltypes_s sensors_labeltypes_t;
 
 /* finite list of known labels extracted from lm_sensors */
-static sensors_labeltypes_t known_features[] = 
+static sensors_labeltypes_t known_features[] =
 {
 	{ "fan1", SENSOR_TYPE_FANSPEED },
 	{ "fan2", SENSOR_TYPE_FANSPEED },
@@ -140,7 +140,8 @@ static const char *config_keys[] =
 {
 	"Sensor",
 	"IgnoreSelected",
-	"SensorConfigFile"
+	"SensorConfigFile",
+	"UseLabels"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -169,6 +170,7 @@ typedef struct featurelist
 } featurelist_t;
 
 static char *conffile = NULL;
+static _Bool use_labels = 0;
 /* #endif (SENSORS_API_VERSION >= 0x400) && (SENSORS_API_VERSION < 0x500) */
 
 #else /* if SENSORS_API_VERSION >= 0x500 */
@@ -176,7 +178,7 @@ static char *conffile = NULL;
 	"as bug."
 #endif
 
-featurelist_t *first_feature = NULL;
+static featurelist_t *first_feature = NULL;
 static ignorelist_t *sensor_list;
 
 #if SENSORS_API_VERSION < 0x400
@@ -257,6 +259,12 @@ static int sensors_config (const char *key, const char *value)
 		if (IS_TRUE (value))
 			ignorelist_set_invert (sensor_list, 0);
 	}
+#if (SENSORS_API_VERSION >= 0x400) && (SENSORS_API_VERSION < 0x500)
+	else if (strcasecmp (key, "UseLabels") == 0)
+	{
+		use_labels = IS_TRUE (value) ? 1 : 0;
+	}
+#endif
 	else
 	{
 		return (-1);
@@ -265,7 +273,7 @@ static int sensors_config (const char *key, const char *value)
 	return (0);
 }
 
-void sensors_free_features (void)
+static void sensors_free_features (void)
 {
 	featurelist_t *thisft;
 	featurelist_t *nextft;
@@ -289,7 +297,7 @@ static int sensors_load_conf (void)
 
 	FILE *fh = NULL;
 	featurelist_t *last_feature = NULL;
-	
+
 	const sensors_chip_name *chip;
 	int chip_num;
 
@@ -378,13 +386,12 @@ static int sensors_load_conf (void)
 				continue;
 			}
 
-			fl = (featurelist_t *) malloc (sizeof (featurelist_t));
+			fl = calloc (1, sizeof (*fl));
 			if (fl == NULL)
 			{
-				ERROR ("sensors plugin: malloc failed.");
+				ERROR ("sensors plugin: calloc failed.");
 				continue;
 			}
-			memset (fl, '\0', sizeof (featurelist_t));
 
 			fl->chip = chip;
 			fl->data = feature;
@@ -435,13 +442,12 @@ static int sensors_load_conf (void)
 						&& (subfeature->type != SENSORS_SUBFEATURE_POWER_INPUT))
 					continue;
 
-				fl = (featurelist_t *) malloc (sizeof (featurelist_t));
+				fl = calloc (1, sizeof (*fl));
 				if (fl == NULL)
 				{
-					ERROR ("sensors plugin: malloc failed.");
+					ERROR ("sensors plugin: calloc failed.");
 					continue;
 				}
-				memset (fl, '\0', sizeof (featurelist_t));
 
 				fl->chip = chip;
 				fl->feature = feature;
@@ -555,6 +561,7 @@ static int sensors_read (void)
 		int status;
 		char plugin_instance[DATA_MAX_NAME_LEN];
 		char type_instance[DATA_MAX_NAME_LEN];
+		char *sensor_label;
 		const char *type;
 
 		status = sensors_get_value (fl->chip,
@@ -567,8 +574,17 @@ static int sensors_read (void)
 		if (status < 0)
 			continue;
 
-		sstrncpy (type_instance, fl->feature->name,
-				sizeof (type_instance));
+		if (use_labels)
+		{
+			sensor_label = sensors_get_label (fl->chip, fl->feature);
+			sstrncpy (type_instance, sensor_label, sizeof (type_instance));
+			free (sensor_label);
+		}
+		else
+		{
+			sstrncpy (type_instance, fl->feature->name,
+					sizeof (type_instance));
+		}
 
 		if (fl->feature->type == SENSORS_FEATURE_IN)
 			type = "voltage";

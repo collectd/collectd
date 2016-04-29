@@ -41,7 +41,7 @@ static double wireless_dbm_to_watt (double dbm)
 
 	/*
 	 * dbm = 10 * log_{10} (1000 * power / W)
-	 * power = 10^(dbm/10) * W/1000 
+	 * power = 10^(dbm/10) * W/1000
 	 */
 
 	watt = pow (10.0, (dbm / 10.0)) / 1000.0;
@@ -88,7 +88,7 @@ static int wireless_read (void)
 	double  quality;
 	double  power;
 	double  noise;
-	
+
 	char *fields[8];
 	int   numfields;
 

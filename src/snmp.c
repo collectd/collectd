@@ -310,7 +310,7 @@ static int csnmp_config_add_data_values (data_definition_t *dd, oconfig_item_t *
 
   sfree (dd->values);
   dd->values_len = 0;
-  dd->values = (oid_t *) malloc (sizeof (oid_t) * ci->values_num);
+  dd->values = malloc (sizeof (*dd->values) * ci->values_num);
   if (dd->values == NULL)
     return (-1);
   dd->values_len = (size_t) ci->values_num;
@@ -384,10 +384,9 @@ static int csnmp_config_add_data (oconfig_item_t *ci)
   int status = 0;
   int i;
 
-  dd = (data_definition_t *) malloc (sizeof (data_definition_t));
+  dd = calloc (1, sizeof (*dd));
   if (dd == NULL)
     return (-1);
-  memset (dd, '\0', sizeof (data_definition_t));
 
   status = cf_util_get_string(ci, &dd->name);
   if (status != 0)
@@ -521,7 +520,7 @@ static int csnmp_config_add_host_collect (host_definition_t *host,
     }
 
   data_list_len = host->data_list_len + ci->values_num;
-  data_list = (data_definition_t **) realloc (host->data_list,
+  data_list = realloc (host->data_list,
       sizeof (data_definition_t *) * data_list_len);
   if (data_list == NULL)
     return (-1);
@@ -646,10 +645,9 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
   char cb_name[DATA_MAX_NAME_LEN];
   user_data_t cb_data;
 
-  hd = (host_definition_t *) malloc (sizeof (host_definition_t));
+  hd = calloc (1, sizeof (*hd));
   if (hd == NULL)
     return (-1);
-  memset (hd, '\0', sizeof (host_definition_t));
   hd->version = 2;
   C_COMPLAIN_INIT (&hd->complaint);
 
@@ -1162,13 +1160,12 @@ static int csnmp_instance_list_add (csnmp_list_instances_t **head,
 
   csnmp_oid_init (&vb_name, vb->name, vb->name_length);
 
-  il = malloc (sizeof (*il));
+  il = calloc (1, sizeof (*il));
   if (il == NULL)
   {
-    ERROR ("snmp plugin: malloc failed.");
+    ERROR ("snmp plugin: calloc failed.");
     return (-1);
   }
-  memset (il, 0, sizeof (*il));
   il->next = NULL;
 
   status = csnmp_oid_suffix (&il->suffix, &vb_name, &dd->instance.oid);
@@ -1607,14 +1604,13 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
           continue;
         }
 
-        vt = malloc (sizeof (*vt));
+        vt = calloc (1, sizeof (*vt));
         if (vt == NULL)
         {
-          ERROR ("snmp plugin: malloc failed.");
+          ERROR ("snmp plugin: calloc failed.");
           status = -1;
           break;
         }
-        memset (vt, 0, sizeof (*vt));
 
         vt->value = csnmp_value_list_to_value (vb, ds->ds[i].type,
             data->scale, data->shift, host->name, data->name);
@@ -1677,7 +1673,7 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
 static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
 {
   struct snmp_pdu *req;
-  struct snmp_pdu *res;
+  struct snmp_pdu *res = NULL;
   struct variable_list *vb;
 
   const data_set_t *ds;
@@ -1710,7 +1706,7 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
   }
 
   vl.values_len = ds->ds_num;
-  vl.values = (value_t *) malloc (sizeof (value_t) * vl.values_len);
+  vl.values = malloc (sizeof (*vl.values) * vl.values_len);
   if (vl.values == NULL)
     return (-1);
   for (i = 0; i < vl.values_len; i++)
@@ -1739,7 +1735,6 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
   for (i = 0; i < data->values_len; i++)
     snmp_add_null_var (req, data->values[i].oid, data->values[i].oid_len);
 
-  res = NULL;
   status = snmp_sess_synch_response (host->sess_handle, req, &res);
 
   if ((status != STAT_SUCCESS) || (res == NULL))
@@ -1752,7 +1747,6 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
 
     if (res != NULL)
       snmp_free_pdu (res);
-    res = NULL;
 
     sfree (errstr);
     sfree (vl.values);
@@ -1778,9 +1772,7 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
             data->scale, data->shift, host->name, data->name);
   } /* for (res->variables) */
 
-  if (res != NULL)
-    snmp_free_pdu (res);
-  res = NULL;
+  snmp_free_pdu (res);
 
   DEBUG ("snmp plugin: -> plugin_dispatch_values (&vl);");
   plugin_dispatch_values (&vl);

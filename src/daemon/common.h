@@ -37,9 +37,7 @@
 
 #define sfree(ptr) \
 	do { \
-		if((ptr) != NULL) { \
-			free(ptr); \
-		} \
+		free(ptr); \
 		(ptr) = NULL; \
 	} while (0)
 
@@ -223,8 +221,6 @@ int escape_string (char *buffer, size_t buffer_size);
  *                 encountering a null-byte or reading this many bytes.
  */
 void replace_special (char *buffer, size_t buffer_size);
-
-int strsubstitute (char *str, char c_from, char c_to);
 
 /*
  * NAME

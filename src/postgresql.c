@@ -154,7 +154,7 @@ typedef struct {
 	int ref_cnt;
 } c_psql_database_t;
 
-static char *def_queries[] = {
+static const char *const def_queries[] = {
 	"backends",
 	"transactions",
 	"queries",
@@ -218,13 +218,13 @@ static c_psql_database_t *c_psql_database_new (const char *name)
 	c_psql_database_t **tmp;
 	c_psql_database_t  *db;
 
-	db = (c_psql_database_t *)malloc (sizeof(*db));
+	db = malloc (sizeof(*db));
 	if (NULL == db) {
 		log_err ("Out of memory.");
 		return NULL;
 	}
 
-	tmp = (c_psql_database_t **)realloc (databases,
+	tmp = realloc (databases,
 			(databases_num + 1) * sizeof (*databases));
 	if (NULL == tmp) {
 		log_err ("Out of memory.");
@@ -429,9 +429,9 @@ static PGresult *c_psql_exec_query_noparams (c_psql_database_t *db,
 static PGresult *c_psql_exec_query_params (c_psql_database_t *db,
 		udb_query_t *q, c_psql_user_data_t *data)
 {
-	char *params[db->max_params_num];
-	char  interval[64];
-	int   i;
+	const char *params[db->max_params_num];
+	char        interval[64];
+	int         i;
 
 	if ((data == NULL) || (data->params_num == 0))
 		return (c_psql_exec_query_noparams (db, q));
@@ -555,7 +555,7 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q,
 		log_err ("calloc failed.");
 		BAIL_OUT (-1);
 	}
-	
+
 	for (col = 0; col < column_num; ++col) {
 		/* Pointers returned by `PQfname' are freed by `PQclear' via
 		 * `BAIL_OUT'. */
@@ -867,7 +867,7 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 #undef VALUE_OR_NULL
 
 	if( db->expire_delay > 0 && vl->time < (cdtime() - vl->interval - db->expire_delay) ) {
-		log_info ("c_psql_write: Skipped expired value @ %s - %s/%s-%s/%s-%s/%s", 
+		log_info ("c_psql_write: Skipped expired value @ %s - %s/%s-%s/%s-%s/%s",
 			params[0], params[1], params[2], params[3], params[4], params[5], params[6] );
 		return 0;
         }
@@ -1042,12 +1042,11 @@ static int config_query_param_add (udb_query_t *q, oconfig_item_t *ci)
 
 	data = udb_query_get_user_data (q);
 	if (NULL == data) {
-		data = malloc (sizeof (*data));
+		data = calloc (1, sizeof (*data));
 		if (NULL == data) {
 			log_err ("Out of memory.");
 			return -1;
 		}
-		memset (data, 0, sizeof (*data));
 		data->params = NULL;
 		data->params_num = 0;
 
@@ -1116,7 +1115,7 @@ static int config_add_writer (oconfig_item_t *ci,
 		if (strcasecmp (name, src_writers[i].name) != 0)
 			continue;
 
-		tmp = (c_psql_writer_t **)realloc (*dst_writers,
+		tmp = realloc (*dst_writers,
 				sizeof (**dst_writers) * (*dst_writers_num + 1));
 		if (tmp == NULL) {
 			log_err ("Out of memory.");
@@ -1152,7 +1151,7 @@ static int c_psql_config_writer (oconfig_item_t *ci)
 		return 1;
 	}
 
-	tmp = (c_psql_writer_t *)realloc (writers,
+	tmp = realloc (writers,
 			sizeof (*writers) * (writers_num + 1));
 	if (tmp == NULL) {
 		log_err ("Out of memory.");

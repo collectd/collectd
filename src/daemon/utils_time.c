@@ -127,7 +127,7 @@ static int format_rfc3339 (char *buffer, size_t buffer_size, cdtime_t t, _Bool p
 
   if (localtime_r (&t_spec.tv_sec, &t_tm) == NULL) {
     char errbuf[1024];
-    int status = errno;
+    status = errno;
     ERROR ("format_rfc3339: localtime_r failed: %s",
         sstrerror (status, errbuf, sizeof (errbuf)));
     return (status);

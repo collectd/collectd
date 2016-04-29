@@ -20,17 +20,23 @@
  *   Niki W. Waibel <niki.waibel@gmx.net>
 **/
 
+#if HAVE_CONFIG_H
+# include "config.h"
+#endif
+
+#if HAVE_XFS_XQM_H
+# define _GNU_SOURCE
+# include <xfs/xqm.h>
+#define XFS_SUPER_MAGIC_STR "XFSB"
+#define XFS_SUPER_MAGIC2_STR "BSFX"
+#endif
+
 #include "collectd.h"
 #include "utils_mount.h"
 
 #include "common.h" /* sstrncpy() et alii */
 #include "plugin.h" /* ERROR() macro */
 
-#if HAVE_XFS_XQM_H
-# include <xfs/xqm.h>
-#define XFS_SUPER_MAGIC_STR "XFSB"
-#define XFS_SUPER_MAGIC2_STR "BSFX"
-#endif
 
 #if HAVE_GETVFSSTAT
 #  if HAVE_SYS_TYPES_H
@@ -429,16 +435,16 @@ static cu_mount_t *cu_mount_listmntent (void)
 #elif HAVE_GETVFSSTAT || HAVE_GETFSSTAT
 static cu_mount_t *cu_mount_getfsstat (void)
 {
-#if HAVE_GETVFSSTAT
-#  define STRUCT_STATFS struct statvfs
-#  define CMD_STATFS    getvfsstat
-#  define FLAGS_STATFS  ST_NOWAIT
-/* #endif HAVE_GETVFSSTAT */
-#elif HAVE_GETFSSTAT
+#if HAVE_GETFSSTAT
 #  define STRUCT_STATFS struct statfs
 #  define CMD_STATFS    getfsstat
 #  define FLAGS_STATFS  MNT_NOWAIT
-#endif /* HAVE_GETFSSTAT */
+/* #endif HAVE_GETFSSTAT */
+#elif HAVE_GETVFSSTAT
+#  define STRUCT_STATFS struct statvfs
+#  define CMD_STATFS    getvfsstat
+#  define FLAGS_STATFS  ST_NOWAIT
+#endif /* HAVE_GETVFSSTAT */
 
 	int bufsize;
 	STRUCT_STATFS *buf;
@@ -461,10 +467,8 @@ static cu_mount_t *cu_mount_getfsstat (void)
 		return (NULL);
 	}
 
-	if ((buf = (STRUCT_STATFS *) malloc (bufsize * sizeof (STRUCT_STATFS)))
-			== NULL)
+	if ((buf = calloc (bufsize, sizeof (*buf))) == NULL)
 		return (NULL);
-	memset (buf, '\0', bufsize * sizeof (STRUCT_STATFS));
 
 	/* The bufsize needs to be passed in bytes. Really. This is not in the
 	 * manpage.. -octo */
@@ -481,10 +485,9 @@ static cu_mount_t *cu_mount_getfsstat (void)
 
 	for (i = 0; i < num; i++)
 	{
-		if ((new = malloc (sizeof (cu_mount_t))) == NULL)
+		if ((new = calloc (1, sizeof (*new))) == NULL)
 			break;
-		memset (new, '\0', sizeof (cu_mount_t));
-		
+
 		/* Copy values from `struct mnttab' */
 		new->dir         = sstrdup (buf[i].f_mntonname);
 		new->spec_device = sstrdup (buf[i].f_mntfromname);
@@ -535,10 +538,9 @@ static cu_mount_t *cu_mount_gen_getmntent (void)
 
 	while (getmntent (fp, &mt) == 0)
 	{
-		if ((new = malloc (sizeof (cu_mount_t))) == NULL)
+		if ((new = calloc (1, sizeof (*new))) == NULL)
 			break;
-		memset (new, '\0', sizeof (cu_mount_t));
-		
+
 		/* Copy values from `struct mnttab' */
 		new->dir         = sstrdup (mt.mnt_mountp);
 		new->spec_device = sstrdup (mt.mnt_special);
@@ -593,9 +595,8 @@ static cu_mount_t *cu_mount_getmntent (void)
 
 	while (getmntent_r (fp, &me, mntbuf, sizeof (mntbuf) ))
 	{
-		if ((new = malloc (sizeof (cu_mount_t))) == NULL)
+		if ((new = calloc (1, sizeof (*new))) == NULL)
 			break;
-		memset (new, '\0', sizeof (cu_mount_t));
 
 		/* Copy values from `struct mntent *' */
 		new->dir         = sstrdup (me.mnt_dir);
@@ -650,10 +651,9 @@ static cu_mount_t *cu_mount_getmntent (void)
 
 	while ((me = getmntent (fp)) != NULL)
 	{
-		if ((new = malloc (sizeof (cu_mount_t))) == NULL)
+		if ((new = calloc (1, sizeof (*new))) == NULL)
 			break;
-		memset (new, '\0', sizeof (cu_mount_t));
-		
+
 		/* Copy values from `struct mntent *' */
 		new->dir         = sstrdup (me->mnt_dir);
 		new->spec_device = sstrdup (me->mnt_fsname);
@@ -757,7 +757,7 @@ void cu_mount_freelist (cu_mount_t *list)
 } /* void cu_mount_freelist(cu_mount_t *list) */
 
 char *
-cu_mount_checkoption(char *line, char *keyword, int full)
+cu_mount_checkoption(char *line, const char *keyword, int full)
 {
 	char *line2, *l2, *p1, *p2;
 	int l;
@@ -798,7 +798,7 @@ cu_mount_checkoption(char *line, char *keyword, int full)
 } /* char *cu_mount_checkoption(char *line, char *keyword, int full) */
 
 char *
-cu_mount_getoptionvalue(char *line, char *keyword)
+cu_mount_getoptionvalue(char *line, const char *keyword)
 {
 	char *r;
 
@@ -814,13 +814,13 @@ cu_mount_getoptionvalue(char *line, char *keyword)
 			if((p-r) == 1) {
 				return NULL;
 			}
-			m = (char *)smalloc(p-r+1);
+			m = smalloc(p-r+1);
 			sstrncpy(m, r, p-r+1);
 			return m;
 		}
 	}
 	return r;
-} /* char *cu_mount_getoptionvalue(char *line, char *keyword) */
+} /* char *cu_mount_getoptionvalue(char *line, const char *keyword) */
 
 int
 cu_mount_type(const char *type)

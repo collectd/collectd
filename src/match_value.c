@@ -59,7 +59,7 @@ struct mv_match_s
 static void mv_free_match (mv_match_t *m) /* {{{ */
 {
   size_t i;
-  
+
   if (m == NULL)
     return;
 
@@ -69,7 +69,7 @@ static void mv_free_match (mv_match_t *m) /* {{{ */
       free(m->data_sources[i]);
     free(m->data_sources);
   }
-  
+
   free (m);
 } /* }}} void mv_free_match */
 
@@ -129,7 +129,7 @@ static int mv_config_add_data_source (mv_match_t *m, /* {{{ */
 
   /* Allocate space for the char pointers */
   new_data_sources_num = m->data_sources_num + ((size_t) ci->values_num);
-  temp = (char **) realloc (m->data_sources,
+  temp = realloc (m->data_sources,
       new_data_sources_num * sizeof (char *));
   if (temp == NULL)
   {
@@ -200,13 +200,12 @@ static int mv_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   int status;
   int i;
 
-  m = (mv_match_t *) malloc (sizeof (*m));
+  m = calloc (1, sizeof (*m));
   if (m == NULL)
   {
-    ERROR ("mv_create: malloc failed.");
+    ERROR ("mv_create: calloc failed.");
     return (-ENOMEM);
   }
-  memset (m, 0, sizeof (*m));
 
   m->min = NAN;
   m->max = NAN;
@@ -336,7 +335,7 @@ static int mv_match (const data_set_t *ds, const value_list_t *vl, /* {{{ */
       if (m->satisfy == SATISFY_ANY)
         break;
     }
-    else if (value_matches == 0)
+    else
     {
       status = FC_MATCH_NO_MATCH;
       if (m->satisfy == SATISFY_ALL)

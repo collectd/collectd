@@ -116,7 +116,7 @@ static size_t cj_curl_callback (void *buf, /* {{{ */
 
   len = size * nmemb;
 
-  if (len <= 0)
+  if (len == 0)
     return (len);
 
   db = user_data;
@@ -446,15 +446,18 @@ static c_avl_tree_t *cj_avl_create(void)
 static int cj_config_append_string (const char *name, struct curl_slist **dest, /* {{{ */
     oconfig_item_t *ci)
 {
+  struct curl_slist *temp = NULL;
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
     WARNING ("curl_json plugin: `%s' needs exactly one string argument.", name);
     return (-1);
   }
 
-  *dest = curl_slist_append(*dest, ci->values[0].value.string);
-  if (*dest == NULL)
+  temp = curl_slist_append(*dest, ci->values[0].value.string);
+  if (temp == NULL)
     return (-1);
+
+  *dest = temp;
 
   return (0);
 } /* }}} int cj_config_append_string */
@@ -474,13 +477,12 @@ static int cj_config_add_key (cj_t *db, /* {{{ */
     return (-1);
   }
 
-  key = (cj_key_t *) malloc (sizeof (*key));
+  key = calloc (1, sizeof (*key));
   if (key == NULL)
   {
-    ERROR ("curl_json plugin: malloc failed.");
+    ERROR ("curl_json plugin: calloc failed.");
     return (-1);
   }
-  memset (key, 0, sizeof (*key));
   key->magic = CJ_KEY_MAGIC;
 
   if (strcasecmp ("Key", ci->key) == 0)
@@ -615,7 +617,7 @@ static int cj_init_curl (cj_t *db) /* {{{ */
     if (db->pass != NULL)
       credentials_size += strlen (db->pass);
 
-    db->credentials = (char *) malloc (credentials_size);
+    db->credentials = malloc (credentials_size);
     if (db->credentials == NULL)
     {
       ERROR ("curl_json plugin: malloc failed.");
@@ -667,13 +669,12 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  db = (cj_t *) malloc (sizeof (*db));
+  db = calloc (1, sizeof (*db));
   if (db == NULL)
   {
-    ERROR ("curl_json plugin: malloc failed.");
+    ERROR ("curl_json plugin: calloc failed.");
     return (-1);
   }
-  memset (db, 0, sizeof (*db));
 
   db->timeout = -1;
 
@@ -861,7 +862,7 @@ static void cj_submit (cj_t *db, cj_key_t *key, value_t *value) /* {{{ */
 static int cj_sock_perform (cj_t *db) /* {{{ */
 {
   char errbuf[1024];
-  struct sockaddr_un sa_unix = {};
+  struct sockaddr_un sa_unix = { 0 };
   sa_unix.sun_family = AF_UNIX;
   sstrncpy (sa_unix.sun_path, db->sock, sizeof (sa_unix.sun_path));
 

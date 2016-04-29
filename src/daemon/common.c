@@ -115,10 +115,9 @@ char *ssnprintf_alloc (char const *format, ...) /* {{{ */
 		return (strdup (static_buffer));
 
 	/* Allocate a buffer large enough to hold the string. */
-	alloc_buffer = malloc (alloc_buffer_size);
+	alloc_buffer = calloc (1, alloc_buffer_size);
 	if (alloc_buffer == NULL)
 		return (NULL);
-	memset (alloc_buffer, 0, alloc_buffer_size);
 
 	/* Print again into this new buffer. */
 	va_start (ap, format);
@@ -144,7 +143,7 @@ char *sstrdup (const char *s)
 	/* Do not use `strdup' here, because it's not specified in POSIX. It's
 	 * ``only'' an XSI extension. */
 	sz = strlen (s) + 1;
-	r = (char *) malloc (sizeof (char) * sz);
+	r = malloc (sz);
 	if (r == NULL)
 	{
 		ERROR ("sstrdup: Out of memory.");
@@ -336,7 +335,7 @@ int strjoin (char *buffer, size_t buffer_size,
 	size_t sep_len;
 	size_t i;
 
-	if ((buffer_size < 1) || (fields_num <= 0))
+	if ((buffer_size < 1) || (fields_num == 0))
 		return (-1);
 
 	memset (buffer, 0, buffer_size);
@@ -374,27 +373,6 @@ int strjoin (char *buffer, size_t buffer_size,
 	return ((int) strlen (buffer));
 }
 
-int strsubstitute (char *str, char c_from, char c_to)
-{
-	int ret;
-
-	if (str == NULL)
-		return (-1);
-
-	ret = 0;
-	while (*str != '\0')
-	{
-		if (*str == c_from)
-		{
-			*str = c_to;
-			ret++;
-		}
-		str++;
-	}
-
-	return (ret);
-} /* int strsubstitute */
-
 int escape_string (char *buffer, size_t buffer_size)
 {
   char *temp;
@@ -409,10 +387,9 @@ int escape_string (char *buffer, size_t buffer_size)
   if (buffer_size < 3)
     return (EINVAL);
 
-  temp = (char *) malloc (buffer_size);
+  temp = calloc (1, buffer_size);
   if (temp == NULL)
     return (ENOMEM);
-  memset (temp, 0, buffer_size);
 
   temp[0] = '"';
   j = 1;

@@ -38,7 +38,7 @@ i.e. a C<E<lt>PluginE<nbsp>...E<gt>> block.
 The syntax of this config file is similar to the config file of the famous
 I<Apache> webserver. Each line contains either an option (a key and a list of
 one or more values) or a section-start or -end. Empty lines and everything
-after a non-quoted hash-symbol (C<#>) is ignored. I<Keys> are unquoted
+after a non-quoted hash-symbol (C<#>) are ignored. I<Keys> are unquoted
 strings, consisting only of alphanumeric characters and the underscore (C<_>)
 character. Keys are handled case insensitive by I<collectd> itself and all
 plugins included with it. I<Values> can either be an I<unquoted string>, a
@@ -70,7 +70,7 @@ C<E<lt>B<Plugin> ...E<gt>> block.
 
 =item B<BaseDir> I<Directory>
 
-Sets the base directory. This is the directory beneath all RRD-files are
+Sets the base directory. This is the directory beneath which all RRD-files are
 created. Possibly more subdirectories are created. This is also the working
 directory for the daemon.
 
@@ -83,7 +83,7 @@ I<collectd> will be mostly useless.
 Only the first B<LoadPlugin> statement or block for a given plugin name has any
 effect. This is useful when you want to split up the configuration into smaller
 files and want each file to be "self contained", i.e. it contains a B<Plugin>
-block I<and> then appropriate B<LoadPlugin> statement. The downside is that if
+block I<and> the appropriate B<LoadPlugin> statement. The downside is that if
 you have multiple conflicting B<LoadPlugin> blocks, e.g. when they specify
 different intervals, only one of them (the first one encountered) will take
 effect and all others will be silently ignored.
@@ -127,13 +127,13 @@ the average user from ever having to deal with this low level linking stuff.
 =item B<Interval> I<Seconds>
 
 Sets a plugin-specific interval for collecting metrics. This overrides the
-global B<Interval> setting. If a plugin provides own support for specifying an
-interval, that setting will take precedence.
+global B<Interval> setting. If a plugin provides its own support for specifying
+an interval, that setting will take precedence.
 
 =item B<FlushInterval> I<Seconds>
 
-Specifies the the interval, in seconds, to call the flush callback if it's
-defined in this plugin. By default, this is disabled
+Specifies the interval, in seconds, to call the flush callback if it's
+defined in this plugin. By default, this is disabled.
 
 =item B<FlushTimeout> I<Seconds>
 
@@ -208,13 +208,11 @@ I<pattern> may be specified to filter which files to include. This may be used
 in combination with recursively including a directory to easily be able to
 arbitrarily mix configuration files and other documents (e.g. README files).
 The given example is similar to the first example above but includes all files
-matching C<*.conf> in any subdirectory of C</etc/collectd.d>:
-
-  Include "/etc/collectd.d" "*.conf"
+matching C<*.conf> in any subdirectory of C</etc/collectd.d>.
 
 =back
 
-If more than one files are included by a single B<Include> option, the files
+If more than one file is included by a single B<Include> option, the files
 will be included in lexicographical order (as defined by the C<strcmp>
 function). Thus, you can e.E<nbsp>g. use numbered prefixes to specify the
 order in which the files are loaded.
@@ -255,7 +253,7 @@ magic! (Assuming you're using the I<RRDtool> or I<RRDCacheD> plugin.)
 
 =item B<MaxReadInterval> I<Seconds>
 
-Read plugin doubles interval between queries after each failed attempt
+A read plugin doubles the interval between queries after each failed attempt
 to get data.
 
 This options limits the maximum value of the interval. The default value is
@@ -2531,7 +2529,7 @@ a more detailed description see B<IgnoreSelected> below.
 
 =item B<IgnoreSelected> I<true>|I<false>
 
-If no configuration if given, the B<traffic>-plugin will collect data from
+If no configuration if given, the B<interface>-plugin will collect data from
 all interfaces. This may not be practical, especially for loopback- and
 similar interfaces. Thus, you can use the B<Interface>-option to pick the
 interfaces you're interested in. Sometimes, however, it's easier/preferred
@@ -2559,8 +2557,8 @@ at least one digit.
 
 =item B<UniqueName> I<true>|I<false>
 
-Interface name is not unique on Solaris (KSTAT), interface name is unique 
-only within a module/instance. Following tuple is considered unique: 
+Interface name is not unique on Solaris (KSTAT), interface name is unique
+only within a module/instance. Following tuple is considered unique:
    (ks_module, ks_instance, ks_name)
 If this option is set to true, interface name contains above three fields
 separated by an underscore. For more info on KSTAT, visit
@@ -4737,12 +4735,12 @@ I<mandatory>.
 
 =item B<BindDN> I<BindDN>
 
-Name in the form of an LDAP distinguished name intended to be used for 
+Name in the form of an LDAP distinguished name intended to be used for
 authentication. Defaults to empty string to establish an anonymous authorization.
 
 =item B<Password> I<Password>
 
-Password for simple bind authentication. If this option is not set, 
+Password for simple bind authentication. If this option is not set,
 unauthenticated bind operation is used.
 
 =item B<StartTLS> B<true|false>
@@ -6150,6 +6148,12 @@ few ones. This option enables you to do that: By setting B<IgnoreSelected> to
 I<true> the effect of B<Sensor> is inverted: All selected sensors are ignored
 and all other sensors are collected.
 
+=item B<UseLabels> I<true>|I<false>
+
+Configures how sensor readings are reported. When set to I<true>, sensor
+readings are reported using their descriptive label (e.g. "VCore"). When set to
+I<false> (the default) the sensor name is used ("in0").
+
 =back
 
 =head2 Plugin C<sigrok>
@@ -6912,13 +6916,13 @@ fails or if you want to disable this feature.
 =item B<DigitalTemperatureSensor> I<true>|I<false>
 
 Boolean enabling the collection of the temperature of each core.
-This option should only be used if the automated detectionfails or 
+This option should only be used if the automated detectionfails or
 if you want to disable this feature.
 
 =item B<DigitalTemperatureSensor> I<true>|I<false>
 
 Boolean enabling the collection of the temperature of each package.
-This option should only be used if the automated detectionfails or 
+This option should only be used if the automated detectionfails or
 if you want to disable this feature.
 
 =item B<TCCActivationTemp> I<Temperature>
@@ -7577,6 +7581,12 @@ authentication.
 
 Password required to load the private key in B<ClientKey>.
 
+=item B<Header> I<Header>
+
+A HTTP header to add to the request.  Multiple headers are added if this option is specified more than once.  Example:
+
+  Header "X-Custom-Header: custom_value"
+
 =item B<SSLVersion> B<SSLv2>|B<SSLv3>|B<TLSv1>|B<TLSv1_0>|B<TLSv1_1>|B<TLSv1_2>
 
 Define which SSL protocol version must be used. By default C<libcurl> will
@@ -7863,10 +7873,25 @@ Hostname or address to connect to. Defaults to C<localhost>.
 
 Service name or port number to connect to. Defaults to C<5555>.
 
-=item B<Protocol> B<UDP>|B<TCP>
+=item B<Protocol> B<UDP>|B<TCP>|B<TLS>
 
 Specify the protocol to use when communicating with I<Riemann>. Defaults to
 B<TCP>.
+
+=item B<TLSCertFile> I<Path>
+
+When using the B<TLS> protocol, path to a PEM certificate to present
+to remote host.
+
+=item B<TLSCAFile> I<Path>
+
+When using the B<TLS> protocol, path to a PEM CA certificate to
+use to validate the remote hosts's identity.
+
+=item B<TLSKeyFile> I<Path>
+
+When using the B<TLS> protocol, path to a PEM private key associated
+with the certificate defined by B<TLSCertFile>.
 
 =item B<Batch> B<true>|B<false>
 
@@ -7886,6 +7911,11 @@ Defaults to true
 =item B<BatchMaxSize> I<size>
 
 Maximum payload size for a riemann packet. Defaults to 8192
+
+=item B<BatchFlushTimeout> I<seconds>
+
+Maximum amount of seconds to wait in between to batch flushes.
+No timeout by default.
 
 =item B<StoreRates> B<true>|B<false>
 
@@ -8052,6 +8082,14 @@ Consider the two given strings to be the key and value of an additional
 attribute for each metric being sent out to I<Sensu>.
 
 =back
+
+=head2 Plugin C<xencpu>
+
+This plugin collects metrics of hardware CPU load for machine running Xen
+hypervisor. Load is calculated from 'idle time' value, provided by Xen.
+Result is reported using the C<percent> type, for each CPU (core).
+
+This plugin doesn't have any options (yet).
 
 =head2 Plugin C<zookeeper>
 
@@ -8949,6 +8987,8 @@ Available options:
 =item B<PluginInstance> I<String>
 
 =item B<TypeInstance> I<String>
+
+=item B<MetaDataSet> I<String> I<String>
 
 Set the appropriate field to the given string. The strings for plugin instance
 and type instance may be empty, the strings for host and plugin may not be

@@ -399,7 +399,7 @@ static int start_thread (void) /* {{{ */
     pthread_mutex_unlock (&ping_lock);
     return (-1);
   }
-    
+
   pthread_mutex_unlock (&ping_lock);
   return (0);
 } /* }}} int start_thread */
@@ -483,7 +483,7 @@ static int ping_config (const char *key, const char *value) /* {{{ */
     hostlist_t *hl;
     char *host;
 
-    hl = (hostlist_t *) malloc (sizeof (hostlist_t));
+    hl = malloc (sizeof (*hl));
     if (hl == NULL)
     {
       char errbuf[1024];

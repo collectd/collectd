@@ -196,7 +196,7 @@ static int change_basedir (const char *orig_dir)
 	while ((dirlen > 0) && (dir[dirlen - 1] == '/'))
 		dir[--dirlen] = '\0';
 
-	if (dirlen <= 0) {
+	if (dirlen == 0) {
 		free (dir);
 		return (-1);
 	}
@@ -269,6 +269,7 @@ static void update_kstat (void)
 /* TODO
  * Remove all settings but `-f' and `-C'
  */
+__attribute__((noreturn))
 static void exit_usage (int status)
 {
 	printf ("Usage: "PACKAGE_NAME" [OPTIONS]\n\n"
@@ -422,7 +423,7 @@ static int pidfile_remove (void)
 #endif /* COLLECT_DAEMON */
 
 #ifdef KERNEL_LINUX
-int notify_upstart (void)
+static int notify_upstart (void)
 {
     char const *upstart_job = getenv("UPSTART_JOB");
 
@@ -442,7 +443,7 @@ int notify_upstart (void)
     return 1;
 }
 
-int notify_systemd (void)
+static int notify_systemd (void)
 {
     int                  fd;
     const char          *notifysocket;
@@ -518,7 +519,7 @@ int main (int argc, char **argv)
 	struct sigaction sig_term_action;
 	struct sigaction sig_usr1_action;
 	struct sigaction sig_pipe_action;
-	char *configfile = CONFIGFILE;
+	const char *configfile = CONFIGFILE;
 	int test_config  = 0;
 	int test_readall = 0;
 	const char *basedir;

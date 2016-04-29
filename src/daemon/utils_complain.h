@@ -66,6 +66,7 @@ typedef struct
  *   `c'      Identifier for the complaint.
  *   `format' Message format - see the documentation of printf(3).
  */
+__attribute__ ((format(printf,3,4)))
 void c_complain (int level, c_complain_t *c, const char *format, ...);
 
 /*
@@ -80,6 +81,7 @@ void c_complain (int level, c_complain_t *c, const char *format, ...);
  *
  *   See `c_complain' for further details and a description of the parameters.
  */
+__attribute__ ((format(printf,3,4)))
 void c_complain_once (int level, c_complain_t *c, const char *format, ...);
 
 /*
@@ -101,6 +103,7 @@ void c_complain_once (int level, c_complain_t *c, const char *format, ...);
  *
  *   See `c_complain' for a description of the parameters.
  */
+__attribute__ ((format(printf,3,4)))
 void c_do_release (int level, c_complain_t *c, const char *format, ...);
 #define c_release(level, c, ...) \
 	do { \

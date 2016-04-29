@@ -66,7 +66,7 @@ static char *email_subject = NULL;
 /* Callback to get username and password */
 static int authinteract (auth_client_request_t request, char **result,
     int fields, void __attribute__((unused)) *arg)
-{               
+{
   int i;
   for (i = 0; i < fields; i++)
   {
@@ -145,7 +145,7 @@ static int notify_email_init (void)
   if ( !smtp_auth_set_context (session, authctx)) {
     pthread_mutex_unlock (&session_lock);
     ERROR ("notify_email plugin: cannot set SMTP auth context");
-    return (-1);   
+    return (-1);
   }
 
   pthread_mutex_unlock (&session_lock);
@@ -176,7 +176,7 @@ static int notify_email_config (const char *key, const char *value)
   {
     char **tmp;
 
-    tmp = (char **) realloc ((void *) recipients, (recipients_len + 1) * sizeof (char *));
+    tmp = realloc (recipients, (recipients_len + 1) * sizeof (char *));
     if (tmp == NULL) {
       ERROR ("notify_email: realloc failed.");
       return (-1);
@@ -282,7 +282,7 @@ static int notify_email_notification (const notification_t *n,
   if (!(message = smtp_add_message (session))) {
     pthread_mutex_unlock (&session_lock);
     ERROR ("notify_email plugin: cannot set SMTP message");
-    return (-1);   
+    return (-1);
   }
   smtp_set_reverse_path (message, email_from);
   smtp_set_header (message, "To", NULL, NULL);
@@ -293,7 +293,6 @@ static int notify_email_notification (const notification_t *n,
 
   /* Initiate a connection to the SMTP server and transfer the message. */
   if (!smtp_start_session (session)) {
-    char buf[MAXSTRING];
     ERROR ("notify_email plugin: SMTP server problem: %s",
         smtp_strerror (smtp_errno (), buf, sizeof buf));
     pthread_mutex_unlock (&session_lock);

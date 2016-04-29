@@ -78,7 +78,7 @@ static int tt_config (const char *key, const char *value)
 	return (0);
 }
 
-static void printerr()
+static void printerr (void)
 {
 	int ecode = tcrdbecode(rdb);
 	ERROR ("tokyotyrant plugin: error: %d, %s",
@@ -106,8 +106,8 @@ static void tt_submit (gauge_t val, const char* type)
 
 static void tt_open_db (void)
 {
-	char* host = NULL;
-	int   port = DEFAULT_PORT;
+	const char *host;
+	int         port = DEFAULT_PORT;
 
 	if (rdb != NULL)
 		return;

@@ -213,7 +213,7 @@ static caddr_t ipc_get_info (cid_t cid, int cmd, int version, int stsize, int *n
 
   *nmemb = size / stsize;
 
-  buff = (caddr_t)malloc (size);
+  buff = malloc (size);
   if (buff == NULL)  {
     ERROR ("ipc plugin: ipc_get_info malloc failed.");
     return (NULL);
@@ -298,7 +298,7 @@ static int ipc_read_msg (void) /* {{{ */
     msg_alloc_queues++;
     msg_used_space += ipcinfo_msg[i].msg_cbytes;
     msg_qnum += ipcinfo_msg[i].msg_qnum;
-
+  }
   free(ipcinfo_msg);
 
   ipc_submit_g("msg", "count", "queues", msg_alloc_queues);

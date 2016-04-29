@@ -171,10 +171,9 @@ static int wr_config_node (oconfig_item_t *ci) /* {{{ */
   int status;
   int i;
 
-  node = malloc (sizeof (*node));
+  node = calloc (1, sizeof (*node));
   if (node == NULL)
     return (ENOMEM);
-  memset (node, 0, sizeof (*node));
   node->host = NULL;
   node->port = 0;
   node->timeout.tv_sec = 0;

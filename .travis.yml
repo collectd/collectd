@@ -7,6 +7,7 @@ language: c
 before_install:
   - sudo apt-get update -qq
   - sudo apt-get install -qq --no-install-recommends
+      iptables-dev
       libatasmart-dev
       libcap-dev
       libcurl4-gnutls-dev
@@ -52,4 +53,4 @@ before_install:
       perl
       protobuf-c-compiler
       python-dev
-script: sh build.sh && ./configure && make distcheck
+script: sh build.sh && ./configure --with-python=/usr/bin/python && make distcheck DISTCHECK_CONFIGURE_FLAGS="--with-python=/usr/bin/python"

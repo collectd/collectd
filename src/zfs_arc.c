@@ -71,7 +71,7 @@ static int put_zfs_value (kstat_t *ksp, char const *k, value_t v)
 	return 0;
 }
 
-static long long get_zfs_value(kstat_t *ksp, char *key)
+static long long get_zfs_value(kstat_t *ksp, const char *key)
 {
 	llentry_t *e;
 	value_t *v;
@@ -103,7 +103,7 @@ static void free_zfs_values (kstat_t *ksp)
 	llist_destroy (ksp);
 }
 
-#elif !defined(__FreeBSD__) // Solaris
+#elif defined(KERNEL_SOLARIS)
 extern kstat_ctl_t *kc;
 
 static long long get_zfs_value(kstat_t *ksp, char *name)
@@ -111,7 +111,7 @@ static long long get_zfs_value(kstat_t *ksp, char *name)
 
 	return (get_kstat_value(ksp, name));
 }
-#else // FreeBSD
+#elif defined(KERNEL_FREEBSD)
 #include <sys/types.h>
 #include <sys/sysctl.h>
 
@@ -219,7 +219,7 @@ static int za_read (void)
 	value_t  l2_io[2];
 	kstat_t	 *ksp	= NULL;
 
-#if KERNEL_LINUX
+#if defined(KERNEL_LINUX)
 	FILE *fh;
 	char buffer[1024];
 
@@ -259,7 +259,7 @@ static int za_read (void)
 
 	fclose (fh);
 
-#elif !defined(__FreeBSD__) // Solaris
+#elif defined(KERNEL_SOLARIS)
 	get_kstat (&ksp, "zfs", 0, "arcstats");
 	if (ksp == NULL)
 	{
@@ -269,10 +269,10 @@ static int za_read (void)
 #endif
 
 	/* Sizes */
-	za_read_gauge (ksp, "size",    "cache_size", "arc");
-	za_read_gauge (ksp, "c",    "cache_size", "c");
-	za_read_gauge (ksp, "c_min",    "cache_size", "c_min");
-	za_read_gauge (ksp, "c_max",    "cache_size", "c_max");
+	za_read_gauge (ksp, "size",  "cache_size", "arc");
+	za_read_gauge (ksp, "c",     "cache_size", "c");
+	za_read_gauge (ksp, "c_min", "cache_size", "c_min");
+	za_read_gauge (ksp, "c_max", "cache_size", "c_max");
 
 	/* The "l2_size" value has disappeared from Solaris some time in
 	 * early 2013, and has only reappeared recently in Solaris 11.2.
@@ -284,9 +284,12 @@ static int za_read (void)
 
 	/* Operations */
 	za_read_derive (ksp, "deleted",  "cache_operation", "deleted");
-#if __FreeBSD__
+#if defined(KERNEL_FREEBSD)
 	za_read_derive (ksp, "allocated","cache_operation", "allocated");
+#if __FreeBSD_version < 1002501
+	/* stolen removed from sysctl kstat.zfs.misc.arcstats on FreeBSD 10.2+ */
 	za_read_derive (ksp, "stolen",   "cache_operation", "stolen");
+#endif
 #endif
 
 	/* Issue indicators */
@@ -332,7 +335,7 @@ static int za_read (void)
 
 static int za_init (void) /* {{{ */
 {
-#if !defined(__FreeBSD__) && !defined(KERNEL_LINUX) // Solaris
+#if defined(KERNEL_SOLARIS)
 	/* kstats chain already opened by update_kstat (using *kc), verify everything went fine. */
 	if (kc == NULL)
 	{

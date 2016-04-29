@@ -151,7 +151,7 @@ static int us_open_socket (void)
 
 	do
 	{
-		char *grpname;
+		const char *grpname;
 		struct group *g;
 		struct group sg;
 		char grbuf[2048];
@@ -368,7 +368,7 @@ static void *us_server_thread (void __attribute__((unused)) *arg)
 			pthread_exit ((void *) 1);
 		}
 
-		remote_fd = (int *) malloc (sizeof (int));
+		remote_fd = malloc (sizeof (*remote_fd));
 		if (remote_fd == NULL)
 		{
 			char errbuf[1024];
