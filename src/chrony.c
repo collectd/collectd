@@ -1,8 +1,24 @@
-/* chrony plugin for collectd
-   (c) 2015 by Claudius M Zingerli, ZSeng
-   Internas roughly based on the ntpd plugin
-   Some functions copied from chronyd/web (marked)
-License: GPL2
+/* chrony plugin for collectd (monitoring of chrony time server daemon)
+ **********************************************************************
+ * Copyright (C) Claudius M Zingerli, ZSeng, 2015-2016 
+ *
+ * Internas roughly based on the ntpd plugin
+ * Some functions copied from chronyd/web (as marked)
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * 
+ **********************************************************************
 */
 /* TODO:
  *	- More robust udp parsing (using offsets instead of structs?)
@@ -287,8 +303,9 @@ typedef struct ATTRIB_PACKED
 /*****************************************************************************/
 /* Internal functions */
 /*****************************************************************************/
-/* Code adapted from: http://long.ccaba.upc.edu/long/045Guidelines/eva/ipv6.html#daytimeClient6 */
-/*BEGIN*/
+
+/* connect_client code adapted from: http://long.ccaba.upc.edu/long/045Guidelines/eva/ipv6.html#daytimeClient6 */
+/* License granted by Eva M Castro via e-mail on 2016-02-18 under the terms of GPLv3 */
 static int connect_client (const char *p_hostname,
 		const char *p_service,
 		int         p_family,
@@ -337,8 +354,9 @@ static int connect_client (const char *p_hostname,
 	return sockfd;
 }
 
-/*Code originally from: git://git.tuxfamily.org/gitroot/chrony/chrony.git:util.c */
-/*char * UTI_IPToString(IPAddr *addr)*/
+/* niptoha code originally from: git://git.tuxfamily.org/gitroot/chrony/chrony.git:util.c */
+/* Original code licensed as GPLv2, by Richard P. Purnow, Miroslav Lichvar */
+/* Original name: char * UTI_IPToString(IPAddr *addr)*/
 static char * niptoha(const tChrony_IPAddr *addr,char *p_buf, size_t p_buf_size)
 {
 	int rc=1;
@@ -602,19 +620,19 @@ static void chrony_init_req(tChrony_Request *p_req)
 	p_req->header.f_dummy3  = 0;
 }
 
-/* Code from: git://git.tuxfamily.org/gitroot/chrony/chrony.git:util.c (GPLv2) */
-/*BEGIN*/
+/* ntohf code originally from: git://git.tuxfamily.org/gitroot/chrony/chrony.git:util.c */
+/* Original code licensed as GPLv2, by Richard P. Purnow, Miroslav Lichvar */
+/* Original name: double UTI_tFloatNetworkToHost(tFloat f) */
+static double ntohf(tFloat p_float)
+{
+	/* Convert tFloat in Network-bit-order to double in host-bit-order */
+
 #define FLOAT_EXP_BITS 7
 #define FLOAT_EXP_MIN (-(1 << (FLOAT_EXP_BITS - 1)))
 #define FLOAT_EXP_MAX (-FLOAT_EXP_MIN - 1)
 #define FLOAT_COEF_BITS ((int)sizeof (int32_t) * 8 - FLOAT_EXP_BITS)
 #define FLOAT_COEF_MIN (-(1 << (FLOAT_COEF_BITS - 1)))
 #define FLOAT_COEF_MAX (-FLOAT_COEF_MIN - 1)
-
-/* double UTI_tFloatNetworkToHost(tFloat f) */
-static double ntohf(tFloat p_float)
-{
-	/* Convert tFloat in Network-bit-order to double in host-bit-order */
 
 	int32_t exp, coef;
 	uint32_t uval;
@@ -634,7 +652,6 @@ static double ntohf(tFloat p_float)
 	}
 	return coef * pow(2.0, exp);
 }
-/*END*/
 
 static void chrony_push_data(char *p_type, char *p_type_inst, double p_value)
 {
