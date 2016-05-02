@@ -136,7 +136,7 @@ static void dpdk_config_init_default(void)
 
 static int dpdk_config(oconfig_item_t *ci)
 {
-  int i = 0, ret = 0;
+  int i = 0;
 
   /* Initialize a POSIX SHared Memory (SHM) object. */
   int err = dpdk_shm_init(sizeof(dpdk_config_t));
@@ -287,7 +287,6 @@ static int dpdk_re_init_shm()
 
 static int dpdk_init (void)
 {
-  int ret = 0;
   int err = dpdk_shm_init(sizeof(dpdk_config_t));
   if (err)
     ERROR("dpdkstat: %s : error %d in shm_init()", __func__, err);
@@ -346,7 +345,7 @@ static int dpdk_helper_spawn(enum DPDK_HELPER_ACTION action)
   int pipe1_flags = fcntl(g_configuration->helper_pipes[0], F_GETFL, 0);
   int p1err = fcntl(g_configuration->helper_pipes[1], F_SETFL, pipe1_flags | O_NONBLOCK);
   int p2err = fcntl(g_configuration->helper_pipes[0], F_SETFL, pipe0_flags | O_NONBLOCK);
-  if (pipe0_flags == -1 || pipe1_flags == -1 || p1err = -1 || p2err == -1) {
+  if (pipe0_flags == -1 || pipe1_flags == -1 || p1err == -1 || p2err == -1) {
     ERROR("dpdkstat: error setting up pipes: %s\n", strerror(errno));
   }
 
@@ -615,7 +614,7 @@ static int dpdk_read (user_data_t *ud)
     xstats += count; /* pointer arithmetic to jump to each stats struct */
     for (int j = 0; j < len; j++) {
       value_t dpdkstat_values[1];
-      value_list_t dpdkstat_vl = VALUE_LIST_INIT
+      value_list_t dpdkstat_vl = VALUE_LIST_INIT;
 
       dpdkstat_values[0].counter = xstats[j].value;
       dpdkstat_vl.values = dpdkstat_values;
