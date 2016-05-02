@@ -2051,9 +2051,6 @@ static int ps_read (void)
 			pse.io_syscr = -1;
 			pse.io_syscw = -1;
 
-			pse.cswitch_vol = -1;
-			pse.cswitch_invol = -1;
-
 			ps_list_add (procs[i].p_comm, have_cmdline ? cmdline : NULL, &pse);
 
 			switch (procs[i].p_stat)
@@ -2295,9 +2292,6 @@ static int ps_read (void)
 		pse.io_wchar = ps.io_wchar;
 		pse.io_syscr = ps.io_syscr;
 		pse.io_syscw = ps.io_syscw;
-
-		pse.cswitch_vol = -1;
-		pse.cswitch_invol = -1;
 
 		switch (state)
 		{
