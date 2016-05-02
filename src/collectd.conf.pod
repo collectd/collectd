@@ -2364,7 +2364,7 @@ B<Options:>
 
 =item B<Interval> I<seconds>
 
-The interval within which to retreive stats in seconds. For milliseconds simple
+The interval within which to retrieve stats in seconds. For milliseconds simple
 divide the time by 1000 for example if the desired interval is 50ms, set
 interval to 0.05.
 
