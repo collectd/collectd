@@ -373,8 +373,8 @@ if BUILD_PLUGIN_DPDKSTAT
 pkglib_LTLIBRARIES += dpdkstat.la
 dpdkstat_la_SOURCES = dpdkstat.c
 dpdkstat_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_DPDK_CFLAGS)
-dpdkstat_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_DPDK_LDFLAGS) $(BUILD_WITH_DPDK_LIBS)
-dpdkstat_la_LIBADD = -ldl -lpthread -lrt -lm
+dpdkstat_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_DPDK_LDFLAGS)
+dpdkstat_la_LIBADD = $(BUILD_WITH_DPDK_LIBS) 
 endif
 
 if BUILD_PLUGIN_DRBD

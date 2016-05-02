@@ -2414,7 +2414,7 @@ fi
 # --with-libdpdk {{{
 AC_ARG_WITH(libdpdk, [AS_HELP_STRING([--with-libdpdk@<:@=PREFIX@:>@], [Path to the DPDK build directory.])],
 [
-  if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
 	then
 		with_dpdk_path="$withval"
 		with_libdpdk="yes"
@@ -2432,18 +2432,14 @@ then
 	DPDK_INCLUDE="$RTE_BUILD/include/dpdk"
 	DPDK_LIB_DIR="$RTE_BUILD/lib"
 	DPDK_LIB="-ldpdk"
-	DPDK_EXTRA_LIB="-ldl -lpthread -lrt -lm"
 
 	SAVE_CFLAGS="$CFLAGS"
 	SAVE_LDFLAGS="$LDFLAGS"
 	LDFLAGS="$LDFLAGS -L$DPDK_LIB_DIR"
-	CFLAGS="$CFLAGS -I$DPDK_INCLUDE -fpic"
+	CFLAGS="$CFLAGS -I$DPDK_INCLUDE"
 	FOUND_DPDK=false
 	SAVE_LIBS="$LIBS"
-	LIBS="$LIBS $DPDK_LIB $DPDK_EXTRA_LIB"
-	AC_CHECK_LIB(dpdk, rte_eal_init,
-                     [with_libdpdk="yes"],
-                     [with_libdpdk="no"])
+	LIBS="$LIBS $DPDK_LIB"
 	AC_LINK_IFELSE(
 		[AC_LANG_PROGRAM(
 [[
@@ -2460,17 +2456,17 @@ rte_eal_init(rte_argc, rte_argv);
 	CFLAGS="$SAVE_CFLAGS"
 	LDFLAGS="$SAVE_LDFLAGS"
 	LIBS="$SAVE_LIBS"
-	if $FOUND_DPDK; then :; else
-		AC_MSG_ERROR([cannot link with dpdk])
+	if test "x$FOUND_DPDK" != "xtrue"
+        then
+	    AC_MSG_ERROR([cannot link with dpdk])
 	fi
 	DPDK_LDFLAGS="-ldpdk"
-	BUILD_WITH_DPDK_CFLAGS="-I$DPDK_INCLUDE -fPIC"
+	BUILD_WITH_DPDK_CFLAGS="-I$DPDK_INCLUDE"
 	BUILD_WITH_DPDK_LDFLAGS="-L$DPDK_LIB_DIR"
-	BUILD_WITH_DPDK_LIBS="$DPDK_LDFLAGS -ldl -lpthread -lrt -lm"
+	BUILD_WITH_DPDK_LIBS="$DPDK_LDFLAGS"
 	AC_SUBST(BUILD_WITH_DPDK_CFLAGS)
 	AC_SUBST(BUILD_WITH_DPDK_LDFLAGS)
 	AC_SUBST(BUILD_WITH_DPDK_LIBS)
-	AC_DEFINE_UNQUOTED(DPDK, [1], [System uses DPDK.])
 fi
 # }}}
 
@@ -6358,13 +6354,13 @@ AC_MSG_RESULT([    PROTOC  . . . . . . . $PROTOC])
 AC_MSG_RESULT([    YACC  . . . . . . . . $YACC])
 AC_MSG_RESULT([    YFLAGS  . . . . . . . $YFLAGS])
 AC_MSG_RESULT()
-    dpdk  . . . . . . . . $with_libdpdk
 AC_MSG_RESULT([  Libraries:])
 AC_MSG_RESULT([    intel mic . . . . . . $with_mic])
 AC_MSG_RESULT([    libaquaero5 . . . . . $with_libaquaero5])
 AC_MSG_RESULT([    libatasmart . . . . . $with_libatasmart])
 AC_MSG_RESULT([    libcurl . . . . . . . $with_libcurl])
 AC_MSG_RESULT([    libdbi  . . . . . . . $with_libdbi])
+    libdpdk . . . . . . . $with_libdpdk
 AC_MSG_RESULT([    libesmtp  . . . . . . $with_libesmtp])
 AC_MSG_RESULT([    libganglia  . . . . . $with_libganglia])
 AC_MSG_RESULT([    libgcrypt . . . . . . $with_libgcrypt])
