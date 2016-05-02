@@ -240,10 +240,10 @@ void plugin_set_dir (const char *dir);
  */
 int plugin_load (const char *name, uint32_t flags);
 
-void plugin_init_all (void);
+int plugin_init_all (void);
 void plugin_read_all (void);
 int plugin_read_all_once (void);
-void plugin_shutdown_all (void);
+int plugin_shutdown_all (void);
 
 /*
  * NAME
