@@ -1068,7 +1068,7 @@ Configure collectd with DPDK:
 
        Libraries:
        ...
-       dpdk  . . . . . . . . yes
+       libdpdk  . . . . . . . . yes
 
        Modules:
        ...

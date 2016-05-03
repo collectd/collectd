@@ -113,7 +113,7 @@ static int dpdk_config(oconfig_item_t *ci);
 static int dpdk_helper_init_eal(void);
 static int dpdk_helper_run(void);
 static int dpdk_helper_spawn(enum DPDK_HELPER_ACTION action);
-static int dpdk_init (void);
+static int dpdk_init(void);
 static int dpdk_read(user_data_t *ud);
 static int dpdk_shm_cleanup(void);
 static int dpdk_shm_init(size_t size);
