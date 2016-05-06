@@ -29,6 +29,14 @@ package collectd.types;
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
+message Identifier {
+	string host = 1;
+	string plugin = 2;
+	string plugin_instance = 3;
+	string type = 4;
+	string type_instance = 5;
+}
+
 message Value {
 	oneof value {
 		uint64 counter = 1;
@@ -44,9 +52,5 @@ message ValueList {
 	google.protobuf.Timestamp time = 2;
 	google.protobuf.Duration interval = 3;
 
-	string host = 4;
-	string plugin = 5;
-	string plugin_instance = 6;
-	string type = 7;
-	string type_instance = 8;
+	Identifier identifier = 4;
 }
