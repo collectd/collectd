@@ -88,12 +88,10 @@ static grpc::Status unmarshal_value_list(const collectd::types::ValueList &msg, 
 	sstrncpy(vl->type, s.c_str(), sizeof(vl->type));
 
 	s = msg.plugin_instance();
-	if (s.length())
-		sstrncpy(vl->plugin_instance, s.c_str(), sizeof(vl->plugin_instance));
+	sstrncpy(vl->plugin_instance, s.c_str(), sizeof(vl->plugin_instance));
 
 	s = msg.type_instance();
-	if (s.length())
-		sstrncpy(vl->type_instance, s.c_str(), sizeof(vl->type_instance));
+	sstrncpy(vl->type_instance, s.c_str(), sizeof(vl->type_instance));
 
 	value_t *values = NULL;
 	size_t values_len = 0;
@@ -126,7 +124,7 @@ static grpc::Status unmarshal_value_list(const collectd::types::ValueList &msg, 
 			break;
 		default:
 			status = grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
-					grpc::string("unkown value type"));
+					grpc::string("unknown value type"));
 			break;
 		}
 
