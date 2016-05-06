@@ -27,6 +27,8 @@
 #include <grpc++/grpc++.h>
 #include <google/protobuf/util/time_util.h>
 
+#include <vector>
+
 #include "collectd.grpc.pb.h"
 
 extern "C" {
@@ -40,14 +42,6 @@ extern "C" {
 #include "plugin.h"
 
 #include "daemon/utils_cache.h"
-
-	typedef struct {
-		char *addr;
-		char *port;
-	} listener_t;
-
-	static listener_t *listeners;
-	static size_t listeners_num;
 }
 
 using collectd::Collectd;
@@ -58,6 +52,17 @@ using collectd::QueryValuesRequest;
 using collectd::QueryValuesReply;
 
 using google::protobuf::util::TimeUtil;
+
+/*
+ * private types
+ */
+
+struct Listener {
+	grpc::string addr;
+	grpc::string port;
+};
+static std::vector<Listener> listeners;
+static grpc::string default_addr("0.0.0.0:50051");
 
 /*
  * helper functions
@@ -390,17 +395,13 @@ public:
 
 		grpc::ServerBuilder builder;
 
-		if (!listeners_num) {
-			std::string default_addr("0.0.0.0:50051");
+		if (listeners.empty()) {
 			builder.AddListeningPort(default_addr, auth);
 			INFO("grpc: Listening on %s", default_addr.c_str());
 		}
 		else {
-			size_t i;
-			for (i = 0; i < listeners_num; i++) {
-				auto l = listeners[i];
-				std::string addr(l.addr);
-				addr += std::string(":") + std::string(l.port);
+			for (auto l : listeners) {
+				grpc::string addr = l.addr + ":" + l.port;
 				builder.AddListeningPort(addr, auth);
 				INFO("grpc: Listening on %s", addr.c_str());
 			}
@@ -466,9 +467,6 @@ extern "C" {
 
 	static int c_grpc_config_listen(oconfig_item_t *ci)
 	{
-		listener_t *listener;
-		int i;
-
 		if ((ci->values_num != 2)
 				|| (ci->values[0].type != OCONFIG_TYPE_STRING)
 				|| (ci->values[1].type != OCONFIG_TYPE_STRING)) {
@@ -477,20 +475,12 @@ extern "C" {
 			return -1;
 		}
 
-		listener = (listener_t *)realloc(listeners,
-				(listeners_num + 1) * sizeof(*listeners));
-		if (!listener) {
-			ERROR("grpc: Failed to allocate listeners");
-			return -1;
-		}
-		listeners = listener;
-		listener = listeners + listeners_num;
-		listeners_num++;
+		auto listener = Listener();
+		listener.addr = grpc::string(ci->values[0].value.string);
+		listener.port = grpc::string(ci->values[1].value.string);
+		listeners.push_back(listener);
 
-		listener->addr = strdup(ci->values[0].value.string);
-		listener->port = strdup(ci->values[1].value.string);
-
-		for (i = 0; i < ci->children_num; i++) {
+		for (int i = 0; i < ci->children_num; i++) {
 			oconfig_item_t *child = ci->children + i;
 			WARNING("grpc: Option `%s` not allowed in <%s> block.",
 					child->key, ci->key);
