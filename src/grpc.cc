@@ -438,7 +438,7 @@ extern "C" {
 
 		server->Start();
 		for (i = 0; i < workers_num; i++) {
-			pthread_create(&workers[i], /* attr = */ NULL,
+			plugin_thread_create(&workers[i], /* attr = */ NULL,
 					worker_thread, server);
 		}
 		INFO("grpc: Started %zu workers", workers_num);
