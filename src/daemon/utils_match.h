@@ -94,11 +94,13 @@ typedef struct cu_match_value_s cu_match_value_t;
  *  callback.
  *  The optional `excluderegex' allows to exclude the line from the match, if
  *  the excluderegex matches.
+ *  When `match_destroy' is called the `user_data' pointer is freed using
+ *  the `free_user_data' callback - if it is not NULL.
  */
 cu_match_t *match_create_callback (const char *regex, const char *excluderegex,
 		int (*callback) (const char *str,
 		  char * const *matches, size_t matches_num, void *user_data),
-		void *user_data);
+		void *user_data, void (*free_user_data) (void *user_data));
 
 /*
  * NAME
