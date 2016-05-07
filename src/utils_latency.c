@@ -294,4 +294,131 @@ cdtime_t latency_counter_get_percentile (latency_counter_t *lc, /* {{{ */
   return (latency_interpolated);
 } /* }}} cdtime_t latency_counter_get_percentile */
 
+cdtime_t latency_counter_get_start_time (const latency_counter_t *lc) /* {{{ */
+{
+  if (lc == NULL)
+    return (0);
+
+  return lc->start_time;
+} /* }}} cdtime_t latency_counter_get_start_time */
+
+double latency_counter_get_rate (const latency_counter_t *lc, /* {{{ */
+        const cdtime_t lower, cdtime_t upper, const cdtime_t now)
+{
+  cdtime_t lower_bin;
+  cdtime_t upper_bin;
+  double p;
+  double sum = 0;
+  size_t i;
+
+  if ((lc == NULL) || (lc->num == 0))
+    return (0);
+
+  if (lower < 1) {
+    //sum += lc->zero;
+    //lower = 1;
+    return (0);
+  }
+
+  if (upper && (upper < lower))
+    return (0);
+
+  /* A latency of _exactly_ 1.0 ms should be stored in the buffer 0 */
+  lower_bin = (lower - 1) / lc->bin_width;
+
+  if (upper)
+    upper_bin = (upper - 1) / lc->bin_width;
+  else
+    upper_bin = HISTOGRAM_NUM_BINS - 1;
+
+  if (lower_bin >= HISTOGRAM_NUM_BINS)
+    lower_bin = HISTOGRAM_NUM_BINS - 1;
+
+  if (upper_bin >= HISTOGRAM_NUM_BINS) {
+    upper_bin = HISTOGRAM_NUM_BINS - 1;
+    upper = 0;
+  }
+
+  ERROR("get_rate (%.3f, %.3f): bin_width = %.3f; "
+      "lower_bin = %"PRIu64" (%.3f); upper_bin = %"PRIu64" (%.3f);",
+      CDTIME_T_TO_DOUBLE (lower),
+      CDTIME_T_TO_DOUBLE (upper),
+      CDTIME_T_TO_DOUBLE (lc->bin_width),
+      lower_bin,
+      CDTIME_T_TO_DOUBLE (lc->bin_width * lower_bin),
+      upper_bin,
+      CDTIME_T_TO_DOUBLE (lc->bin_width * upper_bin)
+  );
+
+  sum = 0;
+  for (i = lower_bin; i <= upper_bin; i++)
+  {
+    ERROR("SUMM, bin: %d (%.3f), v: %d", i, CDTIME_T_TO_DOUBLE(i * lc->bin_width), lc->histogram[i]);
+    sum += lc->histogram[i];
+  }
+  ERROR("sum before interpolations: %.3f", sum);
+
+  //v1//p = ((double)lower - (double)(lower_bin + 1) * (double)lc->bin_width) / (double)lc->bin_width;
+  p = ((double)lower - (double)(lower_bin + 0) * (double)lc->bin_width - (double)DOUBLE_TO_CDTIME_T(0.001)) / (double)lc->bin_width;
+  ERROR("interpolation 1: p=%lf, 1=%"PRIu64" (%.3f), 2=%"PRIu64" (%.3f), 3=%"PRIu64" (%.3f); lower_bin: %"PRIu64"",
+     p,
+     //1
+     lower - DOUBLE_TO_CDTIME_T(0.001),
+     CDTIME_T_TO_DOUBLE (lower - (double)DOUBLE_TO_CDTIME_T(0.001)),
+     //2
+     (lower_bin + 0) * lc->bin_width,
+     CDTIME_T_TO_DOUBLE ((lower_bin + 0) * lc->bin_width),
+     //3
+     lc->bin_width,
+     CDTIME_T_TO_DOUBLE (lc->bin_width),
+     lower_bin
+  );
+  sum -= p * lc->histogram[lower_bin];
+/*
+  if (upper && upper_bin == lower_bin) {
+    //p = ((double)(upper_bin + 1) * (double)lc->bin_width - (double)upper) / (double)lc->bin_width;
+    p = (double)(upper_bin + 1) - (double)upper / (double)lc->bin_width;
+    ERROR("interpolation 2: p=%lf, 1=%"PRIu64" (%.3f), 2=%"PRIu64" (%.3f), 3=%.3f (%.3f); upper_bin: %"PRIu64"",
+       p,
+       //1
+       (upper_bin + 1) * lc->bin_width,
+       CDTIME_T_TO_DOUBLE ((upper_bin + 1) * lc->bin_width),
+       //2
+       upper,
+       CDTIME_T_TO_DOUBLE (upper),
+       //3
+       (double)lc->bin_width,
+       CDTIME_T_TO_DOUBLE (lc->bin_width),
+       upper_bin
+    );
+    sum -= p * lc->histogram[upper_bin];
+  }
+  else 
+  */
+  if (upper && upper < (upper_bin + 1) * lc->bin_width)
+  {
+    // p = ((upper_bin + 1) * bin_width - upper ) / bin_width;
+
+    //p = ((double)upper - (double)(upper_bin + 0) * (double)lc->bin_width) / (double)lc->bin_width;
+    p = ((double)(upper_bin + 1) * (double)lc->bin_width - (double)upper) / (double)lc->bin_width;
+    ERROR("interpolation 3: p=%lf, 1=%"PRIu64" (%.3f), 2=%"PRIu64" (%.3f), 3=%"PRIu64" (%.3f); upper_bin: %"PRIu64"",
+       p,
+       //1
+       (upper_bin + 1) * lc->bin_width,
+       CDTIME_T_TO_DOUBLE ((upper_bin + 1) * lc->bin_width),
+       //2
+       upper,
+       CDTIME_T_TO_DOUBLE (upper),
+       //3
+       lc->bin_width,
+       CDTIME_T_TO_DOUBLE (lc->bin_width),
+       upper_bin
+    );
+    sum -= p * lc->histogram[upper_bin];
+  }
+  return sum / (CDTIME_T_TO_DOUBLE (now - lc->start_time));
+
+} /* }}} double latency_counter_get_rate */
+
+
 /* vim: set sw=2 sts=2 et fdm=marker : */
