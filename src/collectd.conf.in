@@ -559,7 +559,12 @@
 
 #<Plugin grpc>
 #	WorkerThreads 5
-#	Listen "0.0.0.0" "50051"
+#	<Listen "0.0.0.0" "50051">
+#		EnableSSL true
+#		SSLRootCerts "/path/to/root.pem"
+#		SSLServerCert "/path/to/server.pem"
+#		SSLServerKey "/path/to/server.key"
+#	</Listen>
 #</Plugin>
 
 #<Plugin hddtemp>
