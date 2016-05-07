@@ -433,8 +433,8 @@ endif
 
 if BUILD_PLUGIN_GRPC
 pkglib_LTLIBRARIES += grpc.la
-grpc_la_SOURCES = grpc.cc \
-		collectd.grpc.pb.cc collectd.pb.cc types.pb.cc
+grpc_la_SOURCES = grpc.cc
+nodist_grpc_la_SOURCES = collectd.grpc.pb.cc collectd.pb.cc types.pb.cc
 grpc_la_CPPFLAGS = $(AM_CPPFLAGS) -std=c++11
 grpc_la_CFLAGS = $(AM_CFLAGS)
 grpc_la_CXXFLAGS = $(AM_CXXFLAGS) -std=c++11
