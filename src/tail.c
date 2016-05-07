@@ -29,6 +29,7 @@
 #include "common.h"
 #include "plugin.h"
 #include "utils_tail_match.h"
+#include "utils_latency_config.h"
 
 /*
  *  <Plugin tail>
@@ -54,6 +55,7 @@ struct ctail_config_match_s
   char *type;
   char *type_instance;
   cdtime_t interval;
+  latency_config_t latency;
 };
 typedef struct ctail_config_match_s ctail_config_match_t;
 
@@ -89,6 +91,11 @@ static int ctail_config_add_match_dstype (ctail_config_match_t *cm,
       cm->flags |= UTILS_MATCH_CF_GAUGE_PERSIST;
     else
       cm->flags = 0;
+  }
+  else if (strcasecmp ("Latency", ci->values[0].value.string) == 0)
+  {
+    cm->flags = UTILS_MATCH_DS_TYPE_GAUGE;
+    cm->flags |= UTILS_MATCH_CF_GAUGE_LATENCY;
   }
   else if (strncasecmp ("Counter", ci->values[0].value.string, strlen ("Counter")) == 0)
   {
@@ -163,6 +170,28 @@ static int ctail_config_add_match (cu_tail_match_t *tm,
       status = cf_util_get_string (option, &cm.type);
     else if (strcasecmp ("Instance", option->key) == 0)
       status = cf_util_get_string (option, &cm.type_instance);
+    else if (strncasecmp ("Latency", option->key, strlen ("Latency")) == 0)
+    {
+      if (strcasecmp ("LatencyPercentile", option->key) == 0)
+        status = latency_config_add_percentile ("tail", &cm.latency, option);
+      else if (strcasecmp ("LatencyPercentileType", option->key) == 0)
+        status = cf_util_get_string (option, &cm.latency.percentile_type);
+      else if (strcasecmp ("LatencyRate", option->key) == 0)
+        status = latency_config_add_rate ("tail", &cm.latency, option);
+      else if (strcasecmp ("LatencyRateType", option->key) == 0)
+        status = cf_util_get_string (option, &cm.latency.rates_type);
+      else if (strcasecmp ("LatencyLower", option->key) == 0)
+        status = cf_util_get_boolean (option, &cm.latency.lower);
+      else if (strcasecmp ("LatencyUpper", option->key) == 0)
+        status = cf_util_get_boolean (option, &cm.latency.upper);
+      else if (strcasecmp ("LatencyAvg", option->key) == 0)
+        status = cf_util_get_boolean (option, &cm.latency.avg);
+      else 
+      {
+        WARNING ("tail plugin: Option `%s' not allowed here.", option->key);
+        status = -1;
+      }
+    }
     else
     {
       WARNING ("tail plugin: Option `%s' not allowed here.", option->key);
@@ -196,13 +225,35 @@ static int ctail_config_add_match (cu_tail_match_t *tm,
       break;
     }
 
+    if ((cm.flags & UTILS_MATCH_DS_TYPE_GAUGE)
+        && (cm.flags & UTILS_MATCH_CF_GAUGE_LATENCY))
+    {
+
+      if (cm.type_instance != NULL)
+      {
+        WARNING ("tail plugin: `DSType Latency' and `Instance %s' in `Match' "
+                 "block could not be used together.", cm.type_instance);
+        status = -1;
+        break;
+      }
+
+      if (cm.latency.percentile_num == 0 && cm.latency.rates_num == 0)
+      {
+        WARNING ("tail plugin: `Match' with `DSType Latency' has no "
+                 "`LatencyPercentile' or `LatencyRate' options.");
+        status = -1;
+        break;
+      }
+    }
+
     break;
   } /* while (status == 0) */
 
   if (status == 0)
   {
     status = tail_match_add_match_simple (tm, cm.regex, cm.excluderegex,
-	cm.flags, "tail", plugin_instance, cm.type, cm.type_instance, interval);
+      cm.flags, "tail", plugin_instance, cm.type, cm.type_instance,
+      cm.latency, interval);
 
     if (status != 0)
     {
@@ -214,6 +265,7 @@ static int ctail_config_add_match (cu_tail_match_t *tm,
   sfree (cm.excluderegex);
   sfree (cm.type);
   sfree (cm.type_instance);
+  latency_config_free(cm.latency);
 
   return (status);
 } /* int ctail_config_add_match */

@@ -1272,6 +1272,26 @@
 #      Instance "local_user"
 #    </Match>
 #  </File>
+#  <File "/var/log/nginx/apache-time.log">
+#    #Use the following log format in nginx:
+#    #log_format response_time '[$host] "$upstream_response_time" ...'
+#    Instance "apache"
+#    <Match>
+#      Regex "^\\S+ \"([0-9.]+)\""
+#      DSType "Latency"
+#      Type "response_time"
+#      #LatencyPercentileType "percentile"
+#      LatencyPercentile 5
+#      LatencyPercentile 30
+#      LatencyPercentile 50
+#      LatencyPercentile 70
+#      LatencyPercentile 95
+#      LatencyRateType "requests"
+#      LatencyRate 0.001 0.100
+#      LatencyRate 0.101 0.200
+#      LatencyRate 0.201 0
+#    </Match>
+#  </File>
 #</Plugin>
 
 #<Plugin tail_csv>

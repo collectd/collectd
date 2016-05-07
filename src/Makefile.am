@@ -52,7 +52,8 @@ test_format_json_LDADD = libformat_json.la daemon/libmetadata.la daemon/libplugi
 endif
 
 noinst_LTLIBRARIES += liblatency.la
-liblatency_la_SOURCES = utils_latency.c utils_latency.h
+liblatency_la_SOURCES = utils_latency.c utils_latency.h utils_latency_config.c utils_latency_config.h
+liblatency_la_LIBADD = daemon/libcommon.la
 check_PROGRAMS += test_utils_latency
 TESTS += test_utils_latency
 test_utils_latency_SOURCES = utils_latency_test.c testing.h
@@ -1115,6 +1116,7 @@ if BUILD_PLUGIN_TAIL
 pkglib_LTLIBRARIES += tail.la
 tail_la_SOURCES = tail.c
 tail_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+tail_la_LIBADD = liblatency.la
 endif
 
 if BUILD_PLUGIN_TAIL_CSV

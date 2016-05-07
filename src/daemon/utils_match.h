@@ -28,6 +28,8 @@
 #define UTILS_MATCH_H 1
 
 #include "plugin.h"
+#include "utils_latency.h"
+#include "utils_latency_config.h"
 
 /*
  * Each type may have 12 sub-types
@@ -47,6 +49,7 @@
 #define UTILS_MATCH_CF_GAUGE_INC     0x10
 #define UTILS_MATCH_CF_GAUGE_ADD     0x20
 #define UTILS_MATCH_CF_GAUGE_PERSIST 0x40
+#define UTILS_MATCH_CF_GAUGE_LATENCY 0x80
 
 #define UTILS_MATCH_CF_COUNTER_SET   0x01
 #define UTILS_MATCH_CF_COUNTER_ADD   0x02
@@ -71,6 +74,7 @@ struct cu_match_value_s
   int ds_type;
   value_t value;
   unsigned int values_num;
+  latency_counter_t *latency;
 };
 typedef struct cu_match_value_s cu_match_value_t;
 

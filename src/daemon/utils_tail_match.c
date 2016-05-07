@@ -36,6 +36,7 @@
 #include "utils_match.h"
 #include "utils_tail.h"
 #include "utils_tail_match.h"
+#include "utils_latency_config.h"
 
 struct cu_tail_match_simple_s
 {
@@ -44,6 +45,7 @@ struct cu_tail_match_simple_s
   char type[DATA_MAX_NAME_LEN];
   char type_instance[DATA_MAX_NAME_LEN];
   cdtime_t interval;
+  latency_config_t latency_config;
 };
 typedef struct cu_tail_match_simple_s cu_tail_match_simple_t;
 
@@ -102,6 +104,95 @@ static int simple_submit_match (cu_match_t *match, void *user_data)
   return (0);
 } /* int simple_submit_match */
 
+static int simple_submit_latency (cu_match_t *match, void *user_data)
+{
+  cu_tail_match_simple_t *data = (cu_tail_match_simple_t *) user_data;
+  cu_match_value_t *match_value;
+  value_list_t vl = VALUE_LIST_INIT;
+  value_t values[1];
+
+  match_value = (cu_match_value_t *) match_get_user_data (match);
+  if (match_value == NULL)
+    return (-1);
+
+  vl.values = values;
+  vl.values_len = 1;
+  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+  sstrncpy (vl.plugin, data->plugin, sizeof (vl.plugin));
+  sstrncpy (vl.plugin_instance, data->plugin_instance,
+      sizeof (vl.plugin_instance));
+  sstrncpy (vl.type, data->type, sizeof (vl.type));
+  vl.interval = data->interval;
+  vl.time = cdtime ();
+
+  if (data->latency_config.lower) {
+    ssnprintf (vl.type_instance, sizeof (vl.type_instance),
+        "lower");
+    values[0].gauge = (match_value->values_num != 0)
+      ? CDTIME_T_TO_DOUBLE (latency_counter_get_min (match_value->latency))
+      : NAN;
+    plugin_dispatch_values (&vl);
+  }
+
+  if (data->latency_config.avg) {
+    ssnprintf (vl.type_instance, sizeof (vl.type_instance),
+        "average");
+    values[0].gauge = (match_value->values_num != 0)
+      ? CDTIME_T_TO_DOUBLE (latency_counter_get_average (match_value->latency))
+      : NAN;
+    plugin_dispatch_values (&vl);
+  }
+
+  if (data->latency_config.upper) {
+    ssnprintf (vl.type_instance, sizeof (vl.type_instance),
+        "upper");
+    values[0].gauge = (match_value->values_num != 0)
+      ? CDTIME_T_TO_DOUBLE (latency_counter_get_max (match_value->latency))
+      : NAN;
+    plugin_dispatch_values (&vl);
+  }
+
+  size_t i;
+  /* Submit percentiles */
+  if (data->latency_config.percentile_type != NULL)
+    sstrncpy (vl.type, data->latency_config.percentile_type, sizeof (vl.type));
+  for (i = 0; i < data->latency_config.percentile_num; i++)
+  {
+    ssnprintf (vl.type_instance, sizeof (vl.type_instance),
+        "percentile-%.0f",  data->latency_config.percentile[i]);
+    values[0].gauge = (match_value->values_num != 0)
+      ? CDTIME_T_TO_DOUBLE (latency_counter_get_percentile (match_value->latency,
+                                            data->latency_config.percentile[i]))
+      : NAN;
+    plugin_dispatch_values (&vl);
+  }
+
+  /* Submit rates */
+  sstrncpy (vl.type, data->type, sizeof (vl.type));
+  if (data->latency_config.rates_type != NULL)
+    sstrncpy (vl.type, data->latency_config.rates_type, sizeof (vl.type));
+  for (i = 0; i < data->latency_config.rates_num; i++)
+  {
+    ssnprintf (vl.type_instance, sizeof (vl.type_instance),
+        "rate-%.3f-%.3f",
+        CDTIME_T_TO_DOUBLE(data->latency_config.rates[i * 2]),
+        CDTIME_T_TO_DOUBLE(data->latency_config.rates[i * 2 + 1]));
+    values[0].gauge = (match_value->values_num != 0) 
+      ? latency_counter_get_rate (match_value->latency,
+                                  data->latency_config.rates[i * 2],
+                                  data->latency_config.rates[i * 2 + 1],
+                                  vl.time)
+      : NAN;
+    plugin_dispatch_values (&vl);
+  }
+  latency_counter_reset (match_value->latency);
+
+  match_value->value.gauge = NAN;
+  match_value->values_num = 0;
+
+  return (0);
+} /* int simple_submit_latency */
+
 static int tail_callback (void *data, char *buf,
     int __attribute__((unused)) buflen)
 {
@@ -112,6 +203,13 @@ static int tail_callback (void *data, char *buf,
 
   return (0);
 } /* int tail_callback */
+
+static void tail_match_simple_free (void *data)
+{
+  cu_tail_match_simple_t *user_data = (cu_tail_match_simple_t *) data;
+  latency_config_free(user_data->latency_config);
+  sfree (user_data);
+} /* void tail_match_simple_free */
 
 /*
  * Public functions
@@ -193,7 +291,9 @@ int tail_match_add_match (cu_tail_match_t *obj, cu_match_t *match,
 int tail_match_add_match_simple (cu_tail_match_t *obj,
     const char *regex, const char *excluderegex, int ds_type,
     const char *plugin, const char *plugin_instance,
-    const char *type, const char *type_instance, const cdtime_t interval)
+    const char *type, const char *type_instance,
+    const latency_config_t latency_cfg,
+    const cdtime_t interval)
 {
   cu_match_t *match;
   cu_tail_match_simple_t *user_data;
@@ -222,13 +322,29 @@ int tail_match_add_match_simple (cu_tail_match_t *obj,
 
   user_data->interval = interval;
 
-  status = tail_match_add_match (obj, match, simple_submit_match,
-      user_data, free);
+  if ((ds_type & UTILS_MATCH_DS_TYPE_GAUGE)
+      && (ds_type & UTILS_MATCH_CF_GAUGE_LATENCY))
+  {
+    status = latency_config_copy(&user_data->latency_config, latency_cfg);
+    if (status != 0)
+    {
+      ERROR ("tail_match_add_match_simple: latency_config_copy() failed.");
+      status = -1;
+      goto out;
+    }
 
+    status = tail_match_add_match (obj, match, simple_submit_latency,
+      user_data, tail_match_simple_free);
+  } else {
+    status = tail_match_add_match (obj, match, simple_submit_match,
+      user_data, free);
+  }
+
+out:
   if (status != 0)
   {
+    tail_match_simple_free(user_data);
     match_destroy (match);
-    sfree (user_data);
   }
 
   return (status);
