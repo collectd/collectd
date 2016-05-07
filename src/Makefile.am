@@ -439,7 +439,7 @@ grpc_la_CPPFLAGS = $(AM_CPPFLAGS) -std=c++11
 grpc_la_CFLAGS = $(AM_CFLAGS)
 grpc_la_CXXFLAGS = $(AM_CXXFLAGS) -std=c++11
 grpc_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-grpc_la_LIBADD = -lgrpc++_unsecure -lgrpc -lgpr -lprotobuf -lpthread -ldl
+grpc_la_LIBADD = -lgrpc++ -lgrpc -lgpr -lprotobuf -lpthread -ldl
 endif
 
 if BUILD_PLUGIN_HDDTEMP

@@ -27,6 +27,8 @@
 #include <grpc++/grpc++.h>
 #include <google/protobuf/util/time_util.h>
 
+#include <fstream>
+#include <iostream>
 #include <vector>
 
 #include "collectd.grpc.pb.h"
@@ -60,6 +62,8 @@ using google::protobuf::util::TimeUtil;
 struct Listener {
 	grpc::string addr;
 	grpc::string port;
+
+	grpc::SslServerCredentialsOptions *ssl;
 };
 static std::vector<Listener> listeners;
 static grpc::string default_addr("0.0.0.0:50051");
@@ -85,6 +89,25 @@ static bool ident_matches(const value_list_t *vl, const value_list_t *matcher)
 
 	return true;
 } /* ident_matches */
+
+static grpc::string read_file(const char *filename)
+{
+	std::ifstream f;
+	grpc::string s, content;
+
+	f.open(filename);
+	if (!f.is_open()) {
+		ERROR("grpc: Failed to open '%s'", filename);
+		return "";
+	}
+
+	while (std::getline(f, s)) {
+		content += s;
+		content.push_back('\n');
+	}
+	f.close();
+	return content;
+} /* read_file */
 
 /*
  * proto conversion
@@ -390,7 +413,6 @@ class CollectdServer final
 public:
 	void Start()
 	{
-		// TODO: make configurable
 		auto auth = grpc::InsecureServerCredentials();
 
 		grpc::ServerBuilder builder;
@@ -402,8 +424,16 @@ public:
 		else {
 			for (auto l : listeners) {
 				grpc::string addr = l.addr + ":" + l.port;
-				builder.AddListeningPort(addr, auth);
-				INFO("grpc: Listening on %s", addr.c_str());
+
+				auto use_ssl = grpc::string("");
+				auto a = auth;
+				if (l.ssl != nullptr) {
+					use_ssl = grpc::string(" (SSL enabled)");
+					a = grpc::SslServerCredentials(*l.ssl);
+				}
+
+				builder.AddListeningPort(addr, a);
+				INFO("grpc: Listening on %s%s", addr.c_str(), use_ssl.c_str());
 			}
 		}
 
@@ -478,14 +508,62 @@ extern "C" {
 		auto listener = Listener();
 		listener.addr = grpc::string(ci->values[0].value.string);
 		listener.port = grpc::string(ci->values[1].value.string);
-		listeners.push_back(listener);
+		listener.ssl = nullptr;
+
+		auto ssl_opts = new(grpc::SslServerCredentialsOptions);
+		grpc::SslServerCredentialsOptions::PemKeyCertPair pkcp = {};
+		bool use_ssl = false;
 
 		for (int i = 0; i < ci->children_num; i++) {
 			oconfig_item_t *child = ci->children + i;
-			WARNING("grpc: Option `%s` not allowed in <%s> block.",
-					child->key, ci->key);
+
+			if (!strcasecmp("EnableSSL", child->key)) {
+				if (cf_util_get_boolean(child, &use_ssl)) {
+					ERROR("grpc: Option `%s` expects a boolean value",
+							child->key);
+					return -1;
+				}
+			}
+			else if (!strcasecmp("SSLRootCerts", child->key)) {
+				char *certs = NULL;
+				if (cf_util_get_string(child, &certs)) {
+					ERROR("grpc: Option `%s` expects a string value",
+							child->key);
+					return -1;
+				}
+				ssl_opts->pem_root_certs = read_file(certs);
+			}
+			else if (!strcasecmp("SSLServerKey", child->key)) {
+				char *key = NULL;
+				if (cf_util_get_string(child, &key)) {
+					ERROR("grpc: Option `%s` expects a string value",
+							child->key);
+					return -1;
+				}
+				pkcp.private_key = read_file(key);
+			}
+			else if (!strcasecmp("SSLServerCert", child->key)) {
+				char *cert = NULL;
+				if (cf_util_get_string(child, &cert)) {
+					ERROR("grpc: Option `%s` expects a string value",
+							child->key);
+					return -1;
+				}
+				pkcp.cert_chain = read_file(cert);
+			}
+			else {
+				WARNING("grpc: Option `%s` not allowed in <%s> block.",
+						child->key, ci->key);
+			}
 		}
 
+		ssl_opts->pem_key_cert_pairs.push_back(pkcp);
+		if (use_ssl)
+			listener.ssl = ssl_opts;
+		else
+			delete(ssl_opts);
+
+		listeners.push_back(listener);
 		return 0;
 	} /* c_grpc_config_listen() */
 
