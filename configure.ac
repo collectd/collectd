@@ -6261,8 +6261,10 @@ Configuration:
     CXXFLAGS  . . . . . . $AM_CXXFLAGS $CXXFLAGS
     CPP . . . . . . . . . $CPP
     CPPFLAGS  . . . . . . $CPPFLAGS
+    GRPC_CPP_PLUGIN . . . $GRPC_CPP_PLUGIN
     LD  . . . . . . . . . $LD
     LDFLAGS . . . . . . . $LDFLAGS
+    PROTOC  . . . . . . . $PROTOC
     YACC  . . . . . . . . $YACC
     YFLAGS  . . . . . . . $YFLAGS
 
@@ -6323,7 +6325,7 @@ Configuration:
     libyajl . . . . . . . $with_libyajl
     oracle  . . . . . . . $with_oracle
     protobuf-c  . . . . . $have_protoc_c
-    protoc 3  . . . . . . $have_protoc3
+    protoc 3  . . . . . . $protoc3
     python  . . . . . . . $with_python
 
   Features:
