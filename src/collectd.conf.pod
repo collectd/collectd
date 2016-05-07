@@ -2515,6 +2515,26 @@ specified, it defaults to B<0.0.0.0:50051>.
 
 The argument I<Host> may be a hostname, an IPv4 address, or an IPv6 address.
 
+Optionally, B<Listen> may be specified as a configuration block which
+supports the following options:
+
+=over 4
+
+=item B<EnableSSL> I<true>|I<false>
+
+Whether to enable SSL for incoming connections. Default: false.
+
+=item B<SSLRootCerts> I<Filename>
+
+=item B<SSLServerKey> I<Filename>
+
+=item B<SSLServerCert> I<Filename>
+
+Filenames specifying SSL certificate and key material to be used with SSL
+connections.
+
+=back
+
 =item B<WorkerThreads> I<Num>
 
 Number of threads to start for handling incoming connections. The default
