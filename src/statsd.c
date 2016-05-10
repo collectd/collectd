@@ -941,8 +941,6 @@ static int statsd_shutdown (void) /* {{{ */
   void *key;
   void *value;
 
-  pthread_mutex_lock (&metrics_lock);
-
   if (network_thread_running)
   {
     network_thread_shutdown = 1;
@@ -950,6 +948,8 @@ static int statsd_shutdown (void) /* {{{ */
     pthread_join (network_thread, /* retval = */ NULL);
   }
   network_thread_running = 0;
+
+  pthread_mutex_lock (&metrics_lock);
 
   while (c_avl_pick (metrics_tree, &key, &value) == 0)
   {
