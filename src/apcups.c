@@ -40,6 +40,10 @@
 # include <netinet/in.h>
 #endif
 
+#ifndef APCUPS_SERVER_TIMEOUT
+# define APCUPS_SERVER_TIMEOUT 15.0
+#endif
+
 #ifndef APCUPS_DEFAULT_NODE
 # define APCUPS_DEFAULT_NODE "localhost"
 #endif
@@ -400,11 +404,11 @@ static int apcups_config (oconfig_item_t *ci)
 
 	if (!persistent_conn_set) {
 		double interval = CDTIME_T_TO_DOUBLE(plugin_get_interval());
-		if (interval > 15.0) {
+		if (interval > APCUPS_SERVER_TIMEOUT) {
 			NOTICE ("apcups plugin: Plugin poll interval set to %.3f seconds. "
-				"Apcupsd NIS socket timeout is 15 seconds, "
+				"Apcupsd NIS socket timeout is %.3f seconds, "
 				"PersistentConnection disabled by default.",
-				interval);
+				interval, APCUPS_SERVER_TIMEOUT);
 			conf_persistent_conn = 0;
 		}
 	}
