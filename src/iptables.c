@@ -30,12 +30,12 @@
 #include "plugin.h"
 #include "configfile.h"
 
+#include <libiptc/libiptc.h>
+#include <libiptc/libip6tc.h>
+
 #ifdef HAVE_SYS_CAPABILITY_H
 # include <sys/capability.h>
 #endif
-
-#include <libiptc/libiptc.h>
-#include <libiptc/libip6tc.h>
 
 /*
  * iptc_handle_t was available before libiptc was officially available as a
