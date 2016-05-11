@@ -268,6 +268,7 @@ static int udb_result_submit(udb_result_t *r, /* {{{ */
     vl.meta = meta_data_create();
     if (vl.meta == NULL) {
       ERROR("db query utils:: meta_data_create failed.");
+      free(vl.values);
       return -ENOMEM;
     }
 
@@ -278,6 +279,7 @@ static int udb_result_submit(udb_result_t *r, /* {{{ */
         ERROR("db query utils:: meta_data_add_string failed.");
         meta_data_destroy(vl.meta);
         vl.meta = NULL;
+        free(vl.values);
         return status;
       }
     }
