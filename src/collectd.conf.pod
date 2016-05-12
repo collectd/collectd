@@ -5191,6 +5191,12 @@ specific or global B<Interval> options).
 Please note that parameters are only supported by PostgreSQL's protocol
 version 3 and above which was introduced in version 7.4 of PostgreSQL.
 
+=item B<PluginInstanceFrom> I<column>
+
+Specify how to create the "PluginInstance" for reporting this query results.
+Only one column is supported. You may concatenate fields and string values in
+the query statement to get the required results.
+
 =item B<MinVersion> I<version>
 
 =item B<MaxVersion> I<version>
@@ -5425,6 +5431,8 @@ Specify the plugin instance name that should be used instead of the database
 name (which is the default, if this option has not been specified). This
 allows to query multiple databases of the same name on the same host (e.g.
 when running multiple database server versions in parallel).
+The plugin instance name can also be set from the query result using
+the B<PluginInstanceFrom> option in B<Query> block.
 
 =item B<Host> I<hostname>
 
