@@ -139,6 +139,7 @@ typedef struct {
   char *password;
 
   char *instance;
+  char *plugin_name;
 
   char *sslmode;
 
@@ -250,6 +251,8 @@ static c_psql_database_t *c_psql_database_new(const char *name) {
 
   db->instance = sstrdup(name);
 
+  db->plugin_name = NULL;
+
   db->sslmode = NULL;
 
   db->krbsrvname = NULL;
@@ -299,6 +302,8 @@ static void c_psql_database_delete(void *data) {
   sfree(db->password);
 
   sfree(db->instance);
+
+  sfree(db->plugin_name);
 
   sfree(db->sslmode);
 
@@ -539,9 +544,11 @@ static int c_psql_exec_query(c_psql_database_t *db, udb_query_t *q,
   else
     host = db->host;
 
-  status =
-      udb_query_prepare_result(q, prep_area, host, "postgresql", db->instance,
-                               column_names, (size_t)column_num, db->interval);
+  status = udb_query_prepare_result(
+      q, prep_area, host,
+      (db->plugin_name != NULL) ? db->plugin_name : "postgresql",
+      db->instance, column_names, (size_t)column_num, db->interval);
+
   if (0 != status) {
     log_err("udb_query_prepare_result failed with status %i.", status);
     BAIL_OUT(-1);
@@ -1139,6 +1146,8 @@ static int c_psql_config_database(oconfig_item_t *ci) {
       cf_util_get_string(c, &db->password);
     else if (0 == strcasecmp(c->key, "Instance"))
       cf_util_get_string(c, &db->instance);
+    else if (0 == strcasecmp (c->key, "PluginName"))
+      cf_util_get_string (c, &db->plugin_name);
     else if (0 == strcasecmp(c->key, "SSLMode"))
       cf_util_get_string(c, &db->sslmode);
     else if (0 == strcasecmp(c->key, "KRBSrvName"))

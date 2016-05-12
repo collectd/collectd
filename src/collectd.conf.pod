@@ -2017,6 +2017,7 @@ than those of other plugins. It usually looks something like this:
       </Result>
     </Query>
     <Database "product_information">
+      #PluginName "warehouse"
       Driver "mysql"
       Interval 120
       DriverOption "host" "localhost"
@@ -2197,6 +2198,11 @@ block. This name will be used as "PluginInstance" in the values submitted to
 the daemon. Other than that, that name is not used.
 
 =over 4
+
+=item B<PluginName> I<PluginName>
+
+Use I<PluginName> as the plugin name when submitting query results from
+this B<Database>. Defaults to 'dbi'.
 
 =item B<Interval> I<Interval>
 
@@ -5589,6 +5595,7 @@ plugin's documentation above for details.
       </Result>
     </Query>
     <Database "product_information">
+      #PluginName "warehouse"
       ConnectID "db01"
       Username "oracle"
       Password "secret"
@@ -5610,6 +5617,11 @@ starting tag of the block. This name will be used as "PluginInstance" in the
 values submitted to the daemon. Other than that, that name is not used.
 
 =over 4
+
+=item B<PluginName> I<PluginName>
+
+Use I<PluginName> as the plugin name when submitting query results from
+this B<Database>. Defaults to 'oracle'.
 
 =item B<ConnectID> I<ID>
 
@@ -5964,6 +5976,7 @@ L<http://www.postgresql.org/docs/manuals/>.
     </Writer>
 
     <Database foo>
+      PluginName "kingdom"
       Host "hostname"
       Port "5432"
       User "username"
@@ -6284,6 +6297,11 @@ transaction generates a fair amount of overhead which can, thus, be reduced by
 activating this option. The draw-back is, that data covering the specified
 amount of time will be lost, for example, if a single statement within the
 transaction fails or if the database server crashes.
+
+=item B<PluginName> I<PluginName>
+
+Use I<PluginName> as the plugin name when submitting query results from
+this B<Database>. Defaults to 'postgresql'.
 
 =item B<Instance> I<name>
 
