@@ -172,7 +172,9 @@ static void cdbi_database_free(cdbi_database_t *db) /* {{{ */
     return;
 
   sfree(db->name);
+  sfree(db->select_db);
   sfree(db->driver);
+  sfree(db->host);
 
   for (size_t i = 0; i < db->driver_options_num; i++) {
     sfree(db->driver_options[i].key);
