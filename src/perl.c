@@ -1,4 +1,4 @@
-/**
+/*
  * collectd - src/perl.c
  * Copyright (C) 2007-2009  Sebastian Harl
  *
@@ -1911,6 +1911,7 @@ static XS (Collectd_call_by_name)
 
 static int perl_init (void)
 {
+	int status;
 	dTHX;
 
 	if (NULL == perl_threads)
@@ -1928,7 +1929,19 @@ static int perl_init (void)
 
 	log_debug ("perl_init: c_ithread: interp = %p (active threads: %i)",
 			aTHX, perl_threads->number_of_threads);
-	return pplugin_call_all (aTHX_ PLUGIN_INIT);
+
+	/* Lock the base thread to avoid race conditions with c_ithread_create().
+	 * See https://github.com/collectd/collectd/issues/9 and
+	 *     https://github.com/collectd/collectd/issues/1706 for details. */
+
+	assert (aTHX == perl_threads->head->interp);
+	pthread_mutex_lock (&perl_threads->mutex);
+
+	status = pplugin_call_all (aTHX_ PLUGIN_INIT);
+
+	pthread_mutex_unlock (&perl_threads->mutex);
+
+	return status;
 } /* static int perl_init (void) */
 
 static int perl_read (void)
