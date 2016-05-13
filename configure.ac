@@ -2429,41 +2429,42 @@ AC_ARG_WITH(libdpdk, [AS_HELP_STRING([--with-libdpdk@<:@=PREFIX@:>@], [Path to t
 if test "x$with_libdpdk" = "xyes"
 then
 	RTE_BUILD="$with_dpdk_path"
-	DPDK_INCLUDE="$RTE_BUILD/include/dpdk"
+	DPDK_INCLUDE="$RTE_BUILD/include"
+	AC_CHECK_FILE([$DPDK_INCLUDE/rte_config.h], [LOCAL_DPDK_INSTALL=true],
+		[AC_CHECK_FILE([$DPDK_INCLUDE/dpdk/rte_config.h],
+		[DPDK_INCLUDE=$DPDK_INCLUDE/dpdk], [])])
 	DPDK_LIB_DIR="$RTE_BUILD/lib"
-	DPDK_LIB="-ldpdk"
+	DPDK_EXTRA_LIB=""
 
 	SAVE_CFLAGS="$CFLAGS"
 	SAVE_LDFLAGS="$LDFLAGS"
-	LDFLAGS="$LDFLAGS -L$DPDK_LIB_DIR"
-	CFLAGS="$CFLAGS -I$DPDK_INCLUDE"
+	CFLAGS="$CFLAGS -mavx -I$DPDK_INCLUDE"
+	if test "x$LOCAL_DPDK_INSTALL" != "xtrue"
+        then
+            LDFLAGS="$LDFLAGS -L$DPDK_LIB_DIR"
+        fi
 	FOUND_DPDK=false
 	SAVE_LIBS="$LIBS"
-	LIBS="$LIBS $DPDK_LIB"
-	AC_LINK_IFELSE(
-		[AC_LANG_PROGRAM(
-[[
-#include <rte_config.h>
-#include <rte_eal.h>
-]],
-[[
-int rte_argc;
-char ** rte_argv;
-rte_eal_init(rte_argc, rte_argv);
-]]
-	)],
-		[FOUND_DPDK=true])
+	LIBS="$DPDK_LIB $LIBS"
+	AC_CHECK_LIB(dpdk, rte_eal_init,
+                     [FOUND_DPDK=true],
+                     [AC_MSG_ERROR([did not find dpdk libs ])])
+
 	CFLAGS="$SAVE_CFLAGS"
 	LDFLAGS="$SAVE_LDFLAGS"
 	LIBS="$SAVE_LIBS"
 	if test "x$FOUND_DPDK" != "xtrue"
         then
-	    AC_MSG_ERROR([cannot link with dpdk])
+	    AC_MSG_ERROR([cannot link with dpdk in $DPDK_LIB_DIR])
 	fi
-	DPDK_LDFLAGS="-ldpdk"
-	BUILD_WITH_DPDK_CFLAGS="-I$DPDK_INCLUDE"
-	BUILD_WITH_DPDK_LDFLAGS="-L$DPDK_LIB_DIR"
-	BUILD_WITH_DPDK_LIBS="$DPDK_LDFLAGS"
+	BUILD_WITH_DPDK_CFLAGS="-mavx -fPIC -I$DPDK_INCLUDE"
+	if test "x$LOCAL_DPDK_INSTALL" != "xtrue"
+        then
+		BUILD_WITH_DPDK_LDFLAGS="-Wl,--no-as-needed"
+	else
+		BUILD_WITH_DPDK_LDFLAGS="-L$DPDK_LIB_DIR -Wl,--no-as-needed"
+        fi
+	BUILD_WITH_DPDK_LIBS="-Wl,-ldpdk"
 	AC_SUBST(BUILD_WITH_DPDK_CFLAGS)
 	AC_SUBST(BUILD_WITH_DPDK_LDFLAGS)
 	AC_SUBST(BUILD_WITH_DPDK_LIBS)
