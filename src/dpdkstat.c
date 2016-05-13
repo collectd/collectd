@@ -304,17 +304,18 @@ static int dpdk_init (void)
 static int dpdk_helper_exit(int reset)
 {
   g_configuration->helper_status = DPDK_HELPER_GRACEFUL_QUIT;
-  if(reset) {
+  if (reset) {
     g_configuration->eal_initialized = 0;
     g_configuration->num_ports = 0;
     memset(&g_configuration->xstats, 0, g_configuration->num_xstats* sizeof(struct rte_eth_xstats));
     g_configuration->num_xstats = 0;
-    for(int i = 0; i < RTE_MAX_ETHPORTS; i++)
+    int i = 0;
+    for (; i < RTE_MAX_ETHPORTS; i++)
       g_configuration->num_stats_in_port[i] = 0;
   }
   close(g_configuration->helper_pipes[1]);
   int err = kill(g_configuration->helper_pid, SIGKILL);
-  if(err) {
+  if (err) {
     ERROR("dpdkstat: error sending kill to helper: %s\n", strerror(errno));
   }
 
@@ -329,7 +330,7 @@ static int dpdk_helper_spawn(enum DPDK_HELPER_ACTION action)
    * Create a pipe for helper stdout back to collectd. This is necessary for
    * logging EAL failures, as rte_eal_init() calls rte_panic().
    */
-  if(g_configuration->helper_pipes[1]) {
+  if (g_configuration->helper_pipes[1]) {
     DEBUG("dpdkstat: collectd closing helper pipe %d\n",
           g_configuration->helper_pipes[1]);
   } else {
@@ -380,24 +381,24 @@ static int dpdk_helper_init_eal(void)
   int i = 0;
 
   argp[i++] = "collectd-dpdk";
-  if(strcasecmp(g_configuration->coremask, "") != 0) {
+  if (strcasecmp(g_configuration->coremask, "") != 0) {
     argp[i++] = "-c";
     argp[i++] = g_configuration->coremask;
   }
-  if(strcasecmp(g_configuration->memory_channels, "") != 0) {
+  if (strcasecmp(g_configuration->memory_channels, "") != 0) {
     argp[i++] = "-n";
     argp[i++] = g_configuration->memory_channels;
   }
-  if(strcasecmp(g_configuration->socket_memory, "") != 0) {
+  if (strcasecmp(g_configuration->socket_memory, "") != 0) {
     argp[i++] = "--socket-mem";
     argp[i++] = g_configuration->socket_memory;
   }
-  if(strcasecmp(g_configuration->file_prefix, "") != 0 &&
+  if (strcasecmp(g_configuration->file_prefix, "") != 0 &&
      strcasecmp(g_configuration->file_prefix, "/var/run/.rte_config") != 0) {
     argp[i++] = "--file-prefix";
     argp[i++] = g_configuration->file_prefix;
   }
-  if(strcasecmp(g_configuration->process_type, "") != 0) {
+  if (strcasecmp(g_configuration->process_type, "") != 0) {
     argp[i++] = "--proc-type";
     argp[i++] = g_configuration->process_type;
   }
@@ -413,7 +414,7 @@ static int dpdk_helper_init_eal(void)
       printf("%s ", argp[i]);
     }
     printf("\n");
-    return -1;
+    return ret;
   }
   return 0;
 }
@@ -423,7 +424,7 @@ static int dpdk_helper_run (void)
   pid_t ppid = getppid();
   g_configuration->helper_status = DPDK_HELPER_WAITING_ON_PRIMARY;
 
-   while(1) {
+   while (1) {
     /* sem_timedwait() to avoid blocking forever */
     struct timespec ts;
     cdtime_t now = cdtime();
@@ -431,12 +432,11 @@ static int dpdk_helper_run (void)
     CDTIME_T_TO_TIMESPEC(now + half_sec + g_configuration->interval *2, &ts);
     int ret = sem_timedwait(&g_configuration->sema_helper_get_stats, &ts);
 
-    if(ret == -1 && errno == ETIMEDOUT) {
+    if (ret == -1 && errno == ETIMEDOUT) {
       ERROR("dpdkstat-helper: sem timedwait()"
              " timeout, did collectd terminate?\n");
       dpdk_helper_exit(RESET);
     }
-
     /* Parent PID change means collectd died so quit the helper process. */
     if (ppid != getppid()) {
       WARNING("dpdkstat-helper: parent PID changed, quitting.\n");
@@ -455,11 +455,13 @@ static int dpdk_helper_run (void)
       continue;
     }
 
-    if(!g_configuration->eal_initialized) {
+    if (!g_configuration->eal_initialized) {
       /* Initialize EAL. */
       int ret = dpdk_helper_init_eal();
-      if(ret != 0)
+      if(ret != 0) {
+        WARNING("ERROR INITIALIZING EAL\n");
         dpdk_helper_exit(RESET);
+      }
     }
 
     g_configuration->helper_status = DPDK_HELPER_ALIVE_SENDING_STATS;
@@ -477,8 +479,8 @@ static int dpdk_helper_run (void)
     if (g_configuration->enabled_port_mask == 0)
       g_configuration->enabled_port_mask = 0xffff;
 
-    int len = 0, enabled_port_count = 0, num_xstats = 0;
-    for (int i = 0; i < nb_ports; i++) {
+    int len = 0, enabled_port_count = 0, num_xstats = 0, i = 0;
+    for (; i < nb_ports; i++) {
       if (g_configuration->enabled_port_mask & (1 << i)) {
         if(g_configuration->helper_action == DPDK_HELPER_ACTION_COUNT_STATS) {
           len = rte_eth_xstats_get(i, NULL, 0);
@@ -506,7 +508,7 @@ static int dpdk_helper_run (void)
       } /* if (enabled_port_mask) */
     } /* for (nb_ports) */
 
-    if(g_configuration->helper_action == DPDK_HELPER_ACTION_COUNT_STATS) {
+    if (g_configuration->helper_action == DPDK_HELPER_ACTION_COUNT_STATS) {
       g_configuration->num_ports  = enabled_port_count;
       g_configuration->num_xstats = num_xstats;
       DEBUG("dpdkstat-helper ports: %d, num stats: %d\n",
@@ -532,7 +534,7 @@ static int dpdk_read (user_data_t *ud)
    * Check if SHM flag is set to be re-initialized. AKA DPDK ports have been
    * counted, so re-init SHM to be large enough to fit all the statistics.
    */
-  if(g_configuration->collectd_reinit_shm) {
+  if (g_configuration->collectd_reinit_shm) {
     DEBUG("dpdkstat: read() now reinit SHM then launching send-thread\n");
     dpdk_re_init_shm();
   }
@@ -542,14 +544,14 @@ static int dpdk_read (user_data_t *ud)
    * must be done in dpdk_read(), because the DPDK primary process may not be
    * alive at dpdk_init() time.
    */
-  if(g_configuration->helper_status == DPDK_HELPER_NOT_INITIALIZED ||
+  if (g_configuration->helper_status == DPDK_HELPER_NOT_INITIALIZED ||
      g_configuration->helper_status == DPDK_HELPER_GRACEFUL_QUIT) {
       int action = DPDK_HELPER_ACTION_SEND_STATS;
       if(g_configuration->num_xstats == 0)
         action = DPDK_HELPER_ACTION_COUNT_STATS;
       /* Spawn the helper thread to count stats or to read stats. */
       int err = dpdk_helper_spawn(action);
-      if(err) {
+      if (err) {
         ERROR("dpdkstat: error spawning helper %s\n", strerror(errno));
         return -1;
       }
@@ -562,7 +564,7 @@ static int dpdk_read (user_data_t *ud)
    *  waitpid() fails, helper process died (or quit), so respawn
    */
   int respawn_helper = 0;
-  if(ws != 0) {
+  if (ws != 0) {
     respawn_helper = 1;
   }
 
@@ -574,15 +576,15 @@ static int dpdk_read (user_data_t *ud)
   fds.fd = g_configuration->helper_pipes[0];
   fds.events = POLLIN;
   int data_avail = poll(&fds, 1, 0);
-  while(data_avail) {
+  while (data_avail) {
     int nbytes = read(g_configuration->helper_pipes[0], buf, sizeof(buf));
-    if(nbytes <= 0)
+    if (nbytes <= 0)
       break;
     ssnprintf( out, nbytes, "%s", buf);
     DEBUG("dpdkstat: helper-proc: %s\n", out);
   }
 
-  if(respawn_helper) {
+  if (respawn_helper) {
     if (g_configuration->helper_pid)
       dpdk_helper_exit(RESET);
     dpdk_helper_spawn(DPDK_HELPER_ACTION_COUNT_STATS);
@@ -597,22 +599,23 @@ static int dpdk_read (user_data_t *ud)
   cdtime_t now = cdtime();
   CDTIME_T_TO_TIMESPEC(now + g_configuration->interval, &ts);
   ret = sem_timedwait(&g_configuration->sema_stats_in_shm, &ts);
-  if(ret == -1 && errno == ETIMEDOUT) {
+  if (ret == -1 && errno == ETIMEDOUT) {
     DEBUG("dpdkstat: timeout in collectd thread: is a DPDK Primary running? \n");
     return 0;
   }
 
   /* Dispatch the stats.*/
-  int count = 0;
+  int count = 0, i = 0;
 
-  for (int i = 0; i < g_configuration->num_ports; i++) {
+  for (; i < g_configuration->num_ports; i++) {
     cdtime_t time = g_configuration->port_read_time[i];
     char dev_name[64];
     int len = g_configuration->num_stats_in_port[i];
     ssnprintf(dev_name, sizeof(dev_name), "port.%d", i);
     struct rte_eth_xstats *xstats = (&g_configuration->xstats);
     xstats += count; /* pointer arithmetic to jump to each stats struct */
-    for (int j = 0; j < len; j++) {
+    int j = 0;
+    for (; j < len; j++) {
       value_t dpdkstat_values[1];
       value_list_t dpdkstat_vl = VALUE_LIST_INIT;
 
@@ -639,12 +642,12 @@ static int dpdk_shm_cleanup(void)
 {
   int ret = munmap(g_configuration, sizeof(dpdk_config_t));
   g_configuration = 0;
-  if(ret) {
+  if (ret) {
     WARNING("dpdkstat: munmap returned %d\n", ret);
     return ret;
   }
   ret = shm_unlink(DPDK_SHM_NAME);
-  if(ret) {
+  if (ret) {
     WARNING("dpdkstat: shm_unlink returned %d\n", ret);
     return ret;
   }
