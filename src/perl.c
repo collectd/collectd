@@ -1229,6 +1229,10 @@ static void c_ithread_destroy (c_ithread_t *ithread)
 	assert (NULL != perl_threads);
 
 	PERL_SET_CONTEXT (aTHX);
+	/* Mark as running to avoid deadlock:
+	   c_ithread_destroy -> log_debug -> perl_log()
+	*/
+	ithread->running = 1;
 	log_debug ("Shutting down Perl interpreter %p...", aTHX);
 
 #if COLLECT_DEBUG
@@ -2371,10 +2375,6 @@ static int perl_shutdown (void)
 			pthread_kill (thr->pthread, SIGTERM);
 			ERROR ("perl shutdown: Thread hangs inside Perl. Thread killed.");
 		}
-		/* Mark as running to avoid deadlock:
-		   c_ithread_destroy -> log_debug -> perl_log()
-		*/
-		thr->running = 1; 
 		c_ithread_destroy (thr);
 	}
 
