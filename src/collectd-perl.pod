@@ -759,18 +759,6 @@ dispatched by the perl plugin after upgrades.
 
 =back
 
-=head1 KNOWN BUGS
-
-=over 4
-
-=item *
-
-Currently, it is not possible to flush a single Perl plugin only. You can
-either flush all Perl plugins or none at all and you have to use C<perl> as
-plugin name when doing so.
-
-=back
-
 =head1 SEE ALSO
 
 L<collectd(1)>,

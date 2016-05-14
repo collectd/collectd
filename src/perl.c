@@ -22,6 +22,7 @@
  *
  * Authors:
  *   Sebastian Harl <sh at tokkee.org>
+ *   Pavel Rochnyak <pavel2000 ngs.ru>
  **/
 
 /*
@@ -1628,7 +1629,7 @@ static void _plugin_register_generic_userdata (pTHX, int type, const char *desc)
 {
 	int ret   = 0;
 	user_data_t userdata;
-	char cb_name[DATA_MAX_NAME_LEN];
+	char *pluginname;
 
 	dXSARGS;
 
@@ -1649,11 +1650,13 @@ static void _plugin_register_generic_userdata (pTHX, int type, const char *desc)
 		XSRETURN_EMPTY;
 	}
 
+	/* Use pluginname as-is to allow flush a single perl plugin */
+	pluginname = SvPV_nolen (ST (0));
+
 	log_debug ("Collectd::plugin_register_%s: "
 			"plugin = \"%s\", sub = \"%s\"",
-			desc, SvPV_nolen (ST (0)), SvPV_nolen (ST (1)));
+			desc, pluginname, SvPV_nolen (ST (1)));
 
-	ssnprintf (cb_name, sizeof (cb_name), "perl/%s", SvPV_nolen (ST (0)));
 	memset(&userdata, 0, sizeof(userdata));
 	userdata.data = strdup(SvPV_nolen (ST (1)));
 	userdata.free_func = free;
@@ -1661,22 +1664,22 @@ static void _plugin_register_generic_userdata (pTHX, int type, const char *desc)
 	if (PLUGIN_READ == type) {
 		ret = plugin_register_complex_read(
 			"perl",                /* group */
-			cb_name,
+			pluginname,
 			perl_read,
 			plugin_get_interval(), /* Default interval */
 			&userdata);
 	}
 	else if (PLUGIN_WRITE == type) {
-		ret = plugin_register_write(cb_name, perl_write, &userdata);
+		ret = plugin_register_write(pluginname, perl_write, &userdata);
 	}
 	else if (PLUGIN_LOG == type) {
-		ret = plugin_register_log(cb_name, perl_log, &userdata);
+		ret = plugin_register_log(pluginname, perl_log, &userdata);
 	}
 	else if (PLUGIN_NOTIF == type) {
-		ret = plugin_register_notification(cb_name, perl_notify, &userdata);
+		ret = plugin_register_notification(pluginname, perl_notify, &userdata);
 	}
 	else if (PLUGIN_FLUSH == type) {
-		ret = plugin_register_flush(cb_name, perl_flush, &userdata);
+		ret = plugin_register_flush(pluginname, perl_flush, &userdata);
 	}
 	else {
 		ret = -1;
