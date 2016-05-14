@@ -180,13 +180,13 @@ sub plugin_call_all {
 	}
 
 	if (TYPE_LOG != $type) {
-		DEBUG ("Collectd::plugin_call: type = \"$type\" ("
+		DEBUG ("Collectd::plugin_call_all: type = \"$type\" ("
 			. $types{$type} . "), args=\""
 			. join(', ', map { defined($_) ? $_ : '<undef>' } @_) . "\"");
 	}
 
 	if (! defined $plugins[$type]) {
-		ERROR ("Collectd::plugin_call: unknown type \"$type\"");
+		ERROR ("Collectd::plugin_call_all: unknown type \"$type\"");
 		return;
 	}
 
