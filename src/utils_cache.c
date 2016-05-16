@@ -692,7 +692,7 @@ int uc_set_state (const data_set_t *ds, const value_list_t *vl, int state)
 
   if (FORMAT_VL (name, sizeof (name), vl) != 0)
   {
-    ERROR ("uc_get_state: FORMAT_VL failed.");
+    ERROR ("uc_set_state: FORMAT_VL failed.");
     return (STATE_ERROR);
   }
 
@@ -800,7 +800,7 @@ int uc_get_hits (const data_set_t *ds, const value_list_t *vl)
 
   if (FORMAT_VL (name, sizeof (name), vl) != 0)
   {
-    ERROR ("uc_get_state: FORMAT_VL failed.");
+    ERROR ("uc_get_hits: FORMAT_VL failed.");
     return (STATE_ERROR);
   }
 
@@ -825,7 +825,7 @@ int uc_set_hits (const data_set_t *ds, const value_list_t *vl, int hits)
 
   if (FORMAT_VL (name, sizeof (name), vl) != 0)
   {
-    ERROR ("uc_get_state: FORMAT_VL failed.");
+    ERROR ("uc_set_hits: FORMAT_VL failed.");
     return (STATE_ERROR);
   }
 
@@ -851,7 +851,7 @@ int uc_inc_hits (const data_set_t *ds, const value_list_t *vl, int step)
 
   if (FORMAT_VL (name, sizeof (name), vl) != 0)
   {
-    ERROR ("uc_get_state: FORMAT_VL failed.");
+    ERROR ("uc_inc_hits: FORMAT_VL failed.");
     return (STATE_ERROR);
   }
 
