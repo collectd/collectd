@@ -1261,8 +1261,8 @@ endif
 if BUILD_PLUGIN_WRITE_RIEMANN
 pkglib_LTLIBRARIES += write_riemann.la
 write_riemann_la_SOURCES = write_riemann.c write_riemann_threshold.c write_riemann_threshold.h
-write_riemann_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(RIEMANN_C_LIBS)
-write_riemann_la_CFLAGS = $(AM_CFLAGS) $(RIEMANN_C_CFLAGS)
+write_riemann_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBRIEMANN_CLIENT_LIBS)
+write_riemann_la_CFLAGS = $(AM_CFLAGS) $(LIBRIEMANN_CLIENT_CFLAGS)
 endif
 
 if BUILD_PLUGIN_WRITE_SENSU

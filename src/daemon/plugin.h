@@ -1,5 +1,5 @@
 /**
- * collectd - src/plugin.h
+ * collectd - src/daemon/plugin.h
  * Copyright (C) 2005-2014  Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -39,7 +39,9 @@
 
 #define PLUGIN_FLAGS_GLOBAL 0x0001
 
-#define DATA_MAX_NAME_LEN 64
+#ifndef DATA_MAX_NAME_LEN
+# define DATA_MAX_NAME_LEN 64
+#endif
 
 #define DS_TYPE_COUNTER  0
 #define DS_TYPE_GAUGE    1
@@ -240,10 +242,10 @@ void plugin_set_dir (const char *dir);
  */
 int plugin_load (const char *name, uint32_t flags);
 
-void plugin_init_all (void);
+int plugin_init_all (void);
 void plugin_read_all (void);
 int plugin_read_all_once (void);
-void plugin_shutdown_all (void);
+int plugin_shutdown_all (void);
 
 /*
  * NAME

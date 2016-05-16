@@ -834,13 +834,15 @@ default for backwards compatibility, the time will be reported in minutes.
 
 =item B<PersistentConnection> B<true>|B<false>
 
-By default, the plugin will try to keep the connection to UPS open between
-reads. Since this appears to be somewhat brittle (I<apcupsd> appears to close
-the connection due to inactivity quite quickly), the plugin will try to detect
-this problem and switch to an open-read-close mode in such cases.
+The plugin is designed to keep the connection to I<apcupsd> open between reads.
+If plugin poll interval is greater than 15 seconds (hardcoded socket close
+timeout in I<apcupsd> NIS), then this option is B<false> by default.
 
 You can instruct the plugin to close the connection after each read by setting
-this option to B<false>.
+this option to B<false> or force keeping the connection by setting it to B<true>.
+
+If I<apcupsd> appears to close the connection due to inactivity quite quickly,
+the plugin will try to detect this problem and switch to an open-read-close mode.
 
 =back
 
@@ -4764,8 +4766,9 @@ client configuration mechanisms. See ldap.conf(5) for the details.
 
 =item B<Timeout> I<Seconds>
 
-Sets the timeout value for ldap operations. Defaults to B<-1> which results in
-an infinite timeout.
+Sets the timeout value for ldap operations, in seconds. By default, the
+configured B<Interval> is used to set the timeout. Use B<-1> to disable
+(infinite timeout).
 
 =item B<Version> I<Version>
 
@@ -5668,6 +5671,9 @@ Select more detailed statistics of processes matching this name. The statistics
 collected for these selected processes are size of the resident segment size
 (RSS), user- and system-time used, number of processes and number of threads,
 io data (where available) and minor and major pagefaults.
+
+Some platforms have a limit on the length of process names. I<Name> must stay
+below this limit.
 
 =item B<ProcessMatch> I<name> I<regex>
 
