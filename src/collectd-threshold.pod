@@ -76,6 +76,9 @@ information.
      <Type "cpu">
        Instance "idle"
        FailureMin 10
+       Persist true
+       PersistOK true
+       PersistFrequency 30
      </Type>
    
      <Plugin "memory">
@@ -162,6 +165,20 @@ Sets how OKAY notifications act. If set to B<true> one notification will be
 generated for each value that is in the acceptable range. If set to B<false>
 (the default) then a notification is only generated if a value is in range but
 the previous value was not.
+
+=item B<PersistFrequency> I<Value>
+
+Sets how often notifications are generated if B<Persist> or B<PersistOK> is set
+to B<true>. This defaults to B<0>, which means every time a value comes in, a 
+notification is dispatched.
+If set to a positive integer, persistent notifications are suppressed that number
+of B<Interval>s before dispatching the next notification.
+This can be seen as a way to rate limmit dispached persistent notifications while
+still alert on state changes immediately.
+Be aware, that due to the fact that most of your metrics are within the OK range
+most of the time, the B<PersistOK> setting combined with the B<PersistFrequency>
+feature will lead to bursts of notifications every B<PersistFrequency> times the
+B<Interval> after collectd startup.
 
 =item B<Percentage> B<true>|B<false>
 

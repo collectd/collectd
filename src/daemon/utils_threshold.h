@@ -47,6 +47,7 @@ typedef struct threshold_s
   gauge_t hysteresis;
   unsigned int flags;
   int hits;
+  int persist_frequency;
   struct threshold_s *next;
 } threshold_t;
 
