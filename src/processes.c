@@ -1936,7 +1936,7 @@ static int ps_read (void)
 			ssnprintf (dirname, sizeof (dirname), "/proc/%li/task", pid);
 			if ( ps_iter_dir(dirname, "status", ps_state_callback, &counter) )
 			{
-				DEBUG ("ps_iter_dir failed for pid %li", pid)
+				DEBUG ("ps_iter_dir failed for pid %li", pid);
 			}
 		}
 
