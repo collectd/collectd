@@ -1577,7 +1577,7 @@ static int ceph_init(void)
 {
     int ret;
 
-#ifdef HAVE_SYS_CAPABILITY_H
+#if defined(HAVE_SYS_CAPABILITY_H) && defined(CAP_DAC_OVERRIDE)
   if (check_capability (CAP_DAC_OVERRIDE) != 0)
   {
     if (getuid () == 0)

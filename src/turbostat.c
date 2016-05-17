@@ -1480,13 +1480,13 @@ check_permissions(void)
 	if (getuid() == 0) {
 		/* We have everything we need */
 		return 0;
-#ifndef HAVE_SYS_CAPABILITY_H
+#if !defined(HAVE_SYS_CAPABILITY_H) && !defined(CAP_SYS_RAWIO)
 	} else {
 		ERROR("turbostat plugin: Initialization failed: this plugin "
 		      "requires collectd to run as root");
 		return -1;
 	}
-#else /* HAVE_SYS_CAPABILITY_H */
+#else /* HAVE_SYS_CAPABILITY_H && CAP_SYS_RAWIO */
 	}
 
 	if (check_capability(CAP_SYS_RAWIO) != 0) {
@@ -1511,7 +1511,7 @@ check_permissions(void)
 		      "collectd a special capability (CAP_SYS_RAWIO) and read "
                       "access to /dev/cpu/*/msr (see previous warnings)");
 	return ret;
-#endif /* HAVE_SYS_CAPABILITY_H */
+#endif /* HAVE_SYS_CAPABILITY_H && CAP_SYS_RAWIO */
 }
 
 static int

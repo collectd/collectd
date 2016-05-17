@@ -452,7 +452,7 @@ static int ping_init (void) /* {{{ */
         "Will use a timeout of %gs.", ping_timeout);
   }
 
-#ifdef HAVE_SYS_CAPABILITY_H
+#if defined(HAVE_SYS_CAPABILITY_H) && defined(CAP_NET_RAW)
   if (check_capability (CAP_NET_RAW) != 0)
   {
     if (getuid () == 0)

@@ -1676,6 +1676,7 @@ void strarray_free (char **array, size_t array_len) /* {{{ */
 #ifdef HAVE_SYS_CAPABILITY_H
 int check_capability (int capability) /* {{{ */
 {
+#ifdef _LINUX_CAPABILITY_VERSION_3
 	struct __user_cap_header_struct cap_header_data;
 	cap_user_header_t cap_header = &cap_header_data;
 	struct __user_cap_data_struct cap_data_data;
@@ -1693,5 +1694,10 @@ int check_capability (int capability) /* {{{ */
 		return (-1);
 	else
 		return (0);
+#else
+	WARNING ("check_capability: unsupported capability implementation. "
+	    "Some plugin(s) may require elevated privileges to work properly.");
+	return (0);
+#endif /* _LINUX_CAPABILITY_VERSION_3 */
 } /* }}} int check_capability */
-#endif
+#endif /* HAVE_SYS_CAPABILITY_H */

@@ -351,7 +351,7 @@ static int dns_init (void)
 
 	listen_thread_init = 1;
 
-#ifdef HAVE_SYS_CAPABILITY_H
+#if defined(HAVE_SYS_CAPABILITY_H) && defined(CAP_NET_RAW)
 	if (check_capability (CAP_NET_RAW) != 0)
 	{
 		if (getuid () == 0)

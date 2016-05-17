@@ -810,7 +810,7 @@ static int exec_init (void) /* {{{ */
 
   sigaction (SIGCHLD, &sa, NULL);
 
-#ifdef HAVE_SYS_CAPABILITY_H
+#if defined(HAVE_SYS_CAPABILITY_H) && defined(CAP_SETUID) && defined(CAP_SETGID)
   if ((check_capability (CAP_SETUID) != 0) ||
       (check_capability (CAP_SETGID) != 0))
   {
