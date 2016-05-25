@@ -4495,8 +4495,10 @@ if test "x$with_libudev" = "xyes"
 then
 	BUILD_WITH_LIBUDEV_CFLAGS="$with_libudev_cflags"
 	BUILD_WITH_LIBUDEV_LDFLAGS="$with_libudev_ldflags"
+	BUILD_WITH_LIBUDEV_LIBS="-ludev"
 	AC_SUBST(BUILD_WITH_LIBUDEV_CFLAGS)
 	AC_SUBST(BUILD_WITH_LIBUDEV_LDFLAGS)
+	AC_SUBST(BUILD_WITH_LIBUDEV_LIBS)
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBUDEV, test "x$with_libudev" = "xyes")
 # }}}
