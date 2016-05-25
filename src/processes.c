@@ -128,6 +128,7 @@
 #  undef SAVE_FOB_64
 #endif
 
+# include <sys/user.h>
 # include <dirent.h>
 
 #ifndef MAXCOMLEN
