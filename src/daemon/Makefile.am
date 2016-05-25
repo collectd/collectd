@@ -33,8 +33,6 @@ if BUILD_WITH_LIBDEVINFO
 COMMON_LIBS += -ldevinfo
 endif
 
-AUTOMAKE_OPTIONS = subdir-objects
-
 sbin_PROGRAMS = collectd
 
 noinst_LTLIBRARIES = libavltree.la libcommon.la libheap.la libmetadata.la libplugin_mock.la
