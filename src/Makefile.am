@@ -1414,7 +1414,7 @@ if BUILD_PLUGIN_CEPH
 test_plugin_ceph_SOURCES = ceph_test.c
 test_plugin_ceph_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
 test_plugin_ceph_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
-test_plugin_ceph_LDADD = daemon/libcommon.la daemon/libplugin_mock.la $(BUILD_WITH_LIBYAJL_LIBS)
+test_plugin_ceph_LDADD = daemon/libplugin_mock.la $(BUILD_WITH_LIBYAJL_LIBS)
 check_PROGRAMS += test_plugin_ceph
 TESTS += test_plugin_ceph
 endif
