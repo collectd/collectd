@@ -4596,8 +4596,10 @@ if test "x$with_libudev" = "xyes"
 then
 	BUILD_WITH_LIBUDEV_CFLAGS="$with_libudev_cflags"
 	BUILD_WITH_LIBUDEV_LDFLAGS="$with_libudev_ldflags"
+	BUILD_WITH_LIBUDEV_LIBS="-ludev"
 	AC_SUBST(BUILD_WITH_LIBUDEV_CFLAGS)
 	AC_SUBST(BUILD_WITH_LIBUDEV_LDFLAGS)
+	AC_SUBST(BUILD_WITH_LIBUDEV_LIBS)
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBUDEV, test "x$with_libudev" = "xyes")
 # }}}
@@ -5461,6 +5463,7 @@ plugin_perl="no"
 plugin_processes="no"
 plugin_protocols="no"
 plugin_serial="no"
+plugin_smart="no"
 plugin_swap="no"
 plugin_tape="no"
 plugin_tcpconns="no"
@@ -5771,6 +5774,11 @@ then
 	plugin_processes="yes"
 fi
 
+if test "x$with_libatasmart" = "xyes" && test "x$with_libudev" = "xyes"
+then
+	plugin_smart="yes"
+fi
+
 if test "x$with_kvm_getswapinfo" = "xyes"
 then
 	plugin_swap="yes"
@@ -5925,7 +5933,7 @@ AC_PLUGIN([rrdtool],             [$with_librrd],            [RRDTool output plug
 AC_PLUGIN([sensors],             [$with_libsensors],        [lm_sensors statistics])
 AC_PLUGIN([serial],              [$plugin_serial],          [serial port traffic])
 AC_PLUGIN([sigrok],              [$with_libsigrok],         [sigrok acquisition sources])
-AC_PLUGIN([smart],               [$with_libatasmart],       [SMART statistics])
+AC_PLUGIN([smart],               [$plugin_smart],           [SMART statistics])
 AC_PLUGIN([snmp],                [$with_libnetsnmp],        [SNMP querying plugin])
 AC_PLUGIN([statsd],              [yes],                     [StatsD plugin])
 AC_PLUGIN([swap],                [$plugin_swap],            [Swap usage statistics])
