@@ -867,9 +867,13 @@ static int disk_read (void)
 		output_name = disk_name;
 
 #if HAVE_LIBUDEV
-		char *alt_name = disk_udev_attr_name (handle_udev, disk_name, conf_udev_name_attr);
-		if (alt_name != NULL)
-			output_name = alt_name;
+		char *alt_name = NULL;
+		if (conf_udev_name_attr != NULL)
+		{
+			alt_name = disk_udev_attr_name (handle_udev, disk_name, conf_udev_name_attr);
+			if (alt_name != NULL)
+				output_name = alt_name;
+		}
 #endif
 
 		if (ignorelist_match (ignorelist, output_name) != 0)
