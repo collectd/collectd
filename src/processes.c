@@ -130,6 +130,10 @@
 
 # include <sys/user.h>
 # include <dirent.h>
+#ifndef MAXCOMLEN
+#define MAXCOMLEN 16
+#endif
+
 /* #endif KERNEL_SOLARIS */
 
 #else
