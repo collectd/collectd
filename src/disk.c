@@ -230,7 +230,16 @@ static int disk_init (void)
 /* #endif HAVE_IOKIT_IOKITLIB_H */
 
 #elif KERNEL_LINUX
-	/* do nothing */
+#if HAVE_LIBUDEV
+	if (conf_udev_name_attr != NULL)
+	{
+		handle_udev = udev_new();
+		if (handle_udev == NULL) {
+			ERROR ("disk plugin: udev_new() failed!");
+			return (-1);
+		}
+	}
+#endif /* HAVE_LIBUDEV */
 /* #endif KERNEL_LINUX */
 
 #elif KERNEL_FREEBSD
@@ -271,6 +280,17 @@ static int disk_init (void)
 
 	return (0);
 } /* int disk_init */
+
+static int disk_shutdown (void)
+{
+#if KERNEL_LINUX
+#if HAVE_LIBUDEV
+	if (handle_udev != NULL)
+		udev_unref(handle_udev);
+#endif /* HAVE_LIBUDEV */
+#endif /* KERNEL_LINUX */
+	return (0);
+} /* int disk_shutdown */
 
 static void disk_submit (const char *plugin_instance,
 		const char *type,
@@ -690,10 +710,6 @@ static int disk_read (void)
 		fieldshift = 1;
 	}
 
-#if HAVE_LIBUDEV
-	handle_udev = udev_new();
-#endif
-
 	while (fgets (buffer, sizeof (buffer), fh) != NULL)
 	{
 		char *disk_name;
@@ -867,9 +883,13 @@ static int disk_read (void)
 		output_name = disk_name;
 
 #if HAVE_LIBUDEV
-		char *alt_name = disk_udev_attr_name (handle_udev, disk_name, conf_udev_name_attr);
-		if (alt_name != NULL)
-			output_name = alt_name;
+		char *alt_name = NULL;
+		if (conf_udev_name_attr != NULL)
+		{
+			alt_name = disk_udev_attr_name (handle_udev, disk_name, conf_udev_name_attr);
+			if (alt_name != NULL)
+				output_name = alt_name;
+		}
 #endif
 
 		if (ignorelist_match (ignorelist, output_name) != 0)
@@ -904,9 +924,6 @@ static int disk_read (void)
 #endif
 	} /* while (fgets (buffer, sizeof (buffer), fh) != NULL) */
 
-#if HAVE_LIBUDEV
-	udev_unref(handle_udev);
-#endif
 
 	fclose (fh);
 /* #endif defined(KERNEL_LINUX) */
@@ -1057,5 +1074,6 @@ void module_register (void)
   plugin_register_config ("disk", disk_config,
       config_keys, config_keys_num);
   plugin_register_init ("disk", disk_init);
+  plugin_register_shutdown ("disk", disk_shutdown);
   plugin_register_read ("disk", disk_read);
 } /* void module_register */
