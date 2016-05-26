@@ -5131,13 +5131,12 @@ The B<Query> block defines one database query which may later be used by a
 database definition. It accepts a single mandatory argument which specifies
 the name of the query. The names of all queries have to be unique (see the
 B<MinVersion> and B<MaxVersion> options below for an exception to this
-rule). The following configuration options are available to define the query:
+rule).
 
-In each B<Query> block, there is one or more B<Result> blocks. B<Result>
-blocks define how to handle the values returned from the query. They define
-which column holds which value and how to dispatch that value to the daemon.
-Multiple B<Result> blocks may be used to extract multiple values from a single
-query.
+In each B<Query> block, there is one or more B<Result> blocks. Multiple
+B<Result> blocks may be used to extract multiple values from a single query.
+
+The following configuration options are available to define the query:
 
 =over 4
 
@@ -5155,7 +5154,7 @@ allowed as long as a single non-empty command has been specified only.
 
 The returned lines will be handled separately one after another.
 
-=item B<Param> I<hostname>|I<database>|I<username>|I<interval>
+=item B<Param> I<hostname>|I<database>|I<instance>|I<username>|I<interval>
 
 Specify the parameters which should be passed to the SQL query. The parameters
 are referred to in the SQL query as B<$1>, B<$2>, etc. in the same order as
@@ -5192,6 +5191,34 @@ specific or global B<Interval> options).
 Please note that parameters are only supported by PostgreSQL's protocol
 version 3 and above which was introduced in version 7.4 of PostgreSQL.
 
+=item B<PluginInstanceFrom> I<column>
+
+Specify how to create the "PluginInstance" for reporting this query results.
+Only one column is supported. You may concatenate fields and string values in
+the query statement to get the required results.
+
+=item B<MinVersion> I<version>
+
+=item B<MaxVersion> I<version>
+
+Specify the minimum or maximum version of PostgreSQL that this query should be
+used with. Some statistics might only be available with certain versions of
+PostgreSQL. This allows you to specify multiple queries with the same name but
+which apply to different versions, thus allowing you to use the same
+configuration in a heterogeneous environment.
+
+The I<version> has to be specified as the concatenation of the major, minor
+and patch-level versions, each represented as two-decimal-digit numbers. For
+example, version 8.2.3 will become 80203.
+
+=back
+
+The B<Result> block defines how to handle the values returned from the query.
+It defines which column holds which value and how to dispatch that value to
+the daemon.
+
+=over 4
+
 =item B<Type> I<type>
 
 The I<type> name to be used when dispatching the values. The type describes
@@ -5199,7 +5226,7 @@ how to handle the data and where to store it. See L<types.db(5)> for more
 details on types and their configuration. The number and type of values (as
 selected by the B<ValuesFrom> option) has to match the type of the given name.
 
-This option is required inside a B<Result> block.
+This option is mandatory.
 
 =item B<InstancePrefix> I<prefix>
 
@@ -5234,20 +5261,6 @@ by the plugin as well.
 This option is required inside a B<Result> block and may be specified multiple
 times. If multiple B<ValuesFrom> options are specified, the columns are read
 in the given order.
-
-=item B<MinVersion> I<version>
-
-=item B<MaxVersion> I<version>
-
-Specify the minimum or maximum version of PostgreSQL that this query should be
-used with. Some statistics might only be available with certain versions of
-PostgreSQL. This allows you to specify multiple queries with the same name but
-which apply to different versions, thus allowing you to use the same
-configuration in a heterogeneous environment.
-
-The I<version> has to be specified as the concatenation of the major, minor
-and patch-level versions, each represented as two-decimal-digit numbers. For
-example, version 8.2.3 will become 80203.
 
 =back
 
@@ -5418,6 +5431,8 @@ Specify the plugin instance name that should be used instead of the database
 name (which is the default, if this option has not been specified). This
 allows to query multiple databases of the same name on the same host (e.g.
 when running multiple database server versions in parallel).
+The plugin instance name can also be set from the query result using
+the B<PluginInstanceFrom> option in B<Query> block.
 
 =item B<Host> I<hostname>
 
