@@ -1,0 +1,17 @@
+Packaging and helper scripts for collectd in Sailfish.
+
+The build required preparation of the source in full Linux PC (I used
+Gentoo) and building later in MER SDK. When building directly from git
+sources on MER SDK, I had problems with bison (google pointed to some
+bison bug). So, to build:
+
+* clone git repo
+
+* In full Linux host, nor MER SDK, prepare the source files:
+  * ./build.sh
+  * configure
+  * make -j4
+  * make clean
+
+* in MER SDK, make RPM as usual:
+  * mb2 -t SailfishOS-i486 -s contrib/sailfish/collectd.spec build
