@@ -16,10 +16,11 @@ License:	GPLv2
 Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
 BuildRequires:	libgcrypt-devel, kernel-headers, libtool-ltdl-devel, libcap-devel, libxml2-devel, python-devel, perl-devel, perl-ExtUtils-MakeMaker
-BuildRequires:	rrdtool-devel, autoconf, automake, libtool, bison, bison-devel
+BuildRequires:	rrdtool-devel, autoconf, automake, libtool, bison
+BuildRequires:  libkeepalive-glib, libkeepalive-glib-devel, dbus-glib-devel
 Vendor:		collectd development team <collectd@verplant.org>
 
-Requires:	systemd, libxml2, perl, python, rrdtool
+Requires:	systemd, libxml2, perl, python, rrdtool, libkeepalive-glib, dbus-glib
 
 %description
 collectd is a small daemon which collects system information periodically and
