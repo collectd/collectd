@@ -18,6 +18,9 @@
  *
  * Authors:
  *   Peter Holik <peter at holik.at>
+ *
+ * Changes:
+ *   2016-05-27: freq_fname_rhel was added by Igor Solovyov <igor dot solovyov at gmail dot com>.
  **/
 
 #include "collectd.h"
@@ -28,18 +31,52 @@
 
 static int num_cpu = 0;
 
+static char const * freq_fname = "/sys/devices/system/cpu/cpu%d/cpufreq/"
+								 "scaling_cur_freq";
+static char const * freq_fname_rhel = "/sys/devices/system/cpu/cpu%d/cpufreq/"
+									  "cpuinfo_cur_freq";
+
+static int setup_freq_fname()
+{
+	int status;
+	char filename[256];
+
+	status = ssnprintf (filename, sizeof (filename),
+						freq_fname, 0);
+	if ((status < 1) || ((unsigned int)status >= sizeof (filename)))
+		return 0;
+
+	if (!access (filename, R_OK))
+		return 1;
+
+	status = ssnprintf (filename, sizeof (filename),
+						freq_fname_rhel, 0);
+	if ((status < 1) || ((unsigned int)status >= sizeof (filename)))
+		return 0;
+
+	if (!access (filename, R_OK)) {
+		freq_fname = freq_fname_rhel;
+		return 1;
+	}
+
+	return 0;
+}
+
 static int cpufreq_init (void)
 {
-        int status;
+	int status;
 	char filename[256];
+
+	if ( !setup_freq_fname() ) {
+		plugin_unregister_read ("cpufreq");
+		return 0;
+	}
 
 	num_cpu = 0;
 
 	while (1)
 	{
-		status = ssnprintf (filename, sizeof (filename),
-				"/sys/devices/system/cpu/cpu%d/cpufreq/"
-				"scaling_cur_freq", num_cpu);
+		status = ssnprintf (filename, sizeof (filename), freq_fname, num_cpu);
 		if ((status < 1) || ((unsigned int)status >= sizeof (filename)))
 			break;
 
@@ -78,7 +115,7 @@ static void cpufreq_submit (int cpu_num, double value)
 
 static int cpufreq_read (void)
 {
-        int status;
+	int status;
 	unsigned long long val;
 	int i = 0;
 	FILE *fp;
@@ -87,9 +124,7 @@ static int cpufreq_read (void)
 
 	for (i = 0; i < num_cpu; i++)
 	{
-		status = ssnprintf (filename, sizeof (filename),
-				"/sys/devices/system/cpu/cpu%d/cpufreq/"
-				"scaling_cur_freq", i);
+		status = ssnprintf (filename, sizeof (filename), freq_fname, i);
 		if ((status < 1) || ((unsigned int)status >= sizeof (filename)))
 			return (-1);
 
