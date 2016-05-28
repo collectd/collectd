@@ -9,7 +9,7 @@
 Summary:	statistics collection and monitoring daemon
 Name:		collectd
 Version:	5.5.0
-Release:	1%{?dist}
+Release:	2%{?dist}
 URL:		http://collectd.org
 Source:		http://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
@@ -216,7 +216,8 @@ Collectd utilities
 # 	%{?_with_write_sensu} \
 # 	%{?_with_write_tsdb}
 
-%configure --disable-all-plugins \
+%configure --enable-keepalive \
+	   --disable-all-plugins \
 	   --with-perl-bindings="INSTALLDIRS=vendor" \
 	   --enable-aggregation \
 	   --enable-battery \
@@ -272,7 +273,7 @@ rm -rf %{buildroot}
 
 # SFOS: figure out where to keep config for services
 #%{__install} -Dp -m0644 contrib/systemd.collectd.service %{buildroot}%{_unitdir}/collectd.service
-%{__install} -Dp -m0644 src/collectd.conf %{buildroot}%{_sysconfdir}/collectd.conf
+%{__install} -Dp -m0644 contrib/sailfish/collectd.conf %{buildroot}%{_sysconfdir}/collectd.conf
 
 #%{__install} -d %{buildroot}%{_sharedstatedir}/collectd/
 %{__install} -d %{buildroot}%{_sysconfdir}/collectd.d/

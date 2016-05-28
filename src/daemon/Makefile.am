@@ -82,6 +82,10 @@ if BUILD_WITH_LIBSTATGRAB
 collectd_CFLAGS += $(BUILD_WITH_LIBSTATGRAB_CFLAGS)
 collectd_LDADD += $(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
 endif
+if BUILD_WITH_KEEPALIVE
+collectd_CFLAGS += $(KEEPALIVE_CFLAGS)
+collectd_LDADD += $(KEEPALIVE_LIBS)
+endif
 
 if BUILD_WITH_OWN_LIBOCONFIG
 collectd_LDADD += $(LIBLTDL) $(top_builddir)/src/liboconfig/liboconfig.la
@@ -110,3 +114,4 @@ test_utils_time_SOURCES = utils_time_test.c ../testing.h
 test_utils_subst_SOURCES = utils_subst_test.c ../testing.h \
 			   utils_subst.c utils_subst.h
 test_utils_subst_LDADD = libplugin_mock.la
+
