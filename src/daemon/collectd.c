@@ -45,7 +45,6 @@
 # include <statgrab.h>
 #endif
 
-#define HAVE_KEEPALIVE_GLIB 1
 #if HAVE_KEEPALIVE_GLIB
 # include <glib.h>
 # include <dbus/dbus.h>
@@ -584,6 +583,8 @@ static void sig_term_handler (int __attribute__((unused)) signal)
    glib main loop when keepalive messages arrive */
 static void do_shot()
 {
+  INFO ("do_shot called.");
+  
 #if HAVE_LIBKSTAT
   update_kstat ();
 #endif
@@ -843,7 +844,7 @@ int main (int argc, char **argv)
 		    return (1);
 		  }
 
-		if (!connect_to_system_bus())
+		if (connect_to_system_bus())
 		  {
 		    ERROR("connect_to_system_bus failed");
 		    return (1);
