@@ -402,7 +402,7 @@ static int do_loop (void)
 
 	return (0);
 } /* int do_loop */
-#endif /* !HAVE_KEEPASS_GLIB */
+#endif /* !HAVE_KEEPALIVE_GLIB */
 
 
 static int do_shutdown (void)
@@ -583,7 +583,18 @@ static void sig_term_handler (int __attribute__((unused)) signal)
    glib main loop when keepalive messages arrive */
 static void do_shot()
 {
+  static cdtime_t last_call;
+  cdtime_t now = cdtime();
+
   INFO ("do_shot called.");
+
+  /* check whether keepalive called multiple times in quick succession */
+  if ( now <= last_call ||
+       CDTIME_T_TO_DOUBLE ( now - last_call ) < 1.0 )
+    {
+      INFO ("do_shot skipped due to recent call");
+      return;
+    }
   
 #if HAVE_LIBKSTAT
   update_kstat ();
@@ -594,6 +605,8 @@ static void do_shot()
 
   /* Instruct to continue with the background activity */
   background_activity_wait(glib_background_activity);
+
+  last_call = now;
 }
 
 #endif /* HAVE_KEEPALIVE_GLIB */
@@ -874,6 +887,8 @@ int main (int argc, char **argv)
 		else if ( default_interval < 15*60 ) slot = BACKGROUND_ACTIVITY_FREQUENCY_FIFTEEN_MINUTES;
 		else if ( default_interval < 30*60 ) slot = BACKGROUND_ACTIVITY_FREQUENCY_THIRTY_MINUTES;
 		else slot = BACKGROUND_ACTIVITY_FREQUENCY_ONE_HOUR;
+
+		INFO ("Selected Keepalive interval: %u", slot );
 
 		background_activity_set_wakeup_slot(glib_background_activity, slot);
 
