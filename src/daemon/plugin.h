@@ -344,9 +344,8 @@ void plugin_log_available_writers (void);
  *
  * DESCRIPTION
  *  This function is called by reading processes with the values they've
- *  aquired. The function fetches the data-set definition (that has been
- *  registered using `plugin_register_data_set') and calls _all_ registered
- *  write-functions.
+ *  aquired. The function fetches the data-set definition and calls
+ *  _all_ registered write-functions.
  *
  * ARGUMENTS
  *  `vl'        Value list of the values that have been read by a `read'

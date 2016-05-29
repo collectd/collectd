@@ -49,6 +49,9 @@
 
 #define ESCAPE_NULL(str) ((str) == NULL ? "(null)" : (str))
 
+char **conf_typesdb = NULL;
+size_t conf_typesdb_num = 0;
+
 /*
  * Private types
  */
@@ -125,8 +128,6 @@ static cf_global_option_t cf_global_options[] =
 	{"MaxReadInterval", NULL, "86400"}
 };
 static int cf_global_options_num = STATIC_ARRAY_SIZE (cf_global_options);
-
-static int cf_default_typesdb = 1;
 
 /*
  * Functions to handle register/unregister, search, and other plugin related
@@ -231,14 +232,19 @@ static int dispatch_global_option (const oconfig_item_t *ci)
 static int dispatch_value_typesdb (oconfig_item_t *ci)
 {
 	int i = 0;
+	char **tmp;
 
 	assert (strcasecmp (ci->key, "TypesDB") == 0);
-
-	cf_default_typesdb = 0;
 
 	if (ci->values_num < 1) {
 		ERROR ("configfile: `TypesDB' needs at least one argument.");
 		return (-1);
+	}
+
+	tmp = realloc(conf_typesdb, sizeof(*conf_typesdb) * (conf_typesdb_num + ci->values_num));
+	if (tmp == NULL) {
+		ERROR ("configfile: realloc failed.");
+		return (ENOMEM);
 	}
 
 	for (i = 0; i < ci->values_num; ++i)
@@ -246,12 +252,30 @@ static int dispatch_value_typesdb (oconfig_item_t *ci)
 		if (OCONFIG_TYPE_STRING != ci->values[i].type) {
 			WARNING ("configfile: TypesDB: Skipping %i. argument which "
 					"is not a string.", i + 1);
+			tmp[conf_typesdb_num + i] = NULL;
 			continue;
 		}
 
-		read_types_list (ci->values[i].value.string);
+		tmp[conf_typesdb_num + i] = strdup(ci->values[i].value.string);
+		if (tmp[conf_typesdb_num + i] == NULL) {
+			ERROR ("configfile: strdup failed.");
+			goto error;
+		}
 	}
+
+	conf_typesdb = tmp;
+	conf_typesdb_num = conf_typesdb_num + ci->values_num;
+
 	return (0);
+error:
+	for (i = 0; i < conf_typesdb_num + ci->values_num; i++)
+		free(tmp[i]);
+	free(tmp);
+
+	conf_typesdb = NULL;
+	conf_typesdb_num = 0;
+
+	return (ENOMEM);
 } /* int dispatch_value_typesdb */
 
 static int dispatch_value_plugindir (oconfig_item_t *ci)
@@ -1148,12 +1172,21 @@ int cf_read (const char *filename)
 
 	oconfig_free (conf);
 
-	/* Read the default types.db if no `TypesDB' option was given. */
-	if (cf_default_typesdb)
+	/* Should read the default types.db if no `TypesDB' option was given. */
+	if (conf_typesdb_num == 0)
 	{
-		if (read_types_list (PKGDATADIR"/types.db") != 0)
-			ret = -1;
+		conf_typesdb = realloc(conf_typesdb, sizeof(*conf_typesdb) * 1);
+		if (conf_typesdb == NULL) {
+			ERROR ("configfile: realloc failed.");
+			return (ENOMEM);
+		}
+		conf_typesdb_num = 1;
+		conf_typesdb[0] = strdup(PKGDATADIR"/types.db");
 	}
+	
+	/* Read required 'types.db' files. */
+	if (reload_typesdb() != 0)
+		ret = -1;
 
 	return ret;
 } /* int cf_read */
