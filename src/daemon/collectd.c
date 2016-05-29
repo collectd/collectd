@@ -539,74 +539,74 @@ static int notify_systemd (void)
 
 static void disconnect_from_systembus(void)
 {
-  if( glib_system_bus )
-    dbus_connection_unref(glib_system_bus), glib_system_bus = 0;
+	if( glib_system_bus )
+		dbus_connection_unref(glib_system_bus), glib_system_bus = 0;
 }
 
 
 static int connect_to_system_bus(void)
 {
-  DBusError err = DBUS_ERROR_INIT;
-  glib_system_bus = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
-  if( !glib_system_bus )
-    {
-      ERROR("dbus_bus_get failed: %s: %s", err.name, err.message);
-      return -1;
-    }
-  dbus_connection_setup_with_g_main(glib_system_bus, 0);
-  dbus_error_free(&err);
-  return 0; /* success */
+	DBusError err = DBUS_ERROR_INIT;
+	glib_system_bus = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
+	if( !glib_system_bus )
+	{
+		ERROR("dbus_bus_get failed: %s: %s", err.name, err.message);
+		return -1;
+	}
+	dbus_connection_setup_with_g_main(glib_system_bus, 0);
+	dbus_error_free(&err);
+	return 0; /* success */
 }
 
 
 static void glib_stop(void)
 {
-  if (glib_background_activity)
-    background_activity_stop(glib_background_activity);
+	if (glib_background_activity)
+		background_activity_stop(glib_background_activity);
 
-  if (glib_mainloop_handle)
-    g_main_loop_quit(glib_mainloop_handle);
+	if (glib_mainloop_handle)
+		g_main_loop_quit(glib_mainloop_handle);
 }
 
 
 static void sig_int_handler (int __attribute__((unused)) signal)
 {
-  glib_stop();
+	glib_stop();
 }
 
 static void sig_term_handler (int __attribute__((unused)) signal)
 {
-  glib_stop();
+	glib_stop();
 }
 
 /* This function performs a single cycle from do_loop. Its called by
    glib main loop when keepalive messages arrive */
 static void do_shot()
 {
-  static cdtime_t last_call;
-  cdtime_t now = cdtime();
+	static cdtime_t last_call;
+	cdtime_t now = cdtime();
 
-  INFO ("do_shot called.");
+	INFO ("do_shot called.");
 
-  /* check whether keepalive called multiple times in quick succession */
-  if ( now <= last_call ||
-       CDTIME_T_TO_DOUBLE ( now - last_call ) < 1.0 )
-    {
-      INFO ("do_shot skipped due to recent call");
-      return;
-    }
-  
+	/* check whether keepalive called multiple times in quick succession */
+	if ( now <= last_call ||
+	     CDTIME_T_TO_DOUBLE ( now - last_call ) < 1.0 )
+	{
+		INFO ("do_shot skipped due to recent call");
+		return;
+	}
+
 #if HAVE_LIBKSTAT
-  update_kstat ();
+	update_kstat ();
 #endif
 
-  /* Issue all plugins */
-  plugin_read_all ();
+	/* Issue all plugins */
+	plugin_read_all ();
 
-  /* Instruct to continue with the background activity */
-  background_activity_wait(glib_background_activity);
+	/* Instruct to continue with the background activity */
+	background_activity_wait(glib_background_activity);
 
-  last_call = now;
+	last_call = now;
 }
 
 #endif /* HAVE_KEEPALIVE_GLIB */
@@ -852,23 +852,23 @@ int main (int argc, char **argv)
 
 		glib_mainloop_handle = g_main_loop_new(0, 0);
 		if ( glib_mainloop_handle == NULL )
-		  {
-		    ERROR("background_activity_new failed");
-		    return (1);
-		  }
+		{
+			ERROR("background_activity_new failed");
+			return (1);
+		}
 
 		if (connect_to_system_bus())
-		  {
-		    ERROR("connect_to_system_bus failed");
-		    return (1);
-		  }
+		{
+			ERROR("connect_to_system_bus failed");
+			return (1);
+		}
 
 		glib_background_activity = background_activity_new();
 		if ( glib_background_activity == NULL )
-		  {
-		    ERROR("background_activity_new failed");
-		    return (1);
-		  }
+		{
+			ERROR("background_activity_new failed");
+			return (1);
+		}
 
 		background_activity_set_running_callback(glib_background_activity, do_shot);
 
