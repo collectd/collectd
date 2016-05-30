@@ -123,6 +123,9 @@ static XS (Collectd_call_by_name);
 typedef struct c_ithread_s {
 	/* the thread's Perl interpreter */
 	PerlInterpreter *interp;
+	_Bool running;  /* thread is inside pi */
+	_Bool shutdown;
+	pthread_t pthread;
 
 	/* double linked list of threads */
 	struct c_ithread_s *prev;
@@ -139,6 +142,7 @@ typedef struct {
 #endif /* COLLECT_DEBUG */
 
 	pthread_mutex_t mutex;
+	pthread_mutexattr_t mutexattr;
 } c_ithread_list_t;
 
 /* name / user_data for Perl matches / targets */
@@ -999,6 +1003,32 @@ static int pplugin_dispatch_notification (pTHX_ HV *notif)
 } /* static int pplugin_dispatch_notification (HV *) */
 
 /*
+ * Call perl sub with thread locking flags handled.
+ */
+static int call_pv_locked (pTHX_ const char* sub_name)
+{
+	_Bool old_running;
+	int ret;
+
+	c_ithread_t *t = (c_ithread_t *)pthread_getspecific(perl_thr_key);
+	if (t == NULL) /* thread destroyed */
+		return 0;
+
+	old_running = t->running;
+	t->running = 1;
+
+	if (t->shutdown) {
+		t->running = old_running;
+		return 0;
+	}
+
+	ret = call_pv (sub_name, G_SCALAR);
+
+	t->running = old_running;
+	return ret;
+} /* static int call_pv_locked (pTHX, *sub_name) */
+
+/*
  * Call all working functions of the given type.
  */
 static int pplugin_call_all (pTHX_ int type, ...)
@@ -1127,7 +1157,7 @@ static int pplugin_call_all (pTHX_ int type, ...)
 
 	PUTBACK;
 
-	retvals = call_pv ("Collectd::plugin_call_all", G_SCALAR);
+	retvals = call_pv_locked (aTHX_ "Collectd::plugin_call_all");
 
 	SPAGAIN;
 	if (0 < retvals) {
@@ -1248,6 +1278,9 @@ static c_ithread_t *c_ithread_create (PerlInterpreter *base)
 		t->prev = perl_threads->tail;
 	}
 
+	t->pthread = pthread_self();
+	t->running = 0;
+	t->shutdown = 0;
 	perl_threads->tail = t;
 
 	pthread_setspecific (perl_thr_key, (const void *)t);
@@ -1368,7 +1401,7 @@ static int fc_call (pTHX_ int type, int cb_type, pfc_user_data_t *data, ...)
 
 	PUTBACK;
 
-	retvals = call_pv ("Collectd::fc_call", G_SCALAR);
+	retvals = call_pv_locked (aTHX_ "Collectd::fc_call");
 
 	if ((FC_CB_EXEC == cb_type) && (meta != NULL)) {
 		assert (pmeta != NULL);
@@ -1908,6 +1941,7 @@ static XS (Collectd_call_by_name)
 
 static int perl_init (void)
 {
+	int status;
 	dTHX;
 
 	if (NULL == perl_threads)
@@ -1925,7 +1959,19 @@ static int perl_init (void)
 
 	log_debug ("perl_init: c_ithread: interp = %p (active threads: %i)",
 			aTHX, perl_threads->number_of_threads);
-	return pplugin_call_all (aTHX_ PLUGIN_INIT);
+
+	/* Lock the base thread to avoid race conditions with c_ithread_create().
+	 * See https://github.com/collectd/collectd/issues/9 and
+	 *     https://github.com/collectd/collectd/issues/1706 for details.
+	*/
+	assert (aTHX == perl_threads->head->interp);
+	pthread_mutex_lock (&perl_threads->mutex);
+
+	status = pplugin_call_all (aTHX_ PLUGIN_INIT);
+
+	pthread_mutex_unlock (&perl_threads->mutex);
+
+	return status;
 } /* static int perl_init (void) */
 
 static int perl_read (void)
@@ -2010,7 +2056,9 @@ static void perl_log (int level, const char *msg,
 
 	/* Lock the base thread if this is not called from one of the read threads
 	 * to avoid race conditions with c_ithread_create(). See
-	 * https://github.com/collectd/collectd/issues/9 for details. */
+	 * https://github.com/collectd/collectd/issues/9 for details.
+	*/
+
 	if (aTHX == perl_threads->head->interp)
 		pthread_mutex_lock (&perl_threads->mutex);
 
@@ -2098,17 +2146,31 @@ static int perl_shutdown (void)
 	t = perl_threads->tail;
 
 	while (NULL != t) {
+		struct timespec ts_wait;
 		c_ithread_t *thr = t;
 
 		/* the pointer has to be advanced before destroying
 		 * the thread as this will free the memory */
 		t = t->prev;
 
+		thr->shutdown = 1;
+		if (thr->running) {
+			/* Give some time to thread to exit from pi */
+			WARNING ("perl shutdown: thread is running inside perl. Waiting.");
+			ts_wait.tv_sec = 0;
+			ts_wait.tv_nsec = 500000;
+			nanosleep (&ts_wait, NULL);
+		}
+		if (thr->running) {
+			ERROR ("perl shutdown: thread hangs inside perl. Thread killed.");
+			pthread_kill (thr->pthread, SIGTERM);
+		}
 		c_ithread_destroy (thr);
 	}
 
 	pthread_mutex_unlock (&perl_threads->mutex);
 	pthread_mutex_destroy (&perl_threads->mutex);
+	pthread_mutexattr_destroy (&perl_threads->mutexattr);
 
 	sfree (perl_threads);
 
@@ -2252,7 +2314,9 @@ static int init_pi (int argc, char **argv)
 	perl_threads = smalloc (sizeof (*perl_threads));
 	memset (perl_threads, 0, sizeof (c_ithread_list_t));
 
-	pthread_mutex_init (&perl_threads->mutex, NULL);
+	pthread_mutexattr_init(&perl_threads->mutexattr);
+	pthread_mutexattr_settype(&perl_threads->mutexattr, PTHREAD_MUTEX_RECURSIVE);
+	pthread_mutex_init (&perl_threads->mutex, &perl_threads->mutexattr);
 	/* locking the mutex should not be necessary at this point
 	 * but let's just do it for the sake of completeness */
 	pthread_mutex_lock (&perl_threads->mutex);
