@@ -1464,74 +1464,74 @@ See L<http://curl.haxx.se/libcurl/c/curl_easy_getinfo.html> for more details.
 
 =over 4
 
-=item B<total_time> B<true|false>
+=item B<TotalTime> B<true|false>
 
 Total time of the transfer, including name resolving, TCP connect, etc.
 
-=item B<namelookup_time> B<true|false>
+=item B<NamelookupTime> B<true|false>
 
 Time it took from the start until name resolving was completed.
 
-=item B<connect_time> B<true|false>
+=item B<ConnectTime> B<true|false>
 
 Time it took from the start until the connect to the remote host (or proxy)
 was completed.
 
-=item B<appconnect_time> B<true|false>
+=item B<AppconnectTime> B<true|false>
 
 Time it took from the start until the SSL/SSH connect/handshake to the remote
 host was completed.
 
-=item B<pretransfer_time> B<true|false>
+=item B<PretransferTime> B<true|false>
 
 Time it took from the start until the file transfer is just about to begin.
 
-=item B<starttransfer_time> B<true|false>
+=item B<StarttransferTime> B<true|false>
 
 Time it took from the start until the first byte was received.
 
-=item B<redirect_time> B<true|false>
+=item B<RedirectTime> B<true|false>
 
 Time it took for all redirection steps include name lookup, connect,
 pre-transfer and transfer before final transaction was started.
 
-=item B<redirect_count> B<true|false>
+=item B<RedirectCount> B<true|false>
 
 The total number of redirections that were actually followed.
 
-=item B<size_upload> B<true|false>
+=item B<SizeUpload> B<true|false>
 
 The total amount of bytes that were uploaded.
 
-=item B<size_download> B<true|false>
+=item B<SizeDownload> B<true|false>
 
 The total amount of bytes that were downloaded.
 
-=item B<speed_download> B<true|false>
+=item B<SpeedDownload> B<true|false>
 
 The average download speed that curl measured for the complete download.
 
-=item B<speed_upload> B<true|false>
+=item B<SpeedUpload> B<true|false>
 
 The average upload speed that curl measured for the complete upload.
 
-=item B<header_size> B<true|false>
+=item B<HeaderSize> B<true|false>
 
 The total size of all the headers received.
 
-=item B<request_size> B<true|false>
+=item B<RequestSize> B<true|false>
 
 The total size of the issued requests.
 
-=item B<content_length_download> B<true|false>
+=item B<ContentLengthDownload> B<true|false>
 
 The content-length of the download.
 
-=item B<content_length_upload> B<true|false>
+=item B<ContentLengthUpload> B<true|false>
 
 The specified size of the upload.
 
-=item B<num_connects> B<true|false>
+=item B<NumConnects> B<true|false>
 
 The number of new connections that were created to achieve the transfer.
 

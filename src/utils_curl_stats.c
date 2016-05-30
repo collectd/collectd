@@ -110,32 +110,33 @@ static int dispatch_size (CURL *curl, CURLINFO info, value_list_t *vl)
 
 static struct {
 	const char *name;
+	const char *config_key;
 	size_t offset;
 
 	int (*dispatcher)(CURL *, CURLINFO, value_list_t *);
 	const char *type;
 	CURLINFO info;
 } field_specs[] = {
-#define SPEC(name, dispatcher, type, info) \
-	{ #name, offsetof (curl_stats_t, name), dispatcher, type, info }
+#define SPEC(name, config_key, dispatcher, type, info) \
+	{ #name, config_key, offsetof (curl_stats_t, name), dispatcher, type, info }
 
-	SPEC (total_time,              dispatch_gauge, "duration", CURLINFO_TOTAL_TIME),
-	SPEC (namelookup_time,         dispatch_gauge, "duration", CURLINFO_NAMELOOKUP_TIME),
-	SPEC (connect_time,            dispatch_gauge, "duration", CURLINFO_CONNECT_TIME),
-	SPEC (pretransfer_time,        dispatch_gauge, "duration", CURLINFO_PRETRANSFER_TIME),
-	SPEC (size_upload,             dispatch_gauge, "bytes",    CURLINFO_SIZE_UPLOAD),
-	SPEC (size_download,           dispatch_gauge, "bytes",    CURLINFO_SIZE_DOWNLOAD),
-	SPEC (speed_download,          dispatch_speed, "bitrate",  CURLINFO_SPEED_DOWNLOAD),
-	SPEC (speed_upload,            dispatch_speed, "bitrate",  CURLINFO_SPEED_UPLOAD),
-	SPEC (header_size,             dispatch_size,  "bytes",    CURLINFO_HEADER_SIZE),
-	SPEC (request_size,            dispatch_size,  "bytes",    CURLINFO_REQUEST_SIZE),
-	SPEC (content_length_download, dispatch_gauge, "bytes",    CURLINFO_CONTENT_LENGTH_DOWNLOAD),
-	SPEC (content_length_upload,   dispatch_gauge, "bytes",    CURLINFO_CONTENT_LENGTH_UPLOAD),
-	SPEC (starttransfer_time,      dispatch_gauge, "duration", CURLINFO_STARTTRANSFER_TIME),
-	SPEC (redirect_time,           dispatch_gauge, "duration", CURLINFO_REDIRECT_TIME),
-	SPEC (redirect_count,          dispatch_size,  "count",    CURLINFO_REDIRECT_COUNT),
-	SPEC (num_connects,            dispatch_size,  "count",    CURLINFO_NUM_CONNECTS),
-	SPEC (appconnect_time,         dispatch_gauge, "duration", CURLINFO_APPCONNECT_TIME),
+	SPEC (total_time,              "TotalTime",              dispatch_gauge, "duration", CURLINFO_TOTAL_TIME),
+	SPEC (namelookup_time,         "NamelookupTime",         dispatch_gauge, "duration", CURLINFO_NAMELOOKUP_TIME),
+	SPEC (connect_time,            "ConnectTime",            dispatch_gauge, "duration", CURLINFO_CONNECT_TIME),
+	SPEC (pretransfer_time,        "PretransferTime",        dispatch_gauge, "duration", CURLINFO_PRETRANSFER_TIME),
+	SPEC (size_upload,             "SizeUpload",             dispatch_gauge, "bytes",    CURLINFO_SIZE_UPLOAD),
+	SPEC (size_download,           "SizeDownload",           dispatch_gauge, "bytes",    CURLINFO_SIZE_DOWNLOAD),
+	SPEC (speed_download,          "SpeedDownload",          dispatch_speed, "bitrate",  CURLINFO_SPEED_DOWNLOAD),
+	SPEC (speed_upload,            "SpeedUpload",            dispatch_speed, "bitrate",  CURLINFO_SPEED_UPLOAD),
+	SPEC (header_size,             "HeaderSize",             dispatch_size,  "bytes",    CURLINFO_HEADER_SIZE),
+	SPEC (request_size,            "RequestSize",            dispatch_size,  "bytes",    CURLINFO_REQUEST_SIZE),
+	SPEC (content_length_download, "ContentLengthDownload",  dispatch_gauge, "bytes",    CURLINFO_CONTENT_LENGTH_DOWNLOAD),
+	SPEC (content_length_upload,   "ContentLengthUpload",    dispatch_gauge, "bytes",    CURLINFO_CONTENT_LENGTH_UPLOAD),
+	SPEC (starttransfer_time,      "StarttransferTime",      dispatch_gauge, "duration", CURLINFO_STARTTRANSFER_TIME),
+	SPEC (redirect_time,           "RedirectTime",           dispatch_gauge, "duration", CURLINFO_REDIRECT_TIME),
+	SPEC (redirect_count,          "RedirectCount",          dispatch_size,  "count",    CURLINFO_REDIRECT_COUNT),
+	SPEC (num_connects,            "NumConnects",            dispatch_size,  "count",    CURLINFO_NUM_CONNECTS),
+	SPEC (appconnect_time,         "AppconnectTime",         dispatch_gauge, "duration", CURLINFO_APPCONNECT_TIME),
 
 #undef SPEC
 };
@@ -170,9 +171,12 @@ curl_stats_t *curl_stats_from_config (oconfig_item_t *ci)
 		oconfig_item_t *c = ci->children + i;
 		size_t field;
 
-		for (field = 0; field < STATIC_ARRAY_SIZE (field_specs); ++field)
+		for (field = 0; field < STATIC_ARRAY_SIZE (field_specs); ++field) {
+			if (! strcasecmp (c->key, field_specs[field].config_key))
+				break;
 			if (! strcasecmp (c->key, field_specs[field].name))
 				break;
+		}
 		if (field >= STATIC_ARRAY_SIZE (field_specs))
 		{
 			ERROR ("curl stats: Unknown field name %s", c->key);
