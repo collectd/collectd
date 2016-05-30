@@ -136,6 +136,7 @@ typedef struct {
 #endif /* COLLECT_DEBUG */
 
 	pthread_mutex_t mutex;
+	pthread_mutexattr_t mutexattr;
 } c_ithread_list_t;
 
 /* name / user_data for Perl matches / targets */
@@ -1967,7 +1968,6 @@ static int perl_init (void)
 	/* Lock the base thread to avoid race conditions with c_ithread_create().
 	 * See https://github.com/collectd/collectd/issues/9 and
 	 *     https://github.com/collectd/collectd/issues/1706 for details.
-	 * Locking here requires additional check in perl_log() to avoid deadlock.
 	*/
 	assert (aTHX == perl_threads->head->interp);
 	pthread_mutex_lock (&perl_threads->mutex);
@@ -2045,7 +2045,6 @@ static void perl_log (int level, const char *msg,
 		user_data_t __attribute__((unused)) *user_data)
 {
 	dTHX;
-	int locked = 0;
 
 	if (NULL == perl_threads)
 		return;
@@ -2063,18 +2062,14 @@ static void perl_log (int level, const char *msg,
 	/* Lock the base thread if this is not called from one of the read threads
 	 * to avoid race conditions with c_ithread_create(). See
 	 * https://github.com/collectd/collectd/issues/9 for details.
-	 * Additionally check, if we are called from perl interpreter.
-	 * Maybe PTHREAD_MUTEX_RECURSIVE mutex type will be more appropriate?
 	*/
 
-	if (aTHX == perl_threads->head->interp && !perl_threads->head->running) {
+	if (aTHX == perl_threads->head->interp)
 		pthread_mutex_lock (&perl_threads->mutex);
-		locked = 1;
-	}
 
 	pplugin_call_all (aTHX_ PLUGIN_LOG, level, msg);
 
-	if (locked)
+	if (aTHX == perl_threads->head->interp)
 		pthread_mutex_unlock (&perl_threads->mutex);
 
 	return;
@@ -2188,6 +2183,7 @@ static int perl_shutdown (void)
 
 	pthread_mutex_unlock (&perl_threads->mutex);
 	pthread_mutex_destroy (&perl_threads->mutex);
+	pthread_mutexattr_destroy (&perl_threads->mutexattr);
 
 	sfree (perl_threads);
 
@@ -2331,7 +2327,9 @@ static int init_pi (int argc, char **argv)
 	perl_threads = (c_ithread_list_t *)smalloc (sizeof (c_ithread_list_t));
 	memset (perl_threads, 0, sizeof (c_ithread_list_t));
 
-	pthread_mutex_init (&perl_threads->mutex, NULL);
+	pthread_mutexattr_init(&perl_threads->mutexattr);
+	pthread_mutexattr_settype(&perl_threads->mutexattr, PTHREAD_MUTEX_RECURSIVE);
+	pthread_mutex_init (&perl_threads->mutex, &perl_threads->mutexattr);
 	/* locking the mutex should not be necessary at this point
 	 * but let's just do it for the sake of completeness */
 	pthread_mutex_lock (&perl_threads->mutex);
