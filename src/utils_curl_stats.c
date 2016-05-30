@@ -136,7 +136,9 @@ static struct {
 	SPEC (redirect_time,           "RedirectTime",           dispatch_gauge, "duration", CURLINFO_REDIRECT_TIME),
 	SPEC (redirect_count,          "RedirectCount",          dispatch_size,  "count",    CURLINFO_REDIRECT_COUNT),
 	SPEC (num_connects,            "NumConnects",            dispatch_size,  "count",    CURLINFO_NUM_CONNECTS),
+#ifdef HAVE_CURLINFO_APPCONNECT_TIME
 	SPEC (appconnect_time,         "AppconnectTime",         dispatch_gauge, "duration", CURLINFO_APPCONNECT_TIME),
+#endif
 
 #undef SPEC
 };
