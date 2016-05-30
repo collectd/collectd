@@ -992,29 +992,42 @@ static int pplugin_dispatch_notification (pTHX_ HV *notif)
 } /* static int pplugin_dispatch_notification (HV *) */
 
 /*
+ * Call perl sub with thread locking flags handled.
+ */
+static int call_pv_locked (pTHX_ const char* sub_name)
+{
+	_Bool old_running;
+	int ret;
+
+	c_ithread_t *t = (c_ithread_t *)pthread_getspecific(perl_thr_key);
+	if (t == NULL) /* thread destroyed */
+		return 0;
+
+	old_running = t->running;
+	t->running = 1;
+
+	if (t->shutdown) {
+		t->running = old_running;
+		return 0;
+	}
+
+	ret = call_pv (sub_name, G_SCALAR);
+
+	t->running = old_running;
+	return ret;
+} /* static int call_pv_locked (pTHX, *sub_name) */
+
+/*
  * Call all working functions of the given type.
  */
 static int pplugin_call_all (pTHX_ int type, ...)
 {
 	int retvals = 0;
 
-	_Bool old_running;
 	va_list ap;
 	int ret = 0;
 
 	dSP;
-
-	c_ithread_t *t = (c_ithread_t *)pthread_getspecific(perl_thr_key);
-	if (t == NULL) /* thread destroyed ( c_ithread_destroy*() -> log_debug() ) */
-		return 0;
-
-	old_running = t->running;
-	t->running = 1;
-	
-	if (t->shutdown) {
-		t->running = old_running;
-		return 0;
-	}
 
 	if ((type < 0) || (type >= PLUGIN_TYPES))
 		return -1;
@@ -1129,7 +1142,7 @@ static int pplugin_call_all (pTHX_ int type, ...)
 
 	PUTBACK;
 
-	retvals = call_pv ("Collectd::plugin_call_all", G_SCALAR);
+	retvals = call_pv_locked (aTHX_ "Collectd::plugin_call_all");
 
 	SPAGAIN;
 	if (0 < retvals) {
@@ -1142,7 +1155,6 @@ static int pplugin_call_all (pTHX_ int type, ...)
 	FREETMPS;
 	LEAVE;
 
-	t->running = old_running;
 	va_end (ap);
 	return ret;
 } /* static int pplugin_call_all (int, ...) */
@@ -1265,7 +1277,6 @@ static int fc_call (pTHX_ int type, int cb_type, pfc_user_data_t *data, ...)
 {
 	int retvals = 0;
 
-	_Bool old_running;
 	va_list ap;
 	int ret = 0;
 
@@ -1273,18 +1284,6 @@ static int fc_call (pTHX_ int type, int cb_type, pfc_user_data_t *data, ...)
 	AV                   *pmeta = NULL;
 
 	dSP;
-
-	c_ithread_t *t = (c_ithread_t *)pthread_getspecific(perl_thr_key);
-	if (t == NULL) /* thread destroyed */
-		return 0;
-
-	old_running = t->running;
-	t->running = 1;
-
-	if (t->shutdown) {
-		t->running = old_running;
-		return 0;
-	}
 
 	if ((type < 0) || (type >= FC_TYPES))
 		return -1;
@@ -1384,7 +1383,7 @@ static int fc_call (pTHX_ int type, int cb_type, pfc_user_data_t *data, ...)
 
 	PUTBACK;
 
-	retvals = call_pv ("Collectd::fc_call", G_SCALAR);
+	retvals = call_pv_locked (aTHX_ "Collectd::fc_call");
 
 	if ((FC_CB_EXEC == cb_type) && (meta != NULL)) {
 		assert (pmeta != NULL);
@@ -1409,7 +1408,6 @@ static int fc_call (pTHX_ int type, int cb_type, pfc_user_data_t *data, ...)
 	FREETMPS;
 	LEAVE;
 
-	t->running = old_running;
 	va_end (ap);
 	return ret;
 } /* static int fc_call (int, int, pfc_user_data_t *, ...) */
