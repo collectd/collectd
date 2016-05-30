@@ -173,6 +173,8 @@ curl_stats_t *curl_stats_from_config (oconfig_item_t *ci)
 		oconfig_item_t *c = ci->children + i;
 		size_t field;
 
+		_Bool enabled = 0;
+
 		for (field = 0; field < STATIC_ARRAY_SIZE (field_specs); ++field) {
 			if (! strcasecmp (c->key, field_specs[field].config_key))
 				break;
@@ -186,14 +188,12 @@ curl_stats_t *curl_stats_from_config (oconfig_item_t *ci)
 			return NULL;
 		}
 
-		if ((c->values_num != 1)
-				|| (c->values[0].type != OCONFIG_TYPE_BOOLEAN)) {
-			ERROR ("curl stats: `%s' expects a single boolean argument", c->key);
+
+		if (cf_util_get_boolean (c, &enabled) != 0) {
 			free (s);
 			return NULL;
 		}
-
-		if (c->values[0].value.boolean)
+		if (enabled)
 			enable_field (s, field_specs[field].offset);
 	}
 
