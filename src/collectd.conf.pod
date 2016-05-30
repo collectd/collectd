@@ -1637,6 +1637,9 @@ Beware that requests will get aborted if they take too long to complete. Adjust
 B<Timeout> accordingly if you expect B<MeasureResponseTime> to report such slow
 requests.
 
+This option is similar to enabling the B<TotalTime> statistic but it's
+measured by collectd instead of cURL.
+
 =item B<MeasureResponseCode> B<true>|B<false>
 
 Measure response code for the request. If this setting is enabled, B<Match>
