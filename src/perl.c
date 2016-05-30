@@ -2143,11 +2143,6 @@ static int perl_shutdown (void)
 			nanosleep (&ts_wait, NULL);
 		}
 		if (thr->running) {
-			/* This will crash collectd process later due to PERL_SYS_TERM() */
-			//ERROR ("perl shutdown: thread hangs inside perl. "
-			//       "Skipped perl interpreter destroy.");
-			//continue;
-			
 			ERROR ("perl shutdown: thread hangs inside perl. Thread killed.");
 			pthread_kill (thr->pthread, SIGTERM);
 		}
