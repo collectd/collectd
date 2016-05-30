@@ -586,7 +586,7 @@ static void do_shot()
 	static cdtime_t last_call;
 	cdtime_t now = cdtime();
 
-	INFO ("do_shot called.");
+	DEBUG ("do_shot called.");
 
 	/* check whether keepalive called multiple times in quick succession */
 	if ( now <= last_call ||
