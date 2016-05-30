@@ -187,17 +187,13 @@ curl_stats_t *curl_stats_from_config (oconfig_item_t *ci)
 		}
 
 		if ((c->values_num != 1)
-				|| ((c->values[0].type != OCONFIG_TYPE_STRING)
-					&& (c->values[0].type != OCONFIG_TYPE_BOOLEAN))) {
+				|| (c->values[0].type != OCONFIG_TYPE_BOOLEAN)) {
 			ERROR ("curl stats: `%s' expects a single boolean argument", c->key);
 			free (s);
 			return NULL;
 		}
 
-		if (((c->values[0].type == OCONFIG_TYPE_STRING)
-					&& IS_TRUE (c->values[0].value.string))
-				|| ((c->values[0].type == OCONFIG_TYPE_BOOLEAN)
-					&& c->values[0].value.boolean))
+		if (c->values[0].value.boolean)
 			enable_field (s, field_specs[field].offset);
 	}
 
@@ -211,21 +207,24 @@ void curl_stats_destroy (curl_stats_t *s)
 } /* curl_stats_destroy */
 
 int curl_stats_dispatch (curl_stats_t *s, CURL *curl,
-		const char *hostname, const char *plugin, const char *plugin_instance,
-		const char *instance_prefix)
+		const char *hostname, const char *plugin, const char *plugin_instance)
 {
 	value_list_t vl = VALUE_LIST_INIT;
 	size_t field;
 
 	if (s == NULL)
 		return 0;
-	if (curl == NULL)
+	if ((curl == NULL) || (hostname == NULL) || (plugin == NULL))
+	{
+		ERROR ("curl stats: dispatch() called with missing arguments "
+				"(curl=%p; hostname=%s; plugin=%s)", curl,
+				hostname == NULL ? "<NULL>" : hostname,
+				plugin == NULL ? "<NULL>" : plugin);
 		return -1;
+	}
 
-	if (hostname != NULL)
-		sstrncpy (vl.host, hostname, sizeof (vl.host));
-	if (plugin != NULL)
-		sstrncpy (vl.plugin, plugin, sizeof (vl.plugin));
+	sstrncpy (vl.host, hostname, sizeof (vl.host));
+	sstrncpy (vl.plugin, plugin, sizeof (vl.plugin));
 	if (plugin_instance != NULL)
 		sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
 
@@ -237,8 +236,7 @@ int curl_stats_dispatch (curl_stats_t *s, CURL *curl,
 			continue;
 
 		sstrncpy (vl.type, field_specs[field].type, sizeof (vl.type));
-		ssnprintf (vl.type_instance, sizeof (vl.type_instance), "%s%s",
-				instance_prefix ? instance_prefix : "", field_specs[field].name);
+		sstrncpy (vl.type_instance, field_specs[field].name, sizeof (vl.type_instance));
 
 		vl.values = NULL;
 		vl.values_len = 0;

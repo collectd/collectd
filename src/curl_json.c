@@ -922,7 +922,7 @@ static int cj_curl_perform(cj_t *db) /* {{{ */
     return (-1);
   }
   if (db->stats != NULL)
-    curl_stats_dispatch (db->stats, db->curl, cj_host (db), "curl_json", db->instance, NULL);
+    curl_stats_dispatch (db->stats, db->curl, cj_host (db), "curl_json", db->instance);
 
   curl_easy_getinfo(db->curl, CURLINFO_EFFECTIVE_URL, &url);
   curl_easy_getinfo(db->curl, CURLINFO_RESPONSE_CODE, &rc);

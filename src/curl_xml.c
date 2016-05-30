@@ -641,7 +641,7 @@ static int cx_curl_perform (cx_t *db, CURL *curl) /* {{{ */
     return (-1);
   }
   if (db->stats != NULL)
-    curl_stats_dispatch (db->stats, db->curl, cx_host (db), "curl_xml", db->instance, NULL);
+    curl_stats_dispatch (db->stats, db->curl, cx_host (db), "curl_xml", db->instance);
 
   curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &url);
   curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &rc);
