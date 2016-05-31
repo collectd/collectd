@@ -24,9 +24,12 @@ databases are stored in /tmp/collectd. Before starting the daemon,
 this directory is created and contents copied from
 /home/nemo/.local/share/collectd . After the daemon is stopped,
 contents of /tmp/collectd is copied back to
-/home/nemo/.local/share/collectd . One can consider adding syncing the
-data from /tmp/collectd if needed. For that, relevant systemd
-configuration files could be added by user.
+/home/nemo/.local/share/collectd . Such movement of the collected data
+is performed by /usr/bin/collectd2tmpfs script that is run by systemd.
+
+One can consider adding syncing the data from /tmp/collectd if
+needed. For that, relevant systemd configuration files could be added
+by user.
 
 If you want to change the time interval used to collect the data, note
 that limited intervals are supported by keepalive library used in this

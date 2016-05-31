@@ -18,7 +18,6 @@ BuildRoot:	%{_tmppath}/%{name}-%{version}-root
 BuildRequires:	libgcrypt-devel, kernel-headers, libtool-ltdl-devel, libcap-devel, libxml2-devel, python-devel, perl-devel, perl-ExtUtils-MakeMaker
 BuildRequires:	rrdtool-devel, autoconf, automake, libtool, bison
 BuildRequires:  libkeepalive-glib, libkeepalive-glib-devel, dbus-glib-devel
-Vendor:		collectd development team <collectd@verplant.org>
 
 Requires:	systemd, libxml2, perl, python, rrdtool, libkeepalive-glib, dbus-glib
 
@@ -271,21 +270,13 @@ Collectd utilities
 rm -rf %{buildroot}
 %{__make} install DESTDIR=%{buildroot}
 
-# SFOS: figure out where to keep config for services
-#%{__install} -Dp -m0644 contrib/systemd.collectd.service %{buildroot}%{_unitdir}/collectd.service
+%{__install} -Dp -m0644 contrib/sailfish/collectd.service %{buildroot}%{_userunitdir}/collectd.service
 %{__install} -Dp -m0644 contrib/sailfish/collectd.conf %{buildroot}%{_sysconfdir}/collectd.conf
+%{__install} -Dp -m0755 contrib/sailfish/collectd2tmpfs.sh %{buildroot}%{_bindir}/collectd2tmpfs
 
 #%{__install} -d %{buildroot}%{_sharedstatedir}/collectd/
-%{__install} -d %{buildroot}%{_sysconfdir}/collectd.d/
+#%{__install} -d %{buildroot}%{_sysconfdir}/collectd.d/
 
-# %{__mkdir} -p %{buildroot}%{_localstatedir}/www
-# %{__mkdir} -p %{buildroot}/%{_sysconfdir}/httpd/conf.d
-
-# %{__mv} contrib/collection3 %{buildroot}%{_localstatedir}/www
-# %{__mv} contrib/redhat/collection3.conf %{buildroot}/%{_sysconfdir}/httpd/conf.d/
-
-# %{__mv} contrib/php-collection %{buildroot}%{_localstatedir}/www
-# %{__mv} contrib/redhat/php-collection.conf %{buildroot}/%{_sysconfdir}/httpd/conf.d/
 
 ### Clean up docs
 find contrib/ -type f -exec %{__chmod} a-x {} \;
@@ -317,58 +308,36 @@ rm -f %{buildroot}%{_mandir}/man5/collectd-python.5*
 rm -rf %{buildroot}
 
 %pre
-# %if 0%{?el7:1}
-# # stop sysv-based instance before upgrading to systemd
-# if [ $1 -eq 2 ] && [ -f /var/lock/subsys/collectd ]; then
-# 	SYSTEMCTL_SKIP_REDIRECT=1 %{_initddir}/collectd stop >/dev/null 2>&1 || :
-# fi
-# %endif
-
-%post
-# %if 0%{?el7:1}
-# if [ $1 -eq 2 ]; then
-# 	/usr/bin/systemctl daemon-reload >/dev/null 2>&1 || :
-# fi
-# %systemd_post collectd.service
-# %else
-# /sbin/chkconfig --add collectd || :
-# %endif
+su nemo -c "systemctl --user stop %{name}.service"
+exit 0
 
 %preun
-# %if 0%{?el7:1}
-# %systemd_preun collectd.service
-# %else
-# # stop collectd only when uninstalling
-# if [ $1 -eq 0 ]; then
-# 	/sbin/service collectd stop >/dev/null 2>&1 || :
-# 	/sbin/chkconfig --del collectd || :
-# fi
-# %endif
+su nemo -c "systemctl --user disable %{name}.service"
+su nemo -c "systemctl --user stop %{name}.service"
+
+%post
+su nemo -c "systemctl --user daemon-reload"
+su nemo -c "systemctl --user enable %{name}.service"
+su nemo -c "systemctl --user start %{name}.service"
 
 %postun
-# %if 0%{?el7:1}
-# %systemd_postun_with_restart collectd.service
-# %else
-# # restart collectd only when upgrading
-# if [ $1 -eq 1 ]; then
-# 	/sbin/service collectd condrestart >/dev/null 2>&1 || :
-# fi
-# %endif
+su nemo -c "systemctl --user daemon-reload"
 
-%post -n libcollectdclient -p /sbin/ldconfig
-%postun -n libcollectdclient -p /sbin/ldconfig
+
+#%post -n libcollectdclient -p /sbin/ldconfig
+#%postun -n libcollectdclient -p /sbin/ldconfig
 
 
 %files
 %doc AUTHORS COPYING ChangeLog README
 %config(noreplace) %{_sysconfdir}/collectd.conf
-# %{_unitdir}/collectd.service
+%{_userunitdir}/collectd.service
 %{_sbindir}/collectd
 %{_sbindir}/collectdmon
 %{_datadir}/collectd/types.db
 # all plugins bundled with the main collectd package
 %{_libdir}/%{name}/*.so
-
+%{_bindir}/collectd2tmpfs
 
 %files -n libcollectdclient-devel
 %{_includedir}/collectd/client.h

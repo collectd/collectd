@@ -2,16 +2,15 @@
 
 set -e
 
-ENVFILE=collectd.env
+ENVFILE=/etc/collectd.env
 
 if [ -f $ENVFILE ];
 then
-   . collectdenv
+   . $ENVFILE
 else
    TMPDIR=/tmp/collectd
+   STRDIR=$HOME/.local/share/collectd
 fi
-
-STRDIR=$HOME/.local/collectd
 
 # read parameters
 
