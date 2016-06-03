@@ -147,8 +147,7 @@ endif
 if BUILD_PLUGIN_APPLE_SENSORS
 pkglib_LTLIBRARIES += apple_sensors.la
 apple_sensors_la_SOURCES = apple_sensors.c
-apple_sensors_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-apple_sensors_la_LDFLAGS += -framework IOKit
+apple_sensors_la_LDFLAGS = $(PLUGIN_LDFLAGS) -framework IOKit
 endif
 
 if BUILD_PLUGIN_AQUAERO
