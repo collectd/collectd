@@ -36,7 +36,6 @@
 
 #include <stdint.h>
 #include <librdkafka/rdkafka.h>
-#include <pthread.h>
 #include <zlib.h>
 #include <errno.h>
 

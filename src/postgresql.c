@@ -40,10 +40,6 @@
 #include "utils_db_query.h"
 #include "utils_complain.h"
 
-#if HAVE_PTHREAD_H
-# include <pthread.h>
-#endif
-
 #include <pg_config_manual.h>
 #include <libpq-fe.h>
 

@@ -51,9 +51,6 @@
 #include "utils_complain.h"
 #include "utils_format_graphite.h"
 
-/* Folks without pthread will need to disable this plugin. */
-#include <pthread.h>
-
 #include <netdb.h>
 
 #define WG_DEFAULT_NODE "localhost"

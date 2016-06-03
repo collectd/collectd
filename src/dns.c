@@ -30,7 +30,6 @@
 #include "configfile.h"
 
 #include "utils_dns.h"
-#include <pthread.h>
 #include <poll.h>
 
 #include <pcap.h>

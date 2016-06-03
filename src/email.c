@@ -46,10 +46,6 @@
 
 #include <stddef.h>
 
-#if HAVE_LIBPTHREAD
-# include <pthread.h>
-#endif
-
 #include <sys/un.h>
 #include <sys/select.h>
 

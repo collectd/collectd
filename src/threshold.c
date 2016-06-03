@@ -31,7 +31,6 @@
 #include "utils_threshold.h"
 
 #include <assert.h>
-#include <pthread.h>
 
 /*
  * Threshold management
