@@ -1304,8 +1304,6 @@ dist_man_MANS = collectd.1 \
 		collectd-unixsock.5 \
 		types.db.5
 
-#collectd_1_SOURCES = collectd.pod
-
 EXTRA_DIST = types.db
 
 EXTRA_DIST +=   collectd.conf.pod \
