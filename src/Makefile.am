@@ -1265,7 +1265,6 @@ endif
 if BUILD_PLUGIN_ZFS_ARC
 pkglib_LTLIBRARIES += zfs_arc.la
 zfs_arc_la_SOURCES = zfs_arc.c
-zfs_arc_la_CFLAGS = $(AM_CFLAGS)
 zfs_arc_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 if BUILD_FREEBSD
 zfs_arc_la_LIBADD = -lm
