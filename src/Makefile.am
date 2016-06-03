@@ -80,6 +80,7 @@ collectd_tg_SOURCES = collectd-tg.c
 collectd_tg_CPPFLAGS = $(AM_CPPFLAGS) \
 		       -I$(top_srcdir)/src/libcollectdclient/collectd -I$(top_builddir)/src/libcollectdclient/collectd
 collectd_tg_LDADD = \
+	$(PTHREAD_LIBS) \
 	daemon/libheap.la \
 	libcollectdclient/libcollectdclient.la
 if BUILD_WITH_LIBSOCKET
@@ -90,9 +91,6 @@ collectd_tg_LDADD += -lrt
 endif
 if BUILD_AIX
 collectd_tg_LDADD += -lm
-endif
-if BUILD_WITH_LIBPTHREAD
-collectd_tg_LDADD += $(PTHREAD_LIBS)
 endif
 
 

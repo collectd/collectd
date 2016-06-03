@@ -10,7 +10,7 @@ AM_CPPFLAGS += -DPLUGINDIR='"${pkglibdir}"'
 AM_CPPFLAGS += -DPKGDATADIR='"${pkgdatadir}"'
 
 # Link to these libraries..
-COMMON_LIBS =
+COMMON_LIBS = $(PTHREAD_LIBS)
 if BUILD_WITH_LIBRT
 COMMON_LIBS += -lrt
 endif
@@ -22,9 +22,6 @@ COMMON_LIBS += -lsocket
 endif
 if BUILD_WITH_LIBRESOLV
 COMMON_LIBS += -lresolv
-endif
-if BUILD_WITH_LIBPTHREAD
-COMMON_LIBS += $(PTHREAD_LIBS)
 endif
 if BUILD_WITH_LIBKSTAT
 COMMON_LIBS += -lkstat
