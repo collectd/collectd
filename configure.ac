@@ -1632,14 +1632,6 @@ if test "x$with_libpthread" = "xyes"
 then
 	AC_CHECK_HEADERS(pthread.h,, [with_libpthread="no (pthread.h not found)"])
 fi
-if test "x$with_libpthread" = "xyes"
-then
-	collect_pthread=1
-else
-	collect_pthread=0
-fi
-AC_DEFINE_UNQUOTED(HAVE_LIBPTHREAD, [$collect_pthread],
-	[Wether or not to use pthread (POSIX threads) library])
 AM_CONDITIONAL(BUILD_WITH_LIBPTHREAD, test "x$with_libpthread" = "xyes")
 # }}}
 
