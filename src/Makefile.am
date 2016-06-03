@@ -79,7 +79,10 @@ endif
 collectd_tg_SOURCES = collectd-tg.c
 collectd_tg_CPPFLAGS = $(AM_CPPFLAGS) \
 		       -I$(top_srcdir)/src/libcollectdclient/collectd -I$(top_builddir)/src/libcollectdclient/collectd
-collectd_tg_LDADD = daemon/libheap.la
+collectd_tg_LDADD = \
+	daemon/libheap.la \
+	libcollectdclient/libcollectdclient.la
+collectd_tg_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 if BUILD_WITH_LIBSOCKET
 collectd_tg_LDADD += -lsocket
 endif
@@ -92,8 +95,6 @@ endif
 if BUILD_WITH_LIBPTHREAD
 collectd_tg_LDADD += $(PTHREAD_LIBS)
 endif
-collectd_tg_LDADD += libcollectdclient/libcollectdclient.la
-collectd_tg_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 
 
 pkglib_LTLIBRARIES =
