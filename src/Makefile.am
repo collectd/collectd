@@ -1285,7 +1285,6 @@ BUILT_SOURCES += $(dist_man_MANS)
 if BUILD_PLUGIN_ZONE
 pkglib_LTLIBRARIES += zone.la
 zone_la_SOURCES = zone.c
-zone_la_CFLAGS = $(AM_CFLAGS)
 zone_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
