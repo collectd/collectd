@@ -1304,9 +1304,7 @@ dist_man_MANS = collectd.1 \
 		collectd-unixsock.5 \
 		types.db.5
 
-EXTRA_DIST = types.db
-
-EXTRA_DIST +=   collectd.conf.pod \
+EXTRA_DIST =	collectd.conf.pod \
 		collectd-email.pod \
 		collectd-exec.pod \
 		collectdctl.pod \
@@ -1321,6 +1319,7 @@ EXTRA_DIST +=   collectd.conf.pod \
 		collectd-threshold.pod \
 		collectd-unixsock.pod \
 		postgresql_default.conf \
+		types.db \
 		types.db.pod
 
 .pod.1:
