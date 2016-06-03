@@ -153,9 +153,9 @@ endif
 if BUILD_PLUGIN_AQUAERO
 pkglib_LTLIBRARIES += aquaero.la
 aquaero_la_SOURCES = aquaero.c
-aquaero_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 aquaero_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBAQUAERO5_CFLAGS)
-aquaero_la_LIBADD = $(BUILD_WITH_LIBAQUAERO5_LDFLAGS) -laquaero5
+aquaero_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBAQUAERO5_LDFLAGS)
+aquaero_la_LIBADD = -laquaero5
 endif
 
 if BUILD_PLUGIN_ASCENT
