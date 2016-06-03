@@ -67,15 +67,15 @@ endif
 
 collectdctl_SOURCES = collectdctl.c
 collectdctl_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/src/libcollectdclient/collectd -I$(top_builddir)/src/libcollectdclient/collectd
-collectdctl_LDADD =
+collectdctl_LDADD = libcollectdclient/libcollectdclient.la
+collectdctl_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 if BUILD_WITH_LIBSOCKET
 collectdctl_LDADD += -lsocket
 endif
 if BUILD_AIX
 collectdctl_LDADD += -lm
 endif
-collectdctl_LDADD += libcollectdclient/libcollectdclient.la
-collectdctl_DEPENDENCIES = libcollectdclient/libcollectdclient.la
+
 
 collectd_tg_SOURCES = collectd-tg.c
 collectd_tg_CPPFLAGS = $(AM_CPPFLAGS) \
