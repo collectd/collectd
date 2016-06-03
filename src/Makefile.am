@@ -343,7 +343,7 @@ if BUILD_PLUGIN_DNS
 pkglib_LTLIBRARIES += dns.la
 dns_la_SOURCES = dns.c utils_dns.c utils_dns.h
 dns_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-dns_la_LIBADD = $(PTHREAD_LIBS) -lpcap
+dns_la_LIBADD = -lpcap
 endif
 
 if BUILD_PLUGIN_DRBD
