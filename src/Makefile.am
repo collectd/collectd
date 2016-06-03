@@ -183,7 +183,6 @@ if BUILD_PLUGIN_BATTERY
 pkglib_LTLIBRARIES += battery.la
 battery_la_SOURCES = battery.c
 battery_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-battery_la_LIBADD =
 if BUILD_WITH_LIBIOKIT
 battery_la_LDFLAGS += -framework IOKit
 endif
