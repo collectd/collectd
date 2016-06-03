@@ -356,7 +356,6 @@ if BUILD_PLUGIN_EMAIL
 pkglib_LTLIBRARIES += email.la
 email_la_SOURCES = email.c
 email_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-email_la_LIBADD = $(PTHREAD_LIBS)
 endif
 
 if BUILD_PLUGIN_ENTROPY
