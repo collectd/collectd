@@ -1956,7 +1956,6 @@ then
 		AC_DEFINE(HAVE_CURLOPT_TIMEOUT_MS, 1, [Define if libcurl supports CURLOPT_TIMEOUT_MS option.])
 	fi
 fi
-AM_CONDITIONAL(BUILD_WITH_LIBCURL, test "x$with_libcurl" = "xyes")
 # }}}
 
 # --with-libdbi {{{
