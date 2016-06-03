@@ -29,7 +29,7 @@
  * interface for collectd plugins written in perl.
  */
 
-/* do not automatically get the thread specific perl interpreter */
+/* do not automatically get the thread specific Perl interpreter */
 #define PERL_NO_GET_CONTEXT
 
 #define DONT_POISON_SPRINTF_YET 1
@@ -123,7 +123,7 @@ static XS (Collectd_call_by_name);
 typedef struct c_ithread_s {
 	/* the thread's Perl interpreter */
 	PerlInterpreter *interp;
-	_Bool running;  /* thread is inside pi */
+	_Bool running;  /* thread is inside Perl interpreter */
 	_Bool shutdown;
 	pthread_t pthread;
 
@@ -1175,7 +1175,7 @@ static int pplugin_call_all (pTHX_ int type, ...)
 } /* static int pplugin_call_all (int, ...) */
 
 /*
- * collectd's perl interpreter based thread implementation.
+ * collectd's Perl interpreter based thread implementation.
  *
  * This has been inspired by Perl's ithreads introduced in version 5.6.0.
  */
@@ -2155,15 +2155,15 @@ static int perl_shutdown (void)
 
 		thr->shutdown = 1;
 		if (thr->running) {
-			/* Give some time to thread to exit from pi */
-			WARNING ("perl shutdown: thread is running inside perl. Waiting.");
+			/* Give some time to thread to exit from Perl interpreter */
+			WARNING ("perl shutdown: Thread is running inside Perl. Waiting.");
 			ts_wait.tv_sec = 0;
 			ts_wait.tv_nsec = 500000;
 			nanosleep (&ts_wait, NULL);
 		}
 		if (thr->running) {
-			ERROR ("perl shutdown: thread hangs inside perl. Thread killed.");
 			pthread_kill (thr->pthread, SIGTERM);
+			ERROR ("perl shutdown: Thread hangs inside Perl. Thread killed.");
 		}
 		c_ithread_destroy (thr);
 	}
@@ -2397,7 +2397,7 @@ static int perl_config_loadplugin (pTHX_ oconfig_item_t *ci)
 
 	aTHX = perl_threads->head->interp;
 
-	log_debug ("perl_config: loading perl plugin \"%s\"", value);
+	log_debug ("perl_config: Loading Perl plugin \"%s\"", value);
 	load_module (PERL_LOADMOD_NOIMPORT,
 			newSVpv (module_name, strlen (module_name)), Nullsv);
 	return 0;
