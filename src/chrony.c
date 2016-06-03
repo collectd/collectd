@@ -105,10 +105,11 @@ typedef enum
 } eDaemonReplies;
 
 
-#if defined(__GNUC__) || defined(__clang__)
+#if defined(__GNUC__)
+#  /* GNU gcc extension to enforce struct packing. */
 #  define ATTRIB_PACKED __attribute__((packed))
 #else
-#  warning Not defining packed attribute (unknown compiler)
+#  error Not defining packed attribute (unknown compiler)
 #  define ATTRIB_PACKED 
 #endif
 
@@ -355,7 +356,6 @@ niptoha(const tChrony_IPAddr * addr, char *p_buf, size_t p_buf_size)
 {
   int rc = 1;
   unsigned long a, b, c, d, ip;
-  const uint8_t *ip6;
 
   switch (ntohs(addr->f_family))
   {
@@ -372,33 +372,12 @@ niptoha(const tChrony_IPAddr * addr, char *p_buf, size_t p_buf_size)
     break;
   case IPADDR_INET6:
   {
-    ip6 = addr->addr.ip6;
-
-#if 1
-    /* XXX: Use feature test macro? */
-    const char *rp = inet_ntop(AF_INET6, ip6, p_buf, p_buf_size);
+    const char *rp = inet_ntop(AF_INET6, addr->addr.ip6, p_buf, p_buf_size);
     if (rp == NULL)
     {
       ERROR(PLUGIN_NAME ": Error converting ipv6 address to string. Errno = %d", errno);
       rc = snprintf(p_buf, p_buf_size, "[UNKNOWN]");
     }
-#else
-#  if defined(BYTE_ORDER) && (BYTE_ORDER == BIG_ENDIAN)
-    rc =
-      snprintf(p_buf, p_buf_size,
-               "%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
-               ip6[15], ip6[14], ip6[13], ip6[12], ip6[11], ip6[10], ip6[9],
-               ip6[8], ip6[7], ip6[6], ip6[5], ip6[4], ip6[3], ip6[2],
-               ip6[1], ip6[0]);
-#  else
-    rc =
-      snprintf(p_buf, p_buf_size,
-               "%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
-               ip6[0], ip6[1], ip6[2], ip6[3], ip6[4], ip6[5], ip6[6],
-               ip6[7], ip6[8], ip6[9], ip6[10], ip6[11], ip6[12], ip6[13],
-               ip6[14], ip6[15]);
-#  endif
-#endif
     break;
   }
   default:
@@ -571,9 +550,7 @@ chrony_query(const int p_command, tChrony_Request * p_req,
     }
 
     if (valid_command == 0)
-    {
       break;
-    }
 
     uint32_t seq_nr = rand_r(&g_chrony_rand);
     p_req->header.f_cmd = htons(p_command);
@@ -583,15 +560,12 @@ chrony_query(const int p_command, tChrony_Request * p_req,
     DEBUG(PLUGIN_NAME ": Sending request (.cmd = %d, .seq = %d)", p_command,
           seq_nr);
     if (chrony_send_request(p_req, req_size) != 0)
-    {
       break;
-    }
 
     DEBUG(PLUGIN_NAME ": Waiting for response");
     if (chrony_recv_response(p_resp, resp_size, p_resp_size) != 0)
-    {
       break;
-    }
+
     DEBUG(PLUGIN_NAME
           ": Received response: .version = %u, .type = %u, .cmd = %u, .reply = %u, .status = %u, .seq = %u",
           p_resp->header.f_version, p_resp->header.f_type,
@@ -688,16 +662,13 @@ ntohf(tFloat p_float)
   uval = ntohl(p_float.value);
   exp = (uval >> FLOAT_COEF_BITS) - FLOAT_COEF_BITS;
   if (exp >= 1 << (FLOAT_EXP_BITS - 1))
-  {
     exp -= 1 << FLOAT_EXP_BITS;
-  }
 
   /* coef = (x << FLOAT_EXP_BITS) >> FLOAT_EXP_BITS; */
   coef = uval % (1U << FLOAT_COEF_BITS);
   if (coef >= 1 << (FLOAT_COEF_BITS - 1))
-  {
     coef -= 1 << FLOAT_COEF_BITS;
-  }
+
   return coef * pow(2.0, exp);
 }
 
@@ -724,13 +695,10 @@ chrony_push_data(char *p_type, char *p_type_inst, double p_value)
              sizeof(vl.plugin_instance));
   }
   if (p_type != NULL)
-  {
     sstrncpy(vl.type, p_type, sizeof(vl.type));
-  }
+
   if (p_type_inst != NULL)
-  {
     sstrncpy(vl.type_instance, p_type_inst, sizeof(vl.type_instance));
-  }
 
   plugin_dispatch_values(&vl);
 }
@@ -742,9 +710,8 @@ chrony_push_data_valid(char *p_type, char *p_type_inst, const int p_is_valid,
 {
   /* Push real value if p_is_valid is true, push NAN if p_is_valid is not true (idea from ntp plugin) */
   if (p_is_valid == 0)
-  {
     p_value = NAN;
-  }
+
   chrony_push_data(p_type, p_type_inst, p_value);
 }
 
@@ -822,9 +789,8 @@ chrony_config(const char *p_key, const char *p_value)
   if (strcasecmp(p_key, CONFIG_KEY_HOST) == 0)
   {
     if (g_chrony_host != NULL)
-    {
       free(g_chrony_host);
-    }
+
     if ((g_chrony_host = strdup(p_value)) == NULL)
     {
       ERROR(PLUGIN_NAME ": Error duplicating host name");
@@ -836,9 +802,8 @@ chrony_config(const char *p_key, const char *p_value)
     if (strcasecmp(p_key, CONFIG_KEY_PORT) == 0)
     {
       if (g_chrony_port != NULL)
-      {
         free(g_chrony_port);
-      }
+
       if ((g_chrony_port = strdup(p_value)) == NULL)
       {
         ERROR(PLUGIN_NAME ": Error duplicating port name");
@@ -1095,40 +1060,32 @@ chrony_read()
     /* Seed RNG for sequence number generation */
     rc = chrony_init_seq();
     if (rc != CHRONY_RC_OK)
-    {
       return rc;
-    }
+
     g_chrony_seq_is_initialized = 1;
   }
 
   /* Get daemon stats */
   rc = chrony_request_daemon_stats();
   if (rc != CHRONY_RC_OK)
-  {
     return rc;
-  }
 
   /* Get number of time sources, then check every source for status */
   rc = chrony_request_sources_count(&n_sources);
   if (rc != CHRONY_RC_OK)
-  {
     return rc;
-  }
 
   for (now_src = 0; now_src < n_sources; ++now_src)
   {
     int is_reachable;
     rc = chrony_request_source_data(now_src, &is_reachable);
     if (rc != CHRONY_RC_OK)
-    {
       return rc;
-    }
 
     rc = chrony_request_source_stats(now_src, &is_reachable);
     if (rc != CHRONY_RC_OK)
-    {
       return rc;
-    }
+
   }
   return CHRONY_RC_OK;
 }
@@ -1144,17 +1101,14 @@ chrony_shutdown()
     g_chrony_is_connected = 0;
   }
   if (g_chrony_host != NULL)
-  {
     sfree(g_chrony_host);
-  }
+
   if (g_chrony_port != NULL)
-  {
     sfree(g_chrony_port);
-  }
+  
   if (g_chrony_plugin_instance != NULL)
-  {
     sfree(g_chrony_plugin_instance);
-  }
+  
   return CHRONY_RC_OK;
 }
 
