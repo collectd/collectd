@@ -371,7 +371,6 @@ exec_la_SOURCES = exec.c \
 		  utils_cmd_putval.c utils_cmd_putval.h \
 		  utils_parse_option.h utils_parse_option.c
 exec_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-exec_la_LIBADD = $(PTHREAD_LIBS)
 endif
 
 if BUILD_PLUGIN_ETHSTAT
