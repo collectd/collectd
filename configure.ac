@@ -3365,9 +3365,9 @@ then
 fi
 if test "x$with_oracle" = "xyes"
 then
-	BUILD_WITH_ORACLE_CFLAGS="$with_oracle_cppflags"
+	BUILD_WITH_ORACLE_CPPFLAGS="$with_oracle_cppflags"
 	BUILD_WITH_ORACLE_LIBS="$with_oracle_libs"
-	AC_SUBST(BUILD_WITH_ORACLE_CFLAGS)
+	AC_SUBST(BUILD_WITH_ORACLE_CPPFLAGS)
 	AC_SUBST(BUILD_WITH_ORACLE_LIBS)
 fi
 # }}}
