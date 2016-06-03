@@ -772,7 +772,6 @@ endif
 if BUILD_PLUGIN_OPENVPN
 pkglib_LTLIBRARIES += openvpn.la
 openvpn_la_SOURCES = openvpn.c
-openvpn_la_CFLAGS = $(AM_CFLAGS)
 openvpn_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
