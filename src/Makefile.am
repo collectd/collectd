@@ -679,7 +679,7 @@ network_la_SOURCES = network.c network.h \
 		     utils_fbhash.c utils_fbhash.h
 network_la_CPPFLAGS = $(AM_CPPFLAGS)
 network_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-network_la_LIBADD = $(PTHREAD_LIBS)
+network_la_LIBADD =
 if BUILD_WITH_LIBSOCKET
 network_la_LIBADD += -lsocket
 endif
