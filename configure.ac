@@ -4774,6 +4774,10 @@ then
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
 	LDFLAGS="$SAVE_LDFLAGS"
+	LIBXENCTL_CPPFLAGS="$with_libxenctl_cppflags"
+	LIBXENCTL_LDFLAGS="$with_libxenctl_ldflags"
+	AC_SUBST(LIBXENCTL_CPPFLAGS)
+	AC_SUBST(LIBXENCTL_LDFLAGS)
 fi
 
 # --with-libxmms {{{

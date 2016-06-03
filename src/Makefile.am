@@ -1249,7 +1249,8 @@ endif
 if BUILD_PLUGIN_XENCPU
 pkglib_LTLIBRARIES += xencpu.la
 xencpu_la_SOURCES = xencpu.c
-xencpu_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+xencpu_la_CPPFLAGS = $(AM_CPPFLAGS) $(LIBXENCTL_CPPFLAGS)
+xencpu_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBXENCTL_LDFLAGS)
 xencpu_la_LIBADD = -lxenctrl
 endif
 
