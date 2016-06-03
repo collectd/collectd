@@ -968,7 +968,7 @@ if BUILD_PLUGIN_STATSD
 pkglib_LTLIBRARIES += statsd.la
 statsd_la_SOURCES = statsd.c
 statsd_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-statsd_la_LIBADD = $(PTHREAD_LIBS) liblatency.la -lm
+statsd_la_LIBADD = liblatency.la -lm
 endif
 
 if BUILD_PLUGIN_SWAP
