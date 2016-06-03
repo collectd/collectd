@@ -82,7 +82,6 @@ collectd_tg_CPPFLAGS = $(AM_CPPFLAGS) \
 collectd_tg_LDADD = \
 	daemon/libheap.la \
 	libcollectdclient/libcollectdclient.la
-collectd_tg_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 if BUILD_WITH_LIBSOCKET
 collectd_tg_LDADD += -lsocket
 endif
