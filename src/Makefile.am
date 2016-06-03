@@ -130,12 +130,8 @@ if BUILD_PLUGIN_APACHE
 pkglib_LTLIBRARIES += apache.la
 apache_la_SOURCES = apache.c
 apache_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-apache_la_CFLAGS = $(AM_CFLAGS)
-apache_la_LIBADD =
-if BUILD_WITH_LIBCURL
-apache_la_CFLAGS += $(BUILD_WITH_LIBCURL_CFLAGS)
-apache_la_LIBADD += $(BUILD_WITH_LIBCURL_LIBS)
-endif
+apache_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
+apache_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS)
 endif
 
 if BUILD_PLUGIN_APCUPS
