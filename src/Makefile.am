@@ -1119,7 +1119,6 @@ unixsock_la_SOURCES = unixsock.c \
 		      utils_cmd_putnotif.h utils_cmd_putnotif.c \
 		      utils_parse_option.h utils_parse_option.c
 unixsock_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-unixsock_la_LIBADD = $(PTHREAD_LIBS)
 endif
 
 if BUILD_PLUGIN_UPTIME
