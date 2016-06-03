@@ -57,7 +57,6 @@ collectdmon_SOURCES = collectdmon.c
 collectd_nagios_SOURCES = collectd-nagios.c
 collectd_nagios_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/src/libcollectdclient/collectd -I$(top_builddir)/src/libcollectdclient/collectd
 collectd_nagios_LDADD = libcollectdclient/libcollectdclient.la
-collectd_nagios_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 if BUILD_WITH_LIBSOCKET
 collectd_nagios_LDADD += -lsocket
 endif
