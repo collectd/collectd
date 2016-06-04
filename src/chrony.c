@@ -722,8 +722,10 @@ chrony_init_seq()
   /* Initialize the sequence number generator from /dev/urandom */
   /* Fallbacks: /dev/random and time(NULL) */
 
+  int fh;
+
   /* Try urandom */
-  int fh = open(URAND_DEVICE_PATH, O_RDONLY);
+  fh = open(URAND_DEVICE_PATH, O_RDONLY);
   if (fh >= 0)
   {
     ssize_t rc = read(fh, &g_chrony_rand, sizeof(g_chrony_rand));
@@ -742,7 +744,7 @@ chrony_init_seq()
     if (errno == ENOENT)
     {
       /* URAND_DEVICE_PATH device not found. Try RAND_DEVICE_PATH as fall-back */
-      int fh = open(RAND_DEVICE_PATH, O_RDONLY);
+      fh = open(RAND_DEVICE_PATH, O_RDONLY);
       if (fh >= 0)
       {
         ssize_t rc = read(fh, &g_chrony_rand, sizeof(g_chrony_rand));
