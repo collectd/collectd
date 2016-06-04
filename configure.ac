@@ -5853,6 +5853,7 @@ AC_PLUGIN([battery],             [$plugin_battery],         [Battery statistics]
 AC_PLUGIN([bind],                [$plugin_bind],            [ISC Bind nameserver statistics])
 AC_PLUGIN([ceph],                [$plugin_ceph],            [Ceph daemon statistics])
 AC_PLUGIN([cgroups],             [$plugin_cgroups],         [CGroups CPU usage accounting])
+AC_PLUGIN([chrony],              [yes],                     [Chrony statistics])
 AC_PLUGIN([conntrack],           [$plugin_conntrack],       [nf_conntrack statistics])
 AC_PLUGIN([contextswitch],       [$plugin_contextswitch],   [context switch statistics])
 AC_PLUGIN([cpu],                 [$plugin_cpu],             [CPU usage statistics])
@@ -6256,6 +6257,7 @@ Configuration:
     bind  . . . . . . . . $enable_bind
     ceph  . . . . . . . . $enable_ceph
     cgroups . . . . . . . $enable_cgroups
+    chrony. . . . . . . . $enable_chrony
     conntrack . . . . . . $enable_conntrack
     contextswitch . . . . $enable_contextswitch
     cpu . . . . . . . . . $enable_cpu
