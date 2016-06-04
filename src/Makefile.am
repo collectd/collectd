@@ -1352,7 +1352,8 @@ EXTRA_DIST =	collectd.conf.pod \
 		collectd-unixsock.pod \
 		postgresql_default.conf \
 		types.db \
-		types.db.pod
+		types.db.pod \
+		valgrind.FreeBSD.suppress
 
 AM_V_POD2MAN_C = $(am__v_POD2MAN_C_@AM_V@)
 am__v_POD2MAN_C_ = $(am__v_POD2MAN_C_@AM_DEFAULT_V@)
