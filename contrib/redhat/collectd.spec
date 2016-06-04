@@ -80,6 +80,7 @@
 %define with_bind 0%{!?_without_bind:1}
 %define with_ceph 0%{!?_without_ceph:0%{?_has_libyajl}}
 %define with_cgroups 0%{!?_without_cgroups:1}
+%define with_chrony 0%{!?_without_chrony:1}
 %define with_conntrack 0%{!?_without_conntrack:1}
 %define with_contextswitch 0%{!?_without_contextswitch:1}
 %define with_cpu 0%{!?_without_cpu:1}
@@ -322,6 +323,15 @@ Requires:      %{name}%{?_isa} = %{version}-%{release}
 BuildRequires: yajl-devel
 %description ceph
 Ceph plugin for collectd
+%endif
+
+%if %{with_chrony}
+%package chrony
+Summary:       Chrony plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+%description chrony
+Chrony plugin for collectd
 %endif
 
 %if %{with_curl}
@@ -929,6 +939,12 @@ Collectd utilities
 %define _with_cgroups --enable-cgroups
 %else
 %define _with_cgroups --disable-cgroups
+%endif
+
+%if %{with_chrony}
+%define _with_chrony --enable-chrony
+%else
+%define _with_chrony --disable-chrony
 %endif
 
 %if %{with_conntrack}
@@ -1663,6 +1679,7 @@ Collectd utilities
 	%{?_with_bind} \
 	%{?_with_ceph} \
 	%{?_with_cgroups} \
+	%{?_with_chrony} \
 	%{?_with_conntrack} \
 	%{?_with_contextswitch} \
 	%{?_with_cpu} \
@@ -2170,6 +2187,11 @@ fi
 %{_libdir}/%{name}/ceph.so
 %endif
 
+%if %{with_chrony}
+%files chrony
+%{_libdir}/%{name}/chrony.so
+%endif
+
 %if %{with_curl}
 %files curl
 %{_libdir}/%{name}/curl.so
@@ -2417,6 +2439,10 @@ fi
 %doc contrib/
 
 %changelog
+* Sat Jun 04 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> 5.5.1-1
+- New upstream version
+- Add Chrony plugin, enabled by default
+
 #* TODO: next feature release changelog
 #- New upstream version
 #- New plugins enabled by default: mqtt, notify_nagios
