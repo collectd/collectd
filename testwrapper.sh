@@ -14,6 +14,14 @@ if test -n "$VALGRIND"; then
 	MEMCHECK="$MEMCHECK --trace-children=yes"
 	MEMCHECK="$MEMCHECK --leak-check=full"
 	MEMCHECK="$MEMCHECK --gen-suppressions=all"
+
+	for f in "valgrind.$( uname -s ).suppress" "valgrind.suppress"; do
+		filename="$( dirname "$0" )/src/$f"
+		if test -e "$filename"; then
+			# Valgrind supports up to 100 suppression files.
+			MEMCHECK="$MEMCHECK --suppressions=$filename"
+		fi
+	done
 fi
 
 exec $MEMCHECK "$@"
