@@ -229,11 +229,9 @@ BuildRoot:	%{_tmppath}/%{name}-%{version}-root
 BuildRequires:	libgcrypt-devel, kernel-headers, libtool-ltdl-devel, libcap-devel
 Vendor:		collectd development team <collectd@verplant.org>
 
-%if 0%{?el7:1}
-Requires(pre):		initscripts
-Requires(post):		systemd
-Requires(preun):	systemd
-Requires(postun):	systemd
+%if 0%{?fedora} || 0%{?rhel} >= 7
+%{?systemd_requires}
+BuildRequires:		systemd
 %else
 Requires(post):		chkconfig
 Requires(preun):	chkconfig, initscripts
@@ -1800,7 +1798,7 @@ Collectd utilities
 %install
 rm -rf %{buildroot}
 %{__make} install DESTDIR=%{buildroot}
-%if 0%{?el7:1}
+%if 0%{?fedora} || 0%{?rhel} >= 7
 %{__install} -Dp -m0644 contrib/systemd.collectd.service %{buildroot}%{_unitdir}/collectd.service
 %else
 %{__install} -Dp -m0755 contrib/redhat/init.d-collectd %{buildroot}%{_initrddir}/collectd
@@ -1856,26 +1854,15 @@ rm -f %{buildroot}%{_mandir}/man5/collectd-snmp.5*
 %clean
 rm -rf %{buildroot}
 
-%pre
-%if 0%{?el7:1}
-# stop sysv-based instance before upgrading to systemd
-if [ $1 -eq 2 ] && [ -f /var/lock/subsys/collectd ]; then
-	SYSTEMCTL_SKIP_REDIRECT=1 %{_initddir}/collectd stop >/dev/null 2>&1 || :
-fi
-%endif
-
 %post
-%if 0%{?el7:1}
-if [ $1 -eq 2 ]; then
-	/usr/bin/systemctl daemon-reload >/dev/null 2>&1 || :
-fi
+%if 0%{?fedora} || 0%{?rhel} >= 7
 %systemd_post collectd.service
 %else
 /sbin/chkconfig --add collectd || :
 %endif
 
 %preun
-%if 0%{?el7:1}
+%if 0%{?fedora} || 0%{?rhel} >= 7
 %systemd_preun collectd.service
 %else
 # stop collectd only when uninstalling
@@ -1886,7 +1873,7 @@ fi
 %endif
 
 %postun
-%if 0%{?el7:1}
+%if 0%{?fedora} || 0%{?rhel} >= 7
 %systemd_postun_with_restart collectd.service
 %else
 # restart collectd only when upgrading
@@ -1902,7 +1889,7 @@ fi
 %files
 %doc AUTHORS COPYING ChangeLog README
 %config(noreplace) %{_sysconfdir}/collectd.conf
-%if 0%{?el7:1}
+%if 0%{?fedora} || 0%{?rhel} >= 7
 %{_unitdir}/collectd.service
 %else
 %{_initrddir}/collectd
