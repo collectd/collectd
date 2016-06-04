@@ -2441,13 +2441,9 @@ fi
 %changelog
 * Sat Jun 04 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> 5.5.1-1
 - New upstream version
-- Add Chrony plugin, enabled by default
+- New plugins enabled by default: chrony, mqtt, notify_nagios
+- New plugins disabled by default: zone, xencpu
 
-#* TODO: next feature release changelog
-#- New upstream version
-#- New plugins enabled by default: mqtt, notify_nagios
-#- New plugins disabled by default: zone, xencpu
-#
 * Wed May 27 2015 Marc Fournier <marc.fournier@camptocamp.com> 5.5.0-1
 - New upstream version
 - New plugins enabled by default: ceph, drbd, log_logstash, write_tsdb, smart,
