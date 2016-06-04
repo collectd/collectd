@@ -36,9 +36,7 @@
 #include "plugin.h"
 #include "utils_cache.h"
 
-#if HAVE_PTHREAD_H
-# include <pthread.h>
-#endif
+#include <pthread.h>
 
 #ifdef HAVE_MATH_H
 # include <math.h>
