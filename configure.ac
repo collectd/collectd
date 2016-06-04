@@ -1603,7 +1603,6 @@ if test "x$with_libhal" = "xyes"; then
 	fi
 fi
 
-AC_SUBST([PTHREAD_LIBS])
 SAVE_LIBS="$LIBS"
 AC_CHECK_LIB([pthread],
   [pthread_create],
@@ -1618,6 +1617,7 @@ AC_CHECK_HEADERS([pthread.h],
   [],
   [AC_MSG_ERROR([pthread.h not found])]
 )
+AC_SUBST([PTHREAD_LIBS])
 
 m4_divert_once([HELP_WITH], [
 collectd additional packages:])
