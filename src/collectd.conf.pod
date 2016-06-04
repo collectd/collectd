@@ -2500,7 +2500,7 @@ source, this is optional. Otherwise the option is required.
 =head2 Plugin C<grpc>
 
 The I<grpc> plugin provides an RPC interface to submit values to or query
-values from collectd based on the open source gRPC framework. It exposes and
+values from collectd based on the open source gRPC framework. It exposes an
 end-point for dispatching values to the daemon.
 
 The B<gRPC> homepage can be found at L<https://grpc.io/>.
@@ -2510,7 +2510,7 @@ The B<gRPC> homepage can be found at L<https://grpc.io/>.
 =item B<Listen> I<Host> I<Port>
 
 The B<Listen> statement sets the network address to bind to. When multiple
-statements are specified, the daemon will bin to all of them. If none are
+statements are specified, the daemon will bind to all of them. If none are
 specified, it defaults to B<0.0.0.0:50051>.
 
 The argument I<Host> may be a hostname, an IPv4 address, or an IPv6 address.

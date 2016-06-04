@@ -680,7 +680,8 @@ Prerequisites
     <http://ganglia.info/>
 
   * libgrpc (optional)
-    Used by the `grpc' plugin.
+    Used by the `grpc' plugin. gRPC requires a C++ compiler supporting the
+    C++11 standard.
     <https://grpc.io/>
 
   * libgcrypt (optional)
