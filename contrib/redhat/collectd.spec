@@ -57,6 +57,7 @@
 %{?el7:%global _has_libyajl 1}
 %{?el7:%global _has_recent_libpcap 1}
 %{?el7:%global _has_recent_sockios_h 1}
+%{?el7:%global _has_recent_libganglia 1}
 %{?el7:%global _has_working_libiptc 1}
 %{?el7:%global _has_ip_vs_h 1}
 %{?el7:%global _has_lvm2app_h 1}
