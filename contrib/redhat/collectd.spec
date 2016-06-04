@@ -424,6 +424,7 @@ Requires:	%{name}%{?_isa} = %{version}-%{release}
 BuildRequires:	protobuf-compiler
 %description grpc
 This plugin embeds a gRPC server into Collectd.
+%endif
 
 %if %{with_hddtemp}
 %package hddtemp
