@@ -893,7 +893,13 @@ static int disk_read (void)
 #endif
 
 		if (ignorelist_match (ignorelist, output_name) != 0)
+		{
+#if HAVE_LIBUDEV
+			/* release udev-based alternate name, if allocated */
+			sfree (output_name);
+#endif
 			continue;
+		}
 
 		if ((ds->read_bytes != 0) || (ds->write_bytes != 0))
 			disk_submit (output_name, "disk_octets",
