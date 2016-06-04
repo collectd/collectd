@@ -10,7 +10,7 @@ SUBDIRS += proto src bindings .
 
 AM_CPPFLAGS = $(LTDLINCL)
 
-EXTRA_DIST = contrib version-gen.sh
+EXTRA_DIST = contrib version-gen.sh testwrapper.sh
 
 install-exec-hook:
 	$(mkinstalldirs) $(DESTDIR)$(localstatedir)/run
