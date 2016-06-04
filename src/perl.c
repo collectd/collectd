@@ -63,8 +63,6 @@
 
 #include "filter_chain.h"
 
-#include <pthread.h>
-
 #if !defined(USE_ITHREADS)
 # error "Perl does not support ithreads!"
 #endif /* !defined(USE_ITHREADS) */

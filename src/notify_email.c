@@ -28,7 +28,6 @@
 
 #include <auth-client.h>
 #include <libesmtp.h>
-#include <pthread.h>
 
 #define MAXSTRING               256
 

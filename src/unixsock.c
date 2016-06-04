@@ -36,9 +36,6 @@
 #include "utils_cmd_putval.h"
 #include "utils_cmd_putnotif.h"
 
-/* Folks without pthread will need to disable this plugin. */
-#include <pthread.h>
-
 #include <sys/stat.h>
 #include <sys/un.h>
 

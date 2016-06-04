@@ -28,7 +28,6 @@
 #include "plugin.h"
 #include "configfile.h"
 
-#include <pthread.h>
 #include <netdb.h>
 #include <poll.h>
 

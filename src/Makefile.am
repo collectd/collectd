@@ -85,6 +85,7 @@ collectd_tg_CPPFLAGS = $(AM_CPPFLAGS) \
 	-I$(top_srcdir)/src/libcollectdclient/collectd \
 	-I$(top_builddir)/src/libcollectdclient/collectd
 collectd_tg_LDADD = \
+	$(PTHREAD_LIBS) \
 	daemon/libheap.la \
 	libcollectdclient/libcollectdclient.la
 if BUILD_WITH_LIBSOCKET
@@ -95,9 +96,6 @@ collectd_tg_LDADD += -lrt
 endif
 if BUILD_AIX
 collectd_tg_LDADD += -lm
-endif
-if BUILD_WITH_LIBPTHREAD
-collectd_tg_LDADD += $(PTHREAD_LIBS)
 endif
 
 
@@ -341,7 +339,7 @@ if BUILD_PLUGIN_DNS
 pkglib_LTLIBRARIES += dns.la
 dns_la_SOURCES = dns.c utils_dns.c utils_dns.h
 dns_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-dns_la_LIBADD = $(PTHREAD_LIBS) -lpcap
+dns_la_LIBADD = -lpcap
 endif
 
 if BUILD_PLUGIN_DRBD
@@ -354,7 +352,6 @@ if BUILD_PLUGIN_EMAIL
 pkglib_LTLIBRARIES += email.la
 email_la_SOURCES = email.c
 email_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-email_la_LIBADD = $(PTHREAD_LIBS)
 endif
 
 if BUILD_PLUGIN_ENTROPY
@@ -370,7 +367,6 @@ exec_la_SOURCES = exec.c \
 		  utils_cmd_putval.c utils_cmd_putval.h \
 		  utils_parse_option.h utils_parse_option.c
 exec_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-exec_la_LIBADD = $(PTHREAD_LIBS)
 endif
 
 if BUILD_PLUGIN_ETHSTAT
@@ -475,7 +471,7 @@ java_la_SOURCES = java.c
 java_la_CPPFLAGS = $(AM_CPPFLAGS) $(JAVA_CPPFLAGS)
 java_la_CFLAGS = $(AM_CFLAGS) $(JAVA_CFLAGS)
 java_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(JAVA_LDFLAGS)
-java_la_LIBADD = $(PTHREAD_LIBS) $(JAVA_LIBS)
+java_la_LIBADD = $(JAVA_LIBS)
 endif
 
 if BUILD_PLUGIN_LOAD
@@ -673,7 +669,7 @@ network_la_SOURCES = network.c network.h \
 		     utils_fbhash.c utils_fbhash.h
 network_la_CPPFLAGS = $(AM_CPPFLAGS)
 network_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-network_la_LIBADD = $(PTHREAD_LIBS)
+network_la_LIBADD =
 if BUILD_WITH_LIBSOCKET
 network_la_LIBADD += -lsocket
 endif
@@ -716,7 +712,7 @@ if BUILD_PLUGIN_NOTIFY_EMAIL
 pkglib_LTLIBRARIES += notify_email.la
 notify_email_la_SOURCES = notify_email.c
 notify_email_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-notify_email_la_LIBADD = $(PTHREAD_LIBS) -lesmtp -lssl -lcrypto
+notify_email_la_LIBADD = -lesmtp -lssl -lcrypto
 endif
 
 if BUILD_PLUGIN_NOTIFY_NAGIOS
@@ -746,7 +742,7 @@ pkglib_LTLIBRARIES += nut.la
 nut_la_SOURCES = nut.c
 nut_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBUPSCLIENT_CFLAGS)
 nut_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-nut_la_LIBADD = $(PTHREAD_LIBS) $(BUILD_WITH_LIBUPSCLIENT_LIBS)
+nut_la_LIBADD = $(BUILD_WITH_LIBUPSCLIENT_LIBS)
 endif
 
 if BUILD_PLUGIN_OLSRD
@@ -949,16 +945,13 @@ if BUILD_WITH_LIBNETSNMP
 snmp_la_CFLAGS += $(BUILD_WITH_LIBSNMP_CFLAGS)
 snmp_la_LIBADD += $(BUILD_WITH_LIBSNMP_LIBS)
 endif
-if BUILD_WITH_LIBPTHREAD
-snmp_la_LIBADD += $(PTHREAD_LIBS)
-endif
 endif
 
 if BUILD_PLUGIN_STATSD
 pkglib_LTLIBRARIES += statsd.la
 statsd_la_SOURCES = statsd.c
 statsd_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-statsd_la_LIBADD = $(PTHREAD_LIBS) liblatency.la -lm
+statsd_la_LIBADD = liblatency.la -lm
 endif
 
 if BUILD_PLUGIN_SWAP
@@ -1109,7 +1102,6 @@ unixsock_la_SOURCES = unixsock.c \
 		      utils_cmd_putnotif.h utils_cmd_putnotif.c \
 		      utils_parse_option.h utils_parse_option.c
 unixsock_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-unixsock_la_LIBADD = $(PTHREAD_LIBS)
 endif
 
 if BUILD_PLUGIN_UPTIME

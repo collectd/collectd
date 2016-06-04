@@ -36,9 +36,6 @@
 
 #include "network.h"
 
-#if HAVE_PTHREAD_H
-# include <pthread.h>
-#endif
 #if HAVE_NETDB_H
 # include <netdb.h>
 #endif
@@ -56,7 +53,6 @@
 #endif
 
 #if HAVE_LIBGCRYPT
-# include <pthread.h>
 # if defined __APPLE__
 /* default xcode compiler throws warnings even when deprecated functionality
  * is not used. -Werror breaks the build because of erroneous warnings.

@@ -29,10 +29,6 @@
 #include "utils_cache.h"
 #include "utils_format_json.h"
 
-#if HAVE_PTHREAD_H
-# include <pthread.h>
-#endif
-
 #include <curl/curl.h>
 
 #ifndef WRITE_HTTP_DEFAULT_BUFFER_SIZE

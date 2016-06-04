@@ -28,9 +28,6 @@
 #include <structmember.h>
 
 #include <signal.h>
-#if HAVE_PTHREAD_H
-# include <pthread.h>
-#endif
 
 #include "collectd.h"
 #include "common.h"

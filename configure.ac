@@ -1603,45 +1603,21 @@ if test "x$with_libhal" = "xyes"; then
 	fi
 fi
 
-# --with-libpthread {{{
-AC_ARG_WITH(libpthread, [AS_HELP_STRING([--with-libpthread=@<:@=PREFIX@:>@], [Path to libpthread.])],
-[	if test "x$withval" != "xno" \
-		&& test "x$withval" != "xyes"
-	then
-		LDFLAGS="$LDFLAGS -L$withval/lib"
-		CPPFLAGS="$CPPFLAGS -I$withval/include"
-		with_libpthread="yes"
-	else
-		if test "x$withval" = "xno"
-		then
-			with_libpthread="no (disabled)"
-		fi
-	fi
-], [with_libpthread="yes"])
+SAVE_LIBS="$LIBS"
+AC_CHECK_LIB([pthread],
+  [pthread_create],
+  [],
+  [AC_MSG_ERROR([Symbol 'pthread_create' not found in libpthread"])],
+  []
+)
+PTHREAD_LIBS="$LIBS"
+LIBS="$SAVE_LIBS"
 
+AC_CHECK_HEADERS([pthread.h],
+  [],
+  [AC_MSG_ERROR([pthread.h not found])]
+)
 AC_SUBST([PTHREAD_LIBS])
-if test "x$with_libpthread" = "xyes"
-then
-	SAVE_LIBS="$LIBS"
-	AC_CHECK_LIB(pthread, pthread_create, [], [with_libpthread="no (Symbol 'pthread_create' not found)"], [])
-	PTHREAD_LIBS="$LIBS"
-	LIBS="$SAVE_LIBS"
-fi
-
-if test "x$with_libpthread" = "xyes"
-then
-	AC_CHECK_HEADERS(pthread.h,, [with_libpthread="no (pthread.h not found)"])
-fi
-if test "x$with_libpthread" = "xyes"
-then
-	collect_pthread=1
-else
-	collect_pthread=0
-fi
-AC_DEFINE_UNQUOTED(HAVE_LIBPTHREAD, [$collect_pthread],
-	[Wether or not to use pthread (POSIX threads) library])
-AM_CONDITIONAL(BUILD_WITH_LIBPTHREAD, test "x$with_libpthread" = "xyes")
-# }}}
 
 m4_divert_once([HELP_WITH], [
 collectd additional packages:])
@@ -6215,7 +6191,6 @@ Configuration:
     libperfstat . . . . . $with_perfstat
     libperl . . . . . . . $with_libperl
     libpq . . . . . . . . $with_libpq
-    libpthread  . . . . . $with_libpthread
     librabbitmq . . . . . $with_librabbitmq
     libriemann-client . . $with_libriemann_client
     librdkafka  . . . . . $with_librdkafka

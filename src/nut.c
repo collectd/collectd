@@ -28,7 +28,6 @@
 #include "common.h"
 #include "plugin.h"
 
-#include <pthread.h>
 #include <upsclient.h>
 
 #if HAVE_UPSCONN_T

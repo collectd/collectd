@@ -26,8 +26,6 @@
 
 #include "collectd.h"
 
-#include <pthread.h>
-
 #include "plugin.h"
 #include "common.h"
 #include "configfile.h"
