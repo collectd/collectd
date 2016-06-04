@@ -1352,8 +1352,13 @@ EXTRA_DIST =	collectd.conf.pod \
 		types.db \
 		types.db.pod
 
+AM_V_POD2MAN_C = $(am__v_POD2MAN_C_@AM_V@)
+am__v_POD2MAN_C_ = $(am__v_POD2MAN_C_@AM_DEFAULT_V@)
+am__v_POD2MAN_C_0 = @echo "  POD2MAN " $@;
+am__v_POD2MAN_C_1 =
+
 .pod.1:
-	pod2man --release=$(VERSION) --center=$(PACKAGE) $< \
+	$(AM_V_POD2MAN_C)pod2man --release=$(VERSION) --center=$(PACKAGE) $< \
 		>.pod2man.tmp.$$$$ 2>/dev/null && mv -f .pod2man.tmp.$$$$ $@ || true
 	@if grep '\<POD ERRORS\>' $@ >/dev/null 2>&1; \
 	then \
@@ -1361,7 +1366,7 @@ EXTRA_DIST =	collectd.conf.pod \
 	fi
 
 .pod.5:
-	pod2man --section=5 --release=$(VERSION) --center=$(PACKAGE) $< \
+	$(AM_V_POD2MAN_C)pod2man --section=5 --release=$(VERSION) --center=$(PACKAGE) $< \
 		>.pod2man.tmp.$$$$ 2>/dev/null && mv -f .pod2man.tmp.$$$$ $@ || true
 	@if grep '\<POD ERRORS\>' $@ >/dev/null 2>&1; \
 	then \
@@ -1370,7 +1375,7 @@ EXTRA_DIST =	collectd.conf.pod \
 
 AM_V_PROTOC_C = $(am__v_PROTOC_C_@AM_V@)
 am__v_PROTOC_C_ = $(am__v_PROTOC_C_@AM_DEFAULT_V@)
-am__v_PROTOC_C_0 = @echo "  PROTOC-C    " $@;
+am__v_PROTOC_C_0 = @echo "  PROTOC-C" $@;
 am__v_PROTOC_C_1 =
 
 # Protocol buffer for the "pinba" plugin.
