@@ -6201,7 +6201,7 @@ AM_CXXFLAGS="-Wall"
 if test "x$enable_werror" != "xno"
 then
         AM_CFLAGS="$AM_CFLAGS -Werror"
-        AM_CXXFLAGS="$AM_CFLAGS -Werror"
+        AM_CXXFLAGS="$AM_CXXFLAGS -Werror"
 fi
 AC_SUBST([AM_CFLAGS])
 AC_SUBST([AM_CXXFLAGS])
