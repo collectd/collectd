@@ -43,7 +43,6 @@ typedef struct curl_stats_s curl_stats_t;
  *
  * See http://curl.haxx.se/libcurl/c/curl_easy_getinfo.html
  */
-__attribute__((nonnull(1)))
 curl_stats_t *curl_stats_from_config (oconfig_item_t *ci);
 
 void curl_stats_destroy (curl_stats_t *s);
