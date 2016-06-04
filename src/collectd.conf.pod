@@ -2497,6 +2497,51 @@ source, this is optional. Otherwise the option is required.
 
 =back
 
+=head2 Plugin C<grpc>
+
+The I<grpc> plugin provides an RPC interface to submit values to or query
+values from collectd based on the open source gRPC framework. It exposes an
+end-point for dispatching values to the daemon.
+
+The B<gRPC> homepage can be found at L<https://grpc.io/>.
+
+=over 4
+
+=item B<Listen> I<Host> I<Port>
+
+The B<Listen> statement sets the network address to bind to. When multiple
+statements are specified, the daemon will bind to all of them. If none are
+specified, it defaults to B<0.0.0.0:50051>.
+
+The argument I<Host> may be a hostname, an IPv4 address, or an IPv6 address.
+
+Optionally, B<Listen> may be specified as a configuration block which
+supports the following options:
+
+=over 4
+
+=item B<EnableSSL> I<true>|I<false>
+
+Whether to enable SSL for incoming connections. Default: false.
+
+=item B<SSLRootCerts> I<Filename>
+
+=item B<SSLServerKey> I<Filename>
+
+=item B<SSLServerCert> I<Filename>
+
+Filenames specifying SSL certificate and key material to be used with SSL
+connections.
+
+=back
+
+=item B<WorkerThreads> I<Num>
+
+Number of threads to start for handling incoming connections. The default
+value is B<5>.
+
+=back
+
 =head2 Plugin C<hddtemp>
 
 To get values from B<hddtemp> collectd connects to B<localhost> (127.0.0.1),

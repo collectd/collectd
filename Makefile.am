@@ -6,7 +6,7 @@ if BUILD_INCLUDED_LTDL
 SUBDIRS += libltdl
 endif
 
-SUBDIRS += src bindings .
+SUBDIRS += proto src bindings .
 
 AM_CPPFLAGS = $(LTDLINCL)
 

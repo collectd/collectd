@@ -17,6 +17,10 @@ endif
 AM_CPPFLAGS += -DPLUGINDIR='"${pkglibdir}"'
 AM_CPPFLAGS += -DPKGDATADIR='"${pkgdatadir}"'
 
+V_PROTOC = $(v_protoc_@AM_V@)
+v_protoc_ = $(v_protoc_@AM_DEFAULT_V@)
+v_protoc_0 = @echo "  PROTOC  " $@;
+
 noinst_LTLIBRARIES =
 check_PROGRAMS =
 TESTS =
@@ -103,6 +107,24 @@ pkglib_LTLIBRARIES =
 
 BUILT_SOURCES =
 CLEANFILES =
+
+if HAVE_PROTOC3
+if HAVE_GRPC_CPP
+BUILT_SOURCES += collectd.grpc.pb.cc collectd.pb.cc types.pb.cc
+CLEANFILES += collectd.grpc.pb.cc collectd.pb.cc types.pb.cc \
+		collectd.grpc.pb.h collectd.pb.h types.pb.h
+
+collectd.grpc.pb.cc: $(top_srcdir)/proto/collectd.proto $(top_srcdir)/proto/types.proto
+	$(V_PROTOC)@PROTOC@ -I$(top_srcdir)/proto \
+		--grpc_out=$(builddir) --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN) $<
+
+collectd.pb.cc: $(top_srcdir)/proto/collectd.proto $(top_srcdir)/proto/types.proto
+	$(V_PROTOC)@PROTOC@ -I$(top_srcdir)/proto --cpp_out=$(builddir) $<
+
+types.pb.cc: $(top_srcdir)/proto/types.proto
+	$(V_PROTOC)@PROTOC@ -I$(top_srcdir)/proto --cpp_out=$(builddir) $<
+endif
+endif
 
 if BUILD_PLUGIN_AGGREGATION
 pkglib_LTLIBRARIES += aggregation.la
@@ -393,6 +415,16 @@ gmond_la_SOURCES = gmond.c
 gmond_la_CPPFLAGS = $(AM_CPPFLAGS) $(GANGLIA_CPPFLAGS)
 gmond_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(GANGLIA_LDFLAGS)
 gmond_la_LIBADD = $(GANGLIA_LIBS)
+endif
+
+if BUILD_PLUGIN_GRPC
+pkglib_LTLIBRARIES += grpc.la
+grpc_la_SOURCES = grpc.cc
+nodist_grpc_la_SOURCES = collectd.grpc.pb.cc collectd.pb.cc types.pb.cc
+grpc_la_CPPFLAGS = $(AM_CPPFLAGS) -std=c++11
+grpc_la_CXXFLAGS = $(AM_CXXFLAGS) -std=c++11
+grpc_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+grpc_la_LIBADD = -lgrpc++ -lgrpc -lgpr -lprotobuf
 endif
 
 if BUILD_PLUGIN_HDDTEMP

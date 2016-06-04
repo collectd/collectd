@@ -43,6 +43,7 @@ AC_SYS_LARGEFILE
 # Checks for programs.
 #
 AC_PROG_CC
+AC_PROG_CXX
 AC_PROG_CPP
 AC_PROG_EGREP
 AC_PROG_INSTALL
@@ -72,6 +73,25 @@ if test "x$collectd_cv_prog_bison" = "xno" && test ! -f "${srcdir}/src/liboconfi
 then
 	AC_MSG_ERROR([bison is missing and you do not have ${srcdir}/src/liboconfig/parser.c. Please install bison])
 fi
+
+AC_PATH_PROG([PROTOC], [protoc])
+have_protoc3="no"
+if test "x$PROTOC" != "x"; then
+	AC_MSG_CHECKING([for protoc 3.0.0+])
+	if $PROTOC --version | grep -q libprotoc.3; then
+		protoc3="yes (`$PROTOC --version`)"
+		have_protoc3="yes"
+	else
+		protoc3="no (`$PROTOC --version`)"
+	fi
+	AC_MSG_RESULT([$protoc3])
+fi
+AC_SUBST([PROTOC])
+AM_CONDITIONAL(HAVE_PROTOC3, test "x$have_protoc3" = "xyes")
+
+AC_PATH_PROG([GRPC_CPP_PLUGIN], [grpc_cpp_plugin])
+AC_SUBST([GRPC_CPP_PLUGIN])
+AM_CONDITIONAL(HAVE_GRPC_CPP, test "x$GRPC_CPP_PLUGIN" != "x")
 
 AC_CHECK_PROG([have_protoc_c], [protoc-c], [yes], [no])
 if test "x$have_protoc_c" = "xno"
@@ -778,6 +798,16 @@ AC_PROG_GCC_TRADITIONAL
 AC_CHECK_FUNCS(gettimeofday select strdup strtol getaddrinfo getnameinfo strchr memcpy strstr strcmp strncmp strncpy strlen strncasecmp strcasecmp openlog closelog sysconf setenv if_indextoname setlocale)
 
 AC_FUNC_STRERROR_R
+
+test_cxx_flags() {
+	AC_LANG_PUSH(C++)
+	AC_LANG_CONFTEST([int main(void){}])
+	$CXX -c conftest.cpp $CXXFLAGS $@ > /dev/null 2> /dev/null
+	ret=$?
+	rm -f conftest.o
+	AC_LANG_POP(C++)
+	return $ret
+}
 
 SAVE_CFLAGS="$CFLAGS"
 # Emulate behavior of src/Makefile.am
@@ -2183,6 +2213,62 @@ AC_SUBST(GCRYPT_CPPFLAGS)
 AC_SUBST(GCRYPT_LDFLAGS)
 AC_SUBST(GCRYPT_LIBS)
 AM_CONDITIONAL(BUILD_WITH_LIBGCRYPT, test "x$with_libgcrypt" = "xyes")
+# }}}
+
+# --with-grpc {{{
+AC_ARG_WITH(grpc, [AS_HELP_STRING([--without-grpc], [Disable gRPC (default: autodetect).])],
+[
+	with_grpc="$withval"
+],
+[
+	with_grpc="yes"
+])
+
+if test "x$with_grpc" = "xyes"
+then
+	if test "x$have_protoc3" != "xyes"
+	then
+		with_grpc="no (requires protoc 3.0.0+)"
+	else if test "x$GRPC_CPP_PLUGIN" = "x"
+	then
+		with_grpc"no (requires grpc_cpp_plugin)"
+	fi; fi
+fi
+
+if test "x$with_grpc" = "xyes"
+then
+	AC_MSG_CHECKING([whether $CXX accepts -std=c++11])
+	if test_cxx_flags -std=c++11; then
+		AC_MSG_RESULT([yes])
+	else
+		AC_MSG_RESULT([no])
+		with_grpc="no (requires C++11 support)"
+	fi
+fi
+
+if test "x$with_grpc" = "xyes"
+then
+	AC_LANG_PUSH(C++)
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	SAVE_CXXFLAGS="$CXXFLAGS"
+	CPPFLAGS="$CPPFLAGS -std=c++11"
+	CXXFLAGS="$CXXFLAGS -std=c++11"
+	AC_CHECK_HEADERS([grpc++/grpc++.h], [],
+			[with_grpc="no (grpc++/grpc++.h not found)"])
+	CPPFLAGS="$SAVE_CPPFLAGS"
+	CXXFLAGS="$SAVE_CXXFLAGS"
+	AC_LANG_POP(C++)
+fi
+with_libgrpc="no"
+if test "x$with_grpc" = "xyes"
+then
+	AC_LANG_PUSH(C++)
+	AC_CHECK_LIB([grpc], [grpc_register_plugin],
+			[with_libgrpc="yes"],
+			[with_grpc="no (libgrpc not found)"],
+			[-lgpr -lprotobuf])
+	AC_LANG_POP(C++)
+fi
 # }}}
 
 # --with-libiptc {{{
@@ -5373,7 +5459,7 @@ AC_DEFUN(
 	     then
 		     enable_plugin="yes"
 	     else
-		     enable_plugin="no"
+		     enable_plugin="$2"
 	     fi
 	 else
 	     enable_plugin="$enable_all_plugins"
@@ -5390,7 +5476,7 @@ AC_DEFUN(
 		    fi
 	    else # User passed "yes" but dependency checking yielded "no" => Dependency problem.
 		    dependency_error="yes"
-		    enable_plugin="no (dependency error)"
+		    enable_plugin="$2 (dependency error)"
 	    fi
     fi
     AM_CONDITIONAL([BUILD_PLUGIN_]my_toupper([$1]), test "x$enable_plugin" = "xyes")
@@ -5851,6 +5937,7 @@ AC_PLUGIN([fhcount],             [$plugin_fhcount],         [File handles statis
 AC_PLUGIN([filecount],           [yes],                     [Count files in directories])
 AC_PLUGIN([fscache],             [$plugin_fscache],         [fscache statistics])
 AC_PLUGIN([gmond],               [$with_libganglia],        [Ganglia plugin])
+AC_PLUGIN([grpc],                [$with_grpc],              [gRPC plugin])
 AC_PLUGIN([hddtemp],             [yes],                     [Query hddtempd])
 AC_PLUGIN([interface],           [$plugin_interface],       [Interface traffic statistics])
 AC_PLUGIN([ipc],                 [$plugin_ipc],             [IPC statistics])
@@ -6108,13 +6195,16 @@ AC_SUBST(LCC_VERSION_STRING)
 AC_CONFIG_FILES(src/libcollectdclient/collectd/lcc_features.h)
 
 AM_CFLAGS="-Wall"
+AM_CXXFLAGS="-Wall"
 if test "x$enable_werror" != "xno"
 then
         AM_CFLAGS="$AM_CFLAGS -Werror"
+        AM_CXXFLAGS="$AM_CFLAGS -Werror"
 fi
 AC_SUBST([AM_CFLAGS])
+AC_SUBST([AM_CXXFLAGS])
 
-AC_CONFIG_FILES([Makefile src/Makefile src/daemon/Makefile src/collectd.conf src/libcollectdclient/Makefile src/libcollectdclient/libcollectdclient.pc src/liboconfig/Makefile bindings/Makefile bindings/java/Makefile])
+AC_CONFIG_FILES([Makefile proto/Makefile src/Makefile src/daemon/Makefile src/collectd.conf src/libcollectdclient/Makefile src/libcollectdclient/libcollectdclient.pc src/liboconfig/Makefile bindings/Makefile bindings/java/Makefile])
 AC_OUTPUT
 
 if test "x$with_librrd" = "xyes" \
@@ -6148,10 +6238,13 @@ Configuration:
     Platform  . . . . . . $ac_system
     CC  . . . . . . . . . $CC
     CFLAGS  . . . . . . . $AM_CFLAGS $CFLAGS
+    CXXFLAGS  . . . . . . $AM_CXXFLAGS $CXXFLAGS
     CPP . . . . . . . . . $CPP
     CPPFLAGS  . . . . . . $CPPFLAGS
+    GRPC_CPP_PLUGIN . . . $GRPC_CPP_PLUGIN
     LD  . . . . . . . . . $LD
     LDFLAGS . . . . . . . $LDFLAGS
+    PROTOC  . . . . . . . $PROTOC
     YACC  . . . . . . . . $YACC
     YFLAGS  . . . . . . . $YFLAGS
 
@@ -6164,6 +6257,7 @@ Configuration:
     libesmtp  . . . . . . $with_libesmtp
     libganglia  . . . . . $with_libganglia
     libgcrypt . . . . . . $with_libgcrypt
+    libgrpc . . . . . . . $with_libgrpc
     libhal  . . . . . . . $with_libhal
     libhiredis  . . . . . $with_libhiredis
     libi2c-dev  . . . . . $with_libi2c
@@ -6210,6 +6304,7 @@ Configuration:
     libyajl . . . . . . . $with_libyajl
     oracle  . . . . . . . $with_oracle
     protobuf-c  . . . . . $have_protoc_c
+    protoc 3  . . . . . . $protoc3
     python  . . . . . . . $with_python
 
   Features:
@@ -6254,6 +6349,7 @@ Configuration:
     filecount . . . . . . $enable_filecount
     fscache . . . . . . . $enable_fscache
     gmond . . . . . . . . $enable_gmond
+    grpc  . . . . . . . . $enable_grpc
     hddtemp . . . . . . . $enable_hddtemp
     interface . . . . . . $enable_interface
     ipc . . . . . . . . . $enable_ipc
