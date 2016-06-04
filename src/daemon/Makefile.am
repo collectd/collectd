@@ -87,6 +87,8 @@ else
 collectd_LDADD += -loconfig
 endif
 
+LOG_COMPILER = env VALGRIND="@VALGRIND@" $(abs_top_srcdir)/testwrapper.sh
+
 check_PROGRAMS = test_common test_meta_data test_utils_avltree test_utils_heap test_utils_time test_utils_subst
 TESTS          = test_common test_meta_data test_utils_avltree test_utils_heap test_utils_time test_utils_subst
 

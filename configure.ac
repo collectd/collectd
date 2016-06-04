@@ -57,6 +57,9 @@ AC_PROG_LIBTOOL
 AC_PROG_LEX
 AC_PROG_YACC
 
+AC_PATH_PROG([VALGRIND], [valgrind])
+AC_SUBST([VALGRIND])
+
 # Warn when pkg.m4 is missing
 m4_pattern_forbid([^_?PKG_[A-Z_]+$],[*** pkg.m4 missing, please install pkg-config])
 
