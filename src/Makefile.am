@@ -17,8 +17,6 @@ endif
 AM_CPPFLAGS += -DPLUGINDIR='"${pkglibdir}"'
 AM_CPPFLAGS += -DPKGDATADIR='"${pkgdatadir}"'
 
-AUTOMAKE_OPTIONS = subdir-objects
-
 V_PROTOC = $(v_protoc_@AM_V@)
 v_protoc_ = $(v_protoc_@AM_DEFAULT_V@)
 v_protoc_0 = @echo "  PROTOC  " $@;
