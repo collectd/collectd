@@ -160,6 +160,8 @@
 %define with_aquaero 0%{!?_without_aquaero:0}
 # plugin barometer disabled, requires a libi2c
 %define with_barometer 0%{!?_without_barometer:0}
+# plugin grpc disabled, requires protobuf-compiler >= 3.0
+%define with_grpc 0%{!?_without_grpc:0}
 # plugin lpar disabled, requires AIX
 %define with_lpar 0%{!?_without_lpar:0}
 # plugin mic disabled, requires Mic
@@ -413,6 +415,15 @@ BuildRequires:	ganglia-devel
 The gmond plugin subscribes to a Multicast group to receive data from gmond,
 the client daemon of the Ganglia project.
 %endif
+
+%if %{with_grpc}
+%package grpc
+Summary:	GRPC plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	protobuf-compiler
+%description grpc
+This plugin embeds a gRPC server into Collectd.
 
 %if %{with_hddtemp}
 %package hddtemp
@@ -1072,6 +1083,12 @@ Collectd utilities
 %define _with_gmond --disable-gmond
 %endif
 
+%if %{with_grpc}
+%define _with_grpc --enable-grpc
+%else
+%define _with_grpc --disable-grpc
+%endif
+
 %if %{with_hddtemp}
 %define _with_hddtemp --enable-hddtemp
 %else
@@ -1694,6 +1711,7 @@ Collectd utilities
 	%{?_with_filecount} \
 	%{?_with_fscache} \
 	%{?_with_gmond} \
+	%{?_with_grpc} \
 	%{?_with_hddtemp} \
 	%{?_with_interface} \
 	%{?_with_ipc} \
@@ -2214,6 +2232,11 @@ fi
 %{_libdir}/%{name}/gmond.so
 %endif
 
+%if %{with_grpc}
+%files grpc
+%{_libdir}/%{name}/grpc.so
+%endif
+
 %if %{with_hddtemp}
 %files hddtemp
 %{_libdir}/%{name}/hddtemp.so
@@ -2424,7 +2447,7 @@ fi
 * Sat Jun 04 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> 5.5.1-1
 - New upstream version
 - New plugins enabled by default: chrony, mqtt, notify_nagios
-- New plugins disabled by default: zone, xencpu
+- New plugins disabled by default: grpc, zone, xencpu
 
 * Wed May 27 2015 Marc Fournier <marc.fournier@camptocamp.com> 5.5.0-1
 - New upstream version
