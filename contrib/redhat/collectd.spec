@@ -61,6 +61,7 @@
 %{?el7:%global _has_working_libiptc 1}
 %{?el7:%global _has_ip_vs_h 1}
 %{?el7:%global _has_lvm2app_h 1}
+%{?el7:%global _has_libmodbus 1}
 %{?el7:%global _has_libudev 1}
 %{?el7:%global _has_recent_librrd 1}
 %{?el7:%global _has_iproute 1}
@@ -68,7 +69,6 @@
 %{?el7:%global _has_hiredis 1}
 %{?el7:%global _has_asm_msr_index 1}
 %{?el7:%global _has_libmosquitto 1}
-%{?el7:%global _has_libmodbus 1}
 %{?el7:%global _has_xmms 1}
 
 # plugins enabled by default
