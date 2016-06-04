@@ -603,10 +603,10 @@ Summary:	Perl plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
 Requires:	perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $version))
-	%if 0%{?rhel} >= 6
-BuildRequires:	perl-ExtUtils-Embed
-	%else
+	%if 0%{?rhel} && 0%{?rhel} < 6
 BuildRequires:	perl
+	%else
+BuildRequires:	perl-ExtUtils-Embed
 	%endif
 %description perl
 The Perl plugin embeds a Perl interpreter into collectd and exposes the
@@ -651,10 +651,10 @@ database.
 Summary:	Python plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-	%if 0%{?rhel} >= 6
-BuildRequires: python-devel
-	%else
+	%if 0%{?rhel} && 0%{?rhel} < 6
 BuildRequires: python26-devel
+	%else
+BuildRequires: python-devel
 	%endif
 %description python
 The Python plugin embeds a Python interpreter into collectd and exposes the
@@ -1369,10 +1369,10 @@ Collectd utilities
 %endif
 
 %if %{with_python}
-	%if 0%{?rhel} >= 6
-%define _with_python --enable-python
-	%else
+	%if 0%{?rhel} && 0%{?rhel} < 6
 %define _with_python --enable-python --with-python=%{_bindir}/python2.6
+	%else
+%define _with_python --enable-python
 	%endif
 %else
 %define _with_python --disable-python
