@@ -38,39 +38,6 @@
 %global _hardened_build 1
 %{?perl_default_filter}
 
-# plugins only buildable on RHEL6
-# (NB: %{elN} macro is not available on RHEL < 6)
-%{?el6:%global _has_libyajl 1}
-%{?el6:%global _has_recent_libpcap 1}
-%{?el6:%global _has_recent_sockios_h 1}
-%{?el6:%global _has_recent_libganglia 1}
-%{?el6:%global _has_working_libiptc 1}
-%{?el6:%global _has_ip_vs_h 1}
-%{?el6:%global _has_lvm2app_h 1}
-%{?el6:%global _has_libmodbus 1}
-%{?el6:%global _has_libudev 1}
-%{?el6:%global _has_iproute 1}
-%{?el6:%global _has_atasmart 1}
-%{?el6:%global _has_hiredis 1}
-%{?el6:%global _has_asm_msr_index 1}
-
-%{?el7:%global _has_libyajl 1}
-%{?el7:%global _has_recent_libpcap 1}
-%{?el7:%global _has_recent_sockios_h 1}
-%{?el7:%global _has_recent_libganglia 1}
-%{?el7:%global _has_working_libiptc 1}
-%{?el7:%global _has_ip_vs_h 1}
-%{?el7:%global _has_lvm2app_h 1}
-%{?el7:%global _has_libmodbus 1}
-%{?el7:%global _has_libudev 1}
-%{?el7:%global _has_recent_librrd 1}
-%{?el7:%global _has_iproute 1}
-%{?el7:%global _has_atasmart 1}
-%{?el7:%global _has_hiredis 1}
-%{?el7:%global _has_asm_msr_index 1}
-%{?el7:%global _has_libmosquitto 1}
-%{?el7:%global _has_xmms 1}
-
 # plugins enabled by default
 %define with_aggregation 0%{!?_without_aggregation:1}
 %define with_amqp 0%{!?_without_amqp:1}
@@ -79,7 +46,7 @@
 %define with_ascent 0%{!?_without_ascent:1}
 %define with_battery 0%{!?_without_battery:1}
 %define with_bind 0%{!?_without_bind:1}
-%define with_ceph 0%{!?_without_ceph:0%{?_has_libyajl}}
+%define with_ceph 0%{!?_without_ceph:1}
 %define with_cgroups 0%{!?_without_cgroups:1}
 %define with_chrony 0%{!?_without_chrony:1}
 %define with_conntrack 0%{!?_without_conntrack:1}
@@ -88,44 +55,44 @@
 %define with_cpufreq 0%{!?_without_cpufreq:1}
 %define with_csv 0%{!?_without_csv:1}
 %define with_curl 0%{!?_without_curl:1}
-%define with_curl_json 0%{!?_without_curl_json:0%{?_has_libyajl}}
+%define with_curl_json 0%{!?_without_curl_json:1}
 %define with_curl_xml 0%{!?_without_curl_xml:1}
 %define with_dbi 0%{!?_without_dbi:1}
 %define with_df 0%{!?_without_df:1}
 %define with_disk 0%{!?_without_disk:1}
-%define with_dns 0%{!?_without_dns:0%{?_has_recent_libpcap}}
+%define with_dns 0%{!?_without_dns:1}
 %define with_drbd 0%{!?_without_drbd:1}
 %define with_email 0%{!?_without_email:1}
 %define with_entropy 0%{!?_without_entropy:1}
-%define with_ethstat 0%{!?_without_ethstat:0%{?_has_recent_sockios_h}}
+%define with_ethstat 0%{!?_without_ethstat:1}
 %define with_exec 0%{!?_without_exec:1}
 %define with_fhcount 0%{!?_without_fhcount:1}
 %define with_filecount 0%{!?_without_filecount:1}
 %define with_fscache 0%{!?_without_fscache:1}
-%define with_gmond 0%{!?_without_gmond:0%{?_has_recent_libganglia}}
+%define with_gmond 0%{!?_without_gmond:1}
 %define with_hddtemp 0%{!?_without_hddtemp:1}
 %define with_interface 0%{!?_without_interface:1}
 %define with_ipc 0%{!?_without_ipc:1}
 %define with_ipmi 0%{!?_without_ipmi:1}
-%define with_iptables 0%{!?_without_iptables:0%{?_has_working_libiptc}}
-%define with_ipvs 0%{!?_without_ipvs:0%{?_has_ip_vs_h}}
+%define with_iptables 0%{!?_without_iptables:1}
+%define with_ipvs 0%{!?_without_ipvs:1}
 %define with_irq 0%{!?_without_irq:1}
 %define with_java 0%{!?_without_java:1}
 %define with_load 0%{!?_without_load:1}
-%define with_log_logstash 0%{!?_without_log_logstash:0%{?_has_libyajl}}
+%define with_log_logstash 0%{!?_without_log_logstash:1}
 %define with_logfile 0%{!?_without_logfile:1}
-%define with_lvm 0%{!?_without_lvm:0%{?_has_lvm2app_h}}
+%define with_lvm 0%{!?_without_lvm:1}
 %define with_madwifi 0%{!?_without_madwifi:1}
 %define with_mbmon 0%{!?_without_mbmon:1}
 %define with_md 0%{!?_without_md:1}
 %define with_memcachec 0%{!?_without_memcachec:1}
 %define with_memcached 0%{!?_without_memcached:1}
 %define with_memory 0%{!?_without_memory:1}
-%define with_modbus 0%{!?_without_modbus:0%{?_has_libmodbus}}
-%define with_mqtt 0%{!?_without_mqtt:0%{?_has_libmosquitto}}
+%define with_modbus 0%{!?_without_modbus:1}
+%define with_mqtt 0%{!?_without_mqtt:1}
 %define with_multimeter 0%{!?_without_multimeter:1}
 %define with_mysql 0%{!?_without_mysql:1}
-%define with_netlink 0%{!?_without_netlink:0%{?_has_iproute}}
+%define with_netlink 0%{!?_without_netlink:1}
 %define with_network 0%{!?_without_network:1}
 %define with_nfs 0%{!?_without_nfs:1}
 %define with_nginx 0%{!?_without_nginx:1}
@@ -146,12 +113,12 @@
 %define with_processes 0%{!?_without_processes:1}
 %define with_protocols 0%{!?_without_protocols:1}
 %define with_python 0%{!?_without_python:1}
-%define with_redis 0%{!?_without_redis:0%{?_has_hiredis}}
-%define with_rrdcached 0%{!?_without_rrdcached:0%{?_has_recent_librrd}}
+%define with_redis 0%{!?_without_redis:1}
+%define with_rrdcached 0%{!?_without_rrdcached:1}
 %define with_rrdtool 0%{!?_without_rrdtool:1}
 %define with_sensors 0%{!?_without_sensors:1}
 %define with_serial 0%{!?_without_serial:1}
-%define with_smart 0%{!?_without_smart:0%{?_has_atasmart}}
+%define with_smart 0%{!?_without_smart:1}
 %define with_snmp 0%{!?_without_snmp:1}
 %define with_statsd 0%{!?_without_statsd:1}
 %define with_swap 0%{!?_without_swap:1}
@@ -164,7 +131,7 @@
 %define with_ted 0%{!?_without_ted:1}
 %define with_thermal 0%{!?_without_thermal:1}
 %define with_threshold 0%{!?_without_threshold:1}
-%define with_turbostat 0%{!?_without_turbostat:0%{?_has_asm_msr_index}}
+%define with_turbostat 0%{!?_without_turbostat:1}
 %define with_unixsock 0%{!?_without_unixsock:1}
 %define with_uptime 0%{!?_without_uptime:1}
 %define with_users 0%{!?_without_users:1}
@@ -177,8 +144,7 @@
 %define with_write_graphite 0%{!?_without_write_graphite:1}
 %define with_write_http 0%{!?_without_write_http:1}
 %define with_write_log 0%{!?_without_write_log:1}
-%define with_write_redis 0%{!?_without_write_redis:0%{?_has_hiredis}}
-%define with_write_riemann 0%{!?_without_write_riemann:0%{?_has_recent_riemann_c_client}}
+%define with_write_redis 0%{!?_without_write_redis:1}
 %define with_write_sensu 0%{!?_without_write_sensu:1}
 %define with_write_tsdb 0%{!?_without_write_tsdb:1}
 %define with_xmms 0%{!?_without_xmms:0%{?_has_xmms}}
@@ -218,10 +184,38 @@
 %define with_write_kafka 0%{!?_without_write_kafka:0}
 # plugin write_mongodb disabled, requires libmongoc
 %define with_write_mongodb 0%{!?_without_write_mongodb:0}
+# plugin write_riemann disabled, requires a new enough riemann_c_client
+%define with_write_riemann 0%{!?_without_write_riemann:0}
 # plugin xencpu disabled, requires xen-devel from non-default repo
 %define with_xencpu 0%{!?_without_xencpu:0}
 # plugin zone disabled, requires Solaris
 %define with_zone 0%{!?_without_zone:0}
+
+# Plugins not buildable on RHEL < 6
+%if 0%{?rhel} && 0%{?rhel} < 6
+%define with_ceph 0
+%define with_curl_json 0
+%define with_log_logstash 0
+%define with_dns 0
+%define with_ethstat 0
+%define with_gmond 0
+%define with_iptables 0
+%define with_ipvs 0
+%define with_lvm 0
+%define with_modbus 0
+%define with_netlink 0
+%define with_redis 0
+%define with_smart 0
+%define with_turbostat 0
+%define with_write_redis 0
+%endif
+
+# Plugins not buildable on RHEL < 7
+%if 0%{?rhel} && 0%{?rhel} < 7
+%define with_mqtt 0
+%define with_rrdcached 0
+%define with_xmms 0
+%endif
 
 Summary:	statistics collection and monitoring daemon
 Name:		collectd
