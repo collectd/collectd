@@ -217,7 +217,7 @@
 %define with_xmms 0
 %endif
 
-Summary:	statistics collection and monitoring daemon
+Summary:	Statistics collection and monitoring daemon
 Name:		collectd
 Version:	5.5.1
 Release:	1%{?dist}
