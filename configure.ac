@@ -58,7 +58,6 @@ AC_PROG_LEX
 AC_PROG_YACC
 
 AC_PATH_PROG([VALGRIND], [valgrind])
-AC_SUBST([VALGRIND])
 
 # Warn when pkg.m4 is missing
 m4_pattern_forbid([^_?PKG_[A-Z_]+$],[*** pkg.m4 missing, please install pkg-config])
@@ -89,11 +88,9 @@ if test "x$PROTOC" != "x"; then
 	fi
 	AC_MSG_RESULT([$protoc3])
 fi
-AC_SUBST([PROTOC])
 AM_CONDITIONAL(HAVE_PROTOC3, test "x$have_protoc3" = "xyes")
 
 AC_PATH_PROG([GRPC_CPP_PLUGIN], [grpc_cpp_plugin])
-AC_SUBST([GRPC_CPP_PLUGIN])
 AM_CONDITIONAL(HAVE_GRPC_CPP, test "x$GRPC_CPP_PLUGIN" != "x")
 
 AC_CHECK_PROG([have_protoc_c], [protoc-c], [yes], [no])
