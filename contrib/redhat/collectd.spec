@@ -110,10 +110,9 @@
 %define with_ipvs 0%{!?_without_ipvs:0%{?_has_ip_vs_h}}
 %define with_irq 0%{!?_without_irq:1}
 %define with_java 0%{!?_without_java:1}
-%define with_virt 0%{!?_without_virt:1}
 %define with_load 0%{!?_without_load:1}
-%define with_logfile 0%{!?_without_logfile:1}
 %define with_log_logstash 0%{!?_without_log_logstash:0%{?_has_libyajl}}
+%define with_logfile 0%{!?_without_logfile:1}
 %define with_lvm 0%{!?_without_lvm:0%{?_has_lvm2app_h}}
 %define with_madwifi 0%{!?_without_madwifi:1}
 %define with_mbmon 0%{!?_without_mbmon:1}
@@ -121,9 +120,9 @@
 %define with_memcachec 0%{!?_without_memcachec:1}
 %define with_memcached 0%{!?_without_memcached:1}
 %define with_memory 0%{!?_without_memory:1}
-%define with_multimeter 0%{!?_without_multimeter:1}
 %define with_modbus 0%{!?_without_modbus:0%{?_has_libmodbus}}
 %define with_mqtt 0%{!?_without_mqtt:0%{?_has_libmosquitto}}
+%define with_multimeter 0%{!?_without_multimeter:1}
 %define with_mysql 0%{!?_without_mysql:1}
 %define with_netlink 0%{!?_without_netlink:0%{?_has_iproute}}
 %define with_network 0%{!?_without_network:1}
@@ -170,6 +169,7 @@
 %define with_users 0%{!?_without_users:1}
 %define with_uuid 0%{!?_without_uuid:1}
 %define with_varnish 0%{!?_without_varnish:1}
+%define with_virt 0%{!?_without_virt:1}
 %define with_vmem 0%{!?_without_vmem:1}
 %define with_vserver 0%{!?_without_vserver:1}
 %define with_wireless 0%{!?_without_wireless:1}
@@ -1682,12 +1682,12 @@ Collectd utilities
 	%{?_with_chrony} \
 	%{?_with_conntrack} \
 	%{?_with_contextswitch} \
-	%{?_with_cpu} \
 	%{?_with_cpufreq} \
+	%{?_with_cpu} \
 	%{?_with_csv} \
-	%{?_with_curl} \
 	%{?_with_curl_json} \
 	%{?_with_curl_xml} \
+	%{?_with_curl} \
 	%{?_with_dbi} \
 	%{?_with_df} \
 	%{?_with_disk} \
@@ -1707,96 +1707,96 @@ Collectd utilities
 	%{?_with_ipmi} \
 	%{?_with_iptables} \
 	%{?_with_ipvs} \
+	%{?_with_irq} \
 	%{?_with_java} \
-	%{?_with_virt} \
+	%{?_with_load} \
 	%{?_with_log_logstash} \
+	%{?_with_logfile} \
 	%{?_with_lpar} \
 	%{?_with_lvm} \
+	%{?_with_madwifi} \
+	%{?_with_mbmon} \
+	%{?_with_md} \
 	%{?_with_memcachec} \
+	%{?_with_memcached} \
+	%{?_with_memory} \
 	%{?_with_mic} \
 	%{?_with_modbus} \
-	%{?_with_multimeter} \
 	%{?_with_mqtt} \
+	%{?_with_multimeter} \
 	%{?_with_mysql} \
 	%{?_with_netapp} \
 	%{?_with_netlink} \
+	%{?_with_network} \
+	%{?_with_nfs} \
 	%{?_with_nginx} \
 	%{?_with_notify_desktop} \
 	%{?_with_notify_email} \
+	%{?_with_notify_nagios} \
+	%{?_with_ntpd} \
+	%{?_with_numa} \
 	%{?_with_nut} \
+	%{?_with_olsrd} \
 	%{?_with_onewire} \
 	%{?_with_openldap} \
+	%{?_with_openvpn} \
 	%{?_with_oracle} \
 	%{?_with_perl} \
 	%{?_with_pf} \
 	%{?_with_pinba} \
 	%{?_with_ping} \
 	%{?_with_postgresql} \
+	%{?_with_powerdns} \
+	%{?_with_processes} \
+	%{?_with_protocols} \
 	%{?_with_python} \
 	%{?_with_redis} \
 	%{?_with_routeros} \
 	%{?_with_rrdcached} \
 	%{?_with_rrdtool} \
 	%{?_with_sensors} \
+	%{?_with_serial} \
 	%{?_with_sigrok} \
 	%{?_with_smart} \
 	%{?_with_snmp} \
-	%{?_with_tape} \
-	%{?_with_tokyotyrant} \
-	%{?_with_varnish} \
-	%{?_with_write_http} \
-	%{?_with_write_kafka} \
-	%{?_with_write_mongodb} \
-	%{?_with_write_redis} \
-	%{?_with_xencpu} \
-	%{?_with_xmms} \
-	%{?_with_zfs_arc} \
-	%{?_with_zone} \
-	%{?_with_zookeeper} \
-	%{?_with_irq} \
-	%{?_with_load} \
-	%{?_with_logfile} \
-	%{?_with_madwifi} \
-	%{?_with_mbmon} \
-	%{?_with_md} \
-	%{?_with_memcached} \
-	%{?_with_memory} \
-	%{?_with_network} \
-	%{?_with_nfs} \
-	%{?_with_notify_nagios} \
-	%{?_with_ntpd} \
-	%{?_with_numa} \
-	%{?_with_olsrd} \
-	%{?_with_openvpn} \
-	%{?_with_powerdns} \
-	%{?_with_processes} \
-	%{?_with_protocols} \
-	%{?_with_serial} \
 	%{?_with_statsd} \
 	%{?_with_swap} \
 	%{?_with_syslog} \
 	%{?_with_table} \
-	%{?_with_tail} \
 	%{?_with_tail_csv} \
+	%{?_with_tail} \
+	%{?_with_tape} \
 	%{?_with_tcpconns} \
 	%{?_with_teamspeak2} \
 	%{?_with_ted} \
 	%{?_with_thermal} \
 	%{?_with_threshold} \
+	%{?_with_tokyotyrant} \
 	%{?_with_turbostat} \
 	%{?_with_unixsock} \
 	%{?_with_uptime} \
 	%{?_with_users} \
 	%{?_with_uuid} \
+	%{?_with_varnish} \
+	%{?_with_virt} \
 	%{?_with_vmem} \
 	%{?_with_vserver} \
 	%{?_with_wireless}\
 	%{?_with_write_graphite} \
 	%{?_with_write_http} \
+	%{?_with_write_http} \
+	%{?_with_write_kafka} \
 	%{?_with_write_log} \
+	%{?_with_write_mongodb} \
+	%{?_with_write_redis} \
 	%{?_with_write_riemann} \
 	%{?_with_write_sensu} \
-	%{?_with_write_tsdb}
+	%{?_with_write_tsdb} \
+	%{?_with_xencpu} \
+	%{?_with_xmms} \
+	%{?_with_zfs_arc} \
+	%{?_with_zone} \
+	%{?_with_zookeeper}
 
 
 %{__make} %{?_smp_mflags}
