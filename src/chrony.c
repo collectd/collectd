@@ -674,7 +674,7 @@ ntohf(tFloat p_float)
 
 
 static void
-chrony_push_data(char *p_type, char *p_type_inst, double p_value)
+chrony_push_data(const char *p_type, const char *p_type_inst, double p_value)
 {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
@@ -705,7 +705,7 @@ chrony_push_data(char *p_type, char *p_type_inst, double p_value)
 
 
 static void
-chrony_push_data_valid(char *p_type, char *p_type_inst, const int p_is_valid,
+chrony_push_data_valid(const char *p_type, const char *p_type_inst, const int p_is_valid,
                        double p_value)
 {
   /* Push real value if p_is_valid is true, push NAN if p_is_valid is not true (idea from ntp plugin) */
