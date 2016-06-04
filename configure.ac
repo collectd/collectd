@@ -800,12 +800,14 @@ AC_CHECK_FUNCS(gettimeofday select strdup strtol getaddrinfo getnameinfo strchr 
 AC_FUNC_STRERROR_R
 
 test_cxx_flags() {
-	AC_LANG_PUSH(C++)
-	AC_LANG_CONFTEST([int main(void){}])
+	AC_LANG_PUSH([C++])
+	AC_LANG_CONFTEST([
+		AC_LANG_SOURCE([[int main(void){}]])
+	])
 	$CXX -c conftest.cpp $CXXFLAGS $@ > /dev/null 2> /dev/null
 	ret=$?
 	rm -f conftest.o
-	AC_LANG_POP(C++)
+	AC_LANG_POP([C++])
 	return $ret
 }
 
