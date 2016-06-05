@@ -939,11 +939,14 @@ int global_option_set (const char *option, const char *value, _Bool from_cli)
 			break;
 
 	if (i >= cf_global_options_num)
+	{
+		ERROR ("configfile: Cannot set unknown global option `%s'.", option);
 		return (-1);
+	}
 
 	if (cf_global_options[i].from_cli && (! from_cli))
 	{
-		DEBUG ("Configfile: Ignoring %s `%s' option because "
+		DEBUG ("configfile: Ignoring %s `%s' option because "
 				"it was overriden by a command-line option.",
 				option, value);
 		return (0);
@@ -970,7 +973,10 @@ const char *global_option_get (const char *option)
 			break;
 
 	if (i >= cf_global_options_num)
+	{
+		ERROR ("configfile: Cannot get unknown global option `%s'.", option);
 		return (NULL);
+	}
 
 	return ((cf_global_options[i].value != NULL)
 			? cf_global_options[i].value
