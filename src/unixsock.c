@@ -301,7 +301,7 @@ static void *us_handle_client (void *arg)
 		}
 		else if (strcasecmp (fields[0], "listval") == 0)
 		{
-			handle_listval (fhout, buffer);
+			cmd_handle_listval (fhout, buffer);
 		}
 		else if (strcasecmp (fields[0], "putnotif") == 0)
 		{
