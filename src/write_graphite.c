@@ -297,10 +297,9 @@ static void wg_callback_free (void *data)
 
     pthread_mutex_lock (&cb->send_lock);
 
-    wg_flush_nolock (/* timeout = */ 0, cb);
-
     if (cb->sock_fd >= 0)
     {
+        wg_flush_nolock (/* timeout = */ 0, cb);
         close (cb->sock_fd);
         cb->sock_fd = -1;
     }
