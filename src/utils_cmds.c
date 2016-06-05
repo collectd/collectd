@@ -199,6 +199,7 @@ cmd_status_t cmd_parsev (size_t argc, char **argv,
 		cmd_t *ret_cmd, cmd_error_handler_t *err)
 {
 	char *command = NULL;
+	cmd_status_t status;
 
 	if ((argc < 1) || (argv == NULL) || (ret_cmd == NULL))
 	{
@@ -212,25 +213,25 @@ cmd_status_t cmd_parsev (size_t argc, char **argv,
 	if (strcasecmp ("FLUSH", command) == 0)
 	{
 		ret_cmd->type = CMD_FLUSH;
-		return cmd_parse_flush (argc - 1, argv + 1,
+		status = cmd_parse_flush (argc - 1, argv + 1,
 				&ret_cmd->cmd.flush, err);
 	}
 	else if (strcasecmp ("GETVAL", command) == 0)
 	{
 		ret_cmd->type = CMD_GETVAL;
-		return cmd_parse_getval (argc - 1, argv + 1,
+		status = cmd_parse_getval (argc - 1, argv + 1,
 				&ret_cmd->cmd.getval, err);
 	}
 	else if (strcasecmp ("LISTVAL", command) == 0)
 	{
 		ret_cmd->type = CMD_LISTVAL;
-		return cmd_parse_listval (argc - 1, argv + 1,
+		status = cmd_parse_listval (argc - 1, argv + 1,
 				&ret_cmd->cmd.listval, err);
 	}
 	else if (strcasecmp ("PUTVAL", command) == 0)
 	{
 		ret_cmd->type = CMD_PUTVAL;
-		return cmd_parse_putval (argc - 1, argv + 1,
+		status = cmd_parse_putval (argc - 1, argv + 1,
 				&ret_cmd->cmd.putval, err);
 	}
 	else
@@ -241,7 +242,9 @@ cmd_status_t cmd_parsev (size_t argc, char **argv,
 		return (CMD_UNKNOWN_COMMAND);
 	}
 
-	return (CMD_OK);
+	if (status != CMD_OK)
+		ret_cmd->type = CMD_UNKNOWN;
+	return (status);
 } /* cmd_status_t cmd_parsev */
 
 cmd_status_t cmd_parse (char *buffer,
