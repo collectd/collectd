@@ -71,6 +71,8 @@ static int set_option (value_list_t *vl, const char *key, const char *value)
 cmd_status_t cmd_parse_putval (size_t argc, char **argv,
 		cmd_putval_t *ret_putval, cmd_error_handler_t *err)
 {
+	cmd_status_t result;
+
 	char *identifier;
 	char *hostname;
 	char *plugin;
@@ -157,10 +159,12 @@ cmd_status_t cmd_parse_putval (size_t argc, char **argv,
 	{
 		cmd_error (CMD_ERROR, err, "malloc failed.");
 		cmd_destroy_putval (ret_putval);
+		sfree (vl.values);
 		return (CMD_ERROR);
 	}
 
 	/* All the remaining fields are part of the option list. */
+	result = CMD_OK;
 	for (i = 1; i < argc; ++i)
 	{
 		value_list_t *tmp;
@@ -180,8 +184,8 @@ cmd_status_t cmd_parse_putval (size_t argc, char **argv,
 		{
 			/* parse_option failed, buffer has been modified.
 			 * => we need to abort */
-			cmd_destroy_putval (ret_putval);
-			return (status);
+			result = status;
+			break;
 		}
 		/* else: cmd_parse_option did not find an option; treat this as a
 		 * value list. */
@@ -190,8 +194,8 @@ cmd_status_t cmd_parse_putval (size_t argc, char **argv,
 		if (status != 0)
 		{
 			cmd_error (CMD_PARSE_ERROR, err, "Parsing the values string failed.");
-			cmd_destroy_putval (ret_putval);
-			return (CMD_PARSE_ERROR);
+			result = CMD_PARSE_ERROR;
+			break;
 		}
 
 		tmp = (value_list_t *) realloc (ret_putval->vl,
@@ -200,7 +204,8 @@ cmd_status_t cmd_parse_putval (size_t argc, char **argv,
 		{
 			cmd_error (CMD_ERROR, err, "realloc failed.");
 			cmd_destroy_putval (ret_putval);
-			return (CMD_ERROR);
+			result = CMD_ERROR;
+			break;
 		}
 
 		ret_putval->vl = tmp;
@@ -209,7 +214,14 @@ cmd_status_t cmd_parse_putval (size_t argc, char **argv,
 	} /* while (*buffer != 0) */
 	/* Done parsing the options. */
 
-	return (CMD_OK);
+	if (result != CMD_OK)
+	{
+		if (ret_putval->vl_num == 0)
+			sfree (vl.values);
+		cmd_destroy_putval (ret_putval);
+	}
+
+	return (result);
 } /* cmd_status_t cmd_parse_putval */
 
 void cmd_destroy_putval (cmd_putval_t *putval)
@@ -223,7 +235,8 @@ void cmd_destroy_putval (cmd_putval_t *putval)
 
 	for (i = 0; i < putval->vl_num; ++i)
 	{
-		sfree (putval->vl[i].values);
+		if (i == 0) /* values is shared between all entries */
+			sfree (putval->vl[i].values);
 		meta_data_destroy (putval->vl[i].meta);
 		putval->vl[i].meta = NULL;
 	}
