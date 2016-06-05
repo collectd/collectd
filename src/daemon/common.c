@@ -270,6 +270,8 @@ ssize_t swrite (int fd, const void *buf, size_t count)
 	ssize_t     status;
 	struct      pollfd pfd;
 
+	assert (fd >= 0);
+
 	ptr   = (const char *) buf;
 	nleft = count;
 	
