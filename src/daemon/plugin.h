@@ -81,6 +81,16 @@
 /*
  * Public data types
  */
+struct identifier_s
+{
+	char *host;
+	char *plugin;
+	char *plugin_instance;
+	char *type;
+	char *type_instance;
+};
+typedef struct identifier_s identifier_t;
+
 typedef unsigned long long counter_t;
 typedef double gauge_t;
 typedef int64_t derive_t;

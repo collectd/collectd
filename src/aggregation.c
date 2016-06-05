@@ -38,7 +38,7 @@
 
 struct aggregation_s /* {{{ */
 {
-  identifier_t ident;
+  lookup_identifier_t ident;
   unsigned int group_by;
 
   unsigned int regex_fields;
@@ -62,7 +62,7 @@ typedef struct agg_instance_s agg_instance_t;
 struct agg_instance_s /* {{{ */
 {
   pthread_mutex_t lock;
-  identifier_t ident;
+  lookup_identifier_t ident;
 
   int ds_type;
 
