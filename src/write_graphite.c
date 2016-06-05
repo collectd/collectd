@@ -135,7 +135,10 @@ static void wg_reset_buffer (struct wg_callback *cb)
 
 static int wg_send_buffer (struct wg_callback *cb)
 {
-    ssize_t status = 0;
+    ssize_t status;
+
+    if (cb->sock_fd < 0)
+        return (-1);
 
     status = swrite (cb->sock_fd, cb->send_buf, strlen (cb->send_buf));
     if (status != 0)
