@@ -1,6 +1,7 @@
 /**
  * collectd - src/utils_cmd_putval.c
  * Copyright (C) 2007-2009  Florian octo Forster
+ * Copyright (C) 2016       Sebastian tokkee Harl
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,6 +23,7 @@
  *
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
+ *   Sebastian tokkee Harl <sh at tokkee.org>
  **/
 
 #include "collectd.h"
@@ -29,20 +31,14 @@
 #include "common.h"
 #include "plugin.h"
 
+#include "utils_cmds.h"
+#include "utils_cmd_putval.h"
 #include "utils_parse_option.h"
 #include "utils_cmd_putval.h"
 
-#define print_to_socket(fh, ...) \
-    do { \
-        if (fprintf (fh, __VA_ARGS__) < 0) { \
-            char errbuf[1024]; \
-            WARNING ("handle_putval: failed to write to socket #%i: %s", \
-                    fileno (fh), sstrerror (errno, errbuf, sizeof (errbuf))); \
-            sfree (vl.values); \
-            return -1; \
-        } \
-        fflush(fh); \
-    } while (0)
+/*
+ * private helper functions
+ */
 
 static int set_option (value_list_t *vl, const char *key, const char *value)
 {
@@ -66,11 +62,15 @@ static int set_option (value_list_t *vl, const char *key, const char *value)
 		return (1);
 
 	return (0);
-} /* int parse_option */
+} /* int set_option */
 
-int handle_putval (FILE *fh, char *buffer)
+/*
+ * public API
+ */
+
+cmd_status_t cmd_parse_putval (char *buffer,
+		cmd_putval_t *ret_putval, cmd_error_handler_t *err)
 {
-	char *command;
 	char *identifier;
 	char *hostname;
 	char *plugin;
@@ -78,7 +78,6 @@ int handle_putval (FILE *fh, char *buffer)
 	char *type;
 	char *type_instance;
 	int   status;
-	int   values_submitted;
 
 	char *identifier_copy;
 
@@ -86,30 +85,12 @@ int handle_putval (FILE *fh, char *buffer)
 	value_list_t vl = VALUE_LIST_INIT;
 	vl.values = NULL;
 
-	DEBUG ("utils_cmd_putval: handle_putval (fh = %p, buffer = %s);",
-			(void *) fh, buffer);
-
-	command = NULL;
-	status = parse_string (&buffer, &command);
-	if (status != 0)
-	{
-		print_to_socket (fh, "-1 Cannot parse command.\n");
-		return (-1);
-	}
-	assert (command != NULL);
-
-	if (strcasecmp ("PUTVAL", command) != 0)
-	{
-		print_to_socket (fh, "-1 Unexpected command: `%s'.\n", command);
-		return (-1);
-	}
-
 	identifier = NULL;
 	status = parse_string (&buffer, &identifier);
 	if (status != 0)
 	{
-		print_to_socket (fh, "-1 Cannot parse identifier.\n");
-		return (-1);
+		cmd_error (CMD_PARSE_ERROR, err, "Cannot parse identifier.");
+		return (CMD_PARSE_ERROR);
 	}
 	assert (identifier != NULL);
 
@@ -122,12 +103,12 @@ int handle_putval (FILE *fh, char *buffer)
 			&type, &type_instance);
 	if (status != 0)
 	{
-		DEBUG ("handle_putval: Cannot parse identifier `%s'.",
+		DEBUG ("cmd_handle_putval: Cannot parse identifier `%s'.",
 				identifier);
-		print_to_socket (fh, "-1 Cannot parse identifier `%s'.\n",
+		cmd_error (CMD_PARSE_ERROR, err, "Cannot parse identifier `%s'.",
 				identifier);
 		sfree (identifier_copy);
-		return (-1);
+		return (CMD_PARSE_ERROR);
 	}
 
 	if ((strlen (hostname) >= sizeof (vl.host))
@@ -137,9 +118,9 @@ int handle_putval (FILE *fh, char *buffer)
 			|| ((type_instance != NULL)
 				&& (strlen (type_instance) >= sizeof (vl.type_instance))))
 	{
-		print_to_socket (fh, "-1 Identifier too long.\n");
+		cmd_error (CMD_PARSE_ERROR, err, "Identifier too long.");
 		sfree (identifier_copy);
-		return (-1);
+		return (CMD_PARSE_ERROR);
 	}
 
 	sstrncpy (vl.host, hostname, sizeof (vl.host));
@@ -151,10 +132,11 @@ int handle_putval (FILE *fh, char *buffer)
 		sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
 	ds = plugin_get_ds (type);
-	if (ds == NULL) {
-		print_to_socket (fh, "-1 Type `%s' isn't defined.\n", type);
+	if (ds == NULL)
+	{
+		cmd_error (CMD_PARSE_ERROR, err, "1 Type `%s' isn't defined.", type);
 		sfree (identifier_copy);
-		return (-1);
+		return (CMD_PARSE_ERROR);
 	}
 
 	/* Free identifier_copy */
@@ -167,14 +149,23 @@ int handle_putval (FILE *fh, char *buffer)
 	vl.values = malloc (vl.values_len * sizeof (*vl.values));
 	if (vl.values == NULL)
 	{
-		print_to_socket (fh, "-1 malloc failed.\n");
-		return (-1);
+		cmd_error (CMD_ERROR, err, "malloc failed.");
+		return (CMD_ERROR);
+	}
+
+	ret_putval->identifier = strdup (identifier);
+	if (ret_putval->identifier == NULL)
+	{
+		cmd_error (CMD_ERROR, err, "malloc failed.");
+		cmd_destroy_putval (ret_putval);
+		return (CMD_ERROR);
 	}
 
 	/* All the remaining fields are part of the optionlist. */
-	values_submitted = 0;
 	while (*buffer != 0)
 	{
+		value_list_t *tmp;
+
 		char *string = NULL;
 		char *value  = NULL;
 
@@ -183,9 +174,9 @@ int handle_putval (FILE *fh, char *buffer)
 		{
 			/* parse_option failed, buffer has been modified.
 			 * => we need to abort */
-			print_to_socket (fh, "-1 Misformatted option.\n");
-			sfree (vl.values);
-			return (-1);
+			cmd_error (CMD_PARSE_ERROR, err, "Misformatted option.");
+			cmd_destroy_putval (ret_putval);
+			return (CMD_PARSE_ERROR);
 		}
 		else if (status == 0)
 		{
@@ -200,35 +191,92 @@ int handle_putval (FILE *fh, char *buffer)
 		status = parse_string (&buffer, &string);
 		if (status != 0)
 		{
-			print_to_socket (fh, "-1 Misformatted value.\n");
-			sfree (vl.values);
-			return (-1);
+			cmd_error (CMD_PARSE_ERROR, err, "Misformatted value.");
+			cmd_destroy_putval (ret_putval);
+			return (CMD_PARSE_ERROR);
 		}
 		assert (string != NULL);
 
 		status = parse_values (string, &vl, ds);
 		if (status != 0)
 		{
-			print_to_socket (fh, "-1 Parsing the values string failed.\n");
-			sfree (vl.values);
-			return (-1);
+			cmd_error (CMD_PARSE_ERROR, err, "Parsing the values string failed.");
+			cmd_destroy_putval (ret_putval);
+			return (CMD_PARSE_ERROR);
 		}
 
-		plugin_dispatch_values (&vl);
-		values_submitted++;
+		tmp = (value_list_t *) realloc (ret_putval->vl,
+				(ret_putval->vl_num + 1) * sizeof(*ret_putval->vl));
+		if (tmp == NULL)
+		{
+			cmd_error (CMD_ERROR, err, "realloc failed.");
+			cmd_destroy_putval (ret_putval);
+			return (CMD_ERROR);
+		}
+
+		ret_putval->vl = tmp;
+		ret_putval->vl_num++;
+		memcpy (&ret_putval->vl[ret_putval->vl_num - 1], &vl, sizeof (vl));
 	} /* while (*buffer != 0) */
 	/* Done parsing the options. */
 
-	if (fh!=stdout)
-		print_to_socket (fh, "0 Success: %i %s been dispatched.\n",
-			values_submitted,
-			(values_submitted == 1) ? "value has" : "values have");
+	return (CMD_OK);
+} /* cmd_status_t cmd_parse_putval */
 
-	sfree (vl.values);
-	return (0);
-} /* int handle_putval */
+void cmd_destroy_putval (cmd_putval_t *putval)
+{
+	size_t i;
 
-int create_putval (char *ret, size_t ret_len, /* {{{ */
+	if (putval == NULL)
+		return;
+
+	sfree (putval->identifier);
+
+	for (i = 0; i < putval->vl_num; ++i)
+	{
+		sfree (putval->vl[i].values);
+		meta_data_destroy (putval->vl[i].meta);
+		putval->vl[i].meta = NULL;
+	}
+	sfree (putval->vl);
+	putval->vl = NULL;
+	putval->vl_num = 0;
+} /* void cmd_destroy_putval */
+
+cmd_status_t cmd_handle_putval (FILE *fh, char *buffer)
+{
+	cmd_error_handler_t err = { cmd_error_fh, fh };
+	cmd_t cmd;
+	size_t i;
+
+	int status;
+
+	DEBUG ("utils_cmd_putval: cmd_handle_putval (fh = %p, buffer = %s);",
+			(void *) fh, buffer);
+
+	if ((status = cmd_parse (buffer, &cmd, &err)) != CMD_OK)
+		return (status);
+	if (cmd.type != CMD_PUTVAL)
+	{
+		cmd_error (CMD_UNKNOWN_COMMAND, &err, "Unexpected command: `%s'.",
+				CMD_TO_STRING (cmd.type));
+		cmd_destroy (&cmd);
+		return (CMD_UNKNOWN_COMMAND);
+	}
+
+	for (i = 0; i < cmd.cmd.putval.vl_num; ++i)
+		plugin_dispatch_values (&cmd.cmd.putval.vl[i]);
+
+	if (fh != stdout)
+		cmd_error (CMD_OK, &err, "Success: %i %s been dispatched.",
+				(int)cmd.cmd.putval.vl_num,
+				(cmd.cmd.putval.vl_num == 1) ? "value has" : "values have");
+
+	cmd_destroy (&cmd);
+	return (CMD_OK);
+} /* int cmd_handle_putval */
+
+int cmd_create_putval (char *ret, size_t ret_len, /* {{{ */
 	const data_set_t *ds, const value_list_t *vl)
 {
 	char buffer_ident[6 * DATA_MAX_NAME_LEN];
@@ -255,4 +303,4 @@ int create_putval (char *ret, size_t ret_len, /* {{{ */
 			buffer_values);
 
 	return (0);
-} /* }}} int create_putval */
+} /* }}} int cmd_create_putval */

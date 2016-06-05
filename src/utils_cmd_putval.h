@@ -30,10 +30,16 @@
 #include <stdio.h>
 
 #include "plugin.h"
+#include "utils_cmds.h"
 
-int handle_putval (FILE *fh, char *buffer);
+cmd_status_t cmd_parse_putval (char *buffer,
+		cmd_putval_t *ret_cmd, cmd_error_handler_t *err);
 
-int create_putval (char *ret, size_t ret_len,
+cmd_status_t cmd_handle_putval (FILE *fh, char *buffer);
+
+void cmd_destroy_putval (cmd_putval_t *putval);
+
+int cmd_create_putval (char *ret, size_t ret_len,
 		const data_set_t *ds, const value_list_t *vl);
 
 #endif /* UTILS_CMD_PUTVAL_H */

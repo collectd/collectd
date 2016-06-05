@@ -599,9 +599,9 @@ static int camqp_read_body (camqp_config_t *conf, /* {{{ */
 
     if (strcasecmp ("text/collectd", content_type) == 0)
     {
-        status = handle_putval (stderr, body);
+        status = cmd_handle_putval (stderr, body);
         if (status != 0)
-            ERROR ("amqp plugin: handle_putval failed with status %i.",
+            ERROR ("amqp plugin: cmd_handle_putval failed with status %i.",
                     status);
         return (status);
     }
@@ -838,10 +838,10 @@ static int camqp_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
 
     if (conf->format == CAMQP_FORMAT_COMMAND)
     {
-        status = create_putval (buffer, sizeof (buffer), ds, vl);
+        status = cmd_create_putval (buffer, sizeof (buffer), ds, vl);
         if (status != 0)
         {
-            ERROR ("amqp plugin: create_putval failed with status %i.",
+            ERROR ("amqp plugin: cmd_create_putval failed with status %i.",
                     status);
             return (status);
         }
