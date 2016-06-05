@@ -152,8 +152,8 @@ cmd_status_t cmd_parse_putval (size_t argc, char **argv,
 		return (CMD_ERROR);
 	}
 
-	ret_putval->identifier = identifier_copy;
-	if (ret_putval->identifier == NULL)
+	ret_putval->raw_identifier = identifier_copy;
+	if (ret_putval->raw_identifier == NULL)
 	{
 		cmd_error (CMD_ERROR, err, "malloc failed.");
 		cmd_destroy_putval (ret_putval);
@@ -219,7 +219,7 @@ void cmd_destroy_putval (cmd_putval_t *putval)
 	if (putval == NULL)
 		return;
 
-	sfree (putval->identifier);
+	sfree (putval->raw_identifier);
 
 	for (i = 0; i < putval->vl_num; ++i)
 	{

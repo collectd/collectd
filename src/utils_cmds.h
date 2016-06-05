@@ -34,11 +34,13 @@
 typedef enum {
 	CMD_UNKNOWN = 0,
 	CMD_FLUSH   = 1,
-	CMD_LISTVAL = 2,
-	CMD_PUTVAL  = 3,
+	CMD_GETVAL  = 2,
+	CMD_LISTVAL = 3,
+	CMD_PUTVAL  = 4,
 } cmd_type_t;
 #define CMD_TO_STRING(type) \
 	((type) == CMD_FLUSH) ? "FLUSH" \
+		: ((type) == CMD_GETVAL) ? "GETVAL" \
 		: ((type) == CMD_LISTVAL) ? "LISTVAL" \
 		: ((type) == CMD_PUTVAL) ? "PUTVAL" \
 		: "UNKNOWN"
@@ -53,11 +55,16 @@ typedef struct {
 } cmd_flush_t;
 
 typedef struct {
+	char *raw_identifier;
+	identifier_t identifier;
+} cmd_getval_t;
+
+typedef struct {
 } cmd_listval_t;
 
 typedef struct {
 	/* The raw identifier as provided by the user. */
-	char *identifier;
+	char *raw_identifier;
 
 	/* An array of the fully parsed identifier and all value lists, and their
 	 * options as provided by the user. */
@@ -76,6 +83,7 @@ typedef struct {
 	cmd_type_t type;
 	union {
 		cmd_flush_t flush;
+		cmd_getval_t getval;
 		cmd_listval_t listval;
 		cmd_putval_t putval;
 	} cmd;

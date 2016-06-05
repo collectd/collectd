@@ -289,7 +289,7 @@ static void *us_handle_client (void *arg)
 
 		if (strcasecmp (fields[0], "getval") == 0)
 		{
-			handle_getval (fhout, buffer);
+			cmd_handle_getval (fhout, buffer);
 		}
 		else if (strcasecmp (fields[0], "getthreshold") == 0)
 		{
