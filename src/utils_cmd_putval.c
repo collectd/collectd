@@ -68,7 +68,7 @@ static int set_option (value_list_t *vl, const char *key, const char *value)
  * public API
  */
 
-cmd_status_t cmd_parse_putval (char *buffer,
+cmd_status_t cmd_parse_putval (size_t argc, char **argv,
 		cmd_putval_t *ret_putval, cmd_error_handler_t *err)
 {
 	char *identifier;
@@ -83,30 +83,30 @@ cmd_status_t cmd_parse_putval (char *buffer,
 
 	const data_set_t *ds;
 	value_list_t vl = VALUE_LIST_INIT;
-	vl.values = NULL;
+	size_t i;
 
-	identifier = NULL;
-	status = parse_string (&buffer, &identifier);
-	if (status != 0)
+	if (argc < 2)
 	{
-		cmd_error (CMD_PARSE_ERROR, err, "Cannot parse identifier.");
+		cmd_error (CMD_PARSE_ERROR, err,
+				"Missing identifier and/or value-list.");
 		return (CMD_PARSE_ERROR);
 	}
-	assert (identifier != NULL);
 
-	/* parse_identifier() modifies its first argument,
-	 * returning pointers into it */
+	identifier = argv[0];
+
+	/* parse_identifier() modifies its first argument, returning pointers into
+	 * it; retain the old value for later. */
 	identifier_copy = sstrdup (identifier);
 
-	status = parse_identifier (identifier_copy, &hostname,
+	status = parse_identifier (identifier, &hostname,
 			&plugin, &plugin_instance,
 			&type, &type_instance);
 	if (status != 0)
 	{
 		DEBUG ("cmd_handle_putval: Cannot parse identifier `%s'.",
-				identifier);
+				identifier_copy);
 		cmd_error (CMD_PARSE_ERROR, err, "Cannot parse identifier `%s'.",
-				identifier);
+				identifier_copy);
 		sfree (identifier_copy);
 		return (CMD_PARSE_ERROR);
 	}
@@ -139,21 +139,20 @@ cmd_status_t cmd_parse_putval (char *buffer,
 		return (CMD_PARSE_ERROR);
 	}
 
-	/* Free identifier_copy */
 	hostname = NULL;
 	plugin = NULL; plugin_instance = NULL;
 	type = NULL;   type_instance = NULL;
-	sfree (identifier_copy);
 
 	vl.values_len = ds->ds_num;
 	vl.values = malloc (vl.values_len * sizeof (*vl.values));
 	if (vl.values == NULL)
 	{
 		cmd_error (CMD_ERROR, err, "malloc failed.");
+		sfree (identifier_copy);
 		return (CMD_ERROR);
 	}
 
-	ret_putval->identifier = strdup (identifier);
+	ret_putval->identifier = identifier_copy;
 	if (ret_putval->identifier == NULL)
 	{
 		cmd_error (CMD_ERROR, err, "malloc failed.");
@@ -161,43 +160,33 @@ cmd_status_t cmd_parse_putval (char *buffer,
 		return (CMD_ERROR);
 	}
 
-	/* All the remaining fields are part of the optionlist. */
-	while (*buffer != 0)
+	/* All the remaining fields are part of the option list. */
+	for (i = 1; i < argc; ++i)
 	{
 		value_list_t *tmp;
 
-		char *string = NULL;
-		char *value  = NULL;
+		char *key   = NULL;
+		char *value = NULL;
 
-		status = parse_option (&buffer, &string, &value);
-		if (status < 0)
+		status = cmd_parse_option (argv[i], &key, &value, err);
+		if (status == CMD_OK)
+		{
+			assert (key != NULL);
+			assert (value != NULL);
+			set_option (&vl, key, value);
+			continue;
+		}
+		else if (status != CMD_NO_OPTION)
 		{
 			/* parse_option failed, buffer has been modified.
 			 * => we need to abort */
-			cmd_error (CMD_PARSE_ERROR, err, "Misformatted option.");
 			cmd_destroy_putval (ret_putval);
-			return (CMD_PARSE_ERROR);
+			return (status);
 		}
-		else if (status == 0)
-		{
-			assert (string != NULL);
-			assert (value != NULL);
-			set_option (&vl, string, value);
-			continue;
-		}
-		/* else: parse_option but buffer has not been modified. This is
-		 * the default if no `=' is found.. */
+		/* else: cmd_parse_option did not find an option; treat this as a
+		 * value list. */
 
-		status = parse_string (&buffer, &string);
-		if (status != 0)
-		{
-			cmd_error (CMD_PARSE_ERROR, err, "Misformatted value.");
-			cmd_destroy_putval (ret_putval);
-			return (CMD_PARSE_ERROR);
-		}
-		assert (string != NULL);
-
-		status = parse_values (string, &vl, ds);
+		status = parse_values (argv[i], &vl, ds);
 		if (status != 0)
 		{
 			cmd_error (CMD_PARSE_ERROR, err, "Parsing the values string failed.");

@@ -75,6 +75,9 @@ typedef enum {
 	CMD_ERROR           = -1,
 	CMD_PARSE_ERROR     = -2,
 	CMD_UNKNOWN_COMMAND = -3,
+
+	/* Not necessarily fatal errors. */
+	CMD_NO_OPTION       =  1,
 } cmd_status_t;
 
 /*
@@ -119,7 +122,32 @@ void cmd_error (cmd_status_t status, cmd_error_handler_t *err,
 cmd_status_t cmd_parse (char *buffer,
 		cmd_t *ret_cmd, cmd_error_handler_t *err);
 
+cmd_status_t cmd_parsev (size_t argc, char **argv,
+		cmd_t *ret_cmd, cmd_error_handler_t *err);
+
 void cmd_destroy (cmd_t *cmd);
+
+/*
+ * NAME
+ *   cmd_parse_option
+ *
+ * DESCRIPTION
+ *   Parses a command option which must be of the form:
+ *     name=value with \ and spaces
+ *
+ * PARAMETERS
+ *   `field'     The parsed input field with any quotes removed and special
+ *               characters unescaped.
+ *   `ret_key'   The parsed key will be stored at this location.
+ *   `ret_value' The parsed value will be stored at this location.
+ *
+ * RETURN VALUE
+ *   CMD_OK on success or an error code otherwise.
+ *   CMD_NO_OPTION if `field' does not represent an option at all (missing
+ *   equal sign).
+ */
+cmd_status_t cmd_parse_option (char *field,
+		char **ret_key, char **ret_value, cmd_error_handler_t *err);
 
 /*
  * NAME

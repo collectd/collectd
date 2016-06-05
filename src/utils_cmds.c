@@ -1,5 +1,6 @@
 /**
  * collectd - src/utils_cmds.c
+ * Copyright (C) 2008       Florian Forster
  * Copyright (C) 2016       Sebastian 'tokkee' Harl
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -21,6 +22,7 @@
  * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
+ *   Florian octo Forster <octo at collectd.org>
  *   Sebastian 'tokkee' Harl <sh at tokkee.org>
  **/
 
@@ -31,6 +33,147 @@
 
 #include <stdbool.h>
 #include <string.h>
+
+/*
+ * private helper functions
+ */
+
+static cmd_status_t cmd_split (char *buffer,
+		size_t *ret_len, char ***ret_fields,
+		cmd_error_handler_t *err)
+{
+	char *string, *field;
+	bool in_field, in_quotes;
+
+	size_t estimate, len;
+	char **fields;
+
+	estimate = 0;
+	in_field = false;
+	for (string = buffer; *string != '\0'; ++string)
+	{
+		/* Make a quick worst-case estimate of the number of fields by
+		 * counting spaces and ignoring quotation marks. */
+		if (!isspace ((int)*string))
+		{
+			if (!in_field)
+			{
+				estimate++;
+				in_field = true;
+			}
+		}
+		else
+		{
+			in_field = false;
+		}
+	}
+
+	/* fields will be NULL-terminated */
+	fields = malloc ((estimate + 1) * sizeof (*fields));
+	if (fields == NULL) {
+		cmd_error (CMD_ERROR, err, "malloc failed.");
+		return (CMD_ERROR);
+	}
+
+#define END_FIELD() \
+	do { \
+		*field = '\0'; \
+		field = NULL; \
+		in_field = false; \
+	} while (0)
+#define NEW_FIELD() \
+	do { \
+		field = string; \
+		in_field = true; \
+		assert (len < estimate); \
+		fields[len] = field; \
+		field++; \
+		len++; \
+	} while (0)
+
+	len = 0;
+	field = NULL;
+	in_field = false;
+	in_quotes = false;
+	for (string = buffer; *string != '\0'; string++)
+	{
+		if (isspace ((int)string[0]))
+		{
+			if (! in_quotes)
+			{
+				if (in_field)
+					END_FIELD ();
+
+				/* skip space */
+				continue;
+			}
+		}
+		else if (string[0] == '"')
+		{
+			/* Note: Two consecutive quoted fields not separated by space are
+			 * treated as different fields. This is the collectd 5.x behavior
+			 * around splitting fields. */
+
+			if (in_quotes)
+			{
+				/* end of quoted field */
+				if (! in_field) /* empty quoted string */
+					NEW_FIELD ();
+				END_FIELD ();
+				in_quotes = false;
+				continue;
+			}
+
+			in_quotes = true;
+			/* if (! in_field): add new field on next iteration
+			 * else: quoted string following an unquoted string (one field)
+			 * in either case: skip quotation mark */
+			continue;
+		}
+		else if ((string[0] == '\\') && in_quotes)
+		{
+			/* Outside of quotes, a backslash is a regular character (mostly
+			 * for backward compatibility). */
+
+			if (string[1] == '\0')
+			{
+				free (fields);
+				cmd_error (CMD_PARSE_ERROR, err,
+						"Backslash at end of string.");
+				return (CMD_PARSE_ERROR);
+			}
+
+			/* un-escape the next character; skip backslash */
+			string++;
+		}
+
+		if (! in_field)
+			NEW_FIELD ();
+		else {
+			*field = string[0];
+			field++;
+		}
+	}
+
+	if (in_quotes)
+	{
+		free (fields);
+		cmd_error (CMD_PARSE_ERROR, err, "Unterminated quoted string.");
+		return (CMD_PARSE_ERROR);
+	}
+
+#undef NEW_FIELD
+#undef END_FIELD
+
+	fields[len] = NULL;
+	if (ret_len != NULL)
+		*ret_len = len;
+	if (ret_fields != NULL)
+		*ret_fields = fields;
+	else
+		free (fields);
+	return (CMD_OK);
+} /* int cmd_split */
 
 /*
  * public API
@@ -49,32 +192,25 @@ void cmd_error (cmd_status_t status, cmd_error_handler_t *err,
 	va_end (ap);
 } /* void cmd_error */
 
-cmd_status_t cmd_parse (char *buffer,
+cmd_status_t cmd_parsev (size_t argc, char **argv,
 		cmd_t *ret_cmd, cmd_error_handler_t *err)
 {
 	char *command = NULL;
-	int status;
 
-	if ((buffer == NULL) || (ret_cmd == NULL))
+	if ((argc < 1) || (argv == NULL) || (ret_cmd == NULL))
 	{
 		errno = EINVAL;
-		cmd_error (CMD_ERROR, err, "Invalid arguments to cmd_parse.");
+		cmd_error (CMD_ERROR, err, "Missing command.");
 		return CMD_ERROR;
 	}
 
-	if ((status = parse_string (&buffer, &command)) != 0)
-	{
-		cmd_error (CMD_PARSE_ERROR, err,
-				"Failed to extract command from `%s'.", buffer);
-		return (CMD_PARSE_ERROR);
-	}
-	assert (command != NULL);
-
 	memset (ret_cmd, 0, sizeof (*ret_cmd));
+	command = argv[0];
 	if (strcasecmp ("PUTVAL", command) == 0)
 	{
 		ret_cmd->type = CMD_PUTVAL;
-		return cmd_parse_putval (buffer, &ret_cmd->cmd.putval, err);
+		return cmd_parse_putval (argc - 1, argv + 1,
+				&ret_cmd->cmd.putval, err);
 	}
 	else
 	{
@@ -85,6 +221,21 @@ cmd_status_t cmd_parse (char *buffer,
 	}
 
 	return (CMD_OK);
+} /* cmd_status_t cmd_parsev */
+
+cmd_status_t cmd_parse (char *buffer,
+		cmd_t *ret_cmd, cmd_error_handler_t *err)
+{
+	char **fields = NULL;
+	size_t fields_num = 0;
+	cmd_status_t status;
+
+	if ((status = cmd_split (buffer, &fields_num, &fields, err)) != CMD_OK)
+		return status;
+
+	status = cmd_parsev (fields_num, fields, ret_cmd, err);
+	free (fields);
+	return (status);
 } /* cmd_status_t cmd_parse */
 
 void cmd_destroy (cmd_t *cmd)
@@ -102,6 +253,38 @@ void cmd_destroy (cmd_t *cmd)
 			break;
 	}
 } /* void cmd_destroy */
+
+cmd_status_t cmd_parse_option (char *field,
+		char **ret_key, char **ret_value, cmd_error_handler_t *err)
+{
+	char *key, *value;
+
+	if (field == NULL)
+	{
+		errno = EINVAL;
+		cmd_error (CMD_ERROR, err, "Invalid argument to cmd_parse_option.");
+		return (CMD_ERROR);
+	}
+	key = value = field;
+
+	/* Look for the equal sign. */
+	while (isalnum ((int)value[0]) || (value[0] == '_') || (value[0] == ':'))
+		value++;
+	if ((value[0] != '=') || (value == key))
+	{
+		/* Whether this is a fatal error is up to the caller. */
+		return (CMD_NO_OPTION);
+	}
+	*value = '\0';
+	value++;
+
+	if (ret_key != NULL)
+		*ret_key = key;
+	if (ret_value != NULL)
+		*ret_value = value;
+
+	return (CMD_OK);
+} /* cmd_status_t cmd_parse_option */
 
 void cmd_error_fh (void *ud, cmd_status_t status,
 		const char *format, va_list ap)
