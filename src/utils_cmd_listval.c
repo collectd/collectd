@@ -107,4 +107,9 @@ cmd_status_t cmd_handle_listval (FILE *fh, char *buffer)
   free_everything_and_return (CMD_OK);
 } /* cmd_status_t cmd_handle_listval */
 
+void cmd_destroy_listval (cmd_listval_t *listval __attribute__((unused)))
+{
+  /* nothing to do */
+} /* void cmd_destroy_listval */
+
 /* vim: set sw=2 sts=2 ts=8 : */
