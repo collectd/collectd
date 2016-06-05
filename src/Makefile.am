@@ -49,6 +49,20 @@ TESTS += test_utils_latency
 test_utils_latency_SOURCES = utils_latency_test.c testing.h
 test_utils_latency_LDADD = liblatency.la daemon/libplugin_mock.la -lm
 
+noinst_LTLIBRARIES += libcmds.la
+libcmds_la_SOURCES = utils_cmds.c utils_cmds.h \
+		utils_cmd_flush.c utils_cmd_flush.h \
+		utils_cmd_getval.c utils_cmd_getval.h \
+		utils_cmd_listval.c utils_cmd_listval.h \
+		utils_cmd_putval.c utils_cmd_putval.h \
+		utils_parse_option.c
+libcmds_la_LIBADD = daemon/libcommon.la daemon/libplugin_mock.la daemon/libmetadata.la
+check_PROGRAMS += test_utils_cmds
+TESTS += test_utils_cmds
+test_utils_cmds_SOURCES = utils_cmds_test.c testing.h
+test_utils_cmds_LDADD = libcmds.la \
+		daemon/libplugin_mock.la daemon/libmetadata.la
+
 noinst_LTLIBRARIES += liblookup.la
 liblookup_la_SOURCES = utils_vl_lookup.c utils_vl_lookup.h
 liblookup_la_LIBADD = daemon/libavltree.la
