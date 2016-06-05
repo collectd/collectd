@@ -309,7 +309,7 @@ static void *us_handle_client (void *arg)
 		}
 		else if (strcasecmp (fields[0], "flush") == 0)
 		{
-			handle_flush (fhout, buffer);
+			cmd_handle_flush (fhout, buffer);
 		}
 		else
 		{

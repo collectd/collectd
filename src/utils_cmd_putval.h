@@ -33,7 +33,7 @@
 #include "utils_cmds.h"
 
 cmd_status_t cmd_parse_putval (size_t argc, char **argv,
-		cmd_putval_t *ret_cmd, cmd_error_handler_t *err);
+		cmd_putval_t *ret_putval, cmd_error_handler_t *err);
 
 cmd_status_t cmd_handle_putval (FILE *fh, char *buffer);
 

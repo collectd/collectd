@@ -1,6 +1,6 @@
 /**
  * collectd - src/utils_cmd_flush.h
- * Copyright (C) 2008       Sebastian Harl
+ * Copyright (C) 2008, 2016 Sebastian Harl
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,7 +29,14 @@
 
 #include <stdio.h>
 
-int handle_flush (FILE *fh, char *buffer);
+#include "utils_cmds.h"
+
+cmd_status_t cmd_parse_flush (size_t argc, char **argv,
+		cmd_flush_t *ret_flush, cmd_error_handler_t *err);
+
+cmd_status_t cmd_handle_flush (FILE *fh, char *buffer);
+
+void cmd_destroy_flush (cmd_flush_t *flush);
 
 #endif /* UTILS_CMD_FLUSH_H */
 

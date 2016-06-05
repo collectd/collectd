@@ -27,6 +27,7 @@
  **/
 
 #include "utils_cmds.h"
+#include "utils_cmd_flush.h"
 #include "utils_cmd_putval.h"
 #include "utils_parse_option.h"
 #include "daemon/common.h"
@@ -206,7 +207,13 @@ cmd_status_t cmd_parsev (size_t argc, char **argv,
 
 	memset (ret_cmd, 0, sizeof (*ret_cmd));
 	command = argv[0];
-	if (strcasecmp ("PUTVAL", command) == 0)
+	if (strcasecmp ("FLUSH", command) == 0)
+	{
+		ret_cmd->type = CMD_FLUSH;
+		return cmd_parse_flush (argc - 1, argv + 1,
+				&ret_cmd->cmd.flush, err);
+	}
+	else if (strcasecmp ("PUTVAL", command) == 0)
 	{
 		ret_cmd->type = CMD_PUTVAL;
 		return cmd_parse_putval (argc - 1, argv + 1,
@@ -247,6 +254,9 @@ void cmd_destroy (cmd_t *cmd)
 	{
 		case CMD_UNKNOWN:
 			/* nothing to do */
+			break;
+		case CMD_FLUSH:
+			cmd_destroy_flush (&cmd->cmd.flush);
 			break;
 		case CMD_PUTVAL:
 			cmd_destroy_putval (&cmd->cmd.putval);
