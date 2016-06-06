@@ -80,6 +80,7 @@ typedef struct cf_global_option_s
 {
 	const char *key;
 	char *value;
+	_Bool from_cli; /* value set from CLI */
 	const char *def;
 } cf_global_option_t;
 
@@ -108,21 +109,21 @@ static int cf_value_map_num = STATIC_ARRAY_SIZE (cf_value_map);
 
 static cf_global_option_t cf_global_options[] =
 {
-	{"BaseDir",     NULL, PKGLOCALSTATEDIR},
-	{"PIDFile",     NULL, PIDFILE},
-	{"Hostname",    NULL, NULL},
-	{"FQDNLookup",  NULL, "true"},
-	{"Interval",    NULL, NULL},
-	{"ReadThreads", NULL, "5"},
-	{"WriteThreads", NULL, "5"},
-	{"WriteQueueLimitHigh", NULL, NULL},
-	{"WriteQueueLimitLow", NULL, NULL},
-	{"Timeout",     NULL, "2"},
-	{"AutoLoadPlugin", NULL, "false"},
-	{"CollectInternalStats", NULL, "false"},
-	{"PreCacheChain",  NULL, "PreCache"},
-	{"PostCacheChain", NULL, "PostCache"},
-	{"MaxReadInterval", NULL, "86400"}
+	{"BaseDir",              NULL, 0, PKGLOCALSTATEDIR},
+	{"PIDFile",              NULL, 0, PIDFILE},
+	{"Hostname",             NULL, 0, NULL},
+	{"FQDNLookup",           NULL, 0, "true"},
+	{"Interval",             NULL, 0, NULL},
+	{"ReadThreads",          NULL, 0, "5"},
+	{"WriteThreads",         NULL, 0, "5"},
+	{"WriteQueueLimitHigh",  NULL, 0, NULL},
+	{"WriteQueueLimitLow",   NULL, 0, NULL},
+	{"Timeout",              NULL, 0, "2"},
+	{"AutoLoadPlugin",       NULL, 0, "false"},
+	{"CollectInternalStats", NULL, 0, "false"},
+	{"PreCacheChain",        NULL, 0, "PreCache"},
+	{"PostCacheChain",       NULL, 0, "PostCache"},
+	{"MaxReadInterval",      NULL, 0, "86400"}
 };
 static int cf_global_options_num = STATIC_ARRAY_SIZE (cf_global_options);
 
@@ -210,19 +211,19 @@ static int dispatch_global_option (const oconfig_item_t *ci)
 	if (ci->values_num != 1)
 		return (-1);
 	if (ci->values[0].type == OCONFIG_TYPE_STRING)
-		return (global_option_set (ci->key, ci->values[0].value.string));
+		return (global_option_set (ci->key, ci->values[0].value.string, 0));
 	else if (ci->values[0].type == OCONFIG_TYPE_NUMBER)
 	{
 		char tmp[128];
 		ssnprintf (tmp, sizeof (tmp), "%lf", ci->values[0].value.number);
-		return (global_option_set (ci->key, tmp));
+		return (global_option_set (ci->key, tmp, 0));
 	}
 	else if (ci->values[0].type == OCONFIG_TYPE_BOOLEAN)
 	{
 		if (ci->values[0].value.boolean)
-			return (global_option_set (ci->key, "true"));
+			return (global_option_set (ci->key, "true", 0));
 		else
-			return (global_option_set (ci->key, "false"));
+			return (global_option_set (ci->key, "false", 0));
 	}
 
 	return (-1);
@@ -927,7 +928,7 @@ static oconfig_item_t *cf_read_generic (const char *path,
 /*
  * Public functions
  */
-int global_option_set (const char *option, const char *value)
+int global_option_set (const char *option, const char *value, _Bool from_cli)
 {
 	int i;
 
@@ -938,12 +939,16 @@ int global_option_set (const char *option, const char *value)
 			break;
 
 	if (i >= cf_global_options_num)
-		return (-1);
-
-	if (strcasecmp (option, "PIDFile") == 0 && pidfile_from_cli == 1)
 	{
-		DEBUG ("Configfile: Ignoring `PIDFILE' option because "
-			"command-line option `-P' take precedence.");
+		ERROR ("configfile: Cannot set unknown global option `%s'.", option);
+		return (-1);
+	}
+
+	if (cf_global_options[i].from_cli && (! from_cli))
+	{
+		DEBUG ("configfile: Ignoring %s `%s' option because "
+				"it was overriden by a command-line option.",
+				option, value);
 		return (0);
 	}
 
@@ -953,6 +958,8 @@ int global_option_set (const char *option, const char *value)
 		cf_global_options[i].value = strdup (value);
 	else
 		cf_global_options[i].value = NULL;
+
+	cf_global_options[i].from_cli = from_cli;
 
 	return (0);
 }
@@ -966,7 +973,10 @@ const char *global_option_get (const char *option)
 			break;
 
 	if (i >= cf_global_options_num)
+	{
+		ERROR ("configfile: Cannot get unknown global option `%s'.", option);
 		return (NULL);
+	}
 
 	return ((cf_global_options[i].value != NULL)
 			? cf_global_options[i].value
