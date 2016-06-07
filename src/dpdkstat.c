@@ -342,11 +342,16 @@ static int dpdk_helper_spawn(enum DPDK_HELPER_ACTION action)
     return -1;
   }
 
-  int pipe0_flags = fcntl(g_configuration->helper_pipes[1], F_GETFL, 0);
-  int pipe1_flags = fcntl(g_configuration->helper_pipes[0], F_GETFL, 0);
-  int p1err = fcntl(g_configuration->helper_pipes[1], F_SETFL, pipe1_flags | O_NONBLOCK);
-  int p2err = fcntl(g_configuration->helper_pipes[0], F_SETFL, pipe0_flags | O_NONBLOCK);
-  if (pipe0_flags == -1 || pipe1_flags == -1 || p1err == -1 || p2err == -1) {
+  int pipe0_flags = fcntl(g_configuration->helper_pipes[0], F_GETFL, 0);
+  int pipe1_flags = fcntl(g_configuration->helper_pipes[1], F_GETFL, 0);
+  if (pipe0_flags == -1 || pipe1_flags == -1) {
+    ERROR("dpdkstat: error setting up pipe flags: %s\n", strerror(errno));
+  }
+  int  pipe0_err = fcntl(g_configuration->helper_pipes[0], F_SETFL, pipe1_flags
+                         | O_NONBLOCK);
+  int  pipe1_err = fcntl(g_configuration->helper_pipes[1], F_SETFL, pipe0_flags
+                         | O_NONBLOCK);
+  if (pipe0_err == -1 || pipe1_err == -1) {
     ERROR("dpdkstat: error setting up pipes: %s\n", strerror(errno));
   }
 
