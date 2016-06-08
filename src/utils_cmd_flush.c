@@ -34,9 +34,11 @@
 #include "utils_cmd_flush.h"
 
 cmd_status_t cmd_parse_flush (size_t argc, char **argv,
-		cmd_flush_t *ret_flush, cmd_error_handler_t *err)
+		cmd_flush_t *ret_flush, const cmd_options_t *opts,
+		cmd_error_handler_t *err)
 {
-	if (ret_flush == NULL)
+
+	if ((ret_flush == NULL) || (opts == NULL))
 	{
 		errno = EINVAL;
 		cmd_error (CMD_ERROR, err, "Invalid arguments to cmd_parse_flush.");
@@ -83,7 +85,7 @@ cmd_status_t cmd_parse_flush (size_t argc, char **argv,
 			if (parse_identifier (opt_value,
 						&id->host, &id->plugin, &id->plugin_instance,
 						&id->type, &id->type_instance,
-						NULL) != 0)
+						opts->identifier_default_host) != 0)
 			{
 				cmd_error (CMD_PARSE_ERROR, err,
 						"Invalid identifier `%s'.", opt_value);
@@ -142,7 +144,7 @@ cmd_status_t cmd_handle_flush (FILE *fh, char *buffer)
 	DEBUG ("utils_cmd_flush: cmd_handle_flush (fh = %p, buffer = %s);",
 			(void *) fh, buffer);
 
-	if ((status = cmd_parse (buffer, &cmd, &err)) != CMD_OK)
+	if ((status = cmd_parse (buffer, &cmd, NULL, &err)) != CMD_OK)
 		return (status);
 	if (cmd.type != CMD_FLUSH)
 	{

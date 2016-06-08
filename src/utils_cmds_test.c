@@ -40,49 +40,74 @@ static void error_cb (void *ud, cmd_status_t status,
 	fflush (stdout);
 } /* void error_cb */
 
-struct {
+static cmd_options_t default_host_opts = {
+	/* identifier_default_host = */ "dummy-host",
+};
+
+static struct {
 	char *input;
+	cmd_options_t *opts;
 	cmd_status_t expected_status;
 	cmd_type_t expected_type;
 } parse_data[] = {
 	/* Valid FLUSH commands. */
 	{
 		"FLUSH",
+		NULL,
 		CMD_OK,
 		CMD_FLUSH,
 	},
 	{
 		"FLUSH identifier=myhost/magic/MAGIC",
+		NULL,
+		CMD_OK,
+		CMD_FLUSH,
+	},
+	{
+		"FLUSH identifier=magic/MAGIC",
+		&default_host_opts,
 		CMD_OK,
 		CMD_FLUSH,
 	},
 	{
 		"FLUSH timeout=123 plugin=\"A\"",
+		NULL,
 		CMD_OK,
 		CMD_FLUSH,
 	},
 	/* Invalid FLUSH commands. */
 	{
+		/* Missing hostname; no default. */
+		"FLUSH identifier=magic/MAGIC",
+		NULL,
+		CMD_PARSE_ERROR,
+		CMD_UNKNOWN,
+	},
+	{
 		/* Missing 'identifier' key. */
 		"FLUSH myhost/magic/MAGIC",
+		NULL,
 		CMD_PARSE_ERROR,
 		CMD_UNKNOWN,
 	},
 	{
 		/* Invalid timeout. */
 		"FLUSH timeout=A",
+		NULL,
 		CMD_PARSE_ERROR,
 		CMD_UNKNOWN,
 	},
 	{
 		/* Invalid identifier. */
 		"FLUSH identifier=invalid",
+		NULL,
 		CMD_PARSE_ERROR,
 		CMD_UNKNOWN,
 	},
 	{
 		/* Invalid option. */
 		"FLUSH invalid=option",
+		NULL,
 		CMD_PARSE_ERROR,
 		CMD_UNKNOWN,
 	},
@@ -90,18 +115,33 @@ struct {
 	/* Valid GETVAL commands. */
 	{
 		"GETVAL myhost/magic/MAGIC",
+		NULL,
+		CMD_OK,
+		CMD_GETVAL,
+	},
+	{
+		"GETVAL magic/MAGIC",
+		&default_host_opts,
 		CMD_OK,
 		CMD_GETVAL,
 	},
 
 	/* Invalid GETVAL commands. */
 	{
+		"GETVAL magic/MAGIC",
+		NULL,
+		CMD_PARSE_ERROR,
+		CMD_UNKNOWN,
+	},
+	{
 		"GETVAL",
+		NULL,
 		CMD_PARSE_ERROR,
 		CMD_UNKNOWN,
 	},
 	{
 		"GETVAL invalid",
+		NULL,
 		CMD_PARSE_ERROR,
 		CMD_UNKNOWN,
 	},
@@ -109,6 +149,7 @@ struct {
 	/* Valid LISTVAL commands. */
 	{
 		"LISTVAL",
+		NULL,
 		CMD_OK,
 		CMD_LISTVAL,
 	},
@@ -116,70 +157,95 @@ struct {
 	/* Invalid LISTVAL commands. */
 	{
 		"LISTVAL invalid",
+		NULL,
 		CMD_PARSE_ERROR,
 		CMD_UNKNOWN,
 	},
 
 	/* Valid PUTVAL commands. */
 	{
+		"PUTVAL magic/MAGIC N:42",
+		&default_host_opts,
+		CMD_OK,
+		CMD_PUTVAL,
+	},
+	{
 		"PUTVAL myhost/magic/MAGIC N:42",
+		NULL,
 		CMD_OK,
 		CMD_PUTVAL,
 	},
 	{
 		"PUTVAL myhost/magic/MAGIC 1234:42",
+		NULL,
 		CMD_OK,
 		CMD_PUTVAL,
 	},
 	{
 		"PUTVAL myhost/magic/MAGIC 1234:42 2345:23",
+		NULL,
 		CMD_OK,
 		CMD_PUTVAL,
 	},
 	{
 		"PUTVAL myhost/magic/MAGIC interval=2 1234:42",
+		NULL,
 		CMD_OK,
 		CMD_PUTVAL,
 	},
 	{
 		"PUTVAL myhost/magic/MAGIC interval=2 1234:42 interval=5 2345:23",
+		NULL,
 		CMD_OK,
 		CMD_PUTVAL,
 	},
 
 	/* Invalid PUTVAL commands. */
 	{
+		"PUTVAL magic/MAGIC N:42",
+		NULL,
+		CMD_PARSE_ERROR,
+		CMD_UNKNOWN,
+	},
+	{
 		"PUTVAL",
+		NULL,
 		CMD_PARSE_ERROR,
 		CMD_UNKNOWN,
 	},
 	{
 		"PUTVAL invalid N:42",
+		NULL,
 		CMD_PARSE_ERROR,
 		CMD_UNKNOWN,
 	},
 	{
 		"PUTVAL myhost/magic/MAGIC A:42",
+		NULL,
 		CMD_PARSE_ERROR,
 		CMD_UNKNOWN,
 	},
 	{
 		"PUTVAL myhost/magic/MAGIC 1234:A",
+		NULL,
 		CMD_PARSE_ERROR,
 		CMD_UNKNOWN,
 	},
 	{
 		"PUTVAL myhost/magic/MAGIC",
+		NULL,
 		CMD_PARSE_ERROR,
 		CMD_UNKNOWN,
 	},
 	{
 		"PUTVAL 1234:A",
+		NULL,
 		CMD_PARSE_ERROR,
 		CMD_UNKNOWN,
 	},
 	{
 		"PUTVAL myhost/magic/UNKNOWN 1234:42",
+		NULL,
 		CMD_PARSE_ERROR,
 		CMD_UNKNOWN,
 	},
@@ -187,6 +253,7 @@ struct {
 	 * As of collectd 5.x, PUTVAL accepts invalid options.
 	{
 		"PUTVAL myhost/magic/MAGIC invalid=2 1234:42",
+		NULL,
 		CMD_PARSE_ERROR,
 		CMD_UNKNOWN,
 	},
@@ -195,11 +262,13 @@ struct {
 	/* Invalid commands. */
 	{
 		"INVALID",
+		NULL,
 		CMD_UNKNOWN_COMMAND,
 		CMD_UNKNOWN,
 	},
 	{
 		"INVALID interval=2",
+		NULL,
 		CMD_UNKNOWN_COMMAND,
 		CMD_UNKNOWN,
 	},
@@ -222,10 +291,10 @@ DEF_TEST(parse)
 
 		memset (&cmd, 0, sizeof (cmd));
 
-		status = cmd_parse (input, &cmd, &err);
+		status = cmd_parse (input, &cmd, parse_data[i].opts, &err);
 		snprintf (description, sizeof (description),
-				"cmd_parse (\"%s\") = %d (type=%d [%s]); want %d (type=%d [%s])",
-				parse_data[i].input, status,
+				"cmd_parse (\"%s\", opts=%p) = %d (type=%d [%s]); want %d (type=%d [%s])",
+				parse_data[i].input, parse_data[i].opts, status,
 				cmd.type, CMD_TO_STRING (cmd.type),
 				parse_data[i].expected_status,
 				parse_data[i].expected_type,

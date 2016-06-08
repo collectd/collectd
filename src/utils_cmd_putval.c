@@ -69,7 +69,8 @@ static int set_option (value_list_t *vl, const char *key, const char *value)
  */
 
 cmd_status_t cmd_parse_putval (size_t argc, char **argv,
-		cmd_putval_t *ret_putval, cmd_error_handler_t *err)
+		cmd_putval_t *ret_putval, const cmd_options_t *opts,
+		cmd_error_handler_t *err)
 {
 	cmd_status_t result;
 
@@ -87,6 +88,13 @@ cmd_status_t cmd_parse_putval (size_t argc, char **argv,
 	value_list_t vl = VALUE_LIST_INIT;
 	size_t i;
 
+	if ((ret_putval == NULL) || (opts == NULL))
+	{
+		errno = EINVAL;
+		cmd_error (CMD_ERROR, err, "Invalid arguments to cmd_parse_putval.");
+		return (CMD_ERROR);
+	}
+
 	if (argc < 2)
 	{
 		cmd_error (CMD_PARSE_ERROR, err,
@@ -103,7 +111,7 @@ cmd_status_t cmd_parse_putval (size_t argc, char **argv,
 	status = parse_identifier (identifier, &hostname,
 			&plugin, &plugin_instance,
 			&type, &type_instance,
-			NULL);
+			opts->identifier_default_host);
 	if (status != 0)
 	{
 		DEBUG ("cmd_handle_putval: Cannot parse identifier `%s'.",
@@ -257,7 +265,7 @@ cmd_status_t cmd_handle_putval (FILE *fh, char *buffer)
 	DEBUG ("utils_cmd_putval: cmd_handle_putval (fh = %p, buffer = %s);",
 			(void *) fh, buffer);
 
-	if ((status = cmd_parse (buffer, &cmd, &err)) != CMD_OK)
+	if ((status = cmd_parse (buffer, &cmd, NULL, &err)) != CMD_OK)
 		return (status);
 	if (cmd.type != CMD_PUTVAL)
 	{

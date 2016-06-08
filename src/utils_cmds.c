@@ -37,6 +37,10 @@
 #include <stdbool.h>
 #include <string.h>
 
+static cmd_options_t default_options = {
+	/* identifier_default_host = */ NULL,
+};
+
 /*
  * private helper functions
  */
@@ -195,8 +199,8 @@ void cmd_error (cmd_status_t status, cmd_error_handler_t *err,
 	va_end (ap);
 } /* void cmd_error */
 
-cmd_status_t cmd_parsev (size_t argc, char **argv,
-		cmd_t *ret_cmd, cmd_error_handler_t *err)
+cmd_status_t cmd_parsev (size_t argc, char **argv, cmd_t *ret_cmd,
+		const cmd_options_t *opts, cmd_error_handler_t *err)
 {
 	char *command = NULL;
 	cmd_status_t status;
@@ -208,31 +212,34 @@ cmd_status_t cmd_parsev (size_t argc, char **argv,
 		return CMD_ERROR;
 	}
 
+	if (opts == NULL)
+		opts = &default_options;
+
 	memset (ret_cmd, 0, sizeof (*ret_cmd));
 	command = argv[0];
 	if (strcasecmp ("FLUSH", command) == 0)
 	{
 		ret_cmd->type = CMD_FLUSH;
 		status = cmd_parse_flush (argc - 1, argv + 1,
-				&ret_cmd->cmd.flush, err);
+				&ret_cmd->cmd.flush, opts, err);
 	}
 	else if (strcasecmp ("GETVAL", command) == 0)
 	{
 		ret_cmd->type = CMD_GETVAL;
 		status = cmd_parse_getval (argc - 1, argv + 1,
-				&ret_cmd->cmd.getval, err);
+				&ret_cmd->cmd.getval, opts, err);
 	}
 	else if (strcasecmp ("LISTVAL", command) == 0)
 	{
 		ret_cmd->type = CMD_LISTVAL;
 		status = cmd_parse_listval (argc - 1, argv + 1,
-				&ret_cmd->cmd.listval, err);
+				&ret_cmd->cmd.listval, opts, err);
 	}
 	else if (strcasecmp ("PUTVAL", command) == 0)
 	{
 		ret_cmd->type = CMD_PUTVAL;
 		status = cmd_parse_putval (argc - 1, argv + 1,
-				&ret_cmd->cmd.putval, err);
+				&ret_cmd->cmd.putval, opts, err);
 	}
 	else
 	{
@@ -247,8 +254,8 @@ cmd_status_t cmd_parsev (size_t argc, char **argv,
 	return (status);
 } /* cmd_status_t cmd_parsev */
 
-cmd_status_t cmd_parse (char *buffer,
-		cmd_t *ret_cmd, cmd_error_handler_t *err)
+cmd_status_t cmd_parse (char *buffer, cmd_t *ret_cmd,
+		const cmd_options_t *opts, cmd_error_handler_t *err)
 {
 	char **fields = NULL;
 	size_t fields_num = 0;
@@ -257,7 +264,7 @@ cmd_status_t cmd_parse (char *buffer,
 	if ((status = cmd_split (buffer, &fields_num, &fields, err)) != CMD_OK)
 		return status;
 
-	status = cmd_parsev (fields_num, fields, ret_cmd, err);
+	status = cmd_parsev (fields_num, fields, ret_cmd, opts, err);
 	free (fields);
 	return (status);
 } /* cmd_status_t cmd_parse */

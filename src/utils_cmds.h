@@ -91,6 +91,19 @@ typedef struct {
 
 /*
  * NAME
+ *   cmd_options_t
+ *
+ * DESCRIPTIONS
+ *   Optional settings for tuning the parser behavior.
+ */
+typedef struct {
+	/* identifier_default_host: If non-NULL, the hostname is optional and will
+	 * default to the specified value. */
+	char *identifier_default_host;
+} cmd_options_t;
+
+/*
+ * NAME
  *   cmd_status_t
  *
  * DESCRIPTION
@@ -140,16 +153,17 @@ void cmd_error (cmd_status_t status, cmd_error_handler_t *err,
  * PARAMETERS
  *   `buffer'  The command string to be parsed.
  *   `ret_cmd' The parse result will be stored at this location.
+ *   `opts'    Parser options. If NULL, defaults will be used.
  *   `err'     An optional error handler to invoke on error.
  *
  * RETURN VALUE
  *   CMD_OK on success or the respective error code otherwise.
  */
-cmd_status_t cmd_parse (char *buffer,
-		cmd_t *ret_cmd, cmd_error_handler_t *err);
+cmd_status_t cmd_parse (char *buffer, cmd_t *ret_cmd,
+		const cmd_options_t *opts, cmd_error_handler_t *err);
 
-cmd_status_t cmd_parsev (size_t argc, char **argv,
-		cmd_t *ret_cmd, cmd_error_handler_t *err);
+cmd_status_t cmd_parsev (size_t argc, char **argv, cmd_t *ret_cmd,
+		const cmd_options_t *opts, cmd_error_handler_t *err);
 
 void cmd_destroy (cmd_t *cmd);
 

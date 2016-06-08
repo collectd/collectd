@@ -34,10 +34,18 @@
 #include "utils_cmd_getval.h"
 
 cmd_status_t cmd_parse_getval (size_t argc, char **argv,
-    cmd_getval_t *ret_getval, cmd_error_handler_t *err)
+    cmd_getval_t *ret_getval, const cmd_options_t *opts,
+    cmd_error_handler_t *err)
 {
   char *identifier_copy;
   int status;
+
+  if ((ret_getval == NULL) || (opts == NULL))
+  {
+    errno = EINVAL;
+    cmd_error (CMD_ERROR, err, "Invalid arguments to cmd_parse_getval.");
+    return (CMD_ERROR);
+  }
 
   if (argc != 1)
   {
@@ -56,7 +64,7 @@ cmd_status_t cmd_parse_getval (size_t argc, char **argv,
   status = parse_identifier (argv[0], &ret_getval->identifier.host,
       &ret_getval->identifier.plugin, &ret_getval->identifier.plugin_instance,
       &ret_getval->identifier.type, &ret_getval->identifier.type_instance,
-      NULL);
+      opts->identifier_default_host);
   if (status != 0)
   {
     DEBUG ("cmd_parse_getval: Cannot parse identifier `%s'.", identifier_copy);
@@ -99,7 +107,7 @@ cmd_status_t cmd_handle_getval (FILE *fh, char *buffer)
   DEBUG ("utils_cmd_getval: cmd_handle_getval (fh = %p, buffer = %s);",
       (void *) fh, buffer);
 
-  if ((status = cmd_parse (buffer, &cmd, &err)) != CMD_OK)
+  if ((status = cmd_parse (buffer, &cmd, NULL, &err)) != CMD_OK)
     return (status);
   if (cmd.type != CMD_GETVAL)
   {

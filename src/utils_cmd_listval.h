@@ -32,7 +32,8 @@
 #include "utils_cmds.h"
 
 cmd_status_t cmd_parse_listval (size_t argc, char **argv,
-    cmd_listval_t *ret_listval, cmd_error_handler_t *err);
+    cmd_listval_t *ret_listval, const cmd_options_t *opts,
+    cmd_error_handler_t *err);
 
 cmd_status_t cmd_handle_listval (FILE *fh, char *buffer);
 

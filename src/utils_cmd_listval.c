@@ -35,6 +35,7 @@
 
 cmd_status_t cmd_parse_listval (size_t argc, char **argv,
     cmd_listval_t *ret_listval __attribute__((unused)),
+    const cmd_options_t *opts __attribute__((unused)),
     cmd_error_handler_t *err)
 {
   if (argc != 0)
@@ -81,7 +82,7 @@ cmd_status_t cmd_handle_listval (FILE *fh, char *buffer)
   DEBUG ("utils_cmd_listval: handle_listval (fh = %p, buffer = %s);",
       (void *) fh, buffer);
 
-  if ((status = cmd_parse (buffer, &cmd, &err)) != CMD_OK)
+  if ((status = cmd_parse (buffer, &cmd, NULL, &err)) != CMD_OK)
     return (status);
   if (cmd.type != CMD_LISTVAL)
   {
