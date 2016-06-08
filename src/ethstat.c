@@ -312,9 +312,13 @@ static int ethstat_read_interface (char *device)
 
   for (i = 0; i < n_stats; i++)
   {
-    const char *stat_name;
+    char *stat_name;
 
     stat_name = (void *) &strings->data[i * ETH_GSTRING_LEN];
+    /* Remove leading spaces in key name */
+    while (isspace ((int) *stat_name))
+        stat_name++;
+
     DEBUG("ethstat plugin: device = \"%s\": %s = %"PRIu64,
         device, stat_name, (uint64_t) stats->data[i]);
     ethstat_submit_value (device,
