@@ -1149,7 +1149,7 @@ static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
   if (memcmp (pss.hash, hash, sizeof (pss.hash)) != 0)
   {
     WARNING ("network plugin: Verifying HMAC-SHA-256 signature failed: "
-        "Hash mismatch.");
+        "Hash mismatch. Username: %s", pss.username);
   }
   else
   {
@@ -1233,8 +1233,8 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
   /* Make sure at least the header if available. */
   if (buffer_len <= PART_ENCRYPTION_AES256_SIZE)
   {
-    ERROR ("network plugin: Decryption failed: "
-            "Discarding short packet.");
+    NOTICE ("network plugin: parse_part_encr_aes256: "
+        "Discarding short packet.");
     return (-1);
   }
 
@@ -1249,8 +1249,8 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
   if ((part_size <= PART_ENCRYPTION_AES256_SIZE)
       || (part_size > buffer_len))
   {
-    ERROR ("network plugin: Decryption failed: "
-            "Discarding part with invalid size.");
+    NOTICE ("network plugin: parse_part_encr_aes256: "
+        "Discarding part with invalid size.");
     return (-1);
   }
 
@@ -1261,19 +1261,15 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
   if ((username_len == 0)
       || (username_len > (part_size - (PART_ENCRYPTION_AES256_SIZE + 1))))
   {
-    ERROR ("network plugin: Decryption failed: "
-            "Discarding part with invalid username length.");
+    NOTICE ("network plugin: parse_part_encr_aes256: "
+        "Discarding part with invalid username length.");
     return (-1);
   }
 
   assert (username_len > 0);
   pea.username = malloc (username_len + 1);
   if (pea.username == NULL)
-  {
-    ERROR ("network plugin: Decryption failed: "
-            "malloc() failed.");
     return (-ENOMEM);
-  }
   BUFFER_READ (pea.username, username_len);
   pea.username[username_len] = 0;
 
@@ -1288,8 +1284,7 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
       pea.username);
   if (cypher == NULL)
   {
-    ERROR ("network plugin: Decryption failed: "
-            "Failed to get cypher. Username: %s", pea.username);
+    ERROR ("network plugin: Failed to get cypher. Username: %s", pea.username);
     sfree (pea.username);
     return (-1);
   }
@@ -1322,8 +1317,7 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
       buffer + buffer_offset, payload_len);
   if (memcmp (hash, pea.hash, sizeof (hash)) != 0)
   {
-    ERROR ("network plugin: Decryption failed: "
-            "Checksum mismatch. Username: %s", pea.username);
+    ERROR ("network plugin: Checksum mismatch. Username: %s", pea.username);
     sfree (pea.username);
     return (-1);
   }
@@ -1438,7 +1432,12 @@ static int parse_packet (sockent_t *se, /* {{{ */
 			status = parse_part_encr_aes256 (se,
 					&buffer, &buffer_size, flags);
 			if (status != 0)
+			{
+				ERROR ("network plugin: Decrypting AES256 "
+						"part failed "
+						"with status %i.", status);
 				break;
+			}
 		}
 #if HAVE_LIBGCRYPT
 		else if ((se->data.server.security_level == SECURITY_LEVEL_ENCRYPT)
