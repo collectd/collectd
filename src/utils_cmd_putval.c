@@ -102,7 +102,8 @@ cmd_status_t cmd_parse_putval (size_t argc, char **argv,
 
 	status = parse_identifier (identifier, &hostname,
 			&plugin, &plugin_instance,
-			&type, &type_instance);
+			&type, &type_instance,
+			NULL);
 	if (status != 0)
 	{
 		DEBUG ("cmd_handle_putval: Cannot parse identifier `%s'.",

@@ -55,7 +55,8 @@ cmd_status_t cmd_parse_getval (size_t argc, char **argv,
 
   status = parse_identifier (argv[0], &ret_getval->identifier.host,
       &ret_getval->identifier.plugin, &ret_getval->identifier.plugin_instance,
-      &ret_getval->identifier.type, &ret_getval->identifier.type_instance);
+      &ret_getval->identifier.type, &ret_getval->identifier.type_instance,
+      NULL);
   if (status != 0)
   {
     DEBUG ("cmd_parse_getval: Cannot parse identifier `%s'.", identifier_copy);

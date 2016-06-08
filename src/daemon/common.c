@@ -1011,7 +1011,8 @@ int format_values (char *ret, size_t ret_len, /* {{{ */
 
 int parse_identifier (char *str, char **ret_host,
 		char **ret_plugin, char **ret_plugin_instance,
-		char **ret_type, char **ret_type_instance)
+		char **ret_type, char **ret_type_instance,
+		char *default_host)
 {
 	char *hostname = NULL;
 	char *plugin = NULL;
@@ -1030,8 +1031,19 @@ int parse_identifier (char *str, char **ret_host,
 
 	type = strchr (plugin, '/');
 	if (type == NULL)
-		return (-1);
-	*type = '\0'; type++;
+	{
+		if (default_host == NULL)
+			return (-1);
+		/* else: no host specified; use default */
+		type = plugin;
+		plugin = hostname;
+		hostname = default_host;
+	}
+	else
+	{
+		*type = '\0';
+		type++;
+	}
 
 	plugin_instance = strchr (plugin, '-');
 	if (plugin_instance != NULL)
@@ -1072,7 +1084,8 @@ int parse_identifier_vl (const char *str, value_list_t *vl) /* {{{ */
 
 	status = parse_identifier (str_copy, &host,
 			&plugin, &plugin_instance,
-			&type, &type_instance);
+			&type, &type_instance,
+			/* default_host = */ NULL);
 	if (status != 0)
 		return (status);
 

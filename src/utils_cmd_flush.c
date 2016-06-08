@@ -82,7 +82,8 @@ cmd_status_t cmd_parse_flush (size_t argc, char **argv,
 			ret_flush->identifiers_num++;
 			if (parse_identifier (opt_value,
 						&id->host, &id->plugin, &id->plugin_instance,
-						&id->type, &id->type_instance) != 0)
+						&id->type, &id->type_instance,
+						NULL) != 0)
 			{
 				cmd_error (CMD_PARSE_ERROR, err,
 						"Invalid identifier `%s'.", opt_value);
