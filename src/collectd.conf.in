@@ -521,6 +521,9 @@
 #       Coremask "0xf"
 #       ProcessType "secondary"
 #       FilePrefix "rte"
+#       EnabledPortMask 0xffff
+#       PortName "interface1"
+#       PortName "interface2"
 #</Plugin>
 
 #<Plugin email>

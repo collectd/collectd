@@ -2356,6 +2356,9 @@ B<Synopsis:>
     MemoryChannels "4"
     ProcessType "secondary"
     FilePrefix "rte"
+    EnabledPortMask 0xffff
+    PortName "interface1"
+    PortName "interface2"
  </Plugin>
 
 B<Options:>
@@ -2385,6 +2388,21 @@ The type of DPDK process instance.
 
 The prefix text used for hugepage filenames. The filename will be set to
 /var/run/.<prefix>_config where prefix is what is passed in by the user.
+
+=item B<EnabledPortMask> I<Mask>
+
+A hexidecimal bit mask of the DPDK ports which should be enabled. A mask
+of 0x0 means that all ports will be disabled. A bitmask of all Fs means
+that all ports will be enabled. This is an optional argument - default
+is all ports enabled.
+
+=item B<PortName> I<Name>
+
+A string containing an optional name for the enabled DPDK ports. Each PortName
+option should contain only one port name; specify as many PortName options as
+desired. Default naming convention will be used if PortName is blank. If there
+are less PortName options than there are enabled ports, the default naming
+convention will be used for the additional ports.
 
 =back
 

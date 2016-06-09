@@ -85,6 +85,7 @@ struct dpdk_config_s {
   cdtime_t interval;
   uint32_t eal_initialized;
   uint32_t enabled_port_mask;
+  char port_name[RTE_MAX_ETHPORTS][DATA_MAX_NAME_LEN];
   uint32_t eal_argc;
   /* Helper info */
   int   collectd_reinit_shm;
@@ -121,10 +122,13 @@ static int dpdk_shm_init(size_t size);
 /* Write the default configuration to the g_configuration instances */
 static void dpdk_config_init_default(void)
 {
+    int i;
+
     g_configuration->interval = plugin_get_interval();
     WARNING("dpdkstat: No time interval was configured, default value %lu ms is set\n",
              CDTIME_T_TO_MS(g_configuration->interval));
-    g_configuration->enabled_port_mask = 0;
+    /* Default is all ports enabled */
+    g_configuration->enabled_port_mask = ~0;
     g_configuration->eal_argc = 2;
     g_configuration->eal_initialized = 0;
     ssnprintf(g_configuration->coremask, DATA_MAX_NAME_LEN, "%s", "0xf");
@@ -132,11 +136,14 @@ static void dpdk_config_init_default(void)
     ssnprintf(g_configuration->process_type, DATA_MAX_NAME_LEN, "%s", "secondary");
     ssnprintf(g_configuration->file_prefix, DATA_MAX_NAME_LEN, "%s",
              "/var/run/.rte_config");
+
+    for (i = 0; i < RTE_MAX_ETHPORTS; i++)
+      g_configuration->port_name[i][0] = 0;
 }
 
 static int dpdk_config(oconfig_item_t *ci)
 {
-  int i = 0;
+  int i = 0, port_counter = 0;
 
   /* Initialize a POSIX SHared Memory (SHM) object. */
   int err = dpdk_shm_init(sizeof(dpdk_config_t));
@@ -183,6 +190,15 @@ static int dpdk_config(oconfig_item_t *ci)
       if (strcasecmp(g_configuration->file_prefix, "/var/run/.rte_config") != 0) {
         g_configuration->eal_argc+=1;
       }
+    } else if (strcasecmp("EnabledPortMask", child->key) == 0) {
+      g_configuration->enabled_port_mask = (uint32_t)child->values[0].value.number;
+      DEBUG("dpdkstat: Enabled Port Mask %u\n", g_configuration->enabled_port_mask);
+    } else if (strcasecmp("PortName", child->key) == 0) {
+      ssnprintf(g_configuration->port_name[port_counter], DATA_MAX_NAME_LEN, "%s",
+               child->values[0].value.string);
+      DEBUG("dpdkstat: Port %d Name: %s \n", port_counter,
+               g_configuration->port_name[port_counter]);
+      port_counter++;
     } else {
       WARNING ("dpdkstat: The config option \"%s\" is unknown.",
                child->key);
@@ -480,9 +496,6 @@ static int dpdk_helper_run (void)
 
     if (nb_ports > RTE_MAX_ETHPORTS)
       nb_ports = RTE_MAX_ETHPORTS;
-    /* If no port mask was specified enable all ports*/
-    if (g_configuration->enabled_port_mask == 0)
-      g_configuration->enabled_port_mask = 0xffff;
 
     int len = 0, enabled_port_count = 0, num_xstats = 0, i = 0;
     for (; i < nb_ports; i++) {
@@ -610,13 +623,20 @@ static int dpdk_read (user_data_t *ud)
   }
 
   /* Dispatch the stats.*/
-  int count = 0, i = 0;
+  int count = 0, i = 0, port_num = 0;
 
   for (; i < g_configuration->num_ports; i++) {
     cdtime_t time = g_configuration->port_read_time[i];
     char dev_name[64];
     int len = g_configuration->num_stats_in_port[i];
-    ssnprintf(dev_name, sizeof(dev_name), "port.%d", i);
+
+    while(!(g_configuration->enabled_port_mask & (1 << port_num)))
+      port_num++;
+
+    if (g_configuration->port_name[i][0] != 0)
+      ssnprintf(dev_name, sizeof(dev_name), "%s", g_configuration->port_name[i]);
+    else
+      ssnprintf(dev_name, sizeof(dev_name), "port.%d", port_num);
     struct rte_eth_xstats *xstats = (&g_configuration->xstats);
     xstats += count; /* pointer arithmetic to jump to each stats struct */
     int j = 0;
@@ -639,6 +659,7 @@ static int dpdk_read (user_data_t *ud)
       plugin_dispatch_values (&dpdkstat_vl);
     }
     count += len;
+    port_num++;
   } /* for each port */
   return 0;
 }
