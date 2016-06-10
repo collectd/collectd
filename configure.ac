@@ -1951,17 +1951,17 @@ then
 	SAVE_CPPFLAGS="$CPPFLAGS"
 	SAVE_LDFLAGS="$LDFLAGS"
 	CPPFLAGS="$CPPFLAGS $with_curl_cflags"
-	LDFLAGS="$LDFLAGS $curl_curl_libs"
+	LDFLAGS="$LDFLAGS $with_curl_libs"
 	AC_CACHE_CHECK([for CURLINFO_APPCONNECT_TIME],
 		[c_cv_have_curlinfo_appconnect_time],
 		AC_LINK_IFELSE([AC_LANG_PROGRAM(
-[[[
+[[
 #include <curl/curl.h>
-]]],
-[[[
+]],
+[[
 int val = CURLINFO_APPCONNECT_TIME;
 return val;
-]]]
+]]
 			)],
 			[c_cv_have_curlinfo_appconnect_time="yes"],
 			[c_cv_have_curlinfo_appconnect_time="no"]

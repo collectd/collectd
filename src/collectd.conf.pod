@@ -1457,7 +1457,7 @@ All cURL-based plugins support collection of generic, request-based
 statistics. These are disabled by default and can be enabled selectively for
 each page or URL queried from the curl, curl_json, or curl_xml plugins. See
 the documentation of those plugins for specific information. This section
-describes the available metrics that can be configured with each plugin. All
+describes the available metrics that can be configured for each plugin. All
 options are disabled by default.
 
 See L<http://curl.haxx.se/libcurl/c/curl_easy_getinfo.html> for more details.
@@ -1484,7 +1484,7 @@ host was completed.
 
 =item B<PretransferTime> B<true|false>
 
-Time it took from the start until the file transfer is just about to begin.
+Time it took from the start until just before the transfer begins.
 
 =item B<StarttransferTime> B<true|false>
 
