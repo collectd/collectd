@@ -3,6 +3,6 @@
    Memcheck:Addr4
    fun:parse_value
    fun:parse_values
-   fun:test_parse_values
+   ...
    fun:main
 }
