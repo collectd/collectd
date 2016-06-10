@@ -389,7 +389,7 @@ niptoha(const tChrony_IPAddr * addr, char *p_buf, size_t p_buf_size)
 
 
 static int
-chrony_set_timeout()
+chrony_set_timeout(void)
 {
   /* Set the socket's  timeout to g_chrony_timeout; a value of 0 signals infinite timeout */
   /* Returns 0 on success, !0 on error (check errno) */
@@ -409,7 +409,7 @@ chrony_set_timeout()
 
 
 static int
-chrony_connect()
+chrony_connect(void)
 {
   /* Connects to the chrony daemon */
   /* Returns 0 on success, !0 on error (check errno) */
@@ -717,7 +717,7 @@ chrony_push_data_valid(const char *p_type, const char *p_type_inst, const int p_
 
 
 static int
-chrony_init_seq()
+chrony_init_seq(void)
 {
   /* Initialize the sequence number generator from /dev/urandom */
   /* Fallbacks: /dev/random and time(NULL) */
@@ -833,7 +833,7 @@ chrony_config(const char *p_key, const char *p_value)
 
 
 static int
-chrony_request_daemon_stats()
+chrony_request_daemon_stats(void)
 {
   /* Perform Tracking request */
   int rc;
@@ -1051,7 +1051,7 @@ chrony_request_source_stats(int p_src_idx, const int *p_is_reachable)
 
 
 static int
-chrony_read()
+chrony_read(void)
 {
   /* collectd read callback: Perform data acquisition */
   int rc;
@@ -1094,7 +1094,7 @@ chrony_read()
 
 
 static int
-chrony_shutdown()
+chrony_shutdown(void)
 {
   /* Collectd shutdown callback: Free mem */
   if (g_chrony_is_connected != 0)
