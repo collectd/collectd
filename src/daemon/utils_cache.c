@@ -879,7 +879,7 @@ int uc_inc_hits (const data_set_t *ds, const value_list_t *vl, int step)
 /*
  * Iterator interface
  */
-uc_iter_t *uc_get_iterator ()
+uc_iter_t *uc_get_iterator (void)
 {
   uc_iter_t *iter;
 

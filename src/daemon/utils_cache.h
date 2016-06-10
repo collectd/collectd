@@ -73,7 +73,7 @@ typedef struct uc_iter_s uc_iter_t;
  * RETURN VALUE
  *   An iterator object on success or NULL else.
  */
-uc_iter_t *uc_get_iterator ();
+uc_iter_t *uc_get_iterator (void);
 
 /*
  * NAME
