@@ -56,7 +56,8 @@ libcmds_la_SOURCES = utils_cmds.c utils_cmds.h \
 		utils_cmd_listval.c utils_cmd_listval.h \
 		utils_cmd_putval.c utils_cmd_putval.h \
 		utils_parse_option.c
-libcmds_la_LIBADD = daemon/libcommon.la daemon/libplugin_mock.la daemon/libmetadata.la
+libcmds_la_LIBADD = daemon/libcommon.la daemon/libmetadata.la \
+		daemon/libplugin_mock.la -lm
 check_PROGRAMS += test_utils_cmds
 TESTS += test_utils_cmds
 test_utils_cmds_SOURCES = utils_cmds_test.c testing.h
