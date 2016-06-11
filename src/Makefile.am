@@ -287,7 +287,8 @@ endif
 
 if BUILD_PLUGIN_CURL
 pkglib_LTLIBRARIES += curl.la
-curl_la_SOURCES = curl.c
+curl_la_SOURCES = curl.c \
+		  utils_curl_stats.c utils_curl_stats.h
 curl_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 curl_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
 curl_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS)
@@ -295,7 +296,8 @@ endif
 
 if BUILD_PLUGIN_CURL_JSON
 pkglib_LTLIBRARIES += curl_json.la
-curl_json_la_SOURCES = curl_json.c
+curl_json_la_SOURCES = curl_json.c \
+		  utils_curl_stats.c utils_curl_stats.h
 curl_json_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
 curl_json_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
 curl_json_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
@@ -304,7 +306,8 @@ endif
 
 if BUILD_PLUGIN_CURL_XML
 pkglib_LTLIBRARIES += curl_xml.la
-curl_xml_la_SOURCES = curl_xml.c
+curl_xml_la_SOURCES = curl_xml.c \
+		  utils_curl_stats.c utils_curl_stats.h
 curl_xml_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 curl_xml_la_CFLAGS = $(AM_CFLAGS) \
 		$(BUILD_WITH_LIBCURL_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)

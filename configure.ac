@@ -1948,6 +1948,36 @@ then
 fi
 if test "x$with_libcurl" = "xyes"
 then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_curl_cflags"
+	LDFLAGS="$LDFLAGS $with_curl_libs"
+	AC_CACHE_CHECK([for CURLINFO_APPCONNECT_TIME],
+		[c_cv_have_curlinfo_appconnect_time],
+		AC_LINK_IFELSE([AC_LANG_PROGRAM(
+[[
+#include <curl/curl.h>
+]],
+[[
+int val = CURLINFO_APPCONNECT_TIME;
+return val;
+]]
+			)],
+			[c_cv_have_curlinfo_appconnect_time="yes"],
+			[c_cv_have_curlinfo_appconnect_time="no"]
+		)
+	)
+	CPPFLAGS="$SAVE_CPPFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBCURL, test "x$with_libcurl" = "xyes")
+if test "x$c_cv_have_curlinfo_appconnect_time" = "xyes"
+then
+	AC_DEFINE(HAVE_CURLINFO_APPCONNECT_TIME, 1, [Define if curl.h defines CURLINFO_APPCONNECT_TIME.])
+fi
+
+if test "x$with_libcurl" = "xyes"
+then
 	BUILD_WITH_LIBCURL_CFLAGS="$with_curl_cflags"
 	BUILD_WITH_LIBCURL_LIBS="$with_curl_libs"
 	AC_SUBST(BUILD_WITH_LIBCURL_CFLAGS)
