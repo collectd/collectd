@@ -28,6 +28,7 @@
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
+#include "utils_ssl.h"
 
 #include <curl/curl.h>
 
@@ -607,14 +608,23 @@ static int apache_init (void) /* {{{ */
 {
 	/* Call this while collectd is still single-threaded to avoid
 	 * initialization issues in libgcrypt. */
+	cd_ssl_multithread_setup();
 	curl_global_init (CURL_GLOBAL_SSL);
-	return (0);
+	return 0;
 } /* }}} int apache_init */
+
+static int apache_shutdown (void) /* {{{ */
+{
+        cd_ssl_multithread_cleanup();
+        return (0);
+} /* }}} int apache_shutdown */
+
 
 void module_register (void)
 {
 	plugin_register_complex_config ("apache", config);
 	plugin_register_init ("apache", apache_init);
+	plugin_register_shutdown("apache",apache_shutdown);
 } /* void module_register */
 
 /* vim: set sw=8 noet fdm=marker : */
