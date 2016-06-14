@@ -404,13 +404,13 @@ There are a couple of limitations you should be aware of:
 
 =over 4
 
-=item
+=item *
 
 The I<Type> cannot be left unspecified, because it is not reasonable to add
 apples to oranges. Also, the internal lookup structure won't work if you try
 to group by type.
 
-=item
+=item *
 
 There must be at least one unspecified, ungrouped field. Otherwise nothing
 will be aggregated.
@@ -485,19 +485,19 @@ This will create the files:
 
 =over 4
 
-=item
+=item *
 
 foo.example.com/cpu-even-average/cpu-idle
 
-=item
+=item *
 
 foo.example.com/cpu-even-average/cpu-system
 
-=item
+=item *
 
 foo.example.com/cpu-even-average/cpu-user
 
-=item
+=item *
 
 ...
 
@@ -1407,11 +1407,11 @@ as Jiffies, using the C<cpu> type. Two aggregations are available:
 
 =over 4
 
-=item
+=item *
 
 Sum, per-state, over all CPUs installed in the system; and
 
-=item
+=item *
 
 Sum, per-CPU, over all non-idle states of a CPU, creating an "active" state.
 
@@ -4679,11 +4679,11 @@ Sets the I<command file> to write to. Defaults to F</usr/local/nagios/var/rw/nag
 
 =head2 Plugin C<ntpd>
 
-The C<ntpd> plugin collects per-peer ntpd data such as time offset and time
+The C<ntpd> plugin collects per-peer ntp data such as time offset and time
 dispersion.
 
 For talking to B<ntpd>, it mimics what the B<ntpdc> control program does on
-wire - using B<mode 7> specific requests. This mode is deprecated with
+the wire - using B<mode 7> specific requests. This mode is deprecated with
 newer B<ntpd> releases (4.2.7p230 and later). For the C<ntpd> plugin to work
 correctly with them, the ntp daemon must be explicitly configured to
 enable B<mode 7> (which is disabled by default). Refer to the I<ntp.conf(5)>
@@ -7193,20 +7193,20 @@ The following methods are used to find the machine's UUID, in order:
 
 =over 4
 
-=item
+=item *
 
 Check I</etc/uuid> (or I<UUIDFile>).
 
-=item
+=item *
 
 Check for UUID from HAL (L<http://www.freedesktop.org/wiki/Software/hal>) if
 present.
 
-=item
+=item *
 
 Check for UUID from C<dmidecode> / SMBIOS.
 
-=item
+=item *
 
 Check for UUID from Xen hypervisor.
 
