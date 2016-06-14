@@ -33,7 +33,7 @@ with the plugin:
 
 =over 4
 
-=item
+=item *
 
 E-Mail type (e.g. "ham", "spam", "virus", ...) and size (bytes):
 
@@ -41,13 +41,13 @@ E-Mail type (e.g. "ham", "spam", "virus", ...) and size (bytes):
 
 If C<size> is less than or equal to zero, C<size> is ignored.
 
-=item
+=item *
 
 Spam score:
 
   s:<value>
 
-=item
+=item *
 
 Successful spam checks (e.g. "BAYES_99", "SUBJECT_DRUG_GAP_C", ...):
 
