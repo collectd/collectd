@@ -851,6 +851,10 @@ Prerequisites
     `virt' plugins.
     <http://xmlsoft.org/>
 
+  * libxen (optional)
+    Used by the `xencpu' plugin.
+    <http://xenbits.xensource.com/>
+
   * libxmms (optional)
     <http://www.xmms.org/>
 
