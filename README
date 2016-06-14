@@ -1062,6 +1062,15 @@ Build DPDK for use with collectd:
      - Run ldconfig to update the shared library cache.
 
 Configure collectd with DPDK:
+NOTE: The Address-Space Layout Randomization (ASLR) security feature in Linux should
+	be disabled, in order for the same hugepage memory mappings to be present in all
+	DPDK multi-process applications. Note that this has security implications.
+	To disable ASLR:
+		$ echo 0 > /proc/sys/kernel/randomize_va_space
+	To fully enable ASLR:
+		$ echo 2 > /proc/sys/kernel/randomize_va_space
+	See http://dpdk.org/doc/guides/prog_guide/multi_proc_support.html
+
     - Generate the build script as specified below. (i.e. run `build.sh').
     - Configure collectd with the DPDK library:
        ./configure --with-libdpdk=/usr
