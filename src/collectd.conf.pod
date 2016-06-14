@@ -1361,6 +1361,32 @@ at all, B<all> cgroups are selected.
 
 =back
 
+=head2 Plugin C<chrony>
+
+The C<chrony> plugin collects ntp data from a B<chronyd> server, such as clock
+skew and per-peer stratum.
+
+For talking to B<chronyd>, it mimics what the B<chronyc> control program does
+on the wire.
+
+Available configuration options for the C<chrony> plugin:
+
+=over 4
+
+=item B<Host> I<Hostname>
+
+Hostname of the host running B<chronyd>. Defaults to B<localhost>.
+
+=item B<Port> I<Port>
+
+UDP-Port to connect to. Defaults to B<323>.
+
+=item B<Timeout> I<Timeout>
+
+Connection timeout in seconds. Defaults to B<2>.
+
+=back
+
 =head2 Plugin C<conntrack>
 
 This plugin collects IP conntrack statistics.

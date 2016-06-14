@@ -336,8 +336,9 @@
 #</Plugin>
 
 #<Plugin chrony>
-#	Host "localhost"
-#	Port "323"
+#	Host    "localhost"
+#	Port    "323"
+#	Timeout "2"
 #</Plugin>
 
 #<Plugin cgroups>
