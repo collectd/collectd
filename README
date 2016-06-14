@@ -51,6 +51,9 @@ Features
     - cgroups
       CPU accounting information for process groups under Linux.
 
+    - chrony
+      Chrony daemon statistics: Local clock drift, offset to peers, etc.
+
     - conntrack
       Number of nf_conntrack entries.
 
@@ -385,6 +388,9 @@ Features
     - wireless
       Link quality of wireless cards. Linux only.
 
+    - xencpu
+      XEN Hypervisor CPU stats.
+
     - xmms
       Bitrate and frequency of music played with XMMS.
 
@@ -504,6 +510,9 @@ Features
     - notify_email
       Send an E-mail with the notification message to the configured
       recipients.
+
+    - notify_nagios
+      Submit notifications as passive check results to a local nagios instance.
 
     - exec
       Execute a program or script to handle the notification.
