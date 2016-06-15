@@ -5534,6 +5534,7 @@ plugin_ceph="no"
 plugin_cgroups="no"
 plugin_conntrack="no"
 plugin_contextswitch="no"
+plugin_coretemp="no"
 plugin_cpu="no"
 plugin_cpufreq="no"
 plugin_curl_json="no"
@@ -5584,6 +5585,7 @@ then
 	plugin_cgroups="yes"
 	plugin_conntrack="yes"
 	plugin_contextswitch="yes"
+	plugin_coretemp="yes"
 	plugin_cpu="yes"
 	plugin_cpufreq="yes"
 	plugin_disk="yes"
@@ -5949,6 +5951,7 @@ AC_PLUGIN([cgroups],             [$plugin_cgroups],         [CGroups CPU usage a
 AC_PLUGIN([chrony],              [yes],                     [Chrony statistics])
 AC_PLUGIN([conntrack],           [$plugin_conntrack],       [nf_conntrack statistics])
 AC_PLUGIN([contextswitch],       [$plugin_contextswitch],   [context switch statistics])
+AC_PLUGIN([coretemp],            [$plugin_coretemp],        [Core temperature stats])
 AC_PLUGIN([cpu],                 [$plugin_cpu],             [CPU usage statistics])
 AC_PLUGIN([cpufreq],             [$plugin_cpufreq],         [CPU frequency statistics])
 AC_PLUGIN([csv],                 [yes],                     [CSV output plugin])
@@ -6361,6 +6364,7 @@ Configuration:
     chrony. . . . . . . . $enable_chrony
     conntrack . . . . . . $enable_conntrack
     contextswitch . . . . $enable_contextswitch
+    coretemp  . . . . . . $enable_coretemp
     cpu . . . . . . . . . $enable_cpu
     cpufreq . . . . . . . $enable_cpufreq
     csv . . . . . . . . . $enable_csv
