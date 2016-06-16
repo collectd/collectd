@@ -30,6 +30,117 @@
 #include "plugin.h"
 #include "configfile.h"
 #include "types_list.h"
+#include "utils_avltree.h"
+
+static c_avl_tree_t *data_sets = NULL;
+
+const data_set_t *get_dataset (const char *type)
+{
+  data_set_t *ds = NULL;
+  if (data_sets == NULL)
+  {
+    ERROR ("collectd: No data sets registered. "
+          "Could the types database be read? "
+          "Check your `TypesDB' setting!");
+    return (NULL);
+  }
+
+  c_avl_get (data_sets, type, (void *) &ds);
+  return ds;
+}
+
+void free_datasets ()
+{
+  void *key;
+  void *value;
+
+  if (data_sets == NULL)
+    return;
+
+  while (c_avl_pick (data_sets, &key, &value) == 0)
+  {
+    data_set_t *ds = value;
+    /* key is a pointer to ds->type */
+
+    sfree (ds->ds);
+    sfree (ds);
+  }
+
+  c_avl_destroy (data_sets);
+  data_sets = NULL;
+} /* void free_datasets */
+
+int merge_dataset (data_set_t *ds)
+{
+  data_set_t *current = NULL;
+
+  if (data_sets == NULL)
+    return (-1);
+
+  c_avl_get (data_sets, ds->type, (void *) &current);
+
+  if (current != NULL)
+  {
+    size_t i;
+    int match = 1;
+
+    if (current->ds_num != ds->ds_num)
+    {
+      NOTICE ("New version of DS `%s' has different datasources number. "
+              "Dataset not updated.", ds->type);
+
+      sfree (ds->ds);
+      sfree (ds);
+      return (-1);
+    }
+
+#define double_is_equal(a,b) ((isnan(a) && isnan(b)) || (!isnan(a) && !isnan(b) && (a == b)))
+    for (i = 0; i < ds->ds_num; i++)
+    {
+      if (!double_is_equal(current->ds[i].min, ds->ds[i].min) ||
+          !double_is_equal(current->ds[i].max, ds->ds[i].max) ||
+          (current->ds[i].type != ds->ds[i].type) ||
+          (strcmp(current->ds[i].name, ds->ds[i].name) != 0))
+      {
+        match = 0;
+        break;
+      }
+    }
+#undef double_is_equal
+
+    if (match == 1)
+    {
+      sfree (ds->ds);
+      sfree (ds);
+      return (0);
+    }
+
+    NOTICE ("Updating DS `%s' with another version.", ds->type);
+
+    for (i = 0; i < ds->ds_num; i++)
+    {
+      current->ds[i].min  = ds->ds[i].min;
+      current->ds[i].max  = ds->ds[i].max;
+      current->ds[i].type = ds->ds[i].type;
+
+      sstrncpy (current->ds[i].name, ds->ds[i].name, sizeof (current->ds[i].name));
+    }
+
+    sfree (ds->ds);
+    sfree (ds);
+    return (0);
+  } /* current != NULL */
+
+  if (c_avl_insert (data_sets, (void *) ds->type, (void *) ds) != 0)
+  {
+    ERROR("merge_dataset: c_avl_insert() failed.");
+    sfree (ds->ds);
+    sfree (ds);
+    return (-1);
+  }
+
+  return (0);
+} /* int merge_dataset */
 
 static int parse_ds (data_source_t *dsrc, char *buf, size_t buf_len)
 {
@@ -130,16 +241,13 @@ static void parse_line (char *buf)
     if (parse_ds (ds->ds + i, fields[i + 1], strlen (fields[i + 1])) != 0)
     {
       ERROR ("types_list: parse_line: Cannot parse data source #%zu "
-	  "of data set %s", i, ds->type);
+             "of data set %s", i, ds->type);
       sfree (ds->ds);
       sfree (ds);
       return;
     }
 
-  plugin_register_data_set (ds);
-
-  sfree (ds->ds);
-  sfree (ds);
+  merge_dataset(ds);
 } /* void parse_line */
 
 static void parse_file (FILE *fh)
@@ -177,7 +285,7 @@ static void parse_file (FILE *fh)
   } /* while (fgets) */
 } /* void parse_file */
 
-int read_types_list (const char *file)
+static int read_types (const char *file)
 {
   FILE *fh;
 
@@ -203,7 +311,31 @@ int read_types_list (const char *file)
   DEBUG ("Done parsing `%s'", file);
 
   return (0);
-} /* int read_types_list */
+} /* static int read_types */
+
+int reload_typesdb (void) {
+  size_t i;
+
+  assert (conf_typesdb_num != 0);
+
+  if (data_sets == NULL)
+  {
+    data_sets = c_avl_create ((int (*) (const void *, const void *)) strcmp);
+    if (data_sets == NULL)
+    {
+      ERROR ("configfile: c_avl_create failed.");
+      return (-1);
+    }
+  }
+
+  for (i = 0; i < conf_typesdb_num; i++)
+  {
+    if (read_types (conf_typesdb[i]) != 0)
+      return (-1);
+  }
+
+  return (0);
+} /* int reload_typesdb */
 
 /*
  * vim: shiftwidth=2:softtabstop=2:tabstop=8

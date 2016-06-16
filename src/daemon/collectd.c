@@ -30,6 +30,7 @@
 
 #include "plugin.h"
 #include "configfile.h"
+#include "types_list.h"
 
 #include <sys/types.h>
 #include <sys/un.h>
@@ -93,6 +94,14 @@ static void sig_usr1_handler (int __attribute__((unused)) signal)
 	pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
 	pthread_create (&thread, &attr, do_flush, NULL);
 	pthread_attr_destroy (&attr);
+}
+
+static void sig_hup_handler (int __attribute__((unused)) signal) 
+{
+	if (reload_typesdb() == 0)
+		INFO("Types database reloaded by HUP signal.");
+	else
+		INFO("Types database reload failed.");
 }
 
 static int init_hostname (void)
@@ -514,6 +523,7 @@ int main (int argc, char **argv)
 	struct sigaction sig_int_action;
 	struct sigaction sig_term_action;
 	struct sigaction sig_usr1_action;
+	struct sigaction sig_hup_action;
 	struct sigaction sig_pipe_action;
 	const char *configfile = CONFIGFILE;
 	int test_config  = 0;
@@ -721,6 +731,15 @@ int main (int argc, char **argv)
 		return (1);
 	}
 
+	memset (&sig_hup_action, '\0', sizeof (sig_hup_action));
+	sig_hup_action.sa_handler = sig_hup_handler;
+	if (0 != sigaction (SIGHUP, &sig_hup_action, NULL)) {
+		char errbuf[1024];
+		ERROR ("Error: Failed to install a signal handler for signal HUP: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (1);
+	}
+
 	/*
 	 * run the actual loops
 	 */
@@ -752,6 +771,8 @@ int main (int argc, char **argv)
 		ERROR ("Error: one or more plugin shutdown callbacks failed.");
 		exit_status = 1;
 	}
+
+	free_datasets();
 
 #if COLLECT_DAEMON
 	if (daemonize)
