@@ -21,10 +21,10 @@
 
 #include "bson-compat.h"
 
-#include <yajl/yajl_common.h>
+#include <yajl/stackdriver_yajl_common.h>
 
-#ifndef __YAJL_PARSE_H__
-#define __YAJL_PARSE_H__
+#ifndef __STACKDRIVER_YAJL_PARSE_H__
+#define __STACKDRIVER_YAJL_PARSE_H__
 
 #include <stddef.h>
 
@@ -43,7 +43,7 @@ extern "C" {
     } yajl_status;
 
     /** attain a human readable, english, string for an error */
-    YAJL_API const char * yajl_status_to_string(yajl_status code);
+    YAJL_API const char * stackdriver_yajl_status_to_string(yajl_status code);
 
     /** an opaque handle to a parser */
     typedef struct yajl_handle_t * yajl_handle;
@@ -106,7 +106,7 @@ extern "C" {
      *                    C runtime library routines (malloc and friends)
      *  \param ctx        a context pointer that will be passed to callbacks.
      */
-    YAJL_API yajl_handle yajl_alloc(const yajl_callbacks * callbacks,
+    YAJL_API yajl_handle stackdriver_yajl_alloc(const yajl_callbacks * callbacks,
                                     yajl_alloc_funcs * afs,
                                     void * ctx);
 
@@ -165,17 +165,17 @@ extern "C" {
      *  allocation (via yajl_alloc)
      *  \returns zero in case of errors, non-zero otherwise
      */
-    YAJL_API int yajl_config(yajl_handle h, yajl_option opt, ...);
+    YAJL_API int stackdriver_yajl_config(yajl_handle h, yajl_option opt, ...);
 
     /** free a parser handle */
-    YAJL_API void yajl_free(yajl_handle handle);
+    YAJL_API void stackdriver_yajl_free(yajl_handle handle);
 
     /** Parse some json!
      *  \param hand - a handle to the json parser allocated with yajl_alloc
      *  \param jsonText - a pointer to the UTF8 json text to be parsed
      *  \param jsonTextLength - the length, in bytes, of input text
      */
-    YAJL_API yajl_status yajl_parse(yajl_handle hand,
+    YAJL_API yajl_status stackdriver_yajl_parse(yajl_handle hand,
                                     const unsigned char * jsonText,
                                     size_t jsonTextLength);
 
@@ -188,7 +188,7 @@ extern "C" {
      *
      *  \param hand - a handle to the json parser allocated with yajl_alloc
      */
-    YAJL_API yajl_status yajl_complete_parse(yajl_handle hand);
+    YAJL_API yajl_status stackdriver_yajl_complete_parse(yajl_handle hand);
 
     /** get an error string describing the state of the
      *  parse.
@@ -200,7 +200,7 @@ extern "C" {
      *  \returns A dynamically allocated string will be returned which should
      *  be freed with yajl_free_error
      */
-    YAJL_API unsigned char * yajl_get_error(yajl_handle hand, int verbose,
+    YAJL_API unsigned char * stackdriver_yajl_get_error(yajl_handle hand, int verbose,
                                             const unsigned char * jsonText,
                                             size_t jsonTextLength);
 
@@ -216,10 +216,10 @@ extern "C" {
      * chunk where the error occured.  0 will be returned if no error
      * was encountered.
      */
-    YAJL_API size_t yajl_get_bytes_consumed(yajl_handle hand);
+    YAJL_API size_t stackdriver_yajl_get_bytes_consumed(yajl_handle hand);
 
     /** free an error returned from yajl_get_error */
-    YAJL_API void yajl_free_error(yajl_handle hand, unsigned char * str);
+    YAJL_API void stackdriver_yajl_free_error(yajl_handle hand, unsigned char * str);
 
 #ifdef __cplusplus
 }

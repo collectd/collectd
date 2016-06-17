@@ -14,15 +14,15 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef __YAJL_PARSER_H__
-#define __YAJL_PARSER_H__
+#ifndef __STACKDRIVER_YAJL_PARSER_H__
+#define __STACKDRIVER_YAJL_PARSER_H__
 
 #include "bson-compat.h"
 
-#include "yajl_parse.h"
-#include "yajl_bytestack.h"
-#include "yajl_buf.h"
-#include "yajl_lex.h"
+#include "stackdriver_yajl_parse.h"
+#include "stackdriver_yajl_bytestack.h"
+#include "stackdriver_yajl_buf.h"
+#include "stackdriver_yajl_lex.h"
 
 
 typedef enum {
@@ -61,20 +61,20 @@ struct yajl_handle_t {
 };
 
 yajl_status
-yajl_do_parse(yajl_handle handle, const unsigned char * jsonText,
+stackdriver_yajl_do_parse(yajl_handle handle, const unsigned char * jsonText,
               size_t jsonTextLen);
 
 yajl_status
-yajl_do_finish(yajl_handle handle);
+stackdriver_yajl_do_finish(yajl_handle handle);
 
 unsigned char *
-yajl_render_error_string(yajl_handle hand, const unsigned char * jsonText,
+stackdriver_yajl_render_error_string(yajl_handle hand, const unsigned char * jsonText,
                          size_t jsonTextLen, int verbose);
 
 /* A little built in integer parsing routine with the same semantics as strtol
  * that's unaffected by LOCALE. */
 int64_t
-yajl_parse_integer(const unsigned char *number, unsigned int length);
+stackdriver_yajl_parse_integer(const unsigned char *number, unsigned int length);
 
 
 #endif

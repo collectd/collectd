@@ -14,8 +14,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "yajl_lex.h"
-#include "yajl_buf.h"
+#include "stackdriver_yajl_lex.h"
+#include "stackdriver_yajl_buf.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -94,19 +94,19 @@ struct yajl_lexer_t {
 };
 
 #define readChar(lxr, txt, off)                      \
-    (((lxr)->bufInUse && yajl_buf_len((lxr)->buf) && lxr->bufOff < yajl_buf_len((lxr)->buf)) ? \
-     (*((const unsigned char *) yajl_buf_data((lxr)->buf) + ((lxr)->bufOff)++)) : \
+    (((lxr)->bufInUse && stackdriver_yajl_buf_len((lxr)->buf) && lxr->bufOff < stackdriver_yajl_buf_len((lxr)->buf)) ? \
+     (*((const unsigned char *) stackdriver_yajl_buf_data((lxr)->buf) + ((lxr)->bufOff)++)) : \
      ((txt)[(*(off))++]))
 
 #define unreadChar(lxr, off) ((*(off) > 0) ? (*(off))-- : ((lxr)->bufOff--))
 
 yajl_lexer
-yajl_lex_alloc(yajl_alloc_funcs * alloc,
+stackdriver_yajl_lex_alloc(yajl_alloc_funcs * alloc,
                unsigned int allowComments, unsigned int validateUTF8)
 {
     yajl_lexer lxr = (yajl_lexer) YA_MALLOC(alloc, sizeof(struct yajl_lexer_t));
     memset((void *) lxr, 0, sizeof(struct yajl_lexer_t));
-    lxr->buf = yajl_buf_alloc(alloc);
+    lxr->buf = stackdriver_yajl_buf_alloc(alloc);
     lxr->allowComments = allowComments;
     lxr->validateUTF8 = validateUTF8;
     lxr->alloc = alloc;
@@ -114,9 +114,9 @@ yajl_lex_alloc(yajl_alloc_funcs * alloc,
 }
 
 void
-yajl_lex_free(yajl_lexer lxr)
+stackdriver_yajl_lex_free(yajl_lexer lxr)
 {
-    yajl_buf_free(lxr->buf);
+    stackdriver_yajl_buf_free(lxr->buf);
     YA_FREE(lxr->alloc, lxr);
     return;
 }
@@ -192,7 +192,7 @@ static const char charLookupTable[256] =
 #define UTF8_CHECK_EOF if (*offset >= jsonTextLen) { return yajl_tok_eof; }
 
 static yajl_tok
-yajl_lex_utf8_char(yajl_lexer lexer, const unsigned char * jsonText,
+stackdriver_yajl_lex_utf8_char(yajl_lexer lexer, const unsigned char * jsonText,
                    size_t jsonTextLen, size_t * offset,
                    unsigned char curChar)
 {
@@ -252,7 +252,7 @@ if (*offset >= jsonTextLen) { \
  *  be skipped.
  * (lth) hi world, any thoughts on how to make this routine faster? */
 static size_t
-yajl_string_scan(const unsigned char * buf, size_t len, int utf8check)
+stackdriver_yajl_string_scan(const unsigned char * buf, size_t len, int utf8check)
 {
     unsigned char mask = IJC|NFP|(utf8check ? NUC : 0);
     size_t skip = 0;
@@ -265,7 +265,7 @@ yajl_string_scan(const unsigned char * buf, size_t len, int utf8check)
 }
 
 static yajl_tok
-yajl_lex_string(yajl_lexer lexer, const unsigned char * jsonText,
+stackdriver_yajl_lex_string(yajl_lexer lexer, const unsigned char * jsonText,
                 size_t jsonTextLen, size_t * offset)
 {
     yajl_tok tok = yajl_tok_error;
@@ -280,19 +280,19 @@ yajl_lex_string(yajl_lexer lexer, const unsigned char * jsonText,
             const unsigned char * p;
             size_t len;
             
-            if ((lexer->bufInUse && yajl_buf_len(lexer->buf) &&
-                 lexer->bufOff < yajl_buf_len(lexer->buf)))
+            if ((lexer->bufInUse && stackdriver_yajl_buf_len(lexer->buf) &&
+                 lexer->bufOff < stackdriver_yajl_buf_len(lexer->buf)))
             {
-                p = ((const unsigned char *) yajl_buf_data(lexer->buf) +
+                p = ((const unsigned char *) stackdriver_yajl_buf_data(lexer->buf) +
                      (lexer->bufOff));
-                len = yajl_buf_len(lexer->buf) - lexer->bufOff;
-                lexer->bufOff += yajl_string_scan(p, len, lexer->validateUTF8);
+                len = stackdriver_yajl_buf_len(lexer->buf) - lexer->bufOff;
+                lexer->bufOff += stackdriver_yajl_string_scan(p, len, lexer->validateUTF8);
             }                
             else if (*offset < jsonTextLen) 
             {
                 p = jsonText + *offset;
                 len = jsonTextLen - *offset;
-                *offset += yajl_string_scan(p, len, lexer->validateUTF8);
+                *offset += stackdriver_yajl_string_scan(p, len, lexer->validateUTF8);
             }
         }
 
@@ -342,7 +342,7 @@ yajl_lex_string(yajl_lexer lexer, const unsigned char * jsonText,
         }
         /* when in validate UTF8 mode we need to do some extra work */
         else if (lexer->validateUTF8) {
-            yajl_tok t = yajl_lex_utf8_char(lexer, jsonText, jsonTextLen,
+            yajl_tok t = stackdriver_yajl_lex_utf8_char(lexer, jsonText, jsonTextLen,
                                             offset, curChar);
             
             if (t == yajl_tok_eof) {
@@ -368,7 +368,7 @@ yajl_lex_string(yajl_lexer lexer, const unsigned char * jsonText,
 #define RETURN_IF_EOF if (*offset >= jsonTextLen) return yajl_tok_eof;
 
 static yajl_tok
-yajl_lex_number(yajl_lexer lexer, const unsigned char * jsonText,
+stackdriver_yajl_lex_number(yajl_lexer lexer, const unsigned char * jsonText,
                 size_t jsonTextLen, size_t * offset)
 {
     /** XXX: numbers are the only entities in json that we must lex
@@ -455,7 +455,7 @@ yajl_lex_number(yajl_lexer lexer, const unsigned char * jsonText,
 }
 
 static yajl_tok
-yajl_lex_comment(yajl_lexer lexer, const unsigned char * jsonText,
+stackdriver_yajl_lex_comment(yajl_lexer lexer, const unsigned char * jsonText,
                  size_t jsonTextLen, size_t * offset)
 {
     unsigned char c;
@@ -496,7 +496,7 @@ yajl_lex_comment(yajl_lexer lexer, const unsigned char * jsonText,
 }
 
 yajl_tok
-yajl_lex_lex(yajl_lexer lexer, const unsigned char * jsonText,
+stackdriver_yajl_lex_lex(yajl_lexer lexer, const unsigned char * jsonText,
              size_t jsonTextLen, size_t * offset,
              const unsigned char ** outBuf, size_t * outLen)
 {
@@ -594,7 +594,7 @@ yajl_lex_lex(yajl_lexer lexer, const unsigned char * jsonText,
                 goto lexed;
             }
             case '"': {
-                tok = yajl_lex_string(lexer, (const unsigned char *) jsonText,
+                tok = stackdriver_yajl_lex_string(lexer, (const unsigned char *) jsonText,
                                       jsonTextLen, offset);
                 goto lexed;
             }
@@ -603,7 +603,7 @@ yajl_lex_lex(yajl_lexer lexer, const unsigned char * jsonText,
             case '5': case '6': case '7': case '8': case '9': {
                 /* integer parsing wants to start from the beginning */
                 unreadChar(lexer, offset);
-                tok = yajl_lex_number(lexer, (const unsigned char *) jsonText,
+                tok = stackdriver_yajl_lex_number(lexer, (const unsigned char *) jsonText,
                                       jsonTextLen, offset);
                 goto lexed;
             }
@@ -622,13 +622,13 @@ yajl_lex_lex(yajl_lexer lexer, const unsigned char * jsonText,
                  * - malformed comment opening (slash not followed by
                  *   '*' or '/') (tok_error)
                  * - eof hit. (tok_eof) */
-                tok = yajl_lex_comment(lexer, (const unsigned char *) jsonText,
+                tok = stackdriver_yajl_lex_comment(lexer, (const unsigned char *) jsonText,
                                        jsonTextLen, offset);
                 if (tok == yajl_tok_comment) {
                     /* "error" is silly, but that's the initial
                      * state of tok.  guilty until proven innocent. */  
                     tok = yajl_tok_error;
-                    yajl_buf_clear(lexer->buf);
+                    stackdriver_yajl_buf_clear(lexer->buf);
                     lexer->bufInUse = 0;
                     startOffset = *offset; 
                     break;
@@ -647,14 +647,14 @@ yajl_lex_lex(yajl_lexer lexer, const unsigned char * jsonText,
     /* need to append to buffer if the buffer is in use or
      * if it's an EOF token */
     if (tok == yajl_tok_eof || lexer->bufInUse) {
-        if (!lexer->bufInUse) yajl_buf_clear(lexer->buf);
+        if (!lexer->bufInUse) stackdriver_yajl_buf_clear(lexer->buf);
         lexer->bufInUse = 1;
-        yajl_buf_append(lexer->buf, jsonText + startOffset, *offset - startOffset);
+        stackdriver_yajl_buf_append(lexer->buf, jsonText + startOffset, *offset - startOffset);
         lexer->bufOff = 0;
         
         if (tok != yajl_tok_eof) {
-            *outBuf = yajl_buf_data(lexer->buf);
-            *outLen = yajl_buf_len(lexer->buf);
+            *outBuf = stackdriver_yajl_buf_data(lexer->buf);
+            *outLen = stackdriver_yajl_buf_len(lexer->buf);
             lexer->bufInUse = 0;
         }
     } else if (tok != yajl_tok_error) {
@@ -688,7 +688,7 @@ yajl_lex_lex(yajl_lexer lexer, const unsigned char * jsonText,
 }
 
 const char *
-yajl_lex_error_to_string(yajl_lex_error error)
+stackdriver_yajl_lex_error_to_string(yajl_lex_error error)
 {
     switch (error) {
         case yajl_lex_e_ok:
@@ -726,38 +726,38 @@ yajl_lex_error_to_string(yajl_lex_error error)
 /** allows access to more specific information about the lexical
  *  error when yajl_lex_lex returns yajl_tok_error. */
 yajl_lex_error
-yajl_lex_get_error(yajl_lexer lexer)
+stackdriver_yajl_lex_get_error(yajl_lexer lexer)
 {
     if (lexer == NULL) return (yajl_lex_error) -1;
     return lexer->error;
 }
 
-size_t yajl_lex_current_line(yajl_lexer lexer)
+size_t stackdriver_yajl_lex_current_line(yajl_lexer lexer)
 {
     return lexer->lineOff;
 }
 
-size_t yajl_lex_current_char(yajl_lexer lexer)
+size_t stackdriver_yajl_lex_current_char(yajl_lexer lexer)
 {
     return lexer->charOff;
 }
 
-yajl_tok yajl_lex_peek(yajl_lexer lexer, const unsigned char * jsonText,
+yajl_tok stackdriver_yajl_lex_peek(yajl_lexer lexer, const unsigned char * jsonText,
                        size_t jsonTextLen, size_t offset)
 {
     const unsigned char * outBuf;
     size_t outLen;
-    size_t bufLen = yajl_buf_len(lexer->buf);
+    size_t bufLen = stackdriver_yajl_buf_len(lexer->buf);
     size_t bufOff = lexer->bufOff;
     unsigned int bufInUse = lexer->bufInUse;
     yajl_tok tok;
     
-    tok = yajl_lex_lex(lexer, jsonText, jsonTextLen, &offset,
+    tok = stackdriver_yajl_lex_lex(lexer, jsonText, jsonTextLen, &offset,
                        &outBuf, &outLen);
 
     lexer->bufOff = bufOff;
     lexer->bufInUse = bufInUse;
-    yajl_buf_truncate(lexer->buf, bufLen);
+    stackdriver_yajl_buf_truncate(lexer->buf, bufLen);
     
     return tok;
 }

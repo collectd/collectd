@@ -26,8 +26,8 @@
 #include "bson-iso8601-private.h"
 #include "b64_pton.h"
 
-#include <yajl/yajl_parser.h>
-#include <yajl/yajl_bytestack.h>
+#include <yajl/stackdriver_yajl_parser.h>
+#include <yajl/stackdriver_yajl_bytestack.h>
 
 #ifdef _WIN32
 # include <io.h>
@@ -986,19 +986,19 @@ _bson_json_read_parse_error (bson_json_reader_t *reader, /* IN */
       r = 0;
    } else {
       if (error) {
-         str = yajl_get_error (yh, 1, p->buf + p->bytes_parsed,
+         str = stackdriver_yajl_get_error (yh, 1, p->buf + p->bytes_parsed,
                                p->bytes_read - p->bytes_parsed);
          bson_set_error (error,
                          BSON_ERROR_JSON,
                          BSON_JSON_ERROR_READ_CORRUPT_JS,
                          "%s", str);
-         yajl_free_error (yh, str);
+         stackdriver_yajl_free_error (yh, str);
       }
 
       r = -1;
    }
 
-   p->bytes_parsed += yajl_get_bytes_consumed (yh);
+   p->bytes_parsed += stackdriver_yajl_get_bytes_consumed (yh);
 
    yh->stateStack.used = 0;
    yajl_bs_push (yh->stateStack, yajl_state_start);
@@ -1089,7 +1089,7 @@ bson_json_reader_read (bson_json_reader_t *reader, /* IN */
                (char *)(p->buf + p->bytes_parsed));
          }
 
-         ys = yajl_parse (yh, p->buf + p->bytes_parsed, r);
+         ys = stackdriver_yajl_parse (yh, p->buf + p->bytes_parsed, r);
 
          if (ys != yajl_status_ok) {
             ret = _bson_json_read_parse_error (reader, ys, error);
@@ -1099,7 +1099,7 @@ bson_json_reader_read (bson_json_reader_t *reader, /* IN */
    }
 
    if (read_something) {
-      ys = yajl_complete_parse (yh);
+      ys = stackdriver_yajl_complete_parse (yh);
 
       if (ys != yajl_status_ok) {
          ret = _bson_json_read_parse_error (reader, ys, error);
@@ -1133,9 +1133,9 @@ bson_json_reader_new (void                 *data,           /* IN */
    p->buf_size = buf_size ? buf_size : BSON_JSON_DEFAULT_BUF_SIZE;
    p->buf = bson_malloc (p->buf_size);
 
-   r->yh = yajl_alloc (&read_cbs, &gYajlAllocFuncs, r);
+   r->yh = stackdriver_yajl_alloc (&read_cbs, &gYajlAllocFuncs, r);
 
-   yajl_config (r->yh,
+   stackdriver_yajl_config (r->yh,
                 yajl_dont_validate_strings |
                 (allow_multiple ?  yajl_allow_multiple_values : 0)
                 , 1);
@@ -1162,7 +1162,7 @@ bson_json_reader_destroy (bson_json_reader_t *reader) /* IN */
       bson_free (b->bson_type_buf[i].buf);
    }
 
-   yajl_free (reader->yh);
+   stackdriver_yajl_free (reader->yh);
 
    bson_free (reader);
 }

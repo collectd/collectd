@@ -14,21 +14,21 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef __YAJL_ENCODE_H__
-#define __YAJL_ENCODE_H__
+/**
+ * \file yajl_alloc.h
+ * default memory allocation routines for yajl which use malloc/realloc and
+ * free
+ */
 
-#include "yajl_buf.h"
-#include "yajl_gen.h"
+#ifndef __STACKDRIVER_YAJL_ALLOC_H__
+#define __STACKDRIVER_YAJL_ALLOC_H__
 
-void yajl_string_encode(const yajl_print_t printer,
-                        void * ctx,
-                        const unsigned char * str,
-                        size_t length,
-                        int escape_solidus);
+#include "stackdriver_yajl_common.h"
 
-void yajl_string_decode(yajl_buf buf, const unsigned char * str,
-                        size_t length);
+#define YA_MALLOC(afs, sz) (afs)->malloc((afs)->ctx, (sz))
+#define YA_FREE(afs, ptr) (afs)->free((afs)->ctx, (ptr))
+#define YA_REALLOC(afs, ptr, sz) (afs)->realloc((afs)->ctx, (ptr), (sz))
 
-int yajl_string_validate_utf8(const unsigned char * s, size_t len);
+void stackdriver_yajl_set_default_alloc_funcs(yajl_alloc_funcs * yaf);
 
 #endif

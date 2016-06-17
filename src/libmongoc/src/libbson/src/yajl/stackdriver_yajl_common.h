@@ -14,8 +14,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef __YAJL_COMMON_H__
-#define __YAJL_COMMON_H__
+#ifndef __STACKDRIVER_YAJL_COMMON_H__
+#define __STACKDRIVER_YAJL_COMMON_H__
 
 #include <stddef.h>
 

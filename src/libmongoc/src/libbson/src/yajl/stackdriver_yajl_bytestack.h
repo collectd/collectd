@@ -19,10 +19,10 @@
  * to maintain parse state.
  */
 
-#ifndef __YAJL_BYTESTACK_H__
-#define __YAJL_BYTESTACK_H__
+#ifndef __STACKDRIVER_YAJL_BYTESTACK_H__
+#define __STACKDRIVER_YAJL_BYTESTACK_H__
 
-#include "yajl_common.h"
+#include "stackdriver_yajl_common.h"
 
 #define YAJL_BS_INC 128
 

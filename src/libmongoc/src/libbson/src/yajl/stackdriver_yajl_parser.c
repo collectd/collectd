@@ -14,11 +14,11 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "yajl_parse.h"
-#include "yajl_lex.h"
-#include "yajl_parser.h"
-#include "yajl_encode.h"
-#include "yajl_bytestack.h"
+#include "stackdriver_yajl_parse.h"
+#include "stackdriver_yajl_lex.h"
+#include "stackdriver_yajl_parser.h"
+#include "stackdriver_yajl_encode.h"
+#include "stackdriver_yajl_bytestack.h"
 
 #include <stdlib.h>
 #include <limits.h>
@@ -33,7 +33,7 @@
 
  /* same semantics as strtol */
 int64_t
-yajl_parse_integer(const unsigned char *number, unsigned int length)
+stackdriver_yajl_parse_integer(const unsigned char *number, unsigned int length)
 {
     int64_t ret  = 0;
     long sign = 1;
@@ -62,7 +62,7 @@ yajl_parse_integer(const unsigned char *number, unsigned int length)
 }
 
 unsigned char *
-yajl_render_error_string(yajl_handle hand, const unsigned char * jsonText,
+stackdriver_yajl_render_error_string(yajl_handle hand, const unsigned char * jsonText,
                          size_t jsonTextLen, int verbose)
 {
     size_t offset = hand->bytesConsumed;
@@ -77,7 +77,7 @@ yajl_render_error_string(yajl_handle hand, const unsigned char * jsonText,
         errorText = hand->parseError;
     } else if (yajl_bs_current(hand->stateStack) == yajl_state_lexical_error) {
         errorType = "lexical";
-        errorText = yajl_lex_error_to_string(yajl_lex_get_error(hand->lexer));
+        errorText = stackdriver_yajl_lex_error_to_string(stackdriver_yajl_lex_get_error(hand->lexer));
     } else {
         errorType = "unknown";
     }
@@ -156,10 +156,10 @@ yajl_render_error_string(yajl_handle hand, const unsigned char * jsonText,
 
 
 yajl_status
-yajl_do_finish(yajl_handle hand)
+stackdriver_yajl_do_finish(yajl_handle hand)
 {
     yajl_status stat;
-    stat = yajl_do_parse(hand,(const unsigned char *) " ",1);
+    stat = stackdriver_yajl_do_parse(hand,(const unsigned char *) " ",1);
 
     if (stat != yajl_status_ok) return stat;
 
@@ -183,7 +183,7 @@ yajl_do_finish(yajl_handle hand)
 }
 
 yajl_status
-yajl_do_parse(yajl_handle hand, const unsigned char * jsonText,
+stackdriver_yajl_do_parse(yajl_handle hand, const unsigned char * jsonText,
               size_t jsonTextLen)
 {
     yajl_tok tok;
@@ -202,7 +202,7 @@ yajl_do_parse(yajl_handle hand, const unsigned char * jsonText,
             }
             if (!(hand->flags & yajl_allow_trailing_garbage)) {
                 if (*offset != jsonTextLen) {
-                    tok = yajl_lex_lex(hand->lexer, jsonText, jsonTextLen,
+                    tok = stackdriver_yajl_lex_lex(hand->lexer, jsonText, jsonTextLen,
                                        offset, &buf, &bufLen);
                     if (tok != yajl_tok_eof) {
                         yajl_bs_set(hand->stateStack, yajl_state_parse_error);
@@ -229,7 +229,7 @@ yajl_do_parse(yajl_handle hand, const unsigned char * jsonText,
 
             yajl_state stateToPush = yajl_state_start;
 
-            tok = yajl_lex_lex(hand->lexer, jsonText, jsonTextLen,
+            tok = stackdriver_yajl_lex_lex(hand->lexer, jsonText, jsonTextLen,
                                offset, &buf, &bufLen);
 
             switch (tok) {
@@ -246,11 +246,11 @@ yajl_do_parse(yajl_handle hand, const unsigned char * jsonText,
                     break;
                 case yajl_tok_string_with_escapes:
                     if (hand->callbacks && hand->callbacks->yajl_string) {
-                        yajl_buf_clear(hand->decodeBuf);
-                        yajl_string_decode(hand->decodeBuf, buf, bufLen);
+                        stackdriver_yajl_buf_clear(hand->decodeBuf);
+                        stackdriver_yajl_string_decode(hand->decodeBuf, buf, bufLen);
                         _CC_CHK(hand->callbacks->yajl_string(
-                                    hand->ctx, yajl_buf_data(hand->decodeBuf),
-                                    yajl_buf_len(hand->decodeBuf)));
+                                    hand->ctx, stackdriver_yajl_buf_data(hand->decodeBuf),
+                                    stackdriver_yajl_buf_len(hand->decodeBuf)));
                     }
                     break;
                 case yajl_tok_bool:
@@ -284,7 +284,7 @@ yajl_do_parse(yajl_handle hand, const unsigned char * jsonText,
                         } else if (hand->callbacks->yajl_integer) {
                             int64_t i = 0;
                             errno = 0;
-                            i = yajl_parse_integer(buf, (unsigned int)bufLen);
+                            i = stackdriver_yajl_parse_integer(buf, (unsigned int)bufLen);
                             if ((i == INT64_MIN || i == INT64_MAX) &&
                                 errno == ERANGE)
                             {
@@ -308,9 +308,9 @@ yajl_do_parse(yajl_handle hand, const unsigned char * jsonText,
                                         hand->ctx, (const char *) buf, bufLen));
                         } else if (hand->callbacks->yajl_double) {
                             double d = 0.0;
-                            yajl_buf_clear(hand->decodeBuf);
-                            yajl_buf_append(hand->decodeBuf, buf, bufLen);
-                            buf = yajl_buf_data(hand->decodeBuf);
+                            stackdriver_yajl_buf_clear(hand->decodeBuf);
+                            stackdriver_yajl_buf_append(hand->decodeBuf, buf, bufLen);
+                            buf = stackdriver_yajl_buf_data(hand->decodeBuf);
                             errno = 0;
                             d = strtod((char *) buf, NULL);
                             if ((d == HUGE_VAL || d == -HUGE_VAL) &&
@@ -378,7 +378,7 @@ yajl_do_parse(yajl_handle hand, const unsigned char * jsonText,
             /* only difference between these two states is that in
              * start '}' is valid, whereas in need_key, we've parsed
              * a comma, and a string key _must_ follow */
-            tok = yajl_lex_lex(hand->lexer, jsonText, jsonTextLen,
+            tok = stackdriver_yajl_lex_lex(hand->lexer, jsonText, jsonTextLen,
                                offset, &buf, &bufLen);
             switch (tok) {
                 case yajl_tok_eof:
@@ -388,10 +388,10 @@ yajl_do_parse(yajl_handle hand, const unsigned char * jsonText,
                     goto around_again;
                 case yajl_tok_string_with_escapes:
                     if (hand->callbacks && hand->callbacks->yajl_map_key) {
-                        yajl_buf_clear(hand->decodeBuf);
-                        yajl_string_decode(hand->decodeBuf, buf, bufLen);
-                        buf = yajl_buf_data(hand->decodeBuf);
-                        bufLen = yajl_buf_len(hand->decodeBuf);
+                        stackdriver_yajl_buf_clear(hand->decodeBuf);
+                        stackdriver_yajl_string_decode(hand->decodeBuf, buf, bufLen);
+                        buf = stackdriver_yajl_buf_data(hand->decodeBuf);
+                        bufLen = stackdriver_yajl_buf_len(hand->decodeBuf);
                     }
                     /* intentional fall-through */
                 case yajl_tok_string:
@@ -419,7 +419,7 @@ yajl_do_parse(yajl_handle hand, const unsigned char * jsonText,
             }
         }
         case yajl_state_map_sep: {
-            tok = yajl_lex_lex(hand->lexer, jsonText, jsonTextLen,
+            tok = stackdriver_yajl_lex_lex(hand->lexer, jsonText, jsonTextLen,
                                offset, &buf, &bufLen);
             switch (tok) {
                 case yajl_tok_colon:
@@ -438,7 +438,7 @@ yajl_do_parse(yajl_handle hand, const unsigned char * jsonText,
             }
         }
         case yajl_state_map_got_val: {
-            tok = yajl_lex_lex(hand->lexer, jsonText, jsonTextLen,
+            tok = stackdriver_yajl_lex_lex(hand->lexer, jsonText, jsonTextLen,
                                offset, &buf, &bufLen);
             switch (tok) {
                 case yajl_tok_right_bracket:
@@ -466,7 +466,7 @@ yajl_do_parse(yajl_handle hand, const unsigned char * jsonText,
             }
         }
         case yajl_state_array_got_val: {
-            tok = yajl_lex_lex(hand->lexer, jsonText, jsonTextLen,
+            tok = stackdriver_yajl_lex_lex(hand->lexer, jsonText, jsonTextLen,
                                offset, &buf, &bufLen);
             switch (tok) {
                 case yajl_tok_right_brace:

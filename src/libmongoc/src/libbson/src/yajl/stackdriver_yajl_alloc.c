@@ -20,15 +20,30 @@
  * free
  */
 
-#ifndef __YAJL_ALLOC_H__
-#define __YAJL_ALLOC_H__
+#include "stackdriver_yajl_alloc.h"
+#include <stdlib.h>
 
-#include "yajl_common.h"
+static void * stackdriver_yajl_internal_malloc(void *ctx, size_t sz)
+{
+    return malloc(sz);
+}
 
-#define YA_MALLOC(afs, sz) (afs)->malloc((afs)->ctx, (sz))
-#define YA_FREE(afs, ptr) (afs)->free((afs)->ctx, (ptr))
-#define YA_REALLOC(afs, ptr, sz) (afs)->realloc((afs)->ctx, (ptr), (sz))
+static void * stackdriver_yajl_internal_realloc(void *ctx, void * previous,
+                                    size_t sz)
+{
+    return realloc(previous, sz);
+}
 
-void yajl_set_default_alloc_funcs(yajl_alloc_funcs * yaf);
+static void stackdriver_yajl_internal_free(void *ctx, void * ptr)
+{
+    free(ptr);
+}
 
-#endif
+void stackdriver_yajl_set_default_alloc_funcs(yajl_alloc_funcs * yaf)
+{
+    yaf->malloc = stackdriver_yajl_internal_malloc;
+    yaf->free = stackdriver_yajl_internal_free;
+    yaf->realloc = stackdriver_yajl_internal_realloc;
+    yaf->ctx = NULL;
+}
+

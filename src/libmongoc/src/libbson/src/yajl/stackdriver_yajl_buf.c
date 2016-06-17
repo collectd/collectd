@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "yajl_buf.h"
+#include "stackdriver_yajl_buf.h"
 
 #include <assert.h>
 #include <stdlib.h>
@@ -30,7 +30,7 @@ struct yajl_buf_t {
 };
 
 static
-void yajl_buf_ensure_available(yajl_buf buf, size_t want)
+void stackdriver_yajl_buf_ensure_available(yajl_buf buf, size_t want)
 {
     size_t need;
     
@@ -53,7 +53,7 @@ void yajl_buf_ensure_available(yajl_buf buf, size_t want)
     }
 }
 
-yajl_buf yajl_buf_alloc(yajl_alloc_funcs * alloc)
+yajl_buf stackdriver_yajl_buf_alloc(yajl_alloc_funcs * alloc)
 {
     yajl_buf b = YA_MALLOC(alloc, sizeof(struct yajl_buf_t));
     memset((void *) b, 0, sizeof(struct yajl_buf_t));
@@ -61,16 +61,16 @@ yajl_buf yajl_buf_alloc(yajl_alloc_funcs * alloc)
     return b;
 }
 
-void yajl_buf_free(yajl_buf buf)
+void stackdriver_yajl_buf_free(yajl_buf buf)
 {
     assert(buf != NULL);
     if (buf->data) YA_FREE(buf->alloc, buf->data);
     YA_FREE(buf->alloc, buf);
 }
 
-void yajl_buf_append(yajl_buf buf, const void * data, size_t len)
+void stackdriver_yajl_buf_append(yajl_buf buf, const void * data, size_t len)
 {
-    yajl_buf_ensure_available(buf, len);
+    stackdriver_yajl_buf_ensure_available(buf, len);
     if (len > 0) {
         assert(data != NULL);
         memcpy(buf->data + buf->used, data, len);
@@ -79,24 +79,24 @@ void yajl_buf_append(yajl_buf buf, const void * data, size_t len)
     }
 }
 
-void yajl_buf_clear(yajl_buf buf)
+void stackdriver_yajl_buf_clear(yajl_buf buf)
 {
     buf->used = 0;
     if (buf->data) buf->data[buf->used] = 0;
 }
 
-const unsigned char * yajl_buf_data(yajl_buf buf)
+const unsigned char * stackdriver_yajl_buf_data(yajl_buf buf)
 {
     return buf->data;
 }
 
-size_t yajl_buf_len(yajl_buf buf)
+size_t stackdriver_yajl_buf_len(yajl_buf buf)
 {
     return buf->used;
 }
 
 void
-yajl_buf_truncate(yajl_buf buf, size_t len)
+stackdriver_yajl_buf_truncate(yajl_buf buf, size_t len)
 {
     assert(len <= buf->used);
     buf->used = len;

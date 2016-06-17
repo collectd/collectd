@@ -19,10 +19,10 @@
  * Interface to YAJL's JSON generation facilities.
  */
 
-#include <yajl/yajl_common.h>
+#include <yajl/stackdriver_yajl_common.h>
 
-#ifndef __YAJL_GEN_H__
-#define __YAJL_GEN_H__
+#ifndef __STACKDRIVER_YAJL_GEN_H__
+#define __STACKDRIVER_YAJL_GEN_H__
 
 #include <stddef.h>
 
@@ -105,7 +105,7 @@ extern "C" {
      *  allocation (via yajl_alloc)
      *  \returns zero in case of errors, non-zero otherwise
      */
-    YAJL_API int yajl_gen_config(yajl_gen g, yajl_gen_option opt, ...);
+    YAJL_API int stackdriver_yajl_gen_config(yajl_gen g, yajl_gen_option opt, ...);
 
     /** allocate a generator handle
      *  \param allocFuncs an optional pointer to a structure which allows
@@ -115,40 +115,40 @@ extern "C" {
      *
      *  \returns an allocated handle on success, NULL on failure (bad params)
      */
-    YAJL_API yajl_gen yajl_gen_alloc(const yajl_alloc_funcs * allocFuncs);
+    YAJL_API yajl_gen stackdriver_yajl_gen_alloc(const yajl_alloc_funcs * allocFuncs);
 
     /** free a generator handle */
-    YAJL_API void yajl_gen_free(yajl_gen handle);
+    YAJL_API void stackdriver_yajl_gen_free(yajl_gen handle);
 
-    YAJL_API yajl_gen_status yajl_gen_integer(yajl_gen hand, long long int number);
+    YAJL_API yajl_gen_status stackdriver_yajl_gen_integer(yajl_gen hand, long long int number);
     /** generate a floating point number.  number may not be infinity or
      *  NaN, as these have no representation in JSON.  In these cases the
      *  generator will return 'yajl_gen_invalid_number' */
-    YAJL_API yajl_gen_status yajl_gen_double(yajl_gen hand, double number);
-    YAJL_API yajl_gen_status yajl_gen_number(yajl_gen hand,
+    YAJL_API yajl_gen_status stackdriver_yajl_gen_double(yajl_gen hand, double number);
+    YAJL_API yajl_gen_status stackdriver_yajl_gen_number(yajl_gen hand,
                                              const char * num,
                                              size_t len);
-    YAJL_API yajl_gen_status yajl_gen_string(yajl_gen hand,
+    YAJL_API yajl_gen_status stackdriver_yajl_gen_string(yajl_gen hand,
                                              const unsigned char * str,
                                              size_t len);
-    YAJL_API yajl_gen_status yajl_gen_null(yajl_gen hand);
-    YAJL_API yajl_gen_status yajl_gen_bool(yajl_gen hand, int boolean);
-    YAJL_API yajl_gen_status yajl_gen_map_open(yajl_gen hand);
-    YAJL_API yajl_gen_status yajl_gen_map_close(yajl_gen hand);
-    YAJL_API yajl_gen_status yajl_gen_array_open(yajl_gen hand);
-    YAJL_API yajl_gen_status yajl_gen_array_close(yajl_gen hand);
+    YAJL_API yajl_gen_status stackdriver_yajl_gen_null(yajl_gen hand);
+    YAJL_API yajl_gen_status stackdriver_yajl_gen_bool(yajl_gen hand, int boolean);
+    YAJL_API yajl_gen_status stackdriver_yajl_gen_map_open(yajl_gen hand);
+    YAJL_API yajl_gen_status stackdriver_yajl_gen_map_close(yajl_gen hand);
+    YAJL_API yajl_gen_status stackdriver_yajl_gen_array_open(yajl_gen hand);
+    YAJL_API yajl_gen_status stackdriver_yajl_gen_array_close(yajl_gen hand);
 
     /** access the null terminated generator buffer.  If incrementally
      *  outputing JSON, one should call yajl_gen_clear to clear the
      *  buffer.  This allows stream generation. */
-    YAJL_API yajl_gen_status yajl_gen_get_buf(yajl_gen hand,
+    YAJL_API yajl_gen_status stackdriver_yajl_gen_get_buf(yajl_gen hand,
                                               const unsigned char ** buf,
                                               size_t * len);
 
     /** clear yajl's output buffer, but maintain all internal generation
      *  state.  This function will not "reset" the generator state, and is
      *  intended to enable incremental JSON outputing. */
-    YAJL_API void yajl_gen_clear(yajl_gen hand);
+    YAJL_API void stackdriver_yajl_gen_clear(yajl_gen hand);
 
 #ifdef __cplusplus
 }

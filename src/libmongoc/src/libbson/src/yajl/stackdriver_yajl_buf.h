@@ -14,11 +14,11 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef __YAJL_BUF_H__
-#define __YAJL_BUF_H__
+#ifndef __STACKDRIVER_YAJL_BUF_H__
+#define __STACKDRIVER_YAJL_BUF_H__
 
-#include "yajl_common.h"
-#include "yajl_alloc.h"
+#include "stackdriver_yajl_common.h"
+#include "stackdriver_yajl_alloc.h"
 
 /*
  * Implementation/performance notes.  If this were moved to a header
@@ -34,24 +34,24 @@
 typedef struct yajl_buf_t * yajl_buf;
 
 /* allocate a new buffer */
-yajl_buf yajl_buf_alloc(yajl_alloc_funcs * alloc);
+yajl_buf stackdriver_yajl_buf_alloc(yajl_alloc_funcs * alloc);
 
 /* free the buffer */
-void yajl_buf_free(yajl_buf buf);
+void stackdriver_yajl_buf_free(yajl_buf buf);
 
 /* append a number of bytes to the buffer */
-void yajl_buf_append(yajl_buf buf, const void * data, size_t len);
+void stackdriver_yajl_buf_append(yajl_buf buf, const void * data, size_t len);
 
 /* empty the buffer */
-void yajl_buf_clear(yajl_buf buf);
+void stackdriver_yajl_buf_clear(yajl_buf buf);
 
 /* get a pointer to the beginning of the buffer */
-const unsigned char * yajl_buf_data(yajl_buf buf);
+const unsigned char * stackdriver_yajl_buf_data(yajl_buf buf);
 
 /* get the length of the buffer */
-size_t yajl_buf_len(yajl_buf buf);
+size_t stackdriver_yajl_buf_len(yajl_buf buf);
 
 /* truncate the buffer */
-void yajl_buf_truncate(yajl_buf buf, size_t len);
+void stackdriver_yajl_buf_truncate(yajl_buf buf, size_t len);
 
 #endif

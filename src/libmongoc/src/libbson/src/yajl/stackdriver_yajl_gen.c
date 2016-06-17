@@ -14,9 +14,9 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "yajl_gen.h"
-#include "yajl_buf.h"
-#include "yajl_encode.h"
+#include "stackdriver_yajl_gen.h"
+#include "stackdriver_yajl_buf.h"
+#include "stackdriver_yajl_encode.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -48,7 +48,7 @@ struct yajl_gen_t
 };
 
 int
-yajl_gen_config(yajl_gen g, yajl_gen_option opt, ...)
+stackdriver_yajl_gen_config(yajl_gen g, yajl_gen_option opt, ...)
 {
     int rv = 1;
     va_list ap;
@@ -79,7 +79,7 @@ yajl_gen_config(yajl_gen g, yajl_gen_option opt, ...)
             break;
         }
         case yajl_gen_print_callback:
-            yajl_buf_free(g->ctx);
+            stackdriver_yajl_buf_free(g->ctx);
             g->print = va_arg(ap, const yajl_print_t);
             g->ctx = va_arg(ap, void *);
             break;
@@ -95,7 +95,7 @@ yajl_gen_config(yajl_gen g, yajl_gen_option opt, ...)
 
 
 yajl_gen
-yajl_gen_alloc(const yajl_alloc_funcs * afs)
+stackdriver_yajl_gen_alloc(const yajl_alloc_funcs * afs)
 {
     yajl_gen g = NULL;
     yajl_alloc_funcs afsBuffer;
@@ -107,7 +107,7 @@ yajl_gen_alloc(const yajl_alloc_funcs * afs)
             return NULL;
         }
     } else {
-        yajl_set_default_alloc_funcs(&afsBuffer);
+        stackdriver_yajl_set_default_alloc_funcs(&afsBuffer);
         afs = &afsBuffer;
     }
 
@@ -118,17 +118,17 @@ yajl_gen_alloc(const yajl_alloc_funcs * afs)
     /* copy in pointers to allocation routines */
     memcpy((void *) &(g->alloc), (void *) afs, sizeof(yajl_alloc_funcs));
 
-    g->print = (yajl_print_t)&yajl_buf_append;
-    g->ctx = yajl_buf_alloc(&(g->alloc));
+    g->print = (yajl_print_t)&stackdriver_yajl_buf_append;
+    g->ctx = stackdriver_yajl_buf_alloc(&(g->alloc));
     g->indentString = "    ";
 
     return g;
 }
 
 void
-yajl_gen_free(yajl_gen g)
+stackdriver_yajl_gen_free(yajl_gen g)
 {
-    if (g->print == (yajl_print_t)&yajl_buf_append) yajl_buf_free((yajl_buf)g->ctx);
+    if (g->print == (yajl_print_t)&stackdriver_yajl_buf_append) stackdriver_yajl_buf_free((yajl_buf)g->ctx);
     YA_FREE(&(g->alloc), g);
 }
 
@@ -198,7 +198,7 @@ yajl_gen_free(yajl_gen g)
         g->print(g->ctx, "\n", 1);
 
 yajl_gen_status
-yajl_gen_integer(yajl_gen g, long long int number)
+stackdriver_yajl_gen_integer(yajl_gen g, long long int number)
 {
     char i[32];
     ENSURE_VALID_STATE; ENSURE_NOT_KEY; INSERT_SEP; INSERT_WHITESPACE;
@@ -224,7 +224,7 @@ yajl_gen_integer(yajl_gen g, long long int number)
 #endif
 
 yajl_gen_status
-yajl_gen_double(yajl_gen g, double number)
+stackdriver_yajl_gen_double(yajl_gen g, double number)
 {
     char i[32];
     ENSURE_VALID_STATE; ENSURE_NOT_KEY;
@@ -241,7 +241,7 @@ yajl_gen_double(yajl_gen g, double number)
 }
 
 yajl_gen_status
-yajl_gen_number(yajl_gen g, const char * s, size_t l)
+stackdriver_yajl_gen_number(yajl_gen g, const char * s, size_t l)
 {
     ENSURE_VALID_STATE; ENSURE_NOT_KEY; INSERT_SEP; INSERT_WHITESPACE;
     g->print(g->ctx, s, l);
@@ -251,20 +251,20 @@ yajl_gen_number(yajl_gen g, const char * s, size_t l)
 }
 
 yajl_gen_status
-yajl_gen_string(yajl_gen g, const unsigned char * str,
+stackdriver_yajl_gen_string(yajl_gen g, const unsigned char * str,
                 size_t len)
 {
     // if validation is enabled, check that the string is valid utf8
     // XXX: This checking could be done a little faster, in the same pass as
     // the string encoding
     if (g->flags & yajl_gen_validate_utf8) {
-        if (!yajl_string_validate_utf8(str, len)) {
+        if (!stackdriver_yajl_string_validate_utf8(str, len)) {
             return yajl_gen_invalid_string;
         }
     }
     ENSURE_VALID_STATE; INSERT_SEP; INSERT_WHITESPACE;
     g->print(g->ctx, "\"", 1);
-    yajl_string_encode(g->print, g->ctx, str, len, g->flags & yajl_gen_escape_solidus);
+    stackdriver_yajl_string_encode(g->print, g->ctx, str, len, g->flags & yajl_gen_escape_solidus);
     g->print(g->ctx, "\"", 1);
     APPENDED_ATOM;
     FINAL_NEWLINE;
@@ -272,7 +272,7 @@ yajl_gen_string(yajl_gen g, const unsigned char * str,
 }
 
 yajl_gen_status
-yajl_gen_null(yajl_gen g)
+stackdriver_yajl_gen_null(yajl_gen g)
 {
     ENSURE_VALID_STATE; ENSURE_NOT_KEY; INSERT_SEP; INSERT_WHITESPACE;
     g->print(g->ctx, "null", strlen("null"));
@@ -282,7 +282,7 @@ yajl_gen_null(yajl_gen g)
 }
 
 yajl_gen_status
-yajl_gen_bool(yajl_gen g, int boolean)
+stackdriver_yajl_gen_bool(yajl_gen g, int boolean)
 {
     const char * val = boolean ? "true" : "false";
 
@@ -294,7 +294,7 @@ yajl_gen_bool(yajl_gen g, int boolean)
 }
 
 yajl_gen_status
-yajl_gen_map_open(yajl_gen g)
+stackdriver_yajl_gen_map_open(yajl_gen g)
 {
     ENSURE_VALID_STATE; ENSURE_NOT_KEY; INSERT_SEP; INSERT_WHITESPACE;
     INCREMENT_DEPTH;
@@ -307,7 +307,7 @@ yajl_gen_map_open(yajl_gen g)
 }
 
 yajl_gen_status
-yajl_gen_map_close(yajl_gen g)
+stackdriver_yajl_gen_map_close(yajl_gen g)
 {
     ENSURE_VALID_STATE;
     DECREMENT_DEPTH;
@@ -321,7 +321,7 @@ yajl_gen_map_close(yajl_gen g)
 }
 
 yajl_gen_status
-yajl_gen_array_open(yajl_gen g)
+stackdriver_yajl_gen_array_open(yajl_gen g)
 {
     ENSURE_VALID_STATE; ENSURE_NOT_KEY; INSERT_SEP; INSERT_WHITESPACE;
     INCREMENT_DEPTH;
@@ -333,7 +333,7 @@ yajl_gen_array_open(yajl_gen g)
 }
 
 yajl_gen_status
-yajl_gen_array_close(yajl_gen g)
+stackdriver_yajl_gen_array_close(yajl_gen g)
 {
     ENSURE_VALID_STATE;
     DECREMENT_DEPTH;
@@ -346,17 +346,17 @@ yajl_gen_array_close(yajl_gen g)
 }
 
 yajl_gen_status
-yajl_gen_get_buf(yajl_gen g, const unsigned char ** buf,
+stackdriver_yajl_gen_get_buf(yajl_gen g, const unsigned char ** buf,
                  size_t * len)
 {
-    if (g->print != (yajl_print_t)&yajl_buf_append) return yajl_gen_no_buf;
-    *buf = yajl_buf_data((yajl_buf)g->ctx);
-    *len = yajl_buf_len((yajl_buf)g->ctx);
+    if (g->print != (yajl_print_t)&stackdriver_yajl_buf_append) return yajl_gen_no_buf;
+    *buf = stackdriver_yajl_buf_data((yajl_buf)g->ctx);
+    *len = stackdriver_yajl_buf_len((yajl_buf)g->ctx);
     return yajl_gen_status_ok;
 }
 
 void
-yajl_gen_clear(yajl_gen g)
+stackdriver_yajl_gen_clear(yajl_gen g)
 {
-    if (g->print == (yajl_print_t)&yajl_buf_append) yajl_buf_clear((yajl_buf)g->ctx);
+    if (g->print == (yajl_print_t)&stackdriver_yajl_buf_append) stackdriver_yajl_buf_clear((yajl_buf)g->ctx);
 }

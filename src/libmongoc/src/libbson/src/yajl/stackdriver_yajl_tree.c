@@ -20,10 +20,10 @@
 #include <errno.h>
 #include <assert.h>
 
-#include "yajl_tree.h"
-#include "yajl_parse.h"
+#include "stackdriver_yajl_tree.h"
+#include "stackdriver_yajl_parse.h"
 
-#include "yajl_parser.h"
+#include "stackdriver_yajl_parser.h"
 
 #if defined(_WIN32) || defined(WIN32)
 #define snprintf sprintf_s
@@ -56,7 +56,7 @@ typedef struct context_s context_t;
         return (retval);                                                \
     }
 
-static yajl_val value_alloc (yajl_type type)
+static yajl_val stackdriver_value_alloc (yajl_type type)
 {
     yajl_val v;
 
@@ -68,7 +68,7 @@ static yajl_val value_alloc (yajl_type type)
     return (v);
 }
 
-static void yajl_object_free (yajl_val v)
+static void stackdriver_yajl_object_free (yajl_val v)
 {
     size_t i;
 
@@ -78,7 +78,7 @@ static void yajl_object_free (yajl_val v)
     {
         free((char *) v->u.object.keys[i]);
         v->u.object.keys[i] = NULL;
-        yajl_tree_free (v->u.object.values[i]);
+        stackdriver_yajl_tree_free (v->u.object.values[i]);
         v->u.object.values[i] = NULL;
     }
 
@@ -87,7 +87,7 @@ static void yajl_object_free (yajl_val v)
     free(v);
 }
 
-static void yajl_array_free (yajl_val v)
+static void stackdriver_yajl_array_free (yajl_val v)
 {
     size_t i;
 
@@ -95,7 +95,7 @@ static void yajl_array_free (yajl_val v)
 
     for (i = 0; i < v->u.array.len; i++)
     {
-        yajl_tree_free (v->u.array.values[i]);
+        stackdriver_yajl_tree_free (v->u.array.values[i]);
         v->u.array.values[i] = NULL;
     }
 
@@ -110,7 +110,7 @@ static void yajl_array_free (yajl_val v)
  * reached (an appropriate closing bracket has been read), the value is popped
  * off the stack and added to the enclosing object using "context_add_value".
  */
-static int context_push(context_t *ctx, yajl_val v)
+static int stackdriver_context_push(context_t *ctx, yajl_val v)
 {
     stack_elem_t *stack;
 
@@ -130,7 +130,7 @@ static int context_push(context_t *ctx, yajl_val v)
     return (0);
 }
 
-static yajl_val context_pop(context_t *ctx)
+static yajl_val stackdriver_context_pop(context_t *ctx)
 {
     stack_elem_t *stack;
     yajl_val v;
@@ -149,7 +149,7 @@ static yajl_val context_pop(context_t *ctx)
     return (v);
 }
 
-static int object_add_keyval(context_t *ctx,
+static int stackdriver_object_add_keyval(context_t *ctx,
                              yajl_val obj, char *key, yajl_val value)
 {
     const char **tmpk;
@@ -181,7 +181,7 @@ static int object_add_keyval(context_t *ctx,
     return (0);
 }
 
-static int array_add_value (context_t *ctx,
+static int stackdriver_array_add_value (context_t *ctx,
                             yajl_val array, yajl_val value)
 {
     yajl_val *tmp;
@@ -210,7 +210,7 @@ static int array_add_value (context_t *ctx,
  * Add a value to the value on top of the stack or the "root" member in the
  * context if the end of the parsing process is reached.
  */
-static int context_add_value (context_t *ctx, yajl_val v)
+static int stackdriver_context_add_value (context_t *ctx, yajl_val v)
 {
     /* We're checking for NULL values in all the calling functions. */
     assert (ctx != NULL);
@@ -253,12 +253,12 @@ static int context_add_value (context_t *ctx, yajl_val v)
 
             key = ctx->stack->key;
             ctx->stack->key = NULL;
-            return (object_add_keyval (ctx, ctx->stack->value, key, v));
+            return (stackdriver_object_add_keyval (ctx, ctx->stack->value, key, v));
         }
     }
     else if (YAJL_IS_ARRAY (ctx->stack->value))
     {
-        return (array_add_value (ctx, ctx->stack->value, v));
+        return (stackdriver_array_add_value (ctx, ctx->stack->value, v));
     }
     else
     {
@@ -268,12 +268,12 @@ static int context_add_value (context_t *ctx, yajl_val v)
     }
 }
 
-static int handle_string (void *ctx,
+static int stackdriver_handle_string (void *ctx,
                           const unsigned char *string, size_t string_length)
 {
     yajl_val v;
 
-    v = value_alloc (yajl_t_string);
+    v = stackdriver_value_alloc (yajl_t_string);
     if (v == NULL)
         RETURN_ERROR ((context_t *) ctx, STATUS_ABORT, "Out of memory");
 
@@ -286,15 +286,15 @@ static int handle_string (void *ctx,
     memcpy(v->u.string, string, string_length);
     v->u.string[string_length] = 0;
 
-    return ((context_add_value (ctx, v) == 0) ? STATUS_CONTINUE : STATUS_ABORT);
+    return ((stackdriver_context_add_value (ctx, v) == 0) ? STATUS_CONTINUE : STATUS_ABORT);
 }
 
-static int handle_number (void *ctx, const char *string, size_t string_length)
+static int stackdriver_handle_number (void *ctx, const char *string, size_t string_length)
 {
     yajl_val v;
     char *endptr;
 
-    v = value_alloc(yajl_t_number);
+    v = stackdriver_value_alloc(yajl_t_number);
     if (v == NULL)
         RETURN_ERROR((context_t *) ctx, STATUS_ABORT, "Out of memory");
 
@@ -310,7 +310,7 @@ static int handle_number (void *ctx, const char *string, size_t string_length)
     v->u.number.flags = 0;
 
     errno = 0;
-    v->u.number.i = yajl_parse_integer((const unsigned char *) v->u.number.r,
+    v->u.number.i = stackdriver_yajl_parse_integer((const unsigned char *) v->u.number.r,
                                        (unsigned int)strlen(v->u.number.r));
     if (errno == 0)
         v->u.number.flags |= YAJL_NUMBER_INT_VALID;
@@ -321,14 +321,14 @@ static int handle_number (void *ctx, const char *string, size_t string_length)
     if ((errno == 0) && (endptr != NULL) && (*endptr == 0))
         v->u.number.flags |= YAJL_NUMBER_DOUBLE_VALID;
 
-    return ((context_add_value(ctx, v) == 0) ? STATUS_CONTINUE : STATUS_ABORT);
+    return ((stackdriver_context_add_value(ctx, v) == 0) ? STATUS_CONTINUE : STATUS_ABORT);
 }
 
-static int handle_start_map (void *ctx)
+static int stackdriver_handle_start_map (void *ctx)
 {
     yajl_val v;
 
-    v = value_alloc(yajl_t_object);
+    v = stackdriver_value_alloc(yajl_t_object);
     if (v == NULL)
         RETURN_ERROR ((context_t *) ctx, STATUS_ABORT, "Out of memory");
 
@@ -336,86 +336,86 @@ static int handle_start_map (void *ctx)
     v->u.object.values = NULL;
     v->u.object.len = 0;
 
-    return ((context_push (ctx, v) == 0) ? STATUS_CONTINUE : STATUS_ABORT);
+    return ((stackdriver_context_push (ctx, v) == 0) ? STATUS_CONTINUE : STATUS_ABORT);
 }
 
-static int handle_end_map (void *ctx)
+static int stackdriver_handle_end_map (void *ctx)
 {
     yajl_val v;
 
-    v = context_pop (ctx);
+    v = stackdriver_context_pop (ctx);
     if (v == NULL)
         return (STATUS_ABORT);
 
-    return ((context_add_value (ctx, v) == 0) ? STATUS_CONTINUE : STATUS_ABORT);
+    return ((stackdriver_context_add_value (ctx, v) == 0) ? STATUS_CONTINUE : STATUS_ABORT);
 }
 
-static int handle_start_array (void *ctx)
+static int stackdriver_handle_start_array (void *ctx)
 {
     yajl_val v;
 
-    v = value_alloc(yajl_t_array);
+    v = stackdriver_value_alloc(yajl_t_array);
     if (v == NULL)
         RETURN_ERROR ((context_t *) ctx, STATUS_ABORT, "Out of memory");
 
     v->u.array.values = NULL;
     v->u.array.len = 0;
 
-    return ((context_push (ctx, v) == 0) ? STATUS_CONTINUE : STATUS_ABORT);
+    return ((stackdriver_context_push (ctx, v) == 0) ? STATUS_CONTINUE : STATUS_ABORT);
 }
 
-static int handle_end_array (void *ctx)
+static int stackdriver_handle_end_array (void *ctx)
 {
     yajl_val v;
 
-    v = context_pop (ctx);
+    v = stackdriver_context_pop (ctx);
     if (v == NULL)
         return (STATUS_ABORT);
 
-    return ((context_add_value (ctx, v) == 0) ? STATUS_CONTINUE : STATUS_ABORT);
+    return ((stackdriver_context_add_value (ctx, v) == 0) ? STATUS_CONTINUE : STATUS_ABORT);
 }
 
-static int handle_boolean (void *ctx, int boolean_value)
+static int stackdriver_handle_boolean (void *ctx, int boolean_value)
 {
     yajl_val v;
 
-    v = value_alloc (boolean_value ? yajl_t_true : yajl_t_false);
+    v = stackdriver_value_alloc (boolean_value ? yajl_t_true : yajl_t_false);
     if (v == NULL)
         RETURN_ERROR ((context_t *) ctx, STATUS_ABORT, "Out of memory");
 
-    return ((context_add_value (ctx, v) == 0) ? STATUS_CONTINUE : STATUS_ABORT);
+    return ((stackdriver_context_add_value (ctx, v) == 0) ? STATUS_CONTINUE : STATUS_ABORT);
 }
 
-static int handle_null (void *ctx)
+static int stackdriver_handle_null (void *ctx)
 {
     yajl_val v;
 
-    v = value_alloc (yajl_t_null);
+    v = stackdriver_value_alloc (yajl_t_null);
     if (v == NULL)
         RETURN_ERROR ((context_t *) ctx, STATUS_ABORT, "Out of memory");
 
-    return ((context_add_value (ctx, v) == 0) ? STATUS_CONTINUE : STATUS_ABORT);
+    return ((stackdriver_context_add_value (ctx, v) == 0) ? STATUS_CONTINUE : STATUS_ABORT);
 }
 
 /*
  * Public functions
  */
-yajl_val yajl_tree_parse (const char *input,
+yajl_val stackdriver_yajl_tree_parse (const char *input,
                           char *error_buffer, size_t error_buffer_size)
 {
     static const yajl_callbacks callbacks =
         {
-            /* null        = */ handle_null,
-            /* boolean     = */ handle_boolean,
+            /* null        = */ stackdriver_handle_null,
+            /* boolean     = */ stackdriver_handle_boolean,
             /* integer     = */ NULL,
             /* double      = */ NULL,
-            /* number      = */ handle_number,
-            /* string      = */ handle_string,
-            /* start map   = */ handle_start_map,
-            /* map key     = */ handle_string,
-            /* end map     = */ handle_end_map,
-            /* start array = */ handle_start_array,
-            /* end array   = */ handle_end_array
+            /* number      = */ stackdriver_handle_number,
+            /* string      = */ stackdriver_handle_string,
+            /* start map   = */ stackdriver_handle_start_map,
+            /* map key     = */ stackdriver_handle_string,
+            /* end map     = */ stackdriver_handle_end_map,
+            /* start array = */ stackdriver_handle_start_array,
+            /* end array   = */ stackdriver_handle_end_array
         };
 
     yajl_handle handle;
@@ -429,30 +429,30 @@ yajl_val yajl_tree_parse (const char *input,
     if (error_buffer != NULL)
         memset (error_buffer, 0, error_buffer_size);
 
-    handle = yajl_alloc (&callbacks, NULL, &ctx);
-    yajl_config(handle, yajl_allow_comments, 1);
+    handle = stackdriver_yajl_alloc (&callbacks, NULL, &ctx);
+    stackdriver_yajl_config(handle, yajl_allow_comments, 1);
 
-    status = yajl_parse(handle,
+    status = stackdriver_yajl_parse(handle,
                         (unsigned char *) input,
                         strlen (input));
-    status = yajl_complete_parse (handle);
+    status = stackdriver_yajl_complete_parse (handle);
     if (status != yajl_status_ok) {
         if (error_buffer != NULL && error_buffer_size > 0) {
-               internal_err_str = (char *) yajl_get_error(handle, 1,
+               internal_err_str = (char *) stackdriver_yajl_get_error(handle, 1,
                      (const unsigned char *) input,
                      strlen(input));
              snprintf(error_buffer, error_buffer_size, "%s", internal_err_str);
              YA_FREE(&(handle->alloc), internal_err_str);
         }
-        yajl_free (handle);
+        stackdriver_yajl_free (handle);
         return NULL;
     }
 
-    yajl_free (handle);
+    stackdriver_yajl_free (handle);
     return (ctx.root);
 }
 
-yajl_val yajl_tree_get(yajl_val n, const char ** path, yajl_type type)
+yajl_val stackdriver_yajl_tree_get(yajl_val n, const char ** path, yajl_type type)
 {
     if (!path) return NULL;
     while (n && *path) {
@@ -474,7 +474,7 @@ yajl_val yajl_tree_get(yajl_val n, const char ** path, yajl_type type)
     return n;
 }
 
-void yajl_tree_free (yajl_val v)
+void stackdriver_yajl_tree_free (yajl_val v)
 {
     if (v == NULL) return;
 
@@ -490,11 +490,11 @@ void yajl_tree_free (yajl_val v)
     }
     else if (YAJL_GET_OBJECT(v))
     {
-        yajl_object_free(v);
+        stackdriver_yajl_object_free(v);
     }
     else if (YAJL_GET_ARRAY(v))
     {
-        yajl_array_free(v);
+        stackdriver_yajl_array_free(v);
     }
     else /* if (yajl_t_true or yajl_t_false or yajl_t_null) */
     {

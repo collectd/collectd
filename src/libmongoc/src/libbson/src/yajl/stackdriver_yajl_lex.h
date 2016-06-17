@@ -14,10 +14,10 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef __YAJL_LEX_H__
-#define __YAJL_LEX_H__
+#ifndef __STACKDRIVER_YAJL_LEX_H__
+#define __STACKDRIVER_YAJL_LEX_H__
 
-#include "yajl_common.h"
+#include "stackdriver_yajl_common.h"
 
 typedef enum {
     yajl_tok_bool,         
@@ -47,11 +47,11 @@ typedef enum {
 
 typedef struct yajl_lexer_t * yajl_lexer;
 
-yajl_lexer yajl_lex_alloc(yajl_alloc_funcs * alloc,
+yajl_lexer stackdriver_yajl_lex_alloc(yajl_alloc_funcs * alloc,
                           unsigned int allowComments,
                           unsigned int validateUTF8);
 
-void yajl_lex_free(yajl_lexer lexer);
+void stackdriver_yajl_lex_free(yajl_lexer lexer);
 
 /**
  * run/continue a lex. "offset" is an input/output parameter.
@@ -75,12 +75,12 @@ n * error messages.
  * implications which require that the client choose a reasonable chunk
  * size to get adequate performance.
  */
-yajl_tok yajl_lex_lex(yajl_lexer lexer, const unsigned char * jsonText,
+yajl_tok stackdriver_yajl_lex_lex(yajl_lexer lexer, const unsigned char * jsonText,
                       size_t jsonTextLen, size_t * offset,
                       const unsigned char ** outBuf, size_t * outLen);
 
 /** have a peek at the next token, but don't move the lexer forward */
-yajl_tok yajl_lex_peek(yajl_lexer lexer, const unsigned char * jsonText,
+yajl_tok stackdriver_yajl_lex_peek(yajl_lexer lexer, const unsigned char * jsonText,
                        size_t jsonTextLen, size_t offset);
 
 
@@ -98,20 +98,20 @@ typedef enum {
     yajl_lex_unallowed_comment
 } yajl_lex_error;
 
-const char * yajl_lex_error_to_string(yajl_lex_error error);
+const char * stackdriver_yajl_lex_error_to_string(yajl_lex_error error);
 
 /** allows access to more specific information about the lexical
  *  error when yajl_lex_lex returns yajl_tok_error. */
-yajl_lex_error yajl_lex_get_error(yajl_lexer lexer);
+yajl_lex_error stackdriver_yajl_lex_get_error(yajl_lexer lexer);
 
 /** get the current offset into the most recently lexed json string. */
-size_t yajl_lex_current_offset(yajl_lexer lexer);
+size_t stackdriver_yajl_lex_current_offset(yajl_lexer lexer);
 
 /** get the number of lines lexed by this lexer instance */
-size_t yajl_lex_current_line(yajl_lexer lexer);
+size_t stackdriver_yajl_lex_current_line(yajl_lexer lexer);
 
 /** get the number of chars lexed by this lexer instance since the last
  *  \n or \r */
-size_t yajl_lex_current_char(yajl_lexer lexer);
+size_t stackdriver_yajl_lex_current_char(yajl_lexer lexer);
 
 #endif

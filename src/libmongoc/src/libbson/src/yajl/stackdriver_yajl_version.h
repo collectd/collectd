@@ -1,7 +1,7 @@
-#ifndef YAJL_VERSION_H_
-#define YAJL_VERSION_H_
+#ifndef STACKDRIVER_YAJL_VERSION_H_
+#define STACKDRIVER_YAJL_VERSION_H_
 
-#include <yajl/yajl_common.h>
+#include <yajl/stackdriver_yajl_common.h>
 
 #define YAJL_MAJOR 2
 #define YAJL_MINOR 0
@@ -13,11 +13,10 @@
 extern "C" {
 #endif
 
-extern int YAJL_API yajl_version(void);
+extern int YAJL_API stackdriver_yajl_version(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* YAJL_VERSION_H_ */
-
+#endif /* STACKDRIVER_YAJL_VERSION_H_ */
