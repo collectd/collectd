@@ -6030,7 +6030,7 @@ AC_SUBST(DEFAULT_LOG_LEVEL)
 # --enable-keepalive
 if test "x$enable_keepalive" = "xyes"
 then
-	PKG_CHECK_MODULES([KEEPALIVE], [glib-2.0 keepalive keepalive-glib dbus-1 dbus-glib-1])
+	PKG_CHECK_MODULES([KEEPALIVE], [glib-2.0 keepalive-glib dbus-1 dbus-glib-1])
 	AC_DEFINE(HAVE_KEEPALIVE_GLIB, 1,
 		  [Define to 1 if you use keepalive from mer-core])
 fi
