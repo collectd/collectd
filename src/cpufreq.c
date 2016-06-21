@@ -70,10 +70,10 @@ int check_format (char const * src)
 {
 	int pc = -2;
 	int d = -2;
+    char const * p;
 
-	for (char const * p=src; *p; ++p) {
-		switch (*p)
-		{
+	for (p=src; *p; ++p) {
+		switch (*p) {
 			case '%':
 				if (-2 != pc) return 0;
 				pc=p-src;
@@ -92,7 +92,7 @@ static int cpufreq_config (char const * key, char const * value)
 {
 	if (strcasecmp ("Path", key) == 0) {
 		if (check_format (value)) {
-			sstrncpy(freq_fname, value, sizeof(freq_fname));
+			sstrncpy (freq_fname, value, sizeof(freq_fname));
 		}
 		else {
 			WARNING ("cpufreq: Path parameter is wrong: %s", value);
