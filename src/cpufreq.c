@@ -70,7 +70,7 @@ int check_format (char const * src)
 {
 	int pc = -2;
 	int d = -2;
-    char const * p;
+	char const * p;
 
 	for (p=src; *p; ++p) {
 		switch (*p) {
