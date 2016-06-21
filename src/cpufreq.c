@@ -33,19 +33,23 @@ static int num_cpu = 0;
 static char const * freq_fname_def = "/sys/devices/system/cpu/cpu%d/cpufreq/"
 									 "scaling_cur_freq";
 /**
- * Linux kernel exposes current CPU frequency via
+ * For quite a while, Linux kernel exposes the current CPU frequency via
  * "/sys/devices/system/cpu/cpuX/cpufreq/scaling_cur_freq" file.
  *
- * In CentOS 7.1 it was observed that kernel doesn't provide "scaling_cur_freq" file.
- * Such behaviour observed with intel_pstate CPU frequency driver.
- * It was fixed in https://github.com/torvalds/linux/commit/c034b02e213d271b98c45c4a7b54af8f69aaac1e .
- * But at this moment in CentOS 7.2 the fix isn't ported yet.
+ * Nevertheless, in CentOS 7.1 it was observed that kernel doesn't provide the file anymore, with
+ * the employed intel_pstate CPU frequency driver.
  *
- * There is another "cpuinfo_cur_freq" file under "/sys/devices/system/cpu/cpuX/cpufreq/" directory.
+ * The issue above has been fixed in https://github.com/torvalds/linux/commit/c034b02e213d271b98c45c4a7b54af8f69aaac1e .
+ * But up to now with for example, CentOS 7.2, the fix has not been back-ported yet.
+ *
+ * Note that there is another "cpuinfo_cur_freq" file under "/sys/devices/system/cpu/cpuX/cpufreq/" directory.
  * This file exposes not exactly the same thing as "scaling_cur_freq" does, but close by nature.
+ * More details: http://www.pantz.org/software/cpufreq/usingcpufreqonlinux.html
  *
- * Thus it's better to have a workaround to monitor some CPU frequency on even "broken" kernels.
- * So, the optional parameter "Path" was introduced to specify alternative CPU frequency path.
+ * Overall it is better to have a workaround for monitoring some CPU frequency on even with kernels that lack
+ * the aforementioned fix.
+ *
+ * Also, an optional parameter "Path" is introduced to specify alternative CPU frequency path.
  * Example:
  * <Plugin cpufreq>
  *     Path "/sys/devices/system/cpu/cpu%d/cpufreq/cpuinfo_cur_freq"
