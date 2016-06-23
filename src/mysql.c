@@ -904,6 +904,20 @@ static int mysql_read (user_data_t *ud)
 				counter_submit ("mysql_sort", "scan", val, db);
 
 		}
+        else if (strncmp (key, "Open_", strlen ("Open_")) == 0)
+        {
+            if (strcmp (key, "Open_table_definitions") == 0)
+                gauge_submit ("mysql_open_table_definitions", "open", val, db);
+            else if (strcmp (key, "Open_tables") == 0)
+                gauge_submit ("mysql_open_tables", "open", val, db);
+        }
+        else if (strncmp (key, "Opened_", strlen ("Opened_")) == 0)
+        {
+            if (strcmp (key, "Opened_table_definitions") == 0)
+                counter_submit ("mysql_opened_table_definitions", "opened", val, db);
+            else if (strcmp (key, "Opened_tables") == 0)
+                counter_submit ("mysql_opened_tables", "opened", val, db);
+        }
 	}
 	mysql_free_result (res); res = NULL;
 
