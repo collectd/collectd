@@ -442,6 +442,13 @@ hddtemp_la_LIBADD += -lsocket
 endif
 endif
 
+if BUILD_PLUGIN_HUGEPAGES
+pkglib_LTLIBRARIES += hugepages.la
+hugepages_la_SOURCES = hugepages.c
+hugepages_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+hugepages_la_LIBADD =
+endif
+
 if BUILD_PLUGIN_INTERFACE
 pkglib_LTLIBRARIES += interface.la
 interface_la_SOURCES = interface.c

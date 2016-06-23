@@ -482,6 +482,9 @@ fi
 # For hddtemp module
 AC_CHECK_HEADERS(linux/major.h)
 
+# For hugepages module
+AC_CHECK_HEADERS(dirent.h)
+
 # For md module (Linux only)
 if test "x$ac_system" = "xLinux"
 then
@@ -5971,6 +5974,7 @@ AC_PLUGIN([fscache],             [$plugin_fscache],         [fscache statistics]
 AC_PLUGIN([gmond],               [$with_libganglia],        [Ganglia plugin])
 AC_PLUGIN([grpc],                [$with_grpc],              [gRPC plugin])
 AC_PLUGIN([hddtemp],             [yes],                     [Query hddtempd])
+AC_PLUGIN([hugepages],           [yes],                     [Hugepages statistics])
 AC_PLUGIN([interface],           [$plugin_interface],       [Interface traffic statistics])
 AC_PLUGIN([ipc],                 [$plugin_ipc],             [IPC statistics])
 AC_PLUGIN([ipmi],                [$plugin_ipmi],            [IPMI sensor statistics])
@@ -6382,6 +6386,7 @@ AC_MSG_RESULT([    fscache . . . . . . . $enable_fscache])
 AC_MSG_RESULT([    gmond . . . . . . . . $enable_gmond])
 AC_MSG_RESULT([    grpc  . . . . . . . . $enable_grpc])
 AC_MSG_RESULT([    hddtemp . . . . . . . $enable_hddtemp])
+AC_MSG_RESULT([    hugepages . . . . . . $enable_hugepages])
 AC_MSG_RESULT([    interface . . . . . . $enable_interface])
 AC_MSG_RESULT([    ipc . . . . . . . . . $enable_ipc])
 AC_MSG_RESULT([    ipmi  . . . . . . . . $enable_ipmi])

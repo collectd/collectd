@@ -82,6 +82,7 @@ file_size               value:GAUGE:0:U
 files                   value:GAUGE:0:U
 flow                    value:GAUGE:0:U
 fork_rate               value:DERIVE:0:U
+free_hugepages          value:DERIVE:0:U
 frequency               value:GAUGE:0:U
 frequency_error         value:GAUGE:-2:2 
 frequency_offset        value:GAUGE:-1000000:1000000
@@ -148,6 +149,9 @@ node_octets             rx:DERIVE:0:U, tx:DERIVE:0:U
 node_rssi               value:GAUGE:0:255
 node_stat               value:DERIVE:0:U
 node_tx_rate            value:GAUGE:0:127
+nr_overcommit_hugepages value:DERIVE:0:U
+nr_hugepages            value:DERIVE:0:U
+nr_hugepages_mempolicy  value:DERIVE:0:U
 objects                 value:GAUGE:0:U
 operations              value:DERIVE:0:U
 packets                 value:DERIVE:0:U
@@ -191,6 +195,7 @@ records                 value:GAUGE:0:U
 requests                value:GAUGE:0:U
 response_code           value:GAUGE:0:U
 response_time           value:GAUGE:0:U
+resv_hugepages          value:DERIVE:0:U
 root_delay              value:GAUGE:U:U
 root_dispersion         value:GAUGE:U:U
 route_etx               value:GAUGE:0:U
@@ -210,6 +215,7 @@ snr                     value:GAUGE:0:U
 spam_check              value:GAUGE:0:U
 spam_score              value:GAUGE:U:U
 spl                     value:GAUGE:U:U
+surplus_hugepages       value:DERIVE:0:U
 swap                    value:GAUGE:0:1099511627776
 swap_io                 value:DERIVE:0:U
 tcp_connections         value:GAUGE:0:4294967295

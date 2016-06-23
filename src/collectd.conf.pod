@@ -2699,6 +2699,26 @@ TCP-Port to connect to. Defaults to B<7634>.
 
 =back
 
+=head2 Plugin C<hugepages>
+
+To get values from B<hugepages> collectd read directories
+"/sys/devices/system/node/*/hugepages" and
+"/sys/kernel/mm/hugepages"
+Reading of these directories can be disabled by following
+options. Default is enabled.
+
+=over 4
+
+=item B<EnableNuma> I<true>|I<false>
+
+Enable/Disable reading stats in "/sys/devices/system/node/*/hugepages"
+
+=item B<EnableMM> I<true>|I<false>
+
+Enable/Disable reading stats in "/sys/kernel/mm/hugepages"
+
+=back
+
 =head2 Plugin C<interface>
 
 =over 4
