@@ -27,7 +27,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <pthread.h>
 
 #include <glib.h>
 #include <libsigrok/libsigrok.h>

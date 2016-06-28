@@ -38,8 +38,6 @@
 #include <grp.h>
 #include <signal.h>
 
-#include <pthread.h>
-
 #define PL_NORMAL        0x01
 #define PL_NOTIF_ACTION  0x02
 

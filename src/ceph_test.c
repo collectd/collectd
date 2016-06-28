@@ -144,6 +144,7 @@ DEF_TEST(traverse_json)
   CHECK_ZERO (yajl_parse_complete (hndl));
 #endif
 
+  yajl_free (hndl);
   return 0;
 }
 

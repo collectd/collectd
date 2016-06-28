@@ -34,8 +34,6 @@
 #include "configfile.h"
 #include "utils_cache.h"
 
-#include <pthread.h>
-
 #if HAVE_STDINT_H
 # define MONGO_HAVE_STDINT 1
 #else

@@ -28,8 +28,6 @@
 #include "plugin.h"
 #include "utils_ignorelist.h"
 
-#include <pthread.h>
-
 #include <OpenIPMI/ipmiif.h>
 #include <OpenIPMI/ipmi_err.h>
 #include <OpenIPMI/ipmi_posix.h>

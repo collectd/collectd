@@ -30,7 +30,6 @@
 
 #include <riemann/riemann-client.h>
 #include <errno.h>
-#include <pthread.h>
 
 #include "collectd.h"
 #include "plugin.h"

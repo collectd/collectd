@@ -54,6 +54,7 @@ struct udb_query_s /* {{{ */
   char *name;
   char *statement;
   void *user_data;
+  char *plugin_instance_from;
 
   unsigned int min_version;
   unsigned int max_version;
@@ -70,6 +71,7 @@ struct udb_result_preparation_area_s /* {{{ */
   char  **instances_buffer;
   char  **values_buffer;
   char  **metadata_buffer;
+  char   *plugin_instance;
 
   struct udb_result_preparation_area_s *next;
 }; /* }}} */
@@ -78,6 +80,7 @@ typedef struct udb_result_preparation_area_s udb_result_preparation_area_t;
 struct udb_query_preparation_area_s /* {{{ */
 {
   size_t column_num;
+  size_t plugin_instance_pos;
   char *host;
   char *plugin;
   char *db_name;
@@ -231,8 +234,15 @@ static int udb_result_submit (udb_result_t *r, /* {{{ */
 
   sstrncpy (vl.host, q_area->host, sizeof (vl.host));
   sstrncpy (vl.plugin, q_area->plugin, sizeof (vl.plugin));
-  sstrncpy (vl.plugin_instance, q_area->db_name, sizeof (vl.plugin_instance));
   sstrncpy (vl.type, r->type, sizeof (vl.type));
+
+  /* Set vl.plugin_instance */
+  if (q->plugin_instance_from != NULL) {
+    sstrncpy (vl.plugin_instance, r_area->plugin_instance, sizeof (vl.plugin_instance));
+  }
+  else {
+    sstrncpy (vl.plugin_instance, q_area->db_name, sizeof (vl.plugin_instance));
+  }
 
   /* Set vl.type_instance {{{ */
   if (r->instances_num == 0)
@@ -333,6 +343,9 @@ static int udb_result_handle_result (udb_result_t *r, /* {{{ */
 
   for (i = 0; i < r->metadata_num; i++)
     r_area->metadata_buffer[i] = column_values[r_area->metadata_pos[i]];
+
+  if (q->plugin_instance_from)
+    r_area->plugin_instance = column_values[q_area->plugin_instance_pos];
 
   return udb_result_submit (r, r_area, q, q_area);
 } /* }}} int udb_result_handle_result */
@@ -438,7 +451,7 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
 
   /* }}} */
 
-  /* Determine the position of the instance columns {{{ */
+  /* Determine the position of the plugin instance column {{{ */
   for (i = 0; i < r->instances_num; i++)
   {
     size_t j;
@@ -460,6 +473,7 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
       BAIL_OUT (-ENOENT);
     }
   } /* }}} for (i = 0; i < r->instances_num; i++) */
+
 
   /* Determine the position of the value columns {{{ */
   for (i = 0; i < r->values_num; i++)
@@ -519,6 +533,7 @@ static void udb_result_free (udb_result_t *r) /* {{{ */
     return;
 
   sfree (r->type);
+  sfree (r->instance_prefix);
 
   for (i = 0; i < r->instances_num; i++)
     sfree (r->instances[i]);
@@ -645,6 +660,7 @@ static void udb_query_free_one (udb_query_t *q) /* {{{ */
 
   sfree (q->name);
   sfree (q->statement);
+  sfree (q->plugin_instance_from);
 
   udb_result_free (q->results);
 
@@ -686,6 +702,9 @@ int udb_query_create (udb_query_t ***ret_query_list, /* {{{ */
   }
   q->min_version = 0;
   q->max_version = UINT_MAX;
+  q->statement = NULL;
+  q->results = NULL;
+  q->plugin_instance_from = NULL;
 
   status = udb_config_set_string (&q->name, ci);
   if (status != 0)
@@ -707,6 +726,8 @@ int udb_query_create (udb_query_t ***ret_query_list, /* {{{ */
       status = udb_config_set_uint (&q->min_version, child);
     else if (strcasecmp ("MaxVersion", child->key) == 0)
       status = udb_config_set_uint (&q->max_version, child);
+    else if (strcasecmp ("PluginInstanceFrom", child->key) == 0)
+      status = udb_config_set_string (&q->plugin_instance_from, child);
 
     /* Call custom callbacks */
     else if (cb != NULL)
@@ -1041,6 +1062,31 @@ int udb_query_prepare_result (udb_query_t const *q, /* {{{ */
     }
   } while (0);
 #endif
+
+  /* Determine the position of the PluginInstance column {{{ */
+  if (q->plugin_instance_from != NULL)
+  {
+    size_t i;
+
+    for (i = 0; i < column_num; i++)
+    {
+      if (strcasecmp (q->plugin_instance_from, column_names[i]) == 0)
+      {
+        prep_area->plugin_instance_pos = i;
+        break;
+      }
+    }
+
+    if (i >= column_num)
+    {
+      ERROR ("db query utils: udb_query_prepare_result: "
+          "Column `%s' from `PluginInstanceFrom' could not be found.",
+          q->plugin_instance_from);
+      udb_query_finish_result (q, prep_area);
+      return (-ENOENT);
+    }
+  }
+  /* }}} */
 
   for (r = q->results, r_area = prep_area->result_prep_areas;
       r != NULL; r = r->next, r_area = r_area->next)

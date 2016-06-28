@@ -61,7 +61,6 @@
  */
 char hostname_g[DATA_MAX_NAME_LEN];
 cdtime_t interval_g;
-int  pidfile_from_cli = 0;
 int  timeout_g;
 #if HAVE_LIBKSTAT
 kstat_ctl_t *kc;
@@ -652,15 +651,14 @@ int main (int argc, char **argv)
 				break;
 			case 'T':
 				test_readall = 1;
-				global_option_set ("ReadThreads", "-1");
+				global_option_set ("ReadThreads", "-1", 1);
 #if COLLECT_DAEMON
 				daemonize = 0;
 #endif /* COLLECT_DAEMON */
 				break;
 #if COLLECT_DAEMON
 			case 'P':
-				global_option_set ("PIDFile", optarg);
-				pidfile_from_cli = 1;
+				global_option_set ("PIDFile", optarg, 1);
 				break;
 			case 'f':
 				daemonize = 0;

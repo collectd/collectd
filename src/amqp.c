@@ -33,8 +33,6 @@
 #include "utils_format_json.h"
 #include "utils_format_graphite.h"
 
-#include <pthread.h>
-
 #include <amqp.h>
 #include <amqp_framing.h>
 

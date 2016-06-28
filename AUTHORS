@@ -4,9 +4,31 @@ Permanent project members
 Florian "octo" Forster <octo at verplant.org>
  - Initial author.
 
+Marc Fournier <marc.fournier at camptocamp.com>
+ - Various fixes to the varnish plugin.
+ - RPM specfile maintenance.
+ - libmnl support in the netlink plugin.
+ - linux support in the zfs_arc plugin.
+ - openldap plugin.
+ - continuous integration system.
+
+Pierre-Yves Ritschard <pyr at spootnik.org>
+ - Write-Riemann plugin.
+ - Write-Graphite plugin: Notification support.
+ - Write-Kafka plugin.
+ - Log-Logstash plugin.
+ - Normalization in the CPU plugin.
+ - Relative values in the Load plugin.
+
+Ruben Kerkhof <ruben@rubenkerkhof.com>
+ - Bugfixes and enhancements in many places all around the project.
+ - Fedora package.
+
 Sebastian "tokkee" Harl <sh at tokkee.org>
  - Bugfixes and enhancements in many places all around the project.
+ - gprc plugin.
  - perl plugin.
+ - postgresql plugin.
  - users plugin.
  - vserver plugin.
  - Debian package.
@@ -75,11 +97,15 @@ Christophe Kalt <collectd at klb.taranis.org>
  - The version 3 `log' mode.
  - Many Solaris related hints and fixes.
 
+Claudius Zingerli <gitmail at zeuz.ch>
+ - chrony plugin.
+
 Cyril Feraudet <cyril at feraudet.com>
  - ethstat plugin.
 
 Dagobert Michelsen <dam at opencsw.org>
  - zone plugin.
+ - Many Solaris related hints and fixes.
 
 Dan Berrange <berrange at redhat.com>
  - uuid plugin.
@@ -117,6 +143,9 @@ Flavio Stanchina <flavio at stanchina.net>
 
 Franck Lombardi
  - UNIX socket code for the memcached plugin.
+
+Gergely Nagy <algernon at madhouse-project.org>
+ - Write-Riemann plugin.
 
 Jason Pepas <cell at ices.utexas.edu>
  - nfs plugin.
@@ -164,13 +193,6 @@ Manuel Sanmartin
    + processes
    + swap
  - Various AIX-related fixes and hacks.
-
-Marc Fournier <marc.fournier at camptocamp.com>
- - Various fixes to the varnish plugin.
- - RPM specfile update.
- - libmnl support in the netlink plugin.
- - linux support in the zfs_arc plugin.
- - openldap plugin.
 
 Marco Chiappero <marco at absence.it>
  - uptime plugin.
@@ -221,6 +243,10 @@ Paul Sadauskas <psadauskas at gmail.com>
  - `ReportByDevice' option of the df plugin.
  - write_http plugin.
 
+Pavel Rochnyack <pavel2000 at ngs.ru>
+ - xencpu plugin.
+ - Bugfixes and enhancements in many places all around the project.
+
 Peter Holik <peter at holik.at>
  - cpufreq plugin.
  - multimeter plugin.
@@ -230,14 +256,6 @@ Peter Holik <peter at holik.at>
 
 Phoenix Kayo <kayo.k11.4 at gmail.com>
  - pinba plugin.
-
-Pierre-Yves Ritschard <pyr at spootnik.org>
- - Write-Riemann plugin.
- - Write-Graphite plugin: Notification support.
- - Write-Kafka plugin.
- - Log-Logstash plugin.
- - Normalization in the CPU plugin.
- - Relative values in the Load plugin.
 
 Piotr Hosowicz <the55 at wp.pl>
  - SMF manifest for collectd.

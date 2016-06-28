@@ -271,7 +271,7 @@ typedef int _Bool;
 #endif
 
  #ifndef COLLECTD_USERAGENT
- # define COLLECTD_USERAGENT PACKAGE_NAME"/"PACKAGE_VERSION
+ # define COLLECTD_USERAGENT PACKAGE_NAME "/" PACKAGE_VERSION
  #endif
 
 /* Only enable __attribute__() for compilers known to support it. */
@@ -316,7 +316,6 @@ typedef uint64_t cdtime_t;
 
 extern char     hostname_g[];
 extern cdtime_t interval_g;
-extern int      pidfile_from_cli;
 extern int      timeout_g;
 
 #endif /* COLLECTD_H */

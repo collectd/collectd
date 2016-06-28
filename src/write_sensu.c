@@ -35,7 +35,6 @@
 #include <errno.h>
 #include <netdb.h>
 #include <inttypes.h>
-#include <pthread.h>
 #include <stddef.h>
 
 #include <stdlib.h>

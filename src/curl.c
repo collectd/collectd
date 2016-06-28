@@ -25,6 +25,7 @@
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
+#include "utils_curl_stats.h"
 #include "utils_match.h"
 #include "utils_time.h"
 
@@ -67,6 +68,7 @@ struct web_page_s /* {{{ */
   _Bool response_time;
   _Bool response_code;
   int timeout;
+  curl_stats_t *stats;
 
   CURL *curl;
   char curl_errbuf[CURL_ERROR_SIZE];
@@ -156,6 +158,7 @@ static void cc_web_page_free (web_page_t *wp) /* {{{ */
   sfree (wp->cacert);
   sfree (wp->post_body);
   curl_slist_free_all (wp->headers);
+  curl_stats_destroy (wp->stats);
 
   sfree (wp->buffer);
 
@@ -453,6 +456,7 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
   page->response_time = 0;
   page->response_code = 0;
   page->timeout = -1;
+  page->stats = NULL;
 
   page->instance = strdup (ci->values[0].value.string);
   if (page->instance == NULL)
@@ -495,6 +499,11 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string (child, &page->post_body);
     else if (strcasecmp ("Timeout", child->key) == 0)
       status = cf_util_get_int (child, &page->timeout);
+    else if (strcasecmp ("Statistics", child->key) == 0) {
+      page->stats = curl_stats_from_config (child);
+      if (page->stats == NULL)
+        status = -1;
+    }
     else
     {
       WARNING ("curl plugin: Option `%s' not allowed here.", child->key);
@@ -514,12 +523,13 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
       status = -1;
     }
 
-    if (page->matches == NULL && !page->response_time && !page->response_code)
+    if (page->matches == NULL && page->stats == NULL
+        && !page->response_time && !page->response_code)
     {
       assert (page->instance != NULL);
       WARNING ("curl plugin: No (valid) `Match' block "
-          "or MeasureResponseTime or MeasureResponseCode within "
-          "`Page' block `%s'.", page->instance);
+          "or Statistics or MeasureResponseTime or MeasureResponseCode "
+          "within `Page' block `%s'.", page->instance);
       status = -1;
     }
 
@@ -675,6 +685,8 @@ static int cc_read_page (web_page_t *wp) /* {{{ */
 
   if (wp->response_time)
     cc_submit_response_time (wp, cdtime() - start);
+  if (wp->stats != NULL)
+    curl_stats_dispatch (wp->stats, wp->curl, hostname_g, "curl", wp->instance);
 
   if(wp->response_code)
   {

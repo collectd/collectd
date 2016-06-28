@@ -31,7 +31,7 @@ m4_ifdef([LT_PACKAGE_VERSION],
 
 AM_CONDITIONAL([BUILD_INCLUDED_LTDL], [test "x$LTDLDEPS" != "x"])
 
-AM_INIT_AUTOMAKE([subdir-objects tar-pax dist-bzip2 foreign])
+AM_INIT_AUTOMAKE([subdir-objects tar-pax dist-bzip2 no-dist-gzip foreign])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 AC_LANG(C)
 
@@ -43,6 +43,7 @@ AC_SYS_LARGEFILE
 # Checks for programs.
 #
 AC_PROG_CC
+AC_PROG_CXX
 AC_PROG_CPP
 AC_PROG_EGREP
 AC_PROG_INSTALL
@@ -55,6 +56,8 @@ AC_DISABLE_STATIC
 AC_PROG_LIBTOOL
 AC_PROG_LEX
 AC_PROG_YACC
+
+AC_PATH_PROG([VALGRIND], [valgrind])
 
 # Warn when pkg.m4 is missing
 m4_pattern_forbid([^_?PKG_[A-Z_]+$],[*** pkg.m4 missing, please install pkg-config])
@@ -72,6 +75,23 @@ if test "x$collectd_cv_prog_bison" = "xno" && test ! -f "${srcdir}/src/liboconfi
 then
 	AC_MSG_ERROR([bison is missing and you do not have ${srcdir}/src/liboconfig/parser.c. Please install bison])
 fi
+
+AC_PATH_PROG([PROTOC], [protoc])
+have_protoc3="no"
+if test "x$PROTOC" != "x"; then
+	AC_MSG_CHECKING([for protoc 3.0.0+])
+	if $PROTOC --version | grep -q libprotoc.3; then
+		protoc3="yes (`$PROTOC --version`)"
+		have_protoc3="yes"
+	else
+		protoc3="no (`$PROTOC --version`)"
+	fi
+	AC_MSG_RESULT([$protoc3])
+fi
+AM_CONDITIONAL(HAVE_PROTOC3, test "x$have_protoc3" = "xyes")
+
+AC_PATH_PROG([GRPC_CPP_PLUGIN], [grpc_cpp_plugin])
+AM_CONDITIONAL(HAVE_GRPC_CPP, test "x$GRPC_CPP_PLUGIN" != "x")
 
 AC_CHECK_PROG([have_protoc_c], [protoc-c], [yes], [no])
 if test "x$have_protoc_c" = "xno"
@@ -129,12 +149,12 @@ case $host_os in
 esac
 AC_MSG_RESULT([$ac_system])
 
-AM_CONDITIONAL([BUILD_LINUX],[test "x$ac_system" = "xLinux"])
-AM_CONDITIONAL([BUILD_SOLARIS],[test "x$ac_system" = "xSolaris"])
-AM_CONDITIONAL([BUILD_DARWIN],[test "x$ac_system" = "xDarwin"])
-AM_CONDITIONAL([BUILD_OPENBSD],[test "x$ac_system" = "xOpenBSD"])
-AM_CONDITIONAL([BUILD_AIX],[test "x$ac_system" = "xAIX"])
-AM_CONDITIONAL([BUILD_FREEBSD],[test "x$ac_system" = "xFreeBSD"])
+AM_CONDITIONAL([BUILD_AIX], [test "x$ac_system" = "xAIX"])
+AM_CONDITIONAL([BUILD_DARWIN], [test "x$ac_system" = "xDarwin"])
+AM_CONDITIONAL([BUILD_FREEBSD], [test "x$ac_system" = "xFreeBSD"])
+AM_CONDITIONAL([BUILD_LINUX], [test "x$ac_system" = "xLinux"])
+AM_CONDITIONAL([BUILD_OPENBSD], [test "x$ac_system" = "xOpenBSD"])
+AM_CONDITIONAL([BUILD_SOLARIS], [test "x$ac_system" = "xSolaris"])
 
 if test "x$ac_system" = "xLinux"
 then
@@ -774,10 +794,21 @@ AC_HEADER_TIME
 #
 # Checks for library functions.
 #
-AC_PROG_GCC_TRADITIONAL
 AC_CHECK_FUNCS(gettimeofday select strdup strtol getaddrinfo getnameinfo strchr memcpy strstr strcmp strncmp strncpy strlen strncasecmp strcasecmp openlog closelog sysconf setenv if_indextoname setlocale)
 
 AC_FUNC_STRERROR_R
+
+test_cxx_flags() {
+	AC_LANG_PUSH([C++])
+	AC_LANG_CONFTEST([
+		AC_LANG_SOURCE([[int main(void){}]])
+	])
+	$CXX -c conftest.cpp $CXXFLAGS $@ > /dev/null 2> /dev/null
+	ret=$?
+	rm -f conftest.o
+	AC_LANG_POP([C++])
+	return $ret
+}
 
 SAVE_CFLAGS="$CFLAGS"
 # Emulate behavior of src/Makefile.am
@@ -1603,45 +1634,21 @@ if test "x$with_libhal" = "xyes"; then
 	fi
 fi
 
-# --with-libpthread {{{
-AC_ARG_WITH(libpthread, [AS_HELP_STRING([--with-libpthread=@<:@=PREFIX@:>@], [Path to libpthread.])],
-[	if test "x$withval" != "xno" \
-		&& test "x$withval" != "xyes"
-	then
-		LDFLAGS="$LDFLAGS -L$withval/lib"
-		CPPFLAGS="$CPPFLAGS -I$withval/include"
-		with_libpthread="yes"
-	else
-		if test "x$withval" = "xno"
-		then
-			with_libpthread="no (disabled)"
-		fi
-	fi
-], [with_libpthread="yes"])
+SAVE_LIBS="$LIBS"
+AC_CHECK_LIB([pthread],
+  [pthread_create],
+  [],
+  [AC_MSG_ERROR([Symbol 'pthread_create' not found in libpthread"])],
+  []
+)
+PTHREAD_LIBS="$LIBS"
+LIBS="$SAVE_LIBS"
 
+AC_CHECK_HEADERS([pthread.h],
+  [],
+  [AC_MSG_ERROR([pthread.h not found])]
+)
 AC_SUBST([PTHREAD_LIBS])
-if test "x$with_libpthread" = "xyes"
-then
-	SAVE_LIBS="$LIBS"
-	AC_CHECK_LIB(pthread, pthread_create, [], [with_libpthread="no (Symbol 'pthread_create' not found)"], [])
-	PTHREAD_LIBS="$LIBS"
-	LIBS="$SAVE_LIBS"
-fi
-
-if test "x$with_libpthread" = "xyes"
-then
-	AC_CHECK_HEADERS(pthread.h,, [with_libpthread="no (pthread.h not found)"])
-fi
-if test "x$with_libpthread" = "xyes"
-then
-	collect_pthread=1
-else
-	collect_pthread=0
-fi
-AC_DEFINE_UNQUOTED(HAVE_LIBPTHREAD, [$collect_pthread],
-	[Wether or not to use pthread (POSIX threads) library])
-AM_CONDITIONAL(BUILD_WITH_LIBPTHREAD, test "x$with_libpthread" = "xyes")
-# }}}
 
 m4_divert_once([HELP_WITH], [
 collectd additional packages:])
@@ -1941,6 +1948,36 @@ then
 fi
 if test "x$with_libcurl" = "xyes"
 then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_curl_cflags"
+	LDFLAGS="$LDFLAGS $with_curl_libs"
+	AC_CACHE_CHECK([for CURLINFO_APPCONNECT_TIME],
+		[c_cv_have_curlinfo_appconnect_time],
+		AC_LINK_IFELSE([AC_LANG_PROGRAM(
+[[
+#include <curl/curl.h>
+]],
+[[
+int val = CURLINFO_APPCONNECT_TIME;
+return val;
+]]
+			)],
+			[c_cv_have_curlinfo_appconnect_time="yes"],
+			[c_cv_have_curlinfo_appconnect_time="no"]
+		)
+	)
+	CPPFLAGS="$SAVE_CPPFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBCURL, test "x$with_libcurl" = "xyes")
+if test "x$c_cv_have_curlinfo_appconnect_time" = "xyes"
+then
+	AC_DEFINE(HAVE_CURLINFO_APPCONNECT_TIME, 1, [Define if curl.h defines CURLINFO_APPCONNECT_TIME.])
+fi
+
+if test "x$with_libcurl" = "xyes"
+then
 	BUILD_WITH_LIBCURL_CFLAGS="$with_curl_cflags"
 	BUILD_WITH_LIBCURL_LIBS="$with_curl_libs"
 	AC_SUBST(BUILD_WITH_LIBCURL_CFLAGS)
@@ -1956,7 +1993,6 @@ then
 		AC_DEFINE(HAVE_CURLOPT_TIMEOUT_MS, 1, [Define if libcurl supports CURLOPT_TIMEOUT_MS option.])
 	fi
 fi
-AM_CONDITIONAL(BUILD_WITH_LIBCURL, test "x$with_libcurl" = "xyes")
 # }}}
 
 # --with-libdbi {{{
@@ -2208,6 +2244,62 @@ AC_SUBST(GCRYPT_CPPFLAGS)
 AC_SUBST(GCRYPT_LDFLAGS)
 AC_SUBST(GCRYPT_LIBS)
 AM_CONDITIONAL(BUILD_WITH_LIBGCRYPT, test "x$with_libgcrypt" = "xyes")
+# }}}
+
+# --with-grpc {{{
+AC_ARG_WITH(grpc, [AS_HELP_STRING([--without-grpc], [Disable gRPC (default: autodetect).])],
+[
+	with_grpc="$withval"
+],
+[
+	with_grpc="yes"
+])
+
+if test "x$with_grpc" = "xyes"
+then
+	if test "x$have_protoc3" != "xyes"
+	then
+		with_grpc="no (requires protoc 3.0.0+)"
+	else if test "x$GRPC_CPP_PLUGIN" = "x"
+	then
+		with_grpc"no (requires grpc_cpp_plugin)"
+	fi; fi
+fi
+
+if test "x$with_grpc" = "xyes"
+then
+	AC_MSG_CHECKING([whether $CXX accepts -std=c++11])
+	if test_cxx_flags -std=c++11; then
+		AC_MSG_RESULT([yes])
+	else
+		AC_MSG_RESULT([no])
+		with_grpc="no (requires C++11 support)"
+	fi
+fi
+
+if test "x$with_grpc" = "xyes"
+then
+	AC_LANG_PUSH(C++)
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	SAVE_CXXFLAGS="$CXXFLAGS"
+	CPPFLAGS="$CPPFLAGS -std=c++11"
+	CXXFLAGS="$CXXFLAGS -std=c++11"
+	AC_CHECK_HEADERS([grpc++/grpc++.h], [],
+			[with_grpc="no (grpc++/grpc++.h not found)"])
+	CPPFLAGS="$SAVE_CPPFLAGS"
+	CXXFLAGS="$SAVE_CXXFLAGS"
+	AC_LANG_POP(C++)
+fi
+with_libgrpc="no"
+if test "x$with_grpc" = "xyes"
+then
+	AC_LANG_PUSH(C++)
+	AC_CHECK_LIB([grpc], [grpc_register_plugin],
+			[with_libgrpc="yes"],
+			[with_grpc="no (libgrpc not found)"],
+			[-lgpr -lprotobuf])
+	AC_LANG_POP(C++)
+fi
 # }}}
 
 # --with-libiptc {{{
@@ -3366,9 +3458,9 @@ then
 fi
 if test "x$with_oracle" = "xyes"
 then
-	BUILD_WITH_ORACLE_CFLAGS="$with_oracle_cppflags"
+	BUILD_WITH_ORACLE_CPPFLAGS="$with_oracle_cppflags"
 	BUILD_WITH_ORACLE_LIBS="$with_oracle_libs"
-	AC_SUBST(BUILD_WITH_ORACLE_CFLAGS)
+	AC_SUBST(BUILD_WITH_ORACLE_CPPFLAGS)
 	AC_SUBST(BUILD_WITH_ORACLE_LIBS)
 fi
 # }}}
@@ -4775,6 +4867,10 @@ then
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
 	LDFLAGS="$SAVE_LDFLAGS"
+	LIBXENCTL_CPPFLAGS="$with_libxenctl_cppflags"
+	LIBXENCTL_LDFLAGS="$with_libxenctl_ldflags"
+	AC_SUBST(LIBXENCTL_CPPFLAGS)
+	AC_SUBST(LIBXENCTL_LDFLAGS)
 fi
 
 # --with-libxmms {{{
@@ -5394,7 +5490,7 @@ AC_DEFUN(
 	     then
 		     enable_plugin="yes"
 	     else
-		     enable_plugin="no"
+		     enable_plugin="$2"
 	     fi
 	 else
 	     enable_plugin="$enable_all_plugins"
@@ -5411,7 +5507,7 @@ AC_DEFUN(
 		    fi
 	    else # User passed "yes" but dependency checking yielded "no" => Dependency problem.
 		    dependency_error="yes"
-		    enable_plugin="no (dependency error)"
+		    enable_plugin="$2 (dependency error)"
 	    fi
     fi
     AM_CONDITIONAL([BUILD_PLUGIN_]my_toupper([$1]), test "x$enable_plugin" = "xyes")
@@ -5851,6 +5947,7 @@ AC_PLUGIN([battery],             [$plugin_battery],         [Battery statistics]
 AC_PLUGIN([bind],                [$plugin_bind],            [ISC Bind nameserver statistics])
 AC_PLUGIN([ceph],                [$plugin_ceph],            [Ceph daemon statistics])
 AC_PLUGIN([cgroups],             [$plugin_cgroups],         [CGroups CPU usage accounting])
+AC_PLUGIN([chrony],              [yes],                     [Chrony statistics])
 AC_PLUGIN([conntrack],           [$plugin_conntrack],       [nf_conntrack statistics])
 AC_PLUGIN([contextswitch],       [$plugin_contextswitch],   [context switch statistics])
 AC_PLUGIN([cpu],                 [$plugin_cpu],             [CPU usage statistics])
@@ -5872,6 +5969,7 @@ AC_PLUGIN([fhcount],             [$plugin_fhcount],         [File handles statis
 AC_PLUGIN([filecount],           [yes],                     [Count files in directories])
 AC_PLUGIN([fscache],             [$plugin_fscache],         [fscache statistics])
 AC_PLUGIN([gmond],               [$with_libganglia],        [Ganglia plugin])
+AC_PLUGIN([grpc],                [$with_grpc],              [gRPC plugin])
 AC_PLUGIN([hddtemp],             [yes],                     [Query hddtempd])
 AC_PLUGIN([interface],           [$plugin_interface],       [Interface traffic statistics])
 AC_PLUGIN([ipc],                 [$plugin_ipc],             [IPC statistics])
@@ -6138,13 +6236,16 @@ AC_SUBST(LCC_VERSION_STRING)
 AC_CONFIG_FILES(src/libcollectdclient/collectd/lcc_features.h)
 
 AM_CFLAGS="-Wall"
+AM_CXXFLAGS="-Wall"
 if test "x$enable_werror" != "xno"
 then
         AM_CFLAGS="$AM_CFLAGS -Werror"
+        AM_CXXFLAGS="$AM_CXXFLAGS -Werror"
 fi
 AC_SUBST([AM_CFLAGS])
+AC_SUBST([AM_CXXFLAGS])
 
-AC_CONFIG_FILES([Makefile src/Makefile src/daemon/Makefile src/collectd.conf src/libcollectdclient/Makefile src/libcollectdclient/libcollectdclient.pc src/liboconfig/Makefile bindings/Makefile bindings/java/Makefile])
+AC_CONFIG_FILES([Makefile proto/Makefile src/Makefile src/daemon/Makefile src/collectd.conf src/libcollectdclient/Makefile src/libcollectdclient/libcollectdclient.pc src/liboconfig/Makefile bindings/Makefile bindings/java/Makefile])
 AC_OUTPUT
 
 if test "x$with_librrd" = "xyes" \
@@ -6178,10 +6279,13 @@ Configuration:
     Platform  . . . . . . $ac_system
     CC  . . . . . . . . . $CC
     CFLAGS  . . . . . . . $AM_CFLAGS $CFLAGS
+    CXXFLAGS  . . . . . . $AM_CXXFLAGS $CXXFLAGS
     CPP . . . . . . . . . $CPP
     CPPFLAGS  . . . . . . $CPPFLAGS
+    GRPC_CPP_PLUGIN . . . $GRPC_CPP_PLUGIN
     LD  . . . . . . . . . $LD
     LDFLAGS . . . . . . . $LDFLAGS
+    PROTOC  . . . . . . . $PROTOC
     YACC  . . . . . . . . $YACC
     YFLAGS  . . . . . . . $YFLAGS
 
@@ -6194,6 +6298,7 @@ Configuration:
     libesmtp  . . . . . . $with_libesmtp
     libganglia  . . . . . $with_libganglia
     libgcrypt . . . . . . $with_libgcrypt
+    libgrpc . . . . . . . $with_libgrpc
     libhal  . . . . . . . $with_libhal
     libhiredis  . . . . . $with_libhiredis
     libi2c-dev  . . . . . $with_libi2c
@@ -6221,7 +6326,6 @@ Configuration:
     libperfstat . . . . . $with_perfstat
     libperl . . . . . . . $with_libperl
     libpq . . . . . . . . $with_libpq
-    libpthread  . . . . . $with_libpthread
     librabbitmq . . . . . $with_librabbitmq
     libriemann-client . . $with_libriemann_client
     librdkafka  . . . . . $with_librdkafka
@@ -6241,6 +6345,7 @@ Configuration:
     libyajl . . . . . . . $with_libyajl
     oracle  . . . . . . . $with_oracle
     protobuf-c  . . . . . $have_protoc_c
+    protoc 3  . . . . . . $protoc3
     python  . . . . . . . $with_python
 
   Features:
@@ -6264,6 +6369,7 @@ Configuration:
     bind  . . . . . . . . $enable_bind
     ceph  . . . . . . . . $enable_ceph
     cgroups . . . . . . . $enable_cgroups
+    chrony. . . . . . . . $enable_chrony
     conntrack . . . . . . $enable_conntrack
     contextswitch . . . . $enable_contextswitch
     cpu . . . . . . . . . $enable_cpu
@@ -6285,6 +6391,7 @@ Configuration:
     filecount . . . . . . $enable_filecount
     fscache . . . . . . . $enable_fscache
     gmond . . . . . . . . $enable_gmond
+    grpc  . . . . . . . . $enable_grpc
     hddtemp . . . . . . . $enable_hddtemp
     interface . . . . . . $enable_interface
     ipc . . . . . . . . . $enable_ipc

@@ -31,7 +31,6 @@
 #include "plugin.h"
 
 #include <sys/types.h>
-#include <pthread.h>
 #include <yajl/yajl_common.h>
 #include <yajl/yajl_gen.h>
 #if HAVE_YAJL_YAJL_VERSION_H
