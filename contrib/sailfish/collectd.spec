@@ -8,8 +8,8 @@
 
 Summary:	statistics collection and monitoring daemon
 Name:		collectd
-Version:	5.5.0
-Release:	3%{?dist}
+Version:	5.5.0.git
+Release:	4%{?dist}
 URL:		http://collectd.org
 Source:		http://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
@@ -317,8 +317,8 @@ su nemo -c "systemctl --user stop %{name}.service"
 
 %post
 su nemo -c "systemctl --user daemon-reload"
-su nemo -c "systemctl --user enable %{name}.service"
-su nemo -c "systemctl --user start %{name}.service"
+# su nemo -c "systemctl --user enable %{name}.service"
+# su nemo -c "systemctl --user start %{name}.service"
 
 %postun
 su nemo -c "systemctl --user daemon-reload"
