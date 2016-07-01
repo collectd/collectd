@@ -8,7 +8,7 @@
 
 Summary:	statistics collection and monitoring daemon
 Name:		collectd
-Version:	5.5.0.git
+Version:	5.5.0.git.2016.07.01
 Release:	4%{?dist}
 URL:		http://collectd.org
 Source:		http://collectd.org/files/%{name}-%{version}.tar.bz2
@@ -271,6 +271,8 @@ rm -rf %{buildroot}
 %{__make} install DESTDIR=%{buildroot}
 
 %{__install} -Dp -m0644 contrib/sailfish/collectd.service %{buildroot}%{_userunitdir}/collectd.service
+#%{__install} -Dp -m0644 contrib/sailfish/collectd2tmpfs.service %{buildroot}%{_userunitdir}/collectd2tmpfs.service
+#%{__install} -Dp -m0644 contrib/sailfish/collectd2tmpfs.timer %{buildroot}%{_userunitdir}/collectd2tmpfs.timer
 %{__install} -Dp -m0644 contrib/sailfish/collectd.conf %{buildroot}%{_sysconfdir}/collectd.conf
 %{__install} -Dp -m0755 contrib/sailfish/collectd2tmpfs.sh %{buildroot}%{_bindir}/collectd2tmpfs
 
@@ -309,16 +311,21 @@ rm -rf %{buildroot}
 
 %pre
 su nemo -c "systemctl --user stop %{name}.service"
+#su nemo -c "systemctl --user stop collectd2tmpfs.timer"
 exit 0
 
 %preun
 su nemo -c "systemctl --user disable %{name}.service"
 su nemo -c "systemctl --user stop %{name}.service"
+#su nemo -c "systemctl --user disable collectd2tmpfs.timer"
+#su nemo -c "systemctl --user stop collectd2tmpfs.timer"
 
 %post
 su nemo -c "systemctl --user daemon-reload"
 # su nemo -c "systemctl --user enable %{name}.service"
 # su nemo -c "systemctl --user start %{name}.service"
+# su nemo -c "systemctl --user enable collectd2tmpfs.timer"
+# su nemo -c "systemctl --user start collectd2tmpfs.timer"
 
 %postun
 su nemo -c "systemctl --user daemon-reload"
@@ -332,6 +339,8 @@ su nemo -c "systemctl --user daemon-reload"
 %doc AUTHORS COPYING ChangeLog README
 %config(noreplace) %{_sysconfdir}/collectd.conf
 %{_userunitdir}/collectd.service
+#%{_userunitdir}/collectd2tmpfs.service
+#%{_userunitdir}/collectd2tmpfs.timer
 %{_sbindir}/collectd
 %{_sbindir}/collectdmon
 %{_datadir}/collectd/types.db

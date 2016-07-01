@@ -28,6 +28,9 @@ case $i in
     --stop)
 	STOP="yes"
 	;;
+    --sync)
+	SYNC="yes"
+	;;
     *)
 	# unknown option
 	echo "Unknown option" $i
@@ -58,5 +61,13 @@ if [ "x$STOP" == "xyes" ]; then
     else
 	echo $TMPDIR does not exist, cannot sync it to storage
 	exit 3
+    fi
+fi
+
+if [ "x$SYNC" == "xyes" ]; then
+    if [ -d "$TMPDIR" ]; then
+	[[ -d $STRDIR ]] || mkdir $STRDIR
+	rsync -a $TMPDIR/ $STRDIR/
+	exit 0
     fi
 fi
