@@ -42,9 +42,7 @@ be brought out from suspend at each interval. As usual for collectd,
 if you change the interval, delete all your collected data and start
 from new (if you use RRD).
 
-At present, there is no Sailfish GUI for collected data. The GUI is
-planned and I would work on it after the first version of the port is
-ready.
+As a GUI for Sailfish, a new application has been written: https://github.com/rinigus/systemdatascope . This application allows to see the recorded datasets and start/stop the daemon.
 
 To analyze collected data, you could transfer it to Linux PC by using
 rrd-sync script provided with rrdtool package in Sailfish
@@ -54,7 +52,7 @@ them to XML and restoring on target machine (target should have
 rrdtool installed). After transferring the data, use GUIs developed
 for Linux. For example, use collectd-web with its runserver.py (adjust
 path in cgi-bin/collection.modified.cgi of collectd-web and make
-collection.conf as needed).
+collection.conf as needed). Alternatively, https://github.com/rinigus/systemdatascope can be used in Linux as well.
 
 
 ## Implementation details
