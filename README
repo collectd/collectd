@@ -998,6 +998,16 @@ Note: DPDK 16.04 is the minimum version of DPDK required for the dpdkstat
 plugin. This is to allow the plugin to take advantage of functions added to
 detect if the DPDK primary process is alive.
 
+Note: For Ubuntu, GCC 4.9 is the minimum version required to build collectd
+with DPDK. Ubuntu 14.04, for example, has GCC 4.8 by default and will require
+an upgrade:
+  $ sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+  $ sudo apt-get update
+  $ sudo apt-get install gcc-4.9
+Alternatively, if you know that the platform that you wish to run collectd
+on supports the SSSE3 instruction set, you can run make as follows:
+  $ make -j CFLAGS+='-mssse3'
+
 Build DPDK for use with collectd:
   To compile DPDK for use with collectd dpdkstat start by:
     - Clone DPDK:
@@ -1088,8 +1098,9 @@ NOTE: The Address-Space Layout Randomization (ASLR) security feature in Linux sh
 
     - Build collectd:
           $ make -j && make -j install.
-      NOTE: If you are building on Ubuntu 14.04 you need to use:
-          $  make -j CFLAGS+='-mavx' && make -j install
+      NOTE: As mentioned above, if you are building on Ubuntu 14.04 with GCC <= 4.8.X,
+        you need to use:
+          $  make -j CFLAGS+='-mssse3' && make -j install
 
 Usage of dpdkstat:
     - The same PCI device configuration should be passed to the primary process

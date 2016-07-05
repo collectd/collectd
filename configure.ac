@@ -2438,7 +2438,7 @@ then
 
 	SAVE_CFLAGS="$CFLAGS"
 	SAVE_LDFLAGS="$LDFLAGS"
-	CFLAGS="$CFLAGS -mavx -I$DPDK_INCLUDE"
+	CFLAGS="$CFLAGS -I$DPDK_INCLUDE"
 	if test "x$LOCAL_DPDK_INSTALL" != "xtrue"
         then
             LDFLAGS="$LDFLAGS -L$DPDK_LIB_DIR"
@@ -2456,23 +2456,6 @@ then
 	if test "x$FOUND_DPDK" != "xtrue"
         then
 	    AC_MSG_ERROR([cannot link with dpdk in $DPDK_LIB_DIR])
-	fi
-	BUILD_WITH_DPDK_CFLAGS=""
-	AC_MSG_NOTICE([Checking for avx instructions])
-	AC_RUN_IFELSE(
-		[AC_LANG_PROGRAM(
-[[
-#include <immintrin.h>
-]],
-[[
-__m128i zero = _mm_setzero_si128();
-]]
-	)],
-		[HAVE_AVX=true], [HAVE_AVX=false])
-	if test "x$HAVE_AVX" = "xtrue"
-	then
-		BUILD_WITH_DPDK_CFLAGS="-mavx "
-		AC_MSG_NOTICE([avx instructions supported])
 	fi
 
 	BUILD_WITH_DPDK_CFLAGS+="-fPIC -I$DPDK_INCLUDE"
