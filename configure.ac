@@ -5537,6 +5537,7 @@ plugin_conntrack="no"
 plugin_contextswitch="no"
 plugin_cpu="no"
 plugin_cpufreq="no"
+plugin_cpusleep="no"
 plugin_curl_json="no"
 plugin_curl_xml="no"
 plugin_df="no"
@@ -5587,6 +5588,7 @@ then
 	plugin_contextswitch="yes"
 	plugin_cpu="yes"
 	plugin_cpufreq="yes"
+	plugin_cpusleep="yes"
 	plugin_disk="yes"
 	plugin_drbd="yes"
 	plugin_entropy="yes"
@@ -5952,6 +5954,7 @@ AC_PLUGIN([conntrack],           [$plugin_conntrack],       [nf_conntrack statis
 AC_PLUGIN([contextswitch],       [$plugin_contextswitch],   [context switch statistics])
 AC_PLUGIN([cpu],                 [$plugin_cpu],             [CPU usage statistics])
 AC_PLUGIN([cpufreq],             [$plugin_cpufreq],         [CPU frequency statistics])
+AC_PLUGIN([cpusleep],            [$plugin_cpusleep],        [CPU sleep statistics])
 AC_PLUGIN([csv],                 [yes],                     [CSV output plugin])
 AC_PLUGIN([curl],                [$with_libcurl],           [CURL generic web statistics])
 AC_PLUGIN([curl_json],           [$plugin_curl_json],       [CouchDB statistics])
@@ -6374,6 +6377,7 @@ Configuration:
     contextswitch . . . . $enable_contextswitch
     cpu . . . . . . . . . $enable_cpu
     cpufreq . . . . . . . $enable_cpufreq
+    cpusleep  . . . . . . $enable_cpusleep
     csv . . . . . . . . . $enable_csv
     curl  . . . . . . . . $enable_curl
     curl_json . . . . . . $enable_curl_json
