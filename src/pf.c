@@ -80,10 +80,11 @@ static void pf_submit (char const *type, char const *type_instance,
 static int pf_read (void)
 {
 	struct pf_status state;
+	struct pfioc_rule pr;
+	u_int32_t nr, mnr = 0;
 	int fd;
 	int status;
 	int i;
-
 	fd = open (pf_device, O_RDONLY);
 	if (fd < 0)
 	{
@@ -103,6 +104,42 @@ static int pf_read (void)
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		close(fd);
 		return (-1);
+	}
+
+	memset(&pr, 0, sizeof(pr));
+
+	pr.rule.action = PF_PASS;
+	if (ioctl(fd, DIOCGETRULES, &pr)) {
+		char errbuf[1024];
+		ERROR("pf plugin: ioctl(DIOCGETRULES) failed: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		close(fd);
+		return (-1);
+	}
+	mnr = pr.nr;
+	for (nr = 0; nr < mnr; ++nr) {
+		pr.nr = nr;
+		if (ioctl(fd, DIOCGETRULE, &pr)) {
+			char errbuf[1024];
+			ERROR("pf plugin: ioctl(DIOCGETRULE) failed: %s",
+					sstrerror (errno, errbuf, sizeof (errbuf)));
+			close(fd);
+			return (-1);
+		}
+
+		if (pr.rule.label[0]) {
+			char type_label[DATA_MAX_NAME_LEN];
+			memset (type_label, 0, DATA_MAX_NAME_LEN);
+			sstrncpy(type_label, pr.rule.label, sizeof (type_label));
+			pf_submit( "label_evaluations", type_label,  (uint64_t) pr.rule.evaluations, 0);
+			pf_submit( "label_state_creations", type_label,  (uint64_t) pr.rule.u_states_tot, 0);
+			pf_submit( "label_packets_total", type_label,  (uint64_t) (pr.rule.packets[0] + pr.rule.packets[1]), 0);
+			pf_submit( "label_bytes_total", type_label,  (uint64_t) (pr.rule.bytes[0] + pr.rule.bytes[1]), 0);
+			pf_submit( "label_packets_in", type_label,  (uint64_t) (pr.rule.packets[0]), 0);
+			pf_submit( "label_packets_out", type_label,  (uint64_t) (pr.rule.packets[1]), 0);
+			pf_submit( "label_bytes_in", type_label,  (uint64_t) (pr.rule.bytes[0]), 0);
+			pf_submit( "label_bytes_out", type_label,  (uint64_t) (pr.rule.bytes[1]), 0);
+		}
 	}
 
 	close (fd);
@@ -130,6 +167,7 @@ static int pf_read (void)
 			/* is gauge = */ 1);
 
 	return (0);
+
 } /* int pf_read */
 
 void module_register (void)
