@@ -2291,7 +2291,7 @@ static int init_pi (int argc, char **argv)
 		int i = 0;
 
 		for (i = 0; i < argc; ++i)
-			log_debug ("argv[%i] = \"%s\"", i, argv[i]);
+			/*log_debug ("argv[%i] = \"%s\"", i, argv[i]);*/
 	}
 #endif /* COLLECT_DEBUG */
 
