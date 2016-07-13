@@ -1071,6 +1071,23 @@ Build DPDK for use with collectd:
              booted at system startup time.
      - Run ldconfig to update the shared library cache.
 
+  Build static DPDK library for use with collectd:
+     - To configure DPDK to build the combined static library libdpdk.a
+       ensure that CONFIG_RTE_BUILD_SHARED_LIB is set to n in
+       config/common_base in your DPDK as follows:
+       #
+       # Compile to share library
+       #
+       CONFIG_RTE_BUILD_SHARED_LIB=n
+     - Prepare the configuration for the appropriate target as specified at:
+       http://dpdk.org/doc/guides/linux_gsg/build_dpdk.html.
+       For example:
+          $ make config T=x86_64-native-linuxapp-gcc
+     - Build the target using -fPIC:
+          $ make EXTRA_CFLAGS=-fPIC -j
+     - Install DPDK to /usr
+          $ sudo make install prefix=/usr
+
 Configure collectd with DPDK:
 NOTE: The Address-Space Layout Randomization (ASLR) security feature in Linux should
 	be disabled, in order for the same hugepage memory mappings to be present in all
@@ -1082,8 +1099,11 @@ NOTE: The Address-Space Layout Randomization (ASLR) security feature in Linux sh
 	See http://dpdk.org/doc/guides/prog_guide/multi_proc_support.html
 
     - Generate the build script as specified below. (i.e. run `build.sh').
-    - Configure collectd with the DPDK library:
+    - Configure collectd with the DPDK shared library:
        ./configure --with-libdpdk=/usr
+      NOTE: To configure collectd with the DPDK static library:
+       ./configure --with-libdpdk=/usr CFLAGS=" -lpthread -Wl,--whole-archive
+        -Wl,-ldpdk -Wl,-lm -Wl,-lrt -Wl,-lpcap -Wl,-ldl -Wl,--no-whole-archive"
 
        Libraries:
        ...
