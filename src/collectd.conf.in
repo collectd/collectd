@@ -583,6 +583,7 @@
 #<Plugin interface>
 #	Interface "eth0"
 #	IgnoreSelected false
+#	ActiveInterfaceOnly false
 #	UniqueName false
 #</Plugin>
 
