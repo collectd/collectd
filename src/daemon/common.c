@@ -366,10 +366,12 @@ int strjoin (char *buffer, size_t buffer_size,
 			ptr += sep_len;
 			avail -= sep_len;
 		}
+		if (avail == 0)
+			return (-1);
 
 		field_len = strlen (fields[i]);
 		if (avail < field_len)
-			return (-1);
+			field_len = avail;
 
 		memcpy (ptr, fields[i], field_len);
 		ptr += field_len;
@@ -377,7 +379,7 @@ int strjoin (char *buffer, size_t buffer_size,
 	}
 
 	assert (buffer[buffer_size - 1] == 0);
-	return ((int) strlen (buffer));
+	return ((int) ((buffer_size - 1) - avail));
 }
 
 int escape_string (char *buffer, size_t buffer_size)
