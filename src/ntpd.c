@@ -505,7 +505,7 @@ static int ntpd_receive_response (int *res_items, int *res_size,
 			break;
 		}
 
-		memset ((void *) &res, '\0', sizeof (res));
+		memset (&res, '\0', sizeof (res));
 		status = recv (sd, (void *) &res, sizeof (res), 0 /* no flags */);
 
 		if ((status < 0) && ((errno == EAGAIN) || (errno == EINTR)))
@@ -720,7 +720,7 @@ static int ntpd_send_request (int req_code, int req_items, int req_size, char *r
 	if ((sd = ntpd_connect ()) < 0)
 		return (-1);
 
-	memset ((void *) &req, '\0', sizeof (req));
+	memset (&req, '\0', sizeof (req));
 	req.rm_vn_mode = RM_VN_MODE(0, 0, 0);
 	req.auth_seq   = AUTH_SEQ (0, 0);
 	req.implementation = IMPL_XNTPD;
