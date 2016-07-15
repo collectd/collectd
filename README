@@ -324,6 +324,9 @@ Features
       network devices such as switches, routers, thermometers, rack monitoring
       servers, etc. See collectd-snmp(5).
 
+    - statefs_battery
+      Battery statistics exposed via StateFS, as in Mer
+
     - statsd
       Acts as a StatsD server, reading values sent over the network from StatsD
       clients and calculating rates and other aggregates out of these values.
