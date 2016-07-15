@@ -990,6 +990,12 @@ snmp_la_LIBADD += $(BUILD_WITH_LIBSNMP_LIBS)
 endif
 endif
 
+if BUILD_PLUGIN_STATEFS_BATTERY
+pkglib_LTLIBRARIES += statefs_battery.la
+statefs_battery_la_SOURCES = statefs_battery.c
+statefs_battery_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_STATSD
 pkglib_LTLIBRARIES += statsd.la
 statsd_la_SOURCES = statsd.c

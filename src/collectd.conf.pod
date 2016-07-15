@@ -6485,6 +6485,13 @@ Since the configuration of the C<snmp plugin> is a little more complicated than
 other plugins, its documentation has been moved to an own manpage,
 L<collectd-snmp(5)>. Please see there for details.
 
+=head2 Plugin C<statefs_battery>
+
+This plugin doesn't have any options. It reads statistics related to
+battery performance exposed by StateFS at /run/state. StateFS is used
+in Mer-based Sailfish OS, for example.
+
+
 =head2 Plugin C<statsd>
 
 The I<statsd plugin> listens to a UDP socket, reads "events" in the statsd
