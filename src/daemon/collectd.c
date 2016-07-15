@@ -593,6 +593,8 @@ static void do_shot()
 	     CDTIME_T_TO_DOUBLE ( now - last_call ) < 1.0 )
 	{
 		INFO ("do_shot skipped due to recent call");
+		/* Instruct to continue with the background activity */
+		background_activity_wait(glib_background_activity);
 		return;
 	}
 
