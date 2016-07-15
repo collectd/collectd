@@ -5522,6 +5522,7 @@ AC_COLLECTD([debug],     [enable],  [feature], [debugging])
 AC_COLLECTD([daemon],    [disable], [feature], [daemon mode])
 AC_COLLECTD([getifaddrs],[enable],  [feature], [getifaddrs under Linux])
 AC_COLLECTD([werror],    [disable], [feature], [building with -Werror])
+AC_COLLECTD([keepalive],    [enable], [feature], [build with keepalive support for mobile])
 
 dependency_warning="no"
 dependency_error="no"
@@ -6124,6 +6125,15 @@ then
 fi
 AC_SUBST(DEFAULT_LOG_LEVEL)
 
+# --enable-keepalive
+if test "x$enable_keepalive" = "xyes"
+then
+	PKG_CHECK_MODULES([KEEPALIVE], [glib-2.0 keepalive-glib dbus-1 dbus-glib-1])
+	AC_DEFINE(HAVE_KEEPALIVE_GLIB, 1,
+		  [Define to 1 if you use keepalive from mer-core])
+fi
+AM_CONDITIONAL(BUILD_WITH_KEEPALIVE, test "x$enable_keepalive" = "xyes")
+
 # Load only one of rrdtool, network, csv in the default config.
 LOAD_PLUGIN_RRDTOOL=""
 LOAD_PLUGIN_NETWORK=""
@@ -6341,6 +6351,7 @@ Configuration:
   Features:
     daemon mode . . . . . $enable_daemon
     debug . . . . . . . . $enable_debug
+    keepalive . . . . . . $enable_keepalive
 
   Bindings:
     perl  . . . . . . . . $with_perl_bindings
