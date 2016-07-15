@@ -111,7 +111,7 @@ static int zookeeper_connect (void)
 	const char *host;
 	const char *port;
 
-	memset ((void *) &ai_hints, '\0', sizeof (ai_hints));
+	memset (&ai_hints, '\0', sizeof (ai_hints));
 	ai_hints.ai_family   = AF_UNSPEC;
 	ai_hints.ai_socktype = SOCK_STREAM;
 
