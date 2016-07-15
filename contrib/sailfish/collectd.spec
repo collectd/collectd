@@ -245,6 +245,7 @@ Collectd utilities
 	   --enable-processes \
 	   --enable-protocols \
 	   --enable-rrdtool \
+	   --enable-statefs_battery \
 	   --enable-table \
 	   --enable-tail \
 	   --enable-tail_csv \
