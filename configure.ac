@@ -5580,6 +5580,7 @@ plugin_protocols="no"
 plugin_serial="no"
 plugin_smart="no"
 plugin_statefs_battery="no"
+plugin_statefs_cellular="no"
 plugin_swap="no"
 plugin_tape="no"
 plugin_tcpconns="no"
@@ -5648,6 +5649,11 @@ then
 	if test "x$enable_statefs_battery" = "xyes"
 	then
 		plugin_statefs_battery="yes"
+	fi
+
+	if test "x$enable_statefs_cellular" = "xyes"
+	then
+		plugin_statefs_cellular="yes"
 	fi
 fi
 
@@ -6065,6 +6071,7 @@ AC_PLUGIN([sigrok],              [$with_libsigrok],         [sigrok acquisition 
 AC_PLUGIN([smart],               [$plugin_smart],           [SMART statistics])
 AC_PLUGIN([snmp],                [$with_libnetsnmp],        [SNMP querying plugin])
 AC_PLUGIN([statefs_battery],     [$plugin_statefs_battery], [Battery statistics exposed via StateFS])
+AC_PLUGIN([statefs_cellular],    [$plugin_statefs_cellular], [Cellular network statistics exposed via StateFS])
 AC_PLUGIN([statsd],              [yes],                     [StatsD plugin])
 AC_PLUGIN([swap],                [$plugin_swap],            [Swap usage statistics])
 AC_PLUGIN([syslog],              [$have_syslog],            [Syslog logging plugin])
@@ -6488,6 +6495,7 @@ Configuration:
     smart . . . . . . . . $enable_smart
     snmp  . . . . . . . . $enable_snmp
     statefs_battery . . . $enable_statefs_battery
+    statefs_cellular  . . $enable_statefs_cellular
     statsd  . . . . . . . $enable_statsd
     swap  . . . . . . . . $enable_swap
     syslog  . . . . . . . $enable_syslog

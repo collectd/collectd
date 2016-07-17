@@ -996,6 +996,12 @@ statefs_battery_la_SOURCES = statefs_battery.c
 statefs_battery_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_STATEFS_CELLULAR
+pkglib_LTLIBRARIES += statefs_cellular.la
+statefs_cellular_la_SOURCES = statefs_cellular.c
+statefs_cellular_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_STATSD
 pkglib_LTLIBRARIES += statsd.la
 statsd_la_SOURCES = statsd.c

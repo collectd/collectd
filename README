@@ -330,6 +330,9 @@ Features
     - statefs_battery
       Battery statistics exposed via StateFS, as in Mer
 
+    - statefs_cellular
+      Cellular network statistics exposed via StateFS, as in Mer
+
     - statsd
       Acts as a StatsD server, reading values sent over the network from StatsD
       clients and calculating rates and other aggregates out of these values.

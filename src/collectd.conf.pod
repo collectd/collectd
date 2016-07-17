@@ -6491,6 +6491,12 @@ This plugin doesn't have any options. It reads statistics related to
 battery performance exposed by StateFS at /run/state. StateFS is used
 in Mer-based Sailfish OS, for example.
 
+=head2 Plugin C<statefs_cellular>
+
+This plugin doesn't have any options. It reads statistics related to
+cellular network performance exposed by StateFS at /run/state. StateFS
+is used in Mer-based Sailfish OS, for example.
+
 
 =head2 Plugin C<statsd>
 

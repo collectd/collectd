@@ -180,6 +180,7 @@
 #@BUILD_PLUGIN_SMART_TRUE@LoadPlugin smart
 #@BUILD_PLUGIN_SNMP_TRUE@LoadPlugin snmp
 #@BUILD_PLUGIN_STATEFS_BATTERY_TRUE@LoadPlugin statefs_battery
+#@BUILD_PLUGIN_STATEFS_CELLULAR_TRUE@LoadPlugin statefs_cellular
 #@BUILD_PLUGIN_STATSD_TRUE@LoadPlugin statsd
 #@BUILD_PLUGIN_SWAP_TRUE@LoadPlugin swap
 #@BUILD_PLUGIN_TABLE_TRUE@LoadPlugin table
