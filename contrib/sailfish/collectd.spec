@@ -222,6 +222,7 @@ Collectd utilities
 	   --enable-battery \
 	   --enable-contextswitch \
 	   --enable-cpu \
+	   --enable-cpusleep \
 	   --enable-cpufreq \
 	   --enable-csv \
 	   --enable-df \
@@ -246,6 +247,7 @@ Collectd utilities
 	   --enable-protocols \
 	   --enable-rrdtool \
 	   --enable-statefs_battery \
+	   --enable-statefs_cellular \
 	   --enable-table \
 	   --enable-tail \
 	   --enable-tail_csv \
