@@ -4872,6 +4872,7 @@ then
 	AC_SUBST(LIBXENCTL_CPPFLAGS)
 	AC_SUBST(LIBXENCTL_LDFLAGS)
 fi
+# }}}
 
 # --with-libxmms {{{
 with_xmms_config="xmms-config"
