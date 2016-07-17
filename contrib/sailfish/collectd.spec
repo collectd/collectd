@@ -8,7 +8,7 @@
 
 Summary:	statistics collection and monitoring daemon
 Name:		collectd
-Version:	5.5.0.git.2016.07.16
+Version:	5.5.0.git.2016.07.17
 Release:	6%{?dist}
 URL:		http://collectd.org
 Source:		http://collectd.org/files/%{name}-%{version}.tar.bz2
@@ -222,6 +222,7 @@ Collectd utilities
 	   --enable-battery \
 	   --enable-contextswitch \
 	   --enable-cpu \
+	   --enable-cpusleep \
 	   --enable-cpufreq \
 	   --enable-csv \
 	   --enable-df \
