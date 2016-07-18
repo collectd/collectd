@@ -1,9 +1,5 @@
 AUTOMAKE_OPTIONS = foreign no-dependencies
 
-if COMPILER_IS_GCC
-AM_CFLAGS = -Wall -Werror
-endif
-
 pkginclude_HEADERS = collectd/client.h collectd/network.h collectd/network_buffer.h collectd/lcc_features.h
 lib_LTLIBRARIES = libcollectdclient.la
 nodist_pkgconfig_DATA = libcollectdclient.pc

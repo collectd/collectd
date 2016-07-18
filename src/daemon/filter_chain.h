@@ -97,7 +97,7 @@ int fc_process_chain (const data_set_t *ds, value_list_t *vl,
 
 int fc_default_action (const data_set_t *ds, value_list_t *vl);
 
-/* 
+/*
  * Shortcut for global configuration
  */
 int fc_configure (const oconfig_item_t *ci);

@@ -30,6 +30,7 @@
 #include "common.h"
 #include "plugin.h"
 #include "utils_parse_option.h"
+#include "utils_cmd_flush.h"
 
 int handle_flush (FILE *fh, char *buffer)
 {
@@ -124,7 +125,7 @@ int handle_flush (FILE *fh, char *buffer)
 	for (i = 0; (i == 0) || (i < plugins_num); i++)
 	{
 		char *plugin = NULL;
-		int j;
+		size_t j;
 
 		if (plugins_num != 0)
 			plugin = plugins[i];

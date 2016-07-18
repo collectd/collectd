@@ -29,7 +29,7 @@
  * interface for collectd plugins written in perl.
  */
 
-/* do not automatically get the thread specific perl interpreter */
+/* do not automatically get the thread specific Perl interpreter */
 #define PERL_NO_GET_CONTEXT
 
 #define DONT_POISON_SPRINTF_YET 1
@@ -62,8 +62,6 @@
 #include "common.h"
 
 #include "filter_chain.h"
-
-#include <pthread.h>
 
 #if !defined(USE_ITHREADS)
 # error "Perl does not support ithreads!"
@@ -123,6 +121,9 @@ static XS (Collectd_call_by_name);
 typedef struct c_ithread_s {
 	/* the thread's Perl interpreter */
 	PerlInterpreter *interp;
+	_Bool running;  /* thread is inside Perl interpreter */
+	_Bool shutdown;
+	pthread_t pthread;
 
 	/* double linked list of threads */
 	struct c_ithread_s *prev;
@@ -139,6 +140,7 @@ typedef struct {
 #endif /* COLLECT_DEBUG */
 
 	pthread_mutex_t mutex;
+	pthread_mutexattr_t mutexattr;
 } c_ithread_list_t;
 
 /* name / user_data for Perl matches / targets */
@@ -301,33 +303,32 @@ static int hv2data_source (pTHX_ HV *hash, data_source_t *ds)
 	return 0;
 } /* static int hv2data_source (HV *, data_source_t *) */
 
-static int av2value (pTHX_ char *name, AV *array, value_t *value, int len)
+/* av2value converts at most "len" elements from "array" to "value". Returns the
+ * number of elements converted or zero on error. */
+static size_t av2value (pTHX_ char *name, AV *array, value_t *value, size_t array_len)
 {
 	const data_set_t *ds;
+	size_t i;
 
-	int i = 0;
-
-	if ((NULL == name) || (NULL == array) || (NULL == value))
-		return -1;
-
-	if (av_len (array) < len - 1)
-		len = av_len (array) + 1;
-
-	if (0 >= len)
-		return -1;
+	if ((NULL == name) || (NULL == array) || (NULL == value) || (array_len == 0))
+		return 0;
 
 	ds = plugin_get_ds (name);
 	if (NULL == ds) {
 		log_err ("av2value: Unknown dataset \"%s\"", name);
-		return -1;
+		return 0;
 	}
 
-	if (ds->ds_num < len) {
-		log_warn ("av2value: Value length exceeds data set length.");
-		len = ds->ds_num;
+	if (array_len < ds->ds_num) {
+		log_warn ("av2value: array does not contain enough elements for type \"%s\": got %zu, want %zu",
+				name, array_len, ds->ds_num);
+		return 0;
+	} else if (array_len > ds->ds_num) {
+		log_warn ("av2value: array contains excess elements for type \"%s\": got %zu, want %zu",
+				name, array_len, ds->ds_num);
 	}
 
-	for (i = 0; i < len; ++i) {
+	for (i = 0; i < ds->ds_num; ++i) {
 		SV **tmp = av_fetch (array, i, 0);
 
 		if (NULL != tmp) {
@@ -341,11 +342,12 @@ static int av2value (pTHX_ char *name, AV *array, value_t *value, int len)
 				value[i].absolute = SvIV (*tmp);
 		}
 		else {
-			return -1;
+			return 0;
 		}
 	}
-	return len;
-} /* static int av2value (char *, AV *, value_t *, int) */
+
+	return ds->ds_num;
+} /* static size_t av2value (char *, AV *, value_t *, size_t) */
 
 /*
  * value list:
@@ -380,16 +382,14 @@ static int hv2value_list (pTHX_ HV *hash, value_list_t *vl)
 
 	{
 		AV  *array = (AV *)SvRV (*tmp);
-		int len    = av_len (array) + 1;
-
-		if (len <= 0)
+		/* av_len returns the highest index, not the actual length. */
+		size_t array_len = (size_t) (av_len (array) + 1);
+		if (array_len == 0)
 			return -1;
 
-		vl->values     = (value_t *)smalloc (len * sizeof (value_t));
-		vl->values_len = av2value (aTHX_ vl->type, (AV *)SvRV (*tmp),
-				vl->values, len);
-
-		if (-1 == vl->values_len) {
+		vl->values     = calloc (array_len, sizeof (*vl->values));
+		vl->values_len = av2value (aTHX_ vl->type, (AV *)SvRV (*tmp), vl->values, array_len);
+		if (vl->values_len == 0) {
 			sfree (vl->values);
 			return -1;
 		}
@@ -439,7 +439,7 @@ static int av2data_set (pTHX_ AV *array, char *name, data_set_t *ds)
 		return -1;
 	}
 
-	ds->ds = (data_source_t *)smalloc ((len + 1) * sizeof (data_source_t));
+	ds->ds = smalloc ((len + 1) * sizeof (*ds->ds));
 	ds->ds_num = len + 1;
 
 	for (i = 0; i <= len; ++i) {
@@ -503,7 +503,7 @@ static int av2notification_meta (pTHX_ AV *array, notification_meta_t **meta)
 
 		hash = (HV *)SvRV (*tmp);
 
-		*m = (notification_meta_t *)smalloc (sizeof (**m));
+		*m = smalloc (sizeof (**m));
 
 		if (NULL == (tmp = hv_fetch (hash, "name", 4, 0))) {
 			log_warn ("av2notification_meta: Skipping invalid "
@@ -604,7 +604,7 @@ static int hv2notification (pTHX_ HV *hash, notification_t *n)
 
 static int data_set2av (pTHX_ data_set_t *ds, AV *array)
 {
-	int i = 0;
+	size_t i;
 
 	if ((NULL == ds) || (NULL == array))
 		return -1;
@@ -640,24 +640,17 @@ static int data_set2av (pTHX_ data_set_t *ds, AV *array)
 static int value_list2hv (pTHX_ value_list_t *vl, data_set_t *ds, HV *hash)
 {
 	AV *values = NULL;
-
-	int i   = 0;
-	int len = 0;
+	size_t i;
 
 	if ((NULL == vl) || (NULL == ds) || (NULL == hash))
 		return -1;
 
-	len = vl->values_len;
-
-	if (ds->ds_num < len) {
-		log_warn ("value2av: Value length exceeds data set length.");
-		len = ds->ds_num;
-	}
-
 	values = newAV ();
-	av_extend (values, len - 1);
+	/* av_extend takes the last *index* to which the array should be extended. */
+	av_extend (values, vl->values_len - 1);
 
-	for (i = 0; i < len; ++i) {
+	assert (ds->ds_num == vl->values_len);
+	for (i = 0; i < vl->values_len; ++i) {
 		SV *val = NULL;
 
 		if (DS_TYPE_COUNTER == ds->ds[i].type)
@@ -1008,6 +1001,32 @@ static int pplugin_dispatch_notification (pTHX_ HV *notif)
 } /* static int pplugin_dispatch_notification (HV *) */
 
 /*
+ * Call perl sub with thread locking flags handled.
+ */
+static int call_pv_locked (pTHX_ const char* sub_name)
+{
+	_Bool old_running;
+	int ret;
+
+	c_ithread_t *t = (c_ithread_t *)pthread_getspecific(perl_thr_key);
+	if (t == NULL) /* thread destroyed */
+		return 0;
+
+	old_running = t->running;
+	t->running = 1;
+
+	if (t->shutdown) {
+		t->running = old_running;
+		return 0;
+	}
+
+	ret = call_pv (sub_name, G_SCALAR);
+
+	t->running = old_running;
+	return ret;
+} /* static int call_pv_locked (pTHX, *sub_name) */
+
+/*
  * Call all working functions of the given type.
  */
 static int pplugin_call_all (pTHX_ int type, ...)
@@ -1136,7 +1155,7 @@ static int pplugin_call_all (pTHX_ int type, ...)
 
 	PUTBACK;
 
-	retvals = call_pv ("Collectd::plugin_call_all", G_SCALAR);
+	retvals = call_pv_locked (aTHX_ "Collectd::plugin_call_all");
 
 	SPAGAIN;
 	if (0 < retvals) {
@@ -1154,7 +1173,7 @@ static int pplugin_call_all (pTHX_ int type, ...)
 } /* static int pplugin_call_all (int, ...) */
 
 /*
- * collectd's perl interpreter based thread implementation.
+ * collectd's Perl interpreter based thread implementation.
  *
  * This has been inspired by Perl's ithreads introduced in version 5.6.0.
  */
@@ -1227,7 +1246,7 @@ static c_ithread_t *c_ithread_create (PerlInterpreter *base)
 
 	assert (NULL != perl_threads);
 
-	t = (c_ithread_t *)smalloc (sizeof (c_ithread_t));
+	t = smalloc (sizeof (*t));
 	memset (t, 0, sizeof (c_ithread_t));
 
 	t->interp = (NULL == base)
@@ -1257,6 +1276,9 @@ static c_ithread_t *c_ithread_create (PerlInterpreter *base)
 		t->prev = perl_threads->tail;
 	}
 
+	t->pthread = pthread_self();
+	t->running = 0;
+	t->shutdown = 0;
 	perl_threads->tail = t;
 
 	pthread_setspecific (perl_thr_key, (const void *)t);
@@ -1377,7 +1399,7 @@ static int fc_call (pTHX_ int type, int cb_type, pfc_user_data_t *data, ...)
 
 	PUTBACK;
 
-	retvals = call_pv ("Collectd::fc_call", G_SCALAR);
+	retvals = call_pv_locked (aTHX_ "Collectd::fc_call");
 
 	if ((FC_CB_EXEC == cb_type) && (meta != NULL)) {
 		assert (pmeta != NULL);
@@ -1437,7 +1459,7 @@ static int fc_create (int type, const oconfig_item_t *ci, void **user_data)
 		return -1;
 	}
 
-	data = (pfc_user_data_t *)smalloc (sizeof (*data));
+	data = smalloc (sizeof (*data));
 	data->name      = sstrdup (ci->values[0].value.string);
 	data->user_data = newSV (0);
 
@@ -1917,6 +1939,7 @@ static XS (Collectd_call_by_name)
 
 static int perl_init (void)
 {
+	int status;
 	dTHX;
 
 	if (NULL == perl_threads)
@@ -1934,7 +1957,19 @@ static int perl_init (void)
 
 	log_debug ("perl_init: c_ithread: interp = %p (active threads: %i)",
 			aTHX, perl_threads->number_of_threads);
-	return pplugin_call_all (aTHX_ PLUGIN_INIT);
+
+	/* Lock the base thread to avoid race conditions with c_ithread_create().
+	 * See https://github.com/collectd/collectd/issues/9 and
+	 *     https://github.com/collectd/collectd/issues/1706 for details.
+	*/
+	assert (aTHX == perl_threads->head->interp);
+	pthread_mutex_lock (&perl_threads->mutex);
+
+	status = pplugin_call_all (aTHX_ PLUGIN_INIT);
+
+	pthread_mutex_unlock (&perl_threads->mutex);
+
+	return status;
 } /* static int perl_init (void) */
 
 static int perl_read (void)
@@ -2019,7 +2054,9 @@ static void perl_log (int level, const char *msg,
 
 	/* Lock the base thread if this is not called from one of the read threads
 	 * to avoid race conditions with c_ithread_create(). See
-	 * https://github.com/collectd/collectd/issues/9 for details. */
+	 * https://github.com/collectd/collectd/issues/9 for details.
+	*/
+
 	if (aTHX == perl_threads->head->interp)
 		pthread_mutex_lock (&perl_threads->mutex);
 
@@ -2073,9 +2110,8 @@ static int perl_flush (cdtime_t timeout, const char *identifier,
 
 static int perl_shutdown (void)
 {
-	c_ithread_t *t = NULL;
-
-	int ret = 0;
+	c_ithread_t *t;
+	int ret;
 
 	dTHX;
 
@@ -2085,8 +2121,6 @@ static int perl_shutdown (void)
 		return 0;
 
 	if (NULL == aTHX) {
-		c_ithread_t *t = NULL;
-
 		pthread_mutex_lock (&perl_threads->mutex);
 		t = c_ithread_create (perl_threads->head->interp);
 		pthread_mutex_unlock (&perl_threads->mutex);
@@ -2110,17 +2144,31 @@ static int perl_shutdown (void)
 	t = perl_threads->tail;
 
 	while (NULL != t) {
+		struct timespec ts_wait;
 		c_ithread_t *thr = t;
 
 		/* the pointer has to be advanced before destroying
 		 * the thread as this will free the memory */
 		t = t->prev;
 
+		thr->shutdown = 1;
+		if (thr->running) {
+			/* Give some time to thread to exit from Perl interpreter */
+			WARNING ("perl shutdown: Thread is running inside Perl. Waiting.");
+			ts_wait.tv_sec = 0;
+			ts_wait.tv_nsec = 500000;
+			nanosleep (&ts_wait, NULL);
+		}
+		if (thr->running) {
+			pthread_kill (thr->pthread, SIGTERM);
+			ERROR ("perl shutdown: Thread hangs inside Perl. Thread killed.");
+		}
 		c_ithread_destroy (thr);
 	}
 
 	pthread_mutex_unlock (&perl_threads->mutex);
 	pthread_mutex_destroy (&perl_threads->mutex);
+	pthread_mutexattr_destroy (&perl_threads->mutexattr);
 
 	sfree (perl_threads);
 
@@ -2261,10 +2309,12 @@ static int init_pi (int argc, char **argv)
 #endif
 	PERL_SYS_INIT3 (&argc, &argv, &environ);
 
-	perl_threads = (c_ithread_list_t *)smalloc (sizeof (c_ithread_list_t));
+	perl_threads = smalloc (sizeof (*perl_threads));
 	memset (perl_threads, 0, sizeof (c_ithread_list_t));
 
-	pthread_mutex_init (&perl_threads->mutex, NULL);
+	pthread_mutexattr_init(&perl_threads->mutexattr);
+	pthread_mutexattr_settype(&perl_threads->mutexattr, PTHREAD_MUTEX_RECURSIVE);
+	pthread_mutex_init (&perl_threads->mutex, &perl_threads->mutexattr);
 	/* locking the mutex should not be necessary at this point
 	 * but let's just do it for the sake of completeness */
 	pthread_mutex_lock (&perl_threads->mutex);
@@ -2345,7 +2395,7 @@ static int perl_config_loadplugin (pTHX_ oconfig_item_t *ci)
 
 	aTHX = perl_threads->head->interp;
 
-	log_debug ("perl_config: loading perl plugin \"%s\"", value);
+	log_debug ("perl_config: Loading Perl plugin \"%s\"", value);
 	load_module (PERL_LOADMOD_NOIMPORT,
 			newSVpv (module_name, strlen (module_name)), Nullsv);
 	return 0;
@@ -2391,7 +2441,7 @@ static int perl_config_enabledebugger (pTHX_ oconfig_item_t *ci)
 
 	value = ci->values[0].value.string;
 
-	perl_argv = (char **)realloc (perl_argv,
+	perl_argv = realloc (perl_argv,
 			(++perl_argc + 1) * sizeof (char *));
 
 	if (NULL == perl_argv) {
@@ -2403,7 +2453,7 @@ static int perl_config_enabledebugger (pTHX_ oconfig_item_t *ci)
 		perl_argv[perl_argc - 1] = "-d";
 	}
 	else {
-		perl_argv[perl_argc - 1] = (char *)smalloc (strlen (value) + 4);
+		perl_argv[perl_argc - 1] = smalloc (strlen (value) + 4);
 		sstrncpy (perl_argv[perl_argc - 1], "-d:", 4);
 		sstrncpy (perl_argv[perl_argc - 1] + 3, value, strlen (value) + 1);
 	}
@@ -2428,7 +2478,7 @@ static int perl_config_includedir (pTHX_ oconfig_item_t *ci)
 	value = ci->values[0].value.string;
 
 	if (NULL == aTHX) {
-		perl_argv = (char **)realloc (perl_argv,
+		perl_argv = realloc (perl_argv,
 				(++perl_argc + 1) * sizeof (char *));
 
 		if (NULL == perl_argv) {
@@ -2436,7 +2486,7 @@ static int perl_config_includedir (pTHX_ oconfig_item_t *ci)
 			exit (3);
 		}
 
-		perl_argv[perl_argc - 1] = (char *)smalloc (strlen (value) + 3);
+		perl_argv[perl_argc - 1] = smalloc (strlen (value) + 3);
 		sstrncpy(perl_argv[perl_argc - 1], "-I", 3);
 		sstrncpy(perl_argv[perl_argc - 1] + 2, value, strlen (value) + 1);
 
@@ -2554,7 +2604,7 @@ static int perl_config (oconfig_item_t *ci)
 void module_register (void)
 {
 	perl_argc = 4;
-	perl_argv = (char **)smalloc ((perl_argc + 1) * sizeof (char *));
+	perl_argv = smalloc ((perl_argc + 1) * sizeof (*perl_argv));
 
 	/* default options for the Perl interpreter */
 	perl_argv[0] = "";

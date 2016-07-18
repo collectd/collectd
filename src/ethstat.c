@@ -104,14 +104,13 @@ static int ethstat_add_map (const oconfig_item_t *ci) /* {{{ */
     return (ENOMEM);
   }
 
-  map = malloc (sizeof (*map));
+  map = calloc (1, sizeof (*map));
   if (map == NULL)
   {
     sfree (key);
-    ERROR ("ethstat plugin: malloc(3) failed.");
+    ERROR ("ethstat plugin: calloc failed.");
     return (ENOMEM);
   }
-  memset (map, 0, sizeof (*map));
 
   sstrncpy (map->type, ci->values[1].value.string, sizeof (map->type));
   if (ci->values_num == 3)
@@ -273,7 +272,7 @@ static int ethstat_read_interface (char *device)
     close (fd);
     sfree (strings);
     sfree (stats);
-    ERROR("ethstat plugin: malloc(3) failed.");
+    ERROR("ethstat plugin: malloc failed.");
     return (-1);
   }
 
@@ -312,9 +311,13 @@ static int ethstat_read_interface (char *device)
 
   for (i = 0; i < n_stats; i++)
   {
-    const char *stat_name;
+    char *stat_name;
 
     stat_name = (void *) &strings->data[i * ETH_GSTRING_LEN];
+    /* Remove leading spaces in key name */
+    while (isspace ((int) *stat_name))
+        stat_name++;
+
     DEBUG("ethstat plugin: device = \"%s\": %s = %"PRIu64,
         device, stat_name, (uint64_t) stats->data[i]);
     ethstat_submit_value (device,

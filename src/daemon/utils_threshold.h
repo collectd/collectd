@@ -59,7 +59,7 @@ threshold_t *threshold_get (const char *hostname,
 
 threshold_t *threshold_search (const value_list_t *vl);
 
-int ut_search_threshold (const value_list_t *vl, 
+int ut_search_threshold (const value_list_t *vl,
   threshold_t *ret_threshold);
 
 #endif /* UTILS_THRESHOLD_H */

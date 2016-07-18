@@ -343,9 +343,9 @@ static temperature_list_t * temp_list = NULL;
  */
 static int temp_list_add(temperature_list_t * list, const char * sensor)
 {
-    temperature_list_t * new_temp;
+    temperature_list_t *new_temp;
 
-    new_temp = (temperature_list_t *) malloc(sizeof(*new_temp));
+    new_temp = malloc(sizeof (*new_temp));
     if(new_temp == NULL)
         return -1;
 
@@ -407,7 +407,7 @@ static int get_reference_temperature(double * result)
 
     gauge_t * values = NULL;   /**< rate values */
     size_t    values_num = 0;  /**< number of rate values */
-    int i;
+    size_t i;
 
     gauge_t values_history[REF_TEMP_AVG_NUM];
 
@@ -447,9 +447,8 @@ static int get_reference_temperature(double * result)
 
             for(i=0; i<values_num; ++i)
             {
-                DEBUG ("barometer: get_reference_temperature - rate %d: %lf **",
-                       i,
-                       values[i]);
+                DEBUG ("barometer: get_reference_temperature - rate %zu: %lf **",
+                       i, values[i]);
                 if(!isnan(values[i]))
                 {
                     avg_sum += values[i];
@@ -477,9 +476,8 @@ static int get_reference_temperature(double * result)
 
         for(i=0; i<REF_TEMP_AVG_NUM*list->num_values; ++i)
         {
-            DEBUG ("barometer: get_reference_temperature - history %d: %lf",
-                   i,
-                   values_history[i]);
+            DEBUG ("barometer: get_reference_temperature - history %zu: %lf",
+                   i, values_history[i]);
             if(!isnan(values_history[i]))
             {
                 avg_sum += values_history[i];
@@ -503,9 +501,8 @@ static int get_reference_temperature(double * result)
 
             for(i=0; i<values_num; ++i)
             {
-                DEBUG ("barometer: get_reference_temperature - rate last %d: %lf **",
-                       i,
-                       values[i]);
+                DEBUG ("barometer: get_reference_temperature - rate last %zu: %lf **",
+                       i, values[i]);
                 if(!isnan(values[i]))
                 {
                     avg_sum += values[i];
@@ -1363,7 +1360,7 @@ static int BMP085_read(double * pressure, double * temperature)
  *
  * @return detected sensor type
  */
-enum Sensor_type Detect_sensor_type(void)
+static enum Sensor_type detect_sensor_type(void)
 {
     if(BMP085_detect())
         return Sensor_BMP085;
@@ -1805,7 +1802,7 @@ static int collectd_barometer_init (void)
     }
 
     /* detect sensor type - this will also set slave address */
-    sensor_type = Detect_sensor_type();
+    sensor_type = detect_sensor_type();
 
     /* init correct sensor type */
     switch(sensor_type)

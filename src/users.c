@@ -3,7 +3,7 @@
  * Copyright (C) 2005-2007  Sebastian Harl
  * Copyright (C) 2005       Niki W. Waibel
  * Copyright (C) 2005-2007  Florian octo Forster
- * Copyright (C) 2008       Oleg King 
+ * Copyright (C) 2008       Oleg King
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -77,7 +77,7 @@ static int users_read (void)
 
 	users_submit (users);
 /* #endif HAVE_GETUTXENT */
-	
+
 #elif HAVE_GETUTENT
 	unsigned int users = 0;
 	struct utmp *entry = NULL;
@@ -106,7 +106,7 @@ static int users_read (void)
 	us = sg_get_user_stats ();
 # endif
 	if (us == NULL)
-		return (-1);   
+		return (-1);
 
 	users_submit ((gauge_t)
 # if HAVE_LIBSTATGRAB_0_90

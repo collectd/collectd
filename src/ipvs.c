@@ -37,9 +37,6 @@
 #if HAVE_ARPA_INET_H
 # include <arpa/inet.h>
 #endif /* HAVE_ARPA_INET_H */
-#if HAVE_SYS_SOCKET_H
-# include <sys/socket.h>
-#endif /* HAVE_SYS_SOCKET_H */
 #if HAVE_NETINET_IN_H
 # include <netinet/in.h>
 #endif /* HAVE_NETINET_IN_H */
@@ -197,7 +194,7 @@ static int get_pi (struct ip_vs_service_entry *se, char *pi, size_t size)
 			(se->protocol == IPPROTO_TCP) ? "TCP" : "UDP",
 			ntohs (se->port));
 
-	if ((0 > len) || (size <= len)) {
+	if ((0 > len) || (size <= ((size_t) len))) {
 		log_err ("plugin instance truncated: %s", pi);
 		return -1;
 	}
@@ -220,14 +217,15 @@ static int get_ti (struct ip_vs_dest_entry *de, char *ti, size_t size)
 	len = ssnprintf (ti, size, "%s_%u", inet_ntoa (addr),
 			ntohs (de->port));
 
-	if ((0 > len) || (size <= len)) {
+	if ((0 > len) || (size <= ((size_t) len))) {
 		log_err ("type instance truncated: %s", ti);
 		return -1;
 	}
 	return 0;
 } /* get_ti */
 
-static void cipvs_submit_connections (char *pi, char *ti, derive_t value)
+static void cipvs_submit_connections (const char *pi, const char *ti,
+		derive_t value)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
@@ -248,7 +246,7 @@ static void cipvs_submit_connections (char *pi, char *ti, derive_t value)
 	return;
 } /* cipvs_submit_connections */
 
-static void cipvs_submit_if (char *pi, char *t, char *ti,
+static void cipvs_submit_if (const char *pi, const char *t, const char *ti,
 		derive_t rx, derive_t tx)
 {
 	value_t values[2];
@@ -271,7 +269,8 @@ static void cipvs_submit_if (char *pi, char *t, char *ti,
 	return;
 } /* cipvs_submit_if */
 
-static void cipvs_submit_dest (char *pi, struct ip_vs_dest_entry *de) {
+static void cipvs_submit_dest (const char *pi, struct ip_vs_dest_entry *de)
+{
 	struct ip_vs_stats_user stats = de->stats;
 
 	char ti[DATA_MAX_NAME_LEN];
@@ -292,7 +291,7 @@ static void cipvs_submit_service (struct ip_vs_service_entry *se)
 
 	char pi[DATA_MAX_NAME_LEN];
 
-	int i = 0;
+	size_t i;
 
 	if (0 != get_pi (se, pi, sizeof (pi)))
 	{
@@ -314,7 +313,7 @@ static void cipvs_submit_service (struct ip_vs_service_entry *se)
 static int cipvs_read (void)
 {
 	struct ip_vs_get_services *services = NULL;
-	int i = 0;
+	size_t i;
 
 	if (sockfd < 0)
 		return (-1);

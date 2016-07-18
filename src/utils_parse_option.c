@@ -92,7 +92,7 @@ int parse_string (char **ret_buffer, char **ret_string)
       buffer++;
     }
   }
-  
+
   /* Eat up trailing spaces */
   while (isspace ((int) *buffer))
     buffer++;

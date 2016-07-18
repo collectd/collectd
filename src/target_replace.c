@@ -61,7 +61,7 @@ static char *tr_strdup (const char *orig) /* {{{ */
     return (NULL);
 
   sz = strlen (orig) + 1;
-  dest = (char *) malloc (sz);
+  dest = malloc (sz);
   if (dest == NULL)
     return (NULL);
 
@@ -102,13 +102,12 @@ static int tr_config_add_action (tr_action_t **dest, /* {{{ */
     return (-1);
   }
 
-  act = (tr_action_t *) malloc (sizeof (*act));
+  act = calloc (1, sizeof (*act));
   if (act == NULL)
   {
-    ERROR ("tr_config_add_action: malloc failed.");
+    ERROR ("tr_config_add_action: calloc failed.");
     return (-ENOMEM);
   }
-  memset (act, 0, sizeof (*act));
 
   act->replacement = NULL;
   act->may_be_empty = may_be_empty;
@@ -190,7 +189,7 @@ static int tr_action_invoke (tr_action_t *act_head, /* {{{ */
     }
 
     subst_status = subst (temp, sizeof (temp), buffer,
-        matches[0].rm_so, matches[0].rm_eo, act->replacement);
+        (size_t) matches[0].rm_so, (size_t) matches[0].rm_eo, act->replacement);
     if (subst_status == NULL)
     {
       ERROR ("Target `replace': subst (buffer = %s, start = %zu, end = %zu, "
@@ -244,13 +243,12 @@ static int tr_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   int status;
   int i;
 
-  data = (tr_data_t *) malloc (sizeof (*data));
+  data = calloc (1, sizeof (*data));
   if (data == NULL)
   {
-    ERROR ("tr_create: malloc failed.");
+    ERROR ("tr_create: calloc failed.");
     return (-ENOMEM);
   }
-  memset (data, 0, sizeof (*data));
 
   data->host = NULL;
   data->plugin = NULL;

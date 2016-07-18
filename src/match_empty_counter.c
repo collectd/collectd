@@ -46,13 +46,12 @@ static int mec_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 {
   mec_match_t *m;
 
-  m = (mec_match_t *) malloc (sizeof (*m));
+  m = calloc (1, sizeof (*m));
   if (m == NULL)
   {
-    ERROR ("mec_create: malloc failed.");
+    ERROR ("mec_create: calloc failed.");
     return (-ENOMEM);
   }
-  memset (m, 0, sizeof (*m));
 
   if (ci->children_num != 0)
   {
@@ -80,7 +79,7 @@ static int mec_match (const data_set_t __attribute__((unused)) *ds, /* {{{ */
 {
   int num_counters;
   int num_empty;
-  int i;
+  size_t i;
 
   if ((user_data == NULL) || (*user_data == NULL))
     return (-1);

@@ -52,7 +52,8 @@ class GenericJMXConfConnection
   private String _host = null;
   private String _instance_prefix = null;
   private String _service_url = null;
-  private MBeanServerConnection _jmx_connection = null;
+  private JMXConnector _jmx_connector = null;
+  private MBeanServerConnection _mbean_connection = null;
   private List<GenericJMXConfMBean> _mbeans = null;
 
   /*
@@ -92,55 +93,74 @@ class GenericJMXConfConnection
     return Collectd.getHostname();
   } /* }}} String getHost */
 
-private void connect () /* {{{ */
-{
-  JMXServiceURL service_url;
-  JMXConnector connector;
-  Map environment;
-
-  if (_jmx_connection != null)
-    return;
-
-  environment = null;
-  if (this._password != null)
+  private void connect () /* {{{ */
   {
-    String[] credentials;
+    JMXServiceURL service_url;
+    Map<String,Object> environment;
 
-    if (this._username == null)
-      this._username = new String ("monitorRole");
+    // already connected
+    if (this._jmx_connector != null) {
+      return;
+    }
 
-    credentials = new String[] { this._username, this._password };
+    environment = null;
+    if (this._password != null)
+    {
+      String[] credentials;
 
-    environment = new HashMap ();
-    environment.put (JMXConnector.CREDENTIALS, credentials);
-    environment.put(JMXConnectorFactory.PROTOCOL_PROVIDER_CLASS_LOADER, this.getClass().getClassLoader());
-  }
+      if (this._username == null)
+        this._username = new String ("monitorRole");
 
-  try
+      credentials = new String[] { this._username, this._password };
+
+      environment = new HashMap<String,Object> ();
+      environment.put (JMXConnector.CREDENTIALS, credentials);
+      environment.put (JMXConnectorFactory.PROTOCOL_PROVIDER_CLASS_LOADER, this.getClass().getClassLoader());
+    }
+
+    try
+    {
+      service_url = new JMXServiceURL (this._service_url);
+      this._jmx_connector = JMXConnectorFactory.connect (service_url, environment);
+      this._mbean_connection = _jmx_connector.getMBeanServerConnection ();
+    }
+    catch (Exception e)
+    {
+      Collectd.logError ("GenericJMXConfConnection: "
+          + "Creating MBean server connection failed: " + e);
+      disconnect ();
+      return;
+    }
+  } /* }}} void connect */
+
+  private void disconnect () /* {{{ */
   {
-    service_url = new JMXServiceURL (this._service_url);
-    connector = JMXConnectorFactory.connect (service_url, environment);
-    _jmx_connection = connector.getMBeanServerConnection ();
-  }
-  catch (Exception e)
-  {
-    Collectd.logError ("GenericJMXConfConnection: "
-        + "Creating MBean server connection failed: " + e);
-    return;
-  }
-} /* }}} void connect */
+    try
+    {
+      if (this._jmx_connector != null) {
+        this._jmx_connector.close();
+      }
+    }
+    catch (Exception e)
+    {
+      // It's fine if close throws an exception
+    }
 
-/*
- * public methods
- *
- * <Connection>
- *   Host "tomcat0.mycompany"
- *   ServiceURL "service:jmx:rmi:///jndi/rmi://localhost:17264/jmxrmi"
- *   Collect "java.lang:type=GarbageCollector,name=Copy"
- *   Collect "java.lang:type=Memory"
- * </Connection>
- *
- */
+    this._jmx_connector = null;
+    this._mbean_connection = null;
+  } /* }}} void disconnect */
+
+  /*
+   * public methods
+   *
+   * <Connection>
+   *   Host "tomcat0.mycompany"
+   *   ServiceURL "service:jmx:rmi:///jndi/rmi://localhost:17264/jmxrmi"
+   *   Collect "java.lang:type=GarbageCollector,name=Copy"
+   *   Collect "java.lang:type=Memory"
+   * </Connection>
+   *
+   */
   public GenericJMXConfConnection (OConfigItem ci) /* {{{ */
     throws IllegalArgumentException
   {
@@ -217,9 +237,10 @@ private void connect () /* {{{ */
   {
     PluginData pd;
 
+    // try to connect
     connect ();
 
-    if (this._jmx_connection == null)
+    if (this._mbean_connection == null)
       return;
 
     Collectd.logDebug ("GenericJMXConfConnection.query: "
@@ -234,11 +255,11 @@ private void connect () /* {{{ */
     {
       int status;
 
-      status = this._mbeans.get (i).query (this._jmx_connection, pd,
+      status = this._mbeans.get (i).query (this._mbean_connection, pd,
           this._instance_prefix);
       if (status != 0)
       {
-        this._jmx_connection = null;
+        disconnect ();
         return;
       }
     } /* for */

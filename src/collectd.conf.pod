@@ -38,7 +38,7 @@ i.e. a C<E<lt>PluginE<nbsp>...E<gt>> block.
 The syntax of this config file is similar to the config file of the famous
 I<Apache> webserver. Each line contains either an option (a key and a list of
 one or more values) or a section-start or -end. Empty lines and everything
-after a non-quoted hash-symbol (C<#>) is ignored. I<Keys> are unquoted
+after a non-quoted hash-symbol (C<#>) are ignored. I<Keys> are unquoted
 strings, consisting only of alphanumeric characters and the underscore (C<_>)
 character. Keys are handled case insensitive by I<collectd> itself and all
 plugins included with it. I<Values> can either be an I<unquoted string>, a
@@ -70,7 +70,7 @@ C<E<lt>B<Plugin> ...E<gt>> block.
 
 =item B<BaseDir> I<Directory>
 
-Sets the base directory. This is the directory beneath all RRD-files are
+Sets the base directory. This is the directory beneath which all RRD-files are
 created. Possibly more subdirectories are created. This is also the working
 directory for the daemon.
 
@@ -83,7 +83,7 @@ I<collectd> will be mostly useless.
 Only the first B<LoadPlugin> statement or block for a given plugin name has any
 effect. This is useful when you want to split up the configuration into smaller
 files and want each file to be "self contained", i.e. it contains a B<Plugin>
-block I<and> then appropriate B<LoadPlugin> statement. The downside is that if
+block I<and> the appropriate B<LoadPlugin> statement. The downside is that if
 you have multiple conflicting B<LoadPlugin> blocks, e.g. when they specify
 different intervals, only one of them (the first one encountered) will take
 effect and all others will be silently ignored.
@@ -127,8 +127,17 @@ the average user from ever having to deal with this low level linking stuff.
 =item B<Interval> I<Seconds>
 
 Sets a plugin-specific interval for collecting metrics. This overrides the
-global B<Interval> setting. If a plugin provides own support for specifying an
-interval, that setting will take precedence.
+global B<Interval> setting. If a plugin provides its own support for specifying
+an interval, that setting will take precedence.
+
+=item B<FlushInterval> I<Seconds>
+
+Specifies the interval, in seconds, to call the flush callback if it's
+defined in this plugin. By default, this is disabled.
+
+=item B<FlushTimeout> I<Seconds>
+
+Specifies the value of the timeout argument of the flush callback.
 
 =back
 
@@ -199,13 +208,11 @@ I<pattern> may be specified to filter which files to include. This may be used
 in combination with recursively including a directory to easily be able to
 arbitrarily mix configuration files and other documents (e.g. README files).
 The given example is similar to the first example above but includes all files
-matching C<*.conf> in any subdirectory of C</etc/collectd.d>:
-
-  Include "/etc/collectd.d" "*.conf"
+matching C<*.conf> in any subdirectory of C</etc/collectd.d>.
 
 =back
 
-If more than one files are included by a single B<Include> option, the files
+If more than one file is included by a single B<Include> option, the files
 will be included in lexicographical order (as defined by the C<strcmp>
 function). Thus, you can e.E<nbsp>g. use numbered prefixes to specify the
 order in which the files are loaded.
@@ -246,7 +253,7 @@ magic! (Assuming you're using the I<RRDtool> or I<RRDCacheD> plugin.)
 
 =item B<MaxReadInterval> I<Seconds>
 
-Read plugin doubles interval between queries after each failed attempt
+A read plugin doubles the interval between queries after each failed attempt
 to get data.
 
 This options limits the maximum value of the interval. The default value is
@@ -397,13 +404,13 @@ There are a couple of limitations you should be aware of:
 
 =over 4
 
-=item
+=item *
 
 The I<Type> cannot be left unspecified, because it is not reasonable to add
 apples to oranges. Also, the internal lookup structure won't work if you try
 to group by type.
 
-=item
+=item *
 
 There must be at least one unspecified, ungrouped field. Otherwise nothing
 will be aggregated.
@@ -478,19 +485,19 @@ This will create the files:
 
 =over 4
 
-=item
+=item *
 
 foo.example.com/cpu-even-average/cpu-idle
 
-=item
+=item *
 
 foo.example.com/cpu-even-average/cpu-system
 
-=item
+=item *
 
 foo.example.com/cpu-even-average/cpu-user
 
-=item
+=item *
 
 ...
 
@@ -519,7 +526,9 @@ are disabled by default.
 The I<AMQP plugin> can be used to communicate with other instances of
 I<collectd> or third party applications using an AMQP message broker. Values
 are sent to or received from the broker, which handles routing, queueing and
-possibly filtering or messages.
+possibly filtering out messages.
+
+B<Synopsis:>
 
  <Plugin "amqp">
    # Send values to an AMQP broker
@@ -817,11 +826,23 @@ B<apcupsd> can handle it.
 
 TCP-Port to connect to. Defaults to B<3551>.
 
-=item B<ReportSeconds> B<true|false>
+=item B<ReportSeconds> B<true>|B<false>
 
 If set to B<true>, the time reported in the C<timeleft> metric will be
 converted to seconds. This is the recommended setting. If set to B<false>, the
 default for backwards compatibility, the time will be reported in minutes.
+
+=item B<PersistentConnection> B<true>|B<false>
+
+The plugin is designed to keep the connection to I<apcupsd> open between reads.
+If plugin poll interval is greater than 15 seconds (hardcoded socket close
+timeout in I<apcupsd> NIS), then this option is B<false> by default.
+
+You can instruct the plugin to close the connection after each read by setting
+this option to B<false> or force keeping the connection by setting it to B<true>.
+
+If I<apcupsd> appears to close the connection due to inactivity quite quickly,
+the plugin will try to detect this problem and switch to an open-read-close mode.
 
 =back
 
@@ -1340,6 +1361,32 @@ at all, B<all> cgroups are selected.
 
 =back
 
+=head2 Plugin C<chrony>
+
+The C<chrony> plugin collects ntp data from a B<chronyd> server, such as clock
+skew and per-peer stratum.
+
+For talking to B<chronyd>, it mimics what the B<chronyc> control program does
+on the wire.
+
+Available configuration options for the C<chrony> plugin:
+
+=over 4
+
+=item B<Host> I<Hostname>
+
+Hostname of the host running B<chronyd>. Defaults to B<localhost>.
+
+=item B<Port> I<Port>
+
+UDP-Port to connect to. Defaults to B<323>.
+
+=item B<Timeout> I<Timeout>
+
+Connection timeout in seconds. Defaults to B<2>.
+
+=back
+
 =head2 Plugin C<conntrack>
 
 This plugin collects IP conntrack statistics.
@@ -1360,11 +1407,11 @@ as Jiffies, using the C<cpu> type. Two aggregations are available:
 
 =over 4
 
-=item
+=item *
 
 Sum, per-state, over all CPUs installed in the system; and
 
-=item
+=item *
 
 Sum, per-CPU, over all non-idle states of a CPU, creating an "active" state.
 
@@ -1427,6 +1474,92 @@ much sense when collectd is running in foreground- or non-daemon-mode.
 If set to B<true>, convert counter values to rates. If set to B<false> (the
 default) counter values are stored as is, i.E<nbsp>e. as an increasing integer
 number.
+
+=back
+
+=head2 cURL Statistics
+
+All cURL-based plugins support collection of generic, request-based
+statistics. These are disabled by default and can be enabled selectively for
+each page or URL queried from the curl, curl_json, or curl_xml plugins. See
+the documentation of those plugins for specific information. This section
+describes the available metrics that can be configured for each plugin. All
+options are disabled by default.
+
+See L<http://curl.haxx.se/libcurl/c/curl_easy_getinfo.html> for more details.
+
+=over 4
+
+=item B<TotalTime> B<true|false>
+
+Total time of the transfer, including name resolving, TCP connect, etc.
+
+=item B<NamelookupTime> B<true|false>
+
+Time it took from the start until name resolving was completed.
+
+=item B<ConnectTime> B<true|false>
+
+Time it took from the start until the connect to the remote host (or proxy)
+was completed.
+
+=item B<AppconnectTime> B<true|false>
+
+Time it took from the start until the SSL/SSH connect/handshake to the remote
+host was completed.
+
+=item B<PretransferTime> B<true|false>
+
+Time it took from the start until just before the transfer begins.
+
+=item B<StarttransferTime> B<true|false>
+
+Time it took from the start until the first byte was received.
+
+=item B<RedirectTime> B<true|false>
+
+Time it took for all redirection steps include name lookup, connect,
+pre-transfer and transfer before final transaction was started.
+
+=item B<RedirectCount> B<true|false>
+
+The total number of redirections that were actually followed.
+
+=item B<SizeUpload> B<true|false>
+
+The total amount of bytes that were uploaded.
+
+=item B<SizeDownload> B<true|false>
+
+The total amount of bytes that were downloaded.
+
+=item B<SpeedDownload> B<true|false>
+
+The average download speed that curl measured for the complete download.
+
+=item B<SpeedUpload> B<true|false>
+
+The average upload speed that curl measured for the complete upload.
+
+=item B<HeaderSize> B<true|false>
+
+The total size of all the headers received.
+
+=item B<RequestSize> B<true|false>
+
+The total size of the issued requests.
+
+=item B<ContentLengthDownload> B<true|false>
+
+The content-length of the download.
+
+=item B<ContentLengthUpload> B<true|false>
+
+The specified size of the upload.
+
+=item B<NumConnects> B<true|false>
+
+The number of new connections that were created to achieve the transfer.
 
 =back
 
@@ -1530,10 +1663,20 @@ Beware that requests will get aborted if they take too long to complete. Adjust
 B<Timeout> accordingly if you expect B<MeasureResponseTime> to report such slow
 requests.
 
+This option is similar to enabling the B<TotalTime> statistic but it's
+measured by collectd instead of cURL.
+
 =item B<MeasureResponseCode> B<true>|B<false>
 
 Measure response code for the request. If this setting is enabled, B<Match>
 blocks (see below) are optional. Disabled by default.
+
+=item B<E<lt>StatisticsE<gt>>
+
+One B<Statistics> block can be used to specify cURL statistics to be collected
+for each request to the remote web site. See the section "cURL Statistics"
+above for details. If this setting is enabled, B<Match> blocks (see below) are
+optional.
 
 =item B<E<lt>MatchE<gt>>
 
@@ -1647,6 +1790,12 @@ URL. By default the global B<Interval> setting will be used.
 These options behave exactly equivalent to the appropriate options of the
 I<cURL> plugin. Please see there for a detailed description.
 
+=item B<E<lt>StatisticsE<gt>>
+
+One B<Statistics> block can be used to specify cURL statistics to be collected
+for each request to the remote URL. See the section "cURL Statistics" above
+for details.
+
 =back
 
 The following options are valid within B<Key> blocks:
@@ -1749,6 +1898,12 @@ Examples:
 These options behave exactly equivalent to the appropriate options of the
 I<cURL plugin>. Please see there for a detailed description.
 
+=item B<E<lt>StatisticsE<gt>>
+
+One B<Statistics> block can be used to specify cURL statistics to be collected
+for each request to the remote URL. See the section "cURL Statistics" above
+for details.
+
 =item E<lt>B<XPath> I<XPath-expression>E<gt>
 
 Within each B<URL> block, there must be one or more B<XPath> blocks. Each
@@ -1821,6 +1976,7 @@ than those of other plugins. It usually looks something like this:
     </Query>
     <Database "product_information">
       Driver "mysql"
+      Interval 120
       DriverOption "host" "localhost"
       DriverOption "username" "collectd"
       DriverOption "password" "aZo6daiw"
@@ -1999,6 +2155,11 @@ block. This name will be used as "PluginInstance" in the values submitted to
 the daemon. Other than that, that name is not used.
 
 =over 4
+
+=item B<Interval> I<Interval>
+
+Sets the interval (in seconds) in which the values will be collected from this
+database. By default the global B<Interval> setting will be used.
 
 =item B<Driver> I<Driver>
 
@@ -2470,6 +2631,51 @@ source, this is optional. Otherwise the option is required.
 
 =back
 
+=head2 Plugin C<grpc>
+
+The I<grpc> plugin provides an RPC interface to submit values to or query
+values from collectd based on the open source gRPC framework. It exposes an
+end-point for dispatching values to the daemon.
+
+The B<gRPC> homepage can be found at L<https://grpc.io/>.
+
+=over 4
+
+=item B<Listen> I<Host> I<Port>
+
+The B<Listen> statement sets the network address to bind to. When multiple
+statements are specified, the daemon will bind to all of them. If none are
+specified, it defaults to B<0.0.0.0:50051>.
+
+The argument I<Host> may be a hostname, an IPv4 address, or an IPv6 address.
+
+Optionally, B<Listen> may be specified as a configuration block which
+supports the following options:
+
+=over 4
+
+=item B<EnableSSL> I<true>|I<false>
+
+Whether to enable SSL for incoming connections. Default: false.
+
+=item B<SSLRootCerts> I<Filename>
+
+=item B<SSLServerKey> I<Filename>
+
+=item B<SSLServerCert> I<Filename>
+
+Filenames specifying SSL certificate and key material to be used with SSL
+connections.
+
+=back
+
+=item B<WorkerThreads> I<Num>
+
+Number of threads to start for handling incoming connections. The default
+value is B<5>.
+
+=back
+
 =head2 Plugin C<hddtemp>
 
 To get values from B<hddtemp> collectd connects to B<localhost> (127.0.0.1),
@@ -2504,7 +2710,7 @@ a more detailed description see B<IgnoreSelected> below.
 
 =item B<IgnoreSelected> I<true>|I<false>
 
-If no configuration if given, the B<traffic>-plugin will collect data from
+If no configuration if given, the B<interface>-plugin will collect data from
 all interfaces. This may not be practical, especially for loopback- and
 similar interfaces. Thus, you can use the B<Interface>-option to pick the
 interfaces you're interested in. Sometimes, however, it's easier/preferred
@@ -2529,6 +2735,17 @@ This will ignore the loopback interface, all interfaces with names starting
 with I<veth> and all interfaces with names starting with I<tun> followed by
 at least one digit.
 
+
+=item B<UniqueName> I<true>|I<false>
+
+Interface name is not unique on Solaris (KSTAT), interface name is unique
+only within a module/instance. Following tuple is considered unique:
+   (ks_module, ks_instance, ks_name)
+If this option is set to true, interface name contains above three fields
+separated by an underscore. For more info on KSTAT, visit
+L<http://docs.oracle.com/cd/E23824_01/html/821-1468/kstat-3kstat.html#REFMAN3Ekstat-3kstat>
+
+This option is only available on Solaris.
 
 =back
 
@@ -3247,6 +3464,146 @@ B<Collect> option is mandatory.
 =back
 
 =back
+
+=back
+
+=head2 Plugin C<mqtt>
+
+The I<MQTT plugin> can send metrics to MQTT (B<Publish> blocks) and receive
+values from MQTT (B<Subscribe> blocks).
+
+B<Synopsis:>
+
+ <Plugin mqtt>
+   <Publish "name">
+     Host "mqtt.example.com"
+     Prefix "collectd"
+   </Publish>
+   <Subscribe "name">
+     Host "mqtt.example.com"
+     Topic "collectd/#"
+   </Subscribe>
+ </Plugin>
+
+The plugin's configuration is in B<Publish> and/or B<Subscribe> blocks,
+configuring the sending and receiving direction respectively. The plugin will
+register a write callback named C<mqtt/I<name>> where I<name> is the string
+argument given to the B<Publish> block. Both types of blocks share many but not
+all of the following options. If an option is valid in only one of the blocks,
+it will be mentioned explicitly.
+
+B<Options:>
+
+=over 4
+
+=item B<Host> I<Hostname>
+
+Hostname of the MQTT broker to connect to.
+
+=item B<Port> I<Service>
+
+Port number or service name of the MQTT broker to connect to.
+
+=item B<User> I<UserName>
+
+Username used when authenticating to the MQTT broker.
+
+=item B<Password> I<Password>
+
+Password used when authenticating to the MQTT broker.
+
+=item B<ClientId> I<ClientId>
+
+MQTT client ID to use. Defaults to the hostname used by I<collectd>.
+
+=item B<QoS> [B<0>-B<2>]
+
+Sets the I<Quality of Service>, with the values C<0>, C<1> and C<2> meaning:
+
+=over 4
+
+=item B<0>
+
+At most once
+
+=item B<1>
+
+At least once
+
+=item B<2>
+
+Exactly once
+
+=back
+
+In B<Publish> blocks, this option determines the QoS flag set on outgoing
+messages and defaults to B<0>. In B<Subscribe> blocks, determines the maximum
+QoS setting the client is going to accept and defaults to B<2>. If the QoS flag
+on a message is larger than the maximum accepted QoS of a subscriber, the
+message's QoS will be downgraded.
+
+=item B<Prefix> I<Prefix> (Publish only)
+
+This plugin will use one topic per I<value list> which will looks like a path.
+I<Prefix> is used as the first path element and defaults to B<collectd>.
+
+An example topic name would be:
+
+ collectd/cpu-0/cpu-user
+
+=item B<Retain> B<false>|B<true> (Publish only)
+
+Controls whether the MQTT broker will retain (keep a copy of) the last message
+sent to each topic and deliver it to new subscribers. Defaults to B<false>.
+
+=item B<StoreRates> B<true>|B<false> (Publish only)
+
+Controls whether C<DERIVE> and C<COUNTER> metrics are converted to a I<rate>
+before sending. Defaults to B<true>.
+
+=item B<CleanSession> B<true>|B<false> (Subscribe only)
+
+Controls whether the MQTT "cleans" the session up after the subscriber
+disconnects or if it maintains the subscriber's subscriptions and all messages
+that arrive while the subscriber is disconnected. Defaults to B<true>.
+
+=item B<Topic> I<TopicName> (Subscribe only)
+
+Configures the topic(s) to subscribe to. You can use the single level C<+> and
+multi level C<#> wildcards. Defaults to B<collectd/#>, i.e. all topics beneath
+the B<collectd> branch.
+
+=item B<CACert> I<file>
+
+Path to the PEM-encoded CA certificate file. Setting this option enables TLS
+communication with the MQTT broker, and as such, B<Port> should be the TLS-enabled
+port of the MQTT broker.
+A valid TLS configuration requires B<CACert>, B<CertificateFile> and B<CertificateKeyFile>.
+
+=item B<CertificateFile> I<file>
+
+Path to the PEM-encoded certificate file to use as client certificate when
+connecting to the MQTT broker.
+A valid TLS configuration requires B<CACert>, B<CertificateFile> and B<CertificateKeyFile>.
+
+=item B<CertificateKeyFile> I<file>
+
+Path to the unencrypted PEM-encoded key file corresponding to B<CertificateFile>.
+A valid TLS configuration requires B<CACert>, B<CertificateFile> and B<CertificateKeyFile>.
+
+=item B<TLSProtocol> I<protocol>
+
+If configured, this specifies the string protocol version (e.g. C<tlsv1>,
+C<tlsv1.2>) to use for the TLS connection to the broker. If not set a default
+version is used which depends on the version of OpenSSL the Mosquitto library
+was linked against.
+
+=item B<CipherSuite> I<ciphersuite>
+
+A string describing the ciphers available for use. See L<ciphers(1)> and the
+C<openssl ciphers> utility for more information. If unset, the default ciphers
+will be used.
+
 
 =back
 
@@ -4305,13 +4662,28 @@ Default: C<Collectd notify: %s@%s>
 
 =back
 
+=head2 Plugin C<notify_nagios>
+
+The I<notify_nagios> plugin writes notifications to Nagios' I<command file> as
+a I<passive service check result>.
+
+Available configuration options:
+
+=over 4
+
+=item B<CommandFile> I<Path>
+
+Sets the I<command file> to write to. Defaults to F</usr/local/nagios/var/rw/nagios.cmd>.
+
+=back
+
 =head2 Plugin C<ntpd>
 
-The C<ntpd> plugin collects per-peer ntpd data such as time offset and time
+The C<ntpd> plugin collects per-peer ntp data such as time offset and time
 dispersion.
 
 For talking to B<ntpd>, it mimics what the B<ntpdc> control program does on
-wire - using B<mode 7> specific requests. This mode is deprecated with
+the wire - using B<mode 7> specific requests. This mode is deprecated with
 newer B<ntpd> releases (4.2.7p230 and later). For the C<ntpd> plugin to work
 correctly with them, the ntp daemon must be explicitly configured to
 enable B<mode 7> (which is disabled by default). Refer to the I<ntp.conf(5)>
@@ -4542,6 +4914,16 @@ The following options are accepted within each B<Instance> block:
 Sets the URL to use to connect to the I<OpenLDAP> server. This option is
 I<mandatory>.
 
+=item B<BindDN> I<BindDN>
+
+Name in the form of an LDAP distinguished name intended to be used for
+authentication. Defaults to empty string to establish an anonymous authorization.
+
+=item B<Password> I<Password>
+
+Password for simple bind authentication. If this option is not set,
+unauthenticated bind operation is used.
+
 =item B<StartTLS> B<true|false>
 
 Defines whether TLS must be used when connecting to the I<OpenLDAP> server.
@@ -4563,8 +4945,9 @@ client configuration mechanisms. See ldap.conf(5) for the details.
 
 =item B<Timeout> I<Seconds>
 
-Sets the timeout value for ldap operations. Defaults to B<-1> which results in
-an infinite timeout.
+Sets the timeout value for ldap operations, in seconds. By default, the
+configured B<Interval> is used to set the timeout. Use B<-1> to disable
+(infinite timeout).
 
 =item B<Version> I<Version>
 
@@ -4813,6 +5196,13 @@ Default: B<0.9>
 
 Sets the Time-To-Live of generated ICMP packets.
 
+=item B<Size> I<size>
+
+Sets the size of the data payload in ICMP packet to specified I<size> (it
+will be filled with regular ASCII pattern). If not set, default 56 byte
+long string is used so that the packet size of an ICMPv4 packet is exactly
+64 bytes, similar to the behaviour of normal ping(1) command.
+
 =item B<SourceAddress> I<host>
 
 Sets the source address to use. I<host> may either be a numerical network
@@ -4920,13 +5310,12 @@ The B<Query> block defines one database query which may later be used by a
 database definition. It accepts a single mandatory argument which specifies
 the name of the query. The names of all queries have to be unique (see the
 B<MinVersion> and B<MaxVersion> options below for an exception to this
-rule). The following configuration options are available to define the query:
+rule).
 
-In each B<Query> block, there is one or more B<Result> blocks. B<Result>
-blocks define how to handle the values returned from the query. They define
-which column holds which value and how to dispatch that value to the daemon.
-Multiple B<Result> blocks may be used to extract multiple values from a single
-query.
+In each B<Query> block, there is one or more B<Result> blocks. Multiple
+B<Result> blocks may be used to extract multiple values from a single query.
+
+The following configuration options are available to define the query:
 
 =over 4
 
@@ -4944,7 +5333,7 @@ allowed as long as a single non-empty command has been specified only.
 
 The returned lines will be handled separately one after another.
 
-=item B<Param> I<hostname>|I<database>|I<username>|I<interval>
+=item B<Param> I<hostname>|I<database>|I<instance>|I<username>|I<interval>
 
 Specify the parameters which should be passed to the SQL query. The parameters
 are referred to in the SQL query as B<$1>, B<$2>, etc. in the same order as
@@ -4981,6 +5370,34 @@ specific or global B<Interval> options).
 Please note that parameters are only supported by PostgreSQL's protocol
 version 3 and above which was introduced in version 7.4 of PostgreSQL.
 
+=item B<PluginInstanceFrom> I<column>
+
+Specify how to create the "PluginInstance" for reporting this query results.
+Only one column is supported. You may concatenate fields and string values in
+the query statement to get the required results.
+
+=item B<MinVersion> I<version>
+
+=item B<MaxVersion> I<version>
+
+Specify the minimum or maximum version of PostgreSQL that this query should be
+used with. Some statistics might only be available with certain versions of
+PostgreSQL. This allows you to specify multiple queries with the same name but
+which apply to different versions, thus allowing you to use the same
+configuration in a heterogeneous environment.
+
+The I<version> has to be specified as the concatenation of the major, minor
+and patch-level versions, each represented as two-decimal-digit numbers. For
+example, version 8.2.3 will become 80203.
+
+=back
+
+The B<Result> block defines how to handle the values returned from the query.
+It defines which column holds which value and how to dispatch that value to
+the daemon.
+
+=over 4
+
 =item B<Type> I<type>
 
 The I<type> name to be used when dispatching the values. The type describes
@@ -4988,7 +5405,7 @@ how to handle the data and where to store it. See L<types.db(5)> for more
 details on types and their configuration. The number and type of values (as
 selected by the B<ValuesFrom> option) has to match the type of the given name.
 
-This option is required inside a B<Result> block.
+This option is mandatory.
 
 =item B<InstancePrefix> I<prefix>
 
@@ -5023,20 +5440,6 @@ by the plugin as well.
 This option is required inside a B<Result> block and may be specified multiple
 times. If multiple B<ValuesFrom> options are specified, the columns are read
 in the given order.
-
-=item B<MinVersion> I<version>
-
-=item B<MaxVersion> I<version>
-
-Specify the minimum or maximum version of PostgreSQL that this query should be
-used with. Some statistics might only be available with certain versions of
-PostgreSQL. This allows you to specify multiple queries with the same name but
-which apply to different versions, thus allowing you to use the same
-configuration in a heterogeneous environment.
-
-The I<version> has to be specified as the concatenation of the major, minor
-and patch-level versions, each represented as two-decimal-digit numbers. For
-example, version 8.2.3 will become 80203.
 
 =back
 
@@ -5207,6 +5610,8 @@ Specify the plugin instance name that should be used instead of the database
 name (which is the default, if this option has not been specified). This
 allows to query multiple databases of the same name on the same host (e.g.
 when running multiple database server versions in parallel).
+The plugin instance name can also be set from the query result using
+the B<PluginInstanceFrom> option in B<Query> block.
 
 =item B<Host> I<hostname>
 
@@ -5461,6 +5866,9 @@ collected for these selected processes are size of the resident segment size
 (RSS), user- and system-time used, number of processes and number of threads,
 io data (where available) and minor and major pagefaults.
 
+Some platforms have a limit on the length of process names. I<Name> must stay
+below this limit.
+
 =item B<ProcessMatch> I<name> I<regex>
 
 Similar to the B<Process> option this allows to select more detailed
@@ -5469,6 +5877,10 @@ details). The statistics of all matching processes are summed up and
 dispatched to the daemon using the specified I<name> as an identifier. This
 allows to "group" several processes together. I<name> must not contain
 slashes.
+
+=item B<CollectContextSwitch> I<Boolean>
+
+Collect context switch of the process.
 
 =back
 
@@ -5936,6 +6348,12 @@ few ones. This option enables you to do that: By setting B<IgnoreSelected> to
 I<true> the effect of B<Sensor> is inverted: All selected sensors are ignored
 and all other sensors are collected.
 
+=item B<UseLabels> I<true>|I<false>
+
+Configures how sensor readings are reported. When set to I<true>, sensor
+readings are reported using their descriptive label (e.g. "VCore"). When set to
+I<false> (the default) the sensor name is used ("in0").
+
 =back
 
 =head2 Plugin C<sigrok>
@@ -6038,6 +6456,14 @@ collected. If at least one B<Disk> option is given and no B<IgnoreSelected> or
 set to B<false>, B<only> matching disks will be collected. If B<IgnoreSelected>
 is set to B<true>, all disks are collected B<except> the ones matched.
 
+=item B<IgnoreSleepMode> B<true>|B<false>
+
+Normally, the C<smart> plugin will ignore disks that are reported to be asleep.
+This option disables the sleep mode check and allows the plugin to collect data
+from these disks anyway. This is useful in cases where libatasmart mistakenly
+reports disks as asleep because it has not been updated to incorporate support
+for newer idle states in the ATA spec.
+
 =back
 
 =head2 Plugin C<snmp>
@@ -6083,6 +6509,12 @@ If set to B<False>, the default, metrics are dispatched unchanged, i.e. the
 rate of counters and size of sets will be zero, timers report C<NaN> and gauges
 are unchanged. If set to B<True>, the such metrics are not dispatched and
 removed from the internal cache.
+
+=item B<CounterSum> B<false>|B<true>
+
+When enabled, creates a C<count> metric which reports the change since the last
+read. This option primarily exists for compatibility with the I<statsd>
+implementation by Etsy.
 
 =item B<TimerPercentile> I<Percent>
 
@@ -6692,13 +7124,13 @@ fails or if you want to disable this feature.
 =item B<DigitalTemperatureSensor> I<true>|I<false>
 
 Boolean enabling the collection of the temperature of each core.
-This option should only be used if the automated detectionfails or 
+This option should only be used if the automated detectionfails or
 if you want to disable this feature.
 
 =item B<DigitalTemperatureSensor> I<true>|I<false>
 
 Boolean enabling the collection of the temperature of each package.
-This option should only be used if the automated detectionfails or 
+This option should only be used if the automated detectionfails or
 if you want to disable this feature.
 
 =item B<TCCActivationTemp> I<Temperature>
@@ -6769,20 +7201,20 @@ The following methods are used to find the machine's UUID, in order:
 
 =over 4
 
-=item
+=item *
 
 Check I</etc/uuid> (or I<UUIDFile>).
 
-=item
+=item *
 
 Check for UUID from HAL (L<http://www.freedesktop.org/wiki/Software/hal>) if
 present.
 
-=item
+=item *
 
 Check for UUID from C<dmidecode> / SMBIOS.
 
-=item
+=item *
 
 Check for UUID from Xen hypervisor.
 
@@ -7038,17 +7470,17 @@ setting B<name>.
 B<address> means use the interface's mac address. This is useful since the
 interface path might change between reboots of a guest or across migrations.
 
-=item B<PluginInstanceFormat> B<name|uuid>
+=item B<PluginInstanceFormat> B<name|uuid|none>
 
 When the virt plugin logs data, it sets the plugin_instance of the collected
-data according to this setting. The default is to use the guest name as provided
-by the hypervisor, which is equal to setting B<name>.
+data according to this setting. The default is to not set the plugin_instance.
 
+B<name> means use the guest's name as provided by the hypervisor.
 B<uuid> means use the guest's UUID.
 
-You can also specify combinations of these fields. For example B<name uuid>
-means to concatenate the guest name and UUID (with a literal colon character
-between, thus I<"foo:1234-1234-1234-1234">).
+You can also specify combinations of the B<name> and B<uuid> fields.
+For example B<name uuid> means to concatenate the guest name and UUID
+(with a literal colon character between, thus I<"foo:1234-1234-1234-1234">).
 
 =back
 
@@ -7122,6 +7554,14 @@ Service name or port number to connect to. Defaults to C<2003>.
 =item B<Protocol> I<String>
 
 Protocol to use when connecting to I<Graphite>. Defaults to C<tcp>.
+
+=item B<ReconnectInterval> I<Seconds>
+
+When set to non-zero, forces the connection to the Graphite backend to be
+closed and re-opend periodically. This behavior is desirable in environments
+where the connection to the Graphite backend is done through load balancers,
+for example. When set to zero, the default, the connetion is kept open for as
+long as possible.
 
 =item B<LogSendErrors> B<false>|B<true>
 
@@ -7349,6 +7789,12 @@ authentication.
 
 Password required to load the private key in B<ClientKey>.
 
+=item B<Header> I<Header>
+
+A HTTP header to add to the request.  Multiple headers are added if this option is specified more than once.  Example:
+
+  Header "X-Custom-Header: custom_value"
+
 =item B<SSLVersion> B<SSLv2>|B<SSLv3>|B<TLSv1>|B<TLSv1_0>|B<TLSv1_1>|B<TLSv1_2>
 
 Define which SSL protocol version must be used. By default C<libcurl> will
@@ -7390,6 +7836,10 @@ Sets the maximum time in milliseconds given for HTTP POST operations to
 complete. When this limit is reached, the POST operation will be aborted, and
 all the data in the current send buffer will probably be lost. Defaults to 0,
 which means the connection never times out.
+
+=item B<LogHttpError> B<false>|B<true>
+
+Enables printing of HTTP error code to log. Turned off by default.
 
 The C<write_http> plugin regularly submits the collected values to the HTTP
 server. How frequently this happens depends on how much data you are collecting
@@ -7517,14 +7967,20 @@ Synopsis:
         Host "localhost"
         Port "6379"
         Timeout 1000
+        Prefix "collectd/"
+        Database 1
+        MaxSetSize -1
+        StoreRates true
     </Node>
   </Plugin>
 
 Values are submitted to I<Sorted Sets>, using the metric name as the key, and
 the timestamp as the score. Retrieving a date range can then be done using the
 C<ZRANGEBYSCORE> I<Redis> command. Additionally, all the identifiers of these
-I<Sorted Sets> are kept in a I<Set> called C<collectd/values> and can be
-retrieved using the C<SMEMBERS> I<Redis> command. See
+I<Sorted Sets> are kept in a I<Set> called C<collectd/values> (or
+C<${prefix}/values> if the B<Prefix> option was specified) and can be retrieved
+using the C<SMEMBERS> I<Redis> command. You can specify the database to use
+with the B<Database> parameter (default is C<0>). See
 L<http://redis.io/commands#sorted_set> and L<http://redis.io/commands#set> for
 details.
 
@@ -7558,6 +8014,28 @@ that numerical port numbers must be given as a string, too.
 =item B<Timeout> I<Milliseconds>
 
 The B<Timeout> option sets the socket connection timeout, in milliseconds.
+
+=item B<Prefix> I<Prefix>
+
+Prefix used when constructing the name of the I<Sorted Sets> and the I<Set>
+containing all metrics. Defaults to C<collectd/>, so metrics will have names
+like C<collectd/cpu-0/cpu-user>. When setting this to something different, it
+is recommended but not required to include a trailing slash in I<Prefix>.
+
+=item B<Database> I<Index>
+
+This index selects the redis database to use for writing operations. Defaults
+to C<0>.
+
+=item B<MaxSetSize> I<Items>
+
+The B<MaxSetSize> option limits the number of items that the I<Sorted Sets> can
+hold. Negative values for I<Items> sets no limit, which is the default behavior.
+
+=item B<StoreRates> B<true>|B<false>
+
+If set to B<true> (the default), convert counter values to rates. If set to
+B<false> counter values are stored as is, i.e. as an increasing integer number.
 
 =back
 
@@ -7603,10 +8081,25 @@ Hostname or address to connect to. Defaults to C<localhost>.
 
 Service name or port number to connect to. Defaults to C<5555>.
 
-=item B<Protocol> B<UDP>|B<TCP>
+=item B<Protocol> B<UDP>|B<TCP>|B<TLS>
 
 Specify the protocol to use when communicating with I<Riemann>. Defaults to
 B<TCP>.
+
+=item B<TLSCertFile> I<Path>
+
+When using the B<TLS> protocol, path to a PEM certificate to present
+to remote host.
+
+=item B<TLSCAFile> I<Path>
+
+When using the B<TLS> protocol, path to a PEM CA certificate to
+use to validate the remote hosts's identity.
+
+=item B<TLSKeyFile> I<Path>
+
+When using the B<TLS> protocol, path to a PEM private key associated
+with the certificate defined by B<TLSCertFile>.
 
 =item B<Batch> B<true>|B<false>
 
@@ -7626,6 +8119,11 @@ Defaults to true
 =item B<BatchMaxSize> I<size>
 
 Maximum payload size for a riemann packet. Defaults to 8192
+
+=item B<BatchFlushTimeout> I<seconds>
+
+Maximum amount of seconds to wait in between to batch flushes.
+No timeout by default.
 
 =item B<StoreRates> B<true>|B<false>
 
@@ -7792,6 +8290,14 @@ Consider the two given strings to be the key and value of an additional
 attribute for each metric being sent out to I<Sensu>.
 
 =back
+
+=head2 Plugin C<xencpu>
+
+This plugin collects metrics of hardware CPU load for machine running Xen
+hypervisor. Load is calculated from 'idle time' value, provided by Xen.
+Result is reported using the C<percent> type, for each CPU (core).
+
+This plugin doesn't have any options (yet).
 
 =head2 Plugin C<zookeeper>
 
@@ -8689,6 +9195,8 @@ Available options:
 =item B<PluginInstance> I<String>
 
 =item B<TypeInstance> I<String>
+
+=item B<MetaDataSet> I<String> I<String>
 
 Set the appropriate field to the given string. The strings for plugin instance
 and type instance may be empty, the strings for host and plugin may not be

@@ -146,7 +146,7 @@ static int vserver_read (void)
 	if (proc == NULL)
 	{
 		char errbuf[1024];
-		ERROR ("vserver plugin: fopen (%s): %s", PROCDIR, 
+		ERROR ("vserver plugin: fopen (%s): %s", PROCDIR,
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -185,7 +185,7 @@ static int vserver_read (void)
 		len = ssnprintf (file, sizeof (file), PROCDIR "/%s", dent->d_name);
 		if ((len < 0) || (len >= BUFSIZE))
 			continue;
-		
+
 		status = stat (file, &statbuf);
 		if (status != 0)
 		{
@@ -194,7 +194,7 @@ static int vserver_read (void)
 					file, sstrerror (errno, errbuf, sizeof (errbuf)));
 			continue;
 		}
-		
+
 		if (!S_ISDIR (statbuf.st_mode))
 			continue;
 
@@ -215,7 +215,7 @@ static int vserver_read (void)
 		{
 			derive_t rx;
 			derive_t tx;
-			char *type_instance;
+			const char *type_instance;
 
 			if (strsplit (buffer, cols, 4) < 4)
 				continue;
@@ -265,7 +265,7 @@ static int vserver_read (void)
 
 			if (2 == n)
 			{
-				char   *type_instance;
+				const char *type_instance;
 				gauge_t value;
 
 				if (0 == strcmp (cols[0], "nr_threads:"))
@@ -314,8 +314,8 @@ static int vserver_read (void)
 
 		while ((fh != NULL) && (NULL != fgets (buffer, BUFSIZE, fh)))
 		{
-			char *type = "vs_memory";
-			char *type_instance;
+			const char *type = "vs_memory";
+			const char *type_instance;
 			gauge_t value;
 
 			if (strsplit (buffer, cols, 2) < 2)

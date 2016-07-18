@@ -59,7 +59,7 @@ static mach_port_t io_master_port = MACH_PORT_NULL;
 static int as_init (void)
 {
 	kern_return_t status;
-	
+
 	if (io_master_port != MACH_PORT_NULL)
 	{
 		mach_port_deallocate (mach_task_self (),

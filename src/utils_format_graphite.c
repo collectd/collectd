@@ -188,7 +188,7 @@ int format_graphite (char *buffer, size_t buffer_size,
     unsigned int flags)
 {
     int status = 0;
-    int i;
+    size_t i;
     int buffer_pos = 0;
 
     gauge_t *rates = NULL;

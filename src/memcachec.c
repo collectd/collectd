@@ -206,13 +206,12 @@ static int cmc_config_add_match (web_page_t *page, /* {{{ */
     WARNING ("memcachec plugin: Ignoring arguments for the `Match' block.");
   }
 
-  match = (web_match_t *) malloc (sizeof (*match));
+  match = calloc (1, sizeof (*match));
   if (match == NULL)
   {
-    ERROR ("memcachec plugin: malloc failed.");
+    ERROR ("memcachec plugin: calloc failed.");
     return (-1);
   }
-  memset (match, 0, sizeof (*match));
 
   status = 0;
   for (i = 0; i < ci->children_num; i++)
@@ -305,13 +304,12 @@ static int cmc_config_add_page (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  page = (web_page_t *) malloc (sizeof (*page));
+  page = calloc (1, sizeof (*page));
   if (page == NULL)
   {
-    ERROR ("memcachec plugin: malloc failed.");
+    ERROR ("memcachec plugin: calloc failed.");
     return (-1);
   }
-  memset (page, 0, sizeof (*page));
   page->server = NULL;
   page->key = NULL;
 
@@ -389,7 +387,7 @@ static int cmc_config_add_page (oconfig_item_t *ci) /* {{{ */
     web_page_t *prev;
 
     prev = pages_g;
-    while ((prev != NULL) && (prev->next != NULL))
+    while (prev->next != NULL)
       prev = prev->next;
     prev->next = page;
   }

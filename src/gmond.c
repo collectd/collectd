@@ -30,12 +30,6 @@
 #include "configfile.h"
 #include "utils_avltree.h"
 
-#if HAVE_PTHREAD_H
-# include <pthread.h>
-#endif
-#if HAVE_SYS_SOCKET_H
-# include <sys/socket.h>
-#endif
 #if HAVE_NETDB_H
 # include <netdb.h>
 #endif
@@ -83,12 +77,12 @@ typedef struct staging_entry_s staging_entry_t;
 
 struct metric_map_s
 {
-  char *ganglia_name;
-  char *type;
-  char *type_instance;
-  char *ds_name;
-  int   ds_type;
-  int   ds_index;
+  char  *ganglia_name;
+  char  *type;
+  char  *type_instance;
+  char  *ds_name;
+  int    ds_type;
+  size_t ds_index;
 };
 typedef struct metric_map_s metric_map_t;
 
@@ -166,7 +160,7 @@ static metric_map_t *metric_lookup (const char *key) /* {{{ */
     return (NULL);
 
   /* Look up the DS type and ds_index. */
-  if ((map[i].ds_type < 0) || (map[i].ds_index < 0)) /* {{{ */
+  if (map[i].ds_type < 0) /* {{{ */
   {
     const data_set_t *ds;
 
@@ -191,7 +185,7 @@ static metric_map_t *metric_lookup (const char *key) /* {{{ */
     }
     else
     {
-      int j;
+      size_t j;
 
       for (j = 0; j < ds->ds_num; j++)
         if (strcasecmp (ds->ds[j].name, map[i].ds_name) == 0)
@@ -326,14 +320,27 @@ static int create_sockets (socket_entry_t **ret_sockets, /* {{{ */
       }
 
       loop = 1;
-      setsockopt (sockets[sockets_num].fd, IPPROTO_IP, IP_MULTICAST_LOOP,
+      status = setsockopt (sockets[sockets_num].fd, IPPROTO_IP, IP_MULTICAST_LOOP,
           (void *) &loop, sizeof (loop));
+      if (status != 0)
+      {
+        char errbuf[1024];
+        WARNING ("gmond plugin: setsockopt(2) failed: %s",
+                 sstrerror (errno, errbuf, sizeof (errbuf)));
+      }
 
       memset (&mreq, 0, sizeof (mreq));
       mreq.imr_multiaddr.s_addr = addr->sin_addr.s_addr;
       mreq.imr_interface.s_addr = htonl (INADDR_ANY);
-      setsockopt (sockets[sockets_num].fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
+
+      status = setsockopt (sockets[sockets_num].fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
           (void *) &mreq, sizeof (mreq));
+      if (status != 0)
+      {
+        char errbuf[1024];
+        WARNING ("gmond plugin: setsockopt(2) failed: %s",
+                 sstrerror (errno, errbuf, sizeof (errbuf)));
+      }
     } /* if (ai_ptr->ai_family == AF_INET) */
     else if (ai_ptr->ai_family == AF_INET6)
     {
@@ -350,15 +357,27 @@ static int create_sockets (socket_entry_t **ret_sockets, /* {{{ */
       }
 
       loop = 1;
-      setsockopt (sockets[sockets_num].fd, IPPROTO_IPV6, IPV6_MULTICAST_LOOP,
+      status = setsockopt (sockets[sockets_num].fd, IPPROTO_IPV6, IPV6_MULTICAST_LOOP,
           (void *) &loop, sizeof (loop));
+      if (status != 0)
+      {
+        char errbuf[1024];
+        WARNING ("gmond plugin: setsockopt(2) failed: %s",
+                 sstrerror (errno, errbuf, sizeof (errbuf)));
+      }
 
       memset (&mreq, 0, sizeof (mreq));
       memcpy (&mreq.ipv6mr_multiaddr,
           &addr->sin6_addr, sizeof (addr->sin6_addr));
       mreq.ipv6mr_interface = 0; /* any */
-      setsockopt (sockets[sockets_num].fd, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP,
+      status = setsockopt (sockets[sockets_num].fd, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP,
           (void *) &mreq, sizeof (mreq));
+      if (status != 0)
+      {
+        char errbuf[1024];
+        WARNING ("gmond plugin: setsockopt(2) failed: %s",
+                 sstrerror (errno, errbuf, sizeof (errbuf)));
+      }
     } /* if (ai_ptr->ai_family == AF_INET6) */
 
     sockets_num++;
@@ -457,10 +476,9 @@ static staging_entry_t *staging_entry_get (const char *host, /* {{{ */
     return (se);
 
   /* insert new entry */
-  se = (staging_entry_t *) malloc (sizeof (*se));
+  se = calloc (1, sizeof (*se));
   if (se == NULL)
     return (NULL);
-  memset (se, 0, sizeof (*se));
 
   sstrncpy (se->key, key, sizeof (se->key));
   se->flags = 0;
@@ -496,7 +514,7 @@ static staging_entry_t *staging_entry_get (const char *host, /* {{{ */
 
 static int staging_entry_update (const char *host, const char *name, /* {{{ */
     const char *type, const char *type_instance,
-    int ds_index, int ds_type, value_t value)
+    size_t ds_index, int ds_type, value_t value)
 {
   const data_set_t *ds;
   staging_entry_t *se;
@@ -510,7 +528,7 @@ static int staging_entry_update (const char *host, const char *name, /* {{{ */
 
   if (ds->ds_num <= ds_index)
   {
-    ERROR ("gmond plugin: Invalid index %i: %s has only %i data source(s).",
+    ERROR ("gmond plugin: Invalid index %zu: %s has only %zu data source(s).",
         ds_index, ds->type, ds->ds_num);
     return (-1);
   }
@@ -916,7 +934,7 @@ static int mc_receive_thread_stop (void) /* {{{ */
   return (0);
 } /* }}} int mc_receive_thread_stop */
 
-/* 
+/*
  * Config:
  *
  * <Plugin gmond>

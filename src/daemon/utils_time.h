@@ -1,6 +1,6 @@
 /**
- * collectd - src/utils_time.h
- * Copyright (C) 2010       Florian octo Forster
+ * collectd - src/daemon/utils_time.h
+ * Copyright (C) 2010-2015  Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,13 +21,19 @@
  * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
- *   Florian octo Forster <ff at octo.it>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #ifndef UTILS_TIME_H
 #define UTILS_TIME_H 1
 
 #include "collectd.h"
+
+#ifdef TESTING_H
+/* cdtime_mock is the time returned by cdtime() when build with
+ * -DMOCK_TIME */
+extern cdtime_t cdtime_mock;
+#endif
 
 /*
  * "cdtime_t" is a 64bit unsigned integer. The time is stored at a 2^-30 second
@@ -37,45 +43,54 @@
  * manner is that comparing times and calculating differences is as simple as
  * it is with "time_t", i.e. a simple integer comparison / subtraction works.
  */
-/* 
+/*
  * cdtime_t is defined in "collectd.h" */
 /* typedef uint64_t cdtime_t; */
 
 /* 2^30 = 1073741824 */
-#define TIME_T_TO_CDTIME_T(t) (((cdtime_t) (t)) * 1073741824)
-#define CDTIME_T_TO_TIME_T(t) ((time_t) ((t) / 1073741824))
+#define TIME_T_TO_CDTIME_T(t) (((cdtime_t) (t)) << 30)
+
+#define MS_TO_CDTIME_T(ms) (((((cdtime_t) (ms)) / 1000) << 30) | \
+    ((((((cdtime_t) (ms)) % 1000) << 30) + 500) / 1000))
+#define US_TO_CDTIME_T(us) (((((cdtime_t) (us)) / 1000000) << 30) | \
+    ((((((cdtime_t) (us)) % 1000000) << 30) + 500000) / 1000000))
+#define NS_TO_CDTIME_T(ns) (((((cdtime_t) (ns)) / 1000000000) << 30) | \
+    ((((((cdtime_t) (ns)) % 1000000000) << 30) + 500000000) / 1000000000))
+
+#define CDTIME_T_TO_TIME_T(t) ((time_t) (((t) + (1 << 29)) >> 30))
+#define CDTIME_T_TO_MS(t)  ((uint64_t) ((((t) >> 30) * 1000) + \
+  ((((t) & 0x3fffffff) * 1000 + (1 << 29)) >> 30)))
+#define CDTIME_T_TO_US(t)  ((uint64_t) ((((t) >> 30) * 1000000) + \
+  ((((t) & 0x3fffffff) * 1000000 + (1 << 29)) >> 30)))
+#define CDTIME_T_TO_NS(t)  ((uint64_t) ((((t) >> 30) * 1000000000) + \
+  ((((t) & 0x3fffffff) * 1000000000 + (1 << 29)) >> 30)))
 
 #define CDTIME_T_TO_DOUBLE(t) (((double) (t)) / 1073741824.0)
 #define DOUBLE_TO_CDTIME_T(d) ((cdtime_t) ((d) * 1073741824.0))
 
-#define MS_TO_CDTIME_T(ms) ((cdtime_t)    (((double) (ms)) * 1073741.824))
-#define CDTIME_T_TO_MS(t)  ((long)        (((double) (t))  / 1073741.824))
-#define US_TO_CDTIME_T(us) ((cdtime_t)    (((double) (us)) * 1073.741824))
-#define CDTIME_T_TO_US(t)  ((suseconds_t) (((double) (t))  / 1073.741824))
-#define NS_TO_CDTIME_T(ns) ((cdtime_t)    (((double) (ns)) * 1.073741824))
-#define CDTIME_T_TO_NS(t)  ((long)        (((double) (t))  / 1.073741824))
-
-#define CDTIME_T_TO_TIMEVAL(cdt,tvp) do {                                    \
-        (tvp)->tv_sec = CDTIME_T_TO_TIME_T (cdt);                            \
-        (tvp)->tv_usec = CDTIME_T_TO_US ((cdt) % 1073741824);                \
+#define CDTIME_T_TO_TIMEVAL(cdt,tvp) do { \
+  (tvp)->tv_sec = (time_t) ((cdt) >> 30); \
+  (tvp)->tv_usec = (suseconds_t) ((((cdt) & 0x3fffffff) * 1000000 + (1 << 29)) >> 30); \
 } while (0)
-#define TIMEVAL_TO_CDTIME_T(tv) (TIME_T_TO_CDTIME_T ((tv)->tv_sec)           \
-    + US_TO_CDTIME_T ((tv)->tv_usec))
+#define TIMEVAL_TO_CDTIME_T(tv) US_TO_CDTIME_T(1000000 * (tv)->tv_sec + (tv)->tv_usec)
 
-#define CDTIME_T_TO_TIMESPEC(cdt,tsp) do {                                   \
-  (tsp)->tv_sec = CDTIME_T_TO_TIME_T (cdt);                                  \
-  (tsp)->tv_nsec = CDTIME_T_TO_NS ((cdt) % 1073741824);                      \
+#define CDTIME_T_TO_TIMESPEC(cdt,tsp) do { \
+  (tsp)->tv_sec = (time_t) ((cdt) >> 30); \
+  (tsp)->tv_nsec = (long) ((((cdt) & 0x3fffffff) * 1000000000 + (1 << 29)) >> 30); \
 } while (0)
-#define TIMESPEC_TO_CDTIME_T(ts) (TIME_T_TO_CDTIME_T ((ts)->tv_sec)           \
-    + NS_TO_CDTIME_T ((ts)->tv_nsec))
+#define TIMESPEC_TO_CDTIME_T(ts) NS_TO_CDTIME_T(1000000000ULL * (ts)->tv_sec + (ts)->tv_nsec)
 
 cdtime_t cdtime (void);
 
-/* format a cdtime_t value in ISO 8601 format:
- * returns the number of characters written to the string (not including the
- * terminating null byte or 0 on error; the function ensures that the string
- * is null terminated */
-size_t cdtime_to_iso8601 (char *s, size_t max, cdtime_t t);
+#define RFC3339_SIZE     26
+#define RFC3339NANO_SIZE 36
+
+/* rfc3339 formats a cdtime_t time in RFC 3339 format with second precision. */
+int rfc3339 (char *buffer, size_t buffer_size, cdtime_t t);
+
+/* rfc3339nano formats a cdtime_t time in RFC 3339 format with nanosecond
+ * precision. */
+int rfc3339nano (char *buffer, size_t buffer_size, cdtime_t t);
 
 #endif /* UTILS_TIME_H */
 /* vim: set sw=2 sts=2 et : */

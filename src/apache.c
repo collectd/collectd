@@ -98,14 +98,14 @@ static size_t apache_curl_callback (void *buf, size_t size, size_t nmemb,
 		return (0);
 	}
 
-	if (len <= 0)
+	if (len == 0)
 		return (len);
 
 	if ((st->apache_buffer_fill + len) >= st->apache_buffer_size)
 	{
 		char *temp;
 
-		temp = (char *) realloc (st->apache_buffer,
+		temp = realloc (st->apache_buffer,
 				st->apache_buffer_fill + len + 1);
 		if (temp == NULL)
 		{
@@ -137,7 +137,7 @@ static size_t apache_header_callback (void *buf, size_t size, size_t nmemb,
 		return (0);
 	}
 
-	if (len <= 0)
+	if (len == 0)
 		return (len);
 
 	/* look for the Server header */
@@ -175,13 +175,12 @@ static int config_add (oconfig_item_t *ci)
 	int i;
 	int status;
 
-	st = malloc (sizeof (*st));
+	st = calloc (1, sizeof (*st));
 	if (st == NULL)
 	{
-		ERROR ("apache plugin: malloc failed.");
+		ERROR ("apache plugin: calloc failed.");
 		return (-1);
 	}
-	memset (st, 0, sizeof (*st));
 
 	st->timeout = -1;
 
@@ -255,7 +254,7 @@ static int config_add (oconfig_item_t *ci)
 		status = plugin_register_complex_read (/* group = */ NULL,
 				/* name      = */ callback_name,
 				/* callback  = */ apache_read_host,
-				/* interval  = */ NULL,
+				/* interval  = */ 0,
 				/* user_data = */ &ud);
 	}
 
@@ -383,8 +382,7 @@ static int init_host (apache_t *st) /* {{{ */
 	if (st->timeout >= 0)
 		curl_easy_setopt (st->curl, CURLOPT_TIMEOUT_MS, (long) st->timeout);
 	else
-		curl_easy_setopt (st->curl, CURLOPT_TIMEOUT_MS,
-				CDTIME_T_TO_MS(plugin_get_interval()));
+		curl_easy_setopt (st->curl, CURLOPT_TIMEOUT_MS, (long) CDTIME_T_TO_MS(plugin_get_interval()));
 #endif
 
 	return (0);
@@ -531,13 +529,16 @@ static int apache_read_host (user_data_t *user_data) /* {{{ */
 
 	st = user_data->data;
 
+	int status;
+
+	char *content_type;
+	static const char *text_plain = "text/plain";
+
 	assert (st->url != NULL);
 	/* (Assured by `config_add') */
 
 	if (st->curl == NULL)
 	{
-		int status;
-
 		status = init_host (st);
 		if (status != 0)
 			return (-1);
@@ -558,6 +559,16 @@ static int apache_read_host (user_data_t *user_data) /* {{{ */
 		WARNING ("apache plugin: Unable to determine server software "
 				"automatically. Will assume Apache.");
 		st->server_type = APACHE;
+	}
+
+	status = curl_easy_getinfo (st->curl, CURLINFO_CONTENT_TYPE, &content_type);
+	if ((status == CURLE_OK) && (content_type != NULL) &&
+	    (strncasecmp (content_type, text_plain, strlen (text_plain)) != 0))
+	{
+		WARNING ("apache plugin: `Content-Type' response header is not `%s' "
+			"(received: `%s'). Expecting unparseable data. Please check `URL' "
+			"parameter (missing `?auto' suffix ?)",
+			text_plain, content_type);
 	}
 
 	ptr = st->apache_buffer;
