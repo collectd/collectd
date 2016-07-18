@@ -78,7 +78,7 @@ static _Bool getvalue(const char *fname, gauge_t *value, char *buffer, size_t bu
 {
   FILE *fh;
   if ((fh = fopen(fname, "r")) == NULL)
-    return 0;
+    return (0);
 
   if ( fgets(buffer, buffer_size, fh) == NULL )
     {
@@ -90,7 +90,7 @@ static _Bool getvalue(const char *fname, gauge_t *value, char *buffer, size_t bu
 
   fclose(fh);
 
-  return 1;
+  return (1);
 }
 
 
@@ -135,7 +135,7 @@ static int battery_read (void)
       return (-1);
     }
   
-  return 0;
+  return (0);
 }
 
 void module_register (void)
