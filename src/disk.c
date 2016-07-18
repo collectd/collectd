@@ -896,7 +896,7 @@ static int disk_read (void)
 		{
 #if HAVE_LIBUDEV
 			/* release udev-based alternate name, if allocated */
-			sfree (output_name);
+			sfree (alt_name);
 #endif
 			continue;
 		}
