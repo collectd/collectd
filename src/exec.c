@@ -38,8 +38,6 @@
 #include <grp.h>
 #include <signal.h>
 
-#include <pthread.h>
-
 #define PL_NORMAL        0x01
 #define PL_NOTIF_ACTION  0x02
 
@@ -126,13 +124,12 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  pl = (program_list_t *) malloc (sizeof (program_list_t));
+  pl = calloc (1, sizeof (*pl));
   if (pl == NULL)
   {
-    ERROR ("exec plugin: malloc failed.");
+    ERROR ("exec plugin: calloc failed.");
     return (-1);
   }
-  memset (pl, '\0', sizeof (program_list_t));
 
   if (strcasecmp ("NotificationExec", ci->key) == 0)
     pl->flags |= PL_NOTIF_ACTION;
@@ -163,16 +160,15 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  pl->argv = (char **) malloc (ci->values_num * sizeof (char *));
+  pl->argv = calloc (ci->values_num, sizeof (*pl->argv));
   if (pl->argv == NULL)
   {
-    ERROR ("exec plugin: malloc failed.");
+    ERROR ("exec plugin: calloc failed.");
     sfree (pl->exec);
     sfree (pl->user);
     sfree (pl);
     return (-1);
   }
-  memset (pl->argv, '\0', ci->values_num * sizeof (char *));
 
   {
     char *tmp = strrchr (ci->values[1].value.string, '/');
@@ -184,7 +180,7 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
   pl->argv[0] = strdup (buffer);
   if (pl->argv[0] == NULL)
   {
-    ERROR ("exec plugin: malloc failed.");
+    ERROR ("exec plugin: strdup failed.");
     sfree (pl->argv);
     sfree (pl->exec);
     sfree (pl->user);
@@ -744,8 +740,7 @@ static void *exec_notification_one (void *arg) /* {{{ */
     char errbuf[1024];
     ERROR ("exec plugin: fdopen (%i) failed: %s", fd,
         sstrerror (errno, errbuf, sizeof (errbuf)));
-    kill (pl->pid, SIGTERM);
-    pl->pid = 0;
+    kill (pid, SIGTERM);
     close (fd);
     sfree (arg);
     pthread_exit ((void *) 1);
@@ -869,8 +864,7 @@ static int exec_notification (const notification_t *n, /* {{{ */
     if (pl->pid != 0)
       continue;
 
-    pln = (program_list_and_notification_t *) malloc (sizeof
-        (program_list_and_notification_t));
+    pln = malloc (sizeof (*pln));
     if (pln == NULL)
     {
       ERROR ("exec plugin: malloc failed.");

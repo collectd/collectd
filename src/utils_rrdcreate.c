@@ -62,7 +62,7 @@ static int rra_timespans[] =
 };
 static int rra_timespans_num = STATIC_ARRAY_SIZE (rra_timespans);
 
-static char *rra_types[] =
+static const char *const rra_types[] =
 {
   "AVERAGE",
   "MIN",
@@ -70,7 +70,7 @@ static char *rra_types[] =
 };
 static int rra_types_num = STATIC_ARRAY_SIZE (rra_types);
 
-#if !defined(HAVE_THREADSAFE_LIBRRD) || !HAVE_THREADSAFE_LIBRRD
+#if !defined(HAVE_THREADSAFE_LIBRRD)
 static pthread_mutex_t librrd_lock = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
@@ -113,13 +113,12 @@ static srrd_create_args_t *srrd_create_args_create (const char *filename,
 {
   srrd_create_args_t *args;
 
-  args = malloc (sizeof (*args));
+  args = calloc (1, sizeof (*args));
   if (args == NULL)
   {
-    ERROR ("srrd_create_args_create: malloc failed.");
+    ERROR ("srrd_create_args_create: calloc failed.");
     return (NULL);
   }
-  memset (args, 0, sizeof (*args));
   args->filename = NULL;
   args->pdp_step = pdp_step;
   args->last_up = last_up;
@@ -216,9 +215,8 @@ static int rra_get (char ***ret, const value_list_t *vl, /* {{{ */
   rra_max = rts_num * rra_types_num;
   assert (rra_max > 0);
 
-  if ((rra_def = malloc ((rra_max + 1) * sizeof (*rra_def))) == NULL)
+  if ((rra_def = calloc (rra_max + 1, sizeof (*rra_def))) == NULL)
     return (-1);
-  memset (rra_def, 0, (rra_max + 1) * sizeof (*rra_def));
   rra_num = 0;
 
   cdp_len = 0;
@@ -284,7 +282,7 @@ static int ds_get (char ***ret, /* {{{ */
     const rrdcreate_config_t *cfg)
 {
   char **ds_def;
-  int ds_num;
+  size_t ds_num;
 
   char min[32];
   char max[32];
@@ -292,20 +290,19 @@ static int ds_get (char ***ret, /* {{{ */
 
   assert (ds->ds_num > 0);
 
-  ds_def = malloc (ds->ds_num * sizeof (*ds_def));
+  ds_def = calloc (ds->ds_num, sizeof (*ds_def));
   if (ds_def == NULL)
   {
     char errbuf[1024];
-    ERROR ("rrdtool plugin: malloc failed: %s",
+    ERROR ("rrdtool plugin: calloc failed: %s",
         sstrerror (errno, errbuf, sizeof (errbuf)));
     return (-1);
   }
-  memset (ds_def, 0, ds->ds_num * sizeof (*ds_def));
 
   for (ds_num = 0; ds_num < ds->ds_num; ds_num++)
   {
     data_source_t *d = ds->ds + ds_num;
-    char *type;
+    const char *type;
     int status;
 
     ds_def[ds_num] = NULL;
@@ -358,7 +355,7 @@ static int ds_get (char ***ret, /* {{{ */
     return (-1);
   }
 
-  if (ds_num <= 0)
+  if (ds_num == 0)
   {
     sfree (ds_def);
     return (0);
@@ -421,7 +418,7 @@ static int srrd_create (const char *filename, /* {{{ */
   char last_up_str[16];
 
   new_argc = 6 + argc;
-  new_argv = (char **) malloc ((new_argc + 1) * sizeof (char *));
+  new_argv = malloc ((new_argc + 1) * sizeof (*new_argv));
   if (new_argv == NULL)
   {
     ERROR ("rrdtool plugin: malloc failed.");
@@ -689,7 +686,7 @@ int cu_rrd_create_file (const char *filename, /* {{{ */
 
   argc = ds_num + rra_num;
 
-  if ((argv = (char **) malloc (sizeof (char *) * (argc + 1))) == NULL)
+  if ((argv = malloc (sizeof (*argv) * (argc + 1))) == NULL)
   {
     char errbuf[1024];
     ERROR ("cu_rrd_create_file failed: %s",

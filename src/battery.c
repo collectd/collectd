@@ -143,7 +143,7 @@ static void submit_capacity (char const *plugin_instance, /* {{{ */
 } /* }}} void submit_capacity */
 
 #if HAVE_IOKIT_PS_IOPOWERSOURCES_H || HAVE_IOKIT_IOKITLIB_H
-static double dict_get_double (CFDictionaryRef dict, char *key_string) /* {{{ */
+static double dict_get_double (CFDictionaryRef dict, const char *key_string) /* {{{ */
 {
 	double      val_double;
 	long long   val_int;
@@ -341,7 +341,7 @@ static void get_via_generic_iokit (double *ret_capacity_full, /* {{{ */
 				*ret_voltage = temp_double / 1000.0;
 			}
 		}
-		
+
 		CFRelease (bat_root_dict);
 	}
 
@@ -358,7 +358,7 @@ static int battery_read (void) /* {{{ */
 	 * IOPowerSources. IOKit, on the other hand, only reports the full
 	 * capacity. We use the two to calculate the current charged capacity. */
 	gauge_t charge_rel = NAN; /* Current charge in percent */
-	gauge_t capacity_charged = NAN; /* Charged capacity */
+	gauge_t capacity_charged; /* Charged capacity */
 	gauge_t capacity_full = NAN; /* Total capacity */
 	gauge_t capacity_design = NAN; /* Full design capacity */
 

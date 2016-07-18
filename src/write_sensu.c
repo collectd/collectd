@@ -24,67 +24,20 @@
  *   Fabrice A. Marie <fabrice at kibinlabs.com>
  */
 
+#define _GNU_SOURCE
+
 #include "collectd.h"
 #include "plugin.h"
 #include "common.h"
 #include "configfile.h"
 #include "utils_cache.h"
-#include <sys/socket.h>
 #include <arpa/inet.h>
 #include <errno.h>
 #include <netdb.h>
 #include <inttypes.h>
-#include <pthread.h>
 #include <stddef.h>
 
 #include <stdlib.h>
-#ifndef HAVE_ASPRINTF
-/*
- * Uses asprintf() portable implementation from
- * https://github.com/littlstar/asprintf.c/blob/master/
- * copyright (c) 2014 joseph werle <joseph.werle@gmail.com> under MIT license.
- */
-#include <stdio.h>
-#include <stdarg.h>
-
-int vasprintf(char **str, const char *fmt, va_list args) {
-	int size = 0;
-	va_list tmpa;
-	// copy
-	va_copy(tmpa, args);
-	// apply variadic arguments to
-	// sprintf with format to get size
-	size = vsnprintf(NULL, size, fmt, tmpa);
-	// toss args
-	va_end(tmpa);
-	// return -1 to be compliant if
-	// size is less than 0
-	if (size < 0) { return -1; }
-	// alloc with size plus 1 for `\0'
-	*str = (char *) malloc(size + 1);
-	// return -1 to be compliant
-	// if pointer is `NULL'
-	if (NULL == *str) { return -1; }
-	// format string with original
-	// variadic arguments and set new size
-	size = vsprintf(*str, fmt, args);
-	return size;
-}
-
-int asprintf(char **str, const char *fmt, ...) {
-	int size = 0;
-	va_list args;
-	// init variadic argumens
-	va_start(args, fmt);
-	// format and get size
-	size = vasprintf(str, fmt, args);
-	// toss args
-	va_end(args);
-	return size;
-}
-
-#endif
-
 #define SENSU_HOST		"localhost"
 #define SENSU_PORT		"3030"
 
@@ -223,7 +176,7 @@ static void sensu_close_socket(struct sensu_host *host) /* {{{ */
 static char *build_json_str_list(const char *tag, struct str_list const *list) /* {{{ */
 {
 	int res;
-	char *ret_str;
+	char *ret_str = NULL;
 	char *temp_str;
 	int i;
 	if (list->nb_strs == 0) {
@@ -238,6 +191,7 @@ static char *build_json_str_list(const char *tag, struct str_list const *list) /
 	res = asprintf(&temp_str, "\"%s\": [\"%s\"", tag, list->strs[0]);
 	if (res == -1) {
 		ERROR("write_sensu plugin: Unable to alloc memory");
+		free(ret_str);
 		return NULL;
 	}
 	for (i=1; i<list->nb_strs; i++) {
@@ -259,7 +213,7 @@ static char *build_json_str_list(const char *tag, struct str_list const *list) /
 	return ret_str;
 } /* }}} char *build_json_str_list*/
 
-int sensu_format_name2(char *ret, int ret_len,
+static int sensu_format_name2(char *ret, int ret_len,
 		const char *hostname,
 		const char *plugin, const char *plugin_instance,
 		const char *type, const char *type_instance,
@@ -329,7 +283,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 {
 	char name_buffer[5 * DATA_MAX_NAME_LEN];
 	char service_buffer[6 * DATA_MAX_NAME_LEN];
-	int i;
+	size_t i;
 	char *ret_str;
 	char *temp_str;
 	char *value_str;
@@ -456,7 +410,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 	}
 
 	// incorporate sensu tags from config if any
-	if (strlen(sensu_tags) != 0) {
+	if ((sensu_tags != NULL) && (strlen(sensu_tags) != 0)) {
 		res = asprintf(&temp_str, "%s, %s", ret_str, sensu_tags);
 		free(ret_str);
 		if (res == -1) {
@@ -551,7 +505,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
  * http://creativeandcritical.net/str-replace-c/
  * copyright (c) Laird Shaw, under public domain.
  */
-char *replace_str(const char *str, const char *old, /* {{{ */
+static char *replace_str(const char *str, const char *old, /* {{{ */
 		const char *new)
 {
 	char *ret, *r;
@@ -570,11 +524,10 @@ char *replace_str(const char *str, const char *old, /* {{{ */
 	} else
 		retlen = strlen(str);
 
-	ret = malloc(retlen + 1);
+	ret = calloc(1, retlen + 1);
 	if (ret == NULL)
 		return NULL;
 	// added to original: not optimized, but keeps valgrind happy.
-	memset(ret, 0, retlen + 1);
 
 	r = ret;
 	p = str;
@@ -641,7 +594,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 	char *ret_str;
 	char *temp_str;
 	int status;
-	int i;
+	size_t i;
 	int res;
 	// add the severity/status
 	switch (n->severity) {
@@ -753,7 +706,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 	}
 
 	// incorporate sensu tags from config if any
-	if (strlen(sensu_tags) != 0) {
+	if ((sensu_tags != NULL) && (strlen(sensu_tags) != 0)) {
 		res = asprintf(&temp_str, "%s, %s", ret_str, sensu_tags);
 		free(ret_str);
 		if (res == -1) {
@@ -885,7 +838,7 @@ static int sensu_write(const data_set_t *ds, /* {{{ */
 	int statuses[vl->values_len];
 	struct sensu_host	*host = ud->data;
 	gauge_t *rates = NULL;
-	int i;
+	size_t i;
 	char *msg;
 
 	pthread_mutex_lock(&host->lock);
@@ -899,7 +852,7 @@ static int sensu_write(const data_set_t *ds, /* {{{ */
 			return -1;
 		}
 	}
-	for (i = 0; i < (size_t) vl->values_len; i++) {
+	for (i = 0; i < vl->values_len; i++) {
 		msg = sensu_value_to_json(host, ds, vl, (int) i, rates, statuses[i]);
 		if (msg == NULL) {
 			sfree(rates);

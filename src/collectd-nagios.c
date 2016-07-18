@@ -104,7 +104,7 @@ static int consolitation_g = CON_NONE;
 static _Bool nan_is_error_g = 0;
 
 static char **match_ds_g = NULL;
-static int    match_ds_num_g = 0;
+static size_t match_ds_num_g = 0;
 
 /* `strdup' is an XSI extension. I don't want to pull in all of XSI just for
  * that, so here's an own implementation.. It's easy enough. The GCC attributes
@@ -136,19 +136,19 @@ static int filter_ds (size_t *values_num,
 	new_values = (gauge_t *)calloc (match_ds_num_g, sizeof (*new_values));
 	if (new_values == NULL)
 	{
-		fprintf (stderr, "malloc failed: %s\n", strerror (errno));
+		fprintf (stderr, "calloc failed: %s\n", strerror (errno));
 		return (RET_UNKNOWN);
 	}
 
 	new_names = (char **)calloc (match_ds_num_g, sizeof (*new_names));
 	if (new_names == NULL)
 	{
-		fprintf (stderr, "malloc failed: %s\n", strerror (errno));
+		fprintf (stderr, "calloc failed: %s\n", strerror (errno));
 		free (new_values);
 		return (RET_UNKNOWN);
 	}
 
-	for (i = 0; i < (size_t) match_ds_num_g; i++)
+	for (i = 0; i < match_ds_num_g; i++)
 	{
 		size_t j;
 
@@ -245,6 +245,7 @@ static int match_range (range_t *range, double value)
 	return (((ret - range->invert) == 0) ? 0 : 1);
 } /* int match_range */
 
+__attribute__((noreturn))
 static void usage (const char *name)
 {
 	fprintf (stderr, "Usage: %s <-s socket> <-n value_spec> <-H hostname> [options]\n"
@@ -617,9 +618,9 @@ static int do_check (lcc_connection_t *connection)
 
 	status = RET_UNKNOWN;
 	if (consolitation_g == CON_NONE)
-		status =  do_check_con_none (values_num, values, values_names);
+		status = do_check_con_none (values_num, values, values_names);
 	else if (consolitation_g == CON_AVERAGE)
-		status =  do_check_con_average (values_num, values, values_names);
+		status = do_check_con_average (values_num, values, values_names);
 	else if (consolitation_g == CON_SUM)
 		status = do_check_con_sum (values_num, values, values_names);
 	else if (consolitation_g == CON_PERCENTAGE)
@@ -693,7 +694,7 @@ int main (int argc, char **argv)
 			case 'd':
 			{
 				char **tmp;
-				tmp = (char **) realloc (match_ds_g,
+				tmp = realloc (match_ds_g,
 						(match_ds_num_g + 1)
 						* sizeof (char *));
 				if (tmp == NULL)

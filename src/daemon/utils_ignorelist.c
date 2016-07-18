@@ -13,10 +13,9 @@
  * ranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public Licence for more details.
  *
- * You should have received a copy of the GNU General Public
- * Licence along with this program; if not, write to the Free
- * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139,
- * USA.
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
  *   Lubos Stanek <lubek at users.sourceforge.net>
@@ -28,7 +27,7 @@
  **/
 /**
  * Usage:
- * 
+ *
  * Define plugin's global pointer variable of type ignorelist_t:
  *   ignorelist_t *myconfig_ignore;
  * If you know the state of the global ignore (IgnoreSelected),
@@ -89,50 +88,43 @@ static inline void ignorelist_append (ignorelist_t *il, ignorelist_item_t *item)
 }
 
 #if HAVE_REGEX_H
-static int ignorelist_append_regex(ignorelist_t *il, const char *entry)
+static int ignorelist_append_regex(ignorelist_t *il, const char *re_str)
 {
 	regex_t *re;
-	ignorelist_item_t *item;
+	ignorelist_item_t *entry;
 	int status;
 
-	/* create buffer */
-	re = malloc (sizeof (*re));
+	re = calloc (1, sizeof (*re));
 	if (re == NULL)
 	{
-		ERROR ("ignorelist_append_regex: malloc failed.");
-		return ENOMEM;
+		ERROR ("ignorelist_append_regex: calloc failed.");
+		return (ENOMEM);
 	}
-	memset (re, 0, sizeof (*re));
 
-	/* compile regex */
-	status = regcomp (re, entry, REG_EXTENDED);
+	status = regcomp (re, re_str, REG_EXTENDED);
 	if (status != 0)
 	{
 		char errbuf[1024];
-
 		(void) regerror (status, re, errbuf, sizeof (errbuf));
-		ERROR ("ignorelist_append_regex: Compiling regular expression \"%s\" failed: %s", entry, errbuf);
+		ERROR ("utils_ignorelist: regcomp failed: %s", errbuf);
+		ERROR ("ignorelist_append_regex: Compiling regular expression \"%s\" failed: %s", re_str, errbuf);
 		sfree (re);
-		return status;
+		return (status);
 	}
 
-	/* create new entry */
-	item = malloc (sizeof (*item));
-	if (item == NULL)
+	entry = calloc (1, sizeof (*entry));
+	if (entry == NULL)
 	{
-		ERROR ("ignorelist_append_regex: malloc failed.");
+		ERROR ("ignorelist_append_regex: calloc failed.");
 		regfree (re);
 		sfree (re);
-		return ENOMEM;
+		return (ENOMEM);
 	}
-	memset (item, 0, sizeof (*item));
-	item->rmatch = re;
+	entry->rmatch = re;
 
-	/* append new entry */
-	ignorelist_append (il, item);
-
+	ignorelist_append (il, entry);
 	return (0);
-} /* int ignorelist_append_regex(ignorelist_t *il, const char *entry) */
+} /* int ignorelist_append_regex */
 #endif
 
 static int ignorelist_append_string(ignorelist_t *il, const char *entry)
@@ -140,12 +132,11 @@ static int ignorelist_append_string(ignorelist_t *il, const char *entry)
 	ignorelist_item_t *new;
 
 	/* create new entry */
-	if ((new = malloc(sizeof(ignorelist_item_t))) == NULL )
+	if ((new = calloc(1, sizeof (*new))) == NULL )
 	{
 		ERROR ("cannot allocate new entry");
 		return (1);
 	}
-	memset (new, '\0', sizeof(ignorelist_item_t));
 	new->smatch = sstrdup(entry);
 
 	/* append new entry */
@@ -200,10 +191,9 @@ ignorelist_t *ignorelist_create (int invert)
 {
 	ignorelist_t *il;
 
-	il = malloc (sizeof (*il));
+	il = calloc (1, sizeof (*il));
 	if (il == NULL)
 		return NULL;
-	memset (il, 0, sizeof (*il));
 
 	/*
 	 * ->ignore == 0  =>  collect
@@ -245,7 +235,6 @@ void ignorelist_free (ignorelist_t *il)
 	}
 
 	sfree (il);
-	il = NULL;
 } /* void ignorelist_destroy (ignorelist_t *il) */
 
 /*
@@ -264,7 +253,7 @@ void ignorelist_set_invert (ignorelist_t *il, int invert)
 
 /*
  * append entry into ignorelist_t
- * return 1 for success
+ * return 0 for success
  */
 int ignorelist_add (ignorelist_t *il, const char *entry)
 {

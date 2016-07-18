@@ -72,6 +72,7 @@
 extern char *optarg;
 extern int   optind;
 
+__attribute__((noreturn))
 static void exit_usage (const char *name, int status) {
   fprintf ((status == 0) ? stdout : stderr,
       "Usage: %s [options] <command> [cmd options]\n\n"
@@ -120,7 +121,7 @@ static int count_chars (const char *str, char chr) {
   return count;
 } /* count_chars */
 
-static int array_grow (void **array, int *array_len, size_t elem_size)
+static int array_grow (void **array, size_t *array_len, size_t elem_size)
 {
   void *tmp;
 
@@ -229,10 +230,10 @@ static int flush (lcc_connection_t *c, int argc, char **argv)
   int timeout = -1;
 
   lcc_identifier_t *identifiers = NULL;
-  int identifiers_num = 0;
+  size_t identifiers_num = 0;
 
   char **plugins = NULL;
-  int plugins_num = 0;
+  size_t plugins_num = 0;
 
   int status;
   int i;
@@ -482,7 +483,7 @@ static int putval (lcc_connection_t *c, int argc, char **argv)
 
       values_len = 0;
       value = tmp;
-      while (value != 0) {
+      while (value != NULL) {
         char *dot, *endptr;
 
         tmp = strchr (value, (int)':');
@@ -507,7 +508,7 @@ static int putval (lcc_connection_t *c, int argc, char **argv)
           values_types[values_len] = LCC_TYPE_GAUGE;
         }
         else { /* integer */
-          values[values_len].counter = strtol (value, &endptr, 0);
+          values[values_len].counter = (counter_t) strtoull (value, &endptr, 0);
           values_types[values_len] = LCC_TYPE_COUNTER;
         }
         ++values_len;
@@ -551,14 +552,14 @@ int main (int argc, char **argv) {
   int status;
 
   while (42) {
-    int c;
+    int opt;
 
-    c = getopt (argc, argv, "s:h");
+    opt = getopt (argc, argv, "s:h");
 
-    if (c == -1)
+    if (opt == -1)
       break;
 
-    switch (c) {
+    switch (opt) {
       case 's':
         snprintf (address, sizeof (address), "unix:%s", optarg);
         address[sizeof (address) - 1] = '\0';

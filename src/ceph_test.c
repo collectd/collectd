@@ -24,8 +24,8 @@
 
 struct case_s
 {
-  char *key;
-  char *value;
+  const char *key;
+  const char *value;
 };
 typedef struct case_s case_t;
 
@@ -136,22 +136,23 @@ DEF_TEST(traverse_json)
   yajl_handle hndl;
 #if HAVE_YAJL_V2
   hndl = yajl_alloc (&callbacks, NULL, &ctx);
-  CHECK_ZERO (traverse_json ((unsigned char *) json, (uint32_t) strlen (json), hndl));
+  CHECK_ZERO (traverse_json ((const unsigned char *) json, (uint32_t) strlen (json), hndl));
   CHECK_ZERO (yajl_complete_parse (hndl));
 #else
   hndl = yajl_alloc (&callbacks, NULL, NULL, &ctx);
-  CHECK_ZERO (traverse_json ((unsigned char *) json, (uint32_t) strlen (json), hndl));
+  CHECK_ZERO (traverse_json ((const unsigned char *) json, (uint32_t) strlen (json), hndl));
   CHECK_ZERO (yajl_parse_complete (hndl));
 #endif
 
+  yajl_free (hndl);
   return 0;
 }
 
 DEF_TEST(parse_keys)
 {
   struct {
-    char *str;
-    char *want;
+    const char *str;
+    const char *want;
   } cases[] = {
     {"WBThrottle.bytes_dirtied.description.bytes_wb.description.ios_dirtied.description.ios_wb.type", "WBThrottle.bytesDirtied.description.bytesWb.description.iosDirt"},
     {"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "Aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
@@ -170,11 +171,8 @@ DEF_TEST(parse_keys)
   {
     char got[DATA_MAX_NAME_LEN];
 
-    memset (got, 0, sizeof (got));
-
     CHECK_ZERO (parse_keys (got, sizeof (got), cases[i].str));
-
-    CHECK_ZERO (strcmp (got, cases[i].want));
+    EXPECT_EQ_STR (cases[i].want, got);
   }
 
   return 0;

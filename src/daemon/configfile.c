@@ -72,15 +72,16 @@ typedef struct cf_complex_callback_s
 
 typedef struct cf_value_map_s
 {
-	char *key;
+	const char *key;
 	int (*func) (oconfig_item_t *);
 } cf_value_map_t;
 
 typedef struct cf_global_option_s
 {
-	char *key;
+	const char *key;
 	char *value;
-	char *def;
+	_Bool from_cli; /* value set from CLI */
+	const char *def;
 } cf_global_option_t;
 
 /*
@@ -108,21 +109,21 @@ static int cf_value_map_num = STATIC_ARRAY_SIZE (cf_value_map);
 
 static cf_global_option_t cf_global_options[] =
 {
-	{"BaseDir",     NULL, PKGLOCALSTATEDIR},
-	{"PIDFile",     NULL, PIDFILE},
-	{"Hostname",    NULL, NULL},
-	{"FQDNLookup",  NULL, "true"},
-	{"Interval",    NULL, NULL},
-	{"ReadThreads", NULL, "5"},
-	{"WriteThreads", NULL, "5"},
-	{"WriteQueueLimitHigh", NULL, NULL},
-	{"WriteQueueLimitLow", NULL, NULL},
-	{"Timeout",     NULL, "2"},
-	{"AutoLoadPlugin", NULL, "false"},
-	{"CollectInternalStats", NULL, "false"},
-	{"PreCacheChain",  NULL, "PreCache"},
-	{"PostCacheChain", NULL, "PostCache"},
-	{"MaxReadInterval", NULL, "86400"}
+	{"BaseDir",              NULL, 0, PKGLOCALSTATEDIR},
+	{"PIDFile",              NULL, 0, PIDFILE},
+	{"Hostname",             NULL, 0, NULL},
+	{"FQDNLookup",           NULL, 0, "true"},
+	{"Interval",             NULL, 0, NULL},
+	{"ReadThreads",          NULL, 0, "5"},
+	{"WriteThreads",         NULL, 0, "5"},
+	{"WriteQueueLimitHigh",  NULL, 0, NULL},
+	{"WriteQueueLimitLow",   NULL, 0, NULL},
+	{"Timeout",              NULL, 0, "2"},
+	{"AutoLoadPlugin",       NULL, 0, "false"},
+	{"CollectInternalStats", NULL, 0, "false"},
+	{"PreCacheChain",        NULL, 0, "PreCache"},
+	{"PostCacheChain",       NULL, 0, "PostCache"},
+	{"MaxReadInterval",      NULL, 0, "86400"}
 };
 static int cf_global_options_num = STATIC_ARRAY_SIZE (cf_global_options);
 
@@ -210,19 +211,19 @@ static int dispatch_global_option (const oconfig_item_t *ci)
 	if (ci->values_num != 1)
 		return (-1);
 	if (ci->values[0].type == OCONFIG_TYPE_STRING)
-		return (global_option_set (ci->key, ci->values[0].value.string));
+		return (global_option_set (ci->key, ci->values[0].value.string, 0));
 	else if (ci->values[0].type == OCONFIG_TYPE_NUMBER)
 	{
 		char tmp[128];
 		ssnprintf (tmp, sizeof (tmp), "%lf", ci->values[0].value.number);
-		return (global_option_set (ci->key, tmp));
+		return (global_option_set (ci->key, tmp, 0));
 	}
 	else if (ci->values[0].type == OCONFIG_TYPE_BOOLEAN)
 	{
 		if (ci->values[0].value.boolean)
-			return (global_option_set (ci->key, "true"));
+			return (global_option_set (ci->key, "true", 0));
 		else
-			return (global_option_set (ci->key, "false"));
+			return (global_option_set (ci->key, "false", 0));
 	}
 
 	return (-1);
@@ -257,7 +258,7 @@ static int dispatch_value_typesdb (oconfig_item_t *ci)
 static int dispatch_value_plugindir (oconfig_item_t *ci)
 {
 	assert (strcasecmp (ci->key, "PluginDir") == 0);
-	
+
 	if (ci->values_num != 1)
 		return (-1);
 	if (ci->values[0].type != OCONFIG_TYPE_STRING)
@@ -290,20 +291,25 @@ static int dispatch_loadplugin (oconfig_item_t *ci)
 	/* default to the global interval set before loading this plugin */
 	memset (&ctx, 0, sizeof (ctx));
 	ctx.interval = cf_get_default_interval ();
+	ctx.flush_interval = 0;
+	ctx.flush_timeout = 0;
 
-	for (i = 0; i < ci->children_num; ++i) {
-		if (strcasecmp("Globals", ci->children[i].key) == 0)
-			cf_util_get_flag (ci->children + i, &flags, PLUGIN_FLAGS_GLOBAL);
-		else if (strcasecmp ("Interval", ci->children[i].key) == 0) {
-			if (cf_util_get_cdtime (ci->children + i, &ctx.interval) != 0) {
-				/* cf_util_get_cdtime will log an error */
-				continue;
-			}
-		}
+	for (i = 0; i < ci->children_num; ++i)
+	{
+		oconfig_item_t *child = ci->children + i;
+
+		if (strcasecmp("Globals", child->key) == 0)
+			cf_util_get_flag (child, &flags, PLUGIN_FLAGS_GLOBAL);
+		else if (strcasecmp ("Interval", child->key) == 0)
+			cf_util_get_cdtime (child, &ctx.interval);
+		else if (strcasecmp ("FlushInterval", child->key) == 0)
+			cf_util_get_cdtime (child, &ctx.flush_interval);
+		else if (strcasecmp ("FlushTimeout", child->key) == 0)
+			cf_util_get_cdtime (child, &ctx.flush_timeout);
 		else {
 			WARNING("Ignoring unknown LoadPlugin option \"%s\" "
 					"for plugin \"%s\"",
-					ci->children[i].key, ci->values[0].value.string);
+					child->key, ci->values[0].value.string);
 		}
 	}
 
@@ -353,7 +359,7 @@ static int dispatch_value_plugin (const char *plugin, oconfig_item_t *ci)
 
 static int dispatch_value (oconfig_item_t *ci)
 {
-	int ret = -2;
+	int ret = 0;
 	int i;
 
 	for (i = 0; i < cf_value_map_num; i++)
@@ -376,7 +382,7 @@ static int dispatch_value (oconfig_item_t *ci)
 static int dispatch_block_plugin (oconfig_item_t *ci)
 {
 	int i;
-	char *name;
+	const char *name;
 
 	cf_complex_callback_t *cb;
 
@@ -509,7 +515,7 @@ static int cf_ci_replace_child (oconfig_item_t *dst, oconfig_item_t *src,
 		return (0);
 	}
 
-	temp = (oconfig_item_t *) realloc (dst->children,
+	temp = realloc (dst->children,
 			sizeof (oconfig_item_t)
 			* (dst->children_num + src->children_num - 1));
 	if (temp == NULL)
@@ -557,7 +563,7 @@ static int cf_ci_append_children (oconfig_item_t *dst, oconfig_item_t *src)
 	if ((src == NULL) || (src->children_num == 0))
 		return (0);
 
-	temp = (oconfig_item_t *) realloc (dst->children,
+	temp = realloc (dst->children,
 			sizeof (oconfig_item_t)
 			* (dst->children_num + src->children_num));
 	if (temp == NULL)
@@ -712,14 +718,13 @@ static oconfig_item_t *cf_read_dir (const char *dir,
 		return (NULL);
 	}
 
-	root = (oconfig_item_t *) malloc (sizeof (oconfig_item_t));
+	root = calloc (1, sizeof (*root));
 	if (root == NULL)
 	{
-		ERROR ("configfile: malloc failed.");
+		ERROR ("configfile: calloc failed.");
 		closedir (dh);
 		return (NULL);
 	}
-	memset (root, 0, sizeof (oconfig_item_t));
 
 	while ((de = readdir (dh)) != NULL)
 	{
@@ -745,7 +750,7 @@ static oconfig_item_t *cf_read_dir (const char *dir,
 		}
 
 		++filenames_num;
-		tmp = (char **) realloc (filenames,
+		tmp = realloc (filenames,
 				filenames_num * sizeof (*filenames));
 		if (tmp == NULL) {
 			ERROR ("configfile: realloc failed.");
@@ -830,13 +835,12 @@ static oconfig_item_t *cf_read_generic (const char *path,
 		return (NULL);
 	}
 
-	root = (oconfig_item_t *) malloc (sizeof (oconfig_item_t));
+	root = calloc (1, sizeof (*root));
 	if (root == NULL)
 	{
-		ERROR ("configfile: malloc failed.");
+		ERROR ("configfile: calloc failed.");
 		return (NULL);
 	}
-	memset (root, '\0', sizeof (oconfig_item_t));
 
 	/* wordexp() might return a sorted list already. That's not
 	 * documented though, so let's make sure we get what we want. */
@@ -921,10 +925,10 @@ static oconfig_item_t *cf_read_generic (const char *path,
 } /* oconfig_item_t *cf_read_generic */
 #endif /* !HAVE_WORDEXP_H */
 
-/* 
+/*
  * Public functions
  */
-int global_option_set (const char *option, const char *value)
+int global_option_set (const char *option, const char *value, _Bool from_cli)
 {
 	int i;
 
@@ -935,12 +939,16 @@ int global_option_set (const char *option, const char *value)
 			break;
 
 	if (i >= cf_global_options_num)
-		return (-1);
-
-	if (strcasecmp (option, "PIDFile") == 0 && pidfile_from_cli == 1)
 	{
-		DEBUG ("Configfile: Ignoring `PIDFILE' option because "
-			"command-line option `-P' take precedence.");
+		ERROR ("configfile: Cannot set unknown global option `%s'.", option);
+		return (-1);
+	}
+
+	if (cf_global_options[i].from_cli && (! from_cli))
+	{
+		DEBUG ("configfile: Ignoring %s `%s' option because "
+				"it was overriden by a command-line option.",
+				option, value);
 		return (0);
 	}
 
@@ -950,6 +958,8 @@ int global_option_set (const char *option, const char *value)
 		cf_global_options[i].value = strdup (value);
 	else
 		cf_global_options[i].value = NULL;
+
+	cf_global_options[i].from_cli = from_cli;
 
 	return (0);
 }
@@ -963,8 +973,11 @@ const char *global_option_get (const char *option)
 			break;
 
 	if (i >= cf_global_options_num)
+	{
+		ERROR ("configfile: Cannot get unknown global option `%s'.", option);
 		return (NULL);
-	
+	}
+
 	return ((cf_global_options[i].value != NULL)
 			? cf_global_options[i].value
 			: cf_global_options[i].def);
@@ -1062,7 +1075,7 @@ void cf_register (const char *type,
 	cf_unregister (type);
 
 	/* This pointer will be free'd in `cf_unregister' */
-	if ((cf_cb = (cf_callback_t *) malloc (sizeof (cf_callback_t))) == NULL)
+	if ((cf_cb = malloc (sizeof (*cf_cb))) == NULL)
 		return;
 
 	cf_cb->type     = type;
@@ -1079,7 +1092,7 @@ int cf_register_complex (const char *type, int (*callback) (oconfig_item_t *))
 {
 	cf_complex_callback_t *new;
 
-	new = (cf_complex_callback_t *) malloc (sizeof (cf_complex_callback_t));
+	new = malloc (sizeof (*new));
 	if (new == NULL)
 		return (-1);
 
@@ -1110,10 +1123,11 @@ int cf_register_complex (const char *type, int (*callback) (oconfig_item_t *))
 	return (0);
 } /* int cf_register_complex */
 
-int cf_read (char *filename)
+int cf_read (const char *filename)
 {
 	oconfig_item_t *conf;
 	int i;
+	int ret = 0;
 
 	conf = cf_read_generic (filename, /* pattern = */ NULL, /* depth = */ 0);
 	if (conf == NULL)
@@ -1131,18 +1145,27 @@ int cf_read (char *filename)
 	for (i = 0; i < conf->children_num; i++)
 	{
 		if (conf->children[i].children == NULL)
-			dispatch_value (conf->children + i);
+		{
+			if (dispatch_value (conf->children + i) != 0)
+				ret = -1;
+		}
 		else
-			dispatch_block (conf->children + i);
+		{
+			if (dispatch_block (conf->children + i) != 0)
+				ret = -1;
+		}
 	}
 
 	oconfig_free (conf);
 
 	/* Read the default types.db if no `TypesDB' option was given. */
 	if (cf_default_typesdb)
-		read_types_list (PKGDATADIR"/types.db");
+	{
+		if (read_types_list (PKGDATADIR"/types.db") != 0)
+			ret = -1;
+	}
 
-	return (0);
+	return ret;
 } /* int cf_read */
 
 /* Assures the config option is a string, duplicates it and returns the copy in

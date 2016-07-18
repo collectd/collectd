@@ -28,8 +28,6 @@
 #include "plugin.h"
 #include "utils_ignorelist.h"
 
-#include <pthread.h>
-
 #include <OpenIPMI/ipmiif.h>
 #include <OpenIPMI/ipmi_err.h>
 #include <OpenIPMI/ipmi_posix.h>
@@ -279,7 +277,7 @@ static int sensor_list_add (ipmi_sensor_t *sensor)
     {
       /* `sensor_id_ptr' now points to "(123)". */
       ssnprintf (sensor_name, sizeof (sensor_name),
-          "%s %s", sensor_name_ptr, sensor_id_ptr); 
+          "%s %s", sensor_name_ptr, sensor_id_ptr);
     }
     /* else: don't touch sensor_name. */
   }

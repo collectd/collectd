@@ -28,8 +28,6 @@
 #include "plugin.h"
 #include "configfile.h"
 
-#include <pthread.h>
-#include <sys/socket.h>
 #include <netdb.h>
 #include <poll.h>
 
@@ -172,7 +170,7 @@ static void service_statnode_add(const char *name, /* {{{ */
     const char *script)
 {
   pinba_statnode_t *node;
-  
+
   node = realloc (stat_nodes,
       sizeof (*stat_nodes) * (stat_nodes_num + 1));
   if (node == NULL)
@@ -184,7 +182,7 @@ static void service_statnode_add(const char *name, /* {{{ */
 
   node = stat_nodes + stat_nodes_num;
   memset (node, 0, sizeof (*node));
-  
+
   /* reset strings */
   node->name   = NULL;
   node->host   = NULL;
@@ -192,13 +190,13 @@ static void service_statnode_add(const char *name, /* {{{ */
   node->script = NULL;
 
   node->mem_peak = NAN;
-  
+
   /* fill query data */
   strset (&node->name, name);
   strset (&node->host, host);
   strset (&node->server, server);
   strset (&node->script, script);
-  
+
   /* increment counter */
   stat_nodes_num++;
 } /* }}} void service_statnode_add */
@@ -210,14 +208,14 @@ static unsigned int service_statnode_collect (pinba_statnode_t *res, /* {{{ */
     unsigned int index)
 {
   pinba_statnode_t *node;
-  
+
   if (stat_nodes_num == 0)
     return 0;
-  
+
   /* begin collecting */
   if (index == 0)
     pthread_mutex_lock (&stat_nodes_lock);
-  
+
   /* end collecting */
   if (index >= stat_nodes_num)
   {
@@ -230,7 +228,7 @@ static unsigned int service_statnode_collect (pinba_statnode_t *res, /* {{{ */
 
   /* reset node */
   node->mem_peak = NAN;
-  
+
   return (index + 1);
 } /* }}} unsigned int service_statnode_collect */
 
@@ -256,7 +254,7 @@ static void service_process_request (Pinba__Request *request) /* {{{ */
   unsigned int i;
 
   pthread_mutex_lock (&stat_nodes_lock);
-  
+
   for (i = 0; i < stat_nodes_num; i++)
   {
     if ((stat_nodes[i].host != NULL)
@@ -273,7 +271,7 @@ static void service_process_request (Pinba__Request *request) /* {{{ */
 
     service_statnode_process(&stat_nodes[i], request);
   }
-  
+
   pthread_mutex_unlock(&stat_nodes_lock);
 } /* }}} void service_process_request */
 
@@ -382,14 +380,13 @@ static pinba_socket_t *pinba_socket_open (const char *node, /* {{{ */
   }
   assert (ai_list != NULL);
 
-  s = malloc (sizeof (*s));
+  s = calloc (1, sizeof (*s));
   if (s == NULL)
   {
     freeaddrinfo (ai_list);
-    ERROR ("pinba plugin: malloc failed.");
+    ERROR ("pinba plugin: calloc failed.");
     return (NULL);
   }
-  memset (s, 0, sizeof (*s));
 
   for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
   {
@@ -397,7 +394,7 @@ static pinba_socket_t *pinba_socket_open (const char *node, /* {{{ */
     if (status != 0)
       break;
   } /* for (ai_list) */
-  
+
   freeaddrinfo (ai_list);
 
   if (s->fd_num < 1)
@@ -416,7 +413,7 @@ static void pinba_socket_free (pinba_socket_t *socket) /* {{{ */
 
   if (!socket)
     return;
-  
+
   for (i = 0; i < socket->fd_num; i++)
   {
     if (socket->fd[i].fd < 0)
@@ -424,23 +421,23 @@ static void pinba_socket_free (pinba_socket_t *socket) /* {{{ */
     close (socket->fd[i].fd);
     socket->fd[i].fd = -1;
   }
-  
+
   sfree(socket);
 } /* }}} void pinba_socket_free */
 
 static int pinba_process_stats_packet (const uint8_t *buffer, /* {{{ */
     size_t buffer_size)
 {
-  Pinba__Request *request;  
-  
+  Pinba__Request *request;
+
   request = pinba__request__unpack (NULL, buffer_size, buffer);
-  
+
   if (!request)
     return (-1);
 
   service_process_request(request);
   pinba__request__free_unpacked (request, NULL);
-    
+
   return (0);
 } /* }}} int pinba_process_stats_packet */
 
@@ -611,7 +608,7 @@ static int pinba_config_view (const oconfig_item_t *ci) /* {{{ */
 static int plugin_config (oconfig_item_t *ci) /* {{{ */
 {
   int i;
-  
+
   /* The lock should not be necessary in the config callback, but let's be
    * sure.. */
   pthread_mutex_lock (&stat_nodes_lock);
@@ -631,7 +628,7 @@ static int plugin_config (oconfig_item_t *ci) /* {{{ */
   }
 
   pthread_mutex_unlock(&stat_nodes_lock);
-  
+
   return (0);
 } /* }}} int pinba_config */
 
@@ -695,7 +692,7 @@ static int plugin_submit (const pinba_statnode_t *res) /* {{{ */
 {
   value_t value;
   value_list_t vl = VALUE_LIST_INIT;
-  
+
   vl.values = &value;
   vl.values_len = 1;
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
@@ -703,15 +700,15 @@ static int plugin_submit (const pinba_statnode_t *res) /* {{{ */
   sstrncpy (vl.plugin_instance, res->name, sizeof (vl.plugin_instance));
 
   value.derive = res->req_count;
-  sstrncpy (vl.type, "total_requests", sizeof (vl.type)); 
+  sstrncpy (vl.type, "total_requests", sizeof (vl.type));
   plugin_dispatch_values (&vl);
 
   value.derive = float_counter_get (&res->req_time, /* factor = */ 1000);
-  sstrncpy (vl.type, "total_time_in_ms", sizeof (vl.type)); 
+  sstrncpy (vl.type, "total_time_in_ms", sizeof (vl.type));
   plugin_dispatch_values (&vl);
 
   value.derive = res->doc_size;
-  sstrncpy (vl.type, "total_bytes", sizeof (vl.type)); 
+  sstrncpy (vl.type, "total_bytes", sizeof (vl.type));
   plugin_dispatch_values (&vl);
 
   value.derive = float_counter_get (&res->ru_utime, /* factor = */ 100);
@@ -736,12 +733,12 @@ static int plugin_read (void) /* {{{ */
 {
   unsigned int i=0;
   pinba_statnode_t data;
-  
+
   while ((i = service_statnode_collect (&data, i)) != 0)
   {
     plugin_submit (&data);
   }
-  
+
   return 0;
 } /* }}} int plugin_read */
 

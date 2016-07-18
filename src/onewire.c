@@ -176,11 +176,11 @@ static int direct_list_insert(const char * config)
 {
     regmatch_t               pmatch[3];
     size_t                   nmatch = 3;
-    direct_access_element_t *element = NULL;
+    direct_access_element_t *element;
 
     DEBUG ("onewire plugin: direct_list_insert <%s>", config);
 
-    element = (direct_access_element_t *) malloc (sizeof(*element));
+    element = malloc (sizeof (*element));
     if (element == NULL)
     {
         ERROR ("onewire plugin: direct_list_insert - cannot allocate element");
@@ -415,11 +415,11 @@ static int cow_read_ds2409 (const char *path)
   int status;
 
   status = ssnprintf (subpath, sizeof (subpath), "%s/main", path);
-  if ((status > 0) && (status < sizeof (subpath)))
+  if ((status > 0) && (status < (int) sizeof (subpath)))
     cow_read_bus (subpath);
 
   status = ssnprintf (subpath, sizeof (subpath), "%s/aux", path);
-  if ((status > 0) && (status < sizeof (subpath)))
+  if ((status > 0) && (status < (int) sizeof (subpath)))
     cow_read_bus (subpath);
 
   return (0);
@@ -459,7 +459,7 @@ static int cow_read_bus (const char *path)
     else
       status = ssnprintf (subpath, sizeof (subpath), "%s/%s",
           path, buffer_ptr);
-    if ((status <= 0) || (status >= sizeof (subpath)))
+    if ((status <= 0) || (status >= (int) sizeof (subpath)))
       continue;
 
     for (i = 0; i < ow_family_features_num; i++)
@@ -590,7 +590,6 @@ static int cow_shutdown (void)
 static int cow_init (void)
 {
   int status;
-  struct timespec cb_interval;
 
   if (device_g == NULL)
   {
@@ -606,11 +605,8 @@ static int cow_init (void)
     return (1);
   }
 
-  CDTIME_T_TO_TIMESPEC (ow_interval, &cb_interval);
-
   plugin_register_complex_read (/* group = */ NULL, "onewire", cow_read,
-      (ow_interval != 0) ? &cb_interval : NULL,
-      /* user data = */ NULL);
+      ow_interval, /* user data = */ NULL);
   plugin_register_shutdown ("onewire", cow_shutdown);
 
   return (0);

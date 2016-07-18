@@ -147,7 +147,7 @@ static int vmem_read (void)
     if (fields[1] == endptr)
       continue;
 
-    /* 
+    /*
      * Number of pages
      *
      * The total number of {inst} pages, e. g dirty pages.
@@ -167,7 +167,7 @@ static int vmem_read (void)
       }
     }
 
-    /* 
+    /*
      * Page in and page outs. For memory and swap.
      */
     else if (strcmp ("pgpgin", key) == 0)

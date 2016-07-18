@@ -48,8 +48,6 @@
 
 #include "utils_cache.h"
 
-#include <pthread.h>
-#include <sys/socket.h>
 #include <netdb.h>
 
 #ifndef WT_DEFAULT_NODE
@@ -143,7 +141,7 @@ static int wt_flush_nolock(cdtime_t timeout, struct wt_callback *cb)
             return 0;
     }
 
-    if (cb->send_buf_fill <= 0)
+    if (cb->send_buf_fill == 0)
     {
         cb->send_buf_init_time = cdtime();
         return 0;
@@ -347,7 +345,7 @@ static int wt_format_name(char *ret, int ret_len,
 {
     int status;
     char *temp = NULL;
-    char *prefix = "";
+    const char *prefix = "";
     const char *meta_prefix = "tsdb_prefix";
 
     if (vl->meta) {
@@ -410,11 +408,11 @@ static int wt_send_message (const char* key, const char* value,
                             const char* host, meta_data_t *md)
 {
     int status;
-    int message_len;
+    size_t message_len;
     char *temp = NULL;
-    char *tags = "";
+    const char *tags = "";
     char message[1024];
-    char *host_tags = cb->host_tags ? cb->host_tags : "";
+    const char *host_tags = cb->host_tags ? cb->host_tags : "";
     const char *meta_tsdb = "tsdb_tags";
 
     /* skip if value is NaN */
@@ -435,7 +433,7 @@ static int wt_send_message (const char* key, const char* value,
         }
     }
 
-    message_len = ssnprintf (message,
+    status = ssnprintf (message,
                              sizeof(message),
                              "put %s %.0f %s fqdn=%s %s %s\r\n",
                              key,
@@ -444,12 +442,14 @@ static int wt_send_message (const char* key, const char* value,
                              host,
                              tags,
                              host_tags);
-
     sfree(temp);
+    if (status < 0)
+        return -1;
+    message_len = (size_t) status;
 
     if (message_len >= sizeof(message)) {
         ERROR("write_tsdb plugin: message buffer too small: "
-              "Need %d bytes.", message_len + 1);
+              "Need %zu bytes.", message_len + 1);
         return -1;
     }
 
@@ -505,7 +505,8 @@ static int wt_write_messages(const data_set_t *ds, const value_list_t *vl,
     char key[10*DATA_MAX_NAME_LEN];
     char values[512];
 
-    int status, i;
+    int status;
+    size_t i;
 
     if (0 != strcmp(ds->type, vl->type))
     {
@@ -577,13 +578,12 @@ static int wt_config_tsd(oconfig_item_t *ci)
     char callback_name[DATA_MAX_NAME_LEN];
     int i;
 
-    cb = malloc(sizeof(*cb));
+    cb = calloc(1, sizeof(*cb));
     if (cb == NULL)
     {
-        ERROR("write_tsdb plugin: malloc failed.");
+        ERROR("write_tsdb plugin: calloc failed.");
         return -1;
     }
-    memset(cb, 0, sizeof(*cb));
     cb->sock_fd = -1;
     cb->node = NULL;
     cb->service = NULL;

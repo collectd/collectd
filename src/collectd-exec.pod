@@ -94,7 +94,7 @@ I<Valuelist> is a colon-separated list of the time and the values, each either
 an integer if the data-source is a counter, or a double if the data-source is
 of type "gauge". You can submit an undefined gauge-value by using B<U>. When
 submitting B<U> to a counter the behavior is undefined. The time is given as
-epoch (i.E<nbsp>e. standard UNIX time).
+epoch (i.E<nbsp>e. standard UNIX time) or B<N> to use the current time.
 
 You can mix options and values, but the order is important: Options only
 effect following values, so specifying an option as last field is allowed, but
@@ -281,12 +281,12 @@ to make use of collectd's more powerful interface.
 
 =over 4
 
-=item
+=item *
 
 The user, the binary is executed as, may not have root privileges, i.E<nbsp>e.
 must have an UID that is non-zero. This is for your own good.
 
-=item
+=item *
 
 Early versions of the plugin did not use a command but treated all lines as if
 they were arguments to the I<PUTVAL> command. When the I<PUTNOTIF> command was

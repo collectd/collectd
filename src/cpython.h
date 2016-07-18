@@ -21,7 +21,7 @@
  * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
- *   Sven Trenkel <collectd at semidefinite.de>  
+ *   Sven Trenkel <collectd at semidefinite.de>
  **/
 
 /* Some python versions don't include this by default. */
@@ -111,10 +111,10 @@
 } while (0)
 static inline void CPY_STRCAT(PyObject **a, PyObject *b) {
 	PyObject *ret;
-	
+
 	if (!a || !*a)
 		return;
-	
+
 	ret = PyUnicode_Concat(*a, b);
 	Py_DECREF(*a);
 	*a = ret;
@@ -156,7 +156,7 @@ static inline PyObject *cpy_string_to_unicode_or_bytes(const char *buf) {
 	return PyBytes_FromString(buf);
 #else
 	return PyString_FromString(buf);
-#endif	
+#endif
 }
 
 void cpy_log_exception(const char *context);

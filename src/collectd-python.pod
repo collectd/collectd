@@ -87,12 +87,12 @@ collectd script as well as from a normal Python interpreter:
 
 =over 4
 
-=item
+=item *
 
 B<1.> collectd will try to import the B<readline> module to give you a decent
 way of entering your commands. The daemonized collectd won't do that.
 
-=item
+=item *
 
 B<2.> collectd will block I<SIGINT>. Pressing I<Ctrl+C> will usually cause
 collectd to shut down. This would be problematic in an interactive session,
@@ -102,7 +102,7 @@ exception either.
 
 To quit collectd send I<EOF> (press I<Ctrl+D> at the beginning of a new line).
 
-=item
+=item *
 
 B<3.> collectd handles I<SIGCHLD>. This means that Python won't be able to
 determine the return code of spawned processes with system(), popen() and
@@ -515,18 +515,18 @@ different events. With one exception all of them are called as shown above.
 
 =over 4
 
-=item
+=item *
 
 I<callback> is a callable object that will be called every time the event is
 triggered.
 
-=item
+=item *
 
 I<data> is an optional object that will be passed back to the callback function
 every time it is called. If you omit this parameter no object is passed back to
 your callback, not even None.
 
-=item
+=item *
 
 I<name> is an optional identifier for this callback. The default name is
 B<python>.I<module>. I<module> is taken from the B<__module__> attribute of
@@ -534,7 +534,7 @@ your callback function. Every callback needs a unique identifier, so if you
 want to register the same callback multiple times in the same module you need to
 specify a name here. Otherwise it's safe to ignore this parameter.
 
-=item
+=item *
 
 I<identifier> is the full identifier assigned to this callback.
 
@@ -637,7 +637,7 @@ A float or None, the maximum value.
 
 =back
 
-=item B<flush>(I<plugin>[, I<timeout>][, I<identifier>]) -> None
+=item B<flush>(I<plugin[, timeout][, identifier]) -> None
 
 Flush one or all plugins. I<timeout> and the specified I<identifiers> are
 passed on to the registered flush-callbacks. If omitted, the timeout defaults
@@ -681,7 +681,7 @@ types used by the read, write and match functions.
 
 =over 4
 
-=item
+=item *
 
 Please feel free to send in new plugins to collectd's mailing list at
 E<lt>collectdE<nbsp>atE<nbsp>collectd.orgE<gt> for review and, possibly,
@@ -697,7 +697,7 @@ L<http://collectd.org/dev-info.shtml>.
 
 =over 4
 
-=item
+=item *
 
 collectd is heavily multi-threaded. Each collectd thread accessing the Python
 plugin will be mapped to a Python interpreter thread. Any such thread will be
@@ -707,13 +707,13 @@ Hence, any plugin has to be thread-safe if it provides several entry points
 from collectd (i.E<nbsp>e. if it registers more than one callback or if a
 registered callback may be called more than once in parallel).
 
-=item
+=item *
 
 The Python thread module is initialized just before calling the init callbacks.
 This means you must not use Python's threading module prior to this point. This
 includes all config and possibly other callback as well.
 
-=item
+=item *
 
 The python plugin exports the internal API of collectd which is considered
 unstable and subject to change at any time. We try hard to not break backwards
@@ -727,7 +727,7 @@ dispatched by the python plugin after upgrades.
 
 =over 4
 
-=item
+=item *
 
 Not all aspects of the collectd API are accessible from Python. This includes
 but is not limited to filters and data sets.

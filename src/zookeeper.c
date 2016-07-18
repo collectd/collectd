@@ -29,7 +29,6 @@
 #include "plugin.h"
 
 #include <netdb.h>
-#include <sys/socket.h>
 #include <sys/un.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -109,10 +108,10 @@ static int zookeeper_connect (void)
 	struct addrinfo ai_hints;
 	struct addrinfo *ai;
 	struct addrinfo *ai_list;
-	char *host;
-	char *port;
+	const char *host;
+	const char *port;
 
-	memset ((void *) &ai_hints, '\0', sizeof (ai_hints));
+	memset (&ai_hints, '\0', sizeof (ai_hints));
 	ai_hints.ai_family   = AF_UNSPEC;
 	ai_hints.ai_socktype = SOCK_STREAM;
 
@@ -160,8 +159,7 @@ static int zookeeper_connect (void)
 
 static int zookeeper_query (char *buffer, size_t buffer_size)
 {
-	int sk = -1;
-	int status;
+	int sk, status;
 	size_t buffer_fill;
 
 	sk = zookeeper_connect();

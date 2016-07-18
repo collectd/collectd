@@ -38,9 +38,6 @@
 #if HAVE_NETDB_H
 # include <netdb.h>
 #endif
-#if HAVE_SYS_SOCKET_H
-# include <sys/socket.h>
-#endif
 #if HAVE_NETINET_IN_H
 # include <netinet/in.h>
 #endif
@@ -52,6 +49,10 @@
 #endif
 #if HAVE_POLL_H
 # include <poll.h>
+#endif
+
+#ifndef STA_NANO
+# define STA_NANO 0x2000
 #endif
 
 static const char *config_keys[] =
@@ -166,16 +167,16 @@ struct resp_pkt
 /* l_fp to double */
 #define M_LFPTOD(r_i, r_uf, d) \
 	do { \
-		register int32_t  i; \
-		register uint32_t f; \
+		register int32_t  ri; \
+		register uint32_t rf; \
 		\
-		i = (r_i); \
-		f = (r_uf); \
-		if (i < 0) { \
-			M_NEG(i, f); \
-			(d) = -((double) i + ((double) f) / 4294967296.0); \
+		ri = (r_i); \
+		rf = (r_uf); \
+		if (ri < 0) { \
+			M_NEG(ri, rf); \
+			(d) = -((double) ri + ((double) rf) / 4294967296.0); \
 		} else { \
-			(d) = (double) i + ((double) f) / 4294967296.0; \
+			(d) = (double) ri + ((double) rf) / 4294967296.0; \
 		} \
 	} while (0)
 
@@ -250,7 +251,7 @@ struct info_kernel
 };
 
 /* List of reference clock names */
-static char *refclock_names[] =
+static const char *refclock_names[] =
 {
 	"UNKNOWN",    "LOCAL",        "GPS_TRAK",   "WWV_PST",     /*  0- 3 */
 	"SPECTRACOM", "TRUETIME",     "IRIG_AUDIO", "CHU_AUDIO",   /*  4- 7 */
@@ -265,7 +266,7 @@ static char *refclock_names[] =
 	"JJY",        "TT_IRIG",      "GPS_ZYFER",  "GPS_RIPENCC", /* 40-43 */
 	"NEOCLK4X"                                                 /* 44    */
 };
-static int refclock_names_num = STATIC_ARRAY_SIZE (refclock_names);
+static size_t refclock_names_num = STATIC_ARRAY_SIZE (refclock_names);
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  * End of the copied stuff..                                         *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -310,7 +311,7 @@ static int ntpd_config (const char *key, const char *value)
 	return (0);
 }
 
-static void ntpd_submit (char *type, char *type_inst, gauge_t value)
+static void ntpd_submit (const char *type, const char *type_inst, gauge_t value)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
@@ -331,8 +332,8 @@ static void ntpd_submit (char *type, char *type_inst, gauge_t value)
 /* Each time a peer is polled, ntpd shifts the reach register to the left and
  * sets the LSB based on whether the peer was reachable. If the LSB is zero,
  * the values are out of date. */
-static void ntpd_submit_reach (char *type, char *type_inst, uint8_t reach,
-		gauge_t value)
+static void ntpd_submit_reach (const char *type, const char *type_inst,
+		uint8_t reach, gauge_t value)
 {
 	if (!(reach & 1))
 		value = NAN;
@@ -342,8 +343,8 @@ static void ntpd_submit_reach (char *type, char *type_inst, uint8_t reach,
 
 static int ntpd_connect (void)
 {
-	char *host;
-	char *port;
+	const char *host;
+	const char *port;
 
 	struct addrinfo  ai_hints;
 	struct addrinfo *ai_list;
@@ -508,7 +509,7 @@ static int ntpd_receive_response (int *res_items, int *res_size,
 			break;
 		}
 
-		memset ((void *) &res, '\0', sizeof (res));
+		memset (&res, '\0', sizeof (res));
 		status = recv (sd, (void *) &res, sizeof (res), 0 /* no flags */);
 
 		if ((status < 0) && ((errno == EAGAIN) || (errno == EINTR)))
@@ -666,7 +667,7 @@ static int ntpd_receive_response (int *res_items, int *res_size,
 		 */
 		DEBUG ("realloc (%p, %zu)", (void *) *res_data,
 				(items_num + pkt_item_num) * res_item_size);
-		items = realloc ((void *) *res_data,
+		items = realloc (*res_data,
 				(items_num + pkt_item_num) * res_item_size);
 		if (items == NULL)
 		{
@@ -723,7 +724,7 @@ static int ntpd_send_request (int req_code, int req_items, int req_size, char *r
 	if ((sd = ntpd_connect ()) < 0)
 		return (-1);
 
-	memset ((void *) &req, '\0', sizeof (req));
+	memset (&req, '\0', sizeof (req));
 	req.rm_vn_mode = RM_VN_MODE(0, 0, 0);
 	req.auth_seq   = AUTH_SEQ (0, 0);
 	req.implementation = IMPL_XNTPD;
@@ -868,7 +869,7 @@ static int ntpd_get_name_refclock (char *buffer, size_t buffer_size,
 	uint32_t refclock_id = ntpd_get_refclock_id (peer_info);
 	uint32_t unit_id = ntohl (peer_info->srcadr) & 0x00FF;
 
-	if (refclock_id >= refclock_names_num)
+	if (((size_t) refclock_id) >= refclock_names_num)
 		return (ntpd_get_name_from_address (buffer, buffer_size,
 					peer_info,
 					/* do_reverse_lookup = */ 0));
@@ -913,8 +914,7 @@ static int ntpd_read (void)
 	int i;
 
 	/* On Linux, if the STA_NANO bit is set in ik->status, then ik->offset
-	 * is is nanoseconds, otherwise it's microseconds.
-	 * TODO(octo): STA_NANO is defined in the Linux specific <sys/timex.h> header. */
+	 * is is nanoseconds, otherwise it's microseconds. */
 	double scale_loop  = 1e-6;
 	double scale_error = 1e-6;
 
@@ -937,6 +937,11 @@ static int ntpd_read (void)
 				"(ik = %p; ik_num = %i; ik_size = %i)",
 				(void *) ik, ik_num, ik_size);
 		return (-1);
+	}
+
+	if (ntohs(ik->status) & STA_NANO) {
+		scale_loop  = 1e-9;
+		scale_error = 1e-9;
 	}
 
 	/* kerninfo -> estimated error */

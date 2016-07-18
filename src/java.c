@@ -26,7 +26,6 @@
 #include "common.h"
 #include "filter_chain.h"
 
-#include <pthread.h>
 #include <jni.h>
 
 #if !defined(JNI_VERSION_1_2)
@@ -618,7 +617,7 @@ static jobject ctoj_data_set (JNIEnv *jvm_env, const data_set_t *ds) /* {{{ */
   jmethodID m_add;
   jobject o_type;
   jobject o_dataset;
-  int i;
+  size_t i;
 
   /* Look up the org/collectd/api/DataSet class */
   c_dataset = (*jvm_env)->FindClass (jvm_env, "org/collectd/api/DataSet");
@@ -763,7 +762,7 @@ static jobject ctoj_value_list (JNIEnv *jvm_env, /* {{{ */
   jmethodID m_valuelist_constructor;
   jobject o_valuelist;
   int status;
-  int i;
+  size_t i;
 
   /* First, create a new ValueList instance..
    * Look up the class.. */
@@ -1438,7 +1437,7 @@ static jint JNICALL cjni_api_register_read (JNIEnv *jvm_env, /* {{{ */
   ud.free_func = cjni_callback_info_destroy;
 
   plugin_register_complex_read (/* group = */ NULL, cbi->name, cjni_read,
-      /* interval = */ NULL, &ud);
+      /* interval = */ 0, &ud);
 
   (*jvm_env)->DeleteLocalRef (jvm_env, o_read);
 
@@ -1801,14 +1800,13 @@ static cjni_callback_info_t *cjni_callback_info_create (JNIEnv *jvm_env, /* {{{ 
     return (NULL);
   }
 
-  cbi = (cjni_callback_info_t *) malloc (sizeof (*cbi));
+  cbi = calloc (1, sizeof (*cbi));
   if (cbi == NULL)
   {
-    ERROR ("java plugin: cjni_callback_info_create: malloc failed.");
+    ERROR ("java plugin: cjni_callback_info_create: calloc failed.");
     (*jvm_env)->ReleaseStringUTFChars (jvm_env, o_name, c_name);
     return (NULL);
   }
-  memset (cbi, 0, sizeof (*cbi));
   cbi->type = type;
 
   cbi->name = strdup (c_name);
@@ -1906,7 +1904,7 @@ static int cjni_callback_register (JNIEnv *jvm_env, /* {{{ */
 
   pthread_mutex_lock (&java_callbacks_lock);
 
-  tmp = (cjni_callback_info_t *) realloc (java_callbacks,
+  tmp = realloc (java_callbacks,
       (java_callbacks_num + 1) * sizeof (*java_callbacks));
   if (tmp == NULL)
   {
@@ -2067,13 +2065,12 @@ static JNIEnv *cjni_thread_attach (void) /* {{{ */
   if (cjni_env == NULL)
   {
     /* This pointer is free'd in `cjni_jvm_env_destroy'. */
-    cjni_env = (cjni_jvm_env_t *) malloc (sizeof (*cjni_env));
+    cjni_env = calloc (1, sizeof (*cjni_env));
     if (cjni_env == NULL)
     {
-      ERROR ("java plugin: cjni_thread_attach: malloc failed.");
+      ERROR ("java plugin: cjni_thread_attach: calloc failed.");
       return (NULL);
     }
-    memset (cjni_env, 0, sizeof (*cjni_env));
     cjni_env->reference_counter = 0;
     cjni_env->jvm_env = NULL;
 
@@ -2169,7 +2166,7 @@ static int cjni_config_add_jvm_arg (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  tmp = (char **) realloc (jvm_argv, sizeof (char *) * (jvm_argc + 1));
+  tmp = realloc (jvm_argv, sizeof (char *) * (jvm_argc + 1));
   if (tmp == NULL)
   {
     ERROR ("java plugin: realloc failed.");
@@ -2205,7 +2202,7 @@ static int cjni_config_load_plugin (oconfig_item_t *ci) /* {{{ */
   if (jvm_env == NULL)
     return (-1);
 
-  class = (java_plugin_class_t *) realloc (java_classes_list,
+  class = realloc (java_classes_list,
       (java_classes_list_len + 1) * sizeof (*java_classes_list));
   if (class == NULL)
   {
@@ -2801,13 +2798,13 @@ static int cjni_match_target_create (const oconfig_item_t *ci, /* {{{ */
 
   /* Allocate a new callback info structure. This is going to be our user_data
    * pointer. */
-  cbi_ret = (cjni_callback_info_t *) malloc (sizeof (*cbi_ret));
+  cbi_ret = calloc (1, sizeof (*cbi_ret));
   if (cbi_ret == NULL)
   {
-    ERROR ("java plugin: cjni_match_target_create: malloc failed.");
+    ERROR ("java plugin: cjni_match_target_create: calloc failed.");
     BAIL_OUT (-1);
   }
-  memset (cbi_ret, 0, sizeof (*cbi_ret));
+
   cbi_ret->object = NULL;
   cbi_ret->type = type;
 
