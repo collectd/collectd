@@ -31,12 +31,10 @@
 #include "common.h"
 #include "configfile.h"
 #include "utils_cache.h"
-#include <sys/socket.h>
 #include <arpa/inet.h>
 #include <errno.h>
 #include <netdb.h>
 #include <inttypes.h>
-#include <pthread.h>
 #include <stddef.h>
 
 #include <stdlib.h>
@@ -178,7 +176,7 @@ static void sensu_close_socket(struct sensu_host *host) /* {{{ */
 static char *build_json_str_list(const char *tag, struct str_list const *list) /* {{{ */
 {
 	int res;
-	char *ret_str;
+	char *ret_str = NULL;
 	char *temp_str;
 	int i;
 	if (list->nb_strs == 0) {
@@ -193,6 +191,7 @@ static char *build_json_str_list(const char *tag, struct str_list const *list) /
 	res = asprintf(&temp_str, "\"%s\": [\"%s\"", tag, list->strs[0]);
 	if (res == -1) {
 		ERROR("write_sensu plugin: Unable to alloc memory");
+		free(ret_str);
 		return NULL;
 	}
 	for (i=1; i<list->nb_strs; i++) {
@@ -284,7 +283,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 {
 	char name_buffer[5 * DATA_MAX_NAME_LEN];
 	char service_buffer[6 * DATA_MAX_NAME_LEN];
-	int i;
+	size_t i;
 	char *ret_str;
 	char *temp_str;
 	char *value_str;
@@ -525,11 +524,10 @@ static char *replace_str(const char *str, const char *old, /* {{{ */
 	} else
 		retlen = strlen(str);
 
-	ret = malloc(retlen + 1);
+	ret = calloc(1, retlen + 1);
 	if (ret == NULL)
 		return NULL;
 	// added to original: not optimized, but keeps valgrind happy.
-	memset(ret, 0, retlen + 1);
 
 	r = ret;
 	p = str;
@@ -596,7 +594,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 	char *ret_str;
 	char *temp_str;
 	int status;
-	int i;
+	size_t i;
 	int res;
 	// add the severity/status
 	switch (n->severity) {
@@ -840,7 +838,7 @@ static int sensu_write(const data_set_t *ds, /* {{{ */
 	int statuses[vl->values_len];
 	struct sensu_host	*host = ud->data;
 	gauge_t *rates = NULL;
-	int i;
+	size_t i;
 	char *msg;
 
 	pthread_mutex_lock(&host->lock);
@@ -854,7 +852,7 @@ static int sensu_write(const data_set_t *ds, /* {{{ */
 			return -1;
 		}
 	}
-	for (i = 0; i < (size_t) vl->values_len; i++) {
+	for (i = 0; i < vl->values_len; i++) {
 		msg = sensu_value_to_json(host, ds, vl, (int) i, rates, statuses[i]);
 		if (msg == NULL) {
 			sfree(rates);

@@ -126,10 +126,9 @@ cu_tail_match_t *tail_match_create (const char *filename)
 {
   cu_tail_match_t *obj;
 
-  obj = (cu_tail_match_t *) malloc (sizeof (cu_tail_match_t));
+  obj = calloc (1, sizeof (*obj));
   if (obj == NULL)
     return (NULL);
-  memset (obj, '\0', sizeof (cu_tail_match_t));
 
   obj->tail = cu_tail_create (filename);
   if (obj->tail == NULL)
@@ -180,7 +179,7 @@ int tail_match_add_match (cu_tail_match_t *obj, cu_match_t *match,
 {
   cu_tail_match_match_t *temp;
 
-  temp = (cu_tail_match_match_t *) realloc (obj->matches,
+  temp = realloc (obj->matches,
       sizeof (cu_tail_match_match_t) * (obj->matches_num + 1));
   if (temp == NULL)
     return (-1);
@@ -212,13 +211,12 @@ int tail_match_add_match_simple (cu_tail_match_t *obj,
   if (match == NULL)
     return (-1);
 
-  user_data = (cu_tail_match_simple_t *) malloc (sizeof (cu_tail_match_simple_t));
+  user_data = calloc (1, sizeof (*user_data));
   if (user_data == NULL)
   {
     match_destroy (match);
     return (-1);
   }
-  memset (user_data, '\0', sizeof (cu_tail_match_simple_t));
 
   sstrncpy (user_data->plugin, plugin, sizeof (user_data->plugin));
   if (plugin_instance != NULL)

@@ -26,8 +26,6 @@
 
 #include "collectd.h"
 
-#include <pthread.h>
-
 #include "plugin.h"
 #include "common.h"
 #include "configfile.h"
@@ -240,13 +238,12 @@ static agg_instance_t *agg_instance_create (data_set_t const *ds, /* {{{ */
 
   DEBUG ("aggregation plugin: Creating new instance.");
 
-  inst = malloc (sizeof (*inst));
+  inst = calloc (1, sizeof (*inst));
   if (inst == NULL)
   {
-    ERROR ("aggregation plugin: malloc() failed.");
+    ERROR ("aggregation plugin: calloc() failed.");
     return (NULL);
   }
-  memset (inst, 0, sizeof (*inst));
   pthread_mutex_init (&inst->lock, /* attr = */ NULL);
 
   inst->ds_type = ds->ds[0].type;
@@ -259,14 +256,13 @@ static agg_instance_t *agg_instance_create (data_set_t const *ds, /* {{{ */
 #define INIT_STATE(field) do { \
   inst->state_ ## field = NULL; \
   if (agg->calc_ ## field) { \
-    inst->state_ ## field = malloc (sizeof (*inst->state_ ## field)); \
+    inst->state_ ## field = calloc (1, sizeof (*inst->state_ ## field)); \
     if (inst->state_ ## field == NULL) { \
       agg_instance_destroy (inst); \
       free (inst); \
-      ERROR ("aggregation plugin: malloc() failed."); \
+      ERROR ("aggregation plugin: calloc() failed."); \
       return (NULL); \
     } \
-    memset (inst->state_ ## field, 0, sizeof (*inst->state_ ## field)); \
   } \
 } while (0)
 
@@ -528,13 +524,12 @@ static int agg_config_aggregation (oconfig_item_t *ci) /* {{{ */
   int status;
   int i;
 
-  agg = malloc (sizeof (*agg));
+  agg = calloc (1, sizeof (*agg));
   if (agg == NULL)
   {
-    ERROR ("aggregation plugin: malloc failed.");
+    ERROR ("aggregation plugin: calloc failed.");
     return (-1);
   }
-  memset (agg, 0, sizeof (*agg));
 
   sstrncpy (agg->ident.host, "/.*/", sizeof (agg->ident.host));
   sstrncpy (agg->ident.plugin, "/.*/", sizeof (agg->ident.plugin));

@@ -38,37 +38,6 @@
 %global _hardened_build 1
 %{?perl_default_filter}
 
-# plugins only buildable on RHEL6
-# (NB: %{elN} macro is not available on RHEL < 6)
-%{?el6:%global _has_libyajl 1}
-%{?el6:%global _has_recent_libpcap 1}
-%{?el6:%global _has_recent_sockios_h 1}
-%{?el6:%global _has_recent_libganglia 1}
-%{?el6:%global _has_working_libiptc 1}
-%{?el6:%global _has_ip_vs_h 1}
-%{?el6:%global _has_lvm2app_h 1}
-%{?el6:%global _has_libmodbus 1}
-%{?el6:%global _has_libudev 1}
-%{?el6:%global _has_iproute 1}
-%{?el6:%global _has_atasmart 1}
-%{?el6:%global _has_hiredis 1}
-%{?el6:%global _has_asm_msr_index 1}
-
-%{?el7:%global _has_libyajl 1}
-%{?el7:%global _has_recent_libpcap 1}
-%{?el7:%global _has_recent_sockios_h 1}
-%{?el7:%global _has_working_libiptc 1}
-%{?el7:%global _has_ip_vs_h 1}
-%{?el7:%global _has_lvm2app_h 1}
-%{?el7:%global _has_libudev 1}
-%{?el7:%global _has_recent_librrd 1}
-%{?el7:%global _has_iproute 1}
-%{?el7:%global _has_atasmart 1}
-%{?el7:%global _has_hiredis 1}
-%{?el7:%global _has_asm_msr_index 1}
-%{?el7:%global _has_libmodbus 1}
-%{?el7:%global _has_xmms 1}
-
 # plugins enabled by default
 %define with_aggregation 0%{!?_without_aggregation:1}
 %define with_amqp 0%{!?_without_amqp:1}
@@ -77,57 +46,59 @@
 %define with_ascent 0%{!?_without_ascent:1}
 %define with_battery 0%{!?_without_battery:1}
 %define with_bind 0%{!?_without_bind:1}
-%define with_ceph 0%{!?_without_ceph:0%{?_has_libyajl}}
+%define with_ceph 0%{!?_without_ceph:1}
 %define with_cgroups 0%{!?_without_cgroups:1}
+%define with_chrony 0%{!?_without_chrony:1}
 %define with_conntrack 0%{!?_without_conntrack:1}
 %define with_contextswitch 0%{!?_without_contextswitch:1}
 %define with_cpu 0%{!?_without_cpu:1}
 %define with_cpufreq 0%{!?_without_cpufreq:1}
 %define with_csv 0%{!?_without_csv:1}
 %define with_curl 0%{!?_without_curl:1}
-%define with_curl_json 0%{!?_without_curl_json:0%{?_has_libyajl}}
+%define with_curl_json 0%{!?_without_curl_json:1}
 %define with_curl_xml 0%{!?_without_curl_xml:1}
 %define with_dbi 0%{!?_without_dbi:1}
 %define with_df 0%{!?_without_df:1}
 %define with_disk 0%{!?_without_disk:1}
-%define with_dns 0%{!?_without_dns:0%{?_has_recent_libpcap}}
+%define with_dns 0%{!?_without_dns:1}
 %define with_drbd 0%{!?_without_drbd:1}
 %define with_email 0%{!?_without_email:1}
 %define with_entropy 0%{!?_without_entropy:1}
-%define with_ethstat 0%{!?_without_ethstat:0%{?_has_recent_sockios_h}}
+%define with_ethstat 0%{!?_without_ethstat:1}
 %define with_exec 0%{!?_without_exec:1}
 %define with_fhcount 0%{!?_without_fhcount:1}
 %define with_filecount 0%{!?_without_filecount:1}
 %define with_fscache 0%{!?_without_fscache:1}
-%define with_gmond 0%{!?_without_gmond:0%{?_has_recent_libganglia}}
+%define with_gmond 0%{!?_without_gmond:1}
 %define with_hddtemp 0%{!?_without_hddtemp:1}
 %define with_interface 0%{!?_without_interface:1}
 %define with_ipc 0%{!?_without_ipc:1}
 %define with_ipmi 0%{!?_without_ipmi:1}
-%define with_iptables 0%{!?_without_iptables:0%{?_has_working_libiptc}}
-%define with_ipvs 0%{!?_without_ipvs:0%{?_has_ip_vs_h}}
+%define with_iptables 0%{!?_without_iptables:1}
+%define with_ipvs 0%{!?_without_ipvs:1}
 %define with_irq 0%{!?_without_irq:1}
 %define with_java 0%{!?_without_java:1}
-%define with_virt 0%{!?_without_virt:1}
 %define with_load 0%{!?_without_load:1}
+%define with_log_logstash 0%{!?_without_log_logstash:1}
 %define with_logfile 0%{!?_without_logfile:1}
-%define with_log_logstash 0%{!?_without_log_logstash:0%{?_has_libyajl}}
-%define with_lvm 0%{!?_without_lvm:0%{?_has_lvm2app_h}}
+%define with_lvm 0%{!?_without_lvm:1}
 %define with_madwifi 0%{!?_without_madwifi:1}
 %define with_mbmon 0%{!?_without_mbmon:1}
 %define with_md 0%{!?_without_md:1}
 %define with_memcachec 0%{!?_without_memcachec:1}
 %define with_memcached 0%{!?_without_memcached:1}
 %define with_memory 0%{!?_without_memory:1}
+%define with_modbus 0%{!?_without_modbus:1}
+%define with_mqtt 0%{!?_without_mqtt:1}
 %define with_multimeter 0%{!?_without_multimeter:1}
-%define with_modbus 0%{!?_without_modbus:0%{?_has_libmodbus}}
 %define with_mysql 0%{!?_without_mysql:1}
-%define with_netlink 0%{!?_without_netlink:0%{?_has_iproute}}
+%define with_netlink 0%{!?_without_netlink:1}
 %define with_network 0%{!?_without_network:1}
 %define with_nfs 0%{!?_without_nfs:1}
 %define with_nginx 0%{!?_without_nginx:1}
 %define with_notify_desktop 0%{!?_without_notify_desktop:1}
 %define with_notify_email 0%{!?_without_notify_email:1}
+%define with_notify_nagios 0%{!?_without_notify_nagios:1}
 %define with_ntpd 0%{!?_without_ntpd:1}
 %define with_numa 0%{!?_without_numa:1}
 %define with_nut 0%{!?_without_nut:1}
@@ -142,12 +113,12 @@
 %define with_processes 0%{!?_without_processes:1}
 %define with_protocols 0%{!?_without_protocols:1}
 %define with_python 0%{!?_without_python:1}
-%define with_redis 0%{!?_without_redis:0%{?_has_hiredis}}
-%define with_rrdcached 0%{!?_without_rrdcached:0%{?_has_recent_librrd}}
+%define with_redis 0%{!?_without_redis:1}
+%define with_rrdcached 0%{!?_without_rrdcached:1}
 %define with_rrdtool 0%{!?_without_rrdtool:1}
 %define with_sensors 0%{!?_without_sensors:1}
 %define with_serial 0%{!?_without_serial:1}
-%define with_smart 0%{!?_without_smart:0%{?_has_atasmart}}
+%define with_smart 0%{!?_without_smart:1}
 %define with_snmp 0%{!?_without_snmp:1}
 %define with_statsd 0%{!?_without_statsd:1}
 %define with_swap 0%{!?_without_swap:1}
@@ -160,20 +131,20 @@
 %define with_ted 0%{!?_without_ted:1}
 %define with_thermal 0%{!?_without_thermal:1}
 %define with_threshold 0%{!?_without_threshold:1}
-%define with_turbostat 0%{!?_without_turbostat:0%{?_has_asm_msr_index}}
+%define with_turbostat 0%{!?_without_turbostat:1}
 %define with_unixsock 0%{!?_without_unixsock:1}
 %define with_uptime 0%{!?_without_uptime:1}
 %define with_users 0%{!?_without_users:1}
 %define with_uuid 0%{!?_without_uuid:1}
 %define with_varnish 0%{!?_without_varnish:1}
+%define with_virt 0%{!?_without_virt:1}
 %define with_vmem 0%{!?_without_vmem:1}
 %define with_vserver 0%{!?_without_vserver:1}
 %define with_wireless 0%{!?_without_wireless:1}
 %define with_write_graphite 0%{!?_without_write_graphite:1}
 %define with_write_http 0%{!?_without_write_http:1}
 %define with_write_log 0%{!?_without_write_log:1}
-%define with_write_redis 0%{!?_without_write_redis:0%{?_has_hiredis}}
-%define with_write_riemann 0%{!?_without_write_riemann:1}
+%define with_write_redis 0%{!?_without_write_redis:1}
 %define with_write_sensu 0%{!?_without_write_sensu:1}
 %define with_write_tsdb 0%{!?_without_write_tsdb:1}
 %define with_xmms 0%{!?_without_xmms:0%{?_has_xmms}}
@@ -189,6 +160,8 @@
 %define with_aquaero 0%{!?_without_aquaero:0}
 # plugin barometer disabled, requires a libi2c
 %define with_barometer 0%{!?_without_barometer:0}
+# plugin grpc disabled, requires protobuf-compiler >= 3.0
+%define with_grpc 0%{!?_without_grpc:0}
 # plugin lpar disabled, requires AIX
 %define with_lpar 0%{!?_without_lpar:0}
 # plugin mic disabled, requires Mic
@@ -213,8 +186,40 @@
 %define with_write_kafka 0%{!?_without_write_kafka:0}
 # plugin write_mongodb disabled, requires libmongoc
 %define with_write_mongodb 0%{!?_without_write_mongodb:0}
+# plugin write_riemann disabled, requires a new enough riemann_c_client
+%define with_write_riemann 0%{!?_without_write_riemann:0}
+# plugin xencpu disabled, requires xen-devel from non-default repo
+%define with_xencpu 0%{!?_without_xencpu:0}
+# plugin zone disabled, requires Solaris
+%define with_zone 0%{!?_without_zone:0}
 
-Summary:	statistics collection and monitoring daemon
+# Plugins not buildable on RHEL < 6
+%if 0%{?rhel} && 0%{?rhel} < 6
+%define with_ceph 0
+%define with_curl_json 0
+%define with_log_logstash 0
+%define with_dns 0
+%define with_ethstat 0
+%define with_gmond 0
+%define with_iptables 0
+%define with_ipvs 0
+%define with_lvm 0
+%define with_modbus 0
+%define with_netlink 0
+%define with_redis 0
+%define with_smart 0
+%define with_turbostat 0
+%define with_write_redis 0
+%endif
+
+# Plugins not buildable on RHEL < 7
+%if 0%{?rhel} && 0%{?rhel} < 7
+%define with_mqtt 0
+%define with_rrdcached 0
+%define with_xmms 0
+%endif
+
+Summary:	Statistics collection and monitoring daemon
 Name:		collectd
 Version:	5.5.1
 Release:	1%{?dist}
@@ -226,11 +231,9 @@ BuildRoot:	%{_tmppath}/%{name}-%{version}-root
 BuildRequires:	libgcrypt-devel, kernel-headers, libtool-ltdl-devel, libcap-devel
 Vendor:		collectd development team <collectd@verplant.org>
 
-%if 0%{?el7:1}
-Requires(pre):		initscripts
-Requires(post):		systemd
-Requires(preun):	systemd
-Requires(postun):	systemd
+%if 0%{?fedora} || 0%{?rhel} >= 7
+%{?systemd_requires}
+BuildRequires:		systemd
 %else
 Requires(post):		chkconfig
 Requires(preun):	chkconfig, initscripts
@@ -315,6 +318,15 @@ Requires:      %{name}%{?_isa} = %{version}-%{release}
 BuildRequires: yajl-devel
 %description ceph
 Ceph plugin for collectd
+%endif
+
+%if %{with_chrony}
+%package chrony
+Summary:       Chrony plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+%description chrony
+Chrony plugin for collectd
 %endif
 
 %if %{with_curl}
@@ -402,6 +414,16 @@ BuildRequires:	ganglia-devel
 %description gmond
 The gmond plugin subscribes to a Multicast group to receive data from gmond,
 the client daemon of the Ganglia project.
+%endif
+
+%if %{with_grpc}
+%package grpc
+Summary:	GRPC plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	protobuf-compiler
+%description grpc
+This plugin embeds a gRPC server into Collectd.
 %endif
 
 %if %{with_hddtemp}
@@ -513,6 +535,16 @@ MySQL querying plugin. This plugin provides data of issued commands, called
 handlers and database traffic.
 %endif
 
+%if %{with_mqtt}
+%package mqtt
+Summary:	mqtt plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	mosquitto-devel
+%description mqtt
+The MQTT plugin publishes and subscribes to MQTT topics.
+%endif
+
 %if %{with_netlink}
 %package netlink
 Summary:	netlink plugin for collectd
@@ -581,10 +613,10 @@ Summary:	Perl plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
 Requires:	perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $version))
-	%if 0%{?rhel} >= 6
-BuildRequires:	perl-ExtUtils-Embed
-	%else
+	%if 0%{?rhel} && 0%{?rhel} < 6
 BuildRequires:	perl
+	%else
+BuildRequires:	perl-ExtUtils-Embed
 	%endif
 %description perl
 The Perl plugin embeds a Perl interpreter into collectd and exposes the
@@ -629,10 +661,10 @@ database.
 Summary:	Python plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-	%if 0%{?rhel} >= 6
-BuildRequires: python-devel
-	%else
+	%if 0%{?rhel} && 0%{?rhel} < 6
 BuildRequires: python26-devel
+	%else
+BuildRequires: python-devel
 	%endif
 %description python
 The Python plugin embeds a Python interpreter into collectd and exposes the
@@ -749,7 +781,7 @@ using HTTP POST requests.
 Summary:       Write-kafka plugin for collectd
 Group:         System Environment/Daemons
 Requires:      %{name}%{?_isa} = %{version}-%{release}
-BuildRequires: rdkafka-devel
+BuildRequires: librdkafka-devel
 %description write_kafka
 The write_kafka plugin sends values to kafka, a distributed messaging system.
 %endif
@@ -772,6 +804,16 @@ Requires:	%{name}%{?_isa} = %{version}-%{release}
 BuildRequires:	protobuf-c-devel
 %description write_riemann
 The riemann plugin submits values to Riemann, an event stream processor.
+%endif
+
+%if %{with_xencpu}
+%package xencpu
+Summary:	xencpu plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	xen-devel
+%description xencpu
+The xencpu plugin collects CPU statistics from Xen.
 %endif
 
 %if %{with_xmms}
@@ -904,6 +946,12 @@ Collectd utilities
 %define _with_cgroups --disable-cgroups
 %endif
 
+%if %{with_chrony}
+%define _with_chrony --enable-chrony
+%else
+%define _with_chrony --disable-chrony
+%endif
+
 %if %{with_conntrack}
 %define _with_conntrack --enable-conntrack
 %else
@@ -1034,6 +1082,12 @@ Collectd utilities
 %define _with_gmond --enable-gmond
 %else
 %define _with_gmond --disable-gmond
+%endif
+
+%if %{with_grpc}
+%define _with_grpc --enable-grpc
+%else
+%define _with_grpc --disable-grpc
 %endif
 
 %if %{with_hddtemp}
@@ -1174,6 +1228,12 @@ Collectd utilities
 %define _with_multimeter --disable-multimeter
 %endif
 
+%if %{with_mqtt}
+%define _with_mqtt --enable-mqtt
+%else
+%define _with_mqtt --disable-mqtt
+%endif
+
 %if %{with_mysql}
 %define _with_mysql --enable-mysql
 %else
@@ -1220,6 +1280,12 @@ Collectd utilities
 %define _with_notify_email --enable-notify_email
 %else
 %define _with_notify_email --disable-notify_email
+%endif
+
+%if %{with_notify_nagios}
+%define _with_notify_nagios --enable-notify_nagios
+%else
+%define _with_notify_nagios --disable-notify_nagios
 %endif
 
 %if %{with_ntpd}
@@ -1319,10 +1385,10 @@ Collectd utilities
 %endif
 
 %if %{with_python}
-	%if 0%{?rhel} >= 6
-%define _with_python --enable-python
-	%else
+	%if 0%{?rhel} && 0%{?rhel} < 6
 %define _with_python --enable-python --with-python=%{_bindir}/python2.6
+	%else
+%define _with_python --enable-python
 	%endif
 %else
 %define _with_python --disable-python
@@ -1568,6 +1634,12 @@ Collectd utilities
 %define _with_write_tsdb --disable-write_tsdb
 %endif
 
+%if %{with_xencpu}
+%define _with_xencpu --enable-xencpu
+%else
+%define _with_xencpu --disable-xencpu
+%endif
+
 %if %{with_xmms}
 %define _with_xmms --enable-xmms
 %else
@@ -1578,6 +1650,12 @@ Collectd utilities
 %define _with_zfs_arc --enable-zfs_arc
 %else
 %define _with_zfs_arc --disable-zfs_arc
+%endif
+
+%if %{with_zone}
+%define _with_zone --enable-zone
+%else
+%define _with_zone --disable-zone
 %endif
 
 %if %{with_zookeeper}
@@ -1612,14 +1690,15 @@ Collectd utilities
 	%{?_with_bind} \
 	%{?_with_ceph} \
 	%{?_with_cgroups} \
+	%{?_with_chrony} \
 	%{?_with_conntrack} \
 	%{?_with_contextswitch} \
-	%{?_with_cpu} \
 	%{?_with_cpufreq} \
+	%{?_with_cpu} \
 	%{?_with_csv} \
-	%{?_with_curl} \
 	%{?_with_curl_json} \
 	%{?_with_curl_xml} \
+	%{?_with_curl} \
 	%{?_with_dbi} \
 	%{?_with_df} \
 	%{?_with_disk} \
@@ -1633,98 +1712,103 @@ Collectd utilities
 	%{?_with_filecount} \
 	%{?_with_fscache} \
 	%{?_with_gmond} \
+	%{?_with_grpc} \
 	%{?_with_hddtemp} \
 	%{?_with_interface} \
 	%{?_with_ipc} \
 	%{?_with_ipmi} \
 	%{?_with_iptables} \
 	%{?_with_ipvs} \
+	%{?_with_irq} \
 	%{?_with_java} \
-	%{?_with_virt} \
+	%{?_with_load} \
 	%{?_with_log_logstash} \
+	%{?_with_logfile} \
 	%{?_with_lpar} \
 	%{?_with_lvm} \
+	%{?_with_madwifi} \
+	%{?_with_mbmon} \
+	%{?_with_md} \
 	%{?_with_memcachec} \
+	%{?_with_memcached} \
+	%{?_with_memory} \
 	%{?_with_mic} \
 	%{?_with_modbus} \
+	%{?_with_mqtt} \
 	%{?_with_multimeter} \
 	%{?_with_mysql} \
 	%{?_with_netapp} \
 	%{?_with_netlink} \
+	%{?_with_network} \
+	%{?_with_nfs} \
 	%{?_with_nginx} \
 	%{?_with_notify_desktop} \
 	%{?_with_notify_email} \
+	%{?_with_notify_nagios} \
+	%{?_with_ntpd} \
+	%{?_with_numa} \
 	%{?_with_nut} \
+	%{?_with_olsrd} \
 	%{?_with_onewire} \
 	%{?_with_openldap} \
+	%{?_with_openvpn} \
 	%{?_with_oracle} \
 	%{?_with_perl} \
 	%{?_with_pf} \
 	%{?_with_pinba} \
 	%{?_with_ping} \
 	%{?_with_postgresql} \
+	%{?_with_powerdns} \
+	%{?_with_processes} \
+	%{?_with_protocols} \
 	%{?_with_python} \
 	%{?_with_redis} \
 	%{?_with_routeros} \
 	%{?_with_rrdcached} \
 	%{?_with_rrdtool} \
 	%{?_with_sensors} \
+	%{?_with_serial} \
 	%{?_with_sigrok} \
 	%{?_with_smart} \
 	%{?_with_snmp} \
-	%{?_with_tape} \
-	%{?_with_tokyotyrant} \
-	%{?_with_varnish} \
-	%{?_with_write_http} \
-	%{?_with_write_kafka} \
-	%{?_with_write_mongodb} \
-	%{?_with_write_redis} \
-	%{?_with_xmms} \
-	%{?_with_zfs_arc} \
-	%{?_with_zookeeper} \
-	%{?_with_irq} \
-	%{?_with_load} \
-	%{?_with_logfile} \
-	%{?_with_madwifi} \
-	%{?_with_mbmon} \
-	%{?_with_md} \
-	%{?_with_memcached} \
-	%{?_with_memory} \
-	%{?_with_network} \
-	%{?_with_nfs} \
-	%{?_with_ntpd} \
-	%{?_with_numa} \
-	%{?_with_olsrd} \
-	%{?_with_openvpn} \
-	%{?_with_powerdns} \
-	%{?_with_processes} \
-	%{?_with_protocols} \
-	%{?_with_serial} \
 	%{?_with_statsd} \
 	%{?_with_swap} \
 	%{?_with_syslog} \
 	%{?_with_table} \
-	%{?_with_tail} \
 	%{?_with_tail_csv} \
+	%{?_with_tail} \
+	%{?_with_tape} \
 	%{?_with_tcpconns} \
 	%{?_with_teamspeak2} \
 	%{?_with_ted} \
 	%{?_with_thermal} \
 	%{?_with_threshold} \
+	%{?_with_tokyotyrant} \
 	%{?_with_turbostat} \
 	%{?_with_unixsock} \
 	%{?_with_uptime} \
 	%{?_with_users} \
 	%{?_with_uuid} \
+	%{?_with_varnish} \
+	%{?_with_virt} \
 	%{?_with_vmem} \
 	%{?_with_vserver} \
 	%{?_with_wireless}\
 	%{?_with_write_graphite} \
 	%{?_with_write_http} \
+	%{?_with_write_http} \
+	%{?_with_write_kafka} \
 	%{?_with_write_log} \
+	%{?_with_write_mongodb} \
+	%{?_with_write_redis} \
 	%{?_with_write_riemann} \
 	%{?_with_write_sensu} \
-	%{?_with_write_tsdb}
+	%{?_with_write_tsdb} \
+	%{?_with_xencpu} \
+	%{?_with_xmms} \
+	%{?_with_zfs_arc} \
+	%{?_with_zone} \
+	%{?_with_zookeeper}
 
 
 %{__make} %{?_smp_mflags}
@@ -1733,7 +1817,7 @@ Collectd utilities
 %install
 rm -rf %{buildroot}
 %{__make} install DESTDIR=%{buildroot}
-%if 0%{?el7:1}
+%if 0%{?fedora} || 0%{?rhel} >= 7
 %{__install} -Dp -m0644 contrib/systemd.collectd.service %{buildroot}%{_unitdir}/collectd.service
 %else
 %{__install} -Dp -m0755 contrib/redhat/init.d-collectd %{buildroot}%{_initrddir}/collectd
@@ -1789,26 +1873,15 @@ rm -f %{buildroot}%{_mandir}/man5/collectd-snmp.5*
 %clean
 rm -rf %{buildroot}
 
-%pre
-%if 0%{?el7:1}
-# stop sysv-based instance before upgrading to systemd
-if [ $1 -eq 2 ] && [ -f /var/lock/subsys/collectd ]; then
-	SYSTEMCTL_SKIP_REDIRECT=1 %{_initddir}/collectd stop >/dev/null 2>&1 || :
-fi
-%endif
-
 %post
-%if 0%{?el7:1}
-if [ $1 -eq 2 ]; then
-	/usr/bin/systemctl daemon-reload >/dev/null 2>&1 || :
-fi
+%if 0%{?fedora} || 0%{?rhel} >= 7
 %systemd_post collectd.service
 %else
 /sbin/chkconfig --add collectd || :
 %endif
 
 %preun
-%if 0%{?el7:1}
+%if 0%{?fedora} || 0%{?rhel} >= 7
 %systemd_preun collectd.service
 %else
 # stop collectd only when uninstalling
@@ -1819,7 +1892,7 @@ fi
 %endif
 
 %postun
-%if 0%{?el7:1}
+%if 0%{?fedora} || 0%{?rhel} >= 7
 %systemd_postun_with_restart collectd.service
 %else
 # restart collectd only when upgrading
@@ -1835,7 +1908,7 @@ fi
 %files
 %doc AUTHORS COPYING ChangeLog README
 %config(noreplace) %{_sysconfdir}/collectd.conf
-%if 0%{?el7:1}
+%if 0%{?fedora} || 0%{?rhel} >= 7
 %{_unitdir}/collectd.service
 %else
 %{_initrddir}/collectd
@@ -1957,6 +2030,9 @@ fi
 %endif
 %if %{with_nfs}
 %{_libdir}/%{name}/nfs.so
+%endif
+%if %{with_notify_nagios}
+%{_libdir}/%{name}/notify_nagios.so
 %endif
 %if %{with_ntpd}
 %{_libdir}/%{name}/ntpd.so
@@ -2112,6 +2188,11 @@ fi
 %{_libdir}/%{name}/ceph.so
 %endif
 
+%if %{with_chrony}
+%files chrony
+%{_libdir}/%{name}/chrony.so
+%endif
+
 %if %{with_curl}
 %files curl
 %{_libdir}/%{name}/curl.so
@@ -2150,6 +2231,11 @@ fi
 %if %{with_gmond}
 %files gmond
 %{_libdir}/%{name}/gmond.so
+%endif
+
+%if %{with_grpc}
+%files grpc
+%{_libdir}/%{name}/grpc.so
 %endif
 
 %if %{with_hddtemp}
@@ -2203,6 +2289,11 @@ fi
 %if %{with_modbus}
 %files modbus
 %{_libdir}/%{name}/modbus.so
+%endif
+
+%if %{with_mqtt}
+%files mqtt
+%{_libdir}/%{name}/mqtt.so
 %endif
 
 %if %{with_mysql}
@@ -2332,6 +2423,11 @@ fi
 %{_libdir}/%{name}/write_riemann.so
 %endif
 
+%if %{with_xencpu}
+%files xencpu
+%{_libdir}/%{name}/xencpu.so
+%endif
+
 %if %{with_xmms}
 %files xmms
 %{_libdir}/%{name}/xmms.so
@@ -2349,6 +2445,11 @@ fi
 %doc contrib/
 
 %changelog
+* Sat Jun 04 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> 5.5.1-1
+- New upstream version
+- New plugins enabled by default: chrony, mqtt, notify_nagios
+- New plugins disabled by default: grpc, zone, xencpu
+
 * Wed May 27 2015 Marc Fournier <marc.fournier@camptocamp.com> 5.5.0-1
 - New upstream version
 - New plugins enabled by default: ceph, drbd, log_logstash, write_tsdb, smart,

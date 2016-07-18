@@ -25,10 +25,6 @@
  *   Andrés J. Díaz <ajdiaz at connectical.com>
  **/
 
-#include <assert.h>
-#include <ltdl.h>
-#include <pthread.h>
-
 #include "collectd.h"
 #include "common.h"
 #include "plugin.h"
@@ -36,6 +32,10 @@
 #include "utils_cache.h"
 #include "utils_threshold.h"
 #include "write_riemann_threshold.h"
+
+#include <assert.h>
+#include <ltdl.h>
+#include <pthread.h>
 
 /*
  * Threshold management
@@ -134,7 +134,7 @@ static int ut_check_one_threshold (const data_set_t *ds,
     int *statuses)
 { /* {{{ */
   int ret = -1;
-  int i;
+  size_t i;
   int status;
   gauge_t values_copy[ds->ds_num];
 
@@ -203,7 +203,9 @@ int write_riemann_threshold_check (const data_set_t *ds, const value_list_t *vl,
   gauge_t *values;
   int status;
 
+  assert (vl->values_len > 0);
   memset(statuses, 0, vl->values_len * sizeof(*statuses));
+
   if (threshold_tree == NULL)
 	  return 0;
 

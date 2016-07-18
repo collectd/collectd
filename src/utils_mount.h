@@ -113,7 +113,7 @@ void cu_mount_freelist(cu_mount_t *list);
 	allocated by *list and *list itself as well.
 */
 
-char *cu_mount_checkoption(char *line, char *keyword, int full);
+char *cu_mount_checkoption(char *line, const char *keyword, int full);
 /*
   DESCRIPTION
 	The cu_mount_checkoption() function is a replacement of
@@ -153,7 +153,7 @@ char *cu_mount_checkoption(char *line, char *keyword, int full);
 	maybe you might want to try cu_mount_getoptionvalue()...
 */
 
-char *cu_mount_getoptionvalue(char *line, char *keyword);
+char *cu_mount_getoptionvalue(char *line, const char *keyword);
 /*
   DESCRIPTION
 	The cu_mount_getoptionvalue() function can be used to grab

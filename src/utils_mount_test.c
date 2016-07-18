@@ -24,8 +24,9 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
-#include "testing.h"
 #include "collectd.h"
+#include "common.h"
+#include "testing.h"
 #include "utils_mount.h"
 
 #if HAVE_LIBKSTAT
@@ -80,16 +81,25 @@ DEF_TEST(cu_mount_getoptionvalue)
 {
   char line_opts[] = "foo=one,bar=two,qux=three";
   char line_bool[] = "one,two,three";
+  char *v;
 
-  STREQ ("one", cu_mount_getoptionvalue (line_opts, "foo="));
-  STREQ ("two", cu_mount_getoptionvalue (line_opts, "bar="));
-  STREQ ("three", cu_mount_getoptionvalue (line_opts, "qux="));
-  OK (NULL == cu_mount_getoptionvalue (line_opts, "unknown="));
+  EXPECT_EQ_STR ("one", v = cu_mount_getoptionvalue (line_opts, "foo="));
+  sfree (v);
+  EXPECT_EQ_STR ("two", v = cu_mount_getoptionvalue (line_opts, "bar="));
+  sfree (v);
+  EXPECT_EQ_STR ("three", v = cu_mount_getoptionvalue (line_opts, "qux="));
+  sfree (v);
+  OK (NULL == (v = cu_mount_getoptionvalue (line_opts, "unknown=")));
+  sfree (v);
 
-  STREQ ("", cu_mount_getoptionvalue (line_bool, "one"));
-  STREQ ("", cu_mount_getoptionvalue (line_bool, "two"));
-  STREQ ("", cu_mount_getoptionvalue (line_bool, "three"));
-  OK (NULL == cu_mount_getoptionvalue (line_bool, "four"));
+  EXPECT_EQ_STR ("", v = cu_mount_getoptionvalue (line_bool, "one"));
+  sfree (v);
+  EXPECT_EQ_STR ("", v = cu_mount_getoptionvalue (line_bool, "two"));
+  sfree (v);
+  EXPECT_EQ_STR ("", v = cu_mount_getoptionvalue (line_bool, "three"));
+  sfree (v);
+  OK (NULL == (v = cu_mount_getoptionvalue (line_bool, "four")));
+  sfree (v);
 
   return (0);
 }

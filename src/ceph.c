@@ -45,7 +45,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
-#include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/un.h>
@@ -97,7 +96,7 @@ enum ceph_dset_type_d
 };
 
 /** Valid types for ceph defined in types.db */
-const char * ceph_dset_types [CEPH_DSET_TYPES_NUM] =
+static const char * const ceph_dset_types [CEPH_DSET_TYPES_NUM] =
                                    {"ceph_latency", "ceph_bytes", "ceph_rate"};
 
 /******* ceph_daemon *******/
@@ -624,7 +623,7 @@ static int ceph_daemon_add_ds_entry(struct ceph_daemon *d, const char *name,
         return -ENOMEM;
     }
 
-    d->ds_names[d->ds_num] = malloc(sizeof(char) * DATA_MAX_NAME_LEN);
+    d->ds_names[d->ds_num] = malloc(DATA_MAX_NAME_LEN);
     if(!d->ds_names[d->ds_num])
     {
         return -ENOMEM;
@@ -748,7 +747,7 @@ static int cc_add_daemon_config(oconfig_item_t *ci)
     }
     g_daemons = tmp;
 
-    nd = malloc(sizeof(*nd));
+    nd = malloc(sizeof (*nd));
     if(!nd)
     {
         return ENOMEM;
@@ -846,7 +845,7 @@ node_handler_define_schema(void *arg, const char *val, const char *key)
 static int add_last(struct ceph_daemon *d, const char *ds_n, double cur_sum,
         uint64_t cur_count)
 {
-    d->last_poll_data[d->last_idx] = malloc(1 * sizeof(struct last_data));
+    d->last_poll_data[d->last_idx] = malloc(sizeof (*d->last_poll_data[d->last_idx]));
     if(!d->last_poll_data[d->last_idx])
     {
         return -ENOMEM;
@@ -874,7 +873,7 @@ static int update_last(struct ceph_daemon *d, const char *ds_n, int index,
 
     if(!d->last_poll_data)
     {
-        d->last_poll_data = malloc(1 * sizeof(struct last_data *));
+        d->last_poll_data = malloc(sizeof (*d->last_poll_data));
         if(!d->last_poll_data)
         {
             return -ENOMEM;

@@ -95,6 +95,9 @@
 #  include <time.h>
 # endif
 #endif
+#if HAVE_SYS_SOCKET_H
+# include <sys/socket.h>
+#endif
 
 #if HAVE_ASSERT_H
 # include <assert.h>
@@ -268,7 +271,7 @@ typedef int _Bool;
 #endif
 
  #ifndef COLLECTD_USERAGENT
- # define COLLECTD_USERAGENT PACKAGE_NAME"/"PACKAGE_VERSION
+ # define COLLECTD_USERAGENT PACKAGE_NAME "/" PACKAGE_VERSION
  #endif
 
 /* Only enable __attribute__() for compilers known to support it. */
@@ -291,7 +294,7 @@ typedef int _Bool;
 # pragma GCC poison strcpy strcat strtok
 #endif
 
-/* 
+/*
  * Special hack for the perl plugin: Because the later included perl.h defines
  * a macro which is never used, but contains `sprintf', we cannot poison that
  * identifies just yet. The parl plugin will do that itself once perl.h is
@@ -313,7 +316,6 @@ typedef uint64_t cdtime_t;
 
 extern char     hostname_g[];
 extern cdtime_t interval_g;
-extern int      pidfile_from_cli;
 extern int      timeout_g;
 
 #endif /* COLLECTD_H */

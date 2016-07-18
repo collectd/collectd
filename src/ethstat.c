@@ -104,14 +104,13 @@ static int ethstat_add_map (const oconfig_item_t *ci) /* {{{ */
     return (ENOMEM);
   }
 
-  map = malloc (sizeof (*map));
+  map = calloc (1, sizeof (*map));
   if (map == NULL)
   {
     sfree (key);
-    ERROR ("ethstat plugin: malloc(3) failed.");
+    ERROR ("ethstat plugin: calloc failed.");
     return (ENOMEM);
   }
-  memset (map, 0, sizeof (*map));
 
   sstrncpy (map->type, ci->values[1].value.string, sizeof (map->type));
   if (ci->values_num == 3)
@@ -273,7 +272,7 @@ static int ethstat_read_interface (char *device)
     close (fd);
     sfree (strings);
     sfree (stats);
-    ERROR("ethstat plugin: malloc(3) failed.");
+    ERROR("ethstat plugin: malloc failed.");
     return (-1);
   }
 

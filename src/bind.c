@@ -54,7 +54,7 @@
 # define BIND_DEFAULT_URL "http://localhost:8053/"
 #endif
 
-/* 
+/*
  * Some types used for the callback functions. `translation_table_ptr_t' and
  * `list_info_ptr_t' are passed to the callbacks in the `void *user_data'
  * pointer.
@@ -277,14 +277,14 @@ static size_t bind_curl_callback (void *buf, size_t size, /* {{{ */
 {
   size_t len = size * nmemb;
 
-  if (len <= 0)
+  if (len == 0)
     return (len);
 
   if ((bind_buffer_fill + len) >= bind_buffer_size)
   {
     char *temp;
 
-    temp = realloc(bind_buffer, bind_buffer_fill + len + 1);
+    temp = realloc (bind_buffer, bind_buffer_fill + len + 1);
     if (temp == NULL)
     {
       ERROR ("bind plugin: realloc failed.");
@@ -474,7 +474,7 @@ static int bind_xml_read_timestamp (const char *xpath_expression, /* {{{ */
   return (0);
 } /* }}} int bind_xml_read_timestamp */
 
-/* 
+/*
  * bind_parse_generic_name_value
  *
  * Reads statistics in the form:
@@ -559,7 +559,7 @@ static int bind_parse_generic_name_value (const char *xpath_expression, /* {{{ *
   return (0);
 } /* }}} int bind_parse_generic_name_value */
 
-/* 
+/*
  * bind_parse_generic_value_list
  *
  * Reads statistics in the form:
@@ -774,7 +774,7 @@ static int bind_xml_stats_handle_zone (int version, xmlDoc *doc, /* {{{ */
   { /* Parse the <counters> tag {{{ */
     char plugin_instance[DATA_MAX_NAME_LEN];
     translation_table_ptr_t table_ptr =
-    { 
+    {
       nsstats_translation_table,
       nsstats_translation_table_length,
       plugin_instance
@@ -955,7 +955,7 @@ static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
   {
     char plugin_instance[DATA_MAX_NAME_LEN];
     translation_table_ptr_t table_ptr =
-    { 
+    {
       resstats_translation_table,
       resstats_translation_table_length,
       plugin_instance
@@ -1613,7 +1613,7 @@ static int bind_config_add_view_zone (cb_view_t *view, /* {{{ */
     return (-1);
   }
 
-  tmp = (char **) realloc (view->zones,
+  tmp = realloc (view->zones,
       sizeof (char *) * (view->zones_num + 1));
   if (tmp == NULL)
   {
@@ -1644,7 +1644,7 @@ static int bind_config_add_view (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  tmp = (cb_view_t *) realloc (views, sizeof (*views) * (views_num + 1));
+  tmp = realloc (views, sizeof (*views) * (views_num + 1));
   if (tmp == NULL)
   {
     ERROR ("bind plugin: realloc failed.");
@@ -1758,7 +1758,7 @@ static int bind_init (void) /* {{{ */
   curl_easy_setopt (curl, CURLOPT_MAXREDIRS, 50L);
 #ifdef HAVE_CURLOPT_TIMEOUT_MS
   curl_easy_setopt (curl, CURLOPT_TIMEOUT_MS, (timeout >= 0) ?
-      (long) timeout : CDTIME_T_TO_MS(plugin_get_interval()));
+      (long) timeout : (long) CDTIME_T_TO_MS(plugin_get_interval()));
 #endif
 
 

@@ -1,6 +1,6 @@
  collectd - System information collection daemon
 =================================================
-http://collectd.org/
+https://collectd.org/
 
 About
 -----
@@ -50,6 +50,9 @@ Features
 
     - cgroups
       CPU accounting information for process groups under Linux.
+
+    - chrony
+      Chrony daemon statistics: Local clock drift, offset to peers, etc.
 
     - conntrack
       Number of nf_conntrack entries.
@@ -118,6 +121,9 @@ Features
 
     - gmond
       Receive multicast traffic from Ganglia instances.
+
+    - grpc
+      Receive values over the network using the gRPC framework.
 
     - hddtemp
       Hard disk temperatures using hddtempd.
@@ -190,6 +196,9 @@ Features
     - modbus
       Reads values from Modbus/TCP enabled devices. Supports reading values
       from multiple "slaves" so gateway devices can be used.
+
+    - mqtt
+      Publishes and subscribes to MQTT topics.
 
     - multimeter
       Information provided by serial multimeters, such as the `Metex
@@ -379,11 +388,18 @@ Features
     - wireless
       Link quality of wireless cards. Linux only.
 
+    - xencpu
+      XEN Hypervisor CPU stats.
+
     - xmms
       Bitrate and frequency of music played with XMMS.
 
     - zfs_arc
       Statistics for ZFS' “Adaptive Replacement Cache” (ARC).
+
+    - zone
+      Measures the percentage of cpu load per container (zone) under Solaris 10
+      and higher
 
     - zookeeper
       Read data from Zookeeper's MNTR command.
@@ -494,6 +510,9 @@ Features
     - notify_email
       Send an E-mail with the notification message to the configured
       recipients.
+
+    - notify_nagios
+      Submit notifications as passive check results to a local nagios instance.
 
     - exec
       Execute a program or script to handle the notification.
@@ -669,6 +688,11 @@ Prerequisites
     Used by the `gmond' plugin to process data received from Ganglia.
     <http://ganglia.info/>
 
+  * libgrpc (optional)
+    Used by the `grpc' plugin. gRPC requires a C++ compiler supporting the
+    C++11 standard.
+    <https://grpc.io/>
+
   * libgcrypt (optional)
     Used by the `network' plugin for encryption and authentication.
     <http://www.gnupg.org/>
@@ -758,10 +782,14 @@ Prerequisites
     The PostgreSQL C client library used by the `postgresql' plugin.
     <http://www.postgresql.org/>
 
+  * libprotobuf, protoc 3.0+ (optional)
+    Used by the `grpc' plugin to generate service stubs and code to handle
+    network packets of collectd's protobuf-based network protocol.
+    <https://developers.google.com/protocol-buffers/>
+
   * libprotobuf-c, protoc-c (optional)
     Used by the `pinba' plugin to generate a parser for the network packets
-    sent by the Pinba PHP extension, and by the `write_riemann' plugin to
-    generate events to be sent to a Riemann server.
+    sent by the Pinba PHP extension.
     <http://code.google.com/p/protobuf-c/>
 
   * libpython (optional)
@@ -823,6 +851,10 @@ Prerequisites
     `virt' plugins.
     <http://xmlsoft.org/>
 
+  * libxen (optional)
+    Used by the `xencpu' plugin.
+    <http://xenbits.xensource.com/>
+
   * libxmms (optional)
     <http://www.xmms.org/>
 
@@ -835,6 +867,10 @@ Prerequisites
      Fetches statistics from a Varnish instance. This is needed for the
      `varnish' plugin.
      <http://varnish-cache.org>
+
+  * riemann-c-client (optional)
+     For the `write_riemann' plugin.
+     <https://github.com/algernon/riemann-c-client>
 
 Configuring / Compiling / Installing
 ------------------------------------
@@ -889,18 +925,19 @@ Configuring with libjvm
   library checks succeed.
 
   If this doesn't work for you, you have the possibility to specify CPP-flags,
-  C-flags and LD-flags for the ‘Java’ plugin by hand, using the following three
-  (environment) variables:
+  C-flags, LD-flags and LIBS for the ‘Java’ plugin by hand, using the
+  following environment variables:
 
     - JAVA_CPPFLAGS
     - JAVA_CFLAGS
     - JAVA_LDFLAGS
+    - JAVA_LIBS
 
   For example (shortened for demonstration purposes):
 
     ./configure JAVA_CPPFLAGS="-I$JAVA_HOME/include -I$JAVA_HOME/include/linux"
 
-  Adding "-ljvm" to the JAVA_LDFLAGS is done automatically, you don't have to
+  Adding "-ljvm" to JAVA_LIBS is done automatically, you don't have to
   do that.
 
 Generating the configure script
@@ -917,6 +954,7 @@ To generate the `configure` script, you'll need the following dependencies:
 - bison
 - libtool
 - libtool-ltdl
+- pkg-config
 
 The `build.sh' script takes no arguments.
 

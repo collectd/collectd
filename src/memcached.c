@@ -34,7 +34,6 @@
 #include "configfile.h"
 
 #include <netdb.h>
-#include <sys/socket.h>
 #include <sys/un.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -99,8 +98,8 @@ static int memcached_connect_unix (memcached_t *st)
 
 static int memcached_connect_inet (memcached_t *st)
 {
-  char *host;
-  char *port;
+  const char *host;
+  const char *port;
 
   struct addrinfo  ai_hints;
   struct addrinfo *ai_list, *ai_ptr;
@@ -174,8 +173,7 @@ static int memcached_connect (memcached_t *st)
 
 static int memcached_query_daemon (char *buffer, size_t buffer_size, memcached_t *st)
 {
-  int fd = -1;
-  int status;
+  int fd, status;
   size_t buffer_fill;
 
   fd = memcached_connect (st);
@@ -566,7 +564,7 @@ static int memcached_add_read_callback (memcached_t *st)
   status = plugin_register_complex_read (/* group = */ "memcached",
       /* name      = */ callback_name,
       /* callback  = */ memcached_read,
-      /* interval  = */ NULL,
+      /* interval  = */ 0,
       /* user_data = */ &ud);
   return (status);
 } /* int memcached_add_read_callback */
@@ -588,14 +586,13 @@ static int config_add_instance(oconfig_item_t *ci)
   /* Disable automatic generation of default instance in the init callback. */
   memcached_have_instances = 1;
 
-  st = malloc (sizeof (*st));
+  st = calloc (1, sizeof (*st));
   if (st == NULL)
   {
-    ERROR ("memcached plugin: malloc failed.");
+    ERROR ("memcached plugin: calloc failed.");
     return (-1);
   }
 
-  memset (st, 0, sizeof (*st));
   st->name = NULL;
   st->socket = NULL;
   st->host = NULL;
@@ -686,10 +683,9 @@ static int memcached_init (void)
     return (0);
 
   /* No instances were configured, lets start a default instance. */
-  st = malloc (sizeof (*st));
+  st = calloc (1, sizeof (*st));
   if (st == NULL)
     return (ENOMEM);
-  memset (st, 0, sizeof (*st));
   st->name = sstrdup ("__legacy__");
   st->socket = NULL;
   st->host = NULL;

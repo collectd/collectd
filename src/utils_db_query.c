@@ -54,6 +54,7 @@ struct udb_query_s /* {{{ */
   char *name;
   char *statement;
   void *user_data;
+  char *plugin_instance_from;
 
   unsigned int min_version;
   unsigned int max_version;
@@ -70,6 +71,7 @@ struct udb_result_preparation_area_s /* {{{ */
   char  **instances_buffer;
   char  **values_buffer;
   char  **metadata_buffer;
+  char   *plugin_instance;
 
   struct udb_result_preparation_area_s *next;
 }; /* }}} */
@@ -78,6 +80,7 @@ typedef struct udb_result_preparation_area_s udb_result_preparation_area_t;
 struct udb_query_preparation_area_s /* {{{ */
 {
   size_t column_num;
+  size_t plugin_instance_pos;
   char *host;
   char *plugin;
   char *db_name;
@@ -142,7 +145,7 @@ static int udb_config_add_string (char ***ret_array, /* {{{ */
   }
 
   array_len = *ret_array_len;
-  array = (char **) realloc (*ret_array,
+  array = realloc (*ret_array,
       sizeof (char *) * (array_len + ci->values_num));
   if (array == NULL)
   {
@@ -204,10 +207,10 @@ static int udb_result_submit (udb_result_t *r, /* {{{ */
   assert (((size_t) r_area->ds->ds_num) == r->values_num);
   assert (r->values_num > 0);
 
-  vl.values = (value_t *) calloc (r->values_num, sizeof (value_t));
+  vl.values = calloc (r->values_num, sizeof (*vl.values));
   if (vl.values == NULL)
   {
-    ERROR ("db query utils: malloc failed.");
+    ERROR ("db query utils: calloc failed.");
     return (-1);
   }
   vl.values_len = r_area->ds->ds_num;
@@ -221,6 +224,7 @@ static int udb_result_submit (udb_result_t *r, /* {{{ */
       ERROR ("db query utils: udb_result_submit: Parsing `%s' as %s failed.",
           value_str, DS_TYPE_TO_STRING (r_area->ds->ds[i].type));
       errno = EINVAL;
+      free (vl.values);
       return (-1);
     }
   }
@@ -230,11 +234,18 @@ static int udb_result_submit (udb_result_t *r, /* {{{ */
 
   sstrncpy (vl.host, q_area->host, sizeof (vl.host));
   sstrncpy (vl.plugin, q_area->plugin, sizeof (vl.plugin));
-  sstrncpy (vl.plugin_instance, q_area->db_name, sizeof (vl.plugin_instance));
   sstrncpy (vl.type, r->type, sizeof (vl.type));
 
+  /* Set vl.plugin_instance */
+  if (q->plugin_instance_from != NULL) {
+    sstrncpy (vl.plugin_instance, r_area->plugin_instance, sizeof (vl.plugin_instance));
+  }
+  else {
+    sstrncpy (vl.plugin_instance, q_area->db_name, sizeof (vl.plugin_instance));
+  }
+
   /* Set vl.type_instance {{{ */
-  if (r->instances_num <= 0)
+  if (r->instances_num == 0)
   {
     if (r->instance_prefix == NULL)
       vl.type_instance[0] = 0;
@@ -333,6 +344,9 @@ static int udb_result_handle_result (udb_result_t *r, /* {{{ */
   for (i = 0; i < r->metadata_num; i++)
     r_area->metadata_buffer[i] = column_values[r_area->metadata_pos[i]];
 
+  if (q->plugin_instance_from)
+    r_area->plugin_instance = column_values[q_area->plugin_instance_pos];
+
   return udb_result_submit (r, r_area, q, q_area);
 } /* }}} int udb_result_handle_result */
 
@@ -371,10 +385,10 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
     BAIL_OUT (-1);
   }
 
-  if (((size_t) prep_area->ds->ds_num) != r->values_num)
+  if (prep_area->ds->ds_num != r->values_num)
   {
     ERROR ("db query utils: udb_result_prepare_result: The type `%s' "
-        "requires exactly %i value%s, but the configuration specifies %zu.",
+        "requires exactly %zu value%s, but the configuration specifies %zu.",
         r->type,
         prep_area->ds->ds_num, (prep_area->ds->ds_num == 1) ? "" : "s",
         r->values_num);
@@ -390,7 +404,7 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
       = (size_t *) calloc (r->instances_num, sizeof (size_t));
     if (prep_area->instances_pos == NULL)
     {
-      ERROR ("db query utils: udb_result_prepare_result: malloc failed.");
+      ERROR ("db query utils: udb_result_prepare_result: calloc failed.");
       BAIL_OUT (-ENOMEM);
     }
 
@@ -398,7 +412,7 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
       = (char **) calloc (r->instances_num, sizeof (char *));
     if (prep_area->instances_buffer == NULL)
     {
-      ERROR ("db query utils: udb_result_prepare_result: malloc failed.");
+      ERROR ("db query utils: udb_result_prepare_result: calloc failed.");
       BAIL_OUT (-ENOMEM);
     }
   } /* if (r->instances_num > 0) */
@@ -407,7 +421,7 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
     = (size_t *) calloc (r->values_num, sizeof (size_t));
   if (prep_area->values_pos == NULL)
   {
-    ERROR ("db query utils: udb_result_prepare_result: malloc failed.");
+    ERROR ("db query utils: udb_result_prepare_result: calloc failed.");
     BAIL_OUT (-ENOMEM);
   }
 
@@ -415,7 +429,7 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
     = (char **) calloc (r->values_num, sizeof (char *));
   if (prep_area->values_buffer == NULL)
   {
-    ERROR ("db query utils: udb_result_prepare_result: malloc failed.");
+    ERROR ("db query utils: udb_result_prepare_result: calloc failed.");
     BAIL_OUT (-ENOMEM);
   }
 
@@ -423,7 +437,7 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
     = (size_t *) calloc (r->metadata_num, sizeof (size_t));
   if (prep_area->metadata_pos == NULL)
   {
-    ERROR ("db query utils: udb_result_prepare_result: malloc failed.");
+    ERROR ("db query utils: udb_result_prepare_result: calloc failed.");
     BAIL_OUT (-ENOMEM);
   }
 
@@ -431,13 +445,13 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
     = (char **) calloc (r->metadata_num, sizeof (char *));
   if (prep_area->metadata_buffer == NULL)
   {
-    ERROR ("db query utils: udb_result_prepare_result: malloc failed.");
+    ERROR ("db query utils: udb_result_prepare_result: calloc failed.");
     BAIL_OUT (-ENOMEM);
   }
 
   /* }}} */
 
-  /* Determine the position of the instance columns {{{ */
+  /* Determine the position of the plugin instance column {{{ */
   for (i = 0; i < r->instances_num; i++)
   {
     size_t j;
@@ -459,6 +473,7 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
       BAIL_OUT (-ENOENT);
     }
   } /* }}} for (i = 0; i < r->instances_num; i++) */
+
 
   /* Determine the position of the value columns {{{ */
   for (i = 0; i < r->values_num; i++)
@@ -518,6 +533,7 @@ static void udb_result_free (udb_result_t *r) /* {{{ */
     return;
 
   sfree (r->type);
+  sfree (r->instance_prefix);
 
   for (i = 0; i < r->instances_num; i++)
     sfree (r->instances[i]);
@@ -550,13 +566,12 @@ static int udb_result_create (const char *query_name, /* {{{ */
         ci->values_num, (ci->values_num == 1) ? "" : "s");
   }
 
-  r = (udb_result_t *) malloc (sizeof (*r));
+  r = calloc (1, sizeof (*r));
   if (r == NULL)
   {
-    ERROR ("db query utils: malloc failed.");
+    ERROR ("db query utils: calloc failed.");
     return (-1);
   }
-  memset (r, 0, sizeof (*r));
   r->type = NULL;
   r->instance_prefix = NULL;
   r->instances = NULL;
@@ -645,6 +660,7 @@ static void udb_query_free_one (udb_query_t *q) /* {{{ */
 
   sfree (q->name);
   sfree (q->statement);
+  sfree (q->plugin_instance_from);
 
   udb_result_free (q->results);
 
@@ -678,15 +694,17 @@ int udb_query_create (udb_query_t ***ret_query_list, /* {{{ */
     return (-1);
   }
 
-  q = (udb_query_t *) malloc (sizeof (*q));
+  q = calloc (1, sizeof (*q));
   if (q == NULL)
   {
-    ERROR ("db query utils: malloc failed.");
+    ERROR ("db query utils: calloc failed.");
     return (-1);
   }
-  memset (q, 0, sizeof (*q));
   q->min_version = 0;
   q->max_version = UINT_MAX;
+  q->statement = NULL;
+  q->results = NULL;
+  q->plugin_instance_from = NULL;
 
   status = udb_config_set_string (&q->name, ci);
   if (status != 0)
@@ -708,6 +726,8 @@ int udb_query_create (udb_query_t ***ret_query_list, /* {{{ */
       status = udb_config_set_uint (&q->min_version, child);
     else if (strcasecmp ("MaxVersion", child->key) == 0)
       status = udb_config_set_uint (&q->max_version, child);
+    else if (strcasecmp ("PluginInstanceFrom", child->key) == 0)
+      status = udb_config_set_string (&q->plugin_instance_from, child);
 
     /* Call custom callbacks */
     else if (cb != NULL)
@@ -752,7 +772,7 @@ int udb_query_create (udb_query_t ***ret_query_list, /* {{{ */
   {
     udb_query_t **temp;
 
-    temp = (udb_query_t **) realloc (query_list,
+    temp = realloc (query_list,
         sizeof (*query_list) * (query_list_len + 1));
     if (temp == NULL)
     {
@@ -817,7 +837,7 @@ int udb_query_pick_from_list_by_name (const char *name, /* {{{ */
       continue;
 
     tmp_list_len = *dst_list_len;
-    tmp_list = (udb_query_t **) realloc (*dst_list, (tmp_list_len + 1)
+    tmp_list = realloc (*dst_list, (tmp_list_len + 1)
         * sizeof (udb_query_t *));
     if (tmp_list == NULL)
     {
@@ -1043,6 +1063,31 @@ int udb_query_prepare_result (udb_query_t const *q, /* {{{ */
   } while (0);
 #endif
 
+  /* Determine the position of the PluginInstance column {{{ */
+  if (q->plugin_instance_from != NULL)
+  {
+    size_t i;
+
+    for (i = 0; i < column_num; i++)
+    {
+      if (strcasecmp (q->plugin_instance_from, column_names[i]) == 0)
+      {
+        prep_area->plugin_instance_pos = i;
+        break;
+      }
+    }
+
+    if (i >= column_num)
+    {
+      ERROR ("db query utils: udb_query_prepare_result: "
+          "Column `%s' from `PluginInstanceFrom' could not be found.",
+          q->plugin_instance_from);
+      udb_query_finish_result (q, prep_area);
+      return (-ENOENT);
+    }
+  }
+  /* }}} */
+
   for (r = q->results, r_area = prep_area->result_prep_areas;
       r != NULL; r = r->next, r_area = r_area->next)
   {
@@ -1072,17 +1117,16 @@ udb_query_allocate_preparation_area (udb_query_t *q) /* {{{ */
   udb_result_preparation_area_t **next_r_area;
   udb_result_t *r;
 
-  q_area = malloc (sizeof (*q_area));
+  q_area = calloc (1, sizeof (*q_area));
   if (q_area == NULL)
     return NULL;
-  memset (q_area, 0, sizeof (*q_area));
 
   next_r_area = &q_area->result_prep_areas;
   for (r = q->results; r != NULL; r = r->next)
   {
     udb_result_preparation_area_t *r_area;
 
-    r_area = malloc (sizeof (*r_area));
+    r_area = calloc (1, sizeof (*r_area));
     if (r_area == NULL)
     {
       udb_result_preparation_area_t *a = q_area->result_prep_areas;
@@ -1097,8 +1141,6 @@ udb_query_allocate_preparation_area (udb_query_t *q) /* {{{ */
       free (q_area);
       return NULL;
     }
-
-    memset (r_area, 0, sizeof (*r_area));
 
     *next_r_area = r_area;
     next_r_area  = &r_area->next;

@@ -25,7 +25,6 @@
 #include "plugin.h"
 #include "configfile.h"
 
-#include <pthread.h>
 #include <sys/time.h>
 #include <hiredis/hiredis.h>
 
@@ -130,7 +129,7 @@ static redis_query_t *redis_config_query (oconfig_item_t *ci) /* {{{ */
 
     rq = calloc(1, sizeof(*rq));
     if (rq == NULL) {
-        ERROR("redis plugin: calloca failed adding redis_query.");
+        ERROR("redis plugin: calloc failed adding redis_query.");
         return NULL;
     }
     status = cf_util_get_string_buffer(ci, rq->query, sizeof(rq->query));
@@ -304,7 +303,7 @@ static int redis_handle_info (char *node, char const *info_line, char const *typ
     int i;
 
     str += strlen (field_name) + 1; /* also skip the ':' */
-    for(i=0;(*str && (isdigit(*str) || *str == '.'));i++,str++)
+    for(i=0;(*str && (isdigit((unsigned char)*str) || *str == '.'));i++,str++)
       buf[i] = *str;
     buf[i] ='\0';
 
@@ -432,9 +431,14 @@ static int redis_read (void) /* {{{ */
     redis_handle_info (rn->name, rr->str, "total_connections", NULL, "total_connections_received", DS_TYPE_DERIVE);
     redis_handle_info (rn->name, rr->str, "total_operations", NULL, "total_commands_processed", DS_TYPE_DERIVE);
     redis_handle_info (rn->name, rr->str, "expired_keys", NULL, "expired_keys", DS_TYPE_DERIVE);
+    redis_handle_info (rn->name, rr->str, "evicted_keys", NULL, "evicted_keys", DS_TYPE_DERIVE);
     redis_handle_info (rn->name, rr->str, "pubsub", "channels", "pubsub_channels", DS_TYPE_GAUGE);
     redis_handle_info (rn->name, rr->str, "pubsub", "patterns", "pubsub_patterns", DS_TYPE_GAUGE);
     redis_handle_info (rn->name, rr->str, "current_connections", "slaves", "connected_slaves", DS_TYPE_GAUGE);
+    redis_handle_info (rn->name, rr->str, "cache_result", "hits", "keyspace_hits", DS_TYPE_DERIVE);
+    redis_handle_info (rn->name, rr->str, "cache_result", "misses", "keyspace_misses", DS_TYPE_DERIVE);
+    redis_handle_info (rn->name, rr->str, "total_bytes", "input", "total_net_input_bytes", DS_TYPE_DERIVE);
+    redis_handle_info (rn->name, rr->str, "total_bytes", "output", "total_net_output_bytes", DS_TYPE_DERIVE);
 
     for (rq = rn->queries; rq != NULL; rq = rq->next)
         redis_handle_query(rh, rn, rq);

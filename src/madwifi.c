@@ -23,7 +23,7 @@
 
 
 /**
- * There are several data streams provided by Madwifi plugin, some are 
+ * There are several data streams provided by Madwifi plugin, some are
  * connected to network interface, some are connected to each node
  * associated to that interface. Nodes represents other sides in
  * wireless communication, for example on network interface in AP mode,
@@ -42,18 +42,18 @@
  *	node_stat	Node statistic counters
  *
  * Both statistic counters have type instances for each counter returned
- * by Madwifi. See madwifi.h for content of ieee80211_nodestats, 
+ * by Madwifi. See madwifi.h for content of ieee80211_nodestats,
  * ieee80211_stats and ath_stats structures. Type instances use the same
  * name as fields in these structures (like ns_rx_dup). Some fields are
  * not reported, because they are not counters (like ns_tx_deauth_code
  * or ast_tx_rssi). Fields ns_rx_bytes and ns_tx_bytes are reported as
  * node_octets data stream instead of type instance of node_stat.
  * Statistics are not logged when they are zero.
- * 
+ *
  * There are two sets of these counters - the first 'WatchList' is a
  * set of counters that are individually logged. The second 'MiscList'
  * is a set of counters that are summed together and the sum is logged.
- * By default, the most important statistics are in the WatchList and 
+ * By default, the most important statistics are in the WatchList and
  * many error statistics are in MiscList. There are also many statistics
  * that are not in any of these sets, so they are not monitored by default.
  * It is possible to alter these lists using configuration options:
@@ -96,7 +96,6 @@
 
 #include <dirent.h>
 #include <sys/ioctl.h>
-#include <sys/socket.h>
 
 #if !KERNEL_LINUX
 # error "No applicable input method."
@@ -368,14 +367,14 @@ static int init_state = 0;
 static inline int item_watched(int i)
 {
 	assert (i >= 0);
-	assert (i < ((STATIC_ARRAY_SIZE (watch_items) + 1) * 32));
+	assert (((size_t) i) < ((STATIC_ARRAY_SIZE (watch_items) + 1) * 32));
 	return watch_items[i / 32] & FLAG (i);
 }
 
 static inline int item_summed(int i)
 {
 	assert (i >= 0);
-	assert (i < ((STATIC_ARRAY_SIZE (misc_items) + 1) * 32));
+	assert (((size_t) i) < ((STATIC_ARRAY_SIZE (misc_items) + 1) * 32));
 	return misc_items[i / 32] & FLAG (i);
 }
 
@@ -420,8 +419,8 @@ static int watchitem_find (const char *name)
 
 static int madwifi_real_init (void)
 {
-	int max = STATIC_ARRAY_SIZE (specs);
-	int i;
+	size_t max = STATIC_ARRAY_SIZE (specs);
+	size_t i;
 
 	for (i = 0; i < STATIC_ARRAY_SIZE (bounds); i++)
 		bounds[i] = 0;
@@ -618,7 +617,7 @@ process_stat_struct (int which, const void *ptr, const char *dev, const char *ma
 	int i;
 
 	assert (which >= 1);
-	assert (which < STATIC_ARRAY_SIZE (bounds));
+	assert (((size_t) which) < STATIC_ARRAY_SIZE (bounds));
 
 	for (i = bounds[which - 1]; i < bounds[which]; i++)
 	{
@@ -630,7 +629,7 @@ process_stat_struct (int which, const void *ptr, const char *dev, const char *ma
 		if (item_summed (i))
 			misc += val;
 	}
-	
+
 	if (misc != 0)
 		submit_derive (dev, type_name, misc_name, mac, misc);
 
@@ -754,7 +753,8 @@ process_stations (int sk, const char *dev)
 	uint8_t buf[24*1024];
 	struct iwreq iwr;
 	uint8_t *cp;
-	int len, nodes;
+	int nodes;
+	size_t len;
 	int status;
 
 	memset (&iwr, 0, sizeof (iwr));
@@ -891,7 +891,7 @@ procfs_iterate(int sk)
 	int status;
 	int num_success;
 	int num_fail;
-	
+
 	if ((fh = fopen ("/proc/net/dev", "r")) == NULL)
 	{
 		WARNING ("madwifi plugin: opening /proc/net/dev failed");
@@ -953,7 +953,7 @@ static int madwifi_read (void)
 
 /* procfs iteration is not safe because it does not check whether given
    interface is madwifi interface and there are private ioctls used, which
-   may do something completely different on non-madwifi devices.   
+   may do something completely different on non-madwifi devices.
    Therefore, it is not used unless explicitly enabled (and should be used
    together with ignorelist). */
 

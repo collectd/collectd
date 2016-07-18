@@ -26,7 +26,8 @@
 
 #include "utils_cache.h"
 
-gauge_t *uc_get_rate (const data_set_t *ds, const value_list_t *vl)
+gauge_t *uc_get_rate (__attribute((unused)) data_set_t const *ds,
+                      __attribute((unused)) value_list_t const *vl)
 {
   return (NULL);
 }

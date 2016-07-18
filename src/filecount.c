@@ -23,7 +23,7 @@
 
 #include "collectd.h"
 #include "common.h"
-#include "plugin.h"       
+#include "plugin.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -344,13 +344,12 @@ static int fc_config_add_dir (oconfig_item_t *ci)
   }
 
   /* Initialize `dir' */
-  dir = (fc_directory_conf_t *) malloc (sizeof (*dir));
+  dir = calloc (1, sizeof (*dir));
   if (dir == NULL)
   {
-    ERROR ("filecount plugin: malloc failed.");
+    ERROR ("filecount plugin: calloc failed.");
     return (-1);
   }
-  memset (dir, 0, sizeof (*dir));
 
   dir->path = strdup (ci->values[0].value.string);
   if (dir->path == NULL)
@@ -400,7 +399,7 @@ static int fc_config_add_dir (oconfig_item_t *ci)
   {
     fc_directory_conf_t **temp;
 
-    temp = (fc_directory_conf_t **) realloc (directories,
+    temp = realloc (directories,
         sizeof (*directories) * (directories_num + 1));
     if (temp == NULL)
     {
@@ -542,7 +541,7 @@ static int fc_read_dir (fc_directory_conf_t *dir)
 
   if (dir->mtime != 0)
     dir->now = time (NULL);
-    
+
   status = walk_directory (dir->path, fc_read_dir_callback, dir,
       /* include hidden */ (dir->options & FC_HIDDEN) ? 1 : 0);
   if (status != 0)

@@ -80,7 +80,7 @@ enum mb_register_type_e /* {{{ */
   REG_TYPE_UINT32,
   REG_TYPE_FLOAT
 }; /* }}} */
-enum mb_mreg_type_e /* {{{ */ 
+enum mb_mreg_type_e /* {{{ */
 {
   MREG_HOLDING,
   MREG_INPUT
@@ -444,7 +444,7 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
 
   if (ds->ds_num != 1)
   {
-    ERROR ("Modbus plugin: The type \"%s\" has %i data sources. "
+    ERROR ("Modbus plugin: The type \"%s\" has %zu data sources. "
         "I can only handle data sets with only one data source.",
         data->type, ds->ds_num);
     return (-1);
@@ -503,7 +503,7 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
     modbus_free (host->connection);
 #endif
   }
- 
+
 #if LEGACY_LIBMODBUS
   /* Version 2.0.3: Pass the connection struct as a pointer and pass the slave
    * id to each call of "read_holding_registers". */
@@ -938,10 +938,9 @@ static int mb_config_add_host (oconfig_item_t *ci) /* {{{ */
   int status;
   int i;
 
-  host = malloc (sizeof (*host));
+  host = calloc (1, sizeof (*host));
   if (host == NULL)
     return (ENOMEM);
-  memset (host, 0, sizeof (*host));
   host->slaves = NULL;
 
   status = cf_util_get_string_buffer (ci, host->host, sizeof (host->host));
@@ -1024,18 +1023,15 @@ static int mb_config_add_host (oconfig_item_t *ci) /* {{{ */
   {
     user_data_t ud;
     char name[1024];
-    struct timespec interval = { 0, 0 };
 
     ud.data = host;
     ud.free_func = host_free;
 
     ssnprintf (name, sizeof (name), "modbus-%s", host->host);
 
-    CDTIME_T_TO_TIMESPEC (host->interval, &interval);
-
     plugin_register_complex_read (/* group = */ NULL, name,
         /* callback = */ mb_read,
-        /* interval = */ (host->interval > 0) ? &interval : NULL,
+        /* interval = */ host->interval,
         &ud);
   }
   else

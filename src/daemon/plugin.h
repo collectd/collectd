@@ -1,5 +1,5 @@
 /**
- * collectd - src/plugin.h
+ * collectd - src/daemon/plugin.h
  * Copyright (C) 2005-2014  Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -33,13 +33,13 @@
 #include "meta_data.h"
 #include "utils_time.h"
 
-#if HAVE_PTHREAD_H
-# include <pthread.h>
-#endif
+#include <pthread.h>
 
 #define PLUGIN_FLAGS_GLOBAL 0x0001
 
-#define DATA_MAX_NAME_LEN 64
+#ifndef DATA_MAX_NAME_LEN
+# define DATA_MAX_NAME_LEN 64
+#endif
 
 #define DS_TYPE_COUNTER  0
 #define DS_TYPE_GAUGE    1
@@ -97,7 +97,7 @@ typedef union value_u value_t;
 struct value_list_s
 {
 	value_t *values;
-	int      values_len;
+	size_t   values_len;
 	cdtime_t time;
 	cdtime_t interval;
 	char     host[DATA_MAX_NAME_LEN];
@@ -125,7 +125,7 @@ typedef struct data_source_s data_source_t;
 struct data_set_s
 {
 	char           type[DATA_MAX_NAME_LEN];
-	int            ds_num;
+	size_t         ds_num;
 	data_source_t *ds;
 };
 typedef struct data_set_s data_set_t;
@@ -177,6 +177,8 @@ typedef struct user_data_s user_data_t;
 struct plugin_ctx_s
 {
 	cdtime_t interval;
+	cdtime_t flush_interval;
+	cdtime_t flush_timeout;
 };
 typedef struct plugin_ctx_s plugin_ctx_t;
 
@@ -238,10 +240,10 @@ void plugin_set_dir (const char *dir);
  */
 int plugin_load (const char *name, uint32_t flags);
 
-void plugin_init_all (void);
+int plugin_init_all (void);
 void plugin_read_all (void);
 int plugin_read_all_once (void);
-void plugin_shutdown_all (void);
+int plugin_shutdown_all (void);
 
 /*
  * NAME
@@ -293,7 +295,7 @@ int plugin_register_read (const char *name,
  * "plugin_register_complex_read" returns an error (non-zero). */
 int plugin_register_complex_read (const char *group, const char *name,
 		plugin_read_cb callback,
-		const struct timespec *interval,
+		cdtime_t interval,
 		user_data_t *user_data);
 int plugin_register_write (const char *name,
 		plugin_write_cb callback, user_data_t *user_data);

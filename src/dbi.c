@@ -64,6 +64,8 @@ struct cdbi_database_s /* {{{ */
   char *name;
   char *select_db;
 
+  cdtime_t interval;
+
   char *driver;
   char *host;
   cdbi_driver_option_t *driver_options;
@@ -146,7 +148,7 @@ static int cdbi_result_get_field (dbi_result res, /* {{{ */
   else if (src_type == DBI_TYPE_STRING)
   {
     const char *value;
-    
+
     value = dbi_result_get_string_idx (res, index);
     if (value == NULL)
       sstrncpy (buffer, "", buffer_size);
@@ -212,9 +214,10 @@ static void cdbi_database_free (cdbi_database_t *db) /* {{{ */
  *     </Result>
  *     ...
  *   </Query>
- *     
+ *
  *   <Database "plugin_instance1">
  *     Driver "mysql"
+ *     Interval 120
  *     DriverOption "hostname" "localhost"
  *     ...
  *     Query "plugin_instance0"
@@ -237,7 +240,7 @@ static int cdbi_config_add_database_driver_option (cdbi_database_t *db, /* {{{ *
     return (-1);
   }
 
-  option = (cdbi_driver_option_t *) realloc (db->driver_options,
+  option = realloc (db->driver_options,
       sizeof (*option) * (db->driver_options_num + 1));
   if (option == NULL)
   {
@@ -291,13 +294,12 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  db = (cdbi_database_t *) malloc (sizeof (*db));
+  db = calloc (1, sizeof (*db));
   if (db == NULL)
   {
-    ERROR ("dbi plugin: malloc failed.");
+    ERROR ("dbi plugin: calloc failed.");
     return (-1);
   }
-  memset (db, 0, sizeof (*db));
 
   status = cf_util_get_string (ci, &db->name);
   if (status != 0)
@@ -322,6 +324,8 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
           &db->queries, &db->queries_num);
     else if (strcasecmp ("Host", child->key) == 0)
       status = cf_util_get_string (child, &db->host);
+    else if (strcasecmp ("Interval", child->key) == 0)
+      status = cf_util_get_cdtime(child, &db->interval);
     else
     {
       WARNING ("dbi plugin: Option `%s' not allowed here.", child->key);
@@ -351,22 +355,22 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
 
   while ((status == 0) && (db->queries_num > 0))
   {
-    db->q_prep_areas = (udb_query_preparation_area_t **) calloc (
-        db->queries_num, sizeof (*db->q_prep_areas));
+    size_t j;
 
+    db->q_prep_areas = calloc (db->queries_num, sizeof (*db->q_prep_areas));
     if (db->q_prep_areas == NULL)
     {
-      WARNING ("dbi plugin: malloc failed");
+      WARNING ("dbi plugin: calloc failed");
       status = -1;
       break;
     }
 
-    for (i = 0; i < db->queries_num; ++i)
+    for (j = 0; j < db->queries_num; ++j)
     {
-      db->q_prep_areas[i]
-        = udb_query_allocate_preparation_area (db->queries[i]);
+      db->q_prep_areas[j]
+        = udb_query_allocate_preparation_area (db->queries[j]);
 
-      if (db->q_prep_areas[i] == NULL)
+      if (db->q_prep_areas[j] == NULL)
       {
         WARNING ("dbi plugin: udb_query_allocate_preparation_area failed");
         status = -1;
@@ -382,7 +386,7 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
   {
     cdbi_database_t **temp;
 
-    temp = (cdbi_database_t **) realloc (databases,
+    temp = realloc (databases,
         sizeof (*databases) * (databases_num + 1));
     if (temp == NULL)
     {
@@ -406,7 +410,7 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
       plugin_register_complex_read (/* group = */ NULL,
           /* name = */ name ? name : db->name,
           /* callback = */ cdbi_read_database,
-          /* interval = */ NULL,
+          /* interval = */ (db->interval > 0) ? db->interval : 0,
           /* user_data = */ &ud);
       free (name);
     }
@@ -506,7 +510,6 @@ static int cdbi_read_database_query (cdbi_database_t *db, /* {{{ */
 
   column_names = NULL;
   column_values = NULL;
-  res = NULL;
 
   statement = udb_query_get_statement (q);
   assert (statement != NULL);
@@ -542,35 +545,33 @@ static int cdbi_read_database_query (cdbi_database_t *db, /* {{{ */
   }
 
   /* Allocate `column_names' and `column_values'. {{{ */
-  column_names = (char **) calloc (column_num, sizeof (char *));
+  column_names = calloc (column_num, sizeof (*column_names));
   if (column_names == NULL)
   {
-    ERROR ("dbi plugin: malloc failed.");
+    ERROR ("dbi plugin: calloc failed.");
     BAIL_OUT (-1);
   }
 
-  column_names[0] = (char *) calloc (column_num,
-      DATA_MAX_NAME_LEN * sizeof (char));
+  column_names[0] = calloc (column_num, DATA_MAX_NAME_LEN);
   if (column_names[0] == NULL)
   {
-    ERROR ("dbi plugin: malloc failed.");
+    ERROR ("dbi plugin: calloc failed.");
     BAIL_OUT (-1);
   }
   for (i = 1; i < column_num; i++)
     column_names[i] = column_names[i - 1] + DATA_MAX_NAME_LEN;
 
-  column_values = (char **) calloc (column_num, sizeof (char *));
+  column_values = calloc (column_num, sizeof (*column_values));
   if (column_values == NULL)
   {
-    ERROR ("dbi plugin: malloc failed.");
+    ERROR ("dbi plugin: calloc failed.");
     BAIL_OUT (-1);
   }
 
-  column_values[0] = (char *) calloc (column_num,
-      DATA_MAX_NAME_LEN * sizeof (char));
+  column_values[0] = calloc (column_num, DATA_MAX_NAME_LEN);
   if (column_values[0] == NULL)
   {
-    ERROR ("dbi plugin: malloc failed.");
+    ERROR ("dbi plugin: calloc failed.");
     BAIL_OUT (-1);
   }
   for (i = 1; i < column_num; i++)
@@ -596,7 +597,7 @@ static int cdbi_read_database_query (cdbi_database_t *db, /* {{{ */
 
   udb_query_prepare_result (q, prep_area, (db->host ? db->host : hostname_g),
       /* plugin = */ "dbi", db->name,
-      column_names, column_num, /* interval = */ 0);
+      column_names, column_num, /* interval = */ (db->interval > 0) ? db->interval : 0);
 
   /* 0 = error; 1 = success; */
   status = dbi_result_first_row (res); /* {{{ */

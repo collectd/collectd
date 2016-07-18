@@ -3,10 +3,10 @@
  * Copyright (C) 2006       Florian octo Forster
  * Copyright (C) 2002       The Measurement Factory, Inc.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright notice,
@@ -48,8 +48,6 @@
 #define DNS_MSG_HDR_SZ 12
 
 #define T_MAX 65536
-#define OP_MAX 16
-#define C_MAX 65536
 #define MAX_QNAME_SZ 512
 
 struct rfc1035_header_s {
@@ -74,10 +72,6 @@ struct rfc1035_header_s {
     uint16_t length;
 };
 typedef struct rfc1035_header_s rfc1035_header_t;
-
-extern int qtype_counts[T_MAX];
-extern int opcode_counts[OP_MAX];
-extern int qclass_counts[C_MAX];
 
 #if HAVE_PCAP_H
 void dnstop_set_pcap_obj (pcap_t *po);

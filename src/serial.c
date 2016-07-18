@@ -54,13 +54,6 @@ static int serial_read (void)
 	FILE *fh;
 	char buffer[1024];
 
-	derive_t rx = 0;
-	derive_t tx = 0;
-	
-	char *fields[16];
-	int i, numfields;
-	int len;
-
 	/* there are a variety of names for the serial device */
 	if ((fh = fopen ("/proc/tty/driver/serial", "r")) == NULL &&
 		(fh = fopen ("/proc/tty/driver/ttyS", "r")) == NULL)
@@ -73,10 +66,16 @@ static int serial_read (void)
 
 	while (fgets (buffer, sizeof (buffer), fh) != NULL)
 	{
-		int have_rx = 0, have_tx = 0;
+		derive_t rx = 0;
+		derive_t tx = 0;
+		_Bool have_rx = 0, have_tx = 0;
+		size_t len;
 
-		numfields = strsplit (buffer, fields, 16);
+		char *fields[16];
+		int numfields;
+		int i;
 
+		numfields = strsplit (buffer, fields, STATIC_ARRAY_SIZE (fields));
 		if (numfields < 6)
 			continue;
 
@@ -84,12 +83,12 @@ static int serial_read (void)
 		 * 0: uart:16550A port:000003F8 irq:4 tx:0 rx:0
 		 * 1: uart:16550A port:000002F8 irq:3 tx:0 rx:0
 		 */
-		len = strlen (fields[0]) - 1;
-		if (len < 1)
+		len = strlen (fields[0]);
+		if (len < 2)
 			continue;
-		if (fields[0][len] != ':')
+		if (fields[0][len - 1] != ':')
 			continue;
-		fields[0][len] = '\0';
+		fields[0][len - 1] = 0;
 
 		for (i = 1; i < numfields; i++)
 		{
@@ -99,20 +98,18 @@ static int serial_read (void)
 
 			if (strncmp (fields[i], "tx:", 3) == 0)
 			{
-				tx = atoll (fields[i] + 3);
-				have_tx++;
+				if (strtoderive (fields[i] + 3, &tx) == 0)
+					have_tx = 1;
 			}
 			else if (strncmp (fields[i], "rx:", 3) == 0)
 			{
-				rx = atoll (fields[i] + 3);
-				have_rx++;
+				if (strtoderive (fields[i] + 3, &rx) == 0)
+					have_rx = 1;
 			}
 		}
 
-		if ((have_rx == 0) || (have_tx == 0))
-			continue;
-
-		serial_submit (fields[0], rx, tx);
+		if (have_rx && have_tx)
+			serial_submit (fields[0], rx, tx);
 	}
 
 	fclose (fh);

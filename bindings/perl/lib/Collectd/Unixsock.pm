@@ -137,13 +137,13 @@ sub _parse_identifier
 
 sub _escape_argument
 {
-	local $_ = shift;
+    my $arg = shift;
 
-	return $_ if /^\w+$/;
+	return $arg if $arg =~ /^\w+$/;
 
-	s#\\#\\\\#g;
-	s#"#\\"#g;
-	return "\"$_\"";
+	$arg =~ s#\\#\\\\#g;
+	$arg =~ s#"#\\"#g;
+	return "\"$arg\"";
 }
 
 # Send a command on a socket, including any required argument escaping.
@@ -193,6 +193,32 @@ sub _socket_chat
 	return $cbdata;
 }
 
+# Send a raw message on a socket.
+# Returns true upon success and false otherwise.
+sub _send_message
+{
+	my ($self, $msg) = @_;
+	
+	my $fh = $self->{'sock'} or confess ('object has no filehandle');
+	
+	$msg .= "\n" unless $msg =~/\n$/;
+	
+	#1024 is default buffer size at unixsock.c us_handle_client()
+	warn "Collectd::Unixsock->_send_message(\$msg): message is too long!" if length($msg) > 1024;
+	
+	_debug "-> $msg";
+	$fh->print($msg);
+
+	$msg = <$fh>;
+	chomp ($msg);
+	_debug "<- $msg\n";
+
+	my ($status, $error) = split / /, $msg, 2;
+	return 1 if $status == 0;
+
+	$self->{error} = $error;
+	return;
+}
 
 =head1 PUBLIC METHODS
 
@@ -330,18 +356,8 @@ sub putval
 	. _escape_argument ($identifier)
 	. $interval
 	. ' ' . _escape_argument ($values) . "\n";
-	_debug "-> $msg";
-	$fh->print($msg);
 
-	$msg = <$fh>;
-	chomp $msg;
-	_debug "<- $msg\n";
-
-	($status, $msg) = split / /, $msg, 2;
-	return 1 if $status == 0;
-
-	$self->{error} = $msg;
-	return;
+	return $self->_send_message($msg);
 } # putval
 
 =item I<$res> = I<$self>-E<gt>B<listval_filter> ( C<%identifier> )
@@ -500,18 +516,7 @@ sub putnotif
 	. join (' ', map { $_ . '=' . _escape_argument ($args{$_}) } keys %args)
 	. "\n";
 
-	_debug "-> $msg";
-	$fh->print($msg);
-
-	$msg = <$fh>;
-	chomp $msg;
-	_debug "<- $msg\n";
-
-	($status, $msg) = split / /, $msg, 2;
-	return 1 if $status == 0;
-
-	$self->{error} = $msg;
-	return;
+	return $self->_send_message($msg);
 } # putnotif
 
 =item I<$self>-E<gt>B<flush> (B<timeout> =E<gt> I<$timeout>, B<plugins> =E<gt> [...], B<identifier>  =E<gt> [...]);
@@ -549,7 +554,6 @@ sub flush
 
 	my $fh = $self->{sock} or confess;
 
-	my $status = 0;
 	my $msg    = "FLUSH";
 
     $msg .= " timeout=$args{timeout}" if defined $args{timeout};
@@ -564,6 +568,7 @@ sub flush
 
 	if ($args{identifier})
 	{
+		my $pre = $msg;
 		for my $identifier (@{$args{identifier}})
 		{
 			my $ident_str;
@@ -576,24 +581,18 @@ sub flush
 			}
 
 			$ident_str = _create_identifier ($identifier) or return;
-			$msg .= ' identifier=' . _escape_argument ($ident_str);
+			$ident_str = ' identifier=' . _escape_argument ($ident_str);
+
+			if (length($msg)+length($ident_str) >= 1023) { #1024 - 1 byte for \n
+				$self->_send_message($msg) or return;
+				$msg = $pre;
+			}
+            
+			$msg .= $ident_str;
 		}
 	}
-
-	$msg .= "\n";
-
-	_debug "-> $msg";
-	$fh->print($msg);
-
-	$msg = <$fh>;
-	chomp ($msg);
-	_debug "<- $msg\n";
-
-	($status, $msg) = split / /, $msg, 2;
-	return 1 if $status == 0;
-
-	$self->{error} = $msg;
-	return;
+    
+	return $self->_send_message($msg);
 }
 
 sub error

@@ -82,6 +82,10 @@ static derive_t pagesize;
 static _Bool report_by_device = 0;
 /* #endif HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS */
 
+#elif HAVE_SWAPCTL && HAVE_SWAPCTL_THREE_ARGS
+/* No global variables */
+/* #endif HAVE_SWAPCTL && HAVE_SWAPCTL_THREE_ARGS */
+
 #elif defined(VM_SWAPUSAGE)
 /* No global variables */
 /* #endif defined(VM_SWAPUSAGE) */

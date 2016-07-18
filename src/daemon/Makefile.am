@@ -1,7 +1,3 @@
-if COMPILER_IS_GCC
-AM_CFLAGS = -Wall -Werror
-endif
-
 AM_CPPFLAGS = -I$(top_srcdir)/src
 AM_CPPFLAGS += -DPREFIX='"${prefix}"'
 AM_CPPFLAGS += -DCONFIGFILE='"${sysconfdir}/${PACKAGE_NAME}.conf"'
@@ -14,7 +10,7 @@ AM_CPPFLAGS += -DPLUGINDIR='"${pkglibdir}"'
 AM_CPPFLAGS += -DPKGDATADIR='"${pkgdatadir}"'
 
 # Link to these libraries..
-COMMON_LIBS =
+COMMON_LIBS = $(PTHREAD_LIBS)
 if BUILD_WITH_LIBRT
 COMMON_LIBS += -lrt
 endif
@@ -27,9 +23,6 @@ endif
 if BUILD_WITH_LIBRESOLV
 COMMON_LIBS += -lresolv
 endif
-if BUILD_WITH_LIBPTHREAD
-COMMON_LIBS += -lpthread
-endif
 if BUILD_WITH_LIBKSTAT
 COMMON_LIBS += -lkstat
 endif
@@ -37,11 +30,9 @@ if BUILD_WITH_LIBDEVINFO
 COMMON_LIBS += -ldevinfo
 endif
 
-AUTOMAKE_OPTIONS = subdir-objects
-
 sbin_PROGRAMS = collectd
 
-noinst_LTLIBRARIES = libavltree.la libcommon.la libheap.la libplugin_mock.la
+noinst_LTLIBRARIES = libavltree.la libcommon.la libheap.la libmetadata.la libplugin_mock.la
 
 libavltree_la_SOURCES = utils_avltree.c utils_avltree.h
 
@@ -50,8 +41,12 @@ libcommon_la_LIBADD = $(COMMON_LIBS)
 
 libheap_la_SOURCES = utils_heap.c utils_heap.h
 
-libplugin_mock_la_SOURCES = plugin_mock.c utils_cache_mock.c utils_time_mock.c
-libplugin_mock_la_LIBADD = $(COMMON_LIBS)
+libmetadata_la_SOURCES = meta_data.c meta_data.h
+
+libplugin_mock_la_SOURCES = plugin_mock.c utils_cache_mock.c \
+			    utils_time.c utils_time.h
+libplugin_mock_la_CPPFLAGS = $(AM_CPPFLAGS) -DMOCK_TIME
+libplugin_mock_la_LIBADD = $(COMMON_LIBS) libcommon.la
 
 collectd_SOURCES = collectd.c collectd.h \
 		   configfile.c configfile.h \
@@ -76,7 +71,7 @@ collectd_CPPFLAGS =  $(AM_CPPFLAGS) $(LTDLINCL)
 collectd_CFLAGS = $(AM_CFLAGS)
 collectd_LDFLAGS = -export-dynamic
 collectd_LDADD = libavltree.la libcommon.la libheap.la -lm $(COMMON_LIBS)
-collectd_DEPENDENCIES = libavltree.la libcommon.la libheap.la
+collectd_DEPENDENCIES = libavltree.la libcommon.la libheap.la libmetadata.la
 
 # The daemon needs to call sg_init, so we need to link it against libstatgrab,
 # too. -octo
@@ -92,14 +87,25 @@ else
 collectd_LDADD += -loconfig
 endif
 
-check_PROGRAMS = test_common test_utils_avltree test_utils_heap
-TESTS = test_common test_utils_avltree test_utils_heap
+LOG_COMPILER = env VALGRIND="@VALGRIND@" $(abs_top_srcdir)/testwrapper.sh
+
+check_PROGRAMS = test_common test_meta_data test_utils_avltree test_utils_heap test_utils_time test_utils_subst
+TESTS          = test_common test_meta_data test_utils_avltree test_utils_heap test_utils_time test_utils_subst
 
 test_common_SOURCES = common_test.c ../testing.h
-test_common_LDADD = libcommon.la libplugin_mock.la $(COMMON_LIBS)
+test_common_LDADD = libplugin_mock.la
+
+test_meta_data_SOURCES = meta_data_test.c ../testing.h
+test_meta_data_LDADD = libmetadata.la libplugin_mock.la
 
 test_utils_avltree_SOURCES = utils_avltree_test.c ../testing.h
 test_utils_avltree_LDADD = libavltree.la $(COMMON_LIBS)
 
 test_utils_heap_SOURCES = utils_heap_test.c ../testing.h
 test_utils_heap_LDADD = libheap.la $(COMMON_LIBS)
+
+test_utils_time_SOURCES = utils_time_test.c ../testing.h
+
+test_utils_subst_SOURCES = utils_subst_test.c ../testing.h \
+			   utils_subst.c utils_subst.h
+test_utils_subst_LDADD = libplugin_mock.la

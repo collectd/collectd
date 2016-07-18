@@ -89,22 +89,11 @@ static int ts_invoke_counter (const data_set_t *ds, value_list_t *vl, /* {{{ */
 
 	if (failure == 0)
 	{
-		uint64_t difference;
+		uint64_t diff;
 		double rate;
 
-		/* Calcualte the rate */
-		if (prev_counter > curr_counter) /* => counter overflow */
-		{
-			if (prev_counter <= 4294967295UL) /* 32 bit overflow */
-				difference = (4294967295UL - prev_counter) + curr_counter;
-			else /* 64 bit overflow */
-				difference = (18446744073709551615ULL - prev_counter) + curr_counter;
-		}
-		else /* no overflow */
-		{
-			difference = curr_counter - prev_counter;
-		}
-		rate = ((double) difference) / CDTIME_T_TO_DOUBLE (vl->interval);
+		diff = (uint64_t) counter_diff (prev_counter, curr_counter);
+		rate = ((double) diff) / CDTIME_T_TO_DOUBLE (vl->interval);
 
 		/* Modify the rate. */
 		if (!isnan (data->factor))
@@ -114,9 +103,9 @@ static int ts_invoke_counter (const data_set_t *ds, value_list_t *vl, /* {{{ */
 
 		/* Calculate the internal counter. */
 		int_fraction += (rate * CDTIME_T_TO_DOUBLE (vl->interval));
-		difference = (uint64_t) int_fraction;
-		int_fraction -= ((double) difference);
-		int_counter  += difference;
+		diff = (uint64_t) int_fraction;
+		int_fraction -= ((double) diff);
+		int_counter  += diff;
 
 		assert (int_fraction >= 0.0);
 		assert (int_fraction <  1.0);
@@ -339,7 +328,7 @@ static int ts_config_add_data_source(ts_data_t *data, /* {{{ */
 
 	/* Allocate space for the char pointers */
 	new_data_sources_num = data->data_sources_num + ((size_t) ci->values_num);
-	temp = (char **) realloc (data->data_sources,
+	temp = realloc (data->data_sources,
 			new_data_sources_num * sizeof (char *));
 	if (temp == NULL)
 	{
@@ -398,13 +387,12 @@ static int ts_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 	int status;
 	int i;
 
-	data = (ts_data_t *) malloc (sizeof (*data));
+	data = calloc (1, sizeof (*data));
 	if (data == NULL)
 	{
-		ERROR ("ts_create: malloc failed.");
+		ERROR ("ts_create: calloc failed.");
 		return (-ENOMEM);
 	}
-	memset (data, 0, sizeof (*data));
 
 	data->factor = NAN;
 	data->offset = NAN;
@@ -458,7 +446,7 @@ static int ts_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
 		notification_meta_t __attribute__((unused)) **meta, void **user_data)
 {
 	ts_data_t *data;
-	int i;
+	size_t i;
 
 	if ((ds == NULL) || (vl == NULL) || (user_data == NULL))
 		return (-EINVAL);

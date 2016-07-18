@@ -146,7 +146,7 @@ static void ml_append (char *string)
 
 	if (ml_free <= len) {
 		ml_len += len - ml_free + 1;
-		ml_buffer = (char *)realloc (ml_buffer, ml_len);
+		ml_buffer = realloc (ml_buffer, ml_len);
 		if (NULL == ml_buffer)
 			YY_FATAL_ERROR ("out of dynamic memory in ml_append");
 	}

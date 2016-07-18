@@ -52,13 +52,12 @@ static int mt_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   int status;
   int i;
 
-  m = (mt_match_t *) malloc (sizeof (*m));
+  m = calloc (1, sizeof (*m));
   if (m == NULL)
   {
-    ERROR ("mt_create: malloc failed.");
+    ERROR ("mt_create: calloc failed.");
     return (-ENOMEM);
   }
-  memset (m, 0, sizeof (*m));
 
   m->future = 0;
   m->past = 0;

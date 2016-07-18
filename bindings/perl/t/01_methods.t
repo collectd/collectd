@@ -16,7 +16,7 @@ sub test_query {
     my ($nresults, $resultdata) = @$results;
     my $r = $s->getval(%{Collectd::Unixsock::_parse_identifier($attr)});
     is(ref $r, 'HASH', "Got a result for $attr");
-    is(scalar keys $r, $nresults, "$nresults result result for $attr");
+    is(scalar keys %$r, $nresults, "$nresults result result for $attr");
     is_deeply($r, $resultdata, "Data or $attr matches");
 }
 

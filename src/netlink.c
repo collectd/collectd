@@ -30,7 +30,6 @@
 #include "common.h"
 
 #include <asm/types.h>
-#include <sys/socket.h>
 
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
@@ -110,11 +109,9 @@ static int add_ignorelist (const char *dev, const char *type,
 {
   ir_ignorelist_t *entry;
 
-  entry = (ir_ignorelist_t *) malloc (sizeof (ir_ignorelist_t));
+  entry = calloc (1, sizeof (*entry));
   if (entry == NULL)
     return (-1);
-
-  memset (entry, '\0', sizeof (ir_ignorelist_t));
 
   if (strcasecmp (dev, "All") != 0)
   {
@@ -247,7 +244,7 @@ static int update_iflist (struct ifinfomsg *msg, const char *dev)
   {
     char **temp;
 
-    temp = (char **) realloc (iflist, (msg->ifi_index + 1) * sizeof (char *));
+    temp = realloc (iflist, (msg->ifi_index + 1) * sizeof (char *));
     if (temp == NULL)
     {
       ERROR ("netlink plugin: update_iflist: realloc failed.");
@@ -471,7 +468,7 @@ static int qos_filter_cb (const struct nlmsghdr *nlh, void *args)
   const char *kind = NULL;
 
   /* char *type_instance; */
-  char *tc_type;
+  const char *tc_type;
   char tc_inst[DATA_MAX_NAME_LEN];
 
   _Bool stats_submitted = 0;
