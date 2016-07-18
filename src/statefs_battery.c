@@ -55,7 +55,7 @@ SOFTWARE.
 
 static int submitted_this_run = 0;
 
-static void battery_submit (char const *type, gauge_t value)
+static void battery_submit (const char *type, gauge_t value)
 {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
@@ -74,16 +74,16 @@ static void battery_submit (char const *type, gauge_t value)
 }
 
 
-static _Bool getvalue(char const *fname, gauge_t *value, char *buffer, size_t buffer_size)
+static _Bool getvalue(const char *fname, gauge_t *value, char *buffer, size_t buffer_size)
 {
   FILE *fh;
-  if ((fh = fopen (fname, "r")) == NULL)
+  if ((fh = fopen(fname, "r")) == NULL)
     return 0;
 
-  if ( fgets( buffer, buffer_size, fh ) == NULL )
+  if ( fgets(buffer, buffer_size, fh) == NULL )
     {
-      fclose( fh );
-      return 0; // empty file
+      fclose(fh);
+      return (0); // empty file
     }
 
   (*value) = atof( buffer );
@@ -102,31 +102,31 @@ static int battery_read (void)
   submitted_this_run = 0;
   
 
-  if ( getvalue( STATEFS_ROOT "ChargePercentage", &value, buffer, BFSZ ) )
+  if ( getvalue(STATEFS_ROOT "ChargePercentage", &value, buffer, BFSZ) )
     battery_submit( "charge", value );
   // Use capacity as a charge estimate if ChargePercentage is not available
-  else if ( getvalue( STATEFS_ROOT "Capacity", &value, buffer, BFSZ ) )
+  else if (getvalue( STATEFS_ROOT "Capacity", &value, buffer, BFSZ) )
     battery_submit( "charge", value );
 
-  if ( getvalue( STATEFS_ROOT "Current", &value, buffer, BFSZ ) )
+  if ( getvalue(STATEFS_ROOT "Current", &value, buffer, BFSZ) )
     battery_submit( "current", value * 1e-6 ); // from uA to A
 
-  if ( getvalue( STATEFS_ROOT "Energy", &value, buffer, BFSZ ) )
+  if ( getvalue(STATEFS_ROOT "Energy", &value, buffer, BFSZ) )
     battery_submit( "energy", value * 1e-6 ); // from uWh to Wh
 
-  if ( getvalue( STATEFS_ROOT "Power", &value, buffer, BFSZ ) )
+  if ( getvalue(STATEFS_ROOT "Power", &value, buffer, BFSZ) )
     battery_submit( "power_battery", value * 1e-6 ); // from uW to W
   
-  if ( getvalue( STATEFS_ROOT "Temperature", &value, buffer, BFSZ ) )
+  if ( getvalue(STATEFS_ROOT "Temperature", &value, buffer, BFSZ) )
     battery_submit( "temperature", value * 0.1 ); // from 10xC to C
   
-  if ( getvalue( STATEFS_ROOT "TimeUntilFull", &value, buffer, BFSZ ) )
+  if ( getvalue(STATEFS_ROOT "TimeUntilFull", &value, buffer, BFSZ) )
     battery_submit( "timefull", value );
 
-  if ( getvalue( STATEFS_ROOT "TimeUntilLow", &value, buffer, BFSZ ) )
+  if ( getvalue(STATEFS_ROOT "TimeUntilLow", &value, buffer, BFSZ) )
     battery_submit( "timelow", value );
   
-  if ( getvalue( STATEFS_ROOT "Voltage", &value, buffer, BFSZ ) )
+  if ( getvalue(STATEFS_ROOT "Voltage", &value, buffer, BFSZ) )
     battery_submit( "voltage", value * 1e-6 ); // from uV to V
 
   if ( submitted_this_run == 0 )
