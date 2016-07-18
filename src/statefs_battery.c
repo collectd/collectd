@@ -105,7 +105,7 @@ static int battery_read (void)
   if ( getvalue(STATEFS_ROOT "ChargePercentage", &value, buffer, BFSZ) )
     battery_submit( "charge", value );
   // Use capacity as a charge estimate if ChargePercentage is not available
-  else if (getvalue( STATEFS_ROOT "Capacity", &value, buffer, BFSZ) )
+  else if (getvalue(STATEFS_ROOT "Capacity", &value, buffer, BFSZ) )
     battery_submit( "charge", value );
 
   if ( getvalue(STATEFS_ROOT "Current", &value, buffer, BFSZ) )
