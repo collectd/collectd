@@ -94,8 +94,6 @@ static int cellular_read (void)
   char technology[BFSZ];
   gauge_t value = NAN;
 
-  //INFO("statefs_cellular: starting"); 
-  
   if ((fh = fopen (STATEFS_ROOT "Technology", "r")) == NULL)
     {
       ERROR ("statefs_cellular plugin: technology file unavailable.");
@@ -105,7 +103,6 @@ static int cellular_read (void)
   if ( fgets( technology, BFSZ, fh ) == NULL ||
        strncmp( "unknown", technology, BFSZ ) == 0 )
     {
-      //INFO("statefs_cellular: tech empy? %s", technology); 
       fclose( fh );
       return 0; // empty file or unconnected
     }
@@ -113,7 +110,6 @@ static int cellular_read (void)
   
   if ( getvalue( STATEFS_ROOT "SignalStrength", &value, buffer, BFSZ ) )
     {
-      //INFO("statefs_cellular: submitting %f", value);
       cellular_submit( "signal_strength", technology, value );
     }
   else
