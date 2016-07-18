@@ -109,6 +109,7 @@ static int cellular_read (void)
       fclose( fh );
       return 0; // empty file or unconnected
     }
+  fclose( fh );
   
   if ( getvalue( STATEFS_ROOT "SignalStrength", &value, buffer, BFSZ ) )
     {
