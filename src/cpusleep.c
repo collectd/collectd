@@ -38,7 +38,7 @@ SOFTWARE.
 #include "plugin.h"
 #include <time.h>
 
-static void cpusleep_submit (derive_t cpu_sleep)
+static void cpusleep_submit(derive_t cpu_sleep)
 {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
@@ -47,23 +47,23 @@ static void cpusleep_submit (derive_t cpu_sleep)
   
   vl.values = values;
   vl.values_len = 1;
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-  sstrncpy (vl.plugin, "cpusleep", sizeof (vl.plugin));
-  sstrncpy (vl.type, "cpusleep", sizeof (vl.type));
+  sstrncpy(vl.host, hostname_g, sizeof (vl.host));
+  sstrncpy(vl.plugin, "cpusleep", sizeof (vl.plugin));
+  sstrncpy(vl.type, "cpusleep", sizeof (vl.type));
   
-  plugin_dispatch_values (&vl);
+  plugin_dispatch_values(&vl);
 }
 
-static int cpusleep_read (void)
+static int cpusleep_read(void)
 {
   struct timespec b, m;
-  if ( clock_gettime(CLOCK_BOOTTIME, &b ) < 0 )
+  if ( clock_gettime(CLOCK_BOOTTIME, &b) < 0 )
     {
       ERROR("cpusleep plugin: clock_boottime failed");
       return (-1);
     }
 
-  if ( clock_gettime(CLOCK_MONOTONIC, &m ) < 0 )
+  if ( clock_gettime(CLOCK_MONOTONIC, &m) < 0 )
     {
       ERROR("cpusleep plugin: clock_monotonic failed");
       return (-1);
@@ -76,12 +76,23 @@ static int cpusleep_read (void)
   // derive is used
   derive_t sleep = (derive_t) ((db-dm) * 1000);  
 
-  cpusleep_submit (sleep);
+  cpusleep_submit(sleep);
 
-  return 0;
+  return (0);
 }
 
-void module_register (void)
+void module_register(void)
 {
-  plugin_register_read ("cpusleep", cpusleep_read);
+  plugin_register_read("cpusleep", cpusleep_read);
 } /* void module_register */
+
+
+/*
+ * Local variables:
+ *  c-file-style: "gnu"
+ *  indent-tabs-mode: nil
+ *  c-indent-level: 4
+ *  c-basic-offset: 2
+ *  tab-width: 4
+ * End:
+ */
