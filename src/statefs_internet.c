@@ -48,7 +48,7 @@ SOFTWARE.
 #define STATEFS_ROOT "/run/state/namespaces/Internet/"
 #define BFSZ 512
 
-static void internet_submit (char const *type, char const *type_instance, gauge_t value)
+static void internet_submit (const char *type, const char *type_instance, gauge_t value)
 {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
@@ -66,23 +66,23 @@ static void internet_submit (char const *type, char const *type_instance, gauge_
 }
 
 
-static _Bool getvalue(char const *fname, gauge_t *value, char *buffer, size_t buffer_size)
+static _Bool getvalue(const char *fname, gauge_t *value, char *buffer, size_t buffer_size)
 {
   FILE *fh;
   if ((fh = fopen (fname, "r")) == NULL)
-    return 0;
+    return (0);
 
-  if ( fgets( buffer, buffer_size, fh ) == NULL )
+  if ( fgets(buffer, buffer_size, fh) == NULL )
     {
-      fclose( fh );
-      return 0; // empty file
+      fclose(fh);
+      return (0); // empty file
     }
 
   (*value) = atof( buffer );
 
   fclose(fh);
 
-  return 1;
+  return (1);
 }
 
 
@@ -102,13 +102,13 @@ static int internet_read (void)
       return (-1);
     }
 
-  if ( fgets( state, BFSZ, fh ) == NULL ||
-       strncmp( "connected", state, BFSZ ) != 0 )
+  if ( fgets(state, BFSZ, fh) == NULL ||
+       strncmp("connected", state, BFSZ) != 0 )
     {
-      fclose( fh );
-      return 0; // empty file or not connected
+      fclose(fh);
+      return (0); // empty file or not connected
     }
-  fclose( fh );
+  fclose(fh);
 
   // get network type
   if ((fh = fopen (STATEFS_ROOT "NetworkType", "r")) == NULL)
@@ -117,15 +117,15 @@ static int internet_read (void)
       return (-1);
     }
 
-  if ( fgets( nettype, BFSZ, fh ) == NULL )
+  if ( fgets(nettype, BFSZ, fh) == NULL )
     {
-      fclose( fh );
-      return 0; // empty file
+      fclose(fh);
+      return (0); // empty file
     }
-  fclose( fh );
+  fclose(fh);
   
   // Submit signal strength
-  if ( getvalue( STATEFS_ROOT "SignalStrength", &value, buffer, BFSZ ) )
+  if ( getvalue(STATEFS_ROOT "SignalStrength", &value, buffer, BFSZ) )
     {
       internet_submit( "signal_strength", nettype, value );
     }
@@ -135,10 +135,21 @@ static int internet_read (void)
       return (-1);
     }
   
-  return 0;
+  return (0);
 }
 
 void module_register (void)
 {
   plugin_register_read ("statefs_internet", internet_read);
 } /* void module_register */
+
+
+/*
+ * Local variables:
+ *  c-file-style: "gnu"
+ *  indent-tabs-mode: nil
+ *  c-indent-level: 4
+ *  c-basic-offset: 2
+ *  tab-width: 4
+ * End:
+ */
