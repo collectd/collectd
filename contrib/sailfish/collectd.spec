@@ -247,6 +247,7 @@ Collectd utilities
 	   --enable-protocols \
 	   --enable-rrdtool \
 	   --enable-statefs_battery \
+	   --enable-statefs_bluetooth \
 	   --enable-statefs_cellular \
 	   --enable-statefs_internet \
 	   --enable-table \
