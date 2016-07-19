@@ -90,7 +90,7 @@ static void submit_one (const char *plug_inst, const char *type,
     sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
   }
 
-  DEBUG("submit_one pl_inst:%s, inst_type %s, type %s, val=%lu",
+  DEBUG("submit_one pl_inst:%s, inst_type %s, type %s, val=%"PRIu64"",
       plug_inst, type_instance, type, value);
 
   plugin_dispatch_values (&vl);
