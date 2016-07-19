@@ -330,6 +330,9 @@ Features
     - statefs_battery
       Battery statistics exposed via StateFS, as in Mer
 
+    - statefs_bluetooth
+      Bluetooth statistics exposed via StateFS, as in Mer
+
     - statefs_cellular
       Cellular network statistics exposed via StateFS, as in Mer
 
