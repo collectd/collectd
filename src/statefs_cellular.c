@@ -48,7 +48,7 @@ SOFTWARE.
 #define STATEFS_ROOT "/run/state/namespaces/Cellular/"
 #define BFSZ 512
 
-static void cellular_submit (char const *type, char const *type_instance, gauge_t value)
+static void cellular_submit (const char *type, const char *type_instance, gauge_t value)
 {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
@@ -66,23 +66,23 @@ static void cellular_submit (char const *type, char const *type_instance, gauge_
 }
 
 
-static _Bool getvalue(char const *fname, gauge_t *value, char *buffer, size_t buffer_size)
+static _Bool getvalue(const char *fname, gauge_t *value, char *buffer, size_t buffer_size)
 {
   FILE *fh;
   if ((fh = fopen (fname, "r")) == NULL)
-    return 0;
+    return (0);
 
-  if ( fgets( buffer, buffer_size, fh ) == NULL )
+  if ( fgets(buffer, buffer_size, fh) == NULL )
     {
-      fclose( fh );
-      return 0; // empty file
+      fclose(fh);
+      return (0); // empty file
     }
 
   (*value) = atof( buffer );
 
   fclose(fh);
 
-  return 1;
+  return (1);
 }
 
 
@@ -94,21 +94,21 @@ static int cellular_read (void)
   char technology[BFSZ];
   gauge_t value = NAN;
 
-  if ((fh = fopen (STATEFS_ROOT "Technology", "r")) == NULL)
+  if ((fh = fopen(STATEFS_ROOT "Technology", "r")) == NULL)
     {
       ERROR ("statefs_cellular plugin: technology file unavailable.");
       return (-1);
     }
 
-  if ( fgets( technology, BFSZ, fh ) == NULL ||
-       strncmp( "unknown", technology, BFSZ ) == 0 )
+  if ( fgets(technology, BFSZ, fh) == NULL ||
+       strncmp("unknown", technology, BFSZ) == 0 )
     {
-      fclose( fh );
-      return 0; // empty file or unconnected
+      fclose(fh);
+      return (0); // empty file or unconnected
     }
-  fclose( fh );
+  fclose(fh);
   
-  if ( getvalue( STATEFS_ROOT "SignalStrength", &value, buffer, BFSZ ) )
+  if ( getvalue(STATEFS_ROOT "SignalStrength", &value, buffer, BFSZ) )
     {
       cellular_submit( "signal_strength", technology, value );
     }
@@ -118,10 +118,21 @@ static int cellular_read (void)
       return (-1);
     }
   
-  return 0;
+  return (0);
 }
 
 void module_register (void)
 {
   plugin_register_read ("statefs_cellular", cellular_read);
 } /* void module_register */
+
+
+/*
+ * Local variables:
+ *  c-file-style: "gnu"
+ *  indent-tabs-mode: nil
+ *  c-indent-level: 4
+ *  c-basic-offset: 2
+ *  tab-width: 4
+ * End:
+ */
