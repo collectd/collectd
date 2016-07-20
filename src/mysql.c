@@ -904,6 +904,10 @@ static int mysql_read (user_data_t *ud)
 				counter_submit ("mysql_sort", "scan", val, db);
 
 		}
+		else if (strncmp (key, "Slow_queries", strlen ("Slow_queries")) == 0) 
+		{
+			counter_submit ("mysql_slow_queries", NULL , val, db);
+		}
 	}
 	mysql_free_result (res); res = NULL;
 

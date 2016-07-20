@@ -587,7 +587,7 @@ lv_read (void)
             continue;
         }
 
-        status =  virDomainMemoryStats (domains[i], minfo, VIR_DOMAIN_MEMORY_STAT_NR, 0);
+        status = virDomainMemoryStats (domains[i], minfo, VIR_DOMAIN_MEMORY_STAT_NR, 0);
 
         if (status < 0) {
             ERROR ("virt plugin: virDomainMemoryStats failed with status %i.",
