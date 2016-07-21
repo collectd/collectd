@@ -66,7 +66,7 @@ static int radio_init (void)
 	}
   
   INFO ("radio plugin: Found %d radio%s", num_rfkill,
-        (num_cpu == 1) ? "" : "s");
+        (num_rfkill == 1) ? "" : "s");
   
   if (num_rfkill == 0)
     plugin_unregister_read ("radio");
@@ -141,6 +141,11 @@ static void sanitize(char *buffer, size_t buffer_size)
     {
       char c = buffer[i];
       if (c == '\0') return;
+      if (c == '\n')
+        {
+          buffer[i] = '\0';
+          return;
+        }
       
       if (i == buffer_size-1)
         {
@@ -159,7 +164,7 @@ static int radio_read (void)
   char filename[BFSZ];
   char type[BFSZ];
   char name[BFSZ];
-  gauge_t value = NAN;
+  int status;
   int hard;
   int soft;
   int i;
@@ -196,7 +201,7 @@ static int radio_read (void)
           return (-1);
         }
 
-      sanitize(type, sizeof(type));
+      sanitize(name, sizeof(name));
 
       // hardware switch
       status = ssnprintf (filename, sizeof (filename),
