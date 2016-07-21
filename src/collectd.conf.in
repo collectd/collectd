@@ -170,6 +170,7 @@
 #@BUILD_PLUGIN_PROCESSES_TRUE@LoadPlugin processes
 #@BUILD_PLUGIN_PROTOCOLS_TRUE@LoadPlugin protocols
 #@BUILD_PLUGIN_PYTHON_TRUE@LoadPlugin python
+#@BUILD_PLUGIN_RADIO_TRUE@LoadPlugin radio
 #@BUILD_PLUGIN_REDIS_TRUE@LoadPlugin redis
 #@BUILD_PLUGIN_ROUTEROS_TRUE@LoadPlugin routeros
 #@BUILD_PLUGIN_RRDCACHED_TRUE@LoadPlugin rrdcached
