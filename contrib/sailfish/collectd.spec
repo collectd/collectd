@@ -245,6 +245,7 @@ Collectd utilities
 	   --enable-network \
 	   --enable-processes \
 	   --enable-protocols \
+	   --enable-radio \
 	   --enable-rrdtool \
 	   --enable-statefs_battery \
 	   --enable-statefs_bluetooth \
