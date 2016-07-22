@@ -6154,6 +6154,7 @@ if test "x$with_libcurl" = "xyes" && test "x$with_libyajl" = "xyes"
 then
 	plugin_write_gcm="yes"
         match_throttle_metadata_keys="yes"
+        plugin_stackdriver_agent="yes"
 fi
 
 if test "x$have_getutent" = "xyes"
@@ -6300,6 +6301,7 @@ AC_PLUGIN([serial],              [$plugin_serial],          [serial port traffic
 AC_PLUGIN([sigrok],              [$with_libsigrok],         [sigrok acquisition sources])
 AC_PLUGIN([smart],               [$plugin_smart],           [SMART statistics])
 AC_PLUGIN([snmp],                [$with_libnetsnmp],        [SNMP querying plugin])
+AC_PLUGIN([stackdriver_agent],   [$plugin_stackdriver_agent], [Metrics from the Stackdriver agent itself])
 AC_PLUGIN([statsd],              [yes],                     [StatsD plugin])
 AC_PLUGIN([swap],                [$plugin_swap],            [Swap usage statistics])
 AC_PLUGIN([syslog],              [$have_syslog],            [Syslog logging plugin])
@@ -6735,6 +6737,7 @@ AC_MSG_RESULT([    serial  . . . . . . . $enable_serial])
 AC_MSG_RESULT([    sigrok  . . . . . . . $enable_sigrok])
 AC_MSG_RESULT([    smart . . . . . . . . $enable_smart])
 AC_MSG_RESULT([    snmp  . . . . . . . . $enable_snmp])
+AC_MSG_RESULT([    stackdriver_agent . . $enable_stackdriver_agent])
 AC_MSG_RESULT([    statsd  . . . . . . . $enable_statsd])
 AC_MSG_RESULT([    swap  . . . . . . . . $enable_swap])
 AC_MSG_RESULT([    syslog  . . . . . . . $enable_syslog])

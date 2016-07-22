@@ -1327,6 +1327,12 @@ write_gcm_la_LIBADD += $(BUILD_WITH_LIBCURL_LIBS)
 endif
 endif
 
+if BUILD_PLUGIN_STACKDRIVER_AGENT
+pkglib_LTLIBRARIES += stackdriver_agent.la
+stackdriver_agent_la_SOURCES = stackdriver_agent.c
+stackdriver_agent_la_LDFLAGS = -module -avoid-version
+endif
+
 if BUILD_PLUGIN_WRITE_MONGODB
 pkglib_LTLIBRARIES += write_mongodb.la
 write_mongodb_la_SOURCES = write_mongodb.c

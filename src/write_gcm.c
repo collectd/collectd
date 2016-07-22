@@ -29,8 +29,10 @@
 #include "collectd.h"
 #include "common.h"
 #include "daemon/collectd.h"
+#include "daemon/utils_cache.h"
 #include "plugin.h"
 #include "configfile.h"
+#include "stackdriver-agent-keys.h"
 #include "utils_avltree.h"
 
 #include <errno.h>
@@ -468,6 +470,9 @@ static EVP_PKEY *wg_credential_contex_load_pkey(char const *filename,
 
 // Does an HTTP GET or POST, with optional HTTP headers. The type of request is
 // determined by 'body': if 'body' is NULL, does a GET, otherwise does a POST.
+// If curl_easy_init() or curl_easy_perform() fail, returns -1.
+// If they succeed but the HTTP response code is >= 400, returns -2.
+// Otherwise returns 0.
 static int wg_curl_get_or_post(char *response_buffer,
     size_t response_buffer_size, const char *url, const char *body,
     const char **headers, int num_headers);
@@ -537,6 +542,7 @@ static int wg_curl_get_or_post(char *response_buffer,
   if (response_code >= 400) {
     WARNING("write_gcm: Unsuccessful HTTP request %ld: %s",
 	    response_code, response_buffer);
+    result = -2;
     goto leave;
   }
 
@@ -2374,6 +2380,12 @@ typedef struct {
 } wg_queue_t;
 
 typedef struct {
+  size_t api_successes;
+  size_t api_connectivity_failures;
+  size_t api_errors;
+} wg_stats_t;
+
+typedef struct {
   _Bool pretty_print_json;
   FILE *json_log_file;
   monitored_resource_t *resource;
@@ -2381,6 +2393,7 @@ typedef struct {
   credential_ctx_t *cred_ctx;
   oauth2_ctx_t *oauth2_ctx;
   wg_queue_t *queue;
+  wg_stats_t *stats;
 } wg_context_t;
 
 static wg_context_t *wg_context_create(const wg_configbuilder_t *cb);
@@ -2389,16 +2402,19 @@ static void wg_context_destroy(wg_context_t *context);
 static wg_queue_t *wg_queue_create();
 static void wg_queue_destroy(wg_queue_t *queue);
 
+static wg_stats_t *wg_stats_create();
+static void wg_stats_destroy(wg_stats_t *stats);
+
 //------------------------------------------------------------------------------
 // Private implementation starts here.
 //------------------------------------------------------------------------------
 static char * find_application_default_creds_path() {
-  // first see if there is a file specified by $GOOGLE_APPLICATION_CREDENTIALS 
+  // first see if there is a file specified by $GOOGLE_APPLICATION_CREDENTIALS
   const char * env_creds_path = getenv("GOOGLE_APPLICATION_CREDENTIALS");
   if (env_creds_path != NULL && access(env_creds_path, R_OK) == 0) {
     return sstrdup(env_creds_path);
   }
-  
+
   // next check for $HOME/.config/gcloud/application_default_credentials.json
   const char * home_path = getenv("HOME");
   if (home_path != NULL) {
@@ -2525,6 +2541,13 @@ static wg_context_t *wg_context_create(const wg_configbuilder_t *cb) {
     goto leave;
   }
 
+  // Create the stats context.
+  build->stats = wg_stats_create();
+  if (build->stats == NULL) {
+    ERROR("%s: wg_stats_create failed.", this_plugin_name);
+    goto leave;
+  }
+
   build->pretty_print_json = cb->pretty_print_json;
 
   // Success!
@@ -2542,6 +2565,7 @@ static void wg_context_destroy(wg_context_t *ctx) {
     return;
   }
   DEBUG("write_gcm: Tearing down context.");
+  wg_stats_destroy(ctx->stats);
   wg_queue_destroy(ctx->queue);
   wg_oauth2_ctx_destroy(ctx->oauth2_ctx);
   wg_credential_ctx_destroy(ctx->cred_ctx);
@@ -2604,6 +2628,20 @@ static void wg_queue_destroy(wg_queue_t *queue) {
   wg_payload_destroy(queue->head);
   pthread_cond_destroy(&queue->cond);
   pthread_mutex_destroy(&queue->mutex);
+}
+
+
+static wg_stats_t *wg_stats_create() {
+  wg_stats_t *stats = calloc(1, sizeof(*stats));
+  if (stats == NULL) {
+    ERROR("%s: wg_stats_create: calloc failed.", this_plugin_name);
+    return NULL;
+  }
+  return stats;
+}
+
+static void wg_stats_destroy(wg_stats_t *stats) {
+  sfree(stats);
 }
 
 //==============================================================================
@@ -3045,6 +3083,11 @@ static void *wg_process_queue(void *arg);
 static int wait_next_queue_event(wg_queue_t *queue, cdtime_t last_flush_time,
     _Bool *want_terminate, wg_payload_t **payloads);
 
+
+// Update various stats and store them in the cache, to be picked up by the
+// stackdriver_agent plugin.
+static int wg_update_stats(const wg_stats_t *stats);
+
 // "Rebases" derivative items in the list against their stored values. If this
 // is the first time we've seen a derivative item, store it in the map and
 // remove it from the list. Otherwise (if it is not the first time we've seen
@@ -3145,6 +3188,11 @@ static void *wg_process_queue(void *arg) {
       // Just drop the payloads on the floor and make a note of it.
       wg_some_error_occured_g = 1;
       WARNING("write_gcm: wg_transmit_unique_segments failed. Flushing.");
+    }
+    if (wg_update_stats(ctx->stats) != 0) {
+      wg_some_error_occured_g = 1;
+      WARNING("%s: wg_update_stats failed.", this_plugin_name);
+      break;
     }
     payloads = NULL;
   }
@@ -3360,11 +3408,17 @@ static int wg_transmit_unique_segment(const wg_context_t *ctx,
     // An unsuccessful response is a detailed error message from Monarch.
     char response[2048];
     const char *headers[] = { auth_header, json_content_type_header };
-    if (wg_curl_get_or_post(response, sizeof(response),
-        ctx->agent_translation_service_url, json,
-        headers, STATIC_ARRAY_SIZE(headers)) != 0) {
-      wg_log_json_message(ctx, "Error contacting server.\n");
-      ERROR("write_gcm: Error talking to the endpoint.");
+    int wg_result = wg_curl_get_or_post(response, sizeof(response),
+      ctx->agent_translation_service_url, json,
+      headers, STATIC_ARRAY_SIZE(headers));
+    if (wg_result != 0) {
+      wg_log_json_message(ctx, "Error %d from wg_curl_get_or_post\n", wg_result);
+      ERROR("%s: Error %d from wg_curl_get_or_post", this_plugin_name, wg_result);
+      if (wg_result == -1) {
+        ++ctx->stats->api_connectivity_failures;
+      } else {
+        ++ctx->stats->api_errors;
+      }
       goto leave;
     }
 
@@ -3372,9 +3426,12 @@ static int wg_transmit_unique_segment(const wg_context_t *ctx,
     // Since the response is expected to be valid JSON, we don't
     // look at the characters beyond the closing brace.
     if (strncmp(response, "{}", 2) != 0) {
+      ERROR("%s: Expected response not empty JSON object: %s", this_plugin_name, response);
+      ++ctx->stats->api_errors;
       goto leave;
     }
 
+    ++ctx->stats->api_successes;
     sfree(json);
     json = NULL;
     list = new_list;
@@ -3548,6 +3605,30 @@ static int wait_next_queue_event(wg_queue_t *queue, cdtime_t last_flush_time,
     }
     pthread_cond_wait(&queue->cond, &queue->mutex);
   }
+}
+
+static int wg_update_stats(const wg_stats_t *stats)
+{
+  data_set_t ds = {};  // zero-fill
+  value_list_t vl = {
+      .plugin = "stackdriver_agent",
+      .time = cdtime()
+  };
+  if (uc_update(&ds, &vl) != 0)
+  {
+    ERROR("%s: uc_update returned an error", this_plugin_name);
+    return -1;
+  }
+  // The corresponding uc_meta_data_get calls are in stackdriver_agent.c.
+  int res0 = uc_meta_data_add_unsigned_int(&vl, SAGT_API_REQUESTS_SUCCESS, stats->api_successes);
+  int res1 = uc_meta_data_add_unsigned_int(&vl, SAGT_API_REQUESTS_CONNECTIVITY_FAILURES,
+    stats->api_connectivity_failures);
+  int res2 = uc_meta_data_add_unsigned_int(&vl, SAGT_API_REQUESTS_ERRORS, stats->api_errors);
+  if (res0 != 0 || res1 != 0 || res2 != 0) {
+    ERROR("%s: uc_meta_data_add returned an error", this_plugin_name);
+    return -1;
+  }
+  return 0;
 }
 
 //==============================================================================
