@@ -49,14 +49,6 @@ typedef struct zone_stats {
 	ushort_t      pctmem;
 } zone_stats_t;
 
-static long pagesize;
-
-static int zone_init (void)
-{
-	pagesize = sysconf(_SC_PAGESIZE);
-	return (0);
-}
-
 static int
 zone_compare(const zoneid_t *a, const zoneid_t *b)
 {
@@ -210,6 +202,5 @@ static int zone_read (void)
 
 void module_register (void)
 {
-	plugin_register_init ("zone", zone_init);
 	plugin_register_read ("zone", zone_read);
 } /* void module_register */
