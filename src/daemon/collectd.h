@@ -227,39 +227,39 @@ typedef int _Bool;
 #endif
 
 #ifndef PACKAGE_NAME
-#define PACKAGE_NAME "collectd"
+# define PACKAGE_NAME "collectd"
 #endif
 
 #ifndef PREFIX
-#define PREFIX "/opt/" PACKAGE_NAME
+# define PREFIX "/opt/" PACKAGE_NAME
 #endif
 
 #ifndef SYSCONFDIR
-#define SYSCONFDIR PREFIX "/etc"
+# define SYSCONFDIR PREFIX "/etc"
 #endif
 
 #ifndef CONFIGFILE
-#define CONFIGFILE SYSCONFDIR"/collectd.conf"
+# define CONFIGFILE SYSCONFDIR"/collectd.conf"
 #endif
 
 #ifndef LOCALSTATEDIR
-#define LOCALSTATEDIR PREFIX "/var"
+# define LOCALSTATEDIR PREFIX "/var"
 #endif
 
 #ifndef PKGLOCALSTATEDIR
-#define PKGLOCALSTATEDIR PREFIX "/var/lib/" PACKAGE_NAME
+# define PKGLOCALSTATEDIR PREFIX "/var/lib/" PACKAGE_NAME
 #endif
 
 #ifndef PIDFILE
-#define PIDFILE PREFIX "/var/run/" PACKAGE_NAME ".pid"
+# define PIDFILE PREFIX "/var/run/" PACKAGE_NAME ".pid"
 #endif
 
 #ifndef PLUGINDIR
-#define PLUGINDIR PREFIX "/lib/" PACKAGE_NAME
+# define PLUGINDIR PREFIX "/lib/" PACKAGE_NAME
 #endif
 
 #ifndef PKGDATADIR
-#define PKGDATADIR PREFIX "/share/" PACKAGE_NAME
+# define PKGDATADIR PREFIX "/share/" PACKAGE_NAME
 #endif
 
 #ifndef COLLECTD_GRP_NAME
@@ -270,9 +270,9 @@ typedef int _Bool;
 # define COLLECTD_DEFAULT_INTERVAL 10.0
 #endif
 
- #ifndef COLLECTD_USERAGENT
- # define COLLECTD_USERAGENT PACKAGE_NAME "/" PACKAGE_VERSION
- #endif
+#ifndef COLLECTD_USERAGENT
+# define COLLECTD_USERAGENT PACKAGE_NAME "/" PACKAGE_VERSION
+#endif
 
 /* Only enable __attribute__() for compilers known to support it. */
 #if defined(__clang__)
