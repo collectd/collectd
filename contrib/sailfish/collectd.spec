@@ -8,8 +8,8 @@
 
 Summary:	statistics collection and monitoring daemon
 Name:		collectd
-Version:	5.5.0.git.2016.07.17
-Release:	6%{?dist}
+Version:	5.5.0.git.2016.07.23
+Release:	7%{?dist}
 URL:		http://collectd.org
 Source:		http://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
