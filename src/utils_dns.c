@@ -324,7 +324,6 @@ rfc1035NameUnpack(const char *buf, size_t sz, off_t * off, char *name, size_t ns
 	     * "(The 10 and 01 combinations are reserved for future use.)"
 	     */
 	    return 3;		/* reserved label/compression flags */
-	    break;
 	} else {
 	    (*off)++;
 	    len = (size_t) c;
@@ -830,9 +829,7 @@ const char *qtype_str(int t)
 	    default:
 		    ssnprintf (buf, sizeof (buf), "#%i", t);
 		    return (buf);
-    }; /* switch (t) */
-    /* NOTREACHED */
-    return (NULL);
+    } /* switch (t) */
 }
 
 const char *opcode_str (int o)
@@ -841,24 +838,18 @@ const char *opcode_str (int o)
     switch (o) {
     case 0:
 	return "Query";
-	break;
     case 1:
 	return "Iquery";
-	break;
     case 2:
 	return "Status";
-	break;
     case 4:
 	return "Notify";
-	break;
     case 5:
 	return "Update";
-	break;
     default:
 	ssnprintf(buf, sizeof (buf), "Opcode%d", o);
 	return buf;
     }
-    /* NOTREACHED */
 }
 
 const char *rcode_str (int rcode)
@@ -902,8 +893,6 @@ const char *rcode_str (int rcode)
 			ssnprintf (buf, sizeof (buf), "RCode%i", rcode);
 			return (buf);
 	}
-	/* Never reached */
-	return (NULL);
 } /* const char *rcode_str (int rcode) */
 
 #if 0
