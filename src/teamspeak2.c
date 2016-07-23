@@ -723,7 +723,7 @@ static int tss2_config (const char *key, const char *value)
 	/*
 	 * Interpret configuration values
 	 */
-    if (strcasecmp ("Host", key) == 0)
+	if (strcasecmp ("Host", key) == 0)
 	{
 		char *temp;
 
@@ -806,7 +806,7 @@ static int tss2_read (void)
 
 	if (success == 0)
 		return (-1);
-    return (0);
+	return (0);
 } /* int tss2_read */
 
 static int tss2_shutdown(void)
