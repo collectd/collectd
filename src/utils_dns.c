@@ -291,7 +291,7 @@ rfc1035NameUnpack(const char *buf, size_t sz, off_t * off, char *name, size_t ns
     static int loop_detect = 0;
     if (loop_detect > 2)
 	return 4;		/* compression loop */
-    if (ns <= 0)
+    if (ns == 0)
 	return 4;		/* probably compression loop */
     do {
 	if ((*off) >= ((off_t) sz))
