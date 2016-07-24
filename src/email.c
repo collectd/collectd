@@ -465,7 +465,6 @@ static void *open_connection (void __attribute__((unused)) *arg)
 
 	{ /* initialize collector threads */
 		int i   = 0;
-		int err = 0;
 
 		pthread_attr_t ptattr;
 
@@ -484,10 +483,10 @@ static void *open_connection (void __attribute__((unused)) *arg)
 			collectors[i] = smalloc (sizeof (*collectors[i]));
 			collectors[i]->socket = NULL;
 
-			if (0 != (err = plugin_thread_create (&collectors[i]->thread,
-							&ptattr, collect, collectors[i]))) {
+			if (plugin_thread_create (&collectors[i]->thread,
+							&ptattr, collect, collectors[i]) != 0) {
 				char errbuf[1024];
-				log_err ("pthread_create() failed: %s",
+				log_err ("plugin_thread_create() failed: %s",
 						sstrerror (errno, errbuf, sizeof (errbuf)));
 				collectors[i]->thread = (pthread_t) 0;
 			}
@@ -571,13 +570,11 @@ static void *open_connection (void __attribute__((unused)) *arg)
 
 static int email_init (void)
 {
-	int err = 0;
-
-	if (0 != (err = plugin_thread_create (&connector, NULL,
-				open_connection, NULL))) {
+	if (plugin_thread_create (&connector, NULL,
+				open_connection, NULL) != 0) {
 		char errbuf[1024];
 		disabled = 1;
-		log_err ("pthread_create() failed: %s",
+		log_err ("plugin_thread_create() failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
