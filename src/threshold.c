@@ -30,8 +30,6 @@
 #include "utils_cache.h"
 #include "utils_threshold.h"
 
-#include <assert.h>
-
 /*
  * Threshold management
  * ====================
