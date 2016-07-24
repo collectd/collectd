@@ -968,9 +968,9 @@ static int cj_perform (cj_t *db) /* {{{ */
   }
 
 #if HAVE_YAJL_V2
-    status = yajl_complete_parse(db->yajl);
+  status = yajl_complete_parse(db->yajl);
 #else
-    status = yajl_parse_complete(db->yajl);
+  status = yajl_parse_complete(db->yajl);
 #endif
   if (status != yajl_status_ok)
   {

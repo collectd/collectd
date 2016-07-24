@@ -145,7 +145,6 @@ static int interface_config (const char *key, const char *value)
 static int interface_init (void)
 {
 	kstat_t *ksp_chain;
-	derive_t val;
 
 	numif = 0;
 
@@ -162,7 +161,7 @@ static int interface_init (void)
 			continue;
 		if (kstat_read (kc, ksp_chain, NULL) == -1)
 			continue;
-		if ((val = get_kstat_value (ksp_chain, "obytes")) == -1LL)
+		if (get_kstat_value (ksp_chain, "obytes") == -1LL)
 			continue;
 		ksp[numif++] = ksp_chain;
 	}

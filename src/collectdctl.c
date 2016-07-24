@@ -566,7 +566,6 @@ int main (int argc, char **argv) {
         break;
       case 'h':
         exit_usage (argv[0], 0);
-        break;
       default:
         exit_usage (argv[0], 1);
     }

@@ -693,7 +693,7 @@ int lcc_getval (lcc_connection_t *c, lcc_identifier_t *ident, /* {{{ */
 
   if (ret_values_names != NULL)
   {
-    values_names = (char **) calloc (values_num, sizeof (*values_names));
+    values_names = calloc (values_num, sizeof (*values_names));
     if (values_names == NULL)
       BAIL_OUT (ENOMEM);
   }
