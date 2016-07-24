@@ -714,7 +714,7 @@ static int mc_handle_metadata_msg (Ganglia_metadata_msg *msg) /* {{{ */
 
       msg_meta = msg->Ganglia_metadata_msg_u.gfull;
 
-      if (msg_meta.metric.tmax <= 0)
+      if (msg_meta.metric.tmax == 0)
         return (-1);
 
       map = metric_lookup (msg_meta.metric_id.name);
