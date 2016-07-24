@@ -1,5 +1,5 @@
 /**
- * collectd - src/utils_cache.h
+ * collectd - utils_cache.h
  * Copyright (C) 2007       Florian octo Forster
  * Copyright (C) 2016       Sebastian tokkee Harl
  *

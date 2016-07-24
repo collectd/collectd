@@ -26,7 +26,6 @@
 
 #include "collectd.h"
 #include "common.h"
-#include "utils_cache.h"
 #include "filter_chain.h"
 
 #define SATISFY_ALL 0

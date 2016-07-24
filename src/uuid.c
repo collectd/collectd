@@ -28,7 +28,7 @@
 #include "configfile.h"
 #include "plugin.h"
 
-#if HAVE_LIBHAL
+#if HAVE_LIBHAL_H
 #include <libhal.h>
 #endif
 
@@ -107,7 +107,7 @@ uuid_get_from_dmidecode(void)
     return uuid;
 }
 
-#if HAVE_LIBHAL
+#if HAVE_LIBHAL_H
 
 #define UUID_PATH "/org/freedesktop/Hal/devices/computer"
 #define UUID_PROPERTY "smbios.system.uuid"
@@ -199,7 +199,7 @@ uuid_get_local(void)
         return uuid;
     }
 
-#if HAVE_LIBHAL
+#if HAVE_LIBHAL_H
     if ((uuid = uuid_get_from_hal()) != NULL) {
         return uuid;
     }

@@ -257,7 +257,7 @@ static int mb_submit (mb_host_t *host, mb_slave_t *slave, /* {{{ */
   if ((host == NULL) || (slave == NULL) || (data == NULL))
     return (EINVAL);
 
-  if (host->interval <= 0)
+  if (host->interval == 0)
     host->interval = plugin_get_interval ();
 
   if (slave->instance[0] == 0)

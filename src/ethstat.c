@@ -119,7 +119,7 @@ static int ethstat_add_map (const oconfig_item_t *ci) /* {{{ */
 
   if (value_map == NULL)
   {
-    value_map = c_avl_create ((void *) strcmp);
+    value_map = c_avl_create ((int (*) (const void *, const void *)) strcmp);
     if (value_map == NULL)
     {
       sfree (map);

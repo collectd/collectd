@@ -28,15 +28,12 @@
 #include "plugin.h"
 #include "common.h"
 #include "configfile.h"
-#include "utils_cache.h"
 #include "utils_cmd_putval.h"
 #include "utils_format_graphite.h"
 #include "utils_format_json.h"
-#include "utils_crc32.h"
 
 #include <stdint.h>
 #include <librdkafka/rdkafka.h>
-#include <zlib.h>
 #include <errno.h>
 
 struct kafka_topic_context {

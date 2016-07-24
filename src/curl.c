@@ -341,7 +341,7 @@ static int cc_config_add_match (web_page_t *page, /* {{{ */
       match->dstype);
   if (match->match == NULL)
   {
-    ERROR ("curl plugin: tail_match_add_match_simple failed.");
+    ERROR ("curl plugin: match_create_simple failed.");
     cc_web_match_free (match);
     return (-1);
   }
