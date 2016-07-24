@@ -618,9 +618,9 @@ static int do_check (lcc_connection_t *connection)
 
 	status = RET_UNKNOWN;
 	if (consolitation_g == CON_NONE)
-		status =  do_check_con_none (values_num, values, values_names);
+		status = do_check_con_none (values_num, values, values_names);
 	else if (consolitation_g == CON_AVERAGE)
-		status =  do_check_con_average (values_num, values, values_names);
+		status = do_check_con_average (values_num, values, values_names);
 	else if (consolitation_g == CON_SUM)
 		status = do_check_con_sum (values_num, values, values_names);
 	else if (consolitation_g == CON_PERCENTAGE)

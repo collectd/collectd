@@ -28,16 +28,18 @@
  *   Gergely Nagy <algernon at madhouse-project.org>
  */
 
-#include <riemann/riemann-client.h>
-#include <errno.h>
-
 #include "collectd.h"
+
+
 #include "plugin.h"
 #include "common.h"
 #include "configfile.h"
 #include "utils_cache.h"
 #include "utils_complain.h"
 #include "write_riemann_threshold.h"
+
+#include <errno.h>
+#include <riemann/riemann-client.h>
 
 #define RIEMANN_HOST		"localhost"
 #define RIEMANN_PORT		5555

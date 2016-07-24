@@ -688,7 +688,7 @@ static int64_t rrd_get_random_variation (void)
   long min;
   long max;
 
-  if (random_timeout <= 0)
+  if (random_timeout == 0)
     return (0);
 
   /* Assure that "cache_timeout + random_variation" is never negative. */

@@ -71,7 +71,7 @@ static void mysql_database_free (void *arg) /* {{{ */
 
 	DEBUG ("mysql plugin: mysql_database_free (arg = %p);", arg);
 
-	db = (mysql_database_t *) arg;
+	db = arg;
 
 	if (db == NULL)
 		return;
@@ -903,6 +903,10 @@ static int mysql_read (user_data_t *ud)
 			else if (strcmp (key, "Sort_scan") == 0)
 				counter_submit ("mysql_sort", "scan", val, db);
 
+		}
+		else if (strncmp (key, "Slow_queries", strlen ("Slow_queries")) == 0) 
+		{
+			counter_submit ("mysql_slow_queries", NULL , val, db);
 		}
 	}
 	mysql_free_result (res); res = NULL;

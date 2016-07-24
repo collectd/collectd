@@ -105,8 +105,8 @@ typedef enum
 } eDaemonReplies;
 
 
-#if defined(__GNUC__)
-#  /* GNU gcc extension to enforce struct packing. */
+#if defined(__GNUC__) || defined (__SUNPRO_C) || defined(lint)
+#  /* extension to enforce struct packing. */
 #  define ATTRIB_PACKED __attribute__((packed))
 #else
 #  error Not defining packed attribute (unknown compiler)

@@ -164,7 +164,7 @@ curl_stats_t *curl_stats_from_config (oconfig_item_t *ci)
 	if (ci == NULL)
 		return NULL;
 
-	s = calloc (sizeof (*s), 1);
+	s = calloc (1, sizeof (*s));
 	if (s == NULL)
 		return NULL;
 
