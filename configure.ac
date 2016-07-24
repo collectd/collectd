@@ -1638,7 +1638,7 @@ PKG_CHECK_MODULES([HAL], [hal],
         ])
         CPPFLAGS="$SAVE_CPPFLAGS"
       ],
-      []
+      [ : ]
     )
     LIBS="$SAVE_LIBS"
   ],
