@@ -366,29 +366,25 @@ static int ps_list_match (const char *name, const char *cmdline, procstat_t *ps)
 	return (0);
 } /* int ps_list_match */
 
-static void ps_update_counter (
-        _Bool init,
-        derive_t *group_counter,
-        derive_t *curr_counter, unsigned long *curr_value,
-        derive_t new_counter, unsigned long new_value) {
-    if (init)
-    {
-        *curr_value = new_value;
-        *curr_counter += new_value;
-        *group_counter += new_value;
-        return;
-    }
+static void ps_update_counter (_Bool init, derive_t *group_counter,
+				derive_t *curr_counter, unsigned long *curr_value,
+				derive_t new_counter, unsigned long new_value)
+{
+	if (init)
+	{
+		*curr_value = new_value;
+		*curr_counter += new_value;
+		*group_counter += new_value;
+		return;
+	}
 
-    if (new_counter < *curr_counter)
-    {
-        *curr_value = new_counter + (ULONG_MAX - *curr_counter);
-    }
-    else
-    {
-        *curr_value = new_counter - *curr_counter;
-    }
-    *curr_counter = new_counter;
-    *group_counter += *curr_value;
+	if (new_counter < *curr_counter)
+		*curr_value = new_counter + (ULONG_MAX - *curr_counter);
+	else
+		*curr_value = new_counter - *curr_counter;
+
+	*curr_counter = new_counter;
+	*group_counter += *curr_value;
 }
 
 /* add process entry to 'instances' of process 'name' (or refresh it) */
@@ -402,7 +398,7 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 
 	for (ps = list_head_g; ps != NULL; ps = ps->next)
 	{
-        _Bool want_init;
+		_Bool want_init;
 
 		if ((ps_list_match (name, cmdline, ps)) == 0)
 			continue;
@@ -882,8 +878,8 @@ static procstat_t *ps_read_tasks_status (long pid, procstat_t *ps)
 		if (fclose (fh))
 		{
 			char errbuf[1024];
-				WARNING ("processes: fclose: %s",
-					sstrerror (errno, errbuf, sizeof (errbuf)));
+			WARNING ("processes: fclose: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
 		}
 	}
 	closedir (dh);

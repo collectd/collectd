@@ -6456,6 +6456,22 @@ collected. If at least one B<Disk> option is given and no B<IgnoreSelected> or
 set to B<false>, B<only> matching disks will be collected. If B<IgnoreSelected>
 is set to B<true>, all disks are collected B<except> the ones matched.
 
+=item B<IgnoreSleepMode> B<true>|B<false>
+
+Normally, the C<smart> plugin will ignore disks that are reported to be asleep.
+This option disables the sleep mode check and allows the plugin to collect data
+from these disks anyway. This is useful in cases where libatasmart mistakenly
+reports disks as asleep because it has not been updated to incorporate support
+for newer idle states in the ATA spec.
+
+=item B<UseSerial> B<true>|B<false>
+
+A disk's kernel name (e.g., sda) can change from one boot to the next. If this
+option is enabled, the C<smart> plugin will use the disk's serial number (e.g.,
+HGST_HUH728080ALE600_2EJ8VH8X) instead of the kernel name as the key for
+storing data. This ensures that the data for a given disk will be kept together
+even if the kernel name changes.
+
 =back
 
 =head2 Plugin C<snmp>
