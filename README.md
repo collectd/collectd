@@ -9,6 +9,9 @@ For Sailfish port related issues, file them under this branch (branch sailfish).
 * The following plugins were developed for Sailfish and other mobile devices
   * CPU sleep: showhs how much the device is in sleep
   * statefs_battery: battery charge, current, energy, power consumption, temperature, time to low/full, voltage
+  * There are several new plugins that cover aspects of cellular, WiFi, and Bluetooth radios performance: whether active, signal strength for cellular and used internet radio. For cellular, signal strength is recorded for each used wireless mobile telecommunications technology separately.
+  * radio: follows WiFi, Bluetooth, and, if supported by kernel, other radio switches (hardware and software) to determine if the radio is active. 
+  
 * In the default configuration:
    * Only active network interfaces are reported
    * Only physical disk traffic is reported
@@ -22,9 +25,15 @@ When upgrading from previous version, please note:
 * if you wish to delete some recorded data types: stop collectd; go to /home/nemo/.local/share/collectd/Jolla and delete the sets; start collectd.
 
 
-### For early adopters: 
+### Upgrade notes for users of versions 2016.07.17-6 and earlier
 
-in the early versions, all disk partitions and all network interface traffic was reported. To reduce the number of irrelevant stats, stop collectd, go to /home/nemo/.local/share/collectd/Jolla and delete irrelevant subdirectories. With the default configuration active (check if /etc/collectd.conf.rpmsave exists and if its different from the current one), you should be all set.
+In short, for default configuration users, please delete the old datasets and start with the new default configuration (will delete earlier data). For that, stop collectd and remove /home/nemo/.local/share/collectd ( in terminal: rm -rf /home/nemo/.local/share/collectd ) and start collectd again. While the data will be lost from earlier recordings, new databases will be initialized allowing you to record data for 1 year.
+
+If you modified RRD plugin section in your configuration, then please check if RRDs are actually covering the expected period.
+
+Explanation: While the default settings were used to setup databases, at least on Nexus 4 SFOS port, the datasets sections that were supposed to cover long-term statistics were initialized wrong. As a result, while space was used to cover a year of stats, the presented statistics were limited to 1 week. For users of even earlier versions, there are also logging of inactive internet interfaces and disk partitions traffic. In the later versions, only active internet interfaces and physical disk traffic are logged.
+
+With the default configuration active (check if /etc/collectd.conf.rpmsave or rpmnew exists and if its different from the current one), you should be all set.
 
 ## Development
 
