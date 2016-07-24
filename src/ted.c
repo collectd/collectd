@@ -70,7 +70,7 @@ static int ted_read_value(double *ret_power, double *ret_voltage)
 {
     unsigned char receive_buffer[300];
     unsigned char package_buffer[300];
-    char pkt_request[1] = {0xAA};
+    unsigned char pkt_request[1] = {0xAA};
     int package_buffer_pos;
 
     fd_set input;
