@@ -1107,7 +1107,7 @@ static int gmond_init (void) /* {{{ */
       (mc_receive_port != NULL) ? mc_receive_port : MC_RECEIVE_PORT_DEFAULT,
       /* listen = */ 0);
 
-  staging_tree = c_avl_create ((void *) strcmp);
+  staging_tree = c_avl_create ((int (*) (const void *, const void *)) strcmp);
   if (staging_tree == NULL)
   {
     ERROR ("gmond plugin: c_avl_create failed.");

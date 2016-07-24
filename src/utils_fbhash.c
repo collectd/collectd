@@ -91,7 +91,7 @@ static int fbh_read_file (fbhash_t *h) /* {{{ */
     return (-1);
   }
 
-  tree = c_avl_create ((void *) strcmp);
+  tree = c_avl_create ((int (*) (const void *, const void *)) strcmp);
   if (tree == NULL)
   {
     fclose (fh);

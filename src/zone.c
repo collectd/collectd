@@ -48,11 +48,11 @@ typedef struct zone_stats {
 } zone_stats_t;
 
 static int
-zone_compare(const zoneid_t *a, const zoneid_t *b)
+zone_compare(const void *a, const void *b)
 {
-	if (*a == *b)
+	if (*(const zoneid_t *)a == *(const zoneid_t *)b)
 		return(0);
-	if (*a < *b)
+	if (*(const zoneid_t *)a < *(const zoneid_t *)b)
 		return(-1);
 	return(1);
 }
@@ -152,7 +152,7 @@ zone_scandir(DIR *procdir)
 	c_avl_tree_t *tree;
 	zone_stats_t *stats;
 
-	if (!(tree=c_avl_create((void *) zone_compare))) {
+	if (!(tree=c_avl_create(zone_compare))) {
 		WARNING("zone plugin: Failed to create tree");
 		return(NULL);
 	}

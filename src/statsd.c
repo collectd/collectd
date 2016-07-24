@@ -355,7 +355,7 @@ static int statsd_handle_set (char const *name, /* {{{ */
 
   /* Make sure metric->set exists. */
   if (metric->set == NULL)
-    metric->set = c_avl_create ((void *) strcmp);
+    metric->set = c_avl_create ((int (*) (const void *, const void *)) strcmp);
 
   if (metric->set == NULL)
   {
@@ -709,7 +709,7 @@ static int statsd_init (void) /* {{{ */
 {
   pthread_mutex_lock (&metrics_lock);
   if (metrics_tree == NULL)
-    metrics_tree = c_avl_create ((void *) strcmp);
+    metrics_tree = c_avl_create ((int (*) (const void *, const void *)) strcmp);
 
   if (!network_thread_running)
   {
