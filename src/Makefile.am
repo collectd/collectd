@@ -17,6 +17,12 @@ endif
 AM_CPPFLAGS += -DPLUGINDIR='"${pkglibdir}"'
 AM_CPPFLAGS += -DPKGDATADIR='"${pkgdatadir}"'
 
+LOG_COMPILER = env VALGRIND="@VALGRIND@" $(abs_top_srcdir)/testwrapper.sh
+
+V_PROTOC = $(v_protoc_@AM_V@)
+v_protoc_ = $(v_protoc_@AM_DEFAULT_V@)
+v_protoc_0 = @echo "  PROTOC  " $@;
+
 noinst_LTLIBRARIES =
 check_PROGRAMS =
 TESTS =
@@ -53,11 +59,12 @@ sbin_PROGRAMS = collectdmon
 bin_PROGRAMS = collectd-nagios collectdctl collectd-tg
 
 collectdmon_SOURCES = collectdmon.c
-collectdmon_CPPFLAGS = $(AM_CPPFLAGS)
 
 collectd_nagios_SOURCES = collectd-nagios.c
-collectd_nagios_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/src/libcollectdclient/collectd -I$(top_builddir)/src/libcollectdclient/collectd
-collectd_nagios_LDADD =
+collectd_nagios_CPPFLAGS = $(AM_CPPFLAGS) \
+	-I$(top_srcdir)/src/libcollectdclient/collectd \
+	-I$(top_builddir)/src/libcollectdclient/collectd
+collectd_nagios_LDADD = libcollectdclient/libcollectdclient.la
 if BUILD_WITH_LIBSOCKET
 collectd_nagios_LDADD += -lsocket
 endif
@@ -65,26 +72,28 @@ if BUILD_AIX
 collectd_nagios_LDADD += -lm
 endif
 
-collectd_nagios_LDADD += libcollectdclient/libcollectdclient.la
-collectd_nagios_DEPENDENCIES = libcollectdclient/libcollectdclient.la
-
 
 collectdctl_SOURCES = collectdctl.c
-collectdctl_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/src/libcollectdclient/collectd -I$(top_builddir)/src/libcollectdclient/collectd
-collectdctl_LDADD =
+collectdctl_CPPFLAGS = $(AM_CPPFLAGS) \
+	-I$(top_srcdir)/src/libcollectdclient/collectd \
+	-I$(top_builddir)/src/libcollectdclient/collectd
+collectdctl_LDADD = libcollectdclient/libcollectdclient.la
 if BUILD_WITH_LIBSOCKET
 collectdctl_LDADD += -lsocket
 endif
 if BUILD_AIX
 collectdctl_LDADD += -lm
 endif
-collectdctl_LDADD += libcollectdclient/libcollectdclient.la
-collectdctl_DEPENDENCIES = libcollectdclient/libcollectdclient.la
+
 
 collectd_tg_SOURCES = collectd-tg.c
 collectd_tg_CPPFLAGS = $(AM_CPPFLAGS) \
-		       -I$(top_srcdir)/src/libcollectdclient/collectd -I$(top_builddir)/src/libcollectdclient/collectd
-collectd_tg_LDADD = daemon/libheap.la
+	-I$(top_srcdir)/src/libcollectdclient/collectd \
+	-I$(top_builddir)/src/libcollectdclient/collectd
+collectd_tg_LDADD = \
+	$(PTHREAD_LIBS) \
+	daemon/libheap.la \
+	libcollectdclient/libcollectdclient.la
 if BUILD_WITH_LIBSOCKET
 collectd_tg_LDADD += -lsocket
 endif
@@ -94,17 +103,30 @@ endif
 if BUILD_AIX
 collectd_tg_LDADD += -lm
 endif
-if BUILD_WITH_LIBPTHREAD
-collectd_tg_LDADD += $(PTHREAD_LIBS)
-endif
-collectd_tg_LDADD += libcollectdclient/libcollectdclient.la
-collectd_tg_DEPENDENCIES = libcollectdclient/libcollectdclient.la
 
 
 pkglib_LTLIBRARIES =
 
 BUILT_SOURCES =
 CLEANFILES =
+
+if HAVE_PROTOC3
+if HAVE_GRPC_CPP
+BUILT_SOURCES += collectd.grpc.pb.cc collectd.pb.cc types.pb.cc
+CLEANFILES += collectd.grpc.pb.cc collectd.pb.cc types.pb.cc \
+		collectd.grpc.pb.h collectd.pb.h types.pb.h
+
+collectd.grpc.pb.cc: $(top_srcdir)/proto/collectd.proto $(top_srcdir)/proto/types.proto
+	$(V_PROTOC)@PROTOC@ -I$(top_srcdir)/proto \
+		--grpc_out=$(builddir) --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN) $<
+
+collectd.pb.cc: $(top_srcdir)/proto/collectd.proto $(top_srcdir)/proto/types.proto
+	$(V_PROTOC)@PROTOC@ -I$(top_srcdir)/proto --cpp_out=$(builddir) $<
+
+types.pb.cc: $(top_srcdir)/proto/types.proto
+	$(V_PROTOC)@PROTOC@ -I$(top_srcdir)/proto --cpp_out=$(builddir) $<
+endif
+endif
 
 if BUILD_PLUGIN_AGGREGATION
 pkglib_LTLIBRARIES += aggregation.la
@@ -130,12 +152,8 @@ if BUILD_PLUGIN_APACHE
 pkglib_LTLIBRARIES += apache.la
 apache_la_SOURCES = apache.c
 apache_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-apache_la_CFLAGS = $(AM_CFLAGS)
-apache_la_LIBADD =
-if BUILD_WITH_LIBCURL
-apache_la_CFLAGS += $(BUILD_WITH_LIBCURL_CFLAGS)
-apache_la_LIBADD += $(BUILD_WITH_LIBCURL_LIBS)
-endif
+apache_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
+apache_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS)
 endif
 
 if BUILD_PLUGIN_APCUPS
@@ -151,16 +169,15 @@ endif
 if BUILD_PLUGIN_APPLE_SENSORS
 pkglib_LTLIBRARIES += apple_sensors.la
 apple_sensors_la_SOURCES = apple_sensors.c
-apple_sensors_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-apple_sensors_la_LDFLAGS += -framework IOKit
+apple_sensors_la_LDFLAGS = $(PLUGIN_LDFLAGS) -framework IOKit
 endif
 
 if BUILD_PLUGIN_AQUAERO
 pkglib_LTLIBRARIES += aquaero.la
 aquaero_la_SOURCES = aquaero.c
-aquaero_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 aquaero_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBAQUAERO5_CFLAGS)
-aquaero_la_LIBADD = $(BUILD_WITH_LIBAQUAERO5_LDFLAGS) -laquaero5
+aquaero_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBAQUAERO5_LDFLAGS)
+aquaero_la_LIBADD = -laquaero5
 endif
 
 if BUILD_PLUGIN_ASCENT
@@ -183,7 +200,6 @@ if BUILD_PLUGIN_BATTERY
 pkglib_LTLIBRARIES += battery.la
 battery_la_SOURCES = battery.c
 battery_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-battery_la_LIBADD =
 if BUILD_WITH_LIBIOKIT
 battery_la_LDFLAGS += -framework IOKit
 endif
@@ -212,6 +228,12 @@ pkglib_LTLIBRARIES += cgroups.la
 cgroups_la_SOURCES = cgroups.c
 cgroups_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 cgroups_la_LIBADD = libmount.la
+endif
+
+if BUILD_PLUGIN_CHRONY
+pkglib_LTLIBRARIES += chrony.la
+chrony_la_SOURCES = chrony.c
+chrony_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
 if BUILD_PLUGIN_CONNTRACK
@@ -271,32 +293,27 @@ endif
 
 if BUILD_PLUGIN_CURL
 pkglib_LTLIBRARIES += curl.la
-curl_la_SOURCES = curl.c
+curl_la_SOURCES = curl.c \
+		  utils_curl_stats.c utils_curl_stats.h
 curl_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-curl_la_CFLAGS = $(AM_CFLAGS)
-curl_la_LIBADD =
-if BUILD_WITH_LIBCURL
-curl_la_CFLAGS += $(BUILD_WITH_LIBCURL_CFLAGS)
-curl_la_LIBADD += $(BUILD_WITH_LIBCURL_LIBS)
-endif
+curl_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
+curl_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS)
 endif
 
 if BUILD_PLUGIN_CURL_JSON
 pkglib_LTLIBRARIES += curl_json.la
-curl_json_la_SOURCES = curl_json.c
-curl_json_la_CFLAGS = $(AM_CFLAGS)
-curl_json_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
+curl_json_la_SOURCES = curl_json.c \
+		  utils_curl_stats.c utils_curl_stats.h
+curl_json_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
 curl_json_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
-curl_json_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
-if BUILD_WITH_LIBCURL
-curl_json_la_CFLAGS += $(BUILD_WITH_LIBCURL_CFLAGS)
-curl_json_la_LIBADD += $(BUILD_WITH_LIBCURL_LIBS)
-endif
+curl_json_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
+curl_json_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS) $(BUILD_WITH_LIBYAJL_LIBS)
 endif
 
 if BUILD_PLUGIN_CURL_XML
 pkglib_LTLIBRARIES += curl_xml.la
-curl_xml_la_SOURCES = curl_xml.c
+curl_xml_la_SOURCES = curl_xml.c \
+		  utils_curl_stats.c utils_curl_stats.h
 curl_xml_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 curl_xml_la_CFLAGS = $(AM_CFLAGS) \
 		$(BUILD_WITH_LIBCURL_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
@@ -355,7 +372,7 @@ if BUILD_PLUGIN_DNS
 pkglib_LTLIBRARIES += dns.la
 dns_la_SOURCES = dns.c utils_dns.c utils_dns.h
 dns_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-dns_la_LIBADD = $(PTHREAD_LIBS) -lpcap
+dns_la_LIBADD = -lpcap
 endif
 
 if BUILD_PLUGIN_DRBD
@@ -368,7 +385,6 @@ if BUILD_PLUGIN_EMAIL
 pkglib_LTLIBRARIES += email.la
 email_la_SOURCES = email.c
 email_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-email_la_LIBADD = $(PTHREAD_LIBS)
 endif
 
 if BUILD_PLUGIN_ENTROPY
@@ -384,7 +400,6 @@ exec_la_SOURCES = exec.c \
 		  utils_cmd_putval.c utils_cmd_putval.h \
 		  utils_parse_option.h utils_parse_option.c
 exec_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-exec_la_LIBADD = $(PTHREAD_LIBS)
 endif
 
 if BUILD_PLUGIN_ETHSTAT
@@ -411,6 +426,16 @@ gmond_la_SOURCES = gmond.c
 gmond_la_CPPFLAGS = $(AM_CPPFLAGS) $(GANGLIA_CPPFLAGS)
 gmond_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(GANGLIA_LDFLAGS)
 gmond_la_LIBADD = $(GANGLIA_LIBS)
+endif
+
+if BUILD_PLUGIN_GRPC
+pkglib_LTLIBRARIES += grpc.la
+grpc_la_SOURCES = grpc.cc
+nodist_grpc_la_SOURCES = collectd.grpc.pb.cc collectd.pb.cc types.pb.cc
+grpc_la_CPPFLAGS = $(AM_CPPFLAGS) -std=c++11
+grpc_la_CXXFLAGS = $(AM_CXXFLAGS) -std=c++11
+grpc_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+grpc_la_LIBADD = -lgrpc++ -lgrpc -lgpr -lprotobuf
 endif
 
 if BUILD_PLUGIN_HDDTEMP
@@ -448,7 +473,6 @@ endif # BUILD_PLUGIN_INTERFACE
 if BUILD_PLUGIN_IPC
 pkglib_LTLIBRARIES += ipc.la
 ipc_la_SOURCES = ipc.c
-ipc_la_CFLAGS = $(AM_CFLAGS)
 ipc_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
@@ -471,10 +495,9 @@ endif
 if BUILD_PLUGIN_IPVS
 pkglib_LTLIBRARIES += ipvs.la
 ipvs_la_SOURCES = ipvs.c
-if IP_VS_H_NEEDS_KERNEL_CFLAGS
-ipvs_la_CFLAGS = $(AM_CFLAGS) $(KERNEL_CFLAGS)
-else
 ipvs_la_CFLAGS = $(AM_CFLAGS)
+if IP_VS_H_NEEDS_KERNEL_CFLAGS
+ipvs_la_CFLAGS += $(KERNEL_CFLAGS)
 endif
 ipvs_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
@@ -491,7 +514,7 @@ java_la_SOURCES = java.c
 java_la_CPPFLAGS = $(AM_CPPFLAGS) $(JAVA_CPPFLAGS)
 java_la_CFLAGS = $(AM_CFLAGS) $(JAVA_CFLAGS)
 java_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(JAVA_LDFLAGS)
-java_la_LIBADD = $(PTHREAD_LIBS) $(JAVA_LIBS)
+java_la_LIBADD = $(JAVA_LIBS)
 endif
 
 if BUILD_PLUGIN_LOAD
@@ -518,7 +541,6 @@ endif
 if BUILD_PLUGIN_LOG_LOGSTASH
 pkglib_LTLIBRARIES += log_logstash.la
 log_logstash_la_SOURCES = log_logstash.c
-log_logstash_la_CFLAGS = $(AM_CFLAGS)
 log_logstash_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
 log_logstash_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
 log_logstash_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
@@ -534,7 +556,8 @@ endif
 if BUILD_PLUGIN_LVM
 pkglib_LTLIBRARIES += lvm.la
 lvm_la_SOURCES = lvm.c
-lvm_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+lvm_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBLVM2APP_CPPFLAGS)
+lvm_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBLVM2APP_LDFLAGS)
 lvm_la_LIBADD = $(BUILD_WITH_LIBLVM2APP_LIBS)
 endif
 
@@ -662,13 +685,9 @@ endif
 if BUILD_PLUGIN_MYSQL
 pkglib_LTLIBRARIES += mysql.la
 mysql_la_SOURCES = mysql.c
+mysql_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMYSQL_CFLAGS)
 mysql_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-mysql_la_CFLAGS = $(AM_CFLAGS)
-mysql_la_LIBADD =
-if BUILD_WITH_LIBMYSQL
-mysql_la_CFLAGS += $(BUILD_WITH_LIBMYSQL_CFLAGS)
-mysql_la_LIBADD += $(BUILD_WITH_LIBMYSQL_LIBS)
-endif
+mysql_la_LIBADD = $(BUILD_WITH_LIBMYSQL_LIBS)
 endif
 
 if BUILD_PLUGIN_NETAPP
@@ -693,7 +712,7 @@ network_la_SOURCES = network.c network.h \
 		     utils_fbhash.c utils_fbhash.h
 network_la_CPPFLAGS = $(AM_CPPFLAGS)
 network_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-network_la_LIBADD = $(PTHREAD_LIBS)
+network_la_LIBADD =
 if BUILD_WITH_LIBSOCKET
 network_la_LIBADD += -lsocket
 endif
@@ -719,13 +738,9 @@ endif
 if BUILD_PLUGIN_NGINX
 pkglib_LTLIBRARIES += nginx.la
 nginx_la_SOURCES = nginx.c
-nginx_la_CFLAGS = $(AM_CFLAGS)
-nginx_la_LIBADD =
+nginx_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
 nginx_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-if BUILD_WITH_LIBCURL
-nginx_la_CFLAGS += $(BUILD_WITH_LIBCURL_CFLAGS)
-nginx_la_LIBADD += $(BUILD_WITH_LIBCURL_LIBS)
-endif
+nginx_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS)
 endif
 
 if BUILD_PLUGIN_NOTIFY_DESKTOP
@@ -740,7 +755,7 @@ if BUILD_PLUGIN_NOTIFY_EMAIL
 pkglib_LTLIBRARIES += notify_email.la
 notify_email_la_SOURCES = notify_email.c
 notify_email_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-notify_email_la_LIBADD = $(PTHREAD_LIBS) -lesmtp -lssl -lcrypto
+notify_email_la_LIBADD = -lesmtp -lssl -lcrypto
 endif
 
 if BUILD_PLUGIN_NOTIFY_NAGIOS
@@ -770,7 +785,7 @@ pkglib_LTLIBRARIES += nut.la
 nut_la_SOURCES = nut.c
 nut_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBUPSCLIENT_CFLAGS)
 nut_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-nut_la_LIBADD = $(PTHREAD_LIBS) $(BUILD_WITH_LIBUPSCLIENT_LIBS)
+nut_la_LIBADD = $(BUILD_WITH_LIBUPSCLIENT_LIBS)
 endif
 
 if BUILD_PLUGIN_OLSRD
@@ -786,7 +801,6 @@ endif
 if BUILD_PLUGIN_ONEWIRE
 pkglib_LTLIBRARIES += onewire.la
 onewire_la_SOURCES = onewire.c
-onewire_la_CFLAGS = $(AM_CFLAGS)
 onewire_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBOWCAPI_CPPFLAGS)
 onewire_la_LIBADD = $(BUILD_WITH_LIBOWCAPI_LIBS)
 onewire_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBOWCAPI_LDFLAGS)
@@ -795,15 +809,14 @@ endif
 if BUILD_PLUGIN_OPENLDAP
 pkglib_LTLIBRARIES += openldap.la
 openldap_la_SOURCES = openldap.c
-openldap_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBLDAP_LDFLAGS)
-openldap_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBLDAP_CPPFLAGS)
+openldap_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBLDAP_CPPFLAGS)
+openldap_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBLDAP_LDFLAGS)
 openldap_la_LIBADD = -lldap
 endif
 
 if BUILD_PLUGIN_OPENVPN
 pkglib_LTLIBRARIES += openvpn.la
 openvpn_la_SOURCES = openvpn.c
-openvpn_la_CFLAGS = $(AM_CFLAGS)
 openvpn_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
@@ -811,8 +824,7 @@ if BUILD_PLUGIN_ORACLE
 pkglib_LTLIBRARIES += oracle.la
 oracle_la_SOURCES = oracle.c \
 	utils_db_query.c utils_db_query.h
-oracle_la_CFLAGS = $(AM_CFLAGS)
-oracle_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_ORACLE_CFLAGS)
+oracle_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_ORACLE_CPPFLAGS)
 oracle_la_LIBADD = $(BUILD_WITH_ORACLE_LIBS)
 oracle_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
@@ -976,16 +988,13 @@ if BUILD_WITH_LIBNETSNMP
 snmp_la_CFLAGS += $(BUILD_WITH_LIBSNMP_CFLAGS)
 snmp_la_LIBADD += $(BUILD_WITH_LIBSNMP_LIBS)
 endif
-if BUILD_WITH_LIBPTHREAD
-snmp_la_LIBADD += $(PTHREAD_LIBS)
-endif
 endif
 
 if BUILD_PLUGIN_STATSD
 pkglib_LTLIBRARIES += statsd.la
 statsd_la_SOURCES = statsd.c
 statsd_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-statsd_la_LIBADD = $(PTHREAD_LIBS) liblatency.la -lm
+statsd_la_LIBADD = liblatency.la -lm
 endif
 
 if BUILD_PLUGIN_SWAP
@@ -1136,7 +1145,6 @@ unixsock_la_SOURCES = unixsock.c \
 		      utils_cmd_putnotif.h utils_cmd_putnotif.c \
 		      utils_parse_option.h utils_parse_option.c
 unixsock_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-unixsock_la_LIBADD = $(PTHREAD_LIBS)
 endif
 
 if BUILD_PLUGIN_UPTIME
@@ -1220,13 +1228,9 @@ if BUILD_PLUGIN_WRITE_HTTP
 pkglib_LTLIBRARIES += write_http.la
 write_http_la_SOURCES = write_http.c \
 			utils_format_json.c utils_format_json.h
+write_http_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
 write_http_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-write_http_la_CFLAGS = $(AM_CFLAGS)
-write_http_la_LIBADD =
-if BUILD_WITH_LIBCURL
-write_http_la_CFLAGS += $(BUILD_WITH_LIBCURL_CFLAGS)
-write_http_la_LIBADD += $(BUILD_WITH_LIBCURL_LIBS)
-endif
+write_http_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS)
 endif
 
 if BUILD_PLUGIN_WRITE_KAFKA
@@ -1260,7 +1264,7 @@ if BUILD_PLUGIN_WRITE_REDIS
 pkglib_LTLIBRARIES += write_redis.la
 write_redis_la_SOURCES = write_redis.c
 write_redis_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBHIREDIS_LDFLAGS)
-write_redis_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBHIREDIS_CPPFLAGS)
+write_redis_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBHIREDIS_CPPFLAGS)
 write_redis_la_LIBADD = -lhiredis
 endif
 
@@ -1286,7 +1290,8 @@ endif
 if BUILD_PLUGIN_XENCPU
 pkglib_LTLIBRARIES += xencpu.la
 xencpu_la_SOURCES = xencpu.c
-xencpu_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+xencpu_la_CPPFLAGS = $(AM_CPPFLAGS) $(LIBXENCTL_CPPFLAGS)
+xencpu_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBXENCTL_LDFLAGS)
 xencpu_la_LIBADD = -lxenctrl
 endif
 
@@ -1301,17 +1306,12 @@ endif
 if BUILD_PLUGIN_ZFS_ARC
 pkglib_LTLIBRARIES += zfs_arc.la
 zfs_arc_la_SOURCES = zfs_arc.c
-zfs_arc_la_CFLAGS = $(AM_CFLAGS)
 zfs_arc_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 if BUILD_FREEBSD
 zfs_arc_la_LIBADD = -lm
-else
-if BUILD_LINUX
-# zfs_arc requires no library on linux
-else
-# solaris
-zfs_arc_la_LIBADD = -lkstat
 endif
+if BUILD_SOLARIS
+zfs_arc_la_LIBADD = -lkstat
 endif
 endif
 
@@ -1326,7 +1326,6 @@ BUILT_SOURCES += $(dist_man_MANS)
 if BUILD_PLUGIN_ZONE
 pkglib_LTLIBRARIES += zone.la
 zone_la_SOURCES = zone.c
-zone_la_CFLAGS = $(AM_CFLAGS)
 zone_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
@@ -1346,11 +1345,7 @@ dist_man_MANS = collectd.1 \
 		collectd-unixsock.5 \
 		types.db.5
 
-#collectd_1_SOURCES = collectd.pod
-
-EXTRA_DIST = types.db
-
-EXTRA_DIST +=   collectd.conf.pod \
+EXTRA_DIST =	collectd.conf.pod \
 		collectd-email.pod \
 		collectd-exec.pod \
 		collectdctl.pod \
@@ -1365,10 +1360,17 @@ EXTRA_DIST +=   collectd.conf.pod \
 		collectd-threshold.pod \
 		collectd-unixsock.pod \
 		postgresql_default.conf \
-		types.db.pod
+		types.db \
+		types.db.pod \
+		valgrind.FreeBSD.suppress
+
+AM_V_POD2MAN_C = $(am__v_POD2MAN_C_@AM_V@)
+am__v_POD2MAN_C_ = $(am__v_POD2MAN_C_@AM_DEFAULT_V@)
+am__v_POD2MAN_C_0 = @echo "  POD2MAN " $@;
+am__v_POD2MAN_C_1 =
 
 .pod.1:
-	pod2man --release=$(VERSION) --center=$(PACKAGE) $< \
+	$(AM_V_POD2MAN_C)pod2man --release=$(VERSION) --center=$(PACKAGE) $< \
 		>.pod2man.tmp.$$$$ 2>/dev/null && mv -f .pod2man.tmp.$$$$ $@ || true
 	@if grep '\<POD ERRORS\>' $@ >/dev/null 2>&1; \
 	then \
@@ -1376,7 +1378,7 @@ EXTRA_DIST +=   collectd.conf.pod \
 	fi
 
 .pod.5:
-	pod2man --section=5 --release=$(VERSION) --center=$(PACKAGE) $< \
+	$(AM_V_POD2MAN_C)pod2man --section=5 --release=$(VERSION) --center=$(PACKAGE) $< \
 		>.pod2man.tmp.$$$$ 2>/dev/null && mv -f .pod2man.tmp.$$$$ $@ || true
 	@if grep '\<POD ERRORS\>' $@ >/dev/null 2>&1; \
 	then \
@@ -1385,7 +1387,7 @@ EXTRA_DIST +=   collectd.conf.pod \
 
 AM_V_PROTOC_C = $(am__v_PROTOC_C_@AM_V@)
 am__v_PROTOC_C_ = $(am__v_PROTOC_C_@AM_DEFAULT_V@)
-am__v_PROTOC_C_0 = @echo "  PROTOC-C    " $@;
+am__v_PROTOC_C_0 = @echo "  PROTOC-C" $@;
 am__v_PROTOC_C_1 =
 
 # Protocol buffer for the "pinba" plugin.

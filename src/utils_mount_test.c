@@ -25,6 +25,7 @@
  */
 
 #include "collectd.h"
+#include "common.h"
 #include "testing.h"
 #include "utils_mount.h"
 
@@ -80,16 +81,25 @@ DEF_TEST(cu_mount_getoptionvalue)
 {
   char line_opts[] = "foo=one,bar=two,qux=three";
   char line_bool[] = "one,two,three";
+  char *v;
 
-  EXPECT_EQ_STR ("one", cu_mount_getoptionvalue (line_opts, "foo="));
-  EXPECT_EQ_STR ("two", cu_mount_getoptionvalue (line_opts, "bar="));
-  EXPECT_EQ_STR ("three", cu_mount_getoptionvalue (line_opts, "qux="));
-  OK (NULL == cu_mount_getoptionvalue (line_opts, "unknown="));
+  EXPECT_EQ_STR ("one", v = cu_mount_getoptionvalue (line_opts, "foo="));
+  sfree (v);
+  EXPECT_EQ_STR ("two", v = cu_mount_getoptionvalue (line_opts, "bar="));
+  sfree (v);
+  EXPECT_EQ_STR ("three", v = cu_mount_getoptionvalue (line_opts, "qux="));
+  sfree (v);
+  OK (NULL == (v = cu_mount_getoptionvalue (line_opts, "unknown=")));
+  sfree (v);
 
-  EXPECT_EQ_STR ("", cu_mount_getoptionvalue (line_bool, "one"));
-  EXPECT_EQ_STR ("", cu_mount_getoptionvalue (line_bool, "two"));
-  EXPECT_EQ_STR ("", cu_mount_getoptionvalue (line_bool, "three"));
-  OK (NULL == cu_mount_getoptionvalue (line_bool, "four"));
+  EXPECT_EQ_STR ("", v = cu_mount_getoptionvalue (line_bool, "one"));
+  sfree (v);
+  EXPECT_EQ_STR ("", v = cu_mount_getoptionvalue (line_bool, "two"));
+  sfree (v);
+  EXPECT_EQ_STR ("", v = cu_mount_getoptionvalue (line_bool, "three"));
+  sfree (v);
+  OK (NULL == (v = cu_mount_getoptionvalue (line_bool, "four")));
+  sfree (v);
 
   return (0);
 }

@@ -36,7 +36,6 @@
 
 #include <stdint.h>
 #include <librdkafka/rdkafka.h>
-#include <pthread.h>
 #include <zlib.h>
 #include <errno.h>
 
@@ -74,11 +73,19 @@ static void kafka_log(const rd_kafka_t *rkt, int level,
 }
 #endif
 
+static uint32_t kafka_hash(const char *keydata, size_t keylen)
+{
+    uint32_t hash = 5381;
+    for (; keylen > 0; keylen--)
+        hash = ((hash << 5) + hash) + keydata[keylen - 1];
+    return hash;
+}
+
 static int32_t kafka_partition(const rd_kafka_topic_t *rkt,
                                const void *keydata, size_t keylen,
                                int32_t partition_cnt, void *p, void *m)
 {
-    uint32_t key = *((uint32_t *)keydata );
+    uint32_t key = kafka_hash(keydata, keylen);
     uint32_t target = key % partition_cnt;
     int32_t  i = partition_cnt;
 

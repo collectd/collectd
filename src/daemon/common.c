@@ -36,9 +36,7 @@
 #include "plugin.h"
 #include "utils_cache.h"
 
-#if HAVE_PTHREAD_H
-# include <pthread.h>
-#endif
+#include <pthread.h>
 
 #ifdef HAVE_MATH_H
 # include <math.h>
@@ -275,6 +273,9 @@ ssize_t swrite (int fd, const void *buf, size_t count)
 	ptr   = (const char *) buf;
 	nleft = count;
 	
+	if (fd < 0)
+		return (-1);
+
 	/* checking for closed peer connection */
 	pfd.fd = fd;
 	pfd.events = POLLIN | POLLHUP;

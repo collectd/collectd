@@ -72,7 +72,7 @@ There are two big groups of plugins, B<input> and B<output> plugins:
 
 =over 4
 
-=item
+=item *
 
 Input plugins are queried periodically. They somehow acquire the current value
 of whatever they where designed to work with and submit these values back to
@@ -80,7 +80,7 @@ the daemon, i. e. they "dispatch" the values. As an example, the C<cpu plugin>
 reads the current cpu-counters of time spent in the various modes (user,
 system, nice, ...) and dispatches these counters to the daemon.
 
-=item
+=item *
 
 Output plugins get the dispatched values from the daemon and does something
 with them. Common applications are writing to RRD-files, CSV-files or sending

@@ -32,9 +32,6 @@
 
 #include "utils_format_graphite.h"
 
-/* Folks without pthread will need to disable this plugin. */
-#include <pthread.h>
-
 #include <netdb.h>
 
 #define WL_BUF_SIZE 8192

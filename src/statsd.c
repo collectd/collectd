@@ -32,8 +32,6 @@
 #include "utils_complain.h"
 #include "utils_latency.h"
 
-#include <pthread.h>
-
 #include <sys/types.h>
 #include <netdb.h>
 #include <poll.h>

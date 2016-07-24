@@ -30,7 +30,6 @@
 #include "configfile.h"
 #include "utils_complain.h"
 
-#include <pthread.h>
 #include <netinet/in.h>
 #if HAVE_NETDB_H
 # include <netdb.h> /* NI_MAXHOST */

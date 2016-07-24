@@ -32,10 +32,6 @@
 
 #include <rrd.h>
 
-#if HAVE_PTHREAD_H
-# include <pthread.h>
-#endif
-
 /*
  * Private types
  */

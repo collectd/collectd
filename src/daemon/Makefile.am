@@ -10,7 +10,7 @@ AM_CPPFLAGS += -DPLUGINDIR='"${pkglibdir}"'
 AM_CPPFLAGS += -DPKGDATADIR='"${pkgdatadir}"'
 
 # Link to these libraries..
-COMMON_LIBS =
+COMMON_LIBS = $(PTHREAD_LIBS)
 if BUILD_WITH_LIBRT
 COMMON_LIBS += -lrt
 endif
@@ -22,9 +22,6 @@ COMMON_LIBS += -lsocket
 endif
 if BUILD_WITH_LIBRESOLV
 COMMON_LIBS += -lresolv
-endif
-if BUILD_WITH_LIBPTHREAD
-COMMON_LIBS += -lpthread
 endif
 if BUILD_WITH_LIBKSTAT
 COMMON_LIBS += -lkstat
@@ -89,6 +86,8 @@ collectd_DEPENDENCIES += $(top_builddir)/src/liboconfig/liboconfig.la
 else
 collectd_LDADD += -loconfig
 endif
+
+LOG_COMPILER = env VALGRIND="@VALGRIND@" $(abs_top_srcdir)/testwrapper.sh
 
 check_PROGRAMS = test_common test_meta_data test_utils_avltree test_utils_heap test_utils_time test_utils_subst
 TESTS          = test_common test_meta_data test_utils_avltree test_utils_heap test_utils_time test_utils_subst

@@ -705,7 +705,7 @@ types used by the read, write and match functions.
 
 =over 4
 
-=item
+=item *
 
 Please feel free to send in new plugins to collectd's mailing list at
 E<lt>collectdE<nbsp>atE<nbsp>collectd.orgE<gt> for review and, possibly,
@@ -721,7 +721,7 @@ L<http://collectd.org/dev-info.shtml>.
 
 =over 4
 
-=item
+=item *
 
 collectd is heavily multi-threaded. Each collectd thread accessing the perl
 plugin will be mapped to a Perl interpreter thread (see L<threads(3perl)>).
@@ -733,7 +733,7 @@ registered callback may be called more than once in parallel). Please note
 that no data is shared between threads by default. You have to use the
 B<threads::shared> module to do so.
 
-=item
+=item *
 
 Each function name registered with collectd has to be available before the
 first thread has been created (i.E<nbsp>e. basically at compile time). This
@@ -742,14 +742,14 @@ C<*foo = \&bar; plugin_register (TYPE_READ, "plugin", "foo");> most likely
 will not work. This is due to the fact that the symbol table is not shared
 across different threads.
 
-=item
+=item *
 
 Each plugin is usually only loaded once and kept in memory for performance
 reasons. Therefore, END blocks are only executed once when collectd shuts
 down. You should not rely on END blocks anyway - use B<shutdown functions>
 instead.
 
-=item
+=item *
 
 The perl plugin exports the internal API of collectd which is considered
 unstable and subject to change at any time. We try hard to not break backwards
@@ -763,7 +763,7 @@ dispatched by the perl plugin after upgrades.
 
 =over 4
 
-=item
+=item *
 
 Currently, it is not possible to flush a single Perl plugin only. You can
 either flush all Perl plugins or none at all and you have to use C<perl> as

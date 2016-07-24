@@ -36,8 +36,6 @@
 #include "utils_cache.h"
 #include "utils_complain.h"
 
-#include <pthread.h>
-
 #include <mosquitto.h>
 
 #define MQTT_MAX_TOPIC_SIZE         1024

@@ -33,9 +33,7 @@
 #include "meta_data.h"
 #include "utils_time.h"
 
-#if HAVE_PTHREAD_H
-# include <pthread.h>
-#endif
+#include <pthread.h>
 
 #define PLUGIN_FLAGS_GLOBAL 0x0001
 

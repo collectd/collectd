@@ -26,7 +26,6 @@
 #include "common.h"
 #include "filter_chain.h"
 
-#include <pthread.h>
 #include <jni.h>
 
 #if !defined(JNI_VERSION_1_2)

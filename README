@@ -1,6 +1,6 @@
  collectd - System information collection daemon
 =================================================
-http://collectd.org/
+https://collectd.org/
 
 About
 -----
@@ -50,6 +50,9 @@ Features
 
     - cgroups
       CPU accounting information for process groups under Linux.
+
+    - chrony
+      Chrony daemon statistics: Local clock drift, offset to peers, etc.
 
     - conntrack
       Number of nf_conntrack entries.
@@ -121,6 +124,9 @@ Features
 
     - gmond
       Receive multicast traffic from Ganglia instances.
+
+    - grpc
+      Receive values over the network using the gRPC framework.
 
     - hddtemp
       Hard disk temperatures using hddtempd.
@@ -385,6 +391,9 @@ Features
     - wireless
       Link quality of wireless cards. Linux only.
 
+    - xencpu
+      XEN Hypervisor CPU stats.
+
     - xmms
       Bitrate and frequency of music played with XMMS.
 
@@ -504,6 +513,9 @@ Features
     - notify_email
       Send an E-mail with the notification message to the configured
       recipients.
+
+    - notify_nagios
+      Submit notifications as passive check results to a local nagios instance.
 
     - exec
       Execute a program or script to handle the notification.
@@ -679,6 +691,11 @@ Prerequisites
     Used by the `gmond' plugin to process data received from Ganglia.
     <http://ganglia.info/>
 
+  * libgrpc (optional)
+    Used by the `grpc' plugin. gRPC requires a C++ compiler supporting the
+    C++11 standard.
+    <https://grpc.io/>
+
   * libgcrypt (optional)
     Used by the `network' plugin for encryption and authentication.
     <http://www.gnupg.org/>
@@ -768,6 +785,11 @@ Prerequisites
     The PostgreSQL C client library used by the `postgresql' plugin.
     <http://www.postgresql.org/>
 
+  * libprotobuf, protoc 3.0+ (optional)
+    Used by the `grpc' plugin to generate service stubs and code to handle
+    network packets of collectd's protobuf-based network protocol.
+    <https://developers.google.com/protocol-buffers/>
+
   * libprotobuf-c, protoc-c (optional)
     Used by the `pinba' plugin to generate a parser for the network packets
     sent by the Pinba PHP extension.
@@ -831,6 +853,10 @@ Prerequisites
     Parse XML data. This is needed for the `ascent', `bind', `curl_xml' and
     `virt' plugins.
     <http://xmlsoft.org/>
+
+  * libxen (optional)
+    Used by the `xencpu' plugin.
+    <http://xenbits.xensource.com/>
 
   * libxmms (optional)
     <http://www.xmms.org/>
