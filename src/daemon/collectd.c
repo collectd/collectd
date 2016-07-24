@@ -35,8 +35,6 @@
 #include <sys/un.h>
 #include <netdb.h>
 
-#include <pthread.h>
-
 #if HAVE_LOCALE_H
 # include <locale.h>
 #endif

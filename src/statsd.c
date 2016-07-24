@@ -29,7 +29,6 @@
 #include "common.h"
 #include "configfile.h"
 #include "utils_avltree.h"
-#include "utils_complain.h"
 #include "utils_latency.h"
 
 #include <sys/types.h>

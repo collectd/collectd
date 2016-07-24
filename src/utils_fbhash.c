@@ -27,8 +27,6 @@
 #include "collectd.h"
 #include "plugin.h"
 
-#include <pthread.h>
-
 #include "utils_fbhash.h"
 #include "utils_avltree.h"
 

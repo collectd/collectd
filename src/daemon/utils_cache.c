@@ -34,7 +34,6 @@
 #include "meta_data.h"
 
 #include <assert.h>
-#include <pthread.h>
 
 typedef struct cache_entry_s
 {

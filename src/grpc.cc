@@ -36,7 +36,6 @@
 extern "C" {
 #include <fnmatch.h>
 #include <stdbool.h>
-#include <pthread.h>
 
 #include "collectd.h"
 #include "common.h"

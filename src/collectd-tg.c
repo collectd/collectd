@@ -46,7 +46,6 @@
 
 #include "libcollectdclient/collectd/client.h"
 #include "libcollectdclient/collectd/network.h"
-#include "libcollectdclient/collectd/network_buffer.h"
 
 #define DEF_NUM_HOSTS    1000
 #define DEF_NUM_PLUGINS    20
