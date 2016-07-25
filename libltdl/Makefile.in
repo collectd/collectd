@@ -87,7 +87,7 @@ host_triplet = @host@
 subdir = .
 DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/configure $(am__configure_deps) \
-	$(srcdir)/config-h.in lt__dirent.c lt__strl.c argz.c \
+	$(srcdir)/config-h.in lt__strl.c lt__dirent.c argz.c \
 	$(top_srcdir)/config/depcomp $(am__include_HEADERS_DIST) \
 	$(am__ltdlinclude_HEADERS_DIST) COPYING.LIB README \
 	config/compile config/config.guess config/config.sub \

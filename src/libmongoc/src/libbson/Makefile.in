@@ -82,14 +82,9 @@ build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
 bin_PROGRAMS =
-noinst_PROGRAMS = test-libbson$(EXEEXT) bson-to-json$(EXEEXT) \
-	bson-validate$(EXEEXT) bcon-speed$(EXEEXT) \
-	bcon-col-view$(EXEEXT) json-to-bson$(EXEEXT) \
-	bson-metrics$(EXEEXT) bson-streaming-reader$(EXEEXT)
+noinst_PROGRAMS =
 DIST_COMMON = $(srcdir)/src/Makefile.am $(srcdir)/src/bson/Makefile.am \
-	$(srcdir)/src/yajl/Makefile.am $(srcdir)/tests/Makefile.am \
-	$(srcdir)/examples/Makefile.am $(srcdir)/doc/Makefile.am \
-	$(srcdir)/doc/man/Makefile.am $(srcdir)/doc/html/Makefile.am \
+	$(srcdir)/src/yajl/Makefile.am \
 	$(srcdir)/build/cmake/Makefile.am $(srcdir)/Makefile.in \
 	$(srcdir)/Makefile.am $(top_srcdir)/configure \
 	$(am__configure_deps) $(top_srcdir)/src/libbson-1.0.pc.in \
@@ -97,33 +92,21 @@ DIST_COMMON = $(srcdir)/src/Makefile.am $(srcdir)/src/bson/Makefile.am \
 	$(top_srcdir)/src/bson/bson-version.h.in \
 	$(top_srcdir)/doc/installing.page.in \
 	$(top_srcdir)/doc/version.page.in \
-	$(top_srcdir)/build/autotools/depcomp $(dist_man_MANS) \
-	$(am__dist_noinst_DATA_DIST) AUTHORS COPYING ChangeLog NEWS \
-	README build/autotools/compile build/autotools/config.guess \
-	build/autotools/config.sub build/autotools/depcomp \
-	build/autotools/install-sh build/autotools/missing \
-	build/autotools/ltmain.sh \
+	$(top_srcdir)/build/autotools/depcomp AUTHORS COPYING \
+	ChangeLog NEWS README build/autotools/compile \
+	build/autotools/config.guess build/autotools/config.sub \
+	build/autotools/depcomp build/autotools/install-sh \
+	build/autotools/missing build/autotools/ltmain.sh \
 	$(top_srcdir)/build/autotools/compile \
 	$(top_srcdir)/build/autotools/config.guess \
 	$(top_srcdir)/build/autotools/config.sub \
 	$(top_srcdir)/build/autotools/install-sh \
 	$(top_srcdir)/build/autotools/ltmain.sh \
 	$(top_srcdir)/build/autotools/missing
-@HAVE_LD_VERSION_SCRIPT_TRUE@am__append_1 = -Wl,--version-script=$(srcdir)/build/autotools/versions.ldscript
-@HAVE_LD_VERSION_SCRIPT_FALSE@am__append_2 = -export-symbols-regex "^(bson_|bcon_)"
-@OS_WIN32_TRUE@am__append_3 = src/bson/bson-stdint-win32.h
-@OS_WIN32_FALSE@am__append_4 = src/bson/bson-stdint.h
-@OS_WIN32_FALSE@am__append_5 = $(PTHREAD_LIBS)
-@OS_WIN32_TRUE@am__append_6 = -lws2_32
-@OS_DARWIN_TRUE@am__append_7 = -f -p
-@ENABLE_MAN_PAGES_TRUE@am__append_8 = $(wildcard doc/man/*.3)
-@ENABLE_MAN_PAGES_TRUE@am__append_9 = $(MAN_FILES_TO_BUILD)
-@ENABLE_HTML_DOCS_TRUE@am__append_10 = $(wildcard doc/html/*.html) \
-@ENABLE_HTML_DOCS_TRUE@	$(wildcard doc/html/*.css) $(wildcard \
-@ENABLE_HTML_DOCS_TRUE@	doc/html/*.js) $(wildcard \
-@ENABLE_HTML_DOCS_TRUE@	doc/html/*.png)
-@ENABLE_HTML_DOCS_TRUE@am__append_11 = $(BUILT_HTML_FILES) \
-@ENABLE_HTML_DOCS_TRUE@	$(YELP_HTML_FILES)
+@OS_WIN32_TRUE@am__append_1 = src/bson/bson-stdint-win32.h
+@OS_WIN32_FALSE@am__append_2 = src/bson/bson-stdint.h
+@OS_WIN32_FALSE@am__append_3 = $(PTHREAD_LIBS)
+@OS_WIN32_TRUE@am__append_4 = -lws2_32
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps =  \
@@ -192,10 +175,10 @@ am__uninstall_files_from_dir = { \
          $(am__cd) "$$dir" && rm -f $$files; }; \
   }
 am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(bindir)" \
-	"$(DESTDIR)$(man3dir)" "$(DESTDIR)$(bsondocdir)" \
-	"$(DESTDIR)$(headerdir)" "$(DESTDIR)$(pkgconfigdir)"
+	"$(DESTDIR)$(bsondocdir)" "$(DESTDIR)$(headerdir)" \
+	"$(DESTDIR)$(pkgconfigdir)"
 LTLIBRARIES = $(lib_LTLIBRARIES) $(noinst_LTLIBRARIES)
-libbson_1_0_la_DEPENDENCIES = libbson.la libyajl.la
+libbson_1_0_la_DEPENDENCIES = libbson.la libstackdriver_yajl.la
 am_libbson_1_0_la_OBJECTS =
 libbson_1_0_la_OBJECTS = $(am_libbson_1_0_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
@@ -261,73 +244,23 @@ libbson_la_OBJECTS = $(am_libbson_la_OBJECTS)
 libbson_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(libbson_la_CFLAGS) \
 	$(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-libyajl_la_DEPENDENCIES =
-am_libyajl_la_OBJECTS = src/yajl/libyajl_la-yajl_version.lo \
-	src/yajl/libyajl_la-yajl.lo src/yajl/libyajl_la-yajl_encode.lo \
-	src/yajl/libyajl_la-yajl_lex.lo \
-	src/yajl/libyajl_la-yajl_parser.lo \
-	src/yajl/libyajl_la-yajl_buf.lo \
-	src/yajl/libyajl_la-yajl_tree.lo \
-	src/yajl/libyajl_la-yajl_alloc.lo \
-	src/yajl/libyajl_la-yajl_gen.lo
-libyajl_la_OBJECTS = $(am_libyajl_la_OBJECTS)
-libyajl_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(libyajl_la_CFLAGS) \
-	$(CFLAGS) $(libyajl_la_LDFLAGS) $(LDFLAGS) -o $@
+libstackdriver_yajl_la_DEPENDENCIES =
+am_libstackdriver_yajl_la_OBJECTS =  \
+	src/yajl/libstackdriver_yajl_la-stackdriver_yajl_version.lo \
+	src/yajl/libstackdriver_yajl_la-stackdriver_yajl.lo \
+	src/yajl/libstackdriver_yajl_la-stackdriver_yajl_encode.lo \
+	src/yajl/libstackdriver_yajl_la-stackdriver_yajl_lex.lo \
+	src/yajl/libstackdriver_yajl_la-stackdriver_yajl_parser.lo \
+	src/yajl/libstackdriver_yajl_la-stackdriver_yajl_buf.lo \
+	src/yajl/libstackdriver_yajl_la-stackdriver_yajl_tree.lo \
+	src/yajl/libstackdriver_yajl_la-stackdriver_yajl_alloc.lo \
+	src/yajl/libstackdriver_yajl_la-stackdriver_yajl_gen.lo
+libstackdriver_yajl_la_OBJECTS = $(am_libstackdriver_yajl_la_OBJECTS)
+libstackdriver_yajl_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
+	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
+	$(libstackdriver_yajl_la_CFLAGS) $(CFLAGS) \
+	$(libstackdriver_yajl_la_LDFLAGS) $(LDFLAGS) -o $@
 PROGRAMS = $(bin_PROGRAMS) $(noinst_PROGRAMS)
-am_bcon_col_view_OBJECTS =  \
-	examples/bcon_col_view-bcon-col-view.$(OBJEXT)
-bcon_col_view_OBJECTS = $(am_bcon_col_view_OBJECTS)
-bcon_col_view_DEPENDENCIES = libbson-1.0.la
-am_bcon_speed_OBJECTS = examples/bcon_speed-bcon-speed.$(OBJEXT)
-bcon_speed_OBJECTS = $(am_bcon_speed_OBJECTS)
-bcon_speed_DEPENDENCIES = libbson-1.0.la
-am_bson_metrics_OBJECTS =  \
-	examples/bson_metrics-bson-metrics.$(OBJEXT)
-bson_metrics_OBJECTS = $(am_bson_metrics_OBJECTS)
-bson_metrics_DEPENDENCIES = libbson-1.0.la
-am_bson_streaming_reader_OBJECTS = examples/bson_streaming_reader-bson-streaming-reader.$(OBJEXT)
-bson_streaming_reader_OBJECTS = $(am_bson_streaming_reader_OBJECTS)
-am__DEPENDENCIES_3 = $(am__DEPENDENCIES_1)
-bson_streaming_reader_DEPENDENCIES = $(am__DEPENDENCIES_3) \
-	libbson-1.0.la
-am_bson_to_json_OBJECTS =  \
-	examples/bson_to_json-bson-to-json.$(OBJEXT)
-bson_to_json_OBJECTS = $(am_bson_to_json_OBJECTS)
-bson_to_json_DEPENDENCIES = libbson-1.0.la
-am_bson_validate_OBJECTS =  \
-	examples/bson_validate-bson-validate.$(OBJEXT)
-bson_validate_OBJECTS = $(am_bson_validate_OBJECTS)
-bson_validate_DEPENDENCIES = libbson-1.0.la
-am_json_to_bson_OBJECTS =  \
-	examples/json_to_bson-json-to-bson.$(OBJEXT)
-json_to_bson_OBJECTS = $(am_json_to_bson_OBJECTS)
-json_to_bson_DEPENDENCIES = libbson-1.0.la
-am_test_libbson_OBJECTS = tests/test_libbson-TestSuite.$(OBJEXT) \
-	tests/test_libbson-test-libbson.$(OBJEXT) \
-	tests/test_libbson-test-atomic.$(OBJEXT) \
-	tests/test_libbson-test-bson.$(OBJEXT) \
-	tests/test_libbson-test-endian.$(OBJEXT) \
-	tests/test_libbson-test-clock.$(OBJEXT) \
-	tests/test_libbson-test-error.$(OBJEXT) \
-	tests/test_libbson-test-iso8601.$(OBJEXT) \
-	tests/test_libbson-test-iter.$(OBJEXT) \
-	tests/test_libbson-test-json.$(OBJEXT) \
-	tests/test_libbson-test-oid.$(OBJEXT) \
-	tests/test_libbson-test-reader.$(OBJEXT) \
-	tests/test_libbson-test-string.$(OBJEXT) \
-	tests/test_libbson-test-utf8.$(OBJEXT) \
-	tests/test_libbson-test-value.$(OBJEXT) \
-	tests/test_libbson-test-version.$(OBJEXT) \
-	tests/test_libbson-test-writer.$(OBJEXT) \
-	tests/test_libbson-test-bcon-basic.$(OBJEXT) \
-	tests/test_libbson-test-bcon-extract.$(OBJEXT)
-test_libbson_OBJECTS = $(am_test_libbson_OBJECTS)
-test_libbson_DEPENDENCIES = $(am__DEPENDENCIES_1) libbson-1.0.la \
-	libbson.la
-test_libbson_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
-	$(test_libbson_LDFLAGS) $(LDFLAGS) -o $@
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -363,28 +296,16 @@ am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
 SOURCES = $(libbson_1_0_la_SOURCES) $(libbson_la_SOURCES) \
-	$(libyajl_la_SOURCES) $(bcon_col_view_SOURCES) \
-	$(bcon_speed_SOURCES) $(bson_metrics_SOURCES) \
-	$(bson_streaming_reader_SOURCES) $(bson_to_json_SOURCES) \
-	$(bson_validate_SOURCES) $(json_to_bson_SOURCES) \
-	$(test_libbson_SOURCES)
+	$(libstackdriver_yajl_la_SOURCES)
 DIST_SOURCES = $(libbson_1_0_la_SOURCES) \
-	$(am__libbson_la_SOURCES_DIST) $(libyajl_la_SOURCES) \
-	$(bcon_col_view_SOURCES) $(bcon_speed_SOURCES) \
-	$(bson_metrics_SOURCES) $(bson_streaming_reader_SOURCES) \
-	$(bson_to_json_SOURCES) $(bson_validate_SOURCES) \
-	$(json_to_bson_SOURCES) $(test_libbson_SOURCES)
+	$(am__libbson_la_SOURCES_DIST) \
+	$(libstackdriver_yajl_la_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
     *) (install-info --version) >/dev/null 2>&1;; \
   esac
-man3dir = $(mandir)/man3
-NROFF = nroff
-MANS = $(dist_man_MANS) $(man3_MANS)
-am__dist_noinst_DATA_DIST = $(wildcard doc/man/*.3)
-DATA = $(bsondoc_DATA) $(dist_noinst_DATA) $(header_DATA) \
-	$(pkgconfig_DATA)
+DATA = $(bsondoc_DATA) $(header_DATA) $(pkgconfig_DATA)
 am__tagged_files = $(HEADERS) $(SOURCES) $(TAGS_FILES) $(LISP)
 # Read a list of newline-separated strings from the standard input,
 # and print each of them once, without duplicates.  Input order is
@@ -424,6 +345,16 @@ am__distuninstallcheck_listfiles = $(distuninstallcheck_listfiles) \
   | sed 's|^\./|$(prefix)/|' | grep -v '$(infodir)/dir$$'
 distcleancheck_listfiles = find . -type f -print
 ACLOCAL = @ACLOCAL@
+
+# include tests/Makefile.am
+# include examples/Makefile.am
+# include doc/Makefile.am
+# if ENABLE_MAN_PAGES
+# include doc/man/Makefile.am
+# endif
+# if ENABLE_HTML_DOCS
+# include doc/html/Makefile.am
+# endif
 
 # for various extra dist
 ACLOCAL_AMFLAGS = -I build/autotools/m4 ${ACLOCAL_FLAGS}
@@ -593,61 +524,27 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 EXTRA_DIST = src/bson/bson-config.h.in src/bson/bson-version.h.in \
 	src/libbson.symbols build/autotools/versions.ldscript \
-	src/libbson-1.0.pc.in tests/abicheck.sh tests/bson-tests.h \
-	tests/binary/binary_deprecated.bson \
-	tests/binary/codewscope.bson tests/binary/dollarquery.bson \
-	tests/binary/dotkey.bson tests/binary/dotquery.bson \
-	tests/binary/eurokey.bson tests/binary/overflow1.bson \
-	tests/binary/overflow2.bson tests/binary/overflow3.bson \
-	tests/binary/overflow4.bson tests/binary/readergrow.bson \
-	tests/binary/stackoverflow.bson tests/binary/stream.bson \
-	tests/binary/stream_corrupt.bson tests/binary/test10.bson \
-	tests/binary/test11.bson tests/binary/test12.bson \
-	tests/binary/test13.bson tests/binary/test14.bson \
-	tests/binary/test15.bson tests/binary/test16.bson \
-	tests/binary/test17.bson tests/binary/test18.bson \
-	tests/binary/test19.bson tests/binary/test1.bson \
-	tests/binary/test20.bson tests/binary/test21.bson \
-	tests/binary/test22.bson tests/binary/test23.bson \
-	tests/binary/test24.bson tests/binary/test25.bson \
-	tests/binary/test26.bson tests/binary/test27.bson \
-	tests/binary/test28.bson tests/binary/test29.bson \
-	tests/binary/test2.bson tests/binary/test30.bson \
-	tests/binary/test31.bson tests/binary/test32.bson \
-	tests/binary/test33.bson tests/binary/test34.bson \
-	tests/binary/test35.bson tests/binary/test36.bson \
-	tests/binary/test37.bson tests/binary/test38.bson \
-	tests/binary/test39.bson tests/binary/test3.bson \
-	tests/binary/test4.bson tests/binary/test40.bson \
-	tests/binary/test41.bson tests/binary/test42.bson \
-	tests/binary/test43.bson tests/binary/test44.bson \
-	tests/binary/test45.bson tests/binary/test46.bson \
-	tests/binary/test47.bson tests/binary/test48.bson \
-	tests/binary/test49.bson tests/binary/test5.bson \
-	tests/binary/test50.bson tests/binary/test51.bson \
-	tests/binary/test52.bson tests/binary/test53.bson \
-	tests/binary/test54.bson tests/binary/test55.bson \
-	tests/binary/test56.bson tests/binary/test57.bson \
-	tests/binary/test6.bson tests/binary/test7.bson \
-	tests/binary/test8.bson tests/binary/test9.bson \
-	tests/binary/trailingnull.bson tests/json/test.json \
-	doc/mallard2man.py $(am__append_9) $(am__append_11) \
-	build/cmake/libbson.def build/cmake/bson/bson-stdint.h \
-	build/cmake/LoadVersion.cmake $(bsondoc_DATA) CMakeLists.txt \
-	VERSION_CURRENT VERSION_RELEASED
-CLEANFILES = $(am__append_8) $(am__append_10)
-DISTCLEANFILES = src/bson/bson-stdint.h test.log
+	src/libbson-1.0.pc.in build/cmake/libbson.def \
+	build/cmake/bson/bson-stdint.h build/cmake/LoadVersion.cmake \
+	$(bsondoc_DATA) CMakeLists.txt VERSION_CURRENT \
+	VERSION_RELEASED
+CLEANFILES = 
+DISTCLEANFILES = src/bson/bson-stdint.h
 MAINTAINERCLEANFILES = 
 lib_LTLIBRARIES = libbson-1.0.la
-noinst_LTLIBRARIES = libbson.la libyajl.la
+noinst_LTLIBRARIES = libbson.la libstackdriver_yajl.la
 libbson_1_0_la_SOURCES = 
 libbson_1_0_la_LIBADD = \
 	libbson.la \
-	libyajl.la \
+	libstackdriver_yajl.la \
 	-lm
 
-libbson_1_0_la_LDFLAGS = $(OPTIMIZE_LDFLAGS) $(COVERAGE_LDFLAGS) \
-	-no-undefined -rpath $(libdir) $(am__append_1) $(am__append_2)
+libbson_1_0_la_LDFLAGS = \
+	$(OPTIMIZE_LDFLAGS) \
+	$(COVERAGE_LDFLAGS) \
+	-no-undefined \
+	-rpath $(libdir)
+
 headerdir = $(prefix)/include/libbson-@BSON_API_VERSION@
 header_DATA = \
 	$(INST_H_FILES) \
@@ -664,7 +561,7 @@ INST_H_FILES = src/bson/bcon.h src/bson/bson.h src/bson/bson-atomic.h \
 	src/bson/bson-types.h src/bson/bson-utf8.h \
 	src/bson/bson-value.h src/bson/bson-version.h \
 	src/bson/bson-version-functions.h src/bson/bson-writer.h \
-	$(am__append_3) $(am__append_4)
+	$(am__append_1) $(am__append_2)
 NOINST_H_FILES = \
 	src/bson/b64_ntop.h \
 	src/bson/b64_pton.h \
@@ -711,130 +608,45 @@ libbson_la_SOURCES = \
 	src/bson/bson-version-functions.c \
 	src/bson/bson-writer.c
 
-libbson_la_LIBADD = $(am__append_5) $(am__append_6)
-libyajl_la_SOURCES = \
-	src/yajl/yajl_tree.h \
-	src/yajl/yajl_parse.h \
-	src/yajl/yajl_gen.h \
-	src/yajl/yajl_common.h \
-	src/yajl/yajl_version.h \
-	src/yajl/yajl_parser.h \
-	src/yajl/yajl_encode.h \
-	src/yajl/yajl_buf.h \
-	src/yajl/yajl_alloc.h \
-	src/yajl/yajl_bytestack.h \
-	src/yajl/yajl_lex.h \
-	src/yajl/yajl_version.c \
-	src/yajl/yajl.c \
-	src/yajl/yajl_encode.c \
-	src/yajl/yajl_lex.c \
-	src/yajl/yajl_parser.c \
-	src/yajl/yajl_buf.c \
-	src/yajl/yajl_tree.c \
-	src/yajl/yajl_alloc.c \
-	src/yajl/yajl_gen.c
+libbson_la_LIBADD = $(am__append_3) $(am__append_4)
+libstackdriver_yajl_la_SOURCES = \
+	src/yajl/stackdriver_yajl_tree.h \
+	src/yajl/stackdriver_yajl_parse.h \
+	src/yajl/stackdriver_yajl_gen.h \
+	src/yajl/stackdriver_yajl_common.h \
+	src/yajl/stackdriver_yajl_version.h \
+	src/yajl/stackdriver_yajl_parser.h \
+	src/yajl/stackdriver_yajl_encode.h \
+	src/yajl/stackdriver_yajl_buf.h \
+	src/yajl/stackdriver_yajl_alloc.h \
+	src/yajl/stackdriver_yajl_bytestack.h \
+	src/yajl/stackdriver_yajl_lex.h \
+	src/yajl/stackdriver_yajl_version.c \
+	src/yajl/stackdriver_yajl.c \
+	src/yajl/stackdriver_yajl_encode.c \
+	src/yajl/stackdriver_yajl_lex.c \
+	src/yajl/stackdriver_yajl_parser.c \
+	src/yajl/stackdriver_yajl_buf.c \
+	src/yajl/stackdriver_yajl_tree.c \
+	src/yajl/stackdriver_yajl_alloc.c \
+	src/yajl/stackdriver_yajl_gen.c
 
-libyajl_la_CFLAGS = \
+libstackdriver_yajl_la_CFLAGS = \
 	-I$(top_srcdir)/src \
 	-I$(top_srcdir)/src/bson \
 	-I$(top_builddir)/src/bson \
 	-DBSON_COMPILATION
 
-libyajl_la_LIBADD = 
-libyajl_la_LDFLAGS = 
+libstackdriver_yajl_la_LIBADD = 
+libstackdriver_yajl_la_LDFLAGS = 
+
+#if HAVE_LD_VERSION_SCRIPT
+#libbson_1_0_la_LDFLAGS += -Wl,--version-script=$(srcdir)/build/autotools/versions.ldscript
+#else
+#libbson_1_0_la_LDFLAGS += -export-symbols-regex "^(bson_|bcon_)"
+#endif
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = $(top_builddir)/src/libbson-1.0.pc
-TEST_PROGS = test-libbson
-test_libbson_SOURCES = \
-	tests/TestSuite.c \
-	tests/TestSuite.h \
-	tests/test-libbson.c \
-	tests/test-atomic.c \
-	tests/test-bson.c \
-	tests/test-endian.c \
-	tests/test-clock.c \
-	tests/test-error.c \
-	tests/test-iso8601.c \
-	tests/test-iter.c \
-	tests/test-json.c \
-	tests/test-oid.c \
-	tests/test-reader.c \
-	tests/test-string.c \
-	tests/test-utf8.c \
-	tests/test-value.c \
-	tests/test-version.c \
-	tests/test-writer.c \
-	tests/test-bcon-basic.c \
-	tests/test-bcon-extract.c
-
-test_libbson_CPPFLAGS = \
-	-I$(top_srcdir)/src \
-	-I$(top_srcdir)/src/bson \
-	-I$(top_builddir)/src/bson \
-	$(PTHREAD_CFLAGS) \
-	$(COVERAGE_CFLAGS) \
-	-DBSON_COMPILATION \
-	-DBINARY_DIR="\"$(top_srcdir)/tests/binary\"" \
-	-DJSON_DIR="\"$(top_srcdir)/tests/json\""
-
-test_libbson_LDFLAGS = $(COVERAGE_LDFLAGS)
-test_libbson_LDADD = \
-	$(PTHREAD_LIBS) \
-	libbson-1.0.la \
-	libbson.la
-
-TEST_ARGS = $(am__append_7)
-EXAMPLE_CFLAGS = \
-	-I$(top_srcdir)/src/bson \
-	-I$(top_builddir)/src/bson
-
-EXAMPLE_STREAMING_CFLAGS = $(EXAMPLE_CFLAGS) \
-	$(SOCKET_CFLAGS)
-
-EXAMPLE_STREAMING_LDFLAGS = $(SOCKET_LDFLAGS)
-bson_to_json_SOURCES = examples/bson-to-json.c
-bson_to_json_CPPFLAGS = $(EXAMPLE_CFLAGS)
-bson_to_json_LDADD = libbson-1.0.la
-bson_validate_SOURCES = examples/bson-validate.c
-bson_validate_CPPFLAGS = $(EXAMPLE_CFLAGS)
-bson_validate_LDADD = libbson-1.0.la
-bcon_speed_SOURCES = examples/bcon-speed.c
-bcon_speed_CPPFLAGS = $(EXAMPLE_CFLAGS)
-bcon_speed_LDADD = libbson-1.0.la
-bcon_col_view_SOURCES = examples/bcon-col-view.c
-bcon_col_view_CPPFLAGS = $(EXAMPLE_CFLAGS)
-bcon_col_view_LDADD = libbson-1.0.la
-json_to_bson_SOURCES = examples/json-to-bson.c
-json_to_bson_CPPFLAGS = $(EXAMPLE_CFLAGS)
-json_to_bson_LDADD = libbson-1.0.la
-bson_metrics_SOURCES = examples/bson-metrics.c
-bson_metrics_CPPFLAGS = $(EXAMPLE_CFLAGS)
-bson_metrics_LDADD = -lm libbson-1.0.la
-bson_streaming_reader_SOURCES = examples/bson-streaming-reader.c
-bson_streaming_reader_CPPFLAGS = $(EXAMPLE_STREAMING_CFLAGS)
-bson_streaming_reader_LDADD = $(EXAMPLE_STREAMING_LDFLAGS) libbson-1.0.la
-@ENABLE_MAN_PAGES_TRUE@MAN_FILES_TO_BUILD = $(patsubst doc/%.page,doc/man/%.3,$(wildcard doc/*.page))
-@ENABLE_MAN_PAGES_TRUE@BUILT_MAN_FILES = $(wildcard doc/man/*.3)
-@ENABLE_MAN_PAGES_TRUE@dist_man_MANS = $(BUILT_MAN_FILES)
-# Automake (at least up to 1.10) mishandles dist_man_MANS inside conditionals.
-# Unlike with other dist primaries, the files are not distributed if the
-# conditional is false.
-# Work the bug around until it is fixed:
-@ENABLE_MAN_PAGES_TRUE@dist_noinst_DATA = $(dist_man_MANS)
-@ENABLE_MAN_PAGES_TRUE@man3_MANS = $(BUILT_MAN_FILES)
-@ENABLE_HTML_DOCS_TRUE@BUILT_HTML_FILES = $(patsubst doc/%.page,doc/html/%.html,$(wildcard doc/*.page))
-@ENABLE_HTML_DOCS_TRUE@YELP_HTML_FILES = \
-@ENABLE_HTML_DOCS_TRUE@	doc/html/C.css \
-@ENABLE_HTML_DOCS_TRUE@	doc/html/jquery.js \
-@ENABLE_HTML_DOCS_TRUE@	doc/html/jquery.syntax.brush.clang.js \
-@ENABLE_HTML_DOCS_TRUE@	doc/html/jquery.syntax.core.js \
-@ENABLE_HTML_DOCS_TRUE@	doc/html/jquery.syntax.js \
-@ENABLE_HTML_DOCS_TRUE@	doc/html/jquery.syntax.layout.yelp.js \
-@ENABLE_HTML_DOCS_TRUE@	doc/html/yelp-note-tip.png \
-@ENABLE_HTML_DOCS_TRUE@	doc/html/yelp-note-warning.png \
-@ENABLE_HTML_DOCS_TRUE@	doc/html/yelp-note.png \
-@ENABLE_HTML_DOCS_TRUE@	doc/html/yelp.js
-
 DISTCHECK_CONFIGURE_FLAGS = --enable-maintainer-flags --enable-silent-rules --enable-hardening --enable-optimizations --enable-html-docs --enable-man-pages
 bsondocdir = ${docdir}
 bsondoc_DATA = \
@@ -848,7 +660,7 @@ all: all-am
 .SUFFIXES: .c .lo .o .obj
 am--refresh: Makefile
 	@:
-$(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am $(srcdir)/src/Makefile.am $(srcdir)/src/bson/Makefile.am $(srcdir)/src/yajl/Makefile.am $(srcdir)/tests/Makefile.am $(srcdir)/examples/Makefile.am $(srcdir)/doc/Makefile.am $(srcdir)/doc/man/Makefile.am $(srcdir)/doc/html/Makefile.am $(srcdir)/build/cmake/Makefile.am $(am__configure_deps)
+$(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am $(srcdir)/src/Makefile.am $(srcdir)/src/bson/Makefile.am $(srcdir)/src/yajl/Makefile.am $(srcdir)/build/cmake/Makefile.am $(am__configure_deps)
 	@for dep in $?; do \
 	  case '$(am__configure_deps)' in \
 	    *$$dep*) \
@@ -871,7 +683,7 @@ Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	    echo ' cd $(top_builddir) && $(SHELL) ./config.status $@ $(am__depfiles_maybe)'; \
 	    cd $(top_builddir) && $(SHELL) ./config.status $@ $(am__depfiles_maybe);; \
 	esac;
-$(srcdir)/src/Makefile.am $(srcdir)/src/bson/Makefile.am $(srcdir)/src/yajl/Makefile.am $(srcdir)/tests/Makefile.am $(srcdir)/examples/Makefile.am $(srcdir)/doc/Makefile.am $(srcdir)/doc/man/Makefile.am $(srcdir)/doc/html/Makefile.am $(srcdir)/build/cmake/Makefile.am:
+$(srcdir)/src/Makefile.am $(srcdir)/src/bson/Makefile.am $(srcdir)/src/yajl/Makefile.am $(srcdir)/build/cmake/Makefile.am:
 
 $(top_builddir)/config.status: $(top_srcdir)/configure $(CONFIG_STATUS_DEPENDENCIES)
 	$(SHELL) ./config.status --recheck
@@ -995,27 +807,27 @@ src/yajl/$(am__dirstamp):
 src/yajl/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) src/yajl/$(DEPDIR)
 	@: > src/yajl/$(DEPDIR)/$(am__dirstamp)
-src/yajl/libyajl_la-yajl_version.lo: src/yajl/$(am__dirstamp) \
-	src/yajl/$(DEPDIR)/$(am__dirstamp)
-src/yajl/libyajl_la-yajl.lo: src/yajl/$(am__dirstamp) \
-	src/yajl/$(DEPDIR)/$(am__dirstamp)
-src/yajl/libyajl_la-yajl_encode.lo: src/yajl/$(am__dirstamp) \
-	src/yajl/$(DEPDIR)/$(am__dirstamp)
-src/yajl/libyajl_la-yajl_lex.lo: src/yajl/$(am__dirstamp) \
-	src/yajl/$(DEPDIR)/$(am__dirstamp)
-src/yajl/libyajl_la-yajl_parser.lo: src/yajl/$(am__dirstamp) \
-	src/yajl/$(DEPDIR)/$(am__dirstamp)
-src/yajl/libyajl_la-yajl_buf.lo: src/yajl/$(am__dirstamp) \
-	src/yajl/$(DEPDIR)/$(am__dirstamp)
-src/yajl/libyajl_la-yajl_tree.lo: src/yajl/$(am__dirstamp) \
-	src/yajl/$(DEPDIR)/$(am__dirstamp)
-src/yajl/libyajl_la-yajl_alloc.lo: src/yajl/$(am__dirstamp) \
-	src/yajl/$(DEPDIR)/$(am__dirstamp)
-src/yajl/libyajl_la-yajl_gen.lo: src/yajl/$(am__dirstamp) \
-	src/yajl/$(DEPDIR)/$(am__dirstamp)
+src/yajl/libstackdriver_yajl_la-stackdriver_yajl_version.lo:  \
+	src/yajl/$(am__dirstamp) src/yajl/$(DEPDIR)/$(am__dirstamp)
+src/yajl/libstackdriver_yajl_la-stackdriver_yajl.lo:  \
+	src/yajl/$(am__dirstamp) src/yajl/$(DEPDIR)/$(am__dirstamp)
+src/yajl/libstackdriver_yajl_la-stackdriver_yajl_encode.lo:  \
+	src/yajl/$(am__dirstamp) src/yajl/$(DEPDIR)/$(am__dirstamp)
+src/yajl/libstackdriver_yajl_la-stackdriver_yajl_lex.lo:  \
+	src/yajl/$(am__dirstamp) src/yajl/$(DEPDIR)/$(am__dirstamp)
+src/yajl/libstackdriver_yajl_la-stackdriver_yajl_parser.lo:  \
+	src/yajl/$(am__dirstamp) src/yajl/$(DEPDIR)/$(am__dirstamp)
+src/yajl/libstackdriver_yajl_la-stackdriver_yajl_buf.lo:  \
+	src/yajl/$(am__dirstamp) src/yajl/$(DEPDIR)/$(am__dirstamp)
+src/yajl/libstackdriver_yajl_la-stackdriver_yajl_tree.lo:  \
+	src/yajl/$(am__dirstamp) src/yajl/$(DEPDIR)/$(am__dirstamp)
+src/yajl/libstackdriver_yajl_la-stackdriver_yajl_alloc.lo:  \
+	src/yajl/$(am__dirstamp) src/yajl/$(DEPDIR)/$(am__dirstamp)
+src/yajl/libstackdriver_yajl_la-stackdriver_yajl_gen.lo:  \
+	src/yajl/$(am__dirstamp) src/yajl/$(DEPDIR)/$(am__dirstamp)
 
-libyajl.la: $(libyajl_la_OBJECTS) $(libyajl_la_DEPENDENCIES) $(EXTRA_libyajl_la_DEPENDENCIES) 
-	$(AM_V_CCLD)$(libyajl_la_LINK)  $(libyajl_la_OBJECTS) $(libyajl_la_LIBADD) $(LIBS)
+libstackdriver_yajl.la: $(libstackdriver_yajl_la_OBJECTS) $(libstackdriver_yajl_la_DEPENDENCIES) $(EXTRA_libstackdriver_yajl_la_DEPENDENCIES) 
+	$(AM_V_CCLD)$(libstackdriver_yajl_la_LINK)  $(libstackdriver_yajl_la_OBJECTS) $(libstackdriver_yajl_la_LIBADD) $(LIBS)
 install-binPROGRAMS: $(bin_PROGRAMS)
 	@$(NORMAL_INSTALL)
 	@list='$(bin_PROGRAMS)'; test -n "$(bindir)" || list=; \
@@ -1074,122 +886,17 @@ clean-noinstPROGRAMS:
 	list=`for p in $$list; do echo "$$p"; done | sed 's/$(EXEEXT)$$//'`; \
 	echo " rm -f" $$list; \
 	rm -f $$list
-examples/$(am__dirstamp):
-	@$(MKDIR_P) examples
-	@: > examples/$(am__dirstamp)
-examples/$(DEPDIR)/$(am__dirstamp):
-	@$(MKDIR_P) examples/$(DEPDIR)
-	@: > examples/$(DEPDIR)/$(am__dirstamp)
-examples/bcon_col_view-bcon-col-view.$(OBJEXT):  \
-	examples/$(am__dirstamp) examples/$(DEPDIR)/$(am__dirstamp)
-
-bcon-col-view$(EXEEXT): $(bcon_col_view_OBJECTS) $(bcon_col_view_DEPENDENCIES) $(EXTRA_bcon_col_view_DEPENDENCIES) 
-	@rm -f bcon-col-view$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(bcon_col_view_OBJECTS) $(bcon_col_view_LDADD) $(LIBS)
-examples/bcon_speed-bcon-speed.$(OBJEXT): examples/$(am__dirstamp) \
-	examples/$(DEPDIR)/$(am__dirstamp)
-
-bcon-speed$(EXEEXT): $(bcon_speed_OBJECTS) $(bcon_speed_DEPENDENCIES) $(EXTRA_bcon_speed_DEPENDENCIES) 
-	@rm -f bcon-speed$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(bcon_speed_OBJECTS) $(bcon_speed_LDADD) $(LIBS)
-examples/bson_metrics-bson-metrics.$(OBJEXT):  \
-	examples/$(am__dirstamp) examples/$(DEPDIR)/$(am__dirstamp)
-
-bson-metrics$(EXEEXT): $(bson_metrics_OBJECTS) $(bson_metrics_DEPENDENCIES) $(EXTRA_bson_metrics_DEPENDENCIES) 
-	@rm -f bson-metrics$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(bson_metrics_OBJECTS) $(bson_metrics_LDADD) $(LIBS)
-examples/bson_streaming_reader-bson-streaming-reader.$(OBJEXT):  \
-	examples/$(am__dirstamp) examples/$(DEPDIR)/$(am__dirstamp)
-
-bson-streaming-reader$(EXEEXT): $(bson_streaming_reader_OBJECTS) $(bson_streaming_reader_DEPENDENCIES) $(EXTRA_bson_streaming_reader_DEPENDENCIES) 
-	@rm -f bson-streaming-reader$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(bson_streaming_reader_OBJECTS) $(bson_streaming_reader_LDADD) $(LIBS)
-examples/bson_to_json-bson-to-json.$(OBJEXT):  \
-	examples/$(am__dirstamp) examples/$(DEPDIR)/$(am__dirstamp)
-
-bson-to-json$(EXEEXT): $(bson_to_json_OBJECTS) $(bson_to_json_DEPENDENCIES) $(EXTRA_bson_to_json_DEPENDENCIES) 
-	@rm -f bson-to-json$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(bson_to_json_OBJECTS) $(bson_to_json_LDADD) $(LIBS)
-examples/bson_validate-bson-validate.$(OBJEXT):  \
-	examples/$(am__dirstamp) examples/$(DEPDIR)/$(am__dirstamp)
-
-bson-validate$(EXEEXT): $(bson_validate_OBJECTS) $(bson_validate_DEPENDENCIES) $(EXTRA_bson_validate_DEPENDENCIES) 
-	@rm -f bson-validate$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(bson_validate_OBJECTS) $(bson_validate_LDADD) $(LIBS)
-examples/json_to_bson-json-to-bson.$(OBJEXT):  \
-	examples/$(am__dirstamp) examples/$(DEPDIR)/$(am__dirstamp)
-
-json-to-bson$(EXEEXT): $(json_to_bson_OBJECTS) $(json_to_bson_DEPENDENCIES) $(EXTRA_json_to_bson_DEPENDENCIES) 
-	@rm -f json-to-bson$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(json_to_bson_OBJECTS) $(json_to_bson_LDADD) $(LIBS)
-tests/$(am__dirstamp):
-	@$(MKDIR_P) tests
-	@: > tests/$(am__dirstamp)
-tests/$(DEPDIR)/$(am__dirstamp):
-	@$(MKDIR_P) tests/$(DEPDIR)
-	@: > tests/$(DEPDIR)/$(am__dirstamp)
-tests/test_libbson-TestSuite.$(OBJEXT): tests/$(am__dirstamp) \
-	tests/$(DEPDIR)/$(am__dirstamp)
-tests/test_libbson-test-libbson.$(OBJEXT): tests/$(am__dirstamp) \
-	tests/$(DEPDIR)/$(am__dirstamp)
-tests/test_libbson-test-atomic.$(OBJEXT): tests/$(am__dirstamp) \
-	tests/$(DEPDIR)/$(am__dirstamp)
-tests/test_libbson-test-bson.$(OBJEXT): tests/$(am__dirstamp) \
-	tests/$(DEPDIR)/$(am__dirstamp)
-tests/test_libbson-test-endian.$(OBJEXT): tests/$(am__dirstamp) \
-	tests/$(DEPDIR)/$(am__dirstamp)
-tests/test_libbson-test-clock.$(OBJEXT): tests/$(am__dirstamp) \
-	tests/$(DEPDIR)/$(am__dirstamp)
-tests/test_libbson-test-error.$(OBJEXT): tests/$(am__dirstamp) \
-	tests/$(DEPDIR)/$(am__dirstamp)
-tests/test_libbson-test-iso8601.$(OBJEXT): tests/$(am__dirstamp) \
-	tests/$(DEPDIR)/$(am__dirstamp)
-tests/test_libbson-test-iter.$(OBJEXT): tests/$(am__dirstamp) \
-	tests/$(DEPDIR)/$(am__dirstamp)
-tests/test_libbson-test-json.$(OBJEXT): tests/$(am__dirstamp) \
-	tests/$(DEPDIR)/$(am__dirstamp)
-tests/test_libbson-test-oid.$(OBJEXT): tests/$(am__dirstamp) \
-	tests/$(DEPDIR)/$(am__dirstamp)
-tests/test_libbson-test-reader.$(OBJEXT): tests/$(am__dirstamp) \
-	tests/$(DEPDIR)/$(am__dirstamp)
-tests/test_libbson-test-string.$(OBJEXT): tests/$(am__dirstamp) \
-	tests/$(DEPDIR)/$(am__dirstamp)
-tests/test_libbson-test-utf8.$(OBJEXT): tests/$(am__dirstamp) \
-	tests/$(DEPDIR)/$(am__dirstamp)
-tests/test_libbson-test-value.$(OBJEXT): tests/$(am__dirstamp) \
-	tests/$(DEPDIR)/$(am__dirstamp)
-tests/test_libbson-test-version.$(OBJEXT): tests/$(am__dirstamp) \
-	tests/$(DEPDIR)/$(am__dirstamp)
-tests/test_libbson-test-writer.$(OBJEXT): tests/$(am__dirstamp) \
-	tests/$(DEPDIR)/$(am__dirstamp)
-tests/test_libbson-test-bcon-basic.$(OBJEXT): tests/$(am__dirstamp) \
-	tests/$(DEPDIR)/$(am__dirstamp)
-tests/test_libbson-test-bcon-extract.$(OBJEXT): tests/$(am__dirstamp) \
-	tests/$(DEPDIR)/$(am__dirstamp)
-
-test-libbson$(EXEEXT): $(test_libbson_OBJECTS) $(test_libbson_DEPENDENCIES) $(EXTRA_test_libbson_DEPENDENCIES) 
-	@rm -f test-libbson$(EXEEXT)
-	$(AM_V_CCLD)$(test_libbson_LINK) $(test_libbson_OBJECTS) $(test_libbson_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
-	-rm -f examples/*.$(OBJEXT)
 	-rm -f src/bson/*.$(OBJEXT)
 	-rm -f src/bson/*.lo
 	-rm -f src/yajl/*.$(OBJEXT)
 	-rm -f src/yajl/*.lo
-	-rm -f tests/*.$(OBJEXT)
 
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@examples/$(DEPDIR)/bcon_col_view-bcon-col-view.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@examples/$(DEPDIR)/bcon_speed-bcon-speed.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@examples/$(DEPDIR)/bson_metrics-bson-metrics.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@examples/$(DEPDIR)/bson_streaming_reader-bson-streaming-reader.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@examples/$(DEPDIR)/bson_to_json-bson-to-json.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@examples/$(DEPDIR)/bson_validate-bson-validate.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@examples/$(DEPDIR)/json_to_bson-json-to-bson.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/bson/$(DEPDIR)/libbson_la-bcon.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/bson/$(DEPDIR)/libbson_la-bson-atomic.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/bson/$(DEPDIR)/libbson_la-bson-clock.Plo@am__quote@
@@ -1210,34 +917,15 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/bson/$(DEPDIR)/libbson_la-bson-version-functions.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/bson/$(DEPDIR)/libbson_la-bson-writer.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/bson/$(DEPDIR)/libbson_la-bson.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/yajl/$(DEPDIR)/libyajl_la-yajl.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/yajl/$(DEPDIR)/libyajl_la-yajl_alloc.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/yajl/$(DEPDIR)/libyajl_la-yajl_buf.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/yajl/$(DEPDIR)/libyajl_la-yajl_encode.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/yajl/$(DEPDIR)/libyajl_la-yajl_gen.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/yajl/$(DEPDIR)/libyajl_la-yajl_lex.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/yajl/$(DEPDIR)/libyajl_la-yajl_parser.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/yajl/$(DEPDIR)/libyajl_la-yajl_tree.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/yajl/$(DEPDIR)/libyajl_la-yajl_version.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/test_libbson-TestSuite.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/test_libbson-test-atomic.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/test_libbson-test-bcon-basic.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/test_libbson-test-bcon-extract.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/test_libbson-test-bson.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/test_libbson-test-clock.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/test_libbson-test-endian.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/test_libbson-test-error.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/test_libbson-test-iso8601.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/test_libbson-test-iter.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/test_libbson-test-json.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/test_libbson-test-libbson.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/test_libbson-test-oid.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/test_libbson-test-reader.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/test_libbson-test-string.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/test_libbson-test-utf8.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/test_libbson-test-value.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/test_libbson-test-version.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/test_libbson-test-writer.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_alloc.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_buf.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_encode.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_gen.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_lex.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_parser.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_tree.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_version.Plo@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
@@ -1403,432 +1091,68 @@ src/bson/libbson_la-bson-writer.lo: src/bson/bson-writer.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libbson_la_CPPFLAGS) $(CPPFLAGS) $(libbson_la_CFLAGS) $(CFLAGS) -c -o src/bson/libbson_la-bson-writer.lo `test -f 'src/bson/bson-writer.c' || echo '$(srcdir)/'`src/bson/bson-writer.c
 
-src/yajl/libyajl_la-yajl_version.lo: src/yajl/yajl_version.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libyajl_la_CFLAGS) $(CFLAGS) -MT src/yajl/libyajl_la-yajl_version.lo -MD -MP -MF src/yajl/$(DEPDIR)/libyajl_la-yajl_version.Tpo -c -o src/yajl/libyajl_la-yajl_version.lo `test -f 'src/yajl/yajl_version.c' || echo '$(srcdir)/'`src/yajl/yajl_version.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/yajl/$(DEPDIR)/libyajl_la-yajl_version.Tpo src/yajl/$(DEPDIR)/libyajl_la-yajl_version.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/yajl/yajl_version.c' object='src/yajl/libyajl_la-yajl_version.lo' libtool=yes @AMDEPBACKSLASH@
+src/yajl/libstackdriver_yajl_la-stackdriver_yajl_version.lo: src/yajl/stackdriver_yajl_version.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstackdriver_yajl_la_CFLAGS) $(CFLAGS) -MT src/yajl/libstackdriver_yajl_la-stackdriver_yajl_version.lo -MD -MP -MF src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_version.Tpo -c -o src/yajl/libstackdriver_yajl_la-stackdriver_yajl_version.lo `test -f 'src/yajl/stackdriver_yajl_version.c' || echo '$(srcdir)/'`src/yajl/stackdriver_yajl_version.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_version.Tpo src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_version.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/yajl/stackdriver_yajl_version.c' object='src/yajl/libstackdriver_yajl_la-stackdriver_yajl_version.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libyajl_la_CFLAGS) $(CFLAGS) -c -o src/yajl/libyajl_la-yajl_version.lo `test -f 'src/yajl/yajl_version.c' || echo '$(srcdir)/'`src/yajl/yajl_version.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstackdriver_yajl_la_CFLAGS) $(CFLAGS) -c -o src/yajl/libstackdriver_yajl_la-stackdriver_yajl_version.lo `test -f 'src/yajl/stackdriver_yajl_version.c' || echo '$(srcdir)/'`src/yajl/stackdriver_yajl_version.c
 
-src/yajl/libyajl_la-yajl.lo: src/yajl/yajl.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libyajl_la_CFLAGS) $(CFLAGS) -MT src/yajl/libyajl_la-yajl.lo -MD -MP -MF src/yajl/$(DEPDIR)/libyajl_la-yajl.Tpo -c -o src/yajl/libyajl_la-yajl.lo `test -f 'src/yajl/yajl.c' || echo '$(srcdir)/'`src/yajl/yajl.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/yajl/$(DEPDIR)/libyajl_la-yajl.Tpo src/yajl/$(DEPDIR)/libyajl_la-yajl.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/yajl/yajl.c' object='src/yajl/libyajl_la-yajl.lo' libtool=yes @AMDEPBACKSLASH@
+src/yajl/libstackdriver_yajl_la-stackdriver_yajl.lo: src/yajl/stackdriver_yajl.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstackdriver_yajl_la_CFLAGS) $(CFLAGS) -MT src/yajl/libstackdriver_yajl_la-stackdriver_yajl.lo -MD -MP -MF src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl.Tpo -c -o src/yajl/libstackdriver_yajl_la-stackdriver_yajl.lo `test -f 'src/yajl/stackdriver_yajl.c' || echo '$(srcdir)/'`src/yajl/stackdriver_yajl.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl.Tpo src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/yajl/stackdriver_yajl.c' object='src/yajl/libstackdriver_yajl_la-stackdriver_yajl.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libyajl_la_CFLAGS) $(CFLAGS) -c -o src/yajl/libyajl_la-yajl.lo `test -f 'src/yajl/yajl.c' || echo '$(srcdir)/'`src/yajl/yajl.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstackdriver_yajl_la_CFLAGS) $(CFLAGS) -c -o src/yajl/libstackdriver_yajl_la-stackdriver_yajl.lo `test -f 'src/yajl/stackdriver_yajl.c' || echo '$(srcdir)/'`src/yajl/stackdriver_yajl.c
 
-src/yajl/libyajl_la-yajl_encode.lo: src/yajl/yajl_encode.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libyajl_la_CFLAGS) $(CFLAGS) -MT src/yajl/libyajl_la-yajl_encode.lo -MD -MP -MF src/yajl/$(DEPDIR)/libyajl_la-yajl_encode.Tpo -c -o src/yajl/libyajl_la-yajl_encode.lo `test -f 'src/yajl/yajl_encode.c' || echo '$(srcdir)/'`src/yajl/yajl_encode.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/yajl/$(DEPDIR)/libyajl_la-yajl_encode.Tpo src/yajl/$(DEPDIR)/libyajl_la-yajl_encode.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/yajl/yajl_encode.c' object='src/yajl/libyajl_la-yajl_encode.lo' libtool=yes @AMDEPBACKSLASH@
+src/yajl/libstackdriver_yajl_la-stackdriver_yajl_encode.lo: src/yajl/stackdriver_yajl_encode.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstackdriver_yajl_la_CFLAGS) $(CFLAGS) -MT src/yajl/libstackdriver_yajl_la-stackdriver_yajl_encode.lo -MD -MP -MF src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_encode.Tpo -c -o src/yajl/libstackdriver_yajl_la-stackdriver_yajl_encode.lo `test -f 'src/yajl/stackdriver_yajl_encode.c' || echo '$(srcdir)/'`src/yajl/stackdriver_yajl_encode.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_encode.Tpo src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_encode.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/yajl/stackdriver_yajl_encode.c' object='src/yajl/libstackdriver_yajl_la-stackdriver_yajl_encode.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libyajl_la_CFLAGS) $(CFLAGS) -c -o src/yajl/libyajl_la-yajl_encode.lo `test -f 'src/yajl/yajl_encode.c' || echo '$(srcdir)/'`src/yajl/yajl_encode.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstackdriver_yajl_la_CFLAGS) $(CFLAGS) -c -o src/yajl/libstackdriver_yajl_la-stackdriver_yajl_encode.lo `test -f 'src/yajl/stackdriver_yajl_encode.c' || echo '$(srcdir)/'`src/yajl/stackdriver_yajl_encode.c
 
-src/yajl/libyajl_la-yajl_lex.lo: src/yajl/yajl_lex.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libyajl_la_CFLAGS) $(CFLAGS) -MT src/yajl/libyajl_la-yajl_lex.lo -MD -MP -MF src/yajl/$(DEPDIR)/libyajl_la-yajl_lex.Tpo -c -o src/yajl/libyajl_la-yajl_lex.lo `test -f 'src/yajl/yajl_lex.c' || echo '$(srcdir)/'`src/yajl/yajl_lex.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/yajl/$(DEPDIR)/libyajl_la-yajl_lex.Tpo src/yajl/$(DEPDIR)/libyajl_la-yajl_lex.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/yajl/yajl_lex.c' object='src/yajl/libyajl_la-yajl_lex.lo' libtool=yes @AMDEPBACKSLASH@
+src/yajl/libstackdriver_yajl_la-stackdriver_yajl_lex.lo: src/yajl/stackdriver_yajl_lex.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstackdriver_yajl_la_CFLAGS) $(CFLAGS) -MT src/yajl/libstackdriver_yajl_la-stackdriver_yajl_lex.lo -MD -MP -MF src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_lex.Tpo -c -o src/yajl/libstackdriver_yajl_la-stackdriver_yajl_lex.lo `test -f 'src/yajl/stackdriver_yajl_lex.c' || echo '$(srcdir)/'`src/yajl/stackdriver_yajl_lex.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_lex.Tpo src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_lex.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/yajl/stackdriver_yajl_lex.c' object='src/yajl/libstackdriver_yajl_la-stackdriver_yajl_lex.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libyajl_la_CFLAGS) $(CFLAGS) -c -o src/yajl/libyajl_la-yajl_lex.lo `test -f 'src/yajl/yajl_lex.c' || echo '$(srcdir)/'`src/yajl/yajl_lex.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstackdriver_yajl_la_CFLAGS) $(CFLAGS) -c -o src/yajl/libstackdriver_yajl_la-stackdriver_yajl_lex.lo `test -f 'src/yajl/stackdriver_yajl_lex.c' || echo '$(srcdir)/'`src/yajl/stackdriver_yajl_lex.c
 
-src/yajl/libyajl_la-yajl_parser.lo: src/yajl/yajl_parser.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libyajl_la_CFLAGS) $(CFLAGS) -MT src/yajl/libyajl_la-yajl_parser.lo -MD -MP -MF src/yajl/$(DEPDIR)/libyajl_la-yajl_parser.Tpo -c -o src/yajl/libyajl_la-yajl_parser.lo `test -f 'src/yajl/yajl_parser.c' || echo '$(srcdir)/'`src/yajl/yajl_parser.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/yajl/$(DEPDIR)/libyajl_la-yajl_parser.Tpo src/yajl/$(DEPDIR)/libyajl_la-yajl_parser.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/yajl/yajl_parser.c' object='src/yajl/libyajl_la-yajl_parser.lo' libtool=yes @AMDEPBACKSLASH@
+src/yajl/libstackdriver_yajl_la-stackdriver_yajl_parser.lo: src/yajl/stackdriver_yajl_parser.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstackdriver_yajl_la_CFLAGS) $(CFLAGS) -MT src/yajl/libstackdriver_yajl_la-stackdriver_yajl_parser.lo -MD -MP -MF src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_parser.Tpo -c -o src/yajl/libstackdriver_yajl_la-stackdriver_yajl_parser.lo `test -f 'src/yajl/stackdriver_yajl_parser.c' || echo '$(srcdir)/'`src/yajl/stackdriver_yajl_parser.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_parser.Tpo src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_parser.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/yajl/stackdriver_yajl_parser.c' object='src/yajl/libstackdriver_yajl_la-stackdriver_yajl_parser.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libyajl_la_CFLAGS) $(CFLAGS) -c -o src/yajl/libyajl_la-yajl_parser.lo `test -f 'src/yajl/yajl_parser.c' || echo '$(srcdir)/'`src/yajl/yajl_parser.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstackdriver_yajl_la_CFLAGS) $(CFLAGS) -c -o src/yajl/libstackdriver_yajl_la-stackdriver_yajl_parser.lo `test -f 'src/yajl/stackdriver_yajl_parser.c' || echo '$(srcdir)/'`src/yajl/stackdriver_yajl_parser.c
 
-src/yajl/libyajl_la-yajl_buf.lo: src/yajl/yajl_buf.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libyajl_la_CFLAGS) $(CFLAGS) -MT src/yajl/libyajl_la-yajl_buf.lo -MD -MP -MF src/yajl/$(DEPDIR)/libyajl_la-yajl_buf.Tpo -c -o src/yajl/libyajl_la-yajl_buf.lo `test -f 'src/yajl/yajl_buf.c' || echo '$(srcdir)/'`src/yajl/yajl_buf.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/yajl/$(DEPDIR)/libyajl_la-yajl_buf.Tpo src/yajl/$(DEPDIR)/libyajl_la-yajl_buf.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/yajl/yajl_buf.c' object='src/yajl/libyajl_la-yajl_buf.lo' libtool=yes @AMDEPBACKSLASH@
+src/yajl/libstackdriver_yajl_la-stackdriver_yajl_buf.lo: src/yajl/stackdriver_yajl_buf.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstackdriver_yajl_la_CFLAGS) $(CFLAGS) -MT src/yajl/libstackdriver_yajl_la-stackdriver_yajl_buf.lo -MD -MP -MF src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_buf.Tpo -c -o src/yajl/libstackdriver_yajl_la-stackdriver_yajl_buf.lo `test -f 'src/yajl/stackdriver_yajl_buf.c' || echo '$(srcdir)/'`src/yajl/stackdriver_yajl_buf.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_buf.Tpo src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_buf.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/yajl/stackdriver_yajl_buf.c' object='src/yajl/libstackdriver_yajl_la-stackdriver_yajl_buf.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libyajl_la_CFLAGS) $(CFLAGS) -c -o src/yajl/libyajl_la-yajl_buf.lo `test -f 'src/yajl/yajl_buf.c' || echo '$(srcdir)/'`src/yajl/yajl_buf.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstackdriver_yajl_la_CFLAGS) $(CFLAGS) -c -o src/yajl/libstackdriver_yajl_la-stackdriver_yajl_buf.lo `test -f 'src/yajl/stackdriver_yajl_buf.c' || echo '$(srcdir)/'`src/yajl/stackdriver_yajl_buf.c
 
-src/yajl/libyajl_la-yajl_tree.lo: src/yajl/yajl_tree.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libyajl_la_CFLAGS) $(CFLAGS) -MT src/yajl/libyajl_la-yajl_tree.lo -MD -MP -MF src/yajl/$(DEPDIR)/libyajl_la-yajl_tree.Tpo -c -o src/yajl/libyajl_la-yajl_tree.lo `test -f 'src/yajl/yajl_tree.c' || echo '$(srcdir)/'`src/yajl/yajl_tree.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/yajl/$(DEPDIR)/libyajl_la-yajl_tree.Tpo src/yajl/$(DEPDIR)/libyajl_la-yajl_tree.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/yajl/yajl_tree.c' object='src/yajl/libyajl_la-yajl_tree.lo' libtool=yes @AMDEPBACKSLASH@
+src/yajl/libstackdriver_yajl_la-stackdriver_yajl_tree.lo: src/yajl/stackdriver_yajl_tree.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstackdriver_yajl_la_CFLAGS) $(CFLAGS) -MT src/yajl/libstackdriver_yajl_la-stackdriver_yajl_tree.lo -MD -MP -MF src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_tree.Tpo -c -o src/yajl/libstackdriver_yajl_la-stackdriver_yajl_tree.lo `test -f 'src/yajl/stackdriver_yajl_tree.c' || echo '$(srcdir)/'`src/yajl/stackdriver_yajl_tree.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_tree.Tpo src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_tree.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/yajl/stackdriver_yajl_tree.c' object='src/yajl/libstackdriver_yajl_la-stackdriver_yajl_tree.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libyajl_la_CFLAGS) $(CFLAGS) -c -o src/yajl/libyajl_la-yajl_tree.lo `test -f 'src/yajl/yajl_tree.c' || echo '$(srcdir)/'`src/yajl/yajl_tree.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstackdriver_yajl_la_CFLAGS) $(CFLAGS) -c -o src/yajl/libstackdriver_yajl_la-stackdriver_yajl_tree.lo `test -f 'src/yajl/stackdriver_yajl_tree.c' || echo '$(srcdir)/'`src/yajl/stackdriver_yajl_tree.c
 
-src/yajl/libyajl_la-yajl_alloc.lo: src/yajl/yajl_alloc.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libyajl_la_CFLAGS) $(CFLAGS) -MT src/yajl/libyajl_la-yajl_alloc.lo -MD -MP -MF src/yajl/$(DEPDIR)/libyajl_la-yajl_alloc.Tpo -c -o src/yajl/libyajl_la-yajl_alloc.lo `test -f 'src/yajl/yajl_alloc.c' || echo '$(srcdir)/'`src/yajl/yajl_alloc.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/yajl/$(DEPDIR)/libyajl_la-yajl_alloc.Tpo src/yajl/$(DEPDIR)/libyajl_la-yajl_alloc.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/yajl/yajl_alloc.c' object='src/yajl/libyajl_la-yajl_alloc.lo' libtool=yes @AMDEPBACKSLASH@
+src/yajl/libstackdriver_yajl_la-stackdriver_yajl_alloc.lo: src/yajl/stackdriver_yajl_alloc.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstackdriver_yajl_la_CFLAGS) $(CFLAGS) -MT src/yajl/libstackdriver_yajl_la-stackdriver_yajl_alloc.lo -MD -MP -MF src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_alloc.Tpo -c -o src/yajl/libstackdriver_yajl_la-stackdriver_yajl_alloc.lo `test -f 'src/yajl/stackdriver_yajl_alloc.c' || echo '$(srcdir)/'`src/yajl/stackdriver_yajl_alloc.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_alloc.Tpo src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_alloc.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/yajl/stackdriver_yajl_alloc.c' object='src/yajl/libstackdriver_yajl_la-stackdriver_yajl_alloc.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libyajl_la_CFLAGS) $(CFLAGS) -c -o src/yajl/libyajl_la-yajl_alloc.lo `test -f 'src/yajl/yajl_alloc.c' || echo '$(srcdir)/'`src/yajl/yajl_alloc.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstackdriver_yajl_la_CFLAGS) $(CFLAGS) -c -o src/yajl/libstackdriver_yajl_la-stackdriver_yajl_alloc.lo `test -f 'src/yajl/stackdriver_yajl_alloc.c' || echo '$(srcdir)/'`src/yajl/stackdriver_yajl_alloc.c
 
-src/yajl/libyajl_la-yajl_gen.lo: src/yajl/yajl_gen.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libyajl_la_CFLAGS) $(CFLAGS) -MT src/yajl/libyajl_la-yajl_gen.lo -MD -MP -MF src/yajl/$(DEPDIR)/libyajl_la-yajl_gen.Tpo -c -o src/yajl/libyajl_la-yajl_gen.lo `test -f 'src/yajl/yajl_gen.c' || echo '$(srcdir)/'`src/yajl/yajl_gen.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/yajl/$(DEPDIR)/libyajl_la-yajl_gen.Tpo src/yajl/$(DEPDIR)/libyajl_la-yajl_gen.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/yajl/yajl_gen.c' object='src/yajl/libyajl_la-yajl_gen.lo' libtool=yes @AMDEPBACKSLASH@
+src/yajl/libstackdriver_yajl_la-stackdriver_yajl_gen.lo: src/yajl/stackdriver_yajl_gen.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstackdriver_yajl_la_CFLAGS) $(CFLAGS) -MT src/yajl/libstackdriver_yajl_la-stackdriver_yajl_gen.lo -MD -MP -MF src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_gen.Tpo -c -o src/yajl/libstackdriver_yajl_la-stackdriver_yajl_gen.lo `test -f 'src/yajl/stackdriver_yajl_gen.c' || echo '$(srcdir)/'`src/yajl/stackdriver_yajl_gen.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_gen.Tpo src/yajl/$(DEPDIR)/libstackdriver_yajl_la-stackdriver_yajl_gen.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/yajl/stackdriver_yajl_gen.c' object='src/yajl/libstackdriver_yajl_la-stackdriver_yajl_gen.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libyajl_la_CFLAGS) $(CFLAGS) -c -o src/yajl/libyajl_la-yajl_gen.lo `test -f 'src/yajl/yajl_gen.c' || echo '$(srcdir)/'`src/yajl/yajl_gen.c
-
-examples/bcon_col_view-bcon-col-view.o: examples/bcon-col-view.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bcon_col_view_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT examples/bcon_col_view-bcon-col-view.o -MD -MP -MF examples/$(DEPDIR)/bcon_col_view-bcon-col-view.Tpo -c -o examples/bcon_col_view-bcon-col-view.o `test -f 'examples/bcon-col-view.c' || echo '$(srcdir)/'`examples/bcon-col-view.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) examples/$(DEPDIR)/bcon_col_view-bcon-col-view.Tpo examples/$(DEPDIR)/bcon_col_view-bcon-col-view.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='examples/bcon-col-view.c' object='examples/bcon_col_view-bcon-col-view.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bcon_col_view_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o examples/bcon_col_view-bcon-col-view.o `test -f 'examples/bcon-col-view.c' || echo '$(srcdir)/'`examples/bcon-col-view.c
-
-examples/bcon_col_view-bcon-col-view.obj: examples/bcon-col-view.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bcon_col_view_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT examples/bcon_col_view-bcon-col-view.obj -MD -MP -MF examples/$(DEPDIR)/bcon_col_view-bcon-col-view.Tpo -c -o examples/bcon_col_view-bcon-col-view.obj `if test -f 'examples/bcon-col-view.c'; then $(CYGPATH_W) 'examples/bcon-col-view.c'; else $(CYGPATH_W) '$(srcdir)/examples/bcon-col-view.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) examples/$(DEPDIR)/bcon_col_view-bcon-col-view.Tpo examples/$(DEPDIR)/bcon_col_view-bcon-col-view.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='examples/bcon-col-view.c' object='examples/bcon_col_view-bcon-col-view.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bcon_col_view_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o examples/bcon_col_view-bcon-col-view.obj `if test -f 'examples/bcon-col-view.c'; then $(CYGPATH_W) 'examples/bcon-col-view.c'; else $(CYGPATH_W) '$(srcdir)/examples/bcon-col-view.c'; fi`
-
-examples/bcon_speed-bcon-speed.o: examples/bcon-speed.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bcon_speed_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT examples/bcon_speed-bcon-speed.o -MD -MP -MF examples/$(DEPDIR)/bcon_speed-bcon-speed.Tpo -c -o examples/bcon_speed-bcon-speed.o `test -f 'examples/bcon-speed.c' || echo '$(srcdir)/'`examples/bcon-speed.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) examples/$(DEPDIR)/bcon_speed-bcon-speed.Tpo examples/$(DEPDIR)/bcon_speed-bcon-speed.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='examples/bcon-speed.c' object='examples/bcon_speed-bcon-speed.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bcon_speed_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o examples/bcon_speed-bcon-speed.o `test -f 'examples/bcon-speed.c' || echo '$(srcdir)/'`examples/bcon-speed.c
-
-examples/bcon_speed-bcon-speed.obj: examples/bcon-speed.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bcon_speed_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT examples/bcon_speed-bcon-speed.obj -MD -MP -MF examples/$(DEPDIR)/bcon_speed-bcon-speed.Tpo -c -o examples/bcon_speed-bcon-speed.obj `if test -f 'examples/bcon-speed.c'; then $(CYGPATH_W) 'examples/bcon-speed.c'; else $(CYGPATH_W) '$(srcdir)/examples/bcon-speed.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) examples/$(DEPDIR)/bcon_speed-bcon-speed.Tpo examples/$(DEPDIR)/bcon_speed-bcon-speed.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='examples/bcon-speed.c' object='examples/bcon_speed-bcon-speed.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bcon_speed_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o examples/bcon_speed-bcon-speed.obj `if test -f 'examples/bcon-speed.c'; then $(CYGPATH_W) 'examples/bcon-speed.c'; else $(CYGPATH_W) '$(srcdir)/examples/bcon-speed.c'; fi`
-
-examples/bson_metrics-bson-metrics.o: examples/bson-metrics.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bson_metrics_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT examples/bson_metrics-bson-metrics.o -MD -MP -MF examples/$(DEPDIR)/bson_metrics-bson-metrics.Tpo -c -o examples/bson_metrics-bson-metrics.o `test -f 'examples/bson-metrics.c' || echo '$(srcdir)/'`examples/bson-metrics.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) examples/$(DEPDIR)/bson_metrics-bson-metrics.Tpo examples/$(DEPDIR)/bson_metrics-bson-metrics.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='examples/bson-metrics.c' object='examples/bson_metrics-bson-metrics.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bson_metrics_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o examples/bson_metrics-bson-metrics.o `test -f 'examples/bson-metrics.c' || echo '$(srcdir)/'`examples/bson-metrics.c
-
-examples/bson_metrics-bson-metrics.obj: examples/bson-metrics.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bson_metrics_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT examples/bson_metrics-bson-metrics.obj -MD -MP -MF examples/$(DEPDIR)/bson_metrics-bson-metrics.Tpo -c -o examples/bson_metrics-bson-metrics.obj `if test -f 'examples/bson-metrics.c'; then $(CYGPATH_W) 'examples/bson-metrics.c'; else $(CYGPATH_W) '$(srcdir)/examples/bson-metrics.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) examples/$(DEPDIR)/bson_metrics-bson-metrics.Tpo examples/$(DEPDIR)/bson_metrics-bson-metrics.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='examples/bson-metrics.c' object='examples/bson_metrics-bson-metrics.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bson_metrics_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o examples/bson_metrics-bson-metrics.obj `if test -f 'examples/bson-metrics.c'; then $(CYGPATH_W) 'examples/bson-metrics.c'; else $(CYGPATH_W) '$(srcdir)/examples/bson-metrics.c'; fi`
-
-examples/bson_streaming_reader-bson-streaming-reader.o: examples/bson-streaming-reader.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bson_streaming_reader_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT examples/bson_streaming_reader-bson-streaming-reader.o -MD -MP -MF examples/$(DEPDIR)/bson_streaming_reader-bson-streaming-reader.Tpo -c -o examples/bson_streaming_reader-bson-streaming-reader.o `test -f 'examples/bson-streaming-reader.c' || echo '$(srcdir)/'`examples/bson-streaming-reader.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) examples/$(DEPDIR)/bson_streaming_reader-bson-streaming-reader.Tpo examples/$(DEPDIR)/bson_streaming_reader-bson-streaming-reader.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='examples/bson-streaming-reader.c' object='examples/bson_streaming_reader-bson-streaming-reader.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bson_streaming_reader_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o examples/bson_streaming_reader-bson-streaming-reader.o `test -f 'examples/bson-streaming-reader.c' || echo '$(srcdir)/'`examples/bson-streaming-reader.c
-
-examples/bson_streaming_reader-bson-streaming-reader.obj: examples/bson-streaming-reader.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bson_streaming_reader_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT examples/bson_streaming_reader-bson-streaming-reader.obj -MD -MP -MF examples/$(DEPDIR)/bson_streaming_reader-bson-streaming-reader.Tpo -c -o examples/bson_streaming_reader-bson-streaming-reader.obj `if test -f 'examples/bson-streaming-reader.c'; then $(CYGPATH_W) 'examples/bson-streaming-reader.c'; else $(CYGPATH_W) '$(srcdir)/examples/bson-streaming-reader.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) examples/$(DEPDIR)/bson_streaming_reader-bson-streaming-reader.Tpo examples/$(DEPDIR)/bson_streaming_reader-bson-streaming-reader.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='examples/bson-streaming-reader.c' object='examples/bson_streaming_reader-bson-streaming-reader.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bson_streaming_reader_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o examples/bson_streaming_reader-bson-streaming-reader.obj `if test -f 'examples/bson-streaming-reader.c'; then $(CYGPATH_W) 'examples/bson-streaming-reader.c'; else $(CYGPATH_W) '$(srcdir)/examples/bson-streaming-reader.c'; fi`
-
-examples/bson_to_json-bson-to-json.o: examples/bson-to-json.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bson_to_json_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT examples/bson_to_json-bson-to-json.o -MD -MP -MF examples/$(DEPDIR)/bson_to_json-bson-to-json.Tpo -c -o examples/bson_to_json-bson-to-json.o `test -f 'examples/bson-to-json.c' || echo '$(srcdir)/'`examples/bson-to-json.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) examples/$(DEPDIR)/bson_to_json-bson-to-json.Tpo examples/$(DEPDIR)/bson_to_json-bson-to-json.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='examples/bson-to-json.c' object='examples/bson_to_json-bson-to-json.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bson_to_json_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o examples/bson_to_json-bson-to-json.o `test -f 'examples/bson-to-json.c' || echo '$(srcdir)/'`examples/bson-to-json.c
-
-examples/bson_to_json-bson-to-json.obj: examples/bson-to-json.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bson_to_json_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT examples/bson_to_json-bson-to-json.obj -MD -MP -MF examples/$(DEPDIR)/bson_to_json-bson-to-json.Tpo -c -o examples/bson_to_json-bson-to-json.obj `if test -f 'examples/bson-to-json.c'; then $(CYGPATH_W) 'examples/bson-to-json.c'; else $(CYGPATH_W) '$(srcdir)/examples/bson-to-json.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) examples/$(DEPDIR)/bson_to_json-bson-to-json.Tpo examples/$(DEPDIR)/bson_to_json-bson-to-json.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='examples/bson-to-json.c' object='examples/bson_to_json-bson-to-json.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bson_to_json_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o examples/bson_to_json-bson-to-json.obj `if test -f 'examples/bson-to-json.c'; then $(CYGPATH_W) 'examples/bson-to-json.c'; else $(CYGPATH_W) '$(srcdir)/examples/bson-to-json.c'; fi`
-
-examples/bson_validate-bson-validate.o: examples/bson-validate.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bson_validate_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT examples/bson_validate-bson-validate.o -MD -MP -MF examples/$(DEPDIR)/bson_validate-bson-validate.Tpo -c -o examples/bson_validate-bson-validate.o `test -f 'examples/bson-validate.c' || echo '$(srcdir)/'`examples/bson-validate.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) examples/$(DEPDIR)/bson_validate-bson-validate.Tpo examples/$(DEPDIR)/bson_validate-bson-validate.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='examples/bson-validate.c' object='examples/bson_validate-bson-validate.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bson_validate_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o examples/bson_validate-bson-validate.o `test -f 'examples/bson-validate.c' || echo '$(srcdir)/'`examples/bson-validate.c
-
-examples/bson_validate-bson-validate.obj: examples/bson-validate.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bson_validate_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT examples/bson_validate-bson-validate.obj -MD -MP -MF examples/$(DEPDIR)/bson_validate-bson-validate.Tpo -c -o examples/bson_validate-bson-validate.obj `if test -f 'examples/bson-validate.c'; then $(CYGPATH_W) 'examples/bson-validate.c'; else $(CYGPATH_W) '$(srcdir)/examples/bson-validate.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) examples/$(DEPDIR)/bson_validate-bson-validate.Tpo examples/$(DEPDIR)/bson_validate-bson-validate.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='examples/bson-validate.c' object='examples/bson_validate-bson-validate.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bson_validate_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o examples/bson_validate-bson-validate.obj `if test -f 'examples/bson-validate.c'; then $(CYGPATH_W) 'examples/bson-validate.c'; else $(CYGPATH_W) '$(srcdir)/examples/bson-validate.c'; fi`
-
-examples/json_to_bson-json-to-bson.o: examples/json-to-bson.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(json_to_bson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT examples/json_to_bson-json-to-bson.o -MD -MP -MF examples/$(DEPDIR)/json_to_bson-json-to-bson.Tpo -c -o examples/json_to_bson-json-to-bson.o `test -f 'examples/json-to-bson.c' || echo '$(srcdir)/'`examples/json-to-bson.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) examples/$(DEPDIR)/json_to_bson-json-to-bson.Tpo examples/$(DEPDIR)/json_to_bson-json-to-bson.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='examples/json-to-bson.c' object='examples/json_to_bson-json-to-bson.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(json_to_bson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o examples/json_to_bson-json-to-bson.o `test -f 'examples/json-to-bson.c' || echo '$(srcdir)/'`examples/json-to-bson.c
-
-examples/json_to_bson-json-to-bson.obj: examples/json-to-bson.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(json_to_bson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT examples/json_to_bson-json-to-bson.obj -MD -MP -MF examples/$(DEPDIR)/json_to_bson-json-to-bson.Tpo -c -o examples/json_to_bson-json-to-bson.obj `if test -f 'examples/json-to-bson.c'; then $(CYGPATH_W) 'examples/json-to-bson.c'; else $(CYGPATH_W) '$(srcdir)/examples/json-to-bson.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) examples/$(DEPDIR)/json_to_bson-json-to-bson.Tpo examples/$(DEPDIR)/json_to_bson-json-to-bson.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='examples/json-to-bson.c' object='examples/json_to_bson-json-to-bson.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(json_to_bson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o examples/json_to_bson-json-to-bson.obj `if test -f 'examples/json-to-bson.c'; then $(CYGPATH_W) 'examples/json-to-bson.c'; else $(CYGPATH_W) '$(srcdir)/examples/json-to-bson.c'; fi`
-
-tests/test_libbson-TestSuite.o: tests/TestSuite.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-TestSuite.o -MD -MP -MF tests/$(DEPDIR)/test_libbson-TestSuite.Tpo -c -o tests/test_libbson-TestSuite.o `test -f 'tests/TestSuite.c' || echo '$(srcdir)/'`tests/TestSuite.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-TestSuite.Tpo tests/$(DEPDIR)/test_libbson-TestSuite.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/TestSuite.c' object='tests/test_libbson-TestSuite.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-TestSuite.o `test -f 'tests/TestSuite.c' || echo '$(srcdir)/'`tests/TestSuite.c
-
-tests/test_libbson-TestSuite.obj: tests/TestSuite.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-TestSuite.obj -MD -MP -MF tests/$(DEPDIR)/test_libbson-TestSuite.Tpo -c -o tests/test_libbson-TestSuite.obj `if test -f 'tests/TestSuite.c'; then $(CYGPATH_W) 'tests/TestSuite.c'; else $(CYGPATH_W) '$(srcdir)/tests/TestSuite.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-TestSuite.Tpo tests/$(DEPDIR)/test_libbson-TestSuite.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/TestSuite.c' object='tests/test_libbson-TestSuite.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-TestSuite.obj `if test -f 'tests/TestSuite.c'; then $(CYGPATH_W) 'tests/TestSuite.c'; else $(CYGPATH_W) '$(srcdir)/tests/TestSuite.c'; fi`
-
-tests/test_libbson-test-libbson.o: tests/test-libbson.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-libbson.o -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-libbson.Tpo -c -o tests/test_libbson-test-libbson.o `test -f 'tests/test-libbson.c' || echo '$(srcdir)/'`tests/test-libbson.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-libbson.Tpo tests/$(DEPDIR)/test_libbson-test-libbson.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-libbson.c' object='tests/test_libbson-test-libbson.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-libbson.o `test -f 'tests/test-libbson.c' || echo '$(srcdir)/'`tests/test-libbson.c
-
-tests/test_libbson-test-libbson.obj: tests/test-libbson.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-libbson.obj -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-libbson.Tpo -c -o tests/test_libbson-test-libbson.obj `if test -f 'tests/test-libbson.c'; then $(CYGPATH_W) 'tests/test-libbson.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-libbson.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-libbson.Tpo tests/$(DEPDIR)/test_libbson-test-libbson.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-libbson.c' object='tests/test_libbson-test-libbson.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-libbson.obj `if test -f 'tests/test-libbson.c'; then $(CYGPATH_W) 'tests/test-libbson.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-libbson.c'; fi`
-
-tests/test_libbson-test-atomic.o: tests/test-atomic.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-atomic.o -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-atomic.Tpo -c -o tests/test_libbson-test-atomic.o `test -f 'tests/test-atomic.c' || echo '$(srcdir)/'`tests/test-atomic.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-atomic.Tpo tests/$(DEPDIR)/test_libbson-test-atomic.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-atomic.c' object='tests/test_libbson-test-atomic.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-atomic.o `test -f 'tests/test-atomic.c' || echo '$(srcdir)/'`tests/test-atomic.c
-
-tests/test_libbson-test-atomic.obj: tests/test-atomic.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-atomic.obj -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-atomic.Tpo -c -o tests/test_libbson-test-atomic.obj `if test -f 'tests/test-atomic.c'; then $(CYGPATH_W) 'tests/test-atomic.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-atomic.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-atomic.Tpo tests/$(DEPDIR)/test_libbson-test-atomic.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-atomic.c' object='tests/test_libbson-test-atomic.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-atomic.obj `if test -f 'tests/test-atomic.c'; then $(CYGPATH_W) 'tests/test-atomic.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-atomic.c'; fi`
-
-tests/test_libbson-test-bson.o: tests/test-bson.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-bson.o -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-bson.Tpo -c -o tests/test_libbson-test-bson.o `test -f 'tests/test-bson.c' || echo '$(srcdir)/'`tests/test-bson.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-bson.Tpo tests/$(DEPDIR)/test_libbson-test-bson.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-bson.c' object='tests/test_libbson-test-bson.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-bson.o `test -f 'tests/test-bson.c' || echo '$(srcdir)/'`tests/test-bson.c
-
-tests/test_libbson-test-bson.obj: tests/test-bson.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-bson.obj -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-bson.Tpo -c -o tests/test_libbson-test-bson.obj `if test -f 'tests/test-bson.c'; then $(CYGPATH_W) 'tests/test-bson.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-bson.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-bson.Tpo tests/$(DEPDIR)/test_libbson-test-bson.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-bson.c' object='tests/test_libbson-test-bson.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-bson.obj `if test -f 'tests/test-bson.c'; then $(CYGPATH_W) 'tests/test-bson.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-bson.c'; fi`
-
-tests/test_libbson-test-endian.o: tests/test-endian.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-endian.o -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-endian.Tpo -c -o tests/test_libbson-test-endian.o `test -f 'tests/test-endian.c' || echo '$(srcdir)/'`tests/test-endian.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-endian.Tpo tests/$(DEPDIR)/test_libbson-test-endian.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-endian.c' object='tests/test_libbson-test-endian.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-endian.o `test -f 'tests/test-endian.c' || echo '$(srcdir)/'`tests/test-endian.c
-
-tests/test_libbson-test-endian.obj: tests/test-endian.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-endian.obj -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-endian.Tpo -c -o tests/test_libbson-test-endian.obj `if test -f 'tests/test-endian.c'; then $(CYGPATH_W) 'tests/test-endian.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-endian.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-endian.Tpo tests/$(DEPDIR)/test_libbson-test-endian.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-endian.c' object='tests/test_libbson-test-endian.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-endian.obj `if test -f 'tests/test-endian.c'; then $(CYGPATH_W) 'tests/test-endian.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-endian.c'; fi`
-
-tests/test_libbson-test-clock.o: tests/test-clock.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-clock.o -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-clock.Tpo -c -o tests/test_libbson-test-clock.o `test -f 'tests/test-clock.c' || echo '$(srcdir)/'`tests/test-clock.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-clock.Tpo tests/$(DEPDIR)/test_libbson-test-clock.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-clock.c' object='tests/test_libbson-test-clock.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-clock.o `test -f 'tests/test-clock.c' || echo '$(srcdir)/'`tests/test-clock.c
-
-tests/test_libbson-test-clock.obj: tests/test-clock.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-clock.obj -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-clock.Tpo -c -o tests/test_libbson-test-clock.obj `if test -f 'tests/test-clock.c'; then $(CYGPATH_W) 'tests/test-clock.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-clock.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-clock.Tpo tests/$(DEPDIR)/test_libbson-test-clock.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-clock.c' object='tests/test_libbson-test-clock.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-clock.obj `if test -f 'tests/test-clock.c'; then $(CYGPATH_W) 'tests/test-clock.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-clock.c'; fi`
-
-tests/test_libbson-test-error.o: tests/test-error.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-error.o -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-error.Tpo -c -o tests/test_libbson-test-error.o `test -f 'tests/test-error.c' || echo '$(srcdir)/'`tests/test-error.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-error.Tpo tests/$(DEPDIR)/test_libbson-test-error.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-error.c' object='tests/test_libbson-test-error.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-error.o `test -f 'tests/test-error.c' || echo '$(srcdir)/'`tests/test-error.c
-
-tests/test_libbson-test-error.obj: tests/test-error.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-error.obj -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-error.Tpo -c -o tests/test_libbson-test-error.obj `if test -f 'tests/test-error.c'; then $(CYGPATH_W) 'tests/test-error.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-error.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-error.Tpo tests/$(DEPDIR)/test_libbson-test-error.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-error.c' object='tests/test_libbson-test-error.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-error.obj `if test -f 'tests/test-error.c'; then $(CYGPATH_W) 'tests/test-error.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-error.c'; fi`
-
-tests/test_libbson-test-iso8601.o: tests/test-iso8601.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-iso8601.o -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-iso8601.Tpo -c -o tests/test_libbson-test-iso8601.o `test -f 'tests/test-iso8601.c' || echo '$(srcdir)/'`tests/test-iso8601.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-iso8601.Tpo tests/$(DEPDIR)/test_libbson-test-iso8601.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-iso8601.c' object='tests/test_libbson-test-iso8601.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-iso8601.o `test -f 'tests/test-iso8601.c' || echo '$(srcdir)/'`tests/test-iso8601.c
-
-tests/test_libbson-test-iso8601.obj: tests/test-iso8601.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-iso8601.obj -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-iso8601.Tpo -c -o tests/test_libbson-test-iso8601.obj `if test -f 'tests/test-iso8601.c'; then $(CYGPATH_W) 'tests/test-iso8601.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-iso8601.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-iso8601.Tpo tests/$(DEPDIR)/test_libbson-test-iso8601.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-iso8601.c' object='tests/test_libbson-test-iso8601.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-iso8601.obj `if test -f 'tests/test-iso8601.c'; then $(CYGPATH_W) 'tests/test-iso8601.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-iso8601.c'; fi`
-
-tests/test_libbson-test-iter.o: tests/test-iter.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-iter.o -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-iter.Tpo -c -o tests/test_libbson-test-iter.o `test -f 'tests/test-iter.c' || echo '$(srcdir)/'`tests/test-iter.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-iter.Tpo tests/$(DEPDIR)/test_libbson-test-iter.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-iter.c' object='tests/test_libbson-test-iter.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-iter.o `test -f 'tests/test-iter.c' || echo '$(srcdir)/'`tests/test-iter.c
-
-tests/test_libbson-test-iter.obj: tests/test-iter.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-iter.obj -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-iter.Tpo -c -o tests/test_libbson-test-iter.obj `if test -f 'tests/test-iter.c'; then $(CYGPATH_W) 'tests/test-iter.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-iter.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-iter.Tpo tests/$(DEPDIR)/test_libbson-test-iter.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-iter.c' object='tests/test_libbson-test-iter.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-iter.obj `if test -f 'tests/test-iter.c'; then $(CYGPATH_W) 'tests/test-iter.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-iter.c'; fi`
-
-tests/test_libbson-test-json.o: tests/test-json.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-json.o -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-json.Tpo -c -o tests/test_libbson-test-json.o `test -f 'tests/test-json.c' || echo '$(srcdir)/'`tests/test-json.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-json.Tpo tests/$(DEPDIR)/test_libbson-test-json.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-json.c' object='tests/test_libbson-test-json.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-json.o `test -f 'tests/test-json.c' || echo '$(srcdir)/'`tests/test-json.c
-
-tests/test_libbson-test-json.obj: tests/test-json.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-json.obj -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-json.Tpo -c -o tests/test_libbson-test-json.obj `if test -f 'tests/test-json.c'; then $(CYGPATH_W) 'tests/test-json.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-json.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-json.Tpo tests/$(DEPDIR)/test_libbson-test-json.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-json.c' object='tests/test_libbson-test-json.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-json.obj `if test -f 'tests/test-json.c'; then $(CYGPATH_W) 'tests/test-json.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-json.c'; fi`
-
-tests/test_libbson-test-oid.o: tests/test-oid.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-oid.o -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-oid.Tpo -c -o tests/test_libbson-test-oid.o `test -f 'tests/test-oid.c' || echo '$(srcdir)/'`tests/test-oid.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-oid.Tpo tests/$(DEPDIR)/test_libbson-test-oid.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-oid.c' object='tests/test_libbson-test-oid.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-oid.o `test -f 'tests/test-oid.c' || echo '$(srcdir)/'`tests/test-oid.c
-
-tests/test_libbson-test-oid.obj: tests/test-oid.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-oid.obj -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-oid.Tpo -c -o tests/test_libbson-test-oid.obj `if test -f 'tests/test-oid.c'; then $(CYGPATH_W) 'tests/test-oid.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-oid.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-oid.Tpo tests/$(DEPDIR)/test_libbson-test-oid.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-oid.c' object='tests/test_libbson-test-oid.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-oid.obj `if test -f 'tests/test-oid.c'; then $(CYGPATH_W) 'tests/test-oid.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-oid.c'; fi`
-
-tests/test_libbson-test-reader.o: tests/test-reader.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-reader.o -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-reader.Tpo -c -o tests/test_libbson-test-reader.o `test -f 'tests/test-reader.c' || echo '$(srcdir)/'`tests/test-reader.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-reader.Tpo tests/$(DEPDIR)/test_libbson-test-reader.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-reader.c' object='tests/test_libbson-test-reader.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-reader.o `test -f 'tests/test-reader.c' || echo '$(srcdir)/'`tests/test-reader.c
-
-tests/test_libbson-test-reader.obj: tests/test-reader.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-reader.obj -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-reader.Tpo -c -o tests/test_libbson-test-reader.obj `if test -f 'tests/test-reader.c'; then $(CYGPATH_W) 'tests/test-reader.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-reader.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-reader.Tpo tests/$(DEPDIR)/test_libbson-test-reader.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-reader.c' object='tests/test_libbson-test-reader.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-reader.obj `if test -f 'tests/test-reader.c'; then $(CYGPATH_W) 'tests/test-reader.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-reader.c'; fi`
-
-tests/test_libbson-test-string.o: tests/test-string.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-string.o -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-string.Tpo -c -o tests/test_libbson-test-string.o `test -f 'tests/test-string.c' || echo '$(srcdir)/'`tests/test-string.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-string.Tpo tests/$(DEPDIR)/test_libbson-test-string.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-string.c' object='tests/test_libbson-test-string.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-string.o `test -f 'tests/test-string.c' || echo '$(srcdir)/'`tests/test-string.c
-
-tests/test_libbson-test-string.obj: tests/test-string.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-string.obj -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-string.Tpo -c -o tests/test_libbson-test-string.obj `if test -f 'tests/test-string.c'; then $(CYGPATH_W) 'tests/test-string.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-string.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-string.Tpo tests/$(DEPDIR)/test_libbson-test-string.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-string.c' object='tests/test_libbson-test-string.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-string.obj `if test -f 'tests/test-string.c'; then $(CYGPATH_W) 'tests/test-string.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-string.c'; fi`
-
-tests/test_libbson-test-utf8.o: tests/test-utf8.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-utf8.o -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-utf8.Tpo -c -o tests/test_libbson-test-utf8.o `test -f 'tests/test-utf8.c' || echo '$(srcdir)/'`tests/test-utf8.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-utf8.Tpo tests/$(DEPDIR)/test_libbson-test-utf8.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-utf8.c' object='tests/test_libbson-test-utf8.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-utf8.o `test -f 'tests/test-utf8.c' || echo '$(srcdir)/'`tests/test-utf8.c
-
-tests/test_libbson-test-utf8.obj: tests/test-utf8.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-utf8.obj -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-utf8.Tpo -c -o tests/test_libbson-test-utf8.obj `if test -f 'tests/test-utf8.c'; then $(CYGPATH_W) 'tests/test-utf8.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-utf8.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-utf8.Tpo tests/$(DEPDIR)/test_libbson-test-utf8.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-utf8.c' object='tests/test_libbson-test-utf8.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-utf8.obj `if test -f 'tests/test-utf8.c'; then $(CYGPATH_W) 'tests/test-utf8.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-utf8.c'; fi`
-
-tests/test_libbson-test-value.o: tests/test-value.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-value.o -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-value.Tpo -c -o tests/test_libbson-test-value.o `test -f 'tests/test-value.c' || echo '$(srcdir)/'`tests/test-value.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-value.Tpo tests/$(DEPDIR)/test_libbson-test-value.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-value.c' object='tests/test_libbson-test-value.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-value.o `test -f 'tests/test-value.c' || echo '$(srcdir)/'`tests/test-value.c
-
-tests/test_libbson-test-value.obj: tests/test-value.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-value.obj -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-value.Tpo -c -o tests/test_libbson-test-value.obj `if test -f 'tests/test-value.c'; then $(CYGPATH_W) 'tests/test-value.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-value.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-value.Tpo tests/$(DEPDIR)/test_libbson-test-value.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-value.c' object='tests/test_libbson-test-value.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-value.obj `if test -f 'tests/test-value.c'; then $(CYGPATH_W) 'tests/test-value.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-value.c'; fi`
-
-tests/test_libbson-test-version.o: tests/test-version.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-version.o -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-version.Tpo -c -o tests/test_libbson-test-version.o `test -f 'tests/test-version.c' || echo '$(srcdir)/'`tests/test-version.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-version.Tpo tests/$(DEPDIR)/test_libbson-test-version.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-version.c' object='tests/test_libbson-test-version.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-version.o `test -f 'tests/test-version.c' || echo '$(srcdir)/'`tests/test-version.c
-
-tests/test_libbson-test-version.obj: tests/test-version.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-version.obj -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-version.Tpo -c -o tests/test_libbson-test-version.obj `if test -f 'tests/test-version.c'; then $(CYGPATH_W) 'tests/test-version.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-version.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-version.Tpo tests/$(DEPDIR)/test_libbson-test-version.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-version.c' object='tests/test_libbson-test-version.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-version.obj `if test -f 'tests/test-version.c'; then $(CYGPATH_W) 'tests/test-version.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-version.c'; fi`
-
-tests/test_libbson-test-writer.o: tests/test-writer.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-writer.o -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-writer.Tpo -c -o tests/test_libbson-test-writer.o `test -f 'tests/test-writer.c' || echo '$(srcdir)/'`tests/test-writer.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-writer.Tpo tests/$(DEPDIR)/test_libbson-test-writer.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-writer.c' object='tests/test_libbson-test-writer.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-writer.o `test -f 'tests/test-writer.c' || echo '$(srcdir)/'`tests/test-writer.c
-
-tests/test_libbson-test-writer.obj: tests/test-writer.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-writer.obj -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-writer.Tpo -c -o tests/test_libbson-test-writer.obj `if test -f 'tests/test-writer.c'; then $(CYGPATH_W) 'tests/test-writer.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-writer.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-writer.Tpo tests/$(DEPDIR)/test_libbson-test-writer.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-writer.c' object='tests/test_libbson-test-writer.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-writer.obj `if test -f 'tests/test-writer.c'; then $(CYGPATH_W) 'tests/test-writer.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-writer.c'; fi`
-
-tests/test_libbson-test-bcon-basic.o: tests/test-bcon-basic.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-bcon-basic.o -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-bcon-basic.Tpo -c -o tests/test_libbson-test-bcon-basic.o `test -f 'tests/test-bcon-basic.c' || echo '$(srcdir)/'`tests/test-bcon-basic.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-bcon-basic.Tpo tests/$(DEPDIR)/test_libbson-test-bcon-basic.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-bcon-basic.c' object='tests/test_libbson-test-bcon-basic.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-bcon-basic.o `test -f 'tests/test-bcon-basic.c' || echo '$(srcdir)/'`tests/test-bcon-basic.c
-
-tests/test_libbson-test-bcon-basic.obj: tests/test-bcon-basic.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-bcon-basic.obj -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-bcon-basic.Tpo -c -o tests/test_libbson-test-bcon-basic.obj `if test -f 'tests/test-bcon-basic.c'; then $(CYGPATH_W) 'tests/test-bcon-basic.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-bcon-basic.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-bcon-basic.Tpo tests/$(DEPDIR)/test_libbson-test-bcon-basic.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-bcon-basic.c' object='tests/test_libbson-test-bcon-basic.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-bcon-basic.obj `if test -f 'tests/test-bcon-basic.c'; then $(CYGPATH_W) 'tests/test-bcon-basic.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-bcon-basic.c'; fi`
-
-tests/test_libbson-test-bcon-extract.o: tests/test-bcon-extract.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-bcon-extract.o -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-bcon-extract.Tpo -c -o tests/test_libbson-test-bcon-extract.o `test -f 'tests/test-bcon-extract.c' || echo '$(srcdir)/'`tests/test-bcon-extract.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-bcon-extract.Tpo tests/$(DEPDIR)/test_libbson-test-bcon-extract.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-bcon-extract.c' object='tests/test_libbson-test-bcon-extract.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-bcon-extract.o `test -f 'tests/test-bcon-extract.c' || echo '$(srcdir)/'`tests/test-bcon-extract.c
-
-tests/test_libbson-test-bcon-extract.obj: tests/test-bcon-extract.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/test_libbson-test-bcon-extract.obj -MD -MP -MF tests/$(DEPDIR)/test_libbson-test-bcon-extract.Tpo -c -o tests/test_libbson-test-bcon-extract.obj `if test -f 'tests/test-bcon-extract.c'; then $(CYGPATH_W) 'tests/test-bcon-extract.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-bcon-extract.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/test_libbson-test-bcon-extract.Tpo tests/$(DEPDIR)/test_libbson-test-bcon-extract.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/test-bcon-extract.c' object='tests/test_libbson-test-bcon-extract.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_libbson_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/test_libbson-test-bcon-extract.obj `if test -f 'tests/test-bcon-extract.c'; then $(CYGPATH_W) 'tests/test-bcon-extract.c'; else $(CYGPATH_W) '$(srcdir)/tests/test-bcon-extract.c'; fi`
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstackdriver_yajl_la_CFLAGS) $(CFLAGS) -c -o src/yajl/libstackdriver_yajl_la-stackdriver_yajl_gen.lo `test -f 'src/yajl/stackdriver_yajl_gen.c' || echo '$(srcdir)/'`src/yajl/stackdriver_yajl_gen.c
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -1840,49 +1164,6 @@ clean-libtool:
 
 distclean-libtool:
 	-rm -f libtool config.lt
-install-man3: $(dist_man_MANS) $(man3_MANS)
-	@$(NORMAL_INSTALL)
-	@list1='$(man3_MANS)'; \
-	list2='$(dist_man_MANS)'; \
-	test -n "$(man3dir)" \
-	  && test -n "`echo $$list1$$list2`" \
-	  || exit 0; \
-	echo " $(MKDIR_P) '$(DESTDIR)$(man3dir)'"; \
-	$(MKDIR_P) "$(DESTDIR)$(man3dir)" || exit 1; \
-	{ for i in $$list1; do echo "$$i"; done;  \
-	if test -n "$$list2"; then \
-	  for i in $$list2; do echo "$$i"; done \
-	    | sed -n '/\.3[a-z]*$$/p'; \
-	fi; \
-	} | while read p; do \
-	  if test -f $$p; then d=; else d="$(srcdir)/"; fi; \
-	  echo "$$d$$p"; echo "$$p"; \
-	done | \
-	sed -e 'n;s,.*/,,;p;h;s,.*\.,,;s,^[^3][0-9a-z]*$$,3,;x' \
-	      -e 's,\.[0-9a-z]*$$,,;$(transform);G;s,\n,.,' | \
-	sed 'N;N;s,\n, ,g' | { \
-	list=; while read file base inst; do \
-	  if test "$$base" = "$$inst"; then list="$$list $$file"; else \
-	    echo " $(INSTALL_DATA) '$$file' '$(DESTDIR)$(man3dir)/$$inst'"; \
-	    $(INSTALL_DATA) "$$file" "$(DESTDIR)$(man3dir)/$$inst" || exit $$?; \
-	  fi; \
-	done; \
-	for i in $$list; do echo "$$i"; done | $(am__base_list) | \
-	while read files; do \
-	  test -z "$$files" || { \
-	    echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(man3dir)'"; \
-	    $(INSTALL_DATA) $$files "$(DESTDIR)$(man3dir)" || exit $$?; }; \
-	done; }
-
-uninstall-man3:
-	@$(NORMAL_UNINSTALL)
-	@list='$(man3_MANS)'; test -n "$(man3dir)" || exit 0; \
-	files=`{ for i in $$list; do echo "$$i"; done; \
-	l2='$(dist_man_MANS)'; for i in $$l2; do echo "$$i"; done | \
-	  sed -n '/\.3[a-z]*$$/p'; \
-	} | sed -e 's,.*/,,;h;s,.*\.,,;s,^[^3][0-9a-z]*$$,3,;x' \
-	      -e 's,\.[0-9a-z]*$$,,;$(transform);G;s,\n,.,'`; \
-	dir='$(DESTDIR)$(man3dir)'; $(am__uninstall_files_from_dir)
 install-bsondocDATA: $(bsondoc_DATA)
 	@$(NORMAL_INSTALL)
 	@list='$(bsondoc_DATA)'; test -n "$(bsondocdir)" || list=; \
@@ -2174,11 +1455,11 @@ distcleancheck: distclean
 	       exit 1; } >&2
 check-am: all-am
 check: check-am
-all-am: Makefile $(LTLIBRARIES) $(PROGRAMS) $(MANS) $(DATA)
+all-am: Makefile $(LTLIBRARIES) $(PROGRAMS) $(DATA)
 install-binPROGRAMS: install-libLTLIBRARIES
 
 installdirs:
-	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(man3dir)" "$(DESTDIR)$(bsondocdir)" "$(DESTDIR)$(headerdir)" "$(DESTDIR)$(pkgconfigdir)"; do \
+	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(bsondocdir)" "$(DESTDIR)$(headerdir)" "$(DESTDIR)$(pkgconfigdir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: install-am
@@ -2208,14 +1489,10 @@ clean-generic:
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
 	-test . = "$(srcdir)" || test -z "$(CONFIG_CLEAN_VPATH_FILES)" || rm -f $(CONFIG_CLEAN_VPATH_FILES)
-	-rm -f examples/$(DEPDIR)/$(am__dirstamp)
-	-rm -f examples/$(am__dirstamp)
 	-rm -f src/bson/$(DEPDIR)/$(am__dirstamp)
 	-rm -f src/bson/$(am__dirstamp)
 	-rm -f src/yajl/$(DEPDIR)/$(am__dirstamp)
 	-rm -f src/yajl/$(am__dirstamp)
-	-rm -f tests/$(DEPDIR)/$(am__dirstamp)
-	-rm -f tests/$(am__dirstamp)
 	-test -z "$(DISTCLEANFILES)" || rm -f $(DISTCLEANFILES)
 
 maintainer-clean-generic:
@@ -2230,7 +1507,7 @@ clean-am: clean-binPROGRAMS clean-generic clean-libLTLIBRARIES \
 
 distclean: distclean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
-	-rm -rf examples/$(DEPDIR) src/bson/$(DEPDIR) src/yajl/$(DEPDIR) tests/$(DEPDIR)
+	-rm -rf src/bson/$(DEPDIR) src/yajl/$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-libtool distclean-tags
@@ -2239,7 +1516,7 @@ dvi: dvi-am
 
 dvi-am:
 
-@ENABLE_HTML_DOCS_FALSE@html: html-am
+html: html-am
 
 html-am:
 
@@ -2247,7 +1524,7 @@ info: info-am
 
 info-am:
 
-install-data-am: install-bsondocDATA install-headerDATA install-man \
+install-data-am: install-bsondocDATA install-headerDATA \
 	install-pkgconfigDATA
 
 install-dvi: install-dvi-am
@@ -2264,7 +1541,7 @@ install-info: install-info-am
 
 install-info-am:
 
-install-man: install-man3
+install-man:
 
 install-pdf: install-pdf-am
 
@@ -2279,7 +1556,7 @@ installcheck-am:
 maintainer-clean: maintainer-clean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
 	-rm -rf $(top_srcdir)/autom4te.cache
-	-rm -rf examples/$(DEPDIR) src/bson/$(DEPDIR) src/yajl/$(DEPDIR) tests/$(DEPDIR)
+	-rm -rf src/bson/$(DEPDIR) src/yajl/$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
@@ -2298,9 +1575,7 @@ ps-am:
 
 uninstall-am: uninstall-binPROGRAMS uninstall-bsondocDATA \
 	uninstall-headerDATA uninstall-libLTLIBRARIES uninstall-local \
-	uninstall-man uninstall-pkgconfigDATA
-
-uninstall-man: uninstall-man3
+	uninstall-pkgconfigDATA
 
 .MAKE: install-am install-strip
 
@@ -2317,39 +1592,16 @@ uninstall-man: uninstall-man3
 	install-data-am install-dvi install-dvi-am install-exec \
 	install-exec-am install-headerDATA install-html \
 	install-html-am install-info install-info-am \
-	install-libLTLIBRARIES install-man install-man3 install-pdf \
-	install-pdf-am install-pkgconfigDATA install-ps install-ps-am \
-	install-strip installcheck installcheck-am installdirs \
-	maintainer-clean maintainer-clean-generic mostlyclean \
-	mostlyclean-compile mostlyclean-generic mostlyclean-libtool \
-	pdf pdf-am ps ps-am tags tags-am uninstall uninstall-am \
-	uninstall-binPROGRAMS uninstall-bsondocDATA \
-	uninstall-headerDATA uninstall-libLTLIBRARIES uninstall-local \
-	uninstall-man uninstall-man3 uninstall-pkgconfigDATA
+	install-libLTLIBRARIES install-man install-pdf install-pdf-am \
+	install-pkgconfigDATA install-ps install-ps-am install-strip \
+	installcheck installcheck-am installdirs maintainer-clean \
+	maintainer-clean-generic mostlyclean mostlyclean-compile \
+	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
+	tags tags-am uninstall uninstall-am uninstall-binPROGRAMS \
+	uninstall-bsondocDATA uninstall-headerDATA \
+	uninstall-libLTLIBRARIES uninstall-local \
+	uninstall-pkgconfigDATA
 
-
-check: test
-
-test: $(TEST_PROGS)
-	@ for TEST_PROG in $(TEST_PROGS) ; do \
-		$(LIBTOOL) --mode=execute $$VALGRIND ./$$TEST_PROG $(TEST_ARGS) -F test.log; \
-	done
-@CAN_ABI_CHECK_TRUE@	@ $(srcdir)/tests/abicheck.sh "$(srcdir)/src/libbson.symbols"
-
-valgrind: $(TEST_PROGS)
-	$(LIBTOOL) --mode=execute valgrind --leak-check=full ./test-libbson -f -p
-
-dist-hook: man html
-
-@ENABLE_MAN_PAGES_TRUE@%.3: ../%.page
-@ENABLE_MAN_PAGES_TRUE@	$(AM_V_GEN)./doc/mallard2man.py 3 $^
-
-@ENABLE_MAN_PAGES_TRUE@man: $(MAN_FILES_TO_BUILD)
-
-@ENABLE_HTML_DOCS_TRUE@%.html: ../%.page
-@ENABLE_HTML_DOCS_TRUE@	$(AM_V_GEN)$(YELP_BUILD) html -o doc/html/ doc
-
-@ENABLE_HTML_DOCS_TRUE@html: $(BUILT_HTML_FILES)
 
 dist-hook:
 	@if test -d "$(srcdir)/.git"; then                              \
