@@ -1,6 +1,6 @@
 #!/bin/sh
 
-DEFAULT_VERSION="5.5.1.git"
+DEFAULT_VERSION="5.5.2.git"
 
 VERSION="`git describe 2> /dev/null | grep collectd | sed -e 's/^collectd-//'`"
 
