@@ -63,8 +63,10 @@ typedef struct apache_s apache_t;
 /* TODO: Remove this prototype */
 static int apache_read_host (user_data_t *user_data);
 
-static void apache_free (apache_t *st)
+static void apache_free (void *arg)
 {
+	apache_t *st = arg;
+
 	if (st == NULL)
 		return;
 
@@ -243,7 +245,7 @@ static int config_add (oconfig_item_t *ci)
 
 		memset (&ud, 0, sizeof (ud));
 		ud.data = st;
-		ud.free_func = (void *) apache_free;
+		ud.free_func = apache_free;
 
 		memset (callback_name, 0, sizeof (callback_name));
 		ssnprintf (callback_name, sizeof (callback_name),

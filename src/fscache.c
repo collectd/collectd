@@ -175,7 +175,7 @@ static void fscache_read_stats_file (FILE *fh)
             section_len--;
             section[section_len] = 0;
         }
-        if (section_len <= 0)
+        if (section_len == 0)
             continue;
 
         fields_num = strsplit (lineptr, fields, STATIC_ARRAY_SIZE (fields));

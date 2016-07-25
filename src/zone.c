@@ -34,8 +34,6 @@
 #include "common.h"
 #include "plugin.h"
 
-#include <sys/types.h>
-#include <sys/vm_usage.h>
 #include <procfs.h>
 #include <zone.h>
 
@@ -49,20 +47,12 @@ typedef struct zone_stats {
 	ushort_t      pctmem;
 } zone_stats_t;
 
-static long pagesize;
-
-static int zone_init (void)
-{
-	pagesize = sysconf(_SC_PAGESIZE);
-	return (0);
-}
-
 static int
-zone_compare(const zoneid_t *a, const zoneid_t *b)
+zone_compare(const void *a, const void *b)
 {
-	if (*a == *b)
+	if (*(const zoneid_t *)a == *(const zoneid_t *)b)
 		return(0);
-	if (*a < *b)
+	if (*(const zoneid_t *)a < *(const zoneid_t *)b)
 		return(-1);
 	return(1);
 }
@@ -162,7 +152,7 @@ zone_scandir(DIR *procdir)
 	c_avl_tree_t *tree;
 	zone_stats_t *stats;
 
-	if (!(tree=c_avl_create((void *) zone_compare))) {
+	if (!(tree=c_avl_create(zone_compare))) {
 		WARNING("zone plugin: Failed to create tree");
 		return(NULL);
 	}
@@ -210,6 +200,5 @@ static int zone_read (void)
 
 void module_register (void)
 {
-	plugin_register_init ("zone", zone_init);
 	plugin_register_read ("zone", zone_read);
 } /* void module_register */

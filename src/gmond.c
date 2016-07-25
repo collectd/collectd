@@ -714,7 +714,7 @@ static int mc_handle_metadata_msg (Ganglia_metadata_msg *msg) /* {{{ */
 
       msg_meta = msg->Ganglia_metadata_msg_u.gfull;
 
-      if (msg_meta.metric.tmax <= 0)
+      if (msg_meta.metric.tmax == 0)
         return (-1);
 
       map = metric_lookup (msg_meta.metric_id.name);
@@ -1107,7 +1107,7 @@ static int gmond_init (void) /* {{{ */
       (mc_receive_port != NULL) ? mc_receive_port : MC_RECEIVE_PORT_DEFAULT,
       /* listen = */ 0);
 
-  staging_tree = c_avl_create ((void *) strcmp);
+  staging_tree = c_avl_create ((int (*) (const void *, const void *)) strcmp);
   if (staging_tree == NULL)
   {
     ERROR ("gmond plugin: c_avl_create failed.");

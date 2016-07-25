@@ -28,8 +28,6 @@
 #include "plugin.h"
 #include "meta_data.h"
 
-#include <pthread.h>
-
 /*
  * Data types
  */

@@ -71,7 +71,7 @@ static void mysql_database_free (void *arg) /* {{{ */
 
 	DEBUG ("mysql plugin: mysql_database_free (arg = %p);", arg);
 
-	db = (mysql_database_t *) arg;
+	db = arg;
 
 	if (db == NULL)
 		return;

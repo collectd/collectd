@@ -693,7 +693,7 @@ int lcc_getval (lcc_connection_t *c, lcc_identifier_t *ident, /* {{{ */
 
   if (ret_values_names != NULL)
   {
-    values_names = (char **) calloc (values_num, sizeof (*values_names));
+    values_names = calloc (values_num, sizeof (*values_names));
     if (values_names == NULL)
       BAIL_OUT (ENOMEM);
   }
@@ -1062,9 +1062,11 @@ int lcc_string_to_identifier (lcc_connection_t *c, /* {{{ */
   return (0);
 } /* }}} int lcc_string_to_identifier */
 
-int lcc_identifier_compare (const lcc_identifier_t *i0, /* {{{ */
-    const lcc_identifier_t *i1)
+int lcc_identifier_compare (const void *a, /* {{{ */
+    const void *b)
 {
+  const lcc_identifier_t *i0 = a;
+  const lcc_identifier_t *i1 = b;
   int status;
 
   if ((i0 == NULL) && (i1 == NULL))
@@ -1101,7 +1103,7 @@ int lcc_sort_identifiers (lcc_connection_t *c, /* {{{ */
   }
 
   qsort (idents, idents_num, sizeof (*idents),
-      (void *) lcc_identifier_compare);
+      lcc_identifier_compare);
   return (0);
 } /* }}} int lcc_sort_identifiers */
 

@@ -624,9 +624,8 @@ static int cldap_config_add (oconfig_item_t *ci) /* {{{ */
 	if ((status == 0) && (st->url != NULL))
 	{
 		LDAPURLDesc *ludpp;
-		int rc;
 
-		if ((rc = ldap_url_parse (st->url, &ludpp)) != 0)
+		if (ldap_url_parse (st->url, &ludpp) != 0)
 		{
 			ERROR ("openldap plugin: Instance `%s': "
 				"Invalid URL: `%s'",

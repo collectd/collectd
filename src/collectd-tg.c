@@ -46,7 +46,6 @@
 
 #include "libcollectdclient/collectd/client.h"
 #include "libcollectdclient/collectd/network.h"
-#include "libcollectdclient/collectd/network_buffer.h"
 
 #define DEF_NUM_HOSTS    1000
 #define DEF_NUM_PLUGINS    20
@@ -451,7 +450,6 @@ int main (int argc, char **argv) /* {{{ */
 
   lcc_network_destroy (net);
   exit (EXIT_SUCCESS);
-  return (0);
 } /* }}} int main */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */

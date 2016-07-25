@@ -381,7 +381,7 @@ static by_type_entry_t *lu_search_by_type (lookup_t *obj, /* {{{ */
   }
   by_type->wildcard_plugin_list = NULL;
 
-  by_type->by_plugin_tree = c_avl_create ((void *) strcmp);
+  by_type->by_plugin_tree = c_avl_create ((int (*) (const void *, const void *)) strcmp);
   if (by_type->by_plugin_tree == NULL)
   {
     ERROR ("utils_vl_lookup: c_avl_create failed.");
@@ -564,7 +564,7 @@ lookup_t *lookup_create (lookup_class_callback_t cb_user_class, /* {{{ */
     return (NULL);
   }
 
-  obj->by_type_tree = c_avl_create ((void *) strcmp);
+  obj->by_type_tree = c_avl_create ((int (*) (const void *, const void *)) strcmp);
   if (obj->by_type_tree == NULL)
   {
     ERROR ("utils_vl_lookup: c_avl_create failed.");

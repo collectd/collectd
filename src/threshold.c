@@ -30,8 +30,6 @@
 #include "utils_cache.h"
 #include "utils_threshold.h"
 
-#include <assert.h>
-
 /*
  * Threshold management
  * ====================
@@ -876,7 +874,7 @@ static int ut_config (oconfig_item_t *ci)
 
   if (threshold_tree == NULL)
   {
-    threshold_tree = c_avl_create ((void *) strcmp);
+    threshold_tree = c_avl_create ((int (*) (const void *, const void *)) strcmp);
     if (threshold_tree == NULL)
     {
       ERROR ("ut_config: c_avl_create failed.");

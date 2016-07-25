@@ -52,8 +52,9 @@ typedef struct memcached_s memcached_t;
 
 static _Bool memcached_have_instances = 0;
 
-static void memcached_free (memcached_t *st)
+static void memcached_free (void *arg)
 {
+  memcached_t *st = arg;
   if (st == NULL)
     return;
 
@@ -556,7 +557,7 @@ static int memcached_add_read_callback (memcached_t *st)
 
   memset (&ud, 0, sizeof (ud));
   ud.data = st;
-  ud.free_func = (void *) memcached_free;
+  ud.free_func = memcached_free;
 
   assert (st->name != NULL);
   ssnprintf (callback_name, sizeof (callback_name), "memcached/%s", st->name);

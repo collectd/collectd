@@ -36,7 +36,6 @@
 #include <pthread.h>
 
 #if HAVE_LIBGCRYPT
-# include <pthread.h>
 # if defined __APPLE__
 /* default xcode compiler throws warnings even when deprecated functionality
  * is not used. -Werror breaks the build because of erroneous warnings.

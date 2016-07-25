@@ -27,8 +27,6 @@
 #include "common.h"
 #include "plugin.h"
 
-#include "utils_complain.h"
-
 #if HAVE_MACH_MACH_TYPES_H
 #  include <mach/mach_types.h>
 #endif

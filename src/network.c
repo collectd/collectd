@@ -30,7 +30,6 @@
 #include "common.h"
 #include "configfile.h"
 #include "utils_fbhash.h"
-#include "utils_avltree.h"
 #include "utils_cache.h"
 #include "utils_complain.h"
 
@@ -410,10 +409,10 @@ static int network_dispatch_values (value_list_t *vl, /* {{{ */
 {
   int status;
 
-  if ((vl->time <= 0)
-      || (strlen (vl->host) <= 0)
-      || (strlen (vl->plugin) <= 0)
-      || (strlen (vl->type) <= 0))
+  if ((vl->time == 0)
+      || (strlen (vl->host) == 0)
+      || (strlen (vl->plugin) == 0)
+      || (strlen (vl->type) == 0))
     return (-EINVAL);
 
   if (!check_receive_okay (vl))
@@ -1246,7 +1245,7 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
   BUFFER_READ (&username_len, sizeof (username_len));
   username_len = ntohs (username_len);
 
-  if ((username_len <= 0)
+  if ((username_len == 0)
       || (username_len > (part_size - (PART_ENCRYPTION_AES256_SIZE + 1))))
   {
     NOTICE ("network plugin: parse_part_encr_aes256: "
@@ -1439,6 +1438,7 @@ static int parse_packet (sockent_t *se, /* {{{ */
 				printed_ignore_warning = 1;
 			}
 			buffer = ((char *) buffer) + pkg_length;
+			buffer_size -= (size_t) pkg_length;
 			continue;
 		}
 #endif /* HAVE_LIBGCRYPT */
@@ -1466,6 +1466,7 @@ static int parse_packet (sockent_t *se, /* {{{ */
 				printed_ignore_warning = 1;
 			}
 			buffer = ((char *) buffer) + pkg_length;
+			buffer_size -= (size_t) pkg_length;
 			continue;
 		}
 #endif /* HAVE_LIBGCRYPT */
@@ -1577,13 +1578,13 @@ static int parse_packet (sockent_t *se, /* {{{ */
 						"unknown severity %i.",
 						n.severity);
 			}
-			else if (n.time <= 0)
+			else if (n.time == 0)
 			{
 				INFO ("network plugin: "
 						"Ignoring notification with "
 						"time == 0.");
 			}
-			else if (strlen (n.message) <= 0)
+			else if (strlen (n.message) == 0)
 			{
 				INFO ("network plugin: "
 						"Ignoring notification with "
@@ -1607,6 +1608,7 @@ static int parse_packet (sockent_t *se, /* {{{ */
 			DEBUG ("network plugin: parse_packet: Unknown part"
 					" type: 0x%04hx", pkg_type);
 			buffer = ((char *) buffer) + pkg_length;
+			buffer_size -= (size_t) pkg_length;
 		}
 	} /* while (buffer_size > sizeof (part_header_t)) */
 

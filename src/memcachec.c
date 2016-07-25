@@ -271,7 +271,7 @@ static int cmc_config_add_match (web_page_t *page, /* {{{ */
       match->dstype);
   if (match->match == NULL)
   {
-    ERROR ("memcachec plugin: tail_match_add_match_simple failed.");
+    ERROR ("memcachec plugin: match_create_simple failed.");
     cmc_web_match_free (match);
     return (-1);
   }
