@@ -251,6 +251,7 @@ Collectd utilities
 	   --enable-statefs_bluetooth \
 	   --enable-statefs_cellular \
 	   --enable-statefs_internet \
+	   --enable-suspend \
 	   --enable-table \
 	   --enable-tail \
 	   --enable-tail_csv \
