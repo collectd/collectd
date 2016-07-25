@@ -5599,6 +5599,7 @@ plugin_statefs_battery="no"
 plugin_statefs_bluetooth="no"
 plugin_statefs_cellular="no"
 plugin_statefs_internet="no"
+plugin_suspend="no"
 plugin_swap="no"
 plugin_tape="no"
 plugin_tcpconns="no"
@@ -5642,6 +5643,7 @@ then
 	plugin_protocols="yes"
 	plugin_radio="yes"
 	plugin_serial="yes"
+	plugin_suspend="yes"
 	plugin_swap="yes"
 	plugin_tcpconns="yes"
 	plugin_thermal="yes"
@@ -6105,6 +6107,7 @@ AC_PLUGIN([statefs_bluetooth],   [$plugin_statefs_bluetooth], [Bluetooth statist
 AC_PLUGIN([statefs_cellular],    [$plugin_statefs_cellular], [Cellular network statistics exposed via StateFS])
 AC_PLUGIN([statefs_internet],    [$plugin_statefs_internet], [Internet statistics exposed via StateFS])
 AC_PLUGIN([statsd],              [yes],                     [StatsD plugin])
+AC_PLUGIN([suspend],             [$plugin_suspend],         [Suspend attempts])
 AC_PLUGIN([swap],                [$plugin_swap],            [Swap usage statistics])
 AC_PLUGIN([syslog],              [$have_syslog],            [Syslog logging plugin])
 AC_PLUGIN([table],               [yes],                     [Parsing of tabular data])
@@ -6531,6 +6534,7 @@ AC_MSG_RESULT([    statefs_bluetooth . . $enable_statefs_bluetooth])
 AC_MSG_RESULT([    statefs_cellular  . . $enable_statefs_cellular])
 AC_MSG_RESULT([    statefs_internet  . . $enable_statefs_internet])
 AC_MSG_RESULT([    statsd  . . . . . . . $enable_statsd])
+AC_MSG_RESULT([    suspend . . . . . . . $enable_suspend])
 AC_MSG_RESULT([    swap  . . . . . . . . $enable_swap])
 AC_MSG_RESULT([    syslog  . . . . . . . $enable_syslog])
 AC_MSG_RESULT([    table . . . . . . . . $enable_table])

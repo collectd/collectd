@@ -6599,6 +6599,12 @@ dispatched.
 
 =back
 
+=head2 Plugin C<suspend>
+
+This plugin doesn't have any options. It reads statistics related to
+suspend attempts (successful, failed) and records them as attempts per
+second. Statistics is provided by Linux kernel using debugFS.
+
 =head2 Plugin C<swap>
 
 The I<Swap plugin> collects information about used and available swap space. On

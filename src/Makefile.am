@@ -1027,6 +1027,12 @@ statsd_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 statsd_la_LIBADD = liblatency.la -lm
 endif
 
+if BUILD_PLUGIN_SUSPEND
+pkglib_LTLIBRARIES += suspend.la
+suspend_la_SOURCES = suspend.c
+suspend_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_SWAP
 pkglib_LTLIBRARIES += swap.la
 swap_la_SOURCES = swap.c
