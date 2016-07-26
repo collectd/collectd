@@ -99,7 +99,7 @@ static int kairosdb_escape_string (char *buffer, size_t buffer_size, /* {{{ */
 
 static int values_to_kairosdb (char *buffer, size_t buffer_size, /* {{{ */
                 const data_set_t *ds, const value_list_t *vl, int store_rates,
-                int ds_idx)
+                size_t ds_idx)
 {
   size_t offset = 0;
   gauge_t *rates = NULL;
@@ -222,7 +222,7 @@ static int value_list_to_kairosdb (char *buffer, size_t buffer_size, /* {{{ */
   char temp[512];
   size_t offset = 0;
   int status;
-  int i=0;
+  size_t i;
 
   memset (buffer, 0, buffer_size);
 
