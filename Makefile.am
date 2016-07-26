@@ -1,6 +1,6 @@
 ACLOCAL_AMFLAGS = -I libltdl/m4
 
-SUBDIRS =
+SUBDIRS = src/libmongoc
 
 if BUILD_INCLUDED_LTDL
 SUBDIRS += libltdl
