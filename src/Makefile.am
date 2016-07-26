@@ -906,6 +906,13 @@ ping_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBOPING_LDFLAGS)
 ping_la_LIBADD = -loping -lm
 endif
 
+if BUILD_PLUGIN_PLUGIN_MEM
+pkglib_LTLIBRARIES += plugin_mem.la
+plugin_mem_la_SOURCES = plugin_mem.c
+plugin_mem_la_CPPFLAGS = $(AM_CPPFLAGS)
+plugin_mem_la_LDFLAGS = -module -avoid-version
+endif
+
 if BUILD_PLUGIN_POSTGRESQL
 pkglib_LTLIBRARIES += postgresql.la
 postgresql_la_SOURCES = postgresql.c \
