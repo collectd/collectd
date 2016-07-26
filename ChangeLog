@@ -15,10 +15,13 @@
 	  This works around an issue in the VMXNet3 driver. Thanks to Thomas
 	  Guthmann. #1059
 	* Exec plugin: A problem in the error handling of an fdopen() failure
-	  has been fixed. Thanks to ciomaire.
+	  has been fixed. Thanks to @ciomaire.
 	* Modbus plugin: The debug output has been disabled by default. It is
 	  now only enabled when building with "--enable-debug". Thanks to Eric
 	  Sandeen and Marc Fournier.
+	* Network plugin: A check for the initialization of secure memory has
+	  been added. Previously, failure to initialize this memory was
+	  ignored. Thanks to @yujokang. #1665
 	* Network plugin: A heap overflow has been fixed in the server code.
 	  This issue can be triggered remotely and is potentially exploitable.
 	  Thanks to Emilien Gaspar. CVE-2016-6254
