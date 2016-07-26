@@ -7809,11 +7809,12 @@ Define which SSL protocol version must be used. By default C<libcurl> will
 attempt to figure out the remote SSL protocol version. See
 L<curl_easy_setopt(3)> for more details.
 
-=item B<Format> B<Command>|B<JSON>
+=item B<Format> B<Command>|B<JSON>|B<KAIROSDB>
 
 Format of the output to generate. If set to B<Command>, will create output that
 is understood by the I<Exec> and I<UnixSock> plugins. When set to B<JSON>, will
-create output in the I<JavaScript Object Notation> (JSON).
+create output in the I<JavaScript Object Notation> (JSON). When set to KAIROSDB
+, will create output in the KairosDB format.
 
 Defaults to B<Command>.
 
