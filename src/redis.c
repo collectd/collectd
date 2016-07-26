@@ -430,6 +430,7 @@ static int redis_read (void) /* {{{ */
     redis_handle_info (rn->name, rr->str, "volatile_changes", NULL, "changes_since_last_save", DS_TYPE_GAUGE);
     redis_handle_info (rn->name, rr->str, "total_connections", NULL, "total_connections_received", DS_TYPE_DERIVE);
     redis_handle_info (rn->name, rr->str, "total_operations", NULL, "total_commands_processed", DS_TYPE_DERIVE);
+    redis_handle_info (rn->name, rr->str, "operations_per_second", NULL, "instantaneous_ops_per_sec", DS_TYPE_GAUGE);
     redis_handle_info (rn->name, rr->str, "expired_keys", NULL, "expired_keys", DS_TYPE_DERIVE);
     redis_handle_info (rn->name, rr->str, "evicted_keys", NULL, "evicted_keys", DS_TYPE_DERIVE);
     redis_handle_info (rn->name, rr->str, "pubsub", "channels", "pubsub_channels", DS_TYPE_GAUGE);
