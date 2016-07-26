@@ -214,6 +214,16 @@ static meta_entry_t *md_entry_lookup (meta_data_t *md, /* {{{ */
 } /* }}} meta_entry_t *md_entry_lookup */
 
 /*
+ * Each value list, as it is going through the system, is handled by exactly
+ * one thread. Plugins which pass a value_list_t to another thread, e.g. the
+ * rrdtool plugin, must create a copy first. The meta data in there is not
+ * thread safe and doesn't need to be.
+ *
+ * The meta data associated with cache entries are a different story. There, we
+ * need to ensure exclusive locking to prevent leaks and other funky business
+ */
+
+/*
  * Public functions
  */
 meta_data_t *meta_data_create (void) /* {{{ */
