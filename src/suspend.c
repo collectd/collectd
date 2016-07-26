@@ -46,6 +46,19 @@ SOFTWARE.
 #define SUSPEND_STATS "/sys/kernel/debug/suspend_stats"
 #define BFSZ 1024
 
+static int suspend_init (void)
+{
+  if ( access(SUSPEND_STATS, R_OK) == 0 ) // everything is fine, continue
+    return (0);
+
+  // either debugFS is not mounted or permissions are not allowing to
+  // see suspend stats
+  INFO ("suspend plugin: cannot read %s, unregistered plugin", SUSPEND_STATS);
+  plugin_unregister_read ("suspend");
+  
+  return (0);
+}
+
 static void suspend_submit (const char *type, const char *type_instance, derive_t value)
 {
   value_t values[1];
@@ -115,6 +128,7 @@ static int suspend_read (void)
 
 void module_register (void)
 {
+  plugin_register_init ("suspend", suspend_init);
   plugin_register_read ("suspend", suspend_read);
 } /* void module_register */
 
