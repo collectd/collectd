@@ -527,7 +527,7 @@ static void network_init_gcrypt (void) /* {{{ */
   err = gcry_control (GCRYCTL_INIT_SECMEM, 32768);
   if (err)
   {
-    ERROR ("network plugin: gcry_control (GCRYCTL_SET_THREAD_CBS) failed: %s", gcry_strerror (err));
+    ERROR ("network plugin: gcry_control (GCRYCTL_INIT_SECMEM) failed: %s", gcry_strerror (err));
     abort ();
   }
 
