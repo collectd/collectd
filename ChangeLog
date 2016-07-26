@@ -1,3 +1,54 @@
+2016-07-25, Version 5.5.2
+	* collectd: A division by zero has been fixed in the
+	  "plugin_dispatch_multivalue()" function. Thanks to Corey Kosak.
+	* collectd: The address of the Free Software Foundation has been fixed
+	  in GPL license headers. Thanks to Ruben Kerkhof.
+	* Build system: Detection and handling of librrd 1.6 and later has been
+	  fixed. Thanks to Ruben Kerkof.
+	* Apache plugin: A warning about a possible misconfiguration has been
+	  added. Thanks to Marc Fournier.
+	* cURL, cURL-JSON and cURL-XML plugins: A memory leak when allocating
+	  more memory fails has been fixed. Thanks to Brandon Arp.
+	* DF plugin: A build issue on DragonFlyBSD has been fixed. Thanks to
+	  Ruben Kerkhof. #1575
+	* Ethstat plugin: Code to strip leading whitespace from device names.
+	  This works around an issue in the VMXNet3 driver. Thanks to Thomas
+	  Guthmann. #1059
+	* Exec plugin: A problem in the error handling of an fdopen() failure
+	  has been fixed. Thanks to @ciomaire.
+	* Modbus plugin: The debug output has been disabled by default. It is
+	  now only enabled when building with "--enable-debug". Thanks to Eric
+	  Sandeen and Marc Fournier.
+	* Network plugin: A check for the initialization of secure memory has
+	  been added. Previously, failure to initialize this memory was
+	  ignored. Thanks to @yujokang. #1665
+	* Network plugin: A heap overflow has been fixed in the server code.
+	  This issue can be triggered remotely and is potentially exploitable.
+	  Thanks to Emilien Gaspar. CVE-2016-6254
+	* Perl plugin: Init callbacks have been changed to run essentially
+	  single-threaded to avoid race conditions by init functions which
+	  create additional threads. Thanks to Pavel Rochnyack. #1706
+	* Processes plugin: A compilation error on systems without "regex.h" has
+	  been fixed. Thanks to Corey Kosak.
+	* Processes plugin: A memory leak on Solaris has been fixed. Thanks to
+	  Jim Quinn.
+	* Processes plugin: A warning about too long process names has been
+	  added. Thanks to Marc Fournier. #1284
+	* Redis plugin: A memory leak in an error handling code path has been
+	  fixed. Thanks to Andrés J. Díaz.
+	* Redis plugin: The data source type of the expired_keys metric has been
+	  corrected to "DERIVE". Thanks to Marc Falzon and Marc Fournier. #1483.
+	* SMART plugin: A build dependency on libudev has been added. Thanks to
+	  Pavel Rochnyack. #1724
+	* StatsD plugin: A deadlock on plugin shutdown has been fixed. Thanks to
+	  Pavel Rochnyack #1703
+	* Write HTTP plugin: Freeing of memory holding HTTP headers during
+	  shutdown has been fixed. Thanks to Tolga Ceylan.
+	* Write Sensu plugin: A segfault when the Tag was unset has been fixed.
+	  Thanks to Marc Fournier.
+	* ZFS ARC plugin: The cache_operation-stolen metric has been removed for
+	  FreeBSD 10.2 and later. Thanks to Ruben Kerkhof. #1580
+
 2016-01-22, Version 5.5.1
 	* Build system: Compilation errors have been avoided by correctly
 	  defining package name and version used by autoconf. Thanks to Nathan
