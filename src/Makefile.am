@@ -1288,6 +1288,22 @@ write_log_la_SOURCES = write_log.c \
 write_log_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_WRITE_GCM
+pkglib_LTLIBRARIES += write_gcm.la
+write_gcm_la_SOURCES = write_gcm.c
+write_gcm_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBYAJL_LDFLAGS)
+write_gcm_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
+write_gcm_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
+if BUILD_WITH_LIBSSL
+write_gcm_la_CFLAGS += $(BUILD_WITH_LIBSSL_CFLAGS)
+write_gcm_la_LIBADD += $(BUILD_WITH_LIBSSL_LIBS)
+endif
+if BUILD_WITH_LIBCURL
+write_gcm_la_CFLAGS += $(BUILD_WITH_LIBCURL_CFLAGS)
+write_gcm_la_LIBADD += $(BUILD_WITH_LIBCURL_LIBS)
+endif
+endif
+
 if BUILD_PLUGIN_WRITE_MONGODB
 pkglib_LTLIBRARIES += write_mongodb.la
 write_mongodb_la_SOURCES = write_mongodb.c
