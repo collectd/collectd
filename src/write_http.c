@@ -457,7 +457,7 @@ static int wh_write_json (const data_set_t *ds, const value_list_t *vl, /* {{{ *
                         &cb->send_buffer_fill,
                         &cb->send_buffer_free,
                         ds, vl, cb->store_rates);
-        if (status == (-ENOMEM))
+        if (status == -ENOMEM)
         {
                 status = wh_flush_nolock (/* timeout = */ 0, cb);
                 if (status != 0)
