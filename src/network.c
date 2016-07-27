@@ -605,11 +605,11 @@ static gcry_cipher_hd_t network_get_aes256_cypher (sockent_t *se, /* {{{ */
 } /* }}} int network_get_aes256_cypher */
 #endif /* HAVE_LIBGCRYPT */
 
-static int write_part_values (char **ret_buffer, int *ret_buffer_len,
+static int write_part_values (char **ret_buffer, size_t *ret_buffer_len,
 		const data_set_t *ds, const value_list_t *vl)
 {
 	char *packet_ptr;
-	int packet_len;
+	size_t packet_len;
 	int num_values;
 
 	part_header_t pkg_ph;
@@ -617,7 +617,7 @@ static int write_part_values (char **ret_buffer, int *ret_buffer_len,
 	uint8_t      *pkg_values_types;
 	value_t      *pkg_values;
 
-	int offset;
+	size_t offset;
 	int i;
 
 	num_values = vl->values_len;
@@ -706,16 +706,16 @@ static int write_part_values (char **ret_buffer, int *ret_buffer_len,
 	return (0);
 } /* int write_part_values */
 
-static int write_part_number (char **ret_buffer, int *ret_buffer_len,
+static int write_part_number (char **ret_buffer, size_t *ret_buffer_len,
 		int type, uint64_t value)
 {
 	char *packet_ptr;
-	int packet_len;
+	size_t packet_len;
 
 	part_header_t pkg_head;
 	uint64_t pkg_value;
 
-	int offset;
+	size_t offset;
 
 	packet_len = sizeof (pkg_head) + sizeof (pkg_value);
 
@@ -741,16 +741,16 @@ static int write_part_number (char **ret_buffer, int *ret_buffer_len,
 	return (0);
 } /* int write_part_number */
 
-static int write_part_string (char **ret_buffer, int *ret_buffer_len,
-		int type, const char *str, int str_len)
+static int write_part_string (char **ret_buffer, size_t *ret_buffer_len,
+		int type, const char *str, size_t str_len)
 {
 	char *buffer;
-	int buffer_len;
+	size_t buffer_len;
 
 	uint16_t pkg_type;
 	uint16_t pkg_length;
 
-	int offset;
+	size_t offset;
 
 	buffer_len = 2 * sizeof (uint16_t) + str_len + 1;
 	if (*ret_buffer_len < buffer_len)
@@ -2814,7 +2814,7 @@ static void network_send_buffer (char *buffer, size_t buffer_len) /* {{{ */
   } /* for (sending_sockets) */
 } /* }}} void network_send_buffer */
 
-static int add_to_buffer (char *buffer, int buffer_size, /* {{{ */
+static int add_to_buffer (char *buffer, size_t buffer_size, /* {{{ */
 		value_list_t *vl_def,
 		const data_set_t *ds, const value_list_t *vl)
 {
@@ -3258,10 +3258,10 @@ static int network_config (oconfig_item_t *ci) /* {{{ */
 static int network_notification (const notification_t *n,
     user_data_t __attribute__((unused)) *user_data)
 {
-  char  buffer[network_config_packet_size];
-  char *buffer_ptr = buffer;
-  int   buffer_free = sizeof (buffer);
-  int   status;
+  char   buffer[network_config_packet_size];
+  char  *buffer_ptr = buffer;
+  size_t buffer_free = sizeof (buffer);
+  int    status;
 
   if (!check_send_notify_okay (n))
     return (0);
