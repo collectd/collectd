@@ -492,13 +492,15 @@ static int network_dispatch_notification (notification_t *n) /* {{{ */
 } /* }}} int network_dispatch_notification */
 
 #if HAVE_LIBGCRYPT
-static void network_init_gcrypt (void) /* {{{ */
+static int network_init_gcrypt (void) /* {{{ */
 {
+  gcry_error_t err;
+
   /* http://lists.gnupg.org/pipermail/gcrypt-devel/2003-August/000458.html
    * Because you can't know in a library whether another library has
    * already initialized the library */
   if (gcry_control (GCRYCTL_ANY_INITIALIZATION_P))
-    return;
+    return (0);
 
  /* http://www.gnupg.org/documentation/manuals/gcrypt/Multi_002dThreading.html
   * To ensure thread-safety, it's important to set GCRYCTL_SET_THREAD_CBS
@@ -507,11 +509,24 @@ static void network_init_gcrypt (void) /* {{{ */
   * above doesn't count, as it doesn't implicitly initalize Libgcrypt.
   *
   * tl;dr: keep all these gry_* statements in this exact order please. */
-  gcry_control (GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
+  err = gcry_control (GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
+  if (err)
+  {
+    ERROR ("network plugin: gcry_control (GCRYCTL_SET_THREAD_CBS) failed: %s", gcry_strerror (err));
+    return (-1);
+  }
   gcry_check_version (NULL);
-  gcry_control (GCRYCTL_INIT_SECMEM, 32768);
+
+  err = gcry_control (GCRYCTL_INIT_SECMEM, 32768);
+  if (err)
+  {
+    ERROR ("network plugin: gcry_control (GCRYCTL_INIT_SECMEM) failed: %s", gcry_strerror (err));
+    return (-1);
+  }
+
   gcry_control (GCRYCTL_INITIALIZATION_FINISHED);
-} /* }}} void network_init_gcrypt */
+  return (0);
+} /* }}} int network_init_gcrypt */
 
 static gcry_cipher_hd_t network_get_aes256_cypher (sockent_t *se, /* {{{ */
     const void *iv, size_t iv_size, const char *username)
@@ -2033,7 +2048,12 @@ static int sockent_open (sockent_t *se) /* {{{ */
 	{
 		if (se->data.client.security_level > SECURITY_LEVEL_NONE)
 		{
-			network_init_gcrypt ();
+			if (network_init_gcrypt () < 0)
+			{
+				ERROR ("network plugin: Cannot configure client socket with "
+						"security: Failed to initialize crypto library.");
+				return (-1);
+			}
 
 			if ((se->data.client.username == NULL)
 					|| (se->data.client.password == NULL))
@@ -2053,7 +2073,12 @@ static int sockent_open (sockent_t *se) /* {{{ */
 	{
 		if (se->data.server.security_level > SECURITY_LEVEL_NONE)
 		{
-			network_init_gcrypt ();
+			if (network_init_gcrypt () < 0)
+			{
+				ERROR ("network plugin: Cannot configure server socket with "
+						"security: Failed to initialize crypto library.");
+				return (-1);
+			}
 
 			if (se->data.server.auth_file == NULL)
 			{
@@ -3381,7 +3406,11 @@ static int network_init (void)
 	have_init = true;
 
 #if HAVE_LIBGCRYPT
-	network_init_gcrypt ();
+	if (network_init_gcrypt () < 0)
+	{
+		ERROR ("network plugin: Failed to initialize crypto library.");
+		return (-1);
+	}
 #endif
 
 	if (network_config_stats != 0)
