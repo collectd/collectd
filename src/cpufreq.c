@@ -30,7 +30,7 @@ static int num_cpu = 0;
 
 static int cpufreq_init (void)
 {
-        int status;
+	int status;
 	char filename[256];
 
 	num_cpu = 0;
@@ -135,3 +135,13 @@ void module_register (void)
 	plugin_register_init ("cpufreq", cpufreq_init);
 	plugin_register_read ("cpufreq", cpufreq_read);
 }
+
+/*
+ * Local variables:
+ *  c-file-style: "linux"
+ *  indent-tabs-mode: t
+ *  c-indent-level: 4
+ *  c-basic-offset: 4
+ *  tab-width: 4
+ * End:
+ */
