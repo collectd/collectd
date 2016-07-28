@@ -198,6 +198,23 @@ static int ut_config_type_hits (threshold_t *th, oconfig_item_t *ci)
   return (0);
 } /* int ut_config_type_hits */
 
+static int ut_config_type_persist_frequency (threshold_t *th, oconfig_item_t *ci)
+{
+  if ((ci->values_num != 1)
+      || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
+  {
+    WARNING ("threshold values: The `%s' option needs exactly one "
+      "number argument.", ci->key);
+    return (-1);
+  }
+
+  th->persist_frequency = ci->values[0].value.number;
+  DEBUG("ut_config_type_persist_frequency: th->persist_frequency = %d",
+      th->persist_frequency);
+
+  return (0);
+} /* int ut_config_type_persist_frequency */
+
 static int ut_config_type_hysteresis (threshold_t *th, oconfig_item_t *ci)
 {
   if ((ci->values_num != 1)
@@ -242,6 +259,7 @@ static int ut_config_type (const threshold_t *th_orig, oconfig_item_t *ci)
   th.failure_max = NAN;
   th.hits = 0;
   th.hysteresis = 0;
+  th.persist_frequency = 0;
   th.flags = UT_FLAG_INTERESTING; /* interesting by default */
 
   for (i = 0; i < ci->children_num; i++)
@@ -266,6 +284,8 @@ static int ut_config_type (const threshold_t *th_orig, oconfig_item_t *ci)
       status = cf_util_get_flag (option, &th.flags, UT_FLAG_PERSIST);
     else if (strcasecmp ("PersistOK", option->key) == 0)
       status = cf_util_get_flag (option, &th.flags, UT_FLAG_PERSIST_OK);
+    else if (strcasecmp ("PersistFrequency", option->key) == 0)
+      status = ut_config_type_persist_frequency (&th, option);
     else if (strcasecmp ("Percentage", option->key) == 0)
       status = cf_util_get_flag (option, &th.flags, UT_FLAG_PERCENTAGE);
     else if (strcasecmp ("Hits", option->key) == 0)
@@ -444,14 +464,27 @@ static int ut_report_state (const data_set_t *ds,
 
   state_old = uc_get_state (ds, vl);
 
-  /* If the state didn't change, report if `persistent' is specified. If the
-   * state is `okay', then only report if `persist_ok` flag is set. */
+  DEBUG("ut_report_state: th->persist_frequency = %d, uc_get_persist_frequency = %d",
+      th->persist_frequency, uc_get_persist_frequency(ds,vl));
+
+  /* If the state didn't change, report if `persistent' is specified. 
+   * But only if persist_frequency threshold is reached.
+   * If the state is `okay', then only report if `persist_ok` flag is set
+   * and persist_frequency threshold is reached. */
   if (state == state_old)
   {
-    if ((th->flags & UT_FLAG_PERSIST) == 0)
+    if ( (th->flags & UT_FLAG_PERSIST) == 0 )
       return (0);
     else if ( (state == STATE_OKAY) && ((th->flags & UT_FLAG_PERSIST_OK) == 0) )
       return (0);
+    else if ( th->persist_frequency == 0 )
+      ; /* persist_frequency is 'always', therefore notify */
+    else if ( uc_get_persist_frequency(ds,vl) > th->persist_frequency )
+      uc_set_persist_frequency(ds,vl,0); /* reset persist_frequency counter and notify */
+    else {
+      (void) uc_inc_persist_frequency(ds,vl,1); /* increase persist_frequency counter */
+      return (0);
+    }
   }
 
   if (state != state_old)
@@ -890,6 +923,9 @@ static int ut_config (oconfig_item_t *ci)
 
   th.hits = 0;
   th.hysteresis = 0;
+  th.persist_frequency = 0;
+  DEBUG("ut_config: th.persist_frequency = %d",
+      th.persist_frequency);
   th.flags = UT_FLAG_INTERESTING; /* interesting by default */
 
   for (i = 0; i < ci->children_num; i++)
