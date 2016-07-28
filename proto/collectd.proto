@@ -27,7 +27,6 @@ syntax = "proto3";
 package collectd;
 
 import "types.proto";
-import "google/protobuf/timestamp.proto";
 
 service Collectd {
 	// Dispatch collected values to collectd.
