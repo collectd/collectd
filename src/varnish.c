@@ -1014,9 +1014,11 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 			cf_util_get_boolean (child, &conf->collect_connections);
 		else if (strcasecmp ("CollectESI", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_esi);
-#ifdef HAVE_VARNISH_V3
 		else if (strcasecmp ("CollectDirectorDNS", child->key) == 0)
+#ifdef HAVE_VARNISH_V3
 			cf_util_get_boolean (child, &conf->collect_dirdns);
+#else
+			WARNING ("Varnish plugin: \"%s\" is available for Varnish %s only.", child->key, "v3");
 #endif
 		else if (strcasecmp ("CollectBackend", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_backend);
@@ -1026,11 +1028,16 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 			cf_util_get_boolean (child, &conf->collect_hcb);
 		else if (strcasecmp ("CollectObjects", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_objects);
-#if HAVE_VARNISH_V2
 		else if (strcasecmp ("CollectPurge", child->key) == 0)
+#if HAVE_VARNISH_V2
 			cf_util_get_boolean (child, &conf->collect_purge);
 #else
+			WARNING ("Varnish plugin: \"%s\" is available for Varnish %s only.", child->key, "v2");
+#endif
 		else if (strcasecmp ("CollectBan", child->key) == 0)
+#if HAVE_VARNISH_V2
+			WARNING ("Varnish plugin: \"%s\" is not available for Varnish %s.", child->key, "v2");
+#else
 			cf_util_get_boolean (child, &conf->collect_ban);
 #endif
 		else if (strcasecmp ("CollectSession", child->key) == 0)
@@ -1039,27 +1046,37 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 			cf_util_get_boolean (child, &conf->collect_shm);
 		else if (strcasecmp ("CollectSMS", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_sms);
-#if HAVE_VARNISH_V2
 		else if (strcasecmp ("CollectSMA", child->key) == 0)
+#if HAVE_VARNISH_V2
 			cf_util_get_boolean (child, &conf->collect_sma);
+#else
+			WARNING ("Varnish plugin: \"%s\" is available for Varnish %s only.", child->key, "v2");
+#endif
 		else if (strcasecmp ("CollectSM", child->key) == 0)
+#if HAVE_VARNISH_V2
 			cf_util_get_boolean (child, &conf->collect_sm);
+#else
+			WARNING ("Varnish plugin: \"%s\" is available for Varnish %s only.", child->key, "v2");
 #endif
 		else if (strcasecmp ("CollectStruct", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_struct);
 		else if (strcasecmp ("CollectTotals", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_totals);
-#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
 		else if (strcasecmp ("CollectUptime", child->key) == 0)
+#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
 			cf_util_get_boolean (child, &conf->collect_uptime);
+#else
+			WARNING ("Varnish plugin: \"%s\" is available for Varnish %s only.", child->key, "v3 and v4");
 #endif
 		else if (strcasecmp ("CollectVCL", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_vcl);
 		else if (strcasecmp ("CollectWorkers", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_workers);
-#if HAVE_VARNISH_V4
 		else if (strcasecmp ("CollectVSM", child->key) == 0)
+#if HAVE_VARNISH_V4
 			cf_util_get_boolean (child, &conf->collect_vsm);
+#else
+			WARNING ("Varnish plugin: \"%s\" is available for Varnish %s only.", child->key, "v4");
 #endif
 		else
 		{
