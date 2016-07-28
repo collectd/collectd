@@ -287,45 +287,44 @@ static grpc::Status Process(grpc::ServerContext *ctx,
 				grpc::string("failed to query values: cannot create iterator"));
 	}
 
+	status = grpc::Status::OK;
 	while (uc_iterator_next(iter, &name) == 0) {
 		value_list_t res;
 		if (parse_identifier_vl(name, &res) != 0) {
-			uc_iterator_destroy(iter);
-			return grpc::Status(grpc::StatusCode::INTERNAL,
+			status = grpc::Status(grpc::StatusCode::INTERNAL,
 					grpc::string("failed to parse identifier"));
+			break;
 		}
 
 		if (!ident_matches(&res, &matcher))
 			continue;
 
 		if (uc_iterator_get_time(iter, &res.time) < 0) {
-			uc_iterator_destroy(iter);
-			return grpc::Status(grpc::StatusCode::INTERNAL,
+			status = grpc::Status(grpc::StatusCode::INTERNAL,
 					grpc::string("failed to retrieve value timestamp"));
+			break;
 		}
 		if (uc_iterator_get_interval(iter, &res.interval) < 0) {
-			uc_iterator_destroy(iter);
-			return grpc::Status(grpc::StatusCode::INTERNAL,
+			status = grpc::Status(grpc::StatusCode::INTERNAL,
 					grpc::string("failed to retrieve value interval"));
+			break;
 		}
 		if (uc_iterator_get_values(iter, &res.values, &res.values_len) < 0) {
-			uc_iterator_destroy(iter);
-			return grpc::Status(grpc::StatusCode::INTERNAL,
+			status = grpc::Status(grpc::StatusCode::INTERNAL,
 					grpc::string("failed to retrieve values"));
+			break;
 		}
 
 		auto vl = reply->add_values();
 		status = marshal_value_list(&res, vl);
 		free(res.values);
-		if (!status.ok()) {
-			uc_iterator_destroy(iter);
-			return status;
-		}
+		if (!status.ok())
+			break;
 	}
 
 	uc_iterator_destroy(iter);
 
-	return grpc::Status::OK;
+	return status;
 } /* Process(): QueryValues */
 
 class Call
