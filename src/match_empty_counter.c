@@ -89,11 +89,13 @@ static int mec_match (const data_set_t __attribute__((unused)) *ds, /* {{{ */
 
   for (i = 0; i < ds->ds_num; i++)
   {
-    if (ds->ds[i].type != DS_TYPE_COUNTER)
+    if ((ds->ds[i].type != DS_TYPE_DERIVE)
+        && (ds->ds[i].type != DS_TYPE_COUNTER))
       continue;
 
     num_counters++;
-    if (vl->values[i].counter == 0)
+    if (((ds->ds[i].type == DS_TYPE_DERIVE) && (vl->values[i].derive == 0))
+        || ((ds->ds[i].type == DS_TYPE_COUNTER) && (vl->values[i].counter == 0)))
       num_empty++;
   }
 
