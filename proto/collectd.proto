@@ -29,11 +29,13 @@ package collectd;
 import "types.proto";
 
 service Collectd {
-	// Dispatch collected values to collectd.
-	rpc DispatchValues(DispatchValuesRequest) returns (DispatchValuesReply);
-
 	// Query a list of values available from collectd's value cache.
 	rpc QueryValues(QueryValuesRequest) returns (QueryValuesReply);
+}
+
+service Dispatch {
+  // DispatchValues sends a stream of ValueLists to the server.
+  rpc DispatchValues(stream DispatchValuesRequest) returns (DispatchValuesReply);
 }
 
 // The arguments to DispatchValues.
