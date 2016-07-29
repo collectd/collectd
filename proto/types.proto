@@ -47,7 +47,7 @@ message Value {
 }
 
 message ValueList {
-	repeated Value value = 1;
+	repeated Value values = 1;
 
 	google.protobuf.Timestamp time = 2;
 	google.protobuf.Duration interval = 3;

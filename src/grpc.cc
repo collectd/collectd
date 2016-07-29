@@ -172,7 +172,7 @@ static grpc::Status marshal_value_list(const value_list_t *vl, collectd::types::
 	msg->set_allocated_interval(new google::protobuf::Duration(d));
 
 	for (size_t i = 0; i < vl->values_len; ++i) {
-		auto v = msg->add_value();
+		auto v = msg->add_values();
 		switch (ds->ds[i].type) {
 			case DS_TYPE_COUNTER:
 				v->set_counter(vl->values[i].counter);
@@ -208,7 +208,7 @@ static grpc::Status unmarshal_value_list(const collectd::types::ValueList &msg, 
 	size_t values_len = 0;
 
 	status = grpc::Status::OK;
-	for (auto v : msg.value()) {
+	for (auto v : msg.values()) {
 		value_t *val = (value_t *)realloc(values, (values_len + 1) * sizeof(*values));
 		if (!val) {
 			status = grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
@@ -261,7 +261,7 @@ static grpc::Status Process(grpc::ServerContext *ctx,
 		DispatchValuesRequest request, DispatchValuesReply *reply)
 {
 	value_list_t vl = VALUE_LIST_INIT;
-	auto status = unmarshal_value_list(request.values(), &vl);
+	auto status = unmarshal_value_list(request.value_list(), &vl);
 	if (!status.ok())
 		return status;
 
@@ -315,7 +315,7 @@ static grpc::Status Process(grpc::ServerContext *ctx,
 			break;
 		}
 
-		auto vl = reply->add_values();
+		auto vl = reply->add_value_lists();
 		status = marshal_value_list(&res, vl);
 		free(res.values);
 		if (!status.ok())

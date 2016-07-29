@@ -38,7 +38,7 @@ service Collectd {
 
 // The arguments to DispatchValues.
 message DispatchValuesRequest {
-	collectd.types.ValueList values = 1;
+	collectd.types.ValueList value_list = 1;
 }
 
 // The response from DispatchValues.
@@ -55,5 +55,5 @@ message QueryValuesRequest {
 
 // The response from QueryValues.
 message QueryValuesReply {
-	repeated collectd.types.ValueList values = 1;
+	repeated collectd.types.ValueList value_lists = 1;
 }
