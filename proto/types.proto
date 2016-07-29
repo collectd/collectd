@@ -25,6 +25,7 @@
 syntax = "proto3";
 
 package collectd.types;
+option go_package = "collectd.org/rpc/proto/types";
 
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";

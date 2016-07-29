@@ -25,6 +25,7 @@
 syntax = "proto3";
 
 package collectd;
+option go_package = "collectd.org/rpc/proto";
 
 import "types.proto";
 
