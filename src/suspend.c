@@ -100,7 +100,7 @@ static int suspend_read (void)
         continue;
       dummy[0] = ' ';
       
-      numfields = strsplit (buffer, fields, sizeof(fields));
+      numfields = strsplit (buffer, fields, STATIC_ARRAY_SIZE (fields));
 
       if ( numfields != 2 ) // unsupported line, move on
         continue;
