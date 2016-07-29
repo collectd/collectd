@@ -190,6 +190,9 @@ static grpc::Status marshal_value_list(const value_list_t *vl, collectd::types::
 				return grpc::Status(grpc::StatusCode::INTERNAL,
 						grpc::string("unknown value type"));
 		}
+
+		auto name = msg->add_ds_names();
+		name->assign(ds->ds[i].name);
 	}
 
 	return grpc::Status::OK;

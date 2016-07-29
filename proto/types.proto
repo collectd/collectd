@@ -53,4 +53,6 @@ message ValueList {
 	google.protobuf.Duration interval = 3;
 
 	Identifier identifier = 4;
+
+	repeated string ds_names = 5;
 }
