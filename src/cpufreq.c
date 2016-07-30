@@ -359,7 +359,7 @@ static int cpufreq_read (void)
 				}
 
 				hertz = atol( fields[0] );
-				time = atof( fields[1] );
+				time = atof( fields[1] ) * 10e-3;
 
 				if ( hertz <= 0 )
 				{
