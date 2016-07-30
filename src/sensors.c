@@ -419,8 +419,10 @@ static int sensors_load_conf (void)
 					&& (feature->type != SENSORS_FEATURE_FAN)
 					&& (feature->type != SENSORS_FEATURE_TEMP)
 					&& (feature->type != SENSORS_FEATURE_POWER)
+#if (SENSORS_API_VERSION >= 0x402)
 					&& (feature->type != SENSORS_FEATURE_ENERGY)
 					&& (feature->type != SENSORS_FEATURE_CURR))
+#endif
 			{
 				DEBUG ("sensors plugin: sensors_load_conf: "
 						"Ignoring feature `%s', "
@@ -438,8 +440,10 @@ static int sensors_load_conf (void)
 						&& (subfeature->type != SENSORS_SUBFEATURE_FAN_INPUT)
 						&& (subfeature->type != SENSORS_SUBFEATURE_TEMP_INPUT)
 						&& (subfeature->type != SENSORS_SUBFEATURE_POWER_INPUT)
+#if (SENSORS_API_VERSION >= 0x402)
 						&& (subfeature->type != SENSORS_SUBFEATURE_ENERGY_INPUT)
 						&& (subfeature->type != SENSORS_SUBFEATURE_CURR_INPUT))
+#endif
 					continue;
 
 				fl = calloc (1, sizeof (*fl));
