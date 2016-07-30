@@ -426,3 +426,13 @@ void module_register (void)
 #endif
 	plugin_register_read ("interface", interface_read);
 } /* void module_register */
+
+/*
+ * Local variables:
+ *  c-file-style: "linux"
+ *  indent-tabs-mode: t
+ *  c-indent-level: 4
+ *  c-basic-offset: 4
+ *  tab-width: 4
+ * End:
+ */
