@@ -222,6 +222,7 @@ Collectd utilities
 	   --enable-battery \
 	   --enable-contextswitch \
 	   --enable-cpu \
+	   --enable-cpufreq \
 	   --enable-cpusleep \
 	   --enable-cpufreq \
 	   --enable-csv \
