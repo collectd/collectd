@@ -582,7 +582,7 @@
 #<Plugin interface>
 #	Interface "eth0"
 #	IgnoreSelected false
-#	ActiveInterfaceOnly false
+#	ReportInactive true
 #	UniqueName false
 #</Plugin>
 
