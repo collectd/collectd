@@ -3883,14 +3883,12 @@ PATH="$with_python_path"
 
 if test "x$with_python" = "xyes" && test "x$with_python_prog" = "x"
 then
-	AC_MSG_CHECKING([for python])
-	with_python_prog="`which python 2>/dev/null`"
-	if test "x$with_python_prog" = "x"
+	AC_PATH_PROG([PYTHON], [python])
+	if test "x$PYTHON" = "x"
 	then
-		AC_MSG_RESULT([not found])
 		with_python="no (interpreter not found)"
 	else
-		AC_MSG_RESULT([$with_python_prog])
+		with_python_prog="$PYTHON"
 	fi
 fi
 
