@@ -90,7 +90,6 @@ static int checked_lookup_add (lookup_t *obj, /* {{{ */
   identifier_t ident;
   void *user_class;
 
-  memset (&ident, 0, sizeof (ident));
   strncpy (ident.host, host, sizeof (ident.host));
   strncpy (ident.plugin, plugin, sizeof (ident.plugin));
   strncpy (ident.plugin_instance, plugin_instance, sizeof (ident.plugin_instance));

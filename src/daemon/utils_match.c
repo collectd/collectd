@@ -321,7 +321,7 @@ int match_apply (cu_match_t *obj, const char *str)
 {
   int status;
   regmatch_t re_match[32];
-  char *matches[32];
+  char *matches[32] = { 0 };
   size_t matches_num;
   size_t i;
 
@@ -347,7 +347,6 @@ int match_apply (cu_match_t *obj, const char *str)
   if (status != 0)
     return (0);
 
-  memset (matches, '\0', sizeof (matches));
   for (matches_num = 0; matches_num < STATIC_ARRAY_SIZE (matches); matches_num++)
   {
     if ((re_match[matches_num].rm_so < 0)

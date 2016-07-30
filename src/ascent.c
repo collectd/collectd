@@ -365,9 +365,9 @@ static int ascent_xml_sessions_plr (xmlDoc *doc, xmlNode *node, /* {{{ */
 static int ascent_xml_sessions (xmlDoc *doc, xmlNode *node) /* {{{ */
 {
   xmlNode *child;
-  player_stats_t ps;
-
-  memset (&ps, 0, sizeof (ps));
+  player_stats_t ps = {
+    .level_sum = 0
+  };
 
   for (child = node->xmlChildrenNode; child != NULL; child = child->next)
   {

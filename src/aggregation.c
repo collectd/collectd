@@ -337,7 +337,7 @@ static int agg_instance_read_func (agg_instance_t *inst, /* {{{ */
   char const *func, gauge_t rate, rate_to_value_state_t *state,
   value_list_t *vl, char const *pi_prefix, cdtime_t t)
 {
-  value_t v;
+  value_t v = { 0 } ;
   int status;
 
   if (pi_prefix[0] != 0)
@@ -346,7 +346,6 @@ static int agg_instance_read_func (agg_instance_t *inst, /* {{{ */
   else
     sstrncpy (vl->plugin_instance, func, sizeof (vl->plugin_instance));
 
-  memset (&v, 0, sizeof (v));
   status = rate_to_value (&v, rate, state, inst->ds_type, t);
   if (status != 0)
   {

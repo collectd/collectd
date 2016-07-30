@@ -763,14 +763,13 @@ static int camqp_subscribe_init (camqp_config_t *conf) /* {{{ */
 static int camqp_write_locked (camqp_config_t *conf, /* {{{ */
         const char *buffer, const char *routing_key)
 {
-    amqp_basic_properties_t props;
+    amqp_basic_properties_t props = { 0 };
     int status;
 
     status = camqp_connect (conf);
     if (status != 0)
         return (status);
 
-    memset (&props, 0, sizeof (props));
     props._flags = AMQP_BASIC_CONTENT_TYPE_FLAG
         | AMQP_BASIC_DELIVERY_MODE_FLAG
         | AMQP_BASIC_APP_ID_FLAG;
@@ -808,13 +807,11 @@ static int camqp_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
 {
     camqp_config_t *conf = user_data->data;
     char routing_key[6 * DATA_MAX_NAME_LEN];
-    char buffer[8192];
+    char buffer[8192] = { 0 };
     int status;
 
     if ((ds == NULL) || (vl == NULL) || (conf == NULL))
         return (EINVAL);
-
-    memset (buffer, 0, sizeof (buffer));
 
     if (conf->routing_key != NULL)
     {

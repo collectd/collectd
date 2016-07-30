@@ -306,10 +306,9 @@ static int
 connect_client(const char *p_hostname,
                const char *p_service, int p_family, int p_socktype)
 {
-  struct addrinfo hints, *res = NULL, *ressave = NULL;
+  struct addrinfo hints = { 0 };
+  struct addrinfo *res = NULL, *ressave = NULL;
   int n, sockfd;
-
-  memset(&hints, 0, sizeof(struct addrinfo));
 
   hints.ai_family = p_family;
   hints.ai_socktype = p_socktype;
@@ -852,8 +851,7 @@ chrony_request_daemon_stats(void)
   }
 #if COLLECT_DEBUG
   {
-    char src_addr[IPV6_STR_MAX_SIZE];
-    memset(src_addr, 0, sizeof(src_addr));
+    char src_addr[IPV6_STR_MAX_SIZE] = { 0 };
     niptoha(&chrony_resp.body.tracking.addr, src_addr, sizeof(src_addr));
     DEBUG(PLUGIN_NAME ": Daemon stat: .addr = %s, .ref_id= %u, .stratum = %u, .leap_status = %u, .ref_time = %u:%u:%u, .current_correction = %f, .last_offset = %f, .rms_offset = %f, .freq_ppm = %f, .skew_ppm = %f, .root_delay = %f, .root_dispersion = %f, .last_update_interval = %f", src_addr, ntohs(chrony_resp.body.tracking.f_ref_id),  
           ntohs(chrony_resp.body.tracking.f_stratum),
@@ -937,8 +935,7 @@ chrony_request_source_data(int p_src_idx, int *p_is_reachable)
   tChrony_Request chrony_req;
   tChrony_Response chrony_resp;
 
-  char src_addr[IPV6_STR_MAX_SIZE];
-  memset(src_addr, 0, sizeof(src_addr));
+  char src_addr[IPV6_STR_MAX_SIZE] = { 0 };
 
   chrony_init_req(&chrony_req);
   chrony_req.body.source_data.f_index = htonl(p_src_idx);
@@ -997,8 +994,7 @@ chrony_request_source_stats(int p_src_idx, const int *p_is_reachable)
   tChrony_Response chrony_resp;
   double skew_ppm, frequency_error, time_offset;
 
-  char src_addr[IPV6_STR_MAX_SIZE];
-  memset(src_addr, 0, sizeof(src_addr));
+  char src_addr[IPV6_STR_MAX_SIZE] = { 0 };
 
   if (*p_is_reachable == 0)
   {

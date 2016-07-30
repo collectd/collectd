@@ -204,7 +204,7 @@ static int server_open_socket (lcc_server_t *srv) /* {{{ */
 
 static int server_send_buffer (lcc_server_t *srv) /* {{{ */
 {
-  char buffer[LCC_NETWORK_BUFFER_SIZE_DEFAULT];
+  char buffer[LCC_NETWORK_BUFFER_SIZE_DEFAULT] = { 0 };
   size_t buffer_size;
   int status;
 
@@ -215,7 +215,6 @@ static int server_send_buffer (lcc_server_t *srv) /* {{{ */
       return (status);
   }
 
-  memset (buffer, 0, sizeof (buffer));
   buffer_size = sizeof (buffer);
 
   status = lcc_network_buffer_finalize (srv->buffer);
@@ -413,18 +412,16 @@ int lcc_server_set_interface (lcc_server_t *srv, char const *interface) /* {{{ *
        * index is preferred here, because of its similarity
        * to the way IPv6 handles this. Unfortunately, it
        * appears not to be portable. */
-      struct ip_mreqn mreq;
-
-      memset (&mreq, 0, sizeof (mreq));
-      mreq.imr_multiaddr.s_addr = addr->sin_addr.s_addr;
-      mreq.imr_address.s_addr = ntohl (INADDR_ANY);
-      mreq.imr_ifindex = (int) if_index;
+      struct ip_mreqn mreq = {
+        .imr_multiaddr.s_addr = addr->sin_addr.s_addr,
+        .imr_address.s_addr = ntohl (INADDR_ANY),
+        .imr_ifindex = (int) if_index
+      };
 #else
-      struct ip_mreq mreq;
-
-      memset (&mreq, 0, sizeof (mreq));
-      mreq.imr_multiaddr.s_addr = addr->sin_addr.s_addr;
-      mreq.imr_interface.s_addr = ntohl (INADDR_ANY);
+      struct ip_mreq mreq = {
+        .imr_multiaddr.s_addr = addr->sin_addr.s_addr,
+        .imr_interface.s_addr = ntohl (INADDR_ANY)
+      }
 #endif
 
       status = setsockopt (srv->fd, IPPROTO_IP, IP_MULTICAST_IF,

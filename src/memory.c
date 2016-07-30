@@ -456,13 +456,12 @@ static int memory_read_internal (value_list_t *vl)
 
 #elif HAVE_SYSCTL
 	int mib[] = {CTL_VM, VM_METER};
-	struct vmtotal vmtotal;
+	struct vmtotal vmtotal = { 0 };
 	gauge_t mem_active;
 	gauge_t mem_inactive;
 	gauge_t mem_free;
 	size_t size;
 
-	memset (&vmtotal, 0, sizeof (vmtotal));
 	size = sizeof (vmtotal);
 
 	if (sysctl (mib, 2, &vmtotal, &size, NULL, 0) < 0) {
@@ -495,9 +494,8 @@ static int memory_read_internal (value_list_t *vl)
 /* #endif HAVE_LIBSTATGRAB */
 
 #elif HAVE_PERFSTAT
-	perfstat_memory_total_t pmemory;
+	perfstat_memory_total_t pmemory = { 0 };
 
-	memset (&pmemory, 0, sizeof (pmemory));
 	if (perfstat_memory_total(NULL, &pmemory, sizeof(pmemory), 1) < 0)
 	{
 		char errbuf[1024];

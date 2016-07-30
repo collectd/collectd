@@ -269,7 +269,7 @@ static int csv_write (const data_set_t *ds, const value_list_t *vl,
 	char         values[4096];
 	FILE        *csv;
 	int          csv_fd;
-	struct flock fl;
+	struct flock fl = { 0 };
 	int          status;
 
 	if (0 != strcmp (ds->type, vl->type)) {
@@ -342,9 +342,6 @@ static int csv_write (const data_set_t *ds, const value_list_t *vl,
 	}
 	csv_fd = fileno (csv);
 
-	memset (&fl, '\0', sizeof (fl));
-	fl.l_start  = 0;
-	fl.l_len    = 0; /* till end of file */
 	fl.l_pid    = getpid ();
 	fl.l_type   = F_WRLCK;
 	fl.l_whence = SEEK_SET;

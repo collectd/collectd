@@ -417,7 +417,7 @@ static int bind_xml_read_timestamp (const char *xpath_expression, /* {{{ */
   xmlNode *node;
   char *str_ptr;
   char *tmp;
-  struct tm tm;
+  struct tm tm = { 0 };
 
   xpathObj = xmlXPathEvalExpression (BAD_CAST xpath_expression, xpathCtx);
   if (xpathObj == NULL)
@@ -458,7 +458,6 @@ static int bind_xml_read_timestamp (const char *xpath_expression, /* {{{ */
     return (-1);
   }
 
-  memset (&tm, 0, sizeof(tm));
   tmp = strptime (str_ptr, "%Y-%m-%dT%T", &tm);
   xmlFree(str_ptr);
   if (tmp == NULL)

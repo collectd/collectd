@@ -149,14 +149,12 @@ static size_t strtabsplit (char *string, char **fields, size_t size) /* {{{ */
 
 static FILE *olsrd_connect (void) /* {{{ */
 {
-  struct addrinfo  ai_hints;
+  struct addrinfo  ai_hints = { 0 };
   struct addrinfo *ai_list, *ai_ptr;
   int              ai_return;
 
   FILE *fh;
 
-  memset (&ai_hints, 0, sizeof (ai_hints));
-  ai_hints.ai_flags    = 0;
 #ifdef AI_ADDRCONFIG
   ai_hints.ai_flags   |= AI_ADDRCONFIG;
 #endif
@@ -557,9 +555,8 @@ static int olsrd_cb_topology (int lineno, /* {{{ */
 
     if (config_want_topology == OLSRD_WANT_DETAIL)
     {
-      char type_instance[DATA_MAX_NAME_LEN];
+      char type_instance[DATA_MAX_NAME_LEN] = { 0 };
 
-      memset (type_instance, 0, sizeof (type_instance));
       ssnprintf (type_instance, sizeof (type_instance), "%s-%s-lq",
           fields[0], fields[1]);
       DEBUG ("olsrd plugin: type_instance = %s; lq = %g;", type_instance, lq);
@@ -581,9 +578,8 @@ static int olsrd_cb_topology (int lineno, /* {{{ */
     }
     else
     {
-      char type_instance[DATA_MAX_NAME_LEN];
+      char type_instance[DATA_MAX_NAME_LEN] = { 0 };
 
-      memset (type_instance, 0, sizeof (type_instance));
       ssnprintf (type_instance, sizeof (type_instance), "%s-%s-nlq",
           fields[0], fields[1]);
       DEBUG ("olsrd plugin: type_instance = %s; nlq = %g;", type_instance, nlq);

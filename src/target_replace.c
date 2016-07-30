@@ -158,13 +158,12 @@ static int tr_action_invoke (tr_action_t *act_head, /* {{{ */
   tr_action_t *act;
   int status;
   char buffer[DATA_MAX_NAME_LEN];
-  regmatch_t matches[8];
+  regmatch_t matches[8] = { [0] = { 0 } };
 
   if (act_head == NULL)
     return (-EINVAL);
 
   sstrncpy (buffer, buffer_in, sizeof (buffer));
-  memset (matches, 0, sizeof (matches));
 
   DEBUG ("target_replace plugin: tr_action_invoke: <- buffer = %s;", buffer);
 
@@ -346,9 +345,8 @@ static int tr_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
 
 void module_register (void)
 {
-	target_proc_t tproc;
+	target_proc_t tproc = { 0 };
 
-	memset (&tproc, 0, sizeof (tproc));
 	tproc.create  = tr_create;
 	tproc.destroy = tr_destroy;
 	tproc.invoke  = tr_invoke;

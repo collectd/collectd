@@ -84,12 +84,10 @@ static int mbmon_query_daemon (char *buffer, int buffer_size)
 	const char *host;
 	const char *port;
 
-	struct addrinfo  ai_hints;
+	struct addrinfo  ai_hints = { 0 };
 	struct addrinfo *ai_list, *ai_ptr;
 	int              ai_return;
 
-	memset (&ai_hints, '\0', sizeof (ai_hints));
-	ai_hints.ai_flags    = 0;
 #ifdef AI_ADDRCONFIG
 	ai_hints.ai_flags   |= AI_ADDRCONFIG;
 #endif

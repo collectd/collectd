@@ -165,17 +165,17 @@ static redis_query_t *redis_config_query (oconfig_item_t *ci) /* {{{ */
 
 static int redis_config_node (oconfig_item_t *ci) /* {{{ */
 {
-  redis_node_t rn;
   redis_query_t *rq;
   int i;
   int status;
   int timeout;
 
-  memset (&rn, 0, sizeof (rn));
+  redis_node_t rn = {
+    .port = REDIS_DEF_PORT,
+    .timeout.tv_usec = REDIS_DEF_TIMEOUT
+  };
+
   sstrncpy (rn.host, REDIS_DEF_HOST, sizeof (rn.host));
-  rn.port = REDIS_DEF_PORT;
-  rn.timeout.tv_usec = REDIS_DEF_TIMEOUT;
-  rn.queries = NULL;
 
   status = cf_util_get_string_buffer (ci, rn.name, sizeof (rn.name));
   if (status != 0)

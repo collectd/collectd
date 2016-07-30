@@ -590,7 +590,6 @@ static int do_check (lcc_connection_t *connection)
 			hostname_g, value_string_g);
 	ident_str[sizeof (ident_str) - 1] = 0;
 
-	memset (&ident, 0, sizeof (ident));
 	status = lcc_string_to_identifier (connection, &ident, ident_str);
 	if (status != 0)
 	{

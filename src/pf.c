@@ -79,7 +79,7 @@ static void pf_submit (char const *type, char const *type_instance,
 
 static int pf_read (void)
 {
-	struct pf_status state;
+	struct pf_status state = { 0 };
 	int fd;
 	int status;
 	int i;
@@ -94,7 +94,6 @@ static int pf_read (void)
 		return (-1);
 	}
 
-	memset (&state, 0, sizeof (state));
 	status = ioctl (fd, DIOCGETSTATUS, &state);
 	if (status != 0)
 	{

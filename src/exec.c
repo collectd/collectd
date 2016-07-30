@@ -346,7 +346,6 @@ static void reset_signal_mask (void) /* {{{ */
 {
   sigset_t ss;
 
-  memset (&ss, 0, sizeof (ss));
   sigemptyset (&ss);
   sigprocmask (SIG_SETMASK, &ss, /* old mask = */ NULL);
 } /* }}} void reset_signal_mask */
@@ -804,10 +803,10 @@ static void *exec_notification_one (void *arg) /* {{{ */
 
 static int exec_init (void) /* {{{ */
 {
-  struct sigaction sa;
+  struct sigaction sa = {
+    .sa_handler = sigchld_handler
+  };
 
-  memset (&sa, '\0', sizeof (sa));
-  sa.sa_handler = sigchld_handler;
   sigaction (SIGCHLD, &sa, NULL);
 
   return (0);

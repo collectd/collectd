@@ -210,7 +210,7 @@ static int dns_run_pcap_loop (void)
 {
 	pcap_t *pcap_obj;
 	char    pcap_error[PCAP_ERRBUF_SIZE];
-	struct  bpf_program fp;
+	struct  bpf_program fp = { 0 };
 
 	int status;
 
@@ -237,7 +237,6 @@ static int dns_run_pcap_loop (void)
 		return (PCAP_ERROR);
 	}
 
-	memset (&fp, 0, sizeof (fp));
 	status = pcap_compile (pcap_obj, &fp, "udp port 53", 1, 0);
 	if (status < 0)
 	{

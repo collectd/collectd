@@ -211,7 +211,7 @@ static int create_sockets (socket_entry_t **ret_sockets, /* {{{ */
     size_t *ret_sockets_num,
     const char *node, const char *service, int listen)
 {
-  struct addrinfo  ai_hints;
+  struct addrinfo  ai_hints = { 0 };
   struct addrinfo *ai_list;
   struct addrinfo *ai_ptr;
   int              ai_return;
@@ -224,8 +224,6 @@ static int create_sockets (socket_entry_t **ret_sockets, /* {{{ */
   if (*ret_sockets != NULL)
     return (EINVAL);
 
-  memset (&ai_hints, 0, sizeof (ai_hints));
-  ai_hints.ai_flags    = 0;
 #ifdef AI_PASSIVE
   ai_hints.ai_flags |= AI_PASSIVE;
 #endif
@@ -308,7 +306,6 @@ static int create_sockets (socket_entry_t **ret_sockets, /* {{{ */
     if (ai_ptr->ai_family == AF_INET)
     {
       struct sockaddr_in *addr;
-      struct ip_mreq mreq;
       int loop;
 
       addr = (struct sockaddr_in *) ai_ptr->ai_addr;
@@ -329,9 +326,10 @@ static int create_sockets (socket_entry_t **ret_sockets, /* {{{ */
                  sstrerror (errno, errbuf, sizeof (errbuf)));
       }
 
-      memset (&mreq, 0, sizeof (mreq));
-      mreq.imr_multiaddr.s_addr = addr->sin_addr.s_addr;
-      mreq.imr_interface.s_addr = htonl (INADDR_ANY);
+      struct ip_mreq mreq = {
+        .imr_multiaddr.s_addr = addr->sin_addr.s_addr,
+        .imr_interface.s_addr = htonl (INADDR_ANY)
+      };
 
       status = setsockopt (sockets[sockets_num].fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
           (void *) &mreq, sizeof (mreq));
@@ -345,7 +343,6 @@ static int create_sockets (socket_entry_t **ret_sockets, /* {{{ */
     else if (ai_ptr->ai_family == AF_INET6)
     {
       struct sockaddr_in6 *addr;
-      struct ipv6_mreq mreq;
       int loop;
 
       addr = (struct sockaddr_in6 *) ai_ptr->ai_addr;
@@ -366,10 +363,12 @@ static int create_sockets (socket_entry_t **ret_sockets, /* {{{ */
                  sstrerror (errno, errbuf, sizeof (errbuf)));
       }
 
-      memset (&mreq, 0, sizeof (mreq));
+      struct ipv6_mreq mreq = {
+        .ipv6mr_interface = 0 /* any */
+      };
+
       memcpy (&mreq.ipv6mr_multiaddr,
           &addr->sin6_addr, sizeof (addr->sin6_addr));
-      mreq.ipv6mr_interface = 0; /* any */
       status = setsockopt (sockets[sockets_num].fd, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP,
           (void *) &mreq, sizeof (mreq));
       if (status != 0)
@@ -398,13 +397,11 @@ static int create_sockets (socket_entry_t **ret_sockets, /* {{{ */
 
 static int request_meta_data (const char *host, const char *name) /* {{{ */
 {
-  Ganglia_metadata_msg msg;
-  char buffer[BUFF_SIZE];
+  Ganglia_metadata_msg msg = { 0 };
+  char buffer[BUFF_SIZE] = { 0 };
   unsigned int buffer_size;
   XDR xdr;
   size_t i;
-
-  memset (&msg, 0, sizeof (msg));
 
   msg.id = gmetadata_request;
   msg.Ganglia_metadata_msg_u.grequest.metric_id.host = strdup (host);
@@ -418,7 +415,6 @@ static int request_meta_data (const char *host, const char *name) /* {{{ */
     return (-1);
   }
 
-  memset (buffer, 0, sizeof (buffer));
   xdrmem_create (&xdr, buffer, sizeof (buffer), XDR_ENCODE);
 
   if (!xdr_Ganglia_metadata_msg (&xdr, &msg))
@@ -782,9 +778,8 @@ static int mc_handle_metric (void *buffer, size_t buffer_size) /* {{{ */
     case gmetric_float:
     case gmetric_double:
     {
-      Ganglia_value_msg msg;
+      Ganglia_value_msg msg = { 0 };
 
-      memset (&msg, 0, sizeof (msg));
       if (xdr_Ganglia_value_msg (&xdr, &msg))
         mc_handle_value_msg (&msg);
       break;
@@ -793,8 +788,7 @@ static int mc_handle_metric (void *buffer, size_t buffer_size) /* {{{ */
     case gmetadata_full:
     case gmetadata_request:
     {
-      Ganglia_metadata_msg msg;
-      memset (&msg, 0, sizeof (msg));
+      Ganglia_metadata_msg msg = { 0 };
       if (xdr_Ganglia_metadata_msg (&xdr, &msg))
         mc_handle_metadata_msg (&msg);
       break;

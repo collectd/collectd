@@ -303,9 +303,8 @@ static int mr_match (const data_set_t __attribute__((unused)) *ds, /* {{{ */
 
 void module_register (void)
 {
-	match_proc_t mproc;
+	match_proc_t mproc = { 0 };
 
-	memset (&mproc, 0, sizeof (mproc));
 	mproc.create  = mr_create;
 	mproc.destroy = mr_destroy;
 	mproc.match   = mr_match;

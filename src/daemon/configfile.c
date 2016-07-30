@@ -273,7 +273,7 @@ static int dispatch_loadplugin (oconfig_item_t *ci)
 	int i;
 	const char *name;
 	unsigned int flags = 0;
-	plugin_ctx_t ctx;
+	plugin_ctx_t ctx = { 0 };
 	plugin_ctx_t old_ctx;
 	int ret_val;
 
@@ -289,7 +289,6 @@ static int dispatch_loadplugin (oconfig_item_t *ci)
 		name = "virt";
 
 	/* default to the global interval set before loading this plugin */
-	memset (&ctx, 0, sizeof (ctx));
 	ctx.interval = cf_get_default_interval ();
 	ctx.flush_interval = 0;
 	ctx.flush_timeout = 0;
@@ -406,12 +405,11 @@ static int dispatch_block_plugin (oconfig_item_t *ci)
 
 	if (IS_TRUE (global_option_get ("AutoLoadPlugin")))
 	{
-		plugin_ctx_t ctx;
+		plugin_ctx_t ctx = { 0 };
 		plugin_ctx_t old_ctx;
 		int status;
 
 		/* default to the global interval set before loading this plugin */
-		memset (&ctx, 0, sizeof (ctx));
 		ctx.interval = cf_get_default_interval ();
 
 		old_ctx = plugin_set_ctx (ctx);

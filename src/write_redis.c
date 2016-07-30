@@ -63,7 +63,7 @@ static int wr_write (const data_set_t *ds, /* {{{ */
   wr_node_t *node = ud->data;
   char ident[512];
   char key[512];
-  char value[512];
+  char value[512] = { 0 };
   char time[24];
   size_t value_size;
   char *value_ptr;
@@ -78,7 +78,6 @@ static int wr_write (const data_set_t *ds, /* {{{ */
       ident);
   ssnprintf (time, sizeof (time), "%.9f", CDTIME_T_TO_DOUBLE(vl->time));
 
-  memset (value, 0, sizeof (value));
   value_size = sizeof (value);
   value_ptr = &value[0];
   status = format_values (value_ptr, value_size, ds, vl, node->store_rates);

@@ -889,14 +889,12 @@ static cdtime_t cna_child_get_cdtime (na_elem_t *data) /* {{{ */
 static int cna_handle_wafl_data (const char *hostname, cfg_wafl_t *cfg_wafl, /* {{{ */
 		na_elem_t *data, cdtime_t interval)
 {
-	cfg_wafl_t perf_data;
+	cfg_wafl_t perf_data = { 0 };
 	const char *plugin_inst;
 
 	na_elem_t *instances;
 	na_elem_t *counter;
 	na_elem_iter_t counter_iter;
-
-	memset (&perf_data, 0, sizeof (perf_data));
 
 	perf_data.timestamp = cna_child_get_cdtime (data);
 
@@ -1081,12 +1079,11 @@ static int cna_handle_disk_data (const char *hostname, /* {{{ */
 			instance = na_iterator_next(&instance_iter))
 	{
 		disk_t *old_data;
-		disk_t  new_data;
+		disk_t  new_data = { 0 };
 
 		na_elem_iter_t counter_iterator;
 		na_elem_t *counter;
 
-		memset (&new_data, 0, sizeof (new_data));
 		new_data.timestamp = timestamp;
 		new_data.disk_busy_percent = NAN;
 
@@ -1273,14 +1270,13 @@ static int cna_handle_volume_perf_data (const char *hostname, /* {{{ */
 	{
 		const char *name;
 
-		data_volume_perf_t perf_data;
+		data_volume_perf_t perf_data = { 0 };
 		data_volume_perf_t *v;
 
 		na_elem_t *elem_counters;
 		na_elem_iter_t iter_counters;
 		na_elem_t *elem_counter;
 
-		memset (&perf_data, 0, sizeof (perf_data));
 		perf_data.timestamp = timestamp;
 
 		name = na_child_get_string (elem_instance, "name");
@@ -1519,9 +1515,8 @@ static int cna_submit_volume_usage_data (const char *hostname, /* {{{ */
 static int cna_change_volume_status (const char *hostname, /* {{{ */
 		data_volume_usage_t *v)
 {
-	notification_t n;
+	notification_t n = { 0 };
 
-	memset (&n, 0, sizeof (n));
 	n.time = cdtime ();
 	sstrncpy (n.host, hostname, sizeof (n.host));
 	sstrncpy (n.plugin, "netapp", sizeof (n.plugin));
@@ -2895,7 +2890,7 @@ static int cna_read (user_data_t *ud);
 static int cna_register_host (host_config_t *host) /* {{{ */
 {
 	char cb_name[256];
-	user_data_t ud;
+	user_data_t ud = { 0 };
 
 	if (host->vfiler)
 		ssnprintf (cb_name, sizeof (cb_name), "netapp-%s-%s",
@@ -2903,7 +2898,6 @@ static int cna_register_host (host_config_t *host) /* {{{ */
 	else
 		ssnprintf (cb_name, sizeof (cb_name), "netapp-%s", host->name);
 
-	memset (&ud, 0, sizeof (ud));
 	ud.data = host;
 	ud.free_func = (void (*) (void *)) free_host_config;
 
@@ -3074,9 +3068,8 @@ static int cna_init_host (host_config_t *host) /* {{{ */
 
 static int cna_init (void) /* {{{ */
 {
-	char err[256];
+	char err[256] = { 0 };
 
-	memset (err, 0, sizeof (err));
 	if (!na_startup(err, sizeof(err))) {
 		err[sizeof (err) - 1] = 0;
 		ERROR("netapp plugin: Error initializing netapp API: %s", err);

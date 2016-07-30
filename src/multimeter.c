@@ -157,11 +157,10 @@ static int multimeter_init (void)
 
 		if ((fd = open(device, O_RDWR | O_NOCTTY)) != -1)
 		{
-			struct termios tios;
+			struct termios tios = { 0 };
 			int rts = TIOCM_RTS;
 			double value;
 
-			memset (&tios, 0, sizeof (tios));
 			tios.c_cflag = B1200 | CS7 | CSTOPB | CREAD | CLOCAL;
 			tios.c_iflag = IGNBRK | IGNPAR;
 			tios.c_oflag = 0;

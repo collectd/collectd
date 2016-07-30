@@ -352,10 +352,9 @@ static pinba_socket_t *pinba_socket_open (const char *node, /* {{{ */
   pinba_socket_t *s;
   struct addrinfo *ai_list;
   struct addrinfo *ai_ptr;
-  struct addrinfo  ai_hints;
+  struct addrinfo  ai_hints = { 0 };
   int status;
 
-  memset (&ai_hints, 0, sizeof (ai_hints));
   ai_hints.ai_flags = AI_PASSIVE;
   ai_hints.ai_family = AF_UNSPEC;
   ai_hints.ai_socktype = SOCK_DGRAM;

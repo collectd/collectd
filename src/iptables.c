@@ -111,7 +111,8 @@ static int iptables_config (const char *key, const char *value)
     else
         return (1);
 
-    ip_chain_t temp, *final, **list;
+    ip_chain_t  temp = { 0 };
+    ip_chain_t *final, **list;
     char *table;
     int   table_len;
     char *chain;
@@ -120,8 +121,6 @@ static int iptables_config (const char *key, const char *value)
     char *value_copy;
     char *fields[4];
     int   fields_num;
-
-    memset (&temp, 0, sizeof (temp));
 
     value_copy = strdup (value);
     if (value_copy == NULL)

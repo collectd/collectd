@@ -500,7 +500,7 @@ static int statsd_network_init (struct pollfd **ret_fds, /* {{{ */
   struct pollfd *fds = NULL;
   size_t fds_num = 0;
 
-  struct addrinfo ai_hints;
+  struct addrinfo ai_hints = { 0 };
   struct addrinfo *ai_list = NULL;
   struct addrinfo *ai_ptr;
   int status;
@@ -509,7 +509,6 @@ static int statsd_network_init (struct pollfd **ret_fds, /* {{{ */
   char const *service = (conf_service != NULL)
     ? conf_service : STATSD_DEFAULT_SERVICE;
 
-  memset (&ai_hints, 0, sizeof (ai_hints));
   ai_hints.ai_flags = AI_PASSIVE;
 #ifdef AI_ADDRCONFIG
   ai_hints.ai_flags |= AI_ADDRCONFIG;

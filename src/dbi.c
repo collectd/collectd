@@ -395,14 +395,13 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
     }
     else
     {
-      user_data_t ud;
+      user_data_t ud = { 0 };
       char *name = NULL;
 
       databases = temp;
       databases[databases_num] = db;
       databases_num++;
 
-      memset (&ud, 0, sizeof (ud));
       ud.data = (void *) db;
       ud.free_func = NULL;
       name = ssnprintf_alloc("dbi:%s", db->name);

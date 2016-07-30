@@ -74,7 +74,11 @@ static int ted_read_value(double *ret_power, double *ret_voltage)
     int package_buffer_pos;
 
     fd_set input;
-    struct timeval timeout;
+
+    /* Initialize timeout structure, set to 2 seconds */
+    struct timeval timeout = {
+      .tv_sec = 2
+    };
 
     int end_flag;
     int escape_flag;
@@ -86,11 +90,6 @@ static int ted_read_value(double *ret_power, double *ret_voltage)
     /* Initialize the input set*/
     FD_ZERO (&input);
     FD_SET (fd, &input);
-
-    /* Initialize timeout structure, set to 2 seconds */
-    memset (&timeout, 0, sizeof (timeout));
-    timeout.tv_sec = 2;
-    timeout.tv_usec = 0;
 
     /* clear out anything in the buffer */
     tcflush (fd, TCIFLUSH);

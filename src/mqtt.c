@@ -549,7 +549,7 @@ static int mqtt_config_publisher (oconfig_item_t *ci)
 {
     mqtt_client_conf_t *conf;
     char cb_name[1024];
-    user_data_t user_data;
+    user_data_t user_data = { 0 };
     int status;
     int i;
 
@@ -634,7 +634,6 @@ static int mqtt_config_publisher (oconfig_item_t *ci)
     }
 
     ssnprintf (cb_name, sizeof (cb_name), "mqtt/%s", conf->name);
-    memset (&user_data, 0, sizeof (user_data));
     user_data.data = conf;
 
     plugin_register_write (cb_name, mqtt_write, &user_data);
