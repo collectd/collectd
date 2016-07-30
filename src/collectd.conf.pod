@@ -1481,6 +1481,16 @@ by finding an average among all CPUs (B<false>).
 
 =back
 
+Note that on the setups with hot-plugged CPUs, the frequencies will be
+reported only for CPUs running at the time of a readout. When overall
+CPU frequency distribution is computed (B<ReportDistribution> is set
+to B<true> and B<ReportByCpu> is set to B<false>), the CPUs that are
+switched off would be still accounted for by taking a time spent at
+any frequency and then dividing this time by total number of CPUs
+(working and non-working). For example, if you have 4 CPUs and only
+one of them is working, the total CPU frequency distribution would
+account only for 25% of time.
+
 =head2 Plugin C<csv>
 
 =over 4
