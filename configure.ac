@@ -76,6 +76,7 @@ then
 	AC_MSG_ERROR([bison is missing and you do not have ${srcdir}/src/liboconfig/parser.c. Please install bison])
 fi
 
+AC_ARG_VAR([PROTOC], [path to the protoc binary])
 AC_PATH_PROG([PROTOC], [protoc])
 have_protoc3="no"
 if test "x$PROTOC" != "x"; then
@@ -90,29 +91,18 @@ if test "x$PROTOC" != "x"; then
 fi
 AM_CONDITIONAL(HAVE_PROTOC3, test "x$have_protoc3" = "xyes")
 
+AC_ARG_VAR([GRPC_CPP_PLUGIN], [path to the grpc_cpp_plugin binary])
 AC_PATH_PROG([GRPC_CPP_PLUGIN], [grpc_cpp_plugin])
 AM_CONDITIONAL(HAVE_GRPC_CPP, test "x$GRPC_CPP_PLUGIN" != "x")
 
-AC_CHECK_PROG([have_protoc_c], [protoc-c], [yes], [no])
-if test "x$have_protoc_c" = "xno"
+AC_ARG_VAR([PROTOC_C], [path to the protoc-c binary])
+AC_PATH_PROG([PROTOC_C], [protoc-c])
+if test "x$PROTOC_C" = "x"
 then
-	have_protoc_c="no (protoc-c compiler not found)"
+  have_protoc_c="no (protoc-c compiler not found)"
+else
+  have_protoc_c="yes"
 fi
-
-if test "x$have_protoc_c" = "xyes"
-then
-	AC_CHECK_HEADERS([protobuf-c/protobuf-c.h google/protobuf-c/protobuf-c.h],
-			 [have_protoc_c="yes"; break],
-			 [have_protoc_c="no (<google/protobuf-c/protobuf-c.h> not found)"])
-fi
-if test "x$have_protoc_c" = "xyes"
-then
-	AC_CHECK_LIB([protobuf-c], [protobuf_c_message_pack],
-		     [have_protoc_c="yes"],
-		     [have_protoc_c="no (libprotobuf-c not found)"])
-
-fi
-AM_CONDITIONAL(HAVE_PROTOC_C, test "x$have_protoc_c" = "xyes")
 
 AC_MSG_CHECKING([for kernel type ($host_os)])
 case $host_os in
@@ -2260,60 +2250,91 @@ AC_SUBST(GCRYPT_LIBS)
 AM_CONDITIONAL(BUILD_WITH_LIBGCRYPT, test "x$with_libgcrypt" = "xyes")
 # }}}
 
-# --with-grpc {{{
-AC_ARG_WITH(grpc, [AS_HELP_STRING([--without-grpc], [Disable gRPC (default: autodetect).])],
-[
-	with_grpc="$withval"
-],
-[
-	with_grpc="yes"
-])
-
-if test "x$with_grpc" = "xyes"
+# --with-libgrpc++ {{{
+with_libgrpcpp_cppflags=""
+with_libgrpcpp_ldflags=""
+AC_ARG_WITH([libgrpc++], [AS_HELP_STRING([--with-libgrpc++@<:@=PREFIX@:>@], [Path to libgrpc++.])],
+  [
+    with_grpcpp="$withval"
+    if test "x$withval" != "xno" && test "x$withval" != "xyes"
+    then
+      with_libgrpcpp_cppflags="-I$withval/include"
+      with_libgrpcpp_ldflags="-L$withval/lib"
+      with_libgrpcpp="yes"
+    fi
+    if test "x$withval" = "xno"
+    then
+      with_libgrpcpp="no (disabled on command line)"
+    fi
+  ],
+  [withval="yes"]
+)
+if test "x$withval" = "xyes"
 then
-	if test "x$have_protoc3" != "xyes"
-	then
-		with_grpc="no (requires protoc 3.0.0+)"
-	else if test "x$GRPC_CPP_PLUGIN" = "x"
-	then
-		with_grpc"no (requires grpc_cpp_plugin)"
-	fi; fi
+PKG_CHECK_MODULES([GRPCPP], [grpc++],
+  [with_libgrpcpp="yes"],
+  [with_libgrpcpp="no (pkg-config could not find libgrpc++)"]
+)
 fi
 
-if test "x$with_grpc" = "xyes"
+if test "x$withval" != "xno"
 then
-	AC_MSG_CHECKING([whether $CXX accepts -std=c++11])
-	if test_cxx_flags -std=c++11; then
-		AC_MSG_RESULT([yes])
-	else
-		AC_MSG_RESULT([no])
-		with_grpc="no (requires C++11 support)"
-	fi
+  AC_MSG_CHECKING([whether $CXX accepts -std=c++11])
+  if test_cxx_flags -std=c++11; then
+    AC_MSG_RESULT([yes])
+  else
+    AC_MSG_RESULT([no])
+    with_libgrpcpp="no (requires C++11 support)"
+  fi
 fi
 
-if test "x$with_grpc" = "xyes"
+if test "x$with_libgrpcpp" = "xyes"
 then
-	AC_LANG_PUSH(C++)
-	SAVE_CPPFLAGS="$CPPFLAGS"
-	SAVE_CXXFLAGS="$CXXFLAGS"
-	CPPFLAGS="$CPPFLAGS -std=c++11"
-	CXXFLAGS="$CXXFLAGS -std=c++11"
-	AC_CHECK_HEADERS([grpc++/grpc++.h], [],
-			[with_grpc="no (grpc++/grpc++.h not found)"])
-	CPPFLAGS="$SAVE_CPPFLAGS"
-	CXXFLAGS="$SAVE_CXXFLAGS"
-	AC_LANG_POP(C++)
+  AC_LANG_PUSH(C++)
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$with_libgrpcpp_cppflags $GRPCPP_CFLAGS $CPPFLAGS -std=c++11"
+  AC_CHECK_HEADERS([grpc++/grpc++.h], [],
+    [with_libgrpcpp="no (<grpc++/grpc++.h> not found)"]
+  )
+  CPPFLAGS="$SAVE_CPPFLAGS"
+  AC_LANG_POP(C++)
 fi
-with_libgrpc="no"
-if test "x$with_grpc" = "xyes"
+if test "x$with_libgrpcpp" = "xyes"
 then
-	AC_LANG_PUSH(C++)
-	AC_CHECK_LIB([grpc], [grpc_register_plugin],
-			[with_libgrpc="yes"],
-			[with_grpc="no (libgrpc not found)"],
-			[-lgpr -lprotobuf])
-	AC_LANG_POP(C++)
+  AC_LANG_PUSH(C++)
+  SAVE_LDFLAGS="$LDFLAGS"
+  SAVE_LIBS="$LIBS"
+  LDFLAGS="$with_libgrpcpp_ldflags"
+  if test "x$GRPCPP_LIBS" = "x"
+  then
+    LIBS="-lgrpc++"
+  else
+    LIBS="$GRPCPP_LIBS"
+  fi
+  AC_LINK_IFELSE(
+    [AC_LANG_PROGRAM(
+      [[#include <grpc++/grpc++.h>]],
+      [[grpc::ServerBuilder sb;]]
+    )],
+    [
+      with_libgrpcpp="yes"
+      if test "x$GRPCPP_LIBS" = "x"
+      then
+        GRPCPP_LIBS="-lgrpc++"
+      fi
+    ],
+    [with_libgrpcpp="no (libgrpc++ not found)"]
+  )
+  LDFLAGS="$SAVE_LDFLAGS"
+  LIBS="$SAVE_LIBS"
+  AC_LANG_POP(C++)
 fi
+BUILD_WITH_LIBGRPCPP_CPPFLAGS="-std=c++11 $with_libgrpcpp_cppflags $GRPCPP_CFLAGS"
+BUILD_WITH_LIBGRPCPP_LDFLAGS="$with_libgrpcpp_ldflags"
+BUILD_WITH_LIBGRPCPP_LIBS="$GRPCPP_LIBS"
+AC_SUBST([BUILD_WITH_LIBGRPCPP_CPPFLAGS])
+AC_SUBST([BUILD_WITH_LIBGRPCPP_LDFLAGS])
+AC_SUBST([BUILD_WITH_LIBGRPCPP_LIBS])
 # }}}
 
 # --with-libiptc {{{
@@ -3850,6 +3871,129 @@ then
 	AC_SUBST(BUILD_WITH_LIBPQ_LDFLAGS)
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBPQ, test "x$with_libpq" = "xyes")
+# }}}
+
+# --with-libprotobuf {{{
+with_libprotobuf_cppflags=""
+with_libprotobuf_ldflags=""
+AC_ARG_WITH([libprotobuf], [AS_HELP_STRING([--with-libprotobuf@<:@=PREFIX@:>@], [Path to libprotobuf.])],
+  [
+    if test "x$withval" != "xno" && test "x$withval" != "xyes"
+    then
+      with_libprotobuf_cppflags="-I$withval/include"
+      with_libprotobuf_ldflags="-L$withval/lib"
+      with_libprotobuf="yes"
+    fi
+    if test "x$withval" = "xno"
+    then
+      with_libprotobuf="no (disabled on command line)"
+    fi
+  ],
+  [withval="yes"]
+)
+if test "x$withval" = "xyes"
+then
+PKG_CHECK_MODULES([PROTOBUF], [protobuf],
+  [with_libprotobuf="yes"],
+  [with_libprotobuf="no (pkg-config could not find libprotobuf)"]
+)
+fi
+
+if test "x$withval" != "xno"
+then
+  SAVE_LDFLAGS="$LDFLAGS"
+  SAVE_LIBS="$LIBS"
+  LDFLAGS="$with_libprotobuf_ldflags"
+  LIBS="$PROTOBUF_LIBS $LIBS"
+  AC_LANG_PUSH([C++])
+  AC_CHECK_LIB([protobuf], [main],
+    [
+      SAVE_CPPFLAGS="$CPPFLAGS"
+      CPPFLAGS="$with_libprotobuf_cppflags $PROTOBUF_CFLAGS"
+      if test "x$PROTOBUF_LIBS" = "x"
+      then
+        PROTOBUF_LIBS="-lprotobuf"
+      fi
+      AC_CHECK_HEADERS([google/protobuf/util/time_util.h],
+        [with_libprotobuf="yes"],
+        [with_libprotobuf="no (<google/protobuf/util/time_util.h> not found)"]
+      )
+      CPPFLAGS="$SAVE_CPPFLAGS"
+    ],
+    [with_libprotobuf="no (libprotobuf not found)"]
+  )
+  AC_LANG_POP([C++])
+  LDFLAGS="$SAVE_LDFLAGS"
+  LIBS="$SAVE_LIBS"
+fi
+BUILD_WITH_LIBPROTOBUF_CPPFLAGS="$with_libprotobuf_cppflags $PROTOBUF_CFLAGS"
+BUILD_WITH_LIBPROTOBUF_LDFLAGS="$with_libprotobuf_ldflags"
+BUILD_WITH_LIBPROTOBUF_LIBS="$PROTOBUF_LIBS"
+AC_SUBST([BUILD_WITH_LIBPROTOBUF_CPPFLAGS])
+AC_SUBST([BUILD_WITH_LIBPROTOBUF_LDFLAGS])
+AC_SUBST([BUILD_WITH_LIBPROTOBUF_LIBS])
+# }}}
+
+# --with-libprotobuf-c {{{
+with_libprotobuf_c_cppflags=""
+with_libprotobuf_c_ldflags=""
+AC_ARG_WITH([libprotobuf-c], [AS_HELP_STRING([--with-libprotobuf-c@<:@=PREFIX@:>@], [Path to libprotobuf-c.])],
+  [
+    if test "x$withval" != "xno" && test "x$withval" != "xyes"
+    then
+      with_libprotobuf_c_cppflags="-I$withval/include"
+      with_libprotobuf_c_ldflags="-L$withval/lib"
+      with_libprotobuf_c="yes"
+    fi
+    if test "x$withval" = "xno"
+    then
+      with_libprotobuf_c="no (disabled on command line)"
+    fi
+  ],
+  [withval="yes"]
+)
+if test "x$withval" = "xyes"
+then
+PKG_CHECK_MODULES([PROTOBUF_C], [libprotobuf-c],
+  [with_libprotobuf_c="yes"],
+  [with_libprotobuf_c="no (pkg-config could not find libprotobuf-c)"]
+)
+fi
+
+if test "x$withval" != "xno"
+then
+  SAVE_LDFLAGS="$LDFLAGS"
+  SAVE_LIBS="$LIBS"
+  LDFLAGS="$with_libprotobuf_c_ldflags"
+  LIBS="$PROTOBUF_C_LIBS $LIBS"
+  AC_CHECK_LIB([protobuf-c], [protobuf_c_message_pack],
+    [
+      SAVE_CPPFLAGS="$CPPFLAGS"
+      CPPFLAGS="$with_libprotobuf_c_cppflags $PROTOBUF_C_CFLAGS"
+      if test "x$PROTOBUF_C_LIBS" = "x"
+      then
+        PROTOBUF_C_LIBS="-lprotobuf-c"
+      fi
+      AC_CHECK_HEADERS([protobuf-c/protobuf-c.h google/protobuf-c/protobuf-c.h],
+        [
+          with_libprotobuf_c="yes"
+          break
+        ],
+        [with_libprotobuf_c="no (<protobuf-c.h> not found)"]
+      )
+      CPPFLAGS="$SAVE_CPPFLAGS"
+    ],
+    [with_libprotobuf_c="no (libprotobuf-c not found)"]
+  )
+  LDFLAGS="$SAVE_LDFLAGS"
+  LIBS="$SAVE_LIBS"
+fi
+BUILD_WITH_LIBPROTOBUF_C_CPPFLAGS="$with_libprotobuf_c_cppflags $PROTOBUF_C_CFLAGS"
+BUILD_WITH_LIBPROTOBUF_C_LDFLAGS="$with_libprotobuf_c_ldflags"
+BUILD_WITH_LIBPROTOBUF_C_LIBS="$PROTOBUF_C_LIBS"
+AC_SUBST([BUILD_WITH_LIBPROTOBUF_C_CPPFLAGS])
+AC_SUBST([BUILD_WITH_LIBPROTOBUF_C_LDFLAGS])
+AC_SUBST([BUILD_WITH_LIBPROTOBUF_C_LIBS])
 # }}}
 
 # --with-python {{{
@@ -5558,6 +5702,7 @@ plugin_entropy="no"
 plugin_ethstat="no"
 plugin_fhcount="no"
 plugin_fscache="no"
+plugin_grpc="no"
 plugin_interface="no"
 plugin_ipmi="no"
 plugin_ipvs="no"
@@ -5569,6 +5714,7 @@ plugin_multimeter="no"
 plugin_nfs="no"
 plugin_numa="no"
 plugin_perl="no"
+plugin_pinba="no"
 plugin_processes="no"
 plugin_protocols="no"
 plugin_serial="no"
@@ -5833,6 +5979,11 @@ then
 	plugin_ethstat="yes"
 fi
 
+if test "x$with_libgrpcpp" = "xyes" && test "x$with_libprotobuf" = "xyes" && test "x$have_protoc3" = "xyes" && test "x$GRPC_CPP_PLUGIN" != "x"
+then
+	plugin_grpc="yes"
+fi
+
 if test "x$have_getifaddrs" = "xyes"
 then
 	plugin_interface="yes"
@@ -5851,6 +6002,11 @@ fi
 if test "x$c_cv_have_libperl$c_cv_have_perl_ithreads" = "xyesyes"
 then
 	plugin_perl="yes"
+fi
+
+if test "x$have_protoc_c" = "xyes" && test "x$with_libprotobuf_c" = "xyes"
+then
+	plugin_pinba="yes"
 fi
 
 # Mac OS X memory interface
@@ -5981,7 +6137,7 @@ AC_PLUGIN([fhcount],             [$plugin_fhcount],         [File handles statis
 AC_PLUGIN([filecount],           [yes],                     [Count files in directories])
 AC_PLUGIN([fscache],             [$plugin_fscache],         [fscache statistics])
 AC_PLUGIN([gmond],               [$with_libganglia],        [Ganglia plugin])
-AC_PLUGIN([grpc],                [$with_grpc],              [gRPC plugin])
+AC_PLUGIN([grpc],                [$plugin_grpc],            [gRPC plugin])
 AC_PLUGIN([hddtemp],             [yes],                     [Query hddtempd])
 AC_PLUGIN([interface],           [$plugin_interface],       [Interface traffic statistics])
 AC_PLUGIN([ipc],                 [$plugin_ipc],             [IPC statistics])
@@ -6030,7 +6186,7 @@ AC_PLUGIN([oracle],              [$with_oracle],            [Oracle plugin])
 AC_PLUGIN([perl],                [$plugin_perl],            [Embed a Perl interpreter])
 AC_PLUGIN([pf],                  [$have_net_pfvar_h],       [BSD packet filter (PF) statistics])
 # FIXME: Check for libevent, too.
-AC_PLUGIN([pinba],               [$have_protoc_c],          [Pinba statistics])
+AC_PLUGIN([pinba],               [$plugin_pinba],           [Pinba statistics])
 AC_PLUGIN([ping],                [$with_liboping],          [Network latency statistics])
 AC_PLUGIN([postgresql],          [$with_libpq],             [PostgreSQL database statistics])
 AC_PLUGIN([powerdns],            [yes],                     [PowerDNS statistics])
@@ -6300,7 +6456,7 @@ AC_MSG_RESULT([    libdbi  . . . . . . . $with_libdbi])
 AC_MSG_RESULT([    libesmtp  . . . . . . $with_libesmtp])
 AC_MSG_RESULT([    libganglia  . . . . . $with_libganglia])
 AC_MSG_RESULT([    libgcrypt . . . . . . $with_libgcrypt])
-AC_MSG_RESULT([    libgrpc . . . . . . . $with_libgrpc])
+AC_MSG_RESULT([    libgrpc++ . . . . . . $with_libgrpcpp])
 AC_MSG_RESULT([    libhal  . . . . . . . $with_libhal])
 AC_MSG_RESULT([    libhiredis  . . . . . $with_libhiredis])
 AC_MSG_RESULT([    libi2c-dev  . . . . . $with_libi2c])
@@ -6328,6 +6484,8 @@ AC_MSG_RESULT([    libpcap . . . . . . . $with_libpcap])
 AC_MSG_RESULT([    libperfstat . . . . . $with_perfstat])
 AC_MSG_RESULT([    libperl . . . . . . . $with_libperl])
 AC_MSG_RESULT([    libpq . . . . . . . . $with_libpq])
+AC_MSG_RESULT([    libprotobuf . . . . . $with_libprotobuf])
+AC_MSG_RESULT([    libprotobuf-c . . . . $with_libprotobuf_c])
 AC_MSG_RESULT([    librabbitmq . . . . . $with_librabbitmq])
 AC_MSG_RESULT([    libriemann-client . . $with_libriemann_client])
 AC_MSG_RESULT([    librdkafka  . . . . . $with_librdkafka])

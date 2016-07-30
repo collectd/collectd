@@ -426,10 +426,9 @@ if BUILD_PLUGIN_GRPC
 pkglib_LTLIBRARIES += grpc.la
 grpc_la_SOURCES = grpc.cc
 nodist_grpc_la_SOURCES = collectd.grpc.pb.cc collectd.pb.cc types.pb.cc
-grpc_la_CPPFLAGS = $(AM_CPPFLAGS) -std=c++11
-grpc_la_CXXFLAGS = $(AM_CXXFLAGS) -std=c++11
-grpc_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-grpc_la_LIBADD = -lgrpc++ -lgrpc -lgpr -lprotobuf
+grpc_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBGRPCPP_CPPFLAGS) $(BUILD_WITH_LIBPROTOBUF_CPPFLAGS)
+grpc_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBGRPCPP_LDFLAGS) $(BUILD_WITH_LIBPROTOBUF_LDFLAGS)
+grpc_la_LIBADD = $(BUILD_WITH_LIBGRPCPP_LIBS) $(BUILD_WITH_LIBPROTOBUF_LIBS)
 endif
 
 if BUILD_PLUGIN_HDDTEMP
@@ -852,8 +851,9 @@ if BUILD_PLUGIN_PINBA
 pkglib_LTLIBRARIES += pinba.la
 pinba_la_SOURCES = pinba.c
 nodist_pinba_la_SOURCES = pinba.pb-c.c pinba.pb-c.h
-pinba_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-pinba_la_LIBADD = -lprotobuf-c
+pinba_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBPROTOBUF_C_CPPFLAGS)
+pinba_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBPROTOBUF_C_LDFLAGS)
+pinba_la_LIBADD = $(BUILD_WITH_LIBPROTOBUF_C_LIBS)
 endif
 
 if BUILD_PLUGIN_PING
@@ -1392,7 +1392,7 @@ CLEANFILES += pinba.pb-c.c pinba.pb-c.h
 BUILT_SOURCES += pinba.pb-c.c pinba.pb-c.h
 
 pinba.pb-c.c pinba.pb-c.h: pinba.proto
-	$(AM_V_PROTOC_C)protoc-c -I$(srcdir) --c_out . $(srcdir)/pinba.proto
+	$(AM_V_PROTOC_C)$(PROTOC_C) -I$(srcdir) --c_out . $(srcdir)/pinba.proto
 endif
 
 install-exec-hook:
