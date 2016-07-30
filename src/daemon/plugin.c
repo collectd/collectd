@@ -93,6 +93,7 @@ static c_avl_tree_t *plugins_loaded = NULL;
 
 static llist_t *list_init;
 static llist_t *list_write;
+static llist_t *list_filter = NULL;
 static llist_t *list_flush;
 static llist_t *list_missing;
 static llist_t *list_shutdown;
@@ -1635,6 +1636,11 @@ int plugin_unregister_write (const char *name)
 	return (plugin_unregister (list_write, name));
 }
 
+int plugin_unregister_filter(const char *name)
+{
+  return (plugin_unregister (list_filter, name));
+}
+
 int plugin_unregister_flush (const char *name)
 {
 	plugin_ctx_t ctx = plugin_get_ctx ();
@@ -2086,7 +2092,8 @@ static int plugin_dispatch_values_internal (value_list_t *vl)
 {
 	int status;
 	static c_complain_t no_write_complaint = C_COMPLAIN_INIT_STATIC;
-
+	llentry_t *le;
+	
 	value_t *saved_values;
 	int      saved_values_len;
 

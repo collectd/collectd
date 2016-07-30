@@ -156,6 +156,7 @@ apache_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
 apache_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS)
 endif
 
+
 if BUILD_PLUGIN_APCUPS
 pkglib_LTLIBRARIES += apcups.la
 apcups_la_SOURCES = apcups.c
@@ -545,6 +546,17 @@ pkglib_LTLIBRARIES += lpar.la
 lpar_la_SOURCES = lpar.c
 lpar_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 lpar_la_LIBADD = -lperfstat
+endif
+
+if BUILD_PLUGIN_LUA
+pkglib_LTLIBRARIES += lua.la
+lua_la_SOURCES = lua.c \
+		 utils_lua.c utils_lua.h
+lua_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBLUA_CPPFLAGS)
+lua_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBLUA_LDFLAGS)
+lua_la_LIBADD = $(BUILD_WITH_LIBLUA_LIBS)
+collectd_LDADD += "-dlopen" lua.la
+collectd_DEPENDENCIES += lua.la
 endif
 
 if BUILD_PLUGIN_LVM

@@ -2704,6 +2704,67 @@ then
         AC_DEFINE(HAVE_LIBLVM2APP, 1, [Define if liblvm2app is present and usable.])
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBLVM2APP, test "x$with_liblvm2app" = "xyes")
+
+# --with-liblua {{{
+with_liblua_cppflags=""
+with_liblua_ldflags=""
+with_liblua_libs=""
+with_liblua="yes"
+
+AC_ARG_VAR([LIBLUA_PKG_CONFIG_NAME], [Name of liblua used by pkg-config])
+if test "x$LIBLUA_PKG_CONFIG_NAME" = "x"
+then
+       LIBLUA_PKG_CONFIG_NAME="lua5.1"
+fi
+
+if test "x$with_liblua" = "xyes"
+then
+	$PKG_CONFIG --exists $LIBLUA_PKG_CONFIG_NAME 2>/dev/null
+	lua_config_status=$?
+
+	if test 0 -ne $lua_config_status
+	then
+		with_liblua="no"
+	fi
+fi
+
+if test "x$with_liblua" = "xyes"
+then
+	with_liblua_cppflags=`$PKG_CONFIG --cflags-only-I $LIBLUA_PKG_CONFIG_NAME` || with_liblua="no"
+	with_liblua_ldflags=`$PKG_CONFIG --libs-only-L $LIBLUA_PKG_CONFIG_NAME` || with_liblua="no"
+	with_liblua_libs=`$PKG_CONFIG --libs-only-l $LIBLUA_PKG_CONFIG_NAME` || with_liblua="no"
+fi
+if test "x$with_liblua" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_liblua_cppflags"
+
+	AC_CHECK_HEADERS(lua.h lauxlib.h lualib.h, [], [with_liblua="no (header not found)"], [])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_liblua" = "xyes"
+then
+	SAVE_LDFLAGS="$LDFLAGS"
+	SAVE_LIBS="$LIBS"
+	LDFLAGS="$SAVE_LDFLAGS $with_liblua_ldflags"
+	LIBS="$LIBS $with_liblua_libs"
+
+	AC_CHECK_FUNC(lua_settop, [with_liblua="yes"], [with_liblua="no (symbol 'lua_settop' not found)"])
+
+	LDFLAGS="$SAVE_LDFLAGS"
+	LIBS="$SAVE_LIBS"
+fi
+if test "x$with_liblua" = "xyes"
+then
+    BUILD_WITH_LIBLUA_CPPFLAGS="$with_liblua_cppflags"
+    BUILD_WITH_LIBLUA_LDFLAGS="$with_liblua_ldflags"
+    BUILD_WITH_LIBLUA_LIBS="$with_liblua_libs"
+    AC_SUBST(BUILD_WITH_LIBLUA_CPPFLAGS)
+    AC_SUBST(BUILD_WITH_LIBLUA_LDFLAGS)
+    AC_SUBST(BUILD_WITH_LIBLUA_LIBS)
+fi
+AM_CONDITIONAL(BUILD_WITH_LUA, test "x$with_liblua" = "xyes")
 # }}}
 
 # --with-libmemcached {{{
@@ -5994,6 +6055,7 @@ AC_PLUGIN([load],                [$plugin_load],            [System load])
 AC_PLUGIN([log_logstash],        [$plugin_log_logstash],    [Logstash json_event compatible logging])
 AC_PLUGIN([logfile],             [yes],                     [File logging plugin])
 AC_PLUGIN([lpar],                [$with_perfstat],          [AIX logical partitions statistics])
+AC_PLUGIN([lua],                 [$with_liblua],            [Lua plugin])
 AC_PLUGIN([lvm],                 [$with_liblvm2app],        [LVM statistics])
 AC_PLUGIN([madwifi],             [$have_linux_wireless_h],  [Madwifi wireless statistics])
 AC_PLUGIN([match_empty_counter], [yes],                     [The empty counter match])
@@ -6310,6 +6372,7 @@ AC_MSG_RESULT([    libjvm  . . . . . . . $with_java])
 AC_MSG_RESULT([    libkstat  . . . . . . $with_kstat])
 AC_MSG_RESULT([    libkvm  . . . . . . . $with_libkvm])
 AC_MSG_RESULT([    libldap . . . . . . . $with_libldap])
+AC_MSG_RESULT([    liblua  . . . . . . . $with_liblua])
 AC_MSG_RESULT([    liblvm2app  . . . . . $with_liblvm2app])
 AC_MSG_RESULT([    libmemcached  . . . . $with_libmemcached])
 AC_MSG_RESULT([    libmnl  . . . . . . . $with_libmnl])
@@ -6405,6 +6468,7 @@ AC_MSG_RESULT([    load  . . . . . . . . $enable_load])
 AC_MSG_RESULT([    logfile . . . . . . . $enable_logfile])
 AC_MSG_RESULT([    log_logstash  . . . . $enable_log_logstash])
 AC_MSG_RESULT([    lpar  . . . . . . . . $enable_lpar])
+AC_MSG_RESULT([    lua . . . . . . . . . $enable_lua])
 AC_MSG_RESULT([    lvm . . . . . . . . . $enable_lvm])
 AC_MSG_RESULT([    madwifi . . . . . . . $enable_madwifi])
 AC_MSG_RESULT([    match_empty_counter . $enable_match_empty_counter])
