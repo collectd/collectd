@@ -2,7 +2,7 @@ This is a branch from which Sailfish releases are made. See https://github.com/r
 
 For description of collectd, see https://raw.githubusercontent.com/rinigus/collectd/sailfish/README
 
-For Sailfish port related issues, file them under this branch (branch sailfish). 
+For Sailfish port related issues, file them under this branch (branch sailfish). For up-to-date manual page describing available configuration options, see https://github.com/rinigus/collectd/blob/sailfish/src/collectd.conf.pod .
 
 ## Sailfish-specific features
 
