@@ -64,9 +64,7 @@ static char *sensor_type_name_map[] =
 	"temperature",
 # define SENSOR_TYPE_POWER       3
 	"power",
-# define SENSOR_TYPE_CURRENT     4
-	"current",
-# define SENSOR_TYPE_UNKNOWN     5
+# define SENSOR_TYPE_UNKNOWN     4
 	NULL
 };
 
