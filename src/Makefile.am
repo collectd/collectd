@@ -555,8 +555,6 @@ lua_la_SOURCES = lua.c \
 lua_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBLUA_CPPFLAGS)
 lua_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBLUA_LDFLAGS)
 lua_la_LIBADD = $(BUILD_WITH_LIBLUA_LIBS)
-collectd_LDADD += "-dlopen" lua.la
-collectd_DEPENDENCIES += lua.la
 endif
 
 if BUILD_PLUGIN_LVM
