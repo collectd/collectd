@@ -61,7 +61,7 @@ static int ltoc_values (lua_State *l, /* {{{ */
     WARNING("ltoc_values: invalid size for datasource \"%s\": expected %d, got %ld", ds->type, ds->ds_num, i );
     return (-1);
   }
-  
+
   return (0);
 } /* }}} int ltoc_values */
 
