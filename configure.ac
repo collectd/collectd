@@ -2766,6 +2766,7 @@ then
         AC_DEFINE(HAVE_LIBLVM2APP, 1, [Define if liblvm2app is present and usable.])
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBLVM2APP, test "x$with_liblvm2app" = "xyes")
+# }}}
 
 # --with-libmemcached {{{
 with_libmemcached_cppflags=""
