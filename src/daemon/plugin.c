@@ -2092,8 +2092,7 @@ static int plugin_dispatch_values_internal (value_list_t *vl)
 {
 	int status;
 	static c_complain_t no_write_complaint = C_COMPLAIN_INIT_STATIC;
-	llentry_t *le;
-	
+
 	value_t *saved_values;
 	int      saved_values_len;
 
