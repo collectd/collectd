@@ -449,13 +449,3 @@ void module_register (void)
 	plugin_register_read ("cpufreq", cpufreq_read);
 	plugin_register_shutdown ("cpufreq", cpufreq_shutdown);
 }
-
-/*
- * Local variables:
- *  c-file-style: "linux"
- *  indent-tabs-mode: t
- *  c-indent-level: 4
- *  c-basic-offset: 4
- *  tab-width: 4
- * End:
- */
