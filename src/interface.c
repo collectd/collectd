@@ -84,14 +84,14 @@ static const char *config_keys[] =
 {
 	"Interface",
 	"IgnoreSelected",
-	"ActiveInterfaceOnly",
+	"ReportInactive",
 	NULL
 };
-static int config_keys_num = 3;
+static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static ignorelist_t *ignorelist = NULL;
 
-static _Bool active_interface_only = 0;
+static _Bool report_inactive = 1;
 
 #ifdef HAVE_LIBKSTAT
 #define MAX_NUMIF 256
@@ -117,13 +117,8 @@ static int interface_config (const char *key, const char *value)
 			invert = 0;
 		ignorelist_set_invert (ignorelist, invert);
 	}
-	else if (strcasecmp (key, "ActiveInterfaceOnly") == 0)
-	{
-		if (IS_TRUE (value))
-			active_interface_only = 1;
-		else
-			active_interface_only = 0;
-	}
+	else if (strcasecmp (key, "ReportInactive") == 0)
+		report_inactive = IS_TRUE (value);
 	else if (strcasecmp (key, "UniqueName") == 0)
 	{
 		#ifdef HAVE_LIBKSTAT
@@ -145,6 +140,7 @@ static int interface_config (const char *key, const char *value)
 static int interface_init (void)
 {
 	kstat_t *ksp_chain;
+	derive_t val;
 
 	numif = 0;
 
@@ -161,7 +157,7 @@ static int interface_init (void)
 			continue;
 		if (kstat_read (kc, ksp_chain, NULL) == -1)
 			continue;
-		if (get_kstat_value (ksp_chain, "obytes") == -1LL)
+		if ((val = get_kstat_value (ksp_chain, "obytes")) == -1LL)
 			continue;
 		ksp[numif++] = ksp_chain;
 	}
@@ -232,7 +228,7 @@ static int interface_read (void)
 		if (if_ptr->ifa_addr != NULL && if_ptr->ifa_addr->sa_family == AF_LINK) {
 			if_data = (struct IFA_DATA *) if_ptr->ifa_data;
 
-			if ( active_interface_only && if_data->IFA_RX_PACKT == 0 && if_data->IFA_TX_PACKT == 0 )
+			if (!report_inactive && if_data->IFA_RX_PACKT == 0 && if_data->IFA_TX_PACKT == 0)
 				continue;
 
 			if_submit (if_ptr->ifa_name, "if_octets",
@@ -289,7 +285,7 @@ static int interface_read (void)
 
 		incoming = atoll (fields[1]);
 		outgoing = atoll (fields[9]);
-		if ( active_interface_only && incoming == 0 && outgoing == 0 )
+		if (!report_inactive && incoming == 0 && outgoing == 0)
 			continue;
 
 		if_submit (device, "if_packets", incoming, outgoing);
@@ -337,7 +333,7 @@ static int interface_read (void)
 			rx = get_kstat_value (ksp[i], "ipackets");
 		if (tx == -1LL)
 			tx = get_kstat_value (ksp[i], "opackets");
-		if ( active_interface_only && rx == 0 && tx == 0 )
+		if (!report_inactive && rx == 0 && tx == 0)
 			continue;
 		if ((rx != -1LL) || (tx != -1LL))
 			if_submit (iname, "if_packets", rx, tx);
@@ -368,7 +364,7 @@ static int interface_read (void)
 	ios = sg_get_network_io_stats (&num);
 
 	for (i = 0; i < num; i++) {
-		if ( active_interface_only && ios[i].rx == 0 && ios[i].tx == 0 )
+		if (!report_inactive && ios[i].rx == 0 && ios[i].tx == 0)
 			continue;
 		if_submit (ios[i].interface_name, "if_octets", ios[i].rx, ios[i].tx);
 	}
@@ -404,7 +400,7 @@ static int interface_read (void)
 
 	for (i = 0; i < ifs; i++)
 	{
-		if ( active_interface_only && ifstat[i].ipackets == 0 && ifstat[i].opackets == 0 )
+		if (!report_inactive && ifstat[i].ipackets == 0 && ifstat[i].opackets == 0)
 			continue;
 
 		if_submit (ifstat[i].name, "if_octets", ifstat[i].ibytes, ifstat[i].obytes);
@@ -425,3 +421,13 @@ void module_register (void)
 #endif
 	plugin_register_read ("interface", interface_read);
 } /* void module_register */
+
+/*
+ * Local variables:
+ *  c-file-style: "linux"
+ *  indent-tabs-mode: t
+ *  c-indent-level: 4
+ *  c-basic-offset: 4
+ *  tab-width: 4
+ * End:
+ */

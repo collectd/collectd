@@ -2779,16 +2779,16 @@ This will ignore the loopback interface, all interfaces with names starting
 with I<veth> and all interfaces with names starting with I<tun> followed by
 at least one digit.
 
-=item B<ActiveInterfaceOnly> I<true>|I<false>
+=item B<ReportInactive> I<true>|I<false>
 
-When set to I<true>, only interfaces with non-zero traffic will be
+When set to I<false>, only interfaces with non-zero traffic will be
 reported. Note that the check is done by looking into whether a
 package was sent at any time from boot and the corresponding counter
 is non-zero. So, if the interface has been sending data in the past
 since boot, but not during the reported time-interval, it will still
 be reported.
 
-The default value is I<false> and results in collection of the data
+The default value is I<true> and results in collection of the data
 from all interfaces that are selected by B<Interface> and
 B<IgnoreSelected> options.
 
