@@ -51,7 +51,6 @@ struct lua_script_s
 {
   char          *script_path;
   lua_State     *lua_state;
-  
   lua_script_t  *next;
 };
 
@@ -79,10 +78,10 @@ static lua_script_t  *scripts = NULL;
 static int clua_store_callback (lua_State *l, int idx) /* {{{ */
 {
   int callback_ref;
-  
+
   /* Copy the function pointer */
   lua_pushvalue (l, idx); /* +1 = 3 */
-  
+
   /* Lookup function if it's a string */
   if (lua_isstring (l, /* idx = */ -1))
     lua_gettable (l, LUA_GLOBALSINDEX); /* +-0 = 3 */
@@ -92,9 +91,9 @@ static int clua_store_callback (lua_State *l, int idx) /* {{{ */
     lua_pop (l, /* nelems = */ 3); /* -3 = 0 */
     return (-1);
   }
-  
+
   callback_ref = luaL_ref(l, LUA_REGISTRYINDEX);
-  
+
   lua_pop (l, /* nelems = */ 1); /* -1 = 0 */
   return (callback_ref);
 } /* }}} int clua_store_callback */
@@ -107,7 +106,7 @@ static int clua_load_callback (lua_State *l, int callback_ref) /* {{{ */
     lua_pop (l, /* nelems = */ 1);
     return (-1);
   }
-  
+
   return (0);
 } /* }}} int clua_load_callback */
 
@@ -230,7 +229,7 @@ static int clua_filter(const data_set_t *ds, value_list_t *vl, user_data_t *ud) 
     return (-1);
   }
   /* +1 = 1 */
-  
+
   status = luaC_pushvaluelist(l, ds, vl);
   if( status != 0 ) {
     lua_pop(l, /* nelems = */ 1);
@@ -238,7 +237,7 @@ static int clua_filter(const data_set_t *ds, value_list_t *vl, user_data_t *ud) 
     pthread_mutex_unlock( &cb->lock );
     return -1;
   }
-  
+
   status = lua_pcall(l,
       /* nargs    = */ 1,
       /* nresults = */ 1,
@@ -255,18 +254,18 @@ static int clua_filter(const data_set_t *ds, value_list_t *vl, user_data_t *ud) 
     pthread_mutex_unlock(&cb->lock);
     return -1;
   }
-  
+
   if( lua_istable(l, -1) ){
     int i;
     size_t s;
-    
+
     // report changes to the value_list_t structure
     // values
     lua_getfield(l, -1, "values");
     if( lua_istable(l, -1) ){
       // check size
       s = lua_objlen(l, -1);
-      
+
       if( s == vl->values_len ){
         for( i= 0; i< vl->values_len; i++ ){
           lua_rawgeti(l, -1, i);
@@ -275,10 +274,10 @@ static int clua_filter(const data_set_t *ds, value_list_t *vl, user_data_t *ud) 
           }
           lua_pop(l, 1);
         }
-        
+
         // pop values table
         lua_pop(l, 1);
-        
+
         // copy other fields
         LUA_FILTER_COPY_FIELD(host);
         LUA_FILTER_COPY_FIELD(plugin);
@@ -293,7 +292,7 @@ static int clua_filter(const data_set_t *ds, value_list_t *vl, user_data_t *ud) 
   }
   else if( lua_isnumber(l, -1) ) {
     lua_Integer ret = lua_tointeger(l, -1);
-    
+
     if( ret == 1 ){
       /* discard the value list */
       status = 1;
@@ -913,7 +912,7 @@ static int lua_config_script (const oconfig_item_t *ci) /* {{{ */
     return (status);
 
   INFO("lua plugin: File \"%s\" loaded succesfully", abs_path);
-  
+
   return 0;
 } /* }}} int lua_config_script */
 
