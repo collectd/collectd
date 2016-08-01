@@ -259,7 +259,7 @@ static int ceph_cb_boolean(void *ctx, int bool_val)
 #define BUFFER_ADD(dest, src) do { \
     size_t dest_size = sizeof (dest); \
     strncat ((dest), (src), dest_size - strlen (dest)); \
-    (dest)[dest_size - 1] = 0; \
+    (dest)[dest_size - 1] = '\0'; \
 } while (0)
 
 static int
@@ -267,13 +267,14 @@ ceph_cb_number(void *ctx, const char *number_val, yajl_len_t number_len)
 {
     yajl_struct *state = (yajl_struct*) ctx;
     char buffer[number_len+1];
-    char key[2 * DATA_MAX_NAME_LEN] = { 0 };
+    char key[2 * DATA_MAX_NAME_LEN];
     _Bool latency_type = 0;
     size_t i;
     int status;
 
+    key[0] = '\0';
     memcpy(buffer, number_val, number_len);
-    buffer[sizeof(buffer) - 1] = 0;
+    buffer[sizeof(buffer) - 1] = '\0';
 
     for (i = 0; i < state->depth; i++)
     {
@@ -591,7 +592,7 @@ static int ceph_daemon_add_ds_entry(struct ceph_daemon *d, const char *name,
         int pc_type)
 {
     uint32_t type;
-    char ds_name[DATA_MAX_NAME_LEN] = { 0 };
+    char ds_name[DATA_MAX_NAME_LEN];
 
     if(convert_special_metrics)
     {
@@ -979,7 +980,7 @@ static int node_handler_fetch_data(void *arg, const char *val, const char *key)
     uint32_t type = DSET_TYPE_UNFOUND;
     int index = vtmp->index;
 
-    char ds_name[DATA_MAX_NAME_LEN] = { 0 };
+    char ds_name[DATA_MAX_NAME_LEN];
 
     if (parse_keys (ds_name, sizeof (ds_name), key))
     {
