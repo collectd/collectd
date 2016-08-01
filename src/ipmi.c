@@ -547,7 +547,6 @@ static void domain_connection_change_handler (ipmi_domain_t *domain,
 static int thread_init (os_handler_t **ret_os_handler)
 {
   os_handler_t *os_handler;
-  ipmi_open_option_t open_option[1] = { 0 };
   ipmi_con_t *smi_connection = NULL;
   ipmi_domain_id_t domain_id;
   int status;
@@ -571,8 +570,12 @@ static int thread_init (os_handler_t **ret_os_handler)
     return (-1);
   }
 
-  open_option[0].option = IPMI_OPEN_OPTION_ALL;
-  open_option[0].ival = 1;
+  ipmi_open_option_t open_option[ ] = {
+    [0] = {
+      .option = IPMI_OPEN_OPTION_ALL,
+      .ival = 1
+    }
+  };
 
   status = ipmi_open_domain ("mydomain", &smi_connection, /* num_con = */ 1,
       domain_connection_change_handler, /* user data = */ NULL,
