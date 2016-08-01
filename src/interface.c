@@ -84,11 +84,13 @@ static const char *config_keys[] =
 {
 	"Interface",
 	"IgnoreSelected",
-	NULL
+	"ReportInactive",
 };
-static int config_keys_num = 2;
+static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static ignorelist_t *ignorelist = NULL;
+
+static _Bool report_inactive = 1;
 
 #ifdef HAVE_LIBKSTAT
 #define MAX_NUMIF 256
@@ -114,6 +116,8 @@ static int interface_config (const char *key, const char *value)
 			invert = 0;
 		ignorelist_set_invert (ignorelist, invert);
 	}
+	else if (strcasecmp (key, "ReportInactive") == 0)
+		report_inactive = IS_TRUE (value);
 	else if (strcasecmp (key, "UniqueName") == 0)
 	{
 		#ifdef HAVE_LIBKSTAT
@@ -222,6 +226,9 @@ static int interface_read (void)
 		if (if_ptr->ifa_addr != NULL && if_ptr->ifa_addr->sa_family == AF_LINK) {
 			if_data = (struct IFA_DATA *) if_ptr->ifa_data;
 
+			if (!report_inactive && if_data->IFA_RX_PACKT == 0 && if_data->IFA_TX_PACKT == 0)
+				continue;
+
 			if_submit (if_ptr->ifa_name, "if_octets",
 				if_data->IFA_RX_BYTES,
 				if_data->IFA_TX_BYTES);
@@ -274,13 +281,16 @@ static int interface_read (void)
 		if (numfields < 11)
 			continue;
 
+		incoming = atoll (fields[1]);
+		outgoing = atoll (fields[9]);
+		if (!report_inactive && incoming == 0 && outgoing == 0)
+			continue;
+
+		if_submit (device, "if_packets", incoming, outgoing);
+
 		incoming = atoll (fields[0]);
 		outgoing = atoll (fields[8]);
 		if_submit (device, "if_octets", incoming, outgoing);
-
-		incoming = atoll (fields[1]);
-		outgoing = atoll (fields[9]);
-		if_submit (device, "if_packets", incoming, outgoing);
 
 		incoming = atoll (fields[2]);
 		outgoing = atoll (fields[10]);
@@ -314,6 +324,19 @@ static int interface_read (void)
 			sstrncpy(iname, ksp[i]->ks_name, sizeof(iname));
 
 		/* try to get 64bit counters */
+		rx = get_kstat_value (ksp[i], "ipackets64");
+		tx = get_kstat_value (ksp[i], "opackets64");
+		/* or fallback to 32bit */
+		if (rx == -1LL)
+			rx = get_kstat_value (ksp[i], "ipackets");
+		if (tx == -1LL)
+			tx = get_kstat_value (ksp[i], "opackets");
+		if (!report_inactive && rx == 0 && tx == 0)
+			continue;
+		if ((rx != -1LL) || (tx != -1LL))
+			if_submit (iname, "if_packets", rx, tx);
+
+		/* try to get 64bit counters */
 		rx = get_kstat_value (ksp[i], "rbytes64");
 		tx = get_kstat_value (ksp[i], "obytes64");
 		/* or fallback to 32bit */
@@ -323,17 +346,6 @@ static int interface_read (void)
 			tx = get_kstat_value (ksp[i], "obytes");
 		if ((rx != -1LL) || (tx != -1LL))
 			if_submit (iname, "if_octets", rx, tx);
-
-		/* try to get 64bit counters */
-		rx = get_kstat_value (ksp[i], "ipackets64");
-		tx = get_kstat_value (ksp[i], "opackets64");
-		/* or fallback to 32bit */
-		if (rx == -1LL)
-			rx = get_kstat_value (ksp[i], "ipackets");
-		if (tx == -1LL)
-			tx = get_kstat_value (ksp[i], "opackets");
-		if ((rx != -1LL) || (tx != -1LL))
-			if_submit (iname, "if_packets", rx, tx);
 
 		/* no 64bit error counters yet */
 		rx = get_kstat_value (ksp[i], "ierrors");
@@ -349,8 +361,11 @@ static int interface_read (void)
 
 	ios = sg_get_network_io_stats (&num);
 
-	for (i = 0; i < num; i++)
+	for (i = 0; i < num; i++) {
+		if (!report_inactive && ios[i].rx == 0 && ios[i].tx == 0)
+			continue;
 		if_submit (ios[i].interface_name, "if_octets", ios[i].rx, ios[i].tx);
+	}
 /* #endif HAVE_LIBSTATGRAB */
 
 #elif defined(HAVE_PERFSTAT)
@@ -383,6 +398,9 @@ static int interface_read (void)
 
 	for (i = 0; i < ifs; i++)
 	{
+		if (!report_inactive && ifstat[i].ipackets == 0 && ifstat[i].opackets == 0)
+			continue;
+
 		if_submit (ifstat[i].name, "if_octets", ifstat[i].ibytes, ifstat[i].obytes);
 		if_submit (ifstat[i].name, "if_packets", ifstat[i].ipackets ,ifstat[i].opackets);
 		if_submit (ifstat[i].name, "if_errors", ifstat[i].ierrors, ifstat[i].oerrors );
@@ -401,3 +419,4 @@ void module_register (void)
 #endif
 	plugin_register_read ("interface", interface_read);
 } /* void module_register */
+
