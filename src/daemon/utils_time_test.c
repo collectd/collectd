@@ -27,6 +27,7 @@
 #define DBL_PRECISION 1e-3
 
 #include "collectd.h"
+
 #include "testing.h"
 #include "utils_time.h"
 

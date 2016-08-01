@@ -24,6 +24,7 @@
  **/
 
 #include "collectd.h"
+
 #include "plugin.h"
 #include "common.h"
 #include "utils_format_json.h"

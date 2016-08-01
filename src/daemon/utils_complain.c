@@ -27,6 +27,7 @@
  **/
 
 #include "collectd.h"
+
 #include "utils_complain.h"
 #include "plugin.h"
 

@@ -32,6 +32,7 @@
  */
 
 #include "collectd.h"
+
 #include "filter_chain.h"
 
 #include <sys/types.h>

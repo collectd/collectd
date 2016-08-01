@@ -22,6 +22,7 @@
  **/
 
 #include "collectd.h"
+
 #include "plugin.h" /* plugin_register_*, plugin_dispatch_values */
 #include "common.h" /* auxiliary functions */
 #include "utils_tail.h"

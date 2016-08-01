@@ -25,6 +25,7 @@
  */
 
 #include "collectd.h"
+
 #include "testing.h"
 #include "utils_heap.h"
 

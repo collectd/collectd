@@ -32,6 +32,7 @@
 #endif
 
 #include "collectd.h"
+
 #include "utils_mount.h"
 
 #include "common.h" /* sstrncpy() et alii */

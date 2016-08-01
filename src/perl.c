@@ -34,6 +34,7 @@
 
 #define DONT_POISON_SPRINTF_YET 1
 #include "collectd.h"
+
 #undef DONT_POISON_SPRINTF_YET
 
 #include "configfile.h"

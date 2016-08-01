@@ -29,6 +29,7 @@
 #define PLUGIN_H
 
 #include "collectd.h"
+
 #include "configfile.h"
 #include "meta_data.h"
 #include "utils_time.h"

@@ -24,6 +24,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "configfile.h"
 #include "plugin.h"

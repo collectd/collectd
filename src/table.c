@@ -29,6 +29,7 @@
  */
 
 #include "collectd.h"
+
 #include "common.h"
 
 #include "configfile.h"

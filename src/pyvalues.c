@@ -28,6 +28,7 @@
 #include <structmember.h>
 
 #include "collectd.h"
+
 #include "common.h"
 
 #include "cpython.h"
