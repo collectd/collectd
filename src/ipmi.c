@@ -570,7 +570,7 @@ static int thread_init (os_handler_t **ret_os_handler)
     return (-1);
   }
 
-  ipmi_open_option_t open_option[ ] = {
+  ipmi_open_option_t open_option[1] = {
     [0] = {
       .option = IPMI_OPEN_OPTION_ALL,
       .ival = 1
