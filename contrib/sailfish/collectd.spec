@@ -223,6 +223,7 @@ Collectd utilities
 	   --enable-contextswitch \
 	   --enable-cpu \
 	   --enable-cpufreq \
+	   --enable-cpuidle \
 	   --enable-cpusleep \
 	   --enable-cpufreq \
 	   --enable-csv \
