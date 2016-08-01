@@ -279,6 +279,12 @@ cpufreq_la_SOURCES = cpufreq.c
 cpufreq_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_CPUIDLE
+pkglib_LTLIBRARIES += cpuidle.la
+cpuidle_la_SOURCES = cpuidle.c
+cpuidle_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_CPUSLEEP
 pkglib_LTLIBRARIES += cpusleep.la
 cpusleep_la_SOURCES = cpusleep.c

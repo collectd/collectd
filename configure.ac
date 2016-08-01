@@ -5569,6 +5569,7 @@ plugin_conntrack="no"
 plugin_contextswitch="no"
 plugin_cpu="no"
 plugin_cpufreq="no"
+plugin_cpuidle="no"
 plugin_cpusleep="no"
 plugin_curl_json="no"
 plugin_curl_xml="no"
@@ -5626,6 +5627,7 @@ then
 	plugin_contextswitch="yes"
 	plugin_cpu="yes"
 	plugin_cpufreq="yes"
+	plugin_cpuidle="yes"
 	plugin_disk="yes"
 	plugin_drbd="yes"
 	plugin_entropy="yes"
@@ -6018,6 +6020,7 @@ AC_PLUGIN([conntrack],           [$plugin_conntrack],       [nf_conntrack statis
 AC_PLUGIN([contextswitch],       [$plugin_contextswitch],   [context switch statistics])
 AC_PLUGIN([cpu],                 [$plugin_cpu],             [CPU usage statistics])
 AC_PLUGIN([cpufreq],             [$plugin_cpufreq],         [CPU frequency statistics])
+AC_PLUGIN([cpuidle],             [$plugin_cpuidle],         [CPU idle states statistics])
 AC_PLUGIN([cpusleep],            [$plugin_cpusleep],        [CPU sleep statistics])
 AC_PLUGIN([csv],                 [yes],                     [CSV output plugin])
 AC_PLUGIN([curl],                [$with_libcurl],           [CURL generic web statistics])
@@ -6446,6 +6449,7 @@ AC_MSG_RESULT([    conntrack . . . . . . $enable_conntrack])
 AC_MSG_RESULT([    contextswitch . . . . $enable_contextswitch])
 AC_MSG_RESULT([    cpu . . . . . . . . . $enable_cpu])
 AC_MSG_RESULT([    cpufreq . . . . . . . $enable_cpufreq])
+AC_MSG_RESULT([    cpuidle . . . . . . . $enable_cpuidle])
 AC_MSG_RESULT([    cpusleep  . . . . . . $enable_cpusleep])
 AC_MSG_RESULT([    csv . . . . . . . . . $enable_csv])
 AC_MSG_RESULT([    curl  . . . . . . . . $enable_curl])

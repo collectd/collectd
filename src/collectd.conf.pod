@@ -1491,6 +1491,21 @@ any frequency and then dividing this time by total number of CPUs
 one of them is working, the total CPU frequency distribution would
 account only for 25% of time.
 
+=head2 Plugin C<cpuidle>
+
+This plugin reads CPU idle state usage reports it either per CPU or an
+average usage of the states by all CPUs. For that, data provided by
+Linux kernel cpuidle driver is used
+(L<https://www.kernel.org/doc/Documentation/cpuidle/sysfs.txt>).
+
+=over 4
+
+=item B<ReportByCpu> B<false>|B<true>
+
+Report CPU frequency distributions either by CPU (B<true>) or by
+finding an average among all CPUs (B<false>). 
+
+=back
 
 =head2 Plugin C<cpusleep>
 

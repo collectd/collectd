@@ -67,6 +67,9 @@ Features
     - cpufreq
       CPU frequency (For laptops with speed step or a similar technology)
 
+    - cpuidle
+      CPU idle states (For laptops and mobile devices with speed step or a similar technology)
+
     - cpusleep
       CPU sleep: Time spent in suspend (For mobile devices which enter suspend automatically)
 
