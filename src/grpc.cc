@@ -49,9 +49,9 @@ using collectd::Collectd;
 using collectd::Dispatch;
 
 using collectd::DispatchValuesRequest;
-using collectd::DispatchValuesReply;
+using collectd::DispatchValuesResponse;
 using collectd::QueryValuesRequest;
-using collectd::QueryValuesReply;
+using collectd::QueryValuesResponse;
 
 using google::protobuf::util::TimeUtil;
 
@@ -260,7 +260,7 @@ static grpc::Status unmarshal_value_list(const collectd::types::ValueList &msg, 
 /*
  * request call-backs and call objects
  */
-static grpc::Status DispatchValue(grpc::ServerContext *ctx, DispatchValuesRequest request, DispatchValuesReply *reply)
+static grpc::Status DispatchValue(grpc::ServerContext *ctx, DispatchValuesRequest request, DispatchValuesResponse *reply)
 {
 	value_list_t vl = VALUE_LIST_INIT;
 	auto status = unmarshal_value_list(request.value_list(), &vl);
@@ -275,7 +275,7 @@ static grpc::Status DispatchValue(grpc::ServerContext *ctx, DispatchValuesReques
 	return status;
 } /* grpc::Status DispatchValue */
 
-static grpc::Status QueryValues(grpc::ServerContext *ctx, QueryValuesRequest req, QueryValuesReply *res)
+static grpc::Status QueryValues(grpc::ServerContext *ctx, QueryValuesRequest req, QueryValuesResponse *res)
 {
 	uc_iter_t *iter;
 	char *name = NULL;
@@ -387,8 +387,8 @@ private:
 	grpc::ServerCompletionQueue* cq_;
 	Collectd::AsyncService* service_;
 	QueryValuesRequest request_;
-	QueryValuesReply response_;
-	grpc::ServerAsyncResponseWriter<QueryValuesReply> writer_;
+	QueryValuesResponse response_;
+	grpc::ServerAsyncResponseWriter<QueryValuesResponse> writer_;
 };
 
 /*
@@ -439,8 +439,8 @@ private:
 	Dispatch::AsyncService*      service_;
 
 	DispatchValuesRequest request_;
-	DispatchValuesReply response_;
-	grpc::ServerAsyncReader<DispatchValuesReply, DispatchValuesRequest> reader_;
+	DispatchValuesResponse response_;
+	grpc::ServerAsyncReader<DispatchValuesResponse, DispatchValuesRequest> reader_;
 };
 
 /*

@@ -30,12 +30,12 @@ import "types.proto";
 
 service Collectd {
 	// Query a list of values available from collectd's value cache.
-	rpc QueryValues(QueryValuesRequest) returns (QueryValuesReply);
+	rpc QueryValues(QueryValuesRequest) returns (QueryValuesResponse);
 }
 
 service Dispatch {
   // DispatchValues sends a stream of ValueLists to the server.
-  rpc DispatchValues(stream DispatchValuesRequest) returns (DispatchValuesReply);
+  rpc DispatchValues(stream DispatchValuesRequest) returns (DispatchValuesResponse);
 }
 
 // The arguments to DispatchValues.
@@ -44,7 +44,7 @@ message DispatchValuesRequest {
 }
 
 // The response from DispatchValues.
-message DispatchValuesReply {
+message DispatchValuesResponse {
 }
 
 // The arguments to QueryValues.
@@ -56,6 +56,6 @@ message QueryValuesRequest {
 }
 
 // The response from QueryValues.
-message QueryValuesReply {
+message QueryValuesResponse {
 	repeated collectd.types.ValueList value_lists = 1;
 }
