@@ -96,7 +96,7 @@ static int mbmon_query_daemon (char *buffer, int buffer_size)
 		port = MBMON_DEF_PORT;
 
 	struct addrinfo ai_hints = {
-		.ai_family = PF_UNSPEC,
+		.ai_family = AF_UNSPEC,
 		.ai_flags = AI_ADDRCONFIG,
 		.ai_protocol = IPPROTO_TCP,
 		.ai_socktype = SOCK_STREAM

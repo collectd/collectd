@@ -364,7 +364,7 @@ static int ntpd_connect (void)
 		port = NTPD_DEFAULT_PORT;
 
 	struct addrinfo ai_hints = {
-		.ai_family   = PF_UNSPEC,
+		.ai_family   = AF_UNSPEC,
 		.ai_flags    = AI_ADDRCONFIG,
 		.ai_protocol = IPPROTO_UDP,
 		.ai_socktype = SOCK_DGRAM

@@ -101,7 +101,7 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 
 	struct addrinfo ai_hints = {
 		.ai_flags = AI_ADDRCONFIG,
-		.ai_family = PF_UNSPEC,
+		.ai_family = AF_UNSPEC,
 		.ai_protocol = IPPROTO_TCP,
 		.ai_socktype = SOCK_STREAM
 	};
