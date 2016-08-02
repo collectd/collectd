@@ -471,8 +471,6 @@ static int lcc_open_netsocket (lcc_connection_t *c, /* {{{ */
     }
   }
 
-  ai_res = NULL;
-
   struct addrinfo ai_hints = {
     .ai_family = AF_UNSPEC,
     .ai_flags = AI_ADDRCONFIG,

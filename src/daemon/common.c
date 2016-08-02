@@ -1524,8 +1524,6 @@ int service_name_to_port_number (const char *service_name)
 	if (service_name == NULL)
 		return (-1);
 
-	ai_list = NULL;
-
 	struct addrinfo ai_hints = {
 		.ai_family = AF_UNSPEC
 	};

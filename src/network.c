@@ -2139,7 +2139,7 @@ static int sockent_client_connect (sockent_t *se) /* {{{ */
 	static c_complain_t complaint = C_COMPLAIN_INIT_STATIC;
 
 	struct sockent_client *client;
-	struct addrinfo *ai_list = NULL, *ai_ptr;
+	struct addrinfo *ai_list, *ai_ptr;
 	int status;
 	_Bool reconnect = 0;
 	cdtime_t now;

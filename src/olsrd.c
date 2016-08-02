@@ -154,8 +154,6 @@ static FILE *olsrd_connect (void) /* {{{ */
 
   FILE *fh;
 
-  ai_list = NULL;
-
   struct addrinfo ai_hints = {
     .ai_family   = PF_UNSPEC,
     .ai_flags    = AI_ADDRCONFIG,

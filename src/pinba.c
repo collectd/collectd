@@ -360,8 +360,6 @@ static pinba_socket_t *pinba_socket_open (const char *node, /* {{{ */
   if (service == NULL)
     service = PINBA_DEFAULT_SERVICE;
 
-  ai_list = NULL;
-
   struct addrinfo  ai_hints = {
     .ai_family = AF_UNSPEC,
     .ai_flags = AI_PASSIVE,

@@ -220,8 +220,6 @@ static int wg_callback_init (struct wg_callback *cb)
     else
         ai_hints.ai_socktype = SOCK_DGRAM;
 
-    ai_list = NULL;
-
     status = getaddrinfo (cb->node, cb->service, &ai_hints, &ai_list);
     if (status != 0)
     {

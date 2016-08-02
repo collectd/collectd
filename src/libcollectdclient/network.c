@@ -119,7 +119,7 @@ static void int_server_destroy (lcc_server_t *srv) /* {{{ */
 
 static int server_open_socket (lcc_server_t *srv) /* {{{ */
 {
-  struct addrinfo *ai_list = NULL;
+  struct addrinfo *ai_list;
   struct addrinfo *ai_ptr;
   int status;
 

@@ -108,8 +108,6 @@ static int memcached_connect_inet (memcached_t *st)
   host = (st->host != NULL) ? st->host : MEMCACHED_DEF_HOST;
   port = (st->port != NULL) ? st->port : MEMCACHED_DEF_PORT;
 
-  ai_list = NULL;
-
   struct addrinfo ai_hints = {
     .ai_family = AF_UNSPEC,
     .ai_flags = AI_ADDRCONFIG,

@@ -500,7 +500,7 @@ static int statsd_network_init (struct pollfd **ret_fds, /* {{{ */
   struct pollfd *fds = NULL;
   size_t fds_num = 0;
 
-  struct addrinfo *ai_list = NULL;
+  struct addrinfo *ai_list;
   struct addrinfo *ai_ptr;
   int status;
 
