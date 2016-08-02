@@ -30,7 +30,7 @@ import "types.proto";
 
 service Collectd {
 	// Query a list of values available from collectd's value cache.
-	rpc QueryValues(QueryValuesRequest) returns (QueryValuesResponse);
+	rpc QueryValues(QueryValuesRequest) returns (stream QueryValuesResponse);
 }
 
 service Dispatch {
@@ -57,5 +57,5 @@ message QueryValuesRequest {
 
 // The response from QueryValues.
 message QueryValuesResponse {
-	repeated collectd.types.ValueList value_lists = 1;
+	collectd.types.ValueList value_list = 1;
 }
