@@ -224,10 +224,7 @@ static int create_sockets (socket_entry_t **ret_sockets, /* {{{ */
   if (*ret_sockets != NULL)
     return (EINVAL);
 
-  ai_hints.ai_flags = AI_ADDRCONFIG;
-#ifdef AI_PASSIVE
-  ai_hints.ai_flags |= AI_PASSIVE;
-#endif
+  ai_hints.ai_flags    = AI_ADDRCONFIG | AI_PASSIVE;
   ai_hints.ai_family   = AF_UNSPEC;
   ai_hints.ai_socktype = SOCK_DGRAM;
   ai_hints.ai_protocol = IPPROTO_UDP;

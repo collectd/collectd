@@ -2256,10 +2256,7 @@ static int sockent_server_listen (sockent_t *se) /* {{{ */
         DEBUG ("network plugin: sockent_server_listen: node = %s; service = %s;",
             node, service);
 
-	ai_hints.ai_flags    = AI_ADDRCONFIG;
-#ifdef AI_PASSIVE
-	ai_hints.ai_flags   |= AI_PASSIVE;
-#endif
+	ai_hints.ai_flags    = AI_ADDRCONFIG | AI_PASSIVE;
 	ai_hints.ai_family   = AF_UNSPEC;
 	ai_hints.ai_socktype = SOCK_DGRAM;
 	ai_hints.ai_protocol = IPPROTO_UDP;
