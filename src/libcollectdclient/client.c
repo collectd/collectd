@@ -266,12 +266,10 @@ static int lcc_send (lcc_connection_t *c, const char *command) /* {{{ */
 static int lcc_receive (lcc_connection_t *c, /* {{{ */
     lcc_response_t *ret_res)
 {
-  lcc_response_t res;
+  lcc_response_t res = { 0 };
   char *ptr;
   char buffer[4096];
   size_t i;
-
-  memset (&res, 0, sizeof (res));
 
   /* Read the first line, containing the status and a message */
   ptr = fgets (buffer, sizeof (buffer), c->fh);
@@ -358,7 +356,7 @@ static int lcc_receive (lcc_connection_t *c, /* {{{ */
 static int lcc_sendreceive (lcc_connection_t *c, /* {{{ */
     const char *command, lcc_response_t *ret_res)
 {
-  lcc_response_t res;
+  lcc_response_t res = { 0 };
   int status;
 
   if (c->fh == NULL)
@@ -371,7 +369,6 @@ static int lcc_sendreceive (lcc_connection_t *c, /* {{{ */
   if (status != 0)
     return (status);
 
-  memset (&res, 0, sizeof (res));
   status = lcc_receive (c, &res);
   if (status == 0)
     memcpy (ret_res, &res, sizeof (*ret_res));
@@ -381,7 +378,7 @@ static int lcc_sendreceive (lcc_connection_t *c, /* {{{ */
 
 static int lcc_open_unixsocket (lcc_connection_t *c, const char *path) /* {{{ */
 {
-  struct sockaddr_un sa;
+  struct sockaddr_un sa = { 0 };
   int fd;
   int status;
 
@@ -398,7 +395,6 @@ static int lcc_open_unixsocket (lcc_connection_t *c, const char *path) /* {{{ */
     return (-1);
   }
 
-  memset (&sa, 0, sizeof (sa));
   sa.sun_family = AF_UNIX;
   strncpy (sa.sun_path, path, sizeof (sa.sun_path) - 1);
 
@@ -424,7 +420,7 @@ static int lcc_open_unixsocket (lcc_connection_t *c, const char *path) /* {{{ */
 static int lcc_open_netsocket (lcc_connection_t *c, /* {{{ */
     const char *addr_orig)
 {
-  struct addrinfo ai_hints;
+  struct addrinfo ai_hints = { 0 };
   struct addrinfo *ai_res;
   struct addrinfo *ai_ptr;
   char addr_copy[NI_MAXHOST];
@@ -441,8 +437,6 @@ static int lcc_open_netsocket (lcc_connection_t *c, /* {{{ */
   addr_copy[sizeof(addr_copy) - 1] = '\0';
   addr = addr_copy;
 
-  memset (&ai_hints, 0, sizeof (ai_hints));
-  ai_hints.ai_flags = 0;
 #ifdef AI_ADDRCONFIG
   ai_hints.ai_flags |= AI_ADDRCONFIG;
 #endif

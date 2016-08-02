@@ -97,7 +97,7 @@ static int init_hostname (void)
 {
 	const char *str;
 
-	struct addrinfo  ai_hints;
+	struct addrinfo  ai_hints = { 0 };
 	struct addrinfo *ai_list;
 	struct addrinfo *ai_ptr;
 	int status;
@@ -120,7 +120,6 @@ static int init_hostname (void)
 	if (IS_FALSE (str))
 		return (0);
 
-	memset (&ai_hints, '\0', sizeof (ai_hints));
 	ai_hints.ai_flags = AI_CANONNAME;
 
 	status = getaddrinfo (hostname_g, NULL, &ai_hints, &ai_list);
@@ -441,7 +440,7 @@ static int notify_systemd (void)
 {
     int                  fd;
     const char          *notifysocket;
-    struct sockaddr_un   su;
+    struct sockaddr_un   su = { 0 };
     size_t               su_size;
     char                 buffer[] = "READY=1\n";
 
@@ -471,7 +470,6 @@ static int notify_systemd (void)
         return 0;
     }
 
-    memset (&su, 0, sizeof (su));
     su.sun_family = AF_UNIX;
     if (notifysocket[0] != '@')
     {
@@ -509,16 +507,11 @@ static int notify_systemd (void)
 
 int main (int argc, char **argv)
 {
-	struct sigaction sig_int_action;
-	struct sigaction sig_term_action;
-	struct sigaction sig_usr1_action;
-	struct sigaction sig_pipe_action;
 	const char *configfile = CONFIGFILE;
 	int test_config  = 0;
 	int test_readall = 0;
 	const char *basedir;
 #if COLLECT_DAEMON
-	struct sigaction sig_chld_action;
 	pid_t pid;
 	int daemonize    = 1;
 #endif
@@ -618,8 +611,10 @@ int main (int argc, char **argv)
 	/*
 	 * fork off child
 	 */
-	memset (&sig_chld_action, '\0', sizeof (sig_chld_action));
-	sig_chld_action.sa_handler = SIG_IGN;
+	struct sigaction sig_chld_action = {
+		.sa_handler = SIG_IGN
+	};
+
 	sigaction (SIGCHLD, &sig_chld_action, NULL);
 
     /*
@@ -685,15 +680,19 @@ int main (int argc, char **argv)
 	} /* if (daemonize) */
 #endif /* COLLECT_DAEMON */
 
-	memset (&sig_pipe_action, '\0', sizeof (sig_pipe_action));
-	sig_pipe_action.sa_handler = SIG_IGN;
+	struct sigaction sig_pipe_action = {
+		.sa_handler = SIG_IGN
+	};
+
 	sigaction (SIGPIPE, &sig_pipe_action, NULL);
 
 	/*
 	 * install signal handlers
 	 */
-	memset (&sig_int_action, '\0', sizeof (sig_int_action));
-	sig_int_action.sa_handler = sig_int_handler;
+	struct sigaction sig_int_action = {
+		.sa_handler = sig_int_handler
+	};
+
 	if (0 != sigaction (SIGINT, &sig_int_action, NULL)) {
 		char errbuf[1024];
 		ERROR ("Error: Failed to install a signal handler for signal INT: %s",
@@ -701,8 +700,10 @@ int main (int argc, char **argv)
 		return (1);
 	}
 
-	memset (&sig_term_action, '\0', sizeof (sig_term_action));
-	sig_term_action.sa_handler = sig_term_handler;
+	struct sigaction sig_term_action = {
+		.sa_handler = sig_term_handler
+	};
+
 	if (0 != sigaction (SIGTERM, &sig_term_action, NULL)) {
 		char errbuf[1024];
 		ERROR ("Error: Failed to install a signal handler for signal TERM: %s",
@@ -710,8 +711,10 @@ int main (int argc, char **argv)
 		return (1);
 	}
 
-	memset (&sig_usr1_action, '\0', sizeof (sig_usr1_action));
-	sig_usr1_action.sa_handler = sig_usr1_handler;
+	struct sigaction sig_usr1_action = {
+		.sa_handler = sig_usr1_handler
+	};
+
 	if (0 != sigaction (SIGUSR1, &sig_usr1_action, NULL)) {
 		char errbuf[1024];
 		ERROR ("Error: Failed to install a signal handler for signal USR1: %s",

@@ -1227,7 +1227,7 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
   size_t buffer_offset;
   uint16_t username_len;
   part_encryption_aes256_t pea;
-  unsigned char hash[sizeof (pea.hash)];
+  unsigned char hash[sizeof (pea.hash)] = { 0 };
 
   gcry_cipher_hd_t cypher;
   gcry_error_t err;
@@ -1314,7 +1314,6 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
   assert (buffer_offset == (part_size - payload_len));
 
   /* Check hash sum */
-  memset (hash, 0, sizeof (hash));
   gcry_md_hash_buffer (GCRY_MD_SHA1, hash,
       buffer + buffer_offset, payload_len);
   if (memcmp (hash, pea.hash, sizeof (hash)) != 0)
@@ -1395,7 +1394,7 @@ static int parse_packet (sockent_t *se, /* {{{ */
 	int status;
 
 	value_list_t vl = VALUE_LIST_INIT;
-	notification_t n;
+	notification_t n = { 0 };
 
 #if HAVE_LIBGCRYPT
 	int packet_was_signed = (flags & PP_SIGNED);
@@ -1405,7 +1404,6 @@ static int parse_packet (sockent_t *se, /* {{{ */
 
 
 	memset (&vl, '\0', sizeof (vl));
-	memset (&n, '\0', sizeof (n));
 	status = 0;
 
 	while ((status == 0) && (0 < buffer_size)
@@ -1779,18 +1777,16 @@ static int network_set_interface (const sockent_t *se, const struct addrinfo *ai
 			 * index is preferred here, because of its similarity
 			 * to the way IPv6 handles this. Unfortunately, it
 			 * appears not to be portable. */
-			struct ip_mreqn mreq;
-
-			memset (&mreq, 0, sizeof (mreq));
-			mreq.imr_multiaddr.s_addr = addr->sin_addr.s_addr;
-			mreq.imr_address.s_addr = ntohl (INADDR_ANY);
-			mreq.imr_ifindex = se->interface;
+			struct ip_mreqn mreq = {
+				.imr_multiaddr.s_addr = addr->sin_addr.s_addr,
+				.imr_address.s_addr = ntohl (INADDR_ANY),
+				.imr_ifindex = se->interface
+			};
 #else
-			struct ip_mreq mreq;
-
-			memset (&mreq, 0, sizeof (mreq));
-			mreq.imr_multiaddr.s_addr = addr->sin_addr.s_addr;
-			mreq.imr_interface.s_addr = ntohl (INADDR_ANY);
+			struct ip_mreq mreq = {
+				.imr_multiaddr.s_addr = addr->sin_addr.s_addr,
+				.imr_interface.s_addr = ntohl (INADDR_ANY)
+			};
 #endif
 
 			if (setsockopt (se->data.client.fd, IPPROTO_IP, IP_MULTICAST_IF,
@@ -2143,7 +2139,7 @@ static int sockent_client_connect (sockent_t *se) /* {{{ */
 	static c_complain_t complaint = C_COMPLAIN_INIT_STATIC;
 
 	struct sockent_client *client;
-	struct addrinfo  ai_hints;
+	struct addrinfo  ai_hints = { 0 };
 	struct addrinfo *ai_list = NULL, *ai_ptr;
 	int status;
 	_Bool reconnect = 0;
@@ -2164,7 +2160,6 @@ static int sockent_client_connect (sockent_t *se) /* {{{ */
 	if (client->fd >= 0 && !reconnect) /* already connected and not stale*/
 		return (0);
 
-	memset (&ai_hints, 0, sizeof (ai_hints));
 #ifdef AI_ADDRCONFIG
 	ai_hints.ai_flags |= AI_ADDRCONFIG;
 #endif
@@ -2241,7 +2236,7 @@ static int sockent_client_connect (sockent_t *se) /* {{{ */
 /* Open the file descriptors for a initialized sockent structure. */
 static int sockent_server_listen (sockent_t *se) /* {{{ */
 {
-	struct addrinfo  ai_hints;
+	struct addrinfo  ai_hints = { 0 };
 	struct addrinfo *ai_list, *ai_ptr;
 	int              status;
 
@@ -2263,8 +2258,6 @@ static int sockent_server_listen (sockent_t *se) /* {{{ */
         DEBUG ("network plugin: sockent_server_listen: node = %s; service = %s;",
             node, service);
 
-	memset (&ai_hints, 0, sizeof (ai_hints));
-	ai_hints.ai_flags  = 0;
 #ifdef AI_PASSIVE
 	ai_hints.ai_flags |= AI_PASSIVE;
 #endif
@@ -2639,7 +2632,6 @@ static void network_send_buffer_plain (sockent_t *se, /* {{{ */
 static void network_send_buffer_signed (sockent_t *se, /* {{{ */
 		const char *in_buffer, size_t in_buffer_size)
 {
-  part_signature_sha256_t ps;
   char buffer[BUFF_SIG_SIZE + in_buffer_size];
   size_t buffer_offset;
   size_t username_len;
@@ -2681,9 +2673,10 @@ static void network_send_buffer_signed (sockent_t *se, /* {{{ */
       in_buffer, in_buffer_size);
 
   /* Initialize the `ps' structure. */
-  memset (&ps, 0, sizeof (ps));
-  ps.head.type = htons (TYPE_SIGN_SHA256);
-  ps.head.length = htons (PART_SIGNATURE_SHA256_SIZE + username_len);
+  part_signature_sha256_t ps = {
+    .head.type = htons (TYPE_SIGN_SHA256),
+    .head.length = htons (PART_SIGNATURE_SHA256_SIZE + username_len)
+  };
 
   /* Calculate the hash value. */
   gcry_md_write (hd, buffer + PART_SIGNATURE_SHA256_SIZE,
@@ -2716,7 +2709,6 @@ static void network_send_buffer_signed (sockent_t *se, /* {{{ */
 static void network_send_buffer_encrypted (sockent_t *se, /* {{{ */
 		const char *in_buffer, size_t in_buffer_size)
 {
-  part_encryption_aes256_t pea;
   char buffer[BUFF_SIG_SIZE + in_buffer_size];
   size_t buffer_size;
   size_t buffer_offset;
@@ -2726,10 +2718,10 @@ static void network_send_buffer_encrypted (sockent_t *se, /* {{{ */
   gcry_cipher_hd_t cypher;
 
   /* Initialize the header fields */
-  memset (&pea, 0, sizeof (pea));
-  pea.head.type = htons (TYPE_ENCR_AES256);
-
-  pea.username = se->data.client.username;
+  part_encryption_aes256_t pea = {
+    .head.type = htons (TYPE_ENCR_AES256),
+    .username = se->data.client.username
+  };
 
   username_len = strlen (pea.username);
   if ((PART_ENCRYPTION_AES256_SIZE + username_len) > BUFF_SIG_SIZE)

@@ -763,17 +763,20 @@ static int camqp_subscribe_init (camqp_config_t *conf) /* {{{ */
 static int camqp_write_locked (camqp_config_t *conf, /* {{{ */
         const char *buffer, const char *routing_key)
 {
-    amqp_basic_properties_t props;
     int status;
 
     status = camqp_connect (conf);
     if (status != 0)
         return (status);
 
-    memset (&props, 0, sizeof (props));
-    props._flags = AMQP_BASIC_CONTENT_TYPE_FLAG
-        | AMQP_BASIC_DELIVERY_MODE_FLAG
-        | AMQP_BASIC_APP_ID_FLAG;
+    amqp_basic_properties_t props = {
+        ._flags = AMQP_BASIC_CONTENT_TYPE_FLAG
+            | AMQP_BASIC_DELIVERY_MODE_FLAG
+            | AMQP_BASIC_APP_ID_FLAG,
+        .delivery_mode = conf->delivery_mode,
+        .app_id = amqp_cstring_bytes("collectd")
+    };
+
     if (conf->format == CAMQP_FORMAT_COMMAND)
         props.content_type = amqp_cstring_bytes("text/collectd");
     else if (conf->format == CAMQP_FORMAT_JSON)
@@ -782,8 +785,6 @@ static int camqp_write_locked (camqp_config_t *conf, /* {{{ */
         props.content_type = amqp_cstring_bytes("text/graphite");
     else
         assert (23 == 42);
-    props.delivery_mode = conf->delivery_mode;
-    props.app_id = amqp_cstring_bytes("collectd");
 
     status = amqp_basic_publish(conf->connection,
                 /* channel = */ 1,
@@ -813,8 +814,6 @@ static int camqp_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
 
     if ((ds == NULL) || (vl == NULL) || (conf == NULL))
         return (EINVAL);
-
-    memset (buffer, 0, sizeof (buffer));
 
     if (conf->routing_key != NULL)
     {

@@ -155,7 +155,7 @@ static int wt_flush_nolock(cdtime_t timeout, struct wt_callback *cb)
 
 static int wt_callback_init(struct wt_callback *cb)
 {
-    struct addrinfo ai_hints;
+    struct addrinfo ai_hints = { 0 };
     struct addrinfo *ai_list;
     struct addrinfo *ai_ptr;
     int status;
@@ -166,7 +166,6 @@ static int wt_callback_init(struct wt_callback *cb)
     if (cb->sock_fd > 0)
         return 0;
 
-    memset(&ai_hints, 0, sizeof(ai_hints));
 #ifdef AI_ADDRCONFIG
     ai_hints.ai_flags    |= AI_ADDRCONFIG;
 #endif
@@ -574,7 +573,7 @@ static int wt_write(const data_set_t *ds, const value_list_t *vl,
 static int wt_config_tsd(oconfig_item_t *ci)
 {
     struct wt_callback *cb;
-    user_data_t user_data;
+    user_data_t user_data = { 0 };
     char callback_name[DATA_MAX_NAME_LEN];
     int i;
 
@@ -617,7 +616,6 @@ static int wt_config_tsd(oconfig_item_t *ci)
               cb->node != NULL ? cb->node : WT_DEFAULT_NODE,
               cb->service != NULL ? cb->service : WT_DEFAULT_SERVICE);
 
-    memset(&user_data, 0, sizeof(user_data));
     user_data.data = cb;
     user_data.free_func = wt_callback_free;
     plugin_register_write(callback_name, wt_write, &user_data);

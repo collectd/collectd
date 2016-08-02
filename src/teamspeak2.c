@@ -198,7 +198,7 @@ static int tss2_get_socket (FILE **ret_read_fh, FILE **ret_write_fh)
 	 * Returns connected file objects or establishes the connection
 	 * if it's not already present
 	 */
-	struct addrinfo ai_hints;
+	struct addrinfo ai_hints = { 0 };
 	struct addrinfo *ai_head;
 	struct addrinfo *ai_ptr;
 	int sd = -1;
@@ -216,7 +216,6 @@ static int tss2_get_socket (FILE **ret_read_fh, FILE **ret_write_fh)
 	}
 
 	/* Get all addrs for this hostname */
-	memset (&ai_hints, 0, sizeof (ai_hints));
 #ifdef AI_ADDRCONFIG
 	ai_hints.ai_flags |= AI_ADDRCONFIG;
 #endif
@@ -511,7 +510,7 @@ static int tss2_read_vserver (vserver_list_t *vserver)
 	gauge_t packet_loss = NAN;
 	int valid = 0;
 
-	char plugin_instance[DATA_MAX_NAME_LEN];
+	char plugin_instance[DATA_MAX_NAME_LEN] = { 0 };
 
 	FILE *read_fh;
 	FILE *write_fh;
@@ -527,8 +526,6 @@ static int tss2_read_vserver (vserver_list_t *vserver)
 	if (vserver == NULL)
 	{
 		/* Request global information */
-		memset (plugin_instance, 0, sizeof (plugin_instance));
-
 		status = tss2_send_request (write_fh, "gi\r\n");
 	}
 	else

@@ -1188,7 +1188,7 @@ static int c_psql_config_database (oconfig_item_t *ci)
 	c_psql_database_t *db;
 
 	char cb_name[DATA_MAX_NAME_LEN];
-	user_data_t ud;
+	user_data_t ud = { 0 };
 
 	static _Bool have_flush = 0;
 
@@ -1199,8 +1199,6 @@ static int c_psql_config_database (oconfig_item_t *ci)
 		log_err ("<Database> expects a single string argument.");
 		return 1;
 	}
-
-	memset (&ud, 0, sizeof (ud));
 
 	db = c_psql_database_new (ci->values[0].value.string);
 	if (db == NULL)

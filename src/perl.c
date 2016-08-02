@@ -983,14 +983,12 @@ static int pplugin_write (pTHX_ const char *plugin, AV *data_set, HV *values)
  */
 static int pplugin_dispatch_notification (pTHX_ HV *notif)
 {
-	notification_t n;
+	notification_t n = { 0 };
 
 	int ret;
 
 	if (NULL == notif)
 		return -1;
-
-	memset (&n, 0, sizeof (n));
 
 	if (0 != hv2notification (aTHX_ notif, &n))
 		return -1;

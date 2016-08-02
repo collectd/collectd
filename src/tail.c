@@ -137,11 +137,9 @@ static int ctail_config_add_match_dstype (ctail_config_match_t *cm,
 static int ctail_config_add_match (cu_tail_match_t *tm,
     const char *plugin_instance, oconfig_item_t *ci, cdtime_t interval)
 {
-  ctail_config_match_t cm;
+  ctail_config_match_t cm = { 0 };
   int status;
   int i;
-
-  memset (&cm, '\0', sizeof (cm));
 
   if (ci->values_num != 0)
   {
@@ -333,7 +331,7 @@ static int ctail_read (user_data_t *ud)
 static int ctail_init (void)
 {
   char str[255];
-  user_data_t ud;
+  user_data_t ud = { 0 };
   size_t i;
 
   if (tail_match_list_num == 0)
@@ -341,8 +339,6 @@ static int ctail_init (void)
     WARNING ("tail plugin: File list is empty. Returning an error.");
     return (-1);
   }
-
-  memset(&ud, '\0', sizeof(ud));
 
   for (i = 0; i < tail_match_list_num; i++)
   {

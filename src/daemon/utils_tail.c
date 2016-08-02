@@ -45,10 +45,9 @@ static int cu_tail_reopen (cu_tail_t *obj)
 {
   int seek_end = 0;
   FILE *fh;
-  struct stat stat_buf;
+  struct stat stat_buf = { 0 };
   int status;
 
-  memset (&stat_buf, 0, sizeof (stat_buf));
   status = stat (obj->file, &stat_buf);
   if (status != 0)
   {

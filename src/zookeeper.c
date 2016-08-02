@@ -105,13 +105,12 @@ static int zookeeper_connect (void)
 {
 	int sk = -1;
 	int status;
-	struct addrinfo ai_hints;
+	struct addrinfo ai_hints = { 0 };
 	struct addrinfo *ai;
 	struct addrinfo *ai_list;
 	const char *host;
 	const char *port;
 
-	memset (&ai_hints, '\0', sizeof (ai_hints));
 	ai_hints.ai_family   = AF_UNSPEC;
 	ai_hints.ai_socktype = SOCK_STREAM;
 

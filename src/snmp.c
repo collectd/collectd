@@ -641,7 +641,7 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
 
   /* Registration stuff. */
   char cb_name[DATA_MAX_NAME_LEN];
-  user_data_t cb_data;
+  user_data_t cb_data = { 0 };
 
   hd = calloc (1, sizeof (*hd));
   if (hd == NULL)
@@ -772,7 +772,6 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
 
   ssnprintf (cb_name, sizeof (cb_name), "snmp-%s", hd->name);
 
-  memset (&cb_data, 0, sizeof (cb_data));
   cb_data.data = hd;
   cb_data.free_func = csnmp_host_definition_destroy;
 
@@ -942,9 +941,8 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
   }
   else
   {
-    char oid_buffer[1024];
+    char oid_buffer[1024] = { 0 };
 
-    memset (oid_buffer, 0, sizeof (oid_buffer));
     snprint_objid (oid_buffer, sizeof (oid_buffer) - 1,
         vl->name, vl->name_length);
 
@@ -1276,7 +1274,6 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
   vl.interval = host->interval;
 
   have_more = 1;
-  memset (&current_suffix, 0, sizeof (current_suffix));
   while (have_more)
   {
     _Bool suffix_skipped = 0;

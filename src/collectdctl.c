@@ -194,7 +194,6 @@ static int getval (lcc_connection_t *c, int argc, char **argv)
     return (-1);
   }
 
-  memset (&ident, 0, sizeof (ident));
   status = parse_identifier (c, argv[1], &ident);
   if (status != 0)
     return (status);

@@ -761,14 +761,13 @@ static int swap_read (void) /* {{{ */
 #elif HAVE_PERFSTAT
 static int swap_read (void) /* {{{ */
 {
-	perfstat_memory_total_t pmemory;
+	perfstat_memory_total_t pmemory = { 0 };
 	int status;
 
 	gauge_t total;
 	gauge_t free;
 	gauge_t reserved;
 
-	memset (&pmemory, 0, sizeof (pmemory));
         status = perfstat_memory_total (NULL, &pmemory, sizeof(perfstat_memory_total_t), 1);
 	if (status < 0)
 	{

@@ -67,10 +67,9 @@ static void memcached_free (void *arg)
 
 static int memcached_connect_unix (memcached_t *st)
 {
-  struct sockaddr_un serv_addr;
+  struct sockaddr_un serv_addr = { 0 };
   int fd;
 
-  memset (&serv_addr, 0, sizeof (serv_addr));
   serv_addr.sun_family = AF_UNIX;
   sstrncpy (serv_addr.sun_path, st->socket,
       sizeof (serv_addr.sun_path));
@@ -102,13 +101,11 @@ static int memcached_connect_inet (memcached_t *st)
   const char *host;
   const char *port;
 
-  struct addrinfo  ai_hints;
+  struct addrinfo  ai_hints = { 0 };
   struct addrinfo *ai_list, *ai_ptr;
   int status;
   int fd = -1;
 
-  memset (&ai_hints, 0, sizeof (ai_hints));
-  ai_hints.ai_flags    = 0;
 #ifdef AI_ADDRCONFIG
   ai_hints.ai_flags   |= AI_ADDRCONFIG;
 #endif
@@ -551,11 +548,10 @@ static int memcached_read (user_data_t *user_data)
 
 static int memcached_add_read_callback (memcached_t *st)
 {
-  user_data_t ud;
+  user_data_t ud = { 0 };
   char callback_name[3*DATA_MAX_NAME_LEN];
   int status;
 
-  memset (&ud, 0, sizeof (ud));
   ud.data = st;
   ud.free_func = memcached_free;
 

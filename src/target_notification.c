@@ -192,7 +192,7 @@ static int tn_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
     notification_meta_t __attribute__((unused)) **meta, void **user_data)
 {
   tn_data_t *data;
-  notification_t n;
+  notification_t n = { 0 };
   char temp[NOTIF_MAX_MSG_LEN];
 
   gauge_t *rates;
@@ -211,7 +211,6 @@ static int tn_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
   }
 
   /* Initialize the structure. */
-  memset (&n, 0, sizeof (n));
   n.severity = data->severity;
   n.time = cdtime ();
   sstrncpy (n.message, data->message, sizeof (n.message));
@@ -276,9 +275,8 @@ static int tn_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
 
 void module_register (void)
 {
-	target_proc_t tproc;
+	target_proc_t tproc = { 0 };
 
-	memset (&tproc, 0, sizeof (tproc));
 	tproc.create  = tn_create;
 	tproc.destroy = tn_destroy;
 	tproc.invoke  = tn_invoke;

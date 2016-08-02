@@ -216,8 +216,6 @@ static void ethstat_submit_value (const char *device,
 static int ethstat_read_interface (char *device)
 {
   int fd;
-  struct ifreq req;
-  struct ethtool_drvinfo drvinfo;
   struct ethtool_gstrings *strings;
   struct ethtool_stats *stats;
   size_t n_stats;
@@ -225,9 +223,6 @@ static int ethstat_read_interface (char *device)
   size_t stats_size;
   size_t i;
   int status;
-
-  memset (&req, 0, sizeof (req));
-  sstrncpy(req.ifr_name, device, sizeof (req.ifr_name));
 
   fd = socket(AF_INET, SOCK_DGRAM, /* protocol = */ 0);
   if (fd < 0)
@@ -238,9 +233,16 @@ static int ethstat_read_interface (char *device)
     return 1;
   }
 
-  memset (&drvinfo, 0, sizeof (drvinfo));
-  drvinfo.cmd = ETHTOOL_GDRVINFO;
-  req.ifr_data = (void *) &drvinfo;
+  struct ethtool_drvinfo drvinfo = {
+    .cmd = ETHTOOL_GDRVINFO
+  };
+
+  struct ifreq req = {
+    .ifr_data = (void *) &drvinfo
+  };
+
+  sstrncpy(req.ifr_name, device, sizeof (req.ifr_name));
+
   status = ioctl (fd, SIOCETHTOOL, &req);
   if (status < 0)
   {

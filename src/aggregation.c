@@ -346,7 +346,6 @@ static int agg_instance_read_func (agg_instance_t *inst, /* {{{ */
   else
     sstrncpy (vl->plugin_instance, func, sizeof (vl->plugin_instance));
 
-  memset (&v, 0, sizeof (v));
   status = rate_to_value (&v, rate, state, inst->ds_type, t);
   if (status != 0)
   {

@@ -193,7 +193,7 @@ static int wg_flush_nolock (cdtime_t timeout, struct wg_callback *cb)
 
 static int wg_callback_init (struct wg_callback *cb)
 {
-    struct addrinfo ai_hints;
+    struct addrinfo ai_hints = { 0 };
     struct addrinfo *ai_list;
     struct addrinfo *ai_ptr;
     cdtime_t now;
@@ -211,7 +211,6 @@ static int wg_callback_init (struct wg_callback *cb)
         return (EAGAIN);
     cb->last_connect_time = now;
 
-    memset (&ai_hints, 0, sizeof (ai_hints));
 #ifdef AI_ADDRCONFIG
     ai_hints.ai_flags |= AI_ADDRCONFIG;
 #endif
@@ -406,7 +405,7 @@ static int wg_send_message (char const *message, struct wg_callback *cb)
 static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
         struct wg_callback *cb)
 {
-    char buffer[WG_SEND_BUF_SIZE];
+    char buffer[WG_SEND_BUF_SIZE] = { 0 };
     int status;
 
     if (0 != strcmp (ds->type, vl->type))
@@ -416,7 +415,6 @@ static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
         return -1;
     }
 
-    memset (buffer, 0, sizeof (buffer));
     status = format_graphite (buffer, sizeof (buffer), ds, vl,
             cb->prefix, cb->postfix, cb->escape_char, cb->format_flags);
     if (status != 0) /* error message has been printed already. */
@@ -449,10 +447,8 @@ static int wg_write (const data_set_t *ds, const value_list_t *vl,
 static int config_set_char (char *dest,
         oconfig_item_t *ci)
 {
-    char buffer[4];
+    char buffer[4] = { 0 };
     int status;
-
-    memset (buffer, 0, sizeof (buffer));
 
     status = cf_util_get_string_buffer (ci, buffer, sizeof (buffer));
     if (status != 0)
@@ -480,7 +476,7 @@ static int config_set_char (char *dest,
 static int wg_config_node (oconfig_item_t *ci)
 {
     struct wg_callback *cb;
-    user_data_t user_data;
+    user_data_t user_data = { 0 };
     char callback_name[DATA_MAX_NAME_LEN];
     int i;
     int status = 0;
@@ -583,7 +579,6 @@ static int wg_config_node (oconfig_item_t *ci)
         ssnprintf (callback_name, sizeof (callback_name), "write_graphite/%s",
                 cb->name);
 
-    memset (&user_data, 0, sizeof (user_data));
     user_data.data = cb;
     user_data.free_func = wg_callback_free;
     plugin_register_write (callback_name, wg_write, &user_data);

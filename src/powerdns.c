@@ -375,7 +375,7 @@ static int powerdns_get_data_dgram (list_item_t *item, /* {{{ */
   char *buffer = NULL;
   size_t buffer_size = 0;
 
-  struct sockaddr_un sa_unix;
+  struct sockaddr_un sa_unix = { 0 };
 
   struct timeval stv_timeout;
   cdtime_t cdt_timeout;
@@ -387,7 +387,6 @@ static int powerdns_get_data_dgram (list_item_t *item, /* {{{ */
     return (-1);
   }
 
-  memset (&sa_unix, 0, sizeof (sa_unix));
   sa_unix.sun_family = AF_UNIX;
   sstrncpy (sa_unix.sun_path,
       (local_sockpath != NULL) ? local_sockpath : PDNS_LOCAL_SOCKPATH,

@@ -191,13 +191,12 @@ static int mysql_config_database (oconfig_item_t *ci) /* {{{ */
 	/* If all went well, register this database for reading */
 	if (status == 0)
 	{
-		user_data_t ud;
+		user_data_t ud = { 0 };
 		char cb_name[DATA_MAX_NAME_LEN];
 
 		DEBUG ("mysql plugin: Registering new read callback: %s",
 				(db->database != NULL) ? db->database : "<default>");
 
-		memset (&ud, 0, sizeof (ud));
 		ud.data = (void *) db;
 		ud.free_func = mysql_database_free;
 

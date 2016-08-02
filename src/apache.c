@@ -240,14 +240,13 @@ static int config_add (oconfig_item_t *ci)
 
 	if (status == 0)
 	{
-		user_data_t ud;
+		user_data_t ud = {
+			.data = st,
+			.free_func = apache_free
+		};
+
 		char callback_name[3*DATA_MAX_NAME_LEN];
 
-		memset (&ud, 0, sizeof (ud));
-		ud.data = st;
-		ud.free_func = apache_free;
-
-		memset (callback_name, 0, sizeof (callback_name));
 		ssnprintf (callback_name, sizeof (callback_name),
 				"apache/%s/%s",
 				(st->host != NULL) ? st->host : hostname_g,

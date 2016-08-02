@@ -1363,11 +1363,8 @@ static jint JNICALL cjni_api_dispatch_values (JNIEnv *jvm_env, /* {{{ */
 static jint JNICALL cjni_api_dispatch_notification (JNIEnv *jvm_env, /* {{{ */
     jobject this, jobject o_notification)
 {
-  notification_t n;
+  notification_t n = { 0 };
   int status;
-
-  memset (&n, 0, sizeof (n));
-  n.meta = NULL;
 
   status = jtoc_notification (jvm_env, &n, o_notification);
   if (status != 0)
@@ -1423,7 +1420,7 @@ static jint JNICALL cjni_api_register_init (JNIEnv *jvm_env, /* {{{ */
 static jint JNICALL cjni_api_register_read (JNIEnv *jvm_env, /* {{{ */
     jobject this, jobject o_name, jobject o_read)
 {
-  user_data_t ud;
+  user_data_t ud = { 0 };
   cjni_callback_info_t *cbi;
 
   cbi = cjni_callback_info_create (jvm_env, o_name, o_read, CB_TYPE_READ);
@@ -1432,7 +1429,6 @@ static jint JNICALL cjni_api_register_read (JNIEnv *jvm_env, /* {{{ */
 
   DEBUG ("java plugin: Registering new read callback: %s", cbi->name);
 
-  memset (&ud, 0, sizeof (ud));
   ud.data = (void *) cbi;
   ud.free_func = cjni_callback_info_destroy;
 
@@ -1447,7 +1443,7 @@ static jint JNICALL cjni_api_register_read (JNIEnv *jvm_env, /* {{{ */
 static jint JNICALL cjni_api_register_write (JNIEnv *jvm_env, /* {{{ */
     jobject this, jobject o_name, jobject o_write)
 {
-  user_data_t ud;
+  user_data_t ud = { 0 };
   cjni_callback_info_t *cbi;
 
   cbi = cjni_callback_info_create (jvm_env, o_name, o_write, CB_TYPE_WRITE);
@@ -1456,7 +1452,6 @@ static jint JNICALL cjni_api_register_write (JNIEnv *jvm_env, /* {{{ */
 
   DEBUG ("java plugin: Registering new write callback: %s", cbi->name);
 
-  memset (&ud, 0, sizeof (ud));
   ud.data = (void *) cbi;
   ud.free_func = cjni_callback_info_destroy;
 
@@ -1470,7 +1465,7 @@ static jint JNICALL cjni_api_register_write (JNIEnv *jvm_env, /* {{{ */
 static jint JNICALL cjni_api_register_flush (JNIEnv *jvm_env, /* {{{ */
     jobject this, jobject o_name, jobject o_flush)
 {
-  user_data_t ud;
+  user_data_t ud = { 0 };
   cjni_callback_info_t *cbi;
 
   cbi = cjni_callback_info_create (jvm_env, o_name, o_flush, CB_TYPE_FLUSH);
@@ -1479,7 +1474,6 @@ static jint JNICALL cjni_api_register_flush (JNIEnv *jvm_env, /* {{{ */
 
   DEBUG ("java plugin: Registering new flush callback: %s", cbi->name);
 
-  memset (&ud, 0, sizeof (ud));
   ud.data = (void *) cbi;
   ud.free_func = cjni_callback_info_destroy;
 
@@ -1500,7 +1494,7 @@ static jint JNICALL cjni_api_register_shutdown (JNIEnv *jvm_env, /* {{{ */
 static jint JNICALL cjni_api_register_log (JNIEnv *jvm_env, /* {{{ */
     jobject this, jobject o_name, jobject o_log)
 {
-  user_data_t ud;
+  user_data_t ud = { 0 };
   cjni_callback_info_t *cbi;
 
   cbi = cjni_callback_info_create (jvm_env, o_name, o_log, CB_TYPE_LOG);
@@ -1509,7 +1503,6 @@ static jint JNICALL cjni_api_register_log (JNIEnv *jvm_env, /* {{{ */
 
   DEBUG ("java plugin: Registering new log callback: %s", cbi->name);
 
-  memset (&ud, 0, sizeof (ud));
   ud.data = (void *) cbi;
   ud.free_func = cjni_callback_info_destroy;
 
@@ -1523,7 +1516,7 @@ static jint JNICALL cjni_api_register_log (JNIEnv *jvm_env, /* {{{ */
 static jint JNICALL cjni_api_register_notification (JNIEnv *jvm_env, /* {{{ */
     jobject this, jobject o_name, jobject o_notification)
 {
-  user_data_t ud;
+  user_data_t ud = { 0 };
   cjni_callback_info_t *cbi;
 
   cbi = cjni_callback_info_create (jvm_env, o_name, o_notification,
@@ -1533,7 +1526,6 @@ static jint JNICALL cjni_api_register_notification (JNIEnv *jvm_env, /* {{{ */
 
   DEBUG ("java plugin: Registering new notification callback: %s", cbi->name);
 
-  memset (&ud, 0, sizeof (ud));
   ud.data = (void *) cbi;
   ud.free_func = cjni_callback_info_destroy;
 
@@ -1567,9 +1559,8 @@ static jint JNICALL cjni_api_register_match_target (JNIEnv *jvm_env, /* {{{ */
 
   if (type == CB_TYPE_MATCH)
   {
-    match_proc_t m_proc;
+    match_proc_t m_proc = { 0 };
 
-    memset (&m_proc, 0, sizeof (m_proc));
     m_proc.create  = cjni_match_target_create;
     m_proc.destroy = cjni_match_target_destroy;
     m_proc.match   = (void *) cjni_match_target_invoke;
@@ -1578,9 +1569,8 @@ static jint JNICALL cjni_api_register_match_target (JNIEnv *jvm_env, /* {{{ */
   }
   else if (type == CB_TYPE_TARGET)
   {
-    target_proc_t t_proc;
+    target_proc_t t_proc = { 0 };
 
-    memset (&t_proc, 0, sizeof (t_proc));
     t_proc.create  = cjni_match_target_create;
     t_proc.destroy = cjni_match_target_destroy;
     t_proc.invoke  = cjni_match_target_invoke;
@@ -1985,7 +1975,7 @@ static int cjni_init_native (JNIEnv *jvm_env) /* {{{ */
 static int cjni_create_jvm (void) /* {{{ */
 {
   JNIEnv *jvm_env;
-  JavaVMInitArgs vm_args;
+  JavaVMInitArgs vm_args = { 0 };
   JavaVMOption vm_options[jvm_argc];
 
   int status;
@@ -2004,7 +1994,6 @@ static int cjni_create_jvm (void) /* {{{ */
 
   jvm_env = NULL;
 
-  memset (&vm_args, 0, sizeof (vm_args));
   vm_args.version = JNI_VERSION_1_2;
   vm_args.options = vm_options;
   vm_args.nOptions = (jint) jvm_argc;
@@ -2085,11 +2074,10 @@ static JNIEnv *cjni_thread_attach (void) /* {{{ */
   else
   {
     int status;
-    JavaVMAttachArgs args;
+    JavaVMAttachArgs args = { 0 };
 
     assert (cjni_env->jvm_env == NULL);
 
-    memset (&args, 0, sizeof (args));
     args.version = JNI_VERSION_1_2;
 
     status = (*jvm)->AttachCurrentThread (jvm, (void *) &jvm_env, (void *) &args);
@@ -2920,9 +2908,8 @@ static int cjni_match_target_invoke (const data_set_t *ds, /* {{{ */
    * `value_list_t'. */
   if (cbi->type == CB_TYPE_TARGET)
   {
-    value_list_t new_vl;
+    value_list_t new_vl = { 0 };
 
-    memset (&new_vl, 0, sizeof (new_vl));
     status = jtoc_value_list (jvm_env, &new_vl, o_vl);
     if (status != 0)
     {
@@ -3001,7 +2988,7 @@ static int cjni_shutdown_plugins (JNIEnv *jvm_env) /* {{{ */
 static int cjni_shutdown (void) /* {{{ */
 {
   JNIEnv *jvm_env;
-  JavaVMAttachArgs args;
+  JavaVMAttachArgs args = { 0 };
   int status;
   size_t i;
 
@@ -3009,7 +2996,6 @@ static int cjni_shutdown (void) /* {{{ */
     return (0);
 
   jvm_env = NULL;
-  memset (&args, 0, sizeof (args));
   args.version = JNI_VERSION_1_2;
 
   status = (*jvm)->AttachCurrentThread (jvm, (void *) &jvm_env, &args);

@@ -259,7 +259,7 @@ static int ceph_cb_boolean(void *ctx, int bool_val)
 #define BUFFER_ADD(dest, src) do { \
     size_t dest_size = sizeof (dest); \
     strncat ((dest), (src), dest_size - strlen (dest)); \
-    (dest)[dest_size - 1] = 0; \
+    (dest)[dest_size - 1] = '\0'; \
 } while (0)
 
 static int
@@ -272,10 +272,10 @@ ceph_cb_number(void *ctx, const char *number_val, yajl_len_t number_len)
     size_t i;
     int status;
 
+    key[0] = '\0';
     memcpy(buffer, number_val, number_len);
-    buffer[sizeof(buffer) - 1] = 0;
+    buffer[sizeof(buffer) - 1] = '\0';
 
-    memset (key, 0, sizeof (key));
     for (i = 0; i < state->depth; i++)
     {
         if (state->stack[i] == NULL)
@@ -593,7 +593,6 @@ static int ceph_daemon_add_ds_entry(struct ceph_daemon *d, const char *name,
 {
     uint32_t type;
     char ds_name[DATA_MAX_NAME_LEN];
-    memset(ds_name, 0, sizeof(ds_name));
 
     if(convert_special_metrics)
     {
@@ -685,9 +684,8 @@ static int cc_handle_bool(struct oconfig_item_s *item, int *dest)
 static int cc_add_daemon_config(oconfig_item_t *ci)
 {
     int ret, i;
-    struct ceph_daemon *nd, cd;
+    struct ceph_daemon *nd, cd = { 0 };
     struct ceph_daemon **tmp;
-    memset(&cd, 0, sizeof(struct ceph_daemon));
 
     if((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
     {
@@ -983,7 +981,6 @@ static int node_handler_fetch_data(void *arg, const char *val, const char *key)
     int index = vtmp->index;
 
     char ds_name[DATA_MAX_NAME_LEN];
-    memset(ds_name, 0, sizeof(ds_name));
 
     if (parse_keys (ds_name, sizeof (ds_name), key))
     {
@@ -1086,7 +1083,7 @@ static int node_handler_fetch_data(void *arg, const char *val, const char *key)
 
 static int cconn_connect(struct cconn *io)
 {
-    struct sockaddr_un address;
+    struct sockaddr_un address = { 0 };
     int flags, fd, err;
     if(io->state != CSTATE_UNCONNECTED)
     {
@@ -1101,7 +1098,6 @@ static int cconn_connect(struct cconn *io)
             "failed: error %d", err);
         return err;
     }
-    memset(&address, 0, sizeof(struct sockaddr_un));
     address.sun_family = AF_UNIX;
     snprintf(address.sun_path, sizeof(address.sun_path), "%s",
             io->d->asok_path);

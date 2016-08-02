@@ -94,7 +94,6 @@ static int pf_read (void)
 		return (-1);
 	}
 
-	memset (&state, 0, sizeof (state));
 	status = ioctl (fd, DIOCGETSTATUS, &state);
 	if (status != 0)
 	{

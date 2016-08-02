@@ -699,7 +699,6 @@ process_80211stats (int sk, const char *dev)
 static int
 process_station (int sk, const char *dev, struct ieee80211req_sta_info *si)
 {
-	struct iwreq iwr;
 	static char mac[DATA_MAX_NAME_LEN];
 	struct ieee80211req_sta_stats stats;
 	const struct ieee80211_nodestats *ns = &stats.is_stats;
@@ -714,10 +713,12 @@ process_station (int sk, const char *dev, struct ieee80211req_sta_info *si)
 	if (item_watched (STAT_NODE_RSSI))
 		submit_gauge (dev, "node_rssi", mac, NULL, si->isi_rssi);
 
-	memset (&iwr, 0, sizeof (iwr));
+	struct iwreq iwr = {
+		.u.data.pointer = (void *) &stats,
+		.u.data.length = sizeof (stats)
+	};
 	sstrncpy(iwr.ifr_name, dev, sizeof (iwr.ifr_name));
-	iwr.u.data.pointer = (void *) &stats;
-	iwr.u.data.length = sizeof (stats);
+
 	memcpy(stats.is_u.macaddr, si->isi_macaddr, IEEE80211_ADDR_LEN);
 	status = ioctl(sk, IEEE80211_IOCTL_STA_STATS, &iwr);
 	if (status < 0)
@@ -751,16 +752,16 @@ static int
 process_stations (int sk, const char *dev)
 {
 	uint8_t buf[24*1024];
-	struct iwreq iwr;
 	uint8_t *cp;
 	int nodes;
 	size_t len;
 	int status;
 
-	memset (&iwr, 0, sizeof (iwr));
+	struct iwreq iwr = {
+		.u.data.pointer = (void *) buf,
+		.u.data.length = sizeof (buf)
+	};
 	sstrncpy (iwr.ifr_name, dev, sizeof (iwr.ifr_name));
-	iwr.u.data.pointer = (void *) buf;
-	iwr.u.data.length = sizeof (buf);
 
 	status = ioctl (sk, IEEE80211_IOCTL_STA_INFO, &iwr);
 	if (status < 0)

@@ -349,9 +349,8 @@ static int mv_match (const data_set_t *ds, const value_list_t *vl, /* {{{ */
 
 void module_register (void)
 {
-  match_proc_t mproc;
+  match_proc_t mproc = { 0 };
 
-  memset (&mproc, 0, sizeof (mproc));
   mproc.create  = mv_create;
   mproc.destroy = mv_destroy;
   mproc.match   = mv_match;

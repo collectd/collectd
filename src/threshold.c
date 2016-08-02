@@ -870,8 +870,6 @@ static int ut_config (oconfig_item_t *ci)
   int status = 0;
   int old_size = c_avl_size (threshold_tree);
 
-  threshold_t th;
-
   if (threshold_tree == NULL)
   {
     threshold_tree = c_avl_create ((int (*) (const void *, const void *)) strcmp);
@@ -882,15 +880,13 @@ static int ut_config (oconfig_item_t *ci)
     }
   }
 
-  memset (&th, '\0', sizeof (th));
-  th.warning_min = NAN;
-  th.warning_max = NAN;
-  th.failure_min = NAN;
-  th.failure_max = NAN;
-
-  th.hits = 0;
-  th.hysteresis = 0;
-  th.flags = UT_FLAG_INTERESTING; /* interesting by default */
+  threshold_t th = {
+    .warning_min = NAN,
+    .warning_max = NAN,
+    .failure_min = NAN,
+    .failure_max = NAN,
+    .flags = UT_FLAG_INTERESTING /* interesting by default */
+  };
 
   for (i = 0; i < ci->children_num; i++)
   {

@@ -653,17 +653,15 @@ static int cldap_config_add (oconfig_item_t *ci) /* {{{ */
 		}
 		else
 		{
-			user_data_t ud;
-			char callback_name[3*DATA_MAX_NAME_LEN];
+			user_data_t ud = { 0 };
+			char callback_name[3*DATA_MAX_NAME_LEN] = { 0 };
 
 			databases = temp;
 			databases[databases_num] = st;
 			databases_num++;
 
-			memset (&ud, 0, sizeof (ud));
 			ud.data = st;
 
-			memset (callback_name, 0, sizeof (callback_name));
 			ssnprintf (callback_name, sizeof (callback_name),
 					"openldap/%s/%s",
 					(st->host != NULL) ? st->host : hostname_g,

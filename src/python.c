@@ -623,7 +623,7 @@ static PyObject *cpy_register_generic_userdata(void *reg, void *handler, PyObjec
 	char buf[512];
 	reg_function_t *register_function = (reg_function_t *) reg;
 	cpy_callback_t *c = NULL;
-	user_data_t user_data;
+	user_data_t user_data = { 0 };
 	char *name = NULL;
 	PyObject *callback = NULL, *data = NULL;
 	static char *kwlist[] = {"callback", "data", "name", NULL};
@@ -649,7 +649,6 @@ static PyObject *cpy_register_generic_userdata(void *reg, void *handler, PyObjec
 	c->data = data;
 	c->next = NULL;
 
-	memset (&user_data, 0, sizeof (user_data));
 	user_data.free_func = cpy_destroy_user_data;
 	user_data.data = c;
 
@@ -660,7 +659,7 @@ static PyObject *cpy_register_generic_userdata(void *reg, void *handler, PyObjec
 static PyObject *cpy_register_read(PyObject *self, PyObject *args, PyObject *kwds) {
 	char buf[512];
 	cpy_callback_t *c = NULL;
-	user_data_t user_data;
+	user_data_t user_data = { 0 };
 	double interval = 0;
 	char *name = NULL;
 	PyObject *callback = NULL, *data = NULL;
@@ -687,7 +686,6 @@ static PyObject *cpy_register_read(PyObject *self, PyObject *args, PyObject *kwd
 	c->data = data;
 	c->next = NULL;
 
-	memset (&user_data, 0, sizeof (user_data));
 	user_data.free_func = cpy_destroy_user_data;
 	user_data.data = c;
 
@@ -920,7 +918,7 @@ static void cpy_int_handler(int sig) {
 
 static void *cpy_interactive(void *data) {
 	sigset_t sigset;
-	struct sigaction sig_int_action, old;
+	struct sigaction old;
 
 	/* Signal handler in a plugin? Bad stuff, but the best way to
 	 * handle it I guess. In an interactive session people will
@@ -938,8 +936,9 @@ static void *cpy_interactive(void *data) {
 	 * still interrupt syscalls like sleep and pause.
 	 * It does not raise a KeyboardInterrupt exception because so
 	 * far nobody managed to figure out how to do that. */
-	memset (&sig_int_action, '\0', sizeof (sig_int_action));
-	sig_int_action.sa_handler = cpy_int_handler;
+	struct sigaction sig_int_action = {
+		.sa_handler = cpy_int_handler
+	};
 	sigaction (SIGINT, &sig_int_action, &old);
 
 	sigemptyset(&sigset);

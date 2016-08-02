@@ -115,12 +115,10 @@ static int net_open (char const *node, char const *service)
 {
 	int              sd;
 	int              status;
-	struct addrinfo  ai_hints;
+	struct addrinfo  ai_hints = { 0 };
 	struct addrinfo *ai_return;
 	struct addrinfo *ai_list;
 
-	/* Resolve name */
-	memset (&ai_hints, 0, sizeof (ai_hints));
 	/* TODO: Change this to `AF_UNSPEC' if apcupsd can handle IPv6 */
 	ai_hints.ai_family   = AF_INET;
 	ai_hints.ai_socktype = SOCK_STREAM;
