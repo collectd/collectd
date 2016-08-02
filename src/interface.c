@@ -192,7 +192,6 @@ static int interface_read (void)
 {
 #if HAVE_GETIFADDRS
 	struct ifaddrs *if_list;
-	struct ifaddrs *if_ptr;
 
 /* Darwin/Mac OS X and possible other *BSDs */
 #if HAVE_STRUCT_IF_DATA
@@ -222,7 +221,7 @@ static int interface_read (void)
 	if (getifaddrs (&if_list) != 0)
 		return (-1);
 
-	for (if_ptr = if_list; if_ptr != NULL; if_ptr = if_ptr->ifa_next)
+	for (struct ifaddrs *if_ptr = if_list; if_ptr != NULL; if_ptr = if_ptr->ifa_next)
 	{
 		if (if_ptr->ifa_addr != NULL && if_ptr->ifa_addr->sa_family == AF_LINK) {
 			if_data = (struct IFA_DATA *) if_ptr->ifa_data;
@@ -306,7 +305,6 @@ static int interface_read (void)
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
-	int i;
 	derive_t rx;
 	derive_t tx;
 	char iname[DATA_MAX_NAME_LEN];
@@ -314,7 +312,7 @@ static int interface_read (void)
 	if (kc == NULL)
 		return (-1);
 
-	for (i = 0; i < numif; i++)
+	for (int i = 0; i < numif; i++)
 	{
 		if (kstat_read (kc, ksp[i], NULL) == -1)
 			continue;
@@ -358,11 +356,11 @@ static int interface_read (void)
 
 #elif defined(HAVE_LIBSTATGRAB)
 	sg_network_io_stats *ios;
-	int i, num;
+	int num;
 
 	ios = sg_get_network_io_stats (&num);
 
-	for (i = 0; i < num; i++) {
+	for (int i = 0; i < num; i++) {
 		if (!report_inactive && ios[i].rx == 0 && ios[i].tx == 0)
 			continue;
 		if_submit (ios[i].interface_name, "if_octets", ios[i].rx, ios[i].tx);
@@ -371,7 +369,7 @@ static int interface_read (void)
 
 #elif defined(HAVE_PERFSTAT)
 	perfstat_id_t id;
-	int i, ifs;
+	int ifs;
 
 	if ((nif =  perfstat_netinterface(NULL, NULL, sizeof(perfstat_netinterface_t), 0)) < 0)
 	{
@@ -397,7 +395,7 @@ static int interface_read (void)
 		return (-1);
 	}
 
-	for (i = 0; i < ifs; i++)
+	for (int i = 0; i < ifs; i++)
 	{
 		if (!report_inactive && ifstat[i].ipackets == 0 && ifstat[i].opackets == 0)
 			continue;

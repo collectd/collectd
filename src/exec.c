@@ -246,9 +246,7 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
 
 static int exec_config (oconfig_item_t *ci) /* {{{ */
 {
-  int i;
-
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
     if ((strcasecmp ("Exec", child->key) == 0)
@@ -471,11 +469,10 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out, int *fd_err)
   else if (pid == 0)
   {
     int fd_num;
-    int fd;
 
     /* Close all file descriptors but the pipe end we need. */
     fd_num = getdtablesize ();
-    for (fd = 0; fd < fd_num; fd++)
+    for (int fd = 0; fd < fd_num; fd++)
     {
       if ((fd == fd_pipe_in[0])
           || (fd == fd_pipe_out[1])
@@ -721,7 +718,6 @@ static void *exec_notification_one (void *arg) /* {{{ */
 {
   program_list_t *pl = ((program_list_and_notification_t *) arg)->pl;
   notification_t *n = &((program_list_and_notification_t *) arg)->n;
-  notification_meta_t *meta;
   int fd;
   FILE *fh;
   int pid;
@@ -769,7 +765,7 @@ static void *exec_notification_one (void *arg) /* {{{ */
   if (strlen (n->type_instance) > 0)
     fprintf (fh, "TypeInstance: %s\n", n->type_instance);
 
-  for (meta = n->meta; meta != NULL; meta = meta->next)
+  for (notification_meta_t *meta = n->meta; meta != NULL; meta = meta->next)
   {
     if (meta->type == NM_TYPE_STRING)
       fprintf (fh, "%s: %s\n", meta->name, meta->nm_value.nm_string);
@@ -815,9 +811,7 @@ static int exec_init (void) /* {{{ */
 
 static int exec_read (void) /* {{{ */
 {
-  program_list_t *pl;
-
-  for (pl = pl_head; pl != NULL; pl = pl->next)
+  for (program_list_t *pl = pl_head; pl != NULL; pl = pl->next)
   {
     pthread_t t;
     pthread_attr_t attr;
@@ -848,10 +842,9 @@ static int exec_read (void) /* {{{ */
 static int exec_notification (const notification_t *n, /* {{{ */
     user_data_t __attribute__((unused)) *user_data)
 {
-  program_list_t *pl;
   program_list_and_notification_t *pln;
 
-  for (pl = pl_head; pl != NULL; pl = pl->next)
+  for (program_list_t *pl = pl_head; pl != NULL; pl = pl->next)
   {
     pthread_t t;
     pthread_attr_t attr;

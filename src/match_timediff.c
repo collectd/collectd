@@ -50,7 +50,6 @@ static int mt_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 {
   mt_match_t *m;
   int status;
-  int i;
 
   m = calloc (1, sizeof (*m));
   if (m == NULL)
@@ -63,7 +62,7 @@ static int mt_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   m->past = 0;
 
   status = 0;
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 

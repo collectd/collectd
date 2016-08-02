@@ -59,7 +59,6 @@
 static int kairosdb_escape_string (char *buffer, size_t buffer_size, /* {{{ */
     const char *string)
 {
-  size_t src_pos;
   size_t dst_pos;
 
   if ((buffer == NULL) || (string == NULL))
@@ -82,7 +81,7 @@ static int kairosdb_escape_string (char *buffer, size_t buffer_size, /* {{{ */
   /* Escape special characters */
   /* authorize -_. and alpha num but also escapes " */
   BUFFER_ADD ('"');
-  for (src_pos = 0; string[src_pos] != 0; src_pos++)
+  for (size_t src_pos = 0; string[src_pos] != 0; src_pos++)
   {
     if (isalnum(string[src_pos]) ||
       0x2d == string[src_pos] ||
@@ -223,7 +222,6 @@ static int value_list_to_kairosdb (char *buffer, size_t buffer_size, /* {{{ */
   char temp[512];
   size_t offset = 0;
   int status;
-  size_t i;
 
   memset (buffer, 0, buffer_size);
 
@@ -245,7 +243,7 @@ static int value_list_to_kairosdb (char *buffer, size_t buffer_size, /* {{{ */
   BUFFER_ADD (",\"%s\": %s", (key), temp); \
 } while (0)
 
-  for (i = 0; i < ds->ds_num; i++)
+  for (size_t i = 0; i < ds->ds_num; i++)
   {
     /* All value lists have a leading comma. The first one will be replaced with
      * a square bracket in `format_kairosdb_finalize'. */

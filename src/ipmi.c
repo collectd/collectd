@@ -432,11 +432,9 @@ static int sensor_list_remove (ipmi_sensor_t *sensor)
 
 static int sensor_list_read_all (void)
 {
-  c_ipmi_sensor_list_t *list_item;
-
   pthread_mutex_lock (&sensor_list_lock);
 
-  for (list_item = sensor_list;
+  for (c_ipmi_sensor_list_t *list_item = sensor_list;
       list_item != NULL;
       list_item = list_item->next)
   {

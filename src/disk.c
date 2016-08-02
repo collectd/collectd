@@ -954,12 +954,11 @@ static int disk_read (void)
 #  error "kstat_io_t does not have the required members"
 # endif
 	static kstat_io_t kio;
-	int i;
 
 	if (kc == NULL)
 		return (-1);
 
-	for (i = 0; i < numdisk; i++)
+	for (int i = 0; i < numdisk; i++)
 	{
 		if (kstat_read (kc, ksp[i], &kio) == -1)
 			continue;
@@ -997,13 +996,12 @@ static int disk_read (void)
 # else
 	int disks;
 #endif
-	int counter;
 	char name[DATA_MAX_NAME_LEN];
 
 	if ((ds = sg_get_disk_io_stats(&disks)) == NULL)
 		return (0);
 
-	for (counter=0; counter < disks; counter++) {
+	for (int counter = 0; counter < disks; counter++) {
 		strncpy(name, ds->disk_name, sizeof(name));
 		name[sizeof(name)-1] = '\0'; /* strncpy doesn't terminate longer strings */
 
@@ -1026,7 +1024,6 @@ static int disk_read (void)
 	derive_t write_ops;
 	perfstat_id_t firstpath;
 	int rnumdisk;
-	int i;
 
 	if ((numdisk = perfstat_disk(NULL, NULL, sizeof(perfstat_disk_t), 0)) < 0)
 	{
@@ -1052,7 +1049,7 @@ static int disk_read (void)
 		return (-1);
 	}
 
-	for (i = 0; i < rnumdisk; i++)
+	for (int i = 0; i < rnumdisk; i++)
 	{
 		if (ignorelist_match (ignorelist, stat_disk[i].name) != 0)
 			continue;

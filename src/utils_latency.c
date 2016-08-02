@@ -97,9 +97,8 @@ static void change_bin_width (latency_counter_t *lc, cdtime_t latency) /* {{{ */
   if (lc->num > 0) // if the histogram has data then iterate else skip
   {
       double width_change_ratio = ((double) old_bin_width) / ((double) new_bin_width);
-      size_t i;
 
-      for (i = 0; i < HISTOGRAM_NUM_BINS; i++)
+      for (size_t i = 0; i < HISTOGRAM_NUM_BINS; i++)
       {
          size_t new_bin = (size_t) (((double) i) * width_change_ratio);
          if (i == new_bin)

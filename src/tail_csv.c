@@ -289,7 +289,6 @@ static int tcsv_config_get_index(oconfig_item_t *ci, ssize_t *ret_index) {
 static int tcsv_config_add_metric(oconfig_item_t *ci){
     metric_definition_t *md;
     int status;
-    int i;
 
     md = calloc(1, sizeof(*md));
     if (md == NULL)
@@ -307,7 +306,7 @@ static int tcsv_config_add_metric(oconfig_item_t *ci){
         return (-1);
     }
 
-    for (i = 0; i < ci->children_num; ++i){
+    for (int i = 0; i < ci->children_num; ++i){
         oconfig_item_t *option = ci->children + i;
 
         if (strcasecmp("Type", option->key) == 0)
@@ -377,7 +376,6 @@ static int tcsv_config_add_instance_collect(instance_definition_t *id, oconfig_i
     metric_definition_t *metric;
     metric_definition_t **metric_list;
     size_t metric_list_size;
-    int i;
 
     if (ci->values_num < 1) {
         WARNING("tail_csv plugin: The `Collect' config option needs at least one argument.");
@@ -390,7 +388,7 @@ static int tcsv_config_add_instance_collect(instance_definition_t *id, oconfig_i
         return (-1);
     id->metric_list = metric_list;
 
-    for (i = 0; i < ci->values_num; i++) {
+    for (int i = 0; i < ci->values_num; i++) {
         char *metric_name;
 
         if (ci->values[i].type != OCONFIG_TYPE_STRING) {
@@ -420,7 +418,6 @@ static int tcsv_config_add_file(oconfig_item_t *ci)
 {
     instance_definition_t* id;
     int status = 0;
-    int i;
 
     /* Registration variables */
     char cb_name[DATA_MAX_NAME_LEN];
@@ -444,7 +441,7 @@ static int tcsv_config_add_file(oconfig_item_t *ci)
     /* Use default interval. */
     id->interval = plugin_get_interval();
 
-    for (i = 0; i < ci->children_num; ++i){
+    for (int i = 0; i < ci->children_num; ++i){
         oconfig_item_t *option = ci->children + i;
         status = 0;
 
@@ -500,8 +497,7 @@ static int tcsv_config_add_file(oconfig_item_t *ci)
 
 /* Parse blocks */
 static int tcsv_config(oconfig_item_t *ci){
-    int i;
-    for (i = 0; i < ci->children_num; ++i){
+    for (int i = 0; i < ci->children_num; ++i){
         oconfig_item_t *child = ci->children + i;
         if (strcasecmp("Metric", child->key) == 0)
             tcsv_config_add_metric(child);

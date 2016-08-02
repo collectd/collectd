@@ -44,8 +44,6 @@ int handle_flush (FILE *fh, char *buffer)
 	char **identifiers = NULL;
 	size_t identifiers_num = 0;
 
-	size_t i;
-
 #define PRINT_TO_SOCK(fh, ...) \
 	do { \
 		if (fprintf (fh, __VA_ARGS__) < 0) { \
@@ -123,15 +121,14 @@ int handle_flush (FILE *fh, char *buffer)
 		}
 	} /* while (*buffer != 0) */
 
-	for (i = 0; (i == 0) || (i < plugins_num); i++)
+	for (size_t i = 0; (i == 0) || (i < plugins_num); i++)
 	{
 		char *plugin = NULL;
-		size_t j;
 
 		if (plugins_num != 0)
 			plugin = plugins[i];
 
-		for (j = 0; (j == 0) || (j < identifiers_num); j++)
+		for (size_t j = 0; (j == 0) || (j < identifiers_num); j++)
 		{
 			char *identifier = NULL;
 			int status;

@@ -391,13 +391,12 @@ static void ps_update_counter (_Bool init, derive_t *group_counter,
 /* add process entry to 'instances' of process 'name' (or refresh it) */
 static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t *entry)
 {
-	procstat_t *ps;
 	procstat_entry_t *pse;
 
 	if (entry->id == 0)
 		return;
 
-	for (ps = list_head_g; ps != NULL; ps = ps->next)
+	for (procstat_t *ps = list_head_g; ps != NULL; ps = ps->next)
 	{
 		_Bool want_init;
 
@@ -483,11 +482,10 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 /* remove old entries from instances of processes in list_head_g */
 static void ps_list_reset (void)
 {
-	procstat_t *ps;
 	procstat_entry_t *pse;
 	procstat_entry_t *pse_prev;
 
-	for (ps = list_head_g; ps != NULL; ps = ps->next)
+	for (procstat_t *ps = list_head_g; ps != NULL; ps = ps->next)
 	{
 		ps->num_proc    = 0;
 		ps->num_lwp     = 0;
@@ -539,15 +537,13 @@ static void ps_list_reset (void)
 /* put all pre-defined 'Process' names from config to list_head_g tree */
 static int ps_config (oconfig_item_t *ci)
 {
-	int i;
-
 #if KERNEL_LINUX
 	const size_t max_procname_len = 15;
 #elif KERNEL_SOLARIS || KERNEL_FREEBSD
 	const size_t max_procname_len = MAXCOMLEN -1;
 #endif
 
-	for (i = 0; i < ci->children_num; ++i) {
+	for (int i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *c = ci->children + i;
 
 		if (strcasecmp (c->key, "Process") == 0)
@@ -1468,13 +1464,12 @@ static int ps_read_process(long pid, procstat_t *ps, char *state)
 static int read_fork_rate (void)
 {
 	extern kstat_ctl_t *kc;
-	kstat_t *ksp_chain = NULL;
 	derive_t result = 0;
 
 	if (kc == NULL)
 		return (-1);
 
-	for (ksp_chain = kc->kc_chain;
+	for (kstat_t *ksp_chain = kc->kc_chain;
 			ksp_chain != NULL;
 			ksp_chain = ksp_chain->ks_next)
 	{
@@ -1540,17 +1535,14 @@ static int ps_read (void)
 #if HAVE_THREAD_INFO
 	kern_return_t            status;
 
-	int                      pset;
 	processor_set_t          port_pset_priv;
 
-	int                      task;
 	task_array_t             task_list;
 	mach_msg_type_number_t   task_list_len;
 
 	int                      task_pid;
 	char                     task_name[MAXCOMLEN + 1];
 
-	int                      thread;
 	thread_act_array_t       thread_list;
 	mach_msg_type_number_t   thread_list_len;
 	thread_basic_info_data_t thread_data;
@@ -1575,7 +1567,7 @@ static int ps_read (void)
 	 * Tasks are assigned to sets of processors, so that's where you go to
 	 * get a list.
 	 */
-	for (pset = 0; pset < pset_list_len; pset++)
+	for (int pset = 0; pset < pset_list_len; pset++)
 	{
 		if ((status = host_processor_set_priv (port_host_self,
 						pset_list[pset],
@@ -1596,7 +1588,7 @@ static int ps_read (void)
 			continue;
 		}
 
-		for (task = 0; task < task_list_len; task++)
+		for (int task = 0; task < task_list_len; task++)
 		{
 			ps = NULL;
 			if (mach_get_task_name (task_list[task],
@@ -1694,7 +1686,7 @@ static int ps_read (void)
 				continue; /* with next task_list */
 			}
 
-			for (thread = 0; thread < thread_list_len; thread++)
+			for (int thread = 0; thread < thread_list_len; thread++)
 			{
 				thread_data_len = THREAD_BASIC_INFO_COUNT;
 				status = thread_info (thread_list[thread],
@@ -1825,8 +1817,6 @@ static int ps_read (void)
 	procstat_entry_t pse;
 	char       state;
 
-	procstat_t *ps_ptr;
-
 	running = sleeping = zombies = stopped = paging = blocked = 0;
 	ps_list_reset ();
 
@@ -1907,7 +1897,7 @@ static int ps_read (void)
 	ps_submit_state ("paging",   paging);
 	ps_submit_state ("blocked",  blocked);
 
-	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
+	for (procstat_t *ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
 		ps_submit_proc_list (ps_ptr);
 
 	read_fork_rate();
@@ -1927,9 +1917,7 @@ static int ps_read (void)
 	struct kinfo_proc *procs;          /* array of processes */
 	struct kinfo_proc *proc_ptr = NULL;
 	int count;                         /* returns number of processes */
-	int i;
 
-	procstat_t *ps_ptr;
 	procstat_entry_t pse;
 
 	ps_list_reset ();
@@ -1954,7 +1942,7 @@ static int ps_read (void)
 	}
 
 	/* Iterate through the processes in kinfo_proc */
-	for (i = 0; i < count; i++)
+	for (int i = 0; i < count; i++)
 	{
 		/* Create only one process list entry per _process_, i.e.
 		 * filter out threads (duplicate PID entries). */
@@ -2057,7 +2045,7 @@ static int ps_read (void)
 	ps_submit_state ("idle",     idle);
 	ps_submit_state ("wait",     wait);
 
-	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
+	for (procstat_t *ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
 		ps_submit_proc_list (ps_ptr);
 /* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD */
 
@@ -2075,9 +2063,7 @@ static int ps_read (void)
 	struct kinfo_proc *procs;          /* array of processes */
 	struct kinfo_proc *proc_ptr = NULL;
 	int count;                         /* returns number of processes */
-	int i;
 
-	procstat_t *ps_ptr;
 	procstat_entry_t pse;
 
 	ps_list_reset ();
@@ -2102,7 +2088,7 @@ static int ps_read (void)
 	}
 
 	/* Iterate through the processes in kinfo_proc */
-	for (i = 0; i < count; i++)
+	for (int i = 0; i < count; i++)
 	{
 		/* Create only one process list entry per _process_, i.e.
 		 * filter out threads (duplicate PID entries). */
@@ -2194,7 +2180,7 @@ static int ps_read (void)
 	ps_submit_state ("idle",     idle);
 	ps_submit_state ("dead",     dead);
 
-	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
+	for (procstat_t *ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
 		ps_submit_proc_list (ps_ptr);
 /* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_OPENBSD */
 
@@ -2210,7 +2196,6 @@ static int ps_read (void)
 	pid_t pindex = 0;
 	int nprocs;
 
-	procstat_t *ps;
 	procstat_entry_t pse;
 
 	ps_list_reset ();
@@ -2218,9 +2203,7 @@ static int ps_read (void)
 					/* fdsinfo = */ NULL, sizeof(struct fdsinfo64),
 					&pindex, MAXPROCENTRY)) > 0)
 	{
-		int i;
-
-		for (i = 0; i < nprocs; i++)
+		for (int i = 0; i < nprocs; i++)
 		{
 			tid64_t thindex;
 			int nthreads;
@@ -2331,7 +2314,7 @@ static int ps_read (void)
 	ps_submit_state ("paging",   paging);
 	ps_submit_state ("blocked",  blocked);
 
-	for (ps = list_head_g; ps != NULL; ps = ps->next)
+	for (procstat_t *ps = list_head_g; ps != NULL; ps = ps->next)
 		ps_submit_proc_list (ps);
 /* #endif HAVE_PROCINFO_H */
 
@@ -2355,7 +2338,6 @@ static int ps_read (void)
 	DIR *proc;
 
 	int status;
-	procstat_t *ps_ptr;
 	char state;
 
 	char cmdline[PRARGSZ];
@@ -2445,7 +2427,7 @@ static int ps_read (void)
 	ps_submit_state ("system",   system);
 	ps_submit_state ("orphan",   orphan);
 
-	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
+	for (procstat_t *ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
 		ps_submit_proc_list (ps_ptr);
 
 	read_fork_rate();

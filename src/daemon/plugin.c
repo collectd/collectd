@@ -319,8 +319,8 @@ static void log_list_callbacks (llist_t **list, /* {{{ */
 {
 	char *str;
 	int len;
-	llentry_t *le;
 	int i;
+	llentry_t *le;
 	int n;
 	char **keys;
 
@@ -655,8 +655,6 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 
 static void start_read_threads (int num)
 {
-	int i;
-
 	if (read_threads != NULL)
 		return;
 
@@ -668,7 +666,7 @@ static void start_read_threads (int num)
 	}
 
 	read_threads_num = 0;
-	for (i = 0; i < num; i++)
+	for (int i = 0; i < num; i++)
 	{
 		if (pthread_create (read_threads + read_threads_num, NULL,
 					plugin_read_thread, NULL) == 0)
@@ -685,8 +683,6 @@ static void start_read_threads (int num)
 
 static void stop_read_threads (void)
 {
-	int i;
-
 	if (read_threads == NULL)
 		return;
 
@@ -698,7 +694,7 @@ static void stop_read_threads (void)
 	pthread_cond_broadcast (&read_cond);
 	pthread_mutex_unlock (&read_lock);
 
-	for (i = 0; i < read_threads_num; i++)
+	for (int i = 0; i < read_threads_num; i++)
 	{
 		if (pthread_join (read_threads[i], NULL) != 0)
 		{
@@ -870,8 +866,6 @@ static void *plugin_write_thread (void __attribute__((unused)) *args) /* {{{ */
 
 static void start_write_threads (size_t num) /* {{{ */
 {
-	size_t i;
-
 	if (write_threads != NULL)
 		return;
 
@@ -883,7 +877,7 @@ static void start_write_threads (size_t num) /* {{{ */
 	}
 
 	write_threads_num = 0;
-	for (i = 0; i < num; i++)
+	for (size_t i = 0; i < num; i++)
 	{
 		int status;
 
@@ -1460,7 +1454,6 @@ static void plugin_free_data_sets (void)
 int plugin_register_data_set (const data_set_t *ds)
 {
 	data_set_t *ds_copy;
-	size_t i;
 
 	if ((data_sets != NULL)
 			&& (c_avl_get (data_sets, ds->type, NULL) == 0))
@@ -1488,7 +1481,7 @@ int plugin_register_data_set (const data_set_t *ds)
 		return (-1);
 	}
 
-	for (i = 0; i < ds->ds_num; i++)
+	for (size_t i = 0; i < ds->ds_num; i++)
 		memcpy (ds_copy->ds + i, ds->ds + i, sizeof (data_source_t));
 
 	return (c_avl_insert (data_sets, (void *) ds_copy->type, (void *) ds_copy));
@@ -2686,14 +2679,12 @@ int plugin_notification_meta_add_boolean (notification_t *n,
 int plugin_notification_meta_copy (notification_t *dst,
     const notification_t *src)
 {
-  notification_meta_t *meta;
-
   assert (dst != NULL);
   assert (src != NULL);
   assert (dst != src);
   assert ((src->meta == NULL) || (src->meta != dst->meta));
 
-  for (meta = src->meta; meta != NULL; meta = meta->next)
+  for (notification_meta_t *meta = src->meta; meta != NULL; meta = meta->next)
   {
     if (meta->type == NM_TYPE_STRING)
       plugin_notification_meta_add_string (dst, meta->name,

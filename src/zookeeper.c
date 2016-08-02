@@ -106,7 +106,6 @@ static int zookeeper_connect (void)
 {
 	int sk = -1;
 	int status;
-	struct addrinfo *ai;
 	struct addrinfo *ai_list;
 	const char *host;
 	const char *port;
@@ -130,7 +129,7 @@ static int zookeeper_connect (void)
 		return (-1);
 	}
 
-	for (ai = ai_list; ai != NULL; ai = ai->ai_next)
+	for (struct addrinfo *ai = ai_list; ai != NULL; ai = ai->ai_next)
 	{
 		sk = socket (ai->ai_family, SOCK_STREAM, 0);
 		if (sk < 0)

@@ -120,7 +120,6 @@ static void int_server_destroy (lcc_server_t *srv) /* {{{ */
 static int server_open_socket (lcc_server_t *srv) /* {{{ */
 {
   struct addrinfo *ai_list;
-  struct addrinfo *ai_ptr;
   int status;
 
   if (srv == NULL)
@@ -140,7 +139,7 @@ static int server_open_socket (lcc_server_t *srv) /* {{{ */
     return (status);
   assert (ai_list != NULL);
 
-  for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+  for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
   {
     srv->fd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
     if (srv->fd < 0)
@@ -470,12 +469,10 @@ int lcc_server_set_security_level (lcc_server_t *srv, /* {{{ */
 int lcc_network_values_send (lcc_network_t *net, /* {{{ */
     const lcc_value_list_t *vl)
 {
-  lcc_server_t *srv;
-
   if ((net == NULL) || (vl == NULL))
     return (EINVAL);
 
-  for (srv = net->servers; srv != NULL; srv = srv->next)
+  for (lcc_server_t *srv = net->servers; srv != NULL; srv = srv->next)
     server_value_add (srv, vl);
 
   return (0);

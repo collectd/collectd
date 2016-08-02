@@ -214,9 +214,8 @@ static void mic_submit_temp(int micnumber, const char *type, gauge_t val)
 static int mic_read_temps(int mic)
 {
 	size_t num_therms = STATIC_ARRAY_SIZE(therm_ids);
-	size_t j;
 
-	for (j = 0; j < num_therms; j++) {
+	for (size_t j = 0; j < num_therms; j++) {
 		U32 status;
 		U32 temp_buffer;
 		U32 buffer_size = (U32)sizeof(temp_buffer);
@@ -287,8 +286,7 @@ static int mic_read_cpu(int mic)
 	}
 
 	if (show_cpu_cores) {
-		int j;
-		for (j = 0; j < core_util.core; j++) {
+		for (int j = 0; j < core_util.core; j++) {
 			mic_submit_cpu(mic, "user", j, core_jiffs[j].user);
 			mic_submit_cpu(mic, "sys", j, core_jiffs[j].sys);
 			mic_submit_cpu(mic, "nice", j, core_jiffs[j].nice);
@@ -357,12 +355,11 @@ static int mic_read_power(int mic)
 
 static int mic_read (void)
 {
-	int i;
 	U32 ret;
 	int error;
 
 	error=0;
-	for (i=0;i<num_mics;i++) {
+	for (int i=0;i<num_mics;i++) {
 		ret = MicInitAdapter(&mic_handle,&mics[i]);
 		if (ret != MIC_ACCESS_API_SUCCESS) {
 			ERROR("mic plugin: Problem initializing MicAdapter: %s",

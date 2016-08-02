@@ -381,10 +381,9 @@ static int apc_query_server (char const *node, char const *service,
 
 static int apcups_config (oconfig_item_t *ci)
 {
-	int i;
 	_Bool persistent_conn_set = 0;
 
-	for (i = 0; i < ci->children_num; i++)
+	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
 

@@ -157,7 +157,6 @@ static int wt_flush_nolock(cdtime_t timeout, struct wt_callback *cb)
 static int wt_callback_init(struct wt_callback *cb)
 {
     struct addrinfo *ai_list;
-    struct addrinfo *ai_ptr;
     int status;
 
     const char *node = cb->node ? cb->node : WT_DEFAULT_NODE;
@@ -181,7 +180,7 @@ static int wt_callback_init(struct wt_callback *cb)
     }
 
     assert (ai_list != NULL);
-    for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+    for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
     {
         cb->sock_fd = socket(ai_ptr->ai_family, ai_ptr->ai_socktype,
                              ai_ptr->ai_protocol);
@@ -503,7 +502,6 @@ static int wt_write_messages(const data_set_t *ds, const value_list_t *vl,
     char values[512];
 
     int status;
-    size_t i;
 
     if (0 != strcmp(ds->type, vl->type))
     {
@@ -512,7 +510,7 @@ static int wt_write_messages(const data_set_t *ds, const value_list_t *vl,
         return -1;
     }
 
-    for (i = 0; i < ds->ds_num; i++)
+    for (size_t i = 0; i < ds->ds_num; i++)
     {
         const char *ds_name = NULL;
 
@@ -573,7 +571,6 @@ static int wt_config_tsd(oconfig_item_t *ci)
     struct wt_callback *cb;
     user_data_t user_data = { 0 };
     char callback_name[DATA_MAX_NAME_LEN];
-    int i;
 
     cb = calloc(1, sizeof(*cb));
     if (cb == NULL)
@@ -589,7 +586,7 @@ static int wt_config_tsd(oconfig_item_t *ci)
 
     pthread_mutex_init (&cb->send_lock, NULL);
 
-    for (i = 0; i < ci->children_num; i++)
+    for (int i = 0; i < ci->children_num; i++)
     {
         oconfig_item_t *child = ci->children + i;
 
@@ -626,9 +623,7 @@ static int wt_config_tsd(oconfig_item_t *ci)
 
 static int wt_config(oconfig_item_t *ci)
 {
-    int i;
-
-    for (i = 0; i < ci->children_num; i++)
+    for (int i = 0; i < ci->children_num; i++)
     {
         oconfig_item_t *child = ci->children + i;
 

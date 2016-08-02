@@ -104,7 +104,6 @@ static int mysql_config_database (oconfig_item_t *ci) /* {{{ */
 {
 	mysql_database_t *db;
 	int status = 0;
-	int i;
 
 	if ((ci->values_num != 1)
 	    || (ci->values[0].type != OCONFIG_TYPE_STRING))
@@ -144,7 +143,7 @@ static int mysql_config_database (oconfig_item_t *ci) /* {{{ */
 	assert (db->instance != NULL);
 
 	/* Fill the `mysql_database_t' structure.. */
-	for (i = 0; i < ci->children_num; i++)
+	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
 
@@ -222,13 +221,11 @@ static int mysql_config_database (oconfig_item_t *ci) /* {{{ */
 
 static int mysql_config (oconfig_item_t *ci) /* {{{ */
 {
-	int i;
-
 	if (ci == NULL)
 		return (EINVAL);
 
 	/* Fill the `mysql_database_t' structure.. */
-	for (i = 0; i < ci->children_num; i++)
+	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
 

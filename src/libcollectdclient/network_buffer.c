@@ -274,7 +274,6 @@ static int nb_add_values (char **ret_buffer, /* {{{ */
   value_t       pkg_values[vl->values_len];
 
   size_t offset;
-  size_t i;
 
   packet_len = sizeof (pkg_type) + sizeof (pkg_length)
     + sizeof (pkg_num_values)
@@ -288,7 +287,7 @@ static int nb_add_values (char **ret_buffer, /* {{{ */
   pkg_length = htons ((uint16_t) packet_len);
   pkg_num_values = htons ((uint16_t) vl->values_len);
 
-  for (i = 0; i < vl->values_len; i++)
+  for (size_t i = 0; i < vl->values_len; i++)
   {
     pkg_values_types[i] = (uint8_t) vl->values_types[i];
     switch (vl->values_types[i])

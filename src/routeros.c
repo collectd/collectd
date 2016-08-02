@@ -327,7 +327,6 @@ static int cr_config_router (oconfig_item_t *ci) /* {{{ */
   char read_name[128];
   user_data_t user_data;
   int status;
-  int i;
 
   router_data = calloc (1, sizeof (*router_data));
   if (router_data == NULL)
@@ -339,7 +338,7 @@ static int cr_config_router (oconfig_item_t *ci) /* {{{ */
   router_data->password = NULL;
 
   status = 0;
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -424,9 +423,7 @@ static int cr_config_router (oconfig_item_t *ci) /* {{{ */
 
 static int cr_config (oconfig_item_t *ci)
 {
-  int i;
-
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 

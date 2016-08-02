@@ -629,7 +629,6 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
         user_data_t user_data = { 0 };
         char callback_name[DATA_MAX_NAME_LEN];
         int status = 0;
-        int i;
 
         cb = calloc (1, sizeof (*cb));
         if (cb == NULL)
@@ -655,7 +654,7 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
         if (strcasecmp ("URL", ci->key) == 0)
                 cf_util_get_string (ci, &cb->location);
 
-        for (i = 0; i < ci->children_num; i++)
+        for (int i = 0; i < ci->children_num; i++)
         {
                 oconfig_item_t *child = ci->children + i;
 
@@ -789,9 +788,7 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
 
 static int wh_config (oconfig_item_t *ci) /* {{{ */
 {
-        int i;
-
-        for (i = 0; i < ci->children_num; i++)
+        for (int i = 0; i < ci->children_num; i++)
         {
                 oconfig_item_t *child = ci->children + i;
 

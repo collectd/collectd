@@ -35,7 +35,6 @@
 static int json_escape_string (char *buffer, size_t buffer_size, /* {{{ */
     const char *string)
 {
-  size_t src_pos;
   size_t dst_pos;
 
   if ((buffer == NULL) || (string == NULL))
@@ -57,7 +56,7 @@ static int json_escape_string (char *buffer, size_t buffer_size, /* {{{ */
 
   /* Escape special characters */
   BUFFER_ADD ('"');
-  for (src_pos = 0; string[src_pos] != 0; src_pos++)
+  for (size_t src_pos = 0; string[src_pos] != 0; src_pos++)
   {
     if ((string[src_pos] == '"')
         || (string[src_pos] == '\\'))
@@ -82,7 +81,6 @@ static int values_to_json (char *buffer, size_t buffer_size, /* {{{ */
                 const data_set_t *ds, const value_list_t *vl, int store_rates)
 {
   size_t offset = 0;
-  size_t i;
   gauge_t *rates = NULL;
 
   memset (buffer, 0, buffer_size);
@@ -106,7 +104,7 @@ static int values_to_json (char *buffer, size_t buffer_size, /* {{{ */
 } while (0)
 
   BUFFER_ADD ("[");
-  for (i = 0; i < ds->ds_num; i++)
+  for (size_t i = 0; i < ds->ds_num; i++)
   {
     if (i > 0)
       BUFFER_ADD (",");
@@ -161,7 +159,6 @@ static int dstypes_to_json (char *buffer, size_t buffer_size, /* {{{ */
                 const data_set_t *ds)
 {
   size_t offset = 0;
-  size_t i;
 
   memset (buffer, 0, buffer_size);
 
@@ -178,7 +175,7 @@ static int dstypes_to_json (char *buffer, size_t buffer_size, /* {{{ */
 } while (0)
 
   BUFFER_ADD ("[");
-  for (i = 0; i < ds->ds_num; i++)
+  for (size_t i = 0; i < ds->ds_num; i++)
   {
     if (i > 0)
       BUFFER_ADD (",");
@@ -198,7 +195,6 @@ static int dsnames_to_json (char *buffer, size_t buffer_size, /* {{{ */
                 const data_set_t *ds)
 {
   size_t offset = 0;
-  size_t i;
 
   memset (buffer, 0, buffer_size);
 
@@ -215,7 +211,7 @@ static int dsnames_to_json (char *buffer, size_t buffer_size, /* {{{ */
 } while (0)
 
   BUFFER_ADD ("[");
-  for (i = 0; i < ds->ds_num; i++)
+  for (size_t i = 0; i < ds->ds_num; i++)
   {
     if (i > 0)
       BUFFER_ADD (",");
@@ -236,7 +232,6 @@ static int meta_data_keys_to_json (char *buffer, size_t buffer_size, /* {{{ */
 {
   size_t offset = 0;
   int status;
-  size_t i;
 
   buffer[0] = 0;
 
@@ -251,7 +246,7 @@ static int meta_data_keys_to_json (char *buffer, size_t buffer_size, /* {{{ */
     offset += ((size_t) status); \
 } while (0)
 
-  for (i = 0; i < keys_num; ++i)
+  for (size_t i = 0; i < keys_num; ++i)
   {
     int type;
     char *key = keys[i];
@@ -315,7 +310,6 @@ static int meta_data_to_json (char *buffer, size_t buffer_size, /* {{{ */
   char **keys = NULL;
   size_t keys_num;
   int status;
-  size_t i;
 
   if ((buffer == NULL) || (buffer_size == 0) || (meta == NULL))
     return (EINVAL);
@@ -327,7 +321,7 @@ static int meta_data_to_json (char *buffer, size_t buffer_size, /* {{{ */
 
   status = meta_data_keys_to_json (buffer, buffer_size, meta, keys, keys_num);
 
-  for (i = 0; i < keys_num; ++i)
+  for (size_t i = 0; i < keys_num; ++i)
     sfree (keys[i]);
   sfree (keys);
 

@@ -195,7 +195,6 @@ static int wg_flush_nolock (cdtime_t timeout, struct wg_callback *cb)
 static int wg_callback_init (struct wg_callback *cb)
 {
     struct addrinfo *ai_list;
-    struct addrinfo *ai_ptr;
     cdtime_t now;
     int status;
 
@@ -230,7 +229,7 @@ static int wg_callback_init (struct wg_callback *cb)
     }
 
     assert (ai_list != NULL);
-    for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+    for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
     {
         cb->sock_fd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype,
                 ai_ptr->ai_protocol);
@@ -476,7 +475,6 @@ static int wg_config_node (oconfig_item_t *ci)
     struct wg_callback *cb;
     user_data_t user_data = { 0 };
     char callback_name[DATA_MAX_NAME_LEN];
-    int i;
     int status = 0;
 
     cb = calloc (1, sizeof (*cb));
@@ -513,7 +511,7 @@ static int wg_config_node (oconfig_item_t *ci)
     pthread_mutex_init (&cb->send_lock, /* attr = */ NULL);
     C_COMPLAIN_INIT (&cb->init_complaint);
 
-    for (i = 0; i < ci->children_num; i++)
+    for (int i = 0; i < ci->children_num; i++)
     {
         oconfig_item_t *child = ci->children + i;
 
@@ -589,9 +587,7 @@ static int wg_config_node (oconfig_item_t *ci)
 
 static int wg_config (oconfig_item_t *ci)
 {
-    int i;
-
-    for (i = 0; i < ci->children_num; i++)
+    for (int i = 0; i < ci->children_num; i++)
     {
         oconfig_item_t *child = ci->children + i;
 

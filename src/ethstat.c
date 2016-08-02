@@ -150,9 +150,7 @@ static int ethstat_add_map (const oconfig_item_t *ci) /* {{{ */
 
 static int ethstat_config (oconfig_item_t *ci) /* {{{ */
 {
-  int i;
-
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -222,7 +220,6 @@ static int ethstat_read_interface (char *device)
   size_t n_stats;
   size_t strings_size;
   size_t stats_size;
-  size_t i;
   int status;
 
   fd = socket(AF_INET, SOCK_DGRAM, /* protocol = */ 0);
@@ -312,7 +309,7 @@ static int ethstat_read_interface (char *device)
     return (-1);
   }
 
-  for (i = 0; i < n_stats; i++)
+  for (size_t i = 0; i < n_stats; i++)
   {
     char *stat_name;
 
@@ -336,9 +333,7 @@ static int ethstat_read_interface (char *device)
 
 static int ethstat_read(void)
 {
-  size_t i;
-
-  for (i = 0; i < interfaces_num; i++)
+  for (size_t i = 0; i < interfaces_num; i++)
     ethstat_read_interface (interfaces[i]);
 
   return 0;

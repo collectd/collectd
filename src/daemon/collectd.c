@@ -98,7 +98,6 @@ static int init_hostname (void)
 	const char *str;
 
 	struct addrinfo *ai_list;
-	struct addrinfo *ai_ptr;
 	int status;
 
 	str = global_option_get ("Hostname");
@@ -134,7 +133,7 @@ static int init_hostname (void)
 		return (-1);
 	}
 
-	for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+	for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
 	{
 		if (ai_ptr->ai_canonname == NULL)
 			continue;

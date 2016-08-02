@@ -186,8 +186,6 @@ wrr_notification_to_message(struct riemann_host *host, /* {{{ */
   riemann_event_t *event;
   char service_buffer[6 * DATA_MAX_NAME_LEN];
   char const *severity;
-  notification_meta_t *meta;
-  size_t i;
 
   switch (n->severity) {
   case NOTIF_OKAY:
@@ -228,18 +226,18 @@ wrr_notification_to_message(struct riemann_host *host, /* {{{ */
     riemann_event_string_attribute_add(event, "type_instance",
                                        n->type_instance);
 
-  for (i = 0; i < riemann_attrs_num; i += 2)
+  for (size_t i = 0; i < riemann_attrs_num; i += 2)
     riemann_event_string_attribute_add(event, riemann_attrs[i],
                                        riemann_attrs[i + 1]);
 
-  for (i = 0; i < riemann_tags_num; i++)
+  for (size_t i = 0; i < riemann_tags_num; i++)
     riemann_event_tag_add(event, riemann_tags[i]);
 
   if (n->message[0] != 0)
     riemann_event_string_attribute_add(event, "description", n->message);
 
   /* Pull in values from threshold and add extra attributes */
-  for (meta = n->meta; meta != NULL; meta = meta->next) {
+  for (notification_meta_t *meta = n->meta; meta != NULL; meta = meta->next) {
     if (strcasecmp("CurrentValue", meta->name) == 0 &&
         meta->type == NM_TYPE_DOUBLE) {
       riemann_event_set(event, RIEMANN_EVENT_FIELD_METRIC_D,

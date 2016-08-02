@@ -1053,7 +1053,7 @@ chrony_read(void)
 {
   /* collectd read callback: Perform data acquisition */
   int rc;
-  unsigned int now_src, n_sources;
+  unsigned int n_sources;
 
   if (g_chrony_seq_is_initialized == 0)
   {
@@ -1075,7 +1075,7 @@ chrony_read(void)
   if (rc != CHRONY_RC_OK)
     return rc;
 
-  for (now_src = 0; now_src < n_sources; ++now_src)
+  for (unsigned int now_src = 0; now_src < n_sources; ++now_src)
   {
     int is_reachable;
     rc = chrony_request_source_data(now_src, &is_reachable);

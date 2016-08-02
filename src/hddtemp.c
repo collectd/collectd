@@ -89,7 +89,7 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 	const char *host;
 	const char *port;
 
-	struct addrinfo *ai_list, *ai_ptr;
+	struct addrinfo *ai_list;
 	int              ai_return;
 
 	host = hddtemp_host;
@@ -119,7 +119,7 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 	}
 
 	fd = -1;
-	for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+	for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
 	{
 		/* create our socket descriptor */
 		fd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype,
@@ -250,7 +250,6 @@ static int hddtemp_read (void)
 	char *saveptr;
 	int num_fields;
 	int num_disks;
-	int i;
 
 	/* get data from daemon */
 	if (hddtemp_query_daemon (buf, sizeof (buf)) < 0)
@@ -271,7 +270,7 @@ static int hddtemp_read (void)
 
 	num_disks = num_fields / 4;
 
-	for (i = 0; i < num_disks; i++)
+	for (int i = 0; i < num_disks; i++)
 	{
 		char *name;
 		double temperature;
