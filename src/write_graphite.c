@@ -193,7 +193,6 @@ static int wg_flush_nolock (cdtime_t timeout, struct wg_callback *cb)
 
 static int wg_callback_init (struct wg_callback *cb)
 {
-    struct addrinfo ai_hints = { 0 };
     struct addrinfo *ai_list;
     struct addrinfo *ai_ptr;
     cdtime_t now;
@@ -211,8 +210,10 @@ static int wg_callback_init (struct wg_callback *cb)
         return (EAGAIN);
     cb->last_connect_time = now;
 
-    ai_hints.ai_flags  = AI_ADDRCONFIG;
-    ai_hints.ai_family = AF_UNSPEC;
+    struct addrinfo ai_hints = {
+        .ai_family = AF_UNSPEC,
+        .ai_flags  = AI_ADDRCONFIG
+    };
 
     if (0 == strcasecmp ("tcp", cb->protocol))
         ai_hints.ai_socktype = SOCK_STREAM;

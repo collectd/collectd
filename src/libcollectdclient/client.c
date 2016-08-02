@@ -420,7 +420,6 @@ static int lcc_open_unixsocket (lcc_connection_t *c, const char *path) /* {{{ */
 static int lcc_open_netsocket (lcc_connection_t *c, /* {{{ */
     const char *addr_orig)
 {
-  struct addrinfo ai_hints = { 0 };
   struct addrinfo *ai_res;
   struct addrinfo *ai_ptr;
   char addr_copy[NI_MAXHOST];
@@ -436,10 +435,6 @@ static int lcc_open_netsocket (lcc_connection_t *c, /* {{{ */
   strncpy(addr_copy, addr_orig, sizeof(addr_copy));
   addr_copy[sizeof(addr_copy) - 1] = '\0';
   addr = addr_copy;
-
-  ai_hints.ai_flags  = AI_ADDRCONFIG;
-  ai_hints.ai_family = AF_UNSPEC;
-  ai_hints.ai_socktype = SOCK_STREAM;
 
   port = NULL;
   if (*addr == '[') /* IPv6+port format */
@@ -477,6 +472,13 @@ static int lcc_open_netsocket (lcc_connection_t *c, /* {{{ */
   }
 
   ai_res = NULL;
+
+  struct addrinfo ai_hints = {
+    .ai_family = AF_UNSPEC,
+    .ai_flags = AI_ADDRCONFIG,
+    .ai_socktype = SOCK_STREAM
+  };
+
   status = getaddrinfo (addr,
                         port == NULL ? LCC_DEFAULT_PORT : port,
                         &ai_hints, &ai_res);

@@ -105,17 +105,19 @@ static int zookeeper_connect (void)
 {
 	int sk = -1;
 	int status;
-	struct addrinfo ai_hints = { 0 };
 	struct addrinfo *ai;
 	struct addrinfo *ai_list;
 	const char *host;
 	const char *port;
 
-	ai_hints.ai_family   = AF_UNSPEC;
-	ai_hints.ai_socktype = SOCK_STREAM;
-
 	host = (zk_host != NULL) ? zk_host : ZOOKEEPER_DEF_HOST;
 	port = (zk_port != NULL) ? zk_port : ZOOKEEPER_DEF_PORT;
+
+	struct addrinfo ai_hints = {
+		.ai_family   = AF_UNSPEC,
+		.ai_socktype = SOCK_STREAM
+	};
+
 	status = getaddrinfo (host, port, &ai_hints, &ai_list);
 	if (status != 0)
 	{

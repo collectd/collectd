@@ -97,7 +97,6 @@ static int init_hostname (void)
 {
 	const char *str;
 
-	struct addrinfo  ai_hints = { 0 };
 	struct addrinfo *ai_list;
 	struct addrinfo *ai_ptr;
 	int status;
@@ -120,7 +119,9 @@ static int init_hostname (void)
 	if (IS_FALSE (str))
 		return (0);
 
-	ai_hints.ai_flags = AI_CANONNAME;
+	struct addrinfo ai_hints = {
+		.ai_flags = AI_CANONNAME
+	};
 
 	status = getaddrinfo (hostname_g, NULL, &ai_hints, &ai_list);
 	if (status != 0)

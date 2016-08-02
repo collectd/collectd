@@ -352,15 +352,7 @@ static pinba_socket_t *pinba_socket_open (const char *node, /* {{{ */
   pinba_socket_t *s;
   struct addrinfo *ai_list;
   struct addrinfo *ai_ptr;
-  struct addrinfo  ai_hints = { 0 };
   int status;
-
-  ai_hints.ai_flags = AI_PASSIVE;
-  ai_hints.ai_family = AF_UNSPEC;
-  ai_hints.ai_socktype = SOCK_DGRAM;
-  ai_hints.ai_addr = NULL;
-  ai_hints.ai_canonname = NULL;
-  ai_hints.ai_next = NULL;
 
   if (node == NULL)
     node = PINBA_DEFAULT_NODE;
@@ -369,6 +361,13 @@ static pinba_socket_t *pinba_socket_open (const char *node, /* {{{ */
     service = PINBA_DEFAULT_SERVICE;
 
   ai_list = NULL;
+
+  struct addrinfo  ai_hints = {
+    .ai_family = AF_UNSPEC,
+    .ai_flags = AI_PASSIVE,
+    .ai_socktype = SOCK_DGRAM
+  };
+
   status = getaddrinfo (node, service,
       &ai_hints, &ai_list);
   if (status != 0)

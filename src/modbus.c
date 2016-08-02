@@ -818,20 +818,19 @@ static int mb_config_set_host_address (mb_host_t *host, /* {{{ */
 {
   struct addrinfo *ai_list;
   struct addrinfo *ai_ptr;
-  struct addrinfo  ai_hints = { 0 };
   int status;
 
   if ((host == NULL) || (address == NULL))
     return (EINVAL);
 
-  ai_hints.ai_flags = AI_ADDRCONFIG;
-  /* XXX: libmodbus can only handle IPv4 addresses. */
-  ai_hints.ai_family = AF_INET;
-  ai_hints.ai_addr = NULL;
-  ai_hints.ai_canonname = NULL;
-  ai_hints.ai_next = NULL;
-
   ai_list = NULL;
+
+  struct addrinfo  ai_hints = {
+    /* XXX: libmodbus can only handle IPv4 addresses. */
+    .ai_family = AF_INET,
+    .ai_flags = AI_ADDRCONFIG
+  };
+
   status = getaddrinfo (address, /* service = */ NULL,
       &ai_hints, &ai_list);
   if (status != 0)

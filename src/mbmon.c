@@ -84,14 +84,8 @@ static int mbmon_query_daemon (char *buffer, int buffer_size)
 	const char *host;
 	const char *port;
 
-	struct addrinfo  ai_hints = { 0 };
 	struct addrinfo *ai_list, *ai_ptr;
 	int              ai_return;
-
-	ai_hints.ai_flags    = AI_ADDRCONFIG;
-	ai_hints.ai_family   = PF_UNSPEC;
-	ai_hints.ai_socktype = SOCK_STREAM;
-	ai_hints.ai_protocol = IPPROTO_TCP;
 
 	host = mbmon_host;
 	if (host == NULL)
@@ -100,6 +94,13 @@ static int mbmon_query_daemon (char *buffer, int buffer_size)
 	port = mbmon_port;
 	if (port == NULL)
 		port = MBMON_DEF_PORT;
+
+	struct addrinfo ai_hints = {
+		.ai_family = PF_UNSPEC,
+		.ai_flags = AI_ADDRCONFIG,
+		.ai_protocol = IPPROTO_TCP,
+		.ai_socktype = SOCK_STREAM
+	};
 
 	if ((ai_return = getaddrinfo (host, port, &ai_hints, &ai_list)) != 0)
 	{

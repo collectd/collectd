@@ -104,23 +104,25 @@ static void free_str_list(struct str_list *strs) /* {{{ */
 static int sensu_connect(struct sensu_host *host) /* {{{ */
 {
 	int			 e;
-	struct addrinfo		*ai, hints;
+	struct addrinfo		*ai;
 	char const		*node;
 	char const		*service;
 
 	// Resolve the target if we haven't done already
 	if (!(host->flags & F_READY)) {
-		memset(&hints, 0, sizeof(hints));
 		memset(&service, 0, sizeof(service));
 		host->res = NULL;
-		hints.ai_family = AF_INET;
-		hints.ai_socktype = SOCK_STREAM;
-		hints.ai_flags = AI_ADDRCONFIG;
 
 		node = (host->node != NULL) ? host->node : SENSU_HOST;
 		service = (host->service != NULL) ? host->service : SENSU_PORT;
 
-		if ((e = getaddrinfo(node, service, &hints, &(host->res))) != 0) {
+		struct addrinfo ai_hints = {
+			.ai_family = AF_INET,
+			.ai_flags = AI_ADDRCONFIG,
+			.ai_socktype = SOCK_STREAM
+		};
+
+		if ((e = getaddrinfo(node, service, &ai_hints, &(host->res))) != 0) {
 			ERROR("write_sensu plugin: Unable to resolve host \"%s\": %s",
 					node, gai_strerror(e));
 			return -1;
