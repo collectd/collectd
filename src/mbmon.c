@@ -88,9 +88,7 @@ static int mbmon_query_daemon (char *buffer, int buffer_size)
 	struct addrinfo *ai_list, *ai_ptr;
 	int              ai_return;
 
-#ifdef AI_ADDRCONFIG
-	ai_hints.ai_flags   |= AI_ADDRCONFIG;
-#endif
+	ai_hints.ai_flags    = AI_ADDRCONFIG;
 	ai_hints.ai_family   = PF_UNSPEC;
 	ai_hints.ai_socktype = SOCK_STREAM;
 	ai_hints.ai_protocol = IPPROTO_TCP;

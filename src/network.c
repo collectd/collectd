@@ -2160,9 +2160,7 @@ static int sockent_client_connect (sockent_t *se) /* {{{ */
 	if (client->fd >= 0 && !reconnect) /* already connected and not stale*/
 		return (0);
 
-#ifdef AI_ADDRCONFIG
-	ai_hints.ai_flags |= AI_ADDRCONFIG;
-#endif
+	ai_hints.ai_flags    = AI_ADDRCONFIG;
 	ai_hints.ai_family   = AF_UNSPEC;
 	ai_hints.ai_socktype = SOCK_DGRAM;
 	ai_hints.ai_protocol = IPPROTO_UDP;
@@ -2258,11 +2256,9 @@ static int sockent_server_listen (sockent_t *se) /* {{{ */
         DEBUG ("network plugin: sockent_server_listen: node = %s; service = %s;",
             node, service);
 
+	ai_hints.ai_flags    = AI_ADDRCONFIG;
 #ifdef AI_PASSIVE
-	ai_hints.ai_flags |= AI_PASSIVE;
-#endif
-#ifdef AI_ADDRCONFIG
-	ai_hints.ai_flags |= AI_ADDRCONFIG;
+	ai_hints.ai_flags   |= AI_PASSIVE;
 #endif
 	ai_hints.ai_family   = AF_UNSPEC;
 	ai_hints.ai_socktype = SOCK_DGRAM;

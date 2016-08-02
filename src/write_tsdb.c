@@ -166,9 +166,7 @@ static int wt_callback_init(struct wt_callback *cb)
     if (cb->sock_fd > 0)
         return 0;
 
-#ifdef AI_ADDRCONFIG
-    ai_hints.ai_flags    |= AI_ADDRCONFIG;
-#endif
+    ai_hints.ai_flags    = AI_ADDRCONFIG;
     ai_hints.ai_family   = AF_UNSPEC;
     ai_hints.ai_socktype = SOCK_STREAM;
 

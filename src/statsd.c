@@ -509,10 +509,7 @@ static int statsd_network_init (struct pollfd **ret_fds, /* {{{ */
   char const *service = (conf_service != NULL)
     ? conf_service : STATSD_DEFAULT_SERVICE;
 
-  ai_hints.ai_flags = AI_PASSIVE;
-#ifdef AI_ADDRCONFIG
-  ai_hints.ai_flags |= AI_ADDRCONFIG;
-#endif
+  ai_hints.ai_flags = AI_PASSIVE | AI_ADDRCONFIG;
   ai_hints.ai_family = AF_UNSPEC;
   ai_hints.ai_socktype = SOCK_DGRAM;
 

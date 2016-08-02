@@ -364,9 +364,7 @@ static int ntpd_connect (void)
 	if (strlen (port) == 0)
 		port = NTPD_DEFAULT_PORT;
 
-#ifdef AI_ADDRCONFIG
-	ai_hints.ai_flags   |= AI_ADDRCONFIG;
-#endif
+	ai_hints.ai_flags    = AI_ADDRCONFIG;
 	ai_hints.ai_family   = PF_UNSPEC;
 	ai_hints.ai_socktype = SOCK_DGRAM;
 	ai_hints.ai_protocol = IPPROTO_UDP;

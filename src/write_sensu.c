@@ -115,9 +115,7 @@ static int sensu_connect(struct sensu_host *host) /* {{{ */
 		host->res = NULL;
 		hints.ai_family = AF_INET;
 		hints.ai_socktype = SOCK_STREAM;
-#ifdef AI_ADDRCONFIG
-		hints.ai_flags |= AI_ADDRCONFIG;
-#endif
+		hints.ai_flags = AI_ADDRCONFIG;
 
 		node = (host->node != NULL) ? host->node : SENSU_HOST;
 		service = (host->service != NULL) ? host->service : SENSU_PORT;

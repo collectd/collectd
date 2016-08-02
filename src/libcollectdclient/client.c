@@ -437,9 +437,7 @@ static int lcc_open_netsocket (lcc_connection_t *c, /* {{{ */
   addr_copy[sizeof(addr_copy) - 1] = '\0';
   addr = addr_copy;
 
-#ifdef AI_ADDRCONFIG
-  ai_hints.ai_flags |= AI_ADDRCONFIG;
-#endif
+  ai_hints.ai_flags  = AI_ADDRCONFIG;
   ai_hints.ai_family = AF_UNSPEC;
   ai_hints.ai_socktype = SOCK_STREAM;
 

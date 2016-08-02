@@ -106,9 +106,7 @@ static int memcached_connect_inet (memcached_t *st)
   int status;
   int fd = -1;
 
-#ifdef AI_ADDRCONFIG
-  ai_hints.ai_flags   |= AI_ADDRCONFIG;
-#endif
+  ai_hints.ai_flags    = AI_ADDRCONFIG;
   ai_hints.ai_family   = AF_UNSPEC;
   ai_hints.ai_socktype = SOCK_STREAM;
   ai_hints.ai_protocol = 0;

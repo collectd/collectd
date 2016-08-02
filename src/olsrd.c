@@ -155,9 +155,7 @@ static FILE *olsrd_connect (void) /* {{{ */
 
   FILE *fh;
 
-#ifdef AI_ADDRCONFIG
-  ai_hints.ai_flags   |= AI_ADDRCONFIG;
-#endif
+  ai_hints.ai_flags    = AI_ADDRCONFIG;
   ai_hints.ai_family   = PF_UNSPEC;
   ai_hints.ai_socktype = SOCK_STREAM;
   ai_hints.ai_protocol = IPPROTO_TCP;

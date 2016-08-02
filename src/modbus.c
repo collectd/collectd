@@ -824,9 +824,7 @@ static int mb_config_set_host_address (mb_host_t *host, /* {{{ */
   if ((host == NULL) || (address == NULL))
     return (EINVAL);
 
-#if AI_ADDRCONFIG
-  ai_hints.ai_flags |= AI_ADDRCONFIG;
-#endif
+  ai_hints.ai_flags = AI_ADDRCONFIG;
   /* XXX: libmodbus can only handle IPv4 addresses. */
   ai_hints.ai_family = AF_INET;
   ai_hints.ai_addr = NULL;

@@ -130,9 +130,7 @@ static int server_open_socket (lcc_server_t *srv) /* {{{ */
   if (srv->fd >= 0)
     server_close_socket (srv);
 
-#ifdef AI_ADDRCONFIG
-  ai_hints.ai_flags |= AI_ADDRCONFIG;
-#endif
+  ai_hints.ai_flags = AI_ADDRCONFIG;
   ai_hints.ai_family   = AF_UNSPEC;
   ai_hints.ai_socktype = SOCK_DGRAM;
 

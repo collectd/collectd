@@ -211,9 +211,7 @@ static int wg_callback_init (struct wg_callback *cb)
         return (EAGAIN);
     cb->last_connect_time = now;
 
-#ifdef AI_ADDRCONFIG
-    ai_hints.ai_flags |= AI_ADDRCONFIG;
-#endif
+    ai_hints.ai_flags  = AI_ADDRCONFIG;
     ai_hints.ai_family = AF_UNSPEC;
 
     if (0 == strcasecmp ("tcp", cb->protocol))

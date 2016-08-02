@@ -216,9 +216,7 @@ static int tss2_get_socket (FILE **ret_read_fh, FILE **ret_write_fh)
 	}
 
 	/* Get all addrs for this hostname */
-#ifdef AI_ADDRCONFIG
-	ai_hints.ai_flags |= AI_ADDRCONFIG;
-#endif
+	ai_hints.ai_flags = AI_ADDRCONFIG;
 	ai_hints.ai_family = AF_UNSPEC;
 	ai_hints.ai_socktype = SOCK_STREAM;
 
