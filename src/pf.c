@@ -79,7 +79,7 @@ static void pf_submit (char const *type, char const *type_instance,
 
 static int pf_read (void)
 {
-	struct pf_status state = { 0 };
+	struct pf_status state;
 	int fd;
 	int status;
 	int i;
