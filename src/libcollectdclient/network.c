@@ -421,7 +421,7 @@ int lcc_server_set_interface (lcc_server_t *srv, char const *interface) /* {{{ *
       struct ip_mreq mreq = {
         .imr_multiaddr.s_addr = addr->sin_addr.s_addr,
         .imr_interface.s_addr = ntohl (INADDR_ANY)
-      }
+      };
 #endif
 
       status = setsockopt (srv->fd, IPPROTO_IP, IP_MULTICAST_IF,
