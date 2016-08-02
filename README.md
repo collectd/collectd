@@ -8,6 +8,8 @@ For Sailfish port related issues, file them under this branch (branch sailfish).
 
 * The following plugins were developed for Sailfish and other mobile devices
   * CPU sleep: showhs how much the device is in sleep
+  * Used CPU frequencies and idle states
+  * Device suspend attempts (successful and failed)
   * statefs_battery: battery charge, current, energy, power consumption, temperature, time to low/full, voltage
   * There are several new plugins that cover aspects of cellular, WiFi, and Bluetooth radios performance: whether active, signal strength for cellular and used internet radio. For cellular, signal strength is recorded for each used wireless mobile telecommunications technology separately.
   * radio: follows WiFi, Bluetooth, and, if supported by kernel, other radio switches (hardware and software) to determine if the radio is active. 
@@ -21,7 +23,7 @@ For Sailfish port related issues, file them under this branch (branch sailfish).
 When upgrading from previous version, please note:
 
 * collectd will be stopped and disabled on boot. You would have to start and reenable it (contributions welcome to make upgrade a bit smarter).
-* if you made any changes in /etc/collectd.conf the configuration file will not be overwritten. The default the configuration file will be then with the ending .rpmsave. Compare two configuration files and enable new plugins, if you wish.
+* if you made any changes in /etc/collectd.conf the configuration file will not be overwritten. The default configuration file will be then with the ending .rpmnew. Compare two configuration files and enable new plugins, if you wish.
 * if you wish to delete some recorded data types: stop collectd; go to /home/nemo/.local/share/collectd/Jolla and delete the sets; start collectd.
 
 
