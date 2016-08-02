@@ -2669,11 +2669,6 @@ connections.
 
 =back
 
-=item B<WorkerThreads> I<Num>
-
-Number of threads to start for handling incoming connections. The default
-value is B<5>.
-
 =back
 
 =head2 Plugin C<hddtemp>
