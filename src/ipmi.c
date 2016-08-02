@@ -547,7 +547,6 @@ static void domain_connection_change_handler (ipmi_domain_t *domain,
 static int thread_init (os_handler_t **ret_os_handler)
 {
   os_handler_t *os_handler;
-  ipmi_open_option_t open_option[1];
   ipmi_con_t *smi_connection = NULL;
   ipmi_domain_id_t domain_id;
   int status;
