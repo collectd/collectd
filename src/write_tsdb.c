@@ -155,7 +155,6 @@ static int wt_flush_nolock(cdtime_t timeout, struct wt_callback *cb)
 
 static int wt_callback_init(struct wt_callback *cb)
 {
-    struct addrinfo ai_hints = { 0 };
     struct addrinfo *ai_list;
     struct addrinfo *ai_ptr;
     int status;
@@ -166,13 +165,11 @@ static int wt_callback_init(struct wt_callback *cb)
     if (cb->sock_fd > 0)
         return 0;
 
-#ifdef AI_ADDRCONFIG
-    ai_hints.ai_flags    |= AI_ADDRCONFIG;
-#endif
-    ai_hints.ai_family   = AF_UNSPEC;
-    ai_hints.ai_socktype = SOCK_STREAM;
-
-    ai_list = NULL;
+    struct addrinfo ai_hints = {
+        .ai_family = AF_UNSPEC,
+        .ai_flags = AI_ADDRCONFIG,
+        .ai_socktype = SOCK_STREAM
+    };
 
     status = getaddrinfo(node, service, &ai_hints, &ai_list);
     if (status != 0)

@@ -149,20 +149,18 @@ static size_t strtabsplit (char *string, char **fields, size_t size) /* {{{ */
 
 static FILE *olsrd_connect (void) /* {{{ */
 {
-  struct addrinfo  ai_hints = { 0 };
   struct addrinfo *ai_list, *ai_ptr;
   int              ai_return;
 
   FILE *fh;
 
-#ifdef AI_ADDRCONFIG
-  ai_hints.ai_flags   |= AI_ADDRCONFIG;
-#endif
-  ai_hints.ai_family   = PF_UNSPEC;
-  ai_hints.ai_socktype = SOCK_STREAM;
-  ai_hints.ai_protocol = IPPROTO_TCP;
+  struct addrinfo ai_hints = {
+    .ai_family   = AF_UNSPEC,
+    .ai_flags    = AI_ADDRCONFIG,
+    .ai_protocol = IPPROTO_TCP,
+    .ai_socktype = SOCK_STREAM
+  };
 
-  ai_list = NULL;
   ai_return = getaddrinfo (olsrd_get_node (), olsrd_get_service (),
       &ai_hints, &ai_list);
   if (ai_return != 0)

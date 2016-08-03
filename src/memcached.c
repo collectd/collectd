@@ -101,22 +101,19 @@ static int memcached_connect_inet (memcached_t *st)
   const char *host;
   const char *port;
 
-  struct addrinfo  ai_hints = { 0 };
   struct addrinfo *ai_list, *ai_ptr;
   int status;
   int fd = -1;
 
-#ifdef AI_ADDRCONFIG
-  ai_hints.ai_flags   |= AI_ADDRCONFIG;
-#endif
-  ai_hints.ai_family   = AF_UNSPEC;
-  ai_hints.ai_socktype = SOCK_STREAM;
-  ai_hints.ai_protocol = 0;
-
   host = (st->host != NULL) ? st->host : MEMCACHED_DEF_HOST;
   port = (st->port != NULL) ? st->port : MEMCACHED_DEF_PORT;
 
-  ai_list = NULL;
+  struct addrinfo ai_hints = {
+    .ai_family = AF_UNSPEC,
+    .ai_flags = AI_ADDRCONFIG,
+    .ai_socktype = SOCK_STREAM
+  };
+
   status = getaddrinfo (host, port, &ai_hints, &ai_list);
   if (status != 0)
   {

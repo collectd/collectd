@@ -306,14 +306,15 @@ static int
 connect_client(const char *p_hostname,
                const char *p_service, int p_family, int p_socktype)
 {
-  struct addrinfo hints = { 0 };
-  struct addrinfo *res = NULL, *ressave = NULL;
+  struct addrinfo *res, *ressave;
   int n, sockfd;
 
-  hints.ai_family = p_family;
-  hints.ai_socktype = p_socktype;
+  struct addrinfo ai_hints = {
+    .ai_family = p_family,
+    .ai_socktype = p_socktype
+  };
 
-  n = getaddrinfo(p_hostname, p_service, &hints, &res);
+  n = getaddrinfo(p_hostname, p_service, &ai_hints, &res);
 
   if (n < 0)
   {

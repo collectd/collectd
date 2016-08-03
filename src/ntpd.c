@@ -346,7 +346,6 @@ static int ntpd_connect (void)
 	const char *host;
 	const char *port;
 
-	struct addrinfo  ai_hints = { 0 };
 	struct addrinfo *ai_list;
 	struct addrinfo *ai_ptr;
 	int              status;
@@ -364,12 +363,12 @@ static int ntpd_connect (void)
 	if (strlen (port) == 0)
 		port = NTPD_DEFAULT_PORT;
 
-#ifdef AI_ADDRCONFIG
-	ai_hints.ai_flags   |= AI_ADDRCONFIG;
-#endif
-	ai_hints.ai_family   = PF_UNSPEC;
-	ai_hints.ai_socktype = SOCK_DGRAM;
-	ai_hints.ai_protocol = IPPROTO_UDP;
+	struct addrinfo ai_hints = {
+		.ai_family   = AF_UNSPEC,
+		.ai_flags    = AI_ADDRCONFIG,
+		.ai_protocol = IPPROTO_UDP,
+		.ai_socktype = SOCK_DGRAM
+	};
 
 	if ((status = getaddrinfo (host, port, &ai_hints, &ai_list)) != 0)
 	{

@@ -211,7 +211,6 @@ static int create_sockets (socket_entry_t **ret_sockets, /* {{{ */
     size_t *ret_sockets_num,
     const char *node, const char *service, int listen)
 {
-  struct addrinfo  ai_hints = { 0 };
   struct addrinfo *ai_list;
   struct addrinfo *ai_ptr;
   int              ai_return;
@@ -224,15 +223,12 @@ static int create_sockets (socket_entry_t **ret_sockets, /* {{{ */
   if (*ret_sockets != NULL)
     return (EINVAL);
 
-#ifdef AI_PASSIVE
-  ai_hints.ai_flags |= AI_PASSIVE;
-#endif
-#ifdef AI_ADDRCONFIG
-  ai_hints.ai_flags |= AI_ADDRCONFIG;
-#endif
-  ai_hints.ai_family   = AF_UNSPEC;
-  ai_hints.ai_socktype = SOCK_DGRAM;
-  ai_hints.ai_protocol = IPPROTO_UDP;
+  struct addrinfo ai_hints = {
+    .ai_family = AF_UNSPEC,
+    .ai_flags = AI_ADDRCONFIG | AI_PASSIVE,
+    .ai_protocol = IPPROTO_UDP,
+    .ai_socktype = SOCK_DGRAM
+  };
 
   ai_return = getaddrinfo (node, service, &ai_hints, &ai_list);
   if (ai_return != 0)

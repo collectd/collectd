@@ -2139,8 +2139,7 @@ static int sockent_client_connect (sockent_t *se) /* {{{ */
 	static c_complain_t complaint = C_COMPLAIN_INIT_STATIC;
 
 	struct sockent_client *client;
-	struct addrinfo  ai_hints = { 0 };
-	struct addrinfo *ai_list = NULL, *ai_ptr;
+	struct addrinfo *ai_list, *ai_ptr;
 	int status;
 	_Bool reconnect = 0;
 	cdtime_t now;
@@ -2160,12 +2159,12 @@ static int sockent_client_connect (sockent_t *se) /* {{{ */
 	if (client->fd >= 0 && !reconnect) /* already connected and not stale*/
 		return (0);
 
-#ifdef AI_ADDRCONFIG
-	ai_hints.ai_flags |= AI_ADDRCONFIG;
-#endif
-	ai_hints.ai_family   = AF_UNSPEC;
-	ai_hints.ai_socktype = SOCK_DGRAM;
-	ai_hints.ai_protocol = IPPROTO_UDP;
+	struct addrinfo ai_hints = {
+		.ai_family   = AF_UNSPEC,
+		.ai_flags    = AI_ADDRCONFIG,
+		.ai_protocol = IPPROTO_UDP,
+		.ai_socktype = SOCK_DGRAM
+	};
 
 	status = getaddrinfo (se->node,
 			(se->service != NULL) ? se->service : NET_DEFAULT_PORT,
@@ -2236,7 +2235,6 @@ static int sockent_client_connect (sockent_t *se) /* {{{ */
 /* Open the file descriptors for a initialized sockent structure. */
 static int sockent_server_listen (sockent_t *se) /* {{{ */
 {
-	struct addrinfo  ai_hints = { 0 };
 	struct addrinfo *ai_list, *ai_ptr;
 	int              status;
 
@@ -2258,15 +2256,12 @@ static int sockent_server_listen (sockent_t *se) /* {{{ */
         DEBUG ("network plugin: sockent_server_listen: node = %s; service = %s;",
             node, service);
 
-#ifdef AI_PASSIVE
-	ai_hints.ai_flags |= AI_PASSIVE;
-#endif
-#ifdef AI_ADDRCONFIG
-	ai_hints.ai_flags |= AI_ADDRCONFIG;
-#endif
-	ai_hints.ai_family   = AF_UNSPEC;
-	ai_hints.ai_socktype = SOCK_DGRAM;
-	ai_hints.ai_protocol = IPPROTO_UDP;
+	struct addrinfo ai_hints = {
+		.ai_family   = AF_UNSPEC,
+		.ai_flags    = AI_ADDRCONFIG | AI_PASSIVE,
+		.ai_protocol = IPPROTO_UDP,
+		.ai_socktype = SOCK_DGRAM
+	};
 
 	status = getaddrinfo (node, service, &ai_hints, &ai_list);
 	if (status != 0)

@@ -1518,15 +1518,15 @@ int service_name_to_port_number (const char *service_name)
 {
 	struct addrinfo *ai_list;
 	struct addrinfo *ai_ptr;
-	struct addrinfo ai_hints = { 0 };
 	int status;
 	int service_number;
 
 	if (service_name == NULL)
 		return (-1);
 
-	ai_list = NULL;
-	ai_hints.ai_family = AF_UNSPEC;
+	struct addrinfo ai_hints = {
+		.ai_family = AF_UNSPEC
+	};
 
 	status = getaddrinfo (/* node = */ NULL, service_name,
 			&ai_hints, &ai_list);

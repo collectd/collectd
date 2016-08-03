@@ -198,7 +198,6 @@ static int tss2_get_socket (FILE **ret_read_fh, FILE **ret_write_fh)
 	 * Returns connected file objects or establishes the connection
 	 * if it's not already present
 	 */
-	struct addrinfo ai_hints = { 0 };
 	struct addrinfo *ai_head;
 	struct addrinfo *ai_ptr;
 	int sd = -1;
@@ -216,11 +215,11 @@ static int tss2_get_socket (FILE **ret_read_fh, FILE **ret_write_fh)
 	}
 
 	/* Get all addrs for this hostname */
-#ifdef AI_ADDRCONFIG
-	ai_hints.ai_flags |= AI_ADDRCONFIG;
-#endif
-	ai_hints.ai_family = AF_UNSPEC;
-	ai_hints.ai_socktype = SOCK_STREAM;
+	struct addrinfo ai_hints = {
+		.ai_family = AF_UNSPEC,
+		.ai_flags = AI_ADDRCONFIG,
+		.ai_socktype = SOCK_STREAM
+	};
 
 	status = getaddrinfo ((config_host != NULL) ? config_host : DEFAULT_HOST,
 			(config_port != NULL) ? config_port : DEFAULT_PORT,

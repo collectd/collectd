@@ -119,8 +119,7 @@ static void int_server_destroy (lcc_server_t *srv) /* {{{ */
 
 static int server_open_socket (lcc_server_t *srv) /* {{{ */
 {
-  struct addrinfo ai_hints = { 0 };
-  struct addrinfo *ai_list = NULL;
+  struct addrinfo *ai_list;
   struct addrinfo *ai_ptr;
   int status;
 
@@ -130,11 +129,11 @@ static int server_open_socket (lcc_server_t *srv) /* {{{ */
   if (srv->fd >= 0)
     server_close_socket (srv);
 
-#ifdef AI_ADDRCONFIG
-  ai_hints.ai_flags |= AI_ADDRCONFIG;
-#endif
-  ai_hints.ai_family   = AF_UNSPEC;
-  ai_hints.ai_socktype = SOCK_DGRAM;
+  struct addrinfo ai_hints = {
+    .ai_family = AF_UNSPEC,
+    .ai_flags = AI_ADDRCONFIG,
+    .ai_socktype = SOCK_DGRAM
+  };
 
   status = getaddrinfo (srv->node, srv->service, &ai_hints, &ai_list);
   if (status != 0)
