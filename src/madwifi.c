@@ -752,7 +752,7 @@ process_station (int sk, const char *dev, struct ieee80211req_sta_info *si)
 static int
 process_stations (int sk, const char *dev)
 {
-	uint8_t buf[24*1024];
+	uint8_t buf[24*1024] = { 0 };
 	uint8_t *cp;
 	int nodes;
 	size_t len;
