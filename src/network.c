@@ -2893,6 +2893,11 @@ static int network_write (const data_set_t *ds, const value_list_t *vl,
 {
 	int status;
 
+	/* listen_loop is set to non-zero in the shutdown callback, which is
+	 * guaranteed to be called *after* all the write threads have been shut
+	 * down. */
+	assert (listen_loop == 0);
+
 	if (!check_send_okay (vl))
 	{
 #if COLLECT_DEBUG

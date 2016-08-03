@@ -1731,9 +1731,9 @@ void plugin_shutdown_all (void)
 {
 	llentry_t *le;
 
-	stop_read_threads ();
-
 	destroy_all_callbacks (&list_init);
+
+	stop_read_threads ();
 
 	pthread_mutex_lock (&read_lock);
 	llist_destroy (read_list);
@@ -1742,6 +1742,10 @@ void plugin_shutdown_all (void)
 
 	destroy_read_heap ();
 
+	/* blocks until all write threads have shut down. */
+	stop_write_threads ();
+
+	/* ask all plugins to write out the state they kept. */
 	plugin_flush (/* plugin = */ NULL,
 			/* timeout = */ 0,
 			/* identifier = */ NULL);
@@ -1770,8 +1774,6 @@ void plugin_shutdown_all (void)
 
 		plugin_set_ctx (old_ctx);
 	}
-
-	stop_write_threads ();
 
 	/* Write plugins which use the `user_data' pointer usually need the
 	 * same data available to the flush callback. If this is the case, set
