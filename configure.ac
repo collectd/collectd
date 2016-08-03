@@ -482,9 +482,6 @@ fi
 # For hddtemp module
 AC_CHECK_HEADERS(linux/major.h)
 
-# For hugepages module
-AC_CHECK_HEADERS(dirent.h)
-
 # For md module (Linux only)
 if test "x$ac_system" = "xLinux"
 then
@@ -5549,6 +5546,7 @@ plugin_entropy="no"
 plugin_ethstat="no"
 plugin_fhcount="no"
 plugin_fscache="no"
+plugin_hugepages="no"
 plugin_interface="no"
 plugin_ipmi="no"
 plugin_ipvs="no"
@@ -5595,6 +5593,7 @@ then
 	plugin_entropy="yes"
 	plugin_fhcount="yes"
 	plugin_fscache="yes"
+	plugin_hugepages="yes"
 	plugin_interface="yes"
 	plugin_ipc="yes"
 	plugin_irq="yes"
@@ -5974,7 +5973,7 @@ AC_PLUGIN([fscache],             [$plugin_fscache],         [fscache statistics]
 AC_PLUGIN([gmond],               [$with_libganglia],        [Ganglia plugin])
 AC_PLUGIN([grpc],                [$with_grpc],              [gRPC plugin])
 AC_PLUGIN([hddtemp],             [yes],                     [Query hddtempd])
-AC_PLUGIN([hugepages],           [yes],                     [Hugepages statistics])
+AC_PLUGIN([hugepages],           [$plugin_hugepages],       [Hugepages statistics])
 AC_PLUGIN([interface],           [$plugin_interface],       [Interface traffic statistics])
 AC_PLUGIN([ipc],                 [$plugin_ipc],             [IPC statistics])
 AC_PLUGIN([ipmi],                [$plugin_ipmi],            [IPMI sensor statistics])

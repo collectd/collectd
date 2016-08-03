@@ -581,8 +581,8 @@
 #</Plugin>
 
 #<Plugin hugepages>
-#    EnableNuma "true"
-#    EnableMM "true"
+#    ReportPerNodeHP "true"
+#    ReportRootHP "true"
 #</Plugin>
 
 #<Plugin interface>
