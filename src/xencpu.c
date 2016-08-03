@@ -53,7 +53,7 @@ static int xencpu_init (void)
     {
         ERROR ("xencpu: xc_interface_open() failed");
         return (-1);
-    };
+    }
 
     xc_physinfo_t *physinfo;
 
@@ -71,7 +71,7 @@ static int xencpu_init (void)
         xc_interface_close(xc_handle);
         free(physinfo);
         return (-1);
-    };
+    }
 
     num_cpus = physinfo->nr_cpus;
     free(physinfo);
