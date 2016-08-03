@@ -42,7 +42,9 @@ AC_SYS_LARGEFILE
 #
 # Checks for programs.
 #
-AC_PROG_CC
+AC_PROG_CC_C99([],
+  [AC_MSG_ERROR([No compiler found that supports C99])]
+)
 AC_PROG_CXX
 AC_PROG_CPP
 AC_PROG_EGREP
