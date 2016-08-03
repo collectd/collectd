@@ -1352,6 +1352,20 @@ AC_ARG_WITH(useragent, [AS_HELP_STRING([--with-useragent@<:@=AGENT@:>@], [User a
 
 # }}}
 
+# --with-data-max-name-len {{{
+AC_ARG_WITH(data-max-name-len, [AS_HELP_STRING([--with-data-max-name-len@<:@=VALUE@:>@], [Maximum length of data buffers])],
+[
+    if test "x$withval" != "x" && test $withval -gt 0
+    then
+        AC_DEFINE_UNQUOTED(DATA_MAX_NAME_LEN, [$withval], [Maximum length of data buffers])
+    else
+        AC_MSG_ERROR([DATA_MAX_NAME_LEN must be a positive integer -- $withval given])
+    fi
+],
+[   AC_DEFINE(DATA_MAX_NAME_LEN, 128, [Maximum length of data buffers])]
+)
+# }}}
+
 have_getfsstat="no"
 AC_CHECK_FUNCS(getfsstat, [have_getfsstat="yes"])
 have_getvfsstat="no"
