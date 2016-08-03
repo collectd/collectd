@@ -83,7 +83,7 @@ AC_PATH_PROG([PROTOC], [protoc])
 have_protoc3="no"
 if test "x$PROTOC" != "x"; then
 	AC_MSG_CHECKING([for protoc 3.0.0+])
-	if $PROTOC --version | grep -q libprotoc.3; then
+	if $PROTOC --version | $EGREP libprotoc.3 >/dev/null; then
 		protoc3="yes (`$PROTOC --version`)"
 		have_protoc3="yes"
 	else
