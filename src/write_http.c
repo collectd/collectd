@@ -95,6 +95,9 @@ static void wh_log_http_error (wh_callback_t *cb)
 
 static void wh_reset_buffer (wh_callback_t *cb)  /* {{{ */
 {
+        if ((cb == NULL) || (cb->send_buffer == NULL))
+                return;
+
         memset (cb->send_buffer, 0, cb->send_buffer_size);
         cb->send_buffer_free = cb->send_buffer_size;
         cb->send_buffer_fill = 0;
@@ -320,7 +323,8 @@ static void wh_callback_free (void *data) /* {{{ */
 
         cb = data;
 
-        wh_flush_nolock (/* timeout = */ 0, cb);
+        if (cb->send_buffer != NULL)
+                wh_flush_nolock (/* timeout = */ 0, cb);
 
         if (cb->curl != NULL)
         {
