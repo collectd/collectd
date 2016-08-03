@@ -28,6 +28,7 @@
 
 #include "common.h" /* for STATIC_ARRAY_SIZE */
 #include "collectd.h"
+
 #include "testing.h"
 #include "utils_time.h"
 #include "utils_latency.h"

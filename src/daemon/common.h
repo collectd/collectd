@@ -29,6 +29,7 @@
 #define COMMON_H
 
 #include "collectd.h"
+
 #include "plugin.h"
 
 #if HAVE_PWD_H

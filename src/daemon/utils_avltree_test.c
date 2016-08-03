@@ -26,6 +26,7 @@
 
 #include "common.h" /* STATIC_ARRAY_SIZE */
 #include "collectd.h"
+
 #include "testing.h"
 #include "utils_avltree.h"
 

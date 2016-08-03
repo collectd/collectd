@@ -27,6 +27,7 @@
 #define _GNU_SOURCE
 
 #include "collectd.h"
+
 #include "plugin.h"
 #include "common.h"
 #include "configfile.h"

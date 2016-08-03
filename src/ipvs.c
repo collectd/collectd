@@ -31,6 +31,7 @@
  */
 
 #include "collectd.h"
+
 #include "plugin.h"
 #include "common.h"
 

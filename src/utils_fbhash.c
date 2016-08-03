@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "plugin.h"
 
 #include "utils_fbhash.h"

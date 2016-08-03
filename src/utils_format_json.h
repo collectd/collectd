@@ -28,6 +28,7 @@
 #define UTILS_FORMAT_JSON_H 1
 
 #include "collectd.h"
+
 #include "plugin.h"
 
 #ifndef JSON_GAUGE_FORMAT

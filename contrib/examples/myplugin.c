@@ -39,6 +39,7 @@
 #endif /* ! HAVE_CONFIG */
 
 #include <collectd/collectd.h>
+
 #include <collectd/common.h>
 #include <collectd/plugin.h>
 

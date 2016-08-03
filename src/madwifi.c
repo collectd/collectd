@@ -89,6 +89,7 @@
 
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"

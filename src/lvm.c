@@ -24,6 +24,7 @@
 #include <lvm2app.h>
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 

@@ -28,6 +28,7 @@
 #define CONFIGFILE_H
 
 #include "collectd.h"
+
 #include "utils_time.h"
 #include "liboconfig/oconfig.h"
 

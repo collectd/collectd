@@ -27,6 +27,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "utils_ignorelist.h"
 

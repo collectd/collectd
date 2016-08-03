@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "utils_time.h"
 #include "utils_random.h"
 

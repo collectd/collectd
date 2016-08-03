@@ -36,6 +36,7 @@
 #define _GNU_SOURCE
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 #include "utils_time.h"
