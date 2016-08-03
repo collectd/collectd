@@ -154,12 +154,12 @@ DEF_TEST(parse_keys)
     const char *str;
     const char *want;
   } cases[] = {
-    {"WBThrottle.bytes_dirtied.description.bytes_wb.description.ios_dirtied.description.ios_wb.type", "WBThrottle.bytesDirtied.description.bytesWb.description.iosDirt"},
-    {"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "Aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+    {"WBThrottle.bytes_dirtied.description.bytes_wb.description.ios_dirtied.description.ios_wb.type", "WBThrottle.bytesDirtied.description.bytesWb.description.iosDirtied.description.iosWb"},
+    {"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "AaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaBbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
     {"foo:bar", "FooBar"},
     {"foo:bar+", "FooBarPlus"},
     {"foo:bar-", "FooBarMinus"},
-    {"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+", "AaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaPlus"},
+    {"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+", "AaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaPlus"},
     {"aa.bb.cc.dd.ee.ff", "Aa.bb.cc.dd.ee.ff"},
     {"aa.bb.cc.dd.ee.ff.type", "Aa.bb.cc.dd.ee.ff"},
     {"aa.type", "Aa.type"},
