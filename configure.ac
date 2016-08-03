@@ -759,14 +759,14 @@ AC_CHECK_HEADERS(termios.h, [have_termios_h="yes"])
 AC_CACHE_CHECK([whether clock_boottime and clock_monotonic are supported],
 		       [c_cv_have_clock_boottime_monotonic],
 		       AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
-[[[
+[[
 #include <time.h>
-]]],
-[[[
+]],
+[[
  struct timespec b, m;
  clock_gettime(CLOCK_BOOTTIME, &b );
  clock_gettime(CLOCK_MONOTONIC, &m );
-]]]
+]]
 		       )],
 		       [c_cv_have_clock_boottime_monotonic="yes"],
 		       [c_cv_have_clock_boottime_monotonic="no"]))
