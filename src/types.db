@@ -83,7 +83,7 @@ files                   value:GAUGE:0:U
 flow                    value:GAUGE:0:U
 fork_rate               value:DERIVE:0:U
 frequency               value:GAUGE:0:U
-frequency_error         value:GAUGE:-2:2 
+frequency_error         value:GAUGE:-2:2
 frequency_offset        value:GAUGE:-1000000:1000000
 fscache_stat            value:DERIVE:0:U
 gauge                   value:GAUGE:U:U
@@ -213,6 +213,7 @@ spam_score              value:GAUGE:U:U
 spl                     value:GAUGE:U:U
 swap                    value:GAUGE:0:1099511627776
 swap_io                 value:DERIVE:0:U
+syscalls                value:DERIVE:0:U
 tcp_connections         value:GAUGE:0:4294967295
 temperature             value:GAUGE:U:U
 threads                 value:GAUGE:0:U
