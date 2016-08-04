@@ -70,7 +70,7 @@ static int cpusleep_read(void)
 	}
 
 	// to avoid false positives in counter overflow due to reboot,
-	// derive is used
+	// derive is used. Sleep is calculated in milliseconds
 	derive_t sleep = (derive_t) ((b.tv_sec - m.tv_sec)*1e3 + (b.tv_nsec - m.tv_nsec)*1e-6);	 
 
 	cpusleep_submit(sleep);
