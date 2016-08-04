@@ -1457,6 +1457,15 @@ installed) to get the current CPU frequency. If this file does not exist make
 sure B<cpufreqd> (L<http://cpufreqd.sourceforge.net/>) or a similar tool is
 installed and an "cpu governor" (that's a kernel module) is loaded.
 
+=head2 Plugin C<cpusleep>
+
+This plugin doesn't have any options. It reads CLOCK_BOOTTIME and
+CLOCK_MONOTONIC and reports the differences between these
+clocks. Since BOOTTIME clock increments while device is suspended and
+MONOTONIC clock does not, the derivative of the difference between
+these clocks gives the relative amount of time the device has spent in
+suspend state. The recorded value is in milliseconds / seconds.
+
 =head2 Plugin C<csv>
 
 =over 4

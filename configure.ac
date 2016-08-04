@@ -747,6 +747,23 @@ AC_CHECK_HEADERS(net/pfvar.h,
 have_termios_h="no"
 AC_CHECK_HEADERS(termios.h, [have_termios_h="yes"])
 
+# For cpusleep plugin
+AC_CACHE_CHECK([whether clock_boottime and clock_monotonic are supported],
+		       [c_cv_have_clock_boottime_monotonic],
+		       AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+[[[
+#include <time.h>
+]]],
+[[[
+ struct timespec b, m;
+ clock_gettime(CLOCK_BOOTTIME, &b );
+ clock_gettime(CLOCK_MONOTONIC, &m );
+]]]
+		       )],
+		       [c_cv_have_clock_boottime_monotonic="yes"],
+		       [c_cv_have_clock_boottime_monotonic="no"]))
+
+
 # For the turbostat plugin
 have_asm_msrindex_h="no"
 AC_CHECK_HEADERS(asm/msr-index.h, [have_asm_msrindex_h="yes"])
@@ -5709,6 +5726,7 @@ plugin_conntrack="no"
 plugin_contextswitch="no"
 plugin_cpu="no"
 plugin_cpufreq="no"
+plugin_cpusleep="no"
 plugin_curl_json="no"
 plugin_curl_xml="no"
 plugin_df="no"
@@ -5793,6 +5811,11 @@ then
 	if test "x$c_cv_have_usable_asm_msrindex_h" = "xyes" && test "x$have_cpuid_h" = "xyes"
 	then
 		plugin_turbostat="yes"
+	fi
+	
+	if test "x$c_cv_have_clock_boottime_monotonic" = "xyes"
+	then
+		plugin_cpusleep="yes"
 	fi
 fi
 
@@ -6136,6 +6159,7 @@ AC_PLUGIN([conntrack],           [$plugin_conntrack],       [nf_conntrack statis
 AC_PLUGIN([contextswitch],       [$plugin_contextswitch],   [context switch statistics])
 AC_PLUGIN([cpu],                 [$plugin_cpu],             [CPU usage statistics])
 AC_PLUGIN([cpufreq],             [$plugin_cpufreq],         [CPU frequency statistics])
+AC_PLUGIN([cpusleep],            [$plugin_cpusleep],        [CPU sleep statistics])
 AC_PLUGIN([csv],                 [yes],                     [CSV output plugin])
 AC_PLUGIN([curl],                [$with_libcurl],           [CURL generic web statistics])
 AC_PLUGIN([curl_json],           [$plugin_curl_json],       [CouchDB statistics])
@@ -6549,6 +6573,7 @@ AC_MSG_RESULT([    conntrack . . . . . . $enable_conntrack])
 AC_MSG_RESULT([    contextswitch . . . . $enable_contextswitch])
 AC_MSG_RESULT([    cpu . . . . . . . . . $enable_cpu])
 AC_MSG_RESULT([    cpufreq . . . . . . . $enable_cpufreq])
+AC_MSG_RESULT([    cpusleep  . . . . . . $enable_cpusleep])
 AC_MSG_RESULT([    csv . . . . . . . . . $enable_csv])
 AC_MSG_RESULT([    curl  . . . . . . . . $enable_curl])
 AC_MSG_RESULT([    curl_json . . . . . . $enable_curl_json])
