@@ -27,9 +27,9 @@
  * Authors:
  *	 rinigus <http://github.com/rinigus>
 
- CPU sleep is reported in milliseconds / s. For that, derive type was
- selected and the time difference between BOOT and MONOTONIC clocks
- fed to RRD
+ CPU sleep is reported in milliseconds of sleep per second of wall
+ time. For that, the time difference between BOOT and MONOTONIC clocks
+ is reported using derive type.
  
 **/
 
@@ -49,7 +49,7 @@ static void cpusleep_submit(derive_t cpu_sleep)
 	vl.values_len = 1;
 	sstrncpy(vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy(vl.plugin, "cpusleep", sizeof (vl.plugin));
-	sstrncpy(vl.type, "cpusleep", sizeof (vl.type));
+	sstrncpy(vl.type, "total_time_in_ms", sizeof (vl.type));
   
 	plugin_dispatch_values(&vl);
 }
@@ -69,12 +69,9 @@ static int cpusleep_read(void)
 		return (-1);
 	}
 
-	double db = b.tv_sec + 1e-9 * b.tv_nsec;
-	double dm = m.tv_sec + 1e-9 * m.tv_nsec;
-
 	// to avoid false positives in counter overflow due to reboot,
 	// derive is used
-	derive_t sleep = (derive_t) ((db-dm) * 1000);	 
+	derive_t sleep = (derive_t) ((b.tv_sec - m.tv_sec)*1e3 + (b.tv_nsec - m.tv_nsec)*1e-6);	 
 
 	cpusleep_submit(sleep);
 

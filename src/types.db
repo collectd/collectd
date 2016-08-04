@@ -42,7 +42,6 @@ count                   value:GAUGE:0:U
 counter                 value:COUNTER:U:U
 cpu                     value:DERIVE:0:U
 cpufreq                 value:GAUGE:0:U
-cpusleep                value:DERIVE:0:U
 current                 value:GAUGE:U:U
 current_connections     value:GAUGE:0:U
 current_sessions        value:GAUGE:0:U
