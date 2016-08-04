@@ -6012,7 +6012,7 @@ Defaults to B<false>.
 =head2 Plugin C<radio>
 
 This plugin doesn't have any options. It determines whether radios in computer
-are switched on or off using rfkill interface.
+are switched on or off using rfkill sysfs interface.
 
 =head2 Plugin C<redis>
 

@@ -56,7 +56,7 @@ static int radio_init (void)
 							SYSFS_ROOT "rfkill%d/"
 							"hard", num_rfkill);
       
-		if ((status < 1) || ((unsigned int)status >= sizeof (filename)))
+		if ((status < 1) || ((size_t)status >= sizeof (filename)))
 			break;
       
 		if (access (filename, R_OK))
@@ -102,8 +102,8 @@ static _Bool get_value(const char *fname, int *value)
 	if ((fh = fopen(fname, "r")) == NULL)
 		return (0);
 
-	if ( fgets(buffer, sizeof(buffer), fh) == NULL )
-    {
+	if (fgets(buffer, sizeof(buffer), fh) == NULL)
+	{
 		fclose(fh);
 		return (0); // empty file
     }
@@ -122,8 +122,8 @@ static _Bool get_string(const char *fname, char *buffer, size_t buffer_size)
 	if ((fh = fopen(fname, "r")) == NULL)
 		return (0);
 
-	if ( fgets(buffer, buffer_size, fh) == NULL )
-    {
+	if (fgets(buffer, buffer_size, fh) == NULL)
+	{
 		fclose(fh);
 		return (0); // empty file
     }
@@ -170,7 +170,7 @@ static int radio_read (void)
 	int i;
 
 	for (i=0; i < num_rfkill; ++i)
-    {
+	{
 		// type
 		status = ssnprintf (filename, sizeof (filename),
 							SYSFS_ROOT "rfkill%d/"
