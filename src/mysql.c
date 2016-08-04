@@ -28,7 +28,6 @@
  **/
 
 #include "collectd.h"
-
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
@@ -54,6 +53,7 @@ struct mysql_database_s /* {{{ */
 	_Bool master_stats;
 	_Bool slave_stats;
 	_Bool innodb_stats;
+	_Bool wsrep_stats;
 
 	_Bool slave_notif;
 	_Bool slave_io_running;
@@ -179,6 +179,8 @@ static int mysql_config_database (oconfig_item_t *ci) /* {{{ */
 			status = cf_util_get_boolean (child, &db->slave_notif);
 		else if (strcasecmp ("InnodbStats", child->key) == 0)
 			status = cf_util_get_boolean (child, &db->innodb_stats);
+		else if (strcasecmp ("WsrepStats", child->key) == 0)
+			status = cf_util_get_boolean (child, &db->wsrep_stats);
 		else
 		{
 			WARNING ("mysql plugin: Option `%s' not allowed here.", child->key);
@@ -685,6 +687,96 @@ static int mysql_read_innodb_stats (mysql_database_t *db, MYSQL *con)
 	return (0);
 }
 
+static int mysql_read_wsrep_stats (mysql_database_t *db, MYSQL *con)
+{
+	MYSQL_RES *res;
+	MYSQL_ROW  row;
+
+	const char *query;
+	struct {
+		const char *key;
+		const char *type;
+		int ds_type;
+	} metrics[] = {
+
+		{ "apply_oooe",                "mysql_wsrep",   DS_TYPE_DERIVE },
+		{ "apply_oool",                "mysql_wsrep",   DS_TYPE_DERIVE },
+		{ "causal_reads",              "mysql_wsrep",   DS_TYPE_DERIVE },
+		{ "commit_oooe",               "mysql_wsrep",   DS_TYPE_DERIVE },
+		{ "commit_oool",               "mysql_wsrep",   DS_TYPE_DERIVE },
+		{ "flow_control_recv",         "mysql_wsrep",   DS_TYPE_DERIVE },
+		{ "flow_control_sent",         "mysql_wsrep",   DS_TYPE_DERIVE },
+		{ "local_bf_aborts",           "mysql_wsrep",   DS_TYPE_DERIVE },
+		{ "local_cert_failures",       "mysql_wsrep",   DS_TYPE_DERIVE },
+		{ "local_commits",             "mysql_wsrep",   DS_TYPE_DERIVE },
+		{ "local_replays",             "mysql_wsrep",   DS_TYPE_DERIVE },
+		{ "received",                  "mysql_wsrep",   DS_TYPE_DERIVE },
+		{ "received_bytes",            "mysql_wsrep",   DS_TYPE_DERIVE },
+		{ "replicated",                "mysql_wsrep",   DS_TYPE_DERIVE },
+		{ "replicated_bytes",          "mysql_wsrep",   DS_TYPE_DERIVE },
+
+		{ "apply_window",              "mysql_wsrep",   DS_TYPE_GAUGE },
+		{ "cluster_size",              "mysql_wsrep",   DS_TYPE_GAUGE },
+		{ "cert_deps_distance",        "mysql_wsrep",   DS_TYPE_GAUGE },
+		{ "commit_window",             "mysql_wsrep",   DS_TYPE_GAUGE },
+		{ "local_recv_queue",          "mysql_wsrep",   DS_TYPE_GAUGE },
+		{ "local_recv_queue_avg",      "mysql_wsrep",   DS_TYPE_GAUGE },
+		{ "local_send_queue",          "mysql_wsrep",   DS_TYPE_GAUGE },
+		{ "local_send_queue_avg",      "mysql_wsrep",   DS_TYPE_GAUGE },
+
+		{ NULL,                              NULL,           0}
+	};
+
+	query = "SHOW GLOBAL STATUS LIKE 'wsrep_%'";
+
+	res = exec_query (con, query);
+	if (res == NULL)
+		return (-1);
+
+	row = mysql_fetch_row (res);
+	if (row == NULL)
+	{
+		ERROR ("mysql plugin: Failed to get wsrep statistics: "
+				"`%s' did not return any rows.", query);
+		mysql_free_result (res);
+		return (-1);
+	}
+
+
+		while ((row = mysql_fetch_row (res)))
+	{
+		int i;
+		char *key;
+		unsigned long long val;
+
+		key = row[0];
+		val = atoll (row[1]);
+
+		for (i = 0; metrics[i].key != NULL && strcmp(metrics[i].key, key) != 0; i++)
+			;
+
+		if (metrics[i].key == NULL)
+			continue;
+
+		switch (metrics[i].ds_type) {
+			case DS_TYPE_COUNTER:
+				counter_submit(metrics[i].type, key, (counter_t)val, db);
+				break;
+			case DS_TYPE_GAUGE:
+				gauge_submit(metrics[i].type, key, (gauge_t)val, db);
+				break;
+			case DS_TYPE_DERIVE:
+				derive_submit(metrics[i].type, key, (derive_t)val, db);
+				break;
+		}
+	}
+
+	mysql_free_result(res);
+	return (0);
+} /* mysql_read_wsrep_stats */
+
+
+
 static int mysql_read (user_data_t *ud)
 {
 	mysql_database_t *db;
@@ -952,6 +1044,9 @@ static int mysql_read (user_data_t *ud)
 
 	if ((db->slave_stats) || (db->slave_notif))
 		mysql_read_slave_stats (db, con);
+
+	if (db->wsrep_stats)
+		mysql_read_wsrep_stats (db, con);
 
 	return (0);
 } /* int mysql_read */
