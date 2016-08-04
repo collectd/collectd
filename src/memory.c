@@ -99,9 +99,7 @@ static _Bool values_percentage = 0;
 
 static int memory_config (oconfig_item_t *ci) /* {{{ */
 {
-	int i;
-
-	for (i = 0; i < ci->children_num; i++)
+	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
 		if (strcasecmp ("ValuesAbsolute", child->key) == 0)
@@ -251,9 +249,7 @@ static int memory_read_internal (value_list_t *vl)
 	};
 	double sysctl_vals[8];
 
-	int    i;
-
-	for (i = 0; sysctl_keys[i] != NULL; i++)
+	for (int i = 0; sysctl_keys[i] != NULL; i++)
 	{
 		int value;
 		size_t value_len = sizeof (value);
@@ -271,7 +267,7 @@ static int memory_read_internal (value_list_t *vl)
 	} /* for (sysctl_keys) */
 
 	/* multiply all all page counts with the pagesize */
-	for (i = 1; sysctl_keys[i] != NULL; i++)
+	for (int i = 1; sysctl_keys[i] != NULL; i++)
 		if (!isnan (sysctl_vals[i]))
 			sysctl_vals[i] *= sysctl_vals[0];
 

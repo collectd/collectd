@@ -305,7 +305,6 @@ static void conn_submit_port_entry (port_entry_t *pe)
 {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
-  int i;
 
   conn_prepare_vl (&vl, values);
 
@@ -315,7 +314,7 @@ static void conn_submit_port_entry (port_entry_t *pe)
     ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
 	"%"PRIu16"-local", pe->port);
 
-    for (i = 1; i <= TCP_STATE_MAX; i++)
+    for (int i = 1; i <= TCP_STATE_MAX; i++)
     {
       vl.values[0].gauge = pe->count_local[i];
 
@@ -330,7 +329,7 @@ static void conn_submit_port_entry (port_entry_t *pe)
     ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
 	"%"PRIu16"-remote", pe->port);
 
-    for (i = 1; i <= TCP_STATE_MAX; i++)
+    for (int i = 1; i <= TCP_STATE_MAX; i++)
     {
       vl.values[0].gauge = pe->count_remote[i];
 
@@ -345,13 +344,12 @@ static void conn_submit_port_total (void)
 {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
-  int i;
 
   conn_prepare_vl (&vl, values);
 
   sstrncpy (vl.plugin_instance, "all", sizeof (vl.plugin_instance));
 
-  for (i = 1; i <= TCP_STATE_MAX; i++)
+  for (int i = 1; i <= TCP_STATE_MAX; i++)
   {
     vl.values[0].gauge = count_total[i];
 
@@ -363,12 +361,10 @@ static void conn_submit_port_total (void)
 
 static void conn_submit_all (void)
 {
-  port_entry_t *pe;
-
   if (port_collect_total)
     conn_submit_port_total ();
 
-  for (pe = port_list_head; pe != NULL; pe = pe->next)
+  for (port_entry_t *pe = port_list_head; pe != NULL; pe = pe->next)
     conn_submit_port_entry (pe);
 } /* void conn_submit_all */
 
@@ -1017,7 +1013,6 @@ static int conn_read (void)
 static int conn_read (void)
 {
   int size;
-  int i;
   int nconn;
   void *data;
   struct netinfo_header *header;
@@ -1059,7 +1054,7 @@ static int conn_read (void)
   nconn = header->size;
   conn = (struct netinfo_conn *)(data + sizeof(struct netinfo_header));
 
-  for (i=0; i < nconn; conn++, i++)
+  for (int i = 0; i < nconn; conn++, i++)
   {
     conn_handle_ports (conn->srcport, conn->dstport, conn->tcp_state);
   }

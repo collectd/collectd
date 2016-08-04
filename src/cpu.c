@@ -406,19 +406,16 @@ static cpu_state_t *get_cpu_state (size_t cpu_num, size_t state) /* {{{ */
  * array. */
 static void aggregate (gauge_t *sum_by_state) /* {{{ */
 {
-	size_t cpu_num;
-	size_t state;
-
-	for (state = 0; state < COLLECTD_CPU_STATE_MAX; state++)
+	for (size_t state = 0; state < COLLECTD_CPU_STATE_MAX; state++)
 		sum_by_state[state] = NAN;
 
-	for (cpu_num = 0; cpu_num < global_cpu_num; cpu_num++)
+	for (size_t cpu_num = 0; cpu_num < global_cpu_num; cpu_num++)
 	{
 		cpu_state_t *this_cpu_states = get_cpu_state (cpu_num, 0);
 
 		this_cpu_states[COLLECTD_CPU_STATE_ACTIVE].rate = NAN;
 
-		for (state = 0; state < COLLECTD_CPU_STATE_ACTIVE; state++)
+		for (size_t state = 0; state < COLLECTD_CPU_STATE_ACTIVE; state++)
 		{
 			if (!this_cpu_states[state].has_value)
 				continue;
@@ -443,7 +440,6 @@ static void aggregate (gauge_t *sum_by_state) /* {{{ */
 static void cpu_commit_one (int cpu_num, /* {{{ */
 		gauge_t rates[static COLLECTD_CPU_STATE_MAX])
 {
-	size_t state;
 	gauge_t sum;
 
 	sum = rates[COLLECTD_CPU_STATE_ACTIVE];
@@ -456,7 +452,7 @@ static void cpu_commit_one (int cpu_num, /* {{{ */
 		return;
 	}
 
-	for (state = 0; state < COLLECTD_CPU_STATE_ACTIVE; state++)
+	for (size_t state = 0; state < COLLECTD_CPU_STATE_ACTIVE; state++)
 	{
 		gauge_t percent = 100.0 * rates[state] / sum;
 		submit_percent (cpu_num, state, percent);
@@ -467,9 +463,7 @@ static void cpu_commit_one (int cpu_num, /* {{{ */
  * each iteration / after each call to cpu_commit(). */
 static void cpu_reset (void) /* {{{ */
 {
-	size_t i;
-
-	for (i = 0; i < cpu_states_num; i++)
+	for (size_t i = 0; i < cpu_states_num; i++)
 		cpu_states[i].has_value = 0;
 
 	global_cpu_num = 0;
@@ -478,13 +472,9 @@ static void cpu_reset (void) /* {{{ */
 /* Legacy behavior: Dispatches the raw derive values without any aggregation. */
 static void cpu_commit_without_aggregation (void) /* {{{ */
 {
-	int state;
-
-	for (state = 0; state < COLLECTD_CPU_STATE_ACTIVE; state++)
+	for (int state = 0; state < COLLECTD_CPU_STATE_ACTIVE; state++)
 	{
-		size_t cpu_num;
-
-		for (cpu_num = 0; cpu_num < global_cpu_num; cpu_num++)
+		for (size_t cpu_num = 0; cpu_num < global_cpu_num; cpu_num++)
 		{
 			cpu_state_t *s = get_cpu_state (cpu_num, state);
 
@@ -502,7 +492,6 @@ static void cpu_commit (void) /* {{{ */
 	gauge_t global_rates[COLLECTD_CPU_STATE_MAX] = {
 		NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN /* Batman! */
 	};
-	size_t cpu_num;
 
 	if (report_by_state && report_by_cpu && !report_percent)
 	{
@@ -518,15 +507,14 @@ static void cpu_commit (void) /* {{{ */
 		return;
 	}
 
-	for (cpu_num = 0; cpu_num < global_cpu_num; cpu_num++)
+	for (size_t cpu_num = 0; cpu_num < global_cpu_num; cpu_num++)
 	{
 		cpu_state_t *this_cpu_states = get_cpu_state (cpu_num, 0);
 		gauge_t local_rates[COLLECTD_CPU_STATE_MAX] = {
 			NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN
 		};
-		size_t state;
 
-		for (state = 0; state < COLLECTD_CPU_STATE_MAX; state++)
+		for (size_t state = 0; state < COLLECTD_CPU_STATE_MAX; state++)
 			if (this_cpu_states[state].has_value)
 				local_rates[state] = this_cpu_states[state].rate;
 
@@ -570,8 +558,6 @@ static int cpu_read (void)
 	cdtime_t now = cdtime ();
 
 #if PROCESSOR_CPU_LOAD_INFO /* {{{ */
-	int cpu;
-
 	kern_return_t status;
 
 	processor_cpu_load_info_data_t cpu_info;
@@ -579,7 +565,7 @@ static int cpu_read (void)
 
 	host_t cpu_host;
 
-	for (cpu = 0; cpu < cpu_list_len; cpu++)
+	for (int cpu = 0; cpu < cpu_list_len; cpu++)
 	{
 		cpu_host = 0;
 		cpu_info_len = PROCESSOR_BASIC_INFO_COUNT;
@@ -654,13 +640,12 @@ static int cpu_read (void)
 /* }}} #endif defined(KERNEL_LINUX) */
 
 #elif defined(HAVE_LIBKSTAT) /* {{{ */
-	int cpu;
 	static cpu_stat_t cs;
 
 	if (kc == NULL)
 		return (-1);
 
-	for (cpu = 0; cpu < numcpu; cpu++)
+	for (int cpu = 0; cpu < numcpu; cpu++)
 	{
 		if (kstat_read (kc, ksp[cpu], &cs) == -1)
 			continue; /* error message? */
@@ -676,7 +661,6 @@ static int cpu_read (void)
 	uint64_t cpuinfo[numcpu][CPUSTATES];
 	size_t cpuinfo_size;
 	int status;
-	int i;
 
 	if (numcpu < 1)
 	{
@@ -689,7 +673,7 @@ static int cpu_read (void)
 
 #if defined(KERN_CPTIME2)
 	if (numcpu > 1) {
-		for (i = 0; i < numcpu; i++) {
+		for (int i = 0; i < numcpu; i++) {
 			int mib[] = {CTL_KERN, KERN_CPTIME2, i};
 
 			cpuinfo_size = sizeof (cpuinfo[0]);
@@ -722,12 +706,12 @@ static int cpu_read (void)
 			return (-1);
 		}
 
-		for(i = 0; i < CPUSTATES; i++) {
+		for(int i = 0; i < CPUSTATES; i++) {
 			cpuinfo[0][i] = cpuinfo_tmp[i];
 		}
 	}
 
-	for (i = 0; i < numcpu; i++) {
+	for (int i = 0; i < numcpu; i++) {
 		cpu_stage (i, COLLECTD_CPU_STATE_USER,      (derive_t) cpuinfo[i][CP_USER], now);
 		cpu_stage (i, COLLECTD_CPU_STATE_NICE,      (derive_t) cpuinfo[i][CP_NICE], now);
 		cpu_stage (i, COLLECTD_CPU_STATE_SYSTEM,    (derive_t) cpuinfo[i][CP_SYS], now);
@@ -739,7 +723,6 @@ static int cpu_read (void)
 #elif defined(HAVE_SYSCTLBYNAME) && defined(HAVE_SYSCTL_KERN_CP_TIMES) /* {{{ */
 	long cpuinfo[maxcpu][CPUSTATES];
 	size_t cpuinfo_size;
-	int i;
 
 	memset (cpuinfo, 0, sizeof (cpuinfo));
 
@@ -752,7 +735,7 @@ static int cpu_read (void)
 		return (-1);
 	}
 
-	for (i = 0; i < numcpu; i++) {
+	for (int i = 0; i < numcpu; i++) {
 		cpu_stage (i, COLLECTD_CPU_STATE_USER,      (derive_t) cpuinfo[i][CP_USER], now);
 		cpu_stage (i, COLLECTD_CPU_STATE_NICE,      (derive_t) cpuinfo[i][CP_NICE], now);
 		cpu_stage (i, COLLECTD_CPU_STATE_SYSTEM,    (derive_t) cpuinfo[i][CP_SYS], now);
@@ -802,7 +785,7 @@ static int cpu_read (void)
 
 #elif defined(HAVE_PERFSTAT) /* {{{ */
 	perfstat_id_t id;
-	int i, cpus;
+	int cpus;
 
 	numcpu =  perfstat_cpu(NULL, NULL, sizeof(perfstat_cpu_t), 0);
 	if(numcpu == -1)
@@ -829,7 +812,7 @@ static int cpu_read (void)
 		return (-1);
 	}
 
-	for (i = 0; i < cpus; i++)
+	for (int i = 0; i < cpus; i++)
 	{
 		cpu_stage (i, COLLECTD_CPU_STATE_IDLE,   (derive_t) perfcpu[i].idle, now);
 		cpu_stage (i, COLLECTD_CPU_STATE_SYSTEM, (derive_t) perfcpu[i].sys,  now);

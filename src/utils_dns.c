@@ -195,9 +195,7 @@ static int cmp_in6_addr (const struct in6_addr *a,
 
 static inline int ignore_list_match (const struct in6_addr *addr)
 {
-    ip_list_t *ptr;
-
-    for (ptr = IgnoreList; ptr != NULL; ptr = ptr->next)
+    for (ip_list_t *ptr = IgnoreList; ptr != NULL; ptr = ptr->next)
 	if (cmp_in6_addr (addr, &ptr->addr) == 0)
 	    return (1);
     return (0);
@@ -226,7 +224,6 @@ static void ignore_list_add (const struct in6_addr *addr)
 void ignore_list_add_name (const char *name)
 {
     struct addrinfo *ai_list;
-    struct addrinfo *ai_ptr;
     struct in6_addr  addr;
     int status;
 
@@ -234,7 +231,7 @@ void ignore_list_add_name (const char *name)
     if (status != 0)
 	return;
 
-    for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+    for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
     {
 	if (ai_ptr->ai_family == AF_INET)
 	{

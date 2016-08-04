@@ -168,7 +168,6 @@ static int wr_config_node (oconfig_item_t *ci) /* {{{ */
   wr_node_t *node;
   int timeout;
   int status;
-  int i;
 
   node = calloc (1, sizeof (*node));
   if (node == NULL)
@@ -191,7 +190,7 @@ static int wr_config_node (oconfig_item_t *ci) /* {{{ */
     return (status);
   }
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -251,9 +250,7 @@ static int wr_config_node (oconfig_item_t *ci) /* {{{ */
 
 static int wr_config (oconfig_item_t *ci) /* {{{ */
 {
-  int i;
-
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 

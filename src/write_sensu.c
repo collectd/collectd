@@ -95,8 +95,7 @@ static int add_str_to_list(struct str_list *strs,
 
 static void free_str_list(struct str_list *strs) /* {{{ */
 {
-	int i;
-	for (i=0; i<strs->nb_strs; i++)
+	for (int i=0; i<strs->nb_strs; i++)
 		free(strs->strs[i]);
 	free(strs->strs);
 }
@@ -105,7 +104,6 @@ static void free_str_list(struct str_list *strs) /* {{{ */
 static int sensu_connect(struct sensu_host *host) /* {{{ */
 {
 	int			 e;
-	struct addrinfo		*ai;
 	char const		*node;
 	char const		*service;
 
@@ -135,7 +133,7 @@ static int sensu_connect(struct sensu_host *host) /* {{{ */
 
 	struct linger so_linger;
 	host->s = -1;
-	for (ai = host->res; ai != NULL; ai = ai->ai_next) {
+	for (struct addrinfo *ai = host->res; ai != NULL; ai = ai->ai_next) {
 		// create the socket
 		if ((host->s = socket(ai->ai_family,
 				      ai->ai_socktype,
@@ -179,7 +177,6 @@ static char *build_json_str_list(const char *tag, struct str_list const *list) /
 	int res;
 	char *ret_str = NULL;
 	char *temp_str;
-	int i;
 	if (list->nb_strs == 0) {
 		ret_str = malloc(sizeof(char));
 		if (ret_str == NULL) {
@@ -195,7 +192,7 @@ static char *build_json_str_list(const char *tag, struct str_list const *list) /
 		free(ret_str);
 		return NULL;
 	}
-	for (i=1; i<list->nb_strs; i++) {
+	for (int i=1; i<list->nb_strs; i++) {
 		res = asprintf(&ret_str, "%s, \"%s\"", temp_str, list->strs[i]);
 		free(temp_str);
 		if (res == -1) {
@@ -261,9 +258,8 @@ static int sensu_format_name2(char *ret, int ret_len,
 
 static void in_place_replace_sensu_name_reserved(char *orig_name) /* {{{ */
 {
-	int i;
 	int len=strlen(orig_name);
-	for (i=0; i<len; i++) {
+	for (int i=0; i<len; i++) {
 		// some plugins like ipmi generate special characters in metric name
 		switch(orig_name[i]) {
 			case '(': orig_name[i] = '_'; break;
@@ -284,7 +280,6 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 {
 	char name_buffer[5 * DATA_MAX_NAME_LEN];
 	char service_buffer[6 * DATA_MAX_NAME_LEN];
-	size_t i;
 	char *ret_str;
 	char *temp_str;
 	char *value_str;
@@ -400,7 +395,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 	}
 
 	// add key value attributes from config if any
-	for (i = 0; i < sensu_attrs_num; i += 2) {
+	for (size_t i = 0; i < sensu_attrs_num; i += 2) {
 		res = asprintf(&temp_str, "%s, \"%s\": \"%s\"", ret_str, sensu_attrs[i], sensu_attrs[i+1]);
 		free(ret_str);
 		if (res == -1) {
@@ -591,7 +586,6 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 {
 	char service_buffer[6 * DATA_MAX_NAME_LEN];
 	char const *severity;
-	notification_meta_t *meta;
 	char *ret_str;
 	char *temp_str;
 	int status;
@@ -750,7 +744,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 	}
 
 	// Pull in values from threshold and add extra attributes
-	for (meta = n->meta; meta != NULL; meta = meta->next) {
+	for (notification_meta_t *meta = n->meta; meta != NULL; meta = meta->next) {
 		if (strcasecmp("CurrentValue", meta->name) == 0 && meta->type == NM_TYPE_DOUBLE) {
 			res = asprintf(&temp_str, "%s, \"current_value\": \"%.8f\"", ret_str, meta->nm_value.nm_double);
 			free(ret_str);
@@ -839,7 +833,6 @@ static int sensu_write(const data_set_t *ds, /* {{{ */
 	int statuses[vl->values_len];
 	struct sensu_host	*host = ud->data;
 	gauge_t *rates = NULL;
-	size_t i;
 	char *msg;
 
 	pthread_mutex_lock(&host->lock);
@@ -853,7 +846,7 @@ static int sensu_write(const data_set_t *ds, /* {{{ */
 			return -1;
 		}
 	}
-	for (i = 0; i < vl->values_len; i++) {
+	for (size_t i = 0; i < vl->values_len; i++) {
 		msg = sensu_value_to_json(host, ds, vl, (int) i, rates, statuses[i]);
 		if (msg == NULL) {
 			sfree(rates);
@@ -933,7 +926,6 @@ static int sensu_config_node(oconfig_item_t *ci) /* {{{ */
 {
 	struct sensu_host	*host = NULL;
 	int					status = 0;
-	int					i;
 	oconfig_item_t		*child;
 	char				callback_name[DATA_MAX_NAME_LEN];
 	user_data_t			ud;
@@ -968,7 +960,7 @@ static int sensu_config_node(oconfig_item_t *ci) /* {{{ */
 		return -1;
 	}
 
-	for (i = 0; i < ci->children_num; i++) {
+	for (int i = 0; i < ci->children_num; i++) {
 		child = &ci->children[i];
 		status = 0;
 
@@ -1109,7 +1101,6 @@ static int sensu_config_node(oconfig_item_t *ci) /* {{{ */
 
 static int sensu_config(oconfig_item_t *ci) /* {{{ */
 {
-	int		 i;
 	oconfig_item_t	*child;
 	int		 status;
 	struct str_list sensu_tags_arr;
@@ -1117,7 +1108,7 @@ static int sensu_config(oconfig_item_t *ci) /* {{{ */
 	sensu_tags_arr.nb_strs = 0;
 	sensu_tags_arr.strs = NULL;
 
-	for (i = 0; i < ci->children_num; i++)  {
+	for (int i = 0; i < ci->children_num; i++)  {
 		child = &ci->children[i];
 
 		if (strcasecmp("Node", child->key) == 0) {

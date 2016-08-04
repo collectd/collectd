@@ -125,7 +125,6 @@ static int tn_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 {
   tn_data_t *data;
   int status;
-  int i;
 
   data = calloc (1, sizeof (*data));
   if (data == NULL)
@@ -138,7 +137,7 @@ static int tn_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   data->severity = 0;
 
   status = 0;
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -199,8 +198,6 @@ static int tn_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
   gauge_t *rates;
   int rates_failed;
 
-  size_t i;
-
   if ((ds == NULL) || (vl == NULL) || (user_data == NULL))
     return (-EINVAL);
 
@@ -235,7 +232,8 @@ static int tn_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
 
   rates_failed = 0;
   rates = NULL;
-  for (i = 0; i < ds->ds_num; i++)
+
+  for (size_t i = 0; i < ds->ds_num; i++)
   {
     char template[DATA_MAX_NAME_LEN];
     char value_str[DATA_MAX_NAME_LEN];

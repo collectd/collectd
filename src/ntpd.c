@@ -348,7 +348,6 @@ static int ntpd_connect (void)
 	const char *port;
 
 	struct addrinfo *ai_list;
-	struct addrinfo *ai_ptr;
 	int              status;
 
 	if (sock_descr >= 0)
@@ -382,7 +381,7 @@ static int ntpd_connect (void)
 		return (-1);
 	}
 
-	for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+	for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
 	{
 		/* create our socket descriptor */
 		if ((sock_descr = socket (ai_ptr->ai_family,
@@ -420,7 +419,6 @@ static int ntpd_receive_response (int *res_items, int *res_size,
 	struct resp_pkt  res;
 	int              status;
 	int              done;
-	int              i;
 
 	char            *items;
 	size_t           items_num;
@@ -674,7 +672,7 @@ static int ntpd_receive_response (int *res_items, int *res_size,
 		items_num += pkt_item_num;
 		*res_data = items;
 
-		for (i = 0; i < pkt_item_num; i++)
+		for (int i = 0; i < pkt_item_num; i++)
 		{
 			/* dst: There are already `*res_items' items with
 			 *      res_item_size bytes each in in `*res_data'. Set
@@ -903,7 +901,6 @@ static int ntpd_read (void)
 	gauge_t offset_error;
 
 	int status;
-	int i;
 
 	/* On Linux, if the STA_NANO bit is set in ik->status, then ik->offset
 	 * is is nanoseconds, otherwise it's microseconds. */
@@ -971,7 +968,7 @@ static int ntpd_read (void)
 		return (-1);
 	}
 
-	for (i = 0; i < ps_num; i++)
+	for (int i = 0; i < ps_num; i++)
 	{
 		struct info_peer_summary *ptr;
 		double offset;

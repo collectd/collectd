@@ -56,9 +56,8 @@ static int mec_match (__attribute__((unused)) const data_set_t *ds, /* {{{ */
 {
   int num_counters = 0;
   int num_empty = 0;
-  size_t i;
 
-  for (i = 0; i < ds->ds_num; i++)
+  for (size_t i = 0; i < ds->ds_num; i++)
   {
     if ((ds->ds[i].type != DS_TYPE_DERIVE)
         && (ds->ds[i].type != DS_TYPE_COUNTER))

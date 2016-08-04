@@ -370,9 +370,7 @@ static _Bool check_send_okay (const value_list_t *vl) /* {{{ */
 
 static _Bool check_notify_received (const notification_t *n) /* {{{ */
 {
-  notification_meta_t *ptr;
-
-  for (ptr = n->meta; ptr != NULL; ptr = ptr->next)
+  for (notification_meta_t *ptr = n->meta; ptr != NULL; ptr = ptr->next)
     if ((strcmp ("network:received", ptr->name) == 0)
         && (ptr->type == NM_TYPE_BOOLEAN))
       return ((_Bool) ptr->nm_value.nm_boolean);
@@ -619,7 +617,6 @@ static int write_part_values (char **ret_buffer, size_t *ret_buffer_len,
 	value_t      *pkg_values;
 
 	size_t offset;
-	int i;
 
 	num_values = vl->values_len;
 	packet_len = sizeof (part_header_t) + sizeof (uint16_t)
@@ -649,7 +646,7 @@ static int write_part_values (char **ret_buffer, size_t *ret_buffer_len,
 
 	pkg_num_values = htons ((uint16_t) vl->values_len);
 
-	for (i = 0; i < num_values; i++)
+	for (int i = 0; i < num_values; i++)
 	{
 		pkg_values_types[i] = (uint8_t) ds->ds[i].type;
 		switch (ds->ds[i].type)
@@ -787,7 +784,6 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
 
 	uint16_t tmp16;
 	size_t exp_size;
-	size_t i;
 
 	uint16_t pkg_length;
 	uint16_t pkg_type;
@@ -853,7 +849,7 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
 	memcpy (pkg_values, buffer, pkg_numval * sizeof (*pkg_values));
 	buffer += pkg_numval * sizeof (*pkg_values);
 
-	for (i = 0; i < pkg_numval; i++)
+	for (size_t i = 0; i < pkg_numval; i++)
 	{
 		switch (pkg_types[i])
 		{
@@ -1651,9 +1647,7 @@ static void free_sockent_client (struct sockent_client *sec) /* {{{ */
 
 static void free_sockent_server (struct sockent_server *ses) /* {{{ */
 {
-  size_t i;
-
-  for (i = 0; i < ses->fd_num; i++)
+  for (size_t i = 0; i < ses->fd_num; i++)
   {
     if (ses->fd[i] >= 0)
     {
@@ -2140,7 +2134,7 @@ static int sockent_client_connect (sockent_t *se) /* {{{ */
 	static c_complain_t complaint = C_COMPLAIN_INIT_STATIC;
 
 	struct sockent_client *client;
-	struct addrinfo *ai_list, *ai_ptr;
+	struct addrinfo *ai_list;
 	int status;
 	_Bool reconnect = 0;
 	cdtime_t now;
@@ -2186,7 +2180,7 @@ static int sockent_client_connect (sockent_t *se) /* {{{ */
 				se->node);
 	}
 
-	for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+	for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
 	{
 		if (client->fd >= 0) /* when we reconnect */
 			sockent_client_disconnect(se);
@@ -2236,7 +2230,7 @@ static int sockent_client_connect (sockent_t *se) /* {{{ */
 /* Open the file descriptors for a initialized sockent structure. */
 static int sockent_server_listen (sockent_t *se) /* {{{ */
 {
-	struct addrinfo *ai_list, *ai_ptr;
+	struct addrinfo *ai_list;
 	int              status;
 
         const char *node;
@@ -2274,7 +2268,7 @@ static int sockent_server_listen (sockent_t *se) /* {{{ */
 		return (-1);
 	}
 
-	for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+	for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
 	{
 		int *tmp;
 
@@ -2329,7 +2323,6 @@ static int sockent_add (sockent_t *se) /* {{{ */
 	if (se->type == SOCKENT_TYPE_SERVER)
 	{
 		struct pollfd *tmp;
-		size_t i;
 
 		tmp = realloc (listen_sockets_pollfd,
 				sizeof (*tmp) * (listen_sockets_num
@@ -2342,7 +2335,7 @@ static int sockent_add (sockent_t *se) /* {{{ */
 		listen_sockets_pollfd = tmp;
 		tmp = listen_sockets_pollfd + listen_sockets_num;
 
-		for (i = 0; i < se->data.server.fd_num; i++)
+		for (size_t i = 0; i < se->data.server.fd_num; i++)
 		{
 			memset (tmp + i, 0, sizeof (*tmp));
 			tmp[i].fd = se->data.server.fd[i];
@@ -2441,7 +2434,6 @@ static int network_receive (void) /* {{{ */
 	char buffer[network_config_packet_size];
 	int  buffer_len;
 
-	size_t i;
 	int status = 0;
 
 	receive_list_entry_t *private_list_head;
@@ -2467,7 +2459,7 @@ static int network_receive (void) /* {{{ */
 			break;
 		}
 
-		for (i = 0; (i < listen_sockets_num) && (status > 0); i++)
+		for (size_t i = 0; (i < listen_sockets_num) && (status > 0); i++)
 		{
 			receive_list_entry_t *ent;
 
@@ -2785,11 +2777,9 @@ static void network_send_buffer_encrypted (sockent_t *se, /* {{{ */
 
 static void network_send_buffer (char *buffer, size_t buffer_len) /* {{{ */
 {
-  sockent_t *se;
-
   DEBUG ("network plugin: network_send_buffer: buffer_len = %zu", buffer_len);
 
-  for (se = sending_sockets; se != NULL; se = se->next)
+  for (sockent_t *se = sending_sockets; se != NULL; se = se->next)
   {
 #if HAVE_LIBGCRYPT
     if (se->data.client.security_level == SECURITY_LEVEL_ENCRYPT)
@@ -3036,7 +3026,6 @@ static int network_config_add_listen (const oconfig_item_t *ci) /* {{{ */
 {
   sockent_t *se;
   int status;
-  int i;
 
   if ((ci->values_num < 1) || (ci->values_num > 2)
       || (ci->values[0].type != OCONFIG_TYPE_STRING)
@@ -3058,7 +3047,7 @@ static int network_config_add_listen (const oconfig_item_t *ci) /* {{{ */
   if (ci->values_num >= 2)
     se->service = strdup (ci->values[1].value.string);
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -3122,7 +3111,6 @@ static int network_config_add_server (const oconfig_item_t *ci) /* {{{ */
 {
   sockent_t *se;
   int status;
-  int i;
 
   if ((ci->values_num < 1) || (ci->values_num > 2)
       || (ci->values[0].type != OCONFIG_TYPE_STRING)
@@ -3144,7 +3132,7 @@ static int network_config_add_server (const oconfig_item_t *ci) /* {{{ */
   if (ci->values_num >= 2)
     se->service = strdup (ci->values[1].value.string);
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -3206,17 +3194,15 @@ static int network_config_add_server (const oconfig_item_t *ci) /* {{{ */
 
 static int network_config (oconfig_item_t *ci) /* {{{ */
 {
-  int i;
-
   /* The options need to be applied first */
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
     if (strcasecmp ("TimeToLive", child->key) == 0)
       network_config_set_ttl (child);
   }
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -3319,8 +3305,6 @@ static int network_notification (const notification_t *n,
 
 static int network_shutdown (void)
 {
-	sockent_t *se;
-
 	listen_loop++;
 
 	/* Kill the listening thread */
@@ -3351,7 +3335,7 @@ static int network_shutdown (void)
 
 	sfree (send_buffer);
 
-	for (se = sending_sockets; se != NULL; se = se->next)
+	for (sockent_t *se = sending_sockets; se != NULL; se = se->next)
 		sockent_client_disconnect (se);
 	sockent_destroy (sending_sockets);
 

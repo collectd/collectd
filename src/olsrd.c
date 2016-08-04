@@ -150,7 +150,7 @@ static size_t strtabsplit (char *string, char **fields, size_t size) /* {{{ */
 
 static FILE *olsrd_connect (void) /* {{{ */
 {
-  struct addrinfo *ai_list, *ai_ptr;
+  struct addrinfo *ai_list;
   int              ai_return;
 
   FILE *fh;
@@ -173,7 +173,7 @@ static FILE *olsrd_connect (void) /* {{{ */
   }
 
   fh = NULL;
-  for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+  for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
   {
     int fd;
     int status;

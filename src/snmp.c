@@ -165,9 +165,8 @@ static int csnmp_oid_to_string (char *buffer, size_t buffer_size,
 {
   char oid_str[MAX_OID_LEN][16];
   char *oid_str_ptr[MAX_OID_LEN];
-  size_t i;
 
-  for (i = 0; i < o->oid_len; i++)
+  for (size_t i = 0; i < o->oid_len; i++)
   {
     ssnprintf (oid_str[i], sizeof (oid_str[i]), "%lu", (unsigned long) o->oid[i]);
     oid_str_ptr[i] = oid_str[i];
@@ -292,15 +291,13 @@ static int csnmp_config_add_data_instance_prefix (data_definition_t *dd,
 
 static int csnmp_config_add_data_values (data_definition_t *dd, oconfig_item_t *ci)
 {
-  int i;
-
   if (ci->values_num < 1)
   {
     WARNING ("snmp plugin: `Values' needs at least one argument.");
     return (-1);
   }
 
-  for (i = 0; i < ci->values_num; i++)
+  for (int i = 0; i < ci->values_num; i++)
     if (ci->values[i].type != OCONFIG_TYPE_STRING)
     {
       WARNING ("snmp plugin: `Values' needs only string argument.");
@@ -314,7 +311,7 @@ static int csnmp_config_add_data_values (data_definition_t *dd, oconfig_item_t *
     return (-1);
   dd->values_len = (size_t) ci->values_num;
 
-  for (i = 0; i < ci->values_num; i++)
+  for (int i = 0; i < ci->values_num; i++)
   {
     dd->values[i].oid_len = MAX_OID_LEN;
 
@@ -335,12 +332,10 @@ static int csnmp_config_add_data_values (data_definition_t *dd, oconfig_item_t *
 
 static int csnmp_config_add_data_blacklist(data_definition_t *dd, oconfig_item_t *ci)
 {
-  int i;
-
   if (ci->values_num < 1)
     return (0);
 
-  for (i = 0; i < ci->values_num; i++)
+  for (int i = 0; i < ci->values_num; i++)
   {
     if (ci->values[i].type != OCONFIG_TYPE_STRING)
     {
@@ -352,7 +347,7 @@ static int csnmp_config_add_data_blacklist(data_definition_t *dd, oconfig_item_t
   dd->ignores_len = 0;
   dd->ignores = NULL;
 
-  for (i = 0; i < ci->values_num; ++i)
+  for (int i = 0; i < ci->values_num; ++i)
   {
     if (strarray_add(&(dd->ignores), &(dd->ignores_len), ci->values[i].value.string) != 0)
     {
@@ -381,7 +376,6 @@ static int csnmp_config_add_data (oconfig_item_t *ci)
 {
   data_definition_t *dd;
   int status = 0;
-  int i;
 
   dd = calloc (1, sizeof (*dd));
   if (dd == NULL)
@@ -397,7 +391,7 @@ static int csnmp_config_add_data (oconfig_item_t *ci)
   dd->scale = 1.0;
   dd->shift = 0.0;
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
 
@@ -503,7 +497,6 @@ static int csnmp_config_add_host_collect (host_definition_t *host,
   data_definition_t *data;
   data_definition_t **data_list;
   int data_list_len;
-  int i;
 
   if (ci->values_num < 1)
   {
@@ -511,7 +504,7 @@ static int csnmp_config_add_host_collect (host_definition_t *host,
     return (-1);
   }
 
-  for (i = 0; i < ci->values_num; i++)
+  for (int i = 0; i < ci->values_num; i++)
     if (ci->values[i].type != OCONFIG_TYPE_STRING)
     {
       WARNING ("snmp plugin: All arguments to `Collect' must be strings.");
@@ -525,7 +518,7 @@ static int csnmp_config_add_host_collect (host_definition_t *host,
     return (-1);
   host->data_list = data_list;
 
-  for (i = 0; i < ci->values_num; i++)
+  for (int i = 0; i < ci->values_num; i++)
   {
     for (data = data_head; data != NULL; data = data->next)
       if (strcasecmp (ci->values[i].value.string, data->name) == 0)
@@ -638,7 +631,6 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
 {
   host_definition_t *hd;
   int status = 0;
-  int i;
 
   /* Registration stuff. */
   char cb_name[DATA_MAX_NAME_LEN];
@@ -660,7 +652,7 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
   hd->sess_handle = NULL;
   hd->interval = 0;
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
     status = 0;
@@ -790,11 +782,9 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
 
 static int csnmp_config (oconfig_item_t *ci)
 {
-  int i;
-
   call_snmp_init_once ();
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
     if (strcasecmp ("Data", child->key) == 0)
@@ -1055,14 +1045,13 @@ static int csnmp_strvbcopy_hexstring (char *dst, /* {{{ */
 {
   char *buffer_ptr;
   size_t buffer_free;
-  size_t i;
 
   dst[0] = 0;
 
   buffer_ptr = dst;
   buffer_free = dst_size;
 
-  for (i = 0; i < vb->val_len; i++)
+  for (size_t i = 0; i < vb->val_len; i++)
   {
     int status;
 
@@ -1095,7 +1084,6 @@ static int csnmp_strvbcopy (char *dst, /* {{{ */
 {
   char *src;
   size_t num_chars;
-  size_t i;
 
   if (vb->type == ASN_OCTET_STR)
     src = (char *) vb->val.string;
@@ -1119,7 +1107,7 @@ static int csnmp_strvbcopy (char *dst, /* {{{ */
   if (num_chars > vb->val_len)
     num_chars = vb->val_len;
 
-  for (i = 0; i < num_chars; i++)
+  for (size_t i = 0; i < num_chars; i++)
   {
     /* Check for control characters. */
     if ((unsigned char)src[i] < 32)
@@ -1144,7 +1132,6 @@ static int csnmp_instance_list_add (csnmp_list_instances_t **head,
   struct variable_list *vb;
   oid_t vb_name;
   int status;
-  uint32_t i;
   uint32_t is_matched;
 
   /* Set vb on the last variable */
@@ -1179,7 +1166,7 @@ static int csnmp_instance_list_add (csnmp_list_instances_t **head,
 
     csnmp_strvbcopy (il->instance, vb, sizeof (il->instance));
     is_matched = 0;
-    for (i = 0; i < dd->ignores_len; i++)
+    for (uint32_t i = 0; i < dd->ignores_len; i++)
     {
       status = fnmatch(dd->ignores[i], il->instance, 0);
       if (status == 0)

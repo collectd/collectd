@@ -420,12 +420,11 @@ static void submit_chain (iptc_handle_t *handle, ip_chain_t *chain)
 
 static int iptables_read (void)
 {
-    int i;
     int num_failures = 0;
     ip_chain_t *chain;
 
     /* Init the iptc handle structure and query the correct table */
-    for (i = 0; i < chain_num; i++)
+    for (int i = 0; i < chain_num; i++)
     {
         chain = chain_list[i];
 
@@ -489,9 +488,7 @@ static int iptables_read (void)
 
 static int iptables_shutdown (void)
 {
-    int i;
-
-    for (i = 0; i < chain_num; i++)
+    for (int i = 0; i < chain_num; i++)
     {
         if ((chain_list[i] != NULL) && (chain_list[i]->rule_type == RTYPE_COMMENT))
             sfree (chain_list[i]->rule.comment);

@@ -416,7 +416,7 @@ static int Values_init(PyObject *s, PyObject *args, PyObject *kwds) {
 }
 
 static meta_data_t *cpy_build_meta(PyObject *meta) {
-	int i, s;
+	int s;
 	meta_data_t *m = NULL;
 	PyObject *l;
 
@@ -435,7 +435,7 @@ static meta_data_t *cpy_build_meta(PyObject *meta) {
 	}
 
 	m = meta_data_create();
-	for (i = 0; i < s; ++i) {
+	for (int i = 0; i < s; ++i) {
 		const char *string, *keystring;
 		PyObject *key, *value, *item, *tmp;
 
@@ -505,7 +505,7 @@ static meta_data_t *cpy_build_meta(PyObject *meta) {
 static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 	int ret;
 	const data_set_t *ds;
-	size_t size, i;
+	size_t size;
 	value_t *value;
 	value_list_t value_list = VALUE_LIST_INIT;
 	PyObject *values = self->values, *meta = self->meta;
@@ -549,7 +549,7 @@ static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 		return NULL;
 	}
 	value = calloc(size, sizeof(*value));
-	for (i = 0; i < size; ++i) {
+	for (size_t i = 0; i < size; ++i) {
 		PyObject *item, *num;
 		item = PySequence_Fast_GET_ITEM(values, (int) i); /* Borrowed reference. */
 		if (ds->ds->type == DS_TYPE_COUNTER) {
@@ -614,7 +614,7 @@ static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
 	int ret;
 	const data_set_t *ds;
-	size_t size, i;
+	size_t size;
 	value_t *value;
 	value_list_t value_list = VALUE_LIST_INIT;
 	PyObject *values = self->values, *meta = self->meta;
@@ -653,7 +653,7 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
 		return NULL;
 	}
 	value = calloc(size, sizeof(*value));
-	for (i = 0; i < size; ++i) {
+	for (size_t i = 0; i < size; ++i) {
 		PyObject *item, *num;
 		item = PySequence_Fast_GET_ITEM(values, i); /* Borrowed reference. */
 		if (ds->ds->type == DS_TYPE_COUNTER) {

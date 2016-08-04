@@ -213,7 +213,6 @@ static int create_sockets (socket_entry_t **ret_sockets, /* {{{ */
     const char *node, const char *service, int listen)
 {
   struct addrinfo *ai_list;
-  struct addrinfo *ai_ptr;
   int              ai_return;
 
   socket_entry_t *sockets = NULL;
@@ -244,7 +243,7 @@ static int create_sockets (socket_entry_t **ret_sockets, /* {{{ */
     return (-1);
   }
 
-  for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next) /* {{{ */
+  for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next) /* {{{ */
   {
     socket_entry_t *tmp;
 
@@ -398,7 +397,6 @@ static int request_meta_data (const char *host, const char *name) /* {{{ */
   char buffer[BUFF_SIZE] = { 0 };
   unsigned int buffer_size;
   XDR xdr;
-  size_t i;
 
   msg.id = gmetadata_request;
   msg.Ganglia_metadata_msg_u.grequest.metric_id.host = strdup (host);
@@ -427,7 +425,7 @@ static int request_meta_data (const char *host, const char *name) /* {{{ */
       host, name);
 
   pthread_mutex_lock (&mc_send_sockets_lock);
-  for (i = 0; i < mc_send_sockets_num; i++)
+  for (size_t i = 0; i < mc_send_sockets_num; i++)
   {
     ssize_t status = sendto (mc_send_sockets[i].fd, buffer, (size_t) buffer_size,
         /* flags = */ 0,
@@ -829,7 +827,6 @@ static void *mc_receive_thread (void *arg) /* {{{ */
 {
   socket_entry_t *mc_receive_socket_entries;
   int status;
-  size_t i;
 
   mc_receive_socket_entries = NULL;
   status = create_sockets (&mc_receive_socket_entries, &mc_receive_sockets_num,
@@ -847,7 +844,7 @@ static void *mc_receive_thread (void *arg) /* {{{ */
   if (mc_receive_sockets == NULL)
   {
     ERROR ("gmond plugin: calloc failed.");
-    for (i = 0; i < mc_receive_sockets_num; i++)
+    for (size_t i = 0; i < mc_receive_sockets_num; i++)
       close (mc_receive_socket_entries[i].fd);
     free (mc_receive_socket_entries);
     mc_receive_socket_entries = NULL;
@@ -855,7 +852,7 @@ static void *mc_receive_thread (void *arg) /* {{{ */
     return ((void *) -1);
   }
 
-  for (i = 0; i < mc_receive_sockets_num; i++)
+  for (size_t i = 0; i < mc_receive_sockets_num; i++)
   {
     mc_receive_sockets[i].fd = mc_receive_socket_entries[i].fd;
     mc_receive_sockets[i].events = POLLIN | POLLPRI;
@@ -875,7 +872,7 @@ static void *mc_receive_thread (void *arg) /* {{{ */
       break;
     }
 
-    for (i = 0; i < mc_receive_sockets_num; i++)
+    for (size_t i = 0; i < mc_receive_sockets_num; i++)
     {
       if (mc_receive_sockets[i].revents != 0)
         mc_handle_socket (mc_receive_sockets + i);
@@ -963,7 +960,6 @@ static int gmond_config_set_string (oconfig_item_t *ci, char **str) /* {{{ */
 static int gmond_config_add_metric (oconfig_item_t *ci) /* {{{ */
 {
   metric_map_t *map;
-  int i;
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
@@ -995,7 +991,7 @@ static int gmond_config_add_metric (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
     if (strcasecmp ("Type", child->key) == 0)
@@ -1072,9 +1068,7 @@ static int gmond_config_set_address (oconfig_item_t *ci, /* {{{ */
 
 static int gmond_config (oconfig_item_t *ci) /* {{{ */
 {
-  int i;
-
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
     if (strcasecmp ("MCReceiveFrom", child->key) == 0)
@@ -1112,12 +1106,10 @@ static int gmond_init (void) /* {{{ */
 
 static int gmond_shutdown (void) /* {{{ */
 {
-  size_t i;
-
   mc_receive_thread_stop ();
 
   pthread_mutex_lock (&mc_send_sockets_lock);
-  for (i = 0; i < mc_send_sockets_num; i++)
+  for (size_t i = 0; i < mc_send_sockets_num; i++)
   {
     close (mc_send_sockets[i].fd);
     mc_send_sockets[i].fd = -1;

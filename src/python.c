@@ -271,7 +271,7 @@ static void cpy_build_name(char *buf, size_t size, PyObject *callback, const cha
 }
 
 void cpy_log_exception(const char *context) {
-	int l = 0, i;
+	int l = 0;
 	const char *typename = NULL, *message = NULL;
 	PyObject *type, *value, *traceback, *tn, *m, *list;
 
@@ -304,7 +304,7 @@ void cpy_log_exception(const char *context) {
 	if (list)
 		l = PyObject_Length(list);
 
-	for (i = 0; i < l; ++i) {
+	for (int i = 0; i < l; ++i) {
 		PyObject *line;
 		char const *msg;
 		char *cpy;
@@ -353,7 +353,6 @@ static int cpy_read_callback(user_data_t *data) {
 }
 
 static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_list, user_data_t *data) {
-	size_t i;
 	cpy_callback_t *c = data->data;
 	PyObject *ret, *list, *temp, *dict = NULL;
 	Values *v;
@@ -364,7 +363,7 @@ static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_li
 			cpy_log_exception("write callback");
 			CPY_RETURN_FROM_THREADS 0;
 		}
-		for (i = 0; i < value_list->values_len; ++i) {
+		for (size_t i = 0; i < value_list->values_len; ++i) {
 			if (ds->ds[i].type == DS_TYPE_COUNTER) {
 				PyList_SetItem(list, i, PyLong_FromUnsignedLongLong(value_list->values[i].counter));
 			} else if (ds->ds[i].type == DS_TYPE_GAUGE) {
@@ -393,7 +392,7 @@ static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_li
 			meta_data_t *meta = value_list->meta;
 
 			num = meta_data_toc(meta, &table);
-			for (i = 0; i < num; ++i) {
+			for (size_t i = 0; i < num; ++i) {
 				int type;
 				char *string;
 				int64_t si;
@@ -572,7 +571,6 @@ static PyObject *float_or_none(float number) {
 }
 
 static PyObject *cpy_get_dataset(PyObject *self, PyObject *args) {
-	size_t i;
 	char *name;
 	const data_set_t *ds;
 	PyObject *list, *tuple;
@@ -585,7 +583,7 @@ static PyObject *cpy_get_dataset(PyObject *self, PyObject *args) {
 		return NULL;
 	}
 	list = PyList_New(ds->ds_num); /* New reference. */
-	for (i = 0; i < ds->ds_num; ++i) {
+	for (size_t i = 0; i < ds->ds_num; ++i) {
 		tuple = PyTuple_New(4);
 		PyTuple_SET_ITEM(tuple, 0, cpy_string_to_unicode_or_bytes(ds->ds[i].name));
 		PyTuple_SET_ITEM(tuple, 1, cpy_string_to_unicode_or_bytes(DS_TYPE_TO_STRING(ds->ds[i].type)));
@@ -894,14 +892,13 @@ static PyMethodDef cpy_methods[] = {
 };
 
 static int cpy_shutdown(void) {
-	cpy_callback_t *c;
 	PyObject *ret;
 
 	/* This can happen if the module was loaded but not configured. */
 	if (state != NULL)
 		PyEval_RestoreThread(state);
 
-	for (c = cpy_shutdown_callbacks; c; c = c->next) {
+	for (cpy_callback_t *c = cpy_shutdown_callbacks; c; c = c->next) {
 		ret = PyObject_CallFunctionObjArgs(c->callback, c->data, (void *) 0); /* New reference. */
 		if (ret == NULL)
 			cpy_log_exception("shutdown callback");
@@ -966,7 +963,6 @@ static void *cpy_interactive(void *data) {
 }
 
 static int cpy_init(void) {
-	cpy_callback_t *c;
 	PyObject *ret;
 	static pthread_t thread;
 	sigset_t sigset;
@@ -978,7 +974,7 @@ static int cpy_init(void) {
 	}
 	PyEval_InitThreads();
 	/* Now it's finally OK to use python threads. */
-	for (c = cpy_init_callbacks; c; c = c->next) {
+	for (cpy_callback_t *c = cpy_init_callbacks; c; c = c->next) {
 		ret = PyObject_CallFunctionObjArgs(c->callback, c->data, (void *) 0); /* New reference. */
 		if (ret == NULL)
 			cpy_log_exception("init callback");
@@ -999,14 +995,13 @@ static int cpy_init(void) {
 }
 
 static PyObject *cpy_oconfig_to_pyconfig(oconfig_item_t *ci, PyObject *parent) {
-	int i;
 	PyObject *item, *values, *children, *tmp;
 
 	if (parent == NULL)
 		parent = Py_None;
 
 	values = PyTuple_New(ci->values_num); /* New reference. */
-	for (i = 0; i < ci->values_num; ++i) {
+	for (int i = 0; i < ci->values_num; ++i) {
 		if (ci->values[i].type == OCONFIG_TYPE_STRING) {
 			PyTuple_SET_ITEM(values, i, cpy_string_to_unicode_or_bytes(ci->values[i].value.string));
 		} else if (ci->values[i].type == OCONFIG_TYPE_NUMBER) {
@@ -1021,7 +1016,7 @@ static PyObject *cpy_oconfig_to_pyconfig(oconfig_item_t *ci, PyObject *parent) {
 	if (item == NULL)
 		return NULL;
 	children = PyTuple_New(ci->children_num); /* New reference. */
-	for (i = 0; i < ci->children_num; ++i) {
+	for (int i = 0; i < ci->children_num; ++i) {
 		PyTuple_SET_ITEM(children, i, cpy_oconfig_to_pyconfig(ci->children + i, item));
 	}
 	tmp = ((Config *) item)->children;
@@ -1108,7 +1103,6 @@ static int cpy_init_python(void) {
 }
 
 static int cpy_config(oconfig_item_t *ci) {
-	int i;
 	PyObject *tb;
 
 	/* Ok in theory we shouldn't do initialization at this point
@@ -1120,7 +1114,7 @@ static int cpy_config(oconfig_item_t *ci) {
 
 	if (!Py_IsInitialized() && cpy_init_python()) return 1;
 
-	for (i = 0; i < ci->children_num; ++i) {
+	for (int i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *item = ci->children + i;
 
 		if (strcasecmp(item->key, "Interactive") == 0) {

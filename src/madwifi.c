@@ -395,8 +395,7 @@ static inline void watchlist_remove (uint32_t *wl, int item)
 
 static inline void watchlist_set (uint32_t *wl, uint32_t val)
 {
-	int i;
-	for (i = 0; i < WL_LEN; i++)
+	for (int i = 0; i < WL_LEN; i++)
 		wl[i] = val;
 }
 
@@ -404,9 +403,8 @@ static inline void watchlist_set (uint32_t *wl, uint32_t val)
 static int watchitem_find (const char *name)
 {
 	int max = STATIC_ARRAY_SIZE (specs);
-	int i;
 
-	for (i = 0; i < max; i++)
+	for (int i = 0; i < max; i++)
 		if (strcasecmp (name, specs[i].name) == 0)
 			return i;
 
@@ -421,15 +419,14 @@ static int watchitem_find (const char *name)
 static int madwifi_real_init (void)
 {
 	size_t max = STATIC_ARRAY_SIZE (specs);
-	size_t i;
 
-	for (i = 0; i < STATIC_ARRAY_SIZE (bounds); i++)
+	for (size_t i = 0; i < STATIC_ARRAY_SIZE (bounds); i++)
 		bounds[i] = 0;
 
 	watchlist_set(watch_items, 0);
 	watchlist_set(misc_items, 0);
 
-	for (i = 0; i < max; i++)
+	for (size_t i = 0; i < max; i++)
 	{
 		bounds[specs[i].flags & SRC_MASK] = i;
 
@@ -440,7 +437,7 @@ static int madwifi_real_init (void)
 			misc_items[i / 32] |= FLAG (i);
 	}
 
-	for (i = 0; i < STATIC_ARRAY_SIZE (bounds); i++)
+	for (size_t i = 0; i < STATIC_ARRAY_SIZE (bounds); i++)
 		bounds[i]++;
 
 	return (0);
@@ -590,9 +587,8 @@ static void submit_antx (const char *dev, const char *name,
 		u_int32_t *vals, int vals_num)
 {
 	char ti2[16];
-	int i;
 
-	for (i = 0; i < vals_num; i++)
+	for (int i = 0; i < vals_num; i++)
 	{
 		if (vals[i] == 0)
 			continue;
@@ -615,12 +611,11 @@ process_stat_struct (int which, const void *ptr, const char *dev, const char *ma
 			 const char *type_name, const char *misc_name)
 {
 	uint32_t misc = 0;
-	int i;
 
 	assert (which >= 1);
 	assert (((size_t) which) < STATIC_ARRAY_SIZE (bounds));
 
-	for (i = bounds[which - 1]; i < bounds[which]; i++)
+	for (int i = bounds[which - 1]; i < bounds[which]; i++)
 	{
 		uint32_t val = *(uint32_t *)(((char *) ptr) + specs[i].offset) ;
 

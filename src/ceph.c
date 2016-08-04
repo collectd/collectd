@@ -270,14 +270,13 @@ ceph_cb_number(void *ctx, const char *number_val, yajl_len_t number_len)
     char buffer[number_len+1];
     char key[2 * DATA_MAX_NAME_LEN];
     _Bool latency_type = 0;
-    size_t i;
     int status;
 
     key[0] = '\0';
     memcpy(buffer, number_val, number_len);
     buffer[sizeof(buffer) - 1] = '\0';
 
-    for (i = 0; i < state->depth; i++)
+    for (size_t i = 0; i < state->depth; i++)
     {
         if (state->stack[i] == NULL)
             continue;
@@ -423,8 +422,7 @@ static void ceph_daemon_print(const struct ceph_daemon *d)
 
 static void ceph_daemons_print(void)
 {
-    int i;
-    for(i = 0; i < g_num_daemons; ++i)
+    for(int i = 0; i < g_num_daemons; ++i)
     {
         ceph_daemon_print(g_daemons[i]);
     }
@@ -432,15 +430,15 @@ static void ceph_daemons_print(void)
 
 static void ceph_daemon_free(struct ceph_daemon *d)
 {
-    int i = 0;
-    for(; i < d->last_idx; i++)
+    for(int i = 0; i < d->last_idx; i++)
     {
         sfree(d->last_poll_data[i]);
     }
     sfree(d->last_poll_data);
     d->last_poll_data = NULL;
     d->last_idx = 0;
-    for(i = 0; i < d->ds_num; i++)
+
+    for(int i = 0; i < d->ds_num; i++)
     {
         sfree(d->ds_names[i]);
     }
@@ -549,10 +547,9 @@ static _Bool has_suffix (char const *str, char const *suffix)
 /* count_parts returns the number of elements a "foo.bar.baz" style key has. */
 static size_t count_parts (char const *key)
 {
-    char const *ptr;
     size_t parts_num = 0;
 
-    for (ptr = key; ptr != NULL; ptr = strchr (ptr + 1, '.'))
+    for (const char *ptr = key; ptr != NULL; ptr = strchr (ptr + 1, '.'))
         parts_num++;
 
     return parts_num;
@@ -684,7 +681,7 @@ static int cc_handle_bool(struct oconfig_item_s *item, int *dest)
 
 static int cc_add_daemon_config(oconfig_item_t *ci)
 {
-    int ret, i;
+    int ret;
     struct ceph_daemon *nd, cd = { 0 };
     struct ceph_daemon **tmp;
 
@@ -701,7 +698,7 @@ static int cc_add_daemon_config(oconfig_item_t *ci)
         return ret;
     }
 
-    for(i=0; i < ci->children_num; i++)
+    for(int i=0; i < ci->children_num; i++)
     {
         oconfig_item_t *child = ci->children + i;
 
@@ -758,9 +755,9 @@ static int cc_add_daemon_config(oconfig_item_t *ci)
 
 static int ceph_config(oconfig_item_t *ci)
 {
-    int ret, i;
+    int ret;
 
-    for(i = 0; i < ci->children_num; ++i)
+    for(int i = 0; i < ci->children_num; ++i)
     {
         oconfig_item_t *child = ci->children + i;
         if(strcasecmp("Daemon", child->key) == 0)
@@ -897,8 +894,7 @@ static int update_last(struct ceph_daemon *d, const char *ds_n, int index,
  */
 static int backup_search_for_last_avg(struct ceph_daemon *d, const char *ds_n)
 {
-    int i = 0;
-    for(; i < d->last_idx; i++)
+    for(int i = 0; i < d->last_idx; i++)
     {
         if(strcmp(d->last_poll_data[i]->ds_name, ds_n) == 0)
         {
@@ -958,12 +954,11 @@ static double get_last_avg(struct ceph_daemon *d, const char *ds_n, int index,
  */
 static uint32_t backup_search_for_type(struct ceph_daemon *d, char *ds_name)
 {
-    int idx = 0;
-    for(; idx < d->ds_num; idx++)
+    for(int i = 0; i < d->ds_num; i++)
     {
-        if(strcmp(d->ds_names[idx], ds_name) == 0)
+        if(strcmp(d->ds_names[i], ds_name) == 0)
         {
-            return d->ds_types[idx];
+            return d->ds_types[i];
         }
     }
     return DSET_TYPE_UNFOUND;
@@ -1458,7 +1453,7 @@ static int milli_diff(const struct timeval *t1, const struct timeval *t2)
  */
 static int cconn_main_loop(uint32_t request_type)
 {
-    int i, ret, some_unreachable = 0;
+    int ret, some_unreachable = 0;
     struct timeval end_tv;
     struct cconn io_array[g_num_daemons];
 
@@ -1466,7 +1461,7 @@ static int cconn_main_loop(uint32_t request_type)
 
     /* create cconn array */
     memset(io_array, 0, sizeof(io_array));
-    for(i = 0; i < g_num_daemons; ++i)
+    for(int i = 0; i < g_num_daemons; ++i)
     {
         io_array[i].d = g_daemons[i];
         io_array[i].request_type = request_type;
@@ -1485,7 +1480,7 @@ static int cconn_main_loop(uint32_t request_type)
         struct pollfd fds[g_num_daemons];
         memset(fds, 0, sizeof(fds));
         nfds = 0;
-        for(i = 0; i < g_num_daemons; ++i)
+        for(int i = 0; i < g_num_daemons; ++i)
         {
             struct cconn *io = io_array + i;
             ret = cconn_prepare(io, fds + nfds);
@@ -1523,7 +1518,7 @@ static int cconn_main_loop(uint32_t request_type)
             ERROR("ceph plugin: poll(2) error: %d", ret);
             goto done;
         }
-        for(i = 0; i < nfds; ++i)
+        for(int i = 0; i < nfds; ++i)
         {
             struct cconn *io = polled_io_array[i];
             int revents = fds[i].revents;
@@ -1554,7 +1549,7 @@ static int cconn_main_loop(uint32_t request_type)
             }
         }
     }
-    done: for(i = 0; i < g_num_daemons; ++i)
+    done: for(int i = 0; i < g_num_daemons; ++i)
     {
         cconn_close(io_array + i);
     }
@@ -1587,8 +1582,7 @@ static int ceph_init(void)
 
 static int ceph_shutdown(void)
 {
-    int i;
-    for(i = 0; i < g_num_daemons; ++i)
+    for(int i = 0; i < g_num_daemons; ++i)
     {
         ceph_daemon_free(g_daemons[i]);
     }

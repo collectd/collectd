@@ -85,7 +85,7 @@ static int mbmon_query_daemon (char *buffer, int buffer_size)
 	const char *host;
 	const char *port;
 
-	struct addrinfo *ai_list, *ai_ptr;
+	struct addrinfo *ai_list;
 	int              ai_return;
 
 	host = mbmon_host;
@@ -115,7 +115,7 @@ static int mbmon_query_daemon (char *buffer, int buffer_size)
 	}
 
 	fd = -1;
-	for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+	for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
 	{
 		/* create our socket descriptor */
 		if ((fd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol)) < 0)
@@ -237,9 +237,7 @@ static void mbmon_submit (const char *type, const char *type_instance,
 /* Trim trailing whitespace from a string. */
 static void trim_spaces (char *s)
 {
-	size_t l;
-
-	for (l = strlen (s) - 1; (l > 0) && isspace ((int) s[l]); l--)
+	for (size_t l = strlen (s) - 1; (l > 0) && isspace ((int) s[l]); l--)
 		s[l] = '\0';
 }
 

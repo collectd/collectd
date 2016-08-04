@@ -102,7 +102,7 @@ static int memcached_connect_inet (memcached_t *st)
   const char *host;
   const char *port;
 
-  struct addrinfo *ai_list, *ai_ptr;
+  struct addrinfo *ai_list;
   int status;
   int fd = -1;
 
@@ -128,7 +128,7 @@ static int memcached_connect_inet (memcached_t *st)
     return (-1);
   }
 
-  for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+  for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
   {
     /* create our socket descriptor */
     fd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
@@ -578,7 +578,6 @@ static int memcached_add_read_callback (memcached_t *st)
 static int config_add_instance(oconfig_item_t *ci)
 {
   memcached_t *st;
-  int i;
   int status = 0;
 
   /* Disable automatic generation of default instance in the init callback. */
@@ -607,7 +606,7 @@ static int config_add_instance(oconfig_item_t *ci)
   }
   assert (st->name != NULL);
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -644,9 +643,8 @@ static int memcached_config (oconfig_item_t *ci)
 {
   int status = 0;
   _Bool have_instance_block = 0;
-  int i;
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 

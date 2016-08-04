@@ -90,12 +90,10 @@ static long long get_zfs_value(kstat_t *ksp, const char *key)
 
 static void free_zfs_values (kstat_t *ksp)
 {
-	llentry_t *e;
-
 	if (ksp == NULL)
 		return;
 
-	for (e = llist_head (ksp); e != NULL; e = e->next)
+	for (llentry_t *e = llist_head (ksp); e != NULL; e = e->next)
 	{
 		sfree (e->key);
 		sfree (e->value);

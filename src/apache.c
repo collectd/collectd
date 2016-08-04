@@ -175,7 +175,6 @@ static size_t apache_header_callback (void *buf, size_t size, size_t nmemb,
 static int config_add (oconfig_item_t *ci)
 {
 	apache_t *st;
-	int i;
 	int status;
 
 	st = calloc (1, sizeof (*st));
@@ -195,7 +194,7 @@ static int config_add (oconfig_item_t *ci)
 	}
 	assert (st->name != NULL);
 
-	for (i = 0; i < ci->children_num; i++)
+	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
 
@@ -272,9 +271,8 @@ static int config_add (oconfig_item_t *ci)
 static int config (oconfig_item_t *ci)
 {
 	int status = 0;
-	int i;
 
-	for (i = 0; i < ci->children_num; i++)
+	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
 
@@ -465,8 +463,7 @@ static void submit_scoreboard (char *buf, apache_t *st)
 	long long response_start = 0LL;
 	long long response_end   = 0LL;
 
-	int i;
-	for (i = 0; buf[i] != '\0'; i++)
+	for (int i = 0; buf[i] != '\0'; i++)
 	{
 		if (buf[i] == '.') open++;
 		else if (buf[i] == '_') waiting++;
