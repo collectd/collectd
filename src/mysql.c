@@ -790,6 +790,7 @@ static int mysql_read (user_data_t *ud)
 	derive_t qcache_not_cached    = 0;
 	derive_t qcache_lowmem_prunes = 0;
 	gauge_t qcache_queries_in_cache = NAN;
+    gauge_t qcache_free_memory = NAN;
 
 	gauge_t threads_running   = NAN;
 	gauge_t threads_connected = NAN;
@@ -865,6 +866,8 @@ static int mysql_read (user_data_t *ud)
 				qcache_lowmem_prunes = (derive_t) val;
 			else if (strcmp (key, "Qcache_queries_in_cache") == 0)
 				qcache_queries_in_cache = (gauge_t) val;
+			else if (strcmp (key, "Qcache_free_memory") == 0)
+				qcache_free_memory = (gauge_t) val;
 		}
 		else if (strncmp (key, "Bytes_",
 				        strlen ("Bytes_")) == 0)
@@ -978,6 +981,31 @@ static int mysql_read (user_data_t *ud)
 				counter_submit ("mysql_innodb_rows", "read", val, db);
 			else if (strcmp (key, "Innodb_rows_updated") == 0)
 				counter_submit ("mysql_innodb_rows", "updated", val, db);
+
+			/* checkpoints */
+			else if (strcmp (key, "Innodb_checkpoint_age") == 0)
+				gauge_submit ("mysql_innodb_checkpoint", "age", val, db);
+			else if (strcmp (key, "Innodb_checkpoint_max_age") == 0)
+				gauge_submit ("mysql_innodb_checkpoint", "max_age", val, db);
+
+			/* max id */
+			else if (strcmp (key, "Innodb_max_trx_id") == 0)
+				gauge_submit ("mysql_innodb_max", "trx_id", val, db);
+
+			/* page_size */
+			else if (strcmp (key, "Innodb_page_size") == 0)
+				gauge_submit ("mysql_innodb_page", "size", val, db);
+
+			/* open tables and files */
+			else if (strcmp (key, "Innodb_open_files") == 0)
+				gauge_submit ("mysql_innodb_open", "files", val, db);
+			else if (strcmp (key, "Innodb_open_tables") == 0)
+				gauge_submit ("mysql_innodb_open", "tables", val, db);
+			else if (strcmp (key, "Innodb_opened_files") == 0)
+				gauge_submit ("mysql_innodb_opened", "files", val, db);
+			else if (strcmp (key, "Innodb_opened_tables") == 0)
+				gauge_submit ("mysql_innodb_opened", "tables", val, db);
+
 		}
 		else if (strncmp (key, "Select_", strlen ("Select_")) == 0)
 		{
@@ -1000,6 +1028,53 @@ static int mysql_read (user_data_t *ud)
 		{
 			counter_submit ("mysql_slow_queries", NULL , val, db);
 		}
+		else if (strncmp (key, "Queries", strlen ("Queries")) == 0) 
+		{
+			counter_submit ("mysql_queries", NULL , val, db);
+		}
+		else if (strncmp (key, "Connections", strlen ("Connections")) == 0) 
+		{
+			counter_submit ("mysql_connections", NULL , val, db);
+		}
+		else if (strncmp (key, "Uptime", strlen ("Uptime")) == 0) 
+		{
+			counter_submit ("mysql_uptime", NULL , val, db);
+		}
+		else if (strncmp (key, "Questions", strlen ("Questions")) == 0) 
+		{
+			counter_submit ("mysql_questions", NULL , val, db);
+		}
+		else if (strncmp (key, "Created_", strlen ("Created_")) == 0)
+		{
+			if (strcmp (key, "Created_tmp_tables") == 0)
+				counter_submit ("mysql_created", "tmp_tables", val, db);
+			else if (strcmp (key, "Created_tmp_disk") == 0)
+				counter_submit ("mysql_created", "tmp_disk", val, db);
+			else if (strcmp (key, "Created_tables") == 0)
+				counter_submit ("mysql_created", "tables", val, db);
+		}
+		else if (strncmp (key, "Aborted_", strlen ("Aborted_")) == 0)
+		{
+			if (strcmp (key, "Aborted_clients") == 0)
+				counter_submit ("mysql_aborted", "clients", val, db);
+			else if (strcmp (key, "Aborted_connects") == 0)
+				counter_submit ("mysql_aborted", "connects", val, db);
+		}
+		else if (strncmp (key, "Key_", strlen ("Key_")) == 0)
+		{
+			if(strcmp (key, "Key_reads") == 0)
+				counter_submit ("mysql_key", "reads", val, db);
+			else if (strcmp (key, "Key_read_requests") == 0)
+				counter_submit ("mysql_key", "read_requests", val, db);
+			if(strcmp (key, "Key_writes") == 0)
+				counter_submit ("mysql_key", "writes", val, db);
+			else if (strcmp (key, "Key_write_requests") == 0)
+				counter_submit ("mysql_key", "write_requests", val, db);
+			if(strcmp (key, "Key_blocks_unused") == 0)
+				counter_submit ("mysql_key", "blocks_unused", val, db);
+			else if (strcmp (key, "Key_blocks_not_flushed") == 0)
+				counter_submit ("mysql_key", "not_flushed", val, db);								
+		}
 	}
 	mysql_free_result (res); res = NULL;
 
@@ -1019,6 +1094,8 @@ static int mysql_read (user_data_t *ud)
 
 		gauge_submit ("cache_size", "qcache",
 				qcache_queries_in_cache, db);
+		gauge_submit ("cache_queries", "qcache-free-memory",
+				qcache_free_memory, db);
 	}
 
 	if (threads_created != 0)
