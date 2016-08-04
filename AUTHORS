@@ -26,7 +26,7 @@ Ruben Kerkhof <ruben@rubenkerkhof.com>
 
 Sebastian "tokkee" Harl <sh at tokkee.org>
  - Bugfixes and enhancements in many places all around the project.
- - gprc plugin.
+ - grpc plugin.
  - perl plugin.
  - postgresql plugin.
  - users plugin.
