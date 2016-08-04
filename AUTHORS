@@ -20,7 +20,7 @@ Pierre-Yves Ritschard <pyr at spootnik.org>
  - Normalization in the CPU plugin.
  - Relative values in the Load plugin.
 
-Ruben Kerkhof <ruben@rubenkerkhof.com>
+Ruben Kerkhof <ruben at rubenkerkhof.com>
  - Bugfixes and enhancements in many places all around the project.
  - Fedora and EPEL packages.
 
