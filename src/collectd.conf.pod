@@ -3661,6 +3661,13 @@ Synopsis:
       SlaveStats true
       SlaveNotifications true
     </Database>
+
+   <Database galera>
+      Alias "galera"
+      Host "localhost"
+      Socket "/var/run/mysql/mysqld.sock"
+      WsrepStats true
+   </Database>
   </Plugin>
 
 A B<Database> block defines one connection to a MySQL database. It accepts a
@@ -3731,6 +3738,12 @@ privileges. See the B<User> documentation above. Defaults to B<false>.
 If enabled, the plugin sends a notification if the replication slave I/O and /
 or SQL threads are not running. Defaults to B<false>.
 
+=item B<WsrepStats> I<true|false>
+ 
+ Enable the collection of wsrep plugin statistics, used in Master-Master
+ replication setups like in MySQL Galera/Percona XtraDB Cluster.
+ User needs only privileges to execute 'SHOW GLOBAL STATUS'
+ 
 =item B<ConnectTimeout> I<Seconds>
 
 Sets the connect timeout for the MySQL client.

@@ -741,6 +741,12 @@
 #		SlaveStats true
 #		SlaveNotifications true
 #	</Database>
+#	<Database galera>
+#		Alias "galera"
+#		Host "localhost"
+#		Socket "/var/run/mysql/mysqld.sock"
+#		WsrepStats true
+#	</Database>
 #</Plugin>
 
 #<Plugin netapp>

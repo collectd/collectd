@@ -81,6 +81,9 @@ bindings/java/org/collectd/java/*.class
 # lint stuff
 *.ln
 
+#ide stuff
+.vscode
+
 # Unit tests
 src/daemon/test-suite.log
 src/tests/
