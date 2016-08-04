@@ -25,7 +25,7 @@
  SOFTWARE.
 
  * Authors:
- *   rinigus <http://github.com/rinigus>
+ *	 rinigus <http://github.com/rinigus>
 
  Radio switches are monitored, as exposed by rfkill interface in Linux
  
@@ -55,13 +55,13 @@ static int radio_init (void)
 		status = ssnprintf (filename, sizeof (filename),
 							SYSFS_ROOT "rfkill%d/"
 							"hard", num_rfkill);
-      
+	  
 		if ((status < 1) || ((size_t)status >= sizeof (filename)))
 			break;
-      
+	  
 		if (access (filename, R_OK))
 			break;
-      
+	  
 		num_rfkill++;
 	}
   
@@ -106,7 +106,7 @@ static _Bool get_value(const char *fname, int *value)
 	{
 		fclose(fh);
 		return (0); // empty file
-    }
+	}
 
 	(*value) = atoi( buffer );
 
@@ -126,7 +126,7 @@ static _Bool get_string(const char *fname, char *buffer, size_t buffer_size)
 	{
 		fclose(fh);
 		return (0); // empty file
-    }
+	}
 
 	fclose(fh);
 
@@ -138,24 +138,24 @@ static void sanitize(char *buffer, size_t buffer_size)
 {
 	size_t i;
 	for (i=0; i<buffer_size; ++i)
-    {
+	{
 		char c = buffer[i];
 		if (c == '\0') return;
 		if (c == '\n')
-        {
+		{
 			buffer[i] = '\0';
 			return;
-        }
-      
+		}
+	  
 		if (i == buffer_size-1)
-        {
+		{
 			buffer[i] = '\0';
 			return;
-        }
-      
+		}
+	  
 		if (c == ' ' || c == '-' || c == '/')
 			buffer[i] = '_';
-    }
+	}
 }
 
 
@@ -175,15 +175,15 @@ static int radio_read (void)
 		status = ssnprintf (filename, sizeof (filename),
 							SYSFS_ROOT "rfkill%d/"
 							"type", i);
-      
+	  
 		if ((status < 1) || ((unsigned int)status >= sizeof (filename)))
 			return (-1);
 
 		if ( !get_string(filename, type, sizeof(type)) )
-        {
+		{
 			ERROR("radio: cannot read value from %s", filename);
 			return (-1);
-        }
+		}
 
 		sanitize(type, sizeof(type));
 
@@ -191,15 +191,15 @@ static int radio_read (void)
 		status = ssnprintf (filename, sizeof (filename),
 							SYSFS_ROOT "rfkill%d/"
 							"name", i);
-      
+	  
 		if ((status < 1) || ((unsigned int)status >= sizeof (filename)))
 			return (-1);
 
 		if ( !get_string(filename, name, sizeof(name)) )
-        {
+		{
 			ERROR("radio: cannot read value from %s", filename);
 			return (-1);
-        }
+		}
 
 		sanitize(name, sizeof(name));
 
@@ -207,38 +207,38 @@ static int radio_read (void)
 		status = ssnprintf (filename, sizeof (filename),
 							SYSFS_ROOT "rfkill%d/"
 							"hard", i);
-      
+	  
 		if ((status < 1) || ((unsigned int)status >= sizeof (filename)))
 			return (-1);
 
 		if ( !get_value(filename, &hard) )
-        {
+		{
 			ERROR("radio: cannot read value from %s", filename);
 			return (-1);
-        }
+		}
 
 		if (hard) // radio is killed by hardware switch
-        {
+		{
 			radio_submit ("active", type, name, 0);
 			continue; // no need to read soft switch
-        }
+		}
 
 		// software switch
 		status = ssnprintf (filename, sizeof (filename),
 							SYSFS_ROOT "rfkill%d/"
 							"soft", i);
-      
+	  
 		if ((status < 1) || ((unsigned int)status >= sizeof (filename)))
 			return (-1);
 
 		if ( !get_value(filename, &soft) )
-        {
+		{
 			ERROR("radio: cannot read value from %s", filename);
 			return (-1);
-        }
+		}
 
 		radio_submit ("active", type, name, (hard==0 && soft==0));
-    }
+	}
   
 	return (0);
 }
