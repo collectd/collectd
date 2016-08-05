@@ -658,6 +658,8 @@ Any Python module will start similar to:
 
 A very simple read function might look like:
 
+  import random
+
   def read(data=None):
     vl = collectd.Values(type='gauge')
     vl.plugin='python.spam'
