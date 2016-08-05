@@ -671,8 +671,8 @@ A very simple write function might look like:
 
 To register those functions with collectd:
 
-  collectd.register_read(read);
-  collectd.register_write(write);
+  collectd.register_read(read)
+  collectd.register_write(write)
 
 See the section L<"CLASSES"> above for a complete documentation of the data
 types used by the read, write and match functions.
