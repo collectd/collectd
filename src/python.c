@@ -1124,20 +1124,22 @@ static int cpy_config(oconfig_item_t *ci) {
 				continue;
 			}
 		} else if (strcasecmp(item->key, "Encoding") == 0) {
+#ifdef IS_PY3K
+			ERROR("python: \"Encoding\" was used in the config file but Python3 was used, which does not support changing encodings");
+			status = 1;
+			continue;
+#endif
 			char *encoding = NULL;
 			if (cf_util_get_string(item, &encoding) != 0) {
 				status = 1;
 				continue;
 			}
-#ifdef IS_PY3K
-			ERROR("python: \"Encoding\" was used in the config file but Python3 was used, which does not support changing encodings");
-			status = 1;
-#else
 			/* Why is this even necessary? And undocumented? */
-			if (PyUnicode_SetDefaultEncoding(encoding))
+			if (PyUnicode_SetDefaultEncoding(encoding)) {
 				cpy_log_exception("setting default encoding");
+				status = 1;
+			}
 			sfree(encoding);
-#endif
 		} else if (strcasecmp(item->key, "LogTraces") == 0) {
 			_Bool log_traces;
 			if (cf_util_get_boolean(item, &log_traces) != 0) {
