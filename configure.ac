@@ -1,4 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
+AC_PREREQ([2.60])
 AC_INIT([collectd],[m4_esyscmd(./version-gen.sh)])
 AC_CONFIG_SRCDIR(src/target_set.c)
 AC_CONFIG_HEADERS(src/config.h)
