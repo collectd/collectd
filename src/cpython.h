@@ -170,7 +170,7 @@ typedef struct {
 	PyObject *values;    /* Sequence */
 	PyObject *children;  /* Sequence */
 } Config;
-PyTypeObject ConfigType;
+extern PyTypeObject ConfigType;
 
 typedef struct {
 	PyObject_HEAD        /* No semicolon! */
@@ -181,7 +181,7 @@ typedef struct {
 	char type[DATA_MAX_NAME_LEN];
 	char type_instance[DATA_MAX_NAME_LEN];
 } PluginData;
-PyTypeObject PluginDataType;
+extern PyTypeObject PluginDataType;
 #define PluginData_New() PyObject_CallFunctionObjArgs((PyObject *) &PluginDataType, (void *) 0)
 
 typedef struct {
@@ -190,7 +190,7 @@ typedef struct {
 	PyObject *meta;      /* dict */
 	double interval;
 } Values;
-PyTypeObject ValuesType;
+extern PyTypeObject ValuesType;
 #define Values_New() PyObject_CallFunctionObjArgs((PyObject *) &ValuesType, (void *) 0)
 
 typedef struct {
@@ -198,12 +198,12 @@ typedef struct {
 	int severity;
 	char message[NOTIF_MAX_MSG_LEN];
 } Notification;
-PyTypeObject NotificationType;
+extern PyTypeObject NotificationType;
 #define Notification_New() PyObject_CallFunctionObjArgs((PyObject *) &NotificationType, (void *) 0)
 
 typedef PyLongObject Signed;
-PyTypeObject SignedType;
+extern PyTypeObject SignedType;
 
 typedef PyLongObject Unsigned;
-PyTypeObject UnsignedType;
+extern PyTypeObject UnsignedType;
 
