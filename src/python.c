@@ -219,7 +219,7 @@ static char reg_shutdown_doc[] = "register_shutdown(callback[, data][, name]) ->
 		"    data if it was supplied.";
 
 
-static int do_interactive = 0;
+static _Bool do_interactive = 0;
 
 /* This is our global thread state. Python saves some stuff in thread-local
  * storage. So if we allow the interpreter to run in the background
@@ -1119,23 +1119,32 @@ static int cpy_config(oconfig_item_t *ci) {
 		oconfig_item_t *item = ci->children + i;
 
 		if (strcasecmp(item->key, "Interactive") == 0) {
-			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_BOOLEAN)
+			if (cf_util_get_boolean(item, &do_interactive) != 0) {
+				status = 1;
 				continue;
-			do_interactive = item->values[0].value.boolean;
+			}
 		} else if (strcasecmp(item->key, "Encoding") == 0) {
-			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_STRING)
+			char *encoding = NULL;
+			if (cf_util_get_string(item, &encoding) != 0) {
+				status = 1;
 				continue;
+			}
 #ifdef IS_PY3K
-			NOTICE("python: \"Encoding\" was used in the config file but Python3 was used, which does not support changing encodings. Ignoring this.");
+			ERROR("python: \"Encoding\" was used in the config file but Python3 was used, which does not support changing encodings");
+			status = 1;
 #else
 			/* Why is this even necessary? And undocumented? */
-			if (PyUnicode_SetDefaultEncoding(item->values[0].value.string))
+			if (PyUnicode_SetDefaultEncoding(encoding))
 				cpy_log_exception("setting default encoding");
+			sfree(encoding);
 #endif
 		} else if (strcasecmp(item->key, "LogTraces") == 0) {
-			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_BOOLEAN)
+			_Bool log_traces;
+			if (cf_util_get_boolean(item, &log_traces) != 0) {
+				status = 1;
 				continue;
-			if (!item->values[0].value.boolean) {
+			}
+			if (!log_traces) {
 				Py_XDECREF(cpy_format_exception);
 				cpy_format_exception = NULL;
 				continue;
@@ -1158,8 +1167,10 @@ static int cpy_config(oconfig_item_t *ci) {
 			char *dir = NULL;
 			PyObject *dir_object;
 
-			if (cf_util_get_string(item, &dir) != 0)
+			if (cf_util_get_string(item, &dir) != 0) {
+				status = 1;
 				continue;
+			}
 			dir_object = cpy_string_to_unicode_or_bytes(dir); /* New reference. */
 			if (dir_object == NULL) {
 				ERROR("python plugin: Unable to convert \"%s\" to "
@@ -1181,8 +1192,10 @@ static int cpy_config(oconfig_item_t *ci) {
 			char *module_name = NULL;
 			PyObject *module;
 
-			if (cf_util_get_string(item, &module_name) != 0)
+			if (cf_util_get_string(item, &module_name) != 0) {
+				status = 1;
 				continue;
+			}
 			module = PyImport_ImportModule(module_name); /* New reference. */
 			if (module == NULL) {
 				ERROR("python plugin: Error importing module \"%s\".", module_name);
@@ -1196,8 +1209,10 @@ static int cpy_config(oconfig_item_t *ci) {
 			cpy_callback_t *c;
 			PyObject *ret;
 
-			if (cf_util_get_string(item, &name) != 0)
+			if (cf_util_get_string(item, &name) != 0) {
+				status = 1;
 				continue;
+			}
 			for (c = cpy_config_callbacks; c; c = c->next) {
 				if (strcasecmp(c->name + 7, name) == 0)
 					break;
@@ -1208,7 +1223,6 @@ static int cpy_config(oconfig_item_t *ci) {
 					"a configuration callback.", name);
 				free(name);
 				continue;
-				status = 1;
 			}
 			free(name);
 			if (c->data == NULL)
@@ -1223,7 +1237,8 @@ static int cpy_config(oconfig_item_t *ci) {
 			} else
 				Py_DECREF(ret);
 		} else {
-			WARNING("python plugin: Ignoring unknown config key \"%s\".", item->key);
+			ERROR("python plugin: Unknown config key \"%s\".", item->key);
+			status = 1;
 		}
 	}
 	return (status);
