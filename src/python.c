@@ -1104,6 +1104,7 @@ static int cpy_init_python(void) {
 
 static int cpy_config(oconfig_item_t *ci) {
 	PyObject *tb;
+	int status = 0;
 
 	/* Ok in theory we shouldn't do initialization at this point
 	 * but we have to. In order to give python scripts a chance
@@ -1144,12 +1145,15 @@ static int cpy_config(oconfig_item_t *ci) {
 			tb = PyImport_ImportModule("traceback"); /* New reference. */
 			if (tb == NULL) {
 				cpy_log_exception("python initialization");
+				status = 1;
 				continue;
 			}
 			cpy_format_exception = PyObject_GetAttrString(tb, "format_exception"); /* New reference. */
 			Py_DECREF(tb);
-			if (cpy_format_exception == NULL)
+			if (cpy_format_exception == NULL) {
 				cpy_log_exception("python initialization");
+				status = 1;
+			}
 		} else if (strcasecmp(item->key, "ModulePath") == 0) {
 			char *dir = NULL;
 			PyObject *dir_object;
@@ -1162,12 +1166,14 @@ static int cpy_config(oconfig_item_t *ci) {
 				      "a python object.", dir);
 				free(dir);
 				cpy_log_exception("python initialization");
+				status = 1;
 				continue;
 			}
 			if (PyList_Insert(sys_path, 0, dir_object) != 0) {
 				ERROR("python plugin: Unable to prepend \"%s\" to "
 				      "python module path.", dir);
 				cpy_log_exception("python initialization");
+				status = 1;
 			}
 			Py_DECREF(dir_object);
 			free(dir);
@@ -1181,6 +1187,7 @@ static int cpy_config(oconfig_item_t *ci) {
 			if (module == NULL) {
 				ERROR("python plugin: Error importing module \"%s\".", module_name);
 				cpy_log_exception("importing module");
+				status = 1;
 			}
 			free(module_name);
 			Py_XDECREF(module);
@@ -1201,6 +1208,7 @@ static int cpy_config(oconfig_item_t *ci) {
 					"a configuration callback.", name);
 				free(name);
 				continue;
+				status = 1;
 			}
 			free(name);
 			if (c->data == NULL)
@@ -1209,15 +1217,16 @@ static int cpy_config(oconfig_item_t *ci) {
 			else
 				ret = PyObject_CallFunction(c->callback, "NO",
 					cpy_oconfig_to_pyconfig(item, NULL), c->data); /* New reference. */
-			if (ret == NULL)
+			if (ret == NULL) {
 				cpy_log_exception("loading module");
-			else
+				status = 1;
+			} else
 				Py_DECREF(ret);
 		} else {
 			WARNING("python plugin: Ignoring unknown config key \"%s\".", item->key);
 		}
 	}
-	return 0;
+	return (status);
 }
 
 void module_register(void) {
