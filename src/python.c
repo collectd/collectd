@@ -219,6 +219,8 @@ static char reg_shutdown_doc[] = "register_shutdown(callback[, data][, name]) ->
 		"    data if it was supplied.";
 
 
+static pthread_t main_thread;
+static PyOS_sighandler_t python_sigint_handler;
 static int do_interactive = 0;
 
 /* This is our global thread state. Python saves some stuff in thread-local
@@ -913,13 +915,8 @@ static int cpy_shutdown(void) {
 	return 0;
 }
 
-static void cpy_int_handler(int sig) {
-	return;
-}
-
 static void *cpy_interactive(void *data) {
-	sigset_t sigset;
-	struct sigaction old;
+	PyOS_sighandler_t cur_sig;
 
 	/* Signal handler in a plugin? Bad stuff, but the best way to
 	 * handle it I guess. In an interactive session people will
@@ -929,39 +926,34 @@ static void *cpy_interactive(void *data) {
 	 * mess. Chances are, this isn't what the user wanted to do.
 	 *
 	 * So this is the plan:
-	 * 1. Block SIGINT in the main thread.
-	 * 2. Install our own signal handler that does nothing.
-	 * 3. Unblock SIGINT in the interactive thread.
+	 * 1. Restore Python's own signal handler
+	 * 2. Tell Python we just forked so it will accept this thread
+	 *    as the main one. No version of Python will ever handle
+	 *    interrupts anywhere but in the main thread.
+	 * 3. After the interactive loop is done, restore collectd's
+	 *    SIGINT handler.
+	 * 4. Raise SIGINT for a clean shutdown. The signal is sent to
+	 *    the main thread to ensure it wakes up the main interval
+	 *    sleep so that collectd shuts down immediately not in 10
+	 *    seconds.
 	 *
 	 * This will make sure that SIGINT won't kill collectd but
-	 * still interrupt syscalls like sleep and pause.
-	 * It does not raise a KeyboardInterrupt exception because so
-	 * far nobody managed to figure out how to do that. */
-	struct sigaction sig_int_action = {
-		.sa_handler = cpy_int_handler
-	};
-	sigaction (SIGINT, &sig_int_action, &old);
+	 * still interrupt syscalls like sleep and pause. */
 
-	sigemptyset(&sigset);
-	sigaddset(&sigset, SIGINT);
-	pthread_sigmask(SIG_UNBLOCK, &sigset, NULL);
 	PyEval_AcquireThread(state);
 	if (PyImport_ImportModule("readline") == NULL) {
 		/* This interactive session will suck. */
 		cpy_log_exception("interactive session init");
-	}
+ 	}
+	cur_sig = PyOS_setsig(SIGINT, python_sigint_handler);
+	/* We totally forked just now. Everyone saw that, right? */
+	PyOS_AfterFork();
 	PyRun_InteractiveLoop(stdin, "<stdin>");
+	PyOS_setsig(SIGINT, cur_sig);
 	PyErr_Print();
 	PyEval_ReleaseThread(state);
 	NOTICE("python: Interactive interpreter exited, stopping collectd ...");
-	/* Restore the original collectd SIGINT handler and raise SIGINT.
-	 * The main thread still has SIGINT blocked and there's nothing we
-	 * can do about that so this thread will handle it. But that's not
-	 * important, except that it won't interrupt the main loop and so
-	 * it might take a few seconds before collectd really shuts down. */
-	sigaction (SIGINT, &old, NULL);
-	raise(SIGINT);
-	pause();
+	pthread_kill(main_thread, SIGINT);
 	return NULL;
 }
 
@@ -969,7 +961,6 @@ static int cpy_init(void) {
 	cpy_callback_t *c;
 	PyObject *ret;
 	static pthread_t thread;
-	sigset_t sigset;
 
 	if (!Py_IsInitialized()) {
 		WARNING("python: Plugin loaded but not configured.");
@@ -985,10 +976,8 @@ static int cpy_init(void) {
 		else
 			Py_DECREF(ret);
 	}
-	sigemptyset(&sigset);
-	sigaddset(&sigset, SIGINT);
-	pthread_sigmask(SIG_BLOCK, &sigset, NULL);
 	state = PyEval_SaveThread();
+	main_thread = pthread_self();
 	if (do_interactive) {
 		if (plugin_thread_create(&thread, NULL, cpy_interactive, NULL)) {
 			ERROR("python: Error creating thread for interactive interpreter.");
@@ -1045,6 +1034,7 @@ PyMODINIT_FUNC PyInit_collectd(void) {
 #endif
 
 static int cpy_init_python(void) {
+	PyOS_sighandler_t cur_sig;
 	PyObject *sys;
 	PyObject *module;
 
@@ -1056,7 +1046,10 @@ static int cpy_init_python(void) {
 	char *argv = "";
 #endif
 
+	/* Chances are the current signal handler is already SIG_DFL, but let's make sure. */
+	cur_sig = PyOS_setsig(SIGINT, SIG_DFL);
 	Py_Initialize();
+	python_sigint_handler = PyOS_setsig(SIGINT, cur_sig);
 
 	PyType_Ready(&ConfigType);
 	PyType_Ready(&PluginDataType);
