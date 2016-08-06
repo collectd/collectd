@@ -36,6 +36,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -91,12 +92,6 @@
   (c)->errbuf[sizeof ((c)->errbuf) - 1] = 0; \
 } while (0)
 
-#if COLLECT_DEBUG
-# define LCC_DEBUG(...) printf (__VA_ARGS__)
-#else
-# define LCC_DEBUG(...) /**/
-#endif
-
 /*
  * Types
  */
@@ -118,6 +113,22 @@ typedef struct lcc_response_s lcc_response_t;
 /*
  * Private functions
  */
+static int lcc_tracef(char const *format, ...)
+{
+  va_list ap;
+  int status;
+
+  char const *trace = getenv (LCC_TRACE_ENV);
+  if (!trace || (strcmp ("", trace) == 0) || (strcmp ("0", trace) == 0))
+    return 0;
+
+  va_start (ap, format);
+  status = vprintf (format, ap);
+  va_end (ap);
+
+  return status;
+}
+
 /* Even though Posix requires "strerror_r" to return an "int",
  * some systems (e.g. the GNU libc) return a "char *" _and_
  * ignore the second argument ... -tokkee */
@@ -250,7 +261,7 @@ static int lcc_send (lcc_connection_t *c, const char *command) /* {{{ */
 {
   int status;
 
-  LCC_DEBUG ("send:    --> %s\n", command);
+  lcc_tracef ("send:    --> %s\n", command);
 
   status = fprintf (c->fh, "%s\r\n", command);
   if (status < 0)
@@ -281,7 +292,7 @@ static int lcc_receive (lcc_connection_t *c, /* {{{ */
     return (-1);
   }
   lcc_chomp (buffer);
-  LCC_DEBUG ("receive: <-- %s\n", buffer);
+  lcc_tracef ("receive: <-- %s\n", buffer);
 
   /* Convert the leading status to an integer and make `ptr' to point to the
    * beginning of the message. */
@@ -329,7 +340,7 @@ static int lcc_receive (lcc_connection_t *c, /* {{{ */
       break;
     }
     lcc_chomp (buffer);
-    LCC_DEBUG ("receive: <-- %s\n", buffer);
+    lcc_tracef ("receive: <-- %s\n", buffer);
 
     res.lines[i] = strdup (buffer);
     if (res.lines[i] == NULL)
