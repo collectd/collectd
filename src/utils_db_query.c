@@ -236,15 +236,27 @@ static int udb_result_submit (udb_result_t *r, /* {{{ */
   {
     if (r->instance_prefix == NULL)
     {
-      strjoin (vl.type_instance, sizeof (vl.type_instance),
+      int status = strjoin (vl.type_instance, sizeof (vl.type_instance),
           r_area->instances_buffer, r->instances_num, "-");
+      if (status != 0)
+      {
+        ERROR ("udb_result_submit: creating type_instance failed with status %d.",
+            status);
+        return (status);
+      }
     }
     else
     {
       char tmp[DATA_MAX_NAME_LEN];
 
-      strjoin (tmp, sizeof (tmp), r_area->instances_buffer,
+      int status = strjoin (tmp, sizeof (tmp), r_area->instances_buffer,
           r->instances_num, "-");
+      if (status != 0)
+      {
+        ERROR ("udb_result_submit: creating type_instance failed with status %d.",
+            status);
+        return (status);
+      }
       tmp[sizeof (tmp) - 1] = 0;
 
       snprintf (vl.type_instance, sizeof (vl.type_instance), "%s-%s",
