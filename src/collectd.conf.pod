@@ -2401,7 +2401,7 @@ I<TypeInstance> will be used.
 
 =item B<MappedOnly> B<true>|B<false>
 
-When set to B<true>, only metrics that can be mapped to to a I<type> will be
+When set to B<true>, only metrics that can be mapped to a I<type> will be
 collected, all other metrics will be ignored. Defaults to B<false>.
 
 =back
