@@ -374,7 +374,7 @@ static int start_thread (void) /* {{{ */
   if (ping_thread_loop != 0)
   {
     pthread_mutex_unlock (&ping_lock);
-    return (-1);
+    return (0);
   }
 
   ping_thread_loop = 1;
@@ -388,7 +388,7 @@ static int start_thread (void) /* {{{ */
     pthread_mutex_unlock (&ping_lock);
     return (-1);
   }
-    
+
   pthread_mutex_unlock (&ping_lock);
   return (0);
 } /* }}} int start_thread */
@@ -439,10 +439,7 @@ static int ping_init (void) /* {{{ */
         "Will use a timeout of %gs.", ping_timeout);
   }
 
-  if (start_thread () != 0)
-    return (-1);
-
-  return (0);
+  return (start_thread ());
 } /* }}} int ping_init */
 
 static int config_set_string (const char *name, /* {{{ */
