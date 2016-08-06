@@ -34,25 +34,23 @@
 #if HAVE_YAJL_YAJL_VERSION_H
 # include <yajl/yajl_version.h>
 #endif
-#if defined(YAJL_MAJOR) && (YAJL_MAJOR > 1)
+#if YAJL_MAJOR > 1
 # define HAVE_YAJL_V2 1
 #endif
 
-struct label_s
+typedef struct
 {
-  char *key;
-  char *value;
-};
-typedef struct label_s label_t;
+  char const *key;
+  char const *value;
+} label_t;
 
-struct test_case_s
+typedef struct
 {
   label_t *expected_labels;
   size_t   expected_labels_num;
 
   label_t *current_label;
-};
-typedef struct test_case_s test_case_t;
+} test_case_t;
 
 #if HAVE_YAJL_V2
 static int test_map_key (void *ctx, unsigned char const *key, size_t key_len)
