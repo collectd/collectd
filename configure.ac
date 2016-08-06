@@ -1444,15 +1444,15 @@ if test "x$have_getmntent" = "xc"; then
 fi
 if test "x$have_getmntent" = "xsun"; then
 	AC_DEFINE(HAVE_SUN_GETMNTENT, 1,
-		  [Define if the function getmntent exists. It's the version from libsun.])
+		  [Define if the function getmntent exists. It is the version from libsun.])
 fi
 if test "x$have_getmntent" = "xseq"; then
 	AC_DEFINE(HAVE_SEQ_GETMNTENT, 1,
-		  [Define if the function getmntent exists. It's the version from libseq.])
+		  [Define if the function getmntent exists. It is the version from libseq.])
 fi
 if test "x$have_getmntent" = "xgen"; then
 	AC_DEFINE(HAVE_GEN_GETMNTENT, 1,
-		  [Define if the function getmntent exists. It's the version from libgen.])
+		  [Define if the function getmntent exists. It is the version from libgen.])
 fi
 
 # Check for htonll
