@@ -222,7 +222,6 @@ static char reg_shutdown_doc[] = "register_shutdown(callback[, data][, name]) ->
 static pthread_t main_thread;
 static PyOS_sighandler_t python_sigint_handler;
 static _Bool do_interactive = 0;
-static int do_interactive = 0;
 
 /* This is our global thread state. Python saves some stuff in thread-local
  * storage. So if we allow the interpreter to run in the background
