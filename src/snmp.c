@@ -1360,8 +1360,12 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
     for (i = 0; i < data->values_len; i++)
       vl.values[i] = value_table_ptr[i]->value;
 
-    /* If we get here `vl.type_instance' and all `vl.values' have been set */
-    plugin_dispatch_values (&vl);
+    /* If we get here `vl.type_instance' and all `vl.values' have been set
+     * vl.type_instance can be empty, i.e. a blank port description on a
+     * switch if you're using IF-MIB::ifDescr as Instance.
+     */
+    if (vl.type_instance[0] != '\0')
+      plugin_dispatch_values (&vl);
 
     if (instance_list != NULL)
       instance_list_ptr = instance_list_ptr->next;
