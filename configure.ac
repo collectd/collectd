@@ -2378,11 +2378,6 @@ AC_ARG_WITH(libiptc, [AS_HELP_STRING([--with-libiptc@<:@=PREFIX@:>@], [Path to l
 	fi
 ])
 
-if test "x$with_libiptc" = "xpkgconfig" && test "x$PKG_CONFIG" = "x"
-then
-	with_libiptc="no (Don't have pkg-config)"
-fi
-
 if test "x$with_libiptc" = "xpkgconfig"
 then
 	$PKG_CONFIG --exists 'libiptc' 2>/dev/null
@@ -2820,13 +2815,6 @@ AC_ARG_WITH(libmodbus, [AS_HELP_STRING([--with-libmodbus@<:@=PREFIX@:>@], [Path 
 # configure using pkg-config
 if test "x$with_libmodbus" = "xuse_pkgconfig"
 then
-	if test "x$PKG_CONFIG" = "x"
-	then
-		with_libmodbus="no (Don't have pkg-config)"
-	fi
-fi
-if test "x$with_libmodbus" = "xuse_pkgconfig"
-then
 	AC_MSG_NOTICE([Checking for libmodbus using $PKG_CONFIG])
 	$PKG_CONFIG --exists 'libmodbus' 2>/dev/null
 	if test $? -ne 0
@@ -3117,10 +3105,6 @@ AC_ARG_WITH(libmnl, [AS_HELP_STRING([--with-libmnl@<:@=PREFIX@:>@], [Path to lib
 	 with_libmnl="no (Linux only library)"
  fi
 ])
-if test "x$PKG_CONFIG" = "x"
-then
-	with_libmnl="no (Don't have pkg-config)"
-fi
 if test "x$with_libmnl" = "xyes"
 then
 	if $PKG_CONFIG --exists libmnl 2>/dev/null; then
@@ -4608,23 +4592,16 @@ AC_ARG_WITH(libstatgrab, [AS_HELP_STRING([--with-libstatgrab@<:@=PREFIX@:>@], [P
 if test "x$with_libstatgrab" = "xyes" \
   && test "x$with_libstatgrab_pkg_config" = "xyes"
 then
-  if test "x$PKG_CONFIG" != "x"
+  AC_MSG_CHECKING([pkg-config for libstatgrab])
+  temp_result="found"
+  $PKG_CONFIG --exists libstatgrab 2>/dev/null
+  if test "$?" != "0"
   then
-    AC_MSG_CHECKING([pkg-config for libstatgrab])
-    temp_result="found"
-    $PKG_CONFIG --exists libstatgrab 2>/dev/null
-    if test "$?" != "0"
-    then
-      with_libstatgrab_pkg_config="no"
-      with_libstatgrab="no (pkg-config doesn't know libstatgrab)"
-      temp_result="not found"
-    fi
-    AC_MSG_RESULT([$temp_result])
-  else
-    AC_MSG_NOTICE([pkg-config not available, trying to guess flags for the statgrab library.])
     with_libstatgrab_pkg_config="no"
-    with_libstatgrab_ldflags="$with_libstatgrab_ldflags -lstatgrab"
+    with_libstatgrab="no (pkg-config doesn't know libstatgrab)"
+    temp_result="not found"
   fi
+  AC_MSG_RESULT([$temp_result])
 fi
 
 if test "x$with_libstatgrab" = "xyes" \
@@ -4921,13 +4898,6 @@ then
 fi
 
 # configure using pkg-config
-if test "x$with_libupsclient" = "xuse_pkgconfig"
-then
-	if test "x$PKG_CONFIG" = "x"
-	then
-		with_libupsclient="no (Don't have pkg-config)"
-	fi
-fi
 if test "x$with_libupsclient" = "xuse_pkgconfig"
 then
 	AC_MSG_NOTICE([Checking for libupsclient using $PKG_CONFIG])
@@ -5251,13 +5221,6 @@ AC_ARG_WITH(libvarnish, [AS_HELP_STRING([--with-libvarnish@<:@=PREFIX@:>@], [Pat
 # configure using pkg-config
 if test "x$with_libvarnish" = "xuse_pkgconfig"
 then
-	if test "x$PKG_CONFIG" = "x"
-	then
-		with_libvarnish="no (Don't have pkg-config)"
-	fi
-fi
-if test "x$with_libvarnish" = "xuse_pkgconfig"
-then
 	AC_MSG_NOTICE([Checking for varnishapi using $PKG_CONFIG])
 	$PKG_CONFIG --exists 'varnishapi' 2>/dev/null
 	if test $? -ne 0
@@ -5317,23 +5280,20 @@ with_libxml2_ldflags=""
 with_libvirt="no (pkg-config isn't available)"
 with_libvirt_cflags=""
 with_libvirt_ldflags=""
-if test "x$PKG_CONFIG" != "x"
+$PKG_CONFIG --exists 'libxml-2.0' 2>/dev/null
+if test "$?" = "0"
 then
-	$PKG_CONFIG --exists 'libxml-2.0' 2>/dev/null
-	if test "$?" = "0"
-	then
-		with_libxml2="yes"
-	else
-		with_libxml2="no (pkg-config doesn't know libxml-2.0)"
-	fi
+	with_libxml2="yes"
+else
+	with_libxml2="no (pkg-config doesn't know libxml-2.0)"
+fi
 
-	$PKG_CONFIG --exists libvirt 2>/dev/null
-	if test "$?" = "0"
-	then
-		with_libvirt="yes"
-	else
-		with_libvirt="no (pkg-config doesn't know libvirt)"
-	fi
+$PKG_CONFIG --exists libvirt 2>/dev/null
+if test "$?" = "0"
+then
+	with_libvirt="yes"
+else
+	with_libvirt="no (pkg-config doesn't know libvirt)"
 fi
 if test "x$with_libxml2" = "xyes"
 then
@@ -5431,17 +5391,6 @@ fi
 with_libopenipmipthread="yes"
 with_libopenipmipthread_cflags=""
 with_libopenipmipthread_libs=""
-
-AC_MSG_CHECKING([for pkg-config])
-temp_result="no"
-if test "x$PKG_CONFIG" = "x"
-then
-	with_libopenipmipthread="no"
-	temp_result="no"
-else
-	temp_result="$PKG_CONFIG"
-fi
-AC_MSG_RESULT([$temp_result])
 
 if test "x$with_libopenipmipthread" = "xyes"
 then
