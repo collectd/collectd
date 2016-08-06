@@ -1400,6 +1400,8 @@
 #		Header "X-Custom-Header: custom_value"
 #		SSLVersion "TLSv1"
 #		Format "Command"
+#		Metrics true
+#		Notifications false
 #		StoreRates false
 #		BufferSize 4096
 #		LowSpeedLimit 0

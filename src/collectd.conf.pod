@@ -7843,6 +7843,14 @@ create output in the I<JavaScript Object Notation> (JSON). When set to KAIROSDB
 
 Defaults to B<Command>.
 
+=item B<Metrics> B<true>|B<false>
+
+Controls whether I<metrics> are POSTed to this location. Defaults to B<true>.
+
+=item B<Notifications> B<false>|B<true>
+
+Controls whether I<notifications> are POSTed to this location. Defaults to B<false>.
+
 =item B<StoreRates> B<true|false>
 
 If set to B<true>, convert counter values to rates. If set to B<false> (the
