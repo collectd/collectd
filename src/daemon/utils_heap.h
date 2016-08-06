@@ -39,7 +39,7 @@ typedef struct c_heap_s c_heap_t;
  *
  * PARAMETERS
  *   `compare'  The function-pointer `compare' is used to compare two keys. It
- *              has to return less than zero if it's first argument is smaller
+ *              has to return less than zero if its first argument is smaller
  *              then the second argument, more than zero if the first argument
  *              is bigger than the second argument and zero if they are equal.
  *              If your keys are char-pointers, you can use the `strcmp'

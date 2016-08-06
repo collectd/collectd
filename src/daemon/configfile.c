@@ -792,7 +792,7 @@ static oconfig_item_t *cf_read_dir (const char *dir,
  *
  * There are two versions of this function: If `wordexp' exists shell wildcards
  * will be expanded and the function will include all matches found. If
- * `wordexp' (or, more precisely, it's header file) is not available the
+ * `wordexp' (or, more precisely, its header file) is not available the
  * simpler function is used which does not do any such expansion.
  */
 #if HAVE_WORDEXP_H

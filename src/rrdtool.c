@@ -411,7 +411,7 @@ static void *rrd_queue_thread (void __attribute__((unused)) *data)
 		pthread_mutex_unlock (&queue_lock);
 
 		/* We now need the cache lock so the entry isn't updated while
-		 * we make a copy of it's values */
+		 * we make a copy of its values */
 		pthread_mutex_lock (&cache_lock);
 
 		status = c_avl_get (cache, queue_entry->filename,
