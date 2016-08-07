@@ -52,32 +52,6 @@
 	PyGILState_Release(gil_state);\
 }
 
-/* Python 2.4 has this macro, older versions do not. */
-#ifndef Py_VISIT
-#define Py_VISIT(o) do {\
-	int _vret;\
-	if ((o) != NULL) {\
-		_vret = visit((o), arg);\
-		if (_vret != 0)\
-		return _vret;\
-	}\
-} while (0)
-#endif
-
-/* Python 2.4 has this macro, older versions do not. */
-#ifndef Py_CLEAR
-#define Py_CLEAR(o) do {\
-	PyObject *tmp = o;\
-	(o) = NULL;\
-	Py_XDECREF(tmp);\
-} while (0)
-#endif
-
-/* Python 2.4 has this macro, older versions do not. */
-#ifndef Py_RETURN_NONE
-# define Py_RETURN_NONE return Py_INCREF(Py_None), Py_None
-#endif
-
 /* This macro is a shortcut for calls like
  * x = PyObject_Repr(x);
  * This can't be done like this example because this would leak
