@@ -4017,6 +4017,7 @@ AC_SUBST([BUILD_WITH_LIBPROTOBUF_C_LIBS])
 # --with-libpython {{{
 AC_ARG_VAR([LIBPYTHON_CPPFLAGS], [Preprocessor flags for libpython])
 AC_ARG_VAR([LIBPYTHON_LDFLAGS], [Linker flags for libpython])
+AC_ARG_VAR([LIBPYTHON_LIBS], [Libraries for libpython])
 
 AC_ARG_WITH([libpython],
   [AS_HELP_STRING([--with-libpython],
@@ -4049,13 +4050,19 @@ if test "$PYTHON_CONFIG" != ""; then
   if test $? -ne 0; then
     with_libpython="no"
   fi
+  LIBPYTHON_LIBS="`${PYTHON_CONFIG} --libs`"
+  if test $? -ne 0; then
+    with_libpython="no"
+  fi
 fi
 
 if test "$with_libpython" != "xno"; then
   SAVE_CPPFLAGS="$CPPFLAGS"
   SAVE_LDFLAGS="$LDFLAGS"
+  SAVE_LIBS="$LIBS"
   CPPFLAGS="$LIBPYTHON_CPPFLAGS $CPPFLAGS"
   LDFLAGS="$LIBPYTHON_LDFLAGS $LDFLAGS"
+  LIBS="$LIBPYTHON_LIBS $LIBS"
   AC_CHECK_HEADERS([Python.h],
     [
       AC_MSG_CHECKING([for libpython])
@@ -4072,6 +4079,7 @@ if test "$with_libpython" != "xno"; then
   )
   CPPFLAGS="$SAVE_CPPFLAGS"
   LDFLAGS="$SAVE_LDFLAGS"
+  LIBS="$SAVE_LIBS"
 fi
 # }}} --with-libpython
 
