@@ -1,8 +1,4 @@
-SUBDIRS = libcollectdclient
-if BUILD_WITH_OWN_LIBOCONFIG
-SUBDIRS += liboconfig
-endif
-SUBDIRS += daemon
+SUBDIRS = libcollectdclient liboconfig daemon
 
 PLUGIN_LDFLAGS = -module -avoid-version -export-symbols-regex '\<module_register\>'
 
@@ -381,6 +377,7 @@ if BUILD_PLUGIN_DISK
 pkglib_LTLIBRARIES += disk.la
 disk_la_SOURCES = disk.c
 disk_la_CFLAGS = $(AM_CFLAGS)
+disk_la_CPPFLAGS = $(AM_CPPFLAGS)
 disk_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 disk_la_LIBADD =
 if BUILD_WITH_LIBKSTAT
@@ -397,7 +394,7 @@ disk_la_CFLAGS += $(BUILD_WITH_LIBSTATGRAB_CFLAGS)
 disk_la_LIBADD += $(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
 endif
 if BUILD_WITH_LIBUDEV
-disk_la_CFLAGS += $(BUILD_WITH_LIBUDEV_CFLAGS)
+disk_la_CPPFLAGS += $(BUILD_WITH_LIBUDEV_CPPFLAGS)
 disk_la_LDFLAGS += $(BUILD_WITH_LIBUDEV_LDFLAGS)
 disk_la_LIBADD += $(BUILD_WITH_LIBUDEV_LIBS)
 endif
@@ -412,8 +409,9 @@ endif
 if BUILD_PLUGIN_DNS
 pkglib_LTLIBRARIES += dns.la
 dns_la_SOURCES = dns.c utils_dns.c utils_dns.h
-dns_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-dns_la_LIBADD = -lpcap
+dns_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBPCAP_CPPFLAGS)
+dns_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBPCAP_LDFLAGS)
+dns_la_LIBADD = $(BUILD_WITH_LIBPCAP_LIBS)
 endif
 
 if BUILD_PLUGIN_DPDKSTAT
@@ -728,9 +726,9 @@ endif
 if BUILD_PLUGIN_MIC
 pkglib_LTLIBRARIES += mic.la
 mic_la_SOURCES = mic.c
-mic_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_MIC_LIBPATH)
-mic_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_MIC_CPPFLAGS)
-mic_la_LIBADD = $(BUILD_WITH_MIC_LDADD)
+mic_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_MIC_CPPFLAGS)
+mic_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_MIC_LDFLAGS)
+mic_la_LIBADD = $(BUILD_WITH_MIC_LIBS)
 endif
 
 if BUILD_PLUGIN_MODBUS
@@ -827,8 +825,9 @@ endif
 if BUILD_PLUGIN_NOTIFY_EMAIL
 pkglib_LTLIBRARIES += notify_email.la
 notify_email_la_SOURCES = notify_email.c
-notify_email_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-notify_email_la_LIBADD = -lesmtp -lssl -lcrypto
+notify_email_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBESMTP_CPPFLAGS)
+notify_email_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBESMTP_LDFLAGS)
+notify_email_la_LIBADD = $(BUILD_WITH_LIBESMTP_LIBS)
 endif
 
 if BUILD_PLUGIN_NOTIFY_NAGIOS
@@ -915,11 +914,6 @@ perl_la_CPPFLAGS += -D_GNU_SOURCE
 perl_la_CFLAGS  = $(AM_CFLAGS) \
 		$(PERL_CFLAGS) \
 		-DXS_VERSION=\"$(VERSION)\" -DVERSION=\"$(VERSION)\"
-# Work-around for issues #41 and #42 - Perl 5.10 incorrectly introduced
-# __attribute__nonnull__(3) for Perl_load_module().
-if HAVE_BROKEN_PERL_LOAD_MODULE
-perl_la_CFLAGS += -Wno-nonnull
-endif
 perl_la_LDFLAGS = $(PLUGIN_LDFLAGS) \
 		$(PERL_LDFLAGS)
 perl_la_LIBADD = $(PERL_LIBS)
@@ -955,7 +949,7 @@ postgresql_la_SOURCES = postgresql.c \
 postgresql_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBPQ_CPPFLAGS)
 postgresql_la_LDFLAGS = $(PLUGIN_LDFLAGS) \
 		$(BUILD_WITH_LIBPQ_LDFLAGS)
-postgresql_la_LIBADD = -lpq
+postgresql_la_LIBADD = $(BUILD_WITH_LIBPQ_LIBS)
 endif
 
 if BUILD_PLUGIN_POWERDNS
@@ -1033,9 +1027,9 @@ endif
 if BUILD_PLUGIN_SENSORS
 pkglib_LTLIBRARIES += sensors.la
 sensors_la_SOURCES = sensors.c
-sensors_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBSENSORS_CFLAGS)
+sensors_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBSENSORS_CPPFLAGS)
 sensors_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBSENSORS_LDFLAGS)
-sensors_la_LIBADD = -lsensors
+sensors_la_LIBADD = $(BUILD_WITH_LIBSENSORS_LIBS)
 endif
 
 if BUILD_PLUGIN_SERIAL
@@ -1056,7 +1050,7 @@ if BUILD_PLUGIN_SMART
 if BUILD_WITH_LIBUDEV
 pkglib_LTLIBRARIES += smart.la
 smart_la_SOURCES = smart.c
-smart_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBATASMART_CPPFLAGS) $(BUILD_WITH_LIBUDEV_CFLAGS)
+smart_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBATASMART_CPPFLAGS) $(BUILD_WITH_LIBUDEV_CPPFLAGS)
 smart_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBATASMART_LDFLAGS) $(BUILD_WITH_LIBUDEV_LDFLAGS)
 smart_la_LIBADD = $(BUILD_WITH_LIBATASMART_LIBS) $(BUILD_WITH_LIBUDEV_LIBS)
 endif

@@ -35,7 +35,7 @@
 
 #include <pthread.h>
 
-#if HAVE_LIBGCRYPT
+#if HAVE_GCRYPT_H
 #if defined __APPLE__
 /* default xcode compiler throws warnings even when deprecated functionality
  * is not used. -Werror breaks the build because of erroneous warnings.
@@ -106,7 +106,7 @@ struct lcc_network_buffer_s {
   char *username;
   char *password;
 
-#if HAVE_LIBGCRYPT
+#if HAVE_GCRYPT_H
   gcry_cipher_hd_t encr_cypher;
   size_t encr_header_len;
   char encr_iv[16];
@@ -131,7 +131,7 @@ static _Bool have_gcrypt(void) /* {{{ */
     return (result);
   need_init = 0;
 
-#if HAVE_LIBGCRYPT
+#if HAVE_GCRYPT_H
 #if GCRYPT_VERSION_NUMBER < 0x010600
   if (gcry_control(GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread))
     return (0);
@@ -475,7 +475,7 @@ static int nb_add_value_list(lcc_network_buffer_t *nb, /* {{{ */
   return (0);
 } /* }}} int nb_add_value_list */
 
-#if HAVE_LIBGCRYPT
+#if HAVE_GCRYPT_H
 static int nb_add_signature(lcc_network_buffer_t *nb) /* {{{ */
 {
   char *buffer;
@@ -688,7 +688,7 @@ int lcc_network_buffer_initialize(lcc_network_buffer_t *nb) /* {{{ */
   nb->ptr = nb->buffer;
   nb->free = nb->size;
 
-#if HAVE_LIBGCRYPT
+#if HAVE_GCRYPT_H
   if (nb->seclevel == SIGN) {
     size_t username_len;
     uint16_t pkg_type = htons(TYPE_SIGN_SHA256);
@@ -739,7 +739,7 @@ int lcc_network_buffer_finalize(lcc_network_buffer_t *nb) /* {{{ */
   if (nb == NULL)
     return (EINVAL);
 
-#if HAVE_LIBGCRYPT
+#if HAVE_GCRYPT_H
   if (nb->seclevel == SIGN)
     return nb_add_signature(nb);
   else if (nb->seclevel == ENCRYPT)

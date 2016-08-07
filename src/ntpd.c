@@ -32,9 +32,6 @@
 #include "common.h"
 #include "plugin.h"
 
-#if HAVE_STDINT_H
-#include <stdint.h>
-#endif
 #if HAVE_NETDB_H
 #include <netdb.h>
 #endif

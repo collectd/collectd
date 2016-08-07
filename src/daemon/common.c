@@ -37,10 +37,6 @@
 #include "plugin.h"
 #include "utils_cache.h"
 
-#ifdef HAVE_MATH_H
-#include <math.h>
-#endif
-
 /* for getaddrinfo */
 #include <netdb.h>
 #include <sys/types.h>

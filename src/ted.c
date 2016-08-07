@@ -39,8 +39,7 @@
 #include "common.h"
 #include "plugin.h"
 
-#if HAVE_TERMIOS_H && HAVE_SYS_IOCTL_H && HAVE_MATH_H
-#include <math.h>
+#if HAVE_TERMIOS_H && HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
 #include <termios.h>
 #else

@@ -23,9 +23,6 @@ endif
 if BUILD_WITH_LIBSOCKET
 COMMON_LIBS += -lsocket
 endif
-if BUILD_WITH_LIBRESOLV
-COMMON_LIBS += -lresolv
-endif
 if BUILD_WITH_LIBKSTAT
 COMMON_LIBS += -lkstat
 endif
@@ -81,12 +78,8 @@ collectd_CFLAGS += $(BUILD_WITH_LIBSTATGRAB_CFLAGS)
 collectd_LDADD += $(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
 endif
 
-if BUILD_WITH_OWN_LIBOCONFIG
 collectd_LDADD += $(top_builddir)/src/liboconfig/liboconfig.la
 collectd_DEPENDENCIES += $(top_builddir)/src/liboconfig/liboconfig.la
-else
-collectd_LDADD += -loconfig
-endif
 
 LOG_COMPILER = env VALGRIND="@VALGRIND@" $(abs_top_srcdir)/testwrapper.sh
 

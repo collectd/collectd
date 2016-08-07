@@ -29,10 +29,6 @@
 #include "common.h"
 #include "plugin.h"
 
-#if HAVE_CTYPE_H
-#include <ctype.h>
-#endif
-
 #if HAVE_MACH_MACH_TYPES_H
 #include <mach/mach_types.h>
 #endif
