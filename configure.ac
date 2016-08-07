@@ -4014,124 +4014,74 @@ AC_SUBST([BUILD_WITH_LIBPROTOBUF_C_LDFLAGS])
 AC_SUBST([BUILD_WITH_LIBPROTOBUF_C_LIBS])
 # }}}
 
-# --with-python {{{
-with_python_prog=""
-with_python_path="$PATH"
-AC_ARG_WITH(python, [AS_HELP_STRING([--with-python@<:@=PREFIX@:>@], [Path to the python interpreter.])],
-[
- if test "x$withval" = "xyes" || test "x$withval" = "xno"
- then
-	 with_python="$withval"
- else if test -x "$withval"
- then
-	 with_python_prog="$withval"
-	 with_python_path="`dirname \"$withval\"`$PATH_SEPARATOR$with_python_path"
-	 with_python="yes"
- else if test -d "$withval"
- then
-	 with_python_path="$withval$PATH_SEPARATOR$with_python_path"
-	 with_python="yes"
- else
-	 AC_MSG_WARN([Argument not recognized: $withval])
- fi; fi; fi
-], [with_python="yes"])
+# --with-libpython {{{
+AC_ARG_VAR([LIBPYTHON_CPPFLAGS], [Preprocessor flags for libpython])
+AC_ARG_VAR([LIBPYTHON_LDFLAGS], [Linker flags for libpython])
+AC_ARG_VAR([LIBPYTHON_LIBS], [Libraries for libpython])
 
-SAVE_PATH="$PATH"
-SAVE_CPPFLAGS="$CPPFLAGS"
-SAVE_LDFLAGS="$LDFLAGS"
-SAVE_LIBS="$LIBS"
-
-PATH="$with_python_path"
-
-if test "x$with_python" = "xyes" && test "x$with_python_prog" = "x"
-then
-	AC_PATH_PROG([PYTHON], [python])
-	if test "x$PYTHON" = "x"
-	then
-		with_python="no (interpreter not found)"
-	else
-		with_python_prog="$PYTHON"
-	fi
+AC_ARG_WITH([libpython],
+  [AS_HELP_STRING([--with-libpython],
+    [if we should build with libpython @<:@default=yes@:>@])
+  ],
+  [with_libpython="$withval"],
+  [with_libpython="check"]
+)
+if test "$with_libpython" != "no"; then
+  if test "$LIBPYTHON_CPPFLAGS" = "" && test "$LIBPYTHON_LDFLAGS" = ""; then
+    AC_ARG_VAR([PYTHON_CONFIG], [path to python-config])
+    AC_PATH_PROGS([PYTHON_CONFIG],
+      [python3-config python2-config python-config]
+    )
+    if test "$PYTHON_CONFIG" = ""; then
+      if test "$with_libpython" = "yes"; then
+        AC_MSG_ERROR([Unable to find python-config])
+      fi
+      with_libpython="no"
+    fi
+  fi
 fi
 
-if test "x$with_python" = "xyes"
-then
-	AC_MSG_CHECKING([for Python CPPFLAGS])
-	python_include_path=`echo "import distutils.sysconfig;import sys;sys.stdout.write(distutils.sysconfig.get_python_inc())" | "$with_python_prog" 2>&1`
-	python_config_status=$?
-
-	if test "$python_config_status" -ne 0 || test "x$python_include_path" = "x"
-	then
-		AC_MSG_RESULT([failed with status $python_config_status (output: $python_include_path)])
-		with_python="no"
-	else
-		AC_MSG_RESULT([$python_include_path])
-	fi
+if test "$PYTHON_CONFIG" != ""; then
+  LIBPYTHON_CPPFLAGS="`${PYTHON_CONFIG} --includes`"
+  if test $? -ne 0; then
+    with_libpython="no"
+  fi
+  LIBPYTHON_LDFLAGS="`${PYTHON_CONFIG} --ldflags`"
+  if test $? -ne 0; then
+    with_libpython="no"
+  fi
+  LIBPYTHON_LIBS="`${PYTHON_CONFIG} --libs`"
+  if test $? -ne 0; then
+    with_libpython="no"
+  fi
 fi
 
-if test "x$with_python" = "xyes"
-then
-	CPPFLAGS="-I$python_include_path $CPPFLAGS"
-	AC_CHECK_HEADERS(Python.h,
-			 [with_python="yes"],
-			 [with_python="no ('Python.h' not found)"])
+if test "$with_libpython" != "xno"; then
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  SAVE_LDFLAGS="$LDFLAGS"
+  SAVE_LIBS="$LIBS"
+  CPPFLAGS="$LIBPYTHON_CPPFLAGS $CPPFLAGS"
+  LDFLAGS="$LIBPYTHON_LDFLAGS $LDFLAGS"
+  LIBS="$LIBPYTHON_LIBS $LIBS"
+  AC_CHECK_HEADERS([Python.h],
+    [
+      AC_MSG_CHECKING([for libpython])
+      AC_LINK_IFELSE([AC_LANG_PROGRAM(
+          [[#include <Python.h>]],
+          [[Py_Initialize();]])
+        ],
+        [with_libpython="yes"],
+        [with_libpython="no"]
+      )
+      AC_MSG_RESULT([$with_libpython])
+    ],
+    [with_libpython="no"]
+  )
+  CPPFLAGS="$SAVE_CPPFLAGS"
+  LDFLAGS="$SAVE_LDFLAGS"
+  LIBS="$SAVE_LIBS"
 fi
-
-if test "x$with_python" = "xyes"
-then
-	AC_MSG_CHECKING([for Python LDFLAGS])
-	python_library_path=`echo "import distutils.sysconfig;import sys;sys.stdout.write(distutils.sysconfig.get_config_vars(\"LIBDIR\").__getitem__(0))" | "$with_python_prog" 2>&1`
-	python_config_status=$?
-
-	if test "$python_config_status" -ne 0 || test "x$python_library_path" = "x"
-	then
-		AC_MSG_RESULT([failed with status $python_config_status (output: $python_library_path)])
-		with_python="no"
-	else
-		AC_MSG_RESULT([$python_library_path])
-	fi
-fi
-
-if test "x$with_python" = "xyes"
-then
-	AC_MSG_CHECKING([for Python LIBS])
-	python_library_flags=`echo "import distutils.sysconfig;import sys;sys.stdout.write(distutils.sysconfig.get_config_vars(\"BLDLIBRARY\").__getitem__(0))" | "$with_python_prog" 2>&1`
-	python_config_status=$?
-
-	if test "$python_config_status" -ne 0 || test "x$python_library_flags" = "x"
-	then
-		AC_MSG_RESULT([failed with status $python_config_status (output: $python_library_flags)])
-		with_python="no"
-	else
-		AC_MSG_RESULT([$python_library_flags])
-	fi
-fi
-
-if test "x$with_python" = "xyes"
-then
-	LDFLAGS="-L$python_library_path $LDFLAGS"
-	LIBS="$python_library_flags $LIBS"
-
-	AC_CHECK_FUNC(PyObject_CallFunction,
-		      [with_python="yes"],
-		      [with_python="no (Symbol 'PyObject_CallFunction' not found)"])
-fi
-
-PATH="$SAVE_PATH"
-CPPFLAGS="$SAVE_CPPFLAGS"
-LDFLAGS="$SAVE_LDFLAGS"
-LIBS="$SAVE_LIBS"
-
-if test "x$with_python" = "xyes"
-then
-	BUILD_WITH_PYTHON_CPPFLAGS="-I$python_include_path"
-	BUILD_WITH_PYTHON_LDFLAGS="-L$python_library_path"
-	BUILD_WITH_PYTHON_LIBS="$python_library_flags"
-	AC_SUBST(BUILD_WITH_PYTHON_CPPFLAGS)
-	AC_SUBST(BUILD_WITH_PYTHON_LDFLAGS)
-	AC_SUBST(BUILD_WITH_PYTHON_LIBS)
-fi
-# }}} --with-python
+# }}} --with-libpython
 
 # --with-librabbitmq {{{
 with_librabbitmq_cppflags=""
@@ -5640,6 +5590,7 @@ plugin_perl="no"
 plugin_pinba="no"
 plugin_processes="no"
 plugin_protocols="no"
+plugin_python="no"
 plugin_serial="no"
 plugin_smart="no"
 plugin_swap="no"
@@ -5967,6 +5918,11 @@ then
 	plugin_processes="yes"
 fi
 
+if test "x$with_libpython" != "xno"
+then
+	plugin_python="yes"
+fi
+
 if test "x$with_libatasmart" = "xyes" && test "x$with_libudev" = "xyes"
 then
 	plugin_smart="yes"
@@ -6121,7 +6077,7 @@ AC_PLUGIN([postgresql],          [$with_libpq],             [PostgreSQL database
 AC_PLUGIN([powerdns],            [yes],                     [PowerDNS statistics])
 AC_PLUGIN([processes],           [$plugin_processes],       [Process statistics])
 AC_PLUGIN([protocols],           [$plugin_protocols],       [Protocol (IP, TCP, ...) statistics])
-AC_PLUGIN([python],              [$with_python],            [Embed a Python interpreter])
+AC_PLUGIN([python],              [$plugin_python],          [Embed a Python interpreter])
 AC_PLUGIN([redis],               [$with_libhiredis],        [Redis plugin])
 AC_PLUGIN([routeros],            [$with_librouteros],       [RouterOS plugin])
 AC_PLUGIN([rrdcached],           [$librrd_rrdc_update],     [RRDTool output plugin])
@@ -6415,6 +6371,7 @@ AC_MSG_RESULT([    libperl . . . . . . . $with_libperl])
 AC_MSG_RESULT([    libpq . . . . . . . . $with_libpq])
 AC_MSG_RESULT([    libprotobuf . . . . . $with_libprotobuf])
 AC_MSG_RESULT([    libprotobuf-c . . . . $with_libprotobuf_c])
+AC_MSG_RESULT([    libpython . . . . . . $with_libpython])
 AC_MSG_RESULT([    librabbitmq . . . . . $with_librabbitmq])
 AC_MSG_RESULT([    libriemann-client . . $with_libriemann_client])
 AC_MSG_RESULT([    librdkafka  . . . . . $with_librdkafka])
@@ -6435,7 +6392,6 @@ AC_MSG_RESULT([    libyajl . . . . . . . $with_libyajl])
 AC_MSG_RESULT([    oracle  . . . . . . . $with_oracle])
 AC_MSG_RESULT([    protobuf-c  . . . . . $have_protoc_c])
 AC_MSG_RESULT([    protoc 3  . . . . . . $have_protoc3])
-AC_MSG_RESULT([    python  . . . . . . . $with_python])
 AC_MSG_RESULT()
 AC_MSG_RESULT([  Features:])
 AC_MSG_RESULT([    daemon mode . . . . . $enable_daemon])

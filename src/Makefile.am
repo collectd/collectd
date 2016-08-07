@@ -907,13 +907,11 @@ endif
 if BUILD_PLUGIN_PYTHON
 pkglib_LTLIBRARIES += python.la
 python_la_SOURCES = python.c pyconfig.c pyvalues.c cpython.h
-python_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_PYTHON_CPPFLAGS)
-python_la_CFLAGS = $(AM_CFLAGS)
+python_la_CPPFLAGS = $(AM_CPPFLAGS) $(LIBPYTHON_CPPFLAGS)
 if COMPILER_IS_GCC
-python_la_CFLAGS += -fno-strict-aliasing -Wno-strict-aliasing
+python_la_CPPFLAGS += -fno-strict-aliasing -Wno-strict-aliasing
 endif
-python_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_PYTHON_LDFLAGS)
-python_la_LIBADD = $(BUILD_WITH_PYTHON_LIBS)
+python_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBPYTHON_LDFLAGS)
 endif
 
 if BUILD_PLUGIN_PROCESSES
