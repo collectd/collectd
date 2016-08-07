@@ -6044,6 +6044,11 @@ Defaults to B<false>.
 
 =back
 
+=head2 Plugin C<radio>
+
+This plugin doesn't have any options. It determines whether radios in computer
+are switched on or off using the rfkill interface.
+
 =head2 Plugin C<redis>
 
 The I<Redis plugin> connects to one or more Redis servers and gathers

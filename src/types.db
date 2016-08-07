@@ -1,4 +1,5 @@
 absolute                value:ABSOLUTE:0:U
+active                  value:GAUGE:0:1
 apache_bytes            value:DERIVE:0:U
 apache_connections      value:GAUGE:0:65535
 apache_idle_workers     value:GAUGE:0:65535

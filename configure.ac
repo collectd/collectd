@@ -5640,6 +5640,7 @@ plugin_perl="no"
 plugin_pinba="no"
 plugin_processes="no"
 plugin_protocols="no"
+plugin_radio="no"
 plugin_serial="no"
 plugin_smart="no"
 plugin_swap="no"
@@ -5683,6 +5684,7 @@ then
 	plugin_numa="yes"
 	plugin_processes="yes"
 	plugin_protocols="yes"
+	plugin_radio="yes"
 	plugin_serial="yes"
 	plugin_swap="yes"
 	plugin_tcpconns="yes"
@@ -6122,6 +6124,7 @@ AC_PLUGIN([powerdns],            [yes],                     [PowerDNS statistics
 AC_PLUGIN([processes],           [$plugin_processes],       [Process statistics])
 AC_PLUGIN([protocols],           [$plugin_protocols],       [Protocol (IP, TCP, ...) statistics])
 AC_PLUGIN([python],              [$with_python],            [Embed a Python interpreter])
+AC_PLUGIN([radio],               [$plugin_radio],           [Radios enabled/disabled])
 AC_PLUGIN([redis],               [$with_libhiredis],        [Redis plugin])
 AC_PLUGIN([routeros],            [$with_librouteros],       [RouterOS plugin])
 AC_PLUGIN([rrdcached],           [$librrd_rrdc_update],     [RRDTool output plugin])
@@ -6535,6 +6538,7 @@ AC_MSG_RESULT([    powerdns  . . . . . . $enable_powerdns])
 AC_MSG_RESULT([    processes . . . . . . $enable_processes])
 AC_MSG_RESULT([    protocols . . . . . . $enable_protocols])
 AC_MSG_RESULT([    python  . . . . . . . $enable_python])
+AC_MSG_RESULT([    radio . . . . . . . . $enable_radio])
 AC_MSG_RESULT([    redis . . . . . . . . $enable_redis])
 AC_MSG_RESULT([    routeros  . . . . . . $enable_routeros])
 AC_MSG_RESULT([    rrdcached . . . . . . $enable_rrdcached])
