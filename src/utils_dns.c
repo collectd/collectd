@@ -756,10 +756,10 @@ const char *qtype_str(int t)
 	    case ns_t_a6:       return ("A6");
 	    case ns_t_dname:    return ("DNAME");
 	    case ns_t_sink:     return ("SINK");
-	    case ns_t_apl:      return ("APL");
 	    case ns_t_tsig:     return ("TSIG");
 # endif
 # if __NAMESER >= 20090302
+	    case ns_t_apl:      return ("APL");
 	    case ns_t_ds:       return ("DS");
 	    case ns_t_sshfp:    return ("SSHFP");
 	    case ns_t_ipseckey: return ("IPSECKEY");
