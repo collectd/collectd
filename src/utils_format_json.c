@@ -676,8 +676,8 @@ int format_json_notification (char *buffer, size_t buffer_size, /* {{{ */
   if (g == NULL)
     return -1;
 # if COLLECT_DEBUG
-  yajl_gen_config (g, yajl_gen_beautify);
-  yajl_gen_config (g, yajl_gen_validate_utf8);
+  yajl_gen_config (g, yajl_gen_beautify, 1);
+  yajl_gen_config (g, yajl_gen_validate_utf8, 1);
 # endif
 
 #else /* !HAVE_YAJL_V2 */
