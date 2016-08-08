@@ -1395,6 +1395,7 @@ Collectd utilities
 %if %{with_python}
 	%if 0%{?rhel} && 0%{?rhel} < 6
 %define _with_python --enable-python --with-python=%{_bindir}/python2.6
+%define _python_config PYTHON_CONFIG=%{_bindir}/python2.6-config
 	%else
 %define _with_python --enable-python
 	%endif
@@ -1672,7 +1673,8 @@ Collectd utilities
 %define _with_zookeeper --disable-zookeeper
 %endif
 
-%configure CFLAGS="%{optflags} -DLT_LAZY_OR_NOW=\"RTLD_LAZY|RTLD_GLOBAL\"" \
+%configure CFLAGS="%{optflags} {?_python_config} \
+	-DLT_LAZY_OR_NOW=\"RTLD_LAZY|RTLD_GLOBAL\"" \
 	--disable-static \
 	--without-included-ltdl \
 	--enable-all-plugins=yes \
