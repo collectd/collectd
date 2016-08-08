@@ -53,6 +53,7 @@
 %define with_contextswitch 0%{!?_without_contextswitch:1}
 %define with_cpu 0%{!?_without_cpu:1}
 %define with_cpufreq 0%{!?_without_cpufreq:1}
+%define with_cpusleep 0%{!?_without_cpusleep:1}
 %define with_csv 0%{!?_without_csv:1}
 %define with_curl 0%{!?_without_curl:1}
 %define with_curl_json 0%{!?_without_curl_json:1}
@@ -214,6 +215,7 @@
 
 # Plugins not buildable on RHEL < 7
 %if 0%{?rhel} && 0%{?rhel} < 7
+%define with_cpusleep 0
 %define with_mqtt 0
 %define with_rrdcached 0
 %define with_xmms 0
@@ -976,6 +978,12 @@ Collectd utilities
 %define _with_cpufreq --disable-cpufreq
 %endif
 
+%if %{with_cpusleep}
+%define _with_cpusleep --enable-cpusleep
+%else
+%define _with_cpusleep --disable-cpusleep
+%endif
+
 %if %{with_csv}
 %define _with_csv --enable-csv
 %else
@@ -1694,6 +1702,7 @@ Collectd utilities
 	%{?_with_conntrack} \
 	%{?_with_contextswitch} \
 	%{?_with_cpufreq} \
+	%{?_with_cpusleep} \
 	%{?_with_cpu} \
 	%{?_with_csv} \
 	%{?_with_curl_json} \
@@ -1961,6 +1970,9 @@ fi
 %endif
 %if %{with_cpufreq}
 %{_libdir}/%{name}/cpufreq.so
+%endif
+%if %{with_cpusleep}
+%{_libdir}/%{name}/cpusleep.so
 %endif
 %if %{with_csv}
 %{_libdir}/%{name}/csv.so
