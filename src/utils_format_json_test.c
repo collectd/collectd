@@ -24,8 +24,9 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
-#include "testing.h"
 #include "collectd.h"
+
+#include "testing.h"
 #include "utils_format_json.h"
 #include "common.h" /* for STATIC_ARRAY_SIZE */
 
