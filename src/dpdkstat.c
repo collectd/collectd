@@ -122,8 +122,6 @@ static int dpdk_shm_init(size_t size);
 /* Write the default configuration to the g_configuration instances */
 static void dpdk_config_init_default(void)
 {
-    int i;
-
     g_configuration->interval = plugin_get_interval();
     WARNING("dpdkstat: No time interval was configured, default value %lu ms is set\n",
              CDTIME_T_TO_MS(g_configuration->interval));
@@ -137,13 +135,13 @@ static void dpdk_config_init_default(void)
     ssnprintf(g_configuration->file_prefix, DATA_MAX_NAME_LEN, "%s",
              "/var/run/.rte_config");
 
-    for (i = 0; i < RTE_MAX_ETHPORTS; i++)
+    for (int i = 0; i < RTE_MAX_ETHPORTS; i++)
       g_configuration->port_name[i][0] = 0;
 }
 
 static int dpdk_config(oconfig_item_t *ci)
 {
-  int i = 0, port_counter = 0;
+  int port_counter = 0;
 
   /* Initialize a POSIX SHared Memory (SHM) object. */
   int err = dpdk_shm_init(sizeof(dpdk_config_t));
@@ -155,7 +153,7 @@ static int dpdk_config(oconfig_item_t *ci)
   /* Set defaults for config, overwritten by loop if config item exists */
   dpdk_config_init_default();
 
-  for (i = 0; i < ci->children_num; i++) {
+  for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp("Interval", child->key) == 0) {
@@ -203,7 +201,7 @@ static int dpdk_config(oconfig_item_t *ci)
       WARNING ("dpdkstat: The config option \"%s\" is unknown.",
                child->key);
     }
-  } /* End for (i = 0; i < ci->children_num; i++)*/
+  } /* End for (int i = 0; i < ci->children_num; i++)*/
   g_configured = 1; /* Bypass configuration in dpdk_shm_init(). */
 
   return 0;
@@ -325,8 +323,7 @@ static int dpdk_helper_exit(int reset)
     g_configuration->num_ports = 0;
     memset(&g_configuration->xstats, 0, g_configuration->num_xstats* sizeof(struct rte_eth_xstats));
     g_configuration->num_xstats = 0;
-    int i = 0;
-    for (; i < RTE_MAX_ETHPORTS; i++)
+    for (int i = 0; i < RTE_MAX_ETHPORTS; i++)
       g_configuration->num_stats_in_port[i] = 0;
   }
   close(g_configuration->helper_pipes[1]);
@@ -431,7 +428,7 @@ static int dpdk_helper_init_eal(void)
     g_configuration->eal_initialized = 0;
     printf("dpdkstat: ERROR initializing EAL ret = %d\n", ret);
     printf("dpdkstat: EAL arguments: ");
-    for (i=0; i< g_configuration->eal_argc; i++) {
+    for (i = 0; i < g_configuration->eal_argc; i++) {
       printf("%s ", argp[i]);
     }
     printf("\n");
@@ -497,8 +494,8 @@ static int dpdk_helper_run (void)
     if (nb_ports > RTE_MAX_ETHPORTS)
       nb_ports = RTE_MAX_ETHPORTS;
 
-    int len = 0, enabled_port_count = 0, num_xstats = 0, i = 0;
-    for (; i < nb_ports; i++) {
+    int len = 0, enabled_port_count = 0, num_xstats = 0;
+    for (int i = 0; i < nb_ports; i++) {
       if (g_configuration->enabled_port_mask & (1 << i)) {
         if(g_configuration->helper_action == DPDK_HELPER_ACTION_COUNT_STATS) {
           len = rte_eth_xstats_get(i, NULL, 0);
@@ -623,9 +620,9 @@ static int dpdk_read (user_data_t *ud)
   }
 
   /* Dispatch the stats.*/
-  int count = 0, i = 0, port_num = 0;
+  int count = 0, port_num = 0;
 
-  for (; i < g_configuration->num_ports; i++) {
+  for (int i = 0; i < g_configuration->num_ports; i++) {
     cdtime_t time = g_configuration->port_read_time[i];
     char dev_name[64];
     int len = g_configuration->num_stats_in_port[i];
@@ -639,12 +636,12 @@ static int dpdk_read (user_data_t *ud)
       ssnprintf(dev_name, sizeof(dev_name), "port.%d", port_num);
     struct rte_eth_xstats *xstats = (&g_configuration->xstats);
     xstats += count; /* pointer arithmetic to jump to each stats struct */
-    int j = 0;
-    for (; j < len; j++) {
+    for (int j = 0; j < len; j++) {
       value_t dpdkstat_values[1];
       value_list_t dpdkstat_vl = VALUE_LIST_INIT;
+      char *type_end;
 
-      dpdkstat_values[0].counter = xstats[j].value;
+      dpdkstat_values[0].derive = (int64_t) xstats[j].value;
       dpdkstat_vl.values = dpdkstat_values;
       dpdkstat_vl.values_len = 1; /* Submit stats one at a time */
       dpdkstat_vl.time = time;
@@ -652,8 +649,58 @@ static int dpdk_read (user_data_t *ud)
       sstrncpy (dpdkstat_vl.plugin, "dpdkstat", sizeof (dpdkstat_vl.plugin));
       sstrncpy (dpdkstat_vl.plugin_instance, dev_name,
                 sizeof (dpdkstat_vl.plugin_instance));
-      sstrncpy (dpdkstat_vl.type, "counter",
-                sizeof (dpdkstat_vl.type));
+
+      type_end = strrchr(xstats[j].name, '_');
+
+      if ((type_end != NULL) &&
+                (strncmp(xstats[j].name, "rx_", sizeof("rx_") - 1) == 0)) {
+
+        if (strncmp(type_end, "_errors", sizeof("_errors") - 1) == 0) {
+          sstrncpy (dpdkstat_vl.type, "if_rx_errors",
+                  sizeof(dpdkstat_vl.type));
+        } else if (strncmp(type_end, "_dropped", sizeof("_dropped") - 1) == 0) {
+          sstrncpy (dpdkstat_vl.type, "if_rx_dropped",
+                  sizeof(dpdkstat_vl.type));
+        } else if (strncmp(type_end, "_bytes", sizeof("_bytes") - 1) == 0) {
+          sstrncpy (dpdkstat_vl.type, "if_rx_octets",
+                  sizeof(dpdkstat_vl.type));
+        } else if (strncmp(type_end, "_packets", sizeof("_packets") - 1) == 0) {
+          sstrncpy (dpdkstat_vl.type, "if_rx_packets",
+                  sizeof(dpdkstat_vl.type));
+        } else {
+          /* Does not fit obvious type: use a more generic one */
+          sstrncpy (dpdkstat_vl.type, "derive",
+                  sizeof(dpdkstat_vl.type));
+        }
+
+      } else if ((type_end != NULL) &&
+                (strncmp(xstats[j].name, "tx_", sizeof("tx_") - 1)) == 0) {
+
+        if (strncmp(type_end, "_errors", sizeof("_errors") - 1) == 0) {
+          sstrncpy (dpdkstat_vl.type, "if_tx_errors",
+                  sizeof(dpdkstat_vl.type));
+        } else if (strncmp(type_end, "_dropped", sizeof("_dropped") - 1) == 0) {
+          sstrncpy (dpdkstat_vl.type, "if_tx_dropped",
+                  sizeof(dpdkstat_vl.type));
+        } else if (strncmp(type_end, "_bytes", sizeof("_bytes") - 1) == 0) {
+          sstrncpy (dpdkstat_vl.type, "if_tx_octets",
+                  sizeof(dpdkstat_vl.type));
+        } else if (strncmp(type_end, "_packets", sizeof("_packets") - 1) == 0) {
+          sstrncpy (dpdkstat_vl.type, "if_tx_packets",
+                  sizeof(dpdkstat_vl.type));
+        } else {
+          /* Does not fit obvious type: use a more generic one */
+          sstrncpy (dpdkstat_vl.type, "derive",
+                  sizeof(dpdkstat_vl.type));
+        }
+
+      } else {
+        /* Does not fit obvious type, or strrchr error:
+         *   use a more generic type */
+        sstrncpy (dpdkstat_vl.type, "derive",
+                sizeof(dpdkstat_vl.type));
+      }
+
       sstrncpy (dpdkstat_vl.type_instance, xstats[j].name,
                 sizeof (dpdkstat_vl.type_instance));
       plugin_dispatch_values (&dpdkstat_vl);

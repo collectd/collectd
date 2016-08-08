@@ -2416,56 +2416,70 @@ AC_ARG_WITH(libdpdk, [AS_HELP_STRING([--with-libdpdk@<:@=PREFIX@:>@], [Path to t
 [
 	if test "x$withval" != "xno" && test "x$withval" != "xyes"
 	then
-		with_dpdk_path="$withval"
+		RTE_BUILD="$withval"
 		with_libdpdk="yes"
 	else
-		if test "x$withval" = "xno"
-		then
-			with_libdpdk="no (disabled)"
-		fi
+		RTE_BUILD="/usr"
+		with_libdpdk="$withval"
 	fi
+	DPDK_INCLUDE="$RTE_BUILD/include"
+	DPDK_LIB_DIR="$RTE_BUILD/lib"
+	FOUND_DPDK=yes
 ], [with_libdpdk="no"])
 
 if test "x$with_libdpdk" = "xyes"
 then
-	RTE_BUILD="$with_dpdk_path"
-	DPDK_INCLUDE="$RTE_BUILD/include"
-	AC_CHECK_FILE([$DPDK_INCLUDE/rte_config.h], [LOCAL_DPDK_INSTALL=true],
-		[AC_CHECK_FILE([$DPDK_INCLUDE/dpdk/rte_config.h],
-		[DPDK_INCLUDE=$DPDK_INCLUDE/dpdk], [])])
-	DPDK_LIB_DIR="$RTE_BUILD/lib"
-	DPDK_EXTRA_LIB=""
+	LOCAL_DPDK_INSTALL="no"
+	AC_CHECK_HEADER([$DPDK_INCLUDE/rte_config.h], [LOCAL_DPDK_INSTALL=yes],
+		[AC_CHECK_HEADER([$DPDK_INCLUDE/dpdk/rte_config.h],
+		[],
+		[FOUND_DPDK=no], [])], [])
 
-	SAVE_CFLAGS="$CFLAGS"
-	SAVE_LDFLAGS="$LDFLAGS"
-	CFLAGS="$CFLAGS -I$DPDK_INCLUDE"
-	if test "x$LOCAL_DPDK_INSTALL" != "xtrue"
-        then
-            LDFLAGS="$LDFLAGS -L$DPDK_LIB_DIR"
-        fi
-	FOUND_DPDK=false
-	SAVE_LIBS="$LIBS"
-	LIBS="$DPDK_LIB $LIBS"
-	AC_CHECK_LIB(dpdk, rte_eal_init,
-                     [FOUND_DPDK=true],
-                     [AC_MSG_ERROR([did not find dpdk libs ])])
-
-	CFLAGS="$SAVE_CFLAGS"
-	LDFLAGS="$SAVE_LDFLAGS"
-	LIBS="$SAVE_LIBS"
-	if test "x$FOUND_DPDK" != "xtrue"
-        then
-	    AC_MSG_ERROR([cannot link with dpdk in $DPDK_LIB_DIR])
+	if test "x$LOCAL_DPDK_INSTALL" = "xno"
+	then
+		DPDK_INCLUDE=$DPDK_INCLUDE/dpdk
 	fi
 
-	BUILD_WITH_DPDK_CFLAGS+="-fPIC -I$DPDK_INCLUDE"
-	if test "x$LOCAL_DPDK_INSTALL" != "xtrue"
-        then
+	if test "x$FOUND_DPDK" = "xno"
+	then
+		AC_MSG_ERROR([libdpdk error: rte_config.h not found])
+	fi
+fi
+
+if test "x$with_libdpdk" = "xyes"
+then
+	SAVE_LDFLAGS="$LDFLAGS"
+
+	if test "x$LOCAL_DPDK_INSTALL" != "xyes"
+	then
+		LDFLAGS="$LDFLAGS -L$DPDK_LIB_DIR"
+        fi
+
+	AC_CHECK_LIB(dpdk, rte_eal_init,
+                     [BUILD_WITH_DPDK_LIBS="-Wl,-ldpdk"],
+                     [FOUND_DPDK=no])
+
+	LDFLAGS="$SAVE_LDFLAGS"
+	if test "x$FOUND_DPDK" = "xno"
+	then
+		AC_MSG_ERROR([libdpdk error: cannot link with dpdk in $DPDK_LIB_DIR])
+	fi
+fi
+
+#
+# Note: An issue on Ubuntu 14.04 necessitates the use of -Wl,--no-as-needed:
+# If you try compile with the older linker, the dpdk symbols will be undefined.
+# This workaround should be removed when no longer necessary.
+#
+if test "x$with_libdpdk" = "xyes"
+then
+	BUILD_WITH_DPDK_CFLAGS+="-I$DPDK_INCLUDE"
+	if test "x$LOCAL_DPDK_INSTALL" != "xyes"
+	then
 		BUILD_WITH_DPDK_LDFLAGS="-Wl,--no-as-needed"
 	else
 		BUILD_WITH_DPDK_LDFLAGS="-L$DPDK_LIB_DIR -Wl,--no-as-needed"
         fi
-	BUILD_WITH_DPDK_LIBS="-Wl,-ldpdk"
 	AC_SUBST(BUILD_WITH_DPDK_CFLAGS)
 	AC_SUBST(BUILD_WITH_DPDK_LDFLAGS)
 	AC_SUBST(BUILD_WITH_DPDK_LIBS)
