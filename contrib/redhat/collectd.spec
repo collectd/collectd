@@ -1673,7 +1673,7 @@ Collectd utilities
 %define _with_zookeeper --disable-zookeeper
 %endif
 
-%configure CFLAGS="%{optflags} {?_python_config} \
+%configure CFLAGS="%{optflags} %{?_python_config} \
 	-DLT_LAZY_OR_NOW=\"RTLD_LAZY|RTLD_GLOBAL\"" \
 	--disable-static \
 	--without-included-ltdl \
