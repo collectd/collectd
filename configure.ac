@@ -5164,9 +5164,7 @@ then
 		[AC_DEFINE([HAVE_VARNISH_V4], [1], [Varnish 4 API support])],
 		[AC_CHECK_HEADERS(vsc.h,
 			[AC_DEFINE([HAVE_VARNISH_V3], [1], [Varnish 3 API support])],
-			[AC_CHECK_HEADERS(varnishapi.h,
-				[AC_DEFINE([HAVE_VARNISH_V2], [1], [Varnish 2 API support])],
-				[with_libvarnish="no (found none of the varnish header files)"])])])
+			[with_libvarnish="no (found none of the varnish header files)"])])
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
 fi
