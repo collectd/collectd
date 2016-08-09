@@ -47,8 +47,8 @@ struct mysql_database_s /* {{{ */
 	char *user;
 	char *pass;
 	char *database;
-	
-	// mysql_ssl_set params
+
+	/* mysql_ssl_set params */
 	char *key;
 	char *cert;
 	char *ca;
@@ -276,7 +276,7 @@ static int mysql_config (oconfig_item_t *ci) /* {{{ */
 static MYSQL *getconnection (mysql_database_t *db)
 {
 	const char *cipher;
-	
+
 	if (db->is_connected)
 	{
 		int status;
@@ -318,7 +318,7 @@ static MYSQL *getconnection (mysql_database_t *db)
 	}
 
 	cipher = mysql_get_ssl_cipher (db->con);
-	
+
 	INFO ("mysql plugin: Successfully connected to database %s "
 			"at server %s with cipher %s "
 			"(server version: %s, protocol version: %d) ",
@@ -1001,7 +1001,7 @@ static int mysql_read (user_data_t *ud)
 				counter_submit ("mysql_sort", "scan", val, db);
 
 		}
-		else if (strncmp (key, "Slow_queries", strlen ("Slow_queries")) == 0) 
+		else if (strncmp (key, "Slow_queries", strlen ("Slow_queries")) == 0)
 		{
 			counter_submit ("mysql_slow_queries", NULL , val, db);
 		}
