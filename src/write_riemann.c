@@ -112,6 +112,8 @@ static int wrr_connect(struct riemann_host *host) /* {{{ */
     }
   }
 
+  set_sock_opts(riemann_client_get_fd(host->client));
+
   c_release(LOG_INFO, &host->init_complaint,
             "write_riemann plugin: Successfully connected to %s:%d", node,
             port);
