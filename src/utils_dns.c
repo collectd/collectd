@@ -527,7 +527,7 @@ handle_ip(const struct ip *ip, int len)
 	    return (0);
     if (IPPROTO_UDP != ip->ip_p)
 	return 0;
-    memcpy(buf, (void *) ip + offset, len - offset);
+    memcpy(buf, ((char *)ip) + offset, len - offset);
     if (0 == handle_udp((struct udphdr *) buf, len - offset))
 	return 0;
     return 1;
