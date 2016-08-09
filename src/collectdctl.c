@@ -312,7 +312,7 @@ static int flush (lcc_connection_t *c, int argc, char **argv)
     plugins[0] = NULL;
   }
 
-  for (int i = 0; i < plugins_num; ++i) {
+  for (size_t i = 0; i < plugins_num; ++i) {
     if (identifiers_num == 0) {
       status = lcc_flush (c, plugins[i], NULL, timeout);
       if (status != 0)
@@ -320,7 +320,7 @@ static int flush (lcc_connection_t *c, int argc, char **argv)
             (plugins[i] == NULL) ? "(all)" : plugins[i], lcc_strerror (c));
     }
     else {
-      for (int j = 0; j < identifiers_num; ++j) {
+      for (size_t j = 0; j < identifiers_num; ++j) {
         status = lcc_flush (c, plugins[i], identifiers + j, timeout);
         if (status != 0) {
           char id[1024];
