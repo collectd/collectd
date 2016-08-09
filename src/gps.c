@@ -239,7 +239,7 @@ static void cgps_submit (const char *type, gauge_t value, const char *type_insta
 /**
  * Read the data and submit by piece.
  */
-static int cgps_read ()
+static int cgps_read (void)
 {
   cgps_data_t data_copy;
 
