@@ -216,6 +216,7 @@
 # Plugins not buildable on RHEL < 7
 %if 0%{?rhel} && 0%{?rhel} < 7
 %define with_cpusleep 0
+%define with_gps 0
 %define with_mqtt 0
 %define with_rrdcached 0
 %define with_xmms 0
@@ -416,6 +417,16 @@ BuildRequires:	ganglia-devel
 %description gmond
 The gmond plugin subscribes to a Multicast group to receive data from gmond,
 the client daemon of the Ganglia project.
+%endif
+
+%if %{with_gps}
+%package gps
+Summary:	GPS plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	gpsd-devel
+%description gps
+This plugin monitor gps related data through gpsd.
 %endif
 
 %if %{with_grpc}
@@ -1092,6 +1103,12 @@ Collectd utilities
 %define _with_gmond --disable-gmond
 %endif
 
+%if %{with_gps}
+%define _with_gps --enable-gps
+%else
+%define _with_gps --disable-gps
+%endif
+
 %if %{with_grpc}
 %define _with_grpc --enable-grpc
 %else
@@ -1723,6 +1740,7 @@ Collectd utilities
 	%{?_with_filecount} \
 	%{?_with_fscache} \
 	%{?_with_gmond} \
+	%{?_with_gps} \
 	%{?_with_grpc} \
 	%{?_with_hddtemp} \
 	%{?_with_interface} \
@@ -2245,6 +2263,11 @@ fi
 %if %{with_gmond}
 %files gmond
 %{_libdir}/%{name}/gmond.so
+%endif
+
+%if %{with_gps}
+%files gps
+%{_libdir}/%{name}/gps.so
 %endif
 
 %if %{with_grpc}
