@@ -105,6 +105,7 @@
 #@BUILD_PLUGIN_CONTEXTSWITCH_TRUE@LoadPlugin contextswitch
 @BUILD_PLUGIN_CPU_TRUE@@BUILD_PLUGIN_CPU_TRUE@LoadPlugin cpu
 #@BUILD_PLUGIN_CPUFREQ_TRUE@LoadPlugin cpufreq
+#@BUILD_PLUGIN_CPUSLEEP_TRUE@LoadPlugin cpusleep
 @LOAD_PLUGIN_CSV@LoadPlugin csv
 #@BUILD_PLUGIN_CURL_TRUE@LoadPlugin curl
 #@BUILD_PLUGIN_CURL_JSON_TRUE@LoadPlugin curl_json
@@ -122,6 +123,7 @@
 #@BUILD_PLUGIN_FILECOUNT_TRUE@LoadPlugin filecount
 #@BUILD_PLUGIN_FSCACHE_TRUE@LoadPlugin fscache
 #@BUILD_PLUGIN_GMOND_TRUE@LoadPlugin gmond
+#@BUILD_PLUGIN_GPS_TRUE@LoadPlugin gps
 #@BUILD_PLUGIN_GRPC_TRUE@LoadPlugin grpc
 #@BUILD_PLUGIN_HDDTEMP_TRUE@LoadPlugin hddtemp
 @BUILD_PLUGIN_INTERFACE_TRUE@@BUILD_PLUGIN_INTERFACE_TRUE@LoadPlugin interface
@@ -564,6 +566,13 @@
 #  </Metric>
 #</Plugin>
 
+#<Plugin gps>
+#  Host "127.0.0.1"
+#  Port "2947"
+#  Timeout 0.015
+#  PauseConnect 5
+#</Plugin>
+
 #<Plugin grpc>
 #	WorkerThreads 5
 #	<Listen "0.0.0.0" "50051">
@@ -740,6 +749,12 @@
 #		Socket "/var/run/mysql/mysqld.sock"
 #		SlaveStats true
 #		SlaveNotifications true
+#	</Database>
+#	<Database galera>
+#		Alias "galera"
+#		Host "localhost"
+#		Socket "/var/run/mysql/mysqld.sock"
+#		WsrepStats true
 #	</Database>
 #</Plugin>
 
@@ -1394,6 +1409,8 @@
 #		Header "X-Custom-Header: custom_value"
 #		SSLVersion "TLSv1"
 #		Format "Command"
+#		Metrics true
+#		Notifications false
 #		StoreRates false
 #		BufferSize 4096
 #		LowSpeedLimit 0

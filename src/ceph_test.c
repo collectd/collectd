@@ -154,12 +154,12 @@ DEF_TEST(parse_keys)
     const char *str;
     const char *want;
   } cases[] = {
-    {"WBThrottle.bytes_dirtied.description.bytes_wb.description.ios_dirtied.description.ios_wb.type", "WBThrottle.bytesDirtied.description.bytesWb.description.iosDirtied.description.iosWb"},
-    {"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "AaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaBbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+    {"WBThrottle.bytes_dirtied.description.bytes_wb.description.ios_dirtied.description.ios_wb.type", "WBThrottle.bytesDirtied.description.bytesWb.description.iosDirt"},
+    {"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "Aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
     {"foo:bar", "FooBar"},
     {"foo:bar+", "FooBarPlus"},
     {"foo:bar-", "FooBarMinus"},
-    {"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+", "AaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaPlus"},
+    {"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+", "AaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaPlus"},
     {"aa.bb.cc.dd.ee.ff", "Aa.bb.cc.dd.ee.ff"},
     {"aa.bb.cc.dd.ee.ff.type", "Aa.bb.cc.dd.ee.ff"},
     {"aa.type", "Aa.type"},
@@ -169,7 +169,7 @@ DEF_TEST(parse_keys)
 
   for (i = 0; i < STATIC_ARRAY_SIZE (cases); i++)
   {
-    char got[DATA_MAX_NAME_LEN];
+    char got[64];
 
     CHECK_ZERO (parse_keys (got, sizeof (got), cases[i].str));
     EXPECT_EQ_STR (cases[i].want, got);

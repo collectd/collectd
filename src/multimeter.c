@@ -149,10 +149,9 @@ static int multimeter_read_value(double *value)
 
 static int multimeter_init (void)
 {
-	int i;
 	char device[] = "/dev/ttyS ";
 
-	for (i = 0; i < 10; i++)
+	for (int i = 0; i < 10; i++)
 	{
 		device[strlen(device)-1] = i + '0';
 

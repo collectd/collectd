@@ -145,11 +145,9 @@ static void mqtt_free (mqtt_client_conf_t *conf)
 
 static char *strip_prefix (char *topic)
 {
-    size_t num;
-    size_t i;
+    size_t num = 0;
 
-    num = 0;
-    for (i = 0; topic[i] != 0; i++)
+    for (size_t i = 0; topic[i] != 0; i++)
         if (topic[i] == '/')
             num++;
 
@@ -552,7 +550,6 @@ static int mqtt_config_publisher (oconfig_item_t *ci)
     char cb_name[1024];
     user_data_t user_data = { 0 };
     int status;
-    int i;
 
     conf = calloc (1, sizeof (*conf));
     if (conf == NULL)
@@ -586,7 +583,7 @@ static int mqtt_config_publisher (oconfig_item_t *ci)
 
     C_COMPLAIN_INIT (&conf->complaint_cantpublish);
 
-    for (i = 0; i < ci->children_num; i++)
+    for (int i = 0; i < ci->children_num; i++)
     {
         oconfig_item_t *child = ci->children + i;
         if (strcasecmp ("Host", child->key) == 0)
@@ -656,7 +653,6 @@ static int mqtt_config_subscriber (oconfig_item_t *ci)
     mqtt_client_conf_t **tmp;
     mqtt_client_conf_t *conf;
     int status;
-    int i;
 
     conf = calloc (1, sizeof (*conf));
     if (conf == NULL)
@@ -690,7 +686,7 @@ static int mqtt_config_subscriber (oconfig_item_t *ci)
 
     C_COMPLAIN_INIT (&conf->complaint_cantpublish);
 
-    for (i = 0; i < ci->children_num; i++)
+    for (int i = 0; i < ci->children_num; i++)
     {
         oconfig_item_t *child = ci->children + i;
         if (strcasecmp ("Host", child->key) == 0)
@@ -752,9 +748,7 @@ static int mqtt_config_subscriber (oconfig_item_t *ci)
  */
 static int mqtt_config (oconfig_item_t *ci)
 {
-    int i;
-
-    for (i = 0; i < ci->children_num; i++)
+    for (int i = 0; i < ci->children_num; i++)
     {
         oconfig_item_t *child = ci->children + i;
 
@@ -771,11 +765,9 @@ static int mqtt_config (oconfig_item_t *ci)
 
 static int mqtt_init (void)
 {
-    size_t i;
-
     mosquitto_lib_init ();
 
-    for (i = 0; i < subscribers_num; i++)
+    for (size_t i = 0; i < subscribers_num; i++)
     {
         int status;
 

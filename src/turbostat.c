@@ -652,11 +652,10 @@ for_all_cpus(int (func)(struct thread_data *, struct core_data *, struct pkg_dat
 	struct thread_data *thread_base, struct core_data *core_base, struct pkg_data *pkg_base)
 {
 	int retval;
-	unsigned int pkg_no, core_no, thread_no;
 
-	for (pkg_no = 0; pkg_no < topology.num_packages; ++pkg_no) {
-		for (core_no = 0; core_no < topology.num_cores; ++core_no) {
-			for (thread_no = 0; thread_no < topology.num_threads; ++thread_no) {
+	for (unsigned int pkg_no = 0; pkg_no < topology.num_packages; ++pkg_no) {
+		for (unsigned int core_no = 0; core_no < topology.num_cores; ++core_no) {
+			for (unsigned int thread_no = 0; thread_no < topology.num_threads; ++thread_no) {
 				struct thread_data *t;
 				struct core_data *c;
 				struct pkg_data *p;
@@ -692,11 +691,10 @@ for_all_cpus_delta(const struct thread_data *thread_new_base, const struct core_
 		   const struct thread_data *thread_old_base, const struct core_data *core_old_base, const struct pkg_data *pkg_old_base)
 {
 	int retval;
-	unsigned int pkg_no, core_no, thread_no;
 
-	for (pkg_no = 0; pkg_no < topology.num_packages; ++pkg_no) {
-		for (core_no = 0; core_no < topology.num_cores; ++core_no) {
-			for (thread_no = 0; thread_no < topology.num_threads; ++thread_no) {
+	for (unsigned int pkg_no = 0; pkg_no < topology.num_packages; ++pkg_no) {
+		for (unsigned int core_no = 0; core_no < topology.num_cores; ++core_no) {
+			for (unsigned int thread_no = 0; thread_no < topology.num_threads; ++thread_no) {
 				struct thread_data *t_delta;
 				const struct thread_data *t_old, *t_new;
 				struct core_data *c_delta;
@@ -1150,7 +1148,6 @@ allocate_cpu_set(cpu_set_t ** set, size_t * size) {
 static int __attribute__((warn_unused_result))
 topology_probe(void)
 {
-	unsigned int i;
 	int ret;
 	unsigned int max_package_id, max_core_id, max_threads;
 	max_package_id = max_core_id = max_threads = 0;
@@ -1187,7 +1184,7 @@ topology_probe(void)
 	 * For online cpus
 	 * find max_core_id, max_package_id
 	 */
-	for (i = 0; i <= topology.max_cpu_id; ++i) {
+	for (unsigned int i = 0; i <= topology.max_cpu_id; ++i) {
 		unsigned int num_threads;
 		struct cpu_topology *cpu = &topology.cpus[i];
 
@@ -1252,7 +1249,6 @@ err:
 static int
 allocate_counters(struct thread_data **threads, struct core_data **cores, struct pkg_data **packages)
 {
-	unsigned int i;
 	unsigned int total_threads, total_cores;
 
 	if ((topology.num_threads == 0)
@@ -1272,7 +1268,7 @@ allocate_counters(struct thread_data **threads, struct core_data **cores, struct
 		return -1;
 	}
 
-	for (i = 0; i < total_threads; ++i)
+	for (unsigned int i = 0; i < total_threads; ++i)
 		(*threads)[i].cpu_id = topology.max_cpu_id + 1;
 
 	total_cores = topology.num_cores * topology.num_packages;
@@ -1322,9 +1318,7 @@ init_counter(struct thread_data *thread_base, struct core_data *core_base,
 static void
 initialize_counters(void)
 {
-	unsigned int cpu_id;
-
-	for (cpu_id = 0; cpu_id <= topology.max_cpu_id; ++cpu_id) {
+	for (unsigned int cpu_id = 0; cpu_id <= topology.max_cpu_id; ++cpu_id) {
 		if (cpu_is_not_present(cpu_id))
 			continue;
 		init_counter(EVEN_COUNTERS, cpu_id);

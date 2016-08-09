@@ -36,6 +36,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -91,12 +92,6 @@
   (c)->errbuf[sizeof ((c)->errbuf) - 1] = 0; \
 } while (0)
 
-#if COLLECT_DEBUG
-# define LCC_DEBUG(...) printf (__VA_ARGS__)
-#else
-# define LCC_DEBUG(...) /**/
-#endif
-
 /*
  * Types
  */
@@ -118,6 +113,22 @@ typedef struct lcc_response_s lcc_response_t;
 /*
  * Private functions
  */
+static int lcc_tracef(char const *format, ...)
+{
+  va_list ap;
+  int status;
+
+  char const *trace = getenv (LCC_TRACE_ENV);
+  if (!trace || (strcmp ("", trace) == 0) || (strcmp ("0", trace) == 0))
+    return 0;
+
+  va_start (ap, format);
+  status = vprintf (format, ap);
+  va_end (ap);
+
+  return status;
+}
+
 /* Even though Posix requires "strerror_r" to return an "int",
  * some systems (e.g. the GNU libc) return a "char *" _and_
  * ignore the second argument ... -tokkee */
@@ -235,12 +246,10 @@ static void lcc_chomp (char *str) /* {{{ */
 
 static void lcc_response_free (lcc_response_t *res) /* {{{ */
 {
-  size_t i;
-
   if (res == NULL)
     return;
 
-  for (i = 0; i < res->lines_num; i++)
+  for (size_t i = 0; i < res->lines_num; i++)
     free (res->lines[i]);
   free (res->lines);
   res->lines = NULL;
@@ -250,7 +259,7 @@ static int lcc_send (lcc_connection_t *c, const char *command) /* {{{ */
 {
   int status;
 
-  LCC_DEBUG ("send:    --> %s\n", command);
+  lcc_tracef ("send:    --> %s\n", command);
 
   status = fprintf (c->fh, "%s\r\n", command);
   if (status < 0)
@@ -279,7 +288,7 @@ static int lcc_receive (lcc_connection_t *c, /* {{{ */
     return (-1);
   }
   lcc_chomp (buffer);
-  LCC_DEBUG ("receive: <-- %s\n", buffer);
+  lcc_tracef ("receive: <-- %s\n", buffer);
 
   /* Convert the leading status to an integer and make `ptr' to point to the
    * beginning of the message. */
@@ -327,7 +336,7 @@ static int lcc_receive (lcc_connection_t *c, /* {{{ */
       break;
     }
     lcc_chomp (buffer);
-    LCC_DEBUG ("receive: <-- %s\n", buffer);
+    lcc_tracef ("receive: <-- %s\n", buffer);
 
     res.lines[i] = strdup (buffer);
     if (res.lines[i] == NULL)
@@ -421,7 +430,6 @@ static int lcc_open_netsocket (lcc_connection_t *c, /* {{{ */
     const char *addr_orig)
 {
   struct addrinfo *ai_res;
-  struct addrinfo *ai_ptr;
   char addr_copy[NI_MAXHOST];
   char *addr;
   char *port;
@@ -486,7 +494,7 @@ static int lcc_open_netsocket (lcc_connection_t *c, /* {{{ */
     return (-1);
   }
 
-  for (ai_ptr = ai_res; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+  for (struct addrinfo *ai_ptr = ai_res; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
   {
     fd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
     if (fd < 0)
@@ -741,7 +749,6 @@ int lcc_putval (lcc_connection_t *c, const lcc_value_list_t *vl) /* {{{ */
   char command[1024] = "";
   lcc_response_t res;
   int status;
-  size_t i;
 
   if ((c == NULL) || (vl == NULL) || (vl->values_len < 1)
       || (vl->values == NULL) || (vl->values_types == NULL))
@@ -766,7 +773,7 @@ int lcc_putval (lcc_connection_t *c, const lcc_value_list_t *vl) /* {{{ */
   else
     SSTRCAT (command, " N");
 
-  for (i = 0; i < vl->values_len; i++)
+  for (size_t i = 0; i < vl->values_len; i++)
   {
     if (vl->values_types[i] == LCC_TYPE_COUNTER)
       SSTRCATF (command, ":%"PRIu64, vl->values[i].counter);
@@ -858,7 +865,6 @@ int lcc_listval (lcc_connection_t *c, /* {{{ */
     lcc_identifier_t **ret_ident, size_t *ret_ident_num)
 {
   lcc_response_t res;
-  size_t i;
   int status;
 
   lcc_identifier_t *ident;
@@ -893,7 +899,7 @@ int lcc_listval (lcc_connection_t *c, /* {{{ */
     return (-1);
   }
 
-  for (i = 0; i < res.lines_num; i++)
+  for (size_t i = 0; i < res.lines_num; i++)
   {
     char *time_str;
     char *ident_str;

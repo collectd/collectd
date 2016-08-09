@@ -324,7 +324,6 @@ int match_apply (cu_match_t *obj, const char *str)
   regmatch_t re_match[32];
   char *matches[32] = { 0 };
   size_t matches_num;
-  size_t i;
 
   if ((obj == NULL) || (str == NULL))
     return (-1);
@@ -376,7 +375,7 @@ int match_apply (cu_match_t *obj, const char *str)
     }
   }
 
-  for (i = 0; i < matches_num; i++)
+  for (size_t i = 0; i < matches_num; i++)
   {
     sfree (matches[i]);
   }

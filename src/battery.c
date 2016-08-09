@@ -202,7 +202,6 @@ static void get_via_io_power_sources (double *ret_charge, /* {{{ */
 	CFTypeRef       ps_obj;
 
 	double temp_double;
-	int i;
 
 	ps_raw       = IOPSCopyPowerSourcesInfo ();
 	ps_array     = IOPSCopyPowerSourcesList (ps_raw);
@@ -210,7 +209,7 @@ static void get_via_io_power_sources (double *ret_charge, /* {{{ */
 
 	DEBUG ("ps_array_len == %i", ps_array_len);
 
-	for (i = 0; i < ps_array_len; i++)
+	for (int i = 0; i < ps_array_len; i++)
 	{
 		ps_obj  = CFArrayGetValueAtIndex (ps_array, i);
 		ps_dict = IOPSGetPowerSourceDescription (ps_raw, ps_obj);
@@ -275,7 +274,6 @@ static void get_via_generic_iokit (double *ret_capacity_full, /* {{{ */
 	CFDictionaryRef bat_root_dict;
 	CFArrayRef      bat_info_arry;
 	CFIndex         bat_info_arry_len;
-	CFIndex         bat_info_arry_pos;
 	CFDictionaryRef bat_info_dict;
 
 	double temp_double;
@@ -310,7 +308,7 @@ static void get_via_generic_iokit (double *ret_capacity_full, /* {{{ */
 		}
 		bat_info_arry_len = CFArrayGetCount (bat_info_arry);
 
-		for (bat_info_arry_pos = 0;
+		for (CFIndex bat_info_arry_pos = 0;
 				bat_info_arry_pos < bat_info_arry_len;
 				bat_info_arry_pos++)
 		{
@@ -714,11 +712,10 @@ static int read_acpi (void) /* {{{ */
 
 static int read_pmu (void) /* {{{ */
 {
-	int i;
-
+	int i = 0;
 	/* The upper limit here is just a safeguard. If there is a system with
 	 * more than 100 batteries, this can easily be increased. */
-	for (i = 0; i < 100; i++)
+	for (; i < 100; i++)
 	{
 		FILE *fh;
 
@@ -803,9 +800,7 @@ static int battery_read (void) /* {{{ */
 
 static int battery_config (oconfig_item_t *ci)
 {
-	int i;
-
-	for (i = 0; i < ci->children_num; i++)
+	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
 

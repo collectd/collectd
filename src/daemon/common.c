@@ -51,6 +51,10 @@
 # include <netinet/in.h>
 #endif
 
+#if HAVE_NETINET_TCP_H
+# include <netinet/tcp.h>
+#endif
+
 /* for ntohl and htonl */
 #if HAVE_ARPA_INET_H
 # include <arpa/inet.h>
@@ -333,7 +337,6 @@ int strjoin (char *buffer, size_t buffer_size,
 	size_t avail;
 	char *ptr;
 	size_t sep_len;
-	size_t i;
 
 	if ((buffer_size < 1) || (fields_num == 0))
 		return (-1);
@@ -346,7 +349,7 @@ int strjoin (char *buffer, size_t buffer_size,
 	if (sep != NULL)
 		sep_len = strlen (sep);
 
-	for (i = 0; i < fields_num; i++)
+	for (size_t i = 0; i < fields_num; i++)
 	{
 		size_t field_len;
 
@@ -376,7 +379,6 @@ int strjoin (char *buffer, size_t buffer_size,
 int escape_string (char *buffer, size_t buffer_size)
 {
   char *temp;
-  size_t i;
   size_t j;
 
   /* Check if we need to escape at all first */
@@ -394,7 +396,7 @@ int escape_string (char *buffer, size_t buffer_size)
   temp[0] = '"';
   j = 1;
 
-  for (i = 0; i < buffer_size; i++)
+  for (size_t i = 0; i < buffer_size; i++)
   {
     if (buffer[i] == 0)
     {
@@ -428,9 +430,7 @@ int escape_string (char *buffer, size_t buffer_size)
 
 int strunescape (char *buf, size_t buf_len)
 {
-	size_t i;
-
-	for (i = 0; (i < buf_len) && (buf[i] != '\0'); ++i)
+	for (size_t i = 0; (i < buf_len) && (buf[i] != '\0'); ++i)
 	{
 		if (buf[i] != '\\')
 			continue;
@@ -484,7 +484,6 @@ size_t strstripnewline (char *buffer)
 int escape_slashes (char *buffer, size_t buffer_size)
 {
 	size_t buffer_len;
-	size_t i;
 
 	buffer_len = strlen (buffer);
 
@@ -506,7 +505,7 @@ int escape_slashes (char *buffer, size_t buffer_size)
 		buffer_len--;
 	}
 
-	for (i = 0; i < buffer_len; i++)
+	for (size_t i = 0; i < buffer_len; i++)
 	{
 		if (buffer[i] == '/')
 			buffer[i] = '_';
@@ -517,9 +516,7 @@ int escape_slashes (char *buffer, size_t buffer_size)
 
 void replace_special (char *buffer, size_t buffer_size)
 {
-	size_t i;
-
-	for (i = 0; i < buffer_size; i++)
+	for (size_t i = 0; i < buffer_size; i++)
 	{
 		if (buffer[i] == 0)
 			return;
@@ -593,7 +590,6 @@ int check_create_dir (const char *file_orig)
 	int   last_is_file = 1;
 	int   path_is_absolute = 0;
 	size_t len;
-	int   i;
 
 	/*
 	 * Sanity checks first
@@ -639,7 +635,7 @@ int check_create_dir (const char *file_orig)
 	/*
 	 * For each component, do..
 	 */
-	for (i = 0; i < (fields_num - last_is_file); i++)
+	for (int i = 0; i < (fields_num - last_is_file); i++)
 	{
 		/*
 		 * Do not create directories that start with a dot. This
@@ -938,7 +934,6 @@ int format_values (char *ret, size_t ret_len, /* {{{ */
 {
         size_t offset = 0;
         int status;
-        size_t i;
         gauge_t *rates = NULL;
 
         assert (0 == strcmp (ds->type, vl->type));
@@ -964,7 +959,7 @@ int format_values (char *ret, size_t ret_len, /* {{{ */
 
         BUFFER_ADD ("%.3f", CDTIME_T_TO_DOUBLE (vl->time));
 
-        for (i = 0; i < ds->ds_num; i++)
+        for (size_t i = 0; i < ds->ds_num; i++)
         {
                 if (ds->ds[i].type == DS_TYPE_GAUGE)
                         BUFFER_ADD (":"GAUGE_FORMAT, vl->values[i].gauge);
@@ -1518,7 +1513,6 @@ int value_to_rate (gauge_t *ret_rate, /* {{{ */
 int service_name_to_port_number (const char *service_name)
 {
 	struct addrinfo *ai_list;
-	struct addrinfo *ai_ptr;
 	int status;
 	int service_number;
 
@@ -1539,7 +1533,7 @@ int service_name_to_port_number (const char *service_name)
 	}
 
 	service_number = -1;
-	for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+	for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
 	{
 		if (ai_ptr->ai_family == AF_INET)
 		{
@@ -1566,6 +1560,46 @@ int service_name_to_port_number (const char *service_name)
 		return (service_number);
 	return (-1);
 } /* int service_name_to_port_number */
+
+void set_sock_opts (int sockfd) /* {{{ */
+{
+	int status;
+	int socktype;
+
+	socklen_t socklen = sizeof (socklen_t);
+	int so_keepalive = 1;
+	int tcp_keepidle = ((CDTIME_T_TO_MS(plugin_get_interval()) - 1) / 100 + 1);
+	int tcp_keepintvl = ((CDTIME_T_TO_MS(plugin_get_interval()) - 1) / 1000 + 1);
+
+	status = getsockopt (sockfd, SOL_SOCKET, SO_TYPE, &socktype, &socklen);
+	if (status != 0)
+	{
+		WARNING ("set_sock_opts: failed to determine socket type");
+		return;
+	}
+
+	if (socktype == SOCK_STREAM)
+	{
+		status = setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE,
+				&so_keepalive, sizeof (so_keepalive));
+		if (status != 0)
+			WARNING ("set_sock_opts: failed to set socket keepalive flag");
+
+#ifdef TCP_KEEPIDLE
+		status = setsockopt(sockfd, IPPROTO_TCP, TCP_KEEPIDLE,
+				&tcp_keepidle, sizeof (tcp_keepidle));
+		if (status != 0)
+			WARNING ("set_sock_opts: failed to set socket tcp keepalive time");
+#endif
+
+#ifdef TCP_KEEPINTVL
+		status = setsockopt(sockfd, IPPROTO_TCP, TCP_KEEPINTVL,
+				&tcp_keepintvl, sizeof (tcp_keepintvl));
+		if (status != 0)
+			WARNING ("set_sock_opts: failed to set socket tcp keepalive interval");
+#endif
+	}
+} /* }}} void set_sock_opts */
 
 int strtoderive (const char *string, derive_t *ret_value) /* {{{ */
 {
@@ -1630,9 +1664,7 @@ int strarray_add (char ***ret_array, size_t *ret_array_len, char const *str) /* 
 
 void strarray_free (char **array, size_t array_len) /* {{{ */
 {
-	size_t i;
-
-	for (i = 0; i < array_len; i++)
+	for (size_t i = 0; i < array_len; i++)
 		sfree (array[i]);
 	sfree (array);
 } /* }}} void strarray_free */

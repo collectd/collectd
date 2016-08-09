@@ -528,13 +528,11 @@ static int camqp_connect (camqp_config_t *conf) /* {{{ */
 
 static int camqp_shutdown (void) /* {{{ */
 {
-    size_t i;
-
     DEBUG ("amqp plugin: Shutting down %zu subscriber threads.",
             subscriber_threads_num);
 
     subscriber_threads_running = 0;
-    for (i = 0; i < subscriber_threads_num; i++)
+    for (size_t i = 0; i < subscriber_threads_num; i++)
     {
         /* FIXME: Sending a signal is not very elegant here. Maybe find out how
          * to use a timeout in the thread and check for the variable in regular
@@ -822,7 +820,6 @@ static int camqp_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
     }
     else
     {
-        size_t i;
         ssnprintf (routing_key, sizeof (routing_key), "collectd/%s/%s/%s/%s/%s",
                 vl->host,
                 vl->plugin, vl->plugin_instance,
@@ -830,7 +827,7 @@ static int camqp_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
 
         /* Switch slashes (the only character forbidden by collectd) and dots
          * (the separation character used by AMQP). */
-        for (i = 0; routing_key[i] != 0; i++)
+        for (size_t i = 0; routing_key[i] != 0; i++)
         {
             if (routing_key[i] == '.')
                 routing_key[i] = '/';
@@ -920,7 +917,6 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
 {
     camqp_config_t *conf;
     int status;
-    int i;
 
     conf = calloc (1, sizeof (*conf));
     if (conf == NULL)
@@ -967,7 +963,7 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
         return (status);
     }
 
-    for (i = 0; i < ci->children_num; i++)
+    for (int i = 0; i < ci->children_num; i++)
     {
         oconfig_item_t *child = ci->children + i;
 
@@ -1100,9 +1096,7 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
 
 static int camqp_config (oconfig_item_t *ci) /* {{{ */
 {
-    int i;
-
-    for (i = 0; i < ci->children_num; i++)
+    for (int i = 0; i < ci->children_num; i++)
     {
         oconfig_item_t *child = ci->children + i;
 

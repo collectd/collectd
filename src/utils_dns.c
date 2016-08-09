@@ -195,9 +195,7 @@ static int cmp_in6_addr (const struct in6_addr *a,
 
 static inline int ignore_list_match (const struct in6_addr *addr)
 {
-    ip_list_t *ptr;
-
-    for (ptr = IgnoreList; ptr != NULL; ptr = ptr->next)
+    for (ip_list_t *ptr = IgnoreList; ptr != NULL; ptr = ptr->next)
 	if (cmp_in6_addr (addr, &ptr->addr) == 0)
 	    return (1);
     return (0);
@@ -226,7 +224,6 @@ static void ignore_list_add (const struct in6_addr *addr)
 void ignore_list_add_name (const char *name)
 {
     struct addrinfo *ai_list;
-    struct addrinfo *ai_ptr;
     struct in6_addr  addr;
     int status;
 
@@ -234,7 +231,7 @@ void ignore_list_add_name (const char *name)
     if (status != 0)
 	return;
 
-    for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+    for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
     {
 	if (ai_ptr->ai_family == AF_INET)
 	{
@@ -752,22 +749,41 @@ const char *qtype_str(int t)
 	    case ns_t_srv:      return ("SRV");
 	    case ns_t_atma:     return ("ATMA");
 	    case ns_t_naptr:    return ("NAPTR");
+	    case ns_t_opt:      return ("OPT");
+# if __NAMESER >= 19991006
 	    case ns_t_kx:       return ("KX");
 	    case ns_t_cert:     return ("CERT");
 	    case ns_t_a6:       return ("A6");
 	    case ns_t_dname:    return ("DNAME");
 	    case ns_t_sink:     return ("SINK");
-	    case ns_t_opt:      return ("OPT");
-# if __NAMESER >= 19991006
 	    case ns_t_tsig:     return ("TSIG");
 # endif
+# if __NAMESER >= 20090302
+	    case ns_t_apl:      return ("APL");
+	    case ns_t_ds:       return ("DS");
+	    case ns_t_sshfp:    return ("SSHFP");
+	    case ns_t_ipseckey: return ("IPSECKEY");
+	    case ns_t_rrsig:    return ("RRSIG");
+	    case ns_t_nsec:     return ("NSEC");
+	    case ns_t_dnskey:   return ("DNSKEY");
+	    case ns_t_dhcid:    return ("DHCID");
+	    case ns_t_nsec3:    return ("NSEC3");
+	    case ns_t_nsec3param: return ("NSEC3PARAM");
+	    case ns_t_hip:      return ("HIP");
+	    case ns_t_spf:      return ("SPF");
 	    case ns_t_ixfr:     return ("IXFR");
+# endif
 	    case ns_t_axfr:     return ("AXFR");
 	    case ns_t_mailb:    return ("MAILB");
 	    case ns_t_maila:    return ("MAILA");
 	    case ns_t_any:      return ("ANY");
+# if __NAMESER >= 19991006
 	    case ns_t_zxfr:     return ("ZXFR");
-/* #endif __NAMESER >= 19991006 */
+# endif
+# if __NAMESER >= 20090302
+	    case ns_t_dlv:       return ("DLV");
+# endif
+/* #endif __NAMESER >= 19991001 */
 #elif (defined (__BIND)) && (__BIND >= 19950621)
 	    case T_A:		return ("A"); /* 1 ... */
 	    case T_NS:		return ("NS");

@@ -100,12 +100,10 @@ static void mr_free_match (mr_match_t *m) /* {{{ */
 static int mr_match_regexen (mr_regex_t *re_head, /* {{{ */
 		const char *string)
 {
-	mr_regex_t *re;
-
 	if (re_head == NULL)
 		return (FC_MATCH_MATCHES);
 
-	for (re = re_head; re != NULL; re = re->next)
+	for (mr_regex_t *re = re_head; re != NULL; re = re->next)
 	{
 		int status;
 
@@ -192,7 +190,6 @@ static int mr_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 {
 	mr_match_t *m;
 	int status;
-	int i;
 
 	m = calloc (1, sizeof (*m));
 	if (m == NULL)
@@ -204,7 +201,7 @@ static int mr_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 	m->invert = 0;
 
 	status = 0;
-	for (i = 0; i < ci->children_num; i++)
+	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
 

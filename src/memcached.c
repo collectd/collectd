@@ -102,7 +102,7 @@ static int memcached_connect_inet (memcached_t *st)
   const char *host;
   const char *port;
 
-  struct addrinfo *ai_list, *ai_ptr;
+  struct addrinfo *ai_list;
   int status;
   int fd = -1;
 
@@ -128,7 +128,7 @@ static int memcached_connect_inet (memcached_t *st)
     return (-1);
   }
 
-  for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+  for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
   {
     /* create our socket descriptor */
     fd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
@@ -240,21 +240,24 @@ static int memcached_query_daemon (char *buffer, size_t buffer_size, memcached_t
 
 static void memcached_init_vl (value_list_t *vl, memcached_t const *st)
 {
+  char const *host = st->host;
+
+  /* Set vl->host to hostname_g, if:
+   * - Legacy mode is used.
+   * - "Socket" option is given (doc: "Host option is ignored").
+   * - "Host" option is not provided.
+   * - "Host" option is set to "localhost" or "127.0.0.1". */
+  if ((strcmp (st->name, "__legacy__") == 0)
+      || (st->socket != NULL)
+      || (st->host == NULL)
+      || (strcmp ("127.0.0.1", st->host) == 0)
+      || (strcmp ("localhost", st->host) == 0))
+    host = hostname_g;
+
   sstrncpy (vl->plugin, "memcached", sizeof (vl->plugin));
-  if (strcmp (st->name, "__legacy__") == 0) /* legacy mode */
-  {
-    sstrncpy (vl->host, hostname_g, sizeof (vl->host));
-  }
-  else
-  {
-    if (st->socket != NULL)
-      sstrncpy (vl->host, hostname_g, sizeof (vl->host));
-    else
-      sstrncpy (vl->host,
-          (st->host != NULL) ? st->host : MEMCACHED_DEF_HOST,
-          sizeof (vl->host));
+  sstrncpy (vl->host, host, sizeof (vl->host));
+  if (strcmp (st->name, "__legacy__") != 0)
     sstrncpy (vl->plugin_instance, st->name, sizeof (vl->plugin_instance));
-  }
 }
 
 static void submit_derive (const char *type, const char *type_inst,
@@ -575,7 +578,6 @@ static int memcached_add_read_callback (memcached_t *st)
 static int config_add_instance(oconfig_item_t *ci)
 {
   memcached_t *st;
-  int i;
   int status = 0;
 
   /* Disable automatic generation of default instance in the init callback. */
@@ -604,7 +606,7 @@ static int config_add_instance(oconfig_item_t *ci)
   }
   assert (st->name != NULL);
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -641,9 +643,8 @@ static int memcached_config (oconfig_item_t *ci)
 {
   int status = 0;
   _Bool have_instance_block = 0;
-  int i;
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 

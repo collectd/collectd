@@ -200,7 +200,6 @@ static int tss2_get_socket (FILE **ret_read_fh, FILE **ret_write_fh)
 	 * if it's not already present
 	 */
 	struct addrinfo *ai_head;
-	struct addrinfo *ai_ptr;
 	int sd = -1;
 	int status;
 
@@ -234,7 +233,7 @@ static int tss2_get_socket (FILE **ret_read_fh, FILE **ret_write_fh)
 	}
 
 	/* Try all given hosts until we can connect to one */
-	for (ai_ptr = ai_head; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+	for (struct addrinfo *ai_ptr = ai_head; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
 	{
 		/* Create socket */
 		sd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype,
@@ -770,7 +769,6 @@ static int tss2_read (void)
 	 * Poll function which collects global and vserver information
 	 * and submits it to collectd
 	 */
-	vserver_list_t *vserver;
 	int success = 0;
 	int status;
 
@@ -786,7 +784,7 @@ static int tss2_read (void)
 	}
 
 	/* Handle vservers */
-	for (vserver = server_list; vserver != NULL; vserver = vserver->next)
+	for (vserver_list_t *vserver = server_list; vserver != NULL; vserver = vserver->next)
 	{
 		status = tss2_read_vserver (vserver);
 		if (status == 0)

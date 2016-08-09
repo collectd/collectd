@@ -361,6 +361,9 @@ int value_to_rate (gauge_t *ret_rate, value_t value, int ds_type, cdtime_t t,
  * (in the range [1-65535]). Returns less than zero on error. */
 int service_name_to_port_number (const char *service_name);
 
+/* Sets various, non-default, socket options */
+void set_sock_opts (int sockfd);
+
 /** Parse a string to a derive_t value. Returns zero on success or non-zero on
  * failure. If failure is returned, ret_value is not touched. */
 int strtoderive (const char *string, derive_t *ret_value);

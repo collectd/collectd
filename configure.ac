@@ -1,4 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
+AC_PREREQ([2.60])
 AC_INIT([collectd],[m4_esyscmd(./version-gen.sh)])
 AC_CONFIG_SRCDIR(src/target_set.c)
 AC_CONFIG_HEADERS(src/config.h)
@@ -747,6 +748,23 @@ AC_CHECK_HEADERS(net/pfvar.h,
 have_termios_h="no"
 AC_CHECK_HEADERS(termios.h, [have_termios_h="yes"])
 
+# For cpusleep plugin
+AC_CACHE_CHECK([whether clock_boottime and clock_monotonic are supported],
+		       [c_cv_have_clock_boottime_monotonic],
+		       AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+[[
+#include <time.h>
+]],
+[[
+ struct timespec b, m;
+ clock_gettime(CLOCK_BOOTTIME, &b );
+ clock_gettime(CLOCK_MONOTONIC, &m );
+]]
+		       )],
+		       [c_cv_have_clock_boottime_monotonic="yes"],
+		       [c_cv_have_clock_boottime_monotonic="no"]))
+
+
 # For the turbostat plugin
 have_asm_msrindex_h="no"
 AC_CHECK_HEADERS(asm/msr-index.h, [have_asm_msrindex_h="yes"])
@@ -786,7 +804,7 @@ AC_HEADER_TIME
 #
 # Checks for library functions.
 #
-AC_CHECK_FUNCS(gettimeofday select strdup strtol getaddrinfo getnameinfo strchr memcpy strstr strcmp strncmp strncpy strlen strncasecmp strcasecmp openlog closelog sysconf setenv if_indextoname setlocale)
+AC_CHECK_FUNCS(gettimeofday select strdup strtol getaddrinfo getnameinfo strchr memcpy strstr strcmp strncmp strncpy strlen strncasecmp strcasecmp openlog closelog sysconf setenv if_indextoname setlocale asprintf)
 
 AC_FUNC_STRERROR_R
 
@@ -1443,15 +1461,15 @@ if test "x$have_getmntent" = "xc"; then
 fi
 if test "x$have_getmntent" = "xsun"; then
 	AC_DEFINE(HAVE_SUN_GETMNTENT, 1,
-		  [Define if the function getmntent exists. It's the version from libsun.])
+		  [Define if the function getmntent exists. It is the version from libsun.])
 fi
 if test "x$have_getmntent" = "xseq"; then
 	AC_DEFINE(HAVE_SEQ_GETMNTENT, 1,
-		  [Define if the function getmntent exists. It's the version from libseq.])
+		  [Define if the function getmntent exists. It is the version from libseq.])
 fi
 if test "x$have_getmntent" = "xgen"; then
 	AC_DEFINE(HAVE_GEN_GETMNTENT, 1,
-		  [Define if the function getmntent exists. It's the version from libgen.])
+		  [Define if the function getmntent exists. It is the version from libgen.])
 fi
 
 # Check for htonll
@@ -2266,6 +2284,56 @@ AC_SUBST(GCRYPT_LIBS)
 AM_CONDITIONAL(BUILD_WITH_LIBGCRYPT, test "x$with_libgcrypt" = "xyes")
 # }}}
 
+# --with-libgps {{{
+with_libgps_cflags=""
+with_libgps_ldflags=""
+AC_ARG_WITH(libgps, [AS_HELP_STRING([--with-libgps@<:@=PREFIX@:>@], [Path to libgps.])],
+[
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	then
+		with_libgps_cflags="-I$withval/include"
+		with_libgps_ldflags="-L$withval/lib"
+		with_libgps="yes"
+	else
+		with_libgps="$withval"
+	fi
+],
+[
+	with_libgps="yes"
+])
+if test "x$with_libgps" = "xyes"
+then
+	SAVE_CFLAGS="$CFLAGS"
+	CFLAGS="$CFLAGS $with_libgps_cflags"
+
+	AC_CHECK_HEADERS(gps.h, [with_libgps="yes"], [with_libgps="no (gps.h not found)"])
+
+	CFLAGS="$SAVE_CFLAGS"
+fi
+if test "x$with_libgps" = "xyes"
+then
+	SAVE_CFLAGS="$CFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+	CFLAGS="$CFLAGS $with_libgps_cflags"
+	LDFLAGS="$LDFLAGS $with_libgps_ldflags"
+
+	AC_CHECK_LIB(gps, gps_open, [with_libgps="yes"], [with_libgps="no (symbol gps_open not found)"])
+
+	CFLAGS="$SAVE_CFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+if test "x$with_libgps" = "xyes"
+then
+	BUILD_WITH_LIBGPS_CFLAGS="$with_libgps_cflags"
+	BUILD_WITH_LIBGPS_LDFLAGS="$with_libgps_ldflags"
+	BUILD_WITH_LIBGPS_LIBS="-lgps"
+	AC_SUBST(BUILD_WITH_LIBGPS_CFLAGS)
+	AC_SUBST(BUILD_WITH_LIBGPS_LDFLAGS)
+	AC_SUBST(BUILD_WITH_LIBGPS_LIBS)
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBGPS, test "x$with_libgps" = "xyes")
+# }}}
+
 # --with-libgrpc++ {{{
 with_libgrpcpp_cppflags=""
 with_libgrpcpp_ldflags=""
@@ -2376,11 +2444,6 @@ AC_ARG_WITH(libiptc, [AS_HELP_STRING([--with-libiptc@<:@=PREFIX@:>@], [Path to l
 		with_libiptc="no (Linux only)"
 	fi
 ])
-
-if test "x$with_libiptc" = "xpkgconfig" && test "x$PKG_CONFIG" = "x"
-then
-	with_libiptc="no (Don't have pkg-config)"
-fi
 
 if test "x$with_libiptc" = "xpkgconfig"
 then
@@ -2819,13 +2882,6 @@ AC_ARG_WITH(libmodbus, [AS_HELP_STRING([--with-libmodbus@<:@=PREFIX@:>@], [Path 
 # configure using pkg-config
 if test "x$with_libmodbus" = "xuse_pkgconfig"
 then
-	if test "x$PKG_CONFIG" = "x"
-	then
-		with_libmodbus="no (Don't have pkg-config)"
-	fi
-fi
-if test "x$with_libmodbus" = "xuse_pkgconfig"
-then
 	AC_MSG_NOTICE([Checking for libmodbus using $PKG_CONFIG])
 	$PKG_CONFIG --exists 'libmodbus' 2>/dev/null
 	if test $? -ne 0
@@ -3116,10 +3172,6 @@ AC_ARG_WITH(libmnl, [AS_HELP_STRING([--with-libmnl@<:@=PREFIX@:>@], [Path to lib
 	 with_libmnl="no (Linux only library)"
  fi
 ])
-if test "x$PKG_CONFIG" = "x"
-then
-	with_libmnl="no (Don't have pkg-config)"
-fi
 if test "x$with_libmnl" = "xyes"
 then
 	if $PKG_CONFIG --exists libmnl 2>/dev/null; then
@@ -3655,7 +3707,7 @@ then
   SAVE_CFLAGS="$CFLAGS"
   SAVE_LIBS="$LIBS"
 dnl ARCHFLAGS="" -> disable multi -arch on OSX (see Config_heavy.pl:fetch_string)
-  PERL_CFLAGS=`ARCHFLAGS="" $perl_interpreter -MExtUtils::Embed -e ccopts`
+  PERL_CFLAGS=`ARCHFLAGS="" $perl_interpreter -MExtUtils::Embed -e perl_inc`
   PERL_LIBS=`ARCHFLAGS="" $perl_interpreter -MExtUtils::Embed -e ldopts`
   CFLAGS="$CFLAGS $PERL_CFLAGS"
   LIBS="$LIBS $PERL_LIBS"
@@ -4012,124 +4064,74 @@ AC_SUBST([BUILD_WITH_LIBPROTOBUF_C_LDFLAGS])
 AC_SUBST([BUILD_WITH_LIBPROTOBUF_C_LIBS])
 # }}}
 
-# --with-python {{{
-with_python_prog=""
-with_python_path="$PATH"
-AC_ARG_WITH(python, [AS_HELP_STRING([--with-python@<:@=PREFIX@:>@], [Path to the python interpreter.])],
-[
- if test "x$withval" = "xyes" || test "x$withval" = "xno"
- then
-	 with_python="$withval"
- else if test -x "$withval"
- then
-	 with_python_prog="$withval"
-	 with_python_path="`dirname \"$withval\"`$PATH_SEPARATOR$with_python_path"
-	 with_python="yes"
- else if test -d "$withval"
- then
-	 with_python_path="$withval$PATH_SEPARATOR$with_python_path"
-	 with_python="yes"
- else
-	 AC_MSG_WARN([Argument not recognized: $withval])
- fi; fi; fi
-], [with_python="yes"])
+# --with-libpython {{{
+AC_ARG_VAR([LIBPYTHON_CPPFLAGS], [Preprocessor flags for libpython])
+AC_ARG_VAR([LIBPYTHON_LDFLAGS], [Linker flags for libpython])
+AC_ARG_VAR([LIBPYTHON_LIBS], [Libraries for libpython])
 
-SAVE_PATH="$PATH"
-SAVE_CPPFLAGS="$CPPFLAGS"
-SAVE_LDFLAGS="$LDFLAGS"
-SAVE_LIBS="$LIBS"
-
-PATH="$with_python_path"
-
-if test "x$with_python" = "xyes" && test "x$with_python_prog" = "x"
-then
-	AC_PATH_PROG([PYTHON], [python])
-	if test "x$PYTHON" = "x"
-	then
-		with_python="no (interpreter not found)"
-	else
-		with_python_prog="$PYTHON"
-	fi
+AC_ARG_WITH([libpython],
+  [AS_HELP_STRING([--with-libpython],
+    [if we should build with libpython @<:@default=yes@:>@])
+  ],
+  [with_libpython="$withval"],
+  [with_libpython="check"]
+)
+if test "$with_libpython" != "no"; then
+  if test "$LIBPYTHON_CPPFLAGS" = "" && test "$LIBPYTHON_LDFLAGS" = ""; then
+    AC_ARG_VAR([PYTHON_CONFIG], [path to python-config])
+    AC_PATH_PROGS([PYTHON_CONFIG],
+      [python3-config python2-config python-config]
+    )
+    if test "$PYTHON_CONFIG" = ""; then
+      if test "$with_libpython" = "yes"; then
+        AC_MSG_ERROR([Unable to find python-config])
+      fi
+      with_libpython="no"
+    fi
+  fi
 fi
 
-if test "x$with_python" = "xyes"
-then
-	AC_MSG_CHECKING([for Python CPPFLAGS])
-	python_include_path=`echo "import distutils.sysconfig;import sys;sys.stdout.write(distutils.sysconfig.get_python_inc())" | "$with_python_prog" 2>&1`
-	python_config_status=$?
-
-	if test "$python_config_status" -ne 0 || test "x$python_include_path" = "x"
-	then
-		AC_MSG_RESULT([failed with status $python_config_status (output: $python_include_path)])
-		with_python="no"
-	else
-		AC_MSG_RESULT([$python_include_path])
-	fi
+if test "$PYTHON_CONFIG" != ""; then
+  LIBPYTHON_CPPFLAGS="`${PYTHON_CONFIG} --includes`"
+  if test $? -ne 0; then
+    with_libpython="no"
+  fi
+  LIBPYTHON_LDFLAGS="`${PYTHON_CONFIG} --ldflags`"
+  if test $? -ne 0; then
+    with_libpython="no"
+  fi
+  LIBPYTHON_LIBS="`${PYTHON_CONFIG} --libs`"
+  if test $? -ne 0; then
+    with_libpython="no"
+  fi
 fi
 
-if test "x$with_python" = "xyes"
-then
-	CPPFLAGS="-I$python_include_path $CPPFLAGS"
-	AC_CHECK_HEADERS(Python.h,
-			 [with_python="yes"],
-			 [with_python="no ('Python.h' not found)"])
+if test "$with_libpython" != "xno"; then
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  SAVE_LDFLAGS="$LDFLAGS"
+  SAVE_LIBS="$LIBS"
+  CPPFLAGS="$LIBPYTHON_CPPFLAGS $CPPFLAGS"
+  LDFLAGS="$LIBPYTHON_LDFLAGS $LDFLAGS"
+  LIBS="$LIBPYTHON_LIBS $LIBS"
+  AC_CHECK_HEADERS([Python.h],
+    [
+      AC_MSG_CHECKING([for libpython])
+      AC_LINK_IFELSE([AC_LANG_PROGRAM(
+          [[#include <Python.h>]],
+          [[Py_Initialize();]])
+        ],
+        [with_libpython="yes"],
+        [with_libpython="no"]
+      )
+      AC_MSG_RESULT([$with_libpython])
+    ],
+    [with_libpython="no"]
+  )
+  CPPFLAGS="$SAVE_CPPFLAGS"
+  LDFLAGS="$SAVE_LDFLAGS"
+  LIBS="$SAVE_LIBS"
 fi
-
-if test "x$with_python" = "xyes"
-then
-	AC_MSG_CHECKING([for Python LDFLAGS])
-	python_library_path=`echo "import distutils.sysconfig;import sys;sys.stdout.write(distutils.sysconfig.get_config_vars(\"LIBDIR\").__getitem__(0))" | "$with_python_prog" 2>&1`
-	python_config_status=$?
-
-	if test "$python_config_status" -ne 0 || test "x$python_library_path" = "x"
-	then
-		AC_MSG_RESULT([failed with status $python_config_status (output: $python_library_path)])
-		with_python="no"
-	else
-		AC_MSG_RESULT([$python_library_path])
-	fi
-fi
-
-if test "x$with_python" = "xyes"
-then
-	AC_MSG_CHECKING([for Python LIBS])
-	python_library_flags=`echo "import distutils.sysconfig;import sys;sys.stdout.write(distutils.sysconfig.get_config_vars(\"BLDLIBRARY\").__getitem__(0))" | "$with_python_prog" 2>&1`
-	python_config_status=$?
-
-	if test "$python_config_status" -ne 0 || test "x$python_library_flags" = "x"
-	then
-		AC_MSG_RESULT([failed with status $python_config_status (output: $python_library_flags)])
-		with_python="no"
-	else
-		AC_MSG_RESULT([$python_library_flags])
-	fi
-fi
-
-if test "x$with_python" = "xyes"
-then
-	LDFLAGS="-L$python_library_path $LDFLAGS"
-	LIBS="$python_library_flags $LIBS"
-
-	AC_CHECK_FUNC(PyObject_CallFunction,
-		      [with_python="yes"],
-		      [with_python="no (Symbol 'PyObject_CallFunction' not found)"])
-fi
-
-PATH="$SAVE_PATH"
-CPPFLAGS="$SAVE_CPPFLAGS"
-LDFLAGS="$SAVE_LDFLAGS"
-LIBS="$SAVE_LIBS"
-
-if test "x$with_python" = "xyes"
-then
-	BUILD_WITH_PYTHON_CPPFLAGS="-I$python_include_path"
-	BUILD_WITH_PYTHON_LDFLAGS="-L$python_library_path"
-	BUILD_WITH_PYTHON_LIBS="$python_library_flags"
-	AC_SUBST(BUILD_WITH_PYTHON_CPPFLAGS)
-	AC_SUBST(BUILD_WITH_PYTHON_LDFLAGS)
-	AC_SUBST(BUILD_WITH_PYTHON_LIBS)
-fi
-# }}} --with-python
+# }}} --with-libpython
 
 # --with-librabbitmq {{{
 with_librabbitmq_cppflags=""
@@ -4512,74 +4514,13 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LM_SENSORS, test "x$with_libsensors" = "xyes")
 # }}}
 
-# --with-libsigrok {{{
-with_libsigrok_cflags=""
-with_libsigrok_ldflags=""
-AC_ARG_WITH(libsigrok, [AS_HELP_STRING([--with-libsigrok@<:@=PREFIX@:>@], [Path to libsigrok.])],
-[
-	if test "x$withval" = "xno"
-	then
-		with_libsigrok="no"
-	else
-		with_libsigrok="yes"
-		if test "x$withval" != "xyes"
-		then
-			with_libsigrok_cflags="-I$withval/include"
-			with_libsigrok_ldflags="-L$withval/lib"
-		fi
-	fi
-],[with_libsigrok="yes"])
-
-# libsigrok has a glib dependency
-if test "x$with_libsigrok" = "xyes"
-then
-m4_ifdef([AM_PATH_GLIB_2_0],
-	[
-	 AM_PATH_GLIB_2_0([2.28.0],
-	 	[with_libsigrok_cflags="$with_libsigrok_cflags $GLIB_CFLAGS"; with_libsigrok_ldflags="$with_libsigrok_ldflags $GLIB_LIBS"])
-	],
-	[
-	 with_libsigrok="no (glib not available)"
-	]
+# libsigrok {{{
+AC_SUBST([LIBSIGROK_CFLAGS])
+AC_SUBST([LIBSIGROK_LIBS])
+PKG_CHECK_MODULES([LIBSIGROK], [libsigrok < 0.4],
+  [with_libsigrok="yes"],
+  [with_libsigrok="no (pkg-config could not find libsigrok)"]
 )
-fi
-
-# libsigrok headers
-if test "x$with_libsigrok" = "xyes"
-then
-	SAVE_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$CPPFLAGS $with_libsigrok_cflags"
-
-	AC_CHECK_HEADERS(libsigrok/libsigrok.h, [], [with_libsigrok="no (libsigrok/libsigrok.h not found)"])
-
-	CPPFLAGS="$SAVE_CPPFLAGS"
-fi
-
-# libsigrok library
-if test "x$with_libsigrok" = "xyes"
-then
-	SAVE_CPPFLAGS="$CPPFLAGS"
-	SAVE_LDFLAGS="$LDFLAGS"
-	CPPFLAGS="$CPPFLAGS $with_libsigrok_cflags"
-	LDFLAGS="$LDFLAGS $with_libsigrok_ldflags"
-
-	AC_CHECK_LIB(sigrok, sr_init,
-	[
-		AC_DEFINE(HAVE_LIBSIGROK, 1, [Define to 1 if you have the sigrok library (-lsigrok).])
-	],
-	[with_libsigrok="no (libsigrok not found)"])
-
-	CPPFLAGS="$SAVE_CPPFLAGS"
-	LDFLAGS="$SAVE_LDFLAGS"
-fi
-if test "x$with_libsigrok" = "xyes"
-then
-	BUILD_WITH_LIBSIGROK_CFLAGS="$with_libsigrok_cflags"
-	BUILD_WITH_LIBSIGROK_LDFLAGS="$with_libsigrok_ldflags"
-	AC_SUBST(BUILD_WITH_LIBSIGROK_CFLAGS)
-	AC_SUBST(BUILD_WITH_LIBSIGROK_LDFLAGS)
-fi
-AM_CONDITIONAL(BUILD_WITH_LIBSIGROK, test "x$with_libsigrok" = "xyes")
 # }}}
 
 # --with-libstatgrab {{{
@@ -4607,23 +4548,16 @@ AC_ARG_WITH(libstatgrab, [AS_HELP_STRING([--with-libstatgrab@<:@=PREFIX@:>@], [P
 if test "x$with_libstatgrab" = "xyes" \
   && test "x$with_libstatgrab_pkg_config" = "xyes"
 then
-  if test "x$PKG_CONFIG" != "x"
+  AC_MSG_CHECKING([pkg-config for libstatgrab])
+  temp_result="found"
+  $PKG_CONFIG --exists libstatgrab 2>/dev/null
+  if test "$?" != "0"
   then
-    AC_MSG_CHECKING([pkg-config for libstatgrab])
-    temp_result="found"
-    $PKG_CONFIG --exists libstatgrab 2>/dev/null
-    if test "$?" != "0"
-    then
-      with_libstatgrab_pkg_config="no"
-      with_libstatgrab="no (pkg-config doesn't know libstatgrab)"
-      temp_result="not found"
-    fi
-    AC_MSG_RESULT([$temp_result])
-  else
-    AC_MSG_NOTICE([pkg-config not available, trying to guess flags for the statgrab library.])
     with_libstatgrab_pkg_config="no"
-    with_libstatgrab_ldflags="$with_libstatgrab_ldflags -lstatgrab"
+    with_libstatgrab="no (pkg-config doesn't know libstatgrab)"
+    temp_result="not found"
   fi
+  AC_MSG_RESULT([$temp_result])
 fi
 
 if test "x$with_libstatgrab" = "xyes" \
@@ -4920,13 +4854,6 @@ then
 fi
 
 # configure using pkg-config
-if test "x$with_libupsclient" = "xuse_pkgconfig"
-then
-	if test "x$PKG_CONFIG" = "x"
-	then
-		with_libupsclient="no (Don't have pkg-config)"
-	fi
-fi
 if test "x$with_libupsclient" = "xuse_pkgconfig"
 then
 	AC_MSG_NOTICE([Checking for libupsclient using $PKG_CONFIG])
@@ -5250,13 +5177,6 @@ AC_ARG_WITH(libvarnish, [AS_HELP_STRING([--with-libvarnish@<:@=PREFIX@:>@], [Pat
 # configure using pkg-config
 if test "x$with_libvarnish" = "xuse_pkgconfig"
 then
-	if test "x$PKG_CONFIG" = "x"
-	then
-		with_libvarnish="no (Don't have pkg-config)"
-	fi
-fi
-if test "x$with_libvarnish" = "xuse_pkgconfig"
-then
 	AC_MSG_NOTICE([Checking for varnishapi using $PKG_CONFIG])
 	$PKG_CONFIG --exists 'varnishapi' 2>/dev/null
 	if test $? -ne 0
@@ -5316,23 +5236,20 @@ with_libxml2_ldflags=""
 with_libvirt="no (pkg-config isn't available)"
 with_libvirt_cflags=""
 with_libvirt_ldflags=""
-if test "x$PKG_CONFIG" != "x"
+$PKG_CONFIG --exists 'libxml-2.0' 2>/dev/null
+if test "$?" = "0"
 then
-	$PKG_CONFIG --exists 'libxml-2.0' 2>/dev/null
-	if test "$?" = "0"
-	then
-		with_libxml2="yes"
-	else
-		with_libxml2="no (pkg-config doesn't know libxml-2.0)"
-	fi
+	with_libxml2="yes"
+else
+	with_libxml2="no (pkg-config doesn't know libxml-2.0)"
+fi
 
-	$PKG_CONFIG --exists libvirt 2>/dev/null
-	if test "$?" = "0"
-	then
-		with_libvirt="yes"
-	else
-		with_libvirt="no (pkg-config doesn't know libvirt)"
-	fi
+$PKG_CONFIG --exists libvirt 2>/dev/null
+if test "$?" = "0"
+then
+	with_libvirt="yes"
+else
+	with_libvirt="no (pkg-config doesn't know libvirt)"
 fi
 if test "x$with_libxml2" = "xyes"
 then
@@ -5430,17 +5347,6 @@ fi
 with_libopenipmipthread="yes"
 with_libopenipmipthread_cflags=""
 with_libopenipmipthread_libs=""
-
-AC_MSG_CHECKING([for pkg-config])
-temp_result="no"
-if test "x$PKG_CONFIG" = "x"
-then
-	with_libopenipmipthread="no"
-	temp_result="no"
-else
-	temp_result="$PKG_CONFIG"
-fi
-AC_MSG_RESULT([$temp_result])
 
 if test "x$with_libopenipmipthread" = "xyes"
 then
@@ -5709,6 +5615,7 @@ plugin_conntrack="no"
 plugin_contextswitch="no"
 plugin_cpu="no"
 plugin_cpufreq="no"
+plugin_cpusleep="no"
 plugin_curl_json="no"
 plugin_curl_xml="no"
 plugin_df="no"
@@ -5718,6 +5625,7 @@ plugin_entropy="no"
 plugin_ethstat="no"
 plugin_fhcount="no"
 plugin_fscache="no"
+plugin_gps="no"
 plugin_grpc="no"
 plugin_interface="no"
 plugin_ipmi="no"
@@ -5733,6 +5641,7 @@ plugin_perl="no"
 plugin_pinba="no"
 plugin_processes="no"
 plugin_protocols="no"
+plugin_python="no"
 plugin_serial="no"
 plugin_smart="no"
 plugin_swap="no"
@@ -5793,6 +5702,11 @@ then
 	if test "x$c_cv_have_usable_asm_msrindex_h" = "xyes" && test "x$have_cpuid_h" = "xyes"
 	then
 		plugin_turbostat="yes"
+	fi
+	
+	if test "x$c_cv_have_clock_boottime_monotonic" = "xyes"
+	then
+		plugin_cpusleep="yes"
 	fi
 fi
 
@@ -6005,6 +5919,11 @@ then
 	plugin_interface="yes"
 fi
 
+if test "x$with_libgps" = "xyes"
+then
+	plugin_gps="yes"
+fi
+
 if test "x$have_getloadavg" = "xyes"
 then
 	plugin_load="yes"
@@ -6053,6 +5972,11 @@ fi
 if test "x$with_kvm_getprocs" = "xyes" && test "x$have_struct_kinfo_proc_openbsd" = "xyes"
 then
 	plugin_processes="yes"
+fi
+
+if test "x$with_libpython" != "xno"
+then
+	plugin_python="yes"
 fi
 
 if test "x$with_libatasmart" = "xyes" && test "x$with_libudev" = "xyes"
@@ -6136,6 +6060,7 @@ AC_PLUGIN([conntrack],           [$plugin_conntrack],       [nf_conntrack statis
 AC_PLUGIN([contextswitch],       [$plugin_contextswitch],   [context switch statistics])
 AC_PLUGIN([cpu],                 [$plugin_cpu],             [CPU usage statistics])
 AC_PLUGIN([cpufreq],             [$plugin_cpufreq],         [CPU frequency statistics])
+AC_PLUGIN([cpusleep],            [$plugin_cpusleep],        [CPU sleep statistics])
 AC_PLUGIN([csv],                 [yes],                     [CSV output plugin])
 AC_PLUGIN([curl],                [$with_libcurl],           [CURL generic web statistics])
 AC_PLUGIN([curl_json],           [$plugin_curl_json],       [CouchDB statistics])
@@ -6153,6 +6078,7 @@ AC_PLUGIN([fhcount],             [$plugin_fhcount],         [File handles statis
 AC_PLUGIN([filecount],           [yes],                     [Count files in directories])
 AC_PLUGIN([fscache],             [$plugin_fscache],         [fscache statistics])
 AC_PLUGIN([gmond],               [$with_libganglia],        [Ganglia plugin])
+AC_PLUGIN([gps],                 [$plugin_gps],             [GPS plugin])
 AC_PLUGIN([grpc],                [$plugin_grpc],            [gRPC plugin])
 AC_PLUGIN([hddtemp],             [yes],                     [Query hddtempd])
 AC_PLUGIN([interface],           [$plugin_interface],       [Interface traffic statistics])
@@ -6208,7 +6134,7 @@ AC_PLUGIN([postgresql],          [$with_libpq],             [PostgreSQL database
 AC_PLUGIN([powerdns],            [yes],                     [PowerDNS statistics])
 AC_PLUGIN([processes],           [$plugin_processes],       [Process statistics])
 AC_PLUGIN([protocols],           [$plugin_protocols],       [Protocol (IP, TCP, ...) statistics])
-AC_PLUGIN([python],              [$with_python],            [Embed a Python interpreter])
+AC_PLUGIN([python],              [$plugin_python],          [Embed a Python interpreter])
 AC_PLUGIN([redis],               [$with_libhiredis],        [Redis plugin])
 AC_PLUGIN([routeros],            [$with_librouteros],       [RouterOS plugin])
 AC_PLUGIN([rrdcached],           [$librrd_rrdc_update],     [RRDTool output plugin])
@@ -6472,6 +6398,7 @@ AC_MSG_RESULT([    libdbi  . . . . . . . $with_libdbi])
 AC_MSG_RESULT([    libesmtp  . . . . . . $with_libesmtp])
 AC_MSG_RESULT([    libganglia  . . . . . $with_libganglia])
 AC_MSG_RESULT([    libgcrypt . . . . . . $with_libgcrypt])
+AC_MSG_RESULT([    libgps  . . . . . . . $with_libgps])
 AC_MSG_RESULT([    libgrpc++ . . . . . . $with_libgrpcpp])
 AC_MSG_RESULT([    libhal  . . . . . . . $with_libhal])
 AC_MSG_RESULT([    libhiredis  . . . . . $with_libhiredis])
@@ -6502,6 +6429,7 @@ AC_MSG_RESULT([    libperl . . . . . . . $with_libperl])
 AC_MSG_RESULT([    libpq . . . . . . . . $with_libpq])
 AC_MSG_RESULT([    libprotobuf . . . . . $with_libprotobuf])
 AC_MSG_RESULT([    libprotobuf-c . . . . $with_libprotobuf_c])
+AC_MSG_RESULT([    libpython . . . . . . $with_libpython])
 AC_MSG_RESULT([    librabbitmq . . . . . $with_librabbitmq])
 AC_MSG_RESULT([    libriemann-client . . $with_libriemann_client])
 AC_MSG_RESULT([    librdkafka  . . . . . $with_librdkafka])
@@ -6522,7 +6450,6 @@ AC_MSG_RESULT([    libyajl . . . . . . . $with_libyajl])
 AC_MSG_RESULT([    oracle  . . . . . . . $with_oracle])
 AC_MSG_RESULT([    protobuf-c  . . . . . $have_protoc_c])
 AC_MSG_RESULT([    protoc 3  . . . . . . $have_protoc3])
-AC_MSG_RESULT([    python  . . . . . . . $with_python])
 AC_MSG_RESULT()
 AC_MSG_RESULT([  Features:])
 AC_MSG_RESULT([    daemon mode . . . . . $enable_daemon])
@@ -6549,6 +6476,7 @@ AC_MSG_RESULT([    conntrack . . . . . . $enable_conntrack])
 AC_MSG_RESULT([    contextswitch . . . . $enable_contextswitch])
 AC_MSG_RESULT([    cpu . . . . . . . . . $enable_cpu])
 AC_MSG_RESULT([    cpufreq . . . . . . . $enable_cpufreq])
+AC_MSG_RESULT([    cpusleep  . . . . . . $enable_cpusleep])
 AC_MSG_RESULT([    csv . . . . . . . . . $enable_csv])
 AC_MSG_RESULT([    curl  . . . . . . . . $enable_curl])
 AC_MSG_RESULT([    curl_json . . . . . . $enable_curl_json])
@@ -6566,6 +6494,7 @@ AC_MSG_RESULT([    fhcount . . . . . . . $enable_fhcount])
 AC_MSG_RESULT([    filecount . . . . . . $enable_filecount])
 AC_MSG_RESULT([    fscache . . . . . . . $enable_fscache])
 AC_MSG_RESULT([    gmond . . . . . . . . $enable_gmond])
+AC_MSG_RESULT([    gps . . . . . . . . . $enable_gps])
 AC_MSG_RESULT([    grpc  . . . . . . . . $enable_grpc])
 AC_MSG_RESULT([    hddtemp . . . . . . . $enable_hddtemp])
 AC_MSG_RESULT([    interface . . . . . . $enable_interface])

@@ -113,9 +113,7 @@ static _Bool values_percentage = 0;
 
 static int swap_config (oconfig_item_t *ci) /* {{{ */
 {
-	int i;
-
-	for (i = 0; i < ci->children_num; i++)
+	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
 		if (strcasecmp ("ReportBytes", child->key) == 0)
@@ -510,7 +508,6 @@ static int swap_read (void) /* {{{ */
 	char *s_paths;
         int swap_num;
         int status;
-        int i;
 
         gauge_t avail = 0;
         gauge_t total = 0;
@@ -543,7 +540,7 @@ static int swap_read (void) /* {{{ */
 		sfree (s);
 		return (-1);
 	}
-        for (i = 0; i < swap_num; i++)
+        for (int i = 0; i < swap_num; i++)
 		s->swt_ent[i].ste_path = s_paths + (i * PATH_MAX);
         s->swt_n = swap_num;
 
@@ -573,7 +570,7 @@ static int swap_read (void) /* {{{ */
 		/* less elements returned than requested */
 		swap_num = status;
 
-        for (i = 0; i < swap_num; i++)
+        for (int i = 0; i < swap_num; i++)
         {
 		char path[PATH_MAX];
 		gauge_t this_total;
@@ -626,7 +623,6 @@ static int swap_read (void) /* {{{ */
 	struct swapent *swap_entries;
 	int swap_num;
 	int status;
-	int i;
 
 	gauge_t used  = 0;
 	gauge_t total = 0;
@@ -665,7 +661,7 @@ static int swap_read (void) /* {{{ */
 
 	/* TODO: Report per-device stats. The path name is available from
 	 * swap_entries[i].se_path */
-	for (i = 0; i < swap_num; i++)
+	for (int i = 0; i < swap_num; i++)
 	{
 		if ((swap_entries[i].se_flags & SWF_ENABLE) == 0)
 			continue;

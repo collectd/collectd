@@ -209,7 +209,7 @@ static void cldap_submit_gauge (const char *type, const char *type_instance, /* 
 static int cldap_read_host (user_data_t *ud) /* {{{ */
 {
 	cldap_t *st;
-	LDAPMessage *e, *result;
+	LDAPMessage *result;
 	char *dn;
 	int rc;
 	int status;
@@ -250,7 +250,7 @@ static int cldap_read_host (user_data_t *ud) /* {{{ */
 		return (-1);
 	}
 
-	for (e = ldap_first_entry (st->ld, result); e != NULL;
+	for (LDAPMessage *e = ldap_first_entry (st->ld, result); e != NULL;
 		e = ldap_next_entry (st->ld, e))
 	{
 		if ((dn = ldap_get_dn (st->ld, e)) != NULL)
@@ -559,7 +559,6 @@ static int cldap_read_host (user_data_t *ud) /* {{{ */
 static int cldap_config_add (oconfig_item_t *ci) /* {{{ */
 {
 	cldap_t *st;
-	int i;
 	int status;
 
 	st = calloc (1, sizeof (*st));
@@ -581,7 +580,7 @@ static int cldap_config_add (oconfig_item_t *ci) /* {{{ */
 	st->verifyhost = 1;
 	st->version = LDAP_VERSION3;
 
-	for (i = 0; i < ci->children_num; i++)
+	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
 
@@ -687,10 +686,9 @@ static int cldap_config_add (oconfig_item_t *ci) /* {{{ */
 
 static int cldap_config (oconfig_item_t *ci) /* {{{ */
 {
-	int i;
 	int status = 0;
 
-	for (i = 0; i < ci->children_num; i++)
+	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
 
@@ -720,9 +718,7 @@ static int cldap_init (void) /* {{{ */
 
 static int cldap_shutdown (void) /* {{{ */
 {
-	size_t i;
-
-	for (i = 0; i < databases_num; i++)
+	for (size_t i = 0; i < databases_num; i++)
 		if (databases[i]->ld != NULL)
 			ldap_unbind_ext_s (databases[i]->ld, NULL, NULL);
 	sfree (databases);

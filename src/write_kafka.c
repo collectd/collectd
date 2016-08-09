@@ -241,7 +241,6 @@ static void kafka_topic_context_free(void *p) /* {{{ */
 static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{ */
 {
     int                          status;
-    int                          i;
     struct kafka_topic_context  *tctx;
     char                        *key = NULL;
     char                        *val;
@@ -293,7 +292,7 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
         goto errout;
     }
 
-    for (i = 0; i < ci->children_num; i++) {
+    for (int i = 0; i < ci->children_num; i++) {
         /*
          * The code here could be simplified but makes room
          * for easy adding of new options later on.
@@ -412,7 +411,6 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
 
 static int kafka_config(oconfig_item_t *ci) /* {{{ */
 {
-    int                          i;
     oconfig_item_t              *child;
     rd_kafka_conf_t             *conf;
     rd_kafka_conf_res_t          ret;
@@ -422,7 +420,7 @@ static int kafka_config(oconfig_item_t *ci) /* {{{ */
         WARNING("cannot allocate kafka configuration.");
         return -1;
     }
-    for (i = 0; i < ci->children_num; i++)  {
+    for (int i = 0; i < ci->children_num; i++)  {
         child = &ci->children[i];
 
         if (strcasecmp("Topic", child->key) == 0) {

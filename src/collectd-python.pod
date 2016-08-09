@@ -37,7 +37,7 @@ for collectd in Python. This is a lot more efficient than executing a
 Python-script every time you want to read a value with the C<exec plugin> (see
 L<collectd-exec(5)>) and provides a lot more functionality, too.
 
-The minimum required Python version is I<2.3>.
+The minimum required Python version is I<2.6>.
 
 =head1 CONFIGURATION
 
@@ -659,6 +659,8 @@ Any Python module will start similar to:
 
 A very simple read function might look like:
 
+  import random
+
   def read(data=None):
     vl = collectd.Values(type='gauge')
     vl.plugin='python.spam'
@@ -672,27 +674,11 @@ A very simple write function might look like:
 
 To register those functions with collectd:
 
-  collectd.register_read(read);
-  collectd.register_write(write);
+  collectd.register_read(read)
+  collectd.register_write(write)
 
 See the section L<"CLASSES"> above for a complete documentation of the data
 types used by the read, write and match functions.
-
-=head1 NOTES
-
-=over 4
-
-=item *
-
-Please feel free to send in new plugins to collectd's mailing list at
-E<lt>collectdE<nbsp>atE<nbsp>collectd.orgE<gt> for review and, possibly,
-inclusion in the main distribution. In the latter case, we will take care of
-keeping the plugin up to date and adapting it to new versions of collectd.
-
-Before submitting your plugin, please take a look at
-L<http://collectd.org/dev-info.shtml>.
-
-=back
 
 =head1 CAVEATS
 

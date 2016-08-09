@@ -216,7 +216,6 @@ static int ut_config_type_hysteresis (threshold_t *th, oconfig_item_t *ci)
 
 static int ut_config_type (const threshold_t *th_orig, oconfig_item_t *ci)
 {
-  int i;
   threshold_t th;
   int status = 0;
 
@@ -245,7 +244,7 @@ static int ut_config_type (const threshold_t *th_orig, oconfig_item_t *ci)
   th.hysteresis = 0;
   th.flags = UT_FLAG_INTERESTING; /* interesting by default */
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
 
@@ -310,7 +309,6 @@ static int ut_config_plugin_instance (threshold_t *th, oconfig_item_t *ci)
 
 static int ut_config_plugin (const threshold_t *th_orig, oconfig_item_t *ci)
 {
-  int i;
   threshold_t th;
   int status = 0;
 
@@ -332,7 +330,7 @@ static int ut_config_plugin (const threshold_t *th_orig, oconfig_item_t *ci)
   memcpy (&th, th_orig, sizeof (th));
   sstrncpy (th.plugin, ci->values[0].value.string, sizeof (th.plugin));
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
 
@@ -356,7 +354,6 @@ static int ut_config_plugin (const threshold_t *th_orig, oconfig_item_t *ci)
 
 static int ut_config_host (const threshold_t *th_orig, oconfig_item_t *ci)
 {
-  int i;
   threshold_t th;
   int status = 0;
 
@@ -378,7 +375,7 @@ static int ut_config_host (const threshold_t *th_orig, oconfig_item_t *ci)
   memcpy (&th, th_orig, sizeof (th));
   sstrncpy (th.host, ci->values[0].value.string, sizeof (th.host));
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
 
@@ -550,10 +547,9 @@ static int ut_report_state (const data_set_t *ds,
     {
       gauge_t value;
       gauge_t sum;
-      size_t i;
 
       sum = 0.0;
-      for (i = 0; i < vl->values_len; i++)
+      for (size_t i = 0; i < vl->values_len; i++)
       {
         if (isnan (values[i]))
           continue;
@@ -698,7 +694,6 @@ static int ut_check_one_threshold (const data_set_t *ds,
 { /* {{{ */
   int ret = -1;
   int ds_index = -1;
-  size_t i;
   gauge_t values_copy[ds->ds_num];
 
   memcpy (values_copy, values, sizeof (values_copy));
@@ -717,7 +712,7 @@ static int ut_check_one_threshold (const data_set_t *ds,
     }
 
     /* Prepare `sum' and `num'. */
-    for (i = 0; i < ds->ds_num; i++)
+    for (size_t i = 0; i < ds->ds_num; i++)
       if (!isnan (values[i]))
       {
         num++;
@@ -727,17 +722,17 @@ static int ut_check_one_threshold (const data_set_t *ds,
     if ((num == 0) /* All data sources are undefined. */
         || (sum == 0.0)) /* Sum is zero, cannot calculate percentage. */
     {
-      for (i = 0; i < ds->ds_num; i++)
+      for (size_t i = 0; i < ds->ds_num; i++)
         values_copy[i] = NAN;
     }
     else /* We can actually calculate the percentage. */
     {
-      for (i = 0; i < ds->ds_num; i++)
+      for (size_t i = 0; i < ds->ds_num; i++)
         values_copy[i] = 100.0 * values[i] / sum;
     }
   } /* if (UT_FLAG_PERCENTAGE) */
 
-  for (i = 0; i < ds->ds_num; i++)
+  for (size_t i = 0; i < ds->ds_num; i++)
   {
     int status;
 
@@ -867,7 +862,6 @@ static int ut_missing (const value_list_t *vl,
 
 static int ut_config (oconfig_item_t *ci)
 { /* {{{ */
-  int i;
   int status = 0;
   int old_size = c_avl_size (threshold_tree);
 
@@ -889,7 +883,7 @@ static int ut_config (oconfig_item_t *ci)
     .flags = UT_FLAG_INTERESTING /* interesting by default */
   };
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
 

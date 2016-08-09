@@ -1457,6 +1457,16 @@ installed) to get the current CPU frequency. If this file does not exist make
 sure B<cpufreqd> (L<http://cpufreqd.sourceforge.net/>) or a similar tool is
 installed and an "cpu governor" (that's a kernel module) is loaded.
 
+=head2 Plugin C<cpusleep>
+
+This plugin doesn't have any options. It reads CLOCK_BOOTTIME and
+CLOCK_MONOTONIC and reports the difference between these clocks. Since
+BOOTTIME clock increments while device is suspended and MONOTONIC
+clock does not, the derivative of the difference between these clocks
+gives the relative amount of time the device has spent in suspend
+state. The recorded value is in milliseconds of sleep per seconds of
+wall clock.
+
 =head2 Plugin C<csv>
 
 =over 4
@@ -2401,7 +2411,7 @@ I<TypeInstance> will be used.
 
 =item B<MappedOnly> B<true>|B<false>
 
-When set to B<true>, only metrics that can be mapped to to a I<type> will be
+When set to B<true>, only metrics that can be mapped to a I<type> will be
 collected, all other metrics will be ignored. Defaults to B<false>.
 
 =back
@@ -2628,6 +2638,78 @@ Data source to map this metric to. If the configured type has exactly one data
 source, this is optional. Otherwise the option is required.
 
 =back
+
+=back
+
+=head2 Plugin C<gps>
+
+The C<gps plugin> connects to gpsd on the host machine.
+The host, port, timeout and pause are configurable.
+
+This is useful if you run an NTP server using a GPS for source and you want to
+monitor it.
+
+Mind your GPS must send $--GSA for having the data reported!
+
+The following elements are collected:
+
+=over 4
+
+=item B<satellites>
+
+Number of satellites used for fix (type instance "used") and in view (type
+instance "visible"). 0 means no GPS satellites are visible.
+
+=item B<dilution_of_precision>
+
+Vertical and horizontal dilution (type instance "horizontal" or "vertical").
+It should be between 0 and 3.
+Look at the documentation of your GPS to know more.
+
+=back
+
+Synopsis:
+
+ LoadPlugin gps
+ <Plugin "gps">
+   # Connect to localhost on gpsd regular port:
+   Host "127.0.0.1"
+   Port "2947"
+   # 15 ms timeout
+   Timeout 0.015
+   # PauseConnect of 5 sec. between connection attempts.
+   PauseConnect 5
+ </Plugin>
+
+Available configuration options:
+
+=over 4
+
+=item B<Host> I<Host>
+
+The host on which gpsd daemon runs. Defaults to B<localhost>.
+
+=item B<Port> I<Port>
+
+Port to connect to gpsd on the host machine. Defaults to B<2947>.
+
+=item B<Timeout> I<Seconds>
+
+Timeout in seconds (default 0.015 sec).
+
+The GPS data stream is fetch by the plugin form the daemon.
+It waits for data to be available, if none arrives it times out
+and loop for another reading.
+Mind to put a low value gpsd expects value in the micro-seconds area
+(recommended is 500 us) since the waiting function is blocking.
+Value must be between 500 us and 5 sec., if outside that range the
+default value is applied.
+
+This only applies from gpsd release-2.95.
+
+=item B<PauseConnect> I<Seconds>
+
+Pause to apply between attempts of connection to gpsd in seconds (default 5 sec).
 
 =back
 
@@ -3661,6 +3743,13 @@ Synopsis:
       SlaveStats true
       SlaveNotifications true
     </Database>
+
+   <Database galera>
+      Alias "galera"
+      Host "localhost"
+      Socket "/var/run/mysql/mysqld.sock"
+      WsrepStats true
+   </Database>
   </Plugin>
 
 A B<Database> block defines one connection to a MySQL database. It accepts a
@@ -3731,6 +3820,12 @@ privileges. See the B<User> documentation above. Defaults to B<false>.
 If enabled, the plugin sends a notification if the replication slave I/O and /
 or SQL threads are not running. Defaults to B<false>.
 
+=item B<WsrepStats> I<true|false>
+ 
+ Enable the collection of wsrep plugin statistics, used in Master-Master
+ replication setups like in MySQL Galera/Percona XtraDB Cluster.
+ User needs only privileges to execute 'SHOW GLOBAL STATUS'
+ 
 =item B<ConnectTimeout> I<Seconds>
 
 Sets the connect timeout for the MySQL client.
@@ -7049,7 +7144,7 @@ port in numeric form.
 =item B<AllPortsSummary> I<true>|I<false>
 
 If this option is set to I<true> a summary of statistics from all connections
-are collectd. This option defaults to I<false>.
+are collected. This option defaults to I<false>.
 
 =back
 
@@ -7829,6 +7924,14 @@ create output in the I<JavaScript Object Notation> (JSON). When set to KAIROSDB
 , will create output in the KairosDB format.
 
 Defaults to B<Command>.
+
+=item B<Metrics> B<true>|B<false>
+
+Controls whether I<metrics> are POSTed to this location. Defaults to B<true>.
+
+=item B<Notifications> B<false>|B<true>
+
+Controls whether I<notifications> are POSTed to this location. Defaults to B<false>.
 
 =item B<StoreRates> B<true|false>
 

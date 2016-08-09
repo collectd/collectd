@@ -970,7 +970,6 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 	user_config_t *conf;
 	user_data_t ud;
 	char callback_name[DATA_MAX_NAME_LEN];
-	int i;
 
 	conf = calloc (1, sizeof (*conf));
 	if (conf == NULL)
@@ -1005,7 +1004,7 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 		return (EINVAL);
 	}
 
-	for (i = 0; i < ci->children_num; i++)
+	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
 
@@ -1149,9 +1148,7 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 
 static int varnish_config (oconfig_item_t *ci) /* {{{ */
 {
-	int i;
-
-	for (i = 0; i < ci->children_num; i++)
+	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
 

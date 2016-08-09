@@ -142,8 +142,8 @@ static int xencpu_read (void)
         return (-1);
     }
 
-    int cpu, status;
-    for (cpu = 0; cpu < nr_cpus; cpu++) {
+    int status;
+    for (int cpu = 0; cpu < nr_cpus; cpu++) {
         gauge_t rate = NAN;
         value_t value = {.derive = cpu_info[cpu].idletime};
 
