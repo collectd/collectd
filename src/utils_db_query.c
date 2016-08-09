@@ -199,7 +199,6 @@ static int udb_result_submit (udb_result_t *r, /* {{{ */
     udb_query_t const *q, udb_query_preparation_area_t *q_area)
 {
   value_list_t vl = VALUE_LIST_INIT;
-  int status;
 
   assert (r != NULL);
   assert (r_area->ds != NULL);
@@ -298,7 +297,7 @@ static int udb_result_submit (udb_result_t *r, /* {{{ */
 
     for (size_t i = 0; i < r->metadata_num; i++)
     {
-      status = meta_data_add_string (vl.meta, r->metadata[i],
+      int status = meta_data_add_string (vl.meta, r->metadata[i],
           r_area->metadata_buffer[i]);
       if (status != 0)
       {
