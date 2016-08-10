@@ -1475,8 +1475,6 @@ static int
 check_permissions(void)
 {
 
-	int ret = 0;
-
 	if (getuid() == 0) {
 		/* We have everything we need */
 		return 0;
@@ -1488,6 +1486,8 @@ check_permissions(void)
 	}
 #else /* HAVE_SYS_CAPABILITY_H && CAP_SYS_RAWIO */
 	}
+
+	int ret = 0;
 
 	if (check_capability(CAP_SYS_RAWIO) != 0) {
 		WARNING("turbostat plugin: Collectd doesn't have the "
