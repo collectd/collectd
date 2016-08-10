@@ -2655,7 +2655,7 @@ with_liblua="yes"
 AC_ARG_VAR([LIBLUA_PKG_CONFIG_NAME], [Name of liblua used by pkg-config])
 if test "x$LIBLUA_PKG_CONFIG_NAME" = "x"
 then
-       LIBLUA_PKG_CONFIG_NAME="lua5.1"
+       LIBLUA_PKG_CONFIG_NAME="lua-5.1"
 fi
 
 if test "x$with_liblua" = "xyes"
