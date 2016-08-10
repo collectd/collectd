@@ -856,19 +856,21 @@ static int lua_config_script(const oconfig_item_t *ci) /* {{{ */
  */
 static int lua_config(oconfig_item_t *ci) /* {{{ */
 {
+  int status = 0;
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp("BasePath", child->key) == 0) {
-      lua_config_base_path(child);
+      status = lua_config_base_path(child);
     } else if (strcasecmp("Script", child->key) == 0) {
-      lua_config_script(child);
+      status = lua_config_script(child);
     } else {
-      WARNING("lua plugin: Option `%s' is not allowed here.", child->key);
+      ERROR("lua plugin: Option `%s' is not allowed here.", child->key);
+      status = 1;
     }
   }
 
-  return 0;
+  return status;
 } /* }}} int lua_config */
 
 static int lua_shutdown(void) /* {{{ */
