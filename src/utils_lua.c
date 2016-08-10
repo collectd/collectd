@@ -33,8 +33,6 @@
 
 static int ltoc_values(lua_State *l, /* {{{ */
                        const data_set_t *ds, value_t *ret_values) {
-  size_t i;
-
   if (!lua_istable(l, -1)) {
     WARNING("ltoc_values: not a table");
     return (-1);
@@ -42,10 +40,10 @@ static int ltoc_values(lua_State *l, /* {{{ */
 
   /* Push initial key */
   lua_pushnil(l); /* +1 = 1 */
-  i = 0;
+  size_t i = 0;
   while (lua_next(l, /* idx = */ -2) != 0) /* -1+2 = 2 || -1 = 0 */
   {
-    if (i >= ((size_t)ds->ds_num)) {
+    if (i >= ds->ds_num) {
       lua_pop(l, /* nelems = */ 2); /* -2 = 0 */
       i++;
       break;
@@ -58,7 +56,7 @@ static int ltoc_values(lua_State *l, /* {{{ */
     i++;
   } /* while (lua_next) */
 
-  if (i != ((size_t)ds->ds_num)) {
+  if (i != ds->ds_num) {
     WARNING("ltoc_values: invalid size for datasource \"%s\": expected %zu, "
             "got %zu",
             ds->type, ds->ds_num, i);
@@ -70,8 +68,6 @@ static int ltoc_values(lua_State *l, /* {{{ */
 
 static int ltoc_table_values(lua_State *l, int idx, /* {{{ */
                              const data_set_t *ds, value_list_t *vl) {
-  int status;
-
   /* We're only called from "luaC_tovaluelist", which ensures that "idx" is an
    * absolute index (i.e. a positive number) */
   assert(idx > 0);
@@ -86,7 +82,7 @@ static int ltoc_table_values(lua_State *l, int idx, /* {{{ */
   }
 
   vl->values_len = ds->ds_num;
-  vl->values = calloc((size_t)vl->values_len, sizeof(*vl->values));
+  vl->values = calloc(vl->values_len, sizeof(*vl->values));
   if (vl->values == NULL) {
     ERROR("utils_lua: calloc failed.");
     vl->values_len = 0;
@@ -94,7 +90,7 @@ static int ltoc_table_values(lua_State *l, int idx, /* {{{ */
     return (-1);
   }
 
-  status = ltoc_values(l, ds, vl->values);
+  int status = ltoc_values(l, ds, vl->values);
 
   lua_pop(l, /* nelem = */ 1);
 
@@ -109,12 +105,10 @@ static int ltoc_table_values(lua_State *l, int idx, /* {{{ */
 static int luaC_pushvalues(lua_State *l, const data_set_t *ds,
                            const value_list_t *vl) /* {{{ */
 {
-  int i;
-
   assert(vl->values_len == ds->ds_num);
 
   lua_newtable(l);
-  for (i = 0; i < vl->values_len; i++) {
+  for (size_t i = 0; i < vl->values_len; i++) {
     lua_pushinteger(l, (lua_Integer)i + 1);
     luaC_pushvalue(l, vl->values[i], ds->ds[i].type);
     lua_settable(l, /* idx = */ -3);
@@ -125,10 +119,8 @@ static int luaC_pushvalues(lua_State *l, const data_set_t *ds,
 
 static int luaC_pushdstypes(lua_State *l, const data_set_t *ds) /* {{{ */
 {
-  int i;
-
   lua_newtable(l);
-  for (i = 0; i < ds->ds_num; i++) {
+  for (size_t i = 0; i < ds->ds_num; i++) {
     lua_pushinteger(l, (lua_Integer)i);
     lua_pushstring(l, DS_TYPE_TO_STRING(ds->ds[i].type));
     lua_settable(l, /* idx = */ -3);
@@ -139,10 +131,8 @@ static int luaC_pushdstypes(lua_State *l, const data_set_t *ds) /* {{{ */
 
 static int luaC_pushdsnames(lua_State *l, const data_set_t *ds) /* {{{ */
 {
-  int i;
-
   lua_newtable(l);
-  for (i = 0; i < ds->ds_num; i++) {
+  for (size_t i = 0; i < ds->ds_num; i++) {
     lua_pushinteger(l, (lua_Integer)i);
     lua_pushstring(l, ds->ds[i].name);
     lua_settable(l, /* idx = */ -3);
@@ -156,21 +146,17 @@ static int luaC_pushdsnames(lua_State *l, const data_set_t *ds) /* {{{ */
  */
 cdtime_t luaC_tocdtime(lua_State *l, int idx) /* {{{ */
 {
-  double d;
-
   if (!lua_isnumber(l, /* stack pos = */ idx))
     return (0);
 
-  d = (double)lua_tonumber(l, idx);
+  double d = lua_tonumber(l, idx);
 
   return (DOUBLE_TO_CDTIME_T(d));
 } /* }}} int ltoc_table_cdtime */
 
 int luaC_tostringbuffer(lua_State *l, int idx, /* {{{ */
                         char *buffer, size_t buffer_size) {
-  const char *str;
-
-  str = lua_tostring(l, idx);
+  const char *str = lua_tostring(l, idx);
   if (str == NULL)
     return (-1);
 
@@ -180,9 +166,7 @@ int luaC_tostringbuffer(lua_State *l, int idx, /* {{{ */
 
 value_t luaC_tovalue(lua_State *l, int idx, int ds_type) /* {{{ */
 {
-  value_t v;
-
-  memset(&v, 0, sizeof(v));
+  value_t v = { 0 };
 
   if (!lua_isnumber(l, idx))
     return (v);
@@ -201,9 +185,6 @@ value_t luaC_tovalue(lua_State *l, int idx, int ds_type) /* {{{ */
 
 value_list_t *luaC_tovaluelist(lua_State *l, int idx) /* {{{ */
 {
-  const data_set_t *ds;
-  value_list_t *vl;
-  int status;
 #if COLLECT_DEBUG
   int stack_top_before = lua_gettop(l);
 #endif
@@ -219,14 +200,11 @@ value_list_t *luaC_tovaluelist(lua_State *l, int idx) /* {{{ */
     return (NULL);
   }
 
-  vl = malloc(sizeof(*vl));
+  value_list_t *vl = calloc(1, sizeof(*vl));
   if (vl == NULL) {
-    DEBUG("luaC_tovaluelist: malloc failed");
+    DEBUG("luaC_tovaluelist: calloc failed");
     return (NULL);
   }
-  memset(vl, 0, sizeof(*vl));
-  vl->values = NULL;
-  vl->meta = NULL;
 
   /* Push initial key */
   lua_pushnil(l);
@@ -262,14 +240,14 @@ value_list_t *luaC_tovaluelist(lua_State *l, int idx) /* {{{ */
     lua_pop(l, 1);
   }
 
-  ds = plugin_get_ds(vl->type);
+  const data_set_t *ds = plugin_get_ds(vl->type);
   if (ds == NULL) {
     INFO("utils_lua: Unable to lookup type \"%s\".", vl->type);
     sfree(vl);
     return (NULL);
   }
 
-  status = ltoc_table_values(l, idx, ds, vl);
+  int status = ltoc_table_values(l, idx, ds, vl);
   if (status != 0) {
     WARNING("utils_lua: ltoc_table_values failed.");
     sfree(vl);
