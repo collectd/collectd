@@ -32,9 +32,7 @@
 
 #include "collectd.h"
 #include "common.h"
-#include "configfile.h"
 #include "plugin.h"
-#include "utils_cache.h"
 
 /* Include the Lua API header files. */
 #include "utils_lua.h"
