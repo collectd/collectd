@@ -169,7 +169,7 @@ static int default_callback (const char __attribute__((unused)) *str,
 
     if (data->ds_type & UTILS_MATCH_CF_DERIVE_INC)
     {
-      data->value.counter++;
+      data->value.derive++;
       data->values_num++;
       return (0);
     }
