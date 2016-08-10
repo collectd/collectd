@@ -30,7 +30,6 @@
 
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 #if defined(__APPLE__)
 #pragma clang diagnostic push

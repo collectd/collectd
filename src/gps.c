@@ -30,7 +30,6 @@
 #include "common.h"
 #include "plugin.h"
 #include "utils_time.h"
-#include "configfile.h"
 
 #define CGPS_TRUE                  1
 #define CGPS_FALSE                 0

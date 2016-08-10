@@ -39,7 +39,6 @@ extern "C" {
 
 #include "collectd.h"
 #include "common.h"
-#include "configfile.h"
 #include "plugin.h"
 
 #include "daemon/utils_cache.h"

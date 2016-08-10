@@ -32,7 +32,6 @@
 
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 #include <glib.h>
 #include <libnotify/notify.h>
