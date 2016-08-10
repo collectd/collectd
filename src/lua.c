@@ -596,7 +596,7 @@ static int lua_cb_register_read (lua_State *l) /* {{{ */
   plugin_register_complex_read (/* group = */ "lua",
       /* name      = */ function_name,
       /* callback  = */ clua_read,
-      /* interval  = */ NULL,
+      /* interval  = */ 0,
       /* user_data = */ &ud);
 
   DEBUG ("lua plugin: Successful call to lua_cb_register_read().");
