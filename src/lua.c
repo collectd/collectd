@@ -657,7 +657,7 @@ static int lua_cb_register_filter(lua_State *l) /* {{{ */
   clua_store_thread(l, /* idx = */ -1);
   lua_pop(l, /* nelems = */ 1);
 
-  if (function_name[0] == 0) {
+  if (function_name[0] == '\0') {
     ssnprintf(function_name, sizeof(function_name), "lua/callback_%i",
               callback_id);
   }
@@ -715,8 +715,6 @@ static void lua_script_free(lua_script_t *script) /* {{{ */
 static int lua_script_init(lua_script_t *script) /* {{{ */
 {
   memset(script, 0, sizeof(*script));
-  script->script_path = NULL;
-  script->next = NULL;
 
   /* initialize the lua context */
   script->lua_state = lua_open();
@@ -789,16 +787,14 @@ static int lua_script_load(const char *script_path) /* {{{ */
   }
 
   /* Append this script to the global list of scripts. */
-  if (scripts == NULL) {
-    scripts = script;
-  } else {
-    lua_script_t *last;
-
-    last = scripts;
-    while (last->next != NULL)
+  if (scripts) {
+    lua_script_t *last = scripts;
+    while (last->next)
       last = last->next;
 
     last->next = script;
+  } else {
+    scripts = script;
   }
 
   return (0);
