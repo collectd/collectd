@@ -1688,6 +1688,7 @@ int check_capability (int capability) /* {{{ */
 	if (cap_data == NULL)
 	{
 		ERROR("check_capability: calloc failed");
+		sfree(cap_header);
 		return (-1);
 	}
 
