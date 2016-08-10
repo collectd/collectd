@@ -1584,7 +1584,7 @@ static int ceph_init(void)
       WARNING ("ceph plugin: Running collectd as root, but the "
           "CAP_DAC_OVERRIDE capability is missing. The plugin's read "
           "function will probably fail. Is your init system dropping "
-          "capabilities ?");
+          "capabilities?");
     else
       WARNING ("ceph plugin: collectd doesn't have the CAP_DAC_OVERRIDE "
           "capability. If you don't want to run collectd as root, try running "

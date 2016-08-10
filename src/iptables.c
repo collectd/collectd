@@ -512,7 +512,7 @@ static int iptables_init (void)
             WARNING ("iptables plugin: Running collectd as root, but the "
                   "CAP_NET_ADMIN capability is missing. The plugin's read "
                   "function will probably fail. Is your init system dropping "
-                  "capabilities ?");
+                  "capabilities?");
         else
             WARNING ("iptables plugin: collectd doesn't have the CAP_NET_ADMIN "
                   "capability. If you don't want to run collectd as root, try "

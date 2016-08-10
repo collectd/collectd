@@ -817,7 +817,7 @@ static int exec_init (void) /* {{{ */
     if (getuid () == 0)
       WARNING ("exec plugin: Running collectd as root, but the CAP_SETUID "
           "or CAP_SETGID capabilities are missing. The plugin's read function "
-          "will probably fail. Is your init system dropping capabilities ?");
+          "will probably fail. Is your init system dropping capabilities?");
     else
       WARNING ("exec plugin: collectd doesn't have the CAP_SETUID or "
           "CAP_SETGID capabilities. If you don't want to run collectd as root, "
