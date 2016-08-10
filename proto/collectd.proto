@@ -30,31 +30,27 @@ option go_package = "collectd.org/rpc/proto";
 import "types.proto";
 
 service Collectd {
-	// Query a list of values available from collectd's value cache.
-	rpc QueryValues(QueryValuesRequest) returns (stream QueryValuesResponse);
+  // Query a list of values available from collectd's value cache.
+  rpc QueryValues(QueryValuesRequest) returns (stream QueryValuesResponse);
 
   // DispatchValues sends a stream of ValueLists to the server.
-  rpc DispatchValues(stream DispatchValuesRequest) returns (DispatchValuesResponse);
+  rpc DispatchValues(stream DispatchValuesRequest)
+      returns (DispatchValuesResponse);
 }
 
 // The arguments to DispatchValues.
-message DispatchValuesRequest {
-	collectd.types.ValueList value_list = 1;
-}
+message DispatchValuesRequest { collectd.types.ValueList value_list = 1; }
 
 // The response from DispatchValues.
-message DispatchValuesResponse {
-}
+message DispatchValuesResponse {}
 
 // The arguments to QueryValues.
 message QueryValuesRequest {
-	// Query by the fields of the identifier. Only return values matching the
-	// specified shell wildcard patterns (see fnmatch(3)). Use '*' to match
-	// any value.
-	collectd.types.Identifier identifier = 1;
+  // Query by the fields of the identifier. Only return values matching the
+  // specified shell wildcard patterns (see fnmatch(3)). Use '*' to match
+  // any value.
+  collectd.types.Identifier identifier = 1;
 }
 
 // The response from QueryValues.
-message QueryValuesResponse {
-	collectd.types.ValueList value_list = 1;
-}
+message QueryValuesResponse { collectd.types.ValueList value_list = 1; }
