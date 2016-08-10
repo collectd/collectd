@@ -674,6 +674,7 @@ static int swap_read (void) /* {{{ */
 	{
 		ERROR ("swap plugin: Total swap space (%g) is less than used swap space (%g).",
 				total, used);
+		sfree (swap_entries);
 		return (-1);
 	}
 
