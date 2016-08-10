@@ -2376,7 +2376,7 @@ if test "x$with_libgrpcpp" = "xyes"
 then
   AC_LANG_PUSH(C++)
   SAVE_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="$with_libgrpcpp_cppflags $GRPCPP_CFLAGS $CPPFLAGS -std=c++11"
+  CPPFLAGS="-std=c++11 $with_libgrpcpp_cppflags $GRPCPP_CFLAGS $CPPFLAGS"
   AC_CHECK_HEADERS([grpc++/grpc++.h], [],
     [with_libgrpcpp="no (<grpc++/grpc++.h> not found)"]
   )
@@ -2386,8 +2386,10 @@ fi
 if test "x$with_libgrpcpp" = "xyes"
 then
   AC_LANG_PUSH(C++)
+  SAVE_CPPFLAGS="$CPPFLAGS"
   SAVE_LDFLAGS="$LDFLAGS"
   SAVE_LIBS="$LIBS"
+  CPPFLAGS="-std=c++11 $with_libgrpcpp_cppflags $GRPCPP_CFLAGS $CPPFLAGS"
   LDFLAGS="$with_libgrpcpp_ldflags"
   if test "x$GRPCPP_LIBS" = "x"
   then
@@ -2409,6 +2411,7 @@ then
     ],
     [with_libgrpcpp="no (libgrpc++ not found)"]
   )
+  CPPFLAGS="$SAVE_CPPFLAGS"
   LDFLAGS="$SAVE_LDFLAGS"
   LIBS="$SAVE_LIBS"
   AC_LANG_POP(C++)
