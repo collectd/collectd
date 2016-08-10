@@ -290,7 +290,7 @@ static int clua_filter(const data_set_t *ds, value_list_t *vl, user_data_t *ud) 
         LUA_FILTER_COPY_FIELD(type_instance);
       }
       else {
-        ERROR("lua plugin: filter callback tried to change values count %ld != %d (%s)", s, vl->values_len, cb->lua_function_name);
+        ERROR("lua plugin: filter callback tried to change values count %zu != %zu (%s)", s, vl->values_len, cb->lua_function_name);
       }
     }
   }

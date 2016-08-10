@@ -62,7 +62,7 @@ static int ltoc_values (lua_State *l, /* {{{ */
   } /* while (lua_next) */
 
   if (i != ((size_t) ds->ds_num)) {
-    WARNING("ltoc_values: invalid size for datasource \"%s\": expected %d, got %ld", ds->type, ds->ds_num, i );
+    WARNING("ltoc_values: invalid size for datasource \"%s\": expected %zu, got %zu", ds->type, ds->ds_num, i );
     return (-1);
   }
 
