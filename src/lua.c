@@ -67,7 +67,7 @@ typedef struct {
   lua_CFunction func;
 } lua_c_functions_t;
 
-static char base_path[PATH_MAX + 1];
+static char base_path[PATH_MAX];
 static lua_script_t *scripts;
 
 // store a reference to the function on the top of the stack
@@ -825,13 +825,13 @@ static int lua_config_base_path(const oconfig_item_t *ci) /* {{{ */
 
 static int lua_config_script(const oconfig_item_t *ci) /* {{{ */
 {
-  char rel_path[PATH_MAX + 1];
+  char rel_path[PATH_MAX];
 
   int status = cf_util_get_string_buffer(ci, rel_path, sizeof(rel_path));
   if (status != 0)
     return (status);
 
-  char abs_path[PATH_MAX + 1];
+  char abs_path[PATH_MAX];
 
   if (base_path[0] == '\0')
     sstrncpy(abs_path, rel_path, sizeof(abs_path));
