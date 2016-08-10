@@ -31,24 +31,26 @@
 #include "plugin.h"
 
 #ifndef DONT_POISON_SPRINTF_YET
-# error "Files including utils_lua.h need to define DONT_POISON_SPRINTF_YET."
+#error "Files including utils_lua.h need to define DONT_POISON_SPRINTF_YET."
 #endif
 #include <lua.h>
 
 /*
  * access functions (stack -> C)
  */
-cdtime_t      luaC_tocdtime (lua_State *l, int idx);
-int           luaC_tostringbuffer (lua_State *l, int idx, char *buffer, size_t buffer_size);
-value_t       luaC_tovalue (lua_State *l, int idx, int ds_type);
-value_list_t *luaC_tovaluelist (lua_State *l, int idx);
+cdtime_t luaC_tocdtime(lua_State *l, int idx);
+int luaC_tostringbuffer(lua_State *l, int idx, char *buffer,
+                        size_t buffer_size);
+value_t luaC_tovalue(lua_State *l, int idx, int ds_type);
+value_list_t *luaC_tovaluelist(lua_State *l, int idx);
 
 /*
  * push functions (C -> stack)
  */
-int luaC_pushcdtime (lua_State *l, cdtime_t t);
-int luaC_pushvalue (lua_State *l, value_t v, int ds_type);
-int luaC_pushvaluelist (lua_State *l, const data_set_t *ds, const value_list_t *vl);
+int luaC_pushcdtime(lua_State *l, cdtime_t t);
+int luaC_pushvalue(lua_State *l, value_t v, int ds_type);
+int luaC_pushvaluelist(lua_State *l, const data_set_t *ds,
+                       const value_list_t *vl);
 
 #endif /* UTILS_LUA_H */
 /* vim: set sw=2 sts=2 et fdm=marker : */

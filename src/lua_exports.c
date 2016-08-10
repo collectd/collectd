@@ -24,21 +24,17 @@
  *   Julien Ammous
  **/
 
-
 /* this file contains the functions exported to lua scripts */
 
 /* log_info(string) */
-static int log_info(lua_State *l)
-{
+static int log_info(lua_State *l) {
   const char *message = lua_tostring(l, 1);
   INFO("%s", message);
   // return the number of values pushed on stack
   return 0;
 }
 
-
-static int register_exported_functions(lua_State *l){
+static int register_exported_functions(lua_State *l) {
   lua_register(l, "log_info", log_info);
   return 0;
 }
-
