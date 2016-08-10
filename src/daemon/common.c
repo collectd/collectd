@@ -1568,8 +1568,6 @@ void set_sock_opts (int sockfd) /* {{{ */
 
 	socklen_t socklen = sizeof (socklen_t);
 	int so_keepalive = 1;
-	int tcp_keepidle = ((CDTIME_T_TO_MS(plugin_get_interval()) - 1) / 100 + 1);
-	int tcp_keepintvl = ((CDTIME_T_TO_MS(plugin_get_interval()) - 1) / 1000 + 1);
 
 	status = getsockopt (sockfd, SOL_SOCKET, SO_TYPE, &socktype, &socklen);
 	if (status != 0)
@@ -1586,6 +1584,7 @@ void set_sock_opts (int sockfd) /* {{{ */
 			WARNING ("set_sock_opts: failed to set socket keepalive flag");
 
 #ifdef TCP_KEEPIDLE
+		int tcp_keepidle = ((CDTIME_T_TO_MS(plugin_get_interval()) - 1) / 100 + 1);
 		status = setsockopt(sockfd, IPPROTO_TCP, TCP_KEEPIDLE,
 				&tcp_keepidle, sizeof (tcp_keepidle));
 		if (status != 0)
@@ -1593,6 +1592,7 @@ void set_sock_opts (int sockfd) /* {{{ */
 #endif
 
 #ifdef TCP_KEEPINTVL
+		int tcp_keepintvl = ((CDTIME_T_TO_MS(plugin_get_interval()) - 1) / 1000 + 1);
 		status = setsockopt(sockfd, IPPROTO_TCP, TCP_KEEPINTVL,
 				&tcp_keepintvl, sizeof (tcp_keepintvl));
 		if (status != 0)
