@@ -47,7 +47,6 @@ extern "C" {
 }
 
 using collectd::Collectd;
-using collectd::Dispatch;
 
 using collectd::DispatchValuesRequest;
 using collectd::DispatchValuesResponse;
@@ -271,9 +270,9 @@ public:
 		}
 
 		std::queue<value_list_t> value_lists;
-		err = this->read(&match, &value_lists);
+		err = this->queryValuesRead(&match, &value_lists);
 		if (err.ok()) {
-			err = this->write(ctx, writer, &value_lists);
+			err = this->queryValuesWrite(ctx, writer, &value_lists);
 		}
 
 		while (!value_lists.empty()) {
@@ -285,8 +284,28 @@ public:
 		return err;
 	}
 
+	grpc::Status DispatchValues(grpc::ServerContext *ctx,
+								grpc::ServerReader<DispatchValuesRequest> *reader,
+								DispatchValuesResponse *res) override {
+		DispatchValuesRequest req;
+
+		while (reader->Read(&req)) {
+			value_list_t vl = VALUE_LIST_INIT;
+			auto status = unmarshal_value_list(req.value_list(), &vl);
+			if (!status.ok())
+				return status;
+
+			if (plugin_dispatch_values(&vl))
+				return grpc::Status(grpc::StatusCode::INTERNAL,
+									grpc::string("failed to enqueue values for writing"));
+		}
+
+		res->Clear();
+		return grpc::Status::OK;
+	}
+
 private:
-	grpc::Status read(value_list_t const *match, std::queue<value_list_t> *value_lists) {
+	grpc::Status queryValuesRead(value_list_t const *match, std::queue<value_list_t> *value_lists) {
 		uc_iter_t *iter;
 		if ((iter = uc_get_iterator()) == NULL) {
 			return grpc::Status(grpc::StatusCode::INTERNAL,
@@ -329,7 +348,7 @@ private:
 		return status;
 	}
 
-	grpc::Status write(grpc::ServerContext *ctx,
+	grpc::Status queryValuesWrite(grpc::ServerContext *ctx,
 					   grpc::ServerWriter<QueryValuesResponse> *writer,
 					   std::queue<value_list_t> *value_lists) {
 		while (!value_lists->empty()) {
@@ -350,32 +369,6 @@ private:
 			sfree(vl.values);
 		}
 
-		return grpc::Status::OK;
-	}
-};
-
-/*
- * Dispatch service
- */
-class DispatchImpl : public collectd::Dispatch::Service {
-public:
-	grpc::Status DispatchValues(grpc::ServerContext *ctx,
-								grpc::ServerReader<DispatchValuesRequest> *reader,
-								DispatchValuesResponse *res) override {
-		DispatchValuesRequest req;
-
-		while (reader->Read(&req)) {
-			value_list_t vl = VALUE_LIST_INIT;
-			auto status = unmarshal_value_list(req.value_list(), &vl);
-			if (!status.ok())
-				return status;
-
-			if (plugin_dispatch_values(&vl))
-				return grpc::Status(grpc::StatusCode::INTERNAL,
-									grpc::string("failed to enqueue values for writing"));
-		}
-
-		res->Clear();
 		return grpc::Status::OK;
 	}
 };
@@ -413,7 +406,6 @@ public:
 		}
 
 		builder.RegisterService(&collectd_service_);
-		builder.RegisterService(&dispatch_service_);
 
 		server_ = builder.BuildAndStart();
 	} /* Start() */
@@ -425,7 +417,6 @@ public:
 
 private:
 	CollectdImpl collectd_service_;
-	DispatchImpl dispatch_service_;
 
 	std::unique_ptr<grpc::Server> server_;
 }; /* class CollectdServer */

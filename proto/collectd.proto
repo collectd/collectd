@@ -32,9 +32,7 @@ import "types.proto";
 service Collectd {
 	// Query a list of values available from collectd's value cache.
 	rpc QueryValues(QueryValuesRequest) returns (stream QueryValuesResponse);
-}
 
-service Dispatch {
   // DispatchValues sends a stream of ValueLists to the server.
   rpc DispatchValues(stream DispatchValuesRequest) returns (DispatchValuesResponse);
 }
