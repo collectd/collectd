@@ -264,15 +264,15 @@ class CollectdImpl : public collectd::Collectd::Service {
 public:
 	grpc::Status QueryValues(grpc::ServerContext *ctx, QueryValuesRequest const *req, grpc::ServerWriter<QueryValuesResponse> *writer) override {
 		value_list_t match;
-		auto err = unmarshal_ident(req->identifier(), &match, false);
-		if (!err.ok()) {
-			return err;
+		auto status = unmarshal_ident(req->identifier(), &match, false);
+		if (!status.ok()) {
+			return status;
 		}
 
 		std::queue<value_list_t> value_lists;
-		err = this->queryValuesRead(&match, &value_lists);
-		if (err.ok()) {
-			err = this->queryValuesWrite(ctx, writer, &value_lists);
+		status = this->queryValuesRead(&match, &value_lists);
+		if (status.ok()) {
+			status = this->queryValuesWrite(ctx, writer, &value_lists);
 		}
 
 		while (!value_lists.empty()) {
@@ -281,7 +281,7 @@ public:
 			sfree(vl.values);
 		}
 
-		return err;
+		return status;
 	}
 
 	grpc::Status DispatchValues(grpc::ServerContext *ctx,
@@ -356,9 +356,9 @@ private:
 			QueryValuesResponse res;
 			res.Clear();
 
-			auto err = marshal_value_list(&vl, res.mutable_value_list());
-			if (!err.ok()) {
-				return err;
+			auto status = marshal_value_list(&vl, res.mutable_value_list());
+			if (!status.ok()) {
+				return status;
 			}
 
 			if (!writer->Write(res)) {
