@@ -78,8 +78,9 @@
 #define PLUGIN_LOG      4
 #define PLUGIN_NOTIF    5
 #define PLUGIN_FLUSH    6
+#define PLUGIN_FLUSH_ALL 7  /* For collectd-5.6 only */
 
-#define PLUGIN_TYPES    7
+#define PLUGIN_TYPES    8
 
 #define PLUGIN_CONFIG   254
 #define PLUGIN_DATASET  255
@@ -183,6 +184,8 @@ extern char **environ;
 /*
  * private variables
  */
+
+static int flush_callback_registered = 0;
 
 /* if perl_threads != NULL perl_threads->head must
  * point to the "base" thread */
@@ -1178,6 +1181,19 @@ static int pplugin_call (pTHX_ int type, ...)
 		XPUSHs (sv_2mortal (newSVnv (CDTIME_T_TO_DOUBLE (timeout))));
 		XPUSHs (sv_2mortal (newSVpv (va_arg (ap, char *), 0)));
 	}
+	else if (PLUGIN_FLUSH_ALL == type) {
+		cdtime_t timeout;
+		subname = "Collectd::plugin_call_all";
+		/*
+		 * $_[0] = $timeout;
+		 * $_[1] = $identifier;
+		 */
+		timeout = va_arg (ap, cdtime_t);
+
+		XPUSHs (sv_2mortal (newSViv ((IV)PLUGIN_FLUSH)));
+		XPUSHs (sv_2mortal (newSVnv (CDTIME_T_TO_DOUBLE (timeout))));
+		XPUSHs (sv_2mortal (newSVpv (va_arg (ap, char *), 0)));
+	}
 	else if (PLUGIN_INIT == type) {
 		subname = "Collectd::plugin_call_all";
 		XPUSHs (sv_2mortal (newSViv ((IV)type)));
@@ -1683,7 +1699,13 @@ static void _plugin_register_generic_userdata (pTHX, int type, const char *desc)
 		ret = plugin_register_notification(pluginname, perl_notify, &userdata);
 	}
 	else if (PLUGIN_FLUSH == type) {
-		ret = plugin_register_flush(pluginname, perl_flush, &userdata);
+		if (0 == flush_callback_registered) { /* For collectd-5.6 only, #1731 */
+			flush_callback_registered++;
+			ret = plugin_register_flush("perl", perl_flush, /* user_data = */ NULL);
+		}
+
+		if (0 == ret)
+			ret = plugin_register_flush(pluginname, perl_flush, &userdata);
 	}
 	else {
 		ret = -1;
@@ -2317,6 +2339,11 @@ static int perl_flush (cdtime_t timeout, const char *identifier,
 
 		aTHX = t->interp;
 	}
+
+	/* For collectd-5.6 only, #1731 */
+	if (user_data == NULL || user_data->data == NULL)
+		return pplugin_call (aTHX_ PLUGIN_FLUSH_ALL, timeout, identifier);
+
 	return pplugin_call (aTHX_ PLUGIN_FLUSH, user_data->data, timeout, identifier);
 } /* static int perl_flush (const int) */
 
@@ -2345,6 +2372,7 @@ static int perl_shutdown (void)
 			aTHX, perl_threads->number_of_threads);
 
 	plugin_unregister_init ("perl");
+	plugin_unregister_flush ("perl"); /* For collectd-5.6 only, #1731 */
 
 	ret = pplugin_call (aTHX_ PLUGIN_SHUTDOWN);
 
@@ -2778,6 +2806,8 @@ static int perl_config (oconfig_item_t *ci)
 			current_status = perl_config_includedir (aTHX_ c);
 		else if (0 == strcasecmp (c->key, "Plugin"))
 			current_status = perl_config_plugin (aTHX_ c);
+		else if (0 == strcasecmp (c->key, "DisableOldFlush"))
+			flush_callback_registered++;
 		else
 		{
 			log_warn ("Ignoring unknown config key \"%s\".", c->key);

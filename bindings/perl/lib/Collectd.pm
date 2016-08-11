@@ -296,6 +296,9 @@ sub plugin_register {
 			return plugin_register_notification($name, $data);
 		}
 		if (TYPE_FLUSH == $type) {
+			#For collectd-5.6 only
+			lock %{$plugins[$type]};
+			$plugins[$type]->{$name} = $data;
 			return plugin_register_flush($name, $data);
 		}
 		lock %{$plugins[$type]};
