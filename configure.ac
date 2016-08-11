@@ -5478,7 +5478,7 @@ PKG_CHECK_MODULES([LIBNOTIFY], [libnotify],
 		[with_libnotify="no (pkg-config doesn't know libnotify)"]
 )
 
-PKG_CHECK_MODULES([LIBRIEMANN_CLIENT], [riemann-client >= 1.8.0],
+PKG_CHECK_MODULES([LIBRIEMANN_CLIENT], [riemann-client >= 1.6.0],
  [with_libriemann_client="yes"],
  [with_libriemann_client="no (pkg-config doesn't know libriemann-client)"])
 
