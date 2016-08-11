@@ -717,9 +717,9 @@ static int lua_script_init(lua_script_t *script) /* {{{ */
   memset(script, 0, sizeof(*script));
 
   /* initialize the lua context */
-  script->lua_state = lua_open();
+  script->lua_state = luaL_newstate();
   if (script->lua_state == NULL) {
-    ERROR("Lua plugin: lua_open failed.");
+    ERROR("Lua plugin: luaL_newstate() failed.");
     return (-1);
   }
 
