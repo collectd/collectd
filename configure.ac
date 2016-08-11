@@ -418,6 +418,7 @@ then
 #include <linux/major.h>
 #include <linux/types.h>
 ])
+	AC_CHECK_HEADERS([sys/sysmacros.h])
 else
 	have_linux_raid_md_u_h="no"
 fi
