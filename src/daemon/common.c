@@ -1677,14 +1677,14 @@ void strarray_free (char **array, size_t array_len) /* {{{ */
 int check_capability (int capability) /* {{{ */
 {
 #ifdef _LINUX_CAPABILITY_VERSION_3
-	cap_user_header_t cap_header = calloc(sizeof (*cap_header), 1);
+	cap_user_header_t cap_header = calloc(1, sizeof (*cap_header));
 	if (cap_header == NULL)
 	{
 		ERROR("check_capability: calloc failed");
 		return (-1);
 	}
 
-	cap_user_data_t cap_data = calloc(sizeof (*cap_data), 1);
+	cap_user_data_t cap_data = calloc(1, sizeof (*cap_data));
 	if (cap_data == NULL)
 	{
 		ERROR("check_capability: calloc failed");
