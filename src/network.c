@@ -22,9 +22,6 @@
  *   Aman Gupta <aman at tmm1.net>
  **/
 
-#define _DEFAULT_SOURCE
-#define _BSD_SOURCE /* For struct ip_mreq */
-
 #include "collectd.h"
 
 #include "plugin.h"

@@ -856,10 +856,6 @@ perl_la_SOURCES = perl.c
 # Despite C99 providing the "bool" type thru stdbool.h, Perl defines its own
 # version of that type if HAS_BOOL is not defined... *sigh*
 perl_la_CPPFLAGS = $(AM_CPPFLAGS) -DHAS_BOOL=1
-# Despite off_t being 64 bit wide on 64 bit platforms, Perl insist on using
-# off64_t which is only exposed when _LARGEFILE64_SOURCE is defined... *sigh*
-# On older platforms we also need _REENTRANT. _GNU_SOURCE sets both of these.
-perl_la_CPPFLAGS += -D_GNU_SOURCE
 perl_la_CFLAGS  = $(AM_CFLAGS) \
 		$(PERL_CFLAGS) \
 		-DXS_VERSION=\"$(VERSION)\" -DVERSION=\"$(VERSION)\"

@@ -33,9 +33,6 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
-#define _DEFAULT_SOURCE
-#define _BSD_SOURCE
-
 #include "collectd.h"
 
 #include "plugin.h"

@@ -38,6 +38,12 @@ AC_LANG(C)
 
 AC_PREFIX_DEFAULT("/opt/collectd")
 
+AH_VERBATIM([_GNU_SOURCE], [/* Enable GNU extensions on systems that have them.  */
+#ifndef _GNU_SOURCE
+# define _GNU_SOURCE
+#endif]
+)
+
 AC_SYS_LARGEFILE
 
 #
@@ -683,10 +689,7 @@ AC_CHECK_HEADERS([ \
   wordexp.h \
 ])
 
-AC_CHECK_HEADERS([xfs/xqm.h], [], [],
-[
-#define _GNU_SOURCE
-])
+AC_CHECK_HEADERS([xfs/xqm.h])
 
 # For the dns plugin
 AC_CHECK_HEADERS(arpa/nameser.h)
@@ -1580,9 +1583,7 @@ AC_CHECK_MEMBERS([struct kinfo_proc2.p_pid, struct kinfo_proc2.p_uru_maxrss],
 
 
 AC_CHECK_MEMBERS([struct udphdr.uh_dport, struct udphdr.uh_sport], [], [],
-[#define _BSD_SOURCE
-#define _DEFAULT_SOURCE
-#if HAVE_STDINT_H
+[#if HAVE_STDINT_H
 # include <stdint.h>
 #endif
 #if HAVE_SYS_TYPES_H
@@ -1602,9 +1603,7 @@ AC_CHECK_MEMBERS([struct udphdr.uh_dport, struct udphdr.uh_sport], [], [],
 #endif
 ])
 AC_CHECK_MEMBERS([struct udphdr.dest, struct udphdr.source], [], [],
-[#define _BSD_SOURCE
-#define _DEFAULT_SOURCE
-#if HAVE_STDINT_H
+[#if HAVE_STDINT_H
 # include <stdint.h>
 #endif
 #if HAVE_SYS_TYPES_H

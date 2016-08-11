@@ -23,9 +23,6 @@
  *   Vedran Bartonicek <vbartoni at gmail.com>
  **/
 
-#define _DEFAULT_SOURCE
-#define _BSD_SOURCE
-
 #include "collectd.h"
 
 #include "common.h"

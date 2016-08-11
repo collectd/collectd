@@ -23,9 +23,6 @@
  *   Peter Holik <peter at holik.at>
  **/
 
-#define _DEFAULT_SOURCE
-#define _BSD_SOURCE /* For setgroups */
-
 #include "collectd.h"
 
 #include "common.h"
