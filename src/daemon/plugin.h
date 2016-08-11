@@ -311,7 +311,6 @@ int plugin_register_log (const char *name,
 		plugin_log_cb callback, user_data_t *user_data);
 int plugin_register_notification (const char *name,
 		plugin_notification_cb callback, user_data_t *user_data);
-		
 int plugin_register_filter(const char *name,
 		plugin_filter_cb callback, user_data_t *user_data);
 
