@@ -1732,8 +1732,6 @@ typedef int perl_unregister_function_t(const char *name);
 static void _plugin_unregister_generic (pTHX,
 				perl_unregister_function_t *unreg, const char *desc)
 {
-	char cb_name[DATA_MAX_NAME_LEN];
-
 	dXSARGS;
 
 	if (1 != items) {
@@ -1750,9 +1748,7 @@ static void _plugin_unregister_generic (pTHX,
 	log_debug ("Collectd::plugin_unregister_%s: plugin = \"%s\"",
 			desc, SvPV_nolen (ST (0)));
 
-	ssnprintf (cb_name, sizeof (cb_name), "perl/%s", SvPV_nolen (ST (0)));
-
-	unreg(cb_name);
+	unreg(SvPV_nolen (ST (0)));
 
 	XSRETURN_EMPTY;
 
