@@ -30,16 +30,22 @@ option go_package = "collectd.org/rpc/proto";
 import "types.proto";
 
 service Collectd {
-  // Query a list of values available from collectd's value cache.
-  rpc QueryValues(QueryValuesRequest) returns (stream QueryValuesResponse);
-
-  // DispatchValues sends a stream of ValueLists to the server.
+  // DispatchValues reads the value lists from the DispatchValuesRequest stream.
+  // The gRPC server embedded into collectd will inject them into the system
+  // just like the network plugin.
   rpc DispatchValues(stream DispatchValuesRequest)
       returns (DispatchValuesResponse);
+
+  // QueryValues returns a stream of matching value lists from collectd's
+  // internal cache.
+  rpc QueryValues(QueryValuesRequest) returns (stream QueryValuesResponse);
 }
 
 // The arguments to DispatchValues.
-message DispatchValuesRequest { collectd.types.ValueList value_list = 1; }
+message DispatchValuesRequest {
+  // value_list is the metric to be sent to the server.
+  collectd.types.ValueList value_list = 1;
+}
 
 // The response from DispatchValues.
 message DispatchValuesResponse {}
