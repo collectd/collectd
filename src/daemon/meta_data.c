@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "plugin.h"
 #include "meta_data.h"
 
@@ -332,8 +333,6 @@ meta_data_t *meta_data_clone (meta_data_t *orig) /* {{{ */
 
 int meta_data_clone_merge (meta_data_t **dest, meta_data_t *orig) /* {{{ */
 {
-  meta_entry_t *e;
-
   if (orig == NULL)
     return (0);
 
@@ -343,7 +342,7 @@ int meta_data_clone_merge (meta_data_t **dest, meta_data_t *orig) /* {{{ */
   }
 
   pthread_mutex_lock (&orig->lock);
-  for (e=orig->head; e != NULL; e = e->next)
+  for (meta_entry_t *e=orig->head; e != NULL; e = e->next)
   {
     md_entry_insert_clone((*dest), e);
   }
@@ -364,14 +363,12 @@ void meta_data_destroy (meta_data_t *md) /* {{{ */
 
 int meta_data_exists (meta_data_t *md, const char *key) /* {{{ */
 {
-  meta_entry_t *e;
-
   if ((md == NULL) || (key == NULL))
     return (-EINVAL);
 
   pthread_mutex_lock (&md->lock);
 
-  for (e = md->head; e != NULL; e = e->next)
+  for (meta_entry_t *e = md->head; e != NULL; e = e->next)
   {
     if (strcasecmp (key, e->key) == 0)
     {
@@ -386,14 +383,12 @@ int meta_data_exists (meta_data_t *md, const char *key) /* {{{ */
 
 int meta_data_type (meta_data_t *md, const char *key) /* {{{ */
 {
-  meta_entry_t *e;
-
   if ((md == NULL) || (key == NULL))
     return -EINVAL;
 
   pthread_mutex_lock (&md->lock);
 
-  for (e = md->head; e != NULL; e = e->next)
+  for (meta_entry_t *e = md->head; e != NULL; e = e->next)
   {
     if (strcasecmp (key, e->key) == 0)
     {
@@ -409,14 +404,13 @@ int meta_data_type (meta_data_t *md, const char *key) /* {{{ */
 int meta_data_toc (meta_data_t *md, char ***toc) /* {{{ */
 {
   int i = 0, count = 0;
-  meta_entry_t *e;
 
   if ((md == NULL) || (toc == NULL))
     return -EINVAL;
 
   pthread_mutex_lock (&md->lock);
 
-  for (e = md->head; e != NULL; e = e->next)
+  for (meta_entry_t *e = md->head; e != NULL; e = e->next)
     ++count;
 
   if (count == 0)
@@ -426,7 +420,7 @@ int meta_data_toc (meta_data_t *md, char ***toc) /* {{{ */
   }
 
   *toc = calloc(count, sizeof(**toc));
-  for (e = md->head; e != NULL; e = e->next)
+  for (meta_entry_t *e = md->head; e != NULL; e = e->next)
     (*toc)[i++] = strdup(e->key);
 
   pthread_mutex_unlock (&md->lock);

@@ -67,6 +67,9 @@ Features
     - cpufreq
       CPU frequency (For laptops with speed step or a similar technology)
 
+    - cpusleep
+      CPU sleep: Time spent in suspend (For mobile devices which enter suspend automatically)
+
     - curl
       Parse statistics from websites using regular expressions.
 
@@ -121,6 +124,9 @@ Features
 
     - gmond
       Receive multicast traffic from Ganglia instances.
+
+    - gps
+      Monitor gps related data through gpsd.
 
     - grpc
       Receive values over the network using the gRPC framework.
@@ -696,6 +702,10 @@ Prerequisites
   * libgcrypt (optional)
     Used by the `network' plugin for encryption and authentication.
     <http://www.gnupg.org/>
+
+  * libgps (optional)
+    Used by the `gps' plugin.
+    <http://developer.berlios.de/projects/gpsd/>
 
   * libhal (optional)
     If present, the `uuid' plugin will check for UUID from HAL.

@@ -22,6 +22,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
@@ -269,7 +270,6 @@ static int cc_config_add_match (web_page_t *page, /* {{{ */
 {
   web_match_t *match;
   int status;
-  int i;
 
   if (ci->values_num != 0)
   {
@@ -284,7 +284,7 @@ static int cc_config_add_match (web_page_t *page, /* {{{ */
   }
 
   status = 0;
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -433,7 +433,6 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
 {
   web_page_t *page;
   int status;
-  int i;
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
@@ -468,7 +467,7 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
 
   /* Process all children */
   status = 0;
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -566,12 +565,11 @@ static int cc_config (oconfig_item_t *ci) /* {{{ */
   int success;
   int errors;
   int status;
-  int i;
 
   success = 0;
   errors = 0;
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -667,7 +665,6 @@ static void cc_submit_response_time (const web_page_t *wp, /* {{{ */
 
 static int cc_read_page (web_page_t *wp) /* {{{ */
 {
-  web_match_t *wm;
   int status;
   cdtime_t start = 0;
 
@@ -700,7 +697,7 @@ static int cc_read_page (web_page_t *wp) /* {{{ */
     }
   }
 
-  for (wm = wp->matches; wm != NULL; wm = wm->next)
+  for (web_match_t *wm = wp->matches; wm != NULL; wm = wm->next)
   {
     cu_match_value_t *mv;
 
@@ -727,9 +724,7 @@ static int cc_read_page (web_page_t *wp) /* {{{ */
 
 static int cc_read (void) /* {{{ */
 {
-  web_page_t *wp;
-
-  for (wp = pages_g; wp != NULL; wp = wp->next)
+  for (web_page_t *wp = pages_g; wp != NULL; wp = wp->next)
     cc_read_page (wp);
 
   return (0);

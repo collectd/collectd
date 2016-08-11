@@ -53,6 +53,7 @@
 %define with_contextswitch 0%{!?_without_contextswitch:1}
 %define with_cpu 0%{!?_without_cpu:1}
 %define with_cpufreq 0%{!?_without_cpufreq:1}
+%define with_cpusleep 0%{!?_without_cpusleep:1}
 %define with_csv 0%{!?_without_csv:1}
 %define with_curl 0%{!?_without_curl:1}
 %define with_curl_json 0%{!?_without_curl_json:1}
@@ -70,6 +71,7 @@
 %define with_filecount 0%{!?_without_filecount:1}
 %define with_fscache 0%{!?_without_fscache:1}
 %define with_gmond 0%{!?_without_gmond:1}
+%define with_gps 0%{!?_without_gps:1}
 %define with_hddtemp 0%{!?_without_hddtemp:1}
 %define with_interface 0%{!?_without_interface:1}
 %define with_ipc 0%{!?_without_ipc:1}
@@ -214,6 +216,8 @@
 
 # Plugins not buildable on RHEL < 7
 %if 0%{?rhel} && 0%{?rhel} < 7
+%define with_cpusleep 0
+%define with_gps 0
 %define with_mqtt 0
 %define with_rrdcached 0
 %define with_xmms 0
@@ -414,6 +418,16 @@ BuildRequires:	ganglia-devel
 %description gmond
 The gmond plugin subscribes to a Multicast group to receive data from gmond,
 the client daemon of the Ganglia project.
+%endif
+
+%if %{with_gps}
+%package gps
+Summary:	GPS plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	gpsd-devel
+%description gps
+This plugin monitor gps related data through gpsd.
 %endif
 
 %if %{with_grpc}
@@ -976,6 +990,12 @@ Collectd utilities
 %define _with_cpufreq --disable-cpufreq
 %endif
 
+%if %{with_cpusleep}
+%define _with_cpusleep --enable-cpusleep
+%else
+%define _with_cpusleep --disable-cpusleep
+%endif
+
 %if %{with_csv}
 %define _with_csv --enable-csv
 %else
@@ -1082,6 +1102,12 @@ Collectd utilities
 %define _with_gmond --enable-gmond
 %else
 %define _with_gmond --disable-gmond
+%endif
+
+%if %{with_gps}
+%define _with_gps --enable-gps
+%else
+%define _with_gps --disable-gps
 %endif
 
 %if %{with_grpc}
@@ -1387,6 +1413,7 @@ Collectd utilities
 %if %{with_python}
 	%if 0%{?rhel} && 0%{?rhel} < 6
 %define _with_python --enable-python --with-python=%{_bindir}/python2.6
+%define _python_config PYTHON_CONFIG="%{_bindir}/python2.6-config"
 	%else
 %define _with_python --enable-python
 	%endif
@@ -1665,6 +1692,7 @@ Collectd utilities
 %endif
 
 %configure CFLAGS="%{optflags} -DLT_LAZY_OR_NOW=\"RTLD_LAZY|RTLD_GLOBAL\"" \
+	%{?_python_config} \
 	--disable-static \
 	--without-included-ltdl \
 	--enable-all-plugins=yes \
@@ -1694,6 +1722,7 @@ Collectd utilities
 	%{?_with_conntrack} \
 	%{?_with_contextswitch} \
 	%{?_with_cpufreq} \
+	%{?_with_cpusleep} \
 	%{?_with_cpu} \
 	%{?_with_csv} \
 	%{?_with_curl_json} \
@@ -1712,6 +1741,7 @@ Collectd utilities
 	%{?_with_filecount} \
 	%{?_with_fscache} \
 	%{?_with_gmond} \
+	%{?_with_gps} \
 	%{?_with_grpc} \
 	%{?_with_hddtemp} \
 	%{?_with_interface} \
@@ -1961,6 +1991,9 @@ fi
 %endif
 %if %{with_cpufreq}
 %{_libdir}/%{name}/cpufreq.so
+%endif
+%if %{with_cpusleep}
+%{_libdir}/%{name}/cpusleep.so
 %endif
 %if %{with_csv}
 %{_libdir}/%{name}/csv.so
@@ -2231,6 +2264,11 @@ fi
 %if %{with_gmond}
 %files gmond
 %{_libdir}/%{name}/gmond.so
+%endif
+
+%if %{with_gps}
+%files gps
+%{_libdir}/%{name}/gps.so
 %endif
 
 %if %{with_grpc}

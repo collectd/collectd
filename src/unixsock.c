@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
@@ -76,7 +77,7 @@ static pthread_t listen_thread = (pthread_t) 0;
  */
 static int us_open_socket (void)
 {
-	struct sockaddr_un sa;
+	struct sockaddr_un sa = { 0 };
 	int status;
 
 	sock_fd = socket (PF_UNIX, SOCK_STREAM, 0);
@@ -88,7 +89,6 @@ static int us_open_socket (void)
 		return (-1);
 	}
 
-	memset (&sa, '\0', sizeof (sa));
 	sa.sun_family = AF_UNIX;
 	sstrncpy (sa.sun_path, (sock_file != NULL) ? sock_file : US_DEFAULT_PATH,
 			sizeof (sa.sun_path));

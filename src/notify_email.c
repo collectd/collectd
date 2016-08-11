@@ -23,6 +23,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -66,8 +67,7 @@ static char *email_subject = NULL;
 static int authinteract (auth_client_request_t request, char **result,
     int fields, void __attribute__((unused)) *arg)
 {
-  int i;
-  for (i = 0; i < fields; i++)
+  for (int i = 0; i < fields; i++)
   {
     if (request[i].flags & AUTH_USER)
       result[i] = smtp_user;

@@ -24,6 +24,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
@@ -251,11 +252,9 @@ static void service_statnode_process (pinba_statnode_t *node, /* {{{ */
 
 static void service_process_request (Pinba__Request *request) /* {{{ */
 {
-  unsigned int i;
-
   pthread_mutex_lock (&stat_nodes_lock);
 
-  for (i = 0; i < stat_nodes_num; i++)
+  for (unsigned int i = 0; i < stat_nodes_num; i++)
   {
     if ((stat_nodes[i].host != NULL)
         && (strcmp (request->hostname, stat_nodes[i].host) != 0))
@@ -351,17 +350,7 @@ static pinba_socket_t *pinba_socket_open (const char *node, /* {{{ */
 {
   pinba_socket_t *s;
   struct addrinfo *ai_list;
-  struct addrinfo *ai_ptr;
-  struct addrinfo  ai_hints;
   int status;
-
-  memset (&ai_hints, 0, sizeof (ai_hints));
-  ai_hints.ai_flags = AI_PASSIVE;
-  ai_hints.ai_family = AF_UNSPEC;
-  ai_hints.ai_socktype = SOCK_DGRAM;
-  ai_hints.ai_addr = NULL;
-  ai_hints.ai_canonname = NULL;
-  ai_hints.ai_next = NULL;
 
   if (node == NULL)
     node = PINBA_DEFAULT_NODE;
@@ -369,7 +358,12 @@ static pinba_socket_t *pinba_socket_open (const char *node, /* {{{ */
   if (service == NULL)
     service = PINBA_DEFAULT_SERVICE;
 
-  ai_list = NULL;
+  struct addrinfo  ai_hints = {
+    .ai_family = AF_UNSPEC,
+    .ai_flags = AI_PASSIVE,
+    .ai_socktype = SOCK_DGRAM
+  };
+
   status = getaddrinfo (node, service,
       &ai_hints, &ai_list);
   if (status != 0)
@@ -388,7 +382,7 @@ static pinba_socket_t *pinba_socket_open (const char *node, /* {{{ */
     return (NULL);
   }
 
-  for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+  for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
   {
     status = pb_add_socket (s, ai_ptr);
     if (status != 0)
@@ -409,12 +403,10 @@ static pinba_socket_t *pinba_socket_open (const char *node, /* {{{ */
 
 static void pinba_socket_free (pinba_socket_t *socket) /* {{{ */
 {
-  nfds_t i;
-
   if (!socket)
     return;
 
-  for (i = 0; i < socket->fd_num; i++)
+  for (nfds_t i = 0; i < socket->fd_num; i++)
   {
     if (socket->fd[i].fd < 0)
       continue;
@@ -505,7 +497,6 @@ static int receive_loop (void) /* {{{ */
   while (!collector_thread_do_shutdown)
   {
     int status;
-    nfds_t i;
 
     if (s->fd_num < 1)
       break;
@@ -528,7 +519,7 @@ static int receive_loop (void) /* {{{ */
       return (-1);
     }
 
-    for (i = 0; i < s->fd_num; i++)
+    for (nfds_t i = 0; i < s->fd_num; i++)
     {
       if (s->fd[i].revents & (POLLERR | POLLHUP | POLLNVAL))
       {
@@ -568,13 +559,12 @@ static int pinba_config_view (const oconfig_item_t *ci) /* {{{ */
   char *server = NULL;
   char *script = NULL;
   int status;
-  int i;
 
   status = cf_util_get_string (ci, &name);
   if (status != 0)
     return (status);
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -607,13 +597,11 @@ static int pinba_config_view (const oconfig_item_t *ci) /* {{{ */
 
 static int plugin_config (oconfig_item_t *ci) /* {{{ */
 {
-  int i;
-
   /* The lock should not be necessary in the config callback, but let's be
    * sure.. */
   pthread_mutex_lock (&stat_nodes_lock);
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 

@@ -23,6 +23,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
@@ -149,9 +150,7 @@ static int ethstat_add_map (const oconfig_item_t *ci) /* {{{ */
 
 static int ethstat_config (oconfig_item_t *ci) /* {{{ */
 {
-  int i;
-
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -216,18 +215,12 @@ static void ethstat_submit_value (const char *device,
 static int ethstat_read_interface (char *device)
 {
   int fd;
-  struct ifreq req;
-  struct ethtool_drvinfo drvinfo;
   struct ethtool_gstrings *strings;
   struct ethtool_stats *stats;
   size_t n_stats;
   size_t strings_size;
   size_t stats_size;
-  size_t i;
   int status;
-
-  memset (&req, 0, sizeof (req));
-  sstrncpy(req.ifr_name, device, sizeof (req.ifr_name));
 
   fd = socket(AF_INET, SOCK_DGRAM, /* protocol = */ 0);
   if (fd < 0)
@@ -238,9 +231,16 @@ static int ethstat_read_interface (char *device)
     return 1;
   }
 
-  memset (&drvinfo, 0, sizeof (drvinfo));
-  drvinfo.cmd = ETHTOOL_GDRVINFO;
-  req.ifr_data = (void *) &drvinfo;
+  struct ethtool_drvinfo drvinfo = {
+    .cmd = ETHTOOL_GDRVINFO
+  };
+
+  struct ifreq req = {
+    .ifr_data = (void *) &drvinfo
+  };
+
+  sstrncpy(req.ifr_name, device, sizeof (req.ifr_name));
+
   status = ioctl (fd, SIOCETHTOOL, &req);
   if (status < 0)
   {
@@ -309,7 +309,7 @@ static int ethstat_read_interface (char *device)
     return (-1);
   }
 
-  for (i = 0; i < n_stats; i++)
+  for (size_t i = 0; i < n_stats; i++)
   {
     char *stat_name;
 
@@ -333,9 +333,7 @@ static int ethstat_read_interface (char *device)
 
 static int ethstat_read(void)
 {
-  size_t i;
-
-  for (i = 0; i < interfaces_num; i++)
+  for (size_t i = 0; i < interfaces_num; i++)
     ethstat_read_interface (interfaces[i]);
 
   return 0;

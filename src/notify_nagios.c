@@ -25,6 +25,7 @@
  */
 
 #include "collectd.h"
+
 #include "plugin.h"
 #include "common.h"
 #include "configfile.h"
@@ -42,9 +43,7 @@ static char *nagios_command_file;
 
 static int nagios_config (oconfig_item_t *ci) /* {{{ */
 {
-  int i;
-
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -63,7 +62,7 @@ static int nagios_print (char const *buffer) /* {{{ */
   char const *file = NAGIOS_COMMAND_FILE;
   int fd;
   int status;
-  struct flock lock;
+  struct flock lock = { 0 };
 
   if (nagios_command_file != NULL)
     file = nagios_command_file;
@@ -78,11 +77,8 @@ static int nagios_print (char const *buffer) /* {{{ */
     return status;
   }
 
-  memset (&lock, 0, sizeof (lock));
   lock.l_type = F_WRLCK;
   lock.l_whence = SEEK_END;
-  lock.l_start = 0;
-  lock.l_len = 0; /* to end of file */
 
   status = fcntl (fd, F_GETLK, &lock);
   if (status != 0)

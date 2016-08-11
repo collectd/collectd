@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -33,8 +34,7 @@
 #include "utils_parse_option.h"
 
 #define free_everything_and_return(status) do { \
-    size_t j; \
-    for (j = 0; j < number; j++) { \
+    for (size_t j = 0; j < number; j++) { \
       sfree(names[j]); \
       names[j] = NULL; \
     } \
@@ -60,7 +60,6 @@ int handle_listval (FILE *fh, char *buffer)
   char **names = NULL;
   cdtime_t *times = NULL;
   size_t number = 0;
-  size_t i;
   int status;
 
   DEBUG ("utils_cmd_listval: handle_listval (fh = %p, buffer = %s);",
@@ -97,7 +96,7 @@ int handle_listval (FILE *fh, char *buffer)
 
   print_to_socket (fh, "%i Value%s found\n",
       (int) number, (number == 1) ? "" : "s");
-  for (i = 0; i < number; i++)
+  for (size_t i = 0; i < number; i++)
     print_to_socket (fh, "%.3f %s\n", CDTIME_T_TO_DOUBLE (times[i]),
        	names[i]);
 

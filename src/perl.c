@@ -34,6 +34,7 @@
 
 #define DONT_POISON_SPRINTF_YET 1
 #include "collectd.h"
+
 #undef DONT_POISON_SPRINTF_YET
 
 #include "configfile.h"
@@ -308,7 +309,6 @@ static int hv2data_source (pTHX_ HV *hash, data_source_t *ds)
 static size_t av2value (pTHX_ char *name, AV *array, value_t *value, size_t array_len)
 {
 	const data_set_t *ds;
-	size_t i;
 
 	if ((NULL == name) || (NULL == array) || (NULL == value) || (array_len == 0))
 		return 0;
@@ -328,7 +328,7 @@ static size_t av2value (pTHX_ char *name, AV *array, value_t *value, size_t arra
 				name, array_len, ds->ds_num);
 	}
 
-	for (i = 0; i < ds->ds_num; ++i) {
+	for (size_t i = 0; i < ds->ds_num; ++i) {
 		SV **tmp = av_fetch (array, i, 0);
 
 		if (NULL != tmp) {
@@ -427,7 +427,7 @@ static int hv2value_list (pTHX_ HV *hash, value_list_t *vl)
 
 static int av2data_set (pTHX_ AV *array, char *name, data_set_t *ds)
 {
-	int len, i;
+	int len;
 
 	if ((NULL == array) || (NULL == name) || (NULL == ds))
 		return -1;
@@ -442,7 +442,7 @@ static int av2data_set (pTHX_ AV *array, char *name, data_set_t *ds)
 	ds->ds = smalloc ((len + 1) * sizeof (*ds->ds));
 	ds->ds_num = len + 1;
 
-	for (i = 0; i <= len; ++i) {
+	for (int i = 0; i <= len; ++i) {
 		SV **elem = av_fetch (array, i, 0);
 
 		if (NULL == elem) {
@@ -486,9 +486,8 @@ static int av2notification_meta (pTHX_ AV *array, notification_meta_t **meta)
 	notification_meta_t **m = meta;
 
 	int len = av_len (array);
-	int i;
 
-	for (i = 0; i <= len; ++i) {
+	for (int i = 0; i <= len; ++i) {
 		SV **tmp = av_fetch (array, i, 0);
 		HV  *hash;
 
@@ -604,14 +603,12 @@ static int hv2notification (pTHX_ HV *hash, notification_t *n)
 
 static int data_set2av (pTHX_ data_set_t *ds, AV *array)
 {
-	size_t i;
-
 	if ((NULL == ds) || (NULL == array))
 		return -1;
 
 	av_extend (array, ds->ds_num);
 
-	for (i = 0; i < ds->ds_num; ++i) {
+	for (size_t i = 0; i < ds->ds_num; ++i) {
 		HV *source = newHV ();
 
 		if (NULL == hv_store (source, "name", 4,
@@ -711,7 +708,6 @@ static int value_list2hv (pTHX_ value_list_t *vl, data_set_t *ds, HV *hash)
 static int notification_meta2av (pTHX_ notification_meta_t *meta, AV *array)
 {
 	int meta_num = 0;
-	int i;
 
 	while (meta) {
 		++meta_num;
@@ -720,7 +716,7 @@ static int notification_meta2av (pTHX_ notification_meta_t *meta, AV *array)
 
 	av_extend (array, meta_num);
 
-	for (i = 0; NULL != meta; meta = meta->next, ++i) {
+	for (int i = 0; NULL != meta; meta = meta->next, ++i) {
 		HV *m = newHV ();
 		SV *value;
 
@@ -807,8 +803,6 @@ static int notification2hv (pTHX_ notification_t *n, HV *hash)
 
 static int oconfig_item2hv (pTHX_ oconfig_item_t *ci, HV *hash)
 {
-	int i;
-
 	AV *values;
 	AV *children;
 
@@ -825,7 +819,7 @@ static int oconfig_item2hv (pTHX_ oconfig_item_t *ci, HV *hash)
 		return -1;
 	}
 
-	for (i = 0; i < ci->values_num; ++i) {
+	for (int i = 0; i < ci->values_num; ++i) {
 		SV *value;
 
 		switch (ci->values[i].type) {
@@ -862,7 +856,7 @@ static int oconfig_item2hv (pTHX_ oconfig_item_t *ci, HV *hash)
 		return -1;
 	}
 
-	for (i = 0; i < ci->children_num; ++i) {
+	for (int i = 0; i < ci->children_num; ++i) {
 		HV *child = newHV ();
 
 		if (0 != oconfig_item2hv (aTHX_ ci->children + i, child)) {
@@ -983,14 +977,12 @@ static int pplugin_write (pTHX_ const char *plugin, AV *data_set, HV *values)
  */
 static int pplugin_dispatch_notification (pTHX_ HV *notif)
 {
-	notification_t n;
+	notification_t n = { 0 };
 
 	int ret;
 
 	if (NULL == notif)
 		return -1;
-
-	memset (&n, 0, sizeof (n));
 
 	if (0 != hv2notification (aTHX_ notif, &n))
 		return -1;
@@ -2240,21 +2232,19 @@ static void xs_init (pTHX)
 	SV   *tmp   = NULL;
 	char *file  = __FILE__;
 
-	int i = 0;
-
 	dXSUB_SYS;
 
 	/* enable usage of Perl modules using shared libraries */
 	newXS ("DynaLoader::boot_DynaLoader", boot_DynaLoader, file);
 
 	/* register API */
-	for (i = 0; NULL != api[i].f; ++i)
+	for (int i = 0; NULL != api[i].f; ++i)
 		newXS (api[i].name, api[i].f, file);
 
 	stash = gv_stashpv ("Collectd", 1);
 
 	/* export "constants" */
-	for (i = 0; '\0' != constants[i].name[0]; ++i)
+	for (int i = 0; '\0' != constants[i].name[0]; ++i)
 		newCONSTSUB (stash, constants[i].name, newSViv (constants[i].value));
 
 	/* export global variables
@@ -2263,7 +2253,7 @@ static void xs_init (pTHX)
 	 * accessing any such variable (this is basically the same as using
 	 * tie() in Perl) */
 	/* global strings */
-	for (i = 0; '\0' != g_strings[i].name[0]; ++i) {
+	for (int i = 0; '\0' != g_strings[i].name[0]; ++i) {
 		tmp = get_sv (g_strings[i].name, 1);
 		sv_magicext (tmp, NULL, PERL_MAGIC_ext, &g_pv_vtbl,
 				g_strings[i].var, 0);
@@ -2288,9 +2278,7 @@ static int init_pi (int argc, char **argv)
 	log_info ("Initializing Perl interpreter...");
 #if COLLECT_DEBUG
 	{
-		int i = 0;
-
-		for (i = 0; i < argc; ++i)
+		for (int i = 0; i < argc; ++i)
 			log_debug ("argv[%i] = \"%s\"", i, argv[i]);
 	}
 #endif /* COLLECT_DEBUG */
@@ -2559,11 +2547,10 @@ static int perl_config_plugin (pTHX_ oconfig_item_t *ci)
 static int perl_config (oconfig_item_t *ci)
 {
 	int status = 0;
-	int i = 0;
 
 	dTHXa (NULL);
 
-	for (i = 0; i < ci->children_num; ++i) {
+	for (int i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *c = ci->children + i;
 		int current_status = 0;
 

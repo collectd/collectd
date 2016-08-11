@@ -26,6 +26,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
@@ -38,7 +39,7 @@
 
 static int wl_write_messages (const data_set_t *ds, const value_list_t *vl)
 {
-    char buffer[WL_BUF_SIZE];
+    char buffer[WL_BUF_SIZE] = { 0 };
     int status;
 
     if (0 != strcmp (ds->type, vl->type))
@@ -48,7 +49,6 @@ static int wl_write_messages (const data_set_t *ds, const value_list_t *vl)
         return -1;
     }
 
-    memset (buffer, 0, sizeof (buffer));
     status = format_graphite (buffer, sizeof (buffer), ds, vl,
                               NULL, NULL, '_', 0);
     if (status != 0) /* error message has been printed already. */

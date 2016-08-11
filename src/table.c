@@ -29,6 +29,7 @@
  */
 
 #include "collectd.h"
+
 #include "common.h"
 
 #include "configfile.h"
@@ -105,13 +106,11 @@ static void tbl_setup (tbl_t *tbl, char *file)
 
 static void tbl_clear (tbl_t *tbl)
 {
-	size_t i;
-
 	sfree (tbl->file);
 	sfree (tbl->sep);
 	sfree (tbl->instance);
 
-	for (i = 0; i < tbl->results_num; ++i)
+	for (size_t i = 0; i < tbl->results_num; ++i)
 		tbl_result_clear (tbl->results + i);
 	sfree (tbl->results);
 	tbl->results_num = 0;
@@ -144,7 +143,6 @@ static int tbl_config_append_array_i (char *name, size_t **var, size_t *len,
 {
 	size_t *tmp;
 	size_t num;
-	size_t i;
 
 	if (1 > ci->values_num) {
 		log_err ("\"%s\" expects at least one argument.", name);
@@ -152,7 +150,7 @@ static int tbl_config_append_array_i (char *name, size_t **var, size_t *len,
 	}
 
 	num = (size_t) ci->values_num;
-	for (i = 0; i < num; ++i) {
+	for (size_t i = 0; i < num; ++i) {
 		if (OCONFIG_TYPE_NUMBER != ci->values[i].type) {
 			log_err ("\"%s\" expects numerical arguments only.", name);
 			return 1;
@@ -168,7 +166,7 @@ static int tbl_config_append_array_i (char *name, size_t **var, size_t *len,
 	}
 	*var = tmp;
 
-	for (i = 0; i < num; ++i) {
+	for (size_t i = 0; i < num; ++i) {
 		(*var)[*len] = (size_t) ci->values[i].value.number;
 		(*len)++;
 	}
@@ -181,7 +179,6 @@ static int tbl_config_result (tbl_t *tbl, oconfig_item_t *ci)
 	tbl_result_t *res;
 
 	int status = 0;
-	int i;
 
 	if (0 != ci->values_num) {
 		log_err ("<Result> does not expect any arguments.");
@@ -203,7 +200,7 @@ static int tbl_config_result (tbl_t *tbl, oconfig_item_t *ci)
 	res = tbl->results + tbl->results_num - 1;
 	tbl_result_setup (res);
 
-	for (i = 0; i < ci->children_num; ++i) {
+	for (int i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *c = ci->children + i;
 
 		if (0 == strcasecmp (c->key, "Type"))
@@ -246,7 +243,6 @@ static int tbl_config_table (oconfig_item_t *ci)
 	tbl_t *tbl;
 
 	int status = 0;
-	size_t i;
 
 	if ((1 != ci->values_num)
 			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
@@ -268,7 +264,7 @@ static int tbl_config_table (oconfig_item_t *ci)
 	tbl = tables + tables_num - 1;
 	tbl_setup (tbl, ci->values[0].value.string);
 
-	for (i = 0; i < ((size_t) ci->children_num); ++i) {
+	for (size_t i = 0; i < ((size_t) ci->children_num); ++i) {
 		oconfig_item_t *c = ci->children + i;
 
 		if (0 == strcasecmp (c->key, "Separator"))
@@ -306,15 +302,14 @@ static int tbl_config_table (oconfig_item_t *ci)
 		return status;
 	}
 
-	for (i = 0; i < tbl->results_num; ++i) {
+	for (size_t i = 0; i < tbl->results_num; ++i) {
 		tbl_result_t *res = tbl->results + i;
-		size_t j;
 
-		for (j = 0; j < res->instances_num; ++j)
+		for (size_t j = 0; j < res->instances_num; ++j)
 			if (res->instances[j] > tbl->max_colnum)
 				tbl->max_colnum = res->instances[j];
 
-		for (j = 0; j < res->values_num; ++j)
+		for (size_t j = 0; j < res->values_num; ++j)
 			if (res->values[j] > tbl->max_colnum)
 				tbl->max_colnum = res->values[j];
 	}
@@ -323,9 +318,7 @@ static int tbl_config_table (oconfig_item_t *ci)
 
 static int tbl_config (oconfig_item_t *ci)
 {
-	int i;
-
-	for (i = 0; i < ci->children_num; ++i) {
+	for (int i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *c = ci->children + i;
 
 		if (0 == strcasecmp (c->key, "Table"))
@@ -342,9 +335,7 @@ static int tbl_config (oconfig_item_t *ci)
 
 static int tbl_prepare (tbl_t *tbl)
 {
-	size_t i;
-
-	for (i = 0; i < tbl->results_num; ++i) {
+	for (size_t i = 0; i < tbl->results_num; ++i) {
 		tbl_result_t *res = tbl->results + i;
 
 		res->ds = plugin_get_ds (res->type);
@@ -367,9 +358,7 @@ static int tbl_prepare (tbl_t *tbl)
 
 static int tbl_finish (tbl_t *tbl)
 {
-	size_t i;
-
-	for (i = 0; i < tbl->results_num; ++i)
+	for (size_t i = 0; i < tbl->results_num; ++i)
 		tbl->results[i].ds = NULL;
 	return 0;
 } /* tbl_finish */
@@ -380,12 +369,10 @@ static int tbl_result_dispatch (tbl_t *tbl, tbl_result_t *res,
 	value_list_t vl = VALUE_LIST_INIT;
 	value_t values[res->values_num];
 
-	size_t i;
-
 	assert (NULL != res->ds);
 	assert (res->values_num == res->ds->ds_num);
 
-	for (i = 0; i < res->values_num; ++i) {
+	for (size_t i = 0; i < res->values_num; ++i) {
 		char *value;
 
 		assert (res->values[i] < fields_num);
@@ -412,7 +399,7 @@ static int tbl_result_dispatch (tbl_t *tbl, tbl_result_t *res,
 		char *instances[res->instances_num];
 		char  instances_str[DATA_MAX_NAME_LEN];
 
-		for (i = 0; i < res->instances_num; ++i) {
+		for (size_t i = 0; i < res->instances_num; ++i) {
 			assert (res->instances[i] < fields_num);
 			instances[i] = fields[res->instances[i]];
 		}
@@ -444,9 +431,8 @@ static int tbl_parse_line (tbl_t *tbl, char *line, size_t len)
 	char *fields[tbl->max_colnum + 1];
 	char *ptr, *saveptr;
 
-	size_t i;
+	size_t i = 0;
 
-	i = 0;
 	ptr = line;
 	saveptr = NULL;
 	while (NULL != (fields[i] = strtok_r (ptr, tbl->sep, &saveptr))) {
@@ -518,12 +504,11 @@ static int tbl_read_table (tbl_t *tbl)
 static int tbl_read (void)
 {
 	int status = -1;
-	size_t i;
 
 	if (0 == tables_num)
 		return 0;
 
-	for (i = 0; i < tables_num; ++i) {
+	for (size_t i = 0; i < tables_num; ++i) {
 		tbl_t *tbl = tables + i;
 
 		if (0 != tbl_prepare (tbl)) {
@@ -541,9 +526,7 @@ static int tbl_read (void)
 
 static int tbl_shutdown (void)
 {
-	size_t i;
-
-	for (i = 0; i < tables_num; ++i)
+	for (size_t i = 0; i < tables_num; ++i)
 		tbl_clear (&tables[i]);
 	sfree (tables);
 	return 0;

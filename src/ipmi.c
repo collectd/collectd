@@ -24,6 +24,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 #include "utils_ignorelist.h"
@@ -80,9 +81,7 @@ static int c_ipmi_nofiy_notpresent = 0;
  */
 static void c_ipmi_error (const char *func, int status)
 {
-  char errbuf[4096];
-
-  memset (errbuf, 0, sizeof (errbuf));
+  char errbuf[4096] = { 0 };
 
   if (IPMI_IS_OS_ERR (status))
   {
@@ -234,7 +233,7 @@ static int sensor_list_add (ipmi_sensor_t *sensor)
   c_ipmi_sensor_list_t *list_item;
   c_ipmi_sensor_list_t *list_prev;
 
-  char buffer[DATA_MAX_NAME_LEN];
+  char buffer[DATA_MAX_NAME_LEN] = { 0 };
   const char *entity_id_string;
   char sensor_name[DATA_MAX_NAME_LEN];
   char *sensor_name_ptr;
@@ -244,7 +243,6 @@ static int sensor_list_add (ipmi_sensor_t *sensor)
 
   sensor_id = ipmi_sensor_convert_to_id (sensor);
 
-  memset (buffer, 0, sizeof (buffer));
   ipmi_sensor_get_name (sensor, buffer, sizeof (buffer));
   buffer[sizeof (buffer) - 1] = 0;
 
@@ -434,11 +432,9 @@ static int sensor_list_remove (ipmi_sensor_t *sensor)
 
 static int sensor_list_read_all (void)
 {
-  c_ipmi_sensor_list_t *list_item;
-
   pthread_mutex_lock (&sensor_list_lock);
 
-  for (list_item = sensor_list;
+  for (c_ipmi_sensor_list_t *list_item = sensor_list;
       list_item != NULL;
       list_item = list_item->next)
   {
@@ -550,7 +546,6 @@ static void domain_connection_change_handler (ipmi_domain_t *domain,
 static int thread_init (os_handler_t **ret_os_handler)
 {
   os_handler_t *os_handler;
-  ipmi_open_option_t open_option[1];
   ipmi_con_t *smi_connection = NULL;
   ipmi_domain_id_t domain_id;
   int status;
@@ -574,9 +569,12 @@ static int thread_init (os_handler_t **ret_os_handler)
     return (-1);
   }
 
-  memset (open_option, 0, sizeof (open_option));
-  open_option[0].option = IPMI_OPEN_OPTION_ALL;
-  open_option[0].ival = 1;
+  ipmi_open_option_t open_option[1] = {
+    [0] = {
+      .option = IPMI_OPEN_OPTION_ALL,
+      { .ival = 1 }
+    }
+  };
 
   status = ipmi_open_domain ("mydomain", &smi_connection, /* num_con = */ 1,
       domain_connection_change_handler, /* user data = */ NULL,

@@ -20,13 +20,13 @@ Pierre-Yves Ritschard <pyr at spootnik.org>
  - Normalization in the CPU plugin.
  - Relative values in the Load plugin.
 
-Ruben Kerkhof <ruben@rubenkerkhof.com>
+Ruben Kerkhof <ruben at rubenkerkhof.com>
  - Bugfixes and enhancements in many places all around the project.
- - Fedora package.
+ - Fedora and EPEL packages.
 
 Sebastian "tokkee" Harl <sh at tokkee.org>
  - Bugfixes and enhancements in many places all around the project.
- - gprc plugin.
+ - grpc plugin.
  - perl plugin.
  - postgresql plugin.
  - users plugin.
@@ -218,6 +218,9 @@ Michał Mirosław <mirq-linux at rere.qmqm.pl>
 
 Mirko Buffoni <briareos at eswat.org>
  - Port/Socket selection in the MySQL plugin.
+
+Nicolas Jourden <nicolas.jourden at laposte.net>
+ - gps plugin.
 
 Niki W. Waibel <niki.waibel at newlogic.com>
  - Initial autotools fixes.

@@ -20,6 +20,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
@@ -177,7 +178,6 @@ static void cx_list_free (llist_t *list) /* {{{ */
 static void cx_free (void *arg) /* {{{ */
 {
   cx_t *db;
-  size_t i;
 
   DEBUG ("curl_xml plugin: cx_free (arg = %p);", arg);
 
@@ -206,7 +206,7 @@ static void cx_free (void *arg) /* {{{ */
   curl_slist_free_all (db->headers);
   curl_stats_destroy (db->stats);
 
-  for (i = 0; i < db->namespaces_num; i++)
+  for (size_t i = 0; i < db->namespaces_num; i++)
   {
     sfree (db->namespaces[i].prefix);
     sfree (db->namespaces[i].url);
@@ -368,14 +368,13 @@ static int cx_handle_all_value_xpaths (xmlXPathContextPtr xpath_ctx, /* {{{ */
 {
   value_t values[xpath->values_len];
   int status;
-  size_t i;
 
   assert (xpath->values_len > 0);
   assert (xpath->values_len == vl->values_len);
   assert (xpath->values_len == ds->ds_num);
   vl->values = values;
 
-  for (i = 0; i < xpath->values_len; i++)
+  for (size_t i = 0; i < xpath->values_len; i++)
   {
     status = cx_handle_single_value_xpath (xpath_ctx, xpath, ds, vl, i);
     if (status != 0)
@@ -488,7 +487,6 @@ static int  cx_handle_base_xpath (char const *plugin_instance, /* {{{ */
     char *base_xpath, cx_xpath_t *xpath)
 {
   int total_nodes;
-  int i;
 
   xmlXPathObjectPtr base_node_obj = NULL;
   xmlNodeSetPtr base_nodes = NULL;
@@ -529,7 +527,7 @@ static int  cx_handle_base_xpath (char const *plugin_instance, /* {{{ */
   if (plugin_instance != NULL)
     sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
 
-  for (i = 0; i < total_nodes; i++)
+  for (int i = 0; i < total_nodes; i++)
   {
     int status;
 
@@ -583,7 +581,6 @@ static int cx_parse_stats_xml(xmlChar* xml, cx_t *db) /* {{{ */
   int status;
   xmlDocPtr doc;
   xmlXPathContextPtr xpath_ctx;
-  size_t i;
 
   /* Load the XML */
   doc = xmlParseDoc(xml);
@@ -601,7 +598,7 @@ static int cx_parse_stats_xml(xmlChar* xml, cx_t *db) /* {{{ */
     return (-1);
   }
 
-  for (i = 0; i < db->namespaces_num; i++)
+  for (size_t i = 0; i < db->namespaces_num; i++)
   {
     cx_namespace_t const *ns = db->namespaces + i;
     status = xmlXPathRegisterNs (xpath_ctx,
@@ -682,15 +679,13 @@ static int cx_read (user_data_t *ud) /* {{{ */
 static int cx_config_add_values (const char *name, cx_xpath_t *xpath, /* {{{ */
                                       oconfig_item_t *ci)
 {
-  int i;
-
   if (ci->values_num < 1)
   {
     WARNING ("curl_xml plugin: `ValuesFrom' needs at least one argument.");
     return (-1);
   }
 
-  for (i = 0; i < ci->values_num; i++)
+  for (int i = 0; i < ci->values_num; i++)
     if (ci->values[i].type != OCONFIG_TYPE_STRING)
     {
       WARNING ("curl_xml plugin: `ValuesFrom' needs only string argument.");
@@ -706,7 +701,7 @@ static int cx_config_add_values (const char *name, cx_xpath_t *xpath, /* {{{ */
   xpath->values_len = (size_t) ci->values_num;
 
   /* populate cx_values_t structure */
-  for (i = 0; i < ci->values_num; i++)
+  for (int i = 0; i < ci->values_num; i++)
   {
     xpath->values[i].path_len = sizeof (ci->values[i].value.string);
     sstrncpy (xpath->values[i].path, ci->values[i].value.string, sizeof (xpath->values[i].path));
@@ -721,7 +716,6 @@ static int cx_config_add_xpath (cx_t *db, oconfig_item_t *ci) /* {{{ */
   char *name;
   llentry_t *le;
   int status;
-  int i;
 
   xpath = calloc (1, sizeof (*xpath));
   if (xpath == NULL)
@@ -747,7 +741,7 @@ static int cx_config_add_xpath (cx_t *db, oconfig_item_t *ci) /* {{{ */
   }
 
   status = 0;
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -926,7 +920,6 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
 {
   cx_t *db;
   int status = 0;
-  int i;
 
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_STRING))
@@ -963,7 +956,7 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
   }
 
   /* Fill the `cx_t' structure.. */
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -1024,7 +1017,7 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
   /* If all went well, register this database for reading */
   if (status == 0)
   {
-    user_data_t ud;
+    user_data_t ud = { 0 };
     char *cb_name;
 
     if (db->instance == NULL)
@@ -1033,7 +1026,6 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
     DEBUG ("curl_xml plugin: Registering new read callback: %s",
            db->instance);
 
-    memset (&ud, 0, sizeof (ud));
     ud.data = (void *) db;
     ud.free_func = cx_free;
 
@@ -1058,12 +1050,11 @@ static int cx_config (oconfig_item_t *ci) /* {{{ */
   int success;
   int errors;
   int status;
-  int i;
 
   success = 0;
   errors = 0;
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 

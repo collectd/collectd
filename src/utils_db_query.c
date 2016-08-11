@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
@@ -125,7 +126,6 @@ static int udb_config_add_string (char ***ret_array, /* {{{ */
 {
   char **array;
   size_t array_len;
-  int i;
 
   if (ci->values_num < 1)
   {
@@ -134,7 +134,7 @@ static int udb_config_add_string (char ***ret_array, /* {{{ */
     return (-1);
   }
 
-  for (i = 0; i < ci->values_num; i++)
+  for (int i = 0; i < ci->values_num; i++)
   {
     if (ci->values[i].type != OCONFIG_TYPE_STRING)
     {
@@ -154,7 +154,7 @@ static int udb_config_add_string (char ***ret_array, /* {{{ */
   }
   *ret_array = array;
 
-  for (i = 0; i < ci->values_num; i++)
+  for (int i = 0; i < ci->values_num; i++)
   {
     array[array_len] = strdup (ci->values[i].value.string);
     if (array[array_len] == NULL)
@@ -199,8 +199,6 @@ static int udb_result_submit (udb_result_t *r, /* {{{ */
     udb_query_t const *q, udb_query_preparation_area_t *q_area)
 {
   value_list_t vl = VALUE_LIST_INIT;
-  size_t i;
-  int status;
 
   assert (r != NULL);
   assert (r_area->ds != NULL);
@@ -215,7 +213,7 @@ static int udb_result_submit (udb_result_t *r, /* {{{ */
   }
   vl.values_len = r_area->ds->ds_num;
 
-  for (i = 0; i < r->values_num; i++)
+  for (size_t i = 0; i < r->values_num; i++)
   {
     char *value_str = r_area->values_buffer[i];
 
@@ -257,15 +255,27 @@ static int udb_result_submit (udb_result_t *r, /* {{{ */
   {
     if (r->instance_prefix == NULL)
     {
-      strjoin (vl.type_instance, sizeof (vl.type_instance),
+      int status = strjoin (vl.type_instance, sizeof (vl.type_instance),
           r_area->instances_buffer, r->instances_num, "-");
+      if (status < 0)
+      {
+        ERROR ("udb_result_submit: creating type_instance failed with status %d.",
+            status);
+        return (status);
+      }
     }
     else
     {
       char tmp[DATA_MAX_NAME_LEN];
 
-      strjoin (tmp, sizeof (tmp), r_area->instances_buffer,
+      int status = strjoin (tmp, sizeof (tmp), r_area->instances_buffer,
           r->instances_num, "-");
+      if (status < 0)
+      {
+        ERROR ("udb_result_submit: creating type_instance failed with status %d.",
+            status);
+        return (status);
+      }
       tmp[sizeof (tmp) - 1] = 0;
 
       snprintf (vl.type_instance, sizeof (vl.type_instance), "%s-%s",
@@ -285,9 +295,9 @@ static int udb_result_submit (udb_result_t *r, /* {{{ */
       return (-ENOMEM);
     }
 
-    for (i = 0; i < r->metadata_num; i++)
+    for (size_t i = 0; i < r->metadata_num; i++)
     {
-      status = meta_data_add_string (vl.meta, r->metadata[i],
+      int status = meta_data_add_string (vl.meta, r->metadata[i],
           r_area->metadata_buffer[i]);
       if (status != 0)
       {
@@ -331,17 +341,15 @@ static int udb_result_handle_result (udb_result_t *r, /* {{{ */
     udb_result_preparation_area_t *r_area,
     udb_query_t const *q, char **column_values)
 {
-  size_t i;
-
   assert (r && q_area && r_area);
 
-  for (i = 0; i < r->instances_num; i++)
+  for (size_t i = 0; i < r->instances_num; i++)
     r_area->instances_buffer[i] = column_values[r_area->instances_pos[i]];
 
-  for (i = 0; i < r->values_num; i++)
+  for (size_t i = 0; i < r->values_num; i++)
     r_area->values_buffer[i] = column_values[r_area->values_pos[i]];
 
-  for (i = 0; i < r->metadata_num; i++)
+  for (size_t i = 0; i < r->metadata_num; i++)
     r_area->metadata_buffer[i] = column_values[r_area->metadata_pos[i]];
 
   if (q->plugin_instance_from)
@@ -354,8 +362,6 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
     udb_result_preparation_area_t *prep_area,
     char **column_names, size_t column_num)
 {
-  size_t i;
-
   if ((r == NULL) || (prep_area == NULL))
     return (-EINVAL);
 
@@ -452,7 +458,7 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
   /* }}} */
 
   /* Determine the position of the plugin instance column {{{ */
-  for (i = 0; i < r->instances_num; i++)
+  for (size_t i = 0; i < r->instances_num; i++)
   {
     size_t j;
 
@@ -476,7 +482,7 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
 
 
   /* Determine the position of the value columns {{{ */
-  for (i = 0; i < r->values_num; i++)
+  for (size_t i = 0; i < r->values_num; i++)
   {
     size_t j;
 
@@ -499,7 +505,7 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
   } /* }}} for (i = 0; i < r->values_num; i++) */
 
   /* Determine the position of the metadata columns {{{ */
-  for (i = 0; i < r->metadata_num; i++)
+  for (size_t i = 0; i < r->metadata_num; i++)
   {
     size_t j;
 
@@ -527,23 +533,21 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
 
 static void udb_result_free (udb_result_t *r) /* {{{ */
 {
-  size_t i;
-
   if (r == NULL)
     return;
 
   sfree (r->type);
   sfree (r->instance_prefix);
 
-  for (i = 0; i < r->instances_num; i++)
+  for (size_t i = 0; i < r->instances_num; i++)
     sfree (r->instances[i]);
   sfree (r->instances);
 
-  for (i = 0; i < r->values_num; i++)
+  for (size_t i = 0; i < r->values_num; i++)
     sfree (r->values[i]);
   sfree (r->values);
 
-  for (i = 0; i < r->metadata_num; i++)
+  for (size_t i = 0; i < r->metadata_num; i++)
     sfree (r->metadata[i]);
   sfree (r->metadata);
 
@@ -557,7 +561,6 @@ static int udb_result_create (const char *query_name, /* {{{ */
 {
   udb_result_t *r;
   int status;
-  int i;
 
   if (ci->values_num != 0)
   {
@@ -581,7 +584,7 @@ static int udb_result_create (const char *query_name, /* {{{ */
 
   /* Fill the `udb_result_t' structure.. */
   status = 0;
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -679,7 +682,6 @@ int udb_query_create (udb_query_t ***ret_query_list, /* {{{ */
 
   udb_query_t *q;
   int status;
-  int i;
 
   if ((ret_query_list == NULL) || (ret_query_list_len == NULL))
     return (-EINVAL);
@@ -714,7 +716,7 @@ int udb_query_create (udb_query_t ***ret_query_list, /* {{{ */
   }
 
   /* Fill the `udb_query_t' structure.. */
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -801,12 +803,10 @@ int udb_query_create (udb_query_t ***ret_query_list, /* {{{ */
 
 void udb_query_free (udb_query_t **query_list, size_t query_list_len) /* {{{ */
 {
-  size_t i;
-
   if (query_list == NULL)
     return;
 
-  for (i = 0; i < query_list_len; i++)
+  for (size_t i = 0; i < query_list_len; i++)
     udb_query_free_one (query_list[i]);
 
   sfree (query_list);
@@ -816,7 +816,6 @@ int udb_query_pick_from_list_by_name (const char *name, /* {{{ */
     udb_query_t **src_list, size_t src_list_len,
     udb_query_t ***dst_list, size_t *dst_list_len)
 {
-  size_t i;
   int num_added;
 
   if ((name == NULL) || (src_list == NULL) || (dst_list == NULL)
@@ -828,7 +827,7 @@ int udb_query_pick_from_list_by_name (const char *name, /* {{{ */
   }
 
   num_added = 0;
-  for (i = 0; i < src_list_len; i++)
+  for (size_t i = 0; i < src_list_len; i++)
   {
     udb_query_t **tmp_list;
     size_t tmp_list_len;
@@ -989,9 +988,7 @@ int udb_query_handle_result (udb_query_t const *q, /* {{{ */
 #if defined(COLLECT_DEBUG) && COLLECT_DEBUG /* {{{ */
   do
   {
-    size_t i;
-
-    for (i = 0; i < prep_area->column_num; i++)
+    for (size_t i = 0; i < prep_area->column_num; i++)
     {
       DEBUG ("db query utils: udb_query_handle_result (%s, %s): "
           "column[%zu] = %s;",
@@ -1052,9 +1049,7 @@ int udb_query_prepare_result (udb_query_t const *q, /* {{{ */
 #if defined(COLLECT_DEBUG) && COLLECT_DEBUG
   do
   {
-    size_t i;
-
-    for (i = 0; i < column_num; i++)
+    for (size_t i = 0; i < column_num; i++)
     {
       DEBUG ("db query utils: udb_query_prepare_result: "
           "query = %s; column[%zu] = %s;",

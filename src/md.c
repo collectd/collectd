@@ -20,6 +20,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 #include "utils_ignorelist.h"
@@ -28,6 +29,10 @@
 
 #include <linux/major.h>
 #include <linux/raid/md_u.h>
+
+#ifdef HAVE_SYS_SYSMACROS_H
+#include <sys/sysmacros.h>
+#endif
 
 #define PROC_DISKSTATS "/proc/diskstats"
 #define DEV_DIR "/dev"

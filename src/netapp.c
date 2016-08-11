@@ -27,6 +27,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "utils_ignorelist.h"
 
@@ -889,14 +890,11 @@ static cdtime_t cna_child_get_cdtime (na_elem_t *data) /* {{{ */
 static int cna_handle_wafl_data (const char *hostname, cfg_wafl_t *cfg_wafl, /* {{{ */
 		na_elem_t *data, cdtime_t interval)
 {
-	cfg_wafl_t perf_data;
+	cfg_wafl_t perf_data = { 0 };
 	const char *plugin_inst;
 
 	na_elem_t *instances;
-	na_elem_t *counter;
 	na_elem_iter_t counter_iter;
-
-	memset (&perf_data, 0, sizeof (perf_data));
 
 	perf_data.timestamp = cna_child_get_cdtime (data);
 
@@ -920,7 +918,7 @@ static int cna_handle_wafl_data (const char *hostname, cfg_wafl_t *cfg_wafl, /* 
 
 	/* Iterate over all counters */
 	counter_iter = na_child_iterator (na_elem_child (instances, "counters"));
-	for (counter = na_iterator_next (&counter_iter);
+	for (na_elem_t *counter = na_iterator_next (&counter_iter);
 			counter != NULL;
 			counter = na_iterator_next (&counter_iter))
 	{
@@ -1056,7 +1054,6 @@ static int cna_handle_disk_data (const char *hostname, /* {{{ */
 {
 	cdtime_t timestamp;
 	na_elem_t *instances;
-	na_elem_t *instance;
 	na_elem_iter_t instance_iter;
 	disk_t *worst_disk = NULL;
 
@@ -1076,17 +1073,15 @@ static int cna_handle_disk_data (const char *hostname, /* {{{ */
 
 	/* Iterate over all children */
 	instance_iter = na_child_iterator (instances);
-	for (instance = na_iterator_next (&instance_iter);
+	for (na_elem_t *instance = na_iterator_next (&instance_iter);
 			instance != NULL;
 			instance = na_iterator_next(&instance_iter))
 	{
 		disk_t *old_data;
-		disk_t  new_data;
+		disk_t  new_data = { 0 };
 
 		na_elem_iter_t counter_iterator;
-		na_elem_t *counter;
 
-		memset (&new_data, 0, sizeof (new_data));
 		new_data.timestamp = timestamp;
 		new_data.disk_busy_percent = NAN;
 
@@ -1096,7 +1091,7 @@ static int cna_handle_disk_data (const char *hostname, /* {{{ */
 
 		/* Look for the "disk_busy" and "base_for_disk_busy" counters */
 		counter_iterator = na_child_iterator(na_elem_child(instance, "counters"));
-		for (counter = na_iterator_next(&counter_iterator);
+		for (na_elem_t *counter = na_iterator_next(&counter_iterator);
 				counter != NULL;
 				counter = na_iterator_next(&counter_iterator))
 		{
@@ -1253,7 +1248,6 @@ static int cna_handle_volume_perf_data (const char *hostname, /* {{{ */
 	cdtime_t timestamp;
 	na_elem_t *elem_instances;
 	na_elem_iter_t iter_instances;
-	na_elem_t *elem_instance;
 
 	timestamp = cna_child_get_cdtime (data);
 
@@ -1267,20 +1261,18 @@ static int cna_handle_volume_perf_data (const char *hostname, /* {{{ */
 	}
 
 	iter_instances = na_child_iterator (elem_instances);
-	for (elem_instance = na_iterator_next(&iter_instances);
+	for (na_elem_t *elem_instance = na_iterator_next(&iter_instances);
 			elem_instance != NULL;
 			elem_instance = na_iterator_next(&iter_instances))
 	{
 		const char *name;
 
-		data_volume_perf_t perf_data;
+		data_volume_perf_t perf_data = { 0 };
 		data_volume_perf_t *v;
 
 		na_elem_t *elem_counters;
 		na_elem_iter_t iter_counters;
-		na_elem_t *elem_counter;
 
-		memset (&perf_data, 0, sizeof (perf_data));
 		perf_data.timestamp = timestamp;
 
 		name = na_child_get_string (elem_instance, "name");
@@ -1297,7 +1289,7 @@ static int cna_handle_volume_perf_data (const char *hostname, /* {{{ */
 			continue;
 
 		iter_counters = na_child_iterator (elem_counters);
-		for (elem_counter = na_iterator_next(&iter_counters);
+		for (na_elem_t *elem_counter = na_iterator_next(&iter_counters);
 				elem_counter != NULL;
 				elem_counter = na_iterator_next(&iter_counters))
 		{
@@ -1422,9 +1414,7 @@ static int cna_query_volume_perf (host_config_t *host) /* {{{ */
 static int cna_submit_volume_usage_data (const char *hostname, /* {{{ */
 		cfg_volume_usage_t *cfg_volume, int interval)
 {
-	data_volume_usage_t *v;
-
-	for (v = cfg_volume->volumes; v != NULL; v = v->next)
+	for (data_volume_usage_t *v = cfg_volume->volumes; v != NULL; v = v->next)
 	{
 		char plugin_instance[DATA_MAX_NAME_LEN];
 
@@ -1519,9 +1509,8 @@ static int cna_submit_volume_usage_data (const char *hostname, /* {{{ */
 static int cna_change_volume_status (const char *hostname, /* {{{ */
 		data_volume_usage_t *v)
 {
-	notification_t n;
+	notification_t n = { 0 };
 
-	memset (&n, 0, sizeof (n));
 	n.time = cdtime ();
 	sstrncpy (n.host, hostname, sizeof (n.host));
 	sstrncpy (n.plugin, "netapp", sizeof (n.plugin));
@@ -1546,7 +1535,7 @@ static void cna_handle_volume_snap_usage(const host_config_t *host, /* {{{ */
 		data_volume_usage_t *v)
 {
 	uint64_t snap_used = 0, value;
-	na_elem_t *data, *elem_snap, *elem_snapshots;
+	na_elem_t *data, *elem_snapshots;
 	na_elem_iter_t iter_snap;
 
 	data = na_server_invoke_elem(host->srv, v->snap_query);
@@ -1578,7 +1567,7 @@ static void cna_handle_volume_snap_usage(const host_config_t *host, /* {{{ */
 	}
 
 	iter_snap = na_child_iterator (elem_snapshots);
-	for (elem_snap = na_iterator_next (&iter_snap);
+	for (na_elem_t *elem_snap = na_iterator_next (&iter_snap);
 			elem_snap != NULL;
 			elem_snap = na_iterator_next (&iter_snap))
 	{
@@ -1693,7 +1682,6 @@ static void cna_handle_volume_sis_saved (const host_config_t *host, /* {{{ */
 static int cna_handle_volume_usage_data (const host_config_t *host, /* {{{ */
 		cfg_volume_usage_t *cfg_volume, na_elem_t *data)
 {
-	na_elem_t *elem_volume;
 	na_elem_t *elem_volumes;
 	na_elem_iter_t iter_volume;
 
@@ -1707,7 +1695,7 @@ static int cna_handle_volume_usage_data (const host_config_t *host, /* {{{ */
 	}
 
 	iter_volume = na_child_iterator (elem_volumes);
-	for (elem_volume = na_iterator_next (&iter_volume);
+	for (na_elem_t *elem_volume = na_iterator_next (&iter_volume);
 			elem_volume != NULL;
 			elem_volume = na_iterator_next (&iter_volume))
 	{
@@ -1831,7 +1819,6 @@ static int cna_query_volume_usage (host_config_t *host) /* {{{ */
 static int cna_handle_quota_data (const host_config_t *host, /* {{{ */
 		cfg_quota_t *cfg_quota, na_elem_t *data)
 {
-	na_elem_t *elem_quota;
 	na_elem_t *elem_quotas;
 	na_elem_iter_t iter_quota;
 
@@ -1845,7 +1832,7 @@ static int cna_handle_quota_data (const host_config_t *host, /* {{{ */
 	}
 
 	iter_quota = na_child_iterator (elem_quotas);
-	for (elem_quota = na_iterator_next (&iter_quota);
+	for (na_elem_t *elem_quota = na_iterator_next (&iter_quota);
 			elem_quota != NULL;
 			elem_quota = na_iterator_next (&iter_quota))
 	{
@@ -1957,7 +1944,6 @@ static int cna_query_quota (host_config_t *host) /* {{{ */
 static int cna_handle_snapvault_data (const char *hostname, /* {{{ */
 		cfg_snapvault_t *cfg_snapvault, na_elem_t *data, cdtime_t interval)
 {
-	na_elem_t *status;
 	na_elem_iter_t status_iter;
 
 	status = na_elem_child (data, "status-list");
@@ -1967,7 +1953,7 @@ static int cna_handle_snapvault_data (const char *hostname, /* {{{ */
 	}
 
 	status_iter = na_child_iterator (status);
-	for (status = na_iterator_next (&status_iter);
+	for (na_elem_t *status = na_iterator_next (&status_iter);
 			status != NULL;
 			status = na_iterator_next (&status_iter))
 	{
@@ -2017,7 +2003,6 @@ static int cna_handle_snapvault_iter (host_config_t *host, /* {{{ */
 	const char *tag;
 
 	uint32_t records_count;
-	uint32_t i;
 
 	records_count = na_child_get_uint32 (data, "records", UINT32_MAX);
 	if (records_count == UINT32_MAX)
@@ -2029,7 +2014,7 @@ static int cna_handle_snapvault_iter (host_config_t *host, /* {{{ */
 
 	DEBUG ("netapp plugin: Iterating %u SV records (tag = %s)", records_count, tag);
 
-	for (i = 0; i < records_count; ++i) {
+	for (uint32_t i = 0; i < records_count; ++i) {
 		na_elem_t *elem;
 
 		elem = na_server_invoke (host->srv,
@@ -2118,7 +2103,6 @@ static int cna_handle_system_data (const char *hostname, /* {{{ */
 		cfg_system_t *cfg_system, na_elem_t *data, int interval)
 {
 	na_elem_t *instances;
-	na_elem_t *counter;
 	na_elem_iter_t counter_iter;
 
 	derive_t disk_read = 0, disk_written = 0;
@@ -2150,7 +2134,7 @@ static int cna_handle_system_data (const char *hostname, /* {{{ */
 	}
 
 	counter_iter = na_child_iterator (na_elem_child (instances, "counters"));
-	for (counter = na_iterator_next (&counter_iter);
+	for (na_elem_t *counter = na_iterator_next (&counter_iter);
 			counter != NULL;
 			counter = na_iterator_next (&counter_iter))
 	{
@@ -2395,7 +2379,6 @@ static int cna_config_volume_performance (host_config_t *host, /* {{{ */
 		const oconfig_item_t *ci)
 {
 	cfg_volume_perf_t *cfg_volume_perf;
-	int i;
 
 	if ((host == NULL) || (ci == NULL))
 		return (EINVAL);
@@ -2438,7 +2421,7 @@ static int cna_config_volume_performance (host_config_t *host, /* {{{ */
 	}
 	cfg_volume_perf = host->cfg_volume_perf;
 
-	for (i = 0; i < ci->children_num; ++i) {
+	for (int i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *item = ci->children + i;
 
 		/* if (!item || !item->key || !*item->key) continue; */
@@ -2522,7 +2505,6 @@ static void cna_config_volume_usage_default (cfg_volume_usage_t *cvu, /* {{{ */
 static int cna_config_quota (host_config_t *host, oconfig_item_t *ci) /* {{{ */
 {
 	cfg_quota_t *cfg_quota;
-	int i;
 
 	if ((host == NULL) || (ci == NULL))
 		return (EINVAL);
@@ -2538,7 +2520,7 @@ static int cna_config_quota (host_config_t *host, oconfig_item_t *ci) /* {{{ */
 	}
 	cfg_quota = host->cfg_quota;
 
-	for (i = 0; i < ci->children_num; ++i) {
+	for (int i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *item = ci->children + i;
 
 		if (strcasecmp (item->key, "Interval") == 0)
@@ -2554,7 +2536,6 @@ static int cna_config_quota (host_config_t *host, oconfig_item_t *ci) /* {{{ */
 /* Corresponds to a <Disks /> block */
 static int cna_config_disk(host_config_t *host, oconfig_item_t *ci) { /* {{{ */
 	cfg_disk_t *cfg_disk;
-	int i;
 
 	if ((host == NULL) || (ci == NULL))
 		return (EINVAL);
@@ -2574,7 +2555,7 @@ static int cna_config_disk(host_config_t *host, oconfig_item_t *ci) { /* {{{ */
 	}
 	cfg_disk = host->cfg_disk;
 
-	for (i = 0; i < ci->children_num; ++i) {
+	for (int i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *item = ci->children + i;
 
 		/* if (!item || !item->key || !*item->key) continue; */
@@ -2599,7 +2580,6 @@ static int cna_config_disk(host_config_t *host, oconfig_item_t *ci) { /* {{{ */
 static int cna_config_wafl(host_config_t *host, oconfig_item_t *ci) /* {{{ */
 {
 	cfg_wafl_t *cfg_wafl;
-	int i;
 
 	if ((host == NULL) || (ci == NULL))
 		return (EINVAL);
@@ -2617,7 +2597,7 @@ static int cna_config_wafl(host_config_t *host, oconfig_item_t *ci) /* {{{ */
 	}
 	cfg_wafl = host->cfg_wafl;
 
-	for (i = 0; i < ci->children_num; ++i) {
+	for (int i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *item = ci->children + i;
 
 		if (strcasecmp(item->key, "Interval") == 0)
@@ -2667,7 +2647,6 @@ static int cna_config_volume_usage(host_config_t *host, /* {{{ */
 		const oconfig_item_t *ci)
 {
 	cfg_volume_usage_t *cfg_volume_usage;
-	int i;
 
 	if ((host == NULL) || (ci == NULL))
 		return (EINVAL);
@@ -2701,7 +2680,7 @@ static int cna_config_volume_usage(host_config_t *host, /* {{{ */
 	}
 	cfg_volume_usage = host->cfg_volume_usage;
 
-	for (i = 0; i < ci->children_num; ++i) {
+	for (int i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *item = ci->children + i;
 
 		/* if (!item || !item->key || !*item->key) continue; */
@@ -2728,7 +2707,6 @@ static int cna_config_snapvault (host_config_t *host, /* {{{ */
 		const oconfig_item_t *ci)
 {
 	cfg_snapvault_t *cfg_snapvault;
-	int i;
 
 	if ((host == NULL) || (ci == NULL))
 		return EINVAL;
@@ -2745,7 +2723,7 @@ static int cna_config_snapvault (host_config_t *host, /* {{{ */
 
 	cfg_snapvault = host->cfg_snapvault;
 
-	for (i = 0; i < ci->children_num; ++i) {
+	for (int i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *item = ci->children + i;
 
 		if (strcasecmp (item->key, "Interval") == 0)
@@ -2763,7 +2741,6 @@ static int cna_config_system (host_config_t *host, /* {{{ */
 		oconfig_item_t *ci)
 {
 	cfg_system_t *cfg_system;
-	int i;
 
 	if ((host == NULL) || (ci == NULL))
 		return (EINVAL);
@@ -2782,7 +2759,7 @@ static int cna_config_system (host_config_t *host, /* {{{ */
 	}
 	cfg_system = host->cfg_system;
 
-	for (i = 0; i < ci->children_num; ++i) {
+	for (int i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *item = ci->children + i;
 
 		if (strcasecmp(item->key, "Interval") == 0) {
@@ -2895,7 +2872,7 @@ static int cna_read (user_data_t *ud);
 static int cna_register_host (host_config_t *host) /* {{{ */
 {
 	char cb_name[256];
-	user_data_t ud;
+	user_data_t ud = { 0 };
 
 	if (host->vfiler)
 		ssnprintf (cb_name, sizeof (cb_name), "netapp-%s-%s",
@@ -2903,7 +2880,6 @@ static int cna_register_host (host_config_t *host) /* {{{ */
 	else
 		ssnprintf (cb_name, sizeof (cb_name), "netapp-%s", host->name);
 
-	memset (&ud, 0, sizeof (ud));
 	ud.data = host;
 	ud.free_func = (void (*) (void *)) free_host_config;
 
@@ -2921,7 +2897,6 @@ static int cna_config_host (host_config_t *host, /* {{{ */
 	oconfig_item_t *item;
 	_Bool is_vfiler = 0;
 	int status;
-	int i;
 
 	if (! strcasecmp (ci->key, "VFiler"))
 		is_vfiler = 1;
@@ -2935,7 +2910,7 @@ static int cna_config_host (host_config_t *host, /* {{{ */
 	if (status != 0)
 		return (1);
 
-	for (i = 0; i < ci->children_num; ++i) {
+	for (int i = 0; i < ci->children_num; ++i) {
 		item = ci->children + i;
 
 		status = 0;
@@ -3074,9 +3049,8 @@ static int cna_init_host (host_config_t *host) /* {{{ */
 
 static int cna_init (void) /* {{{ */
 {
-	char err[256];
+	char err[256] = { 0 };
 
-	memset (err, 0, sizeof (err));
 	if (!na_startup(err, sizeof(err))) {
 		err[sizeof (err) - 1] = 0;
 		ERROR("netapp plugin: Error initializing netapp API: %s", err);
@@ -3145,10 +3119,9 @@ static int cna_read (user_data_t *ud) { /* {{{ */
 } /* }}} int cna_read */
 
 static int cna_config (oconfig_item_t *ci) { /* {{{ */
-	int i;
 	oconfig_item_t *item;
 
-	for (i = 0; i < ci->children_num; ++i) {
+	for (int i = 0; i < ci->children_num; ++i) {
 		item = ci->children + i;
 
 		if (strcasecmp(item->key, "Host") == 0)

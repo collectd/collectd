@@ -20,6 +20,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -33,9 +34,7 @@ static char *conf_device = NULL;
 
 static int aquaero_config (oconfig_item_t *ci)
 {
-	int i;
-
-	for (i = 0; i < ci->children_num; i++)
+	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
 
@@ -87,9 +86,8 @@ static void aquaero_submit_array (const char *type,
 		const char *type_instance_prefix, double *value_array, int len)
 {
 	char type_instance[DATA_MAX_NAME_LEN];
-	int i;
 
-	for (i = 0; i < len; i++)
+	for (int i = 0; i < len; i++)
 	{
 		if (value_array[i] == AQ5_FLOAT_UNDEF)
 			continue;
@@ -106,7 +104,6 @@ static int aquaero_read (void)
 	aq5_settings_t aq_sett;
 	char *err_msg = NULL;
 	char type_instance[DATA_MAX_NAME_LEN];
-	int i;
 
 	if (libaquaero5_poll(conf_device, &aq_data, &err_msg) < 0)
 	{
@@ -147,7 +144,7 @@ static int aquaero_read (void)
 			AQ5_NUM_OTHER_SENSORS);
 
 	/* Fans */
-	for (i = 0; i < AQ5_NUM_FAN; i++)
+	for (int i = 0; i < AQ5_NUM_FAN; i++)
 	{
 		if ((aq_sett.fan_data_source[i] == NONE)
 				|| (aq_data.fan_vrm_temp[i] != AQ5_FLOAT_UNDEF))

@@ -46,6 +46,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
@@ -93,7 +94,6 @@ static void o_report_error (const char *where, /* {{{ */
   char buffer[2048];
   sb4 error_code;
   int status;
-  unsigned int record_number;
 
   if (db_name == NULL)
     db_name = "(none)";
@@ -102,7 +102,7 @@ static void o_report_error (const char *where, /* {{{ */
 
   /* An operation may cause / return multiple errors. Loop until we have
    * handled all errors available (with a fail-save limit of 16). */
-  for (record_number = 1; record_number <= 16; record_number++)
+  for (unsigned int record_number = 1; record_number <= 16; record_number++)
   {
     memset (buffer, 0, sizeof (buffer));
     error_code = -1;
@@ -144,8 +144,6 @@ static void o_report_error (const char *where, /* {{{ */
 
 static void o_database_free (o_database_t *db) /* {{{ */
 {
-  size_t i;
-
   if (db == NULL)
     return;
 
@@ -156,7 +154,7 @@ static void o_database_free (o_database_t *db) /* {{{ */
   sfree (db->queries);
 
   if (db->q_prep_areas != NULL)
-    for (i = 0; i < db->queries_num; ++i)
+    for (size_t i = 0; i < db->queries_num; ++i)
       udb_query_delete_preparation_area (db->q_prep_areas[i]);
   free (db->q_prep_areas);
 
@@ -188,7 +186,6 @@ static int o_config_add_database (oconfig_item_t *ci) /* {{{ */
 {
   o_database_t *db;
   int status;
-  int i;
 
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_STRING))
@@ -218,7 +215,7 @@ static int o_config_add_database (oconfig_item_t *ci) /* {{{ */
   }
 
   /* Fill the `o_database_t' structure.. */
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -277,7 +274,7 @@ static int o_config_add_database (oconfig_item_t *ci) /* {{{ */
       break;
     }
 
-    for (i = 0; i < db->queries_num; ++i)
+    for (int i = 0; i < db->queries_num; ++i)
     {
       db->q_prep_areas[i]
         = udb_query_allocate_preparation_area (db->queries[i]);
@@ -325,9 +322,7 @@ static int o_config_add_database (oconfig_item_t *ci) /* {{{ */
 
 static int o_config (oconfig_item_t *ci) /* {{{ */
 {
-  int i;
-
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
     if (strcasecmp ("Query", child->key) == 0)
@@ -399,7 +394,6 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
   OCIDefine **oci_defines;
 
   int status;
-  size_t i;
 
   oci_statement = udb_query_get_user_data (q);
 
@@ -517,13 +511,13 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
   ALLOC_OR_FAIL (column_names, column_num * sizeof (char *));
   ALLOC_OR_FAIL (column_names[0], column_num * DATA_MAX_NAME_LEN
       * sizeof (char));
-  for (i = 1; i < column_num; i++)
+  for (size_t i = 1; i < column_num; i++)
     column_names[i] = column_names[i - 1] + DATA_MAX_NAME_LEN;
 
   ALLOC_OR_FAIL (column_values, column_num * sizeof (char *));
   ALLOC_OR_FAIL (column_values[0], column_num * DATA_MAX_NAME_LEN
       * sizeof (char));
-  for (i = 1; i < column_num; i++)
+  for (size_t i = 1; i < column_num; i++)
     column_values[i] = column_values[i - 1] + DATA_MAX_NAME_LEN;
 
   ALLOC_OR_FAIL (oci_defines, column_num * sizeof (OCIDefine *));
@@ -531,7 +525,7 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
 
   /* ``Define'' the returned data, i. e. bind the columns to the buffers
    * allocated above. */
-  for (i = 0; i < column_num; i++) /* {{{ */
+  for (size_t i = 0; i < column_num; i++) /* {{{ */
   {
     char *column_name;
     ub4 column_name_length;
@@ -642,7 +636,6 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
 
 static int o_read_database (o_database_t *db) /* {{{ */
 {
-  size_t i;
   int status;
 
   if (db->oci_service_context != NULL)
@@ -717,7 +710,7 @@ static int o_read_database (o_database_t *db) /* {{{ */
   DEBUG ("oracle plugin: o_read_database: db->connect_id = %s; db->oci_service_context = %p;",
       db->connect_id, db->oci_service_context);
 
-  for (i = 0; i < db->queries_num; i++)
+  for (size_t i = 0; i < db->queries_num; i++)
     o_read_database_query (db, db->queries[i], db->q_prep_areas[i]);
 
   return (0);

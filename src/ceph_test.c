@@ -169,7 +169,7 @@ DEF_TEST(parse_keys)
 
   for (i = 0; i < STATIC_ARRAY_SIZE (cases); i++)
   {
-    char got[DATA_MAX_NAME_LEN];
+    char got[64];
 
     CHECK_ZERO (parse_keys (got, sizeof (got), cases[i].str));
     EXPECT_EQ_STR (cases[i].want, got);

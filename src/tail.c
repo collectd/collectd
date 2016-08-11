@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 #include "utils_tail_match.h"
@@ -137,11 +138,8 @@ static int ctail_config_add_match_dstype (ctail_config_match_t *cm,
 static int ctail_config_add_match (cu_tail_match_t *tm,
     const char *plugin_instance, oconfig_item_t *ci, cdtime_t interval)
 {
-  ctail_config_match_t cm;
+  ctail_config_match_t cm = { 0 };
   int status;
-  int i;
-
-  memset (&cm, '\0', sizeof (cm));
 
   if (ci->values_num != 0)
   {
@@ -149,7 +147,7 @@ static int ctail_config_add_match (cu_tail_match_t *tm,
   }
 
   status = 0;
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
 
@@ -224,7 +222,6 @@ static int ctail_config_add_file (oconfig_item_t *ci)
   cdtime_t interval = 0;
   char *plugin_instance = NULL;
   int num_matches = 0;
-  int i;
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
@@ -240,7 +237,7 @@ static int ctail_config_add_file (oconfig_item_t *ci)
     return (-1);
   }
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
     int status = 0;
@@ -299,9 +296,7 @@ static int ctail_config_add_file (oconfig_item_t *ci)
 
 static int ctail_config (oconfig_item_t *ci)
 {
-  int i;
-
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
 
@@ -333,8 +328,7 @@ static int ctail_read (user_data_t *ud)
 static int ctail_init (void)
 {
   char str[255];
-  user_data_t ud;
-  size_t i;
+  user_data_t ud = { 0 };
 
   if (tail_match_list_num == 0)
   {
@@ -342,9 +336,7 @@ static int ctail_init (void)
     return (-1);
   }
 
-  memset(&ud, '\0', sizeof(ud));
-
-  for (i = 0; i < tail_match_list_num; i++)
+  for (size_t i = 0; i < tail_match_list_num; i++)
   {
     ud.data = (void *)tail_match_list[i];
     ssnprintf(str, sizeof(str), "tail-%zu", i);
@@ -356,9 +348,7 @@ static int ctail_init (void)
 
 static int ctail_shutdown (void)
 {
-  size_t i;
-
-  for (i = 0; i < tail_match_list_num; i++)
+  for (size_t i = 0; i < tail_match_list_num; i++)
   {
     tail_match_destroy (tail_match_list[i]);
     tail_match_list[i] = NULL;

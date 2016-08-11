@@ -274,7 +274,6 @@ static int nb_add_values (char **ret_buffer, /* {{{ */
   value_t       pkg_values[vl->values_len];
 
   size_t offset;
-  size_t i;
 
   packet_len = sizeof (pkg_type) + sizeof (pkg_length)
     + sizeof (pkg_num_values)
@@ -288,7 +287,7 @@ static int nb_add_values (char **ret_buffer, /* {{{ */
   pkg_length = htons ((uint16_t) packet_len);
   pkg_num_values = htons ((uint16_t) vl->values_len);
 
-  for (i = 0; i < vl->values_len; i++)
+  for (size_t i = 0; i < vl->values_len; i++)
   {
     pkg_values_types[i] = (uint8_t) vl->values_types[i];
     switch (vl->values_types[i])
@@ -761,16 +760,14 @@ int lcc_network_buffer_initialize (lcc_network_buffer_t *nb) /* {{{ */
     uint16_t pkg_type = htons (TYPE_ENCR_AES256);
     uint16_t pkg_length = 0; /* Filled in in finalize. */
     uint16_t pkg_user_len = htons ((uint16_t) username_length);
-    char hash[20];
+    /* Filled in in finalize. */
+    char hash[20] = { 0 };
 
     nb->encr_header_len = username_length;
     nb->encr_header_len += PART_ENCRYPTION_AES256_SIZE;
 
     gcry_randomize ((void *) &nb->encr_iv, sizeof (nb->encr_iv),
         GCRY_STRONG_RANDOM);
-
-    /* Filled in in finalize. */
-    memset (hash, 0, sizeof (hash));
 
     ADD_STATIC (nb, pkg_type);
     ADD_STATIC (nb, pkg_length);

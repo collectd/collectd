@@ -26,6 +26,7 @@
 
 #include "common.h" /* for STATIC_ARRAY_SIZE */
 #include "collectd.h"
+
 #include "testing.h"
 #include "meta_data.h"
 

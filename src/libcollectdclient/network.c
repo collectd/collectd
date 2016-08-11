@@ -119,9 +119,7 @@ static void int_server_destroy (lcc_server_t *srv) /* {{{ */
 
 static int server_open_socket (lcc_server_t *srv) /* {{{ */
 {
-  struct addrinfo ai_hints = { 0 };
-  struct addrinfo *ai_list = NULL;
-  struct addrinfo *ai_ptr;
+  struct addrinfo *ai_list;
   int status;
 
   if (srv == NULL)
@@ -130,18 +128,18 @@ static int server_open_socket (lcc_server_t *srv) /* {{{ */
   if (srv->fd >= 0)
     server_close_socket (srv);
 
-#ifdef AI_ADDRCONFIG
-  ai_hints.ai_flags |= AI_ADDRCONFIG;
-#endif
-  ai_hints.ai_family   = AF_UNSPEC;
-  ai_hints.ai_socktype = SOCK_DGRAM;
+  struct addrinfo ai_hints = {
+    .ai_family = AF_UNSPEC,
+    .ai_flags = AI_ADDRCONFIG,
+    .ai_socktype = SOCK_DGRAM
+  };
 
   status = getaddrinfo (srv->node, srv->service, &ai_hints, &ai_list);
   if (status != 0)
     return (status);
   assert (ai_list != NULL);
 
-  for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+  for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
   {
     srv->fd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
     if (srv->fd < 0)
@@ -204,7 +202,7 @@ static int server_open_socket (lcc_server_t *srv) /* {{{ */
 
 static int server_send_buffer (lcc_server_t *srv) /* {{{ */
 {
-  char buffer[LCC_NETWORK_BUFFER_SIZE_DEFAULT];
+  char buffer[LCC_NETWORK_BUFFER_SIZE_DEFAULT] = { 0 };
   size_t buffer_size;
   int status;
 
@@ -215,7 +213,6 @@ static int server_send_buffer (lcc_server_t *srv) /* {{{ */
       return (status);
   }
 
-  memset (buffer, 0, sizeof (buffer));
   buffer_size = sizeof (buffer);
 
   status = lcc_network_buffer_finalize (srv->buffer);
@@ -413,18 +410,16 @@ int lcc_server_set_interface (lcc_server_t *srv, char const *interface) /* {{{ *
        * index is preferred here, because of its similarity
        * to the way IPv6 handles this. Unfortunately, it
        * appears not to be portable. */
-      struct ip_mreqn mreq;
-
-      memset (&mreq, 0, sizeof (mreq));
-      mreq.imr_multiaddr.s_addr = addr->sin_addr.s_addr;
-      mreq.imr_address.s_addr = ntohl (INADDR_ANY);
-      mreq.imr_ifindex = (int) if_index;
+      struct ip_mreqn mreq = {
+        .imr_multiaddr.s_addr = addr->sin_addr.s_addr,
+        .imr_address.s_addr = ntohl (INADDR_ANY),
+        .imr_ifindex = (int) if_index
+      };
 #else
-      struct ip_mreq mreq;
-
-      memset (&mreq, 0, sizeof (mreq));
-      mreq.imr_multiaddr.s_addr = addr->sin_addr.s_addr;
-      mreq.imr_interface.s_addr = ntohl (INADDR_ANY);
+      struct ip_mreq mreq = {
+        .imr_multiaddr.s_addr = addr->sin_addr.s_addr,
+        .imr_interface.s_addr = ntohl (INADDR_ANY)
+      };
 #endif
 
       status = setsockopt (srv->fd, IPPROTO_IP, IP_MULTICAST_IF,
@@ -474,12 +469,10 @@ int lcc_server_set_security_level (lcc_server_t *srv, /* {{{ */
 int lcc_network_values_send (lcc_network_t *net, /* {{{ */
     const lcc_value_list_t *vl)
 {
-  lcc_server_t *srv;
-
   if ((net == NULL) || (vl == NULL))
     return (EINVAL);
 
-  for (srv = net->servers; srv != NULL; srv = srv->next)
+  for (lcc_server_t *srv = net->servers; srv != NULL; srv = srv->next)
     server_value_add (srv, vl);
 
   return (0);

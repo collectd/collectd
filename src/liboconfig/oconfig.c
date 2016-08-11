@@ -126,8 +126,6 @@ oconfig_item_t *oconfig_clone (const oconfig_item_t *ci_orig)
 
   if (ci_orig->values_num > 0) /* {{{ */
   {
-    int i;
-
     ci_copy->values = (oconfig_value_t *) calloc ((size_t) ci_orig->values_num,
         sizeof (*ci_copy->values));
     if (ci_copy->values == NULL)
@@ -139,7 +137,7 @@ oconfig_item_t *oconfig_clone (const oconfig_item_t *ci_orig)
     }
     ci_copy->values_num = ci_orig->values_num;
 
-    for (i = 0; i < ci_copy->values_num; i++)
+    for (int i = 0; i < ci_copy->values_num; i++)
     {
        ci_copy->values[i].type = ci_orig->values[i].type;
        if (ci_copy->values[i].type == OCONFIG_TYPE_STRING)
@@ -161,8 +159,6 @@ oconfig_item_t *oconfig_clone (const oconfig_item_t *ci_orig)
 
   if (ci_orig->children_num > 0) /* {{{ */
   {
-    int i;
-
     ci_copy->children = (oconfig_item_t *) calloc ((size_t) ci_orig->children_num,
         sizeof (*ci_copy->children));
     if (ci_copy->children == NULL)
@@ -173,7 +169,7 @@ oconfig_item_t *oconfig_clone (const oconfig_item_t *ci_orig)
     }
     ci_copy->children_num = ci_orig->children_num;
 
-    for (i = 0; i < ci_copy->children_num; i++)
+    for (int i = 0; i < ci_copy->children_num; i++)
     {
       oconfig_item_t *child;
 
@@ -194,15 +190,13 @@ oconfig_item_t *oconfig_clone (const oconfig_item_t *ci_orig)
 
 static void oconfig_free_all (oconfig_item_t *ci)
 {
-  int i;
-
   if (ci == NULL)
     return;
 
   if (ci->key != NULL)
     free (ci->key);
 
-  for (i = 0; i < ci->values_num; i++)
+  for (int i = 0; i < ci->values_num; i++)
     if ((ci->values[i].type == OCONFIG_TYPE_STRING)
         && (NULL != ci->values[i].value.string))
       free (ci->values[i].value.string);
@@ -210,7 +204,7 @@ static void oconfig_free_all (oconfig_item_t *ci)
   if (ci->values != NULL)
     free (ci->values);
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
     oconfig_free_all (ci->children + i);
 
   if (ci->children != NULL)

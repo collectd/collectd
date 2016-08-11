@@ -1,0 +1,5 @@
+---
+BasedOnStyle: LLVM
+IncludeCategories:
+  - Regex: '"collectd.h"'
+  - Priority: -1

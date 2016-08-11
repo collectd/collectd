@@ -39,6 +39,7 @@
  */
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -464,8 +465,6 @@ static void *open_connection (void __attribute__((unused)) *arg)
 	}
 
 	{ /* initialize collector threads */
-		int i   = 0;
-
 		pthread_attr_t ptattr;
 
 		conns.head = NULL;
@@ -479,7 +478,7 @@ static void *open_connection (void __attribute__((unused)) *arg)
 		collectors =
 			smalloc (max_conns * sizeof (*collectors));
 
-		for (i = 0; i < max_conns; ++i) {
+		for (int i = 0; i < max_conns; ++i) {
 			collectors[i] = smalloc (sizeof (*collectors[i]));
 			collectors[i]->socket = NULL;
 
@@ -603,8 +602,6 @@ static void type_list_free (type_list_t *t)
 
 static int email_shutdown (void)
 {
-	int i = 0;
-
 	if (connector != ((pthread_t) 0)) {
 		pthread_kill (connector, SIGTERM);
 		connector = (pthread_t) 0;
@@ -621,7 +618,7 @@ static int email_shutdown (void)
 	available_collectors = 0;
 
 	if (collectors != NULL) {
-		for (i = 0; i < max_conns; ++i) {
+		for (int i = 0; i < max_conns; ++i) {
 			if (collectors[i] == NULL)
 				continue;
 
@@ -679,12 +676,9 @@ static void email_submit (const char *type, const char *type_instance, gauge_t v
  * after they have been copied to l2. */
 static void copy_type_list (type_list_t *l1, type_list_t *l2)
 {
-	type_t *ptr1;
-	type_t *ptr2;
-
 	type_t *last = NULL;
 
-	for (ptr1 = l1->head, ptr2 = l2->head; NULL != ptr1;
+	for (type_t *ptr1 = l1->head, *ptr2 = l2->head; NULL != ptr1;
 			ptr1 = ptr1->next, last = ptr2, ptr2 = ptr2->next) {
 		if (NULL == ptr2) {
 			ptr2 = smalloc (sizeof (*ptr2));
@@ -713,8 +707,6 @@ static void copy_type_list (type_list_t *l1, type_list_t *l2)
 
 static int email_read (void)
 {
-	type_t *ptr;
-
 	double score_old;
 	int score_count_old;
 
@@ -728,7 +720,7 @@ static int email_read (void)
 
 	pthread_mutex_unlock (&count_mutex);
 
-	for (ptr = list_count_copy.head; NULL != ptr; ptr = ptr->next) {
+	for (type_t *ptr = list_count_copy.head; NULL != ptr; ptr = ptr->next) {
 		email_submit ("email_count", ptr->name, ptr->value);
 	}
 
@@ -739,7 +731,7 @@ static int email_read (void)
 
 	pthread_mutex_unlock (&size_mutex);
 
-	for (ptr = list_size_copy.head; NULL != ptr; ptr = ptr->next) {
+	for (type_t *ptr = list_size_copy.head; NULL != ptr; ptr = ptr->next) {
 		email_submit ("email_size", ptr->name, ptr->value);
 	}
 
@@ -763,7 +755,7 @@ static int email_read (void)
 
 	pthread_mutex_unlock (&check_mutex);
 
-	for (ptr = list_check_copy.head; NULL != ptr; ptr = ptr->next)
+	for (type_t *ptr = list_check_copy.head; NULL != ptr; ptr = ptr->next)
 		email_submit ("spam_check", ptr->name, ptr->value);
 
 	return (0);

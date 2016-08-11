@@ -22,6 +22,7 @@
  **/
 
 #include "collectd.h"
+
 #include "plugin.h"
 #include "common.h"
 #include "filter_chain.h"
@@ -506,7 +507,6 @@ static jobject ctoj_oconfig_item (JNIEnv *jvm_env, /* {{{ */
   jmethodID m_addchild;
   jobject o_key;
   jobject o_ocitem;
-  int i;
 
   c_ocitem = (*jvm_env)->FindClass (jvm_env, "org/collectd/api/OConfigItem");
   if (c_ocitem == NULL)
@@ -571,7 +571,7 @@ static jobject ctoj_oconfig_item (JNIEnv *jvm_env, /* {{{ */
   (*jvm_env)->DeleteLocalRef (jvm_env, o_key);
 
   /* Call OConfigItem.addValue for each value */
-  for (i = 0; i < ci->values_num; i++) /* {{{ */
+  for (int i = 0; i < ci->values_num; i++) /* {{{ */
   {
     jobject o_value;
 
@@ -589,7 +589,7 @@ static jobject ctoj_oconfig_item (JNIEnv *jvm_env, /* {{{ */
   } /* }}} for (i = 0; i < ci->values_num; i++) */
 
   /* Call OConfigItem.addChild for each child */
-  for (i = 0; i < ci->children_num; i++) /* {{{ */
+  for (int i = 0; i < ci->children_num; i++) /* {{{ */
   {
     jobject o_child;
 
@@ -617,7 +617,6 @@ static jobject ctoj_data_set (JNIEnv *jvm_env, const data_set_t *ds) /* {{{ */
   jmethodID m_add;
   jobject o_type;
   jobject o_dataset;
-  size_t i;
 
   /* Look up the org/collectd/api/DataSet class */
   c_dataset = (*jvm_env)->FindClass (jvm_env, "org/collectd/api/DataSet");
@@ -667,7 +666,7 @@ static jobject ctoj_data_set (JNIEnv *jvm_env, const data_set_t *ds) /* {{{ */
   /* Decrease reference counter on the java.lang.String object. */
   (*jvm_env)->DeleteLocalRef (jvm_env, o_type);
 
-  for (i = 0; i < ds->ds_num; i++)
+  for (size_t i = 0; i < ds->ds_num; i++)
   {
     jobject o_datasource;
 
@@ -762,7 +761,6 @@ static jobject ctoj_value_list (JNIEnv *jvm_env, /* {{{ */
   jmethodID m_valuelist_constructor;
   jobject o_valuelist;
   int status;
-  size_t i;
 
   /* First, create a new ValueList instance..
    * Look up the class.. */
@@ -845,7 +843,7 @@ static jobject ctoj_value_list (JNIEnv *jvm_env, /* {{{ */
     return (NULL);
   }
 
-  for (i = 0; i < vl->values_len; i++)
+  for (size_t i = 0; i < vl->values_len; i++)
   {
     status = ctoj_value_list_add_value (jvm_env, vl->values[i], ds->ds[i].type,
         c_valuelist, o_valuelist);
@@ -1116,7 +1114,6 @@ static int jtoc_values_array (JNIEnv *jvm_env, /* {{{ */
 
   value_t *values;
   int values_num;
-  int i;
 
   values_num = ds->ds_num;
 
@@ -1176,7 +1173,7 @@ static int jtoc_values_array (JNIEnv *jvm_env, /* {{{ */
     BAIL_OUT (-1);
   }
 
-  for (i = 0; i < values_num; i++)
+  for (int i = 0; i < values_num; i++)
   {
     jobject o_number;
     int status;
@@ -1363,11 +1360,8 @@ static jint JNICALL cjni_api_dispatch_values (JNIEnv *jvm_env, /* {{{ */
 static jint JNICALL cjni_api_dispatch_notification (JNIEnv *jvm_env, /* {{{ */
     jobject this, jobject o_notification)
 {
-  notification_t n;
+  notification_t n = { 0 };
   int status;
-
-  memset (&n, 0, sizeof (n));
-  n.meta = NULL;
 
   status = jtoc_notification (jvm_env, &n, o_notification);
   if (status != 0)
@@ -1423,7 +1417,7 @@ static jint JNICALL cjni_api_register_init (JNIEnv *jvm_env, /* {{{ */
 static jint JNICALL cjni_api_register_read (JNIEnv *jvm_env, /* {{{ */
     jobject this, jobject o_name, jobject o_read)
 {
-  user_data_t ud;
+  user_data_t ud = { 0 };
   cjni_callback_info_t *cbi;
 
   cbi = cjni_callback_info_create (jvm_env, o_name, o_read, CB_TYPE_READ);
@@ -1432,7 +1426,6 @@ static jint JNICALL cjni_api_register_read (JNIEnv *jvm_env, /* {{{ */
 
   DEBUG ("java plugin: Registering new read callback: %s", cbi->name);
 
-  memset (&ud, 0, sizeof (ud));
   ud.data = (void *) cbi;
   ud.free_func = cjni_callback_info_destroy;
 
@@ -1447,7 +1440,7 @@ static jint JNICALL cjni_api_register_read (JNIEnv *jvm_env, /* {{{ */
 static jint JNICALL cjni_api_register_write (JNIEnv *jvm_env, /* {{{ */
     jobject this, jobject o_name, jobject o_write)
 {
-  user_data_t ud;
+  user_data_t ud = { 0 };
   cjni_callback_info_t *cbi;
 
   cbi = cjni_callback_info_create (jvm_env, o_name, o_write, CB_TYPE_WRITE);
@@ -1456,7 +1449,6 @@ static jint JNICALL cjni_api_register_write (JNIEnv *jvm_env, /* {{{ */
 
   DEBUG ("java plugin: Registering new write callback: %s", cbi->name);
 
-  memset (&ud, 0, sizeof (ud));
   ud.data = (void *) cbi;
   ud.free_func = cjni_callback_info_destroy;
 
@@ -1470,7 +1462,7 @@ static jint JNICALL cjni_api_register_write (JNIEnv *jvm_env, /* {{{ */
 static jint JNICALL cjni_api_register_flush (JNIEnv *jvm_env, /* {{{ */
     jobject this, jobject o_name, jobject o_flush)
 {
-  user_data_t ud;
+  user_data_t ud = { 0 };
   cjni_callback_info_t *cbi;
 
   cbi = cjni_callback_info_create (jvm_env, o_name, o_flush, CB_TYPE_FLUSH);
@@ -1479,7 +1471,6 @@ static jint JNICALL cjni_api_register_flush (JNIEnv *jvm_env, /* {{{ */
 
   DEBUG ("java plugin: Registering new flush callback: %s", cbi->name);
 
-  memset (&ud, 0, sizeof (ud));
   ud.data = (void *) cbi;
   ud.free_func = cjni_callback_info_destroy;
 
@@ -1500,7 +1491,7 @@ static jint JNICALL cjni_api_register_shutdown (JNIEnv *jvm_env, /* {{{ */
 static jint JNICALL cjni_api_register_log (JNIEnv *jvm_env, /* {{{ */
     jobject this, jobject o_name, jobject o_log)
 {
-  user_data_t ud;
+  user_data_t ud = { 0 };
   cjni_callback_info_t *cbi;
 
   cbi = cjni_callback_info_create (jvm_env, o_name, o_log, CB_TYPE_LOG);
@@ -1509,7 +1500,6 @@ static jint JNICALL cjni_api_register_log (JNIEnv *jvm_env, /* {{{ */
 
   DEBUG ("java plugin: Registering new log callback: %s", cbi->name);
 
-  memset (&ud, 0, sizeof (ud));
   ud.data = (void *) cbi;
   ud.free_func = cjni_callback_info_destroy;
 
@@ -1523,7 +1513,7 @@ static jint JNICALL cjni_api_register_log (JNIEnv *jvm_env, /* {{{ */
 static jint JNICALL cjni_api_register_notification (JNIEnv *jvm_env, /* {{{ */
     jobject this, jobject o_name, jobject o_notification)
 {
-  user_data_t ud;
+  user_data_t ud = { 0 };
   cjni_callback_info_t *cbi;
 
   cbi = cjni_callback_info_create (jvm_env, o_name, o_notification,
@@ -1533,7 +1523,6 @@ static jint JNICALL cjni_api_register_notification (JNIEnv *jvm_env, /* {{{ */
 
   DEBUG ("java plugin: Registering new notification callback: %s", cbi->name);
 
-  memset (&ud, 0, sizeof (ud));
   ud.data = (void *) cbi;
   ud.free_func = cjni_callback_info_destroy;
 
@@ -1567,9 +1556,8 @@ static jint JNICALL cjni_api_register_match_target (JNIEnv *jvm_env, /* {{{ */
 
   if (type == CB_TYPE_MATCH)
   {
-    match_proc_t m_proc;
+    match_proc_t m_proc = { 0 };
 
-    memset (&m_proc, 0, sizeof (m_proc));
     m_proc.create  = cjni_match_target_create;
     m_proc.destroy = cjni_match_target_destroy;
     m_proc.match   = (void *) cjni_match_target_invoke;
@@ -1578,9 +1566,8 @@ static jint JNICALL cjni_api_register_match_target (JNIEnv *jvm_env, /* {{{ */
   }
   else if (type == CB_TYPE_TARGET)
   {
-    target_proc_t t_proc;
+    target_proc_t t_proc = { 0 };
 
-    memset (&t_proc, 0, sizeof (t_proc));
     t_proc.create  = cjni_match_target_create;
     t_proc.destroy = cjni_match_target_destroy;
     t_proc.invoke  = cjni_match_target_invoke;
@@ -1985,11 +1972,10 @@ static int cjni_init_native (JNIEnv *jvm_env) /* {{{ */
 static int cjni_create_jvm (void) /* {{{ */
 {
   JNIEnv *jvm_env;
-  JavaVMInitArgs vm_args;
+  JavaVMInitArgs vm_args = { 0 };
   JavaVMOption vm_options[jvm_argc];
 
   int status;
-  size_t i;
 
   if (jvm != NULL)
     return (0);
@@ -2004,12 +1990,11 @@ static int cjni_create_jvm (void) /* {{{ */
 
   jvm_env = NULL;
 
-  memset (&vm_args, 0, sizeof (vm_args));
   vm_args.version = JNI_VERSION_1_2;
   vm_args.options = vm_options;
   vm_args.nOptions = (jint) jvm_argc;
 
-  for (i = 0; i < jvm_argc; i++)
+  for (size_t i = 0; i < jvm_argc; i++)
   {
     DEBUG ("java plugin: cjni_create_jvm: jvm_argv[%zu] = %s",
         i, jvm_argv[i]);
@@ -2085,11 +2070,10 @@ static JNIEnv *cjni_thread_attach (void) /* {{{ */
   else
   {
     int status;
-    JavaVMAttachArgs args;
+    JavaVMAttachArgs args = { 0 };
 
     assert (cjni_env->jvm_env == NULL);
 
-    memset (&args, 0, sizeof (args));
     args.version = JNI_VERSION_1_2;
 
     status = (*jvm)->AttachCurrentThread (jvm, (void *) &jvm_env, (void *) &args);
@@ -2227,8 +2211,7 @@ static int cjni_config_load_plugin (oconfig_item_t *ci) /* {{{ */
   { /* Replace all dots ('.') with slashes ('/'). Dots are usually used
        thorough the Java community, but (Sun's) `FindClass' and friends need
        slashes. */
-    size_t i;
-    for (i = 0; class->name[i] != 0; i++)
+    for (size_t i = 0; class->name[i] != 0; i++)
       if (class->name[i] == '.')
         class->name[i] = '/';
   }
@@ -2286,7 +2269,6 @@ static int cjni_config_plugin_block (oconfig_item_t *ci) /* {{{ */
   cjni_callback_info_t *cbi;
   jobject o_ocitem;
   const char *name;
-  size_t i;
 
   jclass class;
   jmethodID method;
@@ -2301,7 +2283,7 @@ static int cjni_config_plugin_block (oconfig_item_t *ci) /* {{{ */
   name = ci->values[0].value.string;
 
   cbi = NULL;
-  for (i = 0; i < java_callbacks_num; i++)
+  for (size_t i = 0; i < java_callbacks_num; i++)
   {
     if (java_callbacks[i].type != CB_TYPE_CONFIG)
       continue;
@@ -2353,12 +2335,11 @@ static int cjni_config_perform (oconfig_item_t *ci) /* {{{ */
   int success;
   int errors;
   int status;
-  int i;
 
   success = 0;
   errors = 0;
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -2721,7 +2702,6 @@ static int cjni_match_target_create (const oconfig_item_t *ci, /* {{{ */
   jobject o_ci;
   jobject o_tmp;
   int type;
-  size_t i;
 
   cbi_ret = NULL;
   o_ci = NULL;
@@ -2766,7 +2746,7 @@ static int cjni_match_target_create (const oconfig_item_t *ci, /* {{{ */
 
   /* Lets see if we have a matching factory here.. */
   cbi_factory = NULL;
-  for (i = 0; i < java_callbacks_num; i++)
+  for (size_t i = 0; i < java_callbacks_num; i++)
   {
     if (java_callbacks[i].type != type)
       continue;
@@ -2920,9 +2900,8 @@ static int cjni_match_target_invoke (const data_set_t *ds, /* {{{ */
    * `value_list_t'. */
   if (cbi->type == CB_TYPE_TARGET)
   {
-    value_list_t new_vl;
+    value_list_t new_vl = { 0 };
 
-    memset (&new_vl, 0, sizeof (new_vl));
     status = jtoc_value_list (jvm_env, &new_vl, o_vl);
     if (status != 0)
     {
@@ -2949,9 +2928,8 @@ static int cjni_match_target_invoke (const data_set_t *ds, /* {{{ */
 static int cjni_init_plugins (JNIEnv *jvm_env) /* {{{ */
 {
   int status;
-  size_t i;
 
-  for (i = 0; i < java_callbacks_num; i++)
+  for (size_t i = 0; i < java_callbacks_num; i++)
   {
     if (java_callbacks[i].type != CB_TYPE_INIT)
       continue;
@@ -2976,9 +2954,8 @@ static int cjni_init_plugins (JNIEnv *jvm_env) /* {{{ */
 static int cjni_shutdown_plugins (JNIEnv *jvm_env) /* {{{ */
 {
   int status;
-  size_t i;
 
-  for (i = 0; i < java_callbacks_num; i++)
+  for (size_t i = 0; i < java_callbacks_num; i++)
   {
     if (java_callbacks[i].type != CB_TYPE_SHUTDOWN)
       continue;
@@ -3001,15 +2978,13 @@ static int cjni_shutdown_plugins (JNIEnv *jvm_env) /* {{{ */
 static int cjni_shutdown (void) /* {{{ */
 {
   JNIEnv *jvm_env;
-  JavaVMAttachArgs args;
+  JavaVMAttachArgs args = { 0 };
   int status;
-  size_t i;
 
   if (jvm == NULL)
     return (0);
 
   jvm_env = NULL;
-  memset (&args, 0, sizeof (args));
   args.version = JNI_VERSION_1_2;
 
   status = (*jvm)->AttachCurrentThread (jvm, (void *) &jvm_env, &args);
@@ -3024,7 +2999,7 @@ static int cjni_shutdown (void) /* {{{ */
   cjni_shutdown_plugins (jvm_env);
 
   /* Release all the global references to callback functions */
-  for (i = 0; i < java_callbacks_num; i++)
+  for (size_t i = 0; i < java_callbacks_num; i++)
   {
     if (java_callbacks[i].object != NULL)
     {
@@ -3037,7 +3012,7 @@ static int cjni_shutdown (void) /* {{{ */
   sfree (java_callbacks);
 
   /* Release all the global references to directly loaded classes. */
-  for (i = 0; i < java_classes_list_len; i++)
+  for (size_t i = 0; i < java_classes_list_len; i++)
   {
     if (java_classes_list[i].object != NULL)
     {
@@ -3058,7 +3033,7 @@ static int cjni_shutdown (void) /* {{{ */
   pthread_key_delete (jvm_env_key);
 
   /* Free the JVM argument list */
-  for (i = 0; i < jvm_argc; i++)
+  for (size_t i = 0; i < jvm_argc; i++)
     sfree (jvm_argv[i]);
   jvm_argc = 0;
   sfree (jvm_argv);

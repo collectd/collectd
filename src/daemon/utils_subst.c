@@ -29,6 +29,7 @@
  */
 
 #include "collectd.h"
+
 #include "common.h"
 #include "utils_subst.h"
 

@@ -31,6 +31,7 @@
  */
 
 #include "collectd.h"
+
 #include "common.h"
 
 #include "configfile.h"
@@ -276,8 +277,6 @@ static c_psql_database_t *c_psql_database_new (const char *name)
 
 static void c_psql_database_delete (void *data)
 {
-	size_t i;
-
 	c_psql_database_t *db = data;
 
 	--db->ref_cnt;
@@ -295,7 +294,7 @@ static void c_psql_database_delete (void *data)
 	db->conn = NULL;
 
 	if (db->q_prep_areas)
-		for (i = 0; i < db->queries_num; ++i)
+		for (size_t i = 0; i < db->queries_num; ++i)
 			udb_query_delete_preparation_area (db->q_prep_areas[i]);
 	free (db->q_prep_areas);
 
@@ -427,14 +426,13 @@ static PGresult *c_psql_exec_query_params (c_psql_database_t *db,
 {
 	const char *params[db->max_params_num];
 	char        interval[64];
-	int         i;
 
 	if ((data == NULL) || (data->params_num == 0))
 		return (c_psql_exec_query_noparams (db, q));
 
 	assert (db->max_params_num >= data->params_num);
 
-	for (i = 0; i < data->params_num; ++i) {
+	for (int i = 0; i < data->params_num; ++i) {
 		switch (data->params[i]) {
 			case C_PSQL_PARAM_HOST:
 				params[i] = C_PSQL_IS_UNIX_DOMAIN_SOCKET (db->host)
@@ -483,7 +481,6 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q,
 
 	int rows_num;
 	int status;
-	int row, col;
 
 	/* The user data may hold parameter information, but may be NULL. */
 	data = udb_query_get_user_data (q);
@@ -552,7 +549,7 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q,
 		BAIL_OUT (-1);
 	}
 
-	for (col = 0; col < column_num; ++col) {
+	for (int col = 0; col < column_num; ++col) {
 		/* Pointers returned by `PQfname' are freed by `PQclear' via
 		 * `BAIL_OUT'. */
 		column_names[col] = PQfname (res, col);
@@ -577,7 +574,8 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q,
 		BAIL_OUT (-1);
 	}
 
-	for (row = 0; row < rows_num; ++row) {
+	for (int row = 0; row < rows_num; ++row) {
+        int col;
 		for (col = 0; col < column_num; ++col) {
 			/* Pointers returned by `PQgetvalue' are freed by `PQclear' via
 			 * `BAIL_OUT'. */
@@ -611,7 +609,6 @@ static int c_psql_read (user_data_t *ud)
 	c_psql_database_t *db;
 
 	int success = 0;
-	size_t i;
 
 	if ((ud == NULL) || (ud->data == NULL)) {
 		log_err ("c_psql_read: Invalid user data.");
@@ -631,7 +628,7 @@ static int c_psql_read (user_data_t *ud)
 		return -1;
 	}
 
-	for (i = 0; i < db->queries_num; ++i)
+	for (size_t i = 0; i < db->queries_num; ++i)
 	{
 		udb_query_preparation_area_t *prep_area;
 		udb_query_t *q;
@@ -659,12 +656,11 @@ static char *values_name_to_sqlarray (const data_set_t *ds,
 {
 	char  *str_ptr;
 	size_t str_len;
-	size_t i;
 
 	str_ptr = string;
 	str_len = string_len;
 
-	for (i = 0; i < ds->ds_num; ++i) {
+	for (size_t i = 0; i < ds->ds_num; ++i) {
 		int status = ssnprintf (str_ptr, str_len, ",'%s'", ds->ds[i].name);
 
 		if (status < 1)
@@ -697,12 +693,11 @@ static char *values_type_to_sqlarray (const data_set_t *ds,
 {
 	char  *str_ptr;
 	size_t str_len;
-	size_t i;
 
 	str_ptr = string;
 	str_len = string_len;
 
-	for (i = 0; i < ds->ds_num; ++i) {
+	for (size_t i = 0; i < ds->ds_num; ++i) {
 		int status;
 
 		if (store_rates)
@@ -745,12 +740,11 @@ static char *values_to_sqlarray (const data_set_t *ds, const value_list_t *vl,
 	size_t str_len;
 
 	gauge_t *rates = NULL;
-	size_t i;
 
 	str_ptr = string;
 	str_len = string_len;
 
-	for (i = 0; i < vl->values_len; ++i) {
+	for (size_t i = 0; i < vl->values_len; ++i) {
 		int status = 0;
 
 		if ((ds->ds[i].type != DS_TYPE_GAUGE)
@@ -830,7 +824,6 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 	const char *params[9];
 
 	int success = 0;
-	size_t i;
 
 	if ((ud == NULL) || (ud->data == NULL)) {
 		log_err ("c_psql_write: Invalid user data.");
@@ -879,7 +872,7 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 			&& (db->next_commit == 0))
 		c_psql_begin (db);
 
-	for (i = 0; i < db->writers_num; ++i) {
+	for (size_t i = 0; i < db->writers_num; ++i) {
 		c_psql_writer_t *writer;
 		PGresult *res;
 
@@ -967,14 +960,13 @@ static int c_psql_flush (cdtime_t timeout,
 {
 	c_psql_database_t **dbs = databases;
 	size_t dbs_num = databases_num;
-	size_t i;
 
 	if ((ud != NULL) && (ud->data != NULL)) {
 		dbs = (void *)&ud->data;
 		dbs_num = 1;
 	}
 
-	for (i = 0; i < dbs_num; ++i) {
+	for (size_t i = 0; i < dbs_num; ++i) {
 		c_psql_database_t *db = dbs[i];
 
 		/* don't commit if the timeout is larger than the regular commit
@@ -988,13 +980,11 @@ static int c_psql_flush (cdtime_t timeout,
 
 static int c_psql_shutdown (void)
 {
-	size_t i = 0;
-
 	_Bool had_flush = 0;
 
 	plugin_unregister_read_group ("postgresql");
 
-	for (i = 0; i < databases_num; ++i) {
+	for (size_t i = 0; i < databases_num; ++i) {
 		c_psql_database_t *db = databases[i];
 
 		if (db->writers_num > 0) {
@@ -1139,7 +1129,6 @@ static int c_psql_config_writer (oconfig_item_t *ci)
 	c_psql_writer_t *tmp;
 
 	int status = 0;
-	int i;
 
 	if ((ci->values_num != 1)
 			|| (ci->values[0].type != OCONFIG_TYPE_STRING)) {
@@ -1162,7 +1151,7 @@ static int c_psql_config_writer (oconfig_item_t *ci)
 	writer->statement = NULL;
 	writer->store_rates = 1;
 
-	for (i = 0; i < ci->children_num; ++i) {
+	for (int i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *c = ci->children + i;
 
 		if (strcasecmp ("Statement", c->key) == 0)
@@ -1188,11 +1177,9 @@ static int c_psql_config_database (oconfig_item_t *ci)
 	c_psql_database_t *db;
 
 	char cb_name[DATA_MAX_NAME_LEN];
-	user_data_t ud;
+	user_data_t ud = { 0 };
 
 	static _Bool have_flush = 0;
-
-	int i;
 
 	if ((1 != ci->values_num)
 			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
@@ -1200,13 +1187,11 @@ static int c_psql_config_database (oconfig_item_t *ci)
 		return 1;
 	}
 
-	memset (&ud, 0, sizeof (ud));
-
 	db = c_psql_database_new (ci->values[0].value.string);
 	if (db == NULL)
 		return -1;
 
-	for (i = 0; i < ci->children_num; ++i) {
+	for (int i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *c = ci->children + i;
 
 		if (0 == strcasecmp (c->key, "Host"))
@@ -1243,7 +1228,7 @@ static int c_psql_config_database (oconfig_item_t *ci)
 
 	/* If no `Query' options were given, add the default queries.. */
 	if ((db->queries_num == 0) && (db->writers_num == 0)){
-		for (i = 0; i < def_queries_num; i++)
+		for (int i = 0; i < def_queries_num; i++)
 			udb_query_pick_from_list_by_name (def_queries[i],
 					queries, queries_num,
 					&db->queries, &db->queries_num);
@@ -1260,7 +1245,7 @@ static int c_psql_config_database (oconfig_item_t *ci)
 		}
 	}
 
-	for (i = 0; (size_t)i < db->queries_num; ++i) {
+	for (int i = 0; (size_t)i < db->queries_num; ++i) {
 		c_psql_user_data_t *data;
 		data = udb_query_get_user_data (db->queries[i]);
 		if ((data != NULL) && (data->params_num > db->max_params_num))
@@ -1313,8 +1298,6 @@ static int c_psql_config (oconfig_item_t *ci)
 {
 	static int have_def_config = 0;
 
-	int i;
-
 	if (0 == have_def_config) {
 		oconfig_item_t *c;
 
@@ -1331,7 +1314,7 @@ static int c_psql_config (oconfig_item_t *ci)
 					"any queries - please check your installation.");
 	}
 
-	for (i = 0; i < ci->children_num; ++i) {
+	for (int i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *c = ci->children + i;
 
 		if (0 == strcasecmp (c->key, "Query"))

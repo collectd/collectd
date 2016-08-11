@@ -36,6 +36,7 @@
 #endif /* STRPTIME_NEEDS_STANDARDS */
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
@@ -309,12 +310,11 @@ static int bind_xml_table_callback (const char *name, value_t value, /* {{{ */
     time_t current_time, void *user_data)
 {
   translation_table_ptr_t *table = (translation_table_ptr_t *) user_data;
-  size_t i;
 
   if (table == NULL)
     return (-1);
 
-  for (i = 0; i < table->table_length; i++)
+  for (size_t i = 0; i < table->table_length; i++)
   {
     if (strcmp (table->table[i].xml_name, name) != 0)
       continue;
@@ -417,7 +417,7 @@ static int bind_xml_read_timestamp (const char *xpath_expression, /* {{{ */
   xmlNode *node;
   char *str_ptr;
   char *tmp;
-  struct tm tm;
+  struct tm tm = { 0 };
 
   xpathObj = xmlXPathEvalExpression (BAD_CAST xpath_expression, xpathCtx);
   if (xpathObj == NULL)
@@ -458,7 +458,6 @@ static int bind_xml_read_timestamp (const char *xpath_expression, /* {{{ */
     return (-1);
   }
 
-  memset (&tm, 0, sizeof(tm));
   tmp = strptime (str_ptr, "%Y-%m-%dT%T", &tm);
   xmlFree(str_ptr);
   if (tmp == NULL)
@@ -491,7 +490,6 @@ static int bind_parse_generic_name_value (const char *xpath_expression, /* {{{ *
 {
   xmlXPathObject *xpathObj = NULL;
   int num_entries;
-  int i;
 
   xpathObj = xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
   if (xpathObj == NULL)
@@ -503,19 +501,18 @@ static int bind_parse_generic_name_value (const char *xpath_expression, /* {{{ *
 
   num_entries = 0;
   /* Iterate over all matching nodes. */
-  for (i = 0; xpathObj->nodesetval && (i < xpathObj->nodesetval->nodeNr); i++)
+  for (int i = 0; xpathObj->nodesetval && (i < xpathObj->nodesetval->nodeNr); i++)
   {
     xmlNode *name_node = NULL;
     xmlNode *counter = NULL;
     xmlNode *parent;
-    xmlNode *child;
 
     parent = xpathObj->nodesetval->nodeTab[i];
     DEBUG ("bind plugin: bind_parse_generic_name_value: parent->name = %s;",
         (char *) parent->name);
 
     /* Iterate over all child nodes. */
-    for (child = parent->xmlChildrenNode;
+    for (xmlNode *child = parent->xmlChildrenNode;
         child != NULL;
         child = child->next)
     {
@@ -578,7 +575,6 @@ static int bind_parse_generic_value_list (const char *xpath_expression, /* {{{ *
 {
   xmlXPathObject *xpathObj = NULL;
   int num_entries;
-  int i;
 
   xpathObj = xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
   if (xpathObj == NULL)
@@ -590,12 +586,10 @@ static int bind_parse_generic_value_list (const char *xpath_expression, /* {{{ *
 
   num_entries = 0;
   /* Iterate over all matching nodes. */
-  for (i = 0; xpathObj->nodesetval && (i < xpathObj->nodesetval->nodeNr); i++)
+  for (int i = 0; xpathObj->nodesetval && (i < xpathObj->nodesetval->nodeNr); i++)
   {
-    xmlNode *child;
-
     /* Iterate over all child nodes. */
-    for (child = xpathObj->nodesetval->nodeTab[i]->xmlChildrenNode;
+    for (xmlNode *child = xpathObj->nodesetval->nodeTab[i]->xmlChildrenNode;
         child != NULL;
         child = child->next)
     {
@@ -649,7 +643,6 @@ static int bind_parse_generic_name_attr_value_list (const char *xpath_expression
 {
   xmlXPathObject *xpathObj = NULL;
   int num_entries;
-  int i;
 
   xpathObj = xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
   if (xpathObj == NULL)
@@ -661,12 +654,10 @@ static int bind_parse_generic_name_attr_value_list (const char *xpath_expression
 
   num_entries = 0;
   /* Iterate over all matching nodes. */
-  for (i = 0; xpathObj->nodesetval && (i < xpathObj->nodesetval->nodeNr); i++)
+  for (int i = 0; xpathObj->nodesetval && (i < xpathObj->nodesetval->nodeNr); i++)
   {
-    xmlNode *child;
-
     /* Iterate over all child nodes. */
-    for (child = xpathObj->nodesetval->nodeTab[i]->xmlChildrenNode;
+    for (xmlNode *child = xpathObj->nodesetval->nodeTab[i]->xmlChildrenNode;
         child != NULL;
         child = child->next)
     {
@@ -714,7 +705,6 @@ static int bind_xml_stats_handle_zone (int version, xmlDoc *doc, /* {{{ */
 {
   xmlXPathObject *path_obj;
   char *zone_name = NULL;
-  int i;
   size_t j;
 
   if (version >= 3)
@@ -738,7 +728,7 @@ static int bind_xml_stats_handle_zone (int version, xmlDoc *doc, /* {{{ */
       return (-1);
     }
 
-    for (i = 0; path_obj->nodesetval && (i < path_obj->nodesetval->nodeNr); i++)
+    for (int i = 0; path_obj->nodesetval && (i < path_obj->nodesetval->nodeNr); i++)
     {
       zone_name = (char *) xmlNodeListGetString (doc,
           path_obj->nodesetval->nodeTab[i]->xmlChildrenNode, 1);
@@ -817,7 +807,6 @@ static int bind_xml_stats_search_zones (int version, xmlDoc *doc, /* {{{ */
 {
   xmlXPathObject *zone_nodes = NULL;
   xmlXPathContext *zone_path_context;
-  int i;
 
   zone_path_context = xmlXPathNewContext (doc);
   if (zone_path_context == NULL)
@@ -834,7 +823,7 @@ static int bind_xml_stats_search_zones (int version, xmlDoc *doc, /* {{{ */
     return (-1);
   }
 
-  for (i = 0; i < zone_nodes->nodesetval->nodeNr; i++)
+  for (int i = 0; i < zone_nodes->nodesetval->nodeNr; i++)
   {
     node = zone_nodes->nodesetval->nodeTab[i];
     assert (node != NULL);
@@ -855,7 +844,6 @@ static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
 {
   char *view_name = NULL;
   cb_view_t *view;
-  int i;
   size_t j;
 
   if (version == 3)
@@ -887,7 +875,7 @@ static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
       return (-1);
     }
 
-    for (i = 0; path_obj->nodesetval && (i < path_obj->nodesetval->nodeNr); i++)
+    for (int i = 0; path_obj->nodesetval && (i < path_obj->nodesetval->nodeNr); i++)
     {
       view_name = (char *) xmlNodeListGetString (doc,
           path_obj->nodesetval->nodeTab[i]->xmlChildrenNode, 1);
@@ -1010,7 +998,6 @@ static int bind_xml_stats_search_views (int version, xmlDoc *doc, /* {{{ */
 {
   xmlXPathObject *view_nodes = NULL;
   xmlXPathContext *view_path_context;
-  int i;
 
   view_path_context = xmlXPathNewContext (doc);
   if (view_path_context == NULL)
@@ -1027,7 +1014,7 @@ static int bind_xml_stats_search_views (int version, xmlDoc *doc, /* {{{ */
     return (-1);
   }
 
-  for (i = 0; i < view_nodes->nodesetval->nodeNr; i++)
+  for (int i = 0; i < view_nodes->nodesetval->nodeNr; i++)
   {
     xmlNode *node;
 
@@ -1441,7 +1428,6 @@ static int bind_xml (const char *data) /* {{{ */
   xmlXPathContext *xpathCtx = NULL;
   xmlXPathObject *xpathObj = NULL;
   int ret = -1;
-  int i;
 
   doc = xmlParseMemory (data, strlen (data));
   if (doc == NULL)
@@ -1471,7 +1457,7 @@ static int bind_xml (const char *data) /* {{{ */
   }
   else
   {
-    for (i = 0; i < xpathObj->nodesetval->nodeNr; i++)
+    for (int i = 0; i < xpathObj->nodesetval->nodeNr; i++)
     {
       xmlNode *node;
       char *attr_version;
@@ -1533,7 +1519,7 @@ static int bind_xml (const char *data) /* {{{ */
     return (-1);
   }
 
-  for (i = 0; i < xpathObj->nodesetval->nodeNr; i++)
+  for (int i = 0; i < xpathObj->nodesetval->nodeNr; i++)
   {
     xmlNode *node;
     char *attr_version;
@@ -1636,7 +1622,6 @@ static int bind_config_add_view_zone (cb_view_t *view, /* {{{ */
 static int bind_config_add_view (oconfig_item_t *ci) /* {{{ */
 {
   cb_view_t *tmp;
-  int i;
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
@@ -1668,7 +1653,7 @@ static int bind_config_add_view (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -1693,9 +1678,7 @@ static int bind_config_add_view (oconfig_item_t *ci) /* {{{ */
 
 static int bind_config (oconfig_item_t *ci) /* {{{ */
 {
-  int i;
-
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 

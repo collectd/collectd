@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"      /* rrd_update_file */
 #include "plugin.h"      /* plugin_register, plugin_submit */
 #include "configfile.h"  /* cf_register */
@@ -115,15 +116,14 @@ static int net_open (char const *node, char const *service)
 {
 	int              sd;
 	int              status;
-	struct addrinfo  ai_hints;
 	struct addrinfo *ai_return;
 	struct addrinfo *ai_list;
 
-	/* Resolve name */
-	memset (&ai_hints, 0, sizeof (ai_hints));
 	/* TODO: Change this to `AF_UNSPEC' if apcupsd can handle IPv6 */
-	ai_hints.ai_family   = AF_INET;
-	ai_hints.ai_socktype = SOCK_STREAM;
+	struct addrinfo ai_hints = {
+		.ai_family = AF_INET,
+		.ai_socktype = SOCK_STREAM
+	};
 
 	status = getaddrinfo (node, service, &ai_hints, &ai_return);
 	if (status != 0)
@@ -381,10 +381,9 @@ static int apc_query_server (char const *node, char const *service,
 
 static int apcups_config (oconfig_item_t *ci)
 {
-	int i;
 	_Bool persistent_conn_set = 0;
 
-	for (i = 0; i < ci->children_num; i++)
+	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
 

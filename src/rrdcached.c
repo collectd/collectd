@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "plugin.h"
 #include "common.h"
 #include "utils_rrdcreate.h"
@@ -69,7 +70,6 @@ static int value_list_to_string (char *buffer, int buffer_len,
 {
   int offset;
   int status;
-  size_t i;
   time_t t;
 
   assert (0 == strcmp (ds->type, vl->type));
@@ -82,7 +82,7 @@ static int value_list_to_string (char *buffer, int buffer_len,
     return (-1);
   offset = status;
 
-  for (i = 0; i < ds->ds_num; i++)
+  for (size_t i = 0; i < ds->ds_num; i++)
   {
     if ((ds->ds[i].type != DS_TYPE_COUNTER)
         && (ds->ds[i].type != DS_TYPE_GAUGE)
@@ -217,9 +217,7 @@ static int rc_config_add_timespan (int timespan)
 
 static int rc_config (oconfig_item_t *ci)
 {
-  int i;
-
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t const *child = ci->children + i;
     const char *key = child->key;
@@ -293,7 +291,6 @@ static int rc_read (void)
 {
   int status;
   rrdc_stats_t *head;
-  rrdc_stats_t *ptr;
 
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
@@ -330,7 +327,7 @@ static int rc_read (void)
     return (-1);
   }
 
-  for (ptr = head; ptr != NULL; ptr = ptr->next)
+  for (rrdc_stats_t *ptr = head; ptr != NULL; ptr = ptr->next)
   {
     if (ptr->type == RRDC_STATS_TYPE_GAUGE)
       values[0].gauge = (gauge_t) ptr->value.gauge;
