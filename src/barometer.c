@@ -25,7 +25,6 @@
 #include "utils_cache.h"
 #include "plugin.h"
 
-#include <stdint.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <linux/i2c-dev.h>

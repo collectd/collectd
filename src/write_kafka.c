@@ -32,7 +32,6 @@
 #include "utils_format_graphite.h"
 #include "utils_format_json.h"
 
-#include <stdint.h>
 #include <librdkafka/rdkafka.h>
 #include <errno.h>
 

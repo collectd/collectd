@@ -39,10 +39,10 @@
 #include "common.h"
 #include "plugin.h"
 
-#if HAVE_TERMIOS_H && HAVE_SYS_IOCTL_H && HAVE_MATH_H
+#include <math.h>
+
+#if HAVE_TERMIOS_H
 # include <termios.h>
-# include <sys/ioctl.h>
-# include <math.h>
 #else
 # error "No applicable input method."
 #endif

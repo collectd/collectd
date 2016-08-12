@@ -30,10 +30,7 @@
 #include "plugin.h"
 #include "utils_complain.h"
 
-#include <netinet/in.h>
-#if HAVE_NETDB_H
-# include <netdb.h> /* NI_MAXHOST */
-#endif
+#include <netdb.h>
 
 #ifdef HAVE_SYS_CAPABILITY_H
 # include <sys/capability.h>

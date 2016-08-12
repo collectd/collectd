@@ -62,6 +62,8 @@
 #include "common.h"
 #include "plugin.h"
 
+#include <arpa/inet.h>
+
 #if defined(__OpenBSD__) || defined(__NetBSD__)
 #undef HAVE_SYSCTLBYNAME /* force HAVE_LIBKVM_NLIST path */
 #endif
@@ -71,12 +73,10 @@
 #endif
 
 #if KERNEL_LINUX
-# include <asm/types.h>
 # include <linux/netlink.h>
 #if HAVE_LINUX_INET_DIAG_H
 # include <linux/inet_diag.h>
 #endif
-# include <arpa/inet.h>
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_SYSCTLBYNAME
@@ -118,7 +118,6 @@
 # include <netinet/tcp_timer.h>
 # include <netinet/tcp_var.h>
 # include <netdb.h>
-# include <arpa/inet.h>
 # if !defined(HAVE_BSD_NLIST_H) || !HAVE_BSD_NLIST_H
 #  include <nlist.h>
 # else /* HAVE_BSD_NLIST_H */
@@ -128,7 +127,6 @@
 /* #endif HAVE_LIBKVM_NLIST */
 
 #elif KERNEL_AIX
-# include <arpa/inet.h>
 # include <sys/socketvar.h>
 #endif /* KERNEL_AIX */
 

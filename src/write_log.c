@@ -32,8 +32,6 @@
 
 #include "utils_format_graphite.h"
 
-#include <netdb.h>
-
 #define WL_BUF_SIZE 8192
 
 static int wl_write_messages (const data_set_t *ds, const value_list_t *vl)

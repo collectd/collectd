@@ -102,9 +102,6 @@ endif
 
 
 collectd_tg_SOURCES = collectd-tg.c
-collectd_tg_CPPFLAGS = $(AM_CPPFLAGS) \
-	-I$(top_srcdir)/src/libcollectdclient/collectd \
-	-I$(top_builddir)/src/libcollectdclient/collectd
 collectd_tg_LDADD = \
 	$(PTHREAD_LIBS) \
 	daemon/libheap.la \

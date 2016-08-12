@@ -32,20 +32,11 @@
 #include "common.h"
 #include "plugin.h"
 
-#if HAVE_STDINT_H
-# include <stdint.h>
-#endif
 #if HAVE_NETDB_H
 # include <netdb.h>
 #endif
 #if HAVE_NETINET_IN_H
 # include <netinet/in.h>
-#endif
-#if HAVE_ARPA_INET_H
-# include <arpa/inet.h> /* inet_ntoa */
-#endif
-#if HAVE_NETINET_TCP_H
-# include <netinet/tcp.h>
 #endif
 #if HAVE_POLL_H
 # include <poll.h>

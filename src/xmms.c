@@ -30,6 +30,7 @@
 #include "common.h"
 
 #include <xmms/xmmsctrl.h>
+#include <glib.h>
 
 static gint xmms_session;
 

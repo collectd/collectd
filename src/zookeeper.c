@@ -30,9 +30,6 @@
 #include "plugin.h"
 
 #include <netdb.h>
-#include <sys/un.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
 
 #define ZOOKEEPER_DEF_HOST "127.0.0.1"
 #define ZOOKEEPER_DEF_PORT "2181"

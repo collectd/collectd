@@ -24,22 +24,19 @@
  *   Florian Forster <octo at collectd.org>
  **/
 
-#if HAVE_CONFIG_H
-# include "config.h"
-#endif
+#include "config.h"
 
 #if !__GNUC__
 # define __attribute__(x) /**/
 #endif
 
+#include <getopt.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
 #include <signal.h>
 #include <errno.h>
-#include <math.h>
 #include <sys/time.h>
 
 #include "utils_heap.h"

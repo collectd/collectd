@@ -8,8 +8,6 @@ BUILT_SOURCES = collectd/lcc_features.h
 
 libcollectdclient_la_SOURCES = client.c network.c network_buffer.c
 libcollectdclient_la_CPPFLAGS = $(AM_CPPFLAGS) \
-				-I$(top_srcdir)/src/libcollectdclient/collectd \
-				-I$(top_builddir)/src/libcollectdclient/collectd \
 				-I$(top_srcdir)/src/daemon
 libcollectdclient_la_LDFLAGS = -version-info 1:0:0
 libcollectdclient_la_LIBADD = 

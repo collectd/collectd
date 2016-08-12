@@ -24,9 +24,7 @@
  *   Florian octo Forster <octo at collectd.org>
  **/
 
-#if HAVE_CONFIG_H
-# include "config.h"
-#endif
+#include "config.h"
 
 #if !defined(__GNUC__) || !__GNUC__
 # define __attribute__(x) /**/
@@ -34,11 +32,12 @@
 
 #include "collectd/lcc_features.h"
 
+
+#include <inttypes.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <unistd.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <string.h>
