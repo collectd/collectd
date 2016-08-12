@@ -70,7 +70,6 @@ typedef struct {
 static char base_path[PATH_MAX];
 static lua_script_t *scripts;
 
-// store a reference to the function on the top of the stack
 static int clua_store_callback(lua_State *L, int idx) /* {{{ */
 {
   /* Copy the function pointer */
