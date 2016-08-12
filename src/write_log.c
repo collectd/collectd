@@ -29,7 +29,6 @@
 
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 #include "utils_format_graphite.h"
 

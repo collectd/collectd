@@ -24,7 +24,6 @@
 
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 #include <sys/time.h>
 #include <hiredis/hiredis.h>

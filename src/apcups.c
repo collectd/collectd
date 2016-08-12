@@ -28,7 +28,6 @@
 
 #include "common.h"      /* rrd_update_file */
 #include "plugin.h"      /* plugin_register, plugin_submit */
-#include "configfile.h"  /* cf_register */
 
 #if HAVE_SYS_TYPES_H
 # include <sys/types.h>

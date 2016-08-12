@@ -25,7 +25,6 @@
 
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 #include "utils_curl_stats.h"
 #include "utils_match.h"
 #include "utils_time.h"

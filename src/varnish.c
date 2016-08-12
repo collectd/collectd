@@ -27,7 +27,6 @@
 
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 #if HAVE_VARNISH_V4
 #include <vapi/vsm.h>

@@ -27,7 +27,6 @@
 #ifndef UTILS_CURL_STATS_H
 #define UTILS_CURL_STATS_H 1
 
-#include "configfile.h"
 #include "plugin.h"
 
 #include <curl/curl.h>
