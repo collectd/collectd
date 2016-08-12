@@ -324,6 +324,8 @@ static int lua_cb_register_read(lua_State *L) /* {{{ */
 static int lua_cb_register_write(lua_State *L) /* {{{ */
 {
   int nargs = lua_gettop(L);
+
+  if (nargs != 1)
     return luaL_error(L, "Invalid number of arguments (%d != 1)", nargs);
 
   luaL_checktype(L, 1, LUA_TFUNCTION);
