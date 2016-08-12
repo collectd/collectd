@@ -24,6 +24,16 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
+/* Workaround for Solaris 10 defining label_t
+ * Issue #1301
+ */
+#if KERNEL_SOLARIS
+# ifndef _POSIX_C_SOURCE
+#  define _POSIX_C_SOURCE 200112L
+# endif
+# undef __EXTENSIONS__
+#endif
+
 #include "collectd.h"
 
 #include "testing.h"
