@@ -2772,11 +2772,11 @@ supports the following options:
 
 Whether to enable SSL for incoming connections. Default: false.
 
-=item B<SSLRootCerts> I<Filename>
+=item B<SSLCACertificateFile> I<Filename>
 
-=item B<SSLServerKey> I<Filename>
+=item B<SSLCertificateFile> I<Filename>
 
-=item B<SSLServerCert> I<Filename>
+=item B<SSLCertificateKeyFile> I<Filename>
 
 Filenames specifying SSL certificate and key material to be used with SSL
 connections.

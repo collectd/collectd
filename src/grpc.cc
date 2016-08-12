@@ -503,7 +503,7 @@ extern "C" {
 					return -1;
 				}
 			}
-			else if (!strcasecmp("SSLRootCerts", child->key)) {
+			else if (!strcasecmp("SSLCACertificateFile", child->key)) {
 				char *certs = NULL;
 				if (cf_util_get_string(child, &certs)) {
 					ERROR("grpc: Option `%s` expects a string value",
@@ -512,7 +512,7 @@ extern "C" {
 				}
 				ssl_opts->pem_root_certs = read_file(certs);
 			}
-			else if (!strcasecmp("SSLServerKey", child->key)) {
+			else if (!strcasecmp("SSLCertificateKeyFile", child->key)) {
 				char *key = NULL;
 				if (cf_util_get_string(child, &key)) {
 					ERROR("grpc: Option `%s` expects a string value",
@@ -521,7 +521,7 @@ extern "C" {
 				}
 				pkcp.private_key = read_file(key);
 			}
-			else if (!strcasecmp("SSLServerCert", child->key)) {
+			else if (!strcasecmp("SSLCertificateFile", child->key)) {
 				char *cert = NULL;
 				if (cf_util_get_string(child, &cert)) {
 					ERROR("grpc: Option `%s` expects a string value",
