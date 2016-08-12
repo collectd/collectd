@@ -57,13 +57,13 @@ typedef struct lua_script_s {
 
 typedef struct {
   lua_State *lua_state;
-  char *lua_function_name;
+  const char *lua_function_name;
   pthread_mutex_t lock;
   int callback_id;
 } clua_callback_data_t;
 
 typedef struct {
-  char *name;
+  const char *name;
   lua_CFunction func;
 } lua_c_function_t;
 
