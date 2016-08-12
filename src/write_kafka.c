@@ -28,7 +28,6 @@
 
 #include "plugin.h"
 #include "common.h"
-#include "configfile.h"
 #include "utils_cmd_putval.h"
 #include "utils_format_graphite.h"
 #include "utils_format_json.h"

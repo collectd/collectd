@@ -575,7 +575,6 @@
 #</Plugin>
 
 #<Plugin grpc>
-#	WorkerThreads 5
 #	<Listen "0.0.0.0" "50051">
 #		EnableSSL true
 #		SSLRootCerts "/path/to/root.pem"

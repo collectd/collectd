@@ -27,7 +27,6 @@
 #include "collectd.h"
 
 #include "common.h"
-#include "configfile.h"
 #include "plugin.h"
 
 #if HAVE_SYS_SYSCTL_H

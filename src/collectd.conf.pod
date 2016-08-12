@@ -1447,6 +1447,11 @@ are set to B<true>. In this case, by default, metrics will be reported as
 Jiffies. By setting this option to B<true>, you can request percentage values
 in the un-aggregated (per-CPU, per-state) mode as well.
 
+=item B<ReportNumCpu> B<false>|B<true>
+
+When set to B<true>, reports the number of available CPUs.
+Defaults to B<false>.
+
 =back
 
 =head2 Plugin C<cpufreq>
@@ -2750,11 +2755,6 @@ Filenames specifying SSL certificate and key material to be used with SSL
 connections.
 
 =back
-
-=item B<WorkerThreads> I<Num>
-
-Number of threads to start for handling incoming connections. The default
-value is B<5>.
 
 =back
 

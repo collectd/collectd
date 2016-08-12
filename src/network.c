@@ -29,7 +29,6 @@
 
 #include "plugin.h"
 #include "common.h"
-#include "configfile.h"
 #include "utils_fbhash.h"
 #include "utils_cache.h"
 #include "utils_complain.h"

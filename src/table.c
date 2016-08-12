@@ -32,7 +32,6 @@
 
 #include "common.h"
 
-#include "configfile.h"
 #include "plugin.h"
 
 #define log_err(...) ERROR ("table plugin: " __VA_ARGS__)

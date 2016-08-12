@@ -28,7 +28,6 @@
 
 #include "plugin.h"
 #include "common.h"
-#include "configfile.h"
 #include "meta_data.h"
 #include "utils_cache.h" /* for uc_get_rate() */
 #include "utils_subst.h"

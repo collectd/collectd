@@ -32,7 +32,6 @@
 
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 #include <netdb.h>
 #include <sys/un.h>

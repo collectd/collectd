@@ -28,7 +28,6 @@
 
 #include "plugin.h"
 #include "common.h"
-#include "configfile.h"
 
 #define NAGIOS_OK       0
 #define NAGIOS_WARNING  1

@@ -31,7 +31,6 @@
 
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 #if HAVE_STDINT_H
 # include <stdint.h>

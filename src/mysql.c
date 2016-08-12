@@ -31,7 +31,6 @@
 
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 #ifdef HAVE_MYSQL_H
 #include <mysql.h>

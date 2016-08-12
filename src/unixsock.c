@@ -28,7 +28,6 @@
 
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 #include "utils_cmd_flush.h"
 #include "utils_cmd_getval.h"

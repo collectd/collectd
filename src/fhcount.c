@@ -21,7 +21,6 @@
 
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 
 static const char *config_keys[] = {

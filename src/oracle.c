@@ -49,7 +49,6 @@
 
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 #include "utils_db_query.h"
 
 #include <oci.h>

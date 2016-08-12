@@ -32,7 +32,6 @@
 
 #include "plugin.h"
 #include "common.h"
-#include "configfile.h"
 #include "utils_cache.h"
 
 #if HAVE_STDINT_H

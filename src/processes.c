@@ -38,7 +38,6 @@
 
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 /* Include header files for the mach system, if they exist.. */
 #if HAVE_THREAD_INFO

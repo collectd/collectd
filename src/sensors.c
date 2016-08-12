@@ -37,7 +37,6 @@
 
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 #include "utils_ignorelist.h"
 
 #if defined(HAVE_SENSORS_SENSORS_H)

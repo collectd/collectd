@@ -34,7 +34,6 @@
 
 #include "common.h"
 
-#include "configfile.h"
 #include "plugin.h"
 
 #include "utils_cache.h"
