@@ -65,7 +65,7 @@ typedef struct {
 typedef struct {
   char *name;
   lua_CFunction func;
-} lua_c_functions_t;
+} lua_c_function_t;
 
 static char base_path[PATH_MAX];
 static lua_script_t *scripts;
@@ -688,7 +688,7 @@ static int lua_cb_register_filter(lua_State *l) /* {{{ */
   RETURN_LUA(l, 0);
 } /* }}} int lua_cb_register_filter */
 
-static lua_c_functions_t lua_c_functions[] = {
+static lua_c_function_t lua_c_functions[] = {
     {"log", lua_cb_log},
     {"dispatch_values", lua_cb_dispatch_values},
     // { "collectd_dispatch_notification", dispatch_notification },
