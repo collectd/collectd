@@ -275,14 +275,14 @@ static int lua_cb_dispatch_values(lua_State *L) /* {{{ */
   int nargs = lua_gettop(L);
 
   if (nargs != 1) {
-    WARNING("Lua plugin: collectd_dispatch_values() called "
+    WARNING("Lua plugin: collectd.dispatch_values() called "
             "with an invalid number of arguments (%i).",
             nargs);
     RETURN_LUA(L, -1);
   }
 
   if (!lua_istable(L, 1)) {
-    WARNING("Lua plugin: The first argument to collectd_dispatch_values() "
+    WARNING("Lua plugin: The first argument to collectd.dispatch_values() "
             "must be a \"value list\" (i.e. a table).");
     RETURN_LUA(L, -1);
   }
@@ -296,7 +296,7 @@ static int lua_cb_dispatch_values(lua_State *L) /* {{{ */
   char identifier[6 * DATA_MAX_NAME_LEN];
   FORMAT_VL(identifier, sizeof(identifier), vl);
 
-  DEBUG("Lua plugin: collectd_dispatch_values: Received value list \"%s\", "
+  DEBUG("Lua plugin: collectd.dispatch_values(): Received value list \"%s\", "
         "time %.3f, interval %.3f.",
         identifier, CDTIME_T_TO_DOUBLE(vl->time),
         CDTIME_T_TO_DOUBLE(vl->interval));
@@ -313,7 +313,7 @@ static int lua_cb_register_read(lua_State *L) /* {{{ */
   int nargs = lua_gettop(L);
 
   if (nargs != 1) {
-    WARNING("Lua plugin: collectd_register_read() called with an invalid "
+    WARNING("Lua plugin: collectd.register_read() called with an invalid "
             "number of arguments (%i).",
             nargs);
     RETURN_LUA(L, -1);
@@ -375,7 +375,7 @@ static int lua_cb_register_write(lua_State *L) /* {{{ */
   int nargs = lua_gettop(L);
 
   if (nargs != 1) {
-    WARNING("Lua plugin: collectd_register_read() called with an invalid "
+    WARNING("Lua plugin: collectd.register_read() called with an invalid "
             "number of arguments (%i).",
             nargs);
     RETURN_LUA(L, -1);
