@@ -950,70 +950,7 @@ AC_CHECK_FUNCS(getloadavg, [have_getloadavg="yes"], [have_getloadavg="no"])
 AC_CHECK_FUNCS(syslog, [have_syslog="yes"], [have_syslog="no"])
 AC_CHECK_FUNCS(getutent, [have_getutent="yes"], [have_getutent="no"])
 AC_CHECK_FUNCS(getutxent, [have_getutxent="yes"], [have_getutxent="no"])
-
-# Check for strptime {{{
-if test "x$GCC" = "xyes"
-then
-	SAVE_CFLAGS="$CFLAGS"
-	CFLAGS="$CFLAGS -Wall -Wextra -Werror"
-fi
-
 AC_CHECK_FUNCS(strptime, [have_strptime="yes"], [have_strptime="no"])
-if test "x$have_strptime" = "xyes"
-then
-	AC_CACHE_CHECK([whether strptime is exported by default],
-		       [c_cv_have_strptime_default],
-		       AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
-[[[
-#include <time.h>
-]]],
-[[[
- struct tm stm;
- (void) strptime ("2010-12-30%13:42:42", "%Y-%m-%dT%T", &stm);
-]]]
-		       )],
-		       [c_cv_have_strptime_default="yes"],
-		       [c_cv_have_strptime_default="no"]))
-fi
-if test "x$have_strptime" = "xyes" && test "x$c_cv_have_strptime_default" = "xno"
-then
-	AC_CACHE_CHECK([whether strptime needs standards mode],
-		       [c_cv_have_strptime_standards],
-		       AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
-[[[
-#ifndef _ISOC99_SOURCE
-# define _ISOC99_SOURCE 1
-#endif
-#ifndef _POSIX_C_SOURCE
-# define _POSIX_C_SOURCE 200112L
-#endif
-#ifndef _XOPEN_SOURCE
-# define _XOPEN_SOURCE 500
-#endif
-#include <time.h>
-]]],
-[[[
- struct tm stm;
- (void) strptime ("2010-12-30%13:42:42", "%Y-%m-%dT%T", &stm);
-]]]
-		       )],
-		       [c_cv_have_strptime_standards="yes"],
-		       [c_cv_have_strptime_standards="no"]))
-
-	if test "x$c_cv_have_strptime_standards" = "xyes"
-	then
-		AC_DEFINE([STRPTIME_NEEDS_STANDARDS], 1, [Set to true if strptime is only exported in X/Open mode (GNU libc).])
-	else
-		have_strptime="no"
-	fi
-fi
-
-if test "x$GCC" = "xyes"
-then
-	CFLAGS="$SAVE_CFLAGS"
-fi
-# }}} Check for strptime
-
 AC_CHECK_FUNCS(swapctl, [have_swapctl="yes"], [have_swapctl="no"])
 if test "x$have_swapctl" = "xyes"; then
         AC_CACHE_CHECK([whether swapctl takes two arguments],
