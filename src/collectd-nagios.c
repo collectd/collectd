@@ -24,21 +24,18 @@
  *   Florian octo Forster <octo at collectd.org>
  **/
 
-#if HAVE_CONFIG_H
-# include "config.h"
-#endif
+#include "config.h"
 
 #if !defined(__GNUC__) || !__GNUC__
 # define __attribute__(x) /**/
 #endif
 
-#include <stdlib.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <errno.h>
-#include <string.h>
-#include <strings.h>
 #include <assert.h>
+#include <errno.h>
+#include <getopt.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #if NAN_STATIC_DEFAULT
 # include <math.h>

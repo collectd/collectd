@@ -21,18 +21,15 @@
  *   Sebastian "tokkee" Harl <sh@tokkee.org>
  **/
 
-#if HAVE_CONFIG_H
-# include "config.h"
-#endif
-
-#include <stdlib.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <string.h>
-#include <strings.h>
+#include "config.h"
 
 #include <assert.h>
 #include <errno.h>
+#include <getopt.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #if NAN_STATIC_DEFAULT
 # include <math.h>
