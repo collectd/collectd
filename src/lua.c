@@ -246,7 +246,7 @@ static int clua_filter(const data_set_t *ds, value_list_t *vl,
     lua_getfield(l, -1, "values");
     if (lua_istable(l, -1)) {
       // check size
-      size_t s = lua_rawlen(l, -1);
+      size_t s = lua_objlen(l, -1);
 
       if (s == vl->values_len) {
         for (size_t i = 0; i < vl->values_len; i++) {
