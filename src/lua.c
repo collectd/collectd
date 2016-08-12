@@ -354,10 +354,6 @@ static int lua_cb_register_write(lua_State *L) /* {{{ */
   clua_store_thread(L, -1);
   lua_pop(L, 1);
 
-  if (function_name[0] == '\0')
-    ssnprintf(function_name, sizeof(function_name), "lua/callback_%i",
-              callback_id);
-
   clua_callback_data_t *cb = calloc(1, sizeof(*cb));
   if (cb == NULL)
     return luaL_error(L, "%s", "calloc failed");
