@@ -77,7 +77,6 @@ static int clua_store_callback(lua_State *L, int idx) /* {{{ */
 
   int callback_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  lua_pop(L, 1); /* -1 = 0 */
   return (callback_ref);
 } /* }}} int clua_store_callback */
 
