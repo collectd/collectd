@@ -234,45 +234,46 @@ static int clua_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
 /*
  * Exported functions
  */
-static int lua_cb_log(lua_State *L) /* {{{ */
+
+static int lua_cb_log_debug(lua_State *L) /* {{{ */
 {
-  int nargs = lua_gettop(L);
-
-  if (nargs != 2) {
-    WARNING("Lua plugin: collectd_log() called with an invalid number of "
-            "arguments (%i).",
-            nargs);
-    RETURN_LUA(L, -1);
-  }
-
-  if (!lua_isnumber(L, 1)) {
-    WARNING(
-        "Lua plugin: The first argument to collectd_log() must be a number.");
-    RETURN_LUA(L, -1);
-  }
-
-  if (!lua_isstring(L, 2)) {
-    WARNING(
-        "Lua plugin: The second argument to collectd_log() must be a string.");
-    RETURN_LUA(L, -1);
-  }
-
-  int severity = (int)lua_tonumber(L, 1);
-  if ((severity != LOG_ERR) && (severity != LOG_WARNING) &&
-      (severity != LOG_NOTICE) && (severity != LOG_INFO) &&
-      (severity != LOG_DEBUG))
-    severity = LOG_ERR;
-
-  const char *msg = lua_tostring(L, 2);
-  if (msg == NULL) {
-    ERROR("Lua plugin: lua_tostring failed.");
-    RETURN_LUA(L, -1);
-  }
-
-  plugin_log(severity, "%s", msg);
+  const char *msg = luaL_checkstring(L, 1);
+  plugin_log(LOG_DEBUG, "%s", msg);
 
   RETURN_LUA(L, 0);
-} /* }}} int lua_cb_log */
+} /* }}} int lua_cb_log_debug */
+
+static int lua_cb_log_error(lua_State *L) /* {{{ */
+{
+  const char *msg = luaL_checkstring(L, 1);
+  plugin_log(LOG_ERR, "%s", msg);
+
+  RETURN_LUA(L, 0);
+} /* }}} int lua_cb_log_error */
+
+static int lua_cb_log_info(lua_State *L) /* {{{ */
+{
+  const char *msg = luaL_checkstring(L, 1);
+  plugin_log(LOG_INFO, "%s", msg);
+
+  RETURN_LUA(L, 0);
+} /* }}} int lua_cb_log_info */
+
+static int lua_cb_log_notice(lua_State *L) /* {{{ */
+{
+  const char *msg = luaL_checkstring(L, 1);
+  plugin_log(LOG_NOTICE, "%s", msg);
+
+  RETURN_LUA(L, 0);
+} /* }}} int lua_cb_log_notice */
+
+static int lua_cb_log_warning(lua_State *L) /* {{{ */
+{
+  const char *msg = luaL_checkstring(L, 1);
+  plugin_log(LOG_WARNING, "%s", msg);
+
+  RETURN_LUA(L, 0);
+} /* }}} int lua_cb_log_warning */
 
 static int lua_cb_dispatch_values(lua_State *L) /* {{{ */
 {
@@ -435,7 +436,11 @@ static int lua_cb_register_write(lua_State *L) /* {{{ */
 } /* }}} int lua_cb_register_write */
 
 static lua_c_function_t lua_c_functions[] = {
-    {"log", lua_cb_log},
+    {"log_debug", lua_cb_log_debug},
+    {"log_error", lua_cb_log_error},
+    {"log_info", lua_cb_log_info},
+    {"log_notice", lua_cb_log_notice},
+    {"log_warning", lua_cb_log_warning},
     {"dispatch_values", lua_cb_dispatch_values},
     {"register_read", lua_cb_register_read},
     {"register_write", lua_cb_register_write}};
