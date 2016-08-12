@@ -221,16 +221,6 @@ static int clua_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
   return (status);
 } /* }}} int clua_write */
 
-/* Cleans up the stack, pushes the return value as a number onto the stack and
- * returns the number of values returned (1). */
-#define RETURN_LUA(L, status)                                                  \
-  do {                                                                         \
-    lua_State *_l_state = (L);                                                 \
-    lua_settop(_l_state, 0);                                                   \
-    lua_pushnumber(_l_state, (lua_Number)(status));                            \
-    return (1);                                                                \
-  } while (0)
-
 /*
  * Exported functions
  */
@@ -274,24 +264,14 @@ static int lua_cb_dispatch_values(lua_State *L) /* {{{ */
 {
   int nargs = lua_gettop(L);
 
-  if (nargs != 1) {
-    WARNING("Lua plugin: collectd.dispatch_values() called "
-            "with an invalid number of arguments (%i).",
-            nargs);
-    RETURN_LUA(L, -1);
-  }
+  if (nargs != 1)
+    return luaL_error(L, "Invalid number of arguments (%d != 1)", nargs);
 
-  if (!lua_istable(L, 1)) {
-    WARNING("Lua plugin: The first argument to collectd.dispatch_values() "
-            "must be a \"value list\" (i.e. a table).");
-    RETURN_LUA(L, -1);
-  }
+  luaL_checktype(L, 1, LUA_TTABLE);
 
   value_list_t *vl = luaC_tovaluelist(L, -1);
-  if (vl == NULL) {
-    WARNING("Lua plugin: luaC_tovaluelist failed.");
-    RETURN_LUA(L, -1);
-  }
+  if (vl == NULL)
+    return luaL_error(L, "%s", "luaC_tovaluelist failed");
 
   char identifier[6 * DATA_MAX_NAME_LEN];
   FORMAT_VL(identifier, sizeof(identifier), vl);
@@ -305,7 +285,7 @@ static int lua_cb_dispatch_values(lua_State *L) /* {{{ */
 
   sfree(vl->values);
   sfree(vl);
-  RETURN_LUA(L, 0);
+  return 0;
 } /* }}} lua_cb_dispatch_values */
 
 static int lua_cb_register_read(lua_State *L) /* {{{ */
