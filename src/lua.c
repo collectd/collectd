@@ -731,6 +731,23 @@ static int lua_script_init(lua_script_t *script) /* {{{ */
     lua_register(script->lua_state, lua_c_functions[i].name,
                  lua_c_functions[i].func);
 
+  /* Prepend BasePath to package.path */
+  if (base_path[0] != '\0') {
+    lua_getglobal(script->lua_state, "package");
+    lua_getfield(script->lua_state, -1, "path");
+
+    const char *cur_path = lua_tostring(script->lua_state, -1);
+    char *new_path = ssnprintf_alloc("%s/?.lua;%s", base_path, cur_path);
+
+    lua_pop(script->lua_state, 1);
+    lua_pushstring(script->lua_state, new_path);
+
+    free(new_path);
+
+    lua_setfield(script->lua_state, -2, "path");
+    lua_pop(script->lua_state, 1);
+  }
+
   return (0);
 } /* }}} int lua_script_init */
 
