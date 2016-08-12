@@ -75,15 +75,6 @@ static int clua_store_callback(lua_State *L, int idx) /* {{{ */
   /* Copy the function pointer */
   lua_pushvalue(L, idx); /* +1 = 3 */
 
-  /* Lookup function if it's a string */
-  if (lua_isstring(L, -1))
-    lua_gettable(L, LUA_GLOBALSINDEX); /* +-0 = 3 */
-
-  if (!lua_isfunction(L, -1)) {
-    lua_pop(L, 3); /* -3 = 0 */
-    return (-1);
-  }
-
   int callback_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
   lua_pop(L, 1); /* -1 = 0 */
