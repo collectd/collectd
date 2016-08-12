@@ -41,18 +41,18 @@ static int ltoc_values(lua_State *L, /* {{{ */
   /* Push initial key */
   lua_pushnil(L); /* +1 = 1 */
   size_t i = 0;
-  while (lua_next(L, /* idx = */ -2) != 0) /* -1+2 = 2 || -1 = 0 */
+  while (lua_next(L, -2) != 0) /* -1+2 = 2 || -1 = 0 */
   {
     if (i >= ds->ds_num) {
-      lua_pop(L, /* nelems = */ 2); /* -2 = 0 */
+      lua_pop(L, 2); /* -2 = 0 */
       i++;
       break;
     }
 
-    ret_values[i] = luaC_tovalue(L, /* idx = */ -1, ds->ds[i].type);
+    ret_values[i] = luaC_tovalue(L, -1, ds->ds[i].type);
 
     /* Pop the value */
-    lua_pop(L, /* nelems = */ 1); /* -1 = 1 */
+    lua_pop(L, 1); /* -1 = 1 */
     i++;
   } /* while (lua_next) */
 
@@ -77,7 +77,7 @@ static int ltoc_table_values(lua_State *L, int idx, /* {{{ */
     WARNING("utils_lua: ltoc_table_values: The \"values\" member is a %s "
             "value, not a table.",
             lua_typename(L, lua_type(L, -1)));
-    lua_pop(L, /* nelem = */ 1);
+    lua_pop(L, 1);
     return (-1);
   }
 
@@ -86,13 +86,13 @@ static int ltoc_table_values(lua_State *L, int idx, /* {{{ */
   if (vl->values == NULL) {
     ERROR("utils_lua: calloc failed.");
     vl->values_len = 0;
-    lua_pop(L, /* nelem = */ 1);
+    lua_pop(L, 1);
     return (-1);
   }
 
   int status = ltoc_values(L, ds, vl->values);
 
-  lua_pop(L, /* nelem = */ 1);
+  lua_pop(L, 1);
 
   if (status != 0) {
     vl->values_len = 0;
@@ -111,7 +111,7 @@ static int luaC_pushvalues(lua_State *L, const data_set_t *ds,
   for (size_t i = 0; i < vl->values_len; i++) {
     lua_pushinteger(L, (lua_Integer)i + 1);
     luaC_pushvalue(L, vl->values[i], ds->ds[i].type);
-    lua_settable(L, /* idx = */ -3);
+    lua_settable(L, -3);
   }
 
   return (0);
@@ -123,7 +123,7 @@ static int luaC_pushdstypes(lua_State *L, const data_set_t *ds) /* {{{ */
   for (size_t i = 0; i < ds->ds_num; i++) {
     lua_pushinteger(L, (lua_Integer)i);
     lua_pushstring(L, DS_TYPE_TO_STRING(ds->ds[i].type));
-    lua_settable(L, /* idx = */ -3);
+    lua_settable(L, -3);
   }
 
   return (0);
@@ -135,7 +135,7 @@ static int luaC_pushdsnames(lua_State *L, const data_set_t *ds) /* {{{ */
   for (size_t i = 0; i < ds->ds_num; i++) {
     lua_pushinteger(L, (lua_Integer)i);
     lua_pushstring(L, ds->ds[i].name);
-    lua_settable(L, /* idx = */ -3);
+    lua_settable(L, -3);
   }
 
   return (0);
@@ -209,21 +209,21 @@ value_list_t *luaC_tovaluelist(lua_State *L, int idx) /* {{{ */
   /* Push initial key */
   lua_pushnil(L);
   while (lua_next(L, idx) != 0) {
-    const char *key = lua_tostring(L, /* stack pos = */ -2);
+    const char *key = lua_tostring(L, -2);
 
     if (key == NULL) {
       DEBUG("luaC_tovaluelist: Ignoring non-string key.");
     } else if (strcasecmp("host", key) == 0)
-      luaC_tostringbuffer(L, /* idx = */ -1, vl->host, sizeof(vl->host));
+      luaC_tostringbuffer(L, -1, vl->host, sizeof(vl->host));
     else if (strcasecmp("plugin", key) == 0)
-      luaC_tostringbuffer(L, /* idx = */ -1, vl->plugin, sizeof(vl->plugin));
+      luaC_tostringbuffer(L, -1, vl->plugin, sizeof(vl->plugin));
     else if (strcasecmp("plugin_instance", key) == 0)
-      luaC_tostringbuffer(L, /* idx = */ -1, vl->plugin_instance,
+      luaC_tostringbuffer(L, -1, vl->plugin_instance,
                           sizeof(vl->plugin_instance));
     else if (strcasecmp("type", key) == 0)
-      luaC_tostringbuffer(L, /* idx = */ -1, vl->type, sizeof(vl->type));
+      luaC_tostringbuffer(L, -1, vl->type, sizeof(vl->type));
     else if (strcasecmp("type_instance", key) == 0)
-      luaC_tostringbuffer(L, /* idx = */ -1, vl->type_instance,
+      luaC_tostringbuffer(L, -1, vl->type_instance,
                           sizeof(vl->type_instance));
     else if (strcasecmp("time", key) == 0)
       vl->time = luaC_tocdtime(L, -1);
@@ -289,32 +289,32 @@ int luaC_pushvaluelist(lua_State *L, const data_set_t *ds,
   lua_newtable(L);
 
   lua_pushstring(L, vl->host);
-  lua_setfield(L, /* idx = */ -2, "host");
+  lua_setfield(L, -2, "host");
 
   lua_pushstring(L, vl->plugin);
-  lua_setfield(L, /* idx = */ -2, "plugin");
+  lua_setfield(L, -2, "plugin");
   lua_pushstring(L, vl->plugin_instance);
-  lua_setfield(L, /* idx = */ -2, "plugin_instance");
+  lua_setfield(L, -2, "plugin_instance");
 
   lua_pushstring(L, vl->type);
-  lua_setfield(L, /* idx = */ -2, "type");
+  lua_setfield(L, -2, "type");
   lua_pushstring(L, vl->type_instance);
-  lua_setfield(L, /* idx = */ -2, "type_instance");
+  lua_setfield(L, -2, "type_instance");
 
   luaC_pushvalues(L, ds, vl);
-  lua_setfield(L, /* idx = */ -2, "values");
+  lua_setfield(L, -2, "values");
 
   luaC_pushdstypes(L, ds);
-  lua_setfield(L, /* idx = */ -2, "dstypes");
+  lua_setfield(L, -2, "dstypes");
 
   luaC_pushdsnames(L, ds);
-  lua_setfield(L, /* idx = */ -2, "dsnames");
+  lua_setfield(L, -2, "dsnames");
 
   luaC_pushcdtime(L, vl->time);
-  lua_setfield(L, /* idx = */ -2, "time");
+  lua_setfield(L, -2, "time");
 
   luaC_pushcdtime(L, vl->interval);
-  lua_setfield(L, /* idx = */ -2, "interval");
+  lua_setfield(L, -2, "interval");
 
   return (0);
 } /* }}} int luaC_pushvaluelist */
