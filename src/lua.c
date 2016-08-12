@@ -239,40 +239,35 @@ static int lua_cb_log_debug(lua_State *L) /* {{{ */
 {
   const char *msg = luaL_checkstring(L, 1);
   plugin_log(LOG_DEBUG, "%s", msg);
-
-  RETURN_LUA(L, 0);
+  return 0;
 } /* }}} int lua_cb_log_debug */
 
 static int lua_cb_log_error(lua_State *L) /* {{{ */
 {
   const char *msg = luaL_checkstring(L, 1);
   plugin_log(LOG_ERR, "%s", msg);
-
-  RETURN_LUA(L, 0);
+  return 0;
 } /* }}} int lua_cb_log_error */
 
 static int lua_cb_log_info(lua_State *L) /* {{{ */
 {
   const char *msg = luaL_checkstring(L, 1);
   plugin_log(LOG_INFO, "%s", msg);
-
-  RETURN_LUA(L, 0);
+  return 0;
 } /* }}} int lua_cb_log_info */
 
 static int lua_cb_log_notice(lua_State *L) /* {{{ */
 {
   const char *msg = luaL_checkstring(L, 1);
   plugin_log(LOG_NOTICE, "%s", msg);
-
-  RETURN_LUA(L, 0);
+  return 0;
 } /* }}} int lua_cb_log_notice */
 
 static int lua_cb_log_warning(lua_State *L) /* {{{ */
 {
   const char *msg = luaL_checkstring(L, 1);
   plugin_log(LOG_WARNING, "%s", msg);
-
-  RETURN_LUA(L, 0);
+  return 0;
 } /* }}} int lua_cb_log_warning */
 
 static int lua_cb_dispatch_values(lua_State *L) /* {{{ */
