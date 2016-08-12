@@ -94,7 +94,6 @@ static c_avl_tree_t *plugins_loaded = NULL;
 
 static llist_t *list_init;
 static llist_t *list_write;
-static llist_t *list_filter = NULL;
 static llist_t *list_flush;
 static llist_t *list_missing;
 static llist_t *list_shutdown;
@@ -1628,11 +1627,6 @@ int plugin_unregister_read_group (const char *group) /* {{{ */
 int plugin_unregister_write (const char *name)
 {
 	return (plugin_unregister (list_write, name));
-}
-
-int plugin_unregister_filter(const char *name)
-{
-  return (plugin_unregister (list_filter, name));
 }
 
 int plugin_unregister_flush (const char *name)
