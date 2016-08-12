@@ -71,32 +71,32 @@ static char base_path[PATH_MAX];
 static lua_script_t *scripts;
 
 // store a reference to the function on the top of the stack
-static int clua_store_callback(lua_State *l, int idx) /* {{{ */
+static int clua_store_callback(lua_State *L, int idx) /* {{{ */
 {
   /* Copy the function pointer */
-  lua_pushvalue(l, idx); /* +1 = 3 */
+  lua_pushvalue(L, idx); /* +1 = 3 */
 
   /* Lookup function if it's a string */
-  if (lua_isstring(l, /* idx = */ -1))
-    lua_gettable(l, LUA_GLOBALSINDEX); /* +-0 = 3 */
+  if (lua_isstring(L, /* idx = */ -1))
+    lua_gettable(L, LUA_GLOBALSINDEX); /* +-0 = 3 */
 
-  if (!lua_isfunction(l, /* idx = */ -1)) {
-    lua_pop(l, /* nelems = */ 3); /* -3 = 0 */
+  if (!lua_isfunction(L, /* idx = */ -1)) {
+    lua_pop(L, /* nelems = */ 3); /* -3 = 0 */
     return (-1);
   }
 
-  int callback_ref = luaL_ref(l, LUA_REGISTRYINDEX);
+  int callback_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  lua_pop(l, /* nelems = */ 1); /* -1 = 0 */
+  lua_pop(L, /* nelems = */ 1); /* -1 = 0 */
   return (callback_ref);
 } /* }}} int clua_store_callback */
 
-static int clua_load_callback(lua_State *l, int callback_ref) /* {{{ */
+static int clua_load_callback(lua_State *L, int callback_ref) /* {{{ */
 {
-  lua_rawgeti(l, LUA_REGISTRYINDEX, callback_ref);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, callback_ref);
 
-  if (!lua_isfunction(l, -1)) {
-    lua_pop(l, /* nelems = */ 1);
+  if (!lua_isfunction(L, -1)) {
+    lua_pop(L, /* nelems = */ 1);
     return (-1);
   }
 
@@ -119,20 +119,20 @@ static int clua_load_callback(lua_State *l, int callback_ref) /* {{{ */
 
 /* Store the threads in a global variable so they are not cleaned up by the
  * garbage collector. */
-static int clua_store_thread(lua_State *l, int idx) /* {{{ */
+static int clua_store_thread(lua_State *L, int idx) /* {{{ */
 {
   if (idx < 0)
-    idx += lua_gettop(l) + 1;
+    idx += lua_gettop(L) + 1;
 
   /* Copy the thread pointer */
-  lua_pushvalue(l, idx); /* +1 = 3 */
-  if (!lua_isthread(l, /* idx = */ -1)) {
-    lua_pop(l, /* nelems = */ 3); /* -3 = 0 */
+  lua_pushvalue(L, idx); /* +1 = 3 */
+  if (!lua_isthread(L, /* idx = */ -1)) {
+    lua_pop(L, /* nelems = */ 3); /* -3 = 0 */
     return (-1);
   }
 
-  luaL_ref(l, LUA_REGISTRYINDEX);
-  lua_pop(l, /* nelems = */ 1); /* -1 = 0 */
+  luaL_ref(L, LUA_REGISTRYINDEX);
+  lua_pop(L, /* nelems = */ 1); /* -1 = 0 */
   return (0);
 } /* }}} int clua_store_thread */
 
@@ -142,9 +142,9 @@ static int clua_read(user_data_t *ud) /* {{{ */
 
   pthread_mutex_lock(&cb->lock);
 
-  lua_State *l = cb->lua_state;
+  lua_State *L = cb->lua_state;
 
-  int status = clua_load_callback(l, cb->callback_id);
+  int status = clua_load_callback(L, cb->callback_id);
   if (status != 0) {
     ERROR("Lua plugin: Unable to load callback \"%s\" (id %i).",
           cb->lua_function_name, cb->callback_id);
@@ -153,33 +153,33 @@ static int clua_read(user_data_t *ud) /* {{{ */
   }
   /* +1 = 1 */
 
-  status = lua_pcall(l,
+  status = lua_pcall(L,
                      /* nargs    = */ 0,
                      /* nresults = */ 1,
                      /* errfunc  = */ 0); /* -1+1 = 1 */
   if (status != 0) {
-    const char *errmsg = lua_tostring(l, /* idx = */ -1);
+    const char *errmsg = lua_tostring(L, /* idx = */ -1);
     if (errmsg == NULL)
       ERROR("Lua plugin: Calling a read callback failed. "
             "In addition, retrieving the error message failed.");
     else
       ERROR("Lua plugin: Calling a read callback failed: %s", errmsg);
-    lua_pop(l, /* nelems = */ 1); /* -1 = 0 */
+    lua_pop(L, /* nelems = */ 1); /* -1 = 0 */
     pthread_mutex_unlock(&cb->lock);
     return (-1);
   }
 
-  if (!lua_isnumber(l, /* idx = */ -1)) {
+  if (!lua_isnumber(L, /* idx = */ -1)) {
     ERROR("Lua plugin: Read function \"%s\" (id %i) did not return a numeric "
           "status.",
           cb->lua_function_name, cb->callback_id);
     status = -1;
   } else {
-    status = (int)lua_tointeger(l, /* idx = */ -1);
+    status = (int)lua_tointeger(L, /* idx = */ -1);
   }
 
   /* pop return value and function */
-  lua_pop(l, /* nelems = */ 1); /* -1 = 0 */
+  lua_pop(L, /* nelems = */ 1); /* -1 = 0 */
 
   pthread_mutex_unlock(&cb->lock);
   return (status);
@@ -187,16 +187,16 @@ static int clua_read(user_data_t *ud) /* {{{ */
 
 #define LUA_FILTER_COPY_FIELD(field)                                           \
   do {                                                                         \
-    lua_getfield(l, -1, #field);                                               \
-    if (lua_isstring(l, -1) == 0) {                                            \
+    lua_getfield(L, -1, #field);                                               \
+    if (lua_isstring(L, -1) == 0) {                                            \
       WARNING("Lua plugin: filter callback: wrong type for " #field ": %d",    \
-              lua_type(l, -1));                                                \
-    } else if (luaC_tostringbuffer(l, -1, vl->field, sizeof(vl->field)) !=     \
+              lua_type(L, -1));                                                \
+    } else if (luaC_tostringbuffer(L, -1, vl->field, sizeof(vl->field)) !=     \
                0) {                                                            \
       WARNING("Lua plugin: filter callback : " #field " is missing");          \
     }                                                                          \
                                                                                \
-    lua_pop(l, 1);                                                             \
+    lua_pop(L, 1);                                                             \
   } while (0)
 
 static int clua_filter(const data_set_t *ds, value_list_t *vl,
@@ -206,9 +206,9 @@ static int clua_filter(const data_set_t *ds, value_list_t *vl,
 
   pthread_mutex_lock(&cb->lock);
 
-  lua_State *l = cb->lua_state;
+  lua_State *L = cb->lua_state;
 
-  int status = clua_load_callback(l, cb->callback_id);
+  int status = clua_load_callback(L, cb->callback_id);
   if (status != 0) {
     ERROR("Lua plugin: Unable to load callback \"%s\" (id %i).",
           cb->lua_function_name, cb->callback_id);
@@ -217,50 +217,50 @@ static int clua_filter(const data_set_t *ds, value_list_t *vl,
   }
   /* +1 = 1 */
 
-  status = luaC_pushvaluelist(l, ds, vl);
+  status = luaC_pushvaluelist(L, ds, vl);
   if (status != 0) {
-    lua_pop(l, /* nelems = */ 1);
+    lua_pop(L, /* nelems = */ 1);
     ERROR("Lua plugin: luaC_pushvaluelist failed.");
     pthread_mutex_unlock(&cb->lock);
     return -1;
   }
 
-  status = lua_pcall(l,
+  status = lua_pcall(L,
                      /* nargs    = */ 1,
                      /* nresults = */ 1,
                      /* errfunc  = */ 0);
   if (status != 0) {
-    const char *errmsg = lua_tostring(l, /* idx = */ -1);
+    const char *errmsg = lua_tostring(L, /* idx = */ -1);
     if (errmsg == NULL) {
       ERROR("Lua plugin: Calling a filter callback failed. In addition, "
             "retrieving the error message failed.");
     } else {
       ERROR("Lua plugin: Calling a filter callback failed: %s", errmsg);
     }
-    lua_pop(l, /* nelems = */ 1); /* -1 = 0 */
+    lua_pop(L, /* nelems = */ 1); /* -1 = 0 */
     pthread_mutex_unlock(&cb->lock);
     return -1;
   }
 
-  if (lua_istable(l, -1)) {
+  if (lua_istable(L, -1)) {
     // report changes to the value_list_t structure
     // values
-    lua_getfield(l, -1, "values");
-    if (lua_istable(l, -1)) {
+    lua_getfield(L, -1, "values");
+    if (lua_istable(L, -1)) {
       // check size
-      size_t s = lua_objlen(l, -1);
+      size_t s = lua_objlen(L, -1);
 
       if (s == vl->values_len) {
         for (size_t i = 0; i < vl->values_len; i++) {
-          lua_rawgeti(l, -1, i);
-          if (lua_isnumber(l, -1)) {
-            vl->values[i] = luaC_tovalue(l, -1, ds->ds[i].type);
+          lua_rawgeti(L, -1, i);
+          if (lua_isnumber(L, -1)) {
+            vl->values[i] = luaC_tovalue(L, -1, ds->ds[i].type);
           }
-          lua_pop(l, 1);
+          lua_pop(L, 1);
         }
 
         // pop values table
-        lua_pop(l, 1);
+        lua_pop(L, 1);
 
         // copy other fields
         LUA_FILTER_COPY_FIELD(host);
@@ -274,8 +274,8 @@ static int clua_filter(const data_set_t *ds, value_list_t *vl,
               s, vl->values_len, cb->lua_function_name);
       }
     }
-  } else if (lua_isnumber(l, -1)) {
-    lua_Integer ret = lua_tointeger(l, -1);
+  } else if (lua_isnumber(L, -1)) {
+    lua_Integer ret = lua_tointeger(L, -1);
 
     if (ret == 1) {
       /* discard the value list */
@@ -286,7 +286,7 @@ static int clua_filter(const data_set_t *ds, value_list_t *vl,
   }
 
   /* pop return value and function */
-  lua_pop(l, /* nelems = */ 1); /* -1 = 0 */
+  lua_pop(L, /* nelems = */ 1); /* -1 = 0 */
 
   pthread_mutex_unlock(&cb->lock);
   return (status);
@@ -300,9 +300,9 @@ static int clua_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
 
   pthread_mutex_lock(&cb->lock);
 
-  lua_State *l = cb->lua_state;
+  lua_State *L = cb->lua_state;
 
-  int status = clua_load_callback(l, cb->callback_id);
+  int status = clua_load_callback(L, cb->callback_id);
   if (status != 0) {
     ERROR("Lua plugin: Unable to load callback \"%s\" (id %i).",
           cb->lua_function_name, cb->callback_id);
@@ -311,50 +311,50 @@ static int clua_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
   }
   /* +1 = 1 */
 
-  status = luaC_pushvaluelist(l, ds, vl);
+  status = luaC_pushvaluelist(L, ds, vl);
   if (status != 0) {
-    lua_pop(l, /* nelems = */ 1); /* -1 = 0 */
+    lua_pop(L, /* nelems = */ 1); /* -1 = 0 */
     pthread_mutex_unlock(&cb->lock);
     ERROR("Lua plugin: luaC_pushvaluelist failed.");
     return (-1);
   }
   /* +1 = 2 */
 
-  status = lua_pcall(l,
+  status = lua_pcall(L,
                      /* nargs    = */ 1,
                      /* nresults = */ 1,
                      /* errfunc  = */ 0); /* -2+1 = 1 */
   if (status != 0) {
-    const char *errmsg = lua_tostring(l, /* idx = */ -1);
+    const char *errmsg = lua_tostring(L, /* idx = */ -1);
     if (errmsg == NULL)
       ERROR("Lua plugin: Calling the write callback failed. "
             "In addition, retrieving the error message failed.");
     else
       ERROR("Lua plugin: Calling the write callback failed:\n%s", errmsg);
-    lua_pop(l, /* nelems = */ 1); /* -1 = 0 */
+    lua_pop(L, /* nelems = */ 1); /* -1 = 0 */
     pthread_mutex_unlock(&cb->lock);
     return (-1);
   }
 
-  if (!lua_isnumber(l, /* idx = */ -1)) {
+  if (!lua_isnumber(L, /* idx = */ -1)) {
     ERROR("Lua plugin: Write function \"%s\" (id %i) did not return a numeric "
           "value.",
           cb->lua_function_name, cb->callback_id);
     status = -1;
   } else {
-    status = (int)lua_tointeger(l, /* idx = */ -1);
+    status = (int)lua_tointeger(L, /* idx = */ -1);
   }
 
-  lua_pop(l, /* nelems = */ 1); /* -1 = 0 */
+  lua_pop(L, /* nelems = */ 1); /* -1 = 0 */
   pthread_mutex_unlock(&cb->lock);
   return (status);
 } /* }}} int clua_write */
 
 /* Cleans up the stack, pushes the return value as a number onto the stack and
  * returns the number of values returned (1). */
-#define RETURN_LUA(l, status)                                                  \
+#define RETURN_LUA(L, status)                                                  \
   do {                                                                         \
-    lua_State *_l_state = (l);                                                 \
+    lua_State *_l_state = (L);                                                 \
     lua_settop(_l_state, 0);                                                   \
     lua_pushnumber(_l_state, (lua_Number)(status));                            \
     return (1);                                                                \
@@ -363,67 +363,67 @@ static int clua_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
 /*
  * Exported functions
  */
-static int lua_cb_log(lua_State *l) /* {{{ */
+static int lua_cb_log(lua_State *L) /* {{{ */
 {
-  int nargs = lua_gettop(l); /* number of arguments */
+  int nargs = lua_gettop(L); /* number of arguments */
 
   if (nargs != 2) {
     WARNING("Lua plugin: collectd_log() called with an invalid number of "
             "arguments (%i).",
             nargs);
-    RETURN_LUA(l, -1);
+    RETURN_LUA(L, -1);
   }
 
-  if (!lua_isnumber(l, 1)) {
+  if (!lua_isnumber(L, 1)) {
     WARNING(
         "Lua plugin: The first argument to collectd_log() must be a number.");
-    RETURN_LUA(l, -1);
+    RETURN_LUA(L, -1);
   }
 
-  if (!lua_isstring(l, 2)) {
+  if (!lua_isstring(L, 2)) {
     WARNING(
         "Lua plugin: The second argument to collectd_log() must be a string.");
-    RETURN_LUA(l, -1);
+    RETURN_LUA(L, -1);
   }
 
-  int severity = (int)lua_tonumber(l, /* stack pos = */ 1);
+  int severity = (int)lua_tonumber(L, /* stack pos = */ 1);
   if ((severity != LOG_ERR) && (severity != LOG_WARNING) &&
       (severity != LOG_NOTICE) && (severity != LOG_INFO) &&
       (severity != LOG_DEBUG))
     severity = LOG_ERR;
 
-  const char *msg = lua_tostring(l, 2);
+  const char *msg = lua_tostring(L, 2);
   if (msg == NULL) {
     ERROR("Lua plugin: lua_tostring failed.");
-    RETURN_LUA(l, -1);
+    RETURN_LUA(L, -1);
   }
 
   plugin_log(severity, "%s", msg);
 
-  RETURN_LUA(l, 0);
+  RETURN_LUA(L, 0);
 } /* }}} int lua_cb_log */
 
-static int lua_cb_dispatch_values(lua_State *l) /* {{{ */
+static int lua_cb_dispatch_values(lua_State *L) /* {{{ */
 {
-  int nargs = lua_gettop(l); /* number of arguments */
+  int nargs = lua_gettop(L); /* number of arguments */
 
   if (nargs != 1) {
     WARNING("Lua plugin: collectd_dispatch_values() called "
             "with an invalid number of arguments (%i).",
             nargs);
-    RETURN_LUA(l, -1);
+    RETURN_LUA(L, -1);
   }
 
-  if (!lua_istable(l, 1)) {
+  if (!lua_istable(L, 1)) {
     WARNING("Lua plugin: The first argument to collectd_dispatch_values() "
             "must be a \"value list\" (i.e. a table).");
-    RETURN_LUA(l, -1);
+    RETURN_LUA(L, -1);
   }
 
-  value_list_t *vl = luaC_tovaluelist(l, /* idx = */ -1);
+  value_list_t *vl = luaC_tovaluelist(L, /* idx = */ -1);
   if (vl == NULL) {
     WARNING("Lua plugin: luaC_tovaluelist failed.");
-    RETURN_LUA(l, -1);
+    RETURN_LUA(L, -1);
   }
 
   char identifier[6 * DATA_MAX_NAME_LEN];
@@ -438,22 +438,22 @@ static int lua_cb_dispatch_values(lua_State *l) /* {{{ */
 
   sfree(vl->values);
   sfree(vl);
-  RETURN_LUA(l, 0);
+  RETURN_LUA(L, 0);
 } /* }}} lua_cb_dispatch_values */
 
-// static int dispatch_notification(lua_State *l)
+// static int dispatch_notification(lua_State *L)
 // {
 //   notification_t  notif;
 //   char            tmp[255];
 //   DEBUG("NOTIF");
-//   if( lua_istable(l, 1) == 0 ){
+//   if( lua_istable(L, 1) == 0 ){
 //     WARNING("Lua plugin: collectd_dispatch_notification() expects a table");
-//     RETURN_LUA(l, -1);
+//     RETURN_LUA(L, -1);
 //   }
 //
 //   //  now extract data from the table
 //   // severity
-//   if( ltoc_table_string_buffer(l, "severity", tmp, sizeof(tmp)) != 0 ){
+//   if( ltoc_table_string_buffer(L, "severity", tmp, sizeof(tmp)) != 0 ){
 //     WARNING("Lua plugin: collectd_dispatch_notification : severity is
 //     required and must be a string");
 //     RETURN_LUA(l, -1);
@@ -471,20 +471,20 @@ static int lua_cb_dispatch_values(lua_State *l) /* {{{ */
 //   }
 //
 //   // time
-//   if( ltoc_table_cdtime (l, "time", &notif.time) != 0 ){
+//   if( ltoc_table_cdtime (L, "time", &notif.time) != 0 ){
 //     notif.time = cdtime();
 //   }
 //
 #define LUA_COPY_FIELD(field, def)                                             \
   do {                                                                         \
-    if (ltoc_table_string_buffer(l, #field, notif.field,                       \
+    if (ltoc_table_string_buffer(L, #field, notif.field,                       \
                                  sizeof(notif.field)) != 0) {                  \
       if (def != NULL) {                                                       \
         sstrncpy(notif.field, def, sizeof(notif.field));                       \
       } else {                                                                 \
         WARNING("Lua plugin: collectd_dispatch_notification : " #field         \
                 " is required");                                               \
-        RETURN_LUA(l, -1);                                                     \
+        RETURN_LUA(L, -1);                                                     \
       }                                                                        \
     }                                                                          \
   } while (0)
@@ -501,40 +501,40 @@ static int lua_cb_dispatch_values(lua_State *l) /* {{{ */
 //   // TODO: meta data ?
 //   plugin_dispatch_notification(&notif);
 //
-//   RETURN_LUA(l, 0);
+//   RETURN_LUA(L, 0);
 // }
 
-static int lua_cb_register_read(lua_State *l) /* {{{ */
+static int lua_cb_register_read(lua_State *L) /* {{{ */
 {
-  int nargs = lua_gettop(l); /* number of arguments */
+  int nargs = lua_gettop(L); /* number of arguments */
 
   if (nargs != 1) {
     WARNING("Lua plugin: collectd_register_read() called with an invalid "
             "number of arguments (%i).",
             nargs);
-    RETURN_LUA(l, -1);
+    RETURN_LUA(L, -1);
   }
 
   char function_name[DATA_MAX_NAME_LEN] = "";
 
-  if (lua_isstring(l, /* stack pos = */ 1)) {
-    const char *tmp = lua_tostring(l, /* idx = */ 1);
+  if (lua_isstring(L, /* stack pos = */ 1)) {
+    const char *tmp = lua_tostring(L, /* idx = */ 1);
     ssnprintf(function_name, sizeof(function_name), "lua/%s", tmp);
   }
 
-  int callback_id = clua_store_callback(l, /* idx = */ 1);
+  int callback_id = clua_store_callback(L, /* idx = */ 1);
   if (callback_id < 0) {
     ERROR("Lua plugin: Storing callback function failed.");
-    RETURN_LUA(l, -1);
+    RETURN_LUA(L, -1);
   }
 
-  lua_State *thread = lua_newthread(l);
+  lua_State *thread = lua_newthread(L);
   if (thread == NULL) {
     ERROR("Lua plugin: lua_newthread failed.");
-    RETURN_LUA(l, -1);
+    RETURN_LUA(L, -1);
   }
-  clua_store_thread(l, /* idx = */ -1);
-  lua_pop(l, /* nelems = */ 1);
+  clua_store_thread(L, /* idx = */ -1);
+  lua_pop(L, /* nelems = */ 1);
 
   if (function_name[0] == '\0')
     ssnprintf(function_name, sizeof(function_name), "lua/callback_%i",
@@ -543,7 +543,7 @@ static int lua_cb_register_read(lua_State *l) /* {{{ */
   clua_callback_data_t *cb = calloc(1, sizeof(*cb));
   if (cb == NULL) {
     ERROR("Lua plugin: calloc failed.");
-    RETURN_LUA(l, -1);
+    RETURN_LUA(L, -1);
   }
 
   cb->lua_state = thread;
@@ -563,40 +563,40 @@ static int lua_cb_register_read(lua_State *l) /* {{{ */
 
   DEBUG("Lua plugin: Successful call to lua_cb_register_read().");
 
-  RETURN_LUA(l, 0);
+  RETURN_LUA(L, 0);
 } /* }}} int lua_cb_register_read */
 
-static int lua_cb_register_write(lua_State *l) /* {{{ */
+static int lua_cb_register_write(lua_State *L) /* {{{ */
 {
-  int nargs = lua_gettop(l); /* number of arguments */
+  int nargs = lua_gettop(L); /* number of arguments */
 
   if (nargs != 1) {
     WARNING("Lua plugin: collectd_register_read() called with an invalid "
             "number of arguments (%i).",
             nargs);
-    RETURN_LUA(l, -1);
+    RETURN_LUA(L, -1);
   }
 
   char function_name[DATA_MAX_NAME_LEN] = "";
 
-  if (lua_isstring(l, /* stack pos = */ 1)) {
-    const char *tmp = lua_tostring(l, /* idx = */ 1);
+  if (lua_isstring(L, /* stack pos = */ 1)) {
+    const char *tmp = lua_tostring(L, /* idx = */ 1);
     ssnprintf(function_name, sizeof(function_name), "lua/%s", tmp);
   }
 
-  int callback_id = clua_store_callback(l, /* idx = */ 1);
+  int callback_id = clua_store_callback(L, /* idx = */ 1);
   if (callback_id < 0) {
     ERROR("Lua plugin: Storing callback function failed.");
-    RETURN_LUA(l, -1);
+    RETURN_LUA(L, -1);
   }
 
-  lua_State *thread = lua_newthread(l);
+  lua_State *thread = lua_newthread(L);
   if (thread == NULL) {
     ERROR("Lua plugin: lua_newthread failed.");
-    RETURN_LUA(l, -1);
+    RETURN_LUA(L, -1);
   }
-  clua_store_thread(l, /* idx = */ -1);
-  lua_pop(l, /* nelems = */ 1);
+  clua_store_thread(L, /* idx = */ -1);
+  lua_pop(L, /* nelems = */ 1);
 
   if (function_name[0] == '\0')
     ssnprintf(function_name, sizeof(function_name), "lua/callback_%i",
@@ -605,7 +605,7 @@ static int lua_cb_register_write(lua_State *l) /* {{{ */
   clua_callback_data_t *cb = calloc(1, sizeof(*cb));
   if (cb == NULL) {
     ERROR("Lua plugin: calloc failed.");
-    RETURN_LUA(l, -1);
+    RETURN_LUA(L, -1);
   }
 
   cb->lua_state = thread;
@@ -623,41 +623,41 @@ static int lua_cb_register_write(lua_State *l) /* {{{ */
 
   DEBUG("Lua plugin: Successful call to lua_cb_register_write().");
 
-  RETURN_LUA(l, 0);
+  RETURN_LUA(L, 0);
 } /* }}} int lua_cb_register_write */
 
-static int lua_cb_register_filter(lua_State *l) /* {{{ */
+static int lua_cb_register_filter(lua_State *L) /* {{{ */
 {
-  int nargs = lua_gettop(l); /* number of arguments */
+  int nargs = lua_gettop(L); /* number of arguments */
 
   if (nargs != 1) {
     WARNING("Lua plugin: collectd_register_filter() called with an invalid "
             "number of arguments (%i).",
             nargs);
-    RETURN_LUA(l, -1);
+    RETURN_LUA(L, -1);
   }
 
   char function_name[DATA_MAX_NAME_LEN] = "";
 
-  if (lua_isstring(l, 1)) {
-    const char *tmp = lua_tostring(l, /* idx = */ 1);
+  if (lua_isstring(L, 1)) {
+    const char *tmp = lua_tostring(L, /* idx = */ 1);
     ssnprintf(function_name, sizeof(function_name), "lua/%s", tmp);
   }
 
-  int callback_id = clua_store_callback(l, /* idx = */ 1);
+  int callback_id = clua_store_callback(L, /* idx = */ 1);
   if (callback_id < 0) {
     ERROR("Lua plugin: Storing callback function failed.");
-    RETURN_LUA(l, -1);
+    RETURN_LUA(L, -1);
   }
 
-  lua_State *thread = lua_newthread(l);
+  lua_State *thread = lua_newthread(L);
   if (thread == NULL) {
     ERROR("Lua plugin: lua_newthread failed.");
-    RETURN_LUA(l, -1);
+    RETURN_LUA(L, -1);
   }
 
-  clua_store_thread(l, /* idx = */ -1);
-  lua_pop(l, /* nelems = */ 1);
+  clua_store_thread(L, /* idx = */ -1);
+  lua_pop(L, /* nelems = */ 1);
 
   if (function_name[0] == '\0') {
     ssnprintf(function_name, sizeof(function_name), "lua/callback_%i",
@@ -667,7 +667,7 @@ static int lua_cb_register_filter(lua_State *l) /* {{{ */
   clua_callback_data_t *cb = calloc(1, sizeof(*cb));
   if (cb == NULL) {
     ERROR("Lua plugin: malloc failed.");
-    RETURN_LUA(l, -1);
+    RETURN_LUA(L, -1);
   }
 
   cb->lua_state = thread;
@@ -685,7 +685,7 @@ static int lua_cb_register_filter(lua_State *l) /* {{{ */
       /* user_data = */ &ud);
 
   DEBUG("Lua plugin: Successful call to lua_cb_register_filter().");
-  RETURN_LUA(l, 0);
+  RETURN_LUA(L, 0);
 } /* }}} int lua_cb_register_filter */
 
 static lua_c_function_t lua_c_functions[] = {
