@@ -687,12 +687,12 @@ static int lua_cb_register_filter(lua_State *l) /* {{{ */
 } /* }}} int lua_cb_register_filter */
 
 static lua_c_functions_t lua_c_functions[] = {
-    {"collectd_log", lua_cb_log},
-    {"collectd_dispatch_values", lua_cb_dispatch_values},
+    {"log", lua_cb_log},
+    {"dispatch_values", lua_cb_dispatch_values},
     // { "collectd_dispatch_notification", dispatch_notification },
-    {"collectd_register_read", lua_cb_register_read},
-    {"collectd_register_write", lua_cb_register_write},
-    {"collectd_register_filter", lua_cb_register_filter}};
+    {"register_read", lua_cb_register_read},
+    {"register_write", lua_cb_register_write},
+    {"register_filter", lua_cb_register_filter}};
 
 static void lua_script_free(lua_script_t *script) /* {{{ */
 {
@@ -727,9 +727,12 @@ static int lua_script_init(lua_script_t *script) /* {{{ */
   luaL_openlibs(script->lua_state);
 
   /* Register all the functions we implement in C */
-  for (size_t i = 0; i < STATIC_ARRAY_SIZE(lua_c_functions); i++)
-    lua_register(script->lua_state, lua_c_functions[i].name,
-                 lua_c_functions[i].func);
+  lua_newtable(script->lua_state);
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE(lua_c_functions); i++) {
+    lua_pushcfunction(script->lua_state, lua_c_functions[i].func);
+    lua_setfield(script->lua_state, -2, lua_c_functions[i].name);
+  }
+  lua_setglobal(script->lua_state, "collectd");
 
   /* Prepend BasePath to package.path */
   if (base_path[0] != '\0') {
