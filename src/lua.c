@@ -2,6 +2,7 @@
  * collectd - src/lua.c
  * Copyright (C) 2010       Julien Ammous
  * Copyright (C) 2010       Florian Forster
+ * Copyright (C) 2016       Ruben Kerkhof
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,6 +25,7 @@
  * Authors:
  *   Julien Ammous
  *   Florian Forster <octo at collectd.org>
+ *   Ruben Kerkhof <ruben at rubenkerkhof.com>
  **/
 
 /* <lua5.1/luaconf.h> defines a macro using "sprintf". Although not used here,
