@@ -42,7 +42,7 @@
 
 #include <pthread.h>
 
-#if defined(COLLECT_DEBUG) && COLLECT_DEBUG && defined(__GNUC__) && __GNUC__
+#if COLLECT_DEBUG && __GNUC__
 #undef sprintf
 #pragma GCC poison sprintf
 #endif
