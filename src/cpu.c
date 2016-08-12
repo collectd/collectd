@@ -466,11 +466,9 @@ static void cpu_commit_one (int cpu_num, /* {{{ */
 /* Commits the number of cores */
 static void cpu_commit_num_cpu (gauge_t num_cpu) /* {{{ */
 {
-//// static void submit_value (int cpu_num, int cpu_state, const char *type, value_t value)
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	/// memcpy(&values[0], &value, sizeof(value));
 	values[0].gauge = num_cpu;
 
 	vl.values = values;
@@ -478,9 +476,7 @@ static void cpu_commit_num_cpu (gauge_t num_cpu) /* {{{ */
 
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "cpu", sizeof (vl.plugin));
-	sstrncpy (vl.type, "gauge", sizeof (vl.type));
-	sstrncpy (vl.type_instance, "ncpu",
-			sizeof (vl.type_instance));
+	sstrncpy (vl.type, "count", sizeof (vl.type));
 
 	plugin_dispatch_values (&vl);
 } /* }}} void cpu_commit_num_cpu */
@@ -520,9 +516,7 @@ static void cpu_commit (void) /* {{{ */
 	};
 
 	if (report_num_cpu)
-	{
 		cpu_commit_num_cpu ((gauge_t) global_cpu_num);
-	}
 
 	if (report_by_state && report_by_cpu && !report_percent)
 	{
