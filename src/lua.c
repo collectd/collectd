@@ -75,9 +75,7 @@ static int clua_store_callback(lua_State *L, int idx) /* {{{ */
   /* Copy the function pointer */
   lua_pushvalue(L, idx); /* +1 = 3 */
 
-  int callback_ref = luaL_ref(L, LUA_REGISTRYINDEX);
-
-  return (callback_ref);
+  return luaL_ref(L, LUA_REGISTRYINDEX);
 } /* }}} int clua_store_callback */
 
 static int clua_load_callback(lua_State *L, int callback_ref) /* {{{ */
