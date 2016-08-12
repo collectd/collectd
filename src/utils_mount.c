@@ -24,13 +24,6 @@
 # include "config.h"
 #endif
 
-#if HAVE_XFS_XQM_H
-# define _GNU_SOURCE
-# include <xfs/xqm.h>
-#define XFS_SUPER_MAGIC_STR "XFSB"
-#define XFS_SUPER_MAGIC2_STR "BSFX"
-#endif
-
 #include "collectd.h"
 
 #include "utils_mount.h"
@@ -69,6 +62,12 @@
 
 #if HAVE_PATHS_H
 #  include <paths.h>
+#endif
+
+#if HAVE_XFS_XQM_H
+# include <xfs/xqm.h>
+#define XFS_SUPER_MAGIC_STR "XFSB"
+#define XFS_SUPER_MAGIC2_STR "BSFX"
 #endif
 
 #ifdef COLLECTD_MNTTAB
