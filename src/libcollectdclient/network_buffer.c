@@ -26,14 +26,17 @@
 
 #include "config.h"
 
+#include "collectd/client.h"
+#include "collectd/network.h"
+#include "collectd/network_buffer.h"
+
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include <assert.h>
 #include <errno.h>
-#include <arpa/inet.h> /* htons */
-
-#include <pthread.h>
+#include <netinet/in.h> /* htons */
 
 #if HAVE_LIBGCRYPT
 # if defined __APPLE__
@@ -58,7 +61,6 @@ GCRY_THREAD_OPTION_PTHREAD_IMPL;
 # endif
 #endif
 
-#include "collectd/network_buffer.h"
 
 #define TYPE_HOST            0x0000
 #define TYPE_TIME            0x0001

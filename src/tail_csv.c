@@ -27,9 +27,6 @@
 #include "common.h" /* auxiliary functions */
 #include "utils_tail.h"
 
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 

@@ -26,8 +26,11 @@
  *   Max Henkel <henkel at gmx.at>
  **/
 
-#include "collectd.h"
+#include "config.h"
 
+#include "collectd/client.h"
+
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -35,7 +38,6 @@
 #include <errno.h>
 #include <assert.h>
 
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
 

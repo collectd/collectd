@@ -31,7 +31,6 @@
 #include "utils_avltree.h"
 #include "utils_latency.h"
 
-#include <sys/types.h>
 #include <netdb.h>
 #include <poll.h>
 

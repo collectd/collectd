@@ -25,7 +25,6 @@
  **/
 
 #include <Python.h>
-#include <structmember.h>
 
 #include <signal.h>
 
