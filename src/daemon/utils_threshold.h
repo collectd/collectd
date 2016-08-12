@@ -27,6 +27,8 @@
 #ifndef UTILS_THRESHOLD_H
 #define UTILS_THRESHOLD_H 1
 
+#include "utils_avltree.h"
+
 #define UT_FLAG_INVERT  0x01
 #define UT_FLAG_PERSIST 0x02
 #define UT_FLAG_PERCENTAGE 0x04

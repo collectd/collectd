@@ -32,12 +32,12 @@
 
 #include <getopt.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
 #include <signal.h>
 #include <errno.h>
+#include <sys/time.h>
 
 #include "utils_heap.h"
 
