@@ -134,7 +134,7 @@ zone_submit_values(c_avl_tree_t *tree)
 	while (c_avl_pick (tree, (void **)&zoneid, (void **)&stats) == 0)
 	{
 		if (getzonenamebyid(*zoneid, zonename, sizeof( zonename )) == -1) {
-			WARNING("zone plugin: error retreiving zonename");
+			WARNING("zone plugin: error retrieving zonename");
 		} else {
 			zone_submit_value(zonename, (gauge_t)FRC2PCT(stats->pctcpu));
 		}
