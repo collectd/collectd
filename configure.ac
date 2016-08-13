@@ -683,10 +683,26 @@ AC_CHECK_HEADERS([ \
   wordexp.h \
 ])
 
-AC_CHECK_HEADERS([xfs/xqm.h], [], [],
-[
-#define _GNU_SOURCE
-])
+# --enable-xfs {{{
+AC_ARG_ENABLE([xfs],
+  [AS_HELP_STRING([--enable-xfs], [xfs support in df plugin @<:@default=yes@:>@])],
+  [],
+  [enable_xfs="auto"]
+)
+
+if test "x$enable_xfs" != "xno"; then
+  AC_CHECK_HEADERS([xfs/xqm.h],
+    [],
+    [
+      if test "x$enable_xfs" = "xyes"; then
+        AC_MSG_ERROR([xfs/xqm.h not found])
+      fi
+    ],
+    [[#define _GNU_SOURCE]]
+  )
+fi
+
+# }}}
 
 # For the dns plugin
 AC_CHECK_HEADERS(arpa/nameser.h)
