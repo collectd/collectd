@@ -611,7 +611,6 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
   int i;
   oconfig_item_t *child;
   char callback_name[DATA_MAX_NAME_LEN];
-  user_data_t ud;
 
   if ((host = calloc(1, sizeof(*host))) == NULL) {
     ERROR("write_riemann plugin: calloc failed.");
@@ -789,8 +788,11 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
 
   ssnprintf(callback_name, sizeof(callback_name), "write_riemann/%s",
             host->name);
-  ud.data = host;
-  ud.free_func = wrr_free;
+
+  user_data_t ud = {
+    .data = host,
+    .free_func = wrr_free
+  };
 
   pthread_mutex_lock(&host->lock);
 

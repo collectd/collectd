@@ -634,7 +634,6 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
 
   /* Registration stuff. */
   char cb_name[DATA_MAX_NAME_LEN];
-  user_data_t cb_data = { 0 };
 
   hd = calloc (1, sizeof (*hd));
   if (hd == NULL)
@@ -765,11 +764,13 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
 
   ssnprintf (cb_name, sizeof (cb_name), "snmp-%s", hd->name);
 
-  cb_data.data = hd;
-  cb_data.free_func = csnmp_host_definition_destroy;
+  user_data_t ud = {
+    .data = hd,
+    .free_func = csnmp_host_definition_destroy
+  };
 
   status = plugin_register_complex_read (/* group = */ NULL, cb_name,
-      csnmp_read_host, hd->interval, /* user_data = */ &cb_data);
+      csnmp_read_host, hd->interval, /* user_data = */ &ud);
   if (status != 0)
   {
     ERROR ("snmp plugin: Registering complex read function failed.");

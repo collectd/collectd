@@ -649,7 +649,6 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
 {
         wh_callback_t *cb;
         int buffer_size = 0;
-        user_data_t user_data = { 0 };
         char callback_name[DATA_MAX_NAME_LEN];
         int status = 0;
 
@@ -813,7 +812,10 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
         DEBUG ("write_http: Registering write callback '%s' with URL '%s'",
                         callback_name, cb->location);
 
-        user_data.data = cb;
+        user_data_t user_data = {
+                .data = cb
+        };
+
         plugin_register_flush (callback_name, wh_flush, &user_data);
 
         user_data.free_func = wh_callback_free;

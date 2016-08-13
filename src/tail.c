@@ -328,7 +328,6 @@ static int ctail_read (user_data_t *ud)
 static int ctail_init (void)
 {
   char str[255];
-  user_data_t ud = { 0 };
 
   if (tail_match_list_num == 0)
   {
@@ -338,8 +337,12 @@ static int ctail_init (void)
 
   for (size_t i = 0; i < tail_match_list_num; i++)
   {
-    ud.data = (void *)tail_match_list[i];
     ssnprintf(str, sizeof(str), "tail-%zu", i);
+
+    user_data_t ud = {
+     .data = tail_match_list[i]
+    };
+
     plugin_register_complex_read (NULL, str, ctail_read, tail_match_list_intervals[i], &ud);
   }
 

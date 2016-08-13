@@ -938,7 +938,6 @@ static int varnish_config_apply_default (user_config_t *conf) /* {{{ */
 static int varnish_init (void) /* {{{ */
 {
 	user_config_t *conf;
-	user_data_t ud;
 
 	if (have_instance)
 		return (0);
@@ -952,8 +951,10 @@ static int varnish_init (void) /* {{{ */
 
 	varnish_config_apply_default (conf);
 
-	ud.data = conf;
-	ud.free_func = varnish_config_free;
+	user_data_t ud = {
+		.data = conf,
+		.free_func = varnish_config_free
+	};
 
 	plugin_register_complex_read (/* group = */ "varnish",
 			/* name      = */ "varnish/localhost",

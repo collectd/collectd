@@ -222,20 +222,21 @@ static int mysql_config_database (oconfig_item_t *ci) /* {{{ */
 	/* If all went well, register this database for reading */
 	if (status == 0)
 	{
-		user_data_t ud = { 0 };
 		char cb_name[DATA_MAX_NAME_LEN];
 
 		DEBUG ("mysql plugin: Registering new read callback: %s",
 				(db->database != NULL) ? db->database : "<default>");
-
-		ud.data = (void *) db;
-		ud.free_func = mysql_database_free;
 
 		if (db->instance != NULL)
 			ssnprintf (cb_name, sizeof (cb_name), "mysql-%s",
 					db->instance);
 		else
 			sstrncpy (cb_name, "mysql", sizeof (cb_name));
+
+		user_data_t ud = {
+			.data = db,
+			.free_func = mysql_database_free
+		};
 
 		plugin_register_complex_read (/* group = */ NULL, cb_name,
 					      mysql_read,

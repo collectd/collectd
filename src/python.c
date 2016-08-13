@@ -624,7 +624,6 @@ static PyObject *cpy_register_generic_userdata(void *reg, void *handler, PyObjec
 	char buf[512];
 	reg_function_t *register_function = (reg_function_t *) reg;
 	cpy_callback_t *c = NULL;
-	user_data_t user_data = { 0 };
 	char *name = NULL;
 	PyObject *callback = NULL, *data = NULL;
 	static char *kwlist[] = {"callback", "data", "name", NULL};
@@ -650,8 +649,10 @@ static PyObject *cpy_register_generic_userdata(void *reg, void *handler, PyObjec
 	c->data = data;
 	c->next = NULL;
 
-	user_data.free_func = cpy_destroy_user_data;
-	user_data.data = c;
+	user_data_t user_data = {
+		.data = c,
+		.free_func = cpy_destroy_user_data
+	};
 
 	register_function(buf, handler, &user_data);
 	return cpy_string_to_unicode_or_bytes(buf);
@@ -660,7 +661,6 @@ static PyObject *cpy_register_generic_userdata(void *reg, void *handler, PyObjec
 static PyObject *cpy_register_read(PyObject *self, PyObject *args, PyObject *kwds) {
 	char buf[512];
 	cpy_callback_t *c = NULL;
-	user_data_t user_data = { 0 };
 	double interval = 0;
 	char *name = NULL;
 	PyObject *callback = NULL, *data = NULL;
@@ -687,8 +687,10 @@ static PyObject *cpy_register_read(PyObject *self, PyObject *args, PyObject *kwd
 	c->data = data;
 	c->next = NULL;
 
-	user_data.free_func = cpy_destroy_user_data;
-	user_data.data = c;
+	user_data_t user_data = {
+		.data = c,
+		.free_func = cpy_destroy_user_data
+	};
 
 	plugin_register_complex_read(/* group = */ "python", buf,
 			cpy_read_callback, DOUBLE_TO_CDTIME_T (interval), &user_data);

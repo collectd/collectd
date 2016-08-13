@@ -1417,7 +1417,6 @@ static jint JNICALL cjni_api_register_init (JNIEnv *jvm_env, /* {{{ */
 static jint JNICALL cjni_api_register_read (JNIEnv *jvm_env, /* {{{ */
     jobject this, jobject o_name, jobject o_read)
 {
-  user_data_t ud = { 0 };
   cjni_callback_info_t *cbi;
 
   cbi = cjni_callback_info_create (jvm_env, o_name, o_read, CB_TYPE_READ);
@@ -1426,8 +1425,10 @@ static jint JNICALL cjni_api_register_read (JNIEnv *jvm_env, /* {{{ */
 
   DEBUG ("java plugin: Registering new read callback: %s", cbi->name);
 
-  ud.data = (void *) cbi;
-  ud.free_func = cjni_callback_info_destroy;
+  user_data_t ud = {
+    .data = cbi,
+    .free_func = cjni_callback_info_destroy
+  };
 
   plugin_register_complex_read (/* group = */ NULL, cbi->name, cjni_read,
       /* interval = */ 0, &ud);
@@ -1440,7 +1441,6 @@ static jint JNICALL cjni_api_register_read (JNIEnv *jvm_env, /* {{{ */
 static jint JNICALL cjni_api_register_write (JNIEnv *jvm_env, /* {{{ */
     jobject this, jobject o_name, jobject o_write)
 {
-  user_data_t ud = { 0 };
   cjni_callback_info_t *cbi;
 
   cbi = cjni_callback_info_create (jvm_env, o_name, o_write, CB_TYPE_WRITE);
@@ -1449,8 +1449,10 @@ static jint JNICALL cjni_api_register_write (JNIEnv *jvm_env, /* {{{ */
 
   DEBUG ("java plugin: Registering new write callback: %s", cbi->name);
 
-  ud.data = (void *) cbi;
-  ud.free_func = cjni_callback_info_destroy;
+  user_data_t ud = {
+    .data = cbi,
+    .free_func = cjni_callback_info_destroy
+  };
 
   plugin_register_write (cbi->name, cjni_write, &ud);
 
@@ -1462,7 +1464,6 @@ static jint JNICALL cjni_api_register_write (JNIEnv *jvm_env, /* {{{ */
 static jint JNICALL cjni_api_register_flush (JNIEnv *jvm_env, /* {{{ */
     jobject this, jobject o_name, jobject o_flush)
 {
-  user_data_t ud = { 0 };
   cjni_callback_info_t *cbi;
 
   cbi = cjni_callback_info_create (jvm_env, o_name, o_flush, CB_TYPE_FLUSH);
@@ -1471,8 +1472,10 @@ static jint JNICALL cjni_api_register_flush (JNIEnv *jvm_env, /* {{{ */
 
   DEBUG ("java plugin: Registering new flush callback: %s", cbi->name);
 
-  ud.data = (void *) cbi;
-  ud.free_func = cjni_callback_info_destroy;
+  user_data_t ud = {
+    .data = cbi,
+    .free_func = cjni_callback_info_destroy
+  };
 
   plugin_register_flush (cbi->name, cjni_flush, &ud);
 
@@ -1491,7 +1494,6 @@ static jint JNICALL cjni_api_register_shutdown (JNIEnv *jvm_env, /* {{{ */
 static jint JNICALL cjni_api_register_log (JNIEnv *jvm_env, /* {{{ */
     jobject this, jobject o_name, jobject o_log)
 {
-  user_data_t ud = { 0 };
   cjni_callback_info_t *cbi;
 
   cbi = cjni_callback_info_create (jvm_env, o_name, o_log, CB_TYPE_LOG);
@@ -1500,8 +1502,10 @@ static jint JNICALL cjni_api_register_log (JNIEnv *jvm_env, /* {{{ */
 
   DEBUG ("java plugin: Registering new log callback: %s", cbi->name);
 
-  ud.data = (void *) cbi;
-  ud.free_func = cjni_callback_info_destroy;
+  user_data_t ud = {
+    .data = cbi,
+    .free_func = cjni_callback_info_destroy
+  };
 
   plugin_register_log (cbi->name, cjni_log, &ud);
 
@@ -1513,7 +1517,6 @@ static jint JNICALL cjni_api_register_log (JNIEnv *jvm_env, /* {{{ */
 static jint JNICALL cjni_api_register_notification (JNIEnv *jvm_env, /* {{{ */
     jobject this, jobject o_name, jobject o_notification)
 {
-  user_data_t ud = { 0 };
   cjni_callback_info_t *cbi;
 
   cbi = cjni_callback_info_create (jvm_env, o_name, o_notification,
@@ -1523,8 +1526,10 @@ static jint JNICALL cjni_api_register_notification (JNIEnv *jvm_env, /* {{{ */
 
   DEBUG ("java plugin: Registering new notification callback: %s", cbi->name);
 
-  ud.data = (void *) cbi;
-  ud.free_func = cjni_callback_info_destroy;
+  user_data_t ud = {
+    .data = cbi,
+    .free_func = cjni_callback_info_destroy
+  };
 
   plugin_register_notification (cbi->name, cjni_notification, &ud);
 

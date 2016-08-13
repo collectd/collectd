@@ -474,7 +474,6 @@ static int config_set_char (char *dest,
 static int wg_config_node (oconfig_item_t *ci)
 {
     struct wg_callback *cb;
-    user_data_t user_data = { 0 };
     char callback_name[DATA_MAX_NAME_LEN];
     int status = 0;
 
@@ -576,12 +575,15 @@ static int wg_config_node (oconfig_item_t *ci)
         ssnprintf (callback_name, sizeof (callback_name), "write_graphite/%s",
                 cb->name);
 
-    user_data.data = cb;
-    user_data.free_func = wg_callback_free;
-    plugin_register_write (callback_name, wg_write, &user_data);
+    user_data_t ud = {
+        .data = cb,
+        .free_func = wg_callback_free
+    };
 
-    user_data.free_func = NULL;
-    plugin_register_flush (callback_name, wg_flush, &user_data);
+    plugin_register_write (callback_name, wg_write, &ud);
+
+    ud.free_func = NULL;
+    plugin_register_flush (callback_name, wg_flush, &ud);
 
     return (0);
 }
