@@ -1528,6 +1528,7 @@ static int cconn_main_loop(uint32_t request_type)
             if(revents == 0)
             {
                 /* do nothing */
+                continue;
             }
             else if(cconn_validate_revents(io, revents))
             {
