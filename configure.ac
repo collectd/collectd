@@ -6314,6 +6314,18 @@ AC_ARG_WITH(perl-bindings, [AS_HELP_STRING([--with-perl-bindings@<:@=OPTIONS@:>@
 		with_perl_bindings="no (no perl interpreter found)"
 	fi
 ])
+
+if test "x$with_perl_bindings" = "xyes"
+then
+	AC_MSG_CHECKING([for the ExtUtils::MakeMaker module])
+	if $PERL -MExtUtils::MakeMaker -e '' 2>/dev/null; then
+		AC_MSG_RESULT([yes])
+	else
+		AC_MSG_RESULT([no])
+		with_perl_bindings="no (ExtUtils::MakeMaker not found)"
+	fi
+fi
+
 if test "x$with_perl_bindings" = "xyes"
 then
 	PERL_BINDINGS="perl"
