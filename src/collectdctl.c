@@ -67,6 +67,10 @@
 
 #include "libcollectdclient/collectd/client.h"
 
+#ifndef PREFIX
+# define PREFIX "/opt/" PACKAGE_NAME
+#endif
+
 #ifndef LOCALSTATEDIR
 # define LOCALSTATEDIR PREFIX "/var"
 #endif
