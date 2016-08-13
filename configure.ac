@@ -3409,7 +3409,7 @@ save_LDFLAGS="$LDFLAGS"
 save_CPPFLAGS="$CPPFLAGS"
 LDFLAGS="$liboconfig_LDFLAGS"
 CPPFLAGS="$liboconfig_CPPFLAGS"
-AC_CHECK_LIB(oconfig, oconfig_parse_fh,
+AC_CHECK_LIB(oconfig, oconfig_parse_file,
 [
 	with_liboconfig="yes"
 	with_own_liboconfig="no"
