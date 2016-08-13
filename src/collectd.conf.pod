@@ -1775,6 +1775,11 @@ The following options are valid within B<URL> blocks:
 
 =over 4
 
+=item B<Host> I<Name>
+
+Use I<Name> as the host name when submitting values. Defaults to the global
+host name setting.
+
 =item B<Instance> I<Instance>
 
 Sets the plugin instance to I<Instance>.
