@@ -201,7 +201,6 @@ typedef void (*plugin_log_cb) (int severity, const char *message,
 typedef int (*plugin_shutdown_cb) (void);
 typedef int (*plugin_notification_cb) (const notification_t *,
 		user_data_t *);
-
 /*
  * NAME
  *  plugin_set_dir
