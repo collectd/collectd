@@ -260,6 +260,7 @@ static int lua_cb_dispatch_values(lua_State *L) /* {{{ */
   if (vl == NULL)
     return luaL_error(L, "%s", "luaC_tovaluelist failed");
 
+#if COLLECT_DEBUG
   char identifier[6 * DATA_MAX_NAME_LEN];
   FORMAT_VL(identifier, sizeof(identifier), vl);
 
@@ -267,6 +268,7 @@ static int lua_cb_dispatch_values(lua_State *L) /* {{{ */
         "time %.3f, interval %.3f.",
         identifier, CDTIME_T_TO_DOUBLE(vl->time),
         CDTIME_T_TO_DOUBLE(vl->interval));
+#endif
 
   plugin_dispatch_values(vl);
 
