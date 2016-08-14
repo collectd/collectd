@@ -239,8 +239,10 @@ static cpy_callback_t *cpy_shutdown_callbacks;
 static void cpy_destroy_user_data(void *data) {
 	cpy_callback_t *c = data;
 	free(c->name);
+	CPY_LOCK_THREADS
 	Py_DECREF(c->callback);
 	Py_XDECREF(c->data);
+	CPY_RELEASE_THREADS
 	free(c);
 }
 
