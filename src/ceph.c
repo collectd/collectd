@@ -262,8 +262,11 @@ static int ceph_cb_boolean(void *ctx, int bool_val)
 
 #define BUFFER_ADD(dest, src) do { \
     size_t dest_size = sizeof (dest); \
-    strncat ((dest), (src), dest_size - strlen (dest)); \
-    (dest)[dest_size - 1] = '\0'; \
+    size_t dest_len = strlen (dest); \
+    if (dest_size > dest_len) { \
+        sstrncpy ((dest) + dest_len, (src), dest_size - dest_len); \
+    } \
+    (dest)[dest_size - 1] = 0; \
 } while (0)
 
 static int
@@ -271,11 +274,10 @@ ceph_cb_number(void *ctx, const char *number_val, yajl_len_t number_len)
 {
     yajl_struct *state = (yajl_struct*) ctx;
     char buffer[number_len+1];
-    char key[2 * DATA_MAX_NAME_LEN];
+    char key[2 * DATA_MAX_NAME_LEN] = { 0 };
     _Bool latency_type = 0;
     int status;
 
-    key[0] = '\0';
     memcpy(buffer, number_val, number_len);
     buffer[sizeof(buffer) - 1] = '\0';
 
