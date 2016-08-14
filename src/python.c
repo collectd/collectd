@@ -389,12 +389,11 @@ static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_li
 		}
 		dict = PyDict_New();  /* New reference. */
 		if (value_list->meta) {
-			int num;
 			char **table;
 			meta_data_t *meta = value_list->meta;
 
-			num = meta_data_toc(meta, &table);
-			for (size_t i = 0; i < num; ++i) {
+			int num = meta_data_toc(meta, &table);
+			for (int i = 0; i < num; ++i) {
 				int type;
 				char *string;
 				int64_t si;
