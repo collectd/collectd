@@ -86,7 +86,7 @@ int handle_listval (FILE *fh, char *buffer)
     free_everything_and_return (-1);
   }
 
-  status = uc_get_names (&names, &times, &number);
+  status = uc_get_names (&names, &times, &number, /* include missing = */ 0);
   if (status != 0)
   {
     DEBUG ("command listval: uc_get_names failed with status %i", status);

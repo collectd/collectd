@@ -299,7 +299,7 @@ static int agg_instance_update (agg_instance_t *inst, /* {{{ */
     return (EINVAL);
   }
 
-  rate = uc_get_rate (ds, vl);
+  rate = uc_get_rate (ds, vl, /* include missing = */ 0);
   if (rate == NULL)
   {
     char ident[6 * DATA_MAX_NAME_LEN];

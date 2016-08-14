@@ -406,7 +406,7 @@ wrr_value_list_to_message(struct riemann_host const *host, /* {{{ */
   }
 
   if (host->store_rates) {
-    rates = uc_get_rate(ds, vl);
+    rates = uc_get_rate(ds, vl, /* include missing = */ 0);
     if (rates == NULL) {
       ERROR("write_riemann plugin: uc_get_rate failed.");
       riemann_message_free(msg);

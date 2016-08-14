@@ -277,7 +277,7 @@ static int mv_match (const data_set_t *ds, const value_list_t *vl, /* {{{ */
 
   m = *user_data;
 
-  values = uc_get_rate (ds, vl);
+  values = uc_get_rate (ds, vl, /* include missing = */ 0);
   if (values == NULL)
   {
     ERROR ("`value' match: Retrieving the current rate from the cache "

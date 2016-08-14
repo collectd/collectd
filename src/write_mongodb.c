@@ -85,7 +85,7 @@ static bson *wm_create_bson (const data_set_t *ds, /* {{{ */
 
   if (store_rates)
   {
-    rates = uc_get_rate (ds, vl);
+    rates = uc_get_rate (ds, vl, /* include missing = */ 0);
     if (rates == NULL)
     {
       ERROR ("write_mongodb plugin: uc_get_rate() failed.");

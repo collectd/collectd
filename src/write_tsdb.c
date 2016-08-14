@@ -306,7 +306,7 @@ static int wt_format_values(char *ret, size_t ret_len,
     else if (store_rates)
     {
         if (rates == NULL)
-            rates = uc_get_rate (ds, vl);
+            rates = uc_get_rate (ds, vl, /* include missing = */ 0);
         if (rates == NULL)
         {
             WARNING("format_values: "

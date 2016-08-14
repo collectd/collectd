@@ -469,7 +469,8 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
   return (0);
 } /* int uc_update */
 
-int uc_get_rate_by_name (const char *name, gauge_t **ret_values, size_t *ret_values_num)
+int uc_get_rate_by_name (const char *name, gauge_t **ret_values, size_t *ret_values_num,
+    _Bool include_missing)
 {
   gauge_t *ret = NULL;
   size_t ret_num = 0;
@@ -481,18 +482,24 @@ int uc_get_rate_by_name (const char *name, gauge_t **ret_values, size_t *ret_val
   if (c_avl_get (cache_tree, name, (void *) &ce) == 0)
   {
     assert (ce != NULL);
-    /* Removing values with missing state would cause threshold plugin
-       to not send OKAY-notifications. Does it causes any bad side effect elsewhere ? */
-    ret_num = ce->values_num;
-    ret = (gauge_t *) malloc (ret_num * sizeof (gauge_t));
-    if (ret == NULL)
+    /* remove missing values from getval */
+    if (ce->state == STATE_MISSING && !include_missing)
     {
-      ERROR ("utils_cache: uc_get_rate_by_name: malloc failed.");
       status = -1;
     }
     else
     {
-      memcpy (ret, ce->values_gauge, ret_num * sizeof (gauge_t));
+      ret_num = ce->values_num;
+      ret = malloc (ret_num * sizeof (*ret));
+      if (ret == NULL)
+      {
+        ERROR ("utils_cache: uc_get_rate_by_name: malloc failed.");
+        status = -1;
+      }
+      else
+      {
+        memcpy (ret, ce->values_gauge, ret_num * sizeof (gauge_t));
+      }
     }
   }
   else
@@ -512,7 +519,8 @@ int uc_get_rate_by_name (const char *name, gauge_t **ret_values, size_t *ret_val
   return (status);
 } /* gauge_t *uc_get_rate_by_name */
 
-gauge_t *uc_get_rate (const data_set_t *ds, const value_list_t *vl)
+gauge_t *uc_get_rate (const data_set_t *ds, const value_list_t *vl,
+    _Bool include_missing)
 {
   char name[6 * DATA_MAX_NAME_LEN];
   gauge_t *ret = NULL;
@@ -525,7 +533,7 @@ gauge_t *uc_get_rate (const data_set_t *ds, const value_list_t *vl)
     return (NULL);
   }
 
-  status = uc_get_rate_by_name (name, &ret, &ret_num);
+  status = uc_get_rate_by_name (name, &ret, &ret_num, include_missing);
   if (status != 0)
     return (NULL);
 
@@ -553,7 +561,8 @@ size_t uc_get_size (void) {
   return (size_arrays);
 }
 
-int uc_get_names (char ***ret_names, cdtime_t **ret_times, size_t *ret_number)
+int uc_get_names (char ***ret_names, cdtime_t **ret_times, size_t *ret_number,
+    _Bool include_missing)
 {
   c_avl_iterator_t *iter;
   char *key;
@@ -595,7 +604,7 @@ int uc_get_names (char ***ret_names, cdtime_t **ret_times, size_t *ret_number)
   while (c_avl_iterator_next (iter, (void *) &key, (void *) &value) == 0)
   {
     /* remove missing values when list values */
-    if (value->state == STATE_MISSING)
+    if (value->state == STATE_MISSING && !include_missing)
       continue;
 
     /* c_avl_size does not return a number smaller than the number of elements

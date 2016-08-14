@@ -124,7 +124,8 @@ int handle_getval (FILE *fh, char *buffer)
 
   values = NULL;
   values_num = 0;
-  status = uc_get_rate_by_name (identifier, &values, &values_num);
+  status = uc_get_rate_by_name (identifier, &values, &values_num,
+                                /* include missing = */ 0);
   if (status != 0)
   {
     print_to_socket (fh, "-1 No such value\n");

@@ -27,7 +27,8 @@
 #include "utils_cache.h"
 
 gauge_t *uc_get_rate (__attribute__((unused)) data_set_t const *ds,
-                      __attribute__((unused)) value_list_t const *vl)
+                      __attribute__((unused)) value_list_t const *vl,
+                      __attribute__((unused)) _Bool include_missing)
 {
   return (NULL);
 }

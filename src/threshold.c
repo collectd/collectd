@@ -783,7 +783,7 @@ static int ut_check_threshold (const data_set_t *ds, const value_list_t *vl,
 
   DEBUG ("ut_check_threshold: Found matching threshold(s)");
 
-  values = uc_get_rate (ds, vl);
+  values = uc_get_rate (ds, vl, /* include missing = */ 1);
   if (values == NULL)
     return (0);
 

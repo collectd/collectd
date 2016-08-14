@@ -189,7 +189,7 @@ int format_graphite (char *buffer, size_t buffer_size,
 
     gauge_t *rates = NULL;
     if (flags & GRAPHITE_STORE_RATES)
-      rates = uc_get_rate (ds, vl);
+      rates = uc_get_rate (ds, vl, /* include missing = */ 0);
 
     for (size_t i = 0; i < ds->ds_num; i++)
     {

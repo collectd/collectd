@@ -244,7 +244,7 @@ static int tn_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
     {
       if ((rates == NULL) && (rates_failed == 0))
       {
-        rates = uc_get_rate (ds, vl);
+        rates = uc_get_rate (ds, vl, /* include missing = */ 0);
         if (rates == NULL)
           rates_failed = 1;
       }

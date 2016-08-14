@@ -77,7 +77,8 @@ static int value_list_to_string (char *buffer, int buffer_len,
 		else if (store_rates != 0)
 		{
 			if (rates == NULL)
-				rates = uc_get_rate (ds, vl);
+				rates = uc_get_rate (ds, vl,
+						/* include missing = */ 0);
 			if (rates == NULL)
 			{
 				WARNING ("csv plugin: "
