@@ -590,7 +590,7 @@ static int cpu_read (void)
 
 	host_t cpu_host;
 
-	for (int cpu = 0; cpu < cpu_list_len; cpu++)
+	for (mach_msg_type_number_t cpu = 0; cpu < cpu_list_len; cpu++)
 	{
 		cpu_host = 0;
 		cpu_info_len = PROCESSOR_BASIC_INFO_COUNT;
