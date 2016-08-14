@@ -370,7 +370,9 @@ static luaL_Reg collectdlib[] = {
     {"log_warning", lua_cb_log_warning},
     {"dispatch_values", lua_cb_dispatch_values},
     {"register_read", lua_cb_register_read},
-    {"register_write", lua_cb_register_write}};
+    {"register_write", lua_cb_register_write},
+    {NULL, NULL}
+};
 
 static int open_collectd(lua_State *L) /* {{{ */
 {
