@@ -12,7 +12,7 @@
 
 =head1 NAME
 
-collectd-lua - Documentation of Collectd's C<Lua plugin>
+collectd-lua - Documentation of collectd's C<Lua plugin>
 
 =head1 SYNOPSIS
 
@@ -26,9 +26,9 @@ collectd-lua - Documentation of Collectd's C<Lua plugin>
 
 =head1 DESCRIPTION
 
-The C<Lua plugin> embeds a Lua interpreter into Collectd and provides an
-interface to Collectd's plugin system. This makes it possible to write plugins
-for Collectd in Lua. This is a lot more efficient than executing a
+The C<Lua plugin> embeds a Lua interpreter into collectd and provides an
+interface to collectd's plugin system. This makes it possible to write plugins
+for collectd in Lua. This is a lot more efficient than executing a
 Lua script every time you want to read a value with the C<exec plugin> (see
 L<collectd-exec(5)>) and provides a lot more functionality, too.
 
@@ -56,11 +56,11 @@ If B<BasePath> is not specified, this needs to be an absolute path.
 
 =head1 WRITING YOUR OWN PLUGINS
 
-Writing your own plugins is quite simple. Collectd manages plugins by means of
+Writing your own plugins is quite simple. collectd manages plugins by means of
 B<dispatch functions> which call the appropriate B<callback functions>
 registered by the plugins. Any plugin basically consists of the implementation
 of these callback functions and initializing code which registers the
-functions with Collectd. See the section "EXAMPLES" below for a really basic
+functions with collectd. See the section "EXAMPLES" below for a really basic
 example. The following types of B<callback functions> are implemented in the
 Lua plugin (all of them are optional):
 
@@ -69,8 +69,8 @@ Lua plugin (all of them are optional):
 =item read functions
 
 These are used to collect the actual data. It is called once
-per interval (see the B<Interval> configuration option of Collectd). Usually
-it will call B<collectd.dispatch_values> to dispatch the values to Collectd
+per interval (see the B<Interval> configuration option of collectd). Usually
+it will call B<collectd.dispatch_values> to dispatch the values to collectd
 which will pass them on to all registered B<write functions>. If this function
 does not return 0 the plugin will be skipped for an increasing
 amount of time until it returns normally again.
