@@ -1566,7 +1566,7 @@ static int ps_read (void)
 	 * Tasks are assigned to sets of processors, so that's where you go to
 	 * get a list.
 	 */
-	for (int pset = 0; pset < pset_list_len; pset++)
+	for (mach_msg_type_number_t pset = 0; pset < pset_list_len; pset++)
 	{
 		if ((status = host_processor_set_priv (port_host_self,
 						pset_list[pset],
@@ -1587,7 +1587,7 @@ static int ps_read (void)
 			continue;
 		}
 
-		for (int task = 0; task < task_list_len; task++)
+		for (mach_msg_type_number_t task = 0; task < task_list_len; task++)
 		{
 			ps = NULL;
 			if (mach_get_task_name (task_list[task],
@@ -1685,7 +1685,7 @@ static int ps_read (void)
 				continue; /* with next task_list */
 			}
 
-			for (int thread = 0; thread < thread_list_len; thread++)
+			for (mach_msg_type_number_t thread = 0; thread < thread_list_len; thread++)
 			{
 				thread_data_len = THREAD_BASIC_INFO_COUNT;
 				status = thread_info (thread_list[thread],
