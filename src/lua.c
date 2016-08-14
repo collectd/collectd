@@ -362,7 +362,7 @@ static int lua_cb_register_write(lua_State *L) /* {{{ */
   return 0;
 } /* }}} int lua_cb_register_write */
 
-static luaL_Reg lua_c_functions[] = {
+static luaL_Reg collectdlib[] = {
     {"log_debug", lua_cb_log_debug},
     {"log_error", lua_cb_log_error},
     {"log_info", lua_cb_log_info},
@@ -371,6 +371,12 @@ static luaL_Reg lua_c_functions[] = {
     {"dispatch_values", lua_cb_dispatch_values},
     {"register_read", lua_cb_register_read},
     {"register_write", lua_cb_register_write}};
+
+static int open_collectd(lua_State *L) /* {{{ */
+{
+  luaL_newlib(L, collectdlib);
+  return 1;
+} /* }}} */
 
 static void lua_script_free(lua_script_t *script) /* {{{ */
 {
@@ -404,13 +410,9 @@ static int lua_script_init(lua_script_t *script) /* {{{ */
   /* Open up all the standard Lua libraries. */
   luaL_openlibs(script->lua_state);
 
-  /* Register all the functions we implement in C */
-  lua_newtable(script->lua_state);
-  for (size_t i = 0; i < STATIC_ARRAY_SIZE(lua_c_functions); i++) {
-    lua_pushcfunction(script->lua_state, lua_c_functions[i].func);
-    lua_setfield(script->lua_state, -2, lua_c_functions[i].name);
-  }
-  lua_setglobal(script->lua_state, "collectd");
+  /* Load the 'collectd' library */
+  luaL_requiref(script->lua_state, "collectd", open_collectd, 1);
+  lua_pop(script->lua_state, 1);
 
   /* Prepend BasePath to package.path */
   if (base_path[0] != '\0') {
