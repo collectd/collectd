@@ -321,9 +321,7 @@ int uc_check_timeout (void)
     return (0);
   }
 
-  /* Call the "missing" callback for each value. Do this before removing the
-   * value from the cache, so that callbacks can still access the data stored,
-   * including plugin specific meta data, rates, history, …. This must be done
+  /* Call the "missing" callback for each value. This must be done
    * without holding the lock, otherwise we will run into a deadlock if a
    * plugin calls the cache interface. */
   for (int i = 0; i < keys_len; i++)
