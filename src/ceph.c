@@ -167,7 +167,7 @@ static int convert_special_metrics = 1;
 static struct ceph_daemon **g_daemons = NULL;
 
 /** Number of elements in g_daemons */
-static int g_num_daemons = 0;
+static size_t g_num_daemons = 0;
 
 /**
  * A set of data that we build up in memory while parsing the JSON.
@@ -425,7 +425,7 @@ static void ceph_daemon_print(const struct ceph_daemon *d)
 
 static void ceph_daemons_print(void)
 {
-    for(int i = 0; i < g_num_daemons; ++i)
+    for(size_t i = 0; i < g_num_daemons; ++i)
     {
         ceph_daemon_print(g_daemons[i]);
     }
@@ -752,7 +752,8 @@ static int cc_add_daemon_config(oconfig_item_t *ci)
         return ENOMEM;
     }
     memcpy(nd, &cd, sizeof(*nd));
-    g_daemons[g_num_daemons++] = nd;
+    g_daemons[g_num_daemons] = nd;
+    g_num_daemons++;
     return 0;
 }
 
@@ -1464,7 +1465,7 @@ static int cconn_main_loop(uint32_t request_type)
 
     /* create cconn array */
     memset(io_array, 0, sizeof(io_array));
-    for(int i = 0; i < g_num_daemons; ++i)
+    for(size_t i = 0; i < g_num_daemons; ++i)
     {
         io_array[i].d = g_daemons[i];
         io_array[i].request_type = request_type;
@@ -1483,13 +1484,13 @@ static int cconn_main_loop(uint32_t request_type)
         struct pollfd fds[g_num_daemons];
         memset(fds, 0, sizeof(fds));
         nfds = 0;
-        for(int i = 0; i < g_num_daemons; ++i)
+        for(size_t i = 0; i < g_num_daemons; ++i)
         {
             struct cconn *io = io_array + i;
             ret = cconn_prepare(io, fds + nfds);
             if(ret < 0)
             {
-                WARNING("ceph plugin: cconn_prepare(name=%s,i=%d,st=%d)=%d",
+                WARNING("ceph plugin: cconn_prepare(name=%s,i=%zu,st=%d)=%d",
                         io->d->name, i, io->state, ret);
                 cconn_close(io);
                 io->request_type = ASOK_REQ_NONE;
@@ -1553,7 +1554,7 @@ static int cconn_main_loop(uint32_t request_type)
             }
         }
     }
-    done: for(int i = 0; i < g_num_daemons; ++i)
+    done: for(size_t i = 0; i < g_num_daemons; ++i)
     {
         cconn_close(io_array + i);
     }
@@ -1602,7 +1603,7 @@ static int ceph_init(void)
 
 static int ceph_shutdown(void)
 {
-    for(int i = 0; i < g_num_daemons; ++i)
+    for(size_t i = 0; i < g_num_daemons; ++i)
     {
         ceph_daemon_free(g_daemons[i]);
     }
