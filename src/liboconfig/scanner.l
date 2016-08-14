@@ -33,6 +33,11 @@
 #include "aux_types.h"
 #include "parser.h"
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-noreturn"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-compare"
+
 /* multiline string buffer */
 static char *ml_buffer = NULL;
 static int   ml_pos    = 0;
@@ -159,3 +164,5 @@ static void ml_append (char *string)
 	return;
 } /* ml_append */
 
+#pragma clang diagnostic pop
+#pragma GCC diagnostic pop
