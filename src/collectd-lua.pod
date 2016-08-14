@@ -86,6 +86,8 @@ once for every value that was dispatched by any plugin.
 
 The following functions are provided to Lua modules:
 
+=over 4
+
 =item register_read(callback)
 
 The callback will be called without arguments.
