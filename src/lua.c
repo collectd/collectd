@@ -62,11 +62,6 @@ typedef struct {
   int callback_id;
 } clua_callback_data_t;
 
-typedef struct {
-  const char *name;
-  lua_CFunction func;
-} lua_c_function_t;
-
 static char base_path[PATH_MAX];
 static lua_script_t *scripts;
 
@@ -367,7 +362,7 @@ static int lua_cb_register_write(lua_State *L) /* {{{ */
   return 0;
 } /* }}} int lua_cb_register_write */
 
-static lua_c_function_t lua_c_functions[] = {
+static luaL_Reg lua_c_functions[] = {
     {"log_debug", lua_cb_log_debug},
     {"log_error", lua_cb_log_error},
     {"log_info", lua_cb_log_info},
