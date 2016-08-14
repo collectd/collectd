@@ -1368,6 +1368,7 @@ dist_man_MANS = collectd.1 \
 		collectd-exec.5 \
 		collectdctl.1 \
 		collectd-java.5 \
+		collectd-lua.5 \
 		collectdmon.1 \
 		collectd-nagios.1 \
 		collectd-perl.5 \
@@ -1383,6 +1384,7 @@ EXTRA_DIST =	collectd.conf.pod \
 		collectd-exec.pod \
 		collectdctl.pod \
 		collectd-java.pod \
+		collectd-lua.pod \
 		collectdmon.pod \
 		collectd-nagios.pod \
 		collectd-perl.pod \
