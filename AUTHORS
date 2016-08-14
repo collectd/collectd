@@ -163,6 +163,9 @@ Jérôme Renard <jerome.renard at gmail.com>
 Jiri Tyr <jiri.tyr at gmail.com>
  - fhcount plugin.
 
+Julien Ammous <j.ammous at gmail.com>
+ - Lua plugin.
+
 Kevin Bowling <kbowling at llnw.com>
  - write_tsdb plugin for http://opentsdb.net/
 

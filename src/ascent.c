@@ -28,7 +28,6 @@
 
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 #include <curl/curl.h>
 #include <libxml/parser.h>

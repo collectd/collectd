@@ -28,12 +28,15 @@
 
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 #include "utils_dns.h"
 #include <poll.h>
 
 #include <pcap.h>
+
+#ifdef HAVE_SYS_CAPABILITY_H
+# include <sys/capability.h>
+#endif
 
 /*
  * Private data types
@@ -346,6 +349,20 @@ static int dns_init (void)
 	}
 
 	listen_thread_init = 1;
+
+#if defined(HAVE_SYS_CAPABILITY_H) && defined(CAP_NET_RAW)
+	if (check_capability (CAP_NET_RAW) != 0)
+	{
+		if (getuid () == 0)
+			WARNING ("dns plugin: Running collectd as root, but the CAP_NET_RAW "
+					"capability is missing. The plugin's read function will probably "
+					"fail. Is your init system dropping capabilities?");
+		else
+			WARNING ("dns plugin: collectd doesn't have the CAP_NET_RAW capability. "
+					"If you don't want to run collectd as root, try running \"setcap "
+					"cap_net_raw=ep\" on the collectd binary.");
+	}
+#endif
 
 	return (0);
 } /* int dns_init */

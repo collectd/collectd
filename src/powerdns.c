@@ -28,7 +28,6 @@
 
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 #include "utils_llist.h"
 
 #include <sys/stat.h>

@@ -43,7 +43,7 @@ static void yyset_in  (FILE *fd)
   yyin = fd;
 } /* void yyset_in */
 
-oconfig_item_t *oconfig_parse_fh (FILE *fh)
+static oconfig_item_t *oconfig_parse_fh (FILE *fh)
 {
   int status;
   oconfig_item_t *ret;

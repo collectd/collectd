@@ -30,7 +30,6 @@
 
 #include "plugin.h"
 #include "common.h"
-#include "configfile.h"
 #include "utils_cache.h"
 #include <arpa/inet.h>
 #include <errno.h>
@@ -532,7 +531,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 	in_place_replace_sensu_name_reserved(service_buffer);
 
 	// finalize the buffer by setting the output and closing curly bracket
-	res = my_asprintf(&temp_str, "%s, \"output\": \"%s %s %ld\"}\n", ret_str, service_buffer, value_str, CDTIME_T_TO_TIME_T(vl->time));
+	res = my_asprintf(&temp_str, "%s, \"output\": \"%s %s %lld\"}\n",ret_str, service_buffer, value_str, (long long)CDTIME_T_TO_TIME_T(vl->time));
 	free(ret_str);
 	free(value_str);
 	if (res == -1) {
@@ -668,7 +667,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 	ret_str = temp_str;
 
 	// incorporate the timestamp
-	res = my_asprintf(&temp_str, "%s, \"timestamp\": %ld", ret_str, CDTIME_T_TO_TIME_T(n->time));
+	res = my_asprintf(&temp_str, "%s, \"timestamp\": %lld", ret_str, (long long)CDTIME_T_TO_TIME_T(n->time));
 	free(ret_str);
 	if (res == -1) {
 		ERROR("write_sensu plugin: Unable to alloc memory");
@@ -979,7 +978,6 @@ static int sensu_config_node(oconfig_item_t *ci) /* {{{ */
 	int					status = 0;
 	oconfig_item_t		*child;
 	char				callback_name[DATA_MAX_NAME_LEN];
-	user_data_t			ud;
 
 	if ((host = calloc(1, sizeof(*host))) == NULL) {
 		ERROR("write_sensu plugin: calloc failed.");
@@ -1109,8 +1107,11 @@ static int sensu_config_node(oconfig_item_t *ci) /* {{{ */
 	}
 
 	ssnprintf(callback_name, sizeof(callback_name), "write_sensu/%s", host->name);
-	ud.data = host;
-	ud.free_func = sensu_free;
+
+	user_data_t ud = {
+		.data = host,
+		.free_func = sensu_free
+	};
 
 	pthread_mutex_lock(&host->lock);
 

@@ -30,7 +30,6 @@
 
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 #if KERNEL_LINUX
   /* _GNU_SOURCE is needed for struct shm_info.used_ids on musl libc */

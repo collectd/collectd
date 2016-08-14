@@ -43,8 +43,6 @@
 #include "common.h"
 #include "plugin.h"
 
-#include "configfile.h"
-
 #include <stddef.h>
 
 #include <sys/un.h>

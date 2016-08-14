@@ -83,6 +83,7 @@
 %define with_load 0%{!?_without_load:1}
 %define with_log_logstash 0%{!?_without_log_logstash:1}
 %define with_logfile 0%{!?_without_logfile:1}
+%define with_lua 0%{!?_without_lua:1}
 %define with_lvm 0%{!?_without_lvm:1}
 %define with_madwifi 0%{!?_without_madwifi:1}
 %define with_mbmon 0%{!?_without_mbmon:1}
@@ -226,7 +227,7 @@
 Summary:	Statistics collection and monitoring daemon
 Name:		collectd
 Version:	5.5.2
-Release:	1%{?dist}
+Release:	2%{?dist}
 URL:		https://collectd.org
 Source:		https://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
@@ -493,6 +494,17 @@ Requires:      %{name}%{?_isa} = %{version}-%{release}
 BuildRequires: yajl-devel
 %description log_logstash
 This plugin logs in logstash JSON format
+%endif
+
+%if %{with_lua}
+%package lua
+Summary:	Lua plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	lua-devel
+%description lua
+The Lua plugin embeds a Lua interpreter into collectd and exposes the
+application programming interface (API) to Lua scripts.
 %endif
 
 %if %{with_lvm}
@@ -1194,6 +1206,12 @@ Collectd utilities
 %define _with_lpar --disable-lpar
 %endif
 
+%if %{with_lua}
+%define _with_lua --enable-lua
+%else
+%define _with_lua --disable-lua
+%endif
+
 %if %{with_lvm}
 %define _with_lvm --enable-lvm
 %else
@@ -1755,6 +1773,7 @@ Collectd utilities
 	%{?_with_log_logstash} \
 	%{?_with_logfile} \
 	%{?_with_lpar} \
+	%{?_with_lua} \
 	%{?_with_lvm} \
 	%{?_with_madwifi} \
 	%{?_with_mbmon} \
@@ -1879,6 +1898,10 @@ find %{buildroot} -type f -name perllocal.pod -delete
 rm -f %{buildroot}%{_datadir}/collectd/java/collectd-api.jar
 rm -f %{buildroot}%{_datadir}/collectd/java/generic-jmx.jar
 rm -f %{buildroot}%{_mandir}/man5/collectd-java.5*
+%endif
+
+%if ! %{with_lua}
+rm -f %{buildroot}%{_mandir}/man5/collectd-lua.5*
 %endif
 
 %if ! %{with_perl}
@@ -2309,6 +2332,12 @@ fi
 %{_libdir}/%{name}/log_logstash.so
 %endif
 
+%if %{with_lua}
+%files lua
+%{_mandir}/man5/collectd-lua*
+%{_libdir}/%{name}/lua.so
+%endif
+
 %if %{with_lvm}
 %files lvm
 %{_libdir}/%{name}/lvm.so
@@ -2483,6 +2512,9 @@ fi
 %doc contrib/
 
 %changelog
+* Sun Aug 14 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.5.2-2
+- Add new Lua plugin
+
 * Tue Jul 26 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.5.2-1
 - New upstream version
 - Contains fix for CVE-2016-6254

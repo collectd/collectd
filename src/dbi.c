@@ -28,7 +28,6 @@
 
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 #include "utils_db_query.h"
 
 #include <dbi/dbi.h>
@@ -391,16 +390,17 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
     }
     else
     {
-      user_data_t ud = { 0 };
       char *name = NULL;
 
       databases = temp;
       databases[databases_num] = db;
       databases_num++;
 
-      ud.data = (void *) db;
-      ud.free_func = NULL;
       name = ssnprintf_alloc("dbi:%s", db->name);
+
+      user_data_t ud = {
+        .data = db
+      };
 
       plugin_register_complex_read (/* group = */ NULL,
           /* name = */ name ? name : db->name,

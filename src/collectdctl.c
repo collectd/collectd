@@ -67,6 +67,14 @@
 
 #include "libcollectdclient/collectd/client.h"
 
+#ifndef PREFIX
+# define PREFIX "/opt/" PACKAGE_NAME
+#endif
+
+#ifndef LOCALSTATEDIR
+# define LOCALSTATEDIR PREFIX "/var"
+#endif
+
 #define DEFAULT_SOCK LOCALSTATEDIR"/run/"PACKAGE_NAME"-unixsock"
 
 extern char *optarg;

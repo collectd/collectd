@@ -170,6 +170,7 @@ apache_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
 apache_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS)
 endif
 
+
 if BUILD_PLUGIN_APCUPS
 pkglib_LTLIBRARIES += apcups.la
 apcups_la_SOURCES = apcups.c
@@ -572,6 +573,15 @@ pkglib_LTLIBRARIES += lpar.la
 lpar_la_SOURCES = lpar.c
 lpar_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 lpar_la_LIBADD = -lperfstat
+endif
+
+if BUILD_PLUGIN_LUA
+pkglib_LTLIBRARIES += lua.la
+lua_la_SOURCES = lua.c \
+		 utils_lua.c utils_lua.h
+lua_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBLUA_CPPFLAGS)
+lua_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBLUA_LDFLAGS)
+lua_la_LIBADD = $(BUILD_WITH_LIBLUA_LIBS)
 endif
 
 if BUILD_PLUGIN_LVM
@@ -1005,13 +1015,9 @@ endif
 if BUILD_PLUGIN_SNMP
 pkglib_LTLIBRARIES += snmp.la
 snmp_la_SOURCES = snmp.c
-snmp_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-snmp_la_CFLAGS = $(AM_CFLAGS)
-snmp_la_LIBADD =
-if BUILD_WITH_LIBNETSNMP
-snmp_la_CFLAGS += $(BUILD_WITH_LIBSNMP_CFLAGS)
-snmp_la_LIBADD += $(BUILD_WITH_LIBSNMP_LIBS)
-endif
+snmp_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBNETSNMP_CPPFLAGS)
+snmp_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBNETSNMP_LDFLAGS)
+snmp_la_LIBADD = $(BUILD_WITH_LIBNETSNMP_LIBS)
 endif
 
 if BUILD_PLUGIN_STATSD
@@ -1358,6 +1364,7 @@ dist_man_MANS = collectd.1 \
 		collectd-exec.5 \
 		collectdctl.1 \
 		collectd-java.5 \
+		collectd-lua.5 \
 		collectdmon.1 \
 		collectd-nagios.1 \
 		collectd-perl.5 \
@@ -1373,6 +1380,7 @@ EXTRA_DIST =	collectd.conf.pod \
 		collectd-exec.pod \
 		collectdctl.pod \
 		collectd-java.pod \
+		collectd-lua.pod \
 		collectdmon.pod \
 		collectd-nagios.pod \
 		collectd-perl.pod \

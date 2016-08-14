@@ -39,7 +39,6 @@
 
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 /* Some versions of libcurl don't include this themselves and then don't have
  * fd_set available. */

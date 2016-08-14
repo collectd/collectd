@@ -26,7 +26,6 @@
 
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 #include "utils_avltree.h"
 #include "utils_complain.h"
 

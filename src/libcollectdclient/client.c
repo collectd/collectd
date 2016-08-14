@@ -113,6 +113,7 @@ typedef struct lcc_response_s lcc_response_t;
 /*
  * Private functions
  */
+__attribute__ ((format (printf, 1, 0)))
 static int lcc_tracef(char const *format, ...)
 {
   va_list ap;

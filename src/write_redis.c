@@ -28,7 +28,6 @@
 
 #include "plugin.h"
 #include "common.h"
-#include "configfile.h"
 
 #include <sys/time.h>
 #include <hiredis/hiredis.h>
@@ -232,12 +231,13 @@ static int wr_config_node (oconfig_item_t *ci) /* {{{ */
   if (status == 0)
   {
     char cb_name[DATA_MAX_NAME_LEN];
-    user_data_t ud;
 
     ssnprintf (cb_name, sizeof (cb_name), "write_redis/%s", node->name);
 
-    ud.data = node;
-    ud.free_func = wr_config_free;
+    user_data_t ud = {
+      .data = node,
+      .free_func = wr_config_free
+    };
 
     status = plugin_register_write (cb_name, wr_write, &ud);
   }

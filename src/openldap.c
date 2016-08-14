@@ -30,7 +30,6 @@
 
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 #if defined(__APPLE__)
 #pragma clang diagnostic push
@@ -653,19 +652,20 @@ static int cldap_config_add (oconfig_item_t *ci) /* {{{ */
 		}
 		else
 		{
-			user_data_t ud = { 0 };
 			char callback_name[3*DATA_MAX_NAME_LEN] = { 0 };
 
 			databases = temp;
 			databases[databases_num] = st;
 			databases_num++;
 
-			ud.data = st;
-
 			ssnprintf (callback_name, sizeof (callback_name),
 					"openldap/%s/%s",
 					(st->host != NULL) ? st->host : hostname_g,
-					(st->name != NULL) ? st->name : "default"),
+					(st->name != NULL) ? st->name : "default");
+
+			user_data_t ud = {
+				.data = st
+			};
 
 			status = plugin_register_complex_read (/* group = */ NULL,
 					/* name      = */ callback_name,

@@ -23,7 +23,6 @@
 
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 #include "utils_curl_stats.h"
 #include "utils_llist.h"
 
@@ -1017,7 +1016,6 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
   /* If all went well, register this database for reading */
   if (status == 0)
   {
-    user_data_t ud = { 0 };
     char *cb_name;
 
     if (db->instance == NULL)
@@ -1026,10 +1024,13 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
     DEBUG ("curl_xml plugin: Registering new read callback: %s",
            db->instance);
 
-    ud.data = (void *) db;
-    ud.free_func = cx_free;
-
     cb_name = ssnprintf_alloc ("curl_xml-%s-%s", db->instance, db->url);
+
+    user_data_t ud = {
+      .data = db,
+      .free_func = cx_free
+    };
+
     plugin_register_complex_read (/* group = */ "curl_xml", cb_name, cx_read,
                                   /* interval = */ 0, &ud);
     sfree (cb_name);

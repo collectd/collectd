@@ -29,6 +29,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <queue>
 #include <vector>
 
 #include "collectd.grpc.pb.h"
@@ -39,7 +40,6 @@ extern "C" {
 
 #include "collectd.h"
 #include "common.h"
-#include "configfile.h"
 #include "plugin.h"
 
 #include "daemon/utils_cache.h"
@@ -48,9 +48,9 @@ extern "C" {
 using collectd::Collectd;
 
 using collectd::DispatchValuesRequest;
-using collectd::DispatchValuesReply;
+using collectd::DispatchValuesResponse;
 using collectd::QueryValuesRequest;
-using collectd::QueryValuesReply;
+using collectd::QueryValuesResponse;
 
 using google::protobuf::util::TimeUtil;
 
@@ -172,7 +172,7 @@ static grpc::Status marshal_value_list(const value_list_t *vl, collectd::types::
 	msg->set_allocated_interval(new google::protobuf::Duration(d));
 
 	for (size_t i = 0; i < vl->values_len; ++i) {
-		auto v = msg->add_value();
+		auto v = msg->add_values();
 		switch (ds->ds[i].type) {
 			case DS_TYPE_COUNTER:
 				v->set_counter(vl->values[i].counter);
@@ -190,6 +190,9 @@ static grpc::Status marshal_value_list(const value_list_t *vl, collectd::types::
 				return grpc::Status(grpc::StatusCode::INTERNAL,
 						grpc::string("unknown value type"));
 		}
+
+		auto name = msg->add_ds_names();
+		name->assign(ds->ds[i].name);
 	}
 
 	return grpc::Status::OK;
@@ -208,7 +211,7 @@ static grpc::Status unmarshal_value_list(const collectd::types::ValueList &msg, 
 	size_t values_len = 0;
 
 	status = grpc::Status::OK;
-	for (auto v : msg.value()) {
+	for (auto v : msg.values()) {
 		value_t *val = (value_t *)realloc(values, (values_len + 1) * sizeof(*values));
 		if (!val) {
 			status = grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
@@ -254,168 +257,124 @@ static grpc::Status unmarshal_value_list(const collectd::types::ValueList &msg, 
 } /* unmarshal_value_list() */
 
 /*
- * request call-backs and call objects
+ * Collectd service
  */
+class CollectdImpl : public collectd::Collectd::Service {
+public:
+	grpc::Status QueryValues(grpc::ServerContext *ctx, QueryValuesRequest const *req, grpc::ServerWriter<QueryValuesResponse> *writer) override {
+		value_list_t match;
+		auto status = unmarshal_ident(req->identifier(), &match, false);
+		if (!status.ok()) {
+			return status;
+		}
 
-static grpc::Status Process(grpc::ServerContext *ctx,
-		DispatchValuesRequest request, DispatchValuesReply *reply)
-{
-	value_list_t vl = VALUE_LIST_INIT;
-	auto status = unmarshal_value_list(request.values(), &vl);
-	if (!status.ok())
+		std::queue<value_list_t> value_lists;
+		status = this->queryValuesRead(&match, &value_lists);
+		if (status.ok()) {
+			status = this->queryValuesWrite(ctx, writer, &value_lists);
+		}
+
+		while (!value_lists.empty()) {
+			auto vl = value_lists.front();
+			value_lists.pop();
+			sfree(vl.values);
+		}
+
 		return status;
-
-	if (plugin_dispatch_values(&vl))
-		status = grpc::Status(grpc::StatusCode::INTERNAL,
-				grpc::string("failed to enqueue values for writing"));
-	return status;
-} /* Process(): DispatchValues */
-
-static grpc::Status Process(grpc::ServerContext *ctx,
-		QueryValuesRequest request, QueryValuesReply *reply)
-{
-	uc_iter_t *iter;
-	char *name = NULL;
-
-	value_list_t matcher;
-	auto status = unmarshal_ident(request.identifier(), &matcher, false);
-	if (!status.ok())
-		return status;
-
-	if ((iter = uc_get_iterator()) == NULL) {
-		return grpc::Status(grpc::StatusCode::INTERNAL,
-				grpc::string("failed to query values: cannot create iterator"));
 	}
 
-	status = grpc::Status::OK;
-	while (uc_iterator_next(iter, &name) == 0) {
-		value_list_t res;
-		if (parse_identifier_vl(name, &res) != 0) {
-			status = grpc::Status(grpc::StatusCode::INTERNAL,
-					grpc::string("failed to parse identifier"));
-			break;
+	grpc::Status DispatchValues(grpc::ServerContext *ctx,
+								grpc::ServerReader<DispatchValuesRequest> *reader,
+								DispatchValuesResponse *res) override {
+		DispatchValuesRequest req;
+
+		while (reader->Read(&req)) {
+			value_list_t vl = VALUE_LIST_INIT;
+			auto status = unmarshal_value_list(req.value_list(), &vl);
+			if (!status.ok())
+				return status;
+
+			if (plugin_dispatch_values(&vl))
+				return grpc::Status(grpc::StatusCode::INTERNAL,
+									grpc::string("failed to enqueue values for writing"));
 		}
 
-		if (!ident_matches(&res, &matcher))
-			continue;
-
-		if (uc_iterator_get_time(iter, &res.time) < 0) {
-			status = grpc::Status(grpc::StatusCode::INTERNAL,
-					grpc::string("failed to retrieve value timestamp"));
-			break;
-		}
-		if (uc_iterator_get_interval(iter, &res.interval) < 0) {
-			status = grpc::Status(grpc::StatusCode::INTERNAL,
-					grpc::string("failed to retrieve value interval"));
-			break;
-		}
-		if (uc_iterator_get_values(iter, &res.values, &res.values_len) < 0) {
-			status = grpc::Status(grpc::StatusCode::INTERNAL,
-					grpc::string("failed to retrieve values"));
-			break;
-		}
-
-		auto vl = reply->add_values();
-		status = marshal_value_list(&res, vl);
-		free(res.values);
-		if (!status.ok())
-			break;
+		res->Clear();
+		return grpc::Status::OK;
 	}
 
-	uc_iterator_destroy(iter);
-
-	return status;
-} /* Process(): QueryValues */
-
-class Call
-{
-public:
-	Call(Collectd::AsyncService *service, grpc::ServerCompletionQueue *cq)
-		: service_(service), cq_(cq), status_(CREATE)
-	{ }
-
-	virtual ~Call()
-	{ }
-
-	void Handle()
-	{
-		if (status_ == CREATE) {
-			Create();
-			status_ = PROCESS;
-		}
-		else if (status_ == PROCESS) {
-			Process();
-			status_ = FINISH;
-		}
-		else {
-			GPR_ASSERT(status_ == FINISH);
-			Finish();
-		}
-	} /* Handle() */
-
-protected:
-	virtual void Create() = 0;
-	virtual void Process() = 0;
-	virtual void Finish() = 0;
-
-	Collectd::AsyncService *service_;
-	grpc::ServerCompletionQueue *cq_;
-	grpc::ServerContext ctx_;
-
 private:
-	enum CallStatus { CREATE, PROCESS, FINISH };
-	CallStatus status_;
-}; /* class Call */
+	grpc::Status queryValuesRead(value_list_t const *match, std::queue<value_list_t> *value_lists) {
+		uc_iter_t *iter;
+		if ((iter = uc_get_iterator()) == NULL) {
+			return grpc::Status(grpc::StatusCode::INTERNAL,
+								grpc::string("failed to query values: cannot create iterator"));
+		}
 
-template<typename RequestT, typename ReplyT>
-class RpcCall final : public Call
-{
-	typedef void (Collectd::AsyncService::*CreatorT)(grpc::ServerContext *,
-			RequestT *, grpc::ServerAsyncResponseWriter<ReplyT> *,
-			grpc::CompletionQueue *, grpc::ServerCompletionQueue *, void *);
+		grpc::Status status = grpc::Status::OK;
+		char *name = NULL;
+		while (uc_iterator_next(iter, &name) == 0) {
+			value_list_t vl;
+			if (parse_identifier_vl(name, &vl) != 0) {
+				status = grpc::Status(grpc::StatusCode::INTERNAL,
+									  grpc::string("failed to parse identifier"));
+				break;
+			}
 
-public:
-	RpcCall(Collectd::AsyncService *service,
-			CreatorT creator, grpc::ServerCompletionQueue *cq)
-		: Call(service, cq), creator_(creator), responder_(&ctx_)
-	{
-		Handle();
-	} /* RpcCall() */
+			if (!ident_matches(&vl, match))
+				continue;
 
-	virtual ~RpcCall()
-	{ }
+			if (uc_iterator_get_time(iter, &vl.time) < 0) {
+				status = grpc::Status(grpc::StatusCode::INTERNAL,
+									  grpc::string("failed to retrieve value timestamp"));
+				break;
+			}
+			if (uc_iterator_get_interval(iter, &vl.interval) < 0) {
+				status = grpc::Status(grpc::StatusCode::INTERNAL,
+									  grpc::string("failed to retrieve value interval"));
+				break;
+			}
+			if (uc_iterator_get_values(iter, &vl.values, &vl.values_len) < 0) {
+				status = grpc::Status(grpc::StatusCode::INTERNAL,
+									  grpc::string("failed to retrieve values"));
+				break;
+			}
 
-private:
-	void Create()
-	{
-		(service_->*creator_)(&ctx_, &request_, &responder_, cq_, cq_, this);
-	} /* Create() */
+			value_lists->push(vl);
+		} // while (uc_iterator_next(iter, &name) == 0)
 
-	void Process()
-	{
-		// Add a new request object to the queue.
-		new RpcCall<RequestT, ReplyT>(service_, creator_, cq_);
-		grpc::Status status = ::Process(&ctx_, request_, &reply_);
-		responder_.Finish(reply_, status, this);
-	} /* Process() */
+		uc_iterator_destroy(iter);
+		return status;
+	}
 
-	void Finish()
-	{
-		delete this;
-	} /* Finish() */
+	grpc::Status queryValuesWrite(grpc::ServerContext *ctx,
+					   grpc::ServerWriter<QueryValuesResponse> *writer,
+					   std::queue<value_list_t> *value_lists) {
+		while (!value_lists->empty()) {
+			auto vl = value_lists->front();
+			QueryValuesResponse res;
+			res.Clear();
 
-	CreatorT creator_;
+			auto status = marshal_value_list(&vl, res.mutable_value_list());
+			if (!status.ok()) {
+				return status;
+			}
 
-	RequestT request_;
-	ReplyT reply_;
+			if (!writer->Write(res)) {
+				return grpc::Status::CANCELLED;
+			}
 
-	grpc::ServerAsyncResponseWriter<ReplyT> responder_;
-}; /* class RpcCall */
+			value_lists->pop();
+			sfree(vl.values);
+		}
+
+		return grpc::Status::OK;
+	}
+};
 
 /*
  * gRPC server implementation
  */
-
 class CollectdServer final
 {
 public:
@@ -445,63 +404,75 @@ public:
 			}
 		}
 
-		builder.RegisterService(&service_);
-		cq_ = builder.AddCompletionQueue();
+		builder.RegisterService(&collectd_service_);
+
 		server_ = builder.BuildAndStart();
 	} /* Start() */
 
 	void Shutdown()
 	{
 		server_->Shutdown();
-		cq_->Shutdown();
 	} /* Shutdown() */
 
-	void Mainloop()
-	{
-		// Register request types.
-		new RpcCall<DispatchValuesRequest, DispatchValuesReply>(&service_,
-				&Collectd::AsyncService::RequestDispatchValues, cq_.get());
-		new RpcCall<QueryValuesRequest, QueryValuesReply>(&service_,
-				&Collectd::AsyncService::RequestQueryValues, cq_.get());
-
-		while (true) {
-			void *req = NULL;
-			bool ok = false;
-
-			if (!cq_->Next(&req, &ok))
-				break; // Queue shut down.
-			if (!ok) {
-				ERROR("grpc: Failed to read from queue");
-				break;
-			}
-
-			static_cast<Call *>(req)->Handle();
-		}
-	} /* Mainloop() */
-
 private:
-	Collectd::AsyncService service_;
+	CollectdImpl collectd_service_;
 
 	std::unique_ptr<grpc::Server> server_;
-	std::unique_ptr<grpc::ServerCompletionQueue> cq_;
 }; /* class CollectdServer */
+
+class CollectdClient final
+{
+public:
+	CollectdClient(std::shared_ptr<grpc::ChannelInterface> channel) : stub_(Collectd::NewStub(channel)) {
+	}
+
+	int DispatchValues(value_list_t const *vl) {
+		grpc::ClientContext ctx;
+
+		DispatchValuesRequest req;
+		auto status = marshal_value_list(vl, req.mutable_value_list());
+		if (!status.ok()) {
+			ERROR("grpc: Marshalling value_list_t failed.");
+			return -1;
+		}
+
+		DispatchValuesResponse res;
+		auto stream = stub_->DispatchValues(&ctx, &res);
+		if (!stream->Write(req)) {
+			NOTICE("grpc: Broken stream.");
+			/* intentionally not returning. */
+		}
+
+		stream->WritesDone();
+		status = stream->Finish();
+		if (!status.ok()) {
+			ERROR ("grpc: Error while closing stream.");
+			return -1;
+		}
+
+		return 0;
+	} /* int DispatchValues */
+
+private:
+	std::unique_ptr<Collectd::Stub> stub_;
+};
 
 static CollectdServer *server = nullptr;
 
 /*
  * collectd plugin interface
  */
-
 extern "C" {
-	static pthread_t *workers;
-	static size_t workers_num = 5;
+	static void c_grpc_destroy_write_callback (void *ptr) {
+		delete (CollectdClient *) ptr;
+	}
 
-	static void *worker_thread(void *arg)
-	{
-		CollectdServer *s = (CollectdServer *)arg;
-		s->Mainloop();
-		return NULL;
-	} /* worker_thread() */
+	static int c_grpc_write(__attribute__((unused)) data_set_t const *ds,
+			value_list_t const *vl,
+			user_data_t *ud) {
+		CollectdClient *c = (CollectdClient *) ud->data;
+		return c->DispatchValues(vl);
+	}
 
 	static int c_grpc_config_listen(oconfig_item_t *ci)
 	{
@@ -532,7 +503,7 @@ extern "C" {
 					return -1;
 				}
 			}
-			else if (!strcasecmp("SSLRootCerts", child->key)) {
+			else if (!strcasecmp("SSLCACertificateFile", child->key)) {
 				char *certs = NULL;
 				if (cf_util_get_string(child, &certs)) {
 					ERROR("grpc: Option `%s` expects a string value",
@@ -541,7 +512,7 @@ extern "C" {
 				}
 				ssl_opts->pem_root_certs = read_file(certs);
 			}
-			else if (!strcasecmp("SSLServerKey", child->key)) {
+			else if (!strcasecmp("SSLCertificateKeyFile", child->key)) {
 				char *key = NULL;
 				if (cf_util_get_string(child, &key)) {
 					ERROR("grpc: Option `%s` expects a string value",
@@ -550,7 +521,7 @@ extern "C" {
 				}
 				pkcp.private_key = read_file(key);
 			}
-			else if (!strcasecmp("SSLServerCert", child->key)) {
+			else if (!strcasecmp("SSLCertificateFile", child->key)) {
 				char *cert = NULL;
 				if (cf_util_get_string(child, &cert)) {
 					ERROR("grpc: Option `%s` expects a string value",
@@ -575,6 +546,78 @@ extern "C" {
 		return 0;
 	} /* c_grpc_config_listen() */
 
+	static int c_grpc_config_server(oconfig_item_t *ci)
+	{
+		if ((ci->values_num != 2)
+				|| (ci->values[0].type != OCONFIG_TYPE_STRING)
+				|| (ci->values[1].type != OCONFIG_TYPE_STRING)) {
+			ERROR("grpc: The `%s` config option needs exactly "
+					"two string argument (address and port).", ci->key);
+			return -1;
+		}
+
+		grpc::SslCredentialsOptions ssl_opts;
+		bool use_ssl = false;
+
+		for (int i = 0; i < ci->children_num; i++) {
+			oconfig_item_t *child = ci->children + i;
+
+			if (!strcasecmp("EnableSSL", child->key)) {
+				if (cf_util_get_boolean(child, &use_ssl)) {
+					return -1;
+				}
+			}
+			else if (!strcasecmp("SSLCACertificateFile", child->key)) {
+				char *certs = NULL;
+				if (cf_util_get_string(child, &certs)) {
+					return -1;
+				}
+				ssl_opts.pem_root_certs = read_file(certs);
+			}
+			else if (!strcasecmp("SSLCertificateKeyFile", child->key)) {
+				char *key = NULL;
+				if (cf_util_get_string(child, &key)) {
+					return -1;
+				}
+				ssl_opts.pem_private_key = read_file(key);
+			}
+			else if (!strcasecmp("SSLCertificateFile", child->key)) {
+				char *cert = NULL;
+				if (cf_util_get_string(child, &cert)) {
+					return -1;
+				}
+				ssl_opts.pem_cert_chain = read_file(cert);
+			}
+			else {
+				WARNING("grpc: Option `%s` not allowed in <%s> block.",
+						child->key, ci->key);
+			}
+		}
+
+		auto node    = grpc::string(ci->values[0].value.string);
+		auto service = grpc::string(ci->values[1].value.string);
+		auto addr    = node + ":" + service;
+
+		CollectdClient *client;
+		if (use_ssl) {
+			auto channel_creds = grpc::SslCredentials(ssl_opts);
+			auto channel = grpc::CreateChannel(addr, channel_creds);
+			client = new CollectdClient(channel);
+		} else {
+			auto channel = grpc::CreateChannel(addr, grpc::InsecureChannelCredentials());
+			client = new CollectdClient(channel);
+		}
+
+		auto callback_name = grpc::string("grpc/") + addr;
+		user_data_t ud = {
+			.data = client,
+			.free_func = c_grpc_destroy_write_callback,
+		};
+
+		plugin_register_write (callback_name.c_str(), c_grpc_write, &ud);
+		return 0;
+	} /* c_grpc_config_server() */
+
 	static int c_grpc_config(oconfig_item_t *ci)
 	{
 		int i;
@@ -586,12 +629,11 @@ extern "C" {
 				if (c_grpc_config_listen(child))
 					return -1;
 			}
-			else if (!strcasecmp("WorkerThreads", child->key)) {
-				int n;
-				if (cf_util_get_int(child, &n))
+			else if (!strcasecmp("Server", child->key)) {
+				if (c_grpc_config_server(child))
 					return -1;
-				workers_num = (size_t)n;
 			}
+
 			else {
 				WARNING("grpc: Option `%s` not allowed here.", child->key);
 			}
@@ -603,46 +645,21 @@ extern "C" {
 	static int c_grpc_init(void)
 	{
 		server = new CollectdServer();
-		size_t i;
-
-		if (! server) {
+		if (!server) {
 			ERROR("grpc: Failed to create server");
 			return -1;
 		}
 
-		workers = (pthread_t *)calloc(workers_num, sizeof(*workers));
-		if (! workers) {
-			delete server;
-			server = nullptr;
-
-			ERROR("grpc: Failed to allocate worker threads");
-			return -1;
-		}
-
 		server->Start();
-		for (i = 0; i < workers_num; i++) {
-			plugin_thread_create(&workers[i], /* attr = */ NULL,
-					worker_thread, server);
-		}
-		INFO("grpc: Started %zu workers", workers_num);
 		return 0;
 	} /* c_grpc_init() */
 
 	static int c_grpc_shutdown(void)
 	{
-		size_t i;
-
 		if (!server)
-			return -1;
+			return 0;
 
 		server->Shutdown();
-
-		INFO("grpc: Waiting for %zu workers to terminate", workers_num);
-		for (i = 0; i < workers_num; i++)
-			pthread_join(workers[i], NULL);
-		free(workers);
-		workers = NULL;
-		workers_num = 0;
 
 		delete server;
 		server = nullptr;

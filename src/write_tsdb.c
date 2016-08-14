@@ -45,7 +45,6 @@
 
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 #include "utils_cache.h"
 
@@ -571,7 +570,6 @@ static int wt_write(const data_set_t *ds, const value_list_t *vl,
 static int wt_config_tsd(oconfig_item_t *ci)
 {
     struct wt_callback *cb;
-    user_data_t user_data = { 0 };
     char callback_name[DATA_MAX_NAME_LEN];
 
     cb = calloc(1, sizeof(*cb));
@@ -613,8 +611,11 @@ static int wt_config_tsd(oconfig_item_t *ci)
               cb->node != NULL ? cb->node : WT_DEFAULT_NODE,
               cb->service != NULL ? cb->service : WT_DEFAULT_SERVICE);
 
-    user_data.data = cb;
-    user_data.free_func = wt_callback_free;
+    user_data_t user_data = {
+        .data = cb,
+        .free_func = wt_callback_free
+    };
+
     plugin_register_write(callback_name, wt_write, &user_data);
 
     user_data.free_func = NULL;

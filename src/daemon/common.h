@@ -375,4 +375,12 @@ int strtogauge (const char *string, gauge_t *ret_value);
 int strarray_add (char ***ret_array, size_t *ret_array_len, char const *str);
 void strarray_free (char **array, size_t array_len);
 
+#ifdef HAVE_SYS_CAPABILITY_H
+/** Check if the current process benefits from the capability passed in
+ * argument. Returns zero if it does, less than zero if it doesn't or on error.
+ * See capabilities(7) for the list of possible capabilities.
+ * */
+int check_capability (int capability);
+#endif /* HAVE_SYS_CAPABILITY_H */
+
 #endif /* COMMON_H */

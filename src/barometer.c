@@ -30,6 +30,7 @@
 #include <unistd.h>
 #include <linux/i2c-dev.h>
 #include <math.h>
+#include <sys/ioctl.h>
 
 /* ------------ MPL115 defines ------------ */
 /* I2C address of the MPL115 sensor */

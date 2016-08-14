@@ -452,8 +452,8 @@ chrony_connect(void)
 
   if (chrony_set_timeout())
   {
-    ERROR(PLUGIN_NAME ": Error setting timeout to %lds. Errno = %d",
-          g_chrony_timeout, errno);
+    ERROR(PLUGIN_NAME ": Error setting timeout to %llds. Errno = %d",
+          (long long)g_chrony_timeout, errno);
     return CHRONY_RC_FAIL;
   }
   return CHRONY_RC_OK;

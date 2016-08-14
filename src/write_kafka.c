@@ -28,7 +28,6 @@
 
 #include "plugin.h"
 #include "common.h"
-#include "configfile.h"
 #include "utils_cmd_putval.h"
 #include "utils_format_graphite.h"
 #include "utils_format_json.h"
@@ -246,7 +245,6 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
     char                        *val;
     char                         callback_name[DATA_MAX_NAME_LEN];
     char                         errbuf[1024];
-    user_data_t                  ud;
     oconfig_item_t              *child;
     rd_kafka_conf_res_t          ret;
 
@@ -385,8 +383,10 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
     ssnprintf(callback_name, sizeof(callback_name),
               "write_kafka/%s", tctx->topic_name);
 
-    ud.data = tctx;
-    ud.free_func = kafka_topic_context_free;
+    user_data_t ud = {
+        .data = tctx,
+        .free_func = kafka_topic_context_free
+    };
 
     status = plugin_register_write (callback_name, kafka_write, &ud);
     if (status != 0) {

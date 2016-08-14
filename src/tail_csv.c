@@ -421,7 +421,6 @@ static int tcsv_config_add_file(oconfig_item_t *ci)
 
     /* Registration variables */
     char cb_name[DATA_MAX_NAME_LEN];
-    user_data_t cb_data = { 0 };
 
     id = calloc(1, sizeof(*id));
     if (id == NULL)
@@ -482,9 +481,13 @@ static int tcsv_config_add_file(oconfig_item_t *ci)
     }
 
     ssnprintf (cb_name, sizeof (cb_name), "tail_csv/%s", id->path);
-    cb_data.data = id;
-    cb_data.free_func = tcsv_instance_definition_destroy;
-    status = plugin_register_complex_read(NULL, cb_name, tcsv_read, id->interval, &cb_data);
+
+    user_data_t ud = {
+        .data = id,
+        .free_func = tcsv_instance_definition_destroy
+    };
+
+    status = plugin_register_complex_read(NULL, cb_name, tcsv_read, id->interval, &ud);
 
     if (status != 0){
         ERROR("tail_csv plugin: Registering complex read function failed.");

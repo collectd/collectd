@@ -37,8 +37,6 @@
 
 #undef DONT_POISON_SPRINTF_YET
 
-#include "configfile.h"
-
 #if HAVE_STDBOOL_H
 # include <stdbool.h>
 #endif

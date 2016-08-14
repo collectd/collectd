@@ -60,6 +60,10 @@
 # include <arpa/inet.h>
 #endif
 
+#ifdef HAVE_SYS_CAPABILITY_H
+# include <sys/capability.h>
+#endif
+
 #ifdef HAVE_LIBKSTAT
 extern kstat_ctl_t *kc;
 #endif
@@ -1568,8 +1572,6 @@ void set_sock_opts (int sockfd) /* {{{ */
 
 	socklen_t socklen = sizeof (socklen_t);
 	int so_keepalive = 1;
-	int tcp_keepidle = ((CDTIME_T_TO_MS(plugin_get_interval()) - 1) / 100 + 1);
-	int tcp_keepintvl = ((CDTIME_T_TO_MS(plugin_get_interval()) - 1) / 1000 + 1);
 
 	status = getsockopt (sockfd, SOL_SOCKET, SO_TYPE, &socktype, &socklen);
 	if (status != 0)
@@ -1586,6 +1588,7 @@ void set_sock_opts (int sockfd) /* {{{ */
 			WARNING ("set_sock_opts: failed to set socket keepalive flag");
 
 #ifdef TCP_KEEPIDLE
+		int tcp_keepidle = ((CDTIME_T_TO_MS(plugin_get_interval()) - 1) / 100 + 1);
 		status = setsockopt(sockfd, IPPROTO_TCP, TCP_KEEPIDLE,
 				&tcp_keepidle, sizeof (tcp_keepidle));
 		if (status != 0)
@@ -1593,6 +1596,7 @@ void set_sock_opts (int sockfd) /* {{{ */
 #endif
 
 #ifdef TCP_KEEPINTVL
+		int tcp_keepintvl = ((CDTIME_T_TO_MS(plugin_get_interval()) - 1) / 1000 + 1);
 		status = setsockopt(sockfd, IPPROTO_TCP, TCP_KEEPINTVL,
 				&tcp_keepintvl, sizeof (tcp_keepintvl));
 		if (status != 0)
@@ -1668,3 +1672,52 @@ void strarray_free (char **array, size_t array_len) /* {{{ */
 		sfree (array[i]);
 	sfree (array);
 } /* }}} void strarray_free */
+
+#ifdef HAVE_SYS_CAPABILITY_H
+int check_capability (int capability) /* {{{ */
+{
+#ifdef _LINUX_CAPABILITY_VERSION_3
+	cap_user_header_t cap_header = calloc(1, sizeof (*cap_header));
+	if (cap_header == NULL)
+	{
+		ERROR("check_capability: calloc failed");
+		return (-1);
+	}
+
+	cap_user_data_t cap_data = calloc(1, sizeof (*cap_data));
+	if (cap_data == NULL)
+	{
+		ERROR("check_capability: calloc failed");
+		sfree(cap_header);
+		return (-1);
+	}
+
+	cap_header->pid = getpid();
+	cap_header->version = _LINUX_CAPABILITY_VERSION;
+	if (capget(cap_header, cap_data) < 0)
+	{
+		ERROR("check_capability: capget failed");
+		sfree(cap_header);
+		sfree(cap_data);
+		return (-1);
+	}
+
+	if ((cap_data->effective & (1 << capability)) == 0)
+	{
+		sfree(cap_header);
+		sfree(cap_data);
+		return (-1);
+	}
+	else
+	{
+		sfree(cap_header);
+		sfree(cap_data);
+		return (0);
+	}
+#else
+	WARNING ("check_capability: unsupported capability implementation. "
+	    "Some plugin(s) may require elevated privileges to work properly.");
+	return (0);
+#endif /* _LINUX_CAPABILITY_VERSION_3 */
+} /* }}} int check_capability */
+#endif /* HAVE_SYS_CAPABILITY_H */

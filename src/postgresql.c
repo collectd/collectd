@@ -34,7 +34,6 @@
 
 #include "common.h"
 
-#include "configfile.h"
 #include "plugin.h"
 
 #include "utils_cache.h"
@@ -1177,8 +1176,6 @@ static int c_psql_config_database (oconfig_item_t *ci)
 	c_psql_database_t *db;
 
 	char cb_name[DATA_MAX_NAME_LEN];
-	user_data_t ud = { 0 };
-
 	static _Bool have_flush = 0;
 
 	if ((1 != ci->values_num)
@@ -1261,10 +1258,12 @@ static int c_psql_config_database (oconfig_item_t *ci)
 		}
 	}
 
-	ud.data = db;
-	ud.free_func = c_psql_database_delete;
-
 	ssnprintf (cb_name, sizeof (cb_name), "postgresql-%s", db->instance);
+
+	user_data_t ud = {
+		.data = db,
+		.free_func = c_psql_database_delete
+	};
 
 	if (db->queries_num > 0) {
 		++db->ref_cnt;

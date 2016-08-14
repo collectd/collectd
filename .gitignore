@@ -84,6 +84,9 @@ bindings/java/org/collectd/java/*.class
 #ide stuff
 .vscode
 
+# cscope stuff
+cscope.*
+
 # Unit tests
 src/daemon/test-suite.log
 src/tests/

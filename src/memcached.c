@@ -32,7 +32,6 @@
 
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 #include <netdb.h>
 #include <sys/un.h>
@@ -549,15 +548,16 @@ static int memcached_read (user_data_t *user_data)
 
 static int memcached_add_read_callback (memcached_t *st)
 {
-  user_data_t ud = { 0 };
   char callback_name[3*DATA_MAX_NAME_LEN];
   int status;
 
-  ud.data = st;
-  ud.free_func = memcached_free;
-
   assert (st->name != NULL);
   ssnprintf (callback_name, sizeof (callback_name), "memcached/%s", st->name);
+
+  user_data_t ud = {
+    .data = st,
+    .free_func = memcached_free
+  };
 
   status = plugin_register_complex_read (/* group = */ "memcached",
       /* name      = */ callback_name,

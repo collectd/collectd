@@ -25,7 +25,6 @@
 
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 #include "utils_avltree.h"
 #include "utils_complain.h"
 #include "utils_curl_stats.h"
@@ -759,7 +758,6 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
   /* If all went well, register this database for reading */
   if (status == 0)
   {
-    user_data_t ud = { 0 };
     char *cb_name;
 
     if (db->instance == NULL)
@@ -768,11 +766,13 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
     DEBUG ("curl_json plugin: Registering new read callback: %s",
            db->instance);
 
-    ud.data = (void *) db;
-    ud.free_func = cj_free;
-
     cb_name = ssnprintf_alloc ("curl_json-%s-%s",
                db->instance, db->url ? db->url : db->sock);
+
+    user_data_t ud = {
+      .data = db,
+      .free_func = cj_free
+    };
 
     plugin_register_complex_read (/* group = */ NULL, cb_name, cj_read,
                                   /* interval = */ db->interval,

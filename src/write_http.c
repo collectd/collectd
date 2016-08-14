@@ -362,7 +362,11 @@ static int wh_write_command (const data_set_t *ds, const value_list_t *vl, /* {{
 
         int status;
 
-        if (0 != strcmp (ds->type, vl->type)) {
+        /* sanity checks, primarily to make static analyzers happy. */
+        if ((cb == NULL) || (cb->send_buffer == NULL))
+                return -1;
+
+        if (strcmp (ds->type, vl->type) == 0) {
                 ERROR ("write_http plugin: DS type does not match "
                                 "value list type");
                 return -1;
@@ -649,7 +653,6 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
 {
         wh_callback_t *cb;
         int buffer_size = 0;
-        user_data_t user_data = { 0 };
         char callback_name[DATA_MAX_NAME_LEN];
         int status = 0;
 
@@ -813,7 +816,10 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
         DEBUG ("write_http: Registering write callback '%s' with URL '%s'",
                         callback_name, cb->location);
 
-        user_data.data = cb;
+        user_data_t user_data = {
+                .data = cb
+        };
+
         plugin_register_flush (callback_name, wh_flush, &user_data);
 
         user_data.free_func = wh_callback_free;

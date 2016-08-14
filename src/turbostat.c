@@ -1474,35 +1474,22 @@ out:
 static int
 check_permissions(void)
 {
-#ifdef HAVE_SYS_CAPABILITY_H
-	struct __user_cap_header_struct cap_header_data;
-	cap_user_header_t cap_header = &cap_header_data;
-	struct __user_cap_data_struct cap_data_data;
-	cap_user_data_t cap_data = &cap_data_data;
-	int ret = 0;
-#endif /* HAVE_SYS_CAPABILITY_H */
 
 	if (getuid() == 0) {
 		/* We have everything we need */
 		return 0;
-#ifndef HAVE_SYS_CAPABILITY_H
+#if !defined(HAVE_SYS_CAPABILITY_H) && !defined(CAP_SYS_RAWIO)
 	} else {
 		ERROR("turbostat plugin: Initialization failed: this plugin "
 		      "requires collectd to run as root");
 		return -1;
 	}
-#else /* HAVE_SYS_CAPABILITY_H */
+#else /* HAVE_SYS_CAPABILITY_H && CAP_SYS_RAWIO */
 	}
 
-	/* check for CAP_SYS_RAWIO */
-	cap_header->pid = getpid();
-	cap_header->version = _LINUX_CAPABILITY_VERSION;
-	if (capget(cap_header, cap_data) < 0) {
-		ERROR("turbostat plugin: capget failed");
-		return -1;
-	}
+	int ret = 0;
 
-	if ((cap_data->effective & (1 << CAP_SYS_RAWIO)) == 0) {
+	if (check_capability(CAP_SYS_RAWIO) != 0) {
 		WARNING("turbostat plugin: Collectd doesn't have the "
 			"CAP_SYS_RAWIO capability. If you don't want to run "
 			"collectd as root, try running \"setcap "
@@ -1524,7 +1511,7 @@ check_permissions(void)
 		      "collectd a special capability (CAP_SYS_RAWIO) and read "
                       "access to /dev/cpu/*/msr (see previous warnings)");
 	return ret;
-#endif /* HAVE_SYS_CAPABILITY_H */
+#endif /* HAVE_SYS_CAPABILITY_H && CAP_SYS_RAWIO */
 }
 
 static int

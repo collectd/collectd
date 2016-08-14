@@ -28,7 +28,6 @@
 
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 #include "utils_db_query.h"
 
 /*
@@ -257,7 +256,7 @@ static int udb_result_submit (udb_result_t *r, /* {{{ */
     {
       int status = strjoin (vl.type_instance, sizeof (vl.type_instance),
           r_area->instances_buffer, r->instances_num, "-");
-      if (status != 0)
+      if (status < 0)
       {
         ERROR ("udb_result_submit: creating type_instance failed with status %d.",
             status);
@@ -270,7 +269,7 @@ static int udb_result_submit (udb_result_t *r, /* {{{ */
 
       int status = strjoin (tmp, sizeof (tmp), r_area->instances_buffer,
           r->instances_num, "-");
-      if (status != 0)
+      if (status < 0)
       {
         ERROR ("udb_result_submit: creating type_instance failed with status %d.",
             status);

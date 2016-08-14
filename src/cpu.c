@@ -192,11 +192,13 @@ static size_t global_cpu_num = 0;
 static _Bool report_by_cpu = 1;
 static _Bool report_by_state = 1;
 static _Bool report_percent = 0;
+static _Bool report_num_cpu = 0;
 
 static const char *config_keys[] =
 {
 	"ReportByCpu",
 	"ReportByState",
+	"ReportNumCpu",
 	"ValuesPercentage"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
@@ -209,6 +211,8 @@ static int cpu_config (char const *key, char const *value) /* {{{ */
 		report_percent = IS_TRUE (value) ? 1 : 0;
 	else if (strcasecmp (key, "ReportByState") == 0)
 		report_by_state = IS_TRUE (value) ? 1 : 0;
+	else if (strcasecmp (key, "ReportNumCpu") == 0)
+		report_num_cpu = IS_TRUE (value) ? 1 : 0;
 	else
 		return (-1);
 
@@ -459,6 +463,24 @@ static void cpu_commit_one (int cpu_num, /* {{{ */
 	}
 } /* }}} void cpu_commit_one */
 
+/* Commits the number of cores */
+static void cpu_commit_num_cpu (gauge_t num_cpu) /* {{{ */
+{
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
+
+	values[0].gauge = num_cpu;
+
+	vl.values = values;
+	vl.values_len = 1;
+
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "cpu", sizeof (vl.plugin));
+	sstrncpy (vl.type, "count", sizeof (vl.type));
+
+	plugin_dispatch_values (&vl);
+} /* }}} void cpu_commit_num_cpu */
+
 /* Resets the internal aggregation. This is called by the read callback after
  * each iteration / after each call to cpu_commit(). */
 static void cpu_reset (void) /* {{{ */
@@ -492,6 +514,9 @@ static void cpu_commit (void) /* {{{ */
 	gauge_t global_rates[COLLECTD_CPU_STATE_MAX] = {
 		NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN /* Batman! */
 	};
+
+	if (report_num_cpu)
+		cpu_commit_num_cpu ((gauge_t) global_cpu_num);
 
 	if (report_by_state && report_by_cpu && !report_percent)
 	{
@@ -565,7 +590,7 @@ static int cpu_read (void)
 
 	host_t cpu_host;
 
-	for (int cpu = 0; cpu < cpu_list_len; cpu++)
+	for (mach_msg_type_number_t cpu = 0; cpu < cpu_list_len; cpu++)
 	{
 		cpu_host = 0;
 		cpu_info_len = PROCESSOR_BASIC_INFO_COUNT;
