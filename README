@@ -168,6 +168,12 @@ Features
       Detailed CPU statistics of the “Logical Partitions” virtualization
       technique built into IBM's POWER processors.
 
+    - lua
+      The Lua plugin implements a Lua interpreter into collectd. This
+      makes it possible to write plugins in Lua which are executed by
+      collectd without the need to start a heavy interpreter every interval.
+      See collectd-lua(5) for details.
+
     - lvm
       Size of “Logical Volumes” (LV) and “Volume Groups” (VG) of Linux'
       “Logical Volume Manager” (LVM).
@@ -421,6 +427,10 @@ Features
       Write to comma separated values (CSV) files. This needs lots of
       diskspace but is extremely portable and can be analysed with almost
       every program that can analyse anything. Even Microsoft's Excel..
+
+    - lua
+      It's possible to implement write plugins in Lua using the Lua
+      plugin. See collectd-lua(5) for details.
 
     - network
       Send the data to a remote host to save the data somehow. This is useful
@@ -728,6 +738,10 @@ Prerequisites
   * libldap (optional)
     Used by the `openldap' plugin.
     <http://www.openldap.org/>
+
+  * liblua (optional)
+    Used by the `lua' plugin. Currently, Lua 5.1 and later are supported.
+    <https://www.lua.org/>
 
   * liblvm2 (optional)
     Used by the `lvm' plugin.
