@@ -362,7 +362,7 @@ static int lua_cb_register_write(lua_State *L) /* {{{ */
   return 0;
 } /* }}} int lua_cb_register_write */
 
-static luaL_Reg collectdlib[] = {
+static const luaL_Reg collectdlib[] = {
     {"log_debug", lua_cb_log_debug},
     {"log_error", lua_cb_log_error},
     {"log_info", lua_cb_log_info},
