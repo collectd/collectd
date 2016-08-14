@@ -574,11 +574,17 @@
 #</Plugin>
 
 #<Plugin grpc>
+#	<Server "example.com" "50051">
+#		EnableSSL true
+#		SSLCACertificateFile "/path/to/root.pem"
+#		SSLCertificateFile "/path/to/server.pem"
+#		SSLCertificateKeyFile "/path/to/server.key"
+#	</Server>
 #	<Listen "0.0.0.0" "50051">
 #		EnableSSL true
-#		SSLRootCerts "/path/to/root.pem"
-#		SSLServerCert "/path/to/server.pem"
-#		SSLServerKey "/path/to/server.key"
+#		SSLCACertificateFile "/path/to/root.pem"
+#		SSLCertificateFile "/path/to/client.pem"
+#		SSLCertificateKeyFile "/path/to/client.key"
 #	</Listen>
 #</Plugin>
 

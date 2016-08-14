@@ -2733,6 +2733,33 @@ The B<gRPC> homepage can be found at L<https://grpc.io/>.
 
 =over 4
 
+=item B<Server> I<Host> I<Port>
+
+The B<Server> statement sets the address of a server to which to send metrics
+via the C<DispatchValues> function.
+
+The argument I<Host> may be a hostname, an IPv4 address, or an IPv6 address.
+
+Optionally, B<Server> may be specified as a configuration block which supports
+the following options:
+
+=over 4
+
+=item B<EnableSSL> B<false>|B<true>
+
+Whether to require SSL for outgoing connections. Default: false.
+
+=item B<SSLCACertificateFile> I<Filename>
+
+=item B<SSLCertificateFile> I<Filename>
+
+=item B<SSLCertificateKeyFile> I<Filename>
+
+Filenames specifying SSL certificate and key material to be used with SSL
+connections.
+
+=back
+
 =item B<Listen> I<Host> I<Port>
 
 The B<Listen> statement sets the network address to bind to. When multiple
@@ -2750,11 +2777,11 @@ supports the following options:
 
 Whether to enable SSL for incoming connections. Default: false.
 
-=item B<SSLRootCerts> I<Filename>
+=item B<SSLCACertificateFile> I<Filename>
 
-=item B<SSLServerKey> I<Filename>
+=item B<SSLCertificateFile> I<Filename>
 
-=item B<SSLServerCert> I<Filename>
+=item B<SSLCertificateKeyFile> I<Filename>
 
 Filenames specifying SSL certificate and key material to be used with SSL
 connections.
