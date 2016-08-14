@@ -374,7 +374,11 @@ static luaL_Reg collectdlib[] = {
 
 static int open_collectd(lua_State *L) /* {{{ */
 {
+#if LUA_VERSION_NUM < 502
+  luaL_register(L, "collectd", collectdlib);
+#else
   luaL_newlib(L, collectdlib);
+#endif
   return 1;
 } /* }}} */
 
@@ -411,8 +415,14 @@ static int lua_script_init(lua_script_t *script) /* {{{ */
   luaL_openlibs(script->lua_state);
 
   /* Load the 'collectd' library */
+#if LUA_VERSION_NUM < 502
+  lua_pushcfunction(script->lua_state, open_collectd);
+  lua_pushstring(script->lua_state, "collectd");
+  lua_call(script->lua_state, 1, 0);
+#else
   luaL_requiref(script->lua_state, "collectd", open_collectd, 1);
   lua_pop(script->lua_state, 1);
+#endif
 
   /* Prepend BasePath to package.path */
   if (base_path[0] != '\0') {
