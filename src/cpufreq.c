@@ -59,7 +59,7 @@ static _Bool report_by_cpu = 0; 		// option
 static size_t num_cpu = 0; 	// number of cpus 
 
 static long int *hertz_all_cpus = NULL;
-static double *time_all_cpus = NULL;
+static derive_t *time_all_cpus = NULL;
 static size_t hertz_size = 0;
 static size_t reported_last_run = 0;
 
@@ -188,7 +188,7 @@ static int cpufreq_init (void)
 			return (0);
 		}
 
-		time_all_cpus = (double*)malloc( hertz_size * sizeof(double) );
+		time_all_cpus = (derive_t*)malloc( hertz_size * sizeof(derive_t) );
 		if ( time_all_cpus == NULL )
 		{
 			INFO("cpufreq plugin: malloc failed for time_all_cpus size %zu", hertz_size);
@@ -250,7 +250,7 @@ static void cpufreq_submit_distribution_value (const char *plugin_instance, long
 	sstrncpy (vl.plugin, "cpufreq", sizeof (vl.plugin));
 	if ( plugin_instance != NULL )
 		sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
-	sstrncpy (vl.type, "time_in_state", sizeof (vl.type));
+	sstrncpy (vl.type, "total_time_in_ms", sizeof (vl.type));
 	ssnprintf (vl.type_instance, sizeof (vl.type_instance),
 			   "%ld", hertz);
 
@@ -317,7 +317,7 @@ static int cpufreq_read (void)
 		char statind[64];
 		int numfields;
 		long int hertz;
-		double time;
+		derive_t time;
 		size_t j;
 		size_t last_index = 0;
 
@@ -359,7 +359,9 @@ static int cpufreq_read (void)
 				}
 
 				hertz = atol( fields[0] );
-				time = atof( fields[1] ) * 10e-3;
+
+				time = atoll( fields[1] );
+				time *= 10; 				// cpufreq-stat module reports in 10ms
 
 				if ( hertz <= 0 )
 				{
