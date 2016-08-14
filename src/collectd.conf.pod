@@ -3083,6 +3083,12 @@ Defaults to false.
 
 =back
 
+=head2 Plugin C<lua>
+
+This plugin embeds a Lua interpreter into collectd and provides an interface
+to collectd's plugin system. See L<collectd-lua(5)> for its documentation.
+
+
 =head2 Plugin C<mbmon>
 
 The C<mbmon plugin> uses mbmon to retrieve temperature, voltage, etc.
