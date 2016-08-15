@@ -2767,63 +2767,82 @@ AM_CONDITIONAL(BUILD_WITH_LIBLDAP, test "x$with_libldap" = "xyes")
 # }}}
 
 # --with-liblua {{{
-with_liblua_cppflags=""
-with_liblua_ldflags=""
-with_liblua_libs=""
-with_liblua="yes"
-
 AC_ARG_VAR([LIBLUA_PKG_CONFIG_NAME], [Name of liblua used by pkg-config])
-if test "x$LIBLUA_PKG_CONFIG_NAME" = "x"
+if test "x$LIBLUA_PKG_CONFIG_NAME" != "x"
 then
-       LIBLUA_PKG_CONFIG_NAME="lua"
+  PKG_CHECK_MODULES([LUA], [$LIBLUA_PKG_CONFIG_NAME],
+    [with_liblua="yes"],
+    [with_liblua="no"]
+  )
+else
+  PKG_CHECK_MODULES([LUA], [lua],
+    [with_liblua="yes"],
+    [
+      PKG_CHECK_MODULES([LUA], [lua-5.3],
+        [with_liblua="yes"],
+        [
+	  PKG_CHECK_MODULES([LUA], [lua5.3],
+            [with_liblua="yes"],
+            [
+              PKG_CHECK_MODULES([LUA], [lua-5.2],
+                [with_liblua="yes"],
+                [
+                  PKG_CHECK_MODULES([LUA], [lua5.2],
+                    [with_liblua="yes"],
+                    [
+                      PKG_CHECK_MODULES([LUA], [lua-5.1],
+                        [with_liblua="yes"],
+                        [
+                          PKG_CHECK_MODULES([LUA], [lua5.1],
+                            [with_liblua="yes"],
+                            [with_liblua="no (pkg-config cannot find liblua)"]
+                          )
+                        ]
+                      )
+                    ]
+                  )
+                ]
+              )
+            ]
+          )
+        ]
+      )
+    ]
+  )
 fi
 
 if test "x$with_liblua" = "xyes"
 then
-	$PKG_CONFIG --exists $LIBLUA_PKG_CONFIG_NAME 2>/dev/null
-	lua_config_status=$?
+  SAVE_CFLAGS="$CFLAGS"
+  CFLAGS="$CFLAGS $LUA_CFLAGS"
 
-	if test 0 -ne $lua_config_status
-	then
-		with_liblua="no"
-	fi
+  AC_CHECK_HEADERS([lua.h lauxlib.h lualib.h],
+    [with_liblua="yes"],
+    [with_liblua="no (header not found)"]
+  )
+
+  CFLAGS="$SAVE_CFLAGS"
 fi
 
 if test "x$with_liblua" = "xyes"
 then
-	with_liblua_cppflags=`$PKG_CONFIG --cflags-only-I $LIBLUA_PKG_CONFIG_NAME` || with_liblua="no"
-	with_liblua_ldflags=`$PKG_CONFIG --libs-only-L $LIBLUA_PKG_CONFIG_NAME` || with_liblua="no"
-	with_liblua_libs=`$PKG_CONFIG --libs-only-l $LIBLUA_PKG_CONFIG_NAME` || with_liblua="no"
+  SAVE_LIBS="$LIBS"
+  LIBS="$LIBS $LUA_LIBS"
+
+  AC_CHECK_FUNC([lua_settop],
+    [with_liblua="yes"],
+    [with_liblua="no (symbol 'lua_settop' not found)"]
+  )
+
+  LIBS="$SAVE_LIBS"
 fi
+
 if test "x$with_liblua" = "xyes"
 then
-	SAVE_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$CPPFLAGS $with_liblua_cppflags"
-
-	AC_CHECK_HEADERS(lua.h lauxlib.h lualib.h, [], [with_liblua="no (header not found)"], [])
-
-	CPPFLAGS="$SAVE_CPPFLAGS"
+    BUILD_WITH_LIBLUA_CFLAGS="$LUA_CFLAGS"
+    BUILD_WITH_LIBLUA_LIBS="$LUA_LIBS"
 fi
-if test "x$with_liblua" = "xyes"
-then
-	SAVE_LDFLAGS="$LDFLAGS"
-	SAVE_LIBS="$LIBS"
-	LDFLAGS="$SAVE_LDFLAGS $with_liblua_ldflags"
-	LIBS="$LIBS $with_liblua_libs"
-
-	AC_CHECK_FUNC(lua_settop, [with_liblua="yes"], [with_liblua="no (symbol 'lua_settop' not found)"])
-
-	LDFLAGS="$SAVE_LDFLAGS"
-	LIBS="$SAVE_LIBS"
-fi
-if test "x$with_liblua" = "xyes"
-then
-    BUILD_WITH_LIBLUA_CPPFLAGS="$with_liblua_cppflags"
-    BUILD_WITH_LIBLUA_LDFLAGS="$with_liblua_ldflags"
-    BUILD_WITH_LIBLUA_LIBS="$with_liblua_libs"
-fi
-AC_SUBST(BUILD_WITH_LIBLUA_CPPFLAGS)
-AC_SUBST(BUILD_WITH_LIBLUA_LDFLAGS)
+AC_SUBST(BUILD_WITH_LIBLUA_CFLAGS)
 AC_SUBST(BUILD_WITH_LIBLUA_LIBS)
 # }}}
 
