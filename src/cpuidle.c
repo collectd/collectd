@@ -53,7 +53,7 @@ static size_t *cpu_states_num = NULL;    // number of states for each of the cpu
 // used when collecting average states statistics
 static size_t num_all_states = 0;        // number of different states among all CPU
 static char **cpu_states_names = NULL;   // string array with names of cpu states
-static double *cpu_states_times = NULL;  // array of times spent among all CPUs in particular state
+static derive_t *cpu_states_times = NULL;  // array of times spent among all CPUs in particular state
 
 static size_t reported_last_run = 0;
 
@@ -87,7 +87,7 @@ static _Bool getstr(const char *fname, char *buffer, size_t buffer_size)
   return (1);
 }
 
-static _Bool getvalue(const char *fname, double *value, char *buffer, size_t buffer_size)
+static _Bool getvalue(const char *fname, derive_t *value, char *buffer, size_t buffer_size)
 {
   FILE *fh;
   if ((fh = fopen(fname, "r")) == NULL)
@@ -99,7 +99,7 @@ static _Bool getvalue(const char *fname, double *value, char *buffer, size_t buf
       return (0); // empty file
     }
 
-  (*value) = atof( buffer );
+  (*value) = atoll( buffer );
 
   fclose(fh);
 
@@ -269,7 +269,7 @@ static int cpuidle_init (void)
 
 		INFO( "cpuidle plugin: found %zu states covering all CPUs", num_all_states );
 
-		if ( (cpu_states_times = malloc( num_all_states*sizeof(double) )) == NULL )
+		if ( (cpu_states_times = malloc( num_all_states*sizeof(derive_t) )) == NULL )
 		{
 			ERROR ("cpuidle plugin: error in malloc of cpu_states_times" );
 			plugin_unregister_read ("cpuidle");
@@ -317,7 +317,7 @@ static void cpuidle_submit_value (const char *plugin_instance, const char *state
 	sstrncpy (vl.plugin, "cpuidle", sizeof (vl.plugin));
 	if ( plugin_instance != NULL )
 		sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
-	sstrncpy (vl.type, "time_in_state", sizeof (vl.type));
+	sstrncpy (vl.type, "total_time_in_ms", sizeof (vl.type));
 	sstrncpy (vl.type_instance, state_name, sizeof (vl.type));
 
 	plugin_dispatch_values (&vl);
@@ -332,7 +332,7 @@ static int cpuidle_read (void)
 	char state_name[256];
 	char statind[128];
 	int status;
-	double value;
+	derive_t value;
 	size_t i, j;
 
 	reported_last_run = 0;
