@@ -100,6 +100,7 @@ static int wrr_connect(struct riemann_host *host) /* {{{ */
                node, port);
     return -1;
   }
+#if RCC_VERSION_NUMBER >= 0x010800
   if (host->timeout.tv_sec != 0) {
     if (riemann_client_set_timeout(host->client, &host->timeout) != 0) {
       riemann_client_free(host->client);
@@ -110,6 +111,7 @@ static int wrr_connect(struct riemann_host *host) /* {{{ */
       return -1;
     }
   }
+#endif
 
   set_sock_opts(riemann_client_get_fd(host->client));
 
@@ -679,9 +681,13 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
       if (status != 0)
         break;
     } else if (strcasecmp("Timeout", child->key) == 0) {
+#if RCC_VERSION_NUMBER >= 0x010800
       status = cf_util_get_int(child, (int *)&host->timeout.tv_sec);
       if (status != 0)
         break;
+#else
+      WARNING("write_riemann plugin: The Timeout option is not supported. Please upgrade the Riemann client to at least 1.8.0.");
+#endif
     } else if (strcasecmp("Port", child->key) == 0) {
       host->port = cf_util_get_port_number(child);
       if (host->port == -1) {
