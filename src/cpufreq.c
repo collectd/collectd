@@ -186,12 +186,11 @@ static int cpufreq_read (void)
 {
 	int status;
 	unsigned long long val;
-	int i = 0;
 	FILE *fp;
 	char filename[MAX_STR_L];
 	char buffer[16];
 
-	for (i = 0; i < num_cpu; i++)
+	for (int i = 0; i < num_cpu; i++)
 	{
 		status = ssnprintf (filename, sizeof (filename), freq_fname, i);
 		if ((status < 1) || ((unsigned int)status >= sizeof (filename)))
