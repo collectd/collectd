@@ -1425,11 +1425,51 @@ in the un-aggregated (per-CPU, per-state) mode as well.
 
 =head2 Plugin C<cpufreq>
 
-This plugin doesn't have any options. It reads
-F</sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq> (for the first CPU
-installed) to get the current CPU frequency. If this file does not exist make
-sure B<cpufreqd> (L<http://cpufreqd.sourceforge.net/>) or a similar tool is
-installed and an "cpu governor" (that's a kernel module) is loaded.
+This plugin has one option B<Path>. It reads file defined by B<Path> option
+(for all CPU installed) to get the current CPU frequency. If this file 
+does not exist make sure B<cpufreqd> (L<http://cpufreqd.sourceforge.net/>) or 
+a similar tool is installed and an "cpu governor" (that's a kernel module) 
+is loaded.
+
+For quite a while, Linux kernel exposes the current CPU frequency via
+"/sys/devices/system/cpu/cpuX/cpufreq/scaling_cur_freq" file.
+
+Nevertheless, in CentOS 7.1 it was observed that kernel doesn't
+provide the file anymore, with the employed intel_pstate CPU
+frequency driver.
+
+The issue above has been fixed in
+https://github.com/torvalds/linux/commit/c034b02e213d271b98c45c4a7b54af8f69aaac1e .
+But up to now with for example, CentOS 7.2, the fix has not been
+back-ported yet.
+
+Note that there is another "cpuinfo_cur_freq" file under
+"/sys/devices/system/cpu/cpuX/cpufreq/" directory.
+This file exposes not exactly the same thing as "scaling_cur_freq"
+does, but close by nature.
+
+More details:
+http://www.pantz.org/software/cpufreq/usingcpufreqonlinux.html
+
+Overall it is better to have a workaround for monitoring some CPU
+frequency on even with kernels that lack the aforementioned fix.
+
+An optional parameter "Path" is introduced to specify
+alternative CPU frequency path.
+
+Example:
+ 
+  <Plugin cpufreq>
+    Path "/sys/devices/system/cpu/cpu%d/cpufreq/cpuinfo_cur_freq"
+  </Plugin>
+
+=item B<Path> I<Path>
+If option is ommitted the default value 
+"/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq" is used.
+
+Note, "%d" has to be used only once as CPU index placeholder.
+
+=back
 
 =head2 Plugin C<csv>
 
