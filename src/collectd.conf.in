@@ -359,7 +359,11 @@
 #  ReportByState true
 #  ValuesPercentage false
 #</Plugin>
-#
+
+#<Plugin cpufreq>
+#  Path "/sys/devices/system/cpu/cpu%d/cpufreq/cpuinfo_cur_freq"
+#</Plugin>
+
 #<Plugin csv>
 #	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/csv"
 #	StoreRates false
