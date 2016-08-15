@@ -33,7 +33,6 @@
 #include "aux_types.h"
 #include "parser.h"
 
-#pragma GCC diagnostic ignored "-Wsign-compare"
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wmissing-noreturn"
