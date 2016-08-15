@@ -472,7 +472,7 @@ static int kafka_config(oconfig_item_t *ci) /* {{{ */
 	}
     if (conf != NULL)
         rd_kafka_conf_destroy(conf);
-	return (0);
+    return (0);
  errout:
     if (conf != NULL)
         rd_kafka_conf_destroy(conf);
