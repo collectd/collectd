@@ -197,7 +197,7 @@ static char reg_flush_doc[] = "register_flush(callback[, data][, name]) -> ident
 		"The callback function will be called with two or three parameters:\n"
 		"timeout: Indicates that only data older than 'timeout' seconds is to\n"
 		"    be flushed.\n"
-		"id: Specifies which values are to be flushed.\n"
+		"id: Specifies which values are to be flushed. Might be None.\n"
 		"data: The optional data parameter passed to the register function.\n"
 		"    If the parameter was omitted it will be omitted here, too.";
 
@@ -520,7 +520,12 @@ static void cpy_flush_callback(int timeout, const char *id, user_data_t *data) {
 	PyObject *ret, *text;
 
 	CPY_LOCK_THREADS
-	text = cpy_string_to_unicode_or_bytes(id);
+	if (id) {
+		text = cpy_string_to_unicode_or_bytes(id);
+	} else {
+		text = Py_None;
+		Py_INCREF(text);
+	}
 	if (c->data == NULL)
 		ret = PyObject_CallFunction(c->callback, "iN", timeout, text); /* New reference. */
 	else
