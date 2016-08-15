@@ -1482,14 +1482,30 @@ by finding an average among all CPUs (B<false>).
 =back
 
 Note that on the setups with hot-plugged CPUs, the frequencies will be
-reported only for CPUs running at the time of a readout. When overall
-CPU frequency distribution is computed (B<ReportDistribution> is set
-to B<true> and B<ReportByCpu> is set to B<false>), the CPUs that are
-switched off would be still accounted for by taking a time spent at
-any frequency and then dividing this time by total number of CPUs
-(working and non-working). For example, if you have 4 CPUs and only
-one of them is working, the total CPU frequency distribution would
-account only for 25% of time.
+reported only for CPUs running at the time of a readout.
+
+When using the system with hot-plugged CPUs, there are possible
+limitations that can be caused by the implementation of the
+hot-plugging. If, at the time when CPU is switched off, the frequency
+statistics is reset then the readout by this plugin could lead to
+wrong calculated distributions if CPU was plugged on and off between
+two collectd readouts. An example of a system where it is a problem
+for some of the CPUs is Sailfish OS running on ARM processor with hot
+plugging implemented using mpdecision executable (such as Nexus 4). 
+
+When overall CPU frequency distribution is computed
+(B<ReportDistribution> is set to B<true> and B<ReportByCpu> is set to
+B<false>), there are several aspects that have to be taken into
+account in hot-plugged CPU setups. First, when finding the average,
+the time spent at each frequency is divided by the number of all
+CPUs. For example, if you have 4 CPUs and only one of them is working,
+the total CPU frequency distribution would account only for 25% of
+time. Second, as mentioned above, if the CPU is switched on and off
+between two readouts and the kernel resets the statistics, the timing
+information would be somewhat contaminated by the incomplete frequency
+distributions. Note, however, that the data would still reflect the
+cases when suddenly larger number of CPUs is used in the system for
+longer period of time.
 
 =head2 Plugin C<csv>
 
