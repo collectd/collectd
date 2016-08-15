@@ -197,7 +197,7 @@ static char reg_flush_doc[] = "register_flush(callback[, data][, name]) -> ident
 		"The callback function will be called with two or three parameters:\n"
 		"timeout: Indicates that only data older than 'timeout' seconds is to\n"
 		"    be flushed.\n"
-		"id: Specifies which values are to be flushed.\n"
+		"id: Specifies which values are to be flushed. Might be None.\n"
 		"data: The optional data parameter passed to the register function.\n"
 		"    If the parameter was omitted it will be omitted here, too.";
 
@@ -239,8 +239,10 @@ static cpy_callback_t *cpy_shutdown_callbacks;
 static void cpy_destroy_user_data(void *data) {
 	cpy_callback_t *c = data;
 	free(c->name);
+	CPY_LOCK_THREADS
 	Py_DECREF(c->callback);
 	Py_XDECREF(c->data);
+	CPY_RELEASE_THREADS
 	free(c);
 }
 
@@ -518,7 +520,12 @@ static void cpy_flush_callback(int timeout, const char *id, user_data_t *data) {
 	PyObject *ret, *text;
 
 	CPY_LOCK_THREADS
-	text = cpy_string_to_unicode_or_bytes(id);
+	if (id) {
+		text = cpy_string_to_unicode_or_bytes(id);
+	} else {
+		text = Py_None;
+		Py_INCREF(text);
+	}
 	if (c->data == NULL)
 		ret = PyObject_CallFunction(c->callback, "iN", timeout, text); /* New reference. */
 	else
@@ -798,7 +805,7 @@ static PyObject *cpy_unregister_generic(cpy_callback_t **list_head, PyObject *ar
 		PyErr_Format(PyExc_RuntimeError, "Unable to unregister %s callback '%s'.", desc, name);
 		return NULL;
 	}
-	/* Yes, this is actually save. To call this function the caller has to
+	/* Yes, this is actually safe. To call this function the caller has to
 	 * hold the GIL. Well, save as long as there is only one GIL anyway ... */
 	if (prev == NULL)
 		*list_head = tmp->next;
@@ -807,6 +814,16 @@ static PyObject *cpy_unregister_generic(cpy_callback_t **list_head, PyObject *ar
 	cpy_destroy_user_data(tmp);
 	Py_RETURN_NONE;
 }
+
+static void cpy_unregister_list(cpy_callback_t **list_head) {
+	cpy_callback_t *cur, *next;
+	for (cur = *list_head; cur; cur = next) {
+		next = cur->next;
+		cpy_destroy_user_data(cur);
+	}
+	*list_head = NULL;
+}
+
 
 typedef int cpy_unregister_function_t(const char *name);
 
@@ -909,6 +926,11 @@ static int cpy_shutdown(void) {
 			Py_DECREF(ret);
 	}
 	PyErr_Print();
+
+	cpy_unregister_list(&cpy_config_callbacks);
+	cpy_unregister_list(&cpy_init_callbacks);
+	cpy_unregister_list(&cpy_shutdown_callbacks);
+
 	Py_Finalize();
 	return 0;
 }
@@ -942,7 +964,7 @@ static void *cpy_interactive(void *data) {
 	if (PyImport_ImportModule("readline") == NULL) {
 		/* This interactive session will suck. */
 		cpy_log_exception("interactive session init");
- 	}
+	}
 	cur_sig = PyOS_setsig(SIGINT, python_sigint_handler);
 	/* We totally forked just now. Everyone saw that, right? */
 	PyOS_AfterFork();
