@@ -11,9 +11,10 @@ Issues](https://github.com/collectd/collectd/issues). Try to answer the
 following questions:
 
 *   Which version of *collectd* are you using?
-*   How can we reproduce the problem you're having?
+*   Which operating system (distribution) are you using at which version?
 *   What is the expected behavior / output?
 *   What is the actual (observed) behavior / output?
+*   How can we reproduce the problem you're having?
 *   If *collectd* crashes, try to get a
     [stack trace](https://collectd.org/wiki/index.php/Core_file).
 
