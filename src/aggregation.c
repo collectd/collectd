@@ -26,11 +26,8 @@
 
 #include "collectd.h"
 
-#include <pthread.h>
-
 #include "plugin.h"
 #include "common.h"
-#include "configfile.h"
 #include "meta_data.h"
 #include "utils_cache.h" /* for uc_get_rate() */
 #include "utils_subst.h"
@@ -348,7 +345,6 @@ static int agg_instance_read_func (agg_instance_t *inst, /* {{{ */
   else
     sstrncpy (vl->plugin_instance, func, sizeof (vl->plugin_instance));
 
-  memset (&v, 0, sizeof (v));
   status = rate_to_value (&v, rate, state, inst->ds_type, t);
   if (status != 0)
   {
@@ -486,9 +482,7 @@ static void agg_lookup_free_obj_callback (void *user_obj) /* {{{ */
 static int agg_config_handle_group_by (oconfig_item_t const *ci, /* {{{ */
     aggregation_t *agg)
 {
-  int i;
-
-  for (i = 0; i < ci->values_num; i++)
+  for (int i = 0; i < ci->values_num; i++)
   {
     char const *value;
 
@@ -524,7 +518,6 @@ static int agg_config_aggregation (oconfig_item_t *ci) /* {{{ */
   aggregation_t *agg;
   _Bool is_valid;
   int status;
-  int i;
 
   agg = calloc (1, sizeof (*agg));
   if (agg == NULL)
@@ -541,7 +534,7 @@ static int agg_config_aggregation (oconfig_item_t *ci) /* {{{ */
   sstrncpy (agg->ident.type_instance, "/.*/",
       sizeof (agg->ident.type_instance));
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -679,8 +672,6 @@ static int agg_config_aggregation (oconfig_item_t *ci) /* {{{ */
 
 static int agg_config (oconfig_item_t *ci) /* {{{ */
 {
-  int i;
-
   pthread_mutex_lock (&agg_instance_list_lock);
 
   if (lookup == NULL)
@@ -697,7 +688,7 @@ static int agg_config (oconfig_item_t *ci) /* {{{ */
     }
   }
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -715,7 +706,6 @@ static int agg_config (oconfig_item_t *ci) /* {{{ */
 
 static int agg_read (void) /* {{{ */
 {
-  agg_instance_t *this;
   cdtime_t t;
   int success;
 
@@ -736,7 +726,7 @@ static int agg_read (void) /* {{{ */
     return (0);
   }
 
-  for (this = agg_instance_list_head; this != NULL; this = this->next)
+  for (agg_instance_t *this = agg_instance_list_head; this != NULL; this = this->next)
   {
     int status;
 

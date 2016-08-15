@@ -1,6 +1,7 @@
 /**
  * collectd - src/utils_cache.c
  * Copyright (C) 2007-2010  Florian octo Forster
+ * Copyright (C) 2016       Sebastian tokkee Harl
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,9 +23,11 @@
  *
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
+ *   Sebastian tokkee Harl <sh at tokkee.org>
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 #include "utils_avltree.h"
@@ -32,7 +35,6 @@
 #include "meta_data.h"
 
 #include <assert.h>
-#include <pthread.h>
 
 typedef struct cache_entry_s
 {
@@ -47,7 +49,7 @@ typedef struct cache_entry_s
 	 * (for purging old entries) */
 	cdtime_t last_update;
 	/* Interval in which the data is collected
-	 * (for purding old entries) */
+	 * (for purging old entries) */
 	cdtime_t interval;
 	int state;
 	int hits;
@@ -67,6 +69,13 @@ typedef struct cache_entry_s
 
 	meta_data_t *meta;
 } cache_entry_t;
+
+struct uc_iter_s {
+  c_avl_iterator_t *iter;
+
+  char *name;
+  cache_entry_t *entry;
+};
 
 static c_avl_tree_t   *cache_tree = NULL;
 static pthread_mutex_t cache_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -127,9 +136,7 @@ static void cache_free (cache_entry_t *ce)
 
 static void uc_check_range (const data_set_t *ds, cache_entry_t *ce)
 {
-  size_t i;
-
-  for (i = 0; i < ds->ds_num; i++)
+  for (size_t i = 0; i < ds->ds_num; i++)
   {
     if (isnan (ce->values_gauge[i]))
       continue;
@@ -145,7 +152,6 @@ static int uc_insert (const data_set_t *ds, const value_list_t *vl,
 {
   char *key_copy;
   cache_entry_t *ce;
-  size_t i;
 
   /* `cache_lock' has been locked by `uc_update' */
 
@@ -166,7 +172,7 @@ static int uc_insert (const data_set_t *ds, const value_list_t *vl,
 
   sstrncpy (ce->name, key, sizeof (ce->name));
 
-  for (i = 0; i < ds->ds_num; i++)
+  for (size_t i = 0; i < ds->ds_num; i++)
   {
     switch (ds->ds[i].type)
     {
@@ -245,7 +251,6 @@ int uc_check_timeout (void)
   c_avl_iterator_t *iter;
 
   int status;
-  int i;
 
   pthread_mutex_lock (&cache_lock);
 
@@ -317,7 +322,7 @@ int uc_check_timeout (void)
    * including plugin specific meta data, rates, history, …. This must be done
    * without holding the lock, otherwise we will run into a deadlock if a
    * plugin calls the cache interface. */
-  for (i = 0; i < keys_len; i++)
+  for (int i = 0; i < keys_len; i++)
   {
     value_list_t vl = VALUE_LIST_INIT;
 
@@ -342,7 +347,7 @@ int uc_check_timeout (void)
    * the timestamp again, so in theory it is possible we remove a value after
    * it is updated here. */
   pthread_mutex_lock (&cache_lock);
-  for (i = 0; i < keys_len; i++)
+  for (int i = 0; i < keys_len; i++)
   {
     key = NULL;
     ce = NULL;
@@ -374,7 +379,6 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
   char name[6 * DATA_MAX_NAME_LEN];
   cache_entry_t *ce = NULL;
   int status;
-  size_t i;
 
   if (FORMAT_VL (name, sizeof (name), vl) != 0)
   {
@@ -406,7 +410,7 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
     return (-1);
   }
 
-  for (i = 0; i < ds->ds_num; i++)
+  for (size_t i = 0; i < ds->ds_num; i++)
   {
     switch (ds->ds[i].type)
     {
@@ -455,7 +459,7 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
   if (ce->history != NULL)
   {
     assert (ce->history_index < ce->history_length);
-    for (i = 0; i < ce->values_num; i++)
+    for (size_t i = 0; i < ce->values_num; i++)
     {
       size_t hist_idx = (ce->values_num * ce->history_index) + i;
       ce->history[hist_idx] = ce->values_gauge[i];
@@ -635,9 +639,7 @@ int uc_get_names (char ***ret_names, cdtime_t **ret_times, size_t *ret_number)
 
   if (status != 0)
   {
-    size_t i;
-
-    for (i = 0; i < number; i++)
+    for (size_t i = 0; i < number; i++)
     {
       sfree (names[i]);
     }
@@ -712,7 +714,6 @@ int uc_get_history_by_name (const char *name,
     gauge_t *ret_history, size_t num_steps, size_t num_ds)
 {
   cache_entry_t *ce = NULL;
-  size_t i;
   int status = 0;
 
   pthread_mutex_lock (&cache_lock);
@@ -744,7 +745,7 @@ int uc_get_history_by_name (const char *name,
       return (-ENOMEM);
     }
 
-    for (i = ce->history_length * ce->values_num;
+    for (size_t i = ce->history_length * ce->values_num;
 	i < (num_steps * ce->values_num);
 	i++)
       tmp[i] = NAN;
@@ -754,7 +755,7 @@ int uc_get_history_by_name (const char *name,
   } /* if (ce->history_length < num_steps) */
 
   /* Copy the values to the output buffer. */
-  for (i = 0; i < num_steps; i++)
+  for (size_t i = 0; i < num_steps; i++)
   {
     size_t src_index;
     size_t dst_index;
@@ -866,6 +867,102 @@ int uc_inc_hits (const data_set_t *ds, const value_list_t *vl, int step)
 
   return (ret);
 } /* int uc_inc_hits */
+
+/*
+ * Iterator interface
+ */
+uc_iter_t *uc_get_iterator (void)
+{
+  uc_iter_t *iter;
+
+  iter = (uc_iter_t *) calloc(1, sizeof (*iter));
+  if (iter == NULL)
+    return (NULL);
+
+  pthread_mutex_lock (&cache_lock);
+
+  iter->iter = c_avl_get_iterator (cache_tree);
+  if (iter->iter == NULL)
+  {
+    free (iter);
+    return (NULL);
+  }
+
+  return (iter);
+} /* uc_iter_t *uc_get_iterator */
+
+int uc_iterator_next (uc_iter_t *iter, char **ret_name)
+{
+  int status;
+
+  if (iter == NULL)
+    return (-1);
+
+  while ((status = c_avl_iterator_next (iter->iter,
+	  (void *) &iter->name, (void *) &iter->entry)) == 0)
+  {
+    if (iter->entry->state == STATE_MISSING)
+      continue;
+
+    break;
+  }
+  if (status != 0) {
+    iter->name = NULL;
+    iter->entry = NULL;
+    return (-1);
+  }
+
+  if (ret_name != NULL)
+    *ret_name = iter->name;
+
+  return (0);
+} /* int uc_iterator_next */
+
+void uc_iterator_destroy (uc_iter_t *iter)
+{
+  if (iter == NULL)
+    return;
+
+  c_avl_iterator_destroy (iter->iter);
+  pthread_mutex_unlock (&cache_lock);
+
+  free (iter);
+} /* void uc_iterator_destroy */
+
+int uc_iterator_get_time (uc_iter_t *iter, cdtime_t *ret_time)
+{
+  if ((iter == NULL) || (iter->entry == NULL) || (ret_time == NULL))
+    return (-1);
+
+  *ret_time = iter->entry->last_time;
+  return (0);
+} /* int uc_iterator_get_name */
+
+int uc_iterator_get_values (uc_iter_t *iter, value_t **ret_values, size_t *ret_num)
+{
+  if ((iter == NULL) || (iter->entry == NULL)
+      || (ret_values == NULL) || (ret_num == NULL))
+    return (-1);
+
+  *ret_values = calloc (iter->entry->values_num, sizeof(*iter->entry->values_raw));
+  if (*ret_values == NULL)
+    return (-1);
+  for (size_t i = 0; i < iter->entry->values_num; ++i)
+    *ret_values[i] = iter->entry->values_raw[i];
+
+  *ret_num = iter->entry->values_num;
+
+  return (0);
+} /* int uc_iterator_get_values */
+
+int uc_iterator_get_interval (uc_iter_t *iter, cdtime_t *ret_interval)
+{
+  if ((iter == NULL) || (iter->entry == NULL) || (ret_interval == NULL))
+    return (-1);
+
+  *ret_interval = iter->entry->interval;
+  return (0);
+} /* int uc_iterator_get_name */
 
 /*
  * Meta data interface

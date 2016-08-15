@@ -21,6 +21,13 @@ ceph_latency            value:GAUGE:U:U
 ceph_rate               value:DERIVE:0:U
 changes_since_last_save value:GAUGE:0:U
 charge                  value:GAUGE:0:U
+clock_last_meas         value:GAUGE:0:U
+clock_last_update       value:GAUGE:U:U
+clock_mode              value:GAUGE:0:U
+clock_reachability      value:GAUGE:0:U
+clock_skew_ppm          value:GAUGE:-2:2
+clock_state             value:GAUGE:0:U
+clock_stratum           value:GAUGE:0:U
 compression             uncompressed:DERIVE:0:U, compressed:DERIVE:0:U
 compression_ratio       value:GAUGE:0:2
 connections             value:DERIVE:0:U
@@ -38,6 +45,7 @@ derive                  value:DERIVE:0:U
 df                      used:GAUGE:0:1125899906842623, free:GAUGE:0:1125899906842623
 df_complex              value:GAUGE:0:U
 df_inodes               value:GAUGE:0:U
+dilution_of_precision   value:GAUGE:0:U
 disk_io_time            io_time:DERIVE:0:U, weighted_io_time:DERIVE:0:U
 disk_latency            read:GAUGE:0:U, write:GAUGE:0:U
 disk_merged             read:DERIVE:0:U, write:DERIVE:0:U
@@ -76,6 +84,7 @@ files                   value:GAUGE:0:U
 flow                    value:GAUGE:0:U
 fork_rate               value:DERIVE:0:U
 frequency               value:GAUGE:0:U
+frequency_error         value:GAUGE:-2:2 
 frequency_offset        value:GAUGE:-1000000:1000000
 fscache_stat            value:DERIVE:0:U
 gauge                   value:GAUGE:U:U
@@ -132,6 +141,7 @@ mysql_select            value:DERIVE:0:U
 mysql_sort              value:DERIVE:0:U
 mysql_sort_merge_passes value:DERIVE:0:U
 mysql_sort_rows         value:DERIVE:0:U
+mysql_slow_queries      value:DERIVE:0:U
 nfs_procedure           value:DERIVE:0:U
 nginx_connections       value:GAUGE:0:U
 nginx_requests          value:DERIVE:0:U
@@ -141,6 +151,7 @@ node_stat               value:DERIVE:0:U
 node_tx_rate            value:GAUGE:0:127
 objects                 value:GAUGE:0:U
 operations              value:DERIVE:0:U
+operations_per_second   value:GAUGE:0:U
 packets                 value:DERIVE:0:U
 pending_operations      value:GAUGE:0:U
 percent                 value:GAUGE:0:100.1
@@ -182,9 +193,12 @@ records                 value:GAUGE:0:U
 requests                value:GAUGE:0:U
 response_code           value:GAUGE:0:U
 response_time           value:GAUGE:0:U
+root_delay              value:GAUGE:U:U
+root_dispersion         value:GAUGE:U:U
 route_etx               value:GAUGE:0:U
 route_metric            value:GAUGE:0:U
 routes                  value:GAUGE:0:U
+satellites              value:GAUGE:0:U
 segments                value:GAUGE:0:65535
 serial_octets           rx:DERIVE:0:U, tx:DERIVE:0:U
 signal_noise            value:GAUGE:U:0
@@ -206,6 +220,9 @@ temperature             value:GAUGE:U:U
 threads                 value:GAUGE:0:U
 time_dispersion         value:GAUGE:-1000000:1000000
 time_offset             value:GAUGE:-1000000:1000000
+time_offset_ntp         value:GAUGE:-1000000:1000000
+time_offset_rms         value:GAUGE:-1000000:1000000
+time_ref                value:GAUGE:0:U
 timeleft                value:GAUGE:0:U
 total_bytes             value:DERIVE:0:U
 total_connections       value:DERIVE:0:U

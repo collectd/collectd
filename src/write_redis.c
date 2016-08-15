@@ -25,11 +25,10 @@
  **/
 
 #include "collectd.h"
+
 #include "plugin.h"
 #include "common.h"
-#include "configfile.h"
 
-#include <pthread.h>
 #include <sys/time.h>
 #include <hiredis/hiredis.h>
 
@@ -64,7 +63,7 @@ static int wr_write (const data_set_t *ds, /* {{{ */
   wr_node_t *node = ud->data;
   char ident[512];
   char key[512];
-  char value[512];
+  char value[512] = { 0 };
   char time[24];
   size_t value_size;
   char *value_ptr;
@@ -79,7 +78,6 @@ static int wr_write (const data_set_t *ds, /* {{{ */
       ident);
   ssnprintf (time, sizeof (time), "%.9f", CDTIME_T_TO_DOUBLE(vl->time));
 
-  memset (value, 0, sizeof (value));
   value_size = sizeof (value);
   value_ptr = &value[0];
   status = format_values (value_ptr, value_size, ds, vl, node->store_rates);
@@ -169,7 +167,6 @@ static int wr_config_node (oconfig_item_t *ci) /* {{{ */
   wr_node_t *node;
   int timeout;
   int status;
-  int i;
 
   node = calloc (1, sizeof (*node));
   if (node == NULL)
@@ -192,7 +189,7 @@ static int wr_config_node (oconfig_item_t *ci) /* {{{ */
     return (status);
   }
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -234,12 +231,13 @@ static int wr_config_node (oconfig_item_t *ci) /* {{{ */
   if (status == 0)
   {
     char cb_name[DATA_MAX_NAME_LEN];
-    user_data_t ud;
 
     ssnprintf (cb_name, sizeof (cb_name), "write_redis/%s", node->name);
 
-    ud.data = node;
-    ud.free_func = wr_config_free;
+    user_data_t ud = {
+      .data = node,
+      .free_func = wr_config_free
+    };
 
     status = plugin_register_write (cb_name, wr_write, &ud);
   }
@@ -252,9 +250,7 @@ static int wr_config_node (oconfig_item_t *ci) /* {{{ */
 
 static int wr_config (oconfig_item_t *ci) /* {{{ */
 {
-  int i;
-
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 

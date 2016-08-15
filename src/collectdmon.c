@@ -55,6 +55,14 @@
 
 #include <unistd.h>
 
+#ifndef PREFIX
+# define PREFIX "/opt/" PACKAGE_NAME
+#endif
+
+#ifndef LOCALSTATEDIR
+# define LOCALSTATEDIR PREFIX "/var"
+#endif
+
 #ifndef COLLECTDMON_PIDFILE
 # define COLLECTDMON_PIDFILE LOCALSTATEDIR"/run/collectdmon.pid"
 #endif /* ! COLLECTDMON_PIDFILE */

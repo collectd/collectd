@@ -26,14 +26,11 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 #include "utils_format_graphite.h"
-
-/* Folks without pthread will need to disable this plugin. */
-#include <pthread.h>
 
 #include <netdb.h>
 
@@ -41,7 +38,7 @@
 
 static int wl_write_messages (const data_set_t *ds, const value_list_t *vl)
 {
-    char buffer[WL_BUF_SIZE];
+    char buffer[WL_BUF_SIZE] = { 0 };
     int status;
 
     if (0 != strcmp (ds->type, vl->type))
@@ -51,7 +48,6 @@ static int wl_write_messages (const data_set_t *ds, const value_list_t *vl)
         return -1;
     }
 
-    memset (buffer, 0, sizeof (buffer));
     status = format_graphite (buffer, sizeof (buffer), ds, vl,
                               NULL, NULL, '_', 0);
     if (status != 0) /* error message has been printed already. */
@@ -63,7 +59,7 @@ static int wl_write_messages (const data_set_t *ds, const value_list_t *vl)
 } /* int wl_write_messages */
 
 static int wl_write (const data_set_t *ds, const value_list_t *vl,
-        user_data_t *user_data)
+        __attribute__ ((unused)) user_data_t *user_data)
 {
     int status;
 

@@ -1,38 +1,57 @@
-# Thanks !
+# Contribution guidelines
 
-Thanks for your feedback & contributions to the
-[collectd project](https://collectd.org/) !
+Thanks for taking the time to contribute to the [collectd
+project](https://collectd.org/)! This document tries to give some guidance to
+make the process of contributing to *collectd* as pleasant and possible.
 
-## Need help using collectd ?
+## Bug reports
 
-Please use the
-[collectd mailing list](http://mailman.verplant.org/listinfo/collectd) or the
-[#collectd IRC channel](https://webchat.freenode.net/?channels=#collectd).
-We'd like to keep the github issue tracker for bugreports and patch reviews.
+Please report bugs as [GitHub
+Issues](https://github.com/collectd/collectd/issues). Try to answer the
+following questions:
 
-## Found a bug ?
+*   Which version of *collectd* are you using?
+*   Which operating system (distribution) are you using at which version?
+*   What is the expected behavior / output?
+*   What is the actual (observed) behavior / output?
+*   How can we reproduce the problem you're having?
+*   If *collectd* crashes, try to get a
+    [stack trace](https://collectd.org/wiki/index.php/Core_file).
 
-Please mention the exact collectd version you're using, how it was installed
-(built from source, or installed from packages. Where was it downloaded
-from). Which operating system/architecture, distribution and version are you
-running collectd on.
+Please monitor your issue for a couple of days and reply to questions. To keep
+the project manageable have to do some housekeeping, meaning we will close
+issues that have become stale.
 
-If collectd crashes, try to get a
-[stack trace](https://collectd.org/wiki/index.php/Core_file).
+## Code contributions
 
-## Fixed a bug ? Want to add a feature ?
+Please open a [GitHub Pull Request](https://github.com/collectd/collectd/pulls)
+(PR) to contribute bug fixes, features, cleanups, new plugins, … Patches sent to
+the mailing list have a tendency to fall through the cracks.
 
-Using git/github to submit changes is not mandatory. Sending patches to the
-[mailing-list](http://mailman.verplant.org/listinfo/collectd) is also fine.
-In both cases, take a quick look at the
-[submission guidelines](https://collectd.org/wiki/index.php/Submitting_patches)
-and the [coding style recommendations](https://collectd.org/wiki/index.php/Coding_style).
+*   *Focus:* Fix *one thing* in your PR. The smaller your change, the faster it
+    will be reviewed and merged.
+*   *Coding style:* Please run `clang-format -style=file -i $FILE` on new files.
+    For existing files, please blend into surrounding code, i.e. mimic the
+    coding style of the code around your changes.
+*   *Documentation:* New config options need to be documented in two places: the
+    manpage (`src/collectd.conf.pod`) and the example config
+    (`src/collectd.conf.in`).
+*   *Continuous integration:* Once your PR is created, our continuous
+    integration environment will try to build it on a number of platforms. If
+    this reports a failure, please investigate and fix the problem. We will at
+    best do a very casual review for failing PRs.
+*   *Don't rebase:* Rebasing your branch destroys the review history. If a review
+    takes a long time, we may ask you to rebase on a more recent *master*, but
+    please don't do it without being asked.
+*   *types.db:* One of the most common mistakes made by new contributors is the
+    addition of (many) new *types* in the file `src/types.db`. The majority of
+    usecases can be met with one of the existing entries. If you plan to add new
+    entries to `src/types.db`, you should talk to us early in the design
+    process.
 
-Please try to submit **bugfixes** to the
-[oldest release branch](https://github.com/collectd/collectd/milestones) on
-which the bug is found, so that it gets included in every future **bugfix
-release**.
+## Other resources
 
-Please try to submit **new features** to the master branch (which will become
-the next **feature release**).
-
+*   [Mailing list](http://mailman.verplant.org/listinfo/collectd)
+*   [#collectd IRC channel](https://webchat.freenode.net/?channels=#collectd)
+    on *freenode*.
+*   [Old patch submission guideline](https://collectd.org/wiki/index.php/Submitting_patches)

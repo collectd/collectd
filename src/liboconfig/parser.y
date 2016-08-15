@@ -239,7 +239,6 @@ static char *unquote (const char *orig)
 {
 	char *ret = strdup (orig);
 	int len;
-	int i;
 
 	if (ret == NULL)
 		return (NULL);
@@ -253,7 +252,7 @@ static char *unquote (const char *orig)
 	memmove (ret, ret + 1, len);
 	ret[len] = '\0';
 
-	for (i = 0; i < len; i++)
+	for (int i = 0; i < len; i++)
 	{
 		if (ret[i] == '\\')
 		{

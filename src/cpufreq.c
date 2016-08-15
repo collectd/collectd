@@ -57,6 +57,7 @@
 /* vim: set sw=8 sts=8 noet */
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 

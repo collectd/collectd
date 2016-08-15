@@ -25,9 +25,9 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 #include <curl/curl.h>
 
@@ -63,8 +63,10 @@ typedef struct apache_s apache_t;
 /* TODO: Remove this prototype */
 static int apache_read_host (user_data_t *user_data);
 
-static void apache_free (apache_t *st)
+static void apache_free (void *arg)
 {
+	apache_t *st = arg;
+
 	if (st == NULL)
 		return;
 
@@ -172,7 +174,6 @@ static size_t apache_header_callback (void *buf, size_t size, size_t nmemb,
 static int config_add (oconfig_item_t *ci)
 {
 	apache_t *st;
-	int i;
 	int status;
 
 	st = calloc (1, sizeof (*st));
@@ -192,7 +193,7 @@ static int config_add (oconfig_item_t *ci)
 	}
 	assert (st->name != NULL);
 
-	for (i = 0; i < ci->children_num; i++)
+	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
 
@@ -238,14 +239,13 @@ static int config_add (oconfig_item_t *ci)
 
 	if (status == 0)
 	{
-		user_data_t ud;
+		user_data_t ud = {
+			.data = st,
+			.free_func = apache_free
+		};
+
 		char callback_name[3*DATA_MAX_NAME_LEN];
 
-		memset (&ud, 0, sizeof (ud));
-		ud.data = st;
-		ud.free_func = (void *) apache_free;
-
-		memset (callback_name, 0, sizeof (callback_name));
 		ssnprintf (callback_name, sizeof (callback_name),
 				"apache/%s/%s",
 				(st->host != NULL) ? st->host : hostname_g,
@@ -270,9 +270,8 @@ static int config_add (oconfig_item_t *ci)
 static int config (oconfig_item_t *ci)
 {
 	int status = 0;
-	int i;
 
-	for (i = 0; i < ci->children_num; i++)
+	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
 
@@ -463,8 +462,7 @@ static void submit_scoreboard (char *buf, apache_t *st)
 	long long response_start = 0LL;
 	long long response_end   = 0LL;
 
-	int i;
-	for (i = 0; buf[i] != '\0'; i++)
+	for (int i = 0; buf[i] != '\0'; i++)
 	{
 		if (buf[i] == '.') open++;
 		else if (buf[i] == '_') waiting++;

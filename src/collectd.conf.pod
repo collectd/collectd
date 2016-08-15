@@ -404,13 +404,13 @@ There are a couple of limitations you should be aware of:
 
 =over 4
 
-=item
+=item *
 
 The I<Type> cannot be left unspecified, because it is not reasonable to add
 apples to oranges. Also, the internal lookup structure won't work if you try
 to group by type.
 
-=item
+=item *
 
 There must be at least one unspecified, ungrouped field. Otherwise nothing
 will be aggregated.
@@ -485,19 +485,19 @@ This will create the files:
 
 =over 4
 
-=item
+=item *
 
 foo.example.com/cpu-even-average/cpu-idle
 
-=item
+=item *
 
 foo.example.com/cpu-even-average/cpu-system
 
-=item
+=item *
 
 foo.example.com/cpu-even-average/cpu-user
 
-=item
+=item *
 
 ...
 
@@ -1361,6 +1361,32 @@ at all, B<all> cgroups are selected.
 
 =back
 
+=head2 Plugin C<chrony>
+
+The C<chrony> plugin collects ntp data from a B<chronyd> server, such as clock
+skew and per-peer stratum.
+
+For talking to B<chronyd>, it mimics what the B<chronyc> control program does
+on the wire.
+
+Available configuration options for the C<chrony> plugin:
+
+=over 4
+
+=item B<Host> I<Hostname>
+
+Hostname of the host running B<chronyd>. Defaults to B<localhost>.
+
+=item B<Port> I<Port>
+
+UDP-Port to connect to. Defaults to B<323>.
+
+=item B<Timeout> I<Timeout>
+
+Connection timeout in seconds. Defaults to B<2>.
+
+=back
+
 =head2 Plugin C<conntrack>
 
 This plugin collects IP conntrack statistics.
@@ -1381,11 +1407,11 @@ as Jiffies, using the C<cpu> type. Two aggregations are available:
 
 =over 4
 
-=item
+=item *
 
 Sum, per-state, over all CPUs installed in the system; and
 
-=item
+=item *
 
 Sum, per-CPU, over all non-idle states of a CPU, creating an "active" state.
 
@@ -1420,6 +1446,11 @@ This option is only considered when both, B<ReportByCpu> and B<ReportByState>
 are set to B<true>. In this case, by default, metrics will be reported as
 Jiffies. By setting this option to B<true>, you can request percentage values
 in the un-aggregated (per-CPU, per-state) mode as well.
+
+=item B<ReportNumCpu> B<false>|B<true>
+
+When set to B<true>, reports the number of available CPUs.
+Defaults to B<false>.
 
 =back
 
@@ -1471,6 +1502,16 @@ Note, "%d" has to be used only once as CPU index placeholder.
 
 =back
 
+=head2 Plugin C<cpusleep>
+
+This plugin doesn't have any options. It reads CLOCK_BOOTTIME and
+CLOCK_MONOTONIC and reports the difference between these clocks. Since
+BOOTTIME clock increments while device is suspended and MONOTONIC
+clock does not, the derivative of the difference between these clocks
+gives the relative amount of time the device has spent in suspend
+state. The recorded value is in milliseconds of sleep per seconds of
+wall clock.
+
 =head2 Plugin C<csv>
 
 =over 4
@@ -1488,6 +1529,92 @@ much sense when collectd is running in foreground- or non-daemon-mode.
 If set to B<true>, convert counter values to rates. If set to B<false> (the
 default) counter values are stored as is, i.E<nbsp>e. as an increasing integer
 number.
+
+=back
+
+=head2 cURL Statistics
+
+All cURL-based plugins support collection of generic, request-based
+statistics. These are disabled by default and can be enabled selectively for
+each page or URL queried from the curl, curl_json, or curl_xml plugins. See
+the documentation of those plugins for specific information. This section
+describes the available metrics that can be configured for each plugin. All
+options are disabled by default.
+
+See L<http://curl.haxx.se/libcurl/c/curl_easy_getinfo.html> for more details.
+
+=over 4
+
+=item B<TotalTime> B<true|false>
+
+Total time of the transfer, including name resolving, TCP connect, etc.
+
+=item B<NamelookupTime> B<true|false>
+
+Time it took from the start until name resolving was completed.
+
+=item B<ConnectTime> B<true|false>
+
+Time it took from the start until the connect to the remote host (or proxy)
+was completed.
+
+=item B<AppconnectTime> B<true|false>
+
+Time it took from the start until the SSL/SSH connect/handshake to the remote
+host was completed.
+
+=item B<PretransferTime> B<true|false>
+
+Time it took from the start until just before the transfer begins.
+
+=item B<StarttransferTime> B<true|false>
+
+Time it took from the start until the first byte was received.
+
+=item B<RedirectTime> B<true|false>
+
+Time it took for all redirection steps include name lookup, connect,
+pre-transfer and transfer before final transaction was started.
+
+=item B<RedirectCount> B<true|false>
+
+The total number of redirections that were actually followed.
+
+=item B<SizeUpload> B<true|false>
+
+The total amount of bytes that were uploaded.
+
+=item B<SizeDownload> B<true|false>
+
+The total amount of bytes that were downloaded.
+
+=item B<SpeedDownload> B<true|false>
+
+The average download speed that curl measured for the complete download.
+
+=item B<SpeedUpload> B<true|false>
+
+The average upload speed that curl measured for the complete upload.
+
+=item B<HeaderSize> B<true|false>
+
+The total size of all the headers received.
+
+=item B<RequestSize> B<true|false>
+
+The total size of the issued requests.
+
+=item B<ContentLengthDownload> B<true|false>
+
+The content-length of the download.
+
+=item B<ContentLengthUpload> B<true|false>
+
+The specified size of the upload.
+
+=item B<NumConnects> B<true|false>
+
+The number of new connections that were created to achieve the transfer.
 
 =back
 
@@ -1591,10 +1718,20 @@ Beware that requests will get aborted if they take too long to complete. Adjust
 B<Timeout> accordingly if you expect B<MeasureResponseTime> to report such slow
 requests.
 
+This option is similar to enabling the B<TotalTime> statistic but it's
+measured by collectd instead of cURL.
+
 =item B<MeasureResponseCode> B<true>|B<false>
 
 Measure response code for the request. If this setting is enabled, B<Match>
 blocks (see below) are optional. Disabled by default.
+
+=item B<E<lt>StatisticsE<gt>>
+
+One B<Statistics> block can be used to specify cURL statistics to be collected
+for each request to the remote web site. See the section "cURL Statistics"
+above for details. If this setting is enabled, B<Match> blocks (see below) are
+optional.
 
 =item B<E<lt>MatchE<gt>>
 
@@ -1678,6 +1815,11 @@ The following options are valid within B<URL> blocks:
 
 =over 4
 
+=item B<Host> I<Name>
+
+Use I<Name> as the host name when submitting values. Defaults to the global
+host name setting.
+
 =item B<Instance> I<Instance>
 
 Sets the plugin instance to I<Instance>.
@@ -1707,6 +1849,12 @@ URL. By default the global B<Interval> setting will be used.
 
 These options behave exactly equivalent to the appropriate options of the
 I<cURL> plugin. Please see there for a detailed description.
+
+=item B<E<lt>StatisticsE<gt>>
+
+One B<Statistics> block can be used to specify cURL statistics to be collected
+for each request to the remote URL. See the section "cURL Statistics" above
+for details.
 
 =back
 
@@ -1809,6 +1957,12 @@ Examples:
 
 These options behave exactly equivalent to the appropriate options of the
 I<cURL plugin>. Please see there for a detailed description.
+
+=item B<E<lt>StatisticsE<gt>>
+
+One B<Statistics> block can be used to specify cURL statistics to be collected
+for each request to the remote URL. See the section "cURL Statistics" above
+for details.
 
 =item E<lt>B<XPath> I<XPath-expression>E<gt>
 
@@ -2307,7 +2461,7 @@ I<TypeInstance> will be used.
 
 =item B<MappedOnly> B<true>|B<false>
 
-When set to B<true>, only metrics that can be mapped to to a I<type> will be
+When set to B<true>, only metrics that can be mapped to a I<type> will be
 collected, all other metrics will be ignored. Defaults to B<false>.
 
 =back
@@ -2537,6 +2691,145 @@ source, this is optional. Otherwise the option is required.
 
 =back
 
+=head2 Plugin C<gps>
+
+The C<gps plugin> connects to gpsd on the host machine.
+The host, port, timeout and pause are configurable.
+
+This is useful if you run an NTP server using a GPS for source and you want to
+monitor it.
+
+Mind your GPS must send $--GSA for having the data reported!
+
+The following elements are collected:
+
+=over 4
+
+=item B<satellites>
+
+Number of satellites used for fix (type instance "used") and in view (type
+instance "visible"). 0 means no GPS satellites are visible.
+
+=item B<dilution_of_precision>
+
+Vertical and horizontal dilution (type instance "horizontal" or "vertical").
+It should be between 0 and 3.
+Look at the documentation of your GPS to know more.
+
+=back
+
+Synopsis:
+
+ LoadPlugin gps
+ <Plugin "gps">
+   # Connect to localhost on gpsd regular port:
+   Host "127.0.0.1"
+   Port "2947"
+   # 15 ms timeout
+   Timeout 0.015
+   # PauseConnect of 5 sec. between connection attempts.
+   PauseConnect 5
+ </Plugin>
+
+Available configuration options:
+
+=over 4
+
+=item B<Host> I<Host>
+
+The host on which gpsd daemon runs. Defaults to B<localhost>.
+
+=item B<Port> I<Port>
+
+Port to connect to gpsd on the host machine. Defaults to B<2947>.
+
+=item B<Timeout> I<Seconds>
+
+Timeout in seconds (default 0.015 sec).
+
+The GPS data stream is fetch by the plugin form the daemon.
+It waits for data to be available, if none arrives it times out
+and loop for another reading.
+Mind to put a low value gpsd expects value in the micro-seconds area
+(recommended is 500 us) since the waiting function is blocking.
+Value must be between 500 us and 5 sec., if outside that range the
+default value is applied.
+
+This only applies from gpsd release-2.95.
+
+=item B<PauseConnect> I<Seconds>
+
+Pause to apply between attempts of connection to gpsd in seconds (default 5 sec).
+
+=back
+
+=head2 Plugin C<grpc>
+
+The I<grpc> plugin provides an RPC interface to submit values to or query
+values from collectd based on the open source gRPC framework. It exposes an
+end-point for dispatching values to the daemon.
+
+The B<gRPC> homepage can be found at L<https://grpc.io/>.
+
+=over 4
+
+=item B<Server> I<Host> I<Port>
+
+The B<Server> statement sets the address of a server to which to send metrics
+via the C<DispatchValues> function.
+
+The argument I<Host> may be a hostname, an IPv4 address, or an IPv6 address.
+
+Optionally, B<Server> may be specified as a configuration block which supports
+the following options:
+
+=over 4
+
+=item B<EnableSSL> B<false>|B<true>
+
+Whether to require SSL for outgoing connections. Default: false.
+
+=item B<SSLCACertificateFile> I<Filename>
+
+=item B<SSLCertificateFile> I<Filename>
+
+=item B<SSLCertificateKeyFile> I<Filename>
+
+Filenames specifying SSL certificate and key material to be used with SSL
+connections.
+
+=back
+
+=item B<Listen> I<Host> I<Port>
+
+The B<Listen> statement sets the network address to bind to. When multiple
+statements are specified, the daemon will bind to all of them. If none are
+specified, it defaults to B<0.0.0.0:50051>.
+
+The argument I<Host> may be a hostname, an IPv4 address, or an IPv6 address.
+
+Optionally, B<Listen> may be specified as a configuration block which
+supports the following options:
+
+=over 4
+
+=item B<EnableSSL> I<true>|I<false>
+
+Whether to enable SSL for incoming connections. Default: false.
+
+=item B<SSLCACertificateFile> I<Filename>
+
+=item B<SSLCertificateFile> I<Filename>
+
+=item B<SSLCertificateKeyFile> I<Filename>
+
+Filenames specifying SSL certificate and key material to be used with SSL
+connections.
+
+=back
+
+=back
+
 =head2 Plugin C<hddtemp>
 
 To get values from B<hddtemp> collectd connects to B<localhost> (127.0.0.1),
@@ -2596,6 +2889,18 @@ This will ignore the loopback interface, all interfaces with names starting
 with I<veth> and all interfaces with names starting with I<tun> followed by
 at least one digit.
 
+=item B<ReportInactive> I<true>|I<false>
+
+When set to I<false>, only interfaces with non-zero traffic will be
+reported. Note that the check is done by looking into whether a
+package was sent at any time from boot and the corresponding counter
+is non-zero. So, if the interface has been sending data in the past
+since boot, but not during the reported time-interval, it will still
+be reported.
+
+The default value is I<true> and results in collection of the data
+from all interfaces that are selected by B<Interface> and
+B<IgnoreSelected> options.
 
 =item B<UniqueName> I<true>|I<false>
 
@@ -2849,6 +3154,12 @@ used (just like other plugins) and the I<plugin instance> will be empty.
 Defaults to false.
 
 =back
+
+=head2 Plugin C<lua>
+
+This plugin embeds a Lua interpreter into collectd and provides an interface
+to collectd's plugin system. See L<collectd-lua(5)> for its documentation.
+
 
 =head2 Plugin C<mbmon>
 
@@ -3501,6 +3812,11 @@ Synopsis:
       Port "3306"
       MasterStats true
       ConnectTimeout 10
+      SSLKey "/path/to/key.pem"
+      SSLCert "/path/to/cert.pem"
+      SSLCA "/path/to/ca.pem"
+      SSLCAPath "/path/to/cas/"
+      SSLCipher "DHE-RSA-AES256-SHA"
     </Database>
 
     <Database bar>
@@ -3510,12 +3826,20 @@ Synopsis:
       SlaveStats true
       SlaveNotifications true
     </Database>
+
+   <Database galera>
+      Alias "galera"
+      Host "localhost"
+      Socket "/var/run/mysql/mysqld.sock"
+      WsrepStats true
+   </Database>
   </Plugin>
 
 A B<Database> block defines one connection to a MySQL database. It accepts a
 single argument which specifies the name of the database. None of the other
 options are required. MySQL will use default values as documented in the
-section "mysql_real_connect()" in the B<MySQL reference manual>.
+"mysql_real_connect()" and "mysql_ssl_set()" sections in the
+B<MySQL reference manual>.
 
 =over 4
 
@@ -3580,9 +3904,35 @@ privileges. See the B<User> documentation above. Defaults to B<false>.
 If enabled, the plugin sends a notification if the replication slave I/O and /
 or SQL threads are not running. Defaults to B<false>.
 
+=item B<WsrepStats> I<true|false>
+ 
+ Enable the collection of wsrep plugin statistics, used in Master-Master
+ replication setups like in MySQL Galera/Percona XtraDB Cluster.
+ User needs only privileges to execute 'SHOW GLOBAL STATUS'
+ 
 =item B<ConnectTimeout> I<Seconds>
 
 Sets the connect timeout for the MySQL client.
+
+=item B<SSLKey> I<Path>
+
+If provided, the X509 key in PEM format.
+
+=item B<SSLCert> I<Path>
+
+If provided, the X509 cert in PEM format.
+
+=item B<SSLCA> I<Path>
+
+If provided, the CA file in PEM format (check OpenSSL docs).
+
+=item B<SSLCAPath> I<Path>
+
+If provided, the CA directory (check OpenSSL docs).
+
+=item B<SSLCipher> I<String>
+
+If provided, the SSL cipher to use.
 
 =back
 
@@ -4540,11 +4890,11 @@ Sets the I<command file> to write to. Defaults to F</usr/local/nagios/var/rw/nag
 
 =head2 Plugin C<ntpd>
 
-The C<ntpd> plugin collects per-peer ntpd data such as time offset and time
+The C<ntpd> plugin collects per-peer ntp data such as time offset and time
 dispersion.
 
 For talking to B<ntpd>, it mimics what the B<ntpdc> control program does on
-wire - using B<mode 7> specific requests. This mode is deprecated with
+the wire - using B<mode 7> specific requests. This mode is deprecated with
 newer B<ntpd> releases (4.2.7p230 and later). For the C<ntpd> plugin to work
 correctly with them, the ntp daemon must be explicitly configured to
 enable B<mode 7> (which is disabled by default). Refer to the I<ntp.conf(5)>
@@ -6317,6 +6667,22 @@ collected. If at least one B<Disk> option is given and no B<IgnoreSelected> or
 set to B<false>, B<only> matching disks will be collected. If B<IgnoreSelected>
 is set to B<true>, all disks are collected B<except> the ones matched.
 
+=item B<IgnoreSleepMode> B<true>|B<false>
+
+Normally, the C<smart> plugin will ignore disks that are reported to be asleep.
+This option disables the sleep mode check and allows the plugin to collect data
+from these disks anyway. This is useful in cases where libatasmart mistakenly
+reports disks as asleep because it has not been updated to incorporate support
+for newer idle states in the ATA spec.
+
+=item B<UseSerial> B<true>|B<false>
+
+A disk's kernel name (e.g., sda) can change from one boot to the next. If this
+option is enabled, the C<smart> plugin will use the disk's serial number (e.g.,
+HGST_HUH728080ALE600_2EJ8VH8X) instead of the kernel name as the key for
+storing data. This ensures that the data for a given disk will be kept together
+even if the kernel name changes.
+
 =back
 
 =head2 Plugin C<snmp>
@@ -6882,7 +7248,7 @@ port in numeric form.
 =item B<AllPortsSummary> I<true>|I<false>
 
 If this option is set to I<true> a summary of statistics from all connections
-are collectd. This option defaults to I<false>.
+are collected. This option defaults to I<false>.
 
 =back
 
@@ -7054,20 +7420,20 @@ The following methods are used to find the machine's UUID, in order:
 
 =over 4
 
-=item
+=item *
 
 Check I</etc/uuid> (or I<UUIDFile>).
 
-=item
+=item *
 
 Check for UUID from HAL (L<http://www.freedesktop.org/wiki/Software/hal>) if
 present.
 
-=item
+=item *
 
 Check for UUID from C<dmidecode> / SMBIOS.
 
-=item
+=item *
 
 Check for UUID from Xen hypervisor.
 
@@ -7654,13 +8020,22 @@ Define which SSL protocol version must be used. By default C<libcurl> will
 attempt to figure out the remote SSL protocol version. See
 L<curl_easy_setopt(3)> for more details.
 
-=item B<Format> B<Command>|B<JSON>
+=item B<Format> B<Command>|B<JSON>|B<KAIROSDB>
 
 Format of the output to generate. If set to B<Command>, will create output that
 is understood by the I<Exec> and I<UnixSock> plugins. When set to B<JSON>, will
-create output in the I<JavaScript Object Notation> (JSON).
+create output in the I<JavaScript Object Notation> (JSON). When set to KAIROSDB
+, will create output in the KairosDB format.
 
 Defaults to B<Command>.
+
+=item B<Metrics> B<true>|B<false>
+
+Controls whether I<metrics> are POSTed to this location. Defaults to B<true>.
+
+=item B<Notifications> B<false>|B<true>
+
+Controls whether I<notifications> are POSTed to this location. Defaults to B<false>.
 
 =item B<StoreRates> B<true|false>
 

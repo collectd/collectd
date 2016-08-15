@@ -22,11 +22,12 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 #include "utils_avltree.h"
 #include "utils_complain.h"
+#include "utils_curl_stats.h"
 
 #include <sys/types.h>
 #include <sys/un.h>
@@ -78,6 +79,7 @@ struct cj_s /* {{{ */
   char *post_body;
   cdtime_t interval;
   int timeout;
+  curl_stats_t *stats;
 
   CURL *curl;
   char curl_errbuf[CURL_ERROR_SIZE];
@@ -432,6 +434,7 @@ static void cj_free (void *arg) /* {{{ */
   sfree (db->cacert);
   sfree (db->post_body);
   curl_slist_free_all (db->headers);
+  curl_stats_destroy (db->stats);
 
   sfree (db);
 } /* }}} void cj_free */
@@ -467,7 +470,6 @@ static int cj_config_add_key (cj_t *db, /* {{{ */
 {
   cj_key_t *key;
   int status;
-  int i;
 
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_STRING))
@@ -503,7 +505,7 @@ static int cj_config_add_key (cj_t *db, /* {{{ */
   }
 
   status = 0;
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -659,7 +661,6 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
 {
   cj_t *db;
   int status = 0;
-  int i;
 
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_STRING))
@@ -696,7 +697,7 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
   }
 
   /* Fill the `cj_t' structure.. */
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -726,6 +727,12 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_cdtime(child, &db->interval);
     else if (strcasecmp ("Timeout", child->key) == 0)
       status = cf_util_get_int (child, &db->timeout);
+    else if (strcasecmp ("Statistics", child->key) == 0)
+    {
+      db->stats = curl_stats_from_config (child);
+      if (db->stats == NULL)
+        status = -1;
+    }
     else
     {
       WARNING ("curl_json plugin: Option `%s' not allowed here.", child->key);
@@ -751,7 +758,6 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
   /* If all went well, register this database for reading */
   if (status == 0)
   {
-    user_data_t ud;
     char *cb_name;
 
     if (db->instance == NULL)
@@ -760,12 +766,13 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
     DEBUG ("curl_json plugin: Registering new read callback: %s",
            db->instance);
 
-    memset (&ud, 0, sizeof (ud));
-    ud.data = (void *) db;
-    ud.free_func = cj_free;
-
     cb_name = ssnprintf_alloc ("curl_json-%s-%s",
                db->instance, db->url ? db->url : db->sock);
+
+    user_data_t ud = {
+      .data = db,
+      .free_func = cj_free
+    };
 
     plugin_register_complex_read (/* group = */ NULL, cb_name, cj_read,
                                   /* interval = */ db->interval,
@@ -787,12 +794,11 @@ static int cj_config (oconfig_item_t *ci) /* {{{ */
   int success;
   int errors;
   int status;
-  int i;
 
   success = 0;
   errors = 0;
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -823,32 +829,33 @@ static int cj_config (oconfig_item_t *ci) /* {{{ */
 
 /* }}} End of configuration handling functions */
 
+static const char *cj_host (cj_t *db) /* {{{ */
+{
+  if ((db->host == NULL)
+      || (strcmp ("", db->host) == 0)
+      || (strcmp (CJ_DEFAULT_HOST, db->host) == 0))
+    return hostname_g;
+  return db->host;
+} /* }}} cj_host */
+
 static void cj_submit (cj_t *db, cj_key_t *key, value_t *value) /* {{{ */
 {
   value_list_t vl = VALUE_LIST_INIT;
-  char *host;
 
   vl.values     = value;
   vl.values_len = 1;
 
-  if ((db->host == NULL)
-      || (strcmp ("", db->host) == 0)
-      || (strcmp (CJ_DEFAULT_HOST, db->host) == 0))
-    host = hostname_g;
-  else
-    host = db->host;
-
   if (key->instance == NULL)
   {
-    int i, len = 0;
-    for (i = 0; i < db->depth; i++)
+    int len = 0;
+    for (int i = 0; i < db->depth; i++)
       len += ssnprintf(vl.type_instance+len, sizeof(vl.type_instance)-len,
                        i ? "-%s" : "%s", db->state[i+1].name);
   }
   else
     sstrncpy (vl.type_instance, key->instance, sizeof (vl.type_instance));
 
-  sstrncpy (vl.host, host, sizeof (vl.host));
+  sstrncpy (vl.host, cj_host (db), sizeof (vl.host));
   sstrncpy (vl.plugin, "curl_json", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, db->instance, sizeof (vl.plugin_instance));
   sstrncpy (vl.type, key->type, sizeof (vl.type));
@@ -911,6 +918,8 @@ static int cj_curl_perform(cj_t *db) /* {{{ */
            status, db->curl_errbuf, url);
     return (-1);
   }
+  if (db->stats != NULL)
+    curl_stats_dispatch (db->stats, db->curl, cj_host (db), "curl_json", db->instance);
 
   curl_easy_getinfo(db->curl, CURLINFO_EFFECTIVE_URL, &url);
   curl_easy_getinfo(db->curl, CURLINFO_RESPONSE_CODE, &rc);
@@ -956,9 +965,9 @@ static int cj_perform (cj_t *db) /* {{{ */
   }
 
 #if HAVE_YAJL_V2
-    status = yajl_complete_parse(db->yajl);
+  status = yajl_complete_parse(db->yajl);
 #else
-    status = yajl_parse_complete(db->yajl);
+  status = yajl_parse_complete(db->yajl);
 #endif
   if (status != yajl_status_ok)
   {

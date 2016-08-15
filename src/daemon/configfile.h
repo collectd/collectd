@@ -28,6 +28,7 @@
 #define CONFIGFILE_H
 
 #include "collectd.h"
+
 #include "utils_time.h"
 #include "liboconfig/oconfig.h"
 
@@ -89,10 +90,9 @@ int cf_register_complex (const char *type, int (*callback) (oconfig_item_t *));
  */
 int cf_read (const char *filename);
 
-int global_option_set (const char *option, const char *value);
+int global_option_set (const char *option, const char *value, _Bool from_cli);
 const char *global_option_get (const char *option);
 long global_option_get_long (const char *option, long default_value);
-long global_option_get_long_in_range (const char *option, long default_value, long min, long max);
 
 cdtime_t global_option_get_time (char const *option, cdtime_t default_value);
 

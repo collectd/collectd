@@ -25,15 +25,18 @@
 #define _BSD_SOURCE
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 #include "utils_dns.h"
-#include <pthread.h>
 #include <poll.h>
 
 #include <pcap.h>
+
+#ifdef HAVE_SYS_CAPABILITY_H
+# include <sys/capability.h>
+#endif
 
 /*
  * Private data types
@@ -211,7 +214,7 @@ static int dns_run_pcap_loop (void)
 {
 	pcap_t *pcap_obj;
 	char    pcap_error[PCAP_ERRBUF_SIZE];
-	struct  bpf_program fp;
+	struct  bpf_program fp = { 0 };
 
 	int status;
 
@@ -238,7 +241,6 @@ static int dns_run_pcap_loop (void)
 		return (PCAP_ERROR);
 	}
 
-	memset (&fp, 0, sizeof (fp));
 	status = pcap_compile (pcap_obj, &fp, "udp port 53", 1, 0);
 	if (status < 0)
 	{
@@ -348,6 +350,20 @@ static int dns_init (void)
 
 	listen_thread_init = 1;
 
+#if defined(HAVE_SYS_CAPABILITY_H) && defined(CAP_NET_RAW)
+	if (check_capability (CAP_NET_RAW) != 0)
+	{
+		if (getuid () == 0)
+			WARNING ("dns plugin: Running collectd as root, but the CAP_NET_RAW "
+					"capability is missing. The plugin's read function will probably "
+					"fail. Is your init system dropping capabilities?");
+		else
+			WARNING ("dns plugin: collectd doesn't have the CAP_NET_RAW capability. "
+					"If you don't want to run collectd as root, try running \"setcap "
+					"cap_net_raw=ep\" on the collectd binary.");
+	}
+#endif
+
 	return (0);
 } /* int dns_init */
 
@@ -391,7 +407,6 @@ static int dns_read (void)
 	unsigned int keys[T_MAX];
 	unsigned int values[T_MAX];
 	int len;
-	int i;
 
 	counter_list_t *ptr;
 
@@ -413,7 +428,7 @@ static int dns_read (void)
 	}
 	pthread_mutex_unlock (&qtype_mutex);
 
-	for (i = 0; i < len; i++)
+	for (int i = 0; i < len; i++)
 	{
 		DEBUG ("dns plugin: qtype = %u; counter = %u;", keys[i], values[i]);
 		submit_derive ("dns_qtype", qtype_str (keys[i]), values[i]);
@@ -429,7 +444,7 @@ static int dns_read (void)
 	}
 	pthread_mutex_unlock (&opcode_mutex);
 
-	for (i = 0; i < len; i++)
+	for (int i = 0; i < len; i++)
 	{
 		DEBUG ("dns plugin: opcode = %u; counter = %u;", keys[i], values[i]);
 		submit_derive ("dns_opcode", opcode_str (keys[i]), values[i]);
@@ -445,7 +460,7 @@ static int dns_read (void)
 	}
 	pthread_mutex_unlock (&rcode_mutex);
 
-	for (i = 0; i < len; i++)
+	for (int i = 0; i < len; i++)
 	{
 		DEBUG ("dns plugin: rcode = %u; counter = %u;", keys[i], values[i]);
 		submit_derive ("dns_rcode", rcode_str (keys[i]), values[i]);

@@ -27,10 +27,9 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-
-#include <pthread.h>
 
 #define DEFAULT_LOGFILE LOCALSTATEDIR"/log/collectd.log"
 

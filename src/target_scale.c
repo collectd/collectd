@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "filter_chain.h"
 
@@ -302,7 +303,6 @@ static int ts_config_add_data_source(ts_data_t *data, /* {{{ */
 {
 	size_t new_data_sources_num;
 	char **temp;
-	int i;
 
 	/* Check number of arbuments. */
 	if (ci->values_num < 1)
@@ -313,7 +313,7 @@ static int ts_config_add_data_source(ts_data_t *data, /* {{{ */
 	}
 
 	/* Check type of arguments */
-	for (i = 0; i < ci->values_num; i++)
+	for (int i = 0; i < ci->values_num; i++)
 	{
 		if (ci->values[i].type == OCONFIG_TYPE_STRING)
 			continue;
@@ -338,7 +338,7 @@ static int ts_config_add_data_source(ts_data_t *data, /* {{{ */
 	data->data_sources = temp;
 
 	/* Copy the strings, allocating memory as needed.  */
-	for (i = 0; i < ci->values_num; i++)
+	for (int i = 0; i < ci->values_num; i++)
 	{
 		size_t j;
 
@@ -369,8 +369,7 @@ static int ts_destroy (void **user_data) /* {{{ */
 
 	if ((data != NULL) && (data->data_sources != NULL))
 	{
-		size_t i;
-		for (i = 0; i < data->data_sources_num; i++)
+		for (size_t i = 0; i < data->data_sources_num; i++)
 			sfree (data->data_sources[i]);
 		sfree (data->data_sources);
 	}
@@ -385,7 +384,6 @@ static int ts_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 {
 	ts_data_t *data;
 	int status;
-	int i;
 
 	data = calloc (1, sizeof (*data));
 	if (data == NULL)
@@ -398,7 +396,7 @@ static int ts_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 	data->offset = NAN;
 
 	status = 0;
-	for (i = 0; i < ci->children_num; i++)
+	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
 
@@ -446,7 +444,6 @@ static int ts_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
 		notification_meta_t __attribute__((unused)) **meta, void **user_data)
 {
 	ts_data_t *data;
-	size_t i;
 
 	if ((ds == NULL) || (vl == NULL) || (user_data == NULL))
 		return (-EINVAL);
@@ -458,7 +455,7 @@ static int ts_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
 		return (-EINVAL);
 	}
 
-	for (i = 0; i < ds->ds_num; i++)
+	for (size_t i = 0; i < ds->ds_num; i++)
 	{
 		/* If we've got a list of data sources, is it in the list? */
 		if (data->data_sources) {
@@ -490,9 +487,8 @@ static int ts_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
 
 void module_register (void)
 {
-	target_proc_t tproc;
+	target_proc_t tproc = { 0 };
 
-	memset (&tproc, 0, sizeof (tproc));
 	tproc.create  = ts_create;
 	tproc.destroy = ts_destroy;
 	tproc.invoke  = ts_invoke;

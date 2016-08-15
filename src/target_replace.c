@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "filter_chain.h"
 #include "utils_subst.h"
@@ -155,20 +156,18 @@ static int tr_config_add_action (tr_action_t **dest, /* {{{ */
 static int tr_action_invoke (tr_action_t *act_head, /* {{{ */
     char *buffer_in, size_t buffer_in_size, int may_be_empty)
 {
-  tr_action_t *act;
   int status;
   char buffer[DATA_MAX_NAME_LEN];
-  regmatch_t matches[8];
+  regmatch_t matches[8] = { [0] = { 0 } };
 
   if (act_head == NULL)
     return (-EINVAL);
 
   sstrncpy (buffer, buffer_in, sizeof (buffer));
-  memset (matches, 0, sizeof (matches));
 
   DEBUG ("target_replace plugin: tr_action_invoke: <- buffer = %s;", buffer);
 
-  for (act = act_head; act != NULL; act = act->next)
+  for (tr_action_t *act = act_head; act != NULL; act = act->next)
   {
     char temp[DATA_MAX_NAME_LEN];
     char *subst_status;
@@ -241,7 +240,6 @@ static int tr_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 {
   tr_data_t *data;
   int status;
-  int i;
 
   data = calloc (1, sizeof (*data));
   if (data == NULL)
@@ -257,7 +255,7 @@ static int tr_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   data->type_instance = NULL;
 
   status = 0;
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -346,9 +344,8 @@ static int tr_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
 
 void module_register (void)
 {
-	target_proc_t tproc;
+	target_proc_t tproc = { 0 };
 
-	memset (&tproc, 0, sizeof (tproc));
 	tproc.create  = tr_create;
 	tproc.destroy = tr_destroy;
 	tproc.invoke  = tr_invoke;

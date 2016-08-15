@@ -28,6 +28,7 @@
 #include <structmember.h>
 
 #include "collectd.h"
+
 #include "common.h"
 
 #include "cpython.h"
@@ -415,7 +416,7 @@ static int Values_init(PyObject *s, PyObject *args, PyObject *kwds) {
 }
 
 static meta_data_t *cpy_build_meta(PyObject *meta) {
-	int i, s;
+	int s;
 	meta_data_t *m = NULL;
 	PyObject *l;
 
@@ -434,7 +435,7 @@ static meta_data_t *cpy_build_meta(PyObject *meta) {
 	}
 
 	m = meta_data_create();
-	for (i = 0; i < s; ++i) {
+	for (int i = 0; i < s; ++i) {
 		const char *string, *keystring;
 		PyObject *key, *value, *item, *tmp;
 
@@ -504,7 +505,7 @@ static meta_data_t *cpy_build_meta(PyObject *meta) {
 static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 	int ret;
 	const data_set_t *ds;
-	size_t size, i;
+	size_t size;
 	value_t *value;
 	value_list_t value_list = VALUE_LIST_INIT;
 	PyObject *values = self->values, *meta = self->meta;
@@ -548,22 +549,25 @@ static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 		return NULL;
 	}
 	value = calloc(size, sizeof(*value));
-	for (i = 0; i < size; ++i) {
+	for (size_t i = 0; i < size; ++i) {
 		PyObject *item, *num;
 		item = PySequence_Fast_GET_ITEM(values, (int) i); /* Borrowed reference. */
-		if (ds->ds->type == DS_TYPE_COUNTER) {
+		switch (ds->ds[i].type) {
+		case DS_TYPE_COUNTER:
 			num = PyNumber_Long(item); /* New reference. */
 			if (num != NULL) {
 				value[i].counter = PyLong_AsUnsignedLongLong(num);
 				Py_XDECREF(num);
 			}
-		} else if (ds->ds->type == DS_TYPE_GAUGE) {
+			break;
+		case DS_TYPE_GAUGE:
 			num = PyNumber_Float(item); /* New reference. */
 			if (num != NULL) {
 				value[i].gauge = PyFloat_AsDouble(num);
 				Py_XDECREF(num);
 			}
-		} else if (ds->ds->type == DS_TYPE_DERIVE) {
+			break;
+		case DS_TYPE_DERIVE:
 			/* This might overflow without raising an exception.
 			 * Not much we can do about it */
 			num = PyNumber_Long(item); /* New reference. */
@@ -571,7 +575,8 @@ static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 				value[i].derive = PyLong_AsLongLong(num);
 				Py_XDECREF(num);
 			}
-		} else if (ds->ds->type == DS_TYPE_ABSOLUTE) {
+			break;
+		case DS_TYPE_ABSOLUTE:
 			/* This might overflow without raising an exception.
 			 * Not much we can do about it */
 			num = PyNumber_Long(item); /* New reference. */
@@ -579,9 +584,10 @@ static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 				value[i].absolute = PyLong_AsUnsignedLongLong(num);
 				Py_XDECREF(num);
 			}
-		} else {
+			break;
+		default:
 			free(value);
-			PyErr_Format(PyExc_RuntimeError, "unknown data type %d for %s", ds->ds->type, value_list.type);
+			PyErr_Format(PyExc_RuntimeError, "unknown data type %d for %s", ds->ds[i].type, value_list.type);
 			return NULL;
 		}
 		if (PyErr_Occurred() != NULL) {
@@ -613,7 +619,7 @@ static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
 	int ret;
 	const data_set_t *ds;
-	size_t size, i;
+	size_t size;
 	value_t *value;
 	value_list_t value_list = VALUE_LIST_INIT;
 	PyObject *values = self->values, *meta = self->meta;
@@ -652,22 +658,25 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
 		return NULL;
 	}
 	value = calloc(size, sizeof(*value));
-	for (i = 0; i < size; ++i) {
+	for (size_t i = 0; i < size; ++i) {
 		PyObject *item, *num;
 		item = PySequence_Fast_GET_ITEM(values, i); /* Borrowed reference. */
-		if (ds->ds->type == DS_TYPE_COUNTER) {
+		switch (ds->ds[i].type) {
+		case DS_TYPE_COUNTER:
 			num = PyNumber_Long(item); /* New reference. */
 			if (num != NULL) {
 				value[i].counter = PyLong_AsUnsignedLongLong(num);
 				Py_XDECREF(num);
 			}
-		} else if (ds->ds->type == DS_TYPE_GAUGE) {
+			break;
+		case DS_TYPE_GAUGE:
 			num = PyNumber_Float(item); /* New reference. */
 			if (num != NULL) {
 				value[i].gauge = PyFloat_AsDouble(num);
 				Py_XDECREF(num);
 			}
-		} else if (ds->ds->type == DS_TYPE_DERIVE) {
+			break;
+		case DS_TYPE_DERIVE:
 			/* This might overflow without raising an exception.
 			 * Not much we can do about it */
 			num = PyNumber_Long(item); /* New reference. */
@@ -675,7 +684,8 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
 				value[i].derive = PyLong_AsLongLong(num);
 				Py_XDECREF(num);
 			}
-		} else if (ds->ds->type == DS_TYPE_ABSOLUTE) {
+			break;
+		case DS_TYPE_ABSOLUTE:
 			/* This might overflow without raising an exception.
 			 * Not much we can do about it */
 			num = PyNumber_Long(item); /* New reference. */
@@ -683,9 +693,10 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
 				value[i].absolute = PyLong_AsUnsignedLongLong(num);
 				Py_XDECREF(num);
 			}
-		} else {
+			break;
+		default:
 			free(value);
-			PyErr_Format(PyExc_RuntimeError, "unknown data type %d for %s", ds->ds->type, value_list.type);
+			PyErr_Format(PyExc_RuntimeError, "unknown data type %d for %s", ds->ds[i].type, value_list.type);
 			return NULL;
 		}
 		if (PyErr_Occurred() != NULL) {

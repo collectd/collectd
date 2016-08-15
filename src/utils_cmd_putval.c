@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -218,8 +219,8 @@ int handle_putval (FILE *fh, char *buffer)
 	} /* while (*buffer != 0) */
 	/* Done parsing the options. */
 
-    if (fh!=stdout)
-	    print_to_socket (fh, "0 Success: %i %s been dispatched.\n",
+	if (fh!=stdout)
+		print_to_socket (fh, "0 Success: %i %s been dispatched.\n",
 			values_submitted,
 			(values_submitted == 1) ? "value has" : "values have");
 

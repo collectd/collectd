@@ -27,6 +27,7 @@
 #define _BSD_SOURCE
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -36,6 +37,9 @@
 #include <yajl/yajl_parse.h>
 #if HAVE_YAJL_YAJL_VERSION_H
 #include <yajl/yajl_version.h>
+#endif
+#ifdef HAVE_SYS_CAPABILITY_H
+# include <sys/capability.h>
 #endif
 
 #include <limits.h>
@@ -163,7 +167,7 @@ static int convert_special_metrics = 1;
 static struct ceph_daemon **g_daemons = NULL;
 
 /** Number of elements in g_daemons */
-static int g_num_daemons = 0;
+static size_t g_num_daemons = 0;
 
 /**
  * A set of data that we build up in memory while parsing the JSON.
@@ -258,7 +262,10 @@ static int ceph_cb_boolean(void *ctx, int bool_val)
 
 #define BUFFER_ADD(dest, src) do { \
     size_t dest_size = sizeof (dest); \
-    strncat ((dest), (src), dest_size - strlen (dest)); \
+    size_t dest_len = strlen (dest); \
+    if (dest_size > dest_len) { \
+        sstrncpy ((dest) + dest_len, (src), dest_size - dest_len); \
+    } \
     (dest)[dest_size - 1] = 0; \
 } while (0)
 
@@ -267,16 +274,14 @@ ceph_cb_number(void *ctx, const char *number_val, yajl_len_t number_len)
 {
     yajl_struct *state = (yajl_struct*) ctx;
     char buffer[number_len+1];
-    char key[2 * DATA_MAX_NAME_LEN];
+    char key[2 * DATA_MAX_NAME_LEN] = { 0 };
     _Bool latency_type = 0;
-    size_t i;
     int status;
 
     memcpy(buffer, number_val, number_len);
-    buffer[sizeof(buffer) - 1] = 0;
+    buffer[sizeof(buffer) - 1] = '\0';
 
-    memset (key, 0, sizeof (key));
-    for (i = 0; i < state->depth; i++)
+    for (size_t i = 0; i < state->depth; i++)
     {
         if (state->stack[i] == NULL)
             continue;
@@ -422,8 +427,7 @@ static void ceph_daemon_print(const struct ceph_daemon *d)
 
 static void ceph_daemons_print(void)
 {
-    int i;
-    for(i = 0; i < g_num_daemons; ++i)
+    for(size_t i = 0; i < g_num_daemons; ++i)
     {
         ceph_daemon_print(g_daemons[i]);
     }
@@ -431,15 +435,15 @@ static void ceph_daemons_print(void)
 
 static void ceph_daemon_free(struct ceph_daemon *d)
 {
-    int i = 0;
-    for(; i < d->last_idx; i++)
+    for(int i = 0; i < d->last_idx; i++)
     {
         sfree(d->last_poll_data[i]);
     }
     sfree(d->last_poll_data);
     d->last_poll_data = NULL;
     d->last_idx = 0;
-    for(i = 0; i < d->ds_num; i++)
+
+    for(int i = 0; i < d->ds_num; i++)
     {
         sfree(d->ds_names[i]);
     }
@@ -548,10 +552,9 @@ static _Bool has_suffix (char const *str, char const *suffix)
 /* count_parts returns the number of elements a "foo.bar.baz" style key has. */
 static size_t count_parts (char const *key)
 {
-    char const *ptr;
     size_t parts_num = 0;
 
-    for (ptr = key; ptr != NULL; ptr = strchr (ptr + 1, '.'))
+    for (const char *ptr = key; ptr != NULL; ptr = strchr (ptr + 1, '.'))
         parts_num++;
 
     return parts_num;
@@ -593,7 +596,6 @@ static int ceph_daemon_add_ds_entry(struct ceph_daemon *d, const char *name,
 {
     uint32_t type;
     char ds_name[DATA_MAX_NAME_LEN];
-    memset(ds_name, 0, sizeof(ds_name));
 
     if(convert_special_metrics)
     {
@@ -684,10 +686,9 @@ static int cc_handle_bool(struct oconfig_item_s *item, int *dest)
 
 static int cc_add_daemon_config(oconfig_item_t *ci)
 {
-    int ret, i;
-    struct ceph_daemon *nd, cd;
+    int ret;
+    struct ceph_daemon *nd, cd = { 0 };
     struct ceph_daemon **tmp;
-    memset(&cd, 0, sizeof(struct ceph_daemon));
 
     if((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
     {
@@ -702,7 +703,7 @@ static int cc_add_daemon_config(oconfig_item_t *ci)
         return ret;
     }
 
-    for(i=0; i < ci->children_num; i++)
+    for(int i=0; i < ci->children_num; i++)
     {
         oconfig_item_t *child = ci->children + i;
 
@@ -753,15 +754,16 @@ static int cc_add_daemon_config(oconfig_item_t *ci)
         return ENOMEM;
     }
     memcpy(nd, &cd, sizeof(*nd));
-    g_daemons[g_num_daemons++] = nd;
+    g_daemons[g_num_daemons] = nd;
+    g_num_daemons++;
     return 0;
 }
 
 static int ceph_config(oconfig_item_t *ci)
 {
-    int ret, i;
+    int ret;
 
-    for(i = 0; i < ci->children_num; ++i)
+    for(int i = 0; i < ci->children_num; ++i)
     {
         oconfig_item_t *child = ci->children + i;
         if(strcasecmp("Daemon", child->key) == 0)
@@ -898,8 +900,7 @@ static int update_last(struct ceph_daemon *d, const char *ds_n, int index,
  */
 static int backup_search_for_last_avg(struct ceph_daemon *d, const char *ds_n)
 {
-    int i = 0;
-    for(; i < d->last_idx; i++)
+    for(int i = 0; i < d->last_idx; i++)
     {
         if(strcmp(d->last_poll_data[i]->ds_name, ds_n) == 0)
         {
@@ -959,12 +960,11 @@ static double get_last_avg(struct ceph_daemon *d, const char *ds_n, int index,
  */
 static uint32_t backup_search_for_type(struct ceph_daemon *d, char *ds_name)
 {
-    int idx = 0;
-    for(; idx < d->ds_num; idx++)
+    for(int i = 0; i < d->ds_num; i++)
     {
-        if(strcmp(d->ds_names[idx], ds_name) == 0)
+        if(strcmp(d->ds_names[i], ds_name) == 0)
         {
-            return d->ds_types[idx];
+            return d->ds_types[i];
         }
     }
     return DSET_TYPE_UNFOUND;
@@ -983,7 +983,6 @@ static int node_handler_fetch_data(void *arg, const char *val, const char *key)
     int index = vtmp->index;
 
     char ds_name[DATA_MAX_NAME_LEN];
-    memset(ds_name, 0, sizeof(ds_name));
 
     if (parse_keys (ds_name, sizeof (ds_name), key))
     {
@@ -1086,7 +1085,7 @@ static int node_handler_fetch_data(void *arg, const char *val, const char *key)
 
 static int cconn_connect(struct cconn *io)
 {
-    struct sockaddr_un address;
+    struct sockaddr_un address = { 0 };
     int flags, fd, err;
     if(io->state != CSTATE_UNCONNECTED)
     {
@@ -1101,7 +1100,6 @@ static int cconn_connect(struct cconn *io)
             "failed: error %d", err);
         return err;
     }
-    memset(&address, 0, sizeof(struct sockaddr_un));
     address.sun_family = AF_UNIX;
     snprintf(address.sun_path, sizeof(address.sun_path), "%s",
             io->d->asok_path);
@@ -1461,7 +1459,7 @@ static int milli_diff(const struct timeval *t1, const struct timeval *t2)
  */
 static int cconn_main_loop(uint32_t request_type)
 {
-    int i, ret, some_unreachable = 0;
+    int ret, some_unreachable = 0;
     struct timeval end_tv;
     struct cconn io_array[g_num_daemons];
 
@@ -1469,7 +1467,7 @@ static int cconn_main_loop(uint32_t request_type)
 
     /* create cconn array */
     memset(io_array, 0, sizeof(io_array));
-    for(i = 0; i < g_num_daemons; ++i)
+    for(size_t i = 0; i < g_num_daemons; ++i)
     {
         io_array[i].d = g_daemons[i];
         io_array[i].request_type = request_type;
@@ -1488,13 +1486,13 @@ static int cconn_main_loop(uint32_t request_type)
         struct pollfd fds[g_num_daemons];
         memset(fds, 0, sizeof(fds));
         nfds = 0;
-        for(i = 0; i < g_num_daemons; ++i)
+        for(size_t i = 0; i < g_num_daemons; ++i)
         {
             struct cconn *io = io_array + i;
             ret = cconn_prepare(io, fds + nfds);
             if(ret < 0)
             {
-                WARNING("ceph plugin: cconn_prepare(name=%s,i=%d,st=%d)=%d",
+                WARNING("ceph plugin: cconn_prepare(name=%s,i=%zu,st=%d)=%d",
                         io->d->name, i, io->state, ret);
                 cconn_close(io);
                 io->request_type = ASOK_REQ_NONE;
@@ -1526,13 +1524,14 @@ static int cconn_main_loop(uint32_t request_type)
             ERROR("ceph plugin: poll(2) error: %d", ret);
             goto done;
         }
-        for(i = 0; i < nfds; ++i)
+        for(int i = 0; i < nfds; ++i)
         {
             struct cconn *io = polled_io_array[i];
             int revents = fds[i].revents;
             if(revents == 0)
             {
                 /* do nothing */
+                continue;
             }
             else if(cconn_validate_revents(io, revents))
             {
@@ -1557,7 +1556,7 @@ static int cconn_main_loop(uint32_t request_type)
             }
         }
     }
-    done: for(i = 0; i < g_num_daemons; ++i)
+    done: for(size_t i = 0; i < g_num_daemons; ++i)
     {
         cconn_close(io_array + i);
     }
@@ -1581,6 +1580,22 @@ static int ceph_read(void)
 static int ceph_init(void)
 {
     int ret;
+
+#if defined(HAVE_SYS_CAPABILITY_H) && defined(CAP_DAC_OVERRIDE)
+  if (check_capability (CAP_DAC_OVERRIDE) != 0)
+  {
+    if (getuid () == 0)
+      WARNING ("ceph plugin: Running collectd as root, but the "
+          "CAP_DAC_OVERRIDE capability is missing. The plugin's read "
+          "function will probably fail. Is your init system dropping "
+          "capabilities?");
+    else
+      WARNING ("ceph plugin: collectd doesn't have the CAP_DAC_OVERRIDE "
+          "capability. If you don't want to run collectd as root, try running "
+          "\"setcap cap_dac_override=ep\" on the collectd binary.");
+  }
+#endif
+
     ceph_daemons_print();
 
     ret = cconn_main_loop(ASOK_REQ_VERSION);
@@ -1590,8 +1605,7 @@ static int ceph_init(void)
 
 static int ceph_shutdown(void)
 {
-    int i;
-    for(i = 0; i < g_num_daemons; ++i)
+    for(size_t i = 0; i < g_num_daemons; ++i)
     {
         ceph_daemon_free(g_daemons[i]);
     }

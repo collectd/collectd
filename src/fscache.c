@@ -20,6 +20,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 #include <stdio.h>  /* a header needed for FILE */
@@ -158,7 +159,6 @@ static void fscache_read_stats_file (FILE *fh)
         char *lineptr;
         char *fields[32];
         int fields_num;
-        int i;
 
         /* Find the colon and replace it with a null byte */
         lineptr = strchr (linebuffer, ':');
@@ -175,14 +175,14 @@ static void fscache_read_stats_file (FILE *fh)
             section_len--;
             section[section_len] = 0;
         }
-        if (section_len <= 0)
+        if (section_len == 0)
             continue;
 
         fields_num = strsplit (lineptr, fields, STATIC_ARRAY_SIZE (fields));
         if (fields_num <= 0)
             continue;
 
-        for (i = 0; i < fields_num; i++)
+        for (int i = 0; i < fields_num; i++)
         {
             char *field_name;
             char *field_value_str;

@@ -22,6 +22,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -74,14 +75,13 @@ static int conntrack_read (void)
 {
 	value_t conntrack, conntrack_max, conntrack_pct;
 	FILE *fh;
-	char buffer[64];
+	char buffer[64] = { 0 };
 	size_t buffer_len;
 
 	fh = fopen (old_files?CONNTRACK_FILE_OLD:CONNTRACK_FILE, "r");
 	if (fh == NULL)
 		return (-1);
 
-	memset (buffer, 0, sizeof (buffer));
 	if (fgets (buffer, sizeof (buffer), fh) == NULL)
 	{
 		fclose (fh);
@@ -135,7 +135,7 @@ static int conntrack_read (void)
 
 void module_register (void)
 {
-    plugin_register_config ("conntrack", conntrack_config,
+	plugin_register_config ("conntrack", conntrack_config,
                             config_keys, config_keys_num);
 	plugin_register_read ("conntrack", conntrack_read);
 } /* void module_register */

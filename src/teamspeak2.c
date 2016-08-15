@@ -22,6 +22,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -198,9 +199,7 @@ static int tss2_get_socket (FILE **ret_read_fh, FILE **ret_write_fh)
 	 * Returns connected file objects or establishes the connection
 	 * if it's not already present
 	 */
-	struct addrinfo ai_hints;
 	struct addrinfo *ai_head;
-	struct addrinfo *ai_ptr;
 	int sd = -1;
 	int status;
 
@@ -216,12 +215,11 @@ static int tss2_get_socket (FILE **ret_read_fh, FILE **ret_write_fh)
 	}
 
 	/* Get all addrs for this hostname */
-	memset (&ai_hints, 0, sizeof (ai_hints));
-#ifdef AI_ADDRCONFIG
-	ai_hints.ai_flags |= AI_ADDRCONFIG;
-#endif
-	ai_hints.ai_family = AF_UNSPEC;
-	ai_hints.ai_socktype = SOCK_STREAM;
+	struct addrinfo ai_hints = {
+		.ai_family = AF_UNSPEC,
+		.ai_flags = AI_ADDRCONFIG,
+		.ai_socktype = SOCK_STREAM
+	};
 
 	status = getaddrinfo ((config_host != NULL) ? config_host : DEFAULT_HOST,
 			(config_port != NULL) ? config_port : DEFAULT_PORT,
@@ -235,7 +233,7 @@ static int tss2_get_socket (FILE **ret_read_fh, FILE **ret_write_fh)
 	}
 
 	/* Try all given hosts until we can connect to one */
-	for (ai_ptr = ai_head; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+	for (struct addrinfo *ai_ptr = ai_head; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
 	{
 		/* Create socket */
 		sd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype,
@@ -511,7 +509,7 @@ static int tss2_read_vserver (vserver_list_t *vserver)
 	gauge_t packet_loss = NAN;
 	int valid = 0;
 
-	char plugin_instance[DATA_MAX_NAME_LEN];
+	char plugin_instance[DATA_MAX_NAME_LEN] = { 0 };
 
 	FILE *read_fh;
 	FILE *write_fh;
@@ -527,8 +525,6 @@ static int tss2_read_vserver (vserver_list_t *vserver)
 	if (vserver == NULL)
 	{
 		/* Request global information */
-		memset (plugin_instance, 0, sizeof (plugin_instance));
-
 		status = tss2_send_request (write_fh, "gi\r\n");
 	}
 	else
@@ -723,7 +719,7 @@ static int tss2_config (const char *key, const char *value)
 	/*
 	 * Interpret configuration values
 	 */
-    if (strcasecmp ("Host", key) == 0)
+	if (strcasecmp ("Host", key) == 0)
 	{
 		char *temp;
 
@@ -773,7 +769,6 @@ static int tss2_read (void)
 	 * Poll function which collects global and vserver information
 	 * and submits it to collectd
 	 */
-	vserver_list_t *vserver;
 	int success = 0;
 	int status;
 
@@ -789,7 +784,7 @@ static int tss2_read (void)
 	}
 
 	/* Handle vservers */
-	for (vserver = server_list; vserver != NULL; vserver = vserver->next)
+	for (vserver_list_t *vserver = server_list; vserver != NULL; vserver = vserver->next)
 	{
 		status = tss2_read_vserver (vserver);
 		if (status == 0)
@@ -806,7 +801,7 @@ static int tss2_read (void)
 
 	if (success == 0)
 		return (-1);
-    return (0);
+	return (0);
 } /* int tss2_read */
 
 static int tss2_shutdown(void)

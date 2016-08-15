@@ -1,6 +1,7 @@
 /**
- * collectd - src/utils_cache.h
+ * collectd - utils_cache.h
  * Copyright (C) 2007       Florian octo Forster
+ * Copyright (C) 2016       Sebastian tokkee Harl
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,6 +23,7 @@
  *
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
+ *   Sebastian tokkee Harl <sh at tokkee.org>
  **/
 
 #ifndef UTILS_CACHE_H
@@ -53,6 +55,53 @@ int uc_get_history (const data_set_t *ds, const value_list_t *vl,
     gauge_t *ret_history, size_t num_steps, size_t num_ds);
 int uc_get_history_by_name (const char *name,
     gauge_t *ret_history, size_t num_steps, size_t num_ds);
+
+/*
+ * Iterator interface
+ */
+struct uc_iter_s;
+typedef struct uc_iter_s uc_iter_t;
+
+/*
+ * NAME
+ *   uc_get_iterator
+ *
+ * DESCRIPTION
+ *   Create an iterator for the cache. It will hold the cache lock until it's
+ *   destroyed.
+ *
+ * RETURN VALUE
+ *   An iterator object on success or NULL else.
+ */
+uc_iter_t *uc_get_iterator (void);
+
+/*
+ * NAME
+ *   uc_iterator_next
+ *
+ * DESCRIPTION
+ *   Advance the iterator to the next positiion and (optionally) returns the
+ *   name of the entry.
+ *
+ * PARAMETERS
+ *   `iter'     The iterator object to advance.
+ *   `ret_name' Pointer to a string where to store the name. The returned
+ *              value is a copy of the value and has to be freed by the
+ *              caller.
+ *
+ * RETURN VALUE
+ *   Zero upon success or non-zero if the iterator ie NULL or no further
+ *   values are available.
+ */
+int uc_iterator_next (uc_iter_t *iter, char **ret_name);
+void uc_iterator_destroy (uc_iter_t *iter);
+
+/* Return the timestamp of the value at the current position. */
+int uc_iterator_get_time (uc_iter_t *iter, cdtime_t *ret_time);
+/* Return the (raw) value at the current position. */
+int uc_iterator_get_values (uc_iter_t *iter, value_t **ret_values, size_t *ret_num);
+/* Return the interval of the value at the current position. */
+int uc_iterator_get_interval (uc_iter_t *iter, cdtime_t *ret_interval);
 
 /*
  * Meta data interface

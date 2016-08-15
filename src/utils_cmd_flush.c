@@ -27,6 +27,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 #include "utils_parse_option.h"
@@ -42,8 +43,6 @@ int handle_flush (FILE *fh, char *buffer)
 	size_t plugins_num = 0;
 	char **identifiers = NULL;
 	size_t identifiers_num = 0;
-
-	size_t i;
 
 #define PRINT_TO_SOCK(fh, ...) \
 	do { \
@@ -122,15 +121,14 @@ int handle_flush (FILE *fh, char *buffer)
 		}
 	} /* while (*buffer != 0) */
 
-	for (i = 0; (i == 0) || (i < plugins_num); i++)
+	for (size_t i = 0; (i == 0) || (i < plugins_num); i++)
 	{
 		char *plugin = NULL;
-		size_t j;
 
 		if (plugins_num != 0)
 			plugin = plugins[i];
 
-		for (j = 0; (j == 0) || (j < identifiers_num); j++)
+		for (size_t j = 0; (j == 0) || (j < identifiers_num); j++)
 		{
 			char *identifier = NULL;
 			int status;

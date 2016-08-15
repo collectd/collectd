@@ -43,16 +43,12 @@
   */
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
-#include "utils_cache.h"
 #include "utils_complain.h"
 #include "utils_format_graphite.h"
-
-/* Folks without pthread will need to disable this plugin. */
-#include <pthread.h>
 
 #include <netdb.h>
 
@@ -138,7 +134,10 @@ static void wg_reset_buffer (struct wg_callback *cb)
 
 static int wg_send_buffer (struct wg_callback *cb)
 {
-    ssize_t status = 0;
+    ssize_t status;
+
+    if (cb->sock_fd < 0)
+        return (-1);
 
     status = swrite (cb->sock_fd, cb->send_buf, strlen (cb->send_buf));
     if (status != 0)
@@ -194,9 +193,7 @@ static int wg_flush_nolock (cdtime_t timeout, struct wg_callback *cb)
 
 static int wg_callback_init (struct wg_callback *cb)
 {
-    struct addrinfo ai_hints;
     struct addrinfo *ai_list;
-    struct addrinfo *ai_ptr;
     cdtime_t now;
     int status;
 
@@ -212,18 +209,15 @@ static int wg_callback_init (struct wg_callback *cb)
         return (EAGAIN);
     cb->last_connect_time = now;
 
-    memset (&ai_hints, 0, sizeof (ai_hints));
-#ifdef AI_ADDRCONFIG
-    ai_hints.ai_flags |= AI_ADDRCONFIG;
-#endif
-    ai_hints.ai_family = AF_UNSPEC;
+    struct addrinfo ai_hints = {
+        .ai_family = AF_UNSPEC,
+        .ai_flags  = AI_ADDRCONFIG
+    };
 
     if (0 == strcasecmp ("tcp", cb->protocol))
         ai_hints.ai_socktype = SOCK_STREAM;
     else
         ai_hints.ai_socktype = SOCK_DGRAM;
-
-    ai_list = NULL;
 
     status = getaddrinfo (cb->node, cb->service, &ai_hints, &ai_list);
     if (status != 0)
@@ -234,7 +228,7 @@ static int wg_callback_init (struct wg_callback *cb)
     }
 
     assert (ai_list != NULL);
-    for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+    for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
     {
         cb->sock_fd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype,
                 ai_ptr->ai_protocol);
@@ -244,6 +238,8 @@ static int wg_callback_init (struct wg_callback *cb)
                     sstrerror (errno, errbuf, sizeof (errbuf)));
             continue;
         }
+
+        set_sock_opts (cb->sock_fd);
 
         status = connect (cb->sock_fd, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
         if (status != 0)
@@ -407,7 +403,7 @@ static int wg_send_message (char const *message, struct wg_callback *cb)
 static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
         struct wg_callback *cb)
 {
-    char buffer[WG_SEND_BUF_SIZE];
+    char buffer[WG_SEND_BUF_SIZE] = { 0 };
     int status;
 
     if (0 != strcmp (ds->type, vl->type))
@@ -417,7 +413,6 @@ static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
         return -1;
     }
 
-    memset (buffer, 0, sizeof (buffer));
     status = format_graphite (buffer, sizeof (buffer), ds, vl,
             cb->prefix, cb->postfix, cb->escape_char, cb->format_flags);
     if (status != 0) /* error message has been printed already. */
@@ -450,10 +445,8 @@ static int wg_write (const data_set_t *ds, const value_list_t *vl,
 static int config_set_char (char *dest,
         oconfig_item_t *ci)
 {
-    char buffer[4];
+    char buffer[4] = { 0 };
     int status;
-
-    memset (buffer, 0, sizeof (buffer));
 
     status = cf_util_get_string_buffer (ci, buffer, sizeof (buffer));
     if (status != 0)
@@ -481,9 +474,7 @@ static int config_set_char (char *dest,
 static int wg_config_node (oconfig_item_t *ci)
 {
     struct wg_callback *cb;
-    user_data_t user_data;
     char callback_name[DATA_MAX_NAME_LEN];
-    int i;
     int status = 0;
 
     cb = calloc (1, sizeof (*cb));
@@ -520,7 +511,7 @@ static int wg_config_node (oconfig_item_t *ci)
     pthread_mutex_init (&cb->send_lock, /* attr = */ NULL);
     C_COMPLAIN_INIT (&cb->init_complaint);
 
-    for (i = 0; i < ci->children_num; i++)
+    for (int i = 0; i < ci->children_num; i++)
     {
         oconfig_item_t *child = ci->children + i;
 
@@ -584,22 +575,22 @@ static int wg_config_node (oconfig_item_t *ci)
         ssnprintf (callback_name, sizeof (callback_name), "write_graphite/%s",
                 cb->name);
 
-    memset (&user_data, 0, sizeof (user_data));
-    user_data.data = cb;
-    user_data.free_func = wg_callback_free;
-    plugin_register_write (callback_name, wg_write, &user_data);
+    user_data_t ud = {
+        .data = cb,
+        .free_func = wg_callback_free
+    };
 
-    user_data.free_func = NULL;
-    plugin_register_flush (callback_name, wg_flush, &user_data);
+    plugin_register_write (callback_name, wg_write, &ud);
+
+    ud.free_func = NULL;
+    plugin_register_flush (callback_name, wg_flush, &ud);
 
     return (0);
 }
 
 static int wg_config (oconfig_item_t *ci)
 {
-    int i;
-
-    for (i = 0; i < ci->children_num; i++)
+    for (int i = 0; i < ci->children_num; i++)
     {
         oconfig_item_t *child = ci->children + i;
 

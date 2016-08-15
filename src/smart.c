@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 #include "utils_ignorelist.h"
@@ -35,12 +36,16 @@
 static const char *config_keys[] =
 {
   "Disk",
-  "IgnoreSelected"
+  "IgnoreSelected",
+  "IgnoreSleepMode",
+  "UseSerial"
 };
 
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static ignorelist_t *ignorelist = NULL;
+static int ignore_sleep_mode = 0;
+static int use_serial = 0;
 
 static int smart_config (const char *key, const char *value)
 {
@@ -59,6 +64,16 @@ static int smart_config (const char *key, const char *value)
     if (IS_TRUE (value))
       invert = 0;
     ignorelist_set_invert (ignorelist, invert);
+  }
+  else if (strcasecmp ("IgnoreSleepMode", key) == 0)
+  {
+    if (IS_TRUE (value))
+      ignore_sleep_mode = 1;
+  }
+  else if (strcasecmp ("UseSerial", key) == 0)
+  {
+    if (IS_TRUE (value))
+      use_serial = 1;
   }
   else
   {
@@ -130,7 +145,7 @@ static void smart_handle_disk_attribute(SkDisk *d, const SkSmartAttributeParsedD
   }
 }
 
-static void smart_handle_disk (const char *dev)
+static void smart_handle_disk (const char *dev, const char *serial)
 {
   SkDisk *d = NULL;
   SkBool awake = FALSE;
@@ -139,9 +154,16 @@ static void smart_handle_disk (const char *dev)
   const SkSmartParsedData *spd;
   uint64_t poweron, powercycles, badsectors, temperature;
 
-  shortname = strrchr(dev, '/');
-  if (!shortname) return;
-  shortname++;
+  if (use_serial && serial)
+  {
+    shortname = serial;
+  }
+  else
+  {
+    shortname = strrchr(dev, '/');
+    if (!shortname) return;
+    shortname++;
+  }
   if (ignorelist_match (ignorelist, shortname) != 0) {
     DEBUG ("smart plugin: ignoring %s.", dev);
     return;
@@ -165,10 +187,13 @@ static void smart_handle_disk (const char *dev)
     DEBUG ("smart plugin: disk %s has no SMART support.", dev);
     goto end;
   }
-  if (sk_disk_check_sleep_mode (d, &awake) < 0 || !awake)
+  if (!ignore_sleep_mode)
   {
-    DEBUG ("smart plugin: disk %s is sleeping.", dev);
-    goto end;
+    if (sk_disk_check_sleep_mode (d, &awake) < 0 || !awake)
+    {
+      DEBUG ("smart plugin: disk %s is sleeping.", dev);
+      goto end;
+    }
   }
   if (sk_disk_smart_read_data (d) < 0)
   {
@@ -247,13 +272,14 @@ static int smart_read (void)
   devices = udev_enumerate_get_list_entry (enumerate);
   udev_list_entry_foreach (dev_list_entry, devices)
   {
-    const char *path, *devpath;
+    const char *path, *devpath, *serial;
     path = udev_list_entry_get_name (dev_list_entry);
     dev = udev_device_new_from_syspath (handle_udev, path);
     devpath = udev_device_get_devnode (dev);
+    serial = udev_device_get_property_value (dev, "ID_SERIAL");
 
     /* Query status with libatasmart */
-    smart_handle_disk (devpath);
+    smart_handle_disk (devpath, serial);
     udev_device_unref (dev);
   }
 

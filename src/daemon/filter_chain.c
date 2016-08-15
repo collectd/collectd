@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "configfile.h"
 #include "plugin.h"
 #include "utils_complain.h"
@@ -356,7 +357,6 @@ static int fc_config_add_rule (fc_chain_t *chain, /* {{{ */
   fc_rule_t *rule;
   char rule_name[2*DATA_MAX_NAME_LEN] = "Unnamed rule";
   int status = 0;
-  int i;
 
   if (ci->values_num > 1)
   {
@@ -385,7 +385,7 @@ static int fc_config_add_rule (fc_chain_t *chain, /* {{{ */
         ci->values[0].value.string);
   }
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
 
@@ -446,7 +446,6 @@ static int fc_config_add_chain (const oconfig_item_t *ci) /* {{{ */
 {
   fc_chain_t *chain = NULL;
   int status = 0;
-  int i;
   int new_chain = 1;
 
   if ((ci->values_num != 1)
@@ -474,7 +473,7 @@ static int fc_config_add_chain (const oconfig_item_t *ci) /* {{{ */
     sstrncpy (chain->name, ci->values[0].value.string, sizeof (chain->name));
   }
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
 
@@ -624,16 +623,13 @@ static int fc_bit_return_invoke (const data_set_t __attribute__((unused)) *ds, /
 static int fc_bit_write_create (const oconfig_item_t *ci, /* {{{ */
     void **user_data)
 {
-  int i;
-
   fc_writer_t *plugin_list = NULL;
   size_t plugin_list_len = 0;
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
     fc_writer_t *temp;
-    int j;
 
     if (strcasecmp ("Plugin", child->key) != 0)
     {
@@ -643,7 +639,7 @@ static int fc_bit_write_create (const oconfig_item_t *ci, /* {{{ */
       continue;
     }
 
-    for (j = 0; j < child->values_num; j++)
+    for (int j = 0; j < child->values_num; j++)
     {
       char *plugin;
 
@@ -684,14 +680,13 @@ static int fc_bit_write_create (const oconfig_item_t *ci, /* {{{ */
 static int fc_bit_write_destroy (void **user_data) /* {{{ */
 {
   fc_writer_t *plugin_list;
-  size_t i;
 
   if ((user_data == NULL) || (*user_data == NULL))
     return (0);
 
   plugin_list = *user_data;
 
-  for (i = 0; plugin_list[i].plugin != NULL; i++)
+  for (size_t i = 0; plugin_list[i].plugin != NULL; i++)
     free (plugin_list[i].plugin);
   free (plugin_list);
 
@@ -744,9 +739,7 @@ static int fc_bit_write_invoke (const data_set_t *ds, /* {{{ */
   }
   else
   {
-    size_t i;
-
-    for (i = 0; plugin_list[i].plugin != NULL; i++)
+    for (size_t i = 0; plugin_list[i].plugin != NULL; i++)
     {
       status = plugin_write (plugin_list[i].plugin, ds, vl);
       if (status != 0)
@@ -773,12 +766,11 @@ static int fc_bit_write_invoke (const data_set_t *ds, /* {{{ */
 static int fc_init_once (void) /* {{{ */
 {
   static int done = 0;
-  target_proc_t tproc;
+  target_proc_t tproc = { 0 };
 
   if (done != 0)
     return (0);
 
-  memset (&tproc, 0, sizeof (tproc));
   tproc.create  = fc_bit_jump_create;
   tproc.destroy = fc_bit_jump_destroy;
   tproc.invoke  = fc_bit_jump_invoke;
@@ -875,12 +867,10 @@ int fc_register_target (const char *name, target_proc_t proc) /* {{{ */
 
 fc_chain_t *fc_chain_get_by_name (const char *chain_name) /* {{{ */
 {
-  fc_chain_t *chain;
-
   if (chain_name == NULL)
     return (NULL);
 
-  for (chain = chain_list_head; chain != NULL; chain = chain->next)
+  for (fc_chain_t *chain = chain_list_head; chain != NULL; chain = chain->next)
     if (strcasecmp (chain_name, chain->name) == 0)
       return (chain);
 
@@ -890,7 +880,6 @@ fc_chain_t *fc_chain_get_by_name (const char *chain_name) /* {{{ */
 int fc_process_chain (const data_set_t *ds, value_list_t *vl, /* {{{ */
     fc_chain_t *chain)
 {
-  fc_rule_t *rule;
   fc_target_t *target;
   int status = FC_TARGET_CONTINUE;
 
@@ -899,7 +888,7 @@ int fc_process_chain (const data_set_t *ds, value_list_t *vl, /* {{{ */
 
   DEBUG ("fc_process_chain (chain = %s);", chain->name);
 
-  for (rule = chain->rules; rule != NULL; rule = rule->next)
+  for (fc_rule_t *rule = chain->rules; rule != NULL; rule = rule->next)
   {
     fc_match_t *match;
     status = FC_TARGET_CONTINUE;

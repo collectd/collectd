@@ -1,0 +1,59 @@
+// collectd - proto/types.proto
+// Copyright (C) 2015-2016 Sebastian Harl
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the "Software"),
+// to deal in the Software without restriction, including without limitation
+// the rights to use, copy, modify, merge, publish, distribute, sublicense,
+// and/or sell copies of the Software, and to permit persons to whom the
+// Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+// DEALINGS IN THE SOFTWARE.
+//
+// Authors:
+//   Sebastian Harl <sh at tokkee.org>
+
+syntax = "proto3";
+
+package collectd.types;
+option go_package = "collectd.org/rpc/proto/types";
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+message Identifier {
+  string host = 1;
+  string plugin = 2;
+  string plugin_instance = 3;
+  string type = 4;
+  string type_instance = 5;
+}
+
+message Value {
+  oneof value {
+    uint64 counter = 1;
+    double gauge = 2;
+    int64 derive = 3;
+    uint64 absolute = 4;
+  };
+}
+
+message ValueList {
+  repeated Value values = 1;
+
+  google.protobuf.Timestamp time = 2;
+  google.protobuf.Duration interval = 3;
+
+  Identifier identifier = 4;
+
+  repeated string ds_names = 5;
+}

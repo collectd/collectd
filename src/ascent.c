@@ -25,9 +25,9 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 #include <curl/curl.h>
 #include <libxml/parser.h>
@@ -181,20 +181,19 @@ static size_t ascent_curl_callback (void *buf, size_t size, size_t nmemb, /* {{{
 
 static int ascent_submit_players (player_stats_t *ps) /* {{{ */
 {
-  size_t i;
   gauge_t value;
 
-  for (i = 0; i < RACES_LIST_LENGTH; i++)
+  for (size_t i = 0; i < RACES_LIST_LENGTH; i++)
     if (races_list[i] != NULL)
       ascent_submit_gauge ("by-race", "players", races_list[i],
           (gauge_t) ps->races[i]);
 
-  for (i = 0; i < CLASSES_LIST_LENGTH; i++)
+  for (size_t i = 0; i < CLASSES_LIST_LENGTH; i++)
     if (classes_list[i] != NULL)
       ascent_submit_gauge ("by-class", "players", classes_list[i],
           (gauge_t) ps->classes[i]);
 
-  for (i = 0; i < GENDERS_LIST_LENGTH; i++)
+  for (size_t i = 0; i < GENDERS_LIST_LENGTH; i++)
     if (genders_list[i] != NULL)
       ascent_submit_gauge ("by-gender", "players", genders_list[i],
           (gauge_t) ps->genders[i]);
@@ -328,9 +327,7 @@ static int ascent_xml_read_int (xmlDoc *doc, xmlNode *node, /* {{{ */
 static int ascent_xml_sessions_plr (xmlDoc *doc, xmlNode *node, /* {{{ */
     player_info_t *pi)
 {
-  xmlNode *child;
-
-  for (child = node->xmlChildrenNode; child != NULL; child = child->next)
+  for (xmlNode *child = node->xmlChildrenNode; child != NULL; child = child->next)
   {
     if ((xmlStrcmp ((const xmlChar *) "comment", child->name) == 0)
         || (xmlStrcmp ((const xmlChar *) "text", child->name) == 0))
@@ -364,12 +361,11 @@ static int ascent_xml_sessions_plr (xmlDoc *doc, xmlNode *node, /* {{{ */
 
 static int ascent_xml_sessions (xmlDoc *doc, xmlNode *node) /* {{{ */
 {
-  xmlNode *child;
-  player_stats_t ps;
+  player_stats_t ps = {
+    .level_sum = 0
+  };
 
-  memset (&ps, 0, sizeof (ps));
-
-  for (child = node->xmlChildrenNode; child != NULL; child = child->next)
+  for (xmlNode *child = node->xmlChildrenNode; child != NULL; child = child->next)
   {
     if ((xmlStrcmp ((const xmlChar *) "comment", child->name) == 0)
         || (xmlStrcmp ((const xmlChar *) "text", child->name) == 0))
@@ -396,9 +392,7 @@ static int ascent_xml_sessions (xmlDoc *doc, xmlNode *node) /* {{{ */
 
 static int ascent_xml_status (xmlDoc *doc, xmlNode *node) /* {{{ */
 {
-  xmlNode *child;
-
-  for (child = node->xmlChildrenNode; child != NULL; child = child->next)
+  for (xmlNode *child = node->xmlChildrenNode; child != NULL; child = child->next)
   {
     if ((xmlStrcmp ((const xmlChar *) "comment", child->name) == 0)
         || (xmlStrcmp ((const xmlChar *) "text", child->name) == 0))
@@ -438,7 +432,6 @@ static int ascent_xml (const char *data) /* {{{ */
 {
   xmlDoc *doc;
   xmlNode *cur;
-  xmlNode *child;
 
 #if 0
   doc = xmlParseMemory (data, strlen (data),
@@ -469,7 +462,7 @@ static int ascent_xml (const char *data) /* {{{ */
     return (-1);
   }
 
-  for (child = cur->xmlChildrenNode; child != NULL; child = child->next)
+  for (xmlNode *child = cur->xmlChildrenNode; child != NULL; child = child->next)
   {
     if ((xmlStrcmp ((const xmlChar *) "comment", child->name) == 0)
         || (xmlStrcmp ((const xmlChar *) "text", child->name) == 0))
