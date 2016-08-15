@@ -313,9 +313,8 @@ class GenericJMXConfValue
 
     key = attrName.remove (0);
 
-    TabularData tabularData = (TabularData) parent;
-    Collection<CompositeData> table =
-        (Collection<CompositeData>)tabularData.values();
+    @SuppressWarnings("unchecked")
+    Collection<CompositeData> table = (Collection<CompositeData>) parent.values();
     for (CompositeData compositeData : table)
     {
       if (key.equals(compositeData.get("key")))
