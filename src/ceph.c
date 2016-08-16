@@ -1579,8 +1579,6 @@ static int ceph_read(void)
 /******* lifecycle *******/
 static int ceph_init(void)
 {
-    int ret;
-
 #if defined(HAVE_SYS_CAPABILITY_H) && defined(CAP_DAC_OVERRIDE)
   if (check_capability (CAP_DAC_OVERRIDE) != 0)
   {
@@ -1598,9 +1596,13 @@ static int ceph_init(void)
 
     ceph_daemons_print();
 
-    ret = cconn_main_loop(ASOK_REQ_VERSION);
+    if (g_num_daemons < 1)
+    {
+        ERROR ("ceph plugin: No daemons configured. See the \"Daemon\" config option.");
+        return ENOENT;
+    }
 
-    return (ret) ? ret : 0;
+    return cconn_main_loop(ASOK_REQ_VERSION);
 }
 
 static int ceph_shutdown(void)
