@@ -925,7 +925,17 @@ static PyMethodDef cpy_methods[] = {
 static int cpy_shutdown(void) {
 	PyObject *ret;
 
-	PyEval_RestoreThread(state);
+	if (!state) {
+		printf("================================================================\n");
+		printf("collectd shutdown while running an interactive session. This will\n");
+		printf("probably leave your terminal in a mess.\n");
+		printf("Run the command \"reset\" to get it back into a usable state.\n");
+		printf("You can press Ctrl+D in the interactive session to\n");
+		printf("close collectd and avoid this problem in the future.\n");
+		printf("================================================================\n");
+	}
+
+	CPY_LOCK_THREADS
 
 	for (cpy_callback_t *c = cpy_shutdown_callbacks; c; c = c->next) {
 		ret = PyObject_CallFunctionObjArgs(c->callback, c->data, (void *) 0); /* New reference. */
@@ -936,18 +946,23 @@ static int cpy_shutdown(void) {
 	}
 	PyErr_Print();
 
+	Py_BEGIN_ALLOW_THREADS
 	cpy_unregister_list(&cpy_config_callbacks);
 	cpy_unregister_list(&cpy_init_callbacks);
 	cpy_unregister_list(&cpy_shutdown_callbacks);
 	cpy_shutdown_triggered = 1;
+	Py_END_ALLOW_THREADS
 
-	if (!cpy_num_callbacks)
+	if (!cpy_num_callbacks) {
 		Py_Finalize();
+		return 0;
+	}
 
+	CPY_RELEASE_THREADS
 	return 0;
 }
 
-static void *cpy_interactive(void *data) {
+static void *cpy_interactive(void *pipefd) {
 	PyOS_sighandler_t cur_sig;
 
 	/* Signal handler in a plugin? Bad stuff, but the best way to
@@ -972,18 +987,18 @@ static void *cpy_interactive(void *data) {
 	 * This will make sure that SIGINT won't kill collectd but
 	 * still interrupt syscalls like sleep and pause. */
 
-	PyEval_AcquireThread(state);
 	if (PyImport_ImportModule("readline") == NULL) {
 		/* This interactive session will suck. */
 		cpy_log_exception("interactive session init");
 	}
 	cur_sig = PyOS_setsig(SIGINT, python_sigint_handler);
-	/* We totally forked just now. Everyone saw that, right? */
 	PyOS_AfterFork();
+	PyEval_InitThreads();
+	close(*(int *) pipefd);
 	PyRun_InteractiveLoop(stdin, "<stdin>");
 	PyOS_setsig(SIGINT, cur_sig);
 	PyErr_Print();
-	PyEval_ReleaseThread(state);
+	state = PyEval_SaveThread();
 	NOTICE("python: Interactive interpreter exited, stopping collectd ...");
 	pthread_kill(main_thread, SIGINT);
 	return NULL;
@@ -991,6 +1006,8 @@ static void *cpy_interactive(void *data) {
 
 static int cpy_init(void) {
 	PyObject *ret;
+	int pipefd[2];
+	char buf;
 	static pthread_t thread;
 
 	if (!Py_IsInitialized()) {
@@ -999,8 +1016,22 @@ static int cpy_init(void) {
 		Py_Finalize();
 		return 0;
 	}
-	PyEval_InitThreads();
-	/* Now it's finally OK to use python threads. */
+	main_thread = pthread_self();
+	if (do_interactive) {
+		if (pipe(pipefd)) {
+			ERROR("python: Unable to create pipe.");
+			return 1;
+		}
+		if (plugin_thread_create(&thread, NULL, cpy_interactive, pipefd + 1)) {
+			ERROR("python: Error creating thread for interactive interpreter.");
+		}
+		(void)read(pipefd[0], &buf, 1);
+		(void)close(pipefd[0]);
+	} else {
+		PyEval_InitThreads();
+		state = PyEval_SaveThread();
+	}
+	CPY_LOCK_THREADS
 	for (cpy_callback_t *c = cpy_init_callbacks; c; c = c->next) {
 		ret = PyObject_CallFunctionObjArgs(c->callback, c->data, (void *) 0); /* New reference. */
 		if (ret == NULL)
@@ -1008,13 +1039,7 @@ static int cpy_init(void) {
 		else
 			Py_DECREF(ret);
 	}
-	state = PyEval_SaveThread();
-	main_thread = pthread_self();
-	if (do_interactive) {
-		if (plugin_thread_create(&thread, NULL, cpy_interactive, NULL)) {
-			ERROR("python: Error creating thread for interactive interpreter.");
-		}
-	}
+	CPY_RELEASE_THREADS
 
 	return 0;
 }
