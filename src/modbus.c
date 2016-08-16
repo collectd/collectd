@@ -21,9 +21,9 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 #include <netdb.h>
 
@@ -161,12 +161,10 @@ static mb_data_t *data_definitions = NULL;
 static mb_data_t *data_get_by_name (mb_data_t *src, /* {{{ */
     const char *name)
 {
-  mb_data_t *ptr;
-
   if (name == NULL)
     return (NULL);
 
-  for (ptr = src; ptr != NULL; ptr = ptr->next)
+  for (mb_data_t *ptr = src; ptr != NULL; ptr = ptr->next)
     if (strcasecmp (ptr->name, name) == 0)
       return (ptr);
 
@@ -427,7 +425,7 @@ static int mb_init_connection (mb_host_t *host) /* {{{ */
 static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
     mb_data_t *data)
 {
-  uint16_t values[2];
+  uint16_t values[2] = { 0 };
   int values_num;
   const data_set_t *ds;
   int status = 0;
@@ -459,7 +457,6 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
         "is not UINT32.", data->type, DS_TYPE_TO_STRING (ds->ds[0].type));
   }
 
-  memset (values, 0, sizeof (values));
   if ((data->register_type == REG_TYPE_INT32)
       || (data->register_type == REG_TYPE_UINT32)
       || (data->register_type == REG_TYPE_FLOAT))
@@ -622,7 +619,6 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
 
 static int mb_read_slave (mb_host_t *host, mb_slave_t *slave) /* {{{ */
 {
-  mb_data_t *data;
   int success;
   int status;
 
@@ -630,7 +626,7 @@ static int mb_read_slave (mb_host_t *host, mb_slave_t *slave) /* {{{ */
     return (EINVAL);
 
   success = 0;
-  for (data = slave->collect; data != NULL; data = data->next)
+  for (mb_data_t *data = slave->collect; data != NULL; data = data->next)
   {
     status = mb_read_data (host, slave, data);
     if (status == 0)
@@ -646,7 +642,6 @@ static int mb_read_slave (mb_host_t *host, mb_slave_t *slave) /* {{{ */
 static int mb_read (user_data_t *user_data) /* {{{ */
 {
   mb_host_t *host;
-  size_t i;
   int success;
   int status;
 
@@ -656,7 +651,7 @@ static int mb_read (user_data_t *user_data) /* {{{ */
   host = user_data->data;
 
   success = 0;
-  for (i = 0; i < host->slaves_num; i++)
+  for (size_t i = 0; i < host->slaves_num; i++)
   {
     status = mb_read_slave (host, host->slaves + i);
     if (status == 0)
@@ -695,12 +690,10 @@ static void data_free_all (mb_data_t *data) /* {{{ */
 
 static void slaves_free_all (mb_slave_t *slaves, size_t slaves_num) /* {{{ */
 {
-  size_t i;
-
   if (slaves == NULL)
     return;
 
-  for (i = 0; i < slaves_num; i++)
+  for (size_t i = 0; i < slaves_num; i++)
     data_free_all (slaves[i].collect);
   sfree (slaves);
 } /* }}} void slaves_free_all */
@@ -720,11 +713,9 @@ static void host_free (void *void_host) /* {{{ */
 
 static int mb_config_add_data (oconfig_item_t *ci) /* {{{ */
 {
-  mb_data_t data;
+  mb_data_t data = { 0 };
   int status;
-  int i;
 
-  memset (&data, 0, sizeof (data));
   data.name = NULL;
   data.register_type = REG_TYPE_UINT16;
   data.next = NULL;
@@ -733,7 +724,7 @@ static int mb_config_add_data (oconfig_item_t *ci) /* {{{ */
   if (status != 0)
     return (status);
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -819,24 +810,17 @@ static int mb_config_set_host_address (mb_host_t *host, /* {{{ */
     const char *address)
 {
   struct addrinfo *ai_list;
-  struct addrinfo *ai_ptr;
-  struct addrinfo  ai_hints;
   int status;
 
   if ((host == NULL) || (address == NULL))
     return (EINVAL);
 
-  memset (&ai_hints, 0, sizeof (ai_hints));
-#if AI_ADDRCONFIG
-  ai_hints.ai_flags |= AI_ADDRCONFIG;
-#endif
-  /* XXX: libmodbus can only handle IPv4 addresses. */
-  ai_hints.ai_family = AF_INET;
-  ai_hints.ai_addr = NULL;
-  ai_hints.ai_canonname = NULL;
-  ai_hints.ai_next = NULL;
+  struct addrinfo  ai_hints = {
+    /* XXX: libmodbus can only handle IPv4 addresses. */
+    .ai_family = AF_INET,
+    .ai_flags = AI_ADDRCONFIG
+  };
 
-  ai_list = NULL;
   status = getaddrinfo (address, /* service = */ NULL,
       &ai_hints, &ai_list);
   if (status != 0)
@@ -849,7 +833,7 @@ static int mb_config_set_host_address (mb_host_t *host, /* {{{ */
     return (status);
   }
 
-  for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+  for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
   {
     status = getnameinfo (ai_ptr->ai_addr, ai_ptr->ai_addrlen,
         host->node, sizeof (host->node),
@@ -876,7 +860,6 @@ static int mb_config_add_slave (mb_host_t *host, oconfig_item_t *ci) /* {{{ */
 {
   mb_slave_t *slave;
   int status;
-  int i;
 
   if ((host == NULL) || (ci == NULL))
     return (EINVAL);
@@ -893,7 +876,7 @@ static int mb_config_add_slave (mb_host_t *host, oconfig_item_t *ci) /* {{{ */
   if (status != 0)
     return (status);
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -936,7 +919,6 @@ static int mb_config_add_host (oconfig_item_t *ci) /* {{{ */
 {
   mb_host_t *host;
   int status;
-  int i;
 
   host = calloc (1, sizeof (*host));
   if (host == NULL)
@@ -955,7 +937,7 @@ static int mb_config_add_host (oconfig_item_t *ci) /* {{{ */
     return (EINVAL);
   }
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
     status = 0;
@@ -1044,12 +1026,10 @@ static int mb_config_add_host (oconfig_item_t *ci) /* {{{ */
 
 static int mb_config (oconfig_item_t *ci) /* {{{ */
 {
-  int i;
-
   if (ci == NULL)
     return (EINVAL);
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 

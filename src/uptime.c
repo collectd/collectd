@@ -20,6 +20,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -179,17 +180,13 @@ static int uptime_init (void) /* {{{ */
 /* #endif HAVE_LIBKSTAT */
 
 # elif HAVE_SYS_SYSCTL_H
-	struct timeval boottv;
+	struct timeval boottv = { 0 };
 	size_t boottv_len;
 	int status;
 
-	int mib[2];
-
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_BOOTTIME;
+	int mib[] = { CTL_KERN, KERN_BOOTTIME };
 
 	boottv_len = sizeof (boottv);
-	memset (&boottv, 0, boottv_len);
 
 	status = sysctl (mib, STATIC_ARRAY_SIZE (mib), &boottv, &boottv_len,
 			/* new_value = */ NULL, /* new_length = */ 0);

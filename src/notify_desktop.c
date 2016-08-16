@@ -29,9 +29,9 @@
  */
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 #include <glib.h>
 #include <libnotify/notify.h>
@@ -66,9 +66,7 @@ static int set_timeout (oconfig_item_t *ci, int *timeout)
 
 static int c_notify_config (oconfig_item_t *ci)
 {
-	int i = 0;
-
-	for (i = 0; i < ci->children_num; ++i) {
+	for (int i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *c = ci->children + i;
 
 		if (0 == strcasecmp (c->key, "OkayTimeout"))

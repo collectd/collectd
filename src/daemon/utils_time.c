@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "utils_time.h"
 #include "plugin.h"
 #include "common.h"

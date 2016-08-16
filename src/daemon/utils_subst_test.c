@@ -26,6 +26,7 @@
 
 #include "common.h" /* for STATIC_ARRAY_SIZE */
 #include "collectd.h"
+
 #include "testing.h"
 #include "utils_subst.h"
 
@@ -75,9 +76,8 @@ DEF_TEST(subst)
     {"foo bar",  4,  3, "_",  NULL}, /* off1 > off2 */
     {"foo bar",  3,  4, NULL, NULL}, /* no replacement */
   };
-  size_t i;
 
-  for (i = 0; i < STATIC_ARRAY_SIZE (cases); i++) {
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE (cases); i++) {
     char buffer[16] = "!!!!!!!!!!!!!!!";
 
     if (cases[i].want == NULL) {
@@ -108,9 +108,8 @@ DEF_TEST(subst_string)
     {"foo bar",          "oo",      "oo",    "foo bar"},
     {"sixteen chars",    "chars",   "characters", "sixteen charact"},
   };
-  size_t i;
 
-  for (i = 0; i < STATIC_ARRAY_SIZE (cases); i++) {
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE (cases); i++) {
     char buffer[16];
 
     if (cases[i].want == NULL) {

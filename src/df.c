@@ -22,9 +22,9 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 #include "utils_mount.h"
 #include "utils_ignorelist.h"
 
@@ -190,7 +190,6 @@ static int df_read (void)
 #endif
 	/* struct STATANYFS statbuf; */
 	cu_mount_t *mnt_list;
-	cu_mount_t *mnt_ptr;
 
 	mnt_list = NULL;
 	if (cu_mount_getlist (&mnt_list) == NULL)
@@ -199,7 +198,7 @@ static int df_read (void)
 		return (-1);
 	}
 
-	for (mnt_ptr = mnt_list; mnt_ptr != NULL; mnt_ptr = mnt_ptr->next)
+	for (cu_mount_t *mnt_ptr = mnt_list; mnt_ptr != NULL; mnt_ptr = mnt_ptr->next)
 	{
 		unsigned long long blocksize;
 		char disk_name[256];
@@ -273,12 +272,12 @@ static int df_read (void)
 				sstrncpy (disk_name, "root", sizeof (disk_name));
 			else
 			{
-				int i, len;
+				int len;
 
 				sstrncpy (disk_name, mnt_ptr->dir + 1, sizeof (disk_name));
 				len = strlen (disk_name);
 
-				for (i = 0; i < len; i++)
+				for (int i = 0; i < len; i++)
 					if (disk_name[i] == '/')
 						disk_name[i] = '-';
 			}

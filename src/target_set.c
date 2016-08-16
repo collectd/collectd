@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "filter_chain.h"
 
@@ -142,7 +143,6 @@ static int ts_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 {
   ts_data_t *data;
   int status;
-  int i;
 
   data = calloc (1, sizeof (*data));
   if (data == NULL)
@@ -159,7 +159,7 @@ static int ts_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   data->meta = NULL;
 
   status = 0;
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -256,9 +256,8 @@ static int ts_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
 
 void module_register (void)
 {
-	target_proc_t tproc;
+	target_proc_t tproc = { 0 };
 
-	memset (&tproc, 0, sizeof (tproc));
 	tproc.create  = ts_create;
 	tproc.destroy = ts_destroy;
 	tproc.invoke  = ts_invoke;

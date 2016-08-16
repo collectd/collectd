@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -113,8 +114,6 @@ static int as_read (void)
 	char   inst[128];
 	int    value_int;
 	double value_double;
-	int    i;
-
 	if (!io_master_port || (io_master_port == MACH_PORT_NULL))
 		return (-1);
 
@@ -169,7 +168,7 @@ static int as_read (void)
 					kCFStringEncodingASCII))
 			continue;
 		inst[sizeof (inst) - 1] = '\0';
-		for (i = 0; i < 128; i++)
+		for (int i = 0; i < 128; i++)
 		{
 			if (inst[i] == '\0')
 				break;

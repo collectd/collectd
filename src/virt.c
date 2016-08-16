@@ -20,9 +20,9 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 #include "utils_ignorelist.h"
 #include "utils_complain.h"
 
@@ -154,7 +154,7 @@ static int refresh_lists (void);
 static void
 init_value_list (value_list_t *vl, virDomainPtr dom)
 {
-    int i, n;
+    int n;
     const char *name;
     char uuid[VIR_UUID_STRING_BUFLEN];
 
@@ -163,7 +163,7 @@ init_value_list (value_list_t *vl, virDomainPtr dom)
     vl->host[0] = '\0';
 
     /* Construct the hostname field according to HostnameFormat. */
-    for (i = 0; i < HF_MAX_FIELDS; ++i) {
+    for (int i = 0; i < HF_MAX_FIELDS; ++i) {
         if (hostname_format[i] == hf_none)
             continue;
 
@@ -194,7 +194,7 @@ init_value_list (value_list_t *vl, virDomainPtr dom)
     vl->host[sizeof (vl->host) - 1] = '\0';
 
     /* Construct the plugin instance field according to PluginInstanceFormat. */
-    for (i = 0; i < PLGINST_MAX_FIELDS; ++i) {
+    for (int i = 0; i < PLGINST_MAX_FIELDS; ++i) {
         if (plugin_instance_format[i] == plginst_none)
             continue;
 
@@ -394,7 +394,7 @@ lv_config (const char *key, const char *value)
     if (strcasecmp (key, "HostnameFormat") == 0) {
         char *value_copy;
         char *fields[HF_MAX_FIELDS];
-        int i, n;
+        int n;
 
         value_copy = strdup (value);
         if (value_copy == NULL) {
@@ -409,7 +409,7 @@ lv_config (const char *key, const char *value)
             return -1;
         }
 
-        for (i = 0; i < n; ++i) {
+        for (int i = 0; i < n; ++i) {
             if (strcasecmp (fields[i], "hostname") == 0)
                 hostname_format[i] = hf_hostname;
             else if (strcasecmp (fields[i], "name") == 0)
@@ -424,7 +424,7 @@ lv_config (const char *key, const char *value)
         }
         sfree (value_copy);
 
-        for (i = n; i < HF_MAX_FIELDS; ++i)
+        for (int i = n; i < HF_MAX_FIELDS; ++i)
             hostname_format[i] = hf_none;
 
         return 0;
@@ -433,7 +433,7 @@ lv_config (const char *key, const char *value)
     if (strcasecmp (key, "PluginInstanceFormat") == 0) {
         char *value_copy;
         char *fields[PLGINST_MAX_FIELDS];
-        int i, n;
+        int n;
 
         value_copy = strdup (value);
         if (value_copy == NULL) {
@@ -448,7 +448,7 @@ lv_config (const char *key, const char *value)
             return -1;
         }
 
-        for (i = 0; i < n; ++i) {
+        for (int i = 0; i < n; ++i) {
             if (strcasecmp (fields[i], "none") == 0) {
                 plugin_instance_format[i] = plginst_none;
                 break;
@@ -464,7 +464,7 @@ lv_config (const char *key, const char *value)
         }
         sfree (value_copy);
 
-        for (i = n; i < PLGINST_MAX_FIELDS; ++i)
+        for (int i = n; i < PLGINST_MAX_FIELDS; ++i)
             plugin_instance_format[i] = plginst_none;
 
         return 0;
@@ -492,7 +492,6 @@ static int
 lv_read (void)
 {
     time_t t;
-    int i;
 
     if (conn == NULL) {
         /* `conn_string == NULL' is acceptable. */
@@ -522,25 +521,24 @@ lv_read (void)
     }
 
 #if 0
-    for (i = 0; i < nr_domains; ++i)
+    for (int i = 0; i < nr_domains; ++i)
         fprintf (stderr, "domain %s\n", virDomainGetName (domains[i]));
-    for (i = 0; i < nr_block_devices; ++i)
+    for (int i = 0; i < nr_block_devices; ++i)
         fprintf  (stderr, "block device %d %s:%s\n",
                   i, virDomainGetName (block_devices[i].dom),
                   block_devices[i].path);
-    for (i = 0; i < nr_interface_devices; ++i)
+    for (int i = 0; i < nr_interface_devices; ++i)
         fprintf (stderr, "interface device %d %s:%s\n",
                  i, virDomainGetName (interface_devices[i].dom),
                  interface_devices[i].path);
 #endif
 
     /* Get CPU usage, memory, VCPU usage for each domain. */
-    for (i = 0; i < nr_domains; ++i) {
+    for (int i = 0; i < nr_domains; ++i) {
         virDomainInfo info;
         virVcpuInfoPtr vinfo = NULL;
         virDomainMemoryStatPtr minfo = NULL;
         int status;
-        int j;
 
         status = virDomainGetInfo (domains[i], &info);
         if (status != 0)
@@ -575,7 +573,7 @@ lv_read (void)
             continue;
         }
 
-        for (j = 0; j < info.nrVirtCpu; ++j)
+        for (int j = 0; j < info.nrVirtCpu; ++j)
             vcpu_submit (vinfo[j].cpuTime,
                     domains[i], vinfo[j].number, "virt_vcpu");
 
@@ -596,7 +594,7 @@ lv_read (void)
             continue;
         }
 
-        for (j = 0; j < status; j++) {
+        for (int j = 0; j < status; j++) {
             memory_stats_submit ((gauge_t) minfo[j].val * 1024, domains[i], minfo[j].tag);
         }
 
@@ -605,7 +603,7 @@ lv_read (void)
 
 
     /* Get block device stats for each domain. */
-    for (i = 0; i < nr_block_devices; ++i) {
+    for (int i = 0; i < nr_block_devices; ++i) {
         struct _virDomainBlockStats stats;
 
         if (virDomainBlockStats (block_devices[i].dom, block_devices[i].path,
@@ -624,7 +622,7 @@ lv_read (void)
     } /* for (nr_block_devices) */
 
     /* Get interface stats for each domain. */
-    for (i = 0; i < nr_interface_devices; ++i) {
+    for (int i = 0; i < nr_interface_devices; ++i) {
         struct _virDomainInterfaceStats stats;
         char *display_name = NULL;
 
@@ -682,7 +680,6 @@ refresh_lists (void)
     }
 
     if (n > 0) {
-        int i;
         int *domids;
 
         /* Get list of domains. */
@@ -704,14 +701,13 @@ refresh_lists (void)
         free_domains ();
 
         /* Fetch each domain and add it to the list, unless ignore. */
-        for (i = 0; i < n; ++i) {
+        for (int i = 0; i < n; ++i) {
             virDomainPtr dom = NULL;
             const char *name;
             char *xml = NULL;
             xmlDocPtr xml_doc = NULL;
             xmlXPathContextPtr xpath_ctx = NULL;
             xmlXPathObjectPtr xpath_obj = NULL;
-            int j;
 
             dom = virDomainLookupByID (conn, domids[i]);
             if (dom == NULL) {
@@ -758,7 +754,7 @@ refresh_lists (void)
                 xpath_obj->nodesetval == NULL)
                 goto cont;
 
-            for (j = 0; j < xpath_obj->nodesetval->nodeNr; ++j) {
+            for (int j = 0; j < xpath_obj->nodesetval->nodeNr; ++j) {
                 xmlNodePtr node;
                 char *path = NULL;
 
@@ -787,16 +783,15 @@ refresh_lists (void)
 
             xmlNodeSetPtr xml_interfaces = xpath_obj->nodesetval;
 
-            for (j = 0; j < xml_interfaces->nodeNr; ++j) {
+            for (int j = 0; j < xml_interfaces->nodeNr; ++j) {
                 char *path = NULL;
                 char *address = NULL;
                 xmlNodePtr xml_interface;
 
                 xml_interface = xml_interfaces->nodeTab[j];
                 if (!xml_interface) continue;
-                xmlNodePtr child = NULL;
 
-                for (child = xml_interface->children; child; child = child->next) {
+                for (xmlNodePtr child = xml_interface->children; child; child = child->next) {
                     if (child->type != XML_ELEMENT_NODE) continue;
 
                     if (xmlStrEqual(child->name, (const xmlChar *) "target")) {
@@ -835,10 +830,8 @@ refresh_lists (void)
 static void
 free_domains (void)
 {
-    int i;
-
     if (domains) {
-        for (i = 0; i < nr_domains; ++i)
+        for (int i = 0; i < nr_domains; ++i)
             virDomainFree (domains[i]);
         sfree (domains);
     }
@@ -868,10 +861,8 @@ add_domain (virDomainPtr dom)
 static void
 free_block_devices (void)
 {
-    int i;
-
     if (block_devices) {
-        for (i = 0; i < nr_block_devices; ++i)
+        for (int i = 0; i < nr_block_devices; ++i)
             sfree (block_devices[i].path);
         sfree (block_devices);
     }
@@ -908,10 +899,8 @@ add_block_device (virDomainPtr dom, const char *path)
 static void
 free_interface_devices (void)
 {
-    int i;
-
     if (interface_devices) {
-        for (i = 0; i < nr_interface_devices; ++i) {
+        for (int i = 0; i < nr_interface_devices; ++i) {
             sfree (interface_devices[i].path);
             sfree (interface_devices[i].address);
             sfree (interface_devices[i].number);

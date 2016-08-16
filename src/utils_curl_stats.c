@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "utils_curl_stats.h"
 
@@ -159,7 +160,6 @@ static bool field_enabled (curl_stats_t *s, size_t offset)
 curl_stats_t *curl_stats_from_config (oconfig_item_t *ci)
 {
 	curl_stats_t *s;
-	int i;
 
 	if (ci == NULL)
 		return NULL;
@@ -168,7 +168,7 @@ curl_stats_t *curl_stats_from_config (oconfig_item_t *ci)
 	if (s == NULL)
 		return NULL;
 
-	for (i = 0; i < ci->children_num; ++i)
+	for (int i = 0; i < ci->children_num; ++i)
 	{
 		oconfig_item_t *c = ci->children + i;
 		size_t field;
@@ -210,7 +210,6 @@ int curl_stats_dispatch (curl_stats_t *s, CURL *curl,
 		const char *hostname, const char *plugin, const char *plugin_instance)
 {
 	value_list_t vl = VALUE_LIST_INIT;
-	size_t field;
 
 	if (s == NULL)
 		return 0;
@@ -228,7 +227,7 @@ int curl_stats_dispatch (curl_stats_t *s, CURL *curl,
 	if (plugin_instance != NULL)
 		sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
 
-	for (field = 0; field < STATIC_ARRAY_SIZE (field_specs); ++field)
+	for (size_t field = 0; field < STATIC_ARRAY_SIZE (field_specs); ++field)
 	{
 		int status;
 

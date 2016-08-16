@@ -1,3 +1,50 @@
+2016-07-25, Version 5.5.2
+	* collectd: A division by zero has been fixed in the
+	  "plugin_dispatch_multivalue()" function. Thanks to Corey Kosak.
+	* collectd: The address of the Free Software Foundation has been fixed
+	  in GPL license headers. Thanks to Ruben Kerkhof.
+	* Build system: Detection and handling of librrd 1.6 and later has been
+	  fixed. Thanks to Ruben Kerkof.
+	* Apache plugin: A warning about a possible misconfiguration has been
+	  added. Thanks to Marc Fournier.
+	* cURL, cURL-JSON and cURL-XML plugins: A memory leak when allocating
+	  more memory fails has been fixed. Thanks to Brandon Arp.
+	* DF plugin: A build issue on DragonFlyBSD has been fixed. Thanks to
+	  Ruben Kerkhof. #1575
+	* Ethstat plugin: Code to strip leading whitespace from device names.
+	  This works around an issue in the VMXNet3 driver. Thanks to Thomas
+	  Guthmann. #1059
+	* Exec plugin: A problem in the error handling of an fdopen() failure
+	  has been fixed. Thanks to @ciomaire.
+	* Modbus plugin: The debug output has been disabled by default. It is
+	  now only enabled when building with "--enable-debug". Thanks to Eric
+	  Sandeen and Marc Fournier.
+	* Network plugin: A check for the initialization of secure memory has
+	  been added. Previously, failure to initialize this memory was
+	  ignored. Thanks to @yujokang. #1665
+	* Network plugin: A heap overflow has been fixed in the server code.
+	  This issue can be triggered remotely and is potentially exploitable.
+	  Thanks to Emilien Gaspar. CVE-2016-6254
+	* Perl plugin: Init callbacks have been changed to run essentially
+	  single-threaded to avoid race conditions by init functions which
+	  create additional threads. Thanks to Pavel Rochnyack. #1706
+	* Processes plugin: A warning about too long process names has been
+	  added. Thanks to Marc Fournier. #1284
+	* Redis plugin: A memory leak in an error handling code path has been
+	  fixed. Thanks to Andrés J. Díaz.
+	* Redis plugin: The data source type of the expired_keys metric has been
+	  corrected to "DERIVE". Thanks to Marc Falzon and Marc Fournier. #1483.
+	* SMART plugin: A build dependency on libudev has been added. Thanks to
+	  Pavel Rochnyack. #1724
+	* StatsD plugin: A deadlock on plugin shutdown has been fixed. Thanks to
+	  Pavel Rochnyack #1703
+	* Write HTTP plugin: Freeing of memory holding HTTP headers during
+	  shutdown has been fixed. Thanks to Tolga Ceylan.
+	* Write Sensu plugin: A segfault when the Tag was unset has been fixed.
+	  Thanks to Marc Fournier.
+	* ZFS ARC plugin: The cache_operation-stolen metric has been removed for
+	  FreeBSD 10.2 and later. Thanks to Ruben Kerkhof. #1580
+
 2016-01-22, Version 5.5.1
 	* Build system: Compilation errors have been avoided by correctly
 	  defining package name and version used by autoconf. Thanks to Nathan
@@ -349,6 +396,68 @@
 	  Marc Fournier and Wilfried Goesgens. #552
 	* Zookeeper plugin: This new plugin reads data from the Apache Zookeeper
 	  "MNTR" command. Thanks to Jeremy Katz. #826
+=======
+	* Processes plugin and Swap plugin: These plugins have been corrected to
+	  also work inside FreeBSD jails. Thanks to biancalana. #1019
+	* Processes plugin: A warning about too long process names has been
+	  added. Thanks to Marc Fournier. #1284
+	* Processes plugin: Process counting on the FreeBSD and OpenBSD
+	  platforms has been fixed. Thanks to Herve COMMOWICK. #1298
+	* Processes plugin: The plugin was fixed to work properly on Solaris.
+	  Thanks to Jan Andres. #919
+	* Python plugin: A double-free bug got fixed. Thanks to Sven Trenkel.
+	  #1285
+	* RRDtool plugin: A race condition leading to corrupt RRD file creation
+	  has been fixed. Thanks to Manuel Luis Sanmartín Rozada. #1031
+	* SNMP plugin: The "Gauge32" signedness was corrected to match RFC1902.
+	  Thanks to Nathan Ward. #1325
+	* StatsD plugin: A deadlock on plugin shutdown has been fixed. Thanks to
+	  Pavel Rochnyack #1703
+	* StatsD plugin: A memory leak was corrected. Thanks to Florian Forster.
+	  #997
+	* StatsD plugin: A symbol lookup error was fixed by properly linking the
+	  plugin against libm. Thanks to Florian Forster.
+	* StatsD plugin: "utils_latency": Support for including values above
+	  1000 in percentile calculation has been added. Thanks to Yoga
+	  Ramalingam. #401
+	* StatsD plugin: "utils_latency": Two division by zero error conditions
+	  have been corrected. Thanks to Wilfried Goesgens. #655
+	* StatsD plugin: Counters absolute counts are now also reported. Thanks
+	  to Pierre-Yves Ritschard. #1311
+	* StatsD plugin: The plugin now emits NaN values when no timer event is
+	  recorded. Thanks to Florian Forster. #1038, #1039
+	* StatsD plugin: The plugin was corrected to avoid crashing when
+	  negative timer values are submitted. Thanks to Florian Forster. #1131
+	* Tail CSV plugin: The plugin was fixed to work properly with multiple
+	  "Collect" options and a bug got fixed when no "TimeFrom" is specified.
+	  Thanks to Manuel Luis Sanmartín Rozada and Florian Forster. #1032
+	* TCPConns plugin: A memory leak was fixed. Thanks to Florian Forster.
+	  #1074
+	* TCPConns plugin: An bug causing collectd to enter an inifinite loop on
+	  OpenBSD was fixed. Thanks to Landry Breuil. #1094
+	* Threshold plugin: Threshold configuration blocks can now be defined in
+	  different files. Thanks to Michael Salmon. #551
+	* vmem plugin: Support for pgsteal in recent Linux kernels has been
+	  added. Thanks to Jakub Jankowski. #1307
+	* vmem plugin: The DSType for nr_dirtied and nr_written was corrected to
+	  report a derive. Thanks to Marek Becka. #1072
+	* Write Graphite plugin: Error handling when submitting metrics to the
+	  server is now more robust. Thanks to Sam Pointer. #1364
+	* Write HTTP plugin: Freeing of memory holding HTTP headers during
+	  shutdown has been fixed. Thanks to Tolga Ceylan.
+	* Write Redis plugin: Multi-Valued key was made easier to parse by
+	  adding a "|" character as a delimiter. Thanks to brianpkelly and
+	  Florian Forster. #1070
+	* Write Redis plugin: The timestamp format was corrected. Thanks to
+	  Florian Forster.
+	* ZFS ARC plugin: The plugin was will not emit warning about missing
+	  "l2_size" stats anymore. Thanks to Jan Andres. #919
+	* 152 patches have been applied to numerous plugins and core components,
+	  fixing various programming errors which were reported by scan-build,
+	  libasan, FBInfer, coverity-scan, clang and gcc-6: Thanks to Ruben
+	  Kerkhof, Florian Forster, Marc Fournier, Corey Kosak, Laurent,
+	  Claudius Zingerli and Fabien Wernli.
+>>>>>>> collectd-5.4
 
 2015-02-26, Version 5.4.2
 	* Build system: Numerous fixes. Thanks to Bjørn Nordbø, Jim Radford,

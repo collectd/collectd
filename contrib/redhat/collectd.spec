@@ -53,6 +53,7 @@
 %define with_contextswitch 0%{!?_without_contextswitch:1}
 %define with_cpu 0%{!?_without_cpu:1}
 %define with_cpufreq 0%{!?_without_cpufreq:1}
+%define with_cpusleep 0%{!?_without_cpusleep:1}
 %define with_csv 0%{!?_without_csv:1}
 %define with_curl 0%{!?_without_curl:1}
 %define with_curl_json 0%{!?_without_curl_json:1}
@@ -70,6 +71,7 @@
 %define with_filecount 0%{!?_without_filecount:1}
 %define with_fscache 0%{!?_without_fscache:1}
 %define with_gmond 0%{!?_without_gmond:1}
+%define with_gps 0%{!?_without_gps:1}
 %define with_hddtemp 0%{!?_without_hddtemp:1}
 %define with_interface 0%{!?_without_interface:1}
 %define with_ipc 0%{!?_without_ipc:1}
@@ -81,6 +83,7 @@
 %define with_load 0%{!?_without_load:1}
 %define with_log_logstash 0%{!?_without_log_logstash:1}
 %define with_logfile 0%{!?_without_logfile:1}
+%define with_lua 0%{!?_without_lua:1}
 %define with_lvm 0%{!?_without_lvm:1}
 %define with_madwifi 0%{!?_without_madwifi:1}
 %define with_mbmon 0%{!?_without_mbmon:1}
@@ -214,6 +217,8 @@
 
 # Plugins not buildable on RHEL < 7
 %if 0%{?rhel} && 0%{?rhel} < 7
+%define with_cpusleep 0
+%define with_gps 0
 %define with_mqtt 0
 %define with_rrdcached 0
 %define with_xmms 0
@@ -221,14 +226,14 @@
 
 Summary:	Statistics collection and monitoring daemon
 Name:		collectd
-Version:	5.5.1
-Release:	1%{?dist}
-URL:		http://collectd.org
-Source:		http://collectd.org/files/%{name}-%{version}.tar.bz2
+Version:	5.5.2
+Release:	2%{?dist}
+URL:		https://collectd.org
+Source:		https://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
 Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
-BuildRequires:	libgcrypt-devel, kernel-headers, libtool-ltdl-devel, libcap-devel
+BuildRequires:	libgcrypt-devel, kernel-headers, libtool-ltdl-devel, libcap-devel, which
 Vendor:		collectd development team <collectd@verplant.org>
 
 %if 0%{?fedora} || 0%{?rhel} >= 7
@@ -416,6 +421,16 @@ The gmond plugin subscribes to a Multicast group to receive data from gmond,
 the client daemon of the Ganglia project.
 %endif
 
+%if %{with_gps}
+%package gps
+Summary:	GPS plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	gpsd-devel
+%description gps
+This plugin monitor gps related data through gpsd.
+%endif
+
 %if %{with_grpc}
 %package grpc
 Summary:	GRPC plugin for collectd
@@ -479,6 +494,17 @@ Requires:      %{name}%{?_isa} = %{version}-%{release}
 BuildRequires: yajl-devel
 %description log_logstash
 This plugin logs in logstash JSON format
+%endif
+
+%if %{with_lua}
+%package lua
+Summary:	Lua plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	lua-devel
+%description lua
+The Lua plugin embeds a Lua interpreter into collectd and exposes the
+application programming interface (API) to Lua scripts.
 %endif
 
 %if %{with_lvm}
@@ -976,6 +1002,12 @@ Collectd utilities
 %define _with_cpufreq --disable-cpufreq
 %endif
 
+%if %{with_cpusleep}
+%define _with_cpusleep --enable-cpusleep
+%else
+%define _with_cpusleep --disable-cpusleep
+%endif
+
 %if %{with_csv}
 %define _with_csv --enable-csv
 %else
@@ -1084,6 +1116,12 @@ Collectd utilities
 %define _with_gmond --disable-gmond
 %endif
 
+%if %{with_gps}
+%define _with_gps --enable-gps
+%else
+%define _with_gps --disable-gps
+%endif
+
 %if %{with_grpc}
 %define _with_grpc --enable-grpc
 %else
@@ -1166,6 +1204,12 @@ Collectd utilities
 %define _with_lpar --enable-lpar
 %else
 %define _with_lpar --disable-lpar
+%endif
+
+%if %{with_lua}
+%define _with_lua --enable-lua
+%else
+%define _with_lua --disable-lua
 %endif
 
 %if %{with_lvm}
@@ -1387,6 +1431,7 @@ Collectd utilities
 %if %{with_python}
 	%if 0%{?rhel} && 0%{?rhel} < 6
 %define _with_python --enable-python --with-python=%{_bindir}/python2.6
+%define _python_config PYTHON_CONFIG="%{_bindir}/python2.6-config"
 	%else
 %define _with_python --enable-python
 	%endif
@@ -1665,6 +1710,7 @@ Collectd utilities
 %endif
 
 %configure CFLAGS="%{optflags} -DLT_LAZY_OR_NOW=\"RTLD_LAZY|RTLD_GLOBAL\"" \
+	%{?_python_config} \
 	--disable-static \
 	--without-included-ltdl \
 	--enable-all-plugins=yes \
@@ -1694,6 +1740,7 @@ Collectd utilities
 	%{?_with_conntrack} \
 	%{?_with_contextswitch} \
 	%{?_with_cpufreq} \
+	%{?_with_cpusleep} \
 	%{?_with_cpu} \
 	%{?_with_csv} \
 	%{?_with_curl_json} \
@@ -1712,6 +1759,7 @@ Collectd utilities
 	%{?_with_filecount} \
 	%{?_with_fscache} \
 	%{?_with_gmond} \
+	%{?_with_gps} \
 	%{?_with_grpc} \
 	%{?_with_hddtemp} \
 	%{?_with_interface} \
@@ -1725,6 +1773,7 @@ Collectd utilities
 	%{?_with_log_logstash} \
 	%{?_with_logfile} \
 	%{?_with_lpar} \
+	%{?_with_lua} \
 	%{?_with_lvm} \
 	%{?_with_madwifi} \
 	%{?_with_mbmon} \
@@ -1851,6 +1900,10 @@ rm -f %{buildroot}%{_datadir}/collectd/java/generic-jmx.jar
 rm -f %{buildroot}%{_mandir}/man5/collectd-java.5*
 %endif
 
+%if ! %{with_lua}
+rm -f %{buildroot}%{_mandir}/man5/collectd-lua.5*
+%endif
+
 %if ! %{with_perl}
 rm -f %{buildroot}%{_mandir}/man5/collectd-perl.5*
 rm -f %{buildroot}%{_mandir}/man3/Collectd::Unixsock.3pm*
@@ -1961,6 +2014,9 @@ fi
 %endif
 %if %{with_cpufreq}
 %{_libdir}/%{name}/cpufreq.so
+%endif
+%if %{with_cpusleep}
+%{_libdir}/%{name}/cpusleep.so
 %endif
 %if %{with_csv}
 %{_libdir}/%{name}/csv.so
@@ -2233,6 +2289,11 @@ fi
 %{_libdir}/%{name}/gmond.so
 %endif
 
+%if %{with_gps}
+%files gps
+%{_libdir}/%{name}/gps.so
+%endif
+
 %if %{with_grpc}
 %files grpc
 %{_libdir}/%{name}/grpc.so
@@ -2269,6 +2330,12 @@ fi
 %if %{with_log_logstash}
 %files log_logstash
 %{_libdir}/%{name}/log_logstash.so
+%endif
+
+%if %{with_lua}
+%files lua
+%{_mandir}/man5/collectd-lua*
+%{_libdir}/%{name}/lua.so
 %endif
 
 %if %{with_lvm}
@@ -2445,6 +2512,14 @@ fi
 %doc contrib/
 
 %changelog
+* Sun Aug 14 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.5.2-2
+- Add new Lua plugin
+
+* Tue Jul 26 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.5.2-1
+- New upstream version
+- Contains fix for CVE-2016-6254
+- Change collectd.org url to https
+
 * Sat Jun 04 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> 5.5.1-1
 - New upstream version
 - New plugins enabled by default: chrony, mqtt, notify_nagios

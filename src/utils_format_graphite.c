@@ -22,6 +22,7 @@
  **/
 
 #include "collectd.h"
+
 #include "plugin.h"
 #include "common.h"
 
@@ -84,14 +85,12 @@ static int gr_format_values (char *ret, size_t ret_len,
 static void gr_copy_escape_part (char *dst, const char *src, size_t dst_len,
     char escape_char)
 {
-    size_t i;
-
     memset (dst, 0, dst_len);
 
     if (src == NULL)
         return;
 
-    for (i = 0; i < dst_len; i++)
+    for (size_t i = 0; i < dst_len; i++)
     {
         if (src[i] == 0)
         {
@@ -172,11 +171,9 @@ static int gr_format_name (char *ret, int ret_len,
 
 static void escape_graphite_string (char *buffer, char escape_char)
 {
-	char *head;
-
 	assert (strchr(GRAPHITE_FORBIDDEN, escape_char) == NULL);
 
-	for (head = buffer + strcspn(buffer, GRAPHITE_FORBIDDEN);
+	for (char *head = buffer + strcspn(buffer, GRAPHITE_FORBIDDEN);
 	     *head != '\0';
 	     head += strcspn(head, GRAPHITE_FORBIDDEN))
 		*head = escape_char;
@@ -188,14 +185,13 @@ int format_graphite (char *buffer, size_t buffer_size,
     unsigned int flags)
 {
     int status = 0;
-    size_t i;
     int buffer_pos = 0;
 
     gauge_t *rates = NULL;
     if (flags & GRAPHITE_STORE_RATES)
       rates = uc_get_rate (ds, vl);
 
-    for (i = 0; i < ds->ds_num; i++)
+    for (size_t i = 0; i < ds->ds_num; i++)
     {
         char const *ds_name = NULL;
         char        key[10*DATA_MAX_NAME_LEN];

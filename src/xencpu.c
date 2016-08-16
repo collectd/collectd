@@ -20,6 +20,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -53,7 +54,7 @@ static int xencpu_init (void)
     {
         ERROR ("xencpu: xc_interface_open() failed");
         return (-1);
-    };
+    }
 
     xc_physinfo_t *physinfo;
 
@@ -71,7 +72,7 @@ static int xencpu_init (void)
         xc_interface_close(xc_handle);
         free(physinfo);
         return (-1);
-    };
+    }
 
     num_cpus = physinfo->nr_cpus;
     free(physinfo);
@@ -141,8 +142,8 @@ static int xencpu_read (void)
         return (-1);
     }
 
-    int cpu, status;
-    for (cpu = 0; cpu < nr_cpus; cpu++) {
+    int status;
+    for (int cpu = 0; cpu < nr_cpus; cpu++) {
         gauge_t rate = NAN;
         value_t value = {.derive = cpu_info[cpu].idletime};
 

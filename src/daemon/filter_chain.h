@@ -28,6 +28,7 @@
 #define FILTER_CHAIN_H 1
 
 #include "collectd.h"
+
 #include "plugin.h"
 
 #define FC_MATCH_NO_MATCH  0

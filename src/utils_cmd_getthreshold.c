@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -53,7 +54,6 @@ int handle_getthreshold (FILE *fh, char *buffer)
   char *type;
   char *type_instance;
 
-  value_list_t vl;
   threshold_t threshold;
 
   int   status;
@@ -110,7 +110,9 @@ int handle_getthreshold (FILE *fh, char *buffer)
     return (-1);
   }
 
-  memset (&vl, 0, sizeof (vl));
+  value_list_t vl = {
+    .values = NULL
+  };
   sstrncpy (vl.host, host, sizeof (vl.host));
   sstrncpy (vl.plugin, plugin, sizeof (vl.plugin));
   if (plugin_instance != NULL)
@@ -120,7 +122,6 @@ int handle_getthreshold (FILE *fh, char *buffer)
     sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
   sfree (identifier_copy);
 
-  memset (&threshold, 0, sizeof (threshold));
   status = ut_search_threshold (&vl, &threshold);
   if (status == ENOENT)
   {

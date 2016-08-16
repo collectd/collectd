@@ -58,6 +58,7 @@
  */
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -304,7 +305,6 @@ static void conn_submit_port_entry (port_entry_t *pe)
 {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
-  int i;
 
   conn_prepare_vl (&vl, values);
 
@@ -314,7 +314,7 @@ static void conn_submit_port_entry (port_entry_t *pe)
     ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
 	"%"PRIu16"-local", pe->port);
 
-    for (i = 1; i <= TCP_STATE_MAX; i++)
+    for (int i = 1; i <= TCP_STATE_MAX; i++)
     {
       vl.values[0].gauge = pe->count_local[i];
 
@@ -329,7 +329,7 @@ static void conn_submit_port_entry (port_entry_t *pe)
     ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
 	"%"PRIu16"-remote", pe->port);
 
-    for (i = 1; i <= TCP_STATE_MAX; i++)
+    for (int i = 1; i <= TCP_STATE_MAX; i++)
     {
       vl.values[0].gauge = pe->count_remote[i];
 
@@ -344,13 +344,12 @@ static void conn_submit_port_total (void)
 {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
-  int i;
 
   conn_prepare_vl (&vl, values);
 
   sstrncpy (vl.plugin_instance, "all", sizeof (vl.plugin_instance));
 
-  for (i = 1; i <= TCP_STATE_MAX; i++)
+  for (int i = 1; i <= TCP_STATE_MAX; i++)
   {
     vl.values[0].gauge = count_total[i];
 
@@ -362,12 +361,10 @@ static void conn_submit_port_total (void)
 
 static void conn_submit_all (void)
 {
-  port_entry_t *pe;
-
   if (port_collect_total)
     conn_submit_port_total ();
 
-  for (pe = port_list_head; pe != NULL; pe = pe->next)
+  for (port_entry_t *pe = port_list_head; pe != NULL; pe = pe->next)
     conn_submit_port_entry (pe);
 } /* void conn_submit_all */
 
@@ -485,10 +482,6 @@ static int conn_read_netlink (void)
 {
 #if HAVE_STRUCT_LINUX_INET_DIAG_REQ
   int fd;
-  struct sockaddr_nl nladdr;
-  struct nlreq req;
-  struct msghdr msg;
-  struct iovec iov;
   struct inet_diag_msg *r;
   char buf[8192];
 
@@ -503,34 +496,38 @@ static int conn_read_netlink (void)
     return (-1);
   }
 
-  memset(&nladdr, 0, sizeof(nladdr));
-  nladdr.nl_family = AF_NETLINK;
+  struct sockaddr_nl nladdr = {
+    .nl_family = AF_NETLINK
+  };
 
-  memset(&req, 0, sizeof(req));
-  req.nlh.nlmsg_len = sizeof(req);
-  req.nlh.nlmsg_type = TCPDIAG_GETSOCK;
-  /* NLM_F_ROOT: return the complete table instead of a single entry.
-   * NLM_F_MATCH: return all entries matching criteria (not implemented)
-   * NLM_F_REQUEST: must be set on all request messages */
-  req.nlh.nlmsg_flags = NLM_F_ROOT | NLM_F_MATCH | NLM_F_REQUEST;
-  req.nlh.nlmsg_pid = 0;
-  /* The sequence_number is used to track our messages. Since netlink is not
-   * reliable, we don't want to end up with a corrupt or incomplete old
-   * message in case the system is/was out of memory. */
-  req.nlh.nlmsg_seq = ++sequence_number;
-  req.r.idiag_family = AF_INET;
-  req.r.idiag_states = 0xfff;
-  req.r.idiag_ext = 0;
+  struct nlreq req = {
+    .nlh.nlmsg_len = sizeof(req),
+    .nlh.nlmsg_type = TCPDIAG_GETSOCK,
+    /* NLM_F_ROOT: return the complete table instead of a single entry.
+     * NLM_F_MATCH: return all entries matching criteria (not implemented)
+     * NLM_F_REQUEST: must be set on all request messages */
+    .nlh.nlmsg_flags = NLM_F_ROOT | NLM_F_MATCH | NLM_F_REQUEST,
+    .nlh.nlmsg_pid = 0,
+    /* The sequence_number is used to track our messages. Since netlink is not
+     * reliable, we don't want to end up with a corrupt or incomplete old
+     * message in case the system is/was out of memory. */
+    .nlh.nlmsg_seq = ++sequence_number,
+    .r.idiag_family = AF_INET,
+    .r.idiag_states = 0xfff,
+    .r.idiag_ext = 0
+  };
 
-  memset(&iov, 0, sizeof(iov));
-  iov.iov_base = &req;
-  iov.iov_len = sizeof(req);
+  struct iovec iov = {
+    .iov_base = &req,
+    .iov_len = sizeof(req)
+  };
 
-  memset(&msg, 0, sizeof(msg));
-  msg.msg_name = (void*)&nladdr;
-  msg.msg_namelen = sizeof(nladdr);
-  msg.msg_iov = &iov;
-  msg.msg_iovlen = 1;
+  struct msghdr msg = {
+    .msg_name = (void*)&nladdr,
+    .msg_namelen = sizeof(nladdr),
+    .msg_iov = &iov,
+    .msg_iovlen = 1
+  };
 
   if (sendmsg (fd, &msg, 0) < 0)
   {
@@ -1016,7 +1013,6 @@ static int conn_read (void)
 static int conn_read (void)
 {
   int size;
-  int i;
   int nconn;
   void *data;
   struct netinfo_header *header;
@@ -1058,7 +1054,7 @@ static int conn_read (void)
   nconn = header->size;
   conn = (struct netinfo_conn *)(data + sizeof(struct netinfo_header));
 
-  for (i=0; i < nconn; conn++, i++)
+  for (int i = 0; i < nconn; conn++, i++)
   {
     conn_handle_ports (conn->srcport, conn->dstport, conn->tcp_state);
   }

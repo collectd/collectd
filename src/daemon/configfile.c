@@ -155,7 +155,7 @@ static int cf_dispatch (const char *type, const char *orig_key,
 	char *key;
 	char *value;
 	int ret;
-	int i;
+	int i = 0;
 
 	if (orig_key == NULL)
 		return (EINVAL);
@@ -231,8 +231,6 @@ static int dispatch_global_option (const oconfig_item_t *ci)
 
 static int dispatch_value_typesdb (oconfig_item_t *ci)
 {
-	int i = 0;
-
 	assert (strcasecmp (ci->key, "TypesDB") == 0);
 
 	cf_default_typesdb = 0;
@@ -242,7 +240,7 @@ static int dispatch_value_typesdb (oconfig_item_t *ci)
 		return (-1);
 	}
 
-	for (i = 0; i < ci->values_num; ++i)
+	for (int i = 0; i < ci->values_num; ++i)
 	{
 		if (OCONFIG_TYPE_STRING != ci->values[i].type) {
 			WARNING ("configfile: TypesDB: Skipping %i. argument which "
@@ -270,10 +268,9 @@ static int dispatch_value_plugindir (oconfig_item_t *ci)
 
 static int dispatch_loadplugin (oconfig_item_t *ci)
 {
-	int i;
 	const char *name;
 	unsigned int flags = 0;
-	plugin_ctx_t ctx;
+	plugin_ctx_t ctx = { 0 };
 	plugin_ctx_t old_ctx;
 	int ret_val;
 
@@ -289,12 +286,11 @@ static int dispatch_loadplugin (oconfig_item_t *ci)
 		name = "virt";
 
 	/* default to the global interval set before loading this plugin */
-	memset (&ctx, 0, sizeof (ctx));
 	ctx.interval = cf_get_default_interval ();
 	ctx.flush_interval = 0;
 	ctx.flush_timeout = 0;
 
-	for (i = 0; i < ci->children_num; ++i)
+	for (int i = 0; i < ci->children_num; ++i)
 	{
 		oconfig_item_t *child = ci->children + i;
 
@@ -326,12 +322,11 @@ static int dispatch_value_plugin (const char *plugin, oconfig_item_t *ci)
 	char  buffer[4096];
 	char *buffer_ptr;
 	int   buffer_free;
-	int i;
 
 	buffer_ptr = buffer;
 	buffer_free = sizeof (buffer);
 
-	for (i = 0; i < ci->values_num; i++)
+	for (int i = 0; i < ci->values_num; i++)
 	{
 		int status = -1;
 
@@ -360,16 +355,15 @@ static int dispatch_value_plugin (const char *plugin, oconfig_item_t *ci)
 static int dispatch_value (oconfig_item_t *ci)
 {
 	int ret = 0;
-	int i;
 
-	for (i = 0; i < cf_value_map_num; i++)
+	for (int i = 0; i < cf_value_map_num; i++)
 		if (strcasecmp (cf_value_map[i].key, ci->key) == 0)
 		{
 			ret = cf_value_map[i].func (ci);
 			break;
 		}
 
-	for (i = 0; i < cf_global_options_num; i++)
+	for (int i = 0; i < cf_global_options_num; i++)
 		if (strcasecmp (cf_global_options[i].key, ci->key) == 0)
 		{
 			ret = dispatch_global_option (ci);
@@ -381,10 +375,7 @@ static int dispatch_value (oconfig_item_t *ci)
 
 static int dispatch_block_plugin (oconfig_item_t *ci)
 {
-	int i;
 	const char *name;
-
-	cf_complex_callback_t *cb;
 
 	if (strcasecmp (ci->key, "Plugin") != 0)
 		return (-1);
@@ -406,12 +397,11 @@ static int dispatch_block_plugin (oconfig_item_t *ci)
 
 	if (IS_TRUE (global_option_get ("AutoLoadPlugin")))
 	{
-		plugin_ctx_t ctx;
+		plugin_ctx_t ctx = { 0 };
 		plugin_ctx_t old_ctx;
 		int status;
 
 		/* default to the global interval set before loading this plugin */
-		memset (&ctx, 0, sizeof (ctx));
 		ctx.interval = cf_get_default_interval ();
 
 		old_ctx = plugin_set_ctx (ctx);
@@ -428,7 +418,7 @@ static int dispatch_block_plugin (oconfig_item_t *ci)
 	}
 
 	/* Check for a complex callback first */
-	for (cb = complex_callback_head; cb != NULL; cb = cb->next)
+	for (cf_complex_callback_t *cb = complex_callback_head; cb != NULL; cb = cb->next)
 	{
 		if (strcasecmp (name, cb->type) == 0)
 		{
@@ -443,7 +433,7 @@ static int dispatch_block_plugin (oconfig_item_t *ci)
 	}
 
 	/* Hm, no complex plugin found. Dispatch the values one by one */
-	for (i = 0; i < ci->children_num; i++)
+	for (int i = 0; i < ci->children_num; i++)
 	{
 		if (ci->children[i].children == NULL)
 			dispatch_value_plugin (name, ci->children + i);
@@ -479,7 +469,6 @@ static int cf_ci_replace_child (oconfig_item_t *dst, oconfig_item_t *src,
 		int offset)
 {
 	oconfig_item_t *temp;
-	int i;
 
 	assert (offset >= 0);
 	assert (dst->children_num > offset);
@@ -487,7 +476,7 @@ static int cf_ci_replace_child (oconfig_item_t *dst, oconfig_item_t *src,
 	/* Free the memory used by the replaced child. Usually that's the
 	 * `Include "blah"' statement. */
 	temp = dst->children + offset;
-	for (i = 0; i < temp->values_num; i++)
+	for (int i = 0; i < temp->values_num; i++)
 	{
 		if (temp->values[i].type == OCONFIG_TYPE_STRING)
 		{
@@ -588,16 +577,12 @@ static oconfig_item_t *cf_read_generic (const char *path,
 
 static int cf_include_all (oconfig_item_t *root, int depth)
 {
-	int i;
-
-	for (i = 0; i < root->children_num; i++)
+	for (int i = 0; i < root->children_num; i++)
 	{
 		oconfig_item_t *new;
 		oconfig_item_t *old;
 
 		char *pattern = NULL;
-
-		int j;
 
 		if (strcasecmp (root->children[i].key, "Include") != 0)
 			continue;
@@ -611,7 +596,7 @@ static int cf_include_all (oconfig_item_t *root, int depth)
 			continue;
 		}
 
-		for (j = 0; j < old->children_num; ++j)
+		for (int j = 0; j < old->children_num; ++j)
 		{
 			oconfig_item_t *child = old->children + j;
 
@@ -705,7 +690,6 @@ static oconfig_item_t *cf_read_dir (const char *dir,
 	char **filenames = NULL;
 	int filenames_num = 0;
 	int status;
-	int i;
 
 	assert (depth < CF_MAX_DEPTH);
 
@@ -742,7 +726,7 @@ static oconfig_item_t *cf_read_dir (const char *dir,
 					" name is too long.",
 					dir, de->d_name);
 			closedir (dh);
-			for (i = 0; i < filenames_num; ++i)
+			for (int i = 0; i < filenames_num; ++i)
 				free (filenames[i]);
 			free (filenames);
 			free (root);
@@ -755,7 +739,7 @@ static oconfig_item_t *cf_read_dir (const char *dir,
 		if (tmp == NULL) {
 			ERROR ("configfile: realloc failed.");
 			closedir (dh);
-			for (i = 0; i < filenames_num - 1; ++i)
+			for (int i = 0; i < filenames_num - 1; ++i)
 				free (filenames[i]);
 			free (filenames);
 			free (root);
@@ -775,7 +759,7 @@ static oconfig_item_t *cf_read_dir (const char *dir,
 	qsort ((void *) filenames, filenames_num, sizeof (*filenames),
 			cf_compare_string);
 
-	for (i = 0; i < filenames_num; ++i)
+	for (int i = 0; i < filenames_num; ++i)
 	{
 		oconfig_item_t *temp;
 		char *name = filenames[i];
@@ -808,7 +792,7 @@ static oconfig_item_t *cf_read_dir (const char *dir,
  *
  * There are two versions of this function: If `wordexp' exists shell wildcards
  * will be expanded and the function will include all matches found. If
- * `wordexp' (or, more precisely, it's header file) is not available the
+ * `wordexp' (or, more precisely, its header file) is not available the
  * simpler function is used which does not do any such expansion.
  */
 #if HAVE_WORDEXP_H
@@ -819,7 +803,6 @@ static oconfig_item_t *cf_read_generic (const char *path,
 	int status;
 	const char *path_ptr;
 	wordexp_t we;
-	size_t i;
 
 	if (depth >= CF_MAX_DEPTH)
 	{
@@ -847,7 +830,7 @@ static oconfig_item_t *cf_read_generic (const char *path,
 	qsort ((void *) we.we_wordv, we.we_wordc, sizeof (*we.we_wordv),
 			cf_compare_string);
 
-	for (i = 0; i < we.we_wordc; i++)
+	for (size_t i = 0; i < we.we_wordc; i++)
 	{
 		oconfig_item_t *temp;
 		struct stat statbuf;
@@ -931,7 +914,6 @@ static oconfig_item_t *cf_read_generic (const char *path,
 int global_option_set (const char *option, const char *value, _Bool from_cli)
 {
 	int i;
-
 	DEBUG ("option = %s; value = %s;", option, value);
 
 	for (i = 0; i < cf_global_options_num; i++)
@@ -967,7 +949,6 @@ int global_option_set (const char *option, const char *value, _Bool from_cli)
 const char *global_option_get (const char *option)
 {
 	int i;
-
 	for (i = 0; i < cf_global_options_num; i++)
 		if (strcasecmp (cf_global_options[i].key, option) == 0)
 			break;
@@ -1028,9 +1009,7 @@ cdtime_t cf_get_default_interval (void)
 
 void cf_unregister (const char *type)
 {
-	cf_callback_t *this, *prev;
-
-	for (prev = NULL, this = first_callback;
+	for (cf_callback_t *prev = NULL, *this = first_callback;
 			this != NULL;
 			prev = this, this = this->next)
 		if (strcasecmp (this->type, type) == 0)
@@ -1047,9 +1026,7 @@ void cf_unregister (const char *type)
 
 void cf_unregister_complex (const char *type)
 {
-	cf_complex_callback_t *this, *prev;
-
-	for (prev = NULL, this = complex_callback_head;
+	for (cf_complex_callback_t *prev = NULL, *this = complex_callback_head;
 			this != NULL;
 			prev = this, this = this->next)
 		if (strcasecmp (this->type, type) == 0)
@@ -1126,7 +1103,6 @@ int cf_register_complex (const char *type, int (*callback) (oconfig_item_t *))
 int cf_read (const char *filename)
 {
 	oconfig_item_t *conf;
-	int i;
 	int ret = 0;
 
 	conf = cf_read_generic (filename, /* pattern = */ NULL, /* depth = */ 0);
@@ -1142,7 +1118,7 @@ int cf_read (const char *filename)
 		return (-1);
 	}
 
-	for (i = 0; i < conf->children_num; i++)
+	for (int i = 0; i < conf->children_num; i++)
 	{
 		if (conf->children[i].children == NULL)
 		{

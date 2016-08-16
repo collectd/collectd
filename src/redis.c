@@ -21,9 +21,9 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 #include <sys/time.h>
 #include <hiredis/hiredis.h>
@@ -125,7 +125,6 @@ static redis_query_t *redis_config_query (oconfig_item_t *ci) /* {{{ */
 {
     redis_query_t *rq;
     int status;
-    int i;
 
     rq = calloc(1, sizeof(*rq));
     if (rq == NULL) {
@@ -143,7 +142,7 @@ static redis_query_t *redis_config_query (oconfig_item_t *ci) /* {{{ */
     (void)sstrncpy(rq->instance, rq->query, sizeof(rq->instance));
     replace_special(rq->instance, sizeof(rq->instance));
 
-    for (i = 0; i < ci->children_num; i++) {
+    for (int i = 0; i < ci->children_num; i++) {
         oconfig_item_t *option = ci->children + i;
 
         if (strcasecmp("Type", option->key) == 0) {
@@ -165,23 +164,22 @@ static redis_query_t *redis_config_query (oconfig_item_t *ci) /* {{{ */
 
 static int redis_config_node (oconfig_item_t *ci) /* {{{ */
 {
-  redis_node_t rn;
   redis_query_t *rq;
-  int i;
   int status;
   int timeout;
 
-  memset (&rn, 0, sizeof (rn));
+  redis_node_t rn = {
+    .port = REDIS_DEF_PORT,
+    .timeout.tv_usec = REDIS_DEF_TIMEOUT
+  };
+
   sstrncpy (rn.host, REDIS_DEF_HOST, sizeof (rn.host));
-  rn.port = REDIS_DEF_PORT;
-  rn.timeout.tv_usec = REDIS_DEF_TIMEOUT;
-  rn.queries = NULL;
 
   status = cf_util_get_string_buffer (ci, rn.name, sizeof (rn.name));
   if (status != 0)
     return (status);
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
 
@@ -229,9 +227,7 @@ static int redis_config_node (oconfig_item_t *ci) /* {{{ */
 
 static int redis_config (oconfig_item_t *ci) /* {{{ */
 {
-  int i;
-
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
 
@@ -379,10 +375,7 @@ static int redis_handle_query (redisContext *rh, redis_node_t *rn, redis_query_t
 
 static int redis_read (void) /* {{{ */
 {
-  redis_node_t *rn;
-  redis_query_t *rq;
-
-  for (rn = nodes_head; rn != NULL; rn = rn->next)
+  for (redis_node_t *rn = nodes_head; rn != NULL; rn = rn->next)
   {
     redisContext *rh;
     redisReply   *rr;
@@ -430,6 +423,7 @@ static int redis_read (void) /* {{{ */
     redis_handle_info (rn->name, rr->str, "volatile_changes", NULL, "changes_since_last_save", DS_TYPE_GAUGE);
     redis_handle_info (rn->name, rr->str, "total_connections", NULL, "total_connections_received", DS_TYPE_DERIVE);
     redis_handle_info (rn->name, rr->str, "total_operations", NULL, "total_commands_processed", DS_TYPE_DERIVE);
+    redis_handle_info (rn->name, rr->str, "operations_per_second", NULL, "instantaneous_ops_per_sec", DS_TYPE_GAUGE);
     redis_handle_info (rn->name, rr->str, "expired_keys", NULL, "expired_keys", DS_TYPE_DERIVE);
     redis_handle_info (rn->name, rr->str, "evicted_keys", NULL, "evicted_keys", DS_TYPE_DERIVE);
     redis_handle_info (rn->name, rr->str, "pubsub", "channels", "pubsub_channels", DS_TYPE_GAUGE);
@@ -440,7 +434,7 @@ static int redis_read (void) /* {{{ */
     redis_handle_info (rn->name, rr->str, "total_bytes", "input", "total_net_input_bytes", DS_TYPE_DERIVE);
     redis_handle_info (rn->name, rr->str, "total_bytes", "output", "total_net_output_bytes", DS_TYPE_DERIVE);
 
-    for (rq = rn->queries; rq != NULL; rq = rq->next)
+    for (redis_query_t *rq = rn->queries; rq != NULL; rq = rq->next)
         redis_handle_query(rh, rn, rq);
 
 redis_fail:

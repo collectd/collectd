@@ -22,9 +22,9 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 #include "utils_ignorelist.h"
 
 #if !KERNEL_LINUX

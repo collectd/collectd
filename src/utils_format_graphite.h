@@ -23,6 +23,7 @@
 #define UTILS_FORMAT_GRAPHITE_H 1
 
 #include "collectd.h"
+
 #include "plugin.h"
 
 #define GRAPHITE_STORE_RATES        0x01
