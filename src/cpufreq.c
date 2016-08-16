@@ -240,10 +240,7 @@ static int cpufreq_shutdown (void)
 	if (report_distribution)
 	{
 		sfree (hertz_all_cpus);
-		hertz_all_cpus = NULL;
-
 		sfree (time_all_cpus);
-		time_all_cpus = NULL;
 	}
 
 	return (0);
