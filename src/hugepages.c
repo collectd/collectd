@@ -45,12 +45,12 @@ static int g_flag_rpt_mm = 1;
 
 struct entry_info {
   char *d_name;
-  char *node;
+  const char *node;
 };
 
 static int huge_config_callback(const char *key, const char *val)
 {
-  INFO("%s: HugePages config key='%s', val='%s'", g_plugin_name, key, val);
+  DEBUG("%s: HugePages config key='%s', val='%s'", g_plugin_name, key, val);
 
   if (strcasecmp(key, g_cfg_rpt_numa) == 0) {
     g_flag_rpt_numa = IS_TRUE(val);
@@ -94,11 +94,11 @@ static int read_hugepage_entry(const char *path, const char *entry,
     void *e_info)
 {
   char path2[PATH_MAX];
-  char *type = "hugepages";
-  char *partial_type_inst = "free_used";
+  static const char type[] = "hugepages";
+  static const char partial_type_inst[] = "free_used";
   char type_instance[PATH_MAX];
-  char *strin = NULL;
-  struct entry_info *hpsize_plinst = (struct entry_info *) e_info;
+  char *strin;
+  struct entry_info *hpsize_plinst = e_info;
   static int flag = 0;
   static double used_hp = 0;
   static double free_hp = 0;
@@ -158,11 +158,12 @@ static int read_hugepage_entry(const char *path, const char *entry,
 
 static int read_syshugepages(const char* path, const char* node)
 {
-  const char hugepages_dir[] = "hugepages";
-  DIR *dir = NULL;
-  struct dirent *result = NULL;
+  static const char hugepages_dir[] = "hugepages";
+  DIR *dir;
+  struct dirent *result;
   char path2[PATH_MAX];
   struct entry_info e_info;
+  long lim;
 
   dir = opendir(path);
   if (dir == NULL) {
@@ -170,11 +171,16 @@ static int read_syshugepages(const char* path, const char* node)
     return -1;
   }
 
-  if (pathconf(path, _PC_NAME_MAX) == -1) {
-    /* Limit not defined, or error */
-    ERROR("%s: pathconf failed", g_plugin_name);
-    closedir(dir);
-    return -1;
+  errno = 0;
+  if ((lim = pathconf(path, _PC_NAME_MAX)) == -1) {
+    /* Limit not defined if errno == 0, otherwise error */
+    if (errno != 0) {
+      ERROR("%s: pathconf failed", g_plugin_name);
+      closedir(dir);
+      return -1;
+    } else {
+      lim = PATH_MAX;
+    }
   }
 
   /* read "hugepages-XXXXXkB" entries */
@@ -185,11 +191,11 @@ static int read_syshugepages(const char* path, const char* node)
     }
 
     /* /sys/devices/system/node/node?/hugepages/ */
-    ssnprintf(path2, sizeof(path2), "%s/%s", path, result->d_name);
+    ssnprintf(path2, (size_t) lim, "%s/%s", path, result->d_name);
 
     e_info.d_name = result->d_name;
-    e_info.node = (char *) node;
-    walk_directory(path2, read_hugepage_entry, (void *) &e_info, 0);
+    e_info.node = node;
+    walk_directory(path2, read_hugepage_entry, &e_info, 0);
   }
 
   closedir(dir);
@@ -199,12 +205,13 @@ static int read_syshugepages(const char* path, const char* node)
 
 static int read_nodes(void)
 {
-  const char sys_node[] = "/sys/devices/system/node";
-  const char node_string[] = "node";
-  const char sys_node_hugepages[] = "/sys/devices/system/node/%s/hugepages";
-  DIR *dir = NULL;
-  struct dirent *result = NULL;
+  static const char sys_node[] = "/sys/devices/system/node";
+  static const char node_string[] = "node";
+  static const char sys_node_hugepages[] = "/sys/devices/system/node/%s/hugepages";
+  DIR *dir;
+  struct dirent *result;
   char path[PATH_MAX];
+  long lim;
 
   dir = opendir(sys_node);
   if (dir == NULL) {
@@ -212,11 +219,16 @@ static int read_nodes(void)
     return -1;
   }
 
-  if (pathconf(sys_node, _PC_NAME_MAX) == -1) {
-    /* Limit not defined, or error */
-    ERROR("%s: pathconf failed", g_plugin_name);
-    closedir(dir);
-    return -1;
+  errno = 0;
+  if ((lim = pathconf(path, _PC_NAME_MAX)) == -1) {
+    /* Limit not defined if errno == 0, otherwise error */
+    if (errno != 0) {
+      ERROR("%s: pathconf failed", g_plugin_name);
+      closedir(dir);
+      return -1;
+    } else {
+      lim = PATH_MAX;
+    }
   }
 
   while ((result = readdir(dir)) != NULL) {
@@ -225,7 +237,7 @@ static int read_nodes(void)
       continue;
     }
 
-    ssnprintf(path, sizeof(path), sys_node_hugepages, result->d_name);
+    ssnprintf(path, (size_t) lim, sys_node_hugepages, result->d_name);
     read_syshugepages(path, result->d_name);
   }
 
@@ -237,13 +249,17 @@ static int read_nodes(void)
 
 static int huge_read(void)
 {
-  const char sys_mm_hugepages[] = "/sys/kernel/mm/hugepages";
+  static const char sys_mm_hugepages[] = "/sys/kernel/mm/hugepages";
 
   if (g_flag_rpt_mm) {
-    read_syshugepages(sys_mm_hugepages, "mm");
+    if (read_syshugepages(sys_mm_hugepages, "mm") != 0) {
+      return -1;
+    }
   }
   if (g_flag_rpt_numa) {
-    read_nodes();
+    if (read_nodes() != 0) {
+      return -1;
+    }
   }
 
   return 0;

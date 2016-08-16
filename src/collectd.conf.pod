@@ -2704,8 +2704,8 @@ TCP-Port to connect to. Defaults to B<7634>.
 To collect B<hugepages> information, collectd reads directories
 "/sys/devices/system/node/*/hugepages" and
 "/sys/kernel/mm/hugepages".
-Reading of these directories can be disabled by following
-options. Default is enabled.
+Reading of these directories can be disabled by the following
+options (default is enabled).
 
 =over 4
 
