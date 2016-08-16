@@ -220,7 +220,7 @@ static int read_nodes(void)
   }
 
   errno = 0;
-  if ((lim = pathconf(path, _PC_NAME_MAX)) == -1) {
+  if ((lim = pathconf(sys_node, _PC_NAME_MAX)) == -1) {
     /* Limit not defined if errno == 0, otherwise error */
     if (errno != 0) {
       ERROR("%s: pathconf failed", g_plugin_name);
