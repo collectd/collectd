@@ -85,27 +85,27 @@ static int cpufreq_init (void)
 {
 	char filename[128];
 	int status;
-	_Bool done;
 
 	// Determine number of cpus. Here, just check whether cpus are
 	// there. since cpus can be hot-plugged, cpufreq could be absent
 	// at this particualr time moment
-
-	done = 0;
-	for (num_cpu = 0; !done; ++num_cpu)
+	num_cpu = 0;
+	while (1)
 	{
 		status = ssnprintf (filename, sizeof (filename),
 				    "/sys/devices/system/cpu/cpu%zu",
 				    num_cpu);
 
-		if ((status < 1) || ((unsigned int)status >= sizeof (filename)))
+		if ((status < 1) || ((size_t)status >= sizeof (filename)))
 		{
-			INFO ("cpufreq plugin: error in ssnprintf");
+			ERROR ("cpufreq plugin: error in ssnprintf");
 			break;
 		}
 
-		if (access (filename, R_OK))
+		if (access (filename, R_OK) != 0)
 			break;
+
+		++num_cpu;
 	}
 
 	INFO ("cpufreq plugin: Found %zu CPU%s", num_cpu,
@@ -127,13 +127,6 @@ static int cpufreq_init (void)
 	// from the list.
 	if (num_cpu > 0 && report_distribution && !report_by_cpu)
 	{
-		FILE *fp;
-		char *fields[2];
-		char buffer[256];
-		int numfields;
-		long int hertz;
-		int found;
-
 		// initialize list of frequencies
 		hertz_all_cpus = NULL;
 		hertz_size = 0;
@@ -141,6 +134,13 @@ static int cpufreq_init (void)
 		// scan all CPUs for available frequencies
 		for (size_t i=0; i < num_cpu; ++i)
 		{
+			FILE *fp;
+			char *fields[2];
+			char buffer[256];
+			int numfields;
+			long int hertz;
+			int found;
+
 			// To get frequencies, we scan the stats file
 			// that is used later as well. Format of the
 			// file is:
@@ -393,8 +393,8 @@ static int cpufreq_read (void)
 
 				if (hertz <= 0)
 				{
-					WARNING ("cpufreq: something is wrong in %s: hertz = %ld", filename, hertz);
-					WARNING ("cpufreq: line in question %s %s", fields[0], fields[1]);
+					WARNING ("cpufreq: something is wrong in %s: hertz = %ld; line in file is %s %s",
+						 filename, hertz, fields[0], fields[1]);
 					fclose (fp);
 					return (-1);
 				}
@@ -402,7 +402,7 @@ static int cpufreq_read (void)
 				if (report_by_cpu)
 				{
 					status = ssnprintf (statind, sizeof (statind),
-										"%zu", i);
+							    "%zu", i);
 
 					if ((status < 1) || ((size_t)status >= sizeof (statind)))
 					{
@@ -415,8 +415,6 @@ static int cpufreq_read (void)
 				}
 				else
 				{
-					int found = 0;
-
 					if (hertz_size==1)
 					{
 						// This is a corner case when we have only one
@@ -446,8 +444,9 @@ static int cpufreq_read (void)
 						// frequency, last_index is set to
 						// hertz_size-1, which, after increment and %
 						// operator would lead to zero.
+						_Bool found = 0;
 						size_t j = last_index + 1;
-						while (!found && j!=last_index)
+						while (!found && j != last_index)
 						{
 							j = j % hertz_size;
 							if (hertz == hertz_all_cpus[j])
@@ -477,9 +476,9 @@ static int cpufreq_read (void)
 		// When distributions are reported as an average among all
 		// CPUs, the times are divided by number of CPUs.
 		if (!report_by_cpu)
-			for (size_t i=0; i < hertz_size; ++i)
-				cpufreq_submit_distribution_value( NULL, hertz_all_cpus[i],
-								   time_all_cpus[i] / num_cpu );
+			for (size_t i = 0; i < hertz_size; ++i)
+				cpufreq_submit_distribution_value (NULL, hertz_all_cpus[i],
+								   time_all_cpus[i] / num_cpu);
 	}
 
 	if (reported_last_run == 0)
