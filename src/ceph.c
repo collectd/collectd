@@ -297,6 +297,11 @@ ceph_cb_number(void *ctx, const char *number_val, yajl_len_t number_len)
     {
         latency_type = 1;
 
+        /* depth >= 2  =>  (stack[-1] != NULL && stack[-2] != NULL) */
+        assert ((state->depth < 2)
+                || ((state->stack[state->depth - 1] != NULL)
+                    && (state->stack[state->depth - 2] != NULL)));
+
         /* Super-special case for filestore.journal_wr_bytes.avgcount: For
          * some reason, Ceph schema encodes this as a count/sum pair while all
          * other "Bytes" data (excluding used/capacity bytes for OSD space) uses
