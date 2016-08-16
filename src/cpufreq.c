@@ -132,14 +132,13 @@ static int cpufreq_init (void)
 		int numfields;
 		long int hertz;
 		int found;
-		size_t i, j;
 
 		// initialize list of frequencies
 		hertz_all_cpus = NULL;
 		hertz_size = 0;
 
 		// scan all CPUs for available frequencies
-		for (i=0; i < num_cpu; ++i)
+		for (size_t i=0; i < num_cpu; ++i)
 		{
 			// To get frequencies, we scan the stats file
 			// that is used later as well. Format of the
@@ -184,7 +183,7 @@ static int cpufreq_init (void)
 
 				// do we have this value already?
 				found = 0;
-				for (j=0; j < hertz_size && !found; ++j)
+				for (size_t j=0; j < hertz_size && !found; ++j)
 					if (hertz == hertz_all_cpus[j])
 						found = 1;
 
@@ -298,13 +297,12 @@ static int cpufreq_read (void)
 	char buffer[512];
 	int status;
 	unsigned long long val;
-	size_t i;
 
 	reported_last_run = 0;
 
 	if (!report_distribution) // current value reported only
 	{
-		for (i = 0; i < num_cpu; i++)
+		for (size_t i = 0; i < num_cpu; i++)
 		{
 			status = ssnprintf (filename, sizeof (filename),
 								"/sys/devices/system/cpu/cpu%zu/cpufreq/"
@@ -351,14 +349,13 @@ static int cpufreq_read (void)
 		int numfields;
 		long int hertz;
 		derive_t time;
-		size_t j;
 		size_t last_index = hertz_size - 1;
 
 		if (!report_by_cpu)
-			for (j=0; j < hertz_size; ++j)
+			for (size_t j=0; j < hertz_size; ++j)
 				time_all_cpus[j] = 0;
 
-		for (i=0; i < num_cpu; ++i)
+		for (size_t i=0; i < num_cpu; ++i)
 		{
 			status = ssnprintf (filename, sizeof (filename),
 								"/sys/devices/system/cpu/cpu%zu/cpufreq/stats/time_in_state",
@@ -451,7 +448,7 @@ static int cpufreq_read (void)
 						// frequency, last_index is set to
 						// hertz_size-1, which, after increment and %
 						// operator would lead to zero.
-						j = last_index + 1;
+						size_t j = last_index + 1;
 						while (!found && j!=last_index)
 						{
 							j = j % hertz_size;
@@ -481,7 +478,7 @@ static int cpufreq_read (void)
 		// When distributions are reported as an average among all
 		// CPUs, the times are divided by number of CPUs.
 		if (!report_by_cpu)
-			for (i=0; i < hertz_size; ++i)
+			for (size_t i=0; i < hertz_size; ++i)
 				cpufreq_submit_distribution_value( NULL, hertz_all_cpus[i],
 												   time_all_cpus[i] / num_cpu );
 	}
