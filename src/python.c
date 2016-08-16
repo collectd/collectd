@@ -236,14 +236,23 @@ static cpy_callback_t *cpy_config_callbacks;
 static cpy_callback_t *cpy_init_callbacks;
 static cpy_callback_t *cpy_shutdown_callbacks;
 
+/* Make sure to hold the GIL while modifying these. */
+static int cpy_shutdown_triggered = 0;
+static int cpy_num_callbacks = 0;
+
 static void cpy_destroy_user_data(void *data) {
 	cpy_callback_t *c = data;
 	free(c->name);
 	CPY_LOCK_THREADS
 	Py_DECREF(c->callback);
 	Py_XDECREF(c->data);
-	CPY_RELEASE_THREADS
 	free(c);
+	--cpy_num_callbacks;
+	if (!cpy_num_callbacks && cpy_shutdown_triggered) {
+		Py_Finalize();
+		return;
+	}
+	CPY_RELEASE_THREADS
 }
 
 /* You must hold the GIL to call this function!
@@ -565,6 +574,7 @@ static PyObject *cpy_register_generic(cpy_callback_t **list_head, PyObject *args
 	c->callback = callback;
 	c->data = data;
 	c->next = *list_head;
+	++cpy_num_callbacks;
 	*list_head = c;
 	Py_XDECREF(mod);
 	PyMem_Free(name);
@@ -661,6 +671,7 @@ static PyObject *cpy_register_generic_userdata(void *reg, void *handler, PyObjec
 	};
 
 	register_function(buf, handler, &user_data);
+	++cpy_num_callbacks;
 	return cpy_string_to_unicode_or_bytes(buf);
 }
 
@@ -700,6 +711,7 @@ static PyObject *cpy_register_read(PyObject *self, PyObject *args, PyObject *kwd
 
 	plugin_register_complex_read(/* group = */ "python", buf,
 			cpy_read_callback, DOUBLE_TO_CDTIME_T (interval), &user_data);
+	++cpy_num_callbacks;
 	return cpy_string_to_unicode_or_bytes(buf);
 }
 
@@ -913,9 +925,7 @@ static PyMethodDef cpy_methods[] = {
 static int cpy_shutdown(void) {
 	PyObject *ret;
 
-	/* This can happen if the module was loaded but not configured. */
-	if (state != NULL)
-		PyEval_RestoreThread(state);
+	PyEval_RestoreThread(state);
 
 	for (cpy_callback_t *c = cpy_shutdown_callbacks; c; c = c->next) {
 		ret = PyObject_CallFunctionObjArgs(c->callback, c->data, (void *) 0); /* New reference. */
@@ -929,8 +939,11 @@ static int cpy_shutdown(void) {
 	cpy_unregister_list(&cpy_config_callbacks);
 	cpy_unregister_list(&cpy_init_callbacks);
 	cpy_unregister_list(&cpy_shutdown_callbacks);
+	cpy_shutdown_triggered = 1;
 
-	Py_Finalize();
+	if (!cpy_num_callbacks)
+		Py_Finalize();
+
 	return 0;
 }
 
@@ -983,6 +996,7 @@ static int cpy_init(void) {
 	if (!Py_IsInitialized()) {
 		WARNING("python: Plugin loaded but not configured.");
 		plugin_unregister_shutdown("python");
+		Py_Finalize();
 		return 0;
 	}
 	PyEval_InitThreads();
