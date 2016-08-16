@@ -20,6 +20,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 #include "utils_ignorelist.h"
@@ -338,7 +339,6 @@ static int cow_read_values (const char *path, const char *name,
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
   int success = 0;
-  size_t i;
 
   if (sensor_list != NULL)
   {
@@ -354,7 +354,7 @@ static int cow_read_values (const char *path, const char *name,
   sstrncpy (vl.plugin, "onewire", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, name, sizeof (vl.plugin_instance));
 
-  for (i = 0; i < family_info->features_num; i++)
+  for (size_t i = 0; i < family_info->features_num; i++)
   {
     char *buffer;
     size_t buffer_size;

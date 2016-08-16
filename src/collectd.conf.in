@@ -105,6 +105,7 @@
 #@BUILD_PLUGIN_CONTEXTSWITCH_TRUE@LoadPlugin contextswitch
 @BUILD_PLUGIN_CPU_TRUE@@BUILD_PLUGIN_CPU_TRUE@LoadPlugin cpu
 #@BUILD_PLUGIN_CPUFREQ_TRUE@LoadPlugin cpufreq
+#@BUILD_PLUGIN_CPUSLEEP_TRUE@LoadPlugin cpusleep
 @LOAD_PLUGIN_CSV@LoadPlugin csv
 #@BUILD_PLUGIN_CURL_TRUE@LoadPlugin curl
 #@BUILD_PLUGIN_CURL_JSON_TRUE@LoadPlugin curl_json
@@ -122,6 +123,7 @@
 #@BUILD_PLUGIN_FILECOUNT_TRUE@LoadPlugin filecount
 #@BUILD_PLUGIN_FSCACHE_TRUE@LoadPlugin fscache
 #@BUILD_PLUGIN_GMOND_TRUE@LoadPlugin gmond
+#@BUILD_PLUGIN_GPS_TRUE@LoadPlugin gps
 #@BUILD_PLUGIN_GRPC_TRUE@LoadPlugin grpc
 #@BUILD_PLUGIN_HDDTEMP_TRUE@LoadPlugin hddtemp
 @BUILD_PLUGIN_INTERFACE_TRUE@@BUILD_PLUGIN_INTERFACE_TRUE@LoadPlugin interface
@@ -133,6 +135,7 @@
 #@BUILD_PLUGIN_JAVA_TRUE@LoadPlugin java
 @BUILD_PLUGIN_LOAD_TRUE@@BUILD_PLUGIN_LOAD_TRUE@LoadPlugin load
 #@BUILD_PLUGIN_LPAR_TRUE@LoadPlugin lpar
+#@BUILD_PLUGIN_LUA_TRUE@LoadPlugin lua
 #@BUILD_PLUGIN_LVM_TRUE@LoadPlugin lvm
 #@BUILD_PLUGIN_MADWIFI_TRUE@LoadPlugin madwifi
 #@BUILD_PLUGIN_MBMON_TRUE@LoadPlugin mbmon
@@ -569,13 +572,25 @@
 #  </Metric>
 #</Plugin>
 
+#<Plugin gps>
+#  Host "127.0.0.1"
+#  Port "2947"
+#  Timeout 0.015
+#  PauseConnect 5
+#</Plugin>
+
 #<Plugin grpc>
-#	WorkerThreads 5
+#	<Server "example.com" "50051">
+#		EnableSSL true
+#		SSLCACertificateFile "/path/to/root.pem"
+#		SSLCertificateFile "/path/to/server.pem"
+#		SSLCertificateKeyFile "/path/to/server.key"
+#	</Server>
 #	<Listen "0.0.0.0" "50051">
 #		EnableSSL true
-#		SSLRootCerts "/path/to/root.pem"
-#		SSLServerCert "/path/to/server.pem"
-#		SSLServerKey "/path/to/server.key"
+#		SSLCACertificateFile "/path/to/root.pem"
+#		SSLCertificateFile "/path/to/client.pem"
+#		SSLCertificateKeyFile "/path/to/client.key"
 #	</Listen>
 #</Plugin>
 
@@ -587,6 +602,7 @@
 #<Plugin interface>
 #	Interface "eth0"
 #	IgnoreSelected false
+#	ReportInactive true
 #	UniqueName false
 #</Plugin>
 
@@ -628,6 +644,12 @@
 #<Plugin lpar>
 #	CpuPoolStats   false
 #	ReportBySerial false
+#</Plugin>
+
+#<Plugin lua>
+#	BasePath "@prefix@/share/@PACKAGE_NAME@/lua"
+#	Script "script1.lua"
+#	Script "script2.lua"
 #</Plugin>
 
 #<Plugin madwifi>
@@ -733,6 +755,11 @@
 #		User "db_user"
 #		Password "secret"
 #		Database "db_name"
+#		SSLKey "/path/to/key.pem"
+#		SSLCert "/path/to/cert.pem"
+#		SSLCA "/path/to/ca.pem"
+#		SSLCAPath "/path/to/cas/"
+#		SSLCipher "DHE-RSA-AES256-SHA"
 #		MasterStats true
 #		ConnectTimeout 10
 #		InnodbStats true
@@ -744,6 +771,12 @@
 #		Socket "/var/run/mysql/mysqld.sock"
 #		SlaveStats true
 #		SlaveNotifications true
+#	</Database>
+#	<Database galera>
+#		Alias "galera"
+#		Host "localhost"
+#		Socket "/var/run/mysql/mysqld.sock"
+#		WsrepStats true
 #	</Database>
 #</Plugin>
 
@@ -1398,6 +1431,8 @@
 #		Header "X-Custom-Header: custom_value"
 #		SSLVersion "TLSv1"
 #		Format "Command"
+#		Metrics true
+#		Notifications false
 #		StoreRates false
 #		BufferSize 4096
 #		LowSpeedLimit 0

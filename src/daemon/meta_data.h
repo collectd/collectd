@@ -29,6 +29,7 @@
 
 #include "collectd.h"
 
+
 /*
  * Defines
  */

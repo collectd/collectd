@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "utils_rrdcreate.h"
 
@@ -82,9 +83,7 @@ static pthread_mutex_t async_creation_lock = PTHREAD_MUTEX_INITIALIZER;
  */
 static void rra_free (int rra_num, char **rra_def) /* {{{ */
 {
-  int i;
-
-  for (i = 0; i < rra_num; i++)
+  for (int i = 0; i < rra_num; i++)
   {
     sfree (rra_def[i]);
   }
@@ -99,8 +98,7 @@ static void srrd_create_args_destroy (srrd_create_args_t *args)
   sfree (args->filename);
   if (args->argv != NULL)
   {
-    int i;
-    for (i = 0; i < args->argc; i++)
+    for (int i = 0; i < args->argc; i++)
       sfree (args->argv[i]);
     sfree (args->argv);
   }
@@ -172,7 +170,6 @@ static int rra_get (char ***ret, const value_list_t *vl, /* {{{ */
 
   int cdp_num;
   int cdp_len;
-  int i, j;
 
   /* The stepsize we use here: If it is user-set, use it. If not, use the
    * interval of the value-list. */
@@ -220,7 +217,7 @@ static int rra_get (char ***ret, const value_list_t *vl, /* {{{ */
   rra_num = 0;
 
   cdp_len = 0;
-  for (i = 0; i < rts_num; i++)
+  for (int i = 0; i < rts_num; i++)
   {
     int span = rts[i];
 
@@ -236,7 +233,7 @@ static int rra_get (char ***ret, const value_list_t *vl, /* {{{ */
     cdp_num = (int) ceil (((double) span)
         / ((double) (cdp_len * ss)));
 
-    for (j = 0; j < rra_types_num; j++)
+    for (int j = 0; j < rra_types_num; j++)
     {
       char buffer[128];
       int status;
@@ -269,9 +266,7 @@ static int rra_get (char ***ret, const value_list_t *vl, /* {{{ */
 
 static void ds_free (int ds_num, char **ds_def) /* {{{ */
 {
-  int i;
-
-  for (i = 0; i < ds_num; i++)
+  for (int i = 0; i < ds_num; i++)
     if (ds_def[i] != NULL)
       free (ds_def[i]);
   free (ds_def);

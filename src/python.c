@@ -30,6 +30,7 @@
 #include <signal.h>
 
 #include "collectd.h"
+
 #include "common.h"
 
 #include "cpython.h"
@@ -196,7 +197,7 @@ static char reg_flush_doc[] = "register_flush(callback[, data][, name]) -> ident
 		"The callback function will be called with two or three parameters:\n"
 		"timeout: Indicates that only data older than 'timeout' seconds is to\n"
 		"    be flushed.\n"
-		"id: Specifies which values are to be flushed.\n"
+		"id: Specifies which values are to be flushed. Might be None.\n"
 		"data: The optional data parameter passed to the register function.\n"
 		"    If the parameter was omitted it will be omitted here, too.";
 
@@ -218,7 +219,9 @@ static char reg_shutdown_doc[] = "register_shutdown(callback[, data][, name]) ->
 		"    data if it was supplied.";
 
 
-static int do_interactive = 0;
+static pthread_t main_thread;
+static PyOS_sighandler_t python_sigint_handler;
+static _Bool do_interactive = 0;
 
 /* This is our global thread state. Python saves some stuff in thread-local
  * storage. So if we allow the interpreter to run in the background
@@ -233,12 +236,23 @@ static cpy_callback_t *cpy_config_callbacks;
 static cpy_callback_t *cpy_init_callbacks;
 static cpy_callback_t *cpy_shutdown_callbacks;
 
+/* Make sure to hold the GIL while modifying these. */
+static int cpy_shutdown_triggered = 0;
+static int cpy_num_callbacks = 0;
+
 static void cpy_destroy_user_data(void *data) {
 	cpy_callback_t *c = data;
 	free(c->name);
+	CPY_LOCK_THREADS
 	Py_DECREF(c->callback);
 	Py_XDECREF(c->data);
 	free(c);
+	--cpy_num_callbacks;
+	if (!cpy_num_callbacks && cpy_shutdown_triggered) {
+		Py_Finalize();
+		return;
+	}
+	CPY_RELEASE_THREADS
 }
 
 /* You must hold the GIL to call this function!
@@ -270,7 +284,7 @@ static void cpy_build_name(char *buf, size_t size, PyObject *callback, const cha
 }
 
 void cpy_log_exception(const char *context) {
-	int l = 0, i;
+	int l = 0;
 	const char *typename = NULL, *message = NULL;
 	PyObject *type, *value, *traceback, *tn, *m, *list;
 
@@ -303,7 +317,7 @@ void cpy_log_exception(const char *context) {
 	if (list)
 		l = PyObject_Length(list);
 
-	for (i = 0; i < l; ++i) {
+	for (int i = 0; i < l; ++i) {
 		PyObject *line;
 		char const *msg;
 		char *cpy;
@@ -352,7 +366,6 @@ static int cpy_read_callback(user_data_t *data) {
 }
 
 static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_list, user_data_t *data) {
-	size_t i;
 	cpy_callback_t *c = data->data;
 	PyObject *ret, *list, *temp, *dict = NULL;
 	Values *v;
@@ -363,7 +376,7 @@ static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_li
 			cpy_log_exception("write callback");
 			CPY_RETURN_FROM_THREADS 0;
 		}
-		for (i = 0; i < value_list->values_len; ++i) {
+		for (size_t i = 0; i < value_list->values_len; ++i) {
 			if (ds->ds[i].type == DS_TYPE_COUNTER) {
 				PyList_SetItem(list, i, PyLong_FromUnsignedLongLong(value_list->values[i].counter));
 			} else if (ds->ds[i].type == DS_TYPE_GAUGE) {
@@ -387,12 +400,11 @@ static int cpy_write_callback(const data_set_t *ds, const value_list_t *value_li
 		}
 		dict = PyDict_New();  /* New reference. */
 		if (value_list->meta) {
-			int num;
 			char **table;
 			meta_data_t *meta = value_list->meta;
 
-			num = meta_data_toc(meta, &table);
-			for (i = 0; i < num; ++i) {
+			int num = meta_data_toc(meta, &table);
+			for (int i = 0; i < num; ++i) {
 				int type;
 				char *string;
 				int64_t si;
@@ -517,7 +529,12 @@ static void cpy_flush_callback(int timeout, const char *id, user_data_t *data) {
 	PyObject *ret, *text;
 
 	CPY_LOCK_THREADS
-	text = cpy_string_to_unicode_or_bytes(id);
+	if (id) {
+		text = cpy_string_to_unicode_or_bytes(id);
+	} else {
+		text = Py_None;
+		Py_INCREF(text);
+	}
 	if (c->data == NULL)
 		ret = PyObject_CallFunction(c->callback, "iN", timeout, text); /* New reference. */
 	else
@@ -557,6 +574,7 @@ static PyObject *cpy_register_generic(cpy_callback_t **list_head, PyObject *args
 	c->callback = callback;
 	c->data = data;
 	c->next = *list_head;
+	++cpy_num_callbacks;
 	*list_head = c;
 	Py_XDECREF(mod);
 	PyMem_Free(name);
@@ -571,7 +589,6 @@ static PyObject *float_or_none(float number) {
 }
 
 static PyObject *cpy_get_dataset(PyObject *self, PyObject *args) {
-	size_t i;
 	char *name;
 	const data_set_t *ds;
 	PyObject *list, *tuple;
@@ -584,7 +601,7 @@ static PyObject *cpy_get_dataset(PyObject *self, PyObject *args) {
 		return NULL;
 	}
 	list = PyList_New(ds->ds_num); /* New reference. */
-	for (i = 0; i < ds->ds_num; ++i) {
+	for (size_t i = 0; i < ds->ds_num; ++i) {
 		tuple = PyTuple_New(4);
 		PyTuple_SET_ITEM(tuple, 0, cpy_string_to_unicode_or_bytes(ds->ds[i].name));
 		PyTuple_SET_ITEM(tuple, 1, cpy_string_to_unicode_or_bytes(DS_TYPE_TO_STRING(ds->ds[i].type)));
@@ -623,7 +640,6 @@ static PyObject *cpy_register_generic_userdata(void *reg, void *handler, PyObjec
 	char buf[512];
 	reg_function_t *register_function = (reg_function_t *) reg;
 	cpy_callback_t *c = NULL;
-	user_data_t user_data;
 	char *name = NULL;
 	PyObject *callback = NULL, *data = NULL;
 	static char *kwlist[] = {"callback", "data", "name", NULL};
@@ -649,18 +665,19 @@ static PyObject *cpy_register_generic_userdata(void *reg, void *handler, PyObjec
 	c->data = data;
 	c->next = NULL;
 
-	memset (&user_data, 0, sizeof (user_data));
-	user_data.free_func = cpy_destroy_user_data;
-	user_data.data = c;
+	user_data_t user_data = {
+		.data = c,
+		.free_func = cpy_destroy_user_data
+	};
 
 	register_function(buf, handler, &user_data);
+	++cpy_num_callbacks;
 	return cpy_string_to_unicode_or_bytes(buf);
 }
 
 static PyObject *cpy_register_read(PyObject *self, PyObject *args, PyObject *kwds) {
 	char buf[512];
 	cpy_callback_t *c = NULL;
-	user_data_t user_data;
 	double interval = 0;
 	char *name = NULL;
 	PyObject *callback = NULL, *data = NULL;
@@ -687,12 +704,14 @@ static PyObject *cpy_register_read(PyObject *self, PyObject *args, PyObject *kwd
 	c->data = data;
 	c->next = NULL;
 
-	memset (&user_data, 0, sizeof (user_data));
-	user_data.free_func = cpy_destroy_user_data;
-	user_data.data = c;
+	user_data_t user_data = {
+		.data = c,
+		.free_func = cpy_destroy_user_data
+	};
 
 	plugin_register_complex_read(/* group = */ "python", buf,
 			cpy_read_callback, DOUBLE_TO_CDTIME_T (interval), &user_data);
+	++cpy_num_callbacks;
 	return cpy_string_to_unicode_or_bytes(buf);
 }
 
@@ -798,14 +817,23 @@ static PyObject *cpy_unregister_generic(cpy_callback_t **list_head, PyObject *ar
 		PyErr_Format(PyExc_RuntimeError, "Unable to unregister %s callback '%s'.", desc, name);
 		return NULL;
 	}
-	/* Yes, this is actually save. To call this function the caller has to
-	 * hold the GIL. Well, save as long as there is only one GIL anyway ... */
+	/* Yes, this is actually safe. To call this function the caller has to
+	 * hold the GIL. Well, safe as long as there is only one GIL anyway ... */
 	if (prev == NULL)
 		*list_head = tmp->next;
 	else
 		prev->next = tmp->next;
 	cpy_destroy_user_data(tmp);
 	Py_RETURN_NONE;
+}
+
+static void cpy_unregister_list(cpy_callback_t **list_head) {
+	cpy_callback_t *cur, *next;
+	for (cur = *list_head; cur; cur = next) {
+		next = cur->next;
+		cpy_destroy_user_data(cur);
+	}
+	*list_head = NULL;
 }
 
 typedef int cpy_unregister_function_t(const char *name);
@@ -895,14 +923,11 @@ static PyMethodDef cpy_methods[] = {
 };
 
 static int cpy_shutdown(void) {
-	cpy_callback_t *c;
 	PyObject *ret;
 
-	/* This can happen if the module was loaded but not configured. */
-	if (state != NULL)
-		PyEval_RestoreThread(state);
+	PyEval_RestoreThread(state);
 
-	for (c = cpy_shutdown_callbacks; c; c = c->next) {
+	for (cpy_callback_t *c = cpy_shutdown_callbacks; c; c = c->next) {
 		ret = PyObject_CallFunctionObjArgs(c->callback, c->data, (void *) 0); /* New reference. */
 		if (ret == NULL)
 			cpy_log_exception("shutdown callback");
@@ -910,17 +935,20 @@ static int cpy_shutdown(void) {
 			Py_DECREF(ret);
 	}
 	PyErr_Print();
-	Py_Finalize();
+
+	cpy_unregister_list(&cpy_config_callbacks);
+	cpy_unregister_list(&cpy_init_callbacks);
+	cpy_unregister_list(&cpy_shutdown_callbacks);
+	cpy_shutdown_triggered = 1;
+
+	if (!cpy_num_callbacks)
+		Py_Finalize();
+
 	return 0;
 }
 
-static void cpy_int_handler(int sig) {
-	return;
-}
-
 static void *cpy_interactive(void *data) {
-	sigset_t sigset;
-	struct sigaction sig_int_action, old;
+	PyOS_sighandler_t cur_sig;
 
 	/* Signal handler in a plugin? Bad stuff, but the best way to
 	 * handle it I guess. In an interactive session people will
@@ -930,65 +958,58 @@ static void *cpy_interactive(void *data) {
 	 * mess. Chances are, this isn't what the user wanted to do.
 	 *
 	 * So this is the plan:
-	 * 1. Block SIGINT in the main thread.
-	 * 2. Install our own signal handler that does nothing.
-	 * 3. Unblock SIGINT in the interactive thread.
+	 * 1. Restore Python's own signal handler
+	 * 2. Tell Python we just forked so it will accept this thread
+	 *    as the main one. No version of Python will ever handle
+	 *    interrupts anywhere but in the main thread.
+	 * 3. After the interactive loop is done, restore collectd's
+	 *    SIGINT handler.
+	 * 4. Raise SIGINT for a clean shutdown. The signal is sent to
+	 *    the main thread to ensure it wakes up the main interval
+	 *    sleep so that collectd shuts down immediately not in 10
+	 *    seconds.
 	 *
 	 * This will make sure that SIGINT won't kill collectd but
-	 * still interrupt syscalls like sleep and pause.
-	 * It does not raise a KeyboardInterrupt exception because so
-	 * far nobody managed to figure out how to do that. */
-	memset (&sig_int_action, '\0', sizeof (sig_int_action));
-	sig_int_action.sa_handler = cpy_int_handler;
-	sigaction (SIGINT, &sig_int_action, &old);
+	 * still interrupt syscalls like sleep and pause. */
 
-	sigemptyset(&sigset);
-	sigaddset(&sigset, SIGINT);
-	pthread_sigmask(SIG_UNBLOCK, &sigset, NULL);
 	PyEval_AcquireThread(state);
 	if (PyImport_ImportModule("readline") == NULL) {
 		/* This interactive session will suck. */
 		cpy_log_exception("interactive session init");
 	}
+	cur_sig = PyOS_setsig(SIGINT, python_sigint_handler);
+	/* We totally forked just now. Everyone saw that, right? */
+	PyOS_AfterFork();
 	PyRun_InteractiveLoop(stdin, "<stdin>");
+	PyOS_setsig(SIGINT, cur_sig);
 	PyErr_Print();
 	PyEval_ReleaseThread(state);
 	NOTICE("python: Interactive interpreter exited, stopping collectd ...");
-	/* Restore the original collectd SIGINT handler and raise SIGINT.
-	 * The main thread still has SIGINT blocked and there's nothing we
-	 * can do about that so this thread will handle it. But that's not
-	 * important, except that it won't interrupt the main loop and so
-	 * it might take a few seconds before collectd really shuts down. */
-	sigaction (SIGINT, &old, NULL);
-	raise(SIGINT);
-	pause();
+	pthread_kill(main_thread, SIGINT);
 	return NULL;
 }
 
 static int cpy_init(void) {
-	cpy_callback_t *c;
 	PyObject *ret;
 	static pthread_t thread;
-	sigset_t sigset;
 
 	if (!Py_IsInitialized()) {
 		WARNING("python: Plugin loaded but not configured.");
 		plugin_unregister_shutdown("python");
+		Py_Finalize();
 		return 0;
 	}
 	PyEval_InitThreads();
 	/* Now it's finally OK to use python threads. */
-	for (c = cpy_init_callbacks; c; c = c->next) {
+	for (cpy_callback_t *c = cpy_init_callbacks; c; c = c->next) {
 		ret = PyObject_CallFunctionObjArgs(c->callback, c->data, (void *) 0); /* New reference. */
 		if (ret == NULL)
 			cpy_log_exception("init callback");
 		else
 			Py_DECREF(ret);
 	}
-	sigemptyset(&sigset);
-	sigaddset(&sigset, SIGINT);
-	pthread_sigmask(SIG_BLOCK, &sigset, NULL);
 	state = PyEval_SaveThread();
+	main_thread = pthread_self();
 	if (do_interactive) {
 		if (plugin_thread_create(&thread, NULL, cpy_interactive, NULL)) {
 			ERROR("python: Error creating thread for interactive interpreter.");
@@ -999,14 +1020,13 @@ static int cpy_init(void) {
 }
 
 static PyObject *cpy_oconfig_to_pyconfig(oconfig_item_t *ci, PyObject *parent) {
-	int i;
 	PyObject *item, *values, *children, *tmp;
 
 	if (parent == NULL)
 		parent = Py_None;
 
 	values = PyTuple_New(ci->values_num); /* New reference. */
-	for (i = 0; i < ci->values_num; ++i) {
+	for (int i = 0; i < ci->values_num; ++i) {
 		if (ci->values[i].type == OCONFIG_TYPE_STRING) {
 			PyTuple_SET_ITEM(values, i, cpy_string_to_unicode_or_bytes(ci->values[i].value.string));
 		} else if (ci->values[i].type == OCONFIG_TYPE_NUMBER) {
@@ -1021,7 +1041,7 @@ static PyObject *cpy_oconfig_to_pyconfig(oconfig_item_t *ci, PyObject *parent) {
 	if (item == NULL)
 		return NULL;
 	children = PyTuple_New(ci->children_num); /* New reference. */
-	for (i = 0; i < ci->children_num; ++i) {
+	for (int i = 0; i < ci->children_num; ++i) {
 		PyTuple_SET_ITEM(children, i, cpy_oconfig_to_pyconfig(ci->children + i, item));
 	}
 	tmp = ((Config *) item)->children;
@@ -1045,6 +1065,7 @@ PyMODINIT_FUNC PyInit_collectd(void) {
 #endif
 
 static int cpy_init_python(void) {
+	PyOS_sighandler_t cur_sig;
 	PyObject *sys;
 	PyObject *module;
 
@@ -1056,7 +1077,10 @@ static int cpy_init_python(void) {
 	char *argv = "";
 #endif
 
+	/* Chances are the current signal handler is already SIG_DFL, but let's make sure. */
+	cur_sig = PyOS_setsig(SIGINT, SIG_DFL);
 	Py_Initialize();
+	python_sigint_handler = PyOS_setsig(SIGINT, cur_sig);
 
 	PyType_Ready(&ConfigType);
 	PyType_Ready(&PluginDataType);
@@ -1108,8 +1132,8 @@ static int cpy_init_python(void) {
 }
 
 static int cpy_config(oconfig_item_t *ci) {
-	int i;
 	PyObject *tb;
+	int status = 0;
 
 	/* Ok in theory we shouldn't do initialization at this point
 	 * but we have to. In order to give python scripts a chance
@@ -1120,27 +1144,40 @@ static int cpy_config(oconfig_item_t *ci) {
 
 	if (!Py_IsInitialized() && cpy_init_python()) return 1;
 
-	for (i = 0; i < ci->children_num; ++i) {
+	for (int i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *item = ci->children + i;
 
 		if (strcasecmp(item->key, "Interactive") == 0) {
-			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_BOOLEAN)
+			if (cf_util_get_boolean(item, &do_interactive) != 0) {
+				status = 1;
 				continue;
-			do_interactive = item->values[0].value.boolean;
+			}
 		} else if (strcasecmp(item->key, "Encoding") == 0) {
-			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_STRING)
+			char *encoding = NULL;
+			if (cf_util_get_string(item, &encoding) != 0) {
+				status = 1;
 				continue;
+			}
 #ifdef IS_PY3K
-			NOTICE("python: \"Encoding\" was used in the config file but Python3 was used, which does not support changing encodings. Ignoring this.");
+			ERROR("python: \"Encoding\" was used in the config file but Python3 was used, which does not support changing encodings");
+			status = 1;
+			sfree(encoding);
+			continue;
 #else
 			/* Why is this even necessary? And undocumented? */
-			if (PyUnicode_SetDefaultEncoding(item->values[0].value.string))
+			if (PyUnicode_SetDefaultEncoding(encoding)) {
 				cpy_log_exception("setting default encoding");
+				status = 1;
+			}
 #endif
+			sfree(encoding);
 		} else if (strcasecmp(item->key, "LogTraces") == 0) {
-			if (item->values_num != 1 || item->values[0].type != OCONFIG_TYPE_BOOLEAN)
+			_Bool log_traces;
+			if (cf_util_get_boolean(item, &log_traces) != 0) {
+				status = 1;
 				continue;
-			if (!item->values[0].value.boolean) {
+			}
+			if (!log_traces) {
 				Py_XDECREF(cpy_format_exception);
 				cpy_format_exception = NULL;
 				continue;
@@ -1150,30 +1187,37 @@ static int cpy_config(oconfig_item_t *ci) {
 			tb = PyImport_ImportModule("traceback"); /* New reference. */
 			if (tb == NULL) {
 				cpy_log_exception("python initialization");
+				status = 1;
 				continue;
 			}
 			cpy_format_exception = PyObject_GetAttrString(tb, "format_exception"); /* New reference. */
 			Py_DECREF(tb);
-			if (cpy_format_exception == NULL)
+			if (cpy_format_exception == NULL) {
 				cpy_log_exception("python initialization");
+				status = 1;
+			}
 		} else if (strcasecmp(item->key, "ModulePath") == 0) {
 			char *dir = NULL;
 			PyObject *dir_object;
 
-			if (cf_util_get_string(item, &dir) != 0)
+			if (cf_util_get_string(item, &dir) != 0) {
+				status = 1;
 				continue;
+			}
 			dir_object = cpy_string_to_unicode_or_bytes(dir); /* New reference. */
 			if (dir_object == NULL) {
 				ERROR("python plugin: Unable to convert \"%s\" to "
 				      "a python object.", dir);
 				free(dir);
 				cpy_log_exception("python initialization");
+				status = 1;
 				continue;
 			}
 			if (PyList_Insert(sys_path, 0, dir_object) != 0) {
 				ERROR("python plugin: Unable to prepend \"%s\" to "
 				      "python module path.", dir);
 				cpy_log_exception("python initialization");
+				status = 1;
 			}
 			Py_DECREF(dir_object);
 			free(dir);
@@ -1181,12 +1225,15 @@ static int cpy_config(oconfig_item_t *ci) {
 			char *module_name = NULL;
 			PyObject *module;
 
-			if (cf_util_get_string(item, &module_name) != 0)
+			if (cf_util_get_string(item, &module_name) != 0) {
+				status = 1;
 				continue;
+			}
 			module = PyImport_ImportModule(module_name); /* New reference. */
 			if (module == NULL) {
 				ERROR("python plugin: Error importing module \"%s\".", module_name);
 				cpy_log_exception("importing module");
+				status = 1;
 			}
 			free(module_name);
 			Py_XDECREF(module);
@@ -1195,8 +1242,10 @@ static int cpy_config(oconfig_item_t *ci) {
 			cpy_callback_t *c;
 			PyObject *ret;
 
-			if (cf_util_get_string(item, &name) != 0)
+			if (cf_util_get_string(item, &name) != 0) {
+				status = 1;
 				continue;
+			}
 			for (c = cpy_config_callbacks; c; c = c->next) {
 				if (strcasecmp(c->name + 7, name) == 0)
 					break;
@@ -1215,15 +1264,17 @@ static int cpy_config(oconfig_item_t *ci) {
 			else
 				ret = PyObject_CallFunction(c->callback, "NO",
 					cpy_oconfig_to_pyconfig(item, NULL), c->data); /* New reference. */
-			if (ret == NULL)
+			if (ret == NULL) {
 				cpy_log_exception("loading module");
-			else
+				status = 1;
+			} else
 				Py_DECREF(ret);
 		} else {
-			WARNING("python plugin: Ignoring unknown config key \"%s\".", item->key);
+			ERROR("python plugin: Unknown config key \"%s\".", item->key);
+			status = 1;
 		}
 	}
-	return 0;
+	return (status);
 }
 
 void module_register(void) {

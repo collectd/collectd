@@ -27,6 +27,7 @@
 #define _BSD_SOURCE /* For setgroups */
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -37,6 +38,10 @@
 #include <pwd.h>
 #include <grp.h>
 #include <signal.h>
+
+#ifdef HAVE_SYS_CAPABILITY_H
+# include <sys/capability.h>
+#endif
 
 #define PL_NORMAL        0x01
 #define PL_NOTIF_ACTION  0x02
@@ -245,9 +250,7 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
 
 static int exec_config (oconfig_item_t *ci) /* {{{ */
 {
-  int i;
-
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
     if ((strcasecmp ("Exec", child->key) == 0)
@@ -346,7 +349,6 @@ static void reset_signal_mask (void) /* {{{ */
 {
   sigset_t ss;
 
-  memset (&ss, 0, sizeof (ss));
   sigemptyset (&ss);
   sigprocmask (SIG_SETMASK, &ss, /* old mask = */ NULL);
 } /* }}} void reset_signal_mask */
@@ -471,11 +473,10 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out, int *fd_err)
   else if (pid == 0)
   {
     int fd_num;
-    int fd;
 
     /* Close all file descriptors but the pipe end we need. */
     fd_num = getdtablesize ();
-    for (fd = 0; fd < fd_num; fd++)
+    for (int fd = 0; fd < fd_num; fd++)
     {
       if ((fd == fd_pipe_in[0])
           || (fd == fd_pipe_out[1])
@@ -721,7 +722,6 @@ static void *exec_notification_one (void *arg) /* {{{ */
 {
   program_list_t *pl = ((program_list_and_notification_t *) arg)->pl;
   notification_t *n = &((program_list_and_notification_t *) arg)->n;
-  notification_meta_t *meta;
   int fd;
   FILE *fh;
   int pid;
@@ -769,7 +769,7 @@ static void *exec_notification_one (void *arg) /* {{{ */
   if (strlen (n->type_instance) > 0)
     fprintf (fh, "TypeInstance: %s\n", n->type_instance);
 
-  for (meta = n->meta; meta != NULL; meta = meta->next)
+  for (notification_meta_t *meta = n->meta; meta != NULL; meta = meta->next)
   {
     if (meta->type == NM_TYPE_STRING)
       fprintf (fh, "%s: %s\n", meta->name, meta->nm_value.nm_string);
@@ -804,20 +804,34 @@ static void *exec_notification_one (void *arg) /* {{{ */
 
 static int exec_init (void) /* {{{ */
 {
-  struct sigaction sa;
+  struct sigaction sa = {
+    .sa_handler = sigchld_handler
+  };
 
-  memset (&sa, '\0', sizeof (sa));
-  sa.sa_handler = sigchld_handler;
   sigaction (SIGCHLD, &sa, NULL);
+
+#if defined(HAVE_SYS_CAPABILITY_H) && defined(CAP_SETUID) && defined(CAP_SETGID)
+  if ((check_capability (CAP_SETUID) != 0) ||
+      (check_capability (CAP_SETGID) != 0))
+  {
+    if (getuid () == 0)
+      WARNING ("exec plugin: Running collectd as root, but the CAP_SETUID "
+          "or CAP_SETGID capabilities are missing. The plugin's read function "
+          "will probably fail. Is your init system dropping capabilities?");
+    else
+      WARNING ("exec plugin: collectd doesn't have the CAP_SETUID or "
+          "CAP_SETGID capabilities. If you don't want to run collectd as root, "
+          "try running \"setcap 'cap_setuid=ep cap_setgid=ep'\" on the "
+          "collectd binary.");
+  }
+#endif
 
   return (0);
 } /* int exec_init }}} */
 
 static int exec_read (void) /* {{{ */
 {
-  program_list_t *pl;
-
-  for (pl = pl_head; pl != NULL; pl = pl->next)
+  for (program_list_t *pl = pl_head; pl != NULL; pl = pl->next)
   {
     pthread_t t;
     pthread_attr_t attr;
@@ -848,10 +862,9 @@ static int exec_read (void) /* {{{ */
 static int exec_notification (const notification_t *n, /* {{{ */
     user_data_t __attribute__((unused)) *user_data)
 {
-  program_list_t *pl;
   program_list_and_notification_t *pln;
 
-  for (pl = pl_head; pl != NULL; pl = pl->next)
+  for (program_list_t *pl = pl_head; pl != NULL; pl = pl->next)
   {
     pthread_t t;
     pthread_attr_t attr;

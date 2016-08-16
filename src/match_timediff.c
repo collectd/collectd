@@ -25,8 +25,8 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
-#include "utils_cache.h"
 #include "filter_chain.h"
 
 #define SATISFY_ALL 0
@@ -50,7 +50,6 @@ static int mt_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 {
   mt_match_t *m;
   int status;
-  int i;
 
   m = calloc (1, sizeof (*m));
   if (m == NULL)
@@ -63,7 +62,7 @@ static int mt_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   m->past = 0;
 
   status = 0;
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -145,9 +144,8 @@ static int mt_match (const data_set_t __attribute__((unused)) *ds, /* {{{ */
 
 void module_register (void)
 {
-  match_proc_t mproc;
+  match_proc_t mproc = { 0 };
 
-  memset (&mproc, 0, sizeof (mproc));
   mproc.create  = mt_create;
   mproc.destroy = mt_destroy;
   mproc.match   = mt_match;

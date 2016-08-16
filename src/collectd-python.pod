@@ -37,7 +37,7 @@ for collectd in Python. This is a lot more efficient than executing a
 Python-script every time you want to read a value with the C<exec plugin> (see
 L<collectd-exec(5)>) and provides a lot more functionality, too.
 
-The minimum required Python version is I<2.3>.
+The minimum required Python version is I<2.6>.
 
 =head1 CONFIGURATION
 
@@ -94,11 +94,12 @@ way of entering your commands. The daemonized collectd won't do that.
 
 =item *
 
-B<2.> collectd will block I<SIGINT>. Pressing I<Ctrl+C> will usually cause
+B<2.> Python will be handling I<SIGINT>. Pressing I<Ctrl+C> will usually cause
 collectd to shut down. This would be problematic in an interactive session,
-therefore this signal will be blocked. You can still use it to interrupt
-syscalls like sleep and pause but it won't generate a I<KeyboardInterrupt>
-exception either.
+therefore Python will be handling it in interactive sessions. This allows you
+to use I<Ctrl+C> to interrupt Python code without killing collectd. This also
+means you can catch I<KeyboardInterrupt> exceptions which does not work during
+normal operation.
 
 To quit collectd send I<EOF> (press I<Ctrl+D> at the beginning of a new line).
 
@@ -658,6 +659,8 @@ Any Python module will start similar to:
 
 A very simple read function might look like:
 
+  import random
+
   def read(data=None):
     vl = collectd.Values(type='gauge')
     vl.plugin='python.spam'
@@ -671,27 +674,11 @@ A very simple write function might look like:
 
 To register those functions with collectd:
 
-  collectd.register_read(read);
-  collectd.register_write(write);
+  collectd.register_read(read)
+  collectd.register_write(write)
 
 See the section L<"CLASSES"> above for a complete documentation of the data
 types used by the read, write and match functions.
-
-=head1 NOTES
-
-=over 4
-
-=item *
-
-Please feel free to send in new plugins to collectd's mailing list at
-E<lt>collectdE<nbsp>atE<nbsp>collectd.orgE<gt> for review and, possibly,
-inclusion in the main distribution. In the latter case, we will take care of
-keeping the plugin up to date and adapting it to new versions of collectd.
-
-Before submitting your plugin, please take a look at
-L<http://collectd.org/dev-info.shtml>.
-
-=back
 
 =head1 CAVEATS
 

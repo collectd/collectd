@@ -22,6 +22,7 @@
  **/
 
 #include "collectd.h"
+
 #include "plugin.h"
 #include "common.h"
 #include "utils_cache.h"
@@ -45,7 +46,6 @@ static int value_list_to_string (char *buffer, int buffer_len,
 {
 	int offset;
 	int status;
-	size_t i;
 	gauge_t *rates = NULL;
 
 	assert (0 == strcmp (ds->type, vl->type));
@@ -58,7 +58,7 @@ static int value_list_to_string (char *buffer, int buffer_len,
 		return (-1);
 	offset = status;
 
-	for (i = 0; i < ds->ds_num; i++)
+	for (size_t i = 0; i < ds->ds_num; i++)
 	{
 		if ((ds->ds[i].type != DS_TYPE_COUNTER)
 				&& (ds->ds[i].type != DS_TYPE_GAUGE)
@@ -187,7 +187,6 @@ static int value_list_to_filename (char *buffer, size_t buffer_size,
 static int csv_create_file (const char *filename, const data_set_t *ds)
 {
 	FILE *csv;
-	size_t i;
 
 	if (check_create_dir (filename))
 		return (-1);
@@ -203,7 +202,7 @@ static int csv_create_file (const char *filename, const data_set_t *ds)
 	}
 
 	fprintf (csv, "epoch");
-	for (i = 0; i < ds->ds_num; i++)
+	for (size_t i = 0; i < ds->ds_num; i++)
 		fprintf (csv, ",%s", ds->ds[i].name);
 
 	fprintf (csv, "\n");
@@ -269,7 +268,7 @@ static int csv_write (const data_set_t *ds, const value_list_t *vl,
 	char         values[4096];
 	FILE        *csv;
 	int          csv_fd;
-	struct flock fl;
+	struct flock fl = { 0 };
 	int          status;
 
 	if (0 != strcmp (ds->type, vl->type)) {
@@ -288,12 +287,10 @@ static int csv_write (const data_set_t *ds, const value_list_t *vl,
 
 	if (use_stdio)
 	{
-		size_t i;
-
 		escape_string (filename, sizeof (filename));
 
 		/* Replace commas by colons for PUTVAL compatible output. */
-		for (i = 0; i < sizeof (values); i++)
+		for (size_t i = 0; i < sizeof (values); i++)
 		{
 			if (values[i] == 0)
 				break;
@@ -342,9 +339,6 @@ static int csv_write (const data_set_t *ds, const value_list_t *vl,
 	}
 	csv_fd = fileno (csv);
 
-	memset (&fl, '\0', sizeof (fl));
-	fl.l_start  = 0;
-	fl.l_len    = 0; /* till end of file */
 	fl.l_pid    = getpid ();
 	fl.l_type   = F_WRLCK;
 	fl.l_whence = SEEK_SET;

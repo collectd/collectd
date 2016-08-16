@@ -28,6 +28,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -89,12 +90,10 @@ static long long get_zfs_value(kstat_t *ksp, const char *key)
 
 static void free_zfs_values (kstat_t *ksp)
 {
-	llentry_t *e;
-
 	if (ksp == NULL)
 		return;
 
-	for (e = llist_head (ksp); e != NULL; e = e->next)
+	for (llentry_t *e = llist_head (ksp); e != NULL; e = e->next)
 	{
 		sfree (e->key);
 		sfree (e->value);
@@ -295,10 +294,6 @@ static int za_read (void)
 	za_read_derive (ksp, "deleted",  "cache_operation", "deleted");
 #if defined(KERNEL_FREEBSD)
 	za_read_derive (ksp, "allocated","cache_operation", "allocated");
-#if __FreeBSD_version < 1002501
-	/* stolen removed from sysctl kstat.zfs.misc.arcstats on FreeBSD 10.2+ */
-	za_read_derive (ksp, "stolen",   "cache_operation", "stolen");
-#endif
 #endif
 
 	/* Issue indicators */

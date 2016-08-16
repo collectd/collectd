@@ -42,7 +42,7 @@ typedef struct c_avl_iterator_s c_avl_iterator_t;
  *
  * PARAMETERS
  *   `compare'  The function-pointer `compare' is used to compare two keys. It
- *              has to return less than zero if it's first argument is smaller
+ *              has to return less than zero if its first argument is smaller
  *              then the second argument, more than zero if the first argument
  *              is bigger than the second argument and zero if they are equal.
  *              If your keys are char-pointers, you can use the `strcmp'
@@ -131,7 +131,7 @@ int c_avl_get (c_avl_tree_t *t, const void *key, void **value);
  *   c_avl_pick
  *
  * DESCRIPTION
- *   Remove a (pseudo-)random element from the tree and return it's `key' and
+ *   Remove a (pseudo-)random element from the tree and return its `key' and
  *   `value'. Entries are not returned in any particular order. This function
  *   is intended for cache-flushes that don't care about the order but simply
  *   want to remove all elements, one at a time.

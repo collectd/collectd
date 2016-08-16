@@ -45,6 +45,7 @@ derive                  value:DERIVE:0:U
 df                      used:GAUGE:0:1125899906842623, free:GAUGE:0:1125899906842623
 df_complex              value:GAUGE:0:U
 df_inodes               value:GAUGE:0:U
+dilution_of_precision   value:GAUGE:0:U
 disk_io_time            io_time:DERIVE:0:U, weighted_io_time:DERIVE:0:U
 disk_latency            read:GAUGE:0:U, write:GAUGE:0:U
 disk_merged             read:DERIVE:0:U, write:DERIVE:0:U
@@ -150,6 +151,7 @@ node_stat               value:DERIVE:0:U
 node_tx_rate            value:GAUGE:0:127
 objects                 value:GAUGE:0:U
 operations              value:DERIVE:0:U
+operations_per_second   value:GAUGE:0:U
 packets                 value:DERIVE:0:U
 pending_operations      value:GAUGE:0:U
 percent                 value:GAUGE:0:100.1
@@ -196,6 +198,7 @@ root_dispersion         value:GAUGE:U:U
 route_etx               value:GAUGE:0:U
 route_metric            value:GAUGE:0:U
 routes                  value:GAUGE:0:U
+satellites              value:GAUGE:0:U
 segments                value:GAUGE:0:65535
 serial_octets           rx:DERIVE:0:U, tx:DERIVE:0:U
 signal_noise            value:GAUGE:U:0

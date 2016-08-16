@@ -22,6 +22,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -334,7 +335,6 @@ static int fc_config_add_dir (oconfig_item_t *ci)
 {
   fc_directory_conf_t *dir;
   int status;
-  int i;
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
@@ -368,7 +368,7 @@ static int fc_config_add_dir (oconfig_item_t *ci)
   dir->size = 0;
 
   status = 0;
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
 
@@ -428,9 +428,7 @@ static int fc_config_add_dir (oconfig_item_t *ci)
 
 static int fc_config (oconfig_item_t *ci)
 {
-  int i;
-
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
     if (strcasecmp ("Directory", child->key) == 0)
@@ -557,9 +555,7 @@ static int fc_read_dir (fc_directory_conf_t *dir)
 
 static int fc_read (void)
 {
-  size_t i;
-
-  for (i = 0; i < directories_num; i++)
+  for (size_t i = 0; i < directories_num; i++)
     fc_read_dir (directories[i]);
 
   return (0);

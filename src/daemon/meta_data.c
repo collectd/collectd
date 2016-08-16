@@ -25,10 +25,9 @@
  **/
 
 #include "collectd.h"
+
 #include "plugin.h"
 #include "meta_data.h"
-
-#include <pthread.h>
 
 /*
  * Data types
@@ -285,6 +284,17 @@ static meta_entry_t *md_entry_lookup (meta_data_t *md, /* {{{ */
 } /* }}} meta_entry_t *md_entry_lookup */
 
 /*
+ * Each value_list_t*, as it is going through the system, is handled by exactly
+ * one thread. Plugins which pass a value_list_t* to another thread, e.g. the
+ * rrdtool plugin, must create a copy first. The meta data within a
+ * value_list_t* is not thread safe and doesn't need to be.
+ *
+ * The meta data associated with cache entries are a different story. There, we
+ * need to ensure exclusive locking to prevent leaks and other funky business.
+ * This is ensured by the uc_meta_data_get_*() functions.
+ */
+
+/*
  * Public functions
  */
 meta_data_t *meta_data_create (void) /* {{{ */
@@ -323,8 +333,6 @@ meta_data_t *meta_data_clone (meta_data_t *orig) /* {{{ */
 
 int meta_data_clone_merge (meta_data_t **dest, meta_data_t *orig) /* {{{ */
 {
-  meta_entry_t *e;
-
   if (orig == NULL)
     return (0);
 
@@ -334,7 +342,7 @@ int meta_data_clone_merge (meta_data_t **dest, meta_data_t *orig) /* {{{ */
   }
 
   pthread_mutex_lock (&orig->lock);
-  for (e=orig->head; e != NULL; e = e->next)
+  for (meta_entry_t *e=orig->head; e != NULL; e = e->next)
   {
     md_entry_insert_clone((*dest), e);
   }
@@ -355,14 +363,12 @@ void meta_data_destroy (meta_data_t *md) /* {{{ */
 
 int meta_data_exists (meta_data_t *md, const char *key) /* {{{ */
 {
-  meta_entry_t *e;
-
   if ((md == NULL) || (key == NULL))
     return (-EINVAL);
 
   pthread_mutex_lock (&md->lock);
 
-  for (e = md->head; e != NULL; e = e->next)
+  for (meta_entry_t *e = md->head; e != NULL; e = e->next)
   {
     if (strcasecmp (key, e->key) == 0)
     {
@@ -377,14 +383,12 @@ int meta_data_exists (meta_data_t *md, const char *key) /* {{{ */
 
 int meta_data_type (meta_data_t *md, const char *key) /* {{{ */
 {
-  meta_entry_t *e;
-
   if ((md == NULL) || (key == NULL))
     return -EINVAL;
 
   pthread_mutex_lock (&md->lock);
 
-  for (e = md->head; e != NULL; e = e->next)
+  for (meta_entry_t *e = md->head; e != NULL; e = e->next)
   {
     if (strcasecmp (key, e->key) == 0)
     {
@@ -400,14 +404,13 @@ int meta_data_type (meta_data_t *md, const char *key) /* {{{ */
 int meta_data_toc (meta_data_t *md, char ***toc) /* {{{ */
 {
   int i = 0, count = 0;
-  meta_entry_t *e;
 
   if ((md == NULL) || (toc == NULL))
     return -EINVAL;
 
   pthread_mutex_lock (&md->lock);
 
-  for (e = md->head; e != NULL; e = e->next)
+  for (meta_entry_t *e = md->head; e != NULL; e = e->next)
     ++count;
 
   if (count == 0)
@@ -417,7 +420,7 @@ int meta_data_toc (meta_data_t *md, char ***toc) /* {{{ */
   }
 
   *toc = calloc(count, sizeof(**toc));
-  for (e = md->head; e != NULL; e = e->next)
+  for (meta_entry_t *e = md->head; e != NULL; e = e->next)
     (*toc)[i++] = strdup(e->key);
 
   pthread_mutex_unlock (&md->lock);

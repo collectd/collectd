@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "filter_chain.h"
 #include "utils_cache.h"
@@ -124,7 +125,6 @@ static int tn_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 {
   tn_data_t *data;
   int status;
-  int i;
 
   data = calloc (1, sizeof (*data));
   if (data == NULL)
@@ -137,7 +137,7 @@ static int tn_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   data->severity = 0;
 
   status = 0;
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -192,13 +192,11 @@ static int tn_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
     notification_meta_t __attribute__((unused)) **meta, void **user_data)
 {
   tn_data_t *data;
-  notification_t n;
+  notification_t n = { 0 };
   char temp[NOTIF_MAX_MSG_LEN];
 
   gauge_t *rates;
   int rates_failed;
-
-  size_t i;
 
   if ((ds == NULL) || (vl == NULL) || (user_data == NULL))
     return (-EINVAL);
@@ -211,7 +209,6 @@ static int tn_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
   }
 
   /* Initialize the structure. */
-  memset (&n, 0, sizeof (n));
   n.severity = data->severity;
   n.time = cdtime ();
   sstrncpy (n.message, data->message, sizeof (n.message));
@@ -235,7 +232,8 @@ static int tn_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
 
   rates_failed = 0;
   rates = NULL;
-  for (i = 0; i < ds->ds_num; i++)
+
+  for (size_t i = 0; i < ds->ds_num; i++)
   {
     char template[DATA_MAX_NAME_LEN];
     char value_str[DATA_MAX_NAME_LEN];
@@ -276,9 +274,8 @@ static int tn_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
 
 void module_register (void)
 {
-	target_proc_t tproc;
+	target_proc_t tproc = { 0 };
 
-	memset (&tproc, 0, sizeof (tproc));
 	tproc.create  = tn_create;
 	tproc.destroy = tn_destroy;
 	tproc.invoke  = tn_invoke;

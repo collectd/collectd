@@ -21,6 +21,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -98,7 +99,6 @@ static int tape_read (void)
 # error "kstat_io_t does not have the required members"
 #endif
 	static kstat_io_t kio;
-	int i;
 
 	if (kc == NULL)
 		return (-1);
@@ -106,7 +106,7 @@ static int tape_read (void)
 	if (numtape <= 0)
 		return (-1);
 
-	for (i = 0; i < numtape; i++)
+	for (int i = 0; i < numtape; i++)
 	{
 		if (kstat_read (kc, ksp[i], &kio) == -1)
 			continue;

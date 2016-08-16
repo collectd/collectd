@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "utils_time.h"
 
 struct latency_counter_s;

@@ -25,11 +25,10 @@
  */
 
 #include "collectd.h"
+
 #include "plugin.h"
 #include "common.h"
-#include "configfile.h"
 #include "utils_avltree.h"
-#include "utils_complain.h"
 #include "utils_latency.h"
 
 #include <sys/types.h>
@@ -356,7 +355,7 @@ static int statsd_handle_set (char const *name, /* {{{ */
 
   /* Make sure metric->set exists. */
   if (metric->set == NULL)
-    metric->set = c_avl_create ((void *) strcmp);
+    metric->set = c_avl_create ((int (*) (const void *, const void *)) strcmp);
 
   if (metric->set == NULL)
   {
@@ -501,22 +500,18 @@ static int statsd_network_init (struct pollfd **ret_fds, /* {{{ */
   struct pollfd *fds = NULL;
   size_t fds_num = 0;
 
-  struct addrinfo ai_hints;
-  struct addrinfo *ai_list = NULL;
-  struct addrinfo *ai_ptr;
+  struct addrinfo *ai_list;
   int status;
 
   char const *node = (conf_node != NULL) ? conf_node : STATSD_DEFAULT_NODE;
   char const *service = (conf_service != NULL)
     ? conf_service : STATSD_DEFAULT_SERVICE;
 
-  memset (&ai_hints, 0, sizeof (ai_hints));
-  ai_hints.ai_flags = AI_PASSIVE;
-#ifdef AI_ADDRCONFIG
-  ai_hints.ai_flags |= AI_ADDRCONFIG;
-#endif
-  ai_hints.ai_family = AF_UNSPEC;
-  ai_hints.ai_socktype = SOCK_DGRAM;
+  struct addrinfo ai_hints = {
+    .ai_family = AF_UNSPEC,
+    .ai_flags = AI_PASSIVE | AI_ADDRCONFIG,
+    .ai_socktype = SOCK_DGRAM
+  };
 
   status = getaddrinfo (node, service, &ai_hints, &ai_list);
   if (status != 0)
@@ -526,7 +521,7 @@ static int statsd_network_init (struct pollfd **ret_fds, /* {{{ */
     return (status);
   }
 
-  for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+  for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
   {
     int fd;
     struct pollfd *tmp;
@@ -593,7 +588,6 @@ static void *statsd_network_thread (void *args) /* {{{ */
   struct pollfd *fds = NULL;
   size_t fds_num = 0;
   int status;
-  size_t i;
 
   status = statsd_network_init (&fds, &fds_num);
   if (status != 0)
@@ -617,7 +611,7 @@ static void *statsd_network_thread (void *args) /* {{{ */
       break;
     }
 
-    for (i = 0; i < fds_num; i++)
+    for (size_t i = 0; i < fds_num; i++)
     {
       if ((fds[i].revents & (POLLIN | POLLPRI)) == 0)
         continue;
@@ -628,7 +622,7 @@ static void *statsd_network_thread (void *args) /* {{{ */
   } /* while (!network_thread_shutdown) */
 
   /* Clean up */
-  for (i = 0; i < fds_num; i++)
+  for (size_t i = 0; i < fds_num; i++)
     close (fds[i].fd);
   sfree (fds);
 
@@ -668,9 +662,7 @@ static int statsd_config_timer_percentile (oconfig_item_t *ci) /* {{{ */
 
 static int statsd_config (oconfig_item_t *ci) /* {{{ */
 {
-  int i;
-
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -710,7 +702,7 @@ static int statsd_init (void) /* {{{ */
 {
   pthread_mutex_lock (&metrics_lock);
   if (metrics_tree == NULL)
-    metrics_tree = c_avl_create ((void *) strcmp);
+    metrics_tree = c_avl_create ((int (*) (const void *, const void *)) strcmp);
 
   if (!network_thread_running)
   {
@@ -783,7 +775,6 @@ static int statsd_metric_submit_unsafe (char const *name, statsd_metric_t *metri
     values[0].gauge = (gauge_t) metric->value;
   else if (metric->type == STATSD_TIMER)
   {
-    size_t i;
     _Bool have_events = (metric->updates_num > 0);
 
     /* Make sure all timer metrics share the *same* timestamp. */
@@ -823,7 +814,7 @@ static int statsd_metric_submit_unsafe (char const *name, statsd_metric_t *metri
       plugin_dispatch_values (&vl);
     }
 
-    for (i = 0; i < conf_timer_percentile_num; i++)
+    for (size_t i = 0; i < conf_timer_percentile_num; i++)
     {
       ssnprintf (vl.type_instance, sizeof (vl.type_instance),
           "%s-percentile-%.0f", name, conf_timer_percentile[i]);
@@ -889,7 +880,6 @@ static int statsd_read (void) /* {{{ */
 
   char **to_be_deleted = NULL;
   size_t to_be_deleted_num = 0;
-  size_t i;
 
   pthread_mutex_lock (&metrics_lock);
 
@@ -924,7 +914,7 @@ static int statsd_read (void) /* {{{ */
   }
   c_avl_iterator_destroy (iter);
 
-  for (i = 0; i < to_be_deleted_num; i++)
+  for (size_t i = 0; i < to_be_deleted_num; i++)
   {
     int status;
 

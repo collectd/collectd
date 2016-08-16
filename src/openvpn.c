@@ -26,6 +26,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -521,12 +522,12 @@ static int multi4_read (const char *name, FILE *fh)
 static int openvpn_read (void)
 {
 	FILE *fh;
-	int  i, read;
+	int  read;
 
 	read = 0;
 
 	/* call the right read function for every status entry in the list */
-	for (i = 0; i < vpn_num; i++)
+	for (int i = 0; i < vpn_num; i++)
 	{
 		int vpn_read = 0;
 
@@ -650,7 +651,7 @@ static int openvpn_config (const char *key, const char *value)
 	if (strcasecmp ("StatusFile", key) == 0)
 	{
 		char    *status_file, *status_name, *filename;
-		int     status_version, i;
+		int     status_version;
 		vpn_status_t *temp;
 
 		/* try to detect the status file format */
@@ -686,7 +687,7 @@ static int openvpn_config (const char *key, const char *value)
 		}
 
 		/* scan the list looking for a clone */
-		for (i = 0; i < vpn_num; i++)
+		for (int i = 0; i < vpn_num; i++)
 		{
 			if (strcasecmp (vpn_list[i]->name, status_name) == 0)
 			{
@@ -777,9 +778,7 @@ static int openvpn_config (const char *key, const char *value)
 /* shutdown callback */
 static int openvpn_shutdown (void)
 {
-	int i;
-
-	for (i = 0; i < vpn_num; i++)
+	for (int i = 0; i < vpn_num; i++)
 	{
 		sfree (vpn_list[i]->file);
 		sfree (vpn_list[i]);

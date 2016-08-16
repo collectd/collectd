@@ -22,6 +22,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -73,7 +74,6 @@ static int serial_read (void)
 
 		char *fields[16];
 		int numfields;
-		int i;
 
 		numfields = strsplit (buffer, fields, STATIC_ARRAY_SIZE (fields));
 		if (numfields < 6)
@@ -90,7 +90,7 @@ static int serial_read (void)
 			continue;
 		fields[0][len - 1] = 0;
 
-		for (i = 1; i < numfields; i++)
+		for (int i = 1; i < numfields; i++)
 		{
 			len = strlen (fields[i]);
 			if (len < 4)

@@ -25,6 +25,7 @@
  */
 
 #include "collectd.h"
+
 #include "common.h"
 #include "testing.h"
 #include "utils_mount.h"
