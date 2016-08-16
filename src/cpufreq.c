@@ -94,8 +94,8 @@ static int cpufreq_init (void)
 	for (num_cpu = 0; !done; ++num_cpu)
 	{
 		status = ssnprintf (filename, sizeof (filename),
-							"/sys/devices/system/cpu/cpu%zu",
-							num_cpu);
+				    "/sys/devices/system/cpu/cpu%zu",
+				    num_cpu);
 
 		if ((status < 1) || ((unsigned int)status >= sizeof (filename)))
 		{
@@ -103,7 +103,7 @@ static int cpufreq_init (void)
 			break;
 		}
 
-		if (access(filename, R_OK))
+		if (access (filename, R_OK))
 			break;
 	}
 
@@ -150,8 +150,8 @@ static int cpufreq_init (void)
 			//
 			// At this stage, only hertz is used.
 			status = ssnprintf (filename, sizeof (filename),
-								"/sys/devices/system/cpu/cpu%zu/cpufreq/stats/time_in_state",
-								i);
+					    "/sys/devices/system/cpu/cpu%zu/cpufreq/stats/time_in_state",
+					    i);
 
 			if ((status < 1) || ((size_t)status >= sizeof (filename)))
 			{
@@ -220,7 +220,7 @@ static int cpufreq_init (void)
 
 		// Allocate memory for time array that will be used in
 		// read function.
-		time_all_cpus = (derive_t*)malloc (hertz_size * sizeof(derive_t));
+		time_all_cpus = malloc (hertz_size * sizeof(*time_all_cpus));
 		if (time_all_cpus == NULL)
 		{
 			INFO ("cpufreq plugin: malloc failed for time_all_cpus size %zu", hertz_size);
@@ -284,7 +284,7 @@ static void cpufreq_submit_distribution_value (const char *plugin_instance, long
 		sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, "total_time_in_ms", sizeof (vl.type));
 	ssnprintf (vl.type_instance, sizeof (vl.type_instance),
-			   "%ld", hertz);
+		   "%ld", hertz);
 
 	plugin_dispatch_values (&vl);
 	++reported_last_run;
@@ -305,8 +305,8 @@ static int cpufreq_read (void)
 		for (size_t i = 0; i < num_cpu; i++)
 		{
 			status = ssnprintf (filename, sizeof (filename),
-								"/sys/devices/system/cpu/cpu%zu/cpufreq/"
-								"scaling_cur_freq", i);
+					    "/sys/devices/system/cpu/cpu%zu/cpufreq/"
+					    "scaling_cur_freq", i);
 			if ((status < 1) || ((size_t)status >= sizeof (filename)))
 				return (-1);
 
@@ -321,8 +321,8 @@ static int cpufreq_read (void)
 			{
 				char errbuf[1024];
 				WARNING ("cpufreq: fgets: %s",
-						 sstrerror (errno, errbuf,
-									sizeof (errbuf)));
+					 sstrerror (errno, errbuf,
+						    sizeof (errbuf)));
 				fclose (fp);
 				return (-1);
 			}
@@ -331,8 +331,8 @@ static int cpufreq_read (void)
 			{
 				char errbuf[1024];
 				WARNING ("cpufreq: fclose: %s",
-						 sstrerror (errno, errbuf,
-									sizeof (errbuf)));
+					 sstrerror (errno, errbuf,
+						    sizeof (errbuf)));
 			}
 
 			/* You're seeing correctly: The file is reporting kHz values.. */
@@ -358,8 +358,8 @@ static int cpufreq_read (void)
 		for (size_t i=0; i < num_cpu; ++i)
 		{
 			status = ssnprintf (filename, sizeof (filename),
-								"/sys/devices/system/cpu/cpu%zu/cpufreq/stats/time_in_state",
-								i);
+					    "/sys/devices/system/cpu/cpu%zu/cpufreq/stats/time_in_state",
+					    i);
 
 			if ((status < 1) || ((size_t)status >= sizeof (filename)))
 			{
@@ -378,7 +378,7 @@ static int cpufreq_read (void)
 			{
 				numfields = strsplit (buffer, fields, STATIC_ARRAY_SIZE(fields));
 
-				if ( numfields != 2 ) // supported format contains 2 fields
+				if (numfields != 2) // supported format contains 2 fields
 				{
 					// if its an empty line, just ignore line
 					if ( numfields == 0 ) continue;
@@ -437,7 +437,7 @@ static int cpufreq_read (void)
 					else
 					{
 						// It is assumed that the frequencies in the
-						// statistics file come with the same
+						// statistics file come in the same
 						// order. So, we can take the last_index value
 						// that was pointing to the previous frequency
 						// and increment it by one. In practice, when
@@ -461,7 +461,8 @@ static int cpufreq_read (void)
 								++j;
 						}
 
-						if (found) last_index = j;
+						if (found)
+							last_index = j;
 						else
 						{
 							WARNING ("cpufreq: cannot find frequency %ld", hertz);
@@ -480,7 +481,7 @@ static int cpufreq_read (void)
 		if (!report_by_cpu)
 			for (size_t i=0; i < hertz_size; ++i)
 				cpufreq_submit_distribution_value( NULL, hertz_all_cpus[i],
-												   time_all_cpus[i] / num_cpu );
+								   time_all_cpus[i] / num_cpu );
 	}
 
 	if (reported_last_run == 0)
