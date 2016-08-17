@@ -187,6 +187,7 @@ static int read_syshugepages(const char* path, const char* node)
   while ((result = readdir(dir)) != NULL) {
     if (strncmp(result->d_name, hugepages_dir, sizeof(hugepages_dir)-1)) {
       /* not node dir */
+      errno = 0;
       continue;
     }
 
@@ -196,10 +197,17 @@ static int read_syshugepages(const char* path, const char* node)
     e_info.d_name = result->d_name;
     e_info.node = node;
     walk_directory(path2, read_hugepage_entry, &e_info, 0);
+    errno = 0;
+  }
+
+  /* Check if NULL return from readdir() was an error */
+  if (errno != 0) {
+      ERROR("%s: readdir failed", g_plugin_name);
+      closedir(dir);
+      return -1;
   }
 
   closedir(dir);
-
   return 0;
 }
 
@@ -234,15 +242,23 @@ static int read_nodes(void)
   while ((result = readdir(dir)) != NULL) {
     if (strncmp(result->d_name, node_string, sizeof(node_string)-1)) {
       /* not node dir */
+      errno = 0;
       continue;
     }
 
     ssnprintf(path, (size_t) lim, sys_node_hugepages, result->d_name);
     read_syshugepages(path, result->d_name);
+    errno = 0;
+  }
+
+  /* Check if NULL return from readdir() was an error */
+  if (errno != 0) {
+      ERROR("%s: readdir failed", g_plugin_name);
+      closedir(dir);
+      return -1;
   }
 
   closedir(dir);
-
   return 0;
 }
 
