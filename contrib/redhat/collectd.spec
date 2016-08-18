@@ -2514,7 +2514,7 @@ fi
 %changelog
 * Sun Aug 14 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.6.0-1
 - New PRE-RELEASE version
-- New plugins enabled by default: chrony, gps, lua, mqtt, notify_nagios
+- New plugins enabled by default: chrony, cpusleep, gps, lua, mqtt, notify_nagios
 - New plugins disabled by default: grpc, xencpu, zone
 
 * Tue Jul 26 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.5.2-1
