@@ -396,7 +396,124 @@
 	  Marc Fournier and Wilfried Goesgens. #552
 	* Zookeeper plugin: This new plugin reads data from the Apache Zookeeper
 	  "MNTR" command. Thanks to Jeremy Katz. #826
-=======
+
+2016-07-26, Version 5.4.3
+	* Build system: A deprecation warning has been removed. Thanks to
+	  Florian Forster.
+	* Build system: An ordering issue when build the AMQP plugin was
+	  corrected. Thanks to Shahul Hameed.
+	* Build system: Building the gmond plugin against recent libganglia
+	  versions has been added. Thanks to Marc Fournier. #1129
+	* Build system: "collectd-tg" now builds on AIX. Thanks to Manuel Luis
+	  Sanmartín Rozada. #542
+	* Build system: "version-gen.sh" portablility was improved. Thanks to
+	  Marc Fournier and Ruben Kerkhof.
+	* Build system: Compiling utils_dns.c on Solaris has beed fixed. Thanks
+	  to Yves Mettier, Dagobert Michelsen and Florian Forster. #348
+	* Build system: Default JDK detection got improved. Thanks to Ruben
+	  Kerkhof and Marc Fournier.
+	* Build system: Detection and handling of librrd 1.6 and later has been
+	  fixed. Thanks to Ruben Kerkhof.
+	* Build system: notify_email build options got corrected to make it
+	  build on non-GNU libc systems. Thanks to Marc Fournier.
+	* Build system: Protobuf building and logging has been improved. Thanks
+	  to Ruben Kerkhof.
+	* Build system: The "make distcheck" target was fixed to properly handle
+	  java build artifacts. Thanks to Florian Forster.
+	* Build system: The configure script got fixed to work properly when
+	  called with "CC="gcc -Wall -Werror"" . Thanks to Marc Fournier.
+	* Build system: The configure script will now fail if pkg-config isn't
+	  available. Thanks to Ruben Kerkhof.
+	* Build system: The users plugin now builds properly on Solaris when
+	  libstatgrab is available. Thanks to Dagobert Michelsen. #1061
+	* Build system: Various fixes have been done to improve library
+	  detection on FreeBSD. Thanks to Ruben Kerkhof.
+	* collectd2html: Several perl errors have been corrected. Thanks to Ruud
+	  van Melick. #1103
+	* collectd: A global gauge format-string is now used to avoid loss of
+	  precision. Thanks to Florian Forster. #1039
+	* collectd: A race condition at plugin initialization time was fixed.
+	  Thanks to Jan Andres. #1316
+	* collectd: Autoloading now properly sets plugin context, allowing
+	  plugins to determine the interval. Thanks to Florian Forster. #1069
+	* collectd: Empty "Plugin" blocks are now supported by the configuration
+	  file parser. Thanks to Manuel Luis Sanmartín Rozada. #1035
+	* collectd: The address of the Free Software Foundation has been fixed
+	  in GPL license headers. Thanks to Ruben Kerkhof.
+	* collectd: Writing to a closed TCP socket is now properly handled.
+	  Thanks to Tamás Földesi. #1104
+	* Documentation: iptables plugin: IPv6 configuration option has been
+	  added to the collectd.conf(5) manpage. Thanks to 'Marc Fournier''.
+	  #1496
+	* AMQP plugin: The plugin was fixed to build against librabbitmq 0.6.0.
+	  Thanks to Remi Collet. #1008
+	* Apache plugin: A warning about a possible misconfiguration has been
+	  added. Thanks to Marc Fournier.
+	* Apache plugin: The plugin was extended to parse the whole response,
+	  required to support Apache versions greater than 2.4.17. Thanks to
+	  Marc Fournier and Florian Forster. #1170, #1343
+	* APC UPS plugin: Log messages are now prefixed with the plugin name.
+	  Thanks to Sergey. #1329
+	* Bind plugin: The type_instance now gets properly sanitized. Thanks to
+	  Thomas Kho. #992
+	* CPU plugin: Error messages on MacOSX have been improved. Thanks to
+	  Florian Forster. #22
+	* cURL plugin: A typo in an error message got corrected. Thanks to Marc
+	  Fournier.
+	* cURL, cURL-JSON and cURL-XML plugins: A memory leak when allocating
+	  more memory fails has been fixed. Thanks to Brandon Arp.
+	* DF plugin: An bug preventing filesystems which don't report inodes
+	  such as btrfs has been corrected. Thanks to Marek Becka. #1096
+	* DF plugin: Duplicate entries are no longer reported twice. Thanks to
+	  Stefan Brüns and Florian Forster. #1402
+	* DF plugin: Legacy code for skipping "rootfs" mount points has been
+	  removed. Thanks to Marc Fournier. #1402
+	* DF plugin: Legacy references to the "ReportReserved" option have been
+	  removed. Thanks to Marc Fournier.
+	* DF plugin: Reading the mtab now uses a reentrant function when
+	  possible. Thanks to Ruben Kerkhof. #1163
+	* Ethstat plugin: Code to strip leading whitespace from device names.
+	  This works around an issue in the VMXNet3 driver. Thanks to Thomas
+	  Guthmann. #1059
+	* Exec plugin: A file descriptor leak when the plugin is configured to
+	  run as a non-existing user was corrected. Thanks to Gautam BT and Marc
+	  Fournier. #762
+	* Exec plugin: A problem in the error handling of an fdopen() failure
+	  has been fixed. Thanks to @ciomaire.
+	* Interface plugin: Documentation about regular expressions in the
+	  ignore list has been added. Thanks to Jakub Jankowski.
+	* IRQ plugin: The "FIQ" line is now skipped as it doesn't contain any
+	  counter. Thanks to Ruben Kerkhof. #971
+	* Modbus plugin: The debug output has been disabled by default. It is
+	  now only enabled when building with "--enable-debug". Thanks to Eric
+	  Sandeen and Marc Fournier.
+	* MongoDB plugin: A memory leak has been fixed and some adaptations to
+	  the current API of the mongo-c-driver have been made. Thanks to
+	  Florian Forster. #956
+	* Network plugin: A check for the initialization of secure memory has
+	  been added. Previously, failure to initialize this memory was ignored.
+	  Thanks to @yujokang. #1665
+	* Network plugin: A heap overflow has been fixed in the server code.
+	  This issue can be triggered remotely and is potentially exploitable.
+	  Thanks to Emilien Gaspar. CVE-2016-6254
+	* Network plugin: The TimeToLive option handling was made more robust.
+	  Thanks to Tim Laszlo. #654
+	* NTPd plugin: Documentation about the required "mode 7" has been added.
+	  Thanks to Jakub Jankowski.
+	* NTPd plugin: Reporting of "time_offset-loop" was corrected to match
+	  the values from ntpq/ntpdc. Thanks to Pierre Fersing and Florian
+	  Forster. #1300
+	* OpenVPN plugin: The plugin was fixe to avoid signaling an error when
+	  no clients were connected. Thanks to Florian Forster. #731
+	* Perl plugin: Init callbacks have been changed to run essentially
+	  single-threaded to avoid race conditions by init functions which
+	  create additional threads. Thanks to Pavel Rochnyack. #1706
+	* PF plugin and DNS plugin: These plugins have been fixed to build
+	  properly on OpenBSD again. Thanks to Ruben Kerkhof.
+	* Processes plugin: A compilation error on systems without "regex.h" has
+	  been fixed. Thanks to Corey Kosak.
+	* Processes plugin: A memory leak on Solaris has been fixed. Thanks to
+	  Jim Quinn.
 	* Processes plugin and Swap plugin: These plugins have been corrected to
 	  also work inside FreeBSD jails. Thanks to biancalana. #1019
 	* Processes plugin: A warning about too long process names has been
@@ -457,7 +574,6 @@
 	  libasan, FBInfer, coverity-scan, clang and gcc-6: Thanks to Ruben
 	  Kerkhof, Florian Forster, Marc Fournier, Corey Kosak, Laurent,
 	  Claudius Zingerli and Fabien Wernli.
->>>>>>> collectd-5.4
 
 2015-02-26, Version 5.4.2
 	* Build system: Numerous fixes. Thanks to Bjørn Nordbø, Jim Radford,
