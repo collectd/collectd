@@ -426,7 +426,6 @@ static int plugin_load_file (char *file, uint32_t flags)
 	lt_dlinit ();
 	lt_dlerror (); /* clear errors */
 
-#if LIBTOOL_VERSION == 2
 	if (flags & PLUGIN_FLAGS_GLOBAL) {
 		lt_dladvise advise;
 		lt_dladvise_init(&advise);
@@ -436,12 +435,6 @@ static int plugin_load_file (char *file, uint32_t flags)
 	} else {
 		dlh = lt_dlopen (file);
 	}
-#else /* if LIBTOOL_VERSION == 1 */
-	if (flags & PLUGIN_FLAGS_GLOBAL)
-		WARNING ("plugin_load_file: The global flag is not supported, "
-				"libtool 2 is required for this.");
-	dlh = lt_dlopen (file);
-#endif
 
 	if (dlh == NULL)
 	{

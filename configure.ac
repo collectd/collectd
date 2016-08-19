@@ -10,25 +10,9 @@ dnl we don't really need the 'u' even in older toolchains.  Then there is
 dnl older libtool, which spelled it AR_FLAGS
 m4_divert_text([DEFAULTS], [: "${ARFLAGS=cr} ${AR_FLAGS=cr}"])
 
-m4_ifdef([LT_PACKAGE_VERSION],
-	# libtool >= 2.2
-	[
-	 LT_CONFIG_LTDL_DIR([libltdl])
-	 LT_INIT([dlopen])
-	 LTDL_INIT([convenience])
-	 AC_DEFINE(LIBTOOL_VERSION, 2, [Define to used libtool version.])
-	]
-,
-	# libtool <= 1.5
-	[
-	 AC_LIBLTDL_CONVENIENCE
-	 AC_SUBST(LTDLINCL)
-	 AC_SUBST(LIBLTDL)
-	 AC_LIBTOOL_DLOPEN
-	 AC_CONFIG_SUBDIRS(libltdl)
-	 AC_DEFINE(LIBTOOL_VERSION, 1, [Define to used libtool version.])
-	]
-)
+LT_CONFIG_LTDL_DIR([libltdl])
+LT_INIT([dlopen])
+LTDL_INIT([convenience])
 
 AM_CONDITIONAL([BUILD_INCLUDED_LTDL], [test "x$LTDLDEPS" != "x"])
 
