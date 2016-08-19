@@ -1274,6 +1274,20 @@ static c_ithread_t *c_ithread_create(PerlInterpreter *base) {
   return t;
 } /* static c_ithread_t *c_ithread_create (PerlInterpreter *) */
 
+static void c_ithread_ensure_context(void) {
+  c_ithread_t *t = NULL;
+  dTHX;
+
+  if (aTHX != NULL)
+    return;
+
+  pthread_mutex_lock(&perl_threads->mutex);
+  t = c_ithread_create(perl_threads->head->interp);
+  pthread_mutex_unlock(&perl_threads->mutex);
+
+  aTHX = t->interp;
+} /* static void c_ithread_ensure_context(void) */
+
 /*
  * Filter chains implementation.
  */
@@ -1426,15 +1440,7 @@ static int fc_create(int type, const oconfig_item_t *ci, void **user_data) {
   if (NULL == perl_threads)
     return 0;
 
-  if (NULL == aTHX) {
-    c_ithread_t *t = NULL;
-
-    pthread_mutex_lock(&perl_threads->mutex);
-    t = c_ithread_create(perl_threads->head->interp);
-    pthread_mutex_unlock(&perl_threads->mutex);
-
-    aTHX = t->interp;
-  }
+  c_ithread_ensure_context();
 
   log_debug("fc_create: c_ithread: interp = %p (active threads: %i)", aTHX,
             perl_threads->number_of_threads);
@@ -1468,15 +1474,7 @@ static int fc_destroy(int type, void **user_data) {
   if ((NULL == perl_threads) || (NULL == data))
     return 0;
 
-  if (NULL == aTHX) {
-    c_ithread_t *t = NULL;
-
-    pthread_mutex_lock(&perl_threads->mutex);
-    t = c_ithread_create(perl_threads->head->interp);
-    pthread_mutex_unlock(&perl_threads->mutex);
-
-    aTHX = t->interp;
-  }
+  c_ithread_ensure_context();
 
   log_debug("fc_destroy: c_ithread: interp = %p (active threads: %i)", aTHX,
             perl_threads->number_of_threads);
@@ -1499,15 +1497,7 @@ static int fc_exec(int type, const data_set_t *ds, const value_list_t *vl,
 
   assert(NULL != data);
 
-  if (NULL == aTHX) {
-    c_ithread_t *t = NULL;
-
-    pthread_mutex_lock(&perl_threads->mutex);
-    t = c_ithread_create(perl_threads->head->interp);
-    pthread_mutex_unlock(&perl_threads->mutex);
-
-    aTHX = t->interp;
-  }
+  c_ithread_ensure_context();
 
   log_debug("fc_exec: c_ithread: interp = %p (active threads: %i)", aTHX,
             perl_threads->number_of_threads);
@@ -2064,15 +2054,7 @@ static int perl_init(void) {
   if (NULL == perl_threads)
     return 0;
 
-  if (NULL == aTHX) {
-    c_ithread_t *t = NULL;
-
-    pthread_mutex_lock(&perl_threads->mutex);
-    t = c_ithread_create(perl_threads->head->interp);
-    pthread_mutex_unlock(&perl_threads->mutex);
-
-    aTHX = t->interp;
-  }
+  c_ithread_ensure_context();
 
   log_debug("perl_init: c_ithread: interp = %p (active threads: %i)", aTHX,
             perl_threads->number_of_threads);
@@ -2097,15 +2079,7 @@ static int perl_read(user_data_t *user_data) {
   if (NULL == perl_threads)
     return 0;
 
-  if (NULL == aTHX) {
-    c_ithread_t *t = NULL;
-
-    pthread_mutex_lock(&perl_threads->mutex);
-    t = c_ithread_create(perl_threads->head->interp);
-    pthread_mutex_unlock(&perl_threads->mutex);
-
-    aTHX = t->interp;
-  }
+  c_ithread_ensure_context();
 
   /* Assert that we're not running as the base thread. Otherwise, we might
    * run into concurrency issues with c_ithread_create(). See
@@ -2126,15 +2100,7 @@ static int perl_write(const data_set_t *ds, const value_list_t *vl,
   if (NULL == perl_threads)
     return 0;
 
-  if (NULL == aTHX) {
-    c_ithread_t *t = NULL;
-
-    pthread_mutex_lock(&perl_threads->mutex);
-    t = c_ithread_create(perl_threads->head->interp);
-    pthread_mutex_unlock(&perl_threads->mutex);
-
-    aTHX = t->interp;
-  }
+  c_ithread_ensure_context();
 
   /* Lock the base thread if this is not called from one of the read threads
    * to avoid race conditions with c_ithread_create(). See
@@ -2158,15 +2124,7 @@ static void perl_log(int level, const char *msg, user_data_t *user_data) {
   if (NULL == perl_threads)
     return;
 
-  if (NULL == aTHX) {
-    c_ithread_t *t = NULL;
-
-    pthread_mutex_lock(&perl_threads->mutex);
-    t = c_ithread_create(perl_threads->head->interp);
-    pthread_mutex_unlock(&perl_threads->mutex);
-
-    aTHX = t->interp;
-  }
+  c_ithread_ensure_context();
 
   /* Lock the base thread if this is not called from one of the read threads
    * to avoid race conditions with c_ithread_create(). See
@@ -2190,15 +2148,8 @@ static int perl_notify(const notification_t *notif, user_data_t *user_data) {
   if (NULL == perl_threads)
     return 0;
 
-  if (NULL == aTHX) {
-    c_ithread_t *t = NULL;
+  c_ithread_ensure_context();
 
-    pthread_mutex_lock(&perl_threads->mutex);
-    t = c_ithread_create(perl_threads->head->interp);
-    pthread_mutex_unlock(&perl_threads->mutex);
-
-    aTHX = t->interp;
-  }
   return pplugin_call(aTHX_ PLUGIN_NOTIF, user_data->data, notif);
 } /* static int perl_notify (const notification_t *) */
 
@@ -2209,15 +2160,7 @@ static int perl_flush(cdtime_t timeout, const char *identifier,
   if (NULL == perl_threads)
     return 0;
 
-  if (NULL == aTHX) {
-    c_ithread_t *t = NULL;
-
-    pthread_mutex_lock(&perl_threads->mutex);
-    t = c_ithread_create(perl_threads->head->interp);
-    pthread_mutex_unlock(&perl_threads->mutex);
-
-    aTHX = t->interp;
-  }
+  c_ithread_ensure_context();
 
   /* For collectd-5.6 only, #1731 */
   if (user_data == NULL || user_data->data == NULL)
@@ -2238,13 +2181,7 @@ static int perl_shutdown(void) {
   if (NULL == perl_threads)
     return 0;
 
-  if (NULL == aTHX) {
-    pthread_mutex_lock(&perl_threads->mutex);
-    t = c_ithread_create(perl_threads->head->interp);
-    pthread_mutex_unlock(&perl_threads->mutex);
-
-    aTHX = t->interp;
-  }
+  c_ithread_ensure_context();
 
   log_debug("perl_shutdown: c_ithread: interp = %p (active threads: %i)", aTHX,
             perl_threads->number_of_threads);
