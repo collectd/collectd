@@ -245,7 +245,7 @@ static int dispatch_value_plugindir(oconfig_item_t *ci) {
 
 static int dispatch_loadplugin(oconfig_item_t *ci) {
   const char *name;
-  unsigned int flags = 0;
+  _Bool global = 0;
   plugin_ctx_t ctx = {0};
   plugin_ctx_t old_ctx;
   int ret_val;
@@ -270,7 +270,7 @@ static int dispatch_loadplugin(oconfig_item_t *ci) {
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp("Globals", child->key) == 0)
-      cf_util_get_flag(child, &flags, PLUGIN_FLAGS_GLOBAL);
+      cf_util_get_boolean(child, &global);
     else if (strcasecmp("Interval", child->key) == 0)
       cf_util_get_cdtime(child, &ctx.interval);
     else if (strcasecmp("FlushInterval", child->key) == 0)
@@ -285,7 +285,7 @@ static int dispatch_loadplugin(oconfig_item_t *ci) {
   }
 
   old_ctx = plugin_set_ctx(ctx);
-  ret_val = plugin_load(name, (uint32_t)flags);
+  ret_val = plugin_load(name, global);
   /* reset to the "global" context */
   plugin_set_ctx(old_ctx);
 

@@ -46,7 +46,7 @@
 #include <pthread_np.h> /* for pthread_set_name_np(3) */
 #endif
 
-#include <ltdl.h>
+#include <dlfcn.h>
 
 /*
  * Private structures
@@ -389,40 +389,25 @@ static int plugin_unregister(llist_t *list, const char *name) /* {{{ */
  * object, but it will bitch about a shared object not having a
  * ``module_register'' symbol..
  */
-static int plugin_load_file(char *file, uint32_t flags) {
-  lt_dlhandle dlh;
+static int plugin_load_file(const char *file, _Bool global) {
   void (*reg_handle)(void);
 
-  lt_dlinit();
-  lt_dlerror(); /* clear errors */
+  int flags = RTLD_NOW;
+  if (global)
+    flags |= RTLD_GLOBAL;
 
-#if LIBTOOL_VERSION == 2
-  if (flags & PLUGIN_FLAGS_GLOBAL) {
-    lt_dladvise advise;
-    lt_dladvise_init(&advise);
-    lt_dladvise_global(&advise);
-    dlh = lt_dlopenadvise(file, advise);
-    lt_dladvise_destroy(&advise);
-  } else {
-    dlh = lt_dlopen(file);
-  }
-#else /* if LIBTOOL_VERSION == 1 */
-  if (flags & PLUGIN_FLAGS_GLOBAL)
-    WARNING("plugin_load_file: The global flag is not supported, "
-            "libtool 2 is required for this.");
-  dlh = lt_dlopen(file);
-#endif
+  void *dlh = dlopen(file, flags);
 
   if (dlh == NULL) {
     char errbuf[1024] = "";
 
     ssnprintf(errbuf, sizeof(errbuf),
-              "lt_dlopen (\"%s\") failed: %s. "
+              "dlopen (\"%s\") failed: %s. "
               "The most common cause for this problem is "
               "missing dependencies. Use ldd(1) to check "
               "the dependencies of the plugin "
               "/ shared object.",
-              file, lt_dlerror());
+              file, dlerror());
 
     ERROR("%s", errbuf);
     /* Make sure this is printed to STDERR in any case, but also
@@ -433,10 +418,11 @@ static int plugin_load_file(char *file, uint32_t flags) {
     return (1);
   }
 
-  if ((reg_handle = (void (*)(void))lt_dlsym(dlh, "module_register")) == NULL) {
+  reg_handle = (void (*)(void))dlsym(dlh, "module_register");
+  if (reg_handle == NULL) {
     WARNING("Couldn't find symbol \"module_register\" in \"%s\": %s\n", file,
-            lt_dlerror());
-    lt_dlclose(dlh);
+            dlerror());
+    dlclose(dlh);
     return (-1);
   }
 
@@ -973,7 +959,7 @@ static void plugin_free_loaded(void) {
 }
 
 #define BUFSIZE 512
-int plugin_load(char const *plugin_name, uint32_t flags) {
+int plugin_load(char const *plugin_name, _Bool global) {
   DIR *dh;
   const char *dir;
   char filename[BUFSIZE] = "";
@@ -1007,7 +993,7 @@ int plugin_load(char const *plugin_name, uint32_t flags) {
    */
   if ((strcasecmp("perl", plugin_name) == 0) ||
       (strcasecmp("python", plugin_name) == 0))
-    flags |= PLUGIN_FLAGS_GLOBAL;
+    global = 1;
 
   /* `cpu' should not match `cpufreq'. To solve this we add `.so' to the
    * type when matching the filename */
@@ -1045,7 +1031,7 @@ int plugin_load(char const *plugin_name, uint32_t flags) {
       continue;
     }
 
-    status = plugin_load_file(filename, flags);
+    status = plugin_load_file(filename, global);
     if (status == 0) {
       /* success */
       plugin_mark_loaded(plugin_name);
