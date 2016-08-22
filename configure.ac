@@ -5709,6 +5709,7 @@ plugin_fhcount="no"
 plugin_fscache="no"
 plugin_gps="no"
 plugin_grpc="no"
+plugin_hugepages="no"
 plugin_interface="no"
 plugin_ipmi="no"
 plugin_ipvs="no"
@@ -5757,6 +5758,7 @@ then
 	plugin_entropy="yes"
 	plugin_fhcount="yes"
 	plugin_fscache="yes"
+	plugin_hugepages="yes"
 	plugin_interface="yes"
 	plugin_ipc="yes"
 	plugin_irq="yes"
@@ -6163,6 +6165,7 @@ AC_PLUGIN([gmond],               [$with_libganglia],        [Ganglia plugin])
 AC_PLUGIN([gps],                 [$plugin_gps],             [GPS plugin])
 AC_PLUGIN([grpc],                [$plugin_grpc],            [gRPC plugin])
 AC_PLUGIN([hddtemp],             [yes],                     [Query hddtempd])
+AC_PLUGIN([hugepages],           [$plugin_hugepages],       [Hugepages statistics])
 AC_PLUGIN([interface],           [$plugin_interface],       [Interface traffic statistics])
 AC_PLUGIN([ipc],                 [$plugin_ipc],             [IPC statistics])
 AC_PLUGIN([ipmi],                [$plugin_ipmi],            [IPMI sensor statistics])
@@ -6593,6 +6596,7 @@ AC_MSG_RESULT([    gmond . . . . . . . . $enable_gmond])
 AC_MSG_RESULT([    gps . . . . . . . . . $enable_gps])
 AC_MSG_RESULT([    grpc  . . . . . . . . $enable_grpc])
 AC_MSG_RESULT([    hddtemp . . . . . . . $enable_hddtemp])
+AC_MSG_RESULT([    hugepages . . . . . . $enable_hugepages])
 AC_MSG_RESULT([    interface . . . . . . $enable_interface])
 AC_MSG_RESULT([    ipc . . . . . . . . . $enable_ipc])
 AC_MSG_RESULT([    ipmi  . . . . . . . . $enable_ipmi])
