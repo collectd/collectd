@@ -226,7 +226,7 @@
 
 Summary:	Statistics collection and monitoring daemon
 Name:		collectd
-Version:	5.5.2
+Version:	5.6.0
 Release:	2%{?dist}
 URL:		https://collectd.org
 Source:		https://collectd.org/files/%{name}-%{version}.tar.bz2
@@ -2512,8 +2512,10 @@ fi
 %doc contrib/
 
 %changelog
-* Sun Aug 14 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.5.2-2
-- Add new Lua plugin
+* Sun Aug 14 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.6.0-1
+- New PRE-RELEASE version
+- New plugins enabled by default: chrony, cpusleep, gps, lua, mqtt, notify_nagios
+- New plugins disabled by default: grpc, xencpu, zone
 
 * Tue Jul 26 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.5.2-1
 - New upstream version
@@ -2522,8 +2524,6 @@ fi
 
 * Sat Jun 04 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> 5.5.1-1
 - New upstream version
-- New plugins enabled by default: chrony, mqtt, notify_nagios
-- New plugins disabled by default: grpc, zone, xencpu
 
 * Wed May 27 2015 Marc Fournier <marc.fournier@camptocamp.com> 5.5.0-1
 - New upstream version
