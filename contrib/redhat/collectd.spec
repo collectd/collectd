@@ -226,7 +226,7 @@
 
 Summary:	Statistics collection and monitoring daemon
 Name:		collectd
-Version:	5.6.0
+Version:	5.7.0
 Release:	2%{?dist}
 URL:		https://collectd.org
 Source:		https://collectd.org/files/%{name}-%{version}.tar.bz2
@@ -2512,6 +2512,9 @@ fi
 %doc contrib/
 
 %changelog
+* Tue Aug 23 2016 Marc Fournier <marc.fournier@camptocamp.com> - 5.7.0-1
+- New PRE-RELEASE version
+
 * Sun Aug 14 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.6.0-1
 - New PRE-RELEASE version
 - New plugins enabled by default: chrony, cpusleep, gps, lua, mqtt, notify_nagios
