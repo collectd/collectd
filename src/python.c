@@ -1025,7 +1025,8 @@ static int cpy_init(void) {
 		if (plugin_thread_create(&thread, NULL, cpy_interactive, pipefd + 1)) {
 			ERROR("python: Error creating thread for interactive interpreter.");
 		}
-		(void)read(pipefd[0], &buf, 1);
+		if(read(pipefd[0], &buf, 1))
+			;
 		(void)close(pipefd[0]);
 	} else {
 		PyEval_InitThreads();
