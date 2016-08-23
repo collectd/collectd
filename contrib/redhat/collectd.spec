@@ -73,6 +73,7 @@
 %define with_gmond 0%{!?_without_gmond:1}
 %define with_gps 0%{!?_without_gps:1}
 %define with_hddtemp 0%{!?_without_hddtemp:1}
+%define with_hugepages 0%{!?_without_hugepages:1}
 %define with_interface 0%{!?_without_interface:1}
 %define with_ipc 0%{!?_without_ipc:1}
 %define with_ipmi 0%{!?_without_ipmi:1}
@@ -1134,6 +1135,12 @@ Collectd utilities
 %define _with_hddtemp --disable-hddtemp
 %endif
 
+%if %{with_hugepages}
+%define _with_hugepages --enable-hugepages
+%else
+%define _with_hugepages --disable-hugepages
+%endif
+
 %if %{with_interface}
 %define _with_interface --enable-interface
 %else
@@ -1762,6 +1769,7 @@ Collectd utilities
 	%{?_with_gps} \
 	%{?_with_grpc} \
 	%{?_with_hddtemp} \
+	%{?_with_hugepages} \
 	%{?_with_interface} \
 	%{?_with_ipc} \
 	%{?_with_ipmi} \
@@ -2044,6 +2052,9 @@ fi
 %endif
 %if %{with_fscache}
 %{_libdir}/%{name}/fscache.so
+%endif
+%if %{with_hugepages}
+%{_libdir}/%{name}/hugepages.so
 %endif
 %if %{with_interface}
 %{_libdir}/%{name}/interface.so
@@ -2514,6 +2525,7 @@ fi
 %changelog
 * Tue Aug 23 2016 Marc Fournier <marc.fournier@camptocamp.com> - 5.7.0-1
 - New PRE-RELEASE version
+- New plugins enabled by default: hugepages
 
 * Sun Aug 14 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.6.0-1
 - New PRE-RELEASE version
