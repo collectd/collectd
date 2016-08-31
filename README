@@ -288,6 +288,14 @@ Features
     - oracle
       Query data from an Oracle database.
 
+    - ovs_link
+      The plugin monitors the link status of OVS connected interfaces and
+      dispatches the values through collectd notification mechanism. It
+      requires YAJL library to be installed.
+      Detailed instructions for installing and setting up Open vSwitch, see
+      OVS documentation.
+      <http://openvswitch.org/support/dist-docs/INSTALL.md.html>
+
     - perl
       The perl plugin implements a Perl-interpreter into collectd. You can
       write your own plugins in Perl and return arbitrary values using this
@@ -926,7 +934,7 @@ Prerequisites
     <http://www.xmms.org/>
 
   * libyajl (optional)
-    Parse JSON data. This is needed for the `ceph', `curl_json' and
+    Parse JSON data. This is needed for the `ceph', `curl_json', 'ovs_link' and
     `log_logstash' plugins.
     <http://github.com/lloyd/yajl>
 

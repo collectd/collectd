@@ -5453,6 +5453,58 @@ refer to them from.
 
 =back
 
+=head2 Plugin C<ovs_link>
+
+
+The I<ovs_link> plugin monitors the link status of OVS connected interfaces and
+dispatches the values through collectd notification mechanism whenever the link
+state change occurs. This plugin uses OVSDB to get a link state change
+notification.
+
+B<Synopsis:>
+
+ <Plugin "ovs_link">
+   OvsDbServerUrl "tcp:127.0.0.1:6640"
+   Interfaces "br0" "veth0"
+ </Plugin>
+
+The plugin provides the following configuration options:
+
+=over 4
+
+=item B<OvsDbServerUrl> I<server>
+
+The URL is an address of OVS DB server JSON-RPC interface used by the plugin.
+To enable the interface, OVS DB daemon should be running with '--remote=ptcp:'
+or '--remote=punix:' option. See L<ovsdb-server(1)> for more details. The URL
+must take one of the following forms:
+
+=over 4
+
+=item B<tcp:>I<ip>:I<port>
+
+Connect to the given tcp I<port> on I<ip>, where I<ip> is IPv4 address
+of OVS DB server which is listening on TCP I<port> for incoming
+JSON-RPC client connection.
+
+=item B<unix:>I<file>
+
+Connect to the unix domain server socket named I<file> which is
+used by OVS DB for incoming JSON-RPC client connection.
+
+=back
+
+Default: C<tcp:127.0.0.1:6640>
+
+=item B<Interfaces> [I<ifname> ...]
+
+List of interface names to be monitored by this plugin. If this option is missed
+or it's empty then all OVS connected interfaces on all bridges are monitored.
+
+Default: empty (all interfaces on all bridges are monitored)
+
+=back
+
 =head2 Plugin C<perl>
 
 This plugin embeds a Perl-interpreter into collectd and provides an interface

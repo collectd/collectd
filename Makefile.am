@@ -1278,6 +1278,14 @@ oracle_la_LIBADD = $(BUILD_WITH_ORACLE_LIBS)
 oracle_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_OVS_LINK
+pkglib_LTLIBRARIES += ovs_link.la
+ovs_link_la_SOURCES = ovs_link.c utils_ovs.c
+ovs_link_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
+ovs_link_la_CFLAGS = $(BUILD_WITH_LIBYAJL_CPPFLAGS)
+ovs_link_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
+endif
+
 if BUILD_PLUGIN_PERL
 pkglib_LTLIBRARIES += perl.la
 perl_la_SOURCES = src/perl.c
