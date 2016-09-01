@@ -27,6 +27,8 @@
 /* Workaround for Solaris 10 defining label_t
  * Issue #1301
  */
+
+#include "config.h"
 #if KERNEL_SOLARIS
 # ifndef _POSIX_C_SOURCE
 #  define _POSIX_C_SOURCE 200112L

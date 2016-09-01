@@ -137,6 +137,11 @@ Features
     - hddtemp
       Hard disk temperatures using hddtempd.
 
+    - hugepages
+      Report the number of used and free hugepages. More info on
+      hugepages can be found here:
+      https://www.kernel.org/doc/Documentation/vm/hugetlbpage.txt.
+
     - interface
       Interface traffic: Number of octets, packets and errors for each
       interface.
