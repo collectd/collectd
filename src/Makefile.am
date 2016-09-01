@@ -213,7 +213,7 @@ endif
 
 if BUILD_PLUGIN_BATTERY
 pkglib_LTLIBRARIES += battery.la
-battery_la_SOURCES = battery.c
+battery_la_SOURCES = battery.c battery_statefs.c
 battery_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 if BUILD_WITH_LIBIOKIT
 battery_la_LDFLAGS += -framework IOKit

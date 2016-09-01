@@ -5798,7 +5798,6 @@ then
 	then
 		plugin_turbostat="yes"
 	fi
-	
 	if test "x$c_cv_have_clock_boottime_monotonic" = "xyes"
 	then
 		plugin_cpusleep="yes"

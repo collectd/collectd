@@ -1108,6 +1108,13 @@ When set to B<true>, the battery plugin will report three values: B<charged>
 and "remaining capacity") and B<degraded> (difference between "design capacity"
 and "last full capacity").
 
+=item B<QueryStateFS> B<false>|B<true>
+
+When set to B<true>, the battery plugin will only read statistics
+related to battery performance as exposed by StateFS at
+/run/state. StateFS is used in Mer-based Sailfish OS, for
+example.
+
 =back
 
 =head2 Plugin C<bind>
@@ -6748,12 +6755,6 @@ Since the configuration of the C<snmp plugin> is a little more complicated than
 other plugins, its documentation has been moved to an own manpage,
 L<collectd-snmp(5)>. Please see there for details.
 
-=head2 Plugin C<statefs_battery>
-
-This plugin doesn't have any options. It reads statistics related to
-battery performance exposed by StateFS at /run/state. StateFS is used
-in Mer-based Sailfish OS, for example.
-
 =head2 Plugin C<statefs_bluetooth>
 
 This plugin doesn't have any options. It reads statistics related to
@@ -6771,7 +6772,6 @@ is used in Mer-based Sailfish OS, for example.
 This plugin doesn't have any options. It reads statistics related to
 internet performance exposed by StateFS at /run/state. StateFS
 is used in Mer-based Sailfish OS, for example.
-
 
 =head2 Plugin C<statsd>
 

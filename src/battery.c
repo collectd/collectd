@@ -69,6 +69,8 @@
 # define SYSFS_FACTOR 0.000001
 #endif /* KERNEL_LINUX */
 
+int battery_read_statefs (void); /* defined in battery_statefs; used by StateFS backend */
+
 static _Bool report_percent = 0;
 static _Bool report_degraded = 0;
 
@@ -800,6 +802,8 @@ static int battery_read (void) /* {{{ */
 
 static int battery_config (oconfig_item_t *ci)
 {
+	_Bool query_statefs = 0;
+
 	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
@@ -808,10 +812,19 @@ static int battery_config (oconfig_item_t *ci)
 			cf_util_get_boolean (child, &report_percent);
 		else if (strcasecmp ("ReportDegraded", child->key) == 0)
 			cf_util_get_boolean (child, &report_degraded);
+		else if (strcasecmp ("QueryStateFS", child->key) == 0)
+			cf_util_get_boolean (child, &query_statefs);
 		else
 			WARNING ("battery plugin: Ignoring unknown "
 					"configuration option \"%s\".",
 					child->key);
+	}
+
+	if (query_statefs)
+	{
+		/* register read function from statefs backend. to avoid conflicts, unregister the current one */  
+		plugin_unregister_read ("battery");
+		plugin_register_read ("battery", battery_read_statefs);
 	}
 
 	return (0);
