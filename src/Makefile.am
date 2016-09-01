@@ -780,6 +780,14 @@ nginx_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 nginx_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS)
 endif
 
+if BUILD_PLUGIN_NGINX_MULTIHOST
+pkglib_LTLIBRARIES += nginx_multihost.la
+nginx_multihost_la_SOURCES = nginx_multihost.c
+nginx_multihost_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
+nginx_multihost_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+nginx_multihost_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS)
+endif
+
 if BUILD_PLUGIN_NOTIFY_DESKTOP
 pkglib_LTLIBRARIES += notify_desktop.la
 notify_desktop_la_SOURCES = notify_desktop.c
