@@ -27,9 +27,9 @@ SOFTWARE.
  * Authors:
  *   rinigus <http://github.com/rinigus>
 
- Battery stats are collected from statefs Battery namespace. Reported
+ Battery stats are collected from StateFS Battery namespace. Reported
  units are as follows:
- 
+
  capacity %
  charge %
  current A
@@ -41,7 +41,7 @@ SOFTWARE.
 
  Provider at
  https://git.merproject.org/mer-core/statefs-providers/blob/master/src/power_udev/provider_power_udev.cpp
- 
+
  **/
 
 #include "collectd.h"
@@ -59,15 +59,15 @@ static void battery_submit (const char *type, gauge_t value)
 {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
-  
+
   values[0].gauge = value;
-  
+
   vl.values = values;
   vl.values_len = 1;
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "statefs_battery", sizeof (vl.plugin));
   sstrncpy (vl.type, type, sizeof (vl.type));
-  
+
   plugin_dispatch_values (&vl);
 
   submitted_this_run++;
@@ -94,13 +94,14 @@ static _Bool getvalue(const char *fname, gauge_t *value, char *buffer, size_t bu
 }
 
 
-static int battery_read (void)
+/* cannot be static, is referred to from battery.c */
+int battery_read (void)
 {
   char buffer[BFSZ];
   gauge_t value = NAN;
-  
+
   submitted_this_run = 0;
-  
+
 
   if ( getvalue(STATEFS_ROOT "ChargePercentage", &value, buffer, BFSZ) )
     battery_submit( "charge", value );
@@ -116,16 +117,16 @@ static int battery_read (void)
 
   if ( getvalue(STATEFS_ROOT "Power", &value, buffer, BFSZ) )
     battery_submit( "power_battery", value * 1e-6 ); // from uW to W
-  
+
   if ( getvalue(STATEFS_ROOT "Temperature", &value, buffer, BFSZ) )
     battery_submit( "temperature", value * 0.1 ); // from 10xC to C
-  
+
   if ( getvalue(STATEFS_ROOT "TimeUntilFull", &value, buffer, BFSZ) )
     battery_submit( "timefull", value );
 
   if ( getvalue(STATEFS_ROOT "TimeUntilLow", &value, buffer, BFSZ) )
     battery_submit( "timelow", value );
-  
+
   if ( getvalue(STATEFS_ROOT "Voltage", &value, buffer, BFSZ) )
     battery_submit( "voltage", value * 1e-6 ); // from uV to V
 
@@ -134,11 +135,6 @@ static int battery_read (void)
       ERROR ("statefs_battery plugin: none of the statistics are available.");
       return (-1);
     }
-  
+
   return (0);
 }
-
-void module_register (void)
-{
-  plugin_register_read ("statefs_battery", battery_read);
-} /* void module_register */

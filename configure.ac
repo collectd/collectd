@@ -5727,7 +5727,6 @@ plugin_protocols="no"
 plugin_python="no"
 plugin_serial="no"
 plugin_smart="no"
-plugin_statefs_battery="no"
 plugin_swap="no"
 plugin_tape="no"
 plugin_tcpconns="no"
@@ -5787,10 +5786,6 @@ then
 	if test "x$c_cv_have_usable_asm_msrindex_h" = "xyes" && test "x$have_cpuid_h" = "xyes"
 	then
 		plugin_turbostat="yes"
-	fi
-	if test "x$enable_statefs_battery" = "xyes"
-	then
-		plugin_statefs_battery="yes"
 	fi
 	if test "x$c_cv_have_clock_boottime_monotonic" = "xyes"
 	then
@@ -6234,7 +6229,6 @@ AC_PLUGIN([serial],              [$plugin_serial],          [serial port traffic
 AC_PLUGIN([sigrok],              [$with_libsigrok],         [sigrok acquisition sources])
 AC_PLUGIN([smart],               [$plugin_smart],           [SMART statistics])
 AC_PLUGIN([snmp],                [$with_libnetsnmp],        [SNMP querying plugin])
-AC_PLUGIN([statefs_battery],     [$plugin_statefs_battery], [Battery statistics exposed via StateFS])
 AC_PLUGIN([statsd],              [yes],                     [StatsD plugin])
 AC_PLUGIN([swap],                [$plugin_swap],            [Swap usage statistics])
 AC_PLUGIN([syslog],              [$have_syslog],            [Syslog logging plugin])
@@ -6665,7 +6659,6 @@ AC_MSG_RESULT([    serial  . . . . . . . $enable_serial])
 AC_MSG_RESULT([    sigrok  . . . . . . . $enable_sigrok])
 AC_MSG_RESULT([    smart . . . . . . . . $enable_smart])
 AC_MSG_RESULT([    snmp  . . . . . . . . $enable_snmp])
-AC_MSG_RESULT([    statefs_battery . . . $enable_statefs_battery])
 AC_MSG_RESULT([    statsd  . . . . . . . $enable_statsd])
 AC_MSG_RESULT([    swap  . . . . . . . . $enable_swap])
 AC_MSG_RESULT([    syslog  . . . . . . . $enable_syslog])

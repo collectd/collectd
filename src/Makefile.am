@@ -213,7 +213,7 @@ endif
 
 if BUILD_PLUGIN_BATTERY
 pkglib_LTLIBRARIES += battery.la
-battery_la_SOURCES = battery.c
+battery_la_SOURCES = battery.c battery_statefs.c
 battery_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 if BUILD_WITH_LIBIOKIT
 battery_la_LDFLAGS += -framework IOKit
@@ -1024,12 +1024,6 @@ snmp_la_SOURCES = snmp.c
 snmp_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBNETSNMP_CPPFLAGS)
 snmp_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBNETSNMP_LDFLAGS)
 snmp_la_LIBADD = $(BUILD_WITH_LIBNETSNMP_LIBS)
-endif
-
-if BUILD_PLUGIN_STATEFS_BATTERY
-pkglib_LTLIBRARIES += statefs_battery.la
-statefs_battery_la_SOURCES = statefs_battery.c
-statefs_battery_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
 if BUILD_PLUGIN_STATSD
