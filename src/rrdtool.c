@@ -24,6 +24,7 @@
  **/
 
 #include "collectd.h"
+
 #include "plugin.h"
 #include "common.h"
 #include "utils_avltree.h"
@@ -200,7 +201,6 @@ static int value_list_to_string_multiple (char *buffer, int buffer_len,
 	int offset;
 	int status;
 	time_t tt;
-	size_t i;
 
 	memset (buffer, '\0', buffer_len);
 
@@ -210,7 +210,7 @@ static int value_list_to_string_multiple (char *buffer, int buffer_len,
 		return (-1);
 	offset = status;
 
-	for (i = 0; i < ds->ds_num; i++)
+	for (size_t i = 0; i < ds->ds_num; i++)
 	{
 		if ((ds->ds[i].type != DS_TYPE_COUNTER)
 				&& (ds->ds[i].type != DS_TYPE_GAUGE)
@@ -331,7 +331,6 @@ static void *rrd_queue_thread (void __attribute__((unused)) *data)
 		char **values;
 		int    values_num;
 		int    status;
-		int    i;
 
 		values = NULL;
 		values_num = 0;
@@ -412,7 +411,7 @@ static void *rrd_queue_thread (void __attribute__((unused)) *data)
 		pthread_mutex_unlock (&queue_lock);
 
 		/* We now need the cache lock so the entry isn't updated while
-		 * we make a copy of it's values */
+		 * we make a copy of its values */
 		pthread_mutex_lock (&cache_lock);
 
 		status = c_avl_get (cache, queue_entry->filename,
@@ -458,7 +457,7 @@ static void *rrd_queue_thread (void __attribute__((unused)) *data)
 				values_num, (values_num == 1) ? "" : "s",
 				queue_entry->filename);
 
-		for (i = 0; i < values_num; i++)
+		for (int i = 0; i < values_num; i++)
 		{
 			sfree (values[i]);
 		}
@@ -556,7 +555,6 @@ static void rrd_cache_flush (cdtime_t timeout)
 
 	char *key;
 	c_avl_iterator_t *iter;
-	int i;
 
 	DEBUG ("rrdtool plugin: Flushing cache, timeout = %.3f",
 			CDTIME_T_TO_DOUBLE (timeout));
@@ -604,7 +602,7 @@ static void rrd_cache_flush (cdtime_t timeout)
 	} /* while (c_avl_iterator_next) */
 	c_avl_iterator_destroy (iter);
 
-	for (i = 0; i < keys_num; i++)
+	for (int i = 0; i < keys_num; i++)
 	{
 		if (c_avl_remove (cache, keys[i], (void *) &key, (void *) &rc) != 0)
 		{
@@ -688,7 +686,7 @@ static int64_t rrd_get_random_variation (void)
   long min;
   long max;
 
-  if (random_timeout <= 0)
+  if (random_timeout == 0)
     return (0);
 
   /* Assure that "cache_timeout + random_variation" is never negative. */
@@ -856,7 +854,6 @@ static int rrd_cache_destroy (void) /* {{{ */
   while (c_avl_pick (cache, &key, &value) == 0)
   {
     rrd_cache_t *rc;
-    int i;
 
     sfree (key);
     key = NULL;
@@ -867,7 +864,7 @@ static int rrd_cache_destroy (void) /* {{{ */
     if (rc->values_num > 0)
       non_empty++;
 
-    for (i = 0; i < rc->values_num; i++)
+    for (int i = 0; i < rc->values_num; i++)
       sfree (rc->values[i]);
     sfree (rc->values);
     sfree (rc);

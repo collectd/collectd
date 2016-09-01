@@ -21,6 +21,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -80,12 +81,11 @@ static int cpufreq_read (void)
 {
         int status;
 	unsigned long long val;
-	int i = 0;
 	FILE *fp;
 	char filename[256];
 	char buffer[16];
 
-	for (i = 0; i < num_cpu; i++)
+	for (int i = 0; i < num_cpu; i++)
 	{
 		status = ssnprintf (filename, sizeof (filename),
 				"/sys/devices/system/cpu/cpu%d/cpufreq/"

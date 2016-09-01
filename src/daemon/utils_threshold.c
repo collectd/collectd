@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "utils_avltree.h"
 #include "utils_threshold.h"

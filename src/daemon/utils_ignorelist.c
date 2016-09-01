@@ -304,8 +304,6 @@ int ignorelist_add (ignorelist_t *il, const char *entry)
  */
 int ignorelist_match (ignorelist_t *il, const char *entry)
 {
-	ignorelist_item_t *traverse;
-
 	/* if no entries, collect all */
 	if ((il == NULL) || (il->head == NULL))
 		return (0);
@@ -314,7 +312,7 @@ int ignorelist_match (ignorelist_t *il, const char *entry)
 		return (0);
 
 	/* traverse list and check entries */
-	for (traverse = il->head; traverse != NULL; traverse = traverse->next)
+	for (ignorelist_item_t *traverse = il->head; traverse != NULL; traverse = traverse->next)
 	{
 #if HAVE_REGEX_H
 		if (traverse->rmatch != NULL)

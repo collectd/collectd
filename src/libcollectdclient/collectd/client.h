@@ -29,6 +29,13 @@
 
 #include "lcc_features.h"
 
+/* COLLECTD_TRACE is the environment variable used to control trace output. When
+ * set to something non-zero, all lines sent to / received from the daemon are
+ * printed to STDOUT. */
+#ifndef LCC_TRACE_ENV
+# define LCC_TRACE_ENV "COLLECTD_TRACE"
+#endif
+
 /*
  * Includes (for data types)
  */
@@ -124,8 +131,8 @@ int lcc_string_to_identifier (lcc_connection_t *c,
 /* Compares the identifiers "i0" and "i1" and returns less than zero or greater
  * than zero if "i0" is smaller than or greater than "i1", respectively. If
  * "i0" and "i1" are identical, zero is returned. */
-int lcc_identifier_compare (const lcc_identifier_t *i0,
-    const lcc_identifier_t *i1);
+int lcc_identifier_compare (const void *i0,
+    const void *i1);
 int lcc_sort_identifiers (lcc_connection_t *c,
     lcc_identifier_t *idents, size_t idents_num);
 

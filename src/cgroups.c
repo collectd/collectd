@@ -22,9 +22,9 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 #include "utils_mount.h"
 #include "utils_ignorelist.h"
 
@@ -206,18 +206,16 @@ static int cgroups_config (const char *key, const char *value)
 
 static int cgroups_read (void)
 {
-	cu_mount_t *mnt_list;
-	cu_mount_t *mnt_ptr;
+	cu_mount_t *mnt_list = NULL;
 	_Bool cgroup_found = 0;
 
-	mnt_list = NULL;
 	if (cu_mount_getlist (&mnt_list) == NULL)
 	{
 		ERROR ("cgroups plugin: cu_mount_getlist failed.");
 		return (-1);
 	}
 
-	for (mnt_ptr = mnt_list; mnt_ptr != NULL; mnt_ptr = mnt_ptr->next)
+	for (cu_mount_t *mnt_ptr = mnt_list; mnt_ptr != NULL; mnt_ptr = mnt_ptr->next)
 	{
 		/* Find the cgroup mountpoint which contains the cpuacct
 		 * controller. */

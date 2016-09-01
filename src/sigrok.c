@@ -20,6 +20,7 @@
  */
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -69,7 +70,6 @@ static int sigrok_log_callback(void*cb_data __attribute__((unused)),
 static int sigrok_config_device(oconfig_item_t *ci)
 {
 	struct config_device *cfdev;
-	int i;
 
 	if (!(cfdev = calloc(1, sizeof(*cfdev)))) {
 		ERROR("sigrok plugin: calloc failed.");
@@ -82,7 +82,7 @@ static int sigrok_config_device(oconfig_item_t *ci)
 	}
 	cfdev->min_dispatch_interval = DEFAULT_MIN_DISPATCH_INTERVAL;
 
-	for (i = 0; i < ci->children_num; i++) {
+	for (int i = 0; i < ci->children_num; i++) {
 		oconfig_item_t *item = ci->children + i;
 		if (!strcasecmp(item->key, "driver"))
 			cf_util_get_string(item, &cfdev->driver);
@@ -104,9 +104,7 @@ static int sigrok_config_device(oconfig_item_t *ci)
 
 static int sigrok_config(oconfig_item_t *ci)
 {
-	int i;
-
-	for (i = 0; i < ci->children_num; i++) {
+	for (int i = 0; i < ci->children_num; i++) {
 		oconfig_item_t *item = ci->children + i;
 		if (strcasecmp("LogLevel", item->key) == 0) {
 			int status;
@@ -163,13 +161,12 @@ static void sigrok_feed_callback(const struct sr_dev_inst *sdi,
 {
 	const struct sr_datafeed_analog *analog;
 	struct config_device *cfdev;
-	GSList *l;
 	value_t value;
 	value_list_t vl = VALUE_LIST_INIT;
 
 	/* Find this device's configuration. */
 	cfdev = NULL;
-	for (l = config_devices; l; l = l->next) {
+	for (GSList *l = config_devices; l; l = l->next) {
 		cfdev = l->data;
 		if (cfdev->sdi == sdi) {
 			/* Found it. */

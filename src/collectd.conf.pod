@@ -1447,6 +1447,11 @@ are set to B<true>. In this case, by default, metrics will be reported as
 Jiffies. By setting this option to B<true>, you can request percentage values
 in the un-aggregated (per-CPU, per-state) mode as well.
 
+=item B<ReportNumCpu> B<false>|B<true>
+
+When set to B<true>, reports the number of available CPUs.
+Defaults to B<false>.
+
 =back
 
 =head2 Plugin C<cpufreq>
@@ -1456,6 +1461,16 @@ F</sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq> (for the first CPU
 installed) to get the current CPU frequency. If this file does not exist make
 sure B<cpufreqd> (L<http://cpufreqd.sourceforge.net/>) or a similar tool is
 installed and an "cpu governor" (that's a kernel module) is loaded.
+
+=head2 Plugin C<cpusleep>
+
+This plugin doesn't have any options. It reads CLOCK_BOOTTIME and
+CLOCK_MONOTONIC and reports the difference between these clocks. Since
+BOOTTIME clock increments while device is suspended and MONOTONIC
+clock does not, the derivative of the difference between these clocks
+gives the relative amount of time the device has spent in suspend
+state. The recorded value is in milliseconds of sleep per seconds of
+wall clock.
 
 =head2 Plugin C<csv>
 
@@ -1759,6 +1774,11 @@ values for all map keys or array indices will be collectd.
 The following options are valid within B<URL> blocks:
 
 =over 4
+
+=item B<Host> I<Name>
+
+Use I<Name> as the host name when submitting values. Defaults to the global
+host name setting.
 
 =item B<Instance> I<Instance>
 
@@ -2401,7 +2421,7 @@ I<TypeInstance> will be used.
 
 =item B<MappedOnly> B<true>|B<false>
 
-When set to B<true>, only metrics that can be mapped to to a I<type> will be
+When set to B<true>, only metrics that can be mapped to a I<type> will be
 collected, all other metrics will be ignored. Defaults to B<false>.
 
 =back
@@ -2631,6 +2651,78 @@ source, this is optional. Otherwise the option is required.
 
 =back
 
+=head2 Plugin C<gps>
+
+The C<gps plugin> connects to gpsd on the host machine.
+The host, port, timeout and pause are configurable.
+
+This is useful if you run an NTP server using a GPS for source and you want to
+monitor it.
+
+Mind your GPS must send $--GSA for having the data reported!
+
+The following elements are collected:
+
+=over 4
+
+=item B<satellites>
+
+Number of satellites used for fix (type instance "used") and in view (type
+instance "visible"). 0 means no GPS satellites are visible.
+
+=item B<dilution_of_precision>
+
+Vertical and horizontal dilution (type instance "horizontal" or "vertical").
+It should be between 0 and 3.
+Look at the documentation of your GPS to know more.
+
+=back
+
+Synopsis:
+
+ LoadPlugin gps
+ <Plugin "gps">
+   # Connect to localhost on gpsd regular port:
+   Host "127.0.0.1"
+   Port "2947"
+   # 15 ms timeout
+   Timeout 0.015
+   # PauseConnect of 5 sec. between connection attempts.
+   PauseConnect 5
+ </Plugin>
+
+Available configuration options:
+
+=over 4
+
+=item B<Host> I<Host>
+
+The host on which gpsd daemon runs. Defaults to B<localhost>.
+
+=item B<Port> I<Port>
+
+Port to connect to gpsd on the host machine. Defaults to B<2947>.
+
+=item B<Timeout> I<Seconds>
+
+Timeout in seconds (default 0.015 sec).
+
+The GPS data stream is fetch by the plugin form the daemon.
+It waits for data to be available, if none arrives it times out
+and loop for another reading.
+Mind to put a low value gpsd expects value in the micro-seconds area
+(recommended is 500 us) since the waiting function is blocking.
+Value must be between 500 us and 5 sec., if outside that range the
+default value is applied.
+
+This only applies from gpsd release-2.95.
+
+=item B<PauseConnect> I<Seconds>
+
+Pause to apply between attempts of connection to gpsd in seconds (default 5 sec).
+
+=back
+
 =head2 Plugin C<grpc>
 
 The I<grpc> plugin provides an RPC interface to submit values to or query
@@ -2640,6 +2732,33 @@ end-point for dispatching values to the daemon.
 The B<gRPC> homepage can be found at L<https://grpc.io/>.
 
 =over 4
+
+=item B<Server> I<Host> I<Port>
+
+The B<Server> statement sets the address of a server to which to send metrics
+via the C<DispatchValues> function.
+
+The argument I<Host> may be a hostname, an IPv4 address, or an IPv6 address.
+
+Optionally, B<Server> may be specified as a configuration block which supports
+the following options:
+
+=over 4
+
+=item B<EnableSSL> B<false>|B<true>
+
+Whether to require SSL for outgoing connections. Default: false.
+
+=item B<SSLCACertificateFile> I<Filename>
+
+=item B<SSLCertificateFile> I<Filename>
+
+=item B<SSLCertificateKeyFile> I<Filename>
+
+Filenames specifying SSL certificate and key material to be used with SSL
+connections.
+
+=back
 
 =item B<Listen> I<Host> I<Port>
 
@@ -2658,21 +2777,16 @@ supports the following options:
 
 Whether to enable SSL for incoming connections. Default: false.
 
-=item B<SSLRootCerts> I<Filename>
+=item B<SSLCACertificateFile> I<Filename>
 
-=item B<SSLServerKey> I<Filename>
+=item B<SSLCertificateFile> I<Filename>
 
-=item B<SSLServerCert> I<Filename>
+=item B<SSLCertificateKeyFile> I<Filename>
 
 Filenames specifying SSL certificate and key material to be used with SSL
 connections.
 
 =back
-
-=item B<WorkerThreads> I<Num>
-
-Number of threads to start for handling incoming connections. The default
-value is B<5>.
 
 =back
 
@@ -2696,6 +2810,32 @@ Hostname to connect to. Defaults to B<127.0.0.1>.
 =item B<Port> I<Port>
 
 TCP-Port to connect to. Defaults to B<7634>.
+
+=back
+
+=head2 Plugin C<hugepages>
+
+To collect B<hugepages> information, collectd reads directories
+"/sys/devices/system/node/*/hugepages" and
+"/sys/kernel/mm/hugepages".
+Reading of these directories can be disabled by the following
+options (default is enabled).
+
+=over 4
+
+=item B<ReportPerNodeHP> I<true>|I<false>
+
+If enabled, information will be collected from the hugepage
+counters in "/sys/devices/system/node/*/hugepages".
+This is used to check the per-node hugepage statistics on
+a NUMA system.
+
+=item B<ReportRootHP> I<true>|I<false>
+
+If enabled, information will be collected from the hugepage
+counters in "/sys/kernel/mm/hugepages".
+This can be used on both NUMA and non-NUMA systems to check
+the overall hugepage statistics.
 
 =back
 
@@ -2735,6 +2875,18 @@ This will ignore the loopback interface, all interfaces with names starting
 with I<veth> and all interfaces with names starting with I<tun> followed by
 at least one digit.
 
+=item B<ReportInactive> I<true>|I<false>
+
+When set to I<false>, only interfaces with non-zero traffic will be
+reported. Note that the check is done by looking into whether a
+package was sent at any time from boot and the corresponding counter
+is non-zero. So, if the interface has been sending data in the past
+since boot, but not during the reported time-interval, it will still
+be reported.
+
+The default value is I<true> and results in collection of the data
+from all interfaces that are selected by B<Interface> and
+B<IgnoreSelected> options.
 
 =item B<UniqueName> I<true>|I<false>
 
@@ -2988,6 +3140,12 @@ used (just like other plugins) and the I<plugin instance> will be empty.
 Defaults to false.
 
 =back
+
+=head2 Plugin C<lua>
+
+This plugin embeds a Lua interpreter into collectd and provides an interface
+to collectd's plugin system. See L<collectd-lua(5)> for its documentation.
+
 
 =head2 Plugin C<mbmon>
 
@@ -3640,6 +3798,11 @@ Synopsis:
       Port "3306"
       MasterStats true
       ConnectTimeout 10
+      SSLKey "/path/to/key.pem"
+      SSLCert "/path/to/cert.pem"
+      SSLCA "/path/to/ca.pem"
+      SSLCAPath "/path/to/cas/"
+      SSLCipher "DHE-RSA-AES256-SHA"
     </Database>
 
     <Database bar>
@@ -3649,12 +3812,20 @@ Synopsis:
       SlaveStats true
       SlaveNotifications true
     </Database>
+
+   <Database galera>
+      Alias "galera"
+      Host "localhost"
+      Socket "/var/run/mysql/mysqld.sock"
+      WsrepStats true
+   </Database>
   </Plugin>
 
 A B<Database> block defines one connection to a MySQL database. It accepts a
 single argument which specifies the name of the database. None of the other
 options are required. MySQL will use default values as documented in the
-section "mysql_real_connect()" in the B<MySQL reference manual>.
+"mysql_real_connect()" and "mysql_ssl_set()" sections in the
+B<MySQL reference manual>.
 
 =over 4
 
@@ -3719,9 +3890,35 @@ privileges. See the B<User> documentation above. Defaults to B<false>.
 If enabled, the plugin sends a notification if the replication slave I/O and /
 or SQL threads are not running. Defaults to B<false>.
 
+=item B<WsrepStats> I<true|false>
+ 
+ Enable the collection of wsrep plugin statistics, used in Master-Master
+ replication setups like in MySQL Galera/Percona XtraDB Cluster.
+ User needs only privileges to execute 'SHOW GLOBAL STATUS'
+ 
 =item B<ConnectTimeout> I<Seconds>
 
 Sets the connect timeout for the MySQL client.
+
+=item B<SSLKey> I<Path>
+
+If provided, the X509 key in PEM format.
+
+=item B<SSLCert> I<Path>
+
+If provided, the X509 cert in PEM format.
+
+=item B<SSLCA> I<Path>
+
+If provided, the CA file in PEM format (check OpenSSL docs).
+
+=item B<SSLCAPath> I<Path>
+
+If provided, the CA directory (check OpenSSL docs).
+
+=item B<SSLCipher> I<String>
+
+If provided, the SSL cipher to use.
 
 =back
 
@@ -7044,7 +7241,7 @@ port in numeric form.
 =item B<AllPortsSummary> I<true>|I<false>
 
 If this option is set to I<true> a summary of statistics from all connections
-are collectd. This option defaults to I<false>.
+are collected. This option defaults to I<false>.
 
 =back
 
@@ -7816,13 +8013,22 @@ Define which SSL protocol version must be used. By default C<libcurl> will
 attempt to figure out the remote SSL protocol version. See
 L<curl_easy_setopt(3)> for more details.
 
-=item B<Format> B<Command>|B<JSON>
+=item B<Format> B<Command>|B<JSON>|B<KAIROSDB>
 
 Format of the output to generate. If set to B<Command>, will create output that
 is understood by the I<Exec> and I<UnixSock> plugins. When set to B<JSON>, will
-create output in the I<JavaScript Object Notation> (JSON).
+create output in the I<JavaScript Object Notation> (JSON). When set to KAIROSDB
+, will create output in the KairosDB format.
 
 Defaults to B<Command>.
+
+=item B<Metrics> B<true>|B<false>
+
+Controls whether I<metrics> are POSTed to this location. Defaults to B<true>.
+
+=item B<Notifications> B<false>|B<true>
+
+Controls whether I<notifications> are POSTed to this location. Defaults to B<false>.
 
 =item B<StoreRates> B<true|false>
 

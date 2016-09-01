@@ -31,6 +31,7 @@
  */
 
 #include "collectd.h"
+
 #include "plugin.h"
 #include "common.h"
 
@@ -291,8 +292,6 @@ static void cipvs_submit_service (struct ip_vs_service_entry *se)
 
 	char pi[DATA_MAX_NAME_LEN];
 
-	size_t i;
-
 	if (0 != get_pi (se, pi, sizeof (pi)))
 	{
 		free (dests);
@@ -303,7 +302,7 @@ static void cipvs_submit_service (struct ip_vs_service_entry *se)
 	cipvs_submit_if (pi, "if_packets", NULL, stats.inpkts, stats.outpkts);
 	cipvs_submit_if (pi, "if_octets", NULL, stats.inbytes, stats.outbytes);
 
-	for (i = 0; i < dests->num_dests; ++i)
+	for (size_t i = 0; i < dests->num_dests; ++i)
 		cipvs_submit_dest (pi, &dests->entrytable[i]);
 
 	free (dests);
@@ -313,7 +312,6 @@ static void cipvs_submit_service (struct ip_vs_service_entry *se)
 static int cipvs_read (void)
 {
 	struct ip_vs_get_services *services = NULL;
-	size_t i;
 
 	if (sockfd < 0)
 		return (-1);
@@ -321,7 +319,7 @@ static int cipvs_read (void)
 	if (NULL == (services = ipvs_get_services ()))
 		return -1;
 
-	for (i = 0; i < services->num_services; ++i)
+	for (size_t i = 0; i < services->num_services; ++i)
 		cipvs_submit_service (&services->entrytable[i]);
 
 	free (services);

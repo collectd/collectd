@@ -25,18 +25,15 @@
  */
 
 #include "collectd.h"
+
 #include "plugin.h"
 #include "common.h"
-#include "configfile.h"
-#include "utils_cache.h"
 #include "utils_cmd_putval.h"
 #include "utils_format_graphite.h"
 #include "utils_format_json.h"
-#include "utils_crc32.h"
 
 #include <stdint.h>
 #include <librdkafka/rdkafka.h>
-#include <zlib.h>
 #include <errno.h>
 
 struct kafka_topic_context {
@@ -243,13 +240,11 @@ static void kafka_topic_context_free(void *p) /* {{{ */
 static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{ */
 {
     int                          status;
-    int                          i;
     struct kafka_topic_context  *tctx;
     char                        *key = NULL;
     char                        *val;
     char                         callback_name[DATA_MAX_NAME_LEN];
     char                         errbuf[1024];
-    user_data_t                  ud;
     oconfig_item_t              *child;
     rd_kafka_conf_res_t          ret;
 
@@ -295,7 +290,7 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
         goto errout;
     }
 
-    for (i = 0; i < ci->children_num; i++) {
+    for (int i = 0; i < ci->children_num; i++) {
         /*
          * The code here could be simplified but makes room
          * for easy adding of new options later on.
@@ -388,8 +383,10 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
     ssnprintf(callback_name, sizeof(callback_name),
               "write_kafka/%s", tctx->topic_name);
 
-    ud.data = tctx;
-    ud.free_func = kafka_topic_context_free;
+    user_data_t ud = {
+        .data = tctx,
+        .free_func = kafka_topic_context_free
+    };
 
     status = plugin_register_write (callback_name, kafka_write, &ud);
     if (status != 0) {
@@ -414,7 +411,6 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
 
 static int kafka_config(oconfig_item_t *ci) /* {{{ */
 {
-    int                          i;
     oconfig_item_t              *child;
     rd_kafka_conf_t             *conf;
     rd_kafka_conf_res_t          ret;
@@ -424,7 +420,7 @@ static int kafka_config(oconfig_item_t *ci) /* {{{ */
         WARNING("cannot allocate kafka configuration.");
         return -1;
     }
-    for (i = 0; i < ci->children_num; i++)  {
+    for (int i = 0; i < ci->children_num; i++)  {
         child = &ci->children[i];
 
         if (strcasecmp("Topic", child->key) == 0) {

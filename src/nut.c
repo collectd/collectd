@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -247,7 +248,6 @@ static int nut_read_one (nut_ups_t *ups)
 
 static int nut_read (void)
 {
-  nut_ups_t *ups;
   int success = 0;
 
   pthread_mutex_lock (&read_lock);
@@ -258,7 +258,7 @@ static int nut_read (void)
   if (success != 0)
     return (0);
 
-  for (ups = upslist_head; ups != NULL; ups = ups->next)
+  for (nut_ups_t *ups = upslist_head; ups != NULL; ups = ups->next)
     if (nut_read_one (ups) == 0)
       success++;
 

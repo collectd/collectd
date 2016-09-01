@@ -30,6 +30,7 @@
  */
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 #include "utils_match.h"
@@ -111,9 +112,8 @@ static int tail_callback (void *data, char *buf,
     int __attribute__((unused)) buflen)
 {
   cu_tail_match_t *obj = (cu_tail_match_t *) data;
-  size_t i;
 
-  for (i = 0; i < obj->matches_num; i++)
+  for (size_t i = 0; i < obj->matches_num; i++)
     match_apply (obj->matches[i].match, buf);
 
   return (0);
@@ -142,8 +142,6 @@ cu_tail_match_t *tail_match_create (const char *filename)
 
 void tail_match_destroy (cu_tail_match_t *obj)
 {
-  size_t i;
-
   if (obj == NULL)
     return;
 
@@ -153,7 +151,7 @@ void tail_match_destroy (cu_tail_match_t *obj)
     obj->tail = NULL;
   }
 
-  for (i = 0; i < obj->matches_num; i++)
+  for (size_t i = 0; i < obj->matches_num; i++)
   {
     cu_tail_match_match_t *match = obj->matches + i;
     if (match->match != NULL)
@@ -246,7 +244,6 @@ int tail_match_read (cu_tail_match_t *obj)
 {
   char buffer[4096];
   int status;
-  size_t i;
 
   status = cu_tail_read (obj->tail, buffer, sizeof (buffer), tail_callback,
       (void *) obj);
@@ -256,7 +253,7 @@ int tail_match_read (cu_tail_match_t *obj)
     return (status);
   }
 
-  for (i = 0; i < obj->matches_num; i++)
+  for (size_t i = 0; i < obj->matches_num; i++)
   {
     cu_tail_match_match_t *lt_match = obj->matches + i;
 

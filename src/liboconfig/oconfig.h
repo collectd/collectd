@@ -64,7 +64,6 @@ struct oconfig_item_s
 /*
  * Functions
  */
-oconfig_item_t *oconfig_parse_fh (FILE *fh);
 oconfig_item_t *oconfig_parse_file (const char *file);
 
 oconfig_item_t *oconfig_clone (const oconfig_item_t *ci);

@@ -25,6 +25,7 @@
  */
 
 #include "collectd.h"
+
 #include "testing.h"
 #include "utils_heap.h"
 
@@ -44,14 +45,13 @@ static int compare (void const *v0, void const *v1)
 DEF_TEST(simple)
 {
   int values[] = { 9, 5, 6, 1, 3, 4, 0, 8, 2, 7 };
-  int i;
   c_heap_t *h;
 
   CHECK_NOT_NULL(h = c_heap_create (compare));
-  for (i = 0; i < 10; i++)
+  for (int i = 0; i < 10; i++)
     CHECK_ZERO(c_heap_insert (h, &values[i]));
 
-  for (i = 0; i < 5; i++)
+  for (int i = 0; i < 5; i++)
   {
     int *ret = NULL;
     CHECK_NOT_NULL(ret = c_heap_get_root(h));
@@ -64,7 +64,7 @@ DEF_TEST(simple)
   CHECK_ZERO(c_heap_insert (h, &values[4] /* = 3 */));
   CHECK_ZERO(c_heap_insert (h, &values[5] /* = 4 */));
 
-  for (i = 0; i < 10; i++)
+  for (int i = 0; i < 10; i++)
   {
     int *ret = NULL;
     CHECK_NOT_NULL(ret = c_heap_get_root(h));

@@ -31,9 +31,9 @@
 
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "utils_cache.h"
 #include "utils_complain.h"
 
 #include <mosquitto.h>
@@ -145,11 +145,9 @@ static void mqtt_free (mqtt_client_conf_t *conf)
 
 static char *strip_prefix (char *topic)
 {
-    size_t num;
-    size_t i;
+    size_t num = 0;
 
-    num = 0;
-    for (i = 0; topic[i] != 0; i++)
+    for (size_t i = 0; topic[i] != 0; i++)
         if (topic[i] == '/')
             num++;
 
@@ -550,9 +548,7 @@ static int mqtt_config_publisher (oconfig_item_t *ci)
 {
     mqtt_client_conf_t *conf;
     char cb_name[1024];
-    user_data_t user_data;
     int status;
-    int i;
 
     conf = calloc (1, sizeof (*conf));
     if (conf == NULL)
@@ -586,7 +582,7 @@ static int mqtt_config_publisher (oconfig_item_t *ci)
 
     C_COMPLAIN_INIT (&conf->complaint_cantpublish);
 
-    for (i = 0; i < ci->children_num; i++)
+    for (int i = 0; i < ci->children_num; i++)
     {
         oconfig_item_t *child = ci->children + i;
         if (strcasecmp ("Host", child->key) == 0)
@@ -635,8 +631,9 @@ static int mqtt_config_publisher (oconfig_item_t *ci)
     }
 
     ssnprintf (cb_name, sizeof (cb_name), "mqtt/%s", conf->name);
-    memset (&user_data, 0, sizeof (user_data));
-    user_data.data = conf;
+    user_data_t user_data = {
+        .data = conf
+    };
 
     plugin_register_write (cb_name, mqtt_write, &user_data);
     return (0);
@@ -657,7 +654,6 @@ static int mqtt_config_subscriber (oconfig_item_t *ci)
     mqtt_client_conf_t **tmp;
     mqtt_client_conf_t *conf;
     int status;
-    int i;
 
     conf = calloc (1, sizeof (*conf));
     if (conf == NULL)
@@ -691,7 +687,7 @@ static int mqtt_config_subscriber (oconfig_item_t *ci)
 
     C_COMPLAIN_INIT (&conf->complaint_cantpublish);
 
-    for (i = 0; i < ci->children_num; i++)
+    for (int i = 0; i < ci->children_num; i++)
     {
         oconfig_item_t *child = ci->children + i;
         if (strcasecmp ("Host", child->key) == 0)
@@ -753,9 +749,7 @@ static int mqtt_config_subscriber (oconfig_item_t *ci)
  */
 static int mqtt_config (oconfig_item_t *ci)
 {
-    int i;
-
-    for (i = 0; i < ci->children_num; i++)
+    for (int i = 0; i < ci->children_num; i++)
     {
         oconfig_item_t *child = ci->children + i;
 
@@ -772,11 +766,9 @@ static int mqtt_config (oconfig_item_t *ci)
 
 static int mqtt_init (void)
 {
-    size_t i;
-
     mosquitto_lib_init ();
 
-    for (i = 0; i < subscribers_num; i++)
+    for (size_t i = 0; i < subscribers_num; i++)
     {
         int status;
 

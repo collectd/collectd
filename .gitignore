@@ -78,6 +78,15 @@ bindings/java/org/collectd/java/*.class
 # backup stuff
 *~
 
+# lint stuff
+*.ln
+
+#ide stuff
+.vscode
+
+# cscope stuff
+cscope.*
+
 # Unit tests
 src/daemon/test-suite.log
 src/tests/

@@ -29,6 +29,7 @@
 #define PLUGIN_H
 
 #include "collectd.h"
+
 #include "configfile.h"
 #include "meta_data.h"
 #include "utils_time.h"
@@ -38,7 +39,7 @@
 #define PLUGIN_FLAGS_GLOBAL 0x0001
 
 #ifndef DATA_MAX_NAME_LEN
-# define DATA_MAX_NAME_LEN 64
+# define DATA_MAX_NAME_LEN 128
 #endif
 
 #define DS_TYPE_COUNTER  0
@@ -200,7 +201,6 @@ typedef void (*plugin_log_cb) (int severity, const char *message,
 typedef int (*plugin_shutdown_cb) (void);
 typedef int (*plugin_notification_cb) (const notification_t *,
 		user_data_t *);
-
 /*
  * NAME
  *  plugin_set_dir

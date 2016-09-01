@@ -27,6 +27,21 @@ noinst_LTLIBRARIES =
 check_PROGRAMS =
 TESTS =
 
+noinst_LTLIBRARIES += libformat_json.la
+libformat_json_la_SOURCES   = utils_format_json.c utils_format_json.h
+libformat_json_la_CPPFLAGS  = $(AM_CPPFLAGS)
+libformat_json_la_LDFLAGS   = $(AM_LDFLAGS)
+libformat_json_la_LIBADD    =
+if BUILD_WITH_LIBYAJL
+libformat_json_la_CPPFLAGS += $(BUILD_WITH_LIBYAJL_CPPFLAGS)
+libformat_json_la_LDFLAGS  += $(BUILD_WITH_LIBYAJL_LDFLAGS)
+libformat_json_la_LIBADD   += $(BUILD_WITH_LIBYAJL_LIBS)
+check_PROGRAMS += test_format_json
+TESTS += test_format_json
+test_format_json_SOURCES = utils_format_json_test.c testing.h
+test_format_json_LDADD = libformat_json.la daemon/libmetadata.la daemon/libplugin_mock.la -lm
+endif
+
 noinst_LTLIBRARIES += liblatency.la
 liblatency_la_SOURCES = utils_latency.c utils_latency.h
 check_PROGRAMS += test_utils_latency
@@ -141,11 +156,10 @@ pkglib_LTLIBRARIES += amqp.la
 amqp_la_SOURCES = amqp.c \
 		  utils_cmd_putval.c utils_cmd_putval.h \
 	          utils_parse_option.c utils_parse_option.h \
-		  utils_format_graphite.c utils_format_graphite.h \
-		  utils_format_json.c utils_format_json.h
+		  utils_format_graphite.c utils_format_graphite.h
 amqp_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBRABBITMQ_LDFLAGS)
 amqp_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBRABBITMQ_CPPFLAGS)
-amqp_la_LIBADD = $(BUILD_WITH_LIBRABBITMQ_LIBS)
+amqp_la_LIBADD = $(BUILD_WITH_LIBRABBITMQ_LIBS) libformat_json.la
 endif
 
 if BUILD_PLUGIN_APACHE
@@ -155,6 +169,7 @@ apache_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 apache_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
 apache_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS)
 endif
+
 
 if BUILD_PLUGIN_APCUPS
 pkglib_LTLIBRARIES += apcups.la
@@ -277,6 +292,12 @@ if BUILD_PLUGIN_CPUFREQ
 pkglib_LTLIBRARIES += cpufreq.la
 cpufreq_la_SOURCES = cpufreq.c
 cpufreq_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
+if BUILD_PLUGIN_CPUSLEEP
+pkglib_LTLIBRARIES += cpusleep.la
+cpusleep_la_SOURCES = cpusleep.c
+cpusleep_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
 if BUILD_PLUGIN_CSV
@@ -422,14 +443,21 @@ gmond_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(GANGLIA_LDFLAGS)
 gmond_la_LIBADD = $(GANGLIA_LIBS)
 endif
 
+if BUILD_PLUGIN_GPS
+pkglib_LTLIBRARIES += gps.la
+gps_la_SOURCES = gps.c
+gps_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBGPS_CFLAGS)
+gps_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBGPS_LDFLAGS)
+gps_la_LIBADD = -lpthread $(BUILD_WITH_LIBGPS_LIBS)
+endif
+
 if BUILD_PLUGIN_GRPC
 pkglib_LTLIBRARIES += grpc.la
 grpc_la_SOURCES = grpc.cc
 nodist_grpc_la_SOURCES = collectd.grpc.pb.cc collectd.pb.cc types.pb.cc
-grpc_la_CPPFLAGS = $(AM_CPPFLAGS) -std=c++11
-grpc_la_CXXFLAGS = $(AM_CXXFLAGS) -std=c++11
-grpc_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-grpc_la_LIBADD = -lgrpc++ -lgrpc -lgpr -lprotobuf
+grpc_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBGRPCPP_CPPFLAGS) $(BUILD_WITH_LIBPROTOBUF_CPPFLAGS)
+grpc_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBGRPCPP_LDFLAGS) $(BUILD_WITH_LIBPROTOBUF_LDFLAGS)
+grpc_la_LIBADD = $(BUILD_WITH_LIBGRPCPP_LIBS) $(BUILD_WITH_LIBPROTOBUF_LIBS)
 endif
 
 if BUILD_PLUGIN_HDDTEMP
@@ -440,6 +468,12 @@ hddtemp_la_LIBADD =
 if BUILD_WITH_LIBSOCKET
 hddtemp_la_LIBADD += -lsocket
 endif
+endif
+
+if BUILD_PLUGIN_HUGEPAGES
+pkglib_LTLIBRARIES += hugepages.la
+hugepages_la_SOURCES = hugepages.c
+hugepages_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
 if BUILD_PLUGIN_INTERFACE
@@ -545,6 +579,15 @@ pkglib_LTLIBRARIES += lpar.la
 lpar_la_SOURCES = lpar.c
 lpar_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 lpar_la_LIBADD = -lperfstat
+endif
+
+if BUILD_PLUGIN_LUA
+pkglib_LTLIBRARIES += lua.la
+lua_la_SOURCES = lua.c \
+		 utils_lua.c utils_lua.h
+lua_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBLUA_CFLAGS)
+lua_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+lua_la_LIBADD = $(BUILD_WITH_LIBLUA_LIBS)
 endif
 
 if BUILD_PLUGIN_LVM
@@ -829,6 +872,10 @@ perl_la_SOURCES = perl.c
 # Despite C99 providing the "bool" type thru stdbool.h, Perl defines its own
 # version of that type if HAS_BOOL is not defined... *sigh*
 perl_la_CPPFLAGS = $(AM_CPPFLAGS) -DHAS_BOOL=1
+# Despite off_t being 64 bit wide on 64 bit platforms, Perl insist on using
+# off64_t which is only exposed when _LARGEFILE64_SOURCE is defined... *sigh*
+# On older platforms we also need _REENTRANT. _GNU_SOURCE sets both of these.
+perl_la_CPPFLAGS += -D_GNU_SOURCE
 perl_la_CFLAGS  = $(AM_CFLAGS) \
 		$(PERL_CFLAGS) \
 		-DXS_VERSION=\"$(VERSION)\" -DVERSION=\"$(VERSION)\"
@@ -852,8 +899,9 @@ if BUILD_PLUGIN_PINBA
 pkglib_LTLIBRARIES += pinba.la
 pinba_la_SOURCES = pinba.c
 nodist_pinba_la_SOURCES = pinba.pb-c.c pinba.pb-c.h
-pinba_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-pinba_la_LIBADD = -lprotobuf-c
+pinba_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBPROTOBUF_C_CPPFLAGS)
+pinba_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBPROTOBUF_C_LDFLAGS)
+pinba_la_LIBADD = $(BUILD_WITH_LIBPROTOBUF_C_LIBS)
 endif
 
 if BUILD_PLUGIN_PING
@@ -883,13 +931,11 @@ endif
 if BUILD_PLUGIN_PYTHON
 pkglib_LTLIBRARIES += python.la
 python_la_SOURCES = python.c pyconfig.c pyvalues.c cpython.h
-python_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_PYTHON_CPPFLAGS)
-python_la_CFLAGS = $(AM_CFLAGS)
+python_la_CPPFLAGS = $(AM_CPPFLAGS) $(LIBPYTHON_CPPFLAGS)
 if COMPILER_IS_GCC
-python_la_CFLAGS += -fno-strict-aliasing -Wno-strict-aliasing
+python_la_CPPFLAGS += -fno-strict-aliasing -Wno-strict-aliasing
 endif
-python_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_PYTHON_LDFLAGS)
-python_la_LIBADD = $(BUILD_WITH_PYTHON_LIBS)
+python_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBPYTHON_LDFLAGS)
 endif
 
 if BUILD_PLUGIN_PROCESSES
@@ -957,9 +1003,9 @@ endif
 if BUILD_PLUGIN_SIGROK
 pkglib_LTLIBRARIES += sigrok.la
 sigrok_la_SOURCES = sigrok.c
-sigrok_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBSIGROK_CFLAGS)
-sigrok_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBSIGROK_LDFLAGS)
-sigrok_la_LIBADD = -lsigrok
+sigrok_la_CFLAGS = $(AM_CFLAGS) $(LIBSIGROK_CFLAGS)
+sigrok_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+sigrok_la_LIBADD = $(LIBSIGROK_LIBS)
 endif
 
 if BUILD_PLUGIN_SMART
@@ -975,13 +1021,9 @@ endif
 if BUILD_PLUGIN_SNMP
 pkglib_LTLIBRARIES += snmp.la
 snmp_la_SOURCES = snmp.c
-snmp_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-snmp_la_CFLAGS = $(AM_CFLAGS)
-snmp_la_LIBADD =
-if BUILD_WITH_LIBNETSNMP
-snmp_la_CFLAGS += $(BUILD_WITH_LIBSNMP_CFLAGS)
-snmp_la_LIBADD += $(BUILD_WITH_LIBSNMP_LIBS)
-endif
+snmp_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBNETSNMP_CPPFLAGS)
+snmp_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBNETSNMP_LDFLAGS)
+snmp_la_LIBADD = $(BUILD_WITH_LIBNETSNMP_LIBS)
 endif
 
 if BUILD_PLUGIN_STATEFS_BATTERY
@@ -1219,30 +1261,29 @@ endif
 if BUILD_PLUGIN_WRITE_GRAPHITE
 pkglib_LTLIBRARIES += write_graphite.la
 write_graphite_la_SOURCES = write_graphite.c \
-                        utils_format_graphite.c utils_format_graphite.h \
-                        utils_format_json.c utils_format_json.h
+                        utils_format_graphite.c utils_format_graphite.h
 write_graphite_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+write_graphite_la_LIBADD = libformat_json.la
 endif
 
 if BUILD_PLUGIN_WRITE_HTTP
 pkglib_LTLIBRARIES += write_http.la
 write_http_la_SOURCES = write_http.c \
-			utils_format_json.c utils_format_json.h
-write_http_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
+			utils_format_kairosdb.c utils_format_kairosdb.h
 write_http_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-write_http_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS)
+write_http_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
+write_http_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS) libformat_json.la
 endif
 
 if BUILD_PLUGIN_WRITE_KAFKA
 pkglib_LTLIBRARIES += write_kafka.la
 write_kafka_la_SOURCES = write_kafka.c \
                         utils_format_graphite.c utils_format_graphite.h \
-                        utils_format_json.c utils_format_json.h \
                         utils_cmd_putval.c utils_cmd_putval.h \
                         utils_crc32.c utils_crc32.h
 write_kafka_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBRDKAFKA_CPPFLAGS)
 write_kafka_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBRDKAFKA_LDFLAGS)
-write_kafka_la_LIBADD = $(BUILD_WITH_LIBRDKAFKA_LIBS)
+write_kafka_la_LIBADD = $(BUILD_WITH_LIBRDKAFKA_LIBS) libformat_json.la
 endif
 
 if BUILD_PLUGIN_WRITE_LOG
@@ -1335,6 +1376,7 @@ dist_man_MANS = collectd.1 \
 		collectd-exec.5 \
 		collectdctl.1 \
 		collectd-java.5 \
+		collectd-lua.5 \
 		collectdmon.1 \
 		collectd-nagios.1 \
 		collectd-perl.5 \
@@ -1350,6 +1392,7 @@ EXTRA_DIST =	collectd.conf.pod \
 		collectd-exec.pod \
 		collectdctl.pod \
 		collectd-java.pod \
+		collectd-lua.pod \
 		collectdmon.pod \
 		collectd-nagios.pod \
 		collectd-perl.pod \
@@ -1397,7 +1440,7 @@ CLEANFILES += pinba.pb-c.c pinba.pb-c.h
 BUILT_SOURCES += pinba.pb-c.c pinba.pb-c.h
 
 pinba.pb-c.c pinba.pb-c.h: pinba.proto
-	$(AM_V_PROTOC_C)protoc-c -I$(srcdir) --c_out . $(srcdir)/pinba.proto
+	$(AM_V_PROTOC_C)$(PROTOC_C) -I$(srcdir) --c_out . $(srcdir)/pinba.proto
 endif
 
 install-exec-hook:

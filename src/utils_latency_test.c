@@ -28,6 +28,7 @@
 
 #include "common.h" /* for STATIC_ARRAY_SIZE */
 #include "collectd.h"
+
 #include "testing.h"
 #include "utils_time.h"
 #include "utils_latency.h"
@@ -49,12 +50,11 @@ DEF_TEST(simple)
     { 99, 0.3,  99, 103, 20.6},
     /* { -1, 0.3,  99, 103, 20.6}, see issue #1139 */
   };
-  size_t i;
   latency_counter_t *l;
 
   CHECK_NOT_NULL (l = latency_counter_create ());
 
-  for (i = 0; i < STATIC_ARRAY_SIZE (cases); i++) {
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE (cases); i++) {
     printf ("# case %zu: DOUBLE_TO_CDTIME_T(%g) = %"PRIu64"\n",
         i, cases[i].val, DOUBLE_TO_CDTIME_T (cases[i].val));
     latency_counter_add (l, DOUBLE_TO_CDTIME_T (cases[i].val));
@@ -71,12 +71,11 @@ DEF_TEST(simple)
 
 DEF_TEST(percentile)
 {
-  size_t i;
   latency_counter_t *l;
 
   CHECK_NOT_NULL (l = latency_counter_create ());
 
-  for (i = 0; i < 100; i++) {
+  for (size_t i = 0; i < 100; i++) {
     latency_counter_add (l, TIME_T_TO_CDTIME_T (((time_t) i) + 1));
   }
 
