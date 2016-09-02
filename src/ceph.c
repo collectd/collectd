@@ -1468,6 +1468,12 @@ static int cconn_main_loop(uint32_t request_type)
     struct timeval end_tv;
     struct cconn io_array[g_num_daemons];
 
+    if (g_num_daemons < 1)
+    {
+        ERROR ("ceph plugin: No daemons configured. See the \"Daemon\" config option.");
+        return ENOENT;
+    }
+
     DEBUG("ceph plugin: entering cconn_main_loop(request_type = %d)", request_type);
 
     /* create cconn array */
