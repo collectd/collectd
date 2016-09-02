@@ -337,8 +337,6 @@ su nemo -c "systemctl --user daemon-reload"
 
 %postun
 su nemo -c "systemctl --user daemon-reload"
-# remove old plugins
-rm -f /usr/lib/collectd/statefs_battery.*
 
 
 #%post -n libcollectdclient -p /sbin/ldconfig
