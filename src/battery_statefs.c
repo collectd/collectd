@@ -95,7 +95,7 @@ static _Bool getvalue(const char *fname, gauge_t *value, char *buffer, size_t bu
 
 
 /* cannot be static, is referred to from battery.c */
-int battery_read (void)
+int battery_read_statefs (void)
 {
   char buffer[BFSZ];
   gauge_t value = NAN;
