@@ -2101,33 +2101,28 @@ static int sockent_init_crypto (sockent_t *se) /* {{{ */
 	}
 	else /* (se->type == SOCKENT_TYPE_SERVER) */
 	{
-		if (se->data.server.security_level > SECURITY_LEVEL_NONE)
+		if ((se->data.server.security_level > SECURITY_LEVEL_NONE)
+				&& (se->data.server.auth_file == NULL))
 		{
-			if (network_init_gcrypt () < 0)
-			{
-				ERROR ("network plugin: Cannot configure server socket with "
-						"security: Failed to initialize crypto library.");
-				return (-1);
-			}
-
-			if (se->data.server.auth_file == NULL)
-			{
-				ERROR ("network plugin: Server socket with "
-						"security requested, but no "
-						"password file is configured.");
-				return (-1);
-			}
+			ERROR ("network plugin: Server socket with security requested, "
+					"but no \"AuthFile\" is configured.");
+			return (-1);
 		}
 		if (se->data.server.auth_file != NULL)
 		{
+			if (network_init_gcrypt () < 0)
+			{
+				ERROR ("network plugin: Cannot configure server socket with security: "
+						"Failed to initialize crypto library.");
+				return (-1);
+			}
+
 			se->data.server.userdb = fbh_create (se->data.server.auth_file);
 			if (se->data.server.userdb == NULL)
 			{
-				ERROR ("network plugin: Reading password file "
-						"`%s' failed.",
+				ERROR ("network plugin: Reading password file \"%s\" failed.",
 						se->data.server.auth_file);
-				if (se->data.server.security_level > SECURITY_LEVEL_NONE)
-					return (-1);
+				return (-1);
 			}
 		}
 	}
@@ -3562,14 +3557,6 @@ static int network_init (void)
 	if (have_init)
 		return (0);
 	have_init = 1;
-
-#if HAVE_LIBGCRYPT
-	if (network_init_gcrypt () < 0)
-	{
-		ERROR ("network plugin: Failed to initialize crypto library.");
-		return (-1);
-	}
-#endif
 
 	if (network_config_stats != 0)
 		plugin_register_read ("network", network_stats_read);
