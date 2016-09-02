@@ -249,7 +249,6 @@ Collectd utilities
 	   --enable-protocols \
 	   --enable-radio \
 	   --enable-rrdtool \
-	   --enable-statefs_battery \
 	   --enable-statefs_bluetooth \
 	   --enable-statefs_cellular \
 	   --enable-statefs_internet \
@@ -338,6 +337,8 @@ su nemo -c "systemctl --user daemon-reload"
 
 %postun
 su nemo -c "systemctl --user daemon-reload"
+# remove old plugins
+rm -f /usr/lib/collectd/statefs_battery.*
 
 
 #%post -n libcollectdclient -p /sbin/ldconfig
