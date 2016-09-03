@@ -73,6 +73,7 @@ int battery_read_statefs (void); /* defined in battery_statefs; used by StateFS 
 
 static _Bool report_percent = 0;
 static _Bool report_degraded = 0;
+static _Bool query_statefs = 0;
 
 static void battery_submit2 (char const *plugin_instance, /* {{{ */
 		char const *type, char const *type_instance, gauge_t value)
@@ -360,6 +361,9 @@ static int battery_read (void) /* {{{ */
 	gauge_t capacity_charged; /* Charged capacity */
 	gauge_t capacity_full = NAN; /* Total capacity */
 	gauge_t capacity_design = NAN; /* Full design capacity */
+
+	if (query_statefs)
+		return battery_read_statefs ();
 
 #if HAVE_IOKIT_PS_IOPOWERSOURCES_H
 	get_via_io_power_sources (&charge_rel, &current, &voltage);
@@ -780,6 +784,9 @@ static int battery_read (void) /* {{{ */
 {
 	int status;
 
+	if (query_statefs)
+		return battery_read_statefs ();
+
 	DEBUG ("battery plugin: Trying sysfs ...");
 	status = read_sysfs ();
 	if (status == 0)
@@ -802,8 +809,6 @@ static int battery_read (void) /* {{{ */
 
 static int battery_config (oconfig_item_t *ci)
 {
-	_Bool query_statefs = 0;
-
 	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
@@ -818,13 +823,6 @@ static int battery_config (oconfig_item_t *ci)
 			WARNING ("battery plugin: Ignoring unknown "
 					"configuration option \"%s\".",
 					child->key);
-	}
-
-	if (query_statefs)
-	{
-		/* register read function from statefs backend. to avoid conflicts, unregister the current one */  
-		plugin_unregister_read ("battery");
-		plugin_register_read ("battery", battery_read_statefs);
 	}
 
 	return (0);

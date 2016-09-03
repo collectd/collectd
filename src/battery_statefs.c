@@ -66,6 +66,8 @@ static void battery_submit (const char *type, gauge_t value)
   vl.values_len = 1;
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "battery", sizeof (vl.plugin));
+  /* statefs supports 1 battery at present */
+  sstrncpy (vl.plugin_instance, "0", sizeof (vl.plugin_instance));
   sstrncpy (vl.type, type, sizeof (vl.type));
 
   plugin_dispatch_values (&vl);
@@ -102,7 +104,6 @@ int battery_read_statefs (void)
 
   submitted_this_run = 0;
 
-
   if ( getvalue(STATEFS_ROOT "ChargePercentage", &value, buffer, BFSZ) )
     battery_submit( "charge", value );
   // Use capacity as a charge estimate if ChargePercentage is not available
@@ -132,7 +133,7 @@ int battery_read_statefs (void)
 
   if ( submitted_this_run == 0 )
     {
-      ERROR ("statefs_battery plugin: none of the statistics are available.");
+      ERROR ("battery plugin: statefs backend: none of the statistics are available");
       return (-1);
     }
 
