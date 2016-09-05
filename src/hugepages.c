@@ -50,6 +50,7 @@ static int g_flag_rpt_mm = 1;
 struct entry_info {
   char *d_name;
   const char *node;
+  size_t page_size_kb;
 
   gauge_t nr;
   gauge_t surplus;
@@ -100,9 +101,7 @@ static void submit_hp(const char *plug_inst, const char *type_instance,
 static int read_hugepage_entry(const char *path, const char *entry,
                                void *e_info) {
   char path2[PATH_MAX];
-  static const char partial_type_inst[] = "free_used";
   char type_instance[PATH_MAX];
-  char *strin;
   struct entry_info *info = e_info;
   double value;
 
@@ -136,17 +135,8 @@ static int read_hugepage_entry(const char *path, const char *entry,
     return 0;
   }
 
-  /* Can now submit "used" and "free" values.
-   * 0x2D is the ASCII "-" character, after which the string
-   *   contains "<size>kB"
-   * The string passed as param 3 to submit_hp is of the format:
-   *   <type>-<partial_type_inst>-<size>kB
-   */
-  assert(strncmp(info->d_name, "hugepages-", strlen("hugepages-")) == 0);
-  strin = info->d_name += strlen("hugepages-");
-
-  ssnprintf(type_instance, sizeof(type_instance), "%s-%s", partial_type_inst,
-            strin);
+  ssnprintf(type_instance, sizeof(type_instance), "free_used-%zukB",
+            info->page_size_kb);
   submit_hp(info->node, type_instance, info->free,
             (info->nr + info->surplus) - info->free);
 
@@ -175,12 +165,24 @@ static int read_syshugepages(const char *path, const char *node) {
       continue;
     }
 
+    long page_size = strtol(result->d_name + strlen(hugepages_dir),
+                            /* endptr = */ NULL, /* base = */ 10);
+    if (errno != 0) {
+      char errbuf[1024];
+      ERROR("%s: failed to determine page size from directory name \"%s\": %s",
+            g_plugin_name, result->d_name,
+            sstrerror(errno, errbuf, sizeof(errbuf)));
+      continue;
+    }
+
     /* /sys/devices/system/node/node?/hugepages/ */
     ssnprintf(path2, sizeof(path2), "%s/%s", path, result->d_name);
 
     walk_directory(path2, read_hugepage_entry,
                    &(struct entry_info){
-                       .d_name = result->d_name, .node = node,
+                       .d_name = result->d_name,
+                       .node = node,
+                       .page_size_kb = (size_t)page_size,
                    },
                    /* hidden = */ 0);
     errno = 0;
