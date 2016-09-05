@@ -32,15 +32,9 @@
 #include "plugin.h" /* plugin_register_*, plugin_dispatch_values */
 
 static const char g_plugin_name[] = "hugepages";
-static const char g_cfg_rpt_numa[] = "ReportPerNodeHP";
-static const char g_cfg_rpt_mm[] = "ReportRootHP";
 
-static const char *g_config_keys[] = {
-    g_cfg_rpt_numa, g_cfg_rpt_mm,
-};
-static size_t g_config_keys_num = STATIC_ARRAY_SIZE(g_config_keys);
-static int g_flag_rpt_numa = 1;
-static int g_flag_rpt_mm = 1;
+static _Bool g_flag_rpt_numa = 1;
+static _Bool g_flag_rpt_mm = 1;
 
 #define HP_HAVE_NR 0x01
 #define HP_HAVE_SURPLUS 0x02
@@ -58,19 +52,19 @@ struct entry_info {
   uint8_t flags;
 };
 
-static int huge_config_callback(const char *key, const char *val) {
-  DEBUG("%s: HugePages config key='%s', val='%s'", g_plugin_name, key, val);
-
-  if (strcasecmp(key, g_cfg_rpt_numa) == 0) {
-    g_flag_rpt_numa = IS_TRUE(val);
-    return 0;
+static int hp_config(oconfig_item_t *ci) {
+  for (int i = 0; i < ci->children_num; i++) {
+    oconfig_item_t *child = ci->children + i;
+    if (strcasecmp("ReportPerNodeHP", child->key) == 0)
+      cf_util_get_boolean(child, &g_flag_rpt_numa);
+    else if (strcasecmp("ReportRootHP", child->key) == 0)
+      cf_util_get_boolean(child, &g_flag_rpt_mm);
+    else
+      ERROR("%s: Invalid configuration option: \"%s\".", g_plugin_name,
+            child->key);
   }
-  if (strcasecmp(key, g_cfg_rpt_mm) == 0) {
-    g_flag_rpt_mm = IS_TRUE(val);
-    return 0;
-  }
 
-  return -1;
+  return (0);
 }
 
 static void submit_hp(const char *plug_inst, const char *type_instance,
@@ -255,7 +249,6 @@ static int huge_read(void) {
 }
 
 void module_register(void) {
-  plugin_register_config(g_plugin_name, huge_config_callback, g_config_keys,
-                         g_config_keys_num);
+  plugin_register_complex_config(g_plugin_name, hp_config);
   plugin_register_read(g_plugin_name, huge_read);
 }
