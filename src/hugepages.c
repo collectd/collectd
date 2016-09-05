@@ -160,24 +160,11 @@ static int read_syshugepages(const char *path, const char *node) {
   struct dirent *result;
   char path2[PATH_MAX];
   struct entry_info e_info;
-  long lim;
 
   dir = opendir(path);
   if (dir == NULL) {
     ERROR("%s: cannot open directory %s", g_plugin_name, path);
     return -1;
-  }
-
-  errno = 0;
-  if ((lim = pathconf(path, _PC_NAME_MAX)) == -1) {
-    /* Limit not defined if errno == 0, otherwise error */
-    if (errno != 0) {
-      ERROR("%s: pathconf failed", g_plugin_name);
-      closedir(dir);
-      return -1;
-    } else {
-      lim = PATH_MAX;
-    }
   }
 
   /* read "hugepages-XXXXXkB" entries */
@@ -189,7 +176,7 @@ static int read_syshugepages(const char *path, const char *node) {
     }
 
     /* /sys/devices/system/node/node?/hugepages/ */
-    ssnprintf(path2, (size_t)lim, "%s/%s", path, result->d_name);
+    ssnprintf(path2, sizeof(path2), "%s/%s", path, result->d_name);
 
     e_info.d_name = result->d_name;
     e_info.node = node;
@@ -216,24 +203,11 @@ static int read_nodes(void) {
   DIR *dir;
   struct dirent *result;
   char path[PATH_MAX];
-  long lim;
 
   dir = opendir(sys_node);
   if (dir == NULL) {
     ERROR("%s: cannot open directory %s", g_plugin_name, sys_node);
     return -1;
-  }
-
-  errno = 0;
-  if ((lim = pathconf(sys_node, _PC_NAME_MAX)) == -1) {
-    /* Limit not defined if errno == 0, otherwise error */
-    if (errno != 0) {
-      ERROR("%s: pathconf failed", g_plugin_name);
-      closedir(dir);
-      return -1;
-    } else {
-      lim = PATH_MAX;
-    }
   }
 
   while ((result = readdir(dir)) != NULL) {
@@ -243,7 +217,7 @@ static int read_nodes(void) {
       continue;
     }
 
-    ssnprintf(path, (size_t)lim, sys_node_hugepages, result->d_name);
+    ssnprintf(path, sizeof(path), sys_node_hugepages, result->d_name);
     read_syshugepages(path, result->d_name);
     errno = 0;
   }
