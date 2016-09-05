@@ -181,7 +181,7 @@ static int ts_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
     else if (strcasecmp ("TypeInstance", child->key) == 0)
       status = ts_config_add_string (&data->type_instance, child,
           /* may be empty = */ 1);
-    else if (strcasecmp ("MetaDataSet", child->key) == 0)
+    else if (strcasecmp ("MetaData", child->key) == 0)
       status = ts_config_add_meta (&data->meta, child,
           /* may be empty = */ 1);
     else
@@ -206,8 +206,7 @@ static int ts_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
         && (data->meta == NULL))
     {
       ERROR ("Target `set': You need to set at least one of `Host', "
-          "`Plugin', `PluginInstance', `TypeInstance', "
-          "`MetaDataSet' or `MetaDataEval'.");
+          "`Plugin', `PluginInstance', `TypeInstance', `MetaData'.");
       status = -1;
     }
 
