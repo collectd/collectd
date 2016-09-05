@@ -597,8 +597,11 @@
 #</Plugin>
 
 #<Plugin hugepages>
-#    ReportPerNodeHP "true"
-#    ReportRootHP "true"
+#    ReportPerNodeHP  true
+#    ReportRootHP     true
+#    ValuesPages      true
+#    ValuesBytes      false
+#    ValuesPercentage false
 #</Plugin>
 
 #<Plugin interface>

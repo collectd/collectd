@@ -2836,19 +2836,34 @@ options (default is enabled).
 
 =over 4
 
-=item B<ReportPerNodeHP> I<true>|I<false>
+=item B<ReportPerNodeHP> B<true>|B<false>
 
 If enabled, information will be collected from the hugepage
 counters in "/sys/devices/system/node/*/hugepages".
 This is used to check the per-node hugepage statistics on
 a NUMA system.
 
-=item B<ReportRootHP> I<true>|I<false>
+=item B<ReportRootHP> B<true>|B<false>
 
 If enabled, information will be collected from the hugepage
 counters in "/sys/kernel/mm/hugepages".
 This can be used on both NUMA and non-NUMA systems to check
 the overall hugepage statistics.
+
+=item B<ValuesPages> B<true>|B<false>
+
+Whether to report hugepages metrics in number of pages.
+Defaults to B<true>.
+
+=item B<ValuesBytes> B<false>|B<true>
+
+Whether to report hugepages metrics in bytes.
+Defaults to B<false>.
+
+=item B<ValuesPercentage> B<false>|B<true>
+
+Whether to report hugepages metrics as percentage.
+Defaults to B<false>.
 
 =back
 

@@ -36,6 +36,10 @@ static const char g_plugin_name[] = "hugepages";
 static _Bool g_flag_rpt_numa = 1;
 static _Bool g_flag_rpt_mm = 1;
 
+static _Bool values_pages = 1;
+static _Bool values_bytes = 0;
+static _Bool values_percent = 0;
+
 #define HP_HAVE_NR 0x01
 #define HP_HAVE_SURPLUS 0x02
 #define HP_HAVE_FREE 0x04
@@ -59,6 +63,12 @@ static int hp_config(oconfig_item_t *ci) {
       cf_util_get_boolean(child, &g_flag_rpt_numa);
     else if (strcasecmp("ReportRootHP", child->key) == 0)
       cf_util_get_boolean(child, &g_flag_rpt_mm);
+    else if (strcasecmp("ValuesPages", child->key) == 0)
+      cf_util_get_boolean(child, &values_pages);
+    else if (strcasecmp("ValuesBytes", child->key) == 0)
+      cf_util_get_boolean(child, &values_bytes);
+    else if (strcasecmp("ValuesPercentage", child->key) == 0)
+      cf_util_get_boolean(child, &values_percent);
     else
       ERROR("%s: Invalid configuration option: \"%s\".", g_plugin_name,
             child->key);
@@ -67,29 +77,45 @@ static int hp_config(oconfig_item_t *ci) {
   return (0);
 }
 
-static void submit_hp(const char *plug_inst, const char *type_instance,
-                      gauge_t free_value, gauge_t used_value) {
+static void submit_hp(const struct entry_info *info) {
   value_list_t vl = VALUE_LIST_INIT;
-  value_t values[] = {
-    { .gauge = free_value },
-    { .gauge = used_value },
-  };
 
-  vl.values = values;
-  vl.values_len = STATIC_ARRAY_SIZE (values);
+  vl.values = &(value_t) { .gauge = NAN };
+  vl.values_len = 1;
+
   sstrncpy(vl.host, hostname_g, sizeof(vl.host));
   sstrncpy(vl.plugin, g_plugin_name, sizeof(vl.plugin));
-  sstrncpy(vl.plugin_instance, plug_inst, sizeof(vl.plugin_instance));
-  sstrncpy(vl.type, "hugepages", sizeof(vl.type));
-
-  if (type_instance != NULL) {
-    sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
+  if (info->node) {
+    ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s-%zuKb",
+              info->node, info->page_size_kb);
+  } else {
+    ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%zuKb",
+              info->page_size_kb);
   }
 
-  DEBUG("submit_hp pl_inst:%s, inst_type %s, free=%lf, used=%lf", plug_inst,
-        type_instance, free_value, used_value);
+  /* ensure all metrics have the same timestamp */
+  vl.time = cdtime();
 
-  plugin_dispatch_values(&vl);
+  gauge_t free = info->free;
+  gauge_t used = (info->nr + info->surplus) - info->free;
+
+  if (values_pages) {
+    sstrncpy(vl.type, "vmpage_number", sizeof(vl.type));
+    plugin_dispatch_multivalue(&vl, /* store_percentage = */ 0, DS_TYPE_GAUGE,
+                               "free", free, "used", used, NULL);
+  }
+  if (values_bytes) {
+    gauge_t page_size = (gauge_t)(1024 * info->page_size_kb);
+    sstrncpy(vl.type, "memory", sizeof(vl.type));
+    plugin_dispatch_multivalue(&vl, /* store_percentage = */ 0, DS_TYPE_GAUGE,
+                               "free", free * page_size, "used",
+                               used * page_size, NULL);
+  }
+  if (values_percent) {
+    sstrncpy(vl.type, "percent", sizeof(vl.type));
+    plugin_dispatch_multivalue(&vl, /* store_percentage = */ 1, DS_TYPE_GAUGE,
+                               "free", free, "used", used, NULL);
+  }
 }
 
 static int read_hugepage_entry(const char *path, const char *entry,
@@ -131,8 +157,7 @@ static int read_hugepage_entry(const char *path, const char *entry,
 
   ssnprintf(type_instance, sizeof(type_instance), "free_used-%zukB",
             info->page_size_kb);
-  submit_hp(info->node, type_instance, info->free,
-            (info->nr + info->surplus) - info->free);
+  submit_hp(info);
 
   /* Reset flags so subsequent calls don't submit again. */
   info->flags = 0;

@@ -94,7 +94,6 @@ hash_collisions         value:DERIVE:0:U
 http_request_methods    value:DERIVE:0:U
 http_requests           value:DERIVE:0:U
 http_response_codes     value:DERIVE:0:U
-hugepages               free:GAUGE:0:4294967295, used:GAUGE:0:4294967295
 humidity                value:GAUGE:0:100
 if_collisions           value:DERIVE:0:U
 if_dropped              rx:DERIVE:0:U, tx:DERIVE:0:U
