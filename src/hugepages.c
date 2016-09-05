@@ -42,9 +42,19 @@ static size_t g_config_keys_num = STATIC_ARRAY_SIZE(g_config_keys);
 static int g_flag_rpt_numa = 1;
 static int g_flag_rpt_mm = 1;
 
+#define HP_HAVE_NR 0x01
+#define HP_HAVE_SURPLUS 0x02
+#define HP_HAVE_FREE 0x04
+#define HP_HAVE_ALL 0x07
+
 struct entry_info {
   char *d_name;
   const char *node;
+
+  gauge_t nr;
+  gauge_t surplus;
+  gauge_t free;
+  uint8_t flags;
 };
 
 static int huge_config_callback(const char *key, const char *val) {
@@ -62,9 +72,8 @@ static int huge_config_callback(const char *key, const char *val) {
   return -1;
 }
 
-static void submit_hp(const char *plug_inst, const char *type,
-                      const char *type_instance, gauge_t free_value,
-                      gauge_t used_value) {
+static void submit_hp(const char *plug_inst, const char *type_instance,
+                      gauge_t free_value, gauge_t used_value) {
   value_list_t vl = VALUE_LIST_INIT;
   value_t values[] = {
     { .gauge = free_value },
@@ -76,14 +85,14 @@ static void submit_hp(const char *plug_inst, const char *type,
   sstrncpy(vl.host, hostname_g, sizeof(vl.host));
   sstrncpy(vl.plugin, g_plugin_name, sizeof(vl.plugin));
   sstrncpy(vl.plugin_instance, plug_inst, sizeof(vl.plugin_instance));
-  sstrncpy(vl.type, type, sizeof(vl.type));
+  sstrncpy(vl.type, "hugepages", sizeof(vl.type));
 
   if (type_instance != NULL) {
     sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
   }
 
-  DEBUG("submit_hp pl_inst:%s, inst_type %s, type %s, free=%lf, used=%lf",
-        plug_inst, type_instance, type, free_value, used_value);
+  DEBUG("submit_hp pl_inst:%s, inst_type %s, free=%lf, used=%lf", plug_inst,
+        type_instance, free_value, used_value);
 
   plugin_dispatch_values(&vl);
 }
@@ -91,14 +100,10 @@ static void submit_hp(const char *plug_inst, const char *type,
 static int read_hugepage_entry(const char *path, const char *entry,
                                void *e_info) {
   char path2[PATH_MAX];
-  static const char type[] = "hugepages";
   static const char partial_type_inst[] = "free_used";
   char type_instance[PATH_MAX];
   char *strin;
-  struct entry_info *hpsize_plinst = e_info;
-  static int flag = 0;
-  static double used_hp = 0;
-  static double free_hp = 0;
+  struct entry_info *info = e_info;
   double value;
 
   ssnprintf(path2, sizeof(path2), "%s/%s", path, entry);
@@ -114,52 +119,47 @@ static int read_hugepage_entry(const char *path, const char *entry,
     fclose(fh);
     return -1;
   }
+  fclose(fh);
 
   if (strcmp(entry, "nr_hugepages") == 0) {
-    used_hp += value;
-    flag++;
+    info->nr = value;
+    info->flags |= HP_HAVE_NR;
   } else if (strcmp(entry, "surplus_hugepages") == 0) {
-    used_hp += value;
-    flag++;
+    info->surplus = value;
+    info->flags |= HP_HAVE_SURPLUS;
   } else if (strcmp(entry, "free_hugepages") == 0) {
-    used_hp -= value;
-    free_hp = value;
-    flag++;
+    info->free = value;
+    info->flags |= HP_HAVE_FREE;
   }
 
-  if (flag == 3) {
-    /* Can now submit "used" and "free" values.
-     * 0x2D is the ASCII "-" character, after which the string
-     *   contains "<size>kB"
-     * The string passed as param 3 to submit_hp is of the format:
-     *   <type>-<partial_type_inst>-<size>kB
-     */
-    strin = strchr(hpsize_plinst->d_name, 0x2D);
-    if (strin != NULL) {
-      ssnprintf(type_instance, sizeof(type_instance), "%s%s", partial_type_inst,
-                strin);
-    } else {
-      ssnprintf(type_instance, sizeof(type_instance), "%s%s", partial_type_inst,
-                hpsize_plinst->d_name);
-    }
-    submit_hp(hpsize_plinst->node, type, type_instance, free_hp, used_hp);
-
-    /* Reset for next time */
-    flag = 0;
-    used_hp = 0;
-    free_hp = 0;
+  if (info->flags != HP_HAVE_ALL) {
+    return 0;
   }
 
-  fclose(fh);
+  /* Can now submit "used" and "free" values.
+   * 0x2D is the ASCII "-" character, after which the string
+   *   contains "<size>kB"
+   * The string passed as param 3 to submit_hp is of the format:
+   *   <type>-<partial_type_inst>-<size>kB
+   */
+  assert(strncmp(info->d_name, "hugepages-", strlen("hugepages-")) == 0);
+  strin = info->d_name += strlen("hugepages-");
+
+  ssnprintf(type_instance, sizeof(type_instance), "%s-%s", partial_type_inst,
+            strin);
+  submit_hp(info->node, type_instance, info->free,
+            (info->nr + info->surplus) - info->free);
+
+  /* Reset flags so subsequent calls don't submit again. */
+  info->flags = 0;
   return 0;
 }
 
 static int read_syshugepages(const char *path, const char *node) {
-  static const char hugepages_dir[] = "hugepages";
+  static const char hugepages_dir[] = "hugepages-";
   DIR *dir;
   struct dirent *result;
   char path2[PATH_MAX];
-  struct entry_info e_info;
 
   dir = opendir(path);
   if (dir == NULL) {
@@ -178,9 +178,11 @@ static int read_syshugepages(const char *path, const char *node) {
     /* /sys/devices/system/node/node?/hugepages/ */
     ssnprintf(path2, sizeof(path2), "%s/%s", path, result->d_name);
 
-    e_info.d_name = result->d_name;
-    e_info.node = node;
-    walk_directory(path2, read_hugepage_entry, &e_info, 0);
+    walk_directory(path2, read_hugepage_entry,
+                   &(struct entry_info){
+                       .d_name = result->d_name, .node = node,
+                   },
+                   /* hidden = */ 0);
     errno = 0;
   }
 
