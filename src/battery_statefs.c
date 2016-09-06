@@ -51,11 +51,12 @@ SOFTWARE.
 #include <stdio.h>
 
 #define STATEFS_ROOT "/run/state/namespaces/Battery/"
-#define BFSZ 512
+#define BUFFER_SIZE 512
 
 static int submitted_this_run = 0;
 
-static void battery_submit(const char *type, gauge_t value) {
+static void battery_submit(const char *type, gauge_t value,
+                           const char *type_instance) {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
@@ -68,19 +69,23 @@ static void battery_submit(const char *type, gauge_t value) {
   /* statefs supports 1 battery at present */
   sstrncpy(vl.plugin_instance, "0", sizeof(vl.plugin_instance));
   sstrncpy(vl.type, type, sizeof(vl.type));
-
+  if (type_instance != NULL)
+    sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
   plugin_dispatch_values(&vl);
 
   submitted_this_run++;
 }
 
-static _Bool getvalue(const char *fname, gauge_t *value, char *buffer,
-                      size_t buffer_size) {
+static _Bool getvalue(const char *fname, gauge_t *value) {
   FILE *fh;
-  if ((fh = fopen(fname, "r")) == NULL)
-    return (0);
+  char buffer[BUFFER_SIZE];
 
-  if (fgets(buffer, buffer_size, fh) == NULL) {
+  if ((fh = fopen(fname, "r")) == NULL) {
+    WARNING("battery plugin: cannot open StateFS file %s", fname);
+    return (0);
+  }
+
+  if (fgets(buffer, STATIC_ARRAY_SIZE(buffer), fh) == NULL) {
     fclose(fh);
     return (0); // empty file
   }
@@ -94,37 +99,36 @@ static _Bool getvalue(const char *fname, gauge_t *value, char *buffer,
 
 /* cannot be static, is referred to from battery.c */
 int battery_read_statefs(void) {
-  char buffer[BFSZ];
   gauge_t value = NAN;
 
   submitted_this_run = 0;
 
-  if (getvalue(STATEFS_ROOT "ChargePercentage", &value, buffer, BFSZ))
-    battery_submit("charge", value);
+  if (getvalue(STATEFS_ROOT "ChargePercentage", &value))
+    battery_submit("charge", value, NULL);
   // Use capacity as a charge estimate if ChargePercentage is not available
-  else if (getvalue(STATEFS_ROOT "Capacity", &value, buffer, BFSZ))
-    battery_submit("charge", value);
+  else if (getvalue(STATEFS_ROOT "Capacity", &value))
+    battery_submit("charge", value, NULL);
 
-  if (getvalue(STATEFS_ROOT "Current", &value, buffer, BFSZ))
-    battery_submit("current", value * 1e-6); // from uA to A
+  if (getvalue(STATEFS_ROOT "Current", &value))
+    battery_submit("current", value * 1e-6, NULL); // from uA to A
 
-  if (getvalue(STATEFS_ROOT "Energy", &value, buffer, BFSZ))
-    battery_submit("energy", value * 1e-6); // from uWh to Wh
+  if (getvalue(STATEFS_ROOT "Energy", &value))
+    battery_submit("energy_wh", value * 1e-6, NULL); // from uWh to Wh
 
-  if (getvalue(STATEFS_ROOT "Power", &value, buffer, BFSZ))
-    battery_submit("power_battery", value * 1e-6); // from uW to W
+  if (getvalue(STATEFS_ROOT "Power", &value))
+    battery_submit("power_battery", value * 1e-6, NULL); // from uW to W
 
-  if (getvalue(STATEFS_ROOT "Temperature", &value, buffer, BFSZ))
-    battery_submit("temperature", value * 0.1); // from 10xC to C
+  if (getvalue(STATEFS_ROOT "Temperature", &value))
+    battery_submit("temperature", value * 0.1, NULL); // from 10xC to C
 
-  if (getvalue(STATEFS_ROOT "TimeUntilFull", &value, buffer, BFSZ))
-    battery_submit("timefull", value);
+  if (getvalue(STATEFS_ROOT "TimeUntilFull", &value))
+    battery_submit("duration", value, "full");
 
-  if (getvalue(STATEFS_ROOT "TimeUntilLow", &value, buffer, BFSZ))
-    battery_submit("timelow", value);
+  if (getvalue(STATEFS_ROOT "TimeUntilLow", &value))
+    battery_submit("duration", value, "low");
 
-  if (getvalue(STATEFS_ROOT "Voltage", &value, buffer, BFSZ))
-    battery_submit("voltage", value * 1e-6); // from uV to V
+  if (getvalue(STATEFS_ROOT "Voltage", &value))
+    battery_submit("voltage", value * 1e-6, NULL); // from uV to V
 
   if (submitted_this_run == 0) {
     ERROR("battery plugin: statefs backend: none of the statistics are "

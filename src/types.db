@@ -75,6 +75,7 @@ email_check             value:GAUGE:0:U
 email_count             value:GAUGE:0:U
 email_size              value:GAUGE:0:U
 energy                  value:GAUGE:U:U
+energy_wh               value:GAUGE:U:U
 entropy                 value:GAUGE:0:4294967295
 evicted_keys            value:DERIVE:0:U
 expired_keys            value:DERIVE:0:U
@@ -221,8 +222,6 @@ swap_io                 value:DERIVE:0:U
 tcp_connections         value:GAUGE:0:4294967295
 temperature             value:GAUGE:U:U
 threads                 value:GAUGE:0:U
-timefull                value:GAUGE:0:U
-timelow                 value:GAUGE:0:U
 time_dispersion         value:GAUGE:-1000000:1000000
 time_offset             value:GAUGE:-1000000:1000000
 time_offset_ntp         value:GAUGE:-1000000:1000000
