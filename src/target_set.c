@@ -29,6 +29,26 @@
 #include "common.h"
 #include "filter_chain.h"
 
+struct ts_key_list_s
+{
+  char *key;
+  struct ts_key_list_s *next;
+};
+typedef struct ts_key_list_s ts_key_list_t;
+
+static void ts_key_list_free (ts_key_list_t *l) /* {{{ */
+{
+  if (l == NULL)
+    return;
+
+  free (l->key);
+
+  if (l->next != NULL)
+    ts_key_list_free (l->next);
+
+  free (l);
+} /* }}} void ts_name_list_free */
+
 struct ts_data_s
 {
   char *host;
@@ -37,6 +57,7 @@ struct ts_data_s
   /* char *type; */
   char *type_instance;
   meta_data_t *meta;
+  ts_key_list_t *meta_delete;
 };
 typedef struct ts_data_s ts_data_t;
 
@@ -47,7 +68,7 @@ static int ts_util_get_key_and_string_wo_strdup (const oconfig_item_t *ci, char 
       || (ci->values[1].type != OCONFIG_TYPE_STRING))
   {
     ERROR ("ts_util_get_key_and_string_wo_strdup: The %s option requires "
-        "exactly two string argument.", ci->key);
+        "exactly two string arguments.", ci->key);
     return (-1);
   }
 
@@ -92,30 +113,64 @@ static int ts_config_add_meta (meta_data_t **dest, /* {{{ */
 
   if (strlen (key) == 0)
   {
-    ERROR ("Target `set': The `%s' option does not accept empty string as first argument.",
-        ci->key);
+    ERROR ("Target `set': The `%s' option does not accept empty string as "
+        "first argument.", ci->key);
     return (-1);
   }
 
   if (!may_be_empty && (strlen (string) == 0))
   {
-    ERROR ("Target `set': The `%s' option does not accept empty string as second argument.",
-        ci->key);
+    ERROR ("Target `set': The `%s' option does not accept empty string as "
+        "second argument.", ci->key);
     return (-1);
   }
 
   if ((*dest) == NULL)
   {
-    // Create a new meta_data_t
+    /* Create a new meta_data_t */
     if ((*dest = meta_data_create()) == NULL)
     {
       ERROR ("Target `set': failed to create a meta data for `%s'.", ci->key);
-      return (-1);
+      return (-ENOMEM);
     }
   }
 
   return (meta_data_add_string (*dest, key, string));
 } /* }}} int ts_config_add_meta */
+
+static int ts_config_add_meta_delete (ts_key_list_t **dest, /* {{{ */
+    const oconfig_item_t *ci)
+{
+  ts_key_list_t *entry = NULL;
+
+  if ((ci->values_num != 1)
+      || (ci->values[0].type != OCONFIG_TYPE_STRING))
+  {
+    ERROR ("ts_config_add_meta_delete: The %s option requires "
+        "exactly one string argument.", ci->key);
+    return (-1);
+  }
+
+  if (strlen (ci->values[0].value.string) == 0)
+  {
+    ERROR ("Target `set': The `%s' option does not accept empty string as "
+        "first argument.", ci->key);
+    return (-1);
+  }
+
+  entry = calloc (1, sizeof (*entry));
+  if (entry == NULL)
+  {
+    ERROR ("ts_config_add_meta_delete: calloc failed.");
+    return (-ENOMEM);
+  }
+
+  entry->key = sstrdup (ci->values[0].value.string);
+  entry->next = *dest;
+  *dest = entry;
+
+  return (0);
+} /* }}} int ts_config_add_meta_delete */
 
 static int ts_destroy (void **user_data) /* {{{ */
 {
@@ -134,6 +189,7 @@ static int ts_destroy (void **user_data) /* {{{ */
   /* free (data->type); */
   free (data->type_instance);
   meta_data_destroy(data->meta);
+  ts_key_list_free (data->meta_delete);
   free (data);
 
   return (0);
@@ -157,6 +213,7 @@ static int ts_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   /* data->type = NULL; */
   data->type_instance = NULL;
   data->meta = NULL;
+  data->meta_delete = NULL;
 
   status = 0;
   for (int i = 0; i < ci->children_num; i++)
@@ -184,6 +241,8 @@ static int ts_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
     else if (strcasecmp ("MetaData", child->key) == 0)
       status = ts_config_add_meta (&data->meta, child,
           /* may be empty = */ 1);
+    else if (strcasecmp ("DeleteMetaData", child->key) == 0)
+      status = ts_config_add_meta_delete (&data->meta_delete, child);
     else
     {
       ERROR ("Target `set': The `%s' configuration option is not understood "
@@ -203,11 +262,28 @@ static int ts_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
         && (data->plugin_instance == NULL)
         /* && (data->type == NULL) */
         && (data->type_instance == NULL)
-        && (data->meta == NULL))
+        && (data->meta == NULL)
+        && (data->meta_delete == NULL))
     {
       ERROR ("Target `set': You need to set at least one of `Host', "
-          "`Plugin', `PluginInstance', `TypeInstance', `MetaData'.");
+          "`Plugin', `PluginInstance', `TypeInstance', "
+          "`MetaData', or `DeleteMetaData'.");
       status = -1;
+    }
+
+    if (data->meta != NULL)
+    {
+      /* If data->meta_delete is NULL, this loop is a no-op. */
+      for (ts_key_list_t *l=data->meta_delete; l != NULL; l = l->next)
+      {
+        if (meta_data_type (data->meta, l->key) != 0)
+        {
+          /* MetaData and DeleteMetaData for the same key. */
+          ERROR ("Target `set': Can only have one of `MetaData' or "
+              "`DeleteMetaData' for any given key.");
+          status = -1;
+        }
+      }
     }
 
     break;
@@ -241,6 +317,12 @@ static int ts_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
   if (data->meta != NULL)
   {
     meta_data_clone_merge(&(vl->meta), data->meta);
+  }
+
+  /* If data->meta_delete is NULL, this loop is a no-op. */
+  for (ts_key_list_t *l=data->meta_delete; l != NULL; l = l->next)
+  {
+    meta_data_delete(vl->meta, l->key);
   }
 
 #define SET_FIELD(f) if (data->f != NULL) { sstrncpy (vl->f, data->f, sizeof (vl->f)); }
