@@ -9433,6 +9433,10 @@ Available options:
 
 =item B<TypeInstance> I<Regex> I<Replacement>
 
+=item B<MetaData> I<String> I<Regex> I<Replacement>
+
+=item B<DeleteMetaData> I<String> I<Regex>
+
 Match the appropriate field with the given regular expression I<Regex>. If the
 regular expression matches, that part that matches is replaced with
 I<Replacement>. If multiple places of the input buffer match a given regular
