@@ -116,7 +116,7 @@ int battery_read_statefs(void) {
     battery_submit("energy_wh", value * 1e-6, NULL); // from uWh to Wh
 
   if (getvalue(STATEFS_ROOT "Power", &value))
-    battery_submit("power_battery", value * 1e-6, NULL); // from uW to W
+    battery_submit("power", value * 1e-6, NULL); // from uW to W
 
   if (getvalue(STATEFS_ROOT "Temperature", &value))
     battery_submit("temperature", value * 0.1, NULL); // from 10xC to C
