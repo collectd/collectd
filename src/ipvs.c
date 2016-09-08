@@ -285,6 +285,26 @@ static void cipvs_submit_dest (const char *pi, struct ip_vs_dest_entry *de)
 	return;
 } /* cipvs_submit_dest */
 
+static void cipvs_submit_dest_count (char *pi, char *ti, gauge_t value)
+{
+	value_t values[1];
+	value_list_t vl = VALUE_LIST_INIT;
+
+	values[0].gauge = value;
+
+	vl.values = values;
+	vl.values_len = 1;
+
+	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	sstrncpy (vl.plugin, "ipvs", sizeof (vl.plugin));
+	sstrncpy (vl.plugin_instance, pi, sizeof (vl.plugin_instance));
+	sstrncpy (vl.type, "destinations", sizeof (vl.type));
+	sstrncpy (vl.type_instance, ti, sizeof (vl.type_instance));
+
+	plugin_dispatch_values (&vl);
+	return;
+} /* cipvs_submit_dest_count */
+
 static void cipvs_submit_service (struct ip_vs_service_entry *se)
 {
 	struct ip_vs_stats_user  stats = se->stats;
@@ -302,8 +322,16 @@ static void cipvs_submit_service (struct ip_vs_service_entry *se)
 	cipvs_submit_if (pi, "if_packets", NULL, stats.inpkts, stats.outpkts);
 	cipvs_submit_if (pi, "if_octets", NULL, stats.inbytes, stats.outbytes);
 
+	size_t live_dests = 0;
 	for (size_t i = 0; i < dests->num_dests; ++i)
+	{
+	if (dests->entrytable[i].weight != 0)
+		++live_dests;
 		cipvs_submit_dest (pi, &dests->entrytable[i]);
+	}
+
+	cipvs_submit_dest_count(pi, "total", dests->num_dests);
+	cipvs_submit_dest_count(pi, "active", live_dests);
 
 	free (dests);
 	return;
