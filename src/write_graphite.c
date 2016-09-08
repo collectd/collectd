@@ -548,6 +548,9 @@ static int wg_config_node (oconfig_item_t *ci)
         else if (strcasecmp ("AlwaysAppendDS", child->key) == 0)
             cf_util_get_flag (child, &cb->format_flags,
                     GRAPHITE_ALWAYS_APPEND_DS);
+        else if (strcasecmp ("DropDuplicateFields", child->key) == 0)
+            cf_util_get_flag (child, &cb->format_flags,
+                    GRAPHITE_DROP_DUPE_FIELDS);
         else if (strcasecmp ("EscapeCharacter", child->key) == 0)
             config_set_char (&cb->escape_char, child);
         else
