@@ -9419,9 +9419,37 @@ Available options:
 
 =item B<MetaData> I<String> I<String>
 
-Set the appropriate field to the given string. The strings for plugin instance
-and type instance may be empty, the strings for host and plugin may not be
-empty. It's currently not possible to set the type of a value this way.
+Set the appropriate field to the given string. The strings for plugin instance,
+type instance, and meta data may be empty, the strings for host and plugin may
+not be empty. It's currently not possible to set the type of a value this way.
+
+The following placeholders will be replaced by an appropriate value:
+
+=over 4
+
+=item B<%{host}>
+
+=item B<%{plugin}>
+
+=item B<%{plugin_instance}>
+
+=item B<%{type}>
+
+=item B<%{type_instance}>
+
+These placeholders are replaced by the identifier field of the same name.
+
+=item B<%{meta:>I<name>B<}>
+
+These placeholders are replaced by the meta data value with the given name.
+
+=back
+
+Please note that these placeholders are B<case sensitive>!
+
+=item B<DeleteMetaData> I<String>
+
+Delete the named meta data field.
 
 =back
 
