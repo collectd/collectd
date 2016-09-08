@@ -24,16 +24,17 @@
 # include "config.h"
 #endif
 
-#if HAVE_XFS_XQM_H
-# define _GNU_SOURCE
-# include <xfs/xqm.h>
-#define XFS_SUPER_MAGIC_STR "XFSB"
-#define XFS_SUPER_MAGIC2_STR "BSFX"
-#endif
+#define _GNU_SOURCE
 
 #include "collectd.h"
 
 #include "utils_mount.h"
+
+#if HAVE_XFS_XQM_H
+# include <xfs/xqm.h>
+#define XFS_SUPER_MAGIC_STR "XFSB"
+#define XFS_SUPER_MAGIC2_STR "BSFX"
+#endif
 
 #include "common.h" /* sstrncpy() et alii */
 #include "plugin.h" /* ERROR() macro */
