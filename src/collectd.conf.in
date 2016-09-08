@@ -1415,6 +1415,7 @@
 #    StoreRates true
 #    AlwaysAppendDS false
 #    EscapeCharacter "_"
+#    SeparateInstances false
 #  </Node>
 #</Plugin>
 
