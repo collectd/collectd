@@ -300,6 +300,7 @@
 #<Plugin "battery">
 #  ValuesPercentage false
 #  ReportDegraded false
+#  QueryStateFS false
 #</Plugin>
 
 #<Plugin "bind">
