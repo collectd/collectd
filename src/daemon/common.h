@@ -322,6 +322,11 @@ int parse_identifier_vl (const char *str, value_list_t *vl);
 int parse_value (const char *value, value_t *ret_value, int ds_type);
 int parse_values (char *buffer, value_list_t *vl, const data_set_t *ds);
 
+/* parse_value_file reads "path" and parses its content as an integer or
+ * floating point, depending on "ds_type". On success, the value is stored in
+ * "ret_value" and zero is returned. On failure, a non-zero value is returned. */
+int parse_value_file (char const *path, value_t *ret_value, int ds_type);
+
 #if !HAVE_GETPWNAM_R
 int getpwnam_r (const char *name, struct passwd *pwbuf, char *buf,
 		size_t buflen, struct passwd **pwbufp);
