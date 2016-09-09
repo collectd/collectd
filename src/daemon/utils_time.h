@@ -85,12 +85,23 @@ cdtime_t cdtime (void);
 #define RFC3339_SIZE     26
 #define RFC3339NANO_SIZE 36
 
+#define RFC3339_ZULU_SIZE     21
+#define RFC3339NANO_ZULU_SIZE 31
+
 /* rfc3339 formats a cdtime_t time in RFC 3339 format with second precision. */
 int rfc3339 (char *buffer, size_t buffer_size, cdtime_t t);
 
 /* rfc3339nano formats a cdtime_t time in RFC 3339 format with nanosecond
  * precision. */
 int rfc3339nano (char *buffer, size_t buffer_size, cdtime_t t);
+
+/* rfc3339 formats a cdtime_t time in RFC 3339 zulu format with second
+ * precision. */
+int rfc3339_zulu (char *buffer, size_t buffer_size, cdtime_t t);
+
+/* rfc3339nano formats a cdtime_t time in RFC 3339 zulu format with nanosecond
+ * precision. */
+int rfc3339nano_zulu (char *buffer, size_t buffer_size, cdtime_t t);
 
 #endif /* UTILS_TIME_H */
 /* vim: set sw=2 sts=2 et : */
