@@ -359,6 +359,7 @@ static int cow_read_values (const char *path, const char *name,
     char *buffer;
     size_t buffer_size;
     int status;
+    char errbuf[1024];
 
     char file[4096];
     char *endptr;
@@ -373,8 +374,8 @@ static int cow_read_values (const char *path, const char *name,
     status = OW_get (file, &buffer, &buffer_size);
     if (status < 0)
     {
-      ERROR ("onewire plugin: OW_get (%s/%s) failed. status = %#x;",
-          path, family_info->features[i].filename, status);
+      ERROR ("onewire plugin: OW_get (%s/%s) failed. error = %s;",
+          path, family_info->features[i].filename, sstrerror(errno, errbuf, sizeof (errbuf)));
       return (-1);
     }
     DEBUG ("Read onewire device %s as %s", file, buffer);
@@ -430,6 +431,7 @@ static int cow_read_bus (const char *path)
   char *buffer;
   size_t buffer_size;
   int status;
+  char errbuf[1024];
 
   char *buffer_ptr;
   char *dummy;
@@ -439,8 +441,8 @@ static int cow_read_bus (const char *path)
   status = OW_get (path, &buffer, &buffer_size);
   if (status < 0)
   {
-    ERROR ("onewire plugin: OW_get (%s) failed. status = %#x;",
-        path, status);
+    ERROR ("onewire plugin: OW_get (%s) failed. error = %s;",
+        path, sstrerror(errno, errbuf, sizeof (errbuf)));
     return (-1);
   }
   DEBUG ("onewire plugin: OW_get (%s) returned: %s",
@@ -498,6 +500,7 @@ static int cow_simple_read (void)
   char        *buffer;
   size_t       buffer_size;
   int          status;
+  char         errbuf[1024];
   char        *endptr;
   direct_access_element_t *traverse;
 
@@ -514,9 +517,9 @@ static int cow_simple_read (void)
       status = OW_get (traverse->path, &buffer, &buffer_size);
       if (status < 0)
       {
-          ERROR ("onewire plugin: OW_get (%s) failed. status = %#x;",
+          ERROR ("onewire plugin: OW_get (%s) failed. status = %s;",
                  traverse->path,
-                 status);
+                 sstrerror(errno, errbuf, sizeof (errbuf)));
           return (-1);
       }
       DEBUG ("onewire plugin: Read onewire device %s as %s", traverse->path, buffer);
@@ -590,6 +593,7 @@ static int cow_shutdown (void)
 static int cow_init (void)
 {
   int status;
+  char errbuf[1024];
 
   if (device_g == NULL)
   {
@@ -601,7 +605,7 @@ static int cow_init (void)
   status = (int) OW_init (device_g);
   if (status != 0)
   {
-    ERROR ("onewire plugin: OW_init(%s) failed: %i.", device_g, status);
+    ERROR ("onewire plugin: OW_init(%s) failed: %s.", device_g, sstrerror(errno, errbuf, sizeof (errbuf)));
     return (1);
   }
 
