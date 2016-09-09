@@ -7852,6 +7852,26 @@ more than one DS.
 
 =back
 
+=head2 Plugin C<write_log>
+
+The C<write_log> plugin writes metrics as INFO log messages.
+
+This plugin supports two output formats: I<Graphite> and I<JSON>.
+
+Synopsis:
+
+ <Plugin write_log>
+   Format Graphite
+ </Plugin>
+
+=over 4
+
+=item B<Format> I<Format>
+
+The output format to use. Can be one of C<Graphite> or C<JSON>.
+
+=back
+
 =head2 Plugin C<write_tsdb>
 
 The C<write_tsdb> plugin writes data to I<OpenTSDB>, a scalable open-source
