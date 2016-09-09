@@ -634,6 +634,12 @@ match_value_la_SOURCES = match_value.c
 match_value_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_MATCH_THROTTLE_METADATA_KEYS
+pkglib_LTLIBRARIES += match_throttle_metadata_keys.la
+match_throttle_metadata_keys_la_SOURCES = match_throttle_metadata_keys.c
+match_throttle_metadata_keys_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_MBMON
 pkglib_LTLIBRARIES += mbmon.la
 mbmon_la_SOURCES = mbmon.c
@@ -711,6 +717,23 @@ mqtt_la_SOURCES = mqtt.c
 mqtt_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBMOSQUITTO_CPPFLAGS)
 mqtt_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBMOSQUITTO_LDFLAGS)
 mqtt_la_LIBADD = $(BUILD_WITH_LIBMOSQUITTO_LIBS)
+endif
+
+if BUILD_PLUGIN_MONGODB
+pkglib_LTLIBRARIES += mongodb.la
+mongodb_la_SOURCES = mongodb.c
+mongodb_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBMONGOC_CPPFLAGS)
+mongodb_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBMONGOC_LDFLAGS)
+mongodb_la_LIBADD =
+if BUILD_WITH_OWN_LIBMONGOC
+
+# add libmongoc source files
+mongodb_la_CPPFLAGS += -Ilibmongoc/src/mongoc -Ilibmongoc/src/libbson/src/bson
+mongodb_la_LIBADD += libmongoc/libmongoc-1.0.la libmongoc/src/libbson/libbson.la
+
+else
+mongodb_la_LIBADD += -lmongoc
+endif
 endif
 
 if BUILD_PLUGIN_MULTIMETER
@@ -910,6 +933,13 @@ ping_la_SOURCES = ping.c
 ping_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBOPING_CPPFLAGS)
 ping_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBOPING_LDFLAGS)
 ping_la_LIBADD = -loping -lm
+endif
+
+if BUILD_PLUGIN_PLUGIN_MEM
+pkglib_LTLIBRARIES += plugin_mem.la
+plugin_mem_la_SOURCES = plugin_mem.c
+plugin_mem_la_CPPFLAGS = $(AM_CPPFLAGS)
+plugin_mem_la_LDFLAGS = -module -avoid-version
 endif
 
 if BUILD_PLUGIN_POSTGRESQL
@@ -1285,6 +1315,28 @@ pkglib_LTLIBRARIES += write_log.la
 write_log_la_SOURCES = write_log.c \
                         utils_format_graphite.c utils_format_graphite.h
 write_log_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
+if BUILD_PLUGIN_WRITE_GCM
+pkglib_LTLIBRARIES += write_gcm.la
+write_gcm_la_SOURCES = write_gcm.c
+write_gcm_la_LDFLAGS = -module -avoid-version $(BUILD_WITH_LIBYAJL_LDFLAGS)
+write_gcm_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
+write_gcm_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
+if BUILD_WITH_LIBSSL
+write_gcm_la_CFLAGS += $(BUILD_WITH_LIBSSL_CFLAGS)
+write_gcm_la_LIBADD += $(BUILD_WITH_LIBSSL_LIBS)
+endif
+if BUILD_WITH_LIBCURL
+write_gcm_la_CFLAGS += $(BUILD_WITH_LIBCURL_CFLAGS)
+write_gcm_la_LIBADD += $(BUILD_WITH_LIBCURL_LIBS)
+endif
+endif
+
+if BUILD_PLUGIN_STACKDRIVER_AGENT
+pkglib_LTLIBRARIES += stackdriver_agent.la
+stackdriver_agent_la_SOURCES = stackdriver_agent.c
+stackdriver_agent_la_LDFLAGS = -module -avoid-version
 endif
 
 if BUILD_PLUGIN_WRITE_MONGODB

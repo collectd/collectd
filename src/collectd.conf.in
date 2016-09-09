@@ -1403,6 +1403,17 @@
 #	Verbose false
 #</Plugin>
 
+#<Plugin write_gcm>
+#  Service "MyApp"
+#  Project "123456789012"
+#  Url "https://www-googleapis-test.sandbox.google.com/cloudmonitoring/v2beta2"
+#  TokenUrl "http://metadata/computeMetadata/v1/instance/service-accounts/default/token"
+#  ResourceId "234567890123"
+#  Email "123456789012@developer.gserviceaccount.com"
+#  PrivateKeyFile "/etc/ssl/private/my.pem"
+#  PrivateKeyPass "secretSslPassphrase"
+#</Plugin>
+
 #<Plugin write_graphite>
 #  <Node "example">
 #    Host "localhost"

@@ -742,7 +742,19 @@ static int fc_bit_write_invoke (const data_set_t *ds, /* {{{ */
     for (size_t i = 0; plugin_list[i].plugin != NULL; i++)
     {
       status = plugin_write (plugin_list[i].plugin, ds, vl);
-      if (status != 0)
+      if (status == ENOENT
+          && strcasecmp(plugin_list[i].plugin, "write_http") == 0)
+      {
+        c_complain (LOG_ERR, &plugin_list[i].complaint,
+            "Filter subsystem: Built-in target `write': Dispatching value to "
+            "the `write_http' plugin failed. Are you using an out-of-date "
+            "config file? The syntax has changed in version 5.4.2. In the new "
+            "syntax, the write_http plugin should have a Node child, and "
+            "references to that plugin should be written as "
+            "`write_http/NODENAME' (e.g. `write_http/stackdriver'). See "
+            "http://SOMELINK for more details.");
+      }
+      else if (status != 0)
       {
         c_complain (LOG_INFO, &plugin_list[i].complaint,
             "Filter subsystem: Built-in target `write': Dispatching value to "

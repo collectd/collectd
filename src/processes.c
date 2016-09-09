@@ -39,6 +39,8 @@
 #include "common.h"
 #include "plugin.h"
 
+#include <stdio.h>
+
 /* Include header files for the mach system, if they exist.. */
 #if HAVE_THREAD_INFO
 #  if HAVE_MACH_MACH_INIT_H
@@ -230,6 +232,24 @@ typedef struct procstat
 static procstat_t *list_head_g = NULL;
 
 static _Bool report_ctx_switch = 0;
+typedef struct
+{
+    _Bool ps_count;
+    _Bool ps_vm;
+    _Bool ps_rss;
+    _Bool ps_data;
+    _Bool ps_code;
+    _Bool ps_stacksize;
+    _Bool ps_cputime;
+    _Bool ps_pagefaults;
+    _Bool ps_disk_octets;
+    _Bool ps_disk_ops;
+    _Bool cswitch_vol;
+    _Bool cswitch_invol;
+} want_detail_configuration_t;
+
+static want_detail_configuration_t want_detail_configuration_g;
+static _Bool some_detail_active_g = 0;
 
 #if HAVE_THREAD_INFO
 static mach_port_t port_host_self;
@@ -453,7 +473,6 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 
 		ps->cswitch_vol   += ((pse->cswitch_vol == -1)?0:pse->cswitch_vol);
 		ps->cswitch_invol += ((pse->cswitch_invol == -1)?0:pse->cswitch_invol);
-
 		want_init = (entry->vmem_minflt_counter == 0)
 				&& (entry->vmem_majflt_counter == 0);
 		ps_update_counter (want_init,
@@ -541,6 +560,35 @@ static int ps_config (oconfig_item_t *ci)
 #elif KERNEL_SOLARIS || KERNEL_FREEBSD
 	const size_t max_procname_len = MAXCOMLEN -1;
 #endif
+    const char *stat_names[] = {
+        "ps_count",
+        "ps_vm",
+        "ps_rss",
+        "ps_data",
+        "ps_code",
+        "ps_stacksize",
+        "ps_cputime",
+        "ps_pagefaults",
+        "ps_disk_octets",
+        "ps_disk_ops",
+	"cswitch_vol",
+	"cswitch_invol"
+    };
+
+    _Bool *detail_flags[] = {
+        &want_detail_configuration_g.ps_count,
+        &want_detail_configuration_g.ps_vm,
+        &want_detail_configuration_g.ps_rss,
+        &want_detail_configuration_g.ps_data,
+        &want_detail_configuration_g.ps_code,
+        &want_detail_configuration_g.ps_stacksize,
+        &want_detail_configuration_g.ps_cputime,
+        &want_detail_configuration_g.ps_pagefaults,
+        &want_detail_configuration_g.ps_disk_octets,
+        &want_detail_configuration_g.ps_disk_ops,
+	&want_detail_configuration_g.cswitch_vol,
+	&want_detail_configuration_g.cswitch_invol
+    };
 
 	for (int i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *c = ci->children + i;
@@ -599,6 +647,34 @@ static int ps_config (oconfig_item_t *ci)
 		else if (strcasecmp (c->key, "CollectContextSwitch") == 0)
 		{
 			cf_util_get_boolean (c, &report_ctx_switch);
+		}
+		else if (strcasecmp (c->key, "Detail") == 0)
+		{
+		    int sn;
+		    if ((c->values_num != 1)
+		            || (OCONFIG_TYPE_STRING != c->values[0].type))
+		    {
+		        ERROR ("processes plugin: `Detail' needs exactly "
+		                "one string argument (got %i).",
+		                c->values_num);
+		        continue;
+		    }
+		    assert (STATIC_ARRAY_SIZE (stat_names) ==
+		            STATIC_ARRAY_SIZE (detail_flags));
+		    for (sn = 0; sn < STATIC_ARRAY_SIZE(stat_names); ++sn) {
+		        if (strcasecmp(c->values[0].value.string, stat_names[sn]) == 0)
+		        {
+		            *detail_flags[sn] = 1;
+		            some_detail_active_g = 1;
+		            break;
+		        }
+		    }
+		    if (sn == STATIC_ARRAY_SIZE(stat_names))
+		    {
+		        ERROR ("processes plugin: Unrecognized `Detail' argument %s.",
+		               c->values[0].value.string);
+		        continue;
+		    }
 		}
 		else
 		{
@@ -676,110 +752,247 @@ static void ps_submit_state (const char *state, double value)
 	plugin_dispatch_values (&vl);
 }
 
-/* submit info about specific process (e.g.: memory taken, cpu usage, etc..) */
+static char *ps_get_cmdline (long pid, char *name,
+    char *buf, size_t buf_len);
+static char *ps_get_command(pid_t pid);
+static char *ps_get_owner(pid_t pid);
+
+// Increase this value if any of the callers use a larger 'values_len'.
+// (If the assertion fails, you know you have this problem).
+#define MAX_VALUE_LIST_SIZE 2
+
+static void dispatch_value_helper (value_list_t *vl,
+        const char *type, const char *type_instance, int values_len,
+        _Bool doing_detail, _Bool want_detail)
+{
+    assert (values_len <= MAX_VALUE_LIST_SIZE);
+    if (doing_detail != want_detail)
+    {
+        return;
+    }
+    sstrncpy(vl->type, type, sizeof (vl->type));
+    if (type_instance != NULL)
+    {
+        sstrncpy(vl->type_instance, type_instance, sizeof (vl->type_instance));
+    }
+    vl->values_len = values_len;
+    plugin_dispatch_values(vl);
+}
+
+static void ps_submit_proc_stats (
+        _Bool doing_detail,
+        const char *instance_name,
+        const char *pid,
+        const char *owner,
+        const char *command,
+        const char *command_line,
+        unsigned long num_proc,
+        unsigned long num_lwp,
+        unsigned long vmem_size,
+        unsigned long vmem_rss,
+        unsigned long vmem_data,
+        unsigned long vmem_code,
+        unsigned long stack_size,
+        derive_t vmem_minflt_counter,
+        derive_t vmem_majflt_counter,
+        derive_t cpu_user_counter,
+        derive_t cpu_system_counter,
+        derive_t io_rchar,
+        derive_t io_wchar,
+        derive_t io_syscr,
+        derive_t io_syscw,
+	derive_t cswitch_vol,
+        derive_t cswitch_invol)
+{
+    const want_detail_configuration_t *config = &want_detail_configuration_g;
+    value_t values[MAX_VALUE_LIST_SIZE];
+    value_list_t vl = VALUE_LIST_INIT;
+    vl.values = values;
+
+    sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+    sstrncpy (vl.plugin, "processes", sizeof (vl.plugin));
+    sstrncpy (vl.plugin_instance, instance_name, sizeof (vl.plugin_instance));
+
+    if (doing_detail)
+    {
+        // sstrncpy(vl.type_instance, "detail", sizeof (vl.type_instance));
+        vl.meta = meta_data_create();
+        if (pid != NULL) {
+            meta_data_add_string(vl.meta, "processes:pid", pid);
+        }
+        if (owner != NULL) {
+            meta_data_add_string(vl.meta, "processes:owner", owner);
+        }
+        if (command != NULL) {
+            meta_data_add_string(vl.meta, "processes:command", command);
+        }
+        if (command_line != NULL) {
+            meta_data_add_string(vl.meta, "processes:command_line",
+                    command_line);
+        }
+    }
+
+    vl.values[0].gauge = num_proc;
+    vl.values[1].gauge = num_lwp;
+    dispatch_value_helper(&vl, "ps_count", NULL, 2, doing_detail, config->ps_count);
+
+    vl.values[0].gauge = vmem_size;
+    dispatch_value_helper(&vl, "ps_vm", NULL, 1, doing_detail, config->ps_vm);
+
+    vl.values[0].gauge = vmem_rss;
+    dispatch_value_helper(&vl, "ps_rss", NULL, 1, doing_detail, config->ps_rss);
+
+    vl.values[0].gauge = vmem_data;
+    dispatch_value_helper(&vl, "ps_data", NULL, 1, doing_detail, config->ps_data);
+
+    vl.values[0].gauge = vmem_code;
+    dispatch_value_helper(&vl, "ps_code", NULL, 1, doing_detail, config->ps_code);
+
+    vl.values[0].gauge = stack_size;
+    dispatch_value_helper(&vl, "ps_stacksize", NULL, 1, doing_detail,
+                          config->ps_stacksize);
+
+    vl.values[0].derive = vmem_minflt_counter;
+    vl.values[1].derive = vmem_majflt_counter;
+    dispatch_value_helper(&vl, "ps_pagefaults", NULL, 2, doing_detail,
+                          config->ps_pagefaults);
+
+    vl.values[0].derive = cpu_user_counter;
+    vl.values[1].derive = cpu_system_counter;
+    dispatch_value_helper(&vl, "ps_cputime", NULL, 2, doing_detail,
+                          config->ps_cputime);
+
+    if ( (io_rchar != -1) && (io_wchar != -1) )
+    {
+        vl.values[0].derive = io_rchar;
+        vl.values[1].derive = io_wchar;
+        dispatch_value_helper(&vl, "ps_disk_octets", NULL, 2, doing_detail,
+                config->ps_disk_octets);
+    }
+
+    if ( (io_syscr != -1) && (io_syscw != -1) )
+    {
+        vl.values[0].derive = io_syscr;
+        vl.values[1].derive = io_syscw;
+        dispatch_value_helper(&vl, "ps_disk_ops", NULL, 2, doing_detail,
+                              config->ps_disk_ops);
+    }
+
+    if ( report_ctx_switch )
+    {
+	    vl.values[0].derive = cswitch_vol;
+	    dispatch_value_helper(&vl, "contextswitch", "voluntary", 2, doing_detail,
+		    config->cswitch_vol);
+	    vl.values[0].derive = cswitch_invol;
+	    dispatch_value_helper(&vl, "contextswitch", "involuntary", 2, doing_detail,
+		    config->cswitch_invol);
+    }
+    meta_data_destroy(vl.meta);
+    vl.meta = NULL;
+
+    DEBUG ("name = %s; num_proc = %lu; num_lwp = %lu; "
+            "vmem_size = %lu; vmem_rss = %lu; vmem_data = %lu; "
+            "vmem_code = %lu; "
+            "vmem_minflt_counter = %"PRIi64"; vmem_majflt_counter = %"PRIi64"; "
+            "cpu_user_counter = %"PRIi64"; cpu_system_counter = %"PRIi64"; "
+            "io_rchar = %"PRIi64"; io_wchar = %"PRIi64"; "
+            "io_syscr = %"PRIi64"; io_syscw = %"PRIi64";"
+            "cswitch_vol = %"PRIi64"; cswitch_invol = %"PRIi64";",
+            instance_name, num_proc, num_lwp,
+            vmem_size, vmem_rss,
+            vmem_data, vmem_code,
+            vmem_minflt_counter, vmem_majflt_counter,
+            cpu_user_counter, cpu_system_counter,
+            io_rchar, io_wchar, io_syscr, io_syscw,
+            cswitch_vol, cswitch_invol);
+} /* void ps_submit_proc_list */
+
+#undef MAX_VALUE_LIST_SIZE
+
+
+static void ps_submit_procstat_entry (const char *instance_name,
+        procstat_entry_t *entry)
+{
+    char commandline[CMDLINE_BUFFER_SIZE];
+    const char *cmd_line_to_use;
+    char pid[32];
+    char *command;
+    char *owner;
+
+    cmd_line_to_use = ps_get_cmdline(entry->id, NULL, commandline,
+        sizeof(commandline));
+    if (cmd_line_to_use == NULL) {
+        // No command line. Probably a kernel process?
+        return;
+    }
+    snprintf(pid, sizeof(pid), "%lu", entry->id);
+    owner = ps_get_owner(entry->id);
+    command = ps_get_command(entry->id);
+
+    ps_submit_proc_stats (
+            1,
+            instance_name,
+            pid,
+            owner,
+            command,
+            cmd_line_to_use,
+            entry->num_proc,
+            entry->num_lwp,
+            entry->vmem_size,
+            entry->vmem_rss,
+            entry->vmem_data,
+            entry->vmem_code,
+            entry->stack_size,
+            entry->cpu_user_counter,
+            entry->cpu_system_counter,
+            entry->vmem_minflt_counter,
+            entry->vmem_majflt_counter,
+            entry->io_rchar,
+            entry->io_wchar,
+            entry->io_syscr,
+            entry->io_syscw,
+	    entry->cswitch_vol,
+	    entry->cswitch_invol);
+
+    sfree (command);
+    sfree (owner);
+}
+
 static void ps_submit_proc_list (procstat_t *ps)
 {
-	value_t values[2];
-	value_list_t vl = VALUE_LIST_INIT;
+    ps_submit_proc_stats (
+            0,
+            ps->name,
+            NULL,  // pid
+            NULL,  // owner
+            NULL,  // command
+            NULL,  // command_line
+            ps->num_proc,
+            ps->num_lwp,
+            ps->vmem_size,
+            ps->vmem_rss,
+            ps->vmem_data,
+            ps->vmem_code,
+            ps->stack_size,
+            ps->cpu_user_counter,
+            ps->cpu_system_counter,
+            ps->vmem_minflt_counter,
+            ps->vmem_majflt_counter,
+            ps->io_rchar,
+            ps->io_wchar,
+            ps->io_syscr,
+            ps->io_syscw,
+	    ps->cswitch_vol,
+	    ps->cswitch_invol);
 
-	vl.values = values;
-	vl.values_len = 2;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-	sstrncpy (vl.plugin, "processes", sizeof (vl.plugin));
-	sstrncpy (vl.plugin_instance, ps->name, sizeof (vl.plugin_instance));
-
-	sstrncpy (vl.type, "ps_vm", sizeof (vl.type));
-	vl.values[0].gauge = ps->vmem_size;
-	vl.values_len = 1;
-	plugin_dispatch_values (&vl);
-
-	sstrncpy (vl.type, "ps_rss", sizeof (vl.type));
-	vl.values[0].gauge = ps->vmem_rss;
-	vl.values_len = 1;
-	plugin_dispatch_values (&vl);
-
-	sstrncpy (vl.type, "ps_data", sizeof (vl.type));
-	vl.values[0].gauge = ps->vmem_data;
-	vl.values_len = 1;
-	plugin_dispatch_values (&vl);
-
-	sstrncpy (vl.type, "ps_code", sizeof (vl.type));
-	vl.values[0].gauge = ps->vmem_code;
-	vl.values_len = 1;
-	plugin_dispatch_values (&vl);
-
-	sstrncpy (vl.type, "ps_stacksize", sizeof (vl.type));
-	vl.values[0].gauge = ps->stack_size;
-	vl.values_len = 1;
-	plugin_dispatch_values (&vl);
-
-	sstrncpy (vl.type, "ps_cputime", sizeof (vl.type));
-	vl.values[0].derive = ps->cpu_user_counter;
-	vl.values[1].derive = ps->cpu_system_counter;
-	vl.values_len = 2;
-	plugin_dispatch_values (&vl);
-
-	sstrncpy (vl.type, "ps_count", sizeof (vl.type));
-	vl.values[0].gauge = ps->num_proc;
-	vl.values[1].gauge = ps->num_lwp;
-	vl.values_len = 2;
-	plugin_dispatch_values (&vl);
-
-	sstrncpy (vl.type, "ps_pagefaults", sizeof (vl.type));
-	vl.values[0].derive = ps->vmem_minflt_counter;
-	vl.values[1].derive = ps->vmem_majflt_counter;
-	vl.values_len = 2;
-	plugin_dispatch_values (&vl);
-
-	if ( (ps->io_rchar != -1) && (ps->io_wchar != -1) )
-	{
-		sstrncpy (vl.type, "ps_disk_octets", sizeof (vl.type));
-		vl.values[0].derive = ps->io_rchar;
-		vl.values[1].derive = ps->io_wchar;
-		vl.values_len = 2;
-		plugin_dispatch_values (&vl);
-	}
-
-	if ( (ps->io_syscr != -1) && (ps->io_syscw != -1) )
-	{
-		sstrncpy (vl.type, "ps_disk_ops", sizeof (vl.type));
-		vl.values[0].derive = ps->io_syscr;
-		vl.values[1].derive = ps->io_syscw;
-		vl.values_len = 2;
-		plugin_dispatch_values (&vl);
-	}
-
-	if ( report_ctx_switch )
-	{
-		sstrncpy (vl.type, "contextswitch", sizeof (vl.type));
-		sstrncpy (vl.type_instance, "voluntary", sizeof (vl.type_instance));
-		vl.values[0].derive = ps->cswitch_vol;
-		vl.values_len = 1;
-		plugin_dispatch_values (&vl);
-
-		sstrncpy (vl.type, "contextswitch", sizeof (vl.type));
-		sstrncpy (vl.type_instance, "involuntary", sizeof (vl.type_instance));
-		vl.values[0].derive = ps->cswitch_invol;
-		vl.values_len = 1;
-		plugin_dispatch_values (&vl);
-	}
-
-	DEBUG ("name = %s; num_proc = %lu; num_lwp = %lu; "
-			"vmem_size = %lu; vmem_rss = %lu; vmem_data = %lu; "
-			"vmem_code = %lu; "
-			"vmem_minflt_counter = %"PRIi64"; vmem_majflt_counter = %"PRIi64"; "
-			"cpu_user_counter = %"PRIi64"; cpu_system_counter = %"PRIi64"; "
-			"io_rchar = %"PRIi64"; io_wchar = %"PRIi64"; "
-			"io_syscr = %"PRIi64"; io_syscw = %"PRIi64"; "
-			"cswitch_vol = %"PRIi64"; cswitch_invol = %"PRIi64";",
-			ps->name, ps->num_proc, ps->num_lwp,
-			ps->vmem_size, ps->vmem_rss,
-			ps->vmem_data, ps->vmem_code,
-			ps->vmem_minflt_counter, ps->vmem_majflt_counter,
-			ps->cpu_user_counter, ps->cpu_system_counter,
-			ps->io_rchar, ps->io_wchar, ps->io_syscr, ps->io_syscw,
-			ps->cswitch_vol, ps->cswitch_invol);
-} /* void ps_submit_proc_list */
+    if (some_detail_active_g) {
+        procstat_entry_t *entry;
+        for (entry = ps->instances; entry != NULL; entry = entry->next)
+        {
+            ps_submit_procstat_entry (ps->name, entry);
+        }
+    }
+}
 
 #if KERNEL_LINUX || KERNEL_SOLARIS
 static void ps_submit_fork_rate (derive_t value)
@@ -1263,6 +1476,67 @@ static char *ps_get_cmdline (long pid, char *name, char *buf, size_t buf_len)
 	}
 	return buf;
 } /* char *ps_get_cmdline (...) */
+
+static char *ps_get_command(pid_t pid)
+{
+    char *result = NULL;
+    char file_name[128];
+    char buffer[128];
+    FILE *f = NULL;
+
+    snprintf(file_name, sizeof(file_name), "/proc/%d/comm", pid);
+    f = fopen(file_name, "r");
+    if (!f)
+        return NULL;
+
+    result = fgets(buffer, sizeof(buffer), f);
+    if (result)
+    {
+        // Trim trailing newline.
+        ssize_t num_chars = strlen(result);
+        if (num_chars > 0 && result[num_chars - 1] == '\n')
+            result[num_chars - 1] = 0;
+    }
+    fclose (f);
+    return sstrdup(result);
+}
+
+static char *ps_get_owner(pid_t pid)
+{
+    char *result = NULL;
+    char file_name[128];
+    FILE *f = NULL;
+
+    snprintf (file_name, sizeof(file_name), "/proc/%d/status", pid);
+    f = fopen (file_name, "r");
+    if (!f)
+        return NULL;
+    while (1)
+    {
+        struct passwd passwd;
+        struct passwd *passwd_result;
+        char line_buffer[1024];
+        char passwd_buffer[16384];
+        int uid;
+        char *line = fgets(line_buffer, sizeof(line_buffer), f);
+
+        if (line == NULL)
+            break;
+
+        if (strncmp (line, "Uid:", 4) != 0)
+            continue;
+
+        uid = atoi (line + 5);
+        getpwuid_r (uid, &passwd, passwd_buffer, sizeof(passwd_buffer),
+                &passwd_result);
+        if (passwd_result)
+            result = sstrdup (passwd_result->pw_name);
+        break;
+    }
+
+    fclose (f);
+    return result;
+}
 
 static int read_fork_rate (void)
 {
