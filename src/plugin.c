@@ -228,7 +228,7 @@ static int register_callback (llist_t **list, /* {{{ */
 		{
 			ERROR ("plugin: register_callback: "
 					"llentry_create failed.");
-			free (key);
+			sfree (key);
 			destroy_callback (cf);
 			return (-1);
 		}
@@ -242,9 +242,15 @@ static int register_callback (llist_t **list, /* {{{ */
 		old_cf = le->value;
 		le->value = cf;
 
-		WARNING ("plugin: register_callback: "
-				"a callback named `%s' already exists - "
-				"overwriting the old entry!", name);
+		if (
+			old_cf->cf_callback != cf->cf_callback ||
+			old_cf->cf_udata.data != cf->cf_udata.data
+		)
+		{
+				WARNING ("plugin: register_callback: "
+					"a callback named `%s' already exists - "
+					"overwriting the old entry!", name);
+		}
 
 		destroy_callback (old_cf);
 		sfree (key);
