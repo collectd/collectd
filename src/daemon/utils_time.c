@@ -112,7 +112,7 @@ static int format_zone (char *buffer, size_t buffer_size, struct tm const *tm) /
   return 0;
 } /* }}} int format_zone */
 
-static int format_rfc3339 (char *buffer, size_t buffer_size, cdtime_t t, _Bool print_nano) /* {{{ */
+static int format_rfc3339 (char *buffer, size_t buffer_size, cdtime_t t, _Bool print_nano, _Bool zulu) /* {{{ */
 {
   struct timespec t_spec;
   struct tm t_tm;
@@ -126,12 +126,22 @@ static int format_rfc3339 (char *buffer, size_t buffer_size, cdtime_t t, _Bool p
   CDTIME_T_TO_TIMESPEC (t, &t_spec);
   NORMALIZE_TIMESPEC (t_spec);
 
-  if (localtime_r (&t_spec.tv_sec, &t_tm) == NULL) {
-    char errbuf[1024];
-    status = errno;
-    ERROR ("format_rfc3339: localtime_r failed: %s",
-        sstrerror (status, errbuf, sizeof (errbuf)));
-    return (status);
+  if (zulu) {
+    if (gmtime_r (&t_spec.tv_sec, &t_tm) == NULL) {
+      char errbuf[1024];
+      status = errno;
+      ERROR ("format_rfc3339: gmtime_r failed: %s",
+          sstrerror (status, errbuf, sizeof (errbuf)));
+      return (status);
+    }
+  } else {
+    if (localtime_r (&t_spec.tv_sec, &t_tm) == NULL) {
+      char errbuf[1024];
+      status = errno;
+      ERROR ("format_rfc3339: localtime_r failed: %s",
+          sstrerror (status, errbuf, sizeof (errbuf)));
+      return (status);
+    }
   }
 
   len = strftime (base, sizeof (base), "%Y-%m-%dT%H:%M:%S", &t_tm);
@@ -143,9 +153,14 @@ static int format_rfc3339 (char *buffer, size_t buffer_size, cdtime_t t, _Bool p
   else
     sstrncpy (nano, "", sizeof (nano));
 
-  status = format_zone (zone, sizeof (zone), &t_tm);
-  if (status != 0)
-    return status;
+  if (zulu) {
+    zone[0] = 'Z';
+    zone[1] = 0;
+  } else {
+    status = format_zone (zone, sizeof (zone), &t_tm);
+    if (status != 0)
+      return status;
+  }
 
   if (strjoin (buffer, buffer_size, fields, STATIC_ARRAY_SIZE (fields), "") < 0)
     return ENOMEM;
@@ -157,7 +172,7 @@ int rfc3339 (char *buffer, size_t buffer_size, cdtime_t t) /* {{{ */
   if (buffer_size < RFC3339_SIZE)
     return ENOMEM;
 
-  return format_rfc3339 (buffer, buffer_size, t, 0);
+  return format_rfc3339 (buffer, buffer_size, t, 0, 0);
 } /* }}} size_t cdtime_to_rfc3339 */
 
 int rfc3339nano (char *buffer, size_t buffer_size, cdtime_t t) /* {{{ */
@@ -165,7 +180,23 @@ int rfc3339nano (char *buffer, size_t buffer_size, cdtime_t t) /* {{{ */
   if (buffer_size < RFC3339NANO_SIZE)
     return ENOMEM;
 
-  return format_rfc3339 (buffer, buffer_size, t, 1);
+  return format_rfc3339 (buffer, buffer_size, t, 1, 0);
+} /* }}} size_t cdtime_to_rfc3339nano */
+
+int rfc3339_zulu (char *buffer, size_t buffer_size, cdtime_t t) /* {{{ */
+{
+  if (buffer_size < RFC3339_ZULU_SIZE)
+    return ENOMEM;
+
+  return format_rfc3339 (buffer, buffer_size, t, 0, 1);
+} /* }}} size_t cdtime_to_rfc3339 */
+
+int rfc3339nano_zulu (char *buffer, size_t buffer_size, cdtime_t t) /* {{{ */
+{
+  if (buffer_size < RFC3339NANO_ZULU_SIZE)
+    return ENOMEM;
+
+  return format_rfc3339 (buffer, buffer_size, t, 1, 1);
 } /* }}} size_t cdtime_to_rfc3339nano */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */
