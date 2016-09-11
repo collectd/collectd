@@ -145,21 +145,6 @@ static int ts_config_add_meta_delete (ts_key_list_t **dest, /* {{{ */
 {
   ts_key_list_t *entry = NULL;
 
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    ERROR ("ts_config_add_meta_delete: The %s option requires "
-        "exactly one string argument.", ci->key);
-    return (-1);
-  }
-
-  if (strlen (ci->values[0].value.string) == 0)
-  {
-    ERROR ("Target `set': The `%s' option does not accept empty string as "
-        "first argument.", ci->key);
-    return (-1);
-  }
-
   entry = calloc (1, sizeof (*entry));
   if (entry == NULL)
   {
@@ -167,7 +152,17 @@ static int ts_config_add_meta_delete (ts_key_list_t **dest, /* {{{ */
     return (-ENOMEM);
   }
 
-  entry->key = sstrdup (ci->values[0].value.string);
+  if (cf_util_get_string (ci, &entry->key) != 0)
+    return (-1);  /* An error has already been reported. */
+
+  if (strlen (entry->key) == 0)
+  {
+    ERROR ("Target `set': The `%s' option does not accept empty string as "
+        "first argument.", ci->key);
+    sfree (entry->key);
+    return (-1);
+  }
+
   entry->next = *dest;
   *dest = entry;
 
@@ -178,11 +173,12 @@ static void ts_subst (char *dest, size_t size, const char *string, /* {{{ */
     const value_list_t *vl)
 {
   char temp[DATA_MAX_NAME_LEN];
-  int meta_entries;
-  char **meta_toc;
 
   /* Initialize the field with the template. */
   sstrncpy (dest, string, size);
+
+  if (strchr (dest, '%') == NULL)
+    return;
 
 #define REPLACE_FIELD(t, v) \
   if (subst_string (temp, sizeof (temp), dest, t, v) != NULL) \
@@ -193,87 +189,25 @@ static void ts_subst (char *dest, size_t size, const char *string, /* {{{ */
   REPLACE_FIELD ("%{type}", vl->type);
   REPLACE_FIELD ("%{type_instance}", vl->type_instance);
 
-  meta_entries = meta_data_toc (vl->meta, &meta_toc);
-  for (int i = 0; i < meta_entries; i++)
+  if (vl->meta != NULL)
   {
-    char meta_name[DATA_MAX_NAME_LEN];
-    char value_str[DATA_MAX_NAME_LEN];
-    int meta_type;
-    const char *key = meta_toc[i];
-
-    ssnprintf (meta_name, sizeof (meta_name), "%%{meta:%s}", key);
-
-    meta_type = meta_data_type (vl->meta, key);
-    switch (meta_type)
+    char **meta_toc;
+    int meta_entries = meta_data_toc (vl->meta, &meta_toc);
+    for (int i = 0; i < meta_entries; i++)
     {
-      case MD_TYPE_STRING:
-        {
-          char *meta_value;
-          if (meta_data_get_string (vl->meta, key, &meta_value))
-          {
-            ERROR ("Target `set': Unable to get string metadata value `%s'.",
-                key);
-            continue;
-          }
-          sstrncpy (value_str, meta_value, sizeof (value_str));
-        }
-        break;
-      case MD_TYPE_SIGNED_INT:
-        {
-          int64_t meta_value;
-          if (meta_data_get_signed_int (vl->meta, key, &meta_value))
-          {
-            ERROR ("Target `set': Unable to get signed int metadata value "
-                "`%s'.", key);
-            continue;
-          }
-          ssnprintf (value_str, sizeof (value_str), "%"PRIi64, meta_value);
-        }
-        break;
-      case MD_TYPE_UNSIGNED_INT:
-        {
-          uint64_t meta_value;
-          if (meta_data_get_unsigned_int (vl->meta, key, &meta_value))
-          {
-            ERROR ("Target `set': Unable to get unsigned int metadata value "
-                "`%s'.", key);
-            continue;
-          }
-          ssnprintf (value_str, sizeof (value_str), "%"PRIu64, meta_value);
-        }
-        break;
-      case MD_TYPE_DOUBLE:
-        {
-          double meta_value;
-          if (meta_data_get_double (vl->meta, key, &meta_value))
-          {
-            ERROR ("Target `set': Unable to get double metadata value `%s'.",
-                key);
-            continue;
-          }
-          ssnprintf (value_str, sizeof (value_str), GAUGE_FORMAT, meta_value);
-        }
-        break;
-      case MD_TYPE_BOOLEAN:
-        {
-          _Bool meta_value;
-          if (meta_data_get_boolean (vl->meta, key, &meta_value))
-          {
-            ERROR ("Target `set': Unable to get boolean metadata value `%s'.",
-                key);
-            continue;
-          }
-          sstrncpy (value_str, meta_value ? "true" : "false",
-              sizeof (value_str));
-        }
-        break;
-      default:
-        ERROR ("Target `set': Unable to retrieve metadata type for `%s'.",
-            key);
+      char meta_name[DATA_MAX_NAME_LEN];
+      char *value_str;
+      const char *key = meta_toc[i];
+
+      ssnprintf (meta_name, sizeof (meta_name), "%%{meta:%s}", key);
+      if (meta_data_as_string (vl->meta, key, &value_str) != 0)
         continue;
+
+      REPLACE_FIELD (meta_name, value_str);
+      sfree (value_str);
     }
 
-    REPLACE_FIELD (meta_name, value_str);
+    strarray_free (meta_toc, (size_t) meta_entries);
   }
 } /* }}} int ts_subst */
 
@@ -447,6 +381,7 @@ static int ts_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
       {
         ERROR ("Target `set': Unable to get replacement metadata value `%s'.",
             key);
+        strarray_free (meta_toc, (size_t) meta_entries);
         return (status);
       }
 
@@ -460,9 +395,12 @@ static int ts_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
       if (status)
       {
         ERROR ("Target `set': Unable to set metadata value `%s'.", key);
+        strarray_free (meta_toc, (size_t) meta_entries);
         return (status);
       }
     }
+
+    strarray_free (meta_toc, (size_t) meta_entries);
   }
 
 #define SUBST_FIELD(f) \
