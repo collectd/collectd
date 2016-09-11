@@ -233,14 +233,11 @@ static int mysql_config_database (oconfig_item_t *ci) /* {{{ */
 		else
 			sstrncpy (cb_name, "mysql", sizeof (cb_name));
 
-		user_data_t ud = {
-			.data = db,
-			.free_func = mysql_database_free
-		};
-
 		plugin_register_complex_read (/* group = */ NULL, cb_name,
-					      mysql_read,
-					      /* interval = */ 0, &ud);
+				mysql_read, /* interval = */ 0, &(user_data_t) {
+					.data = db,
+					.free_func = mysql_database_free,
+				});
 	}
 	else
 	{

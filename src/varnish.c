@@ -951,16 +951,14 @@ static int varnish_init (void) /* {{{ */
 
 	varnish_config_apply_default (conf);
 
-	user_data_t ud = {
-		.data = conf,
-		.free_func = varnish_config_free
-	};
-
 	plugin_register_complex_read (/* group = */ "varnish",
 			/* name      = */ "varnish/localhost",
 			/* callback  = */ varnish_read,
 			/* interval  = */ 0,
-			/* user data = */ &ud);
+			/* user data = */ &(user_data_t) {
+				.data = conf,
+				.free_func = varnish_config_free,
+			});
 
 	return (0);
 } /* }}} int varnish_init */
@@ -968,7 +966,6 @@ static int varnish_init (void) /* {{{ */
 static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 {
 	user_config_t *conf;
-	user_data_t ud;
 	char callback_name[DATA_MAX_NAME_LEN];
 
 	conf = calloc (1, sizeof (*conf));
@@ -1132,14 +1129,14 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 	ssnprintf (callback_name, sizeof (callback_name), "varnish/%s",
 			(conf->instance == NULL) ? "localhost" : conf->instance);
 
-	ud.data = conf;
-	ud.free_func = varnish_config_free;
-
 	plugin_register_complex_read (/* group = */ "varnish",
 			/* name      = */ callback_name,
 			/* callback  = */ varnish_read,
 			/* interval  = */ 0,
-			/* user data = */ &ud);
+			/* user data = */ &(user_data_t) {
+				ud.data = conf,
+				ud.free_func = varnish_config_free,
+			});
 
 	have_instance = 1;
 

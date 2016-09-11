@@ -663,15 +663,13 @@ static int cldap_config_add (oconfig_item_t *ci) /* {{{ */
 					(st->host != NULL) ? st->host : hostname_g,
 					(st->name != NULL) ? st->name : "default");
 
-			user_data_t ud = {
-				.data = st
-			};
-
 			status = plugin_register_complex_read (/* group = */ NULL,
 					/* name      = */ callback_name,
 					/* callback  = */ cldap_read_host,
 					/* interval  = */ 0,
-					/* user_data = */ &ud);
+					/* user_data = */ &(user_data_t) {
+						.data = st,
+					});
 		}
 	}
 

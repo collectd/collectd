@@ -1003,18 +1003,17 @@ static int mb_config_add_host (oconfig_item_t *ci) /* {{{ */
 
   if (status == 0)
   {
-    user_data_t ud;
     char name[1024];
-
-    ud.data = host;
-    ud.free_func = host_free;
 
     ssnprintf (name, sizeof (name), "modbus-%s", host->host);
 
     plugin_register_complex_read (/* group = */ NULL, name,
         /* callback = */ mb_read,
         /* interval = */ host->interval,
-        &ud);
+        &(user_data_t) {
+          .data = host,
+          .free_func = host_free,
+        });
   }
   else
   {
