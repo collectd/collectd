@@ -399,7 +399,7 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
           /* name = */ name ? name : db->name,
           /* callback = */ cdbi_read_database,
           /* interval = */ (db->interval > 0) ? db->interval : 0,
-          /* user_data = */ &(user_data_t) {
+          &(user_data_t) {
             .data = db,
 	  });
       sfree (name);

@@ -955,7 +955,7 @@ static int varnish_init (void) /* {{{ */
 			/* name      = */ "varnish/localhost",
 			/* callback  = */ varnish_read,
 			/* interval  = */ 0,
-			/* user data = */ &(user_data_t) {
+			&(user_data_t) {
 				.data = conf,
 				.free_func = varnish_config_free,
 			});
@@ -1133,7 +1133,7 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 			/* name      = */ callback_name,
 			/* callback  = */ varnish_read,
 			/* interval  = */ 0,
-			/* user data = */ &(user_data_t) {
+			&(user_data_t) {
 				ud.data = conf,
 				ud.free_func = varnish_config_free,
 			});

@@ -2882,7 +2882,7 @@ static int cna_register_host (host_config_t *host) /* {{{ */
 	plugin_register_complex_read (/* group = */ NULL, cb_name,
 			/* callback  = */ cna_read,
 			/* interval  = */ host->interval,
-			/* user data = */ &(user_data_t) {
+			&(user_data_t) {
 				.data = host,
 				.free_func = (void *) free_host_config,
 			});

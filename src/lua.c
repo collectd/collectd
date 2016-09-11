@@ -307,7 +307,7 @@ static int lua_cb_register_read(lua_State *L) /* {{{ */
                                             /* name      = */ function_name,
                                             /* callback  = */ clua_read,
                                             /* interval  = */ 0,
-                                            /* user_data = */ &(user_data_t) {
+                                            &(user_data_t) {
                                               .data = cb,
                                             });
 
@@ -349,7 +349,7 @@ static int lua_cb_register_write(lua_State *L) /* {{{ */
 
   int status = plugin_register_write(/* name = */ function_name,
                                     /* callback  = */ clua_write,
-                                    /* user_data = */ &(user_data_t) {
+                                    &(user_data_t) {
                                       .data = cb,
                                     });
 

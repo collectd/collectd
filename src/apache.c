@@ -250,7 +250,7 @@ static int config_add (oconfig_item_t *ci)
 				/* name      = */ callback_name,
 				/* callback  = */ apache_read_host,
 				/* interval  = */ 0,
-				/* user_data = */ &(user_data_t) {
+				&(user_data_t) {
 					.data = st,
 					.free_func = apache_free,
 				});
