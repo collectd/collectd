@@ -739,6 +739,7 @@ int meta_data_as_string (meta_data_t *md, /* {{{ */
   char *actual;
   char buffer[MD_MAX_NONSTRING_CHARS];  /* For non-string types. */
   char *temp;
+  int type;
 
   if ((md == NULL) || (key == NULL) || (value == NULL))
     return (-EINVAL);
@@ -752,7 +753,9 @@ int meta_data_as_string (meta_data_t *md, /* {{{ */
     return (-ENOENT);
   }
 
-  switch (e->type)
+  type = e->type;
+
+  switch (type)
   {
     case MD_TYPE_STRING:
       actual = e->value.mv_string;
@@ -774,20 +777,19 @@ int meta_data_as_string (meta_data_t *md, /* {{{ */
       break;
     default:
       pthread_mutex_unlock (&md->lock);
-      ERROR ("meta_data_as_string: unknown type %d for key `%s'",
-          e->type, e->key);
+      ERROR ("meta_data_as_string: unknown type %d for key `%s'", type, key);
       return (-ENOENT);
   }
+
+  pthread_mutex_unlock (&md->lock);
 
   temp = md_strdup (actual);
   if (temp == NULL)
   {
     pthread_mutex_unlock (&md->lock);
-    ERROR ("meta_data_as_string: md_strdup failed for key `%s'.", e->key);
+    ERROR ("meta_data_as_string: md_strdup failed for key `%s'.", key);
     return (-ENOMEM);
   }
-
-  pthread_mutex_unlock (&md->lock);
 
   *value = temp;
 
