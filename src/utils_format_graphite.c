@@ -150,18 +150,29 @@ static int gr_format_name (char *ret, int ret_len,
         sstrncpy (tmp_plugin, n_plugin, sizeof (tmp_plugin));
 
     if (n_type_instance[0] != '\0')
-        ssnprintf (tmp_type, sizeof (tmp_type), "%s%c%s",
-            n_type,
-            (flags & GRAPHITE_SEPARATE_INSTANCES) ? '.' : '-',
-            n_type_instance);
+    {
+        if ((flags & GRAPHITE_DROP_DUPE_FIELDS) && strcmp(n_plugin, n_type) == 0)
+            sstrncpy (tmp_type, n_type_instance, sizeof (tmp_type));
+        else
+            ssnprintf (tmp_type, sizeof (tmp_type), "%s%c%s",
+                n_type,
+                (flags & GRAPHITE_SEPARATE_INSTANCES) ? '.' : '-',
+                n_type_instance);
+    }
     else
         sstrncpy (tmp_type, n_type, sizeof (tmp_type));
 
     /* Assert always_append_ds -> ds_name */
     assert (!(flags & GRAPHITE_ALWAYS_APPEND_DS) || (ds_name != NULL));
     if (ds_name != NULL)
-        ssnprintf (ret, ret_len, "%s%s%s.%s.%s.%s",
-            prefix, n_host, postfix, tmp_plugin, tmp_type, ds_name);
+    {
+        if ((flags & GRAPHITE_DROP_DUPE_FIELDS) && strcmp(tmp_plugin, tmp_type) == 0)
+            ssnprintf (ret, ret_len, "%s%s%s.%s.%s",
+                prefix, n_host, postfix, tmp_plugin, ds_name);
+        else
+            ssnprintf (ret, ret_len, "%s%s%s.%s.%s.%s",
+                prefix, n_host, postfix, tmp_plugin, tmp_type, ds_name);
+    }
     else
         ssnprintf (ret, ret_len, "%s%s%s.%s.%s",
             prefix, n_host, postfix, tmp_plugin, tmp_type);

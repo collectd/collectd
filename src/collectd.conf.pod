@@ -7818,6 +7818,12 @@ If set to B<true>, append the name of the I<Data Source> (DS) to the "metric"
 identifier. If set to B<false> (the default), this is only done when there is
 more than one DS.
 
+=item B<DropDuplicateFields> B<false>|B<true>
+
+If set to B<true>, detect and remove duplicate components in Graphite metric
+names. For example, the metric name  C<host.load.load.shortterm> will
+be shortened to C<host.load.shortterm>.
+
 =back
 
 =head2 Plugin C<write_log>
