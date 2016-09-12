@@ -161,6 +161,7 @@ static int gr_format_name (char *ret, int ret_len,
     }
     else
         sstrncpy (tmp_type, n_type, sizeof (tmp_type));
+
     /* Assert always_append_ds -> ds_name */
     assert (!(flags & GRAPHITE_ALWAYS_APPEND_DS) || (ds_name != NULL));
     if (ds_name != NULL)
