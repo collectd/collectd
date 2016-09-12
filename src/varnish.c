@@ -1134,8 +1134,8 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 			/* callback  = */ varnish_read,
 			/* interval  = */ 0,
 			&(user_data_t) {
-				ud.data = conf,
-				ud.free_func = varnish_config_free,
+				.data = conf,
+				.free_func = varnish_config_free,
 			});
 
 	have_instance = 1;
