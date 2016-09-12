@@ -575,15 +575,13 @@ static int wg_config_node (oconfig_item_t *ci)
         ssnprintf (callback_name, sizeof (callback_name), "write_graphite/%s",
                 cb->name);
 
-    user_data_t ud = {
-        .data = cb,
-        .free_func = wg_callback_free
-    };
+    plugin_register_write (callback_name, wg_write,
+            &(user_data_t) {
+                .data = cb,
+                .free_func = wg_callback_free,
+            });
 
-    plugin_register_write (callback_name, wg_write, &ud);
-
-    ud.free_func = NULL;
-    plugin_register_flush (callback_name, wg_flush, &ud);
+    plugin_register_flush (callback_name, wg_flush, &(user_data_t) { .data = cb });
 
     return (0);
 }

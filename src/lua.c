@@ -303,15 +303,13 @@ static int lua_cb_register_read(lua_State *L) /* {{{ */
   cb->lua_function_name = strdup(function_name);
   pthread_mutex_init(&cb->lock, NULL);
 
-  user_data_t ud = {
-    .data = cb
-  };
-
   int status = plugin_register_complex_read(/* group = */ "lua",
                                             /* name      = */ function_name,
                                             /* callback  = */ clua_read,
                                             /* interval  = */ 0,
-                                            /* user_data = */ &ud);
+                                            &(user_data_t) {
+                                              .data = cb,
+                                            });
 
   if (status != 0)
     return luaL_error(L, "%s", "plugin_register_complex_read failed");
@@ -349,13 +347,11 @@ static int lua_cb_register_write(lua_State *L) /* {{{ */
   cb->lua_function_name = strdup(function_name);
   pthread_mutex_init(&cb->lock, NULL);
 
-  user_data_t ud = {
-    .data = cb
-  };
-
   int status = plugin_register_write(/* name = */ function_name,
                                     /* callback  = */ clua_write,
-                                    /* user_data = */ &ud);
+                                    &(user_data_t) {
+                                      .data = cb,
+                                    });
 
   if (status != 0)
     return luaL_error(L, "%s", "plugin_register_write failed");
