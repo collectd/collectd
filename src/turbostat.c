@@ -1018,8 +1018,7 @@ parse_int_file(const char *fmt, ...)
 {
 	va_list args;
 	char path[PATH_MAX];
-	FILE *filep;
-	int len, value;
+	int len;
 
 	va_start(args, fmt);
 	len = vsnprintf(path, sizeof(path), fmt, args);
@@ -1029,18 +1028,13 @@ parse_int_file(const char *fmt, ...)
 		return -1;
 	}
 
-	filep = fopen(path, "r");
-	if (!filep) {
-		ERROR("turbostat plugin: Failed to open '%s'", path);
+	value_t v;
+	if (parse_value_file (path, &v, DS_TYPE_DERIVE) != 0) {
+		ERROR ("turbostat plugin: Parsing \"%s\" failed.", path);
 		return -1;
 	}
-	if (fscanf(filep, "%d", &value) != 1) {
-		ERROR("turbostat plugin: Failed to parse number from '%s'", path);
-		fclose(filep);
-		return -1;
-	}
-	fclose(filep);
-	return value;
+
+	return (int) v.derive;
 }
 
 static int
