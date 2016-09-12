@@ -40,6 +40,9 @@
 #define WL_FORMAT_GRAPHITE 1
 #define WL_FORMAT_JSON 2
 
+/* Plugin:WriteLog has to also operate without a config, so use a global. */
+int wl_format = WL_FORMAT_GRAPHITE;
+
 static int wl_write_graphite (const data_set_t *ds, const value_list_t *vl)
 {
     char buffer[WL_BUF_SIZE] = { 0 };
@@ -84,16 +87,15 @@ static int wl_write_json (const data_set_t *ds, const value_list_t *vl)
 } /* int wl_write_json */
 
 static int wl_write (const data_set_t *ds, const value_list_t *vl,
-        user_data_t *user_data)
+        __attribute__ ((unused)) user_data_t *user_data)
 {
     int status = 0;
-    int mode = (int) (size_t) user_data->data;
 
-    if (mode == WL_FORMAT_GRAPHITE)
+    if (wl_format == WL_FORMAT_GRAPHITE)
     {
         status = wl_write_graphite (ds, vl);
     }
-    else if (mode == WL_FORMAT_JSON)
+    else if (wl_format == WL_FORMAT_JSON)
     {
         status = wl_write_json (ds, vl);
     }
@@ -103,35 +105,34 @@ static int wl_write (const data_set_t *ds, const value_list_t *vl,
 
 static int wl_config (oconfig_item_t *ci) /* {{{ */
 {
-    int mode = 0;
+    _Bool format_seen = 0;
+
     for (int i = 0; i < ci->children_num; i++)
     {
         oconfig_item_t *child = ci->children + i;
 
         if (strcasecmp ("Format", child->key) == 0)
         {
-            char *mode_str = NULL;
-            if ((child->values_num != 1)
-                || (child->values[0].type != OCONFIG_TYPE_STRING))
-            {
-                ERROR ("write_log plugin: Option `%s' requires "
-                    "exactly one string argument.", child->key);
-                return (-EINVAL);
-            }
-            if (mode != 0)
+            char str[16];
+
+            if (cf_util_get_string_buffer (child, str, sizeof (str)) != 0)
+                continue;
+
+            if (format_seen)
             {
                 WARNING ("write_log plugin: Redefining option `%s'.",
                     child->key);
             }
-            mode_str = child->values[0].value.string;
-            if (strcasecmp ("Graphite", mode_str) == 0)
-                mode = WL_FORMAT_GRAPHITE;
-            else if (strcasecmp ("JSON", mode_str) == 0)
-                mode = WL_FORMAT_JSON;
+            format_seen = 1;
+
+            if (strcasecmp ("Graphite", str) == 0)
+                wl_format = WL_FORMAT_GRAPHITE;
+            else if (strcasecmp ("JSON", str) == 0)
+                wl_format = WL_FORMAT_JSON;
             else
             {
-                ERROR ("write_log plugin: Unknown mode `%s' for option `%s'.",
-                    mode_str, child->key);
+                ERROR ("write_log plugin: Unknown format `%s' for option `%s'.",
+                    str, child->key);
                 return (-EINVAL);
             }
         }
@@ -139,17 +140,9 @@ static int wl_config (oconfig_item_t *ci) /* {{{ */
         {
             ERROR ("write_log plugin: Invalid configuration option: `%s'.",
                 child->key);
+            return (-EINVAL);
         }
     }
-    if (mode == 0)
-        mode = WL_FORMAT_GRAPHITE;
-
-    user_data_t ud = {
-        .data = (void *) (size_t) mode,
-        .free_func = NULL
-    };
-
-    plugin_register_write ("write_log", wl_write, &ud);
 
     return (0);
 } /* }}} int wl_config */
@@ -157,13 +150,8 @@ static int wl_config (oconfig_item_t *ci) /* {{{ */
 void module_register (void)
 {
     plugin_register_complex_config ("write_log", wl_config);
-
-    user_data_t ud = {
-        .data = (void *) (size_t) WL_FORMAT_GRAPHITE,
-        .free_func = NULL
-    };
-
-    plugin_register_write ("write_log", wl_write, &ud);
+    /* If config is supplied, the global wl_format will be set. */
+    plugin_register_write ("write_log", wl_write, NULL);
 }
 
 /* vim: set sw=4 ts=4 sts=4 tw=78 et : */
