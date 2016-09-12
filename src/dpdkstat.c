@@ -495,7 +495,7 @@ static int dpdk_helper_run (void)
       nb_ports = RTE_MAX_ETHPORTS;
 
     int len = 0, enabled_port_count = 0, num_xstats = 0;
-    for (int i = 0; i < nb_ports; i++) {
+    for (uint8_t i = 0; i < nb_ports; i++) {
       if (g_configuration->enabled_port_mask & (1 << i)) {
         if(g_configuration->helper_action == DPDK_HELPER_ACTION_COUNT_STATS) {
           len = rte_eth_xstats_get(i, NULL, 0);
@@ -622,7 +622,7 @@ static int dpdk_read (user_data_t *ud)
   /* Dispatch the stats.*/
   int count = 0, port_num = 0;
 
-  for (int i = 0; i < g_configuration->num_ports; i++) {
+  for (uint32_t i = 0; i < g_configuration->num_ports; i++) {
     cdtime_t time = g_configuration->port_read_time[i];
     char dev_name[64];
     int len = g_configuration->num_stats_in_port[i];
@@ -641,7 +641,7 @@ static int dpdk_read (user_data_t *ud)
       value_list_t dpdkstat_vl = VALUE_LIST_INIT;
       char *type_end;
 
-      dpdkstat_values[0].derive = (int64_t) xstats[j].value;
+      dpdkstat_values[0].derive = (derive_t) xstats[j].value;
       dpdkstat_vl.values = dpdkstat_values;
       dpdkstat_vl.values_len = 1; /* Submit stats one at a time */
       dpdkstat_vl.time = time;
@@ -653,19 +653,24 @@ static int dpdk_read (user_data_t *ud)
       type_end = strrchr(xstats[j].name, '_');
 
       if ((type_end != NULL) &&
-                (strncmp(xstats[j].name, "rx_", sizeof("rx_") - 1) == 0)) {
-
-        if (strncmp(type_end, "_errors", sizeof("_errors") - 1) == 0) {
+                (strncmp(xstats[j].name, "rx_", strlen("rx_")) == 0)) {
+        if (strncmp(type_end, "_errors", strlen("_errors")) == 0) {
           sstrncpy (dpdkstat_vl.type, "if_rx_errors",
                   sizeof(dpdkstat_vl.type));
-        } else if (strncmp(type_end, "_dropped", sizeof("_dropped") - 1) == 0) {
+        } else if (strncmp(type_end, "_dropped", strlen("_dropped")) == 0) {
           sstrncpy (dpdkstat_vl.type, "if_rx_dropped",
                   sizeof(dpdkstat_vl.type));
-        } else if (strncmp(type_end, "_bytes", sizeof("_bytes") - 1) == 0) {
+        } else if (strncmp(type_end, "_bytes", strlen("_bytes")) == 0) {
           sstrncpy (dpdkstat_vl.type, "if_rx_octets",
                   sizeof(dpdkstat_vl.type));
-        } else if (strncmp(type_end, "_packets", sizeof("_packets") - 1) == 0) {
+        } else if (strncmp(type_end, "_packets", strlen("_packets")) == 0) {
           sstrncpy (dpdkstat_vl.type, "if_rx_packets",
+                  sizeof(dpdkstat_vl.type));
+        } else if (strncmp(type_end, "_placement", strlen("_placement")) == 0) {
+          sstrncpy (dpdkstat_vl.type, "if_rx_errors",
+                  sizeof(dpdkstat_vl.type));
+        } else if (strncmp(type_end, "_buff", strlen("_buff")) == 0) {
+          sstrncpy (dpdkstat_vl.type, "if_rx_errors",
                   sizeof(dpdkstat_vl.type));
         } else {
           /* Does not fit obvious type: use a more generic one */
@@ -674,18 +679,17 @@ static int dpdk_read (user_data_t *ud)
         }
 
       } else if ((type_end != NULL) &&
-                (strncmp(xstats[j].name, "tx_", sizeof("tx_") - 1)) == 0) {
-
-        if (strncmp(type_end, "_errors", sizeof("_errors") - 1) == 0) {
+                (strncmp(xstats[j].name, "tx_", strlen("tx_"))) == 0) {
+        if (strncmp(type_end, "_errors", strlen("_errors")) == 0) {
           sstrncpy (dpdkstat_vl.type, "if_tx_errors",
                   sizeof(dpdkstat_vl.type));
-        } else if (strncmp(type_end, "_dropped", sizeof("_dropped") - 1) == 0) {
+        } else if (strncmp(type_end, "_dropped", strlen("_dropped")) == 0) {
           sstrncpy (dpdkstat_vl.type, "if_tx_dropped",
                   sizeof(dpdkstat_vl.type));
-        } else if (strncmp(type_end, "_bytes", sizeof("_bytes") - 1) == 0) {
+        } else if (strncmp(type_end, "_bytes", strlen("_bytes")) == 0) {
           sstrncpy (dpdkstat_vl.type, "if_tx_octets",
                   sizeof(dpdkstat_vl.type));
-        } else if (strncmp(type_end, "_packets", sizeof("_packets") - 1) == 0) {
+        } else if (strncmp(type_end, "_packets", strlen("_packets")) == 0) {
           sstrncpy (dpdkstat_vl.type, "if_tx_packets",
                   sizeof(dpdkstat_vl.type));
         } else {
@@ -693,7 +697,25 @@ static int dpdk_read (user_data_t *ud)
           sstrncpy (dpdkstat_vl.type, "derive",
                   sizeof(dpdkstat_vl.type));
         }
+      } else if ((type_end != NULL) &&
+                (strncmp(xstats[j].name, "flow_", strlen("flow_"))) == 0) {
 
+        if (strncmp(type_end, "_filters", strlen("_filters")) == 0) {
+          sstrncpy (dpdkstat_vl.type, "operations",
+                  sizeof(dpdkstat_vl.type));
+        } else if (strncmp(type_end, "_errors", strlen("_errors")) == 0) {
+          sstrncpy (dpdkstat_vl.type, "errors",
+                  sizeof(dpdkstat_vl.type));
+        } else if (strncmp(type_end, "_filters", strlen("_filters")) == 0) {
+          sstrncpy (dpdkstat_vl.type, "filter_result",
+                  sizeof(dpdkstat_vl.type));
+        }
+      } else if ((type_end != NULL) &&
+                (strncmp(xstats[j].name, "mac_", strlen("mac_"))) == 0) {
+        if (strncmp(type_end, "_errors", strlen("_errors")) == 0) {
+          sstrncpy (dpdkstat_vl.type, "errors",
+                  sizeof(dpdkstat_vl.type));
+        }
       } else {
         /* Does not fit obvious type, or strrchr error:
          *   use a more generic type */
