@@ -3350,7 +3350,7 @@ static int network_shutdown (void)
 		sockent_client_disconnect (se);
 	sockent_destroy (sending_sockets);
 
-	plugin_unregister_config ("network");
+	plugin_unregister_complex_config ("network");
 	plugin_unregister_init ("network");
 	plugin_unregister_write ("network");
 	plugin_unregister_shutdown ("network");
