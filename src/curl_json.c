@@ -232,7 +232,7 @@ static int cj_cb_number (void *ctx,
               " a map.", buffer);
     cj_cb_inc_array_index (ctx, /* update_key = */ 1);
     key = db->state[db->depth].key;
-    if (key == NULL) {
+    if (key == NULL || !CJ_IS_KEY (key)) {
       return (CJ_CB_CONTINUE);
     }
   }
