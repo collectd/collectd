@@ -121,7 +121,6 @@ static void submit_hp(const struct entry_info *info) {
 static int read_hugepage_entry(const char *path, const char *entry,
                                void *e_info) {
   char path2[PATH_MAX];
-  char type_instance[PATH_MAX];
   struct entry_info *info = e_info;
   double value;
 
@@ -155,8 +154,6 @@ static int read_hugepage_entry(const char *path, const char *entry,
     return 0;
   }
 
-  ssnprintf(type_instance, sizeof(type_instance), "free_used-%zukB",
-            info->page_size_kb);
   submit_hp(info);
 
   /* Reset flags so subsequent calls don't submit again. */
