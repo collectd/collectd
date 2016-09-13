@@ -927,13 +927,13 @@ static int ps_iter_dir (const char *dirname, const char *iterfile, void (*callba
 {
 	DIR           *dh;
 	struct dirent *ent;
-	char           filename[64];
+	char           filename[PATH_MAX];
 	FILE          *fh;
 	char           buffer[1024];
 
 	if ((dh = opendir (dirname)) == NULL)
 	{
-		DEBUG ("Failed to open directory `%s'", dirname);
+		ERROR ("Failed to open directory `%s'", dirname);
 		return (-1);
 	}
 
@@ -946,7 +946,7 @@ static int ps_iter_dir (const char *dirname, const char *iterfile, void (*callba
 				dirname, ent->d_name, iterfile);
 		if ((fh = fopen (filename, "r")) == NULL)
 		{
-			DEBUG ("Failed to open file `%s'", filename);
+			ERROR ("Failed to open file `%s'", filename);
 			continue;
 		}
 
@@ -985,7 +985,7 @@ static void ps_state_callback (void *ctx, char *buffer, int buflen)
 
 	counter = (taskstate_counter_t *) ctx;
 
-	if (strncmp (buffer, "State:", 6) != 0)
+	if (strncmp (buffer, "State:", strlen("State:")) != 0)
 		return;
 
 	numfields = strsplit (buffer, fields, STATIC_ARRAY_SIZE (fields));
@@ -1014,8 +1014,8 @@ static void ps_ctxt_switch_callback (void *ctx, char *buffer, int buflen)
 	taskswitch_counter_t *counter;
 	char    *fields[8];
 	int      numfields;
-	derive_t tmp;
-	char    *endptr;
+	value_t  count;
+	int      status;
 
 	counter = (taskswitch_counter_t *) ctx;
 
@@ -1027,18 +1027,16 @@ static void ps_ctxt_switch_callback (void *ctx, char *buffer, int buflen)
 	if (numfields < 2)
 		return;
 
-	errno = 0;
-	endptr = NULL;
-	tmp = (derive_t) strtoll (fields[1], &endptr, /* base = */ 10);
-	if ((errno == 0) && (endptr != fields[1]))
+	status = parse_value (fields[1], &count, DS_TYPE_DERIVE);
+	if (status == 0)
 	{
 		if (strncmp (buffer, "voluntary_ctxt_switches", 23) == 0)
 		{
-			counter->cswitch_vol += tmp;
+			counter->cswitch_vol += count.derive;
 		}
 		else if (strncmp (buffer, "nonvoluntary_ctxt_switches", 26) == 0)
 		{
-			counter->cswitch_invol += tmp;
+			counter->cswitch_invol += count.derive;
 		}
 	}
 } /* void ps_ctxt_switch_callback */
@@ -1189,8 +1187,8 @@ static int ps_read_process (long pid, procstat_t *ps, char *state)
 
 	if ( report_ctx_switch )
 	{
-		taskswitch_counter_t counter;
-		char dirname[64];
+		taskswitch_counter_t counter = { 0 };
+		char dirname[PATH_MAX];
 
 		counter.cswitch_vol = 0;
 		counter.cswitch_invol = 0;
@@ -1846,8 +1844,8 @@ static int ps_read (void)
 /* #endif HAVE_THREAD_INFO */
 
 #elif KERNEL_LINUX
-	taskstate_counter_t counter;
-	char                dirname[64];
+	taskstate_counter_t counter = { 0 };
+	char dirname[PATH_MAX];
 
 	struct dirent *ent;
 	DIR           *proc;
