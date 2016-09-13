@@ -241,6 +241,12 @@ Path to the plugins (shared objects) of collectd.
 Set one or more files that contain the data-set descriptions. See
 L<types.db(5)> for a description of the format of this file.
 
+If this option is not specified, a default file is read. If you need to define
+custom types in addition to the types defined in the default file, you need to
+explicitly load both. In other words, if the B<TypesDB> option is encountered
+the default behavior is disabled and if you need the default types you have to
+also explicitly load them.
+
 =item B<Interval> I<Seconds>
 
 Configures the interval in which to query the read plugins. Obviously smaller

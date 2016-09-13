@@ -249,7 +249,7 @@ static int config_add (oconfig_item_t *ci)
 		ssnprintf (callback_name, sizeof (callback_name),
 				"apache/%s/%s",
 				(st->host != NULL) ? st->host : hostname_g,
-				(st->name != NULL) ? st->name : "default"),
+				(st->name != NULL) ? st->name : "default");
 
 		status = plugin_register_complex_read (/* group = */ NULL,
 				/* name      = */ callback_name,
