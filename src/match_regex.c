@@ -33,6 +33,7 @@
 
 #include "collectd.h"
 
+#include "common.h"
 #include "filter_chain.h"
 #include "meta_data.h"
 #include "utils_llist.h"
@@ -80,7 +81,7 @@ static void mr_free_regex (mr_regex_t *r) /* {{{ */
 
 	regfree (&r->re);
 	memset (&r->re, 0, sizeof (r->re));
-	free (r->re_str);
+	sfree (r->re_str);
 
 	if (r->next != NULL)
 		mr_free_regex (r->next);
@@ -98,12 +99,12 @@ static void mr_free_match (mr_match_t *m) /* {{{ */
 	mr_free_regex (m->type_instance);
 	for (llentry_t *e = llist_head(m->meta); e != NULL; e = e->next)
 	{
-		free (e->key);
+		sfree (e->key);
 		mr_free_regex ((mr_regex_t *) e->value);
 	}
 	llist_destroy (m->meta);
 
-	free (m);
+	sfree (m);
 } /* }}} void mr_free_match */
 
 static int mr_match_regexen (mr_regex_t *re_head, /* {{{ */
@@ -153,7 +154,7 @@ static int mr_add_regex (mr_regex_t **re_head, const char *re_str, /* {{{ */
 	re->re_str = strdup (re_str);
 	if (re->re_str == NULL)
 	{
-		free (re);
+		sfree (re);
 		log_err ("mr_add_regex: strdup failed.");
 		return (-1);
 	}
@@ -166,8 +167,8 @@ static int mr_add_regex (mr_regex_t **re_head, const char *re_str, /* {{{ */
 		errmsg[sizeof (errmsg) - 1] = 0;
 		log_err ("Compiling regex `%s' for `%s' failed: %s.",
 				re->re_str, option, errmsg);
-		free (re->re_str);
-		free (re);
+		sfree (re->re_str);
+		sfree (re);
 		return (-1);
 	}
 
@@ -204,7 +205,7 @@ static int mr_config_add_regex (mr_regex_t **re_head, /* {{{ */
 static int mr_config_add_meta_regex (llist_t **meta, /* {{{ */
 		oconfig_item_t *ci)
 {
-	char *key;
+	char *meta_key;
 	llentry_t *entry;
 	mr_regex_t *re_head;
 	int status;
@@ -228,28 +229,28 @@ static int mr_config_add_meta_regex (llist_t **meta, /* {{{ */
 		}
 	}
 
-	key = ci->values[0].value.string;
-	entry = llist_search (*meta, key);
+	meta_key = ci->values[0].value.string;
+	entry = llist_search (*meta, meta_key);
 	if (entry == NULL)
 	{
-		key = strdup (key);
-		if (key == NULL)
+		meta_key = strdup (meta_key);
+		if (meta_key == NULL)
 		{
 			log_err ("mr_config_add_meta_regex: strdup failed.");
 			return (-1);
 		}
-		entry = llentry_create (key, NULL);
+		entry = llentry_create (meta_key, NULL);
 		if (entry == NULL)
 		{
 			log_err ("mr_config_add_meta_regex: llentry_create failed.");
-			free (key);
+			sfree (meta_key);
 			return (-1);
 		}
-		/* key and entry will now be freed by mr_free_match(). */
+		/* meta_key and entry will now be freed by mr_free_match(). */
 		llist_append (*meta, entry);
 	}
 
-	snprintf (buffer, sizeof (buffer), "%s `%s'", ci->key, key);
+	snprintf (buffer, sizeof (buffer), "%s `%s'", ci->key, meta_key);
 	/* Can't pass &entry->value into mr_add_regex, so copy in/out. */
 	re_head = entry->value;
 	status = mr_add_regex (&re_head, ci->values[1].value.string, buffer);
@@ -378,15 +379,16 @@ static int mr_match (const data_set_t __attribute__((unused)) *ds, /* {{{ */
 			mr_regex_t *meta_re = (mr_regex_t *) e->value;
 			char *value;
 			int status = meta_data_get_string (vl->meta, e->key, &value);
-			if (status == 0)  /* key is present */
+			if (status == (-ENOENT))  /* key is not present */
+				return (nomatch_value);
+			if (status != 0)  /* some other problem */
+				continue;  /* error will have already been printed. */
+			if (mr_match_regexen (meta_re, value) == FC_MATCH_NO_MATCH)
 			{
-				if (mr_match_regexen (meta_re, value) == FC_MATCH_NO_MATCH)
-				{
-					free (value);
-					return (nomatch_value);
-				}
-				free (value);
+				sfree (value);
+				return (nomatch_value);
 			}
+			sfree (value);
 		}
 	}
 
