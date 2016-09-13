@@ -1199,6 +1199,18 @@ int parse_values (char *buffer, value_list_t *vl, const data_set_t *ds)
 	return (0);
 } /* int parse_values */
 
+int parse_value_file (char const *path, value_t *ret_value, int ds_type)
+{
+	char buffer[256];
+
+	if (read_file_contents (path, buffer, sizeof (buffer)) < 0)
+		return errno;
+
+	strstripnewline (buffer);
+
+	return parse_value (buffer, ret_value, ds_type);
+} /* int parse_value_file */
+
 #if !HAVE_GETPWNAM_R
 int getpwnam_r (const char *name, struct passwd *pwbuf, char *buf,
 		size_t buflen, struct passwd **pwbufp)
