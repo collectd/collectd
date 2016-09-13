@@ -9119,6 +9119,8 @@ Available options:
 
 =item B<TypeInstance> I<Regex>
 
+=item B<MetaData> I<String> I<Regex>
+
 Match values where the given regular expressions match the various fields of
 the identifier of a value. If multiple regular expressions are given, B<all>
 regexen must match for a value to match.
