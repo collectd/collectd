@@ -25,9 +25,11 @@
  * Authors:
  *   Jaroslav Safka <jaroslavx.safka@intel.com>
  *   Kim-Marie Jones <kim-marie.jones@intel.com>
+ *   Florian Forster <octo at collectd.org>
  */
 
 #include "collectd.h"
+
 #include "common.h" /* auxiliary functions */
 #include "plugin.h" /* plugin_register_*, plugin_dispatch_values */
 
