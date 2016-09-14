@@ -99,13 +99,10 @@ static int openvpn_strsplit (char *string, char **fields, size_t size)
 static void numusers_submit (const char *pinst, const char *tinst,
 		gauge_t value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = value;
-
-	vl.values = values;
-	vl.values_len = STATIC_ARRAY_SIZE (values);
+	vl.values = &(value_t) { .gauge = value };
+	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "openvpn", sizeof (vl.plugin));
 	sstrncpy (vl.type, "users", sizeof (vl.type));

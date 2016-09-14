@@ -60,16 +60,13 @@ static void aquaero_submit (const char *type, const char *type_instance,
 		double value)
 {
 	const char *instance = conf_device?conf_device:"default";
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
 	/* Don't report undefined values. */
 	if (value == AQ5_FLOAT_UNDEF)
 		return;
 
-	values[0].gauge = value;
-
-	vl.values = values;
+	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
 
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));

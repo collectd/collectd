@@ -121,12 +121,9 @@ static void tss2_submit_gauge (const char *plugin_instance,
 	/*
 	 * Submits a gauge value to the collectd daemon
 	 */
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = value;
-
-	vl.values     = values;
+	vl.values     = &(value_t) { .gauge = value };
 	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "teamspeak2", sizeof (vl.plugin));

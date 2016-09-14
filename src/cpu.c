@@ -325,12 +325,9 @@ static int init (void)
 
 static void submit_value (int cpu_num, int cpu_state, const char *type, value_t value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	memcpy(&values[0], &value, sizeof(value));
-
-	vl.values = values;
+	vl.values = &value;
 	vl.values_len = 1;
 
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
@@ -346,26 +343,22 @@ static void submit_value (int cpu_num, int cpu_state, const char *type, value_t 
 	plugin_dispatch_values (&vl);
 }
 
-static void submit_percent(int cpu_num, int cpu_state, gauge_t percent)
+static void submit_percent (int cpu_num, int cpu_state, gauge_t value)
 {
-	value_t value;
-
 	/* This function is called for all known CPU states, but each read
 	 * method will only report a subset. The remaining states are left as
 	 * NAN and we ignore them here. */
-	if (isnan (percent))
+	if (isnan (value))
 		return;
 
-	value.gauge = percent;
-	submit_value (cpu_num, cpu_state, "percent", value);
+	submit_value (cpu_num, cpu_state, "percent",
+			(value_t) { .gauge = value });
 }
 
-static void submit_derive(int cpu_num, int cpu_state, derive_t derive)
+static void submit_derive (int cpu_num, int cpu_state, derive_t value)
 {
-	value_t value;
-
-	value.derive = derive;
-	submit_value (cpu_num, cpu_state, "cpu", value);
+	submit_value (cpu_num, cpu_state, "cpu",
+			(value_t) { .derive = value });
 }
 
 /* Takes the zero-index number of a CPU and makes sure that the module-global
@@ -464,14 +457,11 @@ static void cpu_commit_one (int cpu_num, /* {{{ */
 } /* }}} void cpu_commit_one */
 
 /* Commits the number of cores */
-static void cpu_commit_num_cpu (gauge_t num_cpu) /* {{{ */
+static void cpu_commit_num_cpu (gauge_t value) /* {{{ */
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = num_cpu;
-
-	vl.values = values;
+	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
 
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
@@ -555,7 +545,7 @@ static int cpu_stage (size_t cpu_num, size_t state, derive_t d, cdtime_t now) /*
 	int status;
 	cpu_state_t *s;
 	gauge_t rate = NAN;
-	value_t val = {.derive = d};
+	value_t val = { .derive = d };
 
 	if (state >= COLLECTD_CPU_STATE_ACTIVE)
 		return (EINVAL);

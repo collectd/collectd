@@ -161,7 +161,6 @@ static void sigrok_feed_callback(const struct sr_dev_inst *sdi,
 {
 	const struct sr_datafeed_analog *analog;
 	struct config_device *cfdev;
-	value_t value;
 	value_list_t vl = VALUE_LIST_INIT;
 
 	/* Find this device's configuration. */
@@ -199,8 +198,7 @@ static void sigrok_feed_callback(const struct sr_dev_inst *sdi,
 
 	/* Ignore all but the first sample on the first probe. */
 	analog = packet->payload;
-	value.gauge = analog->data[0];
-	vl.values = &value;
+	vl.values = &(value_t) { .gauge = analog->data[0] };
 	vl.values_len = 1;
 	sstrncpy(vl.host, hostname_g, sizeof(vl.host));
 	sstrncpy(vl.plugin, "sigrok", sizeof(vl.plugin));

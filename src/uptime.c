@@ -58,14 +58,11 @@ static time_t boottime;
 extern kstat_ctl_t *kc;
 #endif /* #endif HAVE_LIBKSTAT */
 
-static void uptime_submit (gauge_t uptime)
+static void uptime_submit (gauge_t value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = uptime;
-
-	vl.values = values;
+	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
 
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));

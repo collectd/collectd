@@ -336,7 +336,6 @@ static int cow_load_config (const char *key, const char *value)
 static int cow_read_values (const char *path, const char *name,
     const ow_family_features_t *family_info)
 {
-  value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
   int success = 0;
 
@@ -346,9 +345,6 @@ static int cow_read_values (const char *path, const char *name,
     if (ignorelist_match (sensor_list, name) != 0)
       return 0;
   }
-
-  vl.values = values;
-  vl.values_len = 1;
 
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "onewire", sizeof (vl.plugin));
@@ -381,7 +377,7 @@ static int cow_read_values (const char *path, const char *name,
     DEBUG ("Read onewire device %s as %s", file, buffer);
 
     endptr = NULL;
-    values[0].gauge = strtod (buffer, &endptr);
+    gauge_t g = strtod (buffer, &endptr);
     if (endptr == NULL)
     {
       ERROR ("onewire plugin: Buffer is not a number: %s", buffer);
@@ -391,6 +387,9 @@ static int cow_read_values (const char *path, const char *name,
     sstrncpy (vl.type, family_info->features[i].type, sizeof (vl.type));
     sstrncpy (vl.type_instance, family_info->features[i].type_instance,
         sizeof (vl.type_instance));
+
+    vl.values = &(value_t) { .gauge = g };
+    vl.values_len = 1;
 
     plugin_dispatch_values (&vl);
     success++;
@@ -495,7 +494,6 @@ static int cow_read_bus (const char *path)
 
 static int cow_simple_read (void)
 {
-  value_t      values[1];
   value_list_t vl = VALUE_LIST_INIT;
   char        *buffer;
   size_t       buffer_size;
@@ -507,9 +505,6 @@ static int cow_simple_read (void)
   /* traverse list and check entries */
   for (traverse = direct_list; traverse != NULL; traverse = traverse->next)
   {
-      vl.values = values;
-      vl.values_len = 1;
-
       sstrncpy (vl.host, hostname_g, sizeof (vl.host));
       sstrncpy (vl.plugin, "onewire", sizeof (vl.plugin));
       sstrncpy (vl.plugin_instance, traverse->address, sizeof (vl.plugin_instance));
@@ -524,9 +519,8 @@ static int cow_simple_read (void)
       }
       DEBUG ("onewire plugin: Read onewire device %s as %s", traverse->path, buffer);
 
-
       endptr = NULL;
-      values[0].gauge = strtod (buffer, &endptr);
+      gauge_t g = strtod (buffer, &endptr);
       if (endptr == NULL)
       {
           ERROR ("onewire plugin: Buffer is not a number: %s", buffer);
@@ -535,6 +529,9 @@ static int cow_simple_read (void)
 
       sstrncpy (vl.type, traverse->file, sizeof (vl.type));
       sstrncpy (vl.type_instance, "",   sizeof (""));
+
+      vl.values = &(value_t) { .gauge = g };
+      vl.values_len = 1;
 
       plugin_dispatch_values (&vl);
       free (buffer);

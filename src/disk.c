@@ -337,12 +337,9 @@ static void submit_io_time (char const *plugin_instance, derive_t io_time, deriv
 #if KERNEL_LINUX
 static void submit_in_progress (char const *disk_name, gauge_t in_progress)
 {
-	value_t v;
 	value_list_t vl = VALUE_LIST_INIT;
 
-	v.gauge = in_progress;
-
-	vl.values = &v;
+	vl.values = &(value_t) { .gauge = in_progress };
 	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "disk", sizeof (vl.plugin));
@@ -351,7 +348,6 @@ static void submit_in_progress (char const *disk_name, gauge_t in_progress)
 
 	plugin_dispatch_values (&vl);
 }
-
 
 static counter_t disk_calc_time_incr (counter_t delta_time, counter_t delta_ops)
 {

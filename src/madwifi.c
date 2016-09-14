@@ -538,7 +538,7 @@ static int madwifi_config (const char *key, const char *value)
 
 
 static void submit (const char *dev, const char *type, const char *ti1,
-			const char *ti2, value_t *val, int len)
+			const char *ti2, value_t *val, size_t len)
 {
 	value_list_t vl = VALUE_LIST_INIT;
 
@@ -558,11 +558,9 @@ static void submit (const char *dev, const char *type, const char *ti1,
 }
 
 static void submit_derive (const char *dev, const char *type, const char *ti1,
-				const char *ti2, derive_t val)
+				const char *ti2, derive_t value)
 {
-	value_t item;
-	item.derive = val;
-	submit (dev, type, ti1, ti2, &item, 1);
+	submit (dev, type, ti1, ti2, &(value_t) { .derive = value }, 1);
 }
 
 static void submit_derive2 (const char *dev, const char *type, const char *ti1,
@@ -575,11 +573,9 @@ static void submit_derive2 (const char *dev, const char *type, const char *ti1,
 }
 
 static void submit_gauge (const char *dev, const char *type, const char *ti1,
-				const char *ti2, gauge_t val)
+				const char *ti2, gauge_t value)
 {
-	value_t item;
-	item.gauge = val;
-	submit (dev, type, ti1, ti2, &item, 1);
+	submit (dev, type, ti1, ti2, &(value_t) { .gauge = value }, 1);
 }
 
 static void submit_antx (const char *dev, const char *name,

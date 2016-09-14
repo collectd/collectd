@@ -228,12 +228,9 @@ static int get_ti (struct ip_vs_dest_entry *de, char *ti, size_t size)
 static void cipvs_submit_connections (const char *pi, const char *ti,
 		derive_t value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].derive = value;
-
-	vl.values     = values;
+	vl.values     = &(value_t) { .derive = value };
 	vl.values_len = 1;
 
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));

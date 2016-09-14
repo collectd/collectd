@@ -114,12 +114,9 @@ static int lpar_init (void)
 
 static void lpar_submit (const char *type_instance, double value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = (gauge_t)value;
-
-	vl.values = values;
+	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
 	if (report_by_serial)
 	{

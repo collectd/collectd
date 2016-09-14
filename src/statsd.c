@@ -752,10 +752,9 @@ static int statsd_metric_clear_set_unsafe (statsd_metric_t *metric) /* {{{ */
 /* Must hold metrics_lock when calling this function. */
 static int statsd_metric_submit_unsafe (char const *name, statsd_metric_t *metric) /* {{{ */
 {
-  value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  vl.values = values;
+  vl.values = &(value_t) { .gauge = NAN };
   vl.values_len = 1;
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "statsd", sizeof (vl.plugin));
@@ -772,7 +771,7 @@ static int statsd_metric_submit_unsafe (char const *name, statsd_metric_t *metri
   sstrncpy (vl.type_instance, name, sizeof (vl.type_instance));
 
   if (metric->type == STATSD_GAUGE)
-    values[0].gauge = (gauge_t) metric->value;
+    vl.values[0].gauge = (gauge_t) metric->value;
   else if (metric->type == STATSD_TIMER)
   {
     _Bool have_events = (metric->updates_num > 0);
@@ -782,7 +781,7 @@ static int statsd_metric_submit_unsafe (char const *name, statsd_metric_t *metri
 
     ssnprintf (vl.type_instance, sizeof (vl.type_instance),
         "%s-average", name);
-    values[0].gauge = have_events
+    vl.values[0].gauge = have_events
       ? CDTIME_T_TO_DOUBLE (latency_counter_get_average (metric->latency))
       : NAN;
     plugin_dispatch_values (&vl);
@@ -790,7 +789,7 @@ static int statsd_metric_submit_unsafe (char const *name, statsd_metric_t *metri
     if (conf_timer_lower) {
       ssnprintf (vl.type_instance, sizeof (vl.type_instance),
           "%s-lower", name);
-      values[0].gauge = have_events
+      vl.values[0].gauge = have_events
         ? CDTIME_T_TO_DOUBLE (latency_counter_get_min (metric->latency))
         : NAN;
       plugin_dispatch_values (&vl);
@@ -799,7 +798,7 @@ static int statsd_metric_submit_unsafe (char const *name, statsd_metric_t *metri
     if (conf_timer_upper) {
       ssnprintf (vl.type_instance, sizeof (vl.type_instance),
           "%s-upper", name);
-      values[0].gauge = have_events
+      vl.values[0].gauge = have_events
         ? CDTIME_T_TO_DOUBLE (latency_counter_get_max (metric->latency))
         : NAN;
       plugin_dispatch_values (&vl);
@@ -808,7 +807,7 @@ static int statsd_metric_submit_unsafe (char const *name, statsd_metric_t *metri
     if (conf_timer_sum) {
       ssnprintf (vl.type_instance, sizeof (vl.type_instance),
           "%s-sum", name);
-      values[0].gauge = have_events
+      vl.values[0].gauge = have_events
         ? CDTIME_T_TO_DOUBLE (latency_counter_get_sum (metric->latency))
         : NAN;
       plugin_dispatch_values (&vl);
@@ -818,7 +817,7 @@ static int statsd_metric_submit_unsafe (char const *name, statsd_metric_t *metri
     {
       ssnprintf (vl.type_instance, sizeof (vl.type_instance),
           "%s-percentile-%.0f", name, conf_timer_percentile[i]);
-      values[0].gauge = have_events
+      vl.values[0].gauge = have_events
         ? CDTIME_T_TO_DOUBLE (latency_counter_get_percentile (metric->latency, conf_timer_percentile[i]))
         : NAN;
       plugin_dispatch_values (&vl);
@@ -830,7 +829,7 @@ static int statsd_metric_submit_unsafe (char const *name, statsd_metric_t *metri
       sstrncpy (vl.type, "gauge", sizeof (vl.type));
       ssnprintf (vl.type_instance, sizeof (vl.type_instance),
           "%s-count", name);
-      values[0].gauge = latency_counter_get_num (metric->latency);
+      vl.values[0].gauge = latency_counter_get_num (metric->latency);
       plugin_dispatch_values (&vl);
     }
 
@@ -840,9 +839,9 @@ static int statsd_metric_submit_unsafe (char const *name, statsd_metric_t *metri
   else if (metric->type == STATSD_SET)
   {
     if (metric->set == NULL)
-      values[0].gauge = 0.0;
+      vl.values[0].gauge = 0.0;
     else
-      values[0].gauge = (gauge_t) c_avl_size (metric->set);
+      vl.values[0].gauge = (gauge_t) c_avl_size (metric->set);
   }
   else { /* STATSD_COUNTER */
     gauge_t delta = nearbyint (metric->value);
@@ -854,7 +853,7 @@ static int statsd_metric_submit_unsafe (char const *name, statsd_metric_t *metri
     if (conf_counter_sum)
     {
       sstrncpy (vl.type, "count", sizeof (vl.type));
-      values[0].gauge = delta;
+      vl.values[0].gauge = delta;
       plugin_dispatch_values (&vl);
 
       /* restore vl.type */
@@ -866,7 +865,7 @@ static int statsd_metric_submit_unsafe (char const *name, statsd_metric_t *metri
     metric->value   -= delta;
     metric->counter += (derive_t) delta;
 
-    values[0].derive = metric->counter;
+    vl.values[0].derive = metric->counter;
   }
 
   return (plugin_dispatch_values (&vl));
