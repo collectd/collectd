@@ -11,7 +11,7 @@ libcollectdclient_la_CPPFLAGS = $(AM_CPPFLAGS) \
 				-I$(top_srcdir)/src/libcollectdclient/collectd \
 				-I$(top_builddir)/src/libcollectdclient/collectd \
 				-I$(top_srcdir)/src/daemon
-libcollectdclient_la_LDFLAGS = -version-info 1:0:0
+libcollectdclient_la_LDFLAGS = -version-info 2:0:0
 libcollectdclient_la_LIBADD = 
 if BUILD_WITH_LIBGCRYPT
 libcollectdclient_la_CPPFLAGS += $(GCRYPT_CPPFLAGS)

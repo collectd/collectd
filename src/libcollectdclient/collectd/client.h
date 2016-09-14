@@ -48,16 +48,16 @@
 /*
  * Defines
  */
-#define LCC_NAME_LEN 64
+#define LCC_NAME_LEN 128
 #define LCC_DEFAULT_PORT "25826"
 
 /*
  * Types
  */
-#define LCC_TYPE_COUNTER 0
-#define LCC_TYPE_GAUGE   1
+#define LCC_TYPE_COUNTER  0
+#define LCC_TYPE_GAUGE    1
 #define LCC_TYPE_DERIVE   2
-#define LCC_TYPE_ABSOLUTE   3
+#define LCC_TYPE_ABSOLUTE 3
 
 LCC_BEGIN_DECLS
 
