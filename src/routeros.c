@@ -52,11 +52,11 @@ typedef struct cr_data_s cr_data_t;
 static void cr_submit_io (cr_data_t *rd, const char *type, /* {{{ */
     const char *type_instance, derive_t rx, derive_t tx)
 {
-	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
-
-	values[0].derive = rx;
-	values[1].derive = tx;
+	value_t values[] = {
+	  { .derive = rx },
+	  { .derive = tx },
+	};
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);

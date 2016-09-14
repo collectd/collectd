@@ -103,17 +103,20 @@ static void smart_handle_disk_attribute(SkDisk *d, const SkSmartAttributeParsedD
                                         void* userdata)
 {
   const char *dev = userdata;
-  value_t values[4];
-  value_list_t vl = VALUE_LIST_INIT;
 
-  if (!a->current_value_valid || !a->worst_value_valid) return;
-  values[0].gauge = a->current_value;
-  values[1].gauge = a->worst_value;
-  values[2].gauge = a->threshold_valid?a->threshold:0;
-  values[3].gauge = a->pretty_value;
+  if (!a->current_value_valid || !a->worst_value_valid)
+    return;
+
+  value_list_t vl = VALUE_LIST_INIT;
+  value_t values[] = {
+    { .gauge = a->current_value },
+    { .gauge = a->worst_value },
+    { .gauge = a->threshold_valid ? a->threshold : 0 },
+    { .gauge = a->pretty_value },
+  };
 
   vl.values = values;
-  vl.values_len = 4;
+  vl.values_len = STATIC_ARRAY_SIZE (values);
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "smart", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, dev, sizeof (vl.plugin_instance));

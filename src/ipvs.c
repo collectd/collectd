@@ -247,14 +247,14 @@ static void cipvs_submit_connections (const char *pi, const char *ti,
 static void cipvs_submit_if (const char *pi, const char *t, const char *ti,
 		derive_t rx, derive_t tx)
 {
-	value_t values[2];
+	value_t values[] = {
+		{ .derive = rx },
+		{ .derive = tx },
+	};
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].derive = rx;
-	values[1].derive = tx;
-
 	vl.values     = values;
-	vl.values_len = 2;
+	vl.values_len = STATIC_ARRAY_SIZE (values);
 
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "ipvs", sizeof (vl.plugin));

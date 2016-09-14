@@ -204,7 +204,6 @@ static void za_submit_ratio (const char* type_instance, gauge_t hits, gauge_t mi
 static int za_read (void)
 {
 	gauge_t  arc_hits, arc_misses, l2_hits, l2_misses;
-	value_t  l2_io[2];
 	kstat_t	 *ksp	= NULL;
 
 #if defined(KERNEL_LINUX)
@@ -320,10 +319,11 @@ static int za_read (void)
 	za_submit_ratio ("L2", l2_hits, l2_misses);
 
 	/* I/O */
-	l2_io[0].derive = get_zfs_value(ksp, "l2_read_bytes");
-	l2_io[1].derive = get_zfs_value(ksp, "l2_write_bytes");
-
-	za_submit ("io_octets", "L2", l2_io, /* num values = */ 2);
+	value_t  l2_io[] = {
+		{ .derive = (derive_t) get_zfs_value(ksp, "l2_read_bytes") },
+		{ .derive = (derive_t) get_zfs_value(ksp, "l2_write_bytes") },
+	};
+	za_submit ("io_octets", "L2", l2_io, STATIC_ARRAY_SIZE (l2_io));
 
 #if defined(KERNEL_LINUX)
 	free_zfs_values (ksp);

@@ -56,11 +56,11 @@ static int vserver_init (void)
 static void traffic_submit (const char *plugin_instance,
 		const char *type_instance, derive_t rx, derive_t tx)
 {
-	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
-
-	values[0].derive = rx;
-	values[1].derive = tx;
+	value_t values[] = {
+		{ .derive = rx },
+		{ .derive = tx },
+	};
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
@@ -76,12 +76,12 @@ static void traffic_submit (const char *plugin_instance,
 static void load_submit (const char *plugin_instance,
 		gauge_t snum, gauge_t mnum, gauge_t lnum)
 {
-	value_t values[3];
 	value_list_t vl = VALUE_LIST_INIT;
-
-	values[0].gauge = snum;
-	values[1].gauge = mnum;
-	values[2].gauge = lnum;
+	value_t values[] = {
+		{ .gauge = snum },
+		{ .gauge = mnum },
+		{ .gauge = lnum },
+	};
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);

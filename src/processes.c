@@ -676,11 +676,10 @@ static void ps_submit_state (const char *state, double value)
 /* submit info about specific process (e.g.: memory taken, cpu usage, etc..) */
 static void ps_submit_proc_list (procstat_t *ps)
 {
-	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
+	value_t values[2];
 
 	vl.values = values;
-	vl.values_len = 2;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "processes", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, ps->name, sizeof (vl.plugin_instance));

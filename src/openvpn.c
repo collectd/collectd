@@ -119,11 +119,11 @@ static void numusers_submit (const char *pinst, const char *tinst,
 static void iostats_submit (const char *pinst, const char *tinst,
 		derive_t rx, derive_t tx)
 {
-	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
-
-	values[0].derive = rx;
-	values[1].derive = tx;
+	value_t values[] = {
+    { .derive = rx },
+    { .derive = tx },
+  };
 
 	/* NOTE ON THE NEW NAMING SCHEMA:
 	 *       using plugin_instance to identify each vpn config (and
@@ -149,11 +149,11 @@ static void iostats_submit (const char *pinst, const char *tinst,
 static void compression_submit (const char *pinst, const char *tinst,
 		derive_t uncompressed, derive_t compressed)
 {
-	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
-
-	values[0].derive = uncompressed;
-	values[1].derive = compressed;
+	value_t values[] = {
+    { .derive = uncompressed },
+    { .derive = compressed },
+  };
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);

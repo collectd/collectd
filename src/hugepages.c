@@ -67,14 +67,14 @@ static int huge_config_callback(const char *key, const char *val)
 static void submit_hp(const char *plug_inst, const char *type,
   const char *type_instance, gauge_t free_value, gauge_t used_value)
 {
-  value_t values[2];
   value_list_t vl = VALUE_LIST_INIT;
-
-  values[0].gauge = free_value;
-  values[1].gauge = used_value;
+  value_t values[] = {
+    { .gauge = free_value },
+    { .gauge = used_value },
+  };
 
   vl.values = values;
-  vl.values_len = 2;
+  vl.values_len = STATIC_ARRAY_SIZE (values);
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, g_plugin_name, sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, plug_inst, sizeof (vl.plugin_instance));
