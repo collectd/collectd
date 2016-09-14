@@ -411,19 +411,15 @@ static void submit_value (const char *type, const char *type_instance,
 } /* void submit_value */
 
 static void submit_derive (const char *type, const char *type_instance,
-		derive_t c, apache_t *st)
+		derive_t d, apache_t *st)
 {
-	value_t v;
-	v.derive = c;
-	submit_value (type, type_instance, v, st);
+	submit_value (type, type_instance, (value_t) { .derive = d }, st);
 } /* void submit_derive */
 
 static void submit_gauge (const char *type, const char *type_instance,
 		gauge_t g, apache_t *st)
 {
-	value_t v;
-	v.gauge = g;
-	submit_value (type, type_instance, v, st);
+	submit_value (type, type_instance, (value_t) { .gauge = g }, st);
 } /* void submit_gauge */
 
 static void submit_scoreboard (char *buf, apache_t *st)

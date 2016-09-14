@@ -677,12 +677,9 @@ ntohf(tFloat p_float)
 static void
 chrony_push_data(const char *p_type, const char *p_type_inst, double p_value)
 {
-  value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  values[0].gauge = p_value;    /* TODO: Check type??? (counter, gauge, derive, absolute) */
-
-  vl.values = values;
+  vl.values = &(value_t) { .gauge = p_value };
   vl.values_len = 1;
 
   /* XXX: Shall g_chrony_host/g_chrony_port be reflected in the plugin's output? */

@@ -223,103 +223,71 @@ init_value_list (value_list_t *vl, virDomainPtr dom)
 
 } /* void init_value_list */
 
-static void
-memory_submit (gauge_t memory, virDomainPtr dom)
+static void submit (virDomainPtr dom,
+                    char const *type, char const *type_instance,
+                    value_t *values, size_t values_len)
 {
-    value_t values[1];
     value_list_t vl = VALUE_LIST_INIT;
-
     init_value_list (&vl, dom);
 
-    values[0].gauge = memory;
-
     vl.values = values;
-    vl.values_len = 1;
+    vl.values_len = values_len;
 
-    sstrncpy (vl.type, "memory", sizeof (vl.type));
-    sstrncpy (vl.type_instance, "total", sizeof (vl.type_instance));
+    sstrncpy (vl.type, type, sizeof (vl.type));
+    if (type_instance != NULL)
+        sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
 
     plugin_dispatch_values (&vl);
 }
 
 static void
-memory_stats_submit (gauge_t memory, virDomainPtr dom, int tag_index)
+memory_submit (gauge_t value, virDomainPtr dom)
+{
+    submit (dom, "memory", "total", &(value_t) { .gauge = value }, 1);
+}
+
+static void
+memory_stats_submit (gauge_t value, virDomainPtr dom, int tag_index)
 {
     static const char *tags[] = { "swap_in", "swap_out", "major_fault", "minor_fault",
                                     "unused", "available", "actual_balloon", "rss"};
 
-    value_t values[1];
-    value_list_t vl = VALUE_LIST_INIT;
+    if ((tag_index < 0) || (tag_index >= STATIC_ARRAY_SIZE (tags))) {
+        ERROR ("virt plugin: Array index out of bounds: tag_index = %d", tag_index);
+        return;
+    }
 
-    init_value_list (&vl, dom);
-
-    values[0].gauge = memory;
-
-    vl.values = values;
-    vl.values_len = 1;
-
-    sstrncpy (vl.type, "memory", sizeof (vl.type));
-    sstrncpy (vl.type_instance, tags[tag_index], sizeof (vl.type_instance));
-
-    plugin_dispatch_values (&vl);
+    submit (dom, "memory", tags[tag_index], &(value_t) { .gauge = value }, 1);
 }
 
 static void
-cpu_submit (unsigned long long cpu_time,
+cpu_submit (unsigned long long value,
             virDomainPtr dom, const char *type)
 {
-    value_t values[1];
-    value_list_t vl = VALUE_LIST_INIT;
-
-    init_value_list (&vl, dom);
-
-    values[0].derive = cpu_time;
-
-    vl.values = values;
-    vl.values_len = 1;
-
-    sstrncpy (vl.type, type, sizeof (vl.type));
-
-    plugin_dispatch_values (&vl);
+    submit (dom, type, NULL, &(value_t) { .derive = (derive_t) value }, 1);
 }
 
 static void
-vcpu_submit (derive_t cpu_time,
+vcpu_submit (derive_t value,
              virDomainPtr dom, int vcpu_nr, const char *type)
 {
-    value_t values[1];
-    value_list_t vl = VALUE_LIST_INIT;
+    char type_instance[DATA_MAX_NAME_LEN];
 
-    init_value_list (&vl, dom);
+    ssnprintf (type_instance, sizeof (type_instance), "%d", vcpu_nr);
 
-    values[0].derive = cpu_time;
-    vl.values = values;
-    vl.values_len = 1;
-
-    sstrncpy (vl.type, type, sizeof (vl.type));
-    ssnprintf (vl.type_instance, sizeof (vl.type_instance), "%d", vcpu_nr);
-
-    plugin_dispatch_values (&vl);
+    submit (dom, type, type_instance, &(value_t) { .derive = value }, 1);
 }
 
 static void
 submit_derive2 (const char *type, derive_t v0, derive_t v1,
              virDomainPtr dom, const char *devname)
 {
-    value_t values[2];
-    value_list_t vl = VALUE_LIST_INIT;
+    value_t values[] = {
+        { .derive = v0 },
+        { .derive = v1 },
+    };
 
-    init_value_list (&vl, dom);
-
-    values[0].derive = v0;
-    values[1].derive = v1;
-    vl.values = values;
-    vl.values_len = 2;
-
-    sstrncpy (vl.type, type, sizeof (vl.type));
-    sstrncpy (vl.type_instance, devname, sizeof (vl.type_instance));
-
-    plugin_dispatch_values (&vl);
+    submit (dom, type, devname, values, STATIC_ARRAY_SIZE (values));
 } /* void submit_derive2 */
 
 static int

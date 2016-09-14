@@ -660,12 +660,9 @@ static int ps_init (void)
 /* submit global state (e.g.: qty of zombies, running, etc..) */
 static void ps_submit_state (const char *state, double value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = value;
-
-	vl.values = values;
+	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "processes", sizeof (vl.plugin));
@@ -679,11 +676,10 @@ static void ps_submit_state (const char *state, double value)
 /* submit info about specific process (e.g.: memory taken, cpu usage, etc..) */
 static void ps_submit_proc_list (procstat_t *ps)
 {
-	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
+	value_t values[2];
 
 	vl.values = values;
-	vl.values_len = 2;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "processes", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, ps->name, sizeof (vl.plugin_instance));
@@ -784,12 +780,9 @@ static void ps_submit_proc_list (procstat_t *ps)
 #if KERNEL_LINUX || KERNEL_SOLARIS
 static void ps_submit_fork_rate (derive_t value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].derive = value;
-
-	vl.values = values;
+	vl.values = &(value_t) { .derive = value };
 	vl.values_len = 1;
 	sstrncpy(vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy(vl.plugin, "processes", sizeof (vl.plugin));
