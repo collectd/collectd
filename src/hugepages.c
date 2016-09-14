@@ -38,9 +38,9 @@ static const char g_plugin_name[] = "hugepages";
 static _Bool g_flag_rpt_numa = 1;
 static _Bool g_flag_rpt_mm = 1;
 
-static _Bool values_pages = 1;
-static _Bool values_bytes = 0;
-static _Bool values_percent = 0;
+static _Bool g_values_pages = 1;
+static _Bool g_values_bytes = 0;
+static _Bool g_values_percent = 0;
 
 #define HP_HAVE_NR 0x01
 #define HP_HAVE_SURPLUS 0x02
@@ -66,11 +66,11 @@ static int hp_config(oconfig_item_t *ci) {
     else if (strcasecmp("ReportRootHP", child->key) == 0)
       cf_util_get_boolean(child, &g_flag_rpt_mm);
     else if (strcasecmp("ValuesPages", child->key) == 0)
-      cf_util_get_boolean(child, &values_pages);
+      cf_util_get_boolean(child, &g_values_pages);
     else if (strcasecmp("ValuesBytes", child->key) == 0)
-      cf_util_get_boolean(child, &values_bytes);
+      cf_util_get_boolean(child, &g_values_bytes);
     else if (strcasecmp("ValuesPercentage", child->key) == 0)
-      cf_util_get_boolean(child, &values_percent);
+      cf_util_get_boolean(child, &g_values_percent);
     else
       ERROR("%s: Invalid configuration option: \"%s\".", g_plugin_name,
             child->key);
@@ -101,19 +101,19 @@ static void submit_hp(const struct entry_info *info) {
   gauge_t free = info->free;
   gauge_t used = (info->nr + info->surplus) - info->free;
 
-  if (values_pages) {
+  if (g_values_pages) {
     sstrncpy(vl.type, "vmpage_number", sizeof(vl.type));
     plugin_dispatch_multivalue(&vl, /* store_percentage = */ 0, DS_TYPE_GAUGE,
                                "free", free, "used", used, NULL);
   }
-  if (values_bytes) {
+  if (g_values_bytes) {
     gauge_t page_size = (gauge_t)(1024 * info->page_size_kb);
     sstrncpy(vl.type, "memory", sizeof(vl.type));
     plugin_dispatch_multivalue(&vl, /* store_percentage = */ 0, DS_TYPE_GAUGE,
                                "free", free * page_size, "used",
                                used * page_size, NULL);
   }
-  if (values_percent) {
+  if (g_values_percent) {
     sstrncpy(vl.type, "percent", sizeof(vl.type));
     plugin_dispatch_multivalue(&vl, /* store_percentage = */ 1, DS_TYPE_GAUGE,
                                "free", free, "used", used, NULL);
