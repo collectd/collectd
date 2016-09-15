@@ -269,6 +269,22 @@ struct receive_list_entry_s
 };
 typedef struct receive_list_entry_s receive_list_entry_t;
 
+/* struct containing buffer for each socket */
+typedef struct network_callback
+{
+  char            *node;
+  char            name[DATA_MAX_NAME_LEN];
+
+  char            *send_buffer;
+  char            *send_buffer_ptr;
+  int              send_buffer_fill;
+  cdtime_t         send_buffer_last_update;
+  value_list_t     send_buffer_vl;
+  pthread_mutex_t  send_buffer_lock;
+
+  sockent_t       *sending_sockets;
+} network_callback_t;
+
 /*
  * Private variables
  */
@@ -277,8 +293,6 @@ static int network_config_ttl = 0;
 static size_t network_config_packet_size = 1452;
 static _Bool network_config_forward = 0;
 static _Bool network_config_stats = 0;
-
-static sockent_t *sending_sockets = NULL;
 
 static receive_list_entry_t *receive_list_head = NULL;
 static receive_list_entry_t *receive_list_tail = NULL;
@@ -297,14 +311,6 @@ static int       receive_thread_running = 0;
 static pthread_t receive_thread_id;
 static int       dispatch_thread_running = 0;
 static pthread_t dispatch_thread_id;
-
-/* Buffer in which to-be-sent network packets are constructed. */
-static char            *send_buffer;
-static char            *send_buffer_ptr;
-static int              send_buffer_fill;
-static cdtime_t         send_buffer_last_update;
-static value_list_t     send_buffer_vl = VALUE_LIST_INIT;
-static pthread_mutex_t  send_buffer_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* XXX: These counters are incremented from one place only. The spot in which
  * the values are incremented is either only reachable by one thread (the
@@ -2318,8 +2324,8 @@ static int sockent_server_listen (sockent_t *se) /* {{{ */
 	return (0);
 } /* }}} int sockent_server_listen */
 
-/* Add a sockent to the global list of sockets */
-static int sockent_add (sockent_t *se) /* {{{ */
+/* Add a sockent to the passed list of sockets */
+static int sockent_add (sockent_t *se, sockent_t **sockets) /* {{{ */
 {
 	sockent_t *last_ptr;
 
@@ -2360,12 +2366,15 @@ static int sockent_add (sockent_t *se) /* {{{ */
 	}
 	else /* if (se->type == SOCKENT_TYPE_CLIENT) */
 	{
-		if (sending_sockets == NULL)
+		if (sockets == NULL)
+			return (-1);
+
+		if (*sockets == NULL)
 		{
-			sending_sockets = se;
+			*sockets = se;
 			return (0);
 		}
-		last_ptr = sending_sockets;
+		last_ptr = *sockets;
 	}
 
 	while (last_ptr->next != NULL)
@@ -2575,14 +2584,14 @@ static void *receive_thread (void __attribute__((unused)) *arg)
 	return (network_receive () ? (void *) 1 : (void *) 0);
 } /* void *receive_thread */
 
-static void network_init_buffer (void)
+static void network_init_buffer (network_callback_t *cb)
 {
-	memset (send_buffer, 0, network_config_packet_size);
-	send_buffer_ptr = send_buffer;
-	send_buffer_fill = 0;
-	send_buffer_last_update = 0;
+	memset (cb->send_buffer, 0, network_config_packet_size);
+	cb->send_buffer_ptr = cb->send_buffer;
+	cb->send_buffer_fill = 0;
+	cb->send_buffer_last_update = 0;
 
-	memset (&send_buffer_vl, 0, sizeof (send_buffer_vl));
+	memset (&cb->send_buffer_vl, 0, sizeof (cb->send_buffer_vl));
 } /* int network_init_buffer */
 
 static void network_send_buffer_plain (sockent_t *se, /* {{{ */
@@ -2781,7 +2790,7 @@ static void network_send_buffer_encrypted (sockent_t *se, /* {{{ */
 #undef BUFFER_ADD
 #endif /* HAVE_LIBGCRYPT */
 
-static void network_send_buffer (char *buffer, size_t buffer_len) /* {{{ */
+static void network_send_buffer (char *buffer, size_t buffer_len, sockent_t *sending_sockets) /* {{{ */
 {
   DEBUG ("network plugin: network_send_buffer: buffer_len = %zu", buffer_len);
 
@@ -2868,24 +2877,30 @@ static int add_to_buffer (char *buffer, size_t buffer_size, /* {{{ */
 	return (buffer - buffer_orig);
 } /* }}} int add_to_buffer */
 
-static void flush_buffer (void)
+static void flush_buffer (network_callback_t *cb)
 {
+
 	DEBUG ("network plugin: flush_buffer: send_buffer_fill = %i",
-			send_buffer_fill);
+			cb->send_buffer_fill);
 
-	network_send_buffer (send_buffer, (size_t) send_buffer_fill);
+	network_send_buffer (cb->send_buffer, (size_t) cb->send_buffer_fill, cb->sending_sockets);
 
-	stats_octets_tx += ((uint64_t) send_buffer_fill);
+	stats_octets_tx += ((uint64_t) cb->send_buffer_fill);
 	stats_packets_tx++;
 
-	network_init_buffer ();
+	network_init_buffer (cb);
 }
 
 static int network_write (const data_set_t *ds, const value_list_t *vl,
-		user_data_t __attribute__((unused)) *user_data)
+		user_data_t *user_data)
 {
+	network_callback_t *cb;
 	int status;
 
+	if (user_data == NULL)
+		return (-1);
+
+	cb = user_data->data;
 	/* listen_loop is set to non-zero in the shutdown callback, which is
 	 * guaranteed to be called *after* all the write threads have been shut
 	 * down. */
@@ -2911,34 +2926,34 @@ static int network_write (const data_set_t *ds, const value_list_t *vl,
 	uc_meta_data_add_unsigned_int (vl,
 	    "network:time_sent", (uint64_t) vl->time);
 
-	pthread_mutex_lock (&send_buffer_lock);
+	pthread_mutex_lock (&cb->send_buffer_lock);
 
-	status = add_to_buffer (send_buffer_ptr,
-			network_config_packet_size - (send_buffer_fill + BUFF_SIG_SIZE),
-			&send_buffer_vl,
+	status = add_to_buffer (cb->send_buffer_ptr,
+			network_config_packet_size - (cb->send_buffer_fill + BUFF_SIG_SIZE),
+			&cb->send_buffer_vl,
 			ds, vl);
 	if (status >= 0)
 	{
 		/* status == bytes added to the buffer */
-		send_buffer_fill += status;
-		send_buffer_ptr  += status;
-		send_buffer_last_update = cdtime();
+		cb->send_buffer_fill += status;
+		cb->send_buffer_ptr  += status;
+		cb->send_buffer_last_update = cdtime();
 
 		stats_values_sent++;
 	}
 	else
 	{
-		flush_buffer ();
+		flush_buffer (cb);
 
-		status = add_to_buffer (send_buffer_ptr,
-				network_config_packet_size - (send_buffer_fill + BUFF_SIG_SIZE),
-				&send_buffer_vl,
+		status = add_to_buffer (cb->send_buffer_ptr,
+				network_config_packet_size - (cb->send_buffer_fill + BUFF_SIG_SIZE),
+				&cb->send_buffer_vl,
 				ds, vl);
 
 		if (status >= 0)
 		{
-			send_buffer_fill += status;
-			send_buffer_ptr  += status;
+			cb->send_buffer_fill += status;
+			cb->send_buffer_ptr  += status;
 
 			stats_values_sent++;
 		}
@@ -2949,12 +2964,12 @@ static int network_write (const data_set_t *ds, const value_list_t *vl,
 		ERROR ("network plugin: Unable to append to the "
 				"buffer for some weird reason");
 	}
-	else if ((network_config_packet_size - send_buffer_fill) < 15)
+	else if ((network_config_packet_size - cb->send_buffer_fill) < 15)
 	{
-		flush_buffer ();
+		flush_buffer (cb);
 	}
 
-	pthread_mutex_unlock (&send_buffer_lock);
+	pthread_mutex_unlock (&cb->send_buffer_lock);
 
 	return ((status < 0) ? -1 : 0);
 } /* int network_write */
@@ -3107,7 +3122,7 @@ static int network_config_add_listen (const oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  status = sockent_add (se);
+  status = sockent_add (se, NULL);
   if (status != 0)
   {
     ERROR ("network plugin: network_config_add_listen: sockent_add failed.");
@@ -3118,7 +3133,7 @@ static int network_config_add_listen (const oconfig_item_t *ci) /* {{{ */
   return (0);
 } /* }}} int network_config_add_listen */
 
-static int network_config_add_server (const oconfig_item_t *ci) /* {{{ */
+static int network_config_add_server (const oconfig_item_t *ci, sockent_t **sending_sockets) /* {{{ */
 {
   sockent_t *se;
   int status;
@@ -3192,7 +3207,7 @@ static int network_config_add_server (const oconfig_item_t *ci) /* {{{ */
   /* No call to sockent_client_connect() here -- it is called from
    * network_send_buffer_plain(). */
 
-  status = sockent_add (se);
+  status = sockent_add (se, sending_sockets);
   if (status != 0)
   {
     ERROR ("network plugin: network_config_add_server: sockent_add failed.");
@@ -3203,53 +3218,45 @@ static int network_config_add_server (const oconfig_item_t *ci) /* {{{ */
   return (0);
 } /* }}} int network_config_add_server */
 
-static int network_config (oconfig_item_t *ci) /* {{{ */
+static void network_callback_free(void *data)
 {
-  /* The options need to be applied first */
-  for (int i = 0; i < ci->children_num; i++)
-  {
-    oconfig_item_t *child = ci->children + i;
-    if (strcasecmp ("TimeToLive", child->key) == 0)
-      network_config_set_ttl (child);
-  }
+	network_callback_t *cb;
+	sockent_t *se;
 
-  for (int i = 0; i < ci->children_num; i++)
-  {
-    oconfig_item_t *child = ci->children + i;
+	if (data == NULL)
+		return;
 
-    if (strcasecmp ("Listen", child->key) == 0)
-      network_config_add_listen (child);
-    else if (strcasecmp ("Server", child->key) == 0)
-      network_config_add_server (child);
-    else if (strcasecmp ("TimeToLive", child->key) == 0) {
-      /* Handled earlier */
-    }
-    else if (strcasecmp ("MaxPacketSize", child->key) == 0)
-      network_config_set_buffer_size (child);
-    else if (strcasecmp ("Forward", child->key) == 0)
-      cf_util_get_boolean (child, &network_config_forward);
-    else if (strcasecmp ("ReportStats", child->key) == 0)
-      cf_util_get_boolean (child, &network_config_stats);
-    else
-    {
-      WARNING ("network plugin: Option `%s' is not allowed here.",
-          child->key);
-    }
-  }
+	cb = data;
 
-  return (0);
-} /* }}} int network_config */
+	if (cb->send_buffer_fill > 0)
+		flush_buffer(cb);
+
+	for (se = cb->sending_sockets; se != NULL; se = se->next)
+		sockent_client_disconnect (se);
+	sockent_destroy (cb->sending_sockets);
+
+	/* The write plugin should probably be unregistered here
+	 * plugin_unregister_write (cb->name);
+	*/
+
+	sfree(cb);
+
+	return;
+}
 
 static int network_notification (const notification_t *n,
-    user_data_t __attribute__((unused)) *user_data)
+    user_data_t *user_data)
 {
-  char   buffer[network_config_packet_size];
-  char  *buffer_ptr = buffer;
-  size_t buffer_free = sizeof (buffer);
-  int    status;
+  network_callback_t *cb;
+  char    buffer[network_config_packet_size];
+  char   *buffer_ptr = buffer;
+  size_t  buffer_free = sizeof (buffer);
+  int     status;
 
   if (!check_send_notify_okay (n))
     return (0);
+
+  cb = user_data->data;
 
   memset (buffer, 0, sizeof (buffer));
 
@@ -3309,10 +3316,178 @@ static int network_notification (const notification_t *n,
   if (status != 0)
     return (-1);
 
-  network_send_buffer (buffer, sizeof (buffer) - buffer_free);
+  network_send_buffer (buffer, sizeof (buffer) - buffer_free, cb->sending_sockets);
 
   return (0);
 } /* int network_notification */
+
+/*
+ * The flush option of the network plugin cannot flush individual identifiers.
+ * All the values are added to a buffer and sent when the buffer is full, the
+ * requested value may or may not be in there, it's not worth finding out. We
+ * just send the buffer if `flush'  is called - if the requested value was in
+ * there, good. If not, well, then there is nothing to flush.. -octo
+ */
+static int network_flush (cdtime_t timeout,
+		__attribute__((unused)) const char *identifier,
+		user_data_t *user_data)
+{
+	network_callback_t *cb;
+	if (user_data == NULL)
+		return (-1);
+
+	cb = user_data->data;
+	pthread_mutex_lock (&cb->send_buffer_lock);
+
+	if (cb->send_buffer_fill > 0)
+	{
+		if (timeout > 0)
+		{
+			cdtime_t now = cdtime ();
+			if ((cb->send_buffer_last_update + timeout) > now)
+			{
+				pthread_mutex_unlock (&cb->send_buffer_lock);
+				return (0);
+			}
+		}
+		flush_buffer (cb);
+	}
+
+	pthread_mutex_unlock (&cb->send_buffer_lock);
+
+	return (0);
+} /* int network_flush */
+
+static int network_config_node (oconfig_item_t *ci)
+{
+	network_callback_t *cb;
+	int i;
+
+	/* allocate memory for new callback */
+	cb = calloc(1, sizeof(network_callback_t));
+	if (cb == NULL)
+	{
+		ERROR("write_network plugin: calloc failed.");
+		return(-1);
+	}
+
+	cb->sending_sockets = NULL;
+
+	/* Get callback name */
+	cf_util_get_string (ci, &cb->node);
+	if (strcasecmp ("network", cb->node) == 0) {
+		sstrncpy(cb->name, cb->node, DATA_MAX_NAME_LEN);
+	} else {
+		ssnprintf(cb->name, DATA_MAX_NAME_LEN, "network/%s", cb->node);
+	}
+
+	/* Iterate over config options */
+	for (i = 0; i < ci->children_num; i++)
+	{
+		oconfig_item_t *child = ci->children + i;
+
+		if (strcasecmp ("Listen", child->key) == 0)
+			network_config_add_listen(child);
+		else if (strcasecmp ("Server", child->key) == 0)
+			network_config_add_server(child, &cb->sending_sockets);
+		else if (strcasecmp ("TimeToLive", child->key) == 0) {
+			/* Handled earlier */
+		}
+		else if (strcasecmp ("MaxPacketSize", child->key) == 0) {
+			/* Handled globally */
+		}
+		else if (strcasecmp ("Forward", child->key) == 0) {
+			/* Handled globally */
+		}
+		else if (strcasecmp ("ReportStats", child->key) == 0) {
+			/* Handled globally */
+		}
+		else if (strcasecmp ("Node", child->key) == 0) {
+			/* Ignore nested nodes */
+		}
+		else
+		{
+			WARNING ("network plugin: Option `%s' is not allowed here.",
+					child->key);
+		}
+	}
+
+	/* initialize buffer */
+	cb->send_buffer = malloc (network_config_packet_size);
+	if (cb->send_buffer == NULL)
+	{
+		ERROR ("network plugin: malloc failed.");
+		return (-1);
+	}
+	network_init_buffer(cb);
+
+	cb->send_buffer_fill = 0;
+	cb->send_buffer_ptr = cb->send_buffer;
+	cb->send_buffer_vl = (value_list_t) VALUE_LIST_INIT;
+	cb->send_buffer_lock = (pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER;
+
+	/* setup socket(s) and so on */
+	if (cb->sending_sockets != NULL)
+	{
+		user_data_t user_data = {
+			.data = cb,
+			.free_func = network_callback_free
+		};
+
+		plugin_register_write (cb->name, network_write, &user_data);
+		user_data.free_func = NULL;
+		plugin_register_notification(cb->name, network_notification, &user_data);
+		plugin_register_flush (cb->name, network_flush, &user_data);
+	}
+
+	return(0);
+}
+
+static int network_config (oconfig_item_t *ci) /* {{{ */
+{
+	int i;
+
+	/* The options need to be applied first */
+	for (i = 0; i < ci->children_num; i++)
+	{
+		oconfig_item_t *child = ci->children + i;
+		if (strcasecmp ("TimeToLive", child->key) == 0)
+			network_config_set_ttl (child);
+	}
+
+	/* configure default node to provide backward compatibility */
+	network_config_node(ci);
+
+	for (i = 0; i < ci->children_num; i++)
+	{
+		oconfig_item_t *child = ci->children + i;
+
+		if (strcasecmp ("Listen", child->key) == 0) {
+			/* Handled earlier */
+		}
+		else if (strcasecmp ("Server", child->key) == 0) {
+			/* Handled earlier */
+		}
+		else if (strcasecmp ("TimeToLive", child->key) == 0) {
+			/* Handled earlier */
+		}
+		else if (strcasecmp ("MaxPacketSize", child->key) == 0)
+			network_config_set_buffer_size (child);
+		else if (strcasecmp ("Forward", child->key) == 0)
+			cf_util_get_boolean (child, &network_config_forward);
+		else if (strcasecmp ("ReportStats", child->key) == 0)
+			cf_util_get_boolean (child, &network_config_stats);
+		else if (strcasecmp ("Node", child->key) == 0)
+			network_config_node(child);
+		else
+		{
+			WARNING ("network plugin: Option `%s' is not allowed here.",
+					child->key);
+		}
+	}
+
+	return (0);
+} /* }}} int network_config */
 
 static int network_shutdown (void)
 {
@@ -3341,18 +3516,8 @@ static int network_shutdown (void)
 
 	sockent_destroy (listen_sockets);
 
-	if (send_buffer_fill > 0)
-		flush_buffer ();
-
-	sfree (send_buffer);
-
-	for (sockent_t *se = sending_sockets; se != NULL; se = se->next)
-		sockent_client_disconnect (se);
-	sockent_destroy (sending_sockets);
-
 	plugin_unregister_complex_config ("network");
 	plugin_unregister_init ("network");
-	plugin_unregister_write ("network");
 	plugin_unregister_shutdown ("network");
 
 	return (0);
@@ -3448,23 +3613,6 @@ static int network_init (void)
 
 	plugin_register_shutdown ("network", network_shutdown);
 
-	send_buffer = malloc (network_config_packet_size);
-	if (send_buffer == NULL)
-	{
-		ERROR ("network plugin: malloc failed.");
-		return (-1);
-	}
-	network_init_buffer ();
-
-	/* setup socket(s) and so on */
-	if (sending_sockets != NULL)
-	{
-		plugin_register_write ("network", network_write,
-				/* user_data = */ NULL);
-		plugin_register_notification ("network", network_notification,
-				/* user_data = */ NULL);
-	}
-
 	/* If no threads need to be started, return here. */
 	if ((listen_sockets_num == 0)
 			|| ((dispatch_thread_running != 0)
@@ -3514,43 +3662,10 @@ static int network_init (void)
 	return (0);
 } /* int network_init */
 
-/*
- * The flush option of the network plugin cannot flush individual identifiers.
- * All the values are added to a buffer and sent when the buffer is full, the
- * requested value may or may not be in there, it's not worth finding out. We
- * just send the buffer if `flush'  is called - if the requested value was in
- * there, good. If not, well, then there is nothing to flush.. -octo
- */
-static int network_flush (cdtime_t timeout,
-		__attribute__((unused)) const char *identifier,
-		__attribute__((unused)) user_data_t *user_data)
-{
-	pthread_mutex_lock (&send_buffer_lock);
-
-	if (send_buffer_fill > 0)
-	{
-		if (timeout > 0)
-		{
-			cdtime_t now = cdtime ();
-			if ((send_buffer_last_update + timeout) > now)
-			{
-				pthread_mutex_unlock (&send_buffer_lock);
-				return (0);
-			}
-		}
-		flush_buffer ();
-	}
-	pthread_mutex_unlock (&send_buffer_lock);
-
-	return (0);
-} /* int network_flush */
-
 void module_register (void)
 {
 	plugin_register_complex_config ("network", network_config);
 	plugin_register_init   ("network", network_init);
-	plugin_register_flush   ("network", network_flush,
-			/* user_data = */ NULL);
 } /* void module_register */
 
 /* vim: set fdm=marker : */
