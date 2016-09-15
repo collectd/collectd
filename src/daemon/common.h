@@ -147,10 +147,12 @@ int strsplit (char *string, char **fields, size_t size);
  *   is equivalent to the Perl built-in `join'.
  *
  * PARAMETERS
- *   `dst'         Buffer where the result is stored.
+ *   `dst'         Buffer where the result is stored. Can be NULL if you need to
+ *                 determine the required buffer size only.
  *   `dst_len'     Length of the destination buffer. No more than this many
  *                 bytes will be written to the memory pointed to by `dst',
- *                 including the trailing null-byte.
+ *                 including the trailing null-byte. Must be zero if dst is
+ *                 NULL.
  *   `fields'      Array of strings to be joined.
  *   `fields_num'  Number of elements in the `fields' array.
  *   `sep'         String to be inserted between any two elements of `fields'.
@@ -158,9 +160,10 @@ int strsplit (char *string, char **fields, size_t size);
  *                 Instead of passing "" (empty string) one can pass NULL.
  *
  * RETURN VALUE
- *   Returns the number of characters in `dst', NOT including the trailing
- *   null-byte. If an error occurred (empty array or `dst' too small) a value
- *   smaller than zero will be returned.
+ *   Returns the number of characters in the resulting string, excluding a
+ *   tailing null byte. If this value is greater than or equal to "dst_len", the
+ *   result in "dst" is truncated (but still null terminated). On error a
+ *   negative value is returned.
  */
 int strjoin (char *dst, size_t dst_len, char **fields, size_t fields_num, const char *sep);
 
