@@ -128,7 +128,6 @@ static int get_local_time (cdtime_t t, struct tm *t_tm, long *nsec) /* {{{ */
  Formatting functions
 ***********************************************************************/
 
-static const char utc_zone[] = "+00:00";
 static const char zulu_zone[] = "Z";
 
 /* format_zone reads time zone information from "extern long timezone", exported
@@ -186,22 +185,22 @@ int format_rfc3339 (char *buffer, size_t buffer_size, struct tm const *t_tm, lon
   return 0;
 } /* }}} int format_rfc3339 */
 
-int format_rfc3339_utc (char *buffer, size_t buffer_size, cdtime_t t, _Bool print_nano, char const *zone) /* {{{ */
+int format_rfc3339_utc (char *buffer, size_t buffer_size, cdtime_t t, _Bool print_nano) /* {{{ */
 {
   struct tm t_tm;
-  long nsec;
+  long nsec = 0;
   int status;
 
   if ((status = get_utc_time (t, &t_tm, &nsec)) != 0)
     return status;  /* The error should have already be reported. */
 
-  return format_rfc3339 (buffer, buffer_size, &t_tm, nsec, print_nano, zone);
+  return format_rfc3339 (buffer, buffer_size, &t_tm, nsec, print_nano, zulu_zone);
 } /* }}} int format_rfc3339_utc */
 
 int format_rfc3339_local (char *buffer, size_t buffer_size, cdtime_t t, _Bool print_nano) /* {{{ */
 {
   struct tm t_tm;
-  long nsec;
+  long nsec = 0;
   int status;
   char zone[7];  /* +00:00 */
 
@@ -223,7 +222,7 @@ int rfc3339 (char *buffer, size_t buffer_size, cdtime_t t) /* {{{ */
   if (buffer_size < RFC3339_SIZE)
     return ENOMEM;
 
-  return format_rfc3339_utc (buffer, buffer_size, t, 0, utc_zone);
+  return format_rfc3339_utc (buffer, buffer_size, t, 0);
 } /* }}} int rfc3339 */
 
 int rfc3339nano (char *buffer, size_t buffer_size, cdtime_t t) /* {{{ */
@@ -231,24 +230,8 @@ int rfc3339nano (char *buffer, size_t buffer_size, cdtime_t t) /* {{{ */
   if (buffer_size < RFC3339NANO_SIZE)
     return ENOMEM;
 
-  return format_rfc3339_utc (buffer, buffer_size, t, 1, utc_zone);
+  return format_rfc3339_utc (buffer, buffer_size, t, 1);
 } /* }}} int rfc3339nano */
-
-int rfc3339_zulu (char *buffer, size_t buffer_size, cdtime_t t) /* {{{ */
-{
-  if (buffer_size < RFC3339_ZULU_SIZE)
-    return ENOMEM;
-
-  return format_rfc3339_utc (buffer, buffer_size, t, 0, zulu_zone);
-} /* }}} int rfc3339_zulu */
-
-int rfc3339nano_zulu (char *buffer, size_t buffer_size, cdtime_t t) /* {{{ */
-{
-  if (buffer_size < RFC3339NANO_ZULU_SIZE)
-    return ENOMEM;
-
-  return format_rfc3339_utc (buffer, buffer_size, t, 1, zulu_zone);
-} /* }}} int rfc3339nano_zulu */
 
 int rfc3339_local (char *buffer, size_t buffer_size, cdtime_t t) /* {{{ */
 {
