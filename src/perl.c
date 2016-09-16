@@ -185,7 +185,7 @@ extern char **environ;
  * private variables
  */
 
-static int flush_callback_registered = 0;
+static _Bool register_legacy_flush = 1;
 
 /* if perl_threads != NULL perl_threads->head must
  * point to the "base" thread */
@@ -1699,8 +1699,8 @@ static void _plugin_register_generic_userdata (pTHX, int type, const char *desc)
 		ret = plugin_register_notification(pluginname, perl_notify, &userdata);
 	}
 	else if (PLUGIN_FLUSH == type) {
-		if (0 == flush_callback_registered) { /* For collectd-5.6 only, #1731 */
-			flush_callback_registered++;
+		if (1 == register_legacy_flush) { /* For collectd-5.7 only, #1731 */
+			register_legacy_flush = 0;
 			ret = plugin_register_flush("perl", perl_flush, /* user_data = */ NULL);
 		}
 
@@ -2806,8 +2806,8 @@ static int perl_config (oconfig_item_t *ci)
 			current_status = perl_config_includedir (aTHX_ c);
 		else if (0 == strcasecmp (c->key, "Plugin"))
 			current_status = perl_config_plugin (aTHX_ c);
-		else if (0 == strcasecmp (c->key, "DisableOldFlush"))
-			flush_callback_registered++;
+		else if (0 == strcasecmp (c->key, "RegisterLegacyFlush"))
+			cf_util_get_boolean (c, &register_legacy_flush);
 		else
 		{
 			log_warn ("Ignoring unknown config key \"%s\".", c->key);
