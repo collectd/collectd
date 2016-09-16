@@ -393,8 +393,9 @@ static int ts_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
       DEBUG ("target_set: ts_invoke: setting metadata value for key `%s': "
           "`%s'.", key, temp);
 
-      status = meta_data_add_string (new_meta, key, temp);
+      sfree (string);
 
+      status = meta_data_add_string (new_meta, key, temp);
       if (status)
       {
         ERROR ("Target `set': Unable to set metadata value `%s'.", key);
