@@ -133,16 +133,15 @@ static const char zulu_zone[] = "Z";
 /* format_zone reads time zone information from "extern long timezone", exported
  * by <time.h>, and formats it according to RFC 3339. This differs from
  * strftime()'s "%z" format by including a colon between hour and minute. */
-static int format_zone (char *buffer, size_t buffer_size) /* {{{ */
+static int format_zone (char *buffer, size_t buffer_size, struct tm const *tm) /* {{{ */
 {
-  struct tm t_tm = { 0 };  /* The value doesn't matter. */
   char tmp[7];
   size_t sz;
 
   if ((buffer == NULL) || (buffer_size < 7))
     return EINVAL;
 
-  sz = strftime (tmp, sizeof (tmp), "%z", &t_tm);
+  sz = strftime (tmp, sizeof (tmp), "%z", tm);
   if (sz == 0)
     return ENOMEM;
   if (sz != 5)
@@ -207,7 +206,7 @@ int format_rfc3339_local (char *buffer, size_t buffer_size, cdtime_t t, _Bool pr
   if ((status = get_local_time (t, &t_tm, &nsec)) != 0)
     return status;  /* The error should have already be reported. */
 
-  if ((status = format_zone (zone, sizeof (zone))) != 0)
+  if ((status = format_zone (zone, sizeof (zone), &t_tm)) != 0)
     return status;
 
   return format_rfc3339 (buffer, buffer_size, &t_tm, nsec, print_nano, zone);
