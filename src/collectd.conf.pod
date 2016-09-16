@@ -5455,9 +5455,8 @@ refer to them from.
 
 =head2 Plugin C<ovs_link>
 
-
-The I<ovs_link> plugin monitors the link status of OVS connected interfaces and
-dispatches the values through collectd notification mechanism whenever the link
+The I<ovs_link> plugin monitors the link status of OVS connected interfaces,
+dispatches the values to collectd and send the notification whenever the link
 state change occurs. This plugin uses OVSDB to get a link state change
 notification.
 
@@ -5466,6 +5465,7 @@ B<Synopsis:>
  <Plugin "ovs_link">
    OvsDbServerUrl "tcp:127.0.0.1:6640"
    Interfaces "br0" "veth0"
+   SendNotification false
  </Plugin>
 
 The plugin provides the following configuration options:
@@ -5503,7 +5503,18 @@ or it's empty then all OVS connected interfaces on all bridges are monitored.
 
 Default: empty (all interfaces on all bridges are monitored)
 
+=item B<SendNotification> I<true|false>
+
+If set to true, OVS interface link status notification is sent to collectd.
+Default value is false.
+
 =back
+
+B<Note:> By default, the global interval setting is used within which to
+retrieve the OVS link status. To configure a plugin-specific interval, please
+use B<Interval> option of the OVS B<LoadPlugin> block settings. For milliseconds
+simple divide the time by 1000 for example if the desired interval is 50ms, set
+interval to 0.05.
 
 =head2 Plugin C<perl>
 

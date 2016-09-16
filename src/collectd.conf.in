@@ -995,6 +995,7 @@
 #<Plugin ovs_link>
 #  OvsDbServerUrl "tcp:127.0.0.1:6640"
 #  Interfaces "br0" "veth0"
+#  SendNotification false
 #</Plugin>
 
 #<Plugin perl>

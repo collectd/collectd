@@ -30,46 +30,81 @@
 
 #define OVS_LINK_PLUGIN "ovs_link"
 #define OVS_LINK_DEFAULT_OVS_DB_SERVER_URL "tcp:127.0.0.1:6640"
-#define CONFIG_LOCK for (int __i = config_lock(); __i != 0 ; \
-                         __i = config_unlock())
+#define OVS_LINK_CTX_LOCK for (int __i = ovs_link_ctx_lock(); __i != 0 ; \
+                               __i = ovs_link_ctx_unlock())
+#define OVS_LINK_CONFIG_ERROR(option) do { \
+  ERROR(OVS_LINK_PLUGIN ": read '%s' config option failed", option); \
+  goto failure; } while (0)
 
-struct interface_s {
+/* Link status type */
+enum ovs_link_link_status_e {DOWN, UP, UNKNOWN};
+typedef enum ovs_link_link_status_e ovs_link_link_status_t;
+
+/* Interface info */
+struct ovs_link_interface_info_s {
   char *name;                   /* interface name */
-  struct interface_s *next;     /* next interface name */
+  ovs_link_link_status_t link_status;   /* link status */
+  struct ovs_link_interface_info_s *next;       /* next interface info */
 };
-typedef struct interface_s interface_t;
+typedef struct ovs_link_interface_info_s ovs_link_interface_info_t;
 
+/* OVS link configuration data */
 struct ovs_link_config_s {
-  pthread_mutex_t mutex;        /* mutex to lock the config structure */
+  _Bool send_notification;      /* sent notification to collectd? */
   char *ovs_db_server_url;      /* OVS DB server URL */
-  ovs_db_t *ovs_db;             /* pointer to OVS DB instance */
-  interface_t *ifaces;          /* interface names */
 };
 typedef struct ovs_link_config_s ovs_link_config_t;
+
+/* OVS link context type */
+struct ovs_link_ctx_s {
+  pthread_mutex_t mutex;        /* mutex to lock the context */
+  ovs_db_t *ovs_db;             /* pointer to OVS DB instance */
+  ovs_link_config_t config;     /* plugin config */
+  ovs_link_interface_info_t *ifaces;    /* interface info */
+};
+typedef struct ovs_link_ctx_s ovs_link_ctx_t;
 
 /*
  * Private variables
  */
-ovs_link_config_t config = {PTHREAD_MUTEX_INITIALIZER, NULL, NULL, NULL};
+static ovs_link_ctx_t ovs_link_ctx = {
+  .mutex = PTHREAD_MUTEX_INITIALIZER,
+  .config = {
+             .send_notification = 0,    /* do not send notification */
+             .ovs_db_server_url = NULL},        /* use default OVS DB URL */
+  .ovs_db = NULL,
+  .ifaces = NULL};
 
-/* This function is used only by "CONFIG_LOCK" defined above.
- * It always returns 1 when the config is locked.
+/* This function is used only by "OVS_LINK_CTX_LOCK" define (see above).
+ * It always returns 1 when context is locked.
  */
 static inline int
-config_lock()
+ovs_link_ctx_lock()
 {
-  pthread_mutex_lock(&config.mutex);
+  pthread_mutex_lock(&ovs_link_ctx.mutex);
   return (1);
 }
 
-/* This function is used only by "CONFIG_LOCK" defined above.
- * It always returns 0 when config is unlocked.
+/* This function is used only by "OVS_LINK_CTX_LOCK" define (see above).
+ * It always returns 0 when context is unlocked.
  */
 static inline int
-config_unlock()
+ovs_link_ctx_unlock()
 {
-  pthread_mutex_unlock(&config.mutex);
+  pthread_mutex_unlock(&ovs_link_ctx.mutex);
   return (0);
+}
+
+/* Update link status in OVS link context (cache) */
+static void
+ovs_link_link_status_update(const char *name, ovs_link_link_status_t status)
+{
+  OVS_LINK_CTX_LOCK {
+    for (ovs_link_interface_info_t *iface = ovs_link_ctx.ifaces; iface;
+         iface = iface->next)
+      if (strcmp(iface->name, name) == 0)
+        iface->link_status = status;
+  }
 }
 
 /* Check if given interface name exists in configuration file. It
@@ -80,9 +115,10 @@ static int
 ovs_link_config_iface_exists(const char *ifname)
 {
   int rc = 0;
-  CONFIG_LOCK {
-    if (!(rc = (config.ifaces == NULL))) {
-      for (interface_t *iface = config.ifaces; iface; iface = iface->next)
+  OVS_LINK_CTX_LOCK {
+    if (!(rc = (ovs_link_ctx.ifaces == NULL))) {
+      for (ovs_link_interface_info_t *iface = ovs_link_ctx.ifaces; iface;
+           iface = iface->next)
         if (rc = (strcmp(ifname, iface->name) == 0))
           break;
     }
@@ -94,12 +130,12 @@ ovs_link_config_iface_exists(const char *ifname)
 static void
 ovs_link_config_free()
 {
-  interface_t *del_iface = NULL;
-  CONFIG_LOCK {
-    sfree(config.ovs_db_server_url);
-    while (config.ifaces) {
-      del_iface = config.ifaces;
-      config.ifaces = config.ifaces->next;
+  ovs_link_interface_info_t *del_iface = NULL;
+  OVS_LINK_CTX_LOCK {
+    sfree(ovs_link_ctx.config.ovs_db_server_url);
+    while (ovs_link_ctx.ifaces) {
+      del_iface = ovs_link_ctx.ifaces;
+      ovs_link_ctx.ifaces = ovs_link_ctx.ifaces->next;
       free(del_iface->name);
       free(del_iface);
     }
@@ -112,18 +148,19 @@ ovs_link_config_free()
 static int
 ovs_link_plugin_config(oconfig_item_t *ci)
 {
-  interface_t *new_iface;
+  ovs_link_interface_info_t *new_iface;
   char *if_name;
-  char *ovs_db_url;
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
-    if (strcasecmp("OvsDbServerUrl", child->key) == 0) {
-      if (cf_util_get_string(child, &ovs_db_url) < 0) {
-        ERROR(OVS_LINK_PLUGIN ": parse '%s' option failed", child->key);
-        goto failure;
-      } else
-        config.ovs_db_server_url = ovs_db_url;
+    if (strcasecmp("SendNotification", child->key) == 0) {
+      if (cf_util_get_boolean(child,
+                              &ovs_link_ctx.config.send_notification) < 0)
+        OVS_LINK_CONFIG_ERROR(child->key);
+    } else if (strcasecmp("OvsDbServerUrl", child->key) == 0) {
+      if (cf_util_get_string(child,
+                             &ovs_link_ctx.config.ovs_db_server_url) < 0)
+        OVS_LINK_CONFIG_ERROR(child->key);
     } else if (strcasecmp("Interfaces", child->key) == 0) {
       for (int j = 0; j < child->values_num; j++) {
         /* check value type */
@@ -132,23 +169,20 @@ ovs_link_plugin_config(oconfig_item_t *ci)
                 ": given interface name is not a string [idx=%d]", j);
           goto failure;
         }
-
         /* get value */
         if ((if_name = strdup(child->values[j].value.string)) == NULL) {
           ERROR(OVS_LINK_PLUGIN " strdup() copy interface name fail");
           goto failure;
         }
-
         if ((new_iface = malloc(sizeof(*new_iface))) == NULL) {
           ERROR(OVS_LINK_PLUGIN ": malloc () copy interface name fail");
           goto failure;
         } else {
           /* store interface name */
           new_iface->name = if_name;
-          new_iface->next = config.ifaces;
-          CONFIG_LOCK {
-            config.ifaces = new_iface;
-          }
+          new_iface->link_status = UNKNOWN;
+          new_iface->next = ovs_link_ctx.ifaces;
+          ovs_link_ctx.ifaces = new_iface;
           DEBUG(OVS_LINK_PLUGIN ": found monitored interface \"%s\"",
                 if_name);
         }
@@ -167,25 +201,57 @@ failure:
 
 /* Dispatch OVS interface link status event to collectd */
 static int
-ovs_link_dispatch_notification(const char *link_name, const char *link_state)
+ovs_link_dispatch_notification(const char *link_name,
+                               ovs_link_link_status_t link_status)
 {
-  notification_t n = {NOTIF_FAILURE, time(NULL), "", "", OVS_LINK_PLUGIN,
+  const char *msg_link_status = NULL;
+  notification_t n = {NOTIF_FAILURE, cdtime(), "", "", OVS_LINK_PLUGIN,
                       "", "", "", NULL};
 
-  /* fill the notification data */
-  if (link_state != NULL)
-    n.severity = ((strcmp(link_state, "up") == 0) ?
-                  NOTIF_OKAY : NOTIF_WARNING);
-  else
-    link_state = "UNKNOWN";
+  /* convert link status to message string */
+  switch (link_status) {
+  case UP:
+    msg_link_status = "UP";
+    n.severity = NOTIF_OKAY;
+    break;
+  case DOWN:
+    msg_link_status = "DOWN";
+    n.severity = NOTIF_WARNING;
+    break;
+  default:
+    msg_link_status = "UNKNOWN";;
+    break;
+  }
 
-  sstrncpy(n.host, hostname_g, sizeof(n.host));
+  /* fill the notification data */
   ssnprintf(n.message, sizeof(n.message),
             "link state of \"%s\" interface has been changed to \"%s\"",
-            link_name, link_state);
-
-  /* send the notification */
+            link_name, msg_link_status);
+  sstrncpy(n.host, hostname_g, sizeof(n.host));
+  sstrncpy(n.plugin_instance, link_name, sizeof(n.plugin_instance));
+  sstrncpy(n.type, "gauge", sizeof(n.type));
+  sstrncpy(n.type_instance, "link_status", sizeof(n.type_instance));
   return plugin_dispatch_notification(&n);
+}
+
+/* Dispatch OVS interface link status value to collectd */
+static void
+ovs_link_link_status_submit(const char *link_name,
+                            ovs_link_link_status_t link_status)
+{
+  value_t values[1];
+  value_list_t vl = VALUE_LIST_INIT;
+
+  values[0].gauge = (gauge_t) link_status;
+  vl.time = cdtime();
+  vl.values = values;
+  vl.values_len = sizeof(values) / sizeof(values[0]);
+  sstrncpy(vl.host, hostname_g, sizeof(vl.host));
+  sstrncpy(vl.plugin, OVS_LINK_PLUGIN, sizeof(vl.plugin));
+  sstrncpy(vl.plugin_instance, link_name, sizeof(vl.plugin_instance));
+  sstrncpy(vl.type, "gauge", sizeof(vl.type));
+  sstrncpy(vl.type_instance, "link_status", sizeof(vl.type_instance));
+  plugin_dispatch_values(&vl);
 }
 
 /* Process OVS DB update table event. It handles link status update event(s)
@@ -201,6 +267,8 @@ ovs_link_table_update_cb(yajl_val jupdates)
   yajl_val jlink_name = NULL;
   yajl_val jlink_state = NULL;
   const char *link_name = NULL;
+  const char *link_state = NULL;
+  ovs_link_link_status_t link_status = UNKNOWN;
 
   /* JSON "Interface" table update example:
    * ---------------------------------
@@ -248,9 +316,19 @@ ovs_link_table_update_cb(yajl_val jupdates)
     if (jlink_name && jlink_state) {
       link_name = YAJL_GET_STRING(jlink_name);
       if (link_name && ovs_link_config_iface_exists(link_name)) {
-        /* dispatch notification */
-        ovs_link_dispatch_notification(link_name,
-                                       YAJL_GET_STRING(jlink_state));
+        /* convert OVS table link state to link status */
+        if (YAJL_IS_STRING(jlink_state)) {
+          link_state = YAJL_GET_STRING(jlink_state);
+          if (strcmp(link_state, "up") == 0)
+            link_status = UP;
+          else if (strcmp(link_state, "down") == 0)
+            link_status = DOWN;
+        }
+        /* update link status in cache */
+        ovs_link_link_status_update(link_name, link_status);
+        if (ovs_link_ctx.config.send_notification)
+          /* dispatch notification */
+          ovs_link_dispatch_notification(link_name, link_status);
       }
     }
   }
@@ -269,7 +347,7 @@ ovs_link_table_result_cb(yajl_val jresult, yajl_val jerror)
   ovs_link_table_update_cb(jresult);
 }
 
-/* Setup OVS DB table callback. It subscribes to 'Interface' tables
+/* Setup OVS DB table callback. It subscribes to OVS DB 'Interface' table
  * to receive link status events.
  */
 static void
@@ -293,15 +371,18 @@ ovs_link_initialize(ovs_db_t *pdb)
   DEBUG(OVS_LINK_PLUGIN ": OVS DB has been initialized");
 }
 
-/* Set default config values (update config) if some of them aren't
- * specified in configuration file
- */
-static inline int
-ovs_link_config_set_default()
+/* Read OVS link status plugin callback */
+static int
+ovs_link_plugin_read(user_data_t *ud)
 {
-  if (!config.ovs_db_server_url)
-    config.ovs_db_server_url = strdup(OVS_LINK_DEFAULT_OVS_DB_SERVER_URL);
-  return (config.ovs_db_server_url == NULL);
+  (void)ud;                     /* unused argument */
+  OVS_LINK_CTX_LOCK {
+    for (ovs_link_interface_info_t *iface = ovs_link_ctx.ifaces; iface;
+         iface = iface->next)
+      /* submit link status value */
+      ovs_link_link_status_submit(iface->name, iface->link_status);
+  }
+  return (0);
 }
 
 /* Initialize OVS plugin */
@@ -311,22 +392,28 @@ ovs_link_plugin_init(void)
   ovs_db_t *ovs_db = NULL;
   ovs_db_callback_t cb = {.init_cb = ovs_link_initialize};
 
-  if (ovs_link_config_set_default()) {
-    ERROR(OVS_LINK_PLUGIN ": fail to make configuration");
-    ovs_link_config_free();
-    return (-1);
-  }
+  /* set default OVS DB url */
+  if (ovs_link_ctx.config.ovs_db_server_url == NULL)
+    if ((ovs_link_ctx.config.ovs_db_server_url =
+         strdup(OVS_LINK_DEFAULT_OVS_DB_SERVER_URL)) == NULL) {
+      ERROR(OVS_LINK_PLUGIN ": fail to set default OVS DB URL");
+      ovs_link_config_free();
+      return (-1);
+    }
+  DEBUG(OVS_LINK_PLUGIN ": OVS DB url = %s",
+        ovs_link_ctx.config.ovs_db_server_url);
 
   /* initialize OVS DB */
-  if ((ovs_db = ovs_db_init(config.ovs_db_server_url, &cb)) == NULL) {
+  ovs_db = ovs_db_init(ovs_link_ctx.config.ovs_db_server_url, &cb);
+  if (ovs_db == NULL) {
     ERROR(OVS_LINK_PLUGIN ": fail to connect to OVS DB server");
     ovs_link_config_free();
     return (-1);
   }
 
-  /* store OVSDB handler */
-  CONFIG_LOCK {
-    config.ovs_db = ovs_db;
+  /* store OVS DB handler */
+  OVS_LINK_CTX_LOCK {
+    ovs_link_ctx.ovs_db = ovs_db;
   }
 
   DEBUG(OVS_LINK_PLUGIN ": plugin has been initialized");
@@ -341,7 +428,7 @@ ovs_link_plugin_shutdown(void)
   ovs_link_config_free();
 
   /* destroy OVS DB */
-  if (ovs_db_destroy(config.ovs_db))
+  if (ovs_db_destroy(ovs_link_ctx.ovs_db))
     ERROR(OVS_LINK_PLUGIN ": OVSDB object destroy failed");
 
   DEBUG(OVS_LINK_PLUGIN ": plugin has been destroyed");
@@ -354,5 +441,7 @@ module_register(void)
 {
   plugin_register_complex_config(OVS_LINK_PLUGIN, ovs_link_plugin_config);
   plugin_register_init(OVS_LINK_PLUGIN, ovs_link_plugin_init);
+  plugin_register_complex_read(NULL, OVS_LINK_PLUGIN, ovs_link_plugin_read,
+                               0, NULL);
   plugin_register_shutdown(OVS_LINK_PLUGIN, ovs_link_plugin_shutdown);
 }

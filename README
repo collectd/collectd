@@ -289,9 +289,10 @@ Features
       Query data from an Oracle database.
 
     - ovs_link
-      The plugin monitors the link status of OVS connected interfaces and
-      dispatches the values through collectd notification mechanism. It
-      requires YAJL library to be installed.
+      The plugin monitors the link status of OVS connected interfaces,
+      dispatches the values to collectd and send the notification whenever
+      the link state change occurs in OVS DB. It requires YAJL library to be
+      installed.
       Detailed instructions for installing and setting up Open vSwitch, see
       OVS documentation.
       <http://openvswitch.org/support/dist-docs/INSTALL.md.html>
