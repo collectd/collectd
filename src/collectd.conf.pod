@@ -2863,6 +2863,32 @@ TCP-Port to connect to. Defaults to B<7634>.
 
 =back
 
+=head2 Plugin C<hugepages>
+
+To collect B<hugepages> information, collectd reads directories
+"/sys/devices/system/node/*/hugepages" and
+"/sys/kernel/mm/hugepages".
+Reading of these directories can be disabled by the following
+options (default is enabled).
+
+=over 4
+
+=item B<ReportPerNodeHP> I<true>|I<false>
+
+If enabled, information will be collected from the hugepage
+counters in "/sys/devices/system/node/*/hugepages".
+This is used to check the per-node hugepage statistics on
+a NUMA system.
+
+=item B<ReportRootHP> I<true>|I<false>
+
+If enabled, information will be collected from the hugepage
+counters in "/sys/kernel/mm/hugepages".
+This can be used on both NUMA and non-NUMA systems to check
+the overall hugepage statistics.
+
+=back
+
 =head2 Plugin C<interface>
 
 =over 4

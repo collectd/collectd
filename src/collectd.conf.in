@@ -126,6 +126,7 @@
 #@BUILD_PLUGIN_GPS_TRUE@LoadPlugin gps
 #@BUILD_PLUGIN_GRPC_TRUE@LoadPlugin grpc
 #@BUILD_PLUGIN_HDDTEMP_TRUE@LoadPlugin hddtemp
+#@BUILD_PLUGIN_HUGEPAGES_TRUE@LoadPlugin hugepages
 @BUILD_PLUGIN_INTERFACE_TRUE@@BUILD_PLUGIN_INTERFACE_TRUE@LoadPlugin interface
 #@BUILD_PLUGIN_IPC_TRUE@LoadPlugin ipc
 #@BUILD_PLUGIN_IPMI_TRUE@LoadPlugin ipmi
@@ -597,6 +598,11 @@
 #<Plugin hddtemp>
 #  Host "127.0.0.1"
 #  Port "7634"
+#</Plugin>
+
+#<Plugin hugepages>
+#    ReportPerNodeHP "true"
+#    ReportRootHP "true"
 #</Plugin>
 
 #<Plugin interface>

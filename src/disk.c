@@ -128,7 +128,7 @@ static int numdisk = 0;
 /* #endif HAVE_LIBKSTAT */
 
 #elif defined(HAVE_LIBSTATGRAB)
-/* #endif HAVE_LIBKSTATGRAB */
+/* #endif HAVE_LIBSTATGRAB */
 
 #elif HAVE_PERFSTAT
 static perfstat_disk_t * stat_disk;

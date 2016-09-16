@@ -452,14 +452,14 @@ static int cdbi_init (void) /* {{{ */
   if (queries_num == 0)
   {
     ERROR ("dbi plugin: No <Query> blocks have been found. Without them, "
-        "this plugin can't do anything useful, so we will returns an error.");
+        "this plugin can't do anything useful, so we will return an error.");
     return (-1);
   }
 
   if (databases_num == 0)
   {
     ERROR ("dbi plugin: No <Database> blocks have been found. Without them, "
-        "this plugin can't do anything useful, so we will returns an error.");
+        "this plugin can't do anything useful, so we will return an error.");
     return (-1);
   }
 
