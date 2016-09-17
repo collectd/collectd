@@ -172,7 +172,6 @@ static void ethstat_submit_value (const char *device,
 {
   static c_complain_t complain_no_map = C_COMPLAIN_INIT_STATIC;
 
-  value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
   value_map_t *map = NULL;
 
@@ -189,8 +188,7 @@ static void ethstat_submit_value (const char *device,
     return;
   }
 
-  values[0].derive = value;
-  vl.values = values;
+  vl.values = &(value_t) { .derive = value };
   vl.values_len = 1;
 
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));

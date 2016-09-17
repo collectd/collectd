@@ -29,6 +29,7 @@
 #define GRAPHITE_STORE_RATES        0x01
 #define GRAPHITE_SEPARATE_INSTANCES 0x02
 #define GRAPHITE_ALWAYS_APPEND_DS   0x04
+#define GRAPHITE_DROP_DUPE_FIELDS   0x08
 
 int format_graphite (char *buffer,
     size_t buffer_size, const data_set_t *ds,

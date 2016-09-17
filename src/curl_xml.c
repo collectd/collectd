@@ -1026,13 +1026,12 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
 
     cb_name = ssnprintf_alloc ("curl_xml-%s-%s", db->instance, db->url);
 
-    user_data_t ud = {
-      .data = db,
-      .free_func = cx_free
-    };
-
     plugin_register_complex_read (/* group = */ "curl_xml", cb_name, cx_read,
-                                  /* interval = */ 0, &ud);
+        /* interval = */ 0,
+        &(user_data_t) {
+          .data = db,
+          .free_func = cx_free,
+        });
     sfree (cb_name);
   }
   else

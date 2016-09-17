@@ -339,11 +339,10 @@ static int ctail_init (void)
   {
     ssnprintf(str, sizeof(str), "tail-%zu", i);
 
-    user_data_t ud = {
-     .data = tail_match_list[i]
-    };
-
-    plugin_register_complex_read (NULL, str, ctail_read, tail_match_list_intervals[i], &ud);
+    plugin_register_complex_read (NULL, str, ctail_read, tail_match_list_intervals[i],
+        &(user_data_t) {
+          .data = tail_match_list[i],
+        });
   }
 
   return (0);

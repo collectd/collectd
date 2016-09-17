@@ -292,17 +292,15 @@ static int rc_read (void)
   int status;
   rrdc_stats_t *head;
 
-  value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
+  vl.values = &(value_t) { .gauge = NAN };
+  vl.values_len = 1;
 
   if (daemon_address == NULL)
     return (-1);
 
   if (!config_collect_stats)
     return (-1);
-
-  vl.values = values;
-  vl.values_len = 1;
 
   if ((strncmp ("unix:", daemon_address, strlen ("unix:")) == 0)
       || (daemon_address[0] == '/'))
@@ -330,9 +328,9 @@ static int rc_read (void)
   for (rrdc_stats_t *ptr = head; ptr != NULL; ptr = ptr->next)
   {
     if (ptr->type == RRDC_STATS_TYPE_GAUGE)
-      values[0].gauge = (gauge_t) ptr->value.gauge;
+      vl.values[0].gauge = (gauge_t) ptr->value.gauge;
     else if (ptr->type == RRDC_STATS_TYPE_COUNTER)
-      values[0].counter = (counter_t) ptr->value.counter;
+      vl.values[0].counter = (counter_t) ptr->value.counter;
     else
       continue;
 

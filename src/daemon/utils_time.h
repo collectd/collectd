@@ -82,15 +82,24 @@ extern cdtime_t cdtime_mock;
 
 cdtime_t cdtime (void);
 
-#define RFC3339_SIZE     26
-#define RFC3339NANO_SIZE 36
+#define RFC3339_SIZE     26  /* 2006-01-02T15:04:05+00:00 */
+#define RFC3339NANO_SIZE 36  /* 2006-01-02T15:04:05.999999999+00:00 */
 
-/* rfc3339 formats a cdtime_t time in RFC 3339 format with second precision. */
+/* rfc3339 formats a cdtime_t time as UTC in RFC 3339 zulu format with second
+ * precision, e.g., "2006-01-02T15:04:05Z". */
 int rfc3339 (char *buffer, size_t buffer_size, cdtime_t t);
 
-/* rfc3339nano formats a cdtime_t time in RFC 3339 format with nanosecond
- * precision. */
+/* rfc3339nano formats a cdtime_t as UTC time in RFC 3339 zulu format with
+ * nanosecond precision, e.g., "2006-01-02T15:04:05.999999999Z". */
 int rfc3339nano (char *buffer, size_t buffer_size, cdtime_t t);
+
+/* rfc3339 formats a cdtime_t time as local in RFC 3339 format with second
+ * precision, e.g., "2006-01-02T15:04:05+00:00". */
+int rfc3339_local (char *buffer, size_t buffer_size, cdtime_t t);
+
+/* rfc3339nano formats a cdtime_t time as local in RFC 3339 format with
+ * nanosecond precision, e.g., "2006-01-02T15:04:05.999999999+00:00". */
+int rfc3339nano_local (char *buffer, size_t buffer_size, cdtime_t t);
 
 #endif /* UTILS_TIME_H */
 /* vim: set sw=2 sts=2 et : */

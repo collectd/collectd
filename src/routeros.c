@@ -52,11 +52,11 @@ typedef struct cr_data_s cr_data_t;
 static void cr_submit_io (cr_data_t *rd, const char *type, /* {{{ */
     const char *type_instance, derive_t rx, derive_t tx)
 {
-	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
-
-	values[0].derive = rx;
-	values[1].derive = tx;
+	value_t values[] = {
+	  { .derive = rx },
+	  { .derive = tx },
+	};
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
@@ -325,7 +325,6 @@ static int cr_config_router (oconfig_item_t *ci) /* {{{ */
 {
   cr_data_t *router_data;
   char read_name[128];
-  user_data_t user_data;
   int status;
 
   router_data = calloc (1, sizeof (*router_data));
@@ -409,11 +408,12 @@ static int cr_config_router (oconfig_item_t *ci) /* {{{ */
   }
 
   ssnprintf (read_name, sizeof (read_name), "routeros/%s", router_data->node);
-  user_data.data = router_data;
-  user_data.free_func = (void *) cr_free_data;
   if (status == 0)
     status = plugin_register_complex_read (/* group = */ NULL, read_name,
-	cr_read, /* interval = */ 0, &user_data);
+        cr_read, /* interval = */ 0, &(user_data_t) {
+          .data = router_data,
+          .free_func = (void *) cr_free_data,
+        });
 
   if (status != 0)
     cr_free_data (router_data);

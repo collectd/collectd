@@ -383,12 +383,11 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
     ssnprintf(callback_name, sizeof(callback_name),
               "write_kafka/%s", tctx->topic_name);
 
-    user_data_t ud = {
-        .data = tctx,
-        .free_func = kafka_topic_context_free
-    };
-
-    status = plugin_register_write (callback_name, kafka_write, &ud);
+    status = plugin_register_write (callback_name, kafka_write,
+            &(user_data_t) {
+                .data = tctx,
+                .free_func = kafka_topic_context_free,
+            });
     if (status != 0) {
         WARNING ("write_kafka plugin: plugin_register_write (\"%s\") "
                 "failed with status %i.",

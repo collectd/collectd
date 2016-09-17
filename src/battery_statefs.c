@@ -51,18 +51,12 @@ SOFTWARE.
 #include <stdio.h>
 
 #define STATEFS_ROOT "/run/state/namespaces/Battery/"
-#define BUFFER_SIZE 512
-
-static int submitted_this_run = 0;
 
 static void battery_submit(const char *type, gauge_t value,
                            const char *type_instance) {
-  value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  values[0].gauge = value;
-
-  vl.values = values;
+  vl.values = &(value_t) { .gauge = value };
   vl.values_len = 1;
   sstrncpy(vl.host, hostname_g, sizeof(vl.host));
   sstrncpy(vl.plugin, "battery", sizeof(vl.plugin));
@@ -72,67 +66,52 @@ static void battery_submit(const char *type, gauge_t value,
   if (type_instance != NULL)
     sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
   plugin_dispatch_values(&vl);
-
-  submitted_this_run++;
-}
-
-static _Bool getvalue(const char *fname, gauge_t *value) {
-  FILE *fh;
-  char buffer[BUFFER_SIZE];
-
-  if ((fh = fopen(fname, "r")) == NULL) {
-    WARNING("battery plugin: cannot open StateFS file %s", fname);
-    return (0);
-  }
-
-  if (fgets(buffer, STATIC_ARRAY_SIZE(buffer), fh) == NULL) {
-    fclose(fh);
-    return (0); // empty file
-  }
-
-  (*value) = atof(buffer);
-
-  fclose(fh);
-
-  return (1);
 }
 
 /* cannot be static, is referred to from battery.c */
 int battery_read_statefs(void) {
-  gauge_t value = NAN;
+  value_t v;
+  int success = 0;
 
-  submitted_this_run = 0;
+  if (parse_value_file(STATEFS_ROOT "ChargePercentage", &v, DS_TYPE_GAUGE) == 0) {
+    battery_submit("charge", v.gauge, NULL);
+    success++;
+  } else if (parse_value_file(STATEFS_ROOT "Capacity", &v, DS_TYPE_GAUGE) == 0) {
+    // Use capacity as a charge estimate if ChargePercentage is not available
+    battery_submit("charge", v.gauge, NULL);
+    success++;
+  } else {
+    WARNING("battery plugin: Neither \""STATEFS_ROOT"ChargePercentage\" "
+            "nor \""STATEFS_ROOT"Capacity\" could be read.");
+  }
 
-  if (getvalue(STATEFS_ROOT "ChargePercentage", &value))
-    battery_submit("charge", value, NULL);
-  // Use capacity as a charge estimate if ChargePercentage is not available
-  else if (getvalue(STATEFS_ROOT "Capacity", &value))
-    battery_submit("charge", value, NULL);
+  struct {
+    char *path;
+    char *type;
+    char *type_instance;
+    gauge_t factor;
+  } metrics[] = {
+    {STATEFS_ROOT "Current",       "current",     NULL,  1e-6}, // from uA to A
+    {STATEFS_ROOT "Energy",        "energy_wh",   NULL,  1e-6}, // from uWh to Wh
+    {STATEFS_ROOT "Power",         "power",       NULL,  1e-6}, // from uW to W
+    {STATEFS_ROOT "Temperature",   "temperature", NULL,   0.1}, // from 10xC to C
+    {STATEFS_ROOT "TimeUntilFull", "duration",    "full", 1.0},
+    {STATEFS_ROOT "TimeUntilLow",  "duration",    "low",  1.0},
+    {STATEFS_ROOT "Voltage",       "voltage",     NULL,  1e-6}, // from uV to V
+  };
 
-  if (getvalue(STATEFS_ROOT "Current", &value))
-    battery_submit("current", value * 1e-6, NULL); // from uA to A
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE(metrics); i++) {
+    if (parse_value_file(metrics[i].path, &v, DS_TYPE_GAUGE) != 0) {
+      WARNING("battery plugin: Reading \"%s\" failed.", metrics[i].path);
+      continue;
+    }
 
-  if (getvalue(STATEFS_ROOT "Energy", &value))
-    battery_submit("energy_wh", value * 1e-6, NULL); // from uWh to Wh
+    battery_submit(metrics[i].type, v.gauge * metrics[i].factor, metrics[i].type_instance);
+    success++;
+  }
 
-  if (getvalue(STATEFS_ROOT "Power", &value))
-    battery_submit("power", value * 1e-6, NULL); // from uW to W
-
-  if (getvalue(STATEFS_ROOT "Temperature", &value))
-    battery_submit("temperature", value * 0.1, NULL); // from 10xC to C
-
-  if (getvalue(STATEFS_ROOT "TimeUntilFull", &value))
-    battery_submit("duration", value, "full");
-
-  if (getvalue(STATEFS_ROOT "TimeUntilLow", &value))
-    battery_submit("duration", value, "low");
-
-  if (getvalue(STATEFS_ROOT "Voltage", &value))
-    battery_submit("voltage", value * 1e-6, NULL); // from uV to V
-
-  if (submitted_this_run == 0) {
-    ERROR("battery plugin: statefs backend: none of the statistics are "
-          "available");
+  if (success == 0) {
+    ERROR("battery plugin: statefs backend: none of the statistics are available");
     return (-1);
   }
 

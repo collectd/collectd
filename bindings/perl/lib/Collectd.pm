@@ -172,7 +172,6 @@ sub plugin_call_all {
 	my $type = shift;
 
 	my %plugins;
-	my $interval;
 
 	our $cb_name = undef;
 
@@ -181,13 +180,13 @@ sub plugin_call_all {
 	}
 
 	if (TYPE_LOG != $type) {
-		DEBUG ("Collectd::plugin_call: type = \"$type\" ("
+		DEBUG ("Collectd::plugin_call_all: type = \"$type\" ("
 			. $types{$type} . "), args=\""
 			. join(', ', map { defined($_) ? $_ : '<undef>' } @_) . "\"");
 	}
 
 	if (! defined $plugins[$type]) {
-		ERROR ("Collectd::plugin_call: unknown type \"$type\"");
+		ERROR ("Collectd::plugin_call_all: unknown type \"$type\"");
 		return;
 	}
 
@@ -196,21 +195,9 @@ sub plugin_call_all {
 		%plugins = %{$plugins[$type]};
 	}
 
-	$interval = plugin_get_interval ();
-
 	foreach my $plugin (keys %plugins) {
-		my $p = $plugins{$plugin};
-
-		my $status = 0;
-
-		if ($p->{'wait_left'} > 0) {
-			$p->{'wait_left'} -= $interval;
-		}
-
-		next if ($p->{'wait_left'} > 0);
-
-		$cb_name = $p->{'cb_name'};
-		$status = call_by_name (@_);
+		$cb_name = $plugins{$plugin};
+		my $status = call_by_name (@_);
 
 		if (! $status) {
 			my $err = undef;
@@ -230,23 +217,7 @@ sub plugin_call_all {
 		}
 
 		if ($status) {
-			$p->{'wait_left'} = 0;
-			$p->{'wait_time'} = $interval;
-		}
-		elsif (TYPE_READ == $type) {
-			if ($p->{'wait_time'} < $interval) {
-				$p->{'wait_time'} = $interval;
-			}
-
-			$p->{'wait_left'} = $p->{'wait_time'};
-			$p->{'wait_time'} *= 2;
-
-			if ($p->{'wait_time'} > 86400) {
-				$p->{'wait_time'} = 86400;
-			}
-
-			WARNING ("${plugin}->read() failed with status $status. "
-				. "Will suspend it for $p->{'wait_left'} seconds.");
+			#NOOP
 		}
 		elsif (TYPE_INIT == $type) {
 			ERROR ("${plugin}->init() failed with status $status. "
@@ -309,21 +280,29 @@ sub plugin_register {
 	}
 	elsif ((TYPE_DATASET != $type) && (! ref $data)) {
 		my $pkg = scalar caller;
-
-		my %p : shared;
-
 		if ($data !~ m/^$pkg\:\:/) {
 			$data = $pkg . "::" . $data;
 		}
-
-		%p = (
-			wait_time => plugin_get_interval (),
-			wait_left => 0,
-			cb_name   => $data,
-		);
-
+		if (TYPE_READ == $type) {
+			return plugin_register_read($name, $data);
+		}
+		if (TYPE_WRITE == $type) {
+			return plugin_register_write($name, $data);
+		}
+		if (TYPE_LOG == $type) {
+			return plugin_register_log($name, $data);
+		}
+		if (TYPE_NOTIF == $type) {
+			return plugin_register_notification($name, $data);
+		}
+		if (TYPE_FLUSH == $type) {
+			#For collectd-5.6 only
+			lock %{$plugins[$type]};
+			$plugins[$type]->{$name} = $data;
+			return plugin_register_flush($name, $data);
+		}
 		lock %{$plugins[$type]};
-		$plugins[$type]->{$name} = \%p;
+		$plugins[$type]->{$name} = $data;
 	}
 	else {
 		ERROR ("Collectd::plugin_register: Invalid data.");
@@ -350,6 +329,21 @@ sub plugin_unregister {
 	elsif (TYPE_CONFIG == $type) {
 		lock %cf_callbacks;
 		delete $cf_callbacks{$name};
+	}
+	elsif (TYPE_READ == $type) {
+		return plugin_unregister_read ($name);
+	}
+	elsif (TYPE_WRITE == $type) {
+		return plugin_unregister_write($name);
+	}
+	elsif (TYPE_LOG == $type) {
+		return plugin_unregister_log ($name);
+	}
+	elsif (TYPE_NOTIF == $type) {
+		return plugin_unregister_notification($name);
+	}
+	elsif (TYPE_FLUSH == $type) {
+		return plugin_unregister_flush($name);
 	}
 	elsif (defined $plugins[$type]) {
 		lock %{$plugins[$type]};
