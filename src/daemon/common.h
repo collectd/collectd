@@ -323,6 +323,7 @@ int parse_identifier (char *str, char **ret_host,
 		char **ret_type, char **ret_type_instance);
 int parse_identifier_vl (const char *str, value_list_t *vl);
 int parse_value (const char *value, value_t *ret_value, int ds_type);
+int parse_value_ext (const char *value, value_t *ret_value, int ds_type, const char *error_identifier);
 int parse_values (char *buffer, value_list_t *vl, const data_set_t *ds);
 
 /* parse_value_file reads "path" and parses its content as an integer or

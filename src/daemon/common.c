@@ -1091,6 +1091,11 @@ int parse_identifier_vl (const char *str, value_list_t *vl) /* {{{ */
 
 int parse_value (const char *value_orig, value_t *ret_value, int ds_type)
 {
+  return parse_value_ext(value_orig, ret_value, ds_type, "");
+}
+
+int parse_value_ext (const char *value_orig, value_t *ret_value, int ds_type, const char *error_identifier)
+{
   char *value;
   char *endptr = NULL;
   size_t value_len;
@@ -1129,19 +1134,19 @@ int parse_value (const char *value_orig, value_t *ret_value, int ds_type)
 
     default:
       sfree (value);
-      ERROR ("parse_value: Invalid data source type: %i.", ds_type);
+      ERROR ("parse_value %s: Invalid data source type: %i.", error_identifier, ds_type);
       return -1;
   }
 
   if (value == endptr) {
-    ERROR ("parse_value: Failed to parse string as %s: %s.",
+    ERROR ("parse_value %s: Failed to parse string as %s: %s.", error_identifier,
         DS_TYPE_TO_STRING (ds_type), value);
     sfree (value);
     return -1;
   }
   else if ((NULL != endptr) && ('\0' != *endptr))
-    INFO ("parse_value: Ignoring trailing garbage \"%s\" after %s value. "
-        "Input string was \"%s\".",
+    INFO ("parse_value %s: Ignoring trailing garbage \"%s\" after %s value. "
+        "Input string was \"%s\".", error_identifier,
         endptr, DS_TYPE_TO_STRING (ds_type), value_orig);
 
   sfree (value);
@@ -1211,14 +1216,22 @@ int parse_values (char *buffer, value_list_t *vl, const data_set_t *ds)
 
 int parse_value_file (char const *path, value_t *ret_value, int ds_type)
 {
+	FILE *fh;
 	char buffer[256];
 
-	if (read_file_contents (path, buffer, sizeof (buffer)) < 0)
-		return errno;
+	fh = fopen (path, "r");
+	if (fh == NULL)
+		return (-1);
 
-	strstripnewline (buffer);
+	if (fgets (buffer, sizeof (buffer), fh) == NULL)
+	{
+		fclose (fh);
+		return (-1);
+	}
 
-	return parse_value (buffer, ret_value, ds_type);
+	fclose (fh);
+
+	return parse_value_ext (buffer, ret_value, ds_type, path);
 } /* int parse_value_file */
 
 #if !HAVE_GETPWNAM_R
