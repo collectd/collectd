@@ -2939,7 +2939,7 @@ static int wg_json_CreateTimeSeries(
 
   wg_json_array_open(jc);
 
-  for (; head != NULL && jc->error == 0; head = head->next, ++count) {
+  for (; head != NULL && jc->error == 0; head = head->next) {
     // Also exit the loop if the message size has reached our target.
     const unsigned char *buffer_address;
     wg_yajl_callback_size_t buffer_length;
@@ -3043,6 +3043,7 @@ static int wg_json_CreateTimeSeries(
     wg_json_Points(jc, head);
 
     wg_json_map_close(jc);
+    ++count;
   }
 
   *new_head = head;
