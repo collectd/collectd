@@ -300,10 +300,10 @@ static char *local_sockpath = NULL;
 
 /* <https://doc.powerdns.com/md/recursor/stats/> */
 static void submit (const char *plugin_instance, /* {{{ */
-    const char *pdns_type, const char *value)
+    const char *pdns_type, const char *value_str)
 {
   value_list_t vl = VALUE_LIST_INIT;
-  value_t values[1];
+  value_t value;
 
   const char *type = NULL;
   const char *type_instance = NULL;
@@ -318,7 +318,7 @@ static void submit (const char *plugin_instance, /* {{{ */
   if (i >= lookup_table_length)
   {
     INFO ("powerdns plugin: submit: Not found in lookup table: %s = %s;",
-        pdns_type, value);
+        pdns_type, value_str);
     return;
   }
 
@@ -345,14 +345,14 @@ static void submit (const char *plugin_instance, /* {{{ */
     return;
   }
 
-  if (0 != parse_value (value, &values[0], ds->ds[0].type))
+  if (0 != parse_value (value_str, &value, ds->ds[0].type))
   {
     ERROR ("powerdns plugin: Cannot convert `%s' "
-        "to a number.", value);
+        "to a number.", value_str);
     return;
   }
 
-  vl.values = values;
+  vl.values = &value;
   vl.values_len = 1;
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "powerdns", sizeof (vl.plugin));

@@ -213,7 +213,7 @@ endif
 
 if BUILD_PLUGIN_BATTERY
 pkglib_LTLIBRARIES += battery.la
-battery_la_SOURCES = battery.c
+battery_la_SOURCES = battery.c battery_statefs.c
 battery_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 if BUILD_WITH_LIBIOKIT
 battery_la_LDFLAGS += -framework IOKit
@@ -1285,6 +1285,7 @@ pkglib_LTLIBRARIES += write_log.la
 write_log_la_SOURCES = write_log.c \
                         utils_format_graphite.c utils_format_graphite.h
 write_log_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+write_log_la_LIBADD = libformat_json.la
 endif
 
 if BUILD_PLUGIN_WRITE_MONGODB

@@ -419,6 +419,9 @@ static int wh_write_command (const data_set_t *ds, const value_list_t *vl, /* {{
         }
         assert (command_len < cb->send_buffer_free);
 
+        /* Make scan-build happy. */
+        assert (cb->send_buffer != NULL);
+
         /* `command_len + 1' because `command_len' does not include the
          * trailing null byte. Neither does `send_buffer_fill'. */
         memcpy (cb->send_buffer + cb->send_buffer_fill,

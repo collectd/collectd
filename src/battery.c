@@ -69,18 +69,18 @@
 # define SYSFS_FACTOR 0.000001
 #endif /* KERNEL_LINUX */
 
+int battery_read_statefs (void); /* defined in battery_statefs; used by StateFS backend */
+
 static _Bool report_percent = 0;
 static _Bool report_degraded = 0;
+static _Bool query_statefs = 0;
 
 static void battery_submit2 (char const *plugin_instance, /* {{{ */
 		char const *type, char const *type_instance, gauge_t value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = value;
-
-	vl.values = values;
+	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "battery", sizeof (vl.plugin));
@@ -359,6 +359,9 @@ static int battery_read (void) /* {{{ */
 	gauge_t capacity_full = NAN; /* Total capacity */
 	gauge_t capacity_design = NAN; /* Full design capacity */
 
+	if (query_statefs)
+		return battery_read_statefs ();
+
 #if HAVE_IOKIT_PS_IOPOWERSOURCES_H
 	get_via_io_power_sources (&charge_rel, &current, &voltage);
 #endif
@@ -386,47 +389,17 @@ static int sysfs_file_to_buffer(char const *dir, /* {{{ */
 		char const *basename,
 		char *buffer, size_t buffer_size)
 {
-	int status;
-	FILE *fp;
 	char filename[PATH_MAX];
+	int status;
 
 	ssnprintf (filename, sizeof (filename), "%s/%s/%s",
 			dir, power_supply, basename);
 
-	/* No file isn't the end of the world -- not every system will be
-	 * reporting the same set of statistics */
-	if (access (filename, R_OK) != 0)
-		return ENOENT;
-
-	fp = fopen (filename, "r");
-	if (fp == NULL)
-	{
-		status = errno;
-		if (status != ENOENT)
-		{
-			char errbuf[1024];
-			WARNING ("battery plugin: fopen (%s) failed: %s", filename,
-					sstrerror (status, errbuf, sizeof (errbuf)));
-		}
+	status = (int) read_file_contents (filename, buffer, buffer_size);
+	if (status < 0)
 		return status;
-	}
-
-	if (fgets (buffer, buffer_size, fp) == NULL)
-	{
-		status = errno;
-		if (status != ENODEV)
-		{
-			char errbuf[1024];
-			WARNING ("battery plugin: fgets (%s) failed: %s", filename,
-					sstrerror (status, errbuf, sizeof (errbuf)));
-		}
-		fclose (fp);
-		return status;
-	}
 
 	strstripnewline (buffer);
-
-	fclose (fp);
 	return 0;
 } /* }}} int sysfs_file_to_buffer */
 
@@ -778,6 +751,9 @@ static int battery_read (void) /* {{{ */
 {
 	int status;
 
+	if (query_statefs)
+		return battery_read_statefs ();
+
 	DEBUG ("battery plugin: Trying sysfs ...");
 	status = read_sysfs ();
 	if (status == 0)
@@ -808,6 +784,8 @@ static int battery_config (oconfig_item_t *ci)
 			cf_util_get_boolean (child, &report_percent);
 		else if (strcasecmp ("ReportDegraded", child->key) == 0)
 			cf_util_get_boolean (child, &report_degraded);
+		else if (strcasecmp ("QueryStateFS", child->key) == 0)
+			cf_util_get_boolean (child, &query_statefs);
 		else
 			WARNING ("battery plugin: Ignoring unknown "
 					"configuration option \"%s\".",

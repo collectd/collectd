@@ -33,7 +33,10 @@
 
 #include "collectd.h"
 
+#include "common.h"
 #include "filter_chain.h"
+#include "meta_data.h"
+#include "utils_llist.h"
 
 #include <sys/types.h>
 #include <regex.h>
@@ -64,6 +67,7 @@ struct mr_match_s
 	mr_regex_t *plugin_instance;
 	mr_regex_t *type;
 	mr_regex_t *type_instance;
+	llist_t *meta;  /* Maps each meta key into mr_regex_t* */
 	_Bool invert;
 };
 
@@ -77,7 +81,7 @@ static void mr_free_regex (mr_regex_t *r) /* {{{ */
 
 	regfree (&r->re);
 	memset (&r->re, 0, sizeof (r->re));
-	free (r->re_str);
+	sfree (r->re_str);
 
 	if (r->next != NULL)
 		mr_free_regex (r->next);
@@ -93,8 +97,14 @@ static void mr_free_match (mr_match_t *m) /* {{{ */
 	mr_free_regex (m->plugin_instance);
 	mr_free_regex (m->type);
 	mr_free_regex (m->type_instance);
+	for (llentry_t *e = llist_head(m->meta); e != NULL; e = e->next)
+	{
+		sfree (e->key);
+		mr_free_regex ((mr_regex_t *) e->value);
+	}
+	llist_destroy (m->meta);
 
-	free (m);
+	sfree (m);
 } /* }}} void mr_free_match */
 
 static int mr_match_regexen (mr_regex_t *re_head, /* {{{ */
@@ -127,31 +137,25 @@ static int mr_match_regexen (mr_regex_t *re_head, /* {{{ */
 	return (FC_MATCH_MATCHES);
 } /* }}} int mr_match_regexen */
 
-static int mr_config_add_regex (mr_regex_t **re_head, /* {{{ */
-		oconfig_item_t *ci)
+static int mr_add_regex (mr_regex_t **re_head, const char *re_str, /* {{{ */
+		const char *option)
 {
 	mr_regex_t *re;
 	int status;
 
-	if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
-	{
-		log_warn ("`%s' needs exactly one string argument.", ci->key);
-		return (-1);
-	}
-
 	re = calloc (1, sizeof (*re));
 	if (re == NULL)
 	{
-		log_err ("mr_config_add_regex: calloc failed.");
+		log_err ("mr_add_regex: calloc failed.");
 		return (-1);
 	}
 	re->next = NULL;
 
-	re->re_str = strdup (ci->values[0].value.string);
+	re->re_str = strdup (re_str);
 	if (re->re_str == NULL)
 	{
-		free (re);
-		log_err ("mr_config_add_regex: strdup failed.");
+		sfree (re);
+		log_err ("mr_add_regex: strdup failed.");
 		return (-1);
 	}
 
@@ -162,9 +166,9 @@ static int mr_config_add_regex (mr_regex_t **re_head, /* {{{ */
 		regerror (status, &re->re, errmsg, sizeof (errmsg));
 		errmsg[sizeof (errmsg) - 1] = 0;
 		log_err ("Compiling regex `%s' for `%s' failed: %s.",
-				re->re_str, ci->key, errmsg);
-		free (re->re_str);
-		free (re);
+				re->re_str, option, errmsg);
+		sfree (re->re_str);
+		sfree (re);
 		return (-1);
 	}
 
@@ -184,7 +188,77 @@ static int mr_config_add_regex (mr_regex_t **re_head, /* {{{ */
 	}
 
 	return (0);
+} /* }}} int mr_add_regex */
+
+static int mr_config_add_regex (mr_regex_t **re_head, /* {{{ */
+		oconfig_item_t *ci)
+{
+	if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
+	{
+		log_warn ("`%s' needs exactly one string argument.", ci->key);
+		return (-1);
+	}
+
+	return mr_add_regex (re_head, ci->values[0].value.string, ci->key);
 } /* }}} int mr_config_add_regex */
+
+static int mr_config_add_meta_regex (llist_t **meta, /* {{{ */
+		oconfig_item_t *ci)
+{
+	char *meta_key;
+	llentry_t *entry;
+	mr_regex_t *re_head;
+	int status;
+	char buffer[1024];
+
+	if ((ci->values_num != 2)
+		|| (ci->values[0].type != OCONFIG_TYPE_STRING)
+		|| (ci->values[1].type != OCONFIG_TYPE_STRING))
+	{
+		log_warn ("`%s' needs exactly two string arguments.", ci->key);
+		return (-1);
+	}
+
+	if (*meta == NULL)
+	{
+		*meta = llist_create();
+		if (*meta == NULL)
+		{
+			log_err ("mr_config_add_meta_regex: llist_create failed.");
+			return (-1);
+		}
+	}
+
+	meta_key = ci->values[0].value.string;
+	entry = llist_search (*meta, meta_key);
+	if (entry == NULL)
+	{
+		meta_key = strdup (meta_key);
+		if (meta_key == NULL)
+		{
+			log_err ("mr_config_add_meta_regex: strdup failed.");
+			return (-1);
+		}
+		entry = llentry_create (meta_key, NULL);
+		if (entry == NULL)
+		{
+			log_err ("mr_config_add_meta_regex: llentry_create failed.");
+			sfree (meta_key);
+			return (-1);
+		}
+		/* meta_key and entry will now be freed by mr_free_match(). */
+		llist_append (*meta, entry);
+	}
+
+	ssnprintf (buffer, sizeof (buffer), "%s `%s'", ci->key, meta_key);
+	/* Can't pass &entry->value into mr_add_regex, so copy in/out. */
+	re_head = entry->value;
+	status = mr_add_regex (&re_head, ci->values[1].value.string, buffer);
+	if (status == 0) {
+		entry->value = re_head;
+	}
+	return status;
+} /* }}} int mr_config_add_meta_regex */
 
 static int mr_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 {
@@ -216,6 +290,8 @@ static int mr_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 			status = mr_config_add_regex (&m->type, child);
 		else if (strcasecmp ("TypeInstance", child->key) == 0)
 			status = mr_config_add_regex (&m->type_instance, child);
+		else if (strcasecmp ("MetaData", child->key) == 0)
+			status = mr_config_add_meta_regex (&m->meta, child);
 		else if (strcasecmp ("Invert", child->key) == 0)
 			status = cf_util_get_boolean(child, &m->invert);
 		else
@@ -236,7 +312,8 @@ static int mr_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 				&& (m->plugin == NULL)
 				&& (m->plugin_instance == NULL)
 				&& (m->type == NULL)
-				&& (m->type_instance == NULL))
+				&& (m->type_instance == NULL)
+				&& (m->meta == NULL))
 		{
 			log_err ("No (valid) regular expressions have been configured. "
 					"This match will be ignored.");
@@ -295,6 +372,25 @@ static int mr_match (const data_set_t __attribute__((unused)) *ds, /* {{{ */
 	if (mr_match_regexen (m->type_instance,
 				vl->type_instance) == FC_MATCH_NO_MATCH)
 		return (nomatch_value);
+	if (vl->meta != NULL)
+	{
+		for (llentry_t *e = llist_head(m->meta); e != NULL; e = e->next)
+		{
+			mr_regex_t *meta_re = (mr_regex_t *) e->value;
+			char *value;
+			int status = meta_data_get_string (vl->meta, e->key, &value);
+			if (status == (-ENOENT))  /* key is not present */
+				return (nomatch_value);
+			if (status != 0)  /* some other problem */
+				continue;  /* error will have already been printed. */
+			if (mr_match_regexen (meta_re, value) == FC_MATCH_NO_MATCH)
+			{
+				sfree (value);
+				return (nomatch_value);
+			}
+			sfree (value);
+		}
+	}
 
 	return (match_value);
 } /* }}} int mr_match */

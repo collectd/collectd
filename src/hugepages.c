@@ -4,15 +4,15 @@
  *
  * Copyright(c) 2016 Intel Corporation. All rights reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -25,83 +25,105 @@
  * Authors:
  *   Jaroslav Safka <jaroslavx.safka@intel.com>
  *   Kim-Marie Jones <kim-marie.jones@intel.com>
+ *   Florian Forster <octo at collectd.org>
  */
 
 #include "collectd.h"
+
 #include "common.h" /* auxiliary functions */
 #include "plugin.h" /* plugin_register_*, plugin_dispatch_values */
 
 static const char g_plugin_name[] = "hugepages";
-static const char g_cfg_rpt_numa[] = "ReportPerNodeHP";
-static const char g_cfg_rpt_mm[] = "ReportRootHP";
 
-static const char *g_config_keys[] = {
-  g_cfg_rpt_numa,
-  g_cfg_rpt_mm,
-};
-static size_t g_config_keys_num = STATIC_ARRAY_SIZE(g_config_keys);
-static int g_flag_rpt_numa = 1;
-static int g_flag_rpt_mm = 1;
+static _Bool g_flag_rpt_numa = 1;
+static _Bool g_flag_rpt_mm = 1;
+
+static _Bool g_values_pages = 1;
+static _Bool g_values_bytes = 0;
+static _Bool g_values_percent = 0;
+
+#define HP_HAVE_NR 0x01
+#define HP_HAVE_SURPLUS 0x02
+#define HP_HAVE_FREE 0x04
+#define HP_HAVE_ALL 0x07
 
 struct entry_info {
   char *d_name;
   const char *node;
+  size_t page_size_kb;
+
+  gauge_t nr;
+  gauge_t surplus;
+  gauge_t free;
+  uint8_t flags;
 };
 
-static int huge_config_callback(const char *key, const char *val)
-{
-  DEBUG("%s: HugePages config key='%s', val='%s'", g_plugin_name, key, val);
-
-  if (strcasecmp(key, g_cfg_rpt_numa) == 0) {
-    g_flag_rpt_numa = IS_TRUE(val);
-    return 0;
+static int hp_config(oconfig_item_t *ci) {
+  for (int i = 0; i < ci->children_num; i++) {
+    oconfig_item_t *child = ci->children + i;
+    if (strcasecmp("ReportPerNodeHP", child->key) == 0)
+      cf_util_get_boolean(child, &g_flag_rpt_numa);
+    else if (strcasecmp("ReportRootHP", child->key) == 0)
+      cf_util_get_boolean(child, &g_flag_rpt_mm);
+    else if (strcasecmp("ValuesPages", child->key) == 0)
+      cf_util_get_boolean(child, &g_values_pages);
+    else if (strcasecmp("ValuesBytes", child->key) == 0)
+      cf_util_get_boolean(child, &g_values_bytes);
+    else if (strcasecmp("ValuesPercentage", child->key) == 0)
+      cf_util_get_boolean(child, &g_values_percent);
+    else
+      ERROR("%s: Invalid configuration option: \"%s\".", g_plugin_name,
+            child->key);
   }
-  if (strcasecmp(key, g_cfg_rpt_mm) == 0) {
-    g_flag_rpt_mm = IS_TRUE(val);
-    return 0;
-  }
 
-  return -1;
+  return (0);
 }
 
-static void submit_hp(const char *plug_inst, const char *type,
-  const char *type_instance, gauge_t free_value, gauge_t used_value)
-{
-  value_t values[2];
+static void submit_hp(const struct entry_info *info) {
   value_list_t vl = VALUE_LIST_INIT;
 
-  values[0].gauge = free_value;
-  values[1].gauge = used_value;
+  vl.values = &(value_t) { .gauge = NAN };
+  vl.values_len = 1;
 
-  vl.values = values;
-  vl.values_len = 2;
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-  sstrncpy (vl.plugin, g_plugin_name, sizeof (vl.plugin));
-  sstrncpy (vl.plugin_instance, plug_inst, sizeof (vl.plugin_instance));
-  sstrncpy (vl.type, type, sizeof (vl.type));
-
-  if (type_instance != NULL) {
-    sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
+  sstrncpy(vl.host, hostname_g, sizeof(vl.host));
+  sstrncpy(vl.plugin, g_plugin_name, sizeof(vl.plugin));
+  if (info->node) {
+    ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s-%zuKb",
+              info->node, info->page_size_kb);
+  } else {
+    ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%zuKb",
+              info->page_size_kb);
   }
 
-  DEBUG("submit_hp pl_inst:%s, inst_type %s, type %s, free=%lf, used=%lf",
-      plug_inst, type_instance, type, free_value, used_value);
+  /* ensure all metrics have the same timestamp */
+  vl.time = cdtime();
 
-  plugin_dispatch_values (&vl);
+  gauge_t free = info->free;
+  gauge_t used = (info->nr + info->surplus) - info->free;
+
+  if (g_values_pages) {
+    sstrncpy(vl.type, "vmpage_number", sizeof(vl.type));
+    plugin_dispatch_multivalue(&vl, /* store_percentage = */ 0, DS_TYPE_GAUGE,
+                               "free", free, "used", used, NULL);
+  }
+  if (g_values_bytes) {
+    gauge_t page_size = (gauge_t)(1024 * info->page_size_kb);
+    sstrncpy(vl.type, "memory", sizeof(vl.type));
+    plugin_dispatch_multivalue(&vl, /* store_percentage = */ 0, DS_TYPE_GAUGE,
+                               "free", free * page_size, "used",
+                               used * page_size, NULL);
+  }
+  if (g_values_percent) {
+    sstrncpy(vl.type, "percent", sizeof(vl.type));
+    plugin_dispatch_multivalue(&vl, /* store_percentage = */ 1, DS_TYPE_GAUGE,
+                               "free", free, "used", used, NULL);
+  }
 }
 
 static int read_hugepage_entry(const char *path, const char *entry,
-    void *e_info)
-{
+                               void *e_info) {
   char path2[PATH_MAX];
-  static const char type[] = "hugepages";
-  static const char partial_type_inst[] = "free_used";
-  char type_instance[PATH_MAX];
-  char *strin;
-  struct entry_info *hpsize_plinst = e_info;
-  static int flag = 0;
-  static double used_hp = 0;
-  static double free_hp = 0;
+  struct entry_info *info = e_info;
   double value;
 
   ssnprintf(path2, sizeof(path2), "%s/%s", path, entry);
@@ -112,58 +134,40 @@ static int read_hugepage_entry(const char *path, const char *entry,
     return -1;
   }
 
-  if (fscanf(fh, "%lf", &value) !=1) {
+  if (fscanf(fh, "%lf", &value) != 1) {
     ERROR("%s: cannot parse file %s", g_plugin_name, path2);
     fclose(fh);
     return -1;
   }
+  fclose(fh);
 
   if (strcmp(entry, "nr_hugepages") == 0) {
-    used_hp += value;
-    flag++;
+    info->nr = value;
+    info->flags |= HP_HAVE_NR;
   } else if (strcmp(entry, "surplus_hugepages") == 0) {
-    used_hp += value;
-    flag++;
+    info->surplus = value;
+    info->flags |= HP_HAVE_SURPLUS;
   } else if (strcmp(entry, "free_hugepages") == 0) {
-    used_hp -= value;
-    free_hp = value;
-    flag++;
+    info->free = value;
+    info->flags |= HP_HAVE_FREE;
   }
 
-  if (flag == 3) {
-    /* Can now submit "used" and "free" values.
-     * 0x2D is the ASCII "-" character, after which the string
-     *   contains "<size>kB"
-     * The string passed as param 3 to submit_hp is of the format:
-     *   <type>-<partial_type_inst>-<size>kB
-     */
-    strin = strchr(hpsize_plinst->d_name, 0x2D);
-    if (strin != NULL) {
-      ssnprintf(type_instance, sizeof(type_instance), "%s%s", partial_type_inst, strin);
-    } else {
-      ssnprintf(type_instance, sizeof(type_instance), "%s%s", partial_type_inst,
-          hpsize_plinst->d_name);
-    }
-    submit_hp(hpsize_plinst->node, type, type_instance, free_hp, used_hp);
-
-    /* Reset for next time */
-    flag = 0;
-    used_hp = 0;
-    free_hp = 0;
+  if (info->flags != HP_HAVE_ALL) {
+    return 0;
   }
 
-  fclose(fh);
+  submit_hp(info);
+
+  /* Reset flags so subsequent calls don't submit again. */
+  info->flags = 0;
   return 0;
 }
 
-static int read_syshugepages(const char* path, const char* node)
-{
-  static const char hugepages_dir[] = "hugepages";
+static int read_syshugepages(const char *path, const char *node) {
+  static const char hugepages_dir[] = "hugepages-";
   DIR *dir;
   struct dirent *result;
   char path2[PATH_MAX];
-  struct entry_info e_info;
-  long lim;
 
   dir = opendir(path);
   if (dir == NULL) {
@@ -171,55 +175,56 @@ static int read_syshugepages(const char* path, const char* node)
     return -1;
   }
 
-  errno = 0;
-  if ((lim = pathconf(path, _PC_NAME_MAX)) == -1) {
-    /* Limit not defined if errno == 0, otherwise error */
-    if (errno != 0) {
-      ERROR("%s: pathconf failed", g_plugin_name);
-      closedir(dir);
-      return -1;
-    } else {
-      lim = PATH_MAX;
-    }
-  }
-
   /* read "hugepages-XXXXXkB" entries */
   while ((result = readdir(dir)) != NULL) {
-    if (strncmp(result->d_name, hugepages_dir, sizeof(hugepages_dir)-1)) {
+    if (strncmp(result->d_name, hugepages_dir, sizeof(hugepages_dir) - 1)) {
       /* not node dir */
       errno = 0;
       continue;
     }
 
-    /* /sys/devices/system/node/node?/hugepages/ */
-    ssnprintf(path2, (size_t) lim, "%s/%s", path, result->d_name);
+    long page_size = strtol(result->d_name + strlen(hugepages_dir),
+                            /* endptr = */ NULL, /* base = */ 10);
+    if (errno != 0) {
+      char errbuf[1024];
+      ERROR("%s: failed to determine page size from directory name \"%s\": %s",
+            g_plugin_name, result->d_name,
+            sstrerror(errno, errbuf, sizeof(errbuf)));
+      continue;
+    }
 
-    e_info.d_name = result->d_name;
-    e_info.node = node;
-    walk_directory(path2, read_hugepage_entry, &e_info, 0);
+    /* /sys/devices/system/node/node?/hugepages/ */
+    ssnprintf(path2, sizeof(path2), "%s/%s", path, result->d_name);
+
+    walk_directory(path2, read_hugepage_entry,
+                   &(struct entry_info){
+                       .d_name = result->d_name,
+                       .node = node,
+                       .page_size_kb = (size_t)page_size,
+                   },
+                   /* hidden = */ 0);
     errno = 0;
   }
 
   /* Check if NULL return from readdir() was an error */
   if (errno != 0) {
-      ERROR("%s: readdir failed", g_plugin_name);
-      closedir(dir);
-      return -1;
+    ERROR("%s: readdir failed", g_plugin_name);
+    closedir(dir);
+    return -1;
   }
 
   closedir(dir);
   return 0;
 }
 
-static int read_nodes(void)
-{
+static int read_nodes(void) {
   static const char sys_node[] = "/sys/devices/system/node";
   static const char node_string[] = "node";
-  static const char sys_node_hugepages[] = "/sys/devices/system/node/%s/hugepages";
+  static const char sys_node_hugepages[] =
+      "/sys/devices/system/node/%s/hugepages";
   DIR *dir;
   struct dirent *result;
   char path[PATH_MAX];
-  long lim;
 
   dir = opendir(sys_node);
   if (dir == NULL) {
@@ -227,44 +232,30 @@ static int read_nodes(void)
     return -1;
   }
 
-  errno = 0;
-  if ((lim = pathconf(sys_node, _PC_NAME_MAX)) == -1) {
-    /* Limit not defined if errno == 0, otherwise error */
-    if (errno != 0) {
-      ERROR("%s: pathconf failed", g_plugin_name);
-      closedir(dir);
-      return -1;
-    } else {
-      lim = PATH_MAX;
-    }
-  }
-
   while ((result = readdir(dir)) != NULL) {
-    if (strncmp(result->d_name, node_string, sizeof(node_string)-1)) {
+    if (strncmp(result->d_name, node_string, sizeof(node_string) - 1)) {
       /* not node dir */
       errno = 0;
       continue;
     }
 
-    ssnprintf(path, (size_t) lim, sys_node_hugepages, result->d_name);
+    ssnprintf(path, sizeof(path), sys_node_hugepages, result->d_name);
     read_syshugepages(path, result->d_name);
     errno = 0;
   }
 
   /* Check if NULL return from readdir() was an error */
   if (errno != 0) {
-      ERROR("%s: readdir failed", g_plugin_name);
-      closedir(dir);
-      return -1;
+    ERROR("%s: readdir failed", g_plugin_name);
+    closedir(dir);
+    return -1;
   }
 
   closedir(dir);
   return 0;
 }
 
-
-static int huge_read(void)
-{
+static int huge_read(void) {
   static const char sys_mm_hugepages[] = "/sys/kernel/mm/hugepages";
 
   if (g_flag_rpt_mm) {
@@ -281,10 +272,7 @@ static int huge_read(void)
   return 0;
 }
 
-void module_register(void)
-{
-  plugin_register_config(g_plugin_name, huge_config_callback, g_config_keys,
-      g_config_keys_num);
+void module_register(void) {
+  plugin_register_complex_config(g_plugin_name, hp_config);
   plugin_register_read(g_plugin_name, huge_read);
 }
-

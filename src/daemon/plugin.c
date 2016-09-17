@@ -151,34 +151,28 @@ static const char *plugin_get_dir (void)
 }
 
 static void plugin_update_internal_statistics (void) { /* {{{ */
-	derive_t copy_write_queue_length;
-	value_list_t vl = VALUE_LIST_INIT;
-	value_t values[2];
 
-	copy_write_queue_length = write_queue_length;
+	gauge_t copy_write_queue_length = (gauge_t) write_queue_length;
 
 	/* Initialize `vl' */
-	vl.values = values;
-	vl.values_len = 2;
-	vl.time = 0;
+	value_list_t vl = VALUE_LIST_INIT;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "collectd", sizeof (vl.plugin));
-
-	vl.type_instance[0] = 0;
-	vl.values_len = 1;
 
 	/* Write queue */
 	sstrncpy (vl.plugin_instance, "write_queue",
 			sizeof (vl.plugin_instance));
 
 	/* Write queue : queue length */
-	vl.values[0].gauge = (gauge_t) copy_write_queue_length;
+	vl.values = &(value_t) { .gauge = copy_write_queue_length };
+	vl.values_len = 1;
 	sstrncpy (vl.type, "queue_length", sizeof (vl.type));
 	vl.type_instance[0] = 0;
 	plugin_dispatch_values (&vl);
 
 	/* Write queue : Values dropped (queue length > low limit) */
-	vl.values[0].derive = (derive_t) stats_values_dropped;
+	vl.values = &(value_t) { .gauge = (gauge_t) stats_values_dropped };
+	vl.values_len = 1;
 	sstrncpy (vl.type, "derive", sizeof (vl.type));
 	sstrncpy (vl.type_instance, "dropped", sizeof (vl.type_instance));
 	plugin_dispatch_values (&vl);
@@ -188,7 +182,8 @@ static void plugin_update_internal_statistics (void) { /* {{{ */
 			sizeof (vl.plugin_instance));
 
 	/* Cache : Nb entry in cache tree */
-	vl.values[0].gauge = (gauge_t) uc_get_size();
+	vl.values = &(value_t) { .gauge = (gauge_t) uc_get_size() };
+	vl.values_len = 1;
 	sstrncpy (vl.type, "cache_size", sizeof (vl.type));
 	vl.type_instance[0] = 0;
 	plugin_dispatch_values (&vl);
@@ -2401,7 +2396,7 @@ int plugin_dispatch_multivalue (value_list_t const *template, /* {{{ */
 		case DS_TYPE_GAUGE:
 			vl->values[0].gauge = va_arg (ap, gauge_t);
 			if (store_percentage)
-				vl->values[0].gauge *= sum ? (100.0 / sum) : 0;
+				vl->values[0].gauge *= sum ? (100.0 / sum) : NAN;
 			break;
 		case DS_TYPE_ABSOLUTE:
 			vl->values[0].absolute = va_arg (ap, absolute_t);

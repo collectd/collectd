@@ -234,12 +234,11 @@ static int wr_config_node (oconfig_item_t *ci) /* {{{ */
 
     ssnprintf (cb_name, sizeof (cb_name), "write_redis/%s", node->name);
 
-    user_data_t ud = {
-      .data = node,
-      .free_func = wr_config_free
-    };
-
-    status = plugin_register_write (cb_name, wr_write, &ud);
+    status = plugin_register_write (cb_name, wr_write,
+        &(user_data_t) {
+          .data = node,
+          .free_func = wr_config_free,
+        });
   }
 
   if (status != 0)

@@ -617,7 +617,7 @@ static data_volume_perf_t *get_volume_perf (cfg_volume_perf_t *cvp, /* {{{ */
 static int submit_values (const char *host, /* {{{ */
 		const char *plugin_inst,
 		const char *type, const char *type_inst,
-		value_t *values, int values_len,
+		value_t *values, size_t values_len,
 		cdtime_t timestamp, cdtime_t interval)
 {
 	value_list_t vl = VALUE_LIST_INIT;
@@ -649,50 +649,42 @@ static int submit_two_derive (const char *host, const char *plugin_inst, /* {{{ 
 		const char *type, const char *type_inst, derive_t val0, derive_t val1,
 		cdtime_t timestamp, cdtime_t interval)
 {
-	value_t values[2];
-
-	values[0].derive = val0;
-	values[1].derive = val1;
+	value_t values[] = {
+		{ .derive = val0 },
+		{ .derive = val1 },
+	};
 
 	return (submit_values (host, plugin_inst, type, type_inst,
-				values, 2, timestamp, interval));
+				values, STATIC_ARRAY_SIZE (values), timestamp, interval));
 } /* }}} int submit_two_derive */
 
 static int submit_derive (const char *host, const char *plugin_inst, /* {{{ */
 		const char *type, const char *type_inst, derive_t counter,
 		cdtime_t timestamp, cdtime_t interval)
 {
-	value_t v;
-
-	v.derive = counter;
-
 	return (submit_values (host, plugin_inst, type, type_inst,
-				&v, 1, timestamp, interval));
+				&(value_t) { .derive = counter }, 1, timestamp, interval));
 } /* }}} int submit_derive */
 
 static int submit_two_gauge (const char *host, const char *plugin_inst, /* {{{ */
 		const char *type, const char *type_inst, gauge_t val0, gauge_t val1,
 		cdtime_t timestamp, cdtime_t interval)
 {
-	value_t values[2];
-
-	values[0].gauge = val0;
-	values[1].gauge = val1;
+	value_t values[] = {
+		{ .gauge = val0 },
+		{ .gauge = val1 },
+	};
 
 	return (submit_values (host, plugin_inst, type, type_inst,
-				values, 2, timestamp, interval));
+				values, STATIC_ARRAY_SIZE (values), timestamp, interval));
 } /* }}} int submit_two_gauge */
 
 static int submit_double (const char *host, const char *plugin_inst, /* {{{ */
 		const char *type, const char *type_inst, double d,
 		cdtime_t timestamp, cdtime_t interval)
 {
-	value_t v;
-
-	v.gauge = (gauge_t) d;
-
 	return (submit_values (host, plugin_inst, type, type_inst,
-				&v, 1, timestamp, interval));
+				&(value_t) { .gauge = counter }, 1, timestamp, interval));
 } /* }}} int submit_uint64 */
 
 /* Calculate hit ratio from old and new counters and submit the resulting
@@ -707,7 +699,7 @@ static int submit_cache_ratio (const char *host, /* {{{ */
 		cdtime_t timestamp,
 		cdtime_t interval)
 {
-	value_t v;
+	value_t v = { .gauge = NAN };
 
 	if ((new_hits >= old_hits) && (new_misses >= old_misses)) {
 		uint64_t hits;
@@ -717,8 +709,6 @@ static int submit_cache_ratio (const char *host, /* {{{ */
 		misses = new_misses - old_misses;
 
 		v.gauge = 100.0 * ((gauge_t) hits) / ((gauge_t) (hits + misses));
-	} else {
-		v.gauge = NAN;
 	}
 
 	return (submit_values (host, plugin_inst, "cache_ratio", type_inst,
@@ -2879,15 +2869,13 @@ static int cna_register_host (host_config_t *host) /* {{{ */
 	else
 		ssnprintf (cb_name, sizeof (cb_name), "netapp-%s", host->name);
 
-	user_data_t ud = {
-		.data = host,
-		.free_func = (void (*) (void *)) free_host_config
-	};
-
 	plugin_register_complex_read (/* group = */ NULL, cb_name,
 			/* callback  = */ cna_read,
 			/* interval  = */ host->interval,
-			/* user data = */ &ud);
+			&(user_data_t) {
+				.data = host,
+				.free_func = (void *) free_host_config,
+			});
 
 	return (0);
 } /* }}} int cna_register_host */

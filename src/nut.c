@@ -120,13 +120,10 @@ static int nut_config (const char *key, const char *value)
 static void nut_submit (nut_ups_t *ups, const char *type,
     const char *type_instance, gauge_t value)
 {
-  value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  values[0].gauge = value;
-
-  vl.values = values;
-  vl.values_len = STATIC_ARRAY_SIZE (values);
+  vl.values = &(value_t) { .gauge = value };
+  vl.values_len = 1;
   sstrncpy (vl.host,
       (strcasecmp (ups->hostname, "localhost") == 0)
       ? hostname_g

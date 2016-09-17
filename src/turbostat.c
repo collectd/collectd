@@ -524,10 +524,8 @@ turbostat_submit (const char *plugin_instance,
 	gauge_t value)
 {
 	value_list_t vl = VALUE_LIST_INIT;
-	value_t v;
 
-	v.gauge = value;
-	vl.values = &v;
+	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, PLUGIN_NAME, sizeof (vl.plugin));
@@ -1018,8 +1016,7 @@ parse_int_file(const char *fmt, ...)
 {
 	va_list args;
 	char path[PATH_MAX];
-	FILE *filep;
-	int len, value;
+	int len;
 
 	va_start(args, fmt);
 	len = vsnprintf(path, sizeof(path), fmt, args);
@@ -1029,18 +1026,13 @@ parse_int_file(const char *fmt, ...)
 		return -1;
 	}
 
-	filep = fopen(path, "r");
-	if (!filep) {
-		ERROR("turbostat plugin: Failed to open '%s'", path);
+	value_t v;
+	if (parse_value_file (path, &v, DS_TYPE_DERIVE) != 0) {
+		ERROR ("turbostat plugin: Parsing \"%s\" failed.", path);
 		return -1;
 	}
-	if (fscanf(filep, "%d", &value) != 1) {
-		ERROR("turbostat plugin: Failed to parse number from '%s'", path);
-		fclose(filep);
-		return -1;
-	}
-	fclose(filep);
-	return value;
+
+	return (int) v.derive;
 }
 
 static int

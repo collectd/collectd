@@ -161,12 +161,9 @@ static void df_submit_one (char *plugin_instance,
 		const char *type, const char *type_instance,
 		gauge_t value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = value;
-
-	vl.values = values;
+	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "df", sizeof (vl.plugin));
@@ -229,7 +226,10 @@ static int df_read (void)
 			}
 
 			/* Duplicate found: leave non-NULL dup_ptr. */
-			if (by_device && (strcmp (mnt_ptr->spec_device, dup_ptr->spec_device) == 0))
+			if (by_device
+                            && (mnt_ptr->spec_device != NULL)
+                            && (dup_ptr->spec_device != NULL)
+                            && (strcmp (mnt_ptr->spec_device, dup_ptr->spec_device) == 0))
 				break;
 			else if (!by_device && (strcmp (mnt_ptr->dir, dup_ptr->dir) == 0))
 				break;

@@ -144,6 +144,9 @@ static int cj_get_type (cj_key_t *key)
 {
   const data_set_t *ds;
 
+  if ((key == NULL) || !CJ_IS_KEY (key))
+    return -EINVAL;
+
   ds = plugin_get_ds (key->type);
   if (ds == NULL)
   {
@@ -227,12 +230,15 @@ static int cj_cb_number (void *ctx,
   buffer[sizeof (buffer) - 1] = 0;
 
   if ((key == NULL) || !CJ_IS_KEY (key)) {
-    if (key != NULL && !db->state[db->depth].in_array/*can be inhomogeneous*/)
+    if (key != NULL && !db->state[db->depth].in_array/*can be inhomogeneous*/) {
       NOTICE ("curl_json plugin: Found \"%s\", but the configuration expects"
               " a map.", buffer);
+      return (CJ_CB_CONTINUE);
+    }
+
     cj_cb_inc_array_index (ctx, /* update_key = */ 1);
     key = db->state[db->depth].key;
-    if (key == NULL) {
+    if ((key == NULL) || !CJ_IS_KEY (key)) {
       return (CJ_CB_CONTINUE);
     }
   }
@@ -769,14 +775,12 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
     cb_name = ssnprintf_alloc ("curl_json-%s-%s",
                db->instance, db->url ? db->url : db->sock);
 
-    user_data_t ud = {
-      .data = db,
-      .free_func = cj_free
-    };
-
     plugin_register_complex_read (/* group = */ NULL, cb_name, cj_read,
                                   /* interval = */ db->interval,
-                                  &ud);
+                                  &(user_data_t) {
+                                    .data = db,
+                                    .free_func = cj_free,
+                                  });
     sfree (cb_name);
   }
   else

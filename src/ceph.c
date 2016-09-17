@@ -1468,15 +1468,22 @@ static int cconn_main_loop(uint32_t request_type)
     struct timeval end_tv;
     struct cconn io_array[g_num_daemons];
 
-    DEBUG("ceph plugin: entering cconn_main_loop(request_type = %d)", request_type);
+    DEBUG ("ceph plugin: entering cconn_main_loop(request_type = %"PRIu32")", request_type);
+
+    if (g_num_daemons < 1)
+    {
+        ERROR ("ceph plugin: No daemons configured. See the \"Daemon\" config option.");
+        return ENOENT;
+    }
 
     /* create cconn array */
-    memset(io_array, 0, sizeof(io_array));
-    for(size_t i = 0; i < g_num_daemons; ++i)
+    for (size_t i = 0; i < g_num_daemons; i++)
     {
-        io_array[i].d = g_daemons[i];
-        io_array[i].request_type = request_type;
-        io_array[i].state = CSTATE_UNCONNECTED;
+        io_array[i] = (struct cconn) {
+            .d = g_daemons[i],
+            .request_type = request_type,
+            .state = CSTATE_UNCONNECTED,
+        };
     }
 
     /** Calculate the time at which we should give up */

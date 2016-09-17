@@ -390,24 +390,19 @@ static int cdbi_config_add_database (oconfig_item_t *ci) /* {{{ */
     }
     else
     {
-      char *name = NULL;
-
       databases = temp;
       databases[databases_num] = db;
       databases_num++;
 
-      name = ssnprintf_alloc("dbi:%s", db->name);
-
-      user_data_t ud = {
-        .data = db
-      };
-
+      char *name = ssnprintf_alloc("dbi:%s", db->name);
       plugin_register_complex_read (/* group = */ NULL,
           /* name = */ name ? name : db->name,
           /* callback = */ cdbi_read_database,
           /* interval = */ (db->interval > 0) ? db->interval : 0,
-          /* user_data = */ &ud);
-      free (name);
+          &(user_data_t) {
+            .data = db,
+	  });
+      sfree (name);
     }
   }
 

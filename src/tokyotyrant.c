@@ -86,15 +86,12 @@ static void printerr (void)
 			ecode, tcrdberrmsg(ecode));
 }
 
-static void tt_submit (gauge_t val, const char* type)
+static void tt_submit (gauge_t value, const char* type)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = val;
-
-	vl.values = values;
-	vl.values_len = STATIC_ARRAY_SIZE (values);
+	vl.values = &(value_t) { .gauge = value };
+	vl.values_len = 1;
 
 	sstrncpy (vl.host, config_host, sizeof (vl.host));
 	sstrncpy (vl.plugin, "tokyotyrant", sizeof (vl.plugin));

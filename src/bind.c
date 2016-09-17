@@ -247,12 +247,9 @@ static int memsummary_translation_table_length =
 static void submit (time_t ts, const char *plugin_instance, /* {{{ */
     const char *type, const char *type_instance, value_t value)
 {
-  value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  values[0] = value;
-
-  vl.values = values;
+  vl.values = &value;
   vl.values_len = 1;
   if (config_parse_time)
     vl.time = TIME_T_TO_CDTIME_T (ts);

@@ -66,14 +66,11 @@ static int zookeeper_config(const char *key, const char *value)
 	return 0;
 }
 
-static void zookeeper_submit_gauge (const char * type, const char * type_inst, gauge_t val)
+static void zookeeper_submit_gauge (const char * type, const char * type_inst, gauge_t value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = val;
-
-	vl.values = values;
+	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "zookeeper", sizeof (vl.plugin));
@@ -84,14 +81,11 @@ static void zookeeper_submit_gauge (const char * type, const char * type_inst, g
 	plugin_dispatch_values (&vl);
 } /* zookeeper_submit_gauge */
 
-static void zookeeper_submit_derive (const char * type, const char * type_inst, derive_t val)
+static void zookeeper_submit_derive (const char * type, const char * type_inst, derive_t value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].derive = val;
-
-	vl.values = values;
+	vl.values = &(value_t) { .derive = value };
 	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "zookeeper", sizeof (vl.plugin));

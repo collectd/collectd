@@ -117,22 +117,16 @@ static int varnish_submit_gauge (const char *plugin_instance, /* {{{ */
 		const char *category, const char *type, const char *type_instance,
 		uint64_t gauge_value)
 {
-	value_t value;
-
-	value.gauge = (gauge_t) gauge_value;
-
-	return (varnish_submit (plugin_instance, category, type, type_instance, value));
+	return (varnish_submit (plugin_instance, category, type, type_instance,
+				(value_t) { .gauge = (gauge_t) gauge_value }));
 } /* }}} int varnish_submit_gauge */
 
 static int varnish_submit_derive (const char *plugin_instance, /* {{{ */
 		const char *category, const char *type, const char *type_instance,
 		uint64_t derive_value)
 {
-	value_t value;
-
-	value.derive = (derive_t) derive_value;
-
-	return (varnish_submit (plugin_instance, category, type, type_instance, value));
+	return (varnish_submit (plugin_instance, category, type, type_instance,
+				(value_t) { .derive = (derive_t) derive_value }));
 } /* }}} int varnish_submit_derive */
 
 #if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
@@ -951,16 +945,14 @@ static int varnish_init (void) /* {{{ */
 
 	varnish_config_apply_default (conf);
 
-	user_data_t ud = {
-		.data = conf,
-		.free_func = varnish_config_free
-	};
-
 	plugin_register_complex_read (/* group = */ "varnish",
 			/* name      = */ "varnish/localhost",
 			/* callback  = */ varnish_read,
 			/* interval  = */ 0,
-			/* user data = */ &ud);
+			&(user_data_t) {
+				.data = conf,
+				.free_func = varnish_config_free,
+			});
 
 	return (0);
 } /* }}} int varnish_init */
@@ -968,7 +960,6 @@ static int varnish_init (void) /* {{{ */
 static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 {
 	user_config_t *conf;
-	user_data_t ud;
 	char callback_name[DATA_MAX_NAME_LEN];
 
 	conf = calloc (1, sizeof (*conf));
@@ -1132,14 +1123,14 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 	ssnprintf (callback_name, sizeof (callback_name), "varnish/%s",
 			(conf->instance == NULL) ? "localhost" : conf->instance);
 
-	ud.data = conf;
-	ud.free_func = varnish_config_free;
-
 	plugin_register_complex_read (/* group = */ "varnish",
 			/* name      = */ callback_name,
 			/* callback  = */ varnish_read,
 			/* interval  = */ 0,
-			/* user data = */ &ud);
+			&(user_data_t) {
+				.data = conf,
+				.free_func = varnish_config_free,
+			});
 
 	have_instance = 1;
 

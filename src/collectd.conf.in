@@ -300,6 +300,7 @@
 #<Plugin "battery">
 #  ValuesPercentage false
 #  ReportDegraded false
+#  QueryStateFS false
 #</Plugin>
 
 #<Plugin "bind">
@@ -601,8 +602,11 @@
 #</Plugin>
 
 #<Plugin hugepages>
-#    ReportPerNodeHP "true"
-#    ReportRootHP "true"
+#    ReportPerNodeHP  true
+#    ReportRootHP     true
+#    ValuesPages      true
+#    ValuesBytes      false
+#    ValuesPercentage false
 #</Plugin>
 
 #<Plugin interface>
@@ -1419,6 +1423,8 @@
 #    StoreRates true
 #    AlwaysAppendDS false
 #    EscapeCharacter "_"
+#    SeparateInstances false
+#    DropDuplicateFields false
 #  </Node>
 #</Plugin>
 

@@ -150,17 +150,15 @@ static int mic_config (const char *key, const char *value) {
 	return (0);
 }
 
-static void mic_submit_memory_use(int micnumber, const char *type_instance, U32 val)
+static void mic_submit_memory_use(int micnumber, const char *type_instance, U32 value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
 	/* MicAccessAPI reports KB's of memory, adjust for this */
-	DEBUG("mic plugin: Memory Value Report; %u %lf",val,((gauge_t)val)*1024.0);
-	values[0].gauge = ((gauge_t)val)*1024.0;
+	DEBUG("mic plugin: Memory Value Report; %u %lf",value,((gauge_t)value)*1024.0);
 
-	vl.values=values;
-	vl.values_len=1;
+	vl.values = &(value_t) { .gauge = ((gauge_t)value) * 1024.0 };
+	vl.values_len = 1;
 
 	strncpy (vl.host, hostname_g, sizeof (vl.host));
 	strncpy (vl.plugin, "mic", sizeof (vl.plugin));
@@ -190,15 +188,12 @@ static int mic_read_memory(int mic)
 	return (0);
 }
 
-static void mic_submit_temp(int micnumber, const char *type, gauge_t val)
+static void mic_submit_temp(int micnumber, const char *type, gauge_t value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = val;
-
-	vl.values=values;
-	vl.values_len=1;
+	vl.values = &(value_t) { .gauge = value };
+	vl.values_len = 1;
 
 	strncpy (vl.host, hostname_g, sizeof (vl.host));
 	strncpy (vl.plugin, "mic", sizeof (vl.plugin));
@@ -237,15 +232,12 @@ static int mic_read_temps(int mic)
 }
 
 static void mic_submit_cpu(int micnumber, const char *type_instance,
-		int core, derive_t val)
+		int core, derive_t value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].derive = val;
-
-	vl.values=values;
-	vl.values_len=1;
+	vl.values = &(value_t) { .derive = value };
+	vl.values_len = 1;
 
 	strncpy (vl.host, hostname_g, sizeof (vl.host));
 	strncpy (vl.plugin, "mic", sizeof (vl.plugin));
@@ -296,15 +288,12 @@ static int mic_read_cpu(int mic)
 	return (0);
 }
 
-static void mic_submit_power(int micnumber, const char *type, const char *type_instance, gauge_t val)
+static void mic_submit_power(int micnumber, const char *type, const char *type_instance, gauge_t value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = val;
-
-	vl.values=values;
-	vl.values_len=1;
+	vl.values = &(value_t) { .gauge = value };
+	vl.values_len = 1;
 
 	strncpy (vl.host, hostname_g, sizeof (vl.host));
 	strncpy (vl.plugin, "mic", sizeof (vl.plugin));
@@ -358,13 +347,13 @@ static int mic_read (void)
 	U32 ret;
 	int error;
 
-	error=0;
-	for (int i=0;i<num_mics;i++) {
+	error = 0;
+	for (int i = 0;i<num_mics;i++) {
 		ret = MicInitAdapter(&mic_handle,&mics[i]);
 		if (ret != MIC_ACCESS_API_SUCCESS) {
 			ERROR("mic plugin: Problem initializing MicAdapter: %s",
 					MicGetErrorString(ret));
-			error=1;
+			error = 1;
 		}
 
 		if (error == 0 && show_memory)
@@ -383,12 +372,12 @@ static int mic_read (void)
 		if (ret != MIC_ACCESS_API_SUCCESS) {
 			ERROR("mic plugin: Problem closing MicAdapter: %s",
 					MicGetErrorString(ret));
-			error=2;
+			error = 2;
 			break;
 		}
 	}
 	if (num_mics==0)
-		error=3;
+		error = 3;
 	return error;
 }
 
