@@ -438,7 +438,7 @@ static int cc_config_add_page(oconfig_item_t *ci) /* {{{ */
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
 
-    if (strcasecmp("PluginName", child->key) == 0)
+    if (strcasecmp("Plugin", child->key) == 0)
       status = cf_util_get_string(child, &page->plugin_name);
     else if (strcasecmp("URL", child->key) == 0)
       status = cf_util_get_string(child, &page->url);

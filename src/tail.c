@@ -34,7 +34,7 @@
 /*
  *  <Plugin tail>
  *    <File "/var/log/exim4/mainlog">
- *      PluginName "mail"
+ *      Plugin "mail"
  *      Instance "exim"
  *      Interval 60
  *	<Match>
@@ -233,7 +233,7 @@ static int ctail_config_add_file(oconfig_item_t *ci) {
     oconfig_item_t *option = ci->children + i;
     int status = 0;
 
-    if (strcasecmp("PluginName", option->key) == 0)
+    if (strcasecmp("Plugin", option->key) == 0)
       status = cf_util_get_string (option, &plugin_name);
     else if (strcasecmp("Instance", option->key) == 0)
       status = cf_util_get_string(option, &plugin_instance);

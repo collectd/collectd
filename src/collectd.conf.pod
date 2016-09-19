@@ -1611,7 +1611,7 @@ finance page and dispatch the value to collectd.
 
   <Plugin curl>
     <Page "stock_quotes">
-      PluginName "quotes"
+      Plugin "quotes"
       URL "http://finance.google.com/finance?q=NYSE%3AAMD"
       User "foo"
       Password "bar"
@@ -1643,9 +1643,9 @@ The following options are valid within B<Page> blocks:
 
 =over 4
 
-=item B<PluginName> I<PluginName>
+=item B<Plugin> I<Plugin>
 
-Use I<PluginName> as the plugin name when submitting values.
+Use I<Plugin> as the plugin name when submitting values.
 Defaults to 'curl'.
 
 =item B<URL> I<URL>
@@ -3542,7 +3542,7 @@ Synopsis of the configuration:
    <Page "plugin_instance">
      Server "localhost"
      Key "page_key"
-     PluginName "plugin_name"
+     Plugin "plugin_name"
      <Match>
        Regex "(\\d+) bytes sent"
        DSType CounterAdd
@@ -3570,9 +3570,9 @@ B<Page> block.
 
 When connected to the memcached server, asks for the page I<Key>.
 
-=item B<PluginName> I<PluginName>
+=item B<Plugin> I<Plugin>
 
-Use I<PluginName> as the plugin name when submitting values.
+Use I<Plugin> as the plugin name when submitting values.
 Defaults to 'memcachec'.
 
 =item E<lt>B<Match>E<gt>
@@ -7531,7 +7531,7 @@ user using (extended) regular expressions, as described in L<regex(7)>.
 
   <Plugin "tail">
     <File "/var/log/exim4/mainlog">
-      PluginName "mail"
+      Plugin "mail"
       Instance "exim"
       Interval 60
       <Match>
@@ -7563,12 +7563,12 @@ The config consists of one or more B<File> blocks, each of which configures one
 logfile to parse. Within each B<File> block, there are one or more B<Match>
 blocks, which configure a regular expression to search for.
 
-The B<PluginName> and B<Instance> options in the B<File> block may be used to set
+The B<Plugin> and B<Instance> options in the B<File> block may be used to set
 the plugin name and instance respectively. So in the above example the plugin name
 C<mail-exim> would be used.
 
 These options are applied for all B<Match> blocks that B<follow> it, until the
-next B<PluginName> or B<Instance> option. This way you can extract several plugin
+next B<Plugin> or B<Instance> option. This way you can extract several plugin
 instances from one logfile, handy when parsing syslog and the like.
 
 The B<Interval> option allows you to define the length of time between reads. If
@@ -7750,7 +7750,7 @@ B<Synopsis:>
        Index 1
    </Metric>
    <File "/var/log/snort/snort.stats">
-       PluginName "snortstats"
+       Plugin "snortstats"
        Instance "eth0"
        Interval 600
        Collect "snort-dropped"
@@ -7803,9 +7803,9 @@ I<File> block but there can be multiple if you have multiple CSV files.
 
 =over 4
 
-=item B<PluginName> I<PluginName>
+=item B<Plugin> I<Plugin>
 
-Use I<PluginName> as the plugin name when submitting values.
+Use I<Plugin> as the plugin name when submitting values.
 Defaults to 'tail_csv'.
 
 =item B<Instance> I<PluginInstance>

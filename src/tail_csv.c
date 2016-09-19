@@ -451,7 +451,7 @@ static int tcsv_config_add_file(oconfig_item_t *ci) {
       cf_util_get_cdtime(option, &id->interval);
     else if (strcasecmp("TimeFrom", option->key) == 0)
       status = tcsv_config_get_index(option, &id->time_from);
-    else if (strcasecmp("PluginName", option->key) == 0)
+    else if (strcasecmp("Plugin", option->key) == 0)
       status = cf_util_get_string(option, &id->plugin_name);
     else {
       WARNING("tail_csv plugin: Option `%s' not allowed here.", option->key);

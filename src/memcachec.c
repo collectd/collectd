@@ -304,8 +304,8 @@ static int cmc_config_add_page(oconfig_item_t *ci) /* {{{ */
       status = cmc_config_add_string("Server", &page->server, child);
     else if (strcasecmp("Key", child->key) == 0)
       status = cmc_config_add_string("Key", &page->key, child);
-    else if (strcasecmp("PluginName", child->key) == 0)
-      status = cmc_config_add_string("PluginName", &page->plugin_name, child);
+    else if (strcasecmp("Plugin", child->key) == 0)
+      status = cmc_config_add_string("Plugin", &page->plugin_name, child);
     else if (strcasecmp("Match", child->key) == 0)
       /* Be liberal with failing matches => don't set `status'. */
       cmc_config_add_match(page, child);
