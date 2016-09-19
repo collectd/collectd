@@ -1211,10 +1211,20 @@ int parse_values (char *buffer, value_list_t *vl, const data_set_t *ds)
 
 int parse_value_file (char const *path, value_t *ret_value, int ds_type)
 {
+	FILE *fh;
 	char buffer[256];
 
-	if (read_file_contents (path, buffer, sizeof (buffer)) < 0)
-		return errno;
+	fh = fopen (path, "r");
+	if (fh == NULL)
+		return (-1);
+
+	if (fgets (buffer, sizeof (buffer), fh) == NULL)
+	{
+		fclose (fh);
+		return (-1);
+	}
+
+	fclose (fh);
 
 	strstripnewline (buffer);
 
