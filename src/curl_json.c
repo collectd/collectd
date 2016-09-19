@@ -674,7 +674,7 @@ static int cj_config_add_url(oconfig_item_t *ci) /* {{{ */
 
     if (strcasecmp("Instance", child->key) == 0)
       status = cf_util_get_string(child, &db->instance);
-    else if (strcasecmp("PluginName", child->key) == 0)
+    else if (strcasecmp("Plugin", child->key) == 0)
       status = cf_util_get_string(child, &db->plugin_name);
     else if (strcasecmp("Host", child->key) == 0)
       status = cf_util_get_string(child, &db->host);

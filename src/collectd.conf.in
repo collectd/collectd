@@ -459,7 +459,7 @@
 #  </URL>
 ## PHP-FPM status metrics
 #<URL "http://nginx-status/php-fpm-status?json">
-#  PluginName 'phpfpm'
+#  Plugin 'phpfpm'
 #  Instance 'main'
 #  <Key "accepted conn">
 #      Type "phpfpm_requests"
