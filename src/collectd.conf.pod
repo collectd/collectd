@@ -1888,6 +1888,7 @@ The B<curl_xml plugin> uses B<libcurl> (L<http://curl.haxx.se/>) and B<libxml2>
  <Plugin "curl_xml">
    <URL "http://localhost/stats.xml">
      Host "my_host"
+     #Plugin "curl_xml"
      Instance "some_instance"
      User "collectd"
      Password "thaiNg0I"
@@ -1928,12 +1929,13 @@ host name setting.
 
 =item B<Instance> I<Instance>
 
-Use I<Instance> as the plugin instance when submitting values. Defaults to an
-empty string (no plugin instance).
+Use I<Instance> as the plugin instance when submitting values.
+May be overridden by B<PluginInstanceFrom> option inside B<XPath> blocks.
+Defaults to an empty string (no plugin instance).
 
-=item B<PluginName> I<PluginName>
+=item B<Plugin> I<Plugin>
 
-Use I<PluginName> as the plugin name when submitting values.
+Use I<Plugin> as the plugin name when submitting values.
 Defaults to 'curl_xml'.
 
 =item B<Namespace> I<Prefix> I<URL>
