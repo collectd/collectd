@@ -57,6 +57,8 @@
 #include <rte_branch_prediction.h>
 #include <rte_string_fns.h>
 
+#define DPDK_DEFAULT_RTE_CONFIG "/var/run/.rte_config"
+#define DPDK_MAX_ARGC 8
 #define DPDKSTAT_MAX_BUFFER_SIZE (4096*4)
 #define DPDK_SHM_NAME "dpdk_collectd_stats_shm"
 #define ERR_BUF_SIZE 1024
@@ -130,13 +132,13 @@ static void dpdk_config_init_default(void)
              CDTIME_T_TO_MS(g_configuration->interval));
     /* Default is all ports enabled */
     g_configuration->enabled_port_mask = ~0;
-    g_configuration->eal_argc = 2;
+    g_configuration->eal_argc = DPDK_MAX_ARGC;
     g_configuration->eal_initialized = 0;
     ssnprintf(g_configuration->coremask, DATA_MAX_NAME_LEN, "%s", "0xf");
     ssnprintf(g_configuration->memory_channels, DATA_MAX_NAME_LEN, "%s", "1");
     ssnprintf(g_configuration->process_type, DATA_MAX_NAME_LEN, "%s", "secondary");
     ssnprintf(g_configuration->file_prefix, DATA_MAX_NAME_LEN, "%s",
-             "/var/run/.rte_config");
+             DPDK_DEFAULT_RTE_CONFIG);
 
     for (int i = 0; i < RTE_MAX_ETHPORTS; i++)
       g_configuration->port_name[i][0] = 0;
@@ -166,30 +168,23 @@ static int dpdk_config(oconfig_item_t *ci)
       cf_util_get_string_buffer(child, g_configuration->coremask,
         sizeof (g_configuration->coremask));
       DEBUG("dpdkstat:COREMASK %s ", g_configuration->coremask);
-      g_configuration->eal_argc += 1;
     } else if (strcasecmp("MemoryChannels", child->key) == 0) {
       cf_util_get_string_buffer(child, g_configuration->memory_channels,
         sizeof (g_configuration->memory_channels));
       DEBUG("dpdkstat:Memory Channels %s ", g_configuration->memory_channels);
-      g_configuration->eal_argc += 1;
     } else if (strcasecmp("SocketMemory", child->key) == 0) {
       cf_util_get_string_buffer(child, g_configuration->socket_memory,
         sizeof (g_configuration->memory_channels));
       DEBUG("dpdkstat: socket mem %s ", g_configuration->socket_memory);
-      g_configuration->eal_argc += 1;
     } else if (strcasecmp("ProcessType", child->key) == 0) {
       cf_util_get_string_buffer(child, g_configuration->process_type,
         sizeof (g_configuration->process_type));
       DEBUG("dpdkstat: proc type %s ", g_configuration->process_type);
-      g_configuration->eal_argc += 1;
     } else if ((strcasecmp("FilePrefix", child->key) == 0) &&
       (child->values[0].type == OCONFIG_TYPE_STRING)) {
       ssnprintf(g_configuration->file_prefix, DATA_MAX_NAME_LEN, "/var/run/.%s_config",
         child->values[0].value.string);
       DEBUG("dpdkstat: file prefix %s ", g_configuration->file_prefix);
-      if (strcasecmp(g_configuration->file_prefix, "/var/run/.rte_config") != 0) {
-        g_configuration->eal_argc += 1;
-      }
     } else if ((strcasecmp("EnabledPortMask", child->key) == 0) &&
       (child->values[0].type == OCONFIG_TYPE_NUMBER)) {
       g_configuration->enabled_port_mask = (uint32_t) child->values[0].value.number;
@@ -288,12 +283,12 @@ static int dpdk_re_init_shm()
 {
   dpdk_config_t temp_config;
   memcpy(&temp_config, g_configuration, sizeof(dpdk_config_t));
-  DEBUG("dpdkstat: %s: ports %d, xstats %d", __func__, temp_config.num_ports,
+  DEBUG("dpdkstat: %s: ports %"PRIu32", xstats %"PRIu32, __func__, temp_config.num_ports,
     temp_config.num_xstats);
 
   size_t shm_xstats_size = sizeof(dpdk_config_t) + (sizeof(struct rte_eth_xstats) *
                            g_configuration->num_xstats);
-  DEBUG("=== SHM new size for %d xstats", g_configuration->num_xstats);
+  DEBUG("=== SHM new size for %"PRIu32" xstats", g_configuration->num_xstats);
 
   int err = dpdk_shm_cleanup();
   if (err) {
@@ -387,7 +382,7 @@ static int dpdk_helper_spawn(enum DPDK_HELPER_ACTION action)
   if (pid > 0) {
     close(g_configuration->helper_pipes[1]);
     g_configuration->helper_pid = pid;
-    DEBUG("dpdkstat: helper pid %u", g_configuration->helper_pid);
+    DEBUG("dpdkstat: helper pid %lu", (long)g_configuration->helper_pid);
     /* Kick helper once its alive to have it start processing */
     sem_post(&g_configuration->sema_helper_get_stats);
   } else if (pid == 0) {
@@ -429,7 +424,7 @@ static int dpdk_helper_init_eal(void)
     argp[i++] = g_configuration->socket_memory;
   }
   if (strcasecmp(g_configuration->file_prefix, "") != 0 &&
-     strcasecmp(g_configuration->file_prefix, "/var/run/.rte_config") != 0) {
+     strcasecmp(g_configuration->file_prefix, DPDK_DEFAULT_RTE_CONFIG) != 0) {
     argp[i++] = "--file-prefix";
     argp[i++] = g_configuration->file_prefix;
   }
@@ -458,8 +453,8 @@ static int dpdk_helper_run (void)
     /* sem_timedwait() to avoid blocking forever */
     struct timespec ts;
     cdtime_t now = cdtime();
-    cdtime_t half_sec = MS_TO_CDTIME_T(1500);
-    CDTIME_T_TO_TIMESPEC(now + half_sec + g_configuration->interval * 2, &ts);
+    cdtime_t safety_period = MS_TO_CDTIME_T(1500);
+    CDTIME_T_TO_TIMESPEC(now + safety_period + g_configuration->interval * 2, &ts);
     int ret = sem_timedwait(&g_configuration->sema_helper_get_stats, &ts);
 
     if (ret == -1 && errno == ETIMEDOUT) {
@@ -514,7 +509,7 @@ static int dpdk_helper_run (void)
       if (g_configuration->helper_action == DPDK_HELPER_ACTION_COUNT_STATS) {
         len = rte_eth_xstats_get(i, NULL, 0);
         if (len < 0) {
-          ERROR("dpdkstat-helper: Cannot get xstats count on port %d", i);
+          ERROR("dpdkstat-helper: Cannot get xstats count on port %"PRIu8, i);
           break;
         }
         num_xstats += len;
@@ -527,7 +522,7 @@ static int dpdk_helper_run (void)
         ret = rte_eth_xstats_get(i, g_configuration->xstats + num_xstats,
           g_configuration->num_stats_in_port[enabled_port_count]);
         if (ret < 0 || ret != len) {
-          DEBUG("dpdkstat-helper: Error reading xstats on port %d len = %d",
+          DEBUG("dpdkstat-helper: Error reading xstats on port %"PRIu8" len = %d",
             i, len);
           break;
         }
@@ -539,7 +534,7 @@ static int dpdk_helper_run (void)
     if (g_configuration->helper_action == DPDK_HELPER_ACTION_COUNT_STATS) {
       g_configuration->num_ports = enabled_port_count;
       g_configuration->num_xstats = num_xstats;
-      DEBUG("dpdkstat-helper ports: %d, num stats: %d",
+      DEBUG("dpdkstat-helper ports: %"PRIu32", num stats: %"PRIu32,
         g_configuration->num_ports, g_configuration->num_xstats);
       /* Exit, allowing collectd to re-init SHM to the right size */
       g_configuration->collectd_reinit_shm = REINIT_SHM;
@@ -705,7 +700,7 @@ static int dpdk_read(user_data_t *ud)
   int data_avail = poll(&fds, 1, 0);
   if (data_avail < 0) {
     char errbuf[ERR_BUF_SIZE];
-    if (errno != EINTR || (errno != EAGAIN))
+    if (errno != EINTR || errno != EAGAIN)
       ERROR("dpdkstats: poll(2) failed: %s",
       sstrerror(errno, errbuf, sizeof (errbuf)));
   }
@@ -753,7 +748,7 @@ static int dpdk_read(user_data_t *ud)
     if (g_configuration->port_name[i][0] != 0)
       ssnprintf(dev_name, sizeof(dev_name), "%s", g_configuration->port_name[i]);
     else
-      ssnprintf(dev_name, sizeof(dev_name), "port.%d", port_num);
+      ssnprintf(dev_name, sizeof(dev_name), "port.%"PRIu32, port_num);
     struct rte_eth_xstats *xstats = g_configuration->xstats + count;
 
     dpdk_submit_xstats(dev_name, xstats, counters_num, port_read_time);
