@@ -214,7 +214,7 @@ static int o_config_add_database(oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string(child, &db->username);
     else if (strcasecmp("Password", child->key) == 0)
       status = cf_util_get_string(child, &db->password);
-    else if (strcasecmp("PluginName", child->key) == 0)
+    else if (strcasecmp("Plugin", child->key) == 0)
       status = cf_util_get_string(child, &db->plugin_name);
     else if (strcasecmp("Query", child->key) == 0)
       status = udb_query_pick_from_list(child, queries, queries_num,

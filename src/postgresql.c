@@ -1146,7 +1146,7 @@ static int c_psql_config_database(oconfig_item_t *ci) {
       cf_util_get_string(c, &db->password);
     else if (0 == strcasecmp(c->key, "Instance"))
       cf_util_get_string(c, &db->instance);
-    else if (0 == strcasecmp (c->key, "PluginName"))
+    else if (0 == strcasecmp (c->key, "Plugin"))
       cf_util_get_string (c, &db->plugin_name);
     else if (0 == strcasecmp(c->key, "SSLMode"))
       cf_util_get_string(c, &db->sslmode);

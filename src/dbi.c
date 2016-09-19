@@ -302,7 +302,7 @@ static int cdbi_config_add_database(oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string(child, &db->host);
     else if (strcasecmp("Interval", child->key) == 0)
       status = cf_util_get_cdtime(child, &db->interval);
-    else if (strcasecmp("PluginName", child->key) == 0)
+    else if (strcasecmp("Plugin", child->key) == 0)
       status = cf_util_get_string(child, &db->plugin_name);
     else {
       WARNING("dbi plugin: Option `%s' not allowed here.", child->key);
