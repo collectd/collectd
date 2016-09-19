@@ -175,6 +175,7 @@
 #@BUILD_PLUGIN_PROTOCOLS_TRUE@LoadPlugin protocols
 #@BUILD_PLUGIN_PYTHON_TRUE@LoadPlugin python
 #@BUILD_PLUGIN_REDIS_TRUE@LoadPlugin redis
+#@BUILD_PLUGIN_RDTMON_TRUE@LoadPlugin rdtmon
 #@BUILD_PLUGIN_ROUTEROS_TRUE@LoadPlugin routeros
 #@BUILD_PLUGIN_RRDCACHED_TRUE@LoadPlugin rrdcached
 @LOAD_PLUGIN_RRDTOOL@LoadPlugin rrdtool
@@ -1095,6 +1096,10 @@
 #	<Module spam>
 #		spam "wonderful" "lovely"
 #	</Module>
+#</Plugin>
+
+#<Plugin "rdtmon">
+#  Cores "0-2"
 #</Plugin>
 
 #<Plugin redis>

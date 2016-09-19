@@ -962,6 +962,14 @@ protocols_la_SOURCES = protocols.c
 protocols_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_RDTMON
+pkglib_LTLIBRARIES += rdtmon.la
+rdtmon_la_SOURCES = rdtmon.c
+rdtmon_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBPQOS_LDFLAGS)
+rdtmon_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBPQOS_CPPFLAGS)
+rdtmon_la_LIBADD = $(BUILD_WITH_LIBPQOS_LIBS)
+endif
+
 if BUILD_PLUGIN_REDIS
 pkglib_LTLIBRARIES += redis.la
 redis_la_SOURCES = redis.c

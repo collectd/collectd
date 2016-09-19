@@ -4098,6 +4098,55 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LIBPQ, test "x$with_libpq" = "xyes")
 # }}}
 
+# --with-libpqos {{{
+with_libpqos_cppflags=""
+with_libpqos_ldflags=""
+AC_ARG_WITH(libpqos, [AS_HELP_STRING([--with-libpqos@<:@=PREFIX@:>@], [Path to libpqos.])],
+[
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	then
+		with_libpqos_cppflags="-I$withval/include"
+		with_libpqos_ldflags="-L$withval/lib"
+		with_libpqos="yes"
+	else
+		with_libpqos="$withval"
+	fi
+],
+[
+	with_libpqos="yes"
+])
+if test "x$with_libpqos" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libpqos_cppflags"
+
+	AC_CHECK_HEADERS(pqos.h, [with_libpqos="yes"], [with_libpqos="no (pqos.h not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_libpqos" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libpqos_cppflags"
+	LDFLAGS="$LDFLAGS $with_libpqos_ldflags"
+
+	AC_CHECK_LIB(pqos, pqos_init, [with_libpqos="yes"], [with_libpqos="no (Can't find libpqos)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+if test "x$with_libpqos" = "xyes"
+then
+	BUILD_WITH_LIBPQOS_CPPFLAGS="$with_libpqos_cppflags"
+	BUILD_WITH_LIBPQOS_LDFLAGS="$with_libpqos_ldflags"
+	BUILD_WITH_LIBPQOS_LIBS="-lpqos"
+	AC_SUBST(BUILD_WITH_LIBPQOS_CPPFLAGS)
+	AC_SUBST(BUILD_WITH_LIBPQOS_LDFLAGS)
+	AC_SUBST(BUILD_WITH_LIBPQOS_LIBS)
+fi
+# }}}
+
 # --with-libprotobuf {{{
 with_libprotobuf_cppflags=""
 with_libprotobuf_ldflags=""
@@ -5801,6 +5850,7 @@ plugin_pinba="no"
 plugin_processes="no"
 plugin_protocols="no"
 plugin_python="no"
+plugin_rdtmon="no"
 plugin_serial="no"
 plugin_smart="no"
 plugin_swap="no"
@@ -6298,6 +6348,7 @@ AC_PLUGIN([powerdns],            [yes],                     [PowerDNS statistics
 AC_PLUGIN([processes],           [$plugin_processes],       [Process statistics])
 AC_PLUGIN([protocols],           [$plugin_protocols],       [Protocol (IP, TCP, ...) statistics])
 AC_PLUGIN([python],              [$plugin_python],          [Embed a Python interpreter])
+AC_PLUGIN([rdtmon],              [$with_libpqos],           [RDT monitor plugin])
 AC_PLUGIN([redis],               [$with_libhiredis],        [Redis plugin])
 AC_PLUGIN([routeros],            [$with_librouteros],       [RouterOS plugin])
 AC_PLUGIN([rrdcached],           [$librrd_rrdc_update],     [RRDTool output plugin])
@@ -6604,6 +6655,7 @@ AC_MSG_RESULT([    libpcap . . . . . . . $with_libpcap])
 AC_MSG_RESULT([    libperfstat . . . . . $with_perfstat])
 AC_MSG_RESULT([    libperl . . . . . . . $with_libperl])
 AC_MSG_RESULT([    libpq . . . . . . . . $with_libpq])
+AC_MSG_RESULT([    libpqos . . . . . . . $with_libpqos])
 AC_MSG_RESULT([    libprotobuf . . . . . $with_libprotobuf])
 AC_MSG_RESULT([    libprotobuf-c . . . . $with_libprotobuf_c])
 AC_MSG_RESULT([    libpython . . . . . . $with_libpython])
@@ -6731,6 +6783,7 @@ AC_MSG_RESULT([    processes . . . . . . $enable_processes])
 AC_MSG_RESULT([    protocols . . . . . . $enable_protocols])
 AC_MSG_RESULT([    python  . . . . . . . $enable_python])
 AC_MSG_RESULT([    redis . . . . . . . . $enable_redis])
+AC_MSG_RESULT([    rdtmon . . . . . .  . $enable_rdtmon])
 AC_MSG_RESULT([    routeros  . . . . . . $enable_routeros])
 AC_MSG_RESULT([    rrdcached . . . . . . $enable_rrdcached])
 AC_MSG_RESULT([    rrdtool . . . . . . . $enable_rrdtool])

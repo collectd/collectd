@@ -313,6 +313,15 @@ Features
       collectd without the need to start a heavy interpreter every interval.
       See collectd-python(5) for details.
 
+    - rdtmon
+      The rdtmon plugin collects information provided by monitoring features of
+      Intel Resource Director Technology (Intel(R) RDT) like Cache Monitoring
+      Technology (CMT), Memory Bandwidth Monitoring (MBM). These features
+      provide information about utilization of shared resources like last level
+      cache occupacy, local memory bandwidth usage, remote memory bandwidth
+      usage, instructions per clock.
+      <https://01.org/packet-processing/cache-monitoring-technology-memory-bandwidth-monitoring-cache-allocation-technology-code-and-data>
+
     - redis
       The redis plugin gathers information from a Redis server, including:
       uptime, used memory, total connections etc.
@@ -813,6 +822,11 @@ Prerequisites
   * libpq (optional)
     The PostgreSQL C client library used by the `postgresql' plugin.
     <http://www.postgresql.org/>
+
+  * libpqos (optional)
+    The PQoS library for Intel(R) Resource Director Technology used by the
+    `rdtmon' plugin.
+    <https://github.com/01org/intel-cmt-cat>
 
   * libprotobuf, protoc 3.0+ (optional)
     Used by the `grpc' plugin to generate service stubs and code to handle
