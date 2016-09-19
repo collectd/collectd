@@ -1,5 +1,5 @@
 #!/bin/bash -xe
-VERSION=5.5.0
+VERSION=5.5.2
 
 if [ "x$BRANCH" == "x" ]
 then
