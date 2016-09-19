@@ -180,7 +180,7 @@ int format_rfc3339 (char *buffer, size_t buffer_size, struct tm const *t_tm, lon
     size_left -= len;
   }
 
-  sstrncpy (buffer, zone, buffer_size);
+  sstrncpy (pos, zone, size_left);
   return 0;
 } /* }}} int format_rfc3339 */
 
