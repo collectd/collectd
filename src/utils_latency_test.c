@@ -105,7 +105,7 @@ DEF_TEST (rate) {
   for (i = 0; i < 125; i++) {
     latency_counter_add (l, TIME_T_TO_CDTIME_T (((time_t) i) + 1));
   }
-  //Test expects bin width equal to 0.125s
+  //Test expects bin width will be equal to 0.125s
 
   EXPECT_EQ_DOUBLE (1/125, latency_counter_get_rate (l,
       DOUBLE_TO_CDTIME_T(10),

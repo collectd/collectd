@@ -29,7 +29,6 @@
 
 #include "plugin.h"
 #include "utils_latency.h"
-#include "utils_latency_config.h"
 
 /*
  * Each type may have 12 sub-types

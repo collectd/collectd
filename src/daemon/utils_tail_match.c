@@ -109,13 +109,12 @@ static int simple_submit_latency (cu_match_t *match, void *user_data)
   cu_tail_match_simple_t *data = (cu_tail_match_simple_t *) user_data;
   cu_match_value_t *match_value;
   value_list_t vl = VALUE_LIST_INIT;
-  value_t values[1];
 
   match_value = (cu_match_value_t *) match_get_user_data (match);
   if (match_value == NULL)
     return (-1);
 
-  vl.values = values;
+  vl.values = &(value_t) { .gauge = NAN };
   vl.values_len = 1;
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, data->plugin, sizeof (vl.plugin));
@@ -128,7 +127,7 @@ static int simple_submit_latency (cu_match_t *match, void *user_data)
   if (data->latency_config.lower) {
     ssnprintf (vl.type_instance, sizeof (vl.type_instance),
         "lower");
-    values[0].gauge = (match_value->values_num != 0)
+    vl.values[0].gauge = (match_value->values_num != 0)
       ? CDTIME_T_TO_DOUBLE (latency_counter_get_min (match_value->latency))
       : NAN;
     plugin_dispatch_values (&vl);
@@ -137,7 +136,7 @@ static int simple_submit_latency (cu_match_t *match, void *user_data)
   if (data->latency_config.avg) {
     ssnprintf (vl.type_instance, sizeof (vl.type_instance),
         "average");
-    values[0].gauge = (match_value->values_num != 0)
+    vl.values[0].gauge = (match_value->values_num != 0)
       ? CDTIME_T_TO_DOUBLE (latency_counter_get_average (match_value->latency))
       : NAN;
     plugin_dispatch_values (&vl);
@@ -146,21 +145,20 @@ static int simple_submit_latency (cu_match_t *match, void *user_data)
   if (data->latency_config.upper) {
     ssnprintf (vl.type_instance, sizeof (vl.type_instance),
         "upper");
-    values[0].gauge = (match_value->values_num != 0)
+    vl.values[0].gauge = (match_value->values_num != 0)
       ? CDTIME_T_TO_DOUBLE (latency_counter_get_max (match_value->latency))
       : NAN;
     plugin_dispatch_values (&vl);
   }
 
-  size_t i;
   /* Submit percentiles */
   if (data->latency_config.percentile_type != NULL)
     sstrncpy (vl.type, data->latency_config.percentile_type, sizeof (vl.type));
-  for (i = 0; i < data->latency_config.percentile_num; i++)
+  for (size_t i = 0; i < data->latency_config.percentile_num; i++)
   {
     ssnprintf (vl.type_instance, sizeof (vl.type_instance),
         "percentile-%.0f",  data->latency_config.percentile[i]);
-    values[0].gauge = (match_value->values_num != 0)
+    vl.values[0].gauge = (match_value->values_num != 0)
       ? CDTIME_T_TO_DOUBLE (latency_counter_get_percentile (match_value->latency,
                                             data->latency_config.percentile[i]))
       : NAN;
@@ -171,13 +169,13 @@ static int simple_submit_latency (cu_match_t *match, void *user_data)
   sstrncpy (vl.type, data->type, sizeof (vl.type));
   if (data->latency_config.rates_type != NULL)
     sstrncpy (vl.type, data->latency_config.rates_type, sizeof (vl.type));
-  for (i = 0; i < data->latency_config.rates_num; i++)
+  for (size_t i = 0; i < data->latency_config.rates_num; i++)
   {
     ssnprintf (vl.type_instance, sizeof (vl.type_instance),
         "rate-%.3f-%.3f",
         CDTIME_T_TO_DOUBLE(data->latency_config.rates[i * 2]),
         CDTIME_T_TO_DOUBLE(data->latency_config.rates[i * 2 + 1]));
-    values[0].gauge = (match_value->values_num != 0) 
+    vl.values[0].gauge = (match_value->values_num != 0) 
       ? latency_counter_get_rate (match_value->latency,
                                   data->latency_config.rates[i * 2],
                                   data->latency_config.rates[i * 2 + 1],

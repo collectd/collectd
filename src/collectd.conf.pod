@@ -7227,8 +7227,10 @@ Sets the type used to dispatch B<LatencyPercentile> values.
 =item B<LatencyRate> I<lower_latency> I<upper_latency>
 
 Calculate and dispatch rate of latency values fall within requested interval.
-Interval specified as [I<lower_latency>,I<upper_latency>] (including boundaries).
-When I<upper_latency> value is equal to 0 then interval is [lower, infinity).
+Interval is specified as [I<lower_latency>, I<upper_latency>] (including
+boundaries). Rate cannot be reported for 0.000 latency, so I<lower_latency>
+should be 0.001 or greater. When I<upper_latency> value is equal to 0 then
+interval is [lower, infinity).
 
 Rates for different intervals can be calculated by setting this option several
 times.

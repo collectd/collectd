@@ -94,8 +94,7 @@ static int ctail_config_add_match_dstype (ctail_config_match_t *cm,
   }
   else if (strcasecmp ("Latency", ci->values[0].value.string) == 0)
   {
-    cm->flags = UTILS_MATCH_DS_TYPE_GAUGE;
-    cm->flags |= UTILS_MATCH_CF_GAUGE_LATENCY;
+    cm->flags = UTILS_MATCH_DS_TYPE_GAUGE | UTILS_MATCH_CF_GAUGE_LATENCY;
   }
   else if (strncasecmp ("Counter", ci->values[0].value.string, strlen ("Counter")) == 0)
   {

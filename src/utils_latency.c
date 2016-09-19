@@ -152,7 +152,7 @@ void latency_counter_add (latency_counter_t *lc, cdtime_t latency) /* {{{ */
   if (lc->max < latency)
     lc->max = latency;
 
-  /* A latency of _exactly_ 1.0 ms should be stored in the buffer 0, so
+  /* A latency of _exactly_ 1.0 ms is stored in the buffer 0, so
    * subtract one from the cdtime_t value so that exactly 1.0 ms get sorted
    * accordingly. */
   bin = (latency - 1) / lc->bin_width;
@@ -317,9 +317,7 @@ double latency_counter_get_rate (const latency_counter_t *lc, /* {{{ */
 {
   cdtime_t lower_bin;
   cdtime_t upper_bin;
-  double p;
   double sum = 0;
-  size_t i;
 
   if ((lc == NULL) || (lc->num == 0))
     return (0);
@@ -333,7 +331,7 @@ double latency_counter_get_rate (const latency_counter_t *lc, /* {{{ */
   if (upper && (upper < lower))
     return (0);
 
-  /* A latency of _exactly_ 1.0 ms should be stored in the buffer 0 */
+  /* A latency of _exactly_ 1.0 ms is stored in the buffer 0 */
   lower_bin = (lower - 1) / lc->bin_width;
 
   if (upper)
@@ -350,23 +348,33 @@ double latency_counter_get_rate (const latency_counter_t *lc, /* {{{ */
   }
 
   sum = 0;
-  for (i = lower_bin; i <= upper_bin; i++)
+  for (size_t i = lower_bin; i <= upper_bin; i++)
   {
     sum += lc->histogram[i];
   }
 
-  p = ((double)lower - (double)(lower_bin + 0) * (double)lc->bin_width - (double)DOUBLE_TO_CDTIME_T(0.001)) / (double)lc->bin_width;
-  sum -= p * lc->histogram[lower_bin];
+  /* Approximate ratio of requests below "lower" */
+  cdtime_t lower_bin_boundary = lower_bin * lc->bin_width;
 
-  if (upper && upper < (upper_bin + 1) * lc->bin_width)
+  /* When bin width is 0.125 (for example), then bin 0 stores
+   * values for interval [0, 0.124) (excluding).
+   * With lower = 0.100, the ratio should be 0.099 / 0.125.
+   * I.e. ratio = 0.100 - 0.000 - 0.001
+   */
+  double ratio = (double)(lower - lower_bin_boundary - DOUBLE_TO_CDTIME_T(0.001))
+                  / (double)lc->bin_width;
+  sum -= ratio * lc->histogram[lower_bin];
+
+  /* Approximate ratio of requests above "upper" */
+  cdtime_t upper_bin_boundary = (upper_bin + 1) * lc->bin_width;
+  if (upper)
   {
-    // p = ((upper_bin + 1) * bin_width - upper ) / bin_width;
-    p = ((double)(upper_bin + 1) * (double)lc->bin_width - (double)upper) / (double)lc->bin_width;
-    sum -= p * lc->histogram[upper_bin];
+    assert (upper <= upper_bin_boundary);
+    double ratio = (double)(upper_bin_boundary - upper) / (double)lc->bin_width;
+    sum -= ratio * lc->histogram[upper_bin];
   }
+
   return sum / (CDTIME_T_TO_DOUBLE (now - lc->start_time));
-
 } /* }}} double latency_counter_get_rate */
-
 
 /* vim: set sw=2 sts=2 et fdm=marker : */

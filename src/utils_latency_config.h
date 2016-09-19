@@ -33,29 +33,28 @@
 
 struct latency_config_s
 {
-  double *percentile;
-  size_t percentile_num;
-  char   *percentile_type;
+  double   *percentile;
+  size_t   percentile_num;
+  char     *percentile_type;
   cdtime_t *rates;
   size_t   rates_num;
   char     *rates_type;
-  _Bool lower;
-  _Bool upper;
+  _Bool    lower;
+  _Bool    upper;
   //_Bool sum;
-  _Bool avg;
+  _Bool    avg;
   //_Bool count;
 };
 typedef struct latency_config_s latency_config_t;
 
+int latency_config_add_percentile(const char *plugin, latency_config_t *cl,
+                                  oconfig_item_t *ci);
 
-int latency_config_add_percentile (const char *plugin, latency_config_t *cl,
-    oconfig_item_t *ci);
+int latency_config_add_rate(const char *plugin, latency_config_t *cl,
+                            oconfig_item_t *ci);
 
-int latency_config_add_rate (const char *plugin, latency_config_t *cl,
-    oconfig_item_t *ci);
+int latency_config_copy(latency_config_t *dst, const latency_config_t src);
 
-int latency_config_copy (latency_config_t *dst, const latency_config_t src);
-
-void latency_config_free (latency_config_t lc);
+void latency_config_free(latency_config_t lc);
 
 #endif /* UTILS_LATENCY_CONFIG_H */
