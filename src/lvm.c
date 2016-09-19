@@ -18,7 +18,7 @@
  *
  * Authors:
  *   Chad Malfait <malfaitc at yahoo.com>
- *   Benjamin Gilbert <bgilbert at cs.cmu.edu>
+ *   Benjamin Gilbert <bgilbert at backtick.net>
  **/
 
 #include <lvm2app.h>

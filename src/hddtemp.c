@@ -23,7 +23,7 @@
  *   Vincent Stehlé <vincent.stehle at free.fr>
  *   Florian octo Forster <octo at collectd.org>
  *   Sebastian Harl <sh at tokkee.org>
- *   Benjamin Gilbert <bgilbert at cs.cmu.edu>
+ *   Benjamin Gilbert <bgilbert at backtick.net>
  *
  * TODO:
  *   Do a pass, some day, and spare some memory. We consume too much for now
