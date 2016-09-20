@@ -72,13 +72,24 @@
 typedef struct ovs_db_s ovs_db_t;
 
 /* OVS DB callback type declaration */
-typedef void (*ovs_db_init_cb_t) (ovs_db_t *pdb);
 typedef void (*ovs_db_table_cb_t) (yajl_val jupdates);
 typedef void (*ovs_db_result_cb_t) (yajl_val jresult, yajl_val jerror);
 
 /* OVS DB structures */
 struct ovs_db_callback_s {
-  ovs_db_init_cb_t init_cb;
+  /*
+   * This callback is called when OVS DB connection
+   * has been established and ready to use. Client
+   * can use this callback to configure OVS DB, e.g.
+   * to subscribe to table update notification or poll
+   * some OVS DB data. This field can be NULL.
+   */
+  void (*post_conn_init) (ovs_db_t *pdb);
+  /*
+   * This callback is called when OVD DB connection
+   * has been lost. This field can be NULL.
+   */
+  void (*post_conn_terminate) (void);
 };
 typedef struct ovs_db_callback_s ovs_db_callback_t;
 

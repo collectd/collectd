@@ -58,6 +58,7 @@ typedef struct ovs_link_config_s ovs_link_config_t;
 /* OVS link context type */
 struct ovs_link_ctx_s {
   pthread_mutex_t mutex;        /* mutex to lock the context */
+  pthread_mutexattr_t mutex_attr;       /* context mutex attribute */
   ovs_db_t *ovs_db;             /* pointer to OVS DB instance */
   ovs_link_config_t config;     /* plugin config */
   ovs_link_interface_info_t *ifaces;    /* interface info */
@@ -245,13 +246,24 @@ ovs_link_link_status_submit(const char *link_name,
   values[0].gauge = (gauge_t) link_status;
   vl.time = cdtime();
   vl.values = values;
-  vl.values_len = sizeof(values) / sizeof(values[0]);
+  vl.values_len = STATIC_ARRAY_SIZE(values);
   sstrncpy(vl.host, hostname_g, sizeof(vl.host));
   sstrncpy(vl.plugin, OVS_LINK_PLUGIN, sizeof(vl.plugin));
   sstrncpy(vl.plugin_instance, link_name, sizeof(vl.plugin_instance));
   sstrncpy(vl.type, "gauge", sizeof(vl.type));
   sstrncpy(vl.type_instance, "link_status", sizeof(vl.type_instance));
   plugin_dispatch_values(&vl);
+}
+
+/* Dispatch OVS DB terminate connection event to collectd */
+static void
+ovs_link_dispatch_terminate_notification(const char *msg)
+{
+  notification_t n = {NOTIF_FAILURE, cdtime(), "", "", OVS_LINK_PLUGIN,
+                      "", "", "", NULL};
+  ssnprintf(n.message, sizeof(n.message), msg);
+  sstrncpy(n.host, hostname_g, sizeof(n.host));
+  plugin_dispatch_notification(&n);
 }
 
 /* Process OVS DB update table event. It handles link status update event(s)
@@ -348,10 +360,10 @@ ovs_link_table_result_cb(yajl_val jresult, yajl_val jerror)
 }
 
 /* Setup OVS DB table callback. It subscribes to OVS DB 'Interface' table
- * to receive link status events.
+ * to receive link status event(s).
  */
 static void
-ovs_link_initialize(ovs_db_t *pdb)
+ovs_link_conn_initialize(ovs_db_t *pdb)
 {
   int ret = 0;
   const char tb_name[] = "Interface";
@@ -369,6 +381,22 @@ ovs_link_initialize(ovs_db_t *pdb)
   }
 
   DEBUG(OVS_LINK_PLUGIN ": OVS DB has been initialized");
+}
+
+/* OVS DB terminate connection notification callback */
+static void
+ovs_link_conn_terminate()
+{
+  const char msg[] = "OVS DB connection has been lost";
+  if (ovs_link_ctx.config.send_notification)
+    ovs_link_dispatch_terminate_notification(msg);
+  WARNIG(OVS_LINK_PLUGIN ": %s", msg);
+  OVS_LINK_CTX_LOCK {
+    /* update link status to UNKNOWN */
+    for (ovs_link_interface_info_t *iface = ovs_link_ctx.ifaces; iface;
+         iface = iface->next)
+      ovs_link_link_status_update(iface->name, UNKNOWN);
+  }
 }
 
 /* Read OVS link status plugin callback */
@@ -390,15 +418,27 @@ static int
 ovs_link_plugin_init(void)
 {
   ovs_db_t *ovs_db = NULL;
-  ovs_db_callback_t cb = {.init_cb = ovs_link_initialize};
+  ovs_db_callback_t cb = {.post_conn_init = ovs_link_conn_initialize,
+                          .post_conn_terminate = ovs_link_conn_terminate};
+
+  /* Initialize the context mutex */
+  if (pthread_mutexattr_init(&ovs_link_ctx.mutex_attr) != 0) {
+    ERROR(OVS_LINK_PLUGIN ": init context mutex attribute failed");
+    return (-1);
+  }
+  pthread_mutexattr_settype(&ovs_link_ctx.mutex_attr,
+                            PTHREAD_MUTEX_RECURSIVE);
+  if (pthread_mutex_init(&ovs_link_ctx.mutex, &ovs_link_ctx.mutex_attr) != 0) {
+    ERROR(OVS_LINK_PLUGIN ": init context mutex failed");
+    goto ovs_link_failure;
+  }
 
   /* set default OVS DB url */
   if (ovs_link_ctx.config.ovs_db_server_url == NULL)
     if ((ovs_link_ctx.config.ovs_db_server_url =
          strdup(OVS_LINK_DEFAULT_OVS_DB_SERVER_URL)) == NULL) {
       ERROR(OVS_LINK_PLUGIN ": fail to set default OVS DB URL");
-      ovs_link_config_free();
-      return (-1);
+      goto ovs_link_failure;
     }
   DEBUG(OVS_LINK_PLUGIN ": OVS DB url = %s",
         ovs_link_ctx.config.ovs_db_server_url);
@@ -407,8 +447,7 @@ ovs_link_plugin_init(void)
   ovs_db = ovs_db_init(ovs_link_ctx.config.ovs_db_server_url, &cb);
   if (ovs_db == NULL) {
     ERROR(OVS_LINK_PLUGIN ": fail to connect to OVS DB server");
-    ovs_link_config_free();
-    return (-1);
+    goto ovs_link_failure;
   }
 
   /* store OVS DB handler */
@@ -418,6 +457,15 @@ ovs_link_plugin_init(void)
 
   DEBUG(OVS_LINK_PLUGIN ": plugin has been initialized");
   return (0);
+
+ovs_link_failure:
+  ERROR(OVS_LINK_PLUGIN ": plugin initialize failed");
+  /* release allocated memory */
+  ovs_link_config_free();
+  /* destroy context mutex */
+  pthread_mutexattr_destroy(&ovs_link_ctx.mutex_attr);
+  pthread_mutex_destroy(&ovs_link_ctx.mutex);
+  return (-1);
 }
 
 /* Shutdown OVS plugin */
@@ -430,6 +478,10 @@ ovs_link_plugin_shutdown(void)
   /* destroy OVS DB */
   if (ovs_db_destroy(ovs_link_ctx.ovs_db))
     ERROR(OVS_LINK_PLUGIN ": OVSDB object destroy failed");
+
+  /* destroy context mutex */
+  pthread_mutexattr_destroy(&ovs_link_ctx.mutex_attr);
+  pthread_mutex_destroy(&ovs_link_ctx.mutex);
 
   DEBUG(OVS_LINK_PLUGIN ": plugin has been destroyed");
   return (0);

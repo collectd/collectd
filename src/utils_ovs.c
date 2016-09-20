@@ -86,7 +86,8 @@
 
 #define OVS_DB_EVENT_TIMEOUT         5  /* event thread timeout (sec) */
 #define OVS_DB_EVENT_TERMINATE       1
-#define OVS_DB_EVENT_CONNECTED       2
+#define OVS_DB_EVENT_CONN_ESTABLISHED     2
+#define OVS_DB_EVENT_CONN_TERMINATED      3
 
 #define OVS_DB_POLL_STATE_RUNNING    1
 #define OVS_DB_POLL_STATE_EXITING    2
@@ -172,16 +173,17 @@ struct ovs_db_s {
   ovs_poll_thread_t poll_thread;
   ovs_event_thread_t event_thread;
   pthread_mutex_t mutex;
-  ovs_callback_t *cb;
+  ovs_callback_t *remote_cb;
+  ovs_db_callback_t cb;
   ovs_conn_t conn;
-  ovs_db_init_cb_t init_cb;
 };
 typedef struct ovs_db_s ovs_db_t;
 
 /* Post an event to event thread.
  * Possible events are:
  *  OVS_DB_EVENT_TERMINATE
- *  OVS_DB_EVENT_CONNECTED
+ *  OVS_DB_EVENT_CONN_ESTABLISHED
+ *  OVS_DB_EVENT_CONN_TERMINATED
  */
 static void
 ovs_db_event_post(ovs_db_t *pdb, int event)
@@ -233,11 +235,11 @@ static void
 ovs_db_callback_add(ovs_db_t *pdb, ovs_callback_t *new_cb)
 {
   pthread_mutex_lock(&pdb->mutex);
-  if (pdb->cb)
-    pdb->cb->prev = new_cb;
-  new_cb->next = pdb->cb;
+  if (pdb->remote_cb)
+    pdb->remote_cb->prev = new_cb;
+  new_cb->next = pdb->remote_cb;
   new_cb->prev = NULL;
-  pdb->cb = new_cb;
+  pdb->remote_cb = new_cb;
   pthread_mutex_unlock(&pdb->mutex);
 }
 
@@ -255,7 +257,7 @@ ovs_db_callback_remove(ovs_db_t *pdb, ovs_callback_t *del_cb)
   if (pre_cb)
     pre_cb->next = del_cb->next;
   else
-    pdb->cb = del_cb->next;
+    pdb->remote_cb = del_cb->next;
 
   free(del_cb);
   pthread_mutex_unlock(&pdb->mutex);
@@ -266,11 +268,12 @@ static void
 ovs_db_callback_remove_all(ovs_db_t *pdb)
 {
   pthread_mutex_lock(&pdb->mutex);
-  for (ovs_callback_t *del_cb = pdb->cb; pdb->cb; del_cb = pdb->cb) {
-    pdb->cb = pdb->cb->next;
+  for (ovs_callback_t *del_cb = pdb->remote_cb; pdb->remote_cb;
+       del_cb = pdb->remote_cb) {
+    pdb->remote_cb = pdb->remote_cb->next;
     free(del_cb);
   }
-  pdb->cb = NULL;
+  pdb->remote_cb = NULL;
   pthread_mutex_unlock(&pdb->mutex);
 }
 
@@ -280,7 +283,7 @@ static ovs_callback_t *
 ovs_db_callback_get(ovs_db_t *pdb, uint64_t uid)
 {
   pthread_mutex_lock(&pdb->mutex);
-  for (ovs_callback_t *cb = pdb->cb; cb != NULL; cb = cb->next)
+  for (ovs_callback_t *cb = pdb->remote_cb; cb != NULL; cb = cb->next)
     if (cb->uid == uid) {
       pthread_mutex_unlock(&pdb->mutex);
       return cb;
@@ -814,7 +817,7 @@ ovs_db_reconnect(ovs_db_t *pdb)
   }
 
   /* send notification to event thread */
-  ovs_db_event_post(pdb, OVS_DB_EVENT_CONNECTED);
+  ovs_db_event_post(pdb, OVS_DB_EVENT_CONN_ESTABLISHED);
   return (0);
 }
 
@@ -860,6 +863,7 @@ ovs_poll_worker(void *arg)
       } else if ((poll_fd.revents & POLLERR) || (poll_fd.revents & POLLHUP)) {
         /* connection is broken */
         OVS_ERROR("poll() peer closed its end of the channel");
+        ovs_db_event_post(pdb, OVS_DB_EVENT_CONN_TERMINATED);
         close(poll_fd.fd);
       } else if ((poll_fd.revents & POLLIN) || (poll_fd.revents & POLLPRI)) {
         /* read incoming data */
@@ -872,6 +876,7 @@ ovs_poll_worker(void *arg)
             ovs_db_json_data_process(pdb, json, json_len);
         } else if (nbytes == 0) {
           OVS_ERROR("recv() peer has performed an orderly shutdown");
+          ovs_db_event_post(pdb, OVS_DB_EVENT_CONN_TERMINATED);
           close(poll_fd.fd);
         } else {
           OVS_ERROR("recv() receive data error");
@@ -914,9 +919,19 @@ ovs_event_worker(void *arg)
     if (!ret) {
       /* handle the event */
       OVS_DEBUG("handle event %d", pdb->event_thread.value);
-      if (pdb->event_thread.value == OVS_DB_EVENT_CONNECTED)
-        if (pdb->init_cb)
-          pdb->init_cb(pdb);
+      switch (pdb->event_thread.value) {
+      case OVS_DB_EVENT_CONN_ESTABLISHED:
+        if (pdb->cb.post_conn_init)
+          pdb->cb.post_conn_init(pdb);
+        break;
+      case OVS_DB_EVENT_CONN_TERMINATED:
+        if (pdb->cb.post_conn_terminate)
+          pdb->cb.post_conn_terminate();
+        break;
+      default:
+        OVS_DEBUG("unknown event received");
+        break;
+      }
     } else if (ret == ETIMEDOUT) {
       /* wait timeout */
       OVS_DEBUG("no event received (timeout)");
@@ -977,7 +992,7 @@ ovs_db_init(const char *surl, ovs_db_callback_t *cb)
 
   /* setup OVS DB callbacks */
   if (cb)
-    pdb->init_cb = cb->init_cb;
+    pdb->cb = *cb;
 
   /* prepare event thread */
   pthread_cond_init(&pdb->event_thread.cond, NULL);

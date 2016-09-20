@@ -5505,8 +5505,8 @@ Default: empty (all interfaces on all bridges are monitored)
 
 =item B<SendNotification> I<true|false>
 
-If set to true, OVS interface link status notification is sent to collectd.
-Default value is false.
+If set to true, OVS link notifications (interface status and OVS DB connection
+terminate) are sent to collectd. Default value is false.
 
 =back
 
