@@ -253,7 +253,6 @@ static void submit (time_t ts, const char *plugin_instance, /* {{{ */
   vl.values_len = 1;
   if (config_parse_time)
     vl.time = TIME_T_TO_CDTIME_T (ts);
-  sstrncpy(vl.host, hostname_g, sizeof(vl.host));
   sstrncpy(vl.plugin, "bind", sizeof(vl.plugin));
   if (plugin_instance) {
     sstrncpy(vl.plugin_instance, plugin_instance,

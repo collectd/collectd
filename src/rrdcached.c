@@ -302,10 +302,8 @@ static int rc_read (void)
   if (!config_collect_stats)
     return (-1);
 
-  if ((strncmp ("unix:", daemon_address, strlen ("unix:")) == 0)
-      || (daemon_address[0] == '/'))
-    sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-  else
+  if ((strncmp ("unix:", daemon_address, strlen ("unix:")) != 0)
+      && (daemon_address[0] != '/'))
     sstrncpy (vl.host, daemon_address, sizeof (vl.host));
   sstrncpy (vl.plugin, "rrdcached", sizeof (vl.plugin));
 

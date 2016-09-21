@@ -47,7 +47,6 @@ static void numa_dispatch_value (int node, /* {{{ */
   vl.values = &v;
   vl.values_len = 1;
 
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "numa", sizeof (vl.plugin));
   ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance), "node%i", node);
   sstrncpy (vl.type, "vmpage_action", sizeof (vl.type));

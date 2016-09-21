@@ -101,7 +101,6 @@ static int my_submit (gauge_t value)
 	 * have the same timestamp. */
 	/* vl.time = cdtime(); */
 
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "myplugin", sizeof (vl.plugin));
 
 	/* it is strongly recommended to use a type defined in the types.db file

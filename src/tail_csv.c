@@ -69,7 +69,6 @@ static int tcsv_submit (instance_definition_t *id,
     vl.values_len = 1;
     vl.values = &v;
 
-    sstrncpy(vl.host, hostname_g, sizeof (vl.host));
     sstrncpy(vl.plugin, "tail_csv", sizeof(vl.plugin));
     if (id->instance != NULL)
         sstrncpy(vl.plugin_instance, id->instance, sizeof(vl.plugin_instance));

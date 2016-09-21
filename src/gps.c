@@ -224,7 +224,6 @@ static void cgps_submit (const char *type, gauge_t value, const char *type_insta
 
   vl.values = &(value_t) { .gauge = value };
   vl.values_len = 1;
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "gps", sizeof (vl.plugin));
   sstrncpy (vl.type, type, sizeof (vl.type));
   sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));

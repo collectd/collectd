@@ -91,7 +91,6 @@ zone_submit_value(char *zone, gauge_t value)
 
 	vl.values = values;
 	vl.values_len = 1; /*STATIC_ARRAY_SIZE (values);*/
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "zone", sizeof (vl.plugin));
  	sstrncpy (vl.type, "percent", sizeof (vl.type));
  	sstrncpy (vl.type_instance, zone, sizeof (vl.type_instance));

@@ -41,7 +41,6 @@ static void serial_submit (const char *type_instance,
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "serial", sizeof (vl.plugin));
 	sstrncpy (vl.type, "serial_octets", sizeof (vl.type));
 	sstrncpy (vl.type_instance, type_instance,

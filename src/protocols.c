@@ -69,7 +69,6 @@ static void submit (const char *protocol_name,
 
   vl.values = &value;
   vl.values_len = 1;
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "protocols", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, protocol_name, sizeof (vl.plugin_instance));
   sstrncpy (vl.type, "protocol_counter", sizeof (vl.type));

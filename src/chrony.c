@@ -683,9 +683,6 @@ chrony_push_data(const char *p_type, const char *p_type_inst, double p_value)
   vl.values_len = 1;
 
   /* XXX: Shall g_chrony_host/g_chrony_port be reflected in the plugin's output? */
-  /* hostname_g is set in daemon/collectd.c (from config, via gethostname or by resolving localhost) */
-  /* defined as: char hostname_g[DATA_MAX_NAME_LEN]; (never NULL) */
-  sstrncpy(vl.host, hostname_g, sizeof(vl.host));
   sstrncpy(vl.plugin, PLUGIN_NAME_SHORT, sizeof(vl.plugin));
   if (g_chrony_plugin_instance != NULL)
   {

@@ -49,7 +49,6 @@ static void users_submit (gauge_t value)
 
 	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "users", sizeof (vl.plugin));
 	sstrncpy (vl.type, "users", sizeof (vl.plugin));
 

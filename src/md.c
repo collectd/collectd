@@ -76,7 +76,6 @@ static void md_submit (const int minor, const char *type_instance,
 
   vl.values = &(value_t) { .gauge = value };
   vl.values_len = 1;
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "md", sizeof (vl.plugin));
   ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
       "%i", minor);

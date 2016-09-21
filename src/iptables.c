@@ -259,7 +259,6 @@ static int submit6_match (const struct ip6t_entry_match *match,
             return (0);
     }
 
-    sstrncpy (vl.host, hostname_g, sizeof (vl.host));
     sstrncpy (vl.plugin, "ip6tables", sizeof (vl.plugin));
 
     status = ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
@@ -317,7 +316,6 @@ static int submit_match (const struct ipt_entry_match *match,
             return (0);
     }
 
-    sstrncpy (vl.host, hostname_g, sizeof (vl.host));
     sstrncpy (vl.plugin, "iptables", sizeof (vl.plugin));
 
     status = ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance),

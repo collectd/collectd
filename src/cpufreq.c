@@ -63,7 +63,6 @@ static void cpufreq_submit (int cpu_num, value_t value)
 
 	vl.values = &value;
 	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "cpufreq", sizeof (vl.plugin));
 	sstrncpy (vl.type, "cpufreq", sizeof (vl.type));
 	ssnprintf (vl.type_instance, sizeof (vl.type_instance), "%i", cpu_num);

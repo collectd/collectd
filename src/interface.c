@@ -179,7 +179,6 @@ static void if_submit (const char *dev, const char *type,
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "interface", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, dev, sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, type, sizeof (vl.type));

@@ -69,7 +69,6 @@ static void tape_submit (const char *plugin_instance,
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "tape", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, plugin_instance,
 			sizeof (vl.plugin_instance));

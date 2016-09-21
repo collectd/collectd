@@ -664,7 +664,6 @@ static void ps_submit_state (const char *state, double value)
 
 	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "processes", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, "", sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, "ps_state", sizeof (vl.type));
@@ -680,7 +679,6 @@ static void ps_submit_proc_list (procstat_t *ps)
 	value_t values[2];
 
 	vl.values = values;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "processes", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, ps->name, sizeof (vl.plugin_instance));
 
@@ -784,7 +782,6 @@ static void ps_submit_fork_rate (derive_t value)
 
 	vl.values = &(value_t) { .derive = value };
 	vl.values_len = 1;
-	sstrncpy(vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy(vl.plugin, "processes", sizeof (vl.plugin));
 	sstrncpy(vl.plugin_instance, "", sizeof (vl.plugin_instance));
 	sstrncpy(vl.type, "fork_rate", sizeof (vl.type));

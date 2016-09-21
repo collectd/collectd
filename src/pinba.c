@@ -680,7 +680,6 @@ static int plugin_submit (const pinba_statnode_t *res) /* {{{ */
   value_list_t vl = VALUE_LIST_INIT;
 
   vl.values_len = 1;
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "pinba", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, res->name, sizeof (vl.plugin_instance));
 

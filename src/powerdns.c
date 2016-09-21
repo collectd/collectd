@@ -354,7 +354,6 @@ static void submit (const char *plugin_instance, /* {{{ */
 
   vl.values = &value;
   vl.values_len = 1;
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "powerdns", sizeof (vl.plugin));
   sstrncpy (vl.type, type, sizeof (vl.type));
   if (type_instance != NULL)

@@ -374,7 +374,6 @@ static void submit_derive (const char *type, const char *type_instance,
 
 	vl.values = &(value_t) { .derive = value };
 	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "dns", sizeof (vl.plugin));
 	sstrncpy (vl.type, type, sizeof (vl.type));
 	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
@@ -392,7 +391,6 @@ static void submit_octets (derive_t queries, derive_t responses)
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "dns", sizeof (vl.plugin));
 	sstrncpy (vl.type, "dns_octets", sizeof (vl.type));
 

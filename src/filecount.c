@@ -65,7 +65,6 @@ static void fc_submit_dir (const fc_directory_conf_t *dir)
 
   vl.values = &(value_t) { .gauge = (gauge_t) dir->files_num };
   vl.values_len = 1;
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "filecount", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, dir->instance, sizeof (vl.plugin_instance));
   sstrncpy (vl.type, "files", sizeof (vl.type));

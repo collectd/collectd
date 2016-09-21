@@ -614,7 +614,6 @@ static void cc_submit (const web_page_t *wp, const web_match_t *wm, /* {{{ */
 
   vl.values = &value;
   vl.values_len = 1;
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "curl", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, wp->instance, sizeof (vl.plugin_instance));
   sstrncpy (vl.type, wm->type, sizeof (vl.type));
@@ -630,7 +629,6 @@ static void cc_submit_response_code (const web_page_t *wp, long code) /* {{{ */
 
   vl.values = &(value_t) { .gauge = (gauge_t) code };
   vl.values_len = 1;
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "curl", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, wp->instance, sizeof (vl.plugin_instance));
   sstrncpy (vl.type, "response_code", sizeof (vl.type));
@@ -645,7 +643,6 @@ static void cc_submit_response_time (const web_page_t *wp, /* {{{ */
 
   vl.values = &(value_t) { .gauge = CDTIME_T_TO_DOUBLE (response_time) };
   vl.values_len = 1;
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "curl", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, wp->instance, sizeof (vl.plugin_instance));
   sstrncpy (vl.type, "response_time", sizeof (vl.type));

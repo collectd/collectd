@@ -66,7 +66,6 @@ static void fhcount_submit(
   vl.values_len = 1;
 
   // Compose the metric
-  sstrncpy(vl.host, hostname_g, sizeof(vl.host));
   sstrncpy(vl.plugin, "fhcount", sizeof(vl.plugin));
   sstrncpy(vl.type, type, sizeof(vl.type));
   sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));

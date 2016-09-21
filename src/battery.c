@@ -82,7 +82,6 @@ static void battery_submit2 (char const *plugin_instance, /* {{{ */
 
 	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "battery", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, type, sizeof (vl.type));

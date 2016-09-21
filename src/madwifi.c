@@ -544,7 +544,6 @@ static void submit (const char *dev, const char *type, const char *ti1,
 
 	vl.values = val;
 	vl.values_len = len;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "madwifi", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, dev, sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, type, sizeof (vl.type));

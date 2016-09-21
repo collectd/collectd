@@ -756,7 +756,6 @@ static int statsd_metric_submit_unsafe (char const *name, statsd_metric_t *metri
 
   vl.values = &(value_t) { .gauge = NAN };
   vl.values_len = 1;
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "statsd", sizeof (vl.plugin));
 
   if (metric->type == STATSD_GAUGE)

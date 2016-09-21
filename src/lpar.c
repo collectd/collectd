@@ -123,10 +123,6 @@ static void lpar_submit (const char *type_instance, double value)
 		sstrncpy (vl.host, serial, sizeof (vl.host));
 		sstrncpy (vl.plugin_instance, hostname_g, sizeof (vl.plugin));
 	}
-	else
-	{
-		sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-	}
 	sstrncpy (vl.plugin, "lpar", sizeof (vl.plugin));
 	sstrncpy (vl.type, "vcpu", sizeof (vl.type));
 	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));

@@ -221,7 +221,6 @@ static void olsrd_submit (const char *plugin_instance, /* {{{ */
   vl.values = &(value_t) { .gauge = value };
   vl.values_len = 1;
 
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "olsrd", sizeof (vl.plugin));
   if (plugin_instance != NULL)
     sstrncpy (vl.plugin_instance, plugin_instance,

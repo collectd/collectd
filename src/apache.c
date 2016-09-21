@@ -394,8 +394,8 @@ static void submit_value (const char *type, const char *type_instance,
 	vl.values = &value;
 	vl.values_len = 1;
 
-	sstrncpy (vl.host, (st->host != NULL) ? st->host : hostname_g,
-			sizeof (vl.host));
+	if (st->host != NULL)
+		sstrncpy (vl.host, st->host, sizeof (vl.host));
 
 	sstrncpy (vl.plugin, "apache", sizeof (vl.plugin));
 	if (st->name != NULL)
