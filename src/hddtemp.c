@@ -3,6 +3,7 @@
  * Copyright (C) 2005,2006  Vincent Stehlé
  * Copyright (C) 2006-2010  Florian octo Forster
  * Copyright (C) 2008       Sebastian Harl
+ * Copyright (C) 2014       Carnegie Mellon University
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -22,6 +23,7 @@
  *   Vincent Stehlé <vincent.stehle at free.fr>
  *   Florian octo Forster <octo at collectd.org>
  *   Sebastian Harl <sh at tokkee.org>
+ *   Benjamin Gilbert <bgilbert at backtick.net>
  *
  * TODO:
  *   Do a pass, some day, and spare some memory. We consume too much for now
@@ -38,6 +40,7 @@
 # include <netinet/in.h>
 # include <netinet/tcp.h>
 # include <libgen.h> /* for basename */
+# include <assert.h>
 
 #if HAVE_LINUX_MAJOR_H
 # include <linux/major.h>
@@ -45,6 +48,7 @@
 
 #define HDDTEMP_DEF_HOST "127.0.0.1"
 #define HDDTEMP_DEF_PORT "7634"
+#define HDDTEMP_MAX_RECV_BUF (1 << 20)
 
 static const char *config_keys[] =
 {
@@ -79,11 +83,15 @@ static char hddtemp_port[16];
  *  we need to create a new socket each time. Is there another way?
  *  Hm, maybe we can re-use the `sockaddr' structure? -octo
  */
-static int hddtemp_query_daemon (char *buffer, int buffer_size)
+static char *hddtemp_query_daemon (void)
 {
 	int fd;
 	ssize_t status;
+
+	char *buffer;
+	int buffer_size;
 	int buffer_fill;
+	char *new_buffer;
 
 	const char *host;
 	const char *port;
@@ -114,7 +122,7 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 				(ai_return == EAI_SYSTEM)
 				? sstrerror (errno, errbuf, sizeof (errbuf))
 				: gai_strerror (ai_return));
-		return (-1);
+		return (NULL);
 	}
 
 	fd = -1;
@@ -154,16 +162,41 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 	if (fd < 0)
 	{
 		ERROR ("hddtemp plugin: Could not connect to daemon.");
-		return (-1);
+		return (NULL);
 	}
 
 	/* receive data from the hddtemp daemon */
-	memset (buffer, '\0', buffer_size);
-
+	buffer = NULL;
+	buffer_size = 0;
 	buffer_fill = 0;
-	while ((status = read (fd, buffer + buffer_fill, buffer_size - buffer_fill)) != 0)
+	while (1)
 	{
-		if (status == -1)
+		if ((buffer_size == 0) || (buffer_fill >= buffer_size - 1))
+		{
+			if (buffer_size == 0)
+				buffer_size = 1024;
+			else
+				buffer_size *= 2;
+			if (buffer_size > HDDTEMP_MAX_RECV_BUF)
+			{
+				WARNING ("hddtemp plugin: Message from hddtemp has been "
+						"truncated.");
+				break;
+			}
+			new_buffer = realloc (buffer, buffer_size);
+			if (new_buffer == NULL) {
+				close (fd);
+				free (buffer);
+				ERROR ("hddtemp plugin: Allocation failed.");
+				return (NULL);
+			}
+			buffer = new_buffer;
+		}
+		status = read (fd, buffer + buffer_fill, buffer_size - buffer_fill - 1);
+		if (status == 0) {
+			break;
+		}
+		else if (status == -1)
 		{
 			char errbuf[1024];
 
@@ -173,30 +206,25 @@ static int hddtemp_query_daemon (char *buffer, int buffer_size)
 			ERROR ("hddtemp plugin: Error reading from socket: %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			close (fd);
-			return (-1);
+			free (buffer);
+			return (NULL);
 		}
 		buffer_fill += status;
-
-		if (buffer_fill >= buffer_size)
-			break;
 	}
 
-	if (buffer_fill >= buffer_size)
-	{
-		buffer[buffer_size - 1] = '\0';
-		WARNING ("hddtemp plugin: Message from hddtemp has been "
-				"truncated.");
-	}
-	else if (buffer_fill == 0)
+	if (buffer_fill == 0)
 	{
 		WARNING ("hddtemp plugin: Peer has unexpectedly shut down "
 				"the socket. Buffer: `%s'", buffer);
 		close (fd);
-		return (-1);
+		free (buffer);
+		return (NULL);
 	}
 
+	assert (buffer_fill < buffer_size);
+	buffer[buffer_fill] = '\0';
 	close (fd);
-	return (0);
+	return (buffer);
 }
 
 static int hddtemp_config (const char *key, const char *value)
@@ -240,54 +268,46 @@ static void hddtemp_submit (char *type_instance, double value)
 
 static int hddtemp_read (void)
 {
-	char buf[1024];
-	char *fields[128];
+	char *buf;
 	char *ptr;
 	char *saveptr;
-	int num_fields;
-	int num_disks;
+	char *name;
+	char *model;
+	char *temperature;
+	char *mode;
 
 	/* get data from daemon */
-	if (hddtemp_query_daemon (buf, sizeof (buf)) < 0)
+	buf = hddtemp_query_daemon ();
+	if (buf == NULL)
 		return (-1);
 
 	/* NB: strtok_r will eat up "||" and leading "|"'s */
-	num_fields = 0;
 	ptr = buf;
 	saveptr = NULL;
-	while ((fields[num_fields] = strtok_r (ptr, "|", &saveptr)) != NULL)
+	while ((name = strtok_r (ptr, "|", &saveptr)) != NULL &&
+	       (model = strtok_r (NULL, "|", &saveptr)) != NULL &&
+	       (temperature = strtok_r (NULL, "|", &saveptr)) != NULL &&
+	       (mode = strtok_r (NULL, "|", &saveptr)) != NULL)
 	{
+		double temperature_value;
+
 		ptr = NULL;
-		num_fields++;
-
-		if (num_fields >= 128)
-			break;
-	}
-
-	num_disks = num_fields / 4;
-
-	for (int i = 0; i < num_disks; i++)
-	{
-		char *name;
-		double temperature;
-		char *mode;
-
-		mode = fields[4*i + 3];
-		name = basename (fields[4*i + 0]);
 
 		/* Skip non-temperature information */
 		if (mode[0] != 'C' && mode[0] != 'F')
 			continue;
 
-		temperature = atof (fields[4*i + 2]);
+		name = basename (name);
+		temperature_value = atof (temperature);
 
 		/* Convert farenheit to celsius */
 		if (mode[0] == 'F')
-			temperature = (temperature - 32.0) * 5.0 / 9.0;
+			temperature_value = (temperature_value - 32.0) * 5.0 / 9.0;
 
-		hddtemp_submit (name, temperature);
+		hddtemp_submit (name, temperature_value);
 	}
 	
+	free (buf);
 	return (0);
 } /* int hddtemp_read */
 

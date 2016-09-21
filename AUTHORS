@@ -72,7 +72,7 @@ Aurélien Reynaud <collectd at wattapower.net>
  - LPAR plugin.
  - Various fixes for AIX, HP-UX and Solaris.
 
-Benjamin Gilbert <bgilbert at cs.cmu.edu>
+Benjamin Gilbert <bgilbert at backtick.net>
  - Improvements to the LVM plugin.
 
 Bert Vermeulen <bert at biot.com>
