@@ -111,7 +111,7 @@ static int checked_lookup_search (lookup_t *obj,
     _Bool expect_new)
 {
   int status;
-  value_list_t vl = VALUE_LIST_STATIC;
+  value_list_t vl = VALUE_LIST_INIT;
   data_set_t const *ds = &ds_unknown;
 
   strncpy (vl.host, host, sizeof (vl.host));

@@ -303,7 +303,7 @@ static char            *send_buffer;
 static char            *send_buffer_ptr;
 static int              send_buffer_fill;
 static cdtime_t         send_buffer_last_update;
-static value_list_t     send_buffer_vl = VALUE_LIST_STATIC;
+static value_list_t     send_buffer_vl = VALUE_LIST_INIT;
 static pthread_mutex_t  send_buffer_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* XXX: These counters are incremented from one place only. The spot in which

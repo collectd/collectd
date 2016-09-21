@@ -110,9 +110,7 @@ struct value_list_s
 };
 typedef struct value_list_s value_list_t;
 
-#define VALUE_LIST_INIT { NULL, 0, 0, plugin_get_interval (), \
-	"localhost", "", "", "", "", NULL }
-#define VALUE_LIST_STATIC { NULL, 0, 0, 0, "localhost", "", "", "", "", NULL }
+#define VALUE_LIST_INIT { .values = NULL, .meta = NULL }
 
 struct data_source_s
 {

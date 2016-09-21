@@ -723,6 +723,9 @@ static value_list_t *plugin_value_list_clone (value_list_t const *vl_orig) /* {{
 		return (NULL);
 	memcpy (vl, vl_orig, sizeof (*vl));
 
+	if (vl->host[0] == 0)
+		sstrncpy (vl->host, hostname_g, sizeof (vl->host));
+
 	vl->values = calloc (vl_orig->values_len, sizeof (*vl->values));
 	if (vl->values == NULL)
 	{
@@ -2083,10 +2086,14 @@ static int plugin_dispatch_values_internal (value_list_t *vl)
 
 	data_set_t *ds;
 
-	int free_meta_data = 0;
+	_Bool free_meta_data = 0;
 
-	assert(vl);
-	assert(vl->plugin);
+	assert (vl != NULL);
+
+	/* These fields are initialized by plugin_value_list_clone() if needed: */
+	assert (vl->host[0] != 0);
+	assert (vl->time != 0); /* The time is determined at _enqueue_ time. */
+	assert (vl->interval != 0);
 
 	if (vl->type[0] == 0 || vl->values == NULL || vl->values_len < 1)
 	{
@@ -2125,11 +2132,6 @@ static int plugin_dispatch_values_internal (value_list_t *vl)
 				vl->type, ident);
 		return (-1);
 	}
-
-	/* Assured by plugin_value_list_clone(). The time is determined at
-	 * _enqueue_ time. */
-	assert (vl->time != 0);
-	assert (vl->interval != 0);
 
 	DEBUG ("plugin_dispatch_values: time = %.3f; interval = %.3f; "
 			"host = %s; "

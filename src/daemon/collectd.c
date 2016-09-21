@@ -101,7 +101,7 @@ static int init_hostname (void)
 	int status;
 
 	str = global_option_get ("Hostname");
-	if (str != NULL)
+	if ((str != NULL) && (str[0] != 0))
 	{
 		sstrncpy (hostname_g, str, sizeof (hostname_g));
 		return (0);
@@ -602,7 +602,7 @@ int main (int argc, char **argv)
 	 * something wrong.
 	 */
 	if (init_global_variables () != 0)
-		return (1);
+		exit (EXIT_FAILURE);
 
 	if (test_config)
 		return (0);
