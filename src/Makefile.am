@@ -390,6 +390,14 @@ dns_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 dns_la_LIBADD = -lpcap
 endif
 
+if BUILD_PLUGIN_DPDKSTAT
+pkglib_LTLIBRARIES += dpdkstat.la
+dpdkstat_la_SOURCES = dpdkstat.c
+dpdkstat_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_DPDK_CFLAGS)
+dpdkstat_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_DPDK_LDFLAGS)
+dpdkstat_la_LIBADD = $(BUILD_WITH_DPDK_LIBS) 
+endif
+
 if BUILD_PLUGIN_DRBD
 pkglib_LTLIBRARIES += drbd.la
 drbd_la_SOURCES = drbd.c

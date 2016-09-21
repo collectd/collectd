@@ -2376,6 +2376,67 @@ Enabled by default, collects unknown (and thus presented as numeric only) query 
 
 =back
 
+=head2 Plugin C<dpdkstat>
+
+The I<dpdkstat plugin> collects information about DPDK interfaces using the
+extended NIC stats API in DPDK.
+
+B<Synopsis:>
+
+ <Plugin "dpdkstat">
+    Coremask "0x4"
+    MemoryChannels "4"
+    ProcessType "secondary"
+    FilePrefix "rte"
+    EnabledPortMask 0xffff
+    PortName "interface1"
+    PortName "interface2"
+ </Plugin>
+
+B<Options:>
+
+=over 4
+
+=item B<Coremask> I<Mask>
+
+A string containing an hexadecimal bit mask of the cores to run on. Note that
+core numbering can change between platforms and should be determined beforehand.
+
+=item B<Memorychannels> I<Channels>
+
+A string containing a number of memory channels per processor socket.
+
+=item B<ProcessType> I<type>
+
+A string containing the type of DPDK process instance.
+
+=item B<FilePrefix> I<File>
+
+The prefix text used for hugepage filenames. The filename will be set to
+/var/run/.<prefix>_config where prefix is what is passed in by the user.
+
+=item B<SocketMemory> I<MB>
+
+A string containing amount of Memory to allocate from hugepages on specific
+sockets in MB
+
+=item B<EnabledPortMask> I<Mask>
+
+A hexidecimal bit mask of the DPDK ports which should be enabled. A mask
+of 0x0 means that all ports will be disabled. A bitmask of all Fs means
+that all ports will be enabled. This is an optional argument - default
+is all ports enabled.
+
+=item B<PortName> I<Name>
+
+A string containing an optional name for the enabled DPDK ports. Each PortName
+option should contain only one port name; specify as many PortName options as
+desired. Default naming convention will be used if PortName is blank. If there
+are less PortName options than there are enabled ports, the default naming
+convention will be used for the additional ports.
+
+=back
+
 =head2 Plugin C<email>
 
 =over 4
