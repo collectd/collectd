@@ -154,6 +154,7 @@
 @LOAD_PLUGIN_NETWORK@LoadPlugin network
 #@BUILD_PLUGIN_NFS_TRUE@LoadPlugin nfs
 #@BUILD_PLUGIN_NGINX_TRUE@LoadPlugin nginx
+#@BUILD_PLUGIN_NGINX_MULTIHOST_TRUE@LoadPlugin nginx_multihost
 #@BUILD_PLUGIN_NOTIFY_DESKTOP_TRUE@LoadPlugin notify_desktop
 #@BUILD_PLUGIN_NOTIFY_EMAIL_TRUE@LoadPlugin notify_email
 #@BUILD_PLUGIN_NOTIFY_NAGIOS_TRUE@LoadPlugin notify_nagios
@@ -878,6 +879,18 @@
 #	User "www-user"
 #	Password "secret"
 #	CACert "/etc/ssl/ca.crt"
+#</Plugin>
+
+#<Plugin nginx_multihost>
+#   <Host hostName1>
+#	    URL "http://localhost/status?auto"
+#	    User "www-user"
+#	    Password "secret"
+#	    CACert "/etc/ssl/ca.crt"
+#   </Host>
+#   <Host hostName2>
+#	    URL "http://localhost:8080/status?auto"
+#   </Host>
 #</Plugin>
 
 #<Plugin notify_desktop>
