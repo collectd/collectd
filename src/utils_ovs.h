@@ -210,4 +210,20 @@ int ovs_db_table_cb_register(ovs_db_t *pdb, const char *tb_name,
  */
 yajl_val ovs_utils_get_value_by_key(yajl_val jval, const char *key);
 
+/*
+ * NAME
+ *   ovs_utils_get_map_value
+ *
+ * DESCRIPTION
+ *   Get OVS DB map value by given map key (rfc7047, "Notation" section).
+ *
+ * PARAMETERS
+ *   `jval'        A 2-element YAJL array that represents a OVS DB map value.
+ *   `key'         OVS DB map key name.
+ *
+ * RETURN VALUE
+ *   YAJL value upon success or NULL if key not found.
+ */
+yajl_val ovs_utils_get_map_value(yajl_val jval, const char *key);
+
 #endif
